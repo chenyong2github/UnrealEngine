@@ -67,57 +67,78 @@ namespace PCGAttributeExtractor
 				[](const VectorType& Value) -> double { return Value.Size(); });
 		}
 
-		FString MatchString;
-		if constexpr (std::is_same_v<FVector2D, VectorType>)
-		{
-			MatchString = TEXT("[XY]{1,4}");
-		}
-		else if constexpr (std::is_same_v<FVector, VectorType>)
-		{
-			MatchString = TEXT("[XYZ]{1,4}");
-		}
-		else
-		{
-			MatchString = TEXT("[XYZW]{1,4}");
-		}
-
 		const FString NameStr = Name.ToString();
+		const int32 NameLen = NameStr.Len();
 
-		const FRegexPattern RegexPattern(MatchString, ERegexPatternFlags::CaseInsensitive);
-		FRegexMatcher RegexMatcher(RegexPattern, *NameStr);
-		if (!RegexMatcher.FindNext())
+		// Name should have at least 1 char and max 4
+		if (NameLen <= 0 || NameLen > 4)
 		{
 			// Failed
 			bOutSuccess = false;
 			return InAccessor;
 		}
 
-		TArray<int32, TInlineAllocator<4>> Indexes;
-		for (const TCHAR Char : NameStr)
+		// We should match only X,Y,Z or W, for the whole name.
+		// We also support R, G, B and A. But we cannot mix both.
+		FString MatchStringXYZW;
+		FString MatchStringRGBA;
+		if constexpr (std::is_same_v<FVector2D, VectorType>)
 		{
-			int32 Index = -1;
+			MatchStringXYZW = FString::Printf(TEXT("[XY]{%d}"), NameLen);
+			MatchStringRGBA = FString::Printf(TEXT("[RG]{%d}"), NameLen);
+		}
+		else if constexpr (std::is_same_v<FVector, VectorType>)
+		{
+			MatchStringXYZW = FString::Printf(TEXT("[XYZ]{%d}"), NameLen);
+			MatchStringRGBA = FString::Printf(TEXT("[RGB]{%d}"), NameLen);
+		}
+		else
+		{
+			MatchStringXYZW = FString::Printf(TEXT("[XYZW]{%d}"), NameLen);
+			MatchStringRGBA = FString::Printf(TEXT("[RGBA]{%d}"), NameLen);
+		}
 
-			if (Char == TEXT('w') || Char == TEXT('W'))
+		const FRegexPattern RegexPatternXYZW(MatchStringXYZW, ERegexPatternFlags::CaseInsensitive);
+		const FRegexPattern RegexPatternRGBA(MatchStringRGBA, ERegexPatternFlags::CaseInsensitive);
+
+		TArray<int32, TInlineAllocator<4>> Indexes;
+
+		FRegexMatcher RegexMatcherXYZW(RegexPatternXYZW, *NameStr);
+		FRegexMatcher RegexMatcherRGBA(RegexPatternRGBA, *NameStr);
+
+		if (RegexMatcherXYZW.FindNext() || RegexMatcherRGBA.FindNext())
+		{
+			for (const TCHAR Char : NameStr)
 			{
-				Index = 3;
-			}
-			else
-			{
-				Index = static_cast<int32>(Char) - static_cast<int32>(TEXT('x'));
-				if (Index < 0)
+				if (Char == 'R' || Char == 'r' || Char == 'X' || Char == 'x')
 				{
-					Index = static_cast<int32>(Char) - static_cast<int32>(TEXT('X'));
+					Indexes.Add(0);
+				}
+				else if (Char == 'G' || Char == 'g' || Char == 'Y' || Char == 'y')
+				{
+					Indexes.Add(1);
+				}
+				else if (Char == 'B' || Char == 'b' || Char == 'Z' || Char == 'z')
+				{
+					Indexes.Add(2);
+				}
+				else if (Char == 'A' || Char == 'a' || Char == 'W' || Char == 'w')
+				{
+					Indexes.Add(3);
+				}
+				else // Safeguard, should be caught by the regex
+				{
+					ensure(false);
+					bOutSuccess = false;
+					return InAccessor;
 				}
 			}
-
-			// Safeguard, should be caught by not matching the regex above
-			if (!ensure(Index >= 0 && Index < 4))
-			{
-				bOutSuccess = false;
-				return InAccessor;
-			}
-
-			Indexes.Add(Index);
+		}
+		else
+		{
+			// Failed
+			bOutSuccess = false;
+			return InAccessor;
 		}
 
 		bOutSuccess = true;
@@ -173,8 +194,75 @@ namespace PCGAttributeExtractor
 				[](FRotator& Value, const double& In) -> void { Value.Yaw = In; });
 		}
 
+		// Read-only
+		if (Name == PCGAttributeExtractorConstants::RotatorForward)
+		{
+			return MakeUnique<FPCGChainAccessor<FVector, FRotator>>(std::move(InAccessor),
+				[](const FRotator& Value) -> FVector { return Value.Quaternion().GetForwardVector(); });
+		}
+
+		if (Name == PCGAttributeExtractorConstants::RotatorRight)
+		{
+			return MakeUnique<FPCGChainAccessor<FVector, FRotator>>(std::move(InAccessor),
+				[](const FRotator& Value) -> FVector { return Value.Quaternion().GetRightVector(); });
+		}
+
+		if (Name == PCGAttributeExtractorConstants::RotatorUp)
+		{
+			return MakeUnique<FPCGChainAccessor<FVector, FRotator>>(std::move(InAccessor),
+				[](const FRotator& Value) -> FVector { return Value.Quaternion().GetUpVector(); });
+		}
+
 		bOutSuccess = false;
 		return InAccessor;
+	}
+
+	TUniquePtr<IPCGAttributeAccessor> CreateQuatExtractor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess)
+	{
+		bOutSuccess = true;
+
+		if (Name == PCGAttributeExtractorConstants::RotatorPitch)
+		{
+			return MakeUnique<FPCGChainAccessor<double, FQuat>>(std::move(InAccessor),
+				[](const FQuat& Value) -> double { return Value.Rotator().Pitch; },
+				[](FQuat& Value, const double& In) -> void { FRotator Temp = Value.Rotator(); Temp.Pitch = In; Value = Temp.Quaternion(); });
+		}
+
+		if (Name == PCGAttributeExtractorConstants::RotatorRoll)
+		{
+			return MakeUnique<FPCGChainAccessor<double, FQuat>>(std::move(InAccessor),
+				[](const FQuat& Value) -> double { return Value.Rotator().Roll; },
+				[](FQuat& Value, const double& In) -> void { FRotator Temp = Value.Rotator(); Temp.Roll = In; Value = Temp.Quaternion(); });
+		}
+
+		if (Name == PCGAttributeExtractorConstants::RotatorYaw)
+		{
+			return MakeUnique<FPCGChainAccessor<double, FQuat>>(std::move(InAccessor),
+				[](const FQuat& Value) -> double { return Value.Rotator().Yaw; },
+				[](FQuat& Value, const double& In) -> void { FRotator Temp = Value.Rotator(); Temp.Yaw = In; Value = Temp.Quaternion(); });
+		}
+
+		// Read-only
+		if (Name == PCGAttributeExtractorConstants::RotatorForward)
+		{
+			return MakeUnique<FPCGChainAccessor<FVector, FQuat>>(std::move(InAccessor),
+				[](const FQuat& Value) -> FVector { return Value.GetForwardVector(); });
+		}
+
+		if (Name == PCGAttributeExtractorConstants::RotatorRight)
+		{
+			return MakeUnique<FPCGChainAccessor<FVector, FQuat>>(std::move(InAccessor),
+				[](const FQuat& Value) -> FVector { return Value.GetRightVector(); });
+		}
+
+		if (Name == PCGAttributeExtractorConstants::RotatorUp)
+		{
+			return MakeUnique<FPCGChainAccessor<FVector, FQuat>>(std::move(InAccessor),
+				[](const FQuat& Value) -> FVector { return Value.GetUpVector(); });
+		}
+
+		// Quat also support vector extractor
+		return CreateVectorExtractor<FQuat>(std::move(InAccessor), Name, bOutSuccess);
 	}
 
 	TUniquePtr<IPCGAttributeAccessor> CreateTransformExtractor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess)

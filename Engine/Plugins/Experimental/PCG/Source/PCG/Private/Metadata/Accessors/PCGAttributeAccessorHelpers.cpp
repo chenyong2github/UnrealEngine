@@ -64,13 +64,17 @@ namespace PCGAttributeAccessorHelpers
 		{
 			using AccessorType = decltype(Dummy);
 
-			if constexpr (PCG::Private::IsOfTypes<AccessorType, FVector2D, FVector, FVector4, FQuat>())
+			if constexpr (PCG::Private::IsOfTypes<AccessorType, FVector2D, FVector, FVector4>())
 			{
 				return PCGAttributeExtractor::CreateVectorExtractor<AccessorType>(std::move(Accessor), Name, bOutSuccess);
 			}
 			if constexpr (PCG::Private::IsOfTypes<AccessorType, FTransform>())
 			{
 				return PCGAttributeExtractor::CreateTransformExtractor(std::move(Accessor), Name, bOutSuccess);
+			}
+			if constexpr (PCG::Private::IsOfTypes<AccessorType, FQuat>())
+			{
+				return PCGAttributeExtractor::CreateQuatExtractor(std::move(Accessor), Name, bOutSuccess);
 			}
 			if constexpr (PCG::Private::IsOfTypes<AccessorType, FRotator>())
 			{

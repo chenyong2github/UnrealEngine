@@ -14,6 +14,10 @@ namespace PCGAttributeExtractorConstants
 	const FName VectorY = TEXT("Y");
 	const FName VectorZ = TEXT("Z");
 	const FName VectorW = TEXT("W");
+	const FName VectorR = TEXT("R");
+	const FName VectorG = TEXT("G");
+	const FName VectorB = TEXT("B");
+	const FName VectorA = TEXT("A");
 	const FName VectorLength = TEXT("Length");
 	const FName VectorSize = TEXT("Size");
 
@@ -23,6 +27,10 @@ namespace PCGAttributeExtractorConstants
 		VectorY,
 		VectorZ,
 		VectorW,
+		VectorR,
+		VectorG,
+		VectorB,
+		VectorA,
 		VectorLength,
 		VectorSize,
 	};
@@ -39,16 +47,22 @@ namespace PCGAttributeExtractorConstants
 		TransformScale
 	};
 
-	// Rotator
+	// Rotator/Quat
 	const FName RotatorPitch = TEXT("Pitch");
 	const FName RotatorYaw = TEXT("Yaw");
 	const FName RotatorRoll = TEXT("Roll");
+	const FName RotatorForward = TEXT("Forward");
+	const FName RotatorRight = TEXT("Right");
+	const FName RotatorUp = TEXT("Up");
 
 	const FName RotatorExtractorNames[] =
 	{
 		RotatorPitch,
 		RotatorYaw,
-		RotatorRoll
+		RotatorRoll,
+		RotatorForward,
+		RotatorRight,
+		RotatorUp
 	};
 }
 
@@ -59,6 +73,7 @@ namespace PCGAttributeExtractor
 	TUniquePtr<IPCGAttributeAccessor> CreateVectorExtractor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess);
 
 	TUniquePtr<IPCGAttributeAccessor> CreateRotatorExtractor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess);
+	TUniquePtr<IPCGAttributeAccessor> CreateQuatExtractor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess);
 
 	TUniquePtr<IPCGAttributeAccessor> CreateTransformExtractor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess);
 }

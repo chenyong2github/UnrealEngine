@@ -44,6 +44,7 @@ namespace FPCGAttributeExtractorTestHelpers
 	}
 }
 
+#define PCG_STRUCT_NAME_CHECK(Name) GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Name)
 
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGAttributeSingleGetPropertyTest, FPCGTestBaseClass, "pcg.tests.Accessor.Property.SimpleGetProperty", PCGTestsCommon::TestFlags)
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGAttributeVectorPropertyExtractorTest, FPCGTestBaseClass, "pcg.tests.Accessor.Property.VectorExtractor", PCGTestsCommon::TestFlags)
@@ -99,21 +100,21 @@ bool FPCGAttributeSingleGetPropertyTest::RunTest(const FString& Parameters)
 
 	bool bTestPassed = true;
 
-	bTestPassed &= Verify(double(Struct.FloatValue), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, FloatValue));
-	bTestPassed &= Verify(Struct.DoubleValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, DoubleValue));
-	bTestPassed &= Verify(int64(Struct.Int32Value), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Int32Value));
-	bTestPassed &= Verify(Struct.IntValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, IntValue));
-	bTestPassed &= Verify(Struct.Vector2Value, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector2Value));
-	bTestPassed &= Verify(Struct.VectorValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, VectorValue));
-	bTestPassed &= Verify(Struct.Vector4Value, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector4Value));
-	bTestPassed &= Verify(Struct.BoolValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, BoolValue));
-	bTestPassed &= Verify(Struct.NameValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, NameValue));
-	bTestPassed &= Verify(Struct.StringValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, StringValue));
-	bTestPassed &= Verify(Struct.RotatorValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, RotatorValue));
-	bTestPassed &= Verify(Struct.QuatValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, QuatValue));
-	bTestPassed &= Verify(Struct.TransformValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue));
-	bTestPassed &= Verify(Struct.SoftClassPathValue.ToString(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, SoftClassPathValue));
-	bTestPassed &= Verify(Struct.SoftObjectPathValue.ToString(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, SoftObjectPathValue));
+	bTestPassed &= Verify(double(Struct.FloatValue), PCG_STRUCT_NAME_CHECK(FloatValue));
+	bTestPassed &= Verify(Struct.DoubleValue, PCG_STRUCT_NAME_CHECK(DoubleValue));
+	bTestPassed &= Verify(int64(Struct.Int32Value), PCG_STRUCT_NAME_CHECK(Int32Value));
+	bTestPassed &= Verify(Struct.IntValue, PCG_STRUCT_NAME_CHECK(IntValue));
+	bTestPassed &= Verify(Struct.Vector2Value, PCG_STRUCT_NAME_CHECK(Vector2Value));
+	bTestPassed &= Verify(Struct.VectorValue, PCG_STRUCT_NAME_CHECK(VectorValue));
+	bTestPassed &= Verify(Struct.Vector4Value, PCG_STRUCT_NAME_CHECK(Vector4Value));
+	bTestPassed &= Verify(Struct.BoolValue, PCG_STRUCT_NAME_CHECK(BoolValue));
+	bTestPassed &= Verify(Struct.NameValue, PCG_STRUCT_NAME_CHECK(NameValue));
+	bTestPassed &= Verify(Struct.StringValue, PCG_STRUCT_NAME_CHECK(StringValue));
+	bTestPassed &= Verify(Struct.RotatorValue, PCG_STRUCT_NAME_CHECK(RotatorValue));
+	bTestPassed &= Verify(Struct.QuatValue, PCG_STRUCT_NAME_CHECK(QuatValue));
+	bTestPassed &= Verify(Struct.TransformValue, PCG_STRUCT_NAME_CHECK(TransformValue));
+	bTestPassed &= Verify(Struct.SoftClassPathValue.ToString(), PCG_STRUCT_NAME_CHECK(SoftClassPathValue));
+	bTestPassed &= Verify(Struct.SoftObjectPathValue.ToString(), PCG_STRUCT_NAME_CHECK(SoftObjectPathValue));
 
 	TempMetadata->MarkAsGarbage();
 
@@ -149,13 +150,13 @@ bool FPCGAttributeVectorPropertyExtractorTest::RunTest(const FString& Parameters
 	bool bTestPassed = true;
 
 	// Vector Lengths
-	bTestPassed &= Verify(Struct.Vector2Value.Length(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector2Value), PCGAttributeExtractorConstants::VectorLength);
-	bTestPassed &= Verify(Struct.VectorValue.Length(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, VectorValue), PCGAttributeExtractorConstants::VectorLength);
-	bTestPassed &= Verify(Struct.Vector4Value.Size(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector4Value), PCGAttributeExtractorConstants::VectorLength);
+	bTestPassed &= Verify(Struct.Vector2Value.Length(), PCG_STRUCT_NAME_CHECK(Vector2Value), PCGAttributeExtractorConstants::VectorLength);
+	bTestPassed &= Verify(Struct.VectorValue.Length(), PCG_STRUCT_NAME_CHECK(VectorValue), PCGAttributeExtractorConstants::VectorLength);
+	bTestPassed &= Verify(Struct.Vector4Value.Size(), PCG_STRUCT_NAME_CHECK(Vector4Value), PCGAttributeExtractorConstants::VectorLength);
 
-	bTestPassed &= Verify(Struct.Vector2Value.Size(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector2Value), PCGAttributeExtractorConstants::VectorSize);
-	bTestPassed &= Verify(Struct.VectorValue.Size(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, VectorValue), PCGAttributeExtractorConstants::VectorSize);
-	bTestPassed &= Verify(Struct.Vector4Value.Size(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector4Value), PCGAttributeExtractorConstants::VectorSize);
+	bTestPassed &= Verify(Struct.Vector2Value.Size(), PCG_STRUCT_NAME_CHECK(Vector2Value), PCGAttributeExtractorConstants::VectorSize);
+	bTestPassed &= Verify(Struct.VectorValue.Size(), PCG_STRUCT_NAME_CHECK(VectorValue), PCGAttributeExtractorConstants::VectorSize);
+	bTestPassed &= Verify(Struct.Vector4Value.Size(), PCG_STRUCT_NAME_CHECK(Vector4Value), PCGAttributeExtractorConstants::VectorSize);
 
 	// Vector2 Composents
 	auto Vec2Composents = [&Verify, &bTestPassed](const auto& Value, const FName PropertyName) -> bool
@@ -163,61 +164,92 @@ bool FPCGAttributeVectorPropertyExtractorTest::RunTest(const FString& Parameters
 		bTestPassed &= Verify(Value.X, PropertyName, FName(TEXT("X")));
 		bTestPassed &= Verify(Value.Y, PropertyName, FName(TEXT("Y")));
 
+		bTestPassed &= Verify(Value.X, PropertyName, FName(TEXT("R")));
+		bTestPassed &= Verify(Value.Y, PropertyName, FName(TEXT("G")));
+
 		bTestPassed &= Verify(FVector2D{ Value.X, Value.Y }, PropertyName, FName(TEXT("XY")));
 		bTestPassed &= Verify(FVector2D{ Value.Y, Value.X }, PropertyName, FName(TEXT("YX")));
 		bTestPassed &= Verify(FVector2D{ Value.Y, Value.Y }, PropertyName, FName(TEXT("YY")));
 
+		bTestPassed &= Verify(FVector2D{ Value.X, Value.Y }, PropertyName, FName(TEXT("RG")));
+		bTestPassed &= Verify(FVector2D{ Value.Y, Value.X }, PropertyName, FName(TEXT("GR")));
+		bTestPassed &= Verify(FVector2D{ Value.Y, Value.Y }, PropertyName, FName(TEXT("GG")));
+
 		return true;
 	};
 
-	Vec2Composents(Struct.Vector2Value, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector2Value));
-	Vec2Composents(Struct.VectorValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, VectorValue));
-	Vec2Composents(Struct.Vector4Value, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector4Value));
-	Vec2Composents(Struct.QuatValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, QuatValue));
+	Vec2Composents(Struct.Vector2Value, PCG_STRUCT_NAME_CHECK(Vector2Value));
+	Vec2Composents(Struct.VectorValue, PCG_STRUCT_NAME_CHECK(VectorValue));
+	Vec2Composents(Struct.Vector4Value, PCG_STRUCT_NAME_CHECK(Vector4Value));
+	Vec2Composents(Struct.QuatValue, PCG_STRUCT_NAME_CHECK(QuatValue));
 
 	// Vector3 Composents
 	auto Vec3Composents = [&Verify, &bTestPassed](const auto& Value, const FName PropertyName) -> bool
 	{
 		bTestPassed &= Verify(Value.Z, PropertyName, FName(TEXT("Z")));
+		bTestPassed &= Verify(Value.Z, PropertyName, FName(TEXT("B")));
 
 		bTestPassed &= Verify(FVector2D{ Value.Z, Value.X }, PropertyName, FName(TEXT("ZX")));
 		bTestPassed &= Verify(FVector2D{ Value.Y, Value.Z }, PropertyName, FName(TEXT("YZ")));
+
+		bTestPassed &= Verify(FVector2D{ Value.Z, Value.X }, PropertyName, FName(TEXT("BR")));
+		bTestPassed &= Verify(FVector2D{ Value.Y, Value.Z }, PropertyName, FName(TEXT("GB")));
 
 		bTestPassed &= Verify(FVector{ Value.Z, Value.X, Value.Y }, PropertyName, FName(TEXT("ZXY")));
 		bTestPassed &= Verify(FVector{ Value.Y, Value.Y, Value.Y }, PropertyName, FName(TEXT("YYY")));
 		bTestPassed &= Verify(FVector{ Value.Y, Value.Y, Value.X }, PropertyName, FName(TEXT("YYX")));
 		bTestPassed &= Verify(FVector{ Value.X, Value.Y, Value.Z }, PropertyName, FName(TEXT("XYZ")));
 
+		bTestPassed &= Verify(FVector{ Value.Z, Value.X, Value.Y }, PropertyName, FName(TEXT("BRG")));
+		bTestPassed &= Verify(FVector{ Value.Y, Value.Y, Value.Y }, PropertyName, FName(TEXT("GGG")));
+		bTestPassed &= Verify(FVector{ Value.Y, Value.Y, Value.X }, PropertyName, FName(TEXT("GGR")));
+		bTestPassed &= Verify(FVector{ Value.X, Value.Y, Value.Z }, PropertyName, FName(TEXT("RGB")));
+
 		return true;
 	};
 
-	Vec3Composents(Struct.VectorValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, VectorValue));
-	Vec3Composents(Struct.Vector4Value, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector4Value));
-	Vec3Composents(Struct.QuatValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, QuatValue));
+	Vec3Composents(Struct.VectorValue, PCG_STRUCT_NAME_CHECK(VectorValue));
+	Vec3Composents(Struct.Vector4Value, PCG_STRUCT_NAME_CHECK(Vector4Value));
+	Vec3Composents(Struct.QuatValue, PCG_STRUCT_NAME_CHECK(QuatValue));
 
 	// Vector4 Composents
 	auto Vec4Composents = [&Verify, &bTestPassed](const auto& Value, const FName PropertyName) -> bool
 	{
 		bTestPassed &= Verify(Value.W, PropertyName, FName(TEXT("W")));
 
+		bTestPassed &= Verify(Value.W, PropertyName, FName(TEXT("A")));
+
 		bTestPassed &= Verify(FVector2D{ Value.Z, Value.W }, PropertyName, FName(TEXT("ZW")));
 		bTestPassed &= Verify(FVector2D{ Value.W, Value.Y }, PropertyName, FName(TEXT("WY")));
+
+		bTestPassed &= Verify(FVector2D{ Value.Z, Value.W }, PropertyName, FName(TEXT("BA")));
+		bTestPassed &= Verify(FVector2D{ Value.W, Value.Y }, PropertyName, FName(TEXT("AG")));
 
 		bTestPassed &= Verify(FVector{ Value.Z, Value.W, Value.Y }, PropertyName, FName(TEXT("ZWY")));
 		bTestPassed &= Verify(FVector{ Value.W, Value.W, Value.W }, PropertyName, FName(TEXT("WWW")));
 		bTestPassed &= Verify(FVector{ Value.Y, Value.W, Value.X }, PropertyName, FName(TEXT("YWX")));
 		bTestPassed &= Verify(FVector{ Value.X, Value.Y, Value.W }, PropertyName, FName(TEXT("XYW")));
 
+		bTestPassed &= Verify(FVector{ Value.Z, Value.W, Value.Y }, PropertyName, FName(TEXT("BAG")));
+		bTestPassed &= Verify(FVector{ Value.W, Value.W, Value.W }, PropertyName, FName(TEXT("AAA")));
+		bTestPassed &= Verify(FVector{ Value.Y, Value.W, Value.X }, PropertyName, FName(TEXT("GAR")));
+		bTestPassed &= Verify(FVector{ Value.X, Value.Y, Value.W }, PropertyName, FName(TEXT("RGA")));
+
 		bTestPassed &= Verify(FVector4{ Value.Z, Value.X, Value.Y, Value.W }, PropertyName, FName(TEXT("ZXYW")));
 		bTestPassed &= Verify(FVector4{ Value.Z, Value.Z, Value.Z, Value.Z }, PropertyName, FName(TEXT("ZZZZ")));
 		bTestPassed &= Verify(FVector4{ Value.X, Value.Y, Value.X, Value.Y }, PropertyName, FName(TEXT("XYXY")));
 		bTestPassed &= Verify(FVector4{ Value.X, Value.Y, Value.Z, Value.W }, PropertyName, FName(TEXT("XYZW")));
 
+		bTestPassed &= Verify(FVector4{ Value.Z, Value.X, Value.Y, Value.W }, PropertyName, FName(TEXT("BRGA")));
+		bTestPassed &= Verify(FVector4{ Value.Z, Value.Z, Value.Z, Value.Z }, PropertyName, FName(TEXT("BBBB")));
+		bTestPassed &= Verify(FVector4{ Value.X, Value.Y, Value.X, Value.Y }, PropertyName, FName(TEXT("RGRG")));
+		bTestPassed &= Verify(FVector4{ Value.X, Value.Y, Value.Z, Value.W }, PropertyName, FName(TEXT("RGBA")));
+
 		return true;
 	};
 
-	Vec4Composents(Struct.Vector4Value, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector4Value));
-	Vec4Composents(Struct.QuatValue, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, QuatValue));
+	Vec4Composents(Struct.Vector4Value, PCG_STRUCT_NAME_CHECK(Vector4Value));
+	Vec4Composents(Struct.QuatValue, PCG_STRUCT_NAME_CHECK(QuatValue));
 
 	return bTestPassed;
 }
@@ -226,8 +258,10 @@ bool FPCGAttributeRotatorPropertyExtractorTest::RunTest(const FString & Paramete
 {
 	FPCGMetadataTypesConstantStruct Struct = FPCGAttributeExtractorTestHelpers::CreateStruct();
 
-	auto Verify = [this, &Struct](double ExpectedValue, const FName PropertyName, const FName ExtractorName) -> bool
+	auto Verify = [this, &Struct](auto ExpectedValue, const FName PropertyName, const FName ExtractorName) -> bool
 	{
+		using ExpectedType = decltype(ExpectedValue);
+
 		TUniquePtr<IPCGAttributeAccessor> Accessor = PCGAttributeAccessorHelpers::CreatePropertyAccessor(PropertyName, FPCGMetadataTypesConstantStruct::StaticStruct());
 		UTEST_TRUE(FString::Printf(TEXT("Valid accessor for property %s"), *PropertyName.ToString()), Accessor.IsValid());
 
@@ -235,12 +269,12 @@ bool FPCGAttributeRotatorPropertyExtractorTest::RunTest(const FString & Paramete
 		TUniquePtr<IPCGAttributeAccessor> ExtractorAccessor = PCGAttributeAccessorHelpers::CreateChainAccessor(std::move(Accessor), ExtractorName, bSuccess);
 		UTEST_TRUE(TEXT("Valid extractor accessor"), (bSuccess && ExtractorAccessor.IsValid()));
 		UTEST_TRUE(TEXT("Invalid accessor (ownership moved)"), !Accessor.IsValid());
-		UTEST_EQUAL(TEXT("Extractror accessor type"), PCG::Private::MetadataTypes<double>::Id, ExtractorAccessor->GetUnderlyingType());
+		UTEST_EQUAL(TEXT("Extractror accessor type"), PCG::Private::MetadataTypes<ExpectedType>::Id, ExtractorAccessor->GetUnderlyingType());
 
 		FPCGAttributeAccessorKeysSingleObjectPtr ObjectKey(&Struct);
 
-		double Value = 1.0;
-		UTEST_TRUE(FString::Printf(TEXT("Getting a value for property %s and extractor %s"), *PropertyName.ToString(), *ExtractorName.ToString()), ExtractorAccessor->Get<double>(Value, ObjectKey));
+		ExpectedType Value{};
+		UTEST_TRUE(FString::Printf(TEXT("Getting a value for property %s and extractor %s"), *PropertyName.ToString(), *ExtractorName.ToString()), ExtractorAccessor->Get<ExpectedType>(Value, ObjectKey));
 		UTEST_EQUAL(FString::Printf(TEXT("Value for property %s and extractor %s is equal to expected"), *PropertyName.ToString(), *ExtractorName.ToString()), Value, ExpectedValue);
 
 		return true;
@@ -248,9 +282,21 @@ bool FPCGAttributeRotatorPropertyExtractorTest::RunTest(const FString & Paramete
 
 	bool bTestPassed = true;
 
-	bTestPassed &= Verify(Struct.RotatorValue.Pitch, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, RotatorValue), PCGAttributeExtractorConstants::RotatorPitch);
-	bTestPassed &= Verify(Struct.RotatorValue.Yaw, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, RotatorValue), PCGAttributeExtractorConstants::RotatorYaw);
-	bTestPassed &= Verify(Struct.RotatorValue.Roll, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, RotatorValue), PCGAttributeExtractorConstants::RotatorRoll);
+	// Rotators
+	bTestPassed &= Verify(Struct.RotatorValue.Pitch, PCG_STRUCT_NAME_CHECK(RotatorValue), PCGAttributeExtractorConstants::RotatorPitch);
+	bTestPassed &= Verify(Struct.RotatorValue.Yaw, PCG_STRUCT_NAME_CHECK(RotatorValue), PCGAttributeExtractorConstants::RotatorYaw);
+	bTestPassed &= Verify(Struct.RotatorValue.Roll, PCG_STRUCT_NAME_CHECK(RotatorValue), PCGAttributeExtractorConstants::RotatorRoll);
+	bTestPassed &= Verify(Struct.RotatorValue.Quaternion().GetForwardVector(), PCG_STRUCT_NAME_CHECK(RotatorValue), PCGAttributeExtractorConstants::RotatorForward);
+	bTestPassed &= Verify(Struct.RotatorValue.Quaternion().GetRightVector(), PCG_STRUCT_NAME_CHECK(RotatorValue), PCGAttributeExtractorConstants::RotatorRight);
+	bTestPassed &= Verify(Struct.RotatorValue.Quaternion().GetUpVector(), PCG_STRUCT_NAME_CHECK(RotatorValue), PCGAttributeExtractorConstants::RotatorUp);
+
+	// Quaternions
+	bTestPassed &= Verify(Struct.QuatValue.Rotator().Pitch, PCG_STRUCT_NAME_CHECK(QuatValue), PCGAttributeExtractorConstants::RotatorPitch);
+	bTestPassed &= Verify(Struct.QuatValue.Rotator().Yaw, PCG_STRUCT_NAME_CHECK(QuatValue), PCGAttributeExtractorConstants::RotatorYaw);
+	bTestPassed &= Verify(Struct.QuatValue.Rotator().Roll, PCG_STRUCT_NAME_CHECK(QuatValue), PCGAttributeExtractorConstants::RotatorRoll);
+	bTestPassed &= Verify(Struct.QuatValue.GetForwardVector(), PCG_STRUCT_NAME_CHECK(QuatValue), PCGAttributeExtractorConstants::RotatorForward);
+	bTestPassed &= Verify(Struct.QuatValue.GetRightVector(), PCG_STRUCT_NAME_CHECK(QuatValue), PCGAttributeExtractorConstants::RotatorRight);
+	bTestPassed &= Verify(Struct.QuatValue.GetUpVector(), PCG_STRUCT_NAME_CHECK(QuatValue), PCGAttributeExtractorConstants::RotatorUp);
 
 	return bTestPassed;
 }
@@ -289,14 +335,14 @@ bool FPCGAttributeTransformPropertyExtractorTest::RunTest(const FString & Parame
 
 	bool bTestPassed = true;
 
-	bTestPassed &= Verify(Struct.TransformValue.GetLocation(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { PCGAttributeExtractorConstants::TransformLocation });
-	bTestPassed &= Verify(Struct.TransformValue.GetRotation(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { PCGAttributeExtractorConstants::TransformRotation });
-	bTestPassed &= Verify(Struct.TransformValue.GetScale3D(), GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { PCGAttributeExtractorConstants::TransformScale });
+	bTestPassed &= Verify(Struct.TransformValue.GetLocation(), PCG_STRUCT_NAME_CHECK(TransformValue), { PCGAttributeExtractorConstants::TransformLocation });
+	bTestPassed &= Verify(Struct.TransformValue.GetRotation(), PCG_STRUCT_NAME_CHECK(TransformValue), { PCGAttributeExtractorConstants::TransformRotation });
+	bTestPassed &= Verify(Struct.TransformValue.GetScale3D(), PCG_STRUCT_NAME_CHECK(TransformValue), { PCGAttributeExtractorConstants::TransformScale });
 
 	// Also testing double chain
-	bTestPassed &= Verify(Struct.TransformValue.GetLocation().X, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { PCGAttributeExtractorConstants::TransformLocation, PCGAttributeExtractorConstants::VectorX });
-	bTestPassed &= Verify(Struct.TransformValue.GetRotation().W, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { PCGAttributeExtractorConstants::TransformRotation, PCGAttributeExtractorConstants::VectorW });
-	bTestPassed &= Verify(Struct.TransformValue.GetScale3D().Y, GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { PCGAttributeExtractorConstants::TransformScale, PCGAttributeExtractorConstants::VectorY });
+	bTestPassed &= Verify(Struct.TransformValue.GetLocation().X, PCG_STRUCT_NAME_CHECK(TransformValue), { PCGAttributeExtractorConstants::TransformLocation, PCGAttributeExtractorConstants::VectorX });
+	bTestPassed &= Verify(Struct.TransformValue.GetRotation().W, PCG_STRUCT_NAME_CHECK(TransformValue), { PCGAttributeExtractorConstants::TransformRotation, PCGAttributeExtractorConstants::VectorW });
+	bTestPassed &= Verify(Struct.TransformValue.GetScale3D().Y, PCG_STRUCT_NAME_CHECK(TransformValue), { PCGAttributeExtractorConstants::TransformScale, PCGAttributeExtractorConstants::VectorY });
 
 	return true;
 }
@@ -334,18 +380,36 @@ bool FPCGAttributeInvalidPropertyExtractorTest::RunTest(const FString& Parameter
 
 	bool bTestPassed = true;
 
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, DoubleValue), { InvalidName });
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector2Value), { InvalidName });
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, VectorValue), { InvalidName });
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, Vector4Value), { InvalidName });
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, QuatValue), { InvalidName });
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, RotatorValue), { InvalidName });
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(DoubleValue), { InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector2Value), { InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(VectorValue), { InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector4Value), { InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(QuatValue), { InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(RotatorValue), { InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(TransformValue), { InvalidName });
+
+	// Special case for Vectors
+	// Invalid letters for this type
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector2Value), { "XYZ" });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector2Value), { "RGB" });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(VectorValue), { "XYZW" });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(VectorValue), { "RGBA" });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector4Value), { "XYZP" });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector4Value), { "RGBT" });
+	// Too long
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector4Value), { "YYYYY" });
+	// Mixing RGBA and XYZW
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector2Value), { "RX" });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(VectorValue), { "BBYA" });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector4Value), { "BYZA" });
+
+	// Yaw will work for quaternions but not vector 4
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(Vector4Value), { "Yaw" });
 
 	// Invalid double chain
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { PCGAttributeExtractorConstants::TransformLocation, InvalidName });
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { PCGAttributeExtractorConstants::TransformRotation, InvalidName });
-	VerifyInvalidChain(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, TransformValue), { PCGAttributeExtractorConstants::TransformScale, InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(TransformValue), { PCGAttributeExtractorConstants::TransformLocation, InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(TransformValue), { PCGAttributeExtractorConstants::TransformRotation, InvalidName });
+	VerifyInvalidChain(PCG_STRUCT_NAME_CHECK(TransformValue), { PCGAttributeExtractorConstants::TransformScale, InvalidName });
 
 	return bTestPassed;
 }
@@ -487,5 +551,7 @@ bool FPCGAttributePropertyMultipleDepthRangeTest::RunTest(const FString& Paramet
 
 	return true;
 }
+
+#undef PCG_STRUCT_NAME_CHECK
 
 #endif // WITH_EDITOR
