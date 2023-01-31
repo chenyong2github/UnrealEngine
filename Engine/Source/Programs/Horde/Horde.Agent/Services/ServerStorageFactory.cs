@@ -18,8 +18,9 @@ namespace Horde.Agent.Services
 		/// Creates a storage client which authenticates using tokens for the current session
 		/// </summary>
 		/// <param name="session">The current session</param>
+		/// <param name="baseUrl">Base URL for writing blobs on the server</param>
 		/// <returns>New logger instance</returns>
-		IStorageClient CreateStorageClient(ISession session);
+		IStorageClient CreateStorageClient(ISession session, string baseUrl);
 	}
 
 	/// <summary>
@@ -40,15 +41,15 @@ namespace Horde.Agent.Services
 		}
 
 		/// <inheritdoc/>
-		public IStorageClient CreateStorageClient(ISession session)
+		public IStorageClient CreateStorageClient(ISession session, string baseUrl)
 		{
-			return new HttpStorageClient(() => CreateHttpClient(session), CreateHttpRedirectClient, _logger);
+			return new HttpStorageClient(() => CreateHttpClient(session, baseUrl), CreateHttpRedirectClient, _logger);
 		}
 
-		HttpClient CreateHttpClient(ISession session)
+		HttpClient CreateHttpClient(ISession session, string baseUrl)
 		{
 			HttpClient httpClient = _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
-			httpClient.BaseAddress = new Uri($"{session.ServerUrl}/api/v1/storage/default");
+			httpClient.BaseAddress = new Uri(session.ServerUrl, baseUrl);
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.Token);
 			return httpClient;
 		}

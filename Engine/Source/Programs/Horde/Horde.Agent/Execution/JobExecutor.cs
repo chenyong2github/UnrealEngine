@@ -45,16 +45,16 @@ namespace Horde.Agent.Execution
 	class JobExecutorOptions
 	{
 		public ISession Session { get; }
-		public IStorageClient Storage { get; }
+		public IServerStorageFactory StorageFactory { get; }
 		public string JobId { get; }
 		public string BatchId { get; }
 		public string AgentType { get; }
 		public JobOptions JobOptions { get; }
 
-		public JobExecutorOptions(ISession session, IStorageClient storage, string jobId, string batchId, string agentType, JobOptions jobOptions)
+		public JobExecutorOptions(ISession session, IServerStorageFactory storageFactory, string jobId, string batchId, string agentType, JobOptions jobOptions)
 		{
 			Session = session;
-			Storage = storage;
+			StorageFactory = storageFactory;
 			JobId = jobId;
 			BatchId = batchId;
 			AgentType = agentType;
@@ -191,7 +191,7 @@ namespace Horde.Agent.Execution
 		protected bool _compileAutomationTool = true;
 
 		protected readonly ISession _session;
-		protected readonly IStorageClient _storage;
+		protected readonly IServerStorageFactory _storageFactory;
 		protected readonly JobOptions _jobOptions;
 
 		protected IRpcConnection RpcConnection => _session.RpcConnection;
@@ -202,7 +202,7 @@ namespace Horde.Agent.Execution
 		public JobExecutor(JobExecutorOptions options, ILogger logger)
 		{
 			_session = options.Session;
-			_storage = options.Storage;
+			_storageFactory = options.StorageFactory;
 
 			_jobId = options.JobId;
 			_batchId = options.BatchId;
@@ -704,7 +704,8 @@ namespace Horde.Agent.Execution
 			DirectoryReference manifestDir = DirectoryReference.Combine(workspaceDir, "Engine", "Saved", "BuildGraph");
 
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions { });
-			TreeReader reader = new TreeReader(_storage, cache, _logger);
+			IStorageClient storage = _storageFactory.CreateStorageClient(_session, $"/api/v1/jobs/{_jobId}/batches/{_batchId}/steps/{step.StepId}/temp");
+			TreeReader reader = new TreeReader(storage, cache, _logger);
 
 			// Create the mapping of tag names to file sets
 			Dictionary<string, HashSet<FileReference>> tagNameToFileSet = new Dictionary<string, HashSet<FileReference>>();
@@ -760,7 +761,7 @@ namespace Horde.Agent.Execution
 			}
 
 			// Run UAT
-			if (await ExecuteAutomationToolAsync(step, workspaceDir, arguments, _storage, logger, cancellationToken) != 0)
+			if (await ExecuteAutomationToolAsync(step, workspaceDir, arguments, storage, logger, cancellationToken) != 0)
 			{
 				return false;
 			}
@@ -867,7 +868,7 @@ namespace Horde.Agent.Execution
 				RefName refName = TempStorage.GetRefNameForNode(RefPrefix, step.Name);
 
 				TreeOptions treeOptions = new TreeOptions();
-				using TreeWriter treeWriter = new TreeWriter(_storage, treeOptions, refName.Text);
+				using TreeWriter treeWriter = new TreeWriter(storage, treeOptions, refName.Text);
 
 				TempStorageNode outputNode = new TempStorageNode();
 

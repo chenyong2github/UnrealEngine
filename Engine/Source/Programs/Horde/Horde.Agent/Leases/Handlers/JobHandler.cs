@@ -38,7 +38,7 @@ namespace Horde.Agent.Leases.Handlers
 
 		readonly IEnumerable<IJobExecutorFactory> _executorFactories;
 		readonly AgentSettings _settings;
-		readonly IServerStorageFactory _storageClientFactory;
+		readonly IServerStorageFactory _serverStorageFactory;
 		readonly IServerLoggerFactory _serverLoggerFactory;
 		readonly ILogger _defaultLogger;
 
@@ -49,7 +49,7 @@ namespace Horde.Agent.Leases.Handlers
 		{
 			_executorFactories = executorFactories;
 			_settings = settings.Value;
-			_storageClientFactory = storageClientFactory;
+			_serverStorageFactory = storageClientFactory;
 			_serverLoggerFactory = serverLoggerFactory;
 			_defaultLogger = defaultLogger;
 		}
@@ -74,8 +74,7 @@ namespace Horde.Agent.Leases.Handlers
 			// Execute the batch
 			try
 			{
-				IStorageClient storage = _storageClientFactory.CreateStorageClient(session);
-				JobExecutorOptions options = new JobExecutorOptions(session, storage, executeTask.JobId, executeTask.BatchId, batch.AgentType, jobOptions);
+				JobExecutorOptions options = new JobExecutorOptions(session, _serverStorageFactory, executeTask.JobId, executeTask.BatchId, batch.AgentType, jobOptions);
 				await ExecuteBatchAsync(session, leaseId, executeTask.Workspace, executeTask.AutoSdkWorkspace, options, logger, cancellationToken);
 			}
 			catch (Exception ex)
