@@ -14,6 +14,7 @@
 #include "Editor.h"
 #include "SparseVolumeTextureOpenVDBUtility.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
+#include "OpenVDBImportOptions.h"
 
 #define LOCTEXT_NAMESPACE "SOpenVDBImportWindow"
 
@@ -27,16 +28,16 @@ static FText GetGridComboBoxItemText(TSharedPtr<FOpenVDBGridComponentInfo> InIte
 	return InItem ? FText::FromString(InItem->DisplayString) : LOCTEXT("NoneGrid", "<None>");
 };
 
-static FText GetFormatComboBoxItemText(TSharedPtr<ESparseVolumePackedDataFormat> InItem)
+static FText GetFormatComboBoxItemText(TSharedPtr<ESparseVolumeAttributesFormat> InItem)
 {
 	const TCHAR* FormatStr = TEXT("<None>");
 	if (InItem)
 	{
 		switch (*InItem)
 		{
-		case ESparseVolumePackedDataFormat::Unorm8: FormatStr = TEXT("8bit unorm"); break;
-		case ESparseVolumePackedDataFormat::Float16: FormatStr = TEXT("16bit float"); break;
-		case ESparseVolumePackedDataFormat::Float32: FormatStr = TEXT("32bit float"); break;
+		case ESparseVolumeAttributesFormat::Unorm8: FormatStr = TEXT("8bit unorm"); break;
+		case ESparseVolumeAttributesFormat::Float16: FormatStr = TEXT("16bit float"); break;
+		case ESparseVolumeAttributesFormat::Float32: FormatStr = TEXT("32bit float"); break;
 		}
 	}
 	return FText::FromString(FormatStr);
@@ -44,10 +45,8 @@ static FText GetFormatComboBoxItemText(TSharedPtr<ESparseVolumePackedDataFormat>
 
 void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 {
-	PackedDataA = InArgs._PackedDataA;
-	PackedDataB = InArgs._PackedDataB;
-	DefaultAssignmentA = *PackedDataA;
-	DefaultAssignmentB = *PackedDataB;
+	ImportOptions = InArgs._ImportOptions;
+	DefaultImportOptions = InArgs._DefaultImportOptions;
 	bIsSequence = InArgs._NumFoundFiles > 1;
 	OpenVDBGridInfo = InArgs._OpenVDBGridInfo;
 	OpenVDBGridComponentInfo = InArgs._OpenVDBGridComponentInfo;
@@ -169,21 +168,21 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		.Padding(2)
 		[
-			SAssignNew(PackedDataAConfigurator, SOpenVDBPackedDataConfigurator)
-			.PackedData(PackedDataA)
+			SAssignNew(AttributesAConfigurator, SOpenVDBAttributesConfigurator)
+			.AttributesDesc(&ImportOptions->Attributes[0])
 			.OpenVDBGridComponentInfo(OpenVDBGridComponentInfo)
 			.OpenVDBSupportedTargetFormats(OpenVDBSupportedTargetFormats)
-			.PackedDataName(LOCTEXT("OpenVDBImportWindow_PackedDataA", "Packed Data A"))
+			.AttributesName(LOCTEXT("OpenVDBImportWindow_AttributesA", "Attributes A"))
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(2)
 		[
-			SAssignNew(PackedDataBConfigurator, SOpenVDBPackedDataConfigurator)
-			.PackedData(PackedDataB)
+			SAssignNew(AttributesBConfigurator, SOpenVDBAttributesConfigurator)
+			.AttributesDesc(&ImportOptions->Attributes[1])
 			.OpenVDBGridComponentInfo(OpenVDBGridComponentInfo)
 			.OpenVDBSupportedTargetFormats(OpenVDBSupportedTargetFormats)
-			.PackedDataName(LOCTEXT("OpenVDBImportWindow_PackedDataB", "Packed Data B"))
+			.AttributesName(LOCTEXT("OpenVDBImportWindow_AttributesB", "Attributes B"))
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
@@ -304,18 +303,14 @@ TSharedRef<ITableRow> SOpenVDBImportWindow::GenerateGridInfoItemRow(TSharedPtr<F
 
 bool SOpenVDBImportWindow::CanImport() const
 {
-	const FUintVector4& GridIndicesA = PackedDataA->SourceGridIndex;
-	const FUintVector4& ComponentIndicesA = PackedDataA->SourceComponentIndex;
-	const FUintVector4& GridIndicesB = PackedDataB->SourceGridIndex;
-	const FUintVector4& ComponentIndicesB = PackedDataB->SourceComponentIndex;
-
-	for (uint32 i = 0; i < 4; ++i)
+	for (const FOpenVDBSparseVolumeAttributesDesc& AttributesDesc : ImportOptions->Attributes)
 	{
-		const bool bGridAValid = GridIndicesA[i] != INDEX_NONE && ComponentIndicesA[i] != INDEX_NONE;
-		const bool bGridBValid = GridIndicesB[i] != INDEX_NONE && ComponentIndicesB[i] != INDEX_NONE;
-		if (bGridAValid || bGridBValid)
+		for (const FOpenVDBSparseVolumeComponentMapping& Mapping : AttributesDesc.Mappings)
 		{
-			return true;
+			if (Mapping.SourceGridIndex != INDEX_NONE && Mapping.SourceComponentIndex != INDEX_NONE)
+			{
+				return true;
+			}
 		}
 	}
 	return false;
@@ -336,17 +331,16 @@ void SOpenVDBImportWindow::SetDefaultGridAssignment()
 {
 	check(OpenVDBGridComponentInfo);
 
-	*PackedDataA = DefaultAssignmentA;
-	*PackedDataB = DefaultAssignmentB;
+	*ImportOptions = *DefaultImportOptions;
 
 	ImportAsSequenceCheckBox->SetIsChecked(bIsSequence ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
-	PackedDataAConfigurator->RefreshUIFromData();
-	PackedDataBConfigurator->RefreshUIFromData();
+	AttributesAConfigurator->RefreshUIFromData();
+	AttributesBConfigurator->RefreshUIFromData();
 }
 
 void SOpenVDBComponentPicker::Construct(const FArguments& InArgs)
 {
-	PackedData = InArgs._PackedData;
+	AttributesDesc = InArgs._AttributesDesc;
 	ComponentIndex = InArgs._ComponentIndex;
 	OpenVDBGridComponentInfo = InArgs._OpenVDBGridComponentInfo;
 	
@@ -383,16 +377,8 @@ void SOpenVDBComponentPicker::Construct(const FArguments& InArgs)
 					})
 					.OnSelectionChanged_Lambda([this](TSharedPtr<FOpenVDBGridComponentInfo> InItem, ESelectInfo::Type)
 					{
-						if (InItem)
-						{
-							PackedData->SourceGridIndex[ComponentIndex] = InItem->Index;
-							PackedData->SourceComponentIndex[ComponentIndex] = InItem->ComponentIndex;
-						}
-						else
-						{
-							PackedData->SourceGridIndex[ComponentIndex] = INDEX_NONE;
-							PackedData->SourceComponentIndex[ComponentIndex] = INDEX_NONE;
-						}
+						AttributesDesc->Mappings[ComponentIndex].SourceGridIndex = InItem ? InItem->Index : INDEX_NONE;
+						AttributesDesc->Mappings[ComponentIndex].SourceComponentIndex = InItem ? InItem->ComponentIndex : INDEX_NONE;
 					})
 					[
 						SNew(STextBlock)
@@ -410,7 +396,7 @@ void SOpenVDBComponentPicker::RefreshUIFromData()
 {
 	for (const TSharedPtr<FOpenVDBGridComponentInfo>& Grid : *OpenVDBGridComponentInfo)
 	{
-		if (Grid->Index == PackedData->SourceGridIndex[ComponentIndex] && Grid->ComponentIndex == PackedData->SourceComponentIndex[ComponentIndex])
+		if (Grid->Index == AttributesDesc->Mappings[ComponentIndex].SourceGridIndex && Grid->ComponentIndex == AttributesDesc->Mappings[ComponentIndex].SourceComponentIndex)
 		{
 			GridComboBox->SetSelectedItem(Grid);
 			break;
@@ -418,16 +404,16 @@ void SOpenVDBComponentPicker::RefreshUIFromData()
 	}
 }
 
-void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
+void SOpenVDBAttributesConfigurator::Construct(const FArguments& InArgs)
 {
-	PackedData = InArgs._PackedData;
+	AttributesDesc = InArgs._AttributesDesc;
 	OpenVDBSupportedTargetFormats = InArgs._OpenVDBSupportedTargetFormats;
 
 	for (uint32 ComponentIndex = 0; ComponentIndex < 4; ++ComponentIndex)
 	{
 		ComponentPickers[ComponentIndex] =
 			SNew(SOpenVDBComponentPicker)
-			.PackedData(PackedData)
+			.AttributesDesc(AttributesDesc)
 			.ComponentIndex(ComponentIndex)
 			.OpenVDBGridComponentInfo(InArgs._OpenVDBGridComponentInfo);
 	}
@@ -448,7 +434,7 @@ void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
 				.Padding(2.0f)
 				[
 					SNew(STextBlock)
-					.Text(InArgs._PackedDataName)
+					.Text(InArgs._AttributesName)
 				]
 
 				+ SHorizontalBox::Slot()
@@ -459,16 +445,16 @@ void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
 					SNew(SBox)
 					.WidthOverride(50.0f)
 					[
-						SAssignNew(FormatComboBox, SComboBox<TSharedPtr<ESparseVolumePackedDataFormat>>)
+						SAssignNew(FormatComboBox, SComboBox<TSharedPtr<ESparseVolumeAttributesFormat>>)
 						.OptionsSource(OpenVDBSupportedTargetFormats)
-						.OnGenerateWidget_Lambda([](TSharedPtr<ESparseVolumePackedDataFormat> InItem)
+						.OnGenerateWidget_Lambda([](TSharedPtr<ESparseVolumeAttributesFormat> InItem)
 						{
 							return SNew(STextBlock)
 							.Text(GetFormatComboBoxItemText(InItem));
 						})
-						.OnSelectionChanged_Lambda([this](TSharedPtr<ESparseVolumePackedDataFormat> InItem, ESelectInfo::Type)
+						.OnSelectionChanged_Lambda([this](TSharedPtr<ESparseVolumeAttributesFormat> InItem, ESelectInfo::Type)
 						{
-							PackedData->Format = InItem ? *InItem : ESparseVolumePackedDataFormat::Float32;
+							AttributesDesc->Format = InItem ? *InItem : ESparseVolumeAttributesFormat::Float32;
 						})
 						[
 							SNew(STextBlock)
@@ -489,7 +475,7 @@ void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
 					.Text(LOCTEXT("UnormRemapCheckBoxLabel", "Unorm Remap"))
 					.IsEnabled_Lambda([this]()
 					{
-						return PackedData->Format == ESparseVolumePackedDataFormat::Unorm8;
+						return AttributesDesc->Format == ESparseVolumeAttributesFormat::Unorm8;
 					})
 				]
 				+ SHorizontalBox::Slot()
@@ -501,11 +487,11 @@ void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
 					SAssignNew(RemapUnormCheckBox, SCheckBox)
 					.OnCheckStateChanged_Lambda([this](ECheckBoxState CheckBoxState)
 					{
-						PackedData->bRemapInputForUnorm = CheckBoxState == ECheckBoxState::Checked;
+						AttributesDesc->bRemapInputForUnorm = CheckBoxState == ECheckBoxState::Checked;
 					})
 					.IsEnabled_Lambda([this]()
 					{
-						return PackedData->Format == ESparseVolumePackedDataFormat::Unorm8;
+						return AttributesDesc->Format == ESparseVolumeAttributesFormat::Unorm8;
 					})
 					.ToolTipText(LOCTEXT("UnormRemapCheckBoxTooltip", "Remaps input values for unorm formats into the [0-1] range instead of clamping values outside this range."))
 					.IsChecked(false)
@@ -550,11 +536,11 @@ void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
 		];
 }
 
-void SOpenVDBPackedDataConfigurator::RefreshUIFromData()
+void SOpenVDBAttributesConfigurator::RefreshUIFromData()
 {
 	for (auto& Format : *OpenVDBSupportedTargetFormats)
 	{
-		if (*Format == PackedData->Format)
+		if (*Format == AttributesDesc->Format)
 		{
 			FormatComboBox->SetSelectedItem(Format);
 			break;
@@ -564,7 +550,7 @@ void SOpenVDBPackedDataConfigurator::RefreshUIFromData()
 	{
 		ComponentPickers[i]->RefreshUIFromData();
 	}
-	RemapUnormCheckBox->SetIsChecked(PackedData->bRemapInputForUnorm);
+	RemapUnormCheckBox->SetIsChecked(AttributesDesc->bRemapInputForUnorm);
 }
 
 void SOpenVDBGridInfoTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView)

@@ -3,8 +3,6 @@
 #include "SparseVolumeTextureModule.h"
 
 #include "SparseVolumeTextureOpenVDB.h"
-#include "SparseVolumeTexture/SparseVolumeTexture.h"
-#include "SparseVolumeTextureOpenVDBUtility.h"
 
 #define LOCTEXT_NAMESPACE "SparseVolumeTextureModule"
 
@@ -20,14 +18,10 @@ void FSparseVolumeTextureModule::StartupModule()
 	// Global registration of  the vdb types.
 	openvdb::initialize();
 #endif
-
-	// USparseVolumeTexture needs to access (only) this function for cooking.
-	OnConvertOpenVDBToSparseVolumeTexture().BindStatic(ConvertOpenVDBToSparseVolumeTexture);
 }
 
 void FSparseVolumeTextureModule::ShutdownModule()
 {
-	OnConvertOpenVDBToSparseVolumeTexture().Unbind();
 }
 
 #undef LOCTEXT_NAMESPACE

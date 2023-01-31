@@ -26,13 +26,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTexture, Log, All);
 
-FConvertOpenVDBToSparseVolumeTextureDelegate ConvertOpenVDBToSparseVolumeTextureDelegate;
-
-FConvertOpenVDBToSparseVolumeTextureDelegate& OnConvertOpenVDBToSparseVolumeTexture()
-{
-	return ConvertOpenVDBToSparseVolumeTextureDelegate;
-}
-
 namespace UE
 {
 namespace SVT
@@ -54,27 +47,19 @@ namespace Private
 } // SVT
 } // UE
 
-FArchive& operator<<(FArchive& Ar, FSparseVolumeRawSourcePackedData& PackedData)
-{
-	UE::SVT::Private::SerializeEnumAs<uint8>(Ar, PackedData.Format);
-	Ar << PackedData.SourceGridIndex;
-	Ar << PackedData.SourceComponentIndex;
-	Ar << PackedData.bRemapInputForUnorm;
-
-	return Ar;
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FSparseVolumeRawSource::Serialize(FArchive& Ar)
 {
+	Header.Serialize(Ar);
+
 	Ar << Version;
 
 	if (Version == 0)
 	{
-		Ar << PackedDataA;
-		Ar << PackedDataB;
-		Ar << SourceAssetFile;
+		Ar << PageTable;
+		Ar << PhysicalTileDataA;
+		Ar << PhysicalTileDataB;
 	}
 	else
 	{
@@ -95,8 +80,8 @@ void FSparseVolumeAssetHeader::Serialize(FArchive& Ar)
 		Ar << TileDataVolumeResolution;
 		Ar << SourceVolumeResolution;
 		Ar << SourceVolumeAABBMin;
-		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, PackedDataAFormat);
-		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, PackedDataBFormat);
+		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, AttributesAFormat);
+		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, AttributesBFormat);
 	}
 	else
 	{
@@ -175,8 +160,8 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 	// Tile data
 	{
 		FIntVector3 TileDataVolumeResolution = SparseVolumeTextureRuntime->Header.TileDataVolumeResolution;
-		EPixelFormat VoxelFormatA = SparseVolumeTextureRuntime->Header.PackedDataAFormat;
-		EPixelFormat VoxelFormatB = SparseVolumeTextureRuntime->Header.PackedDataBFormat;
+		EPixelFormat VoxelFormatA = SparseVolumeTextureRuntime->Header.AttributesAFormat;
+		EPixelFormat VoxelFormatB = SparseVolumeTextureRuntime->Header.AttributesBFormat;
 		const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, TileDataVolumeResolution.X, TileDataVolumeResolution.Y, TileDataVolumeResolution.Z);
 
 		// A
@@ -240,26 +225,11 @@ bool FSparseVolumeTextureFrame::BuildRuntimeData()
 		FSparseVolumeRawSource SparseVolumeRawSource;
 		SparseVolumeRawSource.Serialize(RawDataArchiveReader);
 
-		// Then, convert the raw source data (OpenVDB) to SVT
-		FOpenVDBToSVTConversionResult SVTResult;
-		SVTResult.Header = &SparseVolumeTextureRuntime.Header;
-		SVTResult.PageTable = &SparseVolumeTextureRuntime.PageTable;
-		SVTResult.PhysicalTileDataA = &SparseVolumeTextureRuntime.PhysicalTileDataA;
-		SVTResult.PhysicalTileDataB = &SparseVolumeTextureRuntime.PhysicalTileDataB;
-
-		const bool bSuccess = ConvertOpenVDBToSparseVolumeTextureDelegate.IsBound() && ConvertOpenVDBToSparseVolumeTextureDelegate.Execute(
-			SparseVolumeRawSource.SourceAssetFile,
-			SparseVolumeRawSource.PackedDataA,
-			SparseVolumeRawSource.PackedDataB,
-			&SVTResult,
-			false, FVector::Zero(), FVector::Zero());
-		
-		if (!bSuccess)
-		{
-			// Clear any writes that may have happened to this data during the cook attempt
-			SparseVolumeTextureRuntime = {};
-			return false;
-		}
+		// Then, convert the raw source data to SVT
+		SparseVolumeTextureRuntime.Header = SparseVolumeRawSource.Header;
+		SparseVolumeTextureRuntime.PageTable = MoveTemp(SparseVolumeRawSource.PageTable);
+		SparseVolumeTextureRuntime.PhysicalTileDataA = MoveTemp(SparseVolumeRawSource.PhysicalTileDataA);
+		SparseVolumeTextureRuntime.PhysicalTileDataB = MoveTemp(SparseVolumeRawSource.PhysicalTileDataB);
 
 		// Now unload the raw data
 		RawData.UnloadData();

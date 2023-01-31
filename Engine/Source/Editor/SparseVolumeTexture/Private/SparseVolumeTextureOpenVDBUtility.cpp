@@ -6,6 +6,7 @@
 #include "SparseVolumeTextureOpenVDB.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
 #include "OpenVDBGridAdapter.h"
+#include "OpenVDBImportOptions.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTextureOpenVDBUtility, Log, All);
 
@@ -157,11 +158,11 @@ bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, bool bCreateStrings, TArray<F
 	return false;
 }
 
-static EPixelFormat GetMultiComponentFormat(ESparseVolumePackedDataFormat Format, uint32 NumComponents)
+static EPixelFormat GetMultiComponentFormat(ESparseVolumeAttributesFormat Format, uint32 NumComponents)
 {
 	switch (Format)
 	{
-	case ESparseVolumePackedDataFormat::Unorm8:
+	case ESparseVolumeAttributesFormat::Unorm8:
 	{
 		switch (NumComponents)
 		{
@@ -172,7 +173,7 @@ static EPixelFormat GetMultiComponentFormat(ESparseVolumePackedDataFormat Format
 		}
 		break;
 	}
-	case ESparseVolumePackedDataFormat::Float16:
+	case ESparseVolumeAttributesFormat::Float16:
 	{
 		switch (NumComponents)
 		{
@@ -183,7 +184,7 @@ static EPixelFormat GetMultiComponentFormat(ESparseVolumePackedDataFormat Format
 		}
 		break;
 	}
-	case ESparseVolumePackedDataFormat::Float32:
+	case ESparseVolumeAttributesFormat::Float32:
 	{
 		switch (NumComponents)
 		{
@@ -218,8 +219,7 @@ static FIntVector3 UnpackPageTableEntry(uint32 Packed)
 
 bool ConvertOpenVDBToSparseVolumeTexture(
 	TArray<uint8>& SourceFile,
-	FSparseVolumeRawSourcePackedData& PackedDataA,
-	FSparseVolumeRawSourcePackedData& PackedDataB,
+	FOpenVDBImportOptions& ImportOptions,
 	FOpenVDBToSVTConversionResult* OutResult,
 	bool bOverrideActiveMinMax,
 	FVector ActiveMin,
@@ -227,46 +227,46 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 {
 #if OPENVDB_AVAILABLE
 
-	constexpr uint32 NumPackedData = 2; // PackedDataA and PackedDataB, representing the two textures with voxel data
-	FSparseVolumeRawSourcePackedData* PackedData[NumPackedData] = { &PackedDataA, &PackedDataB };
+	constexpr uint32 NumAttributesDescs = 2; // AttributesA and AttributesB, representing the two textures with voxel data
+	TStaticArray<FOpenVDBSparseVolumeAttributesDesc, 2>& Attributes = ImportOptions.Attributes;
 
 	// Compute some basic info about the number of components and which format to use
-	uint32 NumActualComponents[NumPackedData] = {};
-	EPixelFormat MultiCompFormat[NumPackedData] = {};
-	uint32 FormatSize[NumPackedData] = {};
-	uint32 SingleComponentFormatSize[NumPackedData] = {};
-	bool bNormalizedFormat[NumPackedData] = {};
-	bool bHasValidSourceGrids[NumPackedData] = {};
+	uint32 NumActualComponents[NumAttributesDescs] = {};
+	EPixelFormat MultiCompFormat[NumAttributesDescs] = {};
+	uint32 FormatSize[NumAttributesDescs] = {};
+	uint32 SingleComponentFormatSize[NumAttributesDescs] = {};
+	bool bNormalizedFormat[NumAttributesDescs] = {};
+	bool bHasValidSourceGrids[NumAttributesDescs] = {};
 	bool bAnySourceGridIndicesValid = false;
 
-	for (uint32 PackedDataIdx = 0; PackedDataIdx < NumPackedData; ++PackedDataIdx)
+	for (uint32 AttributesIdx = 0; AttributesIdx < NumAttributesDescs; ++AttributesIdx)
 	{
 		uint32 NumRequiredComponents = 0;
 		for (uint32 ComponentIdx = 0; ComponentIdx < 4; ++ComponentIdx)
 		{
-			if (PackedData[PackedDataIdx]->SourceGridIndex[ComponentIdx] != INDEX_NONE)
+			if (Attributes[AttributesIdx].Mappings[ComponentIdx].SourceGridIndex != INDEX_NONE)
 			{
-				check(PackedData[PackedDataIdx]->SourceComponentIndex[ComponentIdx] != INDEX_NONE);
+				check(Attributes[AttributesIdx].Mappings[ComponentIdx].SourceComponentIndex != INDEX_NONE);
 				NumRequiredComponents = FMath::Max(ComponentIdx + 1, NumRequiredComponents);
-				bHasValidSourceGrids[PackedDataIdx] = true;
+				bHasValidSourceGrids[AttributesIdx] = true;
 				bAnySourceGridIndicesValid = true;
 			}
 		}
 
-		if (bHasValidSourceGrids[PackedDataIdx])
+		if (bHasValidSourceGrids[AttributesIdx])
 		{
-			NumActualComponents[PackedDataIdx] = NumRequiredComponents == 3 ? 4 : NumRequiredComponents; // We don't support formats with only 3 components
-			bNormalizedFormat[PackedDataIdx] = PackedData[PackedDataIdx]->Format == ESparseVolumePackedDataFormat::Unorm8;
-			MultiCompFormat[PackedDataIdx] = GetMultiComponentFormat(PackedData[PackedDataIdx]->Format, NumActualComponents[PackedDataIdx]);
+			NumActualComponents[AttributesIdx] = NumRequiredComponents == 3 ? 4 : NumRequiredComponents; // We don't support formats with only 3 components
+			bNormalizedFormat[AttributesIdx] = Attributes[AttributesIdx].Format == ESparseVolumeAttributesFormat::Unorm8;
+			MultiCompFormat[AttributesIdx] = GetMultiComponentFormat(Attributes[AttributesIdx].Format, NumActualComponents[AttributesIdx]);
 
-			if (MultiCompFormat[PackedDataIdx] == PF_Unknown)
+			if (MultiCompFormat[AttributesIdx] == PF_Unknown)
 			{
-				UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("SparseVolumeTexture is set to use an unsupported format: %i"), (int32)PackedData[PackedDataIdx]->Format);
+				UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("SparseVolumeTexture is set to use an unsupported format: %i"), (int32)Attributes[AttributesIdx].Format);
 				return false;
 			}
 
-			FormatSize[PackedDataIdx] = (uint32)GPixelFormats[(SIZE_T)MultiCompFormat[PackedDataIdx]].BlockBytes;
-			SingleComponentFormatSize[PackedDataIdx] = FormatSize[PackedDataIdx] / NumActualComponents[PackedDataIdx];
+			FormatSize[AttributesIdx] = (uint32)GPixelFormats[(SIZE_T)MultiCompFormat[AttributesIdx]].BlockBytes;
+			SingleComponentFormatSize[AttributesIdx] = FormatSize[AttributesIdx] / NumActualComponents[AttributesIdx];
 		}
 	}
 
@@ -285,22 +285,22 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 	// Check that the source grid indices are valid
 	openvdb::GridPtrVecPtr Grids = Stream.getGrids();
 	const size_t NumSourceGrids = Grids ? Grids->size() : 0;
-	for (uint32 PackedDataIdx = 0; PackedDataIdx < NumPackedData; ++PackedDataIdx)
+	for (const FOpenVDBSparseVolumeAttributesDesc& AttributesDesc : ImportOptions.Attributes)
 	{
-		for (uint32 CompIdx = 0; CompIdx < 4; ++CompIdx)
+		for (const FOpenVDBSparseVolumeComponentMapping& Mapping : AttributesDesc.Mappings)
 		{
-			const uint32 SourceGridIndex = PackedData[PackedDataIdx]->SourceGridIndex[CompIdx];
-			if (SourceGridIndex != INDEX_NONE && SourceGridIndex >= NumSourceGrids)
+			const int32 SourceGridIndex = Mapping.SourceGridIndex;
+			if (SourceGridIndex != INDEX_NONE && SourceGridIndex >= (int32)NumSourceGrids)
 			{
-				UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("SparseVolumeTexture has invalid index into the array of grids in the source file: %i"), (int32)SourceGridIndex);
+				UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("SparseVolumeTexture has invalid index into the array of grids in the source file: %i"), SourceGridIndex);
 				return false;
 			}
 		}
 	}
 
 	FSparseVolumeAssetHeader& Header = *OutResult->Header;
-	Header.PackedDataAFormat = MultiCompFormat[0];
-	Header.PackedDataBFormat = MultiCompFormat[1];
+	Header.AttributesAFormat = MultiCompFormat[0];
+	Header.AttributesBFormat = MultiCompFormat[1];
 	Header.SourceVolumeResolution = FIntVector::ZeroValue;
 	
 	FIntVector SmallestAABBMin = FIntVector(INT32_MAX);
@@ -308,17 +308,17 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 	// Compute per source grid data of up to 4 different grids (one per component)
 	TArray<TSharedPtr<IOpenVDBGridAdapterBase>> UniqueGridAdapters;
 	UniqueGridAdapters.SetNum((int32)NumSourceGrids);
-	TSharedPtr<IOpenVDBGridAdapterBase> GridAdapters[NumPackedData][4]{};
-	float GridBackgroundValues[NumPackedData][4]{};
-	float NormalizeScale[NumPackedData][4]{};
-	float NormalizeBias[NumPackedData][4]{};
-	for (uint32 PackedDataIdx = 0; PackedDataIdx < NumPackedData; ++PackedDataIdx)
+	TSharedPtr<IOpenVDBGridAdapterBase> GridAdapters[NumAttributesDescs][4]{};
+	float GridBackgroundValues[NumAttributesDescs][4]{};
+	float NormalizeScale[NumAttributesDescs][4]{};
+	float NormalizeBias[NumAttributesDescs][4]{};
+	for (uint32 AttributesIdx = 0; AttributesIdx < NumAttributesDescs; ++AttributesIdx)
 	{
 		for (uint32 CompIdx = 0; CompIdx < 4; ++CompIdx)
 		{
-			NormalizeScale[PackedDataIdx][CompIdx] = 1.0f;
-			const uint32 SourceGridIndex = PackedData[PackedDataIdx]->SourceGridIndex[CompIdx];
-			const uint32 SourceComponentIndex = PackedData[PackedDataIdx]->SourceComponentIndex[CompIdx];
+			NormalizeScale[AttributesIdx][CompIdx] = 1.0f;
+			const uint32 SourceGridIndex = Attributes[AttributesIdx].Mappings[CompIdx].SourceGridIndex;
+			const uint32 SourceComponentIndex = Attributes[AttributesIdx].Mappings[CompIdx].SourceComponentIndex;
 			if (SourceGridIndex == INDEX_NONE)
 			{
 				continue;
@@ -337,7 +337,7 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 				}
 			}
 
-			GridAdapters[PackedDataIdx][CompIdx] = UniqueGridAdapters[SourceGridIndex];
+			GridAdapters[AttributesIdx][CompIdx] = UniqueGridAdapters[SourceGridIndex];
 
 			FOpenVDBGridInfo GridInfo = GetOpenVDBGridInfo(GridBase, 0, false);
 			if (!IsOpenVDBGridValid(GridInfo, TEXT("")))
@@ -359,15 +359,15 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 			SmallestAABBMin.Y = FMath::Min(SmallestAABBMin.Y, GridInfo.VolumeActiveAABBMin.Y);
 			SmallestAABBMin.Z = FMath::Min(SmallestAABBMin.Z, GridInfo.VolumeActiveAABBMin.Z);
 
-			GridBackgroundValues[PackedDataIdx][CompIdx] = GridAdapters[PackedDataIdx][CompIdx]->GetBackgroundValue(SourceComponentIndex);
-			if (bNormalizedFormat[PackedDataIdx] && PackedData[PackedDataIdx]->bRemapInputForUnorm)
+			GridBackgroundValues[AttributesIdx][CompIdx] = GridAdapters[AttributesIdx][CompIdx]->GetBackgroundValue(SourceComponentIndex);
+			if (bNormalizedFormat[AttributesIdx] && Attributes[AttributesIdx].bRemapInputForUnorm)
 			{
 				float MinVal = 0.0f;
 				float MaxVal = 0.0f;
-				GridAdapters[PackedDataIdx][CompIdx]->GetMinMaxValue(SourceComponentIndex, &MinVal, &MaxVal);
+				GridAdapters[AttributesIdx][CompIdx]->GetMinMaxValue(SourceComponentIndex, &MinVal, &MaxVal);
 				const float Diff = MaxVal - MinVal;
-				NormalizeScale[PackedDataIdx][CompIdx] = MaxVal > SMALL_NUMBER ? (1.0f / Diff) : 1.0f;
-				NormalizeBias[PackedDataIdx][CompIdx] = -MinVal * NormalizeScale[PackedDataIdx][CompIdx];
+				NormalizeScale[AttributesIdx][CompIdx] = MaxVal > SMALL_NUMBER ? (1.0f / Diff) : 1.0f;
+				NormalizeBias[AttributesIdx][CompIdx] = -MinVal * NormalizeScale[AttributesIdx][CompIdx];
 			}
 		}
 	}
@@ -402,14 +402,14 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 			{
 				// Check if the source grid component is used at all
 				bool bValueIsUsed = false;
-				for (uint32 PackedDataIdx = 0; PackedDataIdx < NumPackedData && !bValueIsUsed; ++PackedDataIdx)
+				for (uint32 AttributesIdx = 0; AttributesIdx < NumAttributesDescs && !bValueIsUsed; ++AttributesIdx)
 				{
-					for (uint32 DstCompIdx = 0; DstCompIdx < NumActualComponents[PackedDataIdx] && !bValueIsUsed; ++DstCompIdx)
+					for (uint32 DstCompIdx = 0; DstCompIdx < NumActualComponents[AttributesIdx] && !bValueIsUsed; ++DstCompIdx)
 					{
 						for (uint32 SrcCompIdx = 0; SrcCompIdx < NumComponents && !bValueIsUsed; ++SrcCompIdx)
 						{
-							const bool bIsBackgroundValue = (VoxelValues[SrcCompIdx] == GridBackgroundValues[PackedDataIdx][DstCompIdx]);
-							bValueIsUsed |= !bIsBackgroundValue && (PackedData[PackedDataIdx]->SourceGridIndex[DstCompIdx] == GridIdx) && (PackedData[PackedDataIdx]->SourceComponentIndex[DstCompIdx] == SrcCompIdx);
+							const bool bIsBackgroundValue = (VoxelValues[SrcCompIdx] == GridBackgroundValues[AttributesIdx][DstCompIdx]);
+							bValueIsUsed |= !bIsBackgroundValue && (Attributes[AttributesIdx].Mappings[DstCompIdx].SourceGridIndex == GridIdx) && (Attributes[AttributesIdx].Mappings[DstCompIdx].SourceComponentIndex == SrcCompIdx);
 						}
 					}
 				}
@@ -556,41 +556,41 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 				const FIntVector3 TileLocalCoord = GridCoord % SPARSE_VOLUME_TILE_RES;
 
 				// Check all output components and splat VoxelValue if they map to this source grid/component
-				for (uint32 PackedDataIdx = 0; PackedDataIdx < NumPackedData; ++PackedDataIdx)
+				for (uint32 AttributesIdx = 0; AttributesIdx < NumAttributesDescs; ++AttributesIdx)
 				{
-					for (uint32 DstCompIdx = 0; DstCompIdx < NumActualComponents[PackedDataIdx]; ++DstCompIdx)
+					for (uint32 DstCompIdx = 0; DstCompIdx < NumActualComponents[AttributesIdx]; ++DstCompIdx)
 					{
 						for (uint32 SrcCompIdx = 0; SrcCompIdx < NumComponents; ++SrcCompIdx)
 						{
-							if ((PackedData[PackedDataIdx]->SourceGridIndex[DstCompIdx] != GridIdx) || (PackedData[PackedDataIdx]->SourceComponentIndex[DstCompIdx] != SrcCompIdx))
+							if ((Attributes[AttributesIdx].Mappings[DstCompIdx].SourceGridIndex != GridIdx) || (Attributes[AttributesIdx].Mappings[DstCompIdx].SourceComponentIndex != SrcCompIdx))
 							{
 								continue;
 							}
 
-							const float VoxelValueNormalized = FMath::Clamp(VoxelValues[SrcCompIdx] * NormalizeScale[PackedDataIdx][DstCompIdx] + NormalizeBias[PackedDataIdx][DstCompIdx], 0.0f, 1.0f);
+							const float VoxelValueNormalized = FMath::Clamp(VoxelValues[SrcCompIdx] * NormalizeScale[AttributesIdx][DstCompIdx] + NormalizeBias[AttributesIdx][DstCompIdx], 0.0f, 1.0f);
 
 							const size_t DstVoxelIndex =
 								(DstTileCoord.Z * SPARSE_VOLUME_TILE_RES + TileLocalCoord.Z) * Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y +
 								(DstTileCoord.Y * SPARSE_VOLUME_TILE_RES + TileLocalCoord.Y) * Header.TileDataVolumeResolution.X +
 								(DstTileCoord.X * SPARSE_VOLUME_TILE_RES + TileLocalCoord.X);
-							const size_t DstCoord = DstVoxelIndex * FormatSize[PackedDataIdx] + DstCompIdx * SingleComponentFormatSize[PackedDataIdx];
+							const size_t DstCoord = DstVoxelIndex * FormatSize[AttributesIdx] + DstCompIdx * SingleComponentFormatSize[AttributesIdx];
 
-							switch (PackedData[PackedDataIdx]->Format)
+							switch (Attributes[AttributesIdx].Format)
 							{
-							case ESparseVolumePackedDataFormat::Unorm8:
+							case ESparseVolumeAttributesFormat::Unorm8:
 							{
-								PhysicalTileDataPtrs[PackedDataIdx][DstCoord] = uint8(VoxelValueNormalized * 255.0f);
+								PhysicalTileDataPtrs[AttributesIdx][DstCoord] = uint8(VoxelValueNormalized * 255.0f);
 								break;
 							}
-							case ESparseVolumePackedDataFormat::Float16:
+							case ESparseVolumeAttributesFormat::Float16:
 							{
 								const uint16 VoxelValue16FEncoded = FFloat16(VoxelValues[SrcCompIdx]).Encoded;
-								*((uint16*)(&PhysicalTileDataPtrs[PackedDataIdx][DstCoord])) = VoxelValue16FEncoded;
+								*((uint16*)(&PhysicalTileDataPtrs[AttributesIdx][DstCoord])) = VoxelValue16FEncoded;
 								break;
 							}
-							case ESparseVolumePackedDataFormat::Float32:
+							case ESparseVolumeAttributesFormat::Float32:
 							{
-								*((float*)(&PhysicalTileDataPtrs[PackedDataIdx][DstCoord])) = VoxelValues[SrcCompIdx];
+								*((float*)(&PhysicalTileDataPtrs[AttributesIdx][DstCoord])) = VoxelValues[SrcCompIdx];
 								break;
 							}
 							default:

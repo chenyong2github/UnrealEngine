@@ -10,7 +10,9 @@
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
 
 struct FOpenVDBGridInfo;
-enum class ESparseVolumePackedDataFormat : uint8;
+struct FOpenVDBImportOptions;
+struct FOpenVDBSparseVolumeAttributesDesc;
+enum class ESparseVolumeAttributesFormat : uint8;
 
 struct FOpenVDBGridComponentInfo
 {
@@ -39,7 +41,7 @@ class SOpenVDBComponentPicker : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SOpenVDBComponentPicker) {}
-		SLATE_ARGUMENT(FSparseVolumeRawSourcePackedData*, PackedData)
+		SLATE_ARGUMENT(FOpenVDBSparseVolumeAttributesDesc*, AttributesDesc)
 		SLATE_ARGUMENT(uint32, ComponentIndex)
 		SLATE_ARGUMENT(const TArray<TSharedPtr<FOpenVDBGridComponentInfo>>*, OpenVDBGridComponentInfo)
 	SLATE_END_ARGS()
@@ -49,20 +51,20 @@ public:
 	void RefreshUIFromData();
 
 private:
-	FSparseVolumeRawSourcePackedData* PackedData;
+	FOpenVDBSparseVolumeAttributesDesc* AttributesDesc;
 	uint32 ComponentIndex;
 	const TArray<TSharedPtr<FOpenVDBGridComponentInfo>>* OpenVDBGridComponentInfo;
 	TSharedPtr<SComboBox<TSharedPtr<FOpenVDBGridComponentInfo>>> GridComboBox;
 };
 
-class SOpenVDBPackedDataConfigurator : public SCompoundWidget
+class SOpenVDBAttributesConfigurator : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SOpenVDBPackedDataConfigurator) {}
-		SLATE_ARGUMENT(FSparseVolumeRawSourcePackedData*, PackedData)
+	SLATE_BEGIN_ARGS(SOpenVDBAttributesConfigurator) {}
+		SLATE_ARGUMENT(FOpenVDBSparseVolumeAttributesDesc*, AttributesDesc)
 		SLATE_ARGUMENT(const TArray<TSharedPtr<FOpenVDBGridComponentInfo>>*, OpenVDBGridComponentInfo)
-		SLATE_ARGUMENT(const TArray<TSharedPtr<ESparseVolumePackedDataFormat>>*, OpenVDBSupportedTargetFormats)
-		SLATE_ARGUMENT(FText, PackedDataName)
+		SLATE_ARGUMENT(const TArray<TSharedPtr<ESparseVolumeAttributesFormat>>*, OpenVDBSupportedTargetFormats)
+		SLATE_ARGUMENT(FText, AttributesName)
 	SLATE_END_ARGS()
 
 public:
@@ -70,10 +72,10 @@ public:
 	void RefreshUIFromData();
 
 private:
-	FSparseVolumeRawSourcePackedData* PackedData;
+	FOpenVDBSparseVolumeAttributesDesc* AttributesDesc;
 	TSharedPtr<SOpenVDBComponentPicker> ComponentPickers[4];
-	const TArray<TSharedPtr<ESparseVolumePackedDataFormat>>* OpenVDBSupportedTargetFormats;
-	TSharedPtr<SComboBox<TSharedPtr<ESparseVolumePackedDataFormat>>> FormatComboBox;
+	const TArray<TSharedPtr<ESparseVolumeAttributesFormat>>* OpenVDBSupportedTargetFormats;
+	TSharedPtr<SComboBox<TSharedPtr<ESparseVolumeAttributesFormat>>> FormatComboBox;
 	TSharedPtr<SCheckBox> RemapUnormCheckBox;
 };
 
@@ -81,12 +83,12 @@ class SOpenVDBImportWindow : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SOpenVDBImportWindow) {}
-		SLATE_ARGUMENT(FSparseVolumeRawSourcePackedData*, PackedDataA)
-		SLATE_ARGUMENT(FSparseVolumeRawSourcePackedData*, PackedDataB)
+		SLATE_ARGUMENT(FOpenVDBImportOptions*, ImportOptions)
+		SLATE_ARGUMENT(const FOpenVDBImportOptions*, DefaultImportOptions)
 		SLATE_ARGUMENT(int32, NumFoundFiles)
 		SLATE_ARGUMENT(const TArray<TSharedPtr<FOpenVDBGridInfo>>*, OpenVDBGridInfo)
 		SLATE_ARGUMENT(const TArray<TSharedPtr<FOpenVDBGridComponentInfo>>*, OpenVDBGridComponentInfo)
-		SLATE_ARGUMENT(const TArray<TSharedPtr<ESparseVolumePackedDataFormat>>*, OpenVDBSupportedTargetFormats)
+		SLATE_ARGUMENT(const TArray<TSharedPtr<ESparseVolumeAttributesFormat>>*, OpenVDBSupportedTargetFormats)
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, WidgetWindow)
 		SLATE_ARGUMENT(FText, FullPath)
 		SLATE_ARGUMENT(float, MaxWindowHeight)
@@ -102,16 +104,14 @@ public:
 	bool ShouldImportAsSequence() const;
 
 private:
-	FSparseVolumeRawSourcePackedData* PackedDataA;
-	FSparseVolumeRawSourcePackedData* PackedDataB;
-	FSparseVolumeRawSourcePackedData DefaultAssignmentA;
-	FSparseVolumeRawSourcePackedData DefaultAssignmentB;
+	FOpenVDBImportOptions* ImportOptions;
+	const FOpenVDBImportOptions* DefaultImportOptions;
 	bool bIsSequence;
 	const TArray<TSharedPtr<FOpenVDBGridInfo>>* OpenVDBGridInfo;
 	const TArray<TSharedPtr<FOpenVDBGridComponentInfo>>* OpenVDBGridComponentInfo;
-	const TArray<TSharedPtr<ESparseVolumePackedDataFormat>>* OpenVDBSupportedTargetFormats;
-	TSharedPtr<SOpenVDBPackedDataConfigurator> PackedDataAConfigurator;
-	TSharedPtr<SOpenVDBPackedDataConfigurator> PackedDataBConfigurator;
+	const TArray<TSharedPtr<ESparseVolumeAttributesFormat>>* OpenVDBSupportedTargetFormats;
+	TSharedPtr<SOpenVDBAttributesConfigurator> AttributesAConfigurator;
+	TSharedPtr<SOpenVDBAttributesConfigurator> AttributesBConfigurator;
 	TSharedPtr<SCheckBox> ImportAsSequenceCheckBox;
 	TSharedPtr<SButton> ImportButton;
 	TWeakPtr<SWindow> WidgetWindow;

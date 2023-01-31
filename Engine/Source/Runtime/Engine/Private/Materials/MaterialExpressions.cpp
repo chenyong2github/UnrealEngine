@@ -25751,8 +25751,8 @@ UMaterialExpressionSparseVolumeTextureSample::UMaterialExpressionSparseVolumeTex
 
 #if WITH_EDITOR
 	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("PackedData A"), 1, 1, 1, 1, 1));
-	Outputs.Add(FExpressionOutput(TEXT("PackedData B"), 1, 1, 1, 1, 1));
+	Outputs.Add(FExpressionOutput(TEXT("Attributes A"), 1, 1, 1, 1, 1));
+	Outputs.Add(FExpressionOutput(TEXT("Attributes B"), 1, 1, 1, 1, 1));
 	bShowOutputNameOnPin = true;
 	bShowMaskColorsOnPin = false;
 #endif
@@ -25790,7 +25790,7 @@ uint32 UMaterialExpressionSparseVolumeTextureSample::GetOutputType(int32 OutputI
 	{
 	case 0:
 	case 1:
-		return MCT_Float;	// PackedData A and B defined in constructor for now
+		return MCT_Float;	// Attributes A and B defined in constructor for now
 		break;
 	}
 
@@ -25864,7 +25864,7 @@ int32 UMaterialExpressionSparseVolumeTextureSample::Compile(class FMaterialCompi
 		int32 CoordPageTable = Compiler->Mul(UVWPageTable, UniformCodeChunkIndex[ESparseVolumeTexture_PageTableSize]);
 
 		// Code chunks have the same ID when they map to the same string of code. PackedPhysicalTileCoord will automatically end up being the same code chunk used
-		// when calling Compile() for Output 0 (PackedDataA) and Output 1 (PackedDataB). This is perfect for this use case: 
+		// when calling Compile() for Output 0 (Attributes A) and Output 1 (Attributes B). This is perfect for this use case: 
 		// PackedPhysicalTileCoord will end up being evaluated only once for both outputs, so they both share a single page table lookup.
 		int32 PackedPhysicalTileCoord = Compiler->SparseVolumeTextureSample(PageTableTextureParamCodeChunkIndex, CoordPageTable);
 

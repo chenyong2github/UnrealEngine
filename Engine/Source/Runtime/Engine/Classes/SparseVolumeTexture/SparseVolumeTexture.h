@@ -17,72 +17,14 @@ namespace UE { namespace Shader	{ enum class EValueType : uint8; } }
 
 #define SPARSE_VOLUME_TILE_RES	16
 
-struct ENGINE_API FOpenVDBToSVTConversionResult
-{
-	struct FSparseVolumeAssetHeader* Header;
-	TArray<uint32>* PageTable;
-	TArray<uint8>* PhysicalTileDataA;
-	TArray<uint8>* PhysicalTileDataB;
-};
-
-DECLARE_DELEGATE_RetVal_SevenParams(bool, FConvertOpenVDBToSparseVolumeTextureDelegate, 
-	TArray<uint8>& SourceFile,
-	struct FSparseVolumeRawSourcePackedData& PackedDataA,
-	struct FSparseVolumeRawSourcePackedData& PackedDataB,
-	FOpenVDBToSVTConversionResult* OutResult,
-	bool bOverrideActiveMinMax,
-	FVector ActiveMin,
-	FVector ActiveMax);
-
-ENGINE_API FConvertOpenVDBToSparseVolumeTextureDelegate& OnConvertOpenVDBToSparseVolumeTexture();
-
-enum class ESparseVolumePackedDataFormat : uint8
-{
-	Unorm8 = 0,
-	Float16 = 1,
-	Float32 = 2,
-};
-
-// Describes how the grids of a source asset map to the components of a float4 of packed data in a SVT
-struct ENGINE_API FSparseVolumeRawSourcePackedData
-{
-	ESparseVolumePackedDataFormat Format;
-	FUintVector4 SourceGridIndex;
-	FUintVector4 SourceComponentIndex; // Index [0-3] of the component in the source grid.
-	bool bRemapInputForUnorm; // Maps the input from its minimum and maximum value into the [0-1] range. Clamps to [0-1] otherwise.
-};
-
-ENGINE_API FArchive& operator<<(FArchive& Ar, FSparseVolumeRawSourcePackedData& PackedData);
-
-// The structure represent the source asset in high quality. It is used to cook the runtime data
-struct ENGINE_API FSparseVolumeRawSource
-{
-	FSparseVolumeRawSourcePackedData PackedDataA;
-	FSparseVolumeRawSourcePackedData PackedDataB;
-	TArray<uint8> SourceAssetFile;
-
-	// The current data format version for the raw source data.
-	static const uint32 kVersion = 0;
-
-	// This version can be used to convert existing source data to new version later.
-	uint32 Version;
-
-	void Serialize(FArchive& Ar);
-
-	FSparseVolumeRawSource()
-		: Version(kVersion)
-	{
-	}
-};
-
 struct ENGINE_API FSparseVolumeAssetHeader
 {
 	FIntVector3 PageTableVolumeResolution;
 	FIntVector3 TileDataVolumeResolution;
 	FIntVector3 SourceVolumeResolution;
 	FIntVector3 SourceVolumeAABBMin;
-	EPixelFormat PackedDataAFormat;
-	EPixelFormat PackedDataBFormat;
+	EPixelFormat AttributesAFormat;
+	EPixelFormat AttributesBFormat;
 
 	// The current data format version for the header.
 	static const uint32 kVersion = 0;
@@ -96,8 +38,31 @@ struct ENGINE_API FSparseVolumeAssetHeader
 		: PageTableVolumeResolution(FIntVector3(0, 0, 0))
 		, TileDataVolumeResolution(FIntVector3(0, 0, 0))
 		, SourceVolumeResolution(FIntVector3(0, 0, 0))
-		, PackedDataAFormat(PF_Unknown)
+		, AttributesAFormat(PF_Unknown)
+		, AttributesBFormat(PF_Unknown)
 		, Version(kVersion)
+	{
+	}
+};
+
+// The structure represent the source asset in high quality. It is used to cook the runtime data
+struct ENGINE_API FSparseVolumeRawSource
+{
+	FSparseVolumeAssetHeader Header;
+	TArray<uint32> PageTable;
+	TArray<uint8> PhysicalTileDataA;
+	TArray<uint8> PhysicalTileDataB;
+
+	// The current data format version for the raw source data.
+	static const uint32 kVersion = 0;
+
+	// This version can be used to convert existing source data to new version later.
+	uint32 Version;
+
+	void Serialize(FArchive& Ar);
+
+	FSparseVolumeRawSource()
+		: Version(kVersion)
 	{
 	}
 };

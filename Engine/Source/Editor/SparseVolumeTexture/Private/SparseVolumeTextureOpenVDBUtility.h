@@ -35,14 +35,21 @@ struct FOpenVDBGridInfo
 	bool bHasUniformVoxels;
 };
 
+struct FOpenVDBToSVTConversionResult
+{
+	struct FSparseVolumeAssetHeader* Header;
+	TArray<uint32>* PageTable;
+	TArray<uint8>* PhysicalTileDataA;
+	TArray<uint8>* PhysicalTileDataB;
+};
+
 bool IsOpenVDBGridValid(const FOpenVDBGridInfo& GridInfo, const FString& Filename);
 
 bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, bool bCreateStrings, TArray<FOpenVDBGridInfo>* OutGridInfo);
 
 bool ConvertOpenVDBToSparseVolumeTexture(
 	TArray<uint8>& SourceFile,
-	struct FSparseVolumeRawSourcePackedData& PackedDataA,
-	struct FSparseVolumeRawSourcePackedData& PackedDataB,
+	struct FOpenVDBImportOptions& ImportOptions,
 	struct FOpenVDBToSVTConversionResult* OutResult,
 	bool bOverrideActiveMinMax,
 	FVector ActiveMin,

@@ -8,6 +8,7 @@
 
 #include "SparseVolumeTextureOpenVDB.h"
 #include "SparseVolumeTextureOpenVDBUtility.h"
+#include "OpenVDBImportOptions.h"
 
 #include "Serialization/EditorBulkDataWriter.h"
 #include "Misc/Paths.h"
@@ -24,39 +25,42 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTextureFactory, Log, All);
 
-static void ComputeDefaultOpenVDBGridAssignment(const TArray<TSharedPtr<FOpenVDBGridComponentInfo>>& GridComponentInfo, FSparseVolumeRawSourcePackedData* PackedDataA, FSparseVolumeRawSourcePackedData* PackedDataB)
+static void ComputeDefaultOpenVDBGridAssignment(const TArray<TSharedPtr<FOpenVDBGridComponentInfo>>& GridComponentInfo, int32 NumFiles, FOpenVDBImportOptions* ImportOptions)
 {
-	FSparseVolumeRawSourcePackedData* PackedData[] = { PackedDataA , PackedDataB };
-	for (FSparseVolumeRawSourcePackedData* Data : PackedData)
+	for (FOpenVDBSparseVolumeAttributesDesc& AttributesDesc : ImportOptions->Attributes)
 	{
-		Data->Format = ESparseVolumePackedDataFormat::Float32;
-		Data->SourceGridIndex = FUintVector4(INDEX_NONE);
-		Data->SourceComponentIndex = FUintVector4(INDEX_NONE);
-		Data->bRemapInputForUnorm = false;
+		for (FOpenVDBSparseVolumeComponentMapping& Mapping : AttributesDesc.Mappings)
+		{
+			Mapping.SourceGridIndex = INDEX_NONE;
+			Mapping.SourceComponentIndex = INDEX_NONE;
+		}
+		AttributesDesc.Format = ESparseVolumeAttributesFormat::Float32;
+		AttributesDesc.bRemapInputForUnorm = false;
 	}
 
 	// Assign the components of the input grids to the components of the output SVT.
-	uint32 CurrentOutputPackedData = 0;
-	uint32 CurrentOutputComponent = 0;
+	uint32 DstAttributesIdx = 0;
+	uint32 DstComponentIdx = 0;
 	for (const TSharedPtr<FOpenVDBGridComponentInfo>& GridComponent : GridComponentInfo)
 	{
 		if (GridComponent->Index == INDEX_NONE)
 		{
 			continue;
 		}
-		PackedData[CurrentOutputPackedData]->SourceGridIndex[CurrentOutputComponent] = GridComponent->Index;
-		PackedData[CurrentOutputPackedData]->SourceComponentIndex[CurrentOutputComponent] = GridComponent->ComponentIndex;
-		++CurrentOutputComponent;
-		if (CurrentOutputComponent == 4)
+		ImportOptions->Attributes[DstAttributesIdx].Mappings[DstComponentIdx].SourceGridIndex = GridComponent->Index;
+		ImportOptions->Attributes[DstAttributesIdx].Mappings[DstComponentIdx].SourceComponentIndex = GridComponent->ComponentIndex;
+		++DstComponentIdx;
+		if (DstComponentIdx == 4)
 		{
-			CurrentOutputComponent = 0;
-			++CurrentOutputPackedData;
-			if (CurrentOutputPackedData == 2)
+			DstComponentIdx = 0;
+			++DstAttributesIdx;
+			if (DstAttributesIdx == 2)
 			{
 				break;
 			}
 		}
 	}
+	ImportOptions->bIsSequence = NumFiles > 1;
 }
 
 static TArray<FString> FindOpenVDBSequenceFileNames(const FString& Filename)
@@ -153,8 +157,7 @@ struct FOpenVDBPreviewData
 	TArray<TSharedPtr<FOpenVDBGridInfo>> GridInfoPtrs;
 	TArray<TSharedPtr<FOpenVDBGridComponentInfo>> GridComponentInfoPtrs;
 	TArray<FString> SequenceFilenames;
-	FSparseVolumeRawSourcePackedData DefaultGridAssignmentA;
-	FSparseVolumeRawSourcePackedData DefaultGridAssignmentB;
+	FOpenVDBImportOptions DefaultImportOptions;
 };
 
 static bool LoadOpenVDBPreviewData(const FString& Filename, FOpenVDBPreviewData* OutPreviewData)
@@ -234,17 +237,10 @@ static bool LoadOpenVDBPreviewData(const FString& Filename, FOpenVDBPreviewData*
 
 	Result.SequenceFilenames = FindOpenVDBSequenceFileNames(Filename);
 
-	ComputeDefaultOpenVDBGridAssignment(Result.GridComponentInfoPtrs, &Result.DefaultGridAssignmentA, &Result.DefaultGridAssignmentB);
+	ComputeDefaultOpenVDBGridAssignment(Result.GridComponentInfoPtrs, Result.SequenceFilenames.Num(), &Result.DefaultImportOptions);
 
 	return true;
 }
-
-struct FOpenVDBImportOptions
-{
-	FSparseVolumeRawSourcePackedData PackedDataA;
-	FSparseVolumeRawSourcePackedData PackedDataB;
-	bool bIsSequence;
-};
 
 static bool ShowOpenVDBImportWindow(const FString& Filename, const FOpenVDBPreviewData& PreviewData, FOpenVDBImportOptions* OutImportOptions)
 {
@@ -278,19 +274,19 @@ static bool ShowOpenVDBImportWindow(const FString& Filename, const FOpenVDBPrevi
 		.ClientSize(ImportWindowSize)
 		.ScreenPosition(WindowPosition);
 
-	TArray<TSharedPtr<ESparseVolumePackedDataFormat>> SupportedFormats =
+	TArray<TSharedPtr<ESparseVolumeAttributesFormat>> SupportedFormats =
 	{
-		MakeShared<ESparseVolumePackedDataFormat>(ESparseVolumePackedDataFormat::Float32),
-		MakeShared<ESparseVolumePackedDataFormat>(ESparseVolumePackedDataFormat::Float16),
-		MakeShared<ESparseVolumePackedDataFormat>(ESparseVolumePackedDataFormat::Unorm8)
+		MakeShared<ESparseVolumeAttributesFormat>(ESparseVolumeAttributesFormat::Float32),
+		MakeShared<ESparseVolumeAttributesFormat>(ESparseVolumeAttributesFormat::Float16),
+		MakeShared<ESparseVolumeAttributesFormat>(ESparseVolumeAttributesFormat::Unorm8)
 	};
 
 	TSharedPtr<SOpenVDBImportWindow> OpenVDBOptionWindow;
 	Window->SetContent
 	(
 		SAssignNew(OpenVDBOptionWindow, SOpenVDBImportWindow)
-		.PackedDataA(&OutImportOptions->PackedDataA)
-		.PackedDataB(&OutImportOptions->PackedDataB)
+		.ImportOptions(OutImportOptions)
+		.DefaultImportOptions(&PreviewData.DefaultImportOptions)
 		.NumFoundFiles(PreviewData.SequenceFilenames.Num())
 		.OpenVDBGridInfo(&PreviewData.GridInfoPtrs)
 		.OpenVDBGridComponentInfo(&PreviewData.GridComponentInfoPtrs)
@@ -310,21 +306,21 @@ static bool ShowOpenVDBImportWindow(const FString& Filename, const FOpenVDBPrevi
 
 static bool ValidateImportOptions(const FOpenVDBImportOptions& ImportOptions, const TArray<FOpenVDBGridInfo>& GridInfo)
 {
-	const uint32 NumGrids = (uint32)GridInfo.Num();
-	const FSparseVolumeRawSourcePackedData* PackedData[] = { &ImportOptions.PackedDataA , &ImportOptions.PackedDataB };
-	for (const FSparseVolumeRawSourcePackedData* Data : PackedData)
+	const int32 NumGrids = GridInfo.Num();
+
+	for (const FOpenVDBSparseVolumeAttributesDesc& AttributesDesc : ImportOptions.Attributes)
 	{
-		for (int32 DstCompIdx = 0; DstCompIdx < 4; ++DstCompIdx)
+		for (const FOpenVDBSparseVolumeComponentMapping& Mapping : AttributesDesc.Mappings)
 		{
-			const uint32 SourceGridIndex = Data->SourceGridIndex[DstCompIdx];
-			const uint32 SourceComponentIndex = Data->SourceComponentIndex[DstCompIdx];
-			if (SourceGridIndex != INDEX_NONE)
+			const int32 SourceGridIndex = Mapping.SourceGridIndex;
+			const int32 SourceComponentIndex = Mapping.SourceComponentIndex;
+			if (Mapping.SourceGridIndex != INDEX_NONE)
 			{
 				if (SourceGridIndex >= NumGrids)
 				{
 					return false; // Invalid grid index
 				}
-				if (SourceComponentIndex == INDEX_NONE || SourceComponentIndex >= GridInfo[SourceGridIndex].NumComponents)
+				if (SourceComponentIndex == INDEX_NONE || SourceComponentIndex >= (int32)GridInfo[SourceGridIndex].NumComponents)
 				{
 					return false; // Invalid component index
 				}
@@ -432,10 +428,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		return nullptr;
 	}
 
-	FOpenVDBImportOptions ImportOptions;
-	ImportOptions.PackedDataA = PreviewData.DefaultGridAssignmentA;
-	ImportOptions.PackedDataB = PreviewData.DefaultGridAssignmentB;
-	ImportOptions.bIsSequence = PreviewData.SequenceFilenames.Num() > 1;
+	FOpenVDBImportOptions ImportOptions = PreviewData.DefaultImportOptions;
 	
 	if (!bIsUnattended)
 	{
@@ -456,15 +449,13 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 	// Utility function for computing the bounding box encompassing the bounds of all frames in the SVT.
 	auto ExpandVolumeBounds = [](const FOpenVDBImportOptions& ImportOptions, const TArray<FOpenVDBGridInfo>& GridInfoArray, FBox& VolumeBounds)
 	{
-		const FSparseVolumeRawSourcePackedData* PackedData[] = { &ImportOptions.PackedDataA, &ImportOptions.PackedDataB };
-		for (uint32 PackedDataIdx = 0; PackedDataIdx < 2; ++PackedDataIdx)
+		for (const FOpenVDBSparseVolumeAttributesDesc& Attributes : ImportOptions.Attributes)
 		{
-			for (uint32 CompIdx = 0; CompIdx < 4; ++CompIdx)
+			for (const FOpenVDBSparseVolumeComponentMapping& Mapping : Attributes.Mappings)
 			{
-				const uint32 GridIdx = PackedData[PackedDataIdx]->SourceGridIndex[CompIdx];
-				if (GridIdx != INDEX_NONE)
+				if (Mapping.SourceGridIndex != INDEX_NONE)
 				{
-					const FOpenVDBGridInfo& GridInfo = GridInfoArray[GridIdx];
+					const FOpenVDBGridInfo& GridInfo = GridInfoArray[Mapping.SourceGridIndex];
 					VolumeBounds.Min.X = FMath::Min(VolumeBounds.Min.X, GridInfo.VolumeActiveAABBMin.X);
 					VolumeBounds.Min.Y = FMath::Min(VolumeBounds.Min.Y, GridInfo.VolumeActiveAABBMin.Y);
 					VolumeBounds.Min.Z = FMath::Min(VolumeBounds.Min.Z, GridInfo.VolumeActiveAABBMin.Z);
@@ -493,10 +484,24 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		StaticSVTexture->VolumeBounds = VolumeBounds;
 
 		FSparseVolumeRawSource SparseVolumeRawSource{};
-		SparseVolumeRawSource.PackedDataA = ImportOptions.PackedDataA;
-		SparseVolumeRawSource.PackedDataB = ImportOptions.PackedDataB;
-		SparseVolumeRawSource.SourceAssetFile = MoveTemp(PreviewData.LoadedFile);
-		PreviewData.LoadedFile.Reset();
+
+		FOpenVDBToSVTConversionResult SVTResult;
+		SVTResult.Header = &SparseVolumeRawSource.Header;
+		SVTResult.PageTable = &SparseVolumeRawSource.PageTable;
+		SVTResult.PhysicalTileDataA = &SparseVolumeRawSource.PhysicalTileDataA;
+		SVTResult.PhysicalTileDataB = &SparseVolumeRawSource.PhysicalTileDataB;
+
+		const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(
+			PreviewData.LoadedFile,
+			ImportOptions,
+			&SVTResult,
+			false, FVector::Zero(), FVector::Zero());
+
+		if (!bConversionSuccess)
+		{
+			UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Failed to convert OpenVDB file to SparseVolumeTexture: %s"), *Filename);
+			return nullptr;
+		}
 
 		// Serialize the raw source data into the asset object.
 		{
@@ -506,6 +511,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		if (ImportTask.ShouldCancel())
 		{
+			bOutOperationCanceled = true;
 			return nullptr;
 		}
 		ImportTask.EnterProgressFrame(1.0f, LOCTEXT("ConvertingVDBStatic", "Converting static OpenVDB"));
@@ -556,12 +562,11 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			}
 
 			// Sanity check for compatibility
-			const FSparseVolumeRawSourcePackedData* PackedData[] = { &ImportOptions.PackedDataA, &ImportOptions.PackedDataB };
-			for (uint32 PackedDataIdx = 0; PackedDataIdx < 2; ++PackedDataIdx)
+			for (const FOpenVDBSparseVolumeAttributesDesc& AttributesDesc : ImportOptions.Attributes)
 			{
-				for (uint32 DstCompIdx = 0; DstCompIdx < 4; ++DstCompIdx)
+				for (const FOpenVDBSparseVolumeComponentMapping& Mapping : AttributesDesc.Mappings)
 				{
-					const uint32 SourceGridIndex = PackedData[PackedDataIdx]->SourceGridIndex[DstCompIdx];
+					const uint32 SourceGridIndex = Mapping.SourceGridIndex;
 					if (SourceGridIndex != INDEX_NONE)
 					{
 						if ((int32)SourceGridIndex >= FrameGridInfo.Num())
@@ -580,12 +585,25 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 				}
 			}
 
-			ExpandVolumeBounds(ImportOptions, FrameGridInfo, VolumeBounds);
-
 			FSparseVolumeRawSource SparseVolumeRawSource{};
-			SparseVolumeRawSource.PackedDataA = ImportOptions.PackedDataA;
-			SparseVolumeRawSource.PackedDataB = ImportOptions.PackedDataB;
-			SparseVolumeRawSource.SourceAssetFile = MoveTemp(LoadedFrameFile);
+
+			FOpenVDBToSVTConversionResult SVTResult;
+			SVTResult.Header = &SparseVolumeRawSource.Header;
+			SVTResult.PageTable = &SparseVolumeRawSource.PageTable;
+			SVTResult.PhysicalTileDataA = &SparseVolumeRawSource.PhysicalTileDataA;
+			SVTResult.PhysicalTileDataB = &SparseVolumeRawSource.PhysicalTileDataB;
+
+			const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(
+				LoadedFrameFile,
+				ImportOptions,
+				&SVTResult,
+				false, FVector::Zero(), FVector::Zero());
+
+			if (!bConversionSuccess)
+			{
+				UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Failed to convert OpenVDB file to SparseVolumeTexture: %s"), *FrameFilename);
+				return nullptr;
+			}
 
 			// Serialize the raw source data from this frame into the asset object.
 			{
@@ -595,6 +613,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 			if (ImportTask.ShouldCancel())
 			{
+				bOutOperationCanceled = true;
 				return nullptr;
 			}
 			ImportTask.EnterProgressFrame(1.0f, LOCTEXT("ConvertingVDBAnim", "Converting OpenVDB animation"));
