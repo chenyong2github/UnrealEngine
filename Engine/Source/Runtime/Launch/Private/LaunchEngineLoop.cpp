@@ -3362,6 +3362,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 {
 	ON_SCOPE_EXIT{ GEnginePreInitPostStartupScreenEndTime = FPlatformTime::Seconds(); };
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInitPostStartupScreen");
+	LLM_SCOPE(ELLMTag::EnginePreInitMemory);
 
 	if (IsEngineExitRequested())
 	{
