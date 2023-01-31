@@ -83,6 +83,7 @@ extern RHI_API bool GUseRHITaskThreads_InternalUseOnly;
 extern RHI_API bool GIsRunningRHIInSeparateThread_InternalUseOnly;
 extern RHI_API bool GIsRunningRHIInDedicatedThread_InternalUseOnly;
 extern RHI_API bool GIsRunningRHIInTaskThread_InternalUseOnly;
+extern RHI_API bool GSupportsParallelRenderingTasksWithSeparateRHIThread;
 
 namespace ERenderThreadIdleTypes
 {
