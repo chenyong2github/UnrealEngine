@@ -4,11 +4,6 @@
 
 #if WITH_WEBM_LIBS
 
-THIRD_PARTY_INCLUDES_START
-#include <vpx/vpx_decoder.h>
-#include <vpx/vp8dx.h>
-THIRD_PARTY_INCLUDES_END
-
 #include "WebMMediaPrivate.h"
 #include "WebMMediaFrame.h"
 #include "WebMMediaTextureSample.h"
@@ -87,11 +82,11 @@ bool FWebMVideoDecoder::Initialize(const char* CodecName)
 	const vpx_codec_dec_cfg_t CodecConfig = { NumOfThreads, 0, 0 };
 	if (FCStringAnsi::Strcmp(CodecName, "V_VP8") == 0)
 	{
-		verify(vpx_codec_dec_init(Context, vpx_codec_vp8_dx(), &CodecConfig, /*VPX_CODEC_USE_FRAME_THREADING*/ 0) == 0);
+		verify(vpx_codec_dec_init(&Context, vpx_codec_vp8_dx(), &CodecConfig, /*VPX_CODEC_USE_FRAME_THREADING*/ 0) == 0);
 	}
 	else if (FCStringAnsi::Strcmp(CodecName, "V_VP9") == 0)
 	{
-		verify(vpx_codec_dec_init(Context, vpx_codec_vp9_dx(), &CodecConfig, /*VPX_CODEC_USE_FRAME_THREADING*/ 0) == 0);
+		verify(vpx_codec_dec_init(&Context, vpx_codec_vp9_dx(), &CodecConfig, /*VPX_CODEC_USE_FRAME_THREADING*/ 0) == 0);
 	}
 	else
 	{
@@ -114,10 +109,10 @@ void FWebMVideoDecoder::DecodeVideoFramesAsync(const TArray<TSharedPtr<FWebMFram
 		{
 			Prerequisites.Emplace(VideoDecodingTask);
 		}
-		VideoDecodingTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this,  VideoFrames]()
-		{
-			DoDecodeVideoFrames(VideoFrames);
-		}, TStatId(), &Prerequisites, ENamedThreads::AnyThread);
+		VideoDecodingTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, VideoFrames]()
+			{
+				DoDecodeVideoFrames(VideoFrames);
+			}, TStatId(), &Prerequisites, ENamedThreads::AnyThread);
 	}
 	else
 	{
@@ -134,14 +129,14 @@ void FWebMVideoDecoder::DoDecodeVideoFrames(const TArray<TSharedPtr<FWebMFrame>>
 {
 	for (const TSharedPtr<FWebMFrame>& VideoFrame : VideoFrames)
 	{
-		if (vpx_codec_decode(Context, VideoFrame->Data.GetData(), VideoFrame->Data.Num(), nullptr, 0) != 0)
+		if (vpx_codec_decode(&Context, VideoFrame->Data.GetData(), VideoFrame->Data.Num(), nullptr, 0) != 0)
 		{
 			UE_LOG(LogWebMMedia, Display, TEXT("Error decoding video frame"));
 			return;
 		}
 
 		const void* ImageIter = nullptr;
-		while (const vpx_image_t* Image = vpx_codec_get_frame(Context, &ImageIter))
+		while (const vpx_image_t* Image = vpx_codec_get_frame(&Context, &ImageIter))
 		{
 			FWebMVideoDecoder* Self = this;
 			if (!bTexturesCreated)
@@ -209,7 +204,7 @@ void FWebMVideoDecoder::Close()
 
 	if (bIsInitialized)
 	{
-		vpx_codec_destroy(Context);
+		vpx_codec_destroy(&Context);
 		bIsInitialized = false;
 	}
 

@@ -25,11 +25,11 @@ namespace UnrealBuildTool.Rules
 					"Vorbis",
 				});
 
-			if (Target.Platform == UnrealTargetPlatform.Mac)
+			if (Target.Platform == UnrealTargetPlatform.Mac ||
+				Target.Platform == UnrealTargetPlatform.Win64 ||
+				(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64))
 			{
-				// Engine does not currently ship with Mac binaries for WebRTC so use fallback
-				
-				PrivateDependencyModuleNames.Add("LibVpx");
+				PublicDependencyModuleNames.Add("LibVpx");
 				
 				PublicDependencyModuleNames.AddRange(
 					new string[] {
@@ -37,30 +37,6 @@ namespace UnrealBuildTool.Rules
 				});
 
 				PublicDefinitions.Add("WITH_WEBM_LIBS=1");
-			} 
-			else if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PublicDependencyModuleNames.AddRange(
-					new string[] {
-					"LibWebM",
-					"LibVpx"
-				});
-				
-				PublicDefinitions.Add("WITH_WEBM_LIBS=1");			
-			}
-			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64)
-			{
-				// libVPX is linked inside WebRTC so just use those headers and binaries where avaliable
-				// In order to get rid of this need to rebuild webrtc without libvpx included (win64, macos, linux where editor runs)
-				PrivateIncludePaths.Add(Path.Join(EngineDirectory, "Source", "ThirdParty", "WebRTC", "4664", "Include", "third_party", "libvpx", "source", "libvpx"));
-
-				PublicDependencyModuleNames.AddRange(
-					new string[] {
-					"LibWebM",
-					"WebRTC"
-				});
-				
-				PublicDefinitions.Add("WITH_WEBM_LIBS=1");			
 			}
 			else
 			{
