@@ -89,7 +89,17 @@ FNamePermissionList& UUMGEditorProjectSettings::GetAllowedPaletteCategories()
 	return AllowedPaletteCategories;
 }
 
+const FNamePermissionList& UUMGEditorProjectSettings::GetAllowedPaletteCategories() const
+{
+	return AllowedPaletteCategories;
+}
+
 FPathPermissionList& UUMGEditorProjectSettings::GetAllowedPaletteWidgets()
+{
+	return AllowedPaletteWidgets;
+}
+
+const FPathPermissionList& UUMGEditorProjectSettings::GetAllowedPaletteWidgets() const
 {
 	return AllowedPaletteWidgets;
 }

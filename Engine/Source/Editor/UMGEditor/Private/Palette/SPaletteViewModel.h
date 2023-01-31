@@ -182,8 +182,6 @@ protected:
 	virtual void BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates, TArray<FString>& FavoritesList) = 0;
 	void BuildClassWidgetList();
 
-	static bool FilterAssetData(FAssetData& BPAssetData);
-
 	void AddWidgetTemplate(TSharedPtr<FWidgetTemplate> Template);
 
 	/** Called when a Blueprint is recompiled and live objects are swapped out for replacements */

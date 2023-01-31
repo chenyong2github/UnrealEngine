@@ -205,9 +205,11 @@ public:
 
 	/** Get the permission list that controls which categories are exposed in config palette filtering */
 	FNamePermissionList& GetAllowedPaletteCategories();
+	const FNamePermissionList& GetAllowedPaletteCategories() const;
 
 	/** Get the permission list that controls which widgets are exposed in config palette filtering */
 	FPathPermissionList& GetAllowedPaletteWidgets();
+	const FPathPermissionList& GetAllowedPaletteWidgets() const;
 
 private:
 	template<typename ReturnType, typename T>

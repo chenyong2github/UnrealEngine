@@ -9,13 +9,18 @@
 #include "UObject/UObjectIterator.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/TopLevelAssetPath.h"
 #include "Blueprint/WidgetTree.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "MovieScene.h"
+#include "UMGEditorProjectSettings.h"
 #include "WidgetBlueprint.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Settings/ContentBrowserSettings.h"
 
+#include "ClassViewerFilter.h"
+#include "EditorClassUtils.h"
 #include "Dialogs/Dialogs.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "DragAndDrop/AssetDragDropOp.h"
@@ -44,6 +49,7 @@
 #include "Components/Widget.h"
 #include "Blueprint/WidgetNavigation.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "UObject/CoreRedirects.h"
 #include "UObject/ScriptInterface.h"
 #include "Components/NamedSlotInterface.h"
 #include "K2Node_Variable.h"
@@ -1958,16 +1964,195 @@ bool FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(FProperty* InProperty
 	return false;
 }
 
-bool FWidgetBlueprintEditorUtils::IsUsableWidgetClass(UClass* WidgetClass)
+namespace UE::UMG::Private
 {
-	if ( WidgetClass->IsChildOf(UWidget::StaticClass()) )
+/** Helper class to perform path based filtering for unloaded BP's */
+class FUnloadedBlueprintData : public IUnloadedBlueprintData
+{
+public:
+	FUnloadedBlueprintData(const FAssetData& InAssetData)
+		:ClassPath()
+		, ClassFlags(CLASS_None)
+		, bIsNormalBlueprintType(false)
+	{
+		ClassName = MakeShared<FString>(InAssetData.AssetName.ToString());
+
+		FString GeneratedClassPath;
+		const UClass* AssetClass = InAssetData.GetClass();
+		if (AssetClass && AssetClass->IsChildOf(UBlueprintGeneratedClass::StaticClass()))
+		{
+			ClassPath = InAssetData.ToSoftObjectPath().GetAssetPathString();
+		}
+		else if (InAssetData.GetTagValue(FBlueprintTags::GeneratedClassPath, GeneratedClassPath))
+		{
+			ClassPath = FTopLevelAssetPath(*FPackageName::ExportTextPathToObjectPath(GeneratedClassPath));
+		}
+
+		FEditorClassUtils::GetImplementedInterfaceClassPathsFromAsset(InAssetData, ImplementedInterfaces);
+	}
+
+	virtual ~FUnloadedBlueprintData()
+	{
+	}
+
+	// Begin IUnloadedBlueprintData interface
+	virtual bool HasAnyClassFlags(uint32 InFlagsToCheck) const
+	{
+		return (ClassFlags & InFlagsToCheck) != 0;
+	}
+
+	virtual bool HasAllClassFlags(uint32 InFlagsToCheck) const
+	{
+		return ((ClassFlags & InFlagsToCheck) == InFlagsToCheck);
+	}
+
+	virtual void SetClassFlags(uint32 InFlags)
+	{
+		ClassFlags = InFlags;
+	}
+
+	virtual bool ImplementsInterface(const UClass* InInterface) const
+	{
+		FString InterfacePath = InInterface->GetPathName();
+		for (const FString& ImplementedInterface : ImplementedInterfaces)
+		{
+			if (ImplementedInterface == InterfacePath)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	virtual bool IsChildOf(const UClass* InClass) const
+	{
+		return false;
+	}
+
+	virtual bool IsA(const UClass* InClass) const
+	{
+		// Unloaded blueprint classes should always be a BPGC, so this just checks against the expected type.
+		return UBlueprintGeneratedClass::StaticClass()->UObject::IsA(InClass);
+	}
+
+	virtual const UClass* GetClassWithin() const
+	{
+		return nullptr;
+	}
+
+	virtual const UClass* GetNativeParent() const
+	{
+		return nullptr;
+	}
+
+	virtual void SetNormalBlueprintType(bool bInNormalBPType)
+	{
+		bIsNormalBlueprintType = bInNormalBPType;
+	}
+
+	virtual bool IsNormalBlueprintType() const
+	{
+		return bIsNormalBlueprintType;
+	}
+
+	virtual TSharedPtr<FString> GetClassName() const
+	{
+		return ClassName;
+	}
+
+	virtual FName GetClassPath() const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return ClassPath.ToFName();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	virtual FTopLevelAssetPath GetClassPathName() const
+	{
+		return ClassPath;
+	}
+	// End IUnloadedBlueprintData interface
+
+private:
+	TSharedPtr<FString> ClassName;
+	FTopLevelAssetPath ClassPath;
+	uint32 ClassFlags;
+	TArray<FString> ImplementedInterfaces;
+	bool bIsNormalBlueprintType;
+};
+
+bool IsUsableWidgetClass(const FString& WidgetPathName, const FAssetData& WidgetAssetData, FName Category, const UClass* WidgetClass)
+{
+	const UUMGEditorProjectSettings* UMGEditorProjectSettings = GetDefault<UUMGEditorProjectSettings>();
+	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+
+	// Excludes engine content if user sets it to false
+	if (!ContentBrowserSettings->GetDisplayEngineFolder() || !UMGEditorProjectSettings->bShowWidgetsFromEngineContent)
+	{
+		if (WidgetPathName.StartsWith(TEXT("/Engine")))
+		{
+			return false;
+		}
+	}
+
+	// Excludes developer content if user sets it to false
+	if (!ContentBrowserSettings->GetDisplayDevelopersFolder() || !UMGEditorProjectSettings->bShowWidgetsFromDeveloperContent)
+	{
+		if (WidgetPathName.StartsWith(TEXT("/Game/Developers")))
+		{
+			return false;
+		}
+	}
+
+	if (UMGEditorProjectSettings->bUseEditorConfigPaletteFiltering)
+	{
+		if (UMGEditorProjectSettings->GetAllowedPaletteWidgets().PassesFilter(WidgetPathName))
+		{
+			return true;
+		}
+
+		FClassViewerModule* ClassViewerModule = FModuleManager::GetModulePtr<FClassViewerModule>("ClassViewer");
+		const TSharedPtr<IClassViewerFilter> GlobalClassFilter = ClassViewerModule ? ClassViewerModule->GetGlobalClassViewerFilter() : TSharedPtr<IClassViewerFilter>();
+		if (UMGEditorProjectSettings->GetAllowedPaletteCategories().PassesFilter(Category) && GlobalClassFilter.IsValid())
+		{
+			if (WidgetClass)
+			{
+				return GlobalClassFilter->IsClassAllowed(FClassViewerInitializationOptions(), WidgetClass, ClassViewerModule->CreateFilterFuncs());
+			}
+			else if (WidgetAssetData.IsValid())
+			{
+				TSharedRef<FUnloadedBlueprintData> UnloadedBlueprint = MakeShared<FUnloadedBlueprintData>(WidgetAssetData);
+				return GlobalClassFilter->IsUnloadedClassAllowed(FClassViewerInitializationOptions(), UnloadedBlueprint, ClassViewerModule->CreateFilterFuncs());
+			}
+		}
+		return false;
+	}
+	else
+	{
+		// Excludes this widget if it is on the hide list
+		for (const FSoftClassPath& WidgetClassToHide : UMGEditorProjectSettings->WidgetClassesToHide)
+		{
+			if (WidgetPathName.Find(WidgetClassToHide.ToString()) == 0)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+}
+
+bool FWidgetBlueprintEditorUtils::IsUsableWidgetClass(const UClass* WidgetClass)
+{
+	if (WidgetClass->IsChildOf(UWidget::StaticClass()))
 	{
 		// We aren't interested in classes that are experimental or cannot be instantiated
 		bool bIsExperimental, bIsEarlyAccess;
 		FString MostDerivedDevelopmentClassName;
-		FObjectEditorUtils::GetClassDevelopmentStatus(WidgetClass, bIsExperimental, bIsEarlyAccess, MostDerivedDevelopmentClassName);
+		FObjectEditorUtils::GetClassDevelopmentStatus(const_cast<UClass*>(WidgetClass), bIsExperimental, bIsEarlyAccess, MostDerivedDevelopmentClassName);
 		const bool bIsInvalid = WidgetClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists);
-		if ( bIsExperimental || bIsEarlyAccess || bIsInvalid )
+		if (bIsExperimental || bIsEarlyAccess || bIsInvalid)
 		{
 			return false;
 		}
@@ -1976,15 +2161,73 @@ bool FWidgetBlueprintEditorUtils::IsUsableWidgetClass(UClass* WidgetClass)
 		const bool bIsSkeletonClass = WidgetClass->HasAnyFlags(RF_Transient) && WidgetClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint);
 
 		// Check that the asset that generated this class is valid (necessary b/c of a larger issue wherein force delete does not wipe the generated class object)
-		if ( bIsSkeletonClass )
+		if (bIsSkeletonClass)
 		{
 			return false;
 		}
 
-		return true;
+		return UE::UMG::Private::IsUsableWidgetClass(WidgetClass->GetPathName(), FAssetData(), *WidgetClass->GetDefaultObject<UWidget>()->GetPaletteCategory().ToString(), WidgetClass);
 	}
 
 	return false;
+}
+
+TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> FWidgetBlueprintEditorUtils::IsUsableWidgetClass(const FAssetData& WidgetAsset)
+{
+	if (const UClass* WidgetAssetClass = WidgetAsset.GetClass(EResolveClass::No))
+	{
+		if (IsUsableWidgetClass(WidgetAssetClass))
+		{
+			FWidgetBlueprintEditorUtils::FUsableWidgetClassResult Result;
+			Result.NativeParentClass = WidgetAssetClass;
+			Result.AssetClassFlags = WidgetAssetClass->GetClassFlags();
+			return MakeValue(Result);
+		}
+	}
+
+	// Blueprints get the class type actions for their parent native class - this avoids us having to load the blueprint
+	UClass* NativeParentClass = nullptr;
+	FString NativeParentClassName;
+	WidgetAsset.GetTagValue(FBlueprintTags::NativeParentClassPath, NativeParentClassName);
+	if (NativeParentClassName.IsEmpty())
+	{
+		return MakeError();
+	}
+	else
+	{
+		const FString NativeParentClassPath = FPackageName::ExportTextPathToObjectPath(NativeParentClassName);
+		if (NativeParentClassPath.StartsWith(TEXT("/")))
+		{
+			// Metadata may be pointing to classes that no longer exist, so check for redirectors first
+			const FString RedirectedClassPath = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, FCoreRedirectObjectName(NativeParentClassPath)).ToString();
+			NativeParentClass = UClass::TryFindTypeSlow<UClass>(RedirectedClassPath);
+		}
+		if (NativeParentClass == nullptr)
+		{
+			return MakeError();
+		}
+		if (!NativeParentClass->IsChildOf(UWidget::StaticClass()))
+		{
+			return MakeError();
+		}
+	}
+
+	EClassFlags BPFlags = static_cast<EClassFlags>(WidgetAsset.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags));
+	const bool bIsInvalid = (BPFlags & (CLASS_Deprecated | CLASS_Abstract | CLASS_NewerVersionExists)) != 0;
+	if (bIsInvalid)
+	{
+		return MakeError();
+	}
+
+	const FName CategoryName = *GetPaletteCategory(WidgetAsset, TSubclassOf<UWidget>(NativeParentClass)).ToString();
+	if (UE::UMG::Private::IsUsableWidgetClass(WidgetAsset.GetObjectPathString(), WidgetAsset, CategoryName, nullptr))
+	{
+		FWidgetBlueprintEditorUtils::FUsableWidgetClassResult Result;
+		Result.NativeParentClass = NativeParentClass;
+		Result.AssetClassFlags = BPFlags;
+		return MakeValue(Result);
+	}
+	return MakeError();
 }
 
 FString RemoveSuffixFromName(const FString OldName)
@@ -2358,6 +2601,50 @@ void FWidgetBlueprintEditorUtils::SetTextureAsAssetThumbnail(UWidgetBlueprint* W
 	{
 		ThumbnailTexture->Rename(ThumbnailName, WidgetBlueprint, REN_NonTransactional | REN_DontCreateRedirectors);
 		WidgetBlueprint->ThumbnailImage = ThumbnailTexture;
+	}
+}
+
+FText FWidgetBlueprintEditorUtils::GetPaletteCategory(const TSubclassOf<UWidget> WidgetClass)
+{
+	if (WidgetClass.Get())
+	{
+		return WidgetClass.GetDefaultObject()->GetPaletteCategory();
+	}
+	return GetMutableDefault<UWidget>()->GetPaletteCategory();
+}
+
+FText FWidgetBlueprintEditorUtils::GetPaletteCategory(const FAssetData& WidgetAsset, const TSubclassOf<UWidget> NativeClass)
+{
+	//The asset can be a UBlueprint, a UWidgetBlueprint or a UWidgetBlueprintGeneratedClass
+
+	if (UClass* WidgetAssetClass = WidgetAsset.GetClass(EResolveClass::No))
+	{
+		if (WidgetAssetClass->IsChildOf(UWidget::StaticClass()))
+		{
+			return GetPaletteCategory(TSubclassOf<UWidget>(WidgetAssetClass));
+		}
+	}
+
+	//If the blueprint is unloaded we need to extract it from the asset metadata.
+	FText FoundPaletteCategoryText = WidgetAsset.GetTagValueRef<FText>(GET_MEMBER_NAME_CHECKED(UWidgetBlueprint, PaletteCategory));
+	if (!FoundPaletteCategoryText.IsEmpty())
+	{
+		return FoundPaletteCategoryText;
+	}
+	else if (NativeClass.Get() != nullptr && NativeClass->IsChildOf(UWidget::StaticClass()) && !NativeClass->IsChildOf(UUserWidget::StaticClass()))
+	{
+		return NativeClass.GetDefaultObject()->GetPaletteCategory();
+	}
+
+	static const FTopLevelAssetPath BlueprintGeneratedClassAssetPath = UWidgetBlueprintGeneratedClass::StaticClass()->GetClassPathName();
+	static const FTopLevelAssetPath WidgetBlueprintAssetPath = UWidgetBlueprint::StaticClass()->GetClassPathName();
+	if (WidgetAsset.AssetClassPath == BlueprintGeneratedClassAssetPath || WidgetAsset.AssetClassPath == WidgetBlueprintAssetPath)
+	{
+		return GetMutableDefault<UUserWidget>()->GetPaletteCategory();
+	}
+	else
+	{
+		return GetMutableDefault<UWidget>()->GetPaletteCategory();
 	}
 }
 

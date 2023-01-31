@@ -52,7 +52,13 @@ public:
 	static bool IsBindWidgetAnimProperty(FProperty* InProperty);
 	static bool IsBindWidgetAnimProperty(FProperty* InProperty, bool& bIsOptional);
 
-	static bool IsUsableWidgetClass(UClass* WidgetClass);
+	struct FUsableWidgetClassResult
+	{
+		const UClass* NativeParentClass = nullptr;
+		EClassFlags AssetClassFlags = EClassFlags::CLASS_None;
+	};
+	static bool IsUsableWidgetClass(const UClass* WidgetClass);
+	static TValueOrError<FUsableWidgetClassResult, void> IsUsableWidgetClass(const FAssetData& WidgetAsset);
 
 	static void ExportWidgetsToText(TArray<UWidget*> WidgetsToExport, /*out*/ FString& ExportedText);
 
@@ -89,6 +95,9 @@ public:
 	static TTuple<float, FVector2D> GetThumbnailImageScaleAndOffset(FVector2D WidgetSize, FVector2D ThumbnailSize);
 
 	static void SetTextureAsAssetThumbnail(UWidgetBlueprint* WidgetBlueprint, UTexture2D* ThumbnailTexture);
+
+	static FText GetPaletteCategory(const TSubclassOf<UWidget> Widget);
+	static FText GetPaletteCategory(const FAssetData& WidgetAsset, const TSubclassOf<UWidget> NativeClass);
 
 	static TOptional<FWidgetThumbnailProperties> DrawSWidgetInRenderTargetForThumbnail(UUserWidget* WidgetInstance, FRenderTarget* RenderTarget2D, FVector2D ThumbnailSize, TOptional<FVector2D> ThumbnailCustomSize, EThumbnailPreviewSizeMode ThumbnailSizeMode = EThumbnailPreviewSizeMode::MatchDesignerMode);
 
