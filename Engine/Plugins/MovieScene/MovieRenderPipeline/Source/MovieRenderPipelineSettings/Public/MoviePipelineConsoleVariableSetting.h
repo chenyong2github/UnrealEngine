@@ -151,15 +151,25 @@ public:
 
 	/**
 	 * Adds a console variable override with the given name and value if one does not already exist. If the console
-	 * variable with the given name already exists, its value will be updated. Returns true if the operation was
-	 * successful, else false.
+	 * variable with the given name already exists, its value will be updated (the last one will be updated if there are
+	 * duplicates with the same name). Returns true if the operation was successful, else false.
+	 * @see AddConsoleVariable()
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Settings")
 	bool AddOrUpdateConsoleVariable(const FString& Name, const float Value);
 
 	/**
-	 * Updates the enable state of the console variable override with the provided name. Returns true if the operation
-	 * was successful, else false.
+	 * Adds a console variable override with the given name and value, and will add a duplicate if one with the provided
+	 * name already exists. Returns true if the operation was successful, else false.
+	 * @see AddOrUpdateConsoleVariable()
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Settings")
+	bool AddConsoleVariable(const FString& Name, const float Value);
+
+	/**
+	 * Updates the enable state of the console variable override with the provided name. If there are duplicate cvars
+	 * with the same name, the last one with the provided name will be updated. Returns true if the operation was
+	 * successful, else false.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Settings")
 	bool UpdateConsoleVariableEnableState(const FString& Name, const bool bIsEnabled);

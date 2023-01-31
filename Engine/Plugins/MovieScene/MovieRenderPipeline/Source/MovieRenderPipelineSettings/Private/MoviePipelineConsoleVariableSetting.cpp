@@ -321,6 +321,13 @@ bool UMoviePipelineConsoleVariableSetting::AddOrUpdateConsoleVariable(const FStr
 	return true;
 }
 
+bool UMoviePipelineConsoleVariableSetting::AddConsoleVariable(const FString& Name, const float Value)
+{
+	CVars.Add(FMoviePipelineConsoleVariableEntry(Name, Value));
+
+	return true;
+}
+
 bool UMoviePipelineConsoleVariableSetting::UpdateConsoleVariableEnableState(const FString& Name, const bool bIsEnabled)
 {
 	const int32 LastMatch = CVars.FindLastByPredicate([&Name](const FMoviePipelineConsoleVariableEntry& Entry)

@@ -24,4 +24,5 @@ public:
 	GENERATED_BODY()
 
 	virtual void GetConsoleVariablesForTrack(bool bOnlyIncludeChecked, TArray<TTuple<FString, FString>>& OutVariables) = 0;
+	virtual bool IsConsoleVariableEnabled(const FString& ConsoleVariableName) = 0;
 };

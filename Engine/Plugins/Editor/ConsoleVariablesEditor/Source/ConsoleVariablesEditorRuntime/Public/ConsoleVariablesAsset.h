@@ -104,6 +104,7 @@ private:
 
 	//~ IMovieSceneConsoleVariableTrackInterface overrides
 	virtual void GetConsoleVariablesForTrack(bool bOnlyIncludeChecked, TArray<TPair<FString, FString>>& OutVariables) override;
+	virtual bool IsConsoleVariableEnabled(const FString& ConsoleVariableName) override;
 
 private:
 

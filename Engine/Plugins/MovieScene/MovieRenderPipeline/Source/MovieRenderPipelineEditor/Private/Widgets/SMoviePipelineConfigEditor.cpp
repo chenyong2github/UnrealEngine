@@ -56,6 +56,7 @@
 #include "IPropertyUtilities.h"
 
 #include "Customizations/ConsoleVariableCustomization.h"
+#include "Customizations/ConsoleVariableSettingCustomization.h"
 #include "MoviePipelineConsoleVariableSetting.h"
 #include "MoviePipelineOutputSetting.h"
 
@@ -737,7 +738,7 @@ void SMoviePipelineConfigEditor::UpdateDetails()
 			Details->RegisterInstancedCustomPropertyTypeLayout(FMoviePipelineConsoleVariableEntry::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(FConsoleVariablesDetailsCustomization::MakeInstance));
 			Details->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFrameNumberDetailsCustomization::MakeInstance, NumericTypeInterface));
 			Details->RegisterInstancedCustomPropertyLayout(UMoviePipelineOutputSetting::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(FOutputFormatDetailsCustomization::MakeInstance, SharedThis(this)));
-
+			Details->RegisterInstancedCustomPropertyLayout(UMoviePipelineConsoleVariableSetting::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(FConsoleVariablesSettingDetailsCustomization::MakeInstance));
 
 			Details->SetObjects(Pair.Value);
 			DetailsBox->AddSlot()

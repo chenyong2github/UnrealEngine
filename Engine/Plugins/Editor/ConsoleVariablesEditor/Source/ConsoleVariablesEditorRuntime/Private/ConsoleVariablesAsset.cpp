@@ -50,6 +50,19 @@ void UConsoleVariablesAsset::GetConsoleVariablesForTrack(bool bOnlyIncludeChecke
 	}
 }
 
+bool UConsoleVariablesAsset::IsConsoleVariableEnabled(const FString& ConsoleVariableName)
+{
+	for (const FConsoleVariablesEditorAssetSaveData& Command : SavedCommands)
+	{
+		if (Command.CommandName == ConsoleVariableName)
+		{
+			return Command.CheckedState == ECheckBoxState::Checked;
+		}
+	}
+
+	return false;
+}
+
 void UConsoleVariablesAsset::ExecuteSavedCommands(UObject* WorldContextObject, bool bOnlyIncludeChecked) const
 {
 	if (const TObjectPtr<UWorld> World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
