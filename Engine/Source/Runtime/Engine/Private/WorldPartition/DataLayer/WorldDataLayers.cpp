@@ -707,9 +707,12 @@ const UDataLayerInstance* AWorldDataLayers::GetDataLayerInstance(const UDataLaye
 		}
 	}
 #else
-	if (const UDataLayerInstance* const* FoundDataLayerInstance = AssetNameToInstance.Find(InDataLayerAsset->GetFullName()))
+	if (InDataLayerAsset != nullptr)
 	{
-		return *FoundDataLayerInstance;
+		if (const UDataLayerInstance* const* FoundDataLayerInstance = AssetNameToInstance.Find(InDataLayerAsset->GetFullName()))
+		{
+			return *FoundDataLayerInstance;
+		}
 	}
 #endif
 
