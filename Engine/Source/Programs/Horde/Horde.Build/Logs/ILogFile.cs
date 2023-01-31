@@ -6,6 +6,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs;
+using Horde.Build.Storage;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs
@@ -59,6 +60,11 @@ namespace Horde.Build.Logs
 		/// The session allowed to write to this log
 		/// </summary>
 		public SessionId? SessionId { get; }
+
+		/// <summary>
+		/// Whether to use the new storage backend for log data
+		/// </summary>
+		public bool UseNewStorageBackend { get; }
 
 		/// <summary>
 		/// Maximum line index in the file

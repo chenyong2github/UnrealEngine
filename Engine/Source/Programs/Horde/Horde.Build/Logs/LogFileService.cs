@@ -64,10 +64,11 @@ namespace Horde.Build.Logs
 		/// <param name="jobId">Unique id of the job that owns this log file</param>
 		/// <param name="sessionId">Agent session allowed to update the log</param>
 		/// <param name="type">Type of events to be stored in the log</param>
+		/// <param name="useNewStorageBackend">Whether to use the new storage backend for log data</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <param name="logId">ID of the log file (optional)</param>
 		/// <returns>The new log file document</returns>
-		Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, LogId? logId = null, CancellationToken cancellationToken = default);
+		Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, bool useNewStorageBackend, LogId? logId = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets a logfile by ID
@@ -600,9 +601,9 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, LogId? logId, CancellationToken cancellationToken)
+		public Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, bool useNewStorageBackend, LogId? logId, CancellationToken cancellationToken)
 		{
-			return _logFiles.CreateLogFileAsync(jobId, sessionId, type, logId, cancellationToken);
+			return _logFiles.CreateLogFileAsync(jobId, sessionId, type, useNewStorageBackend, logId, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -649,7 +650,7 @@ namespace Horde.Build.Logs
 		{
 			List<Utf8String> lines = new List<Utf8String>();
 
-			if (_settings.Value.FeatureFlags.EnableNewLogger)
+			if (logFile.UseNewStorageBackend)
 			{
 				TreeReader reader = await GetTreeReaderAsync(cancellationToken);
 
@@ -926,7 +927,7 @@ namespace Horde.Build.Logs
 		public async Task<LogMetadata> GetMetadataAsync(ILogFile logFile, CancellationToken cancellationToken)
 		{
 			LogMetadata metadata = new LogMetadata();
-			if (_settings.Value.FeatureFlags.EnableNewLogger)
+			if (logFile.UseNewStorageBackend)
 			{
 				metadata.MaxLineIndex = logFile.LineCount;
 
@@ -1076,7 +1077,7 @@ namespace Horde.Build.Logs
 		/// <inheritdoc/>
 		public async Task<Stream> OpenRawStreamAsync(ILogFile logFile, long offset, long length, CancellationToken cancellationToken)
 		{
-			if (_settings.Value.FeatureFlags.EnableNewLogger)
+			if (logFile.UseNewStorageBackend)
 			{
 				TreeReader reader = await GetTreeReaderAsync(cancellationToken);
 
@@ -1226,7 +1227,7 @@ namespace Horde.Build.Logs
 		/// <inheritdoc/>
 		public async Task<(int, long)> GetLineOffsetAsync(ILogFile logFile, int lineIdx, CancellationToken cancellationToken)
 		{
-			if (_settings.Value.FeatureFlags.EnableNewLogger)
+			if (logFile.UseNewStorageBackend)
 			{
 				TreeReader reader = await GetTreeReaderAsync(cancellationToken);
 
@@ -1868,7 +1869,7 @@ namespace Horde.Build.Logs
 			List<int> results = new List<int>();
 			if (count > 0)
 			{
-				IAsyncEnumerable<int> enumerable =_settings.Value.FeatureFlags.EnableNewLogger ?
+				IAsyncEnumerable<int> enumerable = (logFile.UseNewStorageBackend) ?
 						SearchLogDataInternalNewAsync(logFile, text, firstLine, searchStats, cancellationToken) :
 						SearchLogDataInternalAsync(logFile, text, firstLine, searchStats);
 

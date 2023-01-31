@@ -212,10 +212,6 @@ namespace Horde.Build
 	/// </summary>
 	public class FeatureFlagSettings
 	{
-		/// <summary>
-		/// Whether to use the new log storage backend
-		/// </summary>
-		public bool EnableNewLogger { get; set; } = false;
 	}
 
 	/// <summary>

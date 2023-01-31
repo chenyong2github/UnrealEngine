@@ -194,11 +194,6 @@ namespace Horde.Agent.Utility
 		/// <inheritdoc/>
 		public async Task WriteOutputAsync(WriteOutputRequest request, CancellationToken cancellationToken)
 		{
-			if (_inner != null)
-			{
-				await _inner.WriteOutputAsync(request, cancellationToken);
-			}
-
 			_builder.WriteData(request.Data.Memory);
 			_bufferLength += request.Data.Length;
 

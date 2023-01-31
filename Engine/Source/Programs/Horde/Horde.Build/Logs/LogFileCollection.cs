@@ -19,7 +19,6 @@ namespace Horde.Build.Logs
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using SessionId = ObjectId<ISession>;
-	using StreamId = StringId<IStream>;
 
 	/// <summary>
 	/// Wrapper around the jobs collection in a mongo DB
@@ -64,6 +63,7 @@ namespace Horde.Build.Logs
 
 			public SessionId? SessionId { get; set; }
 			public LogType Type { get; set; }
+			public bool UseNewStorageBackend { get; set; }
 
 			[BsonIgnoreIfNull]
 			public int? MaxLineIndex { get; set; }
@@ -86,12 +86,13 @@ namespace Horde.Build.Logs
 			{
 			}
 
-			public LogFileDocument(JobId jobId, SessionId? sessionId, LogType type, LogId? logId)
+			public LogFileDocument(JobId jobId, SessionId? sessionId, LogType type, bool newStorageBackend, LogId? logId)
 			{
 				Id = logId ?? LogId.GenerateNewId();
 				JobId = jobId;
 				SessionId = sessionId;
 				Type = type;
+				UseNewStorageBackend = newStorageBackend;
 				MaxLineIndex = 0;
 				RefName = new RefName(Id.ToString());
 			}
@@ -125,9 +126,9 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, LogId? logId, CancellationToken cancellationToken)
+		public async Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, bool newStorageBackend, LogId? logId, CancellationToken cancellationToken)
 		{
-			LogFileDocument newLogFile = new (jobId, sessionId, type, logId);
+			LogFileDocument newLogFile = new (jobId, sessionId, type, newStorageBackend, logId);
 			await _logFiles.InsertOneAsync(newLogFile, null, cancellationToken);
 			return newLogFile;
 		}

@@ -55,7 +55,6 @@ namespace Horde.Build.Logs
 	{
 		private readonly ILogFileService _logFileService;
 		private readonly IIssueCollection _issueCollection;
-		private readonly AclService _aclService;
 		private readonly JobService _jobService;
 		private readonly StorageService _storageService;
 		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
@@ -63,36 +62,14 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogsController(ILogFileService logFileService, IIssueCollection issueCollection, AclService aclService, JobService jobService, StorageService storageService, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public LogsController(ILogFileService logFileService, IIssueCollection issueCollection, JobService jobService, StorageService storageService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_logFileService = logFileService;
 			_issueCollection = issueCollection;
-			_aclService = aclService;
 			_jobService = jobService;
 			_storageService = storageService;
 			_globalConfig = globalConfig;
  		}
-
-		/// <summary>
-		/// Creates a new log file. This endpoint is used mainly for debugging; log documents for specific uses are usually 
-		/// created by the server and have their id passed into clients to append to.
-		/// </summary>
-		/// <param name="request">Request to create the log</param>
-		/// <param name="cancellationToken">Cancellation token for the request</param>
-		/// <returns>Information about the requested project</returns>
-		[HttpPost]
-		[Route("/api/v1/logs")]
-		[ProducesResponseType(typeof(GetLogFileResponse), 200)]
-		public async Task<ActionResult<object>> CreateLog(CreateLogFileRequest request, CancellationToken cancellationToken = default)
-		{
-			if (!_globalConfig.Value.Authorize(AclAction.CreateLog, User))
-			{
-				return Forbid();
-			}
-
-			ILogFile logFile = await _logFileService.CreateLogFileAsync(JobId.Empty, null, request.Type, cancellationToken: cancellationToken);
-			return new CreateLogFileResponse { Id = logFile.Id.ToString() };
-		}
 
 		/// <summary>
 		/// Retrieve metadata about a specific log file

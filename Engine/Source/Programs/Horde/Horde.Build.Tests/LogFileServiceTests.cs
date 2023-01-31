@@ -79,7 +79,7 @@ namespace Horde.Build.Tests
         public async Task WriteLogLifecycleOldTest()
         {
 			JobId jobId = JobId.GenerateNewId();
-            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, null, cancellationToken: CancellationToken.None);
+            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
 
             logFile = (await ((ILogFileService)_logFileService).WriteLogDataAsync(logFile, 0, 0, Encoding.ASCII.GetBytes("hello\n"), true))!;
 			logFile = (await ((ILogFileService)_logFileService).WriteLogDataAsync(logFile, 6, 1, Encoding.ASCII.GetBytes("foo\nbar\n"), true))!;
@@ -150,7 +150,7 @@ namespace Horde.Build.Tests
         public async Task WriteLogLifecycle(ILogFileService lfs, int maxChunkLength)
         {
 			JobId jobId = JobId.GenerateNewId();
-            ILogFile logFile = await lfs.CreateLogFileAsync(jobId, null, LogType.Text);
+            ILogFile logFile = await lfs.CreateLogFileAsync(jobId, null, LogType.Text, useNewStorageBackend: false);
 
             string str1 = "hello\n";
             string str2 = "foo\nbar\n";
@@ -257,7 +257,7 @@ namespace Horde.Build.Tests
 			// Will implicitly test GetLogFileAsync(), AddCachedLogFile()
 			JobId jobId = JobId.GenerateNewId();
             ObjectId sessionId = ObjectId.GenerateNewId();
-            ILogFile a = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text, null, CancellationToken.None);
+            ILogFile a = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text, useNewStorageBackend: false, logId: null, CancellationToken.None);
             ILogFile b = (await _logFileService.GetCachedLogFileAsync(a.Id, CancellationToken.None))!;
             Assert.AreEqual(a.JobId, b.JobId);
             Assert.AreEqual(a.SessionId, b.SessionId);
@@ -266,7 +266,7 @@ namespace Horde.Build.Tests
             ILogFile? notFound = await _logFileService.GetCachedLogFileAsync(LogId.GenerateNewId(), CancellationToken.None);
             Assert.IsNull(notFound);
 
-            await _logFileService.CreateLogFileAsync(JobId.GenerateNewId(), new ObjectId<ISession>(ObjectId.GenerateNewId()), LogType.Text, null, CancellationToken.None);
+            await _logFileService.CreateLogFileAsync(JobId.GenerateNewId(), new ObjectId<ISession>(ObjectId.GenerateNewId()), LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
             Assert.AreEqual(2, (await _logFileService.GetLogFilesAsync()).Count);
         }
 
@@ -275,8 +275,8 @@ namespace Horde.Build.Tests
         {
 			JobId jobId = JobId.GenerateNewId();
             ObjectId sessionId = ObjectId.GenerateNewId();
-            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text, null, CancellationToken.None);
-            ILogFile logFileNoSession = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, null, CancellationToken.None);
+            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
+            ILogFile logFileNoSession = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
 
 			ClaimsPrincipal hasClaim = new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
             {
@@ -296,7 +296,7 @@ namespace Horde.Build.Tests
 		public async Task ChunkSplitting()
 		{
 			JobId jobId = JobId.GenerateNewId();
-			ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, null, CancellationToken.None);
+			ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
 
 			long offset = 0;
 
