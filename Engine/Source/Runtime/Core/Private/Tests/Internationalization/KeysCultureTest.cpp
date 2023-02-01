@@ -31,6 +31,18 @@ struct FRestoreCultureStateGuard
 private:
 	FInternationalization::FCultureStateSnapshot OriginalCultureState;
 };
+/**
+* A helper function that generates the expected output string when the keys culture is active.
+* If you change the behavior of what gets displayed by the keys culture, be sure to update this function. FTextLocalizationManager::KeyifyAllDisplayStrings is currently the place that is done.
+*/
+FString CreateExpectedOutputFromPolyglotData(const FPolyglotTextData& InData)
+{
+	FString Key;
+	FString Namespace;
+	InData.GetIdentity(Namespace, Key);
+	// Right now, we display it as key, namespace
+	return FString::Printf(TEXT("%s, %s"), *Key, *Namespace);
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKeysCultureTest, "System.Core.Misc.KeysCulture", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 bool FKeysCultureTest::RunTest (const FString& Parameters)
@@ -45,7 +57,7 @@ bool FKeysCultureTest::RunTest (const FString& Parameters)
 	// 2. We register text data that as a native string and a target culture translation.
 	// 3. We register text data that as a native string and no target culture translation. 
 	// 4. We change to the target culture. The text with translation should have its display string the same as the localized string in the target culture. The display string for the text with no translation should match the native string.
-	// 5. We change to the keys culture. Both text with and without translations in a target culture should have their display strings show the localization key of the text.
+	// 5. We change to the keys culture. Both text with and without translations in a target culture should have their display strings show the localization key and namespace of the text.
 	// 6. We revert back to the native culture. Both text with and without translations should have their display strings the same as their native strings with no change.
 	
 	FInternationalization& I18N = FInternationalization::Get();
@@ -110,7 +122,7 @@ bool FKeysCultureTest::RunTest (const FString& Parameters)
 	TestEqual(TEXT("Text without translation display string is the same as the native string in target culture."), Test2TargetCultureDisplayString, Test2.GetNativeString());
 	
 	// Change to the keys culture
-	// This culture should output all the display strings as the localization key of the text.
+	// This culture should output all the display strings as the localization key and namespace of the text.
 	// There will be logs that say the localization resource files associated with the keys culture can't be read. That is normal and can be ignored.
 	I18N.SetCurrentCulture(FKeysCulture::StaticGetName());
 	// Test 5 - Can we successfully change from the native culture to the keys culture 
@@ -120,13 +132,13 @@ bool FKeysCultureTest::RunTest (const FString& Parameters)
 		return false;
 	}
 	
-	// Test 6 - The display string for the text with translation should be the localization key for the text in the keys culture 
+	// Test 6 - The display string for the text with translation should be the localization key and localization namespace for the text in the keys culture 
 	FString Test1KeysCultureDisplayString = Test1Text.ToString();
-	TestEqual(TEXT("Text with translation now has display string that matches its localization key in keys culture."), Test1KeysCultureDisplayString, Test1.GetKey());
+	TestEqual(TEXT("Text with translation now has display string that matches its localization key and namespace in keys culture."), Test1KeysCultureDisplayString, CreateExpectedOutputFromPolyglotData(Test1));
 	
-	// Test 7 - The display string for the text with no translation should be its localization key in the keys culture.
+	// Test 7 - The display string for the text with no translation should be its localization key and localization namespace in the keys culture.
 	FString Test2KeysCultureDisplayString = Test2Text.ToString();
-	TestEqual(TEXT("Text with blank translation has display string that matches its localization key in keys culture."), Test2KeysCultureDisplayString, Test2.GetKey());
+	TestEqual(TEXT("Text with blank translation has display string that matches its localization key and namespace in keys culture."), Test2KeysCultureDisplayString, CreateExpectedOutputFromPolyglotData(Test2));
 
 	// Revert to native culture. All of the text should still show up as the originals.
 	I18N.SetCurrentCulture(NativeCulture);

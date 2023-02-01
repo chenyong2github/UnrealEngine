@@ -1674,9 +1674,10 @@ void FTextLocalizationManager::KeyifyAllDisplayStrings()
 	{
 		FDisplayStringEntry& LiveEntry = DisplayStringPair.Value;
 		LiveEntry.NativeStringBackup = LiveEntry.DisplayString;
-
-		FString Key = DisplayStringPair.Key.GetKey().GetChars();
-		FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(MoveTemp(Key));
+		// We want to show the identity in terms of key, namespace. This is to try and fit into the constraints of UI text blocks and at least let the key component be visible to easily identify a piece of text.
+		// If the key/namespace pair is too long, the Slate.LogPaintedText cvar can be used to see the entire thing.
+		FString KeyNamespaceDisplay = FString::Printf(TEXT("%s, %s"), DisplayStringPair.Key.GetKey().GetChars(), DisplayStringPair.Key.GetNamespace().GetChars());
+		FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(MoveTemp(KeyNamespaceDisplay));
 		LiveEntry.DisplayString = TmpDisplayString;
 	}
 }

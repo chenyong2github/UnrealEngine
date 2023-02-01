@@ -334,7 +334,7 @@ private:
 #if ENABLE_LOC_TESTING
 	/** A helper function that leetifies all of the display strings when the LEET culture is active. */
 	void LeetifyAllDisplayStrings();
-	/** A helper function that converts all of the display strings to show the localization key associated with the string when the keys culture is active. */
+	/** A helper function that converts all of the display strings to show the localization key and namespace associated with the string when the keys culture is active. */
 	void KeyifyAllDisplayStrings();
 #endif
 
