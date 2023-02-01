@@ -35,7 +35,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	EHeadingAxis HeadingAxis = EHeadingAxis::X;	
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	int8 SchemaBoneIdx = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ExcludeFromHash))

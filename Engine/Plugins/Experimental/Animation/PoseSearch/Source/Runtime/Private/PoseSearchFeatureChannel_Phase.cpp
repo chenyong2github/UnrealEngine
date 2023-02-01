@@ -54,7 +54,7 @@ namespace UE::PoseSearch
 		{
 			const float SampleTime = SampleTimeStart + SampleIdx * FiniteDelta;
 			bool bUnused;
-			BonePositions[SampleIdx] = Indexer.GetTransformAndCacheResults(SampleTime, SampleTimeStart, SchemaBoneIdx, bUnused).GetTranslation();
+			BonePositions[SampleIdx] = Indexer.GetComponentSpaceTransform(SampleTime, SampleTimeStart, bUnused, SchemaBoneIdx).GetTranslation();
 		}
 	}
 

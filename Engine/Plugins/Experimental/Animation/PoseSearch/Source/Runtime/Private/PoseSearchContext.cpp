@@ -156,7 +156,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 		return CachedTransform->Transform;
 	}
 
-	if (BoneIndexType != UPoseSearchSchema::RootBoneIdx)
+	if (BoneIndexType != RootBoneIndexType)
 	{
 		TArray<FTransform> SampledLocalPose;
 		if (History->TrySampleLocalPose(-SampleTime, &Schema->BoneIndicesWithParents, &SampledLocalPose, nullptr))

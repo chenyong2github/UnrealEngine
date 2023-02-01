@@ -37,32 +37,29 @@ public:
 public: // IAssetIndexer
 
 	const FAssetIndexingContext& GetIndexingContext() const override { return IndexingContext; }
-	FSampleInfo GetSampleInfo(float SampleTime) const override;
-	FSampleInfo GetSampleInfoRelative(float SampleTime, const FSampleInfo& Origin) const override;
-	FTransform MirrorTransform(const FTransform& Transform) const override;
-	FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) override;
+	FTransform GetTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx = RootSchemaBoneIdx) override;
+	FTransform GetComponentSpaceTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx = RootSchemaBoneIdx) override;
+	FTransform GetComponentSpaceTransform(float SampleTime, float OriginTime, bool& Clamped, int8 SchemaBoneIdx = RootSchemaBoneIdx) override;
 
 private:
-	FPoseSearchPoseMetadata GetMetadata(int32 SampleIdx) const;
-
 	struct CachedEntry
 	{
 		float SampleTime;
-		float OriginTime;
 		bool Clamped;
 
-		// @todo: minimize the Entry memory footprint
 		FTransform RootTransform;
-		FCompactPose Pose;
 		FCSPose<FCompactPose> ComponentSpacePose;
-		FBlendedCurve UnusedCurve;
-		UE::Anim::FStackAttributeContainer UnusedAtrribute;
-		FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
 	};
+
+	FSampleInfo GetSampleInfo(float SampleTime) const;
+	FPoseSearchPoseMetadata GetMetadata(int32 SampleIdx) const;
+	FTransform MirrorTransform(const FTransform& Transform) const;
+	CachedEntry& GetEntry(float SampleTime);
+	FTransform CalculateComponentSpaceTransform(CachedEntry& Entry, int8 SchemaBoneIdx);
 
 	FBoneContainer BoneContainer;
 	FAssetIndexingContext IndexingContext;
-	TArray<CachedEntry> CachedEntries;
+	TMap<float, CachedEntry> CachedEntries;
 };
 
 } // namespace UE::PoseSearch

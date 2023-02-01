@@ -2,6 +2,7 @@
 
 #include "PoseSearch/PoseSearchSchema.h"
 #include "AnimationRuntime.h"
+#include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchResult.h"
 #include "UObject/ObjectSaveContext.h"
@@ -55,7 +56,7 @@ void UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext
 
 FBoneIndexType UPoseSearchSchema::GetBoneIndexType(int8 SchemaBoneIdx) const
 {
-	return SchemaBoneIdx >= 0 && BoneReferences[SchemaBoneIdx].HasValidSetup() ? BoneReferences[SchemaBoneIdx].BoneIndex : RootBoneIdx;
+	return SchemaBoneIdx >= 0 && BoneReferences[SchemaBoneIdx].HasValidSetup() ? BoneReferences[SchemaBoneIdx].BoneIndex : RootBoneIndexType;
 }
 
 void UPoseSearchSchema::Finalize()
@@ -87,9 +88,11 @@ void UPoseSearchSchema::PostLoad()
 	Finalize();
 }
 
-int32 UPoseSearchSchema::AddBoneReference(const FBoneReference& BoneReference)
+int8 UPoseSearchSchema::AddBoneReference(const FBoneReference& BoneReference)
 {
-	return BoneReferences.AddUnique(BoneReference);
+	const int32 SchemaBoneIdx = BoneReferences.AddUnique(BoneReference);
+	check(SchemaBoneIdx >= 0 && SchemaBoneIdx < 128);
+	return int8(SchemaBoneIdx);
 }
 
 USkeleton* UPoseSearchSchema::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)

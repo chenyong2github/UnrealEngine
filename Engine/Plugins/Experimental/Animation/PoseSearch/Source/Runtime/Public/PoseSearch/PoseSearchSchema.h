@@ -113,7 +113,7 @@ public:
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
 
-	int32 AddBoneReference(const FBoneReference& BoneReference);
+	int8 AddBoneReference(const FBoneReference& BoneReference);
 
 	// IBoneReferenceSkeletonProvider
 	USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
@@ -124,7 +124,6 @@ public:
 
 	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const;
 
-	static constexpr FBoneIndexType RootBoneIdx = 0xFFFF;
 	FBoneIndexType GetBoneIndexType(int8 SchemaBoneIdx) const;
 
 private:

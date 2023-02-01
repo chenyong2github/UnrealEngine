@@ -56,10 +56,10 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::IndexAsset(UE::PoseSearch::IA
 		const float SubsampleTime = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
 
 		bool bUnused;
-		const FTransform RightThighTransform = Indexer.GetTransformAndCacheResults(SubsampleTime, SubsampleTime, RightThighIdx, bUnused);
-		const FTransform LeftThighTransform = Indexer.GetTransformAndCacheResults(SubsampleTime, SubsampleTime, LeftThighIdx, bUnused);
-		const FTransform RightFootTransform = Indexer.GetTransformAndCacheResults(SubsampleTime, SubsampleTime, RightFootIdx, bUnused);
-		const FTransform LeftFootTransform = Indexer.GetTransformAndCacheResults(SubsampleTime, SubsampleTime, LeftFootIdx, bUnused);
+		const FTransform RightThighTransform = Indexer.GetComponentSpaceTransform(SubsampleTime, bUnused, RightThighIdx);
+		const FTransform LeftThighTransform = Indexer.GetComponentSpaceTransform(SubsampleTime, bUnused, LeftThighIdx);
+		const FTransform RightFootTransform = Indexer.GetComponentSpaceTransform(SubsampleTime, bUnused, RightFootIdx);
+		const FTransform LeftFootTransform = Indexer.GetComponentSpaceTransform(SubsampleTime, bUnused, LeftFootIdx);
 
 		const float CrashingLegsValue = ComputeCrashingLegsValue(RightThighTransform.GetTranslation(), LeftThighTransform.GetTranslation(), RightFootTransform.GetTranslation(), LeftFootTransform.GetTranslation());
 

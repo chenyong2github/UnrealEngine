@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
 namespace UE::PoseSearch
@@ -49,10 +50,9 @@ public:
 	virtual ~IAssetIndexer() {}
 
 	virtual const FAssetIndexingContext& GetIndexingContext() const = 0;
-	virtual FSampleInfo GetSampleInfo(float SampleTime) const = 0;
-	virtual FSampleInfo GetSampleInfoRelative(float SampleTime, const FSampleInfo& Origin) const = 0;
-	virtual FTransform MirrorTransform(const FTransform& Transform) const = 0;
-	virtual FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) = 0;
+	virtual FTransform GetTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx = RootSchemaBoneIdx) = 0;
+	virtual FTransform GetComponentSpaceTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx = RootSchemaBoneIdx) = 0;
+	virtual FTransform GetComponentSpaceTransform(float SampleTime, float OriginTime, bool& Clamped, int8 SchemaBoneIdx = RootSchemaBoneIdx) = 0;
 };
 
 } // namespace UE::PoseSearch

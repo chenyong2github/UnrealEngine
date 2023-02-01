@@ -45,9 +45,9 @@ void UPoseSearchFeatureChannel_Velocity::IndexAsset(UE::PoseSearch::IAssetIndexe
 		const float SubsampleTime = OriginSampleTime + SampleTimeOffset;
 
 		bool ClampedPast, ClampedPresent, ClampedFuture;
-		const FTransform BoneTransformsPast = Indexer.GetTransformAndCacheResults(SubsampleTime - SamplingContext->FiniteDelta, bUseCharacterSpaceVelocities ? OriginSampleTime - SamplingContext->FiniteDelta : OriginSampleTime, SchemaBoneIdx, ClampedPast);
-		const FTransform BoneTransformsPresent = Indexer.GetTransformAndCacheResults(SubsampleTime, OriginSampleTime, SchemaBoneIdx, ClampedPresent);
-		const FTransform BoneTransformsFuture = Indexer.GetTransformAndCacheResults(SubsampleTime + SamplingContext->FiniteDelta, bUseCharacterSpaceVelocities ? OriginSampleTime + SamplingContext->FiniteDelta : OriginSampleTime, SchemaBoneIdx, ClampedFuture);
+		const FTransform BoneTransformsPast = Indexer.GetComponentSpaceTransform(SubsampleTime - SamplingContext->FiniteDelta, bUseCharacterSpaceVelocities ? OriginSampleTime - SamplingContext->FiniteDelta : OriginSampleTime, ClampedPast, SchemaBoneIdx);
+		const FTransform BoneTransformsPresent = Indexer.GetComponentSpaceTransform(SubsampleTime, OriginSampleTime, ClampedPresent, SchemaBoneIdx);
+		const FTransform BoneTransformsFuture = Indexer.GetComponentSpaceTransform(SubsampleTime + SamplingContext->FiniteDelta, bUseCharacterSpaceVelocities ? OriginSampleTime + SamplingContext->FiniteDelta : OriginSampleTime, ClampedFuture, SchemaBoneIdx);
 
 		// We can get a better finite difference if we ignore samples that have
 		// been clamped at either side of the clip. However, if the central sample 
@@ -112,8 +112,8 @@ void UPoseSearchFeatureChannel_Velocity::BuildQuery(UE::PoseSearch::FSearchConte
 			// if we want the velocity not in character space we need to calculate the root offset delta between the SampleTimeOffset and the SampleTimeOffset - HistorySameplInterval to apply to the TransformPrevious
 			if (!bUseCharacterSpaceVelocities)
 			{
-				const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx);
-				const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset - HistorySameplInterval, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx);
+				const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema());
+				const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset - HistorySameplInterval, InOutQuery.GetSchema());
 				TransformPrevious = TransformPrevious * (RootTransformPrev * RootTransform.Inverse());
 			}
 
@@ -122,7 +122,7 @@ void UPoseSearchFeatureChannel_Velocity::BuildQuery(UE::PoseSearch::FSearchConte
 		else
 		{
 			check(SearchContext.Trajectory);
-			// @todo: make this call consistent with Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx);
+			// @todo: make this call consistent with Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema());
 			const FTrajectorySample TrajectorySample = SearchContext.Trajectory->GetSampleAtTime(SampleTimeOffset);
 			LinearVelocity = TrajectorySample.LinearVelocity;
 		}

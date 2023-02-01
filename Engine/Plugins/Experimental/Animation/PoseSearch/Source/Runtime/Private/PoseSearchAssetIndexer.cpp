@@ -208,13 +208,6 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 	return Sample;
 }
 
-FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfoRelative(float SampleTime, const FSampleInfo& Origin) const
-{
-	FSampleInfo Sample = GetSampleInfo(SampleTime);
-	Sample.RootTransform.SetToRelativeTransform(Origin.RootTransform);
-	return Sample;
-}
-
 FTransform FAssetIndexer::MirrorTransform(const FTransform& Transform) const
 {
 	return IndexingContext.bMirrored ? IndexingContext.SamplingContext->MirrorTransform(Transform) : Transform;
@@ -253,45 +246,33 @@ FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx) const
 	return Metadata;
 }
 
-// returns the transform in character space for the bone indexed by Schema->BoneReferences[SchemaBoneIdx] 
-// at SampleTime-OriginTime seconds ahead (or behind) the pose at OriginTime
-FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped)
+FAssetIndexer::CachedEntry& FAssetIndexer::GetEntry(float SampleTime)
 {
-	// @todo: use an hashmap if we end up having too many entries
-	CachedEntry* Entry = CachedEntries.FindByPredicate([SampleTime, OriginTime](const FAssetIndexer::CachedEntry& Entry)
-		{
-			return Entry.SampleTime == SampleTime && Entry.OriginTime == OriginTime;
-		});
+	using namespace UE::Anim;
 
+	CachedEntry* Entry = CachedEntries.Find(SampleTime);
 	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
 
 	if (!Entry)
 	{
-		Entry = &CachedEntries[CachedEntries.AddDefaulted()];
-
+		Entry = &CachedEntries.Add(SampleTime);
 		Entry->SampleTime = SampleTime;
-		Entry->OriginTime = OriginTime;
 
 		if (!BoneContainer.IsValid())
 		{
 			UE_LOG(LogPoseSearch,
 				Warning,
-				TEXT("Invalid BoneContainer encountered in FAssetIndexer::GetTransformAndCacheResults. Asset: %s. Schema: %s. BoneContainerAsset: %s. NumBoneIndices: %d"),
+				TEXT("Invalid BoneContainer encountered in FAssetIndexer::GetEntry. Asset: %s. Schema: %s. BoneContainerAsset: %s. NumBoneIndices: %d"),
 				*GetNameSafe(IndexingContext.AssetSampler->GetAsset()),
 				*GetNameSafe(IndexingContext.Schema),
 				*GetNameSafe(BoneContainer.GetAsset()),
 				BoneContainer.GetCompactPoseNumBones());
 		}
 
-		Entry->Pose.SetBoneContainer(&BoneContainer);
-		Entry->UnusedCurve.InitFrom(BoneContainer);
-
-		IAssetIndexer::FSampleInfo Origin = GetSampleInfo(OriginTime);
-		IAssetIndexer::FSampleInfo Sample = GetSampleInfoRelative(SampleTime, Origin);
-
+		const IAssetIndexer::FSampleInfo Sample = GetSampleInfo(SampleTime);
 		float CurrentTime = Sample.ClipTime;
 		float PreviousTime = CurrentTime - SamplingContext->FiniteDelta;
-		
+
 		const bool bLoopable = Sample.Clip->IsLoopable();
 		const float PlayLength = Sample.Clip->GetPlayLength();
 		if (!bLoopable)
@@ -314,12 +295,20 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 		// no need to extract root motion here, since we use the precalculated Sample.RootTransform as root transform for the Entry
 		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), false, DeltaTimeRecord, bLoopable);
 
-		Sample.Clip->ExtractPose(ExtractionCtx, Entry->AnimPoseData);
+		FCompactPose Pose;
+		FBlendedCurve UnusedCurve;
+		FStackAttributeContainer UnusedAtrribute;
+		FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
+
+		UnusedCurve.InitFrom(BoneContainer);
+		Pose.SetBoneContainer(&BoneContainer);
+
+		Sample.Clip->ExtractPose(ExtractionCtx, AnimPoseData);
 
 		if (IndexingContext.bMirrored)
 		{
 			FAnimationRuntime::MirrorPose(
-				Entry->AnimPoseData.GetPose(),
+				AnimPoseData.GetPose(),
 				IndexingContext.Schema->MirrorDataTable->MirrorAxis,
 				SamplingContext->CompactPoseMirrorBones,
 				SamplingContext->ComponentSpaceRefRotations
@@ -327,25 +316,63 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 			// Note curves and attributes are not used during the indexing process and therefore don't need to be mirrored
 		}
 
-		Entry->ComponentSpacePose.InitPose(Entry->Pose);
+		Entry->ComponentSpacePose.InitPose(MoveTemp(Pose));
 		Entry->RootTransform = Sample.RootTransform;
 		Entry->Clamped = Sample.bClamped;
 	}
 
-	FTransform BoneTransform;
+	return *Entry;
+}
+
+// returns the transform in component space for the bone indexed by Schema->BoneReferences[SchemaBoneIdx] at SampleTime seconds
+FTransform FAssetIndexer::GetComponentSpaceTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx)
+{
+	CachedEntry& Entry = GetEntry(SampleTime);
+	Clamped = Entry.Clamped;
+
+	if (SchemaBoneIdx >= 0 && IndexingContext.Schema->BoneReferences[SchemaBoneIdx].HasValidSetup())
+	{
+		return CalculateComponentSpaceTransform(Entry, SchemaBoneIdx);
+	}
+
+	return FTransform::Identity;
+}
+
+// returns the transform in animation space for the bone indexed by Schema->BoneReferences[SchemaBoneIdx] at SampleTime seconds
+FTransform FAssetIndexer::GetTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx)
+{
+	CachedEntry& Entry = GetEntry(SampleTime);
+	Clamped = Entry.Clamped;
+
+	const FTransform MirroredRootTransform = MirrorTransform(Entry.RootTransform);
+	if (SchemaBoneIdx >= 0 && IndexingContext.Schema->BoneReferences[SchemaBoneIdx].HasValidSetup())
+	{
+		return CalculateComponentSpaceTransform(Entry, SchemaBoneIdx) * MirroredRootTransform;
+	}
+
+	return MirroredRootTransform;
+}
+
+FTransform FAssetIndexer::CalculateComponentSpaceTransform(FAssetIndexer::CachedEntry& Entry, int8 SchemaBoneIdx)
+{
 	const FBoneReference& BoneReference = IndexingContext.Schema->BoneReferences[SchemaBoneIdx];
-	if (BoneReference.HasValidSetup())
+	const FCompactPoseBoneIndex CompactBoneIndex = BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
+	return Entry.ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex);
+}
+
+// returns the transform in component space for the bone indexed by Schema->BoneReferences[SchemaBoneIdx] 
+// at SampleTime-OriginTime seconds ahead (or behind) the pose at OriginTime
+FTransform FAssetIndexer::GetComponentSpaceTransform(float SampleTime, float OriginTime, bool& Clamped, int8 SchemaBoneIdx)
+{
+	if (SampleTime == OriginTime)
 	{
-		FCompactPoseBoneIndex CompactBoneIndex = BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
-		BoneTransform = Entry->ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex) * MirrorTransform(Entry->RootTransform);
-	}
-	else
-	{
-		BoneTransform = MirrorTransform(Entry->RootTransform);
+		return GetComponentSpaceTransform(SampleTime, Clamped, SchemaBoneIdx);
 	}
 
-	Clamped = Entry->Clamped;
-
+	bool Unused = false;
+	const FTransform RootBoneTransform = GetTransform(OriginTime, Unused);
+	FTransform BoneTransform = GetTransform(SampleTime, Clamped, SchemaBoneIdx);
+	BoneTransform.SetToRelativeTransform(RootBoneTransform);
 	return BoneTransform;
 }
 

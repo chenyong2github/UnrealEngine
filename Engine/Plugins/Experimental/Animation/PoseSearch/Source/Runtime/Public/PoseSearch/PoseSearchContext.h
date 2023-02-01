@@ -162,7 +162,7 @@ struct POSESEARCH_API FSearchContext
 	// can the continuing pose advance? (if not we skip evaluating it)
 	bool bCanAdvance = true;
 
-	FTransform TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx);
+	FTransform TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx = RootSchemaBoneIdx);
 	void ClearCachedEntries();
 
 	void ResetCurrentBestCost();
@@ -177,8 +177,6 @@ struct POSESEARCH_API FSearchContext
 	TConstArrayView<float> GetCurrentResultPrevPoseVector() const;
 	TConstArrayView<float> GetCurrentResultPoseVector() const;
 	TConstArrayView<float> GetCurrentResultNextPoseVector() const;
-
-	static constexpr int8 SchemaRootBoneIdx = -1;
 
 	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;
 

@@ -20,3 +20,8 @@ constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::None;
 #endif // UE_POSE_SEARCH_FORCE_SINGLE_THREAD
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
+
+static constexpr int8 RootSchemaBoneIdx = -1;
+static constexpr FBoneIndexType RootBoneIndexType = 0xFFFF;
+
+
