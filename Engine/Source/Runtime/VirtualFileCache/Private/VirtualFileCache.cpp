@@ -48,6 +48,7 @@ void FVirtualFileCache::Initialize(const FVirtualFileCacheSettings& InSettings)
 
 	FFileTableWriter FileTable = Thread.ModifyFileTable();
 	FileTable->Initialize(Settings);
+	Thread.SetInMemoryCacheSize(Settings.RecentWriteLRUSize);
 }
 
 FIoStatus FVirtualFileCache::WriteData(VFCKey Id, const uint8* Data, uint64 DataSize)

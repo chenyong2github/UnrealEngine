@@ -35,7 +35,8 @@ FVirtualFileCacheThread::~FVirtualFileCacheThread()
 
 bool FVirtualFileCacheThread::Init()
 {
-	return Parent != nullptr;
+	check(Parent);
+	return true;
 }
 
 void FVirtualFileCacheThread::DoOneOp(FRWOp* Op)
@@ -44,23 +45,32 @@ void FVirtualFileCacheThread::DoOneOp(FRWOp* Op)
 	{
 	case ERWOp::Read:
 	{
-		FFileTableMutator FileTable = MutateFileTable();
-		auto Result = FileTable->ReadData(Op->Target, Op->ReadOffset, Op->ReadSize);
-		if (Result.IsOk())
+		// Check the memory cache first to see if this data was recently written
+		TSharedPtr<TArray<uint8>> CachedData = MemCache.ReadLockAndFindData(Op->Target);
+		if (CachedData.IsValid())
 		{
-			Op->ReadResult->SetValue(Result.ConsumeValueOrDie());
+			Op->ReadResult->SetValue(*CachedData);
 		}
 		else
 		{
-			TArray<uint8> Empty;
-			Op->ReadResult->SetValue(Empty);
+			FFileTableMutator FileTable = MutateFileTable();
+			auto Result = FileTable->ReadData(Op->Target, Op->ReadOffset, Op->ReadSize);
+			if (Result.IsOk())
+			{
+				Op->ReadResult->SetValue(Result.ConsumeValueOrDie());
+			}
+			else
+			{
+				TArray<uint8> Empty;
+				Op->ReadResult->SetValue(Empty);
+			}
 		}
 	} break;
 
 	case ERWOp::Write:
 	{
 		FFileTableWriter FileTable = ModifyFileTable();
-		FIoStatus Status = FileTable->WriteData(Op->Target, Op->DataToWrite.GetData(), Op->DataToWrite.Num());
+		FIoStatus Status = FileTable->WriteData(Op->Target, Op->DataToWrite->GetData(), Op->DataToWrite->Num());
 	} break;
 
 	case ERWOp::Erase:
@@ -132,6 +142,16 @@ void FVirtualFileCacheThread::EnqueueOrRunOp(TSharedPtr<FRWOp> Op)
 
 TFuture<TArray<uint8>> FVirtualFileCacheThread::RequestRead(VFCKey Target, int64 ReadOffset, int64 ReadSizeOrZero)
 {
+	// Check the memory cache first to see if this data was recently written. This will be checked
+	// again by the thread but should normally be caught here.
+	TSharedPtr<TArray<uint8>> CachedData = MemCache.ReadLockAndFindData(Target);
+	if (CachedData.IsValid())
+	{
+		TPromise<TArray<uint8>> ReadPromise;
+		ReadPromise.SetValue(*CachedData);
+		return ReadPromise.GetFuture();
+	}
+
 	TSharedPtr<FRWOp> Op = MakeShared<FRWOp>();
 	Op->Op = ERWOp::Read;
 	Op->Target = Target;
@@ -149,7 +169,10 @@ void FVirtualFileCacheThread::RequestWrite(VFCKey Target, TArrayView<const uint8
 	TSharedPtr<FRWOp> Op = MakeShared<FRWOp>();
 	Op->Op = ERWOp::Write;
 	Op->Target = Target;
-	Op->DataToWrite = MoveTemp(Data);
+	TSharedPtr<TArray<uint8>> SharedData = MakeShared<TArray<uint8>>(Data);
+	Op->DataToWrite = SharedData;
+
+	MemCache.Insert(Target, SharedData);
 
 	EnqueueOrRunOp(Op);
 	Event->Trigger();
@@ -254,6 +277,7 @@ void FFileTable::FreeBlock(FRangeId RangeId)
 		}
 	}
 }
+
 
 FIoStatus FFileTable::WriteData(VFCKey Id, const uint8* Data, uint64 DataSize)
 {
@@ -1289,6 +1313,127 @@ void FVirtualFileCacheThread::EraseTableFile()
 	IPlatformFile::GetPlatformPhysical().DeleteFile(*TableFileName);
 }
 
+void FVirtualFileCacheThread::SetInMemoryCacheSize(int64 MaxSize)
+{
+	MemCache.SetMaxSize(MaxSize);
+}
+
+FLruCacheNode* FLruCache::Find(VFCKey Key)
+{
+	TUniquePtr<FLruCacheNode>* NodePtr = NodeMap.Find(Key);
+	if (NodePtr)
+	{
+		return NodePtr->Get();
+	}
+	return nullptr;
+}
+
+// Note that this function does not move the data to the front of the LRU, only writing data does that. This prevents
+// taking a write lock during read operations which would be required to modify the lru linked list.
+TSharedPtr<TArray<uint8>> FLruCache::ReadLockAndFindData(VFCKey Key)
+{
+	if (IsEnabled())
+	{
+		FRWScopeLock ScopeLock(Lock, SLT_ReadOnly);
+		FLruCacheNode* Node = Find(Key);
+		if (Node)
+		{
+			return Node->Data;
+		}
+	}
+	return nullptr;
+}
+
+void FLruCache::EvictToBelowMaxSize()
+{
+	while (CurrentSize > MaxSize)
+	{
+		EvictOne();
+	}
+}
+
+bool FLruCache::FreeSpaceFor(int64 SizeToAdd)
+{
+	if (SizeToAdd > MaxSize)
+	{
+		return false;
+	}
+
+
+	while (CurrentSize + SizeToAdd > MaxSize)
+	{
+		EvictOne();
+	}
+	return true;
+}
+
+void FLruCache::EvictOne()
+{
+	FLruCacheNode* Node = LruList.GetHead();
+	if (Node)
+	{
+		CurrentSize -= Node->RecordedSize;
+		LruList.Remove(Node);
+		int32 NumRemoved = NodeMap.Remove(Node->Key);
+		check(NumRemoved == 1);
+	}
+}
+
+void FLruCache::Insert(VFCKey Key, TSharedPtr<TArray<uint8>> Data)
+{
+	if (!IsEnabled())
+	{
+		return;
+	}
+
+	FRWScopeLock ScopeLock(Lock, SLT_Write);
+	FLruCacheNode* Existing = Find(Key);
+	if (Existing)
+	{
+		CurrentSize -= Existing->Data->Num();
+		Existing->Data = MoveTemp(Data);
+		CurrentSize += Existing->Data->Num();
+		LruList.Remove(Existing);
+		LruList.AddHead(Existing);
+	}
+	else if (FreeSpaceFor(Data->Num()))
+	{
+		TUniquePtr<FLruCacheNode> NewNode = MakeUnique<FLruCacheNode>();
+		NewNode->Key = Key;
+		NewNode->Data = MoveTemp(Data);
+		NewNode->RecordedSize = NewNode->Data->Num();
+		CurrentSize += NewNode->RecordedSize;
+		LruList.AddHead(NewNode.Get());
+		NodeMap.Add(Key, MoveTemp(NewNode));
+	}
+	else
+	{
+		UE_LOG(LogVFC, Verbose, TEXT("Data too large to fit in LRU cache (Requested: %zu, MaxSize: %zu"), (size_t)Data->Num(), (size_t)MaxSize);
+	}
+}
+
+void FLruCache::Remove(VFCKey Key)
+{
+	TUniquePtr<FLruCacheNode>* Existing = NodeMap.Find(Key);
+	if (Existing && Existing->IsValid())
+	{
+		FLruCacheNode* Ptr = Existing->Get();
+		CurrentSize -= Ptr->RecordedSize;
+		LruList.Remove(Ptr);
+		NodeMap.Remove(Key);
+	}
+}
+
+bool FLruCache::IsEnabled()
+{
+	return MaxSize > 0;
+}
+
+void FLruCache::SetMaxSize(int64 NewMaxSize)
+{
+	MaxSize = NewMaxSize;
+	EvictToBelowMaxSize();
+}
 
 static FArchive& operator<<(FArchive& Ar, FBlockRange& Range)
 {

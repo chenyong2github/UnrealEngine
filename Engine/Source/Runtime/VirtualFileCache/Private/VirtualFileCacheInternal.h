@@ -12,6 +12,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Async/MappedFileHandle.h"
 #include "Async/Future.h"
+#include "Containers/IntrusiveDoubleLinkedList.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVFC, Log, All);
 
@@ -219,12 +220,51 @@ struct FRWOp
 	VFCKey Target;
 
 	// Write
-	TArray<uint8> DataToWrite;
+	TSharedPtr<TArray<uint8>> DataToWrite;
 
 	// Read
 	TOptional<TPromise<TArray<uint8>>> ReadResult;
 	int64 ReadOffset = 0;
 	int64 ReadSize = 0;
+};
+
+
+struct FLruCacheNode : public TIntrusiveDoubleLinkedListNode<FLruCacheNode>
+{
+	// For reverse lookups
+	VFCKey Key;
+	TSharedPtr<TArray<uint8>> Data;
+	// Store the size here to ensure that the CurrentSize of the LruCache can rely on the Data size value changing.
+	uint64 RecordedSize;
+};
+
+
+class FLruCache
+{
+	void EvictToBelowMaxSize();
+	void EvictOne();
+	bool FreeSpaceFor(int64 SizeToAdd);
+
+public:
+	~FLruCache()
+	{
+		LruList.Reset();
+	}
+	FLruCacheNode* Find(VFCKey Key);
+	TSharedPtr<TArray<uint8>> ReadLockAndFindData(VFCKey Key);
+	void Insert(VFCKey Key, TSharedPtr<TArray<uint8>> Data);
+	void Remove(VFCKey Key);
+	bool IsEnabled();
+	void SetMaxSize(int64 NewMaxSize);
+
+public:
+	FRWLock Lock;
+
+private:
+	TMap<VFCKey, TUniquePtr<FLruCacheNode>> NodeMap;
+	TIntrusiveDoubleLinkedList<FLruCacheNode> LruList;
+	int64 CurrentSize = 0;
+	int64 MaxSize = 0;
 };
 
 struct FVirtualFileCache;
@@ -324,16 +364,17 @@ public:
 	TSharedPtr<FRWOp> GetNextOp();
 	void DoOneOp(FRWOp* Op);
 
-
 	void Touch(FDataReference& Id);
-
 	void EraseTableFile();
 
+	void SetInMemoryCacheSize(int64 MaxSize);
 
 public:
 	FVirtualFileCache* Parent;
 	FRunnableThread* Thread;
 	FEvent* Event;
+
+	FLruCache MemCache;
 
 	FRWLock OperationQueueLock;
 	TArray<TSharedPtr<FRWOp>> OperationQueue;

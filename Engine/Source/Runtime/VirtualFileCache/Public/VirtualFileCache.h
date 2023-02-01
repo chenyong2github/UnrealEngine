@@ -19,6 +19,9 @@ struct FVirtualFileCacheSettings
 	uint64 NumBlockFiles = 1;
 	FString OverrideDefaultDirectory;
 	bool bMultiThreaded = true;
+
+	// Memory Cache behavior
+	uint64 RecentWriteLRUSize = 0;
 };
 
 struct IVirtualFileCache
