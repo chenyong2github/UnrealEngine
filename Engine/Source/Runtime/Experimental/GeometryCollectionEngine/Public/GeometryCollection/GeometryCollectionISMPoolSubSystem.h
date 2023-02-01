@@ -8,7 +8,7 @@
 class AGeometryCollectionISMPoolActor;
 
 /**
-* A subsystem managing StateTree assets in Mass
+* A subsystem managing ISMPool actors ( used by geometry collection now but repurposed for more general use )
 */
 UCLASS()
 class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionISMPoolSubSystem : public UWorldSubsystem
@@ -23,10 +23,6 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	// USubsystem END
-
-	// UWorldSubsystem BEGIN
-	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
-	// UWorldSubsystem END
 
 	AGeometryCollectionISMPoolActor* FindISMPoolActor(const USceneComponent& Requester);
 

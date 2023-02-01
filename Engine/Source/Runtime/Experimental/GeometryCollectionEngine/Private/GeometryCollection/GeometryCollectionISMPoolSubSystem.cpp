@@ -30,11 +30,6 @@ void UGeometryCollectionISMPoolSubSystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UGeometryCollectionISMPoolSubSystem::OnWorldBeginPlay(UWorld& InWorld)
-{
-	Super::OnWorldBeginPlay(InWorld);
-}
-
 AGeometryCollectionISMPoolActor* UGeometryCollectionISMPoolSubSystem::FindISMPoolActor(const USceneComponent& Requester)
 {
 	// on demand creation of the actor 
