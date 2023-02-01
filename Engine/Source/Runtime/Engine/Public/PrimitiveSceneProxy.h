@@ -779,6 +779,14 @@ public:
 	}
 
 	/**
+	* Returns whether this proxy is a heterogeneous volume.
+	*/
+	inline bool IsHeterogeneousVolume() const
+	{
+		return bIsHeterogeneousVolume;
+	}
+
+	/**
 	 * Returns true if all meshes drawn by this proxy support GPU scene. 
 	 */
 	inline bool SupportsGPUScene() const
@@ -1242,6 +1250,9 @@ protected:
 
 	/** Whether this proxy is a Nanite mesh. */
 	uint8 bIsNaniteMesh : 1;
+
+	/** Whether this proxy is a heterogeneous volume. */
+	uint8 bIsHeterogeneousVolume : 1;
 
 	/** Whether the primitive is a HierarchicalInstancedStaticMesh. */
 	uint8 bIsHierarchicalInstancedStaticMesh : 1;

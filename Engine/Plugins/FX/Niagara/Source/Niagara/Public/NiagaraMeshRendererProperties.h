@@ -219,6 +219,7 @@ public:
 	virtual TArray<FNiagaraVariable> GetBoundAttributes() const override;
 #endif // WITH_EDITORONLY_DATA
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
+	virtual bool UseHeterogeneousVolumes() const override { return bUseHeterogeneousVolumes; }
 
 	void UpdateMICs();
 
@@ -248,6 +249,10 @@ public:
 	/** Whether or not to use the OverrideMaterials array instead of the mesh's existing materials.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", DisplayName="Enable Material Overrides")
 	uint32 bOverrideMaterials : 1;
+
+	/** Whether or not to render with heterogeneous volumes.*/
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	uint32 bUseHeterogeneousVolumes : 1;
 
 	/** If true, the particles are only sorted when using a translucent material. */
 	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides))

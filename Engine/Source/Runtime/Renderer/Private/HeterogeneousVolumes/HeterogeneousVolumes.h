@@ -16,6 +16,7 @@ class FViewInfo;
 class FVirtualShadowMapArray;
 class FVisibleLightInfo;
 
+struct FMaterialShaderParameters;
 struct FRDGTextureDesc;
 struct FSceneTextures;
 
@@ -26,6 +27,7 @@ struct FSceneTextures;
 bool ShouldRenderHeterogeneousVolumes(const FScene* Scene);
 bool ShouldRenderHeterogeneousVolumesForView(const FSceneView& View);
 bool DoesPlatformSupportHeterogeneousVolumes(EShaderPlatform Platform);
+bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterialShaderParameters& Parameters);
 
 //
 // Internal API

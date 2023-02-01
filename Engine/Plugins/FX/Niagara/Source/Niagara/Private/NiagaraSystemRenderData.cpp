@@ -266,6 +266,7 @@ void FNiagaraSystemRenderData::RecacheRenderers(const FNiagaraSystemInstance& Sy
 	EmitterRenderers_GT.Reserve(RendererDrawOrder.Num());
 
 	bAnyMotionBlurEnabled = false;
+	bAnyHeterogeneousVolumesEnabled = false;
 	for (TSharedRef<const FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInst : SystemInstance.GetEmitters())
 	{
 		if (FVersionedNiagaraEmitterData* EmitterData = EmitterInst->GetCachedEmitterData())
@@ -281,6 +282,10 @@ void FNiagaraSystemRenderData::RecacheRenderers(const FNiagaraSystemInstance& Sy
 					if (Properties->MotionVectorSetting != ENiagaraRendererMotionVectorSetting::Disable)
 					{
 						bAnyMotionBlurEnabled = true;
+					}
+					if (Properties->UseHeterogeneousVolumes())
+					{
+						bAnyHeterogeneousVolumesEnabled = true;
 					}
 				}
 				EmitterRenderers_GT.Add(NewRenderer);

@@ -79,6 +79,7 @@ public:
 	FORCEINLINE bool IsRenderingEnabled() const { return bRenderingEnabled && (IsInRenderingThread() ? EmitterRenderers_RT.Num() > 0 : EmitterRenderers_GT.Num() > 0); }
 	FORCEINLINE void SetRenderingEnabled(bool bInEnabled) { bRenderingEnabled = bInEnabled; }
 	FORCEINLINE bool HasAnyMotionBlurEnabled() const { return bAnyMotionBlurEnabled; }
+	FORCEINLINE bool HasAnyHeterogeneousVolumesEnabled() const { return bAnyHeterogeneousVolumesEnabled; }
 
 	FORCEINLINE int32 GetNumRenderers() const { return RendererDrawOrder.Num(); }
 
@@ -94,6 +95,7 @@ private:
 
 	bool bRenderingEnabled = true;
 	bool bAnyMotionBlurEnabled = false;
+	bool bAnyHeterogeneousVolumesEnabled = false;
 
 	ERHIFeatureLevel::Type FeatureLevel;
 };

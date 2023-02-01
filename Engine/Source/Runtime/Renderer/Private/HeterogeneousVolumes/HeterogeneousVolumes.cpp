@@ -195,6 +195,20 @@ bool DoesPlatformSupportHeterogeneousVolumes(EShaderPlatform Platform)
 		&& !IsForwardShadingEnabled(Platform);
 }
 
+bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterialShaderParameters& MaterialShaderParameters)
+{
+	return (MaterialShaderParameters.MaterialDomain == MD_Volume)
+		// Restricting compilation to materials bound to Niagara meshes
+		&& MaterialShaderParameters.bIsUsedWithNiagaraMeshParticles;
+}
+
+bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterial& Material)
+{
+	return (Material.GetMaterialDomain() == MD_Volume)
+		// Restricting compilation to materials bound to Niagara meshes
+		&& Material.IsUsedWithNiagaraMeshParticles();
+}
+
 namespace HeterogeneousVolumes
 {
 	// CVars
@@ -352,13 +366,12 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 				const FMeshBatch* Mesh = View.VolumetricMeshBatches[MeshBatchIndex].Mesh;
 				const FMaterialRenderProxy* MaterialRenderProxy = Mesh->MaterialRenderProxy;
 				const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialRenderProxy);
-				// Only Niagara mesh particles bound to volume materials
-				if (Material.GetMaterialDomain() != MD_Volume || !Material.IsUsedWithNiagaraMeshParticles())
+				const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.VolumetricMeshBatches[MeshBatchIndex].Proxy;
+				if (!PrimitiveSceneProxy->IsHeterogeneousVolume() || !DoesMaterialShaderSupportHeterogeneousVolumes(Material))
 				{
 					continue;
 				}
 
-				const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.VolumetricMeshBatches[MeshBatchIndex].Proxy;
 				const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 				const int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
 				const FBoxSphereBounds LocalBoxSphereBounds = PrimitiveSceneProxy->GetLocalBounds();

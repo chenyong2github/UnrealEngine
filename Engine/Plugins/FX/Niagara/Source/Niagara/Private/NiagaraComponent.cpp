@@ -189,6 +189,7 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
 		ComputeDispatchInterface = SystemInstanceController->GetComputeDispatchInterface();
 
 		bAlwaysHasVelocity = RenderData->HasAnyMotionBlurEnabled();
+		bIsHeterogeneousVolume = RenderData->HasAnyHeterogeneousVolumesEnabled();
 
 		SystemStatID = InComponent->GetAsset()->GetStatID(false, false);
 	}

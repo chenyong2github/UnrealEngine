@@ -369,6 +369,7 @@ public:
 	virtual bool NeedsSystemCompletion() const { return false; }
 
 	bool NeedsPreciseMotionVectors() const;
+	virtual bool UseHeterogeneousVolumes() const { return false; }
 
 	static bool IsSortHighPrecision(ENiagaraRendererSortPrecision SortPrecision);
 

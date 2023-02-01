@@ -84,9 +84,7 @@ class FRenderLightingCacheWithLiveShadingCS : public FMeshMaterialShader
 	)
 	{
 		return DoesPlatformSupportHeterogeneousVolumes(Parameters.Platform)
-			&& (Parameters.MaterialParameters.MaterialDomain == MD_Volume)
-			// Restricting compilation to materials bound to Niagara meshes
-			&& Parameters.MaterialParameters.bIsUsedWithNiagaraMeshParticles;
+			&& DoesMaterialShaderSupportHeterogeneousVolumes(Parameters.MaterialParameters);
 	}
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -215,8 +213,7 @@ class FRenderSingleScatteringWithLiveShadingCS : public FMeshMaterialShader
 	)
 	{
 		return DoesPlatformSupportHeterogeneousVolumes(Parameters.Platform)
-			&& (Parameters.MaterialParameters.MaterialDomain == MD_Volume)
-			&& Parameters.MaterialParameters.bIsUsedWithNiagaraMeshParticles;
+			&& DoesMaterialShaderSupportHeterogeneousVolumes(Parameters.MaterialParameters);
 	}
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
