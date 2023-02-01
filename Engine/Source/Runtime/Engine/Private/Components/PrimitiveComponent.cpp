@@ -1425,18 +1425,8 @@ void UPrimitiveComponent::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		{
 			if (Texture && Texture->IsCandidateForTextureStreamingOnPlatformDuringCook(ObjectSaveContext.GetTargetPlatform()))
 			{
-				// furthermore refine based on what actually happened with that texture in *this* cook session
-				//	if that texture was serialized out before us
-				// can be false if texture IsCandidate but did not actually make streaming textures
-				// if texture has not serialized yet and set DidSerializeStreamingMipsForPlatform, we must assume it would be true
-				
-				const FString PlatformName = ObjectSaveContext.GetTargetPlatform()->PlatformName();
-				const bool * pBoolDidStream = Texture->DidSerializeStreamingMipsForPlatform.Find(PlatformName);
-				if ( pBoolDidStream == nullptr || *pBoolDidStream == true )
-				{
-					bHasStreamableTextures = true;
-					break;
-				}
+				bHasStreamableTextures = true;
+				break;
 			}
 		}
 
