@@ -3,6 +3,7 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../DeferredShadingCommon.ush"
+#include "../VariableRateShading/VRSShadingRateCommon.ush"
 #include "../HTileEncoding.ush"
 #include "../VelocityCommon.ush"
 
@@ -190,6 +191,7 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 			#if SHADING_MASK_EXPORT
 				ShadingMask[PixelPos.xy] = PackShadingMask(
 					ShadingBin,
+					D3D12_SHADING_RATE_1X1,
 					bIsDecalReceiver,
 					bHasDistanceField,
 					GetPrimitive_LightingChannelMask_FromFlags(PrimitiveData.Flags)

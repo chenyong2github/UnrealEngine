@@ -2,3 +2,120 @@
 
 #include "NaniteShadeCommon.ush"
 
+uint4 ViewRect;
+#if SHADING_RATE_EXPORT
+uint ShadingRateTileSize;
+Texture2D<uint> ShadingRateImage;
+#endif
+
+RWTexture2D<uint> RWShadingMask;
+
+#define GATHER4_OPTIMIZATION 0
+#if GATHER4_OPTIMIZATION
+SamplerState ShadingMaskSampler;
+#endif
+
+#if LANE_COUNT == 64
+	#define TILE_SIZE_X 8
+	#define TILE_SIZE_Y 8
+#elif LANE_COUNT == 32
+	#define TILE_SIZE_X 8
+	#define TILE_SIZE_Y 4
+#else
+	#error UNSUPPORTED_WAVE_SIZE
+#endif
+
+#define THREAD_COUNT (TILE_SIZE_X * TILE_SIZE_Y)
+#define   WAVE_COUNT (THREAD_COUNT / LANE_COUNT)
+
+WAVESIZE(LANE_COUNT)
+[numthreads(TILE_SIZE_X, TILE_SIZE_Y, 1)]
+void ShadeBinCountCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint ThreadId : SV_GroupIndex)
+{
+	const uint ViewWidth  = ViewRect.z - ViewRect.x;
+	const uint ViewHeight = ViewRect.w - ViewRect.y;
+	
+	const uint WaveId = ToScalarMemory(ThreadId / LANE_COUNT);
+
+	const uint2 QuadTLCoord = uint2(ThreadGlobalId.xy << 1u) + uint2(ViewRect.xy);
+	const uint2 QuadTRCoord = QuadTLCoord + uint2(1, 0);
+	const uint2 QuadBLCoord = QuadTLCoord + uint2(0, 1);
+	const uint2 QuadBRCoord = QuadTLCoord + uint2(1, 1);
+	const uint4 QuadPacked  = PackQuadCoord(QuadTLCoord);
+
+#if GATHER4_OPTIMIZATION
+	uint4 QuadShadingMask = RWShadingMask.GatherRed(ShadingMaskSampler, float2(QuadTopLeft + 0.5f) / float2(ViewWidth, ViewHeight)).wzxy;
+#else
+	uint4 QuadShadingMask;
+	QuadShadingMask.x = RWShadingMask[QuadTLCoord];
+	QuadShadingMask.y = RWShadingMask[QuadTRCoord];
+	QuadShadingMask.z = RWShadingMask[QuadBLCoord];
+	QuadShadingMask.w = RWShadingMask[QuadBRCoord];
+#endif
+
+	FShadingMask ShadingMaskTL = UnpackShadingMask(QuadShadingMask.x);
+	FShadingMask ShadingMaskTR = UnpackShadingMask(QuadShadingMask.y);
+	FShadingMask ShadingMaskBL = UnpackShadingMask(QuadShadingMask.z);
+	FShadingMask ShadingMaskBR = UnpackShadingMask(QuadShadingMask.w);
+
+	const bool4 ValidMask = bool4(
+		QuadTLCoord.x < ViewWidth,
+		QuadTLCoord.y < ViewHeight,
+		QuadTLCoord.x < ViewWidth  - 1u,
+		QuadTLCoord.y < ViewHeight - 1u
+	);
+
+	const bool4 ValidPixels = bool4(
+		all(ValidMask.xy) && ShadingMaskTL.bIsNanitePixel,
+		all(ValidMask.zy) && ShadingMaskTR.bIsNanitePixel,
+		all(ValidMask.xw) && ShadingMaskBL.bIsNanitePixel,
+		all(ValidMask.zw) && ShadingMaskBR.bIsNanitePixel
+	);
+
+	//if (!ValidPixels)
+	if (!ShadingMaskTL.bIsNanitePixel && !ShadingMaskTR.bIsNanitePixel && !ShadingMaskBL.bIsNanitePixel && !ShadingMaskBR.bIsNanitePixel)
+	{
+		// Quad is entirely non-Nanite
+		return;
+	}
+
+#if SHADING_RATE_EXPORT
+	uint WaveShadingRate = D3D12_SHADING_RATE_1X1;
+	if (WaveIsFirstLane() && ShadingRateTileSize != 0)
+	{
+		// Retrieve the variable shading rate that governs the 2x2 quads within the VRS tile boundary (8x8, 16x16, or 32x32)
+		WaveShadingRate = ShadingRateImage[QuadTLCoord.xy / ShadingRateTileSize.xx] & 0xFu;
+	}
+
+	// Propagate the shading rate to all lanes in wave
+	WaveShadingRate = WaveReadLaneFirst(WaveShadingRate);
+
+	if (WaveShadingRate != D3D12_SHADING_RATE_1X1)
+	{
+		if (ValidPixels.x)
+		{
+			ShadingMaskTL.ShadingRate = WaveShadingRate;
+			RWShadingMask[QuadTLCoord] = PackShadingMask(ShadingMaskTL);
+		}
+
+		if (ValidPixels.y)
+		{
+			ShadingMaskTR.ShadingRate = WaveShadingRate;
+			RWShadingMask[QuadTRCoord] = PackShadingMask(ShadingMaskTR);
+		}
+
+		if (ValidPixels.z)
+		{
+			ShadingMaskBL.ShadingRate = WaveShadingRate;
+			RWShadingMask[QuadBLCoord] = PackShadingMask(ShadingMaskBL);
+		}
+
+		if (ValidPixels.w)
+		{
+			ShadingMaskBR.ShadingRate = WaveShadingRate;
+			RWShadingMask[QuadBRCoord] = PackShadingMask(ShadingMaskBR);
+		}
+	}
+#endif // SHADING_RATE_EXPORT
+
+}

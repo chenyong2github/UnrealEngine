@@ -3,5 +3,16 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../WaveOpUtil.ush"
+#include "../VariableRateShading/VRSShadingRateCommon.ush"
 
 #include "NaniteAttributeDecode.ush"
+
+uint4 PackQuadCoord(uint2 QuadTopLeft)
+{
+	uint4 Packed;
+	Packed.x = PackUInt2ToUInt(QuadTopLeft);
+	Packed.y = Packed.x + 0x00000001u;
+	Packed.z = Packed.x + 0x00010000u;
+	Packed.w = Packed.x + 0x00010001u;
+	return Packed;
+}

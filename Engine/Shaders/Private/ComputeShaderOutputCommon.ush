@@ -471,15 +471,12 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID, uint3 
 	}
 
 	const uint VRSTileDim = PassData.y;
-	if (WaveIsFirstLane() && VRSTileDim != 0)
+	if (VRSTileDim != 0)
 	{
 		// Retrieve the variable shading rate that governs our 8x8 micro tile.
-		const uint2 ShadingRateTileSize = PassData.yy; // (8x8, 16x16, or 32x32)
-		ShadingRate = Nanite.ShadingRate[PixelPos / ShadingRateTileSize] & 0xFu;
+		// Propagate the shading rate to all lanes processing our 8x8 micro tile.
+		ShadingRate = WaveReadLaneFirst(UnpackedMask.ShadingRate);
 	}
-
-	// Propagate the shading rate to all lanes processing our 8x8 micro tile.
-	ShadingRate = WaveReadLaneFirst(ShadingRate);
 #endif
 
 	const FShadingQuad ShadingQuad = GetShadingQuad(X, Y, WaveGetLaneIndex(), ShadingRate);
@@ -494,6 +491,8 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID, uint3 
 	}
 
 	ShadedPixel = WaveReadLaneAt(ShadedPixel, ShadingQuad.SwizzleIndex);
+	//ShadedPixel.MRT[3].rgb = VisualizeShadingRate(ShadingRate).rgb;
+
 	ExportPixel(PixelPos, ShadedPixel);
 
 #if 0

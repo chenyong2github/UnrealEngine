@@ -61,7 +61,7 @@ public:
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		uint32 LevelInstanceBufferCount = 1u << (uint32)PermutationVector.Get<FSearchBufferCountDim>();
 		OutEnvironment.SetDefine(TEXT("EDITOR_LEVELINSTANCE_BUFFER_COUNT"), LevelInstanceBufferCount);
-		OutEnvironment.SetDefine(TEXT("SHADING_MASK"), 1);
+		OutEnvironment.SetDefine(TEXT("SHADING_MASK_LOAD"), 1);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitEditingLevelInstanceDepthPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "EmitEditorLevelInstanceDepthPS", SF_Pixel);

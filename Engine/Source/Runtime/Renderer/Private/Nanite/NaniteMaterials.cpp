@@ -154,6 +154,45 @@ static bool UseLegacyCulling()
 	return !UseComputeMaterials();
 }
 
+static uint32 GetShadingRateTileSize()
+{
+	uint32 TileSize = 0;
+
+	if (GNaniteSoftwareVRS != 0 && GRHISupportsAttachmentVariableRateShading)
+	{
+		// Technically these could be different, but currently never in practice
+		// 8x8, 16x16, or 32x32 for DX12 Tier2 HW VRS
+		ensure
+		(
+			GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMinHeight &&
+			GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxWidth &&
+			GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxHeight
+		);
+
+		TileSize = GRHIVariableRateShadingImageTileMinWidth;
+	}
+
+	return TileSize;
+}
+
+static FRDGTextureRef GetShadingRateImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo)
+{
+	FRDGTextureRef ShadingRateImage = nullptr;
+	
+	if (GetShadingRateTileSize() != 0)
+	{
+		ShadingRateImage = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, ViewInfo, FVariableRateShadingImageManager::EVRSPassType::NaniteEmitGBufferPass, nullptr);
+	}
+
+	if (ShadingRateImage == nullptr)
+	{
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+		ShadingRateImage = SystemTextures.Black;
+	}
+
+	return ShadingRateImage;
+}
+
 class FNaniteMarkStencilPS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNaniteMarkStencilPS);
@@ -178,8 +217,8 @@ class FEmitMaterialDepthPS : public FNaniteGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FEmitMaterialDepthPS, FNaniteGlobalShader);
 
 	class FLegacyCullingDim : SHADER_PERMUTATION_BOOL("LEGACY_CULLING");
-	class FShadingMaskDim : SHADER_PERMUTATION_BOOL("SHADING_MASK");
-	using FPermutationDomain = TShaderPermutationDomain<FLegacyCullingDim, FShadingMaskDim>;
+	class FShadingMaskLoadDim : SHADER_PERMUTATION_BOOL("SHADING_MASK_LOAD");
+	using FPermutationDomain = TShaderPermutationDomain<FLegacyCullingDim, FShadingMaskLoadDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -220,8 +259,8 @@ class FEmitSceneDepthPS : public FNaniteGlobalShader
 
 	class FLegacyCullingDim : SHADER_PERMUTATION_BOOL("LEGACY_CULLING");
 	class FVelocityExportDim : SHADER_PERMUTATION_BOOL("VELOCITY_EXPORT");
-	class FShadingMaskDim : SHADER_PERMUTATION_BOOL("SHADING_MASK");
-	using FPermutationDomain = TShaderPermutationDomain<FLegacyCullingDim, FVelocityExportDim, FShadingMaskDim>;
+	class FShadingMaskExportDim : SHADER_PERMUTATION_BOOL("SHADING_MASK_EXPORT");
+	using FPermutationDomain = TShaderPermutationDomain<FLegacyCullingDim, FVelocityExportDim, FShadingMaskExportDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -239,7 +278,7 @@ class FEmitSceneDepthPS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
-		SHADER_PARAMETER_RDG_TEXTURE( Texture2D<UlongType>,	VisBuffer64 )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -259,7 +298,7 @@ class FEmitSceneStencilPS : public FNaniteGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADING_MASK"), 1);
+		OutEnvironment.SetDefine(TEXT("SHADING_MASK_LOAD"), 1);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -417,6 +456,52 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FClassifyMaterialsCS, "/Engine/Private/Nanite/NaniteMaterialCulling.usf", "ClassifyMaterials", SF_Compute);
 
+class FShadeBinCountCS : public FNaniteGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FShadeBinCountCS);
+	SHADER_USE_PARAMETER_STRUCT(FShadeBinCountCS, FNaniteGlobalShader);
+
+	class FLaneCountDim : SHADER_PERMUTATION_SPARSE_INT("LANE_COUNT", 32, 64);
+	class FShadingRateExportDim : SHADER_PERMUTATION_BOOL("SHADING_RATE_EXPORT");
+	using FPermutationDomain = TShaderPermutationDomain<FLaneCountDim, FShadingRateExportDim>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		const int32 WaveSize = PermutationVector.Get<FLaneCountDim>();
+		if (WaveSize < int32(FDataDrivenShaderPlatformInfo::GetMinimumWaveSize(Parameters.Platform)) ||
+			WaveSize > int32(FDataDrivenShaderPlatformInfo::GetMaximumWaveSize(Parameters.Platform)))
+		{
+			return false;
+		}
+
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FLaneCountDim>() == 32)
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+		}
+
+		OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		//SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		//SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
+		SHADER_PARAMETER(FUint32Vector4, ViewRect)
+		SHADER_PARAMETER(uint32, ShadingRateTileSize)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ShadingRateImage)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWShadingMask)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FShadeBinCountCS, "/Engine/Private/Nanite/NaniteShadeBinning.usf", "ShadeBinCountCS", SF_Compute);
+
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteMarkStencilRectsParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FNaniteMarkStencilPS::FParameters, PS)
@@ -480,7 +565,6 @@ TRDGUniformBufferRef<FNaniteUniformParameters> CreateDebugNaniteUniformBuffer(FR
 	UniformParameters->VisBuffer64					= SystemTextures.Black;
 	UniformParameters->DbgBuffer64					= SystemTextures.Black;
 	UniformParameters->DbgBuffer32					= SystemTextures.Black;
-	UniformParameters->ShadingRate					= SystemTextures.Black;
 	UniformParameters->ShadingMask					= SystemTextures.Black;
 	UniformParameters->MaterialDepthTable			= GraphBuilder.GetPooledBuffer(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u))->GetSRV(FRHIBufferSRVCreateInfo(PF_R32_UINT));
 	UniformParameters->MultiViewIndices				= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder));
@@ -800,12 +884,6 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 		UniformParameters->VisBuffer64 = VisBuffer64;
 		UniformParameters->DbgBuffer64 = DbgBuffer64;
 		UniformParameters->DbgBuffer32 = DbgBuffer32;
-		UniformParameters->ShadingRate = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::NaniteEmitGBufferPass, nullptr);
-		if (UniformParameters->ShadingRate == nullptr)
-		{
-			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-			UniformParameters->ShadingRate = SystemTextures.Black;
-		}
 		
 		UniformParameters->ShadingMask = ShadingMask;
 		UniformParameters->MaterialDepthTable = MaterialCommands.GetMaterialDepthSRV();
@@ -1098,24 +1176,10 @@ void DispatchBasePass(
 		// .W = Unused
 		FUint32Vector4 PassData(
 			0, // Set per shading command
-			0,
+			GetShadingRateTileSize(),
 			0,
 			0
 		);
-
-		if (GNaniteSoftwareVRS != 0)
-		{
-			// Technically these could be different, but currently never in practice
-			// 8x8, 16x16, or 32x32 for DX12 Tier2 HW VRS
-			ensure
-			(
-				GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMinHeight &&
-				GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxWidth &&
-				GRHIVariableRateShadingImageTileMinWidth == GRHIVariableRateShadingImageTileMaxHeight
-			);
-
-			PassData.Y = GRHIVariableRateShadingImageTileMinWidth;
-		}
 
 		FRHIBuffer* IndirectArgsBuffer = ShadingPassParameters->MaterialIndirectArgs->GetIndirectRHICallBuffer();
 
@@ -1640,7 +1704,7 @@ void EmitDepthTargets(
 			FEmitSceneDepthPS::FPermutationDomain PermutationVectorPS;
 			PermutationVectorPS.Set<FEmitSceneDepthPS::FLegacyCullingDim>(UseLegacyCulling());
 			PermutationVectorPS.Set<FEmitSceneDepthPS::FVelocityExportDim>(bEmitVelocity);
-			PermutationVectorPS.Set<FEmitSceneDepthPS::FShadingMaskDim>(true);
+			PermutationVectorPS.Set<FEmitSceneDepthPS::FShadingMaskExportDim>(true);
 			auto  PixelShader = View.ShaderMap->GetShader<FEmitSceneDepthPS>(PermutationVectorPS);
 			
 			auto* PassParameters = GraphBuilder.AllocParameters<FEmitSceneDepthPS::FParameters>();
@@ -1723,7 +1787,7 @@ void EmitDepthTargets(
 
 			FEmitMaterialDepthPS::FPermutationDomain PermutationVectorPS;
 			PermutationVectorPS.Set<FEmitMaterialDepthPS::FLegacyCullingDim>(UseLegacyCulling());
-			PermutationVectorPS.Set<FEmitMaterialDepthPS::FShadingMaskDim>(true /* using shading mask */);
+			PermutationVectorPS.Set<FEmitMaterialDepthPS::FShadingMaskLoadDim>(true /* using shading mask */);
 			auto PixelShader = View.ShaderMap->GetShader<FEmitMaterialDepthPS>(PermutationVectorPS);
 
 			FPixelShaderUtils::AddFullscreenPass(
@@ -2037,7 +2101,7 @@ void DrawLumenMeshCapturePass(
 
 		FEmitMaterialDepthPS::FPermutationDomain PermutationVectorPS;
 		PermutationVectorPS.Set<FEmitMaterialDepthPS::FLegacyCullingDim>(UseLegacyCulling());
-		PermutationVectorPS.Set<FEmitMaterialDepthPS::FShadingMaskDim>(false /* not using shading mask */);
+		PermutationVectorPS.Set<FEmitMaterialDepthPS::FShadingMaskLoadDim>(false /* not using shading mask */);
 		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitMaterialDepthPS>(PermutationVectorPS);
 
 		FPixelShaderUtils::AddRasterizeToRectsPass(GraphBuilder,
@@ -2204,7 +2268,6 @@ void DrawLumenMeshCapturePass(
 			UniformParameters->VisBuffer64					= RasterContext.VisBuffer64;
 			UniformParameters->DbgBuffer64					= SystemTextures.Black;
 			UniformParameters->DbgBuffer32					= SystemTextures.Black;
-			UniformParameters->ShadingRate					= SystemTextures.Black;
 			UniformParameters->ShadingMask					= SystemTextures.Black;
 			UniformParameters->MaterialDepthTable			= GraphBuilder.GetPooledBuffer(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u))->GetSRV(FRHIBufferSRVCreateInfo(PF_R32_UINT));
 
@@ -2277,7 +2340,7 @@ void DrawLumenMeshCapturePass(
 		FEmitSceneDepthPS::FPermutationDomain PermutationVectorPS;
 		PermutationVectorPS.Set<FEmitSceneDepthPS::FLegacyCullingDim>(UseLegacyCulling());
 		PermutationVectorPS.Set<FEmitSceneDepthPS::FVelocityExportDim>(false);
-		PermutationVectorPS.Set<FEmitSceneDepthPS::FShadingMaskDim>(false);
+		PermutationVectorPS.Set<FEmitSceneDepthPS::FShadingMaskExportDim>(false);
 		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitSceneDepthPS>(PermutationVectorPS);
 
 		FPixelShaderUtils::AddRasterizeToRectsPass(GraphBuilder,
@@ -2832,6 +2895,58 @@ void FNaniteShadingPipelines::Unregister(const FNaniteShadingBin& InShadingBin)
 		ReleaseBin(ShadingEntry.BinIndex);
 		PipelineMap.RemoveByElementId(ShadingBinId);
 	}
+}
+
+namespace Nanite
+{
+
+void ShadeBinning(
+	FRDGBuilder& GraphBuilder,
+	const FScene& Scene,
+	const FViewInfo& View,
+	const FRasterResults& RasterResults
+)
+{
+	if (UseLegacyCulling())
+	{
+		return;
+	}
+
+	check(GRHIMinimumWaveSize == 32 || GRHIMinimumWaveSize == 64);
+
+	LLM_SCOPE_BYTAG(Nanite);
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::ShadeBinning");
+
+	const FSceneTexturesConfig& Config = View.GetSceneTexturesConfig();
+	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
+
+	const int32 QuadWidth  = FMath::DivideAndRoundUp(View.ViewRect.Width(), 2);
+	const int32 QuadHeight = FMath::DivideAndRoundUp(View.ViewRect.Height(), 2);
+	
+	const uint32 LaneCountH = 8u;
+	const uint32 LaneCountV = GRHIMinimumWaveSize == 32 ? 4u : 8u; 
+	const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(FIntPoint(QuadWidth, QuadHeight), FIntPoint(LaneCountH, LaneCountV));
+
+	FShadeBinCountCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FShadeBinCountCS::FParameters>();
+	PassParameters->ViewRect = FUintVector4(uint32(View.ViewRect.Min.X), uint32(View.ViewRect.Min.Y), uint32(View.ViewRect.Max.X), uint32(View.ViewRect.Max.Y));
+	PassParameters->ShadingRateTileSize = GetShadingRateTileSize();
+	PassParameters->ShadingRateImage = GetShadingRateImage(GraphBuilder, View);
+	PassParameters->RWShadingMask = GraphBuilder.CreateUAV(RasterResults.ShadingMask);
+
+	FShadeBinCountCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FShadeBinCountCS::FLaneCountDim>(GRHIMinimumWaveSize);
+	PermutationVector.Set<FShadeBinCountCS::FShadingRateExportDim>(PassParameters->ShadingRateTileSize != 0u);
+	auto ComputeShader = View.ShaderMap->GetShader<FShadeBinCountCS>(PermutationVector);
+	
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("ShadeBinningCount"),
+		ComputeShader,
+		PassParameters,
+		DispatchDim
+	);
+}
+
 }
 
 /// END-TODO: Work in progress / experimental

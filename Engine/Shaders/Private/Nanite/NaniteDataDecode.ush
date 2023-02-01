@@ -586,32 +586,46 @@ struct FShadingMask
 	bool bHasDistanceField;
 	uint LightingChannels;
 	uint ShadingBin;
+	uint ShadingRate;
 };
 
 uint PackShadingMask(
 	uint ShadingBin,
+	uint ShadingRate,
 	bool bIsDecalReceiver,
 	bool bHasDistanceField,
-	uint LightingChannels)
+	uint LightingChannels
+)
 {
 	uint Packed = 0x1; // Is Nanite
 	Packed |= (BitFieldMaskU32(3, 1) & (LightingChannels << 1u)); // 3 bits for channels 0,1,2
 	Packed |= (BitFieldMaskU32(14, 4) & (ShadingBin << 4u));
 	Packed |= select(bIsDecalReceiver, 1u << 18u, 0u);
 	Packed |= select(bHasDistanceField, 1u << 19u, 0u);
+	Packed |= (BitFieldMaskU32(4, 20) & (ShadingRate << 20u)); // 4 bits for 2x2 tier2 VRS
 	return Packed;
+}
+
+uint PackShadingMask(FShadingMask Mask)
+{
+	return PackShadingMask(
+		Mask.ShadingBin,
+		Mask.ShadingRate,
+		Mask.bIsDecalReceiver,
+		Mask.bHasDistanceField,
+		Mask.LightingChannels
+	);
 }
 
 FShadingMask UnpackShadingMask(uint Packed)
 {
 	FShadingMask UnpackedMask;
-
 	UnpackedMask.bIsNanitePixel		= BitFieldExtractU32(Packed.x,  1,  0) != 0;
 	UnpackedMask.LightingChannels	= BitFieldExtractU32(Packed.x,  3,  1);
 	UnpackedMask.ShadingBin			= BitFieldExtractU32(Packed.x, 14,  4);
 	UnpackedMask.bIsDecalReceiver	= BitFieldExtractU32(Packed.x,  1, 18) != 0;
 	UnpackedMask.bHasDistanceField	= BitFieldExtractU32(Packed.x,  1, 19) != 0;
-
+	UnpackedMask.ShadingRate		= BitFieldExtractU32(Packed.x,  4, 20);
 	return UnpackedMask;
 }
 

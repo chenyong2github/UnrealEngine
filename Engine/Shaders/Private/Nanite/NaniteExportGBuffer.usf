@@ -4,6 +4,7 @@
 #include "../SceneData.ush"
 #include "../VelocityCommon.ush"
 #include "../DeferredShadingCommon.ush"
+#include "../VariableRateShading/VRSShadingRateCommon.ush"
 #include "../BRDF.ush"
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
@@ -18,7 +19,7 @@ uint StencilDecal;
 uint bWriteCustomStencil; // only used to repurpose EmitSceneDepthStencilPS for custom depth/stencil where possible
 
 Texture2D<UlongType> VisBuffer64;
-#if SHADING_MASK
+#if SHADING_MASK_LOAD
 Texture2D<uint> ShadingMask;
 #endif
 StructuredBuffer<uint> MaterialTileRemap;
@@ -71,7 +72,7 @@ void EmitMaterialDepthPS(
 	const uint2 PixelPos = (uint2)SvPosition.xy;
 	uint ShadingBin = 0;
 
-#if SHADING_MASK
+#if SHADING_MASK_LOAD
 	FShadingMask UnpackedMask = UnpackShadingMask(ShadingMask[PixelPos]);
 	const bool bIsNanitePixel = UnpackedMask.bIsNanitePixel;
 	ShadingBin = UnpackedMask.ShadingBin;
@@ -111,7 +112,7 @@ void EmitMaterialDepthPS(
 
 void EmitSceneDepthPS(
 	in float4  SvPosition			: SV_Position,
-#if SHADING_MASK
+#if SHADING_MASK_EXPORT
 	out uint   OutShadingMask		: SV_Target0,
 #endif
 #if VELOCITY_EXPORT
@@ -135,12 +136,12 @@ void EmitSceneDepthPS(
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
-	#if VELOCITY_EXPORT || SHADING_MASK
+	#if VELOCITY_EXPORT || SHADING_MASK_EXPORT
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 	#endif
 
-#if SHADING_MASK
+#if SHADING_MASK_EXPORT
 		const FCluster ClusterData		= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 	#if LEGACY_CULLING
 		const uint ShadingBin			= GetMaterialLegacyShadingId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
@@ -151,6 +152,7 @@ void EmitSceneDepthPS(
 		const bool bHasDistanceField	= (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
 		OutShadingMask = PackShadingMask(
 			ShadingBin,
+			D3D12_SHADING_RATE_1X1,
 			bIsDecalReceiver,
 			bHasDistanceField,
 			GetPrimitive_LightingChannelMask_FromFlags(GetPrimitiveData(InstanceData.PrimitiveId).Flags)
@@ -189,7 +191,7 @@ void EmitSceneDepthPS(
 	}
 }
 
-#if SHADING_MASK
+#if SHADING_MASK_LOAD
 
 void EmitSceneStencilPS(
 	in float4 SvPosition	: SV_Position,

@@ -524,6 +524,13 @@ void DrawLumenMeshCapturePass(
 	FRDGTextureRef DepthAtlasTexture
 );
 
+void ShadeBinning(
+	FRDGBuilder& GraphBuilder,
+	const FScene& Scene,
+	const FViewInfo& View,
+	const FRasterResults& RasterResults
+);
+
 void BuildShadingCommands(
 	const FScene& Scene,
 	const FNaniteShadingPipelines& ShadingPipelines,
