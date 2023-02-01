@@ -38,6 +38,23 @@ namespace EpicGames.Perforce
 		};
 
 		/// <summary>
+		/// Tests if a path is a code file
+		/// </summary>
+		/// <param name="path">Path to test</param>
+		/// <returns>True if the path is a code file</returns>
+		public static bool IsCodeFile(string path)
+		{
+			foreach (string codeExtension in CodeExtensions)
+			{
+				if (path.EndsWith(codeExtension, StringComparison.OrdinalIgnoreCase))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/// <summary>
 		/// Escape a path to Perforce syntax
 		/// </summary>
 		public static string EscapePath(string path)
