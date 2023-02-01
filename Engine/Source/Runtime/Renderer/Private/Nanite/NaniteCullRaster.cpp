@@ -2820,7 +2820,7 @@ FBinningData AddPass_Rasterize(
 
 				if (!ActiveRasterBins[RasterBinIndex])
 				{
-					return;
+					continue;
 				}
 
 				const FNaniteRasterEntry& RasterEntry = RasterBin.Value;
