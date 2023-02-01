@@ -14,8 +14,14 @@ if(NOT EXISTS ${CMAKE_ANDROID_NDK})
 	message(FATAL_ERROR "ANDROID_NDK_ROOT environment variable must point to the NDK directory!")
 endif()
 
-if(NOT EXISTS "${CMAKE_ANDROID_NDK}/platforms/android-${CMAKE_SYSTEM_VERSION}")
-	message(FATAL_ERROR "Android NDK at ${CMAKE_ANDROID_NDK} does not contain API ${CMAKE_SYSTEM_VERSION}!")
+if(NOT EXISTS "${CMAKE_ANDROID_NDK}/meta/platforms.json")
+	message(FATAL_ERROR "Android NDK at ${CMAKE_ANDROID_NDK} does not contain meta/platforms.json!")
+endif()
+file(READ "${CMAKE_ANDROID_NDK}/meta/platforms.json" NDK_PLATFORMS)
+string(JSON NDK_API_MIN GET "${NDK_PLATFORMS}" "min")
+string(JSON NDK_API_MAX GET "${NDK_PLATFORMS}" "max")
+if((CMAKE_SYSTEM_VERSION LESS NDK_API_MIN) OR (NDK_API_MAX LESS CMAKE_SYSTEM_VERSION))
+	message(FATAL_ERROR "Android NDK at ${CMAKE_ANDROID_NDK} supports versions ${NDK_API_MIN}-${NDK_API_MAX} and we require version ${CMAKE_SYSTEM_VERSION}!")
 endif()
 
 string(CONCAT UE_FLAGS

@@ -99,4 +99,10 @@ if(MSVC)
 	set(CMAKE_C_FLAGS_RELEASE "/O2")
 endif()
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+	add_definitions(-D_DEBUG=1)
+else()
+	add_definitions(-DNDEBUG=1)
+endif()
+
 add_library(BLAKE3 ${BLAKE3_SOURCES})

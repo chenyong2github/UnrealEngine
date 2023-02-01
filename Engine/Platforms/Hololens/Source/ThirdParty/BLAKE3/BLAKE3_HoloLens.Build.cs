@@ -8,15 +8,15 @@ namespace UnrealBuildTool.Rules
 	{
 		public BLAKE3_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
+			string ModulePath = GetModuleDirectoryForSubClass(typeof(BLAKE3_HoloLens)).FullName;
 			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "HoloLens", "arm64", "Release", "BLAKE3.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(ModulePath, Version, "lib", "arm64", "Release", "BLAKE3.lib"));
 			}
 			else if (Target.WindowsPlatform.Architecture == UnrealArch.X64)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "HoloLens", "x64", "Release", "BLAKE3.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(ModulePath, Version, "lib", "x64", "Release", "BLAKE3.lib"));
 			}
-
 		}
 	}
 }
