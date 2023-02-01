@@ -13,19 +13,6 @@ class FUICommandList;
 
 TSharedRef<SWidget> CreateInsightsStatusBarWidget();
 
-enum class ETraceDestination : uint32
-{
-	TraceStore = 0,
-	File = 1
-};
-
-struct FChannelData
-{
-	FString Name;
-	bool bIsEnabled = false;
-	bool bIsReadOnly = false;
-};
-
 struct FTraceFileInfo
 {
 	FString FilePath;
@@ -44,6 +31,27 @@ struct FTraceFileInfo
  */
 class SInsightsStatusBarWidget : public SCompoundWidget
 {
+private:
+	enum class ETraceDestination : uint32
+	{
+		TraceStore = 0,
+		File = 1
+	};
+
+	struct FChannelData
+	{
+		FString Name;
+		bool bIsEnabled = false;
+		bool bIsReadOnly = false;
+	};
+
+	enum class ESelectLatestTraceCriteria : uint32
+	{
+		None,
+		CreatedTime,
+		ModifiedTime,
+	};
+
 public:
 	SLATE_BEGIN_ARGS(SInsightsStatusBarWidget) {}
 	SLATE_END_ARGS()
@@ -68,7 +76,10 @@ private:
 	void OpenProfilingDirectory();
 
 	void OpenTraceStoreDirectory_OnClicked();
-	void OpenTraceStoreDirectory(bool bSelectLastTrace);
+	void OpenTraceStoreDirectory(ESelectLatestTraceCriteria Criteria);
+
+	void OpenLatestTraceFromFolder(const FString& InFolder, ESelectLatestTraceCriteria InCriteria);
+	FString GetLatestTraceFileFromFolder(const FString& InFolder, ESelectLatestTraceCriteria InCriteria);
 
 	void SetTraceDestination_Execute(ETraceDestination InDestination);
 	bool SetTraceDestination_CanExecute();
@@ -102,7 +113,7 @@ private:
 
 	void OnTraceStarted(FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
 	void OnTraceStopped(FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
-	void OnSnapshotSaved(const FString& InPath);
+	void OnSnapshotSaved(FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
 
 	void CacheTraceStorePath();
 

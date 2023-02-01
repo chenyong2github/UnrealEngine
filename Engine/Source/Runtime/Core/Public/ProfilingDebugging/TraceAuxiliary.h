@@ -59,7 +59,7 @@ public:
 	* Callback whenever a trace snapshot is saved.
 	* Path is the file system path of the snapshot file.
 	*/
-	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnSnapshotSaved, const FString& Path);
+	DECLARE_TS_MULTICAST_DELEGATE_TwoParams(FOnSnapshotSaved, FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
 
 	struct FOptions
 	{

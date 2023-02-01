@@ -64,7 +64,6 @@ public:
 	}
 };
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FInsightsStatusBarWidgetCommands
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -328,7 +327,7 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("SaveSnapshotLabel", "Save Trace Snapshot"),
-			LOCTEXT("SaveSnapshotTooltip", "Save the current trace buffer to file."),
+			LOCTEXT("SaveSnapshotTooltip", "Save the current trace buffer to the selected trace destination."),
 			FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), "Icons.TraceSnapshot.Menu"),
 			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::SaveSnapshot),
 					  FCanExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::SaveSnapshot_CanExecute)),
@@ -589,42 +588,65 @@ void SInsightsStatusBarWidget::OpenProfilingDirectory()
 
 void SInsightsStatusBarWidget::OpenTraceStoreDirectory_OnClicked()
 {
-	OpenTraceStoreDirectory(false);
+	OpenTraceStoreDirectory(ESelectLatestTraceCriteria::None);
 }
 
-void SInsightsStatusBarWidget::OpenTraceStoreDirectory(bool bSelectLastTrace)
+void SInsightsStatusBarWidget::OpenTraceStoreDirectory(ESelectLatestTraceCriteria Criteria)
 {
 	CacheTraceStorePath();
+	FString Path = TraceStorePath;
 
-	FString StorePathLocal = TraceStorePath;
-	if (bSelectLastTrace)
+	if (Criteria != ESelectLatestTraceCriteria::None)
 	{
-		FString MostRecentTraceName;
-		FDateTime LatestDateTime;
-
-		auto Visitor = [&MostRecentTraceName, &LatestDateTime](const TCHAR* Filename, const FFileStatData& StatData)
-		{
-			if (FPaths::GetExtension(Filename) == TEXT("utrace"))
-			{
-				if (LatestDateTime < StatData.ModificationTime)
-				{
-					LatestDateTime = StatData.ModificationTime;
-					MostRecentTraceName = Filename;
-				}
-			}
-			return true;
-		};
-
-		IFileManager::Get().IterateDirectoryStat(*StorePathLocal, Visitor);
-
-		if (!MostRecentTraceName.IsEmpty())
-		{
-			StorePathLocal = MostRecentTraceName;
-		}
+		Path = GetLatestTraceFileFromFolder(TraceStorePath, Criteria);
 	}
 
-	FString FullPath(FPaths::ConvertRelativePathToFull(StorePathLocal));
-	FPlatformProcess::ExploreFolder(*FullPath);
+	FPlatformProcess::ExploreFolder(*Path);
+}
+
+void SInsightsStatusBarWidget::OpenLatestTraceFromFolder(const FString& InFolder, ESelectLatestTraceCriteria InCriteria)
+{
+	FString Path = GetLatestTraceFileFromFolder(InFolder, InCriteria);
+
+	if (!Path.IsEmpty())
+	{
+		FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(Path);
+	}
+}
+
+FString SInsightsStatusBarWidget::GetLatestTraceFileFromFolder(const FString& InFolder, ESelectLatestTraceCriteria InCriteria)
+{
+	FString Result;
+	FString MostRecentTraceName;
+	FDateTime LatestDateTime;
+
+	auto Visitor = [&MostRecentTraceName, &LatestDateTime, InCriteria](const TCHAR* Filename, const FFileStatData& StatData)
+	{
+		if (FPaths::GetExtension(Filename) == TEXT("utrace"))
+		{
+			if (InCriteria == ESelectLatestTraceCriteria::ModifiedTime && LatestDateTime < StatData.ModificationTime)
+			{
+				LatestDateTime = StatData.ModificationTime;
+				MostRecentTraceName = Filename;
+			}
+
+			if (InCriteria == ESelectLatestTraceCriteria::CreatedTime && LatestDateTime < StatData.CreationTime)
+			{
+				LatestDateTime = StatData.CreationTime;
+				MostRecentTraceName = Filename;
+			}
+		}
+		return true;
+	};
+
+	IFileManager::Get().IterateDirectoryStat(*InFolder, Visitor);
+
+	if (!MostRecentTraceName.IsEmpty())
+	{
+		Result = FPaths::ConvertRelativePathToFull(MostRecentTraceName);
+	}
+
+	return Result;
 }
 
 void SInsightsStatusBarWidget::SetTraceDestination_Execute(ETraceDestination InDestination)
@@ -663,7 +685,7 @@ void SInsightsStatusBarWidget::SaveSnapshot()
 		const bool bResult = FTraceAuxiliary::SendSnapshot(nullptr);
 		if (bResult)
 		{
-			ShowNotification(LOCTEXT("SnapshotSavedHeading", "Insights Snapshot saved."), LOCTEXT("SnapshotSavedServerText", "A snapshot .utrace with the most recent events has been saved to your the trace server."));
+			ShowNotification(LOCTEXT("SnapshotSavedHeading", "Insights Snapshot saved."), LOCTEXT("SnapshotSavedServerText", "A snapshot .utrace with the most recent events has been saved to your trace server."));
 			return;
 		}
 	}
@@ -791,7 +813,7 @@ void SInsightsStatusBarWidget::OnTraceStopped(FTraceAuxiliary::EConnectionType I
 	{
 		if (InTraceType == FTraceAuxiliary::EConnectionType::Network)
 		{
-			OpenTraceStoreDirectory(true);
+			OpenTraceStoreDirectory(ESelectLatestTraceCriteria::ModifiedTime);
 		}
 		else if (InTraceType == FTraceAuxiliary::EConnectionType::File)
 		{
@@ -800,15 +822,30 @@ void SInsightsStatusBarWidget::OnTraceStopped(FTraceAuxiliary::EConnectionType I
 	}
 }
 
-void SInsightsStatusBarWidget::OnSnapshotSaved(const FString& InPath)
+void SInsightsStatusBarWidget::OnSnapshotSaved(FTraceAuxiliary::EConnectionType InTraceType, const FString& InTraceDestination)
 {
 	if (GetBooleanSettingValue(OpenInsightsAfterTraceSettingName))
 	{
-		FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(InPath);
+		if (InTraceType == FTraceAuxiliary::EConnectionType::Network)
+		{
+			CacheTraceStorePath();
+			OpenLatestTraceFromFolder(TraceStorePath, ESelectLatestTraceCriteria::CreatedTime);
+		}
+		else if (InTraceType == FTraceAuxiliary::EConnectionType::File)
+		{
+			FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(InTraceDestination);
+		}
 	}
 	if (GetBooleanSettingValue(ShowInExplorerAfterTraceSettingName))
 	{
-		FPlatformProcess::ExploreFolder(*InPath);
+		if (InTraceType == FTraceAuxiliary::EConnectionType::Network)
+		{
+			OpenTraceStoreDirectory(ESelectLatestTraceCriteria::CreatedTime);
+		}
+		else if (InTraceType == FTraceAuxiliary::EConnectionType::File)
+		{
+			FPlatformProcess::ExploreFolder(*InTraceDestination);
+		}
 	}
 }
 
