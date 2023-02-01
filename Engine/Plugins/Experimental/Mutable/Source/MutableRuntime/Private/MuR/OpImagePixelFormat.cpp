@@ -42,7 +42,7 @@ ImagePtr ImagePixelFormat( int imageCompressionQuality, const Image* pBase,
         resultLODCount = 1;
     }
 
-    ImagePtr result = new Image( (uint16)resultSize[0], (uint16)resultSize[1], resultLODCount, targetFormat );
+    ImagePtr result = new Image( (uint16)resultSize[0], (uint16)resultSize[1], resultLODCount, targetFormat, EInitializationType::NotInitialized );
 	result->m_flags = pBase->m_flags;
 
 	if (pBase->GetSizeX()<=0 ||pBase->GetSizeY()<=0)

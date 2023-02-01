@@ -751,7 +751,8 @@ namespace mu
 				if ( pOld->IsPlainColour(PlainColor) )
 				{
 					// It is more efficient to just have an instruction for it instead, to avoid the overhead
-					// of data loading.
+					// of data loading. 
+					// Warning This eliminates the mips. \TODO: Add support for mips in plaincolour instruction?
 					Ptr<ASTOpFixed> NewColor = new ASTOpFixed;
 					NewColor->op.type = OP_TYPE::CO_CONSTANT;
 					NewColor->op.args.ColourConstant.value[0] = PlainColor[0];

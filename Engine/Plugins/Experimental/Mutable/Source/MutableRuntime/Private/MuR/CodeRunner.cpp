@@ -3532,6 +3532,8 @@ namespace mu
                 Ptr<const Image> pMask = GetMemory().GetImage( FCacheAddress(args.mask,item) );
                 Ptr<const Image> pMap = GetMemory().GetImage( FCacheAddress(args.map,item) );
 
+				bool bOnlyOneMip = (pMask->GetLODCount() < pSource->GetLODCount());
+
 				// Be defensive: ensure image sizes match.
 				if (pMask->GetSize() != pSource->GetSize())
 				{
@@ -3540,7 +3542,14 @@ namespace mu
 				}
 
 
-                ImagePtr pResult = ImageColourMap( pSource.get(), pMask.get(), pMap.get() );
+                Ptr<Image> pResult = ImageColourMap( pSource.get(), pMask.get(), pMap.get(), bOnlyOneMip);
+
+				if (bOnlyOneMip)
+				{
+					MUTABLE_CPUPROFILER_SCOPE(ImageColourMap_MipFix);
+					FMipmapGenerationSettings DummyMipSettings{};
+					ImageMipmapInPlace(m_pSettings->GetPrivate()->m_imageCompressionQuality, pResult.get(), DummyMipSettings);
+				}
 
                 GetMemory().SetImage( item, pResult );
                 break;
@@ -3668,7 +3677,8 @@ namespace mu
                 ImagePtr pA = new Image( SizeX,
                                          SizeY,
                                          1,
-                                         (EImageFormat)args.format );
+                                         (EImageFormat)args.format,
+										 EInitializationType::NotInitialized );
 
                 FillPlainColourImage(pA.get(), c);
 

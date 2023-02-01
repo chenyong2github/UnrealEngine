@@ -1086,6 +1086,7 @@ namespace mu
         op->SetChild( op->op.args.ImageColourMap.mask, mask);
 
         // Map image
+		// \TODO: We are forcing an map image size as it was a normal texture, and this is incorrect.
         Ptr<ASTOp> mapImage = 0;
         if ( Node* pMap = node.m_pMap.get() )
         {

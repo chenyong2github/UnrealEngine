@@ -70,7 +70,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    Image::Image( uint32_t sizeX, uint32_t sizeY, uint32_t lods, EImageFormat format )
+    Image::Image( uint32_t sizeX, uint32_t sizeY, uint32_t lods, EImageFormat format, EInitializationType Init )
     {
 		MUTABLE_CPUPROFILER_SCOPE(NewImage)
 			LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
@@ -88,7 +88,14 @@ namespace mu
         if (PixelsPerBlock)
         {
 			int32 DataSize = CalculateDataSize();
-            m_data.SetNum( DataSize );
+			if (Init == EInitializationType::Black)
+			{
+				m_data.SetNumZeroed(DataSize);
+			}
+			else
+			{
+				m_data.SetNumUninitialized(DataSize);
+			}
         }
     }
 

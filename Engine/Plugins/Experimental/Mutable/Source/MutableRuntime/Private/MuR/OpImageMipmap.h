@@ -597,10 +597,10 @@ namespace mu
                 pBase->GetFormat());
 
             // Preallocate ample memory for the compressed data
-            scratch->pCompressedMips->m_data.SetNum(scratch->pUncompressedMips->GetDataSize());
+            scratch->pCompressedMips->m_data.SetNumUninitialized(scratch->pUncompressedMips->GetDataSize());
 
             // Preallocate ample memory for the destination data
-            pDest->m_data.SetNum(pBase->GetDataSize() + scratch->pUncompressedMips->GetDataSize());
+            pDest->m_data.SetNumUninitialized(pBase->GetDataSize() + scratch->pUncompressedMips->GetDataSize());
 
             break;
         }
@@ -714,7 +714,7 @@ namespace mu
 				// Bad case: this should almost never happen.
 				MUTABLE_CPUPROFILER_SCOPE(Mipmap_Recompression_OutOfSpace);
 
-				scratch->pCompressedMips->m_data.SetNum(ExcessDataSize);
+				scratch->pCompressedMips->m_data.SetNumUninitialized(ExcessDataSize);
 				bSuccess = ImagePixelFormatInPlace(imageCompressionQuality, scratch->pCompressedMips.get(), scratch->pUncompressedMips.get());
 				ExcessDataSize *= 4;
 			}
@@ -725,7 +725,7 @@ namespace mu
 			if (FinalDestSize > pDest->GetDataSize())
 			{
 				// Bad case: this should almost never happen.
-				pDest->m_data.SetNum(FinalDestSize);
+				pDest->m_data.SetNumUninitialized(FinalDestSize);
 				pDestBuf = !bGenerateOnlyTail ? pDest->GetMipData(startLevel + 1) : pDest->GetMipData(0);
 			}
 

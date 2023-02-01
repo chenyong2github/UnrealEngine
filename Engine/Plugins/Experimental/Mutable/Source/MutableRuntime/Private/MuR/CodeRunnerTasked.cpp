@@ -1019,7 +1019,7 @@ namespace mu
 		int startLevel = m_base->GetLODCount();
 		levelCount = FMath::Max(startLevel, levelCount);
 
-		ImagePtr pDest = new Image(m_base->GetSizeX(), m_base->GetSizeY(), levelCount, m_base->GetFormat());
+		ImagePtr pDest = new Image(m_base->GetSizeX(), m_base->GetSizeY(), levelCount, m_base->GetFormat(),EInitializationType::NotInitialized);
 		pDest->m_flags = m_base->m_flags;
 
 		SCRATCH_IMAGE_MIPMAP scratch;

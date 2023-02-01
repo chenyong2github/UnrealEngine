@@ -156,6 +156,12 @@ namespace mu
 		_CIM_COUNT
 	};
 
+	enum class EInitializationType
+	{
+		NotInitialized,
+		Black
+	};
+
     //! \brief 2D image resource with mipmaps.
 	//! \ingroup runtime
     class MUTABLERUNTIME_API Image : public RefCounted
@@ -176,7 +182,7 @@ namespace mu
         //!         base level. It must be a number between 1 and the maximum possible levels, which
         //!         depends on the image size.
         //! \param format Pixel format.
-        Image( uint32 sizeX, uint32 sizeY, uint32 lods, EImageFormat format );
+        Image( uint32 sizeX, uint32 sizeY, uint32 lods, EImageFormat format, EInitializationType Init=EInitializationType::Black);
 
 		/** */
 		ImagePtr ExtractMip(int32 Mip) const;
