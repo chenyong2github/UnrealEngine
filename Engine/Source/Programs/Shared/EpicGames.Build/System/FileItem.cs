@@ -110,6 +110,11 @@ namespace UnrealBuildBase
 		public DateTime LastWriteTimeUtc => Info.Value.LastWriteTimeUtc;
 
 		/// <summary>
+		/// The creation time of the file.
+		/// </summary>
+		public DateTime CreationTimeUtc => Info.Value.CreationTimeUtc;
+
+		/// <summary>
 		/// Determines if the file has the given extension
 		/// </summary>
 		/// <param name="Extension">The extension to check for</param>

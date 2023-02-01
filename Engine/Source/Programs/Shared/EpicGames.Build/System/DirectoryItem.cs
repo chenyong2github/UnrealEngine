@@ -83,6 +83,11 @@ namespace UnrealBuildBase
 		public DateTime LastWriteTimeUtc => Info.Value.LastWriteTimeUtc;
 
 		/// <summary>
+		/// The creation time of the file.
+		/// </summary>
+		public DateTime CreationTimeUtc => Info.Value.CreationTimeUtc;
+
+		/// <summary>
 		/// Gets the parent directory item
 		/// </summary>
 		public DirectoryItem? GetParentDirectoryItem()

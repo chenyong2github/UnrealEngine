@@ -685,10 +685,12 @@ namespace UnrealBuildTool
 				if (ProducedItem.Exists && (RootAction.ActionType != ActionType.Compile || ProducedItem.Length > 0 ||
 				                            (!ProducedItem.Location.HasExtension(".obj") && !ProducedItem.Location.HasExtension(".o"))))
 				{
+					// Find the newer of LastWriteTime and CreationTime, as copied files (such as from a build cache) can have a newer creation time in some cases
+					DateTime ExecutionTimeUtc = ProducedItem.LastWriteTimeUtc > ProducedItem.CreationTimeUtc ? ProducedItem.LastWriteTimeUtc : ProducedItem.CreationTimeUtc;
 					// Use the oldest produced item's time as the last execution time.
-					if (ProducedItem.LastWriteTimeUtc < LastExecutionTimeUtc)
+					if (ExecutionTimeUtc < LastExecutionTimeUtc)
 					{
-						LastExecutionTimeUtc = ProducedItem.LastWriteTimeUtc;
+						LastExecutionTimeUtc = ExecutionTimeUtc;
 					}
 				}
 				else
