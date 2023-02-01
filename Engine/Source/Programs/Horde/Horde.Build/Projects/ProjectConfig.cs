@@ -109,7 +109,7 @@ namespace Horde.Build.Projects
 		{
 			Id = id;
 			GlobalConfig = globalConfig;
-			ScopeName = ParentScope.ScopeName.Append("p", Id.ToString());
+			ScopeName = globalConfig.ScopeName.Append("p", Id.ToString());
 
 			foreach (StreamConfig stream in Streams)
 			{
