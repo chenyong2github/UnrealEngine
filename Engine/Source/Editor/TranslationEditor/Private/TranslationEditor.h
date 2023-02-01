@@ -106,10 +106,16 @@ private:
 
 	/**	Spawns the untranslated tab */
 	TSharedRef<SDockTab> SpawnTab_Untranslated( const FSpawnTabArgs& Args );
+	/** Getter function bound to the label attribute for the untranslated tab. */
+	FText GetTabLabel_Untranslated() const;
 	/**	Spawns the review tab */
 	TSharedRef<SDockTab> SpawnTab_Review( const FSpawnTabArgs& Args );
+	/** Getter function bound to the label attribute for the review tab. */
+	FText GetTabLabel_Review() const;
 	/**	Spawns the completed tab */
 	TSharedRef<SDockTab> SpawnTab_Completed( const FSpawnTabArgs& Args );
+	/** Getter function bound to the label attribute for the completed tab. */
+	FText GetTabLabel_Completed() const;
 	/**	Spawns the preview tab */
 	TSharedRef<SDockTab> SpawnTab_Preview( const FSpawnTabArgs& Args );
 	/**	Spawns the context tab */
