@@ -23,6 +23,13 @@ bool UPixelStreamingMediaCapture::InitializeCapture()
 	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Initializing media capture for Pixel Streaming VCam."));
 	bViewportResized = false;
 	SetState(EMediaCaptureState::Capturing);
+
+	// Force the MediaCapture readback to be completed on the render thread
+	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("MediaIO.ScheduleOnAnyThread"));
+	if(CVar) {
+		CVar->Set(0, EConsoleVariableFlags::ECVF_SetByCode);
+	}
+
 	return true;
 }
 
