@@ -146,18 +146,36 @@ void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseIdx)
 
 //////////////////////////////////////////////////////////////////////////
 // FSearchContext
-FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx)
+
+FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx)
+{
+	// collecting the RootTransform from the FPoseHistory
+	FTransform RootTransform = FTransform::Identity;
+	History->TrySampleLocalPose(-SampleTime, nullptr, nullptr, &RootTransform);
+
+	const FBoneIndexType BoneIndexType = Schema->GetBoneIndexType(SchemaBoneIdx);
+	if (BoneIndexType != RootBoneIndexType)
+	{
+		const FTransform BoneTransform = GetComponentSpaceTransform(SampleTime, Schema, SchemaBoneIdx);
+		return BoneTransform * RootTransform;
+	}
+
+	return RootTransform;
+}
+
+FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx)
 {
 	check(History && Schema);
 
 	const FBoneIndexType BoneIndexType = Schema->GetBoneIndexType(SchemaBoneIdx);
-	if (const FCachedTransform<FTransform>* CachedTransform = CachedTransforms.Find(SampleTime, BoneIndexType))
-	{
-		return CachedTransform->Transform;
-	}
-
 	if (BoneIndexType != RootBoneIndexType)
 	{
+		if (const FCachedTransform<FTransform>* CachedTransform = CachedTransforms.Find(SampleTime, BoneIndexType))
+		{
+			return CachedTransform->Transform;
+		}
+	
+		// collecting the local bone transforms from the FPoseHistory
 		TArray<FTransform> SampledLocalPose;
 		if (History->TrySampleLocalPose(-SampleTime, &Schema->BoneIndicesWithParents, &SampledLocalPose, nullptr))
 		{
@@ -172,18 +190,22 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 
 			return SampledComponentPose[BoneIndexType];
 		}
+	}
 
-		return FTransform::Identity;
-	}
-	
-	FTransform SampledRootTransform;
-	if (History->TrySampleLocalPose(-SampleTime, nullptr, nullptr, &SampledRootTransform))
-	{
-		CachedTransforms.Add(SampleTime, BoneIndexType, SampledRootTransform);
-		return SampledRootTransform;
-	}
-	
 	return FTransform::Identity;
+}
+
+FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, float OriginTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx)
+{
+	if (SampleTime == OriginTime)
+	{
+		return GetComponentSpaceTransform(SampleTime, Schema, SchemaBoneIdx);
+	}
+
+	const FTransform RootBoneTransform = GetTransform(OriginTime, Schema);
+	FTransform BoneTransform = GetTransform(SampleTime, Schema, SchemaBoneIdx);
+	BoneTransform.SetToRelativeTransform(RootBoneTransform);
+	return BoneTransform;
 }
 
 void FSearchContext::ClearCachedEntries()

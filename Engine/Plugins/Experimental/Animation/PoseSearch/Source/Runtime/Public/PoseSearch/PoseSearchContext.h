@@ -162,7 +162,10 @@ struct POSESEARCH_API FSearchContext
 	// can the continuing pose advance? (if not we skip evaluating it)
 	bool bCanAdvance = true;
 
-	FTransform TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx = RootSchemaBoneIdx);
+	FTransform GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx = RootSchemaBoneIdx);
+	FTransform GetComponentSpaceTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx = RootSchemaBoneIdx);
+	FTransform GetComponentSpaceTransform(float SampleTime, float OriginTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx = RootSchemaBoneIdx);
+
 	void ClearCachedEntries();
 
 	void ResetCurrentBestCost();
@@ -181,6 +184,7 @@ struct POSESEARCH_API FSearchContext
 	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;
 
 private:
+	// transforms cached in component space
 	FCachedTransforms<FTransform> CachedTransforms;
 	
 	struct FCachedQuery

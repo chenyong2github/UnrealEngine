@@ -89,10 +89,10 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::BuildQuery(UE::PoseSearch::FS
 	else
 	{
 		const float SampleTime = 0.f;
-		const FTransform LeftThighTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), LeftThighIdx);
-		const FTransform RightThighTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), RightThighIdx);
-		const FTransform LeftFootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), LeftFootIdx);
-		const FTransform RightFootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), RightFootIdx);
+		const FTransform LeftThighTransform = SearchContext.GetComponentSpaceTransform(SampleTime, InOutQuery.GetSchema(), LeftThighIdx);
+		const FTransform RightThighTransform = SearchContext.GetComponentSpaceTransform(SampleTime, InOutQuery.GetSchema(), RightThighIdx);
+		const FTransform LeftFootTransform = SearchContext.GetComponentSpaceTransform(SampleTime, InOutQuery.GetSchema(), LeftFootIdx);
+		const FTransform RightFootTransform = SearchContext.GetComponentSpaceTransform(SampleTime, InOutQuery.GetSchema(), RightFootIdx);
 
 		const float CrashingLegsValue = ComputeCrashingLegsValue(RightThighTransform.GetTranslation(), LeftThighTransform.GetTranslation(), RightFootTransform.GetTranslation(), LeftFootTransform.GetTranslation());
 		FFeatureVectorHelper::EncodeFloat(InOutQuery.EditValues(), DataOffset, CrashingLegsValue);
