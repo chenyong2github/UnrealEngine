@@ -41,6 +41,8 @@ struct FNiagaraSimCacheCreateParameters
 	FNiagaraSimCacheCreateParameters()
 		: bAllowRebasing(true)
 		, bAllowDataInterfaceCaching(true)
+		, bAllowInterpolation(false)
+		, bAllowVelocityExtrapolation(false)
 	{
 	}
 
@@ -66,6 +68,21 @@ struct FNiagaraSimCacheCreateParameters
 	uint32 bAllowDataInterfaceCaching : 1;
 
 	/**
+	When enabled we allow the cache to be generated for interpolation.
+	This will increase the memory usage for the cache slightly but can allow you to reduce the capture rate.
+	By default we will capture and interpolate all Position & Quat types, you can adjust this using the include / exclude list.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SimCache")
+	uint32 bAllowInterpolation : 1;
+
+	/**
+	When enabled we allow the cache to be generated for extrapolation.
+	This will force the velocity attribute to be maintained.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SimCache")
+	uint32 bAllowVelocityExtrapolation : 1;
+
+	/**
 	List of Attributes to force include in the SimCache rebase, they should be the full path to the attribute
 	For example, MyEmitter.Particles.MyQuat would force the particle attribute MyQuat to be included for MyEmitter
 	*/
@@ -78,6 +95,20 @@ struct FNiagaraSimCacheCreateParameters
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SimCache")
 	TArray<FName> RebaseExcludeAttributes;
+
+	/**
+	List of specific Attributes to include when using interpolation.  They must be types that are supported for interpolation.
+	For example, MyEmitter.Particles.MyPosition would force MyPosition to be interpolated.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SimCache")
+	TArray<FName> InterpolationIncludeAttributes;
+
+	/**
+	List of specific Attributes to exclude interpolation for.  They must be types that are supported for interpolation.
+	For example, MyEmitter.Particles.MyPosition would force MyPosition to be interpolated.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SimCache")
+	TArray<FName> InterpolationExcludeAttributes;
 
 	/**
 	List of attributes to capture when the capture attribute capture mode is set to explicit.
@@ -109,6 +140,9 @@ struct FNiagaraSimCacheDataBuffers
 
 	UPROPERTY()
 	uint32 IDAcquireTag = 0;
+
+	UPROPERTY()
+	TArray<uint32> InterpMapping;
 };
 
 USTRUCT()
@@ -151,6 +185,9 @@ struct FNiagaraSimCacheFrame
 	FVector3f LWCTile = FVector3f::ZeroVector;
 
 	UPROPERTY()
+	float SimulationAge = 0.0f;
+
+	UPROPERTY()
 	FNiagaraSimCacheSystemFrame SystemData;
 
 	UPROPERTY()
@@ -189,14 +226,28 @@ struct FNiagaraSimCacheDataBuffersLayout
 {
 	GENERATED_BODY()
 
-	// Copy Function parameters are
-	// Dest, DestStride, Source, SourceStride, NumInstances, RebasedTransform
-	typedef void (*FVariableCopyFunction)(uint8*, uint32, const uint8*, uint32, uint32, const FTransform&);
-
-	struct FVariableCopyInfo
+	struct FVariableCopyContext
 	{
-		FVariableCopyInfo() = default;
-		explicit FVariableCopyInfo(uint16 InComponentFrom, uint16 InComponentTo, FVariableCopyFunction InCopyFunc)
+		float					FrameFraction		= 0.0f;
+		float					RecipDt				= 0.0f;
+		uint32					NumInstances		= 0;
+		uint8*					Dest				= nullptr;
+		uint32					DestStride			= 0;
+		const uint8*			SourceAComponent	= nullptr;
+		uint32					SourceAStride		= 0;
+		const uint8*			SourceBComponent	= nullptr;
+		uint32					SourceBStride		= 0;
+		const uint8*			VelocityComponent	= nullptr;
+		FTransform				RebaseTransform;
+		TConstArrayView<uint32>	InterpMappings;
+	};
+
+	typedef void (*FVariableCopyFunction)(const FVariableCopyContext& CopyData);
+
+	struct FVariableCopyMapping
+	{
+		FVariableCopyMapping() = default;
+		explicit FVariableCopyMapping(uint16 InComponentFrom, uint16 InComponentTo, FVariableCopyFunction InCopyFunc)
 			: ComponentFrom(InComponentFrom)
 			, ComponentTo(InComponentTo)
 			, CopyFunc(InCopyFunc)
@@ -230,12 +281,23 @@ struct FNiagaraSimCacheDataBuffersLayout
 	bool bLocalSpace = false;
 
 	UPROPERTY()
+	bool bAllowInterpolation = false;
+
+	UPROPERTY()
+	bool bAllowVelocityExtrapolation = false;
+
+	UPROPERTY()
 	TArray<FName> RebaseVariableNames;
 
-	TArray<uint16> ComponentMappingsToDataBuffer;
-	TArray<FVariableCopyInfo> VariableMappingsToDataBuffer;
+	UPROPERTY()
+	TArray<FName> InterpVariableNames;
 
-	TArray<uint16> ComponentMappingsFromDataBuffer;
+	TArray<uint16> ComponentMappingsToDataBuffer;
+	TArray<FVariableCopyMapping> VariableCopyMappingsToDataBuffer;
+	uint16 ComponentVelocity = INDEX_NONE;
+
+	TArray<uint16>	ComponentMappingsFromDataBuffer;
+	uint16			ComponentUniqueID = INDEX_NONE;
 };
 
 USTRUCT()
@@ -273,6 +335,9 @@ class NIAGARA_API UNiagaraSimCache : public UObject
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheBeginWrite, UNiagaraSimCache*)
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheEndWrite, UNiagaraSimCache*)
+
+	// Used to reduce rounding issues with age
+	static constexpr float CacheAgeResolution = 10000.0f;
 
 	// UObject Interface
 	virtual bool IsReadyForFinishDestroy() override;
