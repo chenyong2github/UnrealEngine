@@ -147,13 +147,15 @@ inline uint32 GetTypeHash(const FCustomizableObjectFloatParameterValue& Key)
 USTRUCT(BlueprintType)
 struct FCustomizableObjectTextureParameterValue
 {
+	static constexpr uint64 DEFAULT_PARAMETER_VALUE = 0;
+	
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
 	FString ParameterName;
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
-	uint64 ParameterValue = 0;
+	uint64 ParameterValue = DEFAULT_PARAMETER_VALUE;
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
 	FString Uid;

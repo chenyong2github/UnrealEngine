@@ -990,7 +990,13 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 
 						if (!Param.ParameterRangeValues.IsValidIndex(ValueIndex))
 						{
-							Param.ParameterRangeValues.AddDefaulted(ValueIndex + 1 - Param.ParameterRangeValues.Num());
+							const int32 PreviousNum = Param.ParameterRangeValues.Num();
+							Param.ParameterRangeValues.AddUninitialized(ValueIndex + 1 - Param.ParameterRangeValues.Num());
+
+							for (int32 Index = PreviousNum; Index < Param.ParameterRangeValues.Num(); ++Index)
+							{
+								Param.ParameterRangeValues[Index] = FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
+							}
 						}
 
 						Param.ParameterRangeValues[RangeIndex] = MutableParameters->GetImageValue(ParamIndex, RangeValueIdxPtr);

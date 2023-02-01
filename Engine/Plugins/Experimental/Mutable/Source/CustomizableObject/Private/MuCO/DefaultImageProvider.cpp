@@ -89,17 +89,24 @@ int64 UDefaultImageProvider::Get(UTexture2D* Texture) const
 
 uint64 UDefaultImageProvider::GetOrAdd(UTexture2D* Texture)
 {
+	if (!Texture)
+	{
+		return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
+	}
+	
 	int32 Hole = INDEX_NONE;
 
 	for (int32 TextureIndex = 0; TextureIndex < Textures.Num(); ++TextureIndex)
 	{
-		if (Textures[TextureIndex] == Texture)
+		const TObjectPtr<UTexture2D> UsedTexture = Textures[TextureIndex];
+		if (UsedTexture == Texture)
 		{
 			return ToTextureId(TextureIndex);
 		}
-		else if (!Texture && Hole == INDEX_NONE)
+		else if (!UsedTexture)
 		{
 			Hole = TextureIndex;
+			break;
 		}
 	}
 	
