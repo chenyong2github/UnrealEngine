@@ -170,6 +170,11 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 	}
 }
 
+bool IsInvalidSurfaceHit(FPathTracingPayload Payload)
+{
+	return !Payload.IsFrontFace() && !Payload.IsMaterialTransmissive() && !Payload.IsMaterialTwoSided();
+}
+
 FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
 {
 	const uint RayFlags = IsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
@@ -262,6 +267,13 @@ FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool Las
 				Payload = HitPayload;
 				PayloadThroughput = PathThroughput / SelectionWeight;
 			}
+		}
+
+		if (IsInvalidSurfaceHit(HitPayload))
+		{
+			// Propagate to Payload and terminate immediately upon invalid surface hits
+			Payload = HitPayload;
+			break;
 		}
 
 		// prepare next step around the loop
@@ -407,15 +419,15 @@ void PathTracingKernel(
 			Payload = TraceTransparentRay(Ray, false , bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 		}
 		
-		if (Payload.IsMiss())
+		if (IsInvalidSurfaceHit(Payload))
 		{
-			// we didn't hit anything selectable for further shading, we are done
+			bIsValidSample = false;
 			break;
 		}
 		
-		if (Payload.Opacity < 0)
+		if (Payload.IsMiss())
 		{
-			bIsValidSample = false;
+			// we didn't hit anything selectable for further shading, we are done
 			break;
 		}
 

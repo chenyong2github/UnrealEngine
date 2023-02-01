@@ -572,6 +572,9 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		Payload.Radiance = 0;
 	}
 #endif
+#if MATERIAL_TWOSIDED
+	Payload.SetMaterialTwoSided();
+#endif
 	Payload.BaseColor = BaseColor;
 	Payload.Specular = 0;
 	Payload.Roughness = 1;
@@ -583,14 +586,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
 #endif
 	Payload.Ior = 0;
-
-#if !MATERIAL_TWOSIDED
-	if (!Payload.IsFrontFace() && !Payload.IsMaterialTransmissive())
-	{
-		// Overloaded semantics for opacity
-		Payload.Opacity = -1;
-	}
-#endif
 
 #endif
 
