@@ -302,6 +302,14 @@ public:
 	void SetCursorPos( const FVector2D& MouseCoordinate ) override;
 
 	/** 
+	 * Replace the IPlatformTextField implementation with a custom one.  The implementation used by default is platform specific.
+	 * If you need to change the default behavior for virtual keyboard, this method is for you.
+	 *
+	 * @param PlatformTextField		The platform specific implementation of the IPlatformTextField.
+	 */
+	void OverridePlatformTextField(TUniquePtr<IPlatformTextField> PlatformTextField);
+	
+	/** 
 	 *	Updates the cursor user's cursor to either the platform cursor or fake cursor
 	 */
 	void UsePlatformCursorForCursorUser(bool bUsePlatformCursor);
@@ -1884,7 +1892,7 @@ private:
 	/**
 	 * Virtual keyboard text field
 	 */
-	IPlatformTextField* SlateTextField;
+	TUniquePtr<IPlatformTextField> SlateTextField;
 
 	/** For desktop platforms that want to test touch style input, pass -faketouches or -simmobile on the commandline to set this */
 	bool bIsFakingTouch;

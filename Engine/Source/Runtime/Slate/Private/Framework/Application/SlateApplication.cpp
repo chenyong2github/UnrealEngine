@@ -773,7 +773,6 @@ FSlateApplication::FSlateApplication()
 	, bRequestLeaveDebugMode( false )
 	, bLeaveDebugForSingleStep( false )
 	, bIsExternalUIOpened( false )
-	, SlateTextField( nullptr )
 	, bIsFakingTouch(FParse::Param(FCommandLine::Get(), TEXT("simmobile")) || FParse::Param(FCommandLine::Get(), TEXT("faketouches")))
 	, bIsGameFakingTouch( false )
 	, bIsFakingTouched( false )
@@ -847,12 +846,6 @@ FSlateApplication::~FSlateApplication()
 {
 	FTabCommands::Unregister();
 	FGenericCommands::Unregister();
-	
-	if (SlateTextField != nullptr)
-	{
-		delete SlateTextField;
-		SlateTextField = nullptr;
-	}
 
 #if WITH_EDITOR
 	OnDebugSafeZoneChanged.RemoveAll(this);
@@ -975,6 +968,11 @@ UE::Slate::FDeprecateVector2DResult FSlateApplication::GetLastCursorPos() const
 void FSlateApplication::SetCursorPos(const FVector2D& MouseCoordinate)
 {
 	GetCursorUser()->SetCursorPosition(UE::Slate::CastToVector2f(MouseCoordinate));
+}
+
+void FSlateApplication::OverridePlatformTextField(TUniquePtr<IPlatformTextField> PlatformTextField)
+{
+	SlateTextField = MoveTemp(PlatformTextField);
 }
 
 void FSlateApplication::UsePlatformCursorForCursorUser(bool bUsePlatformCursor)
@@ -3873,9 +3871,9 @@ void FSlateApplication::ShowVirtualKeyboard( bool bShow, int32 UserIndex, TShare
 {
 	SCOPE_CYCLE_COUNTER(STAT_ShowVirtualKeyboard);
 
-	if(SlateTextField == nullptr)
+	if (!SlateTextField.IsValid())
 	{
-		SlateTextField = new FPlatformTextField();
+		SlateTextField = MakeUnique<FPlatformTextField>();
 	}
 
 	SlateTextField->ShowVirtualKeyboard(bShow, UserIndex, TextEntryWidget);
@@ -3883,9 +3881,9 @@ void FSlateApplication::ShowVirtualKeyboard( bool bShow, int32 UserIndex, TShare
 
 bool FSlateApplication::AllowMoveCursor()
 {
-	if (SlateTextField == nullptr)
+	if (!SlateTextField.IsValid())
 	{
-		SlateTextField = new FPlatformTextField();
+		SlateTextField = MakeUnique<FPlatformTextField>();
 	}
 
 	return SlateTextField->AllowMoveCursor();
