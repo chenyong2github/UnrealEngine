@@ -13851,7 +13851,7 @@ bool URigVMController::CanAddFunctionRefForDefinition(const FRigVMGraphFunctionH
 				InFunctionDefinition.LibraryPointer.HostObject;
 			if (!bIsAvailable)
 			{
-				if (IRigVMGraphFunctionHost* Host = Cast<IRigVMGraphFunctionHost>(InFunctionDefinition.LibraryPointer.HostObject.ResolveObject()))
+				if (IRigVMGraphFunctionHost* Host = Cast<IRigVMGraphFunctionHost>(InFunctionDefinition.LibraryPointer.HostObject.TryLoad()))
 				{
 					bIsAvailable = Host->GetRigVMGraphFunctionStore()->IsFunctionPublic(InFunctionDefinition.LibraryPointer);		
 				}

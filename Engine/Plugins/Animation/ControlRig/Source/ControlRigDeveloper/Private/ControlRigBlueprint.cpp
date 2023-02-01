@@ -4626,10 +4626,22 @@ void UControlRigBlueprint::PatchFunctionsOnLoad()
 			}
 		}
 	}
-	
+
+	// Addressing issue where PublicGraphFunctions is populated, but the model PublicFunctionNames is not
+	URigVMFunctionLibrary* FunctionLibrary = GetLocalFunctionLibrary();
+	if (FunctionLibrary)
+	{
+		if (PublicGraphFunctions.Num() > FunctionLibrary->PublicFunctionNames.Num())
+		{
+			for (const FRigVMGraphFunctionHeader& PublicHeader : PublicGraphFunctions)
+			{
+				BackwardsCompatiblePublicFunctions.Add(PublicHeader.Name);
+			}
+		}
+	}
 
 	// Lets rebuild the FunctionStore from the model
-	if (URigVMFunctionLibrary* FunctionLibrary = GetLocalFunctionLibrary())
+	if (FunctionLibrary)
 	{
 		Store.PublicFunctions.Reset();
 		Store.PrivateFunctions.Reset();

@@ -76,6 +76,7 @@ public:
 
 private:
 
+	UPROPERTY()
 	TArray<FName> PublicFunctionNames;
 
 #if WITH_EDITORONLY_DATA

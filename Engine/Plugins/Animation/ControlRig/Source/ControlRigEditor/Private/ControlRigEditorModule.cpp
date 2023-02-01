@@ -1161,16 +1161,18 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 			}
 			PackagesProcessed.Add(ControlRigAssetData.PackageName);
 
-			FString PublicFunctionsString;
-			if (PublicFunctionsProperty)
-			{
-				PublicFunctionsString = ControlRigAssetData.GetTagValueRef<FString>(PublicFunctionsProperty->GetFName());
-			}
 			FString PublicGraphFunctionsString;
+			FString PublicFunctionsString;
 			if (PublicGraphFunctionsProperty)
 			{
 				PublicGraphFunctionsString = ControlRigAssetData.GetTagValueRef<FString>(PublicGraphFunctionsProperty->GetFName());
 			}
+			// Only look at the deprecated public functions if the PublicGraphFunctionsProperty is not found
+			else if (PublicFunctionsProperty)
+			{
+				PublicFunctionsString = ControlRigAssetData.GetTagValueRef<FString>(PublicFunctionsProperty->GetFName());
+			}
+			
 			if(PublicFunctionsString.IsEmpty() && PublicGraphFunctionsString.IsEmpty())
 			{
 				continue;
@@ -1184,7 +1186,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 				{
 					UBlueprintNodeSpawner* NodeSpawner = UControlRigFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
 					check(NodeSpawner != nullptr);
-					ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);						
+					ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 				}
 			}
 
