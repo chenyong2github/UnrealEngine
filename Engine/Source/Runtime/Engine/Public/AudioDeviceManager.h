@@ -281,9 +281,9 @@ public:
 	TMap<int32, FSoundBuffer*>	WaveBufferMap;
 
 	/** Returns all the audio devices managed by device manager. */
-	TArray<FAudioDevice*> GetAudioDevices();
+	TArray<FAudioDevice*> GetAudioDevices() const;
 
-	TArray<UWorld*> GetWorldsUsingAudioDevice(const Audio::FDeviceId& InID);
+	TArray<UWorld*> GetWorldsUsingAudioDevice(const Audio::FDeviceId& InID) const;
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
 	void AddStackWalkForContainer(Audio::FDeviceId InId, uint32 StackWalkID, FString&& InStackWalk);

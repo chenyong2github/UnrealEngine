@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioDeviceManager.h"
 
+#include "Algo/Transform.h"
 #include "Audio/AudioDebug.h"
 #include "AudioAnalytics.h"
 #include "AudioMixerDevice.h"
@@ -1243,29 +1244,32 @@ uint8 FAudioDeviceManager::GetNumMainAudioDeviceWorlds() const
 	}
 }
 
-TArray<FAudioDevice*> FAudioDeviceManager::GetAudioDevices()
+TArray<FAudioDevice*> FAudioDeviceManager::GetAudioDevices() const
 {
 	TArray<FAudioDevice*> DeviceList;
-	FScopeLock ScopeLock(&DeviceMapCriticalSection);
-	for (auto& Device : Devices)
+
 	{
-		DeviceList.Add(Device.Value.Device);
+		FScopeLock ScopeLock(&DeviceMapCriticalSection);
+		Algo::Transform(Devices, DeviceList, [](const TPair<Audio::FDeviceId, FAudioDeviceContainer>& Pair)
+		{
+			return Pair.Value.Device;
+		});
 	}
 
 	return DeviceList;
 }
 
-TArray<UWorld*> FAudioDeviceManager::GetWorldsUsingAudioDevice(const Audio::FDeviceId& InID)
+TArray<UWorld*> FAudioDeviceManager::GetWorldsUsingAudioDevice(const Audio::FDeviceId& InID) const
 {
-	FScopeLock ScopeLock(&DeviceMapCriticalSection);
-	if (Devices.Contains(InID))
 	{
-		return Devices[InID].WorldsUsingThisDevice;
+		FScopeLock ScopeLock(&DeviceMapCriticalSection);
+		if (Devices.Contains(InID))
+		{
+			return Devices[InID].WorldsUsingThisDevice;
+		}
 	}
-	else
-	{
-		return TArray<UWorld*>();
-	}
+
+	return { };
 }
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
