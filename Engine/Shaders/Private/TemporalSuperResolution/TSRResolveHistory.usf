@@ -196,6 +196,11 @@ void MainCS(
 		if (bGenerateOutputMip1)
 		{
 			SharedArray0[LocalGroupThreadIndex] = HalfResOutput;
+
+			#if COMPILER_METAL
+				GroupMemoryBarrierWithGroupSync();
+			#endif
+
 			SharedArray0[LocalGroupThreadIndex] += SharedArray0[LocalGroupThreadIndex ^ 0x1];
 			SharedArray0[LocalGroupThreadIndex] += SharedArray0[LocalGroupThreadIndex ^ 0x2];
 			
@@ -212,4 +217,4 @@ void MainCS(
 	}
 	#endif
 }
- 
+
