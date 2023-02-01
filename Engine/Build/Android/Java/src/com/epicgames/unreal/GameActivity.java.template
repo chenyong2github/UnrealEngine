@@ -5711,10 +5711,17 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		if (key.equals("unreal.displaymetrics.dpi"))
 		{
 			DisplayMetrics metrics = new DisplayMetrics();
+			if (android.os.Build.VERSION.SDK_INT >= 31)
+			{
+				metrics = getResources().getDisplayMetrics();
+			}
+			else
 			if (android.os.Build.VERSION.SDK_INT >= 17)
 			{
 				getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
-			} else {
+			}
+			else
+			{
 				// note: not available so get what we can
 				getWindowManager().getDefaultDisplay().getMetrics(metrics);
 			}
