@@ -752,8 +752,6 @@ EStreamingOperationResult FNullNetworkReplayStreamer::GetDemoPath(FString& DemoP
 	return EStreamingOperationResult::Success;
 }
 
-IMPLEMENT_MODULE( FNullNetworkReplayStreamingFactory, NullNetworkReplayStreaming )
-
 TSharedPtr< INetworkReplayStreamer > FNullNetworkReplayStreamingFactory::CreateReplayStreamer() 
 {
 	return TSharedPtr< INetworkReplayStreamer >( new FNullNetworkReplayStreamer );
