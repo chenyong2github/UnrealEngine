@@ -21,6 +21,7 @@ class ENGINE_API UMaterialExpressionReroute : public UMaterialExpressionRerouteB
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual int32 CompilePreview(FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 
 	virtual FText GetCreationDescription() const override;

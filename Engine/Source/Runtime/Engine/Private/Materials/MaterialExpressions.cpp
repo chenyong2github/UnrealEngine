@@ -18161,6 +18161,17 @@ int32 UMaterialExpressionReroute::Compile(FMaterialCompiler* Compiler, int32 Out
 	return Result;
 }
 
+int32 UMaterialExpressionReroute::CompilePreview(FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 ResultCodeChunk = Compile(Compiler, OutputIndex);
+
+	if (Input.Expression && Input.Expression->IsResultStrataMaterial(Input.OutputIndex))
+	{
+		ResultCodeChunk = Compiler->StrataCompilePreview(ResultCodeChunk);
+	}
+	return ResultCodeChunk;
+}
+
 void UMaterialExpressionReroute::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Reroute Node (reroutes wires)"));
@@ -18265,6 +18276,17 @@ int32 UMaterialExpressionNamedRerouteDeclaration::Compile(FMaterialCompiler* Com
 {
 	// Just forward to the input
 	return Input.Compile(Compiler);
+}
+
+int32 UMaterialExpressionNamedRerouteDeclaration::CompilePreview(FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 ResultCodeChunk = Compile(Compiler, OutputIndex);
+
+	if (Input.Expression && Input.Expression->IsResultStrataMaterial(Input.OutputIndex))
+	{
+		ResultCodeChunk = Compiler->StrataCompilePreview(ResultCodeChunk);
+	}
+	return ResultCodeChunk;
 }
 
 void UMaterialExpressionNamedRerouteDeclaration::GetCaption(TArray<FString>& OutCaptions) const
@@ -18430,6 +18452,17 @@ int32 UMaterialExpressionNamedRerouteUsage::Compile(FMaterialCompiler* Compiler,
 		return Compiler->Errorf(TEXT("Invalid named reroute variable"));
 	}
 	return Declaration->Compile(Compiler, OutputIndex);
+}
+int32 UMaterialExpressionNamedRerouteUsage::CompilePreview(FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 ResultCodeChunk = Compile(Compiler, OutputIndex);
+
+	FExpressionInput Input = Declaration->TraceInputsToRealInput();
+	if (Input.Expression && Input.Expression->IsResultStrataMaterial(Input.OutputIndex))
+	{
+		ResultCodeChunk = Compiler->StrataCompilePreview(ResultCodeChunk);
+	}
+	return ResultCodeChunk;
 }
 
 void UMaterialExpressionNamedRerouteUsage::GetCaption(TArray<FString>& OutCaptions) const
