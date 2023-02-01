@@ -29,7 +29,7 @@ struct CONTROLRIG_API FRigHierarchySettings
 	GENERATED_BODY();
 
 	FRigHierarchySettings()
-		: ProceduralElementLimit(128)
+		: ProceduralElementLimit(2000)
 	{
 	}
 
