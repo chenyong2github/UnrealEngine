@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
 #include "Input/VCamInputProcessor.h"
+
+#include "EnhancedInputSubsystemInterface.h"
+#include "VCamSubsystem.h"
+#include "Tickable.h"
+
+#include "InputVCamSubsystem.generated.h"
 
 struct FVCamInputDeviceConfig;
 class UVCamPlayerInput;
-
-#include "VCamSubsystem.h"
-#include "EnhancedInputSubsystemInterface.h"
-#include "Tickable.h"
-#include "InputVCamSubsystem.generated.h"
 
 namespace UE::VCamCore::Private
 {
