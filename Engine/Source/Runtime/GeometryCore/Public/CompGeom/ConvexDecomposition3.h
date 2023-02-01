@@ -43,6 +43,16 @@ public:
 		InitializeFromMesh(SourceMesh, bMergeEdges);
 	}
 
+	/**
+	 * Initialize from convex hulls allows the caller to only use the hull merging phase of the algorithm
+	 * @param NumHulls			Number of convex hulls in the initial decomposition
+	 * @param HullVolumes		Function from Hull Index -> Hull Volume
+	 * @param HullNumVertices	Function from Hull Index -> Hull Vertex Count
+	 * @param HullVertices		Function from Hull Index, Vertex Index -> Hull Vertex Position
+	 * @param Proximity			All the local proximities for the hulls. Hulls will not be merged unless they are connected by this proximity graph.
+	 */
+	void InitializeFromHulls(int32 NumHulls, TFunctionRef<double(int32)> HullVolumes, TFunctionRef<int32(int32)> HullNumVertices, TFunctionRef<FVector3d(int32, int32)> HullVertices, TArrayView<const TPair<int32, int32>> Proximity);
+
 	void InitializeFromMesh(const FDynamicMesh3& SourceMesh, bool bMergeEdges);
 
 	//
@@ -114,8 +124,9 @@ public:
 	// @param MinPartThickness		Optionally specify a minimum thickness (in cm) for convex parts; parts below this thickness will always be merged away. Overrides TargetNumParts and ErrorTolerance when needed.
 	//								Note: These parts may be further split so they can be merged into multiple hulls
 	// @param bAllowCompact			Allow the algorithm to discard underlying geometry once it will no longer be used, resulting in a smaller representation & faster merges
+	// @param bRequireHullTriangles	Require all hulls to have associated triangles after MergeBest is completed. (If using InitializeFromHulls, will need to triangulate any un-merged hulls.)
 	// @return						The number of merges performed
-	int32 MergeBest(int32 TargetNumParts, double ErrorTolerance = 0, double MinThicknessTolerance = 0, bool bAllowCompact = true);
+	int32 MergeBest(int32 TargetNumParts, double ErrorTolerance = 0, double MinThicknessTolerance = 0, bool bAllowCompact = true, bool bRequireHullTriangles = false);
 
 	// simple helper to convert an error tolerance expressed in world space to a local-space volume tolerance
 	inline double ConvertDistanceToleranceToLocalVolumeTolerance(double DistTolerance) const
@@ -210,6 +221,9 @@ public:
 	{
 		FConvexPart() {}
 		FConvexPart(const FDynamicMesh3& SourceMesh, bool bMergeEdges, FTransformSRT3d& TransformOut);
+		// Allow direct construction of a compact part (e.g. to allow construction of a pre-existing convex hull)
+		FConvexPart(bool bIsCompact) : bIsCompact(bIsCompact)
+		{}
 
 		void Reset()
 		{

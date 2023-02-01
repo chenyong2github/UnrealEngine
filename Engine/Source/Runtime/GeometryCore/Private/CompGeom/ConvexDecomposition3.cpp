@@ -714,7 +714,10 @@ struct FPartialCutResult
 
 void FConvexDecomposition3::FConvexPart::Compact()
 {
-	ensure(!bIsCompact);
+	if (bIsCompact)
+	{
+		return;
+	}
 
 	// remove all triangles, and all verties that are not reference by the hull
 	// and remap HullTriangles to the new compact indices
@@ -1189,7 +1192,45 @@ void FConvexDecomposition3::UpdateProximitiesAfterSplit(int32 SplitIdx, int32 Ne
 	}
 }
 
-int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTolerance, double MinThicknessToleranceWorldSpace, bool bAllowCompact)
+void FConvexDecomposition3::InitializeFromHulls(int32 NumHulls, TFunctionRef<double(int32)> HullVolumes, TFunctionRef<int32(int32)> HullNumVertices, TFunctionRef<FVector3d(int32, int32)> HullVertices, TArrayView<const TPair<int32, int32>> Proximity)
+{
+	Decomposition.Empty(NumHulls);
+	for (int32 HullIdx = 0; HullIdx < NumHulls; ++HullIdx)
+	{
+		FConvexPart* Convex = new FConvexPart(true);
+		Convex->bGeometryVolumeUnreliable = false;
+		Convex->bMustMerge = false;
+		double Volume = HullVolumes(HullIdx);
+		Convex->GeoVolume = Volume;
+		Convex->HullVolume = Volume;
+		Convex->GeoCenter = FVector3d(0, 0, 0);
+		FAxisAlignedBox3d Bounds;
+		int32 NumVertices = HullNumVertices(HullIdx);
+		for (int32 Idx = 0; Idx < NumVertices; ++Idx)
+		{
+			FVector3d Vertex = HullVertices(HullIdx, Idx);
+			Convex->GeoCenter += Vertex;
+			Convex->InternalGeo.AppendVertex(Vertex);
+			Bounds.Contain(Vertex);
+		}
+		if (ensure(NumVertices > 0))
+		{
+			Convex->GeoCenter /= NumVertices;
+		}
+		Convex->Bounds = Bounds;
+		// Note: For merging, actual triangles + planes not required
+		Decomposition.Add(Convex);
+	}
+
+	for (const TPair<int32, int32>& Link : Proximity)
+	{
+		int32 ProxIdx = Proximities.Emplace(FIndex2i(Link.Key, Link.Value), FPlane3d(), false /*bPlaneSeparates*/);
+		DecompositionToProximity.Add(Link.Key, ProxIdx);
+		DecompositionToProximity.Add(Link.Value, ProxIdx);
+	}
+}
+
+int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTolerance, double MinThicknessToleranceWorldSpace, bool bAllowCompact, bool bRequireHullTriangles)
 {
 	// Support having a max error tolerance
 	double VolumeTolerance = ConvertDistanceToleranceToLocalVolumeTolerance(MaxErrorTolerance);
@@ -1248,6 +1289,11 @@ int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTole
 		for (int32 PartIdx = 0; PartIdx < Decomposition.Num(); PartIdx++)
 		{
 			FConvexPart& Part = Decomposition[PartIdx];
+			// The 'must merge' logic is not designed to handle pre-compacted hull inputs
+			if (Part.IsCompact())
+			{
+				continue;
+			}
 			Part.bMustMerge = IsPartBelowSizeTolerance(Part);
 			MustMergeCount += Part.bMustMerge;
 		}
@@ -1528,6 +1574,18 @@ int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTole
 			int32 ProxIdx = Proximities.Emplace(FIndex2i(DecoToKeep, ToLink), FPlane3d(), false /*bPlaneSeparates*/);
 			DecompositionToProximity.Add(DecoToKeep, ProxIdx);
 			DecompositionToProximity.Add(ToLink, ProxIdx);
+		}
+	}
+	
+	// Compute the triangulation for any hulls that are vertex-only (only possible if InitializeFromHulls was called before MergeBest)
+	if (bRequireHullTriangles)
+	{
+		for (FConvexPart& ConvexPart : Decomposition)
+		{
+			if (ConvexPart.HullTriangles.IsEmpty())
+			{
+				ConvexPart.ComputeHull();
+			}
 		}
 	}
 
