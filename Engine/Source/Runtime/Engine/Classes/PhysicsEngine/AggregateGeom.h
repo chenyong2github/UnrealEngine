@@ -7,6 +7,7 @@
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/LevelSetElem.h"
 #include "PhysicsEngine/BoxElem.h"
+#include "PhysicsEngine/SkinnedLevelSetElem.h"
 #include "PhysicsEngine/SphereElem.h"
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/TaperedCapsuleElem.h"
@@ -38,6 +39,9 @@ struct ENGINE_API FKAggregateGeom
 	UPROPERTY(EditAnywhere, editfixedsize, Category = "Aggregate Geometry", meta = (DisplayName = "Level Sets"))
 	TArray<FKLevelSetElem> LevelSetElems;
 
+	UPROPERTY(EditAnywhere, editfixedsize, Category = "Aggregate Geometry", meta = (DisplayName = "(Experimental) Skinned Level Sets"), Experimental)
+	TArray<FKSkinnedLevelSetElem> SkinnedLevelSetElems;
+
 	class FKConvexGeomRenderInfo* RenderInfo;
 
 	FKAggregateGeom()
@@ -60,12 +64,12 @@ struct ENGINE_API FKAggregateGeom
 
 	int32 GetElementCount() const
 	{
-		return SphereElems.Num() + SphylElems.Num() + BoxElems.Num() + ConvexElems.Num() + TaperedCapsuleElems.Num() + LevelSetElems.Num();
+		return SphereElems.Num() + SphylElems.Num() + BoxElems.Num() + ConvexElems.Num() + TaperedCapsuleElems.Num() + LevelSetElems.Num() + SkinnedLevelSetElems.Num();
 	}
 
 	int32 GetElementCount(EAggCollisionShape::Type Type) const;
 
-	SIZE_T GetAllocatedSize() const { return SphereElems.GetAllocatedSize() + SphylElems.GetAllocatedSize() + BoxElems.GetAllocatedSize() + ConvexElems.GetAllocatedSize() + TaperedCapsuleElems.GetAllocatedSize(); }
+	SIZE_T GetAllocatedSize() const { return SphereElems.GetAllocatedSize() + SphylElems.GetAllocatedSize() + BoxElems.GetAllocatedSize() + ConvexElems.GetAllocatedSize() + TaperedCapsuleElems.GetAllocatedSize() + LevelSetElems.GetAllocatedSize() + SkinnedLevelSetElems.GetAllocatedSize(); }
 
 	FKShapeElem* GetElement(const EAggCollisionShape::Type Type, const int32 Index)
 	{
@@ -83,6 +87,8 @@ struct ENGINE_API FKAggregateGeom
 			if (ensure(TaperedCapsuleElems.IsValidIndex(Index))) { return &TaperedCapsuleElems[Index]; }
 		case EAggCollisionShape::LevelSet:
 			if (ensure(LevelSetElems.IsValidIndex(Index))) { return &LevelSetElems[Index]; }
+		case EAggCollisionShape::SkinnedLevelSet:
+			if (ensure(SkinnedLevelSetElems.IsValidIndex(Index))) { return &SkinnedLevelSetElems[Index]; }
 		default:
 			ensure(false);
 			return nullptr;
@@ -103,6 +109,8 @@ struct ENGINE_API FKAggregateGeom
 		if (Index < TaperedCapsuleElems.Num()) { return &TaperedCapsuleElems[Index]; }
 		Index -= TaperedCapsuleElems.Num();
 		if (Index < LevelSetElems.Num()) { return &LevelSetElems[Index]; }
+		Index -= LevelSetElems.Num();
+		if (Index < SkinnedLevelSetElems.Num()) { return &SkinnedLevelSetElems[Index]; }
 		ensure(false);
 		return nullptr;
 	}
@@ -121,6 +129,8 @@ struct ENGINE_API FKAggregateGeom
 		if (Index < TaperedCapsuleElems.Num()) { return &TaperedCapsuleElems[Index]; }
 		Index -= TaperedCapsuleElems.Num();
 		if (Index < LevelSetElems.Num()) { return &LevelSetElems[Index]; }
+		Index -= LevelSetElems.Num();
+		if (Index < SkinnedLevelSetElems.Num()) { return &SkinnedLevelSetElems[Index]; }
 		ensure(false);
 		return nullptr;
 	}
@@ -133,6 +143,7 @@ struct ENGINE_API FKAggregateGeom
 		SphereElems.Empty();
 		TaperedCapsuleElems.Empty();
 		LevelSetElems.Empty();
+		SkinnedLevelSetElems.Empty();
 
 		FreeRenderInfo();
 	}
@@ -177,5 +188,6 @@ private:
 		ConvexElems = Other.ConvexElems;
 		TaperedCapsuleElems = Other.TaperedCapsuleElems;
 		LevelSetElems = Other.LevelSetElems;
+		SkinnedLevelSetElems = Other.SkinnedLevelSetElems;
 	}
 };

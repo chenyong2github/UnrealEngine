@@ -20,6 +20,8 @@
 #include "AnimPreviewInstance.h"
 #include "UObject/Package.h"
 #include "Styling/AppStyle.h"
+#include "Chaos/WeightedLatticeImplicitObject.h"
+#include "Chaos/Levelset.h"
 
 namespace
 {
@@ -230,6 +232,12 @@ FTransform UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveTransform(const
 		PrimTM.ScaleTranslation(Scale3D);
 		return PrimTM * BoneTM;
 	}
+	else if (PrimType == EAggCollisionShape::SkinnedLevelSet)
+	{
+		FTransform PrimTM = ManTM * SharedBodySetup->AggGeom.SkinnedLevelSetElems[PrimIndex].GetTransform();
+		PrimTM.ScaleTranslation(Scale3D);
+		return PrimTM * BoneTM;
+	}
 
 	// Should never reach here
 	check(0);
@@ -353,6 +361,7 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RefreshBoneTransforms(FActorCompo
 		FinalizeBoneTransform();
 		bNeedToFlipSpaceBaseBuffers = true;
 	}
+	UpdateSkinnedLevelSets();
 }
 
 void UPhysicsAssetEditorSkeletalMeshComponent::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
@@ -415,5 +424,52 @@ void UPhysicsAssetEditorSkeletalMeshComponent::CreateSimulationFloor(FBodyInstan
 	if (PhatPreviewInstance != nullptr)
 	{
 		PhatPreviewInstance->CreateSimulationFloor(FloorBodyInstance, Transform);
+	}
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::UpdateSkinnedLevelSets()
+{
+	UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset();
+	if (!PhysicsAsset)
+	{
+		return;
+	}
+	for (int32 i = 0; i < PhysicsAsset->SkeletalBodySetups.Num(); ++i)
+	{
+		const int32 BoneIndex = GetBoneIndex(PhysicsAsset->SkeletalBodySetups[i]->BoneName);
+		if (BoneIndex != INDEX_NONE)
+		{
+			FKAggregateGeom* const AggGeom = &PhysicsAsset->SkeletalBodySetups[i]->AggGeom;
+			if (AggGeom)
+			{
+				for (FKSkinnedLevelSetElem& SkinnedLevelSet : AggGeom->SkinnedLevelSetElems)
+				{
+					if (SkinnedLevelSet.GetWeightedLevelSet().IsValid())
+					{
+						const TArray<FName>& UsedBoneNames = SkinnedLevelSet.GetWeightedLevelSet()->GetUsedBones();
+
+						const FTransform RootTransformInv = GetBoneTransform(BoneIndex, FTransform::Identity).Inverse();
+						TArray<FTransform> Transforms;
+						Transforms.SetNum(UsedBoneNames.Num());
+
+						for (int32 LocalIdx = 0; LocalIdx < UsedBoneNames.Num(); ++LocalIdx)
+						{
+							const int32 LocalBoneIndex = GetBoneIndex(UsedBoneNames[LocalIdx]);
+							if (LocalBoneIndex != INDEX_NONE)
+							{
+								const FTransform BoneTransformTimesRootTransformInv = GetBoneTransform(LocalBoneIndex, RootTransformInv);
+								Transforms[LocalIdx] = BoneTransformTimesRootTransformInv;
+							}
+							else
+							{
+								Transforms[LocalIdx] = RootTransformInv;
+							}
+						}
+
+						SkinnedLevelSet.GetWeightedLevelSet()->DeformPoints(Transforms);
+					}
+				}
+			}
+		}
 	}
 }

@@ -78,4 +78,7 @@ class UPhysicsAssetEditorSkeletalMeshComponent : public UDebugSkelMeshComponent
 
 public:
 	virtual bool CanOverrideCollisionProfile() const override { return false;  }
+
+private:
+	void UpdateSkinnedLevelSets();
 };

@@ -2112,12 +2112,9 @@ void FPhysicsAssetEditor::ResetBoneCollision()
 
 	if(SharedData->SelectedBodies.Num() > 0)
 	{
-		TArray<int32> BodyIndices;
+		TArray<int32> SelectedBodyIndices;
 		const FScopedTransaction Transaction( LOCTEXT("ResetBoneCollision", "Reset Bone Collision") );
-
-		FScopedSlowTask SlowTask((float)SharedData->SelectedBodies.Num());
-		SlowTask.MakeDialog();
-		for(int32 i=0; i<SharedData->SelectedBodies.Num(); ++i)
+		for (int32 i = 0; i < SharedData->SelectedBodies.Num(); ++i)
 		{
 			int32 SelectedBodyIndex = SharedData->SelectedBodies[i].Index;
 			if (SharedData->PhysicsAsset->SkeletalBodySetups.IsValidIndex(SelectedBodyIndex) == false)
@@ -2125,24 +2122,16 @@ void FPhysicsAssetEditor::ResetBoneCollision()
 				continue;
 			}
 
-			UBodySetup* BodySetup = SharedData->PhysicsAsset->SkeletalBodySetups[SelectedBodyIndex];
-			check(BodySetup);
-			SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("ResetCollsionStepInfo", "Generating collision for {0}"), FText::FromName(BodySetup->BoneName)));
-			BodySetup->Modify();
+			SelectedBodyIndices.Add(SelectedBodyIndex);
+		}
 
-			int32 BoneIndex = EditorSkelMesh->GetRefSkeleton().FindBoneIndex(BodySetup->BoneName);
-			check(BoneIndex != INDEX_NONE);
+		TArray<int32> BodyIndices;
+		FPhysicsAssetUtils::CreateCollisionsFromBones(SharedData->PhysicsAsset, EditorSkelMesh, SelectedBodyIndices, NewBodyData,
+			NewBodyData.VertWeight == EVW_DominantWeight ? SharedData->DominantWeightBoneInfos : SharedData->AnyWeightBoneInfos, BodyIndices);
 
-			const FBoneVertInfo& UseVertInfo = NewBodyData.VertWeight == EVW_DominantWeight ? SharedData->DominantWeightBoneInfos[BoneIndex] : SharedData->AnyWeightBoneInfos[BoneIndex];
-			if(FPhysicsAssetUtils::CreateCollisionFromBone(BodySetup, EditorSkelMesh, BoneIndex, NewBodyData, UseVertInfo))
-			{
-				SharedData->AutoNameAllPrimitives(SelectedBodyIndex, NewBodyData.GeomType);
-				BodyIndices.AddUnique(SelectedBodyIndex);
-			}
-			else
-			{
-				FPhysicsAssetUtils::DestroyBody(SharedData->PhysicsAsset, SelectedBodyIndex);
-			}
+		for(const int32 BodyIndex : BodyIndices)
+		{
+			SharedData->AutoNameAllPrimitives(BodyIndex, NewBodyData.GeomType);
 		}
 
 		//deselect first

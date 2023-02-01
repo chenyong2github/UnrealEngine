@@ -185,6 +185,15 @@ class THierarchicalSpatialHash
 			return true;
 		}
 
+		bool Intersects(const TVectorRegisterType<T>& Point) const
+		{
+			if (VectorAnyLesserThan(Point, Min) || VectorAnyGreaterThan(Point, Max))
+			{
+				return false;
+			}
+			return true;
+		}
+
 	private:
 
 		TVectorRegisterType<T> Min;
@@ -297,6 +306,39 @@ public:
 		}
 		return Result;
 	}
+
+	TArray<PayloadType> FindAllIntersections(const TVec3<T>& Point) const
+	{
+		TVectorRegisterType<T> PointVec(MakeVectorRegister(Point.X, Point.Y, Point.Z, (T)0));
+
+		TArray<PayloadType> Result;
+		for (const typename TMap<int32, T>::ElementType& UsedLod : UsedLods)
+		{
+			const int32 Lod = UsedLod.Key;
+			const T CellSize = UsedLod.Value;
+
+			const TVec3<int32> CellIdx = FHierarchicalSpatialHashCellIdx::CellIdxForPoint(Point, CellSize);
+			const FHierarchicalSpatialHashCellIdx Key{ CellIdx, Lod };
+			for (int32 HashIndex = HashMap.First(Key); HashMap.IsValid(HashIndex); HashIndex = HashMap.Next(HashIndex))
+			{
+				if (HashMap.KeyMatches(HashIndex, Key))
+				{
+					const FPayloadAndBounds Value = HashMap.GetValue(HashIndex);
+					const FVectorAABB& PayloadBounds = Bounds[Value.BoundsLookupIdx];
+
+					if (PayloadBounds.Intersects(PointVec))
+					{
+						// Typical cloth examples do not find a lot of unique results. 
+						// In testing, the overhead to do this search is lower than using a TSet and converting the result to an array
+						Result.AddUnique(Value.Payload);
+					}
+				}
+			}
+		}
+		return Result;
+	}
+
+
 
 private:
 	TMap<int32, T> UsedLods;

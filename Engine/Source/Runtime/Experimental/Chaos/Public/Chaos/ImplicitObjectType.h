@@ -27,11 +27,15 @@ namespace Chaos
 			Triangle,
 			UnionClustered,
 			TaperedCapsule,
+			WeightedLatticeBone,
 
 			//Add entries above this line for serialization
+			ConcreteObjectCount, // Used to ensure bitflags do not overlap concrete type
+			IsWeightedLattice = 1 << 5,
 			IsInstanced = 1 << 6,
 			IsScaled = 1 << 7
 		};
+		static_assert(ConcreteObjectCount <= IsWeightedLattice, "Too many Chaos::ImplicitObjectType concrete types.");
 	}
 
 	using EImplicitObjectType = uint8;	//see ImplicitObjectType
@@ -46,9 +50,14 @@ namespace Chaos
 		return (Type & ImplicitObjectType::IsScaled) != 0;
 	}
 
+	FORCEINLINE bool IsWeightedLattice(EImplicitObjectType Type)
+	{
+		return (Type & ImplicitObjectType::IsWeightedLattice) != 0;
+	}
+
 	FORCEINLINE EImplicitObjectType GetInnerType(EImplicitObjectType Type)
 	{
-		return Type & (~(ImplicitObjectType::IsScaled | ImplicitObjectType::IsInstanced));
+		return Type & (~(ImplicitObjectType::IsWeightedLattice | ImplicitObjectType::IsScaled | ImplicitObjectType::IsInstanced));
 	}
 
 	namespace EImplicitObject

@@ -17,6 +17,9 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/TaperedCapsuleElem.h"
 #include "StaticMeshResources.h"
+#include "Chaos/Levelset.h"
+#include "Chaos/UniformGrid.h"
+#include "Chaos/WeightedLatticeImplicitObject.h"
 
 static const int32 DrawCollisionSides = 32;
 static const int32 DrawConeLimitSides = 40;
@@ -843,6 +846,120 @@ void FKLevelSetElem::GetElemSolid(const FTransform& ElemTM, const FVector& Scale
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
+// FKSkinnedLevelSetElem
+/////////////////////////////////////////////////////////////////////////////////////
+
+static void DrawSkinnedLevelSetLattice(class FPrimitiveDrawInterface* PDI, const FMatrix& LocalToWorld, const FColor Color, const Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>* WeightedLevelSet)
+{
+	const Chaos::TUniformGrid<double, 3>& LatticeGrid = WeightedLevelSet->GetGrid();
+	const Chaos::TArrayND<Chaos::FVec3, 3>& DeformedPoints = WeightedLevelSet->GetDeformedPoints();
+	const Chaos::TArrayND<bool, 3>& EmptyCells = WeightedLevelSet->GetEmptyCells();
+
+
+	// TODO: downres drawing lattice when res is too high. 
+	// Does two passes to count lines and reserve help?
+	const Chaos::TVec3<int32> CellCounts = LatticeGrid.Counts();
+	for (int32 I = 0; I < CellCounts.X; ++I)
+	{
+		for (int32 J = 0; J < CellCounts.Y; ++J)
+		{
+			for (int32 K = 0; K < CellCounts.Z; ++K)
+			{
+				if (!EmptyCells(I, J, K))
+				{
+					const FVector P000 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J, K)));
+					const FVector P001 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J, K + 1)));
+					const FVector P010 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J + 1, K)));
+					const FVector P011 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J + 1, K + 1)));
+					const FVector P100 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I + 1, J, K)));
+					const FVector P101 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I + 1, J, K + 1)));
+					const FVector P110 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I + 1, J + 1, K)));
+					const FVector P111 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I + 1, J + 1, K + 1)));
+
+					PDI->AddReserveLines(SDPG_World, 12);
+					PDI->DrawLine(P000, P001, Color, SDPG_World);
+					PDI->DrawLine(P000, P010, Color, SDPG_World);
+					PDI->DrawLine(P000, P100, Color, SDPG_World);
+					PDI->DrawLine(P001, P011, Color, SDPG_World);
+					PDI->DrawLine(P001, P101, Color, SDPG_World);
+					PDI->DrawLine(P010, P011, Color, SDPG_World);
+					PDI->DrawLine(P010, P110, Color, SDPG_World);
+					PDI->DrawLine(P011, P111, Color, SDPG_World);
+					PDI->DrawLine(P100, P101, Color, SDPG_World);
+					PDI->DrawLine(P100, P110, Color, SDPG_World);
+					PDI->DrawLine(P101, P111, Color, SDPG_World);
+					PDI->DrawLine(P110, P111, Color, SDPG_World);
+
+				}
+			}
+		}
+	}
+
+}
+
+void FKSkinnedLevelSetElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FColor Color) const
+{
+	if (WeightedLevelSet.IsValid())
+	{
+		DrawSkinnedLevelSetLattice(PDI, ElemTM.ToMatrixWithScale(), Color, WeightedLevelSet.Get());
+
+		// TODO grid cells
+	}
+}
+
+void FKSkinnedLevelSetElem::DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const
+{
+	if (WeightedLevelSet.IsValid())
+	{
+		const FColor LatticeColor = FColor::Cyan; // TODO figure out what color to actually draw lattice
+		DrawSkinnedLevelSetLattice(PDI, ElemTM.ToMatrixWithScale(), LatticeColor, WeightedLevelSet.Get());
+
+		TArray<FVector3f> Vertices;
+		TArray<FIntVector> Tris;
+		const Chaos::FLevelSet* const LevelSet = WeightedLevelSet->GetEmbeddedObject();
+		LevelSet->GetZeroIsosurfaceGridCellFaces(Vertices, Tris);
+
+		FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+		for (const FVector3f& V : Vertices)
+		{
+			MeshBuilder.AddVertex(FDynamicMeshVertex(FVector3f(WeightedLevelSet->GetDeformedPoint(Chaos::FVec3(V)))));
+		}
+		for (const FIntVector& T : Tris)
+		{
+			MeshBuilder.AddTriangle(T[0], T[1], T[2]);
+		}
+
+		MeshBuilder.Draw(PDI, ElemTM.ToMatrixWithScale(), MaterialRenderProxy, SDPG_World, 0.f);
+	}
+}
+
+void FKSkinnedLevelSetElem::GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D, const FMaterialRenderProxy* MaterialRenderProxy, int32 ViewIndex, class FMeshElementCollector& Collector) const
+{
+	if (WeightedLevelSet.IsValid())
+	{
+		const FColor LatticeColor = FColor::Cyan; // TODO figure out what color to actually draw lattice
+		DrawSkinnedLevelSetLattice(Collector.GetPDI(ViewIndex), ElemTM.ToMatrixWithScale(), LatticeColor, WeightedLevelSet.Get());
+
+		TArray<FVector3f> Vertices;
+		TArray<FIntVector> Tris;
+		const Chaos::FLevelSet* const LevelSet = WeightedLevelSet->GetEmbeddedObject();
+		LevelSet->GetZeroIsosurfaceGridCellFaces(Vertices, Tris);
+
+		FDynamicMeshBuilder MeshBuilder(Collector.GetPDI(ViewIndex)->View->GetFeatureLevel());
+		for (const FVector3f& V : Vertices)
+		{
+			MeshBuilder.AddVertex(FDynamicMeshVertex(FVector3f(WeightedLevelSet->GetDeformedPoint(Chaos::FVec3(V)))));
+		}
+		for (const FIntVector& T : Tris)
+		{
+			MeshBuilder.AddTriangle(T[0], T[1], T[2]);
+		}
+
+		MeshBuilder.GetMesh(ElemTM.ToMatrixWithScale(), MaterialRenderProxy, SDPG_World, false, false, ViewIndex, Collector);
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
 // FKConvexGeomRenderInfo
 /////////////////////////////////////////////////////////////////////////////////////
 
@@ -995,9 +1112,13 @@ void FKAggregateGeom::GetAggGeom(const FTransform& Transform, const FColor Color
 		ElemTM *= ParentTM;
 
 		if (bDrawSolid)
+		{
 			TaperedCapsuleElems[i].GetElemSolid(ElemTM, Scale3D, MatInst, ViewIndex, Collector);
+		}
 		else
+		{
 			TaperedCapsuleElems[i].DrawElemWire(Collector.GetPDI(ViewIndex), ElemTM, Scale3D, Color);
+		}
 	}
 
 	for (int32 i = 0; i < LevelSetElems.Num(); i++)
@@ -1006,9 +1127,25 @@ void FKAggregateGeom::GetAggGeom(const FTransform& Transform, const FColor Color
 		ElemTM *= Transform;
 
 		if (bDrawSolid)
+		{
 			LevelSetElems[i].GetElemSolid(ElemTM, Scale3D, MatInst, ViewIndex, Collector);
+		}
 		else
+		{
 			LevelSetElems[i].DrawElemWire(Collector.GetPDI(ViewIndex), ElemTM, 1.f, Color);
+		}
+	}
+
+	for (int32 i = 0; i < SkinnedLevelSetElems.Num(); i++)
+	{
+		if (bDrawSolid)
+		{
+			SkinnedLevelSetElems[i].GetElemSolid(Transform, Scale3D, MatInst, ViewIndex, Collector);
+		}
+		else
+		{
+			SkinnedLevelSetElems[i].DrawElemWire(Collector.GetPDI(ViewIndex), Transform, 1.f, Color);
+		}
 	}
 }
 

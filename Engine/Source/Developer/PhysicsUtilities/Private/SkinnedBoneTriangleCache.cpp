@@ -5,7 +5,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-FSkinnedBoneTriangleCache::FSkinnedBoneTriangleCache(USkeletalMesh& InSkeletalMesh, const FPhysAssetCreateParams& Params)
+FSkinnedBoneTriangleCache::FSkinnedBoneTriangleCache(const USkeletalMesh& InSkeletalMesh, const FPhysAssetCreateParams& Params)
 	: SkeletalMesh(InSkeletalMesh),
 	StaticLODModel(*SkeletalMesh.GetImportedModel()),
 	RenderData(*SkeletalMesh.GetResourceForRendering()),
@@ -24,19 +24,16 @@ void FSkinnedBoneTriangleCache::BuildCache()
 	BuildOwnedTrianglesSetForEachBone();
 }
 
-void FSkinnedBoneTriangleCache::GetVerticesAndIndicesForBone(const int32 BoneIndex, TArray<FVector3f>& OutVertexPositions, TArray<uint32>& OutIndices) const
+void FSkinnedBoneTriangleCache::GetVerticesAndIndicesForBoneInternal(const int32 TrianglesBoneIndex, const int32 TransformBoneIndex, TArray<FVector3f>& OutVertexPositions, TArray<uint32>& OutIndices, TArray<uint32>& OutLocalToSkinnedVertexIndex) const
 {
-	OutVertexPositions.Empty();
-	OutIndices.Empty();
-
-	const FTriangleArray* TriangleArrayPointer = BoneIndexToTriangles.Find(BoneIndex);
+	const FTriangleArray* TriangleArrayPointer = BoneIndexToTriangles.Find(TrianglesBoneIndex);
 	if ( !TriangleArrayPointer )
 	{
 		return;
 	}
 
 	const FTriangleArray& TrianglesForBone = *TriangleArrayPointer;
-	const FMatrix ComponentToBoneMatrix = BoneTransformMatrix(BoneIndex);
+	const FMatrix ComponentToBoneMatrix = BoneTransformMatrix(TransformBoneIndex);
 
 	TMap<FSkinnedVertexIndex, uint32> SkinnedVertIndexToOutputIndex;
 
@@ -55,11 +52,31 @@ void FSkinnedBoneTriangleCache::GetVerticesAndIndicesForBone(const int32 BoneInd
 			{
 				OutVertexPositions.Add(VertexPosition(VertIndex, ComponentToBoneMatrix));
 				SkinnedVertIndexToOutputIndex.Add(VertIndex, static_cast<uint32>(OutVertexPositions.Num() - 1));
+				OutLocalToSkinnedVertexIndex.Add(VertIndex);
 			}
 
 			// Map the skinned vert index to the index in our output array.
 			OutIndices.Add(SkinnedVertIndexToOutputIndex[VertIndex]);
 		}
+	}
+}
+
+void FSkinnedBoneTriangleCache::GetVerticesAndIndicesForBone(const int32 BoneIndex, TArray<FVector3f>& OutVertexPositions, TArray<uint32>& OutIndices) const
+{
+	OutVertexPositions.Reset();
+	OutIndices.Reset();
+	TArray<uint32> UnusedLocalToSkinnedVertexIndex;
+	return GetVerticesAndIndicesForBoneInternal(BoneIndex, BoneIndex, OutVertexPositions, OutIndices, UnusedLocalToSkinnedVertexIndex);
+}
+
+void FSkinnedBoneTriangleCache::GetVerticesAndIndicesForBones(const int32 PrimaryBoneIndex, const TArray<int32>& BoneIndices, TArray<FVector3f>& OutVertexPositions, TArray<uint32>& OutIndices, TArray<uint32>& OutLocalToSkinnedVertexIndex) const
+{
+	OutVertexPositions.Reset();
+	OutIndices.Reset();
+	OutLocalToSkinnedVertexIndex.Reset();
+	for (const int32 BoneIndex : BoneIndices)
+	{
+		GetVerticesAndIndicesForBoneInternal(BoneIndex, PrimaryBoneIndex, OutVertexPositions, OutIndices, OutLocalToSkinnedVertexIndex);
 	}
 }
 

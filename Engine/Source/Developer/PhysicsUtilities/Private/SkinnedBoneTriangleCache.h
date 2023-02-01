@@ -30,10 +30,12 @@
 class FSkinnedBoneTriangleCache
 {
 public:
-	explicit FSkinnedBoneTriangleCache(USkeletalMesh& InSkeletalMesh, const FPhysAssetCreateParams& Params);
+	explicit FSkinnedBoneTriangleCache(const USkeletalMesh& InSkeletalMesh, const FPhysAssetCreateParams& Params);
 
 	void BuildCache();
 	void GetVerticesAndIndicesForBone(const int32 BoneIndex, TArray<FVector3f>& OutVertexPositions, TArray<uint32>& OutIndices) const;
+	// Vertex positions will be transformed by PrimaryBoneIndex's transform matrix.
+	void GetVerticesAndIndicesForBones(const int32 PrimaryBoneIndex, const TArray<int32>& BoneIndices, TArray<FVector3f>& OutVertexPositions, TArray<uint32>& OutIndices, TArray<uint32>& OutLocalToSkinnedVertexIndex) const;
 
 private:
 	typedef int32 FBoneIndex;
@@ -72,12 +74,14 @@ private:
 
 	FVector3f VertexPosition(const FSkinnedVertexIndex VertIndex, const FMatrix& ComponentToBoneMatrix) const;
 
+	void GetVerticesAndIndicesForBoneInternal(const int32 TrianglesBoneIndex, const int32 TransformBoneIndex, TArray<FVector3f>& OutVertexPositions, TArray<uint32>& OutIndices, TArray<uint32>& OutLocalToSkinnedVertexIndex) const;
+
 	// Inputs
-	USkeletalMesh& SkeletalMesh;
+	const USkeletalMesh& SkeletalMesh;
 
 	// Computed from inputs
-	class FSkeletalMeshModel& StaticLODModel;
-	class FSkeletalMeshRenderData& RenderData;
+	const class FSkeletalMeshModel& StaticLODModel;
+	const class FSkeletalMeshRenderData& RenderData;
 	const class FPositionVertexBuffer& VertexBuffer;
 
 	/**

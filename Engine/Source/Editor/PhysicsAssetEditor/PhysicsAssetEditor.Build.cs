@@ -40,7 +40,8 @@ public class PhysicsAssetEditor : ModuleRules
 				"MeshUtilitiesCommon",
 				"ApplicationCore",
 				"EditorStyle",
-				"ToolWidgets"
+				"ToolWidgets",
+				"Chaos"
 			}
         );
 

@@ -23,6 +23,7 @@ enum EPhysAssetFitGeomType : int
 	EFG_SingleConvexHull	UMETA(DisplayName="Single Convex Hull"),
 	EFG_MultiConvexHull		UMETA(DisplayName="Multi Convex Hull"),
 	EFG_LevelSet			UMETA(DisplayName="Level Set"),
+	EFG_SkinnedLevelSet		UMETA(DisplayName="Skinned Level Set"),
 };
 
 UENUM()
@@ -53,6 +54,7 @@ struct FPhysAssetCreateParams
 		HullCount = 4;
 		MaxHullVerts = 16;
 		LevelSetResolution = 8;
+		LatticeResolution = 8;
 	}
 
 	/** Bones that are shorter than this value will be ignored for body creation */
@@ -105,8 +107,13 @@ struct FPhysAssetCreateParams
 
 	/** When creating level sets, the grid resolution to use */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Body Creation", 
-		meta = (ClampMin = 1, UIMin = 10, UIMax = 100, ClampMax = 500, EditCondition = "GeomType == EPhysAssetFitGeomType::EFG_LevelSet"))
+		meta = (ClampMin = 1, UIMin = 10, UIMax = 100, ClampMax = 500, EditCondition = "GeomType == EPhysAssetFitGeomType::EFG_LevelSet || GeomType == EPhysAssetFitGeomType::EFG_SkinnedLevelSet"))
 	int32								LevelSetResolution;
+
+	/** When creating skinned level sets, the embedding grid resolution to use*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Body Creation",
+		meta = (ClampMin = 1, UIMin = 10, UIMax = 100, ClampMax = 500, EditCondition = "GeomType == EPhysAssetFitGeomType::EFG_SkinnedLevelSet"))
+	int32								LatticeResolution;
 };
 
 class UPhysicsAsset;
@@ -132,7 +139,7 @@ namespace FPhysicsAssetUtils
 	 * 
 	 * @warning Certain physics geometry types, such as multi-convex hull, must recreate internal caches every time this function is called.
 	 * If you find you're calling this function repeatedly for different bone indices on the same mesh,
-	 * CreateFromSkeletalMesh or CreateCollisionFromBones will provide better performance.
+	 * CreateFromSkeletalMesh or CreateCollisionsFromBones will provide better performance.
 	 *
 	 * @param	bs					BodySetup to create the collision for
 	 * @param	skelMesh			The SkeletalMesh we create collision for
@@ -153,6 +160,18 @@ namespace FPhysicsAssetUtils
 	 * @return  Returns true if successfully created collision from all specified bones
 	 */
 	PHYSICSUTILITIES_API bool CreateCollisionFromBones( UBodySetup* bs, USkeletalMesh* skelMesh, const TArray<int32>& BoneIndices, FPhysAssetCreateParams& Params, const FBoneVertInfo& Info );
+
+	/** Replaces any collision already in the  with an auto-generated ones using the parameters provided.
+	 *
+	 * @param	PhysicsAsset		The PhysicsAsset instance to update
+	 * @param	SkelMesh			The Skeletal Mesh to create the physics asset from
+	 * @param	BodyIndices			Indices of the existing BodySetups the collisions are created for
+	 * @param	Params				Additional parameters to control the creation
+	 * @param	Infos				The vertices to create the collisions for (parallel array to BodyIndices)
+	 * @param   OutSuccessfulBodyIndices Newly created BodySetup indices.
+	 * @return  Returns true if successfully created collision from all specified bodies
+	 */
+	PHYSICSUTILITIES_API bool CreateCollisionsFromBones(UPhysicsAsset* PhysicsAsset, USkeletalMesh* SkelMesh, const TArray<int32>& BodyIndices, const FPhysAssetCreateParams& Params, const TArray<FBoneVertInfo>& Infos, TArray<int32>& OutSuccessfulBodyIndices);
 
 	/**
 	 * Does a few things:

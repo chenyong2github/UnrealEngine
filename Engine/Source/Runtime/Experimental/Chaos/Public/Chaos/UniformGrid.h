@@ -263,7 +263,7 @@ class CHAOS_API TUniformGridBase
 };
 
 template<class T, int d>
-class TUniformGrid : public TUniformGridBase<T, d>
+class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
 {
 	using TUniformGridBase<T, d>::MCells;
 	using TUniformGridBase<T, d>::MMinCorner;
@@ -416,7 +416,7 @@ public:
 
 
 template<class T>
-class TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
+class CHAOS_API TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 {
 	using TUniformGridBase<T, 3>::MCells;
 	using TUniformGridBase<T, 3>::MMinCorner;
@@ -426,6 +426,7 @@ class TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
   public:
 	using TUniformGridBase<T, 3>::GetNumCells;
 	using TUniformGridBase<T, 3>::Location;
+	using TUniformGridBase<T, 3>::Node;
 
 	TUniformGrid() {}
 	TUniformGrid(const TVector<T, 3>& MinCorner, const TVector<T, 3>& MaxCorner, const TVector<int32, 3>& Cells, const uint32 GhostCells = 0)
@@ -449,6 +450,8 @@ class TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 	TVector<T, 3> Clamp(const TVector<T, 3>& X) const;
 	TVector<T, 3> ClampMinusHalf(const TVector<T, 3>& X) const;
 	bool IsValid(const TVector<int32, 3>& X) const;
+
+	TUniformGrid<T, 3> SubGrid(const TVector<int32, 3>& MinCell, const TVector<int32, 3>& MaxCell) const;
 };
 
 

@@ -20,6 +20,7 @@ namespace EAggCollisionShape
 		Convex,
 		TaperedCapsule,
 		LevelSet,
+		SkinnedLevelSet,
 
 		Unknown
 	};

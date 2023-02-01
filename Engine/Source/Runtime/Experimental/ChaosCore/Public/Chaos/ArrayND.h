@@ -167,6 +167,9 @@ class TArrayNDBase
 		MArray.Reset();
 	}
 
+	FORCEINLINE T* GetData() { return MArray.GetData(); }
+	FORCEINLINE const T* GetData() const { return MArray.GetData(); }
+
   protected:
 	TVector<int32, d> MCounts;
 	TArray<T> MArray;
@@ -240,15 +243,14 @@ class TArrayND<T, 3> : public TArrayNDBase<TArrayND<T, 3>, T, 3>
 #else
 	FORCEINLINE TArrayND() { MCounts = TVec3<int32>(0); }
 #endif
-	FORCEINLINE TArrayND(const TUniformGrid<FReal, 3>& grid)
+	template<typename U>
+	FORCEINLINE TArrayND(const TUniformGrid<U, 3>& Grid, bool NodeValues = false)
 	{
-		MCounts = grid.Counts();
-		MArray.SetNum(MCounts[0] * MCounts[1] * MCounts[2]);
+		SetCounts(Grid, NodeValues);
 	}
 	FORCEINLINE TArrayND(const TVec3<int32>& Counts)
 	{
-		MCounts = Counts;
-		MArray.SetNum(MCounts[0] * MCounts[1] * MCounts[2]);
+		SetCounts(Counts);
 	}
 	FORCEINLINE TArrayND(const TVec3<int32>& Counts, const TArray<T>& Array)
 	    : Base(Counts, Array) { check(Counts.Product() == Array.Num()); }
@@ -279,6 +281,20 @@ class TArrayND<T, 3> : public TArrayNDBase<TArrayND<T, 3>, T, 3>
 	{
 		return MArray[(x * MCounts[1] + y) * MCounts[2] + z];
 	}
+
+	FORCEINLINE void SetCounts(const TVector<int32, 3>& Counts)
+	{
+		MCounts = Counts;
+		MArray.SetNum(MCounts[0] * MCounts[1] * MCounts[2]);
+	}
+
+	template<typename U>
+	FORCEINLINE void SetCounts(const TUniformGrid<U, 3>& Grid, bool NodeValues = false)
+	{
+		MCounts = NodeValues ? Grid.NodeCounts() : Grid.Counts();
+		MArray.SetNum(MCounts[0] * MCounts[1] * MCounts[2]);
+	}
+	
 };
 
 #if COMPILE_WITHOUT_UNREAL_SUPPORT

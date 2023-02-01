@@ -13,6 +13,7 @@ public class PhysicsUtilities : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"PhysicsCore",
+				"Chaos"
 			}
 		);
 

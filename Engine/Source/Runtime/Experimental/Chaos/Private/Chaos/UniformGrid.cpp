@@ -251,6 +251,17 @@ namespace Chaos
 	}
 
 	template<class T>
+	TUniformGrid<T, 3> TUniformGrid<T, 3>::SubGrid(const TVector<int32, 3>& MinCell, const TVector<int32, 3>& MaxCell) const
+	{
+		TUniformGrid<T, 3> Result;
+		Result.MMinCorner = Node(MinCell);
+		Result.MMaxCorner = Node(MaxCell + TVector<int32, 3>(1, 1, 1));
+		Result.MCells = MaxCell - MinCell + TVector<int32, 3>(1, 1, 1);
+		Result.MDx = MDx;
+		return Result;
+	}
+
+	template<class T>
 	void TMPMGrid<T>::BaseNodeIndex(const TVector<T, 3>& X, TVector<int32, 3>& Index, TVector<T, 3>& Weights) const
 	{
 		for(uint32 i = 0; i < 3; ++i)

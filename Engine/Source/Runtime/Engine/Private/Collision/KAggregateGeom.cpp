@@ -18,6 +18,7 @@
 #include "Chaos/Convex.h"
 #include "Chaos/Levelset.h"
 #include "PhysicsEngine/TaperedCapsuleElem.h"
+#include "Chaos/WeightedLatticeImplicitObject.h"
 #if INTEL_ISPC
 #include "KAggregateGeom.ispc.generated.h"
 #endif
@@ -112,6 +113,11 @@ FBox FKAggregateGeom::CalcAABB(const FTransform& Transform) const
 	for (int32 i = 0; i < LevelSetElems.Num(); i++)
 	{
 		Box += LevelSetElems[i].CalcAABB(BoneTM, (FVector)Scale3D);
+	}
+
+	for (int32 i = 0; i < SkinnedLevelSetElems.Num(); i++)
+	{
+		Box += SkinnedLevelSetElems[i].CalcAABB(BoneTM, (FVector)Scale3D);
 	}
 
 	return Box;
@@ -595,6 +601,58 @@ void FKLevelSetElem::GetZeroIsosurfaceGridCellFaces(TArray<FVector3f>& Vertices,
 	}
 }
 
+
+///////////////////////////////////////
+//////// FKSkinnedLevelSetElem ////////
+///////////////////////////////////////
+
+FBox FKSkinnedLevelSetElem::CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) const
+{
+	FBox Box;
+
+	if (WeightedLevelSet.IsValid())
+	{
+		Box = FBox(WeightedLevelSet->BoundingBox().Min(), WeightedLevelSet->BoundingBox().Max());
+		const FTransform LocalToWorld = FTransform(FQuat::Identity, FVector::ZeroVector, Scale3D) * BoneTM;
+		return Box.TransformBy(LocalToWorld);
+	}
+
+	return Box;
+}
+
+FIntVector3 FKSkinnedLevelSetElem::LevelSetGridResolution() const
+{
+	if (WeightedLevelSet.IsValid())
+	{
+		const Chaos::TVec3<int32>& Dim = WeightedLevelSet->GetEmbeddedObject()->GetGrid().Counts();
+		return FIntVector3(Dim[0], Dim[1], Dim[2]);
+	}
+
+	return FIntVector3(0, 0, 0);
+}
+
+FIntVector3 FKSkinnedLevelSetElem::LatticeGridResolution() const
+{
+	if (WeightedLevelSet.IsValid())
+	{
+		const Chaos::TVec3<int32>& Dim = WeightedLevelSet->GetGrid().Counts();
+		return FIntVector3(Dim[0], Dim[1], Dim[2]);
+	}
+
+	return FIntVector3(0, 0, 0);
+}
+
+void FKSkinnedLevelSetElem::SetWeightedLevelSet(TUniquePtr< Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>>&& InWeightedLevelSet)
+{
+	WeightedLevelSet = TSharedPtr<Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>>(InWeightedLevelSet.Release());
+}
+
+FTransform FKSkinnedLevelSetElem::GetTransform() const
+{
+	return FTransform();
+}
+
+
 static const float DIST_COMPARE_THRESH = 0.1f;
 static const float DIR_COMPARE_THRESH = 0.0003f; // about 1 degree
 
@@ -916,6 +974,22 @@ bool FKLevelSetElem::Serialize(FArchive& Ar)
 	if (LevelSet.IsValid())
 	{
 		LevelSet->Serialize(Ar);
+	}
+
+	return true;
+}
+
+bool FKSkinnedLevelSetElem::Serialize(FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		WeightedLevelSet = TSharedPtr<Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>>(new Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>());
+	}
+
+	if (WeightedLevelSet.IsValid())
+	{
+		Chaos::FChaosArchive ChaosAr(Ar);
+		WeightedLevelSet->Serialize(ChaosAr);
 	}
 
 	return true;

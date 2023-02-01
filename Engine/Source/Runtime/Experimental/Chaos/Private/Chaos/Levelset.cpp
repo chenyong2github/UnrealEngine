@@ -694,6 +694,28 @@ void FLevelSet::GetZeroIsosurfaceGridCellFaces(TArray<FVector3f>& Vertices, TArr
 	}
 }
 
+void FLevelSet::GetInteriorCells(TArray<TVec3<int32>>& InteriorCells, const FReal InteriorThreshold) const
+{
+	InteriorCells.Reset();
+
+	const TVector<int32, 3> Cells = MGrid.Counts();
+
+	for (int i = 0; i < Cells.X; ++i)
+	{
+		for (int j = 0; j < Cells.Y; ++j)
+		{
+			for (int k = 0; k < Cells.Z; ++k)
+			{
+				const FReal Value = MPhi(i, j, k);
+				if (Value < InteriorThreshold)
+				{
+					InteriorCells.Emplace(i, j, k);
+				}
+			}
+		}
+	}
+}
+
 void FLevelSet::ComputeConvexity(const TArray<TVec3<int32>>& InterfaceIndices)
 {
 	this->bIsConvex = true;

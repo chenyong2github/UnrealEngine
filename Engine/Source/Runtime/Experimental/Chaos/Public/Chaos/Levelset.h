@@ -140,6 +140,7 @@ class CHAOS_API FLevelSet final : public FImplicitObject
 
 	// Used to generate a simple debug surface
 	void GetZeroIsosurfaceGridCellFaces(TArray<FVector3f>& Vertices, TArray<FIntVector>& Tris) const;
+	void GetInteriorCells(TArray<TVec3<int32>>& InteriorCells, const FReal InteriorThreshold) const;
 
 	virtual uint32 GetTypeHash() const override
 	{

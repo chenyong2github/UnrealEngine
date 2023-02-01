@@ -2277,6 +2277,14 @@ void FKLevelSetElem::ScaleElem(FVector DeltaSize, float MinSize)
 	SetTransform(ScaledTransform);
 }
 
+
+/** Helper function to safely copy instances of this shape*/
+void FKSkinnedLevelSetElem::CloneElem(const FKSkinnedLevelSetElem& Other)
+{
+	Super::CloneElem(Other);
+	WeightedLevelSet = Other.WeightedLevelSet;
+}
+
 #if WITH_EDITOR
 
 bool FBodySetupObjectTextFactory::CanCreateClass(UClass* InObjectClass, bool& bOmitSubObjs) const

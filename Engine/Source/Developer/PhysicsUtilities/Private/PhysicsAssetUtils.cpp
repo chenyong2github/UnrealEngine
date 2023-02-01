@@ -11,16 +11,18 @@
 #include "PhysicsEngine/BoxElem.h"
 #include "PhysicsEngine/SphereElem.h"
 #include "PhysicsEngine/SphylElem.h"
+#include "PhysicsEngine/SkinnedLevelSetElem.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PreviewScene.h"
 #include "Misc/ScopedSlowTask.h"
 #include "SkinnedBoneTriangleCache.h"
-#include "DynamicMesh/DynamicMesh3.h"		// For mesh to level set
-#include "Implicit/SweepingMeshSDF.h"		// For mesh to level set
-#include "Implicit/Solidify.h"		// For mesh to level set
+#include "SkinnedLevelSetBuilder.h"
+#include "LevelSetHelpers.h"
+#include "Chaos/Levelset.h"
 
 namespace FPhysicsAssetUtils
 {
@@ -118,6 +120,86 @@ void AddInfoToParentInfo(const FTransform& LocalToParentTM, const FBoneVertInfo&
 	}
 }
 
+void CreateWeightedLevelSetBody(FSkinnedLevelSetBuilder& Builder, UBodySetup* BodySetup, UPhysicsAsset* PhysAsset, FName RootBoneName, const FPhysAssetCreateParams& Params)
+{
+	check(BodySetup->BoneName == RootBoneName);
+
+	BodySetup->RemoveSimpleCollision();
+	BodySetup->AggGeom.SkinnedLevelSetElems.Add(Builder.CreateSkinnedLevelSetElem());
+	BodySetup->InvalidatePhysicsData(); // update GUID
+}
+
+int32 CalculateCommonRootBoneIndex(const FReferenceSkeleton& RefSkeleton, const TArray<int32>& BoneIndices)
+{
+	// This is copied from ClothSimulationModel
+
+	// Starts at root
+	int32 RootBoneIndex = 0;
+
+	// List of valid paths to the root bone from each bone
+	TArray<TArray<int32>> PathsToRoot;
+	PathsToRoot.Reserve(BoneIndices.Num());
+
+	for (const int32 BoneIndex : BoneIndices)
+	{
+		TArray<int32>& Path = PathsToRoot.AddDefaulted_GetRef();
+
+		int32 CurrentBone = BoneIndex;
+		Path.Add(CurrentBone);
+
+		while (CurrentBone != 0 && CurrentBone != INDEX_NONE)
+		{
+			CurrentBone = RefSkeleton.GetParentIndex(CurrentBone);
+			Path.Add(CurrentBone);
+		}
+	}
+
+	// Paths are from leaf->root, we want the other way
+	for (TArray<int32>& Path : PathsToRoot)
+	{
+		Algo::Reverse(Path);
+	}
+
+	// the last common bone in all is the root
+	const int32 NumPaths = PathsToRoot.Num();
+	if (NumPaths > 0)
+	{
+		TArray<int32>& FirstPath = PathsToRoot[0];
+
+		const int32 FirstPathSize = FirstPath.Num();
+		for (int32 PathEntryIndex = 0; PathEntryIndex < FirstPathSize; ++PathEntryIndex)
+		{
+			const int32 CurrentQueryIndex = FirstPath[PathEntryIndex];
+			bool bValidRoot = true;
+
+			for (int32 PathIndex = 1; PathIndex < NumPaths; ++PathIndex)
+			{
+				if (!PathsToRoot[PathIndex].Contains(CurrentQueryIndex))
+				{
+					bValidRoot = false;
+					break;
+				}
+			}
+
+			if (bValidRoot)
+			{
+				RootBoneIndex = CurrentQueryIndex;
+			}
+			else
+			{
+				// Once we fail to find a valid root we're done.
+				break;
+			}
+		}
+	}
+	else
+	{
+		// Just use the root
+		RootBoneIndex = 0;
+	}
+	return RootBoneIndex;
+}
+
 bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* SkelMesh, const FPhysAssetCreateParams& Params, const FSkinnedBoneTriangleCache& TriangleCache)
 {
 	// For each bone, get the vertices most firmly attached to it.
@@ -133,8 +215,9 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 	//If not, add bone to parent for possible merge
 
 	const TArray<FTransform> LocalPose = SkelMesh->GetRefSkeleton().GetRefBonePose();
-	TMap<int32, FBoneVertInfo> BoneToMergedBones;
-	TMap<FName, TArray<FName>> BoneNameToMergedParent;
+	typedef TArray<int32> FMergedBoneIndices;
+
+	TMap<int32, TPair<FMergedBoneIndices,FBoneVertInfo>> BoneToMergedBones;
 	const int32 NumBones = Infos.Num();
 
 	TArray<float> MergedSizes;
@@ -150,15 +233,19 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 			if(ParentIndex != INDEX_NONE)
 			{
 				MergedSizes[ParentIndex] += MyMergedSize;
-				FBoneVertInfo& ParentMergedBones = BoneToMergedBones.FindOrAdd(ParentIndex);	//Add this bone to its parent merged bones
+				TPair<FMergedBoneIndices,FBoneVertInfo>& ParentMergedBones = BoneToMergedBones.FindOrAdd(ParentIndex);	//Add this bone to its parent merged bones
+				ParentMergedBones.Get<0>().Add(BoneIdx);
+
 				const FTransform LocalTM = LocalPose[BoneIdx];
 
-				AddInfoToParentInfo(LocalTM, Infos[BoneIdx], ParentMergedBones);
+				AddInfoToParentInfo(LocalTM, Infos[BoneIdx], ParentMergedBones.Get<1>());
 
-				if(FBoneVertInfo* MyMergedBones = BoneToMergedBones.Find(BoneIdx))
+				if(TPair<FMergedBoneIndices, FBoneVertInfo>* MyMergedBones = BoneToMergedBones.Find(BoneIdx))
 				{
 					//make sure any bones merged to this bone get merged into the parent
-					AddInfoToParentInfo(LocalTM, *MyMergedBones, ParentMergedBones);
+					ParentMergedBones.Get<0>().Append(MyMergedBones->Get<0>());
+					AddInfoToParentInfo(LocalTM, MyMergedBones->Get<1>(), ParentMergedBones.Get<1>());
+
 					BoneToMergedBones.Remove(BoneIdx);
 				}
 			}
@@ -189,33 +276,76 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 		}
 	}
 
+	auto ShouldMakeBone = [&Params, &MergedSizes, ForcedRootBoneIndex](int32 BoneIndex)
+	{
+		// If desired - make a body for EVERY bone
+		if (Params.bBodyForAll)
+		{
+			return true;
+		}
+		else if (MergedSizes[BoneIndex] > Params.MinBoneSize)
+		{
+			// If bone is big enough - create physics.
+			return true;
+		}
+		else if (BoneIndex == ForcedRootBoneIndex)
+		{
+			// If the bone is a forced root body we must create they body no matter how small
+			return true;
+		}
+
+		return false;
+	};
+
+	int32 RootBoneIndex = 0;
+	if (Params.GeomType == EFG_SkinnedLevelSet)
+	{
+		// Calculate common root bone from all merged bones
+		if (!Params.bBodyForAll)
+		{
+			TArray<int32> MergedBones;
+			MergedBones.Reserve(NumBones);
+			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+			{
+				if (ShouldMakeBone(BoneIndex))
+				{
+					MergedBones.Add(BoneIndex);
+				}
+			}
+			RootBoneIndex = CalculateCommonRootBoneIndex(SkelMesh->GetRefSkeleton(), MergedBones);
+		}
+	}
+
+	FSkinnedLevelSetBuilder LatticeBuilder(*SkelMesh, TriangleCache, RootBoneIndex);
+	if (Params.GeomType == EFG_SkinnedLevelSet)
+	{
+		check(RootBoneIndex != INDEX_NONE);
+		TArray<int32> AllBoneIndices;
+		const int32 RawBoneNum = SkelMesh->GetRefSkeleton().GetRawBoneNum();
+		AllBoneIndices.Reserve(RawBoneNum - RootBoneIndex);
+		for (int32 BoneIndex = RootBoneIndex; BoneIndex < RawBoneNum; ++BoneIndex)
+		{
+			AllBoneIndices.Emplace(BoneIndex);
+		}
+		TArray<uint32> OrigIndicesUnused;
+		if (!LatticeBuilder.InitializeSkinnedLevelset(Params, AllBoneIndices, OrigIndicesUnused))
+		{
+			return false;
+		}
+	}
+
+	// Finally, iterate through all the bones and create bodies when needed
+
 	FScopedSlowTask SlowTask((float)NumBones * 2, FText(), IsInGameThread());
 	if (IsInGameThread())
 	{
 		SlowTask.MakeDialog();
 	}
 
-	// Finally, iterate through all the bones and create bodies when needed
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; BoneIndex++)
 	{
 		// Determine if we should create a physics body for this bone
-		bool bMakeBone = false;
-
-		// If desired - make a body for EVERY bone
-		if (Params.bBodyForAll)
-		{
-			bMakeBone = true;
-		}
-		else if (MergedSizes[BoneIndex] > Params.MinBoneSize)
-		{
-			// If bone is big enough - create physics.
-			bMakeBone = true;
-		}
-		else if(BoneIndex == ForcedRootBoneIndex)
-		{
-			// If the bone is a forced root body we must create they body no matter how small
-			bMakeBone = true;
-		}
+		const bool bMakeBone = ShouldMakeBone(BoneIndex);
 
 		if (bMakeBone)
 		{
@@ -227,75 +357,95 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 				SlowTask.EnterProgressFrame(1.0f, FText::Format(NSLOCTEXT("PhysicsAssetEditor", "ResetCollsionStepInfo", "Generating collision for {0}"), FText::FromName(BoneName)));
 			}
 
-			int32 NewBodyIndex = CreateNewBody(PhysicsAsset, BoneName, Params);
-			UBodySetup* NewBodySetup = PhysicsAsset->SkeletalBodySetups[NewBodyIndex];
-			check(NewBodySetup->BoneName == BoneName);
 
 			//Construct the info - in the case of merged bones we append all the data
 			FBoneVertInfo Info = Infos[BoneIndex];
-			if(const FBoneVertInfo* MergedBones = BoneToMergedBones.Find(BoneIndex))
+			FMergedBoneIndices BoneIndices;
+			BoneIndices.Add(BoneIndex);
+			if (const TPair<FMergedBoneIndices, FBoneVertInfo>* MergedBones = BoneToMergedBones.Find(BoneIndex))
 			{
 				//Don't need to convert into parent space since this was already done
-				Info.Normals.Append(MergedBones->Normals);
-				Info.Positions.Append(MergedBones->Positions);
+				BoneIndices.Append(MergedBones->Get<0>());
+				Info.Normals.Append(MergedBones->Get<1>().Normals);
+				Info.Positions.Append(MergedBones->Get<1>().Positions);
 			}
 
-			// Fill in collision info for this bone.
-			const bool bSuccess = CreateCollisionFromBoneInternal(NewBodySetup, SkelMesh, BoneIndex, Params, Info, TriangleCache);
-			if(bSuccess)
+			if (Params.GeomType == EFG_SkinnedLevelSet)
 			{
-				// create joint to parent body
-				if (Params.bCreateConstraints)
-				{
-					int32 ParentIndex = BoneIndex;
-					int32 ParentBodyIndex = INDEX_NONE;
-					FName ParentName;
-
-					do
-					{
-						//Travel up the hierarchy to find a parent which has a valid body
-						ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(ParentIndex);
-						if(ParentIndex != INDEX_NONE)
-						{
-							ParentName = SkelMesh->GetRefSkeleton().GetBoneName(ParentIndex);
-							ParentBodyIndex = PhysicsAsset->FindBodyIndex(ParentName);
-						}
-						else
-						{
-							//no more parents so just stop
-							break;
-						}
-						
-					}while(ParentBodyIndex == INDEX_NONE);
-
-					if (ParentBodyIndex != INDEX_NONE)
-					{
-						//found valid parent body so create joint
-						int32 NewConstraintIndex = CreateNewConstraint(PhysicsAsset, BoneName);
-						UPhysicsConstraintTemplate* CS = PhysicsAsset->ConstraintSetup[NewConstraintIndex];
-						
-						// set angular constraint mode
-						CS->DefaultInstance.SetAngularSwing1Motion(Params.AngularConstraintMode);
-						CS->DefaultInstance.SetAngularSwing2Motion(Params.AngularConstraintMode);
-						CS->DefaultInstance.SetAngularTwistMotion(Params.AngularConstraintMode);
-
-						// Place joint at origin of child
-						CS->DefaultInstance.ConstraintBone1 = BoneName;
-						CS->DefaultInstance.ConstraintBone2 = ParentName;
-						CS->DefaultInstance.SnapTransformsToDefault(EConstraintTransformComponentFlags::All, PhysicsAsset);
-
-						CS->SetDefaultProfile(CS->DefaultInstance);
-
-						// Disable collision between constrained bodies by default.
-						PhysicsAsset->DisableCollision(NewBodyIndex, ParentBodyIndex);
-					}
-				}
+				LatticeBuilder.AddBoneInfluence(BoneIndex, BoneIndices);
 			}
 			else
 			{
-				DestroyBody(PhysicsAsset, NewBodyIndex);
+				const int32 NewBodyIndex = CreateNewBody(PhysicsAsset, BoneName, Params);
+				UBodySetup* NewBodySetup = PhysicsAsset->SkeletalBodySetups[NewBodyIndex];
+				check(NewBodySetup->BoneName == BoneName);
+
+				// Fill in collision info for this bone.
+				const bool bSuccess = CreateCollisionFromBoneInternal(NewBodySetup, SkelMesh, BoneIndex, Params, Info, TriangleCache);
+				if (bSuccess)
+				{
+					// create joint to parent body
+					if (Params.bCreateConstraints)
+					{
+						int32 ParentIndex = BoneIndex;
+						int32 ParentBodyIndex = INDEX_NONE;
+						FName ParentName;
+
+						do
+						{
+							//Travel up the hierarchy to find a parent which has a valid body
+							ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(ParentIndex);
+							if (ParentIndex != INDEX_NONE)
+							{
+								ParentName = SkelMesh->GetRefSkeleton().GetBoneName(ParentIndex);
+								ParentBodyIndex = PhysicsAsset->FindBodyIndex(ParentName);
+							}
+							else
+							{
+								//no more parents so just stop
+								break;
+							}
+
+						} while (ParentBodyIndex == INDEX_NONE);
+
+						if (ParentBodyIndex != INDEX_NONE)
+						{
+							//found valid parent body so create joint
+							int32 NewConstraintIndex = CreateNewConstraint(PhysicsAsset, BoneName);
+							UPhysicsConstraintTemplate* CS = PhysicsAsset->ConstraintSetup[NewConstraintIndex];
+
+							// set angular constraint mode
+							CS->DefaultInstance.SetAngularSwing1Motion(Params.AngularConstraintMode);
+							CS->DefaultInstance.SetAngularSwing2Motion(Params.AngularConstraintMode);
+							CS->DefaultInstance.SetAngularTwistMotion(Params.AngularConstraintMode);
+
+							// Place joint at origin of child
+							CS->DefaultInstance.ConstraintBone1 = BoneName;
+							CS->DefaultInstance.ConstraintBone2 = ParentName;
+							CS->DefaultInstance.SnapTransformsToDefault(EConstraintTransformComponentFlags::All, PhysicsAsset);
+
+							CS->SetDefaultProfile(CS->DefaultInstance);
+
+							// Disable collision between constrained bodies by default.
+							PhysicsAsset->DisableCollision(NewBodyIndex, ParentBodyIndex);
+						}
+					}
+				}
+				else
+				{
+					DestroyBody(PhysicsAsset, NewBodyIndex);
+				}
 			}
 		}
+	}
+
+	if (Params.GeomType == EFG_SkinnedLevelSet)
+	{
+		// Finish Building WeightedLattice
+		const FName RootBoneName = SkelMesh->GetRefSkeleton().GetBoneName(RootBoneIndex);
+		const int32 NewBodyIndex = CreateNewBody(PhysicsAsset, RootBoneName, Params);
+		UBodySetup* NewBodySetup = PhysicsAsset->SkeletalBodySetups[NewBodyIndex];
+		CreateWeightedLevelSetBody(LatticeBuilder, NewBodySetup, PhysicsAsset, RootBoneName, Params);
 	}
 
 	//Go through and ensure any overlapping bodies are marked as disable collision
@@ -348,7 +498,7 @@ bool CreateFromSkeletalMesh(UPhysicsAsset* PhysicsAsset, USkeletalMesh* SkelMesh
 
 	FSkinnedBoneTriangleCache TriangleCache(*SkelMesh, Params);
 
-	if (Params.GeomType == EFG_SingleConvexHull || Params.GeomType == EFG_MultiConvexHull || Params.GeomType == EFG_LevelSet)
+	if (Params.GeomType == EFG_SingleConvexHull || Params.GeomType == EFG_MultiConvexHull || Params.GeomType == EFG_LevelSet || Params.GeomType == EFG_SkinnedLevelSet)
 	{
 		TriangleCache.BuildCache();
 	}
@@ -442,144 +592,6 @@ FVector ComputeEigenVector(const FMatrix& A)
 
 	return Bk.GetSafeNormal();
 }
-
-
-namespace LevelSetHelpers
-{
-	// Copied from CollisionGeometryConversion.h (Plugins/Runtime/MeshModelingToolset)
-	void CreateLevelSetElement(const FTransform3d& GridTransform, const UE::Geometry::FDenseGrid3f& Grid, float CellSize, FKLevelSetElem& LevelSetOut)
-	{
-		const UE::Geometry::FVector3i& GridDims = Grid.GetDimensions();
-		TArray<double> OutGridValues;
-		OutGridValues.Init(0.0, GridDims[0] * GridDims[1] * GridDims[2]);
-
-		for (int I = 0; I < GridDims[0]; ++I)
-		{
-			for (int J = 0; J < GridDims[1]; ++J)
-			{
-				for (int K = 0; K < GridDims[2]; ++K)
-				{
-					// account for different ordering in Geometry::TDenseGrid3 vs Chaos::TUniformGrid
-					const int InBufferIndex = I + GridDims[0] * (J + GridDims[1] * K);
-					const int OutBufferIndex = K + GridDims[2] * (J + GridDims[1] * I);
-					OutGridValues[OutBufferIndex] = Grid[InBufferIndex];
-				}
-			}
-		}
-
-		FTransform ChaosTransform = GridTransform;
-		ChaosTransform.AddToTranslation(-0.5 * CellSize * FVector::One());		// account for grid origin being at cell center vs cell corner
-		LevelSetOut.BuildLevelSet(ChaosTransform, OutGridValues, FIntVector(GridDims[0], GridDims[1], GridDims[2]), CellSize);
-	}
-
-	// Copied from FMeshSimpleShapeApproximation::Generate_LevelSets (Plugins/Runtime/GeometryProcessing)
-	bool CreateLevelSetForMesh(const UE::Geometry::FDynamicMesh3& InMesh, int32 InLevelSetGridResolution, FKLevelSetElem& OutElement)
-	{
-		using UE::Geometry::FDynamicMesh3;
-		using UE::Geometry::TSweepingMeshSDF;
-
-		constexpr int32 NumNarrowBandCells = 2;
-		constexpr int32 NumExpandCells = 1;
-
-		// Inside SDF.Compute(), extra grid cell are added to account for the narrow band ("NarrowBandMaxDistance") as well as an 
-		// outer buffer ("ExpandBounds"). So here we adjust the cell size to make the final output resolution closer to the user-specified resolution.
-		const int32 LevelSetGridResolution = FMath::Max(1, InLevelSetGridResolution - 2*(NumNarrowBandCells + NumExpandCells));
-
-		const UE::Geometry::FAxisAlignedBox3d Bounds = InMesh.GetBounds();
-		const double CellSize = Bounds.MaxDim() / LevelSetGridResolution;
-		const double ExpandBounds = NumExpandCells * CellSize;
-
-		UE::Geometry::TMeshAABBTree3<FDynamicMesh3> Spatial(&InMesh);
-
-		// Input mesh is likely open, so solidify it first
-		UE::Geometry::TFastWindingTree<FDynamicMesh3> FastWinding(&Spatial);
-		UE::Geometry::TImplicitSolidify<FDynamicMesh3> Solidify(&InMesh, &Spatial, &FastWinding);
-		Solidify.ExtendBounds = ExpandBounds;
-		Solidify.MeshCellSize = CellSize;
-		Solidify.WindingThreshold = 0.5;
-		Solidify.SurfaceSearchSteps = 3;
-		Solidify.bSolidAtBoundaries = true;
-
-		const UE::Geometry::FDynamicMesh3 SolidMesh = FDynamicMesh3(&Solidify.Generate());
-		Spatial.SetMesh(&SolidMesh, true);
-
-		TSweepingMeshSDF<FDynamicMesh3> SDF;
-		SDF.Mesh = &SolidMesh;
-		SDF.Spatial = &Spatial;
-		SDF.ComputeMode = TSweepingMeshSDF<FDynamicMesh3>::EComputeModes::FullGrid;
-		SDF.CellSize = (float)CellSize;
-		SDF.NarrowBandMaxDistance = NumNarrowBandCells * CellSize;
-		SDF.ExactBandWidth = FMath::CeilToInt32(SDF.NarrowBandMaxDistance / CellSize);
-		SDF.ExpandBounds = FVector3d(ExpandBounds);
-
-		if (SDF.Compute(Bounds))
-		{
-			const FTransform3d GridTransform = FTransform((FVector3d)SDF.GridOrigin);
-			CreateLevelSetElement(GridTransform, SDF.Grid, SDF.CellSize, OutElement);
-			return true;
-		}
-
-		return false;
-	}
-
-	void CreateDynamicMesh(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, UE::Geometry::FDynamicMesh3& OutMesh)
-	{
-		OutMesh.Clear();
-		for (const FVector3f& Vertex : InVertices)
-		{
-			OutMesh.AppendVertex(FVector3d(Vertex));
-		}
-
-		check(InIndices.Num() % 3 == 0);
-		const int32 NumTriangles = InIndices.Num() / 3;
-		for (int32 TriangleID = 0; TriangleID < NumTriangles; ++TriangleID)
-		{
-			const UE::Geometry::FIndex3i Triangle(InIndices[3 * TriangleID], InIndices[3 * TriangleID + 1], InIndices[3 * TriangleID + 2]);
-			OutMesh.AppendTriangle(Triangle);
-		}
-	}
-
-	bool CreateLevelSetForBone(UBodySetup* BodySetup, const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, uint32 InResolution)
-	{
-		check(BodySetup != NULL);
-
-		// Validate input by checking bounding box
-		FBox VertBox(ForceInit);
-		for (const FVector3f& Vert : InVertices)
-		{
-			VertBox += (FVector)Vert;
-		}
-
-		// If box is invalid, or the largest dimension is less than 1 unit, or smallest is less than 0.1, skip trying to generate collision
-		if (VertBox.IsValid == 0 || VertBox.GetSize().GetMax() < 1.f || VertBox.GetSize().GetMin() < 0.1f || InIndices.Num() == 0)
-		{
-			return false;
-		}
-
-		TRACE_CPUPROFILER_EVENT_SCOPE(MeshToLevelSet)
-
-		// Clean out old hulls
-		BodySetup->RemoveSimpleCollision();
-
-		UE::Geometry::FDynamicMesh3 DynamicMesh;
-		CreateDynamicMesh(InVertices, InIndices, DynamicMesh);
-
-		FKLevelSetElem LevelSetElement;
-		const bool bOK = CreateLevelSetForMesh(DynamicMesh, InResolution, LevelSetElement);
-
-		if (!bOK)
-		{
-			return false; 
-		}
-
-		BodySetup->AggGeom.LevelSetElems.Add(LevelSetElement);
-		BodySetup->InvalidatePhysicsData(); // update GUID
-		return true;
-	}
-
-}
-
-
 
 bool CreateCollisionFromBoneInternal(UBodySetup* bs, USkeletalMesh* skelMesh, int32 BoneIndex, const FPhysAssetCreateParams& Params, const FBoneVertInfo& Info, const FSkinnedBoneTriangleCache& TriangleCache)
 {
@@ -809,6 +821,191 @@ bool CreateCollisionFromBones(UBodySetup* bs, USkeletalMesh* skelMesh, const TAr
 		}
 	}
 
+	return bAllSuccessful;
+}
+
+bool CreateCollisionsFromBones(UPhysicsAsset* PhysicsAsset, USkeletalMesh* SkelMesh, const TArray<int32>& BodyIndices, const FPhysAssetCreateParams& Params, const TArray<FBoneVertInfo>& Info, TArray<int32>& OutSuccessfulBodyIndices)
+{
+	check(SkelMesh);
+	check(PhysicsAsset);
+
+	FSkinnedBoneTriangleCache TriangleCache(*SkelMesh, Params);
+	if (Params.GeomType == EFG_SingleConvexHull || Params.GeomType == EFG_MultiConvexHull || Params.GeomType == EFG_LevelSet || Params.GeomType == EFG_SkinnedLevelSet)
+	{
+		TriangleCache.BuildCache();
+	}
+
+	OutSuccessfulBodyIndices.Reset();
+	bool bAllSuccessful = true;
+
+	// Destroying bodies causes the indices to change. Use names instead.
+	TArray<FName> BodySetupBoneNames;
+	BodySetupBoneNames.Reserve(BodyIndices.Num());
+	TArray<FName> SubBoneNames;
+	for (int32 Index = 0; Index < BodyIndices.Num(); ++Index)
+	{
+		const UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndices[Index]];
+		BodySetupBoneNames.Add(BodySetup->BoneName);
+
+		// Get sub-bones for any skinned levelsets
+		for (const FKSkinnedLevelSetElem& SkinnedLevelSetElem : BodySetup->AggGeom.SkinnedLevelSetElems)
+		{
+			if (const Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>* SkinnedLevelSet = SkinnedLevelSetElem.GetWeightedLevelSet().Get())
+			{
+				SubBoneNames.Reserve(SubBoneNames.Num() + SkinnedLevelSet->GetUsedBones().Num());
+				for (const FName& SubBoneName : SkinnedLevelSet->GetUsedBones())
+				{
+					SubBoneNames.AddUnique(SubBoneName);
+				}
+			}
+		}
+	}
+
+	int32 RootBoneIndex = INDEX_NONE;
+	TArray<int32> AllBoneIndices;
+	if (Params.GeomType == EFG_SkinnedLevelSet)
+	{
+		AllBoneIndices.Reserve(BodySetupBoneNames.Num());
+		for (int32 Index = 0; Index < BodySetupBoneNames.Num(); ++Index)
+		{
+			const int32 BoneIndex = SkelMesh->GetRefSkeleton().FindBoneIndex(BodySetupBoneNames[Index]);
+			AllBoneIndices.Add(BoneIndex);
+		}
+		RootBoneIndex = CalculateCommonRootBoneIndex(SkelMesh->GetRefSkeleton(), AllBoneIndices);
+	}
+
+	FSkinnedLevelSetBuilder LatticeBuilder(*SkelMesh, TriangleCache, RootBoneIndex);
+	if (Params.GeomType == EFG_SkinnedLevelSet)
+	{
+		TArray<uint32> OrigIndices;
+		if (!LatticeBuilder.InitializeSkinnedLevelset(Params, AllBoneIndices, OrigIndices))
+		{
+			return false;
+		}
+
+		if (Params.VertWeight == EVW_AnyWeight)
+		{
+			// Add additional sub-bones that contribute to the vertices
+			TSet<int32> SubBoneSet;
+			LatticeBuilder.GetInfluencingBones(OrigIndices, SubBoneSet);
+
+			for (int32 AddedSubBone : SubBoneSet)
+			{
+				SubBoneNames.AddUnique(SkelMesh->GetRefSkeleton().GetBoneName(AddedSubBone));
+			}
+		}
+	}
+
+	FScopedSlowTask SlowTask((float)BodySetupBoneNames.Num() + (float)SubBoneNames.Num());
+	if (IsInGameThread())
+	{
+		SlowTask.MakeDialog();
+	}
+
+
+	TArray<FName> SuccessfulBodySetupNames;
+	for (const FName& BoneName : BodySetupBoneNames)
+	{
+		if (IsInGameThread())
+		{
+			SlowTask.EnterProgressFrame(1.0f, FText::Format(NSLOCTEXT("PhysicsAssetEditor", "ResetCollsionStepInfo", "Generating collision for {0}"), FText::FromName(BoneName)));
+		}
+
+		const int32 BodyIndex = PhysicsAsset->FindBodyIndex(BoneName);
+		check(BodyIndex != INDEX_NONE);
+
+		UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex];
+		BodySetup->Modify();
+		check(BodySetup);
+		const int32 BoneIndex = SkelMesh->GetRefSkeleton().FindBoneIndex(BodySetup->BoneName);
+		check(BoneIndex != INDEX_NONE);
+
+		if (Params.GeomType == EFG_SkinnedLevelSet)
+		{
+			if (BoneIndex != RootBoneIndex)
+			{
+				// This bone is now getting merged into the RootBoneIndex's body
+				DestroyBody(PhysicsAsset, BodyIndex);
+			}
+
+			TArray<int32> BoneIndexArray;
+			BoneIndexArray.Add(BoneIndex);
+			LatticeBuilder.AddBoneInfluence(BoneIndex, BoneIndexArray);
+		}
+		else
+		{
+			if (CreateCollisionFromBoneInternal(BodySetup, SkelMesh, BoneIndex, Params, Info[BoneIndex], TriangleCache))
+			{
+				SuccessfulBodySetupNames.AddUnique(BoneName);
+			}
+			else
+			{
+				bAllSuccessful = false;
+				DestroyBody(PhysicsAsset, BodyIndex);
+			}
+		}
+	}
+
+	for (const FName& BoneName : SubBoneNames)
+	{
+		if (IsInGameThread())
+		{
+			SlowTask.EnterProgressFrame(1.0f, FText::Format(NSLOCTEXT("PhysicsAssetEditor", "ResetCollsionStepInfo", "Generating collision for {0}"), FText::FromName(BoneName)));
+		}
+
+		if (BodySetupBoneNames.Find(BoneName) != INDEX_NONE)
+		{
+			// We've already dealt with this above.
+			continue;
+		}
+
+		if (Params.GeomType == EFG_SkinnedLevelSet)
+		{
+			const int32 BoneIndex = SkelMesh->GetRefSkeleton().FindBoneIndex(BoneName);
+			TArray<int32> BoneIndexArray;
+			BoneIndexArray.Add(BoneIndex);
+			LatticeBuilder.AddBoneInfluence(BoneIndex, BoneIndexArray);
+		}
+		else
+		{
+			if (PhysicsAsset->FindBodyIndex(BoneName) != INDEX_NONE)
+			{
+				// We already have an existing bone. Don't replace it.
+				continue;
+			}
+			const int32 NewBodyIndex = CreateNewBody(PhysicsAsset, BoneName, Params);
+			UBodySetup* NewBodySetup = PhysicsAsset->SkeletalBodySetups[NewBodyIndex];
+			check(NewBodySetup->BoneName == BoneName);
+			const int32 BoneIndex = SkelMesh->GetRefSkeleton().FindBoneIndex(NewBodySetup->BoneName);
+			if (CreateCollisionFromBoneInternal(NewBodySetup, SkelMesh, BoneIndex, Params, Info[BoneIndex], TriangleCache))
+			{
+				SuccessfulBodySetupNames.AddUnique(BoneName);
+			}
+			else
+			{
+				bAllSuccessful = false;
+				DestroyBody(PhysicsAsset, NewBodyIndex);
+			}
+		}
+	}
+
+	OutSuccessfulBodyIndices.Reserve(SuccessfulBodySetupNames.Num());
+	for (const FName& BoneName : SuccessfulBodySetupNames)
+	{
+		const int32 BodyIndex = PhysicsAsset->FindBodyIndex(BoneName);
+		check(BodyIndex != INDEX_NONE);
+		OutSuccessfulBodyIndices.Add(BodyIndex);
+	}
+
+	if (Params.GeomType == EFG_SkinnedLevelSet)
+	{
+		// Finish Building WeightedLattice
+		const FName RootBoneName = SkelMesh->GetRefSkeleton().GetBoneName(RootBoneIndex);
+		const int32 BodyIndex = CreateNewBody(PhysicsAsset, RootBoneName, Params);
+		UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex];
+		CreateWeightedLevelSetBody(LatticeBuilder, BodySetup, PhysicsAsset, RootBoneName, Params);
+		OutSuccessfulBodyIndices.Add(BodyIndex);
+	}
 	return bAllSuccessful;
 }
 
