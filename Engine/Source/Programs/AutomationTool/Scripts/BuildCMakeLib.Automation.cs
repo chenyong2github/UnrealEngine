@@ -31,6 +31,7 @@ using UnrealBuildBase;
 [Help("SkipSubmit", "Do not perform P4 submit of source or libs. If this argument is not supplied source and libs will be automatically submitted to Perforce. If SkipCreateChangelist is specified, this argument applies by default.")]
 [Help("RoboMerge", "Which RoboMerge action to apply to the submission. If we're skipping submit, this is not used.")]
 [RequireP4]
+[DoesNotNeedP4CL]
 public sealed class BuildCMakeLib : BuildCommand
 {
 	public class TargetLib

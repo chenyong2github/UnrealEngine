@@ -15,10 +15,16 @@ using UnrealBuildBase;
 
 namespace AutomationTool
 {
+	/// <summary>
+	/// Declares that the command type requires P4Environment.
+	/// </summary>
 	public class RequireP4Attribute : Attribute
 	{
 	}
 
+	/// <summary>
+	/// Declares that the command type does not access Changelist or CodeChangelist from P4Environment.
+	/// </summary>
 	public class DoesNotNeedP4CLAttribute : Attribute
 	{
 	}
