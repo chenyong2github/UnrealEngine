@@ -183,7 +183,8 @@ void SDrawPrimitiveDebugger::UpdateVisibleRows()
 			{
 				for (const UMaterialInterface* Material : RowData->Materials)
 				{
-					if (IsValid(Material) && Material->GetName().Contains(ActiveFilterString))
+					if (IsValid(Material) && IsValid(Material->GetMaterial()) &&
+						Material->GetMaterial()->GetName().Contains(ActiveFilterString))
 					{
 						bPassesFilter = true;
 						break;
