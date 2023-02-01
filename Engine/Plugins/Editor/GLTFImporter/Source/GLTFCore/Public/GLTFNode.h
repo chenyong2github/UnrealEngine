@@ -38,6 +38,8 @@ namespace GLTF
 		int32 ParentIndex;
 		int32 RootJointIndex; //only valid if node is of Joint Type
 
+		TArray<float> MorphTargetWeights; //for the instantiated mesh with morph targets.
+
 		FString UniqueId; //will be generated in FAsset::GenerateNames
 
 		FNode()

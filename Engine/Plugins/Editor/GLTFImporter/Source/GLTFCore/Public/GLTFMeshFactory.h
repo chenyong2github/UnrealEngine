@@ -22,7 +22,7 @@ namespace GLTF
 
 		using FIndexVertexIdMap = TMap<int32, FVertexID>;
 
-		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription);
+		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights = TArray<float>());
 
 		float GetUniformScale() const;
 		void  SetUniformScale(float Scale);

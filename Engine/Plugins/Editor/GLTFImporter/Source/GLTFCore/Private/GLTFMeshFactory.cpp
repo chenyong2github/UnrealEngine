@@ -13,7 +13,7 @@ namespace GLTF
 	public:
 		FMeshFactoryImpl();
 
-		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription);
+		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights);
 
 		void CleanUp();
 
@@ -31,7 +31,7 @@ namespace GLTF
 			const TVertexInstanceAttributesRef<FVector4f>&  VertexInstanceColors,
 			const TEdgeAttributesRef<bool>&                EdgeHardnesses,
 			FMeshDescription* MeshDescription,
-			bool bSkipTangents);
+			const TArray<float>& MorphTargetWeights);
 
 		inline TArray<FVector4f>& GetVector4dBuffer(int32 Index)
 		{
@@ -65,17 +65,37 @@ namespace GLTF
 		}
 
 	private:
+
+		enum Vector3fMorphTargetAttributes
+		{
+			POSITIONS,
+			NORMALS
+		};
+		void UpdateVector3fFromMorphTargets(TArray<FVector3f>& AttrbiuteValues, const FPrimitive& Primitive, const TArray<float>& MorphTargetWeights, const Vector3fMorphTargetAttributes& AttributeToProcess);
+
+		enum Vector4dMorphTargetAttributes
+		{
+			TANGENTS,
+			COLORS
+		};
+		void UpdateVector4dFromMorphTargets(TArray<FVector4f>& AttrbiuteValues, const FPrimitive& Primitive, const TArray<float>& MorphTargetWeights, const Vector4dMorphTargetAttributes& AttributeToProcess);
+
+		void UpdateTexCoordsFromMorphTargets(TArray<FVector2f>& AttrbiuteValues, const FPrimitive& Primitive, const TArray<float>& MorphTargetWeights, int32 Index);
+
 		enum
 		{
 			NormalBufferIndex = 0,
 			PositionBufferIndex = 1,
 			ReindexBufferIndex = 2,
-			VectorBufferCount = 3,
+			MorphTargetBufferIndex = 3,
+			VectorBufferCount = 4,
 			UvReindexBufferIndex = MAX_MESH_TEXTURE_COORDS_MD,
+			MorphTargetUvBufferIndex = UvReindexBufferIndex+1,
 			ColorBufferIndex = 0,
 			TangentBufferIndex = 1,
 			Reindex4dBufferIndex = 2,
-			Vector4dBufferCount = 3,
+			MorphTarget4dBufferIndex = 3,
+			Vector4dBufferCount = 4,
 		};
 
 		float                ImportUniformScale;
@@ -84,7 +104,7 @@ namespace GLTF
 		TMap<int32, FPolygonGroupID> MaterialIndexToPolygonGroupID;
 		TArray<FMeshFactory::FIndexVertexIdMap>    PositionIndexToVertexIdPerPrim;
 
-		TArray<FVector2f>                       Vector2dBuffers[MAX_MESH_TEXTURE_COORDS_MD + 1];
+		TArray<FVector2f>                       Vector2dBuffers[MAX_MESH_TEXTURE_COORDS_MD + 2];
 		TArray<FVector3f>                       VectorBuffers[VectorBufferCount];
 		TArray<FVector4f>                       Vector4dBuffers[Vector4dBufferCount];
 		TArray<uint32>                          IntBuffer;
@@ -154,10 +174,133 @@ namespace GLTF
 		CornerVertexInstanceIDs.SetNum(3);
 	}
 
-	void FMeshFactoryImpl::FillMeshDescription(const FMesh &Mesh, FMeshDescription* MeshDescription)
+	void FMeshFactoryImpl::UpdateVector3fFromMorphTargets(TArray<FVector3f>& AttributeValues, const FPrimitive& Primitive, const TArray<float>& MorphTargetWeights, const Vector3fMorphTargetAttributes& AttributeToProcess)
 	{
-		const bool bSkipTangents = !Mesh.HasNormals(); // Per the GLTF spec, tangents should be ignored if no normals are provided
+		if (MorphTargetWeights.Num() != Primitive.MorphTargets.Num())
+		{
+			return;
+		}
 
+		for (int32 MorphTargetIndex = 0; MorphTargetIndex < Primitive.MorphTargets.Num(); MorphTargetIndex++)
+		{
+			float MorphTargetWeight = MorphTargetWeights.Num() > MorphTargetIndex ? MorphTargetWeights[MorphTargetIndex] : 0;
+
+			if (MorphTargetWeight > 0 && MorphTargetWeight <= 1.0)
+			{
+				TArray<FVector3f>& Displacements = GetVectorBuffer(MorphTargetBufferIndex);
+
+				switch (AttributeToProcess)
+				{
+				case POSITIONS:
+					if (!Primitive.MorphTargets[MorphTargetIndex].HasPositionDisplacements()) continue;
+					Primitive.MorphTargets[MorphTargetIndex].GetPositionDisplacements(Displacements);
+					break;
+				case NORMALS:
+					if (!Primitive.MorphTargets[MorphTargetIndex].HasNormalDisplacements()) continue;
+					Primitive.MorphTargets[MorphTargetIndex].GetNormalDisplacements(Displacements);
+					break;
+				default:
+					return;
+					break;
+				}
+
+				if (AttributeValues.Num() != Displacements.Num())
+				{
+					continue;
+				}
+				
+				for (int32 Index = 0; Index < Displacements.Num(); Index++)
+				{
+					AttributeValues[Index] += MorphTargetWeight * Displacements[Index];
+				}
+			}
+		}
+	}
+	void FMeshFactoryImpl::UpdateVector4dFromMorphTargets(TArray<FVector4f>& AttributeValues, const FPrimitive& Primitive, const TArray<float>& MorphTargetWeights, const Vector4dMorphTargetAttributes& AttributeToProcess)
+	{
+		if (MorphTargetWeights.Num() != Primitive.MorphTargets.Num())
+		{
+			return;
+		}
+
+		for (int32 MorphTargetIndex = 0; MorphTargetIndex < Primitive.MorphTargets.Num(); MorphTargetIndex++)
+		{
+			float MorphTargetWeight = MorphTargetWeights.Num() > MorphTargetIndex ? MorphTargetWeights[MorphTargetIndex] : 0;
+
+			if (MorphTargetWeight > 0 && MorphTargetWeight <= 1.0)
+			{
+				TArray<FVector4f>& Displacements = GetVector4dBuffer(MorphTargetBufferIndex);
+
+				switch (AttributeToProcess)
+				{
+				case TANGENTS:
+					if (!Primitive.MorphTargets[MorphTargetIndex].HasTangentDisplacements()) continue;
+					Primitive.MorphTargets[MorphTargetIndex].GetTangentDisplacements(Displacements);
+					break;
+				case COLORS:
+					if (!Primitive.MorphTargets[MorphTargetIndex].HasColorDeltas()) continue;
+					Primitive.MorphTargets[MorphTargetIndex].GetColorDeltas(Displacements);
+					break;
+				default:
+					return;
+					break;
+				}
+
+				if (AttributeValues.Num() != Displacements.Num())
+				{
+					continue;
+				}
+
+				for (int32 Index = 0; Index < Displacements.Num(); Index++)
+				{
+					AttributeValues[Index] += MorphTargetWeight * Displacements[Index];
+
+					if (AttributeToProcess == Vector4dMorphTargetAttributes::COLORS)
+					{
+						//After applying color deltas, all components of each COLOR_0 morphed accessor element MUST be clamped to [0.0, 1.0] range.
+						AttributeValues[Index].X = FMath::Clamp(AttributeValues[Index].X, .0f, 1.f);
+						AttributeValues[Index].Y = FMath::Clamp(AttributeValues[Index].Y, .0f, 1.f);
+						AttributeValues[Index].Z = FMath::Clamp(AttributeValues[Index].W, .0f, 1.f);
+						AttributeValues[Index].W = FMath::Clamp(AttributeValues[Index].Z, .0f, 1.f);
+					}
+				}
+			}
+		}
+	}
+	void FMeshFactoryImpl::UpdateTexCoordsFromMorphTargets(TArray<FVector2f>& AttributeValues, const FPrimitive& Primitive, const TArray<float>& MorphTargetWeights, int32 UvIndex)
+	{
+		if (MorphTargetWeights.Num() != Primitive.MorphTargets.Num())
+		{
+			return;
+		}
+
+		for (int32 MorphTargetIndex = 0; MorphTargetIndex < Primitive.MorphTargets.Num(); MorphTargetIndex++)
+		{
+			float MorphTargetWeight = MorphTargetWeights.Num() > MorphTargetIndex ? MorphTargetWeights[MorphTargetIndex] : 0;
+
+			if (MorphTargetWeight > 0 && MorphTargetWeight <= 1.0)
+			{
+				TArray<FVector2f>& Displacements = GetVector2dBuffer(MorphTargetUvBufferIndex);
+
+				if (!Primitive.MorphTargets[MorphTargetIndex].HasTexCoordDisplacements(UvIndex)) continue;
+
+				Primitive.MorphTargets[MorphTargetIndex].GetTexCoordDisplacements(UvIndex, Displacements);
+
+				if (AttributeValues.Num() != Displacements.Num())
+				{
+					continue;
+				}
+
+				for (int32 Index = 0; Index < Displacements.Num(); Index++)
+				{
+					AttributeValues[Index] += MorphTargetWeight * Displacements[Index];
+				}
+			}
+		}
+	}
+
+	void FMeshFactoryImpl::FillMeshDescription(const FMesh &Mesh, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights)
+	{
 		const int32 NumUVs = FMath::Max(1, GetNumUVs(Mesh));
 
 		FStaticMeshAttributes StaticMeshAttributes(*MeshDescription);
@@ -191,6 +334,8 @@ namespace GLTF
 
 			TArray<FVector3f>& Positions = GetVectorBuffer(PositionBufferIndex);
 			Primitive.GetPositions(Positions);
+
+			UpdateVector3fFromMorphTargets(Positions, Primitive, MorphTargetWeights, Vector3fMorphTargetAttributes::POSITIONS);
 
 			FMeshFactory::FIndexVertexIdMap& PositionIndexToVertexId = PositionIndexToVertexIdPerPrim[Index];
 			PositionIndexToVertexId.Empty(Positions.Num());
@@ -229,7 +374,8 @@ namespace GLTF
 				ImportPrimitive(Primitive, Index, NumUVs, Mesh.HasTangents(), Mesh.HasColors(),  //
 					VertexInstanceNormals, VertexInstanceTangents, VertexInstanceBinormalSigns, VertexInstanceUVs,
 					VertexInstanceColors,  //
-					EdgeHardnesses, MeshDescription, bSkipTangents);
+					EdgeHardnesses, MeshDescription,
+					MorphTargetWeights);
 
 			bMeshUsesEmptyMaterial |= Primitive.MaterialIndex == INDEX_NONE;
 			for (int32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex)
@@ -265,30 +411,17 @@ namespace GLTF
 		const TVertexInstanceAttributesRef<FVector4f>&  VertexInstanceColors,
 		const TEdgeAttributesRef<bool>&                EdgeHardnesses,
 		FMeshDescription* MeshDescription,
-		bool bSkipTangents)
+		const TArray<float>& MorphTargetWeights)
 	{
-
 		const FPolygonGroupID CurrentPolygonGroupID = MaterialIndexToPolygonGroupID[Primitive.MaterialIndex];
 		const uint32          TriCount = Primitive.TriangleCount();
 
 		TArray<uint32>& Indices = GetIntBuffer();
 		Primitive.GetTriangleIndices(Indices);
 
-		// Validate Indices against Positions:
-		//  In case of corrupted Indices return with bHasDegenerateTriangles.
-		{
-			TArray<FVector3f>& Positions = GetVectorBuffer(PositionBufferIndex);
-			Primitive.GetPositions(Positions);
-			uint32 PositionsSize = Positions.Num();
-
-			for (uint32 Index : Indices)
-			{
-				if (PositionsSize <= Index)
-				{
-					return true;
-				}
-			}
-		}
+		//Note from gltf 2.0 specification:
+		//	When the base mesh primitive does not specify normals, client implementations MUST calculate flat normals for each morph target; the provided tangents and their displacements (if present) MUST be ignored.
+		bool bIgnoreTangents = false;
 
 		TArray<FVector3f>& Normals = GetVectorBuffer(NormalBufferIndex);
 		// glTF does not guarantee each primitive within a mesh has the same attributes.
@@ -300,6 +433,9 @@ namespace GLTF
 		{
 			TArray<FVector3f>& ReindexBuffer = GetVectorBuffer(ReindexBufferIndex);
 			Primitive.GetNormals(Normals);
+
+			UpdateVector3fFromMorphTargets(Normals, Primitive, MorphTargetWeights, Vector3fMorphTargetAttributes::NORMALS);
+
 			ReIndex(Normals, Indices, ReindexBuffer);
 			Swap(Normals, ReindexBuffer);
 		}
@@ -307,14 +443,22 @@ namespace GLTF
 		{
 			TArray<FVector3f>& Positions = GetVectorBuffer(PositionBufferIndex);
 			Primitive.GetPositions(Positions);
+
+			//update positions with morph targets before generating flat normals:
+			UpdateVector3fFromMorphTargets(Positions, Primitive, MorphTargetWeights, Vector3fMorphTargetAttributes::POSITIONS);
+
 			GenerateFlatNormals(Positions, Indices, Normals);
+			bIgnoreTangents = true;
 		}
 
 		TArray<FVector4f>& Tangents = GetVector4dBuffer(TangentBufferIndex);
-		if (Primitive.HasTangents())
+		if (!bIgnoreTangents && Primitive.HasTangents())
 		{
 			TArray<FVector4f>& ReindexBuffer = GetVector4dBuffer(Reindex4dBufferIndex);
 			Primitive.GetTangents(Tangents);
+
+			UpdateVector4dFromMorphTargets(Tangents, Primitive, MorphTargetWeights, Vector4dMorphTargetAttributes::TANGENTS);
+
 			ReIndex(Tangents, Indices, ReindexBuffer);
 			Swap(Tangents, ReindexBuffer);
 		}
@@ -329,6 +473,9 @@ namespace GLTF
 		{
 			TArray<FVector4f>& ReindexBuffer = GetVector4dBuffer(Reindex4dBufferIndex);
 			Primitive.GetColors(Colors);
+
+			UpdateVector4dFromMorphTargets(Colors, Primitive, MorphTargetWeights, Vector4dMorphTargetAttributes::COLORS);
+
 			ReIndex(Colors, Indices, ReindexBuffer);
 			Swap(Colors, ReindexBuffer);
 		}
@@ -347,6 +494,9 @@ namespace GLTF
 			{
 				TArray<FVector2f>& ReindexBuffer = GetVector2dBuffer(UvReindexBufferIndex);
 				Primitive.GetTexCoords(UVIndex, *UVs[UVIndex]);
+
+				UpdateTexCoordsFromMorphTargets(*UVs[UVIndex], Primitive, MorphTargetWeights, UVIndex);
+
 				ReIndex(*UVs[UVIndex], Indices, ReindexBuffer);
 				Swap(*UVs[UVIndex], ReindexBuffer);
 			}
@@ -391,7 +541,7 @@ namespace GLTF
 
 				VertexInstanceNormals[VertexInstanceID] = Normals[IndiceIndex];
 
-				if (!bSkipTangents && Tangents.Num() > 0)
+				if (!bIgnoreTangents && Tangents.Num() > 0)
 				{
 					VertexInstanceTangents[VertexInstanceID] = Tangents[IndiceIndex];
 					VertexInstanceBinormalSigns[VertexInstanceID] = Tangents[IndiceIndex].W;
@@ -454,9 +604,9 @@ namespace GLTF
 
 	FMeshFactory::~FMeshFactory() {}
 
-	void FMeshFactory::FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription)
+	void FMeshFactory::FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights)
 	{
-		Impl->FillMeshDescription(Mesh, MeshDescription);
+		Impl->FillMeshDescription(Mesh, MeshDescription, MorphTargetWeights);
 	}
 
 	const TArray<FLogMessage>& FMeshFactory::GetLogMessages() const

@@ -7,6 +7,7 @@
 #include "GLTFAnimation.h"
 #include "GLTFAsset.h"
 #include "GLTFNode.h"
+#include "GLTFMesh.h"
 #include "InterchangeImportLog.h"
 #include "Animation/AnimTypes.h"
 
@@ -200,7 +201,7 @@ namespace UE::Interchange::Gltf::Private
 		return ChannelIndices.Num() != 0;
 	}
 
-	bool GetAnimationTransformPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData)
+	bool GetTransformAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData)
 	{
 		//translation, rotation, scale time 3 channels:
 		OutPayloadData.Curves.SetNum(9);
@@ -213,7 +214,7 @@ namespace UE::Interchange::Gltf::Private
 			return false;
 		}
 		const GLTF::FAnimation& Animation = GltfAsset.Animations[AnimationIndex];
-		
+
 		for (const int32 ChannelIndex : ChannelIndices)
 		{
 			const GLTF::FAnimation::FChannel& Channel = Animation.Channels[ChannelIndex];
@@ -339,7 +340,7 @@ namespace UE::Interchange::Gltf::Private
 						}
 
 						Helper.Heading = Rotator;
-						
+
 						return Rotator.Euler();
 					}, 3, 4, true);
 				break;
@@ -356,7 +357,7 @@ namespace UE::Interchange::Gltf::Private
 			}
 			case GLTF::FAnimation::EPath::Weights:
 			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Morph Animation type not supported yet."));
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Animation[%d]:Channel[%d] : Morph Animation (Weight path) type not supported for Transform like Animations. (Morph Animations should be handled via \"GetMorphTargetAnimationPayloadData\" function."), AnimationIndex, ChannelIndex);
 				break;
 			}
 			default:
@@ -365,6 +366,102 @@ namespace UE::Interchange::Gltf::Private
 			}
 		}
 		return true;
+	}
+
+	bool GetMorphTargetAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData)
+	{
+		OutPayloadData.Curves.SetNum(1);
+
+		TArray<FString> PayLoadKeys;
+		PayLoadKey.ParseIntoArray(PayLoadKeys, TEXT(":"));
+
+		if (PayLoadKeys.Num() != 4)
+		{
+			return false;
+		}
+
+		int32 AnimationIndex;
+		int32 ChannelIndex;
+		int32 MeshIndex;
+		int32 MorphTargetIndex;
+
+		LexFromString(AnimationIndex, *PayLoadKeys[0]);
+		LexFromString(ChannelIndex, *PayLoadKeys[1]);
+		LexFromString(MeshIndex, *PayLoadKeys[2]);
+		LexFromString(MorphTargetIndex, *PayLoadKeys[3]);
+
+		if (GltfAsset.Animations.Num() <= AnimationIndex
+			|| GltfAsset.Animations[AnimationIndex].Channels.Num() <= ChannelIndex
+			|| GltfAsset.Meshes.Num() <= MeshIndex
+			|| GltfAsset.Meshes[MeshIndex].MorphTargetNames.Num() <= MorphTargetIndex)
+		{
+			return false;
+		}
+
+		const GLTF::FAnimation& Animation = GltfAsset.Animations[AnimationIndex];
+		const GLTF::FAnimation::FChannel& Channel = Animation.Channels[ChannelIndex];
+		const GLTF::FAnimation::FSampler& Sampler = Animation.Samplers[Channel.Sampler];
+		const GLTF::FMesh& Mesh = GltfAsset.Meshes[MeshIndex];
+
+		TArray<float> FrameTimeBuffer;
+		TArray<float> FrameDataBuffer;
+
+		Sampler.Input.GetFloatArray(FrameTimeBuffer);
+
+		ERichCurveInterpMode InterpolationMode = static_cast<ERichCurveInterpMode>(Sampler.Interpolation);
+
+		if (uint32(MorphTargetIndex * FrameDataBuffer.Num()) > Sampler.Output.Count)
+		{
+			return false;
+		}
+
+		//framebuffer is :
+		//morphTarget(n)_frame0 morphTarget(n+1)_frame0 morphTarget(n+2)_frame0 .... morphTarget(n)_frame1 morphTarget(n+1)_frame1 morphTarget(n+2)_frame1 .....
+		// CUBIC:
+		//morphTarget(n)_frame0_in morphTarget(n)_frame0 morphTarget(n)_frame0_out morphTarget(n+1)_frame0_in morphTarget(n+1)_frame0 morphTarget(n+1)_frame0_out morphTarget(n+2)_frame0_in morphTarget(n+2)_frame0 morphTarget(n+2)_frame0_out
+		//in/out values are currently ignored (in Interchange pipelines)
+		FrameDataBuffer.SetNumUninitialized(Sampler.Output.Count * (InterpolationMode == ERichCurveInterpMode::RCIM_Cubic ? 3 : 1));
+		Sampler.Output.GetFloatArray(reinterpret_cast<float*>(FrameDataBuffer.GetData()));
+
+		FRichCurve& Curve = OutPayloadData.Curves[0];
+
+		int32 RowMultiplier = Mesh.MorphTargetNames.Num() * (InterpolationMode == ERichCurveInterpMode::RCIM_Cubic ? 3 : 1);
+
+		for (int32 SampleIndex = 0; SampleIndex < FrameTimeBuffer.Num(); SampleIndex++)
+		{
+			if (InterpolationMode == ERichCurveInterpMode::RCIM_Cubic)
+			{
+				FKeyHandle Key = Curve.AddKey(FrameTimeBuffer[SampleIndex], FrameDataBuffer[MorphTargetIndex + (SampleIndex * RowMultiplier) + 1]);
+				FRichCurveKey& CurveKey = Curve.GetKey(Key);
+				CurveKey.ArriveTangent = FrameDataBuffer[MorphTargetIndex + (SampleIndex * RowMultiplier) + 0];
+				CurveKey.LeaveTangent = FrameDataBuffer[MorphTargetIndex + (SampleIndex * RowMultiplier) + 2];
+
+				Curve.SetKeyInterpMode(Key, InterpolationMode);
+			}
+			else
+			{
+				FKeyHandle Key = Curve.AddKey(FrameTimeBuffer[SampleIndex], FrameDataBuffer[MorphTargetIndex + (SampleIndex * RowMultiplier)]);
+
+				Curve.SetKeyInterpMode(Key, InterpolationMode);
+			}
+		}
+
+		return true;
+	}
+
+	bool GetAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData)
+	{
+		TArray<FString> MorphTargetCheckPayLoadKeys;
+		PayLoadKey.ParseIntoArray(MorphTargetCheckPayLoadKeys, TEXT("~"));
+
+		if (MorphTargetCheckPayLoadKeys.Num() == 2)
+		{
+			return GetMorphTargetAnimationPayloadData(MorphTargetCheckPayLoadKeys[1], GltfAsset, OutPayloadData);
+		}
+		else
+		{
+			return GetTransformAnimationPayloadData(PayLoadKey, GltfAsset, OutPayloadData);
+		}
 	}
 
 	bool GetBakedAnimationTransformPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationBakeTransformPayloadData& PayloadData)

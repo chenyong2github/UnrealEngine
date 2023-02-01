@@ -21,7 +21,7 @@ namespace UE::Interchange
 		static float GltfUnitConversionMultiplier = 100.f;
 
 		// Animation related functions
-		bool GetAnimationTransformPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData);
+		bool GetAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData);
 		bool GetBakedAnimationTransformPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationBakeTransformPayloadData& PayloadData);
 		// 
 
@@ -31,7 +31,7 @@ namespace UE::Interchange
 		bool GetSkeletalMeshDescriptionForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey,
 			FMeshDescription& MeshDescription, TArray<FString>* OutJointUniqueNames);
 
-		bool GetStaticMeshPayloadDataForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, FStaticMeshPayloadData& StaticMeshPayloadData);
+		bool GetStaticMeshPayloadDataForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, FMeshDescription& MeshDescription);
 		//
 	}
 }

@@ -12,6 +12,7 @@ namespace GLTF
 {
 	struct FAsset;
 	struct FMesh;
+	struct FPrimitive;
 	struct FTextureMap;
 	struct FMaterial;
 	class FBinaryFileReader;
@@ -42,6 +43,7 @@ namespace GLTF
 		void SetupBuffer(const FJsonObject& Object, const FString& Path);
 		void SetupBufferView(const FJsonObject& Object) const;
 		void SetupAccessor(const FJsonObject& Object) const;
+		void SetupMorphTarget(const FJsonObject& Object, GLTF::FPrimitive& Primitive) const;
 		void SetupPrimitive(const FJsonObject& Object, GLTF::FMesh& Mesh) const;
 		void SetupMesh(const FJsonObject& Object) const;
 

@@ -216,6 +216,19 @@ namespace GLTF
 		}
 	}
 
+	void FFileReader::SetupMorphTarget(const FJsonObject& Object, GLTF::FPrimitive& Primitive) const
+	{
+		const TArray<FValidAccessor>& A = Asset->Accessors;
+		const FAccessor& Position = AccessorAtIndex(A, GetIndex(Object, TEXT("POSITION")));
+		const FAccessor& Normal = AccessorAtIndex(A, GetIndex(Object, TEXT("NORMAL")));
+		const FAccessor& Tangent = AccessorAtIndex(A, GetIndex(Object, TEXT("TANGENT")));
+		const FAccessor& TexCoord0 = AccessorAtIndex(A, GetIndex(Object, TEXT("TEXCOORD_0")));
+		const FAccessor& TexCoord1 = AccessorAtIndex(A, GetIndex(Object, TEXT("TEXCOORD_1")));
+		const FAccessor& Color0 = AccessorAtIndex(A, GetIndex(Object, TEXT("COLOR_0")));
+
+		Primitive.MorphTargets.Emplace(Position, Normal, Tangent, TexCoord0, TexCoord1, Color0);
+	}
+
 	void FFileReader::SetupPrimitive(const FJsonObject& Object, FMesh& Mesh) const
 	{
 		const FPrimitive::EMode       Mode = PrimitiveModeFromNumber(GetUnsignedInt(Object, TEXT("mode"), (uint32)FPrimitive::EMode::Triangles));
@@ -236,9 +249,16 @@ namespace GLTF
 		const FAccessor&   Weights0   = AccessorAtIndex(A, GetIndex(Attributes, TEXT("WEIGHTS_0")));
 
 		Mesh.Primitives.Emplace(Mode, MaterialIndex, Indices, Position, Normal, Tangent, TexCoord0, TexCoord1, Color0, Joints0, Weights0);
-		if (!Mesh.Primitives.Last().IsValid())
+
+		//Morph Targets:
+		if (Object.HasField(TEXT("targets")))
 		{
-			Messages.Emplace(EMessageSeverity::Error, TEXT("Invalid primitive!"));
+			const TArray<TSharedPtr<FJsonValue> >& MorphTargets = Object.GetArrayField(TEXT("targets"));
+			for (TSharedPtr<FJsonValue> Value : MorphTargets)
+			{
+				const FJsonObject& MorphTargetObject = *Value->AsObject();
+				SetupMorphTarget(MorphTargetObject, Mesh.Primitives.Last());
+			}
 		}
 
 		ExtensionsHandler->SetupPrimitiveExtensions(Object, Mesh.Primitives.Last());
@@ -254,11 +274,48 @@ namespace GLTF
 		Mesh.Name = GetString(Object, TEXT("name"));
 		Mesh.Primitives.Reserve(PrimArray.Num());
 
+		int32 NumberOfMorphTargets = -1;
 		for (TSharedPtr<FJsonValue> Value : PrimArray)
 		{
 			const FJsonObject& PrimObject = *Value->AsObject();
 			SetupPrimitive(PrimObject, Mesh);
+
+			if (NumberOfMorphTargets == -1)
+			{
+				NumberOfMorphTargets = Mesh.Primitives.Last().MorphTargets.Num();
+			}
+			else
+			{
+				if (NumberOfMorphTargets != Mesh.Primitives.Last().MorphTargets.Num())
+				{
+					//All primitives MUST have the same number of morph targets in the same order.
+					Messages.Emplace(EMessageSeverity::Error, TEXT("Number of Primitive.Targets is not consistent across the Mesh."));
+				}
+			}
 		}
+
+		// Morph Target Weights:
+		const TArray<TSharedPtr<FJsonValue> >& MorphTargetWeightsArray = Object.GetArrayField(TEXT("weights"));
+		for (TSharedPtr<FJsonValue> Value : MorphTargetWeightsArray)
+		{
+			Mesh.MorphTargetWeights.Add(Value->AsNumber());
+		}
+
+		// Morph Target Names:
+		if (Object.HasField(TEXT("extras")))
+		{
+			const TSharedPtr<FJsonObject>& Extras = Object.GetObjectField(TEXT("extras"));
+			if (Extras->HasField(TEXT("targetNames")))
+			{
+				const TArray<TSharedPtr<FJsonValue>>& TargetNamesArray = Extras->GetArrayField(TEXT("targetNames"));
+				for (TSharedPtr<FJsonValue> Value : TargetNamesArray)
+				{
+					Mesh.MorphTargetNames.Add(Value->AsString());
+				}
+			}
+		}
+
+		Mesh.GenerateIsValidCache();
 
 		ExtensionsHandler->SetupMeshExtensions(Object, Mesh);
 	}
@@ -318,6 +375,16 @@ namespace GLTF
 		Node.MeshIndex   = GetIndex(Object, TEXT("mesh"));
 		Node.Skindex     = GetIndex(Object, TEXT("skin"));
 		Node.CameraIndex = GetIndex(Object, TEXT("camera"));
+
+		if (Object.HasField(TEXT("weights")))
+		{
+			const TArray<TSharedPtr<FJsonValue> >& ChildArray = Object.GetArrayField(TEXT("weights"));
+			Node.MorphTargetWeights.Reserve(ChildArray.Num());
+			for (TSharedPtr<FJsonValue> Value : ChildArray)
+			{
+				Node.MorphTargetWeights.Add(Value->AsNumber());
+			}
+		}
 
 		ExtensionsHandler->SetupNodeExtensions(Object, Node);
 	}
@@ -698,11 +765,6 @@ namespace GLTF
 		const FString ResourcesPath = FPaths::GetPath(InFilePath);
 		ImportAsset(ResourcesPath, bInLoadImageData, OutAsset);
 
-		if (OutAsset.ValidationCheck() != FAsset::Valid)
-		{
-			Messages.Emplace(EMessageSeverity::Warning, TEXT("GLTF Asset imported is not valid."));
-		}
-
 		// generate asset name
 		{
 			OutAsset.Name = FPaths::GetBaseFilename(InFilePath);
@@ -718,6 +780,12 @@ namespace GLTF
 					OutAsset.Name = FPaths::GetBaseFilename(FPaths::GetPath(InFilePath));
 				}
 			}
+		}
+		OutAsset.GenerateNames(OutAsset.Name);
+
+		if (OutAsset.ValidationCheck() != FAsset::Valid)
+		{
+			Messages.Emplace(EMessageSeverity::Warning, FString::Printf(TEXT("For GLTF Asset [%s] not all imported objects are valid."), *OutAsset.Name));
 		}
 
 		JsonRoot.Reset();

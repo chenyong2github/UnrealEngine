@@ -40,6 +40,43 @@ namespace GLTF
 		TArray<int32> VariantIndices;
 	};
 
+	struct GLTFCORE_API FMorphTarget
+	{
+		FMorphTarget(const FAccessor& InPositionDisplacements, const FAccessor& InNormalDisplacements,
+			const FAccessor& InTangentDisplacements, const FAccessor& InTexCoord0Displacements, const FAccessor& InTexCoord1Displacements, const FAccessor& InColor0Deltas);
+
+		bool IsValid() const;
+		FMD5Hash GetHash() const;
+
+		bool HasPositionDisplacements() const;
+		void GetPositionDisplacements(TArray<FVector3f>& Buffer) const;
+		int32 GetNumberOfPositionDisplacements() const;
+
+		bool HasNormalDisplacements() const;
+		void GetNormalDisplacements(TArray<FVector3f>& Buffer) const;
+		int32 GetNumberOfNormalDisplacements() const;
+
+		bool HasTangentDisplacements() const;
+		void GetTangentDisplacements(TArray<FVector4f>& Buffer) const;
+		int32 GetNumberOfTangentDisplacements() const;
+
+		bool HasTexCoordDisplacements(uint32 Index) const;
+		void GetTexCoordDisplacements(uint32 Index, TArray<FVector2f>& Buffer) const;
+		int32 GetNumberOfTexCoordDisplacements(uint32 Index) const;
+
+		bool HasColorDeltas() const;
+		void GetColorDeltas(TArray<FVector4f>& Buffer) const;
+		int32 GetNumberOfColorDeltas() const;
+
+	private:
+		const FAccessor& PositionDisplacements;
+		const FAccessor& NormalDisplacements;
+		const FAccessor& TangentDisplacements;
+		const FAccessor& TexCoord0Displacements;
+		const FAccessor& TexCoord1Displacements;
+		const FAccessor& Color0Deltas;
+	};
+
 	struct GLTFCORE_API FPrimitive
 	{
 		enum class EMode
@@ -64,6 +101,7 @@ namespace GLTF
 		           const FAccessor& InTangent, const FAccessor& InTexCoord0, const FAccessor& InTexCoord1, const FAccessor& InColor0,
 		           const FAccessor& InJoints0, const FAccessor& InWeights0);
 
+		void GenerateIsValidCache();
 		bool IsValid() const;
 		FMD5Hash GetHash() const;
 
@@ -85,7 +123,12 @@ namespace GLTF
 		uint32 VertexCount() const;
 		uint32 TriangleCount() const;
 
+		//
+		TArray<FMorphTarget> MorphTargets;
+
 	private:
+		bool IsValidPrivate() const;
+
 		// index buffer
 		const FAccessor& Indices;
 
@@ -99,6 +142,9 @@ namespace GLTF
 		// skeletal mesh attributes
 		const FAccessor& Joints0;
 		const FAccessor& Weights0;
+
+		//Validity cache:
+		TOptional<bool> bIsValidCache;
 	};
 
 
@@ -106,6 +152,9 @@ namespace GLTF
 	{
 		FString				Name;
 		TArray<FPrimitive>	Primitives;
+
+		TArray<float>		MorphTargetWeights;
+		TArray<FString>		MorphTargetNames;
 
 		FString				UniqueId; //will be generated in FAsset::GenerateNames
 	
@@ -115,8 +164,16 @@ namespace GLTF
 		bool HasColors() const;
 		bool HasJointWeights() const;
 
+		void GenerateIsValidCache(bool GenerateIsValidCacheForPrimitives = true);
 		bool IsValid() const;
 		FMD5Hash GetHash() const;
+
+		int32 NumberOfMorphTargetsPerPrimitive() const;
+
+	private:
+		bool IsValidPrivate() const;
+		//Validity cache:
+		TOptional<bool> bIsValidCache;
 	};
 
 	//
@@ -146,7 +203,7 @@ namespace GLTF
 
 	inline bool FPrimitive::HasColors() const
 	{
-		return Color0.IsValid();
+		return Color0.IsValid() && (Color0.Type == FAccessor::EType::Vec3 || Color0.Type == FAccessor::EType::Vec4);
 	}
 
 	inline void FPrimitive::GetPositions(TArray<FVector3f>& Buffer) const
@@ -218,9 +275,60 @@ namespace GLTF
 		return Result;
 	}
 
+	inline void FMesh::GenerateIsValidCache(bool GenerateIsValidCacheForPrimitives)
+	{
+		if (GenerateIsValidCacheForPrimitives)
+		{
+			for (FPrimitive& Primitive : Primitives)
+			{
+				Primitive.GenerateIsValidCache();
+			}
+		}
+
+		bIsValidCache = IsValidPrivate();
+	}
 	inline bool FMesh::IsValid() const
 	{
-		return Primitives.FindByPredicate([](const FPrimitive& Prim) { return !Prim.IsValid(); }) == nullptr;
+		if (bIsValidCache.IsSet())
+		{
+			return bIsValidCache.GetValue();
+		}
+		else
+		{
+			return IsValidPrivate();
+		}
+	}
+
+	inline bool FMesh::IsValidPrivate() const
+	{
+		//Validate Primitives:
+		bool bIsValid = Primitives.FindByPredicate([](const FPrimitive& Prim) { return !Prim.IsValid(); }) == nullptr;
+
+		//if MorphTargetNames are not set, but mesh has morph targets (which is likely), this will generate isValid false;
+		//IsValidCache will have to be (re-)genereated post FAsset::GenerateNames (which is called at the end of GLTF::FReader) to overcome this issue.
+
+		//Validate Morph Target Names and Morph Target Weights:
+		if ((MorphTargetNames.Num() > 0) && (MorphTargetWeights.Num() > 0))
+		{
+			if (MorphTargetNames.Num() != MorphTargetWeights.Num())
+			{
+				bIsValid = false;
+			}
+		}
+
+		//Validate Morph Target (and Morph Target Names) Counts:
+		int32 MorphTargetCounter = MorphTargetNames.Num();
+
+		for (const FPrimitive& Primitive : Primitives)
+		{
+			if (MorphTargetCounter != Primitive.MorphTargets.Num())
+			{
+				bIsValid = false;
+				break;
+			}
+		}
+
+		return bIsValid;
 	}
 
 }  // namespace GLTF

@@ -230,6 +230,67 @@ namespace GLTF
 		GLTF::ValidateFNameCriteria(TEXT("Texture_"), Textures);
 		GLTF::ValidateFNameCriteria(TEXT("Mesh_"), Meshes);
 		GLTF::ValidateFNameCriteria(TEXT("Animation_"), Animations);
+
+		//Generate MorphTarget Names:
+		//MorphTargetNames have to be unique across meshes as well:
+		TSet<FString> MorphTargetNamesUniquenessCheckAcrossMeshes;
+		int32 MorphTargetCounterAcrossMeshes = 0;
+		for (int32 MeshIndex = 0; MeshIndex < Meshes.Num(); MeshIndex++)
+		{
+			if (Meshes[MeshIndex].Primitives.Num() > 0)
+			{
+				TSet<FString> MorphTargetNamesUniquenessCheck; //per mesh
+
+				for (const FString& MorphTargetName : Meshes[MeshIndex].MorphTargetNames)
+				{
+					MorphTargetNamesUniquenessCheckAcrossMeshes.Add(MorphTargetName);
+					MorphTargetCounterAcrossMeshes++;
+
+					//validate uniqueness of MorphTargetNames
+					MorphTargetNamesUniquenessCheck.Add(MorphTargetName);
+				}
+
+				if (MorphTargetNamesUniquenessCheck.Num() != Meshes[MeshIndex].MorphTargetNames.Num())
+				{
+					Meshes[MeshIndex].MorphTargetNames.Empty();
+				}
+			}
+		}
+		bool bReBuildMorphTargetNames = MorphTargetNamesUniquenessCheckAcrossMeshes.Num() != MorphTargetCounterAcrossMeshes;
+
+		for (int32 MeshIndex = 0; MeshIndex < Meshes.Num(); MeshIndex++)
+		{
+			if (Meshes[MeshIndex].Primitives.Num() > 0)
+			{
+				//at this point the NumberOfMorphTargets across primitives have been validated (they have to be equal)
+				//Note: All primitives MUST have the same number of morph targets in the same order.
+				
+				if (bReBuildMorphTargetNames)
+				{
+					Meshes[MeshIndex].MorphTargetNames.Empty();
+				}
+
+				//check if number of morph targets and the number of morphtarget names:
+				//NumberOfMorphTargetsPerPrimitive will return the first Primitive's MorphTarget's count,
+				//		In case Primitives have varying MorphTarget counts then the ValidationCheck will report false.
+				int32 NumberOfMorphTargets = Meshes[MeshIndex].NumberOfMorphTargetsPerPrimitive();
+				if (NumberOfMorphTargets != Meshes[MeshIndex].MorphTargetNames.Num())
+				{
+					Meshes[MeshIndex].MorphTargetNames.Empty();
+				}
+
+				//if morph target names failed a criteria above, generate unique names:
+				if (Meshes[MeshIndex].MorphTargetNames.IsEmpty())
+				{
+					for (int32 MorphTargetIndex = 0; MorphTargetIndex < NumberOfMorphTargets; MorphTargetIndex++)
+					{
+						Meshes[MeshIndex].MorphTargetNames.Add(Meshes[MeshIndex].UniqueId + TEXT("_") + LexToString(MorphTargetIndex) + TEXT("_MorphTarget"));
+					}
+
+					Meshes[MeshIndex].GenerateIsValidCache(false);
+				}
+			}
+		}
 	}
 
 	void FAsset::GetRootNodes(TArray<int32>& NodeIndices)
@@ -266,10 +327,33 @@ namespace GLTF
 	{
 		int32 Res = EValidationCheck::Valid;
 		if (Meshes.FindByPredicate([](const FMesh& Mesh) { return !Mesh.IsValid(); }))
+		{
 			Res |= InvalidMeshPresent;
+		}
+		
+		if (Nodes.FindByPredicate([this](const FNode& Node)
+			{
+				if (Node.MeshIndex != INDEX_NONE)
+				{
+					//check Mesh index validity:
+					if (!Meshes.IsValidIndex(Node.MeshIndex))
+					{
+						return false;
+					}
 
-		if (Nodes.FindByPredicate([](const FNode& Node) { return !Node.Transform.IsValid(); }))
-			Res |= InvalidNodeTransform;
+					//Check Morph Target Weights:
+					//	Number of MorphTargets across primitives are validated in Mesh.IsValid.
+					if (Node.MorphTargetWeights.Num() > 0 && (Node.MorphTargetWeights.Num() != Meshes[Node.MeshIndex].NumberOfMorphTargetsPerPrimitive()))
+					{
+						return false;
+					}
+				}
+
+				return !Node.Transform.IsValid();
+			}))
+		{
+			Res |= InvalidNodePresent;
+		}
 
 		// TODO: lots more validation
 

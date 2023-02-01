@@ -13,10 +13,170 @@ namespace GLTF
 		bool IsConvertibleToNormalizedFloat(const FAccessor& Attrib)
 		{
 			return Attrib.ComponentType == FAccessor::EComponentType::F32 ||
-			       (Attrib.Normalized &&
-			        (Attrib.ComponentType == FAccessor::EComponentType::U8 || Attrib.ComponentType == FAccessor::EComponentType::U16));
+				(Attrib.Normalized &&
+					(Attrib.ComponentType == FAccessor::EComponentType::U8 || Attrib.ComponentType == FAccessor::EComponentType::U16));
 		}
 	}
+
+	FMorphTarget::FMorphTarget(const FAccessor& InPositionDisplacements, const FAccessor& InNormalDisplacements,
+		const FAccessor& InTangentDisplacements, const FAccessor& InTexCoord0Displacements, const FAccessor& InTexCoord1Displacements, const FAccessor& InColor0Deltas)
+		: PositionDisplacements(InPositionDisplacements)
+		, NormalDisplacements(InNormalDisplacements)
+		, TangentDisplacements(InTangentDisplacements)
+		, TexCoord0Displacements(InTexCoord0Displacements)
+		, TexCoord1Displacements(InTexCoord1Displacements)
+		, Color0Deltas(InColor0Deltas)
+	{
+	}
+
+	bool FMorphTarget::IsValid() const
+	{
+		return HasPositionDisplacements() || HasNormalDisplacements() || HasTangentDisplacements() || HasTexCoordDisplacements(0) || HasTexCoordDisplacements(1) || HasColorDeltas();
+	}
+	FMD5Hash FMorphTarget::GetHash() const
+	{
+		if (!IsValid())
+		{
+			return FMD5Hash();
+		}
+
+		auto HashAccessor = [](FMD5& MD5, const FAccessor& Accessor)
+		{
+			if (!Accessor.IsValid())
+			{
+				return;
+			}
+
+			FMD5Hash MD5Hash = Accessor.GetHash();
+			if (MD5Hash.IsValid())
+			{
+				MD5.Update(MD5Hash.GetBytes(), MD5Hash.GetSize());
+			}
+		};
+
+		FMD5 MD5;
+
+		HashAccessor(MD5, PositionDisplacements);
+		HashAccessor(MD5, NormalDisplacements);
+		HashAccessor(MD5, TangentDisplacements);
+		HashAccessor(MD5, TexCoord0Displacements);
+		HashAccessor(MD5, TexCoord1Displacements);
+		HashAccessor(MD5, Color0Deltas);
+
+		FMD5Hash Hash;
+		Hash.Set(MD5);
+
+		return Hash;
+	}
+
+	bool FMorphTarget::HasPositionDisplacements() const
+	{
+		return PositionDisplacements.IsValid();
+	}
+	void FMorphTarget::GetPositionDisplacements(TArray<FVector3f>& Buffer) const
+	{
+		PositionDisplacements.GetCoordArray(Buffer);
+	}
+	int32 FMorphTarget::GetNumberOfPositionDisplacements() const
+	{
+		return PositionDisplacements.Count;
+	}
+
+	bool FMorphTarget::HasNormalDisplacements() const
+	{
+		return NormalDisplacements.IsValid();
+	}
+	void FMorphTarget::GetNormalDisplacements(TArray<FVector3f>& Buffer) const
+	{
+		NormalDisplacements.GetCoordArray(Buffer);
+	}
+	int32 FMorphTarget::GetNumberOfNormalDisplacements() const
+	{
+		return NormalDisplacements.Count;
+	}
+
+	bool FMorphTarget::HasTangentDisplacements() const
+	{
+		return TangentDisplacements.IsValid();
+	}
+	void FMorphTarget::GetTangentDisplacements(TArray<FVector4f>& Buffer) const
+	{
+		const int32 N = TangentDisplacements.Count;
+		Buffer.Reserve(N);
+		for (int32 Index = 0; Index < N; ++Index)
+		{
+			const FVector TangentVector = TangentDisplacements.GetVec3(Index);
+			Buffer.Emplace((FVector3f)GLTF::ConvertVec3(TangentVector), 0.f);
+		}
+	}
+	int32 FMorphTarget::GetNumberOfTangentDisplacements() const
+	{
+		return TangentDisplacements.Count;
+	}
+
+	bool FMorphTarget::HasTexCoordDisplacements(uint32 Index) const
+	{
+		switch (Index)
+		{
+			case 0:
+				return TexCoord0Displacements.IsValid();
+			case 1:
+				return TexCoord1Displacements.IsValid();
+			default:
+				return false;
+		}
+	}
+	void FMorphTarget::GetTexCoordDisplacements(uint32 Index, TArray<FVector2f>& Buffer) const
+	{
+		switch (Index)
+		{
+		case 0:
+			return TexCoord0Displacements.GetVec2Array(Buffer);
+		case 1:
+			return TexCoord1Displacements.GetVec2Array(Buffer);
+		default:
+			break;
+		}
+	}
+	int32 FMorphTarget::GetNumberOfTexCoordDisplacements(uint32 Index) const
+	{
+		switch (Index)
+		{
+		case 0:
+			return TexCoord0Displacements.Count;
+		case 1:
+			return TexCoord1Displacements.Count;
+		default:
+			return 0;
+		}
+	}
+
+	bool FMorphTarget::HasColorDeltas() const
+	{
+		return Color0Deltas.IsValid() && (Color0Deltas.Type == FAccessor::EType::Vec3 || Color0Deltas.Type == FAccessor::EType::Vec4);
+	}
+	void FMorphTarget::GetColorDeltas(TArray<FVector4f>& Buffer) const
+	{
+		if (Color0Deltas.Type == FAccessor::EType::Vec4)
+		{
+			Color0Deltas.GetVec4Array(Buffer);
+		}
+		else if (Color0Deltas.Type == FAccessor::EType::Vec3)
+		{
+			const int32 N = Color0Deltas.Count;
+			Buffer.Reserve(N);
+			for (int32 Index = 0; Index < N; ++Index)
+			{
+				const FVector Vec = Color0Deltas.GetVec3(Index);
+				Buffer.Emplace((FVector3f)Vec, 0.f);
+			}
+		}
+	}
+	int32 FMorphTarget::GetNumberOfColorDeltas() const
+	{
+		return (Color0Deltas.Type == FAccessor::EType::Vec3 || Color0Deltas.Type == FAccessor::EType::Vec4) ? Color0Deltas.Count : 0;
+	}
+
 
 	FPrimitive::FPrimitive(EMode InMode, int32 InMaterial, const FAccessor& InIndices, const FAccessor& InPosition, const FAccessor& InNormal,
 	                       const FAccessor& InTangent, const FAccessor& InTexCoord0, const FAccessor& InTexCoord1, const FAccessor& InColor0,
@@ -60,8 +220,6 @@ namespace GLTF
 				Buffer.Emplace((FVector3f)Vec, 1.f);
 			}
 		}
-		else
-			check(false);
 	}
 
 	void FPrimitive::GetJointInfluences(TArray<FJointInfluence>& Buffer) const
@@ -207,7 +365,24 @@ namespace GLTF
 		}
 	}
 
+	void FPrimitive::GenerateIsValidCache()
+	{
+		bIsValidCache = IsValidPrivate();
+	}
+
 	bool FPrimitive::IsValid() const
+	{
+		if (bIsValidCache.IsSet())
+		{
+			return bIsValidCache.GetValue();
+		}
+		else
+		{
+			return IsValidPrivate();
+		}
+	}
+
+	bool FPrimitive::IsValidPrivate() const
 	{
 		// make sure all semantic attributes meet the spec
 
@@ -249,7 +424,7 @@ namespace GLTF
 			}
 		}
 
-		const FAccessor* TexCoords[] = {&TexCoord0, &TexCoord1};
+		const FAccessor* TexCoords[] = { &TexCoord0, &TexCoord1 };
 		for (const FAccessor* TexCoord : TexCoords)
 		{
 			if (TexCoord->IsValid())
@@ -279,7 +454,70 @@ namespace GLTF
 			}
 		}
 
-		// TODO: validate ranges? index buffer values?
+		//Validate Ranges:
+		{
+			TArray<uint32> AttributesSizes;
+			const FAccessor* AttributeAccessors[] = { &Position, &Normal, &Tangent, &TexCoord0, &TexCoord1, &Color0, &Joints0, &Weights0 };
+			for (const FAccessor* AttributeAccessor : AttributeAccessors)
+			{
+				if (AttributeAccessor->IsValid() && (AttributeAccessor->Count > 0))
+				{
+					AttributesSizes.Add(AttributeAccessor->Count);
+				}
+			}
+
+			TArray<uint32> IndicesValues;
+			GetTriangleIndices(IndicesValues);
+
+			for (uint32 Index : IndicesValues)
+			{
+				for (const uint32& AttributeSize : AttributesSizes)
+				{
+					if (AttributeSize <= Index)
+					{
+						return false;
+					}
+				}
+			}
+		}
+
+		//Morph Targets:
+		for (const FMorphTarget& MorphTarget : MorphTargets)
+		{
+			if (!MorphTarget.IsValid())
+			{
+				return false;
+			}
+
+			if (MorphTarget.HasPositionDisplacements() && Position.Count != MorphTarget.GetNumberOfPositionDisplacements())
+			{
+				return false;
+			}
+
+			if (MorphTarget.HasNormalDisplacements() && Normal.Count != MorphTarget.GetNumberOfNormalDisplacements())
+			{
+				return false;
+			}
+
+			if (MorphTarget.HasTangentDisplacements() && Tangent.Count != MorphTarget.GetNumberOfTangentDisplacements())
+			{
+				return false;
+			}
+
+			if (MorphTarget.HasTexCoordDisplacements(0) && TexCoord0.Count != MorphTarget.GetNumberOfTexCoordDisplacements(0))
+			{
+				return false;
+			}
+			if (MorphTarget.HasTexCoordDisplacements(1) && TexCoord0.Count != MorphTarget.GetNumberOfTexCoordDisplacements(1))
+			{
+				return false;
+			}
+
+			if (MorphTarget.HasColorDeltas() && Color0.Count != MorphTarget.GetNumberOfColorDeltas())
+			{
+				return false;
+			}
+		}
 
 		return true;
 	}
@@ -345,6 +583,16 @@ namespace GLTF
 			HashAccessor(MD5, Weights0);
 		}
 
+		//Morph Targets:
+		for (const FMorphTarget& MorphTarget : MorphTargets)
+		{
+			FMD5Hash MorphTargetHash = MorphTarget.GetHash();
+			if (MorphTargetHash.IsValid())
+			{
+				MD5.Update(MorphTargetHash.GetBytes(), MorphTargetHash.GetSize());
+			}
+		}
+
 		FMD5Hash Hash;
 		Hash.Set(MD5);
 		return Hash;
@@ -372,4 +620,15 @@ namespace GLTF
 		Hash.Set(MD5);
 		return Hash;
 	}
+
+	//This is a helper functions for the validators.
+	//We are allowed to check only the first primitive's morph target count,
+	// because if there is a incosonsitency acorss primitive targets then the mesh IsValid will report false already.
+	int32 FMesh::NumberOfMorphTargetsPerPrimitive() const
+	{
+		int32 MorphTargetCounter = Primitives.Num() > 0 ? Primitives[0].MorphTargets.Num() : 0;
+
+		return MorphTargetCounter;
+	}
+
 }  // namespace GLTF

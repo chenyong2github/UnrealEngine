@@ -71,7 +71,7 @@ namespace GLTF
 		{
 			Valid,
 			InvalidMeshPresent   = 0x1,
-			InvalidNodeTransform = 0x2,
+			InvalidNodePresent = 0x2,
 		};
 
 		FString Name;
@@ -110,6 +110,7 @@ namespace GLTF
 
 		/**
 		 * Will generate names for any entities(nodes, meshes, etc.) that have the name field missing.
+		 * Is called from GLTF::FFileReader::ReadFile
 		 *
 		 * @param Prefix - prefix to add to the entities name.
 		 */

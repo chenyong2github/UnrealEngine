@@ -73,8 +73,16 @@ namespace UE::Interchange::Gltf::Private
 
 	bool GetSkeletalMeshDescriptionForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, FMeshDescription& MeshDescription, TArray<FString>* OutJointUniqueNames)
 	{
+		TArray<FString> MorphTargetCheckPayLoadKeys;
+		PayLoadKey.ParseIntoArray(MorphTargetCheckPayLoadKeys, TEXT("~"));
+
+		if (MorphTargetCheckPayLoadKeys.Num() == 2)
+		{
+			return GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, MorphTargetCheckPayLoadKeys[1], MeshDescription);
+		}
+		
 		TArray<FString> PayLoadKeys;
-		PayLoadKey.ParseIntoArray(PayLoadKeys, TEXT(":"));
+		MorphTargetCheckPayLoadKeys[0].ParseIntoArray(PayLoadKeys, TEXT(":"));
 		TMap<int32, TArray<int32>> MeshIndexToSkinIndicesMap;
 
 		int32 MeshIndex = 0;
@@ -267,10 +275,18 @@ namespace UE::Interchange::Gltf::Private
 		return true;
 	}
 
-	bool GetStaticMeshPayloadDataForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, FStaticMeshPayloadData& StaticMeshPayloadData)
+	bool GetStaticMeshPayloadDataForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, FMeshDescription& MeshDescription)
 	{
+		TArray<FString> PayLoadKeys;
+		PayLoadKey.ParseIntoArray(PayLoadKeys, TEXT(":"));
+
+		if (PayLoadKeys.Num() == 0)
+		{
+			return false;
+		}
+
 		int32 MeshIndex = 0;
-		LexFromString(MeshIndex, *PayLoadKey);
+		LexFromString(MeshIndex, *PayLoadKeys[0]);
 
 		if (!GltfAsset.Meshes.IsValidIndex(MeshIndex))
 		{
@@ -278,11 +294,28 @@ namespace UE::Interchange::Gltf::Private
 		}
 
 		const GLTF::FMesh& GltfMesh = GltfAsset.Meshes[MeshIndex];
-		GLTF::FMeshFactory MeshFactory;
-		MeshFactory.SetUniformScale(100.f); // GLTF is in meters while UE is in centimeters
-		MeshFactory.FillMeshDescription(GltfMesh, &StaticMeshPayloadData.MeshDescription);
 
-		PatchPolygonGroups(StaticMeshPayloadData.MeshDescription, GltfAsset);
+		TArray<float> MorphTargetWeights;
+		if (PayLoadKeys.Num() == 2)
+		{
+			int32 MorphTargetIndex;
+			LexFromString(MorphTargetIndex, *PayLoadKeys[1]);
+
+			MorphTargetWeights.SetNumZeroed(GltfMesh.MorphTargetNames.Num());
+
+			if (MorphTargetIndex >= MorphTargetWeights.Num())
+			{
+				return false;
+			}
+
+			MorphTargetWeights[MorphTargetIndex] = 1.0f;
+		}
+
+		GLTF::FMeshFactory MeshFactory;
+		MeshFactory.SetUniformScale(GltfUnitConversionMultiplier); // GLTF is in meters while UE is in centimeters
+		MeshFactory.FillMeshDescription(GltfMesh, &MeshDescription, MorphTargetWeights);
+
+		PatchPolygonGroups(MeshDescription, GltfAsset);
 
 		return true;
 	}
