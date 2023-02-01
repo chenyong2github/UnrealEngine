@@ -32,9 +32,12 @@ struct FLobbyMemberServiceSnapshot;
 // Translated types
 //--------------------------------------------------------------------------------------------------
 
+#define UE_ONLINE_LOBBIES_BUCKET_ID_EOS_SEPARATOR TEXT("|")
+
 class FLobbyBucketIdEOS
 {
 public:
+	UE_DEPRECATED(5.2, "Separator is deprecated, please use UE_ONLINE_LOBBIES_BUCKET_ID_EOS_SEPARATOR instead.")
 	static const FString Separator;
 
 	FLobbyBucketIdEOS() = default;

@@ -90,6 +90,7 @@ const FString DefaultSessionIdKey = TEXT("SessionId");
 /** Resource the client is logged in with */
 const FString PresenceResourceKey = TEXT("ResourceKey");
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 namespace OnlineIdentity
 {
 	namespace Errors
@@ -105,6 +106,7 @@ namespace OnlineIdentity
 		const FString NoAuthType = TEXT("no_auth_type");
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** Workaround, please avoid using this */
 FUniqueNetIdPtr GetFirstSignedInUser(IOnlineIdentityPtr IdentityInt)

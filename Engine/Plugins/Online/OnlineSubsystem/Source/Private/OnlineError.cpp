@@ -5,8 +5,10 @@
 #define LOCTEXT_NAMESPACE "OnlineError"
 #define ONLINE_ERROR_NAMESPACE "errors.com.epicgames.online.generic"
 
-//static
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 const FString FOnlineError::GenericErrorCode = TEXT("GenericError");
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 const FOnlineError& FOnlineError::Success() { static FOnlineError Error(EOnlineErrorResult::Success); return Error; }
 
 #if ONLINE_ERROR_LEGACY
@@ -138,9 +140,14 @@ void FOnlineError::SetFromErrorCode(FString&& ErrorCodeIn)
 void FOnlineError::SetFromErrorMessage(const FText& ErrorMessageIn)
 {
 	ErrorMessage = ErrorMessageIn;
-	ErrorCode = FTextInspector::GetKey(ErrorMessageIn).Get(GenericErrorCode);
+	ErrorCode = FTextInspector::GetKey(ErrorMessageIn).Get(GetGenericErrorCode());
 	ErrorRaw = ErrorMessageIn.ToString();
 	Result = EOnlineErrorResult::FailExtended;
+}
+
+const FString FOnlineError::GetGenericErrorCode()
+{
+	return TEXT("GenericError");
 }
 
 FString FOnlineError::ToLogString() const

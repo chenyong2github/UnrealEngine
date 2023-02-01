@@ -13,15 +13,14 @@
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 
+#define UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_INITIAL_LOCAL_USER_NUM TEXT("InitialLocalUserNum")
+#define UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO TEXT("AccountInfoOSSAdapter")
+#define UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_EXTERNAL_AUTH_TOKEN_TRANSLATION_TRAITS TEXT("ExternalAuthTokenTranslationTraits")
+#define UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_EXTERNAL_SERVER_AUTH_TICKET_TRANSLATION_TRAITS TEXT("ExternalServerAuthTicketTranslationTraits")
 
 namespace UE::Online {
 
 namespace {
-
-static const FString InitialLocalUserNumKeyName = TEXT("InitialLocalUserNum");
-static const FString AccountInfoKeyName = TEXT("AccountInfoOSSAdapter");
-static const FString ExternalAuthTokenTranslationTraitsKeyName = TEXT("ExternalAuthTokenTranslationTraits");
-static const FString ExternalServerAuthTicketTranslationTraitsKeyName = TEXT("ExternalServerAuthTicketTranslationTraits");
 
 ELoginStatus TranslateLoginStatus(::ELoginStatus::Type Status)
 {
@@ -180,7 +179,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthOSSAdapter::Login(FAuthLogin::Params&& Par
 
 		// Set initial user num on operation. Depending on the implementation the local user num
 		// which completes login may be different from the one which started it.
-		InAsyncOp.Data.Set<int32>(InitialLocalUserNumKeyName, InitialLocalUserNum);
+		InAsyncOp.Data.Set<int32>(UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_INITIAL_LOCAL_USER_NUM, InitialLocalUserNum);
 
 		if (AccountInfoRegistryOSSAdapter.Find(Params.PlatformUserId))
 		{
@@ -194,13 +193,13 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthOSSAdapter::Login(FAuthLogin::Params&& Par
 		AccountInfoOSSAdapter->LoginStatus = ELoginStatus::NotLoggedIn;
 
 		// Set user auth data on operation.
-		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(AccountInfoKeyName, AccountInfoOSSAdapter.ToSharedRef());
+		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO, AccountInfoOSSAdapter.ToSharedRef());
 	})
 	// Step 2: Login to OSSv1 identity interface.
 	.Then([this](TOnlineAsyncOp<FAuthLogin>& InAsyncOp)
 	{
-		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, AccountInfoKeyName);
-		const int InitialLocalUserNum = GetOpDataChecked<int32>(InAsyncOp, InitialLocalUserNumKeyName);
+		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO);
+		const int InitialLocalUserNum = GetOpDataChecked<int32>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_INITIAL_LOCAL_USER_NUM);
 
 		TPromise<void> Promise;
 		TFuture<void> Future = Promise.GetFuture();
@@ -254,7 +253,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthOSSAdapter::Login(FAuthLogin::Params&& Par
 	// Step 4: Fetch dependent data.
 	.Then([this](TOnlineAsyncOp<FAuthLogin>& InAsyncOp)
 	{
-		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, AccountInfoKeyName);
+		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO);
 
 		if (TSharedPtr<FUserOnlineAccount> UserOnlineAccount = GetIdentityInterface()->GetUserAccount(*AccountInfoOSSAdapter->UniqueNetId))
 		{
@@ -286,7 +285,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthOSSAdapter::Login(FAuthLogin::Params&& Par
 	// Step 6: bookkeeping and notifications.
 	.Then([this](TOnlineAsyncOp<FAuthLogin>& InAsyncOp)
 	{
-		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, AccountInfoKeyName);
+		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO);
 
 		AccountInfoOSSAdapter->LoginStatus = ELoginStatus::LoggedIn;
 		AccountInfoRegistryOSSAdapter.Register(AccountInfoOSSAdapter);
@@ -318,12 +317,12 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthOSSAdapter::Logout(FAuthLogout::Params&& 
 		}
 
 		// Set user auth data on operation.
-		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(AccountInfoKeyName, AccountInfoOSSAdapter.ToSharedRef());
+		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO, AccountInfoOSSAdapter.ToSharedRef());
 	})
 	// Step 2: Logout the user.
 	.Then([this](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
 	{
-		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, AccountInfoKeyName);
+		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO);
 
 		TPromise<void> Promise;
 		TFuture<void> Future = Promise.GetFuture();
@@ -343,7 +342,7 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthOSSAdapter::Logout(FAuthLogout::Params&& 
 	// Step 3: bookkeeping and notifications.
 	.Then([this](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
 	{
-		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, AccountInfoKeyName);
+		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO);
 
 		UE_LOG(LogOnlineServices, Log, TEXT("[FAuthOSSAdapter::Logout][%s] Successfully logged out [%s]"), *GetSubsystem().GetSubsystemName().ToString(), *ToLogString(AccountInfoOSSAdapter->AccountId));
 		AccountInfoOSSAdapter->LoginStatus = ELoginStatus::NotLoggedIn;
@@ -374,7 +373,7 @@ TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> FAuthOSSAdapter::QueryE
 		}
 
 		// Set translator traits on operation.
-		InAsyncOp.Data.Set<TSharedRef<FExternalServerAuthTicketTranslationTraits>>(ExternalServerAuthTicketTranslationTraitsKeyName, TranslationTraits.GetOkValue());
+		InAsyncOp.Data.Set<TSharedRef<FExternalServerAuthTicketTranslationTraits>>(UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_EXTERNAL_SERVER_AUTH_TICKET_TRANSLATION_TRAITS, TranslationTraits.GetOkValue());
 
 		// Look up logged in user.
 		TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(Params.LocalAccountId);
@@ -385,13 +384,13 @@ TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> FAuthOSSAdapter::QueryE
 		}
 
 		// Set user auth data on operation.
-		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(AccountInfoKeyName, AccountInfoOSSAdapter.ToSharedRef());
+		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO, AccountInfoOSSAdapter.ToSharedRef());
 	})
 	// Step 2: Fetch OSSv1 auth ticket data and signal result.
 	.Then([this](TOnlineAsyncOp<FAuthQueryExternalServerAuthTicket>& InAsyncOp)
 	{
-		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, AccountInfoKeyName);
-		const TSharedRef<FExternalServerAuthTicketTranslationTraits>& ExternalServerAuthTicketTranslationTraits = GetOpDataChecked<TSharedRef<FExternalServerAuthTicketTranslationTraits>>(InAsyncOp, ExternalAuthTokenTranslationTraitsKeyName);
+		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO);
+		const TSharedRef<FExternalServerAuthTicketTranslationTraits>& ExternalServerAuthTicketTranslationTraits = GetOpDataChecked<TSharedRef<FExternalServerAuthTicketTranslationTraits>>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_EXTERNAL_AUTH_TOKEN_TRANSLATION_TRAITS);
 
 		InAsyncOp.SetResult(FAuthQueryExternalServerAuthTicket::Result{FExternalServerAuthTicket{ExternalServerAuthTicketTranslationTraits->ExternalTicketType, GetIdentityInterface()->GetAuthToken(AccountInfoOSSAdapter->LocalUserNum)}});
 	})
@@ -418,7 +417,7 @@ TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> FAuthOSSAdapter::QueryExternal
 		}
 
 		// Set translator traits on operation.
-		InAsyncOp.Data.Set<const FExternalAuthTokenTranslationTraits*>(ExternalAuthTokenTranslationTraitsKeyName, TranslationTraits);
+		InAsyncOp.Data.Set<const FExternalAuthTokenTranslationTraits*>(UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_EXTERNAL_AUTH_TOKEN_TRANSLATION_TRAITS, TranslationTraits);
 
 		// Look up logged in user.
 		TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(Params.LocalAccountId);
@@ -429,13 +428,13 @@ TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> FAuthOSSAdapter::QueryExternal
 		}
 
 		// Set user auth data on operation.
-		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(AccountInfoKeyName, AccountInfoOSSAdapter.ToSharedRef());
+		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO, AccountInfoOSSAdapter.ToSharedRef());
 	})
 	// Step 2: Fetch OSSv1 token data.
 	.Then([this](TOnlineAsyncOp<FAuthQueryExternalAuthToken>& InAsyncOp)
 	{
-		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, AccountInfoKeyName);
-		const FExternalAuthTokenTranslationTraits* ExternalAuthTokenTranslationTraits = GetOpDataChecked<const FExternalAuthTokenTranslationTraits*>(InAsyncOp, ExternalAuthTokenTranslationTraitsKeyName);
+		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO);
+		const FExternalAuthTokenTranslationTraits* ExternalAuthTokenTranslationTraits = GetOpDataChecked<const FExternalAuthTokenTranslationTraits*>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_EXTERNAL_AUTH_TOKEN_TRANSLATION_TRAITS);
 
 		TPromise<FString> Promise;
 		TFuture<FString> Future = Promise.GetFuture();
@@ -512,7 +511,7 @@ TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> FAuthOSSAdapter::QueryExternal
 	// Step 3: Signal valid result.
 	.Then([this](TOnlineAsyncOp<FAuthQueryExternalAuthToken>& InAsyncOp, FString&& ResolvedExternalAuthToken)
 	{
-		const FExternalAuthTokenTranslationTraits* ExternalAuthTokenTranslationTraits = GetOpDataChecked<const FExternalAuthTokenTranslationTraits*>(InAsyncOp, ExternalAuthTokenTranslationTraitsKeyName);
+		const FExternalAuthTokenTranslationTraits* ExternalAuthTokenTranslationTraits = GetOpDataChecked<const FExternalAuthTokenTranslationTraits*>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_EXTERNAL_AUTH_TOKEN_TRANSLATION_TRAITS);
 		InAsyncOp.SetResult(FAuthQueryExternalAuthToken::Result{FExternalAuthToken{ExternalAuthTokenTranslationTraits->ExternalLoginType, MoveTemp(ResolvedExternalAuthToken)}});
 	})
 	.Enqueue(GetSerialQueue());
@@ -597,13 +596,13 @@ TOnlineAsyncOpHandle<FAuthHandleLoginStatusChangedImpl> FAuthOSSAdapter::HandleL
 		}
 
 		// Set user auth data on operation.
-		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(AccountInfoKeyName, AccountInfoOSSAdapter.ToSharedRef());
+		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO, AccountInfoOSSAdapter.ToSharedRef());
 	})
 	// Step 2: Update status and notify.
 	.Then([this](TOnlineAsyncOp<FAuthHandleLoginStatusChangedImpl>& InAsyncOp)
 	{
 		const FAuthHandleLoginStatusChangedImpl::Params& Params = InAsyncOp.GetParams();
-		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, AccountInfoKeyName);
+		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, UE_ONLINE_AUTH_OSS_ADAPTER_KEY_NAME_ACCOUNT_INFO);
 
 		UE_LOG(LogOnlineServices, Log, TEXT("[FAuthOSSAdapter::HandleLoginStatusChangedImplOp][%s] Login status changed for account [%s]: %s => %s."),
 			*GetSubsystem().GetSubsystemName().ToString(), *ToLogString(AccountInfoOSSAdapter->AccountId), *ToLogString(AccountInfoOSSAdapter->LoginStatus), *ToLogString(Params.NewLoginStatus));

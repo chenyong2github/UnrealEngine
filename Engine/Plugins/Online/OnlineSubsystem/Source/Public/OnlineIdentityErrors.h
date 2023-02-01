@@ -26,13 +26,20 @@ namespace OnlineIdentity
 		inline FOnlineError PinGrantTimeout() { return ONLINE_ERROR(EOnlineErrorResult::FailExtended, TEXT("pin_grant_timeout")); }
 
 		// Params
+		UE_DEPRECATED(5.2, "AuthLoginParam is deprecated, please use UE_ONLINE_ERROR_PARAM_IDENTITY_AUTH_LOGIN instead.")
 		extern ONLINESUBSYSTEM_API const FString AuthLoginParam;
+
+		UE_DEPRECATED(5.2, "AuthTypeParam is deprecated, please use UE_ONLINE_ERROR_PARAM_IDENTITY_AUTH_TYPE instead.")
 		extern ONLINESUBSYSTEM_API const FString AuthTypeParam;
+		UE_DEPRECATED(5.2, "AuthPasswordParam is deprecated, please use UE_ONLINE_ERROR_PARAM_IDENTITY_AUTH_PASSWORD instead.")
 		extern ONLINESUBSYSTEM_API const FString AuthPasswordParam;
 
 		// Results
+		UE_DEPRECATED(5.2, "NoUserId is deprecated, please use UE_ONLINE_ERROR_PARAM_IDENTITY_NO_USER_ID instead.")
 		extern ONLINESUBSYSTEM_API const FString NoUserId;
+		UE_DEPRECATED(5.2, "NoAuthToken is deprecated, please use UE_ONLINE_ERROR_PARAM_IDENTITY_NO_AUTH_TOKEN instead.")
 		extern ONLINESUBSYSTEM_API const FString NoAuthToken;
+		UE_DEPRECATED(5.2, "NoAuthType is deprecated, please use UE_ONLINE_ERROR_PARAM_IDENTITY_NO_AUTH_TYPE instead.")
 		extern ONLINESUBSYSTEM_API const FString NoAuthType;
 	}
 }
@@ -42,5 +49,11 @@ namespace OnlineIdentity
 #undef ONLINE_ERROR_NAMESPACE
 
 
+#define UE_ONLINE_ERROR_PARAM_IDENTITY_AUTH_LOGIN TEXT("auth_login")
+#define UE_ONLINE_ERROR_PARAM_IDENTITY_AUTH_TYPE TEXT("auth_type")
+#define UE_ONLINE_ERROR_PARAM_IDENTITY_AUTH_PASSWORD TEXT("auth_password")
 
+#define UE_ONLINE_ERROR_PARAM_IDENTITY_NO_USER_ID TEXT("no_user_id")
+#define UE_ONLINE_ERROR_PARAM_IDENTITY_NO_AUTH_TOKEN TEXT("no_auth_token")
+#define UE_ONLINE_ERROR_PARAM_IDENTITY_NO_AUTH_TYPE TEXT("no_auth_type")
 

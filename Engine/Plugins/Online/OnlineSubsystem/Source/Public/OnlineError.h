@@ -52,6 +52,8 @@ enum class EOnlineErrorResult : uint8
 	Canceled,
 	/** Extended error. More info can be found in the results or by looking at the ErrorCode */
 	FailExtended,
+	/** No game session found */
+	NoGameSession,
 
 	/** Default state */
 	Unknown
@@ -110,7 +112,11 @@ public:
 	inline FOnlineError& SetErrorRaw(const FString& Val) { ErrorRaw = Val; return *this; }
 
 	/** Code useful when all you have is raw error info from old APIs */
+	UE_DEPRECATED(5.2, "Access of GenericErrorCode is deprecated, use GetGenericErrorCode() instead.")
 	static const FString GenericErrorCode;
+
+	/** Code useful when all you have is raw error info from old APIs */
+	static const FString GetGenericErrorCode();
 
 	/** prints out everything, need something like this!!! */
 	FString GetErrorLegacy();

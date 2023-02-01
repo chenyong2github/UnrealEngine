@@ -22,5 +22,3 @@ namespace OnlineFriend
 #undef ONLINE_ERROR_NAMESPACE
 
 
-
-

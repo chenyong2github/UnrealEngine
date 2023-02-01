@@ -132,7 +132,7 @@ struct TOnlineVariantVisitInfo
 	//static_assert(sizeof(T) == -1, "If you are hitting this, you are using a TVariant with a value that does not have a TOnlineVariantVisitInfo! Make sure you are adding a TOnlineVariantVisitInfo for your class! (Check LastType or FirstType below for the type that needs attention)");
 
 public:
-	inline static TArray<FString> Prefixes = { TEXT("[GARBAGE]") };
+	inline static const TCHAR* Prefixes[] = {TEXT("[GARBAGE]")};
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
@@ -144,7 +144,7 @@ template< typename VariantObject >
 struct TOnlineVariantVisitInfo<int64, VariantObject>
 {
 public:
-	inline static TArray<FString> Prefixes = { TEXT("i"),TEXT("i64"),TEXT("int"),TEXT("int64") };
+	inline static const TCHAR* Prefixes[] = { TEXT("i"),TEXT("i64"),TEXT("int"),TEXT("int64") };
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
@@ -157,7 +157,7 @@ template< typename VariantObject >
 struct TOnlineVariantVisitInfo<int32, VariantObject>
 {
 public:
-	inline static TArray<FString> Prefixes = { TEXT("i32"),TEXT("int32") };
+	inline static const TCHAR* Prefixes[] = { TEXT("i32"),TEXT("int32") };
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
@@ -171,7 +171,7 @@ template< typename VariantObject >
 struct TOnlineVariantVisitInfo<double, VariantObject>
 {
 public:
-	inline static TArray<FString> Prefixes = { TEXT("d"),TEXT("double") };
+	inline static const TCHAR* Prefixes[] = { TEXT("d"),TEXT("double") };
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
@@ -184,7 +184,7 @@ template< typename VariantObject >
 struct TOnlineVariantVisitInfo<float, VariantObject>
 {
 public:
-	inline static TArray<FString> Prefixes = { TEXT("f"),TEXT("float") };
+	inline static const TCHAR* Prefixes[] = { TEXT("f"),TEXT("float") };
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
@@ -197,7 +197,7 @@ template< typename VariantObject >
 struct TOnlineVariantVisitInfo<bool, VariantObject>
 {
 public:
-	inline static TArray<FString> Prefixes = { TEXT("b"),TEXT("bool"),TEXT("boolean") };
+	inline static const TCHAR* Prefixes[] = { TEXT("b"),TEXT("bool"),TEXT("boolean") };
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
@@ -211,7 +211,7 @@ template< typename VariantObject >
 struct TOnlineVariantVisitInfo<FString, VariantObject>
 {
 public:
-	inline static TArray<FString> Prefixes = { TEXT("s"),TEXT("str"),TEXT("string") };
+	inline static const TCHAR* Prefixes[] = { TEXT("s"),TEXT("str"),TEXT("string") };
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
@@ -224,7 +224,7 @@ template< typename VariantObject >
 struct TOnlineVariantVisitInfo<FAccountId, VariantObject>
 {
 public:
-	inline static TArray<FString> Prefixes = { TEXT("u"),TEXT("user") };
+	inline static const TCHAR* Prefixes[] = {TEXT("u"),TEXT("user")};
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
@@ -244,7 +244,7 @@ public:
 struct UE::Online::Private::TOnlineVariantVisitInfo<EnumName, VariantObject>\
 {\
 public:\
-	inline static TArray<FString> Prefixes = {TEXT(#ShortName),TEXT("e")};\
+	inline static const TCHAR* Prefixes[] = {TEXT(#ShortName),TEXT("e")};\
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)\
 	{\
 		EnumName Status;\
@@ -719,9 +719,9 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOptional<T>& Optional, IOn
 template<typename VariantType, typename LastType>
 static bool VisitVariantTypes(VariantType& Variant, FString& VariantPrefix, FString& VariantValue, IOnlineServices* Services)
 {
-	for(const FString& Str : TOnlineVariantVisitInfo<LastType, VariantType>::Prefixes)
+	for(const TCHAR* Prefix : TOnlineVariantVisitInfo<LastType, VariantType>::Prefixes)
 	{
-		if (Str.Equals(VariantPrefix, ESearchCase::IgnoreCase))
+		if (!VariantPrefix.IsEmpty() && FCString::Stricmp(Prefix, *VariantPrefix) == 0)
 		{
 			return TOnlineVariantVisitInfo<LastType, VariantType>::Assign(VariantValue, Variant, Services);
 		}
@@ -732,9 +732,9 @@ static bool VisitVariantTypes(VariantType& Variant, FString& VariantPrefix, FStr
 template<typename VariantType, typename FirstType, typename SecondType, typename... RemainingTypes>
 inline bool VisitVariantTypes(VariantType& Variant, FString& VariantPrefix, FString& VariantValue, IOnlineServices* Services)
 {
-	for(const FString& Str : TOnlineVariantVisitInfo<FirstType, VariantType>::Prefixes)
+	for(const TCHAR* Prefix : TOnlineVariantVisitInfo<FirstType, VariantType>::Prefixes)
 	{
-		if (Str.Equals(VariantPrefix, ESearchCase::IgnoreCase))
+		if (!VariantPrefix.IsEmpty() && FCString::Stricmp(Prefix, *VariantPrefix) == 0)
 		{
 			return TOnlineVariantVisitInfo<FirstType, VariantType>::Assign(VariantValue, Variant, Services);
 		}

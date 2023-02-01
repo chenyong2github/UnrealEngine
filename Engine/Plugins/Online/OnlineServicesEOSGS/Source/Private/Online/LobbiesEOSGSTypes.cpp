@@ -42,10 +42,12 @@ FString ToLogString(const FLobbyBucketIdEOS& BucketId)
 	return FString::Printf(TEXT("%s:%d"), *BucketId.GetProductName(), BucketId.GetProductVersion());
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 const FString FLobbyBucketIdEOS::Separator = TEXT("|");
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FLobbyBucketIdEOS::FLobbyBucketIdEOS(FString ProductName, int32 ProductVersion)
-	: ProductName(ProductName.Replace(*Separator, TEXT("_")))
+	: ProductName(ProductName.Replace(UE_ONLINE_LOBBIES_BUCKET_ID_EOS_SEPARATOR, TEXT("_")))
 	, ProductVersion(ProductVersion)
 {
 }
@@ -125,7 +127,7 @@ FLobbyAttributeTranslator<ELobbyTranslationType::FromService>::FLobbyAttributeTr
 }
 
 FLobbyBucketIdTranslator<ELobbyTranslationType::ToService>::FLobbyBucketIdTranslator(const FLobbyBucketIdEOS& BucketId)
-	: BucketConverterStorage(*FString::Printf(TEXT("%s%s%d"), *BucketId.GetProductName(), *FLobbyBucketIdEOS::Separator, BucketId.GetProductVersion()))
+	: BucketConverterStorage(*FString::Printf(TEXT("%s%s%d"), *BucketId.GetProductName(), UE_ONLINE_LOBBIES_BUCKET_ID_EOS_SEPARATOR, BucketId.GetProductVersion()))
 {
 }
 
@@ -136,7 +138,7 @@ FLobbyBucketIdTranslator<ELobbyTranslationType::FromService>::FLobbyBucketIdTran
 
 	constexpr int32 ExpectedPartsNum = 2;
 	TArray<FString> Parts;
-	if (BucketString.ParseIntoArray(Parts, *FLobbyBucketIdEOS::Separator) == ExpectedPartsNum)
+	if (BucketString.ParseIntoArray(Parts, UE_ONLINE_LOBBIES_BUCKET_ID_EOS_SEPARATOR) == ExpectedPartsNum)
 	{
 		int32 BuildId = 0;
 		::LexFromString(BuildId, *Parts[1]);
