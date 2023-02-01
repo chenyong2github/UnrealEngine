@@ -17,7 +17,8 @@ void LanczosCG(
 	const TArray<T>& b,
 	const int max_it, 
 	const T res = 1e-4, 
-	bool check_residual = false) 
+	bool check_residual = false,
+	int min_parallel_batch_size = 1000) 
 {
 	auto dotProduct = [](const TArray<T>& x, const TArray<T>& y) 
 	{
@@ -28,37 +29,37 @@ void LanczosCG(
 		{
 			result += x[i] * y[i];
 		}/*,
-		x.Num() < 1000);*/
+		x.Num() < min_parallel_batch_size);*/
 		return result;
 	};
 
-	auto AXPY = [](TArray<T>& y, T a, const TArray<T>& x) 
+	auto AXPY = [min_parallel_batch_size](TArray<T>& y, T a, const TArray<T>& x) 
 	{
 		checkfSlow(x.Num() == y.Num(), TEXT("LanczosCG: trying to take a linear combination of vectors with different sizes."));
 		PhysicsParallelFor(x.Num(), [&](const int32 i)
 		{
 			y[i] += a * x[i];
 	    },
-		x.Num() < 1000); // Single threaded for less than 1k operations.
+		x.Num() < min_parallel_batch_size); // Single threaded for less than min_parallel_batch_size operations.
 	};
 
-	auto scale = [](TArray<T>& y, T a) 
+	auto scale = [min_parallel_batch_size](TArray<T>& y, T a)
 	{
 		PhysicsParallelFor(y.Num(), [&](const int32 i)
 		{
 			y[i] *= a;
 	    },
-		y.Num() < 1000); // Single threaded for less than 1k operations.
+		y.Num() < min_parallel_batch_size); // Single threaded for less than min_parallel_batch_size operations.
 	};
 
-	auto set = [](TArray<T>& y, const TArray<T>& x) 
+	auto set = [min_parallel_batch_size](TArray<T>& y, const TArray<T>& x)
 	{
 		checkfSlow(x.Num() == y.Num(), TEXT("LanczosCG: trying to set to vectors with different sizes."));
 		PhysicsParallelFor(x.Num(), [&](const int32 i)
 		{
 			y[i] = x[i];
 		},
-		x.Num() < 1000); // Single threaded for less than 1k operations.
+		x.Num() < min_parallel_batch_size); // Single threaded for less than 1k operations.
 	};
 
 	LanczosCG<T>(multiplyA, dotProduct, AXPY, scale, set, x, b, max_it, res, check_residual);
