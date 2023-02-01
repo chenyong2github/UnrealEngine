@@ -1022,7 +1022,5 @@ void FLinuxOpenGL::ProcessExtensions( const FString& ExtensionsString )
 		glTexStorage1D = nullptr;
 		glTexStorage2D = nullptr;
 		glTexStorage3D = nullptr;
-
-		FOpenGLBase::bSupportsCopyImage  = false;
 	}
 }

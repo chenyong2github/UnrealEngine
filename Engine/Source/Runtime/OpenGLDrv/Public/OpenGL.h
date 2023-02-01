@@ -121,7 +121,6 @@ public:
 	static FORCEINLINE bool SupportsETC2()								{ return false; }
 	static FORCEINLINE bool SupportsFramebufferSRGBEnable()				{ return true; }
 	static FORCEINLINE bool SupportsFastBufferData()					{ return true; }
-	static FORCEINLINE bool SupportsCopyImage()							{ return bSupportsCopyImage; }
 	static FORCEINLINE bool SupportsTextureFilterAnisotropic()			{ return bSupportsTextureFilterAnisotropic; }
 	static FORCEINLINE bool SupportsSeparateAlphaBlend()				{ return bSupportsDrawBuffersBlend; }
 	static FORCEINLINE void EnableSupportsClipControl()					{ bSupportsClipControl = true; }
@@ -394,9 +393,6 @@ protected:
 
 	/** GL_KHR_texture_compression_astc_hdr */
 	static bool bSupportsASTCHDR;
-
-	/** GL_ARB_copy_image */
-	static bool bSupportsCopyImage;
 
 	/** GL_ARB_seamless_cube_map */
 	static bool bSupportsSeamlessCubemap;

@@ -487,7 +487,6 @@ GLint FOpenGLBase::MaxGeometryUniformComponents = -1;
 bool  FOpenGLBase::bSupportsClipControl = false;
 bool  FOpenGLBase::bSupportsASTC = false;
 bool  FOpenGLBase::bSupportsASTCHDR = false;
-bool  FOpenGLBase::bSupportsCopyImage = false;
 bool  FOpenGLBase::bSupportsSeamlessCubemap = false;
 bool  FOpenGLBase::bSupportsVolumeTextureRendering = false;
 bool  FOpenGLBase::bSupportsTextureFilterAnisotropic = false;
@@ -535,9 +534,6 @@ void FOpenGLBase::ProcessExtensions( const FString& ExtensionsString )
 	bSupportsASTC = ExtensionsString.Contains(TEXT("GL_KHR_texture_compression_astc_ldr"));
 
 	bSupportsASTCHDR = bSupportsASTC && ExtensionsString.Contains(TEXT("GL_KHR_texture_compression_astc_hdr"));
-
-	// check for copy image support
-	bSupportsCopyImage = ExtensionsString.Contains(TEXT("GL_ARB_copy_image"));
 
 	bSupportsSeamlessCubemap = ExtensionsString.Contains(TEXT("GL_ARB_seamless_cube_map"));
 	

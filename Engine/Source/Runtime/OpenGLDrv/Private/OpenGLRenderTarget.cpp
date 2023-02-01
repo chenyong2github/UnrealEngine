@@ -505,7 +505,7 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 			&& SourceTexture->Target == DestTexture->Target // glCopyImageSubData() doesn't like copying from a texture to a renderbuffer on Android
 			;
 		
-		if ( !bTrueBlit || !FOpenGL::SupportsCopyImage() )
+		if ( !bTrueBlit)
 		{
 			// Color buffers can be GL_NONE for attachment purposes if they aren't used as render targets
 			const bool bIsColorBuffer = SourceTexture->Attachment != GL_DEPTH_STENCIL_ATTACHMENT

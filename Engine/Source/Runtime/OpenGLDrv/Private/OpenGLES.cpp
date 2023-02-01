@@ -47,7 +47,7 @@ namespace GLFuncPointers
 	// ES 3.2
 	PFNGLTEXBUFFEREXTPROC					glTexBufferEXT = nullptr;
 	PFNGLTEXBUFFERRANGEEXTPROC				glTexBufferRangeEXT = nullptr;
-	PFNGLCOPYIMAGESUBDATAEXTPROC			glCopyImageSubDataEXT = nullptr;
+	PFNGLCOPYIMAGESUBDATAEXTPROC			glCopyImageSubData = nullptr;
 	PFNGLENABLEIEXTPROC						glEnableiEXT = nullptr;
 	PFNGLDISABLEIEXTPROC					glDisableiEXT = nullptr;
 	PFNGLBLENDEQUATIONIEXTPROC				glBlendEquationiEXT = nullptr;
@@ -297,7 +297,7 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 	{
 		glTexBufferEXT = (PFNGLTEXBUFFEREXTPROC)((void*)eglGetProcAddress("glTexBuffer"));
 		glTexBufferRangeEXT = (PFNGLTEXBUFFERRANGEEXTPROC)((void*)eglGetProcAddress("glTexBufferRange"));
-		glCopyImageSubDataEXT = (PFNGLCOPYIMAGESUBDATAEXTPROC)((void*)eglGetProcAddress("glCopyImageSubData"));
+		glCopyImageSubData = (PFNGLCOPYIMAGESUBDATAEXTPROC)((void*)eglGetProcAddress("glCopyImageSubData"));
 		glEnableiEXT = (PFNGLENABLEIEXTPROC)((void*)eglGetProcAddress("glEnablei"));
 		glDisableiEXT = (PFNGLDISABLEIEXTPROC)((void*)eglGetProcAddress("glDisablei"));
 		glBlendEquationiEXT = (PFNGLBLENDEQUATIONIEXTPROC)((void*)eglGetProcAddress("glBlendEquationi"));
@@ -326,13 +326,6 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 		glTexBufferEXT = (PFNGLTEXBUFFEREXTPROC)((void*)eglGetProcAddress("glTexBufferEXT"));
 		glTexBufferRangeEXT = (PFNGLTEXBUFFERRANGEEXTPROC)((void*)eglGetProcAddress("glTexBufferRangeEXT"));
 	}
-
-	if (!glCopyImageSubDataEXT && ExtensionsString.Contains(TEXT("GL_EXT_copy_image")))
-	{
-		// GL_EXT_copy_image
-		glCopyImageSubDataEXT = (PFNGLCOPYIMAGESUBDATAEXTPROC)((void*)eglGetProcAddress("glCopyImageSubDataEXT"));
-	}
-	bSupportsCopyImage = (glCopyImageSubDataEXT != nullptr);
 }
 
 #endif

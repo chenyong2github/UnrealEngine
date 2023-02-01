@@ -153,7 +153,7 @@ namespace GLFuncPointers
 	// ES 3.2
 	extern PFNGLTEXBUFFEREXTPROC				glTexBufferEXT;
 	extern PFNGLTEXBUFFERRANGEEXTPROC			glTexBufferRangeEXT;
-	extern PFNGLCOPYIMAGESUBDATAEXTPROC			glCopyImageSubDataEXT;
+	extern PFNGLCOPYIMAGESUBDATAEXTPROC			glCopyImageSubData;
 	extern PFNGLENABLEIEXTPROC					glEnableiEXT;
 	extern PFNGLDISABLEIEXTPROC					glDisableiEXT;
 	extern PFNGLBLENDEQUATIONIEXTPROC			glBlendEquationiEXT;
@@ -375,8 +375,7 @@ struct FOpenGLES : public FOpenGLBase
 
 	static FORCEINLINE void CopyImageSubData(GLuint SrcName, GLenum SrcTarget, GLint SrcLevel, GLint SrcX, GLint SrcY, GLint SrcZ, GLuint DstName, GLenum DstTarget, GLint DstLevel, GLint DstX, GLint DstY, GLint DstZ, GLsizei Width, GLsizei Height, GLsizei Depth)
 	{
-		check(bSupportsCopyImage);
-		glCopyImageSubDataEXT(SrcName, SrcTarget, SrcLevel, SrcX, SrcY, SrcZ, DstName, DstTarget, DstLevel, DstX, DstY, DstZ, Width, Height, Depth);
+		glCopyImageSubData(SrcName, SrcTarget, SrcLevel, SrcX, SrcY, SrcZ, DstName, DstTarget, DstLevel, DstX, DstY, DstZ, Width, Height, Depth);
 	}
 
 	static FORCEINLINE bool TexStorage2DMultisample(GLenum Target, GLsizei Samples, GLint InternalFormat, GLsizei Width, GLsizei Height, GLboolean FixedSampleLocations)

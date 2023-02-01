@@ -367,7 +367,6 @@
 	EnumMacro(PFNGLDISABLEIPROC,glDisableiEXT) \
 	EnumMacro(PFNGLENABLEIPROC,glEnableiEXT) \
 	EnumMacro(PFNGLFRAMEBUFFERTEXTUREPROC,glFramebufferTextureEXT) \
-	EnumMacro(PFNGLCOPYIMAGESUBDATAPROC, glCopyImageSubDataEXT) \
 	EnumMacro(PFNGLTEXBUFFERPROC,glTexBufferEXT) \
 	EnumMacro(PFNGLTEXBUFFERRANGEPROC,glTexBufferRangeEXT) \
 	EnumMacro(PFNGLDEPTHRANGEFPROC,glDepthRangef) \
@@ -677,7 +676,7 @@ struct FWindowsOpenGL : public FOpenGLESDeferred
 
 	static FORCEINLINE void CopyImageSubData(GLuint SrcName, GLenum SrcTarget, GLint SrcLevel, GLint SrcX, GLint SrcY, GLint SrcZ, GLuint DstName, GLenum DstTarget, GLint DstLevel, GLint DstX, GLint DstY, GLint DstZ, GLsizei Width, GLsizei Height, GLsizei Depth)
 	{
-		glCopyImageSubDataEXT( SrcName, SrcTarget, SrcLevel, SrcX, SrcY, SrcZ, DstName, DstTarget, DstLevel, DstX, DstY, DstZ, Width, Height, Depth);
+		glCopyImageSubData( SrcName, SrcTarget, SrcLevel, SrcX, SrcY, SrcZ, DstName, DstTarget, DstLevel, DstX, DstY, DstZ, Width, Height, Depth);
 	}
 };
 
