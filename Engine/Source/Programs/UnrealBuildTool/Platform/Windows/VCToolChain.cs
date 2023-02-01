@@ -1377,8 +1377,8 @@ namespace UnrealBuildTool
 			BaseCompileAction.IncludePaths.AddRange(CompileEnvironment.UserIncludePaths);
 			BaseCompileAction.SystemIncludePaths.AddRange(CompileEnvironment.SystemIncludePaths);
 			
-			// Maybe not the nicest way of checking but if we don't have any system include paths it means we are not using a shared rsp file
-			if (CompileEnvironment.SystemIncludePaths.Count != 0)
+			// Maybe not the nicest way of checking but if we don't have any user include paths it means we have added them to a shared rsp instead
+			if (CompileEnvironment.UserIncludePaths.Count != 0)
 			{
 				BaseCompileAction.SystemIncludePaths.AddRange(EnvVars.IncludePaths);
 			}
