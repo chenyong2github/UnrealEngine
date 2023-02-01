@@ -3016,28 +3016,14 @@ float3 UnpackR10G10B10F(uint rgb)
 	return float3(r, g, b);
 }
 
-uint PackRG16(float2 In)
-{
-#if COMPILER_SUPPORTS_PACK_INTRINSICS
-	return PackUInt2ToUInt(f32tof16(In.r), f32tof16(In.g));
-#else
-	return f32tof16(In.r) | (f32tof16(In.g) << 16);
-#endif
-}
-
-float2 UnpackRG16(uint In)
-{
-	return float2(f16tof32(In), f16tof32(In>>16));
-}
-
 uint2 PackR16G16B16A16F(float4 In)
 {
-	return uint2(PackRG16(In.xy), PackRG16(In.zw));
+	return uint2(PackFloat2ToUInt(In.xy), PackFloat2ToUInt(In.zw));
 }
 
 float4 UnpackR16G16B16A16F(uint2 In)
 {
-	return float4(UnpackRG16(In.x), UnpackRG16(In.y));
+	return float4(UnpackFloat2FromUInt(In.x), UnpackFloat2FromUInt(In.y));
 }
 
 uint PackColorLinearToGamma2(float3 In)
@@ -3199,12 +3185,12 @@ float2 SignNotZero(in float2 v)
 
 uint StrataPackNormal(in float3 Normal)
 {
-	return PackRG16(UnitVectorToOctahedron(Normal));
+	return PackFloat2ToUInt(UnitVectorToOctahedron(Normal));
 }
 
 float3 StrataUnpackNormal(uint PackedNormal)
 {
-	return OctahedronToUnitVector(UnpackRG16(PackedNormal));
+	return OctahedronToUnitVector(UnpackFloat2FromUInt(PackedNormal));
 }
 
 uint StrataPackNormal24(in float3 Normal)

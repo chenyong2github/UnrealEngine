@@ -41,20 +41,6 @@ float3 UnpackR11G11B10F(uint rgb)
 	return float3(r, g, b);
 }
 
-uint PackRG16(float2 In)
-{
-#if COMPILER_SUPPORTS_PACK_INTRINSICS
-	return PackUInt2ToUInt(f32tof16(In.r), f32tof16(In.g));
-#else
-	return f32tof16(In.r) | (f32tof16(In.g) << 16);
-#endif
-}
-
-float2 UnpackRG16(uint In)
-{
-	return float2(f16tof32(In), f16tof32(In >> 16));
-}
-
 uint PackDepth(float In)
 {
 	return asuint(In);
@@ -73,13 +59,13 @@ struct FDepthRange
 
 uint PackDepthRange(FDepthRange In)
 {
-	return PackRG16(float2(In.MinZ, In.MaxZ));
+	return PackFloat2ToUInt(In.MinZ, In.MaxZ);
 }
 
 FDepthRange UnpackDepthRange(uint In)
 {
 	FDepthRange Out;
-	const float2 D = UnpackRG16(In);
+	const float2 D = UnpackFloat2FromUInt(In);
 	Out.MinZ = D.x;
 	Out.MaxZ = D.y;
 	return Out;
@@ -1208,12 +1194,12 @@ float3 UnpackColorData(uint In)
 
 uint2 PackVelocityData(float4 In)
 {
-	return uint2(PackRG16(In.xy), PackRG16(In.zw));
+	return uint2(PackFloat2ToUInt(In.xy), PackFloat2ToUInt(In.zw));
 }
 
 float4 UnpackVelocityData(uint2 In)
 {
-	return float4(UnpackRG16(In.x), UnpackRG16(In.y));
+	return float4(UnpackFloat2FromUInt(In.x), UnpackFloat2FromUInt(In.y));
 }
 
 float3 LoadSampleColor(uint InPrimId, uint2 InSampleResolution)
