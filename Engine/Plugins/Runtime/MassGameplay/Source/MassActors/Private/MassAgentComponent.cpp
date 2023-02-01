@@ -24,6 +24,7 @@
 // UMassAgentComponent
 //----------------------------------------------------------------------//
 UMassAgentComponent::UMassAgentComponent()
+	: EntityConfig(*this)
 {
 #if WITH_EDITORONLY_DATA
 	bAutoRegisterInEditorMode = true;
@@ -388,6 +389,7 @@ void UMassAgentComponent::DebugCheckStateConsistency()
 void UMassAgentComponent::SetEntityConfig(const FMassEntityConfig& InEntityConfig)
 {
 	EntityConfig = InEntityConfig;
+	EntityConfig.SetOwner(*this);
 }
 
 void UMassAgentComponent::Enable()

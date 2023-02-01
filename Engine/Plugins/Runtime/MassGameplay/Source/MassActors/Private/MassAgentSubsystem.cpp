@@ -95,7 +95,7 @@ FMassEntityTemplateID UMassAgentSubsystem::RegisterAgentComponent(UMassAgentComp
 	check(World);
 
 	const FMassEntityConfig& EntityConfig = AgentComp.GetEntityConfig();
-	const FMassEntityTemplate& EntityTemplate = EntityConfig.GetOrCreateEntityTemplate(*World, AgentComp);
+	const FMassEntityTemplate& EntityTemplate = EntityConfig.GetOrCreateEntityTemplate(*World);
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 	if (AgentComp.IsNetSimulating())
@@ -135,7 +135,7 @@ void UMassAgentSubsystem::UpdateAgentComponent(const UMassAgentComponent& AgentC
 	check(World);
 
 	const FMassEntityConfig& EntityConfig = AgentComp.GetEntityConfig();
-	const FMassEntityTemplate& EntityTemplate = EntityConfig.GetOrCreateEntityTemplate(*World, AgentComp);
+	const FMassEntityTemplate& EntityTemplate = EntityConfig.GetOrCreateEntityTemplate(*World);
 
 	const FMassEntityHandle Entity = AgentComp.GetEntityHandle();
 	const FMassArchetypeHandle CurrentArchetypeHandle = EntityManager->GetArchetypeForEntity(Entity);
@@ -214,7 +214,7 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 			if (ensure(World))
 			{
 				const FMassEntityConfig& EntityConfig = AgentComp.GetEntityConfig();
-				EntityTemplate = &EntityConfig.GetEntityTemplateChecked(*World, AgentComp);
+				EntityTemplate = &EntityConfig.GetEntityTemplateChecked(*World);
 			}
 
 			FMassEntityHandle Entity = AgentComp.GetEntityHandle();

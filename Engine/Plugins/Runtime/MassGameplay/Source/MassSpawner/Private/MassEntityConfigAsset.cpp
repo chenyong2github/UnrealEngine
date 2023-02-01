@@ -41,8 +41,9 @@ namespace UE::MassSpawner
 	}
 } // UE::MassSpawner
 
-FMassEntityConfig::FMassEntityConfig(UMassEntityConfigAsset& InParent)
-	: Parent(&InParent)
+
+FMassEntityConfig::FMassEntityConfig(UObject& InOwner)
+	: ConfigOwner(&InOwner)
 {
 
 }
@@ -52,7 +53,7 @@ void UMassEntityConfigAsset::ValidateEntityConfig()
 {
 	if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
 	{
-		if (Config.ValidateEntityTemplate(*EditorWorld, *this))
+		if (Config.ValidateEntityTemplate(*EditorWorld))
 		{
 			const FText InfoText = LOCTEXT("MassEntityConfigAssetNoErrorsDetected", "There were no error detected during validation of the EntityConfigAsset");
 			
@@ -73,11 +74,11 @@ void UMassEntityConfigAsset::ValidateEntityConfig()
 }
 #endif // WITH_EDITOR
 
-const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const
+const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UWorld& World) const
 {
 	FMassEntityTemplateID TemplateID;
 	TArray<UMassEntityTraitBase*> CombinedTraits;
-	if (const FMassEntityTemplate* ExistingTemplate = GetEntityTemplateInternal(World, ConfigOwner, TemplateID, CombinedTraits))
+	if (const FMassEntityTemplate* ExistingTemplate = GetEntityTemplateInternal(World, TemplateID, CombinedTraits))
 	{
 		return *ExistingTemplate;
 	}
@@ -94,7 +95,7 @@ const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UW
 	FMassEntityTemplateBuildContext BuildContext(Template);
 
 	BuildContext.BuildFromTraits(CombinedTraits, World);
-	Template.SetTemplateName(ConfigOwner.GetName());
+	Template.SetTemplateName(GetNameSafe(ConfigOwner));
 
 	// It is ok to have an empty template, 
     // but be aware there will be an error if you try to create an entity with it
@@ -104,11 +105,11 @@ const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UW
 	return Template;
 }
 
-void FMassEntityConfig::DestroyEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const
+void FMassEntityConfig::DestroyEntityTemplate(const UWorld& World) const
 {
 	FMassEntityTemplateID TemplateID;
 	TArray<UMassEntityTraitBase*> CombinedTraits;
-	const FMassEntityTemplate* Template = GetEntityTemplateInternal(World, ConfigOwner, TemplateID, CombinedTraits);
+	const FMassEntityTemplate* Template = GetEntityTemplateInternal(World, TemplateID, CombinedTraits);
 	if (Template == nullptr)
 	{
 		return;
@@ -129,16 +130,16 @@ void FMassEntityConfig::DestroyEntityTemplate(const UWorld& World, const UObject
 	TemplateRegistry.DestroyTemplate(TemplateID);
 }
 
-const FMassEntityTemplate& FMassEntityConfig::GetEntityTemplateChecked(const UWorld& World, const UObject& ConfigOwner) const
+const FMassEntityTemplate& FMassEntityConfig::GetEntityTemplateChecked(const UWorld& World) const
 {
 	FMassEntityTemplateID TemplateID;
 	TArray<UMassEntityTraitBase*> CombinedTraits;
-	const FMassEntityTemplate* ExistingTemplate = GetEntityTemplateInternal(World, ConfigOwner, TemplateID, CombinedTraits);
+	const FMassEntityTemplate* ExistingTemplate = GetEntityTemplateInternal(World, TemplateID, CombinedTraits);
 	check(ExistingTemplate);
 	return *ExistingTemplate;
 }
 
-const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const UWorld& World, const UObject& ConfigOwner, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const
+const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const UWorld& World, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const
 {
 	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(&World);
 	check(SpawnerSystem);
@@ -148,8 +149,8 @@ const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const UW
 	// @todo this is an inefficient way assuming given template is expected to have already been created. Figure out a way to cache it.
 	TArray<const UObject*> Visited;
 	CombinedTraitsOut.Reset();
-	Visited.Add(&ConfigOwner);
-	GetCombinedTraits(CombinedTraitsOut, Visited, ConfigOwner);
+	Visited.Add(ConfigOwner);
+	GetCombinedTraits(CombinedTraitsOut, Visited);
 
 	// Return existing template if found.
 	// TODO: cache the hash.
@@ -158,7 +159,7 @@ const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const UW
 	return TemplateRegistry.FindTemplateFromTemplateID(TemplateIDOut);
 }
 
-void FMassEntityConfig::GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited, const UObject& ConfigOwner) const
+void FMassEntityConfig::GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited) const
 {
 	if (Parent)
 	{
@@ -171,12 +172,12 @@ void FMassEntityConfig::GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTrai
 				Path += Object->GetName();
 				Path += TEXT("/");
 			}
-			UE_VLOG(&ConfigOwner, LogMassSpawner, Error, TEXT("%s: Encountered %s as parent second time (Infinite loop). %s"), *GetNameSafe(&ConfigOwner), *GetNameSafe(Parent), *Path);
+			UE_VLOG(ConfigOwner, LogMassSpawner, Error, TEXT("%s: Encountered %s as parent second time (Infinite loop). %s"), *GetNameSafe(ConfigOwner), *GetNameSafe(Parent), *Path);
 		}
 		else
 		{
 			Visited.Add(Parent);
-			Parent->GetConfig().GetCombinedTraits(OutTraits, Visited, ConfigOwner);
+			Parent->GetConfig().GetCombinedTraits(OutTraits, Visited);
 		}
 	}
 
@@ -204,17 +205,46 @@ void FMassEntityConfig::AddTrait(UMassEntityTraitBase& Trait)
 	Traits.Add(&Trait);
 }
 
-bool FMassEntityConfig::ValidateEntityTemplate(const UWorld& World, const UObject& ConfigOwner)
+bool FMassEntityConfig::ValidateEntityTemplate(const UWorld& World)
 {
 	TArray<const UObject*> Visited;
 	TArray<UMassEntityTraitBase*> CombinedTraits;
-	Visited.Add(&ConfigOwner);
-	GetCombinedTraits(CombinedTraits, Visited, ConfigOwner);
+	Visited.Add(ConfigOwner);
+	GetCombinedTraits(CombinedTraits, Visited);
 
 	FMassEntityTemplate Template;
 	FMassEntityTemplateBuildContext BuildContext(Template);
 
 	return BuildContext.BuildFromTraits(CombinedTraits, World);
 }
+
+//-----------------------------------------------------------------------------
+// DEPRECATED
+//-----------------------------------------------------------------------------
+const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UWorld& World, const UObject& InConfigOwner) const
+{
+	return GetOrCreateEntityTemplate(World);
+}
+
+void FMassEntityConfig::DestroyEntityTemplate(const UWorld& World, const UObject& InConfigOwner) const
+{
+	DestroyEntityTemplate(World);
+}
+
+const FMassEntityTemplate& FMassEntityConfig::GetEntityTemplateChecked(const UWorld& World, const UObject& InConfigOwner) const
+{
+	return GetEntityTemplateChecked(World);
+}
+
+bool FMassEntityConfig::ValidateEntityTemplate(const UWorld& World, const UObject& InConfigOwner)
+{
+	return ValidateEntityTemplate(World);
+}
+
+void FMassEntityConfig::GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited, const UObject& InConfigOwner) const
+{
+	return GetCombinedTraits(OutTraits, Visited);
+}
+
 
 #undef LOCTEXT_NAMESPACE 

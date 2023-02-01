@@ -24,24 +24,25 @@ struct MASSSPAWNER_API FMassEntityConfig
 	GENERATED_BODY()
 
 	FMassEntityConfig() = default;
-	FMassEntityConfig(UMassEntityConfigAsset& InParent);
+	FMassEntityConfig(UObject& InOwner);
 
 	/** Create entity template based on the features included in this config.
 	 *  @param World in which we are creating the template.
-	 *  @param ConfigOwner Owner of the FMassEntityConfig used for error reporting.
 	 */
-	const FMassEntityTemplate& GetOrCreateEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const;
+	const FMassEntityTemplate& GetOrCreateEntityTemplate(const UWorld& World) const;
 
-	void DestroyEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const;
+	void DestroyEntityTemplate(const UWorld& World) const;
 
 	/** 
 	 * Fetches the EntityTemplate for given World, fails a check if one cannot be found.
 	 */
-	const FMassEntityTemplate& GetEntityTemplateChecked(const UWorld& World, const UObject& ConfigOwner) const;
+	const FMassEntityTemplate& GetEntityTemplateChecked(const UWorld& World) const;
 
 	/** @return Parent config */
 	const UMassEntityConfigAsset* GetParent() const { return Parent; }
 
+	void SetParentAsset(const UMassEntityConfigAsset& InParent) { Parent = &InParent; }
+	
 	/** @return View to the array of features defined on this config */
 	TConstArrayView<UMassEntityTraitBase*> GetTraits() const { return Traits; }
 
@@ -49,22 +50,43 @@ struct MASSSPAWNER_API FMassEntityConfig
 	void AddTrait(UMassEntityTraitBase& Trait);
 
 	/** Validates if the entity template is well built */
+	bool ValidateEntityTemplate(const UWorld& World);
+
+	void SetOwner(UObject& InOwner) { ConfigOwner = &InOwner; }
+
+	UE_DEPRECATED(5.3, "This flavor of GetOrCreateEntityTemplate is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
+	const FMassEntityTemplate& GetOrCreateEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const;
+
+	UE_DEPRECATED(5.3, "This flavor of DestroyEntityTemplate is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
+	void DestroyEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const;
+
+	UE_DEPRECATED(5.3, "This flavor of GetEntityTemplateChecked is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
+	const FMassEntityTemplate& GetEntityTemplateChecked(const UWorld& World, const UObject& ConfigOwner) const;
+
+	UE_DEPRECATED(5.3, "This flavor of ValidateEntityTemplate is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
 	bool ValidateEntityTemplate(const UWorld& World, const UObject& ConfigOwner);
 
 protected:
 	/** Combines traits based on the config hierarchy and returns list of unique traits */
+	void GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited) const;
+
+	/** Combines traits based on the config hierarchy and returns list of unique traits */
+	UE_DEPRECATED(5.3, "This flavor of GetCombinedTraits is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
 	void GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited, const UObject& ConfigOwner) const;
 
 	/** Reference to parent config asset */
 	UPROPERTY(Category = "Derived Traits", EditAnywhere)
-	TObjectPtr<UMassEntityConfigAsset> Parent = nullptr;
+	TObjectPtr<const UMassEntityConfigAsset> Parent = nullptr;
 
 	/** Array of unique traits of this config */
 	UPROPERTY(Category = "Traits", EditAnywhere, Instanced)
 	TArray<TObjectPtr<UMassEntityTraitBase>> Traits;
 
+	UPROPERTY(transient)
+	TObjectPtr<UObject> ConfigOwner = nullptr;
+
 private:
-	const FMassEntityTemplate* GetEntityTemplateInternal(const UWorld& World, const UObject& ConfigOwner, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const;
+	const FMassEntityTemplate* GetEntityTemplateInternal(const UWorld& World, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const;
 };
 
 /**
@@ -77,6 +99,10 @@ class MASSSPAWNER_API UMassEntityConfigAsset : public UDataAsset
 	GENERATED_BODY()
 
 public:
+	UMassEntityConfigAsset()
+		: Config(*this)
+	{}
+
 	/** @return Agent config stored in this asset */
 	const FMassEntityConfig& GetConfig() const { return Config; }
 
@@ -85,12 +111,12 @@ public:
 
 	const FMassEntityTemplate& GetOrCreateEntityTemplate(const UWorld& World) const
 	{
-		return Config.GetOrCreateEntityTemplate(World, *this);
+		return Config.GetOrCreateEntityTemplate(World);
 	}
 
 	void DestroyEntityTemplate(const UWorld& World) const
 	{
-		Config.DestroyEntityTemplate(World, *this);
+		Config.DestroyEntityTemplate(World);
 	}
 
 #if WITH_EDITOR
