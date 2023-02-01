@@ -36,8 +36,11 @@ class NAVIGATIONSYSTEM_API UNavModifierComponent : public UNavRelevantComponent
 
 protected:
 	void OnTransformUpdated(USceneComponent* RootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
+
+#if WITH_EDITOR
 	void OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass);
 	void OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass);
+#endif // WITH_EDITOR 
 
 	//~ Begin UActorComponent Interface
 	virtual void OnRegister() override;
@@ -59,6 +62,8 @@ protected:
 	 *	cached data is still valid */
 	mutable FTransform CachedTransform;
 
+#if WITH_EDITOR
 	FDelegateHandle OnNavAreaRegisteredDelegateHandle;
 	FDelegateHandle OnNavAreaUnregisteredDelegateHandle;
+#endif // WITH_EDITOR 
 };
