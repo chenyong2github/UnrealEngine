@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGElementWiseUnary.h"
+#include "NNERuntimeRDGElementWiseUnaryHelper.h"
 #include "NNEHlslShadersElementWiseUnaryCS.h"
 #include "NNERuntimeRDGHlslHelper.h"
 #include "NNECoreAttributeMap.h"
@@ -38,6 +39,20 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			check(InputTensors.Num() == 1);
 			check(OutputTensors.Num() == 1);
 			OutputTensors[0]->SetShape(InputTensors[0]->GetShape());
+
+			const NNECore::Internal::FTensor& X = *InputTensors[0];
+			if (X.HasPreparedData())
+			{
+				TConstArrayView<float> XData = X.GetPreparedData<float>();
+				TArray<float> OutputData;
+				OutputData.Reserve(XData.Num());
+				for (float elem : XData)
+				{
+					OutputData.Add(ElementWiseUnaryCPUHelper::Apply<OpType>(elem, Alpha, Beta, Gamma));
+				}
+				OutputTensors[0]->SetPreparedData<float>(OutputData);
+			}
+			
 			return 0;
 		}
 

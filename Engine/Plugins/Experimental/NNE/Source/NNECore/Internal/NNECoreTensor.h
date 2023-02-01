@@ -59,9 +59,12 @@ namespace UE::NNECore::Internal
 			DataSize = static_cast<uint64>(GetTensorDataTypeSizeInBytes(DataType) * Volume);
 		}
 
-		void SetPreparedData(TConstArrayView<uint8> Data)
+		template <typename T> void SetPreparedData(TConstArrayView<T> Data)
 		{
-			checkf(Data.Num() == DataSize, TEXT("Incorrect data size, it should match tensor shape and data type."));
+			const uint8* DataPtr = reinterpret_cast<const uint8*>(Data.GetData());
+			TConstArrayView<uint8> DataAsByte = MakeArrayView(DataPtr, Data.Num() / sizeof(T));
+			
+			checkf(DataAsByte.Num() == DataSize, TEXT("Incorrect data size, it should match tensor shape and data type."));
 			PreparedData.Reset();
 			PreparedData.Append(Data);
 		}

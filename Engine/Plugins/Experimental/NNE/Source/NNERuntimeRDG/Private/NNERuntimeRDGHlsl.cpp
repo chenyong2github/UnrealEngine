@@ -17,6 +17,7 @@
 #include "Hlsl/NNERuntimeRDGGemm.h"
 #include "Hlsl/NNERuntimeRDGInstanceNormalization.h"
 #include "Hlsl/NNERuntimeRDGPad.h"
+#include "Hlsl/NNERuntimeRDGShape.h"
 #include "Hlsl/NNERuntimeRDGUpsample.h"
 #include "Hlsl/NNERuntimeRDGMatMul.h"
 
@@ -40,6 +41,7 @@ bool UNNERuntimeRDGHlslImpl::Init()
 	RegisterInstanceNormalizationOperator(*registry);
 	RegisterUpsampleOperator(*registry);
 	RegisterPadOperator(*registry);
+	RegisterShapeOperator(*registry);
 
 	return true;
 }
