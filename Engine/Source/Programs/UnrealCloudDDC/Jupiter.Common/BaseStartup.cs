@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.Metrics;
 using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Net.Mime;
@@ -33,6 +34,7 @@ using Newtonsoft.Json.Serialization;
 using Okta.AspNet.Abstractions;
 using Okta.AspNetCore;
 using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
@@ -257,6 +259,11 @@ namespace Jupiter
 
             string otelServiceName = Configuration["OTEL_SERVICE_NAME"] ?? "unreal-cloud-ddc";
             string otelServiceVersion = Configuration["OTEL_SERVICE_VERSION"];
+
+            ResourceBuilder appResourceBuilder = ResourceBuilder.CreateDefault()
+                .AddService("UnrealCloudDDC", serviceNamespace: "Jupiter", serviceVersion: otelServiceVersion)
+                .AddEnvironmentVariableDetector();
+
             services.AddOpenTelemetryTracing(builder =>
             {
                 builder.AddHttpClientInstrumentation(options =>
@@ -274,13 +281,8 @@ namespace Jupiter
                 });
                 builder.AddAspNetCoreInstrumentation();
 
+                builder.SetResourceBuilder(appResourceBuilder);
                 builder.AddOtlpExporter();
-
-                builder.ConfigureResource(resourceBuilder =>
-                {
-                    resourceBuilder.AddService("UnrealCloudDDC", serviceNamespace: "Jupiter", serviceVersion: otelServiceVersion);
-                    resourceBuilder.AddEnvironmentVariableDetector();
-                });
 
                 builder.AddSource("UnrealCloudDDC", "ScyllaDB");
             });
@@ -292,6 +294,19 @@ namespace Jupiter
             });
 
             services.AddSingleton<Tracer>(CreateTracer);
+
+            services.AddSingleton<Meter>(CreateMeter);
+
+            services.AddOpenTelemetryMetrics(metricProviderBuilder =>
+            {
+                metricProviderBuilder
+                    .AddMeter("UnrealCloudDDC", "ScyllaDB")
+                    .AddOtlpExporter()
+                    .AddConsoleExporter()
+                    .SetResourceBuilder(appResourceBuilder)
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation();
+            });
 
             services.Configure<ForwardedHeadersOptions>(options =>
             {
@@ -323,6 +338,11 @@ namespace Jupiter
             OnAddService(services);
 
             OnAddHealthChecks(services);
+        }
+
+        private Meter CreateMeter(IServiceProvider provider)
+        {
+            return new Meter("UnrealCloudDDC");
         }
 
         private Tracer CreateTracer(IServiceProvider provider)
