@@ -662,11 +662,16 @@ FConstraintTickFunction::ConstraintFunction UTickableTranslationConstraint::GetF
 
 		const FVector ParentTranslation = GetParentGlobalTransform().GetLocation();
 		FTransform Transform = GetChildGlobalTransform();
+		const FVector ChildTranslation = Transform.GetLocation();
+		
 		FVector NewTranslation = (!bMaintainOffset) ? ParentTranslation : ParentTranslation + OffsetTranslation;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 		{
-			NewTranslation = FMath::Lerp<FVector>(Transform.GetLocation(), NewTranslation, ClampedWeight);
+			NewTranslation = FMath::Lerp<FVector>(ChildTranslation, NewTranslation, ClampedWeight);
 		}
+
+		AxisFilter.FilterVector(NewTranslation, ChildTranslation);
+		
 		Transform.SetLocation(NewTranslation);
 			
 		SetChildGlobalTransform(Transform);
@@ -794,12 +799,16 @@ FConstraintTickFunction::ConstraintFunction UTickableRotationConstraint::GetFunc
 		
 		const FQuat ParentRotation = GetParentGlobalTransform().GetRotation();
 		FTransform Transform = GetChildGlobalTransform();
+		const FQuat ChildRotation = Transform.GetRotation();
 
 		FQuat NewRotation = (!bMaintainOffset) ? ParentRotation : ParentRotation * OffsetRotation;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 		{
-			NewRotation = FQuat::Slerp(Transform.GetRotation(), NewRotation, ClampedWeight);
+			NewRotation = FQuat::Slerp(ChildRotation, NewRotation, ClampedWeight);
 		}
+
+		AxisFilter.FilterQuat(NewRotation, ChildRotation);
+		
 		Transform.SetRotation(NewRotation);
 		
 		SetChildGlobalTransform(Transform);
@@ -931,11 +940,16 @@ FConstraintTickFunction::ConstraintFunction UTickableScaleConstraint::GetFunctio
 		
 		const FVector ParentScale = GetParentGlobalTransform().GetScale3D();
 		FTransform Transform = GetChildGlobalTransform();
+		const FVector ChildScale = Transform.GetScale3D();
+		
 		FVector NewScale = (!bMaintainOffset) ? ParentScale : ParentScale * OffsetScale;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 		{
-			NewScale = FMath::Lerp<FVector>(Transform.GetScale3D(), NewScale, ClampedWeight);
+			NewScale = FMath::Lerp<FVector>(ChildScale, NewScale, ClampedWeight);
 		}
+
+		AxisFilter.FilterVector(NewScale, ChildScale);
+		
 		Transform.SetScale3D(NewScale);
 			
 		SetChildGlobalTransform(Transform);
@@ -1058,17 +1072,31 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 			return;
 		}
 
-		auto LerpTransform = [ClampedWeight](const FTransform& InTransform, FTransform& InTransformToBeSet)
+		auto LerpAndFilterTransform = [ClampedWeight](
+			const FTransform& InTransform, FTransform& OutTransform, const FTransformFilter& InFilter)
 		{
+			const FVector Location = InTransform.GetLocation();
+			const FQuat Rotation = InTransform.GetRotation();
+			const FVector Scale = InTransform.GetScale3D();
+
+			FVector NewLocation = OutTransform.GetLocation();
+			FQuat NewRotation = OutTransform.GetRotation();
+			FVector NewScale = OutTransform.GetScale3D();
+			
 			if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 			{
-				InTransformToBeSet.SetLocation(
-					FMath::Lerp<FVector>(InTransform.GetLocation(), InTransformToBeSet.GetLocation(), ClampedWeight));
-				InTransformToBeSet.SetRotation(
-					FQuat::Slerp(InTransform.GetRotation(), InTransformToBeSet.GetRotation(), ClampedWeight));
-				InTransformToBeSet.SetScale3D(
-					FMath::Lerp<FVector>(InTransform.GetScale3D(), InTransformToBeSet.GetScale3D(), ClampedWeight));
+				NewLocation = FMath::Lerp<FVector>(Location, NewLocation, ClampedWeight);
+				NewRotation = FQuat::Slerp(Rotation, NewRotation, ClampedWeight);
+				NewScale = FMath::Lerp<FVector>(Scale, NewScale, ClampedWeight);
 			}
+
+			InFilter.TranslationFilter.FilterVector(NewLocation, Location);
+			InFilter.RotationFilter.FilterQuat(NewRotation, Rotation);
+			InFilter.ScaleFilter.FilterVector(NewScale, Scale);
+
+			OutTransform.SetLocation(NewLocation);
+			OutTransform.SetRotation(NewRotation);
+			OutTransform.SetScale3D(NewScale);
 		};
 
 		const FTransform ParentTransform = GetParentGlobalTransform();
@@ -1076,7 +1104,7 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 		FTransform TargetTransform = (!bMaintainOffset) ? ParentTransform : OffsetTransform * ParentTransform;
 		//apply weight if needed
 		const FTransform ChildGlobalTransform = GetChildGlobalTransform();
-		LerpTransform(ChildGlobalTransform, TargetTransform);
+		LerpAndFilterTransform(ChildGlobalTransform, TargetTransform, TransformFilter);
 
 		//remove scale?
 		if (!bScaling)

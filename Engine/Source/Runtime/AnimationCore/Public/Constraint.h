@@ -58,48 +58,48 @@ struct ANIMATIONCORE_API FFilterOptionPerAxis
 		, bZ(true)
 	{}
 
-	void FilterVector(FVector& Input, float ResetValue = 0.f) const
+	void FilterVector(FVector& Input, const FVector& ResetValue = FVector::ZeroVector) const
 	{
 		if (!bX)
 		{
-			Input.X = ResetValue;
+			Input.X = ResetValue.X;
 		}
 
 		if (!bY)
 		{
-			Input.Y = ResetValue;
+			Input.Y = ResetValue.Y;
 		}
 
 		if (!bZ)
 		{
-			Input.Z = ResetValue;
+			Input.Z = ResetValue.Z;
 		}
 	}
 
-	void FilterQuat(FQuat& Input) const
+	void FilterQuat(FQuat& Input, const FQuat& ResetValue = FQuat::Identity) const
 	{
 		FRotator Rotator = Input.Rotator();
 
-		FilterRotator(Rotator);
+		FilterRotator(Rotator, ResetValue.Rotator());
 
 		Input = Rotator.Quaternion();
 	}
 
-	void FilterRotator(FRotator& Input) const
+	void FilterRotator(FRotator& Input, const FRotator& ResetValue = FRotator::ZeroRotator) const
 	{
 		if (!bX)
 		{
-			Input.Roll = 0.f;
+			Input.Roll = ResetValue.Roll;
 		}
 
 		if (!bY)
 		{
-			Input.Pitch = 0.f;
+			Input.Pitch = ResetValue.Pitch;
 		}
 
 		if (!bZ)
 		{
-			Input.Yaw = 0.f;
+			Input.Yaw = ResetValue.Yaw;
 		}
 	}
 
@@ -151,7 +151,7 @@ struct ANIMATIONCORE_API FTransformFilter
 		Input.SetRotation(Rotation);
 
 		FVector Scale3D = Input.GetScale3D();
-		ScaleFilter.FilterVector(Scale3D, 1.f);
+		ScaleFilter.FilterVector(Scale3D, FVector::OneVector);
 		Input.SetScale3D(Scale3D);
 	}
 
@@ -166,7 +166,7 @@ struct ANIMATIONCORE_API FTransformFilter
 		Input.Rotation = Rotation;
 
 		FVector Scale = Input.Scale;
-		ScaleFilter.FilterVector(Scale, 1.f);
+		ScaleFilter.FilterVector(Scale, FVector::OneVector);
 		Input.Scale = Scale;
 	}
 };

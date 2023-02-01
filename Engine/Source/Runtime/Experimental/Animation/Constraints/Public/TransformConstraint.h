@@ -198,6 +198,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FVector OffsetTranslation = FVector::ZeroVector;
 
+	/** Defines which translation axis is constrained. */
+	UPROPERTY(BlueprintReadWrite, Category = "Axis Filter")
+	FFilterOptionPerAxis AxisFilter;
+
 #if WITH_EDITOR
 public:
 	// UObject interface
@@ -241,6 +245,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FQuat OffsetRotation = FQuat::Identity;
 
+	/** Defines which rotation axis is constrained. */
+	UPROPERTY(BlueprintReadWrite, Category = "Axis Filter")
+	FFilterOptionPerAxis AxisFilter;
+
 #if WITH_EDITOR
 public:
 	// UObject interface
@@ -282,6 +290,10 @@ protected:
 	/** Defines the local child's scale offset in the parent space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FVector OffsetScale = FVector::OneVector;
+
+	/** Defines which scale axis is constrained. */
+	UPROPERTY(BlueprintReadWrite, Category = "Axis Filter")
+	FFilterOptionPerAxis AxisFilter;
 
 #if WITH_EDITOR
 public:
@@ -334,6 +346,10 @@ protected:
 	/** Defines whether we propagate the parent scale. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Properties")
 	bool bScaling = false;
+
+	/** Defines which translation/rotation/scale axis are constrained. */
+	UPROPERTY(BlueprintReadWrite, Category = "Axis Filter") 
+	FTransformFilter TransformFilter;
 
 #if WITH_EDITOR
 public:
