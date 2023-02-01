@@ -78,7 +78,7 @@ namespace Chaos
 			{
 				return false;
 			}
-			
+
 			if (Edge > 0.0f)
 			{
 				VectorRegister4Float OtherNormal = VectorCross(BX1, AB);
@@ -516,7 +516,7 @@ namespace Chaos
 		: Position(VectorZeroFloat())
 	{
 	}
-	
+
 	FAABBSimd::FAABBSimd(const TBox<FReal, 3>& QueryGeom)
 	{
 		FVec3f Positionf = QueryGeom.GetCenter();
@@ -527,7 +527,7 @@ namespace Chaos
 
 	FAABBSimd::FAABBSimd(const TImplicitObjectScaled< TBox<FReal, 3> >& QueryGeom)
 	{
-		FVec3f Positionf = QueryGeom.GetUnscaledObject()->GetCenter()* QueryGeom.GetScale();
+		FVec3f Positionf = QueryGeom.GetUnscaledObject()->GetCenter() * QueryGeom.GetScale();
 		Position = VectorLoadFloat3(&Positionf.X);
 		FVec3f HalfExtentsf = QueryGeom.GetUnscaledObject()->Extents() * 0.5 * (QueryGeom.GetScale() + UE_SMALL_NUMBER);
 		HalfExtents = VectorLoadFloat3(&HalfExtentsf.X);
@@ -607,7 +607,7 @@ namespace Chaos
 		constexpr FRealSingle ThirdFloat = 1.0f / 3.0f;
 		constexpr VectorRegister4Float Third = MakeVectorRegisterFloatConstant(ThirdFloat, ThirdFloat, ThirdFloat, ThirdFloat);
 		const VectorRegister4Float Centroid = VectorMultiply(VectorAdd(VectorAdd(A, B), C), Third);
-		
+
 
 		const VectorRegister4Float ABPlane = VectorCross(Normal, AB);
 		const VectorRegister4Float ABSigns = VectorBitwiseAnd(ABPlane, SignBit);
