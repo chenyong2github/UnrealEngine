@@ -32,7 +32,7 @@ namespace EpicGames.Horde.Storage.Backends
 
 		class WriteBlobResponse
 		{
-			public BlobLocator Locator { get; set; }
+			public BlobLocator Blob { get; set; }
 			public Uri? UploadUrl { get; set; }
 			public bool? SupportsRedirects { get; set; }
 		}
@@ -153,16 +153,16 @@ namespace EpicGames.Horde.Storage.Backends
 								throw new StorageException($"Unable to upload data to redirected URL: {body}", null);
 							}
 						}
-						_logger.LogDebug("Written {Locator} (using redirect)", redirectResponse.Locator);
-						return redirectResponse.Locator;
+						_logger.LogDebug("Written {Locator} (using redirect)", redirectResponse.Blob);
+						return redirectResponse.Blob;
 					}
 				}
 			}
 
 			WriteBlobResponse response = await SendWriteRequestAsync(streamContent, prefix, cancellationToken);
 			_supportsUploadRedirects = response.SupportsRedirects ?? false;
-			_logger.LogDebug("Written {Locator} (direct)", response.Locator);
-			return response.Locator;
+			_logger.LogDebug("Written {Locator} (direct)", response.Blob);
+			return response.Blob;
 		}
 
 		async Task<WriteBlobResponse> SendWriteRequestAsync(StreamContent? streamContent, Utf8String prefix = default, CancellationToken cancellationToken = default)

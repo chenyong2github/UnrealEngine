@@ -277,8 +277,8 @@ namespace EpicGames.Horde.Storage
 
 			static readonly WriteCallbackSentinel s_callbackSentinel = new WriteCallbackSentinel();
 
-			static int s_nextUniqueId = 1;
-			public int BundleId { get; } = Interlocked.Increment(ref s_nextUniqueId);
+			static int s_lastBundleId = 0;
+			public int BundleId { get; } = Interlocked.Increment(ref s_lastBundleId);
 
 			readonly int _maxPacketSize;
 			readonly BundleCompressionFormat _compressionFormat;
