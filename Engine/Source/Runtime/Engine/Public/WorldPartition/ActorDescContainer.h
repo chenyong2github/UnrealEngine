@@ -11,6 +11,7 @@
 #include "ActorDescContainer.generated.h"
 
 class FLinkerInstancingContext;
+class UWorldPartition;
 
 UCLASS()
 class ENGINE_API UActorDescContainer : public UObject, public FActorDescList

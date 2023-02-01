@@ -4,6 +4,7 @@
 
 #include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
+#include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Streaming/LevelStreamingDelegates.h"

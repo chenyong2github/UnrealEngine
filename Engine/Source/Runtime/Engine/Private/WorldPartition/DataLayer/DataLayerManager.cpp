@@ -11,7 +11,9 @@
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "Engine/Canvas.h"
+#include "Engine/Engine.h"
 #include "Debug/DebugDrawService.h"
+#include "Misc/Paths.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
