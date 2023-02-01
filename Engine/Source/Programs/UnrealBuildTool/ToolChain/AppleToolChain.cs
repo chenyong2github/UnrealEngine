@@ -398,6 +398,12 @@ namespace UnrealBuildTool
 			Arguments.Add("-fpascal-strings");
 		}
 
+		public override CppCompileEnvironment CreateSharedResponseFile(CppCompileEnvironment CompileEnvironment, FileReference OutResponseFile, IActionGraphBuilder Graph)
+		{
+			// Temporarily turn of shared response files for apple toolchains
+			return CompileEnvironment;
+		}
+
 		protected string GetDsymutilPath(ILogger Logger, out string ExtraOptions, bool bIsForLTOBuild=false)
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");
