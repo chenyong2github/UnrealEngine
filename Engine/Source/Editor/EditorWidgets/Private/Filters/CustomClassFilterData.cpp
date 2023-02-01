@@ -11,7 +11,7 @@
 FCustomClassFilterData::FCustomClassFilterData(UAssetDefinition* InAssetDefinition, const FAssetFilterData& InAssetTypeAction)
 	: AssetDefinitionPtr(InAssetDefinition)
 {
-	Class = InAssetDefinition->GetAssetClass()->GetClass();
+	Class = InAssetDefinition->GetAssetClass().Get();
 	FilterName = InAssetTypeAction.Name;
 	FilterDisplayName = InAssetTypeAction.DisplayText;
 	ClassPathName = InAssetDefinition->GetAssetClass().ToSoftObjectPath().GetAssetPath();
@@ -19,7 +19,7 @@ FCustomClassFilterData::FCustomClassFilterData(UAssetDefinition* InAssetDefiniti
 	Filter = InAssetTypeAction.Filter;
 }
 
-FCustomClassFilterData::FCustomClassFilterData(UClass*InClass, TSharedPtr<FFilterCategory> InCategory, FLinearColor InColor)
+FCustomClassFilterData::FCustomClassFilterData(UClass* InClass, TSharedPtr<FFilterCategory> InCategory, FLinearColor InColor)
 	: Class(InClass)
 	, Color(InColor)
 {
