@@ -4,11 +4,10 @@
 
 #include "OptimusCoreNotify.h"
 #include "OptimusDiagnostic.h"
-#include "OptimusTemplates.h"
 
-#include "UObject/Object.h"
 #include "CoreMinimal.h"
 #include "OptimusNodePin.h"
+#include "UObject/Object.h"
 
 #include "OptimusNode.generated.h"
 

@@ -3,10 +3,10 @@
 #include "OptimusComputeDataInterface.h"
 
 #include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
-#include "OptimusTemplates.h"
 
-#include "UObject/UObjectIterator.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/UObjectIterator.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusComputeDataInterface)
 

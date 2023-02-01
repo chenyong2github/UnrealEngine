@@ -17,6 +17,7 @@
 #include "Algo/HeapSort.h"
 #include "Algo/IsHeap.h"
 #include "Algo/Impl/BinaryHeap.h"
+#include "Concepts/GetTypeHashable.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/IdentityFunctor.h"
 #include "Templates/Invoke.h"
@@ -3560,4 +3561,16 @@ template<typename ElementType, typename AllocatorType>
 FArchive& operator<<(FArchive& Ar, TArray<ElementType, AllocatorType>& A)
 {
 	return TArrayPrivateFriend::Serialize(Ar, A);
+}
+
+/** Returns a unique hash by combining those of each array element. */
+template<typename InElementType, typename InAllocatorType>
+uint32 GetTypeHash(const TArray<InElementType, InAllocatorType>& A)
+{
+	uint32 Hash = 0;
+	for (const InElementType& V : A)
+	{
+		Hash = HashCombineFast(Hash, GetTypeHash(V));
+	}
+	return Hash;
 }
