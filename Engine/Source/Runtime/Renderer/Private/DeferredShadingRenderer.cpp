@@ -2920,6 +2920,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		&& (!ViewFamily.EngineShowFlags.Wireframe || bIsViewFrozen || bHasViewParent);
 	const bool bNeedsPrePass = ShouldRenderPrePass();
 
+	// Sanity check - Note: Nanite forces a Z prepass in ShouldForceFullDepthPass()
+	check(!UseNanite(ShaderPlatform) || bNeedsPrePass);
+
 	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
 	// Strata initialisation is always run even when not enabled.
@@ -3199,45 +3202,22 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						// Emit velocity with depth if not writing it in base pass.
 						FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
 
-						if (bNeedsPrePass)
-						{
-							Nanite::EmitDepthTargets(
-								GraphBuilder,
-								*Scene,
-								Views[ViewIndex],
-								CullingContext.PageConstants,
-								CullingContext.VisibleClustersSWHW,
-								CullingContext.ViewsBuffer,
-								SceneTextures.Depth.Target,
-								RasterContext.VisBuffer64,
-								VelocityBuffer,
-								RasterResults.MaterialDepth,
-								RasterResults.ShadingMask
-							);
-						}
-
-						if (!bIsEarlyDepthComplete && CullingConfig.bTwoPassOcclusion && View.ViewState)
-						{
-							// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
-							RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BuildHZB");
-
-							FRDGTextureRef SceneDepth = SystemTextures.Black;
-							FRDGTextureRef GraphHZB = nullptr;
-
-							const FIntRect PrimaryViewRect = View.GetPrimaryView()->ViewRect;
-
-							BuildHZBFurthest(
-								GraphBuilder,
-								SceneDepth,
-								RasterContext.VisBuffer64,
-								PrimaryViewRect,
-								FeatureLevel,
-								ShaderPlatform,
-								TEXT("Nanite.HZB"),
-								/* OutFurthestHZBTexture = */ &GraphHZB);
-
-							GraphBuilder.QueueTextureExtraction(GraphHZB, &View.ViewState->PrevFrameViewInfo.NaniteHZB);
-						}
+						Nanite::EmitDepthTargets(
+							GraphBuilder,
+							*Scene,
+							Views[ViewIndex],
+							CullingContext.PageConstants,
+							CullingContext.VisibleClustersSWHW,
+							CullingContext.ViewsBuffer,
+							SceneTextures.Depth.Target,
+							RasterContext.VisBuffer64,
+							VelocityBuffer,
+							RasterResults.MaterialDepth,
+							RasterResults.ShadingMask
+						);
+						
+						// Sanity check (always force Z prepass)
+						check(bIsEarlyDepthComplete);
 
 						Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, RasterResults);
 					}

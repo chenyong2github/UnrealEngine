@@ -1345,34 +1345,6 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 	}
 #endif
 
-	auto RenderNaniteDepthPass = [&](FViewInfo& View, int32 ViewIndex)
-	{
-		// Emit Nanite depth if there was not an earlier depth pre-pass
-		if (!ShouldRenderPrePass())
-		{
-			RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteBasePass);
-
-			Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
-
-			// Emit velocity with depth if not writing it in base pass.
-			FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
-
-			Nanite::EmitDepthTargets(
-				GraphBuilder,
-				*Scene,
-				View,
-				RasterResults.PageConstants,
-				RasterResults.VisibleClustersSWHW,
-				RasterResults.ViewsBuffer,
-				SceneTextures.Depth.Target,
-				RasterResults.VisBuffer64,
-				VelocityBuffer,
-				RasterResults.MaterialDepth,
-				RasterResults.ShadingMask
-			);
-		}
-	};
-
 	auto RenderNaniteBasePass = [&](FViewInfo& View, int32 ViewIndex)
 	{
 		Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
@@ -1415,13 +1387,15 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 		// Debug view support for Nanite
 		if (bNaniteEnabled)
 		{
+			// Should always have a full Z prepass with Nanite
+			check(ShouldRenderPrePass());
+
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
 				FViewInfo& View = Views[ViewIndex];
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
-				RenderNaniteDepthPass(View, ViewIndex);
 				RenderNaniteBasePass(View, ViewIndex);
 			}
 		}
@@ -1442,8 +1416,6 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 		SCOPE_CYCLE_COUNTER(STAT_BasePassDrawTime);
 		RDG_EVENT_SCOPE(GraphBuilder, "BasePass");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, Basepass);
-
-		const bool bNeedsPrePass = ShouldRenderPrePass();
 
 		if (bParallelBasePass)
 		{
@@ -1486,7 +1458,9 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 
 				if (bNaniteEnabled)
 				{
-					RenderNaniteDepthPass(View, ViewIndex);
+					// Should always have a full Z prepass with Nanite
+					check(ShouldRenderPrePass());
+
 					RenderNaniteBasePass(View, ViewIndex);
 				}
 
@@ -1554,7 +1528,9 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 
 				if (bNaniteEnabled)
 				{
-					RenderNaniteDepthPass(View, ViewIndex);
+					// Should always have a full Z prepass with Nanite
+					check(ShouldRenderPrePass());
+
 					RenderNaniteBasePass(View, ViewIndex);
 				}
 
