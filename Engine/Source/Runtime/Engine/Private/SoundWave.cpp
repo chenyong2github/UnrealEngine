@@ -1671,7 +1671,7 @@ void USoundWave::PostLoad()
 		{
 			if (!GIsEditor && !DisableRetainingCVar && ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 			{
-				RetainCompressedAudio(true);
+				RetainCompressedAudio(false);
 			}
 			else
 			{
