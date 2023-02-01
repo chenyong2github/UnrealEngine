@@ -243,8 +243,16 @@ namespace Horde.Build
 	/// <summary>
 	/// Global settings for the application
 	/// </summary>
-	public class ServerSettings
+	public class ServerSettings : IAclScope
 	{
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public IAclScope? ParentScope => null;
+
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public AclScopeName ScopeName => AclScopeName.Root;
+
 		/// <inheritdoc cref="RunMode" />
 		public RunMode[]? RunModes { get; set; } = null;
 
@@ -657,7 +665,7 @@ namespace Horde.Build
 		/// Default pre-baked ACL for authentication of well-known roles
 		/// </summary>
 		[JsonIgnore]
-		public AclConfig DefaultAcl
+		public AclConfig? Acl
 		{
 			get
 			{
@@ -668,16 +676,6 @@ namespace Horde.Build
 		
 		[JsonIgnore]
 		AclConfig? _defaultAcl;
-
-		/// <summary>
-		/// Authorizes a user to perform a given action
-		/// </summary>
-		/// <param name="action">The action being performed</param>
-		/// <param name="user">The principal to validate</param>
-		public bool Authorize(AclAction action, ClaimsPrincipal user)
-		{
-			return DefaultAcl.Authorize(action, user) ?? false;
-		}
 
 		/// <summary>
 		/// Create the default ACL for the server, including all predefined roles.

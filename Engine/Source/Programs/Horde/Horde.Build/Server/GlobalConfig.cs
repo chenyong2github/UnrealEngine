@@ -51,13 +51,21 @@ namespace Horde.Build.Server
 	[JsonSchema("https://unrealengine.com/horde/global")]
 	[JsonSchemaCatalog("Horde Globals", "Horde global configuration file", "globals.json")]
 	[ConfigIncludeRoot]
-	public class GlobalConfig
+	public class GlobalConfig : IAclScope
 	{
 		/// <summary>
 		/// Global server settings object
 		/// </summary>
 		[JsonIgnore]
 		public ServerSettings ServerSettings { get; private set; } = null!;
+
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public IAclScope ParentScope => ServerSettings;
+
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public AclScopeName ScopeName => ServerSettings.ScopeName;
 
 		/// <summary>
 		/// Unique identifier for this config revision. Useful to detect changes.
@@ -140,6 +148,7 @@ namespace Horde.Build.Server
 		private readonly Dictionary<StreamId, StreamConfig> _streamLookup = new Dictionary<StreamId, StreamConfig>();
 		private readonly Dictionary<ToolId, ToolConfig> _toolLookup = new Dictionary<ToolId, ToolConfig>();
 		private readonly Dictionary<ClusterId, ComputeClusterConfig> _computeClusterLookup = new Dictionary<ClusterId, ComputeClusterConfig>();
+		private readonly Dictionary<AclScopeName, IAclScope> _aclScopeLookup = new Dictionary<AclScopeName, IAclScope>();
 
 		/// <summary>
 		/// Called after the config file has been read
@@ -175,6 +184,21 @@ namespace Horde.Build.Server
 			{
 				_computeClusterLookup.Add(computeCluster.Id, computeCluster);
 				computeCluster.PostLoad(this);
+			}
+
+			_aclScopeLookup.Clear();
+			_aclScopeLookup.Add(ScopeName, this);
+			foreach (ProjectConfig project in Projects)
+			{
+				_aclScopeLookup.Add(project.ScopeName, project);
+				foreach (StreamConfig stream in project.Streams)
+				{
+					_aclScopeLookup.Add(stream.ScopeName, stream);
+					foreach (TemplateRefConfig template in stream.Templates)
+					{
+						_aclScopeLookup.Add(template.ScopeName, template);
+					}
+				}
 			}
 
 			Storage.PostLoad(this);
@@ -215,11 +239,12 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Authorizes a user to perform a given action
 		/// </summary>
+		/// <param name="scopeName">Name of the scope to auth against</param>
 		/// <param name="action">The action being performed</param>
 		/// <param name="user">The principal to validate</param>
-		public bool Authorize(AclAction action, ClaimsPrincipal user)
+		public bool Authorize(AclScopeName scopeName, AclAction action, ClaimsPrincipal user)
 		{
-			return Acl.Authorize(action, user) ?? ServerSettings.Authorize(action, user);
+			return _aclScopeLookup.TryGetValue(scopeName, out IAclScope? scope) && scope.Authorize(action, user);
 		}
 
 		/// <summary>
@@ -237,7 +262,7 @@ namespace Horde.Build.Server
 			}
 			else
 			{
-				return Authorize(AclAction.Impersonate, user);
+				return this.Authorize(AclAction.Impersonate, user);
 			}
 		}
 

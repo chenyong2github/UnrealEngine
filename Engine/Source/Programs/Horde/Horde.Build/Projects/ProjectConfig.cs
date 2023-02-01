@@ -28,13 +28,21 @@ namespace Horde.Build.Projects
 	[JsonSchemaCatalog("Horde Project", "Horde project configuration file", new[] { "*.project.json", "Projects/*.json" })]
 	[ConfigIncludeRoot]
 	[DebuggerDisplay("{Id}")]
-	public class ProjectConfig
+	public class ProjectConfig : IAclScope
 	{
 		/// <summary>
 		/// Accessor for the global config owning this project
 		/// </summary>
 		[JsonIgnore]
 		public GlobalConfig GlobalConfig { get; private set; } = null!;
+
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public IAclScope? ParentScope => GlobalConfig;
+
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public AclScopeName ScopeName { get; private set; }
 
 		/// <summary>
 		/// The project id
@@ -101,21 +109,12 @@ namespace Horde.Build.Projects
 		{
 			Id = id;
 			GlobalConfig = globalConfig;
+			ScopeName = ParentScope.ScopeName.Append("p", Id.ToString());
 
 			foreach (StreamConfig stream in Streams)
 			{
 				stream.PostLoad(stream.Id, this);
 			}
-		}
-
-		/// <summary>
-		/// Authorizes a user to perform a given action
-		/// </summary>
-		/// <param name="action">The action being performed</param>
-		/// <param name="user">The principal to validate</param>
-		public bool Authorize(AclAction action, ClaimsPrincipal user)
-		{
-			return Acl?.Authorize(action, user) ?? GlobalConfig.Authorize(action, user);
 		}
 	}
 

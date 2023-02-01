@@ -77,13 +77,21 @@ namespace Horde.Build.Streams
 	[JsonSchema("https://unrealengine.com/horde/stream")]
 	[JsonSchemaCatalog("Horde Stream", "Horde stream configuration file", new[] { "*.stream.json", "Streams/*.json" })]
 	[ConfigIncludeRoot]
-	public class StreamConfig
+	public class StreamConfig : IAclScope
 	{
 		/// <summary>
 		/// Accessor for the project containing this stream
 		/// </summary>
 		[JsonIgnore]
 		public ProjectConfig ProjectConfig { get; private set; } = null!;
+
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public IAclScope? ParentScope => ProjectConfig;
+
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public AclScopeName ScopeName { get; private set; }
 
 		/// <summary>
 		/// Identifier for the stream
@@ -236,22 +244,14 @@ namespace Horde.Build.Streams
 		{
 			Id = id;
 			ProjectConfig = projectConfig;
+			ScopeName = projectConfig.ScopeName.Append("s", Id.ToString());
+
 			JobOptions.MergeDefaults(projectConfig.JobOptions);
 
 			foreach (TemplateRefConfig template in Templates)
 			{
 				template.PostLoad(this);
 			}
-		}
-
-		/// <summary>
-		/// Authorizes a user to perform a given action
-		/// </summary>
-		/// <param name="action">The action being performed</param>
-		/// <param name="user">The principal to validate</param>
-		public bool Authorize(AclAction action, ClaimsPrincipal user)
-		{
-			return Acl?.Authorize(action, user) ?? ProjectConfig.Authorize(action, user);
 		}
 
 		/// <summary>
@@ -672,13 +672,21 @@ namespace Horde.Build.Streams
 	/// <summary>
 	/// Parameters to create a template within a stream
 	/// </summary>
-	public class TemplateRefConfig : TemplateConfig
+	public class TemplateRefConfig : TemplateConfig, IAclScope
 	{
 		/// <summary>
 		/// The owning stream config
 		/// </summary>
 		[JsonIgnore]
 		public StreamConfig StreamConfig { get; private set; } = null!;
+
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public IAclScope? ParentScope => StreamConfig;
+
+		/// <inheritdoc/>
+		[JsonIgnore]
+		public AclScopeName ScopeName { get; private set; }
 
 		/// <summary>
 		/// Optional identifier for this ref. If not specified, an id will be generated from the name.
@@ -746,22 +754,14 @@ namespace Horde.Build.Streams
 		public void PostLoad(StreamConfig streamConfig)
 		{
 			StreamConfig = streamConfig;
+			ScopeName = streamConfig.ScopeName.Append("t", Id.ToString());
+
 			JobOptions.MergeDefaults(streamConfig.JobOptions);
 
 			if (Id.IsEmpty)
 			{
 				Id = TemplateId.Sanitize(Name);
 			}
-		}
-
-		/// <summary>
-		/// Authorizes a user to perform a given action
-		/// </summary>
-		/// <param name="action">The action being performed</param>
-		/// <param name="user">The principal to validate</param>
-		public bool Authorize(AclAction action, ClaimsPrincipal user)
-		{
-			return Acl?.Authorize(action, user) ?? StreamConfig.Authorize(action, user);
 		}
 	}
 
