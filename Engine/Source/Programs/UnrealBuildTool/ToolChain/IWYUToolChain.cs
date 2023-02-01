@@ -78,15 +78,11 @@ namespace UnrealBuildTool
 
 			Dictionary<FileItem, List<FileItem>> GenCppLookup = CompileEnvironment.FileInlineGenCPPMap;
 
-			CompileEnvironment = new(CompileEnvironment);
-			CompileEnvironment.Definitions.Add("SUPPRESS_MONOLITHIC_HEADER_WARNINGS=1");
-			CompileEnvironment.Definitions.Add("PLATFORM_COMPILER_IWYU=1");
-
-			// Remove this once c++20 linux compile errors are fixed
-			CompileEnvironment.CppStandard = CppStandardVersion.Cpp17;
-
 			List<string> GlobalArguments = new();
-			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
+			if (CompileEnvironment.UserIncludePaths.Count != 0)
+			{
+				GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
+			}
 
 			// Need to add these on cmd line.. IWYU is not parsing commands after response file expansion.
 			string CommonCommandLineArgs = " -Xiwyu --mapping_file=" + IWYUMappingFile.FullName +
@@ -159,6 +155,9 @@ namespace UnrealBuildTool
 
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
+			Arguments.Add(GetPreprocessorDefinitionArgument("SUPPRESS_MONOLITHIC_HEADER_WARNINGS=1"));
+			Arguments.Add(GetPreprocessorDefinitionArgument("PLATFORM_COMPILER_IWYU=1"));
+
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
 
 			if (ShouldUseLibcxx(CompileEnvironment.Architecture))
@@ -185,11 +184,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override void GetCompileArguments_FileType(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, List<string> Arguments, Action CompileAction, CPPOutput CompileResult)
-		{
-			base.GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, Arguments, CompileAction, CompileResult);
-		}
-
 		protected override void GetCompileArguments_WarningsAndErrors(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			CompileEnvironment.ShadowVariableWarningLevel = WarningLevel.Off;
@@ -200,11 +194,18 @@ namespace UnrealBuildTool
 			Arguments.Add("-Wno-pragma-once-outside-header");
 		}
 
+		// TODO: REMOVE THIS ONCE c++20 compile fixes have been done
+		protected override void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			Arguments.Add("-std=c++17");
+		}
+
 		// Skip ISPC headers
 		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			return new CPPOutput();
 		}
+
 		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			return new CPPOutput();

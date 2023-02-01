@@ -478,6 +478,11 @@ namespace UnrealBuildTool
 		public List<string> Definitions = new List<string>();
 
 		/// <summary>
+		/// Additional response files that will be used by main response file
+		/// </summary>
+		public List<FileItem> AdditionalResponseFiles = new();
+
+		/// <summary>
 		/// Additional arguments to pass to the compiler.
 		/// </summary>
 		public string AdditionalArguments = "";
@@ -636,6 +641,7 @@ namespace UnrealBuildTool
 			CollidingNames = Other.CollidingNames;
 			FileInlineGenCPPMap = new Dictionary<FileItem, List<FileItem>>(Other.FileInlineGenCPPMap);
 			Definitions.AddRange(Other.Definitions);
+			AdditionalResponseFiles.AddRange(Other.AdditionalResponseFiles);
 			AdditionalArguments = Other.AdditionalArguments;
 			AdditionalFrameworks.AddRange(Other.AdditionalFrameworks);
 			PrecompiledHeaderFile = Other.PrecompiledHeaderFile;

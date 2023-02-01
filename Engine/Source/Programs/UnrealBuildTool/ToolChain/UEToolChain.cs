@@ -152,6 +152,11 @@ namespace UnrealBuildTool
 			return Result.ToArray();
 		}
 
+		public virtual CppCompileEnvironment CreateSharedResponseFile(CppCompileEnvironment CompileEnvironment, FileReference OutResponseFile, IActionGraphBuilder Graph)
+		{
+			return CompileEnvironment;
+		}
+
 		/// <summary>
 		/// Get the name of the response file for the current compile environment and output file
 		/// </summary>

@@ -888,6 +888,12 @@ namespace UnrealBuildTool
 		/// <param name="CompileResult"></param>
 		protected virtual void GetCompileArguments_FileType(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, List<string> Arguments, Action CompileAction, CPPOutput CompileResult)
 		{
+			// Add the additional response files
+			foreach (FileItem AdditionalResponseFile in CompileEnvironment.AdditionalResponseFiles)
+			{
+				Arguments.Add($"@{NormalizeCommandLinePath(AdditionalResponseFile.Location)}");
+			}
+
 			// Add the C++ source file and its included files to the prerequisite item list.
 			CompileAction.PrerequisiteItems.UnionWith(CompileEnvironment.ForceIncludeFiles);
 			CompileAction.PrerequisiteItems.UnionWith(CompileEnvironment.AdditionalPrerequisites);
@@ -1022,6 +1028,27 @@ namespace UnrealBuildTool
 			return NewList;
 		}
 
+		public override CppCompileEnvironment CreateSharedResponseFile(CppCompileEnvironment CompileEnvironment, FileReference OutResponseFile, IActionGraphBuilder Graph)
+		{
+			CppCompileEnvironment NewCompileEnvironment = new CppCompileEnvironment(CompileEnvironment);
+			List<string> Arguments = new List<string>();
+
+			GetCompileArguments_Global(CompileEnvironment, Arguments);
+			NewCompileEnvironment.UserIncludePaths.Clear();
+			NewCompileEnvironment.SystemIncludePaths.Clear();
+
+			Arguments = ExpandResponseFileContents(Arguments);
+
+			FileItem FileItem = FileItem.GetItemByFileReference(OutResponseFile);
+			Graph.CreateIntermediateTextFile(FileItem, Arguments);
+
+			NewCompileEnvironment.AdditionalPrerequisites.Add(FileItem);
+			NewCompileEnvironment.AdditionalResponseFiles.Add(FileItem);
+
+
+			return NewCompileEnvironment;
+		}
+
 		protected virtual Action CompileCPPFile(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph, IReadOnlyCollection<string> GlobalArguments, CPPOutput Result)
 		{
 			Action CompileAction = Graph.CreateAction(ActionType.Compile);
@@ -1144,7 +1171,12 @@ namespace UnrealBuildTool
 		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			List<string> GlobalArguments = new();
-			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
+			
+			// Maybe not the nicest way of checking but if we don't have any system include paths it means we are not using a shared rsp file
+			if (CompileEnvironment.SystemIncludePaths.Count != 0)
+			{
+				GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
+			}
 
 			// Create a compile action for each source file.
 			CPPOutput Result = new CPPOutput();

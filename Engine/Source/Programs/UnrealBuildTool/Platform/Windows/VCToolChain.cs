@@ -1364,12 +1364,24 @@ namespace UnrealBuildTool
 		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			VCCompileAction BaseCompileAction = new VCCompileAction(EnvVars);
+
+			// Add additional response files
+			foreach (FileItem AdditionalRsp in CompileEnvironment.AdditionalResponseFiles)
+			{
+				BaseCompileAction.Arguments.Add($"@{NormalizeCommandLinePath(AdditionalRsp.Location)}");
+			}
+
 			AppendCLArguments_Global(CompileEnvironment, BaseCompileAction.Arguments);
 
 			// Add include paths to the argument list.
 			BaseCompileAction.IncludePaths.AddRange(CompileEnvironment.UserIncludePaths);
 			BaseCompileAction.SystemIncludePaths.AddRange(CompileEnvironment.SystemIncludePaths);
-			BaseCompileAction.SystemIncludePaths.AddRange(EnvVars.IncludePaths);
+			
+			// Maybe not the nicest way of checking but if we don't have any system include paths it means we are not using a shared rsp file
+			if (CompileEnvironment.SystemIncludePaths.Count != 0)
+			{
+				BaseCompileAction.SystemIncludePaths.AddRange(EnvVars.IncludePaths);
+			}
 			
 			// Remember the architecture
 			BaseCompileAction.Architecture = CompileEnvironment.Architecture;
@@ -2028,6 +2040,38 @@ namespace UnrealBuildTool
 			{
 				TouchAction.CommandArguments = $"/C \"copy /b \"{OutputFile.FullName}\"+,, \"{OutputFile.FullName}\"\"";
 			}
+		}
+
+		public override CppCompileEnvironment CreateSharedResponseFile(CppCompileEnvironment CompileEnvironment, FileReference OutResponseFile, IActionGraphBuilder Graph)
+		{
+			CppCompileEnvironment NewCompileEnvironment = new CppCompileEnvironment(CompileEnvironment);
+			List<string> Arguments = new List<string>();
+
+			foreach (DirectoryReference IncludePath in NewCompileEnvironment.UserIncludePaths)
+			{
+				AddIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler);
+			}
+
+			foreach (DirectoryReference IncludePath in NewCompileEnvironment.SystemIncludePaths)
+			{
+				AddSystemIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler);
+			}
+
+			foreach (DirectoryReference IncludePath in EnvVars.IncludePaths)
+			{
+				AddSystemIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler);
+			}
+
+			NewCompileEnvironment.UserIncludePaths.Clear();
+			NewCompileEnvironment.SystemIncludePaths.Clear();
+
+			FileItem FileItem = FileItem.GetItemByFileReference(OutResponseFile);
+			Graph.CreateIntermediateTextFile(FileItem, Arguments);
+
+			NewCompileEnvironment.AdditionalPrerequisites.Add(FileItem);
+			NewCompileEnvironment.AdditionalResponseFiles.Add(FileItem);
+
+			return NewCompileEnvironment;
 		}
 
 		/// <summary>
