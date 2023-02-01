@@ -24,6 +24,7 @@
 #include "NavigationDataHandler.h"
 
 #if WITH_EDITOR
+#include "EditorSupportDelegates.h"
 #include "ObjectEditorUtils.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorLoaderAdapter.h"
@@ -571,6 +572,9 @@ void ARecastNavMesh::UpdateNavMeshDrawing()
 	if (NavMeshRenderComp != nullptr && NavMeshRenderComp->GetVisibleFlag() && (NavMeshRenderComp->IsForcingUpdate() || UNavMeshRenderingComponent::IsNavigationShowFlagSet(GetWorld())))
 	{
 		RenderingComp->MarkRenderStateDirty();
+#if WITH_EDITOR
+		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+#endif
 	}
 #endif // UE_BUILD_SHIPPING
 }
