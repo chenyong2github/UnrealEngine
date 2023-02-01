@@ -304,51 +304,31 @@ private:
 
 	void ExtendContentMenu()
 	{
-		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu");
+		UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UMediaSource::StaticClass());
 
-		FToolMenuSection& Section = Menu->AddDynamicSection("MediaSource", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* ToolMenu)
+		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+		Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 		{
-			if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(*ToolMenu))
+			if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InSection))
 			{
-				TArray<UMediaSource*> MediaSources;
-				for (const FAssetData& AssetData : Context->SelectedAssets)
+				const TAttribute<FText> Label = LOCTEXT("GenerateThumbnail", "Generate Thumbnail");
+				const TAttribute<FText> ToolTip = LOCTEXT("GenerateThumbnail_Tooltip", "Generate a thumbnail for this asset.");
+				const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.SaveThumbnail");;
+
+				FToolUIAction UIAction;
+				UIAction.ExecuteAction = FToolMenuExecuteAction::CreateLambda([](const FToolMenuContext& InContext)
 				{
-					if (UMediaSource* MediaSource = Cast<UMediaSource>(AssetData.GetAsset()))
+					const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+
+					for (UMediaSource* MediaSource : Context->LoadSelectedObjects<UMediaSource>())
 					{
-						MediaSources.Add(MediaSource);
+						MediaSource->GenerateThumbnail();
+						MediaSource->MarkPackageDirty();
 					}
-				}
-
-				if (MediaSources.Num() > 0)
-				{
-					const TAttribute<FText> Label = LOCTEXT("GenerateThumbnail", "Generate Thumbnail");
-					const TAttribute<FText> ToolTip = LOCTEXT("GenerateThumbnail_Tooltip",
-						"Generate a thumbnail for this asset.");
-					const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(),
-						"AssetEditor.SaveThumbnail");
-					const FToolMenuExecuteAction UIAction =
-						FToolMenuExecuteAction::CreateLambda([MediaSources]
-						(const FToolMenuContext& InContext)
-					{
-						for (UMediaSource* MediaSource : MediaSources)
-						{
-							MediaSource->GenerateThumbnail();
-							MediaSource->MarkPackageDirty();
-						}
-					});
-
-					const FName SectionName = TEXT("Media");
-					FToolMenuSection* Section = ToolMenu->FindSection(SectionName);
-					if (!Section)
-					{
-						Section = &(ToolMenu->AddSection(SectionName,
-							LOCTEXT("MediaSectionLabel", "Media")));
-					}
-
-					Section->AddMenuEntry("Media_GenerateThumbnail", Label, ToolTip, Icon, UIAction);
-				}
+				});
+				InSection.AddMenuEntry("Media_GenerateThumbnail", Label, ToolTip, Icon, UIAction);
 			}
-		}), FToolMenuInsert(NAME_None, EToolMenuInsertType::Default));
+		}));
 	}
 
 	void HandleEditorBeginPIE(bool bIsSimulating)
