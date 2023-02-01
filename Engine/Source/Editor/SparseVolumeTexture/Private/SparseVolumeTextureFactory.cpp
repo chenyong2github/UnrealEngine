@@ -482,6 +482,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		FBox VolumeBounds(FVector(FLT_MAX), FVector(-FLT_MAX));
 		ExpandVolumeBounds(ImportOptions, PreviewData.GridInfo, VolumeBounds);
 		StaticSVTexture->VolumeBounds = VolumeBounds;
+		StaticSVTexture->Frames.SetNum(1);
 
 		FSparseVolumeRawSource SparseVolumeRawSource{};
 
@@ -505,7 +506,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		// Serialize the raw source data into the asset object.
 		{
-			UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(StaticSVTexture->StaticFrame.RawData);
+			UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(StaticSVTexture->Frames[0].RawData);
 			SparseVolumeRawSource.Serialize(RawDataArchiveWriter);
 		}
 
@@ -535,7 +536,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		// Allocate space for each frame
 		AnimatedSVTexture->FrameCount = NumFrames;
-		AnimatedSVTexture->AnimationFrames.SetNum(NumFrames);
+		AnimatedSVTexture->Frames.SetNum(NumFrames);
 
 		FBox VolumeBounds(FVector(FLT_MAX), FVector(-FLT_MAX));
 
@@ -585,6 +586,8 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 				}
 			}
 
+			ExpandVolumeBounds(ImportOptions, FrameGridInfo, VolumeBounds);
+
 			FSparseVolumeRawSource SparseVolumeRawSource{};
 
 			FOpenVDBToSVTConversionResult SVTResult;
@@ -607,7 +610,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 			// Serialize the raw source data from this frame into the asset object.
 			{
-				UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(AnimatedSVTexture->AnimationFrames[FrameIdx].RawData);
+				UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(AnimatedSVTexture->Frames[FrameIdx].RawData);
 				SparseVolumeRawSource.Serialize(RawDataArchiveWriter);
 			}
 
