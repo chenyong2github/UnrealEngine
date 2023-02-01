@@ -281,7 +281,7 @@ namespace Horde.Build.Agents.Software
 
 			// Check whether we have an installed agent zip
 			FileReference agentZip = FileReference.Combine(Program.AppDir, "DefaultAgent/Agent.zip");
-			if (!_settings.CurrentValue.SingleInstance || !FileReference.Exists(agentZip))
+			if (!FileReference.Exists(agentZip))
 			{
 				return;
 			}

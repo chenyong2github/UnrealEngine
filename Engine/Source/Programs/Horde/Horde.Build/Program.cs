@@ -151,8 +151,6 @@ namespace Horde.Build
 			ServerSettings hordeSettings = new ServerSettings();
 			config.GetSection("Horde").Bind(hordeSettings);
 
-			InitializeDefaults(hordeSettings);
-
 			DirectoryReference logDir = AppDir;
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
@@ -262,55 +260,6 @@ namespace Horde.Build
 			}
 
 			return builder.AddEnvironmentVariables().Build();
-		}
-
-		/// <summary>
-		/// Handles bootstrapping of defaults for local servers, which can't be generated during build/installation process (or are better handled here where they can be updated)
-		/// This stuff will change as we get settings into database and could be considered discovery for installer/dockerfile builds 
-		/// </summary>		
-		static void InitializeDefaults(ServerSettings settings)
-		{			
-			if (settings.SingleInstance)
-			{
-				FileReference globalConfig = FileReference.Combine(Program.DataDir, "Config/globals.json");
-
-				if (!FileReference.Exists(globalConfig))
-				{
-					DirectoryReference.CreateDirectory(globalConfig.Directory);
-					FileReference.WriteAllText(globalConfig, "{}");
-				}
-
-				FileReference privateCertFile = FileReference.Combine(Program.DataDir, "Agent/ServerToAgent.pfx");
-				string privateCertFileJsonPath = privateCertFile.ToString().Replace("\\", "/", StringComparison.Ordinal);
-
-				if (!FileReference.Exists(UserConfigFile))
-				{
-					// create new user configuration
-					DirectoryReference.CreateDirectory(UserConfigFile.Directory);
-					FileReference.WriteAllText(UserConfigFile, $"{{\"Horde\": {{ \"ConfigPath\" : \"{globalConfig.ToString().Replace("\\", "/", StringComparison.Ordinal)}\", \"ServerPrivateCert\" : \"{privateCertFileJsonPath}\", \"HttpPort\": 8080}}}}");
-				}
-
-				// make sure the cert exists
-				if (!FileReference.Exists(privateCertFile))
-				{
-					string dnsName = System.Net.Dns.GetHostName();
-					Serilog.Log.Logger.Information("Creating certificate for {DnsName}", dnsName);
-
-					byte[] privateCertData = CertificateUtils.CreateSelfSignedCert(dnsName, "Horde Server");
-					
-					Serilog.Log.Logger.Information("Writing private cert: {PrivateCert}", privateCertFile.FullName);
-
-					if (!DirectoryReference.Exists(privateCertFile.Directory))
-					{
-						DirectoryReference.CreateDirectory(privateCertFile.Directory);
-					}
-
-					FileReference.WriteAllBytes(privateCertFile, privateCertData);
-				}
-
-				// note: this isn't great, though we need it early in server startup, and this is only hit on first server boot where the grpc cert isn't generated/set 
-				settings.ServerPrivateCert ??= privateCertFile.ToString();
-			}
 		}
 	}
 }

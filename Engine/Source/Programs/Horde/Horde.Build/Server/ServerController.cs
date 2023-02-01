@@ -49,7 +49,7 @@ namespace Horde.Build.Server
 		[ProducesResponseType(typeof(GetServerInfoResponse), 200)]
 		public ActionResult<GetServerInfoResponse> GetServerInfo()
 		{
-			return new GetServerInfoResponse(_settings.CurrentValue.SingleInstance);
+			return new GetServerInfoResponse();
 		}
 	}
 }

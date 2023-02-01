@@ -23,19 +23,13 @@ namespace Horde.Build.Server
         public string OsDescription { get; set; }
 
 		/// <summary>
-		/// Whether this is an installed Horde build
-		/// </summary>
-		public bool SingleInstance { get; set; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetServerInfoResponse( bool singleInstance)
+		public GetServerInfoResponse()
         {
             FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);		
 			ServerVersion = versionInfo.ProductVersion ?? String.Empty;			
-			OsDescription = RuntimeInformation.OSDescription;
-			SingleInstance = singleInstance;
+			OsDescription = RuntimeInformation.OSDescription;			
 		}
 	}
 }

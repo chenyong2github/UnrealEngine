@@ -274,11 +274,6 @@ namespace Horde.Build
 		public int Http2Port { get; set; }
 
 		/// <summary>
-		/// Whether the server is running as a single instance or with multiple instances, such as in k8s
-		/// </summary>
-		public bool SingleInstance { get; set; } = false;
-
-		/// <summary>
 		/// MongoDB connection string
 		/// </summary>
 		public string? DatabaseConnectionString { get; set; }
