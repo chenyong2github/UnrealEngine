@@ -94,16 +94,16 @@ const getStepSummaryMarkdown = (jobDetails: JobDetailsV2, stepId: string): strin
       eta.display = eta.server = "";
       let aborted = "";
       if (step.abortedByUserInfo) {
-         aborted = "This step was aborted";
+         aborted = "This step was canceled";
          aborted += ` by ${step.abortedByUserInfo.name}.`;
       } else if (jobData?.abortedByUserInfo) {
-         aborted = "The job was aborted";
+         aborted = "The job was canceled";
          aborted += ` by ${jobData?.abortedByUserInfo.name}.`;
       } else {
-         aborted = "The step was aborted";
+         aborted = "The step was canceled";
 
          if (step.error === JobStepError.TimedOut) {
-            aborted = "The step was aborted due to reaching the maximum run time limit";
+            aborted = "The step was canceled due to reaching the maximum run time limit";
          }
       }
       text.push(aborted);

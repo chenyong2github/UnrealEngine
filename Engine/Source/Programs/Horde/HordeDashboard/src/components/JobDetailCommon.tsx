@@ -22,7 +22,7 @@ export const getStepStatusMessage = (step: StepData) => {
    let message = "";
 
    if (step.abortRequested && step.state !== JobStepState.Aborted) {
-      return "Abort Requested";
+      return "Cancel Requested";
    }
 
    switch (step.state) {
@@ -33,7 +33,7 @@ export const getStepStatusMessage = (step: StepData) => {
          message = "Skipped";
          break;
       case JobStepState.Aborted:
-         message = "Aborted";
+         message = "Canceled";
          break;
       case JobStepState.Ready:
          message = "Ready";

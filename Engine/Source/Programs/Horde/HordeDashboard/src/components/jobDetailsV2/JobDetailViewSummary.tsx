@@ -202,7 +202,7 @@ export const SummaryPanel: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ 
    let jobText = `Job created ${timeStr} by ${jobData.startedByUserInfo ? jobData.startedByUserInfo.name : "scheduler"} and `;
 
    if (jobDetails.aborted) {
-      jobText += "was aborted";
+      jobText += "was canceled";
       if (jobData.abortedByUserInfo) {
          jobText += ` by ${jobData.abortedByUserInfo.name}.`;
       }

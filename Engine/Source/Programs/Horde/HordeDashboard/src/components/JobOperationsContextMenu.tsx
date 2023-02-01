@@ -94,7 +94,7 @@ export const JobOperationsContextMenu: React.FC<{ job: GetJobResponse, children?
    if (!abortDisabled) {
       menuItems.push({
          key: 'abort_job',
-         text: 'Abort Job',
+         text: 'Cancel Job',
          onClick: () => setAbortShown(true),
       });
    }

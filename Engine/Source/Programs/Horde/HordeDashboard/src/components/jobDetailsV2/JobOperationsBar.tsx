@@ -74,7 +74,7 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
 
    opsList.push({
       key: 'jobops_abort',
-      text: "Abort",
+      text: "Cancel Job",
       disabled: abortDisabled,
       iconProps: { iconName: "Delete" },
       onClick: () => { setAbortShown(true); }
@@ -206,7 +206,7 @@ const StepOperations: React.FC<{ jobDetails: JobDetailsV2, stepId: string }> = o
 
    opsList.push({
       key: 'stepops_abort',
-      text: "Abort",
+      text: "Cancel Step",
       iconProps: { iconName: "Cross" },
       disabled: !!step.finishTime,
       onClick: () => { setShown({ abortShown: true }); }

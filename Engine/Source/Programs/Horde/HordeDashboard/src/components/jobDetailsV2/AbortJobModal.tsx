@@ -11,14 +11,14 @@ export const AbortJobModal: React.FC<{ jobDetails?: JobDetailsV2; jobDataIn?: Ge
 
    const jobData = jobDetails?.jobData ?? jobDataIn;
    if (!jobData) {
-      console.error("Attempting to display abort job modal with no job data")
+      console.error("Attempting to display cancel job modal with no job data")
       return null;
    }
 
-   let headerText = `Abort ${jobData.name} Job?`;
+   let headerText = `Cancel ${jobData.name} Job?`;
 
    if (jobDetails && stepId) {
-      headerText = `Abort ${jobDetails.getStepName(stepId)} Step?`;
+      headerText = `Cancel ${jobDetails.getStepName(stepId)} Step?`;
    }
 
    const close = () => {
@@ -29,7 +29,7 @@ export const AbortJobModal: React.FC<{ jobDetails?: JobDetailsV2; jobDataIn?: Ge
 
       if (!stepId) {
          await backend.updateJob(jobData.id, { aborted: true }).then((response) => {
-            console.log("Job aborted", response);
+            console.log("Job canceled", response);
          }).catch((reason) => {
             // @todo: error ui
             console.error(reason);
@@ -41,12 +41,12 @@ export const AbortJobModal: React.FC<{ jobDetails?: JobDetailsV2; jobDataIn?: Ge
          const batch = jobDetails?.batchByStepId(stepId);
 
          if (!batch) {
-            console.error("Unable to get batch id for step abort");
+            console.error("Unable to get batch id for step cancel");
             return;
          }
 
          await backend.updateJobStep(jobData.id, batch.id, stepId, { abortRequested: true }).then((response) => {
-            console.log("Job step aborted", response);
+            console.log("Job step canceled", response);
          }).catch((reason) => {
             // @todo: error ui
             console.error(reason);
@@ -77,8 +77,8 @@ export const AbortJobModal: React.FC<{ jobDetails?: JobDetailsV2; jobDataIn?: Ge
       <Stack styles={{ root: { padding: 8 } }}>
          <Stack horizontal tokens={{ childrenGap: 16 }} styles={{ root: { paddingTop: 12, paddingLeft: 8, paddingBottom: 8 } }}>
             <Stack grow />
-            <PrimaryButton text="Abort" disabled={false} onClick={() => { onAbort(); }} />
-            <DefaultButton text="Cancel" disabled={false} onClick={() => { close(); }} />
+            <PrimaryButton text={(jobDetails && stepId) ? "Cancel Step" : "Cancel Job"} disabled={false} onClick={() => { onAbort(); }} />
+            <DefaultButton text="Close" disabled={false} onClick={() => { close(); }} />
          </Stack>
       </Stack>
    </Modal>;

@@ -35,7 +35,7 @@ const statusText = new Map<StatusColor, string>([
    [StatusColor.Waiting, "Waiting"],
    [StatusColor.Ready, "Ready"],
    [StatusColor.Skipped, "Skipped"],
-   [StatusColor.Aborted, "Aborted"],
+   [StatusColor.Aborted, "Canceled"],
    [StatusColor.Running, "Running"]
 ]);
 

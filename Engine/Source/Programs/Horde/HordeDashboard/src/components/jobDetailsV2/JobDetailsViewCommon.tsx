@@ -1057,7 +1057,7 @@ export const JobFilterBar: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ 
    const stateItems: StateItem[] = ["All", "Failure", "Warnings", "Skipped", "Running", "Completed", "Aborted", "Waiting", "Ready"].map(state => {
       return {
          key: state,
-         text: state,
+         text: state === "Aborted" ? "Canceled" : state,
          state: state as StateFilter
       };
    });

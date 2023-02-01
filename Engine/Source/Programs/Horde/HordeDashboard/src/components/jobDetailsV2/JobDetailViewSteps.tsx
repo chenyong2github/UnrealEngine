@@ -727,13 +727,13 @@ export const getStepSummaryMarkdown = (jobDetails: JobDetailsV2, stepId: string)
       eta.display = eta.server = "";
       let aborted = "";
       if (step.abortedByUserInfo) {
-         aborted = "This step was aborted";
+         aborted = "This step was canceled";
          aborted += ` by ${step.abortedByUserInfo.name}.`;
       } else if (jobData.abortedByUserInfo) {
-         aborted = "The job was aborted";
+         aborted = "The job was canceled";
          aborted += ` by ${jobData.abortedByUserInfo.name}.`;
       } else {
-         aborted = "The step was aborted";
+         aborted = "The step was canceled";
       }
       text.push(aborted);
    } else if (step.state === JobStepState.Skipped) {
