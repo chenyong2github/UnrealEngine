@@ -127,11 +127,13 @@ private:
 	void EvaluateNode(FDataflowNode* Node, FDataflowOutput* Out);
 
 	static const FName GraphCanvasTabId;
+	TSharedPtr<SDockTab> GraphEditorTab;
 	TSharedPtr<SDataflowGraphEditor> GraphEditor;
 	TSharedRef<SDataflowGraphEditor> CreateGraphEditorWidget();
 	void ReinitializeGraphEditorWidget();
 
 	static const FName NodeDetailsTabId;
+	TSharedPtr<SDockTab> NodeDetailsTab;
 	TSharedPtr<IStructureDetailsView> NodeDetailsEditor;
 	TSharedPtr<IStructureDetailsView> CreateNodeDetailsEditorWidget(UObject* ObjectToEdit);
 
