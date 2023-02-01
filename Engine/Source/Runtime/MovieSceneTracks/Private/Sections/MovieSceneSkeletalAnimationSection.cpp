@@ -478,25 +478,15 @@ void UMovieSceneSkeletalAnimationSection::GetRootMotion(FFrameTime CurrentTime, 
 {
 	if (GetRootMotionParams())
 	{
-		UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
-		if (GetRootMotionParams()->bRootMotionsDirty)
+		if (UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>())
 		{
-			if (Track)
-			{
-				Track->SetUpRootMotions(true);
-				if (GetRootMotionParams()->RootTransforms.Num() == 0) //should never be true but just in case
-				{
-					return;
-				}
-			}
+			OutRootMotionParams.Transform = Track->GetRootMotion(CurrentTime);
+			OutRootMotionParams.ChildBoneIndex = TempRootBoneIndex.IsSet() ? TempRootBoneIndex.GetValue() : INDEX_NONE;
+			OutRootMotionParams.bBlendFirstChildOfRoot = Track->bBlendFirstChildOfRoot ;
+			OutRootMotionParams.PreviousTransform = PreviousTransform;
 		}
-		OutRootMotionParams.bBlendFirstChildOfRoot = Track ? Track->bBlendFirstChildOfRoot : false;
-		OutRootMotionParams.ChildBoneIndex = TempRootBoneIndex.IsSet() ? TempRootBoneIndex.GetValue() : INDEX_NONE;
-		OutRootMotionParams.Transform = GetRootMotionParams()->GetRootMotion(CurrentTime);
-		OutRootMotionParams.PreviousTransform = PreviousTransform;
 	}
 }
-
 
 bool UMovieSceneSkeletalAnimationSection::GetRootMotionVelocity(FFrameTime PreviousTime, FFrameTime CurrentTime, FFrameRate FrameRate, 
 	FTransform& OutVelocity, float& OutWeight) const

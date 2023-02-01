@@ -22,12 +22,15 @@ struct FMovieSceneSkeletalAnimRootMotionTrackParams
 	FFrameTime StartFrame;
 	FFrameTime EndFrame;
 	bool bRootMotionsDirty;
-	TArray<FTransform> RootTransforms;
+	bool bHaveRootMotion;
 	FTransform RootMotionStartOffset; // root motion may not be in Mesh Space if we are putting values on a bone that is a child of a root with an offset
 	/** Get the Root Motion transform at the specified time.*/
-	MOVIESCENETRACKS_API TOptional<FTransform>  GetRootMotion(FFrameTime CurrentTime) const;
-	FMovieSceneSkeletalAnimRootMotionTrackParams() : bRootMotionsDirty(true) {}
+	FMovieSceneSkeletalAnimRootMotionTrackParams() : bRootMotionsDirty(true),bHaveRootMotion(false) {}
 
+#if WITH_EDITORONLY_DATA
+	bool bCacheRootTransforms = false;
+	TArray<FTransform> RootTransforms;
+#endif
 };
 
 /**
@@ -90,6 +93,7 @@ public:
 
 	MOVIESCENETRACKS_API void SetRootMotionsDirty();
 	MOVIESCENETRACKS_API void SetUpRootMotions(bool bForce);
+	MOVIESCENETRACKS_API TOptional<FTransform>  GetRootMotion(FFrameTime CurrentTime);
 	MOVIESCENETRACKS_API void MatchSectionByBoneTransform(bool bMatchWithPrevious, USkeletalMeshComponent* SkelMeshComp, UMovieSceneSkeletalAnimationSection* CurrentSection, FFrameTime CurrentFrame, FFrameRate FrameRate,
 		const FName& BoneName, FTransform& SecondSectionRootDiff, FVector& TranslationDiff, FQuat& RotationDiff); //add options for z and for rotation.
 #if WITH_EDITORONLY_DATA
@@ -115,9 +119,6 @@ public:
 	/** Whether to blend and adjust the first child node with animation instead of the root, this should be true for blending when the root is static, false if the animations have proper root motion*/
 	UPROPERTY(EditAnywhere, Category = "Root Motions")
 	bool bBlendFirstChildOfRoot;
-
-	/** Child bone to blend if bBlendFirstChildOfRoot is true*/
-	int32 ChildBoneIndex;
 
 #if WITH_EDITORONLY_DATA
 public:

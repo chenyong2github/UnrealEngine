@@ -29,6 +29,7 @@
 #include "MovieSceneSkeletalAnimationRootHitProxy.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
 #include "SkeletalDebugRendering.h"
+#include "AnimSequencerInstanceProxy.h"
 
 FName FSkeletalAnimationTrackEditMode::ModeName("EditMode.SkeletalAnimationTrackEditMode");
 
@@ -133,7 +134,7 @@ static bool IsVirtualBone(USkeleton* Skeleton, FName BoneName)
 	return Skeleton->GetVirtualBones().IndexOfByPredicate([&](const FVirtualBone& VirtualBone) { return VirtualBone.VirtualBoneName == BoneName; }) != INDEX_NONE;
 }
 
-static void DrawBonesFromCompactPose(const FCompactPose& Pose, USkeletalMeshComponent* MeshComponent, FPrimitiveDrawInterface* PDI,
+static void DrawBonesFromCompactPose(const FCompactPose& Pose, USkeletalMeshComponent* MeshComponent, bool bIncludeRootBone, FPrimitiveDrawInterface* PDI,
 	const FLinearColor& DrawColour, FCompactPoseBoneIndex RootBoneIndex, FVector& LocationOfRootBone)
 {
 	LocationOfRootBone = FVector(TNumericLimits<float>::Max(), TNumericLimits<float>::Max(), TNumericLimits<float>::Max());
@@ -170,9 +171,11 @@ static void DrawBonesFromCompactPose(const FCompactPose& Pose, USkeletalMeshComp
 
 			int32 ParentIndex = Pose.GetBoneContainer().GetParentBoneIndex(MeshBoneIndex.GetInt());
 
+
 			if (ParentIndex == INDEX_NONE)
 			{
-				WorldTransforms[MeshBoneIndex.GetInt()] = Pose[BoneIndex] * MeshComponent->GetComponentTransform();
+				FTransform RootBone = (bIncludeRootBone == true) ? Pose[BoneIndex] : FTransform::Identity;
+				WorldTransforms[MeshBoneIndex.GetInt()] = RootBone * MeshComponent->GetComponentTransform();
 			}
 			else
 			{
@@ -280,7 +283,18 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 								//show root motions
 								if (SkelAnimTrack->bShowRootMotionTrail)
 								{
+									if (SkelAnimTrack->RootMotionParams.bCacheRootTransforms == false)
+									{
+										SkelAnimTrack->RootMotionParams.bCacheRootTransforms = true;
+										SkelAnimTrack->SetUpRootMotions(true);
+
+									}
 									RenderTrail(BoundObject, SkelAnimTrack, InterrogationLinker, SkelMeshComp, Sequencer, PDI);								
+								}
+								else
+								{
+									SkelAnimTrack->RootMotionParams.bCacheRootTransforms = false;
+									SkelAnimTrack->RootMotionParams.RootTransforms.SetNum(0);
 								}
 								//show skeletons
 
@@ -340,7 +354,8 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 											FLinearColor BoneColor = Colors[SectionIndex % 5] * (1.f - Alpha) + SectionColor * Alpha;
 
 											FVector RootLocation;
-											DrawBonesFromCompactPose(OutPose, SkelMeshComp, PDI, BoneColor, PoseIndex, RootLocation);
+											DrawBonesFromCompactPose(OutPose, SkelMeshComp, (AnimSection->Params.SwapRootBone == ESwapRootBone::SwapRootBone_None), PDI,
+												BoneColor, PoseIndex, RootLocation);
 											
 											if (IsRootSelected(AnimSection))
 											{
