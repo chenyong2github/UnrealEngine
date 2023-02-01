@@ -76,6 +76,14 @@ static FAutoConsoleVariableRef CVarNetPacketHandlerTimeguardLimit(
   #define NET_LIGHTWEIGHT_TIME_GUARD_END( Name, NameStringCode )
 #endif
 
+/**
+ * BufferedPacket
+ */
+
+BufferedPacket::~BufferedPacket()
+{
+	delete [] Data;
+}
 
 /**
  * PacketHandler

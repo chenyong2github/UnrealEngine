@@ -115,16 +115,7 @@ public:
 	/**
 	 * Destroy GPacketAuditor
 	 */
-	static void Destruct()
-	{
-#if !UE_BUILD_SHIPPING
-		if (GPacketAuditor != nullptr)
-		{
-			delete GPacketAuditor;
-			GPacketAuditor = nullptr;
-		}
-#endif
-	}
+	static void Destruct();
 
 	/**
 	 * On the send side, marks a named stage during packet writing, which should be audited on the receive side.

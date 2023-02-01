@@ -254,6 +254,7 @@ FPacketAudit::FPacketAudit(FPlatformProcess::FSemaphore* InGameMutex)
 	if (SendSharedMemory == nullptr || ReceiveSharedMemory == nullptr)
 	{
 		LowLevelFatalError(TEXT("You need to run UnrealEngine as administrator, for packet auditing to work."));
+		return;
 	}
 
 	FSharedMemoryWriter WipeSendSharedMemory((uint8*)SendSharedMemory->GetAddress());
@@ -302,6 +303,14 @@ void FPacketAudit::Init()
 			FPlatformProcess::DeleteInterprocessSynchObject(CurGameMutex);
 		}
 	}
+#endif
+}
+
+void FPacketAudit::Destruct()
+{
+#if !UE_BUILD_SHIPPING
+	delete GPacketAuditor;
+	GPacketAuditor = nullptr;
 #endif
 }
 

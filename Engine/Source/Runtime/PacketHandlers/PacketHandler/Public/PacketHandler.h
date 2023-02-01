@@ -211,10 +211,7 @@ public:
 	/**
 	 * Base destructor
 	 */
-	~BufferedPacket()
-	{
-		delete [] Data;
-	}
+	~BufferedPacket();
 
 	void CountBytes(FArchive& Ar) const
 	{
