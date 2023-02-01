@@ -41,6 +41,7 @@ public class MovieRenderPipelineEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AssetDefinition",
 				"CoreUObject",
 				"Engine",
 				"Kismet",

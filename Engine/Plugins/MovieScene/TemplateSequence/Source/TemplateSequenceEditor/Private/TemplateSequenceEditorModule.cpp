@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetTools/CameraAnimationSequenceActions.h"
-#include "AssetTools/TemplateSequenceActions.h"
 #include "CameraAnimationSequence.h"
 #include "Customizations/CameraAnimationSequenceCustomization.h"
 #include "Customizations/TemplateSequenceCustomization.h"
@@ -10,6 +8,7 @@
 #include "ISettingsModule.h"
 #include "Misc/MovieSceneSequenceEditor_TemplateSequence.h"
 #include "Misc/TemplateSequenceEditorSettings.h"
+#include "Modules/ModuleManager.h"
 #include "SequencerSettings.h"
 #include "Styles/TemplateSequenceEditorStyle.h"
 #include "TrackEditors/TemplateSequenceTrackEditor.h"
@@ -30,7 +29,6 @@ public:
 	virtual void StartupModule() override
 	{
 		RegisterSettings();
-		RegisterAssetTools();
 		RegisterSequenceEditor();
 		RegisterTrackEditors();
 		RegisterSequenceCustomizations();
@@ -41,7 +39,6 @@ public:
 		UnregisterSequenceCustomizations();
 		UnregisterTrackEditors();
 		UnregisterSequenceEditor();
-		UnregisterAssetTools();
 		UnregisterSettings();
 	}
 
@@ -88,30 +85,6 @@ private:
 		{
 			SettingsModule->UnregisterSettings("Project", "Plugins", "TemplateSequencer");
 			SettingsModule->UnregisterSettings("Editor", "ContentEditors", "TemplateSequenceEditor");
-		}
-	}
-
-	void RegisterAssetTools()
-	{
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		EAssetTypeCategories::Type CinematicAssetCategoryBit = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Cinematics")), LOCTEXT("CinematicsAssetCategory", "Cinematics"));
-
-		TemplateSequenceTypeActions = MakeShared<FTemplateSequenceActions>(FTemplateSequenceEditorStyle::Get(), CinematicAssetCategoryBit);
-		AssetTools.RegisterAssetTypeActions(TemplateSequenceTypeActions.ToSharedRef());
-
-		CameraAnimationSequenceActions = MakeShared<FCameraAnimationSequenceActions>(FTemplateSequenceEditorStyle::Get(), CinematicAssetCategoryBit);
-		AssetTools.RegisterAssetTypeActions(CameraAnimationSequenceActions.ToSharedRef());
-	}
-
-	void UnregisterAssetTools()
-	{
-		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
-
-		if (AssetToolsModule != nullptr)
-		{
-			IAssetTools& AssetTools = AssetToolsModule->Get();
-			AssetTools.UnregisterAssetTypeActions(TemplateSequenceTypeActions.ToSharedRef());
-			AssetTools.UnregisterAssetTypeActions(CameraAnimationSequenceActions.ToSharedRef());
 		}
 	}
 
@@ -168,9 +141,6 @@ private:
 	}
 
 private:
-
-	TSharedPtr<FTemplateSequenceActions> TemplateSequenceTypeActions;
-	TSharedPtr<FCameraAnimationSequenceActions> CameraAnimationSequenceActions;
 
 	FDelegateHandle SequenceEditorHandle;
 	FDelegateHandle TemplateSequenceTrackCreateEditorHandle;
