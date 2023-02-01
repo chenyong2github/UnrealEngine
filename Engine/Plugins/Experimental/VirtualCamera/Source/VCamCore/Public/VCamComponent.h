@@ -7,36 +7,39 @@
 #include "EVCamTargetViewportID.h"
 #include "Modifier/ModifierStackEntry.h"
 
-#include "EnhancedActionKeyMapping.h"
-#include "EnhancedInputSubsystemInterface.h"
 #include "GameplayTagContainer.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "VCamInputSettings.h"
 #include "VCamSubsystem.h"
 #include "Input/VCamInputDeviceConfig.h"
 #include "Util/VCamViewportLocker.h"
+#include "Subsystems/SubsystemCollection.h"
 
 #if WITH_EDITOR
-#include "Engine/GameEngine.h"
 #include "UnrealEdMisc.h"
-#include "VCamMultiUser.h"
 #endif
 
 #include "VCamComponent.generated.h"
 
-class UInputVCamSubsystem;
-class UVCamOutputProviderBase;
 DECLARE_LOG_CATEGORY_EXTERN(LogVCamComponent, Log, All);
 
+class IEnhancedInputSubsystemInterface;
 class UCineCameraComponent;
+class UInputModifier;
+class UInputTrigger;
+class UInputVCamSubsystem;
 class UVCamModifierContext;
-class SWindow;
-class FSceneViewport;
-class UEnhancedInputComponent;
+class UVCamOutputProviderBase;
+
+struct FEnhancedActionKeyMapping;
 
 #if WITH_EDITOR
 class FLevelEditorViewportClient;
+class IConcertClientSession;
+struct FConcertSessionContext;
+struct FMultiUserVCamCameraComponentEvent;
 #endif
+
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnComponentReplaced, UVCamComponent*, NewComponent);
 
