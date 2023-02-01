@@ -561,10 +561,17 @@ namespace UnrealBuildTool
 				// detection.
 				AddDefinition(Arguments, "FORCE_ANSI_ALLOCATOR=1");
 
-				// MSVC has no support for __has_feature(address_sanitizer)
 				if (Target.WindowsPlatform.Compiler.IsMSVC())
 				{
+					// MSVC has no support for __has_feature(address_sanitizer)
 					AddDefinition(Arguments, "USING_ADDRESS_SANITISER=1");
+
+					// Re-evalulate the necessity of these workarounds later
+					if (EnvVars.CompilerVersion < new VersionNumber(14, 35))
+					{
+						AddDefinition(Arguments, "_DISABLE_STRING_ANNOTATION=1");
+						AddDefinition(Arguments, "_DISABLE_VECTOR_ANNOTATION=1");
+					}
 				}
 
 				// Currently the ASan headers are not default around. They can be found at this location so lets use this until this is resolved in the toolchain
