@@ -119,6 +119,8 @@ namespace Chaos
 		void ResetStats();
 		void UpdateStats(const FClothingSimulationCloth* Cloth);
 
+		void UpdateSimulationFromSharedSimConfig();
+
 	private:
 		// Visualization object
 		FClothVisualization Visualization;

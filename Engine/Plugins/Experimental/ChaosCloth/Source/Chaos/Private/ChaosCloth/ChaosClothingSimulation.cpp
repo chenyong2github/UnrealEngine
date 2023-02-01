@@ -298,6 +298,7 @@ void FClothingSimulation::Shutdown()
 	Meshes.Reset();
 	Cloths.Reset();
 	Colliders.Reset();
+	Configs.Reset();
 	ClothSharedSimConfig = nullptr;
 }
 
@@ -330,6 +331,8 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 	if (!ClothSharedSimConfig)
 	{
 		ClothSharedSimConfig = Asset->GetClothConfig<UChaosClothSharedSimConfig>();
+
+		UpdateSimulationFromSharedSimConfig();
 
 		// Must set the local space location prior to adding any mesh/cloth, as otherwise the start poses would be in the wrong local space
 		const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InOwnerComponent->GetClothingSimulationContext());
@@ -380,11 +383,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Add cloth to solver
 	Solver->AddCloth(Cloths[ClothIndex].Get());
 
-	// Create solver config runtime simulation object
-	const int32 SolverConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>());
-	Configs[SolverConfigIndex]->Initialize(nullptr, ClothSharedSimConfig);
-	Solver->SetConfig(Configs[SolverConfigIndex].Get());
-
 	// Update stats
 	UpdateStats(Cloths[ClothIndex].Get());
 
@@ -423,6 +421,23 @@ void FClothingSimulation::UpdateStats(const FClothingSimulationCloth* Cloth)
 	NumCloths = Cloths.Num();
 	NumKinematicParticles += Cloth->GetNumActiveKinematicParticles();
 	NumDynamicParticles += Cloth->GetNumActiveDynamicParticles();
+}
+
+void FClothingSimulation::UpdateSimulationFromSharedSimConfig()
+{
+	check(Solver);
+	if (ClothSharedSimConfig) // ClothSharedSimConfig will be a null pointer if all cloth instances are disabled in which case we will use default Evolution parameters
+	{
+		FClothingSimulationConfig* SolverConfig = Solver->GetConfig();
+		if (!SolverConfig)
+		{
+			// Create solver config runtime simulation object
+			const int32 SolverConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>());
+			SolverConfig = Configs[SolverConfigIndex].Get();
+			Solver->SetConfig(SolverConfig);
+		}
+		SolverConfig->Initialize(nullptr, ClothSharedSimConfig);
+	}
 }
 
 void FClothingSimulation::SetNumIterations(int32 InNumIterations)
@@ -740,6 +755,8 @@ void FClothingSimulation::GetCollisions(FClothCollisionData& OutCollisions, bool
 
 void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* InContext)
 {
+	UpdateSimulationFromSharedSimConfig();
+
 	// Update new space location
 	const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InContext);
 	static const bool bReset = true;
@@ -780,12 +797,6 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 		// Update stats
 		UpdateStats(Cloth.Get());
 	}
-
-	// Update solver config runtime simulation object
-	FClothingSimulationConfig* const SolverConfig = Solver->GetConfig();
-	check(SolverConfig);
-	SolverConfig->Initialize(nullptr, ClothSharedSimConfig);
-
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("RefreshClothConfig, all constraints and self-collisions have been updated for all clothing assets and LODs."));
 }
 
