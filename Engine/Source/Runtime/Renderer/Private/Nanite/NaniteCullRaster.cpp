@@ -113,7 +113,7 @@ FAutoConsoleVariableRef CVarNaniteRasterSetupTask(
 	TEXT("")
 );
 
-int32 GNaniteRasterSetupCache = 1;
+int32 GNaniteRasterSetupCache = 0;
 FAutoConsoleVariableRef CVarNaniteRasterSetupCache(
 	TEXT("r.Nanite.RasterSetupCache"),
 	GNaniteRasterSetupCache,
