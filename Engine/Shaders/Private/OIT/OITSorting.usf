@@ -137,6 +137,7 @@ float3 ViewBound_Max;
 
 float4x4 LocalToWorld; // GPU scene buffer instead? How?
 float4x4 WorldToView;
+float4x4 LocalToView;
 
 uint SourcePrimitiveType;
 uint NumPrimitives;
@@ -160,11 +161,7 @@ RWBuffer<uint> OutDebugData;
 groupshared uint s_SliceIndices[SORTING_SLICE_COUNT];
 groupshared uint s_SliceOffsets[SORTING_SLICE_COUNT];
 
-#if SORTING_SLICE_COUNT > PERMUTATION_GROUP_SIZE
-	#error GroupSize (PERMUTATION_GROUP_SIZE) needs to be larger than the number of slices (SORTING_SLICE_COUNT) for having correct counting/allocation
-#endif
-
-[numthreads(PERMUTATION_GROUP_SIZE, 1, 1)]
+[numthreads(SORTING_SLICE_COUNT, 1, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint GroupThreadId : SV_GroupIndex)
 {
 	uint PrimitiveId = DispatchThreadId.x;
@@ -195,8 +192,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint GroupThreadId : S
 
 		// Compute triangle center in view space
 		const float3 LocalP = (P0 + P1 + P2) / 3;
-		const float3 WorldP = mul(float4(LocalP, 1), LocalToWorld).xyz;
-		const float3 ViewP  = mul(float4(WorldP, 1), WorldToView).xyz;
+		const float3 ViewP = mul(float4(LocalP, 1), LocalToView).xyz;
 
 		const float fSliceIndex = saturate((ViewP.z - ViewBoundMinZ) / (ViewBoundMaxZ - ViewBoundMinZ));
 		SliceIndex = SORTING_SLICE_COUNT * (SortType == BACK_TO_FRONT ? (1.f - fSliceIndex) : fSliceIndex);
