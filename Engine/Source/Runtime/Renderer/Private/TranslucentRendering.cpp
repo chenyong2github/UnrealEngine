@@ -711,11 +711,7 @@ bool FSceneRenderer::ShouldRenderTranslucency(ETranslucencyPass::Type Translucen
 
 FScreenPassTextureViewport FSeparateTranslucencyDimensions::GetInstancedStereoViewport(const FViewInfo& View) const
 {
-	FIntRect ViewRect = View.ViewRect;
-	if (View.IsInstancedStereoPass() && !View.bIsMultiViewportEnabled)
-	{
-		ViewRect.Max.X = ViewRect.Min.X + View.InstancedStereoWidth;
-	}
+	FIntRect ViewRect = View.ViewRectWithSecondaryViews;
 	ViewRect = GetScaledRect(ViewRect, Scale);
 	return FScreenPassTextureViewport(Extent, ViewRect);
 }
