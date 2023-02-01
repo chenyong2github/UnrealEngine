@@ -16,7 +16,6 @@
 #include "VisualLogger/VisualLogger.h"
 #include "NavigationOctree.h"
 #include "ObjectEditorUtils.h"
-#include "EditorSupportDelegates.h"
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
 #endif
@@ -24,6 +23,35 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavLinkProxy)
 
 #define LOCTEXT_NAMESPACE "NavLink"
+
+#if WITH_EDITOR
+namespace UE::Navigation::LinkProxy::Private
+{
+	void OnNavAreaRegistrationChanged(ANavLinkProxy& LinkProxy, const UWorld& World, const UClass* NavAreaClass)
+	{
+		if (&World != LinkProxy.GetWorld())
+		{
+			return;
+		}
+
+		bool bUpdateActor = false;
+
+		for (const FNavigationLink& NavLink : LinkProxy.PointLinks)
+		{
+			if (NavLink.GetAreaClass() == NavAreaClass)
+			{
+				bUpdateActor = true;
+				break;
+			}
+		}
+
+		if (bUpdateActor)
+		{
+			FNavigationSystem::UpdateActorData(LinkProxy);
+		}
+	}
+} // UE::Navigation::LinkProxy::Private
+#endif // WITH_EDITOR
 
 ANavLinkProxy::ANavLinkProxy(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -81,7 +109,45 @@ ANavLinkProxy::ANavLinkProxy(const FObjectInitializer& ObjectInitializer) : Supe
 	SetCanBeDamaged(false);
 }
 
+void ANavLinkProxy::PostInitProperties()
+{
+	Super::PostInitProperties();
+
 #if WITH_EDITOR
+	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		OnNavAreaRegisteredDelegateHandle = UNavigationSystemBase::OnNavAreaRegisteredDelegate().AddUObject(this, &ANavLinkProxy::OnNavAreaRegistered);
+		OnNavAreaUnregisteredDelegateHandle = UNavigationSystemBase::OnNavAreaUnregisteredDelegate().AddUObject(this, &ANavLinkProxy::OnNavAreaUnregistered);
+	}
+#endif // WITH_EDITOR
+}
+
+void ANavLinkProxy::BeginDestroy()
+{
+#if WITH_EDITOR
+	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UNavigationSystemBase::OnNavAreaRegisteredDelegate().Remove(OnNavAreaRegisteredDelegateHandle);
+		UNavigationSystemBase::OnNavAreaUnregisteredDelegate().Remove(OnNavAreaUnregisteredDelegateHandle);
+	}
+#endif // WITH_EDITOR
+
+	Super::BeginDestroy();
+}
+
+#if WITH_EDITOR
+// This function is only called if GIsEditor == true
+void ANavLinkProxy::OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass)
+{
+	UE::Navigation::LinkProxy::Private::OnNavAreaRegistrationChanged(*this, World, NavAreaClass);
+}
+
+// This function is only called if GIsEditor == true
+void ANavLinkProxy::OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass)
+{
+	UE::Navigation::LinkProxy::Private::OnNavAreaRegistrationChanged(*this, World, NavAreaClass);
+}
+
 void ANavLinkProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) 
 {
 	static const FName NAME_SmartLinkIsRelevant = GET_MEMBER_NAME_CHECKED(ANavLinkProxy, bSmartLinkIsRelevant);
@@ -142,7 +208,6 @@ void ANavLinkProxy::PostEditImport()
 		Link.InitializeAreaClass(/*bForceRefresh=*/true);
 	}
 }
-
 #endif // WITH_EDITOR
 
 void ANavLinkProxy::PostRegisterAllComponents()
@@ -312,7 +377,6 @@ void ANavLinkProxy::CopyEndPointsFromSimpleLinkToSmartLink()
 		{
 			EdRenderComp->MarkRenderStateDirty();
 		}
-		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 	}
 }
 #endif // WITH_EDITOR

@@ -81,13 +81,15 @@ public:
 	virtual void PostEditUndo() override;
 	virtual void PostEditImport() override;
 #endif // WITH_EDITOR
+	virtual void PostInitProperties() override;
+	virtual void BeginDestroy() override;
+
 	virtual void PostRegisterAllComponents() override;
 	virtual void PostLoad() override;
 
 #if ENABLE_VISUAL_LOG
 protected:
 	virtual void BeginPlay() override;
-
 public:
 #endif // ENABLE_VISUAL_LOG
 
@@ -131,6 +133,11 @@ protected:
 
 	void NotifySmartLinkReached(UNavLinkCustomComponent* LinkComp, UObject* PathingAgent, const FVector& DestPoint);
 
+#if WITH_EDITOR
+	void OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass);
+	void OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass);
+#endif // WITH_EDITOR
+
 public:
 	/** Returns SmartLinkComp subobject **/
 	UNavLinkCustomComponent* GetSmartLinkComp() const { return SmartLinkComp; }
@@ -140,4 +147,10 @@ public:
 	/** Returns SpriteComponent subobject **/
 	UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
 #endif
+
+protected:
+#if WITH_EDITOR
+	FDelegateHandle OnNavAreaRegisteredDelegateHandle;
+	FDelegateHandle OnNavAreaUnregisteredDelegateHandle;
+#endif // WITH_EDITOR
 };

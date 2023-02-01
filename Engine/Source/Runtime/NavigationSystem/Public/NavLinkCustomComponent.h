@@ -111,6 +111,8 @@ class NAVIGATIONSYSTEM_API UNavLinkCustomComponent : public UNavRelevantComponen
 	/** get link end point in world space */
 	FVector GetEndPoint() const;
 
+	TSubclassOf<UNavArea> GetObstacleAreaClass() const { return ObstacleAreaClass; }
+
 	//////////////////////////////////////////////////////////////////////////
 	// helper functions for setting delegates
 
@@ -135,7 +137,13 @@ class NAVIGATIONSYSTEM_API UNavLinkCustomComponent : public UNavRelevantComponen
 	{
 		SetBroadcastFilter(FBroadcastFilter::CreateUObject(TargetOb, InFunc));
 	}
-	
+
+protected:
+#if WITH_EDITOR
+	void OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass);
+	void OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass);
+#endif // WITH_EDITOR
+
 protected:
 
 	/** link Id assigned by navigation system */
@@ -223,6 +231,11 @@ protected:
 	
 	/** gather agents to notify about state change */
 	void CollectNearbyAgents(TArray<UObject*>& NotifyList);
+
+#if WITH_EDITOR
+	FDelegateHandle OnNavAreaRegisteredDelegateHandle;
+	FDelegateHandle OnNavAreaUnregisteredDelegateHandle;
+#endif // WITH_EDITOR
 };
 
 /** Used to store navlink data during RerunConstructionScripts */

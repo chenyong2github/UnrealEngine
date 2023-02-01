@@ -17,6 +17,18 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavLinkCustomComponent)
 
+#if WITH_EDITOR
+namespace UE::Navigation::LinkCustomComponent::Private
+{
+	void OnNavAreaRegistrationChanged(UNavLinkCustomComponent& CustomComponent, const UWorld& World, const UClass* NavAreaClass)
+	{
+		if (NavAreaClass && (NavAreaClass == CustomComponent.GetLinkAreaClass() || NavAreaClass == CustomComponent.GetObstacleAreaClass()) && &World == CustomComponent.GetWorld())
+		{
+			CustomComponent.RefreshNavigationModifiers();
+		}
+	}
+} // UE::Navigation::LinkCustomComponent::Private
+#endif // WITH_EDITOR
 
 UNavLinkCustomComponent::UNavLinkCustomComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -43,6 +55,20 @@ void UNavLinkCustomComponent::PostLoad()
 
 	INavLinkCustomInterface::UpdateUniqueId(NavLinkUserId);
 }
+
+#if WITH_EDITOR
+// This function is only called if GIsEditor == true for non default objects components that are registered.
+void UNavLinkCustomComponent::OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass)
+{
+	UE::Navigation::LinkCustomComponent::Private::OnNavAreaRegistrationChanged(*this, World, NavAreaClass);
+}
+
+// This function is only called if GIsEditor == true for non default objects components that are registered.
+void UNavLinkCustomComponent::OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass)
+{
+	UE::Navigation::LinkCustomComponent::Private::OnNavAreaRegistrationChanged(*this, World, NavAreaClass);
+}
+#endif // WITH_EDITOR
 
 TStructOnScope<FActorComponentInstanceData> UNavLinkCustomComponent::GetComponentInstanceData() const
 {
@@ -85,7 +111,7 @@ void UNavLinkCustomComponent::PostEditImport()
 	NavLinkUserId = INavLinkCustomInterface::GetUniqueId();
 	UE_LOG(LogNavLink, VeryVerbose, TEXT("%s new navlink id %u."), ANSI_TO_TCHAR(__FUNCTION__), NavLinkUserId);
 }
-#endif
+#endif // WITH_EDITOR
 
 void UNavLinkCustomComponent::GetLinkData(FVector& LeftPt, FVector& RightPt, ENavLinkDirection::Type& Direction) const
 {
@@ -176,11 +202,27 @@ void UNavLinkCustomComponent::OnRegister()
 	}
 
 	UNavigationSystemV1::RequestCustomLinkRegistering(*this, this);
+
+#if WITH_EDITOR
+	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		OnNavAreaRegisteredDelegateHandle = UNavigationSystemBase::OnNavAreaRegisteredDelegate().AddUObject(this, &UNavLinkCustomComponent::OnNavAreaRegistered);
+		OnNavAreaUnregisteredDelegateHandle = UNavigationSystemBase::OnNavAreaUnregisteredDelegate().AddUObject(this, &UNavLinkCustomComponent::OnNavAreaUnregistered);
+	}
+#endif // WITH_EDITOR 
 }
 
 void UNavLinkCustomComponent::OnUnregister()
 {
 	Super::OnUnregister();
+
+#if WITH_EDITOR
+	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UNavigationSystemBase::OnNavAreaRegisteredDelegate().Remove(OnNavAreaRegisteredDelegateHandle);
+		UNavigationSystemBase::OnNavAreaUnregisteredDelegate().Remove(OnNavAreaUnregisteredDelegateHandle);
+	}
+#endif // WITH_EDITOR 
 
 	UNavigationSystemV1::RequestCustomLinkUnregistering(*this, this);
 }
