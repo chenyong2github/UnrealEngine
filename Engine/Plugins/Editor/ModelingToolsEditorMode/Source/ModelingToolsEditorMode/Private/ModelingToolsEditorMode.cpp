@@ -287,8 +287,13 @@ public:
 
 	virtual ~FStylusStateTracker()
 	{
-		UStylusInputSubsystem* StylusSubsystem = GEditor->GetEditorSubsystem<UStylusInputSubsystem>();
-		StylusSubsystem->RemoveMessageHandler(*this);
+		if (GEditor)
+		{
+			if (UStylusInputSubsystem* StylusSubsystem = GEditor->GetEditorSubsystem<UStylusInputSubsystem>())
+			{
+				StylusSubsystem->RemoveMessageHandler(*this);
+			}
+		}
 	}
 
 	virtual void OnStylusStateChanged(const FStylusState& NewState, int32 StylusIndex) override
