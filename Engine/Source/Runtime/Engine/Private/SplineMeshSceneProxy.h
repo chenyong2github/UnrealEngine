@@ -111,9 +111,9 @@ public:
 	virtual bool GetCollisionMeshElement(int32 LODIndex, int32 BatchIndex, int32 ElementIndex, uint8 InDepthPriorityGroup, const FMaterialRenderProxy* RenderProxy, FMeshBatch& OutMeshBatch) const override;
 
 #if RHI_RAYTRACING
-	virtual bool HasRayTracingRepresentation() const override { return false; }
-	virtual bool IsRayTracingRelevant() const override final { return false; }
-	virtual bool IsRayTracingStaticRelevant() const override final { return false; }
+	virtual bool HasRayTracingRepresentation() const override { return true; }
+	virtual bool IsRayTracingRelevant() const override { return true; }
+	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
 #endif // RHI_RAYTRACING
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override

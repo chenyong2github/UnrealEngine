@@ -7,8 +7,15 @@
 #include "Misc/DelayedAutoRegister.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
+#include "RayTracingInstance.h"
 
 IMPLEMENT_TYPE_LAYOUT(FSplineMeshVertexFactoryShaderParameters);
+
+static TAutoConsoleVariable<int32> CVarRayTracingSplineMeshes(
+	TEXT("r.RayTracing.Geometry.SplineMeshes"),
+	1,
+	TEXT("Include splines meshes in ray tracing effects (default = 1 (spline meshes enabled in ray tracing))"));
+
 
 bool FSplineMeshVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
@@ -19,12 +26,6 @@ bool FSplineMeshVertexFactory::ShouldCompilePermutation(const FVertexFactoryShad
 /** Modify compile environment to enable spline deformation */
 void FSplineMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
-	if (!ContainsManualVertexFetch)
-	{
-		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("0"));
-	}
-
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_SPEEDTREE_WIND"), TEXT("0"));
 	FLocalVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
@@ -71,6 +72,9 @@ FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) 
 {
 	bSupportsDistanceFieldRepresentation = false;
 	bSupportsMeshCardRepresentation = false;
+#if RHI_RAYTRACING
+	bDynamicRayTracingGeometry = true;
+#endif
 
 	// make sure all the materials are okay to be rendered as a spline mesh
 	for (FStaticMeshSceneProxy::FLODInfo& LODInfo : LODs)
@@ -169,3 +173,81 @@ bool FSplineMeshSceneProxy::GetCollisionMeshElement(int32 LODIndex, int32 BatchI
 	}
 	return false;
 }
+
+#if RHI_RAYTRACING
+void FSplineMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
+{
+	if (CVarRayTracingSplineMeshes.GetValueOnRenderThread() == 0)
+	{
+		return;
+	}
+
+	ESceneDepthPriorityGroup PrimitiveDPG = GetStaticDepthPriorityGroup();
+	const int32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
+	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+
+	FRayTracingGeometry& Geometry = DynamicRayTracingGeometries[LODIndex];
+
+	FRayTracingInstance& RayTracingInstance = OutRayTracingInstances.AddDefaulted_GetRef();
+
+	const int32 NumBatches = GetNumMeshBatches();
+	const int32 NumRayTracingMaterialEntries = LODModel.Sections.Num() * NumBatches;
+
+	if (NumRayTracingMaterialEntries != CachedRayTracingMaterials.Num() || CachedRayTracingMaterialsLODIndex != LODIndex)
+	{
+		CachedRayTracingMaterials.Reset();
+		CachedRayTracingMaterials.Reserve(NumRayTracingMaterialEntries);
+
+		for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+		{
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			{
+				FMeshBatch& MeshBatch = CachedRayTracingMaterials.AddDefaulted_GetRef();
+
+				bool bResult = GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, false, false, MeshBatch);
+				if (!bResult)
+				{
+					// Hidden material
+					MeshBatch.MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+					MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
+				}
+
+				MeshBatch.SegmentIndex = SectionIndex;
+				MeshBatch.MeshIdInPrimitive = SectionIndex;
+			}
+		}
+
+		CachedRayTracingMaterialsLODIndex = LODIndex;
+	}
+
+	RayTracingInstance.Geometry = &Geometry;
+	// scene proxies live for the duration of Render(), making array views below safe
+	const FMatrix& ThisLocalToWorld = GetLocalToWorld();
+	RayTracingInstance.InstanceTransformsView = MakeArrayView(&ThisLocalToWorld, 1);
+	RayTracingInstance.MaterialsView = MakeArrayView(CachedRayTracingMaterials);
+	CachedRayTracingInstanceMaskAndFlags = Context.BuildInstanceMaskAndFlags(RayTracingInstance, *this);
+
+	if (RenderData->LODVertexFactories[LODIndex].VertexFactory.GetType()->SupportsRayTracingDynamicGeometry())
+	{
+		Context.DynamicRayTracingGeometriesToUpdate.Add(
+			FRayTracingDynamicGeometryUpdateParams
+			{
+				CachedRayTracingMaterials, // TODO: this copy can be avoided if FRayTracingDynamicGeometryUpdateParams supported array views
+				false,
+				(uint32)LODModel.GetNumVertices(),
+				uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector3f)),
+				Geometry.Initializer.TotalPrimitiveCount,
+				&Geometry,
+				nullptr /* VertexBuffer */,
+				true
+			}
+		);
+	}
+
+	check(CachedRayTracingMaterials.Num() == RayTracingInstance.GetMaterials().Num());
+	checkf(RayTracingInstance.Geometry->Initializer.Segments.Num() == CachedRayTracingMaterials.Num(), TEXT("Segments/Materials mismatch. Number of segments: %d. Number of Materials: %d. LOD Index: %d"),
+		RayTracingInstance.Geometry->Initializer.Segments.Num(),
+		CachedRayTracingMaterials.Num(),
+		LODIndex);
+}
+#endif // RHI_RAYTRACING

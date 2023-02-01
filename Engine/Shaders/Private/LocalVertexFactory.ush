@@ -211,7 +211,7 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 #endif
 
 
-#if COMPUTESHADER
+#if COMPUTESHADER && MANUAL_VERTEX_FETCH
 
 FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
 {
@@ -241,6 +241,10 @@ FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, i
 	}
 
 	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, PrimitiveId, 0U);
+
+#if USE_SPLINEDEFORM
+	Input.Position.w = 1.0;
+#endif
 
 	return Input;
 }
@@ -771,7 +775,9 @@ float4 CalcWorldPosition(float4 Position, FLWCMatrix LocalToWorld)
 {
 #if USE_INSTANCING
 	return TransformLocalToTranslatedWorld(mul(Position, InstanceTransform).xyz, LocalToWorld);
-#elif USE_SPLINEDEFORM
+#elif USE_SPLINEDEFORM && !RAYHITGROUPSHADER
+	// NOTE: The #if above does not include raytracing shaders because the cached position already
+	// has the spline deformation baked in.
 /*
 	// Make transform for this point along spline
 	float4x3 SliceTransform = CalcSliceTransform(dot(Position.xyz, SplineMeshDir));
@@ -809,7 +815,18 @@ half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
 
 #if USE_SPLINEDEFORM
 	// Make slice rotation matrix, and use that to transform tangents
-	half3x3 SliceRot = CalcSliceRot(dot(Input.Position.xyz, SplineMeshDir));
+#if RAYHITGROUPSHADER
+	// When raytracing, Input.Position already has the spline deformation baked in, so we need to
+	// go back to the original vertex buffer to compute the SliceRot matrix.
+	uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId * 3;
+	float3 SliceInputPos = 0;
+	SliceInputPos.x = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 0];
+	SliceInputPos.y = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 1];
+	SliceInputPos.z = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 2];
+#else
+	float3 SliceInputPos = Input.Position.xyz;
+#endif
+	half3x3 SliceRot = CalcSliceRot(dot(SliceInputPos.xyz, SplineMeshDir));
 
 	TangentX = mul(TangentX, SliceRot);
 	TangentZ.xyz = mul(TangentZ.xyz, SliceRot);
@@ -1174,7 +1191,7 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 #if USE_INSTANCING
 		float4x4 InstanceTransform = GetInstancePrevTransform(Intermediates);
 		PrevLocalPosition = mul(Input.Position, InstanceTransform);
-#elif USE_SPLINEDEFORM
+#elif USE_SPLINEDEFORM && !RAYHITGROUPSHADER
 		// Just like CalcWorldPosition...
 		float4x3 SliceTransform = CalcSliceTransform(dot(Input.Position.xyz, SplineMeshDir));
 		// Transform into mesh space

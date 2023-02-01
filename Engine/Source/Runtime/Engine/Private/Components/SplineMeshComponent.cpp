@@ -49,7 +49,7 @@ FSplineMeshInstanceData::FSplineMeshInstanceData(const USplineMeshComponent* Sou
 
 void FSplineMeshVertexFactoryShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
-	SplineMeshParams.Bind(ParameterMap, TEXT("SplineParams"), SPF_Mandatory);
+	SplineMeshParams.Bind(ParameterMap, TEXT("SplineParams"), SPF_Optional);
 }
 
 void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
@@ -111,7 +111,11 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 //////////////////////////////////////////////////////////////////////////
 // SplineMeshVertexFactory
 
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FSplineMeshVertexFactory, SF_Vertex, FSplineMeshVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FSplineMeshVertexFactory, SF_Vertex     , FSplineMeshVertexFactoryShaderParameters);
+#if RHI_RAYTRACING
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FSplineMeshVertexFactory, SF_RayHitGroup, FSplineMeshVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FSplineMeshVertexFactory, SF_Compute    , FSplineMeshVertexFactoryShaderParameters);
+#endif
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FSplineMeshVertexFactory, "/Engine/Private/LocalVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials
@@ -121,6 +125,9 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FSplineMeshVertexFactory, "/Engine/Private/LocalVe
 	| EVertexFactoryFlags::SupportsPositionOnly
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 	| EVertexFactoryFlags::SupportsPSOPrecaching
+	| EVertexFactoryFlags::SupportsRayTracing
+	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
+	| EVertexFactoryFlags::SupportsManualVertexFetch
 );
 
 void InitSplineMeshVertexFactoryComponents(
