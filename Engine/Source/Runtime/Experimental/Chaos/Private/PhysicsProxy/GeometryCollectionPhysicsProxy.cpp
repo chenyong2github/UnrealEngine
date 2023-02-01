@@ -3879,6 +3879,9 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 									ChildMassToClusterMass.TransformPosition(MassSpaceParticles.X(VertIdx));
 								InstanceBoundingBox += MassSpaceParticles.X(VertIdx);
 							}
+
+							// Reset vert set for next child so we don't repeatedly transform verts and over extend our calculated bounds
+							VertsAdded.Reset();
 						}
 					}
 				} // tmp scope
