@@ -10,6 +10,8 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 
+#include "SAudioRadialSlider.generated.h"
+
 class SAudioTextBox;
 class SImage;
 class SWidgetSwitcher;
