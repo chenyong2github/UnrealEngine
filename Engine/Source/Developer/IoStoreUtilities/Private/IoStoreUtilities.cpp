@@ -5497,12 +5497,12 @@ static int32 Diff(
 	return 0;
 }
 
-bool LegacyDiffIoStoreContainers(const TCHAR* InContainerFilename1, const TCHAR* InContainerFilename2, bool bInLogUniques1, bool bInLogUniques2, const FKeyChain& InKeyChain)
+bool LegacyDiffIoStoreContainers(const TCHAR* InContainerFilename1, const TCHAR* InContainerFilename2, bool bInLogUniques1, bool bInLogUniques2, const FKeyChain& InKeyChain1, const FKeyChain* InKeyChain2)
 {
 	TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
 	UE_LOG(LogIoStore, Log, TEXT("FileEventType, FileName, Size1, Size2"));
 
-	TUniquePtr<FIoStoreReader> Reader1 = CreateIoStoreReader(InContainerFilename1, InKeyChain);
+	TUniquePtr<FIoStoreReader> Reader1 = CreateIoStoreReader(InContainerFilename1, InKeyChain1);
 	if (!Reader1.IsValid())
 	{
 		return false;
@@ -5513,7 +5513,7 @@ bool LegacyDiffIoStoreContainers(const TCHAR* InContainerFilename1, const TCHAR*
 		UE_LOG(LogIoStore, Warning, TEXT("Missing directory index for container '%s'"), InContainerFilename1);
 	}
 
-	TUniquePtr<FIoStoreReader> Reader2 = CreateIoStoreReader(InContainerFilename2, InKeyChain);
+	TUniquePtr<FIoStoreReader> Reader2 = CreateIoStoreReader(InContainerFilename2, InKeyChain2 ? *InKeyChain2 : InKeyChain1);
 	if (!Reader2.IsValid())
 	{
 		return false;
@@ -6671,7 +6671,8 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		FParse::Value(FCommandLine::Get(), TEXT("DumpToFile="), OutPath);
 
 		FString CryptoKeysCacheFilename;
-		if (FParse::Value(CmdLine, TEXT("SourceCryptoKeys="), CryptoKeysCacheFilename))
+		if (FParse::Value(CmdLine, TEXT("CryptoKeys="), CryptoKeysCacheFilename) ||
+			FParse::Value(CmdLine, TEXT("SourceCryptoKeys="), CryptoKeysCacheFilename))
 		{
 			UE_LOG(LogIoStore, Display, TEXT("Parsing source crypto keys from '%s'"), *CryptoKeysCacheFilename);
 			KeyChainUtilities::LoadKeyChainFromFile(CryptoKeysCacheFilename, SourceKeyChain);
@@ -6681,6 +6682,10 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		{
 			UE_LOG(LogIoStore, Display, TEXT("Parsing target crypto keys from '%s'"), *CryptoKeysCacheFilename);
 			KeyChainUtilities::LoadKeyChainFromFile(CryptoKeysCacheFilename, TargetKeyChain);
+		}
+		else
+		{
+			TargetKeyChain = SourceKeyChain;
 		}
 
 		EChunkTypeFilter ChunkTypeFilter = EChunkTypeFilter::None;

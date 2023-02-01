@@ -27,7 +27,8 @@ IOSTOREUTILITIES_API bool LegacyDiffIoStoreContainers(
 	const TCHAR* InContainerFilename2,
 	bool bInLogUniques1,
 	bool bInLogUniques2,
-	const FKeyChain& InKeyChain);
+	const FKeyChain& InKeyChain1,
+	const FKeyChain* InKeyChain2 = nullptr);
 
 IOSTOREUTILITIES_API bool ExtractFilesFromIoStoreContainer(
 	const TCHAR* InContainerFilename,
