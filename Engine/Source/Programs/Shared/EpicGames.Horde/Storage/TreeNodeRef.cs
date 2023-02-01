@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Storage
 {
@@ -389,25 +390,12 @@ namespace EpicGames.Horde.Storage
 		public static async Task<NodeHandle> FlushAsync(this TreeWriter writer, TreeNode root, CancellationToken cancellationToken)
 		{
 			TreeNodeRef rootRef = new TreeNodeRef(root);
-			await writer.WriteAsync(rootRef, cancellationToken);
-			await writer.FlushAsync(cancellationToken);
 
-			if (rootRef.Handle == null)
-			{
-				throw new InvalidOperationException("Invalid handle in root ref during flush");
-			}
-			else if (rootRef.IsDirty())
-			{
-				throw new InvalidOperationException("Root node is still dirty");
-			}
-			else if (rootRef.Handle.PendingBundle != null)
-			{
-				throw new InvalidOperationException("Handle still has a pending bundle");
-			}
-			else if (!rootRef.Handle.Locator.IsValid())
-			{
-				throw new InvalidOperationException("Missing locator in root ref after flush");
-			}
+			NodeHandle handle = await writer.WriteAsync(rootRef, cancellationToken);
+			writer._traceLogger?.LogInformation("Written root node {Handle}", handle);
+
+			await writer.FlushAsync(cancellationToken);
+			writer._traceLogger?.LogInformation("Flushed root node {Handle}", handle);
 
 			return rootRef.Handle!;
 		}
