@@ -103,7 +103,7 @@ namespace Horde.Build.Jobs.Artifacts
 		/// </summary>
 		/// <param name="artifact">The artifact to construct from</param>
 		/// <param name="code">The direct download code</param>
-		public GetArtifactResponse(IArtifact artifact, string? code)
+		public GetArtifactResponse(IArtifactV1 artifact, string? code)
 		{
 			Id = artifact.Id.ToString();
 			Name = artifact.Name;

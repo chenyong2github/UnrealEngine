@@ -96,7 +96,7 @@ public class ControllerIntegrationTest : IDisposable
 		MongoService mongoService = services.GetRequiredService<MongoService>();
 		ITemplateCollection templateService = services.GetRequiredService<ITemplateCollection>();
 		JobService jobService = services.GetRequiredService<JobService>();
-		IArtifactCollection artifactCollection = services.GetRequiredService<IArtifactCollection>();
+		IArtifactCollectionV1 artifactCollection = services.GetRequiredService<IArtifactCollectionV1>();
 		AgentService agentService = services.GetRequiredService<AgentService>();
 		GraphCollection graphCollection = new(mongoService);
 		IOptions<ServerSettings> serverSettings = services.GetRequiredService<IOptions<ServerSettings>>();

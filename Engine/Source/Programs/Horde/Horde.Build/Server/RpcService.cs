@@ -72,7 +72,7 @@ namespace Horde.Build.Server
 		readonly IStreamCollection _streamCollection;
 		readonly JobService _jobService;
 		readonly AgentSoftwareService _agentSoftwareService;
-		readonly IArtifactCollection _artifactCollection;
+		readonly IArtifactCollectionV1 _artifactCollection;
 		readonly ILogFileService _logFileService;
 		readonly PoolService _poolService;
 		readonly LifetimeService _lifetimeService;
@@ -89,7 +89,7 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RpcService(AclService aclService, AgentService agentService, IStreamCollection streamCollection, JobService jobService, AgentSoftwareService agentSoftwareService, IArtifactCollection artifactCollection, ILogFileService logFileService, PoolService poolService, LifetimeService lifetimeService, IGraphCollection graphs, ITestDataCollection testData, IJobStepRefCollection jobStepRefCollection, ITemplateCollection templateCollection, ConformTaskSource conformTaskSource, HttpClient httpClient, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
+		public RpcService(AclService aclService, AgentService agentService, IStreamCollection streamCollection, JobService jobService, AgentSoftwareService agentSoftwareService, IArtifactCollectionV1 artifactCollection, ILogFileService logFileService, PoolService poolService, LifetimeService lifetimeService, IGraphCollection graphs, ITestDataCollection testData, IJobStepRefCollection jobStepRefCollection, ITemplateCollection templateCollection, ConformTaskSource conformTaskSource, HttpClient httpClient, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
 		{
 			_aclService = aclService;
 			_agentService = agentService;
@@ -1059,7 +1059,7 @@ namespace Horde.Build.Server
 			// Upload the stream
 			using (ArtifactChunkStream inputStream = new ArtifactChunkStream(reader, metadata.Length))
 			{
-				IArtifact artifact = await _artifactCollection.CreateArtifactAsync(job.Id, step.Id, metadata.Name, metadata.MimeType, inputStream);
+				IArtifactV1 artifact = await _artifactCollection.CreateArtifactAsync(job.Id, step.Id, metadata.Name, metadata.MimeType, inputStream);
 
 				UploadArtifactResponse response = new UploadArtifactResponse();
 				response.Id = artifact.Id.ToString();

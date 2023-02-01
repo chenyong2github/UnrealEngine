@@ -10,7 +10,7 @@ namespace Horde.Build.Jobs.Artifacts
 	/// <summary>
 	/// Information about an artifact
 	/// </summary>
-	public interface IArtifact
+	public interface IArtifactV1
 	{
 		/// <summary>
 		/// Identifier for the Artifact. Randomly generated.

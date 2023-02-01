@@ -476,7 +476,7 @@ namespace Horde.Build.Tests
 			requestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(data[3]) });
 			UploadArtifactResponse res = await call;
 
-			IArtifact? artifact = await ArtifactCollection.GetArtifactAsync(ObjectId.Parse(res.Id));
+			IArtifactV1? artifact = await ArtifactCollection.GetArtifactAsync(ObjectId.Parse(res.Id));
 			Assert.IsNotNull(artifact);
 			Stream stream = await ArtifactCollection.OpenArtifactReadStreamAsync(artifact!);
 			using StreamReader reader = new StreamReader(stream);

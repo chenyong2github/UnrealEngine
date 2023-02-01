@@ -20,7 +20,7 @@ namespace Horde.Build.Tests
         public async Task GetArtifactDataByFilenameTest()
         {
 			Fixture? fixture = await GetFixture();
-			IArtifact? art = fixture.Job1Artifact;
+			IArtifactV1? art = fixture.Job1Artifact;
 
 			// Test existing filename
 			System.Net.Http.HttpResponseMessage? res = await Client.GetAsync(GetUri(art.JobId.ToString(), art.StepId.ToString()!, art.Name));

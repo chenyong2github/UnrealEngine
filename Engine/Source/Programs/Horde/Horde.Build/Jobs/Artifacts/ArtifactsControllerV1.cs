@@ -30,10 +30,10 @@ namespace Horde.Build.Jobs.Artifacts
 	/// </summary>
 	[ApiController]
 	[Route("[controller]")]
-	public class ArtifactsController : ControllerBase
+	public class ArtifactsControllerV1 : ControllerBase
 	{
 		private readonly GlobalsService _globalsService;
-		private readonly IArtifactCollection _artifactCollection;
+		private readonly IArtifactCollectionV1 _artifactCollection;
 		private readonly AclService _aclService;
 		private readonly JobService _jobService;
 		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
@@ -41,7 +41,7 @@ namespace Horde.Build.Jobs.Artifacts
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ArtifactsController(GlobalsService globalsService, IArtifactCollection artifactCollection, AclService aclService, JobService jobService, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public ArtifactsControllerV1(GlobalsService globalsService, IArtifactCollectionV1 artifactCollection, AclService aclService, JobService jobService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_globalsService = globalsService;
 			_artifactCollection = artifactCollection;
@@ -95,7 +95,7 @@ namespace Horde.Build.Jobs.Artifacts
 				}
 			}
 
-			IArtifact newArtifact = await _artifactCollection.CreateArtifactAsync(job.Id, step?.Id, file.FileName, file.ContentType ?? "horde-mime/unknown", file.OpenReadStream());
+			IArtifactV1 newArtifact = await _artifactCollection.CreateArtifactAsync(job.Id, step?.Id, file.FileName, file.ContentType ?? "horde-mime/unknown", file.OpenReadStream());
 			return new CreateArtifactResponse(newArtifact.Id.ToString());
 		}
 
@@ -110,7 +110,7 @@ namespace Horde.Build.Jobs.Artifacts
 		[Route("/api/v1/artifacts/{artifactId}")]
 		public async Task<ActionResult<CreateArtifactResponse>> UpdateArtifact(string artifactId, IFormFile file)
 		{
-			IArtifact? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
 			if (artifact == null)
 			{
 				return NotFound();
@@ -145,7 +145,7 @@ namespace Horde.Build.Jobs.Artifacts
 
 			string? downloadCode = code ? (string?)await GetDirectDownloadCodeForJobAsync(jobId) : null;
 
-			List<IArtifact> artifacts = await _artifactCollection.GetArtifactsAsync(jobId, stepId?.ToSubResourceId(), null);
+			List<IArtifactV1> artifacts = await _artifactCollection.GetArtifactsAsync(jobId, stepId?.ToSubResourceId(), null);
 			return artifacts.ConvertAll(x => new GetArtifactResponse(x, downloadCode).ApplyFilter(filter));
 		}
 
@@ -183,7 +183,7 @@ namespace Horde.Build.Jobs.Artifacts
 		[ProducesResponseType(typeof(GetArtifactResponse), 200)]
 		public async Task<ActionResult<object>> GetArtifact(string artifactId, bool code = false, [FromQuery] PropertyFilter? filter = null)
 		{
-			IArtifact? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
 			if (artifact == null)
 			{
 				return NotFound();
@@ -207,7 +207,7 @@ namespace Horde.Build.Jobs.Artifacts
 		[Route("/api/v1/artifacts/{artifactId}/data")]
 		public async Task<ActionResult> GetArtifactData(string artifactId)
 		{
-			IArtifact? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
 			if (artifact == null)
 			{
 				return NotFound();
@@ -239,13 +239,13 @@ namespace Horde.Build.Jobs.Artifacts
 				return Forbid();
 			}
 			
-			List<IArtifact> artifacts = await _artifactCollection.GetArtifactsAsync(jobId, stepIdValue, filename);
+			List<IArtifactV1> artifacts = await _artifactCollection.GetArtifactsAsync(jobId, stepIdValue, filename);
 			if (artifacts.Count == 0)
 			{
 				return NotFound();
 			}
 
-			IArtifact artifact = artifacts[0];
+			IArtifactV1 artifact = artifacts[0];
 			return new FileStreamResult(await _artifactCollection.OpenArtifactReadStreamAsync(artifact), artifact.MimeType);
 		}
 
@@ -308,7 +308,7 @@ namespace Horde.Build.Jobs.Artifacts
 			JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
 			ClaimsPrincipal principal = handler.ValidateToken(code, parameters, out _);
 
-			IArtifact? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
 			if (artifact == null)
 			{
 				return NotFound();
@@ -348,21 +348,21 @@ namespace Horde.Build.Jobs.Artifacts
 				return Forbid();
 			}
 
-			List<IArtifact> artifacts = await _artifactCollection.GetArtifactsAsync(job.Id, artifactZipRequest.StepId?.ToSubResourceId(), null);
+			List<IArtifactV1> artifacts = await _artifactCollection.GetArtifactsAsync(job.Id, artifactZipRequest.StepId?.ToSubResourceId(), null);
 
-			Dictionary<ObjectId, IArtifact> idToArtifact = artifacts.ToDictionary(x => x.Id, x => x);
+			Dictionary<ObjectId, IArtifactV1> idToArtifact = artifacts.ToDictionary(x => x.Id, x => x);
 
-			List<IArtifact> zipArtifacts;
+			List<IArtifactV1> zipArtifacts;
 			if (artifactZipRequest.ArtifactIds == null)
 			{
 				zipArtifacts = artifacts;
 			}
 			else
 			{
-				zipArtifacts = new List<IArtifact>();
+				zipArtifacts = new List<IArtifactV1>();
 				foreach (string artifactId in artifactZipRequest.ArtifactIds)
 				{
-					IArtifact? artifact;
+					IArtifactV1? artifact;
 					if (idToArtifact.TryGetValue(artifactId.ToObjectId(), out artifact))
 					{
 						zipArtifacts.Add(artifact);
@@ -384,7 +384,7 @@ namespace Horde.Build.Jobs.Artifacts
 					// Keep the stream open after dispose so we can write the EOF bits.
 					using (ZipArchive zipArchive = new ZipArchive(zipOutputStream, ZipArchiveMode.Create, true))
 					{
-						foreach (IArtifact artifact in zipArtifacts)
+						foreach (IArtifactV1 artifact in zipArtifacts)
 						{
 							await using (System.IO.Stream artifactStream = await _artifactCollection.OpenArtifactReadStreamAsync(artifact))
 							{

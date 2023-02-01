@@ -36,13 +36,13 @@ namespace Horde.Build.Tests
 		public StreamConfig? StreamConfig { get; private set; }
 		public TemplateId TemplateRefId1 { get; private set; }
 		public TemplateId TemplateRefId2 { get; private set; }
-		public IArtifact Job1Artifact { get; private set; } = null!;
+		public IArtifactV1 Job1Artifact { get; private set; } = null!;
 		public string Job1ArtifactData { get; private set; } = null!;
 		public IAgent Agent1 { get; private set; } = null!;
 		public string Agent1Name { get; private set; } = null!;
 		public const string PoolName = "TestingPool";
 
-		public static async Task<Fixture> Create(ConfigService configService, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, AgentService agentService, ServerSettings serverSettings)
+		public static async Task<Fixture> Create(ConfigService configService, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollectionV1 artifactCollection, AgentService agentService, ServerSettings serverSettings)
 		{
 			Fixture fixture = new Fixture();
 			await fixture.Populate(configService, graphCollection, templateCollection, jobService, artifactCollection, agentService, serverSettings);
@@ -53,7 +53,7 @@ namespace Horde.Build.Tests
 			return fixture;
 		}
 
-		private async Task Populate(ConfigService configService, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, AgentService agentService, ServerSettings serverSettings)
+		private async Task Populate(ConfigService configService, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollectionV1 artifactCollection, AgentService agentService, ServerSettings serverSettings)
 		{
 			FixtureGraph fg = new FixtureGraph();
 			fg.Id = ContentHash.Empty;

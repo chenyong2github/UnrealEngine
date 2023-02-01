@@ -18,9 +18,9 @@ namespace Horde.Build.Jobs.Artifacts
 	/// <summary>
 	/// Wraps functionality for manipulating artifacts
 	/// </summary>
-	public class ArtifactCollection : IArtifactCollection
+	public class ArtifactCollectionV1 : IArtifactCollectionV1
 	{
-		class Artifact : IArtifact
+		class Artifact : IArtifactV1
 		{
 			[BsonRequired, BsonId]
 			public ObjectId Id { get; set; }
@@ -67,7 +67,7 @@ namespace Horde.Build.Jobs.Artifacts
 		/// </summary>
 		/// <param name="mongoService">The database service</param>
 		/// <param name="storageBackend">The storage backend</param>
-		public ArtifactCollection(MongoService mongoService, IStorageBackend<ArtifactCollection> storageBackend)
+		public ArtifactCollectionV1(MongoService mongoService, IStorageBackend<ArtifactCollectionV1> storageBackend)
 		{
 			_storageBackend = storageBackend;
 
@@ -84,7 +84,7 @@ namespace Horde.Build.Jobs.Artifacts
 		/// <param name="mimeType">Type of artifact</param>
 		/// <param name="data">The data to write</param>
 		/// <returns>The new log file document</returns>
-		public async Task<IArtifact> CreateArtifactAsync(JobId jobId, SubResourceId? stepId, string name, string mimeType, System.IO.Stream data)
+		public async Task<IArtifactV1> CreateArtifactAsync(JobId jobId, SubResourceId? stepId, string name, string mimeType, System.IO.Stream data)
 		{
 			// upload first
 			string artifactName = ValidateName(name);
@@ -103,7 +103,7 @@ namespace Horde.Build.Jobs.Artifacts
 		/// <param name="stepId">Unique id of the Step to query</param>
 		/// <param name="name">Name of the artifact</param>
 		/// <returns>List of artifact documents</returns>
-		public async Task<List<IArtifact>> GetArtifactsAsync(JobId? jobId, SubResourceId? stepId, string? name)
+		public async Task<List<IArtifactV1>> GetArtifactsAsync(JobId? jobId, SubResourceId? stepId, string? name)
 		{
 			FilterDefinitionBuilder<Artifact> builder = Builders<Artifact>.Filter;
 
@@ -121,7 +121,7 @@ namespace Horde.Build.Jobs.Artifacts
 				filter &= builder.Eq(x => x.Name, name);
 			}
 
-			return await _artifacts.Find(filter).ToListAsync<Artifact, IArtifact>();
+			return await _artifacts.Find(filter).ToListAsync<Artifact, IArtifactV1>();
 		}
 
 		/// <summary>
@@ -129,14 +129,14 @@ namespace Horde.Build.Jobs.Artifacts
 		/// </summary>
 		/// <param name="artifactIds">The list of artifact Ids</param>
 		/// <returns>List of artifact documents</returns>
-		public async Task<List<IArtifact>> GetArtifactsAsync(IEnumerable<ObjectId> artifactIds)
+		public async Task<List<IArtifactV1>> GetArtifactsAsync(IEnumerable<ObjectId> artifactIds)
 		{
 			FilterDefinitionBuilder<Artifact> builder = Builders<Artifact>.Filter;
 
 			FilterDefinition<Artifact> filter = FilterDefinition<Artifact>.Empty;
 			filter &= builder.In(x => x.Id, artifactIds);
 			
-			return await _artifacts.Find(filter).ToListAsync<Artifact, IArtifact>();
+			return await _artifacts.Find(filter).ToListAsync<Artifact, IArtifactV1>();
 		}
 
 		/// <summary>
@@ -144,7 +144,7 @@ namespace Horde.Build.Jobs.Artifacts
 		/// </summary>
 		/// <param name="artifactId">Unique id of the artifact</param>
 		/// <returns>The artifact document</returns>
-		public async Task<IArtifact?> GetArtifactAsync(ObjectId artifactId)
+		public async Task<IArtifactV1?> GetArtifactAsync(ObjectId artifactId)
 		{
 			return await _artifacts.Find<Artifact>(x => x.Id == artifactId).FirstOrDefaultAsync();
 		}
@@ -168,7 +168,7 @@ namespace Horde.Build.Jobs.Artifacts
 		/// <param name="newMimeType">New mime type</param>
 		/// <param name="newData">New data</param>
 		/// <returns>Async task</returns>
-		public async Task<bool> UpdateArtifactAsync(IArtifact? artifact, string newMimeType, System.IO.Stream newData)
+		public async Task<bool> UpdateArtifactAsync(IArtifactV1? artifact, string newMimeType, System.IO.Stream newData)
 		{
 			while (artifact != null)
 			{
@@ -197,7 +197,7 @@ namespace Horde.Build.Jobs.Artifacts
 		/// </summary>
 		/// <param name="artifact">The artifact</param>
 		/// <returns>The chunk data</returns>
-		public async Task<System.IO.Stream> OpenArtifactReadStreamAsync(IArtifact artifact)
+		public async Task<System.IO.Stream> OpenArtifactReadStreamAsync(IArtifactV1 artifact)
 		{
 			System.IO.Stream? stream = await _storageBackend.TryReadAsync(GetPath(artifact.JobId, artifact.StepId, artifact.Name));
 			if (stream == null)
