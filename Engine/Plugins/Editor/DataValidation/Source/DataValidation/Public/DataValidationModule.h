@@ -5,6 +5,8 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/ObjectMacros.h"
 
+#include "DataValidationModule.generated.h"
+
 struct FAssetData;
 
 #include "DataValidationModule.generated.h"
