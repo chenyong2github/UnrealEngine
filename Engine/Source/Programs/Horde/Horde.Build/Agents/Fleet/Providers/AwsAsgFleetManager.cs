@@ -59,7 +59,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 		}
 
 		/// <inheritdoc/>
-		public async Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+		public async Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			int desiredCapacity = agents.Count + count;
 			
@@ -70,10 +70,11 @@ namespace Horde.Build.Agents.Fleet.Providers
 			scope.Span.SetTag("desiredCapacity", desiredCapacity);
 			
 			await UpdateAsg(pool.Id, desiredCapacity, scope, cancellationToken);
+			return new ScaleResult(FleetManagerOutcome.Success, count, 0);
 		}
 
 		/// <inheritdoc/>
-		public async Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+		public async Task<ScaleResult> ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			int desiredCapacity = Math.Max(0, agents.Count - count);
 			
@@ -84,6 +85,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 			scope.Span.SetTag("desiredCapacity", desiredCapacity);
 			
 			await UpdateAsg(pool.Id, desiredCapacity, scope, cancellationToken);
+			return new ScaleResult(FleetManagerOutcome.Success, 0, count);
 		}
 		
 		private async Task UpdateAsg(StringId<IPool> poolId, int desiredCapacity, IScope scope, CancellationToken cancellationToken)

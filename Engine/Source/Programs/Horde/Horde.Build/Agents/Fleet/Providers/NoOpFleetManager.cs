@@ -25,17 +25,17 @@ namespace Horde.Build.Agents.Fleet.Providers
 		}
 
 		/// <inheritdoc/>
-		public Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+		public Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			_logger.LogInformation("Expand pool {PoolId} by {Count} agents", pool.Id, count);
-			return Task.CompletedTask;
+			return Task.FromResult(new ScaleResult(FleetManagerOutcome.Success, count, 0));
 		}
 
 		/// <inheritdoc/>
-		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+		public Task<ScaleResult> ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			_logger.LogInformation("Shrink pool {PoolId} by {Count} agents", pool.Id, count);
-			return Task.CompletedTask;
+			return Task.FromResult(new ScaleResult(FleetManagerOutcome.Success, 0, count));
 		}
 
 		/// <inheritdoc/>

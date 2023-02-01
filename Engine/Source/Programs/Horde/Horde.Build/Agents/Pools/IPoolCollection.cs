@@ -130,6 +130,9 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="lastScaleDownTime">New time for last (auto) scale down</param>
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
+		/// <param name="lastScaleResult">Result from last scaling in/out attempt</param>
+		/// <param name="lastAgentCount">Last calculated agent count</param>
+		/// <param name="lastDesiredAgentCount">Last calculated desired agent count</param>
 		/// <param name="sizeStrategy">Pool sizing strategy</param>
 		/// <param name="newSizeStrategies">List of pool sizing strategies</param>
 		/// <param name="newFleetManagers">List of fleet managers</param>
@@ -153,6 +156,9 @@ namespace Horde.Build.Agents.Pools
 			DateTime? lastScaleDownTime = null,
 			TimeSpan? scaleOutCooldown = null,
 			TimeSpan? scaleInCooldown = null,
+			ScaleResult? lastScaleResult = null,
+			int? lastAgentCount = null,
+			int? lastDesiredAgentCount = null,
 			PoolSizeStrategy? sizeStrategy = null,
 			List<PoolSizeStrategyInfo>? newSizeStrategies = null,
 			List<FleetManagerInfo>? newFleetManagers = null,

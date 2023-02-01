@@ -32,18 +32,18 @@ namespace Horde.Build.Tests.Fleet
 		private readonly List<IAgent> _expandAgents = new ();
 		private readonly List<IAgent> _shrinkAgents = new ();
 		
-		public Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+		public Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			ExpandPoolAsyncCallCount++;
 			_expandAgents.AddRange(agents);
-			return Task.CompletedTask;
+			return Task.FromResult(new ScaleResult(FleetManagerOutcome.Success, count, 0));
 		}
 
-		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+		public Task<ScaleResult> ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			ShrinkPoolAsyncCallCount++;
 			_shrinkAgents.AddRange(agents);
-			return Task.CompletedTask;
+			return Task.FromResult(new ScaleResult(FleetManagerOutcome.Success, 0, count));
 		}
 
 		public Task<int> GetNumStoppedInstancesAsync(IPool pool, CancellationToken cancellationToken)
@@ -52,7 +52,33 @@ namespace Horde.Build.Tests.Fleet
 		}
 	}
 
-	
+	public class FakeFleetManager : IFleetManager
+	{
+		public int AgentsAddedCount { get; private set; }
+		public int AgentsRemovedCount { get; private set; }
+
+		public ScaleResult? ForceResult { get; set; } = null;
+		
+		public Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken = default)
+		{
+			AgentsAddedCount += count;
+			ScaleResult scaleResult = new (FleetManagerOutcome.Success, count, 0, "Pool scaled out");
+			return Task.FromResult(ForceResult ?? scaleResult);
+		}
+
+		public Task<ScaleResult> ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken = default)
+		{
+			AgentsRemovedCount += count;
+			ScaleResult scaleResult = new (FleetManagerOutcome.Success, 0, count, "Pool scaled in");
+			return Task.FromResult(ForceResult ?? scaleResult);
+		}
+
+		public Task<int> GetNumStoppedInstancesAsync(IPool pool, CancellationToken cancellationToken = default)
+		{
+			throw new NotImplementedException();
+		}
+	}
+
 	public class StubFleetManagerFactory : IFleetManagerFactory
 	{
 		private readonly IFleetManager _fleetManager;
@@ -72,6 +98,7 @@ namespace Horde.Build.Tests.Fleet
 	public class FleetServiceTest : TestSetup
 	{
 		readonly FleetManagerSpy _fleetManagerSpy = new();
+		readonly FakeFleetManager _fakeFleetManager = new();
 		readonly IDogStatsd _dogStatsD = new NoOpDogStatsd();
 
 		protected override void Dispose(bool disposing)
@@ -107,16 +134,19 @@ namespace Horde.Build.Tests.Fleet
 			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 
 			// First scale-out will succeed
-			await service.ScalePoolAsync(pool, new List<IAgent>(), new PoolSizeResult(0, 1), CancellationToken.None);
+			ScaleResult result = await service.ScalePoolAsync(pool, new List<IAgent>(), new PoolSizeResult(0, 1), CancellationToken.None);
+			Assert.AreEqual(new ScaleResult(FleetManagerOutcome.Success, 1, 0), result);
 			Assert.AreEqual(1, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 			
 			// Cannot scale-out due to cool-down
-			await service.ScalePoolAsync(pool, new List<IAgent>(), new PoolSizeResult(0, 2), CancellationToken.None);
+			result = await service.ScalePoolAsync(pool, new List<IAgent>(), new PoolSizeResult(0, 2), CancellationToken.None);
+			Assert.AreEqual(new ScaleResult(FleetManagerOutcome.NoOp, 0, 0), result);
 			Assert.AreEqual(1, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 
 			// Wait some time and then try again
 			await Clock.AdvanceAsync(TimeSpan.FromHours(2));
-			await service.ScalePoolAsync(pool, new List<IAgent>(), new PoolSizeResult(0, 2), CancellationToken.None);
+			result = await service.ScalePoolAsync(pool, new List<IAgent>(), new PoolSizeResult(0, 2), CancellationToken.None);
+			Assert.AreEqual(new ScaleResult(FleetManagerOutcome.Success, 2, 0), result);
 			Assert.AreEqual(2, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 		}
 		
@@ -129,16 +159,19 @@ namespace Horde.Build.Tests.Fleet
 			IAgent agent2 = await CreateAgentAsync(pool);
 
 			// First scale-in will succeed
-			await service.ScalePoolAsync(pool, new List<IAgent> { agent1, agent2 }, new PoolSizeResult(2, 1), CancellationToken.None);
+			ScaleResult result = await service.ScalePoolAsync(pool, new List<IAgent> { agent1, agent2 }, new PoolSizeResult(2, 1), CancellationToken.None);
+			Assert.AreEqual(new ScaleResult(FleetManagerOutcome.Success, 0, 1), result);
 			Assert.AreEqual(1, _fleetManagerSpy.ShrinkPoolAsyncCallCount);
 			
 			// Cannot scale-in due to cool-down
-			await service.ScalePoolAsync(pool, new List<IAgent> { agent1 }, new PoolSizeResult(1, 0), CancellationToken.None);
+			result = await service.ScalePoolAsync(pool, new List<IAgent> { agent1 }, new PoolSizeResult(1, 0), CancellationToken.None);
+			Assert.AreEqual(new ScaleResult(FleetManagerOutcome.NoOp, 0, 0), result);
 			Assert.AreEqual(1, _fleetManagerSpy.ShrinkPoolAsyncCallCount);
 
 			// Wait some time and then try again
 			await Clock.AdvanceAsync(TimeSpan.FromHours(2));
-			await service.ScalePoolAsync(pool, new List<IAgent> { agent1 }, new PoolSizeResult(1, 0), CancellationToken.None);
+			result = await service.ScalePoolAsync(pool, new List<IAgent> { agent1 }, new PoolSizeResult(1, 0), CancellationToken.None);
+			Assert.AreEqual(new ScaleResult(FleetManagerOutcome.Success, 0, 1), result);
 			Assert.AreEqual(2, _fleetManagerSpy.ShrinkPoolAsyncCallCount);
 		}
 		
@@ -148,7 +181,8 @@ namespace Horde.Build.Tests.Fleet
 			using FleetService service = GetFleetService(_fleetManagerSpy, true);
 			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 
-			await service.ScalePoolAsync(pool, new List<IAgent>(), new PoolSizeResult(0, 1), CancellationToken.None);
+			ScaleResult result = await service.ScalePoolAsync(pool, new List<IAgent>(), new PoolSizeResult(0, 1), CancellationToken.None);
+			Assert.AreEqual(new ScaleResult(FleetManagerOutcome.NoOp, 0, 0), result);
 			Assert.AreEqual(0, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 		}
 		

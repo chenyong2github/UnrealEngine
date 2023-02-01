@@ -198,26 +198,29 @@ namespace Horde.Build.Agents.Fleet
 			return pools.Select(pool => new PoolWithAgents(pool, GetAgentsInPool(pool.Id))).ToList();
 		}
 
-		internal async Task ScalePoolAsync(IPool pool, List<IAgent> agents, PoolSizeResult poolSizeResult, CancellationToken cancellationToken)
+		internal async Task<ScaleResult> ScalePoolAsync(IPool pool, List<IAgent> agents, PoolSizeResult poolSizeResult, CancellationToken cancellationToken)
 		{
 			if (!pool.EnableAutoscaling)
 			{
-				return;
+				return new ScaleResult(FleetManagerOutcome.NoOp, 0, 0, "Auto-scaling disabled");
 			}
 
+			ScaleResult result = new (FleetManagerOutcome.NoOp, 0, 0);
 			int currentAgentCount = poolSizeResult.CurrentAgentCount;
 			int desiredAgentCount = poolSizeResult.DesiredAgentCount;
 			int deltaAgentCount = desiredAgentCount - currentAgentCount;
 
+			IFleetManager fleetManager = CreateFleetManager(pool);
+			
 			using IScope scope = GlobalTracer.Instance
 				.BuildSpan("FleetService.ScalePool")
 				.WithTag(Datadog.Trace.OpenTracing.DatadogTags.ResourceName, pool.Id.ToString())
 				.WithTag("CurrentAgentCount", currentAgentCount)
 				.WithTag("DesiredAgentCount", desiredAgentCount)
 				.WithTag("DeltaAgentCount", deltaAgentCount)
+				.WithTag("FleetManager", fleetManager.GetType().Name)
 				.StartActive();
-			
-			IFleetManager fleetManager = CreateFleetManager(pool);
+
 			Dictionary<string, object> logScopeMetadata = new()
 			{
 				["FleetManager"] = fleetManager.GetType().Name,
@@ -226,62 +229,64 @@ namespace Horde.Build.Agents.Fleet
 			};
 
 			using IDisposable logScope = _logger.BeginScope(logScopeMetadata);
-			
-			_logger.LogInformation("{PoolName} Current={Current} Target={Target} Delta={Delta}",
-				pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount);
+			if (pool.LastAgentCount != currentAgentCount || pool.LastDesiredAgentCount != desiredAgentCount)
+			{
+				_logger.LogInformation("{PoolName} Current={Current} Target={Target} Delta={Delta}",
+					pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount);	
+			}
 
+			_dogStatsd.Gauge("agentpools.autoscale.target", desiredAgentCount, tags: new []{"pool:" + pool.Name});
+			_dogStatsd.Gauge("agentpools.autoscale.current", currentAgentCount, tags: new []{"pool:" + pool.Name});
+
+			DateTime? scaleOutTime = null;
+			DateTime? scaleInTime = null;
+			
+			TimeSpan scaleOutCooldown = pool.ScaleOutCooldown ?? _defaultScaleOutCooldown;
+			bool isScaleOutCoolingDown = pool.LastScaleUpTime != null && pool.LastScaleUpTime + scaleOutCooldown > _clock.UtcNow;
+			TimeSpan? scaleOutCooldownTimeLeft = pool.LastScaleUpTime + _defaultScaleOutCooldown - _clock.UtcNow;
+			scope.Span.SetTag("ScaleOutCooldownTimeLeftSecs", scaleOutCooldownTimeLeft?.TotalSeconds ?? -1);
+			
+			TimeSpan scaleInCooldown = pool.ScaleInCooldown ?? _defaultScaleInCooldown;
+			bool isScaleInCoolingDown = pool.LastScaleDownTime != null && pool.LastScaleDownTime + scaleInCooldown > _clock.UtcNow;
+			TimeSpan? scaleInCooldownTimeLeft = pool.LastScaleDownTime + _defaultScaleInCooldown - _clock.UtcNow;
+			scope.Span.SetTag("ScaleOutCooldownTimeLeftSecs", scaleInCooldownTimeLeft?.TotalSeconds ?? -1);
+			
+			scope.Span.SetTag("IsDowntimeActive", _downtimeService.IsDowntimeActive);
+			
 			try
 			{
-				if (deltaAgentCount > 0)
+				if (deltaAgentCount > 0 && !_downtimeService.IsDowntimeActive && !isScaleOutCoolingDown)
 				{
-					if (!_downtimeService.IsDowntimeActive)
-					{
-						TimeSpan scaleOutCooldown = pool.ScaleOutCooldown ?? _defaultScaleOutCooldown;
-						bool isCoolingDown = pool.LastScaleUpTime != null && pool.LastScaleUpTime + scaleOutCooldown > _clock.UtcNow;
-						scope.Span.SetTag("isCoolingDown", isCoolingDown);
-						if (!isCoolingDown)
-						{
-							await fleetManager.ExpandPoolAsync(pool, agents, deltaAgentCount, cancellationToken);
-							await _poolCollection.TryUpdateAsync(pool, lastScaleUpTime: _clock.UtcNow);
-						}
-						else
-						{
-							TimeSpan? cooldownTimeLeft = pool.LastScaleUpTime + _defaultScaleOutCooldown - _clock.UtcNow;
-							_logger.LogDebug("Cannot scale out {PoolName}, it's cooling down for another {TimeLeft} secs", pool.Name, cooldownTimeLeft?.TotalSeconds);
-						}
-					}
-					else
-					{
-						_logger.LogDebug("Cannot scale out {PoolName}, downtime is active", pool.Name);
-						scope.Span.SetTag("IsDowntimeActive", true);
-					}
+					result = await fleetManager.ExpandPoolAsync(pool, agents, deltaAgentCount, cancellationToken);
+					scaleOutTime = _clock.UtcNow;
 				}
 
-				if (deltaAgentCount < 0)
+				if (deltaAgentCount < 0 && !isScaleInCoolingDown)
 				{
-					TimeSpan scaleInCooldown = pool.ScaleInCooldown ?? _defaultScaleInCooldown;
-					bool isCoolingDown = pool.LastScaleDownTime != null && pool.LastScaleDownTime + scaleInCooldown > _clock.UtcNow;
-					scope.Span.SetTag("isCoolingDown", isCoolingDown);
-					if (!isCoolingDown)
-					{
-						await fleetManager.ShrinkPoolAsync(pool, agents, -deltaAgentCount, cancellationToken);
-						await _poolCollection.TryUpdateAsync(pool, lastScaleDownTime: _clock.UtcNow);
-					}
-					else
-					{
-						TimeSpan? cooldownTimeLeft = pool.LastScaleDownTime + _defaultScaleInCooldown - _clock.UtcNow;
-						_logger.LogDebug("Cannot scale in {PoolName}, it's cooling down for another {TimeLeft} secs", pool.Name, cooldownTimeLeft?.TotalSeconds);
-					}
+					result = await fleetManager.ShrinkPoolAsync(pool, agents, -deltaAgentCount, cancellationToken);
+					scaleInTime = _clock.UtcNow;
 				}
 			}
 			catch (Exception ex)
 			{
 				_logger.LogInformation(ex, "Failed to scale {PoolName}:\n{Exception}", pool.Name, ex);
-				return;
+				return new ScaleResult(FleetManagerOutcome.Failure, 0, 0);
 			}
 
-			_dogStatsd.Gauge("agentpools.autoscale.target", desiredAgentCount, tags: new []{"pool:" + pool.Name});
-			_dogStatsd.Gauge("agentpools.autoscale.current", currentAgentCount, tags: new []{"pool:" + pool.Name});
+			if (pool.LastScaleResult == null || !pool.LastScaleResult.Equals(result))
+			{
+				_logger.LogInformation("Scale result: {Result}", result.Message);
+			}
+
+			await _poolCollection.TryUpdateAsync(
+				pool,
+				lastScaleUpTime: scaleOutTime,
+				lastScaleDownTime: scaleInTime,
+				lastScaleResult: result,
+				lastAgentCount: currentAgentCount,
+				lastDesiredAgentCount: desiredAgentCount);
+
+			return result;
 		}
 		
 		internal IEnumerable<string> GetPropValues(string name)

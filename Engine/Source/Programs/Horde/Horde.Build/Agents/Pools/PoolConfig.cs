@@ -79,6 +79,21 @@ namespace Horde.Build.Agents.Pools
 		/// Cooldown time between scale-in events
 		/// </summary>
 		public TimeSpan? ScaleInCooldown { get; }
+		
+		/// <summary>
+		/// Last result from scaling the pool
+		/// </summary>
+		public ScaleResult? LastScaleResult { get; }
+		
+		/// <summary>
+		/// Last known agent count
+		/// </summary>
+		public int? LastAgentCount { get; }
+
+		/// <summary>
+		/// Last known desired agent count
+		/// </summary>
+		public int? LastDesiredAgentCount { get; }
 
 		/// <summary>
 		/// Pool sizing strategy to be used for this pool
@@ -158,7 +173,16 @@ namespace Horde.Build.Agents.Pools
 
 		/// <inheritdoc/>
 		public TimeSpan? ScaleInCooldown { get; set; }
+		
+		/// <inheritdoc/>
+		public ScaleResult? LastScaleResult { get; set; }
 
+		/// <inheritdoc/>
+		public int? LastAgentCount { get; set; }
+		
+		/// <inheritdoc/>
+		public int? LastDesiredAgentCount { get; set; }
+		
 		/// <inheritdoc/>
 		public PoolSizeStrategy? SizeStrategy { get; set; }
 

@@ -153,7 +153,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 		}
 
 		/// <inheritdoc/>
-		public async Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+		public async Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("ExpandPool").StartActive();
 			scope.Span.SetTag("poolName", pool.Name);
@@ -205,16 +205,24 @@ namespace Horde.Build.Agents.Fleet.Providers
 				_logger.LogInformation("Created instance {InstanceId} for pool {PoolId}", i.InstanceId, pool.Id);
 			}
 
+			if (numStartedInstances == count)
+			{
+				return new ScaleResult(FleetManagerOutcome.Success, numStartedInstances, 0);
+			}
+			
 			if (numStartedInstances != count)
 			{
 				_logger.LogWarning("Unable to create all the requested instances for pool {PoolId}. RequestedCount={RequestedCount} ActualCount={ActualCount}", pool.Id, count, numStartedInstances);
 			}
+			
+			return new ScaleResult(numStartedInstances == 0 ? FleetManagerOutcome.Failure : FleetManagerOutcome.Success, numStartedInstances, 0);
 		}
 
 		/// <inheritdoc/>
-		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+		public async Task<ScaleResult> ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
-			return ShrinkPoolViaAgentShutdownRequestAsync(_agentCollection, pool, agents, count, cancellationToken);
+			await ShrinkPoolViaAgentShutdownRequestAsync(_agentCollection, pool, agents, count, cancellationToken);
+			return new ScaleResult(FleetManagerOutcome.Success, 0, count);
 		}
 		
 		/// <summary>

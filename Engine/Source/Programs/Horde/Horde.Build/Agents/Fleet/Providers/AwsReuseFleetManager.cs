@@ -63,7 +63,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 		}
 
 		/// <inheritdoc/>
-		public async Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int requestedInstancesCount, CancellationToken cancellationToken)
+		public async Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int requestedInstancesCount, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("ExpandPool").StartActive();
 			scope.Span.SetTag("poolName", pool.Name);
@@ -143,13 +143,26 @@ namespace Horde.Build.Agents.Fleet.Providers
 					                       "StartedInstancesCount={StartedInstancesCount}",
 						pool.Name, reason.Trim(), requestedInstancesCount, stoppedInstancesCount, startedInstancesCount);
 				}
+
+				if (startedInstancesCount == requestedInstancesCount)
+				{
+					return new ScaleResult(FleetManagerOutcome.Success, startedInstancesCount, 0);
+				}
+				
+				if (startedInstancesCount > 0 && startedInstancesCount < requestedInstancesCount)
+				{
+					return new ScaleResult(FleetManagerOutcome.PartialSuccess, startedInstancesCount, 0);
+				}
+				
+				return new ScaleResult(FleetManagerOutcome.Failure, startedInstancesCount, 0);
 			}
 		}
 
 		/// <inheritdoc/>
-		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+		public async Task<ScaleResult> ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
-			return AwsFleetManager.ShrinkPoolViaAgentShutdownRequestAsync(_agentCollection, pool, agents, count, cancellationToken);
+			await AwsFleetManager.ShrinkPoolViaAgentShutdownRequestAsync(_agentCollection, pool, agents, count, cancellationToken);
+			return new ScaleResult(FleetManagerOutcome.Success, 0, count);
 		} 
 
 		/// <inheritdoc/>

@@ -106,7 +106,7 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	}
 
 	/// <inheritdoc/>
-	public async Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int requestedInstancesCount, CancellationToken cancellationToken)
+	public async Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int requestedInstancesCount, CancellationToken cancellationToken)
 	{
 		using IScope scope = GlobalTracer.Instance.BuildSpan("ExpandPool").StartActive();
 		scope.Span.SetTag("PoolId", pool.Id.ToString());
@@ -134,20 +134,36 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 			["StoppedInstancesPerAz"] = stoppedInstancesPerAz.ToDictionary(x => x.Key, x => x.Value.Select(y => y.InstanceId)),
 			["InstanceTypePriority"] = Settings.InstanceTypes,
 		};
+		
+		scope.Span.SetTag("InstancesToStartCount", instancesToStartCount);
+		scope.Span.SetTag("StoppedInstancesMissingCount", stoppedInstancesMissingCount);
 
+		ScaleResult result;
 		using (_logger.BeginScope(logScopeMetadata))
 		{
 			if (instancesToStartCount == 0)
 			{
-				_logger.LogInformation("Unable to start any instance(s). No stopped instances are available.");
+				result = new ScaleResult(
+					FleetManagerOutcome.Failure,
+					instancesToStartCount,
+					0,
+					"Unable to start any instance(s). No stopped instances are available");
 			}
 			else if (stoppedInstancesMissingCount > 0)
 			{
-				_logger.LogInformation("Starting {InstancesToStartCount} instance(s) but not enough stopped instances to accommodate the full pool scale-out", instancesToStartCount);
+				result = new ScaleResult(
+					FleetManagerOutcome.PartialSuccess,
+					instancesToStartCount,
+					0,
+					$"Starting {instancesToStartCount} instance(s) but not enough stopped instances to accommodate the full pool scale-out");
 			}
 			else
 			{
-				_logger.LogInformation("Starting {InstancesToStartCount} instance(s)", instancesToStartCount);	
+				result = new ScaleResult(
+					FleetManagerOutcome.Success,
+					instancesToStartCount,
+					0,
+					$"Starting {instancesToStartCount} instance(s)");
 			}
 		}
 
@@ -159,6 +175,8 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 				await StartInstancesWithRetriesAsync(instances, instanceTypePriority, cancellationToken);					
 			}
 		}
+
+		return result;
 	}
 
 	private static Dictionary<string, List<Instance>> GetInstancesToLaunch(
@@ -404,9 +422,10 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	}
 
 	/// <inheritdoc/>
-	public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
+	public async Task<ScaleResult> ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 	{
-		return AwsFleetManager.ShrinkPoolViaAgentShutdownRequestAsync(_agentCollection, pool, agents, count, cancellationToken);
+		await AwsFleetManager.ShrinkPoolViaAgentShutdownRequestAsync(_agentCollection, pool, agents, count, cancellationToken);
+		return new ScaleResult(FleetManagerOutcome.Success, 0, count);
 	} 
 
 	/// <inheritdoc/>

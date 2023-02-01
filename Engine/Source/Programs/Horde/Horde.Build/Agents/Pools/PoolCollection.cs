@@ -65,6 +65,15 @@ namespace Horde.Build.Agents.Pools
 			public TimeSpan? ScaleInCooldown { get; set; }
 
 			[BsonIgnoreIfNull]
+			public ScaleResult? LastScaleResult { get; set; }
+
+			[BsonIgnoreIfNull]
+			public int? LastAgentCount { get; set; }
+			
+			[BsonIgnoreIfNull]
+			public int? LastDesiredAgentCount { get; set; }
+
+			[BsonIgnoreIfNull]
 			public PoolSizeStrategy? SizeStrategy { get; set; }
 
 			[BsonIgnoreIfNull]
@@ -282,6 +291,9 @@ namespace Horde.Build.Agents.Pools
 			DateTime? lastScaleDownTime,
 			TimeSpan? scaleOutCooldown,
 			TimeSpan? scaleInCooldown, 
+			ScaleResult? lastScaleResult, 
+			int? lastAgentCount, 
+			int? lastDesiredAgentCount, 
 			PoolSizeStrategy? sizeStrategy,
 			List<PoolSizeStrategyInfo>? newSizeStrategies,
 			List<FleetManagerInfo>? newFleetManagers,
@@ -377,6 +389,18 @@ namespace Horde.Build.Agents.Pools
 			if (scaleInCooldown != null)
 			{
 				transaction.Set(x => x.ScaleInCooldown, scaleInCooldown);
+			}
+			if (lastScaleResult != null)
+			{
+				transaction.Set(x => x.LastScaleResult, lastScaleResult);
+			}
+			if (lastAgentCount != null)
+			{
+				transaction.Set(x => x.LastAgentCount, lastAgentCount);
+			}
+			if (lastDesiredAgentCount != null)
+			{
+				transaction.Set(x => x.LastDesiredAgentCount, lastDesiredAgentCount);
 			}
 			if (sizeStrategy != null)
 			{
