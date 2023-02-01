@@ -1657,6 +1657,7 @@ void FGeometryCollectionPhysicsProxy::DisableParticles_External(TArray<int32>&& 
 				for (int32 TransformIdx : IndicesToDisable)
 				{
 					RBDSolver->GetEvolution()->DisableParticleWithRemovalEvent(SolverParticleHandles[TransformIdx]);
+					RBDSolver->GetParticles().MarkTransientDirtyParticle(SolverParticleHandles[TransformIdx]);
 				}
 			});
 	}
