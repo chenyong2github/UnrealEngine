@@ -16755,6 +16755,10 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 		ReferenceReplacementMap.Add(OldObject->GetClass(), NewObject->GetClass());
 	}
 	ReferenceReplacementMap.Add(OldObject->GetClass()->GetDefaultObject(), NewObject->GetClass()->GetDefaultObject());
+	if (Params.OptionalReplacementMappings)
+	{
+		ReferenceReplacementMap.Append(*Params.OptionalReplacementMappings);
+	}
 
 	TArray<UObject*> ComponentsOnNewObject;
 	TMap<UObject*, UObject*> AggressiveReplaceReferences;
@@ -16850,13 +16854,13 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 				// Restore modified properties into the new instance
 				FInstancedObjectRecord& Record = SavedInstances[*pOldInstanceIndex];
 				FObjectReader Reader(NewInstance, Record.SavedProperties, true, true);
-				FFindInstancedReferenceSubobjectHelper::Duplicate(Record.OldInstance, NewInstance, ReferenceReplacementMap, EditInlineSubobjectsOfComponents, Params.OptionalReplacementMappings);
+				FFindInstancedReferenceSubobjectHelper::Duplicate(Record.OldInstance, NewInstance, ReferenceReplacementMap, EditInlineSubobjectsOfComponents);
 			}
 		}
 		ComponentsOnNewObject.Append(MoveTemp(EditInlineSubobjectsOfComponents));
 	}
 
-	FFindInstancedReferenceSubobjectHelper::Duplicate(OldObject, NewObject, ReferenceReplacementMap, ComponentsOnNewObject, Params.OptionalReplacementMappings);
+	FFindInstancedReferenceSubobjectHelper::Duplicate(OldObject, NewObject, ReferenceReplacementMap, ComponentsOnNewObject);
 
 	// Replace anything with an outer of the old object with NULL, unless it already has a replacement or is marked pending kill
 	// Also, if requested, leave pointers to instances of renewed classes intact, assuming we are in the midst of reinstancing, and those will be reinstanced
@@ -16879,10 +16883,6 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 		else
 		{
 			FArchiveReplaceOrClearExternalReferences<UObject> ReplaceInCDOAr(NewObject, ReferenceReplacementMap, NewPackage);
-			if (Params.OptionalReplacementMappings)
-			{
-				FArchiveReplaceOrClearExternalReferences<UObject> OptionalReplaceInCDOAr(NewObject, *Params.OptionalReplacementMappings, NewPackage);
-			}
 		}
 
 		// Replace references inside each individual component. This is always required because if something is in ReferenceReplacementMap, the above replace code will skip fixing child properties
@@ -16896,10 +16896,6 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 			else
 			{
 				FArchiveReplaceOrClearExternalReferences<UObject> ReplaceInComponentAr(NewComponent, ReferenceReplacementMap, NewPackage);
-				if (Params.OptionalReplacementMappings)
-				{
-					FArchiveReplaceOrClearExternalReferences<UObject> OptionalReplaceInCDOAr(NewComponent, *Params.OptionalReplacementMappings, NewPackage);
-				}
 			}
 		}
 	}

@@ -225,23 +225,13 @@ void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject(FInstance
 				ObjRefFunc(FInstancedSubObjRef(ObjectValue, PropertyPath), ContainerAddress);
 			}
 		}
-		else
-		{
-			// @todo figure out how to support verse property types
-			//UE_LOG(LogBlueprint, Error, TEXT("%s: Skipping unknow property type(%s)"), ANSI_TO_TCHAR(__FUNCTION__), *TargetProp->GetName());
-		}
 	}
 }
 
 template ENGINE_API void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject<void*>(FInstancedPropertyPath& PropertyPath, void* ContainerAddress, TFunctionRef<void(const FInstancedSubObjRef&, void*)> ObjRefFunc);
 template ENGINE_API void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject<const void*>(FInstancedPropertyPath& PropertyPath, const void* ContainerAddress, TFunctionRef<void(const FInstancedSubObjRef&, const void*)> ObjRefFunc);
 
-void FFindInstancedReferenceSubobjectHelper::Duplicate(
-	UObject* OldObject, 
-	UObject* NewObject, 
-	TMap<UObject*, UObject*>& ReferenceReplacementMap, 
-	TArray<UObject*>& DuplicatedObjects, 
-	const TMap<UObject*, UObject*>* OptionalMappings)
+void FFindInstancedReferenceSubobjectHelper::Duplicate(UObject* OldObject, UObject* NewObject, TMap<UObject*, UObject*>& ReferenceReplacementMap, TArray<UObject*>& DuplicatedObjects)
 {
 	if (OldObject->GetClass()->HasAnyClassFlags(CLASS_HasInstancedReference) &&
 		NewObject->GetClass()->HasAnyClassFlags(CLASS_HasInstancedReference))
@@ -258,8 +248,7 @@ void FFindInstancedReferenceSubobjectHelper::Duplicate(
 				if (bNewObjectHasOldOuter)
 				{
 					const bool bKeptByOld = OldInstancedSubObjects.Contains(Obj);
-					const bool bNotHandledYet = !ReferenceReplacementMap.Contains(Obj) &&
-						(!OptionalMappings || !OptionalMappings->Contains(Obj));
+					const bool bNotHandledYet = !ReferenceReplacementMap.Contains(Obj);
 					if (bKeptByOld)
 					{
 						if (bNotHandledYet)
@@ -291,20 +280,7 @@ void FFindInstancedReferenceSubobjectHelper::Duplicate(
 						{
 							// make sure the object is outered correctly:
 							check(bNewObjectHasOldOuter);
-							UObject* RealNewSubobject = nullptr;
-							if (OptionalMappings)
-							{
-								UObject* const* Entry = OptionalMappings->Find(Obj);
-								if (Entry)
-								{
-									RealNewSubobject = *Entry;
-								}
-							}
-
-							if (!RealNewSubobject)
-							{
-								RealNewSubobject = ReferenceReplacementMap.FindChecked(Obj);
-							}
+							UObject* RealNewSubobject = ReferenceReplacementMap.FindChecked(Obj);
 							if (RealNewSubobject->GetOuter() != NewObject)
 							{
 								UObject* ExistingObject = StaticFindObjectFast(UObject::StaticClass(), NewObject, RealNewSubobject->GetFName());
