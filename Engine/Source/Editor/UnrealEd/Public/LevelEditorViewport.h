@@ -837,7 +837,7 @@ public:
 
 	FVector					ColorScale;
 
-	FColor					FadeColor;
+	FLinearColor			FadeColor;
 
 	float					FadeAmount;
 
