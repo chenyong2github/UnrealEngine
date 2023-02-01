@@ -31,33 +31,6 @@ struct PingAvgData
 	}
 };
 
-/**
- * Struct keeping track of the lowest ping values over a given second.
- */
-struct UE_DEPRECATED(4.27, "ExactPingV2 is no longer used. Please use ExactPing instead.") PingAvgDataV2
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	/** List of ping values */
-	TArray<uint16> PingValues;
-
-	/** The maximum number of ping values we will keep track of */
-	static const uint8 MAX_PING_VALUES_SIZE = 7;
-
-	/** Default constructor */
-	PingAvgDataV2()
-		: AvgPingV2(0.0f)
-	{
-		for (int32 i = 0; i < MAX_PING_VALUES_SIZE; i++)
-		{
-			PingValues.Add(MAX_uint16);
-		}
-	}
-	
-	/** The average of the values in PingValues, calculated after 1s. */
-	float AvgPingV2;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-};
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnPlayerStatePawnSet, APlayerState*, Player, APawn*, NewPawn, APawn*, OldPawn);
 
 /**
@@ -146,9 +119,6 @@ public:
 	/** Exact ping in milliseconds as float (rounded and compressed in replicated CompressedPing) */
 	float ExactPing;
 
-	UE_DEPRECATED(4.27, "Please use ExactPing instead.")
-	float ExactPingV2;
-
 	/** Used to match up InactivePlayerState with rejoining playercontroller. */
 	UPROPERTY()
 	FString SavedNetworkAddress;
@@ -187,10 +157,6 @@ private:
 	 * without using up a lot of space, while also being tolerant of changes in ping update frequency
 	 */
 	PingAvgData		PingBucket[4];
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	PingAvgDataV2	PingBucketV2[4];
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** The timestamp for when the current PingBucket began filling */
 	float			CurPingBucketTimestamp;
