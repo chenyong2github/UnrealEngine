@@ -73,6 +73,13 @@ struct RENDERCORE_API FPixelShaderUtils
 		const TShaderRef<FShader>& PixelShader,
 		FGraphicsPipelineStateInitializer& GraphicsPSOInit);
 
+	/** Initialize a pipeline state object initializer with almost all the basics required to do a full multi-viewport pass. */
+	static void InitFullscreenMultiviewportPipelineState(
+		FRHICommandList& RHICmdList,
+		const FGlobalShaderMap* GlobalShaderMap,
+		const TShaderRef<FShader>& PixelShader,
+		FGraphicsPipelineStateInitializer& GraphicsPSOInit);
+
 	/** Dispatch a full screen pixel shader to rhi command list with its parameters. */
 	template<typename TShaderClass>
 	static inline void DrawFullscreenPixelShader(
@@ -102,6 +109,47 @@ struct RENDERCORE_API FPixelShaderUtils
 		DrawFullscreenTriangle(RHICmdList);
 	}
 
+	/** Dispatch a full screen pixel shader to rhi command list with its parameters, covering several views at once. */
+	template<typename TShaderClass>
+	static inline void DrawFullscreenInstancedMultiViewportPixelShader(
+		FRHICommandList& RHICmdList,
+		const FGlobalShaderMap* GlobalShaderMap,
+		const TShaderRef<TShaderClass>& PixelShader,
+		const typename TShaderClass::FParameters& Parameters,
+		TArrayView<FIntRect const> Viewports,
+		FRHIBlendState* BlendState = nullptr,
+		FRHIRasterizerState* RasterizerState = nullptr,
+		FRHIDepthStencilState* DepthStencilState = nullptr,
+		uint32 StencilRef = 0)
+	{
+		check(PixelShader.IsValid());
+		checkf(Viewports.Num() == 2, TEXT("Only two instanced viewports are currently supported"));
+		{
+			const FIntRect& LeftViewRect = Viewports[0];
+			const int32 LeftMinX = LeftViewRect.Min.X;
+			const int32 LeftMaxX = LeftViewRect.Max.X;
+			const int32 LeftMaxY = LeftViewRect.Max.Y;
+
+			const FIntRect& RightViewRect = Viewports[1];
+			const int32 RightMinX = RightViewRect.Min.X;
+			const int32 RightMaxX = RightViewRect.Max.X;
+			const int32 RightMaxY = RightViewRect.Max.Y;
+			RHICmdList.SetStereoViewport((float)LeftMinX, (float)RightMinX, 0.0f, 0.0f, 0.0f, (float)LeftMaxX, (float)RightMaxX, (float)LeftMaxY, (float)RightMaxY, 1.0f);
+		}
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		InitFullscreenMultiviewportPipelineState(RHICmdList, GlobalShaderMap, PixelShader, /* out */ GraphicsPSOInit);
+		GraphicsPSOInit.BlendState = BlendState ? BlendState : GraphicsPSOInit.BlendState;
+		GraphicsPSOInit.RasterizerState = RasterizerState ? RasterizerState : GraphicsPSOInit.RasterizerState;
+		GraphicsPSOInit.DepthStencilState = DepthStencilState ? DepthStencilState : GraphicsPSOInit.DepthStencilState;
+
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
+
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), Parameters);
+
+		DrawFullscreenTriangle(RHICmdList, Viewports.Num());
+	}
+
 	/** Dispatch a pixel shader to render graph builder with its parameters. */
 	template<typename TShaderClass>
 	static inline void AddFullscreenPass(
@@ -126,6 +174,34 @@ struct RENDERCORE_API FPixelShaderUtils
 			[Parameters, GlobalShaderMap, PixelShader, Viewport, BlendState, RasterizerState, DepthStencilState, StencilRef](FRHICommandList& RHICmdList)
 		{
 			FPixelShaderUtils::DrawFullscreenPixelShader(RHICmdList, GlobalShaderMap, PixelShader, *Parameters, Viewport, 
+				BlendState, RasterizerState, DepthStencilState, StencilRef);
+		});
+	}
+
+	/** Dispatch a pixel shader to render graph builder with its parameters. */
+	template<typename TShaderClass>
+	static inline void AddFullscreenInstancedMultiViewportPass(
+		FRDGBuilder& GraphBuilder,
+		const FGlobalShaderMap* GlobalShaderMap,
+		FRDGEventName&& PassName,
+		const TShaderRef<TShaderClass>& PixelShader,
+		typename TShaderClass::FParameters* Parameters,
+		TArray<FIntRect>&& Viewports,
+		FRHIBlendState* BlendState = nullptr,
+		FRHIRasterizerState* RasterizerState = nullptr,
+		FRHIDepthStencilState* DepthStencilState = nullptr,
+		uint32 StencilRef = 0)
+	{
+		check(PixelShader.IsValid());
+		ClearUnusedGraphResources(PixelShader, Parameters);
+
+		GraphBuilder.AddPass(
+			Forward<FRDGEventName>(PassName),
+			Parameters,
+			ERDGPassFlags::Raster,
+			[Parameters, GlobalShaderMap, PixelShader, Viewports, BlendState, RasterizerState, DepthStencilState, StencilRef](FRHICommandList& RHICmdList)
+		{
+			FPixelShaderUtils::DrawFullscreenInstancedMultiViewportPixelShader(RHICmdList, GlobalShaderMap, PixelShader, *Parameters, Viewports,
 				BlendState, RasterizerState, DepthStencilState, StencilRef);
 		});
 	}

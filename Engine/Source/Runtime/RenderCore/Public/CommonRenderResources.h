@@ -119,6 +119,25 @@ class RENDERCORE_API FScreenVertexShaderVS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
+/** Vertex shader to draw an instanced quad covering all the viewports (SV_ViewportArrayIndex is output for each SV_InstanceID). Does not have any shader parameters.
+ * The pixel shader should just use SV_Position. */
+class RENDERCORE_API FInstancedScreenVertexShaderVS : public FScreenVertexShaderVS
+{
+	DECLARE_GLOBAL_SHADER(FInstancedScreenVertexShaderVS);
+	SHADER_USE_PARAMETER_STRUCT(FInstancedScreenVertexShaderVS, FScreenVertexShaderVS);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FScreenVertexShaderVS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SCREEN_VS_FOR_INSTANCED_VIEWS"), 1);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		END_SHADER_PARAMETER_STRUCT()
+};
+
 /** Pixel shader to copy pixels from src to dst performing a format change that works on all platforms. */
 class RENDERCORE_API FCopyRectPS : public FGlobalShader
 {

@@ -6,10 +6,27 @@
 
 #include "../Common.ush"
 
+#ifndef SCREEN_VS_FOR_INSTANCED_VIEWS
+	#define SCREEN_VS_FOR_INSTANCED_VIEWS 0
+#endif
+
 void MainVS(
 	float2 ViewportUV : ATTRIBUTE0,
 	float2 UV         : ATTRIBUTE1, // TODO: kill
-	out float4 OutPosition : SV_POSITION)
+#if !SCREEN_VS_FOR_INSTANCED_VIEWS
+	out float4 OutPosition : SV_POSITION
+#else
+	uint InstanceId	  : SV_InstanceID,
+	out float4 OutPosition : SV_POSITION,
+	out uint OutViewportId	: SV_ViewportArrayIndex,
+	out nointerpolation uint OutViewId : VIEW_ID
+#endif
+	)
 {
 	OutPosition = float4(ViewportUVToScreenPos(ViewportUV), 0, 1);
+
+#if SCREEN_VS_FOR_INSTANCED_VIEWS
+	OutViewportId = InstanceId;
+	OutViewId = InstanceId;
+#endif
 }

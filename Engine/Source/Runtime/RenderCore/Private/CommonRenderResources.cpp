@@ -6,6 +6,7 @@
 
 #include "CommonRenderResources.h"
 #include "Containers/DynamicRHIResourceArray.h"
+#include "StereoRenderUtils.h"
 
 
 TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
@@ -15,8 +16,14 @@ TGlobalResource<FScreenRectangleVertexBuffer> GScreenRectangleVertexBuffer;
 TGlobalResource<FScreenRectangleIndexBuffer> GScreenRectangleIndexBuffer;
 
 IMPLEMENT_GLOBAL_SHADER(FScreenVertexShaderVS, "/Engine/Private/Tools/FullscreenVertexShader.usf", "MainVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FInstancedScreenVertexShaderVS, "/Engine/Private/Tools/FullscreenVertexShader.usf", "MainVS", SF_Vertex);
 IMPLEMENT_GLOBAL_SHADER(FCopyRectPS, "/Engine/Private/ScreenPass.usf", "CopyRectPS", SF_Pixel);
 
+bool FInstancedScreenVertexShaderVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	UE::StereoRenderUtils::FStereoShaderAspects Aspects(Parameters.Platform);
+	return Aspects.IsInstancedMultiViewportEnabled();
+}
 
 void FScreenRectangleVertexBuffer::InitRHI()
 {

@@ -65,3 +65,22 @@ void FPixelShaderUtils::InitFullscreenPipelineState(
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 }
+
+void FPixelShaderUtils::InitFullscreenMultiviewportPipelineState(
+	FRHICommandList& RHICmdList,
+	const FGlobalShaderMap* GlobalShaderMap,
+	const TShaderRef<FShader>& PixelShader,
+	FGraphicsPipelineStateInitializer& GraphicsPSOInit)
+{
+	TShaderMapRef<FInstancedScreenVertexShaderVS> VertexShader(GlobalShaderMap);
+
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+}
