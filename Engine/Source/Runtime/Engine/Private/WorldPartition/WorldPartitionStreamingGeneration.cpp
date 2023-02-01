@@ -179,11 +179,19 @@ class FWorldPartitionStreamingGenerator
 			return ActorSetContainers.IsValidIndex(MainWorldActorSetContainerIndex) ? &ActorSetContainers[MainWorldActorSetContainerIndex] : nullptr;
 		}
 
-		virtual void ForEachActorSetInstance(TFunctionRef<void(const FActorSetInstance&)> Func) const
+		virtual void ForEachActorSetInstance(TFunctionRef<void(const FActorSetInstance&)> Func) const override
 		{
 			for (const FActorSetInstance& ActorSetInstance : ActorSetInstances)
 			{
 				Func(ActorSetInstance);
+			}
+		}
+
+		virtual void ForEachActorSetContainer(TFunctionRef<void(const FActorSetContainer&)> Func) const override
+		{
+			for (const FActorSetContainer& ActorSetContainer : ActorSetContainers)
+			{
+				Func(ActorSetContainer);
 			}
 		}
 		//~End IStreamingGenerationContext interface};
@@ -1046,11 +1054,6 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 {
 	ForEachActorDescContainer([this, &SourceControlHelper, bCreateActorsOnly](UActorDescContainer* InActorDescContainer)
 	{
-		if (!InActorDescContainer->IsMainPartitionContainer())
-		{
-			return;
-		}
-
 		FStreamingGenerationLogErrorHandler LogErrorHandler;
 		FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
 		StreamingGeneratorParams.WorldPartitionContext = this;
