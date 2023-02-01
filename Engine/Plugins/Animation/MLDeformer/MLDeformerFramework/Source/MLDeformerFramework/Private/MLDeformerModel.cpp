@@ -12,6 +12,7 @@
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Animation/AnimSequence.h"
 #include "UObject/UObjectGlobals.h"
+#include "RHICommandList.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerModel)
 

@@ -9,6 +9,7 @@
 
 #include "Async/TaskGraphInterfaces.h"
 #include "RHI.h"
+#include "RHIUtilities.h"
 #include "RenderGraphResources.h"
 #include "Misc/MemStack.h"
 #include "Containers/ArrayView.h"
