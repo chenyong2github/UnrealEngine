@@ -22,7 +22,7 @@ DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FPixelStreamingSignallingCom
  * should route information to the peer connection.
  */
 UCLASS(BlueprintType, Blueprintable, Category = "PixelStreaming", META = (DisplayName = "PixelStreaming Signalling Component", BlueprintSpawnableComponent))
-class PIXELSTREAMINGPLAYER_API UPixelStreamingSignallingComponent : public UActorComponent, public IPixelStreamingSignallingConnectionObserver
+class PIXELSTREAMINGPLAYER_API UPixelStreamingSignallingComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -107,26 +107,36 @@ public:
 	 * If this media source is set we will use its supplied URL instead of the Url parameter on the connect call.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "Properties", META = (DisplayName = "Stream Media Source", AllowPrivateAccess = true))
-	TObjectPtr<UStreamMediaSource> MediaSource = nullptr;
+	TObjectPtr<UStreamMediaSource> MediaSource;
 
 protected:
-	//
-	// ISignallingServerConnectionObserver implementation.
-	//
-	virtual void OnSignallingConnected() override;
-	virtual void OnSignallingDisconnected(int32 StatusCode, const FString& Reason, bool bWasClean) override;
-	virtual void OnSignallingError(const FString& ErrorMsg) override;
-	virtual void OnSignallingConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override;
-	virtual void OnSignallingSessionDescription(webrtc::SdpType Type, const FString& Sdp) override;
-	virtual void OnSignallingRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override;
-	virtual void OnSignallingPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) override;
-	virtual void OnSignallingPlayerCount(uint32 Count) override;
-	virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig) override;
-	virtual void OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId) override;
-	virtual void OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) override;
-	virtual void OnSignallingSessionDescription(FPixelStreamingPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) override {}
-	virtual void OnSignallingRemoteIceCandidate(FPixelStreamingPlayerId PlayerId, const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override {}
+	class FPixelStreamingSignallingConnectionObserver : public IPixelStreamingSignallingConnectionObserver
+	{
+	public:
+		FPixelStreamingSignallingConnectionObserver(UPixelStreamingSignallingComponent* InParent) : Parent(InParent) {}
+
+		//
+		// ISignallingServerConnectionObserver implementation.
+		//
+		virtual void OnSignallingConnected() override;
+		virtual void OnSignallingDisconnected(int32 StatusCode, const FString& Reason, bool bWasClean) override;
+		virtual void OnSignallingError(const FString& ErrorMsg) override;
+		virtual void OnSignallingConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override;
+		virtual void OnSignallingSessionDescription(webrtc::SdpType Type, const FString& Sdp) override;
+		virtual void OnSignallingRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override;
+		virtual void OnSignallingPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) override;
+		virtual void OnSignallingPlayerCount(uint32 Count) override;
+		virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig) override;
+		virtual void OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId) override;
+		virtual void OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) override;
+		virtual void OnSignallingSessionDescription(FPixelStreamingPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) override {}
+		virtual void OnSignallingRemoteIceCandidate(FPixelStreamingPlayerId PlayerId, const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override {}
+	
+	private:
+		TObjectPtr<UPixelStreamingSignallingComponent> Parent;
+	};
 
 private:
 	TUniquePtr<IPixelStreamingSignallingConnection> SignallingConnection;
+	TSharedPtr<IPixelStreamingSignallingConnectionObserver> SignallingServerConnectionObserver;
 };
