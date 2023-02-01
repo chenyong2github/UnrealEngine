@@ -104,7 +104,7 @@ struct FAbsoluteAccumulationTask
 			return;
 		}
 
-		const double TotalWeight = Buffers->AbsoluteWeights[BlendChannel.ChannelID]
+		const double TotalWeight = Buffers->AbsoluteWeights.IsValidIndex(BlendChannel.ChannelID)
 			? Buffers->AbsoluteWeights[BlendChannel.ChannelID]
 			: 1.0;
 
