@@ -962,6 +962,8 @@ class FScreenProbeTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER(FIntVector4,HistoryViewportMinMax)
 		SHADER_PARAMETER(FVector4f, EffectiveResolution)
 		SHADER_PARAMETER(FVector4f, HistoryEffectiveResolution)
+		SHADER_PARAMETER(FIntPoint, HistoryOverflowTileOffset)
+		SHADER_PARAMETER(FIntPoint, HistoryOverflowTileCount)
 		SHADER_PARAMETER(uint32, bIsStrataTileHistoryValid)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffuseIndirect)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BackfaceDiffuseIndirect)
@@ -1404,7 +1406,7 @@ void UpdateHistoryScreenProbeGather(
 		const bool bRejectBasedOnNormal = GLumenScreenProbeTemporalRejectBasedOnNormal != 0 && NormalHistoryState
 			&& !Strata::IsStrataEnabled(); // STRATA_TODO provide Lumen with a valid normal
 		const bool bSupportBackfaceDiffuse = BackfaceDiffuseIndirect != nullptr;
-		const bool bOverflowTileHistoryValid = Strata::IsStrataEnabled() ? View.StrataViewData.MaxBSDFCount == ScreenProbeGatherState.StrataMaxBSDFCount : true;
+		const bool bOverflowTileHistoryValid = Strata::IsStrataEnabled() ? View.StrataViewData.MaxBSDFCount == ScreenProbeGatherState.HistoryStrataMaxBSDFCount : true;
 
 		ensureMsgf(SceneTextures.Velocity->Desc.Format != PF_G16R16, TEXT("Lumen requires 3d velocity.  Update Velocity format code."));
 
@@ -1484,6 +1486,8 @@ void UpdateHistoryScreenProbeGather(
 						PassParameters->BSDFTileHistory = BSDFTileHistory;
 						PassParameters->EffectiveResolution = FVector4f(EffectiveResolution.X, EffectiveResolution.Y, 1.0f / EffectiveResolution.X, 1.0f / EffectiveResolution.Y);
 						PassParameters->HistoryEffectiveResolution = FVector4f(HistoryEffectiveResolution.X, HistoryEffectiveResolution.Y, 1.0f / HistoryEffectiveResolution.X, 1.0f / HistoryEffectiveResolution.Y);
+						PassParameters->HistoryOverflowTileOffset = ScreenProbeGatherState.HistoryOverflowTileOffset;
+						PassParameters->HistoryOverflowTileCount = ScreenProbeGatherState.HistoryOverflowTileCount;
 
 						PassParameters->HistoryDistanceThreshold = GLumenScreenProbeHistoryDistanceThreshold;
 						PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
@@ -1613,13 +1617,23 @@ void UpdateHistoryScreenProbeGather(
 			*DiffuseIndirectHistoryViewRect = NewHistoryViewRect;
 			*DiffuseIndirectHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
 			ScreenProbeGatherState.LumenGatherCvars = GLumenGatherCvars;
-			ScreenProbeGatherState.StrataMaxBSDFCount = View.StrataViewData.MaxBSDFCount;
+			ScreenProbeGatherState.HistoryOverflowTileOffset = View.StrataViewData.OverflowTileOffset;
+			ScreenProbeGatherState.HistoryOverflowTileCount = View.StrataViewData.OverflowTileCount;
+			ScreenProbeGatherState.HistoryStrataMaxBSDFCount = View.StrataViewData.MaxBSDFCount;
 			ScreenProbeGatherState.HistoryEffectiveResolution = EffectiveResolution;
 			ScreenProbeGatherState.HistorySceneTexturesExtent = SceneTextures.Config.Extent;
 
 			if (bRejectBasedOnNormal)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneTextures.GBufferA, &NormalHistoryState);
+				if (Strata::IsStrataEnabled())
+				{
+					check(View.StrataViewData.SceneData);
+					GraphBuilder.QueueTextureExtraction(View.StrataViewData.SceneData->TopLayerTexture, &NormalHistoryState);
+				}
+				else
+				{
+					GraphBuilder.QueueTextureExtraction(SceneTextures.GBufferA, &NormalHistoryState);
+				}
 			}
 		}
 	}

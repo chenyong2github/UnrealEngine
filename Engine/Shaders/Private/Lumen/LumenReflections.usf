@@ -565,7 +565,7 @@ void ReflectionResolveCS(
 				#if STRATA_ENABLED
 					if (bIsOverflow)
 					{
-						NeighborTracingCoord_Flatten = GetBSDFPositionFlatten(NeighborTracingCoord, Coord.TileBSDFIndex, Strata.BSDFTileTexture);
+						NeighborTracingCoord_Flatten = GetBSDFPositionFlatten(NeighborTracingCoord, Coord.TileBSDFIndex, Strata.BSDFTileTexture, Strata.OverflowTileCount);
 						bIsValidNeighboor = IsTileNCoordValid(NeighborTracingCoord_Flatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT);
 						NeighborTracingCoord_ForDepth = NeighborTracingCoord_Flatten;
 					}
@@ -711,6 +711,8 @@ float4 HistoryScreenPositionScaleBias;
 float4 HistoryUVMinMax;
 float4 HistoryEffectiveResolution;
 float4 EffectiveResolution;
+uint2 HistoryOverflowTileOffset;
+uint2 HistoryOverflowTileCount;
 
 Texture2D VelocityTexture;
 SamplerState VelocityTextureSampler;
@@ -722,7 +724,7 @@ uint bIsStrataTileHistoryValid;
 uint2 GetNeighborFlattenCoord(uint2 InScreenCoord, uint InBSDFIndex)
 {
 #if STRATA_ENABLED
-	return GetBSDFPositionFlatten(InScreenCoord, InBSDFIndex, Strata.BSDFTileTexture);
+	return GetBSDFPositionFlatten(InScreenCoord, InBSDFIndex, Strata.BSDFTileTexture, Strata.OverflowTileCount);
 #else
 	return InScreenCoord;
 #endif
@@ -739,7 +741,7 @@ float2 GetPrevUV(const float2 InPrevScreenCoordUV, uint InBSDFIndex)
 		const float2 f = frac(fPrevScreenCoord);
 		const uint2 PrevScreenCoord = fPrevScreenCoord;
 
-		Out = GetBSDFPositionFlatten(PrevScreenCoord, InBSDFIndex, HistoryBSDFTile);
+		Out = GetBSDFPositionFlatten(PrevScreenCoord, InBSDFIndex, HistoryBSDFTile, HistoryOverflowTileCount);
 		Out += f;
 		Out *= HistoryEffectiveResolution.zw;
 	}

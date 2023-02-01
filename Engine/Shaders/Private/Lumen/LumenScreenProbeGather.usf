@@ -1586,7 +1586,11 @@ Texture2D RoughSpecularIndirectHistory;
 Texture2D DiffuseIndirectDepthHistory;
 Texture2D HistoryNumFramesAccumulated;
 Texture2D FastUpdateModeHistory;
+#if STRATA_ENABLED
+Texture2D<STRATA_TOP_LAYER_TYPE> NormalHistory;
+#else
 Texture2D NormalHistory;
+#endif 
 Texture2D<uint> BSDFTileHistory;
 
 float HistoryDistanceThreshold;
@@ -1597,6 +1601,8 @@ float4 HistoryUVMinMax;
 uint4 HistoryViewportMinMax;
 float4 EffectiveResolution;
 float4 HistoryEffectiveResolution;
+uint2 HistoryOverflowTileOffset;
+uint2 HistoryOverflowTileCount;
 
 float PrevSceneColorPreExposureCorrection;
 float InvFractionOfLightingMovingForFastUpdateMode;
@@ -1609,7 +1615,7 @@ uint  bIsStrataTileHistoryValid;
 uint2 GetNeighborFlattenCoord(uint2 InScreenCoord, uint InBSDFIndex)
 {
 #if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
-	return GetBSDFPositionFlatten(InScreenCoord, InBSDFIndex, Strata.BSDFTileTexture);
+	return GetBSDFPositionFlatten(InScreenCoord, InBSDFIndex, Strata.BSDFTileTexture, Strata.OverflowTileCount);
 #else
 	return InScreenCoord;
 #endif
@@ -1626,7 +1632,7 @@ float2 GetPrevUV(const float2 InPrevScreenCoordUV, uint InBSDFIndex)
 		const float2 f = frac(fPrevScreenCoord);
 		const uint2 PrevScreenCoord = fPrevScreenCoord;
 
-		Out = GetBSDFPositionFlatten(PrevScreenCoord, InBSDFIndex, BSDFTileHistory);
+		Out = GetBSDFPositionFlatten(PrevScreenCoord, InBSDFIndex, BSDFTileHistory, HistoryOverflowTileCount);
 		Out += f;
 		Out *= HistoryEffectiveResolution.zw;
 	}
@@ -1659,13 +1665,13 @@ float3 GetFilteredNeighborhoodLighting(
 
 	for (uint NeighborId = 0; NeighborId < 8; NeighborId++)
 	{
-		int2 SampleOffset = kOffsets3x3[NeighborId];
+		const int2 SampleOffset = kOffsets3x3[NeighborId];
 
-		uint2 NeighborScreenCoord = ScreenCoord + SampleOffset;
-		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);
-		NeighborScreenCoord = GetNeighborFlattenCoord(NeighborScreenCoord, InBSDFIndex);
+		uint2 NeighborScreenCoord_Primary = ScreenCoord + SampleOffset;
+		NeighborScreenCoord_Primary = clamp(NeighborScreenCoord_Primary, MinScreenCoord, MaxScreenCoord);
+		const uint2 NeighborScreenCoord_Flatten = GetNeighborFlattenCoord(NeighborScreenCoord_Primary, InBSDFIndex);
 
-		float4 Lighting = LightingTexture[NeighborScreenCoord];
+		const float4 Lighting = LightingTexture[NeighborScreenCoord_Flatten];
 		bool bSampleLightingIsValid = Lighting.w > 0.0f;
 
 		if (bSampleLightingIsValid)
@@ -1694,13 +1700,13 @@ float3 ClampHistory(
 	UNROLL
 	for (uint NeighborId = 0; NeighborId < 8; NeighborId++)
 	{
-		int2 SampleOffset = kOffsets3x3[NeighborId];
+		const int2 SampleOffset = kOffsets3x3[NeighborId];
 
-		uint2 NeighborScreenCoord = ScreenCoord + SampleOffset;
-		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);
-		NeighborScreenCoord = GetNeighborFlattenCoord(NeighborScreenCoord, InBSDFIndex);
+		uint2 NeighborScreenCoord_Primary = ScreenCoord + SampleOffset;
+		NeighborScreenCoord_Primary = clamp(NeighborScreenCoord_Primary, MinScreenCoord, MaxScreenCoord);
+		const uint2 NeighborScreenCoord_Flatten = GetNeighborFlattenCoord(NeighborScreenCoord_Primary, InBSDFIndex);
 
-		float3 Lighting = LightingTexture[NeighborScreenCoord].xyz;
+		const float3 Lighting = LightingTexture[NeighborScreenCoord_Flatten].xyz;
 		NeighborMin = min(NeighborMin, Lighting.xyz);
 		NeighborMax = max(NeighborMax, Lighting.xyz);
 	}
@@ -1762,6 +1768,16 @@ FGatherUV GetGatherUV(Bilinear In, float2 InTexelSize)
 	return Out;
 }
 
+float3 GetHistoryNormal(float2 InUV)
+{
+#if STRATA_ENABLED
+	const uint2 PixelPos = InUV * View.BufferSizeAndInvSize.xy;
+	return StrataUnpackTopLayerData(NormalHistory.Load(uint3(PixelPos, 0))).WorldNormal;
+#else
+	return DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, InUV, 0).xyz);
+#endif
+}
+
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void ScreenProbeTemporalReprojectionCS( 
 	uint2 DispatchThreadId : SV_DispatchThreadID)
@@ -1799,7 +1815,7 @@ void ScreenProbeTemporalReprojectionCS(
 #endif
 
 	const FLumenMaterialData Material = ReadMaterialData(Coord, MaxRoughnessToTrace);
-	const float3 WorldNormal = Material.WorldNormal;
+	float3 WorldNormal = Material.WorldNormal;
 
 	const float Noise = InterleavedGradientNoise(Coord.SvPosition, View.StateFrameIndexMod8);
 	float DisocclusionDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise);
@@ -1822,6 +1838,9 @@ void ScreenProbeTemporalReprojectionCS(
 	HistoryGather_Extended.UV01 = GetPrevUV(HistoryGather_Extended.UV01, Coord.TileBSDFIndex);
 	HistoryGather_Extended.UV11 = GetPrevUV(HistoryGather_Extended.UV11, Coord.TileBSDFIndex);
 	#endif
+
+	// When Strata is enabled: use top layer normal instead of the BSDF normal, since it is used for occlusion rejection, and needs to be stable during reprojection.
+	WorldNormal = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(Coord.SvPosition, 0))).WorldNormal;
 #endif
 
 #define PLANE_DISOCCLUSION_WEIGHTS 0
@@ -1870,12 +1889,11 @@ void ScreenProbeTemporalReprojectionCS(
 
 	const float4 OriginalOcclusionWeights = OcclusionWeights;
 
-	// STRATA_TODO: Normal history rejection is not supported in Strata yet
-#if HISTORY_REJECT_BASED_ON_NORMAL && !STRATA_ENABLED
-	const float3 HistoryNormal00 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGather_Primary.UV00, 0).xyz);
-	const float3 HistoryNormal10 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGather_Primary.UV10, 0).xyz);
-	const float3 HistoryNormal01 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGather_Primary.UV01, 0).xyz);
-	const float3 HistoryNormal11 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGather_Primary.UV11, 0).xyz);
+#if HISTORY_REJECT_BASED_ON_NORMAL
+	const float3 HistoryNormal00 = GetHistoryNormal(HistoryGather_Primary.UV00);
+	const float3 HistoryNormal10 = GetHistoryNormal(HistoryGather_Primary.UV10);
+	const float3 HistoryNormal01 = GetHistoryNormal(HistoryGather_Primary.UV01);
+	const float3 HistoryNormal11 = GetHistoryNormal(HistoryGather_Primary.UV11);
 
 	const float4 HistoryNormalWeights = select(float4(
 		dot(HistoryNormal00, WorldNormal),
@@ -1974,9 +1992,6 @@ void ScreenProbeTemporalReprojectionCS(
 #endif
 
 	float Alpha = 1.0f / (1.0f + NewNumFramesAccumulated);
-#if STRATA_ENABLED
-	if (bIsStrataTileHistoryValid == 0 && Coord.TileBSDFIndex > 0) { Alpha = 1.0f; }
-#endif
 	float3 OutDiffuseIndirect = lerp(HistoryDiffuseIndirect, NewDiffuseLighting.xyz, Alpha);
 	float3 OutRoughSpecularIndirect = lerp(HistoryRoughSpecularIndirect, NewRoughSpecularLighting, Alpha);
 

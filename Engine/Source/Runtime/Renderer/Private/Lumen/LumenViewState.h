@@ -56,7 +56,9 @@ public:
 	FLumenGatherCvarState LumenGatherCvars;
 	FIntPoint HistorySceneTexturesExtent;
 	FIntPoint HistoryEffectiveResolution;
-	uint32 StrataMaxBSDFCount;
+	FIntPoint HistoryOverflowTileOffset;
+	FIntPoint HistoryOverflowTileCount;
+	uint32 HistoryStrataMaxBSDFCount;
 
 	FScreenProbeGatherTemporalState()
 	{
@@ -66,7 +68,9 @@ public:
 		ProbeHistoryScreenPositionScaleBias = FVector4f(0, 0, 0, 0);
 		HistorySceneTexturesExtent = FIntPoint(0,0);
 		HistoryEffectiveResolution = FIntPoint(0,0);
-		StrataMaxBSDFCount = 0;
+		HistoryOverflowTileOffset = FIntPoint(0, 0);
+		HistoryOverflowTileCount = FIntPoint(0, 0);
+		HistoryStrataMaxBSDFCount = 0;
 	}
 
 	void SafeRelease()
@@ -116,7 +120,10 @@ public:
 	FVector4f HistoryScreenPositionScaleBias;
 	FIntPoint HistorySceneTexturesExtent;
 	FIntPoint HistoryEffectiveResolution;
-	uint32 StrataMaxBSDFCount;
+	FIntPoint HistoryOverflowTileOffset;
+	FIntPoint HistoryOverflowTileCount;
+	uint32 HistoryStrataMaxBSDFCount;
+
 	TRefCountPtr<IPooledRenderTarget> SpecularIndirectHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> NumFramesAccumulatedRT;
 	TRefCountPtr<IPooledRenderTarget> ResolveVarianceHistoryRT;
@@ -128,7 +135,9 @@ public:
 		HistoryScreenPositionScaleBias = FVector4f(0, 0, 0, 0);
 		HistorySceneTexturesExtent = FIntPoint(0,0);
 		HistoryEffectiveResolution = FIntPoint(0,0);
-		StrataMaxBSDFCount = 0;
+		HistoryOverflowTileOffset = FIntPoint(0, 0);
+		HistoryOverflowTileCount = FIntPoint(0,0);
+		HistoryStrataMaxBSDFCount = 0;
 	}
 
 	void SafeRelease()

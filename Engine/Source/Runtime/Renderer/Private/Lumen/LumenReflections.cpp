@@ -490,6 +490,8 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER(FVector4f, HistoryEffectiveResolution)
 		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
+		SHADER_PARAMETER(FIntPoint, HistoryOverflowTileCount)
+		SHADER_PARAMETER(FIntPoint, HistoryOverflowTileOffset)
 		SHADER_PARAMETER(uint32, bIsStrataTileHistoryValid)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
@@ -833,7 +835,7 @@ void UpdateHistoryReflections(
 		TRefCountPtr<IPooledRenderTarget>* ResolveVarianceHistoryState = &ReflectionTemporalState.ResolveVarianceHistoryRT;
 		FIntRect* HistoryViewRect = &ReflectionTemporalState.HistoryViewRect;
 		FVector4f* HistoryScreenPositionScaleBias = &ReflectionTemporalState.HistoryScreenPositionScaleBias;
-		const bool bOverflowTileHistoryValid = Strata::IsStrataEnabled() ? View.StrataViewData.MaxBSDFCount == ReflectionTemporalState.StrataMaxBSDFCount : true;
+		const bool bOverflowTileHistoryValid = Strata::IsStrataEnabled() ? View.StrataViewData.MaxBSDFCount == ReflectionTemporalState.HistoryStrataMaxBSDFCount : true;
 
 		FRDGTextureRef OldDepthHistory = View.ViewState->Lumen.DepthHistoryRT ? GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.DepthHistoryRT) : SceneTextures.Depth.Target;
 		FRDGTextureRef BSDFTileHistory = GraphBuilder.RegisterExternalTexture(ReflectionTemporalState.BSDFTileHistoryRT ? ReflectionTemporalState.BSDFTileHistoryRT : GSystemTextures.BlackDummy);
@@ -855,6 +857,8 @@ void UpdateHistoryReflections(
 			PassParameters->HistoryDistanceThreshold = GLumenReflectionHistoryDistanceThreshold;
 			PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			PassParameters->HistoryScreenPositionScaleBias = *HistoryScreenPositionScaleBias;
+			PassParameters->HistoryOverflowTileCount = ReflectionTemporalState.HistoryOverflowTileCount;
+			PassParameters->HistoryOverflowTileOffset = ReflectionTemporalState.HistoryOverflowTileOffset;
 			PassParameters->bIsStrataTileHistoryValid = bOverflowTileHistoryValid ? 1u : 0u;
 
 			// Effective resolution containing the primary & overflow space (if any)
@@ -927,7 +931,9 @@ void UpdateHistoryReflections(
 		ReflectionTemporalState.HistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
 		ReflectionTemporalState.HistoryEffectiveResolution = EffectiveResolution;
 		ReflectionTemporalState.HistorySceneTexturesExtent = SceneTextures.Config.Extent;
-		ReflectionTemporalState.StrataMaxBSDFCount = View.StrataViewData.MaxBSDFCount;
+		ReflectionTemporalState.HistoryStrataMaxBSDFCount = View.StrataViewData.MaxBSDFCount;
+		ReflectionTemporalState.HistoryOverflowTileCount = View.StrataViewData.OverflowTileCount;
+		ReflectionTemporalState.HistoryOverflowTileOffset = View.StrataViewData.OverflowTileOffset;
 
 		// Queue updating the view state's render target reference with the new values
 		GraphBuilder.QueueTextureExtraction(FinalSpecularIndirect, &ReflectionTemporalState.SpecularIndirectHistoryRT);

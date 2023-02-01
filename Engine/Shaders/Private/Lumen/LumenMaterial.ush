@@ -18,7 +18,7 @@
 // Strata tile helper function 
 
 #if STRATA_ENABLED
-uint2 GetTilePositionFlatten(FStrataBSDFTile InTile0, uint2 InTile0Coord, uint InBSDFIndex, inout bool bIsValid)
+uint2 GetTilePositionFlatten(FStrataBSDFTile InTile0, uint2 InTile0Coord, uint InBSDFIndex, uint2 InOverflowTileCount, inout bool bIsValid)
 {
 	// First tile is always valid. 
 	// * InBSDFIndex is 0-based
@@ -31,16 +31,16 @@ uint2 GetTilePositionFlatten(FStrataBSDFTile InTile0, uint2 InTile0Coord, uint I
 	{
 		Out = InTile0.TileCoord;
 		Out.x = Out.x + (InBSDFIndex - 1);
-		if (Out.x >= uint(Strata.OverflowTileCount.x))
+		if (Out.x >= uint(InOverflowTileCount.x))
 		{
-			Out.x = Out.x % uint(Strata.OverflowTileCount.x);
+			Out.x = Out.x % uint(InOverflowTileCount.x);
 			Out.y++;
 		}
 	}
 	return Out;
 }
 
-uint2 GetBSDFPositionFlatten(uint2 InSvPosition, uint InBSDFIndex, Texture2D<uint> InBSDFTileTexture)
+uint2 GetBSDFPositionFlatten(uint2 InSvPosition, uint InBSDFIndex, Texture2D<uint> InBSDFTileTexture, uint2 InOverflowTileCount)
 {
 	uint2 Out = InSvPosition;
 
@@ -52,7 +52,7 @@ uint2 GetBSDFPositionFlatten(uint2 InSvPosition, uint InBSDFIndex, Texture2D<uin
 		// Compute the source pixel corod
 		const FStrataBSDFTile BSDFTile0 = UnpackBSDFTile(InBSDFTileTexture[Tile0Coord]);
 		const uint2 LocalCoord = InSvPosition - Tile0Coord * STRATA_TILE_SIZE;
-		const uint2 TileNCoord = GetTilePositionFlatten(BSDFTile0, Tile0Coord, InBSDFIndex, bIsValid);
+		const uint2 TileNCoord = GetTilePositionFlatten(BSDFTile0, Tile0Coord, InBSDFIndex, InOverflowTileCount, bIsValid);
 
 		// Update coordinate only if the tile is valid
 		if (bIsValid)
@@ -61,11 +61,6 @@ uint2 GetBSDFPositionFlatten(uint2 InSvPosition, uint InBSDFIndex, Texture2D<uin
 		}
 	}
 	return Out;
-}
-
-uint2 GetBSDFPositionFlatten(uint2 InSvPosition, uint InBSDFIndex)
-{
-	return GetBSDFPositionFlatten(InSvPosition, InBSDFIndex, Strata.BSDFTileTexture);
 }
 
 bool IsTileNCoordValid(uint2 InTileNCoord)
@@ -164,7 +159,7 @@ FLumenMaterialCoord GetLumenMaterialCoord(in uint2 SvPositionInPrimarySpace, uin
 		Out.TileBSDFIndex = InBSDFIndex;
 		Out.TileBSDFCount = BSDF0Tile.Count;
 		Out.SvPosition = SvPositionInPrimarySpace;
-		Out.SvPositionFlatten = GetTilePositionFlatten(BSDF0Tile, Tile0Coord, InBSDFIndex, bIsValid) * STRATA_TILE_SIZE + LocalCoord;
+		Out.SvPositionFlatten = GetTilePositionFlatten(BSDF0Tile, Tile0Coord, InBSDFIndex, Strata.OverflowTileCount, bIsValid) * STRATA_TILE_SIZE + LocalCoord;
 	}
 #endif
 	return Out;
