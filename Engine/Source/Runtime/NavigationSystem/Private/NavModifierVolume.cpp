@@ -13,6 +13,19 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavModifierVolume)
 
+#if WITH_EDITOR
+namespace UE::Navigation::ModVolume::Private
+{
+	void OnNavAreaRegistrationChanged(ANavModifierVolume& ModifierVolume, const UWorld& World, const UClass* NavAreaClass)
+	{
+		if (NavAreaClass && NavAreaClass == ModifierVolume.GetAreaClass() && &World == ModifierVolume.GetWorld())
+		{
+			FNavigationSystem::UpdateActorData(ModifierVolume);
+		}
+	}
+} // UE::Navigation::ModVolumne::Private
+#endif // WITH_EDITOR
+
 //----------------------------------------------------------------------//
 // ANavModifierVolume
 //----------------------------------------------------------------------//
@@ -54,27 +67,19 @@ void ANavModifierVolume::BeginDestroy()
 #endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
 // This function is only called if GIsEditor == true
 void ANavModifierVolume::OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass)
 {
-#if WITH_EDITOR
-	if (NavAreaClass && NavAreaClass == AreaClass && &World == GetWorld())
-	{
-		FNavigationSystem::UpdateActorData(*this);
-	}
-#endif // WITH_EDITOR
+	UE::Navigation::ModVolume::Private::OnNavAreaRegistrationChanged(*this, World, NavAreaClass);
 }
 
 // This function is only called if GIsEditor == true
 void ANavModifierVolume::OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass)
 {
-#if WITH_EDITOR
-	if (NavAreaClass && NavAreaClass == AreaClass && &World == GetWorld())
-	{
-		FNavigationSystem::UpdateActorData(*this);
-	}
-#endif // WITH_EDITOR
+	UE::Navigation::ModVolume::Private::OnNavAreaRegistrationChanged(*this, World, NavAreaClass);
 }
+#endif // WITH_EDITOR
 
 void ANavModifierVolume::GetNavigationData(FNavigationRelevantData& Data) const
 {
