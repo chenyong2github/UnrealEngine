@@ -5,15 +5,10 @@ using System.IO;
 
 public class NeuralNetworkInference : ModuleRules
 {
+	protected virtual bool bIsORTSupported { get => Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac; }
+
 	public NeuralNetworkInference( ReadOnlyTargetRules Target ) : base( Target )
 	{
-		// Define when UEAndORT-based NNI is available
-		bool bIsORTSupported = (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac);
-		if (bIsORTSupported)
-		{
-			PublicDefinitions.Add("WITH_UE_AND_ORT_SUPPORT");
-		}
-
 		ShortName = "NNI"; // Shorten to avoid path-too-long errors
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -23,8 +18,7 @@ public class NeuralNetworkInference : ModuleRules
 			}
 		);
 
-		PublicDependencyModuleNames.AddRange
-			(
+		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"CoreUObject",
@@ -36,8 +30,7 @@ public class NeuralNetworkInference : ModuleRules
 			}
 		);
 
-		PrivateDependencyModuleNames.AddRange
-			(
+		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				// Backend-related
 				"ModelProtoFileReader",
@@ -51,14 +44,15 @@ public class NeuralNetworkInference : ModuleRules
 
 		if (bIsORTSupported)
 		{
-			PrivateDependencyModuleNames.AddRange
-				(
+			// Define when UEAndORT-based NNI is available
+			PublicDefinitions.Add("WITH_UE_AND_ORT_SUPPORT");
+
+			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"ONNXRuntime"				// Select this for open-source-based ONNX Runtime
 					//"ONNXRuntimeDLL",			// Select this for DLL-based ONNX Runtime (Win64-only)
 					//"ONNXRuntimeDLLHelper"	// Select this for DLL-based ONNX Runtime (Win64-only)
-				}
-			);
+				});
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
@@ -66,6 +60,7 @@ public class NeuralNetworkInference : ModuleRules
 
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectML_1_8_0");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "WinPixEventRuntime");
 			}
 		}
 

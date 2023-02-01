@@ -8,29 +8,27 @@
 // RHI includes must happen before onnxruntime_cxx_api.h (both files include Windows.h)
 #include "HAL/CriticalSection.h"
 
-#if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
-// Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
-#pragma push_macro("NOMINMAX")
-#pragma push_macro("WIN32_LEAN_AND_MEAN")
-#undef NOMINMAX
-#undef WIN32_LEAN_AND_MEAN
-#include "ID3D12DynamicRHI.h"
-#pragma pop_macro("WIN32_LEAN_AND_MEAN")
-#pragma pop_macro("NOMINMAX")
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/AllowMicrosoftPlatformTypes.h"
+	#include "Microsoft/AllowMicrosoftPlatformAtomics.h"
 #endif
 
 #include "ThirdPartyWarningDisabler.h"
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
+
 #ifdef WITH_UE_AND_ORT_SUPPORT
-#include "core/session/onnxruntime_cxx_api.h"
+	NNI_THIRD_PARTY_INCLUDES_START
+		#include "core/session/onnxruntime_cxx_api.h"
+	NNI_THIRD_PARTY_INCLUDES_END
+#endif //WITH_UE_AND_ORT_SUPPORT
+
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/HideMicrosoftPlatformAtomics.h"
+	#include "Microsoft/HideMicrosoftPlatformTypes.h"
+#endif
+
 #ifdef PLATFORM_WIN64
 struct OrtDmlApi;
 #endif
-#endif //WITH_UE_AND_ORT_SUPPORT
-NNI_THIRD_PARTY_INCLUDES_END
-
 
 struct UNeuralNetwork::FImplBackEndUEAndORT
 {

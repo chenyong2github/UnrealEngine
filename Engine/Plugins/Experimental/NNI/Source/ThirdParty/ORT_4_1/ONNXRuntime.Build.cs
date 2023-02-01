@@ -149,12 +149,14 @@ public class ONNXRuntime : ModuleRules
 		{
 			PublicDefinitions.Add("_USE_MATH_DEFINES");
 			PublicDefinitions.Add("NOGDI");
-			PublicDefinitions.Add("NOMINMAX");
-			PublicDefinitions.Add("WIN32_LEAN_AND_MEAN");
 			PublicDefinitions.Add("PLATFORM_WIN64");
 			PublicDefinitions.Add("PLATFORM_NNI_MICROSOFT");
 			PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST");
 			PublicDefinitions.Add("USE_DML = 1");
+
+			// These clash with the Microsoft/AllowMicrosoftPlatformTypes.h includes but are needed internally
+			PrivateDefinitions.Add("NOMINMAX");
+			PrivateDefinitions.Add("WIN32_LEAN_AND_MEAN");
 		}
 
 		// Disable all static analysis checkers for this module

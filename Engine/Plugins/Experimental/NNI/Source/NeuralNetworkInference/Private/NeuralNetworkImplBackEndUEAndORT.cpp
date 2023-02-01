@@ -5,50 +5,58 @@
 #include "NeuralEnumClasses.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
-#if WITH_EDITOR
-#include "Misc/MessageDialog.h"
-#endif //WITH_EDITOR
-
-#if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
-	#include "HAL/CriticalSection.h"
-	#include "ID3D12DynamicRHI.h"
-#endif
-
-//#define WITH_NNI_CPU_NOT_RECOMMENDED // Only for debugging purposes
-
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
-#ifdef WITH_UE_AND_ORT_SUPPORT
-	#ifdef PLATFORM_WIN64
-	#include "core/providers/dml/dml_provider_factory.h"
-	#endif
-	#ifdef WITH_NNI_CPU_NOT_RECOMMENDED
-	#include "core/providers/nni_cpu/nni_cpu_provider_factory.h"
-	#endif //WITH_NNI_CPU_NOT_RECOMMENDED
-#endif //WITH_UE_AND_ORT_SUPPORT
-NNI_THIRD_PARTY_INCLUDES_END
 
 #include "ShaderParameterUtils.h"
 #include "ShaderParameterStruct.h"
 #include "RenderGraphUtils.h"
 
-#ifdef WITH_UE_AND_ORT_SUPPORT
+#if WITH_EDITOR
+#include "Misc/MessageDialog.h"
+#endif //WITH_EDITOR
 
-#if defined(PLATFORM_WIN64)
-
-#if WITH_EDITOR && defined(PLATFORM_WIN64) && !UE_BUILD_SHIPPING
-#include "Windows/AllowWindowsPlatformTypes.h"
-NNI_THIRD_PARTY_INCLUDES_START
-	#include <pix3.h>
-NNI_THIRD_PARTY_INCLUDES_END
-#include "Windows/HideWindowsPlatformTypes.h"
-	#define NNIGPUProfileMarker(Name) FNNIGPUProfiler::Instance()->Marker(Name)
-#else
-	#define NNIGPUProfileMarker(Name)
+#if defined(WITH_UE_AND_ORT_SUPPORT) && PLATFORM_WINDOWS
+	#include "ID3D12DynamicRHI.h"
 #endif
 
-#endif // PLATFORM_WIN64
+//#define WITH_NNI_CPU_NOT_RECOMMENDED // Only for debugging purposes
+
+#if !defined(WITH_PIX_EVENT_RUNTIME)
+	#define WITH_PIX_EVENT_RUNTIME 0
+#endif
+
+#if WITH_EDITOR && defined(WITH_UE_AND_ORT_SUPPORT) && WITH_PIX_EVENT_RUNTIME && !UE_BUILD_SHIPPING
+	#define NNI_WITH_PIX 1
+#else
+	#define NNI_WITH_PIX 0
+#endif
+
+#ifdef WITH_UE_AND_ORT_SUPPORT
+	#if PLATFORM_MICROSOFT
+		#include "Microsoft/AllowMicrosoftPlatformTypes.h"
+		#include "Microsoft/AllowMicrosoftPlatformAtomics.h"
+	#endif
+
+	NNI_THIRD_PARTY_INCLUDES_START
+	#ifdef PLATFORM_WIN64
+		#include "core/providers/dml/dml_provider_factory.h"
+	#endif
+
+	#ifdef WITH_NNI_CPU_NOT_RECOMMENDED
+		#include "core/providers/nni_cpu/nni_cpu_provider_factory.h"
+	#endif //WITH_NNI_CPU_NOT_RECOMMENDED
+
+	#if NNI_WITH_PIX
+		#include <pix3.h>
+	#endif
+	NNI_THIRD_PARTY_INCLUDES_END
+
+	#if PLATFORM_MICROSOFT
+		#include "Microsoft/HideMicrosoftPlatformAtomics.h"
+		#include "Microsoft/HideMicrosoftPlatformTypes.h"
+	#endif
+#endif //WITH_UE_AND_ORT_SUPPORT
+
+#ifdef WITH_UE_AND_ORT_SUPPORT
 
 // Helper class to utilize the PIX CPU/GPU debugger on Windows
 class FNNIGPUProfiler
@@ -78,7 +86,7 @@ public:
 private:
 	FNNIGPUProfiler()
 	{
-#if defined(PLATFORM_WIN64) && defined(USE_PIX) && !defined(UE_BUILD_SHIPPING)
+#if NNI_WITH_PIX
 		bIsEnabled = GetID3D12DynamicRHI()->RHIIsPixEnabled();
 #else
 		bIsEnabled = false;
@@ -92,7 +100,7 @@ public:
 
 	void Marker(const FString& Name, FColor Color = FColor::Yellow)
 	{
-#if defined(PLATFORM_WIN64) && defined(USE_PIX) && !defined(UE_BUILD_SHIPPING)
+#if NNI_WITH_PIX
 		if (bIsEnabled)
 		{
 			PIXSetMarker(PIX_COLOR(Color.R, Color.G, Color.B), Name.GetCharArray().GetData());
@@ -102,7 +110,7 @@ public:
 
 	void EventBegin(const FString& Name, FColor Color = FColor::Yellow)
 	{
-#if defined(PLATFORM_WIN64) && defined(USE_PIX) && !defined(UE_BUILD_SHIPPING)
+#if NNI_WITH_PIX
 		if (bIsEnabled)
 		{
 			PIXBeginEvent(PIX_COLOR(Color.R, Color.G, Color.B), Name.GetCharArray().GetData());
@@ -112,7 +120,7 @@ public:
 
 	void EventEnd()
 	{
-#if defined(PLATFORM_WIN64) && defined(USE_PIX) && !defined(UE_BUILD_SHIPPING)
+#if NNI_WITH_PIX
 		if (bIsEnabled)
 		{
 			PIXEndEvent();
