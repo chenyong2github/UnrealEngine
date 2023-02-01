@@ -70,10 +70,6 @@ void SChangelistTableRow::Construct(const FArguments& InArgs, const TSharedRef<S
 	TreeItem = static_cast<FChangelistTreeItem*>(InArgs._TreeItemToVisualize.Get());
 	OnPostDrop = InArgs._OnPostDrop;
 
-	const FSlateBrush* IconBrush = (TreeItem != nullptr) ?
-		FAppStyle::GetBrush(TreeItem->ChangelistState->GetSmallIconName()) :
-		FAppStyle::GetBrush("SourceControl.Changelist");
-
 	SetToolTipText(GetChangelistDescriptionText());
 
 	STableRow<FChangelistTreeItemPtr>::Construct(
@@ -86,7 +82,10 @@ void SChangelistTableRow::Construct(const FArguments& InArgs, const TSharedRef<S
 			.AutoWidth()
 			[
 				SNew(SImage)
-				.Image(IconBrush)
+				.Image_Lambda([this]()
+				{
+					return (TreeItem != nullptr) ?FAppStyle::GetBrush(TreeItem->ChangelistState->GetSmallIconName()) : FAppStyle::GetBrush("SourceControl.Changelist");
+				})
 			]
 			+SHorizontalBox::Slot() // Changelist number.
 			.Padding(2, 0, 0, 0)

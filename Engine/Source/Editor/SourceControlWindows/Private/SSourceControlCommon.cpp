@@ -396,6 +396,12 @@ FText GetSingleLineChangelistDescription(const FText& InFullDescription)
 		DescriptionTextAsString.LeftInline(NewlineStartIndex);
 	}
 
+	// Trim any trailing carriage returns
+	if (DescriptionTextAsString.EndsWith(TEXT("\r"), ESearchCase::CaseSensitive))
+	{
+		DescriptionTextAsString.LeftChopInline(1);
+	}
+
 	return InFullDescription.IsCultureInvariant() ? FText::AsCultureInvariant(DescriptionTextAsString) : FText::FromString(DescriptionTextAsString);
 }
 
