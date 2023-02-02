@@ -891,7 +891,7 @@ namespace UnrealBuildTool
 			// Add the additional response files
 			foreach (FileItem AdditionalResponseFile in CompileEnvironment.AdditionalResponseFiles)
 			{
-				Arguments.Add($"@{NormalizeCommandLinePath(AdditionalResponseFile.Location)}");
+				Arguments.Add(GetResponseFileArgument(AdditionalResponseFile));
 			}
 
 			// Add the C++ source file and its included files to the prerequisite item list.

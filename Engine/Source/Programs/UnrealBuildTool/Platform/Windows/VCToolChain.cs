@@ -1375,7 +1375,7 @@ namespace UnrealBuildTool
 			// Add additional response files
 			foreach (FileItem AdditionalRsp in CompileEnvironment.AdditionalResponseFiles)
 			{
-				BaseCompileAction.Arguments.Add($"@{NormalizeCommandLinePath(AdditionalRsp.Location)}");
+				BaseCompileAction.Arguments.Add($"@\"{NormalizeCommandLinePath(AdditionalRsp.Location)}\"");
 			}
 
 			AppendCLArguments_Global(CompileEnvironment, BaseCompileAction.Arguments);
