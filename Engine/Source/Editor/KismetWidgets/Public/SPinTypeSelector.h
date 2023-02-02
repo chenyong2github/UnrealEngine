@@ -91,7 +91,7 @@ public:
 		, _TypeTreeFilter(ETypeTreeFilter::None)
 		, _bAllowArrays(true)
 		, _TreeViewWidth(300.f)
-		, _TreeViewHeight(400.f)
+		, _TreeViewHeight(350.f)
 		, _Font(FAppStyle::GetFontStyle(TEXT("NormalFont")))
 		, _SelectorType(ESelectorType::Full)
 		, _ReadOnly(false)
@@ -192,6 +192,9 @@ protected:
 	TWeakPtr<SListView<FObjectReferenceListItem>> WeakListView;
 	TWeakPtr<SMenuOwner> PinTypeSelectorMenuOwner;
 
+	/** Holds a cache of the allowed Object Reference types for the current pin type, to be shown inline. */
+	TArray<FObjectReferenceListItem> CurrentPinAllowedObjectReferenceTypes;
+
 	/** An interface to optionally apply a custom filter to the available pin type items for display. */
 	TArray<TSharedPtr<class IPinTypeSelectorFilter>> CustomFilters;
 
@@ -262,6 +265,9 @@ protected:
 
 	/** Gets the allowable object types for an tree item, used for building the sub-menu */
 	TSharedRef< SWidget > GetAllowedObjectTypes(FPinTypeTreeItem InItem, bool bForSecondaryType);
+
+	/** Fills the provided array with generated list items based on a pin type's allowed reference types, which could then be used as the item source for a list view */
+	void GenerateAllowedObjectTypesList(TArray<FObjectReferenceListItem>& OutList, FPinTypeTreeItem InItem, bool bForSecondaryType) const;
 	
 	/**
 	 * When a pin type is selected, handle it
