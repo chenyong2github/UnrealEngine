@@ -384,6 +384,7 @@ bool FMemoryUsageQueriesExec::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 				return true;
 			}
 		}
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
 		else if (FParse::Command(&Cmd, TEXT("Collection")))
 		{
 			const bool bShowDependencies = FParse::Param(Cmd, TEXT("ShowDeps"));
@@ -614,6 +615,7 @@ bool FMemoryUsageQueriesExec::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 				return true;
 			}
 		}
+#endif
 	}
 
 	return false;
