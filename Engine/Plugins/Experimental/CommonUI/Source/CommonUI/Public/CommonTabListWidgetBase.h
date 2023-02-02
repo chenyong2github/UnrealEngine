@@ -142,7 +142,7 @@ public:
 
 	/** Returns the tab button matching the ID, if found */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	UCommonButtonBase* GetTabButtonBaseByID(FName TabNameID);
+	UCommonButtonBase* GetTabButtonBaseByID(FName TabNameID) const;
 
 protected:
 	// UUserWidget interface

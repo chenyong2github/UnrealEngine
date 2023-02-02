@@ -328,9 +328,9 @@ void UCommonTabListWidgetBase::DisableTabWithReason(FName TabNameID, const FText
 	}
 }
 
-UCommonButtonBase* UCommonTabListWidgetBase::GetTabButtonBaseByID(FName TabNameID)
+UCommonButtonBase* UCommonTabListWidgetBase::GetTabButtonBaseByID(FName TabNameID) const
 {
-	if (FCommonRegisteredTabInfo* TabInfo = RegisteredTabsByID.Find(TabNameID))
+	if (const FCommonRegisteredTabInfo* TabInfo = RegisteredTabsByID.Find(TabNameID))
 	{
 		return TabInfo->TabButton;
 	}
