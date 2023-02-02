@@ -12,6 +12,7 @@
 #include "Widgets/SWidget.h"
 #include "SequencerNodeTree.h"
 #include "UObject/GCObject.h"
+#include "MovieSceneMarkedFrame.h"
 #include "MovieSceneSequenceID.h"
 #include "IMovieScenePlayer.h"
 #include "ITimeSlider.h"
@@ -64,6 +65,8 @@ class USequencerSettings;
 class UMovieSceneCopyableBinding;
 class UMovieSceneCompiledDataManager;
 class UMovieSceneCopyableTrack;
+class UMovieSceneNodeGroup;
+
 struct FMovieSceneTimeController;
 struct FMovieSceneSequencePlaybackParams;
 struct FMovieScenePossessable;
@@ -72,8 +75,10 @@ struct FKeyAttributes;
 class USequencerTimeChangeUndoRedoProxy;
 struct FNotificationInfo;
 struct FEditorViewportViewModifierParams;
+struct FMovieSceneMarkedFrame;
 
 enum class EMapChangeType : uint8;
+enum class ENearestKeyOption : uint8;
 
 namespace UE
 {

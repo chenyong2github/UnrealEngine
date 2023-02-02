@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnimSequenceCurveEditor.h"
+#include "AnimatedRange.h"
 #include "CurveEditor.h"
 #include "RichCurveEditorModel.h"
 #include "Animation/AnimSequenceBase.h"

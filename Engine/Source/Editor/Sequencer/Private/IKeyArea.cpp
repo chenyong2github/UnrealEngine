@@ -12,6 +12,7 @@
 #include "CurveModel.h"
 #include "ISequencer.h"
 #include "ISequencerSection.h"
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "CurveEditorSettings.h"
 

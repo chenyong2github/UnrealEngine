@@ -12,6 +12,7 @@
 #include "MVVM/Views/STrackLane.h"
 #include "MVVM/Views/SChannelView.h"
 #include "MVVM/Extensions/IObjectBindingExtension.h"
+#include "AnimatedRange.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"

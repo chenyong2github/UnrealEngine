@@ -8,6 +8,7 @@
 #include "Widgets/SWidget.h"
 #include "ITimeSlider.h"
 #include "ISequencerModule.h"
+#include "TimeSliderArgs.h"
 
 class FSlateWindowElementList;
 struct FContextMenuSuppressor;

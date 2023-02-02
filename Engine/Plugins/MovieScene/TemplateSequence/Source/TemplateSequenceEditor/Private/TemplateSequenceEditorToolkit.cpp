@@ -8,6 +8,7 @@
 #include "Misc/TemplateSequenceEditorPlaybackContext.h"
 #include "Misc/TemplateSequenceEditorSpawnRegister.h"
 #include "Modules/ModuleManager.h"
+#include "MovieScene.h"
 #include "ScopedTransaction.h"
 #include "Selection.h"
 #include "Widgets/Docking/SDockTab.h"

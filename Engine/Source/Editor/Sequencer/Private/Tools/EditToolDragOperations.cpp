@@ -18,6 +18,7 @@
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
 #include "MVVM/ViewModels/VirtualTrackArea.h"
 #include "Algo/AllOf.h"
+#include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Modules/ModuleManager.h"
 #include "Channels/MovieSceneChannel.h"

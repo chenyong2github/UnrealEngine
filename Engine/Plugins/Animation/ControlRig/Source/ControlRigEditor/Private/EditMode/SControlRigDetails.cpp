@@ -14,6 +14,7 @@
 #include "EditorModeManager.h"
 #include "ISequencer.h"
 #include "LevelSequence.h"
+#include "MovieScene.h"
 #include "Selection.h"
 #include "Editor.h"
 #include "LevelEditor.h"

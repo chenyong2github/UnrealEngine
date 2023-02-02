@@ -8,6 +8,7 @@
 #include "MVVM/Views/STrackAreaView.h"
 
 #include "IKeyArea.h"
+#include "MovieScene.h"
 #include "Sequencer.h"
 #include "SequencerHotspots.h"
 #include "ISequencerEditTool.h"

@@ -6,7 +6,7 @@
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
-#include "ITimeSlider.h"
+#include "TimeSliderArgs.h"
 #include "AnimTimeline/SAnimTimeline.h"
 
 class FSlateWindowElementList;

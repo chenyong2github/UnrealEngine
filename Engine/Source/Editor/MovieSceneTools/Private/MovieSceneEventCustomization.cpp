@@ -9,6 +9,7 @@
 #include "Tracks/MovieSceneEventTrack.h"
 #include "Sections/MovieSceneEventSectionBase.h"
 #include "Algo/Find.h"
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "ISequencerModule.h"
 #include "ScopedTransaction.h"

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CinematicViewport/SCinematicLevelViewport.h"
+#include "AnimatedRange.h"
 #include "EditorModeManager.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "Widgets/Layout/SBorder.h"
 #include "LevelSequenceEditorToolkit.h"
+#include "MovieScene.h"
 #include "Rendering/SlateRenderer.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SSpacer.h"

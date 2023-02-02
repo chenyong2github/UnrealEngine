@@ -2,9 +2,16 @@
 
 #include "ISequencer.h"
 
+#include "AnimatedRange.h"
 #include "Misc/AssertionMacros.h"
 #include "MovieScene.h"
 #include "MovieSceneSequence.h"
+#include "ITimeSlider.h"
+
+FAnimatedRange ISequencer::GetViewRange() const
+{
+	return FAnimatedRange();
+}
 
 FFrameRate ISequencer::GetRootTickResolution() const
 {

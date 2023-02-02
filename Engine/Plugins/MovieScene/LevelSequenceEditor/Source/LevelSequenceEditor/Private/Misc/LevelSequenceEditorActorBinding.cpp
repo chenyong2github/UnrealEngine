@@ -4,6 +4,7 @@
 #include "ISceneOutliner.h"
 #include "ISequencer.h"
 #include "LevelSequence.h"
+#include "MovieScene.h"
 #include "MovieScenePossessable.h"
 #include "Styling/SlateIconFinder.h"
 #include "SceneOutlinerModule.h"

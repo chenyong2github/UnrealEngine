@@ -5,6 +5,7 @@
 #include "SequencerKeyCollection.h"
 #include "SequencerSettings.h"
 #include "Misc/QualifiedFrameTime.h"
+#include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Styling/AppStyle.h"
 #include "Styles/LevelSequenceEditorStyle.h"

@@ -6,6 +6,7 @@
 #include "LevelEditor.h"
 #include "EntitySystem/MovieSceneSpawnablesSystem.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "MovieScene.h"
 #include "MovieSceneSpawnable.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Selection.h"

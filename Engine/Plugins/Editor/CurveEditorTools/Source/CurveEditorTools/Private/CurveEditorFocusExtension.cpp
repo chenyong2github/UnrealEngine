@@ -5,6 +5,7 @@
 #include "CurveEditorToolCommands.h"
 #include "CurveEditor.h"
 #include "ICurveEditorBounds.h"
+#include "AnimatedRange.h"
 
 void FCurveEditorFocusExtension::BindCommands(TSharedRef<FUICommandList> CommandBindings)
 {

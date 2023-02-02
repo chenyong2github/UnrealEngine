@@ -3,6 +3,7 @@
 #include "MVVM/ViewModels/SequencerTrackAreaViewModel.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/SequenceModel.h"
+#include "AnimatedRange.h"
 #include "Sequencer.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"

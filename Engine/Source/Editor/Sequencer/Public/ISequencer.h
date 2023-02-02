@@ -8,7 +8,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
-#include "ITimeSlider.h"
+#include "ViewRangeInterpolation.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "HAL/Platform.h"
 #include "IMovieScenePlayer.h"
@@ -31,6 +31,10 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/SWidget.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "ITimeSlider.h"
+#endif
 
 #include "ISequencer.generated.h"
 
@@ -67,6 +71,7 @@ enum class EMapChangeType : uint8;
 class FCurveEditor;
 class FCurveModel;
 class IToolkitHost;
+struct FAnimatedRange;
 struct FMovieSceneChannelMetaData;
 struct FMovieSceneSequencePlaybackParams;
 
@@ -436,10 +441,7 @@ public:
 	virtual void ResetTimeController() = 0;
 
 	/** @return The current view range */
-	virtual FAnimatedRange GetViewRange() const
-	{
-		return FAnimatedRange();
-	}
+	virtual FAnimatedRange GetViewRange() const;
 
 	/**
 	 * Set the view range, growing the working range to accomodate, if necessary

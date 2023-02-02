@@ -2,6 +2,7 @@
 
 #include "SSequencerCurveEditor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "SCurveEditorPanel.h"
 #include "Sequencer.h"

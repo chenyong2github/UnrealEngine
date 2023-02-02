@@ -15,6 +15,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISettingsModule.h"
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "ScopedTransaction.h"
 #include "Sequencer.h"

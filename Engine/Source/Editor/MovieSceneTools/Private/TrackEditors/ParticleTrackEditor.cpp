@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/ParticleTrackEditor.h"
+#include "AnimatedRange.h"
 #include "Rendering/DrawElements.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Curves/IntegralCurve.h"

@@ -14,12 +14,14 @@
 #include "TakeRecorderSources.h"
 #include "Misc/Timecode.h"
 #include "Misc/FrameRate.h"
+#include "MovieScene.h"
 #include "Recorder/TakeRecorder.h"
 #include "Recorder/TakeRecorderBlueprintLibrary.h"
 #include "LevelSequence.h"
 #include "Algo/Find.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
+#include "MovieScene.h"
 #include "MovieSceneToolsProjectSettings.h"
 
 // AssetRegistry includes

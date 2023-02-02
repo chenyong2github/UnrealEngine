@@ -13,6 +13,7 @@
 #include "SequencerSettings.h"
 #include "IMovieScenePlaybackClient.h"
 #include "ISequencer.h"
+#include "MovieScene.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
 #include "Sections/MovieSceneBoolSection.h"
 #include "Settings/LevelEditorViewportSettings.h"

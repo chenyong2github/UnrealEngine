@@ -9,6 +9,7 @@
 #include "MovieSceneSection.h"
 #include "TimeToPixel.h"
 #include "Widgets/Input/NumericTypeInterface.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
 
 class FMenuBuilder;

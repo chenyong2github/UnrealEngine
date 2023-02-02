@@ -29,6 +29,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Tools/ControlRigSnapSettings.h"
+#include "MovieScene.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigSnapper"
 

@@ -2,6 +2,7 @@
 
 #include "Misc/TemplateSequenceEditorUtil.h"
 #include "ISequencer.h"
+#include "MovieScene.h"
 #include "MovieSceneSpawnable.h"
 #include "TemplateSequence.h"
 

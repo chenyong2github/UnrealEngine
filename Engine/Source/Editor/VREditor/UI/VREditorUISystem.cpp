@@ -81,6 +81,7 @@
 #include "Components/StaticMeshComponent.h"
 
 #include "ISequencer.h"
+#include "ITimeSlider.h"
 #include "Engine/StaticMesh.h"
 #include "EdMode.h"
 #include "Widgets/Images/SImage.h"

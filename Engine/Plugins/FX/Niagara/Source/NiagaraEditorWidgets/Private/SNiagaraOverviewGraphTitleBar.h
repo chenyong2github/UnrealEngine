@@ -7,6 +7,7 @@
 #include "NiagaraSystem.h"
 #include "ViewModels/NiagaraSystemScalabilityViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "Widgets/SCompoundWidget.h"
 //#include "SNiagaraOverviewGraph.h"
 
 class SNiagaraOverviewGraph;

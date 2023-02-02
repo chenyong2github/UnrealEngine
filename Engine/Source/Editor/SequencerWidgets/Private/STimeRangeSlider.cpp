@@ -2,6 +2,7 @@
 
 #include "STimeRangeSlider.h"
 
+#include "AnimatedRange.h"
 #include "ITimeSlider.h"
 #include "Input/Events.h"
 #include "Layout/Geometry.h"

@@ -41,6 +41,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "AnimTimeline/AnimTimeSliderController.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "MovieSceneFwd.h"
 
 #define LOCTEXT_NAMESPACE "SAnimTimeline"
 

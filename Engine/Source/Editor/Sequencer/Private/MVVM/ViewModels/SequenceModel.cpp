@@ -11,6 +11,7 @@
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
 
+#include "MovieScene.h"
 #include "MovieSceneFolder.h"
 #include "MovieSceneSequence.h"
 

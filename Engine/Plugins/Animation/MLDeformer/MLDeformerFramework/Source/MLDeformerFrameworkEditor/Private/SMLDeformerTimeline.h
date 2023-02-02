@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AnimatedRange.h"
 #include "CoreTypes.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

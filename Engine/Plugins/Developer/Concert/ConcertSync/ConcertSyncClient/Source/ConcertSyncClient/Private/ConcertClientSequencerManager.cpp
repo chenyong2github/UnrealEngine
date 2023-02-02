@@ -27,6 +27,7 @@
 #include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
+	#include "AnimatedRange.h"
 	#include "ISequencerModule.h"
 	#include "ISequencer.h"
 	#include "SequencerSettings.h"

@@ -7,6 +7,7 @@
 #include "MVVM/ViewModels/FolderModel.h"
 #include "MVVM/ViewModels/TrackModel.h"
 
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneFolder.h"
 

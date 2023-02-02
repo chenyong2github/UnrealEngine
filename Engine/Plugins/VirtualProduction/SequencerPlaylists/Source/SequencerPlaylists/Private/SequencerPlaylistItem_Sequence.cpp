@@ -4,6 +4,7 @@
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "LevelSequence.h"
+#include "MovieScene.h"
 #include "MovieSceneFolder.h"
 #include "Recorder/TakeRecorder.h"
 #include "SequencerPlaylist.h"

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AnimatedRange.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
@@ -19,6 +20,7 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Sequencer.h"
+#include "SequencerWidgetsDelegates.h"
 
 class FActorDragDropOp;
 class FFolderDragDropOp;

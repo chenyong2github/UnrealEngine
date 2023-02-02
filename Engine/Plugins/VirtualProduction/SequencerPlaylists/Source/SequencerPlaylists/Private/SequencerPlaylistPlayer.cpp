@@ -6,9 +6,11 @@
 #include "SequencerPlaylistsLog.h"
 #include "SequencerPlaylistsModule.h"
 
+#include "AnimatedRange.h"
 #include "ILevelSequenceEditorToolkit.h"
 #include "LevelSequence.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
+#include "MovieScene.h"
 #include "Recorder/TakeRecorder.h"
 #include "ScopedTransaction.h"
 #include "TakePreset.h"

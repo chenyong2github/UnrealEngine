@@ -9,6 +9,7 @@
 #include "RenderUtils.h"
 #include "RenderingThread.h"
 #include "Modules/ModuleManager.h"
+#include "AnimatedRange.h"
 #include "Audio.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundWave.h"

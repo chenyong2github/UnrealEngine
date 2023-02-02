@@ -3,6 +3,7 @@
 #include "Views/SInteractiveCurveEditorView.h"
 
 #include "Algo/Sort.h"
+#include "AnimatedRange.h"
 #include "Containers/ArrayView.h"
 #include "Containers/Map.h"
 #include "Containers/SortedMap.h"

@@ -17,6 +17,7 @@
 #include "UObject/UObjectHash.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMarkedFrame)
 
 #define LOCTEXT_NAMESPACE "MovieScene"
 

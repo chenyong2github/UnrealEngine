@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ITimeSlider.h"
+#include "TimeSliderArgs.h"
 #include "TickableEditorObject.h"
 
 class FCameraCalibrationStepsController;

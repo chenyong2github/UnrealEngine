@@ -19,6 +19,7 @@
 
 // Core includes
 #include "Modules/ModuleManager.h"
+#include "MovieScene.h"
 #include "Algo/Sort.h"
 #include "Misc/FileHelper.h"
 

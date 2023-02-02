@@ -25,6 +25,7 @@
 #include "Widgets/Colors/SColorPicker.h"
 #include "SequencerOutlinerItemDragDropOp.h"
 
+#include "MovieScene.h"
 #include "MovieSceneBinding.h"
 #include "MovieSceneFolder.h"
 

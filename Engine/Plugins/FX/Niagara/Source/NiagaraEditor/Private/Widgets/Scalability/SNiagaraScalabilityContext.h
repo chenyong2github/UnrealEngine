@@ -7,6 +7,7 @@
 #include "NiagaraSystem.h"
 #include "ViewModels/NiagaraSystemScalabilityViewModel.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/SCompoundWidget.h"
 
 struct FPropertyAndParent;
 

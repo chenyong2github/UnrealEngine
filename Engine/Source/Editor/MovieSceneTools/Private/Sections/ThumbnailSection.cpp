@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/ThumbnailSection.h"
+#include "AnimatedRange.h"
 #include "Rendering/DrawElements.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"

@@ -2,6 +2,7 @@
 
 #include "STimeRange.h"
 
+#include "AnimatedRange.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"

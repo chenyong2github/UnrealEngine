@@ -3,6 +3,7 @@
 #include "Recorder/TakeRecorder.h"
 
 #include "Algo/Accumulate.h"
+#include "AnimatedRange.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "CoreGlobals.h"
 #include "Engine/Engine.h"

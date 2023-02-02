@@ -17,6 +17,7 @@
 #include "MVVM/Views/SOutlinerTrackView.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 
+#include "MovieScene.h"
 #include "MovieSceneFolder.h"
 #include "MovieSceneTrack.h"
 #include "MovieSceneSection.h"

@@ -35,6 +35,7 @@ namespace UnrealBuildTool.Rules
 					"OpenCVHelper",
 					"PlacementMode",
 					"PropertyEditor",
+					"SequencerWidgets",
 					"Settings",
 					"Slate",
 					"SlateCore",

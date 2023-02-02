@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AnimatedRange.h"
 #include "Templates/SharedPointer.h"
 #include "ITimeSlider.h"
 #include "PersonaDelegates.h"

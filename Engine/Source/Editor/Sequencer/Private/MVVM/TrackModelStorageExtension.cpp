@@ -4,6 +4,7 @@
 #include "MVVM/ViewModels/TrackModel.h"
 #include "MVVM/ViewModels/SequenceModel.h"
 #include "MVVM/ViewModels/ViewModel.h"
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneFolder.h"
 

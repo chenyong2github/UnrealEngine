@@ -4,6 +4,7 @@
 #include "Fonts/FontCache.h"
 #include "FrameNumberDisplayFormat.h"
 #include "FrameNumberNumericInterface.h"
+#include "MovieScene.h"
 #include "SequencerSettings.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
 #include "Tracks/MovieSceneSubTrack.h"

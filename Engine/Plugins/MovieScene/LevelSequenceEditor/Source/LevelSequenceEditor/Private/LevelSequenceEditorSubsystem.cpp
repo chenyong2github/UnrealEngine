@@ -10,6 +10,7 @@
 #include "LevelSequenceEditorCommands.h"
 #include "MovieScenePossessable.h"
 #include "SequencerSettings.h"
+#include "MovieScene.h"
 #include "MovieSceneSpawnable.h"
 #include "SequencerUtilities.h"
 #include "Sections/MovieScene3DConstraintSection.h"
