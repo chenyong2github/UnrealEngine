@@ -2,8 +2,8 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
-	"FriendlyName": "TargetingSystem",
-	"Description": "Generic Targeting System to be used for gameplay. Abilities/Aim Assist/etc",
+	"FriendlyName": "Targeting System",
+	"Description": "Generic targeting system for use with gameplay abilities, aim assist, etc",
 	"Category": "Gameplay",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "https://epicgames.com",
@@ -12,7 +12,7 @@
 	"SupportURL": "",
 	"EnabledByDefault": false,
 	"CanContainContent": false,
-	"IsBetaVersion": false,
+	"IsBetaVersion": true,
 	"Installed": false,
 	"Modules": [
 		{
@@ -26,6 +26,5 @@
 			"Name": "GameplayAbilities",
 			"Enabled": true
 		}
-	],
-	"IsExperimentalVersion": false
+	]
 }
