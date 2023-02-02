@@ -165,12 +165,14 @@ void FCookWorkerClient::ReportDemoteToIdle(const FPackageData& PackageData, ESup
 	{
 		return;
 	}
-	TUniquePtr<FPackageRemoteResult> Result(new FPackageRemoteResult());
-	Result->SetPackageName(PackageData.GetPackageName());
-	Result->SetSuppressCookReason(Reason);
+	TUniquePtr<FPackageRemoteResult> ResultOwner(new FPackageRemoteResult());
+	FName PackageName = PackageData.GetPackageName();
+	ResultOwner->SetPackageName(PackageName);
+	ResultOwner->SetSuppressCookReason(Reason);
+	// Set the platforms, use the default values for each platform (e.g. bSuccessful=false)
+	ResultOwner->SetPlatforms(OrderedSessionPlatforms);
 
-	FScopeLock PendingResultsScopeLock(&PendingResultsLock);
-	PendingResults.Add(MoveTemp(Result));
+	ReportPackageMessage(PackageName, MoveTemp(ResultOwner));
 }
 
 void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
@@ -192,8 +194,15 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 		PlatformResults.SetSuccessful(PackagePlatformData.bCookSucceeded);
 	}
 
+	ReportPackageMessage(PackageName, MoveTemp(ResultOwner));
+}
+
+void FCookWorkerClient::ReportPackageMessage(FName PackageName, TUniquePtr<FPackageRemoteResult>&& ResultOwner)
+{
+	FPackageRemoteResult* Result = ResultOwner.Get();
+
 	TArray<FMPCollectorClientTickPackageContext::FPlatformData, TInlineAllocator<1>> ContextPlatformDatas;
-	ContextPlatformDatas.Reserve(NumPlatforms);
+	ContextPlatformDatas.Reserve(Result->GetPlatforms().Num());
 	for (FPackageRemoteResult::FPlatformResult& PlatformResult : Result->GetPlatforms())
 	{
 		ContextPlatformDatas.Add(FMPCollectorClientTickPackageContext::FPlatformData

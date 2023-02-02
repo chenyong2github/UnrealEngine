@@ -390,9 +390,7 @@ void FPackageStoreManifest::WritePackage(FCbWriter& Writer, FName PackageName)
 		PackageFileChunkIds.RemoveAndCopyValue(PackageName, FileChunkIds);
 	}
 
-	UE_CLOG(!bHasPackageInfo, LogIoStore, Error,
-		TEXT("ClientTickPackage was called for package %s, but CommitPackage was not called for that package. We will not have up to date PackageStoreManifest data."),
-		*PackageName.ToString());
+	// For a failed package, CommitPackage may have never been called. Send empty values in that case.
 
 	Writer.BeginObject();
 	Writer << "ExportBundleChunkIds" << PackageInfo.ExportBundleChunkIds;

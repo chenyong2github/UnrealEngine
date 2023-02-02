@@ -655,7 +655,6 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 				ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
 				FPackageRemoteResult::FPlatformResult& PlatformResult = Result.GetPlatforms()[PlatformIndex];
 				PackageData->SetPlatformCooked(TargetPlatform, PlatformResult.IsSuccessful());
-				// MPCOOKTODO: Call CommitRemotePackage on the PackageWriter
 				HandleReceivedPackagePlatformMessages(*PackageData, TargetPlatform, PlatformResult.ReleaseMessages());
 			}
 			if (Result.IsReferencedOnlyByEditorOnlyData())
@@ -1070,12 +1069,9 @@ void FPackageWriterMPCollector::ClientTickPackage(FMPCollectorClientTickPackageC
 {
 	for (const FMPCollectorClientTickPackageContext::FPlatformData& PlatformData : Context.GetPlatformDatas())
 	{
-		if (PlatformData.bSuccessful)
-		{
-			ICookedPackageWriter& PackageWriter = COTFS.FindOrCreatePackageWriter(PlatformData.TargetPlatform);
-			TFuture<FCbObject> ObjectFuture = PackageWriter.WriteMPCookMessageForPackage(Context.GetPackageName());
-			Context.AddAsyncPlatformMessage(PlatformData.TargetPlatform, MoveTemp(ObjectFuture));
-		}
+		ICookedPackageWriter& PackageWriter = COTFS.FindOrCreatePackageWriter(PlatformData.TargetPlatform);
+		TFuture<FCbObject> ObjectFuture = PackageWriter.WriteMPCookMessageForPackage(Context.GetPackageName());
+		Context.AddAsyncPlatformMessage(PlatformData.TargetPlatform, MoveTemp(ObjectFuture));
 	}
 }
 

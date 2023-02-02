@@ -111,6 +111,9 @@ private:
 	void AssignPackages(FAssignPackagesMessage& Message);
 	/** Tick the registered collectors. */
 	void TickCollectors(FTickStackData& StackData, bool bFlush);
+	/** Helper for ReportDemote/ReportPromote: Collect IMPCollectors and asynchronously add the message to pending. */
+	void ReportPackageMessage(FName PackageName, TUniquePtr<FPackageRemoteResult>&& ResultOwner);
+	
 	void HandleAbortPackagesMessage(FMPCollectorClientMessageContext& Context, bool bReadSuccessful,
 		FAbortPackagesMessage&& Message);
 	void HandleRetractionMessage(FMPCollectorClientMessageContext& Context, bool bReadSuccessful,

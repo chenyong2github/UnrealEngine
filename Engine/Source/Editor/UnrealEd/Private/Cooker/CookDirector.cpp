@@ -404,8 +404,6 @@ void FCookDirector::AssignRequests(TArray<FWorkerId>&& InWorkers, TArray<TRefCou
 		}
 	}
 
-	// MPCOOKTODO: Sort each batch from leaf to root
-
 	// Assign each batch to the FCookWorkerServer in RemoteWorkers;
 	// the CookWorkerServer's tick will handle sending the message to the remote process
 	for (FWorkerId WorkerId : InWorkers)
@@ -1539,7 +1537,7 @@ void FCookDirector::FRetractionHandler::TickFromSchedulerThread(bool bAnyIdle, b
 			}
 		}
 		bOutComplete = false;
-		UE_CLOG(!IsCookIgnoreTimeouts(), LogCook, Warning, TEXT("%s has not responded to a RetractionRequest message for %.1f seconds. Continuing to wait..."),
+		UE_CLOG(!IsCookIgnoreTimeouts(), LogCook, Display, TEXT("%s has not responded to a RetractionRequest message for %.1f seconds. Continuing to wait..."),
 			*Director.GetDisplayName(ExpectedWorker), static_cast<float>(CurrentTime - MessageSentTimeSeconds));
 		LastWarnTimeSeconds = CurrentTime;
 		return;

@@ -2746,17 +2746,24 @@ FAssetRegistryMPCollector::FAssetRegistryMPCollector(UCookOnTheFlyServer& InCOTF
 void FAssetRegistryMPCollector::ClientTickPackage(FMPCollectorClientTickPackageContext& Context)
 {
 	bool bLoggedWarning = false;
-	for (const ITargetPlatform* TargetPlatform : Context.GetPlatforms())
+	for (const FMPCollectorClientTickPackageContext::FPlatformData& ContextPlatformData : Context.GetPlatformDatas())
 	{
+		const ITargetPlatform* TargetPlatform = ContextPlatformData.TargetPlatform;
 		FPlatformData* PlatformData = COTFS.PlatformManager->GetPlatformData(TargetPlatform);
 		FAssetRegistryReporterRemote& RegistryReporter = static_cast<FAssetRegistryReporterRemote&>(*PlatformData->RegistryReporter);
 		FCbObject Message;
+
 		if (!RegistryReporter.PackageUpdateMessages.RemoveAndCopyValue(Context.GetPackageName(), Message))
 		{
-			UE_CLOG(!bLoggedWarning, LogAssetRegistryGenerator, Warning,
-				TEXT("ClientTickPackage was called for package %s, but UpdateAssetRegistryData was not called for that package. We will not have up to date AssetDataTags in the generated AssetRegistry."),
-				*Context.GetPackageName().ToString());
-			bLoggedWarning = true;
+			// For a failed package, UpdateAssetRegistryData will never have been called. Silently skip it and do not send a message.
+			if (ContextPlatformData.bSuccessful)
+			{
+				// For a successful package, UpdateAssetRegistryData should have been called
+				UE_CLOG(!bLoggedWarning, LogAssetRegistryGenerator, Warning,
+					TEXT("ClientTickPackage was called for package %s, but UpdateAssetRegistryData was not called for that package. We will not have up to date AssetDataTags in the generated AssetRegistry."),
+					*Context.GetPackageName().ToString());
+				bLoggedWarning = true;
+			}
 		}
 		else
 		{

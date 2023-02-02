@@ -8495,7 +8495,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				// Add the package hashes to the relevant AssetPackageDatas.
 				// PackageHashes are gated by requiring UPackage::WaitForAsyncFileWrites(), which is called above.
 				FCookSavePackageContext& SaveContext = FindOrCreateSaveContext(TargetPlatform);
-				// MPCOOKTODO: Need to replicate AllPackageHashes from CookWorkers
 				TMap<FName, TRefCountPtr<FPackageHashes>>& AllPackageHashes = SaveContext.PackageWriter->GetPackageHashes();
 				for (TPair<FName, TRefCountPtr<FPackageHashes>>& HashSet : AllPackageHashes)
 				{
