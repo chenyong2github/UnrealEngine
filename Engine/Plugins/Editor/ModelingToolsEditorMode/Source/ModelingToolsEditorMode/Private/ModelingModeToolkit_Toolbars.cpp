@@ -442,17 +442,17 @@ void FModelingToolsEditorModeToolkit::ExtendSecondaryModeToolbar(UToolMenu *InMo
 
 	Section.AddSeparator(NAME_None);
 
-	TSharedRef<SWidget> PolygroupsTextWidget = SNew(SHorizontalBox)
+	TSharedRef<SWidget> PolyGroupsTextWidget = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(8.0f, 0.0f, 8.0f, 0.0f)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("PolygroupsSelectionText", "Polygroups"))
+			.Text(LOCTEXT("PolyGroupsSelectionText", "PolyGroups"))
 		];
 
-	Section.AddEntry(FToolMenuEntry::InitWidget("PolygroupsTextWidget", PolygroupsTextWidget, FText()));
+	Section.AddEntry(FToolMenuEntry::InitWidget("PolyGroupsTextWidget", PolyGroupsTextWidget, FText()));
 	
 	Section.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.MeshSelectionModeAction_GroupFaces));
 	Section.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.MeshSelectionModeAction_GroupEdges));
