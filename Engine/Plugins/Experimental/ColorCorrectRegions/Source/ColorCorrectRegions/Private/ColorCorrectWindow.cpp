@@ -55,7 +55,6 @@ AColorCorrectionWindow::AColorCorrectionWindow(const FObjectInitializer& ObjectI
 #if WITH_EDITOR
 void AColorCorrectionWindow::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectionWindow, WindowType))
@@ -83,6 +82,10 @@ void AColorCorrectionWindow::PostEditChangeProperty(struct FPropertyChangedEvent
 			bNotifyOnParamSetter = true;
 		}
 	}
+
+	// Call after stage actor transform is updated, so any observers will have both the correct actor transform and
+	// positional properties.
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void AColorCorrectionWindow::PostEditMove(bool bFinished)

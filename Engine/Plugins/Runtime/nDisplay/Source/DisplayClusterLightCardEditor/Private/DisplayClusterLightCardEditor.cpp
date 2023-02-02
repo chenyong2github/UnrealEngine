@@ -1775,14 +1775,22 @@ void FDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeing
 		IDisplayClusterStageActor* StageActor = Cast<IDisplayClusterStageActor>(ObjectBeingModified);
 		
 		const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-		const bool bTransformationChanged =
-				(PropertyName == USceneComponent::GetRelativeLocationPropertyName() ||
-					PropertyName == USceneComponent::GetRelativeRotationPropertyName() ||
-					PropertyName == USceneComponent::GetRelativeScale3DPropertyName() ||
-					(StageActor && StageActor->GetPositionalPropertyNames().Contains(PropertyName)));
+		const bool bComponentTransformPropertyChanged = PropertyName == USceneComponent::GetRelativeLocationPropertyName()
+		|| PropertyName == USceneComponent::GetRelativeRotationPropertyName()
+		|| PropertyName == USceneComponent::GetRelativeScale3DPropertyName();
+		
+		const bool bTransformationChanged = (bComponentTransformPropertyChanged
+				|| (StageActor && StageActor->GetPositionalPropertyNames().Contains(PropertyName)));
+		
 		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive ||
 			(bTransformationChanged && !ObjectBeingModified->IsA<ADisplayClusterRootActor>()))
 		{
+			if (bComponentTransformPropertyChanged && ObjectBeingModified->IsA<USceneComponent>())
+			{
+				// The owning scene component actor will also fire a property change. Prevent double processing.
+				return;
+			}
+			
 			// Real-time & efficient update when dragging a slider or when we know the property type doesn't
 			// require a full refresh
 			if (ViewportView.IsValid())
