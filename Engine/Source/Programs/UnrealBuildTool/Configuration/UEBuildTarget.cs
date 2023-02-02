@@ -4162,7 +4162,7 @@ namespace UnrealBuildTool
 							Dependencies.Add(NextInstance);
 							if (NextInstance.Dependencies == null)
 							{
-								throw new BuildException("Found circular dependency from plugin '{0}' onto itself.", NextReference.Name);
+								throw new BuildException($"Found circular plugin dependency. {PluginReferenceChain} -> {NextReference.Name}");
 							}
 							Dependencies.UnionWith(NextInstance.Dependencies);
 						}
