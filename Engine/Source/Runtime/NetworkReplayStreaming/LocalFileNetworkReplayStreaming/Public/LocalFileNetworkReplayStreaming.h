@@ -61,6 +61,14 @@ enum class EReadReplayInfoFlags : uint32
 
 ENUM_CLASS_FLAGS(EReadReplayInfoFlags);
 
+enum class EUpdateReplayInfoFlags : uint32
+{
+	None = 0,
+	FullUpdate = 1,
+};
+
+ENUM_CLASS_FLAGS(EUpdateReplayInfoFlags);
+
 /** Struct to hold chunk metadata */
 struct FLocalFileChunkInfo
 {
@@ -120,6 +128,8 @@ struct FLocalFileEventInfo
 
 	int32 SizeInBytes;
 	int64 EventDataOffset;
+
+	void CountBytes(FArchive& Ar) const;
 };
 
 /** Struct to hold metadata about an entire replay */
@@ -157,6 +167,8 @@ struct FLocalFileReplayInfo
 	TArray<FLocalFileEventInfo> Checkpoints;
 	TArray<FLocalFileEventInfo> Events;
 	TArray<FLocalFileReplayDataInfo> DataChunks;
+
+	void CountBytes(FArchive& Ar) const;
 };
 
 /** Archive to wrap the file reader and respect chunk boundaries */
@@ -269,6 +281,10 @@ enum class ELocalFileReplayResult : uint32
 	CompressionNotSupported,
 	DecryptBuffer,
 	EncryptionNotSupported,
+	EncryptBuffer,
+	CompressBuffer,
+	InvalidName,
+	FileWriter,
 	Unknown,
 };
 
@@ -381,6 +397,7 @@ class TGenericQueuedLocalFileRequest : public FQueuedLocalFileRequest, public TS
 public:
 	TGenericQueuedLocalFileRequest(const TSharedPtr<FLocalFileNetworkReplayStreamer>& InStreamer, EQueuedLocalFileRequestType::Type InType, TFunction<void(StorageType&)>&& InFunction, TFunction<void(StorageType&)>&& InCompletionCallback)
 		: FQueuedLocalFileRequest(InStreamer, InType)
+		, Storage()
 		, RequestFunction(MoveTemp(InFunction))
 		, CompletionCallback(MoveTemp(InCompletionCallback))
 	{
@@ -432,7 +449,10 @@ class TLocalFileRequestCommonData
 {
 public:
 	DelegateResultType DelegateResult;
+	
+	UE_DEPRECATED(5.3, "No longer used")
 	FLocalFileReplayInfo ReplayInfo;
+	
 	TArray<uint8> DataBuffer;
 
 	UE_DEPRECATED(5.1, "No longer used")
@@ -615,7 +635,13 @@ protected:
 	void RenameReplayFriendlyName_Internal(const FString& ReplayName, const FString& NewFriendlyName, const int32 UserIndex, const FRenameReplayCallback& Delegate);
 	void RenameReplay_Internal(const FString& ReplayName, const FString& NewName, const int32 UserIndex, const FRenameReplayCallback& Delegate);
 
-	/** Currently playing or recording replay metadata */
+	/** 
+	 * Currently playing or recording replay metadata
+	 * 
+	 * The values may not accurately reflect what is currently on disk during recording.  They will be updated 
+	 * as each queued task completes on the game thread.
+	 * 
+	 **/
 	FLocalFileReplayInfo CurrentReplayInfo;
 
 	TInterval<uint32> StreamTimeRange;
@@ -725,7 +751,7 @@ protected:
 	mutable TMap<FString, TArray<uint8>> FileContentsCache;
 	const TArray<uint8>& GetCachedFileContents(const FString& Filename) const;
 
-	void UpdateCurrentReplayInfo(FLocalFileReplayInfo& ReplayInfo);
+	void UpdateCurrentReplayInfo(FLocalFileReplayInfo& ReplayInfo, EUpdateReplayInfoFlags UpdateFlags = EUpdateReplayInfoFlags::None);
 
 	virtual int32 GetDecompressedSizeBackCompat(FArchive& InCompressed) const;
 
@@ -740,6 +766,10 @@ public:
 
 	UE_DEPRECATED(5.2, "No longer used, replaced with custom version.")
 	static const uint32 LatestVersion;
+
+private:
+	/** Manipulated by queued replay tasks, likely from another thread */
+	FLocalFileReplayInfo TaskReplayInfo;
 };
 
 class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileNetworkReplayStreamingFactory : public INetworkReplayStreamingFactory, public FTickableGameObject

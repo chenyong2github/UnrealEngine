@@ -223,6 +223,36 @@ namespace DemoNetDriverRecordingPrivate
 					}
 				}
 			}));
+
+#if !UE_BUILD_SHIPPING
+	static FAutoConsoleCommandWithWorldAndArgs DemoTestWriteEvent(
+		TEXT("Demo.TestWriteEvent"),
+		TEXT("Add or update a test replay event on the currently recording replay, with an optional argument for event size in bytes"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(
+			[](const TArray<FString>& Params, UWorld* World)
+			{
+				if (World)
+				{
+					if (UDemoNetDriver* Driver = World->GetDemoNetDriver())
+					{
+						if (APlayerController* ViewerPC = GEngine->GetFirstLocalPlayerController(World))
+						{
+							int32 EventSize = 32;
+
+							if (Params.Num() > 0)
+							{
+								EventSize = FCString::Atoi(*Params[0]);
+							}
+
+							TArray<uint8> EventData;
+							EventData.AddZeroed(EventSize);
+
+							Driver->AddOrUpdateEvent(TEXT("Test"), TEXT("Test"), TEXT("Test"), EventData);
+						}
+					}
+				}
+			}));
+#endif
 }
 
 struct FDemoBudgetLogHelper
