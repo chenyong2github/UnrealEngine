@@ -527,13 +527,16 @@ public:
 	/**
 	 * Strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Nanite")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nanite")
 	bool bStripOnCook;
+
+	UFUNCTION(BlueprintCallable, Category = "Nanite")
+	void SetEnableNanite(bool bValue);
 
 	/**
 	 * Enable support for Nanite.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Nanite")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetEnableNanite, Category = "Nanite")
 	bool EnableNanite;
 
 #if WITH_EDITORONLY_DATA
@@ -583,13 +586,13 @@ public:
 	/**
 	* Mass As Density, units are in kg/m^3
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collisions")
 	bool bMassAsDensity;
 
 	/**
 	* Total Mass of Collection. If density, units are in kg/m^3
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collisions")
 	float Mass;
 
 	/**

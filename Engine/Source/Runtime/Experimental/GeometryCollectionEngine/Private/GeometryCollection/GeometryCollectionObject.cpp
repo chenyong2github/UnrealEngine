@@ -973,6 +973,23 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC)
 	}
 }
 
+void UGeometryCollection::SetEnableNanite(bool bValue)
+{
+	if (EnableNanite != bValue)
+	{
+		EnableNanite = bValue;
+		NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
+
+		if (EnableNanite)
+		{
+			if (GeometryCollection)
+			{
+				NaniteData = UGeometryCollection::CreateNaniteData(GeometryCollection.Get());
+			}
+		}
+	}
+}
+
 void UGeometryCollection::CreateSimulationData()
 {
 	CreateSimulationDataImp(/*bCopyFromDDC=*/false);
