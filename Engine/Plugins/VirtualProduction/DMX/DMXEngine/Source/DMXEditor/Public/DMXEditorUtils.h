@@ -140,6 +140,21 @@ public:
 
 	/** Gets the package or creates a new one if it doesn't exist */
 	static UPackage* GetOrCreatePackage(TWeakObjectPtr<UObject> Parent, const FString& DesiredName);
+	
+	/** Parses Attribute Names from a String, format can be 'Dimmer', 'Dimmer, Pan, Tilt''. If no valid Attribute Names  can be parsed, returned Array is empty. */
+	[[nodiscard]] static TArray<FString> ParseAttributeNames(const FString& InputString);
+
+	/** Parses Universes from a String, format can be '1.', 'Uni 1', 'Universe 1', 'Uni 1, 3-4'. If no valid Universe can be parsed, returned Array is empty. */
+	[[nodiscard]] static TArray<int32> ParseUniverses(const FString& InputString);
+
+	/** Parses an Address from a String, exected format is in the form of 'universe.address', e.g. '1.1' */
+	[[nodiscard]] static  bool ParseAddress(const FString& InputString, int32& OutAddress);
+
+	/** Parses Fixture IDs from a String. Format can be '1', '1, 3-4'. If no valid Fixture ID can be parsed, returned Array is empty */
+	[[nodiscard]] static TArray<int32> ParseFixtureIDs(const FString& InputString);
+
+	/** Parses a Fixture ID from a String, exected format is an integral value, e.g. '1' */
+	[[nodiscard]] static bool ParseFixtureID(const FString& InputString, int32& OutFixtureID);
 
 	// can't instantiate this class
 	FDMXEditorUtils() = delete;

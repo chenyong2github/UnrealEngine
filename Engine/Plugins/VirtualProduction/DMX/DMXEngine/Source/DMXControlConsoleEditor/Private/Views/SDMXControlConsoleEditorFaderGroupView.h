@@ -39,6 +39,9 @@ public:
 	/** Gets Fader Group's name */
 	FString GetFaderGroupName() const;
 
+	/** Filters children by given search string  */
+	void ApplyGlobalFilter(const FString& InSearchString);
+
 protected:
 	//~ Begin SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -47,6 +50,9 @@ protected:
 private:
 	/** Generates Faders widget */
 	TSharedRef<SWidget> GenerateFadersWidget();
+
+	/** Shows all elements in this fader group view */
+	void ShowAllElements();
 
 	/** Should be called when an Element was added to the Fader Group this view displays */
 	void OnElementAdded();
@@ -84,8 +90,8 @@ private:
 	/** Reference to the Fader Group main widget */
 	TSharedPtr<SDMXControlConsoleEditorFaderGroup> FaderGroupWidget;
 
-	/** Reference to the Faders ListView */
-	TSharedPtr<SHorizontalBox> FadersHorizontalBox;
+	/** Horizontal Box containing the Elements in this Fader Group */
+	TSharedPtr<SHorizontalBox> ElementsHorizontalBox;
 
 	/** Array of weak references to Element widgets */
 	TArray<TWeakPtr<SWidget>> ElementWidgets;

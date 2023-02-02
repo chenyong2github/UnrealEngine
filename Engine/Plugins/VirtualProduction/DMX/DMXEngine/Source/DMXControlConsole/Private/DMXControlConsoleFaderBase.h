@@ -32,6 +32,7 @@ public:
 	virtual UDMXControlConsoleFaderGroup& GetOwnerFaderGroupChecked() const override;
 	virtual int32 GetIndex() const override;
 	virtual const TArray<UDMXControlConsoleFaderBase*>& GetFaders() const override { return ThisFaderAsArray; }
+	virtual int32 GetUniverseID() const override PURE_VIRTUAL(UDMXControlConsoleFaderBase::GetUniverse, return 1;);
 	virtual int32 GetStartingAddress() const override PURE_VIRTUAL(UDMXControlConsoleFaderBase::GetStartingAddress, return 1;);
 	virtual int32 GetEndingAddress() const override { return EndingAddress; }
 	virtual void Destroy() override;

@@ -56,6 +56,7 @@ void UDMXControlConsoleFixturePatchCellAttributeFader::SetPropertiesFromFixtureC
 	FaderName = FixtureCellAttribute.Attribute.Name.ToString();
 	Attribute = FixtureCellAttribute.Attribute;
 
+	UniverseID = InUniverseID;
 	StartingAddress = StartingChannel;
 	Value = FixtureCellAttribute.DefaultValue;
 	MinValue = 0;

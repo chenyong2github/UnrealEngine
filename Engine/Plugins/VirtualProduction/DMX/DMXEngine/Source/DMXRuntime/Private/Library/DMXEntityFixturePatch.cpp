@@ -17,6 +17,7 @@
 #include "Library/DMXImportGDTF.h"
 #include "Library/DMXLibrary.h"
 #include "Modulators/DMXModulator.h"
+#include "MVR/Types/DMXMVRFixtureNode.h"
 
 #include "Algo/Find.h"
 #include "UObject/UObjectGlobals.h"
@@ -565,6 +566,35 @@ bool UDMXEntityFixturePatch::SetActiveModeIndex(int32 NewActiveModeIndex)
 	}
 
 	return false;
+}
+
+
+bool UDMXEntityFixturePatch::FindFixtureID(int32& OutFixtureID) const
+{
+	if (!MVRFixtureUUID.IsValid())
+	{
+		return false;
+	}
+
+	const UDMXLibrary* DMXLibrary = GetParentLibrary();
+	if (!DMXLibrary)
+	{
+		return false;
+	}
+
+	UDMXMVRGeneralSceneDescription* GeneralSceneDescription = DMXLibrary->GetLazyGeneralSceneDescription();
+	if (!GeneralSceneDescription)
+	{
+		return false;
+	}
+
+	UDMXMVRFixtureNode* FixtureNode = GeneralSceneDescription->FindFixtureNode(MVRFixtureUUID);
+	if (!FixtureNode)
+	{
+		return false;
+	}
+
+	return LexTryParseString(OutFixtureID, *FixtureNode->FixtureID);
 }
 
 #if WITH_EDITOR

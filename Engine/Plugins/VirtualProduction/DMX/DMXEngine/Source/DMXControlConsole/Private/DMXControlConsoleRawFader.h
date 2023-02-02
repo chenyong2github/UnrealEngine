@@ -20,6 +20,7 @@ class DMXCONTROLCONSOLE_API UDMXControlConsoleRawFader
 public:
 	//~ Begin DMXControlConsoleFaderBase interface
 	virtual EDMXFixtureSignalFormat GetDataType() const { return DataType; }
+	int32 GetUniverseID() const { return UniverseID; }
 	//~ End DMXControlConsoleFaderBase interface
 
 	//~ Being IDMXControlConsoleFaderGroupElementInterface
@@ -28,9 +29,6 @@ public:
 
 	/** Constructor */
 	UDMXControlConsoleRawFader();
-
-	/** Returns the universe ID to which to should send DMX to */
-	int32 GetUniverseID() const { return UniverseID; }
 
 	/** Sets a new universe ID, checking for its validity */
 	virtual void SetUniverseID(int32 InUniversID);

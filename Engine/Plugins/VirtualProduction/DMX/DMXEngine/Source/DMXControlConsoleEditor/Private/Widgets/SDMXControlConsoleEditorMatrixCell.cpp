@@ -33,7 +33,7 @@ void SDMXControlConsoleEditorMatrixCell::Construct(const FArguments& InArgs, con
 			SNew(SHorizontalBox)
 
 			// Matrix Cell section
-			+SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.Padding(2.f, 0.f)
 			.AutoWidth()
 			[
@@ -88,8 +88,8 @@ void SDMXControlConsoleEditorMatrixCell::Construct(const FArguments& InArgs, con
 				]
 			]
 			
-			//Matrix Cell Faders section
-			+SHorizontalBox::Slot()
+			// Matrix Cell Faders section
+			+ SHorizontalBox::Slot()
 			.Padding(2.f, 0.f)
 			.AutoWidth()
 			[
@@ -97,6 +97,26 @@ void SDMXControlConsoleEditorMatrixCell::Construct(const FArguments& InArgs, con
 				.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorMatrixCell::GetCellAttributeFadersHorizontalBoxVisibility))
 			]
 		];
+}
+
+void SDMXControlConsoleEditorMatrixCell::ApplyGlobalFilter(const FString& InSearchString)
+{
+	bool bHasVisibleChildren = false;
+
+	for (TWeakPtr<SDMXControlConsoleEditorFader> WeakCellAttributeFaderWidget : CellAttributeFaderWidgets)
+	{
+		if (const TSharedPtr<SDMXControlConsoleEditorFader> CellAttributeFaderWidget = WeakCellAttributeFaderWidget.Pin())
+		{
+			CellAttributeFaderWidget->ApplyGlobalFilter(InSearchString);
+			if (CellAttributeFaderWidget->GetVisibility() == EVisibility::Visible)
+			{
+				bHasVisibleChildren = true;
+			}
+		}
+	}
+
+	const EVisibility NewVisibility = bHasVisibleChildren ? EVisibility::Visible : EVisibility::Collapsed;
+	SetVisibility(NewVisibility);
 }
 
 FReply SDMXControlConsoleEditorMatrixCell::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -195,7 +215,7 @@ void SDMXControlConsoleEditorMatrixCell::OnCellAttributeFaderRemoved()
 	const TArray<UDMXControlConsoleFaderBase*>& CellAttributeFaders = MatrixCell->GetFaders();
 
 	TArray<TWeakPtr<SDMXControlConsoleEditorFader>> CellAttributeFaderWidgetsToRemove;
-	for (const TWeakPtr<SDMXControlConsoleEditorFader>& CellAttributeFaderWidget : CellAttributeFaderWidgets)
+	for (TWeakPtr<SDMXControlConsoleEditorFader>& CellAttributeFaderWidget : CellAttributeFaderWidgets)
 	{
 		if (!CellAttributeFaderWidget.IsValid())
 		{

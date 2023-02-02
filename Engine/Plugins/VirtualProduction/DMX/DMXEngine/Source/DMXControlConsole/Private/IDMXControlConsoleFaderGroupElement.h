@@ -35,6 +35,9 @@ public:
 	/** Returns the Faders of this Element */
 	virtual const TArray<UDMXControlConsoleFaderBase*>& GetFaders() const = 0;
 
+	/** Returns the index of the Element in the Fader Group */
+	virtual int32 GetUniverseID() const = 0;
+
 	/** Returns the first Channel of this Element */
 	virtual int32 GetStartingAddress() const = 0;
 

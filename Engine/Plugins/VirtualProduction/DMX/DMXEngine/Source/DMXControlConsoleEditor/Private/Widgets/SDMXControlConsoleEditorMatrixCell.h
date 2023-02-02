@@ -35,6 +35,9 @@ public:
 	/** Gets a reference to this widget's ExpandArrow button */
 	TSharedPtr<SDMXControlConsoleEditorExpandArrowButton>& GetExpandArrowButton() { return ExpandArrowButton; }
 
+	/** Filters children by given search string  */
+	void ApplyGlobalFilter(const FString& InSearchString);
+
 protected:
 	//~ Begin SWidget interface
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -79,7 +82,7 @@ private:
 	TSharedPtr<SHorizontalBox> CellAttributeFadersHorizontalBox;
 
 	/** Array of Cell Attribute Fader widgets */
-	TArray<TWeakPtr<SDMXControlConsoleEditorFader>>CellAttributeFaderWidgets;
+	TArray<TWeakPtr<SDMXControlConsoleEditorFader>> CellAttributeFaderWidgets;
 
 	/** Reference to ExpandArrow button used to show/hide Matrix Cell */
 	TSharedPtr<SDMXControlConsoleEditorExpandArrowButton> ExpandArrowButton;

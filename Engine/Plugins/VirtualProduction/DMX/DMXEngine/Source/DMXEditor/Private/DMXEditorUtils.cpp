@@ -11,6 +11,8 @@
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "MVR/DMXMVRGeneralSceneDescription.h"
+#include "MVR/Types/DMXMVRFixtureNode.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Factories.h"
@@ -20,6 +22,7 @@
 #include "Dialogs/Dialogs.h"
 #include "Exporters/Exporter.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Internationalization/Regex.h"
 #include "UObject/Package.h"
 
 
@@ -1158,6 +1161,209 @@ UPackage* FDMXEditorUtils::GetOrCreatePackage(TWeakObjectPtr<UObject> Parent, co
 	}
 
 	return Package;
+}
+
+TArray<FString> FDMXEditorUtils::ParseAttributeNames(const FString& InputString)
+{
+	// Try to match addresses formating, e.g. '1.', '1:' etc.
+	static const TCHAR* AttributeNameParamDelimiters[] =
+	{
+		TEXT("."),
+		TEXT(","),
+		TEXT(":"),
+		TEXT(";")
+	};
+
+	TArray<FString> AttributeNameStrings;
+	constexpr bool bParseEmpty = false;
+	InputString.ParseIntoArray(AttributeNameStrings, AttributeNameParamDelimiters, 4, bParseEmpty);
+
+	TArray<FString> Result;
+	for (const FString& String : AttributeNameStrings)
+	{
+		Result.Add(String.TrimStartAndEnd());
+	}
+
+	return Result;
+}
+
+TArray<int32> FDMXEditorUtils::ParseUniverses(const FString& InputString)
+{
+	TArray<int32> Result;
+
+	// Try to match addresses formating, e.g. '1.', '1:' etc.
+	static const TCHAR* UniverseAddressParamDelimiters[] =
+	{
+		TEXT("."),
+		TEXT(","),
+		TEXT(":"),
+		TEXT(";")
+	};
+	if (InputString.EndsWith(UniverseAddressParamDelimiters[0]) ||
+		InputString.EndsWith(UniverseAddressParamDelimiters[1]) ||
+		InputString.EndsWith(UniverseAddressParamDelimiters[2]) ||
+		InputString.EndsWith(UniverseAddressParamDelimiters[3]))
+	{
+		TArray<FString> UniverseAddressStringArray;
+
+		constexpr bool bCullEmpty = true;
+		InputString.ParseIntoArray(UniverseAddressStringArray, UniverseAddressParamDelimiters, 4, bCullEmpty);
+		if (UniverseAddressStringArray.Num() == 1)
+		{
+			int32 Universe;
+			if (LexTryParseString(Universe, *UniverseAddressStringArray[0]))
+			{
+				Result.Add(Universe);
+				return Result;
+			}
+		}
+	}
+
+	// Try to match strings starting with Uni, e.g. 'Uni 1', 'uni1', 'Uni 1, 2', 'universe 1', 'Universe 1, 2 - 3, 4'
+	const FRegexPattern UniversesPattern(TEXT("^(?:universe|uni)\\s*(.*)"), ERegexPatternFlags::CaseInsensitive);
+	FRegexMatcher Regex(UniversesPattern, *InputString);
+	if (Regex.FindNext())
+	{
+		FString UniversesString = Regex.GetCaptureGroup(1);
+		UniversesString.RemoveSpacesInline();
+
+		static const TCHAR* UniversesDelimiter[] =
+		{
+			TEXT(",")
+		};
+		TArray<FString> UniveresStringArray;
+
+		constexpr bool bCullEmpty = true;
+		UniversesString.ParseIntoArray(UniveresStringArray, UniversesDelimiter, 1, bCullEmpty);
+		for (const FString& UniversesSubstring : UniveresStringArray)
+		{
+			static const TCHAR* UniverseRangeDelimiter[] =
+			{
+				TEXT("-")
+			};
+
+			TArray<FString> UniverseRangeStringArray;
+			UniversesSubstring.ParseIntoArray(UniverseRangeStringArray, UniverseRangeDelimiter, 1, bCullEmpty);
+
+			int32 UniverseStart;
+			int32 UniverseEnd;
+			int32 Universe;
+			if (UniverseRangeStringArray.Num() == 2 &&
+				LexTryParseString(UniverseStart, *UniverseRangeStringArray[0]) &&
+				LexTryParseString(UniverseEnd, *UniverseRangeStringArray[1]) &&
+				UniverseStart < UniverseEnd)
+			{
+				for (Universe = UniverseStart; Universe <= UniverseEnd; Universe++)
+				{
+					Result.Add(Universe);
+				}
+			}
+			else if (LexTryParseString(Universe, *UniversesSubstring))
+			{
+				Result.Add(Universe);
+			}
+		}
+	}
+
+	return Result;
+}
+
+bool FDMXEditorUtils::ParseAddress(const FString& InputString, int32& OutAddress)
+{
+	// Try to match addresses formating, e.g. '1.1', '1:1' etc.
+	static const TCHAR* ParamDelimiters[] =
+	{
+		TEXT("."),
+		TEXT(","),
+		TEXT(":"),
+		TEXT(";")
+	};
+
+	TArray<FString> ValueStringArray;
+	constexpr bool bParseEmpty = false;
+	InputString.ParseIntoArray(ValueStringArray, ParamDelimiters, 4, bParseEmpty);
+
+	if (ValueStringArray.Num() == 2)
+	{
+		if (LexTryParseString<int32>(OutAddress, *ValueStringArray[1]))
+		{
+			return true;
+		}
+	}
+
+	// Try to match strings starting with Uni Ad, e.g. 'Uni 1 Ad 1', 'Universe 1 Address 1', 'Universe1Address1'
+	if (InputString.StartsWith(TEXT("Uni")) &&
+		InputString.Contains(TEXT("Ad")))
+	{
+		const FRegexPattern SequenceOfDigitsPattern(TEXT("^[^\\d]*(\\d+)[^\\d]*(\\d+)"));
+		FRegexMatcher Regex(SequenceOfDigitsPattern, *InputString);
+		if (Regex.FindNext())
+		{
+			const FString AddressString = Regex.GetCaptureGroup(2);
+			if (LexTryParseString<int32>(OutAddress, *AddressString))
+			{
+				return true;
+			}
+		}
+	}
+
+	OutAddress = -1;
+	return false;
+}
+
+bool FDMXEditorUtils::ParseFixtureID(const FString& InputString, int32& OutFixtureID)
+{
+	if (LexTryParseString<int32>(OutFixtureID, *InputString))
+	{
+		return true;
+	}
+
+	OutFixtureID = -1;
+	return false;
+}
+
+TArray<int32> FDMXEditorUtils::ParseFixtureIDs(const FString& FixtureIDsString)
+{
+	static const TCHAR* FixtureIDsDelimiter[] =
+	{
+		TEXT(",")
+	};
+	TArray<FString> FixtureIDsStringArray;
+
+	TArray<int32> Result;
+
+	constexpr bool bCullEmpty = true;
+	FixtureIDsString.ParseIntoArray(FixtureIDsStringArray, FixtureIDsDelimiter, 1, bCullEmpty);
+	for (const FString& FixtureIDsSubstring : FixtureIDsStringArray)
+	{
+		static const TCHAR* FixtureIDRangeDelimiter[] =
+		{
+			TEXT("-")
+		};
+
+		TArray<FString> FixtureIDRangeStringArray;
+		FixtureIDsSubstring.ParseIntoArray(FixtureIDRangeStringArray, FixtureIDRangeDelimiter, 1, bCullEmpty);
+
+		int32 FixtureIDStart;
+		int32 FixtureIDEnd;
+		int32 FixtureID;
+		if (FixtureIDRangeStringArray.Num() == 2 &&
+			LexTryParseString(FixtureIDStart, *FixtureIDRangeStringArray[0]) &&
+			LexTryParseString(FixtureIDEnd, *FixtureIDRangeStringArray[1]) &&
+			FixtureIDStart < FixtureIDEnd)
+		{
+			for (FixtureID = FixtureIDStart; FixtureID <= FixtureIDEnd; FixtureID++)
+			{
+				Result.Add(FixtureID);
+			}
+		}
+		else if (LexTryParseString(FixtureID, *FixtureIDsSubstring))
+		{
+			Result.Add(FixtureID);
+		}
+	}
+
+	return Result;
 }
 
 #undef DMX_INVALID_NAME_CHARACTERS

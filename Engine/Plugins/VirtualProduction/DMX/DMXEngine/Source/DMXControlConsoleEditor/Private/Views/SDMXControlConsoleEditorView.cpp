@@ -30,7 +30,9 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Text/STextBlock.h"
@@ -76,6 +78,12 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	FOnGetDetailCustomizationInstance FaderGroupsCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXControlConsoleFaderGroupDetails::MakeInstance);
 	FaderGroupsDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsoleFaderGroup::StaticClass(), FaderGroupsCustomizationInstance);
 
+	const TSharedRef<SScrollBar> VerticalScrollBar = SNew(SScrollBar)
+		.Orientation(Orient_Vertical);
+
+	const TSharedRef<SScrollBar> HorizontalScrollBar = SNew(SScrollBar)
+		.Orientation(Orient_Horizontal);
+
 	ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -96,51 +104,78 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 			// Panel Section
 			+ SVerticalBox::Slot()
 			[
-				// DMX Control Console Section
 				SNew(SSplitter)
 				.Orientation(Orient_Horizontal)
 				.ResizeMode(ESplitterResizeMode::FixedSize)
 
+				// DMX Control Console Section
 				+ SSplitter::Slot()
 				.Value(.62f)
 				.MinSize(10.f)
 				[
-					SNew(SScrollBox)
-					.Orientation(Orient_Vertical)
 
-					+ SScrollBox::Slot()
+					SNew(SVerticalBox)
+
+					+ SVerticalBox::Slot()
 					[
-						SNew(SBorder)
-						.BorderImage(FAppStyle::GetBrush("NoBorder"))
-						.Padding(10.f)
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
+						SNew(SHorizontalBox)
+
+						+SHorizontalBox::Slot()
 						[
 							SNew(SScrollBox)
+							.ExternalScrollbar(HorizontalScrollBar)
 							.Orientation(Orient_Horizontal)
-							+ SScrollBox::Slot()
-							.HAlign(HAlign_Left)
-							.VAlign(VAlign_Center)
-							[
-								SNew(SBox)
-								.WidthOverride(50.f)
-								.HeightOverride(50.f)
-								.HAlign(HAlign_Center)
-								.VAlign(VAlign_Center)
-								[
-									SNew(SDMXControlConsoleEditorAddButton)
-									.OnClicked(this, &SDMXControlConsoleEditorView::OnAddFirstFaderGroup)
-									.Visibility(TAttribute<EVisibility>(this, &SDMXControlConsoleEditorView::GetAddButtonVisibility))
-								]
-							]
 
 							+ SScrollBox::Slot()
 							[
-								SAssignNew(FaderGroupRowsVerticalBox, SVerticalBox)
+								SNew(SBorder)
+								.BorderImage(FAppStyle::GetBrush("NoBorder"))
+								.Padding(10.f)
+								[
+									SNew(SScrollBox)
+									.ExternalScrollbar(VerticalScrollBar)
+									.Orientation(Orient_Vertical)
+
+									+ SScrollBox::Slot()
+									.HAlign(HAlign_Left)
+									.VAlign(VAlign_Center)
+									[
+										SNew(SBox)
+										.WidthOverride(50.f)
+										.HeightOverride(50.f)
+										.HAlign(HAlign_Center)
+										.VAlign(VAlign_Center)
+										[
+											SNew(SDMXControlConsoleEditorAddButton)
+											.OnClicked(this, &SDMXControlConsoleEditorView::OnAddFirstFaderGroup)
+											.Visibility(TAttribute<EVisibility>(this, &SDMXControlConsoleEditorView::GetAddButtonVisibility))
+										]
+									]
+
+									+ SScrollBox::Slot()
+									[
+										SAssignNew(FaderGroupRowsVerticalBox, SVerticalBox)
+									]
+								]
 							]
 						]
+						
+						// Horizontal ScrollBar slot
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							VerticalScrollBar
+						]
+					]
+					
+					// Vertical Scrollbar slot
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						HorizontalScrollBar
 					]
 				]
+
 
 				// Details View Section
 				+ SSplitter::Slot()
@@ -261,6 +296,18 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
 			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.StopPlayingDMX"),
 			FName(TEXT("Stop Sending DMX")));
+	}
+	ToolbarBuilder.EndSection();
+
+	ToolbarBuilder.BeginSection("Search");
+	{
+		const TSharedRef<SSearchBox> GlobalSearchBox =
+			SNew(SSearchBox)
+			.MinDesiredWidth(400.f)
+			.OnTextChanged(this, &SDMXControlConsoleEditorView::OnSearchTextChanged)
+			.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."));
+
+		ToolbarBuilder.AddWidget(GlobalSearchBox);
 	}
 	ToolbarBuilder.EndSection();
 
@@ -399,6 +446,17 @@ bool SDMXControlConsoleEditorView::IsFaderGroupRowContained(UDMXControlConsoleFa
 	};
 
 	return FaderGroupRowViews.ContainsByPredicate(IsContainedLambda);
+}
+
+void SDMXControlConsoleEditorView::OnSearchTextChanged(const FText& SearchText)
+{
+	for (TWeakPtr<SDMXControlConsoleEditorFaderGroupRowView> WeakFaderGroupRowView : FaderGroupRowViews)
+	{
+		if (const TSharedPtr<SDMXControlConsoleEditorFaderGroupRowView>& FaderGroupRowView = WeakFaderGroupRowView.Pin())
+		{
+			FaderGroupRowView->ApplyGlobalFilter(SearchText.ToString());
+		}
+	}
 }
 
 FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()

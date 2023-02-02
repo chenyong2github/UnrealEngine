@@ -26,6 +26,25 @@ void SDMXControlConsoleEditorFaderGroupRowView::Construct(const FArguments& InAr
 		];
 }
 
+void SDMXControlConsoleEditorFaderGroupRowView::ApplyGlobalFilter(const FString& InSearchString)
+{
+	bool bHasVisibleChildren = false;
+	for (TWeakPtr<SDMXControlConsoleEditorFaderGroupView>& WeakFaderGroupView : FaderGroupViews)
+	{
+		if (const TSharedPtr<SDMXControlConsoleEditorFaderGroupView> FaderGroupView = WeakFaderGroupView.Pin())
+		{
+			FaderGroupView->ApplyGlobalFilter(InSearchString);
+			if (FaderGroupView->GetVisibility() == EVisibility::Visible)
+			{
+				bHasVisibleChildren = true;
+			}
+		}
+	}
+
+	const EVisibility NewVisibility = bHasVisibleChildren ? EVisibility::Visible : EVisibility::Collapsed;
+	SetVisibility(NewVisibility);
+}
+
 void SDMXControlConsoleEditorFaderGroupRowView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	if (!ensureMsgf(FaderGroupRow.IsValid(), TEXT("Invalid fader group row, cannot update fader group row view state correctly.")))

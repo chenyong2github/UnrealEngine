@@ -221,6 +221,12 @@ public:
 	/** Returns the MVR Fixture UUIDs of this patch */
 	FORCEINLINE const FGuid& GetMVRFixtureUUID() const { return MVRFixtureUUID; }
 
+	/** 
+	 * Tries to find the fixture ID of the patch. Looks up the general scene description resulting in a relatively slow operation. 
+	 * Returns false if the patch has no fixture ID could be found, typically the case when the patch is no valid MVR Fixture.
+	 */
+	bool FindFixtureID(int32& OutFixtureID) const;
+
 #if WITH_EDITOR
 	/** Property name getters. When accessing the this way, use with care. The patch will need to update its cache after using property setters, use Pre/PostEditChanged events to achieve that. */
 	static FName GetUniverseIDPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, UniverseID); }

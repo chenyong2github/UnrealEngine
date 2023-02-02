@@ -29,6 +29,7 @@ public:
 	//~ Begin IDMXControlConsoleFaderGroupElementInterface
 	virtual UDMXControlConsoleFaderGroup& GetOwnerFaderGroupChecked() const override;
 	virtual int32 GetIndex() const override;
+	virtual int32 GetUniverseID() const override { return UniverseID; }
 	virtual int32 GetStartingAddress() const override { return StartingAddress; }
 	virtual int32 GetEndingAddress() const override { return EndingAddress; }
 	virtual void Destroy() override;
@@ -49,6 +50,8 @@ public:
 	/** Returns the name of the attribute mapped to this fader */
 	const FDMXAttributeName& GetAttributeName() const { return Attribute; }
 
+	/** Returns the Universe this cell attribute resides in */
+
 	// Property Name getters
 	FORCEINLINE static FName GetStartingAddressPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchCellAttributeFader, StartingAddress); }
 	FORCEINLINE static FName GetAttributePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchCellAttributeFader, Attribute); }
@@ -62,6 +65,10 @@ private:
 
 	/** Sets starting/ending address range, according to the number of channels  */
 	virtual void SetAddressRange(int32 InStartingAddress);
+
+	/** The universe DMX data should be send to */
+	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "4"), Category = "DMX Fader")
+	int32 UniverseID = 1;
 
 	/** The starting channel Address to send DMX to */
 	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "4"), Category = "DMX Fader")

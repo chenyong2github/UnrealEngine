@@ -26,6 +26,7 @@ public:
 	//~ End DMXControlConsoleFaderBase interface
 
 	//~ Being IDMXControlConsoleFaderGroupElementInterface
+	virtual int32 GetUniverseID() const override { return UniverseID; }
 	virtual int32 GetStartingAddress() const override { return StartingAddress; }
 	//~ End IDMXControlConsoleFaderGroupElementInterface
 
@@ -36,8 +37,6 @@ public:
 	void SetPropertiesFromFixtureFunction(const FDMXFixtureFunction& FixtureFunction, const int32 InUniverseID, const int32 StartingChannel);
 
 	/** Returns the universe ID to which to should send DMX to */
-	int32 GetUniverseID() const { return UniverseID; }
-
 	/** Gets wheter this Fader uses LSB mode or not */
 	bool GetUseLSBMode() const { return bUseLSBMode; }
 

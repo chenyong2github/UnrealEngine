@@ -36,43 +36,43 @@ void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs,
 	}
 
 	ChildSlot
+	[
+		SNew(SBorder)
+		.BorderBackgroundColor(this, &SDMXControlConsoleEditorFaderGroupView::GetFaderGroupViewBorderColor)
+		.BorderImage(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.WhiteBrush"))
 		[
 			SNew(SBorder)
-			.BorderBackgroundColor(this, &SDMXControlConsoleEditorFaderGroupView::GetFaderGroupViewBorderColor)
+			.BorderBackgroundColor(FLinearColor(0.01f, 0.01f, 0.01f, 1.f))
 			.BorderImage(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.WhiteBrush"))
 			[
-				SNew(SBorder)
-				.BorderBackgroundColor(FLinearColor(0.01f, 0.01f, 0.01f, 1.f))
-				.BorderImage(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.WhiteBrush"))
-				[
-					SNew(SHorizontalBox)
+				SNew(SHorizontalBox)
 
-					//Fader Group View main slot
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					[
-						SAssignNew(FaderGroupWidget, SDMXControlConsoleEditorFaderGroup, SharedThis(this))
-						.OnAddFaderGroup(this, &SDMXControlConsoleEditorFaderGroupView::OnAddFaderGroupClicked)
-						.OnAddFaderGroupRow(this, &SDMXControlConsoleEditorFaderGroupView::OnAddFaderGroupRowClicked)
-					]
-	
-					//Fader Group View Faders UI widget
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Left)
-					.Padding(4.f, 0.f, 0.f, 0.f)
-					[
-						 GenerateFadersWidget()
-					]
+				//Fader Group View main slot
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				[
+					SAssignNew(FaderGroupWidget, SDMXControlConsoleEditorFaderGroup, SharedThis(this))
+					.OnAddFaderGroup(this, &SDMXControlConsoleEditorFaderGroupView::OnAddFaderGroupClicked)
+					.OnAddFaderGroupRow(this, &SDMXControlConsoleEditorFaderGroupView::OnAddFaderGroupRowClicked)
+				]
+
+				//Fader Group View Faders UI widget
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.Padding(4.f, 0.f, 0.f, 0.f)
+				[
+					GenerateFadersWidget()
 				]
 			]
-		];
+		]
+	];
 }
 
 int32 SDMXControlConsoleEditorFaderGroupView::GetIndex() const
-{ 
+{
 	if (!FaderGroup.IsValid())
 	{
 		return INDEX_NONE;
@@ -82,13 +82,94 @@ int32 SDMXControlConsoleEditorFaderGroupView::GetIndex() const
 }
 
 FString SDMXControlConsoleEditorFaderGroupView::GetFaderGroupName() const
-{ 
+{
 	if (!FaderGroup.IsValid())
 	{
 		return FString();
 	}
 
-	return FaderGroup->GetFaderGroupName(); 
+	return FaderGroup->GetFaderGroupName();
+}
+
+void SDMXControlConsoleEditorFaderGroupView::ApplyGlobalFilter(const FString& InSearchString)
+{
+	if (!FaderGroup.IsValid())
+	{
+		return;
+	}
+
+	// If the group name matches, show the whole group
+	if (FaderGroup.IsValid() && FaderGroup->GetFaderGroupName().Contains(InSearchString))
+	{
+		SetVisibility(EVisibility::Visible);
+		ShowAllElements();
+
+		return;
+	}
+
+	bool bHasVisibleChildren = false;
+	FChildren* Children = ElementsHorizontalBox->GetChildren();
+	if (!Children)
+	{
+		return;
+	}
+
+	int32 NumChildren = Children->Num();
+	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+	{
+		const TSharedRef<SWidget> Child = Children->GetChildAt(ChildIndex);
+		if (Child->GetType() == "SDMXControlConsoleEditorMatrixCell")
+		{
+			StaticCastSharedRef<SDMXControlConsoleEditorMatrixCell>(Child)->ApplyGlobalFilter(InSearchString);
+		}
+		else if (Child->GetType() == "SDMXControlConsoleEditorFader")
+		{
+			StaticCastSharedRef<SDMXControlConsoleEditorFader>(Child)->ApplyGlobalFilter(InSearchString);
+		}
+
+		if (Child->GetVisibility() == EVisibility::Visible)
+		{
+			bHasVisibleChildren = true;
+		}
+	}
+
+	const EVisibility NewVisibility = bHasVisibleChildren ? EVisibility::Visible : EVisibility::Collapsed;
+	SetVisibility(NewVisibility);
+}
+
+void SDMXControlConsoleEditorFaderGroupView::ShowAllElements()
+{
+	FChildren* Children = ElementsHorizontalBox->GetChildren();
+	if (!Children)
+	{
+		return;
+	}
+
+	int32 NumChildren = Children->Num();
+	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+	{
+		const TSharedRef<SWidget> Child = Children->GetChildAt(ChildIndex);
+		if (Child->GetType() == "SDMXControlConsoleEditorMatrixCell")
+		{
+			StaticCastSharedRef<SDMXControlConsoleEditorMatrixCell>(Child)->SetVisibility(EVisibility::Visible);
+			FChildren* CellChildren = ElementsHorizontalBox->GetChildren();
+			if (!CellChildren)
+			{
+				continue;
+			}
+			
+			int32 NumCellChildren = CellChildren->Num();
+			for (int32 CellChildIndex = 0; CellChildIndex < NumChildren; ++CellChildIndex)
+			{
+				const TSharedRef<SWidget> CellChild = Children->GetChildAt(ChildIndex);
+				CellChild->SetVisibility(EVisibility::Visible);
+			}
+		}
+		else if (Child->GetType() == "SDMXControlConsoleEditorFader")
+		{
+			StaticCastSharedRef<SDMXControlConsoleEditorFader>(Child)->SetVisibility(EVisibility::Visible);
+		}
+	}
 }
 
 void SDMXControlConsoleEditorFaderGroupView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -127,7 +208,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupView::GenerateFadersWidget
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			SAssignNew(FadersHorizontalBox, SHorizontalBox)
+			SAssignNew(ElementsHorizontalBox, SHorizontalBox)
 		]
 
 		//Add Fader button
@@ -224,7 +305,7 @@ void SDMXControlConsoleEditorFaderGroupView::AddElement(const TScriptInterface<I
 		return;
 	}
 
-	if (!FadersHorizontalBox.IsValid())
+	if (!ElementsHorizontalBox.IsValid())
 	{
 		return;
 	}
@@ -246,7 +327,7 @@ void SDMXControlConsoleEditorFaderGroupView::AddElement(const TScriptInterface<I
 	ElementWidgets.Add(ElementWidget);
 
 	const int32 Index = Element->GetIndex();
-	FadersHorizontalBox->InsertSlot(Index)
+	ElementsHorizontalBox->InsertSlot(Index)
 		.AutoWidth()
 		.HAlign(HAlign_Left)
 		[
@@ -286,11 +367,11 @@ void SDMXControlConsoleEditorFaderGroupView::OnElementRemoved()
 			}
 		}
 
-		FadersHorizontalBox->RemoveSlot(Widget.Pin().ToSharedRef());
+		ElementsHorizontalBox->RemoveSlot(Widget.Pin().ToSharedRef());
 		ElementWidgetsToRemove.Add(Widget);
 	}
 
-	ElementWidgets.RemoveAll([&ElementWidgetsToRemove](const TWeakPtr<SWidget> FaderWidget)
+	ElementWidgets.RemoveAll([&ElementWidgetsToRemove](TWeakPtr<SWidget> FaderWidget)
 		{
 			return !FaderWidget.IsValid() || ElementWidgetsToRemove.Contains(FaderWidget);
 		});

@@ -63,6 +63,9 @@ private:
 	/** Checks if FaderGroupRows array contains a reference to the given */
 	bool IsFaderGroupRowContained(UDMXControlConsoleFaderGroupRow* FaderGroupRow);
 
+	/** Called when the search text changed */
+	void OnSearchTextChanged(const FText& SearchText);
+
 	/** Called to add first first Fader Group */
 	FReply OnAddFirstFaderGroup();
 

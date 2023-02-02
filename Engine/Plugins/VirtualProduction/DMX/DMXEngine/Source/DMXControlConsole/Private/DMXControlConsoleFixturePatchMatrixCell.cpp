@@ -38,6 +38,16 @@ int32 UDMXControlConsoleFixturePatchMatrixCell::GetIndex() const
 	return Index;
 }
 
+int32 UDMXControlConsoleFixturePatchMatrixCell::GetUniverseID() const
+{
+	if (!CellAttributeFaders.IsEmpty())
+	{
+		return CellAttributeFaders[0]->GetUniverseID();
+	}
+
+	return 1;
+}
+
 int32 UDMXControlConsoleFixturePatchMatrixCell::GetStartingAddress() const
 {
 	if (!CellAttributeFaders.IsEmpty())
