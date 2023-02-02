@@ -252,12 +252,12 @@ void USoundCue::PostLoad()
 
 bool USoundCue::CanBeClusterRoot() const
 {
-	return false;
+	return true;
 }
 
 bool USoundCue::CanBeInCluster() const
 {
-	return false;
+	return true;
 }
 
 void USoundCue::OnPostEngineInit()

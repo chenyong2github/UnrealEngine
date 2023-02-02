@@ -245,6 +245,7 @@ public:
 	void PostInitProperties();
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override; 
+	virtual bool CanBeClusterRoot() const override { return true; }
 #if WITH_EDITORONLY_DATA
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif

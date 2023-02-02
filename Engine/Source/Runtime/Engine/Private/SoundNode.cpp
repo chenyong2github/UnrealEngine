@@ -58,7 +58,7 @@ bool USoundNode::CanBeClusterRoot() const
 
 bool USoundNode::CanBeInCluster() const
 {
-	return false;
+	return true;
 }
 
 #if WITH_EDITOR

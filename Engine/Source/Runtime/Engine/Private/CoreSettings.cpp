@@ -200,7 +200,6 @@ UGarbageCollectionSettings::UGarbageCollectionSettings()
 	MinGCClusterSize = 5;
 	AssetClusteringEnabled = true;
 	ActorClusteringEnabled = true;
-	BlueprintClusteringEnabled = false;
 	UseDisregardForGCOnDedicatedServers = false;
 	VerifyGCObjectNames = true;
 	VerifyUObjectsAreNotFGCObjects = true;

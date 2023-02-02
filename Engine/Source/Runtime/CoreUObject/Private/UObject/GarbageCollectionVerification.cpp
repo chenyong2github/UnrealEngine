@@ -215,11 +215,34 @@ public:
 			FUObjectItem* ObjectItem = GUObjectArray.ObjectToObjectItem(Object);
 			if (ObjectItem->GetOwnerIndex() <= 0)
 			{
-				// We are allowed to reference other clusters, root set objects and objects from diregard for GC pool
-				if (!ObjectItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot | EInternalObjectFlags::RootSet)
-					&& !GUObjectArray.IsDisregardForGC(Object) && Object->CanBeInCluster() &&
-					!Cluster->MutableObjects.Contains(GUObjectArray.ObjectToIndex(Object))) // This is for objects that had RF_NeedLoad|RF_NeedPostLoad set when creating the cluster
+				// Referenced object is a cluster root or not clustered
+				if (ObjectItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot))
 				{
+					// Clusters need to be referenced by the current cluster otherwise they can also get GC'd too early.
+					const FUObjectItem* ClusterRootObjectItem = GUObjectArray.ObjectToObjectItem(ClusterRootObject);
+					const int32 OtherClusterRootIndex = GUObjectArray.ObjectToIndex(Object);
+					const FUObjectItem* OtherClusterRootItem = GUObjectArray.IndexToObjectUnsafeForGC(OtherClusterRootIndex);
+					check(OtherClusterRootItem && OtherClusterRootItem->Object);
+					UObject* OtherClusterRootObject = static_cast<UObject*>(OtherClusterRootItem->Object);
+					UE_CLOG(
+						OtherClusterRootIndex != Cluster->RootIndex  // Same cluster is legal 
+					&&	!Cluster->ReferencedClusters.Contains(OtherClusterRootIndex)  // cluster-cluster reference is legal
+					&&  !Cluster->MutableObjects.Contains(OtherClusterRootIndex),  // reference to an external object which later became a cluster root is legal 
+						LogGarbage, Warning,
+						TEXT("Object %s from source cluster %s (%d) is referencing cluster root object %s (0x%016llx) (%d) which is not referenced by the source cluster."),
+						*GetFullNameSafe(ReferencingObject),
+						*ClusterRootObject->GetFullName(),
+						ClusterRootObjectItem->GetClusterIndex(),
+						*Object->GetFullName(),
+						(int64)(PTRINT)Object,
+						OtherClusterRootItem->GetClusterIndex());
+				}
+				else if (	!ObjectItem->HasAnyFlags(EInternalObjectFlags::RootSet) // Root set objects will stay alive that way 
+						&&	!GUObjectArray.IsDisregardForGC(Object) // Disregard-for-GC objects are never freed
+						&&  !Cluster->MutableObjects.Contains(GUObjectArray.ObjectToIndex(Object)) // Mutable object ref is traversed during GC regardless of if the object is cluster root or not 
+				) 
+				{
+					// There is a danger this object could be freed leaving a dangling pointer in an object inside the cluster
 					UE_LOG(LogGarbage, Warning, TEXT("Object %s (0x%016llx) from cluster %s (0x%016llx / 0x%016llx) is referencing 0x%016llx %s which is not part of root set or cluster."),
 						*CurrentObject->GetFullName(),
 						(int64)(PTRINT)CurrentObject,
@@ -233,25 +256,6 @@ public:
 					FReferenceChainSearch RefChainSearch(Object, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
 #endif
 				}
-				else if (ObjectItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot))
-				{
-					// However, clusters need to be referenced by the current cluster otherwise they can also get GC'd too early.
-					const FUObjectItem* ClusterRootObjectItem = GUObjectArray.ObjectToObjectItem(ClusterRootObject);
-					const int32 OtherClusterRootIndex = GUObjectArray.ObjectToIndex(Object);
-					const FUObjectItem* OtherClusterRootItem = GUObjectArray.IndexToObjectUnsafeForGC(OtherClusterRootIndex);
-					check(OtherClusterRootItem && OtherClusterRootItem->Object);
-					UObject* OtherClusterRootObject = static_cast<UObject*>(OtherClusterRootItem->Object);
-					UE_CLOG(OtherClusterRootIndex != Cluster->RootIndex &&
-						!Cluster->ReferencedClusters.Contains(OtherClusterRootIndex) &&
-						!Cluster->MutableObjects.Contains(OtherClusterRootIndex), LogGarbage, Warning,
-						TEXT("Object %s from source cluster %s (%d) is referencing cluster root object %s (0x%016llx) (%d) which is not referenced by the source cluster."),
-						*GetFullNameSafe(ReferencingObject),
-						*ClusterRootObject->GetFullName(),
-						ClusterRootObjectItem->GetClusterIndex(),
-						*Object->GetFullName(),
-						(int64)(PTRINT)Object,
-						OtherClusterRootItem->GetClusterIndex());
-				}
 			}
 			else if (ObjectItem->GetOwnerIndex() != Cluster->RootIndex)
 			{
@@ -262,9 +266,11 @@ public:
 				const FUObjectItem* OtherClusterRootItem = GUObjectArray.IndexToObjectUnsafeForGC(OtherClusterRootIndex);
 				check(OtherClusterRootItem && OtherClusterRootItem->Object);
 				UObject* OtherClusterRootObject = static_cast<UObject*>(OtherClusterRootItem->Object);
-				UE_CLOG(OtherClusterRootIndex != Cluster->RootIndex &&
-					!Cluster->ReferencedClusters.Contains(OtherClusterRootIndex) &&
-					!Cluster->MutableObjects.Contains(GUObjectArray.ObjectToIndex(Object)), LogGarbage, Warning,
+				UE_CLOG(
+						OtherClusterRootIndex != Cluster->RootIndex  // Same cluster is legal 
+					&&	!Cluster->ReferencedClusters.Contains(OtherClusterRootIndex)  // Cluster-cluster reference 
+					&&	!Cluster->MutableObjects.Contains(GUObjectArray.ObjectToIndex(Object)), // Reference to an object which was later clustered
+					LogGarbage, Warning,
 					TEXT("Object %s from source cluster %s (%d) is referencing object %s (0x%016llx) from cluster %s (%d) which is not referenced by the source cluster."),
 					*GetFullNameSafe(ReferencingObject),
 					*ClusterRootObject->GetFullName(),

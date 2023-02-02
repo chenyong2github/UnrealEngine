@@ -39,14 +39,6 @@ extern UNREALED_API class UEditorEngine* GEditor;
 DEFINE_STAT(STAT_PersistentUberGraphFrameMemory);
 DEFINE_STAT(STAT_BPCompInstancingFastPathMemory);
 
-int32 GBlueprintClusteringEnabled = 0;
-static FAutoConsoleVariableRef CVarBlueprintClusteringEnabled(
-	TEXT("gc.BlueprintClusteringEnabled"),
-	GBlueprintClusteringEnabled,
-	TEXT("Whether to allow Blueprint classes to create GC clusters."),
-	ECVF_Default
-);
-
 int32 GBlueprintComponentInstancingFastPathDisabled = 0;
 static FAutoConsoleVariableRef CVarBlueprintComponentInstancingFastPathDisabled(
 	TEXT("bp.ComponentInstancingFastPathDisabled"),
@@ -1709,8 +1701,8 @@ bool UBlueprintGeneratedClass::NeedsLoadForEditorGame() const
 
 bool UBlueprintGeneratedClass::CanBeClusterRoot() const
 {
-	// Clustering level BPs doesn't work yet
-	return GBlueprintClusteringEnabled && !GetOutermost()->ContainsMap();
+	// We don't want to cluster level BPs with the rest of the contents of the map 
+	return !GetOutermost()->ContainsMap();
 }
 
 #if WITH_EDITOR

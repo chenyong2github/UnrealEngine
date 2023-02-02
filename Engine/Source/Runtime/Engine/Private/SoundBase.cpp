@@ -220,7 +220,7 @@ bool USoundBase::CanBeClusterRoot() const
 
 bool USoundBase::CanBeInCluster() const
 {
-	return false;
+	return true;
 }
 
 void USoundBase::Serialize(FArchive& Ar)
