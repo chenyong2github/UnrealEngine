@@ -204,10 +204,14 @@ void FAnimNode_PoseDriver::GetRBFTargets(TArray<FRBFTarget>& OutTargets, const F
 				FTransform RefBoneTransform = FTransform::Identity;
 				if (bEvalFromRefPose && BoneContainer)
 				{
-					const FCompactPoseBoneIndex CompactPoseIndex = SourceBones[SourceIdx].CachedCompactPoseIndex;
-					if (CompactPoseIndex < BoneContainer->GetCompactPoseNumBones())
+					const FBoneReference& BoneReference = SourceBones[SourceIdx];
+					if (BoneReference.HasValidSetup())
 					{
-						RefBoneTransform = BoneContainer->GetRefPoseTransform(CompactPoseIndex);
+						const FCompactPoseBoneIndex CompactPoseIndex = BoneReference.CachedCompactPoseIndex;
+						if (CompactPoseIndex < BoneContainer->GetCompactPoseNumBones())
+						{
+							RefBoneTransform = BoneContainer->GetRefPoseTransform(CompactPoseIndex);
+						}
 					}
 				}
 
