@@ -1354,9 +1354,9 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			//UE_LOG(LogNiagara, Display, TEXT("AreScriptAndSourceSynchronized %s ======================== "), *GetFullName());
 			for (int32 i = 0; i < Vars.Num(); i++)
 			{
-				if (Vars[i].IsDataInterface() || Vars[i].IsUObject())
+				if (Vars[i].IsValid() == false || Vars[i].IsDataInterface() || Vars[i].IsUObject())
 				{
-					// Skip these types as they don't bake out, just normal parameters get baked.
+					// Skip these types as they're invalid or don't bake out, just normal parameters get baked.
 				}
 				else
 				{
