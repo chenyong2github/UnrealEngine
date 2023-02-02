@@ -83,9 +83,6 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityTargetData
 	/** Modifies the context and adds this target data to the target data handle stored within */
 	virtual void AddTargetDataToContext(FGameplayEffectContextHandle& Context, bool bIncludeActorArray) const;
 
-	/** Modifies the cue parameters and adds this target data to the target data handle stored within */
-	virtual void AddTargetDataToGameplayCueParameters(FGameplayCueParameters& Parameters) const;
-
 	/** Returns all actors targeted, almost always overridden */
 	virtual TArray<TWeakObjectPtr<AActor>> GetActors() const
 	{
