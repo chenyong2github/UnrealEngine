@@ -308,7 +308,7 @@ void FActorDescTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner&)
 
 bool FActorDescTreeItem::GetVisibility() const
 {
-	return true;
+	return false;
 }
 
 bool FActorDescTreeItem::ShouldShowPinnedState() const
