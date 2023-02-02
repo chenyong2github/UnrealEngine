@@ -55,8 +55,6 @@ bool FGLTFImporterContext::OpenFile(const FString& FilePath)
 		}
 	}
 
-	Asset.GenerateNames(FPaths::GetBaseFilename(FilePath));
-
 	return true;
 }
 

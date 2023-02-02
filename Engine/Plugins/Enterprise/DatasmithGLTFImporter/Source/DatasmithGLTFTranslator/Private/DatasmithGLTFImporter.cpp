@@ -95,8 +95,6 @@ bool FDatasmithGLTFImporter::OpenFile(const FString& InFileName)
 	}
 	check(GLTFAsset->ValidationCheck() == GLTF::FAsset::Valid);
 
-	GLTFAsset->GenerateNames(FPaths::GetBaseFilename(InFileName));
-
 	// check extensions supported
 	for (GLTF::EExtension Extension : GLTFAsset->ExtensionsUsed)
 	{
