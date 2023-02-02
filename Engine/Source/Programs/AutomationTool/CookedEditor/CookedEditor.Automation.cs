@@ -1084,6 +1084,12 @@ public class MakeCookedEditor : BuildCommand
 		// and choose to cook them or not (generally for editoronly assets)
 		Params.AdditionalCookerOptions += " -DlcReevaluateUncookedAssets";
 
+		string AssetRegistryCacheRootFolder = ParseParamValue("AssetRegistryCacheRootFolder", "");
+		if (!string.IsNullOrEmpty(AssetRegistryCacheRootFolder))
+		{
+			Params.AdditionalCookerOptions += string.Format(" -AssetRegistryCacheRootFolder={0}", AssetRegistryCacheRootFolder);
+		}
+
 		// set up cooking against a client, as DLC
 		if (bIsDLC)
 		{
