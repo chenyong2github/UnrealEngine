@@ -86,7 +86,7 @@ void FReserveScheduler::StartWorkers(uint32 NumWorkers, FThread::EForkable IsFor
 		for (uint32 WorkerId = 0; WorkerId < NumWorkers; ++WorkerId)
 		{
 			ReserveEvents.Emplace();
-			WorkerThreads.Add(CreateWorker(IsForkable, &ReserveEvents.Last(), &WorkerLocalQueues.Last(), WorkerPriority));
+			WorkerThreads.Add(CreateWorker(IsForkable, &ReserveEvents.Last(), WorkerPriority));
 		}
 		UE::Trace::ThreadGroupEnd();
 	}
