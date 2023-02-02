@@ -39,6 +39,7 @@ void SPropertyBinding::Construct(const FArguments& InArgs, UBlueprint* InBluepri
 		.FillWidth(1.0f)
 		[
 			SNew(SComboButton)
+			.ButtonStyle(Args.BindButtonStyle)
 			.ToolTipText(this, &SPropertyBinding::GetCurrentBindingToolTipText)
 			.OnGetMenuContent(this, &SPropertyBinding::OnGenerateDelegateMenu)
 			.ContentPadding(1)
@@ -65,6 +66,7 @@ void SPropertyBinding::Construct(const FArguments& InArgs, UBlueprint* InBluepri
 				[
 					SNew(STextBlock)
 					.Text(this, &SPropertyBinding::GetCurrentBindingText)
+					.ColorAndOpacity(FSlateColor::UseForeground())
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]

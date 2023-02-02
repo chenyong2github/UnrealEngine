@@ -196,6 +196,9 @@ struct FPropertyBindingWidgetArgs
 	/** Menu extender */
 	TSharedPtr<FExtender> MenuExtender;
 
+	/** Optional style override for bind button */
+	const FButtonStyle* BindButtonStyle = nullptr;
+	
 	/** Whether to generate pure bindings */
 	bool bGeneratePureBindings = true;
 
