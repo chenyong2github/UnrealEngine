@@ -642,8 +642,10 @@ namespace EpicGames.MCP.Automation
 			/// </summary>
 			Online_v140,
 			Online_v150,
+			Online_v151,
+			Online_v152,
 
-			Online_Live = Online_v150
+			Online_Live = Online_v152
 		}
 
 		/// <summary>
