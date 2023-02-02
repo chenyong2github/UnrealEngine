@@ -15,6 +15,7 @@ class UEdGraph;
 class FExtender;
 class SWidget;
 struct FSlateBrush;
+struct FButtonStyle;
 struct FEdGraphPinType;
 class IPropertyAccessLibraryCompiler;
 struct FPropertyAccessLibrary;
