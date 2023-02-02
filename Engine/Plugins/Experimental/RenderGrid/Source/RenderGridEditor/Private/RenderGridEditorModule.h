@@ -6,15 +6,9 @@
 #include "IRenderGridEditorModule.h"
 
 
-class IAssetTypeActions;
 class IToolkitHost;
 class URenderGrid;
 class URenderGridBlueprint;
-
-namespace UE::RenderGrid::Private
-{
-	class FRenderGridEditor;
-}
 
 
 namespace UE::RenderGrid::Private
@@ -52,8 +46,6 @@ namespace UE::RenderGrid::Private
 	private:
 		TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 		TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
-
-		TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 
 		TMap<ERenderGridPropsSourceType, TSharedPtr<IRenderGridPropsSourceWidgetFactory>> PropsSourceWidgetFactories;
 	};

@@ -9,8 +9,8 @@
 #include "Backends/JsonStructSerializerBackend.h"
 #include "Utils/RenderGridUtils.h"
 #include "Dom/JsonValue.h"
-#include "Engine/Engine.h"
 #include "Serialization/MemoryReader.h"
+#include "UObject/StructOnScope.h"
 
 
 URenderGridRemoteControlUtils::URenderGridRemoteControlUtils(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}

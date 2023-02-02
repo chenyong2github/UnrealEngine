@@ -24,7 +24,7 @@ public class RenderGridEditor : ModuleRules
 			new string[]
 			{
 				"AppFramework",
-				"AssetTools",
+				"AssetDefinition",
 				"DesktopPlatform",
 				"EditorStyle",
 				"GraphEditor",
