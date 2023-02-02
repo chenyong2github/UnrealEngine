@@ -260,6 +260,7 @@ GfnRuntimeError GeForceNOWWrapper::GetClientCountryCode(FString& OutCountryCode)
 {
 	char CountryCode[3] = { 0 };
 	GfnRuntimeError ErrorCode = GfnGetClientCountryCode(CountryCode, 3);
+	OutCountryCode = FString(CountryCode);
 	return ErrorCode;
 }
 
