@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "RenderGraph.h"
+#include "RenderGraphFwd.h"
+#include "RHIDefinitions.h"
+#include "RHIFwd.h"
 
 enum class ECustomDepthPassLocation : uint32
 {

@@ -22,6 +22,7 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraRibbonCompute.h"
 #include "Misc/LazySingleton.h"
+#include "RenderGraphUtils.h"
 
 DECLARE_CYCLE_STAT(TEXT("Generate Ribbon Vertex Data [GT]"), STAT_NiagaraGenRibbonVertexData, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Ribbons [RT]"), STAT_NiagaraRenderRibbons, STATGROUP_Niagara);

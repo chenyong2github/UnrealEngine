@@ -2,14 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "NeuralEnumClasses.h"
+#include "RenderGraphFwd.h"
+#include "RHIFwd.h"
+#include "Templates/RefCounting.h" // TRefCountPtr
+#include <algorithm> // std::fill
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
 #include "RenderGraphBuilder.h" // FRDGBuilder
 #include "RenderGraphDefinitions.h" // FRDGBufferSRVRef, FRDGBufferUAVRef
 #include "RenderGraphResources.h" // FRDGPooledBuffer
 #include "RHIDefinitions.h" // EBufferUsageFlags
-#include "Templates/RefCounting.h" // TRefCountPtr
-#include <algorithm> // std::fill
+#endif
+
 #include "NeuralTensor.generated.h"
 
 /**

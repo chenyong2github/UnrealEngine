@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "SceneView.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "CoreMinimal.h"
 #include "RenderGraphBuilder.h"
-#include "SceneView.h"
+#endif
 
 class AActor;
 class UPrimitiveComponent;
@@ -13,6 +16,7 @@ class FSceneView;
 class FViewInfo;
 class FPrimitiveDrawInterface;
 class FPrimitiveSceneProxy;
+class FRDGBuilder;
 class FSimpleElementCollector;
 class FMeshProjectionPassParameters;
 struct FEngineShowFlags;

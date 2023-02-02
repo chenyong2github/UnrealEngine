@@ -22,6 +22,7 @@ the same VectorVM byte code / compute shader code
 #include "NiagaraSystemGpuComputeProxy.h"
 #include "ParticleResources.h"
 #include "Particles/ParticleSortingGPU.h"
+#include "RenderGraphUtils.h"
 #include "RHIResources.h"
 #include "RendererInterface.h"
 #include "Tickable.h"

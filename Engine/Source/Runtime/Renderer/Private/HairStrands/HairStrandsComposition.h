@@ -6,8 +6,10 @@
 
 #pragma once
 
-#include "RenderGraph.h"
-#include "SceneRendering.h"
+#include "Containers/ContainersFwd.h"
+#include "RenderGraphFwd.h"
+
+class FViewInfo;
 
 void RenderHairComposition(
 	FRDGBuilder& GraphBuilder,

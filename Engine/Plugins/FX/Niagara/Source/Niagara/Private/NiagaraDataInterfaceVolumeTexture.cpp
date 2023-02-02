@@ -8,6 +8,7 @@
 #include "NiagaraSystemInstance.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "Engine/VolumeTexture.h"
+#include "RenderGraphBuilder.h"
 #include "RHIStaticStates.h"
 #include "ShaderCompilerCore.h"
 #include "TextureResource.h"

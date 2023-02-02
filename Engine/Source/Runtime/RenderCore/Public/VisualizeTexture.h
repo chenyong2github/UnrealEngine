@@ -10,13 +10,16 @@
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Optional.h"
 #include "Misc/WildcardString.h"
+#include "RenderResource.h"
+#include "RendererInterface.h"
+#include "Templates/RefCounting.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "RHIDefinitions.h"
 #include "RenderGraph.h"
 #include "RenderGraphDefinitions.h"
 #include "RenderGraphResources.h"
-#include "RenderResource.h"
-#include "RendererInterface.h"
-#include "Templates/RefCounting.h"
+#endif
 
 class FOutputDevice;
 class FRDGBuilder;

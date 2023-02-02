@@ -9,6 +9,7 @@
 
 #include "Internationalization/Internationalization.h"
 #include "Async/Async.h"
+#include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
 

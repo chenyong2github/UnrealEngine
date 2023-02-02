@@ -13,6 +13,7 @@
 
 #include "Async/Async.h"
 #include "Containers/ArrayView.h"
+#include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
 

@@ -11,6 +11,8 @@
 #include "NiagaraSystemInstance.h"
 
 #include "Internationalization/Internationalization.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
 #include "ShaderCompilerCore.h"
 #include "ShaderParameterUtils.h"
 #include "Misc/LargeWorldRenderPosition.h"

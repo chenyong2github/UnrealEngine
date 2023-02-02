@@ -21,6 +21,7 @@
 #include "MeshCardRepresentation.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "ObjectCacheContext.h"
+#include "RenderGraphUtils.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -1226,6 +1227,11 @@ uint32 FLandscapeTextureAtlas::GetAllocationHandle(UTexture2D* Texture) const
 FVector4f FLandscapeTextureAtlas::GetAllocationScaleBias(uint32 Handle) const
 {
 	return AddrSpaceAllocator.GetScaleBias(Handle);
+}
+
+FRDGTexture* FLandscapeTextureAtlas::GetAtlasTexture(FRDGBuilder& GraphBuilder) const
+{
+	return TryRegisterExternalTexture(GraphBuilder, AtlasTextureRHI);
 }
 
 void FLandscapeTextureAtlas::FSubAllocator::Init(uint32 InTileSize, uint32 InBorderSize, uint32 InDimInTiles)

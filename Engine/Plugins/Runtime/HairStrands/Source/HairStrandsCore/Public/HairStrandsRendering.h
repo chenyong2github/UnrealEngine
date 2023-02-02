@@ -2,6 +2,11 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
+#include "HAL/Platform.h"
+#include "Math/MathFwd.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
@@ -9,8 +14,17 @@
 #include "HairStrandsInterface.h"
 #include "Shader.h"
 #include "GroomDesc.h"
+#endif
 
 class FGlobalShaderMap;
+class FRDGBuilder;
+class FSkeletalMeshRenderData;
+class UGroomBindingAsset;
+
+struct FHairGroupInstance;
+struct FHairStrandClusterData;
+struct FRWBuffer;
+struct FShaderPrintData;
 
 // Reset the interpolation data. This needs to be called prior to ComputeHairStrandsInterpolation 
 // and prior to the actual hair simulation in order to insure that:
@@ -20,7 +34,7 @@ class FGlobalShaderMap;
 void ResetHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	struct FHairGroupInstance* Instance,
+	FHairGroupInstance* Instance,
 	int32 LODIndex);
 
 void ComputeHairStrandsInterpolation(
@@ -30,13 +44,13 @@ void ComputeHairStrandsInterpolation(
 	const uint32 ViewRayTracingMask,
 	const EGroomViewMode ViewMode,
 	const FVector& TranslatedWorldOffset,
-	const struct FShaderPrintData* ShaderPrintData,
-	struct FHairGroupInstance* Instance,
+	const FShaderPrintData* ShaderPrintData,
+	FHairGroupInstance* Instance,
 	int32 LODIndex,
-	struct FHairStrandClusterData* ClusterData);
+	FHairStrandClusterData* ClusterData);
 
 void RegisterClusterData(
-	struct FHairGroupInstance* Instance,
+	FHairGroupInstance* Instance,
 	FHairStrandClusterData* InClusterData);
 
-HAIRSTRANDSCORE_API void ComputeInterpolationWeights(class UGroomBindingAsset* BindingAsset, class FSkeletalMeshRenderData* TargetRenderData, TArray<FRWBuffer>& TransferedPositions);
+HAIRSTRANDSCORE_API void ComputeInterpolationWeights(UGroomBindingAsset* BindingAsset, FSkeletalMeshRenderData* TargetRenderData, TArray<FRWBuffer>& TransferedPositions);

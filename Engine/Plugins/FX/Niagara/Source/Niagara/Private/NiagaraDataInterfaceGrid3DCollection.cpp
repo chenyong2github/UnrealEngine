@@ -17,6 +17,7 @@
 #include "Engine/TextureRenderTargetVolume.h"
 #include "Engine/VolumeTexture.h"
 #include "ClearQuad.h"
+#include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 #include "TextureResource.h"
 

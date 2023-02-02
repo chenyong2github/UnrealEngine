@@ -11,6 +11,7 @@
 #include "MeshBatch.h"
 #include "LightSceneData.h"
 
+class FRDGExternalAccessQueue;
 class FRHICommandList;
 class FScene;
 class FViewInfo;

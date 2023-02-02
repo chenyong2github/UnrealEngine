@@ -9,6 +9,7 @@
 
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureRenderTarget2DArray.h"
+#include "RenderGraphBuilder.h"
 #include "RHIStaticStates.h"
 #include "ShaderCompilerCore.h"
 #include "TextureResource.h"

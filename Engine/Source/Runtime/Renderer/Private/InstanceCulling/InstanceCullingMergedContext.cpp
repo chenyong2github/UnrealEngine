@@ -2,6 +2,7 @@
 
 #include "InstanceCulling/InstanceCullingMergedContext.h"
 #include "InstanceCulling/InstanceCullingManager.h"
+#include "RenderGraphBuilder.h"
 
 void FInstanceCullingMergedContext::MergeBatches()
 {

@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "GroomAsset.h"
 #include "GroomBindingAsset.h"
+#include "GroomDesc.h"
 #include "HairStrandsInterface.h"
 #include "HairStrandsDefinitions.h"
 

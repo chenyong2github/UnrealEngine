@@ -4,7 +4,9 @@
 
 #include "HAL/Platform.h"
 #include "Misc/AssertionMacros.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "RenderGraphBuilder.h"
+#endif
 #include "RenderGraphDefinitions.h"
 #include "ShaderParameterMacros.h"
 #include "Templates/SharedPointer.h"

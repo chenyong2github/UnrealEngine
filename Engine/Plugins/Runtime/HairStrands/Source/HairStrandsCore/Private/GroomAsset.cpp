@@ -39,6 +39,7 @@
 #include "HairCardsVertexFactory.h"
 #include "PSOPrecache.h"
 #include "UObject/UObjectIterator.h"
+#include "RenderGraphBuilder.h"
 #include "UObject/DevObjectVersion.h"
 
 #if WITH_EDITORONLY_DATA

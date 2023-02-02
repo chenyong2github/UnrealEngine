@@ -6,7 +6,9 @@
 
 #pragma once
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "CoreMinimal.h"
+#endif
 #include "Containers/LockFreeList.h"
 #include "ProfilingDebugging/ResourceSize.h"
 #include "Engine/EngineTypes.h"
@@ -22,7 +24,9 @@
 #include "Templates/UniquePtr.h"
 #include "DerivedMeshDataTaskUtils.h"
 #include "Async/AsyncWork.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "RenderGraphUtils.h"
+#endif
 
 #if WITH_EDITOR
 #include "MeshUtilities.h"
@@ -82,10 +86,7 @@ public:
 
 	bool HasAtlasTexture() const { return AtlasTextureRHI.IsValid(); }
 
-	FRDGTexture* GetAtlasTexture(FRDGBuilder& GraphBuilder) const
-	{
-		return TryRegisterExternalTexture(GraphBuilder, AtlasTextureRHI);
-	}
+	FRDGTexture* GetAtlasTexture(FRDGBuilder& GraphBuilder) const;
 
 	uint32 GetSizeX() const
 	{

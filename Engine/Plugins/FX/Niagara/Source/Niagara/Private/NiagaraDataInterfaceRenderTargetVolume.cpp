@@ -18,6 +18,8 @@
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraGpuComputeDebugInterface.h"
 #include "VolumeCache.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
 #include "RHIStaticStates.h"
 #include "Misc/PathViews.h"
 #include "Misc/Paths.h"

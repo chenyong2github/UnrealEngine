@@ -3,11 +3,15 @@
 #pragma once
 
 #include "GlobalDistanceFieldParameters.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "RenderGraphBuilder.h"
+#endif
 
 class FDistanceFieldSceneData;
 class FDistanceFieldObjectBufferParameters;
 class FDistanceFieldAtlasParameters;
+class FRDGBuilder;
 
 namespace FNiagaraDistanceFieldHelper
 {

@@ -17,6 +17,8 @@
 #include "Engine/TextureRenderTarget2DArray.h"
 #include "ClearQuad.h"
 #include "CanvasItem.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "ShaderParameterUtils.h"
 #include "TextureResource.h"

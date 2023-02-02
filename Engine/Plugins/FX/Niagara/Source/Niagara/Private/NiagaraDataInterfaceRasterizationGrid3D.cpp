@@ -8,6 +8,7 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraShaderParticleID.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RenderGraphUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRasterizationGrid3D)
 
