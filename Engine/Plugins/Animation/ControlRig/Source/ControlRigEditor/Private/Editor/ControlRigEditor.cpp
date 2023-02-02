@@ -5689,7 +5689,7 @@ void FControlRigEditor::ResetAllBoneModification()
 {
 	if (ControlRig)
 	{
-		if (PreviewInstance)
+		if (IsValid(PreviewInstance))
 		{
 			PreviewInstance->ResetModifiedBone();
 		}
