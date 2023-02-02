@@ -120,6 +120,8 @@ void FStaticMeshSelector::CommitMeshTransform()
 
 	// emit transaction here??
 
+	// make sure transactional flag is on for this asset
+	StaticMesh->SetFlags(RF_Transactional);
 	// mark as modified
 	StaticMesh->Modify();
 
