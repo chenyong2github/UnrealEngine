@@ -28,7 +28,9 @@ SamplerState ShadingMaskSampler;
 #define THREAD_COUNT (TILE_SIZE_X * TILE_SIZE_Y)
 #define   WAVE_COUNT (THREAD_COUNT / LANE_COUNT)
 
+#if COMPILER_SUPPORTS_WAVE_SIZE
 WAVESIZE(LANE_COUNT)
+#endif
 [numthreads(TILE_SIZE_X, TILE_SIZE_Y, 1)]
 void ShadeBinCountCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint ThreadId : SV_GroupIndex)
 {
