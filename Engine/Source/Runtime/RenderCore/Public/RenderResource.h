@@ -152,6 +152,11 @@ public:
 	void SetOwnerName(const FName& InOwnerName);
 	FName GetOwnerName() const;
 
+private:
+#if RHI_ENABLE_RESOURCE_INFO
+	FName OwnerName;
+#endif
+
 protected:
 	// This is used during mobile editor preview refactor, this will eventually be replaced with a parameter to InitRHI() etc..
 	void SetFeatureLevel(const FStaticFeatureLevel InFeatureLevel) { FeatureLevel = (ERHIFeatureLevel::Type)InFeatureLevel; }
