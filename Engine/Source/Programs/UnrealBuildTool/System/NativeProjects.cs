@@ -64,6 +64,13 @@ namespace UnrealBuildTool
 									FindTargetFiles(IntermediateSourceDirectory, TargetNameToProjectFile, ProjectFile);
 								}
 							}
+
+							// Programs are a special case where the .uproject files are separated from the main project source code- in this case,
+							// we guarantee that a project under the Programs dir will always have an associated target file with the same name.
+							if (!TargetNameToProjectFile.ContainsKey(ProjectFile.GetFileNameWithoutAnyExtensions()) && ProjectFile.ContainsName("Programs", 0))
+							{
+								TargetNameToProjectFile.Add(ProjectFile.GetFileNameWithoutAnyExtensions(), ProjectFile);
+							}
 						}
 						CachedTargetNameToProjectFile = TargetNameToProjectFile;
 					}
