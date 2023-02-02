@@ -934,6 +934,23 @@ const TCHAR* UGeometryCollection::GetSelectedMaterialPath()
 	return TEXT("/Engine/EditorMaterials/GeometryCollection/SelectedGeometryMaterial.SelectedGeometryMaterial");
 }
 
+void UGeometryCollection::SetEnableNanite(bool bValue)
+{
+	if (EnableNanite != bValue)
+	{
+		EnableNanite = bValue;
+		NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
+
+		if (EnableNanite)
+		{
+			if (GeometryCollection)
+			{
+				NaniteData = UGeometryCollection::CreateNaniteData(GeometryCollection.Get());
+			}
+		}
+	}
+}
+
 #if WITH_EDITOR
 
 void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC)
@@ -969,23 +986,6 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC)
 
 			NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 			NaniteData->Serialize(ChaosAr, this);
-		}
-	}
-}
-
-void UGeometryCollection::SetEnableNanite(bool bValue)
-{
-	if (EnableNanite != bValue)
-	{
-		EnableNanite = bValue;
-		NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
-
-		if (EnableNanite)
-		{
-			if (GeometryCollection)
-			{
-				NaniteData = UGeometryCollection::CreateNaniteData(GeometryCollection.Get());
-			}
 		}
 	}
 }
