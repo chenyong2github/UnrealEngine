@@ -17,11 +17,8 @@ namespace LowLevelTasks
 
 FReserveScheduler FReserveScheduler::Singleton;
 
-TUniquePtr<FThread> FReserveScheduler::CreateWorker(FThread::EForkable IsForkable, EThreadPriority Priority)
+TUniquePtr<FThread> FReserveScheduler::CreateWorker(FThread::EForkable IsForkable, FYieldedWork* ReserveEvent, EThreadPriority Priority)
 {
-	FYieldedWork* ReserveEvent = new FYieldedWork;
-	ReserveEvents.Emplace(ReserveEvent);
-
 	uint32 WorkerId = NextWorkerId++;
 	return MakeUnique<FThread>
 	(
@@ -84,10 +81,12 @@ void FReserveScheduler::StartWorkers(uint32 NumWorkers, FThread::EForkable IsFor
 		check(!WorkerThreads.Num());
 		check(NextWorkerId == 0);
 
+		ReserveEvents.Reserve(NumWorkers);
 		UE::Trace::ThreadGroupBegin(TEXT("Reserve Workers"));
 		for (uint32 WorkerId = 0; WorkerId < NumWorkers; ++WorkerId)
 		{
-			WorkerThreads.Add(CreateWorker(IsForkable, WorkerPriority));
+			ReserveEvents.Emplace();
+			WorkerThreads.Add(CreateWorker(IsForkable, &ReserveEvents.Last(), &WorkerLocalQueues.Last(), WorkerPriority));
 		}
 		UE::Trace::ThreadGroupEnd();
 	}
@@ -100,9 +99,9 @@ void FReserveScheduler::StopWorkers()
 	{
 		FScopeLock Lock(&WorkerThreadsCS);
 
-		for (TUniquePtr<FYieldedWork>& Event : ReserveEvents)
+		for (FYieldedWork& Event : ReserveEvents)
 		{
-			Event->SleepEvent->Trigger();
+			Event.SleepEvent->Trigger();
 		}
 
 		while (FYieldedWork* Event = EventStack.Pop())

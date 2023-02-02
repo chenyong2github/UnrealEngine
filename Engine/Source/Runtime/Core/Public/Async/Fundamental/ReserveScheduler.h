@@ -26,19 +26,8 @@ namespace LowLevelTasks
 		FReserveScheduler() = default;
 		~FReserveScheduler();
 
-	public:
 		using FConditional = TTaskDelegate<bool(), 16>;
 
-	private:
-		struct alignas(8) FYieldedWork
-		{
-			FEventRef		SleepEvent;
-			FConditional	CompletedDelegate = []() { return true; };
-			std::atomic<FYieldedWork*> Next {nullptr};
-			bool			bPermitBackgroundWork = false;
-		};
-	
-	public:
 		FORCEINLINE_DEBUGGABLE static FReserveScheduler& Get();
 
 		//start number of reserve workers where 0 is the system default
@@ -49,11 +38,18 @@ namespace LowLevelTasks
 		CORE_API bool DoReserveWorkUntil(FConditional&& Condition);
 
 	private: 
-		TUniquePtr<FThread> CreateWorker(FThread::EForkable IsForkable = FThread::NonForkable, EThreadPriority Priority = EThreadPriority::TPri_Normal);
+		struct alignas(64) FYieldedWork
+		{
+			FEventRef		SleepEvent;
+			FConditional	CompletedDelegate = []() { return true; };
+			std::atomic<FYieldedWork*> Next { nullptr };
+			bool			bPermitBackgroundWork = false;
+		};
 
-	private:
-		TEventStack<FYieldedWork> 						EventStack;
-		TArray<TUniquePtr<FYieldedWork>>				ReserveEvents;
+		TUniquePtr<FThread> CreateWorker(FThread::EForkable IsForkable = FThread::NonForkable, FYieldedWork* ReserveEvent = nullptr, EThreadPriority Priority = EThreadPriority::TPri_Normal);
+
+		TEventStack<FYieldedWork> 						EventStack = { ReserveEvents };
+		TAlignedArray<FYieldedWork>						ReserveEvents;
 		FCriticalSection 								WorkerThreadsCS;
 		TArray<TUniquePtr<FThread>>						WorkerThreads;
 		std::atomic_uint								ActiveWorkers { 0 };

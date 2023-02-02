@@ -30,42 +30,56 @@ namespace LowLevelTasks
 		DefaultPreference = LocalQueuePreference,
 	};
 
+	template<typename NodeType>
+	using TAlignedArray = TArray<NodeType, TAlignedHeapAllocator<alignof(NodeType)>>;
 
 	//implementation of a treiber stack
 	//(https://en.wikipedia.org/wiki/Treiber_stack)
 	template<typename NodeType>
 	class TEventStack
 	{
-	private:
+		static constexpr uint32 EVENT_INDEX_NONE = -1;
+
 		struct FTopNode
 		{
-			uintptr_t Address  : 45; //all CPUs we care about use less than 48 bits for their addressing, and the lower 3 bits are unused due to alignment
-			uintptr_t Revision : 19; //Tagging is used to avoid ABA (the wrap around is several minutes for this use-case (https://en.wikipedia.org/wiki/ABA_problem#Tagged_state_reference))
+			uint32 EventIndex;		// All events are stored in an array, so this allows us to pack node info into 32 bit as array index
+			uint32 Revision;		// Tagging is used to avoid ABA (https://en.wikipedia.org/wiki/ABA_problem#Tagged_state_reference)
 		};
-		std::atomic<FTopNode> Top { FTopNode{0, 0} };
+		std::atomic<FTopNode> Top { FTopNode{EVENT_INDEX_NONE, 0} };
+		TAlignedArray<NodeType>& NodesArray;
+
+		uint32 GetNodeIndex(const NodeType* Node) const
+		{
+			return (Node == nullptr) ? EVENT_INDEX_NONE : (Node - NodesArray.GetData());
+		}
 
 	public:
+		TEventStack(TAlignedArray<NodeType>& NodesArray)
+			: NodesArray(NodesArray)
+		{
+		}
+
 		NodeType* Pop()
 		{
 			FTopNode LocalTop = Top.load(std::memory_order_acquire);
 			while (true) 
 			{			
-				if (LocalTop.Address == 0)
+				if (LocalTop.EventIndex == EVENT_INDEX_NONE)
 				{
 					return nullptr;
 				}
 #if DO_CHECK
-				int64 LastRevision = int64(LocalTop.Revision); 
+				const int64 LastRevision = int64(LocalTop.Revision);
 #endif
-				NodeType* Item = reinterpret_cast<NodeType*>(LocalTop.Address << 3);
-				if (Top.compare_exchange_weak(LocalTop, FTopNode { reinterpret_cast<uintptr_t>(Item->Next.load(std::memory_order_relaxed)) >> 3, uintptr_t(LocalTop.Revision + 1) }, std::memory_order_acq_rel))
+				NodeType* Item = &NodesArray[LocalTop.EventIndex];
+				if (Top.compare_exchange_weak(LocalTop, FTopNode { GetNodeIndex(Item->Next.load(std::memory_order_relaxed)), uint32(LocalTop.Revision + 1) }, std::memory_order_relaxed, std::memory_order_relaxed))
 				{
 					Item->Next.store(nullptr, std::memory_order_relaxed);
 					return Item;
 				}
 #if DO_CHECK
-				int64 NewRevision = int64(LocalTop.Revision) < LastRevision ? ((1ll << 19) + int64(LocalTop.Revision)) : int64(LocalTop.Revision);
-				ensureMsgf((NewRevision - LastRevision) < (1ll << 18), TEXT("Dangerously close to the wraparound: %d, %d"), LastRevision, NewRevision);
+				const int64 NewRevision = int64(LocalTop.Revision) < LastRevision ? (int64(UINT32_MAX) + int64(LocalTop.Revision)) : int64(LocalTop.Revision);
+				ensureMsgf((NewRevision - LastRevision) < (1ll << 31), TEXT("Dangerously close to the wraparound: %d, %d"), LastRevision, NewRevision);
 #endif
 			}
 		}
@@ -73,26 +87,23 @@ namespace LowLevelTasks
 		void Push(NodeType* Item)
 		{
 			checkSlow(Item != nullptr);
-#if !USING_CODE_ANALYSIS //MS SA thowing warning C6011 on Item->Next access, even when it is validated or branched over
-			checkSlow(reinterpret_cast<uintptr_t>(Item) < (1ull << 48));
-			checkSlow((reinterpret_cast<uintptr_t>(Item) & 0x7) == 0);
-#endif
 			checkSlow(Item->Next.load(std::memory_order_relaxed) == nullptr);
+			checkfSlow((Item >= NodesArray.GetData()) && (Item < (NodesArray.GetData() + NodesArray.Num())), TEXT("Item doesn't belong to a Nodes Array"));
 
 			FTopNode LocalTop = Top.load(std::memory_order_relaxed);
 			while (true) 
 			{
 #if DO_CHECK
-				int64 LastRevision = int64(LocalTop.Revision); 
+				const int64 LastRevision = int64(LocalTop.Revision);
 #endif
-				Item->Next.store(reinterpret_cast<NodeType*>(LocalTop.Address << 3), std::memory_order_relaxed);
-				if (Top.compare_exchange_weak(LocalTop, FTopNode { reinterpret_cast<uintptr_t>(Item) >> 3, uintptr_t(LocalTop.Revision + 1) }, std::memory_order_acq_rel))
+				Item->Next.store((LocalTop.EventIndex == EVENT_INDEX_NONE) ? nullptr : &NodesArray[LocalTop.EventIndex], std::memory_order_relaxed);
+				if (Top.compare_exchange_weak(LocalTop, FTopNode { GetNodeIndex(Item), uint32(LocalTop.Revision + 1) }, std::memory_order_release, std::memory_order_relaxed))
 				{
 					return;
 				}
 #if DO_CHECK
-				int64 NewRevision = int64(LocalTop.Revision) < LastRevision ? ((1ll << 19) + int64(LocalTop.Revision)) : int64(LocalTop.Revision);
-				ensureMsgf((NewRevision - LastRevision) < (1ll << 18), TEXT("Dangerously close to the wraparound: %d, %d"), LastRevision, NewRevision);
+				const int64 NewRevision = int64(LocalTop.Revision) < LastRevision ? (int64(UINT32_MAX) + int64(LocalTop.Revision)) : int64(LocalTop.Revision);
+				ensureMsgf((NewRevision - LastRevision) < (1ll << 31), TEXT("Dangerously close to the wraparound: %d, %d"), LastRevision, NewRevision);
 #endif
 			}
 		}
@@ -195,9 +206,7 @@ namespace LowLevelTasks
 		bool TryExecuteTaskFrom(QueueType* Queue, FSchedulerTls::FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork, bool bDisableThrottleStealing);
 
 	private:
-		template<typename ElementType>
-		using TAlignedArray = TArray<ElementType, TAlignedHeapAllocator<alignof(ElementType)>>;
-		TEventStack<FSleepEvent> 						SleepEventStack[2];
+		TEventStack<FSleepEvent> 						SleepEventStack[2] = { WorkerEvents , WorkerEvents };
 		FSchedulerTls::FQueueRegistry 					QueueRegistry;
 		FCriticalSection 								WorkerThreadsCS;
 		TArray<TUniquePtr<FThread>>						WorkerThreads;
