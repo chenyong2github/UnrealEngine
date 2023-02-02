@@ -640,10 +640,6 @@ bool UWorldPartitionLevelStreamingDynamic::CanChangeVisibility(bool bMakeVisible
 		{
 			// Source cells that aren't HLOD can always be made visible
 			bool bAlwaysAllowVisibilityChange = bMakeVisible && !RuntimeLevelStreamingCell->GetIsHLOD();
-			
-			// @todo_ow ContentBundles do not support Hlods and events below are forwarding
-			// Events to the HLodSubsystem which assumes knowledge of all cells (not true with plugins)
-			bAlwaysAllowVisibilityChange |= RuntimeLevelStreamingCell->GetContentBundleID().IsValid();
 
 			if (!bAlwaysAllowVisibilityChange)
 			{

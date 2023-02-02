@@ -285,12 +285,6 @@ const UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(const UWorldPartiti
 
 UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(const UWorldPartitionRuntimeCell* InCell)
 {
-	// @todo_ow ContentBundles do not support Hlods
-	if (InCell->GetContentBundleID().IsValid())
-	{
-		return nullptr;
-	}
-
 	const UWorldPartition* WorldPartition = InCell->GetTypedOuter<UWorldPartition>();
 	check(WorldPartition);
 	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
