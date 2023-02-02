@@ -73,13 +73,11 @@ struct FFeatureChannelLayoutSet
 		const TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> SubChannels = Channel->GetSubChannels();
 		if (SubChannels.Num() == 0)
 		{
-			// @todo: figure out if Label + SkeletonName is enough to identify this channel, if better performances are needed
-			// FString Label = Channel->GetLabel();
-			// FString SkeletonName = Channel->GetSchema()->Skeleton->GetName();
-			// UE::PoseSearch::FKeyBuilder KeyBuilder;
-			// KeyBuilder << SkeletonName << Label;
-
-			Add(Channel->GetLabel(), UE::PoseSearch::FKeyBuilder(Channel).Finalize(), Channel->GetChannelDataOffset(), Channel->GetChannelCardinality());
+			FString Label = Channel->GetLabel();
+			FString SkeletonName = Channel->GetSchema()->Skeleton->GetName();
+			UE::PoseSearch::FKeyBuilder KeyBuilder;
+			KeyBuilder << SkeletonName << Label;
+			Add(Channel->GetLabel(), KeyBuilder.Finalize(), Channel->GetChannelDataOffset(), Channel->GetChannelCardinality());
 		}
 		else
 		{
