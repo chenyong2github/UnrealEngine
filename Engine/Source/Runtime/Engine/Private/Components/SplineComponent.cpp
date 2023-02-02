@@ -1009,6 +1009,29 @@ int32 USplineComponent::GetNumberOfSplineSegments() const
 	return (bClosedLoop ? NumPoints : NumPoints - 1);
 }
 
+float USplineComponent::GetInputKeyValueAtSplinePoint(int32 PointIndex) const
+{
+	const FInterpCurvePointVector& SplinePoint = GetPositionPointSafe(PointIndex);
+	return SplinePoint.InVal;
+}
+
+
+FSplinePoint USplineComponent::GetSplinePointAt(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const
+{
+	const FInterpCurvePointVector& SplinePoint = GetPositionPointSafe(PointIndex);
+
+	const FInterpCurvePointQuat& RotationPoint = GetRotationPointSafe(PointIndex);
+	const FRotator& Rotation = GetRotationAtSplineInputKey(RotationPoint.InVal, CoordinateSpace);
+
+	const FVector Scale = GetScaleAtSplinePoint(PointIndex);
+
+	return FSplinePoint(SplinePoint.InVal, 
+		SplinePoint.OutVal,
+		SplinePoint.ArriveTangent,
+		SplinePoint.LeaveTangent,
+		Rotation,
+		Scale);
+}
 
 FVector USplineComponent::GetLocationAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const
 {

@@ -527,6 +527,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	int32 GetNumberOfSplineSegments() const;
 
+	/** Get the input key (e.g. the time) of the control point of the spline at the specified index. */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	float GetInputKeyValueAtSplinePoint(int32 PointIndex) const;
+
+	/** Gets the spline point of the spline at the specified index */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	FSplinePoint GetSplinePointAt(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+		
 	/** Get the location at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetLocationAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
