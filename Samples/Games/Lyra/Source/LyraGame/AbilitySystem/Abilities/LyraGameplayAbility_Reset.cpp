@@ -15,16 +15,11 @@ ULyraGameplayAbility_Reset::ULyraGameplayAbility_Reset(const FObjectInitializer&
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
 
-	UGameplayTagsManager::Get().CallOrRegister_OnDoneAddingNativeTagsDelegate(FSimpleDelegate::CreateUObject(this, &ThisClass::DoneAddingNativeTags));
-}
-
-void ULyraGameplayAbility_Reset::DoneAddingNativeTags()
-{
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// Add the ability trigger tag as default to the CDO.
 		FAbilityTriggerData TriggerData;
-		TriggerData.TriggerTag = FLyraGameplayTags::Get().GameplayEvent_RequestReset;
+		TriggerData.TriggerTag = LyraGameplayTags::GameplayEvent_RequestReset;
 		TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 		AbilityTriggers.Add(TriggerData);
 	}
@@ -37,7 +32,7 @@ void ULyraGameplayAbility_Reset::ActivateAbility(const FGameplayAbilitySpecHandl
 	ULyraAbilitySystemComponent* LyraASC = CastChecked<ULyraAbilitySystemComponent>(ActorInfo->AbilitySystemComponent.Get());
 
 	FGameplayTagContainer AbilityTypesToIgnore;
-	AbilityTypesToIgnore.AddTag(FLyraGameplayTags::Get().Ability_Behavior_SurvivesDeath);
+	AbilityTypesToIgnore.AddTag(LyraGameplayTags::Ability_Behavior_SurvivesDeath);
 
 	// Cancel all abilities and block others from starting.
 	LyraASC->CancelAbilities(nullptr, &AbilityTypesToIgnore, this);
@@ -54,7 +49,7 @@ void ULyraGameplayAbility_Reset::ActivateAbility(const FGameplayAbilitySpecHandl
 	FLyraPlayerResetMessage Message;
 	Message.OwnerPlayerState = CurrentActorInfo->OwnerActor.Get();
 	UGameplayMessageSubsystem& MessageSystem = UGameplayMessageSubsystem::Get(this);
-	MessageSystem.BroadcastMessage(FLyraGameplayTags::Get().GameplayEvent_Reset, Message);
+	MessageSystem.BroadcastMessage(LyraGameplayTags::GameplayEvent_Reset, Message);
 
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 

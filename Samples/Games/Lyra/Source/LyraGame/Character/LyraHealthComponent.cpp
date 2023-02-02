@@ -107,10 +107,8 @@ void ULyraHealthComponent::ClearGameplayTags()
 {
 	if (AbilitySystemComponent)
 	{
-		const FLyraGameplayTags& GameplayTags = FLyraGameplayTags::Get();
-
-		AbilitySystemComponent->SetLooseGameplayTagCount(GameplayTags.Status_Death_Dying, 0);
-		AbilitySystemComponent->SetLooseGameplayTagCount(GameplayTags.Status_Death_Dead, 0);
+		AbilitySystemComponent->SetLooseGameplayTagCount(LyraGameplayTags::Status_Death_Dying, 0);
+		AbilitySystemComponent->SetLooseGameplayTagCount(LyraGameplayTags::Status_Death_Dead, 0);
 	}
 }
 
@@ -166,7 +164,7 @@ void ULyraHealthComponent::HandleOutOfHealth(AActor* DamageInstigator, AActor* D
 		// Send the "GameplayEvent.Death" gameplay event through the owner's ability system.  This can be used to trigger a death gameplay ability.
 		{
 			FGameplayEventData Payload;
-			Payload.EventTag = FLyraGameplayTags::Get().GameplayEvent_Death;
+			Payload.EventTag = LyraGameplayTags::GameplayEvent_Death;
 			Payload.Instigator = DamageInstigator;
 			Payload.Target = AbilitySystemComponent->GetAvatarActor();
 			Payload.OptionalObject = DamageEffectSpec.Def;
@@ -256,7 +254,7 @@ void ULyraHealthComponent::StartDeath()
 
 	if (AbilitySystemComponent)
 	{
-		AbilitySystemComponent->SetLooseGameplayTagCount(FLyraGameplayTags::Get().Status_Death_Dying, 1);
+		AbilitySystemComponent->SetLooseGameplayTagCount(LyraGameplayTags::Status_Death_Dying, 1);
 	}
 
 	AActor* Owner = GetOwner();
@@ -278,7 +276,7 @@ void ULyraHealthComponent::FinishDeath()
 
 	if (AbilitySystemComponent)
 	{
-		AbilitySystemComponent->SetLooseGameplayTagCount(FLyraGameplayTags::Get().Status_Death_Dead, 1);
+		AbilitySystemComponent->SetLooseGameplayTagCount(LyraGameplayTags::Status_Death_Dead, 1);
 	}
 
 	AActor* Owner = GetOwner();
@@ -318,7 +316,7 @@ void ULyraHealthComponent::DamageSelfDestruct(bool bFellOutOfWorld)
 
 		const float DamageAmount = GetMaxHealth();
 
-		Spec->SetSetByCallerMagnitude(FLyraGameplayTags::Get().SetByCaller_Damage, DamageAmount);
+		Spec->SetSetByCallerMagnitude(LyraGameplayTags::SetByCaller_Damage, DamageAmount);
 		AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*Spec);
 	}
 }

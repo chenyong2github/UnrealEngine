@@ -19,16 +19,11 @@ ULyraGameplayAbility_Death::ULyraGameplayAbility_Death(const FObjectInitializer&
 
 	bAutoStartDeath = true;
 
-	UGameplayTagsManager::Get().CallOrRegister_OnDoneAddingNativeTagsDelegate(FSimpleDelegate::CreateUObject(this, &ThisClass::DoneAddingNativeTags));
-}
-
-void ULyraGameplayAbility_Death::DoneAddingNativeTags()
-{
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// Add the ability trigger tag as default to the CDO.
 		FAbilityTriggerData TriggerData;
-		TriggerData.TriggerTag = FLyraGameplayTags::Get().GameplayEvent_Death;
+		TriggerData.TriggerTag = LyraGameplayTags::GameplayEvent_Death;
 		TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 		AbilityTriggers.Add(TriggerData);
 	}
@@ -41,7 +36,7 @@ void ULyraGameplayAbility_Death::ActivateAbility(const FGameplayAbilitySpecHandl
 	ULyraAbilitySystemComponent* LyraASC = CastChecked<ULyraAbilitySystemComponent>(ActorInfo->AbilitySystemComponent.Get());
 
 	FGameplayTagContainer AbilityTypesToIgnore;
-	AbilityTypesToIgnore.AddTag(FLyraGameplayTags::Get().Ability_Behavior_SurvivesDeath);
+	AbilityTypesToIgnore.AddTag(LyraGameplayTags::Ability_Behavior_SurvivesDeath);
 
 	// Cancel all abilities and block others from starting.
 	LyraASC->CancelAbilities(nullptr, &AbilityTypesToIgnore, this);

@@ -86,12 +86,10 @@ void ULyraGameInstance::Init()
 
 	if (ensure(ComponentManager))
 	{
-		const FLyraGameplayTags& GameplayTags = FLyraGameplayTags::Get();
-
-		ComponentManager->RegisterInitState(GameplayTags.InitState_Spawned, false, FGameplayTag());
-		ComponentManager->RegisterInitState(GameplayTags.InitState_DataAvailable, false, GameplayTags.InitState_Spawned);
-		ComponentManager->RegisterInitState(GameplayTags.InitState_DataInitialized, false, GameplayTags.InitState_DataAvailable);
-		ComponentManager->RegisterInitState(GameplayTags.InitState_GameplayReady, false, GameplayTags.InitState_DataInitialized);
+		ComponentManager->RegisterInitState(LyraGameplayTags::InitState_Spawned, false, FGameplayTag());
+		ComponentManager->RegisterInitState(LyraGameplayTags::InitState_DataAvailable, false, LyraGameplayTags::InitState_Spawned);
+		ComponentManager->RegisterInitState(LyraGameplayTags::InitState_DataInitialized, false, LyraGameplayTags::InitState_DataAvailable);
+		ComponentManager->RegisterInitState(LyraGameplayTags::InitState_GameplayReady, false, LyraGameplayTags::InitState_DataInitialized);
 	}
 
 	// Initialize the debug key with a set value for AES256. This is not secure and for example purposes only.

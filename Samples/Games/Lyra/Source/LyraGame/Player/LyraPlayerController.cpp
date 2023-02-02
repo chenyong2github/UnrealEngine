@@ -281,7 +281,7 @@ bool ALyraPlayerController::GetIsAutoRunning() const
 	bool bIsAutoRunning = false;
 	if (const ULyraAbilitySystemComponent* LyraASC = GetLyraAbilitySystemComponent())
 	{
-		bIsAutoRunning = LyraASC->GetTagCount(FLyraGameplayTags::Get().Status_AutoRunning) > 0;
+		bIsAutoRunning = LyraASC->GetTagCount(LyraGameplayTags::Status_AutoRunning) > 0;
 	}
 	return bIsAutoRunning;
 }
@@ -290,7 +290,7 @@ void ALyraPlayerController::OnStartAutoRun()
 {
 	if (ULyraAbilitySystemComponent* LyraASC = GetLyraAbilitySystemComponent())
 	{
-		LyraASC->SetLooseGameplayTagCount(FLyraGameplayTags::Get().Status_AutoRunning, 1);
+		LyraASC->SetLooseGameplayTagCount(LyraGameplayTags::Status_AutoRunning, 1);
 		K2_OnStartAutoRun();
 	}	
 }
@@ -299,7 +299,7 @@ void ALyraPlayerController::OnEndAutoRun()
 {
 	if (ULyraAbilitySystemComponent* LyraASC = GetLyraAbilitySystemComponent())
 	{
-		LyraASC->SetLooseGameplayTagCount(FLyraGameplayTags::Get().Status_AutoRunning, 0);
+		LyraASC->SetLooseGameplayTagCount(LyraGameplayTags::Status_AutoRunning, 0);
 		K2_OnEndAutoRun();
 	}
 }

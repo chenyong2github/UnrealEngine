@@ -267,9 +267,7 @@ void ALyraCharacter::InitializeGameplayTags()
 	// Clear tags that may be lingering on the ability system from the previous pawn.
 	if (ULyraAbilitySystemComponent* LyraASC = GetLyraAbilitySystemComponent())
 	{
-		const FLyraGameplayTags& GameplayTags = FLyraGameplayTags::Get();
-
-		for (const TPair<uint8, FGameplayTag>& TagMapping : GameplayTags.MovementModeTagMap)
+		for (const TPair<uint8, FGameplayTag>& TagMapping : LyraGameplayTags::MovementModeTagMap)
 		{
 			if (TagMapping.Value.IsValid())
 			{
@@ -277,7 +275,7 @@ void ALyraCharacter::InitializeGameplayTags()
 			}
 		}
 
-		for (const TPair<uint8, FGameplayTag>& TagMapping : GameplayTags.CustomMovementModeTagMap)
+		for (const TPair<uint8, FGameplayTag>& TagMapping : LyraGameplayTags::CustomMovementModeTagMap)
 		{
 			if (TagMapping.Value.IsValid())
 			{
@@ -403,16 +401,14 @@ void ALyraCharacter::SetMovementModeTag(EMovementMode MovementMode, uint8 Custom
 {
 	if (ULyraAbilitySystemComponent* LyraASC = GetLyraAbilitySystemComponent())
 	{
-		const FLyraGameplayTags& GameplayTags = FLyraGameplayTags::Get();
 		const FGameplayTag* MovementModeTag = nullptr;
-
 		if (MovementMode == MOVE_Custom)
 		{
-			MovementModeTag = GameplayTags.CustomMovementModeTagMap.Find(CustomMovementMode);
+			MovementModeTag = LyraGameplayTags::CustomMovementModeTagMap.Find(CustomMovementMode);
 		}
 		else
 		{
-			MovementModeTag = GameplayTags.MovementModeTagMap.Find(MovementMode);
+			MovementModeTag = LyraGameplayTags::MovementModeTagMap.Find(MovementMode);
 		}
 
 		if (MovementModeTag && MovementModeTag->IsValid())
@@ -440,7 +436,7 @@ void ALyraCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeigh
 {
 	if (ULyraAbilitySystemComponent* LyraASC = GetLyraAbilitySystemComponent())
 	{
-		LyraASC->SetLooseGameplayTagCount(FLyraGameplayTags::Get().Status_Crouching, 1);
+		LyraASC->SetLooseGameplayTagCount(LyraGameplayTags::Status_Crouching, 1);
 	}
 
 
@@ -451,7 +447,7 @@ void ALyraCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightA
 {
 	if (ULyraAbilitySystemComponent* LyraASC = GetLyraAbilitySystemComponent())
 	{
-		LyraASC->SetLooseGameplayTagCount(FLyraGameplayTags::Get().Status_Crouching, 0);
+		LyraASC->SetLooseGameplayTagCount(LyraGameplayTags::Status_Crouching, 0);
 	}
 
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);

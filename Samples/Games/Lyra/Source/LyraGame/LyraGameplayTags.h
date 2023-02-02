@@ -2,91 +2,59 @@
 
 #pragma once
 
-#include "GameplayTagContainer.h"
+#include "NativeGameplayTags.h"
 
-class UGameplayTagsManager;
-
-/**
- * FLyraGameplayTags
- *
- *	Singleton containing native gameplay tags.
- */
-struct FLyraGameplayTags
+namespace LyraGameplayTags
 {
-public:
+	FGameplayTag FindTagByString(const FString& TagString, bool bMatchPartialString = false);
 
-	static const FLyraGameplayTags& Get() { return GameplayTags; }
+	// Declare all of the custom native tags that Lyra will use
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_ActivateFail_IsDead);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_ActivateFail_Cooldown);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_ActivateFail_Cost);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_ActivateFail_TagsBlocked);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_ActivateFail_TagsMissing);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_ActivateFail_Networking);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_ActivateFail_ActivationGroup);
 
-	static void InitializeNativeTags();
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Behavior_SurvivesDeath);
+	
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Move);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Look_Mouse);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Look_Stick);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Crouch);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_AutoRun);
 
-	static FGameplayTag FindTagByString(FString TagString, bool bMatchPartialString = false);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InitState_Spawned);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InitState_DataAvailable);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InitState_DataInitialized);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InitState_GameplayReady);
 
-public:
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Death);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Reset);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_RequestReset);
 
-	FGameplayTag Ability_ActivateFail_IsDead;
-	FGameplayTag Ability_ActivateFail_Cooldown;
-	FGameplayTag Ability_ActivateFail_Cost;
-	FGameplayTag Ability_ActivateFail_TagsBlocked;
-	FGameplayTag Ability_ActivateFail_TagsMissing;
-	FGameplayTag Ability_ActivateFail_Networking;
-	FGameplayTag Ability_ActivateFail_ActivationGroup;
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Damage);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Heal);
 
-	FGameplayTag Ability_Behavior_SurvivesDeath;
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cheat_GodMode);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cheat_UnlimitedHealth);
 
-	FGameplayTag InputTag_Move;
-	FGameplayTag InputTag_Look_Mouse;
-	FGameplayTag InputTag_Look_Stick;
-	FGameplayTag InputTag_Crouch;
-	FGameplayTag InputTag_AutoRun;
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Crouching);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_AutoRunning);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Death);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Death_Dying);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Death_Dead);
 
-	// Initialization states for the GameFrameworkComponentManager, these are registered in order by LyraGameInstance and some actors will skip right to GameplayReady
+	// These are mappings from MovementMode enums to GameplayTags associated with those enums (below)
+	extern const TMap<uint8, FGameplayTag> MovementModeTagMap;
+	extern const TMap<uint8, FGameplayTag> CustomMovementModeTagMap;
 
-	/** Actor/component has initially spawned and can be extended */
-	FGameplayTag InitState_Spawned;
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement_Mode_Walking);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement_Mode_NavWalking);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement_Mode_Falling);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement_Mode_Swimming);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement_Mode_Flying);
 
-	/** All required data has been loaded/replicated and is ready for initialization */
-	FGameplayTag InitState_DataAvailable;
-
-	/** The available data has been initialized for this actor/component, but it is not ready for full gameplay */
-	FGameplayTag InitState_DataInitialized;
-
-	/** The actor/component is fully ready for active gameplay */
-	FGameplayTag InitState_GameplayReady;
-
-	FGameplayTag GameplayEvent_Death;
-	FGameplayTag GameplayEvent_Reset;
-	FGameplayTag GameplayEvent_RequestReset;
-
-	FGameplayTag SetByCaller_Damage;
-	FGameplayTag SetByCaller_Heal;
-
-	FGameplayTag Cheat_GodMode;
-	FGameplayTag Cheat_UnlimitedHealth;
-
-	FGameplayTag Status_Crouching;
-	FGameplayTag Status_AutoRunning;
-	FGameplayTag Status_Death;
-	FGameplayTag Status_Death_Dying;
-	FGameplayTag Status_Death_Dead;
-
-	FGameplayTag Movement_Mode_Walking;
-	FGameplayTag Movement_Mode_NavWalking;
-	FGameplayTag Movement_Mode_Falling;
-	FGameplayTag Movement_Mode_Swimming;
-	FGameplayTag Movement_Mode_Flying;
-	FGameplayTag Movement_Mode_Custom;
-
-	TMap<uint8, FGameplayTag> MovementModeTagMap;
-	TMap<uint8, FGameplayTag> CustomMovementModeTagMap;
-
-protected:
-
-	void AddAllTags(UGameplayTagsManager& Manager);
-	void AddTag(FGameplayTag& OutTag, const ANSICHAR* TagName, const ANSICHAR* TagComment);
-	void AddMovementModeTag(FGameplayTag& OutTag, const ANSICHAR* TagName, uint8 MovementMode);
-	void AddCustomMovementModeTag(FGameplayTag& OutTag, const ANSICHAR* TagName, uint8 CustomMovementMode);
-
-private:
-
-	static FLyraGameplayTags GameplayTags;
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement_Mode_Custom);
 };

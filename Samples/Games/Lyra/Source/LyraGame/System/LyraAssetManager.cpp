@@ -126,8 +126,6 @@ void ULyraAssetManager::InitializeAbilitySystem()
 {
 	SCOPED_BOOT_TIMING("ULyraAssetManager::InitializeAbilitySystem");
 
-	FLyraGameplayTags::InitializeNativeTags();
-
 	UAbilitySystemGlobals::Get().InitGlobalData();
 }
 
