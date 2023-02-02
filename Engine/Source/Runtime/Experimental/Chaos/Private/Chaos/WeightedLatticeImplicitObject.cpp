@@ -751,7 +751,7 @@ void FWeightedLatticeImplicitObjectBuilder::AddInfluence(int32 FlatIndex, uint16
 		return;
 	}
 
-	if (Data.NumInfluences != Data.MaxTotalInfluences)
+	if (Data.NumInfluences < Data.MaxTotalInfluences)
 	{
 		++Data.NumInfluences;
 	}
