@@ -11,6 +11,8 @@
 #include "Materials/MaterialRenderProxy.h"
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceDynamicMesh)
 
