@@ -102,7 +102,7 @@ namespace mu
 		void RemoveStateParam( int s, const char* param );
 
         //! Set the optimisation properties of a state
-        void SetStateProperties( int s, bool avoidRuntimeCompression, bool onlyFirstLOD, int firstLOD );
+        void SetStateProperties( int s, bool avoidRuntimeCompression, bool onlyFirstLOD, int firstLOD, int numExtraLODsToBuildAfterFirstLOD);
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

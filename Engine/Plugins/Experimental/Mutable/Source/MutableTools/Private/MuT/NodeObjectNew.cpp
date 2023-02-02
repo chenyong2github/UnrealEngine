@@ -317,13 +317,14 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void NodeObjectNew::SetStateProperties( int s, bool avoidRuntimeCompression, bool onlyFirstLOD, int firstLOD )
+    void NodeObjectNew::SetStateProperties( int s, bool avoidRuntimeCompression, bool onlyFirstLOD, int firstLOD, int numExtraLODsToBuildAfterFirstLOD )
     {
         check( s>=0 && s<GetStateCount() );
 
         m_pD->m_states[s].m_optimisation.m_avoidRuntimeCompression = avoidRuntimeCompression;
         m_pD->m_states[s].m_optimisation.m_onlyFirstLOD = onlyFirstLOD;
-        m_pD->m_states[s].m_optimisation.m_firstLOD = firstLOD;
+		m_pD->m_states[s].m_optimisation.m_firstLOD = firstLOD;
+		m_pD->m_states[s].m_optimisation.m_numExtraLODsToBuildAfterFirstLOD = numExtraLODsToBuildAfterFirstLOD;
     }
 
 }

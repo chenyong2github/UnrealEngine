@@ -43,6 +43,10 @@ struct CUSTOMIZABLEOBJECTEDITOR_API FCustomizableObjectState
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	bool bBuildOnlyFirstLOD = false;
 
+	/** If there's an entry for a specific platform, when compiling for that platform Num LODs will be built after bBuildOnlyFirstLOD */
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	TMap<FString, int32> NumExtraLODsToBuildPerPlatform;
+
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	TMap<FString, FString> ForcedParameterValues;
 

@@ -22,20 +22,23 @@ namespace mu
 			m_firstLOD = 0;
             m_onlyFirstLOD = false;
             m_avoidRuntimeCompression = false;
+			m_numExtraLODsToBuildAfterFirstLOD = 0;
         }
 
 		uint8 m_firstLOD;
 		bool m_onlyFirstLOD;
         bool m_avoidRuntimeCompression;
+		int32 m_numExtraLODsToBuildAfterFirstLOD;
 
         void Serialise( OutputArchive& arch ) const
         {
-            const int32_t ver = 2;
+            const int32_t ver = 3;
             arch << ver;
 
 			arch << m_firstLOD;
 			arch << m_onlyFirstLOD;
             arch << m_avoidRuntimeCompression;
+			arch << m_numExtraLODsToBuildAfterFirstLOD;
         }
 
 
@@ -43,7 +46,16 @@ namespace mu
         {
             int32_t ver = 0;
             arch >> ver;
-			check(ver <= 2);
+			check(ver <= 3);
+
+			if (ver >= 3)
+			{
+				arch >> m_numExtraLODsToBuildAfterFirstLOD;
+			}
+			else
+			{
+				m_numExtraLODsToBuildAfterFirstLOD = 0;
+			}
 
 			if (ver >= 2)
 			{

@@ -1261,6 +1261,16 @@ namespace impl
 				{
 					OperationData->RequestedLODs[ComponentIndex] |= (1 << OperationData->CurrentMaxLOD);
 				}
+
+				// Make sure we are not requesting a LOD that doesn't exist in this state (Essentially for states with bBuildOnlyFirstLOD 
+				// and NumExtraLODsToBuildPerPlatform when the ExtraLOD is not needed)
+				if ((OperationData->RequestedLODs[ComponentIndex] & (1 << OperationData->CurrentMaxLOD)) == 0)
+				{
+					OperationData->CurrentMaxLOD = OperationData->CurrentMinLOD;
+
+					// Ensure the fallback LOD actually exists
+					OperationData->RequestedLODs[ComponentIndex] |= (1 << OperationData->CurrentMaxLOD);
+				}
 			}
 		}
 

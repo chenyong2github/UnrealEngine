@@ -2000,7 +2000,7 @@ namespace mu
             // Remove the unnecessary lods
             if (m_states[s].optimisationFlags.m_onlyFirstLOD)
             {
-                LODCountReducerAST(m_states[s].root, m_states[s].optimisationFlags.m_firstLOD + 1);
+				LODCountReducerAST(m_states[s].root, m_states[s].optimisationFlags.m_firstLOD + 1 + m_states[s].optimisationFlags.m_numExtraLODsToBuildAfterFirstLOD);
             }
 
             // If a state has no runtime parameters, skip its optimisation alltogether
