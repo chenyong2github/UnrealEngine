@@ -96,7 +96,12 @@ namespace Jupiter.Implementation
 
         private bool ShouldTrackLastAccess(NamespaceId ns)
         {
-            return _namespacePolicyResolver.GetPoliciesForNs(ns).LastAccessTracking;
+            if (!_namespacePolicyResolver.GetPoliciesForNs(ns).LastAccessTracking)
+            {
+                return false;
+            }
+
+            return _namespacePolicyResolver.GetPoliciesForNs(ns).GcMethod == NamespacePolicy.StoragePoolGCMethod.LastAccess;
         }
 
         public void Dispose()

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
+using Jupiter.Common;
 using Jupiter.Implementation.Blob;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Http;
@@ -39,11 +40,12 @@ namespace Jupiter.Implementation
         private readonly IReferenceResolver _referenceResolver;
         private readonly IReplicationLog _replicationLog;
         private readonly IBlobIndex _blobIndex;
+        private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly ILastAccessTracker<LastAccessRecord> _lastAccessTracker;
         private readonly Tracer _tracer;
         private readonly ILogger _logger;
 
-        public ObjectService(IHttpContextAccessor httpContextAccessor, IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex, ILastAccessTracker<LastAccessRecord> lastAccessTracker, Tracer tracer, ILogger<ObjectService> logger)
+        public ObjectService(IHttpContextAccessor httpContextAccessor, IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex, INamespacePolicyResolver namespacePolicyResolver, ILastAccessTracker<LastAccessRecord> lastAccessTracker, Tracer tracer, ILogger<ObjectService> logger)
         {
             _httpContextAccessor = httpContextAccessor;
             _referencesStore = referencesStore;
@@ -51,6 +53,7 @@ namespace Jupiter.Implementation
             _referenceResolver = referenceResolver;
             _replicationLog = replicationLog;
             _blobIndex = blobIndex;
+            _namespacePolicyResolver = namespacePolicyResolver;
             _lastAccessTracker = lastAccessTracker;
             _tracer = tracer;
             _logger = logger;
@@ -86,14 +89,17 @@ namespace Jupiter.Implementation
 
             if (doLastAccessTracking)
             {
-                // we do not wait for the last access tracking as it does not matter when it completes
-                Task lastAccessTask = _lastAccessTracker.TrackUsed(new LastAccessRecord(ns, bucket, key)).ContinueWith((task, _) =>
+                if (_namespacePolicyResolver.GetPoliciesForNs(ns).GcMethod == NamespacePolicy.StoragePoolGCMethod.LastAccess)
                 {
-                    if (task.Exception != null)
+                    // we do not wait for the last access tracking as it does not matter when it completes
+                    Task lastAccessTask = _lastAccessTracker.TrackUsed(new LastAccessRecord(ns, bucket, key)).ContinueWith((task, _) =>
                     {
-                        _logger.LogError(task.Exception, "Exception when tracking last access record");
-                    }
-                }, null, TaskScheduler.Current);
+                        if (task.Exception != null)
+                        {
+                            _logger.LogError(task.Exception, "Exception when tracking last access record");
+                        }
+                    }, null, TaskScheduler.Current);
+                }
             }
 
             BlobContents? blobContents = null;

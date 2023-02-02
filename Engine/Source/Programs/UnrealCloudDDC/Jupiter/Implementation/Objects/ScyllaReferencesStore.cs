@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Mapping;
 using EpicGames.Horde.Storage;
+using Jupiter.Common;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Trace;
@@ -18,16 +19,18 @@ namespace Jupiter.Implementation
         private readonly ISession _session;
         private readonly IMapper _mapper;
         private readonly IOptionsMonitor<ScyllaSettings> _settings;
+        private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly Tracer _tracer;
         private readonly ILogger _logger;
         private readonly PreparedStatement _getObjectsStatement;
         private readonly PreparedStatement _getNamespacesStatement;
         private readonly PreparedStatement _getObjectsForPartitionRangeStatement;
 
-        public ScyllaReferencesStore(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings, Tracer tracer, ILogger<ScyllaReferencesStore> logger)
+        public ScyllaReferencesStore(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer, ILogger<ScyllaReferencesStore> logger)
         {
             _session = scyllaSessionManager.GetSessionForReplicatedKeyspace();
             _settings = settings;
+            _namespacePolicyResolver = namespacePolicyResolver;
             _tracer = tracer;
             _logger = logger;
 
@@ -107,7 +110,13 @@ namespace Jupiter.Implementation
             // add the bucket in parallel with inserting the actual object
             Task addBucketTask = MaybeAddBucket(ns, bucket);
 
-            await _mapper.InsertAsync<ScyllaObject>(new ScyllaObject(ns, bucket, name, blob, blobHash, isFinalized));
+            int? ttl = null;
+            NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+            if (policy.GcMethod == NamespacePolicy.StoragePoolGCMethod.TTL)
+            {
+                ttl = (int)policy.DefaultTTL.TotalSeconds;
+            }
+            await _mapper.InsertAsync<ScyllaObject>(new ScyllaObject(ns, bucket, name, blob, blobHash, isFinalized), ttl: ttl, insertNulls: false);
             await addBucketTask;
         }
 

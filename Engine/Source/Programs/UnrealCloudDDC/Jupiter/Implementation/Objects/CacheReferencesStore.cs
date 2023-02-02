@@ -25,7 +25,7 @@ namespace Jupiter.Implementation
         public CacheReferencesStore(IServiceProvider provider)
         {
             _mongoReferenceStore = ActivatorUtilities.CreateInstance<MongoReferencesStore>(provider, "Jupiter_Cache");
-            _mongoReferenceStore.SetTTLDuration(TimeSpan.FromDays(7.0));
+            _mongoReferenceStore.SetLastAccessTTLDuration(TimeSpan.FromDays(7.0));
 
             _upstreamReferenceStore = ActivatorUtilities.CreateInstance<UpstreamReferenceStore>(provider);
         }

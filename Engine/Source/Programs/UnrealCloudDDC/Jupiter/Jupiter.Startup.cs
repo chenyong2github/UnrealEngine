@@ -178,7 +178,7 @@ namespace Jupiter
             services.AddSingleton(typeof(IPeerStatusService), typeof(PeerStatusService));
             services.AddHostedService<PeerStatusService>(p => (PeerStatusService)p.GetService<IPeerStatusService>()!);
         
-            services.AddTransient(typeof(IRefCleanup), typeof(RefCleanup));
+            services.AddTransient(typeof(IRefCleanup), typeof(RefLastAccessCleanup));
 
             services.AddTransient(typeof(VersionFile), typeof(VersionFile));
 

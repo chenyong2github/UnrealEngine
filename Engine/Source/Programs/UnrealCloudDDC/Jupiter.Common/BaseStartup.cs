@@ -724,5 +724,11 @@ namespace Jupiter
         public bool UseBlobIndexForExists { get; set; } = false;
         public bool UseBlobIndexForSlowExists { get; set; } = false;
         public bool IsPublicNamespace { get; set; } = true;
+
+        public enum StoragePoolGCMethod  { None, LastAccess, TTL };
+
+        public StoragePoolGCMethod GcMethod { get; set; } = StoragePoolGCMethod.LastAccess;
+
+        public TimeSpan DefaultTTL { get; set; } = TimeSpan.FromDays(14);
     }
 }

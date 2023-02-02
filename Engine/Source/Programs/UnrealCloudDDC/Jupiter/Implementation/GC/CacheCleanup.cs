@@ -18,7 +18,7 @@ namespace Jupiter.Implementation
         Task<int> Cleanup(NamespaceId ns, CancellationToken cancellationToken);
     }
 
-    public class RefCleanup : IRefCleanup
+    public class RefLastAccessCleanup : IRefCleanup
     {
         private readonly IOptionsMonitor<GCSettings> _settings;
         private readonly IReferencesStore _referencesStore;
@@ -29,8 +29,8 @@ namespace Jupiter.Implementation
         private readonly IObjectService _objectService;
         private readonly OrphanBlobCleanupRefs _blobCleanup;
 
-        public RefCleanup(IOptionsMonitor<GCSettings> settings, IReferencesStore referencesStore,
-            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver, IObjectService objectService,  OrphanBlobCleanupRefs blobCleanup, Tracer tracer, ILogger<RefCleanup> logger)
+        public RefLastAccessCleanup(IOptionsMonitor<GCSettings> settings, IReferencesStore referencesStore,
+            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver, IObjectService objectService,  OrphanBlobCleanupRefs blobCleanup, Tracer tracer, ILogger<RefLastAccessCleanup> logger)
         {
             _settings = settings;
             _referencesStore = referencesStore;
@@ -60,6 +60,11 @@ namespace Jupiter.Implementation
             {
                 // do not apply our cleanup policies to the internal namespace
                 return Task.FromResult(0);
+            }
+
+            if (_namespacePolicyResolver.GetPoliciesForNs(ns).GcMethod != NamespacePolicy.StoragePoolGCMethod.LastAccess)
+            {
+                // only run for namepsaces set to use last access tracking
             }
 
             return CleanNamespace(ns, cancellationToken);

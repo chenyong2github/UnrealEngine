@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
+using Jupiter.Common;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -12,8 +13,11 @@ namespace Jupiter.Implementation
 {
     public class MongoReferencesStore : MongoStore, IReferencesStore
     {
-        public MongoReferencesStore(IOptionsMonitor<MongoSettings> settings, string? overrideDatabaseName = null) : base(settings, overrideDatabaseName)
+        private readonly INamespacePolicyResolver _namespacePolicyResolver;
+
+        public MongoReferencesStore(IOptionsMonitor<MongoSettings> settings, INamespacePolicyResolver namespacePolicyResolver, string? overrideDatabaseName = null) : base(settings, overrideDatabaseName)
         {
+            _namespacePolicyResolver = namespacePolicyResolver;
             CreateCollectionIfNotExists<MongoReferencesModelV0>().Wait();
             CreateCollectionIfNotExists<MongoNamespacesModelV0>().Wait();
 
@@ -36,6 +40,11 @@ namespace Jupiter.Implementation
                 indexModelNamespace
             });
 
+            CreateIndexModel<MongoReferencesModelV0> indexTTL = new CreateIndexModel<MongoReferencesModelV0>(
+                indexKeysDefinitionBuilder.Ascending(m => m.ExpireAt), new CreateIndexOptions {Name = "ExpireAtTTL", ExpireAfter = TimeSpan.Zero}
+            );
+
+            AddIndexFor<MongoReferencesModelV0>().CreateOne(indexTTL);
         }
 
         public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey key, IReferencesStore.FieldFlags flags)
@@ -72,6 +81,12 @@ namespace Jupiter.Implementation
             Task addNamespaceTask = AddNamespaceIfNotExist(ns);
             MongoReferencesModelV0 model = new MongoReferencesModelV0(ns, bucket, key, blobHash, blob, isFinalized, DateTime.Now);
             
+            NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+            if (policy.GcMethod == NamespacePolicy.StoragePoolGCMethod.TTL)
+            {
+                model.ExpireAt = DateTime.UtcNow.Add(policy.DefaultTTL);
+            }
+
             FilterDefinition<MongoReferencesModelV0> filter = Builders<MongoReferencesModelV0>.Filter.Where(m => m.Ns == ns.ToString() && m.Bucket == bucket.ToString() && m.Key == key.ToString());
             FindOneAndReplaceOptions<MongoReferencesModelV0, MongoReferencesModelV0> options = new FindOneAndReplaceOptions<MongoReferencesModelV0, MongoReferencesModelV0>
             {
@@ -185,7 +200,7 @@ namespace Jupiter.Implementation
             return 0L;
         }
 
-        public void SetTTLDuration(TimeSpan duration)
+        public void SetLastAccessTTLDuration(TimeSpan duration)
         {
             IndexKeysDefinitionBuilder<MongoReferencesModelV0> indexKeysDefinitionBuilder = Builders<MongoReferencesModelV0>.IndexKeys;
             CreateIndexModel<MongoReferencesModelV0> indexTTL = new CreateIndexModel<MongoReferencesModelV0>(
@@ -243,6 +258,7 @@ namespace Jupiter.Implementation
         public DateTime LastAccessTime { get; set; }
 
         public byte[]? InlineBlob { get; set; }
+        public DateTime ExpireAt { get; set; } = DateTime.MaxValue;
 
         public ObjectRecord ToObjectRecord()
         {
