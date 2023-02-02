@@ -206,6 +206,15 @@ bool UDataLayerManager::SetDataLayerInstanceRuntimeState(const UDataLayerInstanc
 	return InDataLayerInstance ? InDataLayerInstance->SetRuntimeState(InState, bInIsRecursive) : false;
 }
 
+bool UDataLayerManager::SetDataLayerRuntimeState(const UDataLayerAsset* InDataLayerAsset, EDataLayerRuntimeState InState, bool bInIsRecursive)
+{
+	if (const UDataLayerInstance* DataLayerInstance = InDataLayerAsset ? GetDataLayerInstanceFromAsset(InDataLayerAsset) : nullptr)
+	{
+		return SetDataLayerInstanceRuntimeState(DataLayerInstance, InState, bInIsRecursive);
+	}
+	return false;
+}
+
 void UDataLayerManager::BroadcastOnDataLayerInstanceRuntimeStateChanged(const UDataLayerInstance* InDataLayer, EDataLayerRuntimeState InState)
 {
 	// For backward compatibility
