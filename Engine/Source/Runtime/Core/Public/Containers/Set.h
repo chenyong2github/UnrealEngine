@@ -258,6 +258,11 @@ public:
 	}
 };
 
+namespace UE::Core::Private
+{
+	CORE_API void OnInvalidSetNum(unsigned long long NewNum);
+}
+
 /**
  * A set with an optional KeyFuncs parameters for customizing how the elements are compared and searched.  
  * E.g. You can specify a mapping from elements to keys if you want to find elements by specifying a subset of 
@@ -290,6 +295,8 @@ public:
 	static_assert(std::is_same_v<SizeType, int32>, "TSet currently only supports 32-bit allocators");
 
 private:
+	using USizeType = std::make_unsigned_t<SizeType>;
+
 	template <typename, typename>
 	friend class TScriptSet;
 
@@ -497,8 +504,14 @@ public:
 	{
 		// makes sense only when Number > Elements.Num() since TSparseArray::Reserve 
 		// does any work only if that's the case
-		if (Number > Elements.Num())
+		if ((USizeType)Number > (USizeType)Elements.Num())
 		{
+			// Trap negative reserves
+			if (Number < 0)
+			{
+				UE::Core::Private::OnInvalidSetNum((unsigned long long)Number);
+			}
+
 			// Preallocates memory for array of elements
 			Elements.Reserve(Number);
 
