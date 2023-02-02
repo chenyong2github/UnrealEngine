@@ -188,6 +188,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 		return Algo::AnyOf(DataLayers, [&InDataLayers](const FName& DataLayer) { return InDataLayers.Contains(DataLayer); });
 	}
 	virtual FName GetLevelPackageName() const override;
+	virtual FString GetDebugName() const override;
 	//~End IWorldPartitionCell Interface
 
 	bool HasAnyDataLayerInEffectiveRuntimeState(EDataLayerRuntimeState InState) const;
@@ -282,7 +283,6 @@ public:
 	const FBox& GetContentBounds() const { return RuntimeCellData->GetContentBounds(); }
 	FBox GetCellBounds() const { return RuntimeCellData->GetCellBounds(); }
 	virtual bool IsDebugShown() const;
-	virtual FString GetDebugName() const { return RuntimeCellData->GetDebugName(); }
 	//~End UWorldPartitionRuntimeCellData Proxy
 
 	UPROPERTY()
