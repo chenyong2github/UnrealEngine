@@ -273,7 +273,7 @@ class FEmitSceneDepthPS : public FNaniteGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
@@ -521,7 +521,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteShadingPassParameters, )
 	RDG_BUFFER_ACCESS(MaterialIndirectArgs, ERHIAccess::IndirectArgs)
 	SHADER_PARAMETER(uint32, ActiveShadingBin)
 
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)	// To access VTFeedbackBuffer
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)	// To access VTFeedbackBuffer
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FNaniteUniformParameters, Nanite)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
@@ -896,7 +896,7 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 		Result.Nanite = GraphBuilder.CreateUniformBuffer(UniformParameters);
 	}
 
-	Result.View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
+	Result.View = View.GetShaderParameters(); // To get VTFeedbackBuffer
 	Result.BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures);
 	Result.ActiveShadingBin = ~uint32(0);
 
@@ -1709,7 +1709,7 @@ void EmitDepthTargets(
 			
 			auto* PassParameters = GraphBuilder.AllocParameters<FEmitSceneDepthPS::FParameters>();
 
-			PassParameters->View						= View.ViewUniformBuffer;
+			PassParameters->View						= View.GetShaderParameters();
 			PassParameters->InViews						= GraphBuilder.CreateSRV(ViewsBuffer);
 			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->PageConstants				= PageConstants;
@@ -2280,7 +2280,7 @@ void DrawLumenMeshCapturePass(
 		}
 
 		CardPagesToRender[0].PatchView(&Scene, SharedView);
-		PassParameters->Shading.View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+		PassParameters->Shading.View = SharedView->GetShaderParameters();
 		PassParameters->Shading.CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
 
 		TShaderMapRef<FNaniteMultiViewMaterialVS> NaniteVertexShader(SharedView->ShaderMap);
