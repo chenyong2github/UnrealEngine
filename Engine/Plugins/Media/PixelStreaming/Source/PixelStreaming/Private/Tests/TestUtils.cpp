@@ -261,6 +261,13 @@ namespace UE::PixelStreaming
 	TSharedPtr<FMockPlayer> CreatePlayer(FMockPlayer::EMode OfferMode)
 	{
 		TSharedPtr<FMockPlayer> OutPlayer = MakeShared<FMockPlayer>();
+
+		// We have to pass an existing shared ptr to the mockplayer or else we will end up with competing reference controllers
+		OutPlayer->SignallingServerConnection = MakeUnique<FPixelStreamingSignallingConnection>(OutPlayer, TEXT("FMockPlayer"));
+		UE::PixelStreaming::DoOnGameThreadAndWait(MAX_uint32, []() {
+			Settings::CVarPixelStreamingSuppressICECandidateErrors->Set(true, ECVF_SetByCode);
+		});
+
 		OutPlayer->SetMode(OfferMode);
 		return OutPlayer;
 	}

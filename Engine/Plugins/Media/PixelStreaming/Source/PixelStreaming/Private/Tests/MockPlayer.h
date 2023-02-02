@@ -70,15 +70,6 @@ namespace UE::PixelStreaming
 	class FMockPlayer : public IPixelStreamingSignallingConnectionObserver
 	{
 	public:
-		FMockPlayer()
-		{
-			SignallingServerConnection = MakeUnique<FPixelStreamingSignallingConnection>(MakeShareable(this), TEXT("FMockPlayer"));
-
-			UE::PixelStreaming::DoOnGameThreadAndWait(MAX_uint32, []() {
-				Settings::CVarPixelStreamingSuppressICECandidateErrors->Set(true, ECVF_SetByCode);
-			});
-		}
-
 		virtual ~FMockPlayer()
 		{
 			Disconnect();
