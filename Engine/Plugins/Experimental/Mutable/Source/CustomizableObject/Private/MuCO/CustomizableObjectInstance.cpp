@@ -1386,6 +1386,7 @@ UPhysicsAsset* UCustomizableInstancePrivateData::GetOrBuildPhysicsAsset(
 void SetMeshUVChannelDensity(FMeshUVChannelInfo& UVChannelInfo, float Density = 0.f)
 {
 	Density = Density > 0.f ? Density : 150.f;
+	Density = FMath::Max(100.0f, Density);
 
 	UVChannelInfo.bInitialized = true;
 	UVChannelInfo.bOverrideDensities = false;
