@@ -94,7 +94,7 @@ class FWorldPartitionStreamingGenerator
 				ActorSetContainer.ActorSets.Empty(ContainerDescriptor.Clusters.Num());
 				for (const TArray<FGuid>& Cluster : ContainerDescriptor.Clusters)
 				{
-					FActorSet& ActorSet = ActorSetContainer.ActorSets.Emplace_GetRef();
+					FActorSet& ActorSet = *ActorSetContainer.ActorSets.Add_GetRef(MakeUnique<FActorSet>()).Get();
 					ActorSet.Actors = Cluster;
 				}
 
@@ -111,8 +111,9 @@ class FWorldPartitionStreamingGenerator
 				const FContainerDescriptor& ContainerDescriptor = StreamingGenerator->ContainerDescriptorsMap.FindChecked(ContainerInstanceDescriptor.Container);
 				const FActorSetContainer& ActorSetContainer = ActorSetContainers[ActorSetContainerMap.FindChecked(ContainerInstanceDescriptor.Container)];
 
-				for (const FActorSet& ActorSet : ActorSetContainer.ActorSets)
+				for (const TUniquePtr<FActorSet>& ActorSetPtr : ActorSetContainer.ActorSets)
 				{
+					const FActorSet& ActorSet = *ActorSetPtr;
 					const FWorldPartitionActorDescView& ReferenceActorDescView = ActorSetContainer.ActorDescViewMap->FindByGuidChecked(ActorSet.Actors[0]);
 
 					// Validate assumptions

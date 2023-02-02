@@ -18,9 +18,18 @@ public:
 
 	struct ENGINE_API FActorSetContainer
 	{
+		FActorSetContainer()
+			: ActorDescViewMap(nullptr)
+			, ActorDescContainer(nullptr)
+		{}
+
+		// Non-copyable
+		FActorSetContainer(const FActorSetContainer&) = delete;
+		FActorSetContainer& operator=(const FActorSetContainer&) = delete;
+
 		const FActorDescViewMap* ActorDescViewMap;
 		const UActorDescContainer* ActorDescContainer;
-		TArray<FActorSet> ActorSets;
+		TArray<TUniquePtr<FActorSet>> ActorSets;
 	};
 
 	struct ENGINE_API FActorSetInstance
