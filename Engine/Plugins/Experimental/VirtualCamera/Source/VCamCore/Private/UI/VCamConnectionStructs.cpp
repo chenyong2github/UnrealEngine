@@ -2,8 +2,10 @@
 
 #include "UI/VCamConnectionStructs.h"
 
-#include "Algo/AllOf.h"
 #include "VCamComponent.h"
+
+#include "Algo/AllOf.h"
+#include "InputAction.h"
 
 DEFINE_LOG_CATEGORY(LogVCamConnection);
 
