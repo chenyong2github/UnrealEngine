@@ -107,9 +107,10 @@ EStateTreeRunStatus FGameplayInteractionSyncSlotTagTransitionTask::EnterState(FS
 	if (InstanceData.State != EGameplayInteractionSyncSlotTransitionState::Completed)
 	{
 		InstanceData.OnEventHandle = OnEventDelegate->AddLambda(
-			[this, &EventQueue, InstanceDataRef = Context.GetInstanceDataStructRef(*this), SmartObjectSubsystem = &SmartObjectSubsystem, Owner = Context.GetOwner()](const FSmartObjectEventData& Data) mutable
+			[this, TargetSlot = InstanceData.TargetSlot, &EventQueue, InstanceDataRef = Context.GetInstanceDataStructRef(*this), SmartObjectSubsystem = &SmartObjectSubsystem, Owner = Context.GetOwner()](const FSmartObjectEventData& Data) mutable
 			{
-				if (Data.Reason == ESmartObjectChangeReason::OnTagAdded)
+				if (TargetSlot == Data.SlotHandle
+					&& Data.Reason == ESmartObjectChangeReason::OnTagAdded)
 				{
 					check(InstanceDataRef.IsValid());
 					FInstanceDataType& InstanceData = *InstanceDataRef;

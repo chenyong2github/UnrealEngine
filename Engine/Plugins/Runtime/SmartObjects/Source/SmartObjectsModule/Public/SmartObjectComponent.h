@@ -11,6 +11,9 @@ namespace EEndPlayReason { enum Type : int; }
 
 class UAbilitySystemComponent;
 struct FSmartObjectRuntime;
+struct FSmartObjectComponentInstanceData;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSmartObjectComponentEventSignature, const FSmartObjectEventData&, EventData, const AActor*, Interactor);
 
 enum class ESmartObjectRegistrationType : uint8
 {
@@ -42,13 +45,24 @@ public:
 	void SetRegisteredHandle(const FSmartObjectHandle Value, const ESmartObjectRegistrationType InRegistrationType);
 	void InvalidateRegisteredHandle();
 
+	void OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeInstance);
+	void OnRuntimeInstanceUnbound(FSmartObjectRuntime& RuntimeInstance);
+
 #if WITH_EDITORONLY_DATA
 	static FOnSmartObjectChanged& GetOnSmartObjectChanged() { return OnSmartObjectChanged; }
 #endif // WITH_EDITORONLY_DATA
 
 protected:
-	friend struct FSmartObjectComponentInstanceData;
+	friend FSmartObjectComponentInstanceData;
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+
+	void OnRuntimeEventReceived(const FSmartObjectEventData& Event);
+	
+	UPROPERTY(BlueprintAssignable, Category = SmartObject, meta=(DisplayName = "OnSmartObjectEvent"))
+	FSmartObjectComponentEventSignature OnSmartObjectEvent;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = SmartObject, meta=(DisplayName = "OnSmartObjectEventReceived"))
+	void ReceiveOnEvent(const FSmartObjectEventData& EventData, const AActor* Interactor);
 
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
@@ -71,6 +85,8 @@ protected:
 
 	ESmartObjectRegistrationType RegistrationType = ESmartObjectRegistrationType::None;
 
+	FDelegateHandle EventDelegateHandle;
+	
 	/** 
 	 * Controls whether a given SmartObject can be aggregated in SmartObjectPersistentCollections. SOs in collections
 	 * can be queried and reasoned about even while the actual Actor and its components are not streamed in.

@@ -74,7 +74,7 @@ bool USmartObjectSimpleQueryTest::Run(ASmartObjectTestingActor& TestingActor)
 	RequestWithTransformedBox.QueryBox = Request.QueryBox.ShiftBy(TestingActor.GetActorLocation());
 
 	TArray<FSmartObjectRequestResult> NewResults;
-	TestingActor.GetSubsystemRef().FindSmartObjects(RequestWithTransformedBox, NewResults);
+	TestingActor.GetSubsystemRef().FindSmartObjects(RequestWithTransformedBox, NewResults, FConstStructView::Make(FSmartObjectActorUserData(&TestingActor)));
 
 	// Request redraw only when results differ from previous run
 	bool bResultsChanged = false;

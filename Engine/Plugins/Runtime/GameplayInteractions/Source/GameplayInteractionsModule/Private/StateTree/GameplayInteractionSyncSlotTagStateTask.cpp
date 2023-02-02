@@ -89,9 +89,10 @@ EStateTreeRunStatus FGameplayInteractionSyncSlotTagStateTask::EnterState(FStateT
 
 	if (!InstanceData.bBreakSignalled)
 	{
-		InstanceData.OnEventHandle = OnEventDelegate->AddLambda([this, InstanceDataRef = Context.GetInstanceDataStructRef(*this), &EventQueue, SmartObjectSubsystem = &SmartObjectSubsystem, Owner = Context.GetOwner()](const FSmartObjectEventData& Data) mutable
+		InstanceData.OnEventHandle = OnEventDelegate->AddLambda([TargetSlot = InstanceData.TargetSlot, this, InstanceDataRef = Context.GetInstanceDataStructRef(*this), &EventQueue, SmartObjectSubsystem = &SmartObjectSubsystem, Owner = Context.GetOwner()](const FSmartObjectEventData& Data) mutable
 		{
-			if (Data.Reason == ESmartObjectChangeReason::OnTagRemoved)
+			if (TargetSlot == Data.SlotHandle
+				&& Data.Reason == ESmartObjectChangeReason::OnTagRemoved)
 			{
 				check(InstanceDataRef.IsValid());
 				FInstanceDataType& InstanceData = *InstanceDataRef;

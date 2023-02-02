@@ -296,7 +296,7 @@ private:
 /**
  * Describes how Smart Object or slot was changed.
  */
-UENUM()
+UENUM(BlueprintType)
 enum class ESmartObjectChangeReason : uint8
 {
 	/** No Change. */
@@ -309,40 +309,94 @@ enum class ESmartObjectChangeReason : uint8
 	OnTagRemoved,
 	/** Slot was claimed. */
 	OnClaimed,
+	/** Slot is now occupied*/
+	OnOccupied,
 	/** Slot claim was released. */
 	OnReleased,
-	/** Object or slot was enabled. */
-	OnEnabled,
-	/** Object or slot was disabled. */
-	OnDisabled,
+	/** Slot was enabled. */
+	OnSlotEnabled,
+	/** Slot was disabled. */
+	OnSlotDisabled,
+	/** Object was enabled. */
+	OnObjectEnabled,
+	/** Object was disabled. */
+	OnObjectDisabled
 };
 
 /**
  * Strict describing a change in Smart Object or Slot. 
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectEventData
 {
 	GENERATED_BODY()
 
 	/** Handle to the changed Smart Object. */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "SmartObject")
 	FSmartObjectHandle SmartObjectHandle;
 
 	/** Handle to the changed slot, if invalid, the event is for the object. */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "SmartObject")
 	FSmartObjectSlotHandle SlotHandle;
 
 	/** Change reason. */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "SmartObject")
 	ESmartObjectChangeReason Reason = ESmartObjectChangeReason::None;
 
 	/** Added/Removed tag, or event tag, depending on Reason. */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "SmartObject")
 	FGameplayTag Tag;
 
-	/** Event payload. */
+	/**
+	 * Event payload.
+	 * For external event (i.e. SendSlotEvent) payload is provided by the caller.
+	 * For internal event types (e.g. OnClaimed, OnReleased, etc.)
+	 * payload is the user data struct provided on claim.
+	 **/
 	FConstStructView EventPayload;
+};
+
+/**
+ * Struct that can be used to pass data to the find or filtering methods.
+ * Properties will be used as user data to fill values expected by the world condition schema
+ * specified by the smart object definition.
+ *		e.g. FilterSlotsBySelectionConditions(SlotHandles, FConstStructView::Make(FSmartObjectActorUserData(Pawn)));
+ *
+ * It can be inherited from to provide additional data to another world condition schema inheriting
+ * from USmartObjectWorldConditionSchema.
+ *	e.g.
+ *		UCLASS()
+ *		class USmartObjectWorldConditionExtendedSchema : public USmartObjectWorldConditionSchema
+ *		{
+ *			...
+ *			USmartObjectWorldConditionExtendedSchema(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+ *			{
+ *				OtherActorRef = AddContextDataDesc(TEXT("OtherActor"), AActor::StaticClass(), EWorldConditionContextDataType::Dynamic);
+ *			}
+ *			
+ *			FWorldConditionContextDataRef OtherActorRef;
+ *		};
+ *
+ *		USTRUCT()
+ *		struct FSmartObjectActorExtendedUserData : public FSmartObjectActorUserData
+ *		{
+ *			UPROPERTY()
+ *			TWeakObjectPtr<const AActor> OtherActor = nullptr;
+ *		}
+ *
+ * The struct can also be used to be added to a Smart Object slot when it gets claimed.
+ *		e.g. Claim(SlotHandle, FConstStructView::Make(FSmartObjectActorUserData(Pawn)));
+ */
+USTRUCT()
+struct FSmartObjectActorUserData
+{
+	GENERATED_BODY()
+
+	FSmartObjectActorUserData() = default;
+	explicit FSmartObjectActorUserData(const AActor* InUserActor) : UserActor(InUserActor) {}
+
+	UPROPERTY()
+	TWeakObjectPtr<const AActor> UserActor = nullptr;
 };
 
 /** Delegate called when Smart Object or Slot is changed. */

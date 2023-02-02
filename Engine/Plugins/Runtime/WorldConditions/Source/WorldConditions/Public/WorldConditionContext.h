@@ -83,6 +83,19 @@ struct WORLDCONDITIONS_API FWorldConditionContextData
 		}
 	}
 
+	/** Sets context data from a struct view at location specified by Ref. */
+	bool SetContextData(const FWorldConditionContextDataRef& Ref, const FConstStructView StructView)
+	{
+		check(Schema);
+		if (Ref.IsValid())
+		{
+			checkSlow(StructView.GetScriptStruct()->IsChildOf(Schema->GetContextDataDescByRef(Ref)->Struct));
+			Views[Ref.GetIndex()] = FWorldConditionDataView(StructView, Schema->GetContextDataTypeByRef(Ref));
+			return true;
+		}
+		return false;
+	}
+	
 	/** Sets context data Struct at location specified by Ref. */
 	template <typename T>
 	typename TEnableIf<!TIsDerivedFrom<T, UObject>::IsDerived, bool>::Type SetContextData(const FWorldConditionContextDataRef& Ref, const T* Value)

@@ -141,12 +141,6 @@ public:
 	/** @return True if the slot can be claimed. */
 	bool CanBeClaimed() const { return IsEnabled() && State == ESmartObjectSlotState::Free; }
 
-	/** @return reference to the slot event delegate. */
-	const FOnSmartObjectEvent& GetEventDelegate() const { return OnEvent; }
-
-	/** @return mutable reference to the slot event delegate. */
-	FOnSmartObjectEvent& GetMutableEventDelegate() { return OnEvent; }
-
 	/** @return the runtime gameplay tags of the slot. */
 	const FGameplayTagContainer& GetTags() const { return Tags; }
 
@@ -155,7 +149,10 @@ public:
 
 	/** @return Handle of the owner runtime object. */
 	FSmartObjectHandle GetOwnerRuntimeObject() const { return RuntimeObjectHandle; }
-	
+
+	/** @return User data struct that can be associated to the slot when claimed or used. */
+	FConstStructView GetUserData() const { return UserData; }
+
 protected:
 	/** Struct could have been nested inside the subsystem but not possible with USTRUCT */
 	friend class USmartObjectSubsystem;
@@ -163,7 +160,7 @@ protected:
 
 	bool Claim(const FSmartObjectUserHandle& InUser);
 	bool Release(const FSmartObjectClaimHandle& ClaimHandle, const bool bAborted);
-	
+
 	friend FString LexToString(const FSmartObjectRuntimeSlot& Slot)
 	{
 		return FString::Printf(TEXT("User:%s State:%s"), *LexToString(Slot.User), *UEnum::GetValueAsString(Slot.State));
@@ -172,8 +169,8 @@ protected:
 	/** Runtime tags associated with this slot. */
 	FGameplayTagContainer Tags;
 
-	/** Multicast delegate that is fired when the slot state changes. */
-	FOnSmartObjectEvent OnEvent;
+	/** Struct used to store contextual data of the user when claiming or using a slot. */
+	FInstancedStruct UserData;
 
 	/** Delegate used to notify when a slot gets invalidated. See RegisterSlotInvalidationCallback */
 	FOnSlotInvalidated OnSlotInvalidatedDelegate;

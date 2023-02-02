@@ -3,6 +3,7 @@
 #include "SmartObjectComponent.h"
 
 #include "SmartObjectSubsystem.h"
+#include "VisualLogger/VisualLogger.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectComponent)
 
@@ -107,7 +108,7 @@ void USmartObjectComponent::OnUnregister()
 	}
 
 	if (GetRegisteredHandle().IsValid())
-	{	
+	{
 		if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
 		{
 			if (!IsBeingDestroyed())
@@ -166,6 +167,20 @@ void USmartObjectComponent::InvalidateRegisteredHandle()
 	RegistrationType = ESmartObjectRegistrationType::None;
 }
 
+void USmartObjectComponent::OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeInstance)
+{
+	EventDelegateHandle = RuntimeInstance.GetMutableEventDelegate().AddUObject(this, &USmartObjectComponent::OnRuntimeEventReceived);
+}
+
+void USmartObjectComponent::OnRuntimeInstanceUnbound(FSmartObjectRuntime& RuntimeInstance)
+{
+	if (EventDelegateHandle.IsValid())
+	{
+		RuntimeInstance.GetMutableEventDelegate().Remove(EventDelegateHandle);
+		EventDelegateHandle.Reset();
+	}
+}
+
 TStructOnScope<FActorComponentInstanceData> USmartObjectComponent::GetComponentInstanceData() const
 {
 	return MakeStructOnScope<FActorComponentInstanceData, FSmartObjectComponentInstanceData>(this, DefinitionAsset);
@@ -219,3 +234,18 @@ void FSmartObjectComponentInstanceData::ApplyToComponent(UActorComponent* Compon
 	Super::ApplyToComponent(Component, CacheApplyPhase);
 }
 
+void USmartObjectComponent::OnRuntimeEventReceived(const FSmartObjectEventData& Event)
+{
+	const AActor* Interactor = nullptr;
+	if (const FSmartObjectActorUserData* ActorUser = Event.EventPayload.GetPtr<FSmartObjectActorUserData>())
+	{
+		Interactor = ActorUser->UserActor.Get();
+	}
+					
+	UE_CVLOG_LOCATION(Interactor != nullptr, USmartObjectSubsystem::GetCurrent(GetWorld()), LogSmartObject, Display,
+		Interactor->GetActorLocation(), /*Radius*/25.f, FColor::Green, TEXT("%s: %s. Interactor: %s"),
+		*GetNameSafe(GetOwner()), *UEnum::GetValueAsString(Event.Reason), *GetNameSafe(Interactor));
+
+	ReceiveOnEvent(Event, Interactor);
+	OnSmartObjectEvent.Broadcast(Event, Interactor);
+}

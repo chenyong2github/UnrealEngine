@@ -254,7 +254,7 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(FMassEntityManager& Enti
 
 					// Make sure that we can use a slot in that object (availability with supported definitions, etc.)
 					TArray<FSmartObjectSlotHandle> SlotHandles;
-					SmartObjectSubsystem.FindSlots(Handle, Filter, SlotHandles);
+					SmartObjectSubsystem.FindSlots(Handle, Filter, SlotHandles, FConstStructView::Make(FSmartObjectMassEntityUserData(Entity)));
 
 					if (SlotHandles.IsEmpty())
 					{

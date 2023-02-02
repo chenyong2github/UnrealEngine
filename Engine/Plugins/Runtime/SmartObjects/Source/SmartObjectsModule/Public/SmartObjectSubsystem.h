@@ -4,8 +4,8 @@
 
 #include "SmartObjectPersistentCollection.h"
 #include "SmartObjectRuntime.h"
-#include "Subsystems/WorldSubsystem.h"
 #include "WorldConditionContext.h"
+#include "Subsystems/WorldSubsystem.h"
 #include "SmartObjectSubsystem.generated.h"
 
 class UCanvas;
@@ -42,6 +42,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Pointer to the Actor requesting the Smart Object slot (Optional). */
+	UE_DEPRECATED(5.3, "User actor is no longer provided by the request filter. Instead you must provide user data struct to claim find objects or use filter methods.")
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> UserActor = nullptr;
 
@@ -68,6 +69,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * If set, will pass the context data for the selection preconditions.
 	 * Any SmartObject that has selection preconditions but does not match the schema set the in the context data will be skipped.
 	 */
+	UE_DEPRECATED(5.3, "Condition context data is no longer provided by the request filter. Instead you must provide user data struct to find objects or use filter methods.")
 	FWorldConditionContextData ConditionContextData;
 };
 
@@ -188,7 +190,8 @@ public:
 	 * Enables or disables all smart objects associated to the provided actor (multiple components).
 	 * @param SmartObjectActor Smart object(s) parent actor.
 	 * @param bEnabled If true enables, disables otherwise.
-	 * @return True if all (at least one) smartobject components are found with their associated runtime and values set (or alredy set) to desired state; false otherwise.
+	 * @return True if all (at least one) smartobject components are found with their associated
+	 * runtime and values set (or already set) to desired state; false otherwise.
 	 */
 	bool SetSmartObjectActorEnabled(const AActor& SmartObjectActor, bool bEnabled);
 
@@ -262,27 +265,57 @@ public:
 	USmartObjectComponent* GetSmartObjectComponentByRequestResult(const FSmartObjectRequestResult& Result) const;
 
 	/**
-	 * Spatial lookup
+	 * Spatial lookup for first slot in range respecting request criteria and selection conditions.
+	 * @param Request Parameters defining the search area and criteria
+	 * @param UserData Additional data that could be provided to bind values in the conditions evaluation context
+	 * @return First valid smart object in range. Not the closest one, just the one
+	 *		that happens to be retrieved first from space partition
+	 */
+	[[nodiscard]] FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request, const FConstStructView UserData) const;
+
+	/**
+	 * Spatial lookup for slot candidates respecting request criteria and selection conditions.
+	 * @param Request Parameters defining the search area and criteria
+	 * @param OutResults List of smart object slot candidates found in range
+	 * @param UserData Additional data that could be provided to bind values in the conditions evaluation context
+	 * @return True if at least one candidate was found.
+	 */
+	bool FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults, const FConstStructView UserData) const;
+	
+	/**
+	 * Spatial lookup for first slot in range respecting request criteria and selection conditions.
+	 * @param Request Parameters defining the search area and criteria
+	 * @param UserActor Actor claiming the smart object used to evaluate selection conditions
 	 * @return First valid smart object in range. Not the closest one, just the one
 	 *		that happens to be retrieved first from space partition
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request) const;
+	FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request, const AActor* UserActor = nullptr) const
+	{
+		return FindSmartObject(Request, FConstStructView::Make(FSmartObjectActorUserData(UserActor)));
+	}
 
 	/**
-	 * Spatial lookup
+	* Spatial lookup for slot candidates respecting request criteria and selection conditions.
+	 * @param Request Parameters defining the search area and criteria
+	 * @param OutResults List of smart object slot candidates
+	 * @param UserActor Actor claiming the smart object
 	 * @return All valid smart objects in range.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	bool FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults) const;
+	bool FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults, const AActor* UserActor = nullptr) const
+	{
+		return FindSmartObjects(Request, OutResults, FConstStructView::Make(FSmartObjectActorUserData(UserActor)));
+	}
 
 	/**
 	 * Returns slots of a given smart object matching the filter.
 	 * @param Handle Handle to the smart object.
 	 * @param Filter Filter to apply on object and slots.
 	 * @param OutSlots Available slots found that match the filter
+	 * @param UserData Optional additional data that could be provided to bind values in the conditions evaluation context
 	 */
-	void FindSlots(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutSlots) const;
+	void FindSlots(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutSlots, const FConstStructView UserData = {}) const;
 
 	/**
 	 * Return all slots of a given smart object.
@@ -292,20 +325,69 @@ public:
 	void GetAllSlots(const FSmartObjectHandle Handle, TArray<FSmartObjectSlotHandle>& OutSlots) const;
 
 	/**
+	 * Evaluates conditions of each slot and add to the result array on success.
+	 * Optional user data can be provided to bind parameters in evaluation context based
+	 * on the schema used by the object definition.
+	 * @param SlotsToFilter List of slot handles to apply selection conditions on
+	 * @param UserData Additional data that could be provided to bind values in the conditions evaluation context
+	 * @return List of slot handles that pass all their selection conditions
+	 */
+	[[nodiscard]] TArray<FSmartObjectSlotHandle> FilterSlotsBySelectionConditions(
+		const TConstArrayView<FSmartObjectSlotHandle>& SlotsToFilter,
+		const FConstStructView UserData
+		) const;
+	
+	/**
+	 * Evaluates conditions of the slot specified by each request result and add to the result array on success.
+	 * Optional user data can be provided to bind parameters in evaluation context based
+	 * on the schema used by the object definition.
+	 * @param ResultsToFilter List of request results to apply selection conditions on
+	 * @param UserData The additional data that could be bound in the conditions evaluation context
+	 * @return List of request results that pass all their selection conditions
+	 */
+	[[nodiscard]] TArray<FSmartObjectRequestResult> FilterResultsBySelectionConditions(
+		const TConstArrayView<FSmartObjectRequestResult>& ResultsToFilter,
+		const FConstStructView UserData
+		) const;
+
+	/**
+	 * Evaluates conditions of the specified slot and its parent smart object.
+	 * Optional user data can be provided to bind parameters in evaluation context based
+	 * on the schema used by the object definition.
+	 * @param SlotHandle Handle to the smart object slot
+	 * @param UserData Additional data that could be provided to bind values in the conditions evaluation context
+	 * @return True if all conditions are met; false otherwise
+	 */
+	[[nodiscard]] bool EvaluateSelectionConditions(const FSmartObjectSlotHandle SlotHandle, const FConstStructView UserData) const;
+	
+	/**
 	 * Claims smart object from a request result.
 	 * @param RequestResult Request result for given smart object and slot index.
+	 * @param UserActor Actor claiming the smart object
 	 * @return A handle binding the claimed smart object, its slot and a user id.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult) { return Claim(RequestResult.SmartObjectHandle, RequestResult.SlotHandle); }
+	FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult, const AActor* UserActor = nullptr)
+	{
+		return Claim(RequestResult.SlotHandle, FConstStructView::Make(FSmartObjectActorUserData(UserActor)));
+	}
 
+	/**
+	 * Claim smart object slot.
+	 * @param SlotHandle Handle to a smart object slot.
+	 * @param UserData Instanced struct that represents the interacting agent.
+	 * @return A handle binding the claimed smart object, its slot and a user id.
+	 */
+	[[nodiscard]] FSmartObjectClaimHandle Claim(const FSmartObjectSlotHandle SlotHandle, const FConstStructView UserData = {});
+	
 	/**
 	 * Claim smart object from object and slot handles.
 	 * @param Handle Handle to the smart object.
 	 * @param SlotHandle Handle to a smart object slot.
 	 * @return A handle binding the claimed smart object, its slot and a user id.
 	 */
-	UE_NODISCARD FSmartObjectClaimHandle Claim(const FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle);
+	UE_DEPRECATED(5.3, "Please use the overload passing only the slot handle")
+	[[nodiscard]] FSmartObjectClaimHandle Claim(const FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle) { return Claim(SlotHandle, {}); }
 
 	/**
 	 * Claim smart object from object and slot handles.
@@ -313,7 +395,8 @@ public:
 	 * @param Filter Optional filter to apply on object and slots.
 	 * @return A handle binding the claimed smart object, its slot and a user id.
 	 */
-	UE_NODISCARD FSmartObjectClaimHandle Claim(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter = {});
+	 UE_DEPRECATED(5.3, "Please use both FindSlots and the Claim overload using only the slot handle. This will allow proper support of selection conditions.")
+	[[nodiscard]] FSmartObjectClaimHandle Claim(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter);
 	
 	/**
 	 * Indicates if the object referred to by the given handle is still accessible in the simulation.
@@ -351,10 +434,12 @@ public:
 	const USmartObjectBehaviorDefinition* Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	/**
-	 * Checks whether given slot is free and can be claimed
+	 * Checks whether given slot is free and can be claimed (i.e. slot and its parent are both enabled)
+	 * @note This methods doesn't evaluate the selection conditions. EvaluateSelectionConditions must be called separately.
 	 * @return true if the indicated slot can be claimed, false otherwise
+	 * @see EvaluateSelectionConditions
 	 */
-	UE_NODISCARD bool CanBeClaimed(const FSmartObjectSlotHandle SlotHandle) const;
+	[[nodiscard]] bool CanBeClaimed(const FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
 	 * Start using a claimed smart object slot.
@@ -383,7 +468,10 @@ public:
 	 * @return The base class pointer of the requested behavior definition class associated to the slotClaim handle
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
+	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(
+		const FSmartObjectClaimHandle& ClaimHandle,
+		const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+		);
 
 	/**
 	 * Return the behavior definition of a given type from a claimed object.
@@ -404,7 +492,10 @@ public:
 	 * @return The base class pointer of the requested behavior definition class associated to the request result
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	const USmartObjectBehaviorDefinition* GetBehaviorDefinitionByRequestResult(const FSmartObjectRequestResult& RequestResult, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
+	const USmartObjectBehaviorDefinition* GetBehaviorDefinitionByRequestResult(
+		const FSmartObjectRequestResult& RequestResult,
+		const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+		);
 
 	/**
 	 * Return the behavior definition of a given type from a claimed object.
@@ -587,7 +678,8 @@ public:
 	bool SendSlotEvent(const FSmartObjectSlotHandle SlotHandle, const FGameplayTag EventTag, const FConstStructView Payload = FConstStructView());
 
 	/**
-	 * Returns pointer to the smart object slot changed delegate by the provided handle.
+	 * Returns pointer to the smart object changed delegate associated to the provided handle.
+	 * The delegate is shared for all slots so listeners must filter using 'Event.SlotHandle'.
 	 * @param SlotHandle Handle to the smart object slot.
 	 * @return Pointer to slot's delegate, or nullptr if slot does not exists.
 	 */
@@ -704,19 +796,38 @@ protected:
 	 */
 	FSmartObjectRuntime* GetValidatedMutableRuntime(const FSmartObjectHandle Handle, const TCHAR* Context) const;
 
-	void AddTagToInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
-	void RemoveTagFromInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
-	void OnSlotChanged(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRuntimeSlot& Slot, const FSmartObjectSlotHandle SlotHandle, const ESmartObjectChangeReason Reason, const FGameplayTag ChangedTag = FGameplayTag()) const;
+	static void AddTagToInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
+	static void RemoveTagFromInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
+	static void OnSlotChanged(
+		const FSmartObjectRuntime& SmartObjectRuntime,
+		const FSmartObjectRuntimeSlot& Slot,
+		const FSmartObjectSlotHandle SlotHandle,
+		const ESmartObjectChangeReason Reason,
+		const FConstStructView Payload = {},
+		const FGameplayTag ChangedTag = FGameplayTag()
+		);
 
 	/** Goes through all defined slots of smart object represented by SmartObjectRuntime and finds the ones matching the filter. */
-	void FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults) const;
+	void FindSlots(
+		const FSmartObjectRuntime& SmartObjectRuntime,
+		const FSmartObjectRequestFilter& Filter,
+		 TArray<FSmartObjectSlotHandle>& OutResults,
+		 const FConstStructView UserData) const;
 
 	/** Applies filter on provided definition and fills OutValidIndices with indices of all valid slots. */
 	static void FindMatchingSlotDefinitionIndices(const USmartObjectDefinition& Definition, const FSmartObjectRequestFilter& Filter, TArray<int32>& OutValidIndices);
 
-	static const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectSlotHandle SlotHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
+	static const USmartObjectBehaviorDefinition* GetBehaviorDefinition(
+		const FSmartObjectRuntime& SmartObjectRuntime,
+		const FSmartObjectSlotHandle SlotHandle,
+		const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+		);
 
-	const USmartObjectBehaviorDefinition* Use(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
+	const USmartObjectBehaviorDefinition* Use(
+		const FSmartObjectRuntime& SmartObjectRuntime,
+		const FSmartObjectClaimHandle& ClaimHandle,
+		const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+		);
 
 	void AbortAll(const FSmartObjectRuntime& SmartObjectRuntime);
 
@@ -730,15 +841,28 @@ protected:
 	/**
 	 * Registers a collection entry to the simulation and creates its associated runtime instance.
 	 */
-	FSmartObjectRuntime* AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition, USmartObjectComponent* OwnerComponent, const bool bCommitChanges = true);
+	FSmartObjectRuntime* AddCollectionEntryToSimulation(
+		const FSmartObjectCollectionEntry& Entry,
+		const USmartObjectDefinition& Definition,
+		USmartObjectComponent* OwnerComponent,
+		const bool bCommitChanges = true
+		);
 
 	/**
 	 * Registers a collection entry to the simulation and creates its associated runtime instance.
 	 * @param SmartObjectComponent The component to add to the simulation and for which a runtime entry might be created or an existing one found
 	 * @param CollectionEntry The associated collection entry that got created to add the component to the simulation.
+	 * @param bCommitChanges Indicates if deferred commands must be flushed. Set to 'true' by default but could be set to 'false' when adding batch of components.
 	 */
-	FSmartObjectRuntime* AddComponentToSimulation(USmartObjectComponent& SmartObjectComponent, const FSmartObjectCollectionEntry& CollectionEntry, const bool bCommitChanges = true);
+	FSmartObjectRuntime* AddComponentToSimulation(
+		USmartObjectComponent& SmartObjectComponent,
+		const FSmartObjectCollectionEntry& CollectionEntry,
+		const bool bCommitChanges = true
+		);
 
+	/** Notifies SmartObjectComponent that it has been bound to a runtime instance, and sets SmartObjectComponent-related properties of SmartObjectRuntime */
+	void BindComponentToSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime);
+	
 	/**
 	 * Unbinds a smartobject component from an existing instance in the simulation.
 	 * @param SmartObjectComponent The component to remove from the simulation
@@ -751,22 +875,29 @@ protected:
 	 * @param SmartObjectComponent The component to remove from the simulation
 	 * @param SmartObjectRuntime runtime data representing the component being removed
 	 */
-	void UnbindComponentFromSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime);
+	static void UnbindComponentFromSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime);
 
 	/** @return whether the removal was successful */
 	bool RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle);
 	bool RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry);
-	void RemoveComponentFromSimulation(USmartObjectComponent& SmartObjectComponent);
+	void RemoveComponentFromSimulation(const USmartObjectComponent& SmartObjectComponent);
 
 	/** Destroy SmartObjectRuntime contents as Handle's representation. */
-	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef);
+	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime, const FMassEntityManager& EntityManagerRef);
 
 	/**
 	 * Fills the provided context data with the smartobject actor and handle associated to 'SmartObjectRuntime' and the subsystem. 
-	 * @param ConditionContextData The context data to fill
+	 * @param ContextData The context data to fill
 	 * @param SmartObjectRuntime The runtime instance of the SmartObject for which the context must be filled 
 	 */
-	void SetupConditionContextCommonData(FWorldConditionContextData& ConditionContextData, const FSmartObjectRuntime& SmartObjectRuntime) const;
+	void SetupConditionContextCommonData(FWorldConditionContextData& ContextData, const FSmartObjectRuntime& SmartObjectRuntime) const;
+
+	/**
+	 * Binds properties of the context data to property values of the user data struct when they match type and name.
+	 * @param ContextData The context data to fill
+	 * @param UserData Additional data that could be provided to bind values in the conditions evaluation context
+	 */
+	void BindPropertiesFromStruct(FWorldConditionContextData& ContextData, const FConstStructView& UserData) const;
 
 	/**
 	 * Use the provided context data that is expected to be already filled by calling 'SetupConditionContextCommonData'
@@ -777,7 +908,11 @@ protected:
 	 * @return True if all conditions are met; false otherwise
 	 * @see SetupDefaultConditionsContext
 	 */
-	UE_NODISCARD bool EvaluateSlotConditions(FWorldConditionContextData& ConditionContextData, const FSmartObjectSlotHandle& SlotHandle, const FSmartObjectRuntimeSlot& Slot) const;\
+	[[nodiscard]] bool EvaluateSlotConditions(
+		FWorldConditionContextData& ConditionContextData,
+		const FSmartObjectSlotHandle SlotHandle,
+		const FSmartObjectRuntimeSlot& Slot
+		) const;
 
 	/**
 	 * Use the provided context data that is expected to be already filled by calling 'SetupConditionContextCommonData'
@@ -786,8 +921,19 @@ protected:
 	 * @param SmartObjectRuntime Runtime data representing the smart object for which the conditions must be evaluated
 	 * @return True if all conditions are met; false otherwise
 	 */
-	UE_NODISCARD bool EvaluateObjectConditions(const FWorldConditionContextData& ConditionContextData, const FSmartObjectRuntime& SmartObjectRuntime) const;
+	[[nodiscard]] bool EvaluateObjectConditions(const FWorldConditionContextData& ConditionContextData, const FSmartObjectRuntime& SmartObjectRuntime) const;
 
+	/**
+	 * Internal helper for filter methods to build the list of accepted slots
+	 * by reusing context data and schema as much as possible.
+	 */
+	[[nodiscard]] bool EvaluateConditionsForFiltering(
+		const FSmartObjectSlotHandle SlotHandle,
+		FWorldConditionContextData& ContextData,
+		const FConstStructView UserData,
+		TPair<const FSmartObjectRuntime*, bool>& LastEvaluatedRuntime
+		) const;	
+	
 	/**
 	 * Name of the Space partition class to use.
 	 * Usage:
@@ -844,12 +990,12 @@ protected:
 
 	friend class ASmartObjectPersistentCollection;
 
-	void PopulateCollection(ASmartObjectPersistentCollection& InCollection);
+	void PopulateCollection(ASmartObjectPersistentCollection& InCollection) const;
 
 	/** Iteratively adds items to registered collections. Expected to be called in World Partitined worlds. */
 	void IterativelyBuildCollections();
 
-	int32 GetRegisteredSmartObjectsCompatibleWithCollection(ASmartObjectPersistentCollection& InCollection, TArray<USmartObjectComponent*>& OutRelevantComponents) const;
+	int32 GetRegisteredSmartObjectsCompatibleWithCollection(const ASmartObjectPersistentCollection& InCollection, TArray<USmartObjectComponent*>& OutRelevantComponents) const;
 
 	/**
 	 * Compute bounds from the given world 

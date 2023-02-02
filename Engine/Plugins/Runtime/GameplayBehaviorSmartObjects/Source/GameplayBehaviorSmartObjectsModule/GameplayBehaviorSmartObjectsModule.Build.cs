@@ -28,7 +28,8 @@ public class GameplayBehaviorSmartObjectsModule : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"MassEntity"
+				"MassEntity",
+				"StructUtils"
 			}
 			);
 	}

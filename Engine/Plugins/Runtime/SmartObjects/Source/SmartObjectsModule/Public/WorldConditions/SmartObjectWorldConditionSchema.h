@@ -6,7 +6,7 @@
 #include "SmartObjectWorldConditionSchema.generated.h"
 
 /**
- * World Condition schema describing the data conditons and context data available for Smart Object conditions.
+ * World Condition schema describing the data conditions and context data available for Smart Object conditions.
  */
 UCLASS()
 class SMARTOBJECTSMODULE_API USmartObjectWorldConditionSchema : public UWorldConditionSchema
@@ -17,10 +17,7 @@ public:
 	
 	/** Context data reference for accessing SmartObject request's UserActor. */
 	FWorldConditionContextDataRef GetUserActorRef() const { return UserActorRef; };
-	
-	/** Context data reference for accessing SmartObject request's UserTags. */
-	FWorldConditionContextDataRef GetUserTagsRef() const { return UserTagsRef; };
-	
+
 	/** Context data reference for accessing SmartObject owner Actor. */
 	FWorldConditionContextDataRef GetSmartObjectActorRef() const { return SmartObjectActorRef; };
 	
@@ -40,7 +37,6 @@ protected:
 private:
 
 	FWorldConditionContextDataRef UserActorRef;
-	FWorldConditionContextDataRef UserTagsRef;
 	FWorldConditionContextDataRef SmartObjectActorRef;
 	FWorldConditionContextDataRef SmartObjectHandleRef;
 	FWorldConditionContextDataRef SlotHandleRef;

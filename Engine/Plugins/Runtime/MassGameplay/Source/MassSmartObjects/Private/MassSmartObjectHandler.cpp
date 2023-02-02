@@ -155,7 +155,7 @@ FSmartObjectClaimHandle FMassSmartObjectHandler::ClaimCandidate(const FMassEntit
 
 FSmartObjectClaimHandle FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectRequestResult& RequestResult) const
 {
-	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.Claim(RequestResult);
+	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.Claim(RequestResult.SlotHandle, FConstStructView::Make(FSmartObjectMassEntityUserData(Entity)));
 
 #if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),

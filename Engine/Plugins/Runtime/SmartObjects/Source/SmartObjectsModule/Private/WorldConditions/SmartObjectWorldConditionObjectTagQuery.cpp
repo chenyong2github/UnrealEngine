@@ -2,6 +2,7 @@
 
 #include "WorldConditions/SmartObjectWorldConditionObjectTagQuery.h"
 #include "SmartObjectSubsystem.h"
+#include "WorldConditionContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectWorldConditionObjectTagQuery)
 
@@ -46,8 +47,9 @@ bool FSmartObjectWorldConditionObjectTagQuery::Activate(const FWorldConditionCon
 				FStateType& State = Context.GetState(*this);
 				State.DelegateHandle = Delegate->AddLambda([InvalidationHandle = Context.GetInvalidationHandle(*this)](const FSmartObjectEventData& Event)
 				{
-					if (Event.Reason == ESmartObjectChangeReason::OnTagAdded
-						|| Event.Reason == ESmartObjectChangeReason::OnTagRemoved)
+					if (Event.SlotHandle.IsValid() == false
+						&& (Event.Reason == ESmartObjectChangeReason::OnTagAdded
+							|| Event.Reason == ESmartObjectChangeReason::OnTagRemoved))
 					{
 						InvalidationHandle.InvalidateResult();
 					}

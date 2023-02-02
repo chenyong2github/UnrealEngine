@@ -56,7 +56,7 @@ EBTNodeResult::Type UBTTask_FindAndUseGameplayBehaviorSmartObject::ExecuteTask(U
 		// Create filter
 		FSmartObjectRequestFilter Filter;
 		Filter.ActivityRequirements = ActivityRequirements;
-	Filter.BehaviorDefinitionClasses = { UGameplayBehaviorSmartObjectBehaviorDefinition::StaticClass() };
+		Filter.BehaviorDefinitionClasses = { UGameplayBehaviorSmartObjectBehaviorDefinition::StaticClass() };
 		const IGameplayTagAssetInterface* TagsSource = Cast<const IGameplayTagAssetInterface>(&Avatar);
 		if (TagsSource != nullptr)
 		{
@@ -65,13 +65,15 @@ EBTNodeResult::Type UBTTask_FindAndUseGameplayBehaviorSmartObject::ExecuteTask(U
 
 		// Create request
 		FSmartObjectRequest Request(FBox(UserLocation, UserLocation).ExpandBy(FVector(Radius), FVector(Radius)), Filter);
-		TArray<FSmartObjectRequestResult> Results; 
+		TArray<FSmartObjectRequestResult> Results;
+		const FSmartObjectActorUserData ActorUserData(&Avatar);
+		const FConstStructView ActorUserDataView(FConstStructView::Make(ActorUserData));
 	
-		if (SmartObjectSubsystem->FindSmartObjects(Request, Results))
+		if (SmartObjectSubsystem->FindSmartObjects(Request, Results, ActorUserDataView))
 		{
 			for (const FSmartObjectRequestResult& Result : Results)
 			{
-				FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(Result);
+				FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(Result.SlotHandle, ActorUserDataView);
 				if (ClaimHandle.IsValid())
 				{
 					UseClaimedSmartObject(OwnerComp, ClaimHandle, *MyMemory);
@@ -210,11 +212,14 @@ void UBTTask_FindAndUseGameplayBehaviorSmartObject::OnQueryFinished(TSharedPtr<F
 		}
 		else if (USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(MyOwner->GetWorld()))
 		{
+			const FSmartObjectActorUserData ActorUserData(Result->Owner.Get());
+			const FConstStructView ActorUserDataView(FConstStructView::Make(ActorUserData));
+
 			// we could use QueryResult.GetItemAsTypeChecked, but the below implementation is more efficient
 			for (int i = 0; i < QueryResult.Items.Num(); ++i)
 			{
 				const FSmartObjectSlotEQSItem& Item = UEnvQueryItemType_SmartObject::GetValue(QueryResult.GetItemRawMemory(i));
-				const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(Item.SmartObjectHandle, Item.SlotHandle);
+				const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(Item.SlotHandle, ActorUserDataView);
 				if (ClaimHandle.IsValid())
 				{
 					UseClaimedSmartObject(*BTComponent, ClaimHandle, *MyMemory);

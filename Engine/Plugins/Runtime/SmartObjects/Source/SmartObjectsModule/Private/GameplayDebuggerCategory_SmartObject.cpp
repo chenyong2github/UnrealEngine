@@ -76,7 +76,6 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 	const TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot>& Entries = Subsystem->DebugGetRuntimeSlots();
 	for (auto& LookupEntry : Entries)
 	{
-		const FSmartObjectSlotHandle SlotHandle = LookupEntry.Key;
 		const FSmartObjectRuntimeSlot& SlotState = LookupEntry.Value;
 
 		FSmartObjectSlotView View = Subsystem->GetSlotView(LookupEntry.Key);
@@ -130,6 +129,15 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		{
 			// Using small dummy shape to display tags
 			AddShape(FGameplayDebuggerShape::MakePoint(Pos, /*Radius*/ 1.0f, FColorList::White, TagsAsString));
+		}
+
+		// Look if the slot has an active user; if so and it's an actor then display a segment between it and the slot.
+		if (const FSmartObjectActorUserData* ActorUser = SlotState.GetUserData().GetPtr<FSmartObjectActorUserData>())
+		{
+			if (const AActor* Actor = ActorUser->UserActor.Get())
+			{
+				AddShape(FGameplayDebuggerShape::MakeSegment(Pos, Actor->GetActorLocation(), DebugArrowThickness, DebugColor, GetNameSafe(Actor)));
+			}
 		}
 	}
 }

@@ -60,12 +60,15 @@ public:
 	/** @return Context data descriptor of specified index. */
 	const FWorldConditionContextDataDesc& GetContextDataDescByIndex(const int32 Index) const;
 
-	/** @return Context Data type based on reference. */
+	/** @return Context data type based on reference. */
 	EWorldConditionContextDataType GetContextDataTypeByRef(const FWorldConditionContextDataRef& Ref) const;
 
-	/** @return Context Data type based on index. */
+	/** @return Context data type based on index. */
 	EWorldConditionContextDataType GetContextDataTypeByIndex(const int32 Index) const;
 
+	/** @return Context data reference of specific name and type. */
+	FWorldConditionContextDataRef GetContextDataRefByName(const FName DataName, const UStruct* Struct) const;
+	
 	/** @return Context data index by name. */
 	int32 GetContextDataIndexByName(const FName DataName, const UStruct* Struct) const;
 

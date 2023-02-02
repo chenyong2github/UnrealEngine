@@ -46,9 +46,9 @@ EStateTreeRunStatus FGameplayInteractionListenSlotEventsTask::EnterState(FStateT
 	FStateTreeEventQueue& EventQueue = Context.GetMutableEventQueue();
 
 	// Start piping Smart Object slot events into State Tree.
-	InstanceData.OnEventHandle = OnEventDelegate->AddLambda([&EventQueue, Owner = Context.GetOwner()](const FSmartObjectEventData& Data)
+	InstanceData.OnEventHandle = OnEventDelegate->AddLambda([TargetSlot = InstanceData.TargetSlot, &EventQueue, Owner = Context.GetOwner()](const FSmartObjectEventData& Data)
 	{
-		if (Data.Reason == ESmartObjectChangeReason::OnEvent)
+		if (Data.SlotHandle == TargetSlot && Data.Reason == ESmartObjectChangeReason::OnEvent)
 		{
 			UE_VLOG_UELOG(Owner, LogStateTree, VeryVerbose, TEXT("Listen Slot Events: received %s"), *Data.Tag.ToString());
 

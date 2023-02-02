@@ -64,8 +64,20 @@ UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::
 		TagsSource->GetOwnedGameplayTags(Filter.UserTags);
 	}
 
-	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(SmartObjectComponent.GetRegisteredHandle(), Filter);
-	return UseClaimedSmartObject(Controller, ClaimHandle, bLockAILogic);
+	TArray<FSmartObjectSlotHandle> SlotHandles;
+	const FSmartObjectActorUserData ActorUserData(Pawn);
+	const FConstStructView ActorUserDataView(FConstStructView::Make(ActorUserData));
+
+	SmartObjectSubsystem->FindSlots(SmartObjectComponent.GetRegisteredHandle(), Filter, SlotHandles, ActorUserDataView);
+
+	if (SlotHandles.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(SlotHandles.Top(), ActorUserDataView);
+
+	return ClaimHandle.IsValid() ? UseClaimedSmartObject(Controller, ClaimHandle, bLockAILogic) : nullptr;
 }
 
 UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::UseClaimedGameplayBehaviorSmartObject(AAIController* Controller, const FSmartObjectClaimHandle ClaimHandle, const bool bLockAILogic)
@@ -75,8 +87,8 @@ UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::
 		UE_LOG(LogSmartObject, Error, TEXT("AI Controller required to use smart object."));
 		return nullptr;
 	}
-	
-	AActor* Pawn = Controller->GetPawn();
+
+	const AActor* Pawn = Controller->GetPawn();
 	if (Pawn == nullptr)
 	{
 		UE_LOG(LogSmartObject, Error, TEXT("Pawn required on controller: %s."), *Controller->GetName());

@@ -2,6 +2,7 @@
 
 #include "WorldConditions/SmartObjectWorldConditionSlotTagQuery.h"
 #include "SmartObjectSubsystem.h"
+#include "WorldConditionContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectWorldConditionSlotTagQuery)
 
@@ -45,10 +46,11 @@ bool FSmartObjectWorldConditionSlotTagQuery::Activate(const FWorldConditionConte
 			{
 				FStateType& State = Context.GetState(*this);
 				State.SlotHandle = *SlotHandle;
-				State.DelegateHandle = SlotDelegate->AddLambda([InvalidationHandle = Context.GetInvalidationHandle(*this)](const FSmartObjectEventData& Event)
+				State.DelegateHandle = SlotDelegate->AddLambda([InvalidationHandle = Context.GetInvalidationHandle(*this), TargetSlot = *SlotHandle](const FSmartObjectEventData& Event)
 					{
-						if (Event.Reason == ESmartObjectChangeReason::OnTagAdded
-							|| Event.Reason == ESmartObjectChangeReason::OnTagRemoved)
+						if (TargetSlot == Event.SlotHandle
+							&& (Event.Reason == ESmartObjectChangeReason::OnTagAdded
+								|| Event.Reason == ESmartObjectChangeReason::OnTagRemoved))
 						{
 							InvalidationHandle.InvalidateResult();
 						}

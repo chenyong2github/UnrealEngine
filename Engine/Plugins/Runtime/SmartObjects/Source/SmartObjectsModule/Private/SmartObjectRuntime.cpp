@@ -69,6 +69,7 @@ bool FSmartObjectRuntimeSlot::Release(const FSmartObjectClaimHandle& ClaimHandle
 
 		State = ESmartObjectSlotState::Free;
 		User.Invalidate();
+		UserData.Reset();
 		bReleased = true;
 	}
 

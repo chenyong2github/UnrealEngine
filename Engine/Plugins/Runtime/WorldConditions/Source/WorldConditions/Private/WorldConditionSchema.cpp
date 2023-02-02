@@ -30,6 +30,12 @@ EWorldConditionContextDataType UWorldConditionSchema::GetContextDataTypeByIndex(
 	return ContextDataDescs[Index].Type;
 }
 
+FWorldConditionContextDataRef UWorldConditionSchema::GetContextDataRefByName(const FName DataName, const UStruct* Struct) const
+{
+	const int32 Index = GetContextDataIndexByName(DataName, Struct);
+	return (Index == INDEX_NONE) ? FWorldConditionContextDataRef() : FWorldConditionContextDataRef(DataName, Index);
+}
+
 int32 UWorldConditionSchema::GetContextDataIndexByName(const FName DataName, const UStruct* Struct) const
 {
 	return ContextDataDescs.IndexOfByPredicate([DataName, Struct](const FWorldConditionContextDataDesc& Desc)
