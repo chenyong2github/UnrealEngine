@@ -108,6 +108,11 @@ void MainPS(
 				}
 				#undef CurrentBSDF
 			}
+
+			if (any(WorldNormal != 0)) 
+			{
+				WorldNormal = normalize(WorldNormal);
+			}
 		}
 	}
 #endif // TEMPLATE_USES_STRATA
