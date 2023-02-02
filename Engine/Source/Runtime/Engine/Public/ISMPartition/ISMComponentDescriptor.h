@@ -174,4 +174,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bConsiderForActorPlacementWhenHidden : 1;
 #endif
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
+	int32 WorldPositionOffsetDisableDistance;
 };
