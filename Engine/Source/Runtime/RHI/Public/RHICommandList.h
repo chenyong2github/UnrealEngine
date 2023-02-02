@@ -1556,16 +1556,6 @@ FRHICOMMAND_MACRO(FRHICommandNextSubpass)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandSetComputeShader)
-{
-	FRHIComputeShader* ComputeShader;
-	FORCEINLINE_DEBUGGABLE FRHICommandSetComputeShader(FRHIComputeShader* InComputeShader)
-		: ComputeShader(InComputeShader)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 FRHICOMMAND_MACRO(FRHICommandSetComputePipelineState)
 {
 	FComputePipelineState* ComputePipelineState;
@@ -2723,21 +2713,6 @@ public:
 
 		FRHIShaderParameterResource Resource(UAV, (uint16)Index);
 		SetShaderParameters(Shader, {}, {}, {}, MakeArrayView(&Resource, 1));
-	}
-
-	UE_DEPRECATED(5.1, "ComputePipelineStates should be used instead of direct ComputeShaders. You can use SetComputePipelineState(RHICmdList, ComputeShader).")
-	FORCEINLINE_DEBUGGABLE void SetComputeShader(FRHIComputeShader* ComputeShader)
-	{
-		OnBoundShaderChanged(ComputeShader);
-		ComputeShader->UpdateStats();
-		if (Bypass())
-		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			GetComputeContext().RHISetComputeShader(ComputeShader);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandSetComputeShader)(ComputeShader);
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetComputePipelineState(FComputePipelineState* ComputePipelineState, FRHIComputeShader* ComputeShader)

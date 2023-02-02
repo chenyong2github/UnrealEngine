@@ -232,9 +232,6 @@ public:
 		return ERHIPipeline::AsyncCompute;
 	}
 
-	UE_DEPRECATED(5.1, "ComputePipelineStates should be used instead of direct ComputeShaders.")
-	RHI_API virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader);
-
 	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) = 0;
 
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) = 0;
@@ -820,8 +817,7 @@ public:
 	virtual void RHISetRasterizerState(FRHIRasterizerState* NewState) = 0;
 	virtual void RHISetBlendState(FRHIBlendState* NewState, const FLinearColor& BlendFactor) = 0;
 	virtual void RHIEnableDepthBoundsTest(bool bEnable) = 0;
-	// TODO: uncomment when removed from IRHIComputeContext
-	//virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) = 0;
+	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) = 0;
 
 	/**
 	* This will set most relevant pipeline state. Legacy APIs are expected to set corresponding disjoint state as well.
@@ -844,9 +840,7 @@ public:
 	{
 		if (FRHIComputePipelineStateFallback* FallbackState = static_cast<FRHIComputePipelineStateFallback*>(ComputePipelineState))
 		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			RHISetComputeShader(FallbackState->GetComputeShader());
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 

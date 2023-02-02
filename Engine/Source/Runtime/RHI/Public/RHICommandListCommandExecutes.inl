@@ -254,14 +254,6 @@ void FRHICommandNextSubpass::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHINextSubpass)();
 }
 
-void FRHICommandSetComputeShader::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetComputeShader);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	INTERNAL_DECORATOR_COMPUTE(RHISetComputeShader)(ComputeShader);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 void FRHICommandSetComputePipelineState::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(SetComputePipelineState);

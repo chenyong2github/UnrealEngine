@@ -5,17 +5,6 @@
 #include "RHI.h"
 #include "RHIStats.h"
 
-RHI_API void RHISetComputeShaderBackwardsCompatible(IRHIComputeContext* InContext, FRHIComputeShader* InShader)
-{
-	TRefCountPtr<FRHIComputePipelineState> ComputePipelineState = RHICreateComputePipelineState(InShader);
-	InContext->RHISetComputePipelineState(ComputePipelineState);
-}
-
-void IRHIComputeContext::RHISetComputeShader(FRHIComputeShader* ComputeShader)
-{
-	RHISetComputeShaderBackwardsCompatible(this, ComputeShader);
-}
-
 void IRHIComputeContext::StatsSetCategory(FRHIDrawStats* InStats, uint32 InCategoryID, uint32 InGPUIndex)
 {
 	Stats = &InStats->GetGPU(InGPUIndex).GetCategory(InCategoryID);
