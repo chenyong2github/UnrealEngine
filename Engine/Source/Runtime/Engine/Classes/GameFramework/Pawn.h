@@ -10,6 +10,7 @@
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "AI/Navigation/NavAgentInterface.h"
+
 #include "Pawn.generated.h"
 
 class AController;
@@ -173,6 +174,12 @@ public:
 	/** Templated convenience version of GetPlayerState which checks the type is as presumed. */
 	template<class T>
 	T* GetPlayerStateChecked() const { return CastChecked<T>(PlayerState); }
+
+protected:
+	/** Called on both the clientand server when ever SetPlayerState is called on this pawn. */
+	virtual void OnPlayerStateChanged(APlayerState* NewPlayerState, APlayerState* OldPlayerState) { }
+
+public:
 
 	/** Playback of replays writes blended pitch to this, rather than the RemoteViewPitch. This is to avoid having to compress and interpolated value. */
 	float BlendedReplayViewPitch;

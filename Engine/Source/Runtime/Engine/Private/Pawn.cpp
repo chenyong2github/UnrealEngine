@@ -610,15 +610,21 @@ void APawn::OnRep_PlayerState()
 
 void APawn::SetPlayerState(APlayerState* NewPlayerState)
 {
+	APlayerState* OldPlayerState = PlayerState;
+
 	if (PlayerState && PlayerState->GetPawn() == this)
 	{
 		FSetPlayerStatePawn(PlayerState, nullptr);
 	}
+
 	PlayerState = NewPlayerState;
+
 	if (PlayerState)
 	{
 		FSetPlayerStatePawn(PlayerState, this);
 	}
+
+	OnPlayerStateChanged(NewPlayerState, OldPlayerState);
 }
 
 void APawn::PossessedBy(AController* NewController)
