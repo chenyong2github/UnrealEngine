@@ -5,6 +5,7 @@
 #if WITH_TENCENT_RAIL_SDK
 
 #include "Interfaces/OnlinePurchaseInterface.h"
+#include "OnlineSubsystemTencentPackage.h"
 
 class FOnlineSubsystemTencent;
 struct FRequestAllAssetsTaskResult;

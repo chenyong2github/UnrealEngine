@@ -4,12 +4,15 @@
 
 #include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
-#include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Streaming/LevelStreamingDelegates.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
+
+#if !WITH_EDITOR
+#include "Engine/World.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelStreamingProfilingSubsystem)
 

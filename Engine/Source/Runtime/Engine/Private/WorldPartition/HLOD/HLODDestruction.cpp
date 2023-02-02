@@ -3,7 +3,6 @@
 #include "WorldPartition/HLOD/HLODDestruction.h"
 
 #include "Engine/LevelStreaming.h"
-#include "Engine/World.h"
 #include "LevelUtils.h"
 #include "UObject/ScriptInterface.h"
 #include "WorldPartition/HLOD/DestructibleHLODComponent.h"
@@ -13,6 +12,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODDestruction)
 
+#if !WITH_EDITOR
+#include "Engine/World.h"
+#endif
 
 namespace
 {
