@@ -2019,21 +2019,9 @@ void UMaterial::UpdateCachedExpressionData()
 	}
 	else
 	{
-		if (!bUseMaterialAttributes)
-		{
-			for (int32 PropertyIndex = 0; PropertyIndex < MP_MAX; ++PropertyIndex)
-			{
-				const EMaterialProperty Property = (EMaterialProperty)PropertyIndex;
-				const FExpressionInput* Input = GetExpressionInputForProperty(Property);
-				if (Input && Input->IsConnected())
-				{
-					LocalCachedExpressionData->SetPropertyConnected(Property);
-				}
-			}
-		}
-
-		FMaterialCachedExpressionContext Context;
-		LocalCachedExpressionData->UpdateForExpressions(Context, GetExpressions(), EMaterialParameterAssociation::GlobalParameter, -1);
+		// Run graph analysis to harvest material information used to select which shader permutations are needed to be generated (e.g. detect what material properties are written to
+		// taking under consideration the presence of static switches to select among two input subgraphs).
+		LocalCachedExpressionData->AnalyzeMaterial(*this);
 	}
 
 	if (LocalCachedExpressionData->bHasMaterialLayers)
