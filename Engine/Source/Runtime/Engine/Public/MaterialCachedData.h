@@ -308,6 +308,10 @@ struct FMaterialCachedExpressionData
 	UPROPERTY()
 	TArray<FMaterialFunctionInfo> FunctionInfos;
 
+	/** CRC of the FunctionInfos StateIds. */
+	UPROPERTY()
+	uint32 FunctionInfosStateCRC;
+
 	/** Array of all parameter collections this material depends on. */
 	UPROPERTY()
 	TArray<FMaterialParameterCollectionInfo> ParameterCollectionInfos;

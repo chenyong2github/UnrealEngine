@@ -1111,7 +1111,13 @@ bool FExpressionFunctionCall::PrepareValue(FEmitContext& Context, FEmitScope& Sc
 			FMaterialFunctionInfo NewFunctionInfo;
 			NewFunctionInfo.Function = MaterialFunction;
 			NewFunctionInfo.StateId = MaterialFunction->StateId;
-			EmitMaterialData.CachedExpressionData->FunctionInfos.AddUnique(NewFunctionInfo);
+			
+			int32 OldCount = EmitMaterialData.CachedExpressionData->FunctionInfos.Num();
+			int32 NewIndex = EmitMaterialData.CachedExpressionData->FunctionInfos.AddUnique(NewFunctionInfo);
+			if (NewIndex >= OldCount)	// don't update crc unless we actually added a FunctionInfo
+			{
+				EmitMaterialData.CachedExpressionData->FunctionInfosStateCRC = FCrc::TypeCrc32(MaterialFunction->StateId, EmitMaterialData.CachedExpressionData->FunctionInfosStateCRC);
+			}
 		}
 	}
 	return FExpressionForward::PrepareValue(Context, Scope, RequestedType, OutResult);

@@ -45,7 +45,8 @@ const FMaterialCachedExpressionEditorOnlyData FMaterialCachedExpressionEditorOnl
 static_assert((uint32)(EMaterialProperty::MP_MaterialAttributes)-1 <= (8 * sizeof(FMaterialCachedExpressionData::PropertyConnectedBitmask)), "PropertyConnectedBitmask cannot contain entire EMaterialProperty enumeration.");
 
 FMaterialCachedExpressionData::FMaterialCachedExpressionData()
-	: bHasMaterialLayers(false)
+	: FunctionInfosStateCRC(0xffffffff)
+	, bHasMaterialLayers(false)
 	, bHasRuntimeVirtualTextureOutput(false)
 	, bHasSceneColor(false)
 	, bHasPerInstanceCustomData(false)
@@ -285,6 +286,7 @@ void FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 		NewFunctionInfo.Function = InFunction;
 		NewFunctionInfo.StateId = InFunction->StateId;
 		Self->FunctionInfos.Add(NewFunctionInfo);
+		Self->FunctionInfosStateCRC = FCrc::TypeCrc32(InFunction->StateId, Self->FunctionInfosStateCRC);
 
 		return true;
 	};
