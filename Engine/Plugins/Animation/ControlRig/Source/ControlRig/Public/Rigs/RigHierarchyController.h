@@ -27,6 +27,9 @@ public:
 
 	virtual ~URigHierarchyController();
 
+	// UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+
 	// Returns the hierarchy currently linked to this controller
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
 	URigHierarchy* GetHierarchy() const

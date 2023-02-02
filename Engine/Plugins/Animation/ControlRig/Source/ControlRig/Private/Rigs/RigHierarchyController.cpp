@@ -24,6 +24,17 @@ URigHierarchyController::~URigHierarchyController()
 {
 }
 
+void URigHierarchyController::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsLoading())
+    {
+		URigHierarchy* OuterHierarchy = Cast<URigHierarchy>(GetOuter());
+		SetHierarchy(OuterHierarchy);
+    }
+}
+
 void URigHierarchyController::SetHierarchy(URigHierarchy* InHierarchy)
 {
 	// since we changed the controller to be a property of the hierarchy,
