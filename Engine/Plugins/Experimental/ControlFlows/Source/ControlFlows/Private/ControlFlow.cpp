@@ -54,7 +54,7 @@ void FControlFlow::ExecuteNode(TSharedRef<FControlFlowNode_SelfCompleting> SelfC
 	{
 		FlowQueue.Reset();
 
-		OnCancelledDelegate.Broadcast();
+		OnFlowCancelledDelegate.Broadcast();
 		OnCancelledDelegate_Internal.ExecuteIfBound();		
 
 		FControlFlowStatics::HandleControlFlowFinishedNotification();
@@ -110,12 +110,12 @@ void FControlFlow::HandleControlFlowNodeCompleted(TSharedRef<const FControlFlowN
 		{
 			if (bCancelRequested)
 			{
-				OnCancelledDelegate.Broadcast();
+				OnFlowCancelledDelegate.Broadcast();
 				OnCancelledDelegate_Internal.ExecuteIfBound();				
 			}
 			else
 			{
-				OnCompleteDelegate.Broadcast();
+				OnFlowCompleteDelegate.Broadcast();
 				OnCompleteDelegate_Internal.ExecuteIfBound();				
 			}
 
@@ -203,7 +203,8 @@ void FControlFlow::ExecuteFlow()
 			}
 			else
 			{
-				OnExecutedWithoutAnyNodesDelegate.Broadcast();
+				// No nodes is treated as completed for non internal cases
+				OnFlowCompleteDelegate.Broadcast();
 				OnExecutedWithoutAnyNodesDelegate_Internal.ExecuteIfBound();
 				FControlFlowStatics::HandleControlFlowFinishedNotification();
 			}
@@ -238,7 +239,7 @@ void FControlFlow::CancelFlow()
 	}
 	else
 	{
-		OnCancelledDelegate.Broadcast();
+		OnFlowCancelledDelegate.Broadcast();
 		OnCancelledDelegate_Internal.ExecuteIfBound();
 		FControlFlowStatics::HandleControlFlowFinishedNotification();
 	}

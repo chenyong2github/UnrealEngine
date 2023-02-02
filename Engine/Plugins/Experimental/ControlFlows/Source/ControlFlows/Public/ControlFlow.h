@@ -126,7 +126,6 @@ class CONTROLFLOWS_API FControlFlow : public TSharedFromThis<FControlFlow>
 {
 public:
 	FControlFlow(const FString& FlowDebugName = TEXT(""));
-	virtual ~FControlFlow() = default;
 
 public:
 	/** This needs to be called, otherwise nothing will happen!! Call after you finish adding functions to the queue. Calling with an empty queue is safe. */
@@ -336,17 +335,15 @@ public:
 	FControlFlowPopulator& QueueLoop(FControlFlowLoopComplete& LoopCompleteDelgate, const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
 
 	FSimpleMulticastDelegate& OnNodeComplete() const { return OnStepCompletedDelegate; }
-	FSimpleMulticastDelegate& OnComplete() const { return OnCompleteDelegate; }
-	FSimpleMulticastDelegate& OnCancel() const { return OnCancelledDelegate; }
-	FSimpleMulticastDelegate& OnExecuteWithoutAnyNodes() const { return OnExecutedWithoutAnyNodesDelegate; }	
+	FSimpleMulticastDelegate& OnFlowComplete() const { return OnFlowCompleteDelegate; }
+	FSimpleMulticastDelegate& OnFlowCancel() const { return OnFlowCancelledDelegate; }
 	
 private:
 	void HandleControlFlowNodeCompleted(TSharedRef<const FControlFlowNode> NodeCompleted);
 
 	mutable FSimpleMulticastDelegate OnStepCompletedDelegate;
-	mutable FSimpleMulticastDelegate OnExecutedWithoutAnyNodesDelegate;
-	mutable FSimpleMulticastDelegate OnCompleteDelegate;
-	mutable FSimpleMulticastDelegate OnCancelledDelegate;
+	mutable FSimpleMulticastDelegate OnFlowCompleteDelegate;
+	mutable FSimpleMulticastDelegate OnFlowCancelledDelegate;
 	
 	mutable FSimpleDelegate OnCompleteDelegate_Internal;
 	mutable FSimpleDelegate OnExecutedWithoutAnyNodesDelegate_Internal;
