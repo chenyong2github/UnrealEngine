@@ -172,8 +172,8 @@ struct POSESEARCH_API FSearchContext
 	void UpdateCurrentBestCost(const FPoseSearchCost& PoseSearchCost);
 	float GetCurrentBestTotalCost() const { return CurrentBestTotalCost; }
 
-	void GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder);
-	const FPoseSearchFeatureVectorBuilder* GetCachedQuery(const UPoseSearchDatabase* Database) const;
+	void GetOrBuildQuery(const UPoseSearchSchema* Schema, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder);
+	const FPoseSearchFeatureVectorBuilder* GetCachedQuery(const UPoseSearchSchema* Schema) const;
 
 	bool IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const;
 
@@ -186,15 +186,7 @@ struct POSESEARCH_API FSearchContext
 private:
 	// transforms cached in component space
 	FCachedTransforms<FTransform> CachedTransforms;
-	
-	struct FCachedQuery
-	{
-		// @todo: why do we need to hold on to a Database? isn't the FeatureVectorBuilder.Schema enough?
-		const UPoseSearchDatabase* Database = nullptr;
-		FPoseSearchFeatureVectorBuilder FeatureVectorBuilder;
-	};
-
-	TArray<FCachedQuery, TInlineAllocator<8>> CachedQueries;
+	TArray<FPoseSearchFeatureVectorBuilder, TInlineAllocator<8>> CachedQueries;
 
 	float CurrentBestTotalCost = MAX_flt;
 

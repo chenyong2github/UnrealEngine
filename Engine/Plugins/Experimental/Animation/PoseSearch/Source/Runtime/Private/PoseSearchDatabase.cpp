@@ -719,7 +719,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 		}
 	}
 
-	SearchContext.GetOrBuildQuery(this, Result.ComposedQuery);
+	SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
 
 	TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 
@@ -819,7 +819,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 
 	const FPoseSearchIndex& SearchIndex = GetSearchIndex();
 
-	SearchContext.GetOrBuildQuery(this, Result.ComposedQuery);
+	SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
 	TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 
 	const bool IsCurrentResultFromThisDatabase = SearchContext.IsCurrentResultFromDatabase(this);
@@ -898,10 +898,4 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 #endif
 
 	return Result;
-}
-
-void UPoseSearchDatabase::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const
-{
-	check(Schema && Schema->IsValid());
-	Schema->BuildQuery(SearchContext, OutQuery);
 }

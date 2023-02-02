@@ -29,7 +29,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 	{
 		check(Database);
 		const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
-		SearchContext.GetOrBuildQuery(Database, Result.ComposedQuery);
+		SearchContext.GetOrBuildQuery(Database->Schema, Result.ComposedQuery);
 
 		TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 
