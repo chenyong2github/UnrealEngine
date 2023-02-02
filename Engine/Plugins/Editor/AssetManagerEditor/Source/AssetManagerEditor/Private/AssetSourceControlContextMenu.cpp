@@ -382,6 +382,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 	const bool bUsesCheckout = SourceControlProvider.UsesCheckout();
 	const bool bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
 	const bool bUsesReadOnly = SourceControlProvider.UsesLocalReadOnlyState();
+	const bool bUsesDiffAgainstDepot = SourceControlProvider.AllowsDiffAgainstDepot();
 
 	if (bUsesFileRevisions)
 	{
@@ -503,17 +504,20 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		FIsAsyncProcessingActive::CreateLambda([this]() { return IsStillScanning(CanExecuteSCCHistory()); })
 	);
 
-	AddAsyncMenuEntry(Section,
-		"SCCDiffAgainstDepot",
-		LOCTEXT("SCCDiffAgainstDepot", "Diff Against Depot"),
-		LOCTEXT("SCCDiffAgainstDepotTooltip", "Look at differences between the local and remote version of the selected assets."),
-		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Diff"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCDiffAgainstDepot),
-			FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCDiffAgainstDepot()); })
-		),
-		FIsAsyncProcessingActive::CreateLambda([this]() { return IsStillScanning(CanExecuteSCCDiffAgainstDepot()); })
-	);
+	if (bUsesDiffAgainstDepot)
+	{
+		AddAsyncMenuEntry(Section,
+			"SCCDiffAgainstDepot",
+			LOCTEXT("SCCDiffAgainstDepot", "Diff Against Depot"),
+			LOCTEXT("SCCDiffAgainstDepotTooltip", "Look at differences between the local and remote version of the selected assets."),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Diff"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCDiffAgainstDepot),
+				FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCDiffAgainstDepot()); })
+			),
+			FIsAsyncProcessingActive::CreateLambda([this]() { return IsStillScanning(CanExecuteSCCDiffAgainstDepot()); })
+		);
+	}
 
 	AddAsyncMenuEntry(Section,
 		"SCCRevert",
