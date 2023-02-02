@@ -60,9 +60,6 @@ public:
 	/** Sets the name of the Fader Group */
 	void SetFaderGroupName(const FString& NewName);
 
-	/** Gets Fader Group color for Editor representation */
-	const FLinearColor& GetEditorColor() const { return EditorColor; }
-
 	/** Automatically generates a Fader Group based on Fixture Patch Ref property */
 	void GenerateFromFixturePatch(UDMXEntityFixturePatch* InFixturePatch);
 
@@ -96,11 +93,18 @@ public:
 	/** True if this Fader Group needs to be refreshed */
 	bool HasForceRefresh() const { return bForceRefresh; }
 
+#if WITH_EDITOR
+	/** Gets Fader Group color for Editor representation */
+	const FLinearColor& GetEditorColor() const { return EditorColor; }
+#endif // WITH_EDITOR
+
 	// Property Name getters
 	FORCEINLINE static FName GetElementsPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, Elements); }
 	FORCEINLINE static FName GetFaderGroupNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FaderGroupName); }
 	FORCEINLINE static FName GetSoftFixturePatchPtrPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, SoftFixturePatchPtr); }
+#if WITH_EDITOR
 	FORCEINLINE static FName GetEditorColorPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, EditorColor); }
+#endif // WITH_EDITOR
 
 protected:
 	//~ Begin UObject interface
@@ -131,9 +135,11 @@ private:
 	UPROPERTY()
 	TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> Elements;
 
+#if WITH_EDITORONLY_DATA
 	/** Color for Fader Group representation on the Editor */
 	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")
 	FLinearColor EditorColor = FLinearColor::White;
+#endif
 
 	/** Shows wheter this Fader Group needs to be refreshed or not */
 	bool bForceRefresh = false;

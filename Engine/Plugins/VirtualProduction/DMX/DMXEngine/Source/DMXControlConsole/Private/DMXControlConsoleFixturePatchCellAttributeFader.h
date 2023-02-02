@@ -22,7 +22,11 @@ class DMXCONTROLCONSOLE_API UDMXControlConsoleFixturePatchCellAttributeFader
 	GENERATED_BODY()
 
 public:
-	//~ Being IDMXControlConsoleFaderGroupElementInterface
+	//~ Begin DMXControlConsoleFaderBase interface
+	virtual EDMXFixtureSignalFormat GetDataType() const { return DataType; }
+	//~ End DMXControlConsoleFaderBase interface
+
+	//~ Begin IDMXControlConsoleFaderGroupElementInterface
 	virtual UDMXControlConsoleFaderGroup& GetOwnerFaderGroupChecked() const override;
 	virtual int32 GetIndex() const override;
 	virtual int32 GetStartingAddress() const override { return StartingAddress; }
@@ -38,9 +42,6 @@ public:
 
 	/** Gets the owner Matrix Cell of this Matrix Cell Fader */
 	UDMXControlConsoleFixturePatchMatrixCell& GetOwnerMatrixCellChecked() const;
-
-	/** Returns the universe ID to which to should send DMX to */
-	EDMXFixtureSignalFormat GetDataType() const { return DataType; }
 
 	/** Gets wheter this Fader uses LSB mode or not */
 	bool GetUseLSBMode() const { return bUseLSBMode; }

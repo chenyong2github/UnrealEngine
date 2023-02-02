@@ -298,7 +298,9 @@ void UDMXControlConsoleFaderGroup::Reset()
 	SoftFixturePatchPtr.Reset();
 	CachedWeakFixturePatch.Reset();
 
+#if WITH_EDITOR
 	EditorColor = FLinearColor::White;
+#endif 
 
 	ClearElements();
 }

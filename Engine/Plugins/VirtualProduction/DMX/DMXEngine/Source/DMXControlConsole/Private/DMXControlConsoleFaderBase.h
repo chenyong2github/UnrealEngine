@@ -4,18 +4,22 @@
 
 #include "IDMXControlConsoleFaderGroupElement.h"
 
-#include "CoreMinimal.h"
+#include "DMXProtocolTypes.h"
+
+#include "Tickable.h"
 #include "UObject/Object.h"
 
 #include "DMXControlConsoleFaderBase.generated.h"
 
 class UDMXControlConsoleFaderGroup;
+class UDMXControlConsoleFloatOscillator;
 
 
 /** Base class for a Fader in the DMX Control Console. */
-UCLASS(Abstract)
+UCLASS(Abstract, AutoExpandCategories = ("DMX Fader", "DMX Fader|Oscillator"))
 class DMXCONTROLCONSOLE_API UDMXControlConsoleFaderBase
 	: public UObject
+	, public FTickableGameObject
 	, public IDMXControlConsoleFaderGroupElement
 {
 	GENERATED_BODY()
@@ -24,14 +28,14 @@ public:
 	/** Constructor */
 	UDMXControlConsoleFaderBase();
 
-	//~ Being IDMXControlConsoleFaderGroupElementInterface
+	//~ Being IDMXControlConsoleFaderGroupElement interface
 	virtual UDMXControlConsoleFaderGroup& GetOwnerFaderGroupChecked() const override;
 	virtual int32 GetIndex() const override;
 	virtual const TArray<UDMXControlConsoleFaderBase*>& GetFaders() const override { return ThisFaderAsArray; }
-	virtual int32 GetStartingAddress() const override PURE_VIRTUAL(UDMXControlConsoleFaderBase::GetStartingAddress, return 0;);
+	virtual int32 GetStartingAddress() const override PURE_VIRTUAL(UDMXControlConsoleFaderBase::GetStartingAddress, return 1;);
 	virtual int32 GetEndingAddress() const override { return EndingAddress; }
 	virtual void Destroy() override;
-	//~ End IDMXControlConsoleFaderGroupElementInterface
+	//~ End IDMXControlConsoleFaderGroupElement interface
 
 	/** Gets the name of the Fader */
 	const FString& GetFaderName() const { return FaderName; };
@@ -60,6 +64,9 @@ public:
 	/** Mutes/Unmutes this fader */
 	virtual void ToggleMute();
 
+	/** Returns the data type of this fader */
+	virtual EDMXFixtureSignalFormat GetDataType() const PURE_VIRTUAL(UDMXControlConsoleFaderBase::GetSignalFormat, return EDMXFixtureSignalFormat::E8Bit;);
+
 	// Property Name getters
 	FORCEINLINE static FName GetFaderNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, FaderName); }
 	FORCEINLINE static FName GetEndingAddressPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, EndingAddress); }
@@ -74,6 +81,14 @@ protected:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End of UObject interface
+
+	// ~ Begin FTickableGameObject interface
+	virtual void Tick(float DeltaTime) override;
+	virtual bool IsTickable() const override;
+	virtual bool IsTickableInEditor() const override { return true; };
+	virtual ETickableTickType GetTickableTickType() const override;
+	virtual TStatId GetStatId() const override;
+	// ~ End FTickableGameObject interface
 
 	/** Cached Name of the Fader */
 	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "1"), Category = "DMX Fader")
@@ -94,6 +109,16 @@ protected:
 	/** The maximum Fader Value */
 	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "8"), Category = "DMX Fader")
 	uint32 MaxValue = 255;
+
+#if WITH_EDITORONLY_DATA
+	/** Oscillator that is used for this fader */
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "Oscillator Class", ShowDisplayNames), Category = "DMX Fader|Oscillator")
+	TSoftClassPtr<UDMXControlConsoleFloatOscillator> FloatOscillatorClass;
+#endif // WITH_EDITORONLY_DATA
+
+	/** Float Oscillator applied to this channel */
+	UPROPERTY(VisibleAnywhere, Instanced, Meta = (DisplayName = "Oscillator"), Category = "DMX Fader|Oscillator")
+	TObjectPtr<UDMXControlConsoleFloatOscillator> FloatOscillator;
 
 	/** This fader as an array for fast access */
 	TArray<UDMXControlConsoleFaderBase*> ThisFaderAsArray;

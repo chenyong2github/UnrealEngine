@@ -3,6 +3,7 @@
 #include "DMXControlConsoleFaderBase.h"
 
 #include "DMXControlConsoleFaderGroup.h"
+#include "Oscillators/DMXControlConsoleFloatOscillator.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleFaderBase"
@@ -88,13 +89,64 @@ void UDMXControlConsoleFaderBase::PostEditChangeProperty(FPropertyChangedEvent& 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-	if (PropertyName != GetValuePropertyName())
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, Value))
 	{
-		return;
+		SetValue(Value);
 	}
-
-	SetValue(Value);
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, FloatOscillatorClass))
+	{
+		if (UClass* StrongFloatOscillatorClass = FloatOscillatorClass.Get())
+		{
+			FloatOscillator = NewObject<UDMXControlConsoleFloatOscillator>(this, StrongFloatOscillatorClass, NAME_None, RF_Transactional | RF_Public);
+		}
+		else
+		{
+			FloatOscillator = nullptr;
+		}
+	}
 }
 #endif // WITH_EDITOR
+
+void UDMXControlConsoleFaderBase::Tick(float DeltaTime)
+{
+	if (FloatOscillator)
+	{
+		const EDMXFixtureSignalFormat DataType = GetDataType();
+		uint32 AbsoluteMax;
+		switch (DataType)
+		{
+		case EDMXFixtureSignalFormat::E8Bit:
+			AbsoluteMax = TNumericLimits<uint8>::Max();
+			break;
+		case EDMXFixtureSignalFormat::E16Bit:
+			AbsoluteMax = TNumericLimits<uint16>::Max();
+			break;
+		case EDMXFixtureSignalFormat::E24Bit:
+			AbsoluteMax = 0x00FFFFFF;
+			break;
+		default:
+			AbsoluteMax = TNumericLimits<uint32>::Max();
+		}
+
+		Value = FMath::Clamp(FloatOscillator->GetNormalizedValue(DeltaTime) * AbsoluteMax, 0, AbsoluteMax);
+	}
+}
+
+bool UDMXControlConsoleFaderBase::IsTickable() const
+{
+	return 
+		!bIsMuted &&
+		FloatOscillator != nullptr;
+}
+
+TStatId UDMXControlConsoleFaderBase::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UDMXControlConsoleFaderBase, STATGROUP_Tickables);
+}
+
+ETickableTickType UDMXControlConsoleFaderBase::GetTickableTickType() const
+{
+	return ETickableTickType::Conditional;
+}
 
 #undef LOCTEXT_NAMESPACE

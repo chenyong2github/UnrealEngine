@@ -21,6 +21,10 @@ class DMXCONTROLCONSOLE_API UDMXControlConsoleFixturePatchFunctionFader
 	GENERATED_BODY()
 
 public:
+	//~ Begin DMXControlConsoleFaderBase interface
+	virtual EDMXFixtureSignalFormat GetDataType() const { return DataType; }
+	//~ End DMXControlConsoleFaderBase interface
+
 	//~ Being IDMXControlConsoleFaderGroupElementInterface
 	virtual int32 GetStartingAddress() const override { return StartingAddress; }
 	//~ End IDMXControlConsoleFaderGroupElementInterface
@@ -33,9 +37,6 @@ public:
 
 	/** Returns the universe ID to which to should send DMX to */
 	int32 GetUniverseID() const { return UniverseID; }
-
-	/** Returns the universe ID to which to should send DMX to */
-	EDMXFixtureSignalFormat GetDataType() const { return DataType; }
 
 	/** Gets wheter this Fader uses LSB mode or not */
 	bool GetUseLSBMode() const { return bUseLSBMode; }
