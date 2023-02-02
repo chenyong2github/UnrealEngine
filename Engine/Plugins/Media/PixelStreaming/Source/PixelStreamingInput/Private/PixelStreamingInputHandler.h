@@ -106,6 +106,10 @@ namespace UE::PixelStreamingInput
 		 * UI Interaction handling
 		 */
 		virtual void HandleUIInteraction(FMemoryReader Ar);
+		/**
+		 * Textbox Entry handling
+		 */
+		virtual void HandleOnTextboxEntry(FMemoryReader Ar);
 
 		/**
 		 * Populate default command handlers for data channel messages sent with "{ type: "Command" }".
