@@ -561,7 +561,7 @@ mu::ParametersPtr UCustomizableInstancePrivateData::GetParameters(UCustomizableO
 }
 
 
-void UCustomizableInstancePrivateData::ReloadParameters(UCustomizableObjectInstance* Public)
+void UCustomizableInstancePrivateData::ReloadParameters(UCustomizableObjectInstance* Public, bool bInvalidatePreviousData)
 {
 	const UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
 	if (!CustomizableObject)
@@ -584,8 +584,12 @@ void UCustomizableInstancePrivateData::ReloadParameters(UCustomizableObjectInsta
 		ProjectorStates.Reset();
 	}
 	
-	InvalidateGeneratedData();
-	
+
+	if (bInvalidatePreviousData)
+	{
+		InvalidateGeneratedData();
+	}
+
 	Public->GetDescriptor().ReloadParameters();
 }
 
@@ -593,7 +597,7 @@ void UCustomizableInstancePrivateData::ReloadParameters(UCustomizableObjectInsta
 void UCustomizableObjectInstance::SetObject(UCustomizableObject* InObject)
 {
 	Descriptor.SetCustomizableObject(*InObject);
-	PrivateData->ReloadParameters(this);
+	PrivateData->ReloadParameters(this, true);
 	SetRequestedLODs(Descriptor.MinLOD, Descriptor.MaxLOD, Descriptor.RequestedLODLevels);
 }
 

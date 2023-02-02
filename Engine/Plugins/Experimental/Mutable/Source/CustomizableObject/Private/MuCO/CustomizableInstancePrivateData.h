@@ -204,7 +204,7 @@ public:
 	mu::ParametersPtr GetParameters(UCustomizableObjectInstance* Public);
 
 	/** See FCustomizableObjectInstanceDescriptor::ReloadParameters(...). */
-	void ReloadParameters(UCustomizableObjectInstance* Public);
+	void ReloadParameters(UCustomizableObjectInstance* Public, bool bInvalidatePreviousData = false);
 
 	void TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Public);
 	void UpdateInstanceIfNotGenerated(UCustomizableObjectInstance& Public);
