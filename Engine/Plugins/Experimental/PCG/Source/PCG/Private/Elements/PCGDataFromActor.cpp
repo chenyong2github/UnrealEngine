@@ -66,7 +66,7 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* InContext) const
 
 	if (!Context->bPerformedQuery)
 	{
-		Context->FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, World, nullptr);
+		Context->FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, World, Context->SourceComponent.IsValid() ? Context->SourceComponent->GetOwner() : nullptr);
 		Context->bPerformedQuery = true;
 
 		if (Context->FoundActors.IsEmpty())
@@ -228,8 +228,9 @@ void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGData
 	}
 	else
 	{
-		FPCGTaggedData& Output = Outputs.Emplace_GetRef();
-		Output.Data = UPCGComponent::CreateActorPCGData(FoundActor, Context->SourceComponent.Get(), /*bParseActor=*/Settings->Mode != EPCGGetDataFromActorMode::GetSinglePoint);
+		const bool bParseActor = (Settings->Mode != EPCGGetDataFromActorMode::GetSinglePoint);
+		FPCGDataCollection Collection = UPCGComponent::CreateActorPCGDataCollection(FoundActor, Context->SourceComponent.Get(), bParseActor);
+		Outputs += Collection.TaggedData;
 	}
 
 	if (Context->SourceComponent.IsValid())
