@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Containers/ContainerHelpers.h"
+#include "CoreGlobals.h"
 
 void UE::Core::Private::OnInvalidArrayNum(unsigned long long NewNum)
 {
