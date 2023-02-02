@@ -465,7 +465,6 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 					]
 				]
 				+SVerticalBox::Slot()
-				.AutoHeight()
 				[
 					SNew(SOverlay)
 					+SOverlay::Slot()
@@ -492,7 +491,7 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 						[
 							ChangelistExpandableArea.ToSharedRef()
 						]
-	
+						
 						// Bottom slot: Uncontrolled Changelists
 						+SSplitter::Slot()
 						.SizeRule_Lambda([this](){ return UncontrolledChangelistExpandableArea->IsExpanded() ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; })

@@ -66,8 +66,8 @@ void FSourceControlWindowsModule::StartupModule()
 
 	// Register the changelist tab spawner
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SourceControlChangelistsTabName, FOnSpawnTab::CreateRaw(this, &FSourceControlWindowsModule::CreateChangelistsTab))
-		.SetDisplayName(LOCTEXT("ChangelistsTabTitle", "View Changelists"))
-		.SetTooltipText(LOCTEXT("ChangelistsTabTooltip", "Opens a dialog displaying current changelists."))
+		.SetDisplayName(LOCTEXT("ChangelistsTabTitle", "View Changes"))
+		.SetTooltipText(LOCTEXT("ChangelistsTabTooltip", "Opens a dialog displaying current changes."))
 		.SetIcon(SourceControlIcon)
 		.SetMenuType(ETabSpawnerMenuType::Hidden);
 
