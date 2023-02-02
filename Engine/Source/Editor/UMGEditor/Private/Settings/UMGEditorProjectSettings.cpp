@@ -21,6 +21,8 @@ UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 	bGraphEditorHidden = false;
 	bHideWidgetAnimationEditor = false;
 	bUseEditorConfigPaletteFiltering = false;
+	bUseUserWidgetParentClassViewerSelector = true;
+	bUseUserWidgetParentDefaultClassViewerSelector = true;
 
 	bUseWidgetTemplateSelector = false;
 	CommonRootWidgetClasses = {

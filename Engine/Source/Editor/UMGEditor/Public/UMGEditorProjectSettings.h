@@ -188,11 +188,19 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Designer)
 	bool bUseEditorConfigPaletteFiltering;
 
+	/** Enables a dialog that lets you select the parent class in a tree view. */
+	UPROPERTY(EditAnywhere, config, Category = Designer)
+	bool bUseUserWidgetParentClassViewerSelector;
+
+	/** Enables a dialog that lets you select the parent class in a default view. */
+	UPROPERTY(EditAnywhere, config, Category = Designer)
+	bool bUseUserWidgetParentDefaultClassViewerSelector;
+
 	/**
 	 * The list of parent classes to choose from for newly constructed widget blueprints.
 	 * The classes must have empty widget hierarchies.
 	 */
-	UPROPERTY(EditAnywhere, config, Category = Designer, meta = (AllowAbstract = ""))
+	UPROPERTY(EditAnywhere, config, Category = Designer, meta = (AllowAbstract = "", EditCondition="bUseUserWidgetParentDefaultClassViewerSelector"))
 	TArray<TSoftClassPtr<UUserWidget>> FavoriteWidgetParentClasses;
 
 	UPROPERTY(EditAnywhere, config, Category=Designer)
