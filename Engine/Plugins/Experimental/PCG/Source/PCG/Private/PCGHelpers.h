@@ -42,6 +42,8 @@ namespace PCGHelpers
 
 	APCGWorldActor* GetPCGWorldActor(UWorld* InWorld);
 
+	TArray<FString> GetStringArrayFromCommaSeparatedString(const FString& InCommaSeparatedString);
+
 #if WITH_EDITOR
 	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth = -1);
 	void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth);

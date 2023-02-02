@@ -3,8 +3,9 @@
 #include "Elements/PCGAttributeFilterElement.h"
 
 #include "Data/PCGSpatialData.h"
-#include "PCGParamData.h"
 #include "PCGContext.h"
+#include "PCGHelpers.h"
+#include "PCGParamData.h"
 #include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeFilterElement)
@@ -12,16 +13,6 @@
 namespace PCGAttributeFilterConstants
 {
 	const FName NodeName = TEXT("FilterAttribute");
-}
-
-namespace PCGAttributeFilterSettings
-{
-	TArray<FString> GenerateNameArray(const FString& InString)
-	{
-		TArray<FString> Result;
-		InString.ParseIntoArrayWS(Result, TEXT(","));
-		return Result;
-	}
 }
 
 void UPCGAttributeFilterSettings::PostLoad()
@@ -58,7 +49,7 @@ FName UPCGAttributeFilterSettings::GetDefaultNodeName() const
 
 FName UPCGAttributeFilterSettings::AdditionalTaskName() const
 {
-	TArray<FString> AttributesToKeep = PCGAttributeFilterSettings::GenerateNameArray(SelectedAttributes);
+	TArray<FString> AttributesToKeep = PCGHelpers::GetStringArrayFromCommaSeparatedString(SelectedAttributes);
 
 	FString NodeName = PCGAttributeFilterConstants::NodeName.ToString();
 
@@ -145,7 +136,7 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		TArray<FString> AttributesToKeep = PCGAttributeFilterSettings::GenerateNameArray(Settings->SelectedAttributes);
+		TArray<FString> AttributesToKeep = PCGHelpers::GetStringArrayFromCommaSeparatedString(Settings->SelectedAttributes);
 
 		// Then add/remove each attribute in the list explicitly
 		for (const FString& AttributeName : AttributesToKeep)

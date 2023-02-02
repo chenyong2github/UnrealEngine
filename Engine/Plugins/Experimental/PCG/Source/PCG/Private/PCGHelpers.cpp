@@ -260,6 +260,13 @@ namespace PCGHelpers
 		return (InWorld && InWorld->GetSubsystem<UPCGSubsystem>()) ? InWorld->GetSubsystem<UPCGSubsystem>()->GetPCGWorldActor() : nullptr;
 	}
 
+	TArray<FString> GetStringArrayFromCommaSeparatedString(const FString& InCommaSeparatedString)
+	{
+		TArray<FString> Result;
+		InCommaSeparatedString.ParseIntoArrayWS(Result, TEXT(","));
+		return Result;
+	}
+
 #if WITH_EDITOR
 	bool CanBeExpanded(UClass* ObjectClass)
 	{
