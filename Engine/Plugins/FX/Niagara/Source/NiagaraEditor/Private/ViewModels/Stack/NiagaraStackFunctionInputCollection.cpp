@@ -137,7 +137,7 @@ void UNiagaraStackFunctionInputCollection::SetValuesFromClipboardFunctionInputs(
 	// Set static switches first so that other inputs will be available to set.
 	for (UNiagaraStackInputCategory* ChildCategory : ChildCategories)
 	{
-		ChildCategory->SetStaticSwitchValuesFromClipboardFunctionInputs(ClipboardFunctionInputs);
+		ChildCategory->SetStaticSwitchValuesFromClipboardFunctionInputs(ClipboardFunctionInputs, *this);
 	}
 
 	RefreshChildren();
