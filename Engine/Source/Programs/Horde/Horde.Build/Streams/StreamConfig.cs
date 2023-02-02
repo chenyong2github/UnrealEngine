@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using EpicGames.Horde;
 using EpicGames.Horde.Common;
 using Horde.Build.Acls;
 using Horde.Build.Agents.Pools;
@@ -27,11 +28,6 @@ using HordeCommon.Rpc.Tasks;
 
 namespace Horde.Build.Streams
 {
-	using StreamId = StringId<IStream>;
-	using PoolId = StringId<IPool>;
-	using TemplateId = StringId<ITemplateRef>;
-	using WorkflowId = StringId<WorkflowConfig>;
-
 	/// <summary>
 	/// Flags identifying content of a changelist
 	/// </summary>
@@ -760,7 +756,7 @@ namespace Horde.Build.Streams
 
 			if (Id.IsEmpty)
 			{
-				Id = TemplateId.Sanitize(Name);
+				Id = new TemplateId(StringId.Sanitize(Name));
 			}
 		}
 	}

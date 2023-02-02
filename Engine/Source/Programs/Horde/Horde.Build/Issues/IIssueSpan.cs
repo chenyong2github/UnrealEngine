@@ -8,8 +8,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Issues
 {
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

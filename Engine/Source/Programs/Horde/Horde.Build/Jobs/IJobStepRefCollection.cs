@@ -15,10 +15,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Build.Jobs
 {
 	using LogId = ObjectId<ILogFile>;
-	using PoolId = StringId<IPool>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
-
+	
 	/// <summary>
 	/// Interface for a collection of JobStepRef documents
 	/// </summary>

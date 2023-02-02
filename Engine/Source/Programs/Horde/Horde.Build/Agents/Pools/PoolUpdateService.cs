@@ -16,8 +16,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Agents.Pools
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Periodically updates pool documents to contain the correct workspaces
 	/// </summary>

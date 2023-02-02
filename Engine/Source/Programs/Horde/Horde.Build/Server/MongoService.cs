@@ -35,8 +35,6 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Server
 {
-	using SingletonId = StringId<SingletonBase>;
-
 	/// <summary>
 	/// Constrained set of parameters for building a mongo index
 	/// </summary>

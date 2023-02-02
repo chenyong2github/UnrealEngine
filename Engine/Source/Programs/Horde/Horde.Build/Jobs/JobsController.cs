@@ -31,8 +31,6 @@ using OpenTracing.Util;
 namespace Horde.Build.Jobs
 {
 	using JobId = ObjectId<IJob>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

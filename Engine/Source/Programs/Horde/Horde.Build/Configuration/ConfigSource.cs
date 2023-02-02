@@ -17,8 +17,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Configuration
 {
-	using PerforceConnectionId = StringId<PerforceConnectionSettings>;
-
 	/// <summary>
 	/// Source for reading config files
 	/// </summary>

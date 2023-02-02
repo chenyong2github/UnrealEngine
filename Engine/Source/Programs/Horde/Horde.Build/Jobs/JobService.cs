@@ -39,8 +39,6 @@ namespace Horde.Build.Jobs
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
 	using SessionId = ObjectId<ISession>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

@@ -27,7 +27,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Perforce
 {
-	using StreamId = StringId<IStream>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

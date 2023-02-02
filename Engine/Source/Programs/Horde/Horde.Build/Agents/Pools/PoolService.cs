@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde;
 using EpicGames.Horde.Common;
 using Horde.Build.Agents.Fleet;
 using Horde.Build.Server;
@@ -13,8 +14,6 @@ using HordeCommon;
 
 namespace Horde.Build.Agents.Pools
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Wraps functionality for manipulating pools
 	/// </summary>
@@ -90,7 +89,7 @@ namespace Horde.Build.Agents.Pools
 			Dictionary<string, string>? properties = null)
 		{
 			return _pools.AddAsync(
-				PoolId.Sanitize(name),
+				new PoolId(StringId.Sanitize(name)),
 				name,
 				condition,
 				enableAutoscaling,

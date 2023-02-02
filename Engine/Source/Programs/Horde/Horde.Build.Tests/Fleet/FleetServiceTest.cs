@@ -20,8 +20,6 @@ using StatsdClient;
 
 namespace Horde.Build.Tests.Fleet
 {
-	using PoolId = StringId<IPool>;
-
 	public class FleetManagerSpy : IFleetManager
 	{
 		public int ExpandPoolAsyncCallCount { get; private set; }
@@ -98,7 +96,6 @@ namespace Horde.Build.Tests.Fleet
 	public class FleetServiceTest : TestSetup
 	{
 		readonly FleetManagerSpy _fleetManagerSpy = new();
-		readonly FakeFleetManager _fakeFleetManager = new();
 		readonly IDogStatsd _dogStatsD = new NoOpDogStatsd();
 
 		protected override void Dispose(bool disposing)

@@ -26,9 +26,7 @@ namespace Horde.Build.Issues
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
-	using StreamId = StringId<IStream>;
 	using UserId = ObjectId<IUser>;
-	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Controller for the /api/v1/issues endpoint

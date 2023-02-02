@@ -21,10 +21,6 @@ using HordeCommon;
 namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
-	using PoolId = StringId<IPool>;
-    using ProjectId = StringId<ProjectConfig>;
-    using StreamId = StringId<IStream>;
-    using TemplateId = StringId<ITemplateRef>;
 
 	public class Fixture
 	{

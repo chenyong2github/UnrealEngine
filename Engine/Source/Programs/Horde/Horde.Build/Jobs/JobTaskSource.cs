@@ -36,9 +36,7 @@ namespace Horde.Build.Jobs
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
-	using PoolId = StringId<IPool>;
-	using StreamId = StringId<IStream>;
-
+	
 	/// <summary>
 	/// Background service to dispatch pending work to agents in priority order.
 	/// </summary>
@@ -323,7 +321,7 @@ namespace Horde.Build.Jobs
 		/// <returns></returns>
 		internal static Dictionary<PoolId, PoolStatus> GetPoolStatus(DateTime utcNow, List<IPool> pools, List<IAgent> agents)
 		{
-			Dictionary<StringId<IPool>,PoolStatus> poolStatus = new ();
+			Dictionary<PoolId, PoolStatus> poolStatus = new ();
 
 			foreach (IPool pool in pools)
 			{

@@ -21,8 +21,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Perforce
 {
-	using StreamId = StringId<IStream>;
-
 	/// <summary>
 	/// Exception triggered during content replication
 	/// </summary>

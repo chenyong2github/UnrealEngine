@@ -14,8 +14,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Agents.Pools
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Controller for the /api/v1/pools endpoint
 	/// </summary>

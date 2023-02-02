@@ -21,8 +21,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Perforce
 {
-	using StreamId = StringId<IStream>;
-
 	/// <summary>
 	/// Options for replicating commits
 	/// </summary>

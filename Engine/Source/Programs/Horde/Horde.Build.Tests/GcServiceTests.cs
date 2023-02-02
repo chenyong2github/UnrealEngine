@@ -14,8 +14,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Tests
 {
-	using BackendId = StringId<IStorageBackend>;
-
 	[TestClass]
 	public sealed class GcServiceTests : TestSetup
 	{

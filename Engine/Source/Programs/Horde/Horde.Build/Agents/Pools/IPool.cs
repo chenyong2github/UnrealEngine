@@ -11,8 +11,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Agents.Pools
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Metadata for configuring and picking a pool sizing strategy
 	/// </summary>

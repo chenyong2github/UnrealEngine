@@ -18,8 +18,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Notifications
 {
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

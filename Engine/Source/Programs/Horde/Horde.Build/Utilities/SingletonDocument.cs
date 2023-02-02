@@ -1,15 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Reflection;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using Horde.Build.Server;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using EpicGames.Core;
+using EpicGames.Horde;
+using EpicGames.Serialization;
 
 namespace Horde.Build.Utilities
 {
-	using SingletonId = StringId<SingletonBase>;
+	/// <summary>
+	/// Identifier for a pool
+	/// </summary>
+	/// <param name="Id">Id to construct from</param>
+	[StringIdConverter(typeof(SingletonIdConverter))]
+	public record struct SingletonId(StringId Id)
+	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public SingletonId(string id) : this(new StringId(id)) { }
+
+		/// <inheritdoc/>
+		public override string ToString() => Id.ToString();
+	}
+
+	/// <summary>
+	/// Converter to and from <see cref="StringId"/> instances.
+	/// </summary>
+	class SingletonIdConverter : StringIdConverter<SingletonId>
+	{
+		/// <inheritdoc/>
+		public override SingletonId FromStringId(StringId id) => new SingletonId(id);
+
+		/// <inheritdoc/>
+		public override StringId ToStringId(SingletonId value) => value.Id;
+	}
 
 	/// <summary>
 	/// Base class for singleton documents

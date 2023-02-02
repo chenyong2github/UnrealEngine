@@ -7,9 +7,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Streams
 {
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
-
 	[TestClass]
 	public class StreamCollectionTests : TestSetup
 	{

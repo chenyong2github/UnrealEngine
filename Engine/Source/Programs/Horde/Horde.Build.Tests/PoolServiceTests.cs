@@ -10,8 +10,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {
-	using PoolId = StringId<IPool>;
-
 	[TestClass]
     public class PoolServiceTests : TestSetup
     {

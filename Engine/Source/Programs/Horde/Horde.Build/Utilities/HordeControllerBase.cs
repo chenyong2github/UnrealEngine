@@ -18,12 +18,8 @@ namespace Horde.Build.Utilities
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
-	using ProjectId = StringId<ProjectConfig>;
-	using StreamId = StringId<IStream>;
-	using ToolId = StringId<ITool>;
 	using ToolDeploymentId = ObjectId<IToolDeployment>;
-	using TemplateId = StringId<ITemplateRef>;
-
+	
 	/// <summary>
 	/// Base class for Horde controllers
 	/// </summary>

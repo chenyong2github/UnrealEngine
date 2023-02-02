@@ -10,8 +10,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Agents.Pools
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Exception when conflicting definitions for a pool are encountered
 	/// </summary>

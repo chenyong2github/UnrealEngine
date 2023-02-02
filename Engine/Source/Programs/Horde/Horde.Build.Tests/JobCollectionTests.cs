@@ -25,9 +25,6 @@ namespace Horde.Build.Tests
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
-	using PoolId = StringId<IPool>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 
 	[TestClass]
 	public class JobCollectionTests : TestSetup

@@ -15,8 +15,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Agents.Pools
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Collection of pool documents
 	/// </summary>

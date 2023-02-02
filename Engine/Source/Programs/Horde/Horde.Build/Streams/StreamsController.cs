@@ -22,10 +22,6 @@ using TimeZoneConverter;
 
 namespace Horde.Build.Streams
 {
-	using ProjectId = StringId<ProjectConfig>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
-
 	/// <summary>
 	/// Controller for the /api/v1/streams endpoint
 	/// </summary>

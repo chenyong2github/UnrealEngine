@@ -15,8 +15,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Projects
 {
-	using ProjectId = StringId<ProjectConfig>;
-
 	/// <summary>
 	/// Controller for the /api/v1/projects endpoint
 	/// </summary>

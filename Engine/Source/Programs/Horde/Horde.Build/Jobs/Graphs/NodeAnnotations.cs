@@ -7,8 +7,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Jobs.Graphs
 {
-	using WorkflowId = StringId<WorkflowConfig>;
-
 	/// <summary>
 	/// Interface which wraps a generic key/value dictionary to provide specific node annotations
 	/// </summary>

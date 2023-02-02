@@ -17,10 +17,6 @@ using Horde.Build.Agents;
 
 namespace Horde.Build.Tests.Fleet
 {
-	using PoolId = StringId<IPool>;
-	using ProjectId = StringId<ProjectConfig>;
-	using StreamId = StringId<IStream>;
-
 	[TestClass]
 	public class JobQueueStrategyTest : TestSetup
 	{
@@ -155,7 +151,7 @@ namespace Horde.Build.Tests.Fleet
 			options.Arguments.Add($"-Target={nodeNameToExecute}");
 
 			IJob job = await JobCollection.AddAsync(ObjectId<IJob>.GenerateNewId(), streamId,
-				new StringId<ITemplateRef>("bogusTemplateRefId"), ContentHash.Empty, graph, "bogusJobName",
+				new TemplateId("bogusTemplateRefId"), ContentHash.Empty, graph, "bogusJobName",
 				1000, 1000, options);
 
 			return job;

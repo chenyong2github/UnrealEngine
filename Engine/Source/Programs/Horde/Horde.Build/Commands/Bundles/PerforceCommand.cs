@@ -16,8 +16,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Commands.Bundles
 {
-	using StreamId = StringId<IStream>;
-
 	[Command("bundle", "perforce", "Replicates commits for a particular change of changes from Perforce")]
 	class PerforceCommand : Command
 	{

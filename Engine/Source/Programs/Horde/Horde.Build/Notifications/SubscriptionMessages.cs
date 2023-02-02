@@ -10,9 +10,6 @@ using HordeCommon;
 
 namespace Horde.Build.Notifications
 {
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
-
 	/// <summary>
 	/// Request object for creating a new subscription
 	/// </summary>

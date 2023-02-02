@@ -20,7 +20,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Agents
 {
-	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
 
 	/// <summary>

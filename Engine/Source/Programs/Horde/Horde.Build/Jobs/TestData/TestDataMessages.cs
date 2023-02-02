@@ -11,8 +11,6 @@ using MongoDB.Bson.Serialization;
 
 namespace Horde.Build.Jobs.TestData
 {
-	using StreamId = StringId<IStream>;	
-
 	/// <summary>
 	/// Response object describing test data to store
 	/// </summary>

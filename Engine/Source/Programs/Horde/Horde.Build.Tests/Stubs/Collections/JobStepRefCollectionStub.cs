@@ -15,9 +15,6 @@ namespace Horde.Build.Tests.Stubs.Collections
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
-	using PoolId = StringId<IPool>;
-	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<ITemplateRef>;
 
 	class JobStepRefStub : IJobStepRef
 	{
@@ -25,7 +22,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 		public string JobName { get; set; }
 		public string NodeName { get; set; }
 		public StreamId StreamId { get; set; }
-		public TemplateRefId TemplateId { get; set; }
+		public TemplateId TemplateId { get; set; }
 		public int Change { get; set; }
 		public LogId? LogId { get; set; }
 		public PoolId? PoolId { get; set; }
@@ -41,7 +38,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 		public virtual DateTime StartTimeUtc => throw new NotImplementedException();
 		public virtual DateTime? FinishTimeUtc => throw new NotImplementedException();
 
-		public JobStepRefStub(JobId jobId, SubResourceId batchId, SubResourceId stepId, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, JobStepOutcome? outcome, bool updateIssues)
+		public JobStepRefStub(JobId jobId, SubResourceId batchId, SubResourceId stepId, string jobName, string nodeName, StreamId streamId, TemplateId templateId, int change, JobStepOutcome? outcome, bool updateIssues)
 		{
 			Id = new JobStepRefId(jobId, batchId, stepId);
 			JobName = jobName;
@@ -63,7 +60,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 			_refs.Add(jobStepRef);
 		}
 
-		public Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null)
+		public Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null)
 		{
 			IJobStepRef? nextRef = null;
 			foreach (IJobStepRef jobStepRef in _refs)
@@ -79,7 +76,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 			return Task.FromResult(nextRef);
 		}
 
-		public Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null)
+		public Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null)
 		{
 			IJobStepRef? prevRef = null;
 			foreach (IJobStepRef jobStepRef in _refs)
@@ -95,12 +92,12 @@ namespace Horde.Build.Tests.Stubs.Collections
 			return Task.FromResult(prevRef);
 		}
 
-		Task<List<IJobStepRef>> IJobStepRefCollection.GetStepsForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int? change, bool includeFailed, int count)
+		Task<List<IJobStepRef>> IJobStepRefCollection.GetStepsForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int? change, bool includeFailed, int count)
 		{
 			throw new NotImplementedException();
 		}
 
-		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId id, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, bool updateIssues, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime jobStartTime, DateTime startTime, DateTime? finishTime)
+		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId id, string jobName, string nodeName, StreamId streamId, TemplateId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, bool updateIssues, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime jobStartTime, DateTime startTime, DateTime? finishTime)
 		{
 			throw new NotImplementedException();
 		}

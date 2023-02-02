@@ -13,7 +13,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 {
 	class StreamCollectionStub : IStreamCollection
 	{
-		public Task DeleteAsync(StringId<Stream> StreamId)
+		public Task DeleteAsync(StreamId StreamId)
 		{
 			throw new NotImplementedException();
 		}
@@ -23,17 +23,17 @@ namespace Horde.Build.Tests.Stubs.Collections
 			throw new NotImplementedException();
 		}
 
-		public Task<List<Stream>> FindForProjectAsync(StringId<Project>? ProjectId)
+		public Task<List<Stream>> FindForProjectAsync(ProjectId? ProjectId)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<Stream> GetAsync(StringId<Stream> StreamId)
+		public Task<Stream> GetAsync(StreamId StreamId)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<StreamPermissions> GetPermissionsAsync(StringId<Stream> StreamId)
+		public Task<StreamPermissions> GetPermissionsAsync(StreamId StreamId)
 		{
 			throw new NotImplementedException();
 		}
@@ -53,12 +53,12 @@ namespace Horde.Build.Tests.Stubs.Collections
 			throw new NotImplementedException();
 		}
 
-		public Task<bool> TryUpdateScheduleJobsAsync(Stream Stream, StringId<TemplateRef> TemplateRefId, List<ObjectId> NewActiveJobs)
+		public Task<bool> TryUpdateScheduleJobsAsync(Stream Stream, TemplateId TemplateRefId, List<ObjectId> NewActiveJobs)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<bool> TryUpdateScheduleTriggerTime(Stream Stream, StringId<TemplateRef> TemplateRefId, DateTimeOffset LastTriggerTime)
+		public Task<bool> TryUpdateScheduleTriggerTime(Stream Stream, TemplateId TemplateRefId, DateTimeOffset LastTriggerTime)
 		{
 			throw new NotImplementedException();
 		}

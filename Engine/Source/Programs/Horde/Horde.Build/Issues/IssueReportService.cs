@@ -21,10 +21,6 @@ using MongoDB.Bson.Serialization.Options;
 
 namespace Horde.Build.Issues
 {
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
-	using WorkflowId = StringId<WorkflowConfig>;
-
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 	public class WorkflowStats
 	{

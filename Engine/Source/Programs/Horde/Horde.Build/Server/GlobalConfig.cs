@@ -27,10 +27,6 @@ using Horde.Build.Utilities;
 namespace Horde.Build.Server
 {
 	using UserId = ObjectId<IUser>;
-	using ProjectId = StringId<ProjectConfig>;
-	using StreamId = StringId<IStream>;
-	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
-	using ToolId = StringId<ITool>;
 
 	/// <summary>
 	/// Directive to merge config data from another source

@@ -17,8 +17,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Fleet
 {
-	using StreamId = StringId<IStream>;
-
 	[TestClass]
 	public class LeaseUtilizationStrategyTest : TestSetup
 	{

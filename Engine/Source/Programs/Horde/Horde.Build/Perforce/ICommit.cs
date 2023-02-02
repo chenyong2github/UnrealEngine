@@ -13,7 +13,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Perforce
 {
-	using StreamId = StringId<IStream>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

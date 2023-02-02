@@ -8,9 +8,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Agents.Telemetry
 {
-	using PoolId = StringId<IPool>;
-	using StreamId = StringId<IStream>;
-
 	/// <summary>
 	/// Information about the utilization of a pool
 	/// </summary>

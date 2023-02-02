@@ -31,7 +31,6 @@ using StatsdClient;
 namespace Horde.Build.Agents
 {
 	using LeaseId = ObjectId<ILease>;
-	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
@@ -264,24 +263,24 @@ namespace Horde.Build.Agents
 			return newDynamicPools;
 		}
 		
-		private static List<StringId<IPool>> GetRequestedPoolsFromProperties(IReadOnlyList<string> properties)
+		private static List<PoolId> GetRequestedPoolsFromProperties(IReadOnlyList<string> properties)
 		{
-			List<StringId<IPool>> poolIds = new();
+			List<PoolId> poolIds = new();
 			foreach (string property in properties)
 			{
 				const string Key = KnownPropertyNames.RequestedPools + "=";
 				if (property.StartsWith(Key, StringComparison.InvariantCulture))
 				{
-					poolIds.AddRange(property[Key.Length..].Split(",").Select(x => new StringId<IPool>(x)));
+					poolIds.AddRange(property[Key.Length..].Split(",").Select(x => new PoolId(x)));
 				}
 			}
 
 			return poolIds;
 		}
 		
-		private static List<StringId<IPool>> CombineCurrentAndRequestedPools(IReadOnlyList<StringId<IPool>> pools, IReadOnlyList<string> properties)
+		private static List<PoolId> CombineCurrentAndRequestedPools(IReadOnlyList<PoolId> pools, IReadOnlyList<string> properties)
 		{
-			HashSet<StringId<IPool>> uniquePools = new(pools);
+			HashSet<PoolId> uniquePools = new(pools);
 			uniquePools.UnionWith(GetRequestedPoolsFromProperties(properties));
 			return new List<PoolId>(uniquePools);
 		}

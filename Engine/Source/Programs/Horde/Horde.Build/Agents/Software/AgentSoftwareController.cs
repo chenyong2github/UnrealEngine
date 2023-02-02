@@ -14,8 +14,6 @@ using Microsoft.Net.Http.Headers;
 
 namespace Horde.Build.Agents.Software
 {
-	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
-
 	/// <summary>
 	/// Controller for the /api/v1/software endpoint
 	/// </summary>

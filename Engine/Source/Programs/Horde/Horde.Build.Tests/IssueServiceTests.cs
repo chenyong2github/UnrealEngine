@@ -35,9 +35,6 @@ namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
-	using ProjectId = StringId<ProjectConfig>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	[TestClass]
@@ -102,13 +99,13 @@ namespace Horde.Build.Tests
 		}
 
 		const string MainStreamName = "//UE4/Main";
-		readonly StreamId _mainStreamId = StreamId.Sanitize(MainStreamName);
+		readonly StreamId _mainStreamId = new StreamId("ue4-main");
 
 		const string ReleaseStreamName = "//UE4/Release";
-		readonly StreamId _releaseStreamId = StreamId.Sanitize(ReleaseStreamName);
+		readonly StreamId _releaseStreamId = new StreamId("ue4-release");
 
 		const string DevStreamName = "//UE4/Dev";
-		readonly StreamId _devStreamId = StreamId.Sanitize(DevStreamName);
+		readonly StreamId _devStreamId = new StreamId("ue4-dev");
 		readonly IGraph _graph;
 		readonly PerforceServiceStub _perforce;
 		readonly UserId _timId;

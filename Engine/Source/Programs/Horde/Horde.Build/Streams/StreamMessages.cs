@@ -19,9 +19,6 @@ using System.Linq;
 namespace Horde.Build.Streams
 {
 	using JobId = ObjectId<IJob>;
-	using StreamId = StringId<IStream>;
-	using ProjectId = StringId<ProjectConfig>;
-	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Step state update request

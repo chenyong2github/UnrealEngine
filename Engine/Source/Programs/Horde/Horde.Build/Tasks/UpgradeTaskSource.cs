@@ -18,7 +18,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Tasks
 {
-	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;

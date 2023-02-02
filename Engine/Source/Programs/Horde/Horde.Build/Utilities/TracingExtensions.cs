@@ -15,36 +15,6 @@ namespace Horde.Build.Utilities
 	{
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag<T>(this ISpan span, string key, StringId<T>? value)
-		{
-			if (value != null)
-			{
-				span.SetTag(key, value.ToString());
-			}
-			return span;
-		}
-		
-		/// <summary>Set a key:value tag on the span</summary>
-		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag<T>(this ISpan span, string key, StringId<T> value)
-		{
-			span.SetTag(key, value.ToString());
-			return span;
-		}
-
-		/// <summary>Set a key:value tag on the span</summary>
-		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag<T>(this ISpan span, string key, IEnumerable<StringId<T>>? value)
-		{
-			if (value != null)
-			{
-				span.SetTag(key, String.Join(',', value));
-			}
-			return span;
-		}
-
-		/// <summary>Set a key:value tag on the span</summary>
-		/// <returns>This span instance, for chaining</returns>
 		public static ISpan SetTag<T>(this ISpan span, string key, ObjectId<T>? value)
 		{
 			if (value != null)

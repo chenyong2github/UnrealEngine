@@ -15,8 +15,6 @@ using HordeCommon;
 
 namespace Horde.Build.Jobs
 {
-	using TemplateId = StringId<ITemplateRef>;
-
 	/// <summary>
 	/// State of the job
 	/// </summary>

@@ -88,7 +88,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 			return new ScaleResult(FleetManagerOutcome.Success, 0, count);
 		}
 		
-		private async Task UpdateAsg(StringId<IPool> poolId, int desiredCapacity, IScope scope, CancellationToken cancellationToken)
+		private async Task UpdateAsg(PoolId poolId, int desiredCapacity, IScope scope, CancellationToken cancellationToken)
 		{
 			UpdateAutoScalingGroupRequest request = new () { AutoScalingGroupName = Settings.Name, DesiredCapacity = desiredCapacity };
 			UpdateAutoScalingGroupResponse response = await _awsAutoScaling.UpdateAutoScalingGroupAsync(request, cancellationToken);

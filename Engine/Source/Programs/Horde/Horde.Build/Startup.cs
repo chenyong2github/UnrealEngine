@@ -106,8 +106,8 @@ namespace Horde.Build
 	{
 		static Startup()
 		{
-			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<ProjectConfig>)].SetSurrogate(typeof(StringIdProto<ProjectConfig>));
-			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<IStream>)].SetSurrogate(typeof(StringIdProto<IStream>));
+			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(ProjectId)].SetSurrogate(typeof(StringIdProto<ProjectId, ProjectIdConverter>));
+			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StreamId)].SetSurrogate(typeof(StringIdProto<StreamId, StreamIdConverter>));
 		}
 
 		class GrpcExceptionInterceptor : Interceptor
@@ -782,7 +782,7 @@ namespace Horde.Build
 			options.Converters.Add(new JsonObjectIdConverter());
 			options.Converters.Add(new JsonStringEnumConverter());
 			options.Converters.Add(new JsonKnownTypesConverterFactory());
-			options.Converters.Add(new JsonStringIdConverterFactory());
+			options.Converters.Add(new StringIdJsonConverterFactory());
 			options.Converters.Add(new JsonDateTimeConverter());
 			options.Converters.Add(new JsonTimeSpanConverter());
 		}
@@ -959,7 +959,7 @@ namespace Horde.Build
 				BsonSerializer.RegisterSerializer(new NamespaceIdBsonSerializer());
 				BsonSerializer.RegisterSerializer(new ConditionSerializer());
 				BsonSerializer.RegisterSerializationProvider(new BsonSerializationProvider());
-				BsonSerializer.RegisterSerializationProvider(new StringIdSerializationProvider());
+				BsonSerializer.RegisterSerializationProvider(new StringIdBsonSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new ObjectIdSerializationProvider());
 			}
 		}

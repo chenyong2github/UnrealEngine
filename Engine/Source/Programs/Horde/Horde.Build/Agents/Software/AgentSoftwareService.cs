@@ -17,8 +17,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Agents.Software
 {
-	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
-
 	/// <summary>
 	/// Information about a channel
 	/// </summary>

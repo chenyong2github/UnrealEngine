@@ -167,7 +167,7 @@ namespace Horde.Build.Tests
 
 			if (shouldCreateAgent)
 			{
-				IAgent? agent = await AgentService.CreateAgentAsync("TestAgent", isAgentEnabled, new List<StringId<IPool>> { pool.Id });
+				IAgent? agent = await AgentService.CreateAgentAsync("TestAgent", isAgentEnabled, new List<PoolId> { pool.Id });
 				await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
 			}
 			

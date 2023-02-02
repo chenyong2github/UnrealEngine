@@ -16,8 +16,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Storage
 {
-	using BackendId = StringId<IStorageBackend>;
-
 	/// <summary>
 	/// Well-known namespace identifiers
 	/// </summary>

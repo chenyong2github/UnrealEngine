@@ -27,7 +27,6 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Perforce
 {
-	using StreamId = StringId<IStream>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

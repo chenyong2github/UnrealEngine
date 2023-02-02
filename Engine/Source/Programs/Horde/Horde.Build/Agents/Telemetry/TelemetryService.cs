@@ -15,8 +15,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Agents.Telemetry
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Service which updates telemetry periodically
 	/// </summary>

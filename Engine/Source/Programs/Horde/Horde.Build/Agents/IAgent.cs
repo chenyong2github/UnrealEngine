@@ -29,10 +29,8 @@ namespace Horde.Build.Agents
 {
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
-	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
-	using StreamId = StringId<IStream>;
-
+	
 	/// <summary>
 	/// Information about a workspace synced to an agent
 	/// </summary>

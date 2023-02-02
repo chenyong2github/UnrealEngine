@@ -14,9 +14,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Agents.Telemetry
 {
-	using PoolId = StringId<IPool>;
-	using StreamId = StringId<IStream>;
-
 	/// <summary>
 	/// Collection of utilization data
 	/// </summary>

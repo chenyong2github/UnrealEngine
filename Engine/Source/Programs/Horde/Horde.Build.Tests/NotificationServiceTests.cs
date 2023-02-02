@@ -22,8 +22,7 @@ using Microsoft.Extensions.Caching.Memory;
 namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
-	using StreamId = StringId<IStream>;
-
+	
 	public class FakeNotificationSink : INotificationSink
 	{
 		public List<JobScheduledNotification> JobScheduledNotifications { get; } = new();

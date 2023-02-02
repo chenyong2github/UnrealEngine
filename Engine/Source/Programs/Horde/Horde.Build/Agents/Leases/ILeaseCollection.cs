@@ -14,10 +14,8 @@ namespace Horde.Build.Agents.Leases
 {
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
-	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
-	using StreamId = StringId<IStream>;
-
+	
 	/// <summary>
 	/// Interface for a collection of lease documents
 	/// </summary>

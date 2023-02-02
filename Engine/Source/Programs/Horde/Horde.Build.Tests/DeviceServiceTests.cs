@@ -12,12 +12,10 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Horde.Build.Server;
 using System;
+using EpicGames.Horde;
 
 namespace Horde.Build.Tests
 {
-	using DeviceId = StringId<IDevice>;
-	using DevicePlatformId = StringId<IDevicePlatform>;
-
 	/// <summary>
 	/// Tests for the device service
 	/// </summary>
@@ -74,7 +72,7 @@ namespace Horde.Build.Tests
 				}
 
 				// add models
-				await DevicesController.UpdatePlatformAsync(DevicePlatformId.Sanitize(platformName).ToString(), new UpdateDevicePlatformRequest() { ModelIds = modelIds.ToArray() });
+				await DevicesController.UpdatePlatformAsync(new DevicePlatformId(StringId.Sanitize(platformName)).ToString(), new UpdateDevicePlatformRequest() { ModelIds = modelIds.ToArray() });
 
 				platformMap[platformName] = platformName;
 
@@ -82,7 +80,7 @@ namespace Horde.Build.Tests
 				if (i == 3)
 				{
 					DevicePlatformConfig config = new DevicePlatformConfig();
-					config.Id = DevicePlatformId.Sanitize(platformName).ToString();
+					config.Id = new DevicePlatformId(StringId.Sanitize(platformName)).ToString();
 					config.Names.Add("TestDevicePlatform3Alias");
 					config.LegacyPerfSpecHighModel = "TestDevicePlatform3_Model4";
 					Devices.Platforms.Add(config);

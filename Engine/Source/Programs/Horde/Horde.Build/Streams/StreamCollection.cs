@@ -18,9 +18,6 @@ using MongoDB.Driver;
 namespace Horde.Build.Streams
 {
 	using JobId = ObjectId<IJob>;
-	using ProjectId = StringId<ProjectConfig>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

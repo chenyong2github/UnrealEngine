@@ -8,8 +8,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Agents.Pools
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Configuration for a pool of machines
 	/// </summary>

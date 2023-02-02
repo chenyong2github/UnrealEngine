@@ -20,9 +20,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Agents.Fleet
 {
-	using PoolId = StringId<IPool>;
-	using StreamId = StringId<IStream>;
-
 	/// <summary>
 	/// Job queue sizing settings for a pool
 	/// </summary>

@@ -42,7 +42,7 @@ namespace Horde.Build.Tests
 	        ActionResult<CreatePoolResponse> result = await PoolsController.CreatePoolAsync(request);
 	        CreatePoolResponse response = result.Value!;
 		        
-	        IPool pool = (await PoolService.GetPoolAsync(new StringId<IPool>(response.Id)))!;
+	        IPool pool = (await PoolService.GetPoolAsync(new PoolId(response.Id)))!;
 	        Assert.AreEqual(request.Name, pool.Name);
 	        Assert.AreEqual(request.ScaleOutCooldown, (int)pool.ScaleOutCooldown!.Value.TotalSeconds);
 	        Assert.AreEqual(request.ScaleInCooldown, (int)pool.ScaleInCooldown!.Value.TotalSeconds);

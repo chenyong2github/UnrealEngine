@@ -21,9 +21,7 @@ using Microsoft.Extensions.Options;
 namespace Horde.Build.Jobs.TestData
 {
 	using JobId = ObjectId<IJob>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
-
+	
 	using TestId = ObjectId<ITest>;
 	using TestSuiteId = ObjectId<ITestSuite>;
 	using TestMetaId = ObjectId<ITestMeta>;

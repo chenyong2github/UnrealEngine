@@ -16,8 +16,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Tests
 {
-	using BackendId = StringId<IStorageBackend>;
-
 	[TestClass]
 	public class BlobStoreTests : TestSetup
 	{

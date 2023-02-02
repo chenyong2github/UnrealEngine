@@ -16,7 +16,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Stubs.Services
 {
-	using StreamId = StringId<IStream>;
 	using UserId = ObjectId<IUser>;
 
 	class PerforceServiceStub : IPerforceService

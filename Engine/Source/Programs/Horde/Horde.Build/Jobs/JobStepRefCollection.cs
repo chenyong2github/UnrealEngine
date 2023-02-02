@@ -18,10 +18,7 @@ using MongoDB.Driver;
 namespace Horde.Build.Jobs
 {
 	using LogId = ObjectId<ILogFile>;
-	using PoolId = StringId<IPool>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
-
+	
 	/// <summary>
 	/// Collection of JobStepRef documents
 	/// </summary>

@@ -12,10 +12,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Issues
 {
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
-	using WorkflowId = StringId<WorkflowConfig>;
-
 	/// <summary>
 	/// Identifies a particular changelist and job
 	/// </summary>

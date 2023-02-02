@@ -19,11 +19,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Devices
 {
-	using DeviceId = StringId<IDevice>;
-	using DevicePlatformId = StringId<IDevicePlatform>;
-	using DevicePoolId = StringId<IDevicePool>;
-	using ProjectId = StringId<ProjectConfig>;
-
 	/// <summary>
 	/// Controller for device service
 	/// </summary>

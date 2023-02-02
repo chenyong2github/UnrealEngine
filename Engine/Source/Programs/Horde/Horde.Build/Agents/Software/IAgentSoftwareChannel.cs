@@ -5,8 +5,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Agents.Software
 {
-	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
-
 	/// <summary>
 	/// A software channel
 	/// </summary>

@@ -11,8 +11,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Tools
 {
-	using ToolId = StringId<ITool>;
-
 	/// <summary>
 	/// Options for configuring a tool
 	/// </summary>

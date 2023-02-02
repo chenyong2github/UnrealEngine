@@ -22,7 +22,6 @@ using System.Threading.Tasks;
 
 namespace Horde.Build.Tools
 {
-	using ToolId = StringId<ITool>;
 	using ToolDeploymentId = ObjectId<IToolDeployment>;
 
 	/// <summary>

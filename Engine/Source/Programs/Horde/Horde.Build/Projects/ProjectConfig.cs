@@ -19,8 +19,6 @@ using HordeCommon.Rpc.Tasks;
 
 namespace Horde.Build.Projects
 {
-	using ProjectId = StringId<ProjectConfig>;
-
 	/// <summary>
 	/// Stores configuration for a project
 	/// </summary>

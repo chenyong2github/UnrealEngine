@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using EpicGames.Horde;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Perforce;
@@ -18,8 +20,6 @@ using Serilog.Events;
 
 namespace Horde.Build
 {
-	using PerforceConnectionId = StringId<PerforceConnectionSettings>;
-
 	/// <summary>
 	/// Types of storage backend to use
 	/// </summary>
@@ -726,6 +726,37 @@ namespace Horde.Build
 				throw new ArgumentException($"Settings key '{nameof(RunModes)}' contains one or more invalid entries");
 			}
 		}
+	}
+
+	/// <summary>
+	/// Identifier for a pool
+	/// </summary>
+	/// <param name="Id">Id to construct from</param>
+	[JsonSchemaString]
+	[StringIdConverter(typeof(PerforceConnectionIdConverter))]
+	public record struct PerforceConnectionId(StringId Id)
+	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public PerforceConnectionId(string id) : this(new StringId(id))
+		{
+		}
+
+		/// <inheritdoc/>
+		public override string ToString() => Id.ToString();
+	}
+
+	/// <summary>
+	/// Converter to and from <see cref="StringId"/> instances.
+	/// </summary>
+	class PerforceConnectionIdConverter : StringIdConverter<PerforceConnectionId>
+	{
+		/// <inheritdoc/>
+		public override PerforceConnectionId FromStringId(StringId id) => new PerforceConnectionId(id);
+
+		/// <inheritdoc/>
+		public override StringId ToStringId(PerforceConnectionId value) => value.Id;
 	}
 
 	/// <summary>

@@ -20,12 +20,10 @@ using Horde.Build.Logs;
 using System.Linq;
 using System.Threading;
 using Horde.Build.Server;
+using EpicGames.Horde;
 
 namespace Horde.Build.Tests
 {
-	using ProjectId = StringId<ProjectConfig>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 	using JobId = ObjectId<IJob>;
 
 	/// <summary>
@@ -35,10 +33,10 @@ namespace Horde.Build.Tests
 	public class TestDataTests : TestSetup
 	{
 		const string MainStreamName = "//UE5/Main";
-		readonly StreamId _mainStreamId = StreamId.Sanitize(MainStreamName);
+		readonly StreamId _mainStreamId = new StreamId(StringId.Sanitize(MainStreamName));
 
 		const string ReleaseStreamName = "//UE5/Release";
-		readonly StreamId _releaseStreamId = StreamId.Sanitize(ReleaseStreamName);
+		readonly StreamId _releaseStreamId = new StreamId(StringId.Sanitize(ReleaseStreamName));
 
 		readonly IGraph _graph;
 

@@ -14,10 +14,8 @@ namespace Horde.Build.Agents.Leases
 {
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
-	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
-	using StreamId = StringId<IStream>;
-
+	
 	/// <summary>
 	/// Document describing a lease. This exists to permanently record a lease; the agent object tracks internal state of any active leases through AgentLease objects.
 	/// </summary>

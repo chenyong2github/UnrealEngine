@@ -17,13 +17,8 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Devices
 {
-	using DeviceId = StringId<IDevice>;
-	using DevicePlatformId = StringId<IDevicePlatform>;
-	using DevicePoolId = StringId<IDevicePool>;
-	using ProjectId = StringId<ProjectConfig>;
 	using UserId = ObjectId<IUser>;
-	using StreamId = StringId<IStream>;
-
+	
 	/// <summary>
 	/// Collection of device documents
 	/// </summary>

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 
 namespace EpicGames.Horde
@@ -10,6 +12,17 @@ namespace EpicGames.Horde
 	/// </summary>
 	public struct StringId : IEquatable<StringId>
 	{
+		/// <summary>
+		/// Enum used to disable validation on string arguments
+		/// </summary>
+		public enum Validate
+		{ 
+			/// <summary>
+			/// No validation required
+			/// </summary>
+			None,
+		};
+
 		/// <summary>
 		/// The text representing this id
 		/// </summary>
@@ -35,9 +48,51 @@ namespace EpicGames.Horde
 		}
 
 		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="text">Unique id for the string</param>
+		/// <param name="validate">Argument used for overload resolution for pre-validated strings</param>
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter")]
+		public StringId(Utf8String text, Validate validate)
+		{
+			Text = text;
+		}
+
+		/// <summary>
 		/// Checks whether this StringId is set
 		/// </summary>
 		public bool IsEmpty => Text.IsEmpty;
+
+		/// <summary>
+		/// Generates a new string id from the given text
+		/// </summary>
+		/// <param name="text">Text to generate from</param>
+		/// <returns>New string id</returns>
+		public static StringId Sanitize(string text)
+		{
+			StringBuilder result = new StringBuilder();
+			for (int idx = 0; idx < text.Length; idx++)
+			{
+				char character = (char)text[idx];
+				if (character >= 'A' && character <= 'Z')
+				{
+					result.Append((char)('a' + (character - 'A')));
+				}
+				else if (IsValidCharacter(character))
+				{
+					result.Append(character);
+				}
+				else if (result.Length > 0 && result[^1] != '-')
+				{
+					result.Append('-');
+				}
+			}
+			while (result.Length > 0 && result[^1] == '-')
+			{
+				result.Remove(result.Length - 1, 1);
+			}
+			return new StringId(result.ToString(), Validate.None);
+		}
 
 		/// <summary>
 		/// Validates the given string as a StringId, normalizing it if necessary.
@@ -47,11 +102,6 @@ namespace EpicGames.Horde
 		/// <returns></returns>
 		public static Utf8String ValidateArgument(Utf8String text, string paramName)
 		{
-			if (text.Length == 0)
-			{
-				throw new ArgumentException("String id may not be empty", paramName);
-			}
-
 			const int MaxLength = 64;
 			if (text.Length > MaxLength)
 			{

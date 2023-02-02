@@ -26,7 +26,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 			throw new NotImplementedException();
 		}
 
-		public Task<List<Job>> FindAsync(StringId<Stream>? StreamId, string Name, StringId<TemplateRef>[] Templates, int? MinChange, int? MaxChange, DateTimeOffset? MinCreateTime, DateTimeOffset? MaxCreateTime, int Index, int Count)
+		public Task<List<Job>> FindAsync(StreamId? StreamId, string Name, TemplateId[] Templates, int? MinChange, int? MaxChange, DateTimeOffset? MinCreateTime, DateTimeOffset? MaxCreateTime, int Index, int Count)
 		{
 			throw new NotImplementedException();
 		}
@@ -51,7 +51,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 			throw new NotImplementedException();
 		}
 
-		public Task RemoveStreamAsync(StringId<Stream> StreamId)
+		public Task RemoveStreamAsync(StreamId StreamId)
 		{
 			throw new NotImplementedException();
 		}

@@ -36,8 +36,6 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Storage
 {
-	using BackendId = StringId<IStorageBackend>;
-
 	/// <summary>
 	/// Exception thrown by the <see cref="StorageService"/>
 	/// </summary>

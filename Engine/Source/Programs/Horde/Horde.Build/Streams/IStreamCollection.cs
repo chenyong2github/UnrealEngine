@@ -10,7 +10,6 @@ using Horde.Build.Utilities;
 namespace Horde.Build.Streams
 {
 	using JobId = ObjectId<IJob>;
-	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Collection of stream documents

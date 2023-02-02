@@ -5,9 +5,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Notifications
 {
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
-
 	/// <summary>
 	/// Base interface for events that users can subscribe for notifications to
 	/// </summary>

@@ -26,8 +26,6 @@ using StatsdClient;
 
 namespace Horde.Build.Agents.Fleet
 {
-	using PoolId = StringId<IPool>;
-	
 	/// <summary>
 	/// Parameters required for calculating pool size
 	/// </summary>

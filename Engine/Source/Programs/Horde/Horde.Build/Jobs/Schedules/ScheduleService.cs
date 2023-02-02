@@ -29,8 +29,6 @@ using StackExchange.Redis;
 namespace Horde.Build.Jobs.Schedules
 {
 	using JobId = ObjectId<IJob>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Manipulates schedule instances

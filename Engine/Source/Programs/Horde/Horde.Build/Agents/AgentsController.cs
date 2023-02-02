@@ -20,7 +20,6 @@ using Microsoft.Extensions.Options;
 namespace Horde.Build.Agents
 {
 	using LeaseId = ObjectId<ILease>;
-	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
 
 	/// <summary>

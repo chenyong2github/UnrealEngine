@@ -31,10 +31,7 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Issues
 {
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
-	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Detailed issue information

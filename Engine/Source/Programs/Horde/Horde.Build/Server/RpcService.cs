@@ -43,8 +43,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Server
 {
-	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
-	using IStream = Horde.Build.Streams.IStream;
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using RpcAgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
@@ -55,8 +53,7 @@ namespace Horde.Build.Server
 	using RpcUpdateJobRequest = HordeCommon.Rpc.UpdateJobRequest;
 	using RpcUpdateStepRequest = HordeCommon.Rpc.UpdateStepRequest;
 	using SessionId = ObjectId<ISession>;
-	using StreamId = StringId<IStream>;
-
+	
 	/// <summary>
 	/// Implements the Horde gRPC service for bots updating their status and dequeing work
 	/// </summary>

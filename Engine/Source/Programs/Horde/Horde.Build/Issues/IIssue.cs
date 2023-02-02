@@ -10,7 +10,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Issues
 {
-	using StreamId = StringId<IStream>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

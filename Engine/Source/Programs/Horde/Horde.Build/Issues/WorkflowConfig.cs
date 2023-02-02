@@ -8,8 +8,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Issues
 {
-	using WorkflowId = StringId<WorkflowConfig>;
-
 	/// <summary>
 	/// Configuration for an issue workflow
 	/// </summary>

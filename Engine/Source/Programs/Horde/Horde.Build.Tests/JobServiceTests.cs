@@ -28,9 +28,7 @@ namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
-	using ProjectId = StringId<ProjectConfig>;
-	using StreamId = StringId<IStream>;
-	using TemplateId = StringId<ITemplateRef>;
+	using ProjectId = Projects.ProjectId;
 
 	[TestClass]
 	public class JobServiceTests : TestSetup
@@ -209,7 +207,7 @@ namespace Horde.Build.Tests
 
 			// ----
 
-			IAgent? agent = await AgentService.CreateAgentAsync("TestAgent", true, new List<StringId<IPool>> { new StringId<IPool>("win") });
+			IAgent? agent = await AgentService.CreateAgentAsync("TestAgent", true, new List<PoolId> { new PoolId("win") });
 			await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
 
 			ITemplate template = await TemplateCollection.GetOrAddAsync(new TemplateConfig { Name = "Test template" });
