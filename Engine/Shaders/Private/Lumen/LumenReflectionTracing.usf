@@ -414,6 +414,7 @@ void TraceMeshSDFs(
 	TraceInput.Setup(SamplePosition, SampleTranslatedPosition, RayData.Direction, RayCone.SpreadAngle, 0.0f, max(TraceHitDistance - PullbackForSurfaceExpand, 0.0f), RayData.TraceDistance, 1.0f);
 	TraceInput.bHiResSurface = UseHighResSurface != 0;
 	TraceInput.VoxelTraceStartDistance = MaxMeshSDFTraceDistance;
+	TraceInput.DitherScreenCoord = InReflectionTracingCoord;
 
 	uint CardGridCellIndex = ComputeCardGridCellIndex(ReflectionTracingCoord.Coord * ReflectionDownsampleFactor, SceneDepth);
 	TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
@@ -540,6 +541,7 @@ void TraceVoxels(
 
 	FConeTraceInput TraceInput;
 	TraceInput.Setup(SamplePosition, SampleTranslatedPosition, RayData.Direction, RayCone.SpreadAngle, 0.0f, 0.0f, RayData.TraceDistance, 1.0f);
+	TraceInput.DitherScreenCoord = ReflectionTracingCoord.Coord;
 	TraceInput.bHiResSurface = UseHighResSurface != 0;
 
 	uint ClipmapForSurfaceExpand = ComputeGlobalDistanceFieldClipmapIndex(TranslatedWorldPosition + TraceHitDistance * RayData.Direction);
@@ -549,7 +551,6 @@ void TraceVoxels(
 	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
 	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;
 	TraceInput.InitialMaxDistance = 0;
-	TraceInput.DitherScreenCoord = ReflectionTracingCoord.Coord;
 
 	// Dither step factor to smooth out SDF stepping artifacts, but only when near mirror
 	float StepFactorNoise = lerp(.95f, 1.0f / .95f, InterleavedGradientNoise(ReflectionTracingCoord.Coord, View.StateFrameIndexMod8));
