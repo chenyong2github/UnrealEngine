@@ -1044,6 +1044,15 @@ public:
 		Super::Pairs.StableSort(FValueComparisonClass<PREDICATE_CLASS>(Predicate));
 	}
 
+	/**
+	 * Sort the free element list so that subsequent additions will occur in the lowest available
+	 * TSet index resulting in tighter packing without moving any existing items. Also useful for
+	 * some types of determinism. @see TSparseArray::SortFreeList() for more info.
+	 */
+	void SortFreeList()
+	{
+		Super::Pairs.SortFreeList();
+	}
 
 private:
 

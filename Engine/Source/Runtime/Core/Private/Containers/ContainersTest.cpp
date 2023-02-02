@@ -396,6 +396,49 @@ namespace
 		}
 	}
 
+	// Test container element address consistency when using SortFreeList 
+	// (see TSparseArray::SortFreeList for comments)
+	template <typename ContainerType, typename KeyType>
+	void RunContainerConsistencyTests()
+	{
+		ContainerType Cont;
+
+		{
+			// Add 3 elements, then remove 2 in the same order they were added
+			const KeyType Key0 = GenerateTestKey<KeyType>(0);
+			const KeyType Key1 = GenerateTestKey<KeyType>(1);
+			const KeyType Key2 = GenerateTestKey<KeyType>(2);
+			const FContainerTestValueType Value = FContainerTestValueType(TEXT("New Value"));
+			Cont.Add(Key0, Value);
+			Cont.Add(Key1, Value);
+			Cont.Add(Key2, Value);
+			const FContainerTestValueType* ValuePtr0 = Cont.Find(Key0);
+			const FContainerTestValueType* ValuePtr1 = Cont.Find(Key1);
+			const FContainerTestValueType* ValuePtr2 = Cont.Find(Key2);
+			check(ValuePtr0 != nullptr);
+			check(ValuePtr1 != nullptr);
+			check(ValuePtr2 != nullptr);
+			Cont.Remove(Key1);
+			Cont.Remove(Key2);
+
+			// Re-add the 2 elements in the same order. Without the call to SortFreeList() 
+			// the elements would end up in a different locations/order compared to the 
+			// original insertions. SortFreeList() should ensure that re-adding the elements 
+			// gives use the same container layout as long as we perform the same operations 
+			// in the same order as before.
+			Cont.SortFreeList();
+			Cont.Add(Key1, Value);
+			Cont.Add(Key2, Value);
+			const FContainerTestValueType* NewValuePtr0 = Cont.Find(Key0);
+			const FContainerTestValueType* NewValuePtr1 = Cont.Find(Key1);
+			const FContainerTestValueType* NewValuePtr2 = Cont.Find(Key2);
+
+			check(ValuePtr0 == NewValuePtr0);
+			check(ValuePtr1 == NewValuePtr1);
+			check(ValuePtr2 == NewValuePtr2);
+		}
+	}
+
 	template <typename Container>
 	void RunEmptyContainerSelfEqualityTest()
 	{
@@ -569,6 +612,8 @@ bool FContainersFullTest::RunTest(const FString& Parameters)
 	RunContainerTests<TMap<int32, FContainerTestValueType, TInlineSetAllocator<64>>, int32>();
 	RunContainerTests<TMap<int32, FContainerTestValueType, TFixedSetAllocator<64>>, int32>();
 	RunContainerTests<TMap<FString, FContainerTestValueType, FDefaultSetAllocator, FCaseSensitiveLookupKeyFuncs<FContainerTestValueType>>, FString>();
+
+	RunContainerConsistencyTests<TMap<int32, FContainerTestValueType>, int32>();
 
 	RunContainerTests<TSortedMap<int32, FContainerTestValueType>, int32>();
 	RunContainerTests<TSortedMap<FName, FContainerTestValueType, FDefaultAllocator, FNameLexicalLess>, FName>();

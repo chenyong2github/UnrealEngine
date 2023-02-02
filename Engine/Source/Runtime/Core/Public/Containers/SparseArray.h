@@ -618,6 +618,50 @@ public:
 		StableSort(TLess< ElementType >());
 	}
 
+	/**
+	* Sort the free element list so that subsequent allocations will occur in the lowest available 
+	* position resulting in tighter packing without moving any existing items. This also means 
+	* that assigned indices no longer depend on the order in which old items were removed, making
+	* it easier to use the container when determinism is required (without a container reset).
+	* 
+	* E.g., call SortFreeList() each frame to make the container assign the same indices when we 
+	* perform the following operations:
+	*	Frame1: Add(A) -> [0]; Add(B) -> [1]; Remove(A); Remove(B); (Free list is now {[1],[0],...})
+	*	Frame2: Add(A) -> [1]; Add(B) -> [0]; Remove(A); Remove(B); (Free list is now {[0],[1],...})
+	* 
+	* NOTE: This is operation is currently O(N) with N = GetMaxIndex(). This could be improved for
+	* large mostly-full arrays if necessary.
+	*/
+	void SortFreeList()
+	{
+		FElementOrFreeListLink* DataPtr = (FElementOrFreeListLink*)Data.GetData();
+		int32 CurrentHeadIndex = INDEX_NONE;
+		int32 NumFreeIndicesProcessed = 0;
+
+		// Reverse iteration to build the list from low to high indices
+		for (int32 Index = Data.Num() - 1; NumFreeIndicesProcessed < NumFreeIndices; --Index)
+		{
+			// If we have an unused element, add it to the free list
+			if (!IsValidIndex(Index))
+			{
+				DataPtr[Index].PrevFreeIndex = INDEX_NONE;
+				DataPtr[Index].NextFreeIndex = INDEX_NONE;
+
+				if (CurrentHeadIndex != INDEX_NONE)
+				{
+					DataPtr[CurrentHeadIndex].PrevFreeIndex = Index;
+					DataPtr[Index].NextFreeIndex = CurrentHeadIndex;
+				}
+
+				CurrentHeadIndex = Index;
+				++NumFreeIndicesProcessed;
+			}
+		}
+
+		// Set up the new head
+		FirstFreeIndex = CurrentHeadIndex;
+	}
+
 	/** 
 	 * Helper function to return the amount of memory allocated by this container 
 	 * Only returns the size of allocations made directly by the container, not the elements themselves.

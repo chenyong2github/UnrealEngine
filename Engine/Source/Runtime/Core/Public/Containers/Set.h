@@ -1105,6 +1105,16 @@ public:
 	}
 
 	/**
+	* Sort the free element list so that subsequent additions will occur in the lowest available
+	* TSparseArray index resulting in tighter packing without moving any existing items. Also useful for
+	* some types of determinism. @see TSparseArray::SortFreeList() for more info.
+	*/
+	void SortFreeList()
+	{
+		Elements.SortFreeList();
+	}
+
+	/**
 	 * Describes the set's contents through an output device.
 	 * @param Ar - The output device to describe the set's contents through.
 	 */
