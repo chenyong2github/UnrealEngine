@@ -212,7 +212,7 @@ void UBTTask_FindAndUseGameplayBehaviorSmartObject::OnQueryFinished(TSharedPtr<F
 		}
 		else if (USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(MyOwner->GetWorld()))
 		{
-			const FSmartObjectActorUserData ActorUserData(Result->Owner.Get());
+			const FSmartObjectActorUserData ActorUserData(Cast<AActor>(Result->Owner.Get());
 			const FConstStructView ActorUserDataView(FConstStructView::Make(ActorUserData));
 
 			// we could use QueryResult.GetItemAsTypeChecked, but the below implementation is more efficient
