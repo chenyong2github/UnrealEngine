@@ -1069,6 +1069,27 @@ TArray<FString> USourceControlHelpers::GetSourceControlLocations(const bool bCon
 {
 	TArray<FString> SourceControlLocations;
 
+	if (ISourceControlModule::Get().UsesCustomProjectDir())
+	{
+		FString ProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+
+		TArray<FString> RootPaths;
+		FPackageName::QueryRootContentPaths(RootPaths);
+		for (const FString& RootPath : RootPaths)
+		{
+			const FString RootPathOnDisk = FPackageName::LongPackageNameToFilename(RootPath);
+			if (FPaths::IsUnderDirectory(RootPathOnDisk, ProjectDir))
+			{
+				SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(RootPathOnDisk));
+			}
+		}
+
+		if (!bContentOnly)
+		{
+			SourceControlLocations.Add(ProjectDir);
+		}
+	}
+	else
 	{
 		TArray<FString> RootPaths;
 		FPackageName::QueryRootContentPaths(RootPaths);
@@ -1077,13 +1098,15 @@ TArray<FString> USourceControlHelpers::GetSourceControlLocations(const bool bCon
 			const FString RootPathOnDisk = FPackageName::LongPackageNameToFilename(RootPath);
 			SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(RootPathOnDisk));
 		}
+		
+		if (!bContentOnly)
+		{
+			SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
+			SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
+		}
 	}
 
-	if (!bContentOnly)
-	{
-		SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
-		SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
-	}
+
 
 	return SourceControlLocations;
 }
@@ -1096,16 +1119,7 @@ bool USourceControlHelpers::ListRevertablePackages(TArray<FString>& OutRevertabl
 	}
 
 	// update status for all packages
-	TArray<FString> Filenames;
-	if (ISourceControlModule::Get().UsesCustomProjectDir())
-	{
-		FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-		Filenames.Add(SourceControlProjectDir);
-	}
-	else
-	{
-		Filenames = GetSourceControlLocations();
-	}
+	TArray<FString> Filenames = GetSourceControlLocations();
 	
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	FSourceControlOperationRef Operation = ISourceControlOperation::Create<FUpdateStatus>();

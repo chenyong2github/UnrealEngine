@@ -1828,16 +1828,9 @@ void AssetViewUtils::SyncLatestFromSourceControl()
 	else
 	{
 		// Likely the source control provider does not support sync previews. Proceed to syncing all paths under source control
-		TArray<FString> SourceControlLocations;
 
-		if (ISourceControlModule::Get().UsesCustomProjectDir())
-		{
-			SourceControlLocations.Add(ISourceControlModule::Get().GetSourceControlProjectDir());
-		}
-		else
-		{
-			SourceControlLocations = SourceControlHelpers::GetSourceControlLocations(/*bContentOnly=*/true);
-		}
+		bool bContentOnly = !ISourceControlModule::Get().UsesCustomProjectDir();
+		TArray<FString> SourceControlLocations = SourceControlHelpers::GetSourceControlLocations(bContentOnly);
 
 		SyncPathsFromSourceControl(SourceControlLocations);
 	}

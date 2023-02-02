@@ -65,16 +65,7 @@ bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsO
 	// Start selection process...
 
 	// make sure we update the SCC status of all packages (this could take a long time, so we will run it as a background task)
-	TArray<FString> Filenames;
-	if (ISourceControlModule::Get().UsesCustomProjectDir())
-	{
-		FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-		Filenames.Add(SourceControlProjectDir);
-	}
-	else
-	{
-		Filenames = SourceControlHelpers::GetSourceControlLocations();
-	}
+	TArray<FString> Filenames = SourceControlHelpers::GetSourceControlLocations();
 	
 	// make sure the SourceControlProvider state cache is populated as well
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
@@ -500,19 +491,8 @@ void FSourceControlWindows::ChoosePackagesToCheckInCompleted(const TArray<UPacka
 		return;
 	}
 
-	TArray<FString> PendingDeletePaths;
-
 	bool bUseSourceControlStateCache = true;
-	if (ISourceControlModule::Get().UsesCustomProjectDir())
-	{
-		FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-		PendingDeletePaths.Add(SourceControlProjectDir);
-		bUseSourceControlStateCache = false;
-	}
-	else
-	{
-		PendingDeletePaths = SourceControlHelpers::GetSourceControlLocations();
-	}
+	TArray<FString> PendingDeletePaths = SourceControlHelpers::GetSourceControlLocations();
 
 	PromptForCheckin(OutResultInfo, PackageNames, PendingDeletePaths, ConfigFiles, bUseSourceControlStateCache);
 }
