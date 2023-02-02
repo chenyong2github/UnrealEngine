@@ -2915,8 +2915,10 @@ void FoldingRules::AddFoldingRules() {
   rules_[spv::Op::OpCompositeExtract].push_back(VectorShuffleFeedingExtract());
   rules_[spv::Op::OpCompositeExtract].push_back(FMixFeedingExtract());
 
-  rules_[spv::Op::OpCompositeInsert].push_back(
-      CompositeInsertToCompositeConstruct);
+  if (false) { // Disabled until OpCompositeInsert bug is fixed
+    rules_[spv::Op::OpCompositeInsert].push_back(
+        CompositeInsertToCompositeConstruct);
+  }
 
   rules_[spv::Op::OpDot].push_back(DotProductDoingExtract());
 
