@@ -3,8 +3,6 @@
 #pragma once
 
 
-#include "BlackboardKeyEnums.generated.h"
-
 namespace EBlackboardCompare
 {
 	enum Type
