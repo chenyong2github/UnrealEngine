@@ -31,6 +31,25 @@ uint64 FMemoryUsageInfoProviderLLM::GetAssetsMemoryUsage(const TSet<FName>& Asse
 	return 0U;
 }
 
+uint64 FMemoryUsageInfoProviderLLM::GetAssetsMemoryUsageWithSize(const TSet<FName>& Assets, TMap<FName, uint64>& OutSizes, FOutputDevice* ErrorOutput /* = GLog */) const
+{
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+	if (FLowLevelMemTracker::IsEnabled())
+	{
+		uint64 TotalSize = 0;
+		for (const FName& Asset : Assets)
+		{
+			int64 AssetSize = FLowLevelMemTracker::Get().GetTagAmountForTracker(ELLMTracker::Default, Asset, ELLMTagSet::Assets, false);
+			OutSizes.Add(Asset, AssetSize);
+			TotalSize += AssetSize;
+		}
+		return TotalSize;
+	}
+#endif
+	ErrorOutput->Logf(TEXT("MemoryUsageInfoProvider Error: LLM is disabled. Please run with -LLM"));
+	return 0U;
+}
+
 void FMemoryUsageInfoProviderLLM::GetAllAssetsWithSize(TMap<FName, uint64>& OutAssets, FOutputDevice* ErrorOutput /* = GLog */) const
 {
 	OutAssets.Reset();
