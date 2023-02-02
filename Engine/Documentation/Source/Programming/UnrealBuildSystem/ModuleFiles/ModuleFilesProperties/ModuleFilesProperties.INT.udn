@@ -176,6 +176,8 @@ $ OverridePackageType (PackageOverrideType): Overridden type of module that will
 
 $ OptimizeCode (CodeOptimization): When this module's code should be optimized.
 
+$ OptimizationLevel (OptimizationMode): Allows fine tuning optimization level for speed and\or code size. This requires a private PCH (or NoPCHs, which is not recommended)
+
 $ PCHUsage (PCHUsageMode): Precompiled header usage for this module
 
 $ DefaultBuildSettings (BuildSettingsVersion): Which engine version's build settings to use by default.

@@ -776,6 +776,8 @@ $ SshAuthentication : The authentication used for SSH (probably similar to Rsync
 
 ### HoloLensPlatform
 
+$ Compiler : Version of the compiler toolchain to use on HoloLens. A value of "default" will be changed to a specific version at UBT startup.
+
 ### Log
 
 $ bBackupLogFiles : Whether to backup an existing log file, rather than overwriting it.
