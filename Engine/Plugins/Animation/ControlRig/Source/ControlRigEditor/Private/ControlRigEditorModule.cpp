@@ -575,7 +575,7 @@ TSharedRef< SWidget > FControlRigEditorModule::GenerateAnimationMenu(TWeakPtr<IA
 								Options.bShowUnloadedBlueprints = true;
 								Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 
-								TSharedPtr<FControlRigClassFilter> ClassFilter = MakeShareable(new FControlRigClassFilter(bFilterAssetBySkeleton, true, true, Skeleton));
+								TSharedPtr<FControlRigClassFilter> ClassFilter = MakeShareable(new FControlRigClassFilter(bFilterAssetBySkeleton, false, true, Skeleton));
 								Options.ClassFilters.Add(ClassFilter.ToSharedRef());
 								Options.bShowNoneOption = false;
 
