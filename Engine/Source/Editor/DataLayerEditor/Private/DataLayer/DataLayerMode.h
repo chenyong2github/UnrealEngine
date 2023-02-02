@@ -149,6 +149,7 @@ private:
 	bool ContainsSelectedChildDataLayer(const UDataLayerInstance* DataLayer) const;
 	void DeleteDataLayers(const TArray<UDataLayerInstance*>& InDataLayersToDelete);
 	void RefreshSelection();
+	void CacheSelectedItems(const FSceneOutlinerItemSelection& Selection);
 	UWorld* GetOwningWorld() const;
 	AWorldDataLayers* GetOwningWorldAWorldDataLayers() const;
 	FSceneOutlinerDragValidationInfo ValidateActorDrop(const ISceneOutlinerTreeItem& DropTarget, bool bMoveOperation = false) const;

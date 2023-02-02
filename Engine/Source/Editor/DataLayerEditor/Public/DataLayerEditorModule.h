@@ -44,8 +44,9 @@ public:
 	virtual void SyncDataLayerBrowserToDataLayer(const UDataLayerInstance* DataLayer);
 
 	/** Delegates to be called to extend the DataLayers menus */
-	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<FExtender>, FDataLayersMenuExtender, const TSharedRef<FUICommandList>);
-	virtual TArray<FDataLayersMenuExtender>& GetAllDataLayersMenuExtenders() {return DataLayersMenuExtenders;}
+	typedef TPair<TWeakObjectPtr<const UDataLayerInstance>, TWeakObjectPtr<const AActor>> FDataLayerActor;
+	DECLARE_DELEGATE_RetVal_ThreeParams(TSharedRef<FExtender>, FDataLayersMenuExtender, const TSharedRef<FUICommandList>, const TSet<TWeakObjectPtr<const UDataLayerInstance>>& /*SelectedDataLayers*/,  const TSet<FDataLayerActor>& /*SelectedDataLayerActors*/);
+	virtual TArray<FDataLayersMenuExtender>& GetAllDataLayersMenuExtenders() { return DataLayersMenuExtenders; }
 
 	/* Implement IDataLayerEditorModule */
 	virtual bool AddActorToDataLayers(AActor* Actor, const TArray<UDataLayerInstance*>& DataLayers) override;

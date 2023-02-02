@@ -22,6 +22,7 @@
 #include "DataLayerActorTreeItem.h"
 #include "DataLayerHierarchy.h"
 #include "DataLayerTreeItem.h"
+#include "DataLayerEditorModule.h"
 #include "DataLayersActorDescTreeItem.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/CompositeDragDropOp.h"
@@ -1602,6 +1603,7 @@ TSharedPtr<SWidget> FDataLayerMode::CreateContextMenu()
 	RegisterContextMenu();
 
 	FSceneOutlinerItemSelection ItemSelection(SceneOutliner->GetSelection());
+	CacheSelectedItems(ItemSelection);
 
 	USceneOutlinerMenuContext* ContextObject = NewObject<USceneOutlinerMenuContext>();
 	ContextObject->SceneOutliner = StaticCastSharedRef<SSceneOutliner>(SceneOutliner->AsShared());
@@ -1611,6 +1613,25 @@ TSharedPtr<SWidget> FDataLayerMode::CreateContextMenu()
 
 	FName MenuName = DefaultContextMenuName;
 	SceneOutliner->GetSharedData().ModifyContextMenu.ExecuteIfBound(MenuName, Context);
+
+	// Add Extenders
+	FDataLayerEditorModule& DataLayerEditorModule = FModuleManager::LoadModuleChecked<FDataLayerEditorModule>("DataLayerEditor");
+	TArray<FDataLayerEditorModule::FDataLayersMenuExtender>& MenuExtenderDelegates = DataLayerEditorModule.GetAllDataLayersMenuExtenders();
+	TArray<TSharedPtr<FExtender>> Extenders;
+	if (!MenuExtenderDelegates.IsEmpty())
+	{
+		for (const FDataLayerEditorModule::FDataLayersMenuExtender& MenuExtender : MenuExtenderDelegates)
+		{
+			if (MenuExtender.IsBound())
+			{
+				Extenders.Add(MenuExtender.Execute(Commands.ToSharedRef(), SelectedDataLayersSet, SelectedDataLayerActors));
+			}
+		}
+		if (!Extenders.IsEmpty())
+		{
+			Context.AddExtender(FExtender::Combine(Extenders));
+		}
+	}
 
 	// Build up the menu for a selection
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -1778,12 +1799,19 @@ TUniquePtr<ISceneOutlinerHierarchy> FDataLayerMode::CreateHierarchy()
 	return DataLayerHierarchy;
 }
 
-void FDataLayerMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeItem, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection)
+
+void FDataLayerMode::CacheSelectedItems(const FSceneOutlinerItemSelection& Selection)
 {
 	SelectedDataLayersSet.Empty();
 	SelectedDataLayerActors.Empty();
 	Selection.ForEachItem<FDataLayerTreeItem>([this](const FDataLayerTreeItem& Item) { SelectedDataLayersSet.Add(Item.GetDataLayer()); });
 	Selection.ForEachItem<FDataLayerActorTreeItem>([this](const FDataLayerActorTreeItem& Item) { SelectedDataLayerActors.Add(FSelectedDataLayerActor(Item.GetDataLayer(), Item.GetActor())); });
+}
+
+void FDataLayerMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeItem, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection)
+{
+	CacheSelectedItems(Selection);
+
 	if (DataLayerBrowser)
 	{
 		DataLayerBrowser->OnSelectionChanged(SelectedDataLayersSet);
