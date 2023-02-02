@@ -552,6 +552,18 @@ private:
 	/** Total jobs in local job batches. */
 	int64 TotalJobsReportedInDistributedJobBatches = 0;
 
+	/** Size of the smallest output shader code. */
+	int32 MinShaderCodeSize = 0;
+
+	/** Size of the largest output shader code. */
+	int32 MaxShaderCodeSize = 0;
+
+	/** Total accumulated size of all output shader codes. */
+	uint64 AccumulatedShaderCodeSize = 0;
+
+	/** Number of accumulated output shader codes. */
+	uint64 NumAccumulatedShaderCodes = 0;
+
 	/** Accumulates the job lifetimes without overlaps */
 	TArray<TInterval<double>> JobLifeTimeIntervals;
 
