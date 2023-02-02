@@ -10,9 +10,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Horde.Build.Users
 {
-	using JobId = ObjectId<IJob>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Controller for the /api/v1/user endpoint
 	/// </summary>
@@ -76,7 +73,7 @@ namespace Horde.Build.Users
 			{
 				return BadRequest("Current user does not have a registered profile");
 			}
-			await UserCollection.UpdateSettingsAsync(userId.Value, request.EnableExperimentalFeatures, request.DashboardSettings?.ToBsonValue(), request.AddPinnedJobIds?.Select(x => new JobId(x)), request.RemovePinnedJobIds?.Select(x => new JobId(x)));
+			await UserCollection.UpdateSettingsAsync(userId.Value, request.EnableExperimentalFeatures, request.DashboardSettings?.ToBsonValue(), request.AddPinnedJobIds?.Select(x => JobId.Parse(x)), request.RemovePinnedJobIds?.Select(x => JobId.Parse(x)));
 			return Ok();
 		}
 	}

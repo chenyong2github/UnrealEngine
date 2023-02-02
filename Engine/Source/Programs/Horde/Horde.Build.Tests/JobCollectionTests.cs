@@ -22,10 +22,6 @@ using Horde.Build.Agents.Sessions;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-
 	[TestClass]
 	public class JobCollectionTests : TestSetup
 	{
@@ -118,11 +114,11 @@ namespace Horde.Build.Tests
 		{
 			Fixture fixture = await CreateFixtureAsync();
 
-			ObjectId<ISession> sessionId1 = new (ObjectId.GenerateNewId());
+			SessionId sessionId1 = SessionId.GenerateNewId();
 			await JobCollection.TryAssignLeaseAsync(fixture.Job1, 0, new PoolId("foo"), fixture.Agent1.Id,
 				sessionId1, LeaseId.GenerateNewId(), LogId.GenerateNewId());
 			
-			ObjectId<ISession> sessionId2 = new (ObjectId.GenerateNewId());
+			SessionId sessionId2 = SessionId.GenerateNewId();
 			IJob job = (await JobCollection.GetAsync(fixture.Job1.Id))!;
 			await JobCollection.TryAssignLeaseAsync(job, 0, new PoolId("foo"), fixture.Agent1.Id,
 				sessionId2, LeaseId.GenerateNewId(), LogId.GenerateNewId());

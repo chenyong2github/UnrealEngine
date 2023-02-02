@@ -9,8 +9,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Server.Notices
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// A collection of user specified notices
 	/// </summary>

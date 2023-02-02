@@ -18,8 +18,6 @@ using System.Linq;
 
 namespace Horde.Build.Streams
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Step state update request
 	/// </summary>

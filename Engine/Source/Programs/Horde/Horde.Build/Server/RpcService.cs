@@ -43,8 +43,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Server
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
 	using RpcAgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
 	using RpcDeviceCapabilities = HordeCommon.Rpc.Messages.DeviceCapabilities;
 	using RpcGetStreamResponse = HordeCommon.Rpc.GetStreamResponse;
@@ -52,7 +50,6 @@ namespace Horde.Build.Server
 	using RpcGetStepResponse = HordeCommon.Rpc.GetStepResponse;
 	using RpcUpdateJobRequest = HordeCommon.Rpc.UpdateJobRequest;
 	using RpcUpdateStepRequest = HordeCommon.Rpc.UpdateStepRequest;
-	using SessionId = ObjectId<ISession>;
 	
 	/// <summary>
 	/// Implements the Horde gRPC service for bots updating their status and dequeing work
@@ -469,7 +466,7 @@ namespace Horde.Build.Server
 		/// <returns>Information about the new agent</returns>
 		public override async Task<Empty> UpdateJob(RpcUpdateJobRequest request, ServerCallContext context)
 		{
-			JobId jobIdValue = new JobId(request.JobId);
+			JobId jobIdValue = JobId.Parse(request.JobId);
 
 			IJob? job = await _jobService.GetJobAsync(jobIdValue);
 			if (job == null)
@@ -495,7 +492,7 @@ namespace Horde.Build.Server
 		{
 			SubResourceId batchId = request.BatchId.ToSubResourceId();
 
-			IJob? job = await _jobService.GetJobAsync(new JobId(request.JobId));
+			IJob? job = await _jobService.GetJobAsync(JobId.Parse(request.JobId));
 			if (job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
@@ -529,7 +526,7 @@ namespace Horde.Build.Server
 		/// <returns>Information about the new agent</returns>
 		public override async Task<Empty> FinishBatch(FinishBatchRequest request, ServerCallContext context)
 		{
-			IJob? job = await _jobService.GetJobAsync(new JobId(request.JobId));
+			IJob? job = await _jobService.GetJobAsync(JobId.Parse(request.JobId));
 			if (job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
@@ -566,7 +563,7 @@ namespace Horde.Build.Server
 		async Task<BeginStepResponse?> TryBeginStep(BeginStepRequest request, Boxed<ILogFile?> log, ServerCallContext context)
 		{
 			// Check the job exists and we can access it
-			IJob? job = await _jobService.GetJobAsync(new JobId(request.JobId));
+			IJob? job = await _jobService.GetJobAsync(JobId.Parse(request.JobId));
 			if (job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
@@ -803,7 +800,7 @@ namespace Horde.Build.Server
 		/// <returns>Information about the new agent</returns>
 		public override async Task<Empty> UpdateStep(RpcUpdateStepRequest request, ServerCallContext context)
 		{
-			IJob? job = await _jobService.GetJobAsync(new JobId(request.JobId));
+			IJob? job = await _jobService.GetJobAsync(JobId.Parse(request.JobId));
 			if (job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
@@ -839,7 +836,7 @@ namespace Horde.Build.Server
 		/// <returns>Information about the step</returns>
 		public override async Task<RpcGetStepResponse> GetStep(GetStepRequest request, ServerCallContext context)
 		{
-			IJob job = await GetJobAsync(new JobId(request.JobId));
+			IJob job = await GetJobAsync(JobId.Parse(request.JobId));
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
 
 			SubResourceId stepId = request.StepId.ToSubResourceId();
@@ -892,7 +889,7 @@ namespace Horde.Build.Server
 				newLabels.Add(newLabel);
 			}
 
-			JobId jobIdValue = new JobId(request.JobId);
+			JobId jobIdValue = JobId.Parse(request.JobId);
 			for (; ; )
 			{
 				IJob? job = await _jobService.GetJobAsync(jobIdValue);
@@ -933,7 +930,7 @@ namespace Horde.Build.Server
 			foreach (CreateEventRequest createEvent in request.Events)
 			{
 				NewLogEventData newEvent = new NewLogEventData();
-				newEvent.LogId = new LogId(createEvent.LogId);
+				newEvent.LogId = LogId.Parse(createEvent.LogId);
 				newEvent.Severity = createEvent.Severity;
 				newEvent.LineIndex = createEvent.LineIndex;
 				newEvent.LineCount = createEvent.LineCount;
@@ -951,7 +948,7 @@ namespace Horde.Build.Server
 		/// <returns>Information about the new agent</returns>
 		public override async Task<Empty> WriteOutput(WriteOutputRequest request, ServerCallContext context)
 		{
-			ILogFile? logFile = await _logFileService.GetCachedLogFileAsync(new LogId(request.LogId), context.CancellationToken);
+			ILogFile? logFile = await _logFileService.GetCachedLogFileAsync(LogId.Parse(request.LogId), context.CancellationToken);
 			if (logFile == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Resource not found");
@@ -1044,7 +1041,7 @@ namespace Horde.Build.Server
 			}
 
 			// Get the job and step
-			IJob job = await GetJobAsync(new JobId(metadata.JobId));
+			IJob job = await GetJobAsync(JobId.Parse(metadata.JobId));
 			AuthorizeBatch(job, metadata.BatchId.ToSubResourceId(), context);
 
 			IJobStep? step;
@@ -1081,7 +1078,7 @@ namespace Horde.Build.Server
 			{
 				UploadTestDataRequest request = reader.Current;
 
-				JobId jobId = new JobId(request.JobId);
+				JobId jobId = JobId.Parse(request.JobId);
 				if (job == null)
 				{					
 					job = await _jobService.GetJobAsync(jobId);
@@ -1135,7 +1132,7 @@ namespace Horde.Build.Server
 		/// <returns></returns>
 		public override async Task<CreateReportResponse> CreateReport(CreateReportRequest request, ServerCallContext context)
 		{
-			IJob job = await GetJobAsync(new JobId(request.JobId));
+			IJob job = await GetJobAsync(JobId.Parse(request.JobId));
 			if (!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);

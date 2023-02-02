@@ -33,8 +33,6 @@ using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Horde.Build.Notifications
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Wraps functionality for delivering notifications.
 	/// </summary>

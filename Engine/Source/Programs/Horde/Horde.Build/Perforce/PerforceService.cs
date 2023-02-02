@@ -27,8 +27,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Perforce
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// P4API implementation of the Perforce service
 	/// </summary>

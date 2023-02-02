@@ -23,8 +23,6 @@ using EpicGames.Horde.Logs;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-
 	[TestClass]
 	public class LogIndexingTests : DatabaseIntegrationTest
 	{

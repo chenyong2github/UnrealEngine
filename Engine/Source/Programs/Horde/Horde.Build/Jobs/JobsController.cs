@@ -30,9 +30,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Jobs
 {
-	using JobId = ObjectId<IJob>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Controller for the /api/v1/jobs endpoing
 	/// </summary>
@@ -754,7 +751,7 @@ namespace Horde.Build.Jobs
 			[FromQuery] int index = 0,
 			[FromQuery] int count = 100)
 		{
-			JobId[]? jobIdValues = (ids == null) ? (JobId[]?)null : Array.ConvertAll(ids, x => new JobId(x));
+			JobId[]? jobIdValues = (ids == null) ? (JobId[]?)null : Array.ConvertAll(ids, x => JobId.Parse(x));
 			StreamId? streamIdValue = (streamId == null)? (StreamId?)null : new StreamId(streamId);
 			
 			TemplateId[]? templateRefIds = (templates != null && templates.Length > 0) ? templates.Select(x => new TemplateId(x)).ToArray() : null;
@@ -768,14 +765,14 @@ namespace Horde.Build.Jobs
 
 			if (preflightStartedByUserId != null)
 			{
-				preflightStartedByUserIdValue = new UserId(preflightStartedByUserId);
+				preflightStartedByUserIdValue = UserId.Parse(preflightStartedByUserId);
 			}
 
 			UserId? startedByUserIdValue = null;
 
 			if (startedByUserId != null)
 			{
-				startedByUserIdValue = new UserId(startedByUserId);
+				startedByUserIdValue = UserId.Parse(startedByUserId);
 			}
 
 			List<IJob> jobs;
@@ -818,7 +815,7 @@ namespace Horde.Build.Jobs
 		{
 			StreamId streamIdValue = new StreamId(streamId);
 			TemplateId[] templateRefIds = templates.Select(x => new TemplateId(x)).ToArray();
-			UserId? preflightStartedByUserIdValue = preflightStartedByUserId != null ? new UserId(preflightStartedByUserId) : null;
+			UserId? preflightStartedByUserIdValue = preflightStartedByUserId != null ? UserId.Parse(preflightStartedByUserId) : null;
 			count = Math.Min(1000, count);
 
 			List<IJob> jobs = await _jobService.FindJobsByStreamWithTemplatesAsync(streamIdValue, templateRefIds, preflightStartedByUserIdValue, maxCreateTime, modifiedAfter, index, count, consistentRead);
@@ -1096,7 +1093,7 @@ namespace Horde.Build.Jobs
 				return Forbid("Missing session claim for job {JobId} batch {BatchId}", jobId, batchId);
 			}
 
-			IJob? newJob = await _jobService.UpdateBatchAsync(job, batchId, streamConfig, request.LogId?.ToObjectId<ILogFile>(), request.State);
+			IJob? newJob = await _jobService.UpdateBatchAsync(job, batchId, streamConfig, (request.LogId == null)? null : LogId.Parse(request.LogId), request.State);
 			if (newJob == null)
 			{
 				return NotFound(jobId);
@@ -1247,7 +1244,7 @@ namespace Horde.Build.Jobs
 
 			try
 			{
-				IJob? newJob = await _jobService.UpdateStepAsync(job, batchId, stepId, streamConfig, request.State, request.Outcome, null, request.AbortRequested, abortByUser, request.LogId?.ToObjectId<ILogFile>(), null, retryByUser, request.Priority, null, request.Properties);
+				IJob? newJob = await _jobService.UpdateStepAsync(job, batchId, stepId, streamConfig, request.State, request.Outcome, null, request.AbortRequested, abortByUser, (request.LogId == null)? null : LogId.Parse(request.LogId), null, retryByUser, request.Priority, null, request.Properties);
 				if (newJob == null)
 				{
 					return NotFound(jobId);

@@ -16,9 +16,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Agents.Leases
 {
-	using LeaseId = ObjectId<ILease>;
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Controller for the /api/v1/leases endpoint
 	/// </summary>

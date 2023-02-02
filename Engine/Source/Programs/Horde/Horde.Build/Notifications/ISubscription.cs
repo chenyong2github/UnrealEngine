@@ -5,8 +5,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Notifications
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// The type of notification to send
 	/// </summary>

@@ -9,8 +9,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Streams
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Collection of stream documents
 	/// </summary>

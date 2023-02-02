@@ -30,9 +30,6 @@ using StatsdClient;
 
 namespace Horde.Build.Agents
 {
-	using LeaseId = ObjectId<ILease>;
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Singleton used to store agent costs
 	/// </summary>
@@ -657,7 +654,7 @@ namespace Horde.Build.Agents
 				List<AgentLease> leases = new List<AgentLease>(agent.Leases);
 
 				// Remove any completed leases from the agent
-				Dictionary<LeaseId, HordeCommon.Rpc.Messages.Lease> leaseIdToNewState = newLeases.ToDictionary(x => new LeaseId(x.Id), x => x);
+				Dictionary<LeaseId, HordeCommon.Rpc.Messages.Lease> leaseIdToNewState = newLeases.ToDictionary(x => LeaseId.Parse(x.Id), x => x);
 				for (int idx = 0; idx < leases.Count; idx++)
 				{
 					AgentLease lease = leases[idx];

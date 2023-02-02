@@ -19,9 +19,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Agents
 {
-	using LeaseId = ObjectId<ILease>;
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Controller for the /api/v1/agents endpoint
 	/// </summary>

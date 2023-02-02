@@ -7,8 +7,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Jobs.Artifacts
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Interface for a collection of artifacts
 	/// </summary>

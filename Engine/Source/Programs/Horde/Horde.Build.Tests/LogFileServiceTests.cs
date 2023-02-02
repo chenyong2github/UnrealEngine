@@ -26,9 +26,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-
 	[TestClass]
     public class LogFileServiceTest : DatabaseIntegrationTest
     {
@@ -256,8 +253,8 @@ namespace Horde.Build.Tests
 
 			// Will implicitly test GetLogFileAsync(), AddCachedLogFile()
 			JobId jobId = JobId.GenerateNewId();
-            ObjectId sessionId = ObjectId.GenerateNewId();
-            ILogFile a = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text, useNewStorageBackend: false, logId: null, CancellationToken.None);
+            SessionId sessionId = SessionId.GenerateNewId();
+            ILogFile a = await _logFileService.CreateLogFileAsync(jobId, sessionId, LogType.Text, useNewStorageBackend: false, logId: null, CancellationToken.None);
             ILogFile b = (await _logFileService.GetCachedLogFileAsync(a.Id, CancellationToken.None))!;
             Assert.AreEqual(a.JobId, b.JobId);
             Assert.AreEqual(a.SessionId, b.SessionId);
@@ -266,7 +263,7 @@ namespace Horde.Build.Tests
             ILogFile? notFound = await _logFileService.GetCachedLogFileAsync(LogId.GenerateNewId(), CancellationToken.None);
             Assert.IsNull(notFound);
 
-            await _logFileService.CreateLogFileAsync(JobId.GenerateNewId(), new ObjectId<ISession>(ObjectId.GenerateNewId()), LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
+            await _logFileService.CreateLogFileAsync(JobId.GenerateNewId(), SessionId.GenerateNewId(), LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
             Assert.AreEqual(2, (await _logFileService.GetLogFilesAsync()).Count);
         }
 
@@ -274,8 +271,8 @@ namespace Horde.Build.Tests
         public async Task AuthorizeForSession()
         {
 			JobId jobId = JobId.GenerateNewId();
-            ObjectId sessionId = ObjectId.GenerateNewId();
-            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
+            SessionId sessionId = SessionId.GenerateNewId();
+            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, sessionId, LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
             ILogFile logFileNoSession = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, useNewStorageBackend: false, logId: null, cancellationToken: CancellationToken.None);
 
 			ClaimsPrincipal hasClaim = new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>

@@ -23,10 +23,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Issues
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-	using UserId = ObjectId<IUser>;
-
 	class IssueCollection : IIssueCollection
 	{
 		[SingletonDocument("issue-ledger", "5e4c226440ce25fa3207a9af")]

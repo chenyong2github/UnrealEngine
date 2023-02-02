@@ -14,8 +14,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Jobs
 {
-	using LogId = ObjectId<ILogFile>;
-	
 	/// <summary>
 	/// Interface for a collection of JobStepRef documents
 	/// </summary>

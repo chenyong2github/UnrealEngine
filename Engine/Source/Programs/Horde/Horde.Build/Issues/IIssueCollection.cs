@@ -16,10 +16,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Issues
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Fingerprint for an issue
 	/// </summary>

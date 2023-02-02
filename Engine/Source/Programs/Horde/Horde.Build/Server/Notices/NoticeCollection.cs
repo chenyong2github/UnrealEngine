@@ -12,8 +12,6 @@ using Horde.Build.Users;
 
 namespace Horde.Build.Server.Notices
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Collection of notice documents
 	/// </summary>

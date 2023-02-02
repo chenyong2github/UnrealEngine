@@ -7,8 +7,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Caching interface for reading and writing log data.
 	/// </summary>

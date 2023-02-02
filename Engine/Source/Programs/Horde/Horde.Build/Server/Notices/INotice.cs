@@ -8,8 +8,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Server.Notices
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// User notice
 	/// </summary>

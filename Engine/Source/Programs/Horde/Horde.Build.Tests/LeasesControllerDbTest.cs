@@ -37,8 +37,8 @@ namespace Horde.Build.Tests
 
 		private async Task<ILease> CreateLease(DateTime startTime, TimeSpan duration)
 		{
-			ObjectId<ILease> id = ObjectId<ILease>.GenerateNewId();
-			ObjectId<ISession> sessionId = ObjectId<ISession>.GenerateNewId();
+			LeaseId id = LeaseId.GenerateNewId();
+			SessionId sessionId = SessionId.GenerateNewId();
 			ILease lease = await LeaseCollection.AddAsync(id, "myLease", new AgentId("agent-1"), sessionId, null, null, null, startTime, Array.Empty<byte>());
 			await LeaseCollection.TrySetOutcomeAsync(id, startTime + duration, LeaseOutcome.Success, null);
 			return lease;

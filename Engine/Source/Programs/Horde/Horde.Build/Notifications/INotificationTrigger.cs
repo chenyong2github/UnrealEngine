@@ -7,8 +7,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Notifications
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// An individual subscription
 	/// </summary>

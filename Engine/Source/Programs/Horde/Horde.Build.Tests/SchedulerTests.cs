@@ -21,9 +21,6 @@ using Horde.Build.Perforce;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-
 	[TestClass]
     public class SchedulerTests : TestSetup
 	{

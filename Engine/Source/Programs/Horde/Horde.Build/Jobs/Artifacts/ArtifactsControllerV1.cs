@@ -23,8 +23,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Jobs.Artifacts
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Controller for the /api/artifacts endpoint
 	/// </summary>
@@ -338,7 +336,7 @@ namespace Horde.Build.Jobs.Artifacts
 				return BadRequest("Must specify a JobId");
 			}
 
-			IJob? job = await _jobService.GetJobAsync(new JobId(artifactZipRequest.JobId!));
+			IJob? job = await _jobService.GetJobAsync(JobId.Parse(artifactZipRequest.JobId!));
 			if (job == null)
 			{
 				return NotFound();

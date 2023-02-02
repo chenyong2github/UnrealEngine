@@ -10,8 +10,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Logs.Storage
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Bulk storage for log file data
 	/// </summary>

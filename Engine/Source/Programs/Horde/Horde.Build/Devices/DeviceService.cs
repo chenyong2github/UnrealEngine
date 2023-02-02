@@ -25,9 +25,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Devices
 {
-	using JobId = ObjectId<IJob>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	///  Device Pool Authorization (convenience class for pool ACL's)
 	/// </summary>
@@ -420,7 +417,7 @@ namespace Horde.Build.Devices
 
 			if (jobId != null)
 			{
-				IJob? job = await _jobService.GetJobAsync(new JobId(jobId));
+				IJob? job = await _jobService.GetJobAsync(JobId.Parse(jobId));
 				if (job != null)
 				{					
 					streamId = job.StreamId.ToString();
@@ -519,7 +516,7 @@ namespace Horde.Build.Devices
 
 				if (jobId != null)
 				{
-					job = await _jobService.GetJobAsync(new JobId(jobId));
+					job = await _jobService.GetJobAsync(JobId.Parse(jobId));
 
 					if (job != null)
 					{

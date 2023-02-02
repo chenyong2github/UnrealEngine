@@ -12,8 +12,6 @@ using System.Threading.Tasks;
 
 namespace Horde.Build.Tests.Stubs.Collections
 {
-	using JobId = ObjectId<IJob>;
-
 	class JobCollectionStub : IJobCollection
 	{
 		public Task AddAsync(Job NewJob)

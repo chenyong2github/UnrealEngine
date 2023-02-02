@@ -24,8 +24,6 @@ using EpicGames.Horde;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Tests for the device service
 	/// </summary>

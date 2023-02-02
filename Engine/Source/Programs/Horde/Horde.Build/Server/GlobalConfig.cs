@@ -26,8 +26,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Server
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Directive to merge config data from another source
 	/// </summary>

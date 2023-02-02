@@ -8,8 +8,6 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Build.Logs.Storage
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// In-memory cache for chunk and index data
 	/// </summary>

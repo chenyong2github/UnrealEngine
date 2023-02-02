@@ -10,8 +10,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Devices
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Device reservation request data
 	/// </summary>

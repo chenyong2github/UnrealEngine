@@ -10,8 +10,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Issues
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// The severity of an issue
 	/// </summary>

@@ -11,8 +11,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Devices
 {
-	using UserId = ObjectId<IUser>;
-	
 	/// <summary>
 	/// A reservation containing one or more devices
 	/// </summary>

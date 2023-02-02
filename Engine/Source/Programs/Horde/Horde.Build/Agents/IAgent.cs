@@ -27,10 +27,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Agents
 {
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-	using SessionId = ObjectId<ISession>;
-	
 	/// <summary>
 	/// Information about a workspace synced to an agent
 	/// </summary>

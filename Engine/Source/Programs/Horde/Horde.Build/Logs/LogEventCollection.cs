@@ -14,8 +14,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Logs
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Collection of event documents
 	/// </summary>
@@ -134,7 +132,7 @@ namespace Horde.Build.Logs
 		/// <inheritdoc/>
 		public async Task<List<ILogEvent>> FindAsync(LogId logId, ObjectId? spanId = null, int? index = null, int? count = null)
 		{
-			_logger.LogInformation("Querying for log events for log {LogId} creation time {CreateTime}", logId, logId.Value.CreationTime);
+			_logger.LogInformation("Querying for log events for log {LogId} creation time {CreateTime}", logId, logId.Id.CreationTime);
 
 			FilterDefinitionBuilder<LogEventDocument> builder = Builders<LogEventDocument>.Filter;
 

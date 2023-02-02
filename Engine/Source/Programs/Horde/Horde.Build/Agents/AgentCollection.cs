@@ -20,8 +20,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Agents
 {
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Collection of agent documents
 	/// </summary>

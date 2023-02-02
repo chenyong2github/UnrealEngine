@@ -7,8 +7,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Notifications
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Information for creating a new subscription
 	/// </summary>

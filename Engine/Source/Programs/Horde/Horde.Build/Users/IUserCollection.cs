@@ -9,9 +9,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Users
 {
-	using JobId = ObjectId<IJob>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Manages user documents
 	/// </summary>

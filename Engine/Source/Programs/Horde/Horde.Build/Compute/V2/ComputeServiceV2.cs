@@ -24,8 +24,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Compute.V2
 {
-	using LeaseId = ObjectId<ILease>;
-
 	/// <summary>
 	/// Dispatches remote actions. Does not implement any cross-pod communication to satisfy leases; only agents connected to this server instance will be stored.
 	/// </summary>

@@ -7,8 +7,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Issues
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Cached issue information
 	/// </summary>

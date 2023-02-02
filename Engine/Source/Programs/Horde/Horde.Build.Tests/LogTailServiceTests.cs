@@ -17,8 +17,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {
-	using LogId = ObjectId<ILogFile>;
-
 	[TestClass]
 	public class LogTailServiceTests : TestSetup
 	{

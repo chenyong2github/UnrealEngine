@@ -7,8 +7,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Jobs.Timing
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Average timing information for a node
 	/// </summary>

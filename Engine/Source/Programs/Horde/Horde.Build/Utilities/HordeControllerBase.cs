@@ -16,10 +16,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Utilities
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using ToolDeploymentId = ObjectId<IToolDeployment>;
-	
 	/// <summary>
 	/// Base class for Horde controllers
 	/// </summary>

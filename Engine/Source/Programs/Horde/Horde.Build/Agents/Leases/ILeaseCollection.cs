@@ -12,10 +12,6 @@ using HordeCommon;
 
 namespace Horde.Build.Agents.Leases
 {
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-	using SessionId = ObjectId<ISession>;
-	
 	/// <summary>
 	/// Interface for a collection of lease documents
 	/// </summary>

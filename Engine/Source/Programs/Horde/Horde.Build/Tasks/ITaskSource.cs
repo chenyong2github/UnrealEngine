@@ -20,8 +20,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Tasks
 {
-	using LeaseId = ObjectId<ILease>;
-
 	/// <summary>
 	/// Flags indicating when a task source is valid
 	/// </summary>

@@ -16,10 +16,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Agents.Leases
 {
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-	using SessionId = ObjectId<ISession>;
-	
 	/// <summary>
 	/// Collection of lease documents
 	/// </summary>

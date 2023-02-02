@@ -11,8 +11,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Logs
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Interface for a log event line
 	/// </summary>

@@ -16,8 +16,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Stubs.Services
 {
-	using UserId = ObjectId<IUser>;
-
 	class PerforceServiceStub : IPerforceService
 	{
 		class User : IUser

@@ -27,8 +27,6 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Perforce
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Service which mirrors changes from Perforce
 	/// </summary>

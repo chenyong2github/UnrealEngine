@@ -10,8 +10,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Horde.Build.Users
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Controller for the /api/v1/users endpoint
 	/// </summary>
@@ -87,7 +85,7 @@ namespace Horde.Build.Users
 			UserId[]? userIds = null;
 			if (ids != null && ids.Length > 0)
 			{
-				userIds = ids.Select(x => new UserId(x)).ToArray();
+				userIds = ids.Select(x => UserId.Parse(x)).ToArray();
 			}
 
 			List<IUser> users = await UserCollection.FindUsersAsync(userIds, nameRegex, index, count);

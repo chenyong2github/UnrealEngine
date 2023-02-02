@@ -20,8 +20,6 @@ using HordeCommon;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-
 	public class Fixture
 	{
 		public IJob Job1 { get; private set; } = null!;
@@ -90,7 +88,7 @@ namespace Horde.Build.Tests
 			StreamConfig = streamConfig;
 
 			Job1 = await jobService.CreateJobAsync(
-				jobId: new JobId("5f283932841e7fdbcafb6ab5"),
+				jobId: JobId.Parse("5f283932841e7fdbcafb6ab5"),
 				streamConfig: streamConfig,
 				templateRefId: TemplateRefId1,
 				templateHash: Template.Hash,
@@ -103,7 +101,7 @@ namespace Horde.Build.Tests
 			Job1 = (await jobService.GetJobAsync(Job1.Id))!;
 
 			Job2 = await jobService.CreateJobAsync(
-				jobId: new JobId("5f69ea1b68423e921b035106"),
+				jobId: JobId.Parse("5f69ea1b68423e921b035106"),
 				streamConfig: streamConfig,
 				templateRefId: new TemplateId("template-id-1"),
 				templateHash: ContentHash.MD5("made-up-template-hash"),

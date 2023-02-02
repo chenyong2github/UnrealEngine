@@ -14,8 +14,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {
-	using ToolDeploymentId = ObjectId<IToolDeployment>;
-
 	[TestClass]
     public class ToolTests : TestSetup
     {

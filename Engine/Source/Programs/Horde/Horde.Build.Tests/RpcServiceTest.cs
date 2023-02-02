@@ -27,12 +27,10 @@ using ISession = Microsoft.AspNetCore.Http.ISession;
 using Horde.Build.Jobs.Artifacts;
 using Horde.Build.Agents;
 using HordeCommon.Rpc.Messages;
+using Horde.Build.Agents.Sessions;
 
 namespace Horde.Build.Tests
 {
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-	
 	public class AppLifetimeStub : IHostApplicationLifetime
 	{
 		public CancellationToken ApplicationStarted { get; }
@@ -430,7 +428,7 @@ namespace Horde.Build.Tests
 		{
 			Fixture fixture = await CreateFixtureAsync();
 
-			ObjectId sessionId = ObjectId.GenerateNewId();
+			SessionId sessionId = SessionId.GenerateNewId();
 			ServerCallContext context = new ServerCallContextStub(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 			{
 				new Claim(HordeClaimTypes.Role, "app-horde-admins"),
@@ -452,7 +450,7 @@ namespace Horde.Build.Tests
 
 			// Set the session ID on the job batch to pass auth later
 			Deref(await JobCollection.TryAssignLeaseAsync(fixture.Job1, 0, new PoolId("foo"),
-				new AgentId("test"), new ObjectId<Horde.Build.Agents.Sessions.ISession>(sessionId),
+				new AgentId("test"), sessionId,
 				LeaseId.GenerateNewId(), LogId.GenerateNewId()));
 /*
 			TestAsyncStreamReader<UploadArtifactRequest> RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);

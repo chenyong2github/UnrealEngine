@@ -13,8 +13,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Jobs.Artifacts
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Wraps functionality for manipulating artifacts
 	/// </summary>

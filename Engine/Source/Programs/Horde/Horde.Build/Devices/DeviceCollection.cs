@@ -17,8 +17,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Devices
 {
-	using UserId = ObjectId<IUser>;
-	
 	/// <summary>
 	/// Collection of device documents
 	/// </summary>

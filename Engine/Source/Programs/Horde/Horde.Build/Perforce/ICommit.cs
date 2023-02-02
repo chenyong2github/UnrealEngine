@@ -13,8 +13,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Perforce
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Stores metadata about a commit
 	/// </summary>

@@ -10,8 +10,6 @@ using Moq;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-
 	[TestClass]
 	public class GetLabelStatesTests
 	{

@@ -31,8 +31,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Issues
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Detailed issue information
 	/// </summary>

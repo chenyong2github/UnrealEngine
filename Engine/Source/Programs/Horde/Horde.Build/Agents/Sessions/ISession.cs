@@ -6,8 +6,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Agents.Sessions
 {
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Information about an agent session.
 	/// </summary>

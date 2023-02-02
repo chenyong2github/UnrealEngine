@@ -28,8 +28,6 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Jobs.Schedules
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Manipulates schedule instances
 	/// </summary>

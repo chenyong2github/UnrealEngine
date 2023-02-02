@@ -17,7 +17,6 @@ using StackExchange.Redis;
 namespace Horde.Build.Logs.Builder
 {
 	using Condition = StackExchange.Redis.Condition;
-	using LogId = ObjectId<ILogFile>;
 
 	/// <summary>
 	/// Redis-based cache for log file chunks

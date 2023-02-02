@@ -6,8 +6,6 @@ using Horde.Build.Users;
 
 namespace Horde.Build.Utilities
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Claim types that are specific to horde
 	/// </summary>
@@ -84,7 +82,7 @@ namespace Horde.Build.Utilities
 			}
 			else
 			{
-				return new UserId(idValue);
+				return UserId.Parse(idValue);
 			}
 		}
 

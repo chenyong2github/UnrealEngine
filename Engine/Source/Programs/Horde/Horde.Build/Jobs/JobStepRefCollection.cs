@@ -17,8 +17,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Jobs
 {
-	using LogId = ObjectId<ILogFile>;
-	
 	/// <summary>
 	/// Collection of JobStepRef documents
 	/// </summary>

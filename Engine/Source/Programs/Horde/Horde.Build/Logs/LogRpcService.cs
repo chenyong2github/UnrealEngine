@@ -12,8 +12,6 @@ using System.Threading;
 
 namespace Horde.Build.Logs
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Implements the Horde gRPC service for bots updating their status and dequeing work
 	/// </summary>
@@ -41,7 +39,7 @@ namespace Horde.Build.Logs
 		/// <inheritdoc/>
 		public override async Task<UpdateLogResponse> UpdateLog(UpdateLogRequest request, ServerCallContext context)
 		{
-			ILogFile? logFile = await _logFileService.GetCachedLogFileAsync(new LogId(request.LogId), context.CancellationToken);
+			ILogFile? logFile = await _logFileService.GetCachedLogFileAsync(LogId.Parse(request.LogId), context.CancellationToken);
 			if (logFile == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Resource not found");
@@ -72,7 +70,7 @@ namespace Horde.Build.Logs
 			while (await moveNextTask)
 			{
 				UpdateLogTailRequest request = requestStream.Current;
-				LogId logId = new LogId(request.LogId);
+				LogId logId = LogId.Parse(request.LogId);
 
 				if (request.TailData.Length > 0)
 				{

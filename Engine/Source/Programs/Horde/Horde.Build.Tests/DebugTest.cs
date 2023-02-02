@@ -6,8 +6,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-
     /// <summary>
     /// Tests aimed to be run from an IDE while debugging against real databases
     /// Uncomment the [Ignore] tag to run

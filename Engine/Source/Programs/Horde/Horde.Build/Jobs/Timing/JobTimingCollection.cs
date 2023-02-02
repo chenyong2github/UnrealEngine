@@ -11,8 +11,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Jobs.Timing
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Concrete implementation of IJobTimingCollection
 	/// </summary>

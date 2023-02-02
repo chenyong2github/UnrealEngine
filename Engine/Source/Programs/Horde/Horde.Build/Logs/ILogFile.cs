@@ -11,10 +11,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Information about a log file chunk
 	/// </summary>

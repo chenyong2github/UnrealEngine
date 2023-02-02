@@ -17,10 +17,5 @@ namespace Horde.Build.Utilities
 				return ObjectId.Parse(text);
 			}
 		}
-
-		public static ObjectId<T> ToObjectId<T>(this string text)
-		{
-			return new ObjectId<T>(text.ToObjectId());
-		}
 	}
 }

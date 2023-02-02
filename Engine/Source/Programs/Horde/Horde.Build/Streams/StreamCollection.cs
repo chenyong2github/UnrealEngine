@@ -17,9 +17,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Streams
 {
-	using JobId = ObjectId<IJob>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Collection of stream documents
 	/// </summary>
@@ -321,7 +318,7 @@ namespace Horde.Build.Streams
 				{
 					int stateIndex = newStepStates.FindIndex(x => x.Name == updateState.Name);
 
-					UserId? pausedByUserId = updateState.PausedByUserId != null ? new UserId(updateState.PausedByUserId) : null;
+					UserId? pausedByUserId = updateState.PausedByUserId != null ? UserId.Parse(updateState.PausedByUserId) : null;
 
 					if (stateIndex == -1)
 					{

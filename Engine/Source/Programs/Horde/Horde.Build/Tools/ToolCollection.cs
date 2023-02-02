@@ -22,8 +22,6 @@ using System.Threading.Tasks;
 
 namespace Horde.Build.Tools
 {
-	using ToolDeploymentId = ObjectId<IToolDeployment>;
-
 	/// <summary>
 	/// Collection of tool documents
 	/// </summary>

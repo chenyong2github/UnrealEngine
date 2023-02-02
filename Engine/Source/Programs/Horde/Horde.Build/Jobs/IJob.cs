@@ -27,12 +27,7 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Jobs
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
 	using ReportPlacement = HordeCommon.Rpc.ReportPlacement;
-	using SessionId = ObjectId<ISession>;
-	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Report for a job or jobstep

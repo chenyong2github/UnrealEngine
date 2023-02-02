@@ -18,8 +18,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Notifications
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Collection of subscription documents
 	/// </summary>

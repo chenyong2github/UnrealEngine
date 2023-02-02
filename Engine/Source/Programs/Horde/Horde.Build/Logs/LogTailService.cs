@@ -17,8 +17,6 @@ using System.Globalization;
 
 namespace Horde.Build.Logs
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Stores data for logs which has not yet been flushed to persistent storage.
 	/// 

@@ -9,9 +9,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Issues
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Identifies a particular changelist and job that contributes to a span
 	/// </summary>

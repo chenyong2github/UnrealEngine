@@ -26,9 +26,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Logs
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Format for the returned data
 	/// </summary>

@@ -10,8 +10,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Agents
 {
-	using LeaseId = ObjectId<ILease>;
-
 	/// <summary>
 	/// Entry to the conform list
 	/// </summary>

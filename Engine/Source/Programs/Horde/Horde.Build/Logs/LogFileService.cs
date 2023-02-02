@@ -33,10 +33,6 @@ using Stream = System.IO.Stream;
 
 namespace Horde.Build.Logs
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Metadata about a log file
 	/// </summary>

@@ -15,8 +15,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Acls
 {
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Wraps functionality for manipulating permissions
 	/// </summary>

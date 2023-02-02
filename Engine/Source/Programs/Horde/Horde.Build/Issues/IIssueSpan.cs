@@ -8,8 +8,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Issues
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Trace of a set of errors in a single step across multiple jobs
 	/// </summary>

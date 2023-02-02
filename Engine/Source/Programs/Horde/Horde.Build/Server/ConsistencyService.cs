@@ -14,8 +14,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Server
 {
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Service which checks the database for consistency and fixes up any errors
 	/// </summary>

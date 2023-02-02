@@ -16,7 +16,7 @@ using ProtoBuf;
 namespace Horde.Build.Utilities
 {
 	/// <summary>
-	/// Base class for converting to and from types containing an object id. Useful pattern for reducing boilerplate with strongly typed records.
+	/// Base class for converting to and from types containing a <see cref="StringId"/>. Useful pattern for reducing boilerplate with strongly typed records.
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
 	abstract class StringIdConverter<T> where T : struct
@@ -27,13 +27,13 @@ namespace Horde.Build.Utilities
 		public abstract StringId ToStringId(T value);
 
 		/// <summary>
-		/// Constructs a type from an object id
+		/// Constructs a type from a <see cref="StringId"/>
 		/// </summary>
 		public abstract T FromStringId(StringId id);
 	}
 
 	/// <summary>
-	/// Attribute declaring an object id converter for a particular type
+	/// Attribute declaring a <see cref="StringIdConverter{T}"/> for a particular type
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Struct)]
 	sealed class StringIdConverterAttribute : Attribute

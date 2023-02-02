@@ -20,12 +20,6 @@ using Horde.Build.Server;
 
 namespace Horde.Build.Jobs.TestData
 {
-	using JobId = ObjectId<IJob>;
-	using TestId = ObjectId<ITest>;
-	using TestSuiteId = ObjectId<ITestSuite>;
-	using TestMetaId = ObjectId<ITestMeta>;
-	using TestRefId = ObjectId<ITestDataRef>;
-
 	/// <summary>
 	/// Controller for the /api/v1/testdata endpoint
 	/// </summary>
@@ -95,7 +89,7 @@ namespace Horde.Build.Jobs.TestData
 		[ProducesResponseType(typeof(List<GetTestDataDetailsResponse>), 200)]
 		public async Task<ActionResult<List<GetTestDataDetailsResponse>>> GetTestDetailsAsync([FromQuery(Name = "id")] string[] ids)
 		{
-			TestRefId[] idValues = Array.ConvertAll(ids, x => new TestRefId(x));
+			TestRefId[] idValues = Array.ConvertAll(ids, x => TestRefId.Parse(x));
 			List<ITestDataDetails> details = await _testDataService.FindTestDetails(idValues);
 			return details.Select(d => new GetTestDataDetailsResponse(d)).ToList();
 		}
@@ -112,7 +106,7 @@ namespace Horde.Build.Jobs.TestData
 		{
 			HashSet<string> testIds = new HashSet<string>(request.testIds);
 
-			List<ITest> testValues = await _testDataService.FindTests(testIds.Select(x => new TestId(x)).ToArray());			
+			List<ITest> testValues = await _testDataService.FindTests(testIds.Select(x => TestId.Parse(x)).ToArray());			
 
 			return testValues.Select(x => new GetTestResponse(x)).ToList();
 		}
@@ -301,7 +295,7 @@ namespace Horde.Build.Jobs.TestData
 		[Route("/api/v1/testdata")]
 		public async Task<ActionResult<CreateTestDataResponse>> CreateAsync(CreateTestDataRequest request)
 		{
-			IJob? job = await _jobService.GetJobAsync(new JobId(request.JobId));
+			IJob? job = await _jobService.GetJobAsync(JobId.Parse(request.JobId));
 			if (job == null)
 			{
 				return NotFound();
@@ -347,7 +341,7 @@ namespace Horde.Build.Jobs.TestData
 
 			List<object> results = new List<object>();
 
-			List<ITestData> documents = await _testDataCollection.FindAsync(streamIdValue, minChange, maxChange, jobId?.ToObjectId<IJob>(), jobStepId?.ToSubResourceId(), key, index, count);
+			List<ITestData> documents = await _testDataCollection.FindAsync(streamIdValue, minChange, maxChange, (jobId == null)? null : JobId.Parse(jobId), jobStepId?.ToSubResourceId(), key, index, count);
 			foreach (ITestData document in documents)
 			{
 				if (await _jobService.AuthorizeAsync(document.JobId, AclAction.ViewJob, User, _globalConfig.Value))

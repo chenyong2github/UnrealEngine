@@ -8,8 +8,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Interface for the log file write cache
 	/// </summary>

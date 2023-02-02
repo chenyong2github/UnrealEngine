@@ -8,8 +8,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Jobs.Schedules
 {
-	using JobId = ObjectId<IJob>;
-
 	/// <summary>
 	/// Response describing a schedule
 	/// </summary>

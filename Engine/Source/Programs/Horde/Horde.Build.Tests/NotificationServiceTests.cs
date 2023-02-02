@@ -21,8 +21,6 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-	
 	public class FakeNotificationSink : INotificationSink
 	{
 		public List<JobScheduledNotification> JobScheduledNotifications { get; } = new();
@@ -59,7 +57,7 @@ namespace Horde.Build.Tests
 
 		public static IJob CreateJob(StreamId streamId, int change, string name, IGraph graph)
 		{
-			JobId jobId = new JobId("5ec16da1774cb4000107c2c1");
+			JobId jobId = JobId.Parse("5ec16da1774cb4000107c2c1");
 
 			List<IJobStepBatch> batches = new List<IJobStepBatch>();
 			for (int groupIdx = 0; groupIdx < graph.Groups.Count; groupIdx++)

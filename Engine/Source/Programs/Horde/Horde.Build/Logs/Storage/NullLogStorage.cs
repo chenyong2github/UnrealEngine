@@ -6,8 +6,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs.Storage
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Empty implementation of log storage
 	/// </summary>

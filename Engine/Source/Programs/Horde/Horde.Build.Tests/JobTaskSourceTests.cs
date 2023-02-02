@@ -17,9 +17,6 @@ using Horde.Build.Streams;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-	using UserId = ObjectId<IUser>;
-
 	[TestClass]
 	public class JobTaskSourceTests : TestSetup
 	{

@@ -11,8 +11,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Agents.Sessions
 {
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Collection of session documents
 	/// </summary>

@@ -12,9 +12,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Jobs
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-	
 	/// <summary>
 	/// Unique id struct for JobStepRef objects. Includes a job id, batch id, and step id to uniquely identify the step.
 	/// </summary>

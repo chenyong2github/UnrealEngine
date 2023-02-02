@@ -6,8 +6,6 @@ using Horde.Build.Agents.Sessions;
 
 namespace Horde.Build.Utilities
 {
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Predetermined claim values
 	/// </summary>

@@ -24,10 +24,6 @@ using Horde.Build.Server;
 
 namespace Horde.Build.Issues
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Controller for the /api/v1/issues endpoint
 	/// </summary>
@@ -228,7 +224,7 @@ namespace Horde.Build.Issues
 			UserId? ownerIdValue = null;
 			if (ownerId != null)
 			{
-				ownerIdValue = new UserId(ownerId);
+				ownerIdValue = UserId.Parse(ownerId);
 			}
 
 			List<IIssue> issues;
@@ -491,7 +487,7 @@ namespace Horde.Build.Issues
 			}
 			if(logIds != null)
 			{
-				logIdValues.UnionWith(logIds.Select(x => new LogId(x)));
+				logIdValues.UnionWith(logIds.Select(x => LogId.Parse(x)));
 			}
 
 			List<IIssueSpan> spans = await _issueCollection.FindSpansAsync(issueId);
@@ -549,13 +545,13 @@ namespace Horde.Build.Issues
 			UserId? newOwnerId = null;
 			if (request.OwnerId != null)
 			{
-				newOwnerId = request.OwnerId.Length == 0 ? UserId.Empty : new UserId(request.OwnerId);
+				newOwnerId = request.OwnerId.Length == 0 ? UserId.Empty : UserId.Parse(request.OwnerId);
 			}
 
 			UserId? newNominatedById = null;
 			if (request.NominatedById != null)
 			{
-				newNominatedById = new UserId(request.NominatedById);
+				newNominatedById = UserId.Parse(request.NominatedById);
 			}
 			else if (request.OwnerId != null)
 			{
@@ -577,13 +573,13 @@ namespace Horde.Build.Issues
 			UserId? newQuarantinedById = null;
 			if (request.QuarantinedById != null)
 			{
-				newQuarantinedById = request.QuarantinedById.Length > 0 ? new UserId(request.QuarantinedById) : UserId.Empty;
+				newQuarantinedById = request.QuarantinedById.Length > 0 ? UserId.Parse(request.QuarantinedById) : UserId.Empty;
 			}
 
 			UserId? newForceClosedById = null;
 			if (request.ForceClosedById != null)
 			{
-				newForceClosedById = request.ForceClosedById.Length > 0 ? new UserId(request.ForceClosedById) : UserId.Empty;
+				newForceClosedById = request.ForceClosedById.Length > 0 ? UserId.Parse(request.ForceClosedById) : UserId.Empty;
 			}
 
 

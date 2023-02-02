@@ -13,9 +13,6 @@ using HordeCommon;
 
 namespace Horde.Build.Tests.Stubs.Collections
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-
 	class JobStepRefStub : IJobStepRef
 	{
 		public JobStepRefId Id { get; set; }

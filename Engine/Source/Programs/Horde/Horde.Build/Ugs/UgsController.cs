@@ -16,9 +16,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Ugs
 {
-	using LogId = ObjectId<ILogFile>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Controller for the /api/v1/issues endpoint
 	/// </summary>

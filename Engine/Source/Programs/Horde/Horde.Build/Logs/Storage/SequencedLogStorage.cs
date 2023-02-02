@@ -7,8 +7,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs.Storage
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Storage layer which caches pending read tasks, to avoid fetching the same item more than once
 	/// </summary>

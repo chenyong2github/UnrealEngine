@@ -12,8 +12,6 @@ using HordeCommon;
 
 namespace Horde.Build.Agents
 {
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Interface for a collection of agent documents
 	/// </summary>

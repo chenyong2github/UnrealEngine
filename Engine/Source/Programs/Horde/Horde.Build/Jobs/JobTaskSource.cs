@@ -33,10 +33,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Jobs
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-	
 	/// <summary>
 	/// Background service to dispatch pending work to agents in priority order.
 	/// </summary>
@@ -137,7 +133,7 @@ namespace Horde.Build.Jobs
 				int delta = y.Batch.SchedulePriority - x.Batch.SchedulePriority;
 				if (delta == 0)
 				{
-					delta = x._job.Id.CompareTo(y._job.Id);
+					delta = x._job.Id.Id.CompareTo(y._job.Id.Id);
 					if (delta == 0)
 					{
 						delta = (int)x.Batch.Id.Value - (int)y.Batch.Id.Value;
@@ -242,7 +238,7 @@ namespace Horde.Build.Jobs
 			_settings = settings;
 			_logger = logger;
 
-			OnLeaseStartedProperties.Add(nameof(ExecuteJobTask.JobId), x => new JobId(x.JobId)).Add(nameof(ExecuteJobTask.BatchId), x => SubResourceId.Parse(x.BatchId)).Add(nameof(ExecuteJobTask.LogId), x => new LogId(x.LogId));
+			OnLeaseStartedProperties.Add(nameof(ExecuteJobTask.JobId), x => JobId.Parse(x.JobId)).Add(nameof(ExecuteJobTask.BatchId), x => SubResourceId.Parse(x.BatchId)).Add(nameof(ExecuteJobTask.LogId), x => LogId.Parse(x.LogId));
 		}
 
 		/// <inheritdoc/>
@@ -715,7 +711,7 @@ namespace Horde.Build.Jobs
 		/// <inheritdoc/>
 		public override Task CancelLeaseAsync(IAgent agent, LeaseId leaseId, ExecuteJobTask task)
 		{
-			return CancelLeaseAsync(agent, new JobId(task.JobId), task.BatchId.ToSubResourceId());
+			return CancelLeaseAsync(agent, JobId.Parse(task.JobId), task.BatchId.ToSubResourceId());
 		}
 
 		/// <summary>
@@ -986,7 +982,7 @@ namespace Horde.Build.Jobs
 			if (outcome != LeaseOutcome.Success)
 			{
 				AgentId agentId = agent.Id;
-				JobId jobId = new JobId(task.JobId);
+				JobId jobId = JobId.Parse(task.JobId);
 				SubResourceId batchId = task.BatchId.ToSubResourceId();
 
 				// Update the batch

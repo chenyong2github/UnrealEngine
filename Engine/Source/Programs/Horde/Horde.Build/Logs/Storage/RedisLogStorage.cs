@@ -9,8 +9,6 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Logs.Storage
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Redis log file storage
 	/// </summary>

@@ -23,10 +23,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Tasks
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// Generates tasks telling agents to sync their workspaces
 	/// </summary>
@@ -67,7 +63,7 @@ namespace Horde.Build.Tasks
 			_logger = logger;
 			_tickConformList = clock.AddSharedTicker<ConformTaskSource>(TimeSpan.FromMinutes(1.0), CleanConformListAsync, logger);
 
-			OnLeaseStartedProperties.Add(nameof(ConformTask.LogId), x => new LogId(x.LogId));
+			OnLeaseStartedProperties.Add(nameof(ConformTask.LogId), x => LogId.Parse(x.LogId));
 		}
 
 		/// <inheritdoc/>

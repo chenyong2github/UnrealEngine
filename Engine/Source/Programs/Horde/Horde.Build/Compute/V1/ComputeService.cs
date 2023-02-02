@@ -30,8 +30,6 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Compute.V1
 {
-	using LeaseId = ObjectId<ILease>;
-
 	/// <summary>
 	/// Information about a particular task
 	/// </summary>

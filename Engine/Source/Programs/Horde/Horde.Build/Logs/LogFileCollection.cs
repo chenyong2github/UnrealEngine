@@ -16,10 +16,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Logs
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-	using SessionId = ObjectId<ISession>;
-
 	/// <summary>
 	/// Wrapper around the jobs collection in a mongo DB
 	/// </summary>

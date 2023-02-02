@@ -18,10 +18,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Tasks
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-
 	class UpgradeTaskSource : TaskSourceBase<UpgradeTask>
 	{
 		public override string Type => "Upgrade";
@@ -42,7 +38,7 @@ namespace Horde.Build.Tasks
 			_serverSettings = serverSettings;
 			_clock = clock;
 
-			OnLeaseStartedProperties.Add(nameof(UpgradeTask.LogId), x => new LogId(x.LogId));
+			OnLeaseStartedProperties.Add(nameof(UpgradeTask.LogId), x => LogId.Parse(x.LogId));
 		}
 
 		public override async Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)

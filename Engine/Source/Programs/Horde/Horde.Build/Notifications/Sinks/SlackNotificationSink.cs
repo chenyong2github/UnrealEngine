@@ -45,10 +45,6 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Notifications.Sinks
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Maintains a connection to Slack, in order to receive socket-mode notifications of user interactions
 	/// </summary>
@@ -2627,7 +2623,7 @@ namespace Horde.Build.Notifications.Sinks
 							{
 								int issueId = Int32.Parse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 								string verb = match.Groups[2].Value;
-								UserId userId = match.Groups[3].Value.ToObjectId<IUser>();
+								UserId userId = new UserId(ObjectId.Parse(match.Groups[3].Value));
 								await HandleIssueDmResponseAsync(issueId, verb, userId, payload.User.Id);
 							}
 							else if (TryMatch(action.Value, @"^issue_(\d+)_([a-zA-Z]+)$", out match) && payload.TriggerId != null)
@@ -2651,7 +2647,7 @@ namespace Horde.Build.Notifications.Sinks
 						if (TryMatch(payload.View.CallbackId, @"^issue_(\d+)_markfixed_([a-fA-F0-9]{24})$", out match))
 						{
 							int issueId = Int32.Parse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture);
-							UserId userId = match.Groups[2].Value.ToObjectId<IUser>();
+							UserId userId = UserId.Parse(match.Groups[2].Value);
 
 							string? fixChangeStr;
 							if (payload.View.State.TryGetValue("fix_cl", "fix_cl_action", out fixChangeStr))
@@ -2671,7 +2667,7 @@ namespace Horde.Build.Notifications.Sinks
 						else if (TryMatch(payload.View.CallbackId, @"^issue_(\d+)_ack_([a-fA-F0-9]{24})$", out match))
 						{
 							int issueId = Int32.Parse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture);
-							UserId userId = match.Groups[2].Value.ToObjectId<IUser>();
+							UserId userId = UserId.Parse(match.Groups[2].Value);
 							await _issueService.UpdateIssueAsync(issueId, acknowledged: true, ownerId: userId, initiatedById: userId);
 						}
 					}

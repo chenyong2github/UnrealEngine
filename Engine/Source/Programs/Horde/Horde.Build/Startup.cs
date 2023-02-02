@@ -97,11 +97,6 @@ using StatusCode = Grpc.Core.StatusCode;
 
 namespace Horde.Build
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-	using UserId = ObjectId<IUser>;
-
 	class Startup
 	{
 		static Startup()
@@ -960,7 +955,7 @@ namespace Horde.Build
 				BsonSerializer.RegisterSerializer(new ConditionSerializer());
 				BsonSerializer.RegisterSerializationProvider(new BsonSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new StringIdBsonSerializationProvider());
-				BsonSerializer.RegisterSerializationProvider(new ObjectIdSerializationProvider());
+				BsonSerializer.RegisterSerializationProvider(new ObjectIdBsonSerializationProvider());
 			}
 		}
 

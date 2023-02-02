@@ -14,10 +14,6 @@ using HordeCommon.Rpc.Tasks;
 
 namespace Horde.Build.Tasks
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-
 	class ShutdownTaskSource : TaskSourceBase<ShutdownTask>
 	{
 		public override string Type => "Shutdown";
@@ -29,7 +25,7 @@ namespace Horde.Build.Tasks
 		public ShutdownTaskSource(ILogFileService logService)
 		{
 			_logService = logService;
-			OnLeaseStartedProperties.Add(nameof(ShutdownTask.LogId), x => new LogId(x.LogId));
+			OnLeaseStartedProperties.Add(nameof(ShutdownTask.LogId), x => LogId.Parse(x.LogId));
 		}
 
 		public override async Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)

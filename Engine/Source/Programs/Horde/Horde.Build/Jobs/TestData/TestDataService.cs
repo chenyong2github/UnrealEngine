@@ -14,11 +14,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Jobs.TestData
 {
-	using TestId = ObjectId<ITest>;
-	using TestSuiteId = ObjectId<ITestSuite>;
-	using TestMetaId = ObjectId<ITestMeta>;
-	using TestRefId = ObjectId<ITestDataRef>;
-
 	/// <summary>
 	/// Device management service
 	/// </summary>
@@ -153,8 +148,8 @@ namespace Horde.Build.Jobs.TestData
 		/// <returns></returns>
 		public async Task<List<ITestDataRef>> FindTestRefs(StreamId[] streamIds, TestMetaId[] metaIds, string[]? testIds = null, string[]? suiteIds = null, DateTime? minCreateTime = null, DateTime? maxCreateTime = null, int? minChange = null, int? maxChange = null)
 		{
-			TestId[]? tids = testIds?.ConvertAll(x => new TestId(x));
-			TestSuiteId[]? sids = suiteIds?.ConvertAll(x => new TestSuiteId(x));
+			TestId[]? tids = testIds?.ConvertAll(x => TestId.Parse(x));
+			TestSuiteId[]? sids = suiteIds?.ConvertAll(x => TestSuiteId.Parse(x));
 
 			return await _testData.FindTestRefs(streamIds, metaIds, tids, sids, minCreateTime, maxCreateTime, minChange, maxChange);
 		}

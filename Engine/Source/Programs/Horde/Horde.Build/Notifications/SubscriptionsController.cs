@@ -13,8 +13,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Notifications
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Controller for the /api/v1/agents endpoint
 	/// </summary>

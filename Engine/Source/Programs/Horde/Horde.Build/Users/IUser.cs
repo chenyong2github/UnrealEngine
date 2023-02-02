@@ -7,9 +7,6 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Users
 {
-	using JobId = ObjectId<IJob>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Known user ids
 	/// </summary>
@@ -18,7 +15,7 @@ namespace Horde.Build.Users
 		/// <summary>
 		/// The system user. Used for automated processes.
 		/// </summary>
-		public static UserId System { get; } = new UserId("6170b423b94a2c7c2d6b6f87");
+		public static UserId System { get; } = UserId.Parse("6170b423b94a2c7c2d6b6f87");
 	}
 
 	/// <summary>

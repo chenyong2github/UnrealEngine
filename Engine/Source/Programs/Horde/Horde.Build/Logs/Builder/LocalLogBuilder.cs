@@ -10,8 +10,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs.Builder
 {
-	using LogId = ObjectId<ILogFile>;
-
 	/// <summary>
 	/// In-memory implementation of a log write buffer
 	/// </summary>

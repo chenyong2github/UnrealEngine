@@ -16,9 +16,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Streams
 {
-	using JobId = ObjectId<IJob>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Exception thrown when stream validation fails
 	/// </summary>

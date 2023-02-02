@@ -35,12 +35,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Jobs
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-	using SessionId = ObjectId<ISession>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Exception thrown when attempting to retry executing a node that does not allow retries
 	/// </summary>
@@ -167,7 +161,7 @@ namespace Horde.Build.Jobs
 		public async Task<IJob> CreateJobAsync(JobId? jobId, StreamConfig streamConfig, TemplateId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, CreateJobOptions options)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.CreateJobAsync").StartActive();
-			traceScope.Span.SetTag("JobId", jobId);
+			traceScope.Span.SetTag("JobId", jobId?.ToString());
 			traceScope.Span.SetTag("Stream", streamConfig.Name);
 			traceScope.Span.SetTag("TemplateRefId", templateRefId);
 			traceScope.Span.SetTag("TemplateHash", templateHash);
@@ -197,7 +191,7 @@ namespace Horde.Build.Jobs
 				traceScope.Span.SetTag("JobTriggers.Count", options.JobTriggers.Count);
 			}
 
-			JobId jobIdValue = jobId ?? Horde.Build.Utilities.ObjectId<IJob>.GenerateNewId();
+			JobId jobIdValue = jobId ?? JobId.GenerateNewId();
 			using IDisposable scope = _logger.BeginScope("CreateJobAsync({JobId})", jobIdValue);
 
 			if (options.PreflightChange != null && ShouldClonePreflightChange(streamConfig.Id))
@@ -550,15 +544,15 @@ namespace Horde.Build.Jobs
 		public async Task<List<IJob>> FindJobsAsync(JobId[]? jobIds = null, StreamId? streamId = null, string? name = null, TemplateId[]? templates = null, int? minChange = null, int? maxChange = null, int? preflightChange = null, bool? preflightOnly = null, UserId? preflightStartedByUser = null, UserId? startedByUser = null, DateTimeOffset ? minCreateTime = null, DateTimeOffset? maxCreateTime = null, string? target = null, JobStepState[]? state = null, JobStepOutcome[]? outcome = null, DateTimeOffset? modifiedBefore = null, DateTimeOffset? modifiedAfter = null, int? index = null, int? count = null, bool consistentRead = true, bool? excludeUserJobs = null)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("JobService.FindJobsAsync").StartActive();
-			scope.Span.SetTag("JobIds", jobIds);
+			scope.Span.SetTag("JobIds", (jobIds == null)? null : String.Join(',', jobIds));
 			scope.Span.SetTag("StreamId", streamId);
 			scope.Span.SetTag("Name", name);
 			scope.Span.SetTag("Templates", templates);
 			scope.Span.SetTag("MinChange", minChange);
 			scope.Span.SetTag("MaxChange", maxChange);
 			scope.Span.SetTag("PreflightChange", preflightChange);
-			scope.Span.SetTag("PreflightStartedByUser", preflightStartedByUser);
-			scope.Span.SetTag("StartedByUser", startedByUser);
+			scope.Span.SetTag("PreflightStartedByUser", preflightStartedByUser?.ToString());
+			scope.Span.SetTag("StartedByUser", startedByUser?.ToString());
 			scope.Span.SetTag("MinCreateTime", minCreateTime);
 			scope.Span.SetTag("MaxCreateTime", maxCreateTime);
 			scope.Span.SetTag("Target", target);
@@ -637,7 +631,7 @@ namespace Horde.Build.Jobs
 			using IScope scope = GlobalTracer.Instance.BuildSpan("JobService.FindJobsByStreamWithTemplatesAsync").StartActive();
 			scope.Span.SetTag("StreamId", streamId);
 			scope.Span.SetTag("Templates", templates);
-			scope.Span.SetTag("PreflightStartedByUser", preflightStartedByUser);
+			scope.Span.SetTag("PreflightStartedByUser", preflightStartedByUser?.ToString());
 			scope.Span.SetTag("MaxCreateTime", maxCreateTime);
 			scope.Span.SetTag("ModifiedAfter", modifiedAfter);
 			scope.Span.SetTag("Index", index);
@@ -655,7 +649,7 @@ namespace Horde.Build.Jobs
 		public async Task<IJob?> TryUpdateGraphAsync(IJob job, IGraph newGraph)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.TryUpdateGraphAsync").StartActive();
-			traceScope.Span.SetTag("Job", job.Id);
+			traceScope.Span.SetTag("Job", job.Id.ToString());
 			traceScope.Span.SetTag("NewGraph", newGraph.Id);
 
 			using IDisposable scope = _logger.BeginScope("TryUpdateGraphAsync({JobId})", job.Id);
@@ -679,7 +673,7 @@ namespace Horde.Build.Jobs
 		public async Task<IJobTiming> GetJobTimingAsync(IJob job)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.GetJobTimingAsync").StartActive();
-			traceScope.Span.SetTag("Job", job.Id);
+			traceScope.Span.SetTag("Job", job.Id.ToString());
 
 			using IDisposable scope = _logger.BeginScope("GetJobTimingAsync({JobId})", job.Id);
 
@@ -800,9 +794,9 @@ namespace Horde.Build.Jobs
 		public async Task<IJob?> UpdateBatchAsync(IJob job, SubResourceId batchId, StreamConfig streamConfig, LogId? newLogId = null, JobStepBatchState? newState = null)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.UpdateBatchAsync").StartActive();
-			traceScope.Span.SetTag("Job", job.Id);
+			traceScope.Span.SetTag("Job", job.Id.ToString());
 			traceScope.Span.SetTag("BatchId", batchId);
-			traceScope.Span.SetTag("NewLogId", newLogId);
+			traceScope.Span.SetTag("NewLogId", newLogId?.ToString());
 			traceScope.Span.SetTag("NewState", newState.ToString());
 
 			using IDisposable scope = _logger.BeginScope("UpdateBatchAsync({JobId})", job.Id);
@@ -935,7 +929,7 @@ namespace Horde.Build.Jobs
 		public async Task<IJob?> UpdateStepAsync(IJob job, SubResourceId batchId, SubResourceId stepId, StreamConfig streamConfig, JobStepState newState = JobStepState.Unspecified, JobStepOutcome newOutcome = JobStepOutcome.Unspecified, JobStepError? newError = null, bool? newAbortRequested = null, UserId? newAbortByUserId = null, LogId? newLogId = null, ObjectId? newNotificationTriggerId = null, UserId? newRetryByUserId = null, Priority? newPriority = null, List<Report>? newReports = null, Dictionary<string, string?>? newProperties = null)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.UpdateStepAsync").StartActive();
-			traceScope.Span.SetTag("Job", job.Id);
+			traceScope.Span.SetTag("Job", job.Id.ToString());
 			traceScope.Span.SetTag("BatchId", batchId);
 			traceScope.Span.SetTag("StepId", stepId);
 			
@@ -980,7 +974,7 @@ namespace Horde.Build.Jobs
 		public async Task<IJob?> TryUpdateStepAsync(IJob job, SubResourceId batchId, SubResourceId stepId, StreamConfig streamConfig, JobStepState newState = JobStepState.Unspecified, JobStepOutcome newOutcome = JobStepOutcome.Unspecified, JobStepError? newError = null, bool? newAbortRequested = null, UserId? newAbortByUserId = null, LogId? newLogId = null, ObjectId? newTriggerId = null, UserId? newRetryByUserId = null, Priority? newPriority = null, List<Report>? newReports = null, Dictionary<string, string?>? newProperties = null)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.TryUpdateStepAsync").StartActive();
-			traceScope.Span.SetTag("Job", job.Id);
+			traceScope.Span.SetTag("Job", job.Id.ToString());
 			traceScope.Span.SetTag("BatchId", batchId);
 			traceScope.Span.SetTag("StepId", stepId);
 
@@ -1124,7 +1118,7 @@ namespace Horde.Build.Jobs
 		private async Task<IJob> AutoSubmitChangeAsync(StreamConfig streamConfig, IJob job, IGraph graph)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.AutoSubmitChangeAsync").StartActive();
-			traceScope.Span.SetTag("Job", job.Id);
+			traceScope.Span.SetTag("Job", job.Id.ToString());
 			traceScope.Span.SetTag("Graph", graph.Id);
 			
 			int? change;
@@ -1255,10 +1249,10 @@ namespace Horde.Build.Jobs
 		private async Task<IJob?> FireJobTriggerAsync(IJob job, IGraph graph, IChainedJob jobTrigger, StreamConfig streamConfig)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.FireJobTriggerAsync").StartActive();
-			traceScope.Span.SetTag("Job", job.Id);
+			traceScope.Span.SetTag("Job", job.Id.ToString());
 			traceScope.Span.SetTag("Graph", graph.Id);
 			traceScope.Span.SetTag("JobTrigger.Target", jobTrigger.Target);
-			traceScope.Span.SetTag("JobTrigger.JobId", jobTrigger.JobId);
+			traceScope.Span.SetTag("JobTrigger.JobId", jobTrigger.JobId?.ToString());
 			traceScope.Span.SetTag("JobTrigger.TemplateRefId", jobTrigger.TemplateRefId);
 			
 			for (; ; )

@@ -33,10 +33,6 @@ using System.Threading;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
-	using UserId = ObjectId<IUser>;
-
 	[TestClass]
 	public class IssueServiceTests : TestSetup
 	{

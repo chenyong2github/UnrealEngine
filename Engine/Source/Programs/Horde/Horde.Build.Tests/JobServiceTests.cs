@@ -26,8 +26,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {
-	using JobId = ObjectId<IJob>;
-	using LogId = ObjectId<ILogFile>;
 	using ProjectId = Projects.ProjectId;
 
 	[TestClass]

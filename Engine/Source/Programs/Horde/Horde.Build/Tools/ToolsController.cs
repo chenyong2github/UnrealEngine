@@ -19,8 +19,6 @@ using System.Threading.Tasks;
 
 namespace Horde.Build.Tools
 {
-	using ToolDeploymentId = ObjectId<IToolDeployment>;
-
 	/// <summary>
 	/// Describes a standalone, external tool hosted and deployed by Horde. Provides basic functionality for performing
 	/// gradual roll-out, versioning, etc...

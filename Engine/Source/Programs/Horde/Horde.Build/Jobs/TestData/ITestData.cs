@@ -9,13 +9,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Jobs.TestData
 {
-	using JobId = ObjectId<IJob>;
-	
-	using TestId = ObjectId<ITest>;
-	using TestSuiteId = ObjectId<ITestSuite>;
-	using TestMetaId = ObjectId<ITestMeta>;
-	using TestRefId = ObjectId<ITestDataRef>;
-
 	/// <summary>
 	/// Test outcome
 	/// </summary>

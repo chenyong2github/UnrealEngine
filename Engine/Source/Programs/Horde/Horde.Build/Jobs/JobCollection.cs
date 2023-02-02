@@ -34,12 +34,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Jobs
 {
-	using JobId = ObjectId<IJob>;
-	using LeaseId = ObjectId<ILease>;
-	using LogId = ObjectId<ILogFile>;
-	using SessionId = ObjectId<ISession>;
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Wrapper around the jobs collection in a mongo DB
 	/// </summary>

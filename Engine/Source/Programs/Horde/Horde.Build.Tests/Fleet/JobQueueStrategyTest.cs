@@ -150,7 +150,7 @@ namespace Horde.Build.Tests.Fleet
 			CreateJobOptions options = new CreateJobOptions();
 			options.Arguments.Add($"-Target={nodeNameToExecute}");
 
-			IJob job = await JobCollection.AddAsync(ObjectId<IJob>.GenerateNewId(), streamId,
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), streamId,
 				new TemplateId("bogusTemplateRefId"), ContentHash.Empty, graph, "bogusJobName",
 				1000, 1000, options);
 
