@@ -609,11 +609,8 @@ namespace UnrealBuildTool
 					}
 
 					// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.
-					if (TargetDescriptor.SpecificFilesToCompile.Count == 0)
-					{
-						ActionGraph.GatherAllOutdatedActions(PrerequisiteActions, History, ActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
-					}
-					else
+					ActionGraph.GatherAllOutdatedActions(PrerequisiteActions, History, ActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
+					if (TargetDescriptor.SpecificFilesToCompile.Count != 0)
 					{
 						HashSet<FileReference> ForceBuildFiles = new HashSet<FileReference>();
 						ForceBuildFiles.UnionWith(TargetDescriptor.SpecificFilesToCompile);
