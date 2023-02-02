@@ -23,7 +23,8 @@ UCLASS()
 class GAMEPLAYABILITIES_API UAbilityTask_ApplyRootMotionMoveToForce : public UAbilityTask_ApplyRootMotion_Base
 {
 	GENERATED_BODY()
-
+	
+public:
 	UPROPERTY(BlueprintAssignable)
 	FApplyRootMotionMoveToForceDelegate OnTimedOut;
 
@@ -41,10 +42,7 @@ class GAMEPLAYABILITIES_API UAbilityTask_ApplyRootMotionMoveToForce : public UAb
 	virtual void OnDestroy(bool AbilityIsEnding) override;
 
 protected:
-
 	virtual void SharedInitAndApply() override;
-
-protected:
 
 	UPROPERTY(Replicated)
 	FVector StartLocation;

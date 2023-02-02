@@ -20,7 +20,8 @@ UCLASS()
 class GAMEPLAYABILITIES_API UAbilityTask_WaitGameplayTagQuery : public UAbilityTask
 {
 	GENERATED_BODY()
-
+	
+public:
 	/** Activates this AbilityTask. */
 	virtual void Activate() override;
 	
