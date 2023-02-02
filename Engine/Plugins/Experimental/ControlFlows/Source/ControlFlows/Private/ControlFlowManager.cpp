@@ -71,13 +71,13 @@ bool FControlFlowStatics::IterateThroughNewlyCreatedFlows(float DeltaTime)
 		if (ensureAlways(NewFlows[Idx]->OwningObjectIsValid()))
 		{
 			TSharedRef<FControlFlow> NewFlow = NewFlows[Idx]->GetControlFlow();
-			if (ensureAlwaysMsgf(NewFlow->IsRunning(), TEXT("Call to execute after queue-ing your steps to avoid this ensure. We will fire the flow 1 frame late to hopefully not cause anything from breaking")))
+			if (ensureAlwaysMsgf(NewFlow->IsRunning(), TEXT("Call to execute after queue-ing your steps to avoid this ensure. We will fire the flow 1 frame late to hopefully not cause anything from breaking. Flow:%s"), *NewFlow->GetDebugName()))
 			{
 				GetExecutingFlows().Add(NewFlows[Idx]);
 			}
 			else
 			{
-				if (ensureAlwaysMsgf(NewFlow->NumInQueue() > 0, TEXT("We should never have a newly created flow with no steps.")))
+				if (ensureAlwaysMsgf(NewFlow->NumInQueue() > 0, TEXT("We should never have a newly created flow with no steps. Flow:%s"), *NewFlow->GetDebugName()))
 				{
 					NewFlow->ExecuteFlow();
 					GetExecutingFlows().Add(NewFlows[Idx]);
