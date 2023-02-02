@@ -302,7 +302,6 @@ namespace Jupiter
                 metricProviderBuilder
                     .AddMeter("UnrealCloudDDC", "ScyllaDB")
                     .AddOtlpExporter()
-                    .AddConsoleExporter()
                     .SetResourceBuilder(appResourceBuilder)
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation();
