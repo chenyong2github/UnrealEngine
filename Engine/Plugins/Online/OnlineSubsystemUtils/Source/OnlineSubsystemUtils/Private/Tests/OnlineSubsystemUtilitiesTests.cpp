@@ -51,7 +51,6 @@ namespace OSSUtilsTestHelper
 		OSSList.AddUnique(TEXT( "Steam" ) );
 		OSSList.AddUnique(TEXT( "Facebook" ) );
 		OSSList.AddUnique(TEXT( "IOS" ) );
-		OSSList.AddUnique(TEXT( "WeChat" ) );
 		OSSList.AddUnique(TEXT( "GooglePlay" ) );
 		OSSList.AddUnique(TEXT( "Live" ) );
 		OSSList.AddUnique(TEXT( "Thunderhead" ) );

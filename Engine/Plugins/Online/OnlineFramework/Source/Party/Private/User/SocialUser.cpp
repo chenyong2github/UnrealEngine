@@ -883,12 +883,10 @@ bool USocialUser::CanSendFriendInvite(ESocialSubsystem SubsystemType) const
 	{
 		//@todo DanH: Really need OssCaps or something to be able to just ask an OSS if it supports a given feature. For now, we just magically know that we only support sending XB, PSN, and WeGame invites
 		const FName PlatformOssName = USocialManager::GetSocialOssName(ESocialSubsystem::Platform);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (PlatformOssName != LIVE_SUBSYSTEM && PlatformOssName != PS4_SUBSYSTEM && !USocialSettings::IsSonyOSS(PlatformOssName) && PlatformOssName != TENCENT_SUBSYSTEM)
+		if (PlatformOssName != PS4_SUBSYSTEM && !USocialSettings::IsSonyOSS(PlatformOssName) && PlatformOssName != TENCENT_SUBSYSTEM)
 		{
 			return false;
 		}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return HasSubsystemInfo(SubsystemType) && !IsLocalUser() && !IsFriend(SubsystemType) && !IsBlocked(SubsystemType) && !IsFriendshipPending(SubsystemType);

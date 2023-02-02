@@ -97,13 +97,7 @@ FName UOnlineEngineInterfaceImpl::GetDedicatedServerSubsystemNameForSubsystem(co
 	// then the server can pass the value of that option to this function to get the name of
 	// the corresponding server OSS for that client, if one exists.
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (Subsystem == LIVE_SUBSYSTEM)
-	{
-		return LIVESERVER_SUBSYSTEM;
-	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	else if (Subsystem == PS4_SUBSYSTEM)
+	if (Subsystem == PS4_SUBSYSTEM)
 	{
 		return PS4SERVER_SUBSYSTEM;
 	}
