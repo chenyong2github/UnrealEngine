@@ -174,14 +174,16 @@ namespace mu
 
 	//---------------------------------------------------------------------------------------------
 	FORCEINLINE VectorRegister4Int VectorBlendChannelMasked(
-		VectorRegister4Int Base, VectorRegister4Int Blended, VectorRegister4Int Mask)
+		const VectorRegister4Int& Base, const VectorRegister4Int& Blended, const VectorRegister4Int& Mask)
 	{
 		const VectorRegister4Int Value = VectorIntAdd(
-			VectorIntMultiply(Base, VectorIntSubtract(VectorIntSet1(255), Mask)),
-			VectorIntMultiply(Blended, Mask));
+				VectorIntMultiply(Base, VectorIntSubtract(MakeVectorRegisterIntConstant(255, 255, 255, 255), Mask)),
+				VectorIntMultiply(Blended, Mask));
 
 		// fast division by 255 assuming Value is in the range [0, (1 << 16)]
-		return VectorShiftRightImmLogical(VectorIntMultiply(Value, VectorIntSet1(32897)), 23);
+		return VectorShiftRightImmLogical(
+				VectorIntMultiply(Value, MakeVectorRegisterIntConstant(32897, 32897, 32897, 32897)),
+				23);
 	}
 
 	FORCEINLINE int32 VectorLightenChannel(int32 Base, int32 Blended)

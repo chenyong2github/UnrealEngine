@@ -513,9 +513,7 @@ namespace mu
 				constexpr bool bUseVectorImplementation = false;	
 				if constexpr (bUseVectorImplementation)
 				{
-					// TODO: Add support for Args.BlendAlphaSourceChannel
-					check(Args.BlendAlphaSourceChannel==3);
-					BufferLayerCompositeVector<VectorBlendChannelMasked, VectorLightenChannel, false>(pNew.get(), m_blended.get(), bOnlyOneMip);
+					BufferLayerCompositeVector<VectorBlendChannelMasked, VectorLightenChannel, false>(pNew.get(), m_blended.get(), bOnlyOneMip, Args.BlendAlphaSourceChannel);
 				}
 				else
 				{
