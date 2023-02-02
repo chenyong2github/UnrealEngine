@@ -403,6 +403,9 @@ struct FGeometryCollectionRepData
 	// For Network Prediction Mode we require the frame number on the server when the data was gathered
 	int32 ServerFrame;
 
+	// The sim-time that this rep data was received
+	TOptional<float> RepDataReceivedTime;
+
 	// Just test version to skip having to traverse the whole pose array for replication
 	bool Identical(const FGeometryCollectionRepData* Other, uint32 PortFlags) const;
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
@@ -1124,8 +1127,12 @@ protected:
 
 	/** Clear all rep data, this is required if the physics proxy has been recreated */
 	virtual void ResetRepData();
-
+ 
+	UE_DEPRECATED(5.3, "The argument-free version of ProcessRepData will be removed. Please use the version which takes DeltaTime and SimTime instead.")
 	virtual void ProcessRepData();
+
+	virtual void ProcessRepData(float DeltaTime, float SimTime);
+
 	int32 VersionProcessed = INDEX_NONE;
 
 private:
