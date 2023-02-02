@@ -55,8 +55,8 @@ bool FControlRigAnimInstanceProxy::Evaluate(FPoseContext& Output)
 
 void FControlRigAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
-	//SnapshotNode.Update_AnyThread(InContext);
-	return;
+	// such that AnimScriptInstance->GetUpdateCounter().HasEverBeenUpdated() is accurate
+	UpdateCounter.Increment();
 }
 
 FControlRigAnimInstanceProxy::~FControlRigAnimInstanceProxy()
