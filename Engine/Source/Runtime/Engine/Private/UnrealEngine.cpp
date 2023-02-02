@@ -17476,7 +17476,7 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 
 		FColor	Color = ULevelStreaming::GetLevelStreamingStatusColor(LevelStatus.StreamingStatus);
 		const TCHAR* StatusDisplayName = ULevelStreaming::GetLevelStreamingStatusDisplayName(LevelStatus.StreamingStatus);
-		FString LevelPackageName = LevelStatus.PackageName.ToString();
+		FString LevelPackageName = LevelStatus.LevelLabel.IsEmpty() ? LevelStatus.PackageName.ToString() : LevelStatus.LevelLabel;
 		FString DisplayName = UWorld::RemovePIEPrefix(FPackageName::GetShortName(LevelPackageName));
 
 		if (LevelStatus.LODIndex != INDEX_NONE)

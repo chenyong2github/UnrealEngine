@@ -127,3 +127,8 @@ FName UWorldPartitionRuntimeCell::GetLevelPackageName() const
 	return NAME_None;
 #endif
 }
+
+FString UWorldPartitionRuntimeCell::GetDebugName() const
+{
+	return RuntimeCellData->GetDebugName();
+}
