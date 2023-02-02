@@ -21,6 +21,8 @@ namespace UnrealBuildTool.Rules
 					"GeometryAlgorithms",
 					"GeometryCore",
 					"MeshConversion",
+					"MeshConversionEngineTypes",
+					"MeshDescription",
 					"TetMeshing"
 				}
 			);

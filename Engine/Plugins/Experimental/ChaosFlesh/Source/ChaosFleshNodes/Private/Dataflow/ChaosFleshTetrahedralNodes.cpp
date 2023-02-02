@@ -13,11 +13,16 @@
 #include "Dataflow/DataflowInputOutput.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "FTetWildWrapper.h"
 #include "Generate/IsosurfaceStuffing.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "MeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
+#include "Rendering/SkeletalMeshModel.h"
+#include "SkeletalMeshLODModelToDynamicMesh.h" // MeshModelingBlueprints
 #include "Spatial/FastWinding.h"
 #include "Spatial/MeshAABBTree3.h"
 
@@ -108,24 +113,63 @@ void FGenerateTetrahedralCollectionDataflowNodes::Evaluate(Dataflow::FContext& C
 	{
 		TUniquePtr<FFleshCollection> InCollection(GetValue<DataType>(Context, &Collection).NewCopy<FFleshCollection>());
 		TObjectPtr<const UStaticMesh> InStaticMesh(GetValue<TObjectPtr<const UStaticMesh>>(Context, &StaticMesh));
+		TObjectPtr<const USkeletalMesh> InSkeletalMesh(FindInput(&SkeletalMesh) ? GetValue<TObjectPtr<const USkeletalMesh>>(Context, &SkeletalMesh) : nullptr);
 
+		if (InStaticMesh || InSkeletalMesh)
+		{
 #if WITH_EDITORONLY_DATA
-		if (Method == TetMeshingMethod::IsoStuffing)
-		{
-			EvaluateIsoStuffing(Context, InCollection, InStaticMesh);
-		}
-		else if (Method == TetMeshingMethod::TetWild)
-		{
-			EvaluateTetWild(Context, InCollection, InStaticMesh);
-		}
-		else
-		{
-			ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes unsupported Method."));
-		}
-#else
-		ensureMsgf(false,TEXT("FGenerateTetrahedralCollectionDataflowNodes is an editor only node."));
-#endif
+			UE::Geometry::FDynamicMesh3 DynamicMesh;
+			if (InStaticMesh)
+			{
+				// make a mesh description for UE::Geometry tools
+				FMeshDescriptionToDynamicMesh GetSourceMesh;
+				bool bUsingHiResSource = InStaticMesh->IsHiResMeshDescriptionValid();
+				const FMeshDescription* UseSourceMeshDescription =
+					(bUsingHiResSource) ? InStaticMesh->GetHiResMeshDescription() : InStaticMesh->GetMeshDescription(0);
+				GetSourceMesh.Convert(UseSourceMeshDescription, DynamicMesh);
+			}
+			else if (InSkeletalMesh)
+			{
+				// Check first if we have bulk data available and non-empty.
+				const int32 LODIndex = 0;
+				FMeshDescription SourceMesh;
+				if (InSkeletalMesh->IsLODImportedDataBuildAvailable(LODIndex) && !InSkeletalMesh->IsLODImportedDataEmpty(LODIndex))
+				{
+					FSkeletalMeshImportData SkeletalMeshImportData;
+					InSkeletalMesh->LoadLODImportedData(LODIndex, SkeletalMeshImportData);
+					SkeletalMeshImportData.GetMeshDescription(SourceMesh);
+				}
+				else
+				{
+					// Fall back on the LOD model directly if no bulk data exists. When we commit
+					// the mesh description, we override using the bulk data. This can happen for older
+					// skeletal meshes, from UE 4.24 and earlier.
+					const FSkeletalMeshModel* SkeletalMeshModel = InSkeletalMesh->GetImportedModel();
+					if (SkeletalMeshModel && SkeletalMeshModel->LODModels.IsValidIndex(LODIndex))
+					{
+						SkeletalMeshModel->LODModels[LODIndex].GetMeshDescription(SourceMesh, InSkeletalMesh);
+					}
+				}
+				FMeshDescriptionToDynamicMesh Converter;
+				Converter.Convert(&SourceMesh, DynamicMesh);
+			}
 
+			if (Method == TetMeshingMethod::IsoStuffing)
+			{
+				EvaluateIsoStuffing(Context, InCollection, DynamicMesh);
+			}
+			else if (Method == TetMeshingMethod::TetWild)
+			{
+				EvaluateTetWild(Context, InCollection, DynamicMesh);
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes unsupported Method."));
+			}
+#else
+			ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes is an editor only node."));
+#endif
+		} // end if InStaticMesh || InSkeletalMesh
 		SetValue<DataType>(Context, *(FManagedArrayCollection*)InCollection.Get(), &Collection);
 	}
 }
@@ -133,19 +177,11 @@ void FGenerateTetrahedralCollectionDataflowNodes::Evaluate(Dataflow::FContext& C
 void FGenerateTetrahedralCollectionDataflowNodes::EvaluateIsoStuffing(
 	Dataflow::FContext& Context, 
 	TUniquePtr<FFleshCollection>& InCollection,
-	TObjectPtr<const UStaticMesh>& InStaticMesh) const
+	const UE::Geometry::FDynamicMesh3& DynamicMesh) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InStaticMesh && NumCells > 0 && (-.5 <= OffsetPercent && OffsetPercent <= 0.5))
+	if (NumCells > 0 && (-.5 <= OffsetPercent && OffsetPercent <= 0.5))
 	{
-		// make a mesh description for UE::Geometry tools
-		UE::Geometry::FDynamicMesh3 DynamicMesh;
-		FMeshDescriptionToDynamicMesh GetSourceMesh;
-		bool bUsingHiResSource = InStaticMesh->IsHiResMeshDescriptionValid();
-		const FMeshDescription* UseSourceMeshDescription =
-			(bUsingHiResSource) ? InStaticMesh->GetHiResMeshDescription() : InStaticMesh->GetMeshDescription(0);
-		GetSourceMesh.Convert(UseSourceMeshDescription, DynamicMesh);
-
 		// Tet mesh generation
 		UE::Geometry::TIsosurfaceStuffing<double> IsosurfaceStuffing;
 		UE::Geometry::FDynamicMeshAABBTree3 Spatial(&DynamicMesh);
@@ -198,19 +234,11 @@ void FGenerateTetrahedralCollectionDataflowNodes::EvaluateIsoStuffing(
 void FGenerateTetrahedralCollectionDataflowNodes::EvaluateTetWild(
 	Dataflow::FContext& Context, 
 	TUniquePtr<FFleshCollection>& InCollection,
-	TObjectPtr<const UStaticMesh>& InStaticMesh) const
+	const UE::Geometry::FDynamicMesh3& DynamicMesh) const
 {
 #if WITH_EDITORONLY_DATA
-	if (StaticMesh && InStaticMesh)
+	if (/* placeholder for conditions for exec */true)
 	{
-		// make a mesh description for UE::Geometry tools
-		UE::Geometry::FDynamicMesh3 DynamicMesh;
-		FMeshDescriptionToDynamicMesh GetSourceMesh;
-		bool bUsingHiResSource = InStaticMesh->IsHiResMeshDescriptionValid();
-		const FMeshDescription* UseSourceMeshDescription =
-			(bUsingHiResSource) ? InStaticMesh->GetHiResMeshDescription() : InStaticMesh->GetMeshDescription(0);
-		GetSourceMesh.Convert(UseSourceMeshDescription, DynamicMesh);
-
 		// Pull out Vertices and Triangles
 		TArray<FVector> Verts;
 		TArray<FIntVector3> Tris;

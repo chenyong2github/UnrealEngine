@@ -8,8 +8,14 @@
 
 #include "ChaosFleshTetrahedralNodes.generated.h"
 
+class USkeletalMesh;
 class UStaticMesh;
 class FFleshCollection;
+namespace UE {
+	namespace Geometry {
+		class FDynamicMesh3;
+	}
+}
 
 USTRUCT(meta = (DataflowFlesh))
 struct FConstructTetGridNode : public FDataflowNode
@@ -114,6 +120,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	TObjectPtr<const UStaticMesh> StaticMesh = nullptr;
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	TObjectPtr<const USkeletalMesh> SkeletalMesh = nullptr;
+
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
@@ -121,6 +130,7 @@ public:
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&StaticMesh);
+		RegisterInputConnection(&SkeletalMesh);
 		RegisterInputConnection(&Collection);
 		RegisterOutputConnection(&Collection);
 	}
@@ -128,8 +138,8 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 protected:
-	void EvaluateIsoStuffing(Dataflow::FContext& Context, TUniquePtr<FFleshCollection>& InCollection, TObjectPtr<const UStaticMesh>& InStaticMesh) const;
-	void EvaluateTetWild(Dataflow::FContext& Context, TUniquePtr<FFleshCollection>& InCollection, TObjectPtr<const UStaticMesh>& InStaticMesh) const;
+	void EvaluateIsoStuffing(Dataflow::FContext& Context, TUniquePtr<FFleshCollection>& InCollection, const UE::Geometry::FDynamicMesh3& DynamicMesh) const;
+	void EvaluateTetWild(Dataflow::FContext& Context, TUniquePtr<FFleshCollection>& InCollection, const UE::Geometry::FDynamicMesh3& DynamicMesh) const;
 };
 
 namespace Dataflow
