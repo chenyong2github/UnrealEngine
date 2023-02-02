@@ -102,7 +102,7 @@ public:
 		bool bDoQuasistatics = false;
 
 	UPROPERTY(EditAnywhere, Category = Chaos)
-		float EMesh = 100000;
+		float YoungModulus = 100000;
 
 	UPROPERTY(EditAnywhere, Category = Chaos)
 		bool bDoBlended = false;
@@ -110,6 +110,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Chaos)
 		float BlendedZeta = 0;
 
+	UPROPERTY(EditAnywhere, Category = Chaos)
+		float Damping = 0;
+
+	UPROPERTY(EditAnywhere, Category = Chaos)
+		bool bEnableGravity = true;
 	//UPROPERTY(EditAnywhere, Category = Chaos)
 	//	bool bWaitForParallelDeformableTask = true;
 

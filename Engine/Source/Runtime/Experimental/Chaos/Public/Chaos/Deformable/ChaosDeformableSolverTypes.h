@@ -28,7 +28,9 @@ namespace Chaos::Softs
 			bool InbDoQuasistatics = false,
 			FSolverReal InEMesh = (FSolverReal)100000.,
 			bool InbDoBlended = false,
-			FSolverReal InBlendedZeta = (FSolverReal).1)
+			FSolverReal InBlendedZeta = (FSolverReal).1,
+			FSolverReal InDamping = (FSolverReal)0,
+			bool InbEnableGravity = true)
 			: NumSolverSubSteps(InNumSolverSubSteps)
 			, NumSolverIterations(InNumSolverIterations)
 			, FixTimeStep(InFixTimeStep)
@@ -43,6 +45,8 @@ namespace Chaos::Softs
 			, EMesh(InEMesh)
 			, bDoBlended(InbDoBlended)
 			, BlendedZeta(InBlendedZeta)
+			, Damping(InDamping)
+			, bEnableGravity(InbEnableGravity)
 		{}
 
 		FDeformableSolverProperties(const FDeformableSolverProperties& InProp)
@@ -60,6 +64,8 @@ namespace Chaos::Softs
 			, EMesh(InProp.EMesh)
 			, bDoBlended(InProp.bDoBlended)
 			, BlendedZeta(InProp.BlendedZeta)
+			, Damping(InProp.Damping)
+			, bEnableGravity(InProp.bEnableGravity)
 		{}
 
 		int32 NumSolverSubSteps = 5;
@@ -76,6 +82,8 @@ namespace Chaos::Softs
 		FSolverReal EMesh = (FSolverReal)100000.;
 		bool bDoBlended = false;
 		FSolverReal BlendedZeta = (FSolverReal)0.;
+		FSolverReal Damping = (FSolverReal)0.;
+		bool bEnableGravity = true;
 	};
 
 

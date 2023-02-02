@@ -82,7 +82,7 @@ namespace Chaos::Softs
 			Property.NumSolverIterations, (FSolverReal)0.,
 			/*SelfCollisionsThickness = */(FSolverReal)0.,
 			/*CoefficientOfFriction = */(FSolverReal)0.,
-			/*FSolverReal Damping = */(FSolverReal)0.04,
+			/*FSolverReal Damping = */Property.Damping,
 			/*FSolverReal LocalDamping = */(FSolverReal)0.,
 			Property.bDoQuasistatics));
 		Evolution->Particles().AddArray(&MObjects);
@@ -111,8 +111,8 @@ namespace Chaos::Softs
 		if (Property.NumSolverIterations)
 		{
 			RemoveSimulationObjects();
-			InitializeSimulationObjects();
 			UpdateProxyInputPackages();
+			InitializeSimulationObjects();
 			AdvanceDt(DeltaTime);
 		}
 	}
@@ -180,7 +180,9 @@ namespace Chaos::Softs
 		auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
 
 		const FTransform& InitialTransform = Proxy.GetInitialTransform();
-		int32 ParticleStart = Evolution->AddParticleRange(NumParticles, 1, true);
+		int32 ParticleStart = Evolution->AddParticleRange(NumParticles, GroupOffset, true);
+		GroupOffset += 1;
+		
 		for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
 		{
 			int32 SolverParticleIndex = ParticleStart + vdx;
@@ -191,6 +193,28 @@ namespace Chaos::Softs
 			Evolution->Particles().PAndInvM(SolverParticleIndex).InvM = Evolution->Particles().InvM(SolverParticleIndex);
 			MObjects[SolverParticleIndex] = Proxy.GetOwner();
 		}
+
+		bool ObjectEnableGravity = false;
+
+		int32 SolverParticleIndex = ParticleStart;
+		if (const UObject* Owner = this->MObjects[SolverParticleIndex]) {
+			FFleshThreadingProxy::FFleshInputBuffer* FleshInputBuffer = nullptr;
+			if (this->CurrentInputPackage->ObjectMap.Contains(Owner))
+			{
+				FleshInputBuffer = this->CurrentInputPackage->ObjectMap[Owner]->As<FFleshThreadingProxy::FFleshInputBuffer>();
+				if (FleshInputBuffer)
+				{
+					ObjectEnableGravity = FleshInputBuffer->bEnableGravity;
+				}
+			}
+		}
+
+		if (!ObjectEnableGravity || !Property.bEnableGravity)
+		{
+			FSolverVec3 ZeroGravity(0.f);
+			Evolution->SetGravity(ZeroGravity, GroupOffset - 1);
+		}
+
 		Proxy.SetSolverParticleRange(ParticleStart, NumParticles);
 	}
 
@@ -463,10 +487,11 @@ namespace Chaos::Softs
 		{
 			Chaos::FVec3 Position(0.f);
 			Chaos::FVec3 EulerRot(0.f);
-			Evolution->AddCollisionParticleRange(1, 1, true);
+			int32 CollisionParticleOffset = Evolution->AddCollisionParticleRange(1, INDEX_NONE, true);
 			Evolution->CollisionParticles().X(0) = Position;
 			Evolution->CollisionParticles().R(0) = Chaos::TRotation<Chaos::FReal, 3>::MakeFromEuler(EulerRot);
 			Evolution->CollisionParticles().SetDynamicGeometry(0, MakeUnique<Chaos::TPlane<Chaos::FReal, 3>>(Chaos::FVec3(0.f, 0.f, 0.f), Chaos::FVec3(0.f, 0.f, 1.f)));
+
 		}
 	}
 

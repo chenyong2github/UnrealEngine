@@ -183,6 +183,7 @@ namespace Chaos::Softs
 		int32 Frame = 0;
 		int32 Iteration = 0;
 		bool bSimulationInitialized = false;
+		int32 GroupOffset = 1;
 	};
 
 

@@ -239,9 +239,11 @@ void UDeformableSolverComponent::Reset()
 		, bUseGridBasedConstraints
 		, GridDx
 		, bDoQuasistatics
-		, EMesh
+		, YoungModulus
 		, bDoBlended
 		, BlendedZeta
+		, Damping
+		, bEnableGravity
 		}));
 
 	

@@ -114,24 +114,27 @@ namespace Chaos::Softs
 		public:
 			typedef FFleshThreadingProxy Source;
 
-			FFleshInputBuffer(const FTransform& InGlobalTransform, const UObject* InOwner = nullptr)
+			FFleshInputBuffer(const FTransform& InGlobalTransform, const bool InbEnableGravity, const UObject* InOwner = nullptr)
 				: Super(InOwner, FFleshThreadingProxy::TypeName())
 				, GlobalTransform(InGlobalTransform)
 				, Transforms(TArray<FTransform>())
 				, RestTransforms(TArray<FTransform>())
+				, bEnableGravity(InbEnableGravity)
 			{}
 
-			FFleshInputBuffer(const FTransform& InGlobalTransform, const TArray<FTransform> & InTransforms, const TArray<FTransform>& InRestTransforms, const UObject* InOwner = nullptr)
+			FFleshInputBuffer(const FTransform& InGlobalTransform, const TArray<FTransform>& InTransforms, const TArray<FTransform>& InRestTransforms, const bool InbEnableGravity, const UObject* InOwner = nullptr)
 				: Super(InOwner, FFleshThreadingProxy::TypeName())
 				, GlobalTransform(InGlobalTransform)
 				, Transforms(InTransforms)
 				, RestTransforms(InRestTransforms)
+				, bEnableGravity(InbEnableGravity)
 			{}
 			virtual ~FFleshInputBuffer() {}
 
 			FTransform GlobalTransform;
 			TArray<FTransform> Transforms;
 			TArray<FTransform> RestTransforms; 
+			bool bEnableGravity;
 		};
 
 		class FFleshOutputBuffer : public FThreadingProxy::FBuffer

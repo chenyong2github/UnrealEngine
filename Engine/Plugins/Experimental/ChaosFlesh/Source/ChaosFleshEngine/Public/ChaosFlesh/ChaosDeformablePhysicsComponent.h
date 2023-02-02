@@ -56,6 +56,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attributes)
 	TObjectPtr<ADeformableSolverActor> PrimarySolver;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attributes)
+	bool bTempEnableGravity = true;
+
 	const FThreadingProxy* GetPhysicsProxy() const { return PhysicsProxy; }
 	FThreadingProxy* GetPhysicsProxy() { return PhysicsProxy; }
 
