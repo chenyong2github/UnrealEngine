@@ -6535,12 +6535,6 @@ bool FEngineLoop::AppInit( )
 		}
 	}
 
-	// Register the callback that allows the text localization manager to load data for plugins
-	FCoreDelegates::GatherAdditionalLocResPathsCallback.AddLambda([](TArray<FString>& OutLocResPaths)
-	{
-		IPluginManager::Get().GetLocalizationPathsForEnabledPlugins(OutLocResPaths);
-	});
-
 	FEmbeddedCommunication::ForceTick(17);
 
 	PreInitHMDDevice();
