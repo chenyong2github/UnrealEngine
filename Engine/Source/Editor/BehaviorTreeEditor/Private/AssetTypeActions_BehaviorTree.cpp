@@ -93,7 +93,15 @@ void FAssetTypeActions_BehaviorTree::PerformAssetDiff(UObject* OldAsset, UObject
 	if (bIsSingleAsset)
 	{
 		// identify the assumed single asset in the window's title
-		const FString TreeName = NewBehaviorTree? NewBehaviorTree->GetName() : OldBehaviorTree->GetName();
+		FString TreeName;
+		if (NewBehaviorTree)
+		{
+			TreeName = NewBehaviorTree->GetName();
+		}
+		else if (OldBehaviorTree)
+		{
+			TreeName = OldBehaviorTree->GetName();
+		}
 		WindowTitle = FText::Format(LOCTEXT("Behavior Tree Diff", "{0} - Behavior Tree Diff"), FText::FromString(TreeName));
 	}
 

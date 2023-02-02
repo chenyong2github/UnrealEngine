@@ -42,7 +42,15 @@ void FAssetTypeActions_ConversationDatabase::PerformAssetDiff(UObject* OldAsset,
 	// times we're comparing two completely separate assets altogether)
 	const bool bIsSingleAsset = !NewBank || !OldBank || (NewBank->GetName() == OldBank->GetName());
 
-	const FString BankName = NewBank? NewBank->GetName() : OldBank->GetName();
+	FString BankName;
+	if (NewBank)
+	{
+		BankName = NewBank->GetName();
+	}
+	else if (OldBank)
+	{
+		BankName = OldBank->GetName();
+	}
 	const FText WindowTitle = bIsSingleAsset ?
 		FText::Format(LOCTEXT("Conversation Diff", "{0} - Conversation Diff"), FText::FromString(BankName)) :
 		LOCTEXT("NamelessConversationDiff", "Conversation Diff");

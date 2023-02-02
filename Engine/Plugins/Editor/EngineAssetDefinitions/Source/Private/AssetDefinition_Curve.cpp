@@ -33,8 +33,8 @@ EAssetCommandResult UAssetDefinition_Curve::OpenAssets(const FAssetOpenArgs& Ope
 
 EAssetCommandResult UAssetDefinition_Curve::PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const
 {
-	UCurveBase* OldCurve = Cast<UCurveBase>(DiffArgs.OldAsset);
-	UCurveBase* NewCurve = Cast<UCurveBase>(DiffArgs.NewAsset);
+	const UCurveBase* OldCurve = Cast<UCurveBase>(DiffArgs.OldAsset);
+	const UCurveBase* NewCurve = Cast<UCurveBase>(DiffArgs.NewAsset);
 
 	if (NewCurve == nullptr && OldCurve == nullptr)
 	{
@@ -42,11 +42,24 @@ EAssetCommandResult UAssetDefinition_Curve::PerformAssetDiff(const FAssetDiffArg
 	}
 
 	// Build names for temp json files
-	const FString OldAssetName = DiffArgs.OldAsset ? DiffArgs.OldAsset->GetName() : DiffArgs.NewAsset->GetName();
+	const auto AssetNameFallback = [OldCurve, NewCurve]()
+	{
+		if (OldCurve)
+		{
+			return OldCurve->GetName();
+		}
+		if (NewCurve)
+		{
+			return NewCurve->GetName();
+		}
+		return FString();
+	};
+	
+	const FString OldAssetName = OldCurve ? OldCurve->GetName() : AssetNameFallback();
 	const FString RelOldTempFileName = FString::Printf(TEXT("%sTemp%s-%s.json"), *FPaths::DiffDir(), *OldAssetName, *DiffArgs.OldRevision.Revision);
 	const FString AbsoluteOldTempFileName = FPaths::ConvertRelativePathToFull(RelOldTempFileName);
 	
-	const FString NewAssetName = DiffArgs.NewAsset ? DiffArgs.NewAsset->GetName() : DiffArgs.OldAsset->GetName();
+	const FString NewAssetName = NewCurve ? NewCurve->GetName() : AssetNameFallback();
 	const FString RelNewTempFileName = FString::Printf(TEXT("%sTemp%s-%s.json"), *FPaths::DiffDir(), *NewAssetName, *DiffArgs.NewRevision.Revision);
 	const FString AbsoluteNewTempFileName = FPaths::ConvertRelativePathToFull(RelNewTempFileName);
 

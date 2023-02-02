@@ -2723,9 +2723,24 @@ void UAssetToolsImpl::DiffAssets(UObject* OldAsset, UObject* NewAsset, const str
 		return;
 	}
 
-	// Get class of both assets 
-	const UClass* OldClass = OldAsset ? OldAsset->GetClass() : NewAsset->GetClass();
-	const UClass* NewClass = NewAsset ? NewAsset->GetClass() : OldAsset->GetClass();
+	// Get class of both assets
+	const auto AssetClassFallback = [NewAsset, OldAsset]()->UClass*
+	{
+		if (OldAsset)
+		{
+			return OldAsset->GetClass();
+		}
+		if (NewAsset)
+		{
+			return NewAsset->GetClass();
+		}
+		check(false); // this should never happen
+		return nullptr;
+	};
+	
+	const UClass* OldClass = OldAsset ? OldAsset->GetClass() : AssetClassFallback();
+	const UClass* NewClass = NewAsset ? NewAsset->GetClass() : AssetClassFallback();
+	
 	// If same class..
 	if(OldClass == NewClass)
 	{

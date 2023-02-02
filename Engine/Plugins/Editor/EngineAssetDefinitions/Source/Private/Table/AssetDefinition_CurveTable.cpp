@@ -31,13 +31,26 @@ EAssetCommandResult UAssetDefinition_CurveTable::PerformAssetDiff(const FAssetDi
 		return EAssetCommandResult::Unhandled;
 	}
 
+	const auto AssetNameFallback = [OldCurveTable, NewCurveTable]()
+	{
+		if (OldCurveTable)
+		{
+			return OldCurveTable->GetName();
+		}
+		if (NewCurveTable)
+		{
+			return NewCurveTable->GetName();
+		}
+		return FString();
+	};
 
 	// Build names for temp csv files
-	const FString OldAssetName = DiffArgs.OldAsset ? DiffArgs.OldAsset->GetName() : DiffArgs.NewAsset->GetName();
+	const FString OldAssetName = OldCurveTable ? OldCurveTable->GetName() : AssetNameFallback();
+	const FString NewAssetName = NewCurveTable ? NewCurveTable->GetName() : AssetNameFallback();
+	
 	const FString RelOldTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *OldAssetName, *DiffArgs.OldRevision.Revision);
 	const FString AbsoluteOldTempFileName = FPaths::ConvertRelativePathToFull(RelOldTempFileName);
 	
-	const FString NewAssetName = DiffArgs.NewAsset ? DiffArgs.NewAsset->GetName() : DiffArgs.OldAsset->GetName();
 	const FString RelNewTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *NewAssetName, *DiffArgs.NewRevision.Revision);
 	const FString AbsoluteNewTempFileName = FPaths::ConvertRelativePathToFull(RelNewTempFileName);
 

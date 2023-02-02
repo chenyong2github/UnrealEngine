@@ -479,7 +479,15 @@ TSharedPtr<SWindow> SBlueprintDiff::CreateDiffWindow(const UBlueprint* OldBluepr
 	if (bIsSingleAsset)
 	{
 		// identify the assumed single asset in the window's title
-		const FString BPName = NewBlueprint? NewBlueprint->GetName() : OldBlueprint->GetName();
+		FString BPName;
+		if (NewBlueprint)
+		{
+			BPName = NewBlueprint->GetName();
+		}
+		else if (OldBlueprint)
+		{
+			BPName = OldBlueprint->GetName();
+		}
 		WindowTitle = FText::Format(LOCTEXT("NamedBlueprintDiff", "{0} - {1} Diff"), FText::FromString(BPName), BlueprintClass->GetDisplayNameText());
 	}
 
@@ -879,8 +887,23 @@ void SBlueprintDiff::GenerateDifferencesList()
 	}
 
 	bool bHasComponents = false;
-	UClass* BlueprintClassOld = PanelOld.Blueprint ? PanelOld.Blueprint->GeneratedClass : PanelNew.Blueprint->GeneratedClass;
-	UClass* BlueprintClassNew = PanelNew.Blueprint ? PanelNew.Blueprint->GeneratedClass : PanelOld.Blueprint->GeneratedClass;
+	
+	const auto BPClassFallback = [this]()->TSubclassOf<UObject>
+	{
+		if (PanelOld.Blueprint)
+		{
+			return PanelOld.Blueprint->GeneratedClass;
+		}
+		if (PanelNew.Blueprint)
+		{
+			return PanelNew.Blueprint->GeneratedClass;
+		}
+		check(false);
+		return TSubclassOf<UObject>(nullptr); // this should never happen
+	};
+	
+	const UClass* BlueprintClassOld = PanelOld.Blueprint ? PanelOld.Blueprint->GeneratedClass : BPClassFallback();
+	const UClass* BlueprintClassNew = PanelNew.Blueprint ? PanelNew.Blueprint->GeneratedClass : BPClassFallback();
 	const bool bIsOldClassActor = BlueprintClassOld && BlueprintClassOld->IsChildOf<AActor>();
 	const bool bIsNewClassActor = BlueprintClassNew && BlueprintClassNew->IsChildOf<AActor>();
 	if (bIsOldClassActor || bIsNewClassActor)
@@ -889,8 +912,18 @@ void SBlueprintDiff::GenerateDifferencesList()
 	}
 
 	// If this isn't a normal blueprint type, add the type panel
-	const UClass* RepresentativeClass = PanelOld.Blueprint ? PanelOld.Blueprint->GetClass() : PanelNew.Blueprint->GetClass();
-	if (RepresentativeClass != UBlueprint::StaticClass())
+
+	bool bIsSpecialized = false;
+	if (PanelOld.Blueprint)
+	{
+		bIsSpecialized = PanelOld.Blueprint->GetClass() == UBlueprint::StaticClass();
+	}
+	if (PanelNew.Blueprint)
+	{
+		bIsSpecialized |= PanelNew.Blueprint->GetClass() == UBlueprint::StaticClass();
+	}
+	
+	if (bIsSpecialized)
 	{
 		ModePanels.Add(BlueprintTypeMode, GenerateBlueprintTypePanel());
 	}

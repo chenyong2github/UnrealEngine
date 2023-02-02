@@ -55,11 +55,25 @@ EAssetCommandResult UAssetDefinition_DataTable::PerformAssetDiff(const FAssetDif
 	}
 	
 	// Build names for temp csv files
-	const FString OldAssetName = DiffArgs.OldAsset ? DiffArgs.OldAsset->GetName() : DiffArgs.NewAsset->GetName();
+	const auto AssetNameFallback = [NewDataTable, OldDataTable]()
+	{
+		if (OldDataTable)
+		{
+			return OldDataTable->GetName();
+		}
+		if (NewDataTable)
+		{
+			return NewDataTable->GetName();
+		}
+		return FString();
+	};
+
+	const FString OldAssetName = OldDataTable ? OldDataTable->GetName() : AssetNameFallback();
+	const FString NewAssetName = NewDataTable ? NewDataTable->GetName() : AssetNameFallback();
+	
 	const FString RelOldTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *OldAssetName, *DiffArgs.OldRevision.Revision);
 	const FString AbsoluteOldTempFileName = FPaths::ConvertRelativePathToFull(RelOldTempFileName);
 	
-	const FString NewAssetName = DiffArgs.NewAsset ? DiffArgs.NewAsset->GetName() : DiffArgs.OldAsset->GetName();
 	const FString RelNewTempFileName = FString::Printf(TEXT("%sTemp%s-%s.csv"), *FPaths::DiffDir(), *NewAssetName, *DiffArgs.NewRevision.Revision);
 	const FString AbsoluteNewTempFileName = FPaths::ConvertRelativePathToFull(RelNewTempFileName);
 
