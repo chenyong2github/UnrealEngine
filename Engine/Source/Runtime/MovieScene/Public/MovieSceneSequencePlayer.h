@@ -487,9 +487,22 @@ public:
 	void SetPlaybackClient(TScriptInterface<IMovieScenePlaybackClient> InPlaybackClient);
 
 	/**
+	 * Retrieve the currently assigned time controller
+	 */
+	TSharedPtr<FMovieSceneTimeController> GetTimeController() const;
+
+	/**
 	 * Assign a time controller for this sequence player allowing custom time management implementations.
+	 * Will reset the supplied time controller to the current time.
 	 */
 	void SetTimeController(TSharedPtr<FMovieSceneTimeController> InTimeController);
+	
+
+	/**
+	 * Assign a time controller for this sequence player allowing custom time management implementations.
+	 * Will not reset the supplied time controller in any way, so the sequence will receive its time directly from the controller.
+	 */
+	void SetTimeControllerDirectly(TSharedPtr<FMovieSceneTimeController> InTimeController);
 
 	/**
 	 * Sets whether to listen or ignore playback replication events.

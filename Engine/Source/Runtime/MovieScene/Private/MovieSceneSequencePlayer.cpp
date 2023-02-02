@@ -1308,13 +1308,23 @@ void UMovieSceneSequencePlayer::SetPlaybackClient(TScriptInterface<IMovieScenePl
 	PlaybackClient = InPlaybackClient;
 }
 
+TSharedPtr<FMovieSceneTimeController> UMovieSceneSequencePlayer::GetTimeController() const
+{
+	return TimeController;
+}
+
 void UMovieSceneSequencePlayer::SetTimeController(TSharedPtr<FMovieSceneTimeController> InTimeController)
 {
-	TimeController = InTimeController;
+	SetTimeControllerDirectly(InTimeController);
 	if (TimeController.IsValid())
 	{
 		TimeController->Reset(GetCurrentTime());
 	}
+}
+
+void UMovieSceneSequencePlayer::SetTimeControllerDirectly(TSharedPtr<FMovieSceneTimeController> InTimeController)
+{
+	TimeController = InTimeController;
 }
 
 void UMovieSceneSequencePlayer::SetIgnorePlaybackReplication(bool bState)
