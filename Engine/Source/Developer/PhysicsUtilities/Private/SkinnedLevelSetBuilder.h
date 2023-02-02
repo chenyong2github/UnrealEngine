@@ -8,6 +8,7 @@ class FSkinnedBoneTriangleCache;
 class FSkeletalMeshModel;
 class FSkeletalMeshRenderData;
 struct FPhysAssetCreateParams;
+class USkeletalMesh;
 namespace Chaos
 {
 class FLevelSet;
