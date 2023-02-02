@@ -54,11 +54,10 @@ bool UCommonUIExtensions::IsOwningPlayerUsingGamepad(const UUserWidget* WidgetCo
 
 UCommonActivatableWidget* UCommonUIExtensions::PushContentToLayer_ForPlayer(const ULocalPlayer* LocalPlayer, FGameplayTag LayerName, TSubclassOf<UCommonActivatableWidget> WidgetClass)
 {
-	//if (!WidgetClass)
-	//{
-	//	//UE_LOG ERROR
-	//	return nullptr;
-	//}
+	if (!ensure(LocalPlayer) || !ensure(WidgetClass != nullptr))
+	{
+		return nullptr;
+	}
 
 	if (UGameUIManagerSubsystem* UIManager = LocalPlayer->GetGameInstance()->GetSubsystem<UGameUIManagerSubsystem>())
 	{
@@ -76,6 +75,11 @@ UCommonActivatableWidget* UCommonUIExtensions::PushContentToLayer_ForPlayer(cons
 
 void UCommonUIExtensions::PushStreamedContentToLayer_ForPlayer(const ULocalPlayer* LocalPlayer, FGameplayTag LayerName, TSoftClassPtr<UCommonActivatableWidget> WidgetClass)
 {
+	if (!ensure(LocalPlayer) || !ensure(WidgetClass.IsNull()))
+	{
+		return;
+	}
+
 	if (UGameUIManagerSubsystem* UIManager = LocalPlayer->GetGameInstance()->GetSubsystem<UGameUIManagerSubsystem>())
 	{
 		if (UGameUIPolicy* Policy = UIManager->GetCurrentUIPolicy())
@@ -91,6 +95,12 @@ void UCommonUIExtensions::PushStreamedContentToLayer_ForPlayer(const ULocalPlaye
 
 void UCommonUIExtensions::PopContentFromLayer(UCommonActivatableWidget* ActivatableWidget)
 {
+	if (!ActivatableWidget)
+	{
+		// Ignore request to pop an already deleted widget
+		return;
+	}
+
 	if (const ULocalPlayer* LocalPlayer = ActivatableWidget->GetOwningLocalPlayer())
 	{
 		if (const UGameUIManagerSubsystem* UIManager = LocalPlayer->GetGameInstance()->GetSubsystem<UGameUIManagerSubsystem>())
