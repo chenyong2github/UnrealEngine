@@ -419,15 +419,15 @@ void PathTracingKernel(
 			Payload = TraceTransparentRay(Ray, false , bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 		}
 		
-		if (IsInvalidSurfaceHit(Payload))
-		{
-			bIsValidSample = false;
-			break;
-		}
-		
 		if (Payload.IsMiss())
 		{
 			// we didn't hit anything selectable for further shading, we are done
+			break;
+		}
+		
+		if (IsInvalidSurfaceHit(Payload))
+		{
+			bIsValidSample = false;
 			break;
 		}
 
