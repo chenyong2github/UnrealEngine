@@ -2434,6 +2434,9 @@ namespace UnrealBuildTool
 			}
 
 			// Find the set of binaries to build. If we're compiling only specific files, filter the list of binaries to only include the files we're interested in.
+			HashSet<FileReference> SpecificFilesToCompile = new();
+			SpecificFilesToCompile.UnionWith(TargetDescriptor.SpecificFilesToCompile);
+			SpecificFilesToCompile.UnionWith(TargetDescriptor.OptionalFilesToCompile);
 			if (TargetDescriptor.SpecificFilesToCompile.Count > 0 && !BuildConfiguration.bIgnoreInvalidFiles)
 			{
 				foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
@@ -2452,7 +2455,7 @@ namespace UnrealBuildTool
 			{
 				foreach (UEBuildBinary Binary in Binaries)
 				{
-					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, TargetDescriptor.SpecificFilesToCompile, WorkingSet, ExeDir, MakefileBuilder, Logger);
+					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, SpecificFilesToCompile.ToList(), WorkingSet, ExeDir, MakefileBuilder, Logger);
 					Makefile.OutputItems.AddRange(BinaryOutputItems);
 				}
 			}
