@@ -13,6 +13,9 @@ static TAutoConsoleVariable<int32> CVarDeformablePhysicsTickWaitForParallelDefor
 	TEXT("If 1, always wait for deformable task completion in the Deformable Tick function. "\
 		 "If 0, wait at end - of - frame updates instead if allowed by component settings"));
 
+FChaosEngineDeformableCVarParams GChaosEngineDeformableCVarParams;
+FAutoConsoleVariableRef CVarChaosEngineDeformableSolverbEnabled(TEXT("p.Chaos.Deformable.EnableSimulation"), GChaosEngineDeformableCVarParams.bEnableDeformableSolver, TEXT("Enable the deformable simulation. [default : true]"));
+
 UDeformableSolverComponent::UDeformableSolverComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Solver()
@@ -196,28 +199,29 @@ void UDeformableSolverComponent::TickComponent(float DeltaTime, enum ELevelTick 
 	UE_LOG(LogDeformableSolverComponentInternal, Verbose, TEXT("UDeformableSolverComponent::TickComponent"));
 	TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolverComponent_TickComponent);
 
-	UpdateTickGroup();
-
-	UpdateDeformableEndTickState(IsSimulatable());
-
-	UpdateFromGameThread(DeltaTime);
-
-	if (bDoThreadedAdvance)
+	if (GChaosEngineDeformableCVarParams.bEnableDeformableSolver)
 	{
-		// see FParallelClothCompletionTask
-		FGraphEventArray Prerequisites;
-		Prerequisites.Add(ParallelDeformableTask);
-		FGraphEventRef DeformableCompletionEvent = TGraphTask<FParallelDeformableTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, DeltaTime);
-		ThisTickFunction->GetCompletionHandle()->DontCompleteUntil(DeformableCompletionEvent);
+		UpdateTickGroup();
+
+		UpdateDeformableEndTickState(IsSimulatable());
+
+		UpdateFromGameThread(DeltaTime);
+
+		if (bDoThreadedAdvance)
+		{
+			// see FParallelClothCompletionTask
+			FGraphEventArray Prerequisites;
+			Prerequisites.Add(ParallelDeformableTask);
+			FGraphEventRef DeformableCompletionEvent = TGraphTask<FParallelDeformableTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, DeltaTime);
+			ThisTickFunction->GetCompletionHandle()->DontCompleteUntil(DeformableCompletionEvent);
+		}
+		else
+		{
+			Simulate(DeltaTime);
+
+			UpdateFromSimulation(DeltaTime);
+		}
 	}
-	else
-	{
-		Simulate(DeltaTime);
-
-		UpdateFromSimulation(DeltaTime);
-	}
-
-
 }
 
 void UDeformableSolverComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -227,43 +231,44 @@ void UDeformableSolverComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 
 void UDeformableSolverComponent::Reset()
 {
-	Solver.Reset(new FDeformableSolver({
-		NumSubSteps
-		, NumSolverIterations
-		, FixTimeStep
-		, TimeStepSize
-		, CacheToFile
-		, bEnableKinematics
-		, bUseFloor
-		, bDoSelfCollision
-		, bUseGridBasedConstraints
-		, GridDx
-		, bDoQuasistatics
-		, YoungModulus
-		, bDoBlended
-		, BlendedZeta
-		, Damping
-		, bEnableGravity
+	if (GChaosEngineDeformableCVarParams.bEnableDeformableSolver)
+	{
+		Solver.Reset(new FDeformableSolver({
+			NumSubSteps
+			, NumSolverIterations
+			, FixTimeStep
+			, TimeStepSize
+			, CacheToFile
+			, bEnableKinematics
+			, bUseFloor
+			, bDoSelfCollision
+			, bUseGridBasedConstraints
+			, GridDx
+			, bDoQuasistatics
+			, YoungModulus
+			, bDoBlended
+			, BlendedZeta
+			, Damping
+			, bEnableGravity
 		}));
 
-	
-	for (TObjectPtr<AActor>& DeformableActor : DeformableActors)
-	{
-		if (DeformableActor)
+		for (TObjectPtr<AActor>& DeformableActor : DeformableActors)
 		{
-			TArray<UDeformablePhysicsComponent*> DeformableComponents;
-			DeformableActor->GetComponents<UDeformablePhysicsComponent>(DeformableComponents);
-
-			for (UDeformablePhysicsComponent* DeformableComponent : DeformableComponents)
+			if (DeformableActor)
 			{
-				if (IsSimulating(DeformableComponent))
+				TArray<UDeformablePhysicsComponent*> DeformableComponents;
+				DeformableActor->GetComponents<UDeformablePhysicsComponent>(DeformableComponents);
+
+				for (UDeformablePhysicsComponent* DeformableComponent : DeformableComponents)
 				{
-					AddDeformableProxy(DeformableComponent);
+					if (IsSimulating(DeformableComponent))
+					{
+						AddDeformableProxy(DeformableComponent);
+					}
 				}
 			}
 		}
 	}
-	
 }
 
 /*

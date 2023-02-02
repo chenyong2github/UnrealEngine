@@ -42,6 +42,7 @@ namespace Chaos::Softs
 	FDeformableDebugParams GDeformableDebugParams;
 
 	FAutoConsoleVariableRef CVarDeformableDebugParamsDrawTetrahedralParticles(TEXT("p.Chaos.DebugDraw.Deformable.TetrahedralParticle"), GDeformableDebugParams.bDoDrawTetrahedralParticles, TEXT("Debug draw the deformable solvers tetrahedron. [def: false]"));
+	FAutoConsoleVariableRef CVarDeformableDebugParamsDrawKinematicParticles(TEXT("p.Chaos.DebugDraw.Deformable.KinematicParticle"), GDeformableDebugParams.bDoDrawKinematicParticles, TEXT("Debug draw the deformables kinematic particles. [def: false]"));
 
 
 	FCriticalSection FDeformableSolver::InitializationMutex;
@@ -381,8 +382,6 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeKinematicConstraint()
 	{
-
-
 		auto MKineticUpdate = [this](FSolverParticles& MParticles, const FSolverReal Dt, const FSolverReal MTime, const int32 Index)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_MKineticUpdate);
@@ -456,6 +455,18 @@ namespace Chaos::Softs
 											}
 
 											MParticles.X(Index) = GlobalTransform.TransformPosition(ComponentPointAtT);
+
+
+#if WITH_EDITOR
+											//debug draw
+											//p.Chaos.DebugDraw.Enabled 1
+											//p.Chaos.DebugDraw.Deformable.KinematicParticle 1
+											if (GDeformableDebugParams.IsDebugDrawingEnabled() && GDeformableDebugParams.bDoDrawKinematicParticles)
+											{
+												auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+												Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(DoubleVert(MParticles.X(Index)), FColor::Red, false, -1.0f, 0, 5);
+											}
+#endif
 
 											// @todo(flesh): Add non rigid skinning weights. 
 											// Currently this just grabs the last joint, ideally

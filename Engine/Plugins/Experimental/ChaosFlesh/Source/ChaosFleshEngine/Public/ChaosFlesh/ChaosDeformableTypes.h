@@ -14,3 +14,8 @@ enum class EDeformableExecutionModel : uint8
 	//
 	Chaos_Max UMETA(Hidden)
 };
+
+struct FChaosEngineDeformableCVarParams
+{
+	bool bEnableDeformableSolver = true;
+};

@@ -133,6 +133,7 @@ namespace Chaos::Softs
 	struct CHAOS_API FDeformableDebugParams
 	{				
 		bool bDoDrawTetrahedralParticles = false;
+		bool bDoDrawKinematicParticles = false;
 
 
 		bool IsDebugDrawingEnabled()

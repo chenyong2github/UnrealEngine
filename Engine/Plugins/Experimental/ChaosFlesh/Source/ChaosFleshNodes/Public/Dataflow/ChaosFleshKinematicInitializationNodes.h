@@ -40,6 +40,15 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
+UENUM(BlueprintType)
+enum class ESkeletalSeletionMode : uint8
+{
+	Dataflow_SkeletalSelection_Single UMETA(DisplayName = "Single"),
+	Dataflow_SkeletalSelection_Branch UMETA(DisplayName = "Sub-Branch"),
+	//
+	Chaos_Max UMETA(Hidden)
+};
+
 
 USTRUCT(meta = (DataflowFlesh))
 struct FKinematicInitializationDataflowNode : public FDataflowNode
@@ -57,6 +66,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	FTransform Transform;
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	ESkeletalSeletionMode SkeletalSelectionMode = ESkeletalSeletionMode::Dataflow_SkeletalSelection_Single;
+
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough  = "Collection"))
 	FManagedArrayCollection Collection;
 
@@ -69,6 +81,7 @@ public:
 	UPROPERTY(meta = (DataflowInput, DisplayName = "BoneIndex"))
 	int32 BoneIndexIn = INDEX_NONE;
 	
+
 	FKinematicInitializationDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
