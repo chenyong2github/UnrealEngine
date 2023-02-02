@@ -117,7 +117,7 @@ protected:
 
 private:
 	// GetWorld() should never be called on an ActorDescContainer to avoid any confusion as it can be used as a template
-	virtual UWorld* GetWorld() const override { check(false); return nullptr; }
+	virtual UWorld* GetWorld() const override { return nullptr; }
 
 #if WITH_EDITOR
 	bool ShouldRegisterDelegates();
