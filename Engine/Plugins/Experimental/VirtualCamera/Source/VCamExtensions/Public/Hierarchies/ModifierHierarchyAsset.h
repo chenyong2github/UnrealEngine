@@ -9,6 +9,8 @@ class UModifierHierarchyRules;
 class UVCamComponent;
 class UVCamModifier;
 
+struct FVCamModifierConnectionBinding;
+
 /**
  * An asset intended to be referenced by Slate widgets.
  *
@@ -30,21 +32,29 @@ public:
 	TObjectPtr<UModifierHierarchyRules> Rules;
 
 	/** Gets the root of the tree. */
-	UFUNCTION(BlueprintPure, Category = "Virtual Camera")
-	FName GetRootGroup() const;
+	UFUNCTION(BlueprintPure, Category = "Virtual Camera|Hierarchies")
+	FName GetRootNode() const;
 
-	/**
-	 * Gets the group the modifier belongs to.
-	 * @return True if the modifier belongs to any group
-	 */
-	UFUNCTION(BlueprintPure, Category = "Virtual Camera")
-	bool GetGroupOfModifier(UVCamModifier* Modifier, FName& Group) const;
-
+	/** Gets the parent of this given group. Fails if called on the root node. */
+	UFUNCTION(BlueprintPure, Category = "Virtual Camera|Hierarchies")
+	bool GetParentNode(FName ChildNode, FName& ParentNode) const;
+	
 	/** Gets the child groups of the given group. */
-	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Virtual Camera")
-	TSet<FName> GetChildGroups(FName ParentGroup) const;
+	UFUNCTION(BlueprintPure, Category = "Virtual Camera|Hierarchies")
+	TSet<FName> GetChildNodes(FName ParentGroup) const;
 
 	/** Gets all the modifiers on the component that belong in the given group. */
-	UFUNCTION(BlueprintPure, Category = "Virtual Camera")
-	TSet<UVCamModifier*> GetModifiersInGroup(UVCamComponent* Component, FName GroupName) const;
+	UFUNCTION(BlueprintPure, Category = "Virtual Camera|Hierarchies")
+	UVCamModifier* GetModifierInNode(UVCamComponent* Component, FName GroupName) const;
+	
+	/**
+	 * Gets the connection point the modifier is configured to be bound to.
+	 * This function is optional to implement; it is valid for it to always return false.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Virtual Camera|Hierarchies")
+	bool GetConnectionPointTargetForNode(FName GroupName, UVCamComponent* Component, FVCamModifierConnectionBinding& Connection) const;
+	
+	/** Utility function to get all groups which contain this modifier. */
+	UFUNCTION(BlueprintPure, Category = "Virtual Camera|Hierarchies")
+	TSet<FName> GetGroupsContainingModifier(UVCamModifier* Modifier) const;
 };

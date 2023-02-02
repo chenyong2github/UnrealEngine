@@ -2,25 +2,42 @@
 
 #include "Hierarchies/ModifierHierarchyAsset.h"
 
-#include "Hierarchies/ClassBasedModifierHierarchyRules.h"
 #include "Hierarchies/ModifierHierarchyRules.h"
 
-FName UModifierHierarchyAsset::GetRootGroup() const
+FName UModifierHierarchyAsset::GetRootNode() const
 {
-	return Rules ? Rules->GetRootGroup() : NAME_None;
+	return Rules ? Rules->GetRootNode() : NAME_None;
 }
 
-bool UModifierHierarchyAsset::GetGroupOfModifier(UVCamModifier* Modifier, FName& Group) const
+bool UModifierHierarchyAsset::GetParentNode(FName ChildNode, FName& ParentNode) const
 {
-	return Rules && Rules->GetGroupOfModifier(Modifier, Group);
+	return Rules && Rules->GetParentNode(ChildNode, ParentNode);
 }
 
-TSet<FName> UModifierHierarchyAsset::GetChildGroups_Implementation(FName ParentGroup) const
+TSet<FName> UModifierHierarchyAsset::GetChildNodes(FName ParentGroup) const
 {
-	return Rules ? Rules->GetChildGroups(ParentGroup) : TSet<FName>{};
+	return Rules ? Rules->GetChildNodes(ParentGroup) : TSet<FName>{};
 }
 
-TSet<UVCamModifier*> UModifierHierarchyAsset::GetModifiersInGroup(UVCamComponent* Component, FName GroupName) const
+UVCamModifier* UModifierHierarchyAsset::GetModifierInNode(UVCamComponent* Component, FName GroupName) const
 {
-	return Rules ? Rules->GetModifiersInGroup(Component, GroupName) : TSet<UVCamModifier*>{};
+	return Rules ? Rules->GetModifierInNode(Component, GroupName) : nullptr;
+}
+
+bool UModifierHierarchyAsset::GetConnectionPointTargetForNode(FName GroupName, UVCamComponent* Component, FVCamModifierConnectionBinding& Connection) const
+{
+	if (Rules)
+	{
+		return Rules->GetConnectionPointTargetForNode(GroupName, Component, Connection);
+	}
+	return false;
+}
+
+TSet<FName> UModifierHierarchyAsset::GetGroupsContainingModifier(UVCamModifier* Modifier) const
+{
+	if (Rules)
+	{
+		return Rules->GetNodesContainingModifier(Modifier);
+	}
+	return {};
 }

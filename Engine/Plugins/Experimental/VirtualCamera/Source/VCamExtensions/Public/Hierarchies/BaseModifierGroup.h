@@ -13,15 +13,9 @@ class VCAMEXTENSIONS_API UBaseModifierGroup : public UObject
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Hierarchy")
-	FName GroupName;
+	FName NodeName;
 
 	//~ Begin UObject Interface
 	virtual void PostInitProperties() override;
 	//~ End UObject Interface
-
-#if WITH_EDITOR
-	//~ Begin UObject Interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	//~ End UObject Interface
-#endif
 };
