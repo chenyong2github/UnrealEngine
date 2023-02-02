@@ -142,6 +142,9 @@ public:
 	/** (true) Will show the default classes if they exist. */
 	bool bShowDefaultClasses;
 
+	/** (true) Will show the classes viewer. */
+	bool bShowClassesViewer;
+
 public:
 
 	/** Constructor */
@@ -162,6 +165,7 @@ public:
 		, bEditorClassesOnly(false)
 		, InitiallySelectedClass(nullptr)
 		, bShowDefaultClasses(true)
+		, bShowClassesViewer(true)
 	{
 	}
 };
