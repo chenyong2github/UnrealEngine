@@ -2634,7 +2634,7 @@ void FVirtualTextureSystem::BeginUpdate(FRDGBuilder& GraphBuilder, FVirtualTextu
 		SubmitThrottledRequests(RHICmdList, Updater, bContinousUpdates);
 
 		// Reset the request list for the gather in EndUpdate.
-		Updater->MergedRequestList->Reset();
+		Updater->MergedRequestList->Reset(bContinousUpdates);
 
 	}, Updater->bAsyncTaskAllowed);
 }

@@ -91,15 +91,22 @@ public:
 		ContinuousUpdateRequestHash.Clear();
 	}
 
-	inline void Reset()
+	inline void Reset(bool bResetContinousUpdates)
 	{
-		Initialize();
+		LoadRequestHash.Clear();
+		MappingRequestHash.Clear();
+		DirectMappingRequestHash.Clear();
 		NumLoadRequests = 0;
 		NumLockRequests = 0;
 		NumMappingRequests = 0;
 		NumDirectMappingRequests = 0;
-		NumContinuousUpdateRequests = 0;
 		NumAdaptiveAllocationRequests = 0;
+
+		if (bResetContinousUpdates)
+		{
+			NumContinuousUpdateRequests = 0;
+			ContinuousUpdateRequestHash.Clear();
+		}
 	}
 
 	inline uint32 GetNumLoadRequests() const { return NumLoadRequests; }
