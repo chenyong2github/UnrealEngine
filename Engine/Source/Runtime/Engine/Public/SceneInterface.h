@@ -111,6 +111,12 @@ public:
 	virtual void RemovePrimitive(UPrimitiveComponent* Primitive) = 0;
 	/** Called when a primitive is being unregistered and will not be immediately re-registered. */
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) = 0;
+
+	/** Batched versions of Add / Remove / ReleasePrimitive, for improved CPU performance */
+	virtual void BatchAddPrimitives(TArrayView<UPrimitiveComponent*> InPrimitives) = 0;
+	virtual void BatchRemovePrimitives(TArrayView<UPrimitiveComponent*> InPrimitives) = 0;
+	virtual void BatchReleasePrimitives(TArrayView<UPrimitiveComponent*> InPrimitives) = 0;
+
 	/**
 	* Updates all primitive scene info additions, remobals and translation changes
 	*/

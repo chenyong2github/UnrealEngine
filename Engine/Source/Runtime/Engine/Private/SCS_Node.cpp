@@ -5,6 +5,7 @@
 #include "UObject/LinkerLoad.h"
 #include "Engine/World.h"
 #include "Engine/InheritableComponentHandler.h"
+#include "StaticMeshResources.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SCS_Node)
 
@@ -170,6 +171,11 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 			// Register SCS scene components now (if necessary). Non-scene SCS component registration is deferred until after SCS execution, as there can be dependencies on the scene hierarchy.
 			if (bRegisterComponent)
 			{
+				FStaticMeshComponentBulkReregisterContext* ReregisterContext = Cast<USimpleConstructionScript>(GetOuter())->GetReregisterContext();
+				if (ReregisterContext)
+				{
+					ReregisterContext->AddConstructedComponent(NewSceneComp);
+				}
 				USimpleConstructionScript::RegisterInstancedComponent(NewSceneComp);
 			}
 		}

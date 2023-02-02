@@ -11,6 +11,7 @@
 #include "SimpleConstructionScript.generated.h"
 
 class USCS_Node;
+class FStaticMeshComponentBulkReregisterContext;
 
 UCLASS(MinimalAPI)
 class USimpleConstructionScript : public UObject
@@ -45,10 +46,10 @@ class USimpleConstructionScript : public UObject
 	void ExecuteScriptOnActor(AActor* Actor, const TInlineComponentArray<USceneComponent*>& NativeSceneComponents, const FTransform& RootTransform, const FRotationConversionCache* RootRelativeRotationCache, bool bIsDefaultTransform, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale);
 
 	/** Create the map from names to SCS_Nodes to improve FindSCSNode performance during construction script execution */
-	void CreateNameToSCSNodeMap();
+	ENGINE_API void CreateNameToSCSNodeMap();
 
 	/** Remove the map from names to SCS_Nodes */
-	void RemoveNameToSCSNodeMap();
+	ENGINE_API void RemoveNameToSCSNodeMap();
 
 #if WITH_EDITOR
 	/** Return the Blueprint associated with this SCS instance */
@@ -128,6 +129,8 @@ class USimpleConstructionScript : public UObject
 	/** Returns Valid if this object has data validation rules set up for it and the data for this object is valid. Returns Invalid if it does not pass the rules. Returns NotValidated if no rules are set for this object. */
 	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
 #endif // WITH_EDITOR
+
+	FStaticMeshComponentBulkReregisterContext* GetReregisterContext() const { return ReregisterContext; }
 
 private:
 	/** Root nodes of the construction script */
@@ -220,8 +223,15 @@ private:
 	bool bIsConstructingEditorComponents;
 #endif
 
+	/** Reference count to allow nesting of Create/RemoveNameToSCSNodeMap calls */
+	int32 NameToSCSNodeMapRefCount;
+
 	/** Quick lookup from name to SCS Node when executing the script */
 	TMap<FName, USCS_Node*> NameToSCSNodeMap;
+
+	/** Reregister context, which allows bulk handling of render commands */
+	FStaticMeshComponentBulkReregisterContext* ReregisterContext;
+	friend FStaticMeshComponentBulkReregisterContext;
 
 	friend struct FSCSAllNodesHelper;
 };

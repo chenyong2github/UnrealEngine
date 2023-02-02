@@ -654,6 +654,16 @@ namespace ObjectTools
 	* @param OutObjectsAndSubobjects	The complete list of objects and any subobjects that should have references replaced
 	*/
 	UNREALED_API void GatherSubObjectsForReferenceReplacement(TSet<UObject*>& InObjects, TSet<UObject*>& ObjectsToExclude, TSet<UObject*>& OutObjectsAndSubObjects);
+
+
+	/**
+	 * Batch version of UObject::GetArchetypeInstances.  Can be considerably faster in large worlds when querying multiple objects with the
+	 * same UClass, as it only traverses the world once per UClass.  Null pointers are allowed for InObjects, returning an empty output.
+	 *
+	 * @param	InObjects		list of objects to query for archetype instances
+	 * @param	OutInstances	per InObjects array element, receives the list of objects which have the given object in its archetype chain
+	 */
+	UNREALED_API void BatchGetArchetypeInstances(TArrayView<UObject*> InObjects, TArray<TArray<UObject*>>& OutInstances);
 }
 
 

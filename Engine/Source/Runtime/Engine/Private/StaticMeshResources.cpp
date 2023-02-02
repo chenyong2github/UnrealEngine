@@ -8,6 +8,7 @@
 #include "RenderingThread.h"
 #include "SceneInterface.h"
 #include "UObject/UObjectIterator.h"
+#include "Engine/SimpleConstructionScript.h"
 
 
 FStaticMeshComponentRecreateRenderStateContext::FStaticMeshComponentRecreateRenderStateContext(UStaticMesh* InStaticMesh, bool InUnbuildLighting, bool InRefreshBounds)
@@ -103,5 +104,98 @@ FStaticMeshComponentRecreateRenderStateContext::~FStaticMeshComponentRecreateRen
 		}
 
 		UpdateAllPrimitiveSceneInfosForScenes(MoveTemp(Scenes));
+	}
+}
+
+FStaticMeshComponentBulkReregisterContext::FStaticMeshComponentBulkReregisterContext(
+	FSceneInterface* InScene, TArrayView<UActorComponent*> InComponents, EBulkReregister ReregisterType)
+{
+	Scene = InScene;
+	StaticMeshComponents.Reserve(InComponents.Num());
+
+	TArray<UPrimitiveComponent*> ComponentsWithRenderState;
+	ComponentsWithRenderState.Reserve(InComponents.Num());
+
+	for (UActorComponent* Component : InComponents)
+	{
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+
+		// When running a render state update, only process components that are dirty
+		if (StaticMeshComponent && StaticMeshComponent->SceneProxy && (ReregisterType == EBulkReregister::Component || StaticMeshComponent->IsRenderStateDirty()))
+		{
+			StaticMeshComponents.Add(StaticMeshComponent);
+
+			check(StaticMeshComponent->bBulkReregister == false);
+			StaticMeshComponent->bBulkReregister = true;
+
+			if (StaticMeshComponent->IsRenderStateCreated())
+			{
+				ComponentsWithRenderState.Add(StaticMeshComponent);
+			}
+		}
+	}
+
+	if (ComponentsWithRenderState.Num())
+	{
+		// NOTE:  We deliberately don't bother clearing the physics render debug data via SendRenderDebugPhysics
+		// (or a batched equivalent), as removing the primitive deletes the scene proxy, including the debug data.
+		Scene->BatchRemovePrimitives(ComponentsWithRenderState);
+
+		// When running a render state update, we don't need to run "BatchReleasePrimitives", since the component isn't
+		// being regenerated, just the render state (see DoDeferredRenderUpdates_Concurrent in LevelTick.cpp).
+		if (ReregisterType == EBulkReregister::Component)
+		{
+			Scene->BatchReleasePrimitives(ComponentsWithRenderState);
+		}
+	}
+}
+
+FStaticMeshComponentBulkReregisterContext::~FStaticMeshComponentBulkReregisterContext()
+{
+	// Remove any components that are pending kill, in case a creation script rebuilt the component from scratch (versus just re-registering).
+	StaticMeshComponents.RemoveAllSwap([](const UActorComponent* Component) { return !IsValidChecked(Component); }, false);
+
+	if (StaticMeshComponents.Num())
+	{
+		Scene->BatchAddPrimitives(StaticMeshComponents);
+#if UE_ENABLE_DEBUG_DRAWING
+		UPrimitiveComponent::BatchSendRenderDebugPhysics(StaticMeshComponents);
+#endif
+	}
+
+	for (UPrimitiveComponent* StaticMeshComponent : StaticMeshComponents)
+	{
+		check(StaticMeshComponent->bBulkReregister == true);
+		StaticMeshComponent->bBulkReregister = false;
+	}
+
+	for (USimpleConstructionScript* SCS : SCSs)
+	{
+		SCS->ReregisterContext = nullptr;
+	}
+}
+
+void FStaticMeshComponentBulkReregisterContext::AddSimpleConstructionScript(USimpleConstructionScript* SCS)
+{
+	check(SCS);
+
+	// Check if we already added this SCS to this reregister context
+	if (SCS->ReregisterContext != this)
+	{
+		check(SCS->ReregisterContext == nullptr);
+		SCS->ReregisterContext = this;
+		SCSs.Add(SCS);
+	}
+}
+
+void FStaticMeshComponentBulkReregisterContext::AddConstructedComponent(USceneComponent* SceneComp)
+{
+	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComp);
+	if (StaticMeshComponent)
+	{
+		check(StaticMeshComponent->bBulkReregister == false);
+		StaticMeshComponent->bBulkReregister = true;
+
+		StaticMeshComponents.Add(StaticMeshComponent);
 	}
 }

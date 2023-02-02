@@ -30,6 +30,8 @@
 #include "ActorFolder.h"
 #include "WorldPersistentFolders.h"
 #include "Modules/ModuleManager.h"
+#include "Engine/SimpleConstructionScript.h"
+#include "StaticMeshResources.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
@@ -212,6 +214,25 @@ void AActor::PostEditMove(bool bFinished)
 		UBlueprint* Blueprint = Cast<UBlueprint>(GetClass()->ClassGeneratedBy);
 		if (bFinished || bRunConstructionScriptOnDrag || (Blueprint && Blueprint->bRunConstructionScriptOnDrag))
 		{
+			// Set up a bulk reregister context to optimize RerunConstructionScripts.  We can't move this inside RerunConstructionScripts
+			// for the general case, because in other code paths, we use a context to cover additional code outside this function (a second
+			// pass that overrides instance data, generating additional render commands on the same set of components).  To move it, we
+			// would need to support nesting of these contexts.
+			TInlineComponentArray<UActorComponent*> ActorComponents;
+			GetComponents(ActorComponents);
+			FStaticMeshComponentBulkReregisterContext ReregisterContext(GetWorld()->Scene, MakeArrayView(ActorComponents.GetData(), ActorComponents.Num()));
+
+			TArray<const UBlueprintGeneratedClass*> ParentBPClassStack;
+			UBlueprintGeneratedClass::GetGeneratedClassesHierarchy(GetClass(), ParentBPClassStack);
+			for (const UBlueprintGeneratedClass* BPClass : ParentBPClassStack)
+			{
+				if (BPClass->SimpleConstructionScript)
+				{
+					USimpleConstructionScript* SCS = BPClass->SimpleConstructionScript;
+					ReregisterContext.AddSimpleConstructionScript(SCS);
+				}
+			}
+
 			FNavigationLockContext NavLock(GetWorld(), ENavigationLockReason::AllowUnregister);
 			RerunConstructionScripts();
 		}

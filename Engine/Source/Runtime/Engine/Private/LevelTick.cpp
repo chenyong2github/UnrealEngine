@@ -40,6 +40,7 @@
 #include "GPUSkinCache.h"
 #include "ComputeWorkerInterface.h"
 #include "RenderGraphBuilder.h"
+#include "StaticMeshResources.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -1139,6 +1140,9 @@ void UWorld::SendAllEndOfFrameUpdates()
 
 		ComponentsThatNeedEndOfFrameUpdate_OnGameThread.Reset();
 		ComponentsThatNeedEndOfFrameUpdate.Reset();
+
+		// We are only regenerating render state here, not components
+		FStaticMeshComponentBulkReregisterContext ReregisterContext(Scene, DeferredUpdates, EBulkReregister::RenderState);
 
 		for (UActorComponent* Component : DeferredUpdates)
 		{

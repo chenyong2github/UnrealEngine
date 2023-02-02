@@ -4857,6 +4857,123 @@ namespace ObjectTools
 
 		return true;
 	}
+
+	void BatchGetArchetypeInstances(TArrayView<UObject*> InObjects, TArray<TArray<UObject*>>& OutInstances)
+	{
+		// Mapping from object pointer to index in InObjects array, for archetype objects.  If there are repeated objects,
+		// only the first is added to the map, and we'll go back later and copy the final results from the first to the repeats.
+		TMap<UObject*, int32> ArchetypeObjectToIndexMap;
+
+		// Unique list of classes we need to search.  If there is a class default object, the value of the map will contain the
+		// index of it in the array, and all instances of that class are added to that index's list (otherwise, INDEX_NONE).
+		TMap<UClass*, int32> ClassToDefaultMap;
+
+		// Tracks if there were any repeats found, indicating we need a final pass to copy results to those repeats.
+		bool bHasRepeats = false;
+
+		// Start off by clearing our input array, and generating our maps
+		OutInstances.SetNum(InObjects.Num());
+
+		for (int32 ObjectIndex = 0; ObjectIndex < InObjects.Num(); ObjectIndex++)
+		{
+			OutInstances[ObjectIndex].Empty();
+
+			// Determine if we need to consider this object at all
+			UObject* Object = InObjects[ObjectIndex];
+
+			// Allow NULL to be passed in, which may be useful to callers, say if they have a mixed array of objects, only some
+			// of which need an archetype search done.  They can pass in NULL for those items, and get back an array with the
+			// the same indexing, rather than needing to remap the results.  Doesn't cost anything extra in the inner loop,
+			// since we filter those objects out up front.
+			if (Object && Object->HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+			{
+				// Add class as one we need to search, defaulting to INDEX_NONE if it hasn't yet been added
+				int32& ClassMapValue = ClassToDefaultMap.FindOrAdd(Object->GetClass(), INDEX_NONE);
+
+				// if this object is the class default object, any object of the same class (or derived classes) could potentially be affected
+				if (!Object->HasAnyFlags(RF_ArchetypeObject))
+				{
+					if (ClassMapValue == INDEX_NONE)
+					{
+						// Set the index where we will accumulate objects for class defaults
+						ClassMapValue = ObjectIndex;
+					}
+					else
+					{
+						bHasRepeats = true;
+					}
+				}
+				else
+				{
+					int32& ObjectMapValue = ArchetypeObjectToIndexMap.FindOrAdd(Object, ObjectIndex);
+					if (ObjectMapValue != ObjectIndex)
+					{
+						bHasRepeats = true;
+					}
+				}
+			}
+		}
+
+		// Now do our pass through all the classes
+		for (auto ClassIt = ClassToDefaultMap.CreateConstIterator(); ClassIt; ++ClassIt)
+		{
+			const bool bIncludeNestedObjects = true;
+			ForEachObjectOfClass(ClassIt.Key(), [DefaultIndex = ClassIt.Value(), &ArchetypeObjectToIndexMap, &InObjects, &OutInstances](UObject* Obj)
+			{
+				// Check if we need to add this object as an instance of a default object
+				if (DefaultIndex != INDEX_NONE)
+				{
+					if (Obj != InObjects[DefaultIndex])
+					{
+						OutInstances[DefaultIndex].Add(Obj);
+					}
+				}
+
+				// Check if we need to add this object as an instance of an archetype object.  This logic mirrors "UObject::IsBasedOnArchetype",
+				// except instead of testing a single "SomeObject" to see if it matches "Template", it searchs a map of potential "SomeObjects".
+				for (UObject* Template = Obj->GetArchetype(); Template; Template = Template->GetArchetype())
+				{
+					int32* ObjectIndex = ArchetypeObjectToIndexMap.Find(Template);
+					if (ObjectIndex && Obj != InObjects[*ObjectIndex])
+					{
+						OutInstances[*ObjectIndex].Add(Obj);
+					}
+				}
+
+			}, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::Garbage); // we need to evaluate CDOs as well, but nothing pending kill
+		}
+
+		if (bHasRepeats)
+		{
+			// Iterate over objects like the original object loop, checking which ones are repeats.  A repeat will have an array index
+			// that doesn't match the index in the map for that object.
+			for (int32 ObjectIndex = 0; ObjectIndex < InObjects.Num(); ObjectIndex++)
+			{
+				UObject* Object = InObjects[ObjectIndex];
+				if (Object && Object->HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+				{
+					if (!Object->HasAnyFlags(RF_ArchetypeObject))
+					{
+						// Class default, check if this is a repeat, and copy it from the first index of the same object
+						int32* ClassMapValue = ClassToDefaultMap.Find(Object->GetClass());
+						if (*ClassMapValue != ObjectIndex)
+						{
+							OutInstances[ObjectIndex] = OutInstances[*ClassMapValue];
+						}
+					}
+					else
+					{
+						// Archetype, check if this is a repeat, and copy it from the first index of the same object
+						int32* ObjectMapValue = ArchetypeObjectToIndexMap.Find(Object);
+						if (*ObjectMapValue != ObjectIndex)
+						{
+							OutInstances[ObjectIndex] = OutInstances[*ObjectMapValue];
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 

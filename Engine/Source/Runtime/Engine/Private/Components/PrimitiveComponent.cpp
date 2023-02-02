@@ -355,6 +355,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bHandledByStreamingManagerAsDynamic = false;
 	bIgnoreStreamingManagerUpdate = false;
 	bAttachedToCoarseMeshStreamingManager = false;
+	bBulkReregister = false;
 	LastCheckedAllCollideableDescendantsTime = 0.f;
 
 	bPSOPrecacheCalled = false;
@@ -937,29 +938,40 @@ void UPrimitiveComponent::OnDestroyPhysicsState()
 }
 
 #if UE_ENABLE_DEBUG_DRAWING
+static void AppendDebugMassData(UPrimitiveComponent* Component, TArray<FPrimitiveSceneProxy::FDebugMassData>& DebugMassData)
+{
+	if (!Component->IsWelded() && Component->Mobility != EComponentMobility::Static)
+	{
+		if (FBodyInstance* BI = Component->GetBodyInstance())
+		{
+			if (BI->IsValidBodyInstance())
+			{
+				DebugMassData.AddDefaulted();
+				FPrimitiveSceneProxy::FDebugMassData& RootMassData = DebugMassData.Last();
+				const FTransform MassToWorld = BI->GetMassSpaceToWorldSpace();
+
+				RootMassData.LocalCenterOfMass = Component->GetComponentTransform().InverseTransformPosition(MassToWorld.GetLocation());
+				RootMassData.LocalTensorOrientation = MassToWorld.GetRotation() * Component->GetComponentTransform().GetRotation().Inverse();
+				RootMassData.MassSpaceInertiaTensor = BI->GetBodyInertiaTensor();
+				RootMassData.BoneIndex = INDEX_NONE;
+			}
+		}
+	}
+}
+
 void UPrimitiveComponent::SendRenderDebugPhysics(FPrimitiveSceneProxy* OverrideSceneProxy)
 {
+	// For bulk reregistering, this is handled in the FStaticMeshComponentBulkReregisterContext constructor / destructor
+	if (bBulkReregister)
+	{
+		return;
+	}
+
 	FPrimitiveSceneProxy* UseSceneProxy = OverrideSceneProxy ? OverrideSceneProxy : SceneProxy;
 	if (UseSceneProxy)
 	{
 		TArray<FPrimitiveSceneProxy::FDebugMassData> DebugMassData;
-		if (!IsWelded() && Mobility != EComponentMobility::Static)
-		{
-			if (FBodyInstance* BI = GetBodyInstance())
-			{
-				if (BI->IsValidBodyInstance())
-				{
-					DebugMassData.AddDefaulted();
-					FPrimitiveSceneProxy::FDebugMassData& RootMassData = DebugMassData[0];
-					const FTransform MassToWorld = BI->GetMassSpaceToWorldSpace();
-
-					RootMassData.LocalCenterOfMass = GetComponentTransform().InverseTransformPosition(MassToWorld.GetLocation());
-					RootMassData.LocalTensorOrientation = MassToWorld.GetRotation() * GetComponentTransform().GetRotation().Inverse();
-					RootMassData.MassSpaceInertiaTensor = BI->GetBodyInertiaTensor();
-					RootMassData.BoneIndex = INDEX_NONE;
-				}
-			}
-		}
+		AppendDebugMassData(this, DebugMassData);
 
 		FPrimitiveSceneProxy* PassedSceneProxy = UseSceneProxy;
 		TArray<FPrimitiveSceneProxy::FDebugMassData> UseDebugMassData = DebugMassData;
@@ -970,7 +982,48 @@ void UPrimitiveComponent::SendRenderDebugPhysics(FPrimitiveSceneProxy* OverrideS
 			});
 	}
 }
-#endif
+
+void UPrimitiveComponent::BatchSendRenderDebugPhysics(TArrayView<UPrimitiveComponent*> InPrimitives)
+{
+	TArray<FPrimitiveSceneProxy*> SceneProxies;
+	TArray<uint32> DebugMassCounts;
+	TArray<FPrimitiveSceneProxy::FDebugMassData> DebugMassData;
+
+	SceneProxies.AddUninitialized(InPrimitives.Num());
+	DebugMassCounts.AddUninitialized(InPrimitives.Num());
+	DebugMassData.Reserve(InPrimitives.Num());
+
+	for (int32 PrimitiveIndex = 0; PrimitiveIndex < InPrimitives.Num(); PrimitiveIndex++)
+	{
+		SceneProxies[PrimitiveIndex] = InPrimitives[PrimitiveIndex]->SceneProxy;
+		
+		uint32 NumDebugMassDataBefore = DebugMassData.Num();
+		AppendDebugMassData(InPrimitives[PrimitiveIndex], DebugMassData);
+		DebugMassCounts[PrimitiveIndex] = DebugMassData.Num() - NumDebugMassDataBefore;
+	}
+
+	ENQUEUE_RENDER_COMMAND(PrimitiveComponent_BatchSendRenderDebugPhysics)(
+		[SceneProxies = MoveTemp(SceneProxies), DebugMassCounts = MoveTemp(DebugMassCounts), DebugMassData = MoveTemp(DebugMassData)](FRHICommandList& RHICmdList)
+		{
+			TArray<FPrimitiveSceneProxy::FDebugMassData> SingleDebugMassData;
+			uint32 DebugMassOffset = 0;
+
+			for (int32 ProxyIndex = 0; ProxyIndex < SceneProxies.Num(); ProxyIndex++)
+			{
+				uint32 DebugMassCount = DebugMassCounts[ProxyIndex];
+				SingleDebugMassData.SetNumUninitialized(DebugMassCount);
+				for (uint32 DebugMassIndex = 0; DebugMassIndex < DebugMassCount; DebugMassIndex++)
+				{
+					SingleDebugMassData[DebugMassIndex] = DebugMassData[DebugMassOffset + DebugMassIndex];
+				}
+
+				SceneProxies[ProxyIndex]->SetDebugMassData(SingleDebugMassData);
+				
+				DebugMassOffset += DebugMassCount;
+			}
+		});
+}
+#endif  // UE_ENABLE_DEBUG_DRAWING
 
 FMatrix UPrimitiveComponent::GetRenderMatrix() const
 {

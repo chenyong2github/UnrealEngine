@@ -26,6 +26,8 @@ USimpleConstructionScript::USimpleConstructionScript(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 {
 	DefaultSceneRootNode = nullptr;
+	NameToSCSNodeMapRefCount = 0;
+	ReregisterContext = nullptr;
 
 #if WITH_EDITOR
 	bIsConstructingEditorComponents = false;
@@ -704,26 +706,36 @@ void USimpleConstructionScript::ExecuteScriptOnActor(AActor* Actor, const TInlin
 
 void USimpleConstructionScript::CreateNameToSCSNodeMap()
 {
-	const TArray<USCS_Node*>& Nodes = GetAllNodes();
-	NameToSCSNodeMap.Reserve(Nodes.Num() * 2);
-
-	for (USCS_Node* SCSNode : Nodes)
+	if (NameToSCSNodeMapRefCount == 0)
 	{
-		if (SCSNode)
-		{
-			NameToSCSNodeMap.Add(SCSNode->GetVariableName(), SCSNode);
+		const TArray<USCS_Node*>& Nodes = GetAllNodes();
+		NameToSCSNodeMap.Reserve(Nodes.Num() * 2);
 
-			if (SCSNode->ComponentTemplate)
+		for (USCS_Node* SCSNode : Nodes)
+		{
+			if (SCSNode)
 			{
-				NameToSCSNodeMap.Add(SCSNode->ComponentTemplate->GetFName(), SCSNode);
+				NameToSCSNodeMap.Add(SCSNode->GetVariableName(), SCSNode);
+
+				if (SCSNode->ComponentTemplate)
+				{
+					NameToSCSNodeMap.Add(SCSNode->ComponentTemplate->GetFName(), SCSNode);
+				}
 			}
 		}
 	}
+	NameToSCSNodeMapRefCount++;
 }
 
 void USimpleConstructionScript::RemoveNameToSCSNodeMap()
 {
-	NameToSCSNodeMap.Reset();
+	NameToSCSNodeMapRefCount--;
+	check(NameToSCSNodeMapRefCount >= 0);
+
+	if (NameToSCSNodeMapRefCount == 0)
+	{
+		NameToSCSNodeMap.Reset();
+	}
 }
 
 #if WITH_EDITOR

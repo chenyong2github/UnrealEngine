@@ -46,6 +46,7 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Misc/AssertionMacros.h"
+#include "ObjectTools.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "PreviewScene.h"
@@ -57,6 +58,7 @@
 #include "ScopedTransaction.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "ShowFlags.h"
+#include "StaticMeshResources.h"
 #include "SubobjectData.h"
 #include "SubobjectDataSubsystem.h"
 #include "Templates/Casts.h"
@@ -454,6 +456,16 @@ void FSCSEditorViewportClient::ProcessClick(class FSceneView& View, class HHitPr
 	GUnrealEd->ComponentVisManager.HandleClick(this, HitProxy, Click);
 }
 
+struct FTemplateComponentMoved
+{
+	int32 SelectedNodeIndex;
+	USceneComponent* SceneComp;
+	USceneComponent* SelectedTemplate;
+	FVector OldRelativeLocation;
+	FRotator OldRelativeRotation;
+	FVector OldRelativeScale3D;
+};
+
 bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisList::Type CurrentAxis, FVector& Drag, FRotator& Rot, FVector& Scale )
 {
 	bool bHandled = false;
@@ -481,9 +493,18 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 				{
 					ModifiedScale = FVector::ZeroVector;
 				}
+				
+				// RerunConstructionScripts only needs to be called once, after all selected components have been moved (it's potentially quite 
+				// expensive).  After that, some post-move work needs to happen per component, so we keep track of the components that were moved.
+				bool bNeedsRerunConstructionScripts = false;
 
-				for (const FSubobjectEditorTreeNodePtrType& SelectedNodePtr : SelectedNodes)
+				TArray<FTemplateComponentMoved> TemplateComponentsMoved;
+				TArray<UActorComponent*> ActorComponentsMoved;
+				TemplateComponentsMoved.Reserve(SelectedNodes.Num());
+
+				for (int32 SelectedNodeIndex = 0; SelectedNodeIndex < SelectedNodes.Num(); SelectedNodeIndex++)
 				{
+					const FSubobjectEditorTreeNodePtrType& SelectedNodePtr = SelectedNodes[SelectedNodeIndex];
 					const FSubobjectData* Data = SelectedNodePtr->GetDataSource();
 					// Don't allow editing of a root node, inherited SCS node or child node that also has a movable (non-root) parent node selected
 					const bool bCanEdit = GUnrealEd->ComponentVisManager.IsActive() ||
@@ -497,6 +518,7 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 							Invalidate();
 							return true;
 						}
+
 						// #TODO_BH Clean up const casts
 						USceneComponent* SceneComp = const_cast<USceneComponent*>(Cast<USceneComponent>(Data->FindComponentInstanceInActor(PreviewActor)));
 						USceneComponent* SelectedTemplate = const_cast<USceneComponent*>(Cast<USceneComponent>(Data->GetObjectForBlueprint(BlueprintEditor->GetBlueprintObj())));
@@ -534,53 +556,146 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 								// Like PostEditMove(), but we only need to re-run construction scripts
 								if(PreviewBlueprint && PreviewBlueprint->bRunConstructionScriptOnDrag)
 								{
-									PreviewActor->RerunConstructionScripts();
+									bNeedsRerunConstructionScripts = true;
 								}
 
-								SceneComp->PostEditComponentMove(true); // @TODO HACK passing 'finished' every frame...
+								FTemplateComponentMoved& ComponentMoved = TemplateComponentsMoved[TemplateComponentsMoved.AddUninitialized()];
+								ComponentMoved.SelectedNodeIndex = SelectedNodeIndex;
+								ComponentMoved.SceneComp = SceneComp;
+								ComponentMoved.SelectedTemplate = SelectedTemplate;
+								ComponentMoved.OldRelativeLocation = OldRelativeLocation;
+								ComponentMoved.OldRelativeRotation = OldRelativeRotation;
+								ComponentMoved.OldRelativeScale3D = OldRelativeScale3D;
 
-								// If a constraint, copy back updated constraint frames to template
-								UPhysicsConstraintComponent* ConstraintComp = Cast<UPhysicsConstraintComponent>(SceneComp);
-								UPhysicsConstraintComponent* TemplateComp = Cast<UPhysicsConstraintComponent>(SelectedTemplate);
-								if(ConstraintComp && TemplateComp)
+								// Track static meshes for bulk re-registration
+								UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComp);
+								if (StaticMeshComponent)
 								{
-									TemplateComp->ConstraintInstance.CopyConstraintGeometryFrom(&ConstraintComp->ConstraintInstance);
-								}
-
-								// Iterate over all the active archetype instances and propagate the change(s) to the matching component instance
-								TArray<UObject*> ArchetypeInstances;
-								if(SelectedTemplate->HasAnyFlags(RF_ArchetypeObject))
-								{
-									SelectedTemplate->GetArchetypeInstances(ArchetypeInstances);
-									for(int32 InstanceIndex = 0; InstanceIndex < ArchetypeInstances.Num(); ++InstanceIndex)
-									{
-										SceneComp = Cast<USceneComponent>(ArchetypeInstances[InstanceIndex]);
-										if(SceneComp != nullptr)
-										{
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeLocation_DirectMutable(), OldRelativeLocation, SelectedTemplate->GetRelativeLocation());
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeRotation_DirectMutable(), OldRelativeRotation, SelectedTemplate->GetRelativeRotation());
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeScale3D_DirectMutable(),  OldRelativeScale3D,  SelectedTemplate->GetRelativeScale3D());
-										}
-									}
-								}
-								else if(UObject* Outer = SelectedTemplate->GetOuter())
-								{
-									Outer->GetArchetypeInstances(ArchetypeInstances);
-									for(int32 InstanceIndex = 0; InstanceIndex < ArchetypeInstances.Num(); ++InstanceIndex)
-									{
-										SceneComp = static_cast<USceneComponent*>(FindObjectWithOuter(ArchetypeInstances[InstanceIndex], SelectedTemplate->GetClass(), SelectedTemplate->GetFName()));
-										if(SceneComp)
-										{
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeLocation_DirectMutable(), OldRelativeLocation, SelectedTemplate->GetRelativeLocation());
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeRotation_DirectMutable(), OldRelativeRotation, SelectedTemplate->GetRelativeRotation());
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeScale3D_DirectMutable(), OldRelativeScale3D, SelectedTemplate->GetRelativeScale3D());
-										}
-									}
+									ActorComponentsMoved.Add(StaticMeshComponent);
 								}
 							}
 						}
 					}
 				}
+
+				{
+					// This bulk re-register context forces Add/RemovePrimitive and debug physics update commands to be sent to the
+					// render thread in batches, significantly improving performance.
+					FStaticMeshComponentBulkReregisterContext ReregisterContext(GetScene(), ActorComponentsMoved);
+
+					// Get the SCS if present
+					UBlueprintGeneratedClass* PreviewBlueprint = Cast<UBlueprintGeneratedClass>(PreviewActor->GetClass());
+					USimpleConstructionScript* SCS = nullptr;
+					if (PreviewBlueprint && PreviewBlueprint->SimpleConstructionScript)
+					{
+						SCS = PreviewBlueprint->SimpleConstructionScript;
+
+						// Tell the reregister context about the simple construction script, which allows the SCS to batch render commands
+						// for newly created components generated during construction.
+						ReregisterContext.AddSimpleConstructionScript(SCS);
+
+						// Optimize calls to GetArchetypeInstances by generating the SCS node map for the blueprint class.
+						SCS->CreateNameToSCSNodeMap();
+					}
+
+					if (bNeedsRerunConstructionScripts)
+					{
+						PreviewActor->RerunConstructionScripts();
+
+						// The construction scripts will have recreated the selected components, and the ones in the TemplateComponentsMoved
+						// array now point to the deleted version.  Update to the newly created version.
+						for (FTemplateComponentMoved& Moved : TemplateComponentsMoved)
+						{
+							const FSubobjectEditorTreeNodePtrType& SelectedNodePtr = SelectedNodes[Moved.SelectedNodeIndex];
+							const FSubobjectData* Data = SelectedNodePtr->GetDataSource();
+
+							Moved.SceneComp = const_cast<USceneComponent*>(Cast<USceneComponent>(Data->FindComponentInstanceInActor(PreviewActor)));
+						}
+					}
+
+					// Array corresponds to TemplateComponentsMoved, with objects we need to search for archetypes
+					TArray<UObject*> ArchetypeSearchObjects;
+					ArchetypeSearchObjects.Reserve(TemplateComponentsMoved.Num());
+
+					for (FTemplateComponentMoved& Moved : TemplateComponentsMoved)
+					{
+						Moved.SceneComp->PostEditComponentMove(true); // @TODO HACK passing 'finished' every frame...
+
+						// If a constraint, copy back updated constraint frames to template
+						UPhysicsConstraintComponent* ConstraintComp = Cast<UPhysicsConstraintComponent>(Moved.SceneComp);
+						UPhysicsConstraintComponent* TemplateComp = Cast<UPhysicsConstraintComponent>(Moved.SelectedTemplate);
+						if (ConstraintComp && TemplateComp)
+						{
+							TemplateComp->ConstraintInstance.CopyConstraintGeometryFrom(&ConstraintComp->ConstraintInstance);
+						}
+
+						// Add to the list of objects we need to search for archetypes
+						if (Moved.SelectedTemplate->HasAnyFlags(RF_ArchetypeObject))
+						{
+							// Searching the item itself
+							ArchetypeSearchObjects.Add(Moved.SelectedTemplate);
+						}
+						else if (UObject* Outer = Moved.SelectedTemplate->GetOuter())
+						{
+							// Searching the outer
+							ArchetypeSearchObjects.Add(Outer);
+						}
+						else
+						{
+							// Searching nothing -- place a dummy item to preserve array ordering
+							ArchetypeSearchObjects.Add(nullptr);
+						}
+					}
+
+					// Get the list of active archetype instances for each moved object, in bulk for efficiency
+					TArray<TArray<UObject*>> ArchetypeInstancesList;
+					ObjectTools::BatchGetArchetypeInstances(ArchetypeSearchObjects, ArchetypeInstancesList);
+
+					// Propagate the change(s) to the matching component instance
+					for (int32 ObjectIndex = 0; ObjectIndex < TemplateComponentsMoved.Num(); ObjectIndex++)
+					{
+						// Did the search find any instances?
+						TArray<UObject*>& ArchetypeInstances = ArchetypeInstancesList[ObjectIndex];
+						if (ArchetypeInstances.Num())
+						{
+							FTemplateComponentMoved& Moved = TemplateComponentsMoved[ObjectIndex];
+							if (Moved.SelectedTemplate->HasAnyFlags(RF_ArchetypeObject))
+							{
+								// Object itself was archetype
+								for (int32 InstanceIndex = 0; InstanceIndex < ArchetypeInstances.Num(); ++InstanceIndex)
+								{
+									USceneComponent* SceneComp = Cast<USceneComponent>(ArchetypeInstances[InstanceIndex]);
+									if (SceneComp != nullptr)
+									{
+										FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeLocation_DirectMutable(), Moved.OldRelativeLocation, Moved.SelectedTemplate->GetRelativeLocation());
+										FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeRotation_DirectMutable(), Moved.OldRelativeRotation, Moved.SelectedTemplate->GetRelativeRotation());
+										FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeScale3D_DirectMutable(), Moved.OldRelativeScale3D, Moved.SelectedTemplate->GetRelativeScale3D());
+									}
+								}
+							}
+							else
+							{
+								// Outer was archetype
+								for (int32 InstanceIndex = 0; InstanceIndex < ArchetypeInstances.Num(); ++InstanceIndex)
+								{
+									USceneComponent* SceneComp = static_cast<USceneComponent*>(FindObjectWithOuter(ArchetypeInstances[InstanceIndex], Moved.SelectedTemplate->GetClass(), Moved.SelectedTemplate->GetFName()));
+									if (SceneComp)
+									{
+										FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeLocation_DirectMutable(), Moved.OldRelativeLocation, Moved.SelectedTemplate->GetRelativeLocation());
+										FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeRotation_DirectMutable(), Moved.OldRelativeRotation, Moved.SelectedTemplate->GetRelativeRotation());
+										FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeScale3D_DirectMutable(), Moved.OldRelativeScale3D, Moved.SelectedTemplate->GetRelativeScale3D());
+									}
+								}
+							}
+						}
+					}
+
+					if (SCS)
+					{
+						SCS->RemoveNameToSCSNodeMap();
+					}
+				}
+
 				GUnrealEd->RedrawLevelEditingViewports();
 			}
 		}

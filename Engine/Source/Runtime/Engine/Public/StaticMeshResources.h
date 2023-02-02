@@ -43,6 +43,7 @@
 
 class FDistanceFieldVolumeData;
 class UBodySetup;
+class USimpleConstructionScript;
 
 /** The maximum number of static mesh LODs allowed. */
 #define MAX_STATIC_MESH_LODS 8
@@ -791,6 +792,46 @@ private:
 	TMap<void*, TArray<UStaticMeshComponent*>> StaticMeshComponents;
 	bool bUnbuildLighting;
 	bool bRefreshBounds;
+};
+
+/**
+ * FStaticMeshComponentBulkReregisterContext - More efficiently handles bulk reregistering of static mesh components, by removing and
+ * adding scene and physics debug render data in bulk render commands, rather than one at a time.  A significant fraction of the cost
+ * of reregistering components is the synchronization cost of issuing commands to the render thread.  Bulk render commands means you
+ * only pay this cost once, rather than per component, potentially providing up to a 4x speedup.
+ * 
+ * When a context is active, the bBulkReregister flag is set on the primitive component.  This disables calls to SendRenderDebugPhysics,
+ * AddPrimitive, RemovePrimitive, and ReleasePrimitive, where they would otherwise occur during re-registration, with the assumption
+ * that the constructor and destructor of the context handles those tasks.  To allow the optimization to be applied to re-created
+ * components, "AddSimpleConstructionScript" can be called to register simple construction scripts, so any components they create get
+ * added to the context as well.  It's not a problem if re-reated components are missed by the context, they'll just lose performance
+ * by going through the slower individual component code path.
+ */
+enum class EBulkReregister
+{
+	Component,			// Reregistering components
+	RenderState			// Updating render state only -- limits reregistration to components with bRenderStateDirty set, and skips ReleasePrimitive
+};
+
+class ENGINE_API FStaticMeshComponentBulkReregisterContext
+{
+public:
+	/**
+	  * Initialization constructor.  Note that it's OK to pass things that aren't static meshes.  This class will filter those out.
+	  */
+	FStaticMeshComponentBulkReregisterContext(FSceneInterface* InScene, TArrayView<UActorComponent*> InComponents, EBulkReregister ReregisterType = EBulkReregister::Component);
+	~FStaticMeshComponentBulkReregisterContext();
+
+	void AddSimpleConstructionScript(USimpleConstructionScript* SCS);
+
+private:
+	/** Called by USCS_Node (child of USimpleConstructionScript) to track re-created components */
+	void AddConstructedComponent(USceneComponent* SceneComp);
+	friend class USCS_Node;
+
+	FSceneInterface* Scene;
+	TArray<UPrimitiveComponent*> StaticMeshComponents;
+	TArray<USimpleConstructionScript*> SCSs;
 };
 
 /*-----------------------------------------------------------------------------

@@ -339,6 +339,9 @@ public:
 	/** Whether this primitive is referenced by a Nanite::FCoarseMeshStreamingManager  */
 	mutable uint8 bAttachedToCoarseMeshStreamingManager : 1;
 
+	/** Primitive is part of a batch being bulk reregistered. Applies to UStaticMeshComponent, see FStaticMeshComponentBulkReregisterContext for details. */
+	mutable uint8 bBulkReregister : 1;
+
 	/** Whether this primitive is referenced by the streaming manager and should sent callbacks when detached or destroyed */
 	FORCEINLINE bool IsAttachedToStreamingManager() const { return !!(bAttachedToStreamingManagerAsStatic | bAttachedToStreamingManagerAsDynamic); }
 
@@ -2314,6 +2317,11 @@ public:
 #if UE_ENABLE_DEBUG_DRAWING
 	/** Updates the renderer with the center of mass data */
 	virtual void SendRenderDebugPhysics(FPrimitiveSceneProxy* OverrideSceneProxy = nullptr);
+private:
+	/** Only currently used for static mesh primitives, but could eventually be applied to other types */
+	static void BatchSendRenderDebugPhysics(TArrayView<UPrimitiveComponent*> InPrimitives);
+	friend class FStaticMeshComponentBulkReregisterContext;
+public:
 #endif
 
 	//~ Begin UActorComponent Interface

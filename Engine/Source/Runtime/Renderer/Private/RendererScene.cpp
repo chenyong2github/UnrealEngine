@@ -2008,94 +2008,139 @@ FScene::~FScene()
 
 void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 {
-	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Primitive->GetOutermost(), ELLMTagSet::Assets);
+	// If the bulk reregister flag is set, add / remove will be handled in bulk by the FStaticMeshComponentBulkReregisterContext
+	if (Primitive->bBulkReregister)
+	{
+		return;
+	}
+	BatchAddPrimitives(MakeArrayView(&Primitive, 1));
+}
+
+void FScene::BatchAddPrimitives(TArrayView<UPrimitiveComponent*> InPrimitives)
+{
+	check(InPrimitives.Num() > 0);
+
+#if ENABLE_LOW_LEVEL_MEM_TRACKER && LLM_ENABLED_STAT_TAGS
+	// If detailed per-tag asset memory stats are active, don't batch primitives, so the memory tags can be independent
+	if (FLowLevelMemTracker::Get().IsTagSetActive(ELLMTagSet::Assets) && InPrimitives.Num() > 1)
+	{
+		for (UPrimitiveComponent* Primitive : InPrimitives)
+		{
+			BatchAddPrimitives(MakeArrayView(TArrayView<UPrimitiveComponent*>(&Primitive, 1)));
+		}
+		return;
+	}
+#endif
+	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(InPrimitives[0]->GetOutermost(), ELLMTagSet::Assets);
 
 	SCOPE_CYCLE_COUNTER(STAT_AddScenePrimitiveGT);
 	SCOPED_NAMED_EVENT(FScene_AddPrimitive, FColor::Green);
 
-	checkf(!Primitive->IsUnreachable(), TEXT("%s"), *Primitive->GetFullName());
-
-	const float WorldTime = GetWorld()->GetTimeSeconds();
-	// Save the world transform for next time the primitive is added to the scene
-	float DeltaTime = WorldTime - Primitive->LastSubmitTime;
-	if ( DeltaTime < -0.0001f || Primitive->LastSubmitTime < 0.0001f )
-	{
-		// Time was reset?
-		Primitive->LastSubmitTime = WorldTime;
-	}
-	else if ( DeltaTime > 0.0001f )
-	{
-		// First call for the new frame?
-		Primitive->LastSubmitTime = WorldTime;
-	}
-
-	checkf(!Primitive->SceneProxy, TEXT("Primitive has already been added to the scene!"));
-
-	// Create the primitive's scene proxy.
-	FPrimitiveSceneProxy* PrimitiveSceneProxy = Primitive->CreateSceneProxy();
-	Primitive->SceneProxy = PrimitiveSceneProxy;
-	if(!PrimitiveSceneProxy)
-	{
-		// Primitives which don't have a proxy are irrelevant to the scene manager.
-		return;
-	}
-
-	// Create the primitive scene info.
-	FPrimitiveSceneInfo* PrimitiveSceneInfo = new FPrimitiveSceneInfo(Primitive, this);
-	PrimitiveSceneProxy->PrimitiveSceneInfo = PrimitiveSceneInfo;
-
-	// Cache the primitives initial transform.
-	FMatrix RenderMatrix = Primitive->GetRenderMatrix();
-	FVector AttachmentRootPosition = Primitive->GetActorPositionForRenderer();
-
 	struct FCreateRenderThreadParameters
 	{
+		FCreateRenderThreadParameters(
+			FPrimitiveSceneInfo* InPrimitiveSceneInfo,
+			FPrimitiveSceneProxy* InPrimitiveSceneProxy,
+			FMatrix InRenderMatrix,
+			FBoxSphereBounds InWorldBounds,
+			FVector InAttachmentRootPosition,
+			FBoxSphereBounds InLocalBounds,
+			TOptional<FTransform> InPreviousTransform)
+			: PrimitiveSceneInfo(InPrimitiveSceneInfo), PrimitiveSceneProxy(InPrimitiveSceneProxy), RenderMatrix(InRenderMatrix), WorldBounds(InWorldBounds),
+				AttachmentRootPosition(InAttachmentRootPosition), LocalBounds(InLocalBounds), PreviousTransform(InPreviousTransform)
+		{}
+
+		FPrimitiveSceneInfo* PrimitiveSceneInfo;
 		FPrimitiveSceneProxy* PrimitiveSceneProxy;
 		FMatrix RenderMatrix;
 		FBoxSphereBounds WorldBounds;
 		FVector AttachmentRootPosition;
 		FBoxSphereBounds LocalBounds;
+		TOptional<FTransform> PreviousTransform;
 	};
-	FCreateRenderThreadParameters Params =
+	TArray<FCreateRenderThreadParameters, TInlineAllocator<1>> ParamsList;
+	ParamsList.Reserve(InPrimitives.Num());
+
+	for (UPrimitiveComponent* Primitive : InPrimitives)
 	{
-		PrimitiveSceneProxy,
-		RenderMatrix,
-		Primitive->Bounds,
-		AttachmentRootPosition,
-		Primitive->GetLocalBounds()
-	};
+		checkf(!Primitive->IsUnreachable(), TEXT("%s"), *Primitive->GetFullName());
 
-	// Help track down primitive with bad bounds way before the it gets to the Renderer
-	ensureMsgf(!Primitive->Bounds.ContainsNaN(),
-			TEXT("Nans found on Bounds for Primitive %s: Origin %s, BoxExtent %s, SphereRadius %f"), *Primitive->GetName(), *Primitive->Bounds.Origin.ToString(), *Primitive->Bounds.BoxExtent.ToString(), Primitive->Bounds.SphereRadius);
+		const float WorldTime = GetWorld()->GetTimeSeconds();
+		// Save the world transform for next time the primitive is added to the scene
+		float DeltaTime = WorldTime - Primitive->LastSubmitTime;
+		if ( DeltaTime < -0.0001f || Primitive->LastSubmitTime < 0.0001f )
+		{
+			// Time was reset?
+			Primitive->LastSubmitTime = WorldTime;
+		}
+		else if ( DeltaTime > 0.0001f )
+		{
+			// First call for the new frame?
+			Primitive->LastSubmitTime = WorldTime;
+		}
 
-	INC_DWORD_STAT_BY( STAT_GameToRendererMallocTotal, PrimitiveSceneProxy->GetMemoryFootprint() + PrimitiveSceneInfo->GetMemoryFootprint() );
+		checkf(!Primitive->SceneProxy, TEXT("Primitive has already been added to the scene!"));
 
-	// Verify the primitive is valid
-	VerifyProperPIEScene(Primitive, World);
+		// Create the primitive's scene proxy.
+		FPrimitiveSceneProxy* PrimitiveSceneProxy = Primitive->CreateSceneProxy();
+		Primitive->SceneProxy = PrimitiveSceneProxy;
+		if(!PrimitiveSceneProxy)
+		{
+			// Primitives which don't have a proxy are irrelevant to the scene manager.
+			continue;
+		}
 
-	// Increment the attachment counter, the primitive is about to be attached to the scene.
-	Primitive->AttachmentCounter.Increment();
+		// Create the primitive scene info.
+		FPrimitiveSceneInfo* PrimitiveSceneInfo = new FPrimitiveSceneInfo(Primitive, this);
+		PrimitiveSceneProxy->PrimitiveSceneInfo = PrimitiveSceneInfo;
+
+		// Cache the primitives initial transform.
+		FMatrix RenderMatrix = Primitive->GetRenderMatrix();
+		FVector AttachmentRootPosition = Primitive->GetActorPositionForRenderer();
+
+		ParamsList.Emplace(
+			PrimitiveSceneInfo,
+			PrimitiveSceneProxy,
+			RenderMatrix,
+			Primitive->Bounds,
+			AttachmentRootPosition,
+			Primitive->GetLocalBounds(),
+
+			// If this primitive has a simulated previous transform, ensure that the velocity data for the scene representation is correct.
+			FMotionVectorSimulation::Get().GetPreviousTransform(Primitive)
+		);
+
+		// Help track down primitive with bad bounds way before the it gets to the Renderer
+		ensureMsgf(!Primitive->Bounds.ContainsNaN(),
+				TEXT("Nans found on Bounds for Primitive %s: Origin %s, BoxExtent %s, SphereRadius %f"), *Primitive->GetName(), *Primitive->Bounds.Origin.ToString(), *Primitive->Bounds.BoxExtent.ToString(), Primitive->Bounds.SphereRadius);
+
+		INC_DWORD_STAT_BY( STAT_GameToRendererMallocTotal, PrimitiveSceneProxy->GetMemoryFootprint() + PrimitiveSceneInfo->GetMemoryFootprint() );
+
+		// Verify the primitive is valid
+		VerifyProperPIEScene(Primitive, World);
+
+		// Increment the attachment counter, the primitive is about to be attached to the scene.
+		Primitive->AttachmentCounter.Increment();
+	}
 
 	// Create any RenderThreadResources required and send a command to the rendering thread to add the primitive to the scene.
 	FScene* Scene = this;
 
-	// If this primitive has a simulated previous transform, ensure that the velocity data for the scene representation is correct
-	TOptional<FTransform> PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(Primitive);
-
 	ENQUEUE_RENDER_COMMAND(AddPrimitiveCommand)(
-		[Params = MoveTemp(Params), Scene, PrimitiveSceneInfo, PreviousTransform = MoveTemp(PreviousTransform)](FRHICommandListImmediate& RHICmdList)
+		[ParamsList = MoveTemp(ParamsList), Scene](FRHICommandListImmediate& RHICmdList)
 		{
-			FPrimitiveSceneProxy* SceneProxy = Params.PrimitiveSceneProxy;
-			FScopeCycleCounter Context(SceneProxy->GetStatId());
-			SceneProxy->SetTransform(Params.RenderMatrix, Params.WorldBounds, Params.LocalBounds, Params.AttachmentRootPosition);
+			for (const FCreateRenderThreadParameters& Params : ParamsList)
+			{
+				FPrimitiveSceneProxy* SceneProxy = Params.PrimitiveSceneProxy;
+				FScopeCycleCounter Context(SceneProxy->GetStatId());
+				SceneProxy->SetTransform(Params.RenderMatrix, Params.WorldBounds, Params.LocalBounds, Params.AttachmentRootPosition);
 
-			// Create any RenderThreadResources required.
-			SceneProxy->CreateRenderThreadResources();
+				// Create any RenderThreadResources required.
+				SceneProxy->CreateRenderThreadResources();
 
-			Scene->AddPrimitiveSceneInfo_RenderThread(PrimitiveSceneInfo, PreviousTransform);
+				Scene->AddPrimitiveSceneInfo_RenderThread(Params.PrimitiveSceneInfo, Params.PreviousTransform);
+			}
 		});
-
 }
 
 static int32 GWarningOnRedundantTransformUpdate = 0;
@@ -2492,43 +2537,92 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 	}
 }
 
-void FScene::RemovePrimitive( UPrimitiveComponent* Primitive )
+void FScene::RemovePrimitive(UPrimitiveComponent* Primitive)
+{
+	// If the bulk reregister flag is set, add / remove will be handled in bulk by the FStaticMeshComponentBulkReregisterContext
+	if (Primitive->bBulkReregister)
+	{
+		return;
+	}
+	BatchRemovePrimitives(MakeArrayView(&Primitive, 1));
+}
+
+void FScene::BatchRemovePrimitives(TArrayView<UPrimitiveComponent*> InPrimitives)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RemoveScenePrimitiveGT);
 	SCOPED_NAMED_EVENT(FScene_RemovePrimitive, FColor::Yellow);
 
-	FPrimitiveSceneProxy* PrimitiveSceneProxy = Primitive->SceneProxy;
-
-	if(PrimitiveSceneProxy)
+	struct FPrimitiveRemoveInfo
 	{
-		FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+		FPrimitiveSceneInfo* PrimitiveSceneInfo;
+		FThreadSafeCounter* AttachmentCounter;
+	};
 
-		// Disassociate the primitive's scene proxy.
-		Primitive->SceneProxy = NULL;
+	TArray<FPrimitiveRemoveInfo, TInlineAllocator<1>> RemoveInfos;
+	RemoveInfos.Reserve(InPrimitives.Num());
 
-		// Send a command to the rendering thread to remove the primitive from the scene.
+	for (UPrimitiveComponent* Primitive : InPrimitives)
+	{
+		FPrimitiveSceneProxy* PrimitiveSceneProxy = Primitive->SceneProxy;
+
+		if (PrimitiveSceneProxy)
+		{
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+
+			// Disassociate the primitive's scene proxy.
+			Primitive->SceneProxy = NULL;
+
+			RemoveInfos.Add({ PrimitiveSceneInfo, &Primitive->AttachmentCounter });
+		}
+	}
+
+	if (RemoveInfos.Num())
+	{
+		// Send a command to the rendering thread to remove the primitives from the scene.
 		FScene* Scene = this;
-		FThreadSafeCounter* AttachmentCounter = &Primitive->AttachmentCounter;
 		ENQUEUE_RENDER_COMMAND(FRemovePrimitiveCommand)(
-			[Scene, PrimitiveSceneInfo, AttachmentCounter](FRHICommandList&)
+			[Scene, RemoveInfos = MoveTemp(RemoveInfos)](FRHICommandList&)
 			{
-				PrimitiveSceneInfo->Proxy->DestroyRenderThreadResources();
-				Scene->RemovePrimitiveSceneInfo_RenderThread(PrimitiveSceneInfo);
-				AttachmentCounter->Decrement();
+				for (const FPrimitiveRemoveInfo& RemoveInfo : RemoveInfos)
+				{
+					RemoveInfo.PrimitiveSceneInfo->Proxy->DestroyRenderThreadResources();
+					Scene->RemovePrimitiveSceneInfo_RenderThread(RemoveInfo.PrimitiveSceneInfo);
+					RemoveInfo.AttachmentCounter->Decrement();
+				}
 			});
 	}
 }
 
-void FScene::ReleasePrimitive( UPrimitiveComponent* PrimitiveComponent )
+void FScene::ReleasePrimitive(UPrimitiveComponent* PrimitiveComponent)
+{
+	// Check if this components was already bulk released on the render side
+	if (PrimitiveComponent->bBulkReregister)
+	{
+		return;
+	}
+	BatchReleasePrimitives(MakeArrayView(&PrimitiveComponent, 1));
+}
+
+void FScene::BatchReleasePrimitives(TArrayView<UPrimitiveComponent*> InPrimitives)
 {
 	// Send a command to the rendering thread to clean up any state dependent on this primitive
 	FScene* Scene = this;
-	FPrimitiveComponentId PrimitiveComponentId = PrimitiveComponent->ComponentId;
+	TArray<FPrimitiveComponentId, TInlineAllocator<1>> ReleaseComponentIds;
+	ReleaseComponentIds.SetNumUninitialized(InPrimitives.Num());
+
+	for (int32 ComponentIndex = 0; ComponentIndex < InPrimitives.Num(); ComponentIndex++)
+	{
+		ReleaseComponentIds[ComponentIndex] = InPrimitives[ComponentIndex]->ComponentId;
+	}
+
 	ENQUEUE_RENDER_COMMAND(FReleasePrimitiveCommand)(
-		[Scene, PrimitiveComponentId](FRHICommandList&)
+		[Scene, ReleaseComponentIds = MoveTemp(ReleaseComponentIds)](FRHICommandList&)
 		{
-			// Free the space in the indirect lighting cache
-			Scene->IndirectLightingCache.ReleasePrimitive(PrimitiveComponentId);
+			for (FPrimitiveComponentId PrimitiveComponentId : ReleaseComponentIds)
+			{
+				// Free the space in the indirect lighting cache
+				Scene->IndirectLightingCache.ReleasePrimitive(PrimitiveComponentId);
+			}
 		});
 }
 
@@ -6346,6 +6440,9 @@ public:
 	virtual void AddPrimitive(UPrimitiveComponent* Primitive) override {}
 	virtual void RemovePrimitive(UPrimitiveComponent* Primitive) override {}
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) override {}
+	virtual void BatchAddPrimitives(TArrayView<UPrimitiveComponent*> InPrimitives) override {}
+	virtual void BatchRemovePrimitives(TArrayView<UPrimitiveComponent*> InPrimitives) override {}
+	virtual void BatchReleasePrimitives(TArrayView<UPrimitiveComponent*> InPrimitives) override {}
 	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None) override {}
 	virtual FPrimitiveSceneInfo* GetPrimitiveSceneInfo(int32 PrimiteIndex) override { return NULL; }
 

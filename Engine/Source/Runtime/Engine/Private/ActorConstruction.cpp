@@ -324,6 +324,18 @@ void AActor::RerunConstructionScripts()
 			}
 		}
 
+		// Generate name to node lookup maps for each SCS.  This used to be done just during ExecuteConstruction, but it also optimizes
+		// calls to GetArchetype elsewhere during RerunConstructionScripts, so it's advantageous to run it here.
+		TArray<const UBlueprintGeneratedClass*> ParentBPClassStack;
+		UBlueprintGeneratedClass::GetGeneratedClassesHierarchy(GetClass(), ParentBPClassStack);
+		for (const UBlueprintGeneratedClass* BPClass : ParentBPClassStack)
+		{
+			if (BPClass->SimpleConstructionScript)
+			{
+				BPClass->SimpleConstructionScript->CreateNameToSCSNodeMap();
+			}
+		}
+
 		if (!CurrentTransactionAnnotation.IsValid())
 		{
 			CurrentTransactionAnnotation = FActorTransactionAnnotation::Create(this, false);
@@ -706,6 +718,15 @@ void AActor::RerunConstructionScripts()
 		{
 			CurrentTransactionAnnotation = nullptr;
 		}
+
+		// Remove the name to SCS node maps now that we're done constructing
+		for (const UBlueprintGeneratedClass* BPClass : ParentBPClassStack)
+		{
+			if (BPClass->SimpleConstructionScript)
+			{
+				BPClass->SimpleConstructionScript->RemoveNameToSCSNodeMap();
+			}
+		}
 	}
 }
 #endif
@@ -788,7 +809,6 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 				USimpleConstructionScript* SCS = CurrentBPGClass->SimpleConstructionScript;
 				if (SCS)
 				{
-					SCS->CreateNameToSCSNodeMap();
 					SCS->ExecuteScriptOnActor(this, NativeSceneComponents, Transform, TransformRotationCache, bIsDefaultTransform, TransformScaleMethod);
 				}
 				// Now that the construction scripts have been run, we can create timelines and hook them up
@@ -851,17 +871,6 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 			if (InstanceDataCache)
 			{
 				InstanceDataCache->ApplyToActor(this, ECacheApplyPhase::PostUserConstructionScript);
-			}
-
-			// Remove name to SCS_Node cached map
-			for (const UBlueprintGeneratedClass* CurrentBPGClass : ParentBPClassStack)
-			{
-				check(CurrentBPGClass);
-				USimpleConstructionScript* SCS = CurrentBPGClass->SimpleConstructionScript;
-				if (SCS)
-				{
-					SCS->RemoveNameToSCSNodeMap();
-				}
 			}
 		}
 		else
