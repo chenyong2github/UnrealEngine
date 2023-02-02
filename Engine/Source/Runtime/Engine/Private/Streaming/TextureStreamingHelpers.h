@@ -184,4 +184,4 @@ struct FRenderAssetStreamingStats
 };
 
 // Helper to access the level bStaticComponentsRegisteredInStreamingManager flag.
-extern bool OwnerLevelHasRegisteredStaticComponentsInStreamingManager(const AActor* Owner);
+extern bool OwnerLevelHasRegisteredStaticComponentsInStreamingManager(const class AActor* Owner);
