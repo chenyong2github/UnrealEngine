@@ -866,6 +866,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		{
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
 			{
+				ModelNodePathToEdNode.Remove(ModelNode->GetPreviousFName());
 				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetPreviousFName());
 				ModelNodePathToEdNode.Remove(ModelNode->GetPreviousFName());
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
