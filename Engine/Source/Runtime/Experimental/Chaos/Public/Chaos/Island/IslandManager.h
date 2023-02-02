@@ -54,6 +54,11 @@ public:
 	~FPBDIslandManager();
 
 	/**
+	 * Set to true if we require deterministic behaviour.
+	 */
+	void SetIsDeterministic(const bool bInIsDeterministic);
+
+	/**
 	 * Clear all nodes and edges from the graph
 	*/
 	void Reset();

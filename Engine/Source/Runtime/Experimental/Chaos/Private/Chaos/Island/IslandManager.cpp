@@ -187,6 +187,11 @@ FPBDIslandManager::~FPBDIslandManager()
 {
 }
 
+void FPBDIslandManager::SetIsDeterministic(const bool bInIsDeterministic)
+{
+	IslandGraph->SetIsDeterministic(bInIsDeterministic);
+}
+
 void FPBDIslandManager::Reset()
 {
 	RemoveConstraints();
@@ -275,6 +280,9 @@ void FPBDIslandManager::EndTick()
 		Island->ClearParticles();
 		Island->ClearConstraints();
 	}
+
+	// Let the graph perform and end-of-frame cleanup
+	IslandGraph->EndTick();
 
 	// We can no longer use the Island's particle and constraint lists
 	bIslandsPopulated = false;

@@ -1069,4 +1069,51 @@ namespace ChaosTest
 		EXPECT_FALSE(Test.IslandManager->GetIsland(0)->IsSleeping());
 
 	}
+
+	// Test the sparse array repeatable index assignment. See TSparseArray::SortFreeList()
+	GTEST_TEST(SparseArrayTests, TestSortFreeList)
+	{
+		TSparseArray<int32> Values;
+
+		// The first time we add objects, they should be in consecutive indices starting from 0
+		Values.Add(0);
+		Values.Add(1);
+		Values.Add(2);
+		EXPECT_EQ(Values[0], 0);
+		EXPECT_EQ(Values[1], 1);
+		EXPECT_EQ(Values[2], 2);
+
+		// Remove a couple items in the same order we added them
+		Values.RemoveAt(1);
+		Values.RemoveAt(2);
+
+		// Add the items again, they will end up in reverse order
+		// We don't rely on this behaviour but I'm testing here because if this changes
+		// in the future then we may be able to remove our calls to SortFreeList in the graph.
+		Values.Add(1);
+		Values.Add(2);
+		EXPECT_EQ(Values[0], 0);
+		EXPECT_EQ(Values[1], 2);	// Swapped
+		EXPECT_EQ(Values[2], 1);	// Swapped
+
+
+		// Now do the same as above on a new array, but call SortFreeList before reusing it
+		TSparseArray<int32> Values2;
+		
+		Values2.Add(0);
+		Values2.Add(1);
+		Values2.Add(2);
+		Values2.RemoveAt(1);
+		Values2.RemoveAt(2);
+
+		// Rebuild the free list
+		Values2.SortFreeList();
+
+		// We should now get the same order as the first time we added items
+		Values2.Add(1);
+		Values2.Add(2);
+		EXPECT_EQ(Values2[0], 0);
+		EXPECT_EQ(Values2[1], 1);
+		EXPECT_EQ(Values2[2], 2);
+	}
 }

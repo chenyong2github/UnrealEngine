@@ -964,6 +964,47 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateGraph()
 }
 
 template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::SetIsDeterministic(const bool bInIsDeterministic)
+{
+	if (bIsDeterministic != bInIsDeterministic)
+	{
+		bIsDeterministic = bInIsDeterministic;
+		if (bIsDeterministic)
+		{
+			SortFreeLists();
+		}
+	}
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::EndTick()
+{
+	if (bIsDeterministic)
+	{
+		SortFreeLists();
+	}
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::SortFreeLists()
+{
+	// For determinism: ensure that our sparse arrays will allocate indices that
+	// depend only on the current state of the graph, and not the order in which
+	// we removed elements. (We do sort the graph based on distance-to-kinematic, 
+	// but when there is an ambiguity we just take the array order so we 
+	// require that index assignment is repeatable between frames).
+	GraphNodes.SortFreeList();
+	GraphEdges.SortFreeList();
+	GraphIslands.SortFreeList();
+
+	for (FGraphNode& GraphNode : GraphNodes)
+	{
+		GraphNode.NodeEdges.SortFreeList();
+	}
+}
+
+
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
 void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::RemoveAllAwakeEdges()
 {
 	// Remove of all the non sleeping edges

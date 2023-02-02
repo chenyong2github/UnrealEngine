@@ -241,7 +241,7 @@ namespace Chaos
 		int32 ChaosSolverProjectionIterations = -1;
 		FAutoConsoleVariableRef CVarChaosSolverProjectionIterations(TEXT("p.Chaos.Solver.Iterations.Projection"), ChaosSolverProjectionIterations, TEXT("Override number of solver projection iterations (-1 to use config)"));
 
-		int32 ChaosSolverDeterministic = -1;
+		int32 ChaosSolverDeterministic = 1;
 		FAutoConsoleVariableRef CVarChaosSolverDeterministic(TEXT("p.Chaos.Solver.Deterministic"), ChaosSolverDeterministic, TEXT("Override determinism. 0: disabled; 1: enabled; -1: use config"));
 
 		// Copied from RBAN

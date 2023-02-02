@@ -44,6 +44,10 @@ class PHYSICSCORE_API UPhysicsSettingsCore: public UDeveloperSettings
 	UPROPERTY(config,EditAnywhere,AdvancedDisplay,meta = (ClampMin = "-1.0",UIMin = "-1.0",ClampMax = "10.0",UIMax = "10.0"),Category = Constants)
 	float TriangleMeshTriangleMinAreaThreshold;
 
+	/** If set to true, the scene will use enhanced determinism at the cost of a bit more resources. See eENABLE_ENHANCED_DETERMINISM to learn about the specifics */
+	UPROPERTY(config,EditAnywhere,Category = Simulation)
+	bool bEnableEnhancedDeterminism;
+
 	/** Enables shape sharing between sync and async scene for static rigid actors */
 	UPROPERTY(config,EditAnywhere,AdvancedDisplay,Category = Simulation)
 	bool bEnableShapeSharing;

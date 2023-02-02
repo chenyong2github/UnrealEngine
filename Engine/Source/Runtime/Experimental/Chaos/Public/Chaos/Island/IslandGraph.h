@@ -149,9 +149,19 @@ public:
 	}
 
 	/**
+	 * Set to true if we require deterministic behaviour.
+	 */
+	void SetIsDeterministic(const bool bInIsDeterministic);
+
+	/**
 	 * Update current graph to merge connected islands 
 	 */
 	void UpdateGraph();
+
+	/**
+	 * Perform end-of-tick cleanup if necessary
+	 */
+	 void EndTick();
 
 	/**
 	 * Reserve a number of nodes in memory before adding them later
@@ -375,6 +385,8 @@ public:
 		}
 	}
 
+	void SortFreeLists();
+
 	FGraphOwner* Owner = nullptr;
 
 	/** List of graph nodes */
@@ -391,6 +403,9 @@ public:
 
 	/** Reverse list to find given an item the matching edge */
 	TMap<EdgeType,int32> ItemEdges;
+
+	/** Whether we care about determinism */
+	bool bIsDeterministic = false;
 
 	/** Graph counter used for graph traversal to check if an edge/node/island has already been processed */
 	int32 GraphCounter = 0;

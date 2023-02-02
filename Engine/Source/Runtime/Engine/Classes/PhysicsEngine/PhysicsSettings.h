@@ -149,10 +149,6 @@ class ENGINE_API UPhysicsSettings : public UPhysicsSettingsCore
 	UPROPERTY(config, EditAnywhere, Category = Simulation)
 	bool bDisableCCD;
 
-	/** If set to true, the scene will use enhanced determinism at the cost of a bit more resources. See eENABLE_ENHANCED_DETERMINISM to learn about the specifics */
-	UPROPERTY(config, EditAnywhere, Category = Simulation)
-	bool bEnableEnhancedDeterminism;
-
 	/** Min Delta Time below which anim dynamics and rigidbody nodes will not simulate. */
 	UPROPERTY(config, EditAnywhere, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"), Category = Framerate)
 	float AnimPhysicsMinDeltaTime;

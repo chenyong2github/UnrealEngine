@@ -571,8 +571,11 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 
 	ParticleUpdatePosition(Particles.GetDirtyParticlesView(), Dt);
 
-	// Clean up the transient data from the constraint graph (e.g., Islands get cleared here)
-	GetIslandManager().EndTick();
+	{
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_IslandEndTick);
+		// Clean up the transient data from the constraint graph (e.g., Islands get cleared here)
+		GetIslandManager().EndTick();
+	}
 
 	if (bChaos_Solver_TestMode)
 	{
@@ -626,6 +629,9 @@ void FPBDRigidsEvolutionGBF::SetIsDeterministic(const bool bInIsDeterministic)
 {
 	// We detect collisions in parallel, so order is non-deterministic without additional processing
 	CollisionConstraints.SetIsDeterministic(bInIsDeterministic);
+
+	// IslandManager uses TSparseArray which requires free-list maintenance for determinism
+	IslandManager.SetIsDeterministic(bInIsDeterministic);
 }
 
 

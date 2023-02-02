@@ -463,12 +463,6 @@ namespace Chaos
 		// Disable any edge collisions that are hidden by face collisions
 		// (for bodies that have the EdgePruning option enabled)
 		PruneEdgeCollisions();
-
-		// @todo(chaos): this should be required any more - we sort when adding to the graph. Test and remove...
-		if (bIsDeterministic)
-		{
-			ConstraintAllocator.SortConstraintsHandles();
-		}
 	}
 
 	void FPBDCollisionConstraints::DetectProbeCollisions(FReal Dt)
@@ -582,9 +576,14 @@ namespace Chaos
 			}
 		}
 
-		// Sort new constraints into a predictable order. This isn't strictly required, but without it we
-		// can get fairly different behaviour from run to run because the collisions detection order is 
-		// effectively random on multicore machines
+		// Sort new constraints into a predictable order. This isn't strictly required unless we have
+		// deterministic mode enabled, but we do it always because we can get fairly different behaviour 
+		// from run to run because the collisions detection order is effectively random on multicore machines.
+		//
+		// @todo(chaos): this is still not good enough for some types of determinism. Specifically if we 
+		// create two set of objects in a different order but with the same physical positions and other 
+		// state, they will behave differently which is undesirable. To fix this we need a sorting 
+		// mechanism that does not rely on properties like IDs. E.g., some kind of physical state hash?
 		TempCollisions.Sort(
 			[](const FPBDCollisionConstraintHandle& L, const FPBDCollisionConstraintHandle& R)
 			{
