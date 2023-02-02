@@ -336,4 +336,154 @@ FUVToolSelection FUVToolSelection::GetConvertedSelection(const FDynamicMesh3& Me
 	return NewSelection;
 }
 
+FUVToolSelection FUVToolSelection::GetConvertedSelectionForUnwrappedMesh() const
+{
+	if (!Target.IsValid() || !Target->IsValid())
+	{
+		ensure(false);
+		return FUVToolSelection();
+	}
+
+	TArray<int32> UnsetAppliedIds;;
+	FUVToolSelection NewSelection;
+	NewSelection.Target = Target;
+	NewSelection.Type = Type;
+	NewSelection.SelectedIDs = TSet<int32>(ConvertAppliedElementIdsToUnwrappedElementIds(Type, *Target->AppliedCanonical, *Target->UnwrapCanonical,
+		*Target->AppliedCanonical->Attributes()->GetUVLayer(Target->UVLayerIndex), SelectedIDs.Array(), UnsetAppliedIds));
+
+	return NewSelection;
+}
+
+FUVToolSelection FUVToolSelection::GetConvertedSelectionForAppliedMesh() const
+{
+	if (!Target.IsValid() || !Target->IsValid())
+	{
+		ensure(false);
+		return FUVToolSelection();
+	}
+
+	FUVToolSelection NewSelection;
+	NewSelection.Target = Target;
+	NewSelection.Type = Type;
+	NewSelection.SelectedIDs = TSet<int32>(ConvertUnwrappedElementIdsToAppliedElementIds(Type, *Target->UnwrapCanonical, *Target->AppliedCanonical,
+		*Target->AppliedCanonical->Attributes()->GetUVLayer(Target->UVLayerIndex), SelectedIDs.Array()));
+
+	return NewSelection;
+}
+
+TArray<int32> FUVToolSelection::ConvertUnwrappedElementIdsToAppliedElementIds(EType SelectionMode,const FDynamicMesh3& UnwrapMesh, const FDynamicMesh3& AppliedMesh,
+	const FDynamicMeshUVOverlay& UVOverlay, const TArray<int32>& IDsIn)
+{
+	TArray<int32> IDsOut;
+
+	auto FindAppliedEdge = [&UnwrapMesh, &AppliedMesh, &UVOverlay](int32 Eid)
+	{
+		int32 Vid1, Vid2;
+		FDynamicMesh3::FEdge EdgeInfo = UnwrapMesh.GetEdge(Eid);
+		Vid1 = UVOverlay.GetParentVertex(EdgeInfo.Vert[0]);
+		Vid2 = UVOverlay.GetParentVertex(EdgeInfo.Vert[1]);
+		if (Vid1 != IndexConstants::InvalidID && Vid2 != IndexConstants::InvalidID)
+		{
+			return AppliedMesh.FindEdge(Vid1, Vid2);
+		}
+		else
+		{
+			return IndexConstants::InvalidID;
+		}
+	};
+
+	switch (SelectionMode)
+	{
+	case EType::Triangle:
+		return IDsIn;
+	case EType::Edge:
+		for (int32 Eid : IDsIn)
+		{
+			int32 AppliedEid = FindAppliedEdge(Eid);
+			if (AppliedEid != IndexConstants::InvalidID)
+			{
+				IDsOut.Add(AppliedEid);
+			}
+		}
+		return IDsOut;
+	case EType::Vertex:
+		for (int32 Vid : IDsIn)
+		{
+			IDsOut.Add(UVOverlay.GetParentVertex(Vid));
+		}
+		return IDsOut;
+	default:
+		ensure(false);
+		return IDsOut;
+	}
+}
+
+TArray<int32> FUVToolSelection::ConvertAppliedElementIdsToUnwrappedElementIds(EType SelectionMode,	const FDynamicMesh3& AppliedMesh, const FDynamicMesh3& UnwrapMesh,
+	const FDynamicMeshUVOverlay& UVOverlay, const TArray<int32>& IDsIn, TArray<int32>& AppliedMeshOnlyIDsOut)
+{
+	TSet<int32> IDsOut;
+	AppliedMeshOnlyIDsOut.Empty();
+
+	auto FindUnwrapEdges = [&AppliedMesh, &UnwrapMesh](int32 Eid, TSet<int32>& OutUnwrapEdges)
+	{
+		bool bFoundEdges = false;
+		FIndex2i Triangles = AppliedMesh.GetEdgeT(Eid);
+		int32 Triangle0EdgeIndex = AppliedMesh.GetTriEdges(Triangles[0]).IndexOf(Eid);
+		int32 Triangle1EdgeIndex = Triangles[1] == IndexConstants::InvalidID ? IndexConstants::InvalidID : AppliedMesh.GetTriEdges(Triangles[1]).IndexOf(Eid);
+		if (UnwrapMesh.IsTriangle(Triangles[0]))
+		{
+			OutUnwrapEdges.Add(UnwrapMesh.GetTriEdge(Triangles[0], Triangle0EdgeIndex));
+			bFoundEdges = true;
+		}
+		if (UnwrapMesh.IsTriangle(Triangles[1]))
+		{
+			OutUnwrapEdges.Add(UnwrapMesh.GetTriEdge(Triangles[1], Triangle1EdgeIndex));
+			bFoundEdges = true;
+		}
+		return bFoundEdges;
+	};
+
+	switch (SelectionMode)
+	{
+	case EType::Triangle:
+		for (int32 Tid : IDsIn)
+		{
+			if (UVOverlay.IsSetTriangle(Tid))
+			{
+				IDsOut.Add(Tid);
+			}
+			else
+			{
+				AppliedMeshOnlyIDsOut.Add(Tid);
+			}
+		}
+		break;
+	case EType::Edge:
+		for (int32 Eid : IDsIn)
+		{
+			if (!FindUnwrapEdges(Eid, IDsOut))
+			{
+				AppliedMeshOnlyIDsOut.Add(Eid);
+			}
+		}
+		break;
+	case EType::Vertex:
+		for (int32 Vid : IDsIn)
+		{
+			TArray<int32> ElementsForVid;
+			UVOverlay.GetVertexElements(Vid, ElementsForVid);
+			IDsOut.Append(ElementsForVid);
+			if (ElementsForVid.IsEmpty())
+			{
+				AppliedMeshOnlyIDsOut.Add(Vid);
+			}
+		}
+		break;
+	default:
+		ensure(false);
+		break;
+	}
+	return IDsOut.Array();
+}
+
 #undef LOCTEXT_NAMESPACE

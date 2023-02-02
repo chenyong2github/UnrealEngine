@@ -446,109 +446,55 @@ namespace UVEditorMeshSelectionMechanicLocals
 	TArray<int32> Convert3DHitsTo2DHits(ESelectionMode SelectionMode,
 		const FDynamicMesh3& UnwrapMesh, const FDynamicMesh3& AppliedMesh, const FDynamicMeshUVOverlay& UVOverlay, const TArray<int32>& IDsIn, TArray<int32>& AppliedMeshOnlyIDsOut)
 	{
-		TSet<int32> IDsOut;
-		AppliedMeshOnlyIDsOut.Empty();
-
-		auto FindUnwrapEdges = [&AppliedMesh, &UnwrapMesh](int32 Eid, TSet<int32>& OutUnwrapEdges)
-		{
-			bool bFoundEdges = false;
-			FIndex2i Triangles = AppliedMesh.GetEdgeT(Eid);
-			int32 Triangle0EdgeIndex = AppliedMesh.GetTriEdges(Triangles[0]).IndexOf(Eid);
-			int32 Triangle1EdgeIndex = Triangles[1] == IndexConstants::InvalidID ? IndexConstants::InvalidID : AppliedMesh.GetTriEdges(Triangles[1]).IndexOf(Eid);
-			if (UnwrapMesh.IsTriangle(Triangles[0]))
-			{
-				OutUnwrapEdges.Add(UnwrapMesh.GetTriEdge(Triangles[0], Triangle0EdgeIndex));
-				bFoundEdges = true;
-			}
-			if (UnwrapMesh.IsTriangle(Triangles[1]))
-			{
-				OutUnwrapEdges.Add(UnwrapMesh.GetTriEdge(Triangles[1], Triangle1EdgeIndex));
-				bFoundEdges = true;
-			}
-			return bFoundEdges;
-		};
-
+		TArray<int32> IDsOut;
 		switch (SelectionMode)
 		{
-		case ESelectionMode::Triangle:			
+		case ESelectionMode::Triangle:
 		case ESelectionMode::Island:
 		case ESelectionMode::Mesh:
-			for (int32 Tid : IDsIn)
-			{
-				if (UVOverlay.IsSetTriangle(Tid))
-				{
-					IDsOut.Add(Tid);
-				}
-				else
-				{
-					AppliedMeshOnlyIDsOut.Add(Tid);
-				}
-			}
+			IDsOut = FUVToolSelection::ConvertAppliedElementIdsToUnwrappedElementIds(FUVToolSelection::EType::Triangle, AppliedMesh, UnwrapMesh,
+				UVOverlay, IDsIn, AppliedMeshOnlyIDsOut);
 			break;
 		case ESelectionMode::Edge:
-			for (int32 Eid : IDsIn)
-			{				
-				if(!FindUnwrapEdges(Eid, IDsOut))				
-				{
-					AppliedMeshOnlyIDsOut.Add(Eid);
-				}
-			}
-			break;			
+			IDsOut = FUVToolSelection::ConvertAppliedElementIdsToUnwrappedElementIds(FUVToolSelection::EType::Edge, AppliedMesh, UnwrapMesh,
+		UVOverlay, IDsIn, AppliedMeshOnlyIDsOut);
+			break;
 		case ESelectionMode::Vertex:
-			for (int32 Vid : IDsIn)
-			{
-				TArray<int32> ElementsForVid;
-				UVOverlay.GetVertexElements(Vid, ElementsForVid);
-				IDsOut.Append(ElementsForVid);
-				if (ElementsForVid.IsEmpty())
-				{
-					AppliedMeshOnlyIDsOut.Add(Vid);
-				}
-			}
+			IDsOut = FUVToolSelection::ConvertAppliedElementIdsToUnwrappedElementIds(FUVToolSelection::EType::Vertex, AppliedMesh, UnwrapMesh,
+		UVOverlay, IDsIn, AppliedMeshOnlyIDsOut);
 			break;
 		default:
-			ensure(false);			
+			ensure(false);
 			break;
 		}
-		return IDsOut.Array();
+		return IDsOut;
 	}
 	
 	TArray<int32> Convert2DHitsTo3DHits(ESelectionMode SelectionMode,
 		const FDynamicMesh3& UnwrapMesh, const FDynamicMesh3& AppliedMesh, const FDynamicMeshUVOverlay& UVOverlay, TArray<int32>& IDsIn)
 	{
 		TArray<int32> IDsOut;
-		
-		auto FindAppliedEdge = [&UnwrapMesh, &AppliedMesh, &UVOverlay](int32 Eid)
-		{
-			int32 Vid1, Vid2;
-			FDynamicMesh3::FEdge EdgeInfo = UnwrapMesh.GetEdge(Eid);
-			Vid1 = UVOverlay.GetParentVertex(EdgeInfo.Vert[0]);
-			Vid2 = UVOverlay.GetParentVertex(EdgeInfo.Vert[1]);	
-			return AppliedMesh.FindEdge(Vid1, Vid2);
-		};
-
 		switch (SelectionMode)
 		{
 		case ESelectionMode::Triangle:
 		case ESelectionMode::Island:
 		case ESelectionMode::Mesh:
-			return IDsIn;
+			IDsOut = FUVToolSelection::ConvertUnwrappedElementIdsToAppliedElementIds(FUVToolSelection::EType::Triangle, UnwrapMesh, AppliedMesh,
+				UVOverlay, IDsIn);
+			break;
 		case ESelectionMode::Edge:
-			for (int32 Eid : IDsIn)
-			{
-				IDsOut.Add(FindAppliedEdge(Eid));
-			}
-			return IDsOut;
+			IDsOut = FUVToolSelection::ConvertUnwrappedElementIdsToAppliedElementIds(FUVToolSelection::EType::Edge, UnwrapMesh, AppliedMesh,
+				UVOverlay, IDsIn);
+			break;
 		case ESelectionMode::Vertex:
-			for (int32 Vid : IDsIn)
-			{
-				IDsOut.Add(UVOverlay.GetParentVertex(Vid));
-			}
-			return IDsOut;
+			IDsOut = FUVToolSelection::ConvertUnwrappedElementIdsToAppliedElementIds(FUVToolSelection::EType::Vertex, UnwrapMesh, AppliedMesh,
+				UVOverlay, IDsIn);
+			break;
 		default:
 			ensure(false);
-			return IDsOut;
+			break;
 		}
+		return IDsOut;
 	}
 
 

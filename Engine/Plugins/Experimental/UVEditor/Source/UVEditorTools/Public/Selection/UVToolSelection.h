@@ -71,10 +71,50 @@ public:
 	bool AreElementsPresentInMesh(const FDynamicMesh3& Mesh) const;
 
 	FAxisAlignedBox3d ToBoundingBox(const FDynamicMesh3& Mesh) const;
+
 	/**
 	 * Utility method to construct a new selection from an existing reference selection, only with a new geometry type.
 	 */
 	FUVToolSelection GetConvertedSelection(const FDynamicMesh3& Mesh, FUVToolSelection::EType ExpectedSelectionType) const;
+
+	/** 
+	* Utility method to construct a new selection from an existing reference Applied mesh selection, only for the equivalent Unwrap mesh geometry.
+	* 
+	* If the target for this selection is currently invalid or unset, this will return an empty selection.
+	*/
+	FUVToolSelection GetConvertedSelectionForUnwrappedMesh() const;
+
+	/**
+	* Utility method to construct a new selection from an existing reference Unwrap mesh selection, only for the equivalent Applied mesh geometry.
+	*
+	* If the target for this selection is currently invalid or unset, this will return an empty selection.
+	*/
+	FUVToolSelection GetConvertedSelectionForAppliedMesh() const;
+
+	/**
+	 * Utility method to convert element ids from those belonging to the unwrapped mesh to those belonging to equivalent ids on the applied mesh
+	 * 
+	 * @param SelectionMode The type of element the input ids represent
+	 * @param UnwrapMesh A dynamic mesh instance representing the unwrapped mesh which the input ids belong to 
+	 * @param AppliedMesh A dynamic mesh instance representing the applied mesh for which the resulting ids will belong to
+	 * @param UVOverlay An overlay representing the current UV mapping linking the unwrapped and applied mesh
+	 * @param IDsIn The ids of the elements from the unwrapped mesh to convert to applied element ids
+	 */
+	static TArray<int32> ConvertUnwrappedElementIdsToAppliedElementIds(EType SelectionMode, const FDynamicMesh3& UnwrapMesh,
+		const FDynamicMesh3& AppliedMesh, const FDynamicMeshUVOverlay& UVOverlay, const TArray<int32>& IDsIn);
+
+	/**
+	 * Utility method to convert element ids from those belonging to the applied mesh to those belonging to equivalent ids on the unwrapped mesh
+	 *
+	 * @param SelectionMode The type of element the input ids represent
+ 	 * @param AppliedMesh A dynamic mesh instance representing the applied mesh which the input ids belong to
+	 * @param UnwrapMesh A dynamic mesh instance representing the unwrapped mesh for which the resulting ids will belong to
+	 * @param UVOverlay An overlay representing the current UV mapping linking the unwrapped and applied mesh
+	 * @param IDsIn The ids of the elements from the unwrapped mesh to convert to applied element ids
+	 * @param AppliedOnlyElementIds The ids of any remaining elements that have no direct mappings, due to unset UVs, in the unwrapped mesh
+	 */
+	static TArray<int32> ConvertAppliedElementIdsToUnwrappedElementIds(EType SelectionMode, const FDynamicMesh3& AppliedMesh,
+		const FDynamicMesh3& UnwrapMesh, const FDynamicMeshUVOverlay& UVOverlay, const TArray<int32>& IDsIn, TArray<int32>& AppliedOnlyElementIds);
 
 protected:
 	

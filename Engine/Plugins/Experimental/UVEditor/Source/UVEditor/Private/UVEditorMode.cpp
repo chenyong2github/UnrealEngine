@@ -1310,7 +1310,7 @@ void UUVEditorMode::FocusLivePreviewCameraOnSelection()
 
 	for (const FUVToolSelection& Selection : CurrentSelections)
 	{
-		SelectionBoundingBox.Contain(Selection.ToBoundingBox(*Selection.Target->AppliedCanonical));
+		SelectionBoundingBox.Contain(Selection.GetConvertedSelectionForAppliedMesh().ToBoundingBox(*Selection.Target->AppliedCanonical));
 	}
 	for (const FUVToolSelection& Selection : CurrentUnsetSelections)
 	{
