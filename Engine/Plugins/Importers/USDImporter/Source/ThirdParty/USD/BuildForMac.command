@@ -2,20 +2,17 @@
 
 set -e
 
-USD_VERSION=22.08
+USD_VERSION=22.11
 
 # This path may be adjusted to point to wherever the USD source is located.
 # It is typically obtained by either downloading a zip/tarball of the source
 # code, or more commonly by cloning the GitHub repository, e.g. for the
 # current engine USD version:
-#     git clone --branch v22.08 https://github.com/PixarAnimationStudios/USD.git USD_src
-# Note that a small patch to the USD CMake build is currently necessary for
-# the usdAbc plugin to require and link against Imath instead of OpenEXR:
-#     git apply USD_v2208_usdAbc_Imath.patch
+#     git clone --branch v22.11 https://github.com/PixarAnimationStudios/USD.git USD_src
 # Specifically for Mac, an additional patch is needed to bring forward a
 # workaround for a CMake build issue that causes code signing invalidation
-# (this can be removed once the USD release after 22.11 is adopted):
-#     git apply USD_v2208_Mac_code_sign.patch
+# (this can be removed when USD version 23.02 is adopted):
+#     git apply USD_v2211_Mac_code_sign.patch
 # Note also that this path may be emitted as part of USD error messages, so
 # it is suggested that it not reveal any sensitive information.
 SOURCE_LOCATION="/tmp/USD_src"
