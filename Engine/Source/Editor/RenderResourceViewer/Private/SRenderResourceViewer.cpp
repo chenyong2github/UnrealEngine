@@ -138,6 +138,7 @@ void SRenderResourceViewerWidget::Construct(const FArguments& InArgs, const TSha
 					]
 
 					// A row of checkboxes to filter resource list by flags
+					RENDER_RESOURCE_VIEWER_ADD_CHECKBOX(bShowResident, LOCTEXT("ResidentText", "Resident"), LOCTEXT("ResidentTooltip", "Resident"), SRenderResourceViewerWidget::OnResidentCheckboxChanged)
 					RENDER_RESOURCE_VIEWER_ADD_CHECKBOX(bShowTransient, LOCTEXT("TransientText", "Transient"), LOCTEXT("TransientTooltip", "Transient"), SRenderResourceViewerWidget::OnTransientCheckboxChanged)
 					RENDER_RESOURCE_VIEWER_ADD_CHECKBOX(bShowStreaming, LOCTEXT("StreamingText", "Streaming"), LOCTEXT("StreamingTooltip", "Streaming"), SRenderResourceViewerWidget::OnStreamingCheckboxChanged)
 					RENDER_RESOURCE_VIEWER_ADD_CHECKBOX(bShowRT, LOCTEXT("RTText", "RT"), LOCTEXT("RTTooltip", "Render Target"), SRenderResourceViewerWidget::OnRTCheckboxChanged)
@@ -251,7 +252,7 @@ void SRenderResourceViewerWidget::RefreshNodes()
 	{
 		bool bContainsFilterText = FilterText.IsEmpty() || Info->Name.ToString().Contains(FilterText.ToString()) || Info->OwnerName.ToString().Contains(FilterText.ToString());
 		// Note bMarkedForDelete resources are excluded from display
-		bool bContainsFilterFlags = (bShowTransient && Info->bTransient) || (bShowStreaming && Info->bStreaming)
+		bool bContainsFilterFlags = (bShowResident && Info->bResident) || (bShowTransient && Info->bTransient) || (bShowStreaming && Info->bStreaming)
 									|| (bShowRT && Info->bRenderTarget) || (bShowDS && Info->bDepthStencil) || (bShowUAV && Info->bUnorderedAccessView) || (bShowRTAS && Info->bRayTracingAccelerationStructure)
 									|| (bShowNone && !Info->bHasFlags);
 		if (bContainsFilterText && bContainsFilterFlags)

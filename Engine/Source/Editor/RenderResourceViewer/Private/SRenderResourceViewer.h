@@ -31,6 +31,7 @@ private:
 	FText GetResourceCountText() const									{ return FText::AsNumber(TotalResourceCount); }
 	FText GetResourceSizeText() const;
 	void FilterTextBox_OnTextChanged(const FText& InFilterText)			{ FilterText = InFilterText; RefreshNodes(); }
+	void OnResidentCheckboxChanged(ECheckBoxState NewState)				{ bShowResident = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	void OnTransientCheckboxChanged(ECheckBoxState NewState)			{ bShowTransient = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	void OnStreamingCheckboxChanged(ECheckBoxState NewState)			{ bShowStreaming = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	void OnRTCheckboxChanged(ECheckBoxState NewState)					{ bShowRT = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
@@ -49,6 +50,7 @@ private:
 	uint64 TotalResourceCount = 0;
 	uint64 TotalResourceSize = 0;
 
+	bool bShowResident = true;			// Show resource with Resident flag set
 	bool bShowTransient = true;			// Show resource with Transient flag set
 	bool bShowStreaming = true;			// Show resource with Streaming flag set
 	bool bShowRT = true;				// Show resource with RenderTarget flag set

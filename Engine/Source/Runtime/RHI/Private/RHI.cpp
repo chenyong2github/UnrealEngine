@@ -833,7 +833,7 @@ void RHIGetTrackedResourceStats(TArray<TSharedPtr<FRHIResourceStats>>& OutResour
 		const int64 SizeInBytes = ResourceInfo.VRamAllocation.AllocationSize;
 		RHIInternal::FResourceFlags Flags = GetResourceFlagsInternal(Resources[Index]);
 		OutResourceStats[Index] = MakeShared<FRHIResourceStats>(ResourceInfo.Name, Resource->GetOwnerName(), ResourceType, Flags.GetString(), SizeInBytes,
-									Flags.bMarkedForDelete, Flags.bTransient, Flags.bStreaming, Flags.bRT, Flags.bDS, Flags.bUAV, Flags.bRTAS, Flags.bHasFlags);
+									Flags.bResident, Flags.bMarkedForDelete, Flags.bTransient, Flags.bStreaming, Flags.bRT, Flags.bDS, Flags.bUAV, Flags.bRTAS, Flags.bHasFlags);
 	});
 }
 

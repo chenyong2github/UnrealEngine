@@ -127,6 +127,7 @@ struct FRHIResourceStats
 	FString Type;
 	FString Flags;
 	uint64	SizeInBytes = 0;
+	bool	bResident = false;
 	bool	bMarkedForDelete = false;
 	bool	bTransient = false;
 	bool	bStreaming = false;
@@ -137,12 +138,13 @@ struct FRHIResourceStats
 	bool	bHasFlags = false;
 
 	FRHIResourceStats(const FName& InName, const FName& InOwnerName, const FString& InType, const FString& InFlags, const uint64& InSizeInBytes,
-						bool bInMarkedForDelete, bool bInTransient, bool bInStreaming, bool bInRT, bool bInDS, bool bInUAV, bool bInRTAS, bool bInHasFlags)
+						bool bInResident, bool bInMarkedForDelete, bool bInTransient, bool bInStreaming, bool bInRT, bool bInDS, bool bInUAV, bool bInRTAS, bool bInHasFlags)
 		: Name(InName)
 		, OwnerName(InOwnerName)
 		, Type(InType)
 		, Flags(InFlags)
 		, SizeInBytes(InSizeInBytes)
+		, bResident(bInResident)
 		, bMarkedForDelete(bInMarkedForDelete)
 		, bTransient(bInTransient)
 		, bStreaming(bInStreaming)
