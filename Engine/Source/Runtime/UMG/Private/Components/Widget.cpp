@@ -191,6 +191,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	RenderOpacity = 1.0f;
 	RenderTransformPivot = FVector2D(0.5f, 0.5f);
 	Cursor = EMouseCursor::Default;
+	PixelSnapping = EWidgetPixelSnapping::Inherit;
 
 #if WITH_EDITORONLY_DATA
 	bOverrideAccessibleDefaults = false;
@@ -456,6 +457,28 @@ void UWidget::SetClipping(EWidgetClipping InClipping)
 	}
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+EWidgetPixelSnapping UWidget::GetPixelSnapping() const
+{
+	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
+	if (SafeWidget.IsValid())
+	{
+		return SafeWidget->GetPixelSnapping();
+	}
+
+	return PixelSnapping;
+}
+
+void UWidget::SetPixelSnapping(EWidgetPixelSnapping InPixelSnappingMethod)
+{
+	PixelSnapping = InPixelSnappingMethod;
+
+	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
+	if (SafeWidget.IsValid())
+	{
+		SafeWidget->SetPixelSnapping(InPixelSnappingMethod);
+	}
+}
 
 void UWidget::ForceVolatile(bool bForce)
 {
@@ -1382,6 +1405,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SafeWidget->SetClipping(Clipping);
 #endif
 
+	SafeWidget->SetPixelSnapping(PixelSnapping);
 	SafeWidget->SetFlowDirectionPreference(FlowDirectionPreference);
 
 	SafeWidget->ForceVolatile(bIsVolatile);

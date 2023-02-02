@@ -177,6 +177,23 @@ void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType 
 		InDrawEffects &= ~ESlateDrawEffect::DisabledEffect;
 	}
 
+	// Apply the pixel snapping effects, if it's unset/inherited we don't do anything.
+	switch (ElementList.GetPixelSnappingMethod())
+	{
+		case EWidgetPixelSnapping::Disabled:
+			InDrawEffects |= ESlateDrawEffect::NoPixelSnapping;
+			break;
+		case EWidgetPixelSnapping::Inherit:
+			// NOTE: Do nothing on inherit.
+		case EWidgetPixelSnapping::SnapToPixel:
+			// NOTE: We don't remove the drawing effects pixel snapping here.  The default behavior of InDrawEffects is always to snap to pixels
+			// so all we need to do here is not to snap.  This will allow the continued behavior that if someone does set snap to pixel at a
+			// higher level, it won't break people that directly set InDrawEffects |= ESlateDrawEffect::NoPixelSnapping, before drawing their
+			// draw element.
+		default:
+			break;
+	}
+
 	RenderTransform = PaintGeometry.GetAccumulatedRenderTransform();
 	Position = PaintGeometry.DrawPosition;
 	Scale = PaintGeometry.DrawScale;
@@ -995,6 +1012,24 @@ void FSlateWindowElementList::PopClipToStackIndex(int32 Index)
 	ClippingManager.PopToStackIndex(Index);
 }
 
+int32 FSlateWindowElementList::PushPixelSnappingMethod(EWidgetPixelSnapping InPixelSnappingMethod)
+{
+	PixelSnappingMethodStack.Add(InPixelSnappingMethod);
+	return PixelSnappingMethodStack.Num();
+}
+
+void FSlateWindowElementList::PopPixelSnappingMethod()
+{
+	if (ensure(PixelSnappingMethodStack.Num() > 0))
+	{
+		PixelSnappingMethodStack.Pop();
+	}
+}
+
+EWidgetPixelSnapping FSlateWindowElementList::GetPixelSnappingMethod() const
+{
+	return (PixelSnappingMethodStack.Num() > 0) ? PixelSnappingMethodStack.Top() : EWidgetPixelSnapping::Inherit;
+}
 
 void FSlateWindowElementList::SetRenderTargetWindow(SWindow* InRenderTargetWindow)
 {

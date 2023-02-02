@@ -32,6 +32,7 @@
 #include "InvalidateWidgetReason.h"
 #include "Widgets/SlateControlledConstruction.h"
 #include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
+#include "WidgetPixelSnapping.h"
 
 class FActiveTimerHandle;
 class FArrangedChildren;
@@ -1252,21 +1253,23 @@ public:
 	/**
 	 * Sets the clipping to bounds rules for this widget.
 	 */
-	FORCEINLINE void SetClipping(EWidgetClipping InClipping)
-	{
-		if (Clipping != InClipping)
-		{
-			Clipping = InClipping;
-			OnClippingChanged();
-			// @todo - Fast path should this be Paint?
-			Invalidate(EInvalidateWidgetReason::Layout);
-		}
-	}
+	void SetClipping(EWidgetClipping InClipping);
 
 	/** @return The current clipping rules for this widget. */
 	FORCEINLINE EWidgetClipping GetClipping() const
 	{
 		return Clipping;
+	}
+	
+	/**
+	* Sets the pixel snapping method for this widget.
+	*/
+	void SetPixelSnapping(EWidgetPixelSnapping InPixelSnappingMethod);
+
+	/** @return The current pixel snapping rules for this widget. */
+	FORCEINLINE EWidgetPixelSnapping GetPixelSnapping() const
+	{
+		return PixelSnappingMethod;
 	}
 
 	/**
@@ -1787,6 +1790,13 @@ protected:
 	 * Set to true if all content of the widget should clip to the bounds of this widget.
 	 */
 	EWidgetClipping Clipping;
+	
+	/**
+	 * When set to EPixelSnappingMethod::SnapToPixel, the widget is drawn at the nearest pixel. Will improve sharpness 
+	 * but could show a stepping effect when moved in an animation.  By default everything in slate is Inherit, and the default
+	 * state all things inherit is SnapToPixel.
+	 */
+	EWidgetPixelSnapping PixelSnappingMethod;
 
 protected:
 	/** Establishes a new flow direction potentially, if this widget has a particular preference for it and all its children. */

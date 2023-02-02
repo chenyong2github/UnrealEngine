@@ -210,6 +210,7 @@ SWidget::SWidget()
 	, AccessibleSummaryBehavior(EAccessibleBehavior::Auto)
 #endif
 	, Clipping(EWidgetClipping::Inherit)
+	, PixelSnappingMethod(EWidgetPixelSnapping::Inherit)
 	, FlowDirectionPreference(EFlowDirectionPreference::Inherit)
 	// Note we are defaulting to tick for backwards compatibility
 	, UpdateFlags(EWidgetUpdateFlags::NeedsTick)
@@ -326,6 +327,7 @@ void SWidget::Construct(
 	Args._RenderOpacity = InRenderOpacity;
 	Args._ForceVolatile = InForceVolatile;
 	Args._Clipping = InClipping;
+	Args._PixelSnappingMethod = EWidgetPixelSnapping::Inherit;
 	Args._FlowDirectionPreference = InFlowPreference;
 	Args._RenderTransform = InTransform;
 	Args._RenderTransformPivot = InTransformPivot;
@@ -1215,6 +1217,26 @@ void SWidget::SetVisibility(TAttribute<EVisibility> InVisibility)
 	VisibilityAttribute.Assign(*this, MoveTemp(InVisibility));
 }
 
+void SWidget::SetClipping(EWidgetClipping InClipping)
+{
+	if (Clipping != InClipping)
+	{
+		Clipping = InClipping;
+		OnClippingChanged();
+		// @todo - Fast path should this be Paint?
+		Invalidate(EInvalidateWidgetReason::Layout);
+	}
+}
+
+void SWidget::SetPixelSnapping(EWidgetPixelSnapping InPixelSnappingMethod)
+{
+	if (PixelSnappingMethod != InPixelSnappingMethod)
+	{
+		PixelSnappingMethod = InPixelSnappingMethod;
+		Invalidate(EInvalidateWidget::Paint);
+	}
+}
+
 bool SWidget::IsFastPathVisible() const
 {
 	return FastPathProxyHandle.GetWidgetVisibility(this).IsVisible();
@@ -1472,6 +1494,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	PersistentState.DesktopGeometry = DesktopSpaceGeometry;
 	PersistentState.WidgetStyle = InWidgetStyle;
 	PersistentState.CullingBounds = MyCullingRect;
+	PersistentState.InitialPixelSnappingMethod = OutDrawElements.GetPixelSnappingMethod();
 
 	const int32 IncomingUserIndex = Args.GetHittestGrid().GetUserIndex();
 	ensure(IncomingUserIndex <= std::numeric_limits<int8>::max()); // shorten to save memory
@@ -1507,6 +1530,12 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 		OutDrawElements.PushClip(ClippingZone);
 	}
 
+	const bool bNewPixelSnappingMethod = PixelSnappingMethod != EWidgetPixelSnapping::Inherit;
+	
+	if (bNewPixelSnappingMethod)
+	{
+		OutDrawElements.PushPixelSnappingMethod(PixelSnappingMethod);
+	}
 
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BeginWidgetPaint.Broadcast(this, UpdatedArgs, AllottedGeometry, CullingBounds, OutDrawElements, LayerId);
@@ -1624,6 +1653,10 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 		OutDrawElements.PopClip();
 	}
 
+	if (bNewPixelSnappingMethod)
+	{
+		OutDrawElements.PopPixelSnappingMethod();
+	}
 
 #if PLATFORM_UI_NEEDS_FOCUS_OUTLINES
 	// Check if we need to show the keyboard focus ring, this is only necessary if the widget could be focused.

@@ -247,6 +247,12 @@ FWidgetProxy::FUpdateResult FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, F
 			}
 		}
 	}
+
+	if (MyState.InitialPixelSnappingMethod != EWidgetPixelSnapping::Inherit)
+	{
+		OutDrawElements.PushPixelSnappingMethod(MyState.InitialPixelSnappingMethod);
+	}
+	
 	const int32 NewLayerId = WidgetPtr->Paint(UpdatedArgs, MyState.AllottedGeometry, MyState.CullingBounds, OutDrawElements, MyState.LayerId, MyState.WidgetStyle, MyState.bParentEnabled);
 
 	PaintArgs.GetHittestGrid().SetUserIndex(PrevUserIndex);
@@ -258,6 +264,11 @@ FWidgetProxy::FUpdateResult FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, F
 		check(StartingClipIndex == OutDrawElements.GetClippingIndex());
 	}
 	
+	if (MyState.InitialPixelSnappingMethod != EWidgetPixelSnapping::Inherit)
+	{
+		OutDrawElements.PopPixelSnappingMethod();
+	}
+
 	OutDrawElements.SetIsInGameLayer(MyState.bIsInGameLayer);
 	return FUpdateResult{ PrevLayerId, NewLayerId };
 }

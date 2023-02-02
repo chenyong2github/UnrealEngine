@@ -19,6 +19,7 @@
 #include "Rendering/SlateRenderBatch.h"
 #include "DrawElementTextOverflowArgs.h"
 #include "ElementBatcher.h"
+#include "Widgets/WidgetPixelSnapping.h"
 #include "Types/SlateVector2.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
@@ -580,6 +581,14 @@ public:
 	const FSlateClippingManager& GetClippingManager() const { return ClippingManager; }
 
 	//--------------------------------------------------------------------------
+	// PIXEL SNAPPING
+	//--------------------------------------------------------------------------
+
+	SLATECORE_API int32 PushPixelSnappingMethod(EWidgetPixelSnapping InPixelSnappingMethod);
+	SLATECORE_API void PopPixelSnappingMethod();
+	SLATECORE_API EWidgetPixelSnapping GetPixelSnappingMethod() const;
+	
+	//--------------------------------------------------------------------------
 	// DEFERRED PAINTING
 	//--------------------------------------------------------------------------
 
@@ -692,6 +701,9 @@ private:
 	/**  */
 	FSlateClippingManager ClippingManager;
 
+	/** Manages what pixel snapping method should be applied */
+	TArray<EWidgetPixelSnapping, TInlineAllocator<4>> PixelSnappingMethodStack;
+	
 	/**
 	 * Some widgets want their logical children to appear at a different "layer" in the physical hierarchy.
 	 * We accomplish this by deferring their painting.

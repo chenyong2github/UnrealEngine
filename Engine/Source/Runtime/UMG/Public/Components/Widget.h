@@ -22,6 +22,7 @@
 #include "UObject/UObjectThreadContext.h"
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/WidgetNavigation.h"
+#include "Widgets/WidgetPixelSnapping.h"
 
 #include "Widget.generated.h"
 
@@ -415,7 +416,7 @@ public:
 	 * performance cost to clipping.  Do not enable clipping unless a panel actually needs to prevent
 	 * content from showing up outside its bounds.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Clipping")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Rendering")
 	EWidgetClipping Clipping;
 
 	UE_DEPRECATED(5.1, "Direct access to Visibility is deprecated. Please use the getter or setter.")
@@ -425,8 +426,13 @@ public:
 
 	UE_DEPRECATED(5.1, "Direct access to RenderOpacity is deprecated. Please use the getter or setter.")
 	/** The opacity of the widget */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter="GetRenderOpacity", BlueprintSetter="SetRenderOpacity", Category="Behavior")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter="GetRenderOpacity", BlueprintSetter="SetRenderOpacity", Category="Rendering")
 	float RenderOpacity;
+
+private:
+	/** If the widget will draw snapped to the nearest pixel.  Improves clarity but might cause visibile stepping in animation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Rendering", meta=(AllowPrivateAccess = true))
+	EWidgetPixelSnapping PixelSnapping;
 
 private:
 	/** A custom set of accessibility rules for this widget. If null, default rules for the widget are used. */
@@ -585,6 +591,14 @@ public:
 	/** Sets the clipping state of this widget. */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	void SetClipping(EWidgetClipping InClipping);
+	
+	/** Gets the pixel snapping method of this widget. */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	EWidgetPixelSnapping GetPixelSnapping() const;
+
+	/** Sets the pixel snapping method of this widget. */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetPixelSnapping(EWidgetPixelSnapping InPixelSnapping);
 
 	/** Sets the forced volatility of the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
