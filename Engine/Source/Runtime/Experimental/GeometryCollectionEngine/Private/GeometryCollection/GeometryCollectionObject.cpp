@@ -941,6 +941,7 @@ void UGeometryCollection::SetEnableNanite(bool bValue)
 		EnableNanite = bValue;
 		NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 
+#if WITH_EDITOR
 		if (EnableNanite)
 		{
 			if (GeometryCollection)
@@ -948,6 +949,7 @@ void UGeometryCollection::SetEnableNanite(bool bValue)
 				NaniteData = UGeometryCollection::CreateNaniteData(GeometryCollection.Get());
 			}
 		}
+#endif
 	}
 }
 
