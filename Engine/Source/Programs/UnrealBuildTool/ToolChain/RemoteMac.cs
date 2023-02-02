@@ -711,6 +711,25 @@ namespace UnrealBuildTool
 			DownloadFile(OutputFile, Logger);
 		}
 
+		public void PrepareToDebug(string CookedDataDirectory, FileReference ProjectFile, ILogger Logger)
+        {
+			Logger.LogInformation("[Remote] Uploading the default uprojectdirs ...");
+			UploadFile(new FileReference("Default.uprojectdirs"), Logger);
+
+			Logger.LogInformation("[Remote] Generating an Xcode Project file...");
+			string CommandLine = EscapeShellArgument(GetRemotePath(Unreal.EngineDirectory));
+			CommandLine += "/Build/BatchFiles/Mac/GenerateProjectFiles.sh";
+			StringBuilder BuildCommandLine = new StringBuilder(CommandLine);			
+			
+			Execute(GetRemotePath(Unreal.RootDirectory), CommandLine, Logger);
+
+			Logger.LogInformation("[Remote] Uploading cooked data directory...");
+			Logger.LogInformation(CookedDataDirectory);
+			UploadDirectory(new DirectoryReference(CookedDataDirectory), Logger);
+
+			Logger.LogInformation("An Xcode project file has been generated on your remote Mac at the above address. Please access it to debug your IPA.");
+		}
+
 		/// <summary>
 		/// Convers a remote path into local form
 		/// </summary>

@@ -68,6 +68,7 @@ protect /Binaries/TVOS/
 - /Binaries/ThirdParty/DotNet/**
 + /Binaries/ThirdParty/VisualStudio/
 + /Binaries/ThirdParty/VisualStudio/**
++ /Binaries/ThirdParty/fastJSON/***
 + /Binaries/ThirdParty/Intel/
 + /Binaries/ThirdParty/Intel/TBB/
 + /Binaries/ThirdParty/Intel/TBB/Mac/
@@ -154,9 +155,7 @@ protect /Saved/
 + /Source/Programs/DotNETCommon/
 + /Source/Programs/UnrealBuildTool/
 + /Source/Programs/Shared/
-+ /Source/Programs/Shared/EpicGames.Core/
-+ /Source/Programs/Shared/EpicGames.Build/
-+ /Source/Programs/Shared/EpicGames.UHT/
++ /Source/Programs/Shared/EpicGames.*/
 - /Source/Programs/Shared/*/
 + /Source/Programs/UnrealPak/
 + /Source/Programs/UnrealHeaderTool/
@@ -170,10 +169,7 @@ protect /Saved/
 protect /Source/Programs/DotNETCommon/obj/**
 protect /Source/Programs/DotNETCommon/BuildUtilities/bin/**
 protect /Source/Programs/UnrealBuildTool/obj/**
-protect /Source/Programs/Shared/EpicGames.Core/obj/**
-protect /Source/Programs/Shared/EpicGames.Core/bin/**
-protect /Source/Programs/Shared/EpicGames.Build/obj/**
-protect /Source/Programs/Shared/EpicGames.Build/bin/**
+protect /Source/Programs/Shared/EpicGames.*/***
 
 # Source/ThirdParty: Allow specific file types
 + /Source/ThirdParty/**/
@@ -187,6 +183,7 @@ protect /Source/Programs/Shared/EpicGames.Build/bin/**
 + /Source/ThirdParty/**.inl
 + /Source/ThirdParty/**.a
 + /Source/ThirdParty/**.dylib
++ /Source/ThirdParty/**.plist
 + /Source/ThirdParty/**.embeddedframework.zip
 + /Source/ThirdParty/libJPG/*.cpp
 + /Source/ThirdParty/libSampleRate/**.cpp

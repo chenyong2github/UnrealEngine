@@ -14,7 +14,6 @@ namespace AutomationScripts
 	{
 		public override void ExecuteBuild()
 		{
-			LogInformation("======= WrangleContentForDebugging - Start =======");
 
 			if (ParseParam("usage"))
 			{
@@ -22,12 +21,14 @@ namespace AutomationScripts
 			}
 
 			FileReference ProjectFile = new FileReference(ParseParamValue("ProjectFilePath=", null));
-			//ProjectFile = ParseProjectParam();
 			var Params = new ProjectParams
 			(
 				Command: this,
 				RawProjectPath: ProjectFile
 			);
+
+			LogInformation("======= WrangleContentForDebugging - Start =======");
+
 			var SC = Project.CreateDeploymentContext(Params, false);
 
 			//Project newProject;

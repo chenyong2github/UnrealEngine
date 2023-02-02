@@ -513,6 +513,7 @@ public:
 		}
         else if (Mode == EPrepareContentMode::PrepareForDebugging)
          {
+#if PLATFORM_MAC || PLATFORM_WINDOWS
              if (IniPlatformName == TEXT("IOS") || IniPlatformName == TEXT("TvOS"))
              {
                  FString CommandLine = FString::Printf(TEXT("WrangleContentForDebugging -platform=%s -ProjectFilePath=%s"), *IniPlatformName.ToString().ToLower(), *ProjectPath);
@@ -520,8 +521,8 @@ public:
                  FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, ContentPrepDescription, ContentPrepTaskName, ContentPrepIcon, &AnalyticsParamArray);
              
                  return;
-
              }
+#endif
  		}
 		else if (Mode == EPrepareContentMode::CookOnly)
 		{
@@ -1119,7 +1120,7 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
             Section.AddMenuEntry(
                                  NAME_None,
                                  LOCTEXT("Turnkey_PrepareForDebugging", "Prepare For Debugging"),
-                                 LOCTEXT("TurnkeyTooltip_PrepareForDebuggingIOS", "Prepare this project for debugging. Expects an IPA package with the same name as the project file in the Build/IOS/ folder."),
+                                 LOCTEXT("TurnkeyTooltip_PrepareForDebuggingIOS", "Prepare this project for debugging. Expects an IPA package with the same name as the project file in the Binaries/IOS/ folder."),
                                  FSlateIcon(),
                                  FUIAction(
                                            FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging),
@@ -1132,7 +1133,7 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
             Section.AddMenuEntry(
                                  NAME_None,
                                  LOCTEXT("Turnkey_PrepareForDebugging", "Prepare For Debugging"),
-                                 LOCTEXT("TurnkeyTooltip_PrepareForDebuggingTvOS", "Prepare this project for debugging. Expects an IPA package with the same name as the project file in the Build/TVOS/ folder."),
+                                 LOCTEXT("TurnkeyTooltip_PrepareForDebuggingTvOS", "Prepare this project for debugging. Expects an IPA package with the same name as the project file in the Binaries/TVOS/ folder."),
                                  FSlateIcon(),
                                  FUIAction(
                                            FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging),
@@ -1140,6 +1141,23 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
                                            )
                                  );
         }
+#elif PLATFORM_WINDOWS
+		if (IniPlatformName.ToString() == "IOS" || IniPlatformName.ToString() == "TvOS")
+		{
+
+			FString Tooltip = "";
+			
+			Section.AddMenuEntry(
+				NAME_None,
+				LOCTEXT("Turnkey_PrepareForDebugging", "Prepare For Debugging"),
+				FText::Format(LOCTEXT("TurnkeyTooltip_PrepareForDebugging", "Expects a working remote toolchain and an IPA package with the same name as the project file in the Binaries/ {0} / folder."), FText::FromString(IniPlatformName.ToString().ToUpper())),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging),
+					FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanCookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging)
+				)
+			);
+		}
 #endif
 
 		UProjectPackagingSettings* PackagingSettings = FTurnkeySupportCallbacks::GetPackagingSettingsForPlatform(IniPlatformName);

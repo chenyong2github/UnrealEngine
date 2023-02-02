@@ -182,6 +182,19 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Prepare the build and project on a Remote Mac to be able to debug an iOS or tvOS package built remotely
+		/// </summary>
+		/// <param name="ClientPlatform">TargetPlatform, iOS or tvOS</param>
+		/// <param name="ProjectFile">Location of .uproject file</param>
+		/// <param name="Logger">A logger</param>
+		/// <returns></returns>
+		public static void PrepareRemoteMacForDebugging(string ClientPlatform, FileReference ProjectFile, ILogger Logger)
+        {
+			RemoteMac Remote = new RemoteMac(ProjectFile, Logger);
+			Remote.PrepareToDebug(ClientPlatform, ProjectFile, Logger);
+		}
+
+		/// <summary>
 		/// Reads the per-platform .PackageVersionCounter file to get a version, and modifies it with updated value so that next build will get new version
 		/// </summary>
 		/// <param name="UProjectFile">Location of .uproject file (or null for the engine project)</param>
@@ -305,7 +318,7 @@ namespace UnrealBuildTool
 				if (bAutomaticSigning)
 				{
 					Arguments.Add("CODE_SIGN_IDENTITY=" + (bForDistribution ? "\"iPhone Distribution\"" : "\"iPhone Developer\""));
-					Arguments.Add("CODE_SIGN_STYLE=\"Automatic\"");
+					Arguments.Add("CODE_SIGN_STYLE=\"Automatic\"");
 					Arguments.Add("-allowProvisioningUpdates");
 					Arguments.Add($"DEVELOPMENT_TEAM={Team}");
 				}
