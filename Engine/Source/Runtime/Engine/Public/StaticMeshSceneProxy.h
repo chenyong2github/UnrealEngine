@@ -224,8 +224,12 @@ protected:
 	float OverlayMaterialMaxDrawDistance;
 
 #if RHI_RAYTRACING
-	bool bSupportRayTracing;
-	bool bDynamicRayTracingGeometry;
+	void CreateDynamicRayTracingGeometries();
+	void ReleaseDynamicRayTracingGeometries();
+
+	bool bSupportRayTracing : 1;
+	bool bDynamicRayTracingGeometry : 1;
+	bool bNeedsDynamicRayTracingGeometries : 1;
 	TArray<FRayTracingGeometry, TInlineAllocator<MAX_MESH_LOD_COUNT>> DynamicRayTracingGeometries;
 	TArray<FMeshBatch> CachedRayTracingMaterials;
 	int16 CachedRayTracingMaterialsLODIndex = INDEX_NONE;
