@@ -1203,7 +1203,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 368;
+	static const int32 CurrentSupportedVersion = 369;
 
 public:
 
@@ -1329,6 +1329,11 @@ public:
 	UPROPERTY()
 	TMap<FString, FParameterUIData> ParameterUIDataMap;
 
+	/** Textures marked as low priority will generate defaulted resident mips (if texture streaming is enabled).
+	  * Generating defaulted resident mips greatly reduce initial generation times. */
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	TArray<FName> LowPriorityTextures;
+
 	/** Stores all the state UI metadata information for all the dependencies of this Customizable Object */
 	UPROPERTY()
 	TMap<FString, FParameterUIData> StateUIDataMap;
@@ -1407,6 +1412,9 @@ public:
 
 	/** Modify the provided mutable parameters so that the forced values for the given customizable object state are applied. */
 	void ApplyStateForcedValuesToParameters(int32 State, mu::Parameters* Parameters);
+
+	/** Return the names used by mutable to identify which mu::Image should be considered of LowPriority. */
+	void GetLowPriorityTextureNames(TArray<FString>& OutTextureNames);
 
 #if WITH_EDITOR
 

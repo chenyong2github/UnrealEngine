@@ -74,7 +74,7 @@ namespace mu
 
         IF_COUNT
 	};
-
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(EImageFormat);
 
 	struct MUTABLERUNTIME_API FImageDesc
 	{

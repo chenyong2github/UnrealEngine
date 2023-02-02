@@ -1468,6 +1468,25 @@ void UCustomizableObject::ApplyStateForcedValuesToParameters( int32 State, mu::P
 
 }
 
+
+void UCustomizableObject::GetLowPriorityTextureNames(TArray<FString>& OutTextureNames)
+{
+	OutTextureNames.Reset(LowPriorityTextures.Num());
+
+	if (!LowPriorityTextures.IsEmpty())
+	{
+		const int32 ImageCount = ImageProperties.Num();
+		for (int32 ImageIndex = 0; ImageIndex < ImageCount; ++ImageIndex)
+		{
+			if (LowPriorityTextures.Find(FName(ImageProperties[ImageIndex].TextureParameterName)) != INDEX_NONE)
+			{
+				OutTextureNames.Add(FString::FromInt(ImageIndex));
+			}
+		}
+	}
+}
+
+
 #if WITH_EDITOR
 void UCustomizableObject::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext)
 {

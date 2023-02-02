@@ -920,14 +920,7 @@ namespace mu
 			&&
 			GetImageFormatData(m_base->GetFormat()).m_channels > 3)
 		{
-			// If the alpha channel is all white, we don't need to compress in a format with
-			// alpha support, as the default value is always white in shaders, and mutable
-			// code. This assumption exist in other commercial engines as well.
-			bool hasNonWhiteAlpha = !m_base->IsFullAlpha();
-			if (hasNonWhiteAlpha)
-			{
-				targetFormat = Args.formatIfAlpha;
-			}
+			targetFormat = Args.formatIfAlpha;
 		}
 
 		if (targetFormat != EImageFormat::IF_NONE)

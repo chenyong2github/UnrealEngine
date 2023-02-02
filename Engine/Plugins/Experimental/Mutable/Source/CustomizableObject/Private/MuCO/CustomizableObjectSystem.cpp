@@ -705,6 +705,13 @@ static FAutoConsoleVariableRef CVarEnableOnlyGenerateRequestedLODs(
 	TEXT("If 1 or greater, Only the RequestedLODLevels will be generated. If 0, all LODs will be build."),
 	ECVF_Default);
 
+int32 FCustomizableObjectSystemPrivate::EnableSkipGenerateResidentMips = 1;
+
+static FAutoConsoleVariableRef CVarSkipGenerateResidentMips(
+	TEXT("mutable.EnableSkipGenerateResidentMips"), FCustomizableObjectSystemPrivate::EnableSkipGenerateResidentMips,
+	TEXT("If 1 or greater, resident mip generation will be optional. If 0, resident mips will be always generated"),
+	ECVF_Default);
+
 
 /** Update the given Instance Skeletal Meshes and call its callbacks. */
 void UpdateSkeletalMesh(UCustomizableObjectInstance* CustomizableObjectInstance, const FDescriptorRuntimeHash& UpdatedDescriptorRuntimeHash)
@@ -1406,9 +1413,10 @@ namespace impl
 		{
 			MUTABLE_CPUPROFILER_SCOPE(GetImage);
 
+			mu::FImageDesc ImageDesc;
+
 			// This should only be done when using progressive images, since GetImageDesc does some actual processing.
 			{
-				mu::FImageDesc ImageDesc;
 				System->GetImageDesc(OperationData->InstanceID, Image.ImageID, ImageDesc);
 				Image.FullImageSizeX = ImageDesc.m_size[0];
 				Image.FullImageSizeY = ImageDesc.m_size[1];
@@ -1437,7 +1445,17 @@ namespace impl
 				int32 MinMipsInImage = FMath::Min(FullLODCount, UTexture::GetStaticMinTextureResidentMipCount());
 				int32 MaxMipsToSkip = FullLODCount - MinMipsInImage;
 				int32 MipsToSkip = FMath::Min(MaxMipsToSkip, OperationData->MipsToSkip);
-				Image.Image = System->GetImage(OperationData->InstanceID, Image.ImageID, MipsToSkip, Image.LOD);
+
+				if (MipsToSkip > 0 && CustomizableObjectSystemPrivateData->EnableSkipGenerateResidentMips != 0 && OperationData->LowPriorityTextures.Find(Image.Name) != INDEX_NONE)
+				{
+					const int32 MipSizeX = FMath::Max(Image.FullImageSizeX >> MipsToSkip, 1);
+					const int32 MipSizeY = FMath::Max(Image.FullImageSizeY >> MipsToSkip, 1);
+					Image.Image = new mu::Image(MipSizeX, MipSizeY, FullLODCount - MipsToSkip, ImageDesc.m_format);
+				}
+				else
+				{
+					Image.Image = System->GetImage(OperationData->InstanceID, Image.ImageID, MipsToSkip, Image.LOD);
+				}
 
 				// We need one mip or the complete chain. Otherwise there was a bug.
 				check(Image.Image);
@@ -2229,6 +2247,7 @@ namespace impl
 		CurrentOperationData->MipsToSkip = Operation->MipsToSkip;
 		CurrentOperationData->MutableParameters = Parameters;
 		CurrentOperationData->State = CandidateInstance->GetState();
+		CustomizableObject->GetLowPriorityTextureNames(CurrentOperationData->LowPriorityTextures);
 
 		if (System->IsOnlyGenerateRequestedLODsEnabled() && System->CurrentInstanceLODManagement->IsOnlyGenerateRequestedLODLevelsEnabled() && !CandidateInstancePrivateData->HasCOInstanceFlags(ForceGenerateAllLODs))
 		{

@@ -5328,7 +5328,7 @@ namespace mu
 			check(item.Stage == 0);
 			OP::ResourceConstantArgs args = program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
 			int32 ImageIndex = args.value;
-			m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_NONE;	// TODO: precalculate if necessary
+			m_heapImageDesc[item.CustomState].m_format = program.m_constantImages[ImageIndex].ImageFormat;
 			m_heapImageDesc[item.CustomState].m_size[0] = program.m_constantImages[ImageIndex].ImageSizeX;
 			m_heapImageDesc[item.CustomState].m_size[1] = program.m_constantImages[ImageIndex].ImageSizeY;
 			m_heapImageDesc[item.CustomState].m_lods = program.m_constantImages[ImageIndex].LODCount;
@@ -5687,6 +5687,7 @@ namespace mu
 				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[item.CustomState];
 				FImageSize destSize(uint16(ImageSizeInPixels.X), uint16(ImageSizeInPixels.Y));
 				ResultAndBaseDesc.m_size = destSize;
+				ResultAndBaseDesc.m_format = args.format;
 				
 				if (args.generateMipmaps)
 				{
@@ -5882,7 +5883,7 @@ namespace mu
 			m_heapImageDesc[item.CustomState].m_size[0] = args.size[0];
 			m_heapImageDesc[item.CustomState].m_size[1] = args.size[1];
 			m_heapImageDesc[item.CustomState].m_lods = 1;
-			m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_RGB_UBYTE;
+			m_heapImageDesc[item.CustomState].m_format = args.format;
 			GetMemory().SetValidDesc(item);
 			break;
 		}

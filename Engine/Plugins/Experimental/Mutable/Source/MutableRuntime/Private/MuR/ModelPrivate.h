@@ -60,6 +60,7 @@ namespace mu
 		int32 LODCount = 0;
 		uint16 ImageSizeX = 0;
 		uint16 ImageSizeY = 0;
+		EImageFormat ImageFormat = EImageFormat::IF_NONE;
 	};
 	MUTABLE_DEFINE_POD_SERIALISABLE(FImageLODRange);
 
@@ -393,7 +394,7 @@ namespace mu
 				}
 			}
 
-			int32 ImageIndex = m_constantImages.Add({ FirstLODIndexIndex, MipsToStore, pImage->GetSizeX(), pImage->GetSizeY() });
+			int32 ImageIndex = m_constantImages.Add({ FirstLODIndexIndex, MipsToStore, pImage->GetSizeX(), pImage->GetSizeY(), pImage->GetFormat() });
 			return ImageIndex;
 		}
 
