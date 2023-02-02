@@ -7,6 +7,9 @@
 
 #include "CineCameraRigsSettings.generated.h"
 
+class UMaterialInterface;
+class UTexture2D;
+
 UCLASS(BlueprintType, Config = CineCameraRigs)
 class CINECAMERARIGS_API UCineCameraRigRailSettings : public UObject
 {
