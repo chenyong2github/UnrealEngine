@@ -178,6 +178,9 @@ class ENGINE_API UAvoidanceManager : public UObject, public FSelfRegisteringExec
 	/** Used to manually mark data associated with given ID as 'dead' (and reusable) */
 	void RemoveAvoidanceObject(const int32 AvoidanceUID);
 
+	/** Returns true if the avoidance objects are auto purged in RemoveOutdatedObjects */
+	bool IsAutoPurgeEnabled() const { return bAutoPurgeOutdatedObjects; }
+
 protected:
 	//~ Begin FExec Interface
 	virtual bool Exec_Dev(UWorld* Inworld,const TCHAR* Cmd,FOutputDevice& Ar) override;
@@ -217,6 +220,9 @@ protected:
 	/** If set then UAvoidanceManager::RemoveOutdatedObjects is responsisble
 	 *	for removing dead entries in AvoidanceObjects. If set to FALSE then the
 	 *	dead agents need to be removed manually with RemoveAvoidanceObject call */
+	uint32 bAutoPurgeOutdatedObjects : 1;
+
+	UE_DEPRECATED(5.3, "Please use bAutoPurgeOutdatedObjects instead.")
 	uint32 bAutoPurceOutdatedObjects : 1;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

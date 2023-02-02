@@ -10788,7 +10788,7 @@ void UCharacterMovementComponent::SetAvoidanceEnabled(bool bEnable)
 	{
 		bUseRVOAvoidance = bEnable;
 
-		// reset id, RegisterMovementComponent call is required to initialize update timers in avoidance manager
+		const int32 OldAvoidanceUID = AvoidanceUID;
 		AvoidanceUID = 0;
 
 		// this is a safety check - it's possible to not have CharacterOwner at this point if this function gets
@@ -10796,10 +10796,21 @@ void UCharacterMovementComponent::SetAvoidanceEnabled(bool bEnable)
 		ensure(GetCharacterOwner());
 		if (GetCharacterOwner() != nullptr)
 		{
-			UAvoidanceManager* AvoidanceManager = GetWorld()->GetAvoidanceManager();
-			if (AvoidanceManager && bEnable)
+			UWorld* World = GetWorld();
+			UAvoidanceManager* AvoidanceManager = World ? World->GetAvoidanceManager() : nullptr;
+
+			if (AvoidanceManager)
 			{
-				AvoidanceManager->RegisterMovementComponent(this, AvoidanceWeight);
+				if (bEnable)
+				{
+					AvoidanceManager->RegisterMovementComponent(this, AvoidanceWeight);
+				}
+				else if (!AvoidanceManager->IsAutoPurgeEnabled())
+				{
+					// When disabling avoidance the object needs to be removed immediately if the manager isn't set to auto purge. 
+					// Otherwise we would leak the object since there isn't anything left to remove it.
+					AvoidanceManager->RemoveAvoidanceObject(OldAvoidanceUID);
+				}
 			}
 		}
 	}

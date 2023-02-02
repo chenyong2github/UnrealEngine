@@ -60,7 +60,7 @@ UAvoidanceManager::UAvoidanceManager(const FObjectInitializer& ObjectInitializer
 	ArtificialRadiusExpansion = 1.5f;
 	TestHeightDifference_DEPRECATED = 500.0f;
 	bRequestedUpdateTimer = false;
-	bAutoPurceOutdatedObjects = true;
+	bAutoPurgeOutdatedObjects = true;
 	HeightCheckMargin = 10.0f;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -94,7 +94,7 @@ void UAvoidanceManager::RemoveAvoidanceObject(const int32 AvoidanceUID)
 
 void UAvoidanceManager::RemoveOutdatedObjects()
 {
-	if (bAutoPurceOutdatedObjects == false)
+	if (bAutoPurgeOutdatedObjects == false)
 	{
 		// will be handled manually
 		return;
