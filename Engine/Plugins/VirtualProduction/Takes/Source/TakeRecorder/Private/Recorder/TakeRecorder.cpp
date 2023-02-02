@@ -1251,6 +1251,14 @@ void UTakeRecorder::StopInternal(const bool bCancelled)
 		SequenceAsset = nullptr;
 	}
 
+	if (OverlayWidget)
+	{
+		OverlayWidget->RemoveFromParent();
+		OverlayWidget->RemoveFromRoot();
+		OverlayWidget->MarkAsGarbage();
+		OverlayWidget = nullptr;
+	}
+
 	if (SequenceAsset)
 	{
 		UPackage* const Package = SequenceAsset->GetOutermost();
