@@ -3,6 +3,7 @@
 #include "Graph/GraphHandle.h"
 #include "Graph/GraphElement.h"
 #include "Graph/GraphEdge.h"
+#include "Graph/GraphIsland.h"
 #include "Graph/GraphVertex.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GraphHandle)
