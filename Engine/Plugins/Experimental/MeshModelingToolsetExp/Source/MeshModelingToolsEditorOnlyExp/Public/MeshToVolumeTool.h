@@ -14,6 +14,8 @@
 #include "PreviewMesh.h"
 #include "PropertySets/OnAcceptProperties.h"
 #include "SingleSelectionTool.h"
+#include "ModelingOperators.h"
+#include "MeshOpPreviewHelpers.h"
 #include "MeshToVolumeTool.generated.h"
 
 /**
@@ -62,6 +64,8 @@ public:
 };
 
 
+using FDynamicMeshFaceArray = TArray<UE::Conversion::FDynamicMeshFace>;
+
 /**
  * Converts a mesh to a volume.
  *
@@ -69,7 +73,7 @@ public:
  * tool can be moved out of the editor-only section and put with VolumeToMeshTool.
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLYEXP_API UMeshToVolumeTool : public USingleSelectionMeshEditingTool
+class MESHMODELINGTOOLSEDITORONLYEXP_API UMeshToVolumeTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IGenericDataOperatorFactory<FDynamicMeshFaceArray>
 {
 	GENERATED_BODY()
 
@@ -84,6 +88,10 @@ public:
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
+	virtual bool CanAccept() const override;
+
+	// IGenericDataOperatorFactory API
+	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<FDynamicMeshFaceArray>> MakeNewOperator() override;
 
 protected:
 	UPROPERTY()
@@ -99,12 +107,10 @@ protected:
 	TObjectPtr<ULineSetComponent> VolumeEdgesSet;
 
 protected:
-	UE::Geometry::FDynamicMesh3 InputMesh;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
+	
+	TUniquePtr<TGenericDataBackgroundCompute<FDynamicMeshFaceArray>> Compute = nullptr;
 
-	void RecalculateVolume();
-	void UpdateLineSet();
-
-	bool bVolumeValid = false;
-	TArray<UE::Conversion::FDynamicMeshFace> Faces;
+	void UpdateLineSet(FDynamicMeshFaceArray& Faces);
 
 };
