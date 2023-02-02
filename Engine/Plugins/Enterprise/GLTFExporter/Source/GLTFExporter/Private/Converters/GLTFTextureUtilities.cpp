@@ -93,8 +93,8 @@ int32 FGLTFTextureUtilities::GetMipBias(const UTexture* Texture)
 
 FIntPoint FGLTFTextureUtilities::GetInGameSize(const UTexture* Texture)
 {
-	const int32 Width = Texture->GetSurfaceWidth();
-	const int32 Height = Texture->GetSurfaceHeight();
+	const int32 Width = static_cast<int32>(Texture->GetSurfaceWidth());
+	const int32 Height = static_cast<int32>(Texture->GetSurfaceHeight());
 
 	const int32 MipBias = GetMipBias(Texture);
 

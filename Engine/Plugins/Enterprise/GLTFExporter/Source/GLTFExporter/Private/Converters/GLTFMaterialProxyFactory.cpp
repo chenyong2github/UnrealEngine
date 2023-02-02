@@ -155,7 +155,7 @@ void FGLTFMaterialProxyFactory::SetProxyParameter(UMaterialInstanceConstant* Pro
 	}
 
 	ParameterInfo.Texture.Set(ProxyMaterial, Texture, true);
-	ParameterInfo.UVIndex.Set(ProxyMaterial, TextureInfo.TexCoord, true);
+	ParameterInfo.UVIndex.Set(ProxyMaterial, static_cast<float>(TextureInfo.TexCoord), true);
 	ParameterInfo.UVOffset.Set(ProxyMaterial, FLinearColor(TextureInfo.Transform.Offset.X, TextureInfo.Transform.Offset.Y, 0, 0), true);
 	ParameterInfo.UVScale.Set(ProxyMaterial, FLinearColor(TextureInfo.Transform.Scale.X, TextureInfo.Transform.Scale.Y, 0, 0), true);
 	ParameterInfo.UVRotation.Set(ProxyMaterial, TextureInfo.Transform.Rotation, true);

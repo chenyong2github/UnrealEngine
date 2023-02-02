@@ -272,9 +272,9 @@ void FGLTFDelayedSkeletalMeshTask::Process()
 	ValidateVertexBuffer(Builder, &VertexBuffer, *SkeletalMesh->GetName());
 
 	const TArray<FSkeletalMaterial>& MaterialSlots = FGLTFMeshUtilities::GetMaterials(SkeletalMesh);
-	const uint16 MaterialCount = MaterialSlots.Num();
+	const int32 MaterialCount = MaterialSlots.Num();
 
-	for (uint16 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
 		const FGLTFIndexArray SectionIndices = FGLTFMeshUtilities::GetSectionIndices(MeshLOD, MaterialIndex);
 		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, SectionIndices);

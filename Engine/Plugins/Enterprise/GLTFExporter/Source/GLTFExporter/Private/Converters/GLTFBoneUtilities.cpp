@@ -46,7 +46,7 @@ void FGLTFBoneUtilities::GetBoneIndices(const USkeleton* Skeleton, TArray<FBoneI
 
 	for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
 	{
-		OutBoneIndices[BoneIndex] = BoneIndex;
+		OutBoneIndices[BoneIndex] = static_cast<FBoneIndexType>(BoneIndex);
 	}
 }
 

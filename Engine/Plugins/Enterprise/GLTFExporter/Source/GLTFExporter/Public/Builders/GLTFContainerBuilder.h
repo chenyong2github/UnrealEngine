@@ -30,8 +30,8 @@ private:
 
 	static void WriteInt(FArchive& Archive, uint32 Value);
 	static void WriteData(FArchive& Archive, const TArray64<uint8>& Data);
-	static void WriteFill(FArchive& Archive, int32 Size, uint8 Value);
+	static void WriteFill(FArchive& Archive, uint32 Size, uint8 Value);
 
-	static int32 GetPaddedChunkSize(int32 Size);
-	static int32 GetTrailingChunkSize(int32 Size);
+	static uint32 GetPaddedChunkSize(uint64 Size);
+	static uint32 GetTrailingChunkSize(uint64 Size);
 };

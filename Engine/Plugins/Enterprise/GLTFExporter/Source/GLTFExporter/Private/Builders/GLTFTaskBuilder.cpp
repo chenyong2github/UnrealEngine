@@ -27,7 +27,8 @@ void FGLTFTaskBuilder::ProcessSlowTasks(FFeedbackContext* Context)
 		if (Context != nullptr)
 		{
 			const FText MessageFormat = GetPriorityMessageFormat(Priority);
-			FScopedSlowTask Progress(Tasks->Num(), FText::Format(MessageFormat, FText()), true, *Context);
+			const float AmountOfWork = static_cast<float>(Tasks->Num());
+			FScopedSlowTask Progress(AmountOfWork, FText::Format(MessageFormat, FText()), true, *Context);
 			Progress.MakeDialog();
 
 			for (TUniquePtr<FGLTFDelayedTask>& Task : *Tasks)

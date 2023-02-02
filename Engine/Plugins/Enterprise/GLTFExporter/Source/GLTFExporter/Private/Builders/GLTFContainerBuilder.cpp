@@ -116,20 +116,21 @@ void FGLTFContainerBuilder::WriteData(FArchive& Archive, const TArray64<uint8>& 
 	Archive.Serialize(const_cast<uint8*>(Data.GetData()), Data.Num());
 }
 
-void FGLTFContainerBuilder::WriteFill(FArchive& Archive, int32 Size, uint8 Value)
+void FGLTFContainerBuilder::WriteFill(FArchive& Archive, uint32 Size, uint8 Value)
 {
-	while (--Size >= 0)
+	while (Size != 0)
 	{
+		Size--;
 		Archive.Serialize(&Value, sizeof(Value));
 	}
 }
 
-int32 FGLTFContainerBuilder::GetPaddedChunkSize(int32 Size)
+uint32 FGLTFContainerBuilder::GetPaddedChunkSize(uint64 Size)
 {
-	return (Size + 3) & ~3;
+	return static_cast<uint32>((Size + 3) & ~3);
 }
 
-int32 FGLTFContainerBuilder::GetTrailingChunkSize(int32 Size)
+uint32 FGLTFContainerBuilder::GetTrailingChunkSize(uint64 Size)
 {
-	return (4 - (Size & 3)) & 3;
+	return static_cast<uint32>((4 - (Size & 3)) & 3);
 }
