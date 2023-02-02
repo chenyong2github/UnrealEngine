@@ -593,11 +593,9 @@ public:
 	void SetClipping(EWidgetClipping InClipping);
 	
 	/** Gets the pixel snapping method of this widget. */
-	UFUNCTION(BlueprintCallable, Category = "Widget")
 	EWidgetPixelSnapping GetPixelSnapping() const;
 
 	/** Sets the pixel snapping method of this widget. */
-	UFUNCTION(BlueprintCallable, Category = "Widget")
 	void SetPixelSnapping(EWidgetPixelSnapping InPixelSnapping);
 
 	/** Sets the forced volatility of the widget. */
