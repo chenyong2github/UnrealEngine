@@ -4,8 +4,9 @@
 
 #include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
+#include "UObject/CoreRedirects.h"
 #include "WidgetBlueprint.h"
-
+#include "WidgetBlueprintEditorUtils.h"
 
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Styling/SlateIconFinder.h"
@@ -29,7 +30,8 @@ FWidgetTemplateBlueprintClass::FWidgetTemplateBlueprintClass(const FAssetData& I
 		}
 		if (!ParentClassName.IsEmpty())
 		{
-			CachedParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
+			const FString RedirectedClassPath = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, FCoreRedirectObjectName(ParentClassName)).ToString();
+			CachedParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(RedirectedClassPath));
 		}
 	}
 }
@@ -40,28 +42,13 @@ FWidgetTemplateBlueprintClass::~FWidgetTemplateBlueprintClass()
 
 FText FWidgetTemplateBlueprintClass::GetCategory() const
 {
-	if ( WidgetClass.Get() )
+	if (WidgetClass.Get())
 	{
-		UUserWidget* DefaultUserWidget = WidgetClass->GetDefaultObject<UUserWidget>();
-		return DefaultUserWidget->GetPaletteCategory();
+		return FWidgetBlueprintEditorUtils::GetPaletteCategory(WidgetClass.Get());
 	}
 	else
 	{
-		//If the blueprint is unloaded we need to extract it from the asset metadata.
-		FText FoundPaletteCategoryText = WidgetAssetData.GetTagValueRef<FText>(GET_MEMBER_NAME_CHECKED(UWidgetBlueprint, PaletteCategory));
-		if (!FoundPaletteCategoryText.IsEmpty())
-		{
-			return FoundPaletteCategoryText;
-		}
-		else if (CachedParentClass.IsValid() && CachedParentClass->IsChildOf(UWidget::StaticClass()) && !CachedParentClass->IsChildOf(UUserWidget::StaticClass()))
-		{
-			return CachedParentClass->GetDefaultObject<UWidget>()->GetPaletteCategory();
-		}
-		else
-		{
-			auto DefaultUserWidget = UUserWidget::StaticClass()->GetDefaultObject<UUserWidget>();
-			return DefaultUserWidget->GetPaletteCategory();
-		}
+		return FWidgetBlueprintEditorUtils::GetPaletteCategory(WidgetAssetData, CachedParentClass.Get());
 	}
 }
 

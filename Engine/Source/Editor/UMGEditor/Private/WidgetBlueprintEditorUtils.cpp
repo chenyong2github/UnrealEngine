@@ -2615,7 +2615,7 @@ FText FWidgetBlueprintEditorUtils::GetPaletteCategory(const TSubclassOf<UWidget>
 
 FText FWidgetBlueprintEditorUtils::GetPaletteCategory(const FAssetData& WidgetAsset, const TSubclassOf<UWidget> NativeClass)
 {
-	//The asset can be a UBlueprint, a UWidgetBlueprint or a UWidgetBlueprintGeneratedClass
+	//The asset can be a UBlueprint, UBlueprintGeneratedClass, a UWidgetBlueprint or a UWidgetBlueprintGeneratedClass
 
 	if (UClass* WidgetAssetClass = WidgetAsset.GetClass(EResolveClass::No))
 	{

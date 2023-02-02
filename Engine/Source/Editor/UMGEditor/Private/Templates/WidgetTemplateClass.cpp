@@ -8,6 +8,8 @@
 #endif // WITH_EDITOR
 #include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
+#include "UObject/CoreRedirects.h"
+#include "WidgetBlueprintEditorUtils.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Styling/SlateIconFinder.h"
@@ -54,7 +56,9 @@ FWidgetTemplateClass::FWidgetTemplateClass(const FAssetData& InWidgetAssetData, 
 			}
 			if (!ParentClassName.IsEmpty())
 			{
-				CachedParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
+				const FString RedirectedClassPath = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, FCoreRedirectObjectName(ParentClassName)).ToString();
+				CachedParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(RedirectedClassPath));
+				ensure(CachedParentClass == nullptr || CachedParentClass->IsChildOf(UWidget::StaticClass()));
 			}
 		}
 	}
@@ -69,17 +73,11 @@ FText FWidgetTemplateClass::GetCategory() const
 {
 	if (WidgetClass.Get())
 	{
-		auto DefaultWidget = WidgetClass->GetDefaultObject<UWidget>();
-		return DefaultWidget->GetPaletteCategory();
-	}
-	else if (CachedParentClass.IsValid() && CachedParentClass->IsChildOf(UWidget::StaticClass()) && !CachedParentClass->IsChildOf(UUserWidget::StaticClass()))
-	{
-		return CachedParentClass->GetDefaultObject<UWidget>()->GetPaletteCategory();
+		return FWidgetBlueprintEditorUtils::GetPaletteCategory(WidgetClass.Get());
 	}
 	else
 	{
-		auto DefaultWidget = UWidget::StaticClass()->GetDefaultObject<UWidget>();
-		return DefaultWidget->GetPaletteCategory();
+		return FWidgetBlueprintEditorUtils::GetPaletteCategory(WidgetAssetData, CachedParentClass.Get());
 	}
 }
 
