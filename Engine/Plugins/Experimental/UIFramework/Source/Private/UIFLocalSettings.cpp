@@ -14,35 +14,46 @@ UUIFrameworkLocalSettings::UUIFrameworkLocalSettings()
 
 void UUIFrameworkLocalSettings::LoadResources() const
 {
-	Async(EAsyncExecution::TaskGraphMainThread, []()
-		{
-			const UUIFrameworkLocalSettings* Settings = GetDefault<UUIFrameworkLocalSettings>();
-			TArray<FSoftObjectPath> ObjectsToLoad;
-			ObjectsToLoad.Reserve(2);
-			ObjectsToLoad.Add(Settings->ErrorResource.ToSoftObjectPath());
-			ObjectsToLoad.Add(Settings->LoadingResource.ToSoftObjectPath());
-			UAssetManager::GetStreamableManager().RequestAsyncLoad(
-				ObjectsToLoad,
-				[]()
-				{
-					if (UObjectInitialized() && !IsEngineExitRequested())
-					{
-						UUIFrameworkLocalSettings* Default = GetMutableDefault<UUIFrameworkLocalSettings>();
-						Default->ErrorResourcePtr = Default->ErrorResource.Get();
-						if (Default->ErrorResourcePtr)
-						{
-							Default->ErrorResourcePtr->AddToRoot();
-						}
+	if (bResourceLoaded)
+	{
+		return;
+	}
+	bResourceLoaded = true;
 
-						Default->LoadingResourcePtr = Default->LoadingResource.Get();
-						if (Default->LoadingResourcePtr)
-						{
-							Default->LoadingResourcePtr->AddToRoot();
-						}
-					}
-				},
-				FStreamableManager::DefaultAsyncLoadPriority);
-		});
+	const UUIFrameworkLocalSettings* Settings = GetDefault<UUIFrameworkLocalSettings>();
+	TArray<FSoftObjectPath> ObjectsToLoad;
+	ObjectsToLoad.Reserve(2);
+	ObjectsToLoad.Add(Settings->ErrorResource.ToSoftObjectPath());
+	ObjectsToLoad.Add(Settings->LoadingResource.ToSoftObjectPath());
+	UAssetManager::GetStreamableManager().RequestAsyncLoad(
+		ObjectsToLoad,
+		[]()
+		{
+			if (UObjectInitialized() && !IsEngineExitRequested())
+			{
+				UUIFrameworkLocalSettings* Default = GetMutableDefault<UUIFrameworkLocalSettings>();
+				if (Default->ErrorResourcePtr)
+				{
+					Default->ErrorResourcePtr->RemoveFromRoot();
+				}
+				Default->ErrorResourcePtr = Default->ErrorResource.Get();
+				if (Default->ErrorResourcePtr)
+				{
+					Default->ErrorResourcePtr->AddToRoot();
+				}
+
+				if (Default->LoadingResourcePtr)
+				{
+					Default->LoadingResourcePtr->RemoveFromRoot();
+				}
+				Default->LoadingResourcePtr = Default->LoadingResource.Get();
+				if (Default->LoadingResourcePtr)
+				{
+					Default->LoadingResourcePtr->AddToRoot();
+				}
+			}
+		},
+		FStreamableManager::DefaultAsyncLoadPriority);
 }
 
 
@@ -55,6 +66,8 @@ FName UUIFrameworkLocalSettings::GetCategoryName() const
 void UUIFrameworkLocalSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+	bResourceLoaded = false;
 	LoadResources();
 }
 #endif

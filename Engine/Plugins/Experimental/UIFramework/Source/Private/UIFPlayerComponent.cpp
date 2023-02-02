@@ -6,6 +6,7 @@
 #include "Templates/NonNullPointer.h"
 #include "UIFModule.h"
 #include "Types/UIFWidgetOwner.h"
+#include "UIFLocalSettings.h"
 #include "UIFPresenter.h"
 #include "UIFWidget.h"
 
@@ -105,6 +106,10 @@ void UUIFrameworkPlayerComponent::InitializeComponent()
 	if (GetOwner()->HasAuthority())
 	{
 		WidgetTree.AuthorityAddAllWidgetsFromActorChannel();
+	}
+	else
+	{
+		GetDefault<UUIFrameworkLocalSettings>()->LoadResources();
 	}
 }
 

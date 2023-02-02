@@ -59,6 +59,7 @@ private:
 	//~ kept alive with by AddToRoot
 	TObjectPtr<UObject> ErrorResourcePtr;
 	TObjectPtr<UObject> LoadingResourcePtr;
+	mutable bool bResourceLoaded = false;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
