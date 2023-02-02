@@ -17,7 +17,6 @@ class USkeletalMesh;
 class USkeleton;
 class UStaticMesh;
 
-
 /**
 *	FFleshAssetEdit
 *     Structured RestCollection access where the scope
