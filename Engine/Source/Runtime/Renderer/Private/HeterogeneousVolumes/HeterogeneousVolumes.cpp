@@ -172,7 +172,8 @@ bool ShouldRenderHeterogeneousVolumes(
 )
 {
 	return IsHeterogeneousVolumesEnabled()
-		&& Scene != nullptr;
+		&& Scene != nullptr
+		&& DoesPlatformSupportHeterogeneousVolumes(Scene->GetShaderPlatform());
 }
 
 bool ShouldRenderHeterogeneousVolumesForView(
