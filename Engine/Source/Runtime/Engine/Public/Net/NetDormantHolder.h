@@ -13,7 +13,7 @@ class FNetworkObjectList;
 namespace UE::Net
 {
 	/** Function definition allowed in the ForEach functions */
-	typedef TFunctionRef<void(AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)> FExecuteForEachDormantReplicator;
+	typedef TFunctionRef<void(FObjectKey OwnerActorKey, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)> FExecuteForEachDormantReplicator;
 }
 
 namespace UE::Net::Private
@@ -47,10 +47,10 @@ struct FDormantObjectReplicator
 */
 struct FActorDormantReplicators
 {
-	explicit FActorDormantReplicators(AActor* InOwnerActor) : OwnerActor(InOwnerActor) {}
+	explicit FActorDormantReplicators(AActor* InOwnerActor) : OwnerActorKey(InOwnerActor) {}
 
-	bool operator==(const FActorDormantReplicators& rhs) const { return OwnerActor == rhs.OwnerActor; }
-	bool operator==(AActor* rhs) const { return OwnerActor == rhs; }
+	bool operator==(const FActorDormantReplicators& rhs) const { return OwnerActorKey == rhs.OwnerActorKey; }
+	bool operator==(FObjectKey rhs) const { return OwnerActorKey == rhs; }
 
 	void CountBytes(FArchive& Ar) const { DormantReplicators.CountBytes(Ar); }
 
@@ -63,7 +63,7 @@ struct FActorDormantReplicators
 	};
 
 	/** The dormant actor who owns all the different object replicators */
-	AActor* OwnerActor = nullptr;
+	FObjectKey OwnerActorKey;
 
 	typedef TSet<FDormantObjectReplicator, FDormantObjectReplicatorKeyFuncs> FObjectReplicatorSet;
 	/** List of all object replicates stored for this dormant actor */
@@ -141,11 +141,6 @@ struct FDormantReplicatorHolder
 
 	/**
 	* Iterate over all the stored object replicators and destroy any that are tied to a replicated object that is now considered invalid.
-	*/
-	void CleanupStaleObjects();
-
-	/**
-	* Iterate over all the stored object replicators and destroy any that are tied to a replicated object that is now considered invalid.
 	* This version will decrement the subobject references stored in the networkobject list too.
 	* 
 	* @param FNetworkObjectList The netdriver's network object list
@@ -171,9 +166,9 @@ struct FDormantReplicatorHolder
 	void CountBytes(FArchive& Ar) const;
 
 	/** KeyFuncs that make it so the TSet can only needs a simple AActor pointer for the Key */
-	struct FActorDormantReplicatorsKeyFuncs : BaseKeyFuncs<FActorDormantReplicators, AActor*, false>
+	struct FActorDormantReplicatorsKeyFuncs : BaseKeyFuncs<FActorDormantReplicators, FObjectKey, false>
 	{
-		static KeyInitType GetSetKey(ElementInitType Element) { return Element.OwnerActor; }
+		static KeyInitType GetSetKey(ElementInitType Element) { return Element.OwnerActorKey; }
 		static bool Matches(KeyInitType lhs, KeyInitType rhs) { return lhs == rhs; }
 		static uint32 GetKeyHash(KeyInitType Key) { return GetTypeHash(Key); }
 	};

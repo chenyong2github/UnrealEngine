@@ -1510,6 +1510,8 @@ protected:
 
 	void CleanupDormantActorState();
 
+	void ClearDormantReplicatorsReference();
+
 	/** During cleanup this will destroy the actor owned by this connection (generally a PlayerController) */
 	ENGINE_API virtual void DestroyOwningActor();
 

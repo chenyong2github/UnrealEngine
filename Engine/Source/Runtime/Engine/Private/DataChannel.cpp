@@ -3158,6 +3158,10 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 		}
 	}
 
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	TArray<TWeakObjectPtr<UObject>, TInlineAllocator<16>> ReferencesToRemove;
+#endif
+
 	for (auto RepComp = ReplicationMap.CreateIterator(); RepComp; ++RepComp)
 	{
 		TSharedRef<FObjectReplicator>& ObjectReplicator = RepComp.Value();
@@ -3166,8 +3170,9 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 			if (!Connection->Driver->IsServer())
 			{
 #if UE_REPLICATED_OBJECT_REFCOUNTING
-				Connection->Driver->GetNetworkObjectList().RemoveSubObjectChannelReference(Actor, ObjectReplicator.Get().GetWeakObjectPtr(), this);
+				ReferencesToRemove.Add(ObjectReplicator.Get().GetWeakObjectPtr());
 #endif
+
 				RepComp.RemoveCurrent(); // This should cause the replicator to be cleaned up as there should be no outstandings refs. 
 			}
 			continue;
@@ -3175,6 +3180,10 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 
 		ObjectReplicator->PostReceivedBunch();
 	}
+
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	Connection->Driver->GetNetworkObjectList().RemoveMultipleSubObjectChannelReference(Actor, ReferencesToRemove, this);
+#endif
 
 	// After all properties have been initialized, call PostNetInit. This should call BeginPlay() so initialization can be done with proper starting values.
 	if (Actor && bSpawnedNewActor)
@@ -3641,39 +3650,36 @@ bool UActorChannel::UpdateDeletedSubObjects(FOutBunch& Bunch)
 #if UE_REPLICATED_OBJECT_REFCOUNTING
 	TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> > SubObjectsRemoved;
 
-	FNetworkObjectInfo* ActorInfo = Connection->Driver->FindNetworkObjectInfo(Actor);
-
 	// Check if the dirty count is different from our last update
-	if (ActorInfo)
+	FNetworkObjectList::FActorInvalidSubObjectView InvalidSubObjects = Connection->Driver->GetNetworkObjectList().FindActorInvalidSubObjects(Actor);
+	if (InvalidSubObjects.HasInvalidSubObjects() && ChannelSubObjectDirtyCount != InvalidSubObjects.GetDirtyCount())
 	{
-		if (ChannelSubObjectDirtyCount != ActorInfo->InvalidSubObjectDirtyCount)
+		ChannelSubObjectDirtyCount = InvalidSubObjects.GetDirtyCount();
+
+		for (const FNetworkObjectList::FSubObjectChannelReference& SubObjectRef : InvalidSubObjects.GetInvalidSubObjects())
 		{
-			ChannelSubObjectDirtyCount = ActorInfo->InvalidSubObjectDirtyCount;
+			ensure(SubObjectRef.Status != ENetSubObjectStatus::Active);
 
-			for (const FNetworkObjectInfo::FSubObjectChannelReference& SubObjectRef : ActorInfo->InvalidSubObjectChannelReferences)
+			// The TearOff won't be sent if the Object pointer is fully deleted once we get here.
+			// This would be fixed by converting the ReplicationMap to stop using raw pointers as the key.
+            // Instead the ReplicationMap iteration below should pick this deleted object and send for it to be destroyed.
+			if (UObject* ObjectToRemove = SubObjectRef.SubObjectPtr.GetEvenIfUnreachable())
 			{
-				ensure(SubObjectRef.Status != ENetSubObjectStatus::Active);
-
-				// The TearOff won't be sent if the Object pointer is fully deleted once we get here.
-				// This will be fixed by converting the ReplicationMap to stop using raw pointers as the key
-				if (UObject* ObjectToRemove = SubObjectRef.SubObjectPtr.GetEvenIfUnreachable())
+				if (TSharedRef<FObjectReplicator>* SubObjectReplicator = ReplicationMap.Find(ObjectToRemove))
 				{
-					if (TSharedRef<FObjectReplicator>* SubObjectReplicator = ReplicationMap.Find(ObjectToRemove))
-					{
-						const ESubObjectDeleteFlag DeleteFlag = SubObjectRef.IsTearOff() ? ESubObjectDeleteFlag::TearOff : ESubObjectDeleteFlag::ForceDelete;
-						
-						DeleteSubObject(*SubObjectReplicator, SubObjectRef.SubObjectPtr, DeleteFlag);
-						ReplicationMap.Remove(ObjectToRemove);
-					}
+					const ESubObjectDeleteFlag DeleteFlag = SubObjectRef.IsTearOff() ? ESubObjectDeleteFlag::TearOff : ESubObjectDeleteFlag::ForceDelete;
+					SubObjectsRemoved.Add(SubObjectRef.SubObjectPtr);
+					DeleteSubObject(*SubObjectReplicator, SubObjectRef.SubObjectPtr, DeleteFlag);
+					ReplicationMap.Remove(ObjectToRemove);
 				}
-
-				SubObjectsRemoved.Add(SubObjectRef.SubObjectPtr);
 			}
-
-			Connection->Driver->GetNetworkObjectList().RemoveMultipleInvalidSubObjectChannelReference(ActorInfo, SubObjectsRemoved, this);
 		}
 
-		SubObjectsRemoved.Reset();
+		if (!SubObjectsRemoved.IsEmpty())
+		{
+			Connection->Driver->GetNetworkObjectList().RemoveMultipleInvalidSubObjectChannelReference(Actor, SubObjectsRemoved, this);
+			SubObjectsRemoved.Reset();
+		}
 	}
 #endif //#if UE_REPLICATED_OBJECT_REFCOUNTING
 
@@ -3703,9 +3709,9 @@ bool UActorChannel::UpdateDeletedSubObjects(FOutBunch& Bunch)
 	}
 
 #if UE_REPLICATED_OBJECT_REFCOUNTING
-	if (SubObjectsRemoved.Num() > 0)
+	if (!SubObjectsRemoved.IsEmpty())
 	{
-		Connection->Driver->GetNetworkObjectList().RemoveMultipleActiveSubObjectChannelReference(ActorInfo, SubObjectsRemoved, this);
+		Connection->Driver->GetNetworkObjectList().RemoveMultipleSubObjectChannelReference(Actor, SubObjectsRemoved, this);
 	}
 #endif
 

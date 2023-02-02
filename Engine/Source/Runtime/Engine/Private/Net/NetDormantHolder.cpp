@@ -121,31 +121,11 @@ void FDormantReplicatorHolder::CleanupAllReplicatorsOfActor(AActor* DormantActor
 	ActorReplicatorSet.Remove(DormantActor);
 }
 
-void FDormantReplicatorHolder::CleanupStaleObjects()
-{
-	for (FActorReplicatorSet::TIterator ActorSetIt = ActorReplicatorSet.CreateIterator(); ActorSetIt; ++ActorSetIt )
-	{
-		for (FActorDormantReplicators::FObjectReplicatorSet::TIterator ReplicatorSetIt = ActorSetIt->DormantReplicators.CreateIterator(); ReplicatorSetIt; ++ReplicatorSetIt)
-		{
-			FDormantObjectReplicator& DormantReplicator = *ReplicatorSetIt;
-
-			if (!DormantReplicator.Replicator->GetWeakObjectPtr().IsValid())
-			{
-				ReplicatorSetIt.RemoveCurrent();
-			}
-		}
-		
-		if (ActorSetIt->DormantReplicators.IsEmpty())
-		{
-			ActorSetIt.RemoveCurrent();
-		}
-	}
-}
-
 void FDormantReplicatorHolder::CleanupStaleObjects(FNetworkObjectList& NetworkObjectList, UObject* ReferenceOwner)
 {
 #if UE_REPLICATED_OBJECT_REFCOUNTING
 	TArray<TWeakObjectPtr<UObject>, TInlineAllocator<16>> CleanedUpObjects;
+#endif
 
 	for (FActorReplicatorSet::TIterator ActorSetIt = ActorReplicatorSet.CreateIterator(); ActorSetIt; ++ActorSetIt)
 	{
@@ -156,11 +136,13 @@ void FDormantReplicatorHolder::CleanupStaleObjects(FNetworkObjectList& NetworkOb
 
 			if (!DormantObjectPtr.IsValid())
 			{
-				// If it's a subobject
-				if (ActorSetIt->OwnerActor != DormantReplicator.Replicator->GetObject())
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+				// Keep track of the cleaned up object if it's a subobject and not the main actor
+				if (ActorSetIt->OwnerActorKey != DormantReplicator.ObjectKey)
 				{
 					CleanedUpObjects.Add(DormantObjectPtr);
 				}
+#endif
 
 				ReplicatorSetIt.RemoveCurrent();
 			}
@@ -171,15 +153,14 @@ void FDormantReplicatorHolder::CleanupStaleObjects(FNetworkObjectList& NetworkOb
 			ActorSetIt.RemoveCurrent();
 		}
 
+#if UE_REPLICATED_OBJECT_REFCOUNTING
 		if (CleanedUpObjects.Num() > 0)
 		{
-			NetworkObjectList.RemoveMultipleSubObjectChannelReference(ActorSetIt->OwnerActor, CleanedUpObjects, ReferenceOwner);
+			NetworkObjectList.RemoveMultipleSubObjectChannelReference(ActorSetIt->OwnerActorKey, CleanedUpObjects, ReferenceOwner);
 			CleanedUpObjects.Reset();
 		}
-	}
-#else
-	CleanupStaleObjects();
 #endif
+	}
 }
 
 void FDormantReplicatorHolder::ForEachDormantReplicator(UE::Net::FExecuteForEachDormantReplicator Function)
@@ -188,7 +169,7 @@ void FDormantReplicatorHolder::ForEachDormantReplicator(UE::Net::FExecuteForEach
 	{
 		for (const FDormantObjectReplicator& DormantReplicator : ActorReplicators.DormantReplicators)
 		{
-			Function(ActorReplicators.OwnerActor, DormantReplicator.ObjectKey, DormantReplicator.Replicator);
+			Function(ActorReplicators.OwnerActorKey, DormantReplicator.ObjectKey, DormantReplicator.Replicator);
 		}
 	}
 }
@@ -199,7 +180,7 @@ void FDormantReplicatorHolder::ForEachDormantReplicatorOfActor(AActor* DormantAc
 	{
 		for (const FDormantObjectReplicator& DormantReplicator : ActorReplicators->DormantReplicators)
 		{
-			Function(ActorReplicators->OwnerActor, DormantReplicator.ObjectKey, DormantReplicator.Replicator);
+			Function(ActorReplicators->OwnerActorKey, DormantReplicator.ObjectKey, DormantReplicator.Replicator);
 		}
 	}
 }

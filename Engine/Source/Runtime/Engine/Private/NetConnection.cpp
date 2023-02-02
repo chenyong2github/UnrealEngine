@@ -4812,7 +4812,44 @@ void UNetConnection::ResetGameWorldState()
 
 void UNetConnection::CleanupDormantActorState()
 {
+	ClearDormantReplicatorsReference();
+
 	DormantReplicatorSet.EmptySet();
+}
+
+void UNetConnection::ClearDormantReplicatorsReference()
+{
+	using namespace UE::Net::Private;
+
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	if (!Driver)
+	{
+		return;
+	}
+
+	TArray<TWeakObjectPtr<UObject>, TInlineAllocator<16>> SubObjectsToRemove;
+
+	// Find all the dormant subobject replicators still held by this connection and remove our reference to them.
+	for (const FActorDormantReplicators& ActorDormantReplicators : DormantReplicatorSet.ActorReplicatorSet)
+	{
+		FObjectKey OwnerKey = ActorDormantReplicators.OwnerActorKey;
+
+		for (const FDormantObjectReplicator& DormantObject : ActorDormantReplicators.DormantReplicators)
+		{
+			// Only if it's a subobject and not the actor itself
+			if (DormantObject.ObjectKey != OwnerKey)
+			{
+				SubObjectsToRemove.Add(DormantObject.Replicator->GetWeakObjectPtr());
+			}
+		}
+
+		if (!SubObjectsToRemove.IsEmpty())
+		{
+			Driver->GetNetworkObjectList().RemoveMultipleSubObjectChannelReference(ActorDormantReplicators.OwnerActorKey, SubObjectsToRemove, this);
+			SubObjectsToRemove.Reset();
+		}
+	}
+#endif
 }
 
 void UNetConnection::FlushDormancy(AActor* Actor)
@@ -5154,9 +5191,10 @@ void UNetConnection::CleanupDormantReplicatorsForActor(AActor* Actor)
 		if (Driver)
 		{
 			TArray<TWeakObjectPtr<UObject>, TInlineAllocator<16>> RemovedObjects;
-			auto ExecuteFunction = [&RemovedObjects](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
+			auto ExecuteFunction = [&RemovedObjects](FObjectKey OwnerActorKey, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
 			{
-				if (OwnerActor != ReplicatorRef->GetObject())
+				// If it's the replicator of a subobject and not the main actor
+				if (OwnerActorKey != ObjectKey)
 				{
 					RemovedObjects.Add(ReplicatorRef->GetWeakObjectPtr());
 				}
@@ -5174,18 +5212,10 @@ void UNetConnection::CleanupDormantReplicatorsForActor(AActor* Actor)
 
 void UNetConnection::CleanupStaleDormantReplicators()
 {
-#if UE_REPLICATED_OBJECT_REFCOUNTING
-	if (Driver)	
+	if (ensure(Driver))	
 	{
 		DormantReplicatorSet.CleanupStaleObjects(Driver->GetNetworkObjectList(), this);
 	}
-	else
-	{
-		DormantReplicatorSet.CleanupStaleObjects();
-	}
-#else
-	DormantReplicatorSet.CleanupStaleObjects();
-#endif
 }
 
 void UNetConnection::SetPendingCloseDueToReplicationFailure()

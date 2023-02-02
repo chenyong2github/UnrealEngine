@@ -73,73 +73,6 @@ struct FNetworkObjectInfo
 	*/
 	TSet<TWeakObjectPtr<UNetConnection>, FNetConnectionKeyFuncs> RecentlyDormantConnections;
 
-	/** 
-	* Keeps track of the number of channels that have replicated a subobject.
-	* When the status changes from Active its expected of existing references to be gradually removed as the actor replicates itself to each connection.
-	*/
-	struct FSubObjectChannelReference
-	{
-		/** The replicated subobject */
-		TWeakObjectPtr<UObject> SubObjectPtr;
-		
-		/** Number of channels that replicated the subobject */
-		uint16 ChannelRefCount = 0;
-
-		/** Current status of the subobject */
-		ENetSubObjectStatus Status = ENetSubObjectStatus::Active;
-
-#if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
-		/** 
-		* Debug array to keep track of every individual references. Helps to trigger an ensure early if something wrong is detected.
-		* Consists of UActorChannel for active replicators or UNetConnection's for dormant replicators
-		*/
-		TArray<UObject*> RegisteredOwners;
-#endif
-		inline bool operator==(const FSubObjectChannelReference& rhs) const { return SubObjectPtr.HasSameIndexAndSerialNumber(rhs.SubObjectPtr); }
-		inline bool operator==(const TWeakObjectPtr<UObject>& rhs) const { return SubObjectPtr.HasSameIndexAndSerialNumber(rhs); }
-
-		friend uint32 GetTypeHash(const FSubObjectChannelReference& SubObjChannelRef)
-		{
-			return GetTypeHash(SubObjChannelRef.SubObjectPtr);
-		}
-
-		inline bool IsTearOff() const { return Status == ENetSubObjectStatus::TearOff; }
-		inline bool IsDelete() const  { return Status == ENetSubObjectStatus::Delete; }
-		inline bool IsActive() const  { return Status == ENetSubObjectStatus::Active; }
-
-		FSubObjectChannelReference() = default;
-		explicit FSubObjectChannelReference(const TWeakObjectPtr<UObject>& InSubObject)
-			: SubObjectPtr(InSubObject)
-			, ChannelRefCount(1)
-			, Status(ENetSubObjectStatus::Active)
-		{
-		}
-	};
-
-	/** 
-	* Key definitions for TSet/TMap that works with invalided weak pointers 
-	*/
-	struct FSubObjectChannelRefKeyFuncs : BaseKeyFuncs<FSubObjectChannelReference, const TWeakObjectPtr<UObject>&, false>
-	{
-		static KeyInitType GetSetKey(ElementInitType& Element)			{ return Element.SubObjectPtr; }
-		static bool Matches(KeyInitType A, KeyInitType B)				{ return A.HasSameIndexAndSerialNumber(B); }
-		static uint32 GetKeyHash(KeyInitType Key)						{ return GetTypeHash(Key); }
-	};
-
-#if UE_REPLICATED_OBJECT_REFCOUNTING
-	/** The set of active replicated subobjects for an actor */
-	TSet<FSubObjectChannelReference, FSubObjectChannelRefKeyFuncs> ActiveSubObjectChannelReferences;
-
-	/** The list of replicated subobjects that need to be torn off or deleted by the channels still referencing it */
-	TArray<FSubObjectChannelReference> InvalidSubObjectChannelReferences;
-#endif
-
-	/** 
-	* This variable gets increased when a replicated subobject gets added to the invalid list.
-	* Actor channels will test against this count and when it differs will check if they have any replicated subobjects to remove.
-	*/
-	uint16 InvalidSubObjectDirtyCount = 0;
-
 	/** Is this object still pending a full net update due to clients that weren't able to replicate the actor at the time of LastNetUpdateTime */
 	uint8 bPendingNetUpdate : 1;
 
@@ -296,7 +229,11 @@ public:
 	/** Marks any actors in the given package/level active if they were fully dormant or dormant for the passed in connection */
 	void FlushDormantActors(UNetConnection* const Connection, const FName& PackageName);
 
+	/** Called when the netdriver gets notified that an actor is destroyed */
+	void OnActorDestroyed(AActor* DestroyedActor);
+
 #if UE_REPLICATED_OBJECT_REFCOUNTING
+
 	/** Set the subobject to be flagged for deletion */
 	void SetSubObjectForDeletion(AActor* Actor, UObject* SubObject);
 
@@ -313,13 +250,18 @@ public:
 	void RemoveSubObjectChannelReference(AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
 
 	/** Called when multiple subobjects need to remove their reference from either the active or inactive list */
-	void RemoveMultipleSubObjectChannelReference(AActor* OwnerActor, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
+	void RemoveMultipleSubObjectChannelReference(FObjectKey OwnerActorKey, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
 
 	/** Called when multiple subobjects that were flagged torn off or delete have removed their channel reference */
-	void RemoveMultipleInvalidSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
+	void RemoveMultipleInvalidSubObjectChannelReference(FObjectKey OwnerActorKey, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
 
 	/** Called when multiple subobjects that were still considered active have removed their channel reference */
-	void RemoveMultipleActiveSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
+	void RemoveMultipleActiveSubObjectChannelReference(FObjectKey OwnerActorKey, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
+
+	struct FActorInvalidSubObjectView;
+
+	/** Returns a struct holding the dirty count and a possible list of invalid subobjects who still have references to specific connections.*/
+	FNetworkObjectList::FActorInvalidSubObjectView FindActorInvalidSubObjects(AActor* OwnerActor) const;
 
 	/** 
 	* Keep track of the transfer of ownership from the channel to the connection when the actor becomes dormant.
@@ -339,14 +281,14 @@ private:
 #if UE_REPLICATED_OBJECT_REFCOUNTING
 	void InvalidateSubObject(AActor* Actor, UObject* SubObject, ENetSubObjectStatus InvalidStatus);
 
-	void HandleRemoveAnySubObjectChannelRef(FNetworkObjectInfo* ActorNetInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
-	bool HandleRemoveActiveSubObjectRef(FNetworkObjectInfo* ActorNetInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
-	bool HandleRemoveInvalidSubObjectRef(FNetworkObjectInfo* ActorNetInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+	struct FActorSubObjectReferences;
+	void HandleRemoveAnySubObjectChannelRef(FActorSubObjectReferences& SubObjectsRefInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+	bool HandleRemoveActiveSubObjectRef(FActorSubObjectReferences& SubObjectsRefInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+	bool HandleRemoveInvalidSubObjectRef(FActorSubObjectReferences& SubObjectsRefInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
 #endif
 
-
 #if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
-	void HandleSwapReferenceForDormancy(FNetworkObjectInfo* ActorNetInfo, const TWeakObjectPtr<UObject>& SubObjectPtr, UObject* PreviousRefOwner, UObject* NewRefOwner);
+	void HandleSwapReferenceForDormancy(FActorSubObjectReferences* ActorNetInfo, const TWeakObjectPtr<UObject>& SubObjectPtr, UObject* PreviousRefOwner, UObject* NewRefOwner);
 #endif
 
 	FNetworkObjectSet AllNetworkObjects;
@@ -360,4 +302,132 @@ private:
 
 	TMap<FName, FNetworkObjectSet> FullyDormantObjectsByLevel;
 	TMap<TObjectKey<UNetConnection>, TMap<FName, FNetworkObjectSet>> DormantObjectsPerConnection;
+
+public:
+
+	/**
+	* Keeps track of the number of channels that have replicated a subobject.
+	* When the status is not Active anymore it is expected of existing references to be gradually removed as the actor replicates itself to each connection.
+	*/
+	struct FSubObjectChannelReference
+	{
+		/** The replicated subobject */
+		TWeakObjectPtr<UObject> SubObjectPtr;
+
+		/** Number of channels that replicated the subobject */
+		uint16 ChannelRefCount = 0;
+
+		/** Current status of the subobject */
+		ENetSubObjectStatus Status = ENetSubObjectStatus::Active;
+
+#if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
+		/**
+		* Debug array to keep track of every individual references. Helps to trigger an ensure early if something wrong is detected.
+		* Consists of UActorChannel for active replicators or UNetConnection's for dormant replicators
+		*/
+		TArray<UObject*> RegisteredOwners;
+#endif
+
+		inline bool operator==(const FSubObjectChannelReference& rhs) const { return SubObjectPtr.HasSameIndexAndSerialNumber(rhs.SubObjectPtr); }
+		inline bool operator==(const TWeakObjectPtr<UObject>& rhs) const { return SubObjectPtr.HasSameIndexAndSerialNumber(rhs); }
+
+		friend uint32 GetTypeHash(const FSubObjectChannelReference& SubObjChannelRef)
+		{
+			return GetTypeHash(SubObjChannelRef.SubObjectPtr);
+		}
+
+		inline bool IsTearOff() const { return Status == ENetSubObjectStatus::TearOff; }
+		inline bool IsDelete() const { return Status == ENetSubObjectStatus::Delete; }
+		inline bool IsActive() const { return Status == ENetSubObjectStatus::Active; }
+
+		FSubObjectChannelReference() = default;
+		explicit FSubObjectChannelReference(const TWeakObjectPtr<UObject>& InSubObject)
+			: SubObjectPtr(InSubObject)
+			, ChannelRefCount(1)
+			, Status(ENetSubObjectStatus::Active)
+		{
+		}
+	};
+
+	/** Key definitions for TSet that works with invalided weak pointers */
+	struct FSubObjectChannelRefKeyFuncs : BaseKeyFuncs<FSubObjectChannelReference, const TWeakObjectPtr<UObject>&, false>
+	{
+		static KeyInitType	GetSetKey(ElementInitType& Element)		{ return Element.SubObjectPtr; }
+		static bool			Matches(KeyInitType A, KeyInitType B)	{ return A.HasSameIndexAndSerialNumber(B); }
+		static uint32		GetKeyHash(KeyInitType Key)				{ return GetTypeHash(Key); }
+	};
+
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+
+	/** Structure giving const-only access to the list of invalid subobjects of a given actor */
+	struct FActorInvalidSubObjectView
+	{
+	public:
+		explicit FActorInvalidSubObjectView(uint16 InDirtyCount, const TArray<FSubObjectChannelReference>* InArrayPtr=nullptr)
+			: InvalidSubObjectDirtyCount(InvalidSubObjectDirtyCount)
+			, InvalidSubObjectsPtr(InArrayPtr)
+		{ }
+
+		FActorInvalidSubObjectView() = delete;
+
+		inline uint16 GetDirtyCount() const { return InvalidSubObjectDirtyCount; }
+		inline bool HasInvalidSubObjects() const { return InvalidSubObjectsPtr != nullptr; }
+		inline const TArray<FSubObjectChannelReference>& GetInvalidSubObjects() const 
+		{ 
+			check(HasInvalidSubObjects());
+			return *InvalidSubObjectsPtr;
+		}
+
+	private:
+		/** The current dirty count */
+		uint16 InvalidSubObjectDirtyCount = 0;
+
+		/** The list of invalid subobjects that were set to be torn off or deleted */
+		const TArray<FSubObjectChannelReference>* InvalidSubObjectsPtr;
+	};
+
+private:
+
+	struct FActorSubObjectReferences
+	{
+		/** The actor who is replicating the subobjects */
+		FObjectKey ActorKey;
+
+		/** The set of active replicated subobjects for an actor */
+		TSet<FSubObjectChannelReference, FSubObjectChannelRefKeyFuncs> ActiveSubObjectChannelReferences;
+
+		/** The list of replicated subobjects that need to be torn off or deleted by the channels still referencing it */
+		TArray<FSubObjectChannelReference> InvalidSubObjectChannelReferences;
+
+		/**
+		* This variable gets increased when a replicated subobject gets added to the invalid list.
+		* Actor channels will test against this count and when it differs will check if they have any replicated subobjects to remove.
+		*/
+		uint16 InvalidSubObjectDirtyCount = 0;
+
+		explicit FActorSubObjectReferences(AActor* InActor) : ActorKey(InActor) {}
+
+		/** Returns true when the actor's subobjects have no more references and this entry itself can be deleted */
+		bool HasNoSubObjects() const 
+		{
+			return ActiveSubObjectChannelReferences.IsEmpty() && InvalidSubObjectChannelReferences.IsEmpty();
+		}
+		
+		void CountBytes(FArchive& Ar) const;
+	};
+
+	/** Definition to use the struct's actor as the key */
+	struct FActorSubObjectRefKeyFuncs : BaseKeyFuncs<FActorSubObjectReferences, FObjectKey, false>
+	{
+		static KeyInitType	GetSetKey(ElementInitType& Element)		{ return Element.ActorKey; }
+		static bool			Matches(KeyInitType A, KeyInitType B)	{ return A == B; }
+		static uint32		GetKeyHash(KeyInitType Key)				{ return GetTypeHash(Key); }
+	};
+
+private:
+
+	/** Map keeping track of the number of connections that have a reference to each actor's subobjects */
+	TSet<FActorSubObjectReferences, FActorSubObjectRefKeyFuncs> SubObjectChannelReferences;
+
+#endif //UE_REPLICATED_OBJECT_REFCOUNTING
 };
