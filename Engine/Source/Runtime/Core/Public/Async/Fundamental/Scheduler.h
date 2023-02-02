@@ -50,7 +50,7 @@ namespace LowLevelTasks
 
 		uint32 GetNodeIndex(const NodeType* Node) const
 		{
-			return (Node == nullptr) ? EVENT_INDEX_NONE : (Node - NodesArray.GetData());
+			return (Node == nullptr) ? EVENT_INDEX_NONE : uint32(Node - NodesArray.GetData());
 		}
 
 	public:
