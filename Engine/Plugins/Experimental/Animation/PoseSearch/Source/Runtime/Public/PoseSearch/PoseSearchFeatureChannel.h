@@ -114,6 +114,7 @@ public:
 #if WITH_EDITOR
 	// returns the FString used editor side to identify this UPoseSearchFeatureChannel (for instance in the pose search debugger)
 	virtual FString GetLabel() const;
+	virtual bool CanBeNormalizedWith(const UPoseSearchFeatureChannel* Other) const;
 	const UPoseSearchSchema* GetSchema() const;
 #endif
 

@@ -211,6 +211,31 @@ FString UPoseSearchFeatureChannel::GetLabel() const
 	return Label.ToString();
 }
 
+bool UPoseSearchFeatureChannel::CanBeNormalizedWith(const UPoseSearchFeatureChannel* Other) const
+{
+	if (ChannelCardinality != Other->ChannelCardinality)
+	{
+		return false;
+	}
+
+	if (GetClass() != Other->GetClass())
+	{
+		return false;
+	}
+
+	if (GetSchema()->Skeleton != Other->GetSchema()->Skeleton)
+	{
+		return false;
+	}
+
+	if (GetLabel() != Other->GetLabel())
+	{
+		return false;
+	}
+
+	return true;
+}
+
 const UPoseSearchSchema* UPoseSearchFeatureChannel::GetSchema() const
 {
 	UObject* Outer = GetOuter();
