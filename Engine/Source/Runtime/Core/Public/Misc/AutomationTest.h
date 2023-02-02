@@ -1607,6 +1607,11 @@ public:
 		return TestEqual(*What, Actual, Expected, Tolerance);
 	}
 
+	bool TestEqual(const FString& What, const FTransform Actual, const FTransform Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
+	{
+		return TestEqual(*What, Actual, Expected, Tolerance);
+	}
+
 	bool TestEqual(const FString& What, const FRotator Actual, const FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		return TestEqual(*What, Actual, Expected, Tolerance);
@@ -1676,6 +1681,37 @@ public:
 	bool TestEqual(const FString& What, const ValueType& Actual, const ValueType& Expected)
 	{
 		return TestEqual(*What, Actual, Expected);
+	}
+
+	bool TestNearlyEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	bool TestNearlyEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance = UE_KINDA_SMALL_NUMBER);
+	bool TestNearlyEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	bool TestNearlyEqual(const TCHAR* What, const FTransform Actual, const FTransform Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	bool TestNearlyEqual(const TCHAR* What, const FRotator Actual, const FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+
+	bool TestNearlyEqual(const FString& What, const float Actual, const float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
+	{
+		return TestNearlyEqual(*What, Actual, Expected, Tolerance);
+	}
+
+	bool TestNearlyEqual(const FString& What, const double Actual, const double Expected, double Tolerance = UE_KINDA_SMALL_NUMBER)
+	{
+		return TestNearlyEqual(*What, Actual, Expected, Tolerance);
+	}
+
+	bool TestNearlyEqual(const FString& What, const FVector Actual, const FVector Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
+	{
+		return TestNearlyEqual(*What, Actual, Expected, Tolerance);
+	}
+
+	bool TestNearlyEqual(const FString& What, const FTransform Actual, const FTransform Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
+	{
+		return TestNearlyEqual(*What, Actual, Expected, Tolerance);
+	}
+
+	bool TestNearlyEqual(const FString& What, const FRotator Actual, const FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
+	{
+		return TestNearlyEqual(*What, Actual, Expected, Tolerance);
 	}
 
 

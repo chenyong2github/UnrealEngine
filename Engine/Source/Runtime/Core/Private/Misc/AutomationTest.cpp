@@ -1532,6 +1532,31 @@ bool FAutomationTestBase::TestEqualInsensitive(const TCHAR* What, const TCHAR* A
 	return true;
 }
 
+bool FAutomationTestBase::TestNearlyEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance)
+{
+	return TestEqual(What, Actual, Expected, Tolerance);
+}
+
+bool FAutomationTestBase::TestNearlyEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance)
+{
+	return TestEqual(What, Actual, Expected, Tolerance);
+}
+
+bool FAutomationTestBase::TestNearlyEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance)
+{
+	return TestEqual(What, Actual, Expected, Tolerance);
+}
+
+bool FAutomationTestBase::TestNearlyEqual(const TCHAR* What, const FTransform Actual, const FTransform Expected, float Tolerance)
+{
+	return TestEqual(What, Actual, Expected, Tolerance);
+}
+
+bool FAutomationTestBase::TestNearlyEqual(const TCHAR* What, const FRotator Actual, const FRotator Expected, float Tolerance)
+{
+	return TestEqual(What, Actual, Expected, Tolerance);
+}
+
 bool FAutomationTestBase::TestFalse(const TCHAR* What, bool Value)
 {
 	if (Value)
