@@ -32,6 +32,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Templates/TypeHash.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeSpatialHash)
 
@@ -1234,14 +1235,24 @@ FString UWorldPartitionRuntimeSpatialHash::GetCellNameString(FName InWorldPackag
 	const FString ShortPackageName = UWorld::RemovePIEPrefix(FPackageName::GetShortName(InWorldPackageName));
 	FString CellName = FString::Printf(TEXT("%s_%s_%s"), *ShortPackageName, *InGridName.ToString(), *GetCellCoordString(InCellGlobalCoord));
 
-	if (InDataLayerID.GetHash())
+	// todo_ow : Hash the whole CellName & save a debug string inside the cell instead of hashing only the content bundle & data layer information
+	if (InDataLayerID.GetHash() && InContentBundleID.IsValid())
 	{
-		CellName += FString::Printf(TEXT("_DL%X"), InDataLayerID.GetHash());
+		uint32 Hash = InDataLayerID.GetHash();
+		Hash = HashCombine(Hash, GetTypeHash(InContentBundleID));
+		CellName += FString::Printf(TEXT("_M%X"), Hash);
 	}
-
-	if (InContentBundleID.IsValid())
+	else
 	{
-		CellName += FString::Printf(TEXT("_CB%s"), *UContentBundleDescriptor::GetContentBundleCompactString(InContentBundleID));
+		if (InDataLayerID.GetHash())
+		{
+			CellName += FString::Printf(TEXT("_DL%X"), InDataLayerID.GetHash());
+		}
+
+		if (InContentBundleID.IsValid())
+		{
+			CellName += FString::Printf(TEXT("_CB%s"), *UContentBundleDescriptor::GetContentBundleCompactString(InContentBundleID));
+		}
 	}
 
 	return CellName;
@@ -1369,7 +1380,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				const FString CellName = GetCellNameString(OuterWorld->GetPackage()->GetFName(), CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
 				const FGuid CellGuid = GetCellGuid(CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
 
-				UWorldPartitionRuntimeCell* StreamingCell = CreateRuntimeCell(StreamingPolicy->GetRuntimeCellClass(), UWorldPartitionRuntimeCellDataSpatialHash::StaticClass(), FName(CellGuid.ToString(EGuidFormats::Base36Encoded)));
+				UWorldPartitionRuntimeCell* StreamingCell = CreateRuntimeCell(StreamingPolicy->GetRuntimeCellClass(), UWorldPartitionRuntimeCellDataSpatialHash::StaticClass(), FName(CellName));
 				UWorldPartitionRuntimeCellDataSpatialHash* CellDataSpatialHash = CastChecked<UWorldPartitionRuntimeCellDataSpatialHash>(StreamingCell->RuntimeCellData);
 
 				StreamingCell->SetIsAlwaysLoaded(bIsCellAlwaysLoaded);
@@ -1390,8 +1401,43 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				CellDataSpatialHash->Position = FVector(Bounds.GetCenter(), 0.f);
 				CellDataSpatialHash->Extent = (float)CellExtent;
 				CellDataSpatialHash->GridName = RuntimeGrid.GridName;
-			
-				CellDataSpatialHash->DebugName = CellName;
+				
+				auto ComputeCellDebugName = [StreamingCell, CellDataSpatialHash, World, &CellGlobalCoords]()
+				{
+					TStringBuilder<512> Builder;
+					Builder += CellDataSpatialHash->GridName.ToString();
+					Builder += TEXT("_");
+					Builder += FString::Printf(TEXT("L%d_X%d_Y%d"), CellGlobalCoords.Z, CellGlobalCoords.X, CellGlobalCoords.Y);
+
+					const TArray<FName>& DataLayers = StreamingCell->GetDataLayers();
+					int32 DataLayerCount = DataLayers.Num();
+
+					if (DataLayerCount > 0)
+					{
+						if (const UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(StreamingCell))
+						{
+							TArray<const UDataLayerInstance*> DataLayerObjects;
+							Builder += TEXT(" DL[");
+							for (int i = 0; i < DataLayerCount; ++i)
+							{
+								const UDataLayerInstance* DataLayer = DataLayerManager->GetDataLayerInstance(DataLayers[i]);
+								DataLayerObjects.Add(DataLayer);
+								Builder += DataLayer->GetDataLayerShortName();
+								Builder += TEXT(",");
+							}
+							Builder += FString::Printf(TEXT("ID:%X]"), FDataLayersID(DataLayerObjects).GetHash());
+						}
+					}
+
+					if (StreamingCell->GetContentBundleID().IsValid())
+					{
+						Builder += FString::Printf(TEXT(" CB[%s]"), *UContentBundleDescriptor::GetContentBundleCompactString(StreamingCell->GetContentBundleID()));
+					}
+
+					return Builder.ToString();
+				};
+
+				CellDataSpatialHash->DebugName = ComputeCellDebugName();
 
 				PopulateRuntimeCell(StreamingCell, FilteredActors, OutPackagesToGenerate);
 

@@ -712,7 +712,6 @@ struct FSubLevelActorDetails
 struct FSubLevelStatus
 {
 	FName				PackageName;
-	FString				LevelLabel;
 	EStreamingStatus	StreamingStatus;
 	int32				LODIndex;
 	bool				bInConsiderList;

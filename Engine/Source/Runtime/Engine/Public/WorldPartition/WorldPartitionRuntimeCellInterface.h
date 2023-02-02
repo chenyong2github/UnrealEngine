@@ -37,8 +37,6 @@ public:
 	virtual FBox GetCellBounds() const = 0;
 	/** Returns the associated level package name. */
 	virtual FName GetLevelPackageName() const = 0;
-	/** Returns the debug name associated with this cell. */
-	virtual FString GetDebugName() const = 0;
 
 #if WITH_EDITOR
 	/** Returns the referenced actor packages. */

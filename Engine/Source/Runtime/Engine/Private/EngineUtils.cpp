@@ -25,7 +25,7 @@
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 #include "Misc/PathViews.h"
-#include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
+
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Interfaces/ITargetPlatform.h"
 
@@ -411,12 +411,6 @@ TArray<FSubLevelStatus> GetSubLevelsStatus( UWorld* World, bool SortByActorCount
 		LevelStatus.StreamingStatus = LEVEL_Visible;
 		LevelStatus.LODIndex = INDEX_NONE;
 		LevelStatus.ActorCount = World->GetActorCount();
-
-		if (const IWorldPartitionCell* WorldPartitionCell = World->PersistentLevel->GetWorldPartitionRuntimeCell())
-		{
-			LevelStatus.LevelLabel = WorldPartitionCell->GetDebugName();
-		}
-
 		Result.Add(LevelStatus);
 	}
 
@@ -455,11 +449,6 @@ TArray<FSubLevelStatus> GetSubLevelsStatus( UWorld* World, bool SortByActorCount
 
 			if (LevelStreaming->GetLoadedLevel())
 			{
-				if (const IWorldPartitionCell* WorldPartitionCell = LevelStreaming->GetLoadedLevel()->GetWorldPartitionRuntimeCell())
-				{
-					LevelStatus.LevelLabel = WorldPartitionCell->GetDebugName();
-				}
-
 				LevelStatus.ActorCount = LevelStreaming->GetLoadedLevel()->Actors.Num();
 
 				for (const AActor* Actor : LevelStreaming->GetLoadedLevel()->Actors)
