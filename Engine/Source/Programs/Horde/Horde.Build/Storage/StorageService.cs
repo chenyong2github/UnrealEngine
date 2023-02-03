@@ -455,8 +455,6 @@ namespace Horde.Build.Storage
 
 		readonly AsyncCachedValue<State> _cachedState;
 
-		static readonly BackendConfig s_defaultBackendConfig = new BackendConfig();
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -582,34 +580,13 @@ namespace Horde.Build.Storage
 			{
 				StorageConfig storageConfig = globalConfig.Storage;
 
-				// Create a lookup for backend config objects by their id
-				Dictionary<BackendId, BackendConfig> backendIdToConfig = new Dictionary<BackendId, BackendConfig>();
-				foreach (BackendConfig backendConfig in storageConfig.Backends)
-				{
-					backendIdToConfig.Add(backendConfig.Id, backendConfig);
-				}
-
-				// Create a lookup of namespace id to config, to ensure there are no duplicates
-				Dictionary<NamespaceId, NamespaceConfig> namespaceIdToConfig = new Dictionary<NamespaceId, NamespaceConfig>();
-				foreach (NamespaceConfig namespaceConfig in storageConfig.Namespaces)
-				{
-					namespaceIdToConfig.Add(namespaceConfig.Id, namespaceConfig);
-				}
-
 				// Configure the new clients
 				State nextState = new State(storageConfig);
 				try
 				{
-					Dictionary<BackendId, BackendConfig> mergedIdToConfig = new Dictionary<BackendId, BackendConfig>();
 					foreach (NamespaceConfig namespaceConfig in storageConfig.Namespaces)
 					{
-						if (namespaceConfig.Backend.IsEmpty)
-						{
-							throw new StorageException($"No backend configured for namespace {namespaceConfig.Id}");
-						}
-
-						BackendConfig backendConfig = GetBackendConfig(namespaceConfig.Backend, backendIdToConfig, mergedIdToConfig);
-						IStorageBackend backend = CreateStorageBackend(backendConfig);
+						IStorageBackend backend = CreateStorageBackend(namespaceConfig.BackendConfig);
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
 						StorageClient client = new StorageClient(this, namespaceConfig, backend);
@@ -649,93 +626,6 @@ namespace Horde.Build.Storage
 				default:
 					throw new NotImplementedException();
 			}
-		}
-
-		/// <summary>
-		/// Gets the configuration for a particular backend
-		/// </summary>
-		/// <param name="backendId">Identifier for the backend</param>
-		/// <param name="baseIdToConfig">Lookup for all backend configuration data</param>
-		/// <param name="mergedIdToConfig">Lookup for computed hierarchical config objects</param>
-		/// <returns>Merged config for the given backend</returns>
-		BackendConfig GetBackendConfig(BackendId backendId, Dictionary<BackendId, BackendConfig> baseIdToConfig, Dictionary<BackendId, BackendConfig> mergedIdToConfig)
-		{
-			BackendConfig? config;
-			if (mergedIdToConfig.TryGetValue(backendId, out config))
-			{
-				if (config == null)
-				{
-					throw new StorageException($"Configuration for storage backend '{backendId}' is recursive.");
-				}
-			}
-			else
-			{
-				mergedIdToConfig.Add(backendId, null!);
-
-				if (!baseIdToConfig.TryGetValue(backendId, out config))
-				{
-					throw new StorageException($"Unable to find storage backend '{backendId}'"); 
-				}
-
-				if (config.Base != BackendId.Empty)
-				{
-					BackendConfig baseConfig = GetBackendConfig(config.Base, baseIdToConfig, mergedIdToConfig);
-					MergeConfigs(baseConfig, config, s_defaultBackendConfig);
-				}
-
-				mergedIdToConfig[backendId] = config;
-			}
-			return config;
-		}
-
-		/// <summary>
-		/// Allows one configuration object to override another
-		/// </summary>
-		static void MergeConfigs<T>(T sourceObject, T targetObject, T defaultObject)
-		{
-			PropertyInfo[] properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
-			foreach (PropertyInfo property in properties)
-			{
-				object? targetValue = property.GetValue(targetObject);
-				object? defaultValue = property.GetValue(defaultObject);
-
-				if (ValueEquals(targetValue, defaultValue))
-				{
-					object? sourceValue = property.GetValue(sourceObject);
-					property.SetValue(targetObject, sourceValue);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Tests two objects for value equality
-		/// </summary>
-		static bool ValueEquals(object? source, object? target)
-		{
-			if (ReferenceEquals(source, null) || ReferenceEquals(target, null))
-			{
-				return ReferenceEquals(source, target);
-			}
-
-			if (source is IEnumerable _)
-			{
-				IEnumerator sourceEnumerator = ((IEnumerable)source).GetEnumerator();
-				IEnumerator targetEnumerator = ((IEnumerable)target).GetEnumerator();
-
-				for (; ; )
-				{
-					if (!sourceEnumerator.MoveNext())
-					{
-						return !targetEnumerator.MoveNext();
-					}
-					if (!targetEnumerator.MoveNext() || !ValueEquals(sourceEnumerator.Current, targetEnumerator.Current))
-					{
-						return false;
-					}
-				}
-			}
-
-			return source.Equals(target);
 		}
 
 		#endregion

@@ -70,7 +70,7 @@ namespace Horde.Build
 		public string? AwsBucketPath { get; set; }
 
 		/// <inheritdoc/>
-		public AwsCredentialsType AwsCredentials { get; set; }
+		public AwsCredentialsType? AwsCredentials { get; set; }
 
 		/// <inheritdoc/>
 		public string? AwsRole { get; set; }

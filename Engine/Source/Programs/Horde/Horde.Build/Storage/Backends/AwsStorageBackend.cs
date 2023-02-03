@@ -72,7 +72,7 @@ namespace Horde.Build.Storage.Backends
 		/// <summary>
 		/// Type of credentials to use
 		/// </summary>
-		public AwsCredentialsType AwsCredentials { get; }
+		public AwsCredentialsType? AwsCredentials { get; }
 
 		/// <summary>
 		/// Name of the bucket to use
@@ -168,7 +168,7 @@ namespace Horde.Build.Storage.Backends
 				awsOptions.Region = RegionEndpoint.GetBySystemName(options.AwsRegion);
 			}
 
-			switch (options.AwsCredentials)
+			switch (options.AwsCredentials ?? AwsCredentialsType.Default)
 			{
 				case AwsCredentialsType.Default:
 					// Using the fallback credentials from the AWS SDK, it will pick up credentials through a number of default mechanisms.

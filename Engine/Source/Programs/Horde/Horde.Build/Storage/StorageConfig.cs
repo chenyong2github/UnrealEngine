@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
+using Amazon.S3.Model;
 using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Server;
@@ -65,15 +69,57 @@ namespace Horde.Build.Storage
 		/// </summary>
 		internal void PostLoad(GlobalConfig globalConfig)
 		{
+			// Create a lookup for backend configs
 			foreach (BackendConfig backendConfig in Backends)
 			{
 				_backendLookup.Add(backendConfig.Id, backendConfig);
 			}
+
+			// Fixup all the inherited properties
+			Dictionary<BackendId, BackendConfig> mergedBackendConfigs = new Dictionary<BackendId, BackendConfig>(Backends.Count);
+			foreach (BackendConfig backendConfig in Backends)
+			{
+				MergeBackendConfigs(backendConfig.Id, _backendLookup, mergedBackendConfigs);
+			}
+
+			// Validate the backend config for each namespace
 			foreach (NamespaceConfig namespaceConfig in Namespaces)
 			{
-				namespaceConfig.PostLoad(globalConfig);
+				BackendConfig? backendConfig;
+				if (!_backendLookup.TryGetValue(namespaceConfig.Backend, out backendConfig))
+				{
+					throw new StorageException($"Missing or invalid backend identifier for namespace {namespaceConfig.Id}");
+				}
+
+				namespaceConfig.PostLoad(globalConfig, backendConfig);
 				_namespaceLookup.Add(namespaceConfig.Id, namespaceConfig);
 			}
+		}
+
+		static BackendConfig MergeBackendConfigs(BackendId backendId, Dictionary<BackendId, BackendConfig> baseIdToConfig, Dictionary<BackendId, BackendConfig> mergedIdToConfig)
+		{
+			BackendConfig? config;
+			if (mergedIdToConfig.TryGetValue(backendId, out config))
+			{
+				if (config == null)
+				{
+					throw new InvalidDataException($"Configuration for storage backend '{backendId}' is recursive.");
+				}
+			}
+			else
+			{
+				mergedIdToConfig.Add(backendId, null!);
+
+				config = baseIdToConfig[backendId];
+				if (!config.Base.IsEmpty)
+				{
+					BackendConfig baseConfig = MergeBackendConfigs(config.Base, baseIdToConfig, mergedIdToConfig);
+					config.MergeDefaults(baseConfig);
+				}
+
+				mergedIdToConfig[backendId] = config;
+			}
+			return config;
 		}
 
 		/// <summary>
@@ -123,7 +169,7 @@ namespace Horde.Build.Storage
 		public string? AwsBucketPath { get; set; }
 
 		/// <inheritdoc/>
-		public AwsCredentialsType AwsCredentials { get; set; }
+		public AwsCredentialsType? AwsCredentials { get; set; }
 
 		/// <inheritdoc/>
 		public string? AwsRole { get; set; }
@@ -139,6 +185,21 @@ namespace Horde.Build.Storage
 
 		/// <inheritdoc/>
 		public string? RelayToken { get; set; }
+
+		/// <summary>
+		/// Merge default values from another object
+		/// </summary>
+		/// <param name="other">Object to merge defaults from</param>
+		public void MergeDefaults(BackendConfig other)
+		{
+			foreach (PropertyInfo propertyInfo in GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public))
+			{
+				if (propertyInfo.GetValue(this) == null)
+				{
+					propertyInfo.SetValue(this, propertyInfo.GetValue(other));
+				}
+			}
+		}
 	}
 
 	/// <summary>
@@ -152,6 +213,12 @@ namespace Horde.Build.Storage
 		/// </summary>
 		[JsonIgnore]
 		public GlobalConfig GlobalConfig { get; private set; } = null!;
+
+		/// <summary>
+		/// The referenced backend config
+		/// </summary>
+		[JsonIgnore]
+		public BackendConfig BackendConfig { get; private set; } = null!;
 
 		/// <summary>
 		/// Identifier for this namespace
@@ -194,9 +261,11 @@ namespace Horde.Build.Storage
 		/// Callback once the configuration has been read from disk
 		/// </summary>
 		/// <param name="globalConfig"></param>
-		public void PostLoad(GlobalConfig globalConfig)
+		/// <param name="backendConfig"></param>
+		public void PostLoad(GlobalConfig globalConfig, BackendConfig backendConfig)
 		{
 			GlobalConfig = globalConfig;
+			BackendConfig = backendConfig;
 		}
 
 		/// <summary>
