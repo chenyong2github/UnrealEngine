@@ -11,6 +11,7 @@
 #include "NiagaraSettings.h"
 #include "NiagaraDataChannelManager.h"
 #include "NiagaraDataInterfaceCurlNoise.h"
+#include "NiagaraUseOpenVDB.h"
 #include "UObject/Class.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
@@ -39,7 +40,7 @@
 #include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
 #include "DataInterface/NiagaraDataInterfaceDataChannelSpawn.h"
 
-#if NIAGARA_USE_OPENVDB
+#if UE_USE_OPENVDB
 #include "NiagaraOpenVDB.h"
 #endif
 
@@ -268,7 +269,7 @@ void INiagaraModule::StartupModule()
 	LLM_SCOPE(ELLMTag::Niagara);
 	FNiagaraTypeDefinition::Init();
 
-#if NIAGARA_USE_OPENVDB
+#if UE_USE_OPENVDB
 	// Global registration of  the vdb types.
 	openvdb::initialize();
 	if (!Vec4SGrid::isRegistered())

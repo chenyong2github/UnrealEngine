@@ -11,11 +11,16 @@ public class Niagara : ModuleRules
 
 		PrivateIncludePaths.Add("../../../../Shaders/Shared");
 
-		// Specific to OpenVDB support
+		// Enable OpenVDB under Windows
+		// @todo: we need builds for OpenVDB for platforms other than windows
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
+			// Specific to OpenVDB support
 			bUseRTTI = true;
 			bEnableExceptions = true;
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenVDB");
+			PublicDefinitions.Add("UE_USE_OPENVDB=1");
 		}
 		
 		PrivateDependencyModuleNames.AddRange(
@@ -84,8 +89,7 @@ public class Niagara : ModuleRules
 				"IntelTBB",
 				"Blosc",
 				"zlib",
-				"Boost",				
-				"OpenVDB"
+				"Boost"
 			);
 
 			PublicDefinitions.AddRange(

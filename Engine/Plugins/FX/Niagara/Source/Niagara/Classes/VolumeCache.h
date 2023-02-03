@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "RHI.h"
+#include "NiagaraUseOpenVDB.h"
 
 #include "VolumeCache.generated.h"
 
@@ -78,7 +79,9 @@ protected:
 	FIntVector DenseResolution;
 };
 
+#if UE_USE_OPENVDB
 namespace OpenVDBTools
 {
 	NIAGARA_API bool WriteImageDataToOpenVDBFile(FStringView FilePath, FIntVector ImageSize, TArrayView<FFloat16Color> ImageData, bool UseFloatGrids = false);
 }
+#endif

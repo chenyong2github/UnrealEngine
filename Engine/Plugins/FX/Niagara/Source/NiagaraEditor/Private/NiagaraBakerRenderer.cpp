@@ -9,6 +9,7 @@
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraBatchedElements.h"
+#include "NiagaraUseOpenVDB.h"
 
 #include "NiagaraDataInterfaceGrid2DCollection.h"
 #include "NiagaraDataInterfaceRenderTarget2D.h"
@@ -742,7 +743,7 @@ bool FNiagaraBakerRenderer::ExportVolume(FStringView FilePath, FIntVector ImageS
 	const FString FileExtension = FPaths::GetExtension(FilePath.GetData(), true);
 	if (FileExtension == TEXT(".vdb"))
 	{
-#if NIAGARA_USE_OPENVDB
+#if UE_USE_OPENVDB
 		return OpenVDBTools::WriteImageDataToOpenVDBFile(FilePath, ImageSize, ImageData, false);
 #else
 		return false;

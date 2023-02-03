@@ -7,19 +7,18 @@
 #include "VolumeCache.h"
 #include "NiagaraSettings.h"
 #include "RHICommandList.h"
+#include "NiagaraUseOpenVDB.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeCache)
 
-// @todo: we need builds for OpenVDB for platforms other than windows
-#if NIAGARA_USE_OPENVDB
+#if UE_USE_OPENVDB
 #include "NiagaraOpenVDB.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogVolumeCache, Log, All);
 
 
-// @todo: we need builds for OpenVDB for platforms other than windows
-#if NIAGARA_USE_OPENVDB
+#if UE_USE_OPENVDB
 class NIAGARA_API FOpenVDBCacheData : public FVolumeCacheData
 {
 public:
@@ -71,7 +70,7 @@ void UVolumeCache::InitData()
 	{
 		case EVolumeCacheType::OpenVDB :
 		{			
-#if NIAGARA_USE_OPENVDB
+#if UE_USE_OPENVDB
 			CachedVolumeFiles = TSharedPtr<FVolumeCacheData>(new FOpenVDBCacheData());
 #else
 			UE_LOG(LogVolumeCache, Warning, TEXT("OpenVDB not supported on the platform"));
@@ -142,8 +141,7 @@ FString FVolumeCacheData::GetAssetPath(FString PathFormat, int32 FrameIndex) con
 	return AssetPath;
 }
 
-// @todo: we need builds for OpenVDB for platforms other than windows
-#if NIAGARA_USE_OPENVDB
+#if UE_USE_OPENVDB
 void FOpenVDBCacheData::Init(FIntVector Resolution)
 {
 	FScopeLock ScopeLock(&DenseGridGuard);
@@ -153,7 +151,7 @@ void FOpenVDBCacheData::Init(FIntVector Resolution)
 	if (OpenVDBGrids.Num() == 0)
 	{
 		TotalMemoryUsage = 0;
-	}
+}
 }
 
 bool FOpenVDBCacheData::LoadFile(FString Path, int frame)
