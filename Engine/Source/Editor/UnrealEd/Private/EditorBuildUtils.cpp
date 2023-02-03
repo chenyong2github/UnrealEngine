@@ -88,7 +88,8 @@ FName FEditorBuildUtils::InProgressBuildId;
 namespace UE::EditorBuildUtils
 {
 	static bool bNavmeshAllowPartitionedBuildingFromEditor = false; // Experimental, not enabled by default yet.
-	static FAutoConsoleVariableRef AllowPartitionedBuildingFromEditor(TEXT("n.bNavmeshAllowPartitionedBuildingFromEditor"), bNavmeshAllowPartitionedBuildingFromEditor, TEXT("Enable experimental navmesh partition building."), ECVF_Default);
+	static FAutoConsoleVariableRef AllowPartitionedBuildingFromEditorDeprecated(TEXT("n.bNavmeshAllowPartitionedBuildingFromEditor"), bNavmeshAllowPartitionedBuildingFromEditor, TEXT("Enable experimental navmesh partition building. Deprecated 5.3: use ai.nav.bNavmeshAllowPartitionedBuildingFromEditor instead."), ECVF_Default);
+	static FAutoConsoleVariableRef AllowPartitionedBuildingFromEditor(TEXT("ai.nav.bNavmeshAllowPartitionedBuildingFromEditor"), bNavmeshAllowPartitionedBuildingFromEditor, TEXT("Enable experimental navmesh partition building."), ECVF_Default);
 }
 
 /**
