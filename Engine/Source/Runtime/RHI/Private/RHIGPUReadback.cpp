@@ -154,28 +154,39 @@ void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITextur
 			// Assume for now that every enqueue happens on a texture of the same format and size (when reused).
 			if (!DestinationStagingTextures[GPUIndex])
 			{
-				FIntVector TextureSize = SourceTexture->GetSizeXYZ();
+				FIntVector StagingTextureSize;
+				if (Rect.IsValid())
+				{
+					StagingTextureSize = FIntVector(Rect.X2 - Rect.X1, Rect.Y2 - Rect.Y1, 1);
+				}
+				else
+				{
+					StagingTextureSize = SourceTexture->GetSizeXYZ();
+				}
+
 				FString FenceName = Fence->GetFName().ToString();
 
 				const FRHITextureCreateDesc Desc =
-					FRHITextureCreateDesc::Create2D(*FenceName, TextureSize.X, TextureSize.Y, SourceTexture->GetFormat())
+					FRHITextureCreateDesc::Create2D(*FenceName, StagingTextureSize.X, StagingTextureSize.Y, SourceTexture->GetFormat())
 					.SetFlags(ETextureCreateFlags::CPUReadback | ETextureCreateFlags::HideInVisualizeTexture)
 					.SetInitialState(ERHIAccess::CopyDest);
 
 				DestinationStagingTextures[GPUIndex] = RHICreateTexture(Desc);
 			}
-
+			else
+			{
+				RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTextures[GPUIndex], ERHIAccess::CPURead, ERHIAccess::CopyDest));
+			}
 			FRHICopyTextureInfo CopyInfo;
 
 			if (Rect.IsValid())
 			{
 				CopyInfo.SourcePosition = FIntVector(Rect.X1, Rect.Y1, 0);
-				CopyInfo.DestPosition = CopyInfo.SourcePosition;
 				CopyInfo.Size = FIntVector(Rect.X2 - Rect.X1, Rect.Y2 - Rect.Y1, 1);
 			}
 
 			RHICmdList.CopyTexture(SourceTexture, DestinationStagingTextures[GPUIndex], CopyInfo);
-
+			RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTextures[GPUIndex], ERHIAccess::CopyDest, ERHIAccess::CPURead));
 			RHICmdList.WriteGPUFence(Fence);
 		}
 	}
@@ -192,7 +203,6 @@ void* FRHIGPUTextureReadback::Lock(uint32 NumBytes)
 		void* ResultsBuffer = nullptr;
 		int32 BufferWidth = 0, BufferHeight = 0;
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTextures[GPUIndex], ERHIAccess::CopyDest, ERHIAccess::CPURead));
 		RHICmdList.MapStagingSurface(DestinationStagingTextures[GPUIndex], Fence.GetReference(), ResultsBuffer, BufferWidth, BufferHeight, LastLockGPUIndex);
 
 		return ResultsBuffer;
@@ -214,7 +224,6 @@ void* FRHIGPUTextureReadback::Lock(int32& OutRowPitchInPixels, int32 *OutBufferH
 		void* ResultsBuffer = nullptr;
 		int32 BufferWidth = 0, BufferHeight = 0;
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTextures[GPUIndex], ERHIAccess::CopyDest, ERHIAccess::CPURead));
 		RHICmdList.MapStagingSurface(DestinationStagingTextures[GPUIndex], Fence.GetReference(), ResultsBuffer, BufferWidth, BufferHeight, LastLockGPUIndex);
 
 		if (OutBufferHeight)
@@ -246,7 +255,6 @@ void FRHIGPUTextureReadback::Unlock()
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	RHICmdList.UnmapStagingSurface(DestinationStagingTextures[LastLockGPUIndex], LastLockGPUIndex);
-	RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTextures[LastLockGPUIndex], ERHIAccess::CPURead, ERHIAccess::CopyDest));
 }
 
 uint64 FRHIGPUTextureReadback::GetGPUSizeBytes() const

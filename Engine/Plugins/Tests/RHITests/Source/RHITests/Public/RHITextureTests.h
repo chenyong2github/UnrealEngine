@@ -5,6 +5,7 @@
 #include "RHITestsCommon.h"
 #include <type_traits>
 #include "Math/PackedVector.h"
+#include "RHIGPUReadback.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -841,7 +842,7 @@ public:
 
 		const auto WriteTestData = [](void* Ptr, int32 Stride, FIntPoint Size, FIntPoint Offset, int32 ImageIndex)
 		{
-			int32 Index = ImageIndex;
+			int32 Index = ImageIndex + Offset.Y * Size.X + Offset.X;
 			uint8* Bytes = (uint8*)Ptr;
 
 			for (int32 Y = Offset.Y; Y < Offset.Y + Size.Y; Y++)
@@ -868,7 +869,7 @@ public:
 
 				for (int32 X = Offset.X; X < Offset.X + Size.X; X++)
 				{
-					DataString += FString::Printf(TEXT(" %d"), Row[X]);
+					DataString += FString::Printf(TEXT(" %4d"), Row[X]);
 				}
 
 				DataString += TEXT("\n");
@@ -877,16 +878,16 @@ public:
 			return DataString;
 		};
 
-		const auto CheckTestData = [&](const void* Ptr, int32 Stride, FIntPoint Size, FIntPoint  Offset, int32 ImageIndex) -> bool
+		const auto CheckTestData = [&](const void* Ptr, int32 Stride, FIntPoint CheckSize, FIntPoint DataOffset, FIntPoint SrcSize, FIntPoint SrcOffset, int32 ImageIndex) -> bool
 		{
-			int32 Index = ImageIndex;
 			const uint8* Bytes = (uint8*)Ptr;
+			int32 Index = ImageIndex + SrcOffset.Y * SrcSize.X + SrcOffset.X;
 
-			for (int32 Y = Offset.Y; Y < Offset.Y + Size.Y; Y++)
+			for (int32 Y = DataOffset.Y; Y < DataOffset.Y + CheckSize.Y; Y++)
 			{
 				const uint32* Row = (const uint32*)(Bytes + Y * Stride);
 
-				for (int32 X = Offset.X; X < Offset.X + Size.X; X++)
+				for (int32 X = DataOffset.X; X < DataOffset.X + CheckSize.X; X++, Index++)
 				{
 					if (Row[X] != Index)
 					{
@@ -896,13 +897,13 @@ public:
 							TEXT("\tExpected Value: %d\n")
 							TEXT("\tActual Value: %d\n")
 							TEXT("%s"),
-							X, Y, Index, Row[X], *DumpTestData(Ptr, Stride, Size, Offset));
+							X, Y, Index, Row[X], *DumpTestData(Ptr, Stride, CheckSize, DataOffset));
 
 						return false;
 					}
-
-					Index++;
 				}
+
+				Index += SrcSize.X - CheckSize.X;
 			}
 
 			return true;
@@ -913,8 +914,6 @@ public:
 			{
 				const TCHAR* TestName = TEXT("Copy Texture Whole");
 				const FIntPoint Extent(16, 16);
-				const FIntPoint PatternOffset(0, 0);
-				const FIntPoint PatternSize(16, 16);
 				const int32 ImageIndex = 1;
 
 				const FRHITextureCreateDesc SourceDesc =
@@ -927,7 +926,7 @@ public:
 
 				uint32 Stride = 0;
 				void* Data = RHICmdList.LockTexture2D(SourceTexture, 0, RLM_WriteOnly, Stride, false);
-				WriteTestData(Data, Stride, PatternSize, PatternOffset, ImageIndex);
+				WriteTestData(Data, Stride, Extent, FIntPoint::ZeroValue, ImageIndex);
 				RHICmdList.UnlockTexture2D(SourceTexture, 0, false);
 
 				const FRHITextureCreateDesc DestDesc =
@@ -942,7 +941,7 @@ public:
 
 				RUN_TEST(VerifyTextureContents(TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 MipIndex, uint32 SliceIndex)
 				{
-					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
+					return CheckTestData(Data, Width * sizeof(uint32), Extent, FIntPoint::ZeroValue, Extent, FIntPoint::ZeroValue, ImageIndex);
 				}));
 			}
 
@@ -950,8 +949,6 @@ public:
 			const auto CopyTextureSrgbLambda = [&](const TCHAR* TestName, bool bSourceSrgb, bool bDestSrgb)
 			{
 				const FIntPoint Extent(16, 16);
-				const FIntPoint PatternOffset(0, 0);
-				const FIntPoint PatternSize(16, 16);
 				const int32 ImageIndex = 1;
 
 				const FRHITextureCreateDesc SourceDesc =
@@ -965,7 +962,7 @@ public:
 
 				uint32 Stride = 0;
 				void* Data = RHICmdList.LockTexture2D(SourceTexture, 0, RLM_WriteOnly, Stride, false);
-				WriteTestData(Data, Stride, PatternSize, PatternOffset, ImageIndex);
+				WriteTestData(Data, Stride, Extent, FIntPoint::ZeroValue, ImageIndex);
 				RHICmdList.UnlockTexture2D(SourceTexture, 0, false);
 
 				const FRHITextureCreateDesc DestDesc =
@@ -981,7 +978,7 @@ public:
 
 				RUN_TEST(VerifyTextureContents(TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 MipIndex, uint32 SliceIndex)
 				{
-					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
+					return CheckTestData(Data, Width * sizeof(uint32), Extent, FIntPoint::ZeroValue, Extent, FIntPoint::ZeroValue, ImageIndex);
 				}));
 			};
 
@@ -1035,7 +1032,7 @@ public:
 
 					RUN_TEST(VerifyTextureContents(*TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32, uint32 SliceIndex)
 					{
-						return CheckTestData(Data, Width * sizeof(uint32), DestDesc.Extent, FIntPoint::ZeroValue, MipIndex);
+						return CheckTestData(Data, Width * sizeof(uint32), DestDesc.Extent, FIntPoint::ZeroValue, DestDesc.Extent, FIntPoint::ZeroValue, MipIndex);
 					}));
 				}
 			};
@@ -1046,9 +1043,9 @@ public:
 			// Copy region
 			{
 				const TCHAR* TestName = TEXT("Copy Texture Region");
-				const FIntPoint Extent(32, 32);
+				const FIntPoint Extent(64, 64);
 				const FIntPoint PatternOffsetSource(8, 4);
-				const FIntPoint PatternOffsetDest(8, 4);
+				const FIntPoint PatternOffsetDest(16, 20);
 				const FIntPoint PatternSize(16, 24);
 				const int32 ImageIndex = 1;
 
@@ -1062,7 +1059,7 @@ public:
 
 				uint32 Stride = 0;
 				void* Data = RHICmdList.LockTexture2D(SourceTexture, 0, RLM_WriteOnly, Stride, false);
-				WriteTestData(Data, Stride, PatternSize, PatternOffsetSource, ImageIndex);
+				WriteTestData(Data, Stride, Extent, FIntPoint::ZeroValue, ImageIndex);
 				RHICmdList.UnlockTexture2D(SourceTexture, 0, false);
 
 				const FRHITextureCreateDesc DestDesc =
@@ -1082,8 +1079,51 @@ public:
 
 				RUN_TEST(VerifyTextureContents(TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 MipIndex, uint32 SliceIndex)
 				{
-					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffsetDest, ImageIndex);
+					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffsetDest, Extent, PatternOffsetSource, ImageIndex);
 				}));
+			}
+
+			// Copy source subrect to destination readback buffer
+			{
+				const TCHAR* TestName = TEXT("Readback Texture Region");
+				const FIntPoint Extent(32, 32);
+				const FIntPoint PatternOffset(8, 4);
+				const FIntPoint PatternSize(16, 24);
+				const int32 ImageIndex = 1;
+
+				const FRHITextureCreateDesc SourceDesc =
+					FRHITextureCreateDesc::Create2D(TestName)
+					.SetExtent(Extent.X, Extent.Y)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopySrc);
+
+				FTextureRHIRef SourceTexture = RHICreateTexture(SourceDesc);
+
+				uint32 Stride = 0;
+				void* Data = RHICmdList.LockTexture2D(SourceTexture, 0, RLM_WriteOnly, Stride, false);
+				WriteTestData(Data, Stride, Extent, FIntPoint::ZeroValue, ImageIndex);
+				RHICmdList.UnlockTexture2D(SourceTexture, 0, false);
+
+				FRHIGPUTextureReadback Readback(TEXT("DestReadbackBuffer"));
+				FResolveRect SourceRect = FResolveRect(PatternOffset.X, PatternOffset.Y, PatternOffset.X + PatternSize.X, PatternOffset.Y + PatternSize.Y);
+
+				Readback.EnqueueCopy(RHICmdList, SourceTexture, SourceRect);
+				RHICmdList.SubmitCommandsAndFlushGPU();
+
+				int32 Pitch;
+				void* ReadbackData = Readback.Lock(Pitch);
+				bool bReadbackOK = CheckTestData(ReadbackData, Pitch * sizeof(uint32), PatternSize, FIntPoint::ZeroValue, Extent, PatternOffset, ImageIndex);
+				if (bReadbackOK)
+				{
+					UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test passed. \"%s\""), TestName);
+				}
+				else
+				{
+					UE_LOG(LogRHIUnitTestCommandlet, Error, TEXT("Test failed. \"%s\""), TestName);
+				}
+				Readback.Unlock();
+
+				bResult = bResult && bReadbackOK;
 			}
 
 			// Copy mip chains
@@ -1171,7 +1211,7 @@ public:
 					const FIntPoint PatternSize(PatternSizeMip0.X     >> MipIndex, PatternSizeMip0.Y   >> MipIndex);
 					const FIntPoint PatternOffset(PatternOffsetMip0.X >> MipIndex, PatternOffsetMip0.Y >> MipIndex);
 
-					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
+					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, PatternSize, PatternOffset, ImageIndex);
 				}));
 			}
 
@@ -1246,7 +1286,7 @@ public:
 					const FIntPoint PatternSize(PatternSizeMip0.X >> MipIndex, PatternSizeMip0.Y >> MipIndex);
 					const FIntPoint PatternOffset(PatternOffsetMip0.X >> MipIndex, PatternOffsetMip0.Y >> MipIndex);
 
-					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
+					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, PatternSize, PatternOffset, ImageIndex);
 				}));
 			}
 
@@ -1279,12 +1319,11 @@ public:
 
 					FUpdateTexture3DData Data = RHICmdList.BeginUpdateTexture3D(SourceTexture, Mip, Region);
 					
-					const FIntPoint PatternOffset(0, 0);
 					const FIntPoint PatternSize(Region.Width, Region.Height);
 
 					for (uint32 Z = 0; Z < Region.Depth; ++Z)
 					{
-						WriteTestData(Data.Data + Data.DepthPitch * Z, Data.RowPitch, PatternSize, PatternOffset, ImageIndex + Z);
+						WriteTestData(Data.Data + Data.DepthPitch * Z, Data.RowPitch, PatternSize, FIntPoint::ZeroValue, ImageIndex + Z);
 					}
 
 					RHICmdList.EndUpdateTexture3D(Data);
@@ -1301,10 +1340,9 @@ public:
 				{
 					int32 ImageIndex = SourceDesc.Depth * MipIndex + Depth + 1;
 
-					const FIntPoint PatternOffset(0, 0);
 					const FIntPoint PatternSize(MipWidth, MipHeight);
 
-					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
+					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, FIntPoint::ZeroValue, PatternSize, FIntPoint::ZeroValue, ImageIndex);
 				}));
 			}
 		}
