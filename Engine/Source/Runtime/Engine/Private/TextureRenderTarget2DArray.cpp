@@ -303,6 +303,8 @@ void FTextureRenderTarget2DArrayResource::UpdateDeferredResource(FRHICommandList
 {
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Owner->GetOutermost(), ELLMTagSet::Assets);
 
+	RemoveFromDeferredUpdateList();
+
 	if (!bClearRenderTarget)
 	{
 		return;
