@@ -4,7 +4,9 @@
 #include "VertexDeltaModel.h"
 #include "MLDeformerAsset.h"
 #include "NeuralNetwork.h"
+#include "RenderGraphBuilder.h"
 #include "Components/SkeletalMeshComponent.h"
+
 
 UVertexDeltaModel* UVertexDeltaModelInstance::GetVertexDeltaModel() const
 {
