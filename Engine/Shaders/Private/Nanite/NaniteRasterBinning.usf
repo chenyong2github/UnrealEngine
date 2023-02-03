@@ -6,16 +6,16 @@
 
 #include "NaniteAttributeDecode.ush"
 
-#if (RASTER_BIN_PASS == NANITE_RASTER_BIN_CLASSIFY)
-	#define RASTER_BIN_CLASSIFY	1
+#if (RASTER_BIN_PASS == NANITE_RASTER_BIN_COUNT)
+	#define RASTER_BIN_COUNT	1
 	#define RASTER_BIN_SCATTER	0
 	#define RASTER_BIN_RESERVE	0
 #elif (RASTER_BIN_PASS == NANITE_RASTER_BIN_SCATTER)
-	#define RASTER_BIN_CLASSIFY	0
+	#define RASTER_BIN_COUNT	0
 	#define RASTER_BIN_SCATTER	1
 	#define RASTER_BIN_RESERVE	0
 #else
-	#define RASTER_BIN_CLASSIFY	0
+	#define RASTER_BIN_COUNT	0
 	#define RASTER_BIN_SCATTER	0
 	#define RASTER_BIN_RESERVE	1
 #endif
@@ -129,7 +129,7 @@ uint DecodeVertReuseBatchInfo(FCluster Cluster, uint BatchInfoOffset, uint Batch
 	return ExtractVertReuseBatchInfo(PackedData, BitOffset);
 }
 
-#if RASTER_BIN_CLASSIFY
+#if RASTER_BIN_COUNT
 void IncrementRasterizerBinCount(uint BinIndex, bool bSoftware, uint BatchCount)
 {
 	// One atomic per lane causes severe contention that ends up dominating execution time.
@@ -201,7 +201,7 @@ void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart,
 	const FNaniteMaterialFlags BinMaterialFlags = GetRasterizerBinMaterialFlags(RasterizerBin);
 	const bool bUseBatch = bSoftware ? BinMaterialFlags.bPixelProgrammable : (bUsePrimOrMeshShader && BinMaterialFlags.bVertexProgrammable);
 	BatchCount = CondMask(bUseBatch, BatchCount, 1u);
-#if RASTER_BIN_CLASSIFY
+#if RASTER_BIN_COUNT
 	IncrementRasterizerBinCount(RasterizerBin, bSoftware, BatchCount);
 #elif RASTER_BIN_SCATTER
 	const uint BinClusterMapping = AllocateRasterizerBinCluster(RasterizerBin, bSoftware, BatchCount);

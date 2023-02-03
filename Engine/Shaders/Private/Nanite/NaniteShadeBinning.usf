@@ -5,16 +5,16 @@
 uint4 ViewRect;
 uint ShadingBinCount;
 
-#if (SHADING_BIN_PASS == NANITE_SHADING_BIN_CLASSIFY)
-	#define SHADING_BIN_CLASSIFY	1
+#if (SHADING_BIN_PASS == NANITE_SHADING_BIN_COUNT)
+	#define SHADING_BIN_COUNT		1
 	#define SHADING_BIN_RESERVE		0
 	#define SHADING_BIN_SCATTER		0
 #elif (SHADING_BIN_PASS == NANITE_RASTER_BIN_SCATTER)
-	#define SHADING_BIN_CLASSIFY	0
+	#define SHADING_BIN_COUNT		0
 	#define SHADING_BIN_RESERVE		0
 	#define SHADING_BIN_SCATTER		1
 #else
-	#define SHADING_BIN_CLASSIFY	0
+	#define SHADING_BIN_COUNT		0
 	#define SHADING_BIN_RESERVE		1
 	#define SHADING_BIN_SCATTER		0
 #endif
@@ -27,7 +27,7 @@ uint ShadingRateTileSize;
 Texture2D<uint> ShadingRateImage;
 #endif
 
-#if SHADING_BIN_CLASSIFY || SHADING_BIN_SCATTER
+#if SHADING_BIN_COUNT || SHADING_BIN_SCATTER
 Texture2D<uint> ShadingMask;
 SamplerState ShadingMaskSampler;
 #endif
@@ -47,7 +47,7 @@ RWBuffer<uint> OutShadingBinArgs;
 RWStructuredBuffer<uint> OutShadingBinQuads;
 #endif
 
-#if SHADING_BIN_CLASSIFY || SHADING_BIN_SCATTER
+#if SHADING_BIN_COUNT || SHADING_BIN_SCATTER
 
 [numthreads(8, 8, 1)]
 void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint ThreadId : SV_GroupIndex)
@@ -142,7 +142,7 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 
 			const uint BinQuadCount = WaveActiveCountBits(Coverage != 0u);
 
-	#if SHADING_BIN_CLASSIFY
+	#if SHADING_BIN_COUNT
 		#if STATS_SAMPLE_COUNT
 			const uint SampleCount  = countbits(Coverage);
 			const uint BinSampleCount = WaveActiveSum(SampleCount);
