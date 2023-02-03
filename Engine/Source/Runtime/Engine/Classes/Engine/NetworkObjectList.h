@@ -16,8 +16,7 @@ class FArchive;
 
 #ifndef DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
 	// Run additional code to validate any errors in the SubObject channel refcounting at the cost of extra memory usage and cpu overhead.
-	//#define DO_REPLICATED_OBJECT_CHANNELREF_CHECKS (UE_REPLICATED_OBJECT_REFCOUNTING && WITH_SERVER_CODE && !UE_BUILD_SHIPPING) 
-	#define DO_REPLICATED_OBJECT_CHANNELREF_CHECKS 0
+	#define DO_REPLICATED_OBJECT_CHANNELREF_CHECKS (UE_REPLICATED_OBJECT_REFCOUNTING && WITH_SERVER_CODE && !UE_BUILD_SHIPPING) 
 #endif
 
 /** Indicates the status of a replicated subobject replicated by actor channels. */
