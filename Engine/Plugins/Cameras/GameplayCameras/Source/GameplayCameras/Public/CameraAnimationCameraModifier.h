@@ -67,6 +67,9 @@ struct FCameraAnimationParams
 	/** Whether the camera animation should loop */
 	UPROPERTY(BlueprintReadWrite, Category="Camera Animation")
 	bool bLoop = false;
+	/** Offset, in frames, into the animation to start at */
+	UPROPERTY(BlueprintReadWrite, Category="Camera Animation")
+	int32 StartOffset = 0;
 	/** Whether the camera animation should have a random start time */
 	UPROPERTY(BlueprintReadWrite, Category="Camera Animation")
 	bool bRandomStartTime = false;

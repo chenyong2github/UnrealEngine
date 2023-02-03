@@ -52,10 +52,6 @@ float UCameraAnimationCameraModifier::EvaluateEasing(ECameraAnimationEasingType 
 {
 	using namespace CameraAnimationCameraModifierImpl;
 	
-	// Used for in-out easing
-	const float InTime = Interp * 2.f;
-	const float OutTime = (Interp - .5f) * 2.f;
-
 	switch (EasingType)
 	{
 	case ECameraAnimationEasingType::Sinusoidal: 	return Sinusoidal(Interp);
@@ -112,7 +108,7 @@ FCameraAnimationHandle UCameraAnimationCameraModifier::PlayCameraAnimation(UCame
 	NewCameraAnimation.Player->SetBoundObjectOverride(NewCameraAnimation.CameraStandIn);
 
 	// Initialize it and start playing.
-	NewCameraAnimation.Player->Initialize(Sequence);
+	NewCameraAnimation.Player->Initialize(Sequence, Params.StartOffset);
 	NewCameraAnimation.Player->Play(Params.bLoop, Params.bRandomStartTime);
 
 	return InstanceHandle;
@@ -215,12 +211,12 @@ void UCameraAnimationCameraModifier::DisplayDebug(class UCanvas* Canvas, const F
 
 		if (ActiveAnimation.IsValid())
 		{
-			const FFrameRate InputRate = ActiveAnimation.Player->GetInputRate();
-			const FFrameNumber DurationFrames = ActiveAnimation.Player->GetDuration();
+			const FFrameRate DisplayRate = ActiveAnimation.Player->GetInputRate();
+			const FFrameTime DurationFrames = ActiveAnimation.Player->GetDuration();
 			const FFrameTime CurrentPosition = ActiveAnimation.Player->GetCurrentPosition();
 
-			const float CurrentTime = InputRate.AsSeconds(CurrentPosition);
-			const float DurationSeconds = InputRate.AsSeconds(DurationFrames);
+			const float CurrentTime = DisplayRate.AsSeconds(CurrentPosition);
+			const float DurationSeconds = DisplayRate.AsSeconds(DurationFrames);
 
 			const FString LoopString = ActiveAnimation.Params.bLoop ? TEXT(" Looping") : TEXT("");
 			const FString EaseInString = ActiveAnimation.bIsEasingIn ? FString::Printf(TEXT(" Easing In: %f / %f"), ActiveAnimation.EaseInCurrentTime, ActiveAnimation.Params.EaseInDuration) : TEXT("");
@@ -321,15 +317,11 @@ void UCameraAnimationCameraModifier::TickAnimation(FActiveCameraAnimationInfo& C
 	UCameraAnimationSequencePlayer* Player = CameraAnimation.Player;
 	UCameraAnimationSequenceCameraStandIn* CameraStandIn = CameraAnimation.CameraStandIn;
 
-	const FFrameRate InputRate = Player->GetInputRate();
+	const FFrameRate DisplayRate = Player->GetInputRate();
 	const FFrameTime CurrentPosition = Player->GetCurrentPosition();
-	const float CurrentTime = InputRate.AsSeconds(CurrentPosition);
-	const float DurationTime = InputRate.AsSeconds(Player->GetDuration()) * Params.PlayRate;
 
 	const float ScaledDeltaTime = DeltaTime * Params.PlayRate;
-
-	const float NewTime = CurrentTime + ScaledDeltaTime;
-	const FFrameTime NewPosition = CurrentPosition + DeltaTime * Params.PlayRate * InputRate;
+	const FFrameTime NewPosition = CurrentPosition + ScaledDeltaTime * DisplayRate;
 
 	// Advance any easing times.
 	if (CameraAnimation.bIsEasingIn)
@@ -344,6 +336,8 @@ void UCameraAnimationCameraModifier::TickAnimation(FActiveCameraAnimationInfo& C
 	// Start easing out if we're nearing the end.
 	if (!Player->GetIsLooping())
 	{
+		const float NewTime = DisplayRate.AsSeconds(NewPosition);
+		const float DurationTime = DisplayRate.AsSeconds(Player->GetDuration()) * Params.PlayRate;
 		const float BlendOutStartTime = DurationTime - Params.EaseOutDuration;
 		if (NewTime > BlendOutStartTime)
 		{

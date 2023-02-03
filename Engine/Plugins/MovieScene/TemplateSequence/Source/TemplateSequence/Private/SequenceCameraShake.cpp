@@ -73,8 +73,10 @@ void USequenceCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartP
 
 void USequenceCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
-	const FFrameRate InputRate = Player->GetInputRate();
-	const FFrameTime NewPosition = Player->GetCurrentPosition() + Params.DeltaTime * PlayRate * InputRate;
+	const FFrameRate DisplayRate = Player->GetInputRate();
+	const FFrameTime CurrentPosition = Player->GetCurrentPosition();
+
+	const FFrameTime NewPosition = CurrentPosition + Params.DeltaTime * PlayRate * DisplayRate;
 	UpdateCamera(NewPosition, Params.POV, OutResult);
 }
 
