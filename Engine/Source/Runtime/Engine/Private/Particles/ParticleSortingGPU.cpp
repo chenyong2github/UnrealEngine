@@ -76,49 +76,25 @@ public:
 		OutParticleIndices.Bind( Initializer.ParameterMap, TEXT("OutParticleIndices") );
 	}
 
-	/**
-	 * Set output buffers for this shader.
-	 */
-	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* OutKeysUAV, FRHIUnorderedAccessView* OutIndicesUAV )
-	{
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutKeys, OutKeysUAV);
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutParticleIndices, OutIndicesUAV);
-	}
-
-	/**
-	 * Set input parameters.
-	 */
 	void SetParameters(
-		FRHICommandList& RHICmdList,
-		FParticleKeyGenUniformBufferRef& UniformBuffer,
+		FRHIBatchedShaderParameters& BatchedParameters,
+		FRHIUnorderedAccessView* OutKeysUAV,
+		FRHIUnorderedAccessView* OutIndicesUAV,
+		FRHITexture2D* PositionTextureRHI,
 		FRHIShaderResourceView* InIndicesSRV
 		)
 	{
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, GetUniformBufferParameter<FParticleKeyGenParameters>(), UniformBuffer );
-		SetSRVParameter(RHICmdList, ComputeShaderRHI, InParticleIndices, InIndicesSRV);
+		SetUAVParameter(BatchedParameters, OutKeys, OutKeysUAV);
+		SetUAVParameter(BatchedParameters, OutParticleIndices, OutIndicesUAV);
+		SetTextureParameter(BatchedParameters, PositionTexture, PositionTextureRHI);
+		SetSRVParameter(BatchedParameters, InParticleIndices, InIndicesSRV);
 	}
 
-	/**
-	 * Set the texture from which particle positions can be read.
-	 */
-	void SetPositionTextures(FRHICommandList& RHICmdList, FRHITexture2D* PositionTextureRHI)
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 	{
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		SetTextureParameter(RHICmdList, ComputeShaderRHI, PositionTexture, PositionTextureRHI);
-	}
-
-	/**
-	 * Unbinds any buffers that have been bound.
-	 */
-	void UnbindBuffers(FRHICommandList& RHICmdList)
-	{
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetSRVParameter(RHICmdList, ComputeShaderRHI, InParticleIndices, nullptr);
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutKeys, nullptr);
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutParticleIndices, nullptr);
+		SetSRVParameter(BatchedParameters, InParticleIndices, nullptr);
+		SetUAVParameter(BatchedParameters, OutKeys, nullptr);
+		SetUAVParameter(BatchedParameters, OutParticleIndices, nullptr);
 	}
 
 private:
@@ -155,15 +131,14 @@ int32 GenerateParticleSortKeys(
 	check(FeatureLevel >= ERHIFeatureLevel::SM5);
 
 	FParticleKeyGenParameters KeyGenParameters;
-	FParticleKeyGenUniformBufferRef KeyGenUniformBuffer;
 	const uint32 MaxGroupCount = 128;
 	int32 TotalParticleCount = 0;
 
 	// Grab the shader, set output.
 	TShaderMapRef<FParticleSortKeyGenCS> KeyGenCS(GetGlobalShaderMap(FeatureLevel));
 	SetComputePipelineState(RHICmdList, KeyGenCS.GetComputeShader());
-	KeyGenCS->SetOutput(RHICmdList, KeyBufferUAV, SortedVertexBufferUAV);
-	KeyGenCS->SetPositionTextures(RHICmdList, PositionTextureRHI);
+
+	FRHIBatchedShaderParameters BatchedParameters;
 
 	// TR-KeyGen : No sync needed between tasks since they update different parts of the data (assuming it's ok if cache line overlap).
 	RHICmdList.BeginUAVOverlap({ KeyBufferUAV, SortedVertexBufferUAV });
@@ -184,16 +159,22 @@ int32 GenerateParticleSortKeys(
 			KeyGenParameters.OutputOffset = SortInfo.AllocationInfo.BufferOffset;
 			KeyGenParameters.EmitterKey = (uint32)SortInfo.AllocationInfo.ElementIndex << 16;
 			KeyGenParameters.KeyCount = ParticleCount;
-			KeyGenUniformBuffer = FParticleKeyGenUniformBufferRef::CreateUniformBufferImmediate( KeyGenParameters, UniformBuffer_SingleDraw );
 
-			// Dispatch.
-			KeyGenCS->SetParameters(RHICmdList, KeyGenUniformBuffer, SortInfo.VertexBufferSRV);
+			FParticleKeyGenUniformBufferRef KeyGenUniformBuffer = FParticleKeyGenUniformBufferRef::CreateUniformBufferImmediate( KeyGenParameters, UniformBuffer_SingleDraw );
+			SetUniformBufferParameter(RHICmdList, KeyGenCS.GetComputeShader(), KeyGenCS->GetUniformBufferParameter<FParticleKeyGenParameters>(), KeyGenUniformBuffer);
+
+			KeyGenCS->SetParameters(BatchedParameters, KeyBufferUAV, SortedVertexBufferUAV, PositionTextureRHI, SortInfo.VertexBufferSRV);
+
+			RHICmdList.SetBatchedShaderParameters(KeyGenCS.GetComputeShader(), BatchedParameters);
+			BatchedParameters.Reset();
+
 			DispatchComputeShader(RHICmdList, KeyGenCS.GetShader(), GroupCount, 1, 1);
 		}
 	}
 
 	// Clear the output buffer.
-	KeyGenCS->UnbindBuffers(RHICmdList);
+	KeyGenCS->UnsetParameters(BatchedParameters);
+	RHICmdList.SetBatchedShaderParameters(KeyGenCS.GetComputeShader(), BatchedParameters);
 
 	RHICmdList.EndUAVOverlap({ KeyBufferUAV, SortedVertexBufferUAV });
 

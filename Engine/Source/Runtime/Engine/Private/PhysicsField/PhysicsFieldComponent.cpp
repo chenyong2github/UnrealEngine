@@ -227,44 +227,37 @@ public:
 	{
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource, const float InTimeSeconds, const int32 InNumCells)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FPhysicsFieldResource* FieldResource, const float InTimeSeconds, const int32 InNumCells)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
 		if (FieldResource)
 		{
-			RHICmdList.Transition(FRHITransitionInfo(FieldResource->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			SetSRVParameter(BatchedParameters, NodesParams, FieldResource->NodesParams.SRV);
+			SetSRVParameter(BatchedParameters, NodesOffsets, FieldResource->NodesOffsets.SRV);
+			SetSRVParameter(BatchedParameters, TargetsOffsets, FieldResource->TargetsOffsets.SRV);
+			SetUAVParameter(BatchedParameters, FieldClipmap, FieldResource->ClipmapBuffer.UAV);
 
-			SetSRVParameter(RHICmdList, ShaderRHI, NodesParams, FieldResource->NodesParams.SRV);
-			SetSRVParameter(RHICmdList, ShaderRHI, NodesOffsets, FieldResource->NodesOffsets.SRV);
-			SetSRVParameter(RHICmdList, ShaderRHI, TargetsOffsets, FieldResource->TargetsOffsets.SRV);
-			SetUAVParameter(RHICmdList, ShaderRHI, FieldClipmap, FieldResource->ClipmapBuffer.UAV);
+			SetSRVParameter(BatchedParameters, CellsOffsets, FieldResource->CellsOffsets.SRV);
+			SetSRVParameter(BatchedParameters, CellsMin, FieldResource->CellsMin.SRV);
+			SetSRVParameter(BatchedParameters, CellsMax, FieldResource->CellsMax.SRV);
 
-			SetSRVParameter(RHICmdList, ShaderRHI, CellsOffsets, FieldResource->CellsOffsets.SRV);
-			SetSRVParameter(RHICmdList, ShaderRHI, CellsMin, FieldResource->CellsMin.SRV);
-			SetSRVParameter(RHICmdList, ShaderRHI, CellsMax, FieldResource->CellsMax.SRV);
+			SetShaderValue(BatchedParameters, ClipmapResolution, FieldResource->FieldInfos.ClipmapResolution);
+			SetShaderValue(BatchedParameters, ClipmapDistance, FieldResource->FieldInfos.ClipmapDistance);
+			SetShaderValue(BatchedParameters, ClipmapCount, FieldResource->FieldInfos.ClipmapCount);
+			SetShaderValue(BatchedParameters, ClipmapCenter, (FVector3f)FieldResource->FieldInfos.ClipmapCenter);
+			SetShaderValue(BatchedParameters, ClipmapExponent, FieldResource->FieldInfos.ClipmapExponent);
 
-			SetShaderValue(RHICmdList, ShaderRHI, ClipmapResolution, FieldResource->FieldInfos.ClipmapResolution);
-			SetShaderValue(RHICmdList, ShaderRHI, ClipmapDistance, FieldResource->FieldInfos.ClipmapDistance);
-			SetShaderValue(RHICmdList, ShaderRHI, ClipmapCount, FieldResource->FieldInfos.ClipmapCount);
-			SetShaderValue(RHICmdList, ShaderRHI, ClipmapCenter, (FVector3f)FieldResource->FieldInfos.ClipmapCenter);
-			SetShaderValue(RHICmdList, ShaderRHI, ClipmapExponent, FieldResource->FieldInfos.ClipmapExponent);
-
-			SetShaderValue(RHICmdList, ShaderRHI, ValidTargets, FieldResource->FieldInfos.ValidTargets);
-			SetShaderValue(RHICmdList, ShaderRHI, ValidCount, FieldResource->FieldInfos.ValidCount);
-			SetShaderValue(RHICmdList, ShaderRHI, TargetsIndex, FieldResource->FieldInfos.PhysicsTargets);
-			SetShaderValue(RHICmdList, ShaderRHI, TimeSeconds, InTimeSeconds);
-			SetShaderValue(RHICmdList, ShaderRHI, NumCells, InNumCells);
-			SetShaderValue(RHICmdList, ShaderRHI, TargetCount, FieldResource->FieldInfos.TargetCount);
+			SetShaderValue(BatchedParameters, ValidTargets, FieldResource->FieldInfos.ValidTargets);
+			SetShaderValue(BatchedParameters, ValidCount, FieldResource->FieldInfos.ValidCount);
+			SetShaderValue(BatchedParameters, TargetsIndex, FieldResource->FieldInfos.PhysicsTargets);
+			SetShaderValue(BatchedParameters, TimeSeconds, InTimeSeconds);
+			SetShaderValue(BatchedParameters, NumCells, InNumCells);
+			SetShaderValue(BatchedParameters, TargetCount, FieldResource->FieldInfos.TargetCount);
 		}
 	}
 
-	void UnsetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource)
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetUAVParameter(RHICmdList, ShaderRHI, FieldClipmap, nullptr);
-		RHICmdList.Transition(FRHITransitionInfo(FieldResource->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+		SetUAVParameter(BatchedParameters, FieldClipmap, nullptr);
 	}
 
 private:
@@ -341,37 +334,30 @@ public:
 	{
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource, const float InTimeSeconds, const int32 InNumCells)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FPhysicsFieldResource* FieldResource, const float InTimeSeconds, const int32 InNumCells)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
 		if (FieldResource)
 		{
-			RHICmdList.Transition(FRHITransitionInfo(FieldResource->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			SetUAVParameter(BatchedParameters, FieldClipmap, FieldResource->ClipmapBuffer.UAV);
+			SetShaderValue(BatchedParameters, NumCells, InNumCells);
 
-			SetUAVParameter(RHICmdList, ShaderRHI, FieldClipmap, FieldResource->ClipmapBuffer.UAV);
-			SetShaderValue(RHICmdList, ShaderRHI, NumCells, InNumCells);
+			SetSRVParameter(BatchedParameters, CellsOffsets, FieldResource->CellsOffsets.SRV);
+			SetSRVParameter(BatchedParameters, CellsMin, FieldResource->CellsMin.SRV);
+			SetSRVParameter(BatchedParameters, CellsMax, FieldResource->CellsMax.SRV);
 
-			SetSRVParameter(RHICmdList, ShaderRHI, CellsOffsets, FieldResource->CellsOffsets.SRV);
-			SetSRVParameter(RHICmdList, ShaderRHI, CellsMin, FieldResource->CellsMin.SRV);
-			SetSRVParameter(RHICmdList, ShaderRHI, CellsMax, FieldResource->CellsMax.SRV);
+			SetShaderValue(BatchedParameters, ClipmapResolution, FieldResource->FieldInfos.ClipmapResolution);
+			SetShaderValue(BatchedParameters, ClipmapCount, FieldResource->FieldInfos.ClipmapCount);
 
-			SetShaderValue(RHICmdList, ShaderRHI, ClipmapResolution, FieldResource->FieldInfos.ClipmapResolution);
-			SetShaderValue(RHICmdList, ShaderRHI, ClipmapCount, FieldResource->FieldInfos.ClipmapCount);
-
-			SetShaderValue(RHICmdList, ShaderRHI, ValidTargets, FieldResource->FieldInfos.ValidTargets);
-			SetShaderValue(RHICmdList, ShaderRHI, ValidCount, FieldResource->FieldInfos.ValidCount);
-			SetShaderValue(RHICmdList, ShaderRHI, TargetsIndex, FieldResource->FieldInfos.PhysicsTargets);
-			SetShaderValue(RHICmdList, ShaderRHI, TargetCount, FieldResource->FieldInfos.TargetCount);
+			SetShaderValue(BatchedParameters, ValidTargets, FieldResource->FieldInfos.ValidTargets);
+			SetShaderValue(BatchedParameters, ValidCount, FieldResource->FieldInfos.ValidCount);
+			SetShaderValue(BatchedParameters, TargetsIndex, FieldResource->FieldInfos.PhysicsTargets);
+			SetShaderValue(BatchedParameters, TargetCount, FieldResource->FieldInfos.TargetCount);
 		}
 	}
 
-	void UnsetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource)
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetUAVParameter(RHICmdList, ShaderRHI, FieldClipmap, nullptr);
-		RHICmdList.Transition(FRHITransitionInfo(FieldResource->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+		SetUAVParameter(BatchedParameters, FieldClipmap, nullptr);
 	}
 
 private:
@@ -573,15 +559,19 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 			SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_ClearClipmap);
 			SCOPED_GPU_STAT(RHICmdList, PhysicsFields_ClearClipmap);
 
+			RHICmdList.Transition(FRHITransitionInfo(this->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+
 			TShaderMapRef<FResetPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
 			SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 
 			const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
 			const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FResetPhysicsFieldClipmapCS::ThreadGroupSize);
 
-			ComputeShader->SetParameters(RHICmdList, this, TimeSeconds, NumCells);
+			SetAllShaderParametersCS(RHICmdList, ComputeShader, this, TimeSeconds, NumCells);
 			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, 1, 1);
-			ComputeShader->UnsetParameters(RHICmdList, this);
+			UnsetAllShaderParametersCS(RHICmdList, ComputeShader);
+
+			RHICmdList.Transition(FRHITransitionInfo(this->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 		}
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_UpdateBuffers);
@@ -597,15 +587,20 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_BuildClipmap);
 			SCOPED_GPU_STAT(RHICmdList, PhysicsFields_BuildClipmap);
+
+			RHICmdList.Transition(FRHITransitionInfo(this->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+
 			TShaderMapRef<FBuildPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
 			SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 
 			const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
 			const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FBuildPhysicsFieldClipmapCS::ThreadGroupSize);
 
-			ComputeShader->SetParameters(RHICmdList, this, TimeSeconds, NumCells);
+			SetAllShaderParametersCS(RHICmdList, ComputeShader, this, TimeSeconds, NumCells);
 			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, 1, 1);
-			ComputeShader->UnsetParameters(RHICmdList, this);
+			UnsetAllShaderParametersCS(RHICmdList, ComputeShader);
+
+			RHICmdList.Transition(FRHITransitionInfo(this->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 		}
 	}
 }

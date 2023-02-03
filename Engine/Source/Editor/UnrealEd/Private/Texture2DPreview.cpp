@@ -17,6 +17,7 @@
 #include "VirtualTexturing.h"
 #include "Engine/Texture2DArray.h"
 #include "ShaderParameterStruct.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /*------------------------------------------------------------------------------
 	Batched element shaders for previewing 2d textures.
@@ -165,7 +166,7 @@ void FBatchedElementTexture2DPreviewParameters::BindShaders(
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	VertexShader->SetParameters(RHICmdList, InTransform);
+	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
 
 	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), Parameters);
 }

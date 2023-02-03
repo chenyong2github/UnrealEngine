@@ -16,6 +16,7 @@
 #include "Editor.h"
 #include "TextureResource.h"
 #include "GlobalRenderResources.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 UNREALED_API void GetBestFitForNumberOfTiles(int32 InSize, int32& OutNumTilesX, int32& OutNumTilesY)
 {
@@ -77,47 +78,45 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Parameters.Platform);
 	}
 	
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, int32 SizeZ, const FMatrix44f& ColorWeightsValue, float GammaValue, float MipLevel, float Opacity, const FRotator& TraceOrientation, bool bUsePointSampling)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* TextureValue, int32 SizeZ, const FMatrix44f& ColorWeightsValue, float GammaValue, float MipLevel, float Opacity, const FRotator& TraceOrientation, bool bUsePointSampling)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
 		FRHISamplerState* SamplerState = bUsePointSampling ? TStaticSamplerState<SF_Point>::GetRHI() : TextureValue->SamplerStateRHI.GetReference();
-		SetTextureParameter(RHICmdList, ShaderRHI, InTexture, InTextureSampler, SamplerState, TextureValue->TextureRHI);
+		SetTextureParameter(BatchedParameters, InTexture, InTextureSampler, SamplerState, TextureValue->TextureRHI);
 
 		if (GEditor && GEditor->Bad)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, BadTexture, BadTextureSampler, GEditor->Bad->GetResource());
+			SetTextureParameter(BatchedParameters, BadTexture, BadTextureSampler, GEditor->Bad->GetResource());
 		}
 		else
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, BadTexture, GWhiteTexture->TextureRHI);
+			SetTextureParameter(BatchedParameters, BadTexture, GWhiteTexture->TextureRHI);
 		}
-		SetShaderValue(RHICmdList, ShaderRHI,ColorWeights,ColorWeightsValue);
+		SetShaderValue(BatchedParameters,ColorWeights,ColorWeightsValue);
 
 		const int32 MipSizeZ = MipLevel >= 0 ? FMath::Max<int32>(SizeZ >> FMath::FloorToInt(MipLevel), 1) : SizeZ;
 		FVector4f PackedParametersValue(GammaValue, MipLevel, (float)MipSizeZ, Opacity);
-		SetShaderValue(RHICmdList, ShaderRHI, PackedParameters, PackedParametersValue);
+		SetShaderValue(BatchedParameters, PackedParameters, PackedParametersValue);
 
 		int32 NumTilesX = 0;
 		int32 NumTilesY = 0;
 		GetBestFitForNumberOfTiles(MipSizeZ, NumTilesX, NumTilesY);
-		SetShaderValue(RHICmdList, ShaderRHI, NumTilesPerSideParameter, FVector4f((float)NumTilesX, (float)NumTilesY, 0 ,0));
+		SetShaderValue(BatchedParameters, NumTilesPerSideParameter, FVector4f((float)NumTilesX, (float)NumTilesY, 0 ,0));
 
-		SetShaderValue(RHICmdList, ShaderRHI,TextureComponentReplicate,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
-		SetShaderValue(RHICmdList, ShaderRHI,TextureComponentReplicateAlpha,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
+		SetShaderValue(BatchedParameters,TextureComponentReplicate,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
+		SetShaderValue(BatchedParameters,TextureComponentReplicateAlpha,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
 
 		const FVector3f TextureDimension((float)TextureValue->GetSizeX(), (float)TextureValue->GetSizeY(), (float)SizeZ);
 		const float OneOverMinDimension = 1.f / FMath::Max(TextureDimension.GetMin(), 1.f);
-		SetShaderValue(RHICmdList, ShaderRHI, TraceVolumeScalingParameter, FVector4f(
+		SetShaderValue(BatchedParameters, TraceVolumeScalingParameter, FVector4f(
 				TextureDimension.X * OneOverMinDimension, 
 				TextureDimension.Y * OneOverMinDimension, 
 				TextureDimension.Z * OneOverMinDimension, 
 				TextureDimension.GetMax() * OneOverMinDimension * .5f) // Extent
 			);
 
-		SetShaderValue(RHICmdList, ShaderRHI, TextureDimensionParameter, FVector3f(TextureDimension.X, TextureDimension.Y, TextureDimension.Z));
+		SetShaderValue(BatchedParameters, TextureDimensionParameter, FVector3f(TextureDimension.X, TextureDimension.Y, TextureDimension.Z));
 
-		SetShaderValue(RHICmdList, ShaderRHI, TraceViewMatrixParameter, FMatrix44f(FRotationMatrix::Make(TraceOrientation)));
+		SetShaderValue(BatchedParameters, TraceViewMatrixParameter, FMatrix44f(FRotationMatrix::Make(TraceOrientation)));
 	}
 
 private:
@@ -206,6 +205,6 @@ void FBatchedElementVolumeTexturePreviewParameters::BindShaders(
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, SizeZ, ColorWeights, InGamma, MipLevel, Opacity, TraceOrientation, bUsePointSampling);
+	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture, SizeZ, ColorWeights, InGamma, MipLevel, Opacity, TraceOrientation, bUsePointSampling);
 }

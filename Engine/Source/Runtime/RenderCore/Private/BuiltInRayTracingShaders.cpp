@@ -56,18 +56,24 @@ void FRayTracingDispatchDescCS::Dispatch(FRHICommandList& RHICmdList,
 	FUintVector4 DispatchDescData[DispatchDescMaxSizeUint4s] = {};
 	FMemory::Memcpy(DispatchDescData, DispatchDescInput, DispatchDescSize);
 
-	SetShaderValueArray(RHICmdList, ShaderRHI, ComputeShader->DispatchDescInputParam, DispatchDescData, DispatchDescMaxSizeUint4s);
-	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->DispatchDescSizeDwordsParam, DispatchDescSizeDwords);
-	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->DispatchDescDimensionsOffsetDwordsParam, DispatchDescDimensionsOffsetDwords);
-	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->DimensionsBufferOffsetDwordsParam, DimensionsBufferOffsetDwords);
+	FRHIBatchedShaderParameters BatchedParameters;
 
-	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->DispatchDimensionsParam, DispatchDimensionsSRV);
-	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DispatchDescOutputParam, DispatchDescOutputUAV);
+	SetShaderValueArray(BatchedParameters, ComputeShader->DispatchDescInputParam, DispatchDescData, DispatchDescMaxSizeUint4s);
+	SetShaderValue(BatchedParameters, ComputeShader->DispatchDescSizeDwordsParam, DispatchDescSizeDwords);
+	SetShaderValue(BatchedParameters, ComputeShader->DispatchDescDimensionsOffsetDwordsParam, DispatchDescDimensionsOffsetDwords);
+	SetShaderValue(BatchedParameters, ComputeShader->DimensionsBufferOffsetDwordsParam, DimensionsBufferOffsetDwords);
+
+	SetSRVParameter(BatchedParameters, ComputeShader->DispatchDimensionsParam, DispatchDimensionsSRV);
+	SetUAVParameter(BatchedParameters, ComputeShader->DispatchDescOutputParam, DispatchDescOutputUAV);
+	RHICmdList.SetBatchedShaderParameters(ComputeShader.GetComputeShader(), BatchedParameters);
 
 	RHICmdList.DispatchComputeShader(1, 1, 1);
 
-	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->DispatchDimensionsParam, nullptr);
-	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DispatchDescOutputParam, nullptr);
+	BatchedParameters.Reset();
+
+	SetSRVParameter(BatchedParameters, ComputeShader->DispatchDimensionsParam, nullptr);
+	SetUAVParameter(BatchedParameters, ComputeShader->DispatchDescOutputParam, nullptr);
+	RHICmdList.SetBatchedShaderParameters(ComputeShader.GetComputeShader(), BatchedParameters);
 }
 
 #endif // RHI_RAYTRACING

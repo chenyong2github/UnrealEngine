@@ -18,6 +18,7 @@
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTargetCube.h"
 #include "RHIStaticStates.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 IMPLEMENT_SHADER_TYPE(,FCubemapTexturePropertiesVS,TEXT("/Engine/Private/SimpleElementVertexShader.usf"),TEXT("Main"),SF_Vertex);
 IMPLEMENT_SHADER_TYPE(,FCubemapTexturePropertiesPS,TEXT("/Engine/Private/SimpleElementPixelShader.usf"),TEXT("CubemapTextureProperties"),SF_Pixel);
@@ -131,9 +132,16 @@ bool FCubemapTexturePropertiesVS::ShouldCompilePermutation(const FGlobalShaderPe
 	return IsPCPlatform(Parameters.Platform);
 }
 
-void FCubemapTexturePropertiesVS::SetParameters( FRHICommandList& RHICmdList, const FMatrix& TransformValue )
+void FCubemapTexturePropertiesVS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FMatrix& TransformValue )
 {
+	SetShaderValue(BatchedParameters, Transform, (FMatrix44f)TransformValue);
+}
+
+void FCubemapTexturePropertiesVS::SetParameters(FRHICommandList& RHICmdList, const FMatrix& TransformValue)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), Transform, (FMatrix44f)TransformValue);
+	RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundVertexShader(), BatchedParameters);
 }
 
 FCubemapTexturePropertiesPS::FCubemapTexturePropertiesPS() = default;
@@ -166,21 +174,19 @@ bool FCubemapTexturePropertiesPS::ShouldCompilePermutation(const FGlobalShaderPe
 	return true;
 }
 
-void FCubemapTexturePropertiesPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* InTexture, const FMatrix& InColorWeightsValue, float InMipLevel, float InSliceIndex, bool bInIsTextureCubeArray, const FMatrix44f& InViewMatrix, bool bInShowLongLatUnwrap, float InGammaValue, bool bInUsePointSampling)
+void FCubemapTexturePropertiesPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* InTexture, const FMatrix& InColorWeightsValue, float InMipLevel, float InSliceIndex, bool bInIsTextureCubeArray, const FMatrix44f& InViewMatrix, bool bInShowLongLatUnwrap, float InGammaValue, bool bInUsePointSampling)
 {
-	FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
 	if (InTexture != nullptr)
 	{
 		FRHISamplerState* SamplerState = bInUsePointSampling ? TStaticSamplerState<SF_Point>::GetRHI() : InTexture->SamplerStateRHI.GetReference();
-		SetTextureParameter(RHICmdList, ShaderRHI, CubeTexture, CubeTextureSampler, SamplerState, InTexture->TextureRHI);
+		SetTextureParameter(BatchedParameters, CubeTexture, CubeTextureSampler, SamplerState, InTexture->TextureRHI);
 	}
 
 	FVector4f PackedProperties0Value(InMipLevel, bInShowLongLatUnwrap ? 1.0f : -1.0f, 0, 0);
-	SetShaderValue(RHICmdList, ShaderRHI, PackedProperties0, PackedProperties0Value);
-	SetShaderValue(RHICmdList, ShaderRHI, ColorWeights, (FMatrix44f)InColorWeightsValue);
-	SetShaderValue(RHICmdList, ShaderRHI, Gamma, InGammaValue);
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ViewMatrix, InViewMatrix);
+	SetShaderValue(BatchedParameters, PackedProperties0, PackedProperties0Value);
+	SetShaderValue(BatchedParameters, ColorWeights, (FMatrix44f)InColorWeightsValue);
+	SetShaderValue(BatchedParameters, Gamma, InGammaValue);
+	SetShaderValue(BatchedParameters, ViewMatrix, InViewMatrix);
 
 	// store slice count and selected slice index for the texture cube array
 	if (bInIsTextureCubeArray)
@@ -188,9 +194,16 @@ void FCubemapTexturePropertiesPS::SetParameters(FRHICommandList& RHICmdList, con
 		// GetSizeZ() returns the total number of slices stored in the platform data
 		// for a TextureCube array this value is equal to the size of the array multiplied by 6
 		const float NumSlicesData = (float)(InTexture != nullptr ? FMath::Max((int32)InTexture->GetSizeZ() / 6, 1) : 1);
-		SetShaderValue(RHICmdList, ShaderRHI, NumSlices, NumSlicesData);
-		SetShaderValue(RHICmdList, ShaderRHI, SliceIndex, InSliceIndex);
+		SetShaderValue(BatchedParameters, NumSlices, NumSlicesData);
+		SetShaderValue(BatchedParameters, SliceIndex, InSliceIndex);
 	}
+}
+
+void FCubemapTexturePropertiesPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* InTexture, const FMatrix& InColorWeightsValue, float InMipLevel, float InSliceIndex, bool bInIsTextureCubeArray, const FMatrix44f& InViewMatrix, bool bInShowLongLatUnwrap, float InGammaValue, bool bInUsePointSampling)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	SetParameters(BatchedParameters, InTexture, InColorWeightsValue, InMipLevel, InSliceIndex, bInIsTextureCubeArray, InViewMatrix, bInShowLongLatUnwrap, InGammaValue, bInUsePointSampling);
+	RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundPixelShader(), BatchedParameters);
 }
 
 void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture)
@@ -213,8 +226,8 @@ void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList,
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, MipLevel, SliceIndex, bIsTextureCubeArray, ViewMatrix, bShowLongLatUnwrap, InGamma, bUsePointSampling);
+	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture, ColorWeights, MipLevel, SliceIndex, bIsTextureCubeArray, ViewMatrix, bShowLongLatUnwrap, InGamma, bUsePointSampling);
 }
 
 FIESLightProfilePS::FIESLightProfilePS() = default;
@@ -232,12 +245,17 @@ bool FIESLightProfilePS::ShouldCompilePermutation(const FGlobalShaderPermutation
 	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Parameters.Platform);
 }
 
-void FIESLightProfilePS::SetParameters( FRHICommandList& RHICmdList, const FTexture* Texture, float InBrightnessInLumens )
+void FIESLightProfilePS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* Texture, float InBrightnessInLumens )
 {
-	FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-	SetTextureParameter(RHICmdList, ShaderRHI, IESTexture, IESTextureSampler, Texture);
+	SetTextureParameter(BatchedParameters, IESTexture, IESTextureSampler, Texture);
+	SetShaderValue(BatchedParameters, BrightnessInLumens, InBrightnessInLumens);
+}
 
-	SetShaderValue(RHICmdList, ShaderRHI, BrightnessInLumens, InBrightnessInLumens);
+void FIESLightProfilePS::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, float InBrightnessInLumens)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	SetParameters(BatchedParameters, Texture, InBrightnessInLumens);
+	RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundPixelShader(), BatchedParameters);
 }
 
 void FIESLightProfileBatchedElementParameters::BindShaders( FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture )
@@ -255,6 +273,6 @@ void FIESLightProfileBatchedElementParameters::BindShaders( FRHICommandList& RHI
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, BrightnessInLumens);
+	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture, BrightnessInLumens);
 }

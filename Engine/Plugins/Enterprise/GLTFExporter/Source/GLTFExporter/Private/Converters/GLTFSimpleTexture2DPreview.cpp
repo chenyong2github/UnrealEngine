@@ -11,6 +11,7 @@
 #include "SimpleElementShaders.h"
 #include "ShaderParameterUtils.h"
 #include "PipelineStateCache.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FGLTFSimpleTexture2DPS : public FGlobalShader
 {
@@ -39,10 +40,9 @@ public:
 	 * Set shader parameters.
 	 * @param SampleTexture - The texture to sample.
 	 */
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* SampleTexture)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* SampleTexture)
 	{
-		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
-		SetTextureParameter(RHICmdList, PixelShaderRHI,Texture,TextureSampler,SampleTexture);
+		SetTextureParameter(BatchedParameters, Texture, TextureSampler, SampleTexture);
 	}
 
 private:
@@ -74,6 +74,6 @@ void FGLTFSimpleTexture2DPreview::BindShaders(
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::CheckApply);
 
-	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture);
+	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture);
 }

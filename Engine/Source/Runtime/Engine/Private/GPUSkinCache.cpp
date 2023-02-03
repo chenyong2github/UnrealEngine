@@ -660,65 +660,61 @@ public:
 	}
 
 	void SetParameters(
-		FRHICommandListImmediate& RHICmdList, 
+		FRHIBatchedShaderParameters& BatchedParameters,
 		const FVertexBufferAndSRV& BoneBuffer,
 		FGPUSkinCacheEntry* Entry,
-		FGPUSkinCacheEntry::FSectionDispatchData& DispatchData,
-		FRHIUnorderedAccessView* PositionUAV, FRHIUnorderedAccessView* TangentUAV
+		const FGPUSkinCacheEntry::FSectionDispatchData& DispatchData,
+		FRHIUnorderedAccessView* PositionUAV,
+		FRHIUnorderedAccessView* TangentUAV
 		)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetShaderValue(RHICmdList, ShaderRHI, NumVertices, DispatchData.NumVertices);
-		SetShaderValue(RHICmdList, ShaderRHI, InputStreamStart, DispatchData.InputStreamStart);
+		SetShaderValue(BatchedParameters, NumVertices, DispatchData.NumVertices);
+		SetShaderValue(BatchedParameters, InputStreamStart, DispatchData.InputStreamStart);
 
 		check(BoneBuffer.VertexBufferSRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, BoneMatrices, BoneBuffer.VertexBufferSRV);
+		SetSRVParameter(BatchedParameters, BoneMatrices, BoneBuffer.VertexBufferSRV);
 
-		SetSRVParameter(RHICmdList, ShaderRHI, TangentInputBuffer, DispatchData.TangentBufferSRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, PositionInputBuffer, DispatchData.PositionBufferSRV);
+		SetSRVParameter(BatchedParameters, TangentInputBuffer, DispatchData.TangentBufferSRV);
+		SetSRVParameter(BatchedParameters, PositionInputBuffer, DispatchData.PositionBufferSRV);
 
-		SetShaderValue(RHICmdList, ShaderRHI, NumBoneInfluences, DispatchData.NumBoneInfluences);
-		SetShaderValue(RHICmdList, ShaderRHI, InputWeightIndexSize, Entry->InputWeightIndexSize);
-		SetShaderValue(RHICmdList, ShaderRHI, InputWeightStart, DispatchData.InputWeightStart);
-		SetShaderValue(RHICmdList, ShaderRHI, InputWeightStride, Entry->InputWeightStride);
-		SetSRVParameter(RHICmdList, ShaderRHI, InputWeightStream, Entry->InputWeightStreamSRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, InputWeightLookupStream, Entry->InputWeightLookupStreamSRV);
+		SetShaderValue(BatchedParameters, NumBoneInfluences, DispatchData.NumBoneInfluences);
+		SetShaderValue(BatchedParameters, InputWeightIndexSize, Entry->InputWeightIndexSize);
+		SetShaderValue(BatchedParameters, InputWeightStart, DispatchData.InputWeightStart);
+		SetShaderValue(BatchedParameters, InputWeightStride, Entry->InputWeightStride);
+		SetSRVParameter(BatchedParameters, InputWeightStream, Entry->InputWeightStreamSRV);
+		SetSRVParameter(BatchedParameters, InputWeightLookupStream, Entry->InputWeightLookupStreamSRV);
 
 		// output UAV
-		SetUAVParameter(RHICmdList, ShaderRHI, PositionBufferUAV, PositionUAV);
-		SetUAVParameter(RHICmdList, ShaderRHI, TangentBufferUAV, TangentUAV);
-		SetShaderValue(RHICmdList, ShaderRHI, SkinCacheStart, DispatchData.OutputStreamStart);
+		SetUAVParameter(BatchedParameters, PositionBufferUAV, PositionUAV);
+		SetUAVParameter(BatchedParameters, TangentBufferUAV, TangentUAV);
+		SetShaderValue(BatchedParameters, SkinCacheStart, DispatchData.OutputStreamStart);
 
 		const bool bMorph = DispatchData.SkinType == 1;
 		if (bMorph)
 		{
-			SetSRVParameter(RHICmdList, ShaderRHI, MorphBuffer, Entry->MorphBuffer);
-			SetShaderValue(RHICmdList, ShaderRHI, MorphBufferOffset, DispatchData.MorphBufferOffset);
+			SetSRVParameter(BatchedParameters, MorphBuffer, Entry->MorphBuffer);
+			SetShaderValue(BatchedParameters, MorphBufferOffset, DispatchData.MorphBufferOffset);
 		}
 
 		const bool bCloth = DispatchData.SkinType == 2;
 		if (bCloth)
 		{
-			SetSRVParameter(RHICmdList, ShaderRHI, ClothBuffer, Entry->ClothBuffer);
-			SetSRVParameter(RHICmdList, ShaderRHI, ClothPositionsAndNormalsBuffer, DispatchData.ClothPositionsAndNormalsBuffer);
-			SetShaderValue(RHICmdList, ShaderRHI, ClothBufferOffset, DispatchData.ClothBufferOffset);
-			SetShaderValue(RHICmdList, ShaderRHI, ClothBlendWeight, DispatchData.ClothBlendWeight);
-			SetShaderValue(RHICmdList, ShaderRHI, ClothToLocal, DispatchData.ClothToLocal);
-			SetShaderValue(RHICmdList, ShaderRHI, ClothNumInfluencesPerVertex, DispatchData.ClothNumInfluencesPerVertex);
-			SetShaderValue(RHICmdList, ShaderRHI, WorldScale, DispatchData.WorldScale);
+			SetSRVParameter(BatchedParameters, ClothBuffer, Entry->ClothBuffer);
+			SetSRVParameter(BatchedParameters, ClothPositionsAndNormalsBuffer, DispatchData.ClothPositionsAndNormalsBuffer);
+			SetShaderValue(BatchedParameters, ClothBufferOffset, DispatchData.ClothBufferOffset);
+			SetShaderValue(BatchedParameters, ClothBlendWeight, DispatchData.ClothBlendWeight);
+			SetShaderValue(BatchedParameters, ClothToLocal, DispatchData.ClothToLocal);
+			SetShaderValue(BatchedParameters, ClothNumInfluencesPerVertex, DispatchData.ClothNumInfluencesPerVertex);
+			SetShaderValue(BatchedParameters, WorldScale, DispatchData.WorldScale);
 		}
 
-		SetShaderValue(RHICmdList, ShaderRHI, SkinCacheDebug, CVarGPUSkinCacheDebug.GetValueOnRenderThread());
+		SetShaderValue(BatchedParameters, SkinCacheDebug, CVarGPUSkinCacheDebug.GetValueOnRenderThread());
 	}
 
-
-	void UnsetParameters(FRHICommandList& RHICmdList)
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetUAVParameter(RHICmdList, ShaderRHI, PositionBufferUAV, 0);
-		SetUAVParameter(RHICmdList, ShaderRHI, TangentBufferUAV, 0);
+		SetUAVParameter(BatchedParameters, PositionBufferUAV, 0);
+		SetUAVParameter(BatchedParameters, TangentBufferUAV, 0);
 	}
 
 private:
@@ -912,45 +908,41 @@ public:
         DuplicatedIndicesIndices.Bind(Initializer.ParameterMap, TEXT("DuplicatedIndicesIndices"));
 	}
 
-	void SetParameters(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, FGPUSkinCacheEntry::FSectionDispatchData& DispatchData, FRWBuffer& StagingBuffer)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FGPUSkinCacheEntry* Entry, const FGPUSkinCacheEntry::FSectionDispatchData& DispatchData, const FRWBuffer& StagingBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
 //later		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View);
 
-		SetShaderValue(RHICmdList, ShaderRHI, NumTriangles, DispatchData.NumTriangles);
+		SetShaderValue(BatchedParameters, NumTriangles, DispatchData.NumTriangles);
 
-		SetSRVParameter(RHICmdList, ShaderRHI, GPUPositionCacheBuffer, DispatchData.GetPositionRWBuffer()->Buffer.SRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, GPUTangentCacheBuffer, DispatchData.GetActiveTangentRWBuffer()->Buffer.SRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, UVsInputBuffer, DispatchData.UVsBufferSRV);
+		SetSRVParameter(BatchedParameters, GPUPositionCacheBuffer, DispatchData.GetPositionRWBuffer()->Buffer.SRV);
+		SetSRVParameter(BatchedParameters, GPUTangentCacheBuffer, DispatchData.GetActiveTangentRWBuffer()->Buffer.SRV);
+		SetSRVParameter(BatchedParameters, UVsInputBuffer, DispatchData.UVsBufferSRV);
 
-		SetShaderValue(RHICmdList, ShaderRHI, SkinCacheStart, DispatchData.OutputStreamStart);
+		SetShaderValue(BatchedParameters, SkinCacheStart, DispatchData.OutputStreamStart);
 
-		SetSRVParameter(RHICmdList, ShaderRHI, IndexBuffer, DispatchData.IndexBuffer);
-		SetShaderValue(RHICmdList, ShaderRHI, IndexBufferOffset, DispatchData.IndexBufferOffsetValue);
+		SetSRVParameter(BatchedParameters, IndexBuffer, DispatchData.IndexBuffer);
+		SetShaderValue(BatchedParameters, IndexBufferOffset, DispatchData.IndexBufferOffsetValue);
 		
-		SetShaderValue(RHICmdList, ShaderRHI, InputStreamStart, DispatchData.InputStreamStart);
-		SetShaderValue(RHICmdList, ShaderRHI, NumTexCoords, DispatchData.NumTexCoords);
-		SetShaderValue(RHICmdList, ShaderRHI, SelectedTexCoord, DispatchData.SelectedTexCoord);
-		SetSRVParameter(RHICmdList, ShaderRHI, TangentInputBuffer, DispatchData.TangentBufferSRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, TangentInputBuffer, DispatchData.UVsBufferSRV);
+		SetShaderValue(BatchedParameters, InputStreamStart, DispatchData.InputStreamStart);
+		SetShaderValue(BatchedParameters, NumTexCoords, DispatchData.NumTexCoords);
+		SetShaderValue(BatchedParameters, SelectedTexCoord, DispatchData.SelectedTexCoord);
+		SetSRVParameter(BatchedParameters, TangentInputBuffer, DispatchData.TangentBufferSRV);
+		SetSRVParameter(BatchedParameters, TangentInputBuffer, DispatchData.UVsBufferSRV);
 
 		// UAV
-		SetUAVParameter(RHICmdList, ShaderRHI, IntermediateAccumBufferUAV, StagingBuffer.UAV);
-		SetShaderValue(RHICmdList, ShaderRHI, IntermediateAccumBufferOffset, GRecomputeTangentsParallelDispatch * DispatchData.IntermediateAccumulatedTangentBufferOffset);
+		SetUAVParameter(BatchedParameters, IntermediateAccumBufferUAV, StagingBuffer.UAV);
+		SetShaderValue(BatchedParameters, IntermediateAccumBufferOffset, GRecomputeTangentsParallelDispatch * DispatchData.IntermediateAccumulatedTangentBufferOffset);
 
         if (!GAllowDupedVertsForRecomputeTangents)
         {
-		    SetSRVParameter(RHICmdList, ShaderRHI, DuplicatedIndices, DispatchData.DuplicatedIndices);
-            SetSRVParameter(RHICmdList, ShaderRHI, DuplicatedIndicesIndices, DispatchData.DuplicatedIndicesIndices);
+		    SetSRVParameter(BatchedParameters, DuplicatedIndices, DispatchData.DuplicatedIndices);
+            SetSRVParameter(BatchedParameters, DuplicatedIndicesIndices, DispatchData.DuplicatedIndicesIndices);
         }
 	}
 
-	void UnsetParameters(FRHICommandList& RHICmdList)
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetUAVParameter(RHICmdList, ShaderRHI, IntermediateAccumBufferUAV, 0);
+		SetUAVParameter(BatchedParameters, IntermediateAccumBufferUAV, 0);
 	}
 
 	LAYOUT_FIELD(FShaderResourceParameter, IntermediateAccumBufferUAV);
@@ -1042,35 +1034,31 @@ public:
 		VertexColorChannel.Bind(Initializer.ParameterMap, TEXT("VertexColorChannel"));
 	}
 
-	void SetParameters(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, FGPUSkinCacheEntry::FSectionDispatchData& DispatchData, FRWBuffer& StagingBuffer)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FGPUSkinCacheEntry* Entry, const FGPUSkinCacheEntry::FSectionDispatchData& DispatchData, const FRWBuffer& StagingBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
 		check(StagingBuffer.UAV);
 
-		//later		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View);
+		//later		FGlobalShader::SetParameters<FViewUniformShaderParameters>(BatchedParameters, View);
 
-		SetShaderValue(RHICmdList, ShaderRHI, SkinCacheStart, DispatchData.OutputStreamStart);
-		SetShaderValue(RHICmdList, ShaderRHI, NumVertices, DispatchData.NumVertices);
-		SetShaderValue(RHICmdList, ShaderRHI, InputStreamStart, DispatchData.InputStreamStart);
-		SetShaderValue(RHICmdList, ShaderRHI, VertexColorChannel, uint32(DispatchData.Section->RecomputeTangentsVertexMaskChannel));
+		SetShaderValue(BatchedParameters, SkinCacheStart, DispatchData.OutputStreamStart);
+		SetShaderValue(BatchedParameters, NumVertices, DispatchData.NumVertices);
+		SetShaderValue(BatchedParameters, InputStreamStart, DispatchData.InputStreamStart);
+		SetShaderValue(BatchedParameters, VertexColorChannel, uint32(DispatchData.Section->RecomputeTangentsVertexMaskChannel));
 
 		// UAVs
-		SetUAVParameter(RHICmdList, ShaderRHI, IntermediateAccumBufferUAV, StagingBuffer.UAV);
-		SetShaderValue(RHICmdList, ShaderRHI, IntermediateAccumBufferOffset, GRecomputeTangentsParallelDispatch * DispatchData.IntermediateAccumulatedTangentBufferOffset);
-		SetUAVParameter(RHICmdList, ShaderRHI, TangentBufferUAV, DispatchData.GetTangentRWBuffer()->Buffer.UAV);
+		SetUAVParameter(BatchedParameters, IntermediateAccumBufferUAV, StagingBuffer.UAV);
+		SetShaderValue(BatchedParameters, IntermediateAccumBufferOffset, GRecomputeTangentsParallelDispatch * DispatchData.IntermediateAccumulatedTangentBufferOffset);
+		SetUAVParameter(BatchedParameters, TangentBufferUAV, DispatchData.GetTangentRWBuffer()->Buffer.UAV);
 
-		SetSRVParameter(RHICmdList, ShaderRHI, TangentInputBuffer, DispatchData.IntermediateTangentBuffer ? DispatchData.IntermediateTangentBuffer->Buffer.SRV : nullptr);
+		SetSRVParameter(BatchedParameters, TangentInputBuffer, DispatchData.IntermediateTangentBuffer ? DispatchData.IntermediateTangentBuffer->Buffer.SRV : nullptr);
 
-		SetSRVParameter(RHICmdList, ShaderRHI, ColorInputBuffer, DispatchData.ColorBufferSRV);
+		SetSRVParameter(BatchedParameters, ColorInputBuffer, DispatchData.ColorBufferSRV);
 	}
 
-	void UnsetParameters(FRHICommandList& RHICmdList)
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetUAVParameter(RHICmdList, ShaderRHI, TangentBufferUAV, 0);
-		SetUAVParameter(RHICmdList, ShaderRHI, IntermediateAccumBufferUAV, 0);
+		SetUAVParameter(BatchedParameters, TangentBufferUAV, 0);
+		SetUAVParameter(BatchedParameters, IntermediateAccumBufferUAV, 0);
 	}
 };
 
@@ -1174,7 +1162,7 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 				*RayTracingTag , *GetSkeletalMeshObjectName(Entry->GPUSkin), LODIndex, SectionIndex, DispatchData.IndexBufferOffsetValue, DispatchData.NumTriangles, Entry->BoneInfluenceType, bFullPrecisionUV);
 
 			FRHIComputeShader* ShaderRHI = Shader.GetComputeShader();
-			SetComputePipelineState(RHICmdList, ShaderRHI);
+			SetComputePipelineState(RHICmdList, Shader.GetComputeShader());
 
 			if (!GAllowDupedVertsForRecomputeTangents)
 			{
@@ -1195,9 +1183,13 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 			}
 
 			INC_DWORD_STAT_BY(STAT_GPUSkinCache_NumTrianglesForRecomputeTangents, NumTriangles);
-			Shader->SetParameters(RHICmdList, Entry, DispatchData, GRecomputeTangentsParallelDispatch ? DispatchData.GetIntermediateAccumulatedTangentBuffer()->Buffer : StagingBuffer->Buffer);
+
+			const FRWBuffer& ShaderStagingBuffer = GRecomputeTangentsParallelDispatch ? DispatchData.GetIntermediateAccumulatedTangentBuffer()->Buffer : StagingBuffer->Buffer;
+
+			SetAllShaderParametersCS(RHICmdList, Shader, Entry, DispatchData, ShaderStagingBuffer);
 			DispatchComputeShader(RHICmdList, Shader.GetShader(), ThreadGroupCountValue, 1, 1);
-			Shader->UnsetParameters(RHICmdList);
+			UnsetAllShaderParametersCS(RHICmdList, Shader);
+
 			IncrementDispatchCounter(RHICmdList);
 		}
 	}
@@ -1229,9 +1221,10 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 				});
 		}
 
-		ComputeShader->SetParameters(RHICmdList, Entry, DispatchData, GRecomputeTangentsParallelDispatch ? DispatchData.GetIntermediateAccumulatedTangentBuffer()->Buffer : StagingBuffer->Buffer);
+		SetAllShaderParametersCS(RHICmdList, ComputeShader, Entry, DispatchData, GRecomputeTangentsParallelDispatch ? DispatchData.GetIntermediateAccumulatedTangentBuffer()->Buffer : StagingBuffer->Buffer);
 		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), ThreadGroupCountValue, 1, 1);
-		ComputeShader->UnsetParameters(RHICmdList);
+		UnsetAllShaderParametersCS(RHICmdList, ComputeShader);
+
 		IncrementDispatchCounter(RHICmdList);
 	}
 }
@@ -1890,19 +1883,21 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	{
 		SetComputePipelineState(RHICmdList, Shader.GetComputeShader());
 
-		Shader->SetParameters(
+		SetAllShaderParametersCS(
 			RHICmdList,
+			Shader,
 			PrevBoneBuffer,
 			Entry,
 			DispatchData,
 			DispatchData.GetPreviousPositionRWBuffer()->Buffer.UAV,
 			DispatchData.GetActiveTangentRWBuffer() ? DispatchData.GetActiveTangentRWBuffer()->Buffer.UAV : nullptr
-			);
+		);
 
 		uint32 VertexCountAlign64 = FMath::DivideAndRoundUp(DispatchData.NumVertices, (uint32)64);
 		INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumVertices, VertexCountAlign64 * 64);
 		RHICmdList.DispatchComputeShader(VertexCountAlign64, 1, 1);
-		Shader->UnsetParameters(RHICmdList);
+		UnsetAllShaderParametersCS(RHICmdList, Shader);
+
 		IncrementDispatchCounter(RHICmdList);
 		BuffersToTransitionToRead.Add(DispatchData.GetPreviousPositionRWBuffer());
 	}
@@ -1911,19 +1906,22 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	{
 		SetComputePipelineState(RHICmdList, Shader.GetComputeShader());
 
-		Shader->SetParameters(
-			RHICmdList, 
-			BoneBuffer, 
-			Entry, 
-			DispatchData, 
-			DispatchData.GetPositionRWBuffer()->Buffer.UAV, 
+		SetAllShaderParametersCS(
+			RHICmdList,
+			Shader,
+			BoneBuffer,
+			Entry,
+			DispatchData,
+			DispatchData.GetPositionRWBuffer()->Buffer.UAV,
 			DispatchData.GetActiveTangentRWBuffer() ? DispatchData.GetActiveTangentRWBuffer()->Buffer.UAV : nullptr
-			);
+		);
 
 		uint32 VertexCountAlign64 = FMath::DivideAndRoundUp(DispatchData.NumVertices, (uint32)64);
 		INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumVertices, VertexCountAlign64 * 64);
 		RHICmdList.DispatchComputeShader(VertexCountAlign64, 1, 1);
-		Shader->UnsetParameters(RHICmdList);
+
+		UnsetAllShaderParametersCS(RHICmdList, Shader);
+
 		IncrementDispatchCounter(RHICmdList);
 		BuffersToTransitionToRead.Add(DispatchData.GetPositionRWBuffer());
 	}

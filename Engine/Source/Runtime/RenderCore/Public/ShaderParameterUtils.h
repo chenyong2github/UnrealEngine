@@ -13,8 +13,234 @@
 #include "ShaderCore.h"
 #include "Misc/App.h"
 
+class FShaderMapPointerTable;
+
 template<typename TBufferStruct> class TUniformBuffer;
 template<typename TBufferStruct> class TUniformBufferRef;
+template<typename ShaderType, typename PointerTableType> class TShaderRefBase;
+template<typename ShaderType> using TShaderRef = TShaderRefBase<ShaderType, FShaderMapPointerTable>;
+
+template<class ParameterType>
+void SetShaderValue(
+	FRHIBatchedShaderParameters& BatchedParameters
+	, const FShaderParameter& Parameter
+	, const ParameterType& Value
+	, uint32 ElementIndex = 0
+)
+{
+	// This will trigger if the parameter was not serialized
+	checkSlow(Parameter.IsInitialized());
+
+	static_assert(!TIsPointer<ParameterType>::Value, "Passing by value is not valid.");
+
+	const uint32 AlignedTypeSize = Align<uint32>(sizeof(ParameterType), SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT);
+	const uint32 ElementByteOffset = ElementIndex * AlignedTypeSize;
+	const int32 NumBytesToSet = FMath::Min<int32>(sizeof(ParameterType), static_cast<int32>(Parameter.GetNumBytes()) - ElementByteOffset);
+
+	if (NumBytesToSet > 0)
+	{
+		BatchedParameters.SetShaderParameter(
+			Parameter.GetBufferIndex(),
+			Parameter.GetBaseIndex() + ElementByteOffset,
+			(uint32)NumBytesToSet,
+			&Value);
+	}
+}
+
+template<class ParameterType>
+void SetShaderValueArray(
+	FRHIBatchedShaderParameters& BatchedParameters
+	, const FShaderParameter& Parameter
+	, const ParameterType* Values
+	, uint32 NumElements
+	, uint32 ElementIndex = 0
+)
+{
+	const uint32 AlignedTypeSize = Align<uint32>(sizeof(ParameterType), SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT);
+	const uint32 ElementByteOffset = ElementIndex * AlignedTypeSize;
+	const int32 NumBytesToSet = FMath::Min<int32>(NumElements * AlignedTypeSize, Parameter.GetNumBytes() - ElementByteOffset);
+
+	// This will trigger if the parameter was not serialized
+	checkSlow(Parameter.IsInitialized());
+
+	if (NumBytesToSet > 0)
+	{
+		BatchedParameters.SetShaderParameter(
+			Parameter.GetBufferIndex(),
+			Parameter.GetBaseIndex() + ElementByteOffset,
+			(uint32)NumBytesToSet,
+			Values
+		);
+	}
+}
+
+inline void SetTextureParameter(FRHIBatchedShaderParameters& BatchedParameters, const FShaderResourceParameter& Parameter, FRHITexture* TextureRHI)
+{
+	if (Parameter.IsBound())
+	{
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
+		{
+			BatchedParameters.SetBindlessTexture(Parameter.GetBaseIndex(), TextureRHI);
+		}
+		else
+#endif
+		{
+			BatchedParameters.SetShaderTexture(Parameter.GetBaseIndex(), TextureRHI);
+		}
+	}
+}
+
+inline void SetSamplerParameter(FRHIBatchedShaderParameters& BatchedParameters, const FShaderResourceParameter& Parameter, FRHISamplerState* SamplerStateRHI)
+{
+	if (Parameter.IsBound())
+	{
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (Parameter.GetType() == EShaderParameterType::BindlessSamplerIndex)
+		{
+			BatchedParameters.SetBindlessSampler(Parameter.GetBaseIndex(), SamplerStateRHI);
+		}
+		else
+#endif
+		{
+			BatchedParameters.SetShaderSampler(Parameter.GetBaseIndex(), SamplerStateRHI);
+		}
+	}
+}
+
+inline void SetTextureParameter(
+	FRHIBatchedShaderParameters& BatchedParameters,
+	const FShaderResourceParameter& TextureParameter,
+	const FShaderResourceParameter& SamplerParameter,
+	FRHISamplerState* SamplerStateRHI,
+	FRHITexture* TextureRHI
+)
+{
+	SetTextureParameter(BatchedParameters, TextureParameter, TextureRHI);
+	SetSamplerParameter(BatchedParameters, SamplerParameter, SamplerStateRHI);
+}
+
+inline void SetTextureParameter(
+	FRHIBatchedShaderParameters& BatchedParameters,
+	const FShaderResourceParameter& TextureParameter,
+	const FShaderResourceParameter& SamplerParameter,
+	const FTexture* Texture
+)
+{
+	if (TextureParameter.IsBound())
+	{
+		Texture->LastRenderTime = FApp::GetCurrentTime();
+	}
+
+	SetTextureParameter(BatchedParameters, TextureParameter, Texture->TextureRHI);
+	SetSamplerParameter(BatchedParameters, SamplerParameter, Texture->SamplerStateRHI);
+}
+
+inline void SetSRVParameter(FRHIBatchedShaderParameters& BatchedParameters, const FShaderResourceParameter& Parameter, FRHIShaderResourceView* SRV)
+{
+	if (Parameter.IsBound())
+	{
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
+		{
+			BatchedParameters.SetBindlessResourceView(Parameter.GetBaseIndex(), SRV);
+		}
+		else
+#endif
+		{
+			BatchedParameters.SetShaderResourceViewParameter(Parameter.GetBaseIndex(), SRV);
+		}
+	}
+}
+
+inline void SetUAVParameter(FRHIBatchedShaderParameters& BatchedParameters, const FShaderResourceParameter& Parameter, FRHIUnorderedAccessView* UAV)
+{
+	if (Parameter.IsBound())
+	{
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
+		{
+			BatchedParameters.SetBindlessUAV(Parameter.GetBaseIndex(), UAV);
+		}
+		else
+#endif
+		{
+			BatchedParameters.SetUAVParameter(Parameter.GetBaseIndex(), UAV);
+		}
+	}
+}
+
+/// Utility to set all parameters for a Vertex shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TCmdList, typename TShaderType, typename... TArguments>
+inline void SetAllShaderParametersVS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
+	RHICmdList.SetBatchedShaderParameters(InShader.GetVertexShader(), BatchedParameters);
+}
+
+/// Utility to set all parameters for a Mesh shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TCmdList, typename TShaderType, typename... TArguments>
+inline void SetAllShaderParametersMS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
+	RHICmdList.SetBatchedShaderParameters(InShader.GetMeshShader(), BatchedParameters);
+}
+
+/// Utility to set all parameters for an Amplification shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TCmdList, typename TShaderType, typename... TArguments>
+inline void SetAllShaderParametersAS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
+	RHICmdList.SetBatchedShaderParameters(InShader.GetAmplificationShader(), BatchedParameters);
+}
+
+/// Utility to set all parameters for a Pixel shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TCmdList, typename TShaderType, typename... TArguments>
+inline void SetAllShaderParametersPS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
+	RHICmdList.SetBatchedShaderParameters(InShader.GetPixelShader(), BatchedParameters);
+}
+
+/// Utility to set all parameters for a Geometry shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TCmdList, typename TShaderType, typename... TArguments>
+inline void SetAllShaderParametersGS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
+	RHICmdList.SetBatchedShaderParameters(InShader.GetGeometryShader(), BatchedParameters);
+}
+
+/// Utility to set all parameters for a Compute shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TCmdList, typename TShaderType, typename... TArguments>
+inline void SetAllShaderParametersCS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
+	RHICmdList.SetBatchedShaderParameters(InShader.GetComputeShader(), BatchedParameters);
+}
+
+/// Utility to unset all parameters for a Pixel shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+template<typename TCmdList, typename TShaderType>
+inline void UnsetAllShaderParametersPS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	InShader->UnsetParameters(BatchedParameters);
+	RHICmdList.SetBatchedShaderParameters(InShader.GetPixelShader(), BatchedParameters);
+}
+
+/// Utility to unset all parameters for a Compute shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+template<typename TCmdList, typename TShaderType>
+inline void UnsetAllShaderParametersCS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
+{
+	FRHIBatchedShaderParameters BatchedParameters;
+	InShader->UnsetParameters(BatchedParameters);
+	RHICmdList.SetBatchedShaderParameters(InShader.GetComputeShader(), BatchedParameters);
+}
 
 /**
  * Sets the value of a  shader parameter.  Template'd on shader type

@@ -996,41 +996,22 @@ public:
 		OutVolumeTextureSampler.Bind( Initializer.ParameterMap, TEXT("OutVolumeTextureSampler") );
 	}
 
-	/**
-	 * Set parameters for this shader.
-	 * @param UniformBuffer - Uniform buffer containing parameters for compositing vector fields.
-	 * @param AtlasTextureRHI - The atlas texture with which to create the vector field.
-	 * @param NoiseVolumeTextureRHI - The volume texture to use to add noise to the vector field.
-	 */
 	void SetParameters(
-		FRHICommandList& RHICmdList, 
-		const FCompositeAnimatedVectorFieldUniformBufferRef& UniformBuffer,
+		FRHIBatchedShaderParameters& BatchedParameters,
+		FRHIUnorderedAccessView* VolumeTextureUAV,
 		FRHITexture* AtlasTextureRHI,
-		FRHITexture* NoiseVolumeTextureRHI )
+		FRHITexture* NoiseVolumeTextureRHI)
 	{
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
-		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, GetUniformBufferParameter<FCompositeAnimatedVectorFieldUniformParameters>(), UniformBuffer );
-		SetTextureParameter(RHICmdList, ComputeShaderRHI, AtlasTexture, AtlasTextureSampler, SamplerStateLinear, AtlasTextureRHI );
-		SetTextureParameter(RHICmdList, ComputeShaderRHI, NoiseVolumeTexture, NoiseVolumeTextureSampler, SamplerStateLinear, NoiseVolumeTextureRHI );
+		FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+		SetUAVParameter(BatchedParameters, OutVolumeTexture, VolumeTextureUAV);
+		SetTextureParameter(BatchedParameters, AtlasTexture, AtlasTextureSampler, SamplerStateLinear, AtlasTextureRHI);
+		SetTextureParameter(BatchedParameters, NoiseVolumeTexture, NoiseVolumeTextureSampler, SamplerStateLinear, NoiseVolumeTextureRHI);
 	}
 
-	/**
-	 * Set output buffer for this shader.
-	 */
-	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* VolumeTextureUAV)
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 	{
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutVolumeTexture, VolumeTextureUAV);
-	}
-
-	/**
-	 * Unbinds any buffers that have been bound.
-	 */
-	void UnbindBuffers(FRHICommandList& RHICmdList)
-	{
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutVolumeTexture, nullptr);
+		SetUAVParameter(BatchedParameters, OutVolumeTexture, nullptr);
 	}
 
 private:
@@ -1184,20 +1165,25 @@ public:
 
 			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			SetComputePipelineState(RHICmdList, CompositeCS.GetComputeShader());
-			CompositeCS->SetOutput(RHICmdList, VolumeTextureUAV);
-			/// ?
-			CompositeCS->SetParameters(
+
+			SetUniformBufferParameter(RHICmdList, CompositeCS.GetComputeShader(), CompositeCS->GetUniformBufferParameter<FCompositeAnimatedVectorFieldUniformParameters>(), UniformBuffer);
+
+			SetAllShaderParametersCS(
 				RHICmdList,
-				UniformBuffer,
+				CompositeCS,
+				VolumeTextureUAV,
 				AnimatedVectorField->Texture->GetResource()->TextureRHI,
-				NoiseVolumeTextureRHI );
+				NoiseVolumeTextureRHI);
+
 			DispatchComputeShader(
 				RHICmdList,
 				CompositeCS.GetShader(),
 				SizeX / THREADS_PER_AXIS,
 				SizeY / THREADS_PER_AXIS,
 				SizeZ / THREADS_PER_AXIS );
-			CompositeCS->UnbindBuffers(RHICmdList);
+
+			UnsetAllShaderParametersCS(RHICmdList, CompositeCS);
+
 			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 		}
 	}

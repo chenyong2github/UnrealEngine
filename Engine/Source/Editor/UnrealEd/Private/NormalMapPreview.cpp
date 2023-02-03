@@ -11,6 +11,7 @@
 #include "ShaderParameterUtils.h"
 #include "PipelineStateCache.h"
 #include "RHIStaticStates.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /*------------------------------------------------------------------------------
 	Batched element shaders for previewing normal maps.
@@ -48,10 +49,9 @@ public:
 	 * Set shader parameters.
 	 * @param NormalMapTexture - The normal map texture to sample.
 	 */
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* NormalMapTexture)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* NormalMapTexture)
 	{
-		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
-		SetTextureParameter(RHICmdList, PixelShaderRHI,Texture,TextureSampler,NormalMapTexture);
+		SetTextureParameter(BatchedParameters, Texture, TextureSampler, NormalMapTexture);
 	}
 
 private:
@@ -84,7 +84,7 @@ void FNormalMapBatchedElementParameters::BindShaders(
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture);
+	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture);
 }
 

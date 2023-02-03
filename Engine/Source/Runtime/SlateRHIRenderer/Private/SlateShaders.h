@@ -558,12 +558,12 @@ public:
 	}
 	FHDREditorConvertPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* SceneTextureRHI)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHITexture* SceneTextureRHI)
 	{
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
+		SetTextureParameter(BatchedParameters, SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
 		
 		static auto CVarHDRNITLevel = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.HDRNITLevel"));
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UILevel, CVarHDRNITLevel->GetFloat());
+		SetShaderValue(BatchedParameters, UILevel, CVarHDRNITLevel->GetFloat());
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);

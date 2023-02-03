@@ -24,16 +24,16 @@ class ENGINE_API FSimpleElementVS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FSimpleElementVS,Global);
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
-
 	FSimpleElementVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementVS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& WorldToClipMatrix);
-	void SetParameters(FRHICommandList& RHICmdList, const FRelativeViewMatrices& Matrices);
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FMatrix& WorldToClipMatrix);
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FRelativeViewMatrices& Matrices);
 
-	//virtual bool Serialize(FArchive& Ar) override;
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
+	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& WorldToClipMatrix);
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
+	void SetParameters(FRHICommandList& RHICmdList, const FRelativeViewMatrices& Matrices);
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
@@ -50,9 +50,6 @@ class FSimpleElementPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FSimpleElementPS, Global);
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
-
 	FSimpleElementPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementPS() {}
 
@@ -60,11 +57,13 @@ public:
 	 * Sets parameters for compositing editor primitives
 	 *
 	 * @param View			SceneView for view constants when compositing
-	 * @param DepthTexture	Depth texture to read from when depth testing for compositing.  If not set no compositing will occur
 	 */
 	void SetEditorCompositingParameters(FRHICommandList& RHICmdList, const FSceneView* View);
 
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue );
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* TextureValue);
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue);
 
 	//virtual bool Serialize(FArchive& Ar) override;
 
@@ -100,14 +99,13 @@ public:
 	FSimpleElementGammaBasePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementGammaBasePS() {}
 
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* Texture, float GammaValue, ESimpleElementBlendMode BlendMode);
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture,float GammaValue,ESimpleElementBlendMode BlendMode);
 
-	//virtual bool Serialize(FArchive& Ar) override;
-
 private:
-	
-		LAYOUT_FIELD(FShaderParameter, Gamma)
-	
+	LAYOUT_FIELD(FShaderParameter, Gamma)
 };
 
 template <bool bSRGBTexture>
@@ -115,11 +113,8 @@ class FSimpleElementGammaPS : public FSimpleElementGammaBasePS
 {
 	DECLARE_SHADER_TYPE(FSimpleElementGammaPS, Global);
 public:
-
 	FSimpleElementGammaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FSimpleElementGammaBasePS(Initializer) {}
 	FSimpleElementGammaPS() {}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -134,11 +129,8 @@ class FSimpleElementGammaAlphaOnlyPS : public FSimpleElementGammaBasePS
 {
 	DECLARE_SHADER_TYPE(FSimpleElementGammaAlphaOnlyPS, Global);
 public:
-
 	FSimpleElementGammaAlphaOnlyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FSimpleElementGammaBasePS(Initializer) {}
 	FSimpleElementGammaAlphaOnlyPS() {}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
 };
 
 /**
@@ -148,18 +140,16 @@ class FSimpleElementMaskedGammaBasePS : public FSimpleElementGammaBasePS
 {
 	DECLARE_TYPE_LAYOUT(FSimpleElementMaskedGammaBasePS, NonVirtual);
 public:
-
 	FSimpleElementMaskedGammaBasePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementMaskedGammaBasePS() {}
 
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* Texture,float Gamma,float ClipRefValue,ESimpleElementBlendMode BlendMode);
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture,float Gamma,float ClipRefValue,ESimpleElementBlendMode BlendMode);
 
-	//virtual bool Serialize(FArchive& Ar) override;
-
 private:
-	
-		LAYOUT_FIELD(FShaderParameter, ClipRef)
-	
+	LAYOUT_FIELD(FShaderParameter, ClipRef)
 };
 
 template <bool bSRGBTexture>
@@ -167,11 +157,9 @@ class FSimpleElementMaskedGammaPS : public FSimpleElementMaskedGammaBasePS
 {
 	DECLARE_SHADER_TYPE(FSimpleElementMaskedGammaPS, Global);
 public:
-
 	FSimpleElementMaskedGammaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FSimpleElementMaskedGammaBasePS(Initializer) {}
 	FSimpleElementMaskedGammaPS() {}
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("SRGB_INPUT_TEXTURE"), bSRGBTexture);
@@ -185,28 +173,7 @@ class FSimpleElementDistanceFieldGammaPS : public FSimpleElementMaskedGammaBaseP
 {
 	DECLARE_SHADER_TYPE(FSimpleElementDistanceFieldGammaPS,Global);
 public:
-
-	/**
-	* Determine if this shader should be compiled
-	*
-	* @param Platform - current shader platform being compiled
-	* @return true if this shader should be cached for the given platform
-	*/
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		return true; 
-	}
-
-	/**
-	* Constructor
-	*
-	* @param Initializer - shader initialization container
-	*/
 	FSimpleElementDistanceFieldGammaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
-
-	/**
-	* Default constructor
-	*/
 	FSimpleElementDistanceFieldGammaPS() {}
 
 	/**
@@ -223,7 +190,7 @@ public:
 	* @param BlendMode - current batched element blend mode being rendered
 	*/
 	void SetParameters(
-		FRHICommandList& RHICmdList, 
+		FRHIBatchedShaderParameters& BatchedParameters,
 		const FTexture* Texture,
 		float Gamma,
 		float ClipRef,
@@ -236,13 +203,20 @@ public:
 		ESimpleElementBlendMode BlendMode
 		);
 
-	/**
-	* Serialize constant paramaters for this shader
-	* 
-	* @param Ar - archive to serialize to
-	* @return true if any of the parameters were outdated
-	*/
-	//virtual bool Serialize(FArchive& Ar) override;
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
+	void SetParameters(
+		FRHICommandList& RHICmdList, 
+		const FTexture* Texture,
+		float Gamma,
+		float ClipRef,
+		float SmoothWidthValue,
+		bool EnableShadowValue,
+		const FVector2D& ShadowDirectionValue,
+		const FLinearColor& ShadowColorValue,
+		float ShadowSmoothWidthValue,
+		const FDepthFieldGlowInfo& GlowInfo,
+		ESimpleElementBlendMode BlendMode
+		);
 	
 private:
 	/** The width to smooth the edge the texture */
@@ -272,25 +246,20 @@ class FSimpleElementHitProxyPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FSimpleElementHitProxyPS,Global);
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		return IsPCPlatform(Parameters.Platform); 
-	}
-
-
 	FSimpleElementHitProxyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementHitProxyPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue);
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
-	//virtual bool Serialize(FArchive& Ar) override;
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* TextureValue);
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue);
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, InTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler)
 };
-
 
 /**
 * A pixel shader for rendering a texture with the ability to weight the colors for each channel.
@@ -301,15 +270,10 @@ class FSimpleElementColorChannelMaskPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FSimpleElementColorChannelMaskPS,Global);
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		return IsPCPlatform(Parameters.Platform); 
-	}
-
-
 	FSimpleElementColorChannelMaskPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementColorChannelMaskPS() {}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
 	/**
 	* Sets all the constant parameters for this shader
@@ -318,9 +282,10 @@ public:
 	* @param ColorWeights - reference value to compare with alpha for killing pixels
 	* @param Gamma - if gamma != 1.0 then a pow(color,Gamma) is applied
 	*/
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, const FMatrix& ColorWeightsValue, float GammaValue);
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* TextureValue, const FMatrix& ColorWeightsValue, float GammaValue);
 
-	//virtual bool Serialize(FArchive& Ar) override;
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, const FMatrix& ColorWeightsValue, float GammaValue);
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, InTexture)

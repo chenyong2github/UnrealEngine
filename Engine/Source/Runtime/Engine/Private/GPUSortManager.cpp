@@ -107,12 +107,14 @@ public:
 	 * Set parameters.
 	 */
 	void SetParameters(
-		FRHICommandList& RHICmdList,	
+		FRHIBatchedShaderParameters& BatchedParameters,
 		FRHIShaderResourceView* InSourceData,
 		FRHIUnorderedAccessView* const* InDestDatas,
 		const int32* InUsedIndexCounts, 
 		int32 StartingIndex,
 		int32 DestCount);
+
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters);
 
 	void Begin(FRHICommandList& RHICmdList);
 	void End(FRHICommandList& RHICmdList);
@@ -142,32 +144,40 @@ FCopyUIntBufferCS::FCopyUIntBufferCS(const ShaderMetaType::CompiledShaderInitial
 }
 
 void FCopyUIntBufferCS::SetParameters(
-	FRHICommandList& RHICmdList,
+	FRHIBatchedShaderParameters& BatchedParameters,
 	FRHIShaderResourceView* InSourceData,
 	FRHIUnorderedAccessView* const* InDestDatas,
 	const int32* InUsedIndexCounts,
 	int32 StartingIndex,
 	int32 DestCount)
 {
-	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	check(DestCount > 0 && DestCount <= COPYUINTCS_BUFFER_COUNT);
 
-	SetSRVParameter(RHICmdList, ComputeShaderRHI, SourceData, InSourceData);
+	SetSRVParameter(BatchedParameters, SourceData, InSourceData);
 
 	FUintVector4 CopyParamsValue(StartingIndex, 0, 0, 0);
 	for (int32 Index = 0; Index < DestCount; ++Index)
 	{
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, DestData[Index], InDestDatas[Index]);
+		SetUAVParameter(BatchedParameters, DestData[Index], InDestDatas[Index]);
 		CopyParamsValue[Index + 1] = InUsedIndexCounts[Index];
 	}
 
 	for (int32 Index = DestCount; Index < COPYUINTCS_BUFFER_COUNT; ++Index)
 	{
 		// TR-DummyUAVs : those buffers are only ever used here, but there content is never accessed.
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, DestData[Index], NiagaraSortingDummyUAV[Index].Buffer.UAV);
+		SetUAVParameter(BatchedParameters, DestData[Index], NiagaraSortingDummyUAV[Index].Buffer.UAV);
 	}
 
-	SetShaderValue(RHICmdList, ComputeShaderRHI, CopyParams, CopyParamsValue);
+	SetShaderValue(BatchedParameters, CopyParams, CopyParamsValue);
+}
+
+void FCopyUIntBufferCS::UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+{
+	SetSRVParameter(BatchedParameters, SourceData, nullptr);
+	for (int32 Index = 0; Index < COPYUINTCS_BUFFER_COUNT; ++Index)
+	{
+		SetUAVParameter(BatchedParameters, DestData[Index], nullptr);
+	}
 }
 
 void FCopyUIntBufferCS::Begin(FRHICommandList& RHICmdList)
@@ -182,14 +192,10 @@ void FCopyUIntBufferCS::Begin(FRHICommandList& RHICmdList)
 
 void FCopyUIntBufferCS::End(FRHICommandList& RHICmdList)
 {
-	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-	SetSRVParameter(RHICmdList, ComputeShaderRHI, SourceData, nullptr);
-
 	FRHIUnorderedAccessView* Views[COPYUINTCS_BUFFER_COUNT];
 	for (int32 Index = 0; Index < COPYUINTCS_BUFFER_COUNT; ++Index)
 	{
 		Views[Index] = NiagaraSortingDummyUAV[Index].Buffer.UAV;
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, DestData[Index], nullptr);
 	}
 	RHICmdList.EndUAVOverlap(Views);
 }
@@ -211,12 +217,15 @@ void CopyUIntBufferToTargets(FRHICommandListImmediate& RHICmdList, ERHIFeatureLe
 		const int32 NumTargetsInPass = FMath::Min<int32>(NumTargets - Index0InPass, COPYUINTCS_BUFFER_COUNT);
 		const int32 NumElementsInPass = TargetSizes[Index0InPass + NumTargetsInPass - 1] - StartingOffset;
 
-		CopyBufferCS->SetParameters(RHICmdList, SourceSRV, TargetUAVs + Index0InPass, TargetSizes + Index0InPass, StartingOffset, NumTargetsInPass);
+		SetAllShaderParametersCS(RHICmdList, CopyBufferCS, SourceSRV, TargetUAVs + Index0InPass, TargetSizes + Index0InPass, StartingOffset, NumTargetsInPass);
+
 		DispatchComputeShader(RHICmdList, CopyBufferCS, FMath::DivideAndRoundUp(NumElementsInPass, COPYUINTCS_THREAD_COUNT), 1, 1);
 
 		StartingOffset += NumElementsInPass;
 		Index0InPass += COPYUINTCS_BUFFER_COUNT;
 	};
+
+	UnsetAllShaderParametersCS(RHICmdList, CopyBufferCS);
 
 	CopyBufferCS->End(RHICmdList);
 }
