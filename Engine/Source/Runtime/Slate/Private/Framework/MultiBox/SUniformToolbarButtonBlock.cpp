@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Framework/MultiBox/SUniformToolbarButtonBlock.h"
 
 FUniformToolbarButtonBlock::FUniformToolbarButtonBlock(FButtonArgs ButtonArgs) :
