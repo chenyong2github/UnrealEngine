@@ -117,6 +117,7 @@ static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, c
 	PARSE_SPIRVCROSS_OPTION(define, "pad_ubo_blocks", opt.pad_ubo_blocks);
 	PARSE_SPIRVCROSS_OPTION(define, "force_temporary", opt.force_temporary);
 	PARSE_SPIRVCROSS_OPTION(define, "force_glsl_clipspace", opt.force_glsl_clipspace);
+	PARSE_SPIRVCROSS_OPTION(define, "relax_nan_checks", opt.relax_nan_checks);
     return false;
 }
 

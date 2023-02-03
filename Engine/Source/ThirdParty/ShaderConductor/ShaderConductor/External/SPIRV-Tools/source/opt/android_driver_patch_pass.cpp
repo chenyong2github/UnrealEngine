@@ -18,6 +18,7 @@
 
 #include "source/opt/instruction.h"
 #include "source/opt/ir_context.h"
+#include "source/opt/ir_builder.h"
 
 namespace spvtools {
 namespace opt {
@@ -45,6 +46,7 @@ Pass::Status AndroidDriverPatchPass::Process() {
 	    modified |= FixupOpPhiMatrix4x3(inst, entryPoint);
 	    modified |= FixupOpVectorShuffle(inst);
         modified |= FixupOpVariableFunctionPrecision(inst);
+        modified |= FixupMixedPrecisionFMA(inst);
 	  }
     });
   }
@@ -338,6 +340,40 @@ bool AndroidDriverPatchPass::FixupOpTypeImage(Instruction* inst) {
   return true;
 }
 
+bool AndroidDriverPatchPass::FixupMixedPrecisionFMA(Instruction* inst) {
+  if (inst->opcode() != spv::Op::OpExtInst) {
+    return false;
+  }
+
+  uint32_t extInstType = inst->GetOperand(3).words[0];
+  if (extInstType != GLSLstd450Fma) 
+	return false;
+
+  Instruction* inputInstructions[3];
+  uint32_t relaxedPrecisionFlags = 0;
+  for (uint32_t idx = 0; idx < 3; ++idx) {
+    inputInstructions[idx] = context()->get_def_use_mgr()->GetDef(inst->GetOperand(4 + idx).words[0]);
+    relaxedPrecisionFlags |= HasRelaxedPrecision(inputInstructions[idx]->result_id()) ? 1 << idx : 0;
+  }
+
+  // If none/all inputs are relaxed precision then we can exit
+  if (relaxedPrecisionFlags == 0 || relaxedPrecisionFlags == 0x7)
+	return false;
+
+  InstructionBuilder builder(context(), inst, IRContext::kAnalysisDefUse | IRContext::kAnalysisInstrToBlockMapping);
+
+  // Add new multiply and add instructions
+  Instruction* mul = builder.AddBinaryOp(inst->GetOperand(0).words[0], spv::Op::OpFMul, inputInstructions[0]->result_id(), inputInstructions[1]->result_id());
+  Instruction* add = builder.AddBinaryOp(inst->GetOperand(0).words[0], spv::Op::OpFAdd, mul->result_id(), inputInstructions[2]->result_id());
+
+  context()->ReplaceAllUsesWith(inst->result_id(), add->result_id());
+  context()->UpdateDefUse(add);
+
+  inst->RemoveFromList();
+
+  return true;
+}
+
 bool AndroidDriverPatchPass::HasRelaxedPrecision(uint32_t operand_id) {
   std::vector<Instruction*> decorations = get_decoration_mgr()->GetDecorationsFor(operand_id, false);
   for (Instruction* decoration : decorations) {
@@ -364,6 +400,7 @@ bool AndroidDriverPatchPass::RemoveRelaxedPrecision(uint32_t operand_id) {
   for (Instruction* decoration : decorations) {
     if (spv::Decoration(decoration->GetSingleWordInOperand(1)) == spv::Decoration::RelaxedPrecision) {
       get_decoration_mgr()->RemoveDecoration(decoration);
+      decoration->RemoveFromList();
       return true;
     }
   }

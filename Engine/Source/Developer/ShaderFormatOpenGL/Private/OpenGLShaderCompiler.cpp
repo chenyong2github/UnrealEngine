@@ -3129,6 +3129,8 @@ static bool CompileToGlslWithShaderConductor(
 
 		CrossCompiler::FShaderConductorTarget TargetDesc;
 
+		TargetDesc.CompileFlags.SetDefine(TEXT("relax_nan_checks"), 1);
+
 		switch (Version)
 		{
 		case GLSL_SWITCH_FORWARD:
@@ -3387,7 +3389,7 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 	// Process TEXT macro.
 	TransformStringIntoCharacterArray(PreprocessedShader);
 
-	// Run the shader minifier
+	// Run the experimental shader minifier
 #if UE_OPENGL_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_RemoveDeadCode))
 	{

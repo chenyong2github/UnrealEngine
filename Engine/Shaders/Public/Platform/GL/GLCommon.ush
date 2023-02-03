@@ -5,7 +5,7 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for GL only shaders
-// GUID = d7b4e816-f8f5-4333-ad53-14e7100ba2cd
+// GUID = 17fde71b-0d49-409d-bb94-3a9f8c764098
 
 #pragma once
 
