@@ -872,9 +872,10 @@ void UPCGComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// Always try to unregister itself, if it doesn't exist, it will early out. 
 	// Just making sure that we don't left some resources registered while dead.
-	if (GetSubsystem())
+	if (UPCGSubsystem* Subsystem = GetSubsystem())
 	{
-		GetSubsystem()->UnregisterPCGComponent(this);
+		Subsystem->CancelGeneration(this);
+		Subsystem->UnregisterPCGComponent(this);
 	}
 
 	Super::EndPlay(EndPlayReason);
@@ -898,6 +899,7 @@ void UPCGComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	{
 		if (!PCGHelpers::IsRuntimeOrPIE())
 		{
+			Subsystem->CancelGeneration(this);
 			Subsystem->UnregisterPCGComponent(this);
 		}
 	}

@@ -406,9 +406,8 @@ FPCGTaskId UPCGSubsystem::ScheduleGenericWithContext(TFunction<bool(FPCGContext*
 
 void UPCGSubsystem::CancelGeneration(UPCGComponent* Component)
 {
-	check(GraphExecutor);
-
-	if (!Component)
+	check(GraphExecutor && IsInGameThread());
+	if (!Component || !Component->IsGenerating())
 	{
 		return;
 	}
