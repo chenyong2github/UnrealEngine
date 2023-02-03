@@ -177,6 +177,18 @@ void ADisplayClusterRootActor::PostLoad_Editor()
 
 	ResetPreviewInternals_Editor();
 }
+
+void ADisplayClusterRootActor::Destroyed_Editor()
+{
+	ResetPreviewInternals_Editor();
+	ReleasePreviewComponents();
+
+	MarkAsGarbage();
+
+	// Force garbage collector
+	GEngine->ForceGarbageCollection(true);
+}
+
 void ADisplayClusterRootActor::BeginDestroy_Editor()
 {
 	ResetPreviewInternals_Editor();

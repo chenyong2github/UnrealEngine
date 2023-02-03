@@ -303,7 +303,15 @@ template<typename T>
 void UDisplayClusterPreviewComponent::ReleaseRenderTargetImpl(T* InOutRenderTarget)
 {
 	checkSlow(InOutRenderTarget);
-	*InOutRenderTarget = nullptr;
+	T& RenderTargetPtr = *InOutRenderTarget;
+
+	if (RenderTargetPtr != nullptr)
+	{
+		RenderTargetPtr->ReleaseResource();
+		RenderTargetPtr->MarkAsGarbage();
+
+		RenderTargetPtr = nullptr;
+	}
 }
 
 template<typename T>

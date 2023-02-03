@@ -115,6 +115,7 @@ protected:
 	virtual void PostLoad() override;
 	virtual void PostActorCreated() override;
 	virtual void BeginDestroy() override;
+	virtual void Destroyed() override;
 #if WITH_EDITOR
 	virtual void RerunConstructionScripts() override;
 #endif
@@ -441,6 +442,7 @@ public:
 	void PostLoad_Editor();
 	void PostActorCreated_Editor();
 	void BeginDestroy_Editor();
+	void Destroyed_Editor();
 	void RerunConstructionScripts_Editor();
 
 	// Preview components free referenced meshes and materials

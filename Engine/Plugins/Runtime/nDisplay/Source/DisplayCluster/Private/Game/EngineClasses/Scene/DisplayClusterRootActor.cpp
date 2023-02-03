@@ -1014,6 +1014,18 @@ void ADisplayClusterRootActor::PostActorCreated()
 	InitializeRootActor();
 }
 
+void ADisplayClusterRootActor::Destroyed()
+{
+#if WITH_EDITOR
+	Destroyed_Editor();
+#endif
+
+	// Release viewport manager with resources immediatelly
+	ViewportManager.Reset();
+
+	Super::Destroyed();
+}
+
 void ADisplayClusterRootActor::BeginDestroy()
 {
 #if WITH_EDITOR

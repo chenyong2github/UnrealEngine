@@ -74,6 +74,13 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 FDisplayClusterViewportManager::~FDisplayClusterViewportManager()
 {
 	// Remove viewports
+	for (FDisplayClusterViewport* ViewportIt : Viewports)
+	{
+		if (ViewportIt)
+		{
+			delete ViewportIt;
+		}
+	}
 	Viewports.Reset();
 	ClusterNodeViewports.Reset();
 
