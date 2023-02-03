@@ -44,7 +44,7 @@ bool UGameplayModMagnitudeCalculation::GetCapturedAttributeMagnitude(const FGame
 	return true;
 }
 
-float UGameplayModMagnitudeCalculation::K2_GetCapturedAttributeMagnitude(const FGameplayEffectSpec& EffectSpec, FGameplayAttribute Attribute, const FGameplayTagContainer& SourceTags, const FGameplayTagContainer& TargetTags)
+float UGameplayModMagnitudeCalculation::K2_GetCapturedAttributeMagnitude(const FGameplayEffectSpec& EffectSpec, FGameplayAttribute Attribute, const FGameplayTagContainer& SourceTags, const FGameplayTagContainer& TargetTags) const
 {
 	float Magnitude = 0.0f;
 
@@ -71,17 +71,17 @@ float UGameplayModMagnitudeCalculation::K2_GetCapturedAttributeMagnitude(const F
 	return Magnitude;
 }
 
-float UGameplayModMagnitudeCalculation::GetSetByCallerMagnitudeByTag(const FGameplayEffectSpec& EffectSpec, const FGameplayTag& Tag)
+float UGameplayModMagnitudeCalculation::GetSetByCallerMagnitudeByTag(const FGameplayEffectSpec& EffectSpec, const FGameplayTag& Tag) const
 {
 	return EffectSpec.GetSetByCallerMagnitude(Tag, true, 0.0f);
 }
 
-float UGameplayModMagnitudeCalculation::GetSetByCallerMagnitudeByName(const FGameplayEffectSpec& EffectSpec, const FName& MagnitudeName)
+float UGameplayModMagnitudeCalculation::GetSetByCallerMagnitudeByName(const FGameplayEffectSpec& EffectSpec, const FName& MagnitudeName) const
 {
 	return EffectSpec.GetSetByCallerMagnitude(MagnitudeName, true, 0.0f);
 }
 
-FGameplayTagContainer UGameplayModMagnitudeCalculation::GetSourceAggregatedTags(const FGameplayEffectSpec& EffectSpec)
+FGameplayTagContainer UGameplayModMagnitudeCalculation::GetSourceAggregatedTags(const FGameplayEffectSpec& EffectSpec) const
 {
 	const FGameplayTagContainer* Tags = EffectSpec.CapturedSourceTags.GetAggregatedTags();
 
@@ -93,17 +93,17 @@ FGameplayTagContainer UGameplayModMagnitudeCalculation::GetSourceAggregatedTags(
 	return FGameplayTagContainer();
 }
 
-const FGameplayTagContainer& UGameplayModMagnitudeCalculation::GetSourceActorTags(const FGameplayEffectSpec& EffectSpec)
+const FGameplayTagContainer& UGameplayModMagnitudeCalculation::GetSourceActorTags(const FGameplayEffectSpec& EffectSpec) const
 {
 	return EffectSpec.CapturedSourceTags.GetActorTags();
 }
 
-const FGameplayTagContainer& UGameplayModMagnitudeCalculation::GetSourceSpecTags(const FGameplayEffectSpec& EffectSpec)
+const FGameplayTagContainer& UGameplayModMagnitudeCalculation::GetSourceSpecTags(const FGameplayEffectSpec& EffectSpec) const
 {
 	return EffectSpec.CapturedSourceTags.GetSpecTags();
 }
 
-FGameplayTagContainer UGameplayModMagnitudeCalculation::GetTargetAggregatedTags(const FGameplayEffectSpec& EffectSpec)
+FGameplayTagContainer UGameplayModMagnitudeCalculation::GetTargetAggregatedTags(const FGameplayEffectSpec& EffectSpec) const
 {
 	const FGameplayTagContainer* Tags = EffectSpec.CapturedTargetTags.GetAggregatedTags();
 
@@ -115,12 +115,12 @@ FGameplayTagContainer UGameplayModMagnitudeCalculation::GetTargetAggregatedTags(
 	return FGameplayTagContainer();
 }
 
-const FGameplayTagContainer& UGameplayModMagnitudeCalculation::GetTargetActorTags(const FGameplayEffectSpec& EffectSpec)
+const FGameplayTagContainer& UGameplayModMagnitudeCalculation::GetTargetActorTags(const FGameplayEffectSpec& EffectSpec) const
 {
 	return EffectSpec.CapturedTargetTags.GetActorTags();
 }
 
-const FGameplayTagContainer& UGameplayModMagnitudeCalculation::GetTargetSpecTags(const FGameplayEffectSpec& EffectSpec)
+const FGameplayTagContainer& UGameplayModMagnitudeCalculation::GetTargetSpecTags(const FGameplayEffectSpec& EffectSpec) const
 {
 	return EffectSpec.CapturedTargetTags.GetSpecTags();
 }
