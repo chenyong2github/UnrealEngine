@@ -291,6 +291,12 @@ namespace AJA
 				return false;
 			}
 
+			if (Options.bDirectlyWriteAudio && Options.bUseAutoCirculating)
+			{
+				UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: Direct audio write is only available outside of auto-circulate mode..\n"));
+				return false;
+			}
+			
 			const bool bConnectChannel = true;
 			const bool bAsOwner = true;
 

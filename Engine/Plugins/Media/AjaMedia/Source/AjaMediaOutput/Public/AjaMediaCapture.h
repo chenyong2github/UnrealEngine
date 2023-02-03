@@ -78,6 +78,7 @@ private:
 	bool CleanupPreEditorExit();
 	void OnEnginePreExit();
 	void OnFrameCapturedInternal_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, const FMediaCaptureResourceData& InResourceData);
+	void OnAudioBufferReceived_AudioThread(Audio::FDeviceId DeviceId, float* Data, int32 NumSamples) const;
 
 	struct FAudioBuffer
 	{
@@ -116,7 +117,16 @@ private:
 	/** Holds an audio output that captures audio from the engine. */
 	TSharedPtr<class FMediaIOAudioOutput> AudioOutput;
 
+	/** Number of audio channels output to the AJA card.  */
+	int32 NumOutputChannels = 0;
+
+	/** Number of audio channels the engine is rendering to. */
+	int32 NumInputChannels =0;
+
 	bool bOutputAudio = false;
+
+	/** Whether to write audio on the audio thread instead of collecting samples and outputting on the render thread.. */
+	bool bDirectlyWriteAudio = false;
 	
 	/** Textures to release when the capture has stopped. Must be released after GPUTextureTransfer textures have been unregistered. */
 	TArray<FTextureRHIRef> TexturesToRelease;

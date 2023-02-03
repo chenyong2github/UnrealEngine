@@ -268,7 +268,14 @@ bool UAjaMediaCapture::ValidateMediaOutput() const
 bool UAjaMediaCapture::InitializeCapture()
 {
 	UAjaMediaOutput* AjaMediaSource = CastChecked<UAjaMediaOutput>(MediaOutput);
+	
 	const bool bResult = InitAJA(AjaMediaSource);
+
+	if (GEngine)
+	{
+		GEngine->GetEngineSubsystem<UMediaIOCoreSubsystem>()->OnBufferReceived_AudioThread().AddUObject(this, &UAjaMediaCapture::OnAudioBufferReceived_AudioThread);
+	}
+	
 	if (bResult)
 	{
 #if WITH_EDITOR
@@ -339,6 +346,11 @@ void UAjaMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 				FPlatformProcess::ReturnSynchEventToPool(WakeUpEvent);
 				WakeUpEvent = nullptr;
 			}
+		}
+
+		if (GEngine)
+		{
+			GEngine->GetEngineSubsystem<UMediaIOCoreSubsystem>()->OnBufferReceived_AudioThread().RemoveAll(this);
 		}
 
 		AudioOutput.Reset();
@@ -470,8 +482,10 @@ bool UAjaMediaCapture::InitAJA(UAjaMediaOutput* InAjaMediaOutput)
 	ChannelOptions.TimecodeFormat =  AjaMediaCaptureUtils::ConvertTimecode(InAjaMediaOutput->TimecodeFormat);
 	ChannelOptions.OutputReferenceType = AjaMediaCaptureUtils::Convert(InAjaMediaOutput->OutputConfiguration.OutputReference);
 	ChannelOptions.bUseGPUDMA = ShouldCaptureRHIResource();
+	ChannelOptions.bDirectlyWriteAudio = InAjaMediaOutput->bOutputAudioOnAudioThread;
 
 	bOutputAudio = InAjaMediaOutput->bOutputAudio;
+	bDirectlyWriteAudio = InAjaMediaOutput->bOutputAudioOnAudioThread;
 	
 	if (bOutputAudio)
 	{
@@ -479,6 +493,12 @@ bool UAjaMediaCapture::InitAJA(UAjaMediaOutput* InAjaMediaOutput)
 		{
 			UE_LOG(LogAjaMediaOutput, Error, TEXT("Failed to initialize audio output."));
 		}
+	}
+	
+	if (GEngine)
+	{
+		NumInputChannels = GEngine->GetEngineSubsystem<UMediaIOCoreSubsystem>()->GetNumAudioInputChannels();
+		NumOutputChannels = static_cast<int32>(InAjaMediaOutput->NumOutputAudioChannels);
 	}
 	
 	PixelFormat = InAjaMediaOutput->PixelFormat;
@@ -581,15 +601,19 @@ void UAjaMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTexture)
 			
 			TextureTransfer->RegisterTexture(Args);
 		}
+
+		TextureTransfer->LockTexture(InTexture->GetTexture2D());
 	}
 
-	TextureTransfer->LockTexture(InTexture->GetTexture2D());
 }
 
 void UAjaMediaCapture::UnlockDMATexture_RenderThread(FTextureRHIRef InTexture)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::UnlockDMATexture);
-	TextureTransfer->UnlockTexture(InTexture->GetTexture2D());
+	if (ShouldCaptureRHIResource())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::UnlockDMATexture);
+		TextureTransfer->UnlockTexture(InTexture->GetTexture2D());
+	}
 }
 
 void UAjaMediaCapture::OnFrameCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, const FMediaCaptureResourceData& InResourceData)
@@ -611,13 +635,13 @@ void UAjaMediaCapture::WaitForSync_AnyThread() const
 
 void UAjaMediaCapture::OutputAudio_AnyThread(const AJA::AJAOutputFrameBufferData& FrameBuffer) const
 {
-	if (bOutputAudio)
+	if (bOutputAudio && !bDirectlyWriteAudio)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::SetAudio);
 		
 		// Take a local copy of the audio output in case it is switched from the main thread.
 		const TSharedPtr<FMediaIOAudioOutput> LocalAudioOutput = AudioOutput;
-		if(!LocalAudioOutput)
+		if (!LocalAudioOutput)
 		{
 			return;
 		}
@@ -786,5 +810,19 @@ void UAjaMediaCapture::OnFrameCapturedInternal_AnyThread(const FCaptureBaseData&
 	else if (GetState() != EMediaCaptureState::Stopped)
 	{
 		SetState(EMediaCaptureState::Error);
+	}
+}
+
+void UAjaMediaCapture::OnAudioBufferReceived_AudioThread(Audio::FDeviceId DeviceId, float* Data, int32 NumSamples) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::AudioBufferReceived);
+
+	if (bOutputAudio && OutputChannel)
+	{
+		if (ensure(NumInputChannels != 0))
+		{
+			const TArray<int32> ConvertedSamples = FMediaIOAudioOutput::ConvertAndUpmixBuffer<int32>(MakeArrayView<float>(Data, NumSamples), NumInputChannels, NumOutputChannels);
+			OutputChannel->DMAWriteAudio(reinterpret_cast<const uint8*>(ConvertedSamples.GetData()), ConvertedSamples.Num() * sizeof(int32));
+		}
 	}
 }

@@ -420,6 +420,7 @@ namespace AJA
 				uint32_t bTEST_OutputInterlaced : 1; // when outputting, warn if the field 1 and field 2 are the same color. It except one of the line to be white and the other line to be not white
 				uint32_t bUseGPUDMA : 1; // Whether to use GPU Direct when outputting.
 				uint32_t bAutoDetectFormat : 1; // Whether to autodetect format on input.
+				uint32_t bDirectlyWriteAudio : 1; // Experimental mode to set audio from the audio thread directly.
 			};
 			uint32_t Options;
 		};
@@ -482,6 +483,7 @@ namespace AJA
 		bool SetAudioFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* AudioBuffer, uint32_t AudioBufferSize);
 		bool SetVideoFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* VideoBuffer, uint32_t VideoBufferSize);
 		bool SetVideoFrameData(const AJAOutputFrameBufferData& InFrameData, FRHITexture* RHITexture);
+		bool DMAWriteAudio(const uint8* Buffer, int32 BufferSize);
 
 		bool GetOutputDimension(uint32_t& OutWidth, uint32_t& OutHeight) const;
 		int32_t GetNumAudioSamplesPerFrame(const AJAOutputFrameBufferData& InFrameData) const;

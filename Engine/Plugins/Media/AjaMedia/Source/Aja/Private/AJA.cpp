@@ -444,6 +444,11 @@ namespace AJA
 		return Channel ? Channel->SetVideoFrameData(InFrameData, RHITexture) : false;
 	}
 
+	bool AJAOutputChannel::DMAWriteAudio(const uint8* Buffer, int32 BufferSize)
+	{
+		return Channel ? Channel->DMAWriteAudio(Buffer, BufferSize) : false;
+	}
+
 	bool AJAOutputChannel::GetOutputDimension(uint32_t& OutWidth, uint32_t& OutHeight) const
 	{
 		return Channel ? Channel->GetOutputDimension(OutWidth, OutHeight) : false;

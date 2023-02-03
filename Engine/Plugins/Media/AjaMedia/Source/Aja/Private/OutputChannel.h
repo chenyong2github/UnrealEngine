@@ -31,6 +31,7 @@ namespace AJA
 			bool SetAncillaryFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* AncillaryBuffer, uint32_t AncillaryBufferSize);
 			bool SetAudioFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* InAudioBuffer, uint32_t InAudioBufferSize);
 			bool SetVideoFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* InVideoBuffer, uint32_t InVideoBufferSize);
+			bool DMAWriteAudio(const uint8_t* InAudioBuffer, int32_t InAudioBufferSize);
 			bool SetVideoFrameData(const AJAOutputFrameBufferData& InFrameData, FRHITexture* RHITexture);
 			bool GetOutputDimension(uint32_t& OutWidth, uint32_t& OutHeight) const;
 			int32_t GetNumAudioSamplesPerFrame(const AJAOutputFrameBufferData& InFrameData) const;
@@ -58,6 +59,7 @@ namespace AJA
 			bool SetAudioFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* AudioBuffer, uint32_t AudioBufferSize);
 			bool SetVideoFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* VideoBuffer, uint32_t VideoBufferSize);
 			bool SetVideoFrameData(const AJAOutputFrameBufferData& InFrameData, FRHITexture* RHITexture);
+			bool DMAWriteAudio(const uint8_t* InAudioBuffer, int32_t BufferSize);
 
 		protected:
 			virtual bool DeviceThread_ConfigureAnc(DeviceConnection::CommandList& InCommandList) override;
@@ -84,7 +86,7 @@ namespace AJA
 			bool Thread_GetAudioOffset(int32& OutAudioOffset);
 			bool Thread_GetAudioOffsetInSeconds(double& OutAudioOffset);
 			bool Thread_GetAudioOffsetInSamples(int32& OutAudioOffset);
-			bool Thread_TransferAudioBuffer(uint8* InBuffer, int32 InBufferSize);
+			bool Thread_TransferAudioBuffer(const uint8* InBuffer, int32 InBufferSize);
 			bool Thread_HandleAudio(const FString& OutputMethod, Frame* AvailableReadingFrame);
 			bool Thread_HandleLostFrameAudio();
 			bool Thread_ShouldPauseAudioOutput();
@@ -135,9 +137,12 @@ namespace AJA
 
 			bool bDMABuffersRegistered = false;
 
-			ULWord CurrentAudioWriteOffset = 0;
+			std::atomic<ULWord> CurrentAudioWriteOffset = 0;
 			int32_t NumSamplesPerFrame = 0;
-			ULWord AudioPlayheadLastPosition = 0;
+			std::atomic<ULWord> AudioPlayheadLastPosition = 0;
+
+			/** Used to protect access to the device when accessed by the audio thread. */
+			FCriticalSection DeviceCriticalSection;
 
 			UE::GPUTextureTransfer::TextureTransferPtr TextureTransfer = nullptr;
 		};

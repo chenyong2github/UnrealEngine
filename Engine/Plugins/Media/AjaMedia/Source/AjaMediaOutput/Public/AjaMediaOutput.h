@@ -91,6 +91,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output")
 	EAjaMediaOutputAudioSampleRate AudioSampleRate = EAjaMediaOutputAudioSampleRate::SR_48k;
 
+	/** Whether to output audio on the audio thread instead of the rendering thread. Only available in Ping Pong mode. (Experimental) */
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output", meta = (EditCondition = "bOutputWithAutoCirculating == false"))
+	bool bOutputAudioOnAudioThread = false;
+
 	/**
 	 * Number of frame used to transfer from the system memory to the AJA card.
 	 * A smaller number is most likely to cause missed frame.

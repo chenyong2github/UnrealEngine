@@ -13,6 +13,8 @@
 class FAudioDevice;
 class FAudioDeviceHandle;
 
+DECLARE_DELEGATE_TwoParams(FOnBufferReceived, uint8* Buffer, int32 BufferSize);
+
 class MEDIAIOCORE_API FMediaIOAudioOutput
 { 
 public:
@@ -24,11 +26,11 @@ public:
 		uint32 InMaxSampleLatency = 0;
 		uint32 InOutputSampleRate = 0;
 	};
-
+	
 	FMediaIOAudioOutput(Audio::FPatchOutputStrongPtr InPatchOutput, const FAudioOptions& InAudioOptions);
-
+	
 	template <typename OutputType>
-	TArray<OutputType> ConvertAndUpmixBuffer(const Audio::FAlignedFloatBuffer& InBuffer, int32 InNumInputChannels, int32 InNumOutputChannels) const
+	static TArray<OutputType> ConvertAndUpmixBuffer(TConstArrayView<float> InBuffer, int32 InNumInputChannels, int32 InNumOutputChannels)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MediaIoCoreModule::ConvertAndUpmixBuffer);
 
@@ -110,6 +112,10 @@ public:
 		return ConvertAndUpmixBuffer<OutputType>(FloatBuffer, NumInputChannels, NumOutputChannels);
 	}
 
+	FOnBufferReceived& OnBufferReceived()
+	{
+		return BufferReceivedDelegate;
+	}
 
 public:
 	// @todo: Depend on frame number to correctly fetch the right amount of frames on framerates like 59.97
@@ -136,6 +142,8 @@ private:
 	/** The buffer accumulating audio samples. */
 	Audio::FPatchOutputStrongPtr PatchOutput;
 
+	/** Callback called when a buffer is received. */
+	FOnBufferReceived BufferReceivedDelegate;
 };
 
 /**
@@ -144,6 +152,8 @@ private:
 class FMediaIOAudioCapture : public ISubmixBufferListener
 {
 public:
+	DECLARE_DELEGATE_TwoParams(FOnAudioCaptured, float* /* data */, int32 /* NumSamples */);
+
 	FMediaIOAudioCapture(const FAudioDeviceHandle& InAudioDeviceHandle);
 	virtual ~FMediaIOAudioCapture();
 
@@ -152,6 +162,16 @@ public:
 
 	/** Create an audio output that will receive audio samples. */
 	TSharedPtr<FMediaIOAudioOutput> CreateAudioOutput(int32 InNumOutputChannels, FFrameRate InTargetFrameRate, uint32 InMaxSampleLatency, uint32 InOutputSampleRate);
+
+	FOnAudioCaptured& OnAudioCaptured_RenderThread()
+	{
+		return AudioCapturedDelegate;
+	}
+
+	int32 GetNumInputChannels() const
+	{
+		return NumChannels;
+	}
 
 protected:
 	void RegisterBufferListener(FAudioDevice* AudioDevice);
@@ -176,6 +196,9 @@ private:
 
 	/** Utility that allows pushing audio samples to multiple outputs. */
 	Audio::FPatchSplitter AudioSplitter;
+
+	/** Callback for a audio rendered event. */
+	FOnAudioCaptured AudioCapturedDelegate;
 };
 
 /**

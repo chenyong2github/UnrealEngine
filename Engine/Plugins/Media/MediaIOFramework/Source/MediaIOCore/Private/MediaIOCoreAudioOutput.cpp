@@ -73,6 +73,8 @@ void FMediaIOAudioCapture::OnNewSubmixBuffer(const USoundSubmix* InOwningSubmix,
 	{
 		if (ensureMsgf(NumChannels == InNumChannels, TEXT("Expected %d channels from submix buffer but got %d instead."), NumChannels, InNumChannels))
 		{
+			AudioCapturedDelegate.ExecuteIfBound(InAudioData, InNumSamples);
+			
 			int32 NumPushed = AudioSplitter.PushAudio(InAudioData, InNumSamples);
 			if (InNumSamples != NumPushed && NumPushed != -1)
 			{

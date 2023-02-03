@@ -28,6 +28,7 @@ TSharedPtr<FMediaIOAudioOutput> UMediaIOCoreSubsystem::CreateAudioOutput(const F
 		else
 		{
 			MediaIOAudioCapture = MediaIOAudioCaptures.Add(InArgs.AudioDeviceHandle.GetDeviceID(), MakeUnique<FMediaIOAudioCapture>(InArgs.AudioDeviceHandle)).Get();
+			MainMediaIOAudioCapture->OnAudioCaptured_RenderThread().BindUObject(this, &UMediaIOCoreSubsystem::OnBufferReceivedByCapture, InArgs.AudioDeviceHandle.GetDeviceID());
 		}
 	}
 	else
@@ -36,11 +37,21 @@ TSharedPtr<FMediaIOAudioOutput> UMediaIOCoreSubsystem::CreateAudioOutput(const F
 		if (!MainMediaIOAudioCapture)
 		{
 			MainMediaIOAudioCapture = MakeUnique<FMainMediaIOAudioCapture>();
+			MainMediaIOAudioCapture->OnAudioCaptured_RenderThread().BindUObject(this, &UMediaIOCoreSubsystem::OnBufferReceivedByCapture, InArgs.AudioDeviceHandle.GetDeviceID());
 		}
 		MediaIOAudioCapture = MainMediaIOAudioCapture.Get();
 	}	
 
 	return MediaIOAudioCapture->CreateAudioOutput(InArgs.NumOutputChannels, InArgs.TargetFrameRate, InArgs.MaxSampleLatency, InArgs.OutputSampleRate);
+}
+
+int32 UMediaIOCoreSubsystem::GetNumAudioInputChannels() const
+{
+	if (MainMediaIOAudioCapture)
+	{
+		return MainMediaIOAudioCapture->GetNumInputChannels();
+	}
+	return 0;
 }
 
 void UMediaIOCoreSubsystem::OnAudioDeviceDestroyed(Audio::FDeviceId InAudioDeviceId)
@@ -49,4 +60,9 @@ void UMediaIOCoreSubsystem::OnAudioDeviceDestroyed(Audio::FDeviceId InAudioDevic
 	{
 		MediaIOAudioCaptures.Remove(InAudioDeviceId);
 	}
+}
+
+void UMediaIOCoreSubsystem::OnBufferReceivedByCapture(float* Data, int32 NumSamples, Audio::FDeviceId AudioDeviceID) const
+{
+	BufferReceivedDelegate.Broadcast(AudioDeviceID, Data, NumSamples);
 }
