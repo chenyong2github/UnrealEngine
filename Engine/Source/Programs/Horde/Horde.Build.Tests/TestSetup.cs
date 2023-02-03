@@ -63,6 +63,7 @@ using Horde.Build.Compute;
 using Horde.Build.Devices;
 using Moq;
 using Horde.Build.Telemetry;
+using Horde.Build.Artifacts;
 
 namespace Horde.Build.Tests
 {
@@ -198,6 +199,7 @@ namespace Horde.Build.Tests
 
 			services.AddSingleton<IAgentCollection, AgentCollection>();
 			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
+			services.AddSingleton<IArtifactCollection, ArtifactCollection>();
 			services.AddSingleton<IArtifactCollectionV1, ArtifactCollectionV1>();
 			services.AddSingleton<ICommitService, CommitService>();
 			services.AddSingleton<IGraphCollection, GraphCollection>();

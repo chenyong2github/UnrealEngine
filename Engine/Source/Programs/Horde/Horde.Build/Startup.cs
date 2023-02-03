@@ -94,6 +94,7 @@ using Horde.Build.Auditing;
 using Horde.Build.Server.Notices;
 using Horde.Build.Notifications.Sinks;
 using StatusCode = Grpc.Core.StatusCode;
+using Horde.Build.Artifacts;
 
 namespace Horde.Build
 {
@@ -333,6 +334,7 @@ namespace Horde.Build
 
 			services.AddSingleton<IAgentCollection, AgentCollection>();
 			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
+			services.AddSingleton<IArtifactCollection, ArtifactCollection>();
 			services.AddSingleton<IArtifactCollectionV1, ArtifactCollectionV1>();
 			services.AddSingleton<IGraphCollection, GraphCollection>();
 			services.AddSingleton<IIssueCollection, IssueCollection>();
@@ -1027,6 +1029,7 @@ namespace Horde.Build
 			{
 				endpoints.MapGrpcService<HealthService>();
 				endpoints.MapGrpcService<RpcService>();
+				endpoints.MapGrpcService<JobRpcService>();
 				endpoints.MapGrpcService<LogRpcService>();
 
 				endpoints.MapGrpcReflectionService();

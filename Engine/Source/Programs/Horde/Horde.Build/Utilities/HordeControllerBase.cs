@@ -6,6 +6,7 @@ using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Leases;
+using Horde.Build.Artifacts;
 using Horde.Build.Jobs;
 using Horde.Build.Projects;
 using Horde.Build.Streams;
@@ -60,6 +61,15 @@ namespace Horde.Build.Utilities
 		protected ActionResult Forbid(AclAction action, AgentId agentId)
 		{
 			return Forbid(action, "agent {AgentId}", agentId);
+		}
+
+		/// <summary>
+		/// Returns a 403 (forbidden) response with the given action and object
+		/// </summary>
+		[NonAction]
+		protected ActionResult Forbid(AclAction action, AclScopeName scopeName)
+		{
+			return Forbid(action, "scope {ScopeName}", scopeName);
 		}
 
 		/// <summary>
@@ -159,6 +169,15 @@ namespace Horde.Build.Utilities
 		protected ActionResult NotFound(AgentId agentId, LeaseId leaseId)
 		{
 			return NotFound("Lease {LeaseId} not found for agent {AgentId}", leaseId, agentId);
+		}
+
+		/// <summary>
+		/// Returns a 404 response for the given object
+		/// </summary>
+		[NonAction]
+		protected ActionResult NotFound(ArtifactId artifactId)
+		{
+			return NotFound("Artifact {ArtifactId} not found", artifactId);
 		}
 
 		/// <summary>

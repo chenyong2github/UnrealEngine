@@ -780,6 +780,31 @@ namespace Horde.Build.Jobs
 		}
 
 		/// <summary>
+		/// Attempts to get a step with a given ID
+		/// </summary>
+		/// <param name="job">The job document</param>
+		/// <param name="stepId">The step id</param>
+		/// <param name="batch">On success returns the batch containing the step</param>
+		/// <param name="step">On success, receives the step object</param>
+		/// <returns>True if the step was found</returns>
+		public static bool TryGetStep(this IJob job, SubResourceId stepId, [NotNullWhen(true)] out IJobStepBatch? batch, [NotNullWhen(true)] out IJobStep? step)
+		{
+			foreach (IJobStepBatch currentBatch in job.Batches)
+			{
+				if (currentBatch.TryGetStep(stepId, out IJobStep? currentStep))
+				{
+					batch = currentBatch;
+					step = currentStep;
+					return true;
+				}
+			}
+
+			batch = null;
+			step = null;
+			return false;
+		}
+
+		/// <summary>
 		/// Gets the current job state
 		/// </summary>
 		/// <param name="job">The job document</param>

@@ -118,16 +118,32 @@ namespace Horde.Build.Acls
 		/// </summary>
 		ViewJob,
 
-        #endregion
+		#endregion
+
+		//// ARTIFACTS ////
+
+		#region Artifacts
+
+		/// <summary>
+		/// Permission to read from an artifact
+		/// </summary>
+		ReadArtifact,
+
+		/// <summary>
+		/// Permission to write to an artifact
+		/// </summary>
+		WriteArtifact,
+
+		#endregion
 
 		//// EVENTS ////
 
-        #region Events
+		#region Events
 
-        /// <summary>
-        /// Ability to create events
-        /// </summary>
-        CreateEvent,
+		/// <summary>
+		/// Ability to create events
+		/// </summary>
+		CreateEvent,
 
 		/// <summary>
 		/// Ability to view events

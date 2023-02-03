@@ -215,6 +215,23 @@ namespace Horde.Build.Server
 		public bool TryGetStream(StreamId streamId, [NotNullWhen(true)] out StreamConfig? config) => _streamLookup.TryGetValue(streamId, out config);
 
 		/// <summary>
+		/// Attempts to get configuration for a stream from this object
+		/// </summary>
+		/// <param name="streamId">The stream identifier</param>
+		/// <param name="templateId">Template identifier</param>
+		/// <param name="config">Configuration for the stream</param>
+		/// <returns>True if the stream configuration was found</returns>
+		public bool TryGetTemplate(StreamId streamId, TemplateId templateId, [NotNullWhen(true)] out TemplateRefConfig? config)
+		{
+			if (!_streamLookup.TryGetValue(streamId, out StreamConfig? streamConfig))
+			{
+				config = null;
+				return false;
+			}
+			return streamConfig.TryGetTemplate(templateId, out config);
+		}
+
+		/// <summary>
 		/// Attempts to get configuration for a tool from this object
 		/// </summary>
 		/// <param name="toolId">The tool identifier</param>

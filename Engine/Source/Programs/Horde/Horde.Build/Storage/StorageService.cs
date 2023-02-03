@@ -434,9 +434,7 @@ namespace Horde.Build.Storage
 			public DateTime LastTime { get; set; }
 		}
 
-		readonly GlobalsService _globalsService;
 		readonly RedisService _redisService;
-		readonly AclService _aclService;
 		readonly IClock _clock;
 		readonly IMemoryCache _cache;
 		readonly IServiceProvider _serviceProvider;
@@ -462,11 +460,9 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StorageService(GlobalsService globalsService, MongoService mongoService, RedisService redisService, AclService aclService, IClock clock, IMemoryCache cache, IServiceProvider serviceProvider, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<StorageService> logger)
+		public StorageService(MongoService mongoService, RedisService redisService, IClock clock, IMemoryCache cache, IServiceProvider serviceProvider, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<StorageService> logger)
 		{
-			_globalsService = globalsService;
 			_redisService = redisService;
-			_aclService = aclService;
 			_clock = clock;
 			_cache = cache;
 			_serviceProvider = serviceProvider;
@@ -564,6 +560,18 @@ namespace Horde.Build.Storage
 
 		/// <inheritdoc/>
 		async ValueTask<IStorageClient> IStorageClientFactory.GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken) => await GetClientAsync(namespaceId, cancellationToken);
+
+		/// <summary>
+		/// Gets a <see cref="TreeReader"/> for a particular namespace
+		/// </summary>
+		/// <param name="namespaceId">Namespace identififer</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public async ValueTask<TreeReader> GetReaderAsync(NamespaceId namespaceId, CancellationToken cancellationToken)
+		{
+			IStorageClientImpl storageClient = await GetClientAsync(namespaceId, cancellationToken);
+			return new TreeReader(storageClient, _cache, _logger);
+		}
 
 		#region Config
 

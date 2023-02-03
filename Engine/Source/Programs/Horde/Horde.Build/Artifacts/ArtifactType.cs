@@ -1,0 +1,48 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using System.ComponentModel;
+using EpicGames.Horde;
+using Horde.Build.Utilities;
+
+namespace Horde.Build.Artifacts
+{
+	/// <summary>
+	/// Type of an artifact
+	/// </summary>
+	/// <param name="Id">The artifact type</param>
+	[StringIdConverter(typeof(ArtifactTypeConverter))]
+	[TypeConverter(typeof(StringIdTypeConverter<ArtifactType, ArtifactTypeConverter>))]
+	public record struct ArtifactType(StringId Id)
+	{
+		/// <summary>
+		/// Output from a build step
+		/// </summary>
+		public static ArtifactType StepOutput { get; } = new ArtifactType("step-output");
+
+		/// <summary>
+		/// Captured state from the machine executing a build step
+		/// </summary>
+		public static ArtifactType StepSaved { get; } = new ArtifactType("step-saved");
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="id">Identifier for the artifact type</param>
+		public ArtifactType(string id) : this(new StringId(id)) { }
+
+		/// <inheritdoc/>
+		public override string ToString() => Id.ToString();
+	}
+
+	/// <summary>
+	/// Converter to and from <see cref="StringId"/> instances.
+	/// </summary>
+	class ArtifactTypeConverter : StringIdConverter<ArtifactType>
+	{
+		/// <inheritdoc/>
+		public override ArtifactType FromStringId(StringId id) => new ArtifactType(id);
+
+		/// <inheritdoc/>
+		public override StringId ToStringId(ArtifactType value) => value.Id;
+	}
+}
