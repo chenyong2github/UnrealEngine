@@ -56,7 +56,7 @@ void FRayTracingDispatchDescCS::Dispatch(FRHICommandList& RHICmdList,
 	FUintVector4 DispatchDescData[DispatchDescMaxSizeUint4s] = {};
 	FMemory::Memcpy(DispatchDescData, DispatchDescInput, DispatchDescSize);
 
-	FRHIBatchedShaderParameters BatchedParameters;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 
 	SetShaderValueArray(BatchedParameters, ComputeShader->DispatchDescInputParam, DispatchDescData, DispatchDescMaxSizeUint4s);
 	SetShaderValue(BatchedParameters, ComputeShader->DispatchDescSizeDwordsParam, DispatchDescSizeDwords);

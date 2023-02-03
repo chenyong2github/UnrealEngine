@@ -138,7 +138,6 @@ int32 GenerateParticleSortKeys(
 	TShaderMapRef<FParticleSortKeyGenCS> KeyGenCS(GetGlobalShaderMap(FeatureLevel));
 	SetComputePipelineState(RHICmdList, KeyGenCS.GetComputeShader());
 
-	FRHIBatchedShaderParameters BatchedParameters;
 
 	// TR-KeyGen : No sync needed between tasks since they update different parts of the data (assuming it's ok if cache line overlap).
 	RHICmdList.BeginUAVOverlap({ KeyBufferUAV, SortedVertexBufferUAV });
@@ -163,18 +162,14 @@ int32 GenerateParticleSortKeys(
 			FParticleKeyGenUniformBufferRef KeyGenUniformBuffer = FParticleKeyGenUniformBufferRef::CreateUniformBufferImmediate( KeyGenParameters, UniformBuffer_SingleDraw );
 			SetUniformBufferParameter(RHICmdList, KeyGenCS.GetComputeShader(), KeyGenCS->GetUniformBufferParameter<FParticleKeyGenParameters>(), KeyGenUniformBuffer);
 
-			KeyGenCS->SetParameters(BatchedParameters, KeyBufferUAV, SortedVertexBufferUAV, PositionTextureRHI, SortInfo.VertexBufferSRV);
-
-			RHICmdList.SetBatchedShaderParameters(KeyGenCS.GetComputeShader(), BatchedParameters);
-			BatchedParameters.Reset();
+			SetAllShaderParametersCS(RHICmdList, KeyGenCS, KeyBufferUAV, SortedVertexBufferUAV, PositionTextureRHI, SortInfo.VertexBufferSRV);
 
 			DispatchComputeShader(RHICmdList, KeyGenCS.GetShader(), GroupCount, 1, 1);
 		}
 	}
 
 	// Clear the output buffer.
-	KeyGenCS->UnsetParameters(BatchedParameters);
-	RHICmdList.SetBatchedShaderParameters(KeyGenCS.GetComputeShader(), BatchedParameters);
+	UnsetAllShaderParametersCS(RHICmdList, KeyGenCS);
 
 	RHICmdList.EndUAVOverlap({ KeyBufferUAV, SortedVertexBufferUAV });
 

@@ -359,8 +359,7 @@ public:
 		FMeshDrawSingleShaderBindings& ShaderBindings) const;
 
 	void SetPassParameters(
-		FRHIComputeCommandList& RHICmdList,
-		FRHIComputeShader* ComputeShader,
+		FRHIBatchedShaderParameters& BatchedParameters,
 		const FUintVector4& ViewRect,
 		const FUintVector4& PassData,
 		FRHIUnorderedAccessView* Target0UAV,

@@ -174,7 +174,7 @@ inline void SetUAVParameter(FRHIBatchedShaderParameters& BatchedParameters, cons
 template<typename TCmdList, typename TShaderType, typename... TArguments>
 inline void SetAllShaderParametersVS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters BatchedParameters;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
 	RHICmdList.SetBatchedShaderParameters(InShader.GetVertexShader(), BatchedParameters);
 }
@@ -183,7 +183,7 @@ inline void SetAllShaderParametersVS(TCmdList& RHICmdList, const TShaderRef<TSha
 template<typename TCmdList, typename TShaderType, typename... TArguments>
 inline void SetAllShaderParametersMS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters BatchedParameters;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
 	RHICmdList.SetBatchedShaderParameters(InShader.GetMeshShader(), BatchedParameters);
 }
@@ -192,7 +192,7 @@ inline void SetAllShaderParametersMS(TCmdList& RHICmdList, const TShaderRef<TSha
 template<typename TCmdList, typename TShaderType, typename... TArguments>
 inline void SetAllShaderParametersAS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters BatchedParameters;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
 	RHICmdList.SetBatchedShaderParameters(InShader.GetAmplificationShader(), BatchedParameters);
 }
@@ -201,7 +201,7 @@ inline void SetAllShaderParametersAS(TCmdList& RHICmdList, const TShaderRef<TSha
 template<typename TCmdList, typename TShaderType, typename... TArguments>
 inline void SetAllShaderParametersPS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters BatchedParameters;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
 	RHICmdList.SetBatchedShaderParameters(InShader.GetPixelShader(), BatchedParameters);
 }
@@ -210,7 +210,7 @@ inline void SetAllShaderParametersPS(TCmdList& RHICmdList, const TShaderRef<TSha
 template<typename TCmdList, typename TShaderType, typename... TArguments>
 inline void SetAllShaderParametersGS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters BatchedParameters;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
 	RHICmdList.SetBatchedShaderParameters(InShader.GetGeometryShader(), BatchedParameters);
 }
@@ -219,7 +219,7 @@ inline void SetAllShaderParametersGS(TCmdList& RHICmdList, const TShaderRef<TSha
 template<typename TCmdList, typename TShaderType, typename... TArguments>
 inline void SetAllShaderParametersCS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters BatchedParameters;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
 	RHICmdList.SetBatchedShaderParameters(InShader.GetComputeShader(), BatchedParameters);
 }
@@ -228,7 +228,7 @@ inline void SetAllShaderParametersCS(TCmdList& RHICmdList, const TShaderRef<TSha
 template<typename TCmdList, typename TShaderType>
 inline void UnsetAllShaderParametersPS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
 {
-	FRHIBatchedShaderParameters BatchedParameters;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->UnsetParameters(BatchedParameters);
 	RHICmdList.SetBatchedShaderParameters(InShader.GetPixelShader(), BatchedParameters);
 }
@@ -237,7 +237,7 @@ inline void UnsetAllShaderParametersPS(TCmdList& RHICmdList, const TShaderRef<TS
 template<typename TCmdList, typename TShaderType>
 inline void UnsetAllShaderParametersCS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
 {
-	FRHIBatchedShaderParameters BatchedParameters;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->UnsetParameters(BatchedParameters);
 	RHICmdList.SetBatchedShaderParameters(InShader.GetComputeShader(), BatchedParameters);
 }

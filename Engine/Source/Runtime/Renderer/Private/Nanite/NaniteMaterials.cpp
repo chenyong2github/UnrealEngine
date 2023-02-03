@@ -754,22 +754,28 @@ void RecordShadingCommand(
 
 	FRHIComputeShader* ComputeShaderRHI = ShadingCommand.ComputeShader.GetComputeShader();
 	SetComputePipelineState(RHICmdList, ComputeShaderRHI);
-	ShadingCommand.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
 
-	ShadingCommand.ComputeShader->SetPassParameters(
-		RHICmdList,
-		ComputeShaderRHI,
-		ViewRect,
-		PassData,
-		OutputTargets[0],
-		OutputTargets[1],
-		OutputTargets[2],
-		OutputTargets[3],
-		OutputTargets[4],
-		OutputTargets[5],
-		OutputTargets[6],
-		OutputTargets[7]
-	);
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+	ShadingCommand.ShaderBindings.SetParameters(BatchedParameters, ComputeShaderRHI);
+
+	if (ComputeShaderRHI)
+	{
+		ShadingCommand.ComputeShader->SetPassParameters(
+			BatchedParameters,
+			ViewRect,
+			PassData,
+			OutputTargets[0],
+			OutputTargets[1],
+			OutputTargets[2],
+			OutputTargets[3],
+			OutputTargets[4],
+			OutputTargets[5],
+			OutputTargets[6],
+			OutputTargets[7]
+		);
+	}
+
+	RHICmdList.SetBatchedShaderParameters(ComputeShaderRHI, BatchedParameters);
 
 	RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer, IndirectOffset);
 }

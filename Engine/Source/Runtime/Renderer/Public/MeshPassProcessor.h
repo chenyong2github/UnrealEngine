@@ -874,6 +874,8 @@ public:
 
 	/** Set shader bindings on the commandlist, filtered by state cache. */
 	RENDERER_API void SetOnCommandList(FRHICommandList& RHICmdList, const FBoundShaderStateInput& Shaders, class FShaderBindingState* StateCacheShaderBindings) const;
+
+	RENDERER_API void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHIComputeShader* Shader, class FShaderBindingState* StateCacheShaderBindings = nullptr) const;
 	RENDERER_API void SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader, class FShaderBindingState* StateCacheShaderBindings = nullptr) const;
 
 #if RHI_RAYTRACING
@@ -980,17 +982,13 @@ private:
 
 	RENDERER_API void Release();
 
-	template<class RHICmdListType, class RHIShaderType>
 	static void SetShaderBindings(
-		RHICmdListType& RHICmdList,
-		RHIShaderType Shader,
+		FRHIBatchedShaderParameters& BatchedParameters,
 		const class FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings,
 		FShaderBindingState& RESTRICT ShaderBindingState);
 
-	template<class RHICmdListType, class RHIShaderType>
 	static void SetShaderBindings(
-		RHICmdListType& RHICmdList,
-		RHIShaderType Shader,
+		FRHIBatchedShaderParameters& BatchedParameters,
 		const class FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings);
 };
 

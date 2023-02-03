@@ -623,7 +623,7 @@ static void ExtractShaderParameters(
 	}
 }
 
-#define UE_SINGLE_SHADER_PARAMETERS_COMMAND_INCLUDE_UB (0)
+#define UE_SINGLE_SHADER_PARAMETERS_COMMAND_INCLUDE_UB (1)
 
 template<typename BindingParameterType>
 FRHIShaderParameterResource ExtractShaderParameterResource(FShaderParameterReader Reader, const BindingParameterType& Parameter)
@@ -756,6 +756,8 @@ inline void SetShaderParametersInternal(
 	const void* InParametersData)
 {
 	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use SetShaderParameters() for root parameter buffer index."));
+
+	// FYI: this code should not use FRHIBatchedShaderParameters so that the original parameter data can be used instead of copying it around a few more times
 
 	TConstArrayView<uint8> FullParametersData((const uint8*)InParametersData, ParametersMetadata->GetSize());
 

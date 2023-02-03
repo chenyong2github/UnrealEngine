@@ -70,7 +70,7 @@ public:
 	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(TRHICommandList& RHICmdList, const FVolumeBounds& VolumeBounds, const FIntVector& VolumeResolution)
 	{
-		FRHIBatchedShaderParameters BatchedParameters;
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 		SetParameters(BatchedParameters, VolumeBounds, VolumeResolution);
 		RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundVertexShader(), BatchedParameters);
 	}
@@ -99,7 +99,7 @@ public:
 	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(TRHICommandList& RHICmdList, int32 MinZValue)
 	{
-		FRHIBatchedShaderParameters BatchedParameters;
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 		SetParameters(BatchedParameters, MinZValue);
 		RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundGeometryShader(), BatchedParameters);
 	}

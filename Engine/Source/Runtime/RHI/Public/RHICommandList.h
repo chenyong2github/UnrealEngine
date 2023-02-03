@@ -506,6 +506,11 @@ struct FRHIBatchedShaderParameters
 		Parameters.Emplace((uint16)BufferIndex, (uint16)BaseIndex, (uint16)DestDataOffset, (uint16)NumBytes);
 	}
 
+	FORCEINLINE_DEBUGGABLE void SetShaderUniformBuffer(uint32 Index, FRHIUniformBuffer* UniformBuffer)
+	{
+		ResourceParameters.Emplace(UniformBuffer, (uint16)Index);
+	}
+
 	FORCEINLINE_DEBUGGABLE void SetShaderTexture(uint32 Index, FRHITexture* Texture)
 	{
 		ResourceParameters.Emplace(Texture, (uint16)Index);
@@ -876,6 +881,12 @@ public:
 		GDynamicRHI->RHIUpdateTexture3D(*this, Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
 	}
 
+	inline FRHIBatchedShaderParameters& GetScratchShaderParameters()
+	{
+		ScratchShaderParameters.Reset();
+		return ScratchShaderParameters;
+	}
+
 protected:
 	FMemStackBase& GetAllocator() { return MemManager; }
 
@@ -947,6 +958,8 @@ protected:
 	TRHIPipelineArray<IRHIComputeContext*> Contexts = {};
 
 	FRHIParameterBatcher ParameterBatcher;
+
+	FRHIBatchedShaderParameters ScratchShaderParameters;
 
 #if RHI_COUNT_COMMANDS
 	uint32 NumCommands = 0;
