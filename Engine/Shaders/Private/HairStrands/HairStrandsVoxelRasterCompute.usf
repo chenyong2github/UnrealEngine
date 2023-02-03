@@ -44,8 +44,9 @@ RWBuffer<uint4>								OutPageIndexResolutionAndOffsetBuffer;
 RWBuffer<uint>								OutPageIndexAllocationIndirectBufferArgs;
 RWStructuredBuffer<FVoxelizationViewInfo>	OutVoxelizationViewInfoBuffer;
 
-#ifndef MAX_HAIR_MACROGROUP_COUNT
-#error MAX_HAIR_MACROGROUP_COUNT needs to be defined
+
+#if GROUP_SIZE != MAX_HAIR_MACROGROUP_COUNT
+#error MAX_HAIR_MACROGROUP_COUNT needs to match MAX_HAIR_MACROGROUP_COUNT
 #endif
 
 #define INVALID_OFFSET 0xFFFFFFFF
@@ -53,7 +54,7 @@ RWStructuredBuffer<FVoxelizationViewInfo>	OutVoxelizationViewInfoBuffer;
 groupshared uint PageIndexOffsets[MAX_HAIR_MACROGROUP_COUNT];
 
 // This code assume we have less than 32 macro group (which fit into a single CU/SM)
-[numthreads(MAX_HAIR_MACROGROUP_COUNT, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint MacroGroupId = DispatchThreadId.x;
@@ -154,7 +155,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// Prepare indirect buffer for doing the actual page index allocation and filling the page index
 	{
 		const uint AllocatedPageIndexCount = PageIndexResolution.x * PageIndexResolution.y * PageIndexResolution.z;
-		WriteDispatchIndirectArgs(OutPageIndexAllocationIndirectBufferArgs, MacroGroupId, ceil(AllocatedPageIndexCount / float(IndirectDispatchGroupSize)), 1, 1);
+		WriteDispatchIndirectArgs(OutPageIndexAllocationIndirectBufferArgs, MacroGroupId, DivideAndRoundUp(AllocatedPageIndexCount, IndirectDispatchGroupSize), 1, 1);
 	}
 
 	// Matrix generation
@@ -239,7 +240,7 @@ RWBuffer<uint>	OutValidPageIndexBuffer;
 // PageIndexCoordBuffer is sampled with linear coordinate for allocated nodes. VALID NODE ARE COMPACTED. It contains the 3d page coordinate and ClustedId. Only used for opaque voxel injection.
 
 #if PERMUTATION_USE_CLUSTER
-[numthreads(32, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint ClusterIndex = DispatchThreadId.x;
@@ -311,7 +312,7 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 #else // PERMUTATION_USE_CLUSTER
-[numthreads(8, 8, 8)]
+[numthreads(GROUP_SIZE, GROUP_SIZE, GROUP_SIZE)]
 void MarkValid_PrepareCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
@@ -357,8 +358,6 @@ Buffer<int>		ClusterAABBsBuffer;
 Buffer<int>		MacroGroupVoxelAlignedAABBBuffer;
 Buffer<uint4>	PageIndexResolutionAndOffsetBuffer;
 RWBuffer<uint>	OutValidPageIndexBuffer;
-
-#define GROUP_SIZE 32
 
 // PageIndexBuffer      is sampled with linear coordinate computed from the 3d page coordinate. VALID NODE ARE NOT COMPACTED. It contains the LINEAR PAGE INDEX (to map to the 3d volume).
 // PageIndexCoordBuffer is sampled with linear coordinate for allocated nodes. VALID NODE ARE COMPACTED. It contains the 3d page coordinate and ClustedId. Only used for opaque voxel injection.
@@ -441,8 +440,6 @@ RWBuffer<uint4> PageIndexCoordBuffer;
 
 groupshared uint LocalCounter;
 groupshared uint GroupBase;
-
-#define GROUP_SIZE 32
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void AllocateCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -559,12 +556,13 @@ void AddDescCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Disp
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Preapare indirect buffer
 
 #if SHADER_ADDINDIRECTBUFFER
 
 uint PageResolution;
 uint MacroGroupId;
-uint IndirectGroupSize;
+int3 IndirectGroupSize;
 
 RWBuffer<uint> OutPageIndexGlobalCounter;
 RWBuffer<uint> OutIndirectArgsBuffer;
@@ -578,10 +576,9 @@ void AddIndirectBufferCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId
 	const uint AllocatedPageCount = TotalAllocatedPageCount - PrevTotalAllocatedPageCount;
 	const uint VoxelCountPerPage = PageResolution * PageResolution * PageResolution;
 
-	const uint MaxGroupCountPerDim = 65535;
-	const uint DispatchX = AllocatedPageCount % MaxGroupCountPerDim;
-	const uint DispatchY = ceil(AllocatedPageCount / float(MaxGroupCountPerDim));
-	WriteDispatchIndirectArgs(OutIndirectArgsBuffer, MacroGroupId, DispatchX, DispatchY, ceil(VoxelCountPerPage / float(IndirectGroupSize)));
+	const uint DispatchCountX = DivideAndRoundUp(VoxelCountPerPage, IndirectGroupSize.x);
+	const uint DispatchCountZ = DivideAndRoundUp(AllocatedPageCount, IndirectGroupSize.z);
+	WriteDispatchIndirectArgs(OutIndirectArgsBuffer, MacroGroupId, DispatchCountX, 1, DispatchCountZ);
 
 	// Copy current total to previous total
 	OutPageIndexGlobalCounter[1] = TotalAllocatedPageCount;
@@ -593,12 +590,12 @@ void AddIndirectBufferCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define IND_CLEAR_GROUP_SIZE_Z 64
+// Prepare indirect args for indirect clear
 
 #if SHADER_INDPAGECLEARBUFFERGEN
 
 uint PageResolution;
+int3 GroupSize;
 Buffer<uint> PageIndexGlobalCounter;
 RWBuffer<uint> OutIndirectArgsBuffer;
 
@@ -608,36 +605,36 @@ void VoxelIndPageClearBufferGenCS(uint GroupIndex : SV_GroupIndex, uint3 Dispatc
 	const uint TotalAllocatedPageCount = PageIndexGlobalCounter[0];
 	const uint VoxelCountPerPage = PageResolution * PageResolution * PageResolution;
 
-	const uint MaxGroupCountPerDim = 65535;
-	const uint DispatchX = TotalAllocatedPageCount % MaxGroupCountPerDim;
-	const uint DispatchY = ceil(TotalAllocatedPageCount / float(MaxGroupCountPerDim));
+	const uint DispatchX = DivideAndRoundUp(VoxelCountPerPage, GroupSize.x);
+	const uint DispatchZ = DivideAndRoundUp(TotalAllocatedPageCount, GroupSize.z);
 
-	WriteDispatchIndirectArgs(OutIndirectArgsBuffer, 0, DispatchX, DispatchY, ceil(VoxelCountPerPage / float(IND_CLEAR_GROUP_SIZE_Z)));
+	WriteDispatchIndirectArgs(OutIndirectArgsBuffer, 0, DispatchX, 1, DispatchZ);
 }
 
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Indirect clear
 
 #if SHADER_INDPAGECLEAR
 
+Buffer<uint>		PageIndexGlobalCounter;
 uint				VirtualVoxelParams_PageResolution;
 int3				VirtualVoxelParams_PageCountResolution;
 Buffer<uint4>		VirtualVoxelParams_PageIndexCoordBuffer;
 
 RWTexture3D<uint>	OutPageTexture;
 
-[numthreads(1, 1, IND_CLEAR_GROUP_SIZE_Z)]
+[numthreads(GROUP_SIZE_X, 1, GROUP_SIZE_Z)]
 void VoxelIndPageClearCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID)
 {
-	const uint  LinearVoxelCoord = DispatchThreadId.z;
-
+	const uint TotalAllocatedPageCount = PageIndexGlobalCounter[0];
 	const uint VoxelCountPerPage = VirtualVoxelParams_PageResolution * VirtualVoxelParams_PageResolution * VirtualVoxelParams_PageResolution;
-	//	if (AllocatedPageIndex < TotalAllocatedPageCount)		// Not needed today because the XY size exactly matches the range (page count) we need to clear.
-	if (LinearVoxelCoord < VoxelCountPerPage)
+
+	const uint LinearVoxelCoord = DispatchThreadId.x;
+	const uint AllocatedPageIndex = DispatchThreadId.z;
+	if (AllocatedPageIndex < TotalAllocatedPageCount && LinearVoxelCoord < VoxelCountPerPage)
 	{
-		const uint  MaxDispatchCountPerDim = 65535u;
-		const uint  AllocatedPageIndex = DispatchThreadId.x + DispatchThreadId.y * MaxDispatchCountPerDim;
 		const uint3 VoxelCoordOffset = IndexToCoord(LinearVoxelCoord, VirtualVoxelParams_PageResolution.xxx);
 
 		const uint PageIndex = AllocatedPageIndex; // PageIndexBuffer is not needed, we already know those tiles are allocated linearly in 3D within OutPageTexture.
@@ -780,7 +777,6 @@ void FeedbackCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #if SHADER_RASTERCOMPUTE
 
-uint			DispatchCountX;
 uint			MaxRasterCount;
 uint			FrameIdMod8;
 uint			MacroGroupId;
@@ -800,14 +796,6 @@ float SampleWeight;
 
 #define JITTER_ENABLE 0
 
-#if PERMUTATION_GROUP_SIZE == 64
-	#define GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 32
-	#define GROUP_SIZE 32
-#else
-	#error Unknown group size	
-#endif
-
 float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
 {
 	return float3(
@@ -822,7 +810,7 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 #if PERMUTATION_CULLING == 1
 	uint VertexIndex0 = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadID, GROUP_SIZE);
 #else
-	uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadID, GROUP_SIZE, DispatchCountX);
+	uint VertexIndex0 = DispatchThreadID.x;
 #endif
 	uint VertexIndex1 = min(VertexIndex0 + 1, VertexCount - 1);
 	if (VertexIndex0 >= VertexCount)
@@ -985,20 +973,26 @@ uint VoxelBiasCount;
 uint VoxelMarkCount;
 RWTexture3D<uint> OutPageTexture;
 
+uint		 VirtualVoxelParams_PageCount;
 uint		 VirtualVoxelParams_PageIndexCount;
 uint		 VirtualVoxelParams_PageResolution;
 uint3		 VirtualVoxelParams_PageCountResolution;
 Buffer<uint> VirtualVoxelParams_PageIndexBuffer;
+Buffer<uint> VirtualVoxelParams_AllocatedPageCountBuffer;
 Buffer<uint4>VirtualVoxelParams_PageIndexCoordBuffer;
 StructuredBuffer<FPackedVirtualVoxelNodeDesc> VirtualVoxelParams_NodeDescBuffer;
 
-#define GROUP_SIZE 64
-[numthreads(1, 1, GROUP_SIZE)]
+[numthreads(GROUP_SIZE_X, 1, GROUP_SIZE_Z)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint  MaxDispatchCountPerDim = 65535u;
-	const uint  AllocatedPageIndex = DispatchThreadId.x + DispatchThreadId.y * MaxDispatchCountPerDim;
-	const uint  LinearVoxelCoord = DispatchThreadId.z;
+	const uint LinearVoxelCoord = DispatchThreadId.x;
+	const uint AllocatedPageIndex = DispatchThreadId.z;
+	const bool bValidVoxel = AllocatedPageIndex < VirtualVoxelParams_AllocatedPageCountBuffer[0] && LinearVoxelCoord < VirtualVoxelParams_PageCount;
+	if (!bValidVoxel)
+	{
+		return;
+	}
+
 	const uint3 VoxelCoordOffset = IndexToCoord(LinearVoxelCoord, VirtualVoxelParams_PageResolution.xxx);
 
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxelParams_NodeDescBuffer[MacroGroupId], VirtualVoxelParams_PageResolution);
@@ -1291,20 +1285,25 @@ uint PageResolution;
 uint SourceMip;
 uint TargetMip;
 
+Buffer<uint> 	  AllocatedPageCountBuffer;
 Texture3D<uint>   InDensityTexture;
 RWTexture3D<uint> OutDensityTexture;
 
-[numthreads(1, 1, 64)]
+[numthreads(GROUP_SIZE_X, 1, GROUP_SIZE_Z)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint  MaxDispatchCountPerDim = 65535;
-	const uint  PageIndex = DispatchThreadId.x + DispatchThreadId.y * MaxDispatchCountPerDim;
+	const uint  PageIndex = DispatchThreadId.z;
+	if (PageIndex >= AllocatedPageCountBuffer[0])
+	{
+		return;
+	}
+
 	const uint3 PageCoord = IndexToCoord(PageIndex, PageCountResolution);
 
 	const uint  InPageResolution = PageResolution >> SourceMip;
 	const uint OutPageResolution = PageResolution >> TargetMip;
 	const uint TotalVoxelPerOutPageResolution = OutPageResolution * OutPageResolution * OutPageResolution;
-	const uint VoxelIndex = DispatchThreadId.z;
+	const uint VoxelIndex = DispatchThreadId.x;
 	if (VoxelIndex >= TotalVoxelPerOutPageResolution)
 		return;
 
@@ -1353,7 +1352,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 uint PageResolution;
 uint TargetMipIndex;
-uint DispatchGroupSize;
+int3 DispatchGroupSize;
 
 Buffer<uint>   InIndirectArgs;
 RWBuffer<uint> OutIndirectArgs;
@@ -1365,9 +1364,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	const uint TargetPageResolution = PageResolution >> TargetMipIndex;
 	const uint TotalVoxelCount = TargetPageResolution * TargetPageResolution * TargetPageResolution;
-	const uint DispatchZ = ceil(TotalVoxelCount / float(DispatchGroupSize));
+	const uint DispatchX = DivideAndRoundUp(TotalVoxelCount, DispatchGroupSize.x);
 
-	WriteDispatchIndirectArgs(OutIndirectArgs, 0, InIndirectArgs[0], InIndirectArgs[1], DispatchZ);
+	WriteDispatchIndirectArgs(OutIndirectArgs, 0, DispatchX, InIndirectArgs[1], InIndirectArgs[2]);
 }
 
 #endif
@@ -1385,11 +1384,10 @@ Buffer<uint>	  PageToPageIndexBuffer;
 RWBuffer<uint>	  OutPageIndexBuffer;
 RWBuffer<uint2>	  OutPageIndexOccupancyBuffer;
 
-[numthreads(1, 1, 64)]
+[numthreads(GROUP_SIZE_X, 1, GROUP_SIZE_Z)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint  MaxDispatchCountPerDim = 65535;
-	const uint  PageIndex = DispatchThreadId.x + DispatchThreadId.y * MaxDispatchCountPerDim;
+	const uint  PageIndex = DispatchThreadId.z;
 	const uint3 PageCoord = IndexToCoord(PageIndex, PageCountResolution);
 
 	const uint AllocatedPageCount = PageIndexGlobalCounter[0];
@@ -1398,7 +1396,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	const uint OutPageResolution = PageResolution >> MipIt;
 	const uint TotalVoxelPerOutPageResolution = OutPageResolution * OutPageResolution * OutPageResolution;
-	const uint VoxelIndex = DispatchThreadId.z;
+	const uint VoxelIndex = DispatchThreadId.x;
 	if (VoxelIndex >= TotalVoxelPerOutPageResolution)
 		return;
 

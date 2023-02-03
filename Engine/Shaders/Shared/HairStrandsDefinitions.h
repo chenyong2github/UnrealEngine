@@ -24,10 +24,13 @@
 #define MAX_HAIR_LOD 8
 
 // Group size for dispatching based on a groom vertex/curve/cluster count. 
-// This defines ensures the group size is consistent across the hair pipeline
+// This defines ensures the group size is consistent across the hair pipeline, 
+// and ensures dispatch count are smaller than 65k limits
 #define HAIR_VERTEXCOUNT_GROUP_SIZE  1024u
 #define HAIR_CURVECOUNT_GROUP_SIZE   1024u
 #define HAIR_CLUSTERCOUNT_GROUP_SIZE 1024u
+
+#define MAX_HAIR_MACROGROUP_COUNT 16
 
 // HAIR_ATTRIBUTE_MAX rounded to 4
 #define HAIR_ATTRIBUTE_OFFSET_COUNT ((HAIR_ATTRIBUTE_COUNT + 3) / 4)

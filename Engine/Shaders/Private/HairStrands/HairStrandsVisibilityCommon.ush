@@ -13,8 +13,7 @@
 
 #define HAIR_VISIBILITY_GROUP_COUNT_WIDTH 64
 
-#define MAX_HAIR_MACROGROUP_COUNT 16
-
+#include "/Engine/Shared/HairStrandsDefinitions.h"
 #include "HairStrandsVisibilityCommonStruct.ush"
 
  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
