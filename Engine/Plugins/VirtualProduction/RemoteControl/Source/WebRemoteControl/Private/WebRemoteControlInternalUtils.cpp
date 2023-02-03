@@ -3,7 +3,9 @@
 #include "WebRemoteControlInternalUtils.h"
 
 #include "HttpServerRequest.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Misc/Base64.h"
+#include "RemoteControlSettings.h"
 #include "Serialization/JsonReader.h"
 #include "UObject/StructOnScope.h"
 
@@ -150,7 +152,14 @@ bool DeserializeCall(const FHttpServerRequest& InRequest, FRCCall& OutCall, cons
 			Reader.SetLimitSize(ParametersDelimiters.BlockEnd);
 
 			FRCJsonStructDeserializerBackend Backend(Reader);
-			if (!FStructDeserializer::Deserialize((void*)OutCall.ParamStruct.GetStructMemory(), *const_cast<UStruct*>(OutCall.ParamStruct.GetStruct()), Backend, FStructDeserializerPolicies()))
+			if (FStructDeserializer::Deserialize((void*)OutCall.ParamStruct.GetStructMemory(), *const_cast<UStruct*>(OutCall.ParamStruct.GetStruct()), Backend, FStructDeserializerPolicies()))
+			{
+				if (!WebRemoteControlInternalUtils::ValidateFunctionCall(OutCall, &ErrorText))
+				{
+					bSuccess = false;
+				}
+			}
+			else
 			{
 				ErrorText = TEXT("Parameters object improperly formatted.");
 				bSuccess = false;
@@ -486,6 +495,49 @@ bool WebRemoteControlInternalUtils::ValidateContentType(const FHttpServerRequest
 		InCompleteCallback(MoveTemp(Response));
 		return false;
 	}
+	return true;
+}
+
+bool WebRemoteControlInternalUtils::ValidateFunctionCall(const FRCCall& InRCCall, FString* OutErrorText)
+{
+	if (!InRCCall.IsValid())
+	{
+		return false;
+	}
+	
+	if (!GetDefault<URemoteControlSettings>()->bEnableRemotePythonExecution
+		&& InRCCall.CallRef.Object->IsA(UKismetSystemLibrary::StaticClass())
+		&& InRCCall.CallRef.Function == UKismetSystemLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, ExecuteConsoleCommand)))
+	{
+		// Make sure python is not called through KismetSystemLibrary.
+		if (const FProperty* Property = InRCCall.CallRef.Function->FindPropertyByName("Command"))
+		{
+			FString FullCommand;
+			Property->GetValue_InContainer(InRCCall.ParamStruct.GetStructMemory(), &FullCommand);
+
+			TArray<FString> SplitCommands;
+			FullCommand.ParseIntoArray(SplitCommands, TEXT("|"));
+
+			for (FString& Command : SplitCommands)
+			{
+				Command.TrimStartAndEndInline();
+				if (Command.StartsWith(TEXT("py ")) || Command.StartsWith(TEXT("python ")))
+				{
+					if (OutErrorText)
+					{
+						*OutErrorText = TEXT("Executing Python remotely is not enabled in the remote control settings.");
+					}
+					return false;
+				}
+			}
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Could not find the Command parameter on ExecuteConsoleCommand"));
+			return false;
+		}
+	}
+
 	return true;
 }
 

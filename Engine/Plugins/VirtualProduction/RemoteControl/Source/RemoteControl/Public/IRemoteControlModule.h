@@ -533,5 +533,11 @@ public:
 
 	/** Get map of the factories which is responsible for the Remote Control property creation */
 	virtual const TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>>& GetEntityFactories() const = 0;
+
+	/**
+	 *  @return whether an object can be accessed remotely.
+	 *  @note Check Remote Control project settings to configure.
+	 */
+	virtual bool CanBeAccessedRemotely(UObject* InObject) const = 0;
 };
 

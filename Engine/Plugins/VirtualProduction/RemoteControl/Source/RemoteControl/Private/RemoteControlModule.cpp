@@ -810,28 +810,36 @@ bool FRemoteControlModule::ResolveCall(const FString& ObjectPath, const FString&
 		UObject* Object = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath);
 		if (Object)
 		{
-			// Find the function to call
-			UFunction* Function = RemoteControlUtil::FindFunctionByNameOrMetaDataName(Object, FunctionName);
+			if (CanBeAccessedRemotely(Object))
+			{
+				// Find the function to call
+				UFunction* Function = RemoteControlUtil::FindFunctionByNameOrMetaDataName(Object, FunctionName);
 
-			if (!Function)
-			{
-				ErrorText = FString::Printf(TEXT("Function: %s does not exist on object: %s"), *FunctionName, *ObjectPath);
-				bSuccess = false;
-			}
-			else if ((!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) && !Function->HasAllFunctionFlags(FUNC_BlueprintEvent))
-#if WITH_EDITOR
-					|| Function->HasMetaData(RemoteControlUtil::NAME_DeprecatedFunction)
-					|| Function->HasMetaData(RemoteControlUtil::NAME_ScriptNoExport)
-#endif
-			)
-			{
-				ErrorText = FString::Printf(TEXT("Function: %s is deprecated or unavailable remotely on object: %s"), *FunctionName, *ObjectPath);
-				bSuccess = false;
+				if (!Function)
+				{
+					ErrorText = FString::Printf(TEXT("Function: %s does not exist on object: %s"), *FunctionName, *ObjectPath);
+					bSuccess = false;
+				}
+				else if ((!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) && !Function->HasAllFunctionFlags(FUNC_BlueprintEvent))
+	#if WITH_EDITOR
+						|| Function->HasMetaData(RemoteControlUtil::NAME_DeprecatedFunction)
+						|| Function->HasMetaData(RemoteControlUtil::NAME_ScriptNoExport)
+	#endif
+				)
+				{
+					ErrorText = FString::Printf(TEXT("Function: %s is deprecated or unavailable remotely on object: %s"), *FunctionName, *ObjectPath);
+					bSuccess = false;
+				}
+				else
+				{
+					OutCallRef.Object = Object;
+					OutCallRef.Function = Function;
+				}
 			}
 			else
 			{
-				OutCallRef.Object = Object;
-				OutCallRef.Function = Function;
+				ErrorText = FString::Printf(TEXT("Object %s cannot be accessed remotely, check remote control project settings."), *Object->GetName());
+				bSuccess = false;
 			}
 		}
 		else
@@ -920,7 +928,7 @@ bool FRemoteControlModule::InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadT
 		FEditorScriptExecutionGuard ScriptGuard;
 		if (ensureAlways(InCall.CallRef.Object.IsValid()))
 		{
-			if(InCall.CallRef.PropertyWithSetter.IsValid())
+			if (InCall.CallRef.PropertyWithSetter.IsValid())
 			{
 				InCall.CallRef.PropertyWithSetter->CallSetter(InCall.CallRef.Object.Get(), InCall.ParamData.GetData());
 			}
@@ -975,7 +983,15 @@ bool FRemoteControlModule::ResolveObject(ERCAccess AccessType, const FString& Ob
 		UObject* Object = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath);
 		if (Object)
 		{
-			bSuccess = ResolveObjectProperty(AccessType, Object, PropertyName, OutObjectRef, OutErrorText);
+			if (CanBeAccessedRemotely(Object))
+			{
+				bSuccess = ResolveObjectProperty(AccessType, Object, PropertyName, OutObjectRef, OutErrorText);
+			}
+			else
+			{
+				ErrorText = FString::Printf(TEXT("Object %s cannot be accessed remotely, check remote control project settings."), *Object->GetName());
+				bSuccess = false;
+			}
 		}
 		else
 		{
@@ -2283,7 +2299,28 @@ FRemoteControlModule::FOngoingChange::FOngoingChange(FRCCallReference InReferenc
 {
 	Reference.Set<FRCCallReference>(MoveTemp(InReference));
 }
-	
+
+bool FRemoteControlModule::CanBeAccessedRemotely(UObject* Object) const
+{
+	check(Object);
+		
+	if (!GetDefault<URemoteControlSettings>()->bEnableRemotePythonExecution)
+	{
+		static const FName PythonScriptName = "PythonScriptLibrary"; 
+		if (Object->GetClass()->GetFName() == PythonScriptName)
+		{
+			return false;
+		}
+	}
+
+	if (Object == GetDefault<URemoteControlSettings>())
+	{
+		return false;
+	}
+
+	return true;
+}
+
 #endif
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

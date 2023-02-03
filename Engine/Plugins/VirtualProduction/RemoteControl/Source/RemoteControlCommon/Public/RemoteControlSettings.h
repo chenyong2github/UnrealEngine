@@ -73,7 +73,7 @@ public:
 	 * Disabling transactions improves performance but will prevent events from being transacted to Multi-User
 	 * unless using the Remote Control Interception feature.
 	 */
-	UPROPERTY(config, EditAnywhere, Category = RemoteControl)
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control")
 	bool bProtocolsGenerateTransactions = true;
 
 	/** The remote control web app http port. */
@@ -87,14 +87,6 @@ public:
 	/** Should WebApp log timing. */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Log WebApp requests handle duration")
 	bool bWebAppLogRequestDuration = false;
-
-	/** Whether communication with the Web Interface should only be allowed with an Passphrase */
-	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Use Passphrase to block Access")
-	bool bUseRemoteControlPassphrase = false;
-
-	/** Whether the User should be warned that Passphrase usage is disabled or now. Initially activated */
-	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Warn that Passphrase might be disabled ")
-	bool bShowPassphraseDisabledWarning = true;
 
 	/** Whether web server is started automatically. */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server")
@@ -129,9 +121,21 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Preset", DisplayName = "Ignore Remote Control Getter/Setter Check")
 	bool bIgnoreGetterSetterCheck = false;
 
-	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Preset", DisplayName = "Ignore Warnings")
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Preset")
 	bool bIgnoreWarnings = false;
+	
+	/** Whether communication with the Web Interface should only be allowed with an Passphrase */
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security", DisplayName = "Use Passphrase to block Access")
+	bool bUseRemoteControlPassphrase = false;
 
-	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Remote Control Web Interface Passphrase")
+	/** Whether the User should be warned that Passphrase usage is disabled or now. Initially activated */
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security", DisplayName = "Warn that Passphrase might be disabled ")
+	bool bShowPassphraseDisabledWarning = true;
+
+	/** Enable remote python execution, enabling this could open you open to vulnerabilities if an outside actor has access to your server. */
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security")
+	bool bEnableRemotePythonExecution = false;
+
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security", DisplayName = "Remote Control Passphrase")
 	TArray<FRCPassphrase> Passphrases = {};
 };

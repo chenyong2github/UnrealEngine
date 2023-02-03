@@ -64,6 +64,7 @@ public:
 	virtual FGuid BeginManualEditorTransaction(const FText& InDescription, uint32 TypeHash) override;
 	virtual int32 EndManualEditorTransaction(const FGuid& TransactionId) override;
 	virtual const TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>>& GetEntityFactories() const override { return EntityFactories; };
+	virtual bool CanBeAccessedRemotely(UObject* Object) const override;
 	//~ End IRemoteControlModule
 
 private:

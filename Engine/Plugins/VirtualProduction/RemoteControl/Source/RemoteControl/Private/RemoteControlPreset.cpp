@@ -685,6 +685,12 @@ TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* O
 	{
 		return nullptr;
 	}
+	
+	if (!IRemoteControlModule::Get().CanBeAccessedRemotely(Object))
+    {
+    	UE_LOG(LogRemoteControl, Warning, TEXT("Object %s cannot be accessed remotely. Check project settings."), *Object->GetName());
+		return nullptr;
+    }
 
 	TSharedPtr<FRemoteControlProperty> RCPropertyPtr;
 	const TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>>& PropertyFactories = IRemoteControlModule::Get().GetEntityFactories();
@@ -737,6 +743,12 @@ TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* O
 {
 	if (!Object || !Function || !Object->GetClass() || !Object->GetClass()->FindFunctionByName(Function->GetFName()))
 	{
+		return nullptr;
+	}
+
+	if (!IRemoteControlModule::Get().CanBeAccessedRemotely(Object))
+	{
+		UE_LOG(LogRemoteControl, Warning, TEXT("Object %s cannot be accessed remotely. Check project settings."), *Object->GetName());
 		return nullptr;
 	}
 

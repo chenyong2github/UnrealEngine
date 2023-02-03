@@ -320,6 +320,13 @@ namespace WebRemoteControlInternalUtils
 	UE_NODISCARD bool ValidateContentType(const FHttpServerRequest& InRequest, FString InContentType, const FHttpResultCallback& InCompleteCallback);
 
 	/**
+	 * Check if a function call is valid since some objects//functions are disabled remotely for security reasons.
+	 * @param InRCCall The RC call to validate.
+	 * @param OutErrorText Optional error text.
+	 **/
+	UE_NODISCARD bool ValidateFunctionCall(const FRCCall& InRCCall, FString* OutErrorText);
+
+	/**
 	 * Add the desired content type to the http response headers.
 	 * @param InResponse The response to add the content type to.
 	 * @param InContentType The content type header to add.
