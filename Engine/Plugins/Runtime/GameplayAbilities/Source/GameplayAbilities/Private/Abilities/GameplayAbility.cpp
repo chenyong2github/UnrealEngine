@@ -714,6 +714,11 @@ void UGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const
 			// Tell owning AbilitySystemComponent that we ended so it can do stuff (including MarkPendingKill us)
 			AbilitySystemComponent->NotifyAbilityEnded(Handle, this, bWasCancelled);
 		}
+
+		if (IsInstantiated())
+		{
+			CurrentEventData = FGameplayEventData{};
+		}
 	}
 }
 
@@ -787,6 +792,11 @@ void UGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, cons
 	// This must be called before we start applying tags and blocking or canceling other abilities.
 	// We could set off a chain that results in calling functions on this ability that rely on the current info being set.
 	SetCurrentInfo(Handle, ActorInfo, ActivationInfo);
+
+	if (TriggerEventData && IsInstantiated())
+	{
+		CurrentEventData = *TriggerEventData;
+	}
 
 	Comp->HandleChangeAbilityCanBeCanceled(AbilityTags, this, true);
 
