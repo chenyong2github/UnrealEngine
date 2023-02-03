@@ -2,7 +2,6 @@
 
 #include "MediaPlateEditorModule.h"
 
-#include "AssetTools/MediaPlateActions.h"
 #include "Editor.h"
 #include "ISequencerModule.h"
 #include "LevelEditor.h"
@@ -25,13 +24,13 @@
 
 DEFINE_LOG_CATEGORY(LogMediaPlateEditor);
 
+TSharedPtr<FMediaPlateEditorStyle> FMediaPlateEditorStyle::Singleton;
+
 void FMediaPlateEditorModule::StartupModule()
 {
-	Style = MakeShareable(new FMediaPlateEditorStyle());
+	FMediaPlateEditorStyle::Get();
 
 	FMediaPlateEditorCommands::Register();
-
-	RegisterAssetTools();
 
 	// Register customizations.
 	MediaPlateName = UMediaPlateComponent::StaticClass()->GetFName();
@@ -71,8 +70,6 @@ void FMediaPlateEditorModule::ShutdownModule()
 	{
 		SequencerModulePtr->UnRegisterTrackEditor(TrackEditorBindingHandle);
 	}
-
-	UnregisterAssetTools();
 
 	// Unregister customizations.
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -136,34 +133,6 @@ bool FMediaPlateEditorModule::RemoveMediaSourceFromDragDropCache(UMediaSource* M
 		MapFileToMediaSource.Remove(*Key);
 	}
 	return bIsInCache;
-}
-
-void FMediaPlateEditorModule::RegisterAssetTools()
-{
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaPlateActions(Style.ToSharedRef())));
-}
-
-void FMediaPlateEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
-{
-	AssetTools.RegisterAssetTypeActions(Action);
-	RegisteredAssetTypeActions.Add(Action);
-}
-
-void FMediaPlateEditorModule::UnregisterAssetTools()
-{
-	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
-
-	if (AssetToolsModule != nullptr)
-	{
-		IAssetTools& AssetTools = AssetToolsModule->Get();
-
-		for (TSharedRef<IAssetTypeActions>& Action : RegisteredAssetTypeActions)
-		{
-			AssetTools.UnregisterAssetTypeActions(Action);
-		}
-	}
 }
 
 void FMediaPlateEditorModule::OnPostEngineInit()

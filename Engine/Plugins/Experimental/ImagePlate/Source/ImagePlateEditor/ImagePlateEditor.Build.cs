@@ -9,7 +9,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"AssetTools",
+					"AssetDefinition",
 					"Core",
 					"CoreUObject",
 					"EditorFramework",

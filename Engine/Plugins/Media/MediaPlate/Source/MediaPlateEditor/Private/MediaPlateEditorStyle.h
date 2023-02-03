@@ -15,4 +15,16 @@ public:
 
 	 /** Destructor. */
 	~FMediaPlateEditorStyle();
+
+	static TSharedRef<FMediaPlateEditorStyle> Get()
+	{
+		if (!Singleton.IsValid())
+		{
+			Singleton = MakeShareable(new FMediaPlateEditorStyle);
+		}
+		return Singleton.ToSharedRef();
+	}
+
+private:
+	static TSharedPtr<FMediaPlateEditorStyle> Singleton;
 };

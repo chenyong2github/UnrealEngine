@@ -10,9 +10,6 @@
 #include "UObject/ObjectPtr.h"
 
 class FDragDropEvent;
-class IAssetTools;
-class IAssetTypeActions;
-class ISlateStyle;
 class UMediaPlateComponent;
 class UMediaSource;
 struct FAssetData;
@@ -31,11 +28,6 @@ public:
 	/** FTickableEditorObject interface */
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FMediaPlateEditorModule, STATGROUP_Tickables); }
-	
-	/**
-	 * Get the style used by this module.
-	 **/
-	TSharedPtr<ISlateStyle> GetStyle() { return Style; }
 	
 	/**
 	 * Call this when a media plate starts playing so we can track it.
@@ -59,10 +51,6 @@ private:
 	/** Holds all the media plates that are playing. */
 	TArray<TWeakObjectPtr<UMediaPlateComponent>> ActiveMediaPlates;
 
-	/** Holds the plug-ins style set. */
-	TSharedPtr<ISlateStyle> Style;
-	/** The collection of registered asset type actions. */
-	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 	/** Handle for our track editor. */
 	FDelegateHandle TrackEditorBindingHandle;
 
@@ -70,24 +58,6 @@ private:
 	TMap<FString, TWeakObjectPtr<UMediaSource>> MapFileToMediaSource;
 	/** Caches if real time viewports are enabled. */
 	bool bIsRealTimeViewportsEnabled = false;
-
-	/**
-	 * Registers all of our asset tools.
-	 */
-	void RegisterAssetTools();
-
-	/**
-	 * Registers a single asset type action.
-	 *
-	 * @param AssetTools	The asset tools object to register with.
-	 * @param Action		The asset type action to register.
-	 */
-	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
-
-	/**
-	 * Unregisters all of our asset tools.
-	 */
-	void UnregisterAssetTools();
 
 	/**
 	 * Called after the engine has initialized.

@@ -13,6 +13,7 @@
 #include "MediaPlate.h"
 #include "MediaPlateComponent.h"
 #include "MediaPlateEditorModule.h"
+#include "MediaPlateEditorStyle.h"
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
 #include "MediaSource.h"
@@ -56,16 +57,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	}
 
 	// Get style.
-	const ISlateStyle* Style = nullptr;
-	FMediaPlateEditorModule* EditorModule = FModuleManager::LoadModulePtr<FMediaPlateEditorModule>("MediaPlateEditor");
-	if (EditorModule != nullptr)
-	{
-		Style = EditorModule->GetStyle().Get();
-	}
-	if (Style == nullptr)
-	{
-		Style = &FAppStyle::Get();
-	}
+	const ISlateStyle* Style = &FMediaPlateEditorStyle::Get().Get();
 
 	// Hide the static mesh.
 	IDetailCategoryBuilder& StaticMeshCategory = DetailBuilder.EditCategory("StaticMesh");
