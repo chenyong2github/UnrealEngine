@@ -1,4 +1,4 @@
-#pragma once
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGeneratedResourcesLogging.h"
 
