@@ -26,5 +26,7 @@ namespace UE::PixelStreamingInput
 		// NOTE: There is only ever a single input handler which all of the streamers share. This provides
 		// a central point for the multiple streamers -> single UE instance
 		TSharedPtr<IPixelStreamingInputHandler> InputHandler;
+
+		void PopulateProtocol();
 	};
 } // namespace UE::PixelStreamingInput
