@@ -37,6 +37,9 @@ enum class EMultiBoxType : uint8
 
 	/** Buttons arranged in rows, with a maximum number of buttons per row, like a toolbar but can have multiple rows*/
 	ButtonRow,
+
+	/** A toolbar with horizontally-oriented buttons that tries to arrange all toolbar items uniformly */
+	SlimHorizontalUniformToolBar,
 };
 
 

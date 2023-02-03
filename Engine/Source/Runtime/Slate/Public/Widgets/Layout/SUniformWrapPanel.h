@@ -50,6 +50,7 @@ public:
 
 	SLATE_BEGIN_ARGS( SUniformWrapPanel )
 		: _SlotPadding( FMargin(0.0f) )
+		, _NumColumnsOverride( 0 )
 		, _MinDesiredSlotWidth( 0.0f )
 		, _MinDesiredSlotHeight( 0.0f )
 		, _MaxDesiredSlotWidth( FLT_MAX )
@@ -66,6 +67,9 @@ public:
 		/** Padding given to each slot */
 		SLATE_ATTRIBUTE(FMargin, SlotPadding)
 
+		/** The number of columns for the wrapped panel */
+		SLATE_ATTRIBUTE(uint32, NumColumnsOverride)
+	
 		/** The minimum desired width of the slots */
 		SLATE_ATTRIBUTE(float, MinDesiredSlotWidth)
 
@@ -102,6 +106,9 @@ public:
 	/** See MinDesiredSlotHeight attribute */
 	void SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight);
 
+	/** See NumColumnsOverride attribute */
+	void SetNumColumnsOverride(TAttribute<uint32> InNumColumnsOverride);
+	
 	/** See MinDesiredSlotWidth attribute */
 	void SetMaxDesiredSlotWidth(TAttribute<float> InMaxDesiredSlotWidth);
 
@@ -146,6 +153,8 @@ private:
 	mutable int32 NumRows;
 	mutable int32 NumVisibleChildren;
 
+	TSlateAttribute<uint32> NumColumnsOverride;
+	
 	TSlateAttribute<float> MinDesiredSlotWidth;
 	TSlateAttribute<float> MinDesiredSlotHeight;
 

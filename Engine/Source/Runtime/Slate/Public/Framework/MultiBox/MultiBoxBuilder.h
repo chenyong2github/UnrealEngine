@@ -5,6 +5,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/SlateDelegates.h"
 #include "CoreMinimal.h"
+#include "SToolBarButtonBlock.h"
 #include "Misc/Attribute.h"
 #include "Layout/Visibility.h"
 #include "Widgets/SWidget.h"
@@ -21,6 +22,7 @@ class FUICommandInfo;
 class FUICommandList;
 struct FSlateIcon;
 struct FUIAction;
+struct FButtonArgs;
 
 /** Delegate used by multi-box to call a user function to populate a new menu.  Used for spawning sub-menus and pull-down menus. */
 DECLARE_DELEGATE_OneParam( FNewMenuDelegate, class FMenuBuilder& );
@@ -515,6 +517,14 @@ public:
 	/**
 	 * Adds a tool bar button
 	 *
+	 * @param	ButtonArgs The Parameters object which will provide the data to initialize the button
+	 */
+	virtual void AddToolBarButton(FButtonArgs& ButtonArgs);
+
+
+	/**
+	 * Adds a tool bar button
+	 *
 	 * @param	InCommand				The command associated with this tool bar button
 	 * @param	InLabelOverride			Optional label override.  If omitted, then the action's label will be used instead.
 	 * @param	InToolTipOverride		Optional tool tip override.	 If omitted, then the action's label will be used instead.
@@ -627,6 +637,8 @@ protected:
 	virtual void ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition) override;
 	virtual void ApplySectionBeginning() override;
 
+	void InitializeToolBarButtonBlock(TSharedPtr<FToolBarButtonBlock> ButtonRowBlock, FButtonArgs& ButtonArgs);
+
 private:
 	/** Current extension hook name for sections to determine where sections begin and end */
 	FName CurrentSectionExtensionHook;
@@ -657,6 +669,7 @@ public:
 	FVerticalToolBarBuilder(TSharedPtr<const FUICommandList> InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender = nullptr, const bool InForceSmallIcons = false)
 		: FToolBarBuilder(EMultiBoxType::VerticalToolBar, InCommandList, InCustomization, InExtender, InForceSmallIcons)
 	{
+		this->SetStyle(&FAppStyle::Get(), "FVerticalToolBar");
 	}
 };
 
@@ -729,4 +742,18 @@ public:
 protected:
 	/** FMultiBoxBuilder interface */
 	virtual void ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition) override {}
+};
+
+class SLATE_API FSlimHorizontalUniformToolBarBuilder : public FToolBarBuilder
+{
+public:
+	/**
+	 * Constructor
+	 *
+	 * @param	InCommandList	The action list that maps command infos to delegates that should be called for each command associated with a multiblock widget
+	 */
+	FSlimHorizontalUniformToolBarBuilder(TSharedPtr<const FUICommandList> InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender = nullptr, const bool InForceSmallIcons = false);
+
+	void AddToolBarButton( FButtonArgs& ButtonArgs ) override;
+
 };

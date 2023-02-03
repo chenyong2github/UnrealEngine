@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/MultiBox/MultiBox.h"
+
+#include "SClippingVerticalBox.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
@@ -252,7 +254,7 @@ FMultiBox::FMultiBox(const EMultiBoxType InType, FMultiBoxCustomization InCustom
 	, bShouldCloseWindowAfterMenuSelection( bInShouldCloseWindowAfterMenuSelection )
 {
 
-	if (InType == EMultiBoxType::SlimHorizontalToolBar && FCoreStyle::IsStarshipStyle())
+	if ((InType == EMultiBoxType::SlimHorizontalToolBar ||  InType == EMultiBoxType::SlimHorizontalUniformToolBar) && FCoreStyle::IsStarshipStyle())
 	{
 		StyleName = "SlimToolBar";
 	}
@@ -669,7 +671,7 @@ void SMultiBoxWidget::AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHoriz
 	check( MultiBox.IsValid() );
 
 	// Skip Separators for Uniform Tool Bars
-	if ( Block.GetType() == EMultiBlockType::Separator  && MultiBox->GetType() == EMultiBoxType::UniformToolBar)
+	if ( Block.GetType() == EMultiBlockType::Separator  && (MultiBox->GetType() == EMultiBoxType::UniformToolBar || MultiBox->GetType() == EMultiBoxType::SlimHorizontalUniformToolBar))
 	{
 		return;
 	}
@@ -823,6 +825,7 @@ void SMultiBoxWidget::AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHoriz
 		}
 		break;
 	case EMultiBoxType::UniformToolBar:
+	case EMultiBoxType::SlimHorizontalUniformToolBar:
 		{
 			UniformToolbarPanel->AddSlot()
 			[
@@ -971,7 +974,11 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 		break;
 	case EMultiBoxType::VerticalToolBar:
 		{
-			MainWidget = VerticalBox = SNew(SVerticalBox);
+			MainWidget = VerticalBox = ClippedVerticalBox = SNew(SClippingVerticalBox)
+				.OnWrapButtonClicked(FOnGetContent::CreateSP(this, &SMultiBoxWidget::OnWrapButtonClicked))
+				.IsFocusable(MultiBox->bIsFocusable)
+				.StyleSet(StyleSet)
+				.StyleName(StyleName);
 		}
 		break;
 	case EMultiBoxType::UniformToolBar:
@@ -988,6 +995,26 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 				.MinDesiredSlotHeight(43.f)
 				.MaxDesiredSlotWidth(50.f)
 				.MaxDesiredSlotHeight(43.f)
+				.SlotPadding(FMargin(2.f, 1.f))
+			];
+		}
+		break;
+		// @TODO: ~Move hardcodes into styling file
+	case EMultiBoxType::SlimHorizontalUniformToolBar:
+		{
+			MainWidget = VerticalBox = SNew (SVerticalBox)
+
+			+SVerticalBox::Slot()
+			.Padding(FMargin(0.f, 2.f))
+			.AutoHeight()
+			[
+				SAssignNew(UniformToolbarPanel, SUniformWrapPanel)
+				.HAlign(HAlign_Fill)
+				.MinDesiredSlotWidth(150.f)
+				.MinDesiredSlotHeight(32.f)
+				.MaxDesiredSlotWidth(150.f)
+				.MaxDesiredSlotHeight(32.f)
+				.NumColumnsOverride(2)
 				.SlotPadding(FMargin(2.f, 1.f))
 			];
 		}
@@ -1182,6 +1209,11 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	{
 		ClippedHorizontalBox->AddWrapButton();
 	}
+	
+	if (ClippedVerticalBox.IsValid())
+	{
+		ClippedVerticalBox->AddWrapButton();
+	}
 
 	FMargin BorderPadding(0);
 	const FSlateBrush* BorderBrush = FStyleDefaults::GetNoBrush();
@@ -1234,7 +1266,9 @@ TSharedRef<SWidget> SMultiBoxWidget::OnWrapButtonClicked()
 	FMenuBuilder MenuBuilder(true, MultiBox->GetLastCommandList(), TSharedPtr<FExtender>(), false, GetStyleSet());
 	{ 
 		const TArray< TSharedRef< const FMultiBlock > >& Blocks = MultiBox->GetBlocks();
-		for (int32 BlockIdx = ClippedHorizontalBox->GetClippedIndex(); BlockIdx < Blocks.Num(); ++BlockIdx)
+
+		int32 BlockIdx = ClippedHorizontalBox ? ClippedHorizontalBox->GetClippedIndex() : ClippedVerticalBox->GetClippedIndex();
+		for (; BlockIdx < Blocks.Num(); ++BlockIdx)
 		{
 			Blocks[BlockIdx]->CreateMenuEntry(MenuBuilder);
 		}

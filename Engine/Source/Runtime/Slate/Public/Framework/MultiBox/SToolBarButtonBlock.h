@@ -15,6 +15,29 @@
 
 class SBorder;
 
+/** Delegate used by multi-box to call a user function to populate a new menu.  Used for spawning sub-menus and pull-down menus. */
+DECLARE_DELEGATE_OneParam( FNewMenuDelegate, class FMenuBuilder& );
+
+struct SLATE_API FButtonArgs : public TSharedFromThis<FButtonArgs>
+{
+	TSharedPtr< const FUICommandInfo > Command;
+	TSharedPtr< const FUICommandList > CommandList;
+	FName ExtensionHook;
+	TAttribute<FText> LabelOverride;
+	TAttribute<FText> ToolTipOverride;
+	TAttribute<FSlateIcon> IconOverride;
+	FName TutorialHighlightName;
+	FName BorderBrushName;
+	EUserInterfaceActionType UserInterfaceActionType = EUserInterfaceActionType::None;
+	FUIAction Action;
+	
+	FNewMenuDelegate CustomMenuDelegate;
+	FOnGetContent OnGetMenuContent;
+
+	explicit FButtonArgs() {}
+};
+
+
 /**
  * Tool bar button MultiBlock
  */
@@ -24,6 +47,9 @@ class SLATE_API FToolBarButtonBlock
 
 public:
 
+	
+	FToolBarButtonBlock( FButtonArgs ButtonArgs );
+	
 	/**
 	 * Constructor
 	 *
@@ -53,12 +79,21 @@ public:
 	/** Set whether this toolbar should always use small icons, regardless of the current settings */
 	void SetForceSmallIcons( const bool InForceSmallIcons ) { bForceSmallIcons = InForceSmallIcons; }
 
+	/** Set the border brush for this toolbar button block */
+	void SetBorderBrushName( const FName InBorderBrushName ) { BorderBrushName = InBorderBrushName; }
+
 	/** FMultiBlock interface */
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
 	virtual bool HasIcon() const override;
 
 	/** Set optional delegate to customize when a menu appears instead of the widget, such as in toolbars */
 	void SetCustomMenuDelegate( FNewMenuDelegate& InOnFillMenuDelegate);
+
+	void SetOnGetMenuContent( FOnGetContent& OnGetMenuContent);
+
+protected:
+	
+	bool GetIsFocusable() const;
 
 private:
 
@@ -75,6 +110,9 @@ private:
 
 	/** Optional overridden tool tip for this tool bar button.  If not set, then the action's tool tip will be used instead. */
 	TAttribute<FText> ToolTipOverride;
+	
+	/** The name of the border brush style, if present */
+	TAttribute<FName> BorderBrushName;
 
 	/** Optional overridden icon for this tool bar button.  IF not set, then the action's icon will be used instead. */
 	TAttribute<FSlateIcon> IconOverride;
@@ -93,6 +131,9 @@ private:
 
 	/** Optional delegate to customize when a menu appears instead of the widget, such as in toolbars */
 	FNewMenuDelegate CustomMenuDelegate;
+
+	/** Delegate to execute to get the menu content of this button */
+	FOnGetContent OnGetMenuContent;
 };
 
 
@@ -138,8 +179,7 @@ protected:
 	 * Called by Slate when this tool bar button's button is clicked
 	 */
 	FReply OnClicked();
-
-
+	
 	/**
 	 * Called by Slate when this tool bar check box button is toggled
 	 */
@@ -206,4 +246,5 @@ private:
 
 	/** Name to identify a widget for tutorials */
 	FName TutorialHighlightName;
+
 };

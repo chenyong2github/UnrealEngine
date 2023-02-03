@@ -10,6 +10,7 @@ void SUniformWrapPanel::PrivateRegisterAttributes(FSlateAttributeInitializer& At
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MinDesiredSlotWidth, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MinDesiredSlotHeight, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MaxDesiredSlotWidth, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, NumColumnsOverride, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MaxDesiredSlotHeight, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, HAlign, EInvalidateWidgetReason::Paint);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, EvenRowDistribution, EInvalidateWidgetReason::Paint);
@@ -18,6 +19,7 @@ void SUniformWrapPanel::PrivateRegisterAttributes(FSlateAttributeInitializer& At
 SUniformWrapPanel::SUniformWrapPanel()
 	: Children(this)
 	, SlotPadding(*this, FMargin(0.0f))
+	, NumColumnsOverride(*this, 0)
 	, MinDesiredSlotWidth(*this, 0.f)
 	, MinDesiredSlotHeight(*this, 0.f)
 	, MaxDesiredSlotWidth(*this, FLT_MAX)
@@ -36,6 +38,7 @@ void SUniformWrapPanel::Construct( const FArguments& InArgs )
 	MinDesiredSlotWidth.Assign(*this, InArgs._MinDesiredSlotWidth);
 	MinDesiredSlotHeight.Assign(*this, InArgs._MinDesiredSlotHeight);
 	MaxDesiredSlotWidth.Assign(*this, InArgs._MaxDesiredSlotWidth);
+	NumColumnsOverride.Assign(*this, InArgs._NumColumnsOverride);
 	MaxDesiredSlotHeight.Assign(*this, InArgs._MaxDesiredSlotHeight);
 	HAlign.Assign(*this, InArgs._HAlign);
 	EvenRowDistribution.Assign(*this, InArgs._EvenRowDistribution);
@@ -48,7 +51,9 @@ void SUniformWrapPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FA
 	if ( Children.Num() > 0)
 	{
 		FVector2D CellSize = ComputeUniformCellSize();
-		NumColumns = FMath::Max(1, FMath::Min(NumVisibleChildren, FMath::FloorToInt( AllottedGeometry.GetLocalSize().X / CellSize.X )));
+		NumColumns = NumColumnsOverride.Get() != 0 ?
+				NumColumnsOverride.Get() :
+		FMath::Max(1, FMath::Min(NumVisibleChildren, FMath::FloorToInt( AllottedGeometry.GetLocalSize().X / CellSize.X )));
 		NumRows = FMath::CeilToInt ( (float) NumVisibleChildren / (float) NumColumns );
 
 		// If we have to have N rows, try to distribute the items across the rows evenly
@@ -172,11 +177,13 @@ FVector2D SUniformWrapPanel::ComputeDesiredSize( float ) const
 		const FVector2D& LocalSize = GetTickSpaceGeometry().GetLocalSize();
 		if (!LocalSize.IsZero()) 
 		{
-			NumColumns = FMath::FloorToInt(LocalSize.X / MaxChildDesiredSize.X);
+			NumColumns = NumColumnsOverride.Get() != 0 ? NumColumnsOverride.Get() : 
+				FMath::FloorToInt(LocalSize.X / MaxChildDesiredSize.X);
 		}
 		else 
 		{
-			NumColumns = FMath::CeilToInt(FMath::Sqrt((float)NumVisibleChildren));
+			NumColumns = NumColumnsOverride.Get() != 0 ? NumColumnsOverride.Get() :
+			    FMath::CeilToInt(FMath::Sqrt((float)NumVisibleChildren));
 		}
 
 		if (NumColumns > 0)
@@ -212,6 +219,11 @@ void SUniformWrapPanel::SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSl
 void SUniformWrapPanel::SetMaxDesiredSlotWidth(TAttribute<float> InMaxDesiredSlotWidth)
 {
 	MaxDesiredSlotWidth.Assign(*this, MoveTemp(InMaxDesiredSlotWidth));
+}
+
+void SUniformWrapPanel::SetNumColumnsOverride(TAttribute<uint32> InNumColumnsOverride)
+{
+	NumColumnsOverride.Assign(*this, MoveTemp(InNumColumnsOverride));
 }
 
 void SUniformWrapPanel::SetMaxDesiredSlotHeight(TAttribute<float> InMaxDesiredSlotHeight)

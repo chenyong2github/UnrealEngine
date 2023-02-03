@@ -72,6 +72,7 @@ public class UnrealEd : ModuleRules
 				"WorkspaceMenuStructure",
 				"LandscapeEditor",
 				"Blutility",
+				"WidgetRegistration",
 				"SlateReflector"
 			}
 		);
@@ -122,7 +123,8 @@ public class UnrealEd : ModuleRules
 				"SubobjectEditor",
 				"PhysicsUtilities",
 				"ToolWidgets",
-				"AssetTools",
+				"AssetTools", 
+				"WidgetRegistration"
 			}
 		);
 

@@ -896,6 +896,9 @@ private:
 
 	/** Specialized box widget to handle clipping of toolbars and menubars */
 	TSharedPtr<class SClippingHorizontalBox> ClippedHorizontalBox;
+	
+	/** Specialized box widget to handle clipping of vertical toolbars  */
+	TSharedPtr<class SClippingVerticalBox> ClippedVerticalBox;
 
 	/** Specialized box widget to handle clipping of toolbars and menubars */
 	TSharedPtr<SUniformWrapPanel> UniformToolbarPanel;

@@ -93,7 +93,8 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 
 		ActualIconWidget->AddLayer(TAttribute<const FSlateBrush*>(this, &SToolBarComboButtonBlock::GetOverlayIconBrush));
 
-		if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar)
+		if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar
+		|| MultiBox->GetType() == EMultiBoxType::SlimHorizontalUniformToolBar)
 		{
 			const FVector2f IconSize = ToolBarStyle.IconSize;
 
@@ -129,7 +130,8 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 	
 	// Create the content for our button
 	TSharedRef<SWidget> ButtonContent = SNullWidget::NullWidget;
-	if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar)
+	if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar
+		|| MultiBox->GetType() == EMultiBoxType::SlimHorizontalUniformToolBar)
 	{
 		ButtonContent =
 			SNew(SHorizontalBox)

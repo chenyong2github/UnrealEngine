@@ -280,7 +280,8 @@ void SToolBarStackButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 	FMargin ExtraLabelPadding = FMargin(4, 0, 0, 0);
 
 	TSharedRef<SWidget> ButtonContent = SNullWidget::NullWidget;
-	if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar)
+	if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar
+		|| MultiBox->GetType() == EMultiBoxType::SlimHorizontalUniformToolBar)
 	{
 		const FVector2f IconSize = ToolBarStyle.IconSize;
 

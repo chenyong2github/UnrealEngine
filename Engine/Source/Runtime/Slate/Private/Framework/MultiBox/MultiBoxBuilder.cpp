@@ -20,6 +20,7 @@
 #include "Framework/MultiBox/ToolMenuBase.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Styling/ToolBarStyle.h"
+#include "Framework/MultiBox/SUniformToolbarButtonBlock.h"
 
 
 FMultiBoxBuilder::FMultiBoxBuilder( const EMultiBoxType InType, FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection, const TSharedPtr< const FUICommandList >& InCommandList, TSharedPtr<FExtender> InExtender, FName InTutorialHighlightName, FName InMenuName )
@@ -431,6 +432,7 @@ void FToolBarBuilder::SetIsFocusable(bool bInIsFocusable)
 	MultiBox->bIsFocusable = bIsFocusable;
 }
 
+
 void FToolBarBuilder::AddToolBarButton(const TSharedPtr< const FUICommandInfo > InCommand, FName InExtensionHook, const TAttribute<FText>& InLabelOverride, const TAttribute<FText>& InToolTipOverride, const TAttribute<FSlateIcon>& InIconOverride, FName InTutorialHighlightName, FNewMenuDelegate InCustomMenuDelegate )
 {
 	ApplySectionBeginning();
@@ -453,6 +455,42 @@ void FToolBarBuilder::AddToolBarButton(const TSharedPtr< const FUICommandInfo > 
 	MultiBox->AddMultiBlock( NewToolBarButtonBlock );
 
 	ApplyHook(InExtensionHook, EExtensionHook::After);
+}
+
+void FToolBarBuilder::AddToolBarButton(FButtonArgs& Args)
+{
+	ApplySectionBeginning();
+
+	ApplyHook(Args.ExtensionHook, EExtensionHook::Before);
+
+	const bool bHasUserInteractionType = Args.UserInterfaceActionType != EUserInterfaceActionType::None;
+	
+	const TSharedPtr< FToolBarButtonBlock > NewToolBarButtonBlock( bHasUserInteractionType ?
+		new FToolBarButtonBlock( Args.LabelOverride, Args.ToolTipOverride, Args.IconOverride, Args.Action, Args.UserInterfaceActionType ) :
+		new FToolBarButtonBlock( Args.Command.ToSharedRef(), CommandListStack.Last(), Args.LabelOverride, Args.ToolTipOverride, Args.IconOverride )
+		);
+
+	if ( LabelVisibility.IsSet() )
+	{
+		NewToolBarButtonBlock->SetLabelVisibility( LabelVisibility.GetValue() );
+	}
+
+	NewToolBarButtonBlock->SetIsFocusable(bIsFocusable);
+	NewToolBarButtonBlock->SetForceSmallIcons(bForceSmallIcons);
+	NewToolBarButtonBlock->SetTutorialHighlightName(GenerateTutorialIdentfierName(TutorialHighlightName, Args.TutorialHighlightName, Args.Command, MultiBox->GetBlocks().Num()));
+	NewToolBarButtonBlock->SetStyleNameOverride(CurrentStyleOverride);
+	NewToolBarButtonBlock->SetCustomMenuDelegate(Args.CustomMenuDelegate);
+	NewToolBarButtonBlock->SetOnGetMenuContent(Args.OnGetMenuContent);
+	
+	if (bHasUserInteractionType)
+	{
+		NewToolBarButtonBlock->SetStyleNameOverride(CurrentStyleOverride);
+		NewToolBarButtonBlock->SetCustomMenuDelegate(Args.CustomMenuDelegate);
+	}
+
+	MultiBox->AddMultiBlock( NewToolBarButtonBlock.ToSharedRef() );
+
+	ApplyHook(Args.ExtensionHook, EExtensionHook::After);
 }
 
 void FToolBarBuilder::AddToolBarButton(const FUIAction& InAction, FName InExtensionHook, const TAttribute<FText>& InLabelOverride, const TAttribute<FText>& InToolTipOverride, const TAttribute<FSlateIcon>& InIconOverride, const EUserInterfaceActionType UserInterfaceActionType, FName InTutorialHighlightName )
@@ -697,3 +735,38 @@ void FButtonRowBuilder::AddButton( const FText& InLabel, const FText& InToolTip,
 	MultiBox->AddMultiBlock( NewButtonRowBlock );
 }
 
+FSlimHorizontalUniformToolBarBuilder::FSlimHorizontalUniformToolBarBuilder(TSharedPtr<const FUICommandList> InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender, const bool InForceSmallIcons)
+	: FToolBarBuilder(EMultiBoxType::SlimHorizontalUniformToolBar, InCommandList, InCustomization, InExtender, InForceSmallIcons)
+{
+	const FToolBarStyle& ToolBarStyle = GetStyleSet()->GetWidgetStyle<FToolBarStyle>(GetStyleName());
+}
+
+void FSlimHorizontalUniformToolBarBuilder::AddToolBarButton( FButtonArgs& ButtonArgs )
+{
+ 	ApplySectionBeginning();
+	ApplyHook(ButtonArgs.ExtensionHook, EExtensionHook::Before);
+
+//	ButtonArgs.BorderBrushName = "SlimPaletteToolBar.PaletteButtonBorderBrush";
+	const TSharedPtr< FToolBarButtonBlock > NewHorizontalToolBarButtonBlock( new FToolBarButtonBlock( ButtonArgs) );
+    InitializeToolBarButtonBlock(StaticCastSharedPtr<FToolBarButtonBlock>(NewHorizontalToolBarButtonBlock), ButtonArgs);
+}
+void FToolBarBuilder::InitializeToolBarButtonBlock(TSharedPtr<FToolBarButtonBlock> ToolBarButtonBlock, FButtonArgs& ButtonArgs)
+{
+	if ( LabelVisibility.IsSet() )
+	{
+		ToolBarButtonBlock->SetLabelVisibility( LabelVisibility.GetValue() );
+	}
+
+	ToolBarButtonBlock->SetBorderBrushName(ButtonArgs.BorderBrushName);
+	ToolBarButtonBlock->SetIsFocusable(bIsFocusable);
+	ToolBarButtonBlock->SetForceSmallIcons(bForceSmallIcons);
+	ToolBarButtonBlock->SetTutorialHighlightName(GenerateTutorialIdentfierName(
+	TutorialHighlightName, ButtonArgs.TutorialHighlightName, ButtonArgs.Command, MultiBox->GetBlocks().Num()));
+	ToolBarButtonBlock->SetCustomMenuDelegate(ButtonArgs.CustomMenuDelegate);
+	ToolBarButtonBlock->SetOnGetMenuContent(ButtonArgs.OnGetMenuContent);
+	ToolBarButtonBlock->SetStyleNameOverride(CurrentStyleOverride);
+
+	MultiBox->AddMultiBlock( ToolBarButtonBlock.ToSharedRef() );
+
+	ApplyHook(ButtonArgs.ExtensionHook, EExtensionHook::After);
+}

@@ -38,6 +38,7 @@ class SInlineEditableTextBlock;
 class SVirtualKeyboardEntry;
 class SSafeZone;
 struct FMarqueeRect;
+struct FButtonArgs;
 
 template <typename NumericType, typename VectorType, int32 NumberOfComponent> class SNumericVectorInputBox;
 using SVectorInputBox = SNumericVectorInputBox<float, UE::Math::TVector<float>, 3>;

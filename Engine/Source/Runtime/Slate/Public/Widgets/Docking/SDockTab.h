@@ -335,6 +335,8 @@ public:
 		return LastActivationTime;
 	}
 
+	void SetParentDockTabStackTabWellHidden(bool bIsTabWellHidden);
+
 protected:
 	/** Provide a default tab icon. */
 	void ProvideDefaultIcon(const FSlateBrush* InDefaultIcon);

@@ -21,6 +21,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSegmentedControl.h"
 #include "Styling/AppStyle.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "BaseToolkit"
 
@@ -180,6 +181,11 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost,
 	}
 
 	GetEditorModeManager().OnEditorModeIDChanged().AddSP(this, &FModeToolkit::OnModeIDChanged);
+
+	if (HasToolkitBuilder())	
+	{
+		ToolkitBuilder->VerticalToolbarElement->GenerateWidget();
+	}
 }
 
 
@@ -445,10 +451,17 @@ void FModeToolkit::RebuildModeToolPalette()
 
 }
 
+bool FModeToolkit::HasToolkitBuilder() const
+{
+	return bUsesToolkitBuilder && ToolkitBuilder != nullptr;
+}
 
 TSharedRef<SDockTab> FModeToolkit::CreatePrimaryModePanel(const FSpawnTabArgs& Args)
 {
-	TSharedRef<SWidget> TabContent = SNew(SBorder)
+	TSharedPtr<SWidget> TabContent;
+	if (!HasToolkitBuilder())
+	{
+		TabContent = SNew(SBorder)
 		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.Padding(0.0f)
 		[
@@ -484,13 +497,31 @@ TSharedRef<SDockTab> FModeToolkit::CreatePrimaryModePanel(const FSpawnTabArgs& A
 				]
 		]
 		];
-
-
-	TSharedPtr<SDockTab> CreatedTab = SNew(SDockTab)
+	}
+	// else if ToolkitBuilder is defined, make the Toolkit
+	else
+	{
+		TabContent = SAssignNew(InlineContentHolder, SBorder)
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(0.0f)
 		[
-			TabContent
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Left)
+			[
+				SAssignNew(ModeToolBarContainer, SBorder)
+				.Padding(FMargin(4, 0, 0, 0))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			]
 		];
+	}
 
+	const TSharedPtr<SDockTab> CreatedTab = SNew(SDockTab);
+	if (TabContent)
+	{
+		CreatedTab->SetContent(TabContent.ToSharedRef());
+	}
 	PrimaryTab = CreatedTab;	
 	UpdatePrimaryModePanel();
 	return CreatedTab.ToSharedRef();
@@ -507,8 +538,15 @@ void FModeToolkit::UpdatePrimaryModePanel()
 		const FSlateBrush* TabIcon = GetEditorModeIcon().GetSmallIcon();
 		if (PrimaryTab.IsValid())
 		{
-			PrimaryTab.Pin()->SetTabIcon(TabIcon);
-			PrimaryTab.Pin()->SetLabel(TabName);
+			TSharedPtr<SDockTab> TabPtr  = PrimaryTab.Pin(); 
+			TabPtr->SetTabIcon(TabIcon);
+			TabPtr->SetLabel(TabName);
+
+			if (HasToolkitBuilder())
+			{
+				TabPtr->SetParentDockTabStackTabWellHidden(HasToolkitBuilder());
+				return;				
+			}
 		}
 
 		if (HasIntegratedToolPalettes())
@@ -654,7 +692,7 @@ void FModeToolkit::RequestModeUITabs()
 		PrimaryTabInfo.TabLabel = LOCTEXT("ModesToolboxTab", "Mode Toolbox");
 		PrimaryTabInfo.TabTooltip = LOCTEXT("ModesToolboxTabTooltipText", "Open the  Modes tab, which contains the active editor mode's settings.");
 		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::TopLeftTabID, PrimaryTabInfo);
-		if (!HasIntegratedToolPalettes())
+		if (!HasIntegratedToolPalettes() && !HasToolkitBuilder())
 		{
 
 			ToolbarInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FModeToolkit::MakeModeToolbarTab);
@@ -729,9 +767,15 @@ void FModeToolkit::SpawnOrUpdateModeToolbar()
 
 void FModeToolkit::RebuildModeToolBar()
 {
+	TSharedPtr<SDockTab> ToolbarTabPtr = ModeToolbarTab.Pin();
+	if (ToolbarTabPtr  && HasToolkitBuilder())
+	{
+		ToolbarTabPtr->SetParentDockTabStackTabWellHidden(true);
+	}
+
 	// If the tab or box is not valid the toolbar has not been opened or has been closed by the user
 	TSharedPtr<SVerticalBox> ModeToolbarBoxPinned = ModeToolbarBox.Pin();
-	if (ModeToolbarTab.IsValid() && ModeToolbarBoxPinned.IsValid())
+	if (ModeToolbarTab.IsValid() && ModeToolbarBoxPinned)
 	{
 		ModeToolbarBoxPinned->ClearChildren();
 		bool bExclusivePalettes = true;
@@ -782,12 +826,12 @@ void FModeToolkit::RebuildModeToolBar()
 								[
 									SNew(SCheckBox)
 									.Style(FAppStyle::Get(), "ToolPalette.DockingTab")
-								.OnCheckStateChanged_Lambda([PaletteSwitcher, Row, this](const ECheckBoxState) {
+									.OnCheckStateChanged_Lambda([PaletteSwitcher, Row, this](const ECheckBoxState) {
 										PaletteSwitcher->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
 										SetCurrentPalette(Row.PaletteName);
 									}
 								)
-								.IsChecked_Lambda([PaletteSwitcher, PaletteWidget]() -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+									.IsChecked_Lambda([PaletteSwitcher, PaletteWidget]() -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 										[
 											SNew(STextBlock)
 											.Text(Row.DisplayName)
