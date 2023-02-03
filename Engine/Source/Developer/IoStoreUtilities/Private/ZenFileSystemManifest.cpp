@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ZenFileSystemManifest.h"
-#include "Interfaces/ITargetPlatform.h"
+
+#include "Algo/Sort.h"
 #include "HAL/PlatformFileManager.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Misc/App.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -400,10 +402,18 @@ bool FZenFileSystemManifest::Save(const TCHAR* Filename)
 	CsvLines.Add(TEXT("FileId, ServerPath, ClientPath"));
 
 	TStringBuilder<2048> Sb;
+	TArray<const FManifestEntry*> SortedEntries;
+	SortedEntries.Reserve(Entries.Num());
 	for (const FManifestEntry& Entry : Entries)
 	{
+		SortedEntries.Add(&Entry);
+	}
+	Algo::Sort(SortedEntries, [](const FManifestEntry* A, const FManifestEntry* B) { return A->ClientPath < B->ClientPath; });
+
+	for (const FManifestEntry* Entry : SortedEntries)
+	{
 		Sb.Reset();
-		Sb << Entry.FileChunkId << TEXT(", ") << Entry.ServerPath << TEXT(", ") << *Entry.ClientPath;
+		Sb << Entry->FileChunkId << TEXT(", ") << Entry->ServerPath << TEXT(", ") << *Entry->ClientPath;
 		CsvLines.Add(Sb.ToString());
 	}
 

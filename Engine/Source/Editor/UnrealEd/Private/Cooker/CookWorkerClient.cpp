@@ -125,6 +125,13 @@ ECookInitializationFlags FCookWorkerClient::GetCookInitializationFlags()
 	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
 	return InitialConfigMessage->GetCookInitializationFlags();
 }
+
+bool FCookWorkerClient::GetInitializationIsZenStore()
+{
+	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
+	return InitialConfigMessage->IsZenStore();
+}
+
 FInitializeConfigSettings&& FCookWorkerClient::ConsumeInitializeConfigSettings()
 {
 	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings

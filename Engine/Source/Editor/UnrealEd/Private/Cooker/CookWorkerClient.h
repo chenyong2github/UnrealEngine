@@ -47,6 +47,7 @@ public:
 	const TArray<ITargetPlatform*>& GetTargetPlatforms() const;
 	/** Consumes the initialization settings from the Director. Only available during initialization. */
 	ECookInitializationFlags GetCookInitializationFlags();
+	bool GetInitializationIsZenStore();
 	FInitializeConfigSettings&& ConsumeInitializeConfigSettings();
 	FBeginCookConfigSettings&& ConsumeBeginCookConfigSettings();
 	FCookByTheBookOptions&& ConsumeCookByTheBookOptions();

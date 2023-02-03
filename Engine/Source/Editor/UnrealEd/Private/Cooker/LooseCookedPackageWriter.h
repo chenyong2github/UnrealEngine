@@ -147,6 +147,7 @@ private:
 	TMap<FName, TRefCountPtr<FPackageHashes>> AllPackageHashes;
 
 	TMap<FName, FName> UncookedPathToCookedPath;
+	/** CommitPackage can be called in parallel if using recursive save, so we need a lock for shared containers used during CommitPackage */
 	FCriticalSection PackageHashesLock;
 	FString OutputPath;
 	FString MetadataDirectoryPath;

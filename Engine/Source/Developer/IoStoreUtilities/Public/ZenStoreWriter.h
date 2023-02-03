@@ -141,6 +141,7 @@ private:
 		TArray<FBulkDataEntry> BulkData;
 		TArray<FFileDataEntry> FileData;
 		TRefCountPtr<FPackageHashes> PackageHashes;
+		TUniquePtr<TPromise<int>> PackageHashesCompletionPromise;
 	};
 
 	FPendingPackageState& GetPendingPackage(const FName& PackageName)
@@ -197,7 +198,8 @@ private:
 	TMap<FName, int32>					PackageNameToIndex;
 
 	TUniquePtr<FZenFileSystemManifest>	ZenFileSystemManifest;
-	
+	TMap<FName, TArray<FString>>		PackageAdditionalFiles;
+
 	FEntryCreatedEvent					EntryCreatedEvent;
 	FCriticalSection					CommitEventCriticalSection;
 	FCommitEvent						CommitEvent;
@@ -214,6 +216,7 @@ private:
 	TFuture<void>						CommitThread;
 
 	bool								bInitialized;
+	bool								bProvidePerPackageResults;
 
 	static void StaticInit();
 	static bool IsReservedOplogKey(FUtf8StringView Key);
