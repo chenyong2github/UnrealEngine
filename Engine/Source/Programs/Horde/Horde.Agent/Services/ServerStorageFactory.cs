@@ -48,6 +48,11 @@ namespace Horde.Agent.Services
 
 		HttpClient CreateHttpClient(ISession session, string baseUrl)
 		{
+			if (!baseUrl.EndsWith("/", StringComparison.Ordinal))
+			{
+				baseUrl += "/";
+			}
+
 			HttpClient httpClient = _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
 			httpClient.BaseAddress = new Uri(session.ServerUrl, baseUrl);
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.Token);
