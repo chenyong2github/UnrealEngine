@@ -305,9 +305,6 @@
 		},
 		{
 			"category": "PadOp",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml", "skip": true	}
-			],
 			"targets": [
 				{ "target": "Pad" }
 			]
