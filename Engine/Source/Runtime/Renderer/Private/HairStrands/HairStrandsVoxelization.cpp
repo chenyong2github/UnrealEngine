@@ -1237,7 +1237,6 @@ class FVoxelRasterComputeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VoxelizationViewInfoBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutPageTexture)
 		SHADER_PARAMETER(uint32, VertexCount)
-		SHADER_PARAMETER(uint32, VertexStart)
 		SHADER_PARAMETER(float, SampleWeight)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1299,7 +1298,6 @@ static void AddVirtualVoxelizationComputeRasterPass(
 					continue;
 				}
 
-				const uint32 VertexStart = HairGroupPublicData->GetActiveStrandsVertexStart(VFInput.Strands.VertexCount);
 				const uint32 VertexCount = HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, HairGroupPublicData->MaxScreenSize);
 				const float SampleWeight = HairGroupPublicData->GetActiveStrandsSampleWeight(false, HairGroupPublicData->MaxScreenSize);
 
@@ -1316,7 +1314,6 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->FrameIdMod8 = FrameIdMode8;
 
 				PassParameters->VertexCount = VertexCount;
-				PassParameters->VertexStart = VertexStart;
 				PassParameters->SampleWeight = SampleWeight;
 			
 				const bool bCullingEnable = !IsHairStrandContinuousDecimationReorderingEnabled() && HairGroupPublicData->GetCullingResultAvailable();

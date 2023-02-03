@@ -196,7 +196,6 @@ public:
 
 	uint32 GetClusterCount() const { return ClusterCount;  }
 
-	uint32 GetActiveStrandsVertexStart(uint32 InVertexCount) const;
 	uint32 GetActiveStrandsVertexCount(uint32 InVertexCount, float ScreenSize) const;
 	float GetActiveStrandsSampleWeight(bool bUseTemporalWeight, float ScreenSize) const;
 

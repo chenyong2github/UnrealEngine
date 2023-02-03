@@ -488,7 +488,6 @@ class FHairInterpolationCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderDrawParameters)
-		SHADER_PARAMETER(uint32, VertexStart)
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(float, HairLengthScale)
@@ -568,7 +567,6 @@ static void AddHairStrandsInterpolationPass(
 	FGlobalShaderMap* ShaderMap,
 	const FShaderPrintData* ShaderPrintData,
 	const FHairGroupInstance* Instance,
-	const uint32 VertexStart,
 	const uint32 VertexCount,
 	const int32 MeshLODIndex,
 	const float HairLengthScale,
@@ -616,7 +614,6 @@ static void AddHairStrandsInterpolationPass(
 	}
 	Parameters->OutRenDeformedPositionBuffer = OutRenPositionBuffer.UAV;
 
-	Parameters->VertexStart = VertexStart;
 	Parameters->VertexCount = VertexCount;
 	Parameters->InRenHairPositionOffset = (FVector3f)InRenHairWorldOffset;
 	Parameters->InSimHairPositionOffset = (FVector3f)InSimHairWorldOffset;
@@ -865,7 +862,6 @@ class FHairClusterAABBCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER(uint32, TotalClusterCount)
-		SHADER_PARAMETER(uint32, VertexStart)
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(float, RcpSampleWeight)
 
@@ -937,7 +933,6 @@ static void AddHairClusterAABBPass(
 	Parameters->RenderDeformedOffsetBuffer = RenderDeformedOffsetBuffer;
 	Parameters->TotalClusterCount = 1;
 
-	Parameters->VertexStart = Instance->HairGroupPublicData->GetActiveStrandsVertexStart(Instance->Strands.RestResource->GetVertexCount());
 	Parameters->VertexCount = Instance->HairGroupPublicData->GetActiveStrandsVertexCount(Instance->Strands.RestResource->GetVertexCount(), Instance->HairGroupPublicData->MaxScreenSize);
 	Parameters->RcpSampleWeight = 1.0 / Instance->HairGroupPublicData->GetActiveStrandsSampleWeight(true, Instance->HairGroupPublicData->MaxScreenSize);
 
@@ -1176,7 +1171,6 @@ class FHairTangentCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCulling>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, VertexStart)
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(uint32, HairStrandsVF_bIsCullingEnable)
@@ -1196,7 +1190,6 @@ IMPLEMENT_GLOBAL_SHADER(FHairTangentCS, "/Engine/Private/HairStrands/HairStrands
 void AddHairTangentPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	uint32 VertexStart,
 	uint32 VertexCount,
 	FHairGroupPublicData* HairGroupPublicData,
 	FRDGBufferSRVRef PositionBuffer,
@@ -1209,7 +1202,6 @@ void AddHairTangentPass(
 	FHairTangentCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairTangentCS::FParameters>();
 	Parameters->PositionBuffer = PositionBuffer;
 	Parameters->OutputTangentBuffer = OutTangentBuffer.UAV;
-	Parameters->VertexStart = VertexStart;
 	Parameters->VertexCount = VertexCount;
 	Parameters->DispatchCountX = DispatchCount.X;
 	Parameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
@@ -1792,7 +1784,6 @@ void ComputeHairStrandsInterpolation(
 			AddHairTangentPass(
 				GraphBuilder,
 				ShaderMap,
-				0,
 				Instance->Guides.RestResource->GetVertexCount(),
 				Instance->HairGroupPublicData,
 				RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current)),
@@ -1918,13 +1909,11 @@ void ComputeHairStrandsInterpolation(
 					}
 				}
 
-				uint32 VertexStart = 0;
 				uint32 VertexCount = Instance->Strands.RestResource->GetVertexCount();
 
 				// 2.1 Compute deformation position based on simulation/skinning/RBF
 				if (Instance->Debug.GroomCacheType != EGroomCacheType::Strands)
 				{
-					VertexStart = Instance->HairGroupPublicData->GetActiveStrandsVertexStart(Instance->Strands.RestResource->GetVertexCount());
 					VertexCount = Instance->HairGroupPublicData->GetActiveStrandsVertexCount(Instance->Strands.RestResource->GetVertexCount(), Instance->HairGroupPublicData->MaxScreenSize);
 
 					// 2.1.1 Current Position
@@ -1933,7 +1922,6 @@ void ComputeHairStrandsInterpolation(
 						ShaderMap,
 						ShaderPrintData,
 						Instance,
-						VertexStart,
 						VertexCount,
 						MeshLODIndex,
 						Instance->Strands.Modifier.HairLengthScale,
@@ -1984,7 +1972,6 @@ void ComputeHairStrandsInterpolation(
 							ShaderMap,
 							ShaderPrintData,
 							Instance,
-							VertexStart,
 							VertexCount,
 							MeshLODIndex,
 							Instance->Strands.Modifier.HairLengthScale,
@@ -2049,7 +2036,6 @@ void ComputeHairStrandsInterpolation(
 				AddHairTangentPass(
 					GraphBuilder,
 					ShaderMap,
-					VertexStart,
 					VertexCount,
 					Instance->HairGroupPublicData,
 					Strands_DeformedPosition.SRV,
@@ -2268,7 +2254,6 @@ void ComputeHairStrandsInterpolation(
 						ShaderMap,
 						ShaderPrintData,
 						Instance,
-						0,
 						LOD.Guides.RestResource->GetVertexCount(),
 						MeshLODIndex,
 						1.0f,

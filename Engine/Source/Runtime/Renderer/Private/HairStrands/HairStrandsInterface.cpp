@@ -586,11 +586,6 @@ float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize, bool bUseTemp
 	return SampleWeight;
 }
 
-uint32 FHairGroupPublicData::GetActiveStrandsVertexStart(uint32 InVertexCount) const
-{
-	return GetHairVisibilityComputeRasterVertexStart(TemporalIndex, InVertexCount);
-}
-
 uint32 FHairGroupPublicData::GetActiveStrandsVertexCount(uint32 InVertexCount, float ScreenSize) const
 {
 	return GetHairVisibilityComputeRasterVertexCount(FMath::Min(MaxScreenSize, ScreenSize), InVertexCount);

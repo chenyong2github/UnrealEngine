@@ -13,7 +13,6 @@
 RWBuffer<uint>		OutPrimIDs;
 RWByteAddressBuffer OutDrawIndexedArgs;
 RWByteAddressBuffer OutSWRasterPrimitiveCount;
-uint				ControlPointStart;
 uint				ControlPointCount;
 uint				PrimIDsBufferSize;
 uint				NumWorkGroups;
@@ -101,13 +100,9 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 				PrimID = VertexIndex0;
 			}
 		}
-		else if (bSegValid)
-		{
-			PrimID += ControlPointStart;
-		}
 #else
-		const uint PrimID = BatchIndex * 1024 + GroupThreadID + ControlPointStart;
-		bool bSegValid = (BatchIndex < NumBatches) && (PrimID < (ControlPointStart + ControlPointCount));
+		const uint PrimID = BatchIndex * 1024 + GroupThreadID;
+		bool bSegValid = (BatchIndex < NumBatches) && (PrimID < ControlPointCount);
 #endif // PERMUTATION_CULLING
 		
 		bool bShouldSoftwareRasterize = false;

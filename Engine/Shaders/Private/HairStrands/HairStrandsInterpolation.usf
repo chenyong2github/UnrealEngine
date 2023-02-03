@@ -71,7 +71,6 @@ FGuideData GetGuideData(uint InVertexIndex, uint4 InInterpolationData0, uint4 In
 
 #if SHADER_HAIRINTERPOLATION
 
-uint VertexStart;
 uint VertexCount;
 uint DispatchCountX;
 uint HairDebugMode;
@@ -460,7 +459,7 @@ float3 ApplyDeformer(const FRootTriangleData RenTri, float3 InRestPostion, float
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	// 1. Find vertex index
-	uint VertexIndex = VertexStart + GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
+	uint VertexIndex = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 #if PERMUTATION_CULLING
 	if (HairStrandsVF_bIsCullingEnable)
 	{
@@ -476,7 +475,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 
 	// 2. Appply deformation
-	if (VertexIndex < (VertexStart + VertexCount))
+	if (VertexIndex < VertexCount)
 	{
 		const FGuideData GuideData = GetGuideData(VertexIndex);
 		const FRootTriangleData RenTri = GetRootTriangleData(VertexIndex, false);
@@ -650,7 +649,6 @@ uint TotalClusterCount;
 float3 CPUBoundMin;
 float3 CPUBoundMax;
 
-uint VertexStart;
 uint VertexCount;
 float RcpSampleWeight;
 
@@ -699,7 +697,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 	}
 	const uint ClusterId   = ClusterIdBuffer[ClusterFetchIndex];
 	const uint IndexOffset = ClusterIndexOffsetBuffer[ClusterFetchIndex];
-	const uint IndexCount = max(min(ClusterIndexCountBuffer[ClusterFetchIndex], GROUP_SIZE),ClusterIndexCountBuffer[ClusterFetchIndex] * RcpSampleWeight);
+	const uint IndexCount = max(min(ClusterIndexCountBuffer[ClusterFetchIndex], GROUP_SIZE),ClusterIndexCountBuffer[ClusterFetchIndex] * RcpSampleWeight); // HAIR_TODO:
 	
 	const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
 
@@ -716,7 +714,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 		{
 			const float3 OutHairPositionOffset = RenderDeformedOffsetBuffer[0].xyz;
 			const uint VertexIndex = ClusterVertexIdBuffer[IndexOffset + ThreadReadOffset];
-			if ((VertexIndex >= VertexStart) && (VertexIndex < (VertexStart + VertexCount)))
+			if (VertexIndex < VertexCount)
 			{
 				const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[VertexIndex], OutHairPositionOffset, 1, 1, 1);
 

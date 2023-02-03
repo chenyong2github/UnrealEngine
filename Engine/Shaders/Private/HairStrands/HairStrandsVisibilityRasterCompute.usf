@@ -73,7 +73,6 @@ uint			HairMaterialId;
 Texture2D<float> SceneDepthTexture;
 
 uint 			VertexCount;
-uint 			VertexStart;
 float			SampleWeight;
 
 float3 NDCToPixelCoord(float4 InDC)
@@ -450,13 +449,9 @@ void BinningCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID :
 				PrimID = VertexIndex0;
 			}
 		}
-		else if (bSegValid)
-		{
-			PrimID += VertexStart;
-		}
 	#else // PERMUTATION_CULLING
-		const uint PrimID = BatchIndex * 1024 + GroupThreadID + VertexStart;
-		bSegValid = bSegValid && (PrimID < (VertexStart + VertexCount));
+		const uint PrimID = BatchIndex * 1024 + GroupThreadID;
+		bSegValid = bSegValid && (PrimID < VertexCount);
 	#endif // PERMUTATION_CULLING
 #endif // PERMUTATION_INDIRECT_PRIM_IDS
 

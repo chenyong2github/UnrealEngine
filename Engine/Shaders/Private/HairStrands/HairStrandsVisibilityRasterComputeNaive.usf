@@ -22,7 +22,6 @@ ByteAddressBuffer	IndirectPrimIDCount;
 Buffer<uint>		IndirectPrimIDs;
 float2				OutputResolution;
 uint				HairMaterialId;
-uint				ControlPointStart;
 uint				ControlPointCount;
 float				SampleWeight;
 uint				NumWorkGroups;
@@ -171,13 +170,9 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 				PrimID = VertexIndex0;
 			}
 		}
-		else if (bSegValid)
-		{
-			PrimID += ControlPointStart;
-		}
 	#else // PERMUTATION_CULLING
-		const uint PrimID = BatchIndex * 64 + GroupThreadID + ControlPointStart;
-		bSegValid = bSegValid && (PrimID < (ControlPointStart + ControlPointCount));
+		const uint PrimID = BatchIndex * 64 + GroupThreadID;
+		bSegValid = bSegValid && (PrimID < ControlPointCount);
 	#endif // PERMUTATION_CULLING
 #endif // PERMUTATION_INDIRECT_PRIM_IDS
 

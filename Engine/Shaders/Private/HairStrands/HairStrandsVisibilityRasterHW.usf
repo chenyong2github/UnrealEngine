@@ -21,7 +21,6 @@ float3				ViewDir;
 uint				HairMaterialId;
 float3				CameraOrigin;
 float				RadiusAtDepth1;
-uint				ControlPointStart;
 uint				PrimIDsBufferSize;
 uint				bIsOrthoView;
 
@@ -78,12 +77,8 @@ VSOutput VSMain(VSInput Input)
 			PrimID = VertexIndex0;
 		}
 	}
-	else
-	{
-		PrimID += ControlPointStart;
-	}
 	#else
-	const uint PrimID = ControlPointStart + Input.InstanceID;
+	const uint PrimID = Input.InstanceID;
 	#endif // PERMUTATION_CULLING
 #endif // PERMUTATION_DRAW_INDIRECT
 

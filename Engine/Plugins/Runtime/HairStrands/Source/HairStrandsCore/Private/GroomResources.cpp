@@ -914,7 +914,6 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 void AddHairTangentPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	uint32 VertexStart,
 	uint32 VertexCount,
 	FHairGroupPublicData* HairGroupPublicData,
 	FRDGBufferSRVRef PositionBuffer,
@@ -930,7 +929,6 @@ FRDGExternalBuffer FHairStrandsRestResource::GetTangentBuffer(FRDGBuilder& Graph
 		AddHairTangentPass(
 			GraphBuilder,
 			ShaderMap,
-			0,
 			BulkData.PointCount,
 			nullptr,
 			RegisterAsSRV(GraphBuilder, PositionBuffer),

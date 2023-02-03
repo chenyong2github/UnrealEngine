@@ -2851,9 +2851,6 @@ FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& Gra
 	LocalToTranslatedWorldTransform.AddToTranslation(TranslatedWorldOffset);
 	Out.HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform = FMatrix44f(LocalToTranslatedWorldTransform.ToMatrixWithScale());
 
-	//Out.VertexCount = HairGroupPublicData->GetActiveStrandsVertexStart(VFInput.Strands.VertexCount);
-	//Out.VertexStart = HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, ScreenSize);
-
 	if (bCullingEnable)
 	{
 		FRDGImportedBuffer CullingIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateSRV);
@@ -2876,7 +2873,6 @@ class FVisiblityRasterClassificationCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterComputeCommonParameters, Common)
-		SHADER_PARAMETER(uint32, ControlPointStart)
 		SHADER_PARAMETER(uint32, ControlPointCount)
 		SHADER_PARAMETER(uint32, PrimIDsBufferSize)
 		SHADER_PARAMETER(uint32, NumWorkGroups)
@@ -2924,7 +2920,6 @@ class FVisiblityRasterComputeBinningCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		RDG_TEXTURE_ACCESS(VisTileBinningGridTex, ERHIAccess::UAVCompute)
 		SHADER_PARAMETER(uint32, VertexCount)
-		SHADER_PARAMETER(uint32, VertexStart)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, IndirectPrimIDCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, IndirectPrimIDs)
 	END_SHADER_PARAMETER_STRUCT()
@@ -3098,7 +3093,6 @@ class FVisiblityRasterHWVS : public FGlobalShader
 		SHADER_PARAMETER(uint32, HairMaterialId)
 		SHADER_PARAMETER(FVector3f, CameraOrigin)
 		SHADER_PARAMETER(float, RadiusAtDepth1)
-		SHADER_PARAMETER(uint32, ControlPointStart)
 		SHADER_PARAMETER(uint32, PrimIDsBufferSize)
 		SHADER_PARAMETER(uint32, bIsOrthoView)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceParameters, HairInstance)
@@ -3164,7 +3158,6 @@ class FVisiblityRasterComputeNaiveCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector2f, OutputResolution)
 		SHADER_PARAMETER(uint32, HairMaterialId)
-		SHADER_PARAMETER(uint32, ControlPointStart)
 		SHADER_PARAMETER(uint32, ControlPointCount)
 		SHADER_PARAMETER(float, SampleWeight)
 		SHADER_PARAMETER(uint32, NumWorkGroups)
@@ -3444,7 +3437,6 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
 			const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
 
-			const uint32 VertexStart = HairGroupPublicData->GetActiveStrandsVertexStart(VFInput.Strands.VertexCount);
 			const uint32 VertexCount = HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, ScreenSize);
 			const float SampleWeight = HairGroupPublicData->GetActiveStrandsSampleWeight(false, ScreenSize);
 
@@ -3461,7 +3453,6 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 
 				FVisiblityRasterClassificationCS::FParameters* ClassificationParameters = GraphBuilder.AllocParameters<FVisiblityRasterClassificationCS::FParameters>();
 				ClassificationParameters->Common = Common;
-				ClassificationParameters->ControlPointStart = VertexStart;
 				ClassificationParameters->ControlPointCount = VertexCount;
 				ClassificationParameters->PrimIDsBufferSize = MaxNumPrimIDs;
 				ClassificationParameters->NumWorkGroups = NumWorkGroups;
@@ -3492,7 +3483,6 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 				Parameters->VS.HairMaterialId = PrimitiveInfo.MaterialId;
 				Parameters->VS.CameraOrigin = FVector3f(CameraOrigin.X, CameraOrigin.Y, CameraOrigin.Z);
 				Parameters->VS.RadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(Resolution, ViewInfo.FOV, 1, -1.0f).Primary;
-				Parameters->VS.ControlPointStart = VertexStart;
 				Parameters->VS.PrimIDsBufferSize = MaxNumPrimIDs;
 				Parameters->VS.bIsOrthoView = !ViewInfo.IsPerspectiveProjection();
 				Parameters->VS.HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnable, bForceRegister);
@@ -3553,7 +3543,6 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 					FVisiblityRasterComputeNaiveCS::FParameters* RasterParameters = GraphBuilder.AllocParameters<FVisiblityRasterComputeNaiveCS::FParameters>();
 					RasterParameters->OutputResolution = Common.OutputResolutionf;
 					RasterParameters->HairMaterialId = PrimitiveInfo.MaterialId;
-					RasterParameters->ControlPointStart = VertexStart;
 					RasterParameters->ControlPointCount = VertexCount;
 					RasterParameters->SampleWeight = SampleWeight;
 					RasterParameters->NumWorkGroups = NumWorkGroups;
@@ -3601,7 +3590,6 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 						BinningParameters->OutVisTileData = GraphBuilder.CreateUAV(VisTileData);
 						BinningParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnableInRasterizers, bForceRegister);
 						BinningParameters->VertexCount = VertexCount;
-						BinningParameters->VertexStart = VertexStart;
 						BinningParameters->VisTileBinningGridTex = VisTileBinningGrid;
 						BinningParameters->IndirectPrimIDCount = bClassification ? SWRasterPrimIDCountSRV : nullptr;
 						BinningParameters->IndirectPrimIDs = bClassification ? RasterizerPrimIDsSRV : nullptr;
