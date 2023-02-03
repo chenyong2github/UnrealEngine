@@ -21,8 +21,9 @@ namespace Chaos
 
 	FVector FSimpleAerodynamicsSim::GetCombinedForces(float VelocityIn)
 	{
-		// -ve as forces applied in opposite direction to velocity
-		float CommonSum = -DensityOfMedium * VelocityIn * VelocityIn;
+		// aerodynamic forces applied in opposite direction to velocity
+		float Sign = (VelocityIn < 0.0f) ? 1.0f : -1.0f;
+		float CommonSum = DensityOfMedium * VelocityIn * VelocityIn * Sign;
 		FVector CombinedForces(EffectiveDragConstant * CommonSum, 0.f, EffectiveLiftConstant * CommonSum);
 		return CombinedForces;
 	}
