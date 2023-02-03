@@ -736,6 +736,26 @@ void UMaterialInterface::GetLightingGuidChain(bool bIncludeTextures, TArray<FGui
 #endif // WITH_EDITORONLY_DATA
 }
 
+#if WITH_EDITOR
+uint32 UMaterialInterface::ComputeAllStateCRC() const
+{
+	uint32 CRC = 0xffffffff;
+
+	const FMaterialCachedExpressionData& CachedData = GetCachedExpressionData();
+
+	// use the precalculated CRC for the function info state ids (faster, as there can be thousands of these)
+	CRC = FCrc::TypeCrc32(CachedData.FunctionInfosStateCRC, CRC);
+
+	// mix in the parameter collection info state ids
+	for (const FMaterialParameterCollectionInfo& CollectionInfo : CachedData.ParameterCollectionInfos)
+	{
+		CRC = FCrc::TypeCrc32(CollectionInfo.StateId, CRC);
+	}
+
+	return CRC;
+}
+#endif // WITH_EDITOR
+
 bool UMaterialInterface::GetVectorParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly) const
 {
 	FMaterialParameterMetadata Result;

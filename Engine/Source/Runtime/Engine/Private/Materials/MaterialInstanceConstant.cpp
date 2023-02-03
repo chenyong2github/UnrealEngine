@@ -263,4 +263,11 @@ void UMaterialInstanceConstant::SetNaniteOverrideMaterial(bool bInEnableOverride
 	NaniteOverrideMaterial.PostEditChange();
 }
 
+uint32 UMaterialInstanceConstant::ComputeAllStateCRC() const
+{
+	uint32 CRC = Super::ComputeAllStateCRC();
+	CRC = FCrc::TypeCrc32(ParameterStateId, CRC);
+	return CRC;
+}
+
 #endif // #if WITH_EDITOR

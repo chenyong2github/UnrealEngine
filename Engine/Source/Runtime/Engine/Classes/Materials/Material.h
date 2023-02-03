@@ -1236,6 +1236,18 @@ public:
 	 */
 	ENGINE_API virtual void GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGuids) const override;
 
+#if WITH_EDITOR
+	/**
+	 *	Returns a CRC of all the Guids related to this material's shader.
+	 *  This includes Guids from the parent hierarchy (for material instances),
+	 *  material function state, and parameter assignment state.
+	 *  NOTE this function does NOT include texture content state or texture streaming state.
+	 *  Used as a faster way to detect changes than GetLightingGuidChain.
+	 */
+	ENGINE_API virtual uint32 ComputeAllStateCRC() const override;
+#endif // WITH_EDITOR
+
+
 	/**
 	 * Checks that no pre-compilation errors have been detected and if so it reports them using specified compiler.
 	 * @return whether no errors occurred.

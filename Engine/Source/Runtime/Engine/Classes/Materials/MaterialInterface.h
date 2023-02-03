@@ -719,6 +719,10 @@ public:
 	 */
 	ENGINE_API virtual void GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGuids) const;
 
+#if WITH_EDITOR
+	ENGINE_API virtual uint32 ComputeAllStateCRC() const;
+#endif // WITH_EDITOR
+
 	/**
 	 *	Check if the textures have changed since the last time the material was
 	 *	serialized for Lightmass... Update the lists while in here.

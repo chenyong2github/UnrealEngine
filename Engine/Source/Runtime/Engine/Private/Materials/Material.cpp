@@ -6869,6 +6869,13 @@ void UMaterial::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGu
 }
 
 #if WITH_EDITOR
+uint32 UMaterial::ComputeAllStateCRC() const
+{
+	uint32 CRC = Super::ComputeAllStateCRC();
+	CRC = FCrc::TypeCrc32(StateId, CRC);
+	return CRC;
+}
+
 bool UMaterial::IsRefractionPinPluggedIn(const UMaterialEditorOnlyData* EditorOnly)
 {
 	// check for a distortion value

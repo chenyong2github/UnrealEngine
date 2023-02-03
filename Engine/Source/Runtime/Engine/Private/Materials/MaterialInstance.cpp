@@ -4405,6 +4405,19 @@ void UMaterialInstance::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid
 #endif
 }
 
+#if WITH_EDITOR
+uint32 UMaterialInstance::ComputeAllStateCRC() const
+{
+	uint32 CRC = Super::ComputeAllStateCRC();
+	if (Parent)
+	{
+		uint32 ParentCRC = Parent->ComputeAllStateCRC();
+		CRC = FCrc::TypeCrc32(ParentCRC, CRC);
+	}
+	return CRC;
+}
+#endif
+
 void UMaterialInstance::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;

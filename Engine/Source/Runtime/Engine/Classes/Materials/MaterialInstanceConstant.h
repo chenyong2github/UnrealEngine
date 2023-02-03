@@ -101,6 +101,8 @@ class UMaterialInstanceConstant : public UMaterialInstance
 	 * may be called only in the Editor!
 	 */
 	ENGINE_API void ClearParameterValuesEditorOnly();
+
+	ENGINE_API virtual uint32 ComputeAllStateCRC() const override;
 #endif // #if WITH_EDITOR
 };
 
