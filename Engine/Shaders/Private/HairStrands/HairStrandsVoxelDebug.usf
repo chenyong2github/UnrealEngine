@@ -9,6 +9,8 @@
 #include "HairStrandsVoxelPageCommon.ush"
 #include "../ColorMap.ush"  
 
+#if SHADER_VOXEL_DEBUG
+
 #define VOXEL_TRAVERSAL_DEBUG_PAGEOCCUPANCY 0
 #define VOXEL_TRAVERSAL_DEBUG 0
 #define VOXEL_TRAVERSAL_FORCE_MIP_ENABLE 1
@@ -380,3 +382,5 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		OutputTexture[DispatchThreadId.xy] = float4(HitColor, 1);
 	}
 }
+
+#endif // SHADER_VOXEL_DEBUG
