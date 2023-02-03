@@ -15,6 +15,7 @@
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData()
 	: Sequence(nullptr)
 	, HierarchicalBias(0)
+	, AccumulatedFlags(EMovieSceneSubSectionFlags::None)
 {}
 
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSection& InSubSection)

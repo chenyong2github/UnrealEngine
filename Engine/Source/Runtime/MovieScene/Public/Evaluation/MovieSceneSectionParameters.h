@@ -60,6 +60,7 @@ struct FMovieSceneSectionParameters
 		, FirstLoopStartFrameOffset(0)
 		, TimeScale(1.0f)
 		, HierarchicalBias(100)
+		, Flags(EMovieSceneSubSectionFlags::None)
 		, StartOffset_DEPRECATED(0.f)
 		, PrerollTime_DEPRECATED(0.0f)
 		, PostrollTime_DEPRECATED(0.0f)
