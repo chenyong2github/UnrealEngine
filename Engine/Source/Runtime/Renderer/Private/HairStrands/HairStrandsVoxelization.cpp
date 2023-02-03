@@ -763,7 +763,7 @@ static void AddAllocateVoxelPagesPass(
 						FMath::DivideAndRoundUp(CPUAllocationDesc.PageIndexResolution.Y, 8),
 						FMath::DivideAndRoundUp(CPUAllocationDesc.PageIndexResolution.Z, 8));
 
-				check(DispatchCount.X < 65535);
+				check(DispatchCount.X <= GRHIMaxDispatchThreadGroupsPerDimension.X);
 				FVoxelMarkValidPageIndex_PrepareCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FVoxelMarkValidPageIndex_PrepareCS::FUseCluster>(bUseClusterAABB ? 1 : 0);
 				TShaderMapRef<FVoxelMarkValidPageIndex_PrepareCS> ComputeShader(View.ShaderMap, PermutationVector);
@@ -838,7 +838,7 @@ static void AddAllocateVoxelPagesPass(
 				PermutationVector.Set<FVoxelMarkValidPageIndexCS::FGPUDriven>(bIsGPUDriven ? 1 : 0);
 
 				FIntVector DispatchCount((Parameters->MaxClusterCount + GroupSize - 1) / GroupSize, 1, 1);
-				check(DispatchCount.X < 65535);
+				check(DispatchCount.X <= GRHIMaxDispatchThreadGroupsPerDimension.X);
 				TShaderMapRef<FVoxelMarkValidPageIndexCS> ComputeShader(View.ShaderMap, PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
@@ -912,7 +912,7 @@ static void AddAllocateVoxelPagesPass(
 			else
 			{
 				const FIntVector DispatchCount((CPUAllocationDesc.PageIndexCount + GroupSize - 1) / GroupSize, 1, 1);
-				check(DispatchCount.X < 65535);
+				check(DispatchCount.X <= GRHIMaxDispatchThreadGroupsPerDimension.X);
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::AllocateVoxelPage"), ComputeShader, Parameters, DispatchCount);
 			}
 		}

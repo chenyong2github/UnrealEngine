@@ -407,7 +407,7 @@ static void AddClusterCullingPass(
 			ComputeShader,
 			Parameters,
 			DispatchIndirectParametersClusterCountDiv512, 0); // FIX ME, this could get over 65535
-		check(ClusterData.ClusterCount / 512 <= 65535);
+		check(ClusterData.ClusterCount / 512u <= uint32(GRHIMaxDispatchThreadGroupsPerDimension.X));
 	}
 
 	/// Prefix sum on the total index count per block of 512
@@ -425,7 +425,7 @@ static void AddClusterCullingPass(
 			ComputeShader,
 			Parameters,
 			DispatchIndirectParametersClusterCountDiv512Div512, 0); // FIX ME, this could get over 65535
-		check(ClusterData.ClusterCount / (512*512) <= 65535);
+		check(ClusterData.ClusterCount / (512u*512u) <= uint32(GRHIMaxDispatchThreadGroupsPerDimension.X));
 	}
 
 	/// Compact to VertexId buffer using hierarchical binary search or splatting

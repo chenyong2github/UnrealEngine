@@ -1169,7 +1169,7 @@ static void AddDrawDebugClusterPass(
 					}
 					ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 
-					check(Parameters->ClusterCount / 64 <= 65535);
+					check(Parameters->ClusterCount / 64u <= uint32(GRHIMaxDispatchThreadGroupsPerDimension.X));
 					const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(Parameters->ClusterCount, 1, 1), FIntVector(64, 1, 1));// FIX ME, this could get over 65535
 					FComputeShaderUtils::AddPass(
 						GraphBuilder, RDG_EVENT_NAME("DrawDebugClusterAABB"),
