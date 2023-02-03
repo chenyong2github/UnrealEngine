@@ -547,6 +547,10 @@ public:
 	/** Return true if this instance playing the slot animation, also returning the montage it is playing on */
 	bool IsPlayingSlotAnimation(const UAnimSequenceBase* Asset, FName SlotNodeName, UAnimMontage*& OutMontage) const;
 
+	/** Return true if this instance has an active montage in the given slot. A UAnimMontage that is playing in the slot and blending out is not determined to be "active". */
+	UFUNCTION(BlueprintPure, Category="Animation|Montage")
+	bool IsSlotActive(FName SlotNodeName) const;
+	
 	/*********************************************************************************************
 	 * AnimMontage
 	 ********************************************************************************************* */

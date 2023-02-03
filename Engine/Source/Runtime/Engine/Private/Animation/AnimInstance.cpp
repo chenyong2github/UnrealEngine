@@ -2107,6 +2107,22 @@ bool UAnimInstance::IsPlayingSlotAnimation(const UAnimSequenceBase* Asset, FName
 	return false;
 }
 
+bool UAnimInstance::IsSlotActive(FName SlotNodeName) const
+{
+	if (SlotNodeName != NAME_None)
+	{
+		for (const FAnimMontageInstance* Instance : MontageInstances)
+		{
+			if (Instance && Instance->Montage && Instance->Montage->IsValidSlot(SlotNodeName) && Instance->IsActive())
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
 float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FMontageBlendSettings& BlendInSettings, float InPlayRate /*= 1.f*/, EMontagePlayReturnType ReturnValueType /*= EMontagePlayReturnType::MontageLength*/, float InTimeToStartMontageAt /*= 0.f*/, bool bStopAllMontages /*= true*/)
 {
 	LLM_SCOPE(ELLMTag::Animation);
