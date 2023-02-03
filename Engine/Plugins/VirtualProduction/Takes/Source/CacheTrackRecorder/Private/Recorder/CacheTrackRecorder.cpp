@@ -2,6 +2,7 @@
 
 #include "Recorder/CacheTrackRecorder.h"
 
+#include "AnimatedRange.h"
 #include "CoreGlobals.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
