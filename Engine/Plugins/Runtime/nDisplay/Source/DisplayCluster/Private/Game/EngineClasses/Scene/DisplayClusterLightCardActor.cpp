@@ -157,7 +157,7 @@ void ADisplayClusterLightCardActor::Tick(float DeltaSeconds)
 	UpdateUVIndicator();
 	if (LabelComponent->IsVisible())
 	{
-		LabelComponent->GetWidgetComponent()->SetTranslucentSortPriority(LightCardComponent->TranslucencySortPriority);
+		LabelComponent->GetWidgetComponent()->SetTranslucentSortPriority(LightCardComponent->TranslucencySortPriority + 1);
 	}
 }
 

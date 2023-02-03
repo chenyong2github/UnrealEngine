@@ -636,7 +636,11 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 
 						for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
 						{
-							if (((Actor->IsHidden() || PrimComp->bHiddenInGame) && !PrimComp->bCastHiddenShadow))
+							if (((Actor->IsHidden() || PrimComp->bHiddenInGame) && !PrimComp->bCastHiddenShadow)
+#if WITH_EDITOR
+								|| (GIsEditor && PrimComp->bHiddenInSceneCapture /* We are running as a scene capture for preview */)
+#endif
+								)
 							{
 								PrimitiveComponentsArray[Index].Add(PrimComp->ComponentId);
 							}

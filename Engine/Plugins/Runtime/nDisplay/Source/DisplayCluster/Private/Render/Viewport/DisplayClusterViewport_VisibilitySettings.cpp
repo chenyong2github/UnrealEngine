@@ -7,15 +7,15 @@
 #include "EngineUtils.h"
 #include "SceneView.h"
 
-static void GetPrimitiveComponentsFromLayers(UWorld* World, const TArray<FName>& SourceLayers, TSet<FPrimitiveComponentId>& OutPrimitives)
+static void GetPrimitiveComponentsFromLayers(UWorld* World, const TArray<FName>& SourceLayers, TSet<FPrimitiveComponentId>& OutPrimitives,
+                                             const TSet<FPrimitiveComponentId>* InExcludePrimitivesList = nullptr)
 {
 	if (SourceLayers.Num())
 	{
 		// Iterate over all actors, looking for actors in the specified layers.
 		for (const TWeakObjectPtr<AActor> WeakActor : FActorRange(World))
 		{
-			AActor* Actor = WeakActor.Get();
-			if (Actor)
+			if (const AActor* Actor = WeakActor.Get())
 			{
 				bool bActorFoundOnSourceLayers = false;
 
@@ -34,9 +34,12 @@ static void GetPrimitiveComponentsFromLayers(UWorld* World, const TArray<FName>&
 					// Save all actor components to OutPrimitives
 					for (UActorComponent* Component : Actor->GetComponents())
 					{
-						if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
+						if (const UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
 						{
-							OutPrimitives.Add(PrimComp->ComponentId);
+							if (!InExcludePrimitivesList || !InExcludePrimitivesList->Contains(PrimComp->ComponentId))
+							{
+								OutPrimitives.Add(PrimComp->ComponentId);
+							}
 						}
 					}
 				}
@@ -56,8 +59,16 @@ void FDisplayClusterViewport_VisibilitySettings::SetupSceneView(class UWorld* Wo
 		if (ActorLayers.Num() > 0 || AdditionalComponentsList.Num() > 0)
 		{
 			InOutView.ShowOnlyPrimitives.Emplace();
-			GetPrimitiveComponentsFromLayers(World, ActorLayers, InOutView.ShowOnlyPrimitives.GetValue());
-			InOutView.ShowOnlyPrimitives.GetValue().Append(AdditionalComponentsList);
+			GetPrimitiveComponentsFromLayers(World, ActorLayers,InOutView.ShowOnlyPrimitives.GetValue(),
+				&RootActorHidePrimitivesList);
+
+			for (const FPrimitiveComponentId& AdditionalPrimitiveId : AdditionalComponentsList)
+			{
+				if (!RootActorHidePrimitivesList.Contains(AdditionalPrimitiveId))
+				{
+					InOutView.ShowOnlyPrimitives.GetValue().Add(AdditionalPrimitiveId);
+				}
+			}
 			return;
 		}
 		break;

@@ -21,7 +21,7 @@ UDisplayClusterLabelComponent::UDisplayClusterLabelComponent()
 	// Keeps this visible even if its clipping through the owner.
 	// Requires the owner have a transparent blend mode on its material.
 	WidgetComponent->SetBlendMode(EWidgetBlendMode::Transparent);
-	WidgetComponent->SetTranslucencySortDistanceOffset(-1000.f);
+	WidgetComponent->SetTranslucencySortDistanceOffset(-100.f);
 	WidgetComponent->SetUsingAbsoluteScale(true);
 	WidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WidgetComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
