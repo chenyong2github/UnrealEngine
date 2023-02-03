@@ -38,6 +38,7 @@ FDisplayClusterViewportProxyData::FDisplayClusterViewportProxyData(const FDispla
 
 #if WITH_EDITOR
 	OutputPreviewTargetableResource = SrcViewport->OutputPreviewTargetableResource;
+	ViewStates = SrcViewport->ViewStates;
 #endif
 
 	InputShaderResources = SrcViewport->InputShaderResources;
@@ -84,6 +85,7 @@ void FDisplayClusterViewportProxyData::UpdateProxy_RenderThread() const
 
 #if WITH_EDITOR
 	DstViewportProxy->OutputPreviewTargetableResource = OutputPreviewTargetableResource;
+	DstViewportProxy->ViewStates = ViewStates;
 #endif
 
 	DstViewportProxy->InputShaderResources = InputShaderResources;

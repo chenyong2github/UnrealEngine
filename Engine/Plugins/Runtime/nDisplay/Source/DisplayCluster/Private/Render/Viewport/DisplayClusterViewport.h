@@ -218,7 +218,7 @@ private:
 	void CleanupViewState();
 
 private:
-	TArray<FSceneViewStateReference> ViewStates;
+	TArray<TSharedPtr<FSceneViewStateReference, ESPMode::ThreadSafe>> ViewStates;
 #endif
 
 public:

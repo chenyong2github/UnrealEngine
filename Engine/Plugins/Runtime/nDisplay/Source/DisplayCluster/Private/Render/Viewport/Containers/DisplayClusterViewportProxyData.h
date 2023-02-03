@@ -57,6 +57,7 @@ private:
 
 #if WITH_EDITOR
 	FTextureRHIRef OutputPreviewTargetableResource;
+	TArray<TSharedPtr<FSceneViewStateReference, ESPMode::ThreadSafe>> ViewStates;
 #endif
 
 	// unique viewport resources

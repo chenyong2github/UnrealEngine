@@ -315,6 +315,7 @@ protected:
 
 #if WITH_EDITOR
 	FTextureRHIRef OutputPreviewTargetableResource;
+	TArray<TSharedPtr<FSceneViewStateReference, ESPMode::ThreadSafe>> ViewStates;
 	
 	mutable bool bPreviewReadPixels = false;
 	mutable FCriticalSection PreviewPixelsCSGuard;

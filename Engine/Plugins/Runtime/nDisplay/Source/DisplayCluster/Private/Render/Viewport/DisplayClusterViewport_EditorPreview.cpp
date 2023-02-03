@@ -33,12 +33,15 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterViewport::CleanupViewState()
 {
-	for (FSceneViewStateReference& ViewState : ViewStates)
+	for (TSharedPtr<FSceneViewStateReference, ESPMode::ThreadSafe>& ViewState : ViewStates)
 	{
-		FSceneViewStateInterface* Ref = ViewState.GetReference();
-		if (Ref != nullptr)
+		if (ViewState.IsValid())
 		{
-			Ref->ClearMIDPool();
+			FSceneViewStateInterface* Ref = ViewState->GetReference();
+			if (Ref != nullptr)
+			{
+				Ref->ClearMIDPool();
+			}
 		}
 	}
 }
@@ -46,20 +49,25 @@ void FDisplayClusterViewport::CleanupViewState()
 FSceneViewStateInterface* FDisplayClusterViewport::GetViewState(uint32 ViewIndex)
 {
 	int32 RequiredAmount = (int32)ViewIndex - ViewStates.Num() + 1;
-	if(RequiredAmount > 0)
+	if (RequiredAmount > 0)
 	{
 		ViewStates.AddDefaulted(RequiredAmount);
 	}
 
-	if (ViewStates[ViewIndex].GetReference() == NULL)
+	if (!ViewStates[ViewIndex].IsValid())
+	{
+		ViewStates[ViewIndex] = MakeShared<FSceneViewStateReference>();
+	}
+
+	if (ViewStates[ViewIndex]->GetReference() == NULL)
 	{
 		const UWorld* CurrentWorld = Owner.GetCurrentWorld();
 		const ERHIFeatureLevel::Type FeatureLevel = CurrentWorld ? CurrentWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
 
-		ViewStates[ViewIndex].Allocate(FeatureLevel);
+		ViewStates[ViewIndex]->Allocate(FeatureLevel);
 	}
 
-	return ViewStates[ViewIndex].GetReference();
+	return ViewStates[ViewIndex]->GetReference();
 }
 
 FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContext& InOutViewFamily, uint32 InContextNum)

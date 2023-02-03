@@ -226,14 +226,7 @@ void FDisplayClusterViewport::HandleEndScene()
 void FDisplayClusterViewport::AddReferencedObjects(FReferenceCollector& Collector)
 {
 #if WITH_EDITOR
-	for (FSceneViewStateReference& ViewState : ViewStates)
-	{
-		FSceneViewStateInterface* Ref = ViewState.GetReference();
-		if (Ref)
-		{
-			Ref->AddReferencedObjects(Collector);
-		}
-	}
+	// ViewStates released on rendering thread from viewport proxy object
 #endif
 }
 
