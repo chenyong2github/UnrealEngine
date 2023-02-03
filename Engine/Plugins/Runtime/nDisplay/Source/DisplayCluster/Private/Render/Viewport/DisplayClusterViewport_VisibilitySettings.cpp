@@ -10,6 +10,8 @@
 static void GetPrimitiveComponentsFromLayers(UWorld* World, const TArray<FName>& SourceLayers, TSet<FPrimitiveComponentId>& OutPrimitives,
                                              const TSet<FPrimitiveComponentId>* InExcludePrimitivesList = nullptr)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DCRootActor_GetPrimitiveComponentsFromLayers);
+
 	if (SourceLayers.Num())
 	{
 		// Iterate over all actors, looking for actors in the specified layers.
