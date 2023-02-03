@@ -39,7 +39,7 @@
 			void TestBody(const FString& Parameters); \
 			virtual bool RunTest(const FString& Parameters) { \
 				TestBody(Parameters); \
-				return HasAnyErrors(); \
+				return !HasAnyErrors(); \
 			} \
 			virtual FString GetBeautifiedTestName() const override { return PrettyNameDotNotation; } \
 		private:\
