@@ -1120,7 +1120,6 @@ void FEntityManager::AddComponent(FMovieSceneEntityID EntityID, FComponentTypeID
 		if (ExistingMask.Contains(ComponentType))
 		{
 			// Entity already has this component type
-			// @todo: Should this be an error?
 			return;
 		}
 
