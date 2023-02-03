@@ -8,26 +8,54 @@ namespace UnrealBuildTool.Rules
 		{
 			SetupModulePhysicsSupport(Target);
 
+			PublicIncludePaths.AddRange(
+				new string[] {
+					// ... add public include paths required here ...
+				}
+				);
+
+			PrivateIncludePaths.AddRange(
+				new string[] {
+					// ... add other private include paths required here ...
+				}
+				);
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
-					"CoreUObject",
-					"Chaos",
-					"Engine",
-                    "RenderCore",
-                    "RHI",
-					"Renderer",
-                    "FieldSystemEngine",
-	                "ChaosFlesh",
-					"NetCore",
 					"ProceduralMeshComponent",
-					"DataflowCore",
-					"DataflowEngine",
-					"ChaosCaching",
+					// ... add other public dependencies that you statically link with here ...
 				}
 				);
 
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"ComputeFramework",
+					"CoreUObject",
+					"Chaos",
+					"ChaosCaching",
+					"ChaosFlesh",
+					"DataflowCore",
+					"DataflowEngine",
+					"Engine",
+					"FieldSystemEngine",
+					"NetCore",
+					"OptimusCore",
+					"Projects",
+					"RenderCore",
+                    "RHI",
+					"Renderer"
+				}
+				);
+
+			DynamicallyLoadedModuleNames.AddRange(
+				new string[]
+				{
+					// ... add any modules that your module loads dynamically here ...
+				}
+				);
 
 			PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
 		}

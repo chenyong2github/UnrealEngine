@@ -1,0 +1,26 @@
+// Copyright Epic Games, Inc.  All Rights Reserved.
+
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+
+float4x4 DI_LOCAL(SimToLocal) =              // Simulation space (world?) to local
+         { 1.f, 0.f, 0.f, 0.f,
+           0.f, 1.f, 0.f, 0.f,
+           0.f, 0.f, 1.f, 0.f,
+           0.f, 0.f, 0.f, 1.f };
+
+Buffer<float3> DI_LOCAL(SimPositions);      // Current tetrahedra positions
+Buffer<int> DI_LOCAL(Tetrahedra);           // Tet mesh topology
+
+Buffer<int> DI_LOCAL(TetBinding);           // Per vertex tetrahedron index
+Buffer<float4> DI_LOCAL(TetBaryWeights);    // Per vertex tetrahedron weights
+
+float3 DI_LOCAL(GetEmbeddedTetPosition)(uint Index)
+{
+    int TetIdx = DI_LOCAL(TetBinding)[Index];
+    float4 TetWeights = DI_LOCAL(TetBaryWeights)[TetIdx];
+    return
+        DI_LOCAL(SimPositions)[DI_LOCAL(Tetrahedra[TetIdx*4+0])] * TetWeights[0] +
+        DI_LOCAL(SimPositions)[DI_LOCAL(Tetrahedra[TetIdx*4+1])] * TetWeights[1] +
+        DI_LOCAL(SimPositions)[DI_LOCAL(Tetrahedra[TetIdx*4+2])] * TetWeights[2] +
+        DI_LOCAL(SimPositions)[DI_LOCAL(Tetrahedra[TetIdx*4+3])] * TetWeights[3];
+}

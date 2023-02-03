@@ -53,6 +53,14 @@
 		{
 			"Name": "GeometryProcessing",
 			"Enabled": true
+		}, 
+		{
+			"Name": "ComputeFramework",
+			"Enabled": true
+		}, 
+		{
+			"Name": "DeformerGraph",
+			"Enabled": true
 		}
 	]
 }
