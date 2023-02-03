@@ -199,6 +199,8 @@ namespace Horde.Agent.Execution
 
 		protected Dictionary<string, string> _envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+		private XgeMetadataExtractor? _xgeMetadataExtractor;
+
 		public JobExecutor(JobExecutorOptions options, ILogger logger)
 		{
 			_session = options.Session;
@@ -288,6 +290,23 @@ namespace Horde.Agent.Execution
 			{
 				_additionalArguments.Add($"-set:PreflightChange={_job.PreflightChange}");
 			}
+
+			// Only run XGE metadata extraction on Windows
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				DirectoryReference? xgeDir = XgeMetadataExtractor.FindXgeDir();
+				if (xgeDir != null)
+				{
+					_xgeMetadataExtractor = new XgeMetadataExtractor(xgeDir);
+					
+					// Clear any *.ib_mon files from previous builds
+					_xgeMetadataExtractor.ClearLocalIbMonFiles();
+				}
+				else
+				{
+					_logger.LogInformation("Unable to locate XGE directory. Not installed?");
+				}
+			}
 		}
 
 		public static bool IsUserAdministrator()
@@ -339,6 +358,17 @@ namespace Horde.Agent.Execution
 
 		public virtual Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
+			if (_xgeMetadataExtractor != null)
+			{
+				// Collect any new *.ib_mon files and generate a summary for each build invocation, grouped by title.
+				// Title will segregate for example UnrealBuildTool from invocations coming from the engine/cooks.
+				foreach (XgeTaskMetadataSummary s in _xgeMetadataExtractor.GetSummariesForIbMonFiles())
+				{
+					_logger.LogInformation("XGE build invocation {Title} with {LocalTaskCount} local tasks for {LocalTaskDuration} secs total and {RemoteTaskCount} remote tasks for {RemoteTaskDuration} secs total",
+						s.Title, s.LocalTaskCount, s.TotalLocalTaskDuration, s.RemoteTaskCount, s.TotalRemoteTaskDuration);
+				}
+			}
+			
 			return Task.CompletedTask;
 		}
 
