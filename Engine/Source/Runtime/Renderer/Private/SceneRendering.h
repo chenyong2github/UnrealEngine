@@ -2092,6 +2092,11 @@ public:
 	bool bIsFirstSceneRenderer;
 	bool bIsLastSceneRenderer;
 
+#if RHI_RAYTRACING
+	/** Wheter any ray tracing pass has been enabled on the current frame. */
+	bool bAnyRayTracingPassEnabled = false;
+#endif
+
 public:
 
 	FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);

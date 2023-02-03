@@ -308,8 +308,7 @@ public:
 	FLumenCardRenderer LumenCardRenderer;
 
 #if RHI_RAYTRACING
-	bool bAnyRayTracingPassEnabled;
-	bool bShouldUpdateRayTracingScene;
+	bool bShouldUpdateRayTracingScene =  false;
 
 	void InitializeRayTracingFlags_RenderThread();
 #endif

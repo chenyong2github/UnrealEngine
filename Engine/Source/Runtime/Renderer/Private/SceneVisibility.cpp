@@ -4769,6 +4769,14 @@ void FSceneRenderer::ComputeViewVisibility(
 
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer_Cull);
+#if RHI_RAYTRACING
+				if (bAnyRayTracingPassEnabled)
+				{
+					// The logic inside PrimitiveCull makes use of ShouldCullForRayTracing to decide if the primitive should be considered for raytracing
+					// Therefore we must be sure we are done with caching the mesh draw commands (which include raytracing caches) before it runs if raytracing is being used.
+					Scene->WaitForCacheMeshDrawCommandsTask();
+				}
+#endif
 				int32 NumCulledPrimitivesForView = PrimitiveCull(Scene, View, bNeedsFrustumCulling);
 				STAT(NumCulledPrimitives += NumCulledPrimitivesForView);
 			}
