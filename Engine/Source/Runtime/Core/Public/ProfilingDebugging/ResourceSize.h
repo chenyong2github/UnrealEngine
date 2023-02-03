@@ -111,11 +111,6 @@ public:
 	 */
 	FResourceSizeEx& operator+=(const FResourceSizeEx& InRHS);
 
-	/**
-	 * Add two FResourceSizeEx instances together and return a copy.
-	 */
-	friend FResourceSizeEx operator+(FResourceSizeEx InLHS, const FResourceSizeEx& InRHS);
-
 private:
 	/**
 	 * Type of resource size held in this struct.
@@ -140,3 +135,8 @@ private:
 	 */
 	TMap<FName, SIZE_T> UnknownMemoryBytesMap;
 };
+
+/**
+* Add two FResourceSizeEx instances together and return a copy.
+*/
+CORE_API FResourceSizeEx operator+(FResourceSizeEx InLHS, const FResourceSizeEx& InRHS);
