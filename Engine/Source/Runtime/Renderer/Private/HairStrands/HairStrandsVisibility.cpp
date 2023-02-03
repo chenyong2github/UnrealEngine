@@ -3880,10 +3880,12 @@ class FHairStrandsPositionChangedCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 	END_SHADER_PARAMETER_STRUCT()
 public:
+	static uint32 GetGroupSize() { return HAIR_VERTEXCOUNT_GROUP_SIZE; }
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("SHADER_POSITION_CHANGED"), TEXT("1"));
+		OutEnvironment.SetDefine(TEXT("GROUP_SIZE"), GetGroupSize());
 	}
 };
 
@@ -3896,8 +3898,6 @@ static void AddHairStrandsHasPositionChangedPass(
 	FRDGBufferUAVRef InvalidationBuffer)
 {
 	const uint32 VertexCount = HairGroupPublicData->VertexCount;
-	const uint32 GroupSize = 64;
-	const FIntVector DispatchCount = ComputeDispatchCount(VertexCount, GroupSize);
 
 	FRDGBufferRef InvalidationPrintCounter = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Hair.InvalidationPrintCounter"));
 	FRDGBufferUAVRef InvalidationPrintCounterUAV = GraphBuilder.CreateUAV(InvalidationPrintCounter, PF_R32_UINT);
@@ -3905,7 +3905,6 @@ static void AddHairStrandsHasPositionChangedPass(
 
 	FHairStrandsPositionChangedCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsPositionChangedCS::FParameters>();
 	Parameters->VertexCount = VertexCount;
-	Parameters->DispatchCountX = DispatchCount.X;
 	Parameters->PositionThreshold2 = FMath::Square(GHairStrands_InvalidationPosition_Threshold);
 	Parameters->bDrawInvalidElement = GHairStrands_InvalidationPosition_Debug > 0 ? 1u : 0u;
 	Parameters->HairStrandsVF_bIsCullingEnable = 0u;
@@ -3924,6 +3923,7 @@ static void AddHairStrandsHasPositionChangedPass(
 		Parameters->HairStrandsVF_bIsCullingEnable = 1;
 	}
 
+	const FIntVector DispatchCount(FMath::DivideAndRoundUp(VertexCount, FHairStrandsPositionChangedCS::GetGroupSize()), 1, 1);
 	TShaderMapRef<FHairStrandsPositionChangedCS> ComputeShader(View->ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,

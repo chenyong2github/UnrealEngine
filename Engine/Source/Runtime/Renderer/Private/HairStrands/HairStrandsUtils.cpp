@@ -335,17 +335,6 @@ FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
 	return FIntVector(DispatchCountX, DispatchCountY, 1);
 }
 
-FIntVector ComputeDispatchCount(uint32 GroupCount)
-{
-	const uint32 DispatchCountX = FMath::FloorToInt(FMath::Sqrt(static_cast<float>(GroupCount)));
-	const uint32 DispatchCountY = DispatchCountX + FMath::DivideAndRoundUp(GroupCount - DispatchCountX * DispatchCountX, DispatchCountX);
-
-	check(DispatchCountX <= 65535);
-	check(DispatchCountY <= 65535);
-	check(GroupCount <= DispatchCountX * DispatchCountY);
-	return FIntVector(DispatchCountX, DispatchCountY, 1);
-}
-
 FVector4f PackHairRenderInfo(
 	float PrimaryRadiusAtDepth1,
 	float StableRadiusAtDepth1,

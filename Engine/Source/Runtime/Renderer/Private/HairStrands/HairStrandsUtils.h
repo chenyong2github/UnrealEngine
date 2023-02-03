@@ -55,7 +55,6 @@ uint32 GetVendorOptimalGroupSize1D();
 FIntPoint GetVendorOptimalGroupSize2D();
 
 FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize);
-FIntVector ComputeDispatchCount(uint32 GroupCount);
 
 enum class  EHairStrandsCompositionType : uint8
 {

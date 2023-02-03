@@ -9,7 +9,6 @@
 #if SHADER_RT_GEOMETRY
 
 uint VertexCount;
-uint DispatchCountX;
 
 float HairStrandsVF_HairRadius;
 float HairStrandsVF_HairRootScale;
@@ -31,14 +30,6 @@ Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
 Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
 Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
 Buffer<uint>	HairStrandsVF_CullingIndirectBufferArgs;
-#endif
-
-#if PERMUTATION_GROUP_SIZE == 64
-	#define GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 32
-	#define GROUP_SIZE 32
-#else
-	#error Unknown group size	
 #endif
 
 FHairControlPoint GetControlPoint(uint ControlPointId)
@@ -163,10 +154,18 @@ bool IsValidPosition(FHairControlPoint P)
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 {
-	uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
+	uint VertexIndex0 = DispatchThreadId;
 	uint VertexIndex1 = VertexIndex0 + 1;
+
+	const bool bIsValid = VertexIndex0 < VertexCount && VertexIndex1 < VertexCount;
+	if (!bIsValid)
+	{
+		SetInvalidSegment(VertexIndex0);
+		return;
+	}
+
 	float LodRadiusScale0 = 1;
 	float LodRadiusScale1 = 1;
 
@@ -186,7 +185,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		LodRadiusScale0 = HairStrandsVF_CullingRadiusScaleBuffer[VertexIndex0];
 		SourceIndex1 = HairStrandsVF_CullingIndexBuffer[VertexIndex1];
 		LodRadiusScale1 = HairStrandsVF_CullingRadiusScaleBuffer[VertexIndex1];
-
 
 		if (LodRadiusScale0 <= 0.0f)
 		{
@@ -295,9 +293,12 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #include "../ShaderPrint.ush"
 #include "HairStrandsAABBCommon.ush"
 
+#if GROUP_SIZE != 1024
+#error GROUP_SIZE has changed, please update the reduction code.
+#endif
+
 uint VertexCount;
 uint bDrawInvalidElement;
-uint DispatchCountX;
 float PositionThreshold2;
 
 uint HairStrandsVF_bIsCullingEnable;
@@ -309,7 +310,6 @@ Buffer<int> 	 GroupAABBBuffer;
 RWBuffer<uint> 	 InvalidationBuffer;
 RWBuffer<uint> 	 InvalidationPrintCounter;
 
-#define GROUP_SIZE 64
 groupshared uint s_InvalidMask[GROUP_SIZE];
 
 [numthreads(GROUP_SIZE, 1, 1)]
@@ -322,19 +322,21 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_
 	if (!bIsAlreadyInvalid)
 	{
 		// Fetch vertex index if culling is enabled
-		uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
-		if (HairStrandsVF_bIsCullingEnable)
+		uint VertexIndex0 = DispatchThreadId;
+		bool bIsValid = VertexIndex0 < VertexCount;
+		if (bIsValid && HairStrandsVF_bIsCullingEnable)
 		{
 			const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
-			uint FetchIndex0 = VertexIndex0;
-			if (FetchIndex0 < VertexCountAfterCulling)
+			const uint FetchIndex0 = DispatchThreadId;
+			bIsValid = FetchIndex0 < VertexCountAfterCulling;
+			if (bIsValid)
 			{
 				VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
 			}
 		}
 
 		// Position comparison
-		if (VertexIndex0 < VertexCount)
+		if (bIsValid)
 		{
 			const FHairControlPoint Curr = UnpackHairControlPoint(CurrPositionBuffer[VertexIndex0], float3(0, 0, 0), 1, 1, 1);
 			const FHairControlPoint Prev = UnpackHairControlPoint(PrevPositionBuffer[VertexIndex0], float3(0, 0, 0), 1, 1, 1);
@@ -357,6 +359,25 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_
 	}
 
 	// Reduction
+	if (LinearIndex < 512)
+	{
+		s_InvalidMask[LinearIndex] = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 512];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 256)
+	{
+		s_InvalidMask[LinearIndex] = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 256];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 128)
+	{
+		s_InvalidMask[LinearIndex] = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 128];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 64)
+	{
+		s_InvalidMask[LinearIndex] = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 64];
+	}
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 32)
 	{

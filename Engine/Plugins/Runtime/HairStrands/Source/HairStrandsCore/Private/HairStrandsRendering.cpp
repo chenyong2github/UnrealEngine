@@ -88,18 +88,6 @@ static FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
 	return FIntVector(DispatchCountX, DispatchCountY, 1);
 }
 
-// Same as above but the group count is what matters and is preserved
-static FIntVector ComputeDispatchCount(uint32 GroupCount)
-{
-	const uint32 DispatchCountX = FMath::FloorToInt(FMath::Sqrt(static_cast<float>(GroupCount)));
-	const uint32 DispatchCountY = DispatchCountX + FMath::DivideAndRoundUp(GroupCount - DispatchCountX * DispatchCountX, DispatchCountX);
-
-	check(DispatchCountX <= 65535);
-	check(DispatchCountY <= 65535);
-	check(GroupCount <= DispatchCountX * DispatchCountY);
-	return FIntVector(DispatchCountX, DispatchCountY, 1);
-}
-
 inline uint32 ComputeGroupSize()
 {
 	const uint32 GroupSize = IsRHIDeviceAMD() ? 64 : (IsRHIDeviceNVIDIA() ? 32 : 64);
@@ -128,11 +116,13 @@ class FTransferVelocityPassCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
+	static uint32 GetGroupSize() { return HAIR_VERTEXCOUNT_GROUP_SIZE; }
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_HAIRTRANSFER_PREV_POSITION"), 1);
+		OutEnvironment.SetDefine(TEXT("GROUP_SIZE"), GetGroupSize());
 	}
 };
 
@@ -147,23 +137,19 @@ static void AddTransferPositionPass(
 {
 	if (ElementCount == 0) return;
 
-	const uint32 GroupSize = 64;
-	const uint32 DispatchCount = FMath::DivideAndRoundUp(ElementCount, GroupSize);
-	const uint32 DispatchCountX = 128;
-	const uint32 DispatchCountY = FMath::DivideAndRoundUp(DispatchCount, DispatchCountX);
-
 	FTransferVelocityPassCS::FParameters* Parameters = GraphBuilder.AllocParameters<FTransferVelocityPassCS::FParameters>();
 	Parameters->ElementCount = ElementCount;
 	Parameters->InBuffer = InBuffer;
 	Parameters->OutBuffer = OutBuffer;
 
+	const FIntVector DispatchCount(FMath::DivideAndRoundUp(ElementCount, FTransferVelocityPassCS::GetGroupSize()), 1, 1);
 	TShaderMapRef<FTransferVelocityPassCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrands::TransferPositionForVelocity"),
 		ComputeShader,
 		Parameters,
-		FIntVector(DispatchCountX, DispatchCountY, 1));
+		DispatchCount);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,21 +161,22 @@ class FGroomCacheUpdatePassCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, ElementCount)
-		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(int, bHasRadiusData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InAnimatedBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InRadiusBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InRestPoseBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InDeformedOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutDeformedBuffer)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 public:
+	static uint32 GetGroupSize() { return HAIR_VERTEXCOUNT_GROUP_SIZE; }
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_GROOMCACHE_UPDATE"), 1);
+		OutEnvironment.SetDefine(TEXT("GROUP_SIZE"), GetGroupSize());
 	}
 };
 
@@ -208,9 +195,6 @@ static void AddGroomCacheUpdatePass(
 	TRACE_CPUPROFILER_EVENT_SCOPE(AddGroomCacheUpdatePass);
 
 	if (ElementCount == 0) return;
-
-	const uint32 GroupSize = 64;
-	const FIntVector DispatchCount = ComputeDispatchCount(ElementCount, GroupSize);
 
 	FRDGBufferRef VertexBuffer = nullptr;
 
@@ -236,7 +220,6 @@ static void AddGroomCacheUpdatePass(
 	}
 
 	FGroomCacheUpdatePassCS::FParameters* Parameters = GraphBuilder.AllocParameters<FGroomCacheUpdatePassCS::FParameters>();
-	Parameters->DispatchCountX = DispatchCount.X;
 	Parameters->ElementCount = ElementCount;
 	Parameters->InAnimatedBuffer = GraphBuilder.CreateSRV(VertexBuffer, PF_R32_FLOAT);
 	Parameters->InRestPoseBuffer = InBuffer;
@@ -265,6 +248,7 @@ static void AddGroomCacheUpdatePass(
 	}
 	Parameters->bHasRadiusData = bHasRadiusData ? 1 : 0;
 
+	const FIntVector DispatchCount = FIntVector(FMath::DivideAndRoundUp(ElementCount, FGroomCacheUpdatePassCS::GetGroupSize()), 0, 0);
 	TShaderMapRef<FGroomCacheUpdatePassCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
@@ -281,14 +265,12 @@ class FDeformGuideCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FDeformGuideCS);
 	SHADER_USE_PARAMETER_STRUCT(FDeformGuideCS, FGlobalShader);
 
-	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FDeformationType : SHADER_PERMUTATION_INT("PERMUTATION_DEFORMATION", 5);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDeformationType>;
+	using FPermutationDomain = TShaderPermutationDomain<FDeformationType>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(FVector3f, SimRestOffset)
-		SHADER_PARAMETER(uint32, DispatchCountX)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, SimRestPosition0Buffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, SimRestPosition1Buffer)
@@ -314,7 +296,14 @@ class FDeformGuideCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
+	static uint32 GetGroupSize() { return HAIR_VERTEXCOUNT_GROUP_SIZE; }
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_DEFORM_GUIDE"), 1);
+		OutEnvironment.SetDefine(TEXT("GROUP_SIZE"), GetGroupSize());
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FDeformGuideCS, "/Engine/Private/HairStrands/HairStrandsGuideDeform.usf", "MainCS", SF_Compute);
@@ -354,18 +343,12 @@ static void AddDeformSimHairStrandsPass(
 
 	if (InternalDeformationType == InternalDeformationTypeCount) return;
 
-	const uint32 GroupSize = ComputeGroupSize();
-	const uint32 DispatchCount = FMath::DivideAndRoundUp(VertexCount, GroupSize);
-	const uint32 DispatchCountX = 16;
-	const uint32 DispatchCountY = FMath::DivideAndRoundUp(DispatchCount, DispatchCountX);
-
 	FDeformGuideCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDeformGuideCS::FParameters>();
 	Parameters->SimRestPosePositionBuffer = SimRestPosePositionBuffer;
 	Parameters->OutSimDeformedPositionBuffer = OutSimDeformedPositionBuffer.UAV;
 	Parameters->VertexCount = VertexCount;
 	Parameters->SimDeformedOffsetBuffer = SimDeformedOffsetBuffer;
 	Parameters->SimRestOffset = (FVector3f)SimRestOffset;
-	Parameters->DispatchCountX = DispatchCountX;
 
 	if (DeformationType == EDeformationType::OffsetGuide)
 	{
@@ -426,16 +409,16 @@ static void AddDeformSimHairStrandsPass(
 	}
 
 	FDeformGuideCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FDeformGuideCS::FGroupSize>(GroupSize);
 	PermutationVector.Set<FDeformGuideCS::FDeformationType>(InternalDeformationType);
 
+	const FIntVector DispatchCount(FMath::DivideAndRoundUp(VertexCount,FDeformGuideCS::GetGroupSize()), 1, 1);
 	TShaderMapRef<FDeformGuideCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrands::DeformSimHairStrands"),
 		ComputeShader,
 		Parameters,
-		FIntVector(DispatchCountX, DispatchCountY, 1));
+		DispatchCount);
 
 	GraphBuilder.SetBufferAccessFinal(OutSimDeformedPositionBuffer.Buffer, ERHIAccess::SRVMask);
 }
@@ -1009,9 +992,8 @@ class FHairCardsDeformationCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairCardsDeformationCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairCardsDeformationCS, FGlobalShader);
 
-	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDynamicGeometry>;
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicGeometry>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FMatrix44f, LocalToWorld)
@@ -1044,7 +1026,14 @@ class FHairCardsDeformationCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
+	static uint32 GetGroupSize() { return 256u; }
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Cards, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_DEFORM_CARDS"), 1);
+		OutEnvironment.SetDefine(TEXT("GROUP_SIZE"), GetGroupSize());
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairCardsDeformationCS, "/Engine/Private/HairStrands/HairCardsDeformation.usf", "MainCS", SF_Compute);
@@ -1131,20 +1120,17 @@ static void AddHairCardsDeformationPass(
 		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderDrawParameters);
 	}
 
-	const uint32 GroupSize = ComputeGroupSize();
 	FHairCardsDeformationCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairCardsDeformationCS::FDynamicGeometry>(bSupportDynamicMesh ? 1 : 0);
-	PermutationVector.Set<FHairCardsDeformationCS::FGroupSize>(GroupSize);
-
 	TShaderMapRef<FHairCardsDeformationCS> ComputeShader(ShaderMap, PermutationVector);
 
-	const int32 DispatchCountX = FMath::DivideAndRoundUp(Parameters->CardsVertexCount, GroupSize);
+	const FIntVector DispatchCount = FIntVector(FMath::DivideAndRoundUp(Parameters->CardsVertexCount, FHairCardsDeformationCS::GetGroupSize()), 1, 1);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrands::CardsDeformation(%s)", bSupportDynamicMesh ? TEXT("Dynamic") : TEXT("Static")),
 		ComputeShader,
 		Parameters,
-		FIntVector(DispatchCountX,1,1));
+		DispatchCount);
 
 	// If LOD has switched, copy the current buffer, so that we don't get incorrect motion vector
 	if (bHasLODSwitch)
@@ -1244,14 +1230,12 @@ class FHairRaytracingGeometryCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairRaytracingGeometryCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairRaytracingGeometryCS, FGlobalShader);
 
-	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FCulling : SHADER_PERMUTATION_BOOL("PERMUTATION_CULLING");
 	class FProceduralPrimitive : SHADER_PERMUTATION_BOOL("PERMUTATION_PROCEDURAL_PRIMITIVE"); 
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCulling, FProceduralPrimitive>;
+	using FPermutationDomain = TShaderPermutationDomain<FCulling, FProceduralPrimitive>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
-		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(float, HairStrandsVF_HairRadius)
 		SHADER_PARAMETER(float, HairStrandsVF_HairRootScale)
 		SHADER_PARAMETER(float, HairStrandsVF_HairTipScale)
@@ -1272,11 +1256,13 @@ class FHairRaytracingGeometryCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
+	static uint32 GetGroupSize() { return HAIR_VERTEXCOUNT_GROUP_SIZE; }
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_RT_GEOMETRY"), 1);
+		OutEnvironment.SetDefine(TEXT("GROUP_SIZE"), GetGroupSize());
 	}
 };
 
@@ -1308,12 +1294,8 @@ static void AddGenerateRaytracingGeometryPass(
 	const FRDGBufferUAVRef& OutPositionBuffer,
 	const FRDGBufferUAVRef& OutIndexBuffer)
 {
-	const uint32 GroupSize = ComputeGroupSize();
-	const FIntVector DispatchCount = ComputeDispatchCount(VertexCount, GroupSize);
-
 	FHairRaytracingGeometryCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairRaytracingGeometryCS::FParameters>();
 	Parameters->VertexCount = VertexCount;
-	Parameters->DispatchCountX = DispatchCount.X;
 	Parameters->PositionOffsetBuffer = HairWorldOffsetBuffer;
 	Parameters->HairStrandsVF_HairRadius = HairRadius;
 	Parameters->HairStrandsVF_HairRootScale = RootScale;
@@ -1340,10 +1322,11 @@ static void AddGenerateRaytracingGeometryPass(
 	}
 
 	FHairRaytracingGeometryCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairRaytracingGeometryCS::FGroupSize>(GroupSize);
 	PermutationVector.Set<FHairRaytracingGeometryCS::FCulling>(bCullingEnable);
 	PermutationVector.Set<FHairRaytracingGeometryCS::FProceduralPrimitive>(bProceduralPrimitive);
 	TShaderMapRef<FHairRaytracingGeometryCS> ComputeShader(ShaderMap, PermutationVector);
+
+	const FIntVector DispatchCount(FMath::DivideAndRoundUp(VertexCount, FHairRaytracingGeometryCS::GetGroupSize()), 1, 1);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrands::GenerateRaytracingGeometry(bCulling:%d, Procedural:%d)", bCullingEnable, bProceduralPrimitive),

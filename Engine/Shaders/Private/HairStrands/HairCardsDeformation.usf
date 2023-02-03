@@ -10,6 +10,7 @@
 #include "../ShaderPrint.ush"?
 #endif
 
+#if SHADER_DEFORM_CARDS
 float4x4 LocalToWorld;
 
 uint CardsVertexCount;
@@ -39,16 +40,6 @@ Buffer<float4>  TriangleDeformedPosition2Buffer;
 Buffer<uint>	GuideRootBarycentricBuffer;
 Buffer<uint>    GuideVertexToRootIndexBuffer;
 Buffer<uint>    GuideRootToUniqueTriangleIndexBuffer;
-
-
-#if PERMUTATION_GROUP_SIZE == 64
-	#define GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 32
-	#define GROUP_SIZE 32
-#else
-	#error Unknown group size	
-#endif
-
 
 #if PERMUTATION_DYNAMIC_GEOMETRY == 1
 float3 ComputeDynamicGeometryOffset(
@@ -87,9 +78,9 @@ void CopyTangent(uint InVertexId, uint InOffset)
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint VertexId = DispatchThreadId.x;
+	const uint VertexId = DispatchThreadId;
 	if (VertexId >= CardsVertexCount)
 		return;
 
@@ -188,3 +179,4 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	TransformTangent(VertexId, 1, RestTriangle, DeformedTriangle);
 #endif // PERMUTATION_DYNAMIC_GEOMETRY
 }
+#endif // SHADER_DEFORM_CARDS

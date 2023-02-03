@@ -4,21 +4,15 @@
 #include "HairStrandsClusterCommon.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
 
+#if SHADER_DEFORM_GUIDE
+
 float3 SimRestOffset;
 uint VertexCount;
-uint DispatchCountX; 
 
 Buffer<float4> SimDeformedOffsetBuffer;
 Buffer<uint4> SimRestPosePositionBuffer;
 RWBuffer<uint4> OutSimDeformedPositionBuffer;
 
-#if PERMUTATION_GROUP_SIZE == 64
-	#define GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 32
-	#define GROUP_SIZE 32
-#else
-	#error Unknown group size	
-#endif
 
 #define DEFORMATION_BYPASS 0
 #define DEFORMATION_OFFSET_GUIDE 1
@@ -109,9 +103,9 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos)
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint VertexIndex = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
+	const uint VertexIndex = DispatchThreadId;
 	
 	if (VertexIndex < VertexCount)
 	{
@@ -121,3 +115,5 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		OutSimDeformedPositionBuffer[VertexIndex] = uint4(f32tof16(DisplacedPosition), Data.w);
 	}
 }
+
+#endif // SHADER_DEFORM_GUIDE
