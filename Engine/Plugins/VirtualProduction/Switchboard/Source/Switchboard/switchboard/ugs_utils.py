@@ -1,29 +1,38 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+import csv
 import io
 import logging
-from os import path
-from pathlib import Path
+import os
+import pathlib
 import re
 import shutil
 import subprocess
 import sys
-from typing import Callable, Dict, List, Optional, TextIO, Union
+from typing import Callable, Optional, TextIO, Union
+import uuid
 
-from . import switchboard_utils as sb_utils
+from . import p4_utils, switchboard_utils as sb_utils
+
+try:
+    import P4
+    P4PYTHON_AVAILABLE = True
+except ImportError:
+    P4PYTHON_AVAILABLE = False
 
 
 def find_bin(
-    dir_to_look_under: Optional[Path] = None
-) -> Optional[Path]:
+    dir_to_look_under: Optional[pathlib.Path] = None
+) -> Optional[pathlib.Path]:
     ugs_dir = dir_to_look_under
 
     if not ugs_dir:
         env_ugs_path = shutil.which('ugs')
         if env_ugs_path:
-            ugs_dir = Path(env_ugs_path).parent
+            ugs_dir = pathlib.Path(env_ugs_path).parent
         elif sys.platform.startswith('win'):
-            ugs_dir = path.join('${LOCALAPPDATA}', 'UnrealGameSync', 'Latest')
+            ugs_dir = os.path.join('${LOCALAPPDATA}', 'UnrealGameSync',
+                                   'Latest')
         # elif:
             # for other platforms we don't have a default install location (the
             # dll is usually installed from perforce, which could go anywhere)
@@ -39,24 +48,24 @@ def find_bin(
                       'library (ugs.dll). ' + INSTALL_PATH_SUGGESTION)
         return None
 
-    ugs_bin_path = path.join(path.expandvars(ugs_dir), 'ugs.dll')
-    if not path.exists(ugs_bin_path):
+    ugs_bin_path = os.path.join(os.path.expandvars(ugs_dir), 'ugs.dll')
+    if not os.path.exists(ugs_bin_path):
         logging.error(f"Failed to find '{ugs_bin_path}'. "
                       + INSTALL_PATH_SUGGESTION)
         return None
 
-    return Path(ugs_bin_path)
+    return pathlib.Path(ugs_bin_path)
 
 
 def setup_dependencies(
-    ue_engine_dir: Path
+    ue_engine_dir: pathlib.Path
 ) -> int:
     logging.debug('Verifying UnrealGameSync dependencies.')
 
     if sys.platform.startswith('win'):
         script_name = 'GetDotnetPath.bat'
-        dotnet_setup_script = path.join(ue_engine_dir, 'Build', 'BatchFiles',
-                                        script_name)
+        dotnet_setup_script = os.path.join(ue_engine_dir, 'Build',
+                                           'BatchFiles', script_name)
         dotnet_setup_args = [dotnet_setup_script]
     else:
         if sys.platform.startswith('darwin'):
@@ -64,11 +73,11 @@ def setup_dependencies(
         else:
             platform_dirname = 'Linux'
 
-        platform_scripts_dir = path.join(ue_engine_dir, 'Build', 'BatchFiles',
-                                         platform_dirname)
+        platform_scripts_dir = os.path.join(ue_engine_dir, 'Build',
+                                            'BatchFiles', platform_dirname)
 
         script_name = 'SetupEnvironment.sh'
-        dotnet_setup_script = path.join(platform_scripts_dir, script_name)
+        dotnet_setup_script = os.path.join(platform_scripts_dir, script_name)
         dotnet_setup_args = [dotnet_setup_script, '-dotnet',
                              platform_scripts_dir]
 
@@ -93,8 +102,8 @@ def setup_dependencies(
 
 
 def _find_engine_dir(
-    uproj_path: Path
-) -> Optional[Path]:
+    uproj_path: pathlib.Path
+) -> Optional[pathlib.Path]:
     iter_dir = uproj_path.parent
     while not iter_dir.samefile(iter_dir.anchor):
         candidate = iter_dir / 'Engine'
@@ -107,9 +116,9 @@ def _find_engine_dir(
 
 
 def _get_active_ugs_context(
-    ugs_dll_path: Path,
-    cwd: Optional[Path] = None
-) -> Optional[Dict[str, str]]:
+    ugs_dll_path: pathlib.Path,
+    cwd: Optional[pathlib.Path] = None
+) -> Optional[dict[str, str]]:
     # Assumes UGS dependencies have been already setup (prevents us from
     # redundantly running `setup_dependencies()`)
 
@@ -121,7 +130,7 @@ def _get_active_ugs_context(
                               startupinfo=sb_utils.get_hidden_sp_startupinfo()
                               ) as status_proc:
             for status_line in status_proc.stdout:
-                status_line_str =  status_line.decode().rstrip()
+                status_line_str = status_line.decode().rstrip()
                 logging.debug(f'ugs> {status_line_str}')
                 if 'Project:' in status_line_str:
                     match = re.match(r"Project:\s*//(\S+?)/(\S+)",
@@ -145,9 +154,9 @@ def _get_active_ugs_context(
 
 
 def _set_active_ugs_context(
-    ugs_dll_path: Path,
-    ugs_settings: Dict[str, str],
-    cwd: Optional[Path] = None
+    ugs_dll_path: pathlib.Path,
+    ugs_settings: dict[str, str],
+    cwd: Optional[pathlib.Path] = None
 ) -> int:
     # Assumes UGS dependencies have been already setup (prevents us from
     # redundantly running `setup_dependencies()`)
@@ -172,9 +181,9 @@ def _set_active_ugs_context(
 
 
 def run(
-    ugs_args: Union[str, List[str]],
-    uproj_path: Path,
-    ugs_bin_dir: Optional[Path] = None,
+    ugs_args: Union[str, list[str]],
+    uproj_path: pathlib.Path,
+    ugs_bin_dir: Optional[pathlib.Path] = None,
     user: Optional[str] = None,
     client: Optional[str] = None,
     output_handling_fn: Optional[Callable[[str], int]] = None,
@@ -214,9 +223,9 @@ def run(
     logging.info('Setting UnrealGameSync context.')
     # UGS expects a project path relative to the repo's root
     if ue_engine_dir:
-        sanitized_proj_path = path.relpath(uproj_path, ue_engine_dir.parent)
+        sanitized_proj_path = os.path.relpath(uproj_path, ue_engine_dir.parent)
     else:
-        sanitized_proj_path = uproj_path
+        sanitized_proj_path = str(uproj_path)
     # and only accepts paths with delimited by forward-slashes
     sanitized_proj_path = sanitized_proj_path.replace('\\', '/')
     op_context_params = {'project': sanitized_proj_path}
@@ -272,10 +281,10 @@ def run(
 
 
 def sync(
-    uproj_path: Path,
+    uproj_path: pathlib.Path,
     sync_cl: Optional[int] = None,
     sync_pcbs: Optional[bool] = False,
-    ugs_bin_dir: Optional[Path] = None,
+    ugs_bin_dir: Optional[pathlib.Path] = None,
     user: Optional[str] = None,
     client: Optional[str] = None
 ) -> Optional[int]:
@@ -299,11 +308,11 @@ def sync(
 
 
 def latest_chagelists(
-    uproj_path: Path,
-    ugs_bin_dir: Optional[Path] = None,
+    uproj_path: pathlib.Path,
+    ugs_bin_dir: Optional[pathlib.Path] = None,
     user: Optional[str] = None,
     client: Optional[str] = None
-) -> Optional[List[int]]:
+) -> Optional[list[int]]:
 
     changelist_list = []
 
@@ -330,14 +339,14 @@ def latest_chagelists(
 
 
 def get_depot_config_paths(
-    engine_dir: Union[str, Path],
-    project_dir: Union[str, Path]
-) -> List[str]:
+    engine_dir: Optional[Union[str, pathlib.Path]],
+    project_dir: Optional[Union[str, pathlib.Path]]
+) -> list[str]:
     # See GetDepotConfigPaths in UnrealGameSyncShared/Utility.cs
-    engine_dir = str(engine_dir)
-    project_dir = str(project_dir)
+    engine_dir = str(engine_dir) if engine_dir else None
+    project_dir = str(project_dir) if project_dir else None
 
-    config_paths: List[str] = []
+    config_paths: list[str] = []
 
     def add_platform_dirs(base: str, filename: str):
         config_paths.extend([
@@ -350,11 +359,13 @@ def get_depot_config_paths(
         add_platform_dirs(f'{base}/Platforms/*{rel}', filename)
         add_platform_dirs(f'{base}/Restricted/*{rel}', filename)
 
-    add_platform_extensions(engine_dir, '/Programs/UnrealGameSync',
-                            'UnrealGameSync.ini')
+    if engine_dir:
+        add_platform_extensions(engine_dir, '/Programs/UnrealGameSync',
+                                'UnrealGameSync.ini')
 
-    add_platform_extensions(project_dir, '/Build',
-                            'UnrealGameSync.ini')
+    if project_dir:
+        add_platform_extensions(project_dir, '/Build',
+                                'UnrealGameSync.ini')
 
     return config_paths
 
@@ -367,7 +378,7 @@ class IniParser:
     class Section:
         def __init__(self, name: str):
             self.name = name
-            self.pairs: Dict[str, str] = {}
+            self.pairs: dict[str, str] = {}
 
         def set_value(self, key: str, value: str):
             self.pairs[key] = value
@@ -379,7 +390,7 @@ class IniParser:
                 self.pairs[key] = value
 
     def __init__(self):
-        self.sections: Dict[str, IniParser.Section] = {}
+        self.sections: dict[str, IniParser.Section] = {}
 
     def read_string(self, string: str, source: str):
         sfile = io.StringIO(string)
@@ -394,14 +405,19 @@ class IniParser:
 
         self._read(file, source)
 
-    def try_get(self, section_name: str, key: str) -> Optional[List[str]]:
+    def try_get(self, section_name: str, key: str) -> Optional[list[str]]:
+        value = self.try_get_raw(section_name, key)
+        return value.splitlines() if value is not None else None
+
+    def try_get_raw(self, section_name: str, key: str) -> Optional[str]:
+        ''' Multiple/appended values will be returned separated by '\\n' '''
         section = self.sections.get(section_name)
         if section is None:
             return None
         value = section.pairs.get(key)
         if value is None:
             return None
-        return value.splitlines()
+        return value
 
     def _read(self, file: TextIO, source: str):
         # See Parse() in UnrealGameSyncShared/ConfigFile.cs
@@ -456,3 +472,184 @@ class IniParser:
                     logging.info(f'{key}=')
                     for line in value_lines:
                         logging.info(f'\t{line}')
+
+
+def parse_depot_ugs_configs(
+    engine_dir: Optional[Union[str, pathlib.Path]],
+    project_dir: Optional[Union[str, pathlib.Path]],
+    p4user: Optional[str] = None,
+    p4client: Optional[str] = None,
+) -> IniParser:
+    '''
+    Given local or depot engine and/or project paths, search the Perforce depot
+    for UnrealGameSync.ini configs at known locations, coalesce their contents,
+    and return an `IniParser` populated with the results.
+    '''
+
+    p4opts = {'user': p4user, 'client': p4client}
+
+    logging.debug('Parsing UnrealGameSync configuration from depot')
+
+    # Might append depot wildcards to host paths and end up with mixed syntax
+    # here, but the fstat separates them into normalized depot/host paths.
+    mixed_config_paths = get_depot_config_paths(engine_dir, project_dir)
+
+    config_fstats = p4_utils.p4_fstat(mixed_config_paths, **p4opts)
+
+    config_contents_map: dict[str, Optional[str]] = {}
+
+    # First pass: get contents of locally modified files, or depot paths
+    # of files to `p4 print` in the second pass otherwise
+    for record in config_fstats:
+        action: Optional[bytes] = record.get(b'action')
+        head_action: Optional[bytes] = record.get(b'headAction')
+        if record[b'code'] == b'stat':
+            if (b'clientFile' in record) and (b'action' in record):
+                # If the client file exists and is modified, use local ver
+                client_path = pathlib.Path(record[b'clientFile'].decode())
+                if client_path.exists and action == b'edit':
+                    local_contents = client_path.read_text()
+                    config_contents_map[str(client_path)] = local_contents
+                    continue
+                elif action == b'delete':
+                    continue
+
+            if head_action == b'delete':
+                continue
+
+            if b'depotFile' in record:
+                depot_file = record[b'depotFile'].decode()
+                config_contents_map[depot_file] = None
+                continue
+
+        logging.warning(f'Unhandled fstat record: {record}')
+
+    # Second pass: p4 prints of depot configs @ head
+    depot_print_paths = [k for k, v in config_contents_map.items()
+                         if v is None]  # configs we didn't read locally
+
+    config_prints = p4_utils.p4_print(depot_print_paths, **p4opts)
+
+    for depot_path, record in zip(depot_print_paths, config_prints):
+        if record.is_valid:
+            config_contents_map[depot_path] = record.text
+        else:
+            logging.warning(f'Invalid P4PrintResult for {depot_path}')
+
+    parser = IniParser()
+    for path, contents in config_contents_map.items():
+        if contents is None:
+            logging.warning(f'No contents for {path}')
+            continue
+
+        parser.read_string(contents, path)
+
+    return parser
+
+
+class SyncFilters:
+    '''
+    Determines whether given paths are excluded, based on a list of rules
+    containing Perforce-style wildcards.
+
+    These rules can be extracted from UnrealGameSync.ini files (see
+    `read_categories_from_ini_parser()`), or added via calls directly to
+    `SyncFilters.map.insert()`.
+
+    To test a path against the filters, use `SyncFilters.includes_path()`.
+
+    Examples:
+        - `-/ExcludedRoot/...`
+        - `-*.excludedfileextension`
+        - `-.../SubdirectoryExcludedAnywhere/...`
+    '''
+
+    @classmethod
+    def supported(cls):
+        return P4PYTHON_AVAILABLE
+
+    class CsvDialect(csv.excel):
+        skipinitialspace = True
+
+    class Category:
+        def __init__(self, id: uuid.UUID, name: str, paths: list[str]):
+            self.id = id
+            self.name = name
+            self.paths = paths
+
+            self.hidden = False
+            self.requires: Optional[uuid.UUID] = None
+
+    def __init__(self):
+        self.categories: dict[uuid.UUID, SyncFilters.Category] = {}
+        self.excluded_categories: set[uuid.UUID] = set()
+        self.map = P4.Map()
+
+        self._reset_map()
+
+    def _reset_map(self):
+        self.map.clear()
+        self.map.insert('...')
+
+    def read_categories_from_ini_parser(self, config: IniParser):
+        categories_raw = config.try_get_raw('Options', 'SyncCategory')
+        if categories_raw:
+            sfile = io.StringIO(categories_raw)
+            self._read(sfile)
+
+    def exclude_category(self, category_id: uuid.UUID):
+        if category_id in self.excluded_categories:
+            return  # already excluded
+
+        category = self.categories.get(category_id)
+        if category is None:
+            logging.warning(f'exclude_category: no such category {category_id}')
+            return
+
+        self._map_exclusion(category)
+
+    def includes_path(self, path: str) -> bool:
+        return self.map.includes(path)
+
+    def _read(self, file: TextIO):
+        category_lines = [line.strip('()\r\n') for line in file]
+        category_reader = csv.reader(category_lines, SyncFilters.CsvDialect)
+        for category_fields in category_reader:
+            category_dict: dict[str, str] = {}
+            for field in category_fields:
+                key, _, value = field.partition('=')
+                value = value.strip('"')
+                category_dict[key] = value
+
+            id = uuid.UUID(hex=category_dict['UniqueId'])
+            name = category_dict['Name']
+            paths = category_dict['Paths'].split(';')
+            paths = [path.lstrip() for path in paths]
+
+            hidden = category_dict.get('Hidden', '').lower() == 'true'
+            requires = category_dict.get('Requires')
+            requires = uuid.UUID(requires) if requires else None
+
+            if id not in self.categories:
+                category = self.create_category(id, name, paths)
+                category.hidden = hidden
+                category.requires = requires
+            else:
+                # This seems weird, but... some configs need it
+                self.categories[id].paths.extend(paths)
+
+    def create_category(self, id: uuid.UUID, name: str, paths: list[str]):
+        category = SyncFilters.Category(id, name, paths)
+        self.categories[id] = category
+        return category
+
+    DIR_REGEX = re.compile(r'(\.\.\.|/|\\)')
+
+    def _map_exclusion(self, category: Category):
+        self.excluded_categories.add(category.id)
+        for path in category.paths:
+            self.map.insert(f'-{path}')
+
+            if not self.DIR_REGEX.search(path):
+                # unqualified file pattern, so also match nested instances
+                self.map.insert(f'-.../{path}')

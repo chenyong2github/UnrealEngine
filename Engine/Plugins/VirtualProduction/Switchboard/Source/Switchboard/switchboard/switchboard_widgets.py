@@ -62,7 +62,7 @@ class MultiSelectionComboBox(QtWidgets.QComboBox):
 
     def add_items(self, selected_entries, all_entries):
         for entry in all_entries:
-            self.addItem(entry)
+            self.addItem(str(entry), entry)
             item = self.model().item(self.count()-1, 0)
             item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
             state = QtCore.Qt.Checked if entry in selected_entries else QtCore.Qt.Unchecked
@@ -70,7 +70,7 @@ class MultiSelectionComboBox(QtWidgets.QComboBox):
 
         invalid_entries = [entry for entry in selected_entries if entry not in all_entries]
         for entry in invalid_entries:
-            self.addItem(entry)
+            self.addItem(str(entry), entry)
             item = self.model().item(self.count()-1, 0)
             item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
             item.setCheckState(QtCore.Qt.Checked)
@@ -117,14 +117,16 @@ class MultiSelectionComboBox(QtWidgets.QComboBox):
         # Without this, display can be incorrect when no items are checked [UE-112543].
         self.setCurrentIndex(0)
 
-        selected_entries = []
+        selected_values = []
+        selected_strings = []
         for i in range(self.count()):
             item = self.model().item(i, 0)
             if item.checkState() == QtCore.Qt.Checked:
-                selected_entries.append(self.itemText(i))
+                selected_values.append(self.itemData(i))
+                selected_strings.append(self.itemText(i))
 
-        self.setEditText(self.separator.join(selected_entries))
-        self.signal_selection_changed.emit(selected_entries)
+        self.setEditText(self.separator.join(selected_strings))
+        self.signal_selection_changed.emit(selected_values)
 
 
 # A combo box that has a static icon and opens a list of options when pressed, e.g. view options in settings

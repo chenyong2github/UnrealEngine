@@ -193,7 +193,7 @@ class HTMLogger(object):
 from io import StringIO
 _LOG_STREAM = StringIO()
 logging.basicConfig(stream=_LOG_STREAM)
-_LOGGER = logging.getLogger("switchboard")
+_LOGGER = logging.getLogger()
 DEFAULT_LOG_PATH = os.path.join(tempfile.gettempdir(), "switchboard")
 
 QT_HANDLER = QtHandler()

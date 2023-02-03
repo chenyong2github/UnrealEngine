@@ -2,14 +2,14 @@
 
 import collections
 import fnmatch
+import io
 import json
 import os
 import pathlib
 import shutil
 import socket
 import sys
-import typing
-from typing import Type
+from typing import Any, Callable, Optional, Tuple, Type, Union
 from enum import Enum
 
 from PySide2 import QtCore
@@ -35,7 +35,7 @@ DEFAULT_MAP_TEXT = '-- Default Map --'
 ENABLE_UGS_SUPPORT = False
 
 
-def migrate_comma_separated_string_to_list(value) -> typing.List[str]:
+def migrate_comma_separated_string_to_list(value) -> list[str]:
     if isinstance(value, str):
         return value.split(",")
     # Technically we should check whether every element is a string but we skip it here
@@ -70,10 +70,10 @@ class Setting(QtCore.QObject):
         attr_name: str,
         nice_name: str,
         value,
-        tool_tip: typing.Optional[str] = None,
+        tool_tip: Optional[str] = None,
         show_ui: bool = True,
         allow_reset: bool = True,
-        migrate_data: typing.Callable[[any], None] = None
+        migrate_data: Optional[Callable[[Any], None]] = None,
     ):
         '''
         Create a new Setting object.
@@ -109,7 +109,7 @@ class Setting(QtCore.QObject):
         self._base_widget = None
         self._override_widgets = {}
         self._on_setting_changed_lambdas = {}
-        
+
         # Appears when override value is different from _value
         self._allow_reset = allow_reset
         self._base_reset_widget = None
@@ -117,8 +117,19 @@ class Setting(QtCore.QObject):
 
         self._migrate_data = migrate_data
 
+        self._get_json_override_fn: Optional[Callable[[Any], Any]] = None
+        self._config_set_override_fn: Optional[Callable[[Any], Any]] = None
+
         self.tool_tip = tool_tip
         self.show_ui = show_ui
+
+    def with_get_json_override_fn(self, fn: Callable[[Any], Any]):
+        self._get_json_override_fn = fn
+        return self
+
+    def with_config_set_override_fn(self, fn: Callable[[Any], Any]):
+        self._config_set_override_fn = fn
+        return self
 
     def is_overridden(self, device_name: str) -> bool:
         try:
@@ -141,7 +152,7 @@ class Setting(QtCore.QObject):
 
         self.signal_setting_changed.emit(old_value, self._value)
         self._refresh_reset_base_widget()
-    
+
     def override_value(self, device_name: str, override):
         override = self._filter_value(override)
 
@@ -154,16 +165,38 @@ class Setting(QtCore.QObject):
 
         self._refresh_reset_override_widget(device_name)
 
-    def get_value(self, device_name: typing.Optional[str] = None):
-        def get_value(self, device_name: typing.Optional[str] = None):
+    def get_value(self, device_name: Optional[str] = None):
+        def get_value(self, device_name: Optional[str] = None):
             try:
                 return self._overrides[device_name]
             except KeyError:
                 return self._value
-            
+
         value = get_value(self, device_name)
         return self._migrate_data(value) if self._migrate_data is not None else value
-        
+
+    def get_value_json(self, device_name: Optional[str] = None):
+        # Optionally override to change serialization behavior.
+        value = self.get_value(device_name)
+
+        if self._get_json_override_fn:
+            value = self._get_json_override_fn(value)
+
+        return value
+
+    def update_value_from_config(self, new_value):
+        # Optionally override to change deserialization behavior.
+        if self._config_set_override_fn:
+            new_value = self._config_set_override_fn(new_value)
+
+        self.update_value(new_value)
+
+    def override_value_from_config(self, device_name: str, override):
+        # Optionally override to change deserialization behavior.
+        if self._config_set_override_fn:
+            override = self._config_set_override_fn(override)
+
+        self.override_value(device_name, override)
 
     def on_device_name_changed(self, old_name: str, new_name: str):
         if old_name in self._overrides.keys():
@@ -177,8 +210,8 @@ class Setting(QtCore.QObject):
         self._override_widgets = {}
 
     def _create_widgets(
-            self, override_device_name: typing.Optional[str] = None) \
-            -> typing.Union[QtWidgets.QWidget, QtWidgets.QLayout]:
+            self, override_device_name: Optional[str] = None) \
+            -> Union[QtWidgets.QWidget, QtWidgets.QLayout]:
         '''
         Create the widgets necessary to manipulate this Setting in the UI.
 
@@ -198,7 +231,7 @@ class Setting(QtCore.QObject):
 
     def _on_widget_value_changed(
             self, new_value,
-            override_device_name: typing.Optional[str] = None):
+            override_device_name: Optional[str] = None):
         '''
         Update this Setting in response to a change in value caused by UI
         manipulation.
@@ -228,7 +261,7 @@ class Setting(QtCore.QObject):
 
     def _on_setting_changed(
             self, new_value,
-            override_device_name: typing.Optional[str] = None):
+            override_device_name: Optional[str] = None):
         '''
         Callback invoked when the value of this Setting changes.
 
@@ -241,9 +274,9 @@ class Setting(QtCore.QObject):
         pass
 
     def create_ui(
-            self, override_device_name: typing.Optional[str] = None,
-            form_layout: typing.Optional[QtWidgets.QFormLayout] = None) \
-            -> typing.Union[QtWidgets.QWidget, QtWidgets.QLayout, None]:
+            self, override_device_name: Optional[str] = None,
+            form_layout: Optional[QtWidgets.QFormLayout] = None) \
+            -> Union[QtWidgets.QWidget, QtWidgets.QLayout, None]:
         '''
         Create the UI for this Setting.
 
@@ -282,28 +315,28 @@ class Setting(QtCore.QObject):
             )
 
         return top_level_widget
-    
+
     def _register_on_setting_changed(self, top_level_widget: QtWidgets.QWidget, override_device_name: str):
         on_setting_changed_lambda = lambda old_value, new_value, override_device_name=override_device_name: \
             self._on_setting_changed(new_value, override_device_name=override_device_name)
         self.signal_setting_changed.connect(
             on_setting_changed_lambda
         )
-        
+
         # Clear the widget when it is destroyed to avoid dangling references
         top_level_widget.destroyed.connect(lambda destroyed_object=None:
             self._on_widget_destroyed(on_setting_changed_lambda, override_device_name)
         )
-        
+
     def _on_widget_destroyed(self, on_setting_changed_lambda, override_device_name: str):
         self.signal_setting_changed.disconnect(on_setting_changed_lambda)
         self.set_widget(widget=None, override_device_name=override_device_name)
-    
+
     def _decorate_with_reset_widget(self, override_device_name: str, setting_editor_widget: QtWidgets.QWidget):
         # Reset will still be shown on overrides
         if not self._allow_reset and override_device_name is None:
             return setting_editor_widget
-        
+
         horizontal_box = QtWidgets.QWidget()
         horizontal_layout = QtWidgets.QHBoxLayout(horizontal_box)
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
@@ -327,7 +360,7 @@ class Setting(QtCore.QObject):
             lambda override_device_name=override_device_name:
                 self._on_press_reset_override(override_device_name)
         )
-        
+
         horizontal_layout.addWidget(button)
         is_base_reset_widget = override_device_name is None
         if is_base_reset_widget:
@@ -337,21 +370,21 @@ class Setting(QtCore.QObject):
             self._reset_override_widgets[override_device_name] = button
             self._refresh_reset_override_widget(override_device_name)
         return horizontal_box
-    
+
     def _on_press_reset_override(self, override_device_name: str):
         if override_device_name is None:
             self.update_value(self._original_value)
             self._base_reset_widget.setVisible(False)
             self._refresh_reset_override_widgets()
             return
-        
+
         if self.is_overridden(override_device_name):
             self.override_value(override_device_name, self._value)
             # Update UI
             self._on_widget_value_changed(self._value, override_device_name)
             self._on_setting_changed(self._value, override_device_name=override_device_name)
             self._reset_override_widgets[override_device_name].setVisible(False)
-            
+
     def _refresh_reset_base_widget(self):
         if self._base_reset_widget:
             self._base_reset_widget.setVisible(self._value != self._original_value)
@@ -365,8 +398,8 @@ class Setting(QtCore.QObject):
             self._reset_override_widgets[device_name].setVisible(self.is_overridden(device_name))
 
     def set_widget(
-            self, widget: typing.Optional[QtWidgets.QWidget] = None,
-            override_device_name: typing.Optional[str] = None):
+            self, widget: Optional[QtWidgets.QWidget] = None,
+            override_device_name: Optional[str] = None):
         '''
         Set the widget to be used to manipulate this Setting, or
         this particular device's override of the Setting.
@@ -387,8 +420,8 @@ class Setting(QtCore.QObject):
                 self._override_widgets[override_device_name] = widget
 
     def get_widget(
-            self, override_device_name: typing.Optional[str] = None) \
-            -> typing.Optional[QtWidgets.QWidget]:
+            self, override_device_name: Optional[str] = None) \
+            -> Optional[QtWidgets.QWidget]:
         '''
         Get the widget to be used to manipulate this Setting, or
         this particular device's override of the Setting.
@@ -397,7 +430,7 @@ class Setting(QtCore.QObject):
         '''
         return self._override_widgets.get(
             override_device_name, self._base_widget)
-    
+
 
 class BoolSetting(Setting):
     '''
@@ -405,7 +438,7 @@ class BoolSetting(Setting):
     '''
 
     def _create_widgets(
-            self, override_device_name: typing.Optional[str] = None) \
+            self, override_device_name: Optional[str] = None) \
             -> QtWidgets.QCheckBox:
         check_box = QtWidgets.QCheckBox()
         check_box.setChecked(self.get_value(override_device_name))
@@ -424,7 +457,7 @@ class BoolSetting(Setting):
 
     def _on_setting_changed(
             self, new_value: bool,
-            override_device_name: typing.Optional[str] = None):
+            override_device_name: Optional[str] = None):
         widget = self.get_widget(override_device_name=override_device_name)
         if widget:
             widget.setChecked(new_value)
@@ -442,16 +475,16 @@ class IntSetting(Setting):
     '''
     A UI-displayable Setting for storing and modifying an integer value.
     '''
-    
+
     def __init__(
         self,
         attr_name: str,
         nice_name: str,
         value: str,
-        tool_tip: typing.Optional[str] = None,
+        tool_tip: Optional[str] = None,
         show_ui: bool = True,
         allow_reset: bool = True,
-        migrate_data: typing.Callable[[any], None] = None,
+        migrate_data: Optional[Callable[[Any], None]] = None,
         is_read_only: bool = False
     ):
         '''
@@ -472,7 +505,7 @@ class IntSetting(Setting):
         self.is_read_only = is_read_only
 
     def _create_widgets(
-            self, override_device_name: typing.Optional[str] = None) \
+            self, override_device_name: Optional[str] = None) \
             -> QtWidgets.QLineEdit:
         line_edit = QtWidgets.QLineEdit()
         if self.tool_tip:
@@ -498,7 +531,7 @@ class IntSetting(Setting):
 
     def _on_setting_changed(
             self, new_value: int,
-            override_device_name: typing.Optional[str] = None):
+            override_device_name: Optional[str] = None):
         widget = self.get_widget(override_device_name=override_device_name)
         if not widget:
             return
@@ -520,10 +553,10 @@ class StringSetting(Setting):
         nice_name: str,
         value: str,
         placeholder_text: str = '',
-        tool_tip: typing.Optional[str] = None,
+        tool_tip: Optional[str] = None,
         show_ui: bool = True,
         allow_reset: bool = True,
-        migrate_data: typing.Callable[[any], None] = None,
+        migrate_data: Optional[Callable[[Any], None]] = None,
         is_read_only: bool = False
     ):
         '''
@@ -546,7 +579,7 @@ class StringSetting(Setting):
         self.is_read_only = is_read_only
 
     def _create_widgets(
-            self, override_device_name: typing.Optional[str] = None) \
+            self, override_device_name: Optional[str] = None) \
             -> QtWidgets.QLineEdit:
         line_edit = QtWidgets.QLineEdit()
         if self.tool_tip:
@@ -572,7 +605,7 @@ class StringSetting(Setting):
 
     def _on_setting_changed(
             self, new_value: str,
-            override_device_name: typing.Optional[str] = None):
+            override_device_name: Optional[str] = None):
         widget = self.get_widget(override_device_name=override_device_name)
         if not widget:
             return
@@ -593,7 +626,7 @@ class FileSystemPathSetting(StringSetting):
     '''
 
     def _getFileSystemPath(
-            self, parent: QtWidgets.QWidget = None,
+            self, parent: Optional[QtWidgets.QWidget] = None,
             start_path: str = '') -> str:
         raise NotImplementedError(
             f'Setting "{self.nice_name}" uses the FileSystemPathSetting '
@@ -601,7 +634,7 @@ class FileSystemPathSetting(StringSetting):
             'FilePathSetting) must be used instead.')
 
     def _create_widgets(
-            self, override_device_name: typing.Optional[str] = None) \
+            self, override_device_name: Optional[str] = None) \
             -> QtWidgets.QHBoxLayout:
         line_edit = super()._create_widgets(
             override_device_name=override_device_name)
@@ -643,7 +676,7 @@ class DirectoryPathSetting(FileSystemPathSetting):
     '''
 
     def _getFileSystemPath(
-            self, parent: QtWidgets.QWidget = None,
+            self, parent: Optional[QtWidgets.QWidget] = None,
             start_path: str = '') -> str:
         return QtWidgets.QFileDialog.getExistingDirectory(
             parent=parent, dir=start_path)
@@ -662,7 +695,7 @@ class FilePathSetting(FileSystemPathSetting):
         value: str,
         placeholder_text: str = '',
         file_path_filter: str = '',
-        tool_tip: typing.Optional[str] = None,
+        tool_tip: Optional[str] = None,
         show_ui: bool = True
     ):
         '''
@@ -684,7 +717,7 @@ class FilePathSetting(FileSystemPathSetting):
         self.file_path_filter = file_path_filter
 
     def _getFileSystemPath(
-            self, parent: QtWidgets.QWidget = None,
+            self, parent: Optional[QtWidgets.QWidget] = None,
             start_path: str = '') -> str:
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             parent=parent, dir=start_path, filter=self.file_path_filter)
@@ -697,7 +730,7 @@ class PerforcePathSetting(StringSetting):
     represents a Perforce depot path.
     '''
 
-    def _filter_value(self, value: typing.Optional[str]) -> str:
+    def _filter_value(self, value: Optional[str]) -> str:
         '''
         Clean the p4 path value by removing whitespace and trailing '/'.
         '''
@@ -718,11 +751,11 @@ class OptionSetting(Setting):
         attr_name: str,
         nice_name: str,
         value,
-        possible_values: typing.List = None,
-        tool_tip: typing.Optional[str] = None,
+        possible_values: Optional[list] = None,
+        tool_tip: Optional[str] = None,
         show_ui: bool = True,
         allow_reset: bool = True,
-        migrate_data: typing.Callable[[any], None] = None
+        migrate_data: Optional[Callable[[Any], None]] = None,
     ):
         '''
         Create a new OptionSetting object.
@@ -737,12 +770,13 @@ class OptionSetting(Setting):
         '''
         super().__init__(
             attr_name, nice_name, value,
-            tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset, migrate_data=migrate_data)
+            tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset,
+            migrate_data=migrate_data)
 
         self.possible_values = possible_values or []
 
     def _create_widgets(
-        self, override_device_name: typing.Optional[str] = None, *,
+        self, override_device_name: Optional[str] = None, *,
         widget_class: Type[NonScrollableComboBox] = NonScrollableComboBox
     ) -> NonScrollableComboBox:
         combo = widget_class()
@@ -767,7 +801,7 @@ class OptionSetting(Setting):
 
     def _on_setting_changed(
             self, new_value,
-            override_device_name: typing.Optional[str] = None):
+            override_device_name: Optional[str] = None):
         widget = self.get_widget(override_device_name=override_device_name)
         if not widget:
             return
@@ -787,8 +821,8 @@ class MultiOptionSetting(OptionSetting):
     '''
 
     def _create_widgets(
-            self, override_device_name: typing.Optional[str] = None) \
-            -> sb_widgets.MultiSelectionComboBox:
+            self, override_device_name: Optional[str] = None
+    ) -> sb_widgets.MultiSelectionComboBox:
         combo = sb_widgets.MultiSelectionComboBox()
         if self.tool_tip:
             combo.setToolTip(self.tool_tip)
@@ -811,7 +845,7 @@ class MultiOptionSetting(OptionSetting):
 
     def _on_setting_changed(
             self, new_value,
-            override_device_name: typing.Optional[str] = None):
+            override_device_name: Optional[str] = None):
         widget = self.get_widget(override_device_name=override_device_name)
         if not widget:
             return
@@ -821,33 +855,33 @@ class MultiOptionSetting(OptionSetting):
         widget_items = [item for item in widget_items if item.isEnabled()]
 
         old_value = [
-            item.text()
+            item.data(QtCore.Qt.UserRole)
             for item in widget_items
             if item.checkState() == QtCore.Qt.Checked]
         if new_value != old_value:
-            selected_items = []
+            selected_item_texts = []
             for item in widget_items:
-                if item.text() in new_value:
+                if item.data(QtCore.Qt.UserRole) in new_value:
                     item.setCheckState(QtCore.Qt.Checked)
-                    selected_items.append(item.text())
+                    selected_item_texts.append(item.text())
                 else:
                     item.setCheckState(QtCore.Qt.Unchecked)
 
-            widget.setEditText(widget.separator.join(selected_items))
+            widget.setEditText(widget.separator.join(selected_item_texts))
 
 
 class ListRow(QtWidgets.QWidget):
     INSERT_TEXT = "Insert"
     DUPLICATE_TEXT = "Duplicate"
     DELETE_TEXT = "Delete"
-    
+
     def __init__(
         self,
         array_index: int,
         editor_widget: QtWidgets.QWidget,
-        insert_item_callback: typing.Callable[[], None] = None, 
-        duplicate_item_callback: typing.Callable[[], None] = None, 
-        delete_item_callback: typing.Callable[[], None] = None,
+        insert_item_callback: Optional[Callable[[], None]] = None,
+        duplicate_item_callback: Optional[Callable[[], None]] = None,
+        delete_item_callback: Optional[Callable[[], None]] = None,
         parent=None
     ):
         super().__init__(parent=parent)
@@ -855,16 +889,16 @@ class ListRow(QtWidgets.QWidget):
         self._insert_item_callback = insert_item_callback
         self._duplicate_item_callback = duplicate_item_callback
         self._delete_item_callback = delete_item_callback
-    
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setSpacing(1)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Shift the elements to the right
         layout.addItem(
             QtWidgets.QSpacerItem(10, 0, QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
         )
-        
+
         self._index_label = QtWidgets.QLabel()
         self._index_label.setFixedWidth(20)
         self.update_index(array_index)
@@ -886,11 +920,11 @@ class ListRow(QtWidgets.QWidget):
             self._duplicate_item_callback()
         elif selected_item == self.DELETE_TEXT:
             self._delete_item_callback()
-    
+
     @property
     def editor_widget(self):
         return self._editor_widget
-    
+
     def update_index(self, index: int):
         self._index_label.setText(str(index))
 
@@ -899,7 +933,7 @@ class ListSetting(Setting):
     '''
     A setting which has add and clear buttons. Each item will be displayed in a new line.
     Functions like array properties in Unreal Editor.
-    
+
     Subclasses are responsible for generating widgets for the array contents, see e.g. ArrayStringSetting.
     '''
 
@@ -907,11 +941,11 @@ class ListSetting(Setting):
         self,
         attr_name: str,
         nice_name: str,
-        value: typing.List = [],
-        tool_tip: typing.Optional[str] = None,
+        value: list = [],
+        tool_tip: Optional[str] = None,
         show_ui: bool = True,
         allow_reset: bool = True,
-        migrate_data: typing.Callable[[any], None] = None
+        migrate_data: Optional[Callable[[Any], None]] = None
     ):
         '''
         Create a new ListSetting object.
@@ -926,33 +960,33 @@ class ListSetting(Setting):
         super().__init__(
             attr_name, nice_name, value,
             tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset, migrate_data=migrate_data)
-        
+
         self.array_count_labels = {}
         self.element_layouts = {}
-    
-    def create_element(self, override_device_name: str, index: int) -> typing.Tuple[QtWidgets.QWidget, object]:
+
+    def create_element(self, override_device_name: str, index: int) -> Tuple[QtWidgets.QWidget, object]:
         '''
         Called when a new array element is supposed to be created.
         @returns The widget to use for editing and the default value for the new array element
         '''
         raise NotImplementedError("Subclasses must override this")
-    
-    def update_element_value(self, editor_widget: QtWidgets.QWidget, list_value: typing.List, index: int):
+
+    def update_element_value(self, editor_widget: QtWidgets.QWidget, list_value: list, index: int):
         '''
         Called to update the editor_widget with the the value from list_value[index].
         '''
         raise NotImplementedError("Subclasses must override this")
 
-    def _create_widgets(self, override_device_name: typing.Optional[str] = None):
+    def _create_widgets(self, override_device_name: Optional[str] = None):
         root = QtWidgets.QWidget()
         root_layout = QtWidgets.QVBoxLayout(root)
         root_layout.setSpacing(1)
         root_layout.setContentsMargins(1, 1, 1, 1)
-        
+
         root_layout.addWidget(
             self._create_header(override_device_name)
         )
-        
+
         elements_root = QtWidgets.QWidget()
         elements_layout = QtWidgets.QVBoxLayout(elements_root)
         self.element_layouts[override_device_name] = elements_layout
@@ -972,7 +1006,7 @@ class ListSetting(Setting):
         header_layout = QtWidgets.QHBoxLayout(header)
         header_layout.setSpacing(5)
         header_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         array_count_label = QtWidgets.QLabel()
         self.array_count_labels[override_device_name] = array_count_label
         array_count_label.setFixedWidth(100)
@@ -1010,11 +1044,11 @@ class ListSetting(Setting):
         header_layout.addItem(QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
 
         return header
-        
+
     def _update_array_count_label(self, override_device_name: str):
         current_value = self.get_value(override_device_name)
         self.array_count_labels[override_device_name].setText(f"{len(current_value)} Elements")
-        
+
     def _on_press_add(self, override_device_name: str):
         current_value = self.get_value(override_device_name)
         row_widget, default_value = self._create_element_row(override_device_name, len(current_value))
@@ -1025,17 +1059,17 @@ class ListSetting(Setting):
         self._on_widget_value_changed(current_value + [default_value], override_device_name)
         # Force update in case _on_widget_value_changed implicitly changed array settings without telling us
         self._on_setting_changed(self.get_value(override_device_name), override_device_name)
-        
+
     def _on_press_clear(self, override_device_name: str):
         self._on_widget_value_changed([], override_device_name)
-        
+
         container_layout = self.element_layouts[override_device_name]
         for i in reversed(range(container_layout.count())):
             container_layout.itemAt(i).widget().setParent(None)
-        
+
         # Force update in case _on_widget_value_changed implicitly changed array settings without telling us
         self._on_setting_changed(self.get_value(override_device_name), override_device_name)
-    
+
     def _insert_at(self, override_device_name: str, index: int):
         current_value = self.get_value(override_device_name)
         row_widget, default_value = self._create_element_row(override_device_name, len(current_value))
@@ -1045,11 +1079,11 @@ class ListSetting(Setting):
 
         copied_value = current_value.copy()
         copied_value.insert(index, default_value)
-        
+
         self._on_widget_value_changed(copied_value, override_device_name)
         # Force update in case _on_widget_value_changed implicitly changed array settings without telling us
         self._on_setting_changed(self.get_value(override_device_name), override_device_name)
-        
+
     def _duplicate_at(self, override_device_name: str, index: int):
         current_value = self.get_value(override_device_name)
         row_widget, _ = self._create_element_row(override_device_name, len(current_value))
@@ -1063,7 +1097,7 @@ class ListSetting(Setting):
         self._on_widget_value_changed(copied_value, override_device_name)
         # Force update in case _on_widget_value_changed implicitly changed array settings without telling us
         self._on_setting_changed(self.get_value(override_device_name), override_device_name)
-        
+
     def _remove_at(self, override_device_name: str, index: int):
         current_value = self.get_value(override_device_name)
         copied_value = current_value.copy()
@@ -1073,7 +1107,7 @@ class ListSetting(Setting):
         # Force update in case _on_widget_value_changed implicitly changed array settings without telling us
         self._on_setting_changed(self.get_value(override_device_name), override_device_name)
 
-    def _create_element_row(self, override_device_name: str, index: int) -> typing.Tuple[ListRow, object]:
+    def _create_element_row(self, override_device_name: str, index: int) -> Tuple[ListRow, object]:
         editing_widget, default_value = self.create_element(override_device_name, index)
         row = ListRow(
             index,
@@ -1087,9 +1121,9 @@ class ListSetting(Setting):
         )
         return row, default_value
 
-    def _on_setting_changed(self, new_value: typing.List, override_device_name: typing.Optional[str] = None):
+    def _on_setting_changed(self, new_value: list, override_device_name: Optional[str] = None):
         container_layout = self.element_layouts[override_device_name]
-        
+
         container_len = container_layout.count()
         new_len = len(new_value)
         new_list_is_bigger = container_layout.count() < new_len
@@ -1098,18 +1132,18 @@ class ListSetting(Setting):
             for missing_index in range(container_layout.count(), len(new_value), 1):
                 new_array_row, _ = self._create_element_row(override_device_name, missing_index)
                 container_layout.addWidget(new_array_row)
-        
+
         if new_list_is_smaller:
             for added_index in reversed(range(new_len, container_layout.count(), 1)):
                 container_layout.itemAt(added_index).widget().deleteLater()
-                
+
         for index in range(new_len):
             array_row: ListRow = container_layout.itemAt(index).widget()
             self.update_element_value(array_row.editor_widget, new_value, index)
 
         self._update_array_count_label(override_device_name)
-    
-    
+
+
 class StringListSetting(ListSetting):
     '''
     An array setting where the elements are strings
@@ -1118,11 +1152,11 @@ class StringListSetting(ListSetting):
         self,
         attr_name: str,
         nice_name: str,
-        value: typing.List[str] = [],
-        tool_tip: typing.Optional[str] = None,
+        value: list[str] = [],
+        tool_tip: Optional[str] = None,
         show_ui: bool = True,
         allow_reset: bool = True,
-        migrate_data: typing.Callable[[any], None] = None
+        migrate_data: Optional[Callable[[Any], None]] = None
     ):
         '''
         Create a new ArraySetting object.
@@ -1139,7 +1173,7 @@ class StringListSetting(ListSetting):
             tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset, migrate_data=migrate_data)
         pass
 
-    def create_element(self, override_device_name: str, index: int) -> typing.Tuple[QtWidgets.QWidget, object]:
+    def create_element(self, override_device_name: str, index: int) -> Tuple[QtWidgets.QWidget, object]:
         line_edit = QtWidgets.QLineEdit()
         line_edit.editingFinished.connect(
             lambda line_edit=line_edit, override_device_name=override_device_name, index=index:
@@ -1154,7 +1188,7 @@ class StringListSetting(ListSetting):
         copied_value[index] = line_edit.text()
         self._on_widget_value_changed(copied_value, override_device_name)
 
-    def update_element_value(self, editor_widget: QtWidgets.QLineEdit, list_value: typing.List, index: int):
+    def update_element_value(self, editor_widget: QtWidgets.QLineEdit, list_value: list, index: int):
         editor_widget.setText(list_value[index])
 
 
@@ -1179,9 +1213,9 @@ class LoggingModel(QtGui.QStandardItemModel):
 
     def __init__(
             self,
-            categories: typing.List[str],
-            verbosity_levels: typing.List[str],
-            parent: typing.Optional[QtCore.QObject] = None):
+            categories: list[str],
+            verbosity_levels: list[str],
+            parent: Optional[QtCore.QObject] = None):
         '''
         Create a new LoggingModel object.
 
@@ -1208,15 +1242,15 @@ class LoggingModel(QtGui.QStandardItemModel):
                 'category')
 
     @property
-    def categories(self) -> typing.List[str]:
+    def categories(self) -> list[str]:
         return self._categories
 
     @property
-    def user_categories(self) -> typing.List[str]:
+    def user_categories(self) -> list[str]:
         return self._user_categories
 
     @property
-    def verbosity_levels(self) -> typing.List[str]:
+    def verbosity_levels(self) -> list[str]:
         return self._verbosity_levels
 
     def is_user_category(self, category: str) -> bool:
@@ -1296,7 +1330,7 @@ class LoggingModel(QtGui.QStandardItemModel):
     @category_verbosities.setter
     def category_verbosities(
             self,
-            value: typing.Optional[typing.Dict[str, typing.Optional[str]]]):
+            value: Optional[dict[str, Optional[str]]]):
         '''
         Sets the data in the model using the given dictionary of category
         names to verbosity levels (or None).
@@ -1349,7 +1383,7 @@ class LoggingVerbosityItemDelegate(QtWidgets.QStyledItemDelegate):
 
     def __init__(
             self,
-            verbosity_levels: typing.List[str],
+            verbosity_levels: list[str],
             parent: QtWidgets.QTreeView):
         super().__init__(parent=parent)
         self._verbosity_levels = verbosity_levels or []
@@ -1412,7 +1446,7 @@ class LoggingSettingVerbosityView(QtWidgets.QTreeView):
     def __init__(
             self,
             logging_model: LoggingModel,
-            parent: typing.Optional[QtWidgets.QWidget] = None):
+            parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent=parent)
 
         self.setModel(logging_model)
@@ -1448,7 +1482,7 @@ class LoggingSettingVerbosityView(QtWidgets.QTreeView):
             verbosity_level_index = self.model().index(row, LoggingModel.VERBOSITY_COLUMN)
             self.openPersistentEditor(verbosity_level_index)
         
-    def selected_categories(self) -> typing.List[str]:
+    def selected_categories(self) -> list[str]:
         model = self.model()
         selected_categories = []
         for selection_range in self.selectionModel().selection():
@@ -1460,7 +1494,7 @@ class LoggingSettingVerbosityView(QtWidgets.QTreeView):
                 
         return selected_categories
         
-    def update_category_verbosities(self, categories: typing.List[str], new_verbosity: str):
+    def update_category_verbosities(self, categories: list[str], new_verbosity: str):
         model = self.model()
         category_verbosities = model.category_verbosities
         for category in categories:
@@ -1488,8 +1522,8 @@ class LoggingSetting(Setting):
 
     def _filter_value(
             self,
-            value: typing.Optional[typing.Dict[str, typing.Optional[str]]]) \
-            -> collections.OrderedDict:
+            value: Optional[dict[str, Optional[str]]]
+    )-> collections.OrderedDict:
         '''
         Filter function to modify the incoming value before updating or
         overriding the setting.
@@ -1522,13 +1556,13 @@ class LoggingSetting(Setting):
         self,
         attr_name: str,
         nice_name: str,
-        value: typing.Dict[str, typing.Optional[str]],
-        categories: typing.List[str] = None,
-        verbosity_levels: typing.List[str] = None,
-        tool_tip: typing.Optional[str] = None,
+        value: dict[str, Optional[str]],
+        categories: Optional[list[str]] = None,
+        verbosity_levels: Optional[list[str]] = None,
+        tool_tip: Optional[str] = None,
         show_ui: bool = True,
         allow_reset: bool = True,
-        migrate_data: typing.Callable[[any], None] = None
+        migrate_data: Optional[Callable[[Any], None]] = None
     ):
         '''
         Create a new LoggingSetting object.
@@ -1556,8 +1590,8 @@ class LoggingSetting(Setting):
             verbosity_levels or self.DEFAULT_VERBOSITY_LEVELS)
 
     def get_command_line_arg(
-            self, override_device_name: typing.Optional[str] = None) \
-            -> str:
+            self, override_device_name: Optional[str] = None
+    ) -> str:
         '''
         Generate the command line argument for specifying the logging
         configuration based on the value currently stored in the Setting.
@@ -1577,8 +1611,8 @@ class LoggingSetting(Setting):
         return f'-LogCmds=\"{", ".join(logging_strings)}\"'
 
     def _create_widgets(
-            self, override_device_name: typing.Optional[str] = None) \
-            -> QtWidgets.QVBoxLayout:
+            self, override_device_name: Optional[str] = None
+    ) -> QtWidgets.QVBoxLayout:
         model = LoggingModel(
             categories=self._categories,
             verbosity_levels=self._verbosity_levels)
@@ -1702,7 +1736,7 @@ class LoggingSetting(Setting):
 
     def _on_setting_changed(
             self, new_value,
-            override_device_name: typing.Optional[str] = None):
+            override_device_name: Optional[str] = None):
         widget = self.get_widget(override_device_name=override_device_name)
         if not widget:
             return
@@ -1734,7 +1768,7 @@ class AddressSetting(OptionSetting):
             migrate_data=migrate_data)
 
     def _create_widgets(
-        self, override_device_name: typing.Optional[str] = None
+        self, override_device_name: Optional[str] = None
     ) -> NonScrollableComboBox:
         combo: NonScrollableComboBox = super()._create_widgets(
             override_device_name, widget_class=sb_widgets.AddressComboBox)
@@ -1806,7 +1840,7 @@ class ConfigPathIsUserSettingsError(ConfigPathError):
 
 
 def get_absolute_config_path(
-        config_path: typing.Union[str, pathlib.Path]) -> pathlib.Path:
+        config_path: Union[str, pathlib.Path]) -> pathlib.Path:
     '''
     Returns the given string or path object as an absolute config path.
 
@@ -1842,7 +1876,7 @@ def get_absolute_config_path(
 
 
 def get_relative_config_path(
-        config_path: typing.Union[str, pathlib.Path]) -> pathlib.Path:
+        config_path: Union[str, pathlib.Path]) -> pathlib.Path:
     '''
     Returns the given string or path object as a config path relative to the
     root configs path.
@@ -1901,10 +1935,10 @@ class Config(object):
         '''
         self.saving_allowed = self.saving_allowed_fifo.pop()
         
-    def init(self, file_path: typing.Union[str, pathlib.Path]):
+    def init(self, file_path: Union[str, pathlib.Path]):
         self.init_with_file_path(file_path)
 
-    def init_with_file_path(self, file_path: typing.Union[str, pathlib.Path]):
+    def init_with_file_path(self, file_path: Union[str, pathlib.Path]):
         if file_path:
             try:
                 self.file_path = get_absolute_config_path(file_path)
@@ -2000,7 +2034,7 @@ class Config(object):
                 os.remove(new_file_path)
             shutil.copy(original_file_path, new_file_path)
 
-    def init_new_config(self, file_path: typing.Union[str, pathlib.Path], uproject, engine_dir, p4_settings):
+    def init_new_config(self, file_path: Union[str, pathlib.Path], uproject, engine_dir, p4_settings):
         ''' 
         Initialize new configuration
         '''
@@ -2323,7 +2357,8 @@ class Config(object):
         if loaded_settings:
             for setting in settings:
                 if setting.attr_name in loaded_settings:
-                    setting.update_value(loaded_settings[setting.attr_name])
+                    value = loaded_settings[setting.attr_name]
+                    setting.update_value_from_config(value)
             del self._plugin_data_from_config[device_type]
 
     def register_plugin_settings(self, device_type, settings):
@@ -2352,7 +2387,7 @@ class Config(object):
         if device_name in known_devices:
             self.save()
 
-    def replace(self, new_config_path: typing.Union[str, pathlib.Path]):
+    def replace(self, new_config_path: Union[str, pathlib.Path]):
         """
         Move the file.
 
@@ -2367,7 +2402,7 @@ class Config(object):
         self.file_path = new_config_path
         self.save()
 
-    def save_as(self, new_config_path: typing.Union[str, pathlib.Path]):
+    def save_as(self, new_config_path: Union[str, pathlib.Path]):
         """
         Copy the file.
 
@@ -2438,7 +2473,7 @@ class Config(object):
             settings = {}
 
             for setting in plugin_settings:
-                settings[setting.attr_name] = setting.get_value()
+                settings[setting.attr_name] = setting.get_value_json()
 
             data["devices"][device_type] = {
                 "settings": settings,
@@ -2454,21 +2489,32 @@ class Config(object):
             serialized_settings = {}
 
             for setting in settings:
-                serialized_settings[setting.attr_name] = setting.get_value()
+                value = setting.get_value_json()
+                serialized_settings[setting.attr_name] = value
 
             for setting in overrides:
                 if setting.is_overridden(device_name):
-                    serialized_settings[setting.attr_name] = setting.get_value(
-                        device_name)
+                    value = setting.get_value_json(device_name)
+                    serialized_settings[setting.attr_name] = value
 
             data["devices"][device_type][device_name] = serialized_settings
 
         # Save to file
-        #
-        self.file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.file_path, 'w') as f:
-            json.dump(data, f, indent=4)
-            LOGGER.debug(f'Config File: {self.file_path} updated')
+        temp_buf = io.StringIO()
+        try:
+            json.dump(data, temp_buf, indent=4)
+        except Exception as exc:
+            LOGGER.error('Error while serializing config', exc_info=exc)
+            return
+
+        try:
+            self.file_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.file_path, 'w') as f:
+                temp_buf.seek(0)
+                shutil.copyfileobj(temp_buf, f)
+                LOGGER.debug(f'Config File: {self.file_path} updated')
+        except Exception as exc:
+            LOGGER.error('Error writing config to disk', exc_info=exc)
 
     def on_device_name_changed(self, old_name, new_name):
         old_key = None
@@ -2515,7 +2561,7 @@ class Config(object):
         return os.path.join(self.get_project_dir(), 'Content')
 
     def get_unreal_content_plugins(
-            self) -> typing.List[ue_plugin_utils.UnrealPlugin]:
+            self) -> list[ue_plugin_utils.UnrealPlugin]:
         '''
         Get a list of Unreal Engine plugins that match the current
         Switchboard config's content plugin filter settings.
@@ -2768,7 +2814,7 @@ class UserSettings(object):
             json.dump(data, f, indent=4)
 
 
-def list_config_paths() -> typing.List[pathlib.Path]:
+def list_config_paths() -> list[pathlib.Path]:
     '''
     Returns a list of absolute paths to all config files in the configs dir.
     '''

@@ -89,7 +89,7 @@ class Device(QtCore.QObject):
         for setting in self.setting_overrides():
             if setting.attr_name in kwargs.keys():
                 override = kwargs[setting.attr_name]
-                setting.override_value(self.name, override)
+                setting.override_value_from_config(self.name, override)
 
         self._project_changelist: Optional[int] = None
         self._engine_changelist: Optional[int] = None

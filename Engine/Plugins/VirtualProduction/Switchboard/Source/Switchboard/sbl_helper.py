@@ -17,231 +17,16 @@ import sys
 import threading
 import tempfile
 import traceback
-from typing import Callable, Dict, List, Optional, Sequence, Union
-from switchboard import ugs_utils as UGS
+from typing import Callable, Optional, Sequence, Union
+import uuid
+
+from switchboard import p4_utils, ugs_utils as UGS
 
 
 MAX_PARALLEL_WORKERS = 8  # Consistent with UGS, ushell, etc.
 
 SCRIPT_NAME = os.path.basename(__file__)
-__version__ = '1.1.0'
-
-
-def p4_variables() -> Dict[str, str]:
-    '''
-    Returns Perforce variable (e.g. `P4CONFIG`, `p4 set`) key/value pairs.
-    '''
-    output = subprocess.check_output(['p4', 'set', '-q']).decode()
-    variables: Dict[str, str] = {}
-    for line in output.splitlines():
-        var_name, _, var_value = line.partition('=')
-        variables[var_name] = var_value
-    return variables
-
-
-def p4(
-    cmd: str,
-    cmd_opts: List[str],
-    global_opts: Optional[List[str]] = None,
-    *,
-    user: Optional[str] = None,
-    client: Optional[str] = None,
-) -> subprocess.Popen:
-    ''' Runs a p4 command and includes some common/required switches. '''
-    args = ['p4', f'-zprog={SCRIPT_NAME}', f'-zversion={__version__}', '-ztag',
-            '-G', '-Qutf8']
-
-    if user is not None:
-        args.extend(['-u', user])
-    if client is not None:
-        args.extend(['-c', client])
-
-    args.extend(global_opts or [])
-
-    args.append(cmd)
-    args.extend(cmd_opts)
-
-    logging.debug(f'p4(): invoking subprocess: args={args}')
-
-    # stdin=subprocess.DEVNULL is required when launched via
-    # SwitchboardListener; otherwise this call tries to make the non-existent
-    # stdin inheritable, raising `OSError: [WinError 6] The handle is invalid`
-    return subprocess.Popen(args, stdout=subprocess.PIPE,
-                            stdin=subprocess.DEVNULL)
-
-
-def p4_get_records(
-    cmd: str,
-    opts: List[str],
-    global_opts: Optional[List[str]] = None,
-    *,
-    include_info: bool = False,
-    include_error: bool = False,
-    user: Optional[str] = None,
-    client: Optional[str] = None,
-) -> List[dict]:
-    results: List[dict] = []
-    proc = p4(cmd, opts, global_opts=global_opts, user=user, client=client)
-    while True:
-        try:
-            record = marshal.load(proc.stdout)
-        except EOFError:
-            break
-
-        # Possible codes: stat, info, error, text (only `p4 print`)
-        include_record = False
-        if (record[b'code'] == b'stat') or (record[b'code'] == b'text'):
-            include_record = True
-        elif include_info and (record[b'code'] == b'info'):
-            include_record = True
-        elif include_error and (record[b'code'] == b'error'):
-            include_record = True
-
-        if include_record:
-            results.append(record)
-
-    proc.stdout.close()
-    return results
-
-
-def p4_changes(
-    pathspecs: List[str],
-    *,
-    limit: int = 10,
-    user: Optional[str] = None,
-    client: Optional[str] = None,
-) -> List[dict]:
-    limit = min(limit, 100)
-    opts = ['-s', 'submitted', '-t', '-L', f'-m{limit}', *pathspecs]
-    return p4_get_records('changes', opts, user=user, client=client)
-
-
-def p4_fstat(
-    pathspecs: List[str],
-    *,
-    limit: int = 0,
-    user: Optional[str] = None,
-    client: Optional[str] = None,
-) -> List[dict]:
-    opts: List[str] = []
-
-    if limit > 0:
-        opts.append(f'-m{limit}')
-
-    opts.extend(pathspecs)
-
-    return p4_get_records('fstat', opts, user=user, client=client)
-
-
-def p4_have(
-    pathspecs: List[str],
-    *,
-    user: Optional[str] = None,
-    client: Optional[str] = None,
-) -> List[Optional[int]]:
-    '''
-    Returns a list of revision numbers, or `None` if the file doesn't exist on
-    the client.
-    '''
-    result: List[Optional[int]] = []
-    records = p4_get_records('have', pathspecs, include_error=True, user=user,
-                             client=client)
-    for record in records:
-        if record[b'code'] == b'stat':
-            result.append(int(record[b'haveRev']))
-        else:
-            result.append(None)
-    return result
-
-
-@dataclass
-class P4PrintResult:
-    stat: dict
-    contents: Optional[bytearray]
-
-    @property
-    def is_valid(self) -> bool:
-        try:
-            return (self.stat[b'code'] == b'stat') and (self.contents is not None)
-        except KeyError:
-            return False
-
-    @property
-    def text(self) -> Optional[str]:
-        if self.contents is not None:
-            return self.contents.decode()
-        else:
-            return None
-
-
-def p4_print(
-    pathspecs: List[str],
-    *,
-    user: Optional[str] = None,
-    client: Optional[str] = None,
-) -> List[P4PrintResult]:
-    '''
-    Returns a `P4PrintResult` for each path in `pathspecs`.
-    If the file does not exist, or is deleted at the specified revision,
-    fileContents will be `None`.
-    '''
-    results: List[P4PrintResult] = []
-    records = p4_get_records('print', pathspecs, include_info=True,
-                             include_error=True, user=user, client=client)
-
-    # For each file, a stat record is returned, then zero or more text records.
-    # Cases where there's no text record include errors or deleted files.
-    for record in records:
-        if (record[b'code'] == b'stat') or (record[b'code'] == b'error'):
-            results.append(P4PrintResult(record, None))
-            continue
-        elif record[b'code'] == b'text':
-            current_result = results[-1]
-            if current_result.contents is None:
-                current_result.contents = bytearray()
-            current_result.contents.extend(record[b'data'])
-            continue
-
-        logging.warning(f'p4_print(): Unhandled record: {record}')
-
-    return results
-
-
-def p4_latest_code_change(
-    paths: List[str],
-    *,
-    range: Optional[str] = None,
-    exts: Optional[List[str]] = None,
-    user: Optional[str] = None,
-    client: Optional[str] = None,
-) -> Optional[int]:
-    '''
-    Code CL determination compatible with UGS/precompiled binaries.
-    See `WorkspaceUpdate.ExecuteAsync` in `WorkspaceUpdate.cs`
-    '''
-
-    ALL_CODE_EXTS = [
-        '.c', '.cc', '.cpp', '.inl', '.m', '.mm', '.rc', '.cs', '.csproj',
-        '.h', '.hpp', '.usf', '.ush', '.uproject', '.uplugin', '.sln']
-
-    if exts is None:
-        exts = ALL_CODE_EXTS
-
-    rangespec = f'@{range}' if range is not None else ''
-
-    code_paths: List[str] = []
-    for path in paths:
-        if path.endswith('...'):
-            code_paths.extend([f'{path}/*{ext}{rangespec}'
-                                for ext in exts])
-
-    code_changes = p4_changes(code_paths, limit=1,
-                              user=user, client=client)
-
-    if len(code_changes) > 0:
-        return max(int(x[b'change']) for x in code_changes)
-    else:
-        return None
+__version__ = '1.2.0'
 
 
 class SyncFile:
@@ -276,9 +61,9 @@ class SyncWorkload:
     Represents a sync operation, or e.g. a parallel worker's subset thereof.
     '''
     def __init__(self):
-        self.sync_files: Dict[str, SyncFile] = {}
+        self.sync_files: dict[str, SyncFile] = {}
         self.workload_size = 0
-        self.client_path_to_depot_path: Dict[str, str] = {}
+        self.client_path_to_depot_path: dict[str, str] = {}
 
     def add_or_replace(self, new_file: SyncFile):
         if new_file.depot_path in self.sync_files:
@@ -346,7 +131,7 @@ def p4_sync_worker(
         argfile.write(f'{item.spec}\n')
     argfile.close()  # Otherwise the p4 process can't access the file.
 
-    proc = p4('sync', opts, gopts, user=user, client=client)
+    proc = p4_utils.p4('sync', opts, gopts, user=user, client=client)
 
     remaining_work = copy.deepcopy(sync_workload)
 
@@ -409,14 +194,14 @@ def p4_sync_worker(
 
 
 def p4_get_preview_sync_files(
-    input_specs: List[str],
+    input_specs: list[str],
     *,
     user: Optional[str] = None,
     client: Optional[str] = None,
 ) -> SyncWorkload:
     ''' Runs a preview sync to generate a list of files and revisions. '''
     result_workload = SyncWorkload()
-    records = p4_get_records(
+    records = p4_utils.p4_get_records(
         'sync', ['-n', *input_specs], include_info=True, include_error=True,
         user=user, client=client)
 
@@ -468,7 +253,7 @@ def friendly_bytes(size: float) -> str:
 
 
 def p4_sync(
-    input_specs: List[str],
+    input_specs: list[str],
     num_workers: int = MAX_PARALLEL_WORKERS,
     *,
     sync_filter_fn: Optional[Callable[[SyncWorkload], None]] = None,
@@ -509,6 +294,8 @@ def p4_sync(
             delete_work.add(item)
         else:
             nondelete_work.add(item)
+
+    del total_work
 
     # First pass: Attempt to run all deletes (in the main thread).
     total_delete_files = len(delete_work.sync_files)
@@ -635,7 +422,7 @@ def dispatch_sync_workers(
     completion_queue: Queue[SyncFile] = Queue()
 
     # Summarize work distribution and start workers.
-    workers: List[threading.Thread] = []
+    workers: list[threading.Thread] = []
     for i in range(num_workers):
         worker_name = f'Worker {i}'
         load = worker_loads[i]
@@ -703,7 +490,7 @@ class SbListenerHelper:
 
         self.uproj_path: Optional[pathlib.Path] = None
         self.engine_dir: Optional[pathlib.Path] = None
-        self.additional_paths_to_sync: List[str] = []
+        self.additional_paths_to_sync: list[str] = []
         self.sync_engine_cl: Optional[int] = None
         self.sync_project_cl: Optional[int] = None
         self.clobber_engine: bool = False
@@ -713,6 +500,12 @@ class SbListenerHelper:
         self.dry_run: bool = False
         self.p4user: Optional[str] = None
         self.p4client: Optional[str] = None
+        self.p4clientspec: dict[str, str] = {}
+
+        if UGS.SyncFilters.supported():
+            self.ugs_filters = UGS.SyncFilters()
+        else:
+            self.ugs_filters = None
 
     @staticmethod
     def build_parser():
@@ -746,18 +539,6 @@ class SbListenerHelper:
             '--generate', action='store_true',
             help='Run GenerateProjectFiles after syncing')
         sync_parser.add_argument(
-            '--use-ugs', action='store_true',
-            help='Specifies that UnrealGameSync should be used to sync the '
-                 'project and engine together.')
-        sync_parser.add_argument(
-            '--use-pcbs', action='store_true',
-            help='Specifies that precompiled binaries should be synced along '
-                 'with the project (requires syncing via UnrealGameSync).')
-        sync_parser.add_argument(
-            '--ugs-lib-dir', type=pathlib.Path,
-            help='Directory path specifying where to find the UnrealGameSync '
-                 'library (ugs.dll).')
-        sync_parser.add_argument(
             '--clobber-engine', action='store_true',
             help='Override noclobber for engine files')
         sync_parser.add_argument(
@@ -771,6 +552,32 @@ class SbListenerHelper:
         sync_parser.add_argument('-c', '--p4client', type=str,
                                  help='Override Perforce P4CLIENT')
 
+        # UGS sync filter options
+        sync_parser.add_argument(
+            '--include-categories', type=str,
+            help='List of UGS SyncCategory UUIDs to include in sync')
+        sync_parser.add_argument(
+            '--custom-view', type=str,
+            help='Comma-separated Perforce wildcards to exclude from sync')
+        sync_parser.add_argument(
+            '--remove-excluded-workspace-files', action='store_true',
+            help='Scan workspace to remove all files excluded by sync filter')
+
+        # UGS CLI integration options
+        sync_parser.add_argument(
+            '--use-ugs', action='store_true',
+            help='Specifies that UnrealGameSync should be used to sync the '
+                 'project and engine together.')
+        sync_parser.add_argument(
+            '--use-pcbs', action='store_true',
+            help='Specifies that precompiled binaries should be synced along '
+                 'with the project (requires syncing via UnrealGameSync).')
+        sync_parser.add_argument(
+            '--ugs-lib-dir', type=pathlib.Path,
+            help='Directory path specifying where to find the UnrealGameSync '
+                 'library (ugs.dll).')
+
+        # Debugging options
         sync_parser.add_argument(
             '--dump-sync', type=argparse.FileType('wt'),
             metavar='SYNC_WORKLOAD_TEXT_FILE',
@@ -793,12 +600,51 @@ class SbListenerHelper:
         assert False
 
     def run_sync(self, options: argparse.Namespace) -> int:
-        engine_paths: List[str] = []
-        project_paths: List[str] = []
-        pathspecs: List[str] = []
+        engine_paths: list[str] = []
+        project_paths: list[str] = []
+        pathspecs: list[str] = []
 
         self.check_sync_options(options)
-        self.additional_paths_to_sync = self.get_additional_paths_to_sync()
+
+        ugs_config = UGS.parse_depot_ugs_configs(
+            engine_dir=self.engine_dir, project_dir=self.uproj_path.parent,
+            p4user=self.p4user, p4client=self.p4client)
+
+        self.additional_paths_to_sync = ugs_config.try_get(
+            'Perforce', 'AdditionalPathsToSync') or []
+
+        # Parse sync filter categories from INI and match to command line args
+        any_active_filters = False
+        if options.include_categories or options.custom_view:
+            if not self.ugs_filters:
+                self.parser.error('Sync filters were specified, but filtering '
+                                  'is unavailable (missing P4Python?)')
+
+            if options.include_categories:
+                include_ids = set(
+                    uuid.UUID(id)
+                    for id in options.include_categories.split(','))
+                self.ugs_filters.read_categories_from_ini_parser(ugs_config)
+                for category in self.ugs_filters.categories.values():
+                    if category.id not in include_ids:
+                        logging.debug(f'Excluding sync filter "{category.name}"')
+                        self.ugs_filters.exclude_category(category.id)
+                        any_active_filters = True
+                    else:
+                        include_ids.remove(category.id)
+
+                # Any remaining IDs here were unmatched to categories
+                if len(include_ids):
+                    unknown = ', '.join(str(id) for id in include_ids)
+                    self.parser.error(
+                        f'Unknown --include-categories: {unknown}')
+
+            if options.custom_view:
+                custom_views: list[str] = options.custom_view.split(',')
+                for view in custom_views:
+                    self.ugs_filters.map.insert(view)
+
+            logging.debug(f'Sync filter: {self.ugs_filters.map.as_array()}')
 
         if self.sync_engine_cl:
             engine_paths.append(f'{self.engine_dir.parent / "*"}')
@@ -833,12 +679,51 @@ class SbListenerHelper:
                 if buildver_info.local_path and buildver_info.have_rev:
                     pathspecs.append(f"{buildver_info.local_path}#0")
 
+        remove_excluded_workload = SyncWorkload()
+        if options.remove_excluded_workspace_files and self.ugs_filters:
+            logging.info('Finding files in workspace that need to be removed.')
+            haves = p4_utils.p4_have(['//...'],
+                                     user=self.p4user, client=self.p4client)
+            stream = self.p4clientspec['Stream']
+            stream_path = pathlib.PurePosixPath(stream)
+            num_exclusions = 0
+            for have in haves:
+                client_str = have['path']
+                depot_str = have['depotFile']
+                depot_path = pathlib.PurePosixPath(depot_str)
+                rel_path = f'/{depot_path.relative_to(stream_path)}'
+                if not self.ugs_filters.includes_path(rel_path):
+                    num_exclusions += 1
+                    remove_excluded_workload.add(
+                        SyncFile(depot_str, client_str, 0, 0, 'deleted'))
+            logging.info(f'Found {num_exclusions:,} excluded files')
+
         def sync_filter(workload: SyncWorkload):
             # Don't add Build.version to the workspace, but do allow removal.
             buildver_path = buildver_info.depot_path
             if buildver_path and (buildver_path in workload.sync_files):
                 if workload.sync_files[buildver_path].rev != 0:
                     workload.remove(buildver_path)
+
+            if any_active_filters and self.ugs_filters:
+                num_files = len(workload.sync_files)
+                logging.info(f'Applying sync filters... ({num_files:,} files)')
+                stream = self.p4clientspec['Stream']
+                stream_path = pathlib.PurePosixPath(stream)
+                excluded_files: set[str] = set()
+                for depot_str, syncfile in workload.sync_files.items():
+                    depot_path = pathlib.PurePosixPath(depot_str)
+                    depot_rel_path = f'/{depot_path.relative_to(stream_path)}'
+                    if not self.ugs_filters.includes_path(depot_rel_path):
+                        excluded_files.add(depot_str)
+
+                num_exclusions = len(excluded_files)
+                logging.info(f'Filter excluded {num_exclusions:,} files')
+                for exclusion in excluded_files:
+                    workload.sync_files.pop(exclusion)
+
+            for removal in remove_excluded_workload.sync_files.values():
+                workload.add_or_replace(removal)
 
         def clobber_filter(clobber: SyncWorkload):
             clobber.sync_files = dict(sorted(clobber.sync_files.items()))
@@ -921,8 +806,8 @@ class SbListenerHelper:
 
     def get_buildver_info(
         self,
-        engine_paths: List[str],
-        project_paths: List[str],
+        engine_paths: list[str],
+        project_paths: list[str],
     ) -> BuildVerInfo:
         '''
         Read `Build.version` from depot and return its info, depot contents,
@@ -943,12 +828,14 @@ class SbListenerHelper:
 
         p4opts = {'user': self.p4user, 'client': self.p4client}
 
-        ret_info.have_rev = p4_have([buildver_local_path], **p4opts)[0]
+        record = p4_utils.p4_have([buildver_local_path], **p4opts)[0]
+        ret_info.have_rev = int(record['haveRev']) if (
+            record['code'] == 'stat') else None
 
         if not self.sync_engine_cl:
             return ret_info
 
-        prints = p4_print(
+        prints = p4_utils.p4_print(
             [f'{path}@{self.sync_engine_cl}'
              for path in (epicint_local_path, buildver_local_path)],
             **p4opts)
@@ -972,7 +859,7 @@ class SbListenerHelper:
         eng_upper_bound_cl = self.sync_engine_cl
         proj_upper_bound_cl = self.sync_project_cl
 
-        def quick_narrow_lower_cl(paths: List[str], upper_cl: int,
+        def quick_narrow_lower_cl(paths: list[str], upper_cl: int,
                                   in_lower_cl: Optional[int]) -> Optional[int]:
             quick_lower = upper_cl - 1_000
             if in_lower_cl and in_lower_cl > quick_lower:
@@ -981,7 +868,7 @@ class SbListenerHelper:
                 return upper_cl
             if quick_lower > 0:
                 quick_range = f'{quick_lower},{upper_cl}'
-                check_lower = p4_latest_code_change(
+                check_lower = p4_utils.p4_latest_code_change(
                     paths, range=quick_range, exts=['.cpp'], **p4opts)
 
                 if check_lower:
@@ -996,7 +883,7 @@ class SbListenerHelper:
                                                eng_upper_bound_cl,
                                                lower_bound_cl)
 
-        if proj_upper_bound_cl:
+        if (lower_bound_cl or 0) < (proj_upper_bound_cl or 0):
             lower_bound_cl = quick_narrow_lower_cl(project_paths,
                                                    proj_upper_bound_cl,
                                                    lower_bound_cl)
@@ -1009,10 +896,20 @@ class SbListenerHelper:
             eng_range = f'{lower_bound_cl},{eng_upper_bound_cl}'
             proj_range = f'{lower_bound_cl},{proj_upper_bound_cl}'
 
-        eng_code_cl = p4_latest_code_change(engine_paths, range=eng_range,
-                                            **p4opts)
-        proj_code_cl = p4_latest_code_change(project_paths, range=proj_range,
-                                             **p4opts)
+        if lower_bound_cl and (lower_bound_cl >= eng_upper_bound_cl):
+            eng_code_cl = eng_upper_bound_cl
+        else:
+            eng_code_cl = p4_utils.p4_latest_code_change(
+                engine_paths, range=eng_range, **p4opts)
+
+        if proj_upper_bound_cl:
+            if lower_bound_cl and (lower_bound_cl >= proj_upper_bound_cl):
+                proj_code_cl = proj_upper_bound_cl
+            else:
+                proj_code_cl = p4_utils.p4_latest_code_change(
+                    project_paths, range=proj_range, **p4opts)
+        else:
+            proj_code_cl = None
 
         # These are the values we'll actually write to the JSON
         ver_cl = max(filter(None, [self.sync_engine_cl, self.sync_project_cl]))
@@ -1020,7 +917,7 @@ class SbListenerHelper:
 
         # Generate and return the updated Build.version contents.
         try:
-            build_ver: Dict[str, Union[int, str]] = json.loads(
+            build_ver: dict[str, Union[int, str]] = json.loads(
                 ret_info.depot_text)
         except json.JSONDecodeError:
             logging.error('Unable to parse depot Build.version JSON',
@@ -1043,77 +940,24 @@ class SbListenerHelper:
         if no_depot_compat or licensee_changed:
             updates['CompatibleChangelist'] = ver_compatible_cl
 
-        updated_build_ver = build_ver.copy()
-        updated_build_ver.update(updates)
-        if updated_build_ver == build_ver:
+        build_ver.update(updates)
+
+        # Read existing local file and skip update if unchanged
+        existing_build_ver = None
+        try:
+            with open(buildver_local_path, 'r') as f:
+                existing_build_ver = json.load(f)
+        except Exception as exc:
+            logging.warning('Exception reading local Build.version',
+                            exc_info=exc)
+
+        if build_ver == existing_build_ver:
             logging.info("get_buildver_info(): contents haven't changed")
         else:
             logging.info(f"get_buildver_info(): {updates}")
-            ret_info.updated_text = json.dumps(updated_build_ver, indent=4)
+            ret_info.updated_text = json.dumps(build_ver, indent=2)
 
         return ret_info
-
-    def get_additional_paths_to_sync(self) -> List[str]:
-        # We append depot wildcards to host paths and end up with mixed syntax
-        # here, but fstat separates them into normalized depot/host paths.
-        mixed_config_paths = UGS.get_depot_config_paths(self.engine_dir,
-                                                        self.uproj_path.parent)
-
-        p4opts = {'user': self.p4user, 'client': self.p4client}
-
-        config_fstats = p4_fstat(mixed_config_paths, **p4opts)
-
-        config_contents_map: Dict[str, Optional[str]] = {}
-
-        # First pass: get contents of locally modified files, or depot paths
-        # of files to `p4 print` in the second pass otherwise
-        for record in config_fstats:
-            action: Optional[bytes] = record.get(b'action')
-            head_action: Optional[bytes] = record.get(b'headAction')
-            if record[b'code'] == b'stat':
-                if (b'clientFile' in record) and (b'action' in record):
-                    # If the client file exists and is modified, use local ver
-                    client_path = pathlib.Path(record[b'clientFile'].decode())
-                    if client_path.exists and action == b'edit':
-                        local_contents = client_path.read_text()
-                        config_contents_map[str(client_path)] = local_contents
-                        continue
-                    elif action == b'delete':
-                        continue
-
-                if head_action == b'delete':
-                    continue
-
-                if b'depotFile' in record:
-                    depot_file = record[b'depotFile'].decode()
-                    config_contents_map[depot_file] = None
-                    continue
-
-            logging.warning(f'Unhandled fstat record: {record}')
-
-        # Second pass: p4 prints of depot configs @ head
-        depot_print_paths = [k for k, v in config_contents_map.items()
-                             if v is None]  # configs we didn't read locally
-
-        config_prints = p4_print(depot_print_paths, **p4opts)
-
-        for depot_path, record in zip(depot_print_paths, config_prints):
-            if record.is_valid:
-                config_contents_map[depot_path] = record.text
-            else:
-                logging.warning(f'Invalid P4PrintResult for {depot_path}')
-
-        parser = UGS.IniParser()
-        for path, contents in config_contents_map.items():
-            if contents is None:
-                logging.warning(f'No contents for {path}')
-                continue
-
-            parser.read_string(contents, path)
-
-        paths = parser.try_get('Perforce', 'AdditionalPathsToSync')
-        logging.debug(f'AdditionalPathsToSync: {paths}')
-        return paths or []
 
     def on_sync_progress(
         self,
@@ -1145,11 +989,15 @@ class SbListenerHelper:
         between related options.
         '''
         self.dry_run = options.dry_run
-        self.p4user = options.p4user
-        self.p4client = options.p4client
         self.clobber_engine = options.clobber_engine
         self.clobber_project = options.clobber_project
         self.ugs_lib_dir = options.ugs_lib_dir
+
+        self.p4user = options.p4user
+        self.p4client = options.p4client
+        self.p4clientspec = p4_utils.p4_get_client(self.p4client,
+                                                   user=self.p4user,
+                                                   client=self.p4client) or {}
 
         if options.project is None:
             if options.project_cl is not None:
@@ -1261,6 +1109,9 @@ class SbListenerHelper:
 
 
 def main() -> int:
+    p4_utils.meta_zprog = SCRIPT_NAME
+    p4_utils.meta_zversion = __version__
+
     app = SbListenerHelper()
     result = app.run()
     logging.info(f'Finished with exit code {result}')
