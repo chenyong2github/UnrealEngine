@@ -299,6 +299,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = LevelStreaming)
 	uint8 bDrawOnLevelStatusMap : 1;
 
+	/** If true, allows garbage collection clustering for the level. */
+	uint8 bGarbageCollectionClusteringEnabled : 1;
+
 #if WITH_EDITORONLY_DATA
 	/** Deprecated level color used for visualization. */
 	UPROPERTY()

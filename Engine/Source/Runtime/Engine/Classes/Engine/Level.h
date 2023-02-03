@@ -664,6 +664,9 @@ public:
 	uint8										bHasRerunConstructionScripts:1;
 	/** Whether the level had its actor cluster created. This doesn't mean that the creation was successful. */
 	uint8										bActorClusterCreated : 1;
+	/** If true, allows garbage collection clustering for the level */
+	uint8										bGarbageCollectionClusteringEnabled : 1;
+
 	/** Whether the level is partitioned or not. */
     UPROPERTY()
 	uint8										bIsPartitioned : 1;

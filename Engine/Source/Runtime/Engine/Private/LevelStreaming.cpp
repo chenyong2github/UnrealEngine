@@ -387,6 +387,7 @@ ULevelStreaming::ULevelStreaming(const FObjectInitializer& ObjectInitializer)
 	CurrentState = ELevelStreamingState::Removed;
 	bSkipClientUseMakingInvisibleTransactionRequest = false;
 	bSkipClientUseMakingVisibleTransactionRequest = false;
+	bGarbageCollectionClusteringEnabled = true;
 }
 
 void ULevelStreaming::PostLoad()
@@ -1311,6 +1312,8 @@ void ULevelStreaming::PrepareLoadedLevel(ULevel* InLevel, UPackage* InLevelPacka
 {
 	check(InLevel);
 	UWorld* LevelOwningWorld = InLevel->OwningWorld;
+
+	InLevel->bGarbageCollectionClusteringEnabled = bGarbageCollectionClusteringEnabled;
 
 	if (ensure(LevelOwningWorld))
 	{

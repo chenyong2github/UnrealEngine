@@ -445,6 +445,7 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	bFixupActorFoldersAtLoad = IsActorFolderObjectsFeatureAvailable();
 #endif	
 	bActorClusterCreated = false;
+	bGarbageCollectionClusteringEnabled = true;
 	bIsPartitioned = false;
 	bStaticComponentsRegisteredInStreamingManager = false;
 	IncrementalComponentState = EIncrementalComponentState::Init;
@@ -466,7 +467,7 @@ void ULevel::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 	ULevel* This = CastChecked<ULevel>(InThis);
 
 	// Let GC know that we're referencing some AActor objects
-	if (FPlatformProperties::RequiresCookedData() && GActorClusteringEnabled && This->bActorClusterCreated)
+	if (FPlatformProperties::RequiresCookedData() && GActorClusteringEnabled && This->bGarbageCollectionClusteringEnabled && This->bActorClusterCreated)
 	{
 		Collector.AddStableReferenceArray(&This->ActorsForGC);
 	}
@@ -1286,7 +1287,7 @@ void ULevel::CreateCluster()
 	// Also, we don't want the level to reference the actors that are clusters because that would
 	// make things work even slower (references to clustered objects are expensive). That's why
 	// we keep a separate array for referencing unclustered actors (ActorsForGC).
-	if (FPlatformProperties::RequiresCookedData() && GCreateGCClusters && GActorClusteringEnabled && !bActorClusterCreated)
+	if (FPlatformProperties::RequiresCookedData() && GCreateGCClusters && GActorClusteringEnabled && bGarbageCollectionClusteringEnabled && !bActorClusterCreated)
 	{
 		ActorsForGC.Reset();
 
