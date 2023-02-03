@@ -17,7 +17,7 @@ class UDeformablePhysicsComponent;
 /**
 *	UDeformableSolverComponent
 */
-UCLASS()
+UCLASS(meta = (BlueprintSpawnableComponent))
 class CHAOSFLESHENGINE_API UDeformableSolverComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -31,12 +31,6 @@ public:
 
 	~UDeformableSolverComponent();
 	void UpdateTickGroup();
-
-#if WITH_EDITOR
-	TArray< TObjectPtr<AActor> > PreEditChangeDeformableActors;
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 
 	/* Solver API */
 	FDeformableSolver::FGameThreadAccess GameThreadAccess();
@@ -58,62 +52,62 @@ public:
 
 	/* Properties */
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Chaos)
-		TArray< TObjectPtr<AActor> > DeformableActors;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Chaos Deformable")
+	TArray< TObjectPtr<UDeformablePhysicsComponent> > DeformableComponents;
 
 	/** ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly , Category = Chaos)
-		EDeformableExecutionModel ExecutionModel = EDeformableExecutionModel::Chaos_Deformable_DuringPhysics;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly , Category = "Chaos Deformable")
+	EDeformableExecutionModel ExecutionModel = EDeformableExecutionModel::Chaos_Deformable_DuringPhysics;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		int32 NumSubSteps = 2;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		int32 NumSolverIterations = 5;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool FixTimeStep = false;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		float TimeStepSize = 0.05;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool CacheToFile = false;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool bEnableKinematics = true;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool bUseFloor = true;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool bDoSelfCollision = false;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool bDoThreadedAdvance = true;
 
-	UPROPERTY(EditAnywhere, Category = "Chaos|Expermental" )
+	UPROPERTY(EditAnywhere, Category = "Chaos|Deformable|Expermental" )
 		bool bUseGridBasedConstraints = false;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		float GridDx = 25.;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool bDoQuasistatics = false;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		float YoungModulus = 100000;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool bDoBlended = false;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		float BlendedZeta = 0;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		float Damping = 0;
 
-	UPROPERTY(EditAnywhere, Category = Chaos)
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool bEnableGravity = true;
 	//UPROPERTY(EditAnywhere, Category = Chaos)
 	//	bool bWaitForParallelDeformableTask = true;

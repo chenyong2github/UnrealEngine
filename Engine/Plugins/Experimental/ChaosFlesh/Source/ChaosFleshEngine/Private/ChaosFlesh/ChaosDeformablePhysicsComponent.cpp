@@ -13,15 +13,12 @@ void UDeformablePhysicsComponent::OnCreatePhysicsState()
 {
 	Super::OnCreatePhysicsState();
 	UE_LOG(LogDeformablePhysicsComponentInternal, Log, TEXT("UDeformablePhysicsComponent::OnCreatePhysicsState()"));
-	if (PrimarySolver)
+	if (PrimarySolverComponent)
 	{
-		if (UDeformableSolverComponent* SolverComponent = PrimarySolver->GetDeformableSolverComponent())
+		FDeformableSolver::FGameThreadAccess GameThreadSolver = PrimarySolverComponent->GameThreadAccess();
+		if (GameThreadSolver())
 		{
-			FDeformableSolver::FGameThreadAccess GameThreadSolver = SolverComponent->GameThreadAccess();
-			if (GameThreadSolver())
-			{
-				AddProxy(GameThreadSolver);
-			}
+			AddProxy(GameThreadSolver);
 		}
 	}
 }
@@ -30,15 +27,12 @@ void UDeformablePhysicsComponent::OnDestroyPhysicsState()
 {
 	Super::OnDestroyPhysicsState();
 	UE_LOG(LogDeformablePhysicsComponentInternal, Log, TEXT("UDeformablePhysicsComponent::OnDestroyPhysicsState()"));
-	if (PrimarySolver)
+	if (PrimarySolverComponent)
 	{
-		if (UDeformableSolverComponent* SolverComponent = PrimarySolver->GetDeformableSolverComponent())
+		FDeformableSolver::FGameThreadAccess GameThreadSolver = PrimarySolverComponent->GameThreadAccess();
+		if (GameThreadSolver())
 		{
-			FDeformableSolver::FGameThreadAccess GameThreadSolver = SolverComponent->GameThreadAccess();
-			if (GameThreadSolver())
-			{
-				RemoveProxy(GameThreadSolver);
-			}
+			RemoveProxy(GameThreadSolver);
 		}
 	}
 }
@@ -51,71 +45,6 @@ bool UDeformablePhysicsComponent::HasValidPhysicsState() const
 {
 	return PhysicsProxy != nullptr;
 }
-
-
-#if WITH_EDITOR
-void UDeformablePhysicsComponent::PreEditChange(FProperty* PropertyThatWillChange)
-{
-	Super::PreEditChange(PropertyThatWillChange);
-	if (PropertyThatWillChange && PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(UFleshComponent, PrimarySolver))
-	{
-		PreEditChangePrimarySolver = PrimarySolver;
-	}
-}
-
-
-void UDeformablePhysicsComponent::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	//
-	// The UDeformablePhysicsComponent and the UDeformableSolverComponent hold references to each other. 
-	// If one of the attributes change, then the attribute on the other component needs to be updated. 
-	//
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFleshComponent, PrimarySolver))
-	{
-		if (AActor* Owner = Cast<AActor>(GetOwner()))
-		{
-			if (PrimarySolver)
-			{
-				if (UDeformableSolverComponent* SolverComponent = PrimarySolver->GetDeformableSolverComponent())
-				{
-					if (!SolverComponent->DeformableActors.Contains(Owner))
-					{
-						SolverComponent->DeformableActors.Add(TObjectPtr<AActor>(Owner));
-					}
-				}
-			}
-			else if (PreEditChangePrimarySolver)
-			{
-				bool DrivesOtherComponentsOnActor = false;
-				TArray<UDeformablePhysicsComponent*> DeformableComponentsOnActor;
-				Owner->GetComponents<UDeformablePhysicsComponent>(DeformableComponentsOnActor);
-				for (UDeformablePhysicsComponent* DeformableComponent : DeformableComponentsOnActor)
-				{
-					if (DeformableComponent->PrimarySolver == PreEditChangePrimarySolver)
-					{
-						DrivesOtherComponentsOnActor = true;
-						break;
-					}
-				}
-				if (!DrivesOtherComponentsOnActor)
-				{
-					if (UDeformableSolverComponent* SolverComponent = PreEditChangePrimarySolver->GetDeformableSolverComponent())
-					{
-						if (SolverComponent->DeformableActors.Contains(Owner))
-						{
-							SolverComponent->DeformableActors.Remove(Owner);
-						}
-					}
-				}
-			}
-		}
-		PreEditChangePrimarySolver = nullptr;
-	}
-}
-#endif
-
 
 void UDeformablePhysicsComponent::AddProxy(Chaos::Softs::FDeformableSolver::FGameThreadAccess& GameThreadSolver)
 {
@@ -138,11 +67,11 @@ void UDeformablePhysicsComponent::RemoveProxy(Chaos::Softs::FDeformableSolver::F
 
 UDeformableSolverComponent* UDeformablePhysicsComponent::GetDeformableSolver()
 {
-	return PrimarySolver ? PrimarySolver->GetDeformableSolverComponent() : nullptr;
+	return PrimarySolverComponent;
 }
 const UDeformableSolverComponent* UDeformablePhysicsComponent::GetDeformableSolver() const
 { 
-	return PrimarySolver ? PrimarySolver->GetDeformableSolverComponent() : nullptr; 
+	return PrimarySolverComponent;
 }
 
 UDeformablePhysicsComponent::UDeformablePhysicsComponent(const FObjectInitializer& ObjectInitializer)
@@ -151,22 +80,16 @@ UDeformablePhysicsComponent::UDeformablePhysicsComponent(const FObjectInitialize
 }
 
 
-void UDeformablePhysicsComponent::EnableSimulation(ADeformableSolverActor* InActor)
+void UDeformablePhysicsComponent::EnableSimulation(UDeformableSolverComponent* DeformableSolverComponent)
 {
-	if (InActor)
+	if (DeformableSolverComponent)
 	{
-		if (UDeformableSolverComponent* SolverComponent = InActor->GetDeformableSolverComponent())
+		PrimarySolverComponent = DeformableSolverComponent;
+		if (!DeformableSolverComponent->DeformableComponents.Contains(this))
 		{
-			if (AActor* Owner = Cast<AActor>(this->GetOwner()))
-			{
-				PrimarySolver = InActor;
-				if (!SolverComponent->DeformableActors.Contains(Owner))
-				{
-					SolverComponent->DeformableActors.Add(Owner);
-				}
-				SolverComponent->AddDeformableProxy(this);
-			}
+			DeformableSolverComponent->DeformableComponents.Add(this);
 		}
+		DeformableSolverComponent->AddDeformableProxy(this);
 	}
 }
 

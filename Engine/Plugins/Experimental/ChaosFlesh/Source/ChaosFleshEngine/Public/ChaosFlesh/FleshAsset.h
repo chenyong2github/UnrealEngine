@@ -92,10 +92,6 @@ public:
 
 	void Serialize(FArchive& Ar);
 
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-	int32 Substeps=1;
-
 	//
 	// Dataflow
 	//

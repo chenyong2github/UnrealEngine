@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "ChaosFlesh/FleshComponent.h"
+#include "ChaosFlesh/ChaosDeformableSolverActor.h"
 
 #include "FleshActor.generated.h"
 
@@ -19,15 +20,20 @@ class CHAOSFLESHENGINE_API AFleshActor : public AActor
 
 public:
 
-	/* FleshComponent */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Destruction, meta = (ExposeFunctionCategories = "Components|Flesh", AllowPrivateAccess = "true"))
-		TObjectPtr<UFleshComponent> FleshComponent;
-	UFleshComponent* GetFleshComponent() const { return FleshComponent; }
-
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void EnableSimulation(ADeformableSolverActor* Actor);
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Chaos Deformable")
+	TObjectPtr<UFleshComponent> FleshComponent;
+	UFleshComponent* GetFleshComponent() const { return FleshComponent; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chaos Deformable")
+	TObjectPtr<ADeformableSolverActor> PrimarySolver;
+
 #if WITH_EDITOR
+	ADeformableSolverActor* PreEditChangePrimarySolver = nullptr;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 #endif
 };

@@ -62,12 +62,9 @@ void UFleshComponent::BeginPlay()
 			PrimaryComponentTick.AddPrerequisite(SkeletalMeshComponent, SkeletalMeshComponent->PrimaryComponentTick);
 		}
 	}
-	if (PrimarySolver)
+	if (PrimarySolverComponent)
 	{
-		if (UDeformableSolverComponent* DeformableSolverComponent = PrimarySolver->GetDeformableSolverComponent())
-		{
-			PrimaryComponentTick.AddPrerequisite(DeformableSolverComponent, DeformableSolverComponent->PrimaryComponentTick);
-		}
+		PrimaryComponentTick.AddPrerequisite(PrimarySolverComponent, PrimarySolverComponent->PrimaryComponentTick);
 	}
 }
 

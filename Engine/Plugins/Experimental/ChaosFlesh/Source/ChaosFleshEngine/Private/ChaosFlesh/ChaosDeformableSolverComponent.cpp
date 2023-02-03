@@ -76,68 +76,6 @@ UDeformableSolverComponent::GameThreadAccess()
 }
 
 
-#if WITH_EDITOR
-void UDeformableSolverComponent::PreEditChange(FProperty* PropertyThatWillChange)
-{
-	Super::PreEditChange(PropertyThatWillChange);
-	if (PropertyThatWillChange && PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(UDeformableSolverComponent, DeformableActors))
-	{
-		PreEditChangeDeformableActors = DeformableActors;
-	}
-}
-
-void UDeformableSolverComponent::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	//
-	// The UDeformablePhysicsComponent and the UDeformableSolverComponent hold references to each other. 
-	// If one of the attributes change, then the attribute on the other component needs to be updated. 
-	//
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UDeformableSolverComponent, DeformableActors))
-	{
-		// process removed actors
-		for (TObjectPtr<AActor>& SimulatedActor : PreEditChangeDeformableActors)
-		{
-			if (SimulatedActor)
-			{
-				if (!DeformableActors.Contains(SimulatedActor))
-				{
-					TArray<UDeformablePhysicsComponent*> DeformableComponentsOnActor;
-					SimulatedActor->GetComponents<UDeformablePhysicsComponent>(DeformableComponentsOnActor);
-					for (UDeformablePhysicsComponent* DeformableComponent : DeformableComponentsOnActor)
-					{
-						if (DeformableComponent->PrimarySolver == GetOwner())
-						{
-							DeformableComponent->PrimarySolver = nullptr;
-						}
-					}
-				}
-			}
-		}
-		// process added actors
-		for (TObjectPtr<AActor>& SimulatedActor : DeformableActors)
-		{
-			if (SimulatedActor)
-			{
-				if (!PreEditChangeDeformableActors.Contains(SimulatedActor))
-				{
-					TArray<UDeformablePhysicsComponent*> DeformableComponentsOnActor;
-					SimulatedActor->GetComponents<UDeformablePhysicsComponent>(DeformableComponentsOnActor);
-					for (UDeformablePhysicsComponent* DeformableComponent : DeformableComponentsOnActor)
-					{
-						if (DeformableComponent->PrimarySolver == nullptr)
-						{
-							DeformableComponent->PrimarySolver = Cast<ADeformableSolverActor>(GetOwner());
-						}
-					}
-				}
-			}
-		}
-	}
-}
-#endif
-
 bool UDeformableSolverComponent::IsSimulatable() const
 {
 	return true;
@@ -147,8 +85,8 @@ bool UDeformableSolverComponent::IsSimulating(UDeformablePhysicsComponent* InCom
 {
 	if (InComponent)
 	{
-		const AActor* ComponentSolver = InComponent->PrimarySolver.Get();
-		return ComponentSolver == GetOwner();
+		const UDeformableSolverComponent* ComponentSolver = InComponent->PrimarySolverComponent.Get();
+		return ComponentSolver ==this;
 	}
 	return false;
 }
@@ -252,49 +190,18 @@ void UDeformableSolverComponent::Reset()
 			, bEnableGravity
 		}));
 
-		for (TObjectPtr<AActor>& DeformableActor : DeformableActors)
+		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : DeformableComponents)
 		{
-			if (DeformableActor)
+			if( DeformableComponent )
 			{
-				TArray<UDeformablePhysicsComponent*> DeformableComponents;
-				DeformableActor->GetComponents<UDeformablePhysicsComponent>(DeformableComponents);
-
-				for (UDeformablePhysicsComponent* DeformableComponent : DeformableComponents)
+				if (IsSimulating(DeformableComponent))
 				{
-					if (IsSimulating(DeformableComponent))
-					{
-						AddDeformableProxy(DeformableComponent);
-					}
+					AddDeformableProxy(DeformableComponent);
 				}
 			}
 		}
 	}
 }
-
-/*
-* @todo(flesh) : In game additions. 
-void UDeformableSolverComponent::AddDeformableActor(TObjectPtr<AActor> InActor)
-{
-	if (InActor)
-	{
-		if (!DeformableActors.Contains(InActor))
-		{
-			DeformableActors.Add(InActor);
-		}
-
-		if (AFleshActor* FleshActor = Cast<AFleshActor>(InActor.Get()))
-		{
-			TArray<UDeformablePhysicsComponent*> DeformableComponents;
-			InActor->GetComponents<UDeformablePhysicsComponent>(DeformableComponents);
-
-			for (UDeformablePhysicsComponent* DeformableComponent : DeformableComponents)
-			{
-				AddDeformableProxy(DeformableComponent);
-			}
-		}
-	}
-}
-*/
 
 void UDeformableSolverComponent::AddDeformableProxy(UDeformablePhysicsComponent* InComponent)
 {
@@ -331,21 +238,15 @@ void UDeformableSolverComponent::UpdateFromGameThread(float DeltaTime)
 		FDeformableSolver::FGameThreadAccess GameThreadSolver(Solver.Get(), Chaos::Softs::FGameThreadAccessor());
 
 		Chaos::Softs::FDeformableDataMap DataMap;
-		for (TObjectPtr<AActor>& DeformableActor : DeformableActors)
+		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : DeformableComponents)
 		{
-			if (DeformableActor)
+			if (DeformableComponent)
 			{
-				TArray<UDeformablePhysicsComponent*> DeformableComponents;
-				DeformableActor->GetComponents<UDeformablePhysicsComponent>(DeformableComponents);
-
-				for (UDeformablePhysicsComponent* DeformableComponent : DeformableComponents)
+				if (IsSimulating(DeformableComponent))
 				{
-					if (IsSimulating(DeformableComponent))
+					if (FDataMapValue Value = DeformableComponent->NewDeformableData())
 					{
-						if (FDataMapValue Value = DeformableComponent->NewDeformableData())
-						{
-							DataMap.Add(DeformableComponent, Value);
-						}
+						DataMap.Add(DeformableComponent, Value);
 					}
 				}
 			}
@@ -370,21 +271,15 @@ void UDeformableSolverComponent::UpdateFromSimulation(float DeltaTime)
 
 		if (Output)
 		{
-			for (TObjectPtr<AActor>& DeformableActor : DeformableActors)
+			for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : DeformableComponents)
 			{
-				if (DeformableActor)
+				if (DeformableComponent)
 				{
-					TArray<UDeformablePhysicsComponent*> DeformableComponents;
-					DeformableActor->GetComponents<UDeformablePhysicsComponent>(DeformableComponents);
-
-					for (UDeformablePhysicsComponent* DeformableComponent : DeformableComponents)
+					if (IsSimulating(DeformableComponent))
 					{
-						if (IsSimulating(DeformableComponent))
+						if (const FDataMapValue* Buffer = Output->ObjectMap.Find(DeformableComponent))
 						{
-							if (const FDataMapValue* Buffer = Output->ObjectMap.Find(DeformableComponent))
-							{
-								DeformableComponent->UpdateFromSimualtion(Buffer);
-							}
+							DeformableComponent->UpdateFromSimualtion(Buffer);
 						}
 					}
 				}

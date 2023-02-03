@@ -28,8 +28,7 @@ public:
 	~UDeformablePhysicsComponent() {}
 
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	void EnableSimulation(ADeformableSolverActor* Actor);
-
+	void EnableSimulation(UDeformableSolverComponent* DeformableSolverComponent);
 
 	virtual FThreadingProxy* NewProxy() { return nullptr; }
 	virtual void AddProxy(Chaos::Softs::FDeformableSolver::FGameThreadAccess& GameThreadSolver);
@@ -43,20 +42,14 @@ public:
 	virtual bool ShouldCreatePhysicsState() const override;
 	virtual bool HasValidPhysicsState() const override;
 
-#if WITH_EDITOR
-	ADeformableSolverActor* PreEditChangePrimarySolver = nullptr;
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-
 	/** PrimarySolver */
 	UDeformableSolverComponent* GetDeformableSolver();
 	const UDeformableSolverComponent* GetDeformableSolver() const;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attributes)
-	TObjectPtr<ADeformableSolverActor> PrimarySolver;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chaos Deformable")
+	TObjectPtr<UDeformableSolverComponent> PrimarySolverComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attributes)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chaos Deformable")
 	bool bTempEnableGravity = true;
 
 	const FThreadingProxy* GetPhysicsProxy() const { return PhysicsProxy; }
