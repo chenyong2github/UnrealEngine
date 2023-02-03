@@ -1334,7 +1334,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
 	static void BreakVector(FVector InVec, double& X, double& Y, double& Z);
 
-	UFUNCTION(BlueprintPure, Category = "Math|Vector", meta=(NativeBreakFunc, DeprecatedFunction, DeprecationMessage = "Explicit conversions between floats and doubles are not necessary. Please remove node."))
+	UE_DEPRECATED(5.3, "This method has been deprecated and will be removed. Use the double version instead.")
 	static void BreakVector3f(FVector3f InVec, float& X, float& Y, float& Z);
 
 	/** Converts a vector to LinearColor */
