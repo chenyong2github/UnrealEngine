@@ -95,7 +95,14 @@ void FRigLogicEditor::ExecuteDNAImport(UObject* Mesh)
 	UFactory* Factory = Cast<UFactory>(UDNAAssetImportFactory::StaticClass()->GetDefaultObject());
 	FString Path = FPaths::GetPath(Mesh->GetPathName());
 	
-	AssetToolsModule.Get().ImportAssets(Filenames,Path, Factory,true, nullptr,true);
+	if((Mesh->GetFName()).ToString().Compare(Filenames[0]))
+	{
+		FReimportManager::Instance()->Reimport(Mesh, false, true, Filenames[0]);
+	}
+	else
+	{
+		AssetToolsModule.Get().ImportAssets(Filenames, Path, Factory, true, nullptr, true);
+	}
 }
 
 void FRigLogicEditor::ExecuteDNAReimport(class UObject* Mesh)
@@ -113,7 +120,14 @@ void FRigLogicEditor::ExecuteDNAReimport(class UObject* Mesh)
 			UFactory* Factory = Cast<UFactory>(UDNAAssetImportFactory::StaticClass()->GetDefaultObject());
 			FString Path = FPaths::GetPath(Mesh->GetPathName());
 
-			AssetToolsModule.Get().ImportAssets(Filenames, Path, Factory, true, nullptr, true);
+			if ((Mesh->GetFName()).ToString().Compare(Filenames[0]))
+			{
+				FReimportManager::Instance()->Reimport(Mesh, false, true, Filenames[0]);
+			}
+			else
+			{
+				AssetToolsModule.Get().ImportAssets(Filenames, Path, Factory, true, nullptr, true);
+			}
 		}
 	}
 	else

@@ -20,6 +20,9 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+
 #include "AssetImportTask.h"
 #include "Misc/FileHelper.h"
 
@@ -76,7 +79,18 @@ EReimportResult::Type UDNAAssetImportFactory::Reimport(UObject* Obj, int32 Sourc
 
 	if (Result != nullptr)
 	{
-		return EReimportResult::Succeeded;
+		// TODO: Find a better solution to showing the right message, withouth this we get reimport message success for Skeletal Mesh
+		FNotificationInfo Info(LOCTEXT("DNA_ReimportSuccessMessage", "DNA file successfully imported"));
+		Info.ExpireDuration = 3.0f;
+		Info.bUseLargeFont = false;
+		TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+		if (Notification.IsValid())
+		{
+			Notification->SetCompletionState(SNotificationItem::CS_Success);
+		}
+
+		//Cancel is sent here because the notification created for successful import ( reimport is only registered because DNA has the same name as SkelMesh ) is already showed with above code
+		return EReimportResult::Cancelled;
 	}
 
 	return EReimportResult::Failed;
