@@ -1055,5 +1055,41 @@ namespace DatasmithSolidworks
 
 			return true;
 		}
+
+		// Used to backtrack Appearance to Material in case Solidworks api of RenderMaterial didn't return all entities this material is used on
+		public bool EqualsAppearance(AppearanceSetting OtherAppearance)
+		{
+			if (Source.PrimaryColor != OtherAppearance.Color)
+			{
+				return false;
+			}
+
+			if (Math.Abs(Source.Emission - OtherAppearance.Luminous) > 0.001)
+			{
+				return false;
+			}
+			
+			if (Math.Abs(Source.Transparency - OtherAppearance.Transparent) > 0.001)
+			{
+				return false;
+			}
+
+			if (Math.Abs(Source.Reflectivity - OtherAppearance.Reflection) > 0.001)
+			{
+				return false;
+			}
+
+			if (Math.Abs(Source.Specular - OtherAppearance.Specular) > 0.001)
+			{
+				return false;
+			}
+
+			if (Source.SpecularColor != OtherAppearance.SpecularColor)
+			{
+				return false;
+			}
+
+			return true;
+		}
 	}
 }
