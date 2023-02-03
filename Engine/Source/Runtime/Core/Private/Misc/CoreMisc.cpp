@@ -44,10 +44,12 @@ DEFINE_LOG_CATEGORY(LogCore);
 using FSelfRegisteredExecArray = TArray<FSelfRegisteringExec*, TInlineAllocator<8>>;
 
 // Lazy because pthread implementation doesn't like static initialization.
-FRWLock& GetExecRegistryLock()
+FCriticalSection* GetExecRegistryLock()
 {
-	static FRWLock ExecRegistryLock;
-	return ExecRegistryLock;
+	// Note: Using FCriticalSection still allows calls to addition or removal
+	// to/from Execs and FSelfRegisteringExec::StaticExec on the same thread
+	static FCriticalSection ExecRegistryLock;
+	return &ExecRegistryLock;
 }
 
 FSelfRegisteredExecArray& GetExecRegistry()
@@ -59,20 +61,20 @@ FSelfRegisteredExecArray& GetExecRegistry()
 /** Constructor, registering this instance. */
 FSelfRegisteringExec::FSelfRegisteringExec()
 {
-	FWriteScopeLock ScopeLock(GetExecRegistryLock());
+	FScopeLock ScopeLock(GetExecRegistryLock());
 	GetExecRegistry().Add( this );
 }
 
 /** Destructor, unregistering this instance. */
 FSelfRegisteringExec::~FSelfRegisteringExec()
 {
-	FWriteScopeLock ScopeLock(GetExecRegistryLock());
+	FScopeLock ScopeLock(GetExecRegistryLock());
 	verify(GetExecRegistry().Remove( this ) == 1 );
 }
 
 bool FSelfRegisteringExec::StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
-	FReadScopeLock ScopeLock(GetExecRegistryLock());
+	FScopeLock ScopeLock(GetExecRegistryLock());
 	for (FSelfRegisteringExec* Exe : GetExecRegistry())
 	{
 		if (Exe->Exec( InWorld, Cmd,Ar ))
