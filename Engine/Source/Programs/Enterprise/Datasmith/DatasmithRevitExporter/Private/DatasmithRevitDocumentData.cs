@@ -1153,6 +1153,7 @@ namespace DatasmithRevitExporter
 					ActorLabel += string.IsNullOrEmpty(InstanceName) ? "" : "*" + InstanceName;
 				}
 
+				DocumentData.Context.LogDebug($"GetActorLabel(CategoryName='{CategoryName}', FamilyName='{FamilyName}', TypeName='{TypeName}', InstanceName='{InstanceName}') -> '{ActorLabel}'");
 				return ActorLabel;
 			}
 
@@ -2496,6 +2497,7 @@ namespace DatasmithRevitExporter
 			Func<ElementId, Element> InGetParentElement
 		)
 		{
+			Context.LogDebug("AddParentElementHierarchy");
 			Queue<ElementId> ElementIdQueue = new Queue<ElementId>(ActorMap.Keys);
 
 			// Make sure the Datasmith actor dictionary contains actors for all the Revit parent elements.
@@ -2523,6 +2525,7 @@ namespace DatasmithRevitExporter
 				}
 				else
 				{
+					Context.LogDebug("  Add element");
 					const FDatasmithFacadeScene NullScene = null;
 					PushElement(ParentElement, Transform.Identity);
 					PopElement(NullScene);

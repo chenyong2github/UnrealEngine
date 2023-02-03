@@ -231,7 +231,9 @@ namespace DatasmithRevitExporter
 		[Conditional("DatasmithRevitDebugOutput")]
 		public void LogDebug(string Message)  
 		{
-			MessageList.Add(String.Concat(Enumerable.Repeat("    ", DebugIndent)) + Message);
+			string OutputMessage = String.Concat(Enumerable.Repeat("    ", DebugIndent)) + Message;
+			MessageList.Add(OutputMessage);
+			DatasmithRevitApplication.Instance.LogDebug(OutputMessage);
 		}
 
 		[Conditional("DatasmithRevitDebugOutput")]
@@ -305,6 +307,22 @@ namespace DatasmithRevitExporter
 			--DebugIndent;
 
 			LogDebug($"OnInstanceEnd({InInstanceNode.NodeName})");
+		}
+
+		[Conditional("DatasmithRevitDebugOutput")]
+		private void LogDebugLinkBegin(LinkNode InLinkNode)
+		{
+			LogDebug($"LogDebugLinkBegin({InLinkNode.NodeName})");
+
+			++DebugIndent;
+		}
+
+		[Conditional("DatasmithRevitDebugOutput")]
+		private void LogDebugLinkEnd(LinkNode InLinkNode)
+		{
+			--DebugIndent;
+
+			LogDebug($"OnLinkEnd({InLinkNode.NodeName})");
 		}
 
 		// OnElementBegin marks the beginning of an element to be exported.
@@ -422,6 +440,7 @@ namespace DatasmithRevitExporter
 			LinkNode InLinkNode // linked Revit document output node
 		)
 		{
+			LogDebugLinkBegin(InLinkNode);
 #if REVIT_API_2023
 			ElementType CurrentInstanceType = GetElement(InLinkNode.SymbolId) as ElementType;
 #else
@@ -454,6 +473,7 @@ namespace DatasmithRevitExporter
 			LinkNode InLinkNode // linked Revit document output node
 		)
 		{
+			LogDebugLinkEnd(InLinkNode);
 			if (InLinkNode.GetDocument() != null)
 			{
 				// Forget the current linked document being exported.
@@ -744,18 +764,25 @@ namespace DatasmithRevitExporter
 
 		private FDocumentData PopDocument()
 		{
-			FDocumentData DocumentData = DocumentDataStack.Pop();
+			FDocumentData DocumentData = DocumentDataStack.Peek();
 
-			if (DocumentDataStack.Count == 0)
+			if (DocumentDataStack.Count == 1)
 			{
 				DocumentData.WrapupScene(DatasmithScene, UniqueTextureNameSet);
 			}
 			else
 			{
-				DocumentData.WrapupLink(DatasmithScene, DocumentDataStack.Peek().GetCurrentActor(), UniqueTextureNameSet);
+				// Get element data which is the parent of linked elements - need document under the current Linked document on the stack
+				// Stack.ToArray returns array with Stack top at [0] array element, so second to top is [1]
+				// todo: may replace Stack with List
+				FDocumentData[] DocumentDataArray = DocumentDataStack.ToArray();
+				FDocumentData.FBaseElementData ParentElementData = DocumentDataArray[1].GetCurrentActor();
+			
+				DocumentData.WrapupLink(DatasmithScene, ParentElementData, UniqueTextureNameSet);
 				DirectLink?.OnEndLinkedDocument();
 			}
-
+			// Pop document only when all elements are collected for it (WrapupScene may also make actors for host elements like Level which needs to have proper document stack to build unique element name-path)
+			DocumentDataStack.Pop(); 
 			return DocumentData;
 		}
 

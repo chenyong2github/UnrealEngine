@@ -113,6 +113,7 @@ namespace DatasmithRevitExporter
 				catch (System.Exception exception)
 				{
 					OutCommandMessage = string.Format("Cannot export the 3D view:\n\n{0}\n\n{1}", exception.Message, exception.StackTrace);
+					ExportContext.LogDebug(OutCommandMessage);
 					MessageBox.Show(OutCommandMessage, DatasmithRevitCommandUtils.DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Error);
 					return Result.Failed;
 				}

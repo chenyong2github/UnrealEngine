@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Events;
@@ -81,6 +83,12 @@ namespace DatasmithRevitExporter
 		BitmapImage AutoSyncIconOn_Large;
 		BitmapImage AutoSyncIconOff_Small;
 		BitmapImage AutoSyncIconOff_Large;
+		private FDebugLog DebugLog;
+
+		public DatasmithRevitApplication()
+		{
+			CreateDebugLog();
+		}
 
 		public object Properties { get; private set; }
 
@@ -439,5 +447,58 @@ namespace DatasmithRevitExporter
 			return true;
 #endif
 		}
+
+		[Conditional("DatasmithRevitDebugOutput")]
+		private void CreateDebugLog()
+		{
+			DebugLog = new FDebugLog();
+		}
+
+		[Conditional("DatasmithRevitDebugOutput")]
+		public void LogDebug(string Message)  
+		{
+			DebugLog.LogDebug(Message);
+		}
 	}
+
+	class FDebugLog
+	{
+		private ConcurrentQueue<string> MessagesQueue = new ConcurrentQueue<string>();
+		private Thread LogWriterThread;
+
+		public FDebugLog()
+		{
+			LogWriterThread = new Thread(() =>
+			{
+				LogWriterProc();
+			});
+
+			LogWriterThread.Start();
+		}
+
+		private void LogWriterProc()
+		{
+			string LogPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+				"UnrealDatasmithExporter/Saved/Logs/UnrealDatasmithRevitExporterDebug.log");
+
+			StreamWriter LogFile = new StreamWriter(LogPath);
+
+			while (true)
+			{
+				while (MessagesQueue.TryDequeue(out string Message))
+				{
+					LogFile.WriteLine(Message);
+				}
+				LogFile.Flush();
+
+				Thread.Sleep(10);
+			}
+		}
+
+		public void LogDebug(string Message)  
+		{
+			MessagesQueue.Enqueue(Message);
+		}
+	};
+
 }
