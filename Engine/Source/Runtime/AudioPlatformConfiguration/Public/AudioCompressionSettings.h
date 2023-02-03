@@ -58,12 +58,12 @@ struct FAudioStreamCachingSettings
 /* This struct is used for settings used during the cook to a target    */
 /* platform (platform-specific compression quality and resampling, etc.)*/
 /************************************************************************/
-struct FPlatformAudioCookOverrides
+struct AUDIOPLATFORMCONFIGURATION_API FPlatformAudioCookOverrides
 {
 	// Increment this return value to force a recook on all Stream Caching assets.
 	// For testing, it's useful to set this to either a negative number or
 	// absurdly large number, to ensure you do not pollute the DDC.
-	static AUDIOPLATFORMCONFIGURATION_API int32 GetStreamCachingVersion();
+	static int32 GetStreamCachingVersion();
 
 	bool bResampleForDevice;
 
@@ -100,48 +100,7 @@ struct FPlatformAudioCookOverrides
 	}
 
 	// This is used to invalidate compressed audio for a specific platform.
-	static void GetHashSuffix(const FPlatformAudioCookOverrides* InOverrides, FString& OutSuffix)
-	{
-		if (InOverrides == nullptr)
-		{
-			return;
-		}
-		OutSuffix.AppendChar('_');
-
-		int32 CompressionQualityHash = FMath::FloorToInt(InOverrides->CompressionQualityModifier * 100.0f);
-		OutSuffix.AppendInt(CompressionQualityHash);
-
-		int32 AutoStreamingThresholdHash = FMath::FloorToInt(InOverrides->AutoStreamingThreshold * 100.0f);
-		OutSuffix.AppendInt(AutoStreamingThresholdHash);
-
-		OutSuffix.Append(TEXT("_StreamCache_Ver"));
-		OutSuffix.AppendInt(GetStreamCachingVersion());
-		OutSuffix.AppendChar('_');
-
-		// cache info:
-		OutSuffix.Append(TEXT("MEM_"));
-		OutSuffix.AppendInt(InOverrides->StreamCachingSettings.CacheSizeKB);
-		OutSuffix.Append(TEXT("MaxChnkSize_"));
-		OutSuffix.AppendInt(InOverrides->StreamCachingSettings.MaxChunkSizeOverrideKB);
-
-		if (InOverrides->StreamCachingSettings.bForceLegacyStreamChunking)
-		{
-			OutSuffix.Append(TEXT("_LegacyChunking_"));
-			OutSuffix.AppendInt(InOverrides->StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB);
-		}
-		
-
-		int32 ResampleBoolHash = (int32)InOverrides->bResampleForDevice;
-		OutSuffix.AppendInt(ResampleBoolHash);
-
-		TMap<ESoundwaveSampleRateSettings, float> SampleRateMap = InOverrides->PlatformSampleRates;
-
-		for (auto& SampleRateQuality : SampleRateMap)
-		{
-			int32 SampleRateHash = FMath::FloorToInt(SampleRateQuality.Value / 1000.0f);
-			OutSuffix.AppendInt(SampleRateHash);
-		}
-	}
+	static void GetHashSuffix(const FPlatformAudioCookOverrides* InOverrides, FString& OutSuffix);
 };
 
 USTRUCT()

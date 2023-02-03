@@ -20,11 +20,15 @@ namespace AudioFormatBinkPrivate
 		static const float BinkLowest = 4;
 		static const float BinkHighest = 0;
 
-		// Map Quality 1 (lowest) to 40 (highest).
+		// Map Quality 1 (lowest) to 100 (highest).
 		static const float QualityLowest = 1;
-		static const float QualityHighest = 40;
+		static const float QualityHighest = 100;
 
-		return FMath::GetMappedRangeValueClamped(FVector2D(QualityLowest, QualityHighest), FVector2D(BinkLowest, BinkHighest), InQualityIndex);
+		// Map Quality into Bink Range. Note: +1 gives the Bink range 5 steps inclusive.
+		float BinkValue = FMath::GetMappedRangeValueClamped(FVector2D(QualityLowest, QualityHighest), FVector2D(BinkLowest + 1.f, BinkHighest), InQualityIndex);
+
+		// Floor each value and clamp into range (as top lerp will be +1 over)
+		return FMath::Clamp(FMath::FloorToInt(BinkValue), BinkHighest, BinkLowest);
 	}	
 }
 

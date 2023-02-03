@@ -692,10 +692,9 @@ uint32 FStreamedAudioChunk::StoreInDerivedDataCache(const FString& InDerivedData
 USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-
 	Volume = 1.0;
 	Pitch = 1.0;
-	CompressionQuality = 40;
+	CompressionQuality = -1; // Note: This is set in PostInitProperties, as its unsafe to GetDefault<UAudioSettings> here.
 	SubtitlePriority = DEFAULT_SUBTITLE_PRIORITY;
 	ResourceState = ESoundWaveResourceState::NeedsFree;
 	RawPCMDataSize = 0;
@@ -1144,6 +1143,9 @@ bool USoundWave::SupportsSubtitles() const
 void USoundWave::PostInitProperties()
 {
 	Super::PostInitProperties();
+
+	// Setup the default Compression Quality, ahead of Serialization
+	CompressionQuality = GetDefault<UAudioSettings>()->GetDefaultCompressionQuality();
 
 	if(!IsTemplate())
 	{

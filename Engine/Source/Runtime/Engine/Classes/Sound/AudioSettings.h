@@ -170,6 +170,10 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	EDefaultAudioCompressionType DefaultAudioCompressionType;
 
+	/** The default compression quality (e.g. for new SoundWaves) */
+	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (ClampMin = 1, UIMin = 1, UIMax = 100))
+	int32 DefaultCompressionQuality = 80;
+
 	/** The amount of audio to send to reverb submixes if no reverb send is setup for the source through attenuation settings. Only used in audio mixer. */
 	UPROPERTY(config)
 	float DefaultReverbSendLevel_DEPRECATED;
@@ -272,6 +276,8 @@ public:
 
 	// Get the quality level settings at the provided level index
 	const FAudioQualitySettings& GetQualityLevelSettings(int32 QualityLevel) const;
+
+	int32 GetDefaultCompressionQuality() const;
 	
 	// Get the quality name level for a given index
 	FString FindQualityNameByIndex(int32 Index) const;

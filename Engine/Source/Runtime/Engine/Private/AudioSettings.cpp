@@ -188,6 +188,11 @@ const FAudioQualitySettings& UAudioSettings::GetQualityLevelSettings(int32 Quali
 	return QualityLevels[FMath::Clamp(QualityLevel, 0, QualityLevels.Num() - 1)];
 }
 
+int32 UAudioSettings::GetDefaultCompressionQuality() const
+{
+	return FMath::Clamp(DefaultCompressionQuality,1,100);
+}
+
 int32 UAudioSettings::GetQualityLevelSettingsNum() const
 {
 	return QualityLevels.Num();
