@@ -53,21 +53,25 @@
 		{
 			"id": "test-executor",
 			"name": "Run Test Executor",
-			"executor": "Test",
 			"initialAgentType": "AnyAgent",
 			"arguments": [
 				"-Target=Full Build"
-			]
+			],
+			"jobOptions": {
+				"executor": "Test"
+			}
 		},
 		{
 			"id": "local-executor",
 			"name": "Run Local Executor",
-			"executor": "Local",
 			"initialAgentType": "AnyAgent",
 			"arguments": [
 				"-Script=Engine/Build/Graph/Examples/TagsAndFiles.xml",
 				"-Target=Tag and File Examples"
-			]
+			],
+			"jobOptions": {
+				"executor": "Local"
+			}
 		},
 		{
 			"id": "custom",
