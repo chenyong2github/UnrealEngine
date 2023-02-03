@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "UObject/WeakObjectPtr.h"
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "OptimusDiagnostic.generated.h"
 
 UENUM()
