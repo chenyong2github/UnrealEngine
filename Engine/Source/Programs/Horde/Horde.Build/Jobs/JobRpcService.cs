@@ -25,6 +25,7 @@ namespace Horde.Build.Jobs
 	[Authorize]
 	public class JobRpcService : JobRpc.JobRpcBase
 	{
+		readonly AclService _aclService;
 		readonly IJobCollection _jobCollection;
 		readonly IArtifactCollection _artifactCollection;
 		readonly GlobalConfig _globalConfig;
@@ -32,8 +33,9 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobRpcService(IJobCollection jobCollection, IArtifactCollection artifactCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public JobRpcService(AclService aclService, IJobCollection jobCollection, IArtifactCollection artifactCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
+			_aclService = aclService;
 			_jobCollection = jobCollection;
 			_artifactCollection = artifactCollection;
 			_globalConfig = globalConfig.Value;
@@ -62,25 +64,15 @@ namespace Horde.Build.Jobs
 
 			NamespaceId namespaceId = Namespace.Artifacts;
 			IArtifact artifact = await _artifactCollection.AddAsync(request.Name, type, keys, namespaceId, null, templateConfig.ScopeName, context.CancellationToken);
-			// TODO: Token
-			return new CreateJobArtifactResponse { Id = artifact.Id.ToString(), NamespaceId = artifact.NamespaceId.ToString(), RefName = artifact.RefName.ToString() };
-		}
-		/*
-		/// <inheritdoc/>
-		public override async Task<FinalizeJobArtifactResponse> FinalizeArtifact(FinalizeJobArtifactRequest request, ServerCallContext context)
-		{
-			IArtifact? artifact = await _artifactCollection.GetAsync(ArtifactId.Parse(request.Id), context.CancellationToken);
-			if (artifact == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Missing artifact {ArtifactId}", request.Id);
-			}
 
-			IStorageClientImpl storage = await _storageService.GetClientAsync(artifact.NamespaceId, context.CancellationToken);
-			await storage.WriteRefTargetAsync(artifact.RefName, NodeHandle.Parse(request.Locator), cancellationToken: context.CancellationToken);
+			List<AclClaimConfig> claims = new List<AclClaimConfig>();
+			claims.Add(new AclClaimConfig(HordeClaimTypes.WriteNamespace, namespaceId.ToString()));
+			claims.Add(new AclClaimConfig(HordeClaimTypes.WriteRef, artifact.RefName.ToString()));
 
-			return new FinalizeJobArtifactResponse();
+			string token = await _aclService.IssueBearerTokenAsync(claims, TimeSpan.FromHours(8.0));
+			return new CreateJobArtifactResponse { Id = artifact.Id.ToString(), NamespaceId = artifact.NamespaceId.ToString(), RefName = artifact.RefName.ToString(), Token = token };
 		}
-		*/
+
 		Task<(IJob, IJobStepBatch, IJobStep)> AuthorizeAsync(string jobId, string stepId, ServerCallContext context)
 		{
 			return AuthorizeAsync(JobId.Parse(jobId), SubResourceId.Parse(stepId), context);

@@ -158,31 +158,6 @@ namespace Horde.Build.Artifacts
 		}
 
 		/// <summary>
-		/// Uploads a blob for an artifact. See /api/v1/storage/XXX/blobs.
-		/// </summary>
-		/// <param name="id">Id of the artifact to write to</param>
-		/// <param name="file">Data for the blob</param>
-		/// <param name="cancellationToken">Cancellation token for the request</param>
-		/// <returns>Information about the requested project</returns>
-		[HttpPost]
-		[Route("/api/v2/artifacts/{id}/blobs")]
-		[ProducesResponseType(typeof(WriteBlobResponse), 200)]
-		public async Task<ActionResult<WriteBlobResponse>> WriteArtifactBlobAsync(ArtifactId id, IFormFile? file, CancellationToken cancellationToken = default)
-		{
-			IArtifact? artifact = await _artifactCollection.GetAsync(id, cancellationToken);
-			if (artifact == null)
-			{
-				return NotFound(id);
-			}
-			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.WriteArtifact, User))
-			{
-				return Forbid(AclAction.WriteArtifact, artifact.AclScope);
-			}
-
-			return await StorageController.WriteBlobAsync(_storageService, Namespace.Artifacts, file, $"{artifact.RefName}", cancellationToken);
-		}
-
-		/// <summary>
 		/// Gets metadata about an artifact object
 		/// </summary>
 		/// <param name="id">Identifier of the artifact to retrieve</param>

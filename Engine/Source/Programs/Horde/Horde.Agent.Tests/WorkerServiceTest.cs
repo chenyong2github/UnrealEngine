@@ -61,7 +61,7 @@ namespace Horde.Agent.Tests
 
 		class FakeSessionStorageFactory : IServerStorageFactory
 		{
-			public IStorageClient CreateStorageClient(ISession session, string basePath) => null!;
+			public IStorageClient CreateStorageClient(Uri baseAddress, string token) => null!;
 		}
 
 		internal static IJobExecutor NullExecutor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>

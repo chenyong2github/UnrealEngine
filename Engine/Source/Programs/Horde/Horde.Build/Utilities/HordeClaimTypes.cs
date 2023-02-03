@@ -61,6 +61,15 @@ namespace Horde.Build.Utilities
 		/// </summary>
 		public const string ExternalIssueUser = Prefix + "external-issue-user";
 
+		/// <summary>
+		/// Claim allowing a certain namespace to be written to
+		/// </summary>
+		public const string WriteNamespace = Prefix + "write-ns";
+
+		/// <summary>
+		/// Claim allowing a certain ref to be written
+		/// </summary>
+		public const string WriteRef = Prefix + "write-ref";
 	}
 
 	/// <summary>

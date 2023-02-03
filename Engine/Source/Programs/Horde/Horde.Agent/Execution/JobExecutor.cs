@@ -471,6 +471,7 @@ namespace Horde.Agent.Execution
 
 		protected virtual async Task<bool> SetupAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference? sharedStorageDir, ILogger logger, CancellationToken cancellationToken)
 		{
+			await TestArtifactAsync(step.StepId, cancellationToken);
 			FileReference definitionFile = FileReference.Combine(workspaceDir, "Engine", "Saved", "Horde", "Exported.json");
 
 			StringBuilder arguments = new StringBuilder($"BuildGraph");
@@ -742,7 +743,7 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		async Task TestArtifactAsync(string stepId, CancellationToken cancellationToken)
+		protected async Task TestArtifactAsync(string stepId, CancellationToken cancellationToken)
 		{
 			try
 			{
@@ -750,9 +751,7 @@ namespace Horde.Agent.Execution
 				CreateJobArtifactResponse artifact = await jobRpc.Client.CreateArtifactAsync(new CreateJobArtifactRequest { JobId = _jobId, StepId = stepId, Name = "test artifact", Type = JobArtifactType.Saved }, cancellationToken: cancellationToken);
 				_logger.LogInformation("Created artifact {ArtifactId} with ref {RefName} in ns {Namespace}", artifact.Id, artifact.RefName, artifact.NamespaceId);
 
-				using MemoryCache cache = new MemoryCache(new MemoryCacheOptions { });
-				IStorageClient storage = _storageFactory.CreateStorageClient(_session, $"/api/v1/storage/{artifact.NamespaceId}");
-
+				IStorageClient storage = _storageFactory.CreateStorageClient(_session, artifact.NamespaceId, artifact.Token);
 				using TreeWriter writer = new TreeWriter(storage, new RefName(artifact.RefName));
 
 				DirectoryNode dir = new DirectoryNode();
