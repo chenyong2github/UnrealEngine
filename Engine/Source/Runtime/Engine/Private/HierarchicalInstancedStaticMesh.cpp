@@ -1906,6 +1906,12 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 					StartingColor.B += 5;
 				}
 			}
+
+			if (View->Family->EngineShowFlags.InstancedStaticMeshes)
+			{
+				RenderBounds(Collector.GetPDI(ViewIndex), ViewFamily.EngineShowFlags, GetBounds(), IsSelected());
+			}
+
 		}
 	}
 }
