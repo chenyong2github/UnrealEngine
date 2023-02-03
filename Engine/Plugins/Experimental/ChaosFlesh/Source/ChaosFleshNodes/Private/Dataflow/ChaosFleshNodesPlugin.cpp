@@ -8,10 +8,10 @@
 #include "Dataflow/ChaosFleshEngineAssetNodes.h"
 #include "Dataflow/ChaosFleshFiberDirectionInitializationNodes.h"
 #include "Dataflow/ChaosFleshKinematicInitializationNodes.h"
+#include "Dataflow/ChaosFleshRadialTetrahedronNodes.h"
 #include "Dataflow/ChaosFleshRenderInitializationNodes.h"
 #include "Dataflow/ChaosFleshTetrahedralNodes.h"
 #include "Modules/ModuleManager.h"
-
 
 #define LOCTEXT_NAMESPACE "ChaosFleshNodes"
 
@@ -25,6 +25,7 @@ void IChaosFleshNodesPlugin::StartupModule()
 	Dataflow::RegisterChaosFleshKinematicInitializationNodes();
 	Dataflow::ChaosFleshTetrahedralNodes();
 	Dataflow::ChaosFleshBindingsNodes();
+	Dataflow::ChaosFleshRadialTetrahedronNodes();
 }
 
 void IChaosFleshNodesPlugin::ShutdownModule()

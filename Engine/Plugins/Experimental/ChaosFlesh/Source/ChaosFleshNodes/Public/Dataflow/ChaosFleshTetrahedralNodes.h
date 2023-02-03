@@ -144,6 +144,7 @@ protected:
 
 namespace Dataflow
 {
+	TArray<FIntVector3> GetSurfaceTriangles(const TArray<FIntVector4>& Tets);
 	void ChaosFleshTetrahedralNodes();
 
 
