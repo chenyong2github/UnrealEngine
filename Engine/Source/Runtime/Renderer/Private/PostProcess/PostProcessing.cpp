@@ -1590,7 +1590,6 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 			SceneColor = AddStreamingAccuracyLegendPass(GraphBuilder, View, PassInputs);
 			break;
 		}
-		case DVSM_RayTracingDebug:
 		case DVSM_VisualizeGPUSkinCache:
 		{
 			FTAAPassParameters Parameters(View);

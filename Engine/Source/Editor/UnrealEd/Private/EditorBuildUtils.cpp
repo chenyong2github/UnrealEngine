@@ -1369,8 +1369,6 @@ EDebugViewShaderMode ViewModeIndexToDebugViewShaderMode(EViewModeIndex SelectedV
 		return DVSM_RequiredTextureResolution;
 	case VMI_VirtualTexturePendingMips:
 		return DVSM_VirtualTexturePendingMips;
-	case VMI_RayTracingDebug:
-		return DVSM_RayTracingDebug;
 	case VMI_LODColoration:
 	case VMI_HLODColoration:
 		return DVSM_LODColoration;

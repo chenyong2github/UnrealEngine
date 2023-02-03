@@ -47,8 +47,6 @@ const TCHAR* DebugViewShaderModeToString(EDebugViewShaderMode InShaderMode)
 		return TEXT("DVSM_RequiredTextureResolution");
 	case DVSM_VirtualTexturePendingMips:
 		return TEXT("DVSM_VirtualTexturePendingMips");
-	case DVSM_RayTracingDebug:
-		return TEXT("DVSM_RayTracingDebug");
 	case DVSM_LODColoration:
 		return TEXT("DVSM_LODColoration");
 	case DVSM_VisualizeGPUSkinCache:
@@ -98,8 +96,6 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 	case DVSM_OutputMaterialTextureScales:
 	case DVSM_VirtualTexturePendingMips:
 		return FeatureLevel >= ERHIFeatureLevel::SM5 && (bForceTextureStreamingBuild || PlatformSupportsDebugViewShaders(Platform));
-	case DVSM_RayTracingDebug:
-		return FeatureLevel >= ERHIFeatureLevel::SM5 ;
 	case DVSM_VisualizeGPUSkinCache:
 		return PlatformSupportsDebugViewShaders(Platform);
 	default:
