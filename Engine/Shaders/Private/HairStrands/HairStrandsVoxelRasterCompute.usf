@@ -223,71 +223,10 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Common struct/functions
-
-#if SHADER_MARKVALID_PREPARE || SHADER_MARKVALID_INDIRECTARG || SHADER_MARKVALID_SCATTER
-struct FScatterCoord
-{
-	uint3 MinCoord;
-	uint  PartIndex;
-	uint3 Resolution;
-	uint  MacroGroupId;
-};
-
-uint2 PackScatterCoord(FScatterCoord In)
-{
-	uint2 Out;
-	Out.x =
-		((In.MinCoord.x & 0xFF)) |
-		((In.MinCoord.y & 0xFF) << 8) |
-		((In.MinCoord.z & 0xFF) << 16) |
-		((In.PartIndex & 0xFF) << 24);
-
-	Out.y =
-		((In.Resolution.x & 0xFF)) |
-		((In.Resolution.y & 0xFF) << 8) |
-		((In.Resolution.z & 0xFF) << 16) |
-		((In.MacroGroupId & 0xFF) << 24);
-
-	return Out;
-}
-
-FScatterCoord UnpackScatterCoord(uint2 In)
-{
-	FScatterCoord Out;
-	Out.MinCoord = uint3(
-		In.x & 0xFF,
-		(In.x >> 8) & 0xFF,
-		(In.x >> 16) & 0xFF);
-	Out.PartIndex = (In.x >> 24) & 0xFF;
-
-	Out.Resolution = uint3(
-		In.y & 0xFF,
-		(In.y >> 8) & 0xFF,
-		(In.y >> 16) & 0xFF);
-	Out.MacroGroupId = (In.y >> 24) & 0xFF;
-
-	return Out;
-}
-
-void UpdatePackScatterCoord(inout uint2 Out, uint PartIndex)
-{
-	Out.x = (Out.x & 0x00FFFFFF) | ((PartIndex & 0xFF) << 24);
-}
-
-#define SCATTER_WORK_ITEM_COUNT 8
-#define SCATTER_GROUP_SIZE 32
-#define SCATTER_GROUP_LINE 4
-
-#endif // SHADER_MARKVALID_PREPARE || SHADER_MARKVALID_INDIRECTARG || SHADER_MARKVALID_SCATTER
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_MARKVALID_PREPARE
 uint			MaxClusterCount;
 uint			MacroGroupId;
-uint			MaxScatterAllocationCount;
-uint			bForceDirectPageAllocation;
 
 Buffer<int>		GroupAABBsBuffer;
 Buffer<int>		ClusterAABBsBuffer;
@@ -295,15 +234,12 @@ Buffer<int>		MacroGroupVoxelAlignedAABBBuffer;
 Buffer<uint4>	PageIndexResolutionAndOffsetBuffer;
 
 RWBuffer<uint>	OutValidPageIndexBuffer;
-RWBuffer<uint>  OutDeferredScatterCounter;
-RWBuffer<uint2> OutDeferredScatterBuffer;
-
 
 // PageIndexBuffer      is sampled with linear coordinate computed from the 3d page coordinate. VALID NODE ARE NOT COMPACTED. It contains the LINEAR PAGE INDEX (to map to the 3d volume).
 // PageIndexCoordBuffer is sampled with linear coordinate for allocated nodes. VALID NODE ARE COMPACTED. It contains the 3d page coordinate and ClustedId. Only used for opaque voxel injection.
 
 #if PERMUTATION_USE_CLUSTER
-[numthreads(SCATTER_GROUP_SIZE, 1, 1)]
+[numthreads(32, 1, 1)]
 void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint ClusterIndex = DispatchThreadId.x;
@@ -346,13 +282,8 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	MinCoord = clamp(MinCoord, uint3(0, 0, 0), PageIndexResolutionMinusOne);
 	MaxCoord = clamp(MaxCoord, uint3(0, 0, 0), PageIndexResolutionMinusOne);
 
-	FScatterCoord Coord;
-	Coord.MacroGroupId = MacroGroupId;
-	Coord.PartIndex = 0;
-	Coord.MinCoord = MinCoord;
-	Coord.Resolution = (MaxCoord - MinCoord) + 1;
-
-	const uint ScatterCount = Coord.Resolution.x * Coord.Resolution.y * Coord.Resolution.z;
+	const uint3 CoordResolution = (MaxCoord - MinCoord) + 1;
+	const uint ScatterCount = CoordResolution.x * CoordResolution.y * CoordResolution.z;
 
 	// Arbitrary large number (e.g., 100x10x10 pages covered)
 	// This acts as guards against degenerated case, where the sim would deformed strands large position making the cluster arbitratry large.
@@ -366,30 +297,15 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		return;
 
 	// Find a good sweet spot
-	if (ScatterCount <= 4 || bForceDirectPageAllocation > 0)
+	for (uint z = MinCoord.z; z <= MaxCoord.z; ++z)
 	{
-		for (uint z = MinCoord.z; z <= MaxCoord.z; ++z)
-			for (uint y = MinCoord.y; y <= MaxCoord.y; ++y)
-				for (uint x = MinCoord.x; x <= MaxCoord.x; ++x)
-				{
-					const uint3 PageIndexCoord = uint3(x, y, z);
-					const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, PageIndexResolution, PageIndexOffset);
-					InterlockedOr(OutValidPageIndexBuffer[LinearPageIndexCoord], 1u);
-				}
-	}
-	else
-	{
-		const uint WorkItemCount = (ScatterCount + SCATTER_WORK_ITEM_COUNT - 1) / SCATTER_WORK_ITEM_COUNT;
-
-		uint AllocationOffset = 0;
-		InterlockedAdd(OutDeferredScatterCounter[0], WorkItemCount, AllocationOffset);
-		if (WorkItemCount + AllocationOffset < MaxScatterAllocationCount)
+		for (uint y = MinCoord.y; y <= MaxCoord.y; ++y)
 		{
-			uint2 PackedCoord = PackScatterCoord(Coord);
-			for (uint Item = 0; Item < WorkItemCount; ++Item)
+			for (uint x = MinCoord.x; x <= MaxCoord.x; ++x)
 			{
-				UpdatePackScatterCoord(PackedCoord, Item);
-				OutDeferredScatterBuffer[AllocationOffset + Item] = PackedCoord;
+				const uint3 PageIndexCoord = uint3(x, y, z);
+				const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, PageIndexResolution, PageIndexOffset);
+				InterlockedOr(OutValidPageIndexBuffer[LinearPageIndexCoord], 1u);
 			}
 		}
 	}
@@ -423,71 +339,9 @@ void MarkValid_PrepareCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, PageIndexResolution, PageIndexOffset);
 		InterlockedOr(OutValidPageIndexBuffer[LinearPageIndexCoord], 1u);
 	}
-
-	// Fake writting to insure RDG allocate buffers even there is only Group-based allocated elements (vs. cluster-based allocated elements)
-	if (Coord.x > 65000)
-	{
-		OutDeferredScatterCounter[0] = 0;
-		OutDeferredScatterBuffer[0] = uint2(0, 0);
-	}
 }
 #endif // PERMUTATION_USE_CLUSTER
 #endif // SHADER_MARKVALID_PREPARE
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if SHADER_MARKVALID_INDIRECTARG
-Buffer<uint> DeferredScatterCounter;
-RWBuffer<uint> OutIndirectArgsBuffer;
-
-[numthreads(1, 1, 1)]
-void MarkValid_BuildIndirectArgCS(uint2 DispatchThreadId : SV_DispatchThreadID)
-{
-	const uint ScatterItemCount = DeferredScatterCounter[0] * SCATTER_WORK_ITEM_COUNT;
-	const uint DispatchCount = (ScatterItemCount + SCATTER_GROUP_SIZE - 1) / SCATTER_GROUP_SIZE;
-	const uint DispatchX = min(DispatchCount, uint(SCATTER_GROUP_LINE));
-	const uint DispatchY = (DispatchCount + SCATTER_GROUP_LINE - 1) / SCATTER_GROUP_LINE;
-
-	WriteDispatchIndirectArgs(OutIndirectArgsBuffer, 0, DispatchX, DispatchY, 1);
-}
-#endif
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if SHADER_MARKVALID_SCATTER
-Buffer<int>		IndirectBufferArgs;
-Buffer<uint4>	PageIndexResolutionAndOffsetBuffer;
-Buffer<uint>	DeferredScatterCounter;
-Buffer<uint2>	DeferredScatterBuffer;
-RWBuffer<uint>	OutValidPageIndexBuffer;
-
-[numthreads(SCATTER_GROUP_SIZE, 1, 1)]
-void MarkValid_ScatterCS(uint2 DispatchThreadId : SV_DispatchThreadID)
-{
-	const uint LinearThreadId = DispatchThreadId.x + DispatchThreadId.y * SCATTER_GROUP_SIZE * SCATTER_GROUP_LINE;
-	const uint ScatterItem = LinearThreadId;
-	const uint WorkItemIndex = LinearThreadId / SCATTER_WORK_ITEM_COUNT;
-	const uint ItemIndex = LinearThreadId % SCATTER_WORK_ITEM_COUNT;
-	const uint MaxScatterItemCount = DeferredScatterCounter[0] * SCATTER_WORK_ITEM_COUNT;
-	if (ScatterItem < MaxScatterItemCount)
-	{
-		const FScatterCoord Coord = UnpackScatterCoord(DeferredScatterBuffer[WorkItemIndex]);
-
-		const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(Coord.MacroGroupId);
-		const int3  PageIndexResolution = PageIndexResolutionAndOffset.xyz;
-		const uint  PageIndexOffset = PageIndexResolutionAndOffset.w;
-
-		const uint  ClusterPageCount = Coord.Resolution.x * Coord.Resolution.y * Coord.Resolution.z;
-		const uint  LinearVoxelIt = (Coord.PartIndex * SCATTER_WORK_ITEM_COUNT) + ItemIndex;
-		if (LinearVoxelIt < ClusterPageCount)
-		{
-			const uint3 PageIndexCoord = IndexToCoord(LinearVoxelIt, Coord.Resolution) + Coord.MinCoord;
-			const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, PageIndexResolution, PageIndexOffset);
-			InterlockedOr(OutValidPageIndexBuffer[LinearPageIndexCoord], 1u);
-		}
-	}
-}
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -554,13 +408,17 @@ void MarkValidCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// Splat cluster contribution
 	// Change this to be a bit smarter (use graphics pipe?)
 	for (uint z = MinCoord.z; z <= MaxCoord.z; ++z)
+	{
 		for (uint y = MinCoord.y; y <= MaxCoord.y; ++y)
+		{
 			for (uint x = MinCoord.x; x <= MaxCoord.x; ++x)
 			{
 				const uint3 PageIndexCoord = uint3(x, y, z);
 				const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, PageIndexResolution, PageIndexOffset);
 				InterlockedOr(OutValidPageIndexBuffer[LinearPageIndexCoord], 1u);
 			}
+		}
+	}
 }
 #endif
 
