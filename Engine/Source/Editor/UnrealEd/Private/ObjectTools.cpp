@@ -264,7 +264,9 @@ namespace ObjectTools
 			// Get the cluster of objects that are going to be deleted
 			TArray<UObject*> ObjectsToDelete;
 			GetObjectsWithOuter(InObject, ObjectsToDelete);
-			
+
+			bool bIsReferencedInternally = false;
+
 			TSet<UObject*> InternalReferences;
 			// The old behavior of GatherObjectReferencersForDeletion will find anything that prevents 
 			// InObject from being garbage collected, including internal sub objects.
@@ -276,6 +278,7 @@ namespace ObjectTools
 				{
 					InternalReferences.Add(ObjectToDelete);
 					bOutIsReferenced = true;
+					bIsReferencedInternally = true;
 				}
 			}
 			
@@ -360,11 +363,11 @@ namespace ObjectTools
 				if (Roots.Contains(Transactor))
 				{
 					bOutIsReferencedInMemoryByUndo = true;
-					bOutIsReferenced = Roots.Num() > 1;
+					bOutIsReferenced = Roots.Num() > 1 || bIsReferencedInternally;
 				}
 				else
 				{
-					bOutIsReferenced = Roots.Num() > 0;
+					bOutIsReferenced = Roots.Num() > 0 || bIsReferencedInternally;
 				}
 			}
 

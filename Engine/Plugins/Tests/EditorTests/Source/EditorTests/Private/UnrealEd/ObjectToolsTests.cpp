@@ -277,6 +277,17 @@ bool FObjectToolsTests_GatherObjectReferencersForDeletion::RunTest(const FString
 		TestGatherObjectReferencersForDeletion(TempPackage, TEXT("GatherObjectReferencersForDeletion shouldn't detect any reference on any objects inside TempPackage"), false, false);
 	}
 
+	// Test object inside the package with RF_Standalone flag
+	{
+		UObjectToolsTestObject* StandaloneObject = NewObject<UObjectToolsTestObject>(TempPackage, NAME_None, RF_Transactional | RF_Standalone);
+
+		TestGatherObjectReferencersForDeletion(TempPackage, TEXT("GatherObjectReferencersForDeletion should detect internal reference inside TempPackage"), true, false);
+
+		StandaloneObject->ClearFlags(RF_Standalone);
+
+		TestGatherObjectReferencersForDeletion(TempPackage, TEXT("GatherObjectReferencersForDeletion shouldn't detect any reference on any objects inside TempPackage"), false, false);
+	}
+
 	return true;
 }
 
