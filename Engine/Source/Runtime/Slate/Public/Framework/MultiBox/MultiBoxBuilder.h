@@ -5,7 +5,6 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/SlateDelegates.h"
 #include "CoreMinimal.h"
-#include "SToolBarButtonBlock.h"
 #include "Misc/Attribute.h"
 #include "Layout/Visibility.h"
 #include "Widgets/SWidget.h"

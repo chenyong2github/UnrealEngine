@@ -11,6 +11,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Animation/AnimSequence.h"
+#include "RHICommandList.h"
 #include "UObject/UObjectGlobals.h"
 #include "RHICommandList.h"
 

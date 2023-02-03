@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "ToolMenus.h"
+#include "Framework/MultiBox/SToolBarButtonBlock.h"
 #include "Framework/Commands/UICommandInfo.h"
-#include "Widgets/SBoxPanel.h"
 #include "InteractiveToolManager.h"
 #include "ToolElementRegistry.h"
+#include "ToolMenus.h"
+#include "Widgets/SBoxPanel.h"
 
 
 class SWidget;
