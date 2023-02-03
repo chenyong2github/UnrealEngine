@@ -213,7 +213,7 @@ void FJavaWrapper::FindGooglePlayBillingMethods(JNIEnv* Env)
 	JavaStringClass = FindClassGlobalRef(Env, "java/lang/String", false);
 	AndroidThunkJava_IapSetupService = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapSetupService", "(Ljava/lang/String;)V", bIsStoreOptional);
 	AndroidThunkJava_IapQueryInAppPurchases = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapQueryInAppPurchases", "([Ljava/lang/String;)Z", bIsStoreOptional);
-	AndroidThunkJava_IapBeginPurchase = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapBeginPurchase", "(Ljava/lang/String;Ljava/lang/String;)Z", bIsStoreOptional);
+	AndroidThunkJava_IapBeginPurchase = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapBeginPurchase", "([Ljava/lang/String;Ljava/lang/String;)Z", bIsStoreOptional);
 	AndroidThunkJava_IapIsAllowedToMakePurchases = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapIsAllowedToMakePurchases", "()Z", bIsStoreOptional);
 	AndroidThunkJava_IapConsumePurchase = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapConsumePurchase", "(Ljava/lang/String;)Z", bIsStoreOptional);
 	AndroidThunkJava_IapQueryExistingPurchases = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapQueryExistingPurchases", "()Z", bIsStoreOptional);
@@ -1361,33 +1361,27 @@ bool AndroidThunkCpp_Iap_QueryInAppPurchases(const TArray<FString>& ProductIDs, 
 	return AndroidThunkCpp_Iap_QueryInAppPurchases(ProductIDs);
 }
 
-bool AndroidThunkCpp_Iap_BeginPurchase(const FString& ProductID, const FString& AccountId)
+bool AndroidThunkCpp_Iap_BeginPurchase(const TArray<FStringView>& ProductIds, const FString& AccountId)
 {
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("[JNI] - AndroidThunkCpp_Iap_BeginPurchase %s"), *ProductID);
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("[JNI] - AndroidThunkCpp_Iap_BeginPurchase"));
 	bool bResult = false;
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		CHECK_JNI_METHOD(FJavaWrapper::AndroidThunkJava_IapBeginPurchase);
 
-		auto ProductIdJava = FJavaHelper::ToJavaString(Env, ProductID);
+		auto ProductIdsJava = FJavaHelper::ToJavaStringArray(Env, ProductIds);
 		if (AccountId.IsEmpty())
 		{
-			bResult = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GoogleServicesThis, FJavaWrapper::AndroidThunkJava_IapBeginPurchase, *ProductIdJava, nullptr);
+			bResult = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GoogleServicesThis, FJavaWrapper::AndroidThunkJava_IapBeginPurchase, *ProductIdsJava, nullptr);
 		}
 		else
 		{
 			auto ObfuscatedAccountIdJava = FJavaHelper::ToJavaString(Env, AccountId);
-			bResult = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GoogleServicesThis, FJavaWrapper::AndroidThunkJava_IapBeginPurchase, *ProductIdJava, *ObfuscatedAccountIdJava);
+			bResult = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GoogleServicesThis, FJavaWrapper::AndroidThunkJava_IapBeginPurchase, *ProductIdsJava, *ObfuscatedAccountIdJava);
 		}
 	}
 
 	return bResult;
-}
-
-bool AndroidThunkCpp_Iap_BeginPurchase(const FString& ProductID, const bool bConsumable)
-{
-	FPlatformMisc::LowLevelOutputDebugString(TEXT("AndroidThunkCpp_Iap_BeginPurchase DEPRECATED, won't use consumable flag"));
-	return AndroidThunkCpp_Iap_BeginPurchase(ProductID, FString());
 }
 
 bool AndroidThunkCpp_Iap_ConsumePurchase(const FString& ProductToken)

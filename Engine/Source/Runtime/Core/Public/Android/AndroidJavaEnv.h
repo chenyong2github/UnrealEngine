@@ -45,6 +45,18 @@ public:
 	{
 		if (*this)
 		{
+			if constexpr (std::is_same_v<T, jobjectArray>)
+			{
+				const jsize Length = Env->GetArrayLength(ObjRef);
+				for(jsize Idx = 0; Idx < Length; ++Idx)
+				{
+					jobject Element = Env->GetObjectArrayElement(ObjRef, Idx);
+					if (Element && !Env->IsSameObject(Element, NULL))
+					{
+						Env->DeleteLocalRef(Element);
+					}
+				}
+			}
 			Env->DeleteLocalRef(ObjRef);
 		}
 	}
@@ -92,6 +104,9 @@ public:
 	
 	// Converts FString into a Java string wrapped in FScopedJavaObject
 	static FScopedJavaObject<jstring> ToJavaString(JNIEnv* Env, const FString& UnrealString);
+
+	// Converts a TArray<FStringView> into a Java string array wrapped in FScopedJavaObject. FStringView content is expected to be null terminated
+	static FScopedJavaObject<jobjectArray> ToJavaStringArray(JNIEnv* Env, const TArray<FStringView>& UnrealStrings);
 
 	// Converts the java objectArray to an array of FStrings. jopbjectArray must be a String[] on the Java side
 	static TArray<FString> ObjectArrayToFStringTArray(JNIEnv* Env, jobjectArray ObjectArray);

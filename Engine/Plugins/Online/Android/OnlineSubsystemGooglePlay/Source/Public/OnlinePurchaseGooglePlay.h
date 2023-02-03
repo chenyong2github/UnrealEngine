@@ -14,12 +14,14 @@ enum class EGooglePlayPurchaseState : uint8;
  */
 struct FGoogleTransactionData
 {
-	FGoogleTransactionData(const FString& InOfferId, const FString& InPurchaseToken, const FString& InReceiptData, const FString& InSignature, EGooglePlayPurchaseState InPurchaseState);
+	FGoogleTransactionData(const TArray<FString>& InOfferIds, const FString& InPurchaseToken, const FString& InReceiptData, const FString& InSignature, EGooglePlayPurchaseState InPurchaseState);
 
 	/** @return a string that prints useful debug information about this transaction */
 	FString ToDebugString() const;
 	/** @return offer id for this transaction */
-	const FString& GetOfferId() const { return OfferId; }
+	const FString& GetOfferId() const { return OfferIds[0]; }
+	/** @return all offer ids for this transaction */
+	const TArray<FString>& GetOfferIds() const { return OfferIds; }
 	/** @return receipt data for this transaction */
 	FString GetCombinedReceiptData() const { return CombinedTransactionData.ToJson(); }
 	/** @return receipt data for this transaction */
@@ -32,7 +34,8 @@ struct FGoogleTransactionData
 	const FString& GetTransactionIdentifier() const	{ return PurchaseToken; }
 	/** @return the purchase state */
 	EGooglePlayPurchaseState GetPurchaseState() const { return PurchaseState; }
-
+	/** Checks if all items reported in the transaction are present in the request */
+	bool IsMatchingRequest(const FPurchaseCheckoutRequest& Request) const;
 private:
 
 	/** Easy access to transmission of data required for backend validation */
@@ -60,7 +63,7 @@ private:
 	};
 
 	/** GooglePlay offer id */
-	FString OfferId;
+	TArray<FString> OfferIds;
 	/** PurchaseToken for the transaction */
 	FString PurchaseToken;
 	/** Error on the transaction, if applicable */

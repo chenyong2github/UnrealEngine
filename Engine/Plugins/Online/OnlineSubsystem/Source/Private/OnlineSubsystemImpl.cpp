@@ -328,6 +328,9 @@ void FOnlineSubsystemImpl::FinalizeReceipts(const FUniqueNetId& UserId)
 			UE_LOG_ONLINE(Display, TEXT("Receipt: %s %s"),
 				*Receipt.TransactionId,
 				LexToString(Receipt.TransactionState));
+
+			TArray<TTuple<FStringView,FStringView>> AlreadyUsedFinalizeInfo;
+
 			for (const FPurchaseReceipt::FReceiptOfferEntry& ReceiptOffer : Receipt.ReceiptOffers)
 			{
 				UE_LOG_ONLINE(Display, TEXT(" -Namespace: %s Id: %s Quantity: %d"),
@@ -336,20 +339,29 @@ void FOnlineSubsystemImpl::FinalizeReceipts(const FUniqueNetId& UserId)
 					ReceiptOffer.Quantity);
 
 				UE_LOG_ONLINE(Display, TEXT(" -LineItems:"));
+				
 				for (const FPurchaseReceipt::FLineItemInfo& LineItem : ReceiptOffer.LineItems)
 				{
 					UE_LOG_ONLINE(Display, TEXT("  -Name: %s Id: %s ValidationInfo: %d bytes"),
 						*LineItem.ItemName,
 						*LineItem.UniqueId,
 						LineItem.ValidationInfo.Len());
-					if (LineItem.IsRedeemable())
+
+					TTuple<FStringView,FStringView> CurrentFinalizeInfo(LineItem.UniqueId, LineItem.ValidationInfo);
+					bool bAlreadyFinalized = AlreadyUsedFinalizeInfo.Find(CurrentFinalizeInfo) != INDEX_NONE;
+					if (bAlreadyFinalized)
 					{
-						UE_LOG_ONLINE(Display, TEXT("Finalizing %s!"), *Receipt.TransactionId);
-						PurchaseInt->FinalizePurchase(UserId, LineItem.UniqueId, LineItem.ValidationInfo);
+						UE_LOG_ONLINE(Display, TEXT("Already finalized by sibling LineItem"));					
+					}
+					else if (!LineItem.IsRedeemable())
+					{
+						UE_LOG_ONLINE(Display, TEXT("Not redeemable"));
 					}
 					else
 					{
-						UE_LOG_ONLINE(Display, TEXT("Not redeemable"));
+						UE_LOG_ONLINE(Display, TEXT("Finalizing %s!"), *Receipt.TransactionId);
+						PurchaseInt->FinalizePurchase(UserId, LineItem.UniqueId, LineItem.ValidationInfo);
+						AlreadyUsedFinalizeInfo.AddUnique(MoveTemp(CurrentFinalizeInfo));
 					}
 				}
 			}	
@@ -414,11 +426,13 @@ bool FOnlineSubsystemImpl::HandlePurchaseExecCommands(UWorld* InWorld, const TCH
 		}
 		else if (FParse::Command(&Cmd, TEXT("BUY")))
 		{
-			FString ProductId = FParse::Token(Cmd, false);
+			FString CommaSeparatedProductIds = FParse::Token(Cmd, false);
 			FString UserIdStr = FParse::Token(Cmd, false);
-			if (ProductId.IsEmpty() || UserIdStr.IsEmpty())
+			TArray<FString> ProductIds;
+			CommaSeparatedProductIds.ParseIntoArray(ProductIds, TEXT(","), true);
+			if (ProductIds.IsEmpty() || UserIdStr.IsEmpty())
 			{
-				UE_LOG_ONLINE(Warning, TEXT("usage: PURCHASE BUY <productid> <userid>"));
+				UE_LOG_ONLINE(Warning, TEXT("usage: PURCHASE BUY <comma_separated_productids> <userid>"));
 			}
 			else
 			{
@@ -427,7 +441,10 @@ bool FOnlineSubsystemImpl::HandlePurchaseExecCommands(UWorld* InWorld, const TCH
 				{
 					FPurchaseCheckoutRequest Request;
 					Request.AccountId = UserIdStr;
-					Request.AddPurchaseOffer(FString(), ProductId, 1);
+					for (const FString& ProductId : ProductIds)
+					{
+						Request.AddPurchaseOffer(FString(), ProductId, 1);
+					}
 					PurchaseInt->Checkout(*UserId, Request, FOnPurchaseCheckoutComplete::CreateLambda([](const FOnlineError& Result, const TSharedRef<FPurchaseReceipt>& Receipt)
 						{
 							UE_LOG_ONLINE(Log, TEXT("Checkout Result=%s TransactionId=%s TransactionState=%s"), *Result.ToLogString(), *Receipt->TransactionId, LexToString(Receipt->TransactionState));

@@ -277,6 +277,17 @@ FScopedJavaObject<jstring> FJavaHelper::ToJavaString(JNIEnv* Env, const FString&
 	return NewScopedJavaObject(Env, Env->NewStringUTF(TCHAR_TO_UTF8(*UnrealString)));
 }
 
+FScopedJavaObject<jobjectArray> FJavaHelper::ToJavaStringArray(JNIEnv* Env, const TArray<FStringView>& UnrealStrings)
+{
+	jclass JavaStringClass = AndroidJavaEnv::FindJavaClass("java/lang/String");
+	jobjectArray ObjectArray = Env->NewObjectArray((jsize)UnrealStrings.Num(), JavaStringClass, NULL);
+	for (int32 Idx = 0; Idx < UnrealStrings.Num(); ++Idx)
+	{
+		Env->SetObjectArrayElement(ObjectArray, Idx, Env->NewStringUTF(TCHAR_TO_UTF8(UnrealStrings[Idx].GetData())));
+	}
+	return NewScopedJavaObject(Env, ObjectArray);
+}
+
 TArray<FString> FJavaHelper::ObjectArrayToFStringTArray(JNIEnv* Env, jobjectArray ObjectArray)
 {
 	TArray<FString> ArrayOfStrings;

@@ -23,6 +23,7 @@ import com.android.vending.billing.util.Base64; //WMM should use different base6
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListener
 {
@@ -141,46 +142,38 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 	 * Start the purchase flow for a particular product id
 	 */
 	@Override
-	public boolean BeginPurchase(final String ProductId, final String ObfuscatedAccountId)
+	public boolean BeginPurchase(final String[] ProductIds, final String ObfuscatedAccountId)
 	{
-		QueryProductDetailsParams Params = CreateQueryProductDetailsParamsForProduct(ProductId);
+		QueryProductDetailsParams Params = CreateQueryProductDetailsParamsForProducts(ProductIds);
 
+		Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::BeginPurchase - querying product information " + String.join(",", ProductIds));
 		Client.queryProductDetailsAsync(Params, new ProductDetailsResponseListener() {
 			@Override
 			public void onProductDetailsResponse(@NonNull BillingResult Result, @NonNull List<ProductDetails> ProductDetailsList)
 			{
 				if(Result.getResponseCode() == BillingClient.BillingResponseCode.OK)
 				{
-					final ProductDetails DetailsForProductId = FindProductDetailsInList(ProductId, ProductDetailsList);
-					if(DetailsForProductId != null)
+					// BillingClient.launchBillingFlow is annotated @UiThread, so dispatch the call to the Activity UI thread
+					MainActivity.runOnUiThread(new Runnable()
 					{
-						// BillingClient.launchBillingFlow is annotated @UiThread, so dispatch the call to the Activity UI thread
-						MainActivity.runOnUiThread(new Runnable()
-						{
-							@Override
-							public void run() {
-								Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::BeginPurchase - Launching billing flow " + ProductId);
-								BillingFlowParams Params = CreateBillingFlowParams(DetailsForProductId, ObfuscatedAccountId);
-								BillingResult Result = Client.launchBillingFlow(MainActivity, Params);
-								int ResponseCode = Result.getResponseCode();
-								if (ResponseCode != BillingClient.BillingResponseCode.OK) 
-								{
-									Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::BeginPurchase - Failed! " + TranslateBillingResult(Result));
-									NativePurchaseComplete(ResponseCode, ProductId, Purchase.PurchaseState.UNSPECIFIED_STATE, "", "", "");
-								}
+						@Override
+						public void run() {
+							Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::BeginPurchase - Launching billing flow " + ProductDetailsList.stream().map(ProductDetails::getName).collect(Collectors.joining(",")));
+							BillingFlowParams Params = CreateBillingFlowParams(ProductDetailsList, ObfuscatedAccountId);
+							BillingResult Result = Client.launchBillingFlow(MainActivity, Params);
+							int ResponseCode = Result.getResponseCode();
+							if (ResponseCode != BillingClient.BillingResponseCode.OK) 
+							{
+								Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::BeginPurchase - Failed! " + TranslateBillingResult(Result));
+								NativePurchaseComplete(ResponseCode, ProductIds, Purchase.PurchaseState.UNSPECIFIED_STATE, "", "", "");
 							}
-						});
-					}
-					else
-					{
-						Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::BeginPurchase - Failed! Could not find ProductDetails for " + ProductId);
-						NativePurchaseComplete(CustomLogicErrorResponse, ProductId, Purchase.PurchaseState.UNSPECIFIED_STATE,"", "", "");
-					}
+						}
+					});
 				}
 				else
 				{
 					Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::BeginPurchase - Failed! " + TranslateBillingResult(Result));
-					NativePurchaseComplete(Result.getResponseCode(), ProductId, Purchase.PurchaseState.UNSPECIFIED_STATE,"", "", "");
+					NativePurchaseComplete(Result.getResponseCode(), ProductIds, Purchase.PurchaseState.UNSPECIFIED_STATE,"", "", "");
 				}
 			}
 		});
@@ -248,19 +241,19 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 		{
 			for (final Purchase UpdatedPurchase : UpdatedPurchases) 
 			{
-				final String ProductId = UpdatedPurchase.getProducts().get(0);
-				Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::onPurchasesUpdated - Processing purchase of product " + ProductId);
+				final String[] ProductIds = UpdatedPurchase.getProducts().toArray(new String[0]);
+				Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::onPurchasesUpdated - Processing purchase of product " + String.join(",",ProductIds));
 				Log.debug("[GooglePlayStoreHelper] - Purchase data: " + UpdatedPurchase.toString());
 				Log.debug("[GooglePlayStoreHelper] - Data signature: " + UpdatedPurchase.getSignature());
 
 				String Receipt = Base64.encode(UpdatedPurchase.getOriginalJson().getBytes());
-				NativePurchaseComplete(BillingClient.BillingResponseCode.OK, ProductId, UpdatedPurchase.getPurchaseState(), UpdatedPurchase.getPurchaseToken(), Receipt, UpdatedPurchase.getSignature());
+				NativePurchaseComplete(BillingClient.BillingResponseCode.OK, ProductIds, UpdatedPurchase.getPurchaseState(), UpdatedPurchase.getPurchaseToken(), Receipt, UpdatedPurchase.getSignature());
 			}
 		}
 		else
 		{
 			Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::onPurchasesUpdated - Purchase failed. Response code: " + TranslateBillingResult(Result));
- 			NativePurchaseComplete(responseCode, "", Purchase.PurchaseState.UNSPECIFIED_STATE, "", "", "");
+ 			NativePurchaseComplete(responseCode, null, Purchase.PurchaseState.UNSPECIFIED_STATE, "", "", "");
 		}
 	}
 
@@ -309,7 +302,7 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 
 	class ListOfPurchasesAsArrays 
 	{
-		public String[] OwnedProducts;
+		public String[][] OwnedProducts;
 		public int[] PurchaseStates;
 		public String[] ProductTokens;
 		public String[] Signatures;
@@ -317,7 +310,7 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 
 		public ListOfPurchasesAsArrays(List<Purchase> InOwnedItems) 
 		{
-			OwnedProducts = new String[InOwnedItems.size()];
+			OwnedProducts = new String[InOwnedItems.size()][];
 			PurchaseStates = new int[InOwnedItems.size()];
 			ProductTokens = new String[InOwnedItems.size()];
 			Signatures = new String[InOwnedItems.size()];
@@ -326,7 +319,7 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 			for (int index = 0; index < InOwnedItems.size(); index ++) 
 			{
 				Purchase OwnedPurchase = InOwnedItems.get(index);
-				OwnedProducts[index] = OwnedPurchase.getProducts().get(0);
+				OwnedProducts[index] = OwnedPurchase.getProducts().toArray(new String[0]);
 				PurchaseStates[index] = OwnedPurchase.getPurchaseState();
 				ProductTokens[index] = OwnedPurchase.getPurchaseToken();
 				Signatures[index] = OwnedPurchase.getSignature();
@@ -335,13 +328,15 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 		}
 	}
 	
-	private static BillingFlowParams CreateBillingFlowParams(ProductDetails InProductDetails, String InObfuscatedAccountId)
+	private static BillingFlowParams CreateBillingFlowParams(List<ProductDetails> InProductDetails, String InObfuscatedAccountId)
 	{
-		ArrayList<BillingFlowParams.ProductDetailsParams> ProductDetailsParamList = new ArrayList<>(1);
-		ProductDetailsParamList.add(BillingFlowParams.ProductDetailsParams.newBuilder()
-			.setProductDetails(InProductDetails)
-			.build());
-		
+		ArrayList<BillingFlowParams.ProductDetailsParams> ProductDetailsParamList = new ArrayList<>(InProductDetails.size());
+		for(ProductDetails Details : InProductDetails) 
+		{
+			ProductDetailsParamList.add(BillingFlowParams.ProductDetailsParams.newBuilder()
+				.setProductDetails(Details)
+				.build());
+		}
 		BillingFlowParams.Builder Params = BillingFlowParams.newBuilder()
 			.setProductDetailsParamsList(ProductDetailsParamList);
 		if (InObfuscatedAccountId != null)
@@ -349,18 +344,6 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 			Params = Params.setObfuscatedAccountId(InObfuscatedAccountId);
 		}
 		return Params.build();
-	}
-
-	private static QueryProductDetailsParams CreateQueryProductDetailsParamsForProduct(String InProductId)
-	{
-		ArrayList<QueryProductDetailsParams.Product> ProductList = new ArrayList<>(1);
-		ProductList.add(QueryProductDetailsParams.Product.newBuilder()
-			.setProductId(InProductId)
-			.setProductType(BillingClient.ProductType.INAPP)
-			.build());
-		return QueryProductDetailsParams.newBuilder()
-			.setProductList(ProductList)
-			.build();
 	}
 
 	private static QueryProductDetailsParams CreateQueryProductDetailsParamsForProducts(String[] InProductIds)
@@ -380,18 +363,6 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 			.build();
 	}
 
-	private static ProductDetails FindProductDetailsInList(String ProductId, List<ProductDetails> InProductDetailsList)
-	{
-		for(ProductDetails Details : InProductDetailsList) 
-		{
-			if (Details.getProductId().equals(ProductId)) 
-			{
-				return Details;
-			}
-		}
-		return null;
-	}
-	
 	/**
 	 * Get a text translation of the Response Codes returned by google play.
 	 */
@@ -459,8 +430,8 @@ public class GooglePlayStoreHelper implements StoreHelper, PurchasesUpdatedListe
 	}
 
 	// Callback that notify the C++ implementation that a task has completed
-	public native void NativeQueryComplete(int ResponseCode, String[] ProductIDs, String[] Titles, String[] Descriptions, String[] Prices, long[] PricesRaw, String[] CurrencyCodes);
-	public native void NativePurchaseComplete(int ResponseCode, String ProductId, int PurchaseState, String ProductToken, String ReceiptData, String Signature);
-	public native void NativeQueryExistingPurchasesComplete(int ResponseCode, String[] ProductIds, int[] PurchaseState, String[] ProductTokens, String[] ReceiptsData, String[] Signatures);
+	public native void NativeQueryComplete(int ResponseCode, String[] ProductIds, String[] Titles, String[] Descriptions, String[] Prices, long[] PricesRaw, String[] CurrencyCodes);
+	public native void NativePurchaseComplete(int ResponseCode, String[] ProductIds, int PurchaseState, String ProductToken, String ReceiptData, String Signature);
+	public native void NativeQueryExistingPurchasesComplete(int ResponseCode, String[][] ProductIds, int[] PurchaseState, String[] ProductTokens, String[] ReceiptsData, String[] Signatures);
 	public native void NativeConsumeComplete(int ResponseCode, String PurchaseToken);
 }
