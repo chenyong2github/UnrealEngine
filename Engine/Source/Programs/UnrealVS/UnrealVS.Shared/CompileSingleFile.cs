@@ -19,10 +19,11 @@ namespace UnrealVS
 		private const int CompileSingleFileButtonID = 0x1075;
 		private const int PreprocessSingleFileButtonID = 0x1076;
 		private const int CompileSingleModuleButtonID = 0x1077;
+		private const int CompileAndProfileSingleFileButtonID = 0x1078;
 		private const int UBTSubMenuID = 0x3103;
 		private string	  FileToCompileOriginalExt = "";
 
-		static readonly HashSet<string> ValidExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".c", ".cc", ".cpp", ".cxx" };
+		static readonly HashSet<string> ValidExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".c", ".cc", ".cpp", ".h", ".cxx", ".ispc" };
 
 		System.Diagnostics.Process ChildProcess;
 		private OleMenuCommand SubMenuCommand;
@@ -42,6 +43,10 @@ namespace UnrealVS
 			CommandID CommandID3 = new CommandID(GuidList.UnrealVSCmdSet, CompileSingleModuleButtonID);
 			MenuCommand CompileSingleModuleButtonCommand = new MenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID3);
 			UnrealVSPackage.Instance.MenuCommandService.AddCommand(CompileSingleModuleButtonCommand);
+
+			CommandID CommandID4 = new CommandID(GuidList.UnrealVSCmdSet, CompileAndProfileSingleFileButtonID);
+			MenuCommand CompileAndProfileSingleFileButtonCommand = new MenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID4);
+			UnrealVSPackage.Instance.MenuCommandService.AddCommand(CompileAndProfileSingleFileButtonCommand);
 
 			// add sub menu for UBT commands
 			SubMenuCommand = new OleMenuCommand(null, new CommandID(GuidList.UnrealVSCmdSet, UBTSubMenuID));
@@ -81,9 +86,10 @@ namespace UnrealVS
 			MenuCommand SenderSubMenuCommand = (MenuCommand)Sender;
 
 			bool bIsFile = SenderSubMenuCommand.CommandID.ID != CompileSingleModuleButtonID;
-			bool PreprocessOnly = SenderSubMenuCommand.CommandID.ID == PreprocessSingleFileButtonID;
+			bool bPreprocessOnly = SenderSubMenuCommand.CommandID.ID == PreprocessSingleFileButtonID;
+			bool bProfile = SenderSubMenuCommand.CommandID.ID == CompileAndProfileSingleFileButtonID;
 
-			if (!TryCompileSingleFileOrModule(bIsFile, PreprocessOnly))
+			if (!TryCompileSingleFileOrModule(bIsFile, bPreprocessOnly, bProfile))
 			{
 				DTE DTE = UnrealVSPackage.Instance.DTE;
 				DTE.ExecuteCommand("Build.Compile");
@@ -120,7 +126,7 @@ namespace UnrealVS
 			return FindModuleForFile(directory, rootDirectory);
 		}
 
-		bool TryCompileSingleFileOrModule(bool bIsFile, bool bPreProcessOnly)
+		bool TryCompileSingleFileOrModule(bool bIsFile, bool bPreProcessOnly, bool bProfile)
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
 			DTE DTE = UnrealVSPackage.Instance.DTE;
@@ -143,7 +149,7 @@ namespace UnrealVS
 				if (MessageBox.Show("Cancel current compile?", "Compile in progress", MessageBoxButtons.YesNo) == DialogResult.Yes)
 				{
 					KillChildProcess();
-					BuildOutputPane.OutputString($"1>  Build cancelled.{Environment.NewLine}");
+					BuildOutputPane.OutputStringThreadSafe($"1>  Build cancelled.{Environment.NewLine}");
 				}
 				return true;
 			}
@@ -188,7 +194,7 @@ namespace UnrealVS
 			Microsoft.VisualStudio.VCProjectEngine.VCNMakeTool ActiveNMakeTool = (ActiveVCConfiguration.Tools as Microsoft.VisualStudio.VCProjectEngine.IVCCollection).Item("VCNMakeTool") as Microsoft.VisualStudio.VCProjectEngine.VCNMakeTool;
 			if (ActiveNMakeTool == null)
 			{
-				MessageBox.Show($"No NMakeTool set for Project {VCStartupProject.Name} set for single-file compile.", "NMakeTool not set", MessageBoxButtons.OK);
+				MessageBox.Show($"No NMakeTool set for Project {VCStartupProject.Name} set for single-file compile.", "UnrealVS - NMakeTool not set", MessageBoxButtons.OK);
 				return false;
 			}
 
@@ -239,8 +245,8 @@ namespace UnrealVS
 			// Set up the output pane
 			BuildOutputPane.Activate();
 			BuildOutputPane.Clear();
-			BuildOutputPane.OutputString($"1>------ Build started: Project: {StartupProject.Name}, Configuration: {ActiveConfiguration.ConfigurationName} {ActiveConfiguration.PlatformName} ------{Environment.NewLine}");
-			BuildOutputPane.OutputString($"1>  Compiling {CompilingText}{Environment.NewLine}");
+			BuildOutputPane.OutputStringThreadSafe($"1>------ Build started: Project: {StartupProject.Name}, Configuration: {ActiveConfiguration.ConfigurationName} {ActiveConfiguration.PlatformName} ------{Environment.NewLine}");
+			BuildOutputPane.OutputStringThreadSafe($"1>  Compiling {CompilingText}{Environment.NewLine}");
 
 			// Set up event handlers 
 			DTE.Events.BuildEvents.OnBuildBegin += BuildEvents_OnBuildBegin;
@@ -251,12 +257,29 @@ namespace UnrealVS
 			{ 
 				if (Args.Data != null) 
 				{ 
-					BuildOutputPane.OutputString($"1>  {Args.Data}{Environment.NewLine}"); 
+					BuildOutputPane.OutputStringThreadSafe($"1>  {Args.Data}{Environment.NewLine}"); 
 					if (Args.Data.Contains("PreProcessPath:"))
 					{
 						PPLine = Args.Data;
 					}
 				} 
+			}
+
+			if (bProfile)
+			{
+				var Commands = DTE.Commands.Cast<Command>();
+				#pragma warning disable VSTHRD010
+				Command Command = Commands.FirstOrDefault((C) => C.Name == "CompileScore.StartTrace");
+				#pragma warning restore VSTHRD010
+				if (Command == null || !Command.IsAvailable)
+				{
+					MessageBox.Show($"CompileSingleFileAndProfile requires a CompileScore visual studio extension that has CompileScore.StartTrace/CompileScore.StopTrace installed", "UnrealVS - Missing CompileScore extension ", MessageBoxButtons.OK);
+					return true;
+				}
+				Object CustomIn = null;
+				Object CustomOut = null;
+				DTE.Commands.Raise(Command.Guid, Command.ID, ref CustomIn, ref CustomOut);
+				//DTE.ExecuteCommand("CompileScore.StartTrace");
 			}
 
 			string SolutionDir = Path.GetDirectoryName(UnrealVSPackage.Instance.SolutionFilepath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
@@ -280,12 +303,12 @@ namespace UnrealVS
 			ChildProcess.StartInfo.CreateNoWindow = true;
 			ChildProcess.OutputDataReceived += OutputHandler;
 			ChildProcess.ErrorDataReceived += OutputHandler;
-			if (bPreProcessOnly)
+			if (bPreProcessOnly || bProfile)
 			{ 
 				// add an event handler to respond to the exit of the preprocess request
 				// and open the generated file if it exists.
 				ChildProcess.EnableRaisingEvents = true;
-				ChildProcess.Exited += new EventHandler((s, e) => PreprocessExitHandler(PPLine));
+				ChildProcess.Exited += new EventHandler((s, e) => PreprocessExitHandler(PPLine, bProfile));
 			}
 			
 			ChildProcess.Start();
@@ -295,8 +318,17 @@ namespace UnrealVS
 			return true;
 		}
 
-		private void PreprocessExitHandler(string PPLine)
+		private void PreprocessExitHandler(string PPLine, bool bIsProfiling)
 		{
+			if (bIsProfiling)
+			{
+				ThreadHelper.JoinableTaskFactory.Run(async () =>
+				{
+					await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+					UnrealVSPackage.Instance.DTE.ExecuteCommand("CompileScore.StopTrace");
+				});
+			}
+
 			// not all compile actions support pre-process - check it exists
 			if (PPLine.Contains("PreProcessPath:"))
 			{
@@ -317,7 +349,7 @@ namespace UnrealVS
 			IVsOutputWindowPane BuildOutputPane = UnrealVSPackage.Instance.GetOutputPane();
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
-			BuildOutputPane.OutputString($"1>  PPFullPath: {PPFullPath}{Environment.NewLine}");
+			BuildOutputPane.OutputStringThreadSafe($"1>  PPFullPath: {PPFullPath}{Environment.NewLine}");
 
 			if (File.Exists(PPFullPath))
 			{

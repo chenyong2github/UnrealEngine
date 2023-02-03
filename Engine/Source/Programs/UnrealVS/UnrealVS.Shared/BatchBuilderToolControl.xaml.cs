@@ -495,7 +495,7 @@ namespace UnrealVS
 				// Clear and activate the output pane.
 				Pane.Clear();
 
-				Pane.OutputString(Text);
+				Pane.OutputStringThreadSafe(Text);
 
 				// @todo: Activating doesn't seem to really bring the pane to front like we would expect it to.
 				Pane.Activate();

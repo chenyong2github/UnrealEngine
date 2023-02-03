@@ -138,7 +138,7 @@ namespace UnrealVS
 				var Pane = UnrealVSPackage.Instance.GetOutputPane();
 				if (Pane != null)
 				{
-					Pane.OutputString(Args.Data + "\n");
+					Pane.OutputStringThreadSafe(Args.Data + "\n");
 				}
 			});
 			AsyncTask.Join();

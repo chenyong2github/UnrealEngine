@@ -169,6 +169,7 @@
                         <TextBlock Text="F1"/>
                         <TextBlock Text="F5"/>
                         <TextBlock Text="Ctrl-I"/>
+                        <TextBlock Text="Ctrl-Shift-I"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Margin="6">
                         <TextBlock Text="- Close FileBrowser"/>
@@ -181,6 +182,7 @@
                         <TextBlock Text="- This help"/>
                         <TextBlock Text="- Refresh file lists with current visual studio solution"/>
                         <TextBlock Text="- Create a #include &quot;file&quot; statement to clipboard and close file browser"/>
+                        <TextBlock Text="- Create a #include &quot;file&quot; statement and paste it into active document"/>
                     </StackPanel>
                 </Grid>
                 <TextBlock Text=""/>

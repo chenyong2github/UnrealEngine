@@ -6,9 +6,9 @@ using Microsoft.VisualStudio.Shell.Interop;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -36,7 +36,7 @@ namespace UnrealVS
 
 		String UnrealVsFileName;
 
-		List<FileItem> AllFileItems;
+		FileItem[] AllFileItems;
 		List<FileItem> BookmarkedFileItems;
 		List<FileItem> RecentFileItems;
 
@@ -47,7 +47,7 @@ namespace UnrealVS
 			Window = window;
 			this.InitializeComponent();
 
-			AllFileItems = new List<FileItem>();
+			AllFileItems = Array.Empty<FileItem>();
 			BookmarkedFileItems = new List<FileItem>();
 			RecentFileItems = new List<FileItem>();
 			IsVisibleChanged += FileBrowserWindowControl_IsVisibleChanged;
@@ -102,6 +102,7 @@ namespace UnrealVS
 					return;
 
 				FilterEditBox.Text = Path.GetFileName(text);
+				FilterEditBox.SelectAll();
 			}
 		}
 
@@ -239,8 +240,139 @@ namespace UnrealVS
 			if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
 			{
 				if (e.Key == Key.I)
-					if (CreateIncludePath())
-						HidePanel();
+				{
+					if (!CreateIncludePath())
+					{
+						return;
+					}
+					
+					HidePanel();
+
+					if ((Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+					{
+						return;
+					}
+
+					// Let's add directly in to active document
+					var activeDoc = UnrealVSPackage.Instance.DTE.ActiveDocument;
+					var doc = (TextDocument)(activeDoc.Object("TextDocument"));
+					if (doc == null)
+						return;
+
+					bool addSpace = false;
+					var includePath = GetIncludePath((FileItem)(ActiveFilesListBox.SelectedItems[0]));
+					string pasteString = $"#include \"{includePath}\"";
+
+					bool skipFirstInclude = activeDoc.FullName.EndsWith(".cpp");
+					int addBeforeLine = -1;
+					var lastIncludeLine = -1;
+
+					bool isInComment = false;
+					var p = doc.StartPoint.CreateEditPoint();
+					var lastLine = doc.EndPoint.Line;
+					for (int lineIndex = 1; lineIndex < lastLine; ++lineIndex)
+					{
+						var str = p.GetLines(lineIndex, lineIndex + 1).Trim();
+						if (str.Length == 0)
+						{
+							continue;
+						}
+
+						if (isInComment)
+						{
+							if (str.IndexOf("*/") != -1)
+								isInComment = false;
+							continue;
+						}
+
+						if (str.StartsWith("//"))
+						{
+							continue;
+						}
+
+						if (str.StartsWith("/*"))
+						{
+							isInComment = true;
+							continue;
+						}
+
+						if (str.StartsWith("#include"))
+						{
+							if (str == pasteString)
+							{
+								doc.Selection.MoveTo(lineIndex, 0);
+								doc.Selection.SelectLine();
+								p.TryToShow();
+								return;
+							}
+
+							bool isFirst = lastIncludeLine == -1;
+							int prevLastIncludeLine = lastIncludeLine;
+							lastIncludeLine = lineIndex;
+							if (skipFirstInclude && isFirst)
+							{
+								continue;
+							}
+
+							var span = str.AsSpan(9);
+							var firstQuote = span.IndexOf('"');
+							if (firstQuote != -1)
+							{
+								span = span.Slice(firstQuote + 1);
+								var secondQuote = span.IndexOf('"');
+								if (secondQuote != -1)
+								{
+									span = span.Slice(0, secondQuote).Trim();
+									bool isGeneratedInclude = span.IndexOf(".generated.".AsSpan()) != -1;
+									if (includePath.AsSpan().CompareTo(span, StringComparison.Ordinal) < 0 || isGeneratedInclude)
+									{
+										if (isGeneratedInclude && prevLastIncludeLine != -1)
+											lastIncludeLine = prevLastIncludeLine;
+										else
+											addBeforeLine = lineIndex;
+										break;
+									}
+								}
+							}
+							else if (span.IndexOf("UE_INLINE_GENERATED_CPP".AsSpan()) != -1)
+							{
+								lastIncludeLine = prevLastIncludeLine;
+								break;
+							}
+							continue;
+						}
+							
+						if (str.StartsWith("#pragma once"))
+						{
+							lastIncludeLine = lineIndex + 1;
+							continue;
+						}
+
+						lastIncludeLine = lineIndex - 1;
+						addSpace = true;
+						break;  // Unknown code
+					}
+
+					if (addBeforeLine == -1 && lastIncludeLine != -1)
+					{
+						addBeforeLine = lastIncludeLine + 1;
+					}
+
+					if (addBeforeLine == -1)
+					{
+						addBeforeLine = lastLine;
+					}
+
+					p.LineDown(addBeforeLine - 1);
+					p.Insert($"{pasteString}\r\n");
+					if (addSpace)
+					{
+						p.Insert("\r\n");
+					}
+					doc.Selection.MoveTo(addBeforeLine, 0);
+					doc.Selection.SelectLine();
+					p.TryToShow();
+				}
 				return;
 			}
 			if (e.Key == Key.Left)
@@ -287,7 +419,7 @@ namespace UnrealVS
 				}
 				if (!BookmarksModified)
 					return;
-				RefreshListView(BookmarkedFilesListBox, BookmarkedFileItems);
+				RefreshListView(BookmarkedFilesListBox, BookmarkedFileItems.ToArray());
 				//if (AllFilesListBox.SelectedIndex < AllFilesListBox.Items.Count - 1)
 				//    FocusListViewItem(AllFilesListBox, AllFilesListBox.SelectedIndex + 1);
 				SaveSolutionSettings();
@@ -312,7 +444,7 @@ namespace UnrealVS
 				}
 				if (BookmarksModified)
 				{
-					RefreshListView(BookmarkedFilesListBox, BookmarkedFileItems);
+					RefreshListView(BookmarkedFilesListBox, BookmarkedFileItems.ToArray());
 					if (index == BookmarkedFilesListBox.Items.Count)
 					{
 						if (index == 0)
@@ -402,21 +534,27 @@ namespace UnrealVS
 			return toOpen.Count != 0;
 		}
 
+		private string GetIncludePath(FileItem item)
+		{
+                if (item == null || item.Name == "")
+				return null;
+                string includePath = item.File;
+                includePath = includePath.Replace("\\", "/");
+                string includePathLwr = includePath.ToLower();
+			var includeStartIndex = Math.Max(Math.Max(includePathLwr.LastIndexOf("/public/"), includePathLwr.LastIndexOf("/private/")), includePathLwr.LastIndexOf("/classes/"));
+                if (includeStartIndex != -1)
+                    includePath = includePath.Substring(includePath.IndexOf('/', includeStartIndex + 1) + 1);
+			return includePath;
+		}
+
 		private bool CreateIncludePath()
 		{
 			string includeStrings = "";
 			foreach (var i in ActiveFilesListBox.SelectedItems)
 			{
-				var item = (FileItem)i;
-				if (item == null || item.Name == "")
-					continue;
-				string includePath = item.File;
-				includePath = includePath.Replace("\\", "/");
-				string includePathLwr = includePath.ToLower();
-				var includeStartIndex = Math.Max(Math.Max(includePathLwr.LastIndexOf("/public/"), includePathLwr.LastIndexOf("/private/")), includePathLwr.LastIndexOf("/classes/"));
-				if (includeStartIndex != -1)
-					includePath = includePath.Substring(includePath.IndexOf('/', includeStartIndex + 1) + 1);
-				includeStrings += $"#include \"{includePath}\"\r\n";
+				var includePath = GetIncludePath((FileItem)i);
+				if (includePath != null)
+                includeStrings += $"#include \"{includePath}\"\r\n";
 			}
 			if (includeStrings == "")
 				return false;
@@ -481,8 +619,8 @@ namespace UnrealVS
 		private void RefreshListViews()
 		{
 			RefreshListView(AllFilesListBox, AllFileItems);
-			RefreshListView(BookmarkedFilesListBox, BookmarkedFileItems);
-			RefreshListView(RecentFilesListBox, RecentFileItems);
+			RefreshListView(BookmarkedFilesListBox, BookmarkedFileItems.ToArray());
+			RefreshListView(RecentFilesListBox, RecentFileItems.ToArray());
 		}
 
 		struct Score
@@ -491,7 +629,7 @@ namespace UnrealVS
 			public int Index;
 		}
 
-		private void RefreshListView(ListBox listView, List<FileItem> source)
+		private void RefreshListView(ListBox listView, FileItem[] source)
 		{
 			var fileItems = (List<FileItem>)listView.ItemsSource;
 			fileItems.Clear();
@@ -587,11 +725,11 @@ namespace UnrealVS
 
 
 			if (listView == AllFilesListBox)
-				AllFilesTab.Header = $"All Files ({fileCount}/{source.Count})";
+				AllFilesTab.Header = $"All Files ({fileCount}/{source.Length})";
 			else if (listView == BookmarkedFilesListBox)
-				BookmarkedFilesTab.Header = $"Bookmarked Files ({fileCount}/{source.Count})";
+				BookmarkedFilesTab.Header = $"Bookmarked Files ({fileCount}/{source.Length})";
 			else
-				RecentFilesTab.Header = $"Recent Files ({fileCount}/{source.Count})";
+				RecentFilesTab.Header = $"Recent Files ({fileCount}/{source.Length})";
 		}
 
 		private void RefreshStatusBox()
@@ -645,7 +783,7 @@ namespace UnrealVS
 			if (IsVisible)
 				AsyncRefreshFileList();
 			else
-				AllFileItems.Clear(); // Will trigger AsyncRefreshFileList when visible
+				AllFileItems = Array.Empty<FileItem>(); // Will trigger AsyncRefreshFileList when visible
 		}
 
 		internal void HandleDocumentActivated(Document Document)
@@ -662,7 +800,7 @@ namespace UnrealVS
 			if (RecentFileItems.Count > RecentMaxCount)
 				RecentFileItems.RemoveRange(RecentMaxCount, RecentFileItems.Count - RecentMaxCount);
 
-			RefreshListView(RecentFilesListBox, RecentFileItems);
+			RefreshListView(RecentFilesListBox, RecentFileItems.ToArray());
 		}
 
 		private void AsyncRefreshFileList()
@@ -717,7 +855,7 @@ namespace UnrealVS
 			ClearFilter = true;
 			//FilesListTab.SelectedIndex = 0;
 
-			if (AllFileItems.Count == 0)
+			if (AllFileItems.Length == 0)
 			{
 				RefreshListViews(); // To make sure we get one invisible entry
 				AsyncRefreshFileList();
@@ -847,14 +985,14 @@ namespace UnrealVS
 		class SolutionTraverser
 		{
 			private SortedDictionary<string, FileItem> SortedFileItems = new SortedDictionary<string, FileItem>();
-			private Dictionary<string, Dictionary<string, FileItem>> CollidingFileItems = new Dictionary<string, Dictionary<string, FileItem>>();
+			private Dictionary<string, SortedDictionary<string, FileItem>> CollidingFileItems = new Dictionary<string, SortedDictionary<string, FileItem>>();
 			private Dictionary<string, string> ModuleRoots = new Dictionary<string, string>();
 
 			private Stack<StackItem> ItemStack = new Stack<StackItem>();
 			private int ProjectIndex;
 			public int HandledItemCount { get; private set; }
 
-			public List<FileItem> Update()
+			public FileItem[] Update()
 			{
 				Stack<StackItem> itemStack = ItemStack;
 				var projects = UnrealVSPackage.Instance.DTE.Solution.Projects;
@@ -907,10 +1045,10 @@ namespace UnrealVS
 										{
 											if (existingFileItem.File != file)
 											{
-												Dictionary<string, FileItem> colList;
+												SortedDictionary<string, FileItem> colList;
 												if (!CollidingFileItems.TryGetValue(name, out colList))
 												{
-													colList = new Dictionary<string, FileItem>();
+													colList = new SortedDictionary<string, FileItem>();
 													colList.Add(existingFileItem.File, existingFileItem);
 													CollidingFileItems[name] = colList;
 												}
@@ -1007,7 +1145,29 @@ namespace UnrealVS
 					}
 				}
 
-				return new List<FileItem>(SortedFileItems.Values);
+				var result = SortedFileItems.Values.ToArray();
+
+				// Sort so header is before source file.. since most of the time you are opening header files.
+				/*
+                for (int i=0, e=result.Length; i!=e; ++i)
+                {
+                    var name = result[i].Name;
+					if (name.EndsWith(".h") && i > 0)
+                    {
+						var prev = result[i - 1];
+						var prevName = prev.Name;
+                        if (name.Length + 2 == prevName.Length)
+                        {
+                            if (name.AsSpan(0, name.Length - 1).SequenceEqual(prevName.AsSpan(0, prevName.Length - 3))) // swap h and cpp
+                            {
+                                result[i - 1] = result[i];
+                                result[i] = prev;
+							}
+                        }
+                    }
+                }
+                */
+				return result;
 			}
 		}
 	}
