@@ -4,8 +4,8 @@
 
 #include "UObject/ObjectMacros.h"
 
-#if USE_COMPILED_IN_NATIVES 
-#include "CoreNetTypes.generated.h"
+#if WITH_ENGINE 
+	#include "CoreNetTypes.generated.h"
 #endif
 
 /** Whether or not caching of actor/subobject names to the stack should be enabled, for async demo recording crashdumps */
