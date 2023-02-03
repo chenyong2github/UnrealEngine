@@ -225,6 +225,7 @@ namespace Horde.Agent.Execution
 		public override async Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
 			await _workspace.CleanAsync(cancellationToken);
+			await base.FinalizeAsync(logger, cancellationToken);
 		}
 
 		public static async Task ConformAsync(DirectoryReference rootDir, IList<AgentWorkspace> pendingWorkspaces, bool removeUntrackedFiles, ILogger logger, CancellationToken cancellationToken)
