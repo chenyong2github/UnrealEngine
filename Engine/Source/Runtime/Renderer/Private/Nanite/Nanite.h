@@ -14,6 +14,8 @@
 namespace Nanite
 {
 
+struct FShadeBinning;
+
 void ExtractRasterStats(
 	FRDGBuilder& GraphBuilder,
 	const FSharedContext& SharedContext,
@@ -27,6 +29,7 @@ void ExtractShadingStats(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGBufferRef MaterialIndirectArgs,
+	const FShadeBinning& ShadeBinning,
 	uint32 NumShadingBins
 );
 

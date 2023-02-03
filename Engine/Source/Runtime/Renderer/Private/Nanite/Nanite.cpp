@@ -236,6 +236,9 @@ class FCalculateShadingStatsCS : public FNaniteGlobalShader
 	DECLARE_GLOBAL_SHADER(FCalculateShadingStatsCS);
 	SHADER_USE_PARAMETER_STRUCT(FCalculateShadingStatsCS, FNaniteGlobalShader);
 
+	class FLegacyCullingDim : SHADER_PERMUTATION_BOOL("LEGACY_CULLING");
+	using FPermutationDomain = TShaderPermutationDomain<FLegacyCullingDim>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportNanite(Parameters.Platform);
@@ -251,6 +254,7 @@ class FCalculateShadingStatsCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER(uint32, NumShadingBins)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FUintVector4>, ShadingBinMeta)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, MaterialIndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -559,6 +563,7 @@ void ExtractShadingStats(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGBufferRef MaterialIndirectArgs,
+	const FShadeBinning& ShadeBinning,
 	uint32 NumShadingBins
 )
 {
@@ -566,6 +571,7 @@ void ExtractShadingStats(
 
 	if (GNaniteShowStats != 0 && Nanite::GGlobalResources.GetStatsBufferRef())
 	{
+		const bool bShadeBinning = ShadeBinning.ShadingBinArgs != nullptr;
 		FCalculateShadingStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCalculateShadingStatsCS::FParameters>();
 
 		PassParameters->RenderFlags = Nanite::GGlobalResources.StatsRenderFlags;
@@ -573,9 +579,21 @@ void ExtractShadingStats(
 		PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStatsBufferRef()));
 
 		PassParameters->NumShadingBins = NumShadingBins;
-		PassParameters->MaterialIndirectArgs = GraphBuilder.CreateSRV(MaterialIndirectArgs);
 
-		auto ComputeShader = View.ShaderMap->GetShader<FCalculateShadingStatsCS>();
+		if (bShadeBinning)
+		{
+			PassParameters->ShadingBinMeta  = GraphBuilder.CreateSRV(ShadeBinning.ShadingBinMeta);
+			PassParameters->MaterialIndirectArgs = GraphBuilder.CreateSRV(ShadeBinning.ShadingBinArgs);
+		}
+		else
+		{
+			PassParameters->ShadingBinMeta = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder), PF_R32G32B32A32_UINT);
+			PassParameters->MaterialIndirectArgs = GraphBuilder.CreateSRV(MaterialIndirectArgs);
+		}
+
+		FCalculateShadingStatsCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FCalculateShadingStatsCS::FLegacyCullingDim>(!bShadeBinning);
+		auto ComputeShader = View.ShaderMap->GetShader<FCalculateShadingStatsCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,

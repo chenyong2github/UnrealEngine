@@ -25,6 +25,7 @@ Buffer<uint>						PostPassRasterizeArgsSWHW;
 StructuredBuffer<uint4>				MainPassRasterBinHeaders;
 StructuredBuffer<uint4>				PostPassRasterBinHeaders;
 Buffer<uint>						MaterialIndirectArgs;
+StructuredBuffer<uint4>				ShadingBinMeta;
 
 StructuredBuffer<FNaniteStats>		InStatsBuffer;
 RWStructuredBuffer<FNaniteStats>	OutStatsBuffer;
@@ -303,8 +304,13 @@ void CalculateShadingStats()
 	LOOP
 	for (uint ShadingBinIndex = 0; ShadingBinIndex < NumShadingBins; ++ShadingBinIndex)
 	{
+	#if LEGACY_CULLING
 		static const uint ArgCount = DRAW_INDEXED_INDIRECT_UINT_COUNT + DISPATCH_INDIRECT_NO_PADDING_UINT_COUNT;
 		if (MaterialIndirectArgs[ShadingBinIndex * ArgCount + 1] == 0)
+	#else
+		static const uint ArgCount = 4u;
+		if (MaterialIndirectArgs[ShadingBinIndex * ArgCount] == 0)
+	#endif
 		{
 			++NumEmptyShadingBins;
 		}

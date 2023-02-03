@@ -808,7 +808,7 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 
 	class FIsPostPass : SHADER_PERMUTATION_BOOL("IS_POST_PASS");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	class FBuildPassDim : SHADER_PERMUTATION_SPARSE_INT("RASTER_BIN_PASS", NANITE_RASTER_BIN_CLASSIFY, NANITE_RASTER_BIN_SCATTER);
+	class FBuildPassDim : SHADER_PERMUTATION_SPARSE_INT("RASTER_BIN_PASS", NANITE_RASTER_BIN_COUNT, NANITE_RASTER_BIN_SCATTER);
 
 	using FPermutationDomain = TShaderPermutationDomain<FIsPostPass, FVirtualTextureTargetDim, FBuildPassDim>;
 
@@ -2542,18 +2542,18 @@ static FBinningData AddPass_Binning(
 		PassParameters->RegularMaterialRasterBinCount = Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
 		PassParameters->bUsePrimOrMeshShader = bUsePrimOrMeshShader;
 
-	// Classify SW & HW Clusters
+	// Count SW & HW Clusters
 	{
 		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
 		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
-		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_CLASSIFY);
+		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_COUNT);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinBuild_CS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("RasterBinClassify"),
+			RDG_EVENT_NAME("RasterBinCount"),
 			ComputeShader,
 			PassParameters,
 			PassParameters->IndirectArgs,

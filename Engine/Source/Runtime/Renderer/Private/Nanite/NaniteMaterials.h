@@ -469,6 +469,13 @@ extern bool UseComputeDepthExport();
 namespace Nanite
 {
 
+struct FShadeBinning
+{
+	FRDGBufferRef ShadingBinMeta  = nullptr;
+	FRDGBufferRef ShadingBinArgs  = nullptr;
+	FRDGBufferRef ShadingBinQuads = nullptr;
+};
+
 void EmitDepthTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -524,7 +531,7 @@ void DrawLumenMeshCapturePass(
 	FRDGTextureRef DepthAtlasTexture
 );
 
-void ShadeBinning(
+FShadeBinning ShadeBinning(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,

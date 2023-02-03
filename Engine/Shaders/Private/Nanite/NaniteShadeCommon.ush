@@ -4,6 +4,8 @@
 #include "../SceneData.ush"
 #include "../WaveOpUtil.ush"
 #include "../VariableRateShading/VRSShadingRateCommon.ush"
+#include "../Visualization.ush"
+#include "../MortonCode.ush"
 
 #include "NaniteAttributeDecode.ush"
 
@@ -15,4 +17,67 @@ uint4 PackQuadCoord(uint2 QuadTopLeft)
 	Packed.z = Packed.x + 0x00010000u;
 	Packed.w = Packed.x + 0x00010001u;
 	return Packed;
+}
+
+uint PackQuadCoverage(bool4 Coverage)
+{
+	// [X][Y]
+	// [Z][W] -> 0000 wzyx
+
+	uint CoverageMask = 0u;
+	CoverageMask |= select(Coverage.x, 1u << 0u, 0u);
+	CoverageMask |= select(Coverage.y, 1u << 1u, 0u);
+	CoverageMask |= select(Coverage.z, 1u << 2u, 0u);
+	CoverageMask |= select(Coverage.w, 1u << 3u, 0u);
+	return CoverageMask;
+}
+
+bool4 UnpackQuadCoverage(uint CoverageMask)
+{
+	return bool4(
+		BitFieldExtractU32(CoverageMask, 1u, 0u) != 0,
+		BitFieldExtractU32(CoverageMask, 1u, 1u) != 0,
+		BitFieldExtractU32(CoverageMask, 1u, 2u) != 0,
+		BitFieldExtractU32(CoverageMask, 1u, 3u) != 0
+	);
+}
+
+uint PackQuadCoverageDX(bool4 Coverage)
+{
+	return PackQuadCoverage(Coverage.wzyx);
+}
+
+bool4 UnpackQuadCoverageDX(uint CoverageMask)
+{
+	return UnpackQuadCoverage(CoverageMask).wzyx;
+}
+
+struct FShadingQuad
+{
+	uint2 TopLeft;
+	bool4 Coverage; // .x = TL, .y = TR, .w = BL, .w = BR
+};
+
+uint PackShadingQuad(uint2 TopLeft, uint CoverageMask)
+{
+	uint Packed = 0;
+	Packed |= (BitFieldMaskU32( 4,  0) & (CoverageMask << 0u)); //  4 bits for coverage mask
+	Packed |= (BitFieldMaskU32(14,  4) & (TopLeft.x << 4u));    // 14 bits for quad TL x
+	Packed |= (BitFieldMaskU32(14, 18) & (TopLeft.y << 18u));   // 14 bits for quad TL y
+	return Packed;
+}
+
+uint PackShadingQuad(FShadingQuad Quad)
+{
+	const uint CoverageMask = PackQuadCoverage(Quad.Coverage);
+	return PackShadingQuad(Quad.TopLeft, CoverageMask);
+}
+
+FShadingQuad UnpackShadingQuad(uint Packed)
+{
+	FShadingQuad Quad;
+	Quad.Coverage  = UnpackQuadCoverage(Packed);
+	Quad.TopLeft.x = BitFieldExtractU32(Packed, 14,  4);
+	Quad.TopLeft.y = BitFieldExtractU32(Packed, 14, 18);
+	return Quad;
 }

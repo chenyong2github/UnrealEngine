@@ -232,6 +232,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, RayTracingDataBuffer)
 
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, ShadingBinMeta)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>,  ShadingBinQuads)
+
 	// Multi view
 	SHADER_PARAMETER(uint32,												MultiViewEnabled)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>,					MultiViewIndices)

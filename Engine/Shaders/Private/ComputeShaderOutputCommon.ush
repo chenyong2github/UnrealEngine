@@ -9,10 +9,7 @@ through a single struct, allowing for a more readable code
 #include "ShaderOutputCommon.ush"
 #include "GammaCorrectionCommon.ush"
 #include "VariableRateShading/VRSShadingRateCommon.ush"
-#include "MortonCode.ush"
-
-// TEMP: For initial debugging
-#include "Visualization.ush"
+#include "Nanite/NaniteShadeCommon.ush"
 
 // .xy = min, .zw = max
 uint4 ViewRect;
@@ -94,12 +91,12 @@ uint4 PassData;
 
 #endif // STRATA_OPAQUE_DEFERRED
 
-FPixelShaderOut ShadePixel(const float2 PixelPos, uint MacroTileIndex)
+FPixelShaderOut ShadePixel(const float2 PixelPos, uint QuadIndex)
 {
 #if PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS
 #if IS_NANITE_PASS
 	FNaniteFullscreenVSToPS NaniteInterpolants = (FNaniteFullscreenVSToPS)0;
-	NaniteInterpolants.TileIndex = MacroTileIndex;
+	NaniteInterpolants.TileIndex = QuadIndex;
 #else
 	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 #endif
@@ -261,15 +258,15 @@ void ExportPixel(const float2 PixelPos, FPixelShaderOut ShadedPixel)
 #endif // STRATA_OPAQUE_DEFERRED
 }
 
-struct FShadingQuad
+struct FShadingQuadSwizzle
 {
 	bool bActiveLane;
 	uint SwizzleIndex;
 };
 
-FShadingQuad GetShadingQuad(uint QuadX, uint QuadY, uint LaneIndex, uint ShadingRate)
+FShadingQuadSwizzle GetShadingQuad(uint QuadX, uint QuadY, uint LaneIndex, uint ShadingRate)
 {
-	FShadingQuad ShadingQuad;
+	FShadingQuadSwizzle ShadingQuad;
 
 	// https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_Derivatives.html
 	// https://microsoft.github.io/DirectX-Specs/d3d/VariableRateShading.html
@@ -354,172 +351,60 @@ FShadingQuad GetShadingQuad(uint QuadX, uint QuadY, uint LaneIndex, uint Shading
 	return ShadingQuad;
 }
 
-// Remaps 1D compacted/linear macro tile index into 1D sparse macro tile index (jumping over culled tiles)
-uint CalculateSparseTileIndex(uint CompactedTileIndex, uint ShadingBin, uint TileRemapCount)
-{
-	const uint TargetTileCount = CompactedTileIndex + 1;
-
-	uint ValidTiles = 0;
-
-	// Remap compacted tile index to sparse tile index
-	// If compacted index is 7, the first 4 indices are valid, but the next 2 are not, the sparse index is 9
-	// Basically figure out how many preceeding empty slots exist, so we can shift the index by that. (reverse prefix sum w/ linear scan)
-	const uint RemapBaseOffset = (TileRemapCount * ShadingBin);
-
-	// TODO: Could optimize by having material classify store out the prefix sum per remap uint, and then binary search the result quicker
-
-	uint RemapBin  = 0;
-	uint RemapData = 0;
-
-	LOOP
-	for (; RemapBin < TileRemapCount; ++RemapBin)
-	{
-		RemapData = Nanite.MaterialTileRemap[RemapBaseOffset + RemapBin];
-
-		const uint SumValidTiles = ValidTiles + countbits(RemapData); // Count number of valid tiles in bin
-		if (SumValidTiles < TargetTileCount)
-		{
-			// Keeping going
-			ValidTiles = SumValidTiles;
-		}
-		else
-		{
-			// Found the target bin
-			break;
-		}
-	}
-
-	uint RemapBinBit = 0;
-
-	LOOP
-	while (RemapData != 0)
-	{
-		RemapBinBit = firstbitlow(RemapData);
-		RemapData &= ~(1u << RemapBinBit);
-		++ValidTiles;
-		if (ValidTiles == TargetTileCount)
-		{
-			// Arrived at sparse tile index
-			break;
-		}
-	}
-
-	const uint SparseTileIndex = (RemapBin * 32u) + RemapBinBit;
-	return SparseTileIndex;
-}
-
 [numthreads(64, 1, 1)]
-void MainCS(uint ThreadIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID, uint3 GroupThreadID : SV_GroupThreadID, uint3 DispatchThreadID : SV_DispatchThreadID)
+void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 GroupThreadID : SV_GroupThreadID, uint3 DispatchThreadID : SV_DispatchThreadID)
 {
 	const uint ShadingBin = PassData.x;
-
-	// Compute our compacted macro tile index
-	const uint CompactedMacroTileIndex = GroupID.x / 64u; // New 64x64 macro tile every 4k threads
-
-	// Compute our compacted micro tile index
-	const uint CompactedMicroTileIndex = GroupID.x; // New 8x8 micro tile every 64 threads
-
-	// Subtract macro tile's 8x8 index from current micro tile index to make the micro tile index relative
-	const uint MicroTileIndex = CompactedMicroTileIndex - (CompactedMacroTileIndex * 64u);
-
-	// Compact our sparse macro tile index (produced by material culling)
-	const uint TileRemapCount = Nanite.MaterialConfig.w;
-	const uint MacroTileIndex = CalculateSparseTileIndex(CompactedMacroTileIndex, ShadingBin, TileRemapCount);
-
-	const uint2 MacroTileDim = uint2(64u, 64u);
-	const uint2 MicroTileDim = uint2(8u,   8u);
-
-	// Remap 1D -> 2D macro and micro tile indices on a grid.
-	const uint2 MacroTileGridSize = Nanite.MaterialConfig.yz;
-	const uint2 MacroTileGridPos  = Unflatten2D(MacroTileIndex, MacroTileGridSize);
-	const uint2 MicroTileGridPos  = Unflatten2D(MicroTileIndex, MicroTileDim);
-
-	// Convert macro and micro tile grid positions to pixels on screen.
-	const uint2 MacroTileTopLeftPixelPos = MacroTileGridPos * MacroTileDim;
-	const uint2 MicroTileTopLeftPixelPos = MicroTileGridPos * MicroTileDim;
 
 	// Just like pixel shaders, compute 2x2 CS quads from thread index so we can leverage the 4 lane cross bar.
 	// [0 1][2 3] -> [0 1][4 5]
 	// [4 5][6 7] -> [2 3][6 7]
+	//const uint SwizzleX = BitFieldInsertU32(BitFieldMaskU32(1u, 0u), ThreadIndex, BitFieldExtractU32(ThreadIndex, 3u, 2u));
+	//const uint SwizzleY = BitFieldInsertU32(BitFieldMaskU32(2u, 0u), BitFieldExtractU32(ThreadIndex, 2u, 1u), BitFieldExtractU32(ThreadIndex, 3u, 3u));
+	//const uint SampleIndex	= SwizzleX * SwizzleY * 2u;
 
-	// Wave64 - 4 rows, each containing 16 threads, formed into shading quads
-	// Two periods of tiling in both the X and Y axis.
-#if 1
-	const uint X = BitFieldInsertU32(BitFieldMaskU32(1u, 0u), ThreadIndex, BitFieldExtractU32(ThreadIndex, 3u, 2u));
-	const uint Y = BitFieldInsertU32(BitFieldMaskU32(2u, 0u), BitFieldExtractU32(ThreadIndex, 2u, 1u), BitFieldExtractU32(ThreadIndex, 3u, 3u));
-#else
-	const uint2 Decoded = MortonDecode(ThreadIndex);
-	const uint X = Decoded.x;
-	const uint Y = Decoded.y;
-#endif
+	// New 2x2 shading quad every 4 samples
+	const uint CornerIndex = ThreadIndex & 3u;
+	const uint QuadIndex = GroupID * 16u + (ThreadIndex >> 2u);
 
-	// Relative (swizzled) pixel position within a micro tile
-	const float2 XY = float2(X, Y);
+	const bool bIsQuadTL	= CornerIndex == 0u;
+	const bool bIsQuadTR	= CornerIndex == 1u;
+	const bool bIsQuadBL	= CornerIndex == 2u;
+	const bool bIsQuadBR	= CornerIndex == 3u;
+	
+	const uint LaneTL = WaveGetLaneIndex() & ~3u;
+
+	uint PackedQuad;
+	if (bIsQuadTL)
+	{
+		const uint QuadStart = Nanite.ShadingBinMeta[ShadingBin].z;
+		PackedQuad = Nanite.ShadingBinQuads[QuadStart + QuadIndex];
+	}
+	PackedQuad = WaveReadLaneAt(PackedQuad, LaneTL);
+	FShadingQuad Quad = UnpackShadingQuad(PackedQuad);
 
 	// Determine final pixel position on the screen for shading
-	const float2 PixelPos = MacroTileTopLeftPixelPos + MicroTileTopLeftPixelPos + XY;
+	const float2 PixelPos = float2(Quad.TopLeft) + float2(CornerIndex & 1u, (CornerIndex >> 1u) & 1u);
 
-	uint ShadingRate = D3D12_SHADING_RATE_1X1;
-
-#if IS_NANITE_PASS
-	FShadingMask UnpackedMask = UnpackShadingMask(Nanite.ShadingMask[PixelPos]);
-	if (!UnpackedMask.bIsNanitePixel || ShadingBin != UnpackedMask.ShadingBin)
-	{
-		// TODO: Need to handle inactive "helper lanes" in this case..
-		// Leaves black artifacts around edges of Nanite meshes that render on top of non-Nanite
-		return;
-	}
-
-	const uint VRSTileDim = PassData.y;
-	if (VRSTileDim != 0)
-	{
-		// Retrieve the variable shading rate that governs our 8x8 micro tile.
-		// Propagate the shading rate to all lanes processing our 8x8 micro tile.
-		ShadingRate = WaveReadLaneFirst(UnpackedMask.ShadingRate);
-	}
-#endif
-
-	const FShadingQuad ShadingQuad = GetShadingQuad(X, Y, WaveGetLaneIndex(), ShadingRate);
-
-	FPixelShaderOut ShadedPixel;
-
-	// TODO: Optimize - consider 1-2 threads per 2x2 quad (or fancier quad repacking/binning scheme)
-	BRANCH
-	if (ShadingQuad.bActiveLane)
-	{
-		ShadedPixel = ShadePixel(PixelPos, MacroTileIndex);
-	}
-
-	ShadedPixel = WaveReadLaneAt(ShadedPixel, ShadingQuad.SwizzleIndex);
-	//ShadedPixel.MRT[3].rgb = VisualizeShadingRate(ShadingRate).rgb;
-
-	ExportPixel(PixelPos, ShadedPixel);
+	// All lanes shade (regardless of export - so ddx/ddy are valid)
+	FPixelShaderOut ShadedPixel = ShadePixel(PixelPos, QuadIndex);
 
 #if 0
-	    uint ExportMask = 0x0u;
-    #if PIXELSHADEROUTPUT_MRT0
-	    ExportMask |= (1u << 0u);
-    #endif
-    #if PIXELSHADEROUTPUT_MRT1
-	    ExportMask |= (1u << 1u);
-    #endif
-    #if PIXELSHADEROUTPUT_MRT2
-	    ExportMask |= (1u << 2u);
-    #endif
-    #if PIXELSHADEROUTPUT_MRT3
-	    ExportMask |= (1u << 3u);
-    #endif
-    #if PIXELSHADEROUTPUT_MRT4
-	    ExportMask |= (1u << 4u);
-    #endif
-    #if PIXELSHADEROUTPUT_MRT5
-	    ExportMask |= (1u << 5u);
-    #endif
-    #if PIXELSHADEROUTPUT_MRT6
-	    ExportMask |= (1u << 6u);
-    #endif
-    #if PIXELSHADEROUTPUT_MRT7
-	    ExportMask |= (1u << 7u);
-    #endif
+	// Coherency vis
+	float R =  (DispatchThreadID.x & 0xFFu) / 255.0f;
+	float G = ((DispatchThreadID.x & 0xFF00u) >> 8u) / 255.0f;
+	float B = ((DispatchThreadID.x & 0xFF0000u) >> 16u) / 255.0f;
+  	ShadedPixel.MRT[3].rgb = float3(R, G, B);
+#elif 0
+	ShadedPixel.MRT[3].rgb = IntToColor(QuadIndex);
+#elif 0
+	ShadedPixel.MRT[3].rgb = VisualizeShadingRate(ShadingRate).rgb;
 #endif
+
+	// Disable helper lanes from final export
+	const bool bActiveLane = Quad.Coverage[CornerIndex];
+	if (bActiveLane)
+	{
+		ExportPixel(PixelPos, ShadedPixel);
+	}
 }

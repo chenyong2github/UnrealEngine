@@ -3233,27 +3233,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GVRSImageManager.PrepareImageBasedVRS(GraphBuilder, ViewFamily, SceneTextures);
 
-	if (bNaniteEnabled && Views.Num() > 0)
-	{
-		LLM_SCOPE_BYTAG(Nanite);
-		TRACE_CPUPROFILER_EVENT_SCOPE(NaniteShadeBinning);
-
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-			const Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
-			const FViewInfo& View = Views[ViewIndex];
-
-			Nanite::ShadeBinning(
-				GraphBuilder,
-				*Scene,
-				Views[ViewIndex],
-				RasterResults
-			);
-		}
-	}
-
 	FComputeLightGridOutput ComputeLightGridOutput = {};
 
 	// NOTE: The ordering of the lights is used to select sub-sets for different purposes, e.g., those that support clustered deferred.
