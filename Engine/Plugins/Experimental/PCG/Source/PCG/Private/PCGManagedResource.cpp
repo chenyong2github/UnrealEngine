@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGManagedResource.h"
-#include "PCGComponent.h"
 
+#include "PCGComponent.h"
+#include "PCGModule.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Utils/PCGGeneratedResourcesLogging.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGManagedResource)
+
+static TAutoConsoleVariable<bool> CVarForceReleaseResourcesOnGenerate(
+	TEXT("pcg.ForceReleaseResourcesOnGenerate"),
+	false,
+	TEXT("Purges all tracked generated resources on generate"));
 
 void UPCGManagedResource::PostApplyToComponent()
 {
@@ -36,6 +43,11 @@ bool UPCGManagedResource::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActor
 	return false;
 }
 
+bool UPCGManagedResource::DebugForcePurgeAllResourcesOnGenerate()
+{
+	return CVarForceReleaseResourcesOnGenerate.GetValueOnAnyThread();
+}
+
 void UPCGManagedActors::PostEditImport()
 {
 	// In this case, the managed actors won't be copied along the actor/component,
@@ -55,10 +67,14 @@ bool UPCGManagedActors::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>&
 
 	if (!Super::Release(bHardRelease, OutActorsToDelete))
 	{
+		PCGGeneratedResourcesLogging::LogManagedActorsSoftRelease(GeneratedActors);
+
 		return false;
 	}
 
 	OutActorsToDelete.Append(GeneratedActors);
+
+	PCGGeneratedResourcesLogging::LogManagedActorsHardRelease(GeneratedActors);
 
 	// Cleanup recursively
 	TInlineComponentArray<UPCGComponent*, 1> ComponentsToCleanup;

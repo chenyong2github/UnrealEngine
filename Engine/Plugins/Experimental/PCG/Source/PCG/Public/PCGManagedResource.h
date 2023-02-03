@@ -34,6 +34,8 @@ public:
 	/** Move the given resource to a new actor. Return true if it has succeeded */
 	virtual bool MoveResourceToNewActor(AActor* NewActor) { return false; };
 
+	static bool DebugForcePurgeAllResourcesOnGenerate();
+
 protected:
 	UPROPERTY(Transient, VisibleAnywhere, Category = GeneratedData)
 	bool bIsMarkedUnused = false;
