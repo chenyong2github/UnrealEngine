@@ -8,6 +8,8 @@
 #include "UObject/ObjectKey.h"
 
 struct FPoseContext;
+class USkeleton;
+class UWorld;
 
 namespace UE::PoseSearch
 {
@@ -22,18 +24,14 @@ class POSESEARCH_API FPoseHistory
 {
 public:
 
-	enum class ERootUpdateMode
-	{
-		RootMotionDelta,
-		ComponentTransformDelta,
-	};
-
 	void Init(int32 InNumPoses, float InTimeHorizon);
 	void Init(const FPoseHistory& History);
-	bool Update(float SecondsElapsed, const FPoseContext& PoseContext, FTransform ComponentTransform, FText* OutError, ERootUpdateMode UpdateMode = ERootUpdateMode::RootMotionDelta);
+	void Update(float SecondsElapsed, const FPoseContext& PoseContext, FTransform ComponentTransform);
 	float GetSampleTimeInterval() const;
 	float GetTimeHorizon() const { return TimeHorizon; }
-	bool TrySampleLocalPose(float Time, const TArray<FBoneIndexType>* RequiredBones, TArray<FTransform>* LocalPose, FTransform* RootTransform) const;
+	void GetLocalPoseAtTime(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose) const;
+	void GetRootTransformAtTime(float Time, FTransform& RootTransform) const;
+	void DebugDraw(const UWorld* World, const USkeleton* Skeleton) const;
 
 private:
 

@@ -151,7 +151,7 @@ FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchem
 {
 	// collecting the RootTransform from the FPoseHistory
 	FTransform RootTransform = FTransform::Identity;
-	History->TrySampleLocalPose(-SampleTime, nullptr, nullptr, &RootTransform);
+	History->GetRootTransformAtTime(SampleTime, RootTransform);
 
 	const FBoneIndexType BoneIndexType = Schema->GetBoneIndexType(SchemaBoneIdx);
 	if (BoneIndexType != RootBoneIndexType)
@@ -177,19 +177,18 @@ FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UP
 	
 		// collecting the local bone transforms from the FPoseHistory
 		TArray<FTransform> SampledLocalPose;
-		if (History->TrySampleLocalPose(-SampleTime, &Schema->BoneIndicesWithParents, &SampledLocalPose, nullptr))
+		History->GetLocalPoseAtTime(SampleTime, Schema->BoneIndicesWithParents, SampledLocalPose);
+		
+		TArray<FTransform> SampledComponentPose;
+		FAnimationRuntime::FillUpComponentSpaceTransforms(Schema->Skeleton->GetReferenceSkeleton(), SampledLocalPose, SampledComponentPose);
+
+		// adding bunch of entries, without caring about adding eventual duplicates
+		for (const FBoneIndexType NewEntryBoneIndexType : Schema->BoneIndicesWithParents)
 		{
-			TArray<FTransform> SampledComponentPose;
-			FAnimationRuntime::FillUpComponentSpaceTransforms(Schema->Skeleton->GetReferenceSkeleton(), SampledLocalPose, SampledComponentPose);
-
-			// adding bunch of entries, without caring about adding eventual duplicates
-			for (const FBoneIndexType NewEntryBoneIndexType : Schema->BoneIndicesWithParents)
-			{
-				CachedTransforms.Add(SampleTime, NewEntryBoneIndexType, SampledComponentPose[NewEntryBoneIndexType]);
-			}
-
-			return SampledComponentPose[BoneIndexType];
+			CachedTransforms.Add(SampleTime, NewEntryBoneIndexType, SampledComponentPose[NewEntryBoneIndexType]);
 		}
+
+		return SampledComponentPose[BoneIndexType];
 	}
 
 	return FTransform::Identity;

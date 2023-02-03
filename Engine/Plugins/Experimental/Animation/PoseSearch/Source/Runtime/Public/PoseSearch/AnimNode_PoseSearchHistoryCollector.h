@@ -17,18 +17,11 @@ public:
 
 	// The maximum amount of poses that can be stored
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	int32 PoseCount = 128;
+	int32 PoseCount = 64;
 	
 	// The time horizon for how long a pose will be stored in seconds
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float PoseDuration = 4.f;
-
-	// If this node should compute velocities using the playing animation root motion, or 
-	// the actual movement of the component in the world. While using root motion can 
-	// be more stable, not all input animations support it, and it may produce bad results 
-	// if the current movement in the world does not match closely the animation data.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	bool bUseRootMotion = true;
+	float PoseDuration = 1.5f;
 
 public:
 	FAnimNode_PoseSearchHistoryCollector() { }
@@ -39,6 +32,8 @@ public:
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context);
 	virtual void GatherDebugData(FNodeDebugData& DebugData);
+	virtual bool HasPreUpdate() const override;
+	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_Base interface
 
 	UE::PoseSearch::FPoseHistory& GetPoseHistory() { return PoseHistory; }
@@ -47,4 +42,9 @@ public:
 protected:
 
 	UE::PoseSearch::FPoseHistory PoseHistory;
+
+#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
+	// Whether this node was evaluated last frame
+	bool bWasEvaluated = false;
+#endif // WITH_EDITORONLY_DATA
 };

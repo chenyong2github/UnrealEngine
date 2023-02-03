@@ -5,6 +5,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimRootMotionProvider.h"
 #include "BonePose.h"
+#include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchResult.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 
@@ -98,57 +99,83 @@ void FPoseHistory::Init(const FPoseHistory& History)
 	TimeHorizon = History.TimeHorizon;
 }
 
-bool FPoseHistory::TrySampleLocalPose(float SecondsAgo, const TArray<FBoneIndexType>* RequiredBones, TArray<FTransform>* LocalPose, FTransform* RootTransform) const
+static FBoneIndexType GetMaxFBoneIndexType(const TArray<FBoneIndexType>& RequiredBones)
 {
-	const int32 NextIdx = LowerBound(Poses.begin(), Poses.end(), SecondsAgo, [](const FPose& Pose, float Value)
-	{
-		return Value < Pose.Time;
-	});
-	if (NextIdx <= 0 || NextIdx >= Poses.Num())
-	{
-		// We may not have accumulated enough poses yet
-		return false;
-	}
-
-	const int32 PrevIdx = NextIdx - 1;
-
-	const FPose& PrevPose = Poses[PrevIdx];
-	const FPose& NextPose = Poses[NextIdx];
-
-#if DO_CHECK
-	check(PrevPose.LocalTransforms.Num() == NextPose.LocalTransforms.Num());
 	FBoneIndexType MaxBoneIndexType = 0;
-	if (RequiredBones)
+	for (FBoneIndexType BoneIndexType : RequiredBones)
 	{
-		for (FBoneIndexType BoneIndexType : *RequiredBones)
+		if (BoneIndexType > MaxBoneIndexType)
 		{
-			if (BoneIndexType > MaxBoneIndexType)
-			{
-				MaxBoneIndexType = BoneIndexType;
-			}
+			MaxBoneIndexType = BoneIndexType;
 		}
-		check(MaxBoneIndexType < PrevPose.LocalTransforms.Num());
 	}
-#endif
-	// Compute alpha between previous and next Poses
-	const float Alpha = FMath::GetMappedRangeValueUnclamped(FVector2f(PrevPose.Time, NextPose.Time), FVector2f(0.0f, 1.0f), SecondsAgo);
-
-	// Lerp between poses by alpha to produce output local pose at requested sample time
-	if (LocalPose)
-	{
-		check(RequiredBones);
-		*LocalPose = PrevPose.LocalTransforms;
-		FAnimationRuntime::LerpBoneTransforms(*LocalPose, NextPose.LocalTransforms, Alpha, *RequiredBones);
-	}
-
-	if (RootTransform)
-	{
-		RootTransform->Blend(PrevPose.RootTransform, NextPose.RootTransform, Alpha);
-	}
-	return true;
+	return MaxBoneIndexType;
 }
 
-bool FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext, FTransform ComponentTransform, FText* OutError, ERootUpdateMode UpdateMode)
+void FPoseHistory::GetLocalPoseAtTime(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose) const
+{
+	const int32 Num = Poses.Num();
+	if (Num > 1)
+	{
+		const float SecondsAgo = -Time;
+		const int32 LowerBoundIdx = LowerBound(Poses.begin(), Poses.end(), SecondsAgo, [](const FPose& Pose, float Value) { return Value < Pose.Time; });
+		const int32 NextIdx = FMath::Clamp(LowerBoundIdx, 1, Num - 1);
+		const int32 PrevIdx = NextIdx - 1;
+
+		const FPose& PrevPose = Poses[PrevIdx];
+		const FPose& NextPose = Poses[NextIdx];
+				
+		// Compute alpha between previous and next Poses
+		const float Alpha = FMath::GetMappedRangeValueClamped(FVector2f(PrevPose.Time, NextPose.Time), FVector2f(0.0f, 1.0f), SecondsAgo);
+
+		// Lerp between poses by alpha to produce output local pose at requested sample time
+		check(PrevPose.LocalTransforms.Num() == NextPose.LocalTransforms.Num());
+		check(GetMaxFBoneIndexType(RequiredBones) < PrevPose.LocalTransforms.Num());
+
+		LocalPose = PrevPose.LocalTransforms;
+		FAnimationRuntime::LerpBoneTransforms(LocalPose, NextPose.LocalTransforms, Alpha, RequiredBones);
+	}
+	else if (Num > 0)
+	{
+		check(GetMaxFBoneIndexType(RequiredBones) < Poses[0].LocalTransforms.Num());
+		LocalPose = Poses[0].LocalTransforms;
+	}
+	else
+	{
+		const FBoneIndexType MaxBoneIndexType = GetMaxFBoneIndexType(RequiredBones);
+		LocalPose.Init(FTransform::Identity, MaxBoneIndexType + 1);
+	}
+}
+
+void FPoseHistory::GetRootTransformAtTime(float Time, FTransform& RootTransform) const
+{
+	const int32 Num = Poses.Num();
+	if (Num > 1)
+	{
+		const float SecondsAgo = -Time;
+		const int32 LowerBoundIdx = LowerBound(Poses.begin(), Poses.end(), SecondsAgo, [](const FPose& Pose, float Value) { return Value < Pose.Time; });
+		const int32 NextIdx = FMath::Clamp(LowerBoundIdx, 1, Num - 1);
+		const int32 PrevIdx = NextIdx - 1;
+
+		const FPose& PrevPose = Poses[PrevIdx];
+		const FPose& NextPose = Poses[NextIdx];
+
+		// Compute alpha between previous and next Poses
+		const float Alpha = FMath::GetMappedRangeValueClamped(FVector2f(PrevPose.Time, NextPose.Time), FVector2f(0.0f, 1.0f), SecondsAgo);
+
+		RootTransform.Blend(PrevPose.RootTransform, NextPose.RootTransform, Alpha);
+	}
+	else if (Num > 0)
+	{
+		RootTransform = Poses[0].RootTransform;
+	}
+	else
+	{
+		RootTransform = FTransform::Identity;
+	}
+}
+
+void FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext, FTransform ComponentTransform)
 {
 	// Age our elapsed times
 	for (FPose& Pose : Poses)
@@ -184,65 +211,60 @@ bool FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext,
 	// Regardless of the retention policy, we always update the most recent pose
 	FPose& CurrentPose = Poses.Last();
 	CurrentPose.Time = 0.f;
+	CurrentPose.RootTransform = ComponentTransform;
 	CopyCompactToSkeletonPose(PoseContext.Pose, CurrentPose.LocalTransforms);
-
-	// Initialize with Previous Root Transform or Identity
-	CurrentPose.RootTransform = Poses.Num() > 1 ? Poses[Poses.Num() - 2].RootTransform : FTransform::Identity;
-	
-	// Update using either AniumRootMotionProvider or Component Transform
-	if (UpdateMode == ERootUpdateMode::RootMotionDelta)
-	{
-		const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
-
-		if (RootMotionProvider)
-		{
-			if (RootMotionProvider->HasRootMotion(PoseContext.CustomAttributes))
-			{
-				FTransform RootMotionDelta = FTransform::Identity;
-				RootMotionProvider->ExtractRootMotion(PoseContext.CustomAttributes, RootMotionDelta);
-
-				CurrentPose.RootTransform = RootMotionDelta * CurrentPose.RootTransform;
-			}
-#if WITH_EDITORONLY_DATA	
-			else
-			{
-				if (OutError)
-				{
-					*OutError = LOCTEXT("PoseHistoryRootMotionProviderError",
-						"Input to Pose History has no Root Motion Attribute. Try disabling 'Use Root Motion'.");
-				}
-				return false;
-			}
-#endif
-		}
-#if WITH_EDITORONLY_DATA	
-		else
-		{
-			if (OutError)
-			{
-				*OutError = LOCTEXT("PoseHistoryRootMotionAttributeError",
-					"Could not get Root Motion Provider. Try disabling 'Use Root Motion'.");
-			}
-			return false;
-		}
-#endif
-	}
-	else if (UpdateMode == ERootUpdateMode::ComponentTransformDelta)
-	{
-		CurrentPose.RootTransform = ComponentTransform;
-	}
-	else
-	{
-		checkNoEntry();
-	}
-
-	return true;
 }
 
 float FPoseHistory::GetSampleTimeInterval() const
 {
 	// Reserve one pose for computing derivatives at the time horizon
 	return TimeHorizon / (Poses.Max() - 1);
+}
+
+void FPoseHistory::DebugDraw(const UWorld* World, const USkeleton* Skeleton) const
+{
+#if ENABLE_DRAW_DEBUG
+
+	auto LerpColor = [](FColor A, FColor B, float T) -> FColor
+	{
+		return FColor(
+			FMath::RoundToInt(float(A.R) * (1.f - T) + float(B.R) * T),
+			FMath::RoundToInt(float(A.G) * (1.f - T) + float(B.G) * T),
+			FMath::RoundToInt(float(A.B) * (1.f - T) + float(B.B) * T),
+			FMath::RoundToInt(float(A.A) * (1.f - T) + float(B.A) * T));
+	};
+
+	TArray<FTransform> LocalTransforms;
+	TArray<FTransform> GlobalTransforms;
+	TArray<FTransform> PrevGlobalTransforms;
+	for (int32 PoseIndex = 0; PoseIndex < Poses.Num(); ++PoseIndex)
+	{
+		const FPose& Pose = Poses[PoseIndex];
+		if (Pose.LocalTransforms.IsEmpty())
+		{
+			LocalTransforms.Reset();
+			GlobalTransforms.Reset();
+		}
+		else
+		{
+			LocalTransforms = Pose.LocalTransforms;
+			LocalTransforms[0] = LocalTransforms[0] * Pose.RootTransform;
+			FAnimationRuntime::FillUpComponentSpaceTransforms(Skeleton->GetReferenceSkeleton(), LocalTransforms, GlobalTransforms);
+		}
+
+		if (PrevGlobalTransforms.Num() == GlobalTransforms.Num())
+		{
+			const float LerpFactor = float(PoseIndex - 1) / float(Poses.Num() - 1);
+			const FColor Color = LerpColor(FColorList::Red, FColorList::Orange, LerpFactor);
+			for (int32 TransformIndex = 0; TransformIndex < GlobalTransforms.Num(); ++TransformIndex)
+			{
+				DrawDebugLine(World, PrevGlobalTransforms[TransformIndex].GetLocation(), GlobalTransforms[TransformIndex].GetLocation(), Color, false, 0.f, ESceneDepthPriorityGroup::SDPG_Foreground + 2);
+			}
+		}
+
+		PrevGlobalTransforms = GlobalTransforms;
+	}
+#endif // ENABLE_DRAW_DEBUG
 }
 
 //////////////////////////////////////////////////////////////////////////
