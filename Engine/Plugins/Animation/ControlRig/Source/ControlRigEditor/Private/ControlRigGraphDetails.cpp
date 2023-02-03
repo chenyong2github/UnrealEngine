@@ -1868,14 +1868,4 @@ void FControlRigGraphMathTypeDetails::CustomizeChildren(TSharedRef<IPropertyHand
 	}
 }
 
-void FControlRigGraphMathTypeDetails::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	Collector.AddReferencedObjects(ObjectsBeingCustomized);
-}
-
-FString FControlRigGraphMathTypeDetails::GetReferencerName() const
-{
-	return TEXT("FControlRigGraphMathTypeDetails:") + ObjectsBeingCustomized[0]->GetPathName();
-}
-
 #undef LOCTEXT_NAMESPACE
