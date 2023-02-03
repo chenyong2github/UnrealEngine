@@ -21,6 +21,7 @@ FAssetCategoryPath EAssetCategoryPaths::Foliage(LOCTEXT("Foliage", "Foliage"));
 FAssetCategoryPath EAssetCategoryPaths::Input(LOCTEXT("Input", "Input"));
 FAssetCategoryPath EAssetCategoryPaths::FX(LOCTEXT("FX", "FX"));
 FAssetCategoryPath EAssetCategoryPaths::Cinematics(LOCTEXT("Cinematics", "Cinematics"));
+FAssetCategoryPath EAssetCategoryPaths::Media(LOCTEXT("Media", "Media"));
 
 FAssetCategoryPath::FAssetCategoryPath(const FText& InCategory)
 {
