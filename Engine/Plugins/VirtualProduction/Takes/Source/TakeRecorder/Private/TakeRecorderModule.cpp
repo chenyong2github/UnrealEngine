@@ -7,7 +7,6 @@
 #include "LevelEditor.h"
 #include "TakeRecorderCommands.h"
 #include "TakeRecorderStyle.h"
-#include "TakePresetActions.h"
 #include "Recorder/TakeRecorder.h"
 
 #include "WorkspaceMenuStructureModule.h"
@@ -271,7 +270,6 @@ void FTakeRecorderModule::StartupModule()
 
 	RegisterDetailCustomizations();
 	RegisterLevelEditorExtensions();
-	RegisterAssetTools();
 	RegisterSettings();
 	RegisterSerializedRecorder();
 
@@ -318,7 +316,6 @@ void FTakeRecorderModule::ShutdownModule()
 
 	UnregisterDetailCustomizations();
 	UnregisterLevelEditorExtensions();
-	UnregisterAssetTools();
 	UnregisterSettings();
 	UnregisterSerializedRecorder();
 }
@@ -418,24 +415,6 @@ void FTakeRecorderModule::UnregisterLevelEditorExtensions()
 	}
 
 	FModuleManager::Get().OnModulesChanged().Remove(ModulesChangedHandle);
-}
-
-void FTakeRecorderModule::RegisterAssetTools()
-{
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	{
-		TakePresetActions = MakeShared<FTakePresetActions>();
-		AssetTools.RegisterAssetTypeActions(TakePresetActions.ToSharedRef());
-	}
-}
-
-void FTakeRecorderModule::UnregisterAssetTools()
-{
-	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
-	if (AssetToolsModule)
-	{
-		AssetToolsModule->Get().UnregisterAssetTypeActions(TakePresetActions.ToSharedRef());
-	}
 }
 
 void FTakeRecorderModule::RegisterSettings()

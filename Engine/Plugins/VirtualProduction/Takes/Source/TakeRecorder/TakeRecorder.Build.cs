@@ -9,8 +9,8 @@ public class TakeRecorder : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"AppFramework",
+				"AssetDefinition",
 				"AssetRegistry",
-				"AssetTools",
 				"ContentBrowser",
 				"Core",
 				"CoreUObject",
