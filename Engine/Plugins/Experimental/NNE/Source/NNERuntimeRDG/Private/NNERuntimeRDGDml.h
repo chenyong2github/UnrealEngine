@@ -14,7 +14,7 @@
 
 namespace UE::NNERuntimeRDG::Private::Dml
 {
-	class FDeviceContextDml;
+	class FDmlDeviceContext;
 	bool FRuntimeDmlStartup();
 }
 
@@ -25,8 +25,6 @@ class UNNERuntimeRDGDmlImpl : public UObject, public INNERuntime, public INNERun
 	GENERATED_BODY()
 
 public:
-	static FGuid GUID;
-	static int32 Version;
 
 	UNNERuntimeRDGDmlImpl():Ctx(nullptr) {};
 	virtual ~UNNERuntimeRDGDmlImpl();
@@ -42,6 +40,6 @@ public:
 	virtual bool CanCreateModelRDG(TObjectPtr<UNNEModelData> ModelData) const override;
 	virtual TUniquePtr<UE::NNECore::IModelRDG> CreateModelRDG(TObjectPtr<UNNEModelData> ModelData) override;
 private:
-	UE::NNERuntimeRDG::Private::Dml::FDeviceContextDml* Ctx;
+	UE::NNERuntimeRDG::Private::Dml::FDmlDeviceContext* Ctx;
 };
 
