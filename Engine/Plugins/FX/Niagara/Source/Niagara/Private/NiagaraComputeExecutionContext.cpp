@@ -225,40 +225,19 @@ void FNiagaraComputeExecutionContext::ResetInternal(FNiagaraGpuComputeDispatchIn
 
 void FNiagaraComputeExecutionContext::SetDataToRender(FNiagaraDataBuffer* InDataToRender)
 {
-	if (DataToRender)
-	{
-		DataToRender->ReleaseReadRef();
-	}
-
 	DataToRender = InDataToRender;
-
-	if (DataToRender)
-	{
-		DataToRender->AddReadRef();
-	}
 
 	// This call the DataToRender should be equal to the TranslucentDataToRender so we can release the read ref
 	if (TranslucentDataToRender)
 	{
 		ensure((DataToRender == nullptr) || (DataToRender == TranslucentDataToRender));
-		TranslucentDataToRender->ReleaseReadRef();
 		TranslucentDataToRender = nullptr;
 	}
 }
 
 void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuffer* InTranslucentDataToRender)
 {
-	if (TranslucentDataToRender)
-	{
-		TranslucentDataToRender->ReleaseReadRef();
-	}
-
 	TranslucentDataToRender = InTranslucentDataToRender;
-
-	if (TranslucentDataToRender)
-	{
-		TranslucentDataToRender->AddReadRef();
-	}
 }
 
 bool FNiagaraComputeInstanceData::IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const

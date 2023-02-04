@@ -307,28 +307,19 @@ FNiagaraDynamicDataBase::FNiagaraDynamicDataBase(const FNiagaraEmitterInstance* 
 	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		//On CPU we pass through direct ptr to the most recent data buffer.
-		Data.CPUParticleData = &DataSet.GetCurrentDataChecked();
-
-		//Mark this buffer as in use by this renderer. Prevents this buffer being reused to write new simulation data while it's inuse by the renderer.
-		Data.CPUParticleData->AddReadRef();
+		CPUParticleData = &DataSet.GetCurrentDataChecked();
 	}
 	else
 	{
 		//On GPU we must access the correct buffer via the GPUExecContext. Probably a way to route this data better outside the dynamic data in future.
 		//During simulation, the correct data buffer for rendering will be placed in the GPUContext and AddReadRef called.
 		check(SimTarget == ENiagaraSimTarget::GPUComputeSim);
-		Data.GPUExecContext = InEmitter->GetGPUContext();
+		GPUExecContext = InEmitter->GetGPUContext();
 	}
 }
 
 FNiagaraDynamicDataBase::~FNiagaraDynamicDataBase()
 {
-	if (SimTarget == ENiagaraSimTarget::CPUSim)
-	{
-		check(Data.CPUParticleData);
-		//Release our ref on the buffer so it can be reused as a destination for a new simulation tick.
-		Data.CPUParticleData->ReleaseReadRef();
-	}
 }
 
 bool FNiagaraDynamicDataBase::IsGpuLowLatencyTranslucencyEnabled() const
@@ -339,7 +330,7 @@ bool FNiagaraDynamicDataBase::IsGpuLowLatencyTranslucencyEnabled() const
 	}
 	else
 	{
-		return Data.GPUExecContext ? Data.GPUExecContext->HasTranslucentDataToRender() : false;
+		return GPUExecContext ? GPUExecContext->HasTranslucentDataToRender() : false;
 	}
 }
 
@@ -349,11 +340,11 @@ FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender(bool bIsLow
 
 	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
-		Ret = Data.CPUParticleData;
+		Ret = CPUParticleData;
 	}
 	else
 	{
-		Ret = Data.GPUExecContext->GetDataToRender(bIsLowLatencyTranslucent);
+		Ret = GPUExecContext->GetDataToRender(bIsLowLatencyTranslucent);
 	}
 
 	checkSlow(Ret == nullptr || Ret->IsBeingRead());

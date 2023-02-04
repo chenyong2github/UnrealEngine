@@ -126,7 +126,7 @@ struct FNDIDataChannelReadInstanceData
 	TWeakObjectPtr<UNiagaraDataChannelHandler> DataChannel;
 
 	/** Pointer to the cpu simulation buffer from the DataChannel if we're reading from there. */
-	FNiagaraDataBuffer* ExternalCPU = nullptr;
+	FNiagaraDataBufferRef ExternalCPU = nullptr;
 	
 	/** The GPU data set from the DataChannel. We must grab the whole set rather than a buffer here as we don't know which buffer will be contain this frame's channel data. 
 	*	TODO: We'll likely want to improve this GPU sim flow soon. Possibly grab an RT proxy object from the data channel handler and pass that over to the GPU instead of a direct dataset like this.

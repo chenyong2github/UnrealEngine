@@ -35,10 +35,10 @@ public:
 	virtual void Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld);
 
 	/** Returns the data for this data channel given the system instance. Possibly some handlers will subdivide spacially etc so may not return the same data for the different systems. */
-	virtual void GetData(FNiagaraSystemInstance* SystemInstance, FNiagaraDataBuffer*& OutCPUData, bool bGetLastFrameData)  PURE_VIRTUAL(UNiagaraDataChannelHandler::GetData, );	
+	virtual FNiagaraDataBufferRef GetData(FNiagaraSystemInstance* SystemInstance, bool bGetLastFrameData)  PURE_VIRTUAL(UNiagaraDataChannelHandler::GetData, return nullptr;);	
 
 	/** Gets the GPU data set with data for the given system. This API will likely be reworked as GPU support is fleshed out and more complex handlers are created. */
-	virtual void GetDataGPU(FNiagaraSystemInstance* SystemInstance, FNiagaraDataSet*& OutCPUData) PURE_VIRTUAL(UNiagaraDataChannelHandler::GetDataGPU, );	
+	virtual FNiagaraDataSet* GetDataGPU(FNiagaraSystemInstance* SystemInstance) PURE_VIRTUAL(UNiagaraDataChannelHandler::GetDataGPU, return nullptr;);	
 
 	/** Adds a request to publish some data into the channel on the next tick. */
 	virtual void Publish(const FNiagaraDataChannelPublishRequest& Request);
@@ -80,7 +80,7 @@ protected:
 	TArray<FNiagaraDataChannelPublishRequest> PublishRequests;
 
 	/** Data buffers we'll be passing to the RT for uploading to the GPU */
-	TArray<FNiagaraDataBuffer*> BuffersForGPU;
+	TArray<FNiagaraDataBufferRef> BuffersForGPU;
 
 	/** Render Thread Proxy for this handler. Each handler type must create it's proxy inside it's constructor. */
 	TUniquePtr<FNiagaraDataChannelHandlerRTProxyBase> RTProxy;

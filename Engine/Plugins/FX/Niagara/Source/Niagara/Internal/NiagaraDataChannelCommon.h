@@ -35,7 +35,7 @@ struct FNiagaraDataChannelReference
 struct FNiagaraDataChannelPublishRequest
 {
 	/** The buffer containing the data to be published. This can come from a data channel DI or can be the direct contents on a Niagara simulation. */
-	FNiagaraDataBuffer* Data = nullptr;
+	FNiagaraDataBufferRef Data;
 
 	/** Game level data if this request comes from the game code. */
 	FNiagaraDataChannelGameDataPtr GameData;
@@ -59,40 +59,10 @@ struct FNiagaraDataChannelPublishRequest
 	explicit FNiagaraDataChannelPublishRequest(FNiagaraDataBuffer* InData)
 		: Data(InData)
 	{
-		Data->AddReadRef();
 	}
 
 	explicit FNiagaraDataChannelPublishRequest(FNiagaraDataBuffer* InData, bool bInVisibleToGame, bool bInVisibleToCPUSims, bool bInVisibleToGPUSims, FVector3f InLwcTile)
 	: Data(InData), bVisibleToGame(bInVisibleToGame), bVisibleToCPUSims(bInVisibleToCPUSims), bVisibleToGPUSims(bInVisibleToGPUSims), LwcTile(InLwcTile)
 	{
-		Data->AddReadRef();
-	}
-
-	explicit FNiagaraDataChannelPublishRequest(const FNiagaraDataChannelPublishRequest& Other)
-	{
-		*this = Other;
-	}
-
-	FNiagaraDataChannelPublishRequest& operator=(const FNiagaraDataChannelPublishRequest& Other)
-	{
-		Data = Other.Data;
-		if(Data)
-		{
-			Data->AddReadRef();
-		}
-		GameData = Other.GameData;
-		bVisibleToGame = Other.bVisibleToGame;
-		bVisibleToCPUSims = Other.bVisibleToCPUSims;
-		bVisibleToGPUSims = Other.bVisibleToGPUSims;
-		LwcTile = Other.LwcTile;
-		return *this;
-	}
-
-	~FNiagaraDataChannelPublishRequest()
-	{
-		if(Data)
-		{
-			Data->ReleaseReadRef();
-		}
 	}
 };

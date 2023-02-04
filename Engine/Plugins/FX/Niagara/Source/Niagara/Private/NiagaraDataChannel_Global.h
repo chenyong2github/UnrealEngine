@@ -31,8 +31,8 @@ class UNiagaraDataChannelHandler_Global : public UNiagaraDataChannelHandler
 
 	virtual void Init(const UNiagaraDataChannel* InChannel) override;
 	virtual void Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld) override;
-	virtual void GetData(FNiagaraSystemInstance* SystemInstance, FNiagaraDataBuffer*& OutCPUData, bool bGetLastFrameData) override;
-	virtual void GetDataGPU(FNiagaraSystemInstance* SystemInstance, FNiagaraDataSet*& OutCPUData) override;
+	virtual FNiagaraDataBufferRef GetData(FNiagaraSystemInstance* SystemInstance, bool bGetLastFrameData) override;
+	virtual FNiagaraDataSet* GetDataGPU(FNiagaraSystemInstance* SystemInstance) override;
 
 	/** Returns the game level DataChannel data store. */
 	virtual FNiagaraDataChannelGameDataPtr GetGameData(UActorComponent* OwningComponent);
@@ -43,7 +43,7 @@ private:
 	FNiagaraDataSet* GameDataStaging;
 
 	/** Last Frame's CPU data. */
-	FNiagaraDataBuffer* PrevFrameCPU;
+	FNiagaraDataBufferRef PrevFrameCPU;
 };
 
 /**

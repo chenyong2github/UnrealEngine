@@ -1265,7 +1265,7 @@ void FNiagaraDataBuffer::GPUCopyFrom(const float* GPUReadBackFloat, const int* G
 	}
 }
 
-void FNiagaraDataBuffer::PushCPUBuffersToGPU(const TArray<FNiagaraDataBuffer*>& SourceBuffers, bool bReleaseRef, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName)
+void FNiagaraDataBuffer::PushCPUBuffersToGPU(const TArray<FNiagaraDataBufferRef>& SourceBuffers, bool bReleaseRef, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName)
 {
 	uint32 NewCount = 0;
 	check(GetOwner()->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim);
@@ -1345,11 +1345,6 @@ void FNiagaraDataBuffer::PushCPUBuffersToGPU(const TArray<FNiagaraDataBuffer*>& 
 		{
 			RHIUnlockBuffer(GPUBufferHalf.Buffer);
 		}
-	}
-
-	for (FNiagaraDataBuffer* Buffer : SourceBuffers)
-	{
-		Buffer->ReleaseReadRef();
 	}
 }
 

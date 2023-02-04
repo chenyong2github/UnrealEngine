@@ -44,10 +44,10 @@ public:
 	{
 	}
 
-	void EndFrame(FNiagaraGpuComputeDispatchInterface* DispathInterface, FRHICommandListImmediate& CmdList, const TArray<FNiagaraDataBuffer*>& BuffersForGPU)
+	void EndFrame(FNiagaraGpuComputeDispatchInterface* DispathInterface, FRHICommandListImmediate& CmdList, const TArray<FNiagaraDataBufferRef>& BuffersForGPU)
 	{
 		uint32 NumInstance = 0;
-		for(FNiagaraDataBuffer* Buffer : BuffersForGPU)
+		for(auto& Buffer : BuffersForGPU)
 		{
 			NumInstance += Buffer->GetNumInstances();
 		}		
@@ -133,12 +133,7 @@ void UNiagaraDataChannelHandler_Global::Tick(float DeltaSeconds, ETickingGroup T
 		//TODO: Add reference struct to handle these ref counts and make add/release private.
 		if(DataChannel->KeepPreviousFrameData())
 		{
-			if(Data.PrevCPUSimData)
-			{
-				Data.PrevCPUSimData->ReleaseReadRef();
-			}
 			Data.PrevCPUSimData = Data.CPUSimData->GetCurrentData();
-			Data.PrevCPUSimData->AddReadRef();
 		}
 
 		FNiagaraGpuComputeDispatchInterface* DispathInterface = FNiagaraGpuComputeDispatchInterface::Get(OwningWorld->GetWorld());
@@ -187,7 +182,6 @@ void UNiagaraDataChannelHandler_Global::Tick(float DeltaSeconds, ETickingGroup T
 				}
 
 				PublishRequest.Data = GameDataStaging->GetCurrentData();
-				PublishRequest.Data->AddReadRef();
 			}
 		}
 		else if( ensure(PublishRequest.Data) )
@@ -205,7 +199,6 @@ void UNiagaraDataChannelHandler_Global::Tick(float DeltaSeconds, ETickingGroup T
 		}
 		if(PublishRequest.bVisibleToGPUSims)
 		{
-			PublishRequest.Data->AddReadRef();
 			BuffersForGPU.Add(PublishRequest.Data);
 		}
 	}
@@ -289,27 +282,22 @@ void UNiagaraDataChannelHandler_Global::Tick(float DeltaSeconds, ETickingGroup T
 	}
 }
 
-void UNiagaraDataChannelHandler_Global::GetData(FNiagaraSystemInstance* SystemInstance, FNiagaraDataBuffer*& OutCPUData, bool bGetPrevFrameData)
+FNiagaraDataBufferRef UNiagaraDataChannelHandler_Global::GetData(FNiagaraSystemInstance* SystemInstance, bool bGetPrevFrameData)
 {
 	if(bGetPrevFrameData && Data.PrevCPUSimData)
 	{
-		OutCPUData = Data.PrevCPUSimData;
+		return Data.PrevCPUSimData;
 	}
 	else
 	{
-		OutCPUData = Data.CPUSimData->GetCurrentData();	
-	}
-
-	if(OutCPUData)
-	{
-		OutCPUData->AddReadRef();
+		return Data.CPUSimData->GetCurrentData();	
 	}
 	//For more complicated channels we could check the location + bounds of the system instance etc to return some spatially localized data.
 }
 
-void UNiagaraDataChannelHandler_Global::GetDataGPU(FNiagaraSystemInstance* SystemInstance, FNiagaraDataSet*& OutCPUData)
+FNiagaraDataSet* UNiagaraDataChannelHandler_Global::GetDataGPU(FNiagaraSystemInstance* SystemInstance)
 {
-	OutCPUData = Data.GPUSimData;	
+	return Data.GPUSimData;	
 	//For more complicated channels we could check the location + bounds of the system instance etc to return some spatially localized data.
 }
 

@@ -94,13 +94,7 @@ struct FNDIDataChannelReadInstanceData_RT
 
 FNDIDataChannelReadInstanceData::~FNDIDataChannelReadInstanceData()
 {
-	if (ExternalCPU)
-	{
-		ExternalCPU->ReleaseReadRef();
-		ExternalCPU = nullptr;
-	}
 
-	ExternalGPU = nullptr;
 }
 
 FNiagaraDataBuffer* FNDIDataChannelReadInstanceData::GetReadBufferCPU()
@@ -235,14 +229,14 @@ bool FNDIDataChannelReadInstanceData::Tick(UNiagaraDataInterfaceDataChannelRead*
 			if (CompiledData.UsedByCPU())
 			{
 				//TODO: Automatically modify tick group if we have DIs that require current frame info?
-				DataChannelPtr->GetData(Instance, ExternalCPU, Interface->bReadCurrentFrame == false);
+				ExternalCPU = DataChannelPtr->GetData(Instance, Interface->bReadCurrentFrame == false);
 				CPUSourceDataCompiledData = &ExternalCPU->GetOwner()->GetCompiledData();
 			}
 
 			if (CompiledData.UsedByGPU())
 			{
 				//TODO: Detect in post compile if we need GPU/CPU or both.
-				DataChannelPtr->GetDataGPU(Instance, ExternalGPU);
+				ExternalGPU = DataChannelPtr->GetDataGPU(Instance);
 				GPUSourceDataCompiledData = &ExternalGPU->GetCompiledData();
 			}
 
@@ -305,8 +299,6 @@ bool FNDIDataChannelReadInstanceData::PostTick(UNiagaraDataInterfaceDataChannelR
 {
 	if (ExternalCPU)
 	{
-		//TODO: Create ref object to do this for us and make Add/Release ref private.
-		ExternalCPU->ReleaseReadRef();
 		ExternalCPU = nullptr;
 	}
 

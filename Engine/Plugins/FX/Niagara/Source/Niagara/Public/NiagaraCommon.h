@@ -23,6 +23,8 @@
 #include "RHIDefinitions.h"
 #endif
 
+#include "Templates/RefCounting.h"
+
 #include "NiagaraCommon.generated.h"
 
 struct FVersionedNiagaraEmitter;
@@ -41,6 +43,10 @@ enum ETextureRenderTargetFormat : int;
 namespace ERHIFeatureLevel { enum Type : int; }
 enum EShaderPlatform : uint16;
 enum EPixelFormat : uint8;
+
+class FNiagaraDataBuffer;
+
+using FNiagaraDataBufferRef = TRefCountPtr<FNiagaraDataBuffer>;
 
 #define NIAGARA_MEMORY_TRACKING	!UE_BUILD_SHIPPING
 

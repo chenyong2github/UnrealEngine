@@ -168,17 +168,7 @@ struct FNDIDataChannelWriteInstanceData
 
 		if(FNiagaraDataBuffer* CurrBuff = Data->GetCurrentData())
 		{	
-			if (bNeedsLastFrameData)
-			{
-				CurrBuff->AddReadRef();//Ensure we keep the previous data when grabbing a new dest buffer.
-			}
-
 			FNiagaraDataBuffer& DestBuff = Data->BeginSimulate(true);
-
-			if (bNeedsLastFrameData && CurrBuff)
-			{
-				CurrBuff->ReleaseReadRef();
-			}
 		}
 
 		if (Interface->AllocationMode == ENiagaraDataChannelAllocationMode::Static)

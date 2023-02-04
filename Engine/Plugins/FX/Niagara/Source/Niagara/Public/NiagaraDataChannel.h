@@ -165,7 +165,7 @@ struct NIAGARA_API FNiagaraWorldDataChannelStore
 
 	// Cached off buffer with the previous frame's CPU Sim accessible data.
 	// Some systems can choose to read this to avoid any current frame tick ordering issues.
-	FNiagaraDataBuffer* PrevCPUSimData = nullptr;
+	FNiagaraDataBufferRef PrevCPUSimData = nullptr;
 	
 	//		▲	GPU Sim Data can optionally be made visible to CPU Sims and Game Data.
 	//		|

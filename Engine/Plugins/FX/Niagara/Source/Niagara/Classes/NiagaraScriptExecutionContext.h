@@ -41,20 +41,12 @@ struct FNiagaraEventHandlingInfo
 
 	void SetEventData(FNiagaraDataBuffer* InEventData)
 	{
-		if (EventData)
-		{
-			EventData->ReleaseReadRef();
-		}
 		EventData = InEventData;
-		if (EventData)
-		{
-			EventData->AddReadRef();
-		}
 	}
 
 	TArray<int32, TInlineAllocator<16>> SpawnCounts;
 	int32 TotalSpawnCount;
-	FNiagaraDataBuffer* EventData;
+	FNiagaraDataBufferRef EventData;
 	FGuid SourceEmitterGuid;
 	FName SourceEmitterName;
 };
@@ -65,7 +57,6 @@ struct FNiagaraDataSetExecutionInfo
 	FNiagaraDataSetExecutionInfo()
 		: DataSet(nullptr)
 		, Input(nullptr)
-		, Output(nullptr)
 		, StartInstance(0)
 		, bUpdateInstanceCount(false)
 	{
@@ -73,28 +64,15 @@ struct FNiagaraDataSetExecutionInfo
 	}
 
 
-	FORCEINLINE void Init(FNiagaraDataSet* InDataSet, FNiagaraDataBuffer* InInput, FNiagaraDataBuffer* InOutput, int32 InStartInstance, bool bInUpdateInstanceCount)
+	FORCEINLINE void Init(FNiagaraDataSet* InDataSet, FNiagaraDataBuffer* InInput, int32 InStartInstance, bool bInUpdateInstanceCount)
 	{
-		if (Input)
-		{
-			Input->ReleaseReadRef();
-		}
-
 		DataSet = InDataSet;
 		Input = InInput;
-		Output = InOutput;
 		StartInstance = InStartInstance;
 		bUpdateInstanceCount = bInUpdateInstanceCount;
 
 		check(DataSet);
 		check(Input == nullptr || DataSet == Input->GetOwner());
-		check(Output == nullptr || DataSet == Output->GetOwner());
-
-		if (Input)
-		{
-			Input->AddReadRef();
-		}
-		check(Output == nullptr || Output->IsBeingWritten());
 	}
 	
 	~FNiagaraDataSetExecutionInfo()
@@ -104,21 +82,16 @@ struct FNiagaraDataSetExecutionInfo
 
 	FORCEINLINE void Reset()
 	{
-		if (Input)
-		{
-			Input->ReleaseReadRef();
-		}
-
 		DataSet = nullptr;
 		Input = nullptr;
-		Output = nullptr;
 		StartInstance = INDEX_NONE;
 		bUpdateInstanceCount = false;
 	}
 
+	FNiagaraDataBuffer* GetOutput()const { return DataSet->GetDestinationData(); }
+
 	FNiagaraDataSet* DataSet;
-	FNiagaraDataBuffer* Input;
-	FNiagaraDataBuffer* Output;
+	FNiagaraDataBufferRef Input;
 	int32 StartInstance;
 	bool bUpdateInstanceCount;
 };

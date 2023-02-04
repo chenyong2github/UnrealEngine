@@ -135,10 +135,10 @@ public:
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
 
 	// Most current buffer that can be used for rendering.
-	FNiagaraDataBuffer* DataToRender = nullptr;
+	FNiagaraDataBufferRef DataToRender = nullptr;
 
 	// Optional buffer which can be used to render translucent data with no latency (i.e. this frames data)
-	FNiagaraDataBuffer* TranslucentDataToRender = nullptr;
+	FNiagaraDataBufferRef TranslucentDataToRender = nullptr;
 
 	// Game thread spawn info will be sent to the render thread inside FNiagaraComputeInstanceData
 	FNiagaraGpuSpawnInfo GpuSpawnInfo_GT;

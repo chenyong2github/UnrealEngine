@@ -96,7 +96,7 @@ void FNiagaraScriptExecutionContextBase::BindData(int32 Index, FNiagaraDataSet& 
 	FNiagaraDataBuffer* Output = DataSet.GetDestinationData();
 
 	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
-	DataSetInfo[Index].Init(&DataSet, Input, Output, StartInstance, bUpdateInstanceCounts);
+	DataSetInfo[Index].Init(&DataSet, Input, StartInstance, bUpdateInstanceCounts);
 
 	//Would be nice to roll this and DataSetInfo into one but currently the VM being in it's own Engine module prevents this. Possibly should move the VM into Niagara itself.
 	TArrayView<uint8 const* RESTRICT const> InputRegisters = Input ? Input->GetRegisterTable() : TArrayView<uint8 const* RESTRICT const>();
@@ -124,7 +124,7 @@ void FNiagaraScriptExecutionContextBase::BindData(int32 Index, FNiagaraDataBuffe
 	check(Input && Input->GetOwner());
 	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
 	FNiagaraDataSet* DataSet = Input->GetOwner();
-	DataSetInfo[Index].Init(DataSet, Input, nullptr, StartInstance, bUpdateInstanceCounts);
+	DataSetInfo[Index].Init(DataSet, Input, StartInstance, bUpdateInstanceCounts);
 
 	TArrayView<uint8 const* RESTRICT const> InputRegisters = Input->GetRegisterTable();
 
@@ -216,9 +216,9 @@ bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScr
 #if NIAGARA_NAN_CHECKING
 			Info.DataSet->CheckForNaNs();
 #endif
-			if (Info.bUpdateInstanceCount)
+			if (Info.bUpdateInstanceCount && Info.GetOutput())
 			{
-				Info.Output->SetNumInstances(Info.StartInstance + DataSetMetaTable[Idx].DataSetAccessIndex + 1);
+				Info.GetOutput()->SetNumInstances(Info.StartInstance + DataSetMetaTable[Idx].DataSetAccessIndex + 1);
 			}
 		}
 

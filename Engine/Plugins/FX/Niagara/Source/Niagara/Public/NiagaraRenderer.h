@@ -51,11 +51,8 @@ protected:
 	ENiagaraSimTarget SimTarget;
 	FNiagaraSystemInstanceID SystemInstanceID;
 
-	union
-	{
-		FNiagaraDataBuffer* CPUParticleData;
-		FNiagaraComputeExecutionContext* GPUExecContext;
-	}Data;
+	FNiagaraDataBufferRef CPUParticleData;
+	FNiagaraComputeExecutionContext* GPUExecContext = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////
