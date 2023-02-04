@@ -75,7 +75,7 @@ UCommonActivatableWidget* UCommonUIExtensions::PushContentToLayer_ForPlayer(cons
 
 void UCommonUIExtensions::PushStreamedContentToLayer_ForPlayer(const ULocalPlayer* LocalPlayer, FGameplayTag LayerName, TSoftClassPtr<UCommonActivatableWidget> WidgetClass)
 {
-	if (!ensure(LocalPlayer) || !ensure(WidgetClass.IsNull()))
+	if (!ensure(LocalPlayer) || !ensure(!WidgetClass.IsNull()))
 	{
 		return;
 	}
