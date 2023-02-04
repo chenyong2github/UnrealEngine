@@ -551,6 +551,21 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 	GetTypedPrimitives<UDisplayClusterScreenComponent>(OutPrimitives);
 
 #if WITH_EDITOR
+	// Always hide preview meshes for preview
+	{
+		TArray<UDisplayClusterPreviewComponent*> CurrentPreviewComponents;
+		GetComponents(CurrentPreviewComponents);
+		for (UDisplayClusterPreviewComponent* PreviewComponentIt : CurrentPreviewComponents)
+		{
+			if (UMeshComponent* PreviewMesh = PreviewComponentIt->GetPreviewMesh())
+			{
+				if(UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(PreviewMesh))
+				{
+					OutPrimitives.Add(PrimComp->ComponentId);
+				}
+			}
+		}
+	}
 
 	// Hide visualization and hidden components from RootActor
 	{
