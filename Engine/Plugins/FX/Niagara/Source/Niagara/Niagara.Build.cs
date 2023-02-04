@@ -91,20 +91,6 @@ public class Niagara : ModuleRules
 				"zlib",
 				"Boost"
 			);
-
-			PublicDefinitions.AddRange(
-				new string[]
-				{
-					"NIAGARA_USE_OPENVDB=1"
-				});
-		}
-		else
-		{
-			PublicDefinitions.AddRange(
-				new string[]
-				{
-					"NIAGARA_USE_OPENVDB=0"
-				});
 		}
 
 		PublicDefinitions.AddRange(

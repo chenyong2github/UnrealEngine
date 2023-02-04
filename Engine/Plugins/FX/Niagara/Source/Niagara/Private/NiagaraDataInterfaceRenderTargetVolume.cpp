@@ -656,7 +656,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheWriteFrame(UObject* Storag
 		{
 			if (NDIRenderTargetVolumeLocal::GSimCacheUseOpenVDB)
 			{
-#if NIAGARA_USE_OPENVDB
+#if UE_USE_OPENVDB
 				UVolumeCache* OpenVDBSimCacheData = CastChecked<UVolumeCache>(StorageObject);
 				
 				FString FullPath = OpenVDBSimCacheData->GetAssetPath(FrameIndex);
