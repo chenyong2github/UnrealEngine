@@ -2,9 +2,7 @@
 
 #pragma once
 
-// We need core minimal because we are calling methods from Vector, Quat, etc...
-#include "CoreMinimal.h" // IWYU pragma: keep
-
+#include "Math/Transform.h" // IWYU pragma: keep
 #include "PCGMetadataAttributeTraits.generated.h"
 
 UENUM(BlueprintType)
