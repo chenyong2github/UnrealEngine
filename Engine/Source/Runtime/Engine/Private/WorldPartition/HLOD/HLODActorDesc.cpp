@@ -102,7 +102,8 @@ static int64 GetPackageSize(const FString& InPackageFileName)
 
 int64 FHLODActorDesc::GetPackageSize() const
 {
-	const FString PackageFileName = FPackageName::LongPackageNameToFilename(GetActorPackage().ToString(), FPackageName::GetAssetPackageExtension());
+	FString PackageFileName = GetActorPackage().ToString();
+	FPackageName::TryConvertLongPackageNameToFilename(GetActorPackage().ToString(), PackageFileName, FPackageName::GetAssetPackageExtension());
 	return ::GetPackageSize(PackageFileName);
 }
 
