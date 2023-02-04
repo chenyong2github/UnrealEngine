@@ -10,8 +10,6 @@
 
 class SObjectMixerEditorList;
 
-struct FSlateBrush;
-
 /** Defines data carried by each row type. */
 struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowData
 {
@@ -40,7 +38,8 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowData
 		EPropertyValueSetFlags::Type PropertyValueSetFlags = 0;
 	};
 	
-	FObjectMixerEditorListRowData(SSceneOutliner* InSceneOutliner, const FText& InDisplayNameOverride = FText::GetEmpty())
+	FObjectMixerEditorListRowData(
+		SSceneOutliner* InSceneOutliner, const FText& InDisplayNameOverride = FText::GetEmpty())
 	: SceneOutlinerPtr(InSceneOutliner)
 	, DisplayNameOverride(InDisplayNameOverride)
 	{}
@@ -56,16 +55,13 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowData
 	UE_NODISCARD bool GetIsTreeViewItemExpanded(const TSharedRef<ISceneOutlinerTreeItem> InRow);
 	void SetIsTreeViewItemExpanded(const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bNewExpanded);
 
-	UE_NODISCARD bool GetDoesRowPassFilters() const;
-	void SetDoesRowPassFilters(const bool bPass);
-
 	UE_NODISCARD bool GetIsSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow);
 	void SetIsSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bNewSelected);
 
 	UE_NODISCARD bool HasAtLeastOneChildThatIsNotSolo(
 		const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bRecursive = true) const;
 
-	UE_NODISCARD FText GetDisplayName(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem, const bool bIsHybridRow = false) const;
+	UE_NODISCARD FText GetDisplayName(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem) const;
 
 	UE_NODISCARD const FText& GetDisplayNameOverride() const
 	{
@@ -78,11 +74,6 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowData
 	}
 
 	UE_NODISCARD SObjectMixerEditorList* GetListView() const;
-
-	/**
-	 * Determines the style of the tree (flat list or hierarchy)
-	 */
-	EObjectMixerTreeViewMode GetTreeViewMode();
 
 	UE_NODISCARD TArray<TSharedPtr<ISceneOutlinerTreeItem>> GetSelectedTreeViewItems() const;
 	
@@ -99,7 +90,21 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowData
 
 	void ClearSoloRows() const;
 
-	bool GetIsItemOrHybridChildSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow);
+	bool GetIsHybridRow() const
+	{
+		return HybridComponent.IsValid();
+	}
+
+	UActorComponent* GetHybridComponent() const
+	{
+		return HybridComponent.Get();
+	}
+	
+	/** If this row represents an actor or other container and should show the data for a single child component, define it here. */
+	void SetHybridComponent(UActorComponent* InHybridComponent)
+	{
+		HybridComponent = InHybridComponent;
+	}
 
 	void PropagateChangesToSimilarSelectedRowProperties(
 		const TSharedRef<ISceneOutlinerTreeItem> InRow, const FPropertyPropagationInfo PropertyPropagationInfo);
@@ -112,6 +117,6 @@ protected:
 	FTransientEditorVisibilityRules VisibilityRules;
 
 	FText DisplayNameOverride;
-	
-	bool bDoesRowPassFilters = true;
+
+	TWeakObjectPtr<UActorComponent> HybridComponent = nullptr;
 };

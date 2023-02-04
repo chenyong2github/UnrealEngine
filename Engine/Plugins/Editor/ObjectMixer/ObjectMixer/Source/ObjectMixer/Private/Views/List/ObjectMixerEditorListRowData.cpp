@@ -6,8 +6,8 @@
 #include "Views/List/ObjectMixerUtils.h"
 #include "Views/List/SObjectMixerEditorList.h"
 
-#include "ScopedTransaction.h"
 #include "GameFramework/Actor.h"
+#include "ScopedTransaction.h"
 
 const TArray<TObjectPtr<UObjectMixerObjectFilter>>& FObjectMixerEditorListRowData::GetObjectFilterInstances() const
 {
@@ -41,16 +41,6 @@ bool FObjectMixerEditorListRowData::GetIsTreeViewItemExpanded(const TSharedRef<I
 void FObjectMixerEditorListRowData::SetIsTreeViewItemExpanded(const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bNewExpanded)
 {
 	GetListView()->SetTreeViewItemExpanded(InRow, bNewExpanded);
-}
-
-bool FObjectMixerEditorListRowData::GetDoesRowPassFilters() const
-{
-	return bDoesRowPassFilters;
-}
-
-void FObjectMixerEditorListRowData::SetDoesRowPassFilters(const bool bPass)
-{
-	bDoesRowPassFilters = bPass;
 }
 
 bool FObjectMixerEditorListRowData::GetIsSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow)
@@ -92,7 +82,7 @@ bool FObjectMixerEditorListRowData::HasAtLeastOneChildThatIsNotSolo(const TShare
 	return false;
 }
 
-FText FObjectMixerEditorListRowData::GetDisplayName(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem, const bool bIsHybridRow) const
+FText FObjectMixerEditorListRowData::GetDisplayName(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem) const
 {
 	const FText Override = GetDisplayNameOverride();
 	if (!Override.IsEmpty())
@@ -104,7 +94,7 @@ FText FObjectMixerEditorListRowData::GetDisplayName(TSharedPtr<ISceneOutlinerTre
 	{
 		if (const TObjectPtr<UObject> Object = FObjectMixerUtils::GetRowObject(InTreeItem))
 		{
-			return Filter->GetRowDisplayName(Object, bIsHybridRow);
+			return Filter->GetRowDisplayName(Object, GetIsHybridRow());
 		}
 	}
 
@@ -114,16 +104,6 @@ FText FObjectMixerEditorListRowData::GetDisplayName(TSharedPtr<ISceneOutlinerTre
 SObjectMixerEditorList* FObjectMixerEditorListRowData::GetListView() const
 {
 	return StaticCast<SObjectMixerEditorList*>(SceneOutlinerPtr);
-}
-
-EObjectMixerTreeViewMode FObjectMixerEditorListRowData::GetTreeViewMode()
-{
-	if (SObjectMixerEditorList* ListView = GetListView())
-	{
-		return ListView->GetTreeViewMode();
-	}
-
-	return EObjectMixerTreeViewMode::Folders;
 }
 
 TArray<TSharedPtr<ISceneOutlinerTreeItem>> FObjectMixerEditorListRowData::GetSelectedTreeViewItems() const
@@ -177,21 +157,6 @@ void FObjectMixerEditorListRowData::ClearSoloRows() const
 	}
 }
 
-bool FObjectMixerEditorListRowData::GetIsItemOrHybridChildSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow)
-{
-	if (GetIsSelected(InRow))
-	{
-		return true;
-	}
-	
-	if (const TSharedPtr<ISceneOutlinerTreeItem> HybridChild = FObjectMixerUtils::GetHybridChild(InRow).Pin())
-	{
-		return FObjectMixerUtils::GetRowData(HybridChild)->GetIsSelected(HybridChild.ToSharedRef());
-	}
-	
-	return false;
-}
-
 void SetValueOnSelectedItems(
 	const FString& ValueAsString, const TArray<TSharedPtr<ISceneOutlinerTreeItem>>& OtherSelectedItems,
 	const FName& PropertyName, const TSharedPtr<ISceneOutlinerTreeItem> PinnedItem,
@@ -204,23 +169,20 @@ void SetValueOnSelectedItems(
 		
 		for (const TSharedPtr<ISceneOutlinerTreeItem>& SelectedRow : OtherSelectedItems)
 		{
-			const TWeakPtr<ISceneOutlinerTreeItem> SelectedHybridRow = FObjectMixerUtils::GetHybridChild(SelectedRow);
-			const TSharedPtr<ISceneOutlinerTreeItem> RowToUse = SelectedHybridRow.IsValid() ? SelectedHybridRow.Pin() : SelectedRow;
-
-			if (RowToUse == PinnedItem)
+			if (SelectedRow == PinnedItem)
 			{
 				continue;
 			}
 
-			FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(RowToUse);
+			FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(SelectedRow);
 
 			// Skip folders
-			if (FObjectMixerUtils::AsFolderRow(RowToUse))
+			if (FObjectMixerUtils::AsFolderRow(SelectedRow))
 			{
 				continue;
 			}
 
-			UObject* ObjectToModify = FObjectMixerUtils::GetRowObject(RowToUse);
+			UObject* ObjectToModify = FObjectMixerUtils::GetRowObject(SelectedRow);
 			
 			if (IsValid(ObjectToModify))
 			{
@@ -228,7 +190,7 @@ void SetValueOnSelectedItems(
 			}
 			else
 			{
-				UE_LOG(LogObjectMixerEditor, Warning, TEXT("%hs: Row '%s' has no valid associated object to modify."), __FUNCTION__, *RowData->GetDisplayName(RowToUse).ToString());
+				UE_LOG(LogObjectMixerEditor, Warning, TEXT("%hs: Row '%s' has no valid associated object to modify."), __FUNCTION__, *RowData->GetDisplayName(SelectedRow).ToString());
 				return;
 			}
 		
@@ -263,28 +225,25 @@ void FObjectMixerEditorListRowData::PropagateChangesToSimilarSelectedRowProperti
 		return;
 	}
 
-	if (const TSharedPtr<ISceneOutlinerTreeItem> RowToUse = FObjectMixerUtils::GetHybridChildOrRowItemIfNull(InRow); RowToUse)
+	if (!GetIsSelected(InRow))
 	{
-		if (!GetIsItemOrHybridChildSelected(InRow))
-		{
-			return;
-		}
+		return;
+	}
 
-		FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(RowToUse);
-		
-		const TWeakPtr<IPropertyHandle>* HandlePtr = RowData->PropertyNamesToHandles.Find(PropertyPropagationInfo.PropertyName);
-		if (HandlePtr->IsValid())
+	FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(InRow);
+	
+	const TWeakPtr<IPropertyHandle>* HandlePtr = RowData->PropertyNamesToHandles.Find(PropertyPropagationInfo.PropertyName);
+	if (HandlePtr->IsValid())
+	{
+		const TArray<TSharedPtr<ISceneOutlinerTreeItem>> OtherSelectedItems = RowData->GetSelectedTreeViewItems();
+		if (OtherSelectedItems.Num())
 		{
-			const TArray<TSharedPtr<ISceneOutlinerTreeItem>> OtherSelectedItems = RowData->GetSelectedTreeViewItems();
-			if (OtherSelectedItems.Num())
-			{
-				FString ValueAsString;
-				(*HandlePtr).Pin()->GetValueAsFormattedString(ValueAsString);
-			
-				SetValueOnSelectedItems(
-					ValueAsString, OtherSelectedItems, PropertyPropagationInfo.PropertyName,
-					RowToUse, PropertyPropagationInfo.PropertyValueSetFlags);
-			}
+			FString ValueAsString;
+			(*HandlePtr).Pin()->GetValueAsFormattedString(ValueAsString);
+		
+			SetValueOnSelectedItems(
+				ValueAsString, OtherSelectedItems, PropertyPropagationInfo.PropertyName,
+				InRow, PropertyPropagationInfo.PropertyValueSetFlags);
 		}
 	}
 }

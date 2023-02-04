@@ -7,6 +7,7 @@
 class FObjectMixerOutlinerMode;
 class FWorldPartitionActorDesc;
 class UActorFolder;
+class ULevelInstanceSubsystem;
 class UWorldPartition;
 
 class FObjectMixerOutlinerHierarchy : public ISceneOutlinerHierarchy, public FNoncopyable
@@ -36,6 +37,9 @@ protected:
 	bool DoesWorldObjectHaveAcceptableClass(const UObject* Object) const;
 
 	void CreateFolderChild(const FFolder& Folder, UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
+
+	void EvaluateActorsByComponentsAndCreateActorItems(AActor* Actor, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
+	void ForEachActorInLevel(AActor* Actor, const ULevelInstanceSubsystem* LevelInstanceSubsystem, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
 	
 	/** Adds all the direct and indirect children of a world to OutItems */
 	void CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;

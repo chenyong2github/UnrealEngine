@@ -17,7 +17,8 @@
 void SInlinePropertyCellWidget::Construct(
 	const FArguments& InArgs, const FName InColumnName, const TSharedRef<ISceneOutlinerTreeItem> RowPtr)
 {
-	UObject* ObjectRef = FObjectMixerUtils::GetRowObject(RowPtr);
+	const bool bGetHybridComponent = true;
+	UObject* ObjectRef = FObjectMixerUtils::GetRowObject(RowPtr, bGetHybridComponent);
 	if (!ObjectRef || InColumnName.IsEqual(NAME_None))
 	{
 		return;

@@ -4,6 +4,7 @@
 
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/List/Modes/ObjectMixerOutlinerMode.h"
+#include "Views/List/ObjectMixerUtils.h"
 #include "Views/List/RowTypes/ObjectMixerEditorListRowActor.h"
 #include "Views/List/RowTypes/ObjectMixerEditorListRowComponent.h"
 #include "Views/List/RowTypes/ObjectMixerEditorListRowFolder.h"
@@ -332,7 +333,7 @@ FSceneOutlinerTreeItemPtr FObjectMixerOutlinerHierarchy::FindOrCreateParentItem(
 				}
 			}
 
-			// Parent Actor (Actor attachement / parenting)
+			// Parent Actor (Actor attachment / parenting)
 			const FGuid& ParentActorGuid = ActorDesc->GetSceneOutlinerParent();
 			if (ParentActorGuid.IsValid())
 			{
@@ -463,6 +464,85 @@ void FObjectMixerOutlinerHierarchy::CreateFolderChild(const FFolder& Folder, UWo
     }
 }
 
+void FObjectMixerOutlinerHierarchy::EvaluateActorsByComponentsAndCreateActorItems(
+	AActor* Actor, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	if (FSceneOutlinerTreeItemPtr ActorItem =
+			Mode->CreateItemFor<FObjectMixerEditorListRowActor>(
+				FObjectMixerEditorListRowActor(Actor, GetCastedMode()->GetSceneOutliner())))
+	{	
+		// Create all component items
+		TArray<FSceneOutlinerTreeItemPtr> ComponentItems;
+		CreateComponentItems(Actor, ComponentItems);
+
+		if (ComponentItems.Num()) // Only add items if we have components
+		{	
+			OutItems.Add(ActorItem);
+			
+			if (ComponentItems.Num() == 1) // Create hybrid row
+			{
+				if (FObjectMixerEditorListRowActor* AsActorRow = FObjectMixerUtils::AsActorRow(ActorItem))
+				{
+					const FComponentTreeItem* ComponentItem = ComponentItems[0]->CastTo<FComponentTreeItem>();
+
+					if (ComponentItem && ComponentItem->Component.IsValid())
+					{
+						AsActorRow->RowData.SetHybridComponent(ComponentItem->Component.Get());
+					}
+				}
+			}
+			else // Create normal Actor->Component hierarchy if there are multiple matching components
+			{
+				OutItems.Append(ComponentItems);
+			}
+		}
+	}
+}
+
+void FObjectMixerOutlinerHierarchy::ForEachActorInLevel(
+	AActor* Actor, const ULevelInstanceSubsystem* LevelInstanceSubsystem, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
+{
+	if (!Actor)
+	{
+		return;
+	}
+	
+	// If we are not showing LevelInstances, LevelInstance sub actor items should not be created unless they belong to a LevelInstance which is being edited
+	if (LevelInstanceSubsystem)
+	{
+		if (const ILevelInstanceInterface* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
+		{
+			if (!bShowingLevelInstances && !ParentLevelInstance->IsEditing())
+			{
+				return;
+			}
+		}
+	}
+
+	// If actor class does not match filter and we only want to show actors that have valid subobjects
+	if (bShowingOnlyActorWithValidComponents && !DoesWorldObjectHaveAcceptableClass(Actor))
+	{
+		EvaluateActorsByComponentsAndCreateActorItems(Actor, OutItems);
+	}
+	else // Create actor rows anyway
+	{
+		if (FSceneOutlinerTreeItemPtr ActorItem =
+			Mode->CreateItemFor<FObjectMixerEditorListRowActor>(
+				FObjectMixerEditorListRowActor(Actor, GetCastedMode()->GetSceneOutliner())))
+		{
+			OutItems.Add(ActorItem);
+
+			// Create all component items
+			CreateComponentItems(Actor, OutItems);
+		}
+	}	
+}
+
 void FObjectMixerOutlinerHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
 {
 	check(World);
@@ -481,73 +561,36 @@ void FObjectMixerOutlinerHierarchy::CreateWorldChildren(UWorld* World, TArray<FS
 	
 	for (const ULevel* Level : World->GetLevels())
 	{
-		if (Level && Level->bIsVisible)
+		if (!Level || !Level->bIsVisible)
 		{
-			ForEachObjectWithOuter(Level,
-			  [&](UObject* Object)
-		  {
-				if (AActor* Actor = Cast<AActor>(Object))
-				{
-					// If we are not showing LevelInstances, LevelInstance sub actor items should not be created unless they belong to a LevelInstance which is being edited
-					if (LevelInstanceSubsystem)
-					{
-						if (const ILevelInstanceInterface* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
-						{
-							if (!bShowingLevelInstances && !ParentLevelInstance->IsEditing())
-							{
-								return;
-							}
-						}
-					}
-					
-					if (FSceneOutlinerTreeItemPtr ActorItem =
-						Mode->CreateItemFor<FObjectMixerEditorListRowActor>(
-							FObjectMixerEditorListRowActor(Actor, GetCastedMode()->GetSceneOutliner())))
-					{
-						if (bShowingOnlyActorWithValidComponents)
-						{
-							const int32 InsertLocation = OutItems.Num();
-
-							// Create all component items
-							CreateComponentItems(Actor, OutItems);
-
-							if (OutItems.Num() != InsertLocation || DoesWorldObjectHaveAcceptableClass(Actor))
-							{
-								// Add the actor before the components
-								OutItems.Insert(ActorItem, InsertLocation);
-							}
-						}
-						else
-						{
-							OutItems.Add(ActorItem);
-
-							// Create all component items
-							CreateComponentItems(Actor, OutItems);
-						}
-					}
-				}
-				// Since components are created per actor already, we only are concerned with other matching UObjects
-				else if (!Object->IsA(UActorComponent::StaticClass())) 
-				{
-					if (DoesWorldObjectHaveAcceptableClass(Object))
-					{
-						if (FSceneOutlinerTreeItemPtr ObjectItem =
-							Mode->CreateItemFor<FObjectMixerEditorListRowUObject>(
-								FObjectMixerEditorListRowUObject(Object, GetCastedMode()->GetSceneOutliner())))
-						{
-							OutItems.Add(ObjectItem);
-						}
-					}
-				}
-		  });
+			continue;
 		}
+
+		ForEachObjectWithOuter(Level,
+		  [&](UObject* Object)
+		{
+			if (AActor* Actor = Cast<AActor>(Object))
+			{
+				ForEachActorInLevel(Actor, LevelInstanceSubsystem, OutItems);
+			}
+			// Since components are created per actor already, we only are concerned with other matching UObjects
+			else if (!Object->IsA(UActorComponent::StaticClass()) && DoesWorldObjectHaveAcceptableClass(Object)) 
+			{
+				if (FSceneOutlinerTreeItemPtr ObjectItem =
+					Mode->CreateItemFor<FObjectMixerEditorListRowUObject>(
+						FObjectMixerEditorListRowUObject(Object, GetCastedMode()->GetSceneOutliner())))
+				{
+					OutItems.Add(ObjectItem);
+				}
+			}
+		});
 	}
 
 	if (bShowingUnloadedActors)
 	{
 		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(World))
 		{
-			WorldPartitionSubsystem->ForEachWorldPartition([this, LevelInstanceSubsystem, &OutItems](UWorldPartition* WorldPartition)
+			auto ForEachWorldPartition = [this, LevelInstanceSubsystem, &OutItems](UWorldPartition* WorldPartition)
 			{
 				// Skip unloaded actors if they are part of a non editing level instance and the outliner hides the content of level instances
 				if (!bShowingLevelInstances)
@@ -560,11 +603,13 @@ void FObjectMixerOutlinerHierarchy::CreateWorldChildren(UWorld* World, TArray<FS
 						return true;
 					}
 				}
-				FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [this, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
+				FWorldPartitionHelpers::ForEachActorDesc(WorldPartition,
+					[this, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
 				{
 					if (ActorDesc != nullptr && !ActorDesc->IsLoaded(true))
 					{
-						if (const FSceneOutlinerTreeItemPtr ActorDescItem = Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc->GetGuid(), ActorDesc->GetContainer())))
+						if (const FSceneOutlinerTreeItemPtr ActorDescItem =
+							Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc->GetGuid(), ActorDesc->GetContainer())))
 						{
 							OutItems.Add(ActorDescItem);
 						}
@@ -572,7 +617,9 @@ void FObjectMixerOutlinerHierarchy::CreateWorldChildren(UWorld* World, TArray<FS
 					return true;
 				});
 				return true;
-			});
+			};
+			
+			WorldPartitionSubsystem->ForEachWorldPartition(ForEachWorldPartition);
 		}
 	}
 }

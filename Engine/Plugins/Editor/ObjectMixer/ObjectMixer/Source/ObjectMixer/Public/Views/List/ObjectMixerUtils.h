@@ -27,13 +27,8 @@ namespace FObjectMixerUtils
 	FObjectMixerEditorListRowUObject* AsObjectRow(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem);
 	
 	FObjectMixerEditorListRowData* GetRowData(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem);
-	
-	/** If this is a hybrid row, return the child row used to hybrid with. */
-	UE_NODISCARD TWeakPtr<ISceneOutlinerTreeItem> GetHybridChild(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem);
 
-	TSharedRef<ISceneOutlinerTreeItem> GetHybridChildOrRowItemIfNull(const TSharedRef<ISceneOutlinerTreeItem> InRow);
-
-	UObject* GetRowObject(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem);
+	UObject* GetRowObject(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem, const bool bGetHybridRowComponent = false);
 	
 	UE_NODISCARD AActor* GetSelfOrOuterAsActor(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem);
 
