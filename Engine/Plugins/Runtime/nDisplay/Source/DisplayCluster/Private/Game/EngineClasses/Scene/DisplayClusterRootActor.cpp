@@ -98,6 +98,9 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 	bReplicates = false;
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
+	// Enabled by default to avoid being active on Stage
+	SetActorHiddenInGame(true);
+
 #if WITH_EDITOR
 	Constructor_Editor();
 #endif
