@@ -55,4 +55,7 @@ public:
 	/** Distance at which instances are culled. Use 0 to disable. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	float CullEndDistance = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	int32 WorldPositionOffsetDisableDistance = 0;
 };

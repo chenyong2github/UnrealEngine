@@ -24,8 +24,8 @@ struct FPCGMeshInstanceList
 
 	FPCGMeshInstanceList() = default;
 
-	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<TSoftObjectPtr<UMaterialInterface>>& InMaterialOverrides, const float InCullStartDistance, const float InCullEndDistance, const bool bInIsLocalToWorldDeterminantNegative)
-		: Mesh(InMesh), bOverrideCollisionProfile(bInOverrideCollisionProfile), CollisionProfile(InCollisionProfile), bOverrideMaterials(bInOverrideMaterials), MaterialOverrides(InMaterialOverrides), CullStartDistance(InCullStartDistance), CullEndDistance(InCullEndDistance), bIsLocalToWorldDeterminantNegative(bInIsLocalToWorldDeterminantNegative)
+	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<TSoftObjectPtr<UMaterialInterface>>& InMaterialOverrides, const float InCullStartDistance, const float InCullEndDistance, const int32 InWorldPositionOffsetDisableDistance, const bool bInIsLocalToWorldDeterminantNegative)
+		: Mesh(InMesh), bOverrideCollisionProfile(bInOverrideCollisionProfile), CollisionProfile(InCollisionProfile), bOverrideMaterials(bInOverrideMaterials), MaterialOverrides(InMaterialOverrides), CullStartDistance(InCullStartDistance), CullEndDistance(InCullEndDistance), WorldPositionOffsetDisableDistance(InWorldPositionOffsetDisableDistance), bIsLocalToWorldDeterminantNegative(bInIsLocalToWorldDeterminantNegative)
 	{}
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -53,6 +53,9 @@ struct FPCGMeshInstanceList
 	/** Distance at which instances are culled. Use 0 to disable. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	float CullEndDistance = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	int32 WorldPositionOffsetDisableDistance = 0;
 
 	/** Whether the culling should be reversed or not (needed to support negative scales) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -138,7 +141,8 @@ public:
 		bool bOverrideMaterials,
 		const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides,
 		const float InCullStartDistance,
-		const float InCullEndDistance, 
+		const float InCullEndDistance,
+		const int32 InWorldPositionOffsetDisableDistance,
 		const bool bInIsLocalToWorldDeterminantNegative);
 };
 

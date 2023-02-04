@@ -49,6 +49,9 @@ struct PCG_API FPCGMeshSelectorWeightedEntry
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	float CullEndDistance = 0;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	int32 WorldPositionOffsetDisableDistance = 0;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ClampMin = "0"))
 	int Weight = 1;
 };

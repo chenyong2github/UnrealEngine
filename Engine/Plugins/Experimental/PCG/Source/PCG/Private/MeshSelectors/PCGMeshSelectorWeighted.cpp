@@ -57,6 +57,7 @@ namespace PCGMeshSelectorWeighted
 			NewInstanceList.CollisionProfile = SourceInstanceList.CollisionProfile;
 			NewInstanceList.CullStartDistance = SourceInstanceList.CullStartDistance;
 			NewInstanceList.CullEndDistance = SourceInstanceList.CullEndDistance;
+			NewInstanceList.WorldPositionOffsetDisableDistance = SourceInstanceList.WorldPositionOffsetDisableDistance;
 
 			NewInstanceList.bOverrideMaterials = bOverrideMaterials;
 
@@ -91,7 +92,7 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 		}
 
 		TArray<FPCGMeshInstanceList>& PickEntry = MeshInstances.Emplace_GetRef();
-		FindOrAddInstanceList(PickEntry, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Entry.CullStartDistance, Entry.CullEndDistance, /*bReverseCulling=*/false);
+		FindOrAddInstanceList(PickEntry, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Entry.CullStartDistance, Entry.CullEndDistance, Entry.WorldPositionOffsetDisableDistance, /*bReverseCulling=*/false);
 
 		TotalWeight += Entry.Weight;
 		CumulativeWeights.Add(TotalWeight);

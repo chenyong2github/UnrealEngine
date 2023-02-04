@@ -124,6 +124,7 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 				(!ISMC->bUseDefaultCollision && ISMC->GetCollisionProfileName() != InParams.CollisionProfile) ||
 				ISMC->InstanceStartCullDistance != InParams.CullStartDistance ||
 				ISMC->InstanceEndCullDistance != InParams.CullEndDistance ||
+				ISMC->WorldPositionOffsetDisableDistance != InParams.WorldPositionOffsetDisableDistance ||
 				ISMC->bReverseCulling != InParams.bIsLocalToWorldDeterminantNegative)
 			{
 				continue;
@@ -203,6 +204,7 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 
 	ISMC->InstanceStartCullDistance = InParams.CullStartDistance;
 	ISMC->InstanceEndCullDistance = InParams.CullEndDistance;
+	ISMC->WorldPositionOffsetDisableDistance = InParams.WorldPositionOffsetDisableDistance;
 	ISMC->bReverseCulling = (InParams.bIsLocalToWorldDeterminantNegative ? 1 : 0);
 
 	// Implementation note: we use the relative for position only to prevent issues at the rendering level, but world for scale & rotation otherwise we run into issues when we have non-uniform scales esp. in volumes

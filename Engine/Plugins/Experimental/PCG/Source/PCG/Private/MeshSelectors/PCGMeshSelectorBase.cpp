@@ -13,7 +13,8 @@ int32 UPCGMeshSelectorBase::FindOrAddInstanceList(
 	bool bOverrideMaterials,
 	const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides,
 	const float InCullStartDistance,
-	const float InCullEndDistance, 
+	const float InCullEndDistance,
+	const int32 InWorldPositionOffsetDisableDistance,
 	const bool bInIsLocalToWorldDeterminantNegative)
 {
 	for (int Index = 0; Index < OutInstanceLists.Num(); ++Index)
@@ -23,7 +24,9 @@ int32 UPCGMeshSelectorBase::FindOrAddInstanceList(
 			continue;
 		}
 
-		if (OutInstanceLists[Index].CullStartDistance != InCullStartDistance || OutInstanceLists[Index].CullEndDistance != InCullEndDistance)
+		if (OutInstanceLists[Index].CullStartDistance != InCullStartDistance || 
+			OutInstanceLists[Index].CullEndDistance != InCullEndDistance ||
+			OutInstanceLists[Index].WorldPositionOffsetDisableDistance != InWorldPositionOffsetDisableDistance)
 		{
 			continue;
 		}
@@ -46,7 +49,7 @@ int32 UPCGMeshSelectorBase::FindOrAddInstanceList(
 		return Index;
 	}
 
-	return OutInstanceLists.Emplace(Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, InCullStartDistance, InCullEndDistance, bInIsLocalToWorldDeterminantNegative);
+	return OutInstanceLists.Emplace(Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, InCullStartDistance, InCullEndDistance, InWorldPositionOffsetDisableDistance, bInIsLocalToWorldDeterminantNegative);
 }
 
 FPCGMeshMaterialOverrideHelper::FPCGMeshMaterialOverrideHelper(
