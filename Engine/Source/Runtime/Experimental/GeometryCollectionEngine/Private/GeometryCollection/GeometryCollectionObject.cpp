@@ -1220,6 +1220,25 @@ TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::CopyCo
 	const TArray<FName> GroupsToSkip{ FGeometryCollection::GeometryGroup, FGeometryCollection::VerticesGroup, FGeometryCollection::FacesGroup };
 	CollectionToCopy->CopyTo(GeometryCollectionToReturn.Get(), GroupsToSkip);
 
+	// since we are removing the bounding box attribute from the geometry group we need to move it to the transform group 
+	const TManagedArray<FBox>& GeometryBounds = CollectionToCopy->GetAttribute<FBox>("BoundingBox", "Geometry");
+	const TManagedArray<int32>& TransformToGeometryIndexArray = CollectionToCopy->TransformToGeometryIndex;
+
+	TManagedArray<FBox>& TransformBounds = GeometryCollectionToReturn->AddAttribute<FBox>("BoundingBox", "Transform");
+	
+	for (int TransformIndex = 0; TransformIndex < TransformBounds.Num(); TransformIndex++)
+	{
+		const int32 GeometryIndex = TransformToGeometryIndexArray[TransformIndex];
+		if (GeometryIndex != INDEX_NONE)
+		{
+			TransformBounds[TransformIndex] = GeometryBounds[GeometryIndex];
+		}
+		else
+		{
+			TransformBounds[TransformIndex].Init();
+		}
+	}
+
 	return GeometryCollectionToReturn;
 }
 

@@ -1080,6 +1080,7 @@ protected:
 	Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent);
 	void CalculateLocalBounds();
 	void CalculateGlobalMatrices();
+	FBox ComputeBoundsFromGlobalMatrices(const FMatrix& LocalToWorldWithScale, const TArray<FMatrix>& GlobalMatricesArray) const;
 	FBox ComputeBounds(const FMatrix& LocalToWorldWithScale) const;
 
 	void RegisterForEvents();

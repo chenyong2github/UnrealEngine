@@ -91,13 +91,14 @@ inline static FBox BoxTransformByMatrix(const FBox &Box, const FMatrix &M)
 	return NewBox;
 }
 
-export void BoxCalcBounds(  const uniform int TransformToGeometryIndex[],
-							const uniform int TransformIndices[],
-							const uniform FMatrix GlobalMatrices[],
-							const uniform FBox BoundingBoxes[],
-							const uniform FMatrix &LocalToWorldWithScale,
-							uniform FBox &BoundingBox,
-							const uniform int NumBoxes)
+export void BoxCalcBoundsFromGeometryGroup(
+				const uniform int TransformToGeometryIndex[],
+				const uniform int TransformIndices[],
+				const uniform FMatrix GlobalMatrices[],
+				const uniform FBox BoundingBoxes[],
+				const uniform FMatrix &LocalToWorldWithScale,
+				uniform FBox &BoundingBox,
+				const uniform int NumBoxes)
 {
 	FBox BoundingBoxSum = BoxDefaultInit();
 
@@ -107,6 +108,47 @@ export void BoxCalcBounds(  const uniform int TransformToGeometryIndex[],
 
 		#pragma ignore warning(perf)
 		const FBox B = BoundingBoxes[BoxIdx];
+
+		#pragma ignore warning(perf)
+		if (TransformToGeometryIndex[TransformIndex] != INDEX_NONE && B.IsValid)
+		{
+			#pragma ignore warning(perf)
+			const FMatrix M = GlobalMatrices[TransformIndex];
+			BoundingBoxSum = BoundingBoxSum + BoxTransformByMatrix(B, M * LocalToWorldWithScale);
+		}
+	}
+
+	// Custom reduce for large arrays
+	uniform FBox ReducedBox[programCount];
+	#pragma ignore warning(perf)
+	ReducedBox[programIndex] = BoundingBoxSum;
+
+	if (programIndex < NumBoxes)
+	{
+		foreach_active(j)
+		{
+			unmasked
+			{
+				BoundingBox = BoundingBox + ReducedBox[j];
+			}
+		}
+	}
+}
+
+export void BoxCalcBoundsFromTransformGroup(
+				const uniform int TransformToGeometryIndex[],
+				const uniform FMatrix GlobalMatrices[],
+				const uniform FBox BoundingBoxes[],
+				const uniform FMatrix &LocalToWorldWithScale,
+				uniform FBox &BoundingBox,
+				const uniform int NumBoxes)
+{
+	FBox BoundingBoxSum = BoxDefaultInit();
+
+	foreach(TransformIndex = 0 ... NumBoxes)
+	{
+		#pragma ignore warning(perf)
+		const FBox B = BoundingBoxes[TransformIndex];
 
 		#pragma ignore warning(perf)
 		if (TransformToGeometryIndex[TransformIndex] != INDEX_NONE && B.IsValid)

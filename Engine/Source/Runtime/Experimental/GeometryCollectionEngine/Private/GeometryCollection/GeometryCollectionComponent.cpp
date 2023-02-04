@@ -448,24 +448,114 @@ void UGeometryCollectionComponent::GetLifetimeReplicatedProps(TArray<FLifetimePr
 
 namespace
 {
-void UpdateGlobalMatricesWithExplodedVectors(TArray<FMatrix>& GlobalMatricesIn, FGeometryCollection& GeometryCollection)
-{
-	int32 NumMatrices = GlobalMatricesIn.Num();
-	if (GlobalMatricesIn.Num() > 0)
+	void UpdateGlobalMatricesWithExplodedVectors(TArray<FMatrix>& GlobalMatricesIn, FGeometryCollection& GeometryCollection)
 	{
-		if (GeometryCollection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
+		int32 NumMatrices = GlobalMatricesIn.Num();
+		if (GlobalMatricesIn.Num() > 0)
 		{
-			const TManagedArray<FVector3f>& ExplodedVectors = GeometryCollection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
-
-			check(NumMatrices == ExplodedVectors.Num());
-
-			for (int32 tt = 0, nt = NumMatrices; tt < nt; ++tt)
+			if (GeometryCollection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
 			{
-				GlobalMatricesIn[tt] = GlobalMatricesIn[tt].ConcatTranslation((FVector)ExplodedVectors[tt]);
+				const TManagedArray<FVector3f>& ExplodedVectors = GeometryCollection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
+
+				check(NumMatrices == ExplodedVectors.Num());
+				for (int32 TransformIndex = 0; TransformIndex < ExplodedVectors.Num(); ++TransformIndex)
+				{
+					GlobalMatricesIn[TransformIndex] = GlobalMatricesIn[TransformIndex].ConcatTranslation((FVector)ExplodedVectors[TransformIndex]);
+				}
 			}
 		}
 	}
+
+	/**
+	* compute the bounding box from the bounding boxes stored in the geometry group
+	*/
+	inline FBox ComputeBoundsFromGeometryBoundingBoxes(
+		const TManagedArray<int32>& TransformToGeometryIndex,
+		const TManagedArray<int32>& TransformIndices,
+		const TManagedArray<FBox>& BoundingBoxes,
+		const TArray<FMatrix>& GlobalMatrices,
+		const FMatrix& LocalToWorldWithScale)
+	{
+		FBox BoundingBox(ForceInit);
+		if (bChaos_BoxCalcBounds_ISPC_Enabled && !bGeometryCollectionSingleThreadedBoundsCalculation)
+		{
+#if INTEL_ISPC
+			ispc::BoxCalcBoundsFromGeometryGroup(
+				(int32*)&TransformToGeometryIndex[0],
+				(int32*)&TransformIndices[0],
+				(ispc::FMatrix*)&GlobalMatrices[0],
+				(ispc::FBox*)&BoundingBoxes[0],
+				(ispc::FMatrix&)LocalToWorldWithScale,
+				(ispc::FBox&)BoundingBox,
+				BoundingBoxes.Num());
+#endif
+		}
+		else
+		{
+			for (int32 BoxIdx = 0; BoxIdx < BoundingBoxes.Num(); ++BoxIdx)
+			{
+				const int32 TransformIndex = TransformIndices[BoxIdx];
+
+				if (TransformToGeometryIndex[TransformIndex] != INDEX_NONE)
+				{
+					BoundingBox += BoundingBoxes[BoxIdx].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
+				}
+			}
+		}
+		return BoundingBox;
+	}
+
+	/**
+	* compute the bounding box from the bounding boxes stored in the transform group
+	* (used for nanite or when the geometry group data has been stripped on cook )
+	*/
+	inline FBox ComputeBoundsFromTransformBoundingBoxes(
+		const TManagedArray<int32>& TransformToGeometryIndex,
+		const TManagedArray<FBox>& BoundingBoxes,
+		const TArray<FMatrix>& GlobalMatrices,
+		const FMatrix& LocalToWorldWithScale)
+	{
+		FBox BoundingBox(ForceInit);
+		if (bChaos_BoxCalcBounds_ISPC_Enabled && !bGeometryCollectionSingleThreadedBoundsCalculation)
+		{
+#if INTEL_ISPC
+			ispc::BoxCalcBoundsFromTransformGroup(
+				(int32*)&TransformToGeometryIndex[0],
+				(ispc::FMatrix*)&GlobalMatrices[0],
+				(ispc::FBox*)&BoundingBoxes[0],
+				(ispc::FMatrix&)LocalToWorldWithScale,
+				(ispc::FBox&)BoundingBox,
+				BoundingBoxes.Num());
+#endif
+		}
+		else
+		{
+			for (int32 TransformIndex = 0; TransformIndex < BoundingBoxes.Num(); ++TransformIndex)
+			{
+				if (TransformToGeometryIndex[TransformIndex] != INDEX_NONE)
+				{
+					BoundingBox += BoundingBoxes[TransformIndex].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
+				}
+			}
+		}
+		return BoundingBox;
+	}
 }
+
+FBox UGeometryCollectionComponent::ComputeBoundsFromGlobalMatrices(const FMatrix& LocalToWorldWithScale, const TArray<FMatrix>& GlobalMatricesArray) const
+{
+	auto GeometryCollectionPtr = RestCollection->GetGeometryCollection();
+	const TManagedArray<FBox>* TransformBoundingBoxes = GeometryCollectionPtr->FindAttribute<FBox>("BoundingBox", FGeometryCollection::TransformGroup);
+	const TManagedArray<FBox>& GeometryBoundingBoxes = GetBoundingBoxArray();
+	const TManagedArray<int32>& TransformToGeometryIndex = GetTransformToGeometryIndexArray();
+
+	if (TransformBoundingBoxes)
+	{
+		return ComputeBoundsFromTransformBoundingBoxes(TransformToGeometryIndex, *TransformBoundingBoxes, GlobalMatricesArray, LocalToWorldWithScale);
+	}
+
+	const TManagedArray<int32>& TransformIndices = GetTransformIndexArray();
+	return ComputeBoundsFromGeometryBoundingBoxes(TransformToGeometryIndex, TransformIndices, GeometryBoundingBoxes, GlobalMatricesArray, LocalToWorldWithScale);
 }
 
 FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWithScale) const
@@ -474,29 +564,10 @@ FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWith
 	if (RestCollection)
 	{
 		//Hold on to reference so it doesn't get GC'ed
-		auto HackGeometryCollectionPtr = RestCollection->GetGeometryCollection();
+		auto GeometryCollectionPtr = RestCollection->GetGeometryCollection();
 
-		const TManagedArray<FBox>& BoundingBoxes = GetBoundingBoxArray();
-		const TManagedArray<int32>& TransformIndices = GetTransformIndexArray();
-		const TManagedArray<int32>& ParentIndices = GetParentArray();
-		const TManagedArray<int32>& TransformToGeometryIndex = GetTransformToGeometryIndexArray();
-		const TManagedArray<FTransform>& Transforms = GetTransformArray();
-
-		const int32 NumBoxes = BoundingBoxes.Num();
-	
-		int32 NumElements = HackGeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
-		if (RestCollection->EnableNanite && HackGeometryCollectionPtr->HasAttribute("BoundingBox", FGeometryCollection::TransformGroup) && NumElements)
-		{
-			TArray<FMatrix> TmpGlobalMatrices;
-			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
-
-			TManagedArray<FBox>& TransformBounds = HackGeometryCollectionPtr->ModifyAttribute<FBox>("BoundingBox", "Transform");
-			for (int32 TransformIndex = 0; TransformIndex < HackGeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup); TransformIndex++)
-			{
-				BoundingBox += TransformBounds[TransformIndex].TransformBy(TmpGlobalMatrices[TransformIndex] * LocalToWorldWithScale);
-			}
-		}
-		else if (NumElements == 0 || GlobalMatrices.Num() != RestCollection->NumElements(FGeometryCollection::TransformGroup))
+		const int32 NumElements = GeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
+		if (NumElements == 0 || GlobalMatrices.Num() != RestCollection->NumElements(FGeometryCollection::TransformGroup))
 		{
 			// #todo(dmp): we could do the bbox transform in parallel with a bit of reformulating		
 			// #todo(dmp):  there are some cases where the calcbounds function is called before the component
@@ -504,8 +575,10 @@ FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWith
 			// to default to just calculating tmp global matrices.  This should be removed or modified somehow
 			// such that we always cache the global matrices and this method always does the correct behavior
 
+			const TManagedArray<FTransform>& Transforms = GetTransformArray();
+			const TManagedArray<int32>& ParentIndices = GetParentArray();
+
 			TArray<FMatrix> TmpGlobalMatrices;
-			
 			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
 			if (TmpGlobalMatrices.Num() == 0)
 			{
@@ -513,59 +586,13 @@ FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWith
 			}
 			else
 			{
-				UpdateGlobalMatricesWithExplodedVectors(TmpGlobalMatrices, *(RestCollection->GetGeometryCollection()));
-				for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
-				{
-					const int32 TransformIndex = TransformIndices[BoxIdx];
-
-					if(RestCollection->GetGeometryCollection()->IsGeometry(TransformIndex))
-					{
-						BoundingBox += BoundingBoxes[BoxIdx].TransformBy(TmpGlobalMatrices[TransformIndex] * LocalToWorldWithScale);
-					}
-				}
-
-			}
-		}
-		else if (bGeometryCollectionSingleThreadedBoundsCalculation)
-		{
-			CHAOS_ENSURE(false); // this is slower and only enabled through a pvar debugging, disable bGeometryCollectionSingleThreadedBoundsCalculation in a production environment. 
-			for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
-			{
-				const int32 TransformIndex = TransformIndices[BoxIdx];
-
-				if (RestCollection->GetGeometryCollection()->IsGeometry(TransformIndex))
-				{
-					BoundingBox += BoundingBoxes[BoxIdx].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
-				}
+				UpdateGlobalMatricesWithExplodedVectors(TmpGlobalMatrices, *GeometryCollectionPtr);
+				BoundingBox = ComputeBoundsFromGlobalMatrices(LocalToWorldWithScale, TmpGlobalMatrices);
 			}
 		}
 		else
 		{
-			if (bChaos_BoxCalcBounds_ISPC_Enabled)
-			{
-#if INTEL_ISPC
-				ispc::BoxCalcBounds(
-					(int32*)&TransformToGeometryIndex[0],
-					(int32*)&TransformIndices[0],
-					(ispc::FMatrix*)&GlobalMatrices[0],
-					(ispc::FBox*)&BoundingBoxes[0],
-					(ispc::FMatrix&)LocalToWorldWithScale,
-					(ispc::FBox&)BoundingBox,
-					NumBoxes);
-#endif
-			}
-			else
-			{
-				for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
-				{
-					const int32 TransformIndex = TransformIndices[BoxIdx];
-
-					if (RestCollection->GetGeometryCollection()->IsGeometry(TransformIndex))
-					{
-						BoundingBox += BoundingBoxes[BoxIdx].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
-					}
-				}
-			}
+			BoundingBox = ComputeBoundsFromGlobalMatrices(LocalToWorldWithScale, GlobalMatrices);
 		}
 	}
 	return BoundingBox;
@@ -2487,7 +2514,8 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 			// 	}
 			// }
 			
-			if (RestCollection->HasVisibleGeometry() && DynamicCollection->IsDirty())
+			const bool bHasVisibleGeometry = AssignedISMPool || RestCollection->HasVisibleGeometry();
+			if (bHasVisibleGeometry && DynamicCollection->IsDirty())
 			{
 				// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
 				RefreshEmbeddedGeometry();
