@@ -3,9 +3,8 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-
-#include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
 
 class UDisplayClusterICVFXCameraComponent;
 class ACineCameraActor;

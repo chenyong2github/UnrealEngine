@@ -12,6 +12,7 @@ TextureStreamingHelpers.h: Definitions of classes used for texture streaming.
 #include "Misc/MemStack.h"
 #include "Engine/TextureDefines.h"
 
+class AActor;
 class UStreamableRenderAsset;
 
 /**

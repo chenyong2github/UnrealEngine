@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "UObject/Class.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 
