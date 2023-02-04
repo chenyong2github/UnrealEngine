@@ -22,3 +22,8 @@ UObject* UNiagaraDataChannelDefinitionsFactoryNew::FactoryCreateNew(UClass* Clas
 
 	return NewDefinitions;
 }
+
+bool UNiagaraDataChannelDefinitionsFactoryNew::CanCreateNew()const
+{
+	return INiagaraModule::DataChannelsEnabled();
+}
