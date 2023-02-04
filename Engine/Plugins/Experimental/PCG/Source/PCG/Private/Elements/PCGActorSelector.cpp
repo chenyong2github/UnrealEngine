@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGActorSelector.h"
-#include "GameFramework/Actor.h"
+
+#include "PCGComponent.h"
+#include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 
+#include "GameFramework/Actor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGActorSelector)
 
@@ -12,6 +15,17 @@ namespace PCGActorSelector
 	// Need to pass a pointer of pointer to the found actor. The lambda will capture this pointer and modify its value when an actor is found.
 	TFunction<bool(AActor*)> GetFilteringFunction(const FPCGActorSelectorSettings& InSettings, TArray<AActor*>& InFoundActors)
 	{
+		// If we're not filtering all world actors, and if the Include Children is enabled, then we allow
+		// user to disable the filter which ignores all filtering options, which is convenient for workflow simplification.
+		if (InSettings.ActorFilter != EPCGActorFilter::AllWorldActors && InSettings.bIncludeChildren && InSettings.bDisableFilter)
+		{
+			return [&InFoundActors](AActor* Actor) -> bool
+			{
+				InFoundActors.Add(Actor);
+				return true;
+			};
+		}
+
 		const bool bMultiSelect = InSettings.bSelectMultiple;
 
 		switch (InSettings.ActorSelection)
@@ -59,9 +73,12 @@ namespace PCGActorSelector
 		return [](AActor* Actor) -> bool { return false; };
 	}
 
-	TArray<AActor*> FindActors(const FPCGActorSelectorSettings& Settings, UWorld* World, AActor* Self)
+	TArray<AActor*> FindActors(const FPCGActorSelectorSettings& Settings, const UPCGComponent* InComponent)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGActorSelector::FindActor);
+
+		UWorld* World = InComponent ? InComponent->GetWorld() : nullptr;
+		AActor* Self = InComponent ? InComponent->GetOwner() : nullptr;
 
 		TArray<AActor*> FoundActors;
 
@@ -134,9 +151,20 @@ namespace PCGActorSelector
 			break;
 		}
 
-		//case EPCGActorFilter::TrackedActors:
-			//	//TODO
-			//	break;
+		case EPCGActorFilter::Original:
+		{
+			APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(Self);
+			UPCGComponent* OriginalComponent = (PartitionActor && InComponent) ? PartitionActor->GetOriginalComponent(InComponent) : nullptr;
+			AActor* OriginalActor = OriginalComponent ? OriginalComponent->GetOwner() : nullptr;
+			if (OriginalActor)
+			{
+				ActorsToCheck.Add(OriginalActor);
+			}
+			else if (Self)
+			{
+				ActorsToCheck.Add(Self);
+			}
+		}
 
 		default:
 			break;
@@ -163,13 +191,13 @@ namespace PCGActorSelector
 		return FoundActors;
 	}
 
-	AActor* FindActor(const FPCGActorSelectorSettings& InSettings, UWorld* World, AActor* Self)
+	AActor* FindActor(const FPCGActorSelectorSettings& InSettings, UPCGComponent* InComponent)
 	{
 		// In order to make sure we don't try to select multiple, we'll do a copy of the settings here.
 		FPCGActorSelectorSettings Settings = InSettings;
 		Settings.bSelectMultiple = false;
 
-		TArray<AActor*> Actors = FindActors(Settings, World, Self);
+		TArray<AActor*> Actors = FindActors(Settings, InComponent);
 		return Actors.IsEmpty() ? nullptr : Actors[0];
 	}
 }

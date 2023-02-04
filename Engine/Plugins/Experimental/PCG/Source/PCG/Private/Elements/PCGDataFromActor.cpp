@@ -66,7 +66,7 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* InContext) const
 
 	if (!Context->bPerformedQuery)
 	{
-		Context->FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, World, Context->SourceComponent.IsValid() ? Context->SourceComponent->GetOwner() : nullptr);
+		Context->FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, Context->SourceComponent.Get());
 		Context->bPerformedQuery = true;
 
 		if (Context->FoundActors.IsEmpty())
