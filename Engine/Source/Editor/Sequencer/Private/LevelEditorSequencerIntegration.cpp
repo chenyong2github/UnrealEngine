@@ -77,7 +77,7 @@ public:
 		for (const TWeakPtr<ISequencer>& WeakSequencer : Sequencers)
 		{
 			TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-			if (Sequencer.IsValid() && Sequencer->CanKeyProperty(CanKeyPropertyParams))
+			if (Sequencer.IsValid() && Sequencer->CanKeyProperty(CanKeyPropertyParams) && !Sequencer->IsReadOnly())
 			{
 				return true;
 			}
