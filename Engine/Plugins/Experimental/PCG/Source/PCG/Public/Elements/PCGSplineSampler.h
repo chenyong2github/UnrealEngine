@@ -107,6 +107,14 @@ struct PCG_API FPCGSplineSamplerParams
 	/** Defines the density for each sample based on its distance from the spline */
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition = "Dimension==EPCGSplineSamplingDimension::OnInterior"))
 	FRuntimeFloatCurve InteriorDensityFalloffCurve;
+
+	/** Controls whether we will seed the sampled points using the final world position or the local position */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Seeding")
+	bool bSeedFromLocalPosition = false;
+
+	/** Controls whether we will seed the sampled points using the 3D position or the 2D (XY) position */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Seeding")
+	bool bSeedFrom2DPosition = false;
 };
 
 namespace PCGSplineSamplerHelpers

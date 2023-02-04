@@ -44,6 +44,11 @@ void UPCGLandscapeSplineData::Initialize(ULandscapeSplinesComponent* InSplineCom
 	TargetActor = InSplineComponent->GetOwner();
 }
 
+FTransform UPCGLandscapeSplineData::GetTransform() const
+{
+	return Spline.IsValid() ? Spline->GetComponentTransform() : FTransform::Identity;
+}
+
 int UPCGLandscapeSplineData::GetNumSegments() const
 {
 	check(Spline.IsValid());
@@ -67,7 +72,7 @@ FVector::FReal UPCGLandscapeSplineData::GetSegmentLength(int SegmentIndex) const
 	return Length;
 }
 
-FTransform UPCGLandscapeSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FReal Distance, FBox* OutBounds) const
+FTransform UPCGLandscapeSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FReal Distance, bool bWorldSpace, FBox* OutBounds) const
 {
 	check(Spline.IsValid());
 	check(SegmentIndex >= 0 && SegmentIndex < Spline->GetSegments().Num());
@@ -109,7 +114,14 @@ FTransform UPCGLandscapeSplineData::GetTransformAtDistance(int SegmentIndex, FVe
 				OutBounds->Max.Y *= (CurrentPoint.FalloffRight - CurrentPoint.Center).Length() / (CurrentPoint.Right - CurrentPoint.Center).Length();
 			}
 
-			return PreviousTransform * Spline->GetComponentTransform();
+			if (bWorldSpace)
+			{
+				return PreviousTransform * Spline->GetComponentTransform();
+			}
+			else
+			{
+				return PreviousTransform;
+			}
 		}
 		else
 		{
