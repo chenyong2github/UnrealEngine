@@ -94,14 +94,14 @@ UDNAAsset::UDNAAsset() : RigRuntimeContext{nullptr}
 
 UDNAAsset::~UDNAAsset() = default;
 
-TSharedPtr<IBehaviorReader> UDNAAsset::GetBehaviorReader()
+TSharedPtr<IDNAReader> UDNAAsset::GetBehaviorReader()
 {
 	FScopeLock ScopeLock{&DNAUpdateSection};
 	return BehaviorReader;
 }
 
 #if WITH_EDITORONLY_DATA
-TSharedPtr<IGeometryReader> UDNAAsset::GetGeometryReader()
+TSharedPtr<IDNAReader> UDNAAsset::GetGeometryReader()
 {
 	FScopeLock ScopeLock{&DNAUpdateSection};
 	return GeometryReader;
