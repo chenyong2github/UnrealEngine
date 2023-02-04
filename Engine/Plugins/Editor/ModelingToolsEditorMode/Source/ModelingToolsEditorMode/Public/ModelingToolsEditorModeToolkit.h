@@ -119,6 +119,9 @@ private:
 	void UpdateActiveToolProperties();
 	void InvalidateCachedDetailPanelState(UObject* ChangedObject);
 
+	/** A utility function to register the tool palettes with the ToolkitBuilder */
+	void RegisterPalettes();
+
 	TSharedPtr<SWidget> ToolShutdownViewportOverlayWidget;
 	void MakeToolShutdownOverlayWidget();
 	

@@ -209,6 +209,23 @@ void FModelingToolsManagerCommands::RegisterCommands()
 
 
 
+	UI_COMMAND(AddToFavorites, "Add to Favorites", "Add to Favorites", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(RemoveFromFavorites, "Remove from Favorites", "Remove from Favorites", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(LoadFavoritesTools, "Favorites", "Favorites", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadShapesTools, "Shapes", "Shapes", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadCreateTools, "Create", "Create", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadPolyTools, "PolyEdit", "PolyEdit", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadTriTools, "TriTools", "TriTools", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadDeformTools, "Deform", "Deform", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadTransformTools, "Transform", "Transform", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadMeshOpsTools, "MeshOps", "MeshOps", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadVoxOpsTools, "VoxOps", "VoxOps", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadAttributesTools, "Attributes", "Atrribute", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadUVsTools, "UVs", "UVs", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadBakingTools, "Baking", "Baking", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadVolumeTools, "Volumes", "Volumes", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadLodsTools, "LODs", "LODs", EUserInterfaceActionType::RadioButton, FInputChord());
+
 	UI_COMMAND(AcceptActiveTool, "Accept", "Accept the active Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CancelActiveTool, "Cancel", "Cancel the active Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CompleteActiveTool, "Done", "Complete the active Tool", EUserInterfaceActionType::Button, FInputChord());

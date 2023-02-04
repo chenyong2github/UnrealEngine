@@ -166,6 +166,22 @@ public:
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Extrude;
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Offset;
 
+	TSharedPtr<FUICommandInfo> AddToFavorites;
+	TSharedPtr<FUICommandInfo> RemoveFromFavorites;
+	TSharedPtr<FUICommandInfo> LoadFavoritesTools;
+	TSharedPtr<FUICommandInfo> LoadShapesTools;
+	TSharedPtr<FUICommandInfo> LoadCreateTools;
+	TSharedPtr<FUICommandInfo> LoadPolyTools;
+	TSharedPtr<FUICommandInfo> LoadTriTools;
+	TSharedPtr<FUICommandInfo> LoadDeformTools;
+	TSharedPtr<FUICommandInfo> LoadTransformTools;
+	TSharedPtr<FUICommandInfo> LoadMeshOpsTools;
+	TSharedPtr<FUICommandInfo> LoadVoxOpsTools;
+	TSharedPtr<FUICommandInfo> LoadAttributesTools;
+	TSharedPtr<FUICommandInfo> LoadUVsTools;
+	TSharedPtr<FUICommandInfo> LoadBakingTools;
+	TSharedPtr<FUICommandInfo> LoadVolumeTools;
+	TSharedPtr<FUICommandInfo> LoadLodsTools;
 	// For connecting ModelingMode with UVEditor plugin
 	TSharedPtr<FUICommandInfo> LaunchUVEditor;
 

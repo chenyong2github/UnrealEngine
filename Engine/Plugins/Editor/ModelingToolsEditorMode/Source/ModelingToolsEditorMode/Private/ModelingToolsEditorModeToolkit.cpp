@@ -48,6 +48,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "ToolMenus.h"
+#include "ToolkitBuilder.h"
 
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
@@ -145,20 +146,261 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::GetInlineContent() const
 		];
 }
 
+void FModelingToolsEditorModeToolkit::RegisterPalettes()
+{
+	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
+	const TSharedPtr<FUICommandList> CommandList = GetToolkitCommands();
+
+	UEdMode* ScriptableMode = GetScriptableEditorMode().Get();
+	UModelingToolsModeCustomizationSettings* UISettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
+	
+	ToolkitBuilder = MakeShared<FToolkitBuilder>(
+				ScriptableMode->GetModeInfo().ToolbarCustomizationName, 
+				GetToolkitCommands());
+
+	
+	const TSharedPtr<FEditablePalette> EditablePalette =
+		MakeShareable(new FEditablePalette(
+			Commands.LoadFavoritesTools.ToSharedRef(),
+			UISettings->ToolFavorites,
+			Commands.AddToFavorites.ToSharedRef(),
+			Commands.RemoveFromFavorites.ToSharedRef()));
+	ToolkitBuilder->AddPalette(StaticCastSharedPtr<FEditablePalette>(EditablePalette));
+	
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadShapesTools.ToSharedRef(),
+		TArray(
+		            {
+			            Commands.BeginAddBoxPrimitiveTool,
+			            Commands.BeginAddSpherePrimitiveTool,
+			            Commands.BeginAddCylinderPrimitiveTool,
+			            Commands.BeginAddConePrimitiveTool,
+			            Commands.BeginAddTorusPrimitiveTool,
+			            Commands.BeginAddArrowPrimitiveTool,
+			            Commands.BeginAddRectanglePrimitiveTool,
+			            Commands.BeginAddDiscPrimitiveTool,
+		            	Commands.BeginAddStairsPrimitiveTool
+		            }
+	            ))));
+
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadCreateTools.ToSharedRef(),
+		TArray(
+					{
+			            Commands.BeginDrawPolygonTool,
+			            Commands.BeginDrawPolyPathTool,
+			            Commands.BeginDrawAndRevolveTool,
+			            Commands.BeginRevolveBoundaryTool,
+			            Commands.BeginCombineMeshesTool,
+			            Commands.BeginDuplicateMeshesTool,
+			            Commands.BeginPatternTool
+		            }
+	            ))));
+
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadTransformTools.ToSharedRef(),
+		TArray(
+					{
+			            Commands.BeginTransformMeshesTool,
+			            Commands.BeginAlignObjectsTool,
+			            Commands.BeginEditPivotTool,
+			            Commands.BeginAddPivotActorTool,
+			            Commands.BeginBakeTransformTool,
+			            Commands.BeginTransferMeshTool,
+			            Commands.BeginConvertMeshesTool,
+			            Commands.BeginSplitMeshesTool
+		            }
+	            ))));
+
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadDeformTools.ToSharedRef(),
+		TArray(
+					{
+			            Commands.BeginSculptMeshTool,
+			            Commands.BeginRemeshSculptMeshTool,
+			            Commands.BeginSmoothMeshTool,
+			            Commands.BeginOffsetMeshTool,
+			            Commands.BeginMeshSpaceDeformerTool,
+			            Commands.BeginLatticeDeformerTool,
+			            Commands.BeginDisplaceMeshTool
+		            }
+	            ))));
+
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadMeshOpsTools.ToSharedRef(),
+		TArray(
+					{
+			            Commands.BeginSimplifyMeshTool,
+			            Commands.BeginRemeshMeshTool,
+			            Commands.BeginWeldEdgesTool,
+			            Commands.BeginRemoveOccludedTrianglesTool,
+			            Commands.BeginSelfUnionTool,
+			            Commands.BeginProjectToTargetTool
+		            }
+	            ))));
+
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadLodsTools.ToSharedRef(),
+		TArray(
+					{
+			            Commands.BeginLODManagerTool,
+			            Commands.BeginGenerateStaticMeshLODAssetTool,
+			            Commands.BeginISMEditorTool
+		            }
+	            ))));
+
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadVoxOpsTools.ToSharedRef(),
+		TArray(
+					{
+			            Commands.BeginVoxelSolidifyTool,
+			            Commands.BeginVoxelBlendTool,
+			            Commands.BeginVoxelMorphologyTool,
+		            }
+	            ))));
+
+
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadTriTools.ToSharedRef(),
+		TArray(
+					{
+			            Commands.BeginMeshSelectionTool,
+			            Commands.BeginTriEditTool,
+			            Commands.BeginHoleFillTool,
+			            Commands.BeginMirrorTool,
+			            Commands.BeginPlaneCutTool,
+			            Commands.BeginPolygonCutTool,
+			            Commands.BeginMeshTrimTool
+		            }
+	            ))));
+
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadPolyTools.ToSharedRef(),
+		TArray(
+					{
+				Commands.BeginPolyEditTool,
+				Commands.BeginPolyDeformTool,
+				Commands.BeginCubeGridTool,
+				Commands.BeginMeshBooleanTool,
+				Commands.BeginCutMeshWithMeshTool,
+				Commands.BeginSubdividePolyTool
+			}
+		))));
+
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadAttributesTools.ToSharedRef(),
+		TArray(
+					{
+				Commands.BeginMeshInspectorTool,
+				Commands.BeginEditNormalsTool,
+				Commands.BeginEditTangentsTool,
+				Commands.BeginAttributeEditorTool,
+				Commands.BeginPolyGroupsTool,
+				Commands.BeginMeshGroupPaintTool,
+				Commands.BeginMeshAttributePaintTool,
+				Commands.BeginEditMeshMaterialsTool
+			}
+		))));
+
+		ToolkitBuilder->AddPalette(
+			MakeShareable( new FToolPalette(
+			Commands.LoadBakingTools.ToSharedRef(),
+			TArray(
+						{
+				Commands.BeginBakeMeshAttributeMapsTool,
+				Commands.BeginBakeMultiMeshAttributeMapsTool,
+				Commands.BeginBakeMeshAttributeVertexTool,
+				Commands.BeginBakeRenderCaptureTool
+			}
+		))));
+
+
+
+	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<
+		IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
+	IGeometryProcessing_UVEditorAssetEditor* UVEditorAPI = GeomProcInterfaces.GetUVEditorAssetEditorImplementation();
+
+	TArray<TSharedPtr<FUICommandInfo>>&& PaletteActions =
+	{
+		Commands.BeginGlobalUVGenerateTool,
+		Commands.BeginGroupUVGenerateTool,
+		Commands.BeginUVProjectionTool,
+		Commands.BeginUVSeamEditTool,
+		Commands.BeginTransformUVIslandsTool,
+		Commands.BeginUVLayoutTool
+	};
+
+	if (UVEditorAPI)
+	{
+		PaletteActions.Add(Commands.LaunchUVEditor);
+	}
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette(
+		Commands.LoadUVsTools.ToSharedRef(), PaletteActions)));
+
+	PaletteActions = {
+		Commands.BeginVolumeToMeshTool,
+		Commands.BeginMeshToVolumeTool
+	};
+
+	if (Commands.BeginBspConversionTool)
+	{
+		PaletteActions.Add(Commands.BeginBspConversionTool);
+	}
+
+	PaletteActions.Add(Commands.BeginPhysicsInspectorTool);
+	PaletteActions.Add(Commands.BeginSetCollisionGeometryTool);
+	PaletteActions.Add(Commands.BeginExtractCollisionGeometryTool);
+
+	ToolkitBuilder->OnToolEnded.BindLambda([this]()
+	{
+		GetScriptableEditorMode()->GetToolManager(EToolsContextScope::EdMode)->DeactivateTool(EToolSide::Left, EToolShutdownType::Cancel);
+	});
+
+	ToolkitBuilder->UpdateWidget();
+}
 
 void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
 {
+	bUsesToolkitBuilder = false;
+	
 	// Have to create the ToolkitWidget here because FModeToolkit::Init() is going to ask for it and add
 	// it to the Mode panel, and not ask again afterwards. However we have to call Init() to get the 
 	// ModeDetailsView created, that we need to add to the ToolkitWidget. So, we will create the Widget
 	// here but only add the rows to it after we call Init()
+
+	TSharedPtr<SHorizontalBox> ToolkitWidgetHBox;
 	TSharedPtr<SVerticalBox> ToolkitWidgetVBox = SNew(SVerticalBox);
-	SAssignNew(ToolkitWidget, SBorder)
-		.HAlign(HAlign_Fill)
-		.Padding(4)
-		[
-			ToolkitWidgetVBox->AsShared()
-		];
+	
+	if ( bUsesToolkitBuilder )
+	{
+		ToolkitWidgetHBox = SNew(SHorizontalBox);
+		SAssignNew(ToolkitWidget, SBorder)
+			.HAlign(HAlign_Fill)
+			.Padding(4)
+			[
+				ToolkitWidgetHBox->AsShared()
+			];		
+	}
+	else
+	{
+		SAssignNew(ToolkitWidget, SBorder)
+			.HAlign(HAlign_Fill)
+			.Padding(4)
+			[
+				ToolkitWidgetVBox->AsShared()
+			];
+	}
 
 	FModeToolkit::Init(InitToolkitHost, InOwningMode);
 
@@ -193,18 +435,32 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 		[
 			ModeWarningArea->AsShared()
 		];
+
+	if (bUsesToolkitBuilder)
+	{
+		RegisterPalettes();
+
+		ToolkitWidgetVBox->AddSlot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
+			[
+				ToolkitBuilder->GetToolPaletteWidget()
+			];
+	}
+	else
+	{
+		ToolkitWidgetVBox->AddSlot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
+			[
+				ModeHeaderArea->AsShared()
+			];		
+	}
+		
 	ToolkitWidgetVBox->AddSlot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
-		[
-			ModeHeaderArea->AsShared()
-		];
-	ToolkitWidgetVBox->AddSlot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
-		[
-			ToolWarningArea->AsShared()
-		];
+	[
+		ToolWarningArea->AsShared()
+	];	
 	ToolkitWidgetVBox->AddSlot().HAlign(HAlign_Fill).FillHeight(1.f)
-		[
-			ModeDetailsView->AsShared()
-		];
+	[
+		ModeDetailsView->AsShared()
+	];
 	ToolkitWidgetVBox->AddSlot().AutoHeight().HAlign(HAlign_Fill).VAlign(VAlign_Bottom).Padding(5)
 		[
 			MakeAssetConfigPanel()->AsShared()
@@ -212,6 +468,26 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 
 	ClearNotification();
 	ClearWarning();
+
+	if (bUsesToolkitBuilder)
+	{
+		ToolkitWidgetHBox->AddSlot()
+			.FillWidth(0.5f)
+			.MaxWidth(48)
+			.VAlign(VAlign_Fill)
+			.Padding(0)
+			[
+			ToolkitBuilder->CreateToolbarWidget()
+			];
+	
+		ToolkitWidgetHBox->AddSlot()
+			.FillWidth(4.5f)
+			.VAlign(VAlign_Fill)
+			.Padding(5)
+			[
+				ToolkitWidgetVBox->AsShared()
+			];
+	}
 
 	ActiveToolName = FText::GetEmpty();
 	ActiveToolMessage = FText::GetEmpty();
@@ -1083,6 +1359,12 @@ FText FModelingToolsEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) 
 
 void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToolBarBuilder& ToolbarBuilder) 
 {
+
+	if (HasToolkitBuilder())
+	{
+		return;
+	}
+	
 	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
 	UModelingToolsModeCustomizationSettings* UISettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
 
@@ -1316,6 +1598,12 @@ void FModelingToolsEditorModeToolkit::InvokeUI()
 	// and the details panel in the middle has it's own scrollbar already. The SScrollBar is hardcoded as the content
 	// of FModeToolkit::InlineContentHolder so we can just replace it here
 	InlineContentHolder->SetContent(GetInlineContent().ToSharedRef());
+
+	// if the ToolkitBuilder is being used, it will make up the UI
+	if (HasToolkitBuilder())
+	{
+		return;
+	}
 
 	//
 	// Apply custom section header colors.
