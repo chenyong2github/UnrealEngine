@@ -5,6 +5,7 @@
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/ChaosDebugDraw.h"
+#include "Chaos/DebugDrawQueue.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -409,17 +410,29 @@ namespace Chaos
 			// Debugdraw the shape at the current TOI
 			if (CVars::ChaosSolverDrawCCDInteractions)
 			{
+				const DebugDraw::FChaosDebugDrawSettings& DebugDrawSettings = CVars::ChaosSolverDebugDebugDrawSettings;
 				if (CCDParticle0)
 				{
 					const FRigidTransform3 SweepWorldTransform0 = FRigidTransform3(FConstGenericParticleHandle(CCDParticle0->Particle)->X(), FConstGenericParticleHandle(CCDParticle0->Particle)->Q());
 					const FRigidTransform3 ShapeWorldTransformXQ0 = CCDConstraint->SweptConstraint->GetShapeRelativeTransform0() * SweepWorldTransform0;
-					DebugDraw::DrawShape(ShapeWorldTransformXQ0, CCDConstraint->SweptConstraint->GetShape0()->GetLeafGeometry(), CCDConstraint->SweptConstraint->GetShape0(), FColor::Magenta, &CVars::ChaosSolverDebugDebugDrawSettings);
+					DebugDraw::DrawShape(ShapeWorldTransformXQ0, CCDConstraint->SweptConstraint->GetShape0()->GetLeafGeometry(), CCDConstraint->SweptConstraint->GetShape0(), FColor::Magenta, &DebugDrawSettings);
 				}
 				if (CCDParticle1)
 				{
 					const FRigidTransform3 SweepWorldTransform1 = FRigidTransform3(FConstGenericParticleHandle(CCDParticle1->Particle)->X(), FConstGenericParticleHandle(CCDParticle1->Particle)->Q());
 					const FRigidTransform3 ShapeWorldTransformXR1 = CCDConstraint->SweptConstraint->GetShapeRelativeTransform1() * SweepWorldTransform1;
-					DebugDraw::DrawShape(ShapeWorldTransformXR1, CCDConstraint->SweptConstraint->GetShape1()->GetLeafGeometry(), CCDConstraint->SweptConstraint->GetShape1(), FColor::Magenta, &CVars::ChaosSolverDebugDebugDrawSettings);
+					DebugDraw::DrawShape(ShapeWorldTransformXR1, CCDConstraint->SweptConstraint->GetShape1()->GetLeafGeometry(), CCDConstraint->SweptConstraint->GetShape1(), FColor::Magenta, &DebugDrawSettings);
+				}
+				for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < CCDConstraint->SweptConstraint->NumManifoldPoints(); ++ManifoldPointIndex)
+				{
+					const FManifoldPoint& ManifoldPoint = CCDConstraint->SweptConstraint->GetManifoldPoint(ManifoldPointIndex);
+					if (ManifoldPoint.Flags.bDisabled)
+					{
+						continue;
+					}
+					const FVec3 ContactPos = CCDConstraint->SweptConstraint->GetShapeWorldTransform1().TransformPositionNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactPoints[1]));
+					const FVec3 ContactNormal = CCDConstraint->SweptConstraint->GetShapeWorldTransform1().TransformVectorNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactNormal));
+					FDebugDrawQueue::GetInstance().DrawDebugLine(ContactPos, ContactPos + DebugDrawSettings.DrawScale * 50 * ContactNormal, FColor::Red, false, UE_KINDA_SMALL_NUMBER, DebugDrawSettings.DrawPriority, DebugDrawSettings.LineThickness);
 				}
 			}
 #endif
