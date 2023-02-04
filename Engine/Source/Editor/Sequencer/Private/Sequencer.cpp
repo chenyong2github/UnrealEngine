@@ -525,13 +525,16 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	RecordingAnimation = FCurveSequence();
 	RecordingAnimation.AddCurve(0.f, 1.5f, ECurveEaseFunction::Linear);
 	
-	{
-		UndoRedoProxy = NewObject<USequencerTimeChangeUndoRedoProxy>(GetTransientPackage(), NAME_None);
-		UndoRedoProxy->SetSequencer(SharedThis(this));
-		UndoRedoProxy->SetFlags(RF_Transactional);
-	}
 	// Update initial movie scene data
 	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::ActiveMovieSceneChanged );
+
+	//create proxy and set it as child of focused movie scene sequence.
+	if(GetRootMovieSceneSequence())
+	{
+		UndoRedoProxy = NewObject<USequencerTimeChangeUndoRedoProxy>(GetRootMovieSceneSequence(), NAME_None);
+		UndoRedoProxy->SetSequencer(SharedThis(this));
+		UndoRedoProxy->SetFlags(RF_Transactional | RF_Transient);
+	}
 
 	// Update the view range to the new current time
 	UpdateTimeBoundsToFocusedMovieScene();
