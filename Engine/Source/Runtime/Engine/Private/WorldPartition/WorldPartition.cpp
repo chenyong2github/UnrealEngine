@@ -435,9 +435,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	check(InWorld);
 	World = InWorld;
 
-	DataLayerManager = NewObject<UDataLayerManager>(this, TEXT("DataLayerManager"), RF_Transient);
-	DataLayerManager->Initialize();
-
 	if (!InTransform.Equals(FTransform::Identity))
 	{
 		InstanceTransform = InTransform;
@@ -495,6 +492,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	check(RuntimeHash);
 	RuntimeHash->SetFlags(RF_Transactional);
 
+	TArray<FGuid> ForceLoadedActorGuids;
 	if (bIsEditor || bIsGame || bPIEWorldTravel || bIsDedicatedServer)
 	{
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
@@ -522,8 +520,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		ActorDescContainer = RegisterActorDescContainer(PackageName);
 
 		{
-			TArray<FGuid> ForceLoadedActorGuids;
-			
 			TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Hash);
 			for (FActorDescContainerCollection::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 			{
@@ -549,12 +545,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 					HashActorDesc(*ActorDescIterator);
 				}
 			}
-
-			if (ForceLoadedActors && ForceLoadedActorGuids.Num() > 0)
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::ForceLoadedActors);
-				ForceLoadedActors->AddActors(ForceLoadedActorGuids);
-			}
 		}
 	}
 
@@ -562,34 +552,24 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		// Here we need to flush any async loading before starting any synchronous load (mixing synchronous and asynchronous load on the same package is not handled properly).
 		// Also, this will ensure that FindObject will work on an external actor that was loading asynchronously.
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FlushAsyncLoading);
-			FlushAsyncLoading();
-		}
+		TRACE_CPUPROFILER_EVENT_SCOPE(FlushAsyncLoading);
+		FlushAsyncLoading();
+	}
+#endif
 
-		// Make sure to preload only AWorldDataLayers actor first
-		for (FActorDescList::TIterator<> ActorDescIterator(ActorDescContainer); ActorDescIterator; ++ActorDescIterator)
-		{
-			if (ActorDescIterator->GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
-			{
-				WorldDataLayersActor = FWorldPartitionReference(this, ActorDescIterator->GetGuid());
-				break;
-			}
-		}
+	// Here's it's safe to initialize the DataLayerManager
+	DataLayerManager = NewObject<UDataLayerManager>(this, TEXT("DataLayerManager"), RF_Transient);
+	DataLayerManager->Initialize();
+
+#if WITH_EDITOR
+	if (ForceLoadedActors && ForceLoadedActorGuids.Num() > 0)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::ForceLoadedActors);
+		ForceLoadedActors->AddActors(ForceLoadedActorGuids);
 	}
 	
 	if (bIsEditor)
 	{
-		// Repair existing maps with no UWorld::WorldDataLayers actor.
-		AWorldDataLayers* WorldDataLayers = OuterWorld->GetWorldDataLayers();
-		if (!WorldDataLayers)
-		{
-			// WorldDataLayersActor is invalid here orelse its PostLoad would have set itself as the world's WorldDataLayers
-			check(!WorldDataLayersActor.IsValid());
-			WorldDataLayers = AWorldDataLayers::Create(OuterWorld);
-			OuterWorld->SetWorldDataLayers(WorldDataLayers);
-		}
-
 		// Apply level transform on actors already part of the level
 		if (!GetInstanceTransform().Equals(FTransform::Identity))
 		{
@@ -721,8 +701,6 @@ void UWorldPartition::Uninitialize()
 
 			RegisteredEditorLoaderAdapters.Empty();
 		}
-
-		WorldDataLayersActor = FWorldPartitionReference();
 
 		DirtyActors.Empty();
 

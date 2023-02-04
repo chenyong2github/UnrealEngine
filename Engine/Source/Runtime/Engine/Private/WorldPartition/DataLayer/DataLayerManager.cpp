@@ -19,9 +19,11 @@
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
+#include "WorldPartition/ActorDescList.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/UObjectGlobals.h"
 #include "Engine/LevelStreaming.h"
 #include "EngineUtils.h"
 #include "LevelUtils.h"
@@ -146,9 +148,39 @@ UDataLayerManager::UDataLayerManager()
 void UDataLayerManager::Initialize()
 {
 #if WITH_EDITOR
+	UWorld* OuterWorld = GetTypedOuter<UWorld>();
+	UWorldPartition* OuterWorldPartition = GetOuterUWorldPartition();
+	UActorDescContainer* ActorDescContainer = OuterWorldPartition->GetActorDescContainer();
+	// In PIE, main world partition doesn't have an ActorDescContainer and doesn't need it, but instanced world partitions do have one.
+	check(!ActorDescContainer || ActorDescContainer->IsInitialized());
+
+	if (!GetWorldDataLayers())
+	{
+		if (ActorDescContainer)
+		{
+			// Try to find and load AWorldDataLayers actor
+			for (FActorDescList::TIterator<> ActorDescIterator(ActorDescContainer); ActorDescIterator; ++ActorDescIterator)
+			{
+				if (ActorDescIterator->GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
+				{
+					WorldDataLayersActor = FWorldPartitionReference(OuterWorldPartition, ActorDescIterator->GetGuid());
+					break;
+				}
+			}
+		}
+
+		if (!GetWorldDataLayers())
+		{
+			// Create missing AWorldDataLayers actor
+			AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Create(OuterWorld);
+			OuterWorld->SetWorldDataLayers(WorldDataLayers);
+			check(GetWorldDataLayers());
+		}
+	}
+
 	// Partitioned Level Instance's DataLayerManager will never resolve DataLayers (it's up to its owning WorldPartition DataLayerManager to do the job.
 	ULevelInstanceSubsystem* LevelInstanceSubsystem = !GetWorld()->IsGameWorld() ? UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetWorld()) : nullptr;
-	ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem ? LevelInstanceSubsystem->GetOwningLevelInstance(GetTypedOuter<UWorld>()->PersistentLevel) : nullptr;
+	ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem ? LevelInstanceSubsystem->GetOwningLevelInstance(OuterWorld->PersistentLevel) : nullptr;
 	bCanResolveDataLayers = (LevelInstance == nullptr);
 
 	DataLayerLoadingPolicy = NewObject<UDataLayerLoadingPolicy>(this, GetDataLayerLoadingPolicyClass());
@@ -161,11 +193,17 @@ void UDataLayerManager::Initialize()
 	if (CanResolveDataLayers())
 	{
 		UActorDescContainer::OnActorDescContainerInitialized.AddUObject(this, &UDataLayerManager::OnActorDescContainerInitialized);
+
+		// Manually call OnActorDescContainerInitialized on already initialized outer world partition container
+		if (ActorDescContainer)
+		{
+			OnActorDescContainerInitialized(ActorDescContainer);
+		}
 	}
 
 	// SaveAs of a partition world will duplicate actors which will trigger AActor::FixupDataLayer and DataLayerManager is not yet created.
 	// Here we make sure to revisit loaded actors of the outer world of this DataLayerManager (editor only)
-	for (TActorIterator<AActor> It(GetTypedOuter<UWorld>()); It; ++It)
+	for (TActorIterator<AActor> It(OuterWorld); It; ++It)
 	{
 		check(IsValid(*It));
 		It->FixupDataLayers();
@@ -177,6 +215,8 @@ void UDataLayerManager::DeInitialize()
 {
 #if WITH_EDITOR
 	UActorDescContainer::OnActorDescContainerInitialized.RemoveAll(this);
+
+	WorldDataLayersActor = FWorldPartitionReference();
 #endif
 }
 

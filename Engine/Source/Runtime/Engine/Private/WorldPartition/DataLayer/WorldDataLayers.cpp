@@ -442,7 +442,6 @@ AWorldDataLayers* AWorldDataLayers::Create(UWorld* World, FName InWorldDataLayer
 
 AWorldDataLayers* AWorldDataLayers::Create(const FActorSpawnParameters& SpawnParameters)
 {
-	check(SpawnParameters.OverrideLevel != nullptr && SpawnParameters.OverrideLevel->IsPersistentLevel());
 	check(SpawnParameters.Name != NAME_None);
 	check(SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal);
 

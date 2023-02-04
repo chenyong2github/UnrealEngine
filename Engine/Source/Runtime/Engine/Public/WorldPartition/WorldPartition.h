@@ -371,8 +371,6 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	FLinkerInstancingContext InstancingContext;
-
-	FWorldPartitionReference WorldDataLayersActor;
 #endif
 
 #if WITH_EDITOR

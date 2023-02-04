@@ -3,6 +3,7 @@
 #pragma once
 
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerEditorContext.h"
@@ -192,6 +193,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UDataLayerLoadingPolicy> DataLayerLoadingPolicy;
+
+	FWorldPartitionReference WorldDataLayersActor;
 #endif
 };
 
