@@ -137,6 +137,10 @@ public:
 	/** Cancels in-progress generation */
 	void CancelGeneration();
 
+	/** Notify properties changed, used in runtime cases, will dirty & trigger a regeneration if needed */
+	UFUNCTION(BlueprintCallable, Category = PCG)
+	void NotifyPropertiesChangedFromBlueprint();
+
 	/** Retrieves generated data */
 	UFUNCTION(BlueprintCallable, Category = PCG)
 	const FPCGDataCollection& GetGeneratedGraphOutput() const { return GeneratedGraphOutput; }

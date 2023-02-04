@@ -562,6 +562,12 @@ void UPCGComponent::CancelGeneration()
 	}
 }
 
+void UPCGComponent::NotifyPropertiesChangedFromBlueprint()
+{
+	DirtyGenerated(EPCGComponentDirtyFlag::Actor);
+	Refresh();
+}
+
 AActor* UPCGComponent::ClearPCGLink(UClass* TemplateActor)
 {
 	if (!bGenerated || !GetOwner() || !GetWorld())
