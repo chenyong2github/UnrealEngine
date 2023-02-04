@@ -19,6 +19,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/MorphTarget.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimInstance.h"
 #include "PackageTools.h"
 #include "ObjectTools.h"
 #include "UObject/SavePackage.h"
@@ -313,7 +314,6 @@ namespace UE::NearestNeighborModel
 				const int32 NumFrames = FMath::Min(NumNeighborsFromGeomCache, NumNeighborsFromAnimSequence);
 				if (NumFrames > 0)
 				{
-					AnimSequence->bUseRawDataOnly = true;
 					AnimSequence->Interpolation = EAnimInterpolationType::Step;
 
 					SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
@@ -322,6 +322,10 @@ namespace UE::NearestNeighborModel
 					SkeletalMeshComponent->SetPlayRate(1.0f);
 					SkeletalMeshComponent->Play(false);
 					SkeletalMeshComponent->RefreshBoneTransforms();
+					if (SkeletalMeshComponent->GetAnimInstance())
+					{
+						SkeletalMeshComponent->GetAnimInstance()->GetRequiredBones().SetUseRAWData(true);
+					}
 
 					// assuming MeshMappings do not change
 					GeometryCacheComponent->SetGeometryCache(GeometryCache);

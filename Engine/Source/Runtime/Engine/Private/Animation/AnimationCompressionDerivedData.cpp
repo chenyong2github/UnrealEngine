@@ -9,6 +9,7 @@
 #include "Animation/AnimCompress.h"
 #include "DerivedDataCache.h"
 #include "Animation/Skeleton.h"
+#include "Interfaces/ITargetPlatform.h"
 
 namespace UE::Anim
 {	
@@ -219,9 +220,6 @@ bool FAnimationSequenceAsyncCacheTask::BuildData() const
 				
 	const bool bCompressionSuccessful = bBoneCompressionOk && bCurveCompressionOk;
 	const FString CompressionName = DataToCompress.BoneCompressionSettings->GetFullName();
-	ensureMsgf(bCompressionSuccessful, TEXT("Anim Compression failed for Sequence '%s' with compression scheme '%s': compressed data empty"), 
-		*DataToCompress.FullName,
-		*CompressionName);
 	
 	if (bCompressionSuccessful && !Owner.IsCanceled())
 	{
@@ -232,7 +230,11 @@ bool FAnimationSequenceAsyncCacheTask::BuildData() const
 		OutData.OwnerName = DataToCompress.AnimFName;
 		
 		return true;
-	}	
+	}
+	else
+	{
+		UE_LOG(LogAnimationCompression, Error, TEXT("Failed to generate compressed animation data for %s with compression scheme %s for target platform %s"), *CompressibleAnimPtr->FullName, *CompressionName, *TargetPlatform->DisplayName().ToString());
+	}
 	
 	return false;
 }

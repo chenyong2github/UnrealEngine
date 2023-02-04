@@ -702,8 +702,20 @@ public:
 	FGuid GenerateGuidFromRawData() const;
 
 	// Should we be always using our raw data (i.e is our compressed data stale)
-	bool OnlyUseRawData() const { return bUseRawDataOnly; }
-	void SetUseRawDataOnly(bool bInUseRawDataOnly) { bUseRawDataOnly = bInUseRawDataOnly; }
+	UE_DEPRECATED(5.2, "OnlyUseRawData has been deprecated")
+	bool OnlyUseRawData() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bUseRawDataOnly;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	UE_DEPRECATED(5.2, "SetUseRawDataOnly has been deprecated")
+	void SetUseRawDataOnly(bool bInUseRawDataOnly)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bUseRawDataOnly = bInUseRawDataOnly;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	// Return this animations guid for the raw data
 	UE_DEPRECATED(5.1, "GetRawDataGuid has been deprecated use GenerateGuidFromModel instead")
@@ -754,7 +766,9 @@ public:
 	/** Take a set of marker positions and validates them against a requested start position, updating them as desired */
 	void ValidateCurrentPosition(const FMarkerSyncAnimPosition& Position, bool bPlayingForwards, bool bLooping, float&CurrentTime, FMarkerPair& PreviousMarker, FMarkerPair& NextMarker, const UMirrorDataTable* MirrorTable = nullptr) const;
 	bool UseRawDataForPoseExtraction(const FBoneContainer& RequiredBones) const;
+
 	// Should we be always using our raw data (i.e is our compressed data stale)
+	UE_DEPRECATED(5.2, "bUseRawDataOnly public access will be deprecated")
 	bool bUseRawDataOnly;
 
 public:
@@ -857,7 +871,6 @@ protected:
 	FIoHash DataKeyHash;
 	TMap<FIoHash, TUniquePtr<FCompressedAnimSequence>> DataByPlatformKeyHash;
 	TMap<FIoHash, TPimplPtr<UE::Anim::FAnimationSequenceAsyncCacheTask>> CacheTasksByKeyHash;
-
 protected:
 	bool TryCancelAsyncTasks();
 	void FinishAsyncTasks();

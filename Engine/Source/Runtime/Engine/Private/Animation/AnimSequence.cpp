@@ -459,7 +459,9 @@ void UAnimSequence::WillNeverCacheCookedPlatformDataAgain()
 		
 	CacheTasksByKeyHash.Empty();
 	DataByPlatformKeyHash.Empty();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bUseRawDataOnly = true;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UAnimSequence::ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform)
@@ -476,7 +478,9 @@ void UAnimSequence::ClearCachedCookedPlatformData(const ITargetPlatform* TargetP
 	{
 		CompressedData.Reset();
 		DataKeyHash = FIoHash::Zero;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bUseRawDataOnly = true;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -491,7 +495,9 @@ void UAnimSequence::ClearAllCachedCookedPlatformData()
 	CompressedData.Reset();
 	DataKeyHash = FIoHash::Zero;
 	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bUseRawDataOnly = true;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 int32 UAnimSequence::GetUncompressedRawSize() const
@@ -699,8 +705,8 @@ void UAnimSequence::Serialize(FArchive& Ar)
 		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			SerializeCompressedData(Ar,false);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			Ar << bUseRawDataOnly;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
@@ -1089,18 +1095,17 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 	if (PollCacheDerivedData(KeyHash))
 	{
 		EndCacheDerivedData(KeyHash);
-		return true;
 	}
 
 	if (KeyHash == DataKeyHash)
 	{
-		return CompressedData.IsValid(this);
+		return CompressedData.IsValid(this) && !CacheTasksByKeyHash.Contains(KeyHash);
 	}
 	else
 	{
 		if(const TUniquePtr<FCompressedAnimSequence>* CompressedDataPtr = DataByPlatformKeyHash.Find(KeyHash))
 		{
-			return (*CompressedDataPtr)->IsValid(this);
+			return (*CompressedDataPtr)->IsValid(this) && !CacheTasksByKeyHash.Contains(KeyHash);
 		}
 	}
 
@@ -1237,7 +1242,11 @@ FTransform UAnimSequence::ExtractRootTrackTransform(float Time, const FBoneConta
 	const bool bContainsRootBoneTrack = [this, RootBoneIndex]() 
 	{
 #if WITH_EDITOR
-		if (CanEvaluateRawAnimationData() && bUseRawDataOnly)
+		if (CanEvaluateRawAnimationData() &&
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			bUseRawDataOnly
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			)
 		{
 			ValidateModel();
 
@@ -1265,7 +1274,10 @@ FTransform UAnimSequence::ExtractRootTrackTransform(float Time, const FBoneConta
 	{
 		// if we do have root data, then return root data
 		FTransform RootTransform;
-		GetBoneTransform(RootTransform, FSkeletonPoseBoneIndex(RootBoneIndex), static_cast<double>(Time), bUseRawDataOnly);
+		GetBoneTransform(RootTransform, FSkeletonPoseBoneIndex(RootBoneIndex), static_cast<double>(Time), 
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			bUseRawDataOnly
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS);
 		return RootTransform;
 	}
 
@@ -1975,7 +1987,9 @@ void UAnimSequence::FlagDependentAnimationsAsRawDataOnly() const
 		UAnimSequence* Seq = *Iter;
 		if (Seq->RefPoseSeq == this)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Seq->bUseRawDataOnly = true;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 }
@@ -3193,7 +3207,11 @@ uint8* UAnimSequence::FindSyncMarkerPropertyData(int32 SyncMarkerIndex, FArrayPr
 
 bool UAnimSequence::DoesNeedRecompress() const
 {
-	return GetSkeleton() && (bUseRawDataOnly || (GetSkeletonVirtualBoneGuid() != GetSkeleton()->GetVirtualBoneGuid()));
+	return GetSkeleton() && (
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bUseRawDataOnly
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		|| (GetSkeletonVirtualBoneGuid() != GetSkeleton()->GetVirtualBoneGuid()));
 }
 
 bool UAnimSequence::CreateAnimation(USkeletalMesh* Mesh)
@@ -3333,7 +3351,11 @@ void UAnimSequence::EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime
 		return;
 	}
 
-	const bool bEvaluateRawData = bUseRawDataOnly || bForceUseRawData || !IsCurveCompressedDataValid();
+	const bool bEvaluateRawData =
+	    PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	    bUseRawDataOnly
+        PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	    || bForceUseRawData || !IsCurveCompressedDataValid();
 	check(!bForceUseRawData || CanEvaluateRawAnimationData());
 	if (CanEvaluateRawAnimationData() && bEvaluateRawData)
 	{
@@ -3366,7 +3388,11 @@ float UAnimSequence::EvaluateCurveData(SmartName::UID_Type CurveUID, float Curre
 {
 	SCOPE_CYCLE_COUNTER(STAT_AnimSeq_EvalCurveData);
 
-	const bool bEvaluateRawData = bUseRawDataOnly || bForceUseRawData || !IsCurveCompressedDataValid();
+	const bool bEvaluateRawData =
+	 PRAGMA_DISABLE_DEPRECATION_WARNINGS
+     bUseRawDataOnly
+     PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	  || bForceUseRawData || !IsCurveCompressedDataValid();
 	check(!bForceUseRawData || CanEvaluateRawAnimationData());
 	if (CanEvaluateRawAnimationData() && bEvaluateRawData)
 	{
@@ -3382,7 +3408,11 @@ float UAnimSequence::EvaluateCurveData(SmartName::UID_Type CurveUID, float Curre
 
 bool UAnimSequence::HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const
 {
-	const bool bEvaluateRawData = bUseRawDataOnly || bForceUseRawData || !IsCurveCompressedDataValid();
+	const bool bEvaluateRawData =
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bUseRawDataOnly
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		|| bForceUseRawData || !IsCurveCompressedDataValid();
 	check(!bForceUseRawData || CanEvaluateRawAnimationData());
 	if (CanEvaluateRawAnimationData() && bEvaluateRawData)
 	{
@@ -3696,7 +3726,11 @@ void UAnimSequence::ValidateCurrentPosition(const FMarkerSyncAnimPosition& Posit
 
 bool UAnimSequence::UseRawDataForPoseExtraction(const FBoneContainer& RequiredBones) const
 {
-	return CanEvaluateRawAnimationData() && (bUseRawDataOnly || (GetSkeletonVirtualBoneGuid() != GetSkeleton()->GetVirtualBoneGuid()) || RequiredBones.GetDisableRetargeting() || RequiredBones.ShouldUseRawData() ||
+	return CanEvaluateRawAnimationData() && (
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	bUseRawDataOnly
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	|| (GetSkeletonVirtualBoneGuid() != GetSkeleton()->GetVirtualBoneGuid()) || RequiredBones.GetDisableRetargeting() || RequiredBones.ShouldUseRawData() ||
  #if WITH_EDITOR
   	GForceRawData == 1 ||
  #endif // WITH_EDITOR
@@ -4669,7 +4703,9 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RawDataGuid = bForceNewRawDataGuid ? FGuid::NewGuid() : Model->GenerateGuid();
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		bUseRawDataOnly = true;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+        bUseRawDataOnly = true;
+        PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FlagDependentAnimationsAsRawDataOnly();
 		UpdateDependentStreamingAnimations();
@@ -5041,12 +5077,14 @@ FIoHash UAnimSequence::BeginCacheDerivedData(const ITargetPlatform* TargetPlatfo
 	// Wait for any in-flight requests
 	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});
 	
-	bUseRawDataOnly = true;
-
 	// We should wait here for any previous compilations?
 	FCompressedAnimSequence* TargetData = nullptr;
 	if (TargetPlatform->IsRunningPlatform())
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bUseRawDataOnly = true;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		
 		DataKeyHash = KeyHash;
 		TargetData = &CompressedData;
 	}
@@ -5079,6 +5117,11 @@ FIoHash UAnimSequence::BeginCacheDerivedData(const ITargetPlatform* TargetPlatfo
 		bPerformFrameStripping = ShouldPerformStripping(bPerformFrameStripping, bPerformFrameStrippingOnOddNumberedFrames);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
+
+	// Always keep AnimatedBoneAttributes in lock-step when requesting compression
+	{		
+		SynchronousAnimatedBoneAttributesCompression();
+	}
 	
 	{		
 		// Data does not exist, need to build it.
@@ -5108,25 +5151,17 @@ bool UAnimSequence::PollCacheDerivedData(const FIoHash& KeyHash) const
 		return (*Task)->Poll();
 	}
 
-	return true;
+	return false;
 }
 
 void UAnimSequence::EndCacheDerivedData(const FIoHash& KeyHash)
 {
-	//UE_LOG(LogAnimation, Warning, TEXT("EndCacheDerivedData %s"), *GetName());
 	if (KeyHash.IsZero())
 	{
 		return;
 	}
 
 	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});
-
-	// QQ calling FinishCompilation after this, makes it so that in ::FinishAsyncTasks we do not apply the skeleton GUID etc
-	// TPimplPtr<UE::Anim::FAnimationSequenceAsyncCacheTask> Task;
-	// if (CacheTasksByKeyHash.RemoveAndCopyValue(KeyHash, Task))
-	// {
-	// 	Task->Wait();	// 	
-	// }
 }
 	
 FCompressedAnimSequence& UAnimSequence::CacheDerivedData(const ITargetPlatform* TargetPlatform)
@@ -5194,32 +5229,54 @@ bool UAnimSequence::IsAsyncTaskComplete() const
 
 void UAnimSequence::FinishAsyncTasks()
 {	
-	//UE_LOG(LogAnimation, Warning, TEXT("FinishAsyncTasks %s [%i]"), *GetName(), CacheTasksByKeyHash.Num());
 	const bool bHasInflightTasks = CacheTasksByKeyHash.Num() > 0;
 	if (bHasInflightTasks)
 	{
 		COOK_STAT(auto Timer = UE::Anim::AnimSequenceCookStats::UsageStats.TimeAsyncWait());
+		COOK_STAT(Timer.TrackCyclesOnly());
+		
 		for (auto It = CacheTasksByKeyHash.CreateIterator(); It; ++It)
 		{
 			It->Value->Wait();
+
+			const FCompressedAnimSequence* CompressedAnimData = [Hash = It->Key, this]()
+			{
+				if(Hash == DataKeyHash)
+				{
+					return &CompressedData;
+				}
+				
+				return DataByPlatformKeyHash.FindChecked(Hash).Get();
+			}();
+
+			if (CompressedAnimData->IsValid(this))
+			{
+				#if WITH_EDITOR
+				//This is only safe during sync anim compression
+				if (GetSkeleton())
+				{
+					SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid());
+				}
+#endif
+				if (It->Key == DataKeyHash)
+				{
+					
+					FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+					AssetRegistryModule.Get().AssetTagsFinalized(*this);
+					
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					check(bUseRawDataOnly);
+					bUseRawDataOnly = false;
+                    PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				}
+			}
+			else
+			{
+				// Failed to compress
+			}
+
 			It.RemoveCurrent();
 		}
-		COOK_STAT(Timer.TrackCyclesOnly());
-	
-#if WITH_EDITOR
-		//This is only safe during sync anim compression
-		if (GetSkeleton())
-		{
-			SynchronousAnimatedBoneAttributesCompression();
-			SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid());
-		}
-#endif
-		
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		AssetRegistryModule.Get().AssetTagsFinalized(*this);
-		
-		check(bUseRawDataOnly);
-		bUseRawDataOnly = false;
 	}
 }
 

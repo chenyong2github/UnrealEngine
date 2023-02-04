@@ -52,18 +52,12 @@ void FGLTFBoneUtilities::GetBoneIndices(const USkeleton* Skeleton, TArray<FBoneI
 
 void FGLTFBoneUtilities::GetBoneTransformsByFrame(const UAnimSequence* AnimSequence, const TArray<float>& FrameTimestamps, const TArray<FBoneIndexType>& BoneIndices, TArray<TArray<FTransform>>& OutBoneTransformsByFrame)
 {
-#if WITH_EDITOR
-	const bool bUseRawData = AnimSequence->OnlyUseRawData();
-#else
-	const bool bUseRawData = false;
-#endif
 
 	// Make sure to free stack allocations made by FCompactPose, FBlendedCurve, and FStackCustomAttributes when end of scope
 	FMemMark Mark(FMemStack::Get());
 
 	FBoneContainer BoneContainer;
 	BoneContainer.InitializeTo(BoneIndices, FCurveEvaluationOption(true), *AnimSequence->GetSkeleton());
-	BoneContainer.SetUseRAWData(bUseRawData);
 
 	const int32 FrameCount = FrameTimestamps.Num();
 	OutBoneTransformsByFrame.AddDefaulted(FrameCount);
@@ -80,7 +74,7 @@ void FGLTFBoneUtilities::GetBoneTransformsByFrame(const UAnimSequence* AnimSeque
 	for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 	{
 		const FAnimExtractContext ExtractionContext(static_cast<double>(FrameTimestamps[Frame])); // TODO: set bExtractRootMotion?
-		AnimSequence->GetBonePose(PoseData, ExtractionContext, bUseRawData);
+		AnimSequence->GetBonePose(PoseData, ExtractionContext);
 		Pose.CopyBonesTo(OutBoneTransformsByFrame[Frame]);
 	}
 
