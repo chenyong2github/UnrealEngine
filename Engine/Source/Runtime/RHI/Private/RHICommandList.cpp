@@ -194,7 +194,7 @@ void FRHIParameterBatcher::OnBoundShaderChanged(FRHIComputeCommandList& InComman
 
 void FRHIParameterBatcher::PreDispatch(FRHIComputeCommandList& InCommandList)
 {
-	InCommandList.SetBatchedShaderParameters(GetBatchedComputeShader(), AllBatchedShaderParameters[SF_Compute]);
+	InCommandList.SetShaderParametersFromInternalBatched(GetBatchedComputeShader(), AllBatchedShaderParameters[SF_Compute]);
 	AllBatchedShaderParameters[SF_Compute].Reset();
 }
 
@@ -202,7 +202,7 @@ void FRHIParameterBatcher::PreDraw(FRHICommandList& InCommandList)
 {
 	for (uint32 Index = 0; Index < SF_NumGraphicsFrequencies; Index++)
 	{
-		InCommandList.SetBatchedShaderParameters(GetBatchedGraphicsShader(Index), AllBatchedShaderParameters[Index]);
+		InCommandList.SetShaderParametersFromInternalBatched(GetBatchedGraphicsShader(Index), AllBatchedShaderParameters[Index]);
 		AllBatchedShaderParameters[Index].Reset();
 	}
 }
@@ -223,7 +223,7 @@ void FRHIParameterBatcher::FlushPendingParameters(FRHIComputeCommandList& InComm
 	const EShaderFrequency Frequency = InShader->GetFrequency();
 	if (Frequency == SF_Compute)
 	{
-		InCommandList.SetBatchedShaderParameters(GetBatchedComputeShader(), AllBatchedShaderParameters[SF_Compute]);
+		InCommandList.SetShaderParametersFromInternalBatched(GetBatchedComputeShader(), AllBatchedShaderParameters[SF_Compute]);
 		AllBatchedShaderParameters[SF_Compute].Reset();
 	}
 }
@@ -233,7 +233,7 @@ void FRHIParameterBatcher::FlushPendingParameters(FRHICommandList& InCommandList
 	const EShaderFrequency Frequency = InShader->GetFrequency();
 	if (Frequency < SF_NumGraphicsFrequencies)
 	{
-		InCommandList.SetBatchedShaderParameters(GetBatchedGraphicsShader(Frequency), AllBatchedShaderParameters[Frequency]);
+		InCommandList.SetShaderParametersFromInternalBatched(GetBatchedGraphicsShader(Frequency), AllBatchedShaderParameters[Frequency]);
 		AllBatchedShaderParameters[Frequency].Reset();
 	}
 }

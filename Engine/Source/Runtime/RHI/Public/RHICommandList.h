@@ -2414,6 +2414,21 @@ public:
 				InBatchedParameters.Parameters,
 				InBatchedParameters.ResourceParameters,
 				InBatchedParameters.BindlessParameters,
+				true /* bSubmitBatchedParameters */
+			);
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetShaderParametersFromInternalBatched(FRHIComputeShader* InShader, const FRHIBatchedShaderParameters& InBatchedParameters)
+	{
+		if (InBatchedParameters.HasParameters())
+		{
+			SetShaderParameters(
+				InShader,
+				InBatchedParameters.ParametersData,
+				InBatchedParameters.Parameters,
+				InBatchedParameters.ResourceParameters,
+				InBatchedParameters.BindlessParameters,
 				false /* bSubmitBatchedParameters */
 			);
 		}
@@ -3187,6 +3202,23 @@ public:
 	using FRHIComputeCommandList::SetBatchedShaderParameters;
 
 	FORCEINLINE_DEBUGGABLE void SetBatchedShaderParameters(FRHIGraphicsShader* InShader, const FRHIBatchedShaderParameters& InBatchedParameters)
+	{
+		if (InBatchedParameters.HasParameters())
+		{
+			SetShaderParameters(
+				InShader,
+				InBatchedParameters.ParametersData,
+				InBatchedParameters.Parameters,
+				InBatchedParameters.ResourceParameters,
+				InBatchedParameters.BindlessParameters,
+				true /* bSubmitBatchedParameters */
+			);
+		}
+	}
+
+	using FRHIComputeCommandList::SetShaderParametersFromInternalBatched;
+
+	FORCEINLINE_DEBUGGABLE void SetShaderParametersFromInternalBatched(FRHIGraphicsShader* InShader, const FRHIBatchedShaderParameters& InBatchedParameters)
 	{
 		if (InBatchedParameters.HasParameters())
 		{
