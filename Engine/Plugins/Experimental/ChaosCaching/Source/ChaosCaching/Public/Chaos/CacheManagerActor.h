@@ -47,8 +47,8 @@ struct CHAOSCACHING_API FObservedComponent
 	FObservedComponent()
 		: CacheName(NAME_None)
 		, bIsSimulating(true)
-		, bHasNotifyBreaks(false)
 		, bPlaybackEnabled(true)
+		, bHasNotifyBreaks(false)
 		, Cache(nullptr)
 		, BestFitAdapter(nullptr)
 	{
@@ -104,6 +104,10 @@ struct CHAOSCACHING_API FObservedComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Caching")
 	bool bIsSimulating;
 
+	/** Whether this component is enabled for playback, this allow a cache to hold many component but only replay some of them. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Caching")
+	bool bPlaybackEnabled;
+
 	/** 
 	* Capture the state of bNotifyBreaks of the component before cache manager takes control. 
 	* this is because when recording the cache needs the component to have bNotifyBreaks set on the component 
@@ -123,11 +127,6 @@ struct CHAOSCACHING_API FObservedComponent
 	/** Gets the component from the internal component ref */
 	UPrimitiveComponent* GetComponent();
 	UPrimitiveComponent* GetComponent() const;
-
-private:
-	/** Whether this component is enabled for playback, this allow a cache to hold many component but only replay some of them. */
-	UPROPERTY(EditAnywhere, Category = "Caching")
-	bool bPlaybackEnabled;
 
 private:
 	friend class AChaosCacheManager;
@@ -273,6 +272,13 @@ protected:
 	void OnStartFrameChanged(Chaos::FReal InT);
 
 	/**
+	* change the cache collection for this player 
+	* if the cache is playing or recording this will have no effect
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Caching")
+	void SetCacheCollection(UChaosCacheCollection* InCacheCollection);
+
+	/**
 	 * Triggers a component to play or record.
 	 * If the cache manager has an observed component entry for InComponent and it is a triggered entry
 	 * this will begin the playback or record for that component, otherwise no action is taken.
@@ -293,6 +299,14 @@ protected:
 	/** Triggers the recording or playback of all observed components */
 	UFUNCTION(BlueprintCallable, Category = "Caching")
 	void TriggerAll();
+
+	/** Enable playback for a specific component using its cache name */
+	UFUNCTION(BlueprintCallable, Category = "Caching")
+	void EnablePlaybackByCache(FName InCacheName, bool bEnable);
+
+	/** Enable playback for a specific component using its index in the list of observed component */
+	UFUNCTION(BlueprintCallable, Category = "Caching")
+	void EnablePlayback(int32 Index, bool bEnable);
 
 	FObservedComponent* FindObservedComponent(UPrimitiveComponent* InComponent);
 	FObservedComponent& AddNewObservedComponent(UPrimitiveComponent* InComponent);

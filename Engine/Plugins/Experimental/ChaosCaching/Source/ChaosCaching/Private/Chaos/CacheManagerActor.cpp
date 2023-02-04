@@ -626,6 +626,21 @@ void AChaosCacheManager::OnStartFrameChanged(Chaos::FReal InTime)
 	}
 }
 
+void AChaosCacheManager::SetCacheCollection(UChaosCacheCollection* InCacheCollection)
+{
+	// check if we have any observed component already triggered
+	for (FObservedComponent& Observed : ObservedComponents)
+	{
+		if (Observed.bTriggered)
+		{
+			UE_LOG(LogChaosCache, Warning, TEXT("Trying to change the cache collection while some observed component are already been triggered ( %s )"), *GetName());
+			return;
+		}
+	}
+
+	CacheCollection = InCacheCollection;
+}
+
 void AChaosCacheManager::TriggerComponent(UPrimitiveComponent* InComponent)
 {
 	// #BGTODO Maybe not totally thread-safe, probably safer with an atomic or condition var rather than the bTriggered flag
@@ -659,6 +674,27 @@ void AChaosCacheManager::TriggerAll()
 		{
 			Observed.bTriggered = true;
 		}
+	}
+}
+
+void AChaosCacheManager::EnablePlaybackByCache(FName InCacheName, bool bEnable)
+{
+	FObservedComponent* Found = Algo::FindByPredicate(ObservedComponents, [this, InCacheName](const FObservedComponent& Test) {
+		return Test.CacheName == InCacheName;
+		});
+
+	if (Found)
+	{
+		Found->bPlaybackEnabled = bEnable;
+	}
+}
+
+
+void AChaosCacheManager::EnablePlayback(int32 Index, bool bEnable)
+{
+	if (ObservedComponents.IsValidIndex(Index))
+	{
+		ObservedComponents[Index].bPlaybackEnabled = bEnable;
 	}
 }
 
