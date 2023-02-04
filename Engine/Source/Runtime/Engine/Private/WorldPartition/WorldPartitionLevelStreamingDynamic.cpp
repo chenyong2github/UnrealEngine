@@ -267,6 +267,10 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 				((IsRunningGame() || IsRunningDedicatedServer()) && RuntimeLevel->OwningWorld->WorldType == EWorldType::Game) || 
 				(RuntimeLevel->OwningWorld->WorldType == EWorldType::Editor && GetShouldBeVisibleInEditor()));
 
+			// ULevelStreaming sets ULevel::StreamedLevelsOwningWorld so that ULevel::PostLoad sets the level OwningWorld
+			// Since this is a memory level, setup the OwningWorld right away to mimic the default behavior.
+			RuntimeLevel->OwningWorld = InPersistentWorld;
+
 			if (IssueLoadRequests())
 			{
 				// Editor immediately blocks on load and we also block if background level streaming is disabled.
