@@ -443,9 +443,7 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, int32 Nu
 	SearchIndex.Mean.AddZeroed(NumDimensions);
 	SearchIndex.PCAProjectionMatrix.AddZeroed(NumDimensions * NumberOfPrincipalComponents);
 
-#if WITH_EDITORONLY_DATA
 	SearchIndex.PCAExplainedVariance = 0.f;
-#endif
 
 	if (NumDimensions > 0)
 	{
@@ -507,12 +505,10 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, int32 Nu
 			AccumulatedVariance += EigenValues[Indexer[PCAComponentIndex]];
 		}
 
-#if WITH_EDITORONLY_DATA
 		// calculating the total variance knowing that eigen values measure variance along the principal components:
 		const float TotalVariance = EigenValues.sum();
 		// and explained variance as ratio between AccumulatedVariance and TotalVariance: https://ro-che.info/articles/2017-12-11-pca-explained-variance
 		SearchIndex.PCAExplainedVariance = TotalVariance > UE_KINDA_SMALL_NUMBER ? AccumulatedVariance / TotalVariance : 0.f;
-#endif // WITH_EDITORONLY_DATA
 
 		MapPCAValues = CenteredValues * PCAProjectionMatrix;
 
@@ -974,10 +970,6 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 				static_cast<FPoseSearchIndexBase&>(SearchIndex) = SearchIndexBases[0];
 				
 				TArray<float> Deviation = FMeanDeviationCalculator::Calculate(SearchIndexBases, Schemas);
-
-				#if WITH_EDITORONLY_DATA
-				SearchIndex.Deviation = Deviation;
-				#endif // WITH_EDITORONLY_DATA
 
 				// Building FPoseSearchIndex
 				PreprocessSearchIndexWeights(SearchIndex, Database->Schema, Deviation);

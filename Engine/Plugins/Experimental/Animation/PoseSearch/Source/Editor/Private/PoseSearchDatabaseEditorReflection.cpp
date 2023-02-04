@@ -94,7 +94,7 @@ void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSe
 	if (PoseSearchDatabase)
 	{
 		const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
-		// General information
+		// General Information
 	
 		AnimationSequences = PoseSearchDatabase->AnimationAssets.Num();
 			
@@ -113,15 +113,18 @@ void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSe
 			SearchableTime = FText::Format(TimeFormat, static_cast<double>(NumOfSearchablePoses) / SampleRate);
 		}
 			
-		// Velocity information
+		// Kinematic Information
 	
-		// TODO: Set values once they can be queried from the PoseSearchIndex.
-			
+		AverageSpeed = SearchIndex.Stats.AverageSpeed;
+		MaxSpeed = SearchIndex.Stats.MaxSpeed;
+		AverageAcceleration = SearchIndex.Stats.AverageAcceleration;
+		MaxAcceleration = SearchIndex.Stats.MaxAcceleration;
+
 		// Principal Component Analysis
 			
-		ExplainedVariance = SearchIndex.PCAExplainedVariance;
+		ExplainedVariance = SearchIndex.PCAExplainedVariance * 100.f;
 			
-		// Memory information
+		// Memory Information
 			
 		{
 			const uint32 ValuesBytesSize = SearchIndex.Values.GetAllocatedSize();

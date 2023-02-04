@@ -182,10 +182,12 @@ void FDatabaseIndexingContext::JoinIndex()
 	SearchIndexBase->Values.Reset();
 	SearchIndexBase->PoseMetadata.Reset();
 	SearchIndexBase->OverallFlags = EPoseSearchPoseFlags::None;
+	SearchIndexBase->Stats = FPoseSearchStats();
 
+	int32 NumAccumulatedSamples = 0;
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase->Assets.Num(); ++AssetIdx)
 	{
-		const FAssetIndexer::FOutput& Output = Indexers[AssetIdx].Output;
+		const FAssetIndexer::FOutput& Output = Indexers[AssetIdx].GetOutput();
 
 		FPoseSearchIndexAsset& SearchIndexAsset = SearchIndexBase->Assets[AssetIdx];
 		SearchIndexAsset.NumPoses = Output.NumIndexedPoses;
@@ -205,6 +207,21 @@ void FDatabaseIndexingContext::JoinIndex()
 
 		TotalPoses += Output.NumIndexedPoses;
 		TotalFloats += Output.FeatureVectorTable.Num();
+
+		const FAssetIndexer::FStats& Stats = Indexers[AssetIdx].GetStats();
+		SearchIndexBase->Stats.AverageSpeed += Stats.AccumulatedSpeed;
+		SearchIndexBase->Stats.MaxSpeed = FMath::Max(SearchIndexBase->Stats.MaxSpeed, Stats.MaxSpeed);
+		SearchIndexBase->Stats.AverageAcceleration += Stats.AccumulatedAcceleration;
+		SearchIndexBase->Stats.MaxAcceleration = FMath::Max(SearchIndexBase->Stats.MaxAcceleration, Stats.MaxAcceleration);
+
+		NumAccumulatedSamples += Stats.NumAccumulatedSamples;
+	}
+
+	if (NumAccumulatedSamples > 0)
+	{
+		const float Denom = 1.f / float(NumAccumulatedSamples);
+		SearchIndexBase->Stats.AverageSpeed *= Denom;
+		SearchIndexBase->Stats.AverageAcceleration *= Denom;
 	}
 
 	SearchIndexBase->NumPoses = TotalPoses;

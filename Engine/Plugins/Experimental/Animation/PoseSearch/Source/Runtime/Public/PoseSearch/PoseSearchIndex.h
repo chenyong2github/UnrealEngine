@@ -82,7 +82,7 @@ USTRUCT()
 struct POSESEARCH_API FPoseSearchIndexAsset
 {
 	GENERATED_BODY()
-public:
+
 	FPoseSearchIndexAsset() {}
 
 	FPoseSearchIndexAsset(
@@ -124,6 +124,25 @@ public:
 	bool IsPoseInRange(int32 PoseIdx) const { return (PoseIdx >= FirstPoseIdx) && (PoseIdx < FirstPoseIdx + NumPoses); }
 };
 
+USTRUCT()
+struct POSESEARCH_API FPoseSearchStats
+{
+	GENERATED_BODY()
+
+	UPROPERTY(meta = (NeverInHash))
+	float AverageSpeed = 0.f;
+
+	UPROPERTY(meta = (NeverInHash))
+	float MaxSpeed = 0.f;
+
+	UPROPERTY(meta = (NeverInHash))
+	float AverageAcceleration = 0.f;
+
+	UPROPERTY(meta = (NeverInHash))
+	float MaxAcceleration = 0.f;
+
+	friend FArchive& operator<<(FArchive& Ar, FPoseSearchStats& Stats);
+};
 
 /**
 * case class for FPoseSearchIndex. building block used to gather data for data mining and calculate weights, pca, kdtree stuff
@@ -133,7 +152,7 @@ struct POSESEARCH_API FPoseSearchIndexBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
+	UPROPERTY(meta = (NeverInHash))
 	int32 NumPoses = 0;
 
 	UPROPERTY(meta = (NeverInHash))
@@ -149,8 +168,12 @@ struct POSESEARCH_API FPoseSearchIndexBase
 	TArray<FPoseSearchIndexAsset> Assets;
 
 	// minimum of the database metadata CostAddend: it represents the minimum cost of any search for the associated database (we'll skip the search in case the search result total cost is already less than MinCostAddend)
-	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
+	UPROPERTY(meta = (NeverInHash))
 	float MinCostAddend = -MAX_FLT;
+
+	// @todo: this property should be editor only
+	UPROPERTY(meta = (NeverInHash))
+	FPoseSearchStats Stats;
 
 	bool IsValidPoseIndex(int32 PoseIdx) const { return PoseIdx < NumPoses; }
 	bool IsEmpty() const;
@@ -193,11 +216,9 @@ struct POSESEARCH_API FPoseSearchIndex : public FPoseSearchIndexBase
 
 	UE::PoseSearch::FKDTree KDTree;
 
+	// @todo: this property should be editor only
 	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	float PCAExplainedVariance = 0.f;
-
-	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
-	TArray<float> Deviation;
 
 	FPoseSearchIndex() = default;
 	~FPoseSearchIndex() = default;

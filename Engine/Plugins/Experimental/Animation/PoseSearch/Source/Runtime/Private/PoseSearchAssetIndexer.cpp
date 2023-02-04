@@ -74,15 +74,29 @@ static FSamplingParam WrapOrClampSamplingParam(bool bCanWrap, float SamplingPara
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetIndexer
+void FAssetIndexer::FOutput::Reset()
+{
+	FirstIndexedSample = 0;
+	LastIndexedSample = 0;
+	NumIndexedPoses = 0;
+
+	FeatureVectorTable.Reset(0);
+	PoseMetadata.Reset(0);
+}
+
+void FAssetIndexer::FStats::Reset()
+{
+	NumAccumulatedSamples = 0;
+	AccumulatedSpeed = 0.f;
+	MaxSpeed = 0.f;
+	AccumulatedAcceleration = 0.f;
+	MaxAcceleration = 0.f;
+}
+
 void FAssetIndexer::Reset()
 {
-	Output.FirstIndexedSample = 0;
-	Output.LastIndexedSample = 0;
-	Output.NumIndexedPoses = 0;
-
-	Output.FeatureVectorTable.Reset(0);
-	Output.PoseMetadata.Reset(0);
-	Output.AllFeaturesNotAdded.Reset();
+	Output.Reset();
+	Stats.Reset();
 }
 
 void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext, const FBoneContainer& InBoneContainer)
@@ -135,7 +149,54 @@ bool FAssetIndexer::Process()
 		OutputPoseMetadata = GetMetadata(SampleIdx);
 	}
 
+	// Computing stats
+	ComputeStats();
+
 	return true;
+}
+
+void FAssetIndexer::ComputeStats()
+{
+	Stats.Reset();
+
+	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
+	check(SamplingContext->FiniteDelta > UE_KINDA_SMALL_NUMBER);
+
+	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
+	{
+		const int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
+
+		const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
+
+		bool AnyClamped = false;
+		const FTransform TrajTransformsPast = GetTransform(SampleTime - SamplingContext->FiniteDelta, AnyClamped);
+		if (!AnyClamped)
+		{
+			const FTransform TrajTransformsPresent = GetTransform(SampleTime, AnyClamped);
+			if (!AnyClamped)
+			{
+				const FTransform TrajTransformsFuture = GetTransform(SampleTime + SamplingContext->FiniteDelta, AnyClamped);
+				if (!AnyClamped)
+				{
+					// if any transform is clamped we just skip the sample entirely
+					const FVector LinearVelocityPresent = (TrajTransformsPresent.GetTranslation() - TrajTransformsPast.GetTranslation()) / SamplingContext->FiniteDelta;
+					const FVector LinearVelocityFuture = (TrajTransformsFuture.GetTranslation() - TrajTransformsPresent.GetTranslation()) / SamplingContext->FiniteDelta;
+					const FVector LinearAcceleration = (LinearVelocityFuture - LinearVelocityPresent) / SamplingContext->FiniteDelta;
+
+					const float Speed = LinearVelocityPresent.Length();
+					const float Acceleration = LinearAcceleration.Length();
+
+					Stats.AccumulatedSpeed += Speed;
+					Stats.MaxSpeed = FMath::Max(Stats.MaxSpeed, Speed);
+
+					Stats.AccumulatedAcceleration += Acceleration;
+					Stats.MaxAcceleration = FMath::Max(Stats.MaxAcceleration, Acceleration);
+
+					++Stats.NumAccumulatedSamples;
+				}
+			}
+		}
+	}
 }
 
 FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const

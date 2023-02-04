@@ -105,7 +105,7 @@ class UPoseSearchDatabaseStatistics : public UObject
 
 public:
 	
-	// General information
+	// General Information
 
 	UPROPERTY(VisibleAnywhere, Category = "General Information")
 	uint32 AnimationSequences;
@@ -122,23 +122,23 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "General Information")
 	FText SearchableTime;
 
-	// Velocity Information
+	// Kinematic Information
 
-	UPROPERTY(VisibleAnywhere, Category = "Velocity Information")
-	double AverageVelocity;
+	UPROPERTY(VisibleAnywhere, Category = "Kinematic Information")
+	float AverageSpeed;
 
-	UPROPERTY(VisibleAnywhere, Category = "Velocity Information")
-	double MaxVelocity;
+	UPROPERTY(VisibleAnywhere, Category = "Kinematic Information")
+	float MaxSpeed;
 
-	UPROPERTY(VisibleAnywhere, Category = "Velocity Information")
-	double AverageAcceleration;
+	UPROPERTY(VisibleAnywhere, Category = "Kinematic Information")
+	float AverageAcceleration;
 
-	UPROPERTY(VisibleAnywhere, Category = "Velocity Information")
-	double MaxAcceleration;
+	UPROPERTY(VisibleAnywhere, Category = "Kinematic Information")
+	float MaxAcceleration;
 
-	// Principal Component Analysis (PCA) Information
+	// Principal Component Analysis Information
 
-	UPROPERTY(VisibleAnywhere, Category = "Principal Component Analysis (PCA) Information")
+	UPROPERTY(VisibleAnywhere, Category = "Principal Component Analysis Information", meta = (Units = "Percent"))
 	float ExplainedVariance;
 
 	// Memory information

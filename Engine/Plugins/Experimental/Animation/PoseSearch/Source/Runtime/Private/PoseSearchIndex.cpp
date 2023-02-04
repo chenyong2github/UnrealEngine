@@ -32,6 +32,18 @@ void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, T
 } // namespace UE::PoseSearch
 
 //////////////////////////////////////////////////////////////////////////
+// FPoseSearchStats
+FArchive& operator<<(FArchive& Ar, FPoseSearchStats& Stats)
+{
+	Ar << Stats.AverageSpeed;
+	Ar << Stats.MaxSpeed;
+	Ar << Stats.AverageAcceleration;
+	Ar << Stats.MaxAcceleration;
+
+	return Ar;
+}
+
+//////////////////////////////////////////////////////////////////////////
 // FPoseSearchBaseIndex
 const FPoseSearchIndexAsset& FPoseSearchIndexBase::GetAssetForPose(int32 PoseIdx) const
 {
@@ -86,8 +98,7 @@ bool FPoseSearchIndexBase::IsEmpty() const
 
 void FPoseSearchIndexBase::Reset()
 {
-	FPoseSearchIndexBase Default;
-	*this = Default;
+	*this = FPoseSearchIndexBase();
 }
 
 FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index)
@@ -130,6 +141,8 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index)
 
 	Ar << Index.MinCostAddend;
 
+	Ar << Index.Stats;
+
 	return Ar;
 }
 
@@ -142,10 +155,7 @@ FPoseSearchIndex::FPoseSearchIndex(const FPoseSearchIndex& Other)
 	, Mean(Other.Mean)
 	, WeightsSqrt(Other.WeightsSqrt)
 	, KDTree(Other.KDTree)
-#if WITH_EDITORONLY_DATA
 	, PCAExplainedVariance(Other.PCAExplainedVariance)
-	, Deviation(Other.Deviation)
-#endif // WITH_EDITORONLY_DATA
 {
 	check(!PCAValues.IsEmpty() || KDTree.DataSource.PointCount == 0);
 	KDTree.DataSource.Data = PCAValues.IsEmpty() ? nullptr : PCAValues.GetData();
@@ -246,7 +256,6 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 	Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
 
 	Ar << Index.PCAExplainedVariance;
-	Ar << Index.Deviation;
 
 	return Ar;
 }
