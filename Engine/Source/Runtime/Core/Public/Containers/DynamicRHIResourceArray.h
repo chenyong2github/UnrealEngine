@@ -66,6 +66,11 @@ public:
 	*/
 	virtual uint32 GetResourceDataSize() const
 	{
+		if (this->Num() > UINT32_MAX / sizeof(ElementType))
+		{
+			UE_LOG(LogCore, Fatal, TEXT("Resource data size too large for uint32, will overflow. Calculate with larger data type or use fewer elements. sizeof(ElementType): %d"), sizeof(ElementType));
+			return 0;
+		}
 		return this->Num() * sizeof(ElementType);
 	}
 
