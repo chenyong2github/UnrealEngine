@@ -14,6 +14,9 @@ class UMovieScenePiecewiseDoubleBlenderSystem;
 namespace UE::MovieScene
 {
 
+struct FPreAnimatedScalarMaterialParameterStorage;
+struct FPreAnimatedVectorMaterialParameterStorage;
+
 struct FAnimatedMaterialParameterInfo
 {
 	/** Weak linker ptr - only assigned if the output entity is ever allocated */
@@ -69,6 +72,10 @@ private:
 	UE::MovieScene::TOverlappingEntityTracker<UE::MovieScene::FAnimatedMaterialParameterInfo, UObject*, FName> ScalarParameterTracker;
 	UE::MovieScene::TOverlappingEntityTracker<UE::MovieScene::FAnimatedMaterialParameterInfo, UObject*, FName> VectorParameterTracker;
 
+	/** Holds pre-animated values for scalar values */
+	TSharedPtr<UE::MovieScene::FPreAnimatedScalarMaterialParameterStorage> ScalarParameterStorage;
+	/** Holds pre-animated values for vector or color values */
+	TSharedPtr<UE::MovieScene::FPreAnimatedVectorMaterialParameterStorage> VectorParameterStorage;
 public:
 
 	UPROPERTY()

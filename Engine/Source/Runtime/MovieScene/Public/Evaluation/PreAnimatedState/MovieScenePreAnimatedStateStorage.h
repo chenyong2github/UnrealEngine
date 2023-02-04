@@ -50,6 +50,11 @@ struct TPreAnimatedStateTaskParams
 {
 	FEntityComponentFilter AdditionalFilter;
 
+	TSavePreAnimatedStateParams()
+	{
+		AdditionalFilter.All({ FBuiltInComponentTypes::Get()->Tags.NeedsLink });
+	}
+
 	static constexpr bool ShouldSavePreAnimatedState(typename TCallTraits<InputTypes>::ParamType... Inputs)
 	{
 		return true;
@@ -552,7 +557,6 @@ public:
 		.Read(BuiltInComponents->RootInstanceHandle)
 		.ReadAllOf(InComponentTypes...)
 		.CombineFilter(InParams.AdditionalFilter)
-		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 		.Iterate_PerAllocation(&Linker->EntityManager, VisitAllocation);
 	}
 
@@ -651,7 +655,6 @@ public:
 		FEntityTaskBuilder()
 		.ReadAllOf(InComponentTypes...)
 		.CombineFilter(InParams.AdditionalFilter)
-		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 		.Iterate_PerAllocation(&Linker->EntityManager, VisitAllocation);
 	}
 
@@ -810,7 +813,6 @@ public:
 		.Read(BuiltInComponents->RootInstanceHandle)
 		.ReadAllOf(InComponentTypes...)
 		.CombineFilter(InParams.AdditionalFilter)
-		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 		.Iterate_PerAllocation(&Linker->EntityManager, VisitAllocation);
 	}
 

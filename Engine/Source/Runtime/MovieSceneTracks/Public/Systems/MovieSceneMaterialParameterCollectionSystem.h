@@ -12,8 +12,8 @@
 namespace UE::MovieScene
 {
 
-struct FPreAnimatedMPCScalarStorage;
-struct FPreAnimatedMPCVectorStorage;
+struct FPreAnimatedScalarMaterialParameterStorage;
+struct FPreAnimatedVectorMaterialParameterStorage;
 
 } // namespace UE::MovieScene
 
@@ -43,7 +43,7 @@ private:
 private:
 
 	/** Holds pre-animated values for scalar MPC values */
-	TSharedPtr<UE::MovieScene::FPreAnimatedMPCScalarStorage> ScalarParameterStorage;
+	TSharedPtr<UE::MovieScene::FPreAnimatedScalarMaterialParameterStorage> ScalarParameterStorage;
 	/** Holds pre-animated values for vector or color MPC values */
-	TSharedPtr<UE::MovieScene::FPreAnimatedMPCVectorStorage> VectorParameterStorage;
+	TSharedPtr<UE::MovieScene::FPreAnimatedVectorMaterialParameterStorage> VectorParameterStorage;
 };

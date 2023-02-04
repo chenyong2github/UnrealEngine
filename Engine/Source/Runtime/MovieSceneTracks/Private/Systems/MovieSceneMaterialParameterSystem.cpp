@@ -8,6 +8,9 @@
 #include "Systems/MovieSceneHierarchicalBiasSystem.h"
 #include "Systems/MovieSceneMaterialSystem.h"
 #include "Systems/MovieSceneInitialValueSystem.h"
+#include "Systems/MovieScenePreAnimatedMaterialParameters.h"
+
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectStorage.h"
 
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -410,6 +413,9 @@ void UMovieSceneMaterialParameterSystem::OnLink()
 
 	ScalarParameterTracker.Initialize(this);
 	VectorParameterTracker.Initialize(this);
+
+	ScalarParameterStorage = Linker->PreAnimatedState.GetOrCreateStorage<FPreAnimatedScalarMaterialParameterStorage>();
+	VectorParameterStorage = Linker->PreAnimatedState.GetOrCreateStorage<FPreAnimatedVectorMaterialParameterStorage>();
 }
 
 void UMovieSceneMaterialParameterSystem::OnUnlink()
@@ -496,6 +502,19 @@ void UMovieSceneMaterialParameterSystem::OnInstantiation()
 		// Process all blended vector parameters
 		TOverlappingMaterialParameterHandler<FVectorMixin> VectorHandler(this);
 		VectorParameterTracker.ProcessInvalidatedOutputs(Linker, VectorHandler);
+
+		TSavePreAnimatedStateParams<UObject*, FName> Params;
+		Params.AdditionalFilter.Reset();
+		Params.AdditionalFilter.None({ TracksComponents->MPC });
+		Params.AdditionalFilter.Any({ BuiltInComponents->Tags.NeedsLink, TracksComponents->Tags.BoundMaterialChanged });
+
+		ScalarParameterStorage->BeginTrackingEntitiesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->ScalarParameterName);
+		ScalarParameterStorage->CachePreAnimatedValuesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->ScalarParameterName);
+
+		VectorParameterStorage->BeginTrackingEntitiesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->VectorParameterName);
+		VectorParameterStorage->BeginTrackingEntitiesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->ColorParameterName);
+		VectorParameterStorage->CachePreAnimatedValuesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->VectorParameterName);
+		VectorParameterStorage->CachePreAnimatedValuesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->ColorParameterName);
 	}
 }
 
