@@ -42,7 +42,7 @@ void UAnimSequencerController::OpenBracket(const FText& InTitle, bool bShouldTra
 {
 	ValidateModel();
 
-	if (UE::FChangeTransactor::CanTransactChanges() && !ChangeTransactor.IsTransactionPending())
+	if (UE::FChangeTransactor::CanTransactChanges() && !ChangeTransactor.IsTransactionPending() && bShouldTransact)
 	{
 		ChangeTransactor.OpenTransaction(InTitle);
 
@@ -74,7 +74,7 @@ void UAnimSequencerController::CloseBracket(bool bShouldTransact /*= true*/)
 
 	if (BracketDepth == 0)
 	{
-		if (UE::FChangeTransactor::CanTransactChanges())
+		if (UE::FChangeTransactor::CanTransactChanges() && bShouldTransact)
 		{
 			ensure(ChangeTransactor.IsTransactionPending());
 

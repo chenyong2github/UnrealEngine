@@ -153,7 +153,8 @@ namespace UE::Interchange::Private
 		, const int32 CurveFlags
 		, const bool bDoNotImportCurveWithZero
 		, const bool bMorphTargetCurve
-		, const bool bMaterialCurve)
+		, const bool bMaterialCurve
+		, const bool bShouldTransact)
 	{
 		if (!TargetSequence || CurvePayload.Curves.Num() != 1 || CurveName.IsEmpty())
 		{
@@ -198,7 +199,6 @@ namespace UE::Interchange::Private
 
 		FAnimationCurveIdentifier FloatCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
 
-
 		IAnimationDataModel* DataModel = TargetSequence->GetDataModel();
 		IAnimationDataController& Controller = TargetSequence->GetController();
 
@@ -206,19 +206,19 @@ namespace UE::Interchange::Private
 		if (TargetCurve == nullptr)
 		{
 			// Need to add the curve first
-			Controller.AddCurve(FloatCurveId, AACF_DefaultCurve | CurveFlags);
+			Controller.AddCurve(FloatCurveId, AACF_DefaultCurve | CurveFlags, bShouldTransact);
 			TargetCurve = DataModel->FindFloatCurve(FloatCurveId);
 		}
 		else
 		{
 			// Need to update any of the flags
-			Controller.SetCurveFlags(FloatCurveId, CurveFlags | TargetCurve->GetCurveTypeFlags());
+			Controller.SetCurveFlags(FloatCurveId, CurveFlags | TargetCurve->GetCurveTypeFlags(), bShouldTransact);
 		}
 
 		// Should be valid at this point
 		ensure(TargetCurve);
 
-		Controller.UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float);
+		Controller.UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float, bShouldTransact);
 
 		//MorphTarget curves are shift to 0 second
 		const float CurveStartTime = CurvePayload.Curves[0].GetFirstKey().Time;
@@ -227,7 +227,7 @@ namespace UE::Interchange::Private
 			CurvePayload.Curves[0].ShiftCurve(-CurveStartTime);
 		}
 		// Set actual keys on curve within the model
-		Controller.SetCurveKeys(FloatCurveId, CurvePayload.Curves[0].GetConstRefOfKeys());
+		Controller.SetCurveKeys(FloatCurveId, CurvePayload.Curves[0].GetConstRefOfKeys(), bShouldTransact);
 
 		if (bMaterialCurve || bMorphTargetCurve)
 		{
@@ -236,26 +236,26 @@ namespace UE::Interchange::Private
 		return true;
 	}
 
-	bool CreateMorphTargetCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero)
+	bool CreateMorphTargetCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero, bool bShouldTransact)
 	{
 		constexpr bool bIsMorphTargetCurve = true;
 		constexpr bool bIsMaterialCurve = false;
-		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bIsMorphTargetCurve, bIsMaterialCurve);
+		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bIsMorphTargetCurve, bIsMaterialCurve, bShouldTransact);
 	}
 
-	bool CreateMaterialCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero)
+	bool CreateMaterialCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero, bool bShouldTransact)
 	{
 		constexpr bool bIsMorphTargetCurve = false;
 		constexpr bool bIsMaterialCurve = true;
-		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bIsMorphTargetCurve, bIsMaterialCurve);
+		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bIsMorphTargetCurve, bIsMaterialCurve, bShouldTransact);
 	}
 
-	bool CreateAttributeCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero)
+	bool CreateAttributeCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero, bool bShouldTransact)
 	{
 		//This curve don't animate morph target or material parameter.
 		constexpr bool bIsMorphTargetCurve = false;
 		constexpr bool bIsMaterialCurve = false;
-		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bIsMorphTargetCurve, bIsMaterialCurve);
+		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bIsMorphTargetCurve, bIsMaterialCurve, bShouldTransact);
 	}
 
 	void RetrieveAnimationPayloads(UAnimSequence* AnimSequence
@@ -264,6 +264,7 @@ namespace UE::Interchange::Private
 		, const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode
 		, const IInterchangeAnimationPayloadInterface* AnimSequenceTranslatorPayloadInterface
 		, const FString& AssetName
+		, const bool bIsReimporting
 		, TArray<FString> OutCurvesNotFound)
 	{
 		TMap<const UInterchangeSceneNode*, TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>> AnimationPayloads;
@@ -281,6 +282,9 @@ namespace UE::Interchange::Private
 
 		TArray<FString> SkeletonNodes;
 		GetSkeletonSceneNodeFlatListRecursive(NodeContainer, SkeletonRootUid, SkeletonNodes);
+
+		
+		const bool bShouldTransact = bIsReimporting;
 
 		bool bImportBoneTracks = false;
 		AnimSequenceFactoryNode->GetCustomImportBoneTracks(bImportBoneTracks);
@@ -329,12 +333,12 @@ namespace UE::Interchange::Private
 			}
 
 			//This destroy all previously imported animation raw data
-			Controller.RemoveAllBoneTracks();
+			Controller.RemoveAllBoneTracks(bShouldTransact);
 
 			const FFrameRate ResampleFrameRate(SampleRate, 1);
 			const FFrameNumber NumberOfFrames = ResampleFrameRate.AsFrameNumber(SequenceLength);
-			Controller.SetFrameRate(ResampleFrameRate);
-			Controller.SetNumberOfFrames(FGenericPlatformMath::Max<int32>(NumberOfFrames.Value, 1));
+			Controller.SetFrameRate(ResampleFrameRate, bShouldTransact);
+			Controller.SetNumberOfFrames(FGenericPlatformMath::Max<int32>(NumberOfFrames.Value, 1), bShouldTransact);
 
 			FTransform GlobalOffsetTransform;
 			bool bBakeMeshes = false;
@@ -432,8 +436,8 @@ namespace UE::Interchange::Private
 					&& TimeKeys.Num() == BakeKeyCount);
 
 				//add new track
-				Controller.AddBoneCurve(BoneName);
-				Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
+				Controller.AddBoneCurve(BoneName, bShouldTransact);
+				Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys, bShouldTransact);
 			}
 		}
 
@@ -462,13 +466,13 @@ namespace UE::Interchange::Private
 			for (const FSmartName& CurveName : CurveSmartNamesToRemove)
 			{
 				const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
-				Controller.RemoveCurve(CurveId);
+				Controller.RemoveCurve(CurveId, bShouldTransact);
 			}
 		}
 
 		if (bDeleteExistingNonCurveCustomAttributes)
 		{
-			Controller.RemoveAllAttributes();
+			Controller.RemoveAllAttributes(bShouldTransact);
 		}
 
 		
@@ -573,7 +577,7 @@ namespace UE::Interchange::Private
 						}
 					}
 					constexpr int32 CurveFlags = 0;
-					CreateMorphTargetCurve(AnimSequence, CurvePayload, AnimationCurveMorphTargetNodeNames.FindChecked(CurveNameAndPayload.Key), CurveFlags, bDoNotImportCurveWithZero);
+					CreateMorphTargetCurve(AnimSequence, CurvePayload, AnimationCurveMorphTargetNodeNames.FindChecked(CurveNameAndPayload.Key), CurveFlags, bDoNotImportCurveWithZero, bShouldTransact);
 				}
 			}
 
@@ -646,11 +650,11 @@ namespace UE::Interchange::Private
 						constexpr int32 CurveFlags = 0;
 						if (bMaterialDriveParameterOnCustomAttribute || IsCurveHookToMaterial(CurveName))
 						{
-							CreateMaterialCurve(AnimSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero);
+							CreateMaterialCurve(AnimSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bShouldTransact);
 						}
 						else
 						{
-							CreateAttributeCurve(AnimSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero);
+							CreateAttributeCurve(AnimSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bShouldTransact);
 						}
 					}
 				}
@@ -948,13 +952,14 @@ UObject* UInterchangeAnimSequenceFactory::ImportObjectSourceData(const FImportAs
 				FrameRate = UE::Interchange::Animation::ConvertSampleRatetoFrameRate(SampleRate);
 			}
 		}
+		const bool bShouldTransact = bIsReImport;
 		IAnimationDataController& Controller = AnimSequence->GetController();
-		Controller.OpenBracket(NSLOCTEXT("InterchangeAnimSequenceFactory", "ImportAnimationInterchange_Bracket", "Importing Animation (Interchange)"));
+		Controller.OpenBracket(NSLOCTEXT("InterchangeAnimSequenceFactory", "ImportAnimationInterchange_Bracket", "Importing Animation (Interchange)"), bShouldTransact);
 		AnimSequence->SetSkeleton(Skeleton);
 		Controller.InitializeModel();
 		AnimSequence->ImportFileFramerate = SampleRate;
 		AnimSequence->ImportResampleFramerate = SampleRate;
-		Controller.SetFrameRate(FrameRate);
+		Controller.SetFrameRate(FrameRate, bShouldTransact);
 
 		TArray<FString> CurvesNotFound;
 		UE::Interchange::Private::RetrieveAnimationPayloads(AnimSequence
@@ -963,6 +968,7 @@ UObject* UInterchangeAnimSequenceFactory::ImportObjectSourceData(const FImportAs
 			, SkeletonFactoryNode
 			, AnimSequenceTranslatorPayloadInterface
 			, Arguments.AssetName
+			, bIsReImport
 			, CurvesNotFound);
 
 		if (CurvesNotFound.Num())
@@ -977,7 +983,7 @@ UObject* UInterchangeAnimSequenceFactory::ImportObjectSourceData(const FImportAs
 			}
 		}
 		Controller.NotifyPopulated();
-		Controller.CloseBracket(false);
+		Controller.CloseBracket(bShouldTransact);
 	}
 
 	if (!bIsReImport)

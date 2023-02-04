@@ -39,7 +39,7 @@ void UAnimDataController::OpenBracket(const FText& InTitle, bool bShouldTransact
 {
 	ValidateModel();
 
-	if (UE::FChangeTransactor::CanTransactChanges() && !ChangeTransactor.IsTransactionPending())
+	if (UE::FChangeTransactor::CanTransactChanges() && !ChangeTransactor.IsTransactionPending() && bShouldTransact)
 	{
 		ChangeTransactor.OpenTransaction(InTitle);
 
@@ -71,7 +71,7 @@ void UAnimDataController::CloseBracket(bool bShouldTransact /*= true*/)
 
 	if (BracketDepth == 0)
 	{
-		if (UE::FChangeTransactor::CanTransactChanges())
+		if (UE::FChangeTransactor::CanTransactChanges() && bShouldTransact)
 		{
 			ensure(ChangeTransactor.IsTransactionPending());
 
