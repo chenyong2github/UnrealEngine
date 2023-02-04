@@ -114,6 +114,7 @@ protected:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void PostLoad() override;
 	virtual void PostActorCreated() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void BeginDestroy() override;
 	virtual void Destroyed() override;
 #if WITH_EDITOR
@@ -441,6 +442,7 @@ public:
 	void Tick_Editor(float DeltaSeconds);
 	void PostLoad_Editor();
 	void PostActorCreated_Editor();
+	void EndPlay_Editor(const EEndPlayReason::Type EndPlayReason);
 	void BeginDestroy_Editor();
 	void Destroyed_Editor();
 	void RerunConstructionScripts_Editor();

@@ -1032,6 +1032,15 @@ void ADisplayClusterRootActor::PostActorCreated()
 	InitializeRootActor();
 }
 
+void ADisplayClusterRootActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+#if WITH_EDITOR
+	EndPlay_Editor(EndPlayReason);
+#endif
+
+	Super::EndPlay(EndPlayReason);
+}
+
 void ADisplayClusterRootActor::Destroyed()
 {
 #if WITH_EDITOR

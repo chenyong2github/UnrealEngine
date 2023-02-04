@@ -79,13 +79,6 @@ static FAutoConsoleVariableRef CVarDisplayClusterPreviewMultiGPURenderingMaxInde
 	ECVF_RenderThreadSafe
 );
 
-int32 GDisplayClusterPreviewEnableSIE = 0;
-static FAutoConsoleVariableRef CVarDisplayClusterPreviewEnableSIE(
-	TEXT("DC.Preview.EnableSIE"),
-	GDisplayClusterPreviewEnableSIE,
-	TEXT("Enable preview rendering during an SIE session"),
-	ECVF_RenderThreadSafe
-);
 //////////////////////////////////////////////////////////////////////////////////////////////
 // ADisplayClusterRootActor
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,8 +124,7 @@ void ADisplayClusterRootActor::Destructor_Editor()
 
 void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 {
-	// Temporary fix for UE-174008, don't render preview when in SIE unless the cvar forces it to
-	if (IsPreviewEnabled() && (!GEditor->IsSimulatingInEditor() || GDisplayClusterPreviewEnableSIE))
+	if (IsPreviewEnabled())
 	{
 		if (bDeferPreviewGeneration)
 		{
@@ -176,6 +168,20 @@ void ADisplayClusterRootActor::PostLoad_Editor()
 	bDeferPreviewGeneration = true;
 
 	ResetPreviewInternals_Editor();
+}
+
+void ADisplayClusterRootActor::EndPlay_Editor(const EEndPlayReason::Type EndPlayReason)
+{
+	// UE-174008: When a SIE session is ended, we can't clean up the actor's rendering resources in BeginDestroy
+	// because of an issue cleaning up the UV light card manager's preview world during the normal GC pass,
+	// so in this specific case, destroy the rendering resources here.
+	if (EndPlayReason == EEndPlayReason::EndPlayInEditor && GEditor->bIsSimulatingInEditor)
+	{
+		ResetPreviewInternals_Editor();
+		ReleasePreviewComponents();
+
+		ViewportManager.Reset();
+	}
 }
 
 void ADisplayClusterRootActor::Destroyed_Editor()
