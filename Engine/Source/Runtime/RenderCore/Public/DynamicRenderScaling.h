@@ -34,6 +34,7 @@ struct RENDERCORE_API FHeuristicSettings final
 {
 	static constexpr float kDefaultMinResolutionFraction = 0.5f;
 	static constexpr float kDefaultMaxResolutionFraction = 1.0f;
+	static constexpr float kDefaultThrottlingMaxResolutionFraction = 0.0f;
 	static constexpr float kBudgetMsDisabled = 0.0f;
 	static constexpr float kDefaultChangeThreshold = 0.02f;
 	static constexpr float kDefaultTargetedHeadRoom = 0.05f;
@@ -46,6 +47,7 @@ struct RENDERCORE_API FHeuristicSettings final
 
 	float MinResolutionFraction      = kDefaultMinResolutionFraction;
 	float MaxResolutionFraction      = kDefaultMaxResolutionFraction;
+	float ThrottlingMaxResolutionFraction = kDefaultThrottlingMaxResolutionFraction;
 	float BudgetMs                   = kBudgetMsDisabled;
 	float ChangeThreshold            = kDefaultChangeThreshold;
 	float TargetedHeadRoom           = kDefaultTargetedHeadRoom;
