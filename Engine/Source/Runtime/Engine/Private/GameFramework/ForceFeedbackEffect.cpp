@@ -177,7 +177,7 @@ void FActiveForceFeedbackEffect::ActivateDeviceProperties()
 		{
 			for (TObjectPtr<UInputDeviceProperty> DeviceProp : ForceFeedbackEffect->DeviceProperties)
 			{
-				if (ensure(DeviceProp))
+				if (DeviceProp)
 				{
 					FActivateDevicePropertyParams Params = {};
 					Params.bIgnoreTimeDilation = Parameters.bIgnoreTimeDilation;
