@@ -11,6 +11,8 @@
 class UStaticMesh;
 class USkeletalMesh;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogMeshBindings, Verbose, All);
+
 USTRUCT(meta = (DataflowFlesh))
 struct FGenerateBindings : public FDataflowNode
 {
