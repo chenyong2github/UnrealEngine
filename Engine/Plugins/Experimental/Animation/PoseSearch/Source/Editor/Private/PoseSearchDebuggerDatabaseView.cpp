@@ -5,6 +5,7 @@
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimSequence.h"
 #include "InstancedStruct.h"
+#include "Internationalization/Regex.h"
 #include "PoseSearchDebuggerDatabaseRow.h"
 #include "PoseSearchDebuggerView.h"
 #include "PoseSearchDebuggerViewModel.h"
@@ -477,6 +478,19 @@ void SDebuggerDatabaseView::OnHideInvalidPosesCheckboxChanged(ECheckBoxState Sta
 	PopulateViewRows();
 }
 
+void SDebuggerDatabaseView::OnUseRegexCheckboxChanged(ECheckBoxState State)
+{
+	if (State == ECheckBoxState::Checked)
+	{
+		bUseRegex = true;
+	}
+	else
+	{
+		bUseRegex = false;
+	}
+	PopulateViewRows();
+}
+
 void SDebuggerDatabaseView::OnDatabaseRowSelectionChanged(TSharedPtr<FDebuggerDatabaseRowData> Row, ESelectInfo::Type SelectInfo)
 {
 	if (Row.IsValid())
@@ -515,6 +529,7 @@ void SDebuggerDatabaseView::PopulateViewRows()
 	TArray<FString> Tokens;
 	FilterString.ParseIntoArrayWS(Tokens);
 	const bool bHasNameFilter = !Tokens.IsEmpty();
+	FRegexPattern Pattern(FilterString);
 
 	for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
 	{
@@ -533,21 +548,27 @@ void SDebuggerDatabaseView::PopulateViewRows()
 
 		if (bTryAddToFilteredDatabaseViewRows)
 		{
-			if (!bHideInvalidPoses || EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
+			bool bPassesNameFilter = true;
+			if (bHideInvalidPoses && !EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
 			{
-				bool bPassesNameFilter = true;
-				if (bHasNameFilter)
-				{
-					bPassesNameFilter = Algo::AllOf(Tokens, [&](FString Token)
+				bPassesNameFilter = false;
+			}
+			else if (bUseRegex)
+			{
+				FRegexMatcher Matcher(Pattern, UnfilteredRow->AssetName);
+				bPassesNameFilter = Matcher.FindNext();
+			}
+			else if (bHasNameFilter)
+			{
+				bPassesNameFilter = Algo::AllOf(Tokens, [&](FString Token)
 					{
 						return UnfilteredRow->AssetName.Contains(Token);
 					});
-				}
-
-				if (bPassesNameFilter)
-				{
-					FilteredDatabaseView.Rows.Add(UnfilteredRow);
-				}
+			}
+				
+			if (bPassesNameFilter)
+			{
+				FilteredDatabaseView.Rows.Add(UnfilteredRow);
 			}
 		}
 	}
@@ -837,6 +858,20 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 						SNew(STextBlock)
 						.Text(LOCTEXT("PoseSearchDebuggerHideInvalidPosesFlag", "Hide Invalid Poses"))
 					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(10, 5, 10, 5)
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+						{
+							SDebuggerDatabaseView::OnUseRegexCheckboxChanged(State);
+						})
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("PoseSearchDebuggerUseRegexFlag", "Use Regex"))
+				]
 				]
 			]
 		

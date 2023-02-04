@@ -69,6 +69,9 @@ private:
 	/** Called when the HideInvalidPoses Checkbox is Toggled */
 	void OnHideInvalidPosesCheckboxChanged(ECheckBoxState State);
 
+	/** Called when the UseRegex Checkbox is Toggled */
+	void OnUseRegexCheckboxChanged(ECheckBoxState State);
+	
 	/** Row selection to update model view */
 	void OnDatabaseRowSelectionChanged(TSharedPtr<FDebuggerDatabaseRowData> Row, ESelectInfo::Type SelectInfo);
 
@@ -138,6 +141,9 @@ private:
 
 	/* Bool used to hide invalid poses from display */
 	bool bHideInvalidPoses = false;
+
+	/* Bool used to use FilterText as regex filter*/
+	bool bUseRegex = false;
 };
 
 } // namespace UE::PoseSearch
