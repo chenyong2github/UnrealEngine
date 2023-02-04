@@ -629,10 +629,6 @@ public:
 	/** A list of viewports that the inner frustum is not rendered to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClusterItemType = Viewports, DisplayName = "Inner Frustum Hidden in Viewports", EditCondition = "bEnable"))
 	FDisplayClusterConfigurationClusterItemReferenceList HiddenICVFXViewports;
-
-	/** A list of nodes where the inner frustum is not rendered. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClusterItemType = ClusterNodes, DisplayName = "Inner Frustum Hidden on Nodes", EditCondition = "bEnable"))
-	FDisplayClusterConfigurationClusterItemReferenceList HiddenICVFXNodes;
 };
 
 USTRUCT(Blueprintable)

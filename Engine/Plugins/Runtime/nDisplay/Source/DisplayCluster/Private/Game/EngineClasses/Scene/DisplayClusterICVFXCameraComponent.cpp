@@ -10,7 +10,10 @@
 #include "Components/DisplayClusterCameraComponent.h"
 #include "DisplayClusterRootActor.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
 #include "Misc/DisplayClusterGlobals.h"
+#include "Misc/Parse.h"
 #include "DisplayClusterEnums.h"
 
 
@@ -37,20 +40,42 @@ FString UDisplayClusterICVFXCameraComponent::GetCameraUniqueId() const
 
 bool UDisplayClusterICVFXCameraComponent::IsICVFXEnabled() const
 {
-	// In runtime, we also need to check if this camera is allowed to render on a specific node
-	static const bool bIsRunningCluster = (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
+	// When rendering offscreen, we have an extended logic for camera rendering activation
+	static const bool bIsRunningClusterModeOffscreen =
+		(GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster) &&
+		FParse::Param(FCommandLine::Get(), TEXT("RenderOffscreen"));
 
-	if (bIsRunningCluster)
+	// If cluster mode + rendering offscreen, discover media output settings
+	if (bIsRunningClusterModeOffscreen)
 	{
+		// This cluster node ID
 		static const FString NodeId = GDisplayCluster->GetPrivateClusterMgr()->GetNodeId();
-		const bool bCameraIsAllowedOnThisNode = !CameraSettings.HiddenICVFXNodes.ItemNames.ContainsByPredicate([](const FString& Item)
-			{
-				return Item.Equals(NodeId, ESearchCase::IgnoreCase);
-			});
 
-		return CameraSettings.bEnable && bCameraIsAllowedOnThisNode;
+		// First condition to render offscreen: it has media output assigned
+		const bool bUsesMediaOutput = CameraSettings.RenderSettings.Media.bEnable ? !!CameraSettings.RenderSettings.Media.GetMediaOutput(NodeId) : false;
+
+		// Get backbuffer media settings
+		const FDisplayClusterConfigurationMedia* BackbufferMediaSettings = nullptr;
+		if (const ADisplayClusterRootActor* const RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
+		{
+			if (const UDisplayClusterConfigurationData* const ConfigData = RootActor->GetConfigData())
+			{
+				if (const UDisplayClusterConfigurationClusterNode* const NodeCfg = ConfigData->Cluster->GetNode(NodeId))
+				{
+					BackbufferMediaSettings = &NodeCfg->Media;
+				}
+			}
+		}
+
+		// Second condition to render offscreen: the backbuffer has media output assigned.
+		// This means the whole frame including ICVFX cameras need to be rendered.
+		const bool bIsBackbufferBeingCaptured = BackbufferMediaSettings ? !!BackbufferMediaSettings->MediaOutput : false;
+
+		// Finally make a decision if the camera should be rendered
+		return CameraSettings.bEnable && (bUsesMediaOutput || bIsBackbufferBeingCaptured);
 	}
 
+	// Otherwise the on/off condition only
 	return CameraSettings.bEnable;
 }
 
