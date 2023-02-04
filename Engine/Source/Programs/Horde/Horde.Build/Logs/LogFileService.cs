@@ -925,13 +925,7 @@ namespace Horde.Build.Logs
 			LogMetadata metadata = new LogMetadata();
 			if (logFile.UseNewStorageBackend)
 			{
-				metadata.MaxLineIndex = logFile.LineCount;
-
-				int nextIdx = await _logTailService.GetTailNextAsync(logFile.Id);
-				if (nextIdx != -1)
-				{
-					metadata.MaxLineIndex = nextIdx;
-				}
+				metadata.MaxLineIndex = await _logTailService.GetFullLineCount(logFile.Id, logFile.LineCount);
 			}
 			else
 			{

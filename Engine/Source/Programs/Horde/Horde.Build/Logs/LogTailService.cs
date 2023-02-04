@@ -267,13 +267,22 @@ namespace Horde.Build.Logs
 		}
 
 		/// <summary>
-		/// Return the desired next line to append for the given log file, or -1 if it is not being tailed.
+		/// Gets the total number of lines in a log
 		/// </summary>
 		/// <param name="logId">Log to query</param>
-		/// <returns>Number of lines for the log file</returns>
-		public async Task<int> GetTailNextAsync(LogId logId)
+		/// <param name="flushedLineCount">Number of flushed lines</param>
+		/// <returns>Total number of lines in the file</returns>
+		public async Task<int> GetFullLineCount(LogId logId, int flushedLineCount)
 		{
-			return await _redisService.GetDatabase().StringGetAsync(TailNextKey(logId), -1);
+			RedisStringKey<int> tailNextKey = TailNextKey(logId);
+
+			int lineCount = await _redisService.GetDatabase().StringGetAsync(tailNextKey, -1);
+			if (lineCount == -1)
+			{
+				await EnableTailingAsync(logId, flushedLineCount);
+			}
+
+			return Math.Max(lineCount, flushedLineCount);
 		}
 
 		/// <summary>
