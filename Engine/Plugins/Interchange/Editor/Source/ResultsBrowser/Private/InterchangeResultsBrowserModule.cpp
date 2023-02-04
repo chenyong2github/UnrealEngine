@@ -125,10 +125,13 @@ void FInterchangeResultsBrowserModule::OpenErrorBrowser(TStrongObjectPtr<UInterc
 		return;
 	}
 
-	ResultsContainer = InResultsContainer;
-	ResultsContainer->Finalize();
-	FGlobalTabmanager::Get()->TryInvokeTab(FName("InterchangeResults"));
-	InterchangeResultsBrowserWindow->Set(ResultsContainer.Get());
+	if (FGlobalTabmanager::Get()->TryInvokeTab(FName("InterchangeResults")).IsValid())
+	{
+		ResultsContainer = InResultsContainer;
+		ResultsContainer->Finalize();
+
+		InterchangeResultsBrowserWindow->Set(ResultsContainer.Get());
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
