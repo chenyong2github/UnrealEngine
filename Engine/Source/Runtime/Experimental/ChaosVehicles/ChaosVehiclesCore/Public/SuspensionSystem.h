@@ -47,6 +47,18 @@ namespace Chaos
 			SuspensionSmoothing = FMath::Clamp(SuspensionSmoothing, 0, NUM_SUS_AVERAGING);
 		}
 
+		void SetSuspensionMaxRaise(float InSuspensionMaxRaise)
+		{
+			SuspensionMaxRaise = InSuspensionMaxRaise;
+			MaxLength = FMath::Abs(SuspensionMaxRaise) + FMath::Abs(SuspensionMaxDrop);
+		}
+
+		void SetSuspensionMaxDrop(float InSuspensionMaxDrop)
+		{
+			SuspensionMaxDrop = InSuspensionMaxDrop;
+			MaxLength = FMath::Abs(SuspensionMaxRaise) + FMath::Abs(SuspensionMaxDrop);
+		}
+
 		FVector SuspensionAxis;		// local axis, direction of suspension force raycast traces
 		FVector SuspensionForceOffset;	// relative position from wheel where suspension forces are applied
 		float SuspensionMaxRaise;	// distance [cm]

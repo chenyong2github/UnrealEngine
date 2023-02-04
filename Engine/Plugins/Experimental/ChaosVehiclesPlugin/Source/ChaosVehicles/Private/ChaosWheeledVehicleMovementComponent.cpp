@@ -2694,6 +2694,50 @@ void UChaosWheeledVehicleMovementComponent::SetBrakeTorque(float BrakeTorque, in
 	}
 }
 
+void UChaosWheeledVehicleMovementComponent::SetSuspensionParams(float Rate, float Damping, float Preload, float MaxRaise, float MaxDrop, int32 WheelIndex)
+{
+	using namespace Chaos;
+
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+			{
+				if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+				{
+					Chaos::FSimpleSuspensionSim& VehicleSuspension = VehicleSimulationPT->PVehicle->Suspension[WheelIndex];
+
+					VehicleSuspension.AccessSetup().SpringRate = Rate;
+					VehicleSuspension.AccessSetup().DampingRatio = Damping;
+					VehicleSuspension.AccessSetup().SpringPreload = Preload;
+					VehicleSuspension.AccessSetup().SetSuspensionMaxRaise(MaxRaise);
+					VehicleSuspension.AccessSetup().SetSuspensionMaxDrop(MaxDrop);
+				}
+			});
+
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+			{
+				FChaosWheelSetup& WheelSetup = WheelSetups[WheelIndex];
+				const FVector LocalWheel = GetWheelRestingPosition(WheelSetup);
+				FPhysicsConstraintHandle ConstraintHandle = FPhysicsInterface::CreateSuspension(Chassis, LocalWheel);
+
+				if (ConstraintHandle.IsValid())
+				{
+					UChaosVehicleWheel* Wheel = Wheels[WheelIndex];
+					check(Wheel);
+					if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandles[WheelIndex].Constraint))
+					{
+						Constraint->SetHardstopStiffness(1.0f);
+						Constraint->SetSpringStiffness(Chaos::MToCm(Rate) * 0.25f);
+						Constraint->SetSpringPreload(Chaos::MToCm(Preload));
+						Constraint->SetSpringDamping(Damping * 5.0f);
+						Constraint->SetMinLength(-MaxRaise);
+						Constraint->SetMaxLength(MaxDrop);
+					}
+				}
+			});
+
+	}
+}
 
 float UChaosWheeledVehicleMovementComponent::GetSuspensionOffset(int WheelIndex)
 {
