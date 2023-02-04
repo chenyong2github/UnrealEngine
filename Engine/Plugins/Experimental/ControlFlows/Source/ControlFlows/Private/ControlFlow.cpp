@@ -54,15 +54,19 @@ void FControlFlow::ExecuteNode(TSharedRef<FControlFlowNode_SelfCompleting> SelfC
 	{
 		FlowQueue.Reset();
 
-		OnFlowCancelledDelegate.Broadcast();
-		OnCancelledDelegate_Internal.ExecuteIfBound();		
-
+		BroadcastCancellation();
 		FControlFlowStatics::HandleControlFlowFinishedNotification();
 	}
 	else
 	{
 		SelfCompletingNode->ContinueFlow();
 	}
+}
+
+void FControlFlow::BroadcastCancellation()
+{
+	OnFlowCancelledDelegate.Broadcast();
+	OnCancelledDelegate_Internal.ExecuteIfBound();
 }
 
 void FControlFlow::HandleControlFlowNodeCompleted(TSharedRef<const FControlFlowNode> NodeCompleted)
@@ -110,8 +114,7 @@ void FControlFlow::HandleControlFlowNodeCompleted(TSharedRef<const FControlFlowN
 		{
 			if (bCancelRequested)
 			{
-				OnFlowCancelledDelegate.Broadcast();
-				OnCancelledDelegate_Internal.ExecuteIfBound();				
+				BroadcastCancellation();
 			}
 			else
 			{
@@ -231,6 +234,16 @@ void FControlFlow::Reset()
 	UnnamedBranchCounter = 0;
 }
 
+FDelegateHandle FControlFlow::RegisterOnControlFlowCancelled(FSimpleMulticastDelegate::FDelegate Delegate)
+{
+	return OnFlowCancelledDelegate.Add(Delegate);
+}
+
+void FControlFlow::RemoveOnControlFlowCancelled(FDelegateHandle Handle)
+{
+	OnFlowCancelledDelegate.Remove(Handle);
+}
+
 void FControlFlow::CancelFlow()
 {
 	if (CurrentNode.IsValid())
@@ -239,8 +252,7 @@ void FControlFlow::CancelFlow()
 	}
 	else
 	{
-		OnFlowCancelledDelegate.Broadcast();
-		OnCancelledDelegate_Internal.ExecuteIfBound();
+		BroadcastCancellation();
 		FControlFlowStatics::HandleControlFlowFinishedNotification();
 	}
 }

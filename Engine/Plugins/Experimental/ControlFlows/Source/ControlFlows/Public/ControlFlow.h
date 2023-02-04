@@ -134,6 +134,9 @@ public:
 	bool IsRunning() const { return CurrentNode.IsValid(); }
 	size_t NumInQueue() const { return FlowQueue.Num(); }
 
+	FDelegateHandle RegisterOnControlFlowCancelled(FSimpleMulticastDelegate::FDelegate Delegate);
+	void RemoveOnControlFlowCancelled(FDelegateHandle Handle);
+
 	/** Will cancel ALL flows, both child ControlFlows and ControlFlows who owns this Flow. You've been warned. */
 	void CancelFlow();
 
@@ -354,7 +357,6 @@ private:
 	void ExecuteNextNodeInQueue();
 
 	void ExecuteNode(TSharedRef<FControlFlowNode_SelfCompleting> SelfCompletingNode);
-
 private:
 	void HandleTaskNodeExecuted(TSharedRef<FControlFlowNode_Task> TaskNode);
 	void HandleTaskNodeCancelled(TSharedRef<FControlFlowNode_Task> TaskNode);
@@ -362,6 +364,7 @@ private:
 	void HandleOnTaskComplete();
 	void HandleOnTaskCancelled();
 
+	void BroadcastCancellation();
 private:
 
 	void LogNodeExecution(const FControlFlowNode& NodeExecuted);
