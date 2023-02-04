@@ -133,6 +133,7 @@ public:
 
 	FCurveEditorScreenSpaceH GetPanelInputSpace() const;
 
+	void ResetMinMaxes();
 public:
 	/**
 	 * Zoom the curve editor to fit all the selected curves (or all curves if none selected)

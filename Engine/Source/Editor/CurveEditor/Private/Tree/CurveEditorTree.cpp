@@ -492,7 +492,7 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 			}
 		}
 	}
-
+	InCurveEditor->ResetMinMaxes();
 	for (TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> OldItem : PreviousSelection)
 	{
 		const ECurveEditorTreeSelectionState* NewState = Selection.Find(OldItem.Key);

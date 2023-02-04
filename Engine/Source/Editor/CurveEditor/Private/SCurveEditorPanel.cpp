@@ -491,7 +491,6 @@ void SCurveEditorPanel::Tick(const FGeometry& AllottedGeometry, const double InC
 		{
 			CurveEditor->ZoomToFitCurves(CurveEditor->GetEditedCurves().Array());
 		}
-
 		bNeedsRefresh = false;
 		CachedActiveCurvesSerialNumber = CurveEditor->GetActiveCurvesSerialNumber();
 		bWasRefreshed = true;
@@ -504,11 +503,35 @@ void SCurveEditorPanel::Tick(const FGeometry& AllottedGeometry, const double InC
 	CachedSelectionSerialNumber = CurveEditor->Selection.GetSerialNumber();
 }
 
+void SCurveEditorPanel::ResetMinMaxes()
+{
+	//only reset the min/max if we have views since we will then get these values from them
+	//otherwise if we didn't we would end up with everything back to 0,1 again.
+	if (CurveViews.IsEmpty() == false)
+	{
+		LastOutputMin = DBL_MAX;
+		LastOutputMax = DBL_MIN;
+	}
+}
+
 void SCurveEditorPanel::RemoveCurveFromViews(FCurveModelID InCurveID)
 {
 	for (auto It = CurveViews.CreateKeyIterator(InCurveID); It; ++It)
 	{
-		FCurveEditorPanelViewTracker::RemoveCurveFromView(&It.Value().Get(), InCurveID);
+		SCurveEditorView* View = &It.Value().Get();
+		//cache these so we can re-use it on reconstruction
+		if (View)
+		{
+			if (View->GetOutputMin() < LastOutputMin)
+			{
+				LastOutputMin = View->GetOutputMin();
+			}
+			if (View->GetOutputMax() > LastOutputMax)
+			{
+				LastOutputMax = View->GetOutputMax();
+			}
+		}
+		FCurveEditorPanelViewTracker::RemoveCurveFromView(View, InCurveID);
 		It.RemoveCurrent();
 	}
 }
@@ -551,6 +574,10 @@ TSharedPtr<SCurveEditorView> SCurveEditorPanel::CreateViewOfType(FCurveModelID C
 			if (!View->HasCapacity())
 			{
 				It.RemoveCurrent();
+			}
+			if (LastOutputMin != DBL_MAX && LastOutputMax != DBL_MIN)
+			{
+				View->SetOutputBounds(LastOutputMin, LastOutputMax);
 			}
 
 			return View;

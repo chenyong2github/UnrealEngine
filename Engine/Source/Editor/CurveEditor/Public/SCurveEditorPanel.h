@@ -148,6 +148,8 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 	/** Undo occurred, invalidate or update internal structures */
 	void PostUndo();
 
+	/** Reset Stored Min/Max's*/
+	void ResetMinMaxes();
 private:
 	// SWidget Interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -266,7 +268,7 @@ private:
 	void OnColumnFillCoefficientChanged(float FillCoefficient, int32 ColumnIndex);
 
 	void OnSplitterFinishedResizing();
-
+	
 private:
 
 	/**
@@ -336,6 +338,10 @@ private:
 
 	/** Reconstructs the properties widget on tool switch */
 	void OnCurveEditorToolChanged(FCurveEditorToolID InToolId);
+
+	/** Last Output Min and Max values for the views*/
+	double LastOutputMin = DBL_MAX;
+	double LastOutputMax = DBL_MIN;
 
 	/** The last set View Mode for this UI. */
 	ECurveEditorViewID DefaultViewID;

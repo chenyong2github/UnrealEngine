@@ -207,7 +207,14 @@ FCurveModelID FCurveEditor::AddCurveForTreeItem(TUniquePtr<FCurveModel>&& InCurv
 
 	return NewID;
 }
-
+void FCurveEditor::ResetMinMaxes()
+{
+	TSharedPtr<SCurveEditorPanel> Panel = WeakPanel.Pin();
+	if (Panel.IsValid())
+	{
+		Panel->ResetMinMaxes();
+	}
+}
 void FCurveEditor::RemoveCurve(FCurveModelID InCurveID)
 {
 	TSharedPtr<SCurveEditorPanel> Panel = WeakPanel.Pin();
