@@ -1796,6 +1796,34 @@ void UPrimitiveComponent::SetReceivesDecals(bool bNewReceivesDecals)
 	}
 }
 
+void UPrimitiveComponent::SetHoldout(bool bNewHoldout)
+{
+	if (bHoldout != bNewHoldout)
+	{
+		bHoldout = bNewHoldout;
+		MarkRenderStateDirty();
+	}
+}
+
+void UPrimitiveComponent::SetAffectDynamicIndirectLighting(bool bNewAffectDynamicIndirectLighting)
+{
+	if (bAffectDynamicIndirectLighting != bNewAffectDynamicIndirectLighting)
+	{
+		bAffectDynamicIndirectLighting = bNewAffectDynamicIndirectLighting;
+		MarkRenderStateDirty();
+	}
+}
+
+
+void UPrimitiveComponent::SetAffectIndirectLightingWhileHidden(bool bNewAffectIndirectLightingWhileHidden)
+{
+	if (bAffectIndirectLightingWhileHidden != bNewAffectIndirectLightingWhileHidden)
+	{
+		bAffectIndirectLightingWhileHidden = bNewAffectIndirectLightingWhileHidden;
+		MarkRenderStateDirty();
+	}
+}
+
 
 void UPrimitiveComponent::PushSelectionToProxy()
 {
