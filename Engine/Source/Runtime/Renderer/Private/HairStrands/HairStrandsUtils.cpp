@@ -323,18 +323,6 @@ FIntPoint GetVendorOptimalGroupSize2D()
 	}
 }
 
-FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
-{
-	const uint32 GroupCount = FMath::DivideAndRoundUp(ItemCount, GroupSize);
-	const uint32 DispatchCountX = FMath::FloorToInt(FMath::Sqrt(static_cast<float>(GroupCount)));
-	const uint32 DispatchCountY = DispatchCountX + FMath::DivideAndRoundUp(GroupCount - DispatchCountX * DispatchCountX, DispatchCountX);
-
-	check(DispatchCountX <= uint32(GRHIMaxDispatchThreadGroupsPerDimension.X));
-	check(DispatchCountY <= uint32(GRHIMaxDispatchThreadGroupsPerDimension.Y));
-	check(GroupCount <= DispatchCountX * DispatchCountY);
-	return FIntVector(DispatchCountX, DispatchCountY, 1);
-}
-
 FVector4f PackHairRenderInfo(
 	float PrimaryRadiusAtDepth1,
 	float StableRadiusAtDepth1,

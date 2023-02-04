@@ -807,13 +807,10 @@ float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 {
-#if PERMUTATION_CULLING == 1
-	uint VertexIndex0 = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadID, GROUP_SIZE);
-#else
 	uint VertexIndex0 = DispatchThreadID.x;
-#endif
-	uint VertexIndex1 = min(VertexIndex0 + 1, VertexCount - 1);
-	if (VertexIndex0 >= VertexCount)
+	uint VertexIndex1 = VertexIndex0 + 1;
+	bool bIsValid = VertexIndex0 < VertexCount && VertexIndex1 < VertexCount;
+	if (!bIsValid)
 		return;
 
 	float LodRadiusScale0 = 1;
@@ -824,7 +821,8 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
 		uint FetchIndex0 = VertexIndex0;
 		uint FetchIndex1 = VertexIndex1;
-		if (FetchIndex0 >= VertexCountAfterCulling)
+		bIsValid = FetchIndex0 < VertexCountAfterCulling&& FetchIndex1 < VertexCountAfterCulling;
+		if (!bIsValid)
 		{
 			return;
 		}

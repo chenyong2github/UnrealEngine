@@ -1161,9 +1161,8 @@ class FVoxelRasterComputeCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FVoxelRasterComputeCS);
 	SHADER_USE_PARAMETER_STRUCT(FVoxelRasterComputeCS, FGlobalShader);
 
-	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
-	class FCulling : SHADER_PERMUTATION_INT("PERMUTATION_CULLING", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCulling>;
+	class FCulling : SHADER_PERMUTATION_BOOL("PERMUTATION_CULLING");
+	using FPermutationDomain = TShaderPermutationDomain<FCulling>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, VirtualVoxelParams)
@@ -1184,11 +1183,7 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_RASTERCOMPUTE"), 1);
-
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		const bool bUseCulling = PermutationVector.Get<FCulling>() != 0;
-		const uint32 GroupSize = PermutationVector.Get<FGroupSize>();		
-		OutEnvironment.SetDefine(TEXT("GROUP_SIZE"), bUseCulling ? GroupSize : GetGroupSize());
+		OutEnvironment.SetDefine(TEXT("GROUP_SIZE"), GetGroupSize());
 	}
 };
 
@@ -1216,15 +1211,12 @@ static void AddVirtualVoxelizationComputeRasterPass(
 		FRDGTextureUAVRef PageTextureUAV = GraphBuilder.CreateUAV(VoxelResources.PageTexture);
 
 		const uint32 FrameIdMode8 = ViewInfo && ViewInfo->ViewState ? (ViewInfo->ViewState->GetFrameIndex() % 8) : 0;
-		const uint32 GroupSize = GetVendorOptimalGroupSize1D(); // TODO when updating culling
 		const FVector& TranslatedWorldOffset = ViewInfo->ViewMatrices.GetPreViewTranslation();
 
 		FVoxelRasterComputeCS::FPermutationDomain PermutationVector_Off;
 		FVoxelRasterComputeCS::FPermutationDomain PermutationVector_On;
-		PermutationVector_Off.Set<FVoxelRasterComputeCS::FCulling>(0);
-		PermutationVector_Off.Set<FVoxelRasterComputeCS::FGroupSize>(GroupSize);
-		PermutationVector_On.Set<FVoxelRasterComputeCS::FCulling>(1);
-		PermutationVector_On.Set<FVoxelRasterComputeCS::FGroupSize>(GroupSize);
+		PermutationVector_Off.Set<FVoxelRasterComputeCS::FCulling>(false);
+		PermutationVector_On.Set<FVoxelRasterComputeCS::FCulling>(true);
 
 		TShaderMapRef<FVoxelRasterComputeCS> ComputeShader_CullingOff(ViewInfo->ShaderMap, PermutationVector_Off);
 		TShaderMapRef<FVoxelRasterComputeCS> ComputeShader_CullingOn(ViewInfo->ShaderMap, PermutationVector_On);

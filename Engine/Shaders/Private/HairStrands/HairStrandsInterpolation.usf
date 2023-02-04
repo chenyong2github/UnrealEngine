@@ -72,7 +72,6 @@ FGuideData GetGuideData(uint InVertexIndex, uint4 InInterpolationData0, uint4 In
 #if SHADER_HAIRINTERPOLATION
 
 uint VertexCount;
-uint DispatchCountX;
 uint HairDebugMode;
 float HairLengthScale;
 float3 InRenHairPositionOffset;
@@ -459,11 +458,11 @@ float3 ApplyDeformer(const FRootTriangleData RenTri, float3 InRestPostion, float
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	// 1. Find vertex index
-	uint VertexIndex = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
+	uint VertexIndex = DispatchThreadId;
 #if PERMUTATION_CULLING
 	if (HairStrandsVF_bIsCullingEnable)
 	{
-		const uint FetchIndex = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadId, GROUP_SIZE);
+		const uint FetchIndex = DispatchThreadId;
 		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
 		if (FetchIndex >= VertexCountAfterCulling)
 		{

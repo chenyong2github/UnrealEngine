@@ -4,8 +4,8 @@
 #include "../MonteCarlo.ush"
 #include "HairStrandsClusterCommon.ush"
 
+#if SHADER_TANGENT
 uint VertexCount;
-uint DispatchCountX;
 
 Buffer<uint4>  	 PositionBuffer;
 RWBuffer<float4> OutputTangentBuffer;
@@ -18,31 +18,23 @@ Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
 Buffer<uint>	IndirectBufferArgs;
 #endif
 
-#if PERMUTATION_GROUP_SIZE == 64
-	#define GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 32
-	#define GROUP_SIZE 32
-#else
-	#error Unknown group size	
-#endif
-
 float4 PackNormal(float3 V, uint A)
 {
 	return float4(clamp(V,float(-1).xxx,float(1).xxx), 1.0f);
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 {
 	const int MaxVertexCount = int(VertexCount);
-	int IndexCurr = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
+	int IndexCurr = DispatchThreadId;
 	int IndexPrev = clamp(IndexCurr-1, 0, MaxVertexCount-1);
 	int IndexNext = clamp(IndexCurr+1, 0, MaxVertexCount-1);
 	bool bValid = IndexCurr < MaxVertexCount;
 #if PERMUTATION_CULLING
 	if (HairStrandsVF_bIsCullingEnable)
 	{
-		const int FetchIndex = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadId, GROUP_SIZE);
+		const int FetchIndex = DispatchThreadId;
 		const int VertexCountAfterCulling = clamp((int)HairStrandsVF_CullingIndirectBuffer[3], 0, MaxVertexCount);
 		bValid = false;
 		if (FetchIndex < VertexCountAfterCulling)
@@ -98,3 +90,4 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		OutputTangentBuffer[IndexCurr*2+1] = PackNormal(Basis[2], 127);
 	}
 }
+#endif // SHADER_TANGENT

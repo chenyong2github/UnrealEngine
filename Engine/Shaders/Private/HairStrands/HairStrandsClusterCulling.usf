@@ -433,14 +433,6 @@ void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 RWBuffer<uint> DrawIndirectBuffer; 
 RWBuffer<uint> DispatchIndirectBuffer; 
 
-#if PERMUTATION_GROUP_SIZE == 64
-	#define GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 32
-	#define GROUP_SIZE 32
-#else
-	#error Unknown group size
-#endif
-
 [numthreads(1, 1, 1)]
 void MainClusterCullingPrepareIndirectDispatchCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID, 
@@ -451,18 +443,12 @@ void MainClusterCullingPrepareIndirectDispatchCS(
 	{
 		// DrawIndirectBuffer contains the total number of vertex count needed for drawing quad triangle strips, so 6 vertices per quad / control point
 		const uint VertexCount    = DrawIndirectBuffer[0];
-#if USE_HAIR_TRIANGLE_STRIP
-		const uint ControlPoint   = VertexCount / 2;
-#else
-		const uint ControlPoint	  = VertexCount / 6;
-#endif
-		const uint DispatchCount  = DivideAndRoundUp(ControlPoint, GROUP_SIZE);
-		const uint DispatchCountX = DispatchCount >= INDIRECT_GROUP_COUNT_X ? INDIRECT_GROUP_COUNT_X : (DispatchCount % INDIRECT_GROUP_COUNT_X);
-		const uint DispatchCountY = DivideAndRoundUp(DispatchCount, INDIRECT_GROUP_COUNT_X);
+		const uint ControlPoint   = VertexCount / (USE_HAIR_TRIANGLE_STRIP ? 2u : 6u);
+		const uint DispatchCount  = DivideAndRoundUp(ControlPoint, HAIR_VERTEXCOUNT_GROUP_SIZE);
 
-		DispatchIndirectBuffer[0] = DispatchCountX;
-		DispatchIndirectBuffer[1] = DispatchCountY;
-		DispatchIndirectBuffer[2] = 1.0;
+		DispatchIndirectBuffer[0] = DispatchCount;
+		DispatchIndirectBuffer[1] = 1;
+		DispatchIndirectBuffer[2] = 1;
 		DispatchIndirectBuffer[3] = ControlPoint;
 	}
 }
