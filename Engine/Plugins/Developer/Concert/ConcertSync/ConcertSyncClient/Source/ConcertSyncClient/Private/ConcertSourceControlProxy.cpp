@@ -453,6 +453,16 @@ ECommandResult::Type FConcertSourceControlProxy::Execute(const FSourceControlOpe
 	return ECommandResult::Failed;
 }
 
+bool FConcertSourceControlProxy::CanExecuteOperation(const FSourceControlOperationRef& InOperation) const
+{
+	if (ActualProvider)
+	{
+		return ActualProvider->CanExecuteOperation(InOperation);
+	}
+
+	return false;
+}
+
 bool FConcertSourceControlProxy::CanCancelOperation(const FSourceControlOperationRef& InOperation) const
 {
 	if (ActualProvider)

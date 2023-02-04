@@ -385,6 +385,11 @@ ECommandResult::Type FPlasticSourceControlProvider::Execute(const FSourceControl
 	}
 }
 
+bool FPlasticSourceControlProvider::CanExecuteOperation(const FSourceControlOperationRef& InOperation) const
+{
+	return WorkersMap.Find(InOperation->GetName()) != nullptr;
+}
+
 bool FPlasticSourceControlProvider::CanCancelOperation(const FSourceControlOperationRef& InOperation) const
 {
 	return false;

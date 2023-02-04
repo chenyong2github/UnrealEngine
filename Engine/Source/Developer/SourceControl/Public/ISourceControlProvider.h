@@ -247,6 +247,13 @@ public:
 	SOURCECONTROL_API virtual ECommandResult::Type Execute( const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const EConcurrency::Type InConcurrency = EConcurrency::Synchronous, const FSourceControlOperationComplete& InOperationCompleteDelegate = FSourceControlOperationComplete());
 
 	/**
+	 * Check to see if we can execute an operation.
+	 * @param	InOperation		The operation to check.
+	 * @return true if the operation can be executed.
+	 */
+	virtual bool CanExecuteOperation( const FSourceControlOperationRef& InOperation ) const = 0;
+
+	/**
 	 * Check to see if we can cancel an operation.
 	 * @param	InOperation		The operation to check.
 	 * @return true if the operation was cancelled.

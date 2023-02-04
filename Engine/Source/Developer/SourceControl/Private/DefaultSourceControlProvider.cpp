@@ -70,6 +70,11 @@ ECommandResult::Type FDefaultSourceControlProvider::Execute( const FSourceContro
 	return ECommandResult::Failed;
 }
 
+bool FDefaultSourceControlProvider::CanExecuteOperation( const FSourceControlOperationRef& InOperation ) const
+{
+	return false;
+}
+
 bool FDefaultSourceControlProvider::CanCancelOperation( const FSourceControlOperationRef& InOperation ) const
 {
 	return false;

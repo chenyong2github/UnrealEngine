@@ -197,6 +197,11 @@ ECommandResult::Type FSubversionSourceControlProvider::Execute( const FSourceCon
 	}
 }
 
+bool FSubversionSourceControlProvider::CanExecuteOperation( const FSourceControlOperationRef& InOperation ) const
+{
+	return WorkersMap.Find(InOperation->GetName()) != nullptr;
+}
+
 bool FSubversionSourceControlProvider::CanCancelOperation( const FSourceControlOperationRef& InOperation ) const
 {
 	return false;

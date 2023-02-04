@@ -446,6 +446,12 @@ ECommandResult::Type FPerforceSourceControlProvider::Execute( const FSourceContr
 	}
 }
 
+bool FPerforceSourceControlProvider::CanExecuteOperation( const FSourceControlOperationRef& InOperation ) const
+{
+	FPerforceSourceControlProvider* NonConstThis = const_cast<FPerforceSourceControlProvider*>(this);
+	return IPerforceSourceControlWorker::CreateWorker(InOperation->GetName(), *NonConstThis).IsValid();
+}
+
 bool FPerforceSourceControlProvider::CanCancelOperation( const FSourceControlOperationRef& InOperation ) const
 {
 	for (int32 CommandIndex = 0; CommandIndex < CommandQueue.Num(); ++CommandIndex)
