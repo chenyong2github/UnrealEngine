@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraScalabilityPreviewSettings.h"
-#include "Customizations/NiagaraPlatformSetCustomization.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
 #include "ISinglePropertyView.h"
+#include "NiagaraDeviceProfileViewModel.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSettings.h"
 #include "PlatformInfo.h"

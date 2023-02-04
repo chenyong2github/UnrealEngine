@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
+#include "NiagaraDeviceProfileViewModel.h"
 #include "NiagaraPlatformSet.h"
 #include "Layout/Visibility.h"
 #include "Widgets/Views/STreeView.h"
@@ -16,12 +17,6 @@ class STableViewBase;
 class SWrapBox;
 
 enum class ECheckBoxState : uint8;
-
-struct FNiagaraDeviceProfileViewModel
-{
-	class UDeviceProfile* Profile;
-	TArray<TSharedPtr<FNiagaraDeviceProfileViewModel>> Children;
-};
 
 class FNiagaraPlatformSetCustomization : public IPropertyTypeCustomization
 {
