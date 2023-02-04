@@ -503,7 +503,7 @@ void UMovieSceneMaterialParameterSystem::OnInstantiation()
 		TOverlappingMaterialParameterHandler<FVectorMixin> VectorHandler(this);
 		VectorParameterTracker.ProcessInvalidatedOutputs(Linker, VectorHandler);
 
-		TSavePreAnimatedStateParams<UObject*, FName> Params;
+		TPreAnimatedStateTaskParams<UObject*, FName> Params;
 		Params.AdditionalFilter.Reset();
 		Params.AdditionalFilter.None({ TracksComponents->MPC });
 		Params.AdditionalFilter.Any({ BuiltInComponents->Tags.NeedsLink, TracksComponents->Tags.BoundMaterialChanged });

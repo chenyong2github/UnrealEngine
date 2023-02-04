@@ -50,7 +50,7 @@ struct TPreAnimatedStateTaskParams
 {
 	FEntityComponentFilter AdditionalFilter;
 
-	TSavePreAnimatedStateParams()
+	TPreAnimatedStateTaskParams()
 	{
 		AdditionalFilter.All({ FBuiltInComponentTypes::Get()->Tags.NeedsLink });
 	}
