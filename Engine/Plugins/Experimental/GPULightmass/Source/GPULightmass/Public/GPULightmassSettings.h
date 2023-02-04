@@ -154,7 +154,7 @@ class GPULIGHTMASS_API UGPULightmassSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void PostInitialize() override;
 
 	UFUNCTION(BlueprintCallable, Category = GPULightmass)
 	UGPULightmassSettings* GetSettings();

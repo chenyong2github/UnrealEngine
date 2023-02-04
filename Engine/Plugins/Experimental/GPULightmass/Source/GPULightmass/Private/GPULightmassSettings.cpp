@@ -118,7 +118,7 @@ bool UGPULightmassSettings::CanEditChange(const FProperty* InProperty) const
 }
 #endif
 
-void UGPULightmassSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UGPULightmassSubsystem::PostInitialize()
 {
 	UWorld* World = Cast<UWorld>(GetOuter());
 	
