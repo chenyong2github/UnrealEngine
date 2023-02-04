@@ -103,10 +103,19 @@ public:
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category = AudioComponentGroup)
 	FString GetStringParamValue(const FName ParamName) const;
 
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioComponentGroup)
 	void SubscribeToStringParam(const FName ParamName, FStringParamCallback Delegate);
+
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioComponentGroup)
 	void SubscribeToEvent(const FName EventName, FSoundCallback Delegate);
+	
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioComponentGroup)
 	void SubscribeToBool(const FName ParamName, FBoolParamCallback Delegate);
 
+	// remove any string, event, and bool subscriptions that are bound to this object
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioComponentGroup)
+	void UnsubscribeObject(const UObject* Object);
+	
 	//~ Begin IAudioParameterControllerInterface interface 
 	virtual void ResetParameters() override;
 
@@ -149,6 +158,10 @@ protected:
 	void UpdateComponentParameters();
 
 	float GetComponentVolume() const;
+
+	void ExecuteStringParamSubscriptions(const FAudioParameter& StringParam);
+	void ExecuteBoolParamSubscriptions(const FAudioParameter& BoolParam);
+	void ExecuteEventSubscriptions(const FName EventName);
 
 	const FAudioParameter* GetParamInternal(const FName ParamName) const;
 
