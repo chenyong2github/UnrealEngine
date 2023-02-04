@@ -46,9 +46,9 @@ public:
 	TObjectPtr<class UAssetImportData> AssetImportData;
 #endif
 
-	TSharedPtr<IDNAReader> GetBehaviorReader();
+	TSharedPtr<IBehaviorReader> GetBehaviorReader();
 #if WITH_EDITORONLY_DATA
-	TSharedPtr<IDNAReader> GetGeometryReader();
+	TSharedPtr<IGeometryReader> GetGeometryReader();
 #endif
 
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = ImportSettings)
@@ -91,11 +91,11 @@ private:
 
 	/** Part of the .dna file needed for run-time execution of RigLogic;
 	 **/
-	TSharedPtr<IDNAReader> BehaviorReader;
+	TSharedPtr<IBehaviorReader> BehaviorReader;
 
 	/** Part of the .dna file used design-time for updating SkeletalMesh geometry
 	 **/
-	TSharedPtr<IDNAReader> GeometryReader;
+	TSharedPtr<IGeometryReader> GeometryReader;
 
 	/** Runtime data necessary for rig computations that is shared between
 	  * multiple rig instances based on the same DNA.

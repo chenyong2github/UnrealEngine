@@ -15,8 +15,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDNAImportFactory, Log, All);
 *	Also extends ReimportHandler for importing DNA file with the same name as SkeletalMesh
  */
 UCLASS(transient)
-class UDNAAssetImportFactory : public UFactory, public FReimportHandler
-{
+class UDNAAssetImportFactory: public UFactory, public FReimportHandler
+{ 
 	GENERATED_UCLASS_BODY()
 
 public:
