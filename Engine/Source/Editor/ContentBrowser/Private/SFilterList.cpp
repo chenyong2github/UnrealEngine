@@ -229,9 +229,13 @@ void SFilterList::DisableFiltersThatHideItems(TArrayView<const FContentBrowserIt
 				}
 
 				FContentBrowserItem::FItemDataArrayView InternalItems = Item.GetInternalItems();
-				for (const FContentBrowserItemData& InternalItem : InternalItems)
+				for (const FContentBrowserItemData& InternalItemRef : InternalItems)
 				{
-					UContentBrowserDataSource* ItemDataSource = InternalItem.GetOwnerDataSource();
+					UContentBrowserDataSource* ItemDataSource = InternalItemRef.GetOwnerDataSource();
+
+					FContentBrowserItemData InternalItem = InternalItemRef;
+					ItemDataSource->ConvertItemForFilter(InternalItem, CompiledDataFilter);
+
 					if (!ItemDataSource->DoesItemPassFilter(InternalItem, CompiledDataFilter))
 					{
 						bDisableAllBackendFilters = true;

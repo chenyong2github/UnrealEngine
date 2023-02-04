@@ -274,7 +274,8 @@ public:
 	virtual bool CreateFolder(const FName InPath, FContentBrowserItemDataTemporaryContext& OutPendingItem);
 
 	/*
-	 * Query whether the given item passes the given compiled filter.
+	 * Query whether the given item passes the given compiled filter. Should be called after ConvertItemForFilter
+	 *
 	 * @see CompileFilter.
 	 *
 	 * @param InItem The item to query.
@@ -283,6 +284,19 @@ public:
 	 * @return True if the item passes the filter, false otherwise.
 	 */
 	virtual bool DoesItemPassFilter(const FContentBrowserItemData& InItem, const FContentBrowserDataCompiledFilter& InFilter);
+
+
+	/*
+	 * Let the compiled filter decide the payload and the type of the item 
+	 * Some Compiled filter might change the type/payload of the item. This allow these filter to work properly and should be called before the filtering (see DoesItemPassFilter)
+	 * @see CompileFilter
+	 * 
+	 * @param Item The item that might be converted
+	 * @param InFilter The compiled filter used to possibly convert the matching items.
+	 * 
+	 * @return True if the item was converted by the filter.
+	 */
+	virtual bool ConvertItemForFilter(FContentBrowserItemData& Item, const FContentBrowserDataCompiledFilter& InFilter);
 
 	/**
 	 * Query the value of the given attribute on the given item.

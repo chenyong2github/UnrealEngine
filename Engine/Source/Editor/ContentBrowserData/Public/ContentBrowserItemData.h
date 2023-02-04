@@ -23,7 +23,7 @@ class IContentBrowserItemDataSink;
 class UContentBrowserDataSource;
 
 /** Flags denoting basic state information for an item instance */
-enum class EContentBrowserItemFlags : uint8
+enum class EContentBrowserItemFlags : uint16
 {
 	/** No flags */
 	None = 0,
@@ -44,6 +44,9 @@ enum class EContentBrowserItemFlags : uint8
 	Temporary_Creation = 1<<6,
 	Temporary_Duplication = 1<<7,
 	Temporary_MASK = Temporary_Creation | Temporary_Duplication,
+
+	/** Flag to mark the item as showing something that is unsupported */
+	Misc_Unsupported = 1 << 8,
 };
 ENUM_CLASS_FLAGS(EContentBrowserItemFlags);
 
@@ -164,6 +167,13 @@ public:
 	 * @note Equivalent to testing whether EContentBrowserItemFlags::Type_File is set on GetItemFlags().
 	 */
 	bool IsFile() const;
+
+	/**
+	 * Check if the item is representing a supported item
+	 * The content browser can also display some unsupported asset
+	 * @note Equivalent to testing whether EContentBrowserItemFlags::Misc_Unsupported is not set on GetItemFlags()
+	 */
+	bool IsSupported() const;
 
 	/**
 	 * Check to see whether this item is temporary.

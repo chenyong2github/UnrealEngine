@@ -11,6 +11,23 @@
 #include "IAssetTypeActions.h"
 #include "Misc/PackageName.h"
 
+namespace UE::ContentBrowserAssetDataSource::Private
+{
+	void GetFilenameFromPackageName(const FString& PackageName, FString& OutFileName, TFunctionRef<UPackage*()> GetPackage)
+	{
+		// Get the filename by finding it on disk first
+		if (!FPackageName::DoesPackageExist(PackageName, &OutFileName))
+		{
+			if (const UPackage* Package = GetPackage())
+			{
+				// This is a package in memory that has not yet been saved. Determine the extension and convert to a filename
+				const FString* PackageExtension = Package->ContainsMap() ? &FPackageName::GetMapPackageExtension() : &FPackageName::GetAssetPackageExtension();
+				FPackageName::TryConvertLongPackageNameToFilename(PackageName, OutFileName, *PackageExtension);
+			}
+		}
+	}
+}
+
 const FString& FContentBrowserAssetFolderItemDataPayload::GetFilename() const
 {
 	if (!bHasCachedFilename)
@@ -127,18 +144,12 @@ const FString& FContentBrowserAssetFileItemDataPayload::GetFilename() const
 {
 	if (!bHasCachedFilename)
 	{
-		const FString PackageNameStr = AssetData.PackageName.ToString();
+		auto GetPackageLambda = [this]()
+			{ 
+				return GetPackage(); 
+			};
 
-		// Get the filename by finding it on disk first
-		if (!FPackageName::DoesPackageExist(PackageNameStr, &CachedFilename))
-		{
-			if (const UPackage* Package = GetPackage())
-			{
-				// This is a package in memory that has not yet been saved. Determine the extension and convert to a filename
-				const FString* PackageExtension = Package->ContainsMap() ? &FPackageName::GetMapPackageExtension() : &FPackageName::GetAssetPackageExtension();
-				FPackageName::TryConvertLongPackageNameToFilename(PackageNameStr, CachedFilename, *PackageExtension);
-			}
-		}
+		UE::ContentBrowserAssetDataSource::Private::GetFilenameFromPackageName(AssetData.PackageName.ToString(), CachedFilename, GetPackageLambda);
 
 		bHasCachedFilename = true;
 	}
@@ -189,4 +200,68 @@ FContentBrowserAssetFileItemDataPayload_Duplication::FContentBrowserAssetFileIte
 	: FContentBrowserAssetFileItemDataPayload(MoveTemp(InAssetData))
 	, SourceObject(InSourceObject)
 {
+}
+
+FContentBrowserUnsupportedAssetFileItemDataPayload::FContentBrowserUnsupportedAssetFileItemDataPayload(FAssetData&& InAssetData)
+	: OptionalAssetData(MakeUnique<FAssetData>(MoveTemp(InAssetData)))
+{
+}
+
+FContentBrowserUnsupportedAssetFileItemDataPayload::FContentBrowserUnsupportedAssetFileItemDataPayload(const FAssetData& InAssetData)
+	: OptionalAssetData(MakeUnique<FAssetData>(InAssetData))
+{
+}
+
+const FAssetData* FContentBrowserUnsupportedAssetFileItemDataPayload::GetAssetDataIfAvailable() const
+{
+	return OptionalAssetData.Get();
+}
+
+const FString& FContentBrowserUnsupportedAssetFileItemDataPayload::GetFilename() const
+{
+	if (!bHasCachedFilename)
+	{
+		auto GetPackageLambda = [this]()
+		{
+			return GetPackage();
+		};
+
+		// Update this when we will show the asset that are to recent.
+		const FString PackageName = OptionalAssetData ? OptionalAssetData->PackageName.ToString() : FString();
+
+		UE::ContentBrowserAssetDataSource::Private::GetFilenameFromPackageName(PackageName, CachedFilename, GetPackageLambda);
+
+		bHasCachedFilename = true;
+	}
+	return CachedFilename;
+}
+
+UPackage* FContentBrowserUnsupportedAssetFileItemDataPayload::GetPackage() const
+{
+	if (bHasCachedPackagePtr && CachedPackagePtr.IsStale())
+	{
+		FlushCaches();
+	}
+
+	if (!bHasCachedPackagePtr || !CachedPackagePtr.IsValid())
+	{
+		if (const FAssetData* AssetData = OptionalAssetData.Get())
+		{ 
+			if (!AssetData->PackageName.IsNone())
+			{
+				CachedPackagePtr = FindObjectSafe<UPackage>(nullptr, *FNameBuilder(AssetData->PackageName), /*bExactClass*/true);
+			}
+		}
+		bHasCachedPackagePtr = true;
+	}
+	return CachedPackagePtr.Get();
+}
+
+void FContentBrowserUnsupportedAssetFileItemDataPayload::FlushCaches() const
+{
+	bHasCachedPackagePtr = false;
+	CachedPackagePtr.Reset();
+
+	bHasCachedFilename = false;
+	CachedFilename.Reset();
 }

@@ -136,6 +136,13 @@ public:
 	bool IsFile() const;
 
 	/**
+	 * Check if the item is representing a supported item
+	 * The content browser can also display some unsupported asset
+	 * @note Equivalent to testing whether EContentBrowserItemFlags::Misc_Unsupported is not set on GetItemFlags()
+	 */
+	bool IsSupported() const;
+
+	/**
 	 * Check to see whether this item is temporary.
 	 * @note Equivalent to testing whether any of EContentBrowserItemFlags::Temporary_MASK is set on GetItemFlags().
 	 */

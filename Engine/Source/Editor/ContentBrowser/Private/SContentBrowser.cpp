@@ -274,7 +274,8 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserAssets")))
 		.OwningContentBrowser(SharedThis(this))
 		.OnSearchOptionsChanged(this, &SContentBrowser::HandleAssetViewSearchOptionsChanged)
-		.FillEmptySpaceInTileView(true);
+		.FillEmptySpaceInTileView(true)
+		.ShowDisallowedAssetClassAsUnsupportedItems(true);
 
 
 	TSharedRef<SWidget> ViewOptions = SNullWidget::NullWidget;

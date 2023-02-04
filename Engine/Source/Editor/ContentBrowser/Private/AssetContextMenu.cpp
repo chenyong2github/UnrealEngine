@@ -154,47 +154,48 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 		// need to keep it here for now to build the correct menu name and register the correct extenders
 
 		// Objects must be loaded for this operation... for now
-		TArray<FAssetData> SelectedAssets;
 		UContentBrowserDataSource* CommonDataSource = nullptr;
-		bool bKeepCheckingCommonDataSource = true;
-		for (const FContentBrowserItem& SelectedItem : SelectedItems)
 		{
-			if (bKeepCheckingCommonDataSource)
+			TArray<FAssetData> SelectedAssets;
+			bool bKeepCheckingCommonDataSource = true;
+			for (const FContentBrowserItem& SelectedItem : SelectedItems)
 			{
-				if (const FContentBrowserItemData* PrimaryInternalItem = SelectedItem.GetPrimaryInternalItem())
+				if (bKeepCheckingCommonDataSource)
 				{
-					if (UContentBrowserDataSource* OwnerDataSource = PrimaryInternalItem->GetOwnerDataSource())
+					if (const FContentBrowserItemData* PrimaryInternalItem = SelectedItem.GetPrimaryInternalItem())
 					{
-						if (CommonDataSource == nullptr)
+						if (UContentBrowserDataSource* OwnerDataSource = PrimaryInternalItem->GetOwnerDataSource())
 						{
-							CommonDataSource = OwnerDataSource;
-						}
-						else if (CommonDataSource != OwnerDataSource)
-						{
-							CommonDataSource = nullptr;
-							bKeepCheckingCommonDataSource = false;
+							if (CommonDataSource == nullptr)
+							{
+								CommonDataSource = OwnerDataSource;
+							}
+							else if (CommonDataSource != OwnerDataSource)
+							{
+								CommonDataSource = nullptr;
+								bKeepCheckingCommonDataSource = false;
+							}
 						}
 					}
 				}
+
+				FAssetData ItemAssetData;
+				if (SelectedItem.Legacy_TryGetAssetData(ItemAssetData))
+				{
+					SelectedAssets.Add(MoveTemp(ItemAssetData));
+				}
 			}
 
-			FAssetData ItemAssetData;
-			if (SelectedItem.Legacy_TryGetAssetData(ItemAssetData))
-			{
-				SelectedAssets.Add(MoveTemp(ItemAssetData));
-			}
+			ContextObject->bCanBeModified = SelectedAssets.Num() == 0;
+			ContextObject->SelectedAssets = MoveTemp(SelectedAssets);
 		}
-
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-		const TSharedRef<FPathPermissionList>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderPermissionList();
+		const TSharedRef<FPathPermissionList>& WritableFolderPermission = AssetToolsModule.Get().GetWritableFolderPermissionList();
 
-		ContextObject->bCanBeModified = SelectedAssets.Num() == 0;
+		const TArray<FAssetData>& SelectedAssets = ContextObject->SelectedAssets;
 
-		ContextObject->SelectedAssets.Reset();
-
-		if (SelectedAssets.Num() > 0)
+		if (SelectedAssets.Num() > 0 && SelectedAssets.Num() == SelectedItems.Num())
 		{
-			ContextObject->SelectedAssets.Append(SelectedAssets);
 
 			// Find common class for selected objects
 			UClass* CommonClass = nullptr;
@@ -218,7 +219,7 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 			ContextObject->bCanBeModified = true;
 			for (const FAssetData& SelectedAsset : SelectedAssets)
 			{
-				if (WritableFolderFilter->HasFiltering() && !WritableFolderFilter->PassesStartsWithFilter(SelectedAsset.PackageName))
+				if (WritableFolderPermission->HasFiltering() && !WritableFolderPermission->PassesStartsWithFilter(SelectedAsset.PackageName))
 				{
 					ContextObject->bCanBeModified = false;
 					break;
@@ -253,17 +254,35 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
-		else if (SelectedAssets.Num() == 0)
+		else
 		{
 			if (CommonDataSource)
 			{
 				ContextObject->bCanBeModified = true;
 
-				if (WritableFolderFilter->HasFiltering())
+				if (WritableFolderPermission->HasFiltering())
 				{
 					for (const FContentBrowserItem& SelectedItem : SelectedItems)
 					{
-						if (!WritableFolderFilter->PassesStartsWithFilter(SelectedItem.GetVirtualPath()))
+						if (!WritableFolderPermission->PassesStartsWithFilter(SelectedItem.GetInternalPath()))
+						{
+							ContextObject->bCanBeModified = false;
+							break;
+						}
+					}
+				}
+
+				for (const FAssetData& SelectedAsset : SelectedAssets)
+				{
+					if (SelectedAsset.HasAnyPackageFlags(PKG_Cooked | PKG_FilterEditorOnly))
+					{
+						ContextObject->bCanBeModified = false;
+						break;
+					}
+
+					if (const UClass* AssetClass = SelectedAsset.GetClass())
+					{
+						if (AssetClass->IsChildOf<UClass>())
 						{
 							ContextObject->bCanBeModified = false;
 							break;

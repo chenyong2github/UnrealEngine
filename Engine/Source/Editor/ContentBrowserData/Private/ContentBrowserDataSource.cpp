@@ -265,6 +265,11 @@ bool UContentBrowserDataSource::DoesItemPassFilter(const FContentBrowserItemData
 	return false;
 }
 
+bool UContentBrowserDataSource::ConvertItemForFilter(FContentBrowserItemData& Item, const FContentBrowserDataCompiledFilter& InFilter)
+{
+	return false;
+}
+
 bool UContentBrowserDataSource::GetItemAttribute(const FContentBrowserItemData& InItem, const bool InIncludeMetaData, const FName InAttributeKey, FContentBrowserItemDataAttributeValue& OutAttributeValue)
 {
 	return false;

@@ -1955,27 +1955,30 @@ void SPathView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUp
 
 	for (const FContentBrowserItemDataUpdate& ItemDataUpdate : InUpdatedItems)
 	{
-		const FContentBrowserItemData& ItemData = ItemDataUpdate.GetItemData();
-		if (!ItemData.IsFolder())
+		const FContentBrowserItemData& ItemDataRef = ItemDataUpdate.GetItemData();
+		if (!ItemDataRef.IsFolder())
 		{
 			continue;
 		}
 
 		ConditionalCompileFilter();
 
+		FContentBrowserItemData ItemData = ItemDataRef;
+		ItemData.GetOwnerDataSource()->ConvertItemForFilter(ItemData, CompiledDataFilter);
+
 		switch (ItemDataUpdate.GetUpdateType())
 		{
 		case EContentBrowserItemUpdateType::Added:
 			if (DoesItemPassFilter(ItemData))
 			{
-				AddFolderItem(CopyTemp(ItemData));
+				AddFolderItem(MoveTemp(ItemData));
 			}
 			break;
 
 		case EContentBrowserItemUpdateType::Modified:
 			if (DoesItemPassFilter(ItemData))
 			{
-				AddFolderItem(CopyTemp(ItemData));
+				AddFolderItem(MoveTemp(ItemData));
 			}
 			else
 			{
@@ -1990,7 +1993,7 @@ void SPathView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUp
 
 			if (DoesItemPassFilter(ItemData))
 			{
-				AddFolderItem(CopyTemp(ItemData));
+				AddFolderItem(MoveTemp(ItemData));
 			}
 		}
 		break;
@@ -2246,6 +2249,7 @@ void SFavoritePathView::Populate(const bool bIsRefreshingFilter)
 			[this, &CompiledDataFilter](FContentBrowserItemData&& InItemData)
 				{
 					UContentBrowserDataSource* ItemDataSource = InItemData.GetOwnerDataSource();
+					ItemDataSource->ConvertItemForFilter(InItemData, CompiledDataFilter);
 					if (ItemDataSource->DoesItemPassFilter(InItemData, CompiledDataFilter))
 					{
 						if (TSharedPtr<FTreeItem> Item = AddFolderItem(MoveTemp(InItemData)))
@@ -2450,27 +2454,30 @@ void SFavoritePathView::HandleItemDataUpdated(TArrayView<const FContentBrowserIt
 
 	for (const FContentBrowserItemDataUpdate& ItemDataUpdate : InUpdatedItems)
 	{
-		const FContentBrowserItemData& ItemData = ItemDataUpdate.GetItemData();
-		if (!ItemData.IsFolder())
+		const FContentBrowserItemData& ItemDataRef = ItemDataUpdate.GetItemData();
+		if (!ItemDataRef.IsFolder())
 		{
 			continue;
 		}
 
 		ConditionalCompileFilter();
 
+		FContentBrowserItemData ItemData = ItemDataUpdate.GetItemData();
+		ItemData.GetOwnerDataSource()->ConvertItemForFilter(ItemData, CompiledDataFilter);
+
 		switch (ItemDataUpdate.GetUpdateType())
 		{
 		case EContentBrowserItemUpdateType::Added:
 			if (DoesItemPassFilter(ItemData))
 			{
-				AddFolderItem(CopyTemp(ItemData));
+				AddFolderItem(MoveTemp(ItemData));
 			}
 			break;
 
 		case EContentBrowserItemUpdateType::Modified:
 			if (DoesItemPassFilter(ItemData))
 			{
-				AddFolderItem(CopyTemp(ItemData));
+				AddFolderItem(MoveTemp(ItemData));
 			}
 			else
 			{
@@ -2485,7 +2492,7 @@ void SFavoritePathView::HandleItemDataUpdated(TArrayView<const FContentBrowserIt
 
 			if (DoesItemPassFilter(ItemData))
 			{
-				AddFolderItem(CopyTemp(ItemData));
+				AddFolderItem(MoveTemp(ItemData));
 			}
 
 			ContentBrowserUtils::RemoveFavoriteFolder(ItemDataUpdate.GetPreviousVirtualPath().ToString());

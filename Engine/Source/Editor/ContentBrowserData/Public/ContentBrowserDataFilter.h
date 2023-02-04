@@ -309,3 +309,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
 	bool bIncludeChildCollections = false;
 };
+
+
+/**
+ * Data used to tell the content browser to show the item that doesn't pass the class permission list as a unsupported asset
+ * @note This will restrict user interaction with those asset in the content browser and only affect the asset in the folders specified in the permission list
+ */
+USTRUCT()
+struct CONTENTBROWSERDATA_API FContentBrowserDataUnsupportedClassFilter
+{
+	GENERATED_BODY()
+
+public:
+	TSharedPtr<FPathPermissionList> ClassPermissionList;
+
+	TSharedPtr<FPathPermissionList> FolderPermissionList;
+};

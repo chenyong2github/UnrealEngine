@@ -267,6 +267,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bForceShowEngineContent = InArgs._ForceShowEngineContent;
 	bForceShowPluginContent = InArgs._ForceShowPluginContent;
 	bForceHideScrollbar = InArgs._ForceHideScrollbar;
+	bShowDisallowedAssetClassAsUnsupportedItems = InArgs._ShowDisallowedAssetClassAsUnsupportedItems;
 
 	bPendingUpdateThumbnails = false;
 	bShouldNotifyNextAssetSync = true;
@@ -1876,6 +1877,15 @@ FContentBrowserDataFilter SAssetView::CreateBackendDataFilter() const
 		| (IsShowingLocalizedContent() ? EContentBrowserItemAttributeFilter::IncludeLocalized : EContentBrowserItemAttributeFilter::IncludeNone);
 
 	TSharedPtr<FPathPermissionList> CombinedFolderPermissionList = ContentBrowserUtils::GetCombinedFolderPermissionList(FolderPermissionList, IsShowingReadOnlyFolders() ? nullptr : WritableFolderPermissionList);
+
+	if (bShowDisallowedAssetClassAsUnsupportedItems && AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
+	{
+		// The unsupported item will created as an unsupported asset item instead of normal asset item for the writable folders
+		FContentBrowserDataUnsupportedClassFilter& UnsupportedClassFilter = DataFilter.ExtraFilters.FindOrAddFilter<FContentBrowserDataUnsupportedClassFilter>();
+		UnsupportedClassFilter.ClassPermissionList = AssetClassPermissionList;
+		UnsupportedClassFilter.FolderPermissionList = WritableFolderPermissionList;
+	}
+
 	ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(BackendFilter, AssetClassPermissionList, CombinedFolderPermissionList, DataFilter);
 
 	if (bHasCollections && !SourcesData.IsDynamicCollection())
@@ -4772,13 +4782,13 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 	bool bRefreshView = false;
 	TSet<TSharedPtr<FAssetViewItem>> ItemsPendingInplaceFrontendFilter;
 
-	auto AddItem = [this, &ItemsPendingInplaceFrontendFilter](const FContentBrowserItemKey& InItemDataKey, const FContentBrowserItemData& InItemData)
+	auto AddItem = [this, &ItemsPendingInplaceFrontendFilter](const FContentBrowserItemKey& InItemDataKey, FContentBrowserItemData&& InItemData)
 	{
 		TSharedPtr<FAssetViewItem>& ItemToUpdate = AvailableBackendItems.FindOrAdd(InItemDataKey);
 		if (ItemToUpdate)
 		{
 			// Update the item
-			ItemToUpdate->AppendItemData(InItemData);
+			ItemToUpdate->AppendItemData(MoveTemp(InItemData));
 
 			// Update the custom column data
 			ItemToUpdate->CacheCustomColumns(CustomColumns, true, true, true);
@@ -4789,7 +4799,7 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 		}
 		else
 		{
-			ItemToUpdate = MakeShared<FAssetViewItem>(InItemData);
+			ItemToUpdate = MakeShared<FAssetViewItem>(MoveTemp(InItemData));
 
 			// This item is new so put it in the pending set to be processed over time
 			ItemsPendingFrontendFilter.Add(ItemToUpdate);
@@ -4827,38 +4837,51 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 		}
 	};
 
-	auto DoesItemPassBackendFilter = [this, &CompiledDataFilters](const FContentBrowserItemData& InItemData)
+	auto GetBackendFilterCompliantItem = [this, &CompiledDataFilters](const FContentBrowserItemData& InItemData, bool& bOutPassFilter)
 	{
 		UContentBrowserDataSource* ItemDataSource = InItemData.GetOwnerDataSource();
+		FContentBrowserItemData ItemData = InItemData;
 		for (const FContentBrowserDataCompiledFilter& DataFilter : CompiledDataFilters)
 		{
-			if (ItemDataSource->DoesItemPassFilter(InItemData, DataFilter))
+			// We only convert the item if this is the right filter for the data source
+			if (ItemDataSource->ConvertItemForFilter(ItemData, DataFilter))
 			{
-				return true;
+				bOutPassFilter = ItemDataSource->DoesItemPassFilter(ItemData, DataFilter);
+
+				return ItemData;
+			}
+
+			if (ItemDataSource->DoesItemPassFilter(ItemData, DataFilter))
+			{
+				bOutPassFilter = true;
+				return ItemData;
 			}
 		}
-		return false;
+
+		bOutPassFilter = false;
+		return ItemData;
 	};
 
 	// Process the main set of updates
 	for (const FContentBrowserItemDataUpdate& ItemDataUpdate : InUpdatedItems)
 	{
-		const FContentBrowserItemData& ItemData = ItemDataUpdate.GetItemData();
+		bool bItemPassFilter = false;
+		FContentBrowserItemData ItemData = GetBackendFilterCompliantItem(ItemDataUpdate.GetItemData(), bItemPassFilter);
 		const FContentBrowserItemKey ItemDataKey(ItemData);
 
 		switch (ItemDataUpdate.GetUpdateType())
 		{
 		case EContentBrowserItemUpdateType::Added:
-			if (DoesItemPassBackendFilter(ItemData))
+			if (bItemPassFilter)
 			{
-				AddItem(ItemDataKey, ItemData);
+				AddItem(ItemDataKey, MoveTemp(ItemData));
 			}
 			break;
 
 		case EContentBrowserItemUpdateType::Modified:
-			if (DoesItemPassBackendFilter(ItemData))
+			if (bItemPassFilter)
 			{
-				AddItem(ItemDataKey, ItemData);
+				AddItem(ItemDataKey, MoveTemp(ItemData));
 			}
 			else
 			{
@@ -4872,9 +4895,9 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 				const FContentBrowserItemKey OldItemDataKey(OldMinimalItemData);
 				RemoveItem(OldItemDataKey, OldMinimalItemData);
 
-				if (DoesItemPassBackendFilter(ItemData))
+				if (bItemPassFilter)
 				{
-					AddItem(ItemDataKey, ItemData);
+					AddItem(ItemDataKey, MoveTemp(ItemData));
 				}
 				else
 				{

@@ -245,6 +245,12 @@ bool UContentBrowserAssetDataSource::PopulateAssetFilterInputParams(FAssetFilter
 	Params.AssetDataFilter->ItemAttributeFilter = InFilter.ItemAttributeFilter;
 	Params.InternalPaths.Reset();
 
+	Params.UnsupportedClassFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataUnsupportedClassFilter>();
+	if (Params.UnsupportedClassFilter && Params.UnsupportedClassFilter->ClassPermissionList && Params.UnsupportedClassFilter->ClassPermissionList->HasFiltering())
+	{
+		Params.ConvertToUnsupportedAssetDataFilter = &Params.FilterList->FindOrAddFilter<FContentBrowserCompiledUnsupportedAssetDataFilter>();
+	}
+
 	return true;
 }
 
@@ -408,7 +414,7 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 	}
 
 	// If we are filtering all classes, then we can bail now as we won't return any content
-	if (Params.ClassPermissionList && Params.ClassPermissionList->IsDenyListAll())
+	if (Params.ClassPermissionList && Params.ClassPermissionList->IsDenyListAll() && !Params.UnsupportedClassFilter)
 	{
 		return false;
 	}
@@ -484,6 +490,30 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			CreateCompiledFilter(InclusiveFilter, CompiledInclusiveFilter);
 		}
 
+
+		// Add the backend class filtering to the unsupported asset filtering before the class permission are added
+		if (Params.ConvertToUnsupportedAssetDataFilter)
+		{
+			if (Params.UnsupportedClassFilter)
+			{
+				if (const FPathPermissionList* ClassPermissionList = Params.UnsupportedClassFilter->ClassPermissionList.Get())
+				{
+					if (ClassPermissionList->HasFiltering())
+					{
+						if (Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.IsEmpty())
+						{
+							Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.ClassPaths = CompiledInclusiveFilter.ClassPaths;
+						}
+						else
+						{
+							Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.ClassPaths = Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.ClassPaths.Intersect(CompiledInclusiveFilter.ClassPaths);
+						}
+					}
+				}
+			}
+		}
+
+
 		// Remove any inclusive paths that aren't under the set of internal paths that we want to enumerate
 		{
 			FARCompiledFilter CompiledInternalPathFilter;
@@ -522,6 +552,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				// No explicit paths given - just use the internal paths set
 				CompiledInclusiveFilter.PackagePaths = MoveTemp(CompiledInternalPathFilter.PackagePaths);
+			}
+		}
+
+		// Add the backend class filtering to the unsupported asset filtering before the class permission are added
+		if (Params.ConvertToUnsupportedAssetDataFilter)
+		{
+			if (Params.UnsupportedClassFilter)
+			{
+				if (const FPathPermissionList* ClassPermissionList = Params.UnsupportedClassFilter->ClassPermissionList.Get())
+				{
+					if (ClassPermissionList->HasFiltering())
+					{
+						Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.ClassPaths.Append(CompiledInclusiveFilter.ClassPaths);
+					}
+				}
 			}
 		}
 
@@ -574,7 +619,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				// Explicit classes given - remove anything not in the allow list class set
 				// If the classes resolve as empty then the combined filter will return nothing and can be skipped
 				CompiledInclusiveFilter.ClassPaths = CompiledInclusiveFilter.ClassPaths.Intersect(CompiledClassFilterAllowList.ClassPaths);
-				if (CompiledInclusiveFilter.ClassPaths.Num() == 0)
+				if (CompiledInclusiveFilter.ClassPaths.Num() == 0 && !Params.ConvertToUnsupportedAssetDataFilter)
 				{
 					return false;
 				}
@@ -682,7 +727,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (CompiledInclusiveFilter.ClassPaths.Num() > 0 && CompiledExclusiveFilter.ClassPaths.Num() > 0)
 		{
 			CompiledInclusiveFilter.ClassPaths = CompiledInclusiveFilter.ClassPaths.Difference(CompiledExclusiveFilter.ClassPaths);
-			if (CompiledInclusiveFilter.ClassPaths.Num() == 0)
+			if (CompiledInclusiveFilter.ClassPaths.Num() == 0 && !!Params.ConvertToUnsupportedAssetDataFilter)
 			{
 				return false;
 			}
@@ -713,6 +758,170 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Params.AssetDataFilter->bFilterExcludesAllAssets = false;
 	Params.AssetDataFilter->InclusiveFilter = MoveTemp(CompiledInclusiveFilter);
 	Params.AssetDataFilter->ExclusiveFilter = MoveTemp(CompiledExclusiveFilter);
+
+
+	// Compile the filter to show the unsupported items
+	if (Params.ConvertToUnsupportedAssetDataFilter)
+	{
+		if (Params.UnsupportedClassFilter)
+		{
+			if (const FPathPermissionList* ClassPermissionList = Params.UnsupportedClassFilter->ClassPermissionList.Get())
+			{
+				if (ClassPermissionList->HasFiltering())
+				{
+					// Create a Backend filter for the unsupported items
+					{
+						// Cache the existing class path
+						TSet<FTopLevelAssetPath> InclusiveClassPath = MoveTemp(Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.ClassPaths);
+						TSet<FTopLevelAssetPath> ExclusiveClassPath = MoveTemp(Params.ConvertToUnsupportedAssetDataFilter->ExclusiveFilter.ClassPaths);
+
+						// Remove temporally the class filtering from the asset data filter
+						TSet<FTopLevelAssetPath> AssetDataInclusiveClassPath = MoveTemp(Params.AssetDataFilter->InclusiveFilter.ClassPaths);
+						TSet<FTopLevelAssetPath> AssetDataExclusiveClassPath = MoveTemp(Params.AssetDataFilter->ExclusiveFilter.ClassPaths);
+
+						Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter = Params.AssetDataFilter->InclusiveFilter;
+						Params.ConvertToUnsupportedAssetDataFilter->ExclusiveFilter = Params.AssetDataFilter->ExclusiveFilter;
+
+						// Restore the class filtering
+						Params.AssetDataFilter->InclusiveFilter.ClassPaths = MoveTemp(AssetDataInclusiveClassPath);
+						Params.AssetDataFilter->ExclusiveFilter.ClassPaths = MoveTemp(AssetDataExclusiveClassPath);
+
+						Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.ClassPaths = MoveTemp(InclusiveClassPath);
+						Params.ConvertToUnsupportedAssetDataFilter->ExclusiveFilter.ClassPaths = MoveTemp(ExclusiveClassPath);
+					}
+
+					FPathPermissionList* FolderPermissionList = Params.UnsupportedClassFilter->FolderPermissionList.Get();
+
+					// Compile the inclusive filter for where to show the unsupported asset
+					{
+						FARCompiledFilter CompiledShowInclusiveFilter;
+
+						// Only show the unsupported asset in the specified folders
+						if (FolderPermissionList && FolderPermissionList->HasFiltering())
+						{
+							FARFilter ShowInclusiveFilter;
+
+							ShowInclusiveFilter.bRecursivePaths = true;
+
+							ShowInclusiveFilter.PackagePaths.Reserve(FolderPermissionList->GetAllowList().Num());
+							for (const auto& AllowListPair : ClassPermissionList->GetAllowList())
+							{
+								ShowInclusiveFilter.PackagePaths.Add(*(AllowListPair.Key));
+							}
+
+							Params.AssetRegistry->CompileFilter(ShowInclusiveFilter, CompiledShowInclusiveFilter);
+						}
+
+						if (CompiledShowInclusiveFilter.IsEmpty())
+						{
+							if (Params.ConvertToUnsupportedAssetDataFilter->ShowInclusiveFilter.PackagePaths.IsEmpty())
+							{
+								Params.ConvertToUnsupportedAssetDataFilter->ShowInclusiveFilter.PackagePaths = Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.PackagePaths;
+							}
+							else
+							{ 
+								Params.ConvertToUnsupportedAssetDataFilter->ShowInclusiveFilter.PackagePaths = Params.ConvertToUnsupportedAssetDataFilter->ShowInclusiveFilter.PackagePaths.Intersect(Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.PackagePaths);
+							}
+						}
+						else
+						{
+							CompiledInclusiveFilter.PackagePaths = CompiledShowInclusiveFilter.PackagePaths.Intersect(Params.ConvertToUnsupportedAssetDataFilter->InclusiveFilter.PackagePaths);
+
+							if (Params.ConvertToUnsupportedAssetDataFilter->ShowInclusiveFilter.PackagePaths.IsEmpty())
+							{
+								Params.ConvertToUnsupportedAssetDataFilter->ShowInclusiveFilter.PackagePaths = MoveTemp(CompiledInclusiveFilter.PackagePaths);
+							}
+							else
+							{
+								Params.ConvertToUnsupportedAssetDataFilter->ShowInclusiveFilter.PackagePaths = Params.ConvertToUnsupportedAssetDataFilter->ShowInclusiveFilter.PackagePaths.Intersect(CompiledInclusiveFilter.PackagePaths);
+							}
+						}
+					}
+
+					// Compile the exclusive filter for where to show the unsupported asset
+					{
+						FARCompiledFilter CompiledShowExclusiveFilter;
+
+						// Only show the unsupported asset in the specified folders
+						if (FolderPermissionList && FolderPermissionList->HasFiltering())
+						{
+							FARFilter ShowExclusiveFilter;
+
+							ShowExclusiveFilter.bRecursivePaths = true;
+
+							ShowExclusiveFilter.PackagePaths.Reserve(FolderPermissionList->GetDenyList().Num());
+							for (const auto& DenyListPair : ClassPermissionList->GetDenyList())
+							{
+								ShowExclusiveFilter.PackagePaths.Add(*(DenyListPair.Key));
+							}
+
+							Params.AssetRegistry->CompileFilter(ShowExclusiveFilter, CompiledShowExclusiveFilter);
+						}
+
+						CompiledShowExclusiveFilter.PackagePaths.Append(Params.ConvertToUnsupportedAssetDataFilter->ExclusiveFilter.PackagePaths);
+
+						if (Params.ConvertToUnsupportedAssetDataFilter->ShowExclusiveFilter.PackagePaths.IsEmpty())
+						{
+							Params.ConvertToUnsupportedAssetDataFilter->ShowExclusiveFilter.PackagePaths = MoveTemp(CompiledShowExclusiveFilter.PackagePaths);
+						}
+						else
+						{
+							Params.ConvertToUnsupportedAssetDataFilter->ShowExclusiveFilter.PackagePaths.Append(MoveTemp(CompiledShowExclusiveFilter.PackagePaths));
+						}
+					}
+
+
+					// Compile the convert if fail inclusive filter
+					if (!ClassPermissionList->GetAllowList().IsEmpty())
+					{
+						FARCompiledFilter CompiledConvertIfFailInclusiveFilter;
+						FARFilter ConvertIfFailInclusiveFilter;
+
+						// Remove any inclusive classes that aren't in the explicit allow list set
+						ConvertIfFailInclusiveFilter.ClassPaths.Reserve(ClassPermissionList->GetAllowList().Num());
+						for (const auto& AllowListPair : ClassPermissionList->GetAllowList())
+						{
+							ConvertIfFailInclusiveFilter.ClassPaths.Add(FTopLevelAssetPath(AllowListPair.Key));
+						}
+
+						Params.AssetRegistry->CompileFilter(ConvertIfFailInclusiveFilter, CompiledConvertIfFailInclusiveFilter);
+					
+
+						if (Params.ConvertToUnsupportedAssetDataFilter->ConvertIfFailInclusiveFilter.ClassPaths.Num() > 0)
+						{
+							// Explicit classes given - remove anything not in the allow list class set
+							// If the classes resolve as empty then the combined filter will return nothing and can be skipped
+							Params.ConvertToUnsupportedAssetDataFilter->ConvertIfFailInclusiveFilter.ClassPaths = Params.ConvertToUnsupportedAssetDataFilter->ConvertIfFailInclusiveFilter.ClassPaths.Intersect(CompiledConvertIfFailInclusiveFilter.ClassPaths);
+						}
+						else
+						{
+							// No explicit classes given - just use the allow list class set
+							Params.ConvertToUnsupportedAssetDataFilter->ConvertIfFailInclusiveFilter.ClassPaths = MoveTemp(CompiledConvertIfFailInclusiveFilter.ClassPaths);
+						}
+					}
+
+					// Compile the convert if fail exclusive filter
+					if (!ClassPermissionList->GetDenyList().IsEmpty())
+					{
+						FARCompiledFilter CompiledConvertIfFailExclusiveFilter;
+						FARFilter ConvertIfFailExclusiveFilter;
+
+						// Add any exclusive classes that are in the explicit DenyList set
+						ConvertIfFailExclusiveFilter.ClassPaths.Reserve(ClassPermissionList->GetDenyList().Num());
+						for (const auto& FilterPair : ClassPermissionList->GetDenyList())
+						{
+							ConvertIfFailExclusiveFilter.ClassPaths.Add(FTopLevelAssetPath(FilterPair.Key));
+						}
+
+
+						Params.AssetRegistry->CompileFilter(ConvertIfFailExclusiveFilter, CompiledConvertIfFailExclusiveFilter);
+
+						Params.ConvertToUnsupportedAssetDataFilter->ConvertIfFailExclusiveFilter.ClassPaths.Append(MoveTemp(CompiledConvertIfFailExclusiveFilter.ClassPaths));
+					}
+				}
+			}
+		}
+	}
 
 	return true;
 }
@@ -911,18 +1120,48 @@ void UContentBrowserAssetDataSource::EnumerateItemsMatchingFilter(const FContent
 			}
 		}
 
-		AssetRegistry->EnumerateAssets(AssetDataFilter->InclusiveFilter, [this, &InCallback, &AssetDataFilter](const FAssetData& AssetData)
+		if (const FContentBrowserCompiledUnsupportedAssetDataFilter* UnsupportedAssetDataFilter = FilterList->FindFilter<FContentBrowserCompiledUnsupportedAssetDataFilter>())
 		{
-			if (ContentBrowserAssetData::IsPrimaryAsset(AssetData))
+			// Using the show unsupported asset filter
+			AssetRegistry->EnumerateAssets(UnsupportedAssetDataFilter->InclusiveFilter, [this, &InCallback, &AssetDataFilter, UnsupportedAssetDataFilter](const FAssetData& AssetData)
 			{
-				const bool bPassesExclusiveFilter = AssetDataFilter->ExclusiveFilter.IsEmpty() || !AssetRegistry->IsAssetIncludedByFilter(AssetData, AssetDataFilter->ExclusiveFilter);
-				if (bPassesExclusiveFilter)
+				if (ContentBrowserAssetData::IsPrimaryAsset(AssetData) && AssetData.GetOptionalOuterPathName().IsNone())
 				{
-					return InCallback(CreateAssetFileItem(AssetData));
+					const bool bPassesExclusiveFilter = UnsupportedAssetDataFilter->ExclusiveFilter.IsEmpty() || !AssetRegistry->IsAssetIncludedByFilter(AssetData, UnsupportedAssetDataFilter->ExclusiveFilter);
+					if (bPassesExclusiveFilter)
+					{
+						// Should this asset be presented as unsupported
+						if (!(AssetRegistry->IsAssetIncludedByFilter(AssetData, UnsupportedAssetDataFilter->ConvertIfFailInclusiveFilter) && (UnsupportedAssetDataFilter->ConvertIfFailExclusiveFilter.IsEmpty() || AssetRegistry->IsAssetExcludedByFilter(AssetData, UnsupportedAssetDataFilter->ConvertIfFailExclusiveFilter))) // Do we fail the supported filter?
+							&& (AssetRegistry->IsAssetIncludedByFilter(AssetData, UnsupportedAssetDataFilter->ShowInclusiveFilter) && (UnsupportedAssetDataFilter->ShowExclusiveFilter.IsEmpty() || AssetRegistry->IsAssetExcludedByFilter(AssetData, UnsupportedAssetDataFilter->ShowExclusiveFilter)))) // Do we pass the show filter for the unsupported asset?
+						{
+							return InCallback(CreateUnsupportedAssetFileItem(AssetData));
+						}
+
+						// Normal item test it against the class filter
+						if ((AssetDataFilter->InclusiveFilter.ClassPaths.IsEmpty() || AssetDataFilter->InclusiveFilter.ClassPaths.Contains(AssetData.AssetClassPath)) && !AssetDataFilter->ExclusiveFilter.ClassPaths.Contains(AssetData.AssetClassPath))
+						{
+							return InCallback(CreateAssetFileItem(AssetData));
+						}
+					}
 				}
-			}
-			return true;
-		});
+				return true;
+			});
+		}
+		else
+		{
+			AssetRegistry->EnumerateAssets(AssetDataFilter->InclusiveFilter, [this, &InCallback, &AssetDataFilter](const FAssetData& AssetData)
+				{
+					if (ContentBrowserAssetData::IsPrimaryAsset(AssetData))
+					{
+						const bool bPassesExclusiveFilter = AssetDataFilter->ExclusiveFilter.IsEmpty() || !AssetRegistry->IsAssetIncludedByFilter(AssetData, AssetDataFilter->ExclusiveFilter);
+						if (bPassesExclusiveFilter)
+						{
+							return InCallback(CreateAssetFileItem(AssetData));
+						}
+					}
+					return true;
+				});
+		}
 	}
 }
 
@@ -1187,12 +1426,28 @@ bool UContentBrowserAssetDataSource::DoesItemPassFilter(const FContentBrowserIte
 	case EContentBrowserItemFlags::Type_File:
 		if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles) && !AssetDataFilter->bFilterExcludesAllAssets)
 		{
+			auto FilterWithAssetData = [this, AssetDataFilter](const FAssetData& InAssetData, const FARCompiledFilter& InclusiveFilter, const FARCompiledFilter& ExclusiveFilter) -> bool
+				{
+				// Must pass Inclusive AND !Exclusive, or be a CustomAsset
+				return (AssetRegistry->IsAssetIncludedByFilter(InAssetData, InclusiveFilter) // InclusiveFilter
+					&& (ExclusiveFilter.IsEmpty() || !AssetRegistry->IsAssetIncludedByFilter(InAssetData, ExclusiveFilter))) // ExclusiveFilter
+					|| AssetDataFilter->CustomSourceAssets.Contains(InAssetData); // CustomAsset
+				};
+
 			if (TSharedPtr<const FContentBrowserAssetFileItemDataPayload> AssetPayload = GetAssetFileItemPayload(InItem))
 			{
-				// Must pass Inclusive AND !Exclusive, or be a CustomAsset
-				return ((AssetDataFilter->InclusiveFilter.IsEmpty() || AssetRegistry->IsAssetIncludedByFilter(AssetPayload->GetAssetData(), AssetDataFilter->InclusiveFilter)) // InclusiveFilter
-					&& (AssetDataFilter->ExclusiveFilter.IsEmpty() || !AssetRegistry->IsAssetIncludedByFilter(AssetPayload->GetAssetData(), AssetDataFilter->ExclusiveFilter))) // ExclusiveFilter
-					|| AssetDataFilter->CustomSourceAssets.Contains(AssetPayload->GetAssetData()); // CustomAsset
+				return FilterWithAssetData(AssetPayload->GetAssetData(), AssetDataFilter->InclusiveFilter, AssetDataFilter->ExclusiveFilter);
+			}
+
+			if (TSharedPtr<const FContentBrowserUnsupportedAssetFileItemDataPayload> UnsupportedAssetPayload = GetUnsupportedAssetFileItemPayload(InItem))
+			{
+				if (const FContentBrowserCompiledUnsupportedAssetDataFilter* UnsupportedAssetFilter = FilterList->FindFilter<FContentBrowserCompiledUnsupportedAssetDataFilter>())
+				{
+					if (const FAssetData* AssetData = UnsupportedAssetPayload->GetAssetDataIfAvailable())
+					{
+						return FilterWithAssetData(*AssetData, UnsupportedAssetFilter->InclusiveFilter, UnsupportedAssetFilter->ExclusiveFilter);
+					}
+				}
 			}
 		}
 		break;
@@ -1201,6 +1456,47 @@ bool UContentBrowserAssetDataSource::DoesItemPassFilter(const FContentBrowserIte
 		break;
 	}
 	
+	return false;
+}
+
+bool UContentBrowserAssetDataSource::ConvertItemForFilter(FContentBrowserItemData& Item, const FContentBrowserDataCompiledFilter& InFilter)
+{
+	const FContentBrowserDataFilterList* FilterList = InFilter.CompiledFilters.Find(this);
+	if (!FilterList)
+	{
+		return false;
+	}
+
+	const FContentBrowserCompiledUnsupportedAssetDataFilter* UnsupportedAssetDataFilter = FilterList->FindFilter<FContentBrowserCompiledUnsupportedAssetDataFilter>();
+	if (!UnsupportedAssetDataFilter)
+	{
+		return false;
+	}
+
+	if (Item.GetOwnerDataSource() != this)
+	{
+		return false;
+	}
+
+	const FContentBrowserCompiledAssetDataFilter* AssetDataFilter = FilterList->FindFilter<FContentBrowserCompiledAssetDataFilter>();
+
+	if (TSharedPtr<const FContentBrowserAssetFileItemDataPayload> AssetPayload = GetAssetFileItemPayload(Item))
+	{
+		const FAssetData& AssetData = AssetPayload->GetAssetData();
+		if (AssetData.GetOptionalOuterPathName().IsNone() && ContentBrowserAssetData::IsPrimaryAsset(AssetData))
+		{
+			if (!AssetDataFilter || !AssetDataFilter->CustomSourceAssets.Contains(AssetData))
+			{
+				if (!(AssetRegistry->IsAssetIncludedByFilter(AssetData, UnsupportedAssetDataFilter->ConvertIfFailInclusiveFilter) && (UnsupportedAssetDataFilter->ConvertIfFailExclusiveFilter.IsEmpty() || AssetRegistry->IsAssetExcludedByFilter(AssetData, UnsupportedAssetDataFilter->ConvertIfFailExclusiveFilter))) // Do we fail the supported filter?
+					&& (AssetRegistry->IsAssetIncludedByFilter(AssetData, UnsupportedAssetDataFilter->ShowInclusiveFilter) && (UnsupportedAssetDataFilter->ShowExclusiveFilter.IsEmpty() || AssetRegistry->IsAssetExcludedByFilter(AssetData, UnsupportedAssetDataFilter->ShowExclusiveFilter)))) // Do we pass the show filter for the unsupported asset?
+				{
+					Item = CreateUnsupportedAssetFileItem(AssetData);
+					return true;
+				}
+			}
+		}
+	}
+
 	return false;
 }
 
@@ -1410,6 +1706,12 @@ bool UContentBrowserAssetDataSource::RenameItem(const FContentBrowserItemData& I
 
 bool UContentBrowserAssetDataSource::CanCopyItem(const FContentBrowserItemData& InItem, const FName InDestPath, FText* OutErrorMsg)
 {
+	if (!InItem.IsSupported())
+	{
+		ContentBrowserAssetData::SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_AssetIsNotSupported", "Asset {0} is not supported and it can't be copied"), InItem.GetDisplayName()));
+		return false;
+	}
+
 	// Cannot copy an item outside the paths known to this data source
 	FName InternalDestPath;
 	if (!TryConvertVirtualPathToInternal(InDestPath, InternalDestPath))
@@ -1436,6 +1738,12 @@ bool UContentBrowserAssetDataSource::CanCopyItem(const FContentBrowserItemData& 
 
 bool UContentBrowserAssetDataSource::CopyItem(const FContentBrowserItemData& InItem, const FName InDestPath)
 {
+	if (!InItem.IsSupported())
+	{
+		return false;
+	}
+
+
 	FName InternalDestPath;
 	if (!TryConvertVirtualPathToInternal(InDestPath, InternalDestPath))
 	{
@@ -1707,6 +2015,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return ContentBrowserAssetData::CreateAssetFileItem(this, VirtualizedPath, InAssetData);
 }
 
+FContentBrowserItemData UContentBrowserAssetDataSource::CreateUnsupportedAssetFileItem(const FAssetData& InAssetData)
+{
+	FName VirtualizedPath;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		TryConvertInternalPathToVirtual(InAssetData.ObjectPath, VirtualizedPath);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	return ContentBrowserAssetData::CreateUnsupportedAssetFileItem(this, VirtualizedPath, InAssetData);
+}
+
 TSharedPtr<const FContentBrowserAssetFolderItemDataPayload> UContentBrowserAssetDataSource::GetAssetFolderItemPayload(const FContentBrowserItemData& InItem) const
 {
 	return ContentBrowserAssetData::GetAssetFolderItemPayload(this, InItem);
@@ -1715,6 +2033,11 @@ TSharedPtr<const FContentBrowserAssetFolderItemDataPayload> UContentBrowserAsset
 TSharedPtr<const FContentBrowserAssetFileItemDataPayload> UContentBrowserAssetDataSource::GetAssetFileItemPayload(const FContentBrowserItemData& InItem) const
 {
 	return ContentBrowserAssetData::GetAssetFileItemPayload(this, InItem);
+}
+
+TSharedPtr<const FContentBrowserUnsupportedAssetFileItemDataPayload> UContentBrowserAssetDataSource::GetUnsupportedAssetFileItemPayload(const FContentBrowserItemData& InItem) const
+{
+	return ContentBrowserAssetData::GetUnsupportedAssetFileItemPayload(this, InItem);
 }
 
 void UContentBrowserAssetDataSource::OnAssetRegistryFileLoadProgress(const IAssetRegistry::FFileLoadProgressUpdateData& InProgressUpdateData)

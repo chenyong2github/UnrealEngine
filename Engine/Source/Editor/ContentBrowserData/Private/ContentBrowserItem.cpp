@@ -290,6 +290,12 @@ bool FContentBrowserItem::IsFile() const
 	return PrimaryItemData && PrimaryItemData->IsFile();
 }
 
+bool FContentBrowserItem::IsSupported() const
+{
+	const FContentBrowserItemData* PrimaryItemData = GetPrimaryInternalItem();
+	return PrimaryItemData && PrimaryItemData->IsSupported();
+}
+
 bool FContentBrowserItem::IsTemporary() const
 {
 	const FContentBrowserItemData* PrimaryItemData = GetPrimaryInternalItem();

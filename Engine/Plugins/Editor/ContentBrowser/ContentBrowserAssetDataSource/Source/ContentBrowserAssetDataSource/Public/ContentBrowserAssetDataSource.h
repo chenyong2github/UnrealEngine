@@ -13,6 +13,7 @@
 
 class FContentBrowserAssetFileItemDataPayload;
 class FContentBrowserAssetFolderItemDataPayload;
+class FContentBrowserUnsupportedAssetFileItemDataPayload;
 class FReply;
 struct FPropertyChangedEvent;
 
@@ -55,6 +56,25 @@ public:
 	TArray<FAssetData> CustomSourceAssets;
 };
 
+USTRUCT()
+struct CONTENTBROWSERASSETDATASOURCE_API FContentBrowserCompiledUnsupportedAssetDataFilter
+{
+	GENERATED_BODY()
+
+public:
+	// Filter that are used to determine if an asset is supported
+	FARCompiledFilter ConvertIfFailInclusiveFilter;
+	FARCompiledFilter ConvertIfFailExclusiveFilter;
+
+	// Filter for where to show or not the unsupported assets
+	FARCompiledFilter ShowInclusiveFilter;
+	FARCompiledFilter ShowExclusiveFilter;
+
+	// Standard asset filter modified for the need of the unsupported assets
+	FARCompiledFilter InclusiveFilter;
+	FARCompiledFilter ExclusiveFilter;
+};
+
 UCLASS()
 class CONTENTBROWSERASSETDATASOURCE_API UContentBrowserAssetDataSource : public UContentBrowserDataSource
 {
@@ -81,11 +101,16 @@ public:
 		const FContentBrowserDataClassFilter* ClassFilter = nullptr;
 		const FContentBrowserDataCollectionFilter* CollectionFilter = nullptr;
 
+		// Filter that convert showed items as unsupported items
+		const FContentBrowserDataUnsupportedClassFilter* UnsupportedClassFilter = nullptr;
+
 		const FPathPermissionList* PathPermissionList = nullptr;
 		const FPathPermissionList* ClassPermissionList = nullptr;
 
 		FContentBrowserDataFilterList* FilterList = nullptr;
 		FContentBrowserCompiledAssetDataFilter* AssetDataFilter = nullptr;
+		FContentBrowserCompiledUnsupportedAssetDataFilter* ConvertToUnsupportedAssetDataFilter = nullptr;
+		
 
 		bool bIncludeFolders = false;
 		bool bIncludeFiles = false;
@@ -177,6 +202,8 @@ public:
 	virtual bool CreateFolder(const FName InPath, FContentBrowserItemDataTemporaryContext& OutPendingItem) override;
 
 	virtual bool DoesItemPassFilter(const FContentBrowserItemData& InItem, const FContentBrowserDataCompiledFilter& InFilter) override;
+
+	virtual bool ConvertItemForFilter(FContentBrowserItemData& Item, const FContentBrowserDataCompiledFilter& InFilter) override;
 
 	virtual bool GetItemAttribute(const FContentBrowserItemData& InItem, const bool InIncludeMetaData, const FName InAttributeKey, FContentBrowserItemDataAttributeValue& OutAttributeValue) override;
 
@@ -282,9 +309,13 @@ private:
 
 	FContentBrowserItemData CreateAssetFileItem(const FAssetData& InAssetData);
 
+	FContentBrowserItemData CreateUnsupportedAssetFileItem(const FAssetData& InAssetData);
+
 	TSharedPtr<const FContentBrowserAssetFolderItemDataPayload> GetAssetFolderItemPayload(const FContentBrowserItemData& InItem) const;
 
 	TSharedPtr<const FContentBrowserAssetFileItemDataPayload> GetAssetFileItemPayload(const FContentBrowserItemData& InItem) const;
+
+	TSharedPtr<const FContentBrowserUnsupportedAssetFileItemDataPayload> GetUnsupportedAssetFileItemPayload(const FContentBrowserItemData& InItem) const;
 
 	bool CanHandleDragDropEvent(const FContentBrowserItemData& InItem, const FDragDropEvent& InDragDropEvent) const;
 

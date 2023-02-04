@@ -121,6 +121,7 @@ public:
 		, _ForceShowEngineContent(false)
 		, _ForceShowPluginContent(false)
 		, _ForceHideScrollbar(false)
+		, _ShowDisallowedAssetClassAsUnsupportedItems(false)
 		{}
 
 		/** Called to check if an asset should be filtered out by external code */
@@ -263,6 +264,9 @@ public:
 
 		/** Should always hide scrollbar (Removes scrollbar) */
 		SLATE_ARGUMENT(bool, ForceHideScrollbar)
+
+		/** Allow the asset view to display the hidden asset class as unsupported items */
+		SLATE_ARGUMENT(bool, ShowDisallowedAssetClassAsUnsupportedItems)
 
 		/** Called to check if an asset tag should be display in details view. */
 		SLATE_EVENT( FOnShouldDisplayAssetTag, OnAssetTagWantsToBeDisplayed )
@@ -1140,6 +1144,8 @@ private:
 
 	/** Initial set of item categories that this view should show - may be adjusted further by things like CanShowClasses or legacy delegate bindings */
 	EContentBrowserItemCategoryFilter InitialCategoryFilter;
+
+	bool bShowDisallowedAssetClassAsUnsupportedItems = false;
 
 	/** A struct to hold data for the deferred creation of a file or folder item */
 	struct FCreateDeferredItemData
