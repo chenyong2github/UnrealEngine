@@ -634,27 +634,6 @@ inline void FRWShaderParameter::UnsetUAV(TRHICmdList& RHICmdList, FRHIComputeSha
 	SetUAVParameter(RHICmdList, ComputeShader,UAVParameter,FUnorderedAccessViewRHIRef());
 }
 
-
-/** Sets the value of a shader uniform buffer parameter to a uniform buffer containing the struct. */
-template<typename TShaderRHIRef, typename TRHICmdList>
-UE_DEPRECATED(5.1, "Local uniform buffers are now deprecated. Use SetUniformBufferParameter instead.")
-inline void SetLocalUniformBufferParameter(
-	TRHICmdList& RHICmdList,
-	const TShaderRHIRef& Shader,
-	const FShaderUniformBufferParameter& Parameter,
-	const FLocalUniformBuffer& LocalUniformBuffer
-	)
-{
-	// This will trigger if the parameter was not serialized
-	checkSlow(Parameter.IsInitialized());
-	if(Parameter.IsBound())
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RHICmdList.SetLocalShaderUniformBuffer(Shader, Parameter.GetBaseIndex(), LocalUniformBuffer);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
 /** Sets the value of a shader uniform buffer parameter to a uniform buffer containing the struct. */
 template<typename TShaderRHIRef, typename TRHICmdList>
 inline void SetUniformBufferParameter(

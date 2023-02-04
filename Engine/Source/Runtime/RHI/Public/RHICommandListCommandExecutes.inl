@@ -457,39 +457,6 @@ void FRHICommandSetStaticUniformBuffers::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR_COMPUTE(RHISetStaticUniformBuffers)(UniformBuffers);
 }
 
-void FRHICommandBuildLocalUniformBuffer::Execute(FRHICommandListBase& CmdList)
-{
-	LLM_SCOPE(ELLMTag::Shaders);
-	RHISTAT(BuildLocalUniformBuffer);
-	check(!IsValidRef(WorkArea.ComputedUniformBuffer->UniformBuffer)); // should not already have been created
-	check(WorkArea.Layout);
-	check(WorkArea.Contents); 
-	if (WorkArea.ComputedUniformBuffer->UseCount)
-	{
-		WorkArea.ComputedUniformBuffer->UniformBuffer = GDynamicRHI->RHICreateUniformBuffer(WorkArea.Contents, WorkArea.Layout, UniformBuffer_SingleFrame, EUniformBufferValidation::ValidateResources);
-	}
-	WorkArea.Layout = nullptr;
-	WorkArea.Contents = nullptr;
-}
-
-template <typename TRHIShader>
-void FRHICommandSetLocalUniformBuffer<TRHIShader>::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetLocalUniformBuffer);
-	check(LocalUniformBuffer.WorkArea->ComputedUniformBuffer->UseCount > 0 && IsValidRef(LocalUniformBuffer.WorkArea->ComputedUniformBuffer->UniformBuffer)); // this should have been created and should have uses outstanding
-	INTERNAL_DECORATOR(RHISetShaderUniformBuffer)(Shader, BaseIndex, LocalUniformBuffer.WorkArea->ComputedUniformBuffer->UniformBuffer);
-	if (--LocalUniformBuffer.WorkArea->ComputedUniformBuffer->UseCount == 0)
-	{
-		LocalUniformBuffer.WorkArea->ComputedUniformBuffer->~FComputedUniformBuffer();
-	}
-}
-
-template struct FRHICommandSetLocalUniformBuffer<FRHIVertexShader>;
-template struct FRHICommandSetLocalUniformBuffer<FRHIGeometryShader>;
-template struct FRHICommandSetLocalUniformBuffer<FRHIPixelShader>;
-template struct FRHICommandSetLocalUniformBuffer<FRHIComputeShader>;
-template struct FRHICommandSetLocalUniformBuffer<FRHIMeshShader>;
-
 void FRHICommandBeginRenderQuery::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BeginRenderQuery);

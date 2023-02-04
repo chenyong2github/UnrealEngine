@@ -1412,93 +1412,6 @@ private:
 /** Descriptor used to create a texture resource */
 struct RHI_API FRHITextureDesc
 {
-	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
-	static FRHITextureDesc Create2D(
-		  FIntPoint           Size
-		, EPixelFormat        Format
-		, FClearValueBinding  ClearValue
-		, ETextureCreateFlags Flags
-		, uint8               NumMips    = 1
-		, uint8               NumSamples = 1
-		, uint32              ExtData    = 0
-		)
-	{
-		const uint16 Depth     = 1;
-		const uint16 ArraySize = 1;
-		return FRHITextureDesc(ETextureDimension::Texture2D, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
-	}
-
-	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
-	static FRHITextureDesc Create2DArray(
-		  FIntPoint           Size
-		, EPixelFormat        Format
-		, FClearValueBinding  ClearValue
-		, ETextureCreateFlags Flags
-		, uint16              ArraySize
-		, uint8               NumMips    = 1
-		, uint8               NumSamples = 1
-		, uint32              ExtData    = 0
-		)
-	{
-		const uint16 Depth   = 1;
-		return FRHITextureDesc(ETextureDimension::Texture2DArray, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
-	}
-
-	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
-	static FRHITextureDesc Create3D(
-		  FIntVector          Size
-		, EPixelFormat        Format
-		, FClearValueBinding  ClearValue
-		, ETextureCreateFlags Flags
-		, uint8               NumMips    = 1
-		, uint32              ExtData    = 0
-		)
-	{
-		const uint16 Depth = (uint16)Size.Z;
-		const uint16 ArraySize  = 1;
-		const uint16 LocalNumSamples = 1;
-
-		checkf(Size.Z <= TNumericLimits<decltype(FRHITextureDesc::Depth)>::Max(), TEXT("Depth parameter (Size.Z) exceeds valid range"));
-
-		return FRHITextureDesc(ETextureDimension::Texture3D, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, LocalNumSamples, ExtData);
-	}
-
-	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
-	static FRHITextureDesc CreateCube(
-		  uint32              Size
-		, EPixelFormat        Format
-		, FClearValueBinding  ClearValue
-		, ETextureCreateFlags Flags
-		, uint8               NumMips    = 1
-		, uint8               NumSamples = 1
-		, uint32              ExtData    = 0
-		)
-	{
-		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
-
-		const uint16 Depth     = 1;
-		const uint16 ArraySize = 1;
-		return FRHITextureDesc(ETextureDimension::TextureCube, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
-	}
-
-	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
-	static FRHITextureDesc CreateCubeArray(
-		  uint32              Size
-		, EPixelFormat        Format
-		, FClearValueBinding  ClearValue
-		, ETextureCreateFlags Flags
-		, uint16              ArraySize
-		, uint8               NumMips    = 1
-		, uint8               NumSamples = 1
-		, uint32              ExtData    = 0
-		)
-	{
-		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
-
-		const uint16 Depth   = 1;
-		return FRHITextureDesc(ETextureDimension::TextureCubeArray, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
-	}
-
 	FRHITextureDesc()
 		: NumSamples(1)
 		, Dimension(ETextureDimension::Texture2D)
@@ -1532,33 +1445,6 @@ struct RHI_API FRHITextureDesc
 		, NumSamples(InNumSamples)
 		, Dimension (InDimension )
 		, Format    (InFormat    )
-	{}
-
-	UE_DEPRECATED(5.1, "Prefer using FRHITextureCreateDesc rather than this FRHITextureDesc constructor. Otherwise use the FRHITextureDesc constructor that does not take optional arguments.")
-	FRHITextureDesc(
-		  ETextureDimension   InDimension
-		, ETextureCreateFlags InFlags
-		, EPixelFormat        InFormat
-		, FIntPoint           InExtent
-		, FClearValueBinding  InClearValue
-		, uint16              InDepth      = 1
-		, uint16              InArraySize  = 1
-		, uint8               InNumMips    = 1
-		, uint8               InNumSamples = 1
-		, uint32              InExtData    = 0
-		)
-		: FRHITextureDesc(
-		  InDimension
-		, InFlags
-		, InFormat
-		, InClearValue
-		, InExtent
-		, InDepth
-		, InArraySize
-		, InNumMips
-		, InNumSamples
-		, InExtData
-		)
 	{}
 
 	friend uint32 GetTypeHash(const FRHITextureDesc& Desc)
@@ -3826,9 +3712,6 @@ struct FRHIRenderPassInfo
 	// Controls the area for a multisample resolve or raster UAV (i.e. no fixed-function targets) operation.
 	FResolveRect ResolveRect;
 
-	UE_DEPRECATED(5.1, "ResolveParameters is deprecated. Use ResolveRect")
-	FResolveParams ResolveParameters;
-
 	// Some RHIs can use a texture to control the sampling and/or shading resolution of different areas 
 	FTextureRHIRef ShadingRateTexture = nullptr;
 	EVRSRateCombiner ShadingRateTextureCombiner = VRSRB_Passthrough;
@@ -3843,11 +3726,9 @@ struct FRHIRenderPassInfo
 	// Hint for some RHI's that renderpass will have specific sub-passes 
 	ESubpassHint SubpassHint = ESubpassHint::None;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FRHIRenderPassInfo() = default;
 	FRHIRenderPassInfo(const FRHIRenderPassInfo&) = default;
 	FRHIRenderPassInfo& operator=(const FRHIRenderPassInfo&) = default;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Color, no depth, optional resolve, optional mip, optional array slice
 	explicit FRHIRenderPassInfo(FRHITexture* ColorRT, ERenderTargetActions ColorAction, FRHITexture* ResolveRT = nullptr, uint8 InMipIndex = 0, int32 InArraySlice = -1)
@@ -4095,22 +3976,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	RHI_API void Validate() const {}
 #endif
 	RHI_API void ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& OutRTInfo) const;
-
-	//////////////////////////////////////////////////////////////////////////
-	// Deprecated
-	//////////////////////////////////////////////////////////////////////////
-
-	UE_DEPRECATED(5.1, "IsMSAA is deprecated.")
-	inline bool IsMSAA() const { return false; }
-
-	UE_DEPRECATED(5.1, "bIsMSAA is deprecated")
-	bool bIsMSAA = false;
-
-	UE_DEPRECATED(5.1, "bTooManyUAVs is deprecated")
-	bool bTooManyUAVs = false;
-
-	UE_DEPRECATED(5.1, "bGeneratingMips is deprecated")
-	bool bGeneratingMips = false;
 };
 
 /** Used to specify a texture metadata plane when creating a view. */

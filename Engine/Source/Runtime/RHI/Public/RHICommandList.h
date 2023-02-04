@@ -668,12 +668,6 @@ public:
 	//
 	void FinishRecording();
 
-	UE_DEPRECATED(5.1, "Call FinishRecording instead.")
-	void HandleRTThreadTaskCompletion(const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		FinishRecording();
-	}
-
 	void SetCurrentStat(TStatId Stat);
 
 	FORCEINLINE_DEBUGGABLE void* Alloc(int64 AllocSize, int64 Alignment)
@@ -1928,94 +1922,6 @@ FRHICOMMAND_MACRO(FRHICommandSetStaticUniformBuffers)
 	{}
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-struct FComputedUniformBuffer
-{
-	FUniformBufferRHIRef UniformBuffer;
-	mutable int32 UseCount;
-	FComputedUniformBuffer()
-		: UseCount(0)
-	{
-	}
-};
-
-struct FLocalUniformBufferWorkArea
-{
-	void* Contents;
-	FUniformBufferLayoutRHIRef Layout;
-	FComputedUniformBuffer* ComputedUniformBuffer;
-#if DO_CHECK || USING_CODE_ANALYSIS // the below variables are used in check(), which can be enabled in Shipping builds (see Build.h)
-	FRHICommandListBase* CheckCmdList;
-	int32 UID;
-#endif
-
-	FLocalUniformBufferWorkArea(FRHICommandListBase* InCheckCmdList, const void* InContents, uint32 ContentsSize, const FRHIUniformBufferLayout* InLayout)
-		: Layout(InLayout)
-#if DO_CHECK || USING_CODE_ANALYSIS
-		, CheckCmdList(InCheckCmdList)
-		, UID(InCheckCmdList->GetUID())
-#endif
-	{
-		check(ContentsSize);
-		Contents = InCheckCmdList->Alloc(ContentsSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
-		FMemory::Memcpy(Contents, InContents, ContentsSize);
-		ComputedUniformBuffer = new (InCheckCmdList->Alloc<FComputedUniformBuffer>()) FComputedUniformBuffer;
-	}
-};
-
-struct FLocalUniformBuffer
-{
-	FLocalUniformBufferWorkArea* WorkArea;
-	FUniformBufferRHIRef BypassUniform; // this is only used in the case of Bypass, should eventually be deleted
-	FLocalUniformBuffer()
-		: WorkArea(nullptr)
-	{
-	}
-	FLocalUniformBuffer(const FLocalUniformBuffer& Other)
-		: WorkArea(Other.WorkArea)
-		, BypassUniform(Other.BypassUniform)
-	{
-	}
-	FORCEINLINE_DEBUGGABLE bool IsValid() const
-	{
-		return WorkArea || IsValidRef(BypassUniform);
-	}
-};
-
-FRHICOMMAND_MACRO(FRHICommandBuildLocalUniformBuffer)
-{
-	FLocalUniformBufferWorkArea WorkArea;
-	FORCEINLINE_DEBUGGABLE FRHICommandBuildLocalUniformBuffer(
-		FRHICommandListBase* CheckCmdList,
-		const void* Contents,
-		uint32 ContentsSize,
-		const FRHIUniformBufferLayout* Layout
-		)
-		: WorkArea(CheckCmdList, Contents, ContentsSize, Layout)
-
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO_TPL(TRHIShader, FRHICommandSetLocalUniformBuffer)
-{
-	TRHIShader* Shader;
-	uint32 BaseIndex;
-	FLocalUniformBuffer LocalUniformBuffer;
-	FORCEINLINE_DEBUGGABLE FRHICommandSetLocalUniformBuffer(FRHICommandListBase* CheckCmdList, TRHIShader* InShader, uint32 InBaseIndex, const FLocalUniformBuffer& InLocalUniformBuffer)
-		: Shader(InShader)
-		, BaseIndex(InBaseIndex)
-		, LocalUniformBuffer(InLocalUniformBuffer)
-
-	{
-		check(CheckCmdList == LocalUniformBuffer.WorkArea->CheckCmdList && CheckCmdList->GetUID() == LocalUniformBuffer.WorkArea->UID); // this uniform buffer was not built for this particular commandlist
-		LocalUniformBuffer.WorkArea->ComputedUniformBuffer->UseCount++;
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 FRHICOMMAND_MACRO(FRHICommandBeginRenderQuery)
 {
 	FRHIRenderQuery* RenderQuery;
@@ -2465,42 +2371,6 @@ public:
 		SetShaderUniformBuffer(Shader.GetReference(), BaseIndex, UniformBuffer);
 	}
 
-	UE_DEPRECATED(5.1, "Local uniform buffers are now deprecated. Use RHICreateUniformBuffer instead.")
-	FORCEINLINE_DEBUGGABLE FLocalUniformBuffer BuildLocalUniformBuffer(const void* Contents, uint32 ContentsSize, const FRHIUniformBufferLayout* Layout)
-	{
-		FLocalUniformBuffer Result;
-		if (Bypass())
-		{
-			Result.BypassUniform = RHICreateUniformBuffer(Contents, Layout, UniformBuffer_SingleFrame);
-		}
-		else
-		{
-			check(Contents && ContentsSize && (&Layout != nullptr));
-			auto* Cmd = ALLOC_COMMAND(FRHICommandBuildLocalUniformBuffer)(this, Contents, ContentsSize, Layout);
-			Result.WorkArea = &Cmd->WorkArea;
-		}
-		return Result;
-	}
-
-	template <typename TRHIShader>
-	UE_DEPRECATED(5.1, "Local uniform buffers are now deprecated. Use RHICreateUniformBuffer instead.")
-	FORCEINLINE_DEBUGGABLE void SetLocalShaderUniformBuffer(TRHIShader* Shader, uint32 BaseIndex, const FLocalUniformBuffer& UniformBuffer)
-	{
-		ValidateBoundShader(Shader);
-		if (Bypass())
-		{
-			GetContext().RHISetShaderUniformBuffer(Shader, BaseIndex, UniformBuffer.BypassUniform);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandSetLocalUniformBuffer<TRHIShader>)(this, Shader, BaseIndex, UniformBuffer);
-	}
-
-	template <typename TShaderRHI>
-	FORCEINLINE_DEBUGGABLE void SetLocalShaderUniformBuffer(const TRefCountPtr<TShaderRHI>& Shader, uint32 BaseIndex, const FLocalUniformBuffer& UniformBuffer)
-	{
-		SetLocalShaderUniformBuffer(Shader.GetReference(), BaseIndex, UniformBuffer);
-	}
-
 	FORCEINLINE_DEBUGGABLE void SetShaderParameters(
 		FRHIComputeShader* InShader
 		, TConstArrayView<uint8> InParametersData
@@ -2906,22 +2776,6 @@ public:
 		}
 
 		Transition(Infos);
-	}
-
-	UE_DEPRECATED(5.1, "TransitionResourceArrayNoCopy is deprecated. Use Transition instead.")
-	FORCEINLINE_DEBUGGABLE void TransitionResourceArrayNoCopy(ERHIAccess TransitionType, TArray<FRHITexture*>& InTextures)
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TransitionResources(TransitionType, &InTextures[0], InTextures.Num());
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UE_DEPRECATED(5.1, "WaitComputeFence is deprecated. Use RHI transitions instead.")
-	FORCEINLINE_DEBUGGABLE void WaitComputeFence(FRHIComputeFence* WaitFence)
-	{
-		check(WaitFence->Transition);
-		EndTransitions(MakeArrayView(&WaitFence->Transition, 1));
-		WaitFence->Transition = nullptr;
 	}
 
 	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap()
@@ -4484,24 +4338,6 @@ public:
 	{
 		return RHICreateUniformBuffer(Contents, Layout, Usage);
 	}
-
-	UE_DEPRECATED(5.1, "Use CreateBuffer and LockBuffer separately")
-	FORCEINLINE FBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
-	{
-		FBufferRHIRef IndexBuffer = CreateBuffer(Size, InUsage | BUF_IndexBuffer, Stride, InResourceState, CreateInfo);
-		OutDataBuffer = LockBuffer(IndexBuffer, 0, Size, RLM_WriteOnly);
-		return IndexBuffer;
-	}
-
-	UE_DEPRECATED(5.1, "Use CreateBuffer and LockBuffer separately")
-	FORCEINLINE FBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
-	{
-		EBufferUsageFlags Usage = InUsage | BUF_IndexBuffer;
-		ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, true);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return CreateAndLockIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo, OutDataBuffer);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 	
 	FORCEINLINE void* LockStagingBuffer(FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI)
 	{
@@ -4511,24 +4347,6 @@ public:
 	FORCEINLINE void UnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 	{
 		GDynamicRHI->UnlockStagingBuffer_RenderThread(*this, StagingBuffer);
-	}
-
-	UE_DEPRECATED(5.1, "Use CreateBuffer and LockBuffer separately")
-	FORCEINLINE FBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
-	{
-		FBufferRHIRef VertexBuffer = CreateBuffer(Size, InUsage | BUF_VertexBuffer, 0, InResourceState, CreateInfo);
-		OutDataBuffer = LockBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
-		return VertexBuffer;
-	}
-
-	UE_DEPRECATED(5.1, "Use CreateBuffer and LockBuffer separately")
-	FORCEINLINE FBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
-	{
-		EBufferUsageFlags Usage = InUsage | BUF_VertexBuffer;
-		ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, true);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return CreateAndLockVertexBuffer(Size, Usage, ResourceState, CreateInfo, OutDataBuffer);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FORCEINLINE void CopyBuffer(FRHIBuffer* SourceBuffer, FRHIBuffer* DestBuffer)
@@ -4604,30 +4422,6 @@ public:
 	{
 		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateShaderResourceView"));
 		return GDynamicRHI->CreateShaderResourceView_RenderThread(*this, Initializer);
-	}
-	
-	UE_DEPRECATED(5.1, "The CalcTexture... functions on the immediate RHI command list are deprecated. Use the global scope RHICalcTexturePlatformSize instead.")
-	FORCEINLINE uint64 CalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return RHICalcTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo, OutAlign);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	
-	UE_DEPRECATED(5.1, "The CalcTexture... functions on the immediate RHI command list are deprecated. Use the global scope RHICalcTexturePlatformSize instead.")
-	FORCEINLINE uint64 CalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo, OutAlign);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	
-	UE_DEPRECATED(5.1, "The CalcTexture... functions on the immediate RHI command list are deprecated. Use the global scope RHICalcTexturePlatformSize instead.")
-	FORCEINLINE uint64 CalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return RHICalcTextureCubePlatformSize(Size, Format, NumMips, Flags, CreateInfo, OutAlign);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	
 	UE_DEPRECATED(5.2, "Use the global scope RHIGetTextureMemoryStats function.")
@@ -4940,12 +4734,6 @@ public:
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_IsRenderingSuspended_Flush);
 		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
 		return GDynamicRHI->RHIIsRenderingSuspended();
-	}
-
-	UE_DEPRECATED(5.1, "No longer used: FCompression::UncompressMemory should be used instead")
-	FORCEINLINE bool EnqueueDecompress(uint8_t* SrcBuffer, uint8_t* DestBuffer, int CompressedSize, void* ErrorCodeBuffer)
-	{
-		return false;
 	}
 
 	UE_DEPRECATED(5.2, "Use the global scope RHIGetAvailableResolutions function.")
@@ -5377,30 +5165,12 @@ FORCEINLINE FBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, EBuff
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage | EBufferUsageFlags::IndexBuffer, Stride, ResourceState, CreateInfo);
 }
 
-UE_DEPRECATED(5.1, "RHIAsyncCreateIndexBuffer is deprecated. Use FRHICommandList::CreateBuffer instead.")
-FORCEINLINE FBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
-{
-	check(IsInRenderingThread());
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage, Stride, ResourceState, CreateInfo);
-}
-
 FORCEINLINE FBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
 	EBufferUsageFlags Usage = InUsage | EBufferUsageFlags::IndexBuffer;
 	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
 	return RHICreateIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo);
-}
-
-UE_DEPRECATED(5.1, "RHIAsyncCreateIndexBuffer is deprecated. Use FRHICommandList::CreateBuffer instead.")
-FORCEINLINE FBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo)
-{
-	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	EBufferUsageFlags Usage = InUsage | EBufferUsageFlags::IndexBuffer;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RHIAsyncCreateIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FORCEINLINE void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
@@ -5414,30 +5184,12 @@ FORCEINLINE FBufferRHIRef RHICreateVertexBuffer(uint32 Size, EBufferUsageFlags U
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage | EBufferUsageFlags::VertexBuffer, 0, ResourceState, CreateInfo);
 }
 
-UE_DEPRECATED(5.1, "RHIAsyncCreateVertexBuffer is deprecated. Use FRHICommandList::CreateBuffer instead.")
-FORCEINLINE FBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
-{
-	check(IsInRenderingThread());
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage, 0, ResourceState, CreateInfo);
-}
-
 FORCEINLINE FBufferRHIRef RHICreateVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
 	EBufferUsageFlags Usage = InUsage | EBufferUsageFlags::VertexBuffer;
 	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
 	return RHICreateVertexBuffer(Size, Usage, ResourceState, CreateInfo);
-}
-
-UE_DEPRECATED(5.1, "RHIAsyncCreateVertexBuffer is deprecated. Use FRHICommandList::CreateBuffer instead.")
-FORCEINLINE FBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo)
-{
-	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	EBufferUsageFlags Usage = InUsage | EBufferUsageFlags::VertexBuffer;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RHIAsyncCreateVertexBuffer(Size, Usage, ResourceState, CreateInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FORCEINLINE FBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
@@ -5537,32 +5289,6 @@ FORCEINLINE FTextureRHIRef RHICreateTexture(const FRHITextureCreateDesc& CreateD
 	return GDynamicRHI->RHICreateTexture_RenderThread(RHICmdList, CreateDesc);
 }
 
-UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
-{
-	return RHICreateTexture(
-		FRHITextureCreateDesc::Create2D(CreateInfo.DebugName)
-			.SetExtent((int32)SizeX, (int32)SizeY)
-			.SetFormat((EPixelFormat)Format)
-			.SetNumMips((uint8)NumMips)
-			.SetNumSamples((uint8)NumSamples)
-			.SetFlags(Flags)
-			.SetInitialState(ResourceState)
-			.SetExtData(CreateInfo.ExtData)
-			.SetBulkData(CreateInfo.BulkData)
-			.SetGPUMask(CreateInfo.GPUMask)
-			.SetClearValue(CreateInfo.ClearValueBinding)
-	);
-}
-
-UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTexture2DRHIRef RHICreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess ResourceState, const  FRHIResourceCreateInfo& CreateInfo)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags | ETextureCreateFlags::External, ResourceState, CreateInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 //UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips)
 {
@@ -5571,131 +5297,11 @@ FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY,
 	return GDynamicRHI->RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, ResourceState, InitialMipData, NumInitialMips);
 }
 
-UE_DEPRECATED(5.1, "FRHITexture2DArray is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
-{
-	return RHICreateTexture(
-		FRHITextureCreateDesc::Create2DArray(CreateInfo.DebugName)
-			.SetExtent((int32)SizeX, (int32)SizeY)
-			.SetArraySize((uint16)ArraySize)
-			.SetFormat((EPixelFormat)Format)
-			.SetNumMips((uint8)NumMips)
-			.SetNumSamples((uint8)NumSamples)
-			.SetFlags(Flags)
-			.SetInitialState(ResourceState)
-			.SetExtData(CreateInfo.ExtData)
-			.SetBulkData(CreateInfo.BulkData)
-			.SetGPUMask(CreateInfo.GPUMask)
-			.SetClearValue(CreateInfo.ClearValueBinding)
-	);
-}
-
-UE_DEPRECATED(5.1, "FRHITexture3D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
-{
-	return RHICreateTexture(
-		FRHITextureCreateDesc::Create3D(CreateInfo.DebugName)
-			.SetExtent((int32)SizeX, (int32)SizeY)
-			.SetDepth((uint16)SizeZ)
-			.SetFormat((EPixelFormat)Format)
-			.SetNumMips((uint8)NumMips)
-			.SetFlags(Flags)
-			.SetInitialState(ResourceState)
-			.SetExtData(CreateInfo.ExtData)
-			.SetBulkData(CreateInfo.BulkData)
-			.SetGPUMask(CreateInfo.GPUMask)
-			.SetClearValue(CreateInfo.ClearValueBinding)
-	);
-}
-
-UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTextureCubeRHIRef RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
-{
-	return RHICreateTexture(
-		FRHITextureCreateDesc::CreateCube(CreateInfo.DebugName)
-			.SetExtent(Size)
-			.SetFormat((EPixelFormat)Format)
-			.SetNumMips((uint8)NumMips)
-			.SetFlags(Flags)
-			.SetInitialState(ResourceState)
-			.SetExtData(CreateInfo.ExtData)
-			.SetBulkData(CreateInfo.BulkData)
-			.SetGPUMask(CreateInfo.GPUMask)
-			.SetClearValue(CreateInfo.ClearValueBinding)
-	);
-}
-
-UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTextureCubeRHIRef RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
-{
-	return RHICreateTexture(
-		FRHITextureCreateDesc::CreateCubeArray(CreateInfo.DebugName)
-			.SetExtent(Size)
-			.SetArraySize((uint16)ArraySize)
-			.SetFormat((EPixelFormat)Format)
-			.SetNumMips((uint8)NumMips)
-			.SetFlags(Flags)
-			.SetInitialState(ResourceState)
-			.SetExtData(CreateInfo.ExtData)
-			.SetBulkData(CreateInfo.BulkData)
-			.SetGPUMask(CreateInfo.GPUMask)
-			.SetClearValue(CreateInfo.ClearValueBinding)
-	);
-}
-
-UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, ERHIAccess::Unknown, CreateInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTexture2DRHIRef RHICreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RHICreateTextureExternal2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, ERHIAccess::Unknown, CreateInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 //UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, void** InitialMipData, uint32 NumInitialMips)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, ERHIAccess::Unknown, InitialMipData, NumInitialMips);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-UE_DEPRECATED(5.1, "FRHITexture2DArray is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, ERHIAccess::Unknown, CreateInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-UE_DEPRECATED(5.1, "FRHITexture3D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags, ERHIAccess::Unknown, CreateInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTextureCubeRHIRef RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RHICreateTextureCube(Size, Format, NumMips, Flags, ERHIAccess::Unknown, CreateInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTextureCubeRHIRef RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RHICreateTextureCubeArray(Size, ArraySize, Format, NumMips, Flags, ERHIAccess::Unknown, CreateInfo);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
