@@ -65,9 +65,10 @@ namespace Horde.Build.Logs
 		/// </summary>
 		/// <param name="logFileInterface">The current log file</param>
 		/// <param name="lineCount">New line count for the log file</param>
+		/// <param name="complete">Flag indicating whether the log is complete, or can still be tailed for additional data</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>The updated log file document</returns>
-		Task<ILogFile> UpdateLineCountAsync(ILogFile logFileInterface, int lineCount, CancellationToken cancellationToken);
+		Task<ILogFile> UpdateLineCountAsync(ILogFile logFileInterface, int lineCount, bool complete, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Adds a new chunk

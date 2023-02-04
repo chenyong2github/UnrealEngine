@@ -91,6 +91,11 @@ namespace Horde.Build.Logs
 		/// Number of lines (V2 storage backend)
 		/// </summary>
 		public int LineCount { get; }
+
+		/// <summary>
+		/// Whether the log is complete (V2 storage backend)
+		/// </summary>
+		public bool Complete { get; }
 	}
 
 	/// <summary>

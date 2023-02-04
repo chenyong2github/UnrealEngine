@@ -72,6 +72,9 @@ namespace Horde.Build.Logs
 			public int LineCount { get; set; }
 			public RefName RefName { get; set; }
 
+			[BsonIgnoreIfDefault]
+			public bool Complete { get; set; }
+
 			[BsonRequired]
 			public int UpdateIndex { get; set; }
 
@@ -130,10 +133,10 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile> UpdateLineCountAsync(ILogFile logFileInterface, int lineCount, CancellationToken cancellationToken)
+		public async Task<ILogFile> UpdateLineCountAsync(ILogFile logFileInterface, int lineCount, bool complete, CancellationToken cancellationToken)
 		{
 			FilterDefinition<LogFileDocument> filter = Builders<LogFileDocument>.Filter.Eq(x => x.Id, logFileInterface.Id);
-			UpdateDefinition<LogFileDocument> update = Builders<LogFileDocument>.Update.Set(x => x.LineCount, lineCount).Inc(x => x.UpdateIndex, 1);
+			UpdateDefinition<LogFileDocument> update = Builders<LogFileDocument>.Update.Set(x => x.LineCount, lineCount).Set(x => x.Complete, complete).Inc(x => x.UpdateIndex, 1);
 			return await _logFiles.FindOneAndUpdateAsync(filter, update, new FindOneAndUpdateOptions<LogFileDocument, LogFileDocument> { ReturnDocument = ReturnDocument.After }, cancellationToken);
 		}
 

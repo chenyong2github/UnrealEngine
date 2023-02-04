@@ -673,7 +673,7 @@ namespace Horde.Build.Logs
 					}
 				}
 
-				if (root == null || !root.Complete)
+				if (!logFile.Complete)
 				{
 					await _logTailService.EnableTailingAsync(logFile.Id, root?.LineCount ?? 0);
 					if (index < maxIndex)
@@ -925,7 +925,14 @@ namespace Horde.Build.Logs
 			LogMetadata metadata = new LogMetadata();
 			if (logFile.UseNewStorageBackend)
 			{
-				metadata.MaxLineIndex = await _logTailService.GetFullLineCount(logFile.Id, logFile.LineCount);
+				if (logFile.Complete)
+				{
+					metadata.MaxLineIndex = logFile.LineCount;
+				}
+				else
+				{
+					metadata.MaxLineIndex = await _logTailService.GetFullLineCount(logFile.Id, logFile.LineCount);
+				}
 			}
 			else
 			{
@@ -1899,29 +1906,37 @@ namespace Horde.Build.Logs
 			}
 
 			// Search any tail data we have
-			for (; ; )
+			if (!logFile.Complete)
 			{
-				Utf8String[] lines = await ReadTailAsync(logFile, firstLine, cancellationToken);
-				if (lines.Length == 0)
+				for (; ; )
 				{
-					break;
-				}
-
-				for (int idx = 0; idx < lines.Length; idx++)
-				{
-					if (SearchTerm.FindNextOcurrence(lines[idx].Span, 0, searchText) != -1)
+					Utf8String[] lines = await ReadTailAsync(logFile, firstLine, cancellationToken);
+					if (lines.Length == 0)
 					{
-						yield return firstLine + idx;
+						break;
 					}
-				}
 
-				firstLine += lines.Length;
+					for (int idx = 0; idx < lines.Length; idx++)
+					{
+						if (SearchTerm.FindNextOcurrence(lines[idx].Span, 0, searchText) != -1)
+						{
+							yield return firstLine + idx;
+						}
+					}
+
+					firstLine += lines.Length;
+				}
 			}
 		}
 
 		async Task<Utf8String[]> ReadTailAsync(ILogFile logFile, int index, CancellationToken cancellationToken)
 		{
 			const int BatchSize = 128;
+
+			if (logFile.Complete)
+			{
+				return Array.Empty<Utf8String>();
+			}
 
 			string cacheKey = $"{logFile.Id}@{index}";
 			if (_logFileCache.TryGetValue(cacheKey, out Utf8String[]? lines))
