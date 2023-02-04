@@ -659,6 +659,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	void SetAbandonedParticleCollisionProfileName(FName CollisionProfile);
 
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void SetPerLevelCollisionProfileNames(const TArray<FName>& ProfileNames);
+
 	/** API for getting at geometry collection data */
 	int32 GetNumElements(FName Group) const;
 
@@ -1104,6 +1107,15 @@ protected:
 	FName AbandonedCollisionProfileName;
 
 	/**
+	 * A per-level collision profile name. If the name is set to NONE or an invalid collision profile, nothing will be changed.
+	 * If the there are more levels than elements in this array, then each level will use the index that best matches it.
+	 * For example, if the particle is level 2, and there is only 1 element in the array, then the particle will use the 0th
+	 * collision profile. AbandonedCollisionProfileName will override this on the client when relevant.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetPerLevelCollisionProfileNames, Category=Physics)
+	TArray<FName> CollisionProfilePerLevel;
+
+	/**
 	 * If replicating - the cluster level to stop sending corrections for geometry collection chunks.
 	 * recommended for smaller leaf levels when the size of the objects means they are no longer
 	 * gameplay relevant to cut down on required bandwidth to update a collection.
@@ -1227,7 +1239,7 @@ private:
 	
 	void BuildInitialFilterData();
 
-	void LoadCollisionProfileOnAbandonedParticles();
+	void LoadCollisionProfiles();
 
 	/** The clusters we need to replicate */
 	TUniquePtr<TSet<Chaos::FPBDRigidClusteredParticleHandle*>> ClustersToRep;
