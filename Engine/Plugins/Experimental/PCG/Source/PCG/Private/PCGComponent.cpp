@@ -564,8 +564,10 @@ void UPCGComponent::CancelGeneration()
 
 void UPCGComponent::NotifyPropertiesChangedFromBlueprint()
 {
+#if WITH_EDITOR
 	DirtyGenerated(EPCGComponentDirtyFlag::Actor);
 	Refresh();
+#endif
 }
 
 AActor* UPCGComponent::ClearPCGLink(UClass* TemplateActor)
