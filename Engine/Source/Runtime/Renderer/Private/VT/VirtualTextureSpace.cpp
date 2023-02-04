@@ -14,6 +14,7 @@
 #include "RHIStaticStates.h"
 #include "HAL/IConsoleManager.h"
 #include "SceneUtils.h"
+#include "RenderGraph.h"
 
 #include "VT/AllocatedVirtualTexture.h"
 
