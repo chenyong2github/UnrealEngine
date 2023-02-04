@@ -30,9 +30,9 @@ enum class ERevolvePropertiesCapFillMode : uint8
 UENUM()
 enum class ERevolvePropertiesPolygroupMode : uint8
 {
-	/** One Polygroup for the entire shape */
+	/** One PolyGroup for the entire shape */
 	PerShape,
-	/** One Polygroup for each geometric face */
+	/** One PolyGroup for each geometric face */
 	PerFace,
 	/** One PolyGroup along the path for each revolution step */
 	PerRevolveStep,

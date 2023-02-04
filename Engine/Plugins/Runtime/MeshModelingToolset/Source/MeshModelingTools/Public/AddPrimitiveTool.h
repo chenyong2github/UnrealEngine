@@ -62,15 +62,15 @@ enum class EMakeMeshPivotLocation : uint8
 	Top
 };
 
-/** Polygroup mode for shape */
+/** PolyGroup mode for shape */
 UENUM()
 enum class EMakeMeshPolygroupMode : uint8
 {
-	/** One Polygroup for the entire shape */
+	/** One PolyGroup for the entire shape */
 	PerShape,
-	/** One Polygroup for each geometric face */
+	/** One PolyGroup for each geometric face */
 	PerFace,
-	/** One Polygroup for each quad/triangle */
+	/** One PolyGroup for each quad/triangle */
 	PerQuad
 };
 

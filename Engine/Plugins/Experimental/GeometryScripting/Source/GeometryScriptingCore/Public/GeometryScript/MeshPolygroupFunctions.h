@@ -123,7 +123,7 @@ public:
 	/**
 	 * Create list of all triangles with the given PolyGroup ID in the given GroupLayer (not necessarily a single connected-component)
 	 */
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Polygroups", meta = (ScriptMethod, DisplayName = "GetTrianglesInPolyGroup"))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyGroups", meta = (ScriptMethod, DisplayName = "GetTrianglesInPolyGroup"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	GetTrianglesInPolygroup( 
 		UDynamicMesh* TargetMesh, 

@@ -52,7 +52,7 @@ enum class ESimplifyType : uint8
 	MinimalPlanar = 4 UMETA(DisplayName = "Minimal Shape-Preserving"),
 
 	/** Only preserve polygroup boundaries; ignore all other shape features */
-	MinimalPolygroup = 5 UMETA(DisplayName = "Minimal Polygroup-Preserving"),
+	MinimalPolygroup = 5 UMETA(DisplayName = "Minimal PolyGroup-Preserving"),
 
 };
 

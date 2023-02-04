@@ -349,7 +349,7 @@ void UConvertToPolygonsTool::OnShutdown(EToolShutdownType ShutdownType)
 		FDynamicMeshOpResult Result = PreviewCompute->Shutdown();
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("ConvertToPolygonsToolTransactionName", "Find Polygroups"));
+			GetToolManager()->BeginUndoTransaction(LOCTEXT("ConvertToPolygonsToolTransactionName", "Find PolyGroups"));
 			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 			if (ensure(DynamicMeshResult != nullptr))
 			{
