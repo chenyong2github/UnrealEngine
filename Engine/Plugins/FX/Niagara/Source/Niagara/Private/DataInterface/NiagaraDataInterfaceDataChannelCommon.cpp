@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraDataInterfaceDataChannelCommon.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelCommon.h"
 #include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraScript.h"
 

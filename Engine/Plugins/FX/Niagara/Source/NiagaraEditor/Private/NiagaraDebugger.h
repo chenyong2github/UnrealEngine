@@ -3,9 +3,6 @@
 #pragma once
 
 #include "IMessageContext.h"
-#include "NiagaraDebugHud.h"
-#include "NiagaraDebugHud.h"
-#include "NiagaraDebuggerCommon.h"
 #include "NiagaraDebuggerCommon.h"
 #include "NiagaraOutliner.h"
 #include "NiagaraWorldManager.h"

@@ -24,8 +24,6 @@
 
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelDefinitions.h"
-#include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
-#include "DataInterface/NiagaraDataInterfaceDataChannelWrite.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraActions)
 

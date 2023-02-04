@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraDataInterfaceDataChannelRead.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
 
 #include "ShaderCompilerCore.h"
 #include "ShaderParameterUtils.h"

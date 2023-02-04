@@ -6,7 +6,7 @@ Data Channel Spawn Interface.
 Specialization of the Read DI that allows Emitters to Spawn directly from Data Channel contents.
 */
 
-#include "NiagaraDataInterfaceDataChannelRead.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
 #include "NiagaraDataInterfaceEmitterBinding.h"
 #include "NiagaraDataInterfaceDataChannelSpawn.generated.h"
 
