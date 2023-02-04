@@ -47,18 +47,7 @@ void UMaterialParameterCollection::PostLoad()
 	}
 
 	CreateBufferStruct();
-	SetupWorldParameterCollectionInstances();
 	UpdateDefaultResource(true);
-}
-
-void UMaterialParameterCollection::SetupWorldParameterCollectionInstances()
-{
-	// Create an instance for this collection in every world
-	for (TObjectIterator<UWorld> It; It; ++It)
-	{
-		UWorld* CurrentWorld = *It;
-		CurrentWorld->AddParameterCollectionInstance(this, true);
-	}
 }
 
 void UMaterialParameterCollection::BeginDestroy()
@@ -325,7 +314,7 @@ void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent&
 
 #endif // WITH_EDITOR
 
-int32 UMaterialParameterCollection::GetScalarParameterIndexByName(FName ParameterName)
+int32 UMaterialParameterCollection::GetScalarParameterIndexByName(FName ParameterName) const
 {
 	// loop over all the available scalar parameters and look for a name match
 	for (int32 ParameterIndex = 0; ParameterIndex < ScalarParameters.Num(); ParameterIndex++)
@@ -339,7 +328,7 @@ int32 UMaterialParameterCollection::GetScalarParameterIndexByName(FName Paramete
 	return -1;
 }
 
-int32 UMaterialParameterCollection::GetVectorParameterIndexByName(FName ParameterName)
+int32 UMaterialParameterCollection::GetVectorParameterIndexByName(FName ParameterName) const
 {
 	// loop over all the available vector parameters and look for a name match
 	for (int32 ParameterIndex = 0; ParameterIndex < VectorParameters.Num(); ParameterIndex++)
@@ -353,21 +342,21 @@ int32 UMaterialParameterCollection::GetVectorParameterIndexByName(FName Paramete
 	return -1;
 }
 
-TArray<FName> UMaterialParameterCollection::GetScalarParameterNames()
+TArray<FName> UMaterialParameterCollection::GetScalarParameterNames() const
 {
 	TArray<FName> Names;
 	GetParameterNames(Names, false);
 	return Names;
 }
 
-TArray<FName> UMaterialParameterCollection::GetVectorParameterNames()
+TArray<FName> UMaterialParameterCollection::GetVectorParameterNames() const
 {
 	TArray<FName> Names;
 	GetParameterNames(Names, true);
 	return Names;
 }
 
-float UMaterialParameterCollection::GetScalarParameterDefaultValue(FName ParameterName, bool& bParameterFound)
+float UMaterialParameterCollection::GetScalarParameterDefaultValue(FName ParameterName, bool& bParameterFound) const
 {
 	const int32 ParameterIndex = GetScalarParameterIndexByName(ParameterName);
 	bParameterFound = true;
@@ -380,7 +369,7 @@ float UMaterialParameterCollection::GetScalarParameterDefaultValue(FName Paramet
 	return ScalarParameters[ParameterIndex].DefaultValue;
 }
 
-FLinearColor UMaterialParameterCollection::GetVectorParameterDefaultValue(FName ParameterName, bool& bParameterFound)
+FLinearColor UMaterialParameterCollection::GetVectorParameterDefaultValue(FName ParameterName, bool& bParameterFound) const
 {
 	const int32 ParameterIndex = GetVectorParameterIndexByName(ParameterName);
 	bParameterFound = true;

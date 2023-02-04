@@ -666,12 +666,6 @@ UMaterialParameterCollectionFactoryNew::UMaterialParameterCollectionFactoryNew(c
 UObject* UMaterialParameterCollectionFactoryNew::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
 {
 	UMaterialParameterCollection* MaterialParameterCollection = NewObject<UMaterialParameterCollection>(InParent, Class, Name, Flags);
-	
-	if (MaterialParameterCollection)
-	{
-		MaterialParameterCollection->SetupWorldParameterCollectionInstances();
-	}
-
 	return MaterialParameterCollection;
 }
 

@@ -107,18 +107,18 @@ class UMaterialParameterCollection : public UObject
 #endif // WITH_EDITOR
 
 	/** Get the index in the ScalarParameters array of the parameter matching the input parameter name, returns -1 if not found **/
-	int32 GetScalarParameterIndexByName(FName ParameterName);
+	int32 GetScalarParameterIndexByName(FName ParameterName) const;
 
 	/** Get the index in the VectorParameters array of the parameter matching the input parameter name, returns -1 if not found **/
-	int32 GetVectorParameterIndexByName(FName ParameterName);
+	int32 GetVectorParameterIndexByName(FName ParameterName) const;
 
 	/** Returns an array of the names of all the scalar parameters in this Material Parameter Collection **/
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material", meta=(Keywords="GetScalarParameterNames"))
-	TArray<FName> GetScalarParameterNames();
+	TArray<FName> GetScalarParameterNames() const;
 
 	/** Returns an array of the names of all the vector parameters in this Material Parameter Collection **/
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material", meta=(Keywords="GetVectorParameterNames"))
-	TArray<FName> GetVectorParameterNames();
+	TArray<FName> GetVectorParameterNames() const;
 
 	/** Gets the default value of a scalar parameter from a material collection.
 	 * @param ParameterName - The name of the value to get the value of
@@ -126,7 +126,7 @@ class UMaterialParameterCollection : public UObject
 	 * @returns the value of the parameter
 	 **/
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material", meta=(Keywords="GetFloatParameterDefaultValue"))
-	float GetScalarParameterDefaultValue(FName ParameterName, bool& bParameterFound);
+	float GetScalarParameterDefaultValue(FName ParameterName, bool& bParameterFound) const;
 
 	/** Gets the default value of a scalar parameter from a material collection.
 	 * @param ParameterName - The name of the value to get the value of
@@ -134,7 +134,7 @@ class UMaterialParameterCollection : public UObject
 	 * @returns the value of the parameter
 	 **/
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material", meta=(Keywords="GetFloatParameterDefaultValue"))
-	FLinearColor GetVectorParameterDefaultValue(FName ParameterName, bool& bParameterFound);
+	FLinearColor GetVectorParameterDefaultValue(FName ParameterName, bool& bParameterFound) const;
 	
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
@@ -172,8 +172,6 @@ class UMaterialParameterCollection : public UObject
 		check(UniformBufferStruct);
 		return *UniformBufferStruct;
 	}
-
-	ENGINE_API void SetupWorldParameterCollectionInstances();
 
 private:
 	virtual ENGINE_API void FinishDestroy() override;

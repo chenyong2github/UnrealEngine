@@ -3033,6 +3033,10 @@ public:
 	/** Updates this world's scene with the list of instances, and optionally updates each instance's uniform buffer. */
 	void UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffers, bool bRecreateUniformBuffer);
 
+private:
+	UMaterialParameterCollectionInstance* CreateParameterCollectionInstance(int32 ExistingIndex, UMaterialParameterCollection* Collection, bool bUpdateScene);
+public:
+
 	/** Gets the canvas object for rendering to a render target.  Will allocate one if needed. */
 	UCanvas* GetCanvasForRenderingToTarget();
 	UCanvas* GetCanvasForDrawMaterialToRenderTarget();

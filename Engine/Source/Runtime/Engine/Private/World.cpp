@@ -1225,9 +1225,6 @@ void UWorld::PostLoad()
 	// Add the garbage collection callbacks
 	FLevelStreamingGCHelper::AddGarbageCollectorCallback();
 
-	// Initially set up the parameter collection list. This may be run again in UWorld::InitWorld but it's required here for some editor and streaming cases
-	SetupParameterCollectionInstances();
-
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
@@ -1388,31 +1385,7 @@ void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collec
 		}
 	}
 
-	UMaterialParameterCollectionInstance* NewInstance = NewObject<UMaterialParameterCollectionInstance>();
-	NewInstance->SetCollection(Collection, this);
-
-	if (ExistingIndex != INDEX_NONE)
-	{
-		// Overwrite an existing instance
-		ParameterCollectionInstances[ExistingIndex] = NewInstance;
-	}
-	else
-	{
-		// Add a new instance
-		ParameterCollectionInstances.Add(NewInstance);
-	}
-
-	// Ensure the new instance creates initial render thread resources
-	// This needs to happen right away, so they can be picked up by any cached shader bindings
-	NewInstance->UpdateRenderState(true);
-
-	if (bUpdateScene)
-	{
-		// Update the scene's list of instances, needs to happen to prevent a race condition with GC 
-		// (rendering thread still uses the FMaterialParameterCollectionInstanceResource when GC deletes the UMaterialParameterCollectionInstance)
-		// However, if UpdateParameterCollectionInstances is going to be called after many AddParameterCollectionInstance's, this can be skipped for now.
-		UpdateParameterCollectionInstances(false, false);
-	}
+	CreateParameterCollectionInstance(ExistingIndex, Collection, bUpdateScene);
 }
 
 UMaterialParameterCollectionInstance* UWorld::GetParameterCollectionInstance(const UMaterialParameterCollection* Collection) const
@@ -1425,9 +1398,8 @@ UMaterialParameterCollectionInstance* UWorld::GetParameterCollectionInstance(con
 		}
 	}
 
-	// Instance should always exist due to SetupParameterCollectionInstances() and UMaterialParameterCollection::PostLoad()
-	check(0);
-	return nullptr;
+	// Lazy create one if not found
+	return const_cast<UWorld*>(this)->CreateParameterCollectionInstance(INDEX_NONE, const_cast<UMaterialParameterCollection*>(Collection), true);
 }
 
 void UWorld::UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffers, bool bRecreateUniformBuffer)
@@ -1454,6 +1426,37 @@ void UWorld::UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffe
 
 		Scene->UpdateParameterCollections(InstanceResources);
 	}
+}
+
+UMaterialParameterCollectionInstance* UWorld::CreateParameterCollectionInstance(int32 ExistingIndex, UMaterialParameterCollection* Collection, bool bUpdateScene)
+{
+	UMaterialParameterCollectionInstance* NewInstance = NewObject<UMaterialParameterCollectionInstance>();
+	NewInstance->SetCollection(Collection, this);
+
+	if (ExistingIndex != INDEX_NONE)
+	{
+		// Overwrite an existing instance
+		ParameterCollectionInstances[ExistingIndex] = NewInstance;
+	}
+	else
+	{
+		// Add a new instance
+		ParameterCollectionInstances.Add(NewInstance);
+	}
+
+	// Ensure the new instance creates initial render thread resources
+	// This needs to happen right away, so they can be picked up by any cached shader bindings
+	NewInstance->UpdateRenderState(true);
+
+	if (bUpdateScene)
+	{
+		// Update the scene's list of instances, needs to happen to prevent a race condition with GC 
+		// (rendering thread still uses the FMaterialParameterCollectionInstanceResource when GC deletes the UMaterialParameterCollectionInstance)
+		// However, if UpdateParameterCollectionInstances is going to be called after many AddParameterCollectionInstance's, this can be skipped for now.
+		UpdateParameterCollectionInstances(false, false);
+	}
+
+	return NewInstance;
 }
 
 UCanvas* UWorld::GetCanvasForRenderingToTarget()
@@ -1872,8 +1875,6 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	{
 		AvoidanceManager = NewObject<UAvoidanceManager>(this, GEngine->AvoidanceManagerClass);
 	}
-
-	SetupParameterCollectionInstances();
 
 	if (PersistentLevel->GetOuter() != this)
 	{
