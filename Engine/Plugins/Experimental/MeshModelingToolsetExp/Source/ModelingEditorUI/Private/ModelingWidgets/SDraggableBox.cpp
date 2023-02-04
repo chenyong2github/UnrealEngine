@@ -27,13 +27,11 @@ void SDraggableBoxOverlay::Construct(const FArguments& InArgs)
 		});
 		OnDragCompleteFunction = SDraggableBox::FOnDragComplete::CreateLambda([this](const FVector2D& ScreenSpacePosition)
 		{
-			FVector2D TopLeftPosition = ContainingBox->GetTickSpaceGeometry().AbsoluteToLocal(ScreenSpacePosition);
+			FVector2D BottomLeftScreenSpace(ScreenSpacePosition.X, ScreenSpacePosition.Y + DraggableBox->GetTickSpaceGeometry().GetAbsoluteSize().Y);
+			FVector2D BottomLeftLocal = ContainingBox->GetTickSpaceGeometry().AbsoluteToLocal(BottomLeftScreenSpace);
 
-			DraggableBoxPaddingHorizontal = TopLeftPosition.X;
-
-			// When aligning to bottom, we need the distance between the draggable box bottom and our bottom.
-			// I.e. OurHeight - TopLeftY - BoxHeight
-			DraggableBoxPaddingVertical = ContainingBox->GetTickSpaceGeometry().GetAbsoluteSize().Y - TopLeftPosition.Y - DraggableBox->GetTickSpaceGeometry().GetAbsoluteSize().Y;
+			DraggableBoxPaddingHorizontal = BottomLeftLocal.X;
+			DraggableBoxPaddingVertical = ContainingBox->GetTickSpaceGeometry().GetLocalSize().Y - BottomLeftLocal.Y;
 		});
 	}
 	else
@@ -102,14 +100,15 @@ void SDraggableBox::Construct(const FArguments& InArgs)
 
 FReply SDraggableBox::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	// Need to remember where within the box we grabbed. We do this here instead of OnDragDetected because 
+	// our mouse can potentially travel some distance before OnDragDetected fires.
+	ScreenSpaceOffsetOfGrab = MouseEvent.GetScreenSpacePosition() - MyGeometry.GetAbsolutePosition();
+
 	return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
 };
 
 FReply SDraggableBox::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	// Need to remember where within the box we grabbed
-	const FVector2D ScreenSpaceOffsetOfGrab = MouseEvent.GetScreenSpacePosition() - MyGeometry.GetAbsolutePosition();
-
 	// The drag/drop operation moves a transparent copy of our contents, so we should hide ourselves to make it
 	// look like the contents are moving.
 	SetVisibility(EVisibility::Collapsed);

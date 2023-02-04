@@ -72,6 +72,10 @@ public:
 protected:
 	TSharedPtr<SWidget> InnerWidget;
 	FOnDragComplete OnDragComplete;
+
+	// Remembers the point in the box that we grabbed (on click, rather than when the
+	// drag was confirmed)
+	FVector2D ScreenSpaceOffsetOfGrab;
 };
 
 
@@ -97,7 +101,7 @@ public:
 	 * @param InUIToBeDragged	  The UI being dragged
 	 * @param InDecoratorOffset   Where within the UI we grabbed, so we're not dragging by the upper left of the UI.
 	 * @param OwnerAreaSize       Size of the DockArea at the time when we start dragging.
-	 * @param OnDragComplete      Delegate to call when dropped.
+	 * @param OnDragComplete      Delegate to call when dropped. Gets passed in the screen space location of the top left corner.
 	 *
 	 * @return a new FDockingDragOperation
 	 */
@@ -116,7 +120,10 @@ protected:
 	 */
 	TSharedPtr<class SWidget> UIBeingDragged;
 
+	// Screen space offset of grab location from the top left corner of the rectangle being dragged.
 	FVector2D DecoratorOffsetFromCursor;
+
+	// Size of rectangle being dragged
 	FVector2D LastContentSize;
 
 	SDraggableBox::FOnDragComplete OnDragComplete;
