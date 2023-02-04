@@ -269,5 +269,5 @@ protected:
 	TSharedPtr<FToolkitBuilder> ToolkitBuilder;
 
 	/** returns whether or not this FModeToolkit has a ToolkitBuilder defined */
-	FORCEINLINE bool HasToolkitBuilder() const;
+	bool HasToolkitBuilder() const;
 };
