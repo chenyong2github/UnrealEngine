@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeEditorModule.h"
-#include "AssetTypeActions_StateTree.h"
 #include "Blueprint/StateTreeConditionBlueprintBase.h"
 #include "Blueprint/StateTreeEvaluatorBlueprintBase.h"
 #include "Blueprint/StateTreeTaskBlueprintBase.h"
@@ -22,6 +21,7 @@
 #include "StateTreeEditorCommands.h"
 #include "StateTreeEditorStyle.h"
 #include "StateTreeNodeClassCache.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -75,16 +75,6 @@ void FStateTreeEditorModule::StartupModule()
 	FStateTreeEditorStyle::Initialize();
 	FStateTreeEditorCommands::Register();
 
-	// Register asset types
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-	// Create or find existing category
-	const EAssetTypeCategories::Type AICategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("AI")), LOCTEXT("AIAssetCategory", "Artificial Intelligence"));
-
-	TSharedPtr<FAssetTypeActions_StateTree> StateTreeAssetTypeAction = MakeShareable(new FAssetTypeActions_StateTree(AICategory | EAssetTypeCategories::Gameplay));
-	ItemDataAssetTypeActions.Add(StateTreeAssetTypeAction);
-	AssetTools.RegisterAssetTypeActions(StateTreeAssetTypeAction.ToSharedRef());
-
 	// Register the details customizer
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomPropertyTypeLayout("StateTreeTransition", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStateTreeTransitionDetails::MakeInstance));
@@ -109,20 +99,6 @@ void FStateTreeEditorModule::ShutdownModule()
 	FStateTreeEditorStyle::Shutdown();
 	FStateTreeEditorCommands::Unregister();
 
-	// Unregister the data asset type actions
-	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
-	{
-		IAssetTools& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		for (int i = 0; i < ItemDataAssetTypeActions.Num(); i++)
-		{
-			if (ItemDataAssetTypeActions[i].IsValid())
-			{
-				AssetToolsModule.UnregisterAssetTypeActions(ItemDataAssetTypeActions[i].ToSharedRef());
-			}
-		}
-	}
-	ItemDataAssetTypeActions.Empty();
-
 	// Unregister the details customization
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
@@ -134,7 +110,6 @@ void FStateTreeEditorModule::ShutdownModule()
 		PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeAnyEnum");
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}
-
 }
 
 TSharedRef<IStateTreeEditor> FStateTreeEditorModule::CreateStateTreeEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UStateTree* StateTree)

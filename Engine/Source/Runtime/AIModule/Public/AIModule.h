@@ -39,6 +39,7 @@ public:
 	}
 
 #if WITH_EDITOR
+	UE_DEPRECATED(5.3, "Should use a UAssetDefinitionDefault and return EAssetCategoryPaths::AI instead.")
 	virtual EAssetTypeCategories::Type GetAIAssetCategoryBit() const = 0;
 #endif // WITH_EDITOR
 };

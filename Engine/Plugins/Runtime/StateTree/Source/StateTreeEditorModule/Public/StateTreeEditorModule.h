@@ -3,11 +3,11 @@
 #pragma  once
 
 #include "Modules/ModuleInterface.h"
+#include "Logging/LogMacros.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
 class UStateTree;
 class IStateTreeEditor;
-class FAssetTypeActions_Base;
 struct FStateTreeNodeClassCache;
 
 STATETREEEDITORMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTreeEditor, Log, All);
@@ -33,9 +33,6 @@ public:
 protected:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
-
-	TArray<TSharedPtr<FAssetTypeActions_Base>> ItemDataAssetTypeActions;
-
 	TSharedPtr<FStateTreeNodeClassCache> NodeClassCache;
 };
 

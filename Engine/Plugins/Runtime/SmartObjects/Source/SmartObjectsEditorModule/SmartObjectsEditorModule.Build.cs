@@ -37,6 +37,7 @@ namespace UnrealBuildTool.Rules
 			new string[] {
 				"RenderCore",
 				"ApplicationCore",
+				"AssetDefinition",
 				"StructUtilsEditor",
 			}
 			);

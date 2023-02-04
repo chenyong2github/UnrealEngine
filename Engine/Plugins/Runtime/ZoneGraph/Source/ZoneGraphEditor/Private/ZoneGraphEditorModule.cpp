@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ZoneGraphEditorModule.h"
-#include "AssetToolsModule.h"
-#include "DetailCategoryBuilder.h"
-#include "DetailLayoutBuilder.h"
+#include "Framework/Commands/UICommandInfo.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Framework/Commands/Commands.h"
-#include "IAssetTools.h"
+#include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "ShowFlags.h"
-#include "Styling/AppStyle.h"
 #include "ToolMenus.h"
 #include "UnrealEdGlobals.h"
 #include "ZoneGraphDelegates.h"
@@ -31,11 +28,10 @@
 
 IMPLEMENT_MODULE(FZoneGraphEditorModule, ZoneGraphEditor)
 
-namespace UE { namespace ZoneGraph { namespace Editor {
-
+namespace UE::ZoneGraph::Editor
+{
 TCustomShowFlag<> ShowZoneGraph(TEXT("ZoneGraph"), false /*DefaultEnabled*/, SFG_Developer, LOCTEXT("ShowZoneGraph", "Zone Graph"));
-
-} } } // UE::ZoneGraphEditor::Editor
+}
 
 
 class FZoneGraphEditorCommands : public TCommands<FZoneGraphEditorCommands>
@@ -69,9 +65,6 @@ void FZoneGraphEditorModule::StartupModule()
 		FZoneGraphEditorCommands::Get().BuildZoneGraph,
 		FExecuteAction::CreateRaw(this, &FZoneGraphEditorModule::OnBuildZoneGraph),
 		FCanExecuteAction());
-
-	// Register asset types
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
 	// Register the details customizer
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -125,8 +118,6 @@ void FZoneGraphEditorModule::ShutdownModule()
 			GUnrealEd->UnregisterComponentVisualizer(ClassName);
 		}
 	}
-
-	ItemDataAssetTypeActions.Empty();
 }
 
 void FZoneGraphEditorModule::RegisterComponentVisualizer(FName ComponentClassName, TSharedPtr<FComponentVisualizer> Visualizer)

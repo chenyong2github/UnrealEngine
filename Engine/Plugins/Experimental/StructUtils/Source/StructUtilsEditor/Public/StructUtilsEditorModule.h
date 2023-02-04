@@ -6,7 +6,6 @@
 
 
 class IStructUtilsEditor;
-class FAssetTypeActions_Base;
 struct FGraphPanelNodeFactory;
 
 /**

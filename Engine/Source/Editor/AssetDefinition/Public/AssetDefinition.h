@@ -232,6 +232,7 @@ struct ASSETDEFINITION_API EAssetCategoryPaths
 	static FAssetCategoryPath Foliage;
 	static FAssetCategoryPath FX;
 	static FAssetCategoryPath Gameplay;
+	static FAssetCategoryPath AI;
 	static FAssetCategoryPath Input;
 	static FAssetCategoryPath Material;
 	static FAssetCategoryPath Media;

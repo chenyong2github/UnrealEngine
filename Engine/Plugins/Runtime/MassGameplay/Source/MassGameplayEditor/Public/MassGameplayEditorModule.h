@@ -2,13 +2,7 @@
 
 #pragma  once
 
-#include "CoreMinimal.h"
-#include "Toolkits/AssetEditorToolkit.h"
-
-
-class IMassGameplayEditor;
-class FAssetTypeActions_Base;
-struct FGraphPanelNodeFactory;
+#include "Modules/ModuleInterface.h"
 
 /**
 * The public interface to this module
@@ -22,3 +16,8 @@ public:
 protected:
 	void RegisterSectionMappings();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#endif

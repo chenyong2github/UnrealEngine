@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentQueryEditorModule.h"
+
+#include "Modules/ModuleManager.h"
 #include "EnvironmentQueryGraphNode.h"
 #include "PropertyEditorModule.h"
 #include "EnvironmentQueryEditor.h"
@@ -13,7 +15,6 @@
 #include "EdGraphUtilities.h"
 
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_BlueprintBase.h"
-#include "AssetTypeActions_EnvironmentQuery.h"
  
 IMPLEMENT_MODULE( FEnvironmentQueryEditorModule, EnvironmentQueryEditor );
 DEFINE_LOG_CATEGORY(LogEnvironmentQueryEditor);
@@ -43,9 +44,6 @@ void FEnvironmentQueryEditorModule::StartupModule()
 	GraphPanelNodeFactory_EnvironmentQuery = MakeShareable( new FGraphPanelNodeFactory_EnvironmentQuery() );
 	FEdGraphUtilities::RegisterVisualNodeFactory(GraphPanelNodeFactory_EnvironmentQuery);
 
-	ItemDataAssetTypeActions = MakeShareable(new FAssetTypeActions_EnvironmentQuery);
-	FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get().RegisterAssetTypeActions(ItemDataAssetTypeActions.ToSharedRef());
-
 	// Register the details customizer
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomPropertyTypeLayout( "EnvDirection", FOnGetPropertyTypeCustomizationInstance::CreateStatic( &FEnvDirectionCustomization::MakeInstance ) );
@@ -70,16 +68,6 @@ void FEnvironmentQueryEditorModule::ShutdownModule()
 	{
 		FEdGraphUtilities::UnregisterVisualNodeFactory(GraphPanelNodeFactory_EnvironmentQuery);
 		GraphPanelNodeFactory_EnvironmentQuery.Reset();
-	}
-
-	// Unregister the EnvironmentQuery item data asset type actions
-	if (ItemDataAssetTypeActions.IsValid())
-	{
-		if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
-		{
-			FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get().UnregisterAssetTypeActions(ItemDataAssetTypeActions.ToSharedRef());
-		}
-		ItemDataAssetTypeActions.Reset();
 	}
 
 	// Unregister the details customization

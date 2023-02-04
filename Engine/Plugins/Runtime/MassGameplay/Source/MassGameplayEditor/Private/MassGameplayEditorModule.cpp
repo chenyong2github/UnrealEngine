@@ -2,8 +2,6 @@
 
 #include "MassGameplayEditorModule.h"
 #include "Modules/ModuleManager.h"
-//#include "Developer/AssetTools/Public/AssetToolsModule.h"
-#include "MassProcessor.h"
 #include "PropertyEditorModule.h"
 
 

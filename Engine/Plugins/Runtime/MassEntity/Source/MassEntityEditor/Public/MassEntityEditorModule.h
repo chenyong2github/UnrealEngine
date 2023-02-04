@@ -2,16 +2,12 @@
 
 #pragma  once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "AssetTypeCategories.h"
-#include "Toolkits/IToolkitHost.h"
+#include "Modules/ModuleInterface.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
-
 class IMassEntityEditor;
-class FAssetTypeActions_Base;
 struct FGraphPanelNodeFactory;
+struct FGraphNodeClassHelper;
 
 /**
 * The public interface to this module
@@ -19,25 +15,26 @@ struct FGraphPanelNodeFactory;
 class MASSENTITYEDITOR_API FMassEntityEditorModule : public IModuleInterface, public IHasMenuExtensibility, public IHasToolBarExtensibility
 {
 public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAssetPropertiesChanged, class UMassSchematic* /*MassSchematic*/, const FPropertyChangedEvent& /*PropertyChangedEvent*/);
-
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
 
-	TSharedPtr<struct FGraphNodeClassHelper> GetProcassorClassCache() { return ProcessorClassCache; }
-	
-	FOnAssetPropertiesChanged& GetOnAssetPropertiesChanged() { return OnAssetPropertiesChanged; }
+	UE_DEPRECATED(5.3, "Please use GetProcessorClassCache instead")
+	TSharedPtr<FGraphNodeClassHelper> GetProcassorClassCache() { return ProcessorClassCache; }
+	TSharedPtr<FGraphNodeClassHelper> GetProcessorClassCache() { return ProcessorClassCache; }
 
 protected:
-	TSharedPtr<struct FGraphNodeClassHelper> ProcessorClassCache;
+	TSharedPtr<FGraphNodeClassHelper> ProcessorClassCache;
 
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
-
-	TArray<TSharedPtr<FAssetTypeActions_Base>> ItemDataAssetTypeActions;
-
-	FOnAssetPropertiesChanged OnAssetPropertiesChanged;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
+#include "AssetTypeCategories.h"
+#include "Toolkits/IToolkitHost.h"
+#endif

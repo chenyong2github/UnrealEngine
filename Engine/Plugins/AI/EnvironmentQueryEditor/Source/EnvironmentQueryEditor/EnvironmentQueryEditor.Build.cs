@@ -27,6 +27,7 @@ public class EnvironmentQueryEditor : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AssetDefinition",
 				"Core", 
 				"CoreUObject", 
                 "InputCore",
