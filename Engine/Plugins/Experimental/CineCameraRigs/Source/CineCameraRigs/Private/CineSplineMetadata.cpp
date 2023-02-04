@@ -29,23 +29,23 @@ void UCineSplineMetadata::InsertPoint(int32 Index, float Alpha, bool bClosedLoop
 		float NewFocalLengthVal = FocalLength.Points[Index].OutVal;
 		float NewApertureVal = Aperture.Points[Index].OutVal;
 		float NewFocusDistanceVal = FocusDistance.Points[Index].OutVal;
-		float NewCustomPositionVal = CustomPosition.Points[Index].OutVal;
-		FQuat NewRotationVal = CameraRotation.Points[Index].OutVal;
+		float NewAbsolutePositionVal = AbsolutePosition.Points[Index].OutVal;
+		FQuat NewRotationVal = PointRotation.Points[Index].OutVal;
 		if (bHasPrevIndex)
 		{
 			float PrevFocalLengthVal = FocalLength.Points[PrevIndex].OutVal;
 			float PrevApertureVal = Aperture.Points[PrevIndex].OutVal;
 			float PrevFocusDistanceVal = FocusDistance.Points[PrevIndex].OutVal;
-			float PrevCustomPositionVal = CustomPosition.Points[PrevIndex].OutVal;
-			FQuat PrevRotationVal = CameraRotation.Points[PrevIndex].OutVal;
+			float PrevAbsolutePositionVal = AbsolutePosition.Points[PrevIndex].OutVal;
+			FQuat PrevRotationVal = PointRotation.Points[PrevIndex].OutVal;
 			NewFocalLengthVal = FMath::LerpStable(PrevFocalLengthVal, NewFocalLengthVal, Alpha);
 			NewApertureVal = FMath::LerpStable(PrevApertureVal, NewApertureVal, Alpha);
 			NewFocusDistanceVal = FMath::LerpStable(PrevFocusDistanceVal, NewFocusDistanceVal, Alpha);
-			NewCustomPositionVal = FMath::LerpStable(PrevCustomPositionVal, NewCustomPositionVal, Alpha);
+			NewAbsolutePositionVal = FMath::LerpStable(PrevAbsolutePositionVal, NewAbsolutePositionVal, Alpha);
 			NewRotationVal = FMath::LerpStable(PrevRotationVal, NewRotationVal, Alpha);
 		}
-		FInterpCurvePoint<float> NewCustomPosition(InputKey, NewCustomPositionVal);
-		CustomPosition.Points.Insert(NewCustomPosition, Index);
+		FInterpCurvePoint<float> NewAbsolutePosition(InputKey, NewAbsolutePositionVal);
+		AbsolutePosition.Points.Insert(NewAbsolutePosition, Index);
 
 		FInterpCurvePoint<float> NewFocalLength(InputKey, NewFocalLengthVal);
 		FocalLength.Points.Insert(NewFocalLength, Index);
@@ -57,7 +57,7 @@ void UCineSplineMetadata::InsertPoint(int32 Index, float Alpha, bool bClosedLoop
 		FocusDistance.Points.Insert(NewFocusDistance, Index);
 
 		FInterpCurvePoint<FQuat> NewRotation(InputKey, NewRotationVal);
-		CameraRotation.Points.Insert(NewRotation, Index);
+		PointRotation.Points.Insert(NewRotation, Index);
 
 
 		for (int32 i = Index + 1; i < FocalLength.Points.Num(); ++i)
@@ -65,8 +65,8 @@ void UCineSplineMetadata::InsertPoint(int32 Index, float Alpha, bool bClosedLoop
 			FocalLength.Points[i].InVal += 1.0f;
 			Aperture.Points[i].InVal += 1.0f;
 			FocusDistance.Points[i].InVal += 1.0f;
-			CustomPosition.Points[i].InVal += 1.0f;
-			CameraRotation.Points[i].InVal += 1.0f;
+			AbsolutePosition.Points[i].InVal += 1.0f;
+			PointRotation.Points[i].InVal += 1.0f;
 		}
 	}
 }
@@ -91,22 +91,22 @@ void UCineSplineMetadata::UpdatePoint(int32 Index, float Alpha, bool bClosedLoop
 
 	if (bHasPrevIndex && bHasNextIndex)
 	{
-		float PrevCustomPositionVal = CustomPosition.Points[PrevIndex].OutVal;
+		float PrevAbsolutePositionVal = AbsolutePosition.Points[PrevIndex].OutVal;
 		float PrevFocalLengthVal = FocalLength.Points[PrevIndex].OutVal;
 		float PrevApertureVal = Aperture.Points[PrevIndex].OutVal;
 		float PrevFocusDistanceVal = FocusDistance.Points[PrevIndex].OutVal;
-		FQuat PrevRotationVal = CameraRotation.Points[PrevIndex].OutVal;
-		float NextCustomPositionVal = CustomPosition.Points[NextIndex].OutVal;
+		FQuat PrevRotationVal = PointRotation.Points[PrevIndex].OutVal;
+		float NextAbsolutePositionVal = AbsolutePosition.Points[NextIndex].OutVal;
 		float NextFocalLengthVal = FocalLength.Points[NextIndex].OutVal;
 		float NextApertureVal = Aperture.Points[NextIndex].OutVal;
 		float NextFocusDistanceVal = FocusDistance.Points[NextIndex].OutVal;
-		FQuat NextRotationVal = CameraRotation.Points[NextIndex].OutVal;
+		FQuat NextRotationVal = PointRotation.Points[NextIndex].OutVal;
 
-		CustomPosition.Points[Index].OutVal = FMath::LerpStable(PrevCustomPositionVal, NextCustomPositionVal, Alpha);
+		AbsolutePosition.Points[Index].OutVal = FMath::LerpStable(PrevAbsolutePositionVal, NextAbsolutePositionVal, Alpha);
 		FocalLength.Points[Index].OutVal = FMath::LerpStable(PrevFocalLengthVal, NextFocalLengthVal, Alpha);
 		Aperture.Points[Index].OutVal = FMath::LerpStable(PrevApertureVal, NextApertureVal, Alpha);
 		FocusDistance.Points[Index].OutVal = FMath::LerpStable(PrevFocusDistanceVal, NextFocusDistanceVal, Alpha);
-		CameraRotation.Points[Index].OutVal = FMath::LerpStable(PrevRotationVal, NextRotationVal, Alpha);
+		PointRotation.Points[Index].OutVal = FMath::LerpStable(PrevRotationVal, NextRotationVal, Alpha);
 	}
 }
 
@@ -114,7 +114,7 @@ void UCineSplineMetadata::AddPoint(float InputKey)
 {
 	Modify();
 
-	float NewCustomPositionVal = -1.0f;
+	float NewAbsolutePositionVal = -1.0f;
 	float NewFocalLengthVal = 35.0f;
 	float NewApertureVal = 2.8f;
 	float NewFocusDistanceVal = 100000.f;
@@ -126,16 +126,16 @@ void UCineSplineMetadata::AddPoint(float InputKey)
 		NewFocalLengthVal = FocalLength.Points[Index].OutVal;
 		NewApertureVal = Aperture.Points[Index].OutVal;
 		NewFocusDistanceVal = FocusDistance.Points[Index].OutVal;
-		NewCustomPositionVal = CustomPosition.Points[Index].OutVal + 1.0f;
-		NewRotationVal = CameraRotation.Points[Index].OutVal;
+		NewAbsolutePositionVal = AbsolutePosition.Points[Index].OutVal + 1.0f;
+		NewRotationVal = PointRotation.Points[Index].OutVal;
 	}
 
 	float NewInputKey = static_cast<float>(++Index);
 	FocalLength.Points.Emplace(NewInputKey, NewFocalLengthVal);
 	Aperture.Points.Emplace(NewInputKey, NewApertureVal);
 	FocusDistance.Points.Emplace(NewInputKey, NewFocusDistanceVal);
-	CustomPosition.Points.Emplace(NewInputKey, NewCustomPositionVal);
-	CameraRotation.Points.Emplace(NewInputKey, NewRotationVal);
+	AbsolutePosition.Points.Emplace(NewInputKey, NewAbsolutePositionVal);
+	PointRotation.Points.Emplace(NewInputKey, NewRotationVal);
 }
 
 void UCineSplineMetadata::RemovePoint(int32 Index)
@@ -143,19 +143,19 @@ void UCineSplineMetadata::RemovePoint(int32 Index)
 	check(Index < FocalLength.Points.Num());
 
 	Modify();
-	CustomPosition.Points.RemoveAt(Index);
+	AbsolutePosition.Points.RemoveAt(Index);
 	FocalLength.Points.RemoveAt(Index);
 	Aperture.Points.RemoveAt(Index);
 	FocusDistance.Points.RemoveAt(Index);
-	CameraRotation.Points.RemoveAt(Index);
+	PointRotation.Points.RemoveAt(Index);
 
 	for (int32 i = Index; i < FocalLength.Points.Num(); ++i)
 	{
-		CustomPosition.Points[i].InVal -= 1.0f;
+		AbsolutePosition.Points[i].InVal -= 1.0f;
 		FocalLength.Points[i].InVal -= 1.0f;
 		Aperture.Points[i].InVal -= 1.0f;
 		FocusDistance.Points[i].InVal -= 1.0f;
-		CameraRotation.Points[i].InVal -= 1.0f;
+		PointRotation.Points[i].InVal -= 1.0f;
 	}
 }
 
@@ -164,28 +164,28 @@ void UCineSplineMetadata::DuplicatePoint(int32 Index)
 	check(Index < FocalLength.Points.Num());
 
 	int32 NumPoints = FocalLength.Points.Num();
-	float NewValue = CustomPosition.Points[Index].OutVal + 1.0f;
+	float NewValue = AbsolutePosition.Points[Index].OutVal + 1.0f;
 	if (Index < NumPoints - 1)
 	{
-		NewValue = (CustomPosition.Points[Index].OutVal + CustomPosition.Points[Index + 1].OutVal) * 0.5;
+		NewValue = (AbsolutePosition.Points[Index].OutVal + AbsolutePosition.Points[Index + 1].OutVal) * 0.5;
 	}
 
 	Modify();
-	CustomPosition.Points.Insert(FInterpCurvePoint<float>(CustomPosition.Points[Index]), Index);
+	AbsolutePosition.Points.Insert(FInterpCurvePoint<float>(AbsolutePosition.Points[Index]), Index);
 	FocalLength.Points.Insert(FInterpCurvePoint<float>(FocalLength.Points[Index]), Index);
 	Aperture.Points.Insert(FInterpCurvePoint<float>(Aperture.Points[Index]), Index);
 	FocusDistance.Points.Insert(FInterpCurvePoint<float>(FocusDistance.Points[Index]), Index);
-	CameraRotation.Points.Insert(FInterpCurvePoint<FQuat>(CameraRotation.Points[Index]), Index);
-	CustomPosition.Points[Index+1].OutVal = NewValue;
+	PointRotation.Points.Insert(FInterpCurvePoint<FQuat>(PointRotation.Points[Index]), Index);
+	AbsolutePosition.Points[Index+1].OutVal = NewValue;
 
 
 	for (int32 i = Index + 1; i < FocalLength.Points.Num(); ++i)
 	{
-		CustomPosition.Points[i].InVal += 1.0f;
+		AbsolutePosition.Points[i].InVal += 1.0f;
 		FocalLength.Points[i].InVal += 1.0f;
 		Aperture.Points[i].InVal += 1.0f;
 		FocusDistance.Points[i].InVal += 1.0f;
-		CameraRotation.Points[i].InVal += 1.0f;
+		PointRotation.Points[i].InVal += 1.0f;
 	}
 
 }
@@ -203,8 +203,8 @@ void UCineSplineMetadata::CopyPoint(const USplineMetadata* FromSplineMetadata, i
 		FocalLength.Points[ToIndex].OutVal = FromMetadata->FocalLength.Points[FromIndex].OutVal;
 		Aperture.Points[ToIndex].OutVal = FromMetadata->Aperture.Points[FromIndex].OutVal;
 		FocusDistance.Points[ToIndex].OutVal = FromMetadata->FocusDistance.Points[FromIndex].OutVal;
-		CustomPosition.Points[ToIndex].OutVal = FromMetadata->CustomPosition.Points[FromIndex].OutVal;
-		CameraRotation.Points[ToIndex].OutVal = FromMetadata->CameraRotation.Points[FromIndex].OutVal;
+		AbsolutePosition.Points[ToIndex].OutVal = FromMetadata->AbsolutePosition.Points[FromIndex].OutVal;
+		PointRotation.Points[ToIndex].OutVal = FromMetadata->PointRotation.Points[FromIndex].OutVal;
 	}
 }
 
@@ -214,8 +214,8 @@ void UCineSplineMetadata::Reset(int32 NumPoints)
 	FocalLength.Points.Reset(NumPoints);
 	Aperture.Points.Reset(NumPoints);
 	FocusDistance.Points.Reset(NumPoints);
-	CustomPosition.Points.Reset(NumPoints);
-	CameraRotation.Points.Reset(NumPoints);
+	AbsolutePosition.Points.Reset(NumPoints);
+	PointRotation.Points.Reset(NumPoints);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -250,7 +250,7 @@ void UCineSplineMetadata::Fixup(int32 NumPoints, USplineComponent* SplineComp)
 	FixupCurve(FocalLength, Defaults.DefaultFocalLength, NumPoints);
 	FixupCurve(Aperture, Defaults.DefaultAperture, NumPoints);
 	FixupCurve(FocusDistance, Defaults.DefaultFocusDistance, NumPoints);
-	FixupCurve(CustomPosition, Defaults.DefaultCustomPosition, NumPoints);
-	FixupCurve(CameraRotation, Defaults.DefaultCameraRotation, NumPoints);
+	FixupCurve(AbsolutePosition, Defaults.DefaultAbsolutePosition, NumPoints);
+	FixupCurve(PointRotation, Defaults.DefaultPointRotation, NumPoints);
 #endif
 }

@@ -111,16 +111,16 @@ void UCineSplineComponent::SynchronizeProperties()
 	{
 		CineSplineMetadata->Fixup(NumOfPoints, this);
 
-		// Fixing invalid CustomPosition
+		// Fixing invalid AbsolutePosition
 		// This is to make sure CustomPostion value is incrementing from previous point
-		float PreviousValue = CineSplineMetadata->CustomPosition.Points[0].OutVal;
+		float PreviousValue = CineSplineMetadata->AbsolutePosition.Points[0].OutVal;
 		for (int32 Index = 1; Index < NumOfPoints; ++Index)
 		{
-			float CurrentValue = CineSplineMetadata->CustomPosition.Points[Index].OutVal;
+			float CurrentValue = CineSplineMetadata->AbsolutePosition.Points[Index].OutVal;
 			if (CurrentValue <= PreviousValue)
 			{
 				CurrentValue = PreviousValue + 1.0f;
-				CineSplineMetadata->CustomPosition.Points[Index].OutVal = CurrentValue;
+				CineSplineMetadata->AbsolutePosition.Points[Index].OutVal = CurrentValue;
 			}
 			PreviousValue = CurrentValue;
 		}
@@ -152,28 +152,28 @@ void UCineSplineComponent::SetFocusDistanceAtSplinePoint(const int32 PointIndex,
 }
 
 
-void UCineSplineComponent::SetCustomPositionAtSplinePoint(const int32 PointIndex, const float Value)
+void UCineSplineComponent::SetAbsolutePositionAtSplinePoint(const int32 PointIndex, const float Value)
 {
-	int32 NumPoints = CineSplineMetadata->CustomPosition.Points.Num();
+	int32 NumPoints = CineSplineMetadata->AbsolutePosition.Points.Num();
 	check(PointIndex >= 0 && PointIndex < NumPoints);
 	CineSplineMetadata->Modify();
-	CineSplineMetadata->CustomPosition.Points[PointIndex].OutVal = Value;
+	CineSplineMetadata->AbsolutePosition.Points[PointIndex].OutVal = Value;
 }
 
-void UCineSplineComponent::SetCameraRotationAtSplinePoint(const int32 PointIndex, const FQuat Value)
+void UCineSplineComponent::SetPointRotationAtSplinePoint(const int32 PointIndex, const FQuat Value)
 {
-	int32 NumPoints = CineSplineMetadata->CameraRotation.Points.Num();
+	int32 NumPoints = CineSplineMetadata->PointRotation.Points.Num();
 	check(PointIndex >= 0 && PointIndex < NumPoints);
 	CineSplineMetadata->Modify();
-	CineSplineMetadata->CameraRotation.Points[PointIndex].OutVal = Value;
+	CineSplineMetadata->PointRotation.Points[PointIndex].OutVal = Value;
 }
 
 bool UCineSplineComponent::FindSplineDataAtPosition(const float InPosition, int32& OutIndex, const float Tolerance) const
 {
-	int32 NumPoints = CineSplineMetadata->CustomPosition.Points.Num();
+	int32 NumPoints = CineSplineMetadata->AbsolutePosition.Points.Num();
 	for (int32 i = 0; i < NumPoints; ++i)
 	{
-		if (FMath::IsNearlyEqual(InPosition, CineSplineMetadata->CustomPosition.Points[i].OutVal, Tolerance))
+		if (FMath::IsNearlyEqual(InPosition, CineSplineMetadata->AbsolutePosition.Points[i].OutVal, Tolerance))
 		{
 			OutIndex = i;
 			return true;
@@ -189,15 +189,15 @@ float UCineSplineComponent::GetInputKeyAtPosition(const float InPosition) const
 
 	float OutValue = 0.0f;
 	
-	int32 NumPoints = CineSplineMetadata->CustomPosition.Points.Num();
+	int32 NumPoints = CineSplineMetadata->AbsolutePosition.Points.Num();
 	for (int32 i = 0; i < NumPoints; ++i)
 	{
-		if (InPosition < CineSplineMetadata->CustomPosition.Points[i].OutVal)
+		if (InPosition < CineSplineMetadata->AbsolutePosition.Points[i].OutVal)
 		{
 			if (i > 0)
 			{
-				float Value0 = CineSplineMetadata->CustomPosition.Points[i - 1].OutVal;
-				float Value1 = CineSplineMetadata->CustomPosition.Points[i].OutVal;
+				float Value0 = CineSplineMetadata->AbsolutePosition.Points[i - 1].OutVal;
+				float Value1 = CineSplineMetadata->AbsolutePosition.Points[i].OutVal;
 				OutValue = (InPosition - Value0) / (Value1 - Value0) + (float)(i-1);
 			}
 			break;
@@ -210,24 +210,24 @@ float UCineSplineComponent::GetInputKeyAtPosition(const float InPosition) const
 
 float UCineSplineComponent::GetPositionAtInputKey(const float InKey) const
 {
-	return GetFloatPropertyAtSplineInputKey(InKey, FName(TEXT("CustomPosition")));
+	return GetFloatPropertyAtSplineInputKey(InKey, FName(TEXT("AbsolutePosition")));
 }
 
-FQuat UCineSplineComponent::GetCameraRotationAtSplinePoint(int32 Index) const
+FQuat UCineSplineComponent::GetPointRotationAtSplinePoint(int32 Index) const
 {
-	const int32 NumPoints = CineSplineMetadata->CameraRotation.Points.Num();
+	const int32 NumPoints = CineSplineMetadata->PointRotation.Points.Num();
 	if (NumPoints > 0)
 	{
 		const int32 ClampedIndex = FMath::Clamp(Index, 0, NumPoints - 1);
-		return CineSplineMetadata->CameraRotation.Points[ClampedIndex].OutVal;
+		return CineSplineMetadata->PointRotation.Points[ClampedIndex].OutVal;
 	}
 	
 	return FQuat::Identity;
 }
 
-FQuat UCineSplineComponent::GetCameraRotationAtSplineInputKey(float InKey) const
+FQuat UCineSplineComponent::GetPointRotationAtSplineInputKey(float InKey) const
 {
-	return CineSplineMetadata->CameraRotation.Eval(InKey, FQuat::Identity);
+	return CineSplineMetadata->PointRotation.Eval(InKey, FQuat::Identity);
 }
 
 void UCineSplineComponent::UpdateSplineDataAtIndex(const int InIndex, const FCineSplinePointData& InPointData)
@@ -240,17 +240,17 @@ void UCineSplineComponent::UpdateSplineDataAtIndex(const int InIndex, const FCin
 	SetApertureAtSplinePoint(InIndex, InPointData.Aperture);
 	SetFocusDistanceAtSplinePoint(InIndex, InPointData.FocusDistance);
 	const FQuat Quat = GetComponentTransform().InverseTransformRotation(InPointData.Rotation.Quaternion());
-	SetCameraRotationAtSplinePoint(InIndex, Quat);
+	SetPointRotationAtSplinePoint(InIndex, Quat);
 	UpdateSpline();
 }
 
 void UCineSplineComponent::AddSplineDataAtPosition(const float InPosition, const FCineSplinePointData& InPointData)
 {
 	int32 NewIndex = 0;
-	int32 NumPoints = CineSplineMetadata->CustomPosition.Points.Num();
+	int32 NumPoints = CineSplineMetadata->AbsolutePosition.Points.Num();
 	for (int32 i = 0; i < NumPoints; ++i)
 	{
-		if (InPosition <= CineSplineMetadata->CustomPosition.Points[i].OutVal)
+		if (InPosition <= CineSplineMetadata->AbsolutePosition.Points[i].OutVal)
 		{
 			break;
 		}
@@ -261,10 +261,10 @@ void UCineSplineComponent::AddSplineDataAtPosition(const float InPosition, const
 	SetFocalLengthAtSplinePoint(NewIndex, InPointData.FocalLength);
 	SetApertureAtSplinePoint(NewIndex, InPointData.Aperture);
 	SetFocusDistanceAtSplinePoint(NewIndex, InPointData.FocusDistance);
-	SetCustomPositionAtSplinePoint(NewIndex, InPosition);
+	SetAbsolutePositionAtSplinePoint(NewIndex, InPosition);
 	SetSplinePointType(NewIndex, ESplinePointType::Curve, false);
 	const FQuat Quat = GetComponentTransform().InverseTransformRotation(InPointData.Rotation.Quaternion());
-	SetCameraRotationAtSplinePoint(NewIndex, Quat);
+	SetPointRotationAtSplinePoint(NewIndex, Quat);
 	UpdateSpline();
 }
 
@@ -273,7 +273,7 @@ FCineSplinePointData UCineSplineComponent::GetSplineDataAtPosition(const float I
 	FCineSplinePointData PointData;
 	const float InputKey = GetInputKeyAtPosition(InPosition);
 	PointData.Location = GetLocationAtSplineInputKey(InputKey, ESplineCoordinateSpace::World);
-	PointData.Rotation = GetCameraRotationAtSplineInputKey(InputKey).Rotator();
+	PointData.Rotation = GetPointRotationAtSplineInputKey(InputKey).Rotator();
 	PointData.FocalLength = GetFloatPropertyAtSplineInputKey(InputKey, FName(TEXT("FocalLength")));
 	PointData.Aperture = GetFloatPropertyAtSplineInputKey(InputKey, FName(TEXT("Aperture")));
 	PointData.FocusDistance = GetFloatPropertyAtSplineInputKey(InputKey, FName(TEXT("FocusDistance")));

@@ -45,8 +45,8 @@ void FCineSplineComponentVisualizer::DrawVisualizationHUD(const UActorComponent*
 				FNumberFormattingOptions FmtOptions;
 				FmtOptions.SetMaximumFractionalDigits(4);
 				FmtOptions.SetMinimumFractionalDigits(1);
-				const FText Text = FText::AsNumber(Metadata->CustomPosition.Points[i].OutVal, &FmtOptions);
-				FLinearColor Color = FMath::IsNearlyEqual(FMath::Frac(Metadata->CustomPosition.Points[i].OutVal), 0.0f) ? FLinearColor(1,1,0,1) : FLinearColor(0, 1, 1, 1);
+				const FText Text = FText::AsNumber(Metadata->AbsolutePosition.Points[i].OutVal, &FmtOptions);
+				FLinearColor Color = FMath::IsNearlyEqual(FMath::Frac(Metadata->AbsolutePosition.Points[i].OutVal), 0.0f) ? FLinearColor(1,1,0,1) : FLinearColor(0, 1, 1, 1);
 				Canvas->DrawShadowedString(DrawPositionX, DrawPositionY, *Text.ToString(), GEngine->GetLargeFont(), Color, FLinearColor::Black);
 			}
 		}

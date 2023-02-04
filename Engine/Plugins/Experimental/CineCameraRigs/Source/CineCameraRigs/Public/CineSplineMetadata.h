@@ -15,15 +15,15 @@ struct FCineSplineCurveDefaults
 	GENERATED_BODY()
 
 		FCineSplineCurveDefaults()
-		: DefaultCustomPosition(-1.0f)
+		: DefaultAbsolutePosition(-1.0f)
 		, DefaultFocalLength(35.0f)
 		, DefaultAperture(2.8f)
 		, DefaultFocusDistance(100000.f)
-		, DefaultCameraRotation(FQuat::Identity)
+		, DefaultPointRotation(FQuat::Identity)
 	{};
 
 	UPROPERTY(EditDefaultsOnly, Category = CineSplineCurveDefaults)
-	float DefaultCustomPosition;
+	float DefaultAbsolutePosition;
 
 	UPROPERTY(EditDefaultsOnly, Category = CineSplineCurveDefaults)
 	float DefaultFocalLength;
@@ -35,7 +35,7 @@ struct FCineSplineCurveDefaults
 	float DefaultFocusDistance;
 
 	UPROPERTY(EditDefaultsOnly, Category = CineSplineCurveDefaults)
-	FQuat DefaultCameraRotation;
+	FQuat DefaultPointRotation;
 };
 
 UCLASS()
@@ -56,7 +56,7 @@ public:
 	virtual void Fixup(int32 NumPoints, USplineComponent* SplineComp) override;
 
 	UPROPERTY(EditAnywhere, Category = "Point")
-	FInterpCurveFloat CustomPosition;
+	FInterpCurveFloat AbsolutePosition;
 
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	FInterpCurveFloat FocalLength;
@@ -68,5 +68,5 @@ public:
 	FInterpCurveFloat FocusDistance;
 
 	UPROPERTY(EditAnywhere, Category = "Camera")
-	FInterpCurveQuat CameraRotation;
+	FInterpCurveQuat PointRotation;
 };

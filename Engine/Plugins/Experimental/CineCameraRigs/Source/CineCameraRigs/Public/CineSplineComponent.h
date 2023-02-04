@@ -62,11 +62,11 @@ public:
 
 	/** Set custom position metadata at a given spline point*/
 	UFUNCTION(BlueprintCallable, Category = "CineSpline")
-	void SetCustomPositionAtSplinePoint(const int32 PointIndex, const float value);
+	void SetAbsolutePositionAtSplinePoint(const int32 PointIndex, const float value);
 
 	/* Set camera rotation metadata at a given spline point*/
 	UFUNCTION(BlueprintCallable, Category = "CineSpline")
-	void SetCameraRotationAtSplinePoint(const int32 PointIndex, const FQuat value);
+	void SetPointRotationAtSplinePoint(const int32 PointIndex, const FQuat value);
 
 	/** Returns true if there is a spline point at given custom position*/
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "CineSpline")
@@ -94,11 +94,11 @@ public:
 
 	/* Get camera rotation metadata property value along the spline at spline point */
 	UFUNCTION(BlueprintCallable, Category = "CineSpline")
-	FQuat GetCameraRotationAtSplinePoint(int32 Index) const;
+	FQuat GetPointRotationAtSplinePoint(int32 Index) const;
 
 	/* Get camera rotation metadata value along the spline at spline input key*/
 	UFUNCTION(BlueprintCallable, Category = "CineSpline")
-	FQuat GetCameraRotationAtSplineInputKey(float InKey) const;
+	FQuat GetPointRotationAtSplineInputKey(float InKey) const;
 
 
 	DECLARE_MULTICAST_DELEGATE(FOnSplineEdited);

@@ -26,14 +26,15 @@ public:
 private:
 	TWeakObjectPtr<ACineCameraRigRail> RigRailActorPtr;
 
-	TOptional<float> GetCustomPosition() const;
+	TOptional<float> GetAbsolutePosition() const;
 
-	TOptional<float> GetCustomPositionSliderMinValue() const;
-	TOptional<float> GetCustomPositionSliderMaxValue() const;
-	void OnBeginCustomPositionSliderMovement();
-	void OnEndCustomPositionSliderMovement(float NewValue);
-	void OnCustomPositionCommitted(float NewValue, ETextCommit::Type CommitType);
-	void OnCustomPositionChanged(float NewValue);
+	TOptional<float> GetAbsolutePositionSliderMinValue() const;
+	TOptional<float> GetAbsolutePositionSliderMaxValue() const;
+	void OnBeginAbsolutePositionSliderMovement();
+	void OnEndAbsolutePositionSliderMovement(float NewValue);
+	void OnAbsolutePositionCommitted(float NewValue, ETextCommit::Type CommitType);
+	void OnAbsolutePositionChanged(float NewValue);
 
-	bool bCustomPositionSliderStartedTransaction = false;
+	bool bAbsolutePositionSliderStartedTransaction = false;
+
 };

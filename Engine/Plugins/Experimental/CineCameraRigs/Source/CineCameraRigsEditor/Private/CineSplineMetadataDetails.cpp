@@ -30,7 +30,7 @@ TSharedPtr<ISplineMetadataDetails> UCineSplineMetadataDetailsFactory::Create()
 
 FText FCineSplineMetadataDetails::GetDisplayName() const
 {
-	return LOCTEXT("CineSplineMetadataDetails", "CineSpline");
+	return LOCTEXT("CineSplineMetadataDetails", "CineSplinePointData");
 }
 
 template<class T>
@@ -53,11 +53,11 @@ void FCineSplineMetadataDetails::Update(USplineComponent* InSplineComponent, con
 {
 	SplineComp = InSplineComponent;
 	SelectedKeys = InSelectedKeys;
-	CustomPositionValue.Reset();
+	AbsolutePositionValue.Reset();
 	FocalLengthValue.Reset();
 	ApertureValue.Reset();
 	FocusDistanceValue.Reset();
-	CameraRotationValue.Reset();
+	PointRotationValue.Reset();
 
 	if (!IsValid(InSplineComponent))
 	{
@@ -69,19 +69,19 @@ void FCineSplineMetadataDetails::Update(USplineComponent* InSplineComponent, con
 		return;
 	}
 
-	bool bUpdateCustomPosition = true;
+	bool bUpdateAbsolutePosition = true;
 	bool bUpdateFocalLength = true;
 	bool bUpdateAperture = true;
 	bool bUpdateFocusDistance = true;
-	bool bUpdateCameraRotation = true;
+	bool bUpdatePointRotation = true;
 
 	for (const int32 Index : InSelectedKeys)
 	{
-		bUpdateCustomPosition = bUpdateCustomPosition ? UpdateMultipleValue(CustomPositionValue, Metadata->CustomPosition.Points[Index].OutVal) : false;
+		bUpdateAbsolutePosition = bUpdateAbsolutePosition ? UpdateMultipleValue(AbsolutePositionValue, Metadata->AbsolutePosition.Points[Index].OutVal) : false;
 		bUpdateFocalLength = bUpdateFocalLength ? UpdateMultipleValue(FocalLengthValue, Metadata->FocalLength.Points[Index].OutVal) : false;
 		bUpdateAperture = bUpdateAperture ? UpdateMultipleValue(ApertureValue, Metadata->Aperture.Points[Index].OutVal) : false;
 		bUpdateFocusDistance = bUpdateFocusDistance ? UpdateMultipleValue(FocusDistanceValue, Metadata->FocusDistance.Points[Index].OutVal) : false;
-		bUpdateCameraRotation = bUpdateCameraRotation ? UpdateMultipleValue(CameraRotationValue, Metadata->CameraRotation.Points[Index].OutVal) : false;
+		bUpdatePointRotation = bUpdatePointRotation ? UpdateMultipleValue(PointRotationValue, Metadata->PointRotation.Points[Index].OutVal) : false;
 	}
 }
 
@@ -121,12 +121,12 @@ UCineSplineMetadata* FCineSplineMetadataDetails::GetMetadata() const
 	return SplineComp ? Cast<UCineSplineMetadata>(SplineComp->GetSplinePointsMetadata()) : nullptr;
 }
 
-void FCineSplineMetadataDetails::OnSetCustomPosition(float NewValue, ETextCommit::Type CommitInfo)
+void FCineSplineMetadataDetails::OnSetAbsolutePosition(float NewValue, ETextCommit::Type CommitInfo)
 {
 	if (UCineSplineMetadata* Metadata = GetMetadata())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetCustomPosition", "Set spline point custom position data"));
-		SetValues<float>(*this, Metadata->CustomPosition.Points, NewValue);
+		const FScopedTransaction Transaction(LOCTEXT("SetAbsolutePosition", "Set spline point custom position data"));
+		SetValues<float>(*this, Metadata->AbsolutePosition.Points, NewValue);
 	}
 }
 
@@ -159,35 +159,36 @@ void FCineSplineMetadataDetails::OnSetFocusDistance(float NewValue, ETextCommit:
 
 TOptional<float> FCineSplineMetadataDetails::GetRotation(EAxis::Type Axis) const
 {
-	return static_cast<float>(CameraRotationValue.Get(FQuat::Identity).Rotator().GetComponentForAxis(Axis));
+	return static_cast<float>(PointRotationValue.Get(FQuat::Identity).Rotator().GetComponentForAxis(Axis));
 }
 void FCineSplineMetadataDetails::OnSetRotation(float NewValue, ETextCommit::Type CommitInfo, EAxis::Type Axis)
 {
 	if (UCineSplineMetadata* Metadata = GetMetadata())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetCameraRotation", "Set spline point camera rotation data"));
-		FRotator CurrentRotator(CameraRotationValue.Get(FQuat::Identity));
+		const FScopedTransaction Transaction(LOCTEXT("SetPointRotation", "Set spline point camera rotation data"));
+		FRotator CurrentRotator(PointRotationValue.Get(FQuat::Identity));
 		switch (Axis)
 		{
 		case EAxis::X: CurrentRotator.Roll = NewValue; break;
 		case EAxis::Y: CurrentRotator.Pitch = NewValue; break;
 		case EAxis::Z: CurrentRotator.Yaw = NewValue; break;
 		}
-		SetValues<FQuat>(*this, Metadata->CameraRotation.Points, CurrentRotator.Quaternion());
+		SetValues<FQuat>(*this, Metadata->PointRotation.Points, CurrentRotator.Quaternion());
 	}
 }
 
 void FCineSplineMetadataDetails::GenerateChildContent(IDetailGroup& DetailGroup)
 {
 	DetailGroup.AddWidgetRow()
-		.RowTag("CustomPosition")
+		.ShouldAutoExpand(true)
+		.RowTag("AbsolutePosition")
 		.Visibility(TAttribute<EVisibility>(this, &FCineSplineMetadataDetails::IsEnabled))
 		.NameContent()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("CustomPosition", "Custom Position"))
+			.Text(LOCTEXT("AbsolutePosition", "Absolute Position"))
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 		]
 		.ValueContent()
@@ -195,7 +196,7 @@ void FCineSplineMetadataDetails::GenerateChildContent(IDetailGroup& DetailGroup)
 		.MaxDesiredWidth(125.0f)
 		[
 			SNew(SNumericEntryBox<float>)
-			.Value(this, &FCineSplineMetadataDetails::GetCustomPosition)
+			.Value(this, &FCineSplineMetadataDetails::GetAbsolutePosition)
 			.AllowSpin(true)
 			.MinValue(TOptional<float>())
 			.MaxValue(TOptional<float>())
@@ -204,8 +205,38 @@ void FCineSplineMetadataDetails::GenerateChildContent(IDetailGroup& DetailGroup)
 			.OnBeginSliderMovement(this, &FCineSplineMetadataDetails::OnBeginSliderMovement)
 			.OnEndSliderMovement(this, &FCineSplineMetadataDetails::OnEndSliderMovement)
 			.UndeterminedString(LOCTEXT("Multiple", "Multiple"))
-			.OnValueCommitted(this, &FCineSplineMetadataDetails::OnSetCustomPosition)
-			.OnValueChanged(this, &FCineSplineMetadataDetails::OnSetCustomPosition, ETextCommit::Default)
+			.OnValueCommitted(this, &FCineSplineMetadataDetails::OnSetAbsolutePosition)
+			.OnValueChanged(this, &FCineSplineMetadataDetails::OnSetAbsolutePosition, ETextCommit::Default)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		];
+
+	DetailGroup.AddWidgetRow()
+		.RowTag("PointRotation")
+		.Visibility(TAttribute<EVisibility>(this, &FCineSplineMetadataDetails::IsEnabled))
+		.NameContent()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("PointRotation", "Point Rotation"))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		.MinDesiredWidth(125.0f)
+		.MaxDesiredWidth(125.0f)
+		[
+			SNew(SRotatorInputBox)
+			.Roll(this, &FCineSplineMetadataDetails::GetRotation, EAxis::X)
+			.Pitch(this, &FCineSplineMetadataDetails::GetRotation, EAxis::Y)
+			.Yaw(this, &FCineSplineMetadataDetails::GetRotation, EAxis::Z)
+			.OnRollChanged(this, &FCineSplineMetadataDetails::OnSetRotation, ETextCommit::Default, EAxis::X)
+			.OnPitchChanged(this, &FCineSplineMetadataDetails::OnSetRotation, ETextCommit::Default, EAxis::Y)
+			.OnYawChanged(this, &FCineSplineMetadataDetails::OnSetRotation, ETextCommit::Default, EAxis::Z)
+			.OnRollCommitted(this, &FCineSplineMetadataDetails::OnSetRotation, EAxis::X)
+			.OnPitchCommitted(this, &FCineSplineMetadataDetails::OnSetRotation, EAxis::Y)
+			.OnYawCommitted(this, &FCineSplineMetadataDetails::OnSetRotation, EAxis::Z)
+			.AllowSpin(true)
+			.bColorAxisLabels(false)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 		];
 
@@ -301,35 +332,7 @@ void FCineSplineMetadataDetails::GenerateChildContent(IDetailGroup& DetailGroup)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 		];
 
-		DetailGroup.AddWidgetRow()
-			.RowTag("CameraRotation")
-			.Visibility(TAttribute<EVisibility>(this, &FCineSplineMetadataDetails::IsEnabled))
-			.NameContent()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("CameraRotation", "Camera Rotation"))
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			]
-			.ValueContent()
-			.MinDesiredWidth(125.0f)
-			.MaxDesiredWidth(125.0f)
-			[
-				SNew(SRotatorInputBox)
-				.Roll(this, &FCineSplineMetadataDetails::GetRotation, EAxis::X)
-				.Pitch(this, &FCineSplineMetadataDetails::GetRotation, EAxis::Y)
-				.Yaw(this, &FCineSplineMetadataDetails::GetRotation, EAxis::Z)
-				.OnRollChanged(this, &FCineSplineMetadataDetails::OnSetRotation, ETextCommit::Default, EAxis::X)
-				.OnPitchChanged(this, &FCineSplineMetadataDetails::OnSetRotation, ETextCommit::Default, EAxis::Y)
-				.OnYawChanged(this, &FCineSplineMetadataDetails::OnSetRotation, ETextCommit::Default, EAxis::Z)
-				.OnRollCommitted(this, &FCineSplineMetadataDetails::OnSetRotation, EAxis::X)
-				.OnPitchCommitted(this, &FCineSplineMetadataDetails::OnSetRotation, EAxis::Y)
-				.OnYawCommitted(this, &FCineSplineMetadataDetails::OnSetRotation, EAxis::Z)
-				.AllowSpin(false)
-				.bColorAxisLabels(false)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			];
+
 }
 
 #undef LOCTEXT_NAMESPACE

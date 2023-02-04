@@ -33,11 +33,11 @@ public:
 	virtual void Update(USplineComponent* InSplineComponent, const TSet<int32>& InSelectedKeys) override;
 	virtual void GenerateChildContent(IDetailGroup& InGroup) override;
 
-	TOptional<float> CustomPositionValue;
+	TOptional<float> AbsolutePositionValue;
 	TOptional<float> FocalLengthValue;
 	TOptional<float> ApertureValue;
 	TOptional<float> FocusDistanceValue;
-	TOptional<FQuat> CameraRotationValue;
+	TOptional<FQuat> PointRotationValue;
 
 	USplineComponent* SplineComp = nullptr;
 	TSet<int32> SelectedKeys;
@@ -50,8 +50,8 @@ private:
 	bool IsOnePointSelected() const { return SelectedKeys.Num() == 1; }
 
 
-	TOptional<float> GetCustomPosition() const { return CustomPositionValue; }
-	void OnSetCustomPosition(float NewValue, ETextCommit::Type CommitInfo);
+	TOptional<float> GetAbsolutePosition() const { return AbsolutePositionValue; }
+	void OnSetAbsolutePosition(float NewValue, ETextCommit::Type CommitInfo);
 
 	TOptional<float> GetFocalLength() const { return FocalLengthValue; }
 	void OnSetFocalLength(float NewValue, ETextCommit::Type CommitInfo);

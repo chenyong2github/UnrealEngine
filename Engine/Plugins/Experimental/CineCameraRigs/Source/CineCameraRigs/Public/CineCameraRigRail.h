@@ -21,24 +21,24 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Rail Components")
 	UCineSplineComponent* GetCineSplineComponent() const { return CineSplineComponent; }
 
-	/* Use CustomPosition metadata to parameterize the spline*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Extended Rail Controls")
-	bool bUseCustomPosition = true;
+	/* Use AbsolutePosition metadata to parameterize the spline*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Controls")
+	bool bUseAbsolutePosition = true;
 
 	/* Custom parameter to drive current position*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "Extended Rail Controls", meta=(EditCondition="bUseCustomPosition"))
-	float CustomPosition = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "Rail Controls", meta=(EditCondition="bUseAbsolutePosition"))
+	float AbsolutePositionOnRail = 1.0f;
 
-	/* Use CameraRotation metadata for attachment orientation*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "Extended Rail Controls", meta = (EditCondition = "bLockOrientationToRail"))
-	bool bUseCameraRotationMetadata = true;
+	/* Use PointRotation metadata for attachment orientation. If false, attachment orientation is based on the spline curvature*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "Rail Controls", meta = (EditCondition = "bLockOrientationToRail"))
+	bool bUsePointRotation = true;
 
 	/* Material assigned to spline component mesh*/
 	UPROPERTY(EditAnywhere, BlueprintSetter=SetSplineMeshMaterial, Category = "SplineVisualization")
 	TObjectPtr<UMaterialInterface> SplineMeshMaterial;
 
 	/* Material Instance Dynamic created for the spline mesh */
-	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "SplineVisualization")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "SplineVisualization")
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> SplineMeshMIDs;
 
 	/* Texture that can be set to SplineMeshMIDs */
@@ -46,40 +46,40 @@ public:
 	TObjectPtr<UTexture2D> SplineMeshTexture;
 
 	/* Determines if camera mount inherits LocationX*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Location")
 	bool bAttachLocationX = true;
 
 	/* Determines if camera mount inherits LocationY*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Location")
 	bool bAttachLocationY = true;
 
 	/* Determines if camera mount inherits LocationZ*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Location")
 	bool bAttachLocationZ = true;
 
 	/* Determines if camera mount inherits RotationX*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Rotation")
 	bool bAttachRotationX = true;
 
 	/* Determines if camera mount inherits RotationY*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Rotation")
 	bool bAttachRotationY = true;
 
 	/* Determines if camera mount inherits RotationZ*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Rotation")
 	bool bAttachRotationZ = true;
 
 	/* Determines if it can drive focal length on the attached actors*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
-	bool bDriveFocalLength = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Camera")
+	bool bInheritFocalLength = true;
 
 	/* Determines if it can drive aperture on the attached actors*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
-	bool bDriveAperture = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Camera")
+	bool bInheritAperture = true;
 
 	/* Determines if it can drive focus distance on the attached actors*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
-	bool bDriveFocusDistance = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Camera")
+	bool bInheritFocusDistance = true;
 
 	/* Set spline mesh material*/
 	UFUNCTION(BlueprintSetter)

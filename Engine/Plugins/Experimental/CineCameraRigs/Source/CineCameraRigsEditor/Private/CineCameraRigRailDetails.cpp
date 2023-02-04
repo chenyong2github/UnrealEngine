@@ -12,6 +12,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Internationalization/Internationalization.h"
 #include "ScopedTransaction.h"
+#include "Layout/Visibility.h"
 
 #define LOCTEXT_NAMESPACE "FCineCameraRigRailDetails"
 
@@ -32,53 +33,63 @@ void FCineCameraRigRailDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 	}
 	RigRailActorPtr = RigRailActor;
 
-	TSharedRef<IPropertyHandle> CustomPositionPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, CustomPosition));
-	TSharedRef<IPropertyHandle> UseCustomPositionPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, bUseCustomPosition));
+	TSharedRef<IPropertyHandle> AbsolutePositionPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, AbsolutePositionOnRail));
+	TSharedRef<IPropertyHandle> UseAbsolutePositionPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, bUseAbsolutePosition));
 	TSharedRef<IPropertyHandle> OrigPositionPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ACameraRig_Rail, CurrentPositionOnRail), ACameraRig_Rail::StaticClass());
+	TSharedRef<IPropertyHandle> LockOrientationPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ACameraRig_Rail, bLockOrientationToRail), ACameraRig_Rail::StaticClass());
+	TSharedRef<IPropertyHandle> ShowRailPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ACameraRig_Rail, bShowRailVisualization), ACameraRig_Rail::StaticClass());
+	TSharedRef<IPropertyHandle> PreviewScalePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ACameraRig_Rail, PreviewMeshScale), ACameraRig_Rail::StaticClass());
 
-	const TAttribute<bool> EditCondition = TAttribute<bool>::Create([this, UseCustomPositionPropertyHandle]()
+
+
+	const TAttribute<bool> EditCondition = TAttribute<bool>::Create([this, UseAbsolutePositionPropertyHandle]()
 	{
 		bool bCond = false;
-		UseCustomPositionPropertyHandle->GetValue(bCond);
+		UseAbsolutePositionPropertyHandle->GetValue(bCond);
 		return !bCond;
 	});
 
-	DetailBuilder.EditDefaultProperty(OrigPositionPropertyHandle)->EditCondition(EditCondition, nullptr);
+	DetailBuilder.EditDefaultProperty(LockOrientationPropertyHandle)->Visibility(EVisibility::Hidden);
 
+	IDetailCategoryBuilder& RailControlsCategory = DetailBuilder.EditCategory("Rail Controls");
+	RailControlsCategory.AddProperty(UseAbsolutePositionPropertyHandle);
+	IDetailPropertyRow& AbsolutePositionRow = RailControlsCategory.AddProperty(AbsolutePositionPropertyHandle);
+	RailControlsCategory.AddProperty(OrigPositionPropertyHandle)
+	.EditCondition(EditCondition, nullptr);
 
-	if (IDetailPropertyRow* Row = DetailBuilder.EditDefaultProperty(CustomPositionPropertyHandle))
-	{
-		Row->CustomWidget()
+	AbsolutePositionRow.CustomWidget(false)
 		.NameContent()
 		[
-			CustomPositionPropertyHandle->CreatePropertyNameWidget()
+			AbsolutePositionPropertyHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
 		.MinDesiredWidth(125.0f)
 		[
 			SNew(SNumericEntryBox<float>)
-			.ToolTipText(LOCTEXT("CurrentPostionToolTip","Postion property using custom parameterization"))
+			.ToolTipText(LOCTEXT("CurrentPostionToolTip", "Postion property using custom parameterization"))
 			.AllowSpin(true)
-			.MinSliderValue(this, &FCineCameraRigRailDetails::GetCustomPositionSliderMinValue)
-			.MaxSliderValue(this, &FCineCameraRigRailDetails::GetCustomPositionSliderMaxValue)
-			.Value(this, &FCineCameraRigRailDetails::GetCustomPosition)
-			.OnValueChanged(this, &FCineCameraRigRailDetails::OnCustomPositionChanged)
-			.OnValueCommitted(this, &FCineCameraRigRailDetails::OnCustomPositionCommitted)
-			.OnBeginSliderMovement(this, &FCineCameraRigRailDetails::OnBeginCustomPositionSliderMovement)
-			.OnEndSliderMovement(this, &FCineCameraRigRailDetails::OnEndCustomPositionSliderMovement)
+			.MinSliderValue(this, &FCineCameraRigRailDetails::GetAbsolutePositionSliderMinValue)
+			.MaxSliderValue(this, &FCineCameraRigRailDetails::GetAbsolutePositionSliderMaxValue)
+			.Value(this, &FCineCameraRigRailDetails::GetAbsolutePosition)
+			.OnValueChanged(this, &FCineCameraRigRailDetails::OnAbsolutePositionChanged)
+			.OnValueCommitted(this, &FCineCameraRigRailDetails::OnAbsolutePositionCommitted)
+			.OnBeginSliderMovement(this, &FCineCameraRigRailDetails::OnBeginAbsolutePositionSliderMovement)
+			.OnEndSliderMovement(this, &FCineCameraRigRailDetails::OnEndAbsolutePositionSliderMovement)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 		];
-	}
 
+	IDetailCategoryBuilder& VisualizationCategory = DetailBuilder.EditCategory("SplineVisualization");
+	VisualizationCategory.AddProperty(ShowRailPropertyHandle);
+	VisualizationCategory.AddProperty(PreviewScalePropertyHandle);
 }
 
-void FCineCameraRigRailDetails::OnCustomPositionChanged(float NewValue)
+void FCineCameraRigRailDetails::OnAbsolutePositionChanged(float NewValue)
 {
 	if (ACineCameraRigRail* RigRailActor = RigRailActorPtr.Get())
 	{
-		RigRailActor->CustomPosition = NewValue;
-		static FProperty* CustomPositionProperty = FindFProperty<FProperty>(ACineCameraRigRail::StaticClass(), GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, CustomPosition));
-		FPropertyChangedEvent SetValueEvent(CustomPositionProperty);
+		RigRailActor->AbsolutePositionOnRail = NewValue;
+		static FProperty* AbsolutePositionProperty = FindFProperty<FProperty>(ACineCameraRigRail::StaticClass(), GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, AbsolutePositionOnRail));
+		FPropertyChangedEvent SetValueEvent(AbsolutePositionProperty);
 		RigRailActor->PostEditChangeProperty(SetValueEvent);
 		if (GEditor)
 		{
@@ -87,16 +98,16 @@ void FCineCameraRigRailDetails::OnCustomPositionChanged(float NewValue)
 	}
 }
 
-void FCineCameraRigRailDetails::OnCustomPositionCommitted(float NewValue, ETextCommit::Type CommitType)
+void FCineCameraRigRailDetails::OnAbsolutePositionCommitted(float NewValue, ETextCommit::Type CommitType)
 {
 	if (ACineCameraRigRail* RigRailActor = RigRailActorPtr.Get())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetCustomPosition", "Set rig rail custom position"));
+		const FScopedTransaction Transaction(LOCTEXT("SetAbsolutePosition", "Set rig rail custom position"));
 		RigRailActor->SetFlags(RF_Transactional);
 		RigRailActor->Modify();
-		RigRailActor->CustomPosition = NewValue;
-		static FProperty* CustomPositionProperty = FindFProperty<FProperty>(ACineCameraRigRail::StaticClass(), GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, CustomPosition));
-		FPropertyChangedEvent SetValueEvent(CustomPositionProperty);
+		RigRailActor->AbsolutePositionOnRail = NewValue;
+		static FProperty* AbsolutePositionProperty = FindFProperty<FProperty>(ACineCameraRigRail::StaticClass(), GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, AbsolutePositionOnRail));
+		FPropertyChangedEvent SetValueEvent(AbsolutePositionProperty);
 		RigRailActor->PostEditChangeProperty(SetValueEvent);
 		if (GEditor)
 		{
@@ -105,14 +116,14 @@ void FCineCameraRigRailDetails::OnCustomPositionCommitted(float NewValue, ETextC
 	}
 }
 
-void FCineCameraRigRailDetails::OnBeginCustomPositionSliderMovement()
+void FCineCameraRigRailDetails::OnBeginAbsolutePositionSliderMovement()
 {
-	if (!bCustomPositionSliderStartedTransaction)
+	if (!bAbsolutePositionSliderStartedTransaction)
 	{
 		if (GEditor)
 		{
-			bCustomPositionSliderStartedTransaction = true;
-			GEditor->BeginTransaction(LOCTEXT("CustomPositionSliderTransaction", "Set rig rail custom position via slider"));
+			bAbsolutePositionSliderStartedTransaction = true;
+			GEditor->BeginTransaction(LOCTEXT("AbsolutePositionSliderTransaction", "Set rig rail custom position via slider"));
 			if (ACineCameraRigRail* RigRailActor = RigRailActorPtr.Get())
 			{
 				RigRailActor->SetFlags(RF_Transactional);
@@ -122,28 +133,28 @@ void FCineCameraRigRailDetails::OnBeginCustomPositionSliderMovement()
 	}
 }
 
-void FCineCameraRigRailDetails::OnEndCustomPositionSliderMovement(float NewValue)
+void FCineCameraRigRailDetails::OnEndAbsolutePositionSliderMovement(float NewValue)
 {
-	if (bCustomPositionSliderStartedTransaction)
+	if (bAbsolutePositionSliderStartedTransaction)
 	{
 		if (GEditor)
 		{
 			GEditor->EndTransaction();
-			bCustomPositionSliderStartedTransaction = false;
+			bAbsolutePositionSliderStartedTransaction = false;
 		}
 	}
 }
 
-TOptional<float> FCineCameraRigRailDetails::GetCustomPosition() const
+TOptional<float> FCineCameraRigRailDetails::GetAbsolutePosition() const
 {
 	if (ACineCameraRigRail* RigRailActor = RigRailActorPtr.Get())
 	{
-		return RigRailActor->CustomPosition;
+		return RigRailActor->AbsolutePositionOnRail;
 	}
 	return 0.0f;
 }
 
-TOptional<float> FCineCameraRigRailDetails::GetCustomPositionSliderMinValue() const
+TOptional<float> FCineCameraRigRailDetails::GetAbsolutePositionSliderMinValue() const
 {
 
 	float MinValue = 1.0f;
@@ -151,12 +162,12 @@ TOptional<float> FCineCameraRigRailDetails::GetCustomPositionSliderMinValue() co
 	{
 		UCineSplineComponent* SplineComp = RigRailActor->GetCineSplineComponent();
 		const UCineSplineMetadata* MetaData = Cast<UCineSplineMetadata>(SplineComp->GetSplinePointsMetadata());
-		MinValue = MetaData->CustomPosition.Points[0].OutVal;
+		MinValue = MetaData->AbsolutePosition.Points[0].OutVal;
 	}
 	return MinValue;
 }
 
-TOptional<float> FCineCameraRigRailDetails::GetCustomPositionSliderMaxValue() const
+TOptional<float> FCineCameraRigRailDetails::GetAbsolutePositionSliderMaxValue() const
 {
 
 	float MaxValue = 5.0f;
@@ -164,8 +175,8 @@ TOptional<float> FCineCameraRigRailDetails::GetCustomPositionSliderMaxValue() co
 	{
 		UCineSplineComponent* SplineComp = RigRailActor->GetCineSplineComponent();
 		const UCineSplineMetadata* MetaData = Cast<UCineSplineMetadata>(SplineComp->GetSplinePointsMetadata());
-		int32 NumPoints = MetaData->CustomPosition.Points.Num();
-		MaxValue = MetaData->CustomPosition.Points[NumPoints - 1].OutVal;
+		int32 NumPoints = MetaData->AbsolutePosition.Points.Num();
+		MaxValue = MetaData->AbsolutePosition.Points[NumPoints - 1].OutVal;
 	}
 	return MaxValue;
 }

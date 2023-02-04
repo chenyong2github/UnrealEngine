@@ -58,7 +58,7 @@ void ACineCameraRigRail::UpdateRailComponents()
 		return;
 	}
 
-	if (!bUseCustomPosition)
+	if (!bUseAbsolutePosition)
 	{
 		Super::UpdateRailComponents();
 	}
@@ -67,13 +67,13 @@ void ACineCameraRigRail::UpdateRailComponents()
 		USceneComponent* AttachComponent = GetDefaultAttachComponent();
 		if (CineSplineComponent && AttachComponent)
 		{
-			float InputKey = CineSplineComponent->GetInputKeyAtPosition(CustomPosition);
+			float InputKey = CineSplineComponent->GetInputKeyAtPosition(AbsolutePositionOnRail);
 			FVector const SplinePosition = CineSplineComponent->GetLocationAtSplineInputKey(InputKey, ESplineCoordinateSpace::World);
 			FQuat SplineQuat = CineSplineComponent->GetQuaternionAtSplineInputKey(InputKey, ESplineCoordinateSpace::World);
 
-			if (bUseCameraRotationMetadata)
+			if (bUsePointRotation)
 			{
-				SplineQuat = CineSplineComponent->GetComponentTransform().GetRotation() * CineSplineComponent->GetCameraRotationAtSplineInputKey(InputKey);
+				SplineQuat = CineSplineComponent->GetComponentTransform().GetRotation() * CineSplineComponent->GetPointRotationAtSplineInputKey(InputKey);
 			}
 			FVector Position = GetActorLocation();
 			FRotator Rotation = GetActorRotation();
@@ -114,9 +114,9 @@ void ACineCameraRigRail::UpdateRailComponents()
 	TArray< AActor* > AttachedActors;
 	GetAttachedActors(AttachedActors);
 	float InputKey = 0.0f;
-	if (bUseCustomPosition)
+	if (bUseAbsolutePosition)
 	{
-		InputKey = CineSplineComponent->GetInputKeyAtPosition(CustomPosition);
+		InputKey = CineSplineComponent->GetInputKeyAtPosition(AbsolutePositionOnRail);
 	}
 	else
 	{
@@ -130,15 +130,15 @@ void ACineCameraRigRail::UpdateRailComponents()
 	{
 		if (UCineCameraComponent* CameraComponent = Cast<UCineCameraComponent>(AttachedActor->GetComponentByClass(UCineCameraComponent::StaticClass())))
 		{
-			if (bDriveFocusDistance)
+			if (bInheritFocusDistance)
 			{
 				CameraComponent->FocusSettings.ManualFocusDistance = FocusDistanceValue;
 			}
-			if (bDriveFocalLength)
+			if (bInheritFocalLength)
 			{
 				CameraComponent->SetCurrentFocalLength(FocalLengthValue);
 			}
-			if (bDriveAperture)
+			if (bInheritAperture)
 			{
 				CameraComponent->SetCurrentAperture(ApertureValue);
 			}
@@ -150,8 +150,8 @@ void ACineCameraRigRail::UpdateRailComponents()
 		const UWorld* const MyWorld = GetWorld();
 		if (MyWorld && !MyWorld->IsGameWorld())
 		{
-			// If bUseCustomPosition is false, UpdatePreviewMeshes() is already called inside Super::UpdateRailComponents()
-			if (bUseCustomPosition)
+			// If bUseAbsolutePosition is false, UpdatePreviewMeshes() is already called inside Super::UpdateRailComponents()
+			if (bUseAbsolutePosition)
 			{
 				UpdatePreviewMeshes();
 			}
@@ -258,11 +258,11 @@ FVector ACineCameraRigRail::GetVelocityAtPosition(const float InPosition, const 
 
 	float TimeMultiplier = 1.0f / CineSplineComponent->Duration;
 
-	if (bUseCustomPosition)
+	if (bUseAbsolutePosition)
 	{
 		int32 const NumPoints = CineSplineComponent->GetNumberOfSplinePoints();
-		float const MinPosition = CineSplineComponent->GetFloatPropertyAtSplinePoint(0, FName(TEXT("CustomPosition")));
-		float const MaxPosition = CineSplineComponent->GetFloatPropertyAtSplinePoint(NumPoints - 1, FName(TEXT("CustomPosition")));
+		float const MinPosition = CineSplineComponent->GetFloatPropertyAtSplinePoint(0, FName(TEXT("AbsolutePosition")));
+		float const MaxPosition = CineSplineComponent->GetFloatPropertyAtSplinePoint(NumPoints - 1, FName(TEXT("AbsolutePosition")));
 		float const t0 = InPosition + delta >= MaxPosition ? InPosition - delta : InPosition;
 		float const t1 = InPosition + delta >= MaxPosition ? InPosition : InPosition + delta;
 		float const InKey0 = CineSplineComponent->GetInputKeyAtPosition(t0);
