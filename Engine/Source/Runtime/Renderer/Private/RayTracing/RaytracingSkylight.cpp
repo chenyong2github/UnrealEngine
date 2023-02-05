@@ -7,6 +7,7 @@
 #include "DeferredShadingRenderer.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "SceneTextureParameters.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 static int32 GRayTracingSkyLight = 0;
 
