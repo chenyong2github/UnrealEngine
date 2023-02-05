@@ -14,6 +14,7 @@ using Microsoft.Extensions.Hosting;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Logs
 {
@@ -57,6 +58,7 @@ namespace Horde.Build.Logs
 		readonly ITicker _expireTailsTicker;
 
 		readonly ILogger _logger;
+		readonly ServerSettings _settings;
 
 		IAsyncDisposable? _tailStartSubscription;
 
@@ -79,7 +81,7 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogTailService(RedisService redisService, IClock clock, int chunkLineCount, ILogger<LogTailService> logger)
+		public LogTailService(RedisService redisService, IClock clock, int chunkLineCount, IOptions<ServerSettings> settings, ILogger<LogTailService> logger)
 		{
 			if ((chunkLineCount & (chunkLineCount - 1)) != 0)
 			{
@@ -93,6 +95,7 @@ namespace Horde.Build.Logs
 
 			_clock = clock;
 			_expireTailsTicker = clock.AddSharedTicker<LogTailService>(TimeSpan.FromSeconds(30.0), ExpireTailsAsync, logger);
+			_settings = settings.Value;
 			_logger = logger;
 		}
 
@@ -100,13 +103,19 @@ namespace Horde.Build.Logs
 		public async Task StartAsync(CancellationToken cancellationToken)
 		{
 			_tailStartSubscription = await _redisService.SubscribeAsync(_tailStartChannel, OnTailStart);
-			await _expireTailsTicker.StartAsync();
+			if (_settings.IsRunModeActive(RunMode.Worker))
+			{
+				await _expireTailsTicker.StartAsync();
+			}
 		}
 
 		/// <inheritdoc/>
 		public async Task StopAsync(CancellationToken cancellationToken)
 		{
-			await _expireTailsTicker.StopAsync();
+			if (_settings.IsRunModeActive(RunMode.Worker))
+			{
+				await _expireTailsTicker.StopAsync();
+			}
 			if (_tailStartSubscription != null)
 			{
 				await _tailStartSubscription.DisposeAsync();
@@ -161,6 +170,7 @@ namespace Horde.Build.Logs
 		{
 			if (_notifyLogEvents.TryGetValue(logId, out AsyncEvent? notifyEvent))
 			{
+				_logger.LogDebug("Latched notification for tail start on log {LogId}", logId);
 				notifyEvent.Latch();
 			}
 		}
