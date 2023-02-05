@@ -407,6 +407,7 @@ public:
 
 	// FSceneProxyBase interface.
 	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, uint32& ImposterIndex) const override;
+	virtual void GetNaniteMaterialMask(FUint32Vector2& OutMaterialMask) const override;
 
 	virtual Nanite::FResourceMeshInfo GetResourceMeshInfo() const override;
 

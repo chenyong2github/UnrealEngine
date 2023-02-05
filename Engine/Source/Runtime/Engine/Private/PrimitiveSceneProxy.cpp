@@ -1426,7 +1426,8 @@ bool FPrimitiveSceneProxy::VerifyUsedMaterial(const FMaterialRenderProxy* Materi
 
 		if (MaterialInterface 
 			&& !UsedMaterialsForVerification.Contains(MaterialInterface)
-			&& MaterialInterface != UMaterial::GetDefaultMaterial(MD_Surface))
+			&& MaterialInterface != UMaterial::GetDefaultMaterial(MD_Surface)
+			&& MaterialInterface != GEngine->NaniteHiddenSectionMaterial)
 		{
 			// Shader compiling uses GetUsedMaterials to detect which components need their scene proxy recreated, so we can only render with materials present in that list
 			ensureMsgf(false, TEXT("PrimitiveComponent tried to render with Material %s, which was not present in the component's GetUsedMaterials results\n    Owner: %s, Resource: %s"), *MaterialInterface->GetName(), *GetOwnerName().ToString(), *GetResourceName().ToString());

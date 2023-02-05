@@ -1756,6 +1756,12 @@ void FNaniteGeometryCollectionSceneProxy::GetNaniteResourceInfo(uint32& Resource
 	ImposterIndex = INDEX_NONE;	// Imposters are not supported (yet?)
 }
 
+void FNaniteGeometryCollectionSceneProxy::GetNaniteMaterialMask(FUint32Vector2& OutMaterialMask) const
+{
+	// TODO: Implement support
+	OutMaterialMask = FUint32Vector2(~uint32(0), ~uint32(0));
+}
+
 Nanite::FResourceMeshInfo FNaniteGeometryCollectionSceneProxy::GetResourceMeshInfo() const
 {
 	Nanite::FResources& Resource = GeometryCollection->NaniteData->NaniteResource;

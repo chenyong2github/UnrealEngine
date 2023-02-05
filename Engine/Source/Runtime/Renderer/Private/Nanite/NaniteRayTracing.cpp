@@ -227,6 +227,9 @@ namespace Nanite
 		uint32 NaniteImposterIndex = INDEX_NONE;
 		NaniteProxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
 
+		FUint32Vector2 NaniteMaterialMask;
+		NaniteProxy->GetNaniteMaterialMask(NaniteMaterialMask); // TODO: Implement support
+
 		// TODO: Should use both ResourceID and HierarchyOffset as identifier for raytracing geometry
 		// For example, FNaniteGeometryCollectionSceneProxy can use the same ResourceID with different HierarchyOffsets
 		// (FNaniteGeometryCollectionSceneProxy are not supported in raytracing yet)

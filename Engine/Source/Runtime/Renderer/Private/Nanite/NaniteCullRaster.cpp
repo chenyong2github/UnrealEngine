@@ -2666,6 +2666,7 @@ FBinningData AddPass_Rasterize(
 	const ERHIFeatureLevel::Type FeatureLevel = Scene.GetFeatureLevel();
 
 	const FMaterialRenderProxy* FixedMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+	const FMaterialRenderProxy* HiddenMaterialProxy = GEngine->NaniteHiddenSectionMaterial->GetRenderProxy();
 
 	struct FRasterizerPass
 	{
@@ -2687,6 +2688,7 @@ FBinningData AddPass_Rasterize(
 
 		bool bVertexProgrammable = false;
 		bool bPixelProgrammable = false;
+		bool bHidden = false;
 
 		uint32 IndirectOffset = 0u;
 		uint32 RasterizerBin = ~uint32(0u);
@@ -2752,7 +2754,8 @@ FBinningData AddPass_Rasterize(
 		RasterMode = RasterContext.RasterMode,
 		VisualizeActive = RasterContext.VisualizeActive,
 		bUseMeshShader, bUsePrimitiveShader, bHasVirtualShadowMap,
-		FixedMaterialProxy]
+		FixedMaterialProxy,
+		HiddenMaterialProxy]
 	{
 		SCOPED_NAMED_EVENT(AddPass_Rasterize_Async, FColor::Emerald);
 
@@ -2829,8 +2832,8 @@ FBinningData AddPass_Rasterize(
 				RasterizerPass.RasterizerBin = uint32(BinIndexTranslator.Translate(RasterEntry.BinIndex));
 				RasterizerPass.RasterPipeline = RasterEntry.RasterPipeline;
 
-				RasterizerPass.VertexMaterialProxy = FixedMaterialProxy;
-				RasterizerPass.PixelMaterialProxy = FixedMaterialProxy;
+				RasterizerPass.VertexMaterialProxy  = FixedMaterialProxy;
+				RasterizerPass.PixelMaterialProxy   = FixedMaterialProxy;
 				RasterizerPass.ComputeMaterialProxy = FixedMaterialProxy;
 
 				FUintVector4& HeaderEntry = HeaderBufferData[RasterizerPass.RasterizerBin];
@@ -2982,19 +2985,26 @@ FBinningData AddPass_Rasterize(
 				RasterizerPass.IndirectOffset = (RasterizerPass.RasterizerBin * NANITE_RASTERIZER_ARG_COUNT) * 4u;
 
 				if (FixedFunctionPassIndex == INDEX_NONE &&
-					RasterizerPass.VertexMaterialProxy == FixedMaterialProxy &&
-					RasterizerPass.PixelMaterialProxy == FixedMaterialProxy &&
+					RasterizerPass.VertexMaterialProxy  == FixedMaterialProxy &&
+					RasterizerPass.PixelMaterialProxy   == FixedMaterialProxy &&
 					RasterizerPass.ComputeMaterialProxy == FixedMaterialProxy)
 				{
 					FixedFunctionPassIndex = RasterizerPasses.Num() - 1;
+				}
+
+				if (RasterizerPass.VertexMaterialProxy	== HiddenMaterialProxy &&
+					RasterizerPass.PixelMaterialProxy	== HiddenMaterialProxy &&
+					RasterizerPass.ComputeMaterialProxy	== HiddenMaterialProxy)
+				{
+					RasterizerPass.bHidden = true;
 				}
 			}
 		}
 		else
 		{
 			FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
-			RasterizerPass.VertexMaterialProxy = FixedMaterialProxy;
-			RasterizerPass.PixelMaterialProxy = FixedMaterialProxy;
+			RasterizerPass.VertexMaterialProxy  = FixedMaterialProxy;
+			RasterizerPass.PixelMaterialProxy   = FixedMaterialProxy;
 			RasterizerPass.ComputeMaterialProxy = FixedMaterialProxy;
 			RasterizerPass.IndirectOffset = 0u;
 			RasterizerPass.RasterizerBin = 0u;
@@ -3225,6 +3235,11 @@ FBinningData AddPass_Rasterize(
 
 		for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 		{
+			if (RasterizerPass.bHidden)
+			{
+				continue;
+			}
+
 		#if WANTS_DRAW_MESH_EVENTS
 			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, HWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), GetRasterMaterialName(RasterizerPass.RasterPipeline.RasterMaterial, FixedMaterialProxy));
 		#endif
@@ -3324,6 +3339,11 @@ FBinningData AddPass_Rasterize(
 
 			for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 			{
+				if (RasterizerPass.bHidden)
+				{
+					continue;
+				}
+
 			#if WANTS_DRAW_MESH_EVENTS
 				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), GetRasterMaterialName(RasterizerPass.RasterPipeline.RasterMaterial, FixedMaterialProxy));
 			#endif

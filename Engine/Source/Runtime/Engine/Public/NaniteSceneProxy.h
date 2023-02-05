@@ -134,6 +134,10 @@ public:
 
 		uint8 bHasPerInstanceRandomID : 1;
 		uint8 bHasPerInstanceCustomData : 1;
+		uint8 bHidden : 1;
+	#if WITH_EDITORONLY_DATA
+		uint8 bSelected : 1;
+	#endif
 	};
 
 public:
@@ -322,6 +326,11 @@ public:
 		OutImposterIndex = Resources->ImposterIndex;
 	}
 
+	virtual void GetNaniteMaterialMask(FUint32Vector2& OutMaterialMask) const override
+	{
+		OutMaterialMask = NaniteMaterialMask;
+	}
+
 	virtual FResourceMeshInfo GetResourceMeshInfo() const override;
 
 	virtual bool GetInstanceDrawDistanceMinMax(FVector2f& OutCullRange) const override;
@@ -377,6 +386,8 @@ protected:
 	const FStaticMeshRenderData* RenderData;
 	const FDistanceFieldVolumeData* DistanceFieldData;
 	const FCardRepresentationData* CardRepresentationData;
+
+	FUint32Vector2 NaniteMaterialMask = FUint32Vector2(~uint32(0), ~uint32(0));
 
 	FMaterialRelevance CombinedMaterialRelevance;
 

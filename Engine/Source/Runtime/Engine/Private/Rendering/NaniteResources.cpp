@@ -577,37 +577,82 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	const bool bIsInstancedMesh = Component->IsA<UInstancedStaticMeshComponent>();
 
+	NaniteMaterialMask = FUint32Vector2(0u, 0u);
+
 	for (int32 SectionIndex = 0; SectionIndex < MeshSections.Num(); ++SectionIndex)
 	{
 		const FStaticMeshSection& MeshSection = MeshSections[SectionIndex];
 		FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
 		MaterialSection.MaterialIndex = MeshSection.MaterialIndex;
+		MaterialSection.bHidden = false;
+	#if WITH_EDITORONLY_DATA
+		MaterialSection.bSelected = false;
+		if (GIsEditor)
+		{
+			if (Component->SelectedEditorMaterial != INDEX_NONE)
+			{
+				MaterialSection.bSelected = (Component->SelectedEditorMaterial == MaterialSection.MaterialIndex);
+			}
+			else if (Component->SelectedEditorSection != INDEX_NONE)
+			{
+				MaterialSection.bSelected = (Component->SelectedEditorSection == SectionIndex);
+			}
+
+		    // If material is hidden, then skip the raster
+		    if ((Component->MaterialIndexPreview != INDEX_NONE) && (Component->MaterialIndexPreview != MaterialSection.MaterialIndex))
+		    {
+			    MaterialSection.bHidden = true;
+		    }
+    
+		    // If section is hidden, then skip the raster
+		    if ((Component->SectionIndexPreview != INDEX_NONE) && (Component->SectionIndexPreview != SectionIndex))
+		    {
+			    MaterialSection.bHidden = true;
+			}
+		}
+	#endif
 
 		// Keep track of highest observed material index.
 		MaterialMaxIndex = FMath::Max(MaterialSection.MaterialIndex, MaterialMaxIndex);
 
-		UMaterialInterface* ShadingMaterial = MaterialAudit.GetMaterial(MaterialSection.MaterialIndex);
-
-		// Copy over per-instance material flags for this section
-		MaterialSection.bHasPerInstanceRandomID = MaterialAudit.HasPerInstanceRandomID(MaterialSection.MaterialIndex);
-		MaterialSection.bHasPerInstanceCustomData = MaterialAudit.HasPerInstanceCustomData(MaterialSection.MaterialIndex);
-
-		// Set the IsUsedWithInstancedStaticMeshes usage so per instance random and custom data get compiled
-		// in by the HLSL translator in cases where only Nanite scene proxies have rendered with this material
-		// which would result in this usage not being set by FInstancedStaticMeshSceneProxy::SetupProxy()
-		if (bIsInstancedMesh && ShadingMaterial && !ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_InstancedStaticMeshes))
+		UMaterialInterface* ShadingMaterial = nullptr;
+		if (!MaterialSection.bHidden)
 		{
-			ShadingMaterial = nullptr;
-		}
+			ShadingMaterial = MaterialAudit.GetMaterial(MaterialSection.MaterialIndex);
 
-		if (bHasSurfaceStaticLighting && ShadingMaterial && !ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
-		{
-			ShadingMaterial = nullptr;
+			// Copy over per-instance material flags for this section
+			MaterialSection.bHasPerInstanceRandomID = MaterialAudit.HasPerInstanceRandomID(MaterialSection.MaterialIndex);
+			MaterialSection.bHasPerInstanceCustomData = MaterialAudit.HasPerInstanceCustomData(MaterialSection.MaterialIndex);
+
+			// Set the IsUsedWithInstancedStaticMeshes usage so per instance random and custom data get compiled
+			// in by the HLSL translator in cases where only Nanite scene proxies have rendered with this material
+			// which would result in this usage not being set by FInstancedStaticMeshSceneProxy::SetupProxy()
+			if (bIsInstancedMesh && ShadingMaterial && !ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_InstancedStaticMeshes))
+			{
+				ShadingMaterial = nullptr;
+			}
+
+			if (bHasSurfaceStaticLighting && ShadingMaterial && !ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
+			{
+				ShadingMaterial = nullptr;
+			}
 		}
 
 		if (ShadingMaterial == nullptr)
 		{
-			ShadingMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			ShadingMaterial = MaterialSection.bHidden ? GEngine->NaniteHiddenSectionMaterial.Get() : UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		if (!MaterialSection.bHidden)
+		{
+			if (MaterialSection.MaterialIndex >= 32u)
+			{
+				NaniteMaterialMask.Y |= (1u << (MaterialSection.MaterialIndex - 32u));
+			}
+			else
+			{
+				NaniteMaterialMask.X |= (1u << MaterialSection.MaterialIndex);
+			}
 		}
 
 		MaterialSection.MaterialRelevance = ShadingMaterial->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
@@ -621,11 +666,19 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 			bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
 		}
 
+		// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full raster bin
 		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
 		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bMasked;
 
-		// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full shader graph bin
-		MaterialSection.RasterMaterialProxy = bProgrammableRasterMaterial ? MaterialSection.ShadingMaterialProxy : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		if (MaterialSection.bHidden)
+		{
+			MaterialSection.RasterMaterialProxy = GEngine->NaniteHiddenSectionMaterial->GetRenderProxy();
+		}
+		else
+		{
+			MaterialSection.RasterMaterialProxy = bProgrammableRasterMaterial ? MaterialSection.ShadingMaterialProxy : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		}
+
 		bHasProgrammableRaster |= bProgrammableRasterMaterial;
 	}
 

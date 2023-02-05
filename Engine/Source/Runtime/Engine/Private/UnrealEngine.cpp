@@ -3006,6 +3006,9 @@ void UEngine::InitializeObjectReferences()
 		LoadSpecialMaterial(TEXT("VertexColorViewModeMaterialName_BlueOnly"), VertexColorViewModeMaterialName_BlueOnly, VertexColorViewModeMaterial_BlueOnly, false);
 	}
 
+	// Nanite materials
+	LoadSpecialMaterial(TEXT("NaniteHiddenSectionMaterialName"), NaniteHiddenSectionMaterialName, NaniteHiddenSectionMaterial, false);
+
 	// Materials that may or may not be needed when debug viewmodes are disabled but haven't been fixed up yet
 	LoadSpecialMaterial(TEXT("RemoveSurfaceMaterialName"), RemoveSurfaceMaterialName.ToString(), RemoveSurfaceMaterial, false);
 

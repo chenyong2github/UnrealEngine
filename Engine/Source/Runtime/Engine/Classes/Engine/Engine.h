@@ -950,6 +950,14 @@ public:
 	UPROPERTY(globalconfig)
 	FSoftObjectPath DebugMeshMaterialName;
 
+	/** Material used for removing Nanite mesh sections from rasterization. */
+	UPROPERTY()
+	TObjectPtr<class UMaterial> NaniteHiddenSectionMaterial;
+
+	/** Path of the material used for removing Nanite mesh sections from rasterization. */
+	UPROPERTY(globalconfig)
+	FString NaniteHiddenSectionMaterialName;
+
 	/** A material used to render emissive meshes (e.g. light source surface). */
 	UPROPERTY()
 	TObjectPtr<class UMaterial> EmissiveMeshMaterial;

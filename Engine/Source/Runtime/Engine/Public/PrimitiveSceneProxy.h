@@ -930,6 +930,11 @@ public:
 		ImposterIndex = INDEX_NONE;
 	}
 
+	virtual void GetNaniteMaterialMask(FUint32Vector2& OutMaterialMask) const
+	{
+		OutMaterialMask = FUint32Vector2(~uint32(0), ~uint32(0));
+	}
+
 	// Number of packed float4 values per instance
 	ENGINE_API uint32 GetPayloadDataStride() const;
 
