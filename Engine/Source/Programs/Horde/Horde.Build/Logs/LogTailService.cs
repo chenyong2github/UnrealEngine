@@ -73,8 +73,8 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogTailService(RedisService redisService, IClock clock, ILogger<LogTailService> logger)
-			: this(redisService, clock, 32, logger)
+		public LogTailService(RedisService redisService, IClock clock, IOptions<ServerSettings> settings, ILogger<LogTailService> logger)
+			: this(redisService, clock, 32, settings, logger)
 		{
 		}
 
