@@ -6,7 +6,7 @@
 #include "BoneContainer.h"
 #include "PoseSearchFeatureChannel_Velocity.generated.h"
 
-UCLASS(BlueprintType, EditInlineNew, meta = (DisplayName = "Velocity Channel"), CollapseCategories)
+UCLASS(EditInlineNew, meta = (DisplayName = "Velocity Channel"), CollapseCategories)
 class POSESEARCH_API UPoseSearchFeatureChannel_Velocity : public UPoseSearchFeatureChannel
 {
 	GENERATED_BODY()
@@ -37,6 +37,9 @@ public:
 	// if bNormalize is true, velocity will be clamped to a maximum size of one (UPoseSearchFeatureChannel_Velocity will be matching the "direction" of the velocity)
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bNormalize = false;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	EComponentStrippingVector ComponentStripping = EComponentStrippingVector::None;
 
 	// UPoseSearchFeatureChannel interface
 	virtual void Finalize(UPoseSearchSchema* Schema) override;

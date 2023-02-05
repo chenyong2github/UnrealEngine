@@ -27,10 +27,13 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 			Position->SampleTimeOffset = Sample.Offset;
 			Position->ColorPresetIndex = Sample.ColorPresetIndex;
 			Position->InputQueryPose = EInputQueryPose::UseCharacterPose;
+			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::PositionXY))
+			{
+				Position->ComponentStripping = EComponentStrippingVector::StripZ;
+			}
 			SubChannels.Add(Position);
 		}
 
-		// @todo: implement VelocityXY properly as 2 dimension channel
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Velocity | EPoseSearchTrajectoryFlags::VelocityXY))
 		{
 			UPoseSearchFeatureChannel_Velocity* Velocity = NewObject<UPoseSearchFeatureChannel_Velocity>(this, NAME_None, RF_Transient);
@@ -39,10 +42,13 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 			Velocity->ColorPresetIndex = Sample.ColorPresetIndex;
 			Velocity->InputQueryPose = EInputQueryPose::UseCharacterPose;
 			Velocity->bUseCharacterSpaceVelocities = false;
+			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityXY))
+			{
+				Velocity->ComponentStripping = EComponentStrippingVector::StripZ;
+			}
 			SubChannels.Add(Velocity);
 		}
 
-		// @todo: implement VelocityDirectionXY properly as 2 dimension channel
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection | EPoseSearchTrajectoryFlags::VelocityDirectionXY))
 		{
 			UPoseSearchFeatureChannel_Velocity* Velocity = NewObject<UPoseSearchFeatureChannel_Velocity>(this, NAME_None, RF_Transient);
@@ -52,10 +58,13 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 			Velocity->InputQueryPose = EInputQueryPose::UseCharacterPose;
 			Velocity->bUseCharacterSpaceVelocities = false;
 			Velocity->bNormalize = true;
+			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+			{
+				Velocity->ComponentStripping = EComponentStrippingVector::StripZ;
+			}
 			SubChannels.Add(Velocity);
 		}
 
-		// @todo: implement FacingDirectionXY properly as 2 dimension channel
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection | EPoseSearchTrajectoryFlags::FacingDirectionXY))
 		{
 			UPoseSearchFeatureChannel_Heading* Heading = NewObject<UPoseSearchFeatureChannel_Heading>(this, NAME_None, RF_Transient);
@@ -63,6 +72,10 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 			Heading->SampleTimeOffset = Sample.Offset;
 			Heading->ColorPresetIndex = Sample.ColorPresetIndex;
 			Heading->InputQueryPose = EInputQueryPose::UseCharacterPose;
+			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+			{
+				Heading->ComponentStripping = EComponentStrippingVector::StripZ;
+			}
 			SubChannels.Add(Heading);
 		}
 	}
@@ -140,6 +153,8 @@ FString UPoseSearchFeatureChannel_Trajectory::GetLabel() const
 
 float UPoseSearchFeatureChannel_Trajectory::GetEstimatedSpeedRatio(TConstArrayView<float> QueryVector, TConstArrayView<float> PoseVector) const
 {
+	using namespace UE::PoseSearch;
+
 	float EstimatedQuerySpeed = 0.f;
 	float EstimatedPoseSpeed = 0.f;
 
@@ -149,8 +164,8 @@ float UPoseSearchFeatureChannel_Trajectory::GetEstimatedSpeedRatio(TConstArrayVi
 		{
 			if (!Velocity->bNormalize)
 			{
-				const FVector QueryVelocity = UE::PoseSearch::FFeatureVectorHelper::DecodeVectorAtOffset(QueryVector, Velocity->GetChannelDataOffset());
-				const FVector PoseVelocity = UE::PoseSearch::FFeatureVectorHelper::DecodeVectorAtOffset(PoseVector, Velocity->GetChannelDataOffset());
+				const FVector QueryVelocity = FFeatureVectorHelper::DecodeVector(QueryVector, Velocity->GetChannelDataOffset(), Velocity->ComponentStripping);
+				const FVector PoseVelocity = FFeatureVectorHelper::DecodeVector(PoseVector, Velocity->GetChannelDataOffset(), Velocity->ComponentStripping);
 				EstimatedQuerySpeed += QueryVelocity.Length();
 				EstimatedPoseSpeed += PoseVelocity.Length();
 			}

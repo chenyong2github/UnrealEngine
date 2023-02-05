@@ -10,7 +10,20 @@ class UPoseSearchSchema;
 struct FPoseSearchPoseMetadata;
 struct FPoseSearchFeatureVectorBuilder;
 
-UENUM(BlueprintType)
+UENUM()
+enum class EComponentStrippingVector : uint8
+{
+	// no component stripping
+	None,
+
+	// stripping X and Y components (matching only on the horizontal plane) 
+	StripXY,
+
+	// stripping Z (matching only vertically - caring only about the height of the feature) 
+	StripZ,
+};
+
+UENUM()
 enum class EInputQueryPose : uint8
 {
 	// use character pose to compose the query
@@ -21,9 +34,6 @@ enum class EInputQueryPose : uint8
 
 	// if available reuse and interpolate continuing pose from the database to compose the query or else UseCharacterPose
 	UseInterpolatedContinuingPose,
-
-	Num UMETA(Hidden),
-	Invalid = Num UMETA(Hidden)
 };
 
 namespace UE::PoseSearch
@@ -37,29 +47,18 @@ class IAssetIndexer;
 class POSESEARCH_API FFeatureVectorHelper
 {
 public:
-	enum { EncodeQuatCardinality = 6 };
-	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, const FQuat& Quat);
-	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
-	static FQuat DecodeQuat(TConstArrayView<float> Values, int32& DataOffset);
-	static FQuat DecodeQuatAtOffset(TConstArrayView<float> Values, int32 DataOffset);
+	static int32 GetVectorCardinality(EComponentStrippingVector ComponentStrippingVector);
+	static void EncodeVector(TArrayView<float> Values, int32 DataOffset, const FVector& Vector, EComponentStrippingVector ComponentStrippingVector);
+	static void EncodeVector(TArrayView<float> Values, int32 DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue, bool bNormalize, EComponentStrippingVector ComponentStrippingVector);
+	static FVector DecodeVector(TConstArrayView<float> Values, int32 DataOffset, EComponentStrippingVector ComponentStrippingVector);
 
-	enum { EncodeVectorCardinality = 3 };
-	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, const FVector& Vector);
-	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue, bool bNormalize = false);
-	static FVector DecodeVector(TConstArrayView<float> Values, int32& DataOffset);
-	static FVector DecodeVectorAtOffset(TConstArrayView<float> Values, int32 DataOffset);
+	static void EncodeVector2D(TArrayView<float> Values, int32 DataOffset, const FVector2D& Vector2D);
+	static void EncodeVector2D(TArrayView<float> Values, int32 DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
+	static FVector2D DecodeVector2D(TConstArrayView<float> Values, int32 DataOffset);
 
-	enum { EncodeVector2DCardinality = 2 };
-	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, const FVector2D& Vector2D);
-	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
-	static FVector2D DecodeVector2D(TConstArrayView<float> Values, int32& DataOffset);
-	static FVector2D DecodeVector2DAtOffset(TConstArrayView<float> Values, int32 DataOffset);
-
-	enum { EncodeFloatCardinality = 1 };
-	static void EncodeFloat(TArrayView<float> Values, int32& DataOffset, const float Value);
-	static void EncodeFloat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
-	static float DecodeFloat(TConstArrayView<float> Values, int32& DataOffset);
-	static float DecodeFloatAtOffset(TConstArrayView<float> Values, int32 DataOffset);
+	static void EncodeFloat(TArrayView<float> Values, int32 DataOffset, const float Value);
+	static void EncodeFloat(TArrayView<float> Values, int32 DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
+	static float DecodeFloat(TConstArrayView<float> Values, int32 DataOffset);
 };
 
 } // namespace UE::PoseSearch
