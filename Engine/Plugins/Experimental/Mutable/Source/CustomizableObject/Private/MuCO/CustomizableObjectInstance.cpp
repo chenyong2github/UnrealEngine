@@ -310,6 +310,22 @@ void UCustomizableObjectInstance::BeginDestroy()
 	BeginDestroyNativeDelegate.Broadcast(this);
 
 	// Release the Live Instance ID if there it hadn't been released before
+	DestroyLiveUpdateInstance();
+
+	if (PrivateData && PrivateData->StreamingHandle)
+	{
+		PrivateData->StreamingHandle->CancelHandle();
+		PrivateData->StreamingHandle = nullptr;
+	}
+	
+	ReleaseMutableResources(true);
+
+	Super::BeginDestroy();
+}
+
+
+void UCustomizableObjectInstance::DestroyLiveUpdateInstance()
+{
 	if (PrivateData && PrivateData->LiveUpdateModeInstanceID)
 	{
 		// If FCustomizableObjectSystemPrivate::SSystem is nullptr it means it has already been destroyed, no point in registering an instanceID release
@@ -321,16 +337,6 @@ void UCustomizableObjectInstance::BeginDestroy()
 			PrivateData->LiveUpdateModeInstanceID = 0;
 		}
 	}
-
-	if (PrivateData && PrivateData->StreamingHandle)
-	{
-		PrivateData->StreamingHandle->CancelHandle();
-		PrivateData->StreamingHandle = nullptr;
-	}
-	
-	Super::BeginDestroy();
-
-	ReleaseMutableResources(true);
 }
 
 

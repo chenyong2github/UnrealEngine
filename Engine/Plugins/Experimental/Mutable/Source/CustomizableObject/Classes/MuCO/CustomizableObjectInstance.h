@@ -274,6 +274,9 @@ public:
 	// Copy parameters from input instance
 	void CopyParametersFromInstance(UCustomizableObjectInstance* Instance);
 
+	/** Immediately destroy the Mutable Core Live Update Instance attached to this (if exists). */
+	void DestroyLiveUpdateInstance();
+	
 	// Releases all the mutable resources this instance holds, should only be called when it is not going to be used any more.
 	void ReleaseMutableResources(bool bCalledFromBeginDestroy);
 
