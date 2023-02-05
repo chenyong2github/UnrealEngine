@@ -882,10 +882,11 @@ void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 					nullptr,
 					nullptr,
 					ERDGPassFlags::AsyncCompute);
+
+				// Lumen needs its own depth history because things like Translucency velocities write to depth
+				StoreLumenDepthHistory(GraphBuilder, SceneTextures, View);
 			}
 
-			// Lumen needs its own depth history because things like Translucency velocities write to depth
-			StoreLumenDepthHistory(GraphBuilder, SceneTextures, View);
 		}
 	}
 }

@@ -122,10 +122,10 @@ struct FAsyncLumenIndirectLightingOutputs
 	{
 		check(StepsLeft == ELumenIndirectLightingSteps::All);
 
-		EnumRemoveFlags(StepsLeft, ELumenIndirectLightingSteps::ScreenProbeGather | ELumenIndirectLightingSteps::StoreDepthHistory);
+		EnumRemoveFlags(StepsLeft, ELumenIndirectLightingSteps::ScreenProbeGather);
 		if (bAsyncReflections)
 		{
-			EnumRemoveFlags(StepsLeft, ELumenIndirectLightingSteps::Reflections);
+			EnumRemoveFlags(StepsLeft, ELumenIndirectLightingSteps::Reflections | ELumenIndirectLightingSteps::StoreDepthHistory);
 		}
 	}
 
