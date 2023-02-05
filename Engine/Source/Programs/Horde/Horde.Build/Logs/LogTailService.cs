@@ -305,6 +305,19 @@ namespace Horde.Build.Logs
 		}
 
 		/// <summary>
+		/// Gets the next requested tail line number, returning immediately if it is set
+		/// </summary>
+		/// <param name="logId">The log file to query</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Next requested line number, or -1 if tailing is not enabled.</returns>
+		public async Task<int> GetTailNextAsync(LogId logId, CancellationToken cancellationToken)
+		{
+			_ = cancellationToken;
+			RedisStringKey<int> tailNextKey = TailNextKey(logId);
+			return await _redisService.GetDatabase().StringGetAsync(tailNextKey, -1);
+		}
+
+		/// <summary>
 		/// Waits for a request to read tail data
 		/// </summary>
 		/// <param name="logId">The log file to query</param>
@@ -324,6 +337,7 @@ namespace Horde.Build.Logs
 						int tailNext = await _redisService.GetDatabase().StringGetAsync(TailNextKey(logId), -1);
 						if (tailNext != -1)
 						{
+							_logger.LogDebug("Released wait for tail on log {LogId} from line {Line}", logId, tailNext);
 							return tailNext;
 						}
 						else if (cancellationToken.IsCancellationRequested)

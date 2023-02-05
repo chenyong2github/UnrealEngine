@@ -79,14 +79,18 @@ namespace Horde.Build.Logs
 
 				moveNextTask = requestStream.MoveNext();
 
-				using (CancellationTokenSource cancellationSource = new CancellationTokenSource())
+				response.TailNext = await _logTailService.GetTailNextAsync(logId, context.CancellationToken);
+				if (response.TailNext == -1)
 				{
-					Task<int> waitTask = _logTailService.WaitForTailNextAsync(logId, cancellationSource.Token);
+					using (CancellationTokenSource cancellationSource = new CancellationTokenSource())
+					{
+						Task<int> waitTask = _logTailService.WaitForTailNextAsync(logId, cancellationSource.Token);
 
-					await Task.WhenAny(waitTask, moveNextTask);
-					cancellationSource.Cancel();
+						await Task.WhenAny(waitTask, moveNextTask);
+						cancellationSource.Cancel();
 
-					response.TailNext = await waitTask;
+						response.TailNext = await waitTask;
+					}
 				}
 
 				await responseStream.WriteAsync(response);
