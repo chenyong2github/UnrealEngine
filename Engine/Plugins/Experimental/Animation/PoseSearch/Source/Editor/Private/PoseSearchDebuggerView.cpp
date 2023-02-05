@@ -96,7 +96,7 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 		int32 CurrentDbPoseIdx = State.GetCurrentDatabasePoseIndex();
 
 		Reflection->CurrentDatabaseName = CurrentDatabase->GetName();
-		Reflection->ElapsedPoseJumpTime = State.ElapsedPoseJumpTime;
+		Reflection->ElapsedPoseSearchTime = State.ElapsedPoseSearchTime;
 
 		Reflection->AssetPlayerAssetName = "None";
 		if (const FPoseSearchIndexAsset* IndexAsset = CurrentSearchIndex.GetAssetForPoseSafe(CurrentDbPoseIdx))

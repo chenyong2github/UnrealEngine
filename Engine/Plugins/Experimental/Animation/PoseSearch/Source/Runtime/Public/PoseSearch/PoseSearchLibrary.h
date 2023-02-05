@@ -23,14 +23,6 @@ struct FGameplayTagContainer;
 struct FTrajectorySampleRange;
 class UPoseSearchSearchableAsset;
 
-UENUM(BlueprintType, Category="Motion Trajectory", meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
-enum class EMotionMatchingFlags : uint8
-{
-	None = 0 UMETA(Hidden),
-	JumpedToPose = 1 << 0,		// Signals that motion matching has made a significant deviation in the selected sequence/pose index
-};
-ENUM_CLASS_FLAGS(EMotionMatchingFlags);
-
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
 struct POSESEARCH_API FMotionMatchingSettings
 {
@@ -100,15 +92,15 @@ struct POSESEARCH_API FMotionMatchingState
 
 	// Time since the last pose jump
 	UPROPERTY(Transient)
-	float ElapsedPoseJumpTime = 0.f;
+	float ElapsedPoseSearchTime = 0.f;
 
 	// wanted PlayRate to have the selected animation playing at the estimated requested speed from the query
 	UPROPERTY(Transient)
 	float WantedPlayRate = 1.f;
 
-	// Evaluation flags relevant to the state of motion matching
+	// true if a new animation has been selected
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=State)
-	EMotionMatchingFlags Flags = EMotionMatchingFlags::None;
+	bool bJumpedToPose = false;
 
 	// Root motion delta for currently playing animation. Only required
 	// when UE_POSE_SEARCH_TRACE_ENABLED is active

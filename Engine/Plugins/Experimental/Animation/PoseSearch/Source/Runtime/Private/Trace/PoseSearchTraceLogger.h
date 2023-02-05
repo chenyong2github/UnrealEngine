@@ -68,7 +68,7 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	uint64 SearchableAssetId = 0;
 	
 	/** Amount of time since the last pose switch */
-	float ElapsedPoseJumpTime = 0.0f;
+	float ElapsedPoseSearchTime = 0.0f;
 
 	float AssetPlayerTime = 0.0f;
 	float DeltaTime = 0.0f;

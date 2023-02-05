@@ -36,9 +36,9 @@ public:
 	UPROPERTY(VisibleAnywhere, Category="Motion Matching State", Meta=(DisplayName="Current Database"))
 	FString CurrentDatabaseName = "";
 
-	/** Time since last PoseSearch jump */
+	/** Time since last PoseSearch */
 	UPROPERTY(VisibleAnywhere, Category="Motion Matching State")
-	float ElapsedPoseJumpTime = 0.0f;
+	float ElapsedPoseSearchTime = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
 	FString AssetPlayerAssetName = "";

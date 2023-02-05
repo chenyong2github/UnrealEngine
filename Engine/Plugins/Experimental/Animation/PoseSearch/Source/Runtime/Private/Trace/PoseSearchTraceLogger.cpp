@@ -71,7 +71,7 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateDatabaseEntry& Entry
 FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State)
 {
 	Ar << State.SearchableAssetId;
-	Ar << State.ElapsedPoseJumpTime;
+	Ar << State.ElapsedPoseSearchTime;
 	Ar << State.AssetPlayerTime;
 	Ar << State.DeltaTime;
 	Ar << State.SimLinearVelocity;

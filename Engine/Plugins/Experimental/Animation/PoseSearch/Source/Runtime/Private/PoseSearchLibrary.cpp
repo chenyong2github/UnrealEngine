@@ -26,7 +26,7 @@ void FMotionMatchingState::Reset()
 {
 	CurrentSearchResult.Reset();
 	// Set the elapsed time to INFINITY to trigger a search right away
-	ElapsedPoseJumpTime = INFINITY;
+	ElapsedPoseSearchTime = INFINITY;
 	PoseIndicesHistory.Reset();
 	WantedPlayRate = 1.f;
 }
@@ -135,9 +135,7 @@ void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, co
 	// Remember which pose and sequence we're playing from the database
 	CurrentSearchResult = Result;
 
-	ElapsedPoseJumpTime = 0.0f;
-
-	Flags |= EMotionMatchingFlags::JumpedToPose;
+	bJumpedToPose = true;
 }
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
@@ -147,7 +145,8 @@ static void TraceMotionMatchingState(
 	UE::PoseSearch::FSearchContext& SearchContext,
 	const FMotionMatchingState& MotionMatchingState,
 	const FTrajectorySampleRange& Trajectory,
-	const UE::PoseSearch::FSearchResult& LastResult)
+	const UE::PoseSearch::FSearchResult& LastResult,
+	bool bSearch)
 {
 	using namespace UE::PoseSearch;
 
@@ -202,7 +201,7 @@ static void TraceMotionMatchingState(
 		DbEntry.PoseEntries.Add(PoseEntry);
 	}
 
-	if (MotionMatchingState.CurrentSearchResult.ContinuingPoseCost.IsValid())
+	if (bSearch && MotionMatchingState.CurrentSearchResult.ContinuingPoseCost.IsValid())
 	{
 		check(LastResult.IsValid());
 
@@ -216,7 +215,7 @@ static void TraceMotionMatchingState(
 		PoseEntry.PoseCandidateFlags = EPoseCandidateFlags::Valid_ContinuingPose;
 	}
 
-	if (MotionMatchingState.CurrentSearchResult.PoseCost.IsValid())
+	if (bSearch && MotionMatchingState.CurrentSearchResult.PoseCost.IsValid())
 	{
 		const int32 DbEntryIdx = AddUniqueDatabase(TraceState.DatabaseEntries, MotionMatchingState.CurrentSearchResult.Database.Get(), SearchContext);
 		FTraceMotionMatchingStateDatabaseEntry& DbEntry = TraceState.DatabaseEntries[DbEntryIdx];
@@ -250,7 +249,7 @@ static void TraceMotionMatchingState(
 	}
 
 	TraceState.SearchableAssetId = FTraceMotionMatchingState::GetIdFromObject(Searchable);
-	TraceState.ElapsedPoseJumpTime = MotionMatchingState.ElapsedPoseJumpTime;
+	TraceState.ElapsedPoseSearchTime = MotionMatchingState.ElapsedPoseSearchTime;
 	TraceState.AssetPlayerTime = MotionMatchingState.CurrentSearchResult.AssetTime;
 	TraceState.DeltaTime = DeltaTime;
 
@@ -282,52 +281,47 @@ void UpdateMotionMatchingState(
 
 	const float DeltaTime = Context.GetDeltaTime();
 
-	// Reset State Flags
-	InOutMotionMatchingState.Flags = EMotionMatchingFlags::None;
+	InOutMotionMatchingState.bJumpedToPose = false;
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	// Record Current Pose Index for Debugger
 	const FSearchResult LastResult = InOutMotionMatchingState.CurrentSearchResult;
 #endif
 
-	// Check if we can advance.
-	const bool bCanAdvance = InOutMotionMatchingState.CanAdvance(DeltaTime);
+	// Build the search context
+	FSearchContext SearchContext;
+	SearchContext.ActiveTagsContainer = ActiveTagsContainer;
+	SearchContext.Trajectory = &Trajectory;
+	SearchContext.OwningComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
+	SearchContext.BoneContainer = &Context.AnimInstanceProxy->GetRequiredBones();
+	SearchContext.bIsTracing = IsTracing(Context);
+	SearchContext.bForceInterrupt = bForceInterrupt;
+	SearchContext.bCanAdvance = InOutMotionMatchingState.CanAdvance(DeltaTime);
+	SearchContext.CurrentResult = InOutMotionMatchingState.CurrentSearchResult;
+	SearchContext.PoseJumpThresholdTime = Settings.PoseJumpThresholdTime;
+	SearchContext.PoseIndicesHistory = &InOutMotionMatchingState.PoseIndicesHistory;
+
+	if (IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<IPoseHistoryProvider>())
+	{
+		SearchContext.History = &PoseHistoryProvider->GetPoseHistory();
+	}
+
+	if (const FPoseSearchIndexAsset* CurrentIndexAsset = InOutMotionMatchingState.CurrentSearchResult.GetSearchIndexAsset())
+	{
+		SearchContext.QueryMirrorRequest = CurrentIndexAsset->bMirrored ? EPoseSearchBooleanRequest::TrueValue : EPoseSearchBooleanRequest::FalseValue;
+	}
 
 	// If we can't advance or enough time has elapsed since the last pose jump then search
-	FSearchContext SearchContext;
-	if (!bCanAdvance || (InOutMotionMatchingState.ElapsedPoseJumpTime >= Settings.SearchThrottleTime))
+	const bool bSearch = !SearchContext.bCanAdvance || (InOutMotionMatchingState.ElapsedPoseSearchTime >= Settings.SearchThrottleTime);
+	if (bSearch)
 	{
-		// Build the search context
-		SearchContext.ActiveTagsContainer = ActiveTagsContainer;
-		SearchContext.Trajectory = &Trajectory;
-		SearchContext.OwningComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
-		SearchContext.BoneContainer = &Context.AnimInstanceProxy->GetRequiredBones();
-		SearchContext.bIsTracing = IsTracing(Context);
-		SearchContext.bForceInterrupt = bForceInterrupt;
-		SearchContext.bCanAdvance = bCanAdvance;
-		SearchContext.CurrentResult = InOutMotionMatchingState.CurrentSearchResult;
-		SearchContext.PoseJumpThresholdTime = Settings.PoseJumpThresholdTime;
-		SearchContext.PoseIndicesHistory = &InOutMotionMatchingState.PoseIndicesHistory;
-
-		IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<IPoseHistoryProvider>();
-		if (PoseHistoryProvider)
-		{
-			SearchContext.History = &PoseHistoryProvider->GetPoseHistory();
-		}
-
-		if (const FPoseSearchIndexAsset* CurrentIndexAsset = InOutMotionMatchingState.CurrentSearchResult.GetSearchIndexAsset())
-		{
-			SearchContext.QueryMirrorRequest =
-				CurrentIndexAsset->bMirrored ?
-				EPoseSearchBooleanRequest::TrueValue :
-				EPoseSearchBooleanRequest::FalseValue;
-		}
+		InOutMotionMatchingState.ElapsedPoseSearchTime = 0.f;
 
 		// Search the database for the nearest match to the updated query vector
 		FSearchResult SearchResult = Searchable->Search(SearchContext);
 
-		// making sure we haven't calculated ContinuingPoseCost if we !bCanAdvance 
-		check(bCanAdvance || !SearchResult.ContinuingPoseCost.IsValid());
+		// making sure we haven't calculated ContinuingPoseCost if we !SearchContext.bCanAdvance 
+		check(SearchContext.bCanAdvance || !SearchResult.ContinuingPoseCost.IsValid());
 		
 		if (SearchResult.PoseCost.GetTotalCost() < SearchResult.ContinuingPoseCost.GetTotalCost())
 		{
@@ -343,15 +337,14 @@ void UpdateMotionMatchingState(
 			InOutMotionMatchingState.CurrentSearchResult.ContinuingPoseCost = SearchResult.ContinuingPoseCost;
 			InOutMotionMatchingState.CurrentSearchResult.ComposedQuery = SearchResult.ComposedQuery;
 		}
+	
+		InOutMotionMatchingState.UpdateWantedPlayRate(SearchContext, Settings);
 	}
-
-	// Tick elapsed pose jump timer
-	if (!(InOutMotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose))
+	else
 	{
-		InOutMotionMatchingState.ElapsedPoseJumpTime += DeltaTime;
+		InOutMotionMatchingState.ElapsedPoseSearchTime += DeltaTime;
 	}
 
-	InOutMotionMatchingState.UpdateWantedPlayRate(SearchContext, Settings);
 	InOutMotionMatchingState.PoseIndicesHistory.Update(InOutMotionMatchingState.CurrentSearchResult, DeltaTime, Settings.PoseReselectHistory);
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
@@ -362,7 +355,8 @@ void UpdateMotionMatchingState(
 		SearchContext,
 		InOutMotionMatchingState,
 		Trajectory,
-		LastResult);
+		LastResult,
+		bSearch);
 #endif
 }
 
