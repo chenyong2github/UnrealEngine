@@ -2135,30 +2135,7 @@ void UActorComponent::DestroyReplicatedSubObjectOnRemotePeers(UObject* SubObject
 {
 	if (AActor* MyOwner = GetOwner())
 	{
-		if (!MyOwner->HasAuthority())
-		{
-			// Only the authority can call this.
-			return;
-		}
-
-		UE_LOG(LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) requested to Delete replicated subobject on clients %s (0x%p)"), *MyOwner->GetName(), *GetName(), this, *SubObject->GetName(), SubObject);
-
-		if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld()))
-		{
-			for (const FNamedNetDriver& Driver : Context->ActiveNetDrivers)
-			{
-				if (Driver.NetDriver)
-				{
-					Driver.NetDriver->DeleteSubObjectOnClients(MyOwner, SubObject);
-				}
-			}
-		}
-
-
-		if (IsUsingRegisteredSubObjectList())
-		{
-			MyOwner->RemoveActorComponentReplicatedSubObject(this, SubObject);
-		}
+		MyOwner->DestroyReplicatedSubObjectOnRemotePeers(this, SubObject);
 	}
 }
 
@@ -2166,29 +2143,7 @@ void UActorComponent::TearOffReplicatedSubObjectOnRemotePeers(UObject* SubObject
 {
 	if (AActor* MyOwner=GetOwner())
 	{
-		if (!MyOwner->HasAuthority())
-		{
-			// Only the authority can call this.
-			return;
-		}
-
-		UE_LOG(LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) requested to TearOff replicated subobject on clients %s (0x%p)"), *MyOwner->GetName(), *GetName(), this, *SubObject->GetName(), SubObject);
-	
-		if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld()))
-		{
-			for (const FNamedNetDriver& Driver : Context->ActiveNetDrivers)
-			{
-				if (Driver.NetDriver)
-				{
-					Driver.NetDriver->TearOffSubObjectOnClients(MyOwner, SubObject);
-				}
-			}
-		}
-
-		if (IsUsingRegisteredSubObjectList())
-		{
-			MyOwner->RemoveActorComponentReplicatedSubObject(this, SubObject);
-		}
+		MyOwner->TearOffReplicatedSubObjectOnRemotePeers(this, SubObject);
 	}
 }
 

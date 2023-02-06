@@ -3355,16 +3355,42 @@ void UNetDriver::RemoveNetworkActor(AActor* Actor)
 
 void UNetDriver::DeleteSubObjectOnClients(AActor* Actor, UObject* SubObject)
 {
+#if UE_WITH_IRIS
+	if (ReplicationSystem)
+	{
+		if (UActorReplicationBridge* Bridge = Cast<UActorReplicationBridge>(ReplicationSystem->GetReplicationBridge()))
+		{
+			constexpr EEndReplicationFlags EndReplicationFlags = EEndReplicationFlags::Destroy | EEndReplicationFlags::DestroyNetHandle | EEndReplicationFlags::ClearNetPushId;
+			Bridge->EndReplication(SubObject, EndReplicationFlags);
+		}
+	}
+	else
+#endif 
+	{
 #if UE_REPLICATED_OBJECT_REFCOUNTING
-	NetworkObjects->SetSubObjectForDeletion(Actor, SubObject);
+		NetworkObjects->SetSubObjectForDeletion(Actor, SubObject);
 #endif
+	}
 }
 
 void UNetDriver::TearOffSubObjectOnClients(AActor* Actor, UObject* SubObject)
 {
+#if UE_WITH_IRIS
+	if (ReplicationSystem)
+	{
+		if (UActorReplicationBridge* Bridge = Cast<UActorReplicationBridge>(ReplicationSystem->GetReplicationBridge()))
+		{
+			constexpr EEndReplicationFlags EndReplicationFlags = EEndReplicationFlags::TearOff;
+			Bridge->EndReplication(SubObject, EndReplicationFlags);
+		}
+	}
+	else
+#endif 
+	{
 #if UE_REPLICATED_OBJECT_REFCOUNTING
-	NetworkObjects->SetSubObjectForTearOff(Actor, SubObject);
+		NetworkObjects->SetSubObjectForTearOff(Actor, SubObject);
 #endif
+	}
 }
 
 void UNetDriver::NotifyActorRenamed(AActor* ThisActor, FName PreviousName)

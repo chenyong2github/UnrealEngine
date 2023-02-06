@@ -605,13 +605,18 @@ void AActor::AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCo
 #endif
 }
 
-void AActor::RemoveReplicatedSubObject(UObject* SubObject)
+bool AActor::RemoveReplicatedSubObjectFromList(UObject* SubObject)
 {
 	check(SubObject);
 	const bool bWasRemoved = ReplicatedSubObjects.RemoveSubObject(SubObject);
 
 	UE_CLOG(bWasRemoved, LogNetSubObject, Verbose, TEXT("%s (0x%p) removed replicated subobject %s (0x%p)"), *GetName(), this, *SubObject->GetName(), SubObject);
+	return bWasRemoved;
+}
 
+void AActor::RemoveReplicatedSubObject(UObject* SubObject)
+{
+	const bool bWasRemoved = RemoveReplicatedSubObjectFromList(SubObject);
 #if UE_WITH_IRIS
 	if (bWasRemoved)
 	{
@@ -619,7 +624,6 @@ void AActor::RemoveReplicatedSubObject(UObject* SubObject)
 	}
 #endif // UE_WITH_IRIS
 }
-
 
 void AActor::DestroyReplicatedSubObjectOnRemotePeers(UObject* SubObject)
 {
@@ -646,10 +650,67 @@ void AActor::DestroyReplicatedSubObjectOnRemotePeers(UObject* SubObject)
 
 	if (IsUsingRegisteredSubObjectList())
 	{
-		RemoveReplicatedSubObject(SubObject);
+		RemoveReplicatedSubObjectFromList(SubObject);
 	}
 }
 
+void AActor::DestroyReplicatedSubObjectOnRemotePeers(UActorComponent* OwnerComponent, UObject* SubObject)
+{
+	check(SubObject);
+
+	if (!HasAuthority())
+	{
+		// Only the authority can call this.
+		return;
+	}
+
+	UE_LOG(LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) requested to Delete replicated subobject on clients %s (0x%p)"), *GetName(), *OwnerComponent->GetName(), OwnerComponent, *SubObject->GetName(), SubObject);
+
+	if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld()))
+	{
+		for (const FNamedNetDriver& Driver : Context->ActiveNetDrivers)
+		{
+			if (Driver.NetDriver)
+			{
+				Driver.NetDriver->DeleteSubObjectOnClients(this, SubObject);
+			}
+		}
+	}
+
+	if (OwnerComponent->IsUsingRegisteredSubObjectList())
+	{
+		RemoveActorComponentReplicatedSubObjectFromList(OwnerComponent, SubObject);
+	}
+}
+
+void AActor::TearOffReplicatedSubObjectOnRemotePeers(UActorComponent* OwnerComponent, UObject* SubObject)
+{
+	check(SubObject);
+
+	if (!HasAuthority())
+	{
+		// Only the authority can call this.
+		return;
+	}
+
+	UE_LOG(LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) requested to TearOff replicated subobject on clients %s (0x%p)"), *GetName(), *OwnerComponent->GetName(), this, *SubObject->GetName(), SubObject);
+
+	if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld()))
+	{
+		for (const FNamedNetDriver& Driver : Context->ActiveNetDrivers)
+		{
+			if (Driver.NetDriver)
+			{
+				Driver.NetDriver->TearOffSubObjectOnClients(this, SubObject);
+			}
+		}
+	}
+
+	if (OwnerComponent->IsUsingRegisteredSubObjectList())
+	{
+		RemoveActorComponentReplicatedSubObjectFromList(OwnerComponent, SubObject);
+	}
+}
 
 void AActor::TearOffReplicatedSubObjectOnRemotePeers(UObject* SubObject)
 {
@@ -676,7 +737,7 @@ void AActor::TearOffReplicatedSubObjectOnRemotePeers(UObject* SubObject)
 
 	if (IsUsingRegisteredSubObjectList())
 	{
-		RemoveReplicatedSubObject(SubObject);
+		RemoveReplicatedSubObjectFromList(SubObject);
 	}
 
 }
@@ -722,21 +783,33 @@ void AActor::AddActorComponentReplicatedSubObject(UActorComponent* OwnerComponen
 	}
 }
 
-void AActor::RemoveActorComponentReplicatedSubObject(UActorComponent* OwnerComponent, UObject* SubObject)
+bool AActor::RemoveActorComponentReplicatedSubObjectFromList(UActorComponent* OwnerComponent, UObject* SubObject)
 {
 	check(OwnerComponent);
 	check(SubObject);
 
 	if (FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(OwnerComponent))
 	{
-		bool bWasRemoved = ComponentInfo->SubObjects.RemoveSubObject(SubObject);
+		const bool bWasRemoved = ComponentInfo->SubObjects.RemoveSubObject(SubObject);
 
 		UE_CLOG(bWasRemoved, LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) removed replicated subobject %s (0x%p)"), *GetName(), *OwnerComponent->GetName(), OwnerComponent, *SubObject->GetName(), SubObject);
 
-#if UE_WITH_IRIS
-		UE::Net::FReplicationSystemUtil::EndReplicationForActorComponentSubObject(OwnerComponent, SubObject);
-#endif // UE_WITH_IRIS
+		return bWasRemoved;
 	}
+
+	return false;
+}
+
+void AActor::RemoveActorComponentReplicatedSubObject(UActorComponent* OwnerComponent, UObject* SubObject)
+{
+	const bool bWasRemoved = RemoveActorComponentReplicatedSubObjectFromList(OwnerComponent, SubObject);
+	
+#if UE_WITH_IRIS
+	if (bWasRemoved)
+	{
+		UE::Net::FReplicationSystemUtil::EndReplicationForActorComponentSubObject(OwnerComponent, SubObject);
+	}
+#endif
 }
 
 bool AActor::IsReplicatedSubObjectRegistered(const UObject* SubObject) const

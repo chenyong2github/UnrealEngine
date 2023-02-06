@@ -3760,15 +3760,22 @@ public:
 	*/
 	void DestroyReplicatedSubObjectOnRemotePeers(UObject* SubObject);
 
+	/** Similar to the other destroy function but for subobjects owned by an ActorComponent */
+	void DestroyReplicatedSubObjectOnRemotePeers(UActorComponent* OwnerComponent, UObject* SubObject);
+
 	/**
 	* Stop replicating a subobject and tell actor channels who spawned a replica of this subobject to release ownership over it.
 	* This means that on the remote connection the network engine will stop holding a reference to the subobject and it's up to other systems 
 	* to keep that reference active or the subobject will get garbage collected.
+    * Note that the subobject won't be replicated anymore, so it's final state on the client will be the one from the last replication update sent.
 	* If you are using the legacy subobject replication method (ReplicateSubObjects() aka bReplicateUsingRegisteredSubObjectList=false) make sure the
 	* subobject doesn't get replicated there either.
 	* @param SubObject The SubObject to tear off
 	*/
 	void TearOffReplicatedSubObjectOnRemotePeers(UObject* SubObject);
+
+	/** Similar to the other tear off function but for subobjects owned by an ActorComponent */
+	void TearOffReplicatedSubObjectOnRemotePeers(UActorComponent* OwnerComponent, UObject* SubObject);
 
 	/**
 	* Register a SubObject that will get replicated along with the actor component owning it.
@@ -3800,6 +3807,12 @@ private:
 
 	/** Array of replicated components and the list of replicated subobjects they own. Replaces the deprecated ReplicatedCompoments array. */
 	TArray<UE::Net::FReplicatedComponentInfo> ReplicatedComponentsInfo;
+
+	/** Remove the subobject from the registry list. Returns true if the object was found and removed from the list. */
+	bool RemoveReplicatedSubObjectFromList(UObject* SubObject);
+
+	/** Remove the subobject from a component's registry list. Returns true if the object was found and removed from the list. */
+	bool RemoveActorComponentReplicatedSubObjectFromList(UActorComponent* OwnerComponent, UObject* SubObject);
 
 	/** Check if a new component is replicated by the actor and must be registered in the list */
 	void AddComponentForReplication(UActorComponent* Component);
