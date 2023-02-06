@@ -17,7 +17,7 @@ struct POSESEARCH_API FKDTree
 	struct FDataSource
 	{
 		FDataSource(int32 pointCount, int32 pointDim, const float* data)
-		: PointCount(pointDim > 0 ? pointCount : 0)
+		: PointCount((pointDim > 0 && data) ? pointCount : 0)
 		, PointDim(pointDim)
 		, Data(data)
 		{
@@ -133,8 +133,9 @@ struct POSESEARCH_API FKDTree
 	FKDTree& operator=(const FKDTree& Other);
 	FKDTree& operator=(FKDTree&& Other) = delete;
 
-	bool FindNeighbors(KNNResultSet& Result, const float* Query) const;
+	void Reset();
 	void Construct(int32 Count, int32 Dim, const float* Data, int32 MaxLeafSize);
+	bool FindNeighbors(KNNResultSet& Result, const float* Query) const;
 	SIZE_T GetAllocatedSize() const;
 
 	FDataSource DataSource;

@@ -197,6 +197,14 @@ struct POSESEARCH_API FPoseSearchIndex : public FPoseSearchIndexBase
 {
 	GENERATED_BODY()
 
+	// we store weights square roots to reduce numerical errors when CompareFeatureVectors 
+	// ((VA - VB) * VW).square().sum()
+	// instead of
+	// ((VA - VB).square() * VW).sum()
+	// since (VA - VB).square() could lead to big numbers, and VW being multiplied by the variance of the dataset
+	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
+	TArray<float> WeightsSqrt;
+
 	UPROPERTY(meta = (NeverInHash))
 	TArray<float> PCAValues;
 
@@ -205,14 +213,6 @@ struct POSESEARCH_API FPoseSearchIndex : public FPoseSearchIndexBase
 
 	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	TArray<float> Mean;
-
-	// we store weights square roots to reduce numerical errors when CompareFeatureVectors 
-	// ((VA - VB) * VW).square().sum()
-	// instead of
-	// ((VA - VB).square() * VW).sum()
-	// since (VA - VB).square() could lead to big numbers, and VW being multiplied by the variance of the dataset
-	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
-	TArray<float> WeightsSqrt;
 
 	UE::PoseSearch::FKDTree KDTree;
 

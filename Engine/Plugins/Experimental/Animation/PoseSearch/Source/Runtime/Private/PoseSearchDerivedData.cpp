@@ -435,18 +435,18 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, int32 Nu
 	// binding SearchIndex.Values and SearchIndex.PCAValues Eigen row major matrix maps
 	const int32 NumPoses = SearchIndex.NumPoses;
 
+	SearchIndex.PCAExplainedVariance = 0.f;
+
 	SearchIndex.PCAValues.Reset();
 	SearchIndex.Mean.Reset();
 	SearchIndex.PCAProjectionMatrix.Reset();
 
-	SearchIndex.PCAValues.AddZeroed(NumPoses * NumberOfPrincipalComponents);
-	SearchIndex.Mean.AddZeroed(NumDimensions);
-	SearchIndex.PCAProjectionMatrix.AddZeroed(NumDimensions * NumberOfPrincipalComponents);
-
-	SearchIndex.PCAExplainedVariance = 0.f;
-
-	if (NumDimensions > 0)
+	if (PoseSearchMode != EPoseSearchMode::BruteForce && NumDimensions > 0)
 	{
+		SearchIndex.PCAValues.AddZeroed(NumPoses * NumberOfPrincipalComponents);
+		SearchIndex.Mean.AddZeroed(NumDimensions);
+		SearchIndex.PCAProjectionMatrix.AddZeroed(NumDimensions * NumberOfPrincipalComponents);
+
 		const RowMajorVectorMapConst MapWeightsSqrt(SearchIndex.WeightsSqrt.GetData(), 1, NumDimensions);
 		const RowMajorMatrixMapConst MapValues(SearchIndex.Values.GetData(), NumPoses, NumDimensions);
 		const RowMajorMatrix WeightedValues = MapValues.array().rowwise() * MapWeightsSqrt.array();
@@ -528,76 +528,80 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, int32 Nu
 
 static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, int32 NumDimensions, uint32 NumberOfPrincipalComponents, EPoseSearchMode PoseSearchMode, int32 KDTreeMaxLeafSize, int32 KDTreeQueryNumNeighbors)
 {
-	const int32 NumPoses = SearchIndex.NumPoses;
-	SearchIndex.KDTree.Construct(NumPoses, NumberOfPrincipalComponents, SearchIndex.PCAValues.GetData(), KDTreeMaxLeafSize);
-
-	if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
+	SearchIndex.KDTree.Reset();
+	if (PoseSearchMode != EPoseSearchMode::BruteForce && NumDimensions > 0)
 	{
-		// testing the KDTree is returning the proper searches for all the points in pca space
-		int32 NumberOfFailingPoints = 0;
-		for (size_t PointIndex = 0; PointIndex < NumPoses; ++PointIndex)
-		{
-			TArray<size_t> ResultIndexes;
-			TArray<float> ResultDistanceSqr;
-			ResultIndexes.SetNum(KDTreeQueryNumNeighbors + 1);
-			ResultDistanceSqr.SetNum(KDTreeQueryNumNeighbors + 1);
-			FKDTree::KNNResultSet ResultSet(KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
-			SearchIndex.KDTree.FindNeighbors(ResultSet, &SearchIndex.PCAValues[PointIndex * NumberOfPrincipalComponents]);
+		const int32 NumPoses = SearchIndex.NumPoses;
+		SearchIndex.KDTree.Construct(NumPoses, NumberOfPrincipalComponents, SearchIndex.PCAValues.GetData(), KDTreeMaxLeafSize);
 
-			size_t ResultIndex = 0;
-			for (; ResultIndex < ResultSet.Num(); ++ResultIndex)
+		if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
+		{
+			// testing the KDTree is returning the proper searches for all the points in pca space
+			int32 NumberOfFailingPoints = 0;
+			for (size_t PointIndex = 0; PointIndex < NumPoses; ++PointIndex)
 			{
-				if (PointIndex == ResultIndexes[ResultIndex])
+				TArray<size_t> ResultIndexes;
+				TArray<float> ResultDistanceSqr;
+				ResultIndexes.SetNum(KDTreeQueryNumNeighbors + 1);
+				ResultDistanceSqr.SetNum(KDTreeQueryNumNeighbors + 1);
+				FKDTree::KNNResultSet ResultSet(KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
+				SearchIndex.KDTree.FindNeighbors(ResultSet, &SearchIndex.PCAValues[PointIndex * NumberOfPrincipalComponents]);
+
+				size_t ResultIndex = 0;
+				for (; ResultIndex < ResultSet.Num(); ++ResultIndex)
 				{
-					check(ResultDistanceSqr[ResultIndex] < UE_KINDA_SMALL_NUMBER);
-					break;
+					if (PointIndex == ResultIndexes[ResultIndex])
+					{
+						check(ResultDistanceSqr[ResultIndex] < UE_KINDA_SMALL_NUMBER);
+						break;
+					}
+				}
+				if (ResultIndex == ResultSet.Num())
+				{
+					++NumberOfFailingPoints;
 				}
 			}
-			if (ResultIndex == ResultSet.Num())
+
+			check(NumberOfFailingPoints == 0);
+
+			// testing the KDTree is returning the proper searches for all the original points transformed in pca space
+			NumberOfFailingPoints = 0;
+			for (size_t PointIndex = 0; PointIndex < NumPoses; ++PointIndex)
 			{
-				++NumberOfFailingPoints;
-			}
-		}
+				TArray<size_t> ResultIndexes;
+				TArray<float> ResultDistanceSqr;
+				ResultIndexes.SetNum(KDTreeQueryNumNeighbors + 1);
+				ResultDistanceSqr.SetNum(KDTreeQueryNumNeighbors + 1);
+				FKDTree::KNNResultSet ResultSet(KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
 
-		check(NumberOfFailingPoints == 0);
+				const RowMajorVectorMapConst MapValues(&SearchIndex.Values[PointIndex * NumDimensions], 1, NumDimensions);
+				const RowMajorVectorMapConst MapWeightsSqrt(SearchIndex.WeightsSqrt.GetData(), 1, NumDimensions);
+				const RowMajorVectorMapConst Mean(SearchIndex.Mean.GetData(), 1, NumDimensions);
+				const ColMajorMatrixMapConst PCAProjectionMatrix(SearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, NumberOfPrincipalComponents);
 
-		// testing the KDTree is returning the proper searches for all the original points transformed in pca space
-		NumberOfFailingPoints = 0;
-		for (size_t PointIndex = 0; PointIndex < NumPoses; ++PointIndex)
-		{
-			TArray<size_t> ResultIndexes;
-			TArray<float> ResultDistanceSqr;
-			ResultIndexes.SetNum(KDTreeQueryNumNeighbors + 1);
-			ResultDistanceSqr.SetNum(KDTreeQueryNumNeighbors + 1);
-			FKDTree::KNNResultSet ResultSet(KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
+				const RowMajorMatrix WeightedValues = MapValues.array() * MapWeightsSqrt.array();
+				const RowMajorMatrix CenteredValues = WeightedValues - Mean;
+				const RowMajorVector ProjectedValues = CenteredValues * PCAProjectionMatrix;
 
-			const RowMajorVectorMapConst MapValues(&SearchIndex.Values[PointIndex * NumDimensions], 1, NumDimensions);
-			const RowMajorVectorMapConst MapWeightsSqrt(SearchIndex.WeightsSqrt.GetData(), 1, NumDimensions);
-			const RowMajorVectorMapConst Mean(SearchIndex.Mean.GetData(), 1, NumDimensions);
-			const ColMajorMatrixMapConst PCAProjectionMatrix(SearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, NumberOfPrincipalComponents);
+				SearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedValues.data());
 
-			const RowMajorMatrix WeightedValues = MapValues.array() * MapWeightsSqrt.array();
-			const RowMajorMatrix CenteredValues = WeightedValues - Mean;
-			const RowMajorVector ProjectedValues = CenteredValues * PCAProjectionMatrix;
-
-			SearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedValues.data());
-
-			size_t ResultIndex = 0;
-			for (; ResultIndex < ResultSet.Num(); ++ResultIndex)
-			{
-				if (PointIndex == ResultIndexes[ResultIndex])
+				size_t ResultIndex = 0;
+				for (; ResultIndex < ResultSet.Num(); ++ResultIndex)
 				{
-					check(ResultDistanceSqr[ResultIndex] < UE_KINDA_SMALL_NUMBER);
-					break;
+					if (PointIndex == ResultIndexes[ResultIndex])
+					{
+						check(ResultDistanceSqr[ResultIndex] < UE_KINDA_SMALL_NUMBER);
+						break;
+					}
+				}
+				if (ResultIndex == ResultSet.Num())
+				{
+					++NumberOfFailingPoints;
 				}
 			}
-			if (ResultIndex == ResultSet.Num())
-			{
-				++NumberOfFailingPoints;
-			}
-		}
 
-		check(NumberOfFailingPoints == 0);
+			check(NumberOfFailingPoints == 0);
+		}
 	}
 }
 
@@ -786,7 +790,7 @@ void FPoseSearchDatabaseAsyncCacheTask::Wait(FCriticalSection& OuterMutex)
 	{
 		Database->SetSearchIndex(SearchIndex); // @todo: implement FPoseSearchIndex move ctor and assignment operator and use a MoveTemp(SearchIndex) here
 
-		check(Database->Schema && Database->Schema->IsValid() && !SearchIndex.IsEmpty() && SearchIndex.WeightsSqrt.Num() == Database->Schema->SchemaCardinality && SearchIndex.KDTree.Impl);
+		check(Database->Schema && Database->Schema->IsValid() && !SearchIndex.IsEmpty() && SearchIndex.WeightsSqrt.Num() == Database->Schema->SchemaCardinality);
 
 		SetState(EState::Ended);
 		bBroadcastOnDerivedDataRebuild = true;

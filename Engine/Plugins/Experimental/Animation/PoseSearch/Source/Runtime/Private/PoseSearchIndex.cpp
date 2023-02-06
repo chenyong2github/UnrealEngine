@@ -150,10 +150,10 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index)
 // FPoseSearchIndex
 FPoseSearchIndex::FPoseSearchIndex(const FPoseSearchIndex& Other)
 	: FPoseSearchIndexBase(Other)
+	, WeightsSqrt(Other.WeightsSqrt)
 	, PCAValues(Other.PCAValues)
 	, PCAProjectionMatrix(Other.PCAProjectionMatrix)
 	, Mean(Other.Mean)
-	, WeightsSqrt(Other.WeightsSqrt)
 	, KDTree(Other.KDTree)
 	, PCAExplainedVariance(Other.PCAExplainedVariance)
 {
@@ -230,32 +230,38 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 {
 	Ar << static_cast<FPoseSearchIndexBase&>(Index);
 
-	int32 NumPCAValues = 0;
+	Ar << Index.WeightsSqrt;
 
-	if (Ar.IsSaving())
-	{
-		NumPCAValues = Index.PCAValues.Num();
-	}
-
+	int32 NumPCAValues = Ar.IsSaving() ? Index.PCAValues.Num() : 0;
 	Ar << NumPCAValues;
 
-	if (Ar.IsLoading())
+	if (NumPCAValues > 0)
 	{
-		Index.PCAValues.SetNumUninitialized(NumPCAValues);
-	}
+		if (Ar.IsLoading())
+		{
+			Index.PCAValues.SetNumUninitialized(NumPCAValues);
+		}
 
-	if (Index.PCAValues.Num() > 0)
+		if (Index.PCAValues.Num() > 0)
+		{
+			Ar.Serialize(&Index.PCAValues[0], Index.PCAValues.Num() * Index.PCAValues.GetTypeSize());
+		}
+
+		Ar << Index.Mean;
+		Ar << Index.PCAProjectionMatrix;
+
+		Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
+
+		Ar << Index.PCAExplainedVariance;
+	}
+	else if (Ar.IsLoading())
 	{
-		Ar.Serialize(&Index.PCAValues[0], Index.PCAValues.Num() * Index.PCAValues.GetTypeSize());
+		Index.PCAValues.Reset();
+		Index.Mean.Reset();
+		Index.PCAProjectionMatrix.Reset();
+		Index.KDTree.Reset();
+		Index.PCAExplainedVariance = 0.f;
 	}
-
-	Ar << Index.WeightsSqrt;
-	Ar << Index.Mean;
-	Ar << Index.PCAProjectionMatrix;
-
-	Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
-
-	Ar << Index.PCAExplainedVariance;
 
 	return Ar;
 }
