@@ -99,10 +99,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Config", meta = (FilePathFilter = "Config Files (*.ocio, *.ocioz)|*.ocio;*.ocioz", RelativeToGameDir))
 	FFilePath ConfigurationFile;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ColorSpace", meta=(OCIOConfigFile="ConfigurationFile"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ColorSpace")
 	TArray<FOpenColorIOColorSpace> DesiredColorSpaces;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ColorSpace", DisplayName="Desired Display-Views", meta = (OCIOConfigFile = "ConfigurationFile"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ColorSpace", DisplayName="Desired Display-Views")
 	TArray<FOpenColorIODisplayView> DesiredDisplayViews;
 
 private:

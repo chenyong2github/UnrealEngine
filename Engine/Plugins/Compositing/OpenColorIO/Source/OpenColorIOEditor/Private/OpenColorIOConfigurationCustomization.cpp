@@ -52,13 +52,15 @@ void FOpenColorIOConfigurationCustomization::CustomizeDetails(IDetailLayoutBuild
 			})
 		];
 
+	TSharedPtr<IPropertyHandle> ConfigurationObjectHandle = ConfigurationFileProperty->GetParentHandle();
+
 	DetailBuilder.RegisterInstancedCustomPropertyTypeLayout(
 			FOpenColorIOColorSpace::StaticStruct()->GetFName(),
-			FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<FOpenColorIOColorSpaceCustomization>(); }));
+			FOnGetPropertyTypeCustomizationInstance::CreateLambda([ConfigurationObjectHandle] { return FOpenColorIOColorSpaceCustomization::MakeInstance(ConfigurationObjectHandle); }));
 
 	DetailBuilder.RegisterInstancedCustomPropertyTypeLayout(
 		FOpenColorIODisplayView::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<FOpenColorIODisplayViewCustomization>(); }));
+		FOnGetPropertyTypeCustomizationInstance::CreateLambda([ConfigurationObjectHandle] { return FOpenColorIODisplayViewCustomization::MakeInstance(ConfigurationObjectHandle); }));
 }
 
 #undef LOCTEXT_NAMESPACE

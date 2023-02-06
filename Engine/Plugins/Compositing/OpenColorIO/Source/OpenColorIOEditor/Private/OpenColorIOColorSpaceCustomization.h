@@ -7,9 +7,9 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IPropertyTypeCustomization.h"
 #include "OpenColorIOColorSpace.h"
-#include "OpenColorIO/OpenColorIO.h"
 #include "Widgets/SWidget.h"
 
+class FOpenColorIONativeConfiguration;
 
 /**
  * Implements a details view customization for the FOpenColorIOConfiguration
@@ -17,39 +17,37 @@
 class IPropertyTypeCustomizationOpenColorIO : public IPropertyTypeCustomization
 {
 public:
+	IPropertyTypeCustomizationOpenColorIO(TSharedPtr<IPropertyHandle> InConfigurationObjectProperty);
 
 	/** IPropertyTypeCustomization interface */
 	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override {}
 	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override {}
 
-
 protected:
-	TSharedPtr<IPropertyHandle> GetConfigurationFileProperty() const;
-	bool LoadConfigurationFile(const FFilePath& InFilePath);
-	bool CheckValidConfiguration();
+
+	static FOpenColorIONativeConfiguration* GetNativeConfig(const TSharedPtr<IPropertyHandle>& InConfigurationObjectProperty);
 
 protected:
 
 	/** Pointer to the property handle. */
 	TSharedPtr<IPropertyHandle> CachedProperty;
 
-	/** Pointer to the ConfigurationFile property handle. */
-	TSharedPtr<IPropertyHandle> ConfigurationFileProperty;
+	/** Pointer to the configuration object property handle. */
+	TSharedPtr<IPropertyHandle> ConfigurationObjectProperty;
 
-	/** FilePath of the configuration file that was cached */
-	FFilePath LoadedFilePath;
-
-	/** Cached configuration file to populate menus and submenus */
-	OCIO_NAMESPACE::ConstConfigRcPtr CachedConfigFile;
+	/** Raw pointer to the native OCIO config. */
+	FOpenColorIONativeConfiguration* CachedNativeConfig;
 };
 
 
 class FOpenColorIOColorSpaceCustomization : public IPropertyTypeCustomizationOpenColorIO
 {
 public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	using IPropertyTypeCustomizationOpenColorIO::IPropertyTypeCustomizationOpenColorIO;
+
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance(TSharedPtr<IPropertyHandle> InConfigurationObjectProperty)
 	{
-		return MakeShareable(new FOpenColorIOColorSpaceCustomization);
+		return MakeShared<FOpenColorIOColorSpaceCustomization>(MoveTemp(InConfigurationObjectProperty));
 	}
 
 	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override;
@@ -62,15 +60,15 @@ private:
 	TSharedRef<SWidget> HandleSourceComboButtonMenuContent();
 };
 
-/**
- * Implements a details view customization for the FOpenColorIOConfiguration
- */
+
 class FOpenColorIODisplayViewCustomization : public IPropertyTypeCustomizationOpenColorIO
 {
 public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	using IPropertyTypeCustomizationOpenColorIO::IPropertyTypeCustomizationOpenColorIO;
+
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance(TSharedPtr<IPropertyHandle> InConfigurationObjectProperty)
 	{
-		return MakeShareable(new FOpenColorIODisplayViewCustomization);
+		return MakeShared<FOpenColorIODisplayViewCustomization>(MoveTemp(InConfigurationObjectProperty));
 	}
 
 	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override;
