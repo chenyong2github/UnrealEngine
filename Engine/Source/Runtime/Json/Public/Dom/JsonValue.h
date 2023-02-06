@@ -83,6 +83,9 @@ public:
 	/** Tries to convert this value to an object, returning false if not possible */
 	virtual bool TryGetObject(TSharedPtr<FJsonObject>*& Object) { return false; }
 
+	/** Returns whether or not a caller should prefer a string representation of the value, rather than the natural JSON type */
+	virtual bool PreferStringRepresentation() const { return false; }
+
 	/** Returns true if this value is a 'null' */
 	bool IsNull() const { return Type == EJson::Null || Type == EJson::None; }
 
@@ -181,6 +184,7 @@ public:
 	virtual bool TryGetNumber(uint32& OutValue) const override { return LexTryParseString(OutValue, *Value); }
 	virtual bool TryGetNumber(uint64& OutValue) const override { return LexTryParseString(OutValue, *Value); }
 	virtual bool TryGetBool(bool& OutBool) const override { OutBool = Value.ToBool(); return true; }
+	virtual bool PreferStringRepresentation() const override { return true; }
 
 protected:
 	FString Value;
