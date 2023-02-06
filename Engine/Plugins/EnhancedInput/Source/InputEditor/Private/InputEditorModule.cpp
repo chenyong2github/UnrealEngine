@@ -479,7 +479,10 @@ void FInputEditorModule::ShutdownModule()
 
 void FInputEditorModule::OnMainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsRunningStartupDialog)
 {
-	AutoUpgradeDefaultInputClasses();
+	if (FApp::HasProjectName())
+	{
+		AutoUpgradeDefaultInputClasses();
+	}	
 }
 
 namespace UE::Input
