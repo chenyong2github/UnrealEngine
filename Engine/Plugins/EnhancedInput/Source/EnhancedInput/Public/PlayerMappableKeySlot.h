@@ -8,7 +8,7 @@
 * Explicitly identifies the slot for a player mappable key
 * Experimental: Do not count on long term support for this structure.
 */
-USTRUCT(BlueprintType, DisplayName="Player Mappable Key Slot (Experimental)")
+USTRUCT(BlueprintType, DisplayName="Player Mappable Key Slot (Experimental)", meta = (ScriptName = "PlayerMappableKeySlotData"))
 struct ENHANCEDINPUT_API FPlayerMappableKeySlot
 {
 	GENERATED_BODY()
