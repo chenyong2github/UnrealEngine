@@ -2,6 +2,7 @@
 
 #include "EnhancedInputDeveloperSettings.h"
 #include "EnhancedInputPlatformSettings.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
 #include "EnhancedPlayerInput.h"
 #include "HAL/IConsoleManager.h"
 
@@ -21,8 +22,11 @@ namespace UE::EnhancedInput::Private
 }
 
 UEnhancedInputDeveloperSettings::UEnhancedInputDeveloperSettings(const FObjectInitializer& Initializer)
-	: Super(Initializer)	
+	: Super(Initializer)
+	, UserSettingsClass(UEnhancedInputUserSettings::StaticClass())
+	, DefaultPlayerMappableKeyProfileClass(UEnhancedPlayerMappableKeyProfile::StaticClass())
 	, DefaultWorldInputClass(UEnhancedPlayerInput::StaticClass())
+	, bEnableUserSettings(false)
 	, bEnableDefaultMappingContexts(true)
 	, bShouldOnlyTriggerLastActionInChord(true)
 	, bEnableWorldSubsystem(false)

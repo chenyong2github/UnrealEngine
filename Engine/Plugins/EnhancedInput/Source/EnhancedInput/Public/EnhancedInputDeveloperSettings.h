@@ -7,6 +7,10 @@
 #include "EnhancedInputDeveloperSettings.generated.h"
 
 class UInputMappingContext;
+class UEnhancedInputUserSettings;
+class UEnhancedPlayerMappableKeyProfile;
+class UEnhancedPlayerInput;
+enum class EPlayerMappableKeySlot : uint8;
 
 /** Represents a single input mapping context and the priority that it should be applied with */
 USTRUCT()
@@ -22,8 +26,6 @@ struct FDefaultContextSetting
 	UPROPERTY(EditAnywhere, Config, Category = "Input")
 	int32 Priority = 0;
 };
-
-class UEnhancedPlayerInput;
 
 /** Developer settings for Enhanced Input */
 UCLASS(config = Input, defaultconfig, meta = (DisplayName = "Enhanced Input"))
@@ -47,10 +49,6 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input|World Subsystem", meta = (editCondition = "bEnableDefaultMappingContexts && bEnableWorldSubsystem"))
 	TArray<FDefaultContextSetting> DefaultWorldSubsystemMappingContexts;
-	
-	/** The default player input class that the Enhanced Input world subsystem will use. */
-	UPROPERTY(config, EditAnywhere, NoClear, Category = "Enhanced Input|World Subsystem", meta=(editCondition = "bEnableWorldSubsystem"))
-	TSoftClassPtr<UEnhancedPlayerInput> DefaultWorldInputClass;
 
 	/**
 	 * Platform specific settings for Enhanced Input.
@@ -58,6 +56,37 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = "Enhanced Input")
 	FPerPlatformSettings PlatformSettings;
+
+	/**
+	 * The class that should be used for the User Settings by each Enhanced Input subsystem.
+	 * An instance of this class will be spawned by each Enhanced Input subsytem as a place to store
+	 * user settings such as keymappings, accessibility settings, etc. Subclass this to add more custom
+	 * options to your game.
+	 *
+	 * Note: This is a new experimental feature!
+	 */
+	UPROPERTY(config, EditAnywhere, NoClear, Category = "Enhanced Input|User Settings", meta=(editCondition = "bEnableUserSettings"))
+	TSoftClassPtr<UEnhancedInputUserSettings> UserSettingsClass;
+
+	/**
+	 * The default class for the player mappable key profile, used to store the key mappings set by the player in the user settings.
+	 * 
+	 * Note: This is a new experimental feature!
+	 */
+	UPROPERTY(config, EditAnywhere, NoClear, Category = "Enhanced Input|User Settings", meta=(editCondition = "bEnableUserSettings"))
+	TSoftClassPtr<UEnhancedPlayerMappableKeyProfile> DefaultPlayerMappableKeyProfileClass;
+	
+	/** The default player input class that the Enhanced Input world subsystem will use. */
+	UPROPERTY(config, EditAnywhere, NoClear, Category = "Enhanced Input|World Subsystem", meta=(editCondition = "bEnableWorldSubsystem"))
+	TSoftClassPtr<UEnhancedPlayerInput> DefaultWorldInputClass;
+
+	/**
+	 * If true, then an instance of the User Settings Class will be created on each Enhanced Input subsytem.
+	 * 
+	 * Note: This is a new experimental feature!
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input|User Settings", meta=(DisplayPriority = 1))
+	uint8 bEnableUserSettings : 1;
 
 	/** If true, then the DefaultMappingContexts will be applied to all Enhanced Input Subsystems. */
 	UPROPERTY(EditAnywhere, Category = "Enhanced Input", meta = (ConsoleVariable = "EnhancedInput.EnableDefaultMappingContexts"))
@@ -73,7 +102,7 @@ public:
 	uint8 bShouldOnlyTriggerLastActionInChord : 1;
 	
 	/** If true, then the world subsystem will be created. */
-	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input|World Subsystem", meta=(DisplayName="Enable World Subsystem (Experimental)"))
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input|World Subsystem", meta=(DisplayName="Enable World Subsystem (Experimental)", DisplayPriority = 1))
 	uint8 bEnableWorldSubsystem : 1;
 	
 	/**

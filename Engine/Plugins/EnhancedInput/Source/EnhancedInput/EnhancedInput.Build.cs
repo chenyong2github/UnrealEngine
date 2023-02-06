@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
                     "SlateCore",
                     "DeveloperSettings",
+                    "GameplayTags",
                 }
             );
         }
