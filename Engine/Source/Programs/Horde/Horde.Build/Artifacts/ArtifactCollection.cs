@@ -54,14 +54,14 @@ namespace Horde.Build.Artifacts
 			{
 			}
 
-			public Artifact(string name, ArtifactType type, IEnumerable<string> keys, NamespaceId namespaceId, RefName? refName, AclScopeName scopeName)
+			public Artifact(string name, ArtifactType type, IEnumerable<string> keys, NamespaceId namespaceId, string? refPrefix, AclScopeName scopeName)
 			{
 				Id = ArtifactId.GenerateNewId();
 				Name = name;
 				Type = type;
 				Keys.AddRange(keys);
 				NamespaceId = namespaceId;
-				RefName = refName ?? new RefName($"af-{Id}");
+				RefName = new RefName($"{refPrefix ?? ""}{Type}-{Id}");
 				AclScope = scopeName;
 			}
 		}
@@ -78,9 +78,9 @@ namespace Horde.Build.Artifacts
 		}
 
 		/// <inheritdoc/>
-		public async Task<IArtifact> AddAsync(string name, ArtifactType type, IEnumerable<string> keys, NamespaceId namespaceId, RefName? refName, AclScopeName scopeName, CancellationToken cancellationToken)
+		public async Task<IArtifact> AddAsync(string name, ArtifactType type, IEnumerable<string> keys, NamespaceId namespaceId, string? refPrefix, AclScopeName scopeName, CancellationToken cancellationToken)
 		{
-			Artifact artifact = new Artifact(name, type, keys, namespaceId, refName, scopeName);
+			Artifact artifact = new Artifact(name, type, keys, namespaceId, refPrefix, scopeName);
 			await _artifacts.InsertOneAsync(artifact, null, cancellationToken);
 			return artifact;
 		}

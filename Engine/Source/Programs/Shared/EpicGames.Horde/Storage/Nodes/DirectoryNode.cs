@@ -659,7 +659,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			List<(DirectoryNode, FileInfo)> groupedFiles = new List<(DirectoryNode, FileInfo)>();
 			foreach (FileReference file in files)
 			{
-				DirectoryNode? node = FindOrAddDirectory(baseDir, file.Directory, dirToNode);
+				DirectoryNode? node = FindOrAddDirectory(file.Directory, baseDir, dirToNode);
 				if (node == null)
 				{
 					throw new InvalidOperationException($"File {file} is not under base directory {baseDir}");
@@ -670,7 +670,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			await CopyFromDirectoryAsync(groupedFiles, options, writer, cancellationToken);
 		}
 
-		DirectoryNode? FindOrAddDirectory(DirectoryReference baseDir, DirectoryReference dir, Dictionary<DirectoryReference, DirectoryNode> dirToNode)
+		static DirectoryNode? FindOrAddDirectory(DirectoryReference dir, DirectoryReference baseDir, Dictionary<DirectoryReference, DirectoryNode> dirToNode)
 		{
 			DirectoryNode? node;
 			if (!dirToNode.TryGetValue(dir, out node))
@@ -678,7 +678,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				DirectoryReference? parentDir = dir.ParentDirectory;
 				if (parentDir != null)
 				{
-					DirectoryNode? parentNode = FindOrAddDirectory(baseDir, parentDir, dirToNode);
+					DirectoryNode? parentNode = FindOrAddDirectory(parentDir, baseDir, dirToNode);
 					if (parentNode != null)
 					{
 						node = parentNode.AddDirectory(dir.GetDirectoryName());

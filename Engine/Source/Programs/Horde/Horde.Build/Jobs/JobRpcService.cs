@@ -63,7 +63,7 @@ namespace Horde.Build.Jobs
 			}
 
 			NamespaceId namespaceId = Namespace.Artifacts;
-			IArtifact artifact = await _artifactCollection.AddAsync(request.Name, type, keys, namespaceId, null, templateConfig.ScopeName, context.CancellationToken);
+			IArtifact artifact = await _artifactCollection.AddAsync(request.Name, type, keys, namespaceId, $"job-{job.Id}/step-{step.Id}/", templateConfig.ScopeName, context.CancellationToken);
 
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();
 			claims.Add(new AclClaimConfig(HordeClaimTypes.WriteNamespace, namespaceId.ToString()));
