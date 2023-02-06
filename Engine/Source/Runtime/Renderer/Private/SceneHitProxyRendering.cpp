@@ -607,6 +607,8 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 {
 	const bool bNaniteEnabled = UseNanite(ShaderPlatform);
 
+	CommitFinalPipelineState();
+
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
 	GPU_MESSAGE_SCOPE(GraphBuilder);

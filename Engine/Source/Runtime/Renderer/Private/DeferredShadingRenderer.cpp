@@ -2445,6 +2445,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GPU_MESSAGE_SCOPE(GraphBuilder);
 
+	// Compute & commit the final state of the entire dependency topology of the renderer.
+	CommitFinalPipelineState();
+
 	ShaderPrint::BeginViews(GraphBuilder, Views);
 
 	ON_SCOPE_EXIT
@@ -2702,9 +2705,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			);
 		}
 	}
-
-	// Compute & commit the final state of the entire dependency topology of the renderer.
-	CommitFinalPipelineState();
 
 #if !UE_BUILD_SHIPPING
 	if (CVarStallInitViews.GetValueOnRenderThread() > 0.0f)
