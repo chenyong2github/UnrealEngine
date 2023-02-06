@@ -13,6 +13,7 @@ protocol StreamingConnectionDelegate : AnyObject {
     
     func streamingConnectionDidConnect(_ connection : StreamingConnection)
     func streamingConnection(_ connection : StreamingConnection, didDisconnectWithError err: Error?)
+    func streamingConnection(_ connection : StreamingConnection, requestsTextEditWithContents contents : String, handler : @escaping (Bool, String?) -> Void)
 }
 
 enum StreamingConnectionType : String {

@@ -24,3 +24,12 @@ enum PixelStreamingToClientMessage: UInt8, Codable {
 }
 
 
+// Represents the command json received as part of the 'Command' PixelStreamingToClientMessage
+struct PixelStreamingToClientCommand: Decodable {
+    let command: String
+}
+
+struct PixelStreamingToClientShowOnScreenKeyboardCommand: Decodable {
+    let showOnScreenKeyboard: Bool
+    let contents: String
+}

@@ -10,6 +10,7 @@
 		8B01BF2C26CA7DD1001872D2 /* LaunchScreen_iPad.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8B01BF2A26CA7DD1001872D2 /* LaunchScreen_iPad.storyboard */; };
 		8B05A926275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */; };
 		8B4542DA27A7CFB7001703EE /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B4542D927A7CFB6001703EE /* GameController.framework */; };
+		8B4A012D298BBEED00836DD5 /* KeyboardControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B4A012C298BBEED00836DD5 /* KeyboardControls.swift */; };
 		8B58775E27BE4B1E00D78749 /* LiveLinkProvider.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */; platformFilter = ios; };
 		8B58775F27BE4B1E00D78749 /* LiveLinkProvider.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8B72D377286B33A300F5970C /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 8B72D376286B33A300F5970C /* Starscream */; };
@@ -106,6 +107,7 @@
 		8B01BF2B26CA7DD1001872D2 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen_iPad.storyboard; sourceTree = "<group>"; };
 		8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoViewController+ARCoachingOverlayViewDelegate.swift"; sourceTree = "<group>"; };
 		8B4542D927A7CFB6001703EE /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
+		8B4A012C298BBEED00836DD5 /* KeyboardControls.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = KeyboardControls.swift; sourceTree = "<group>"; };
 		8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = LiveLinkProvider.framework; sourceTree = "<group>"; };
 		8B72D37D286B356D00F5970C /* TouchControls.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TouchControls.swift; sourceTree = "<group>"; };
 		8B72D37E286B356D00F5970C /* RTCStates.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RTCStates.swift; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 			isa = PBXGroup;
 			children = (
 				8B72D37D286B356D00F5970C /* TouchControls.swift */,
+				8B4A012C298BBEED00836DD5 /* KeyboardControls.swift */,
 				8B72D37E286B356D00F5970C /* RTCStates.swift */,
 				8B72D37F286B356D00F5970C /* PixelStreamingToClientMessage.swift */,
 				8B72D380286B356D00F5970C /* IntToBytes.swift */,
@@ -503,6 +506,7 @@
 				8BD09CA52629AB1100A4C301 /* AboutViewController.swift in Sources */,
 				8B72D3A6286C4B9900F5970C /* StartViewController+StreamingConnectionDelegate.swift in Sources */,
 				8B72D391286B356D00F5970C /* SessionDescription.swift in Sources */,
+				8B4A012D298BBEED00836DD5 /* KeyboardControls.swift in Sources */,
 				8BD53B14258E28ED00E1121E /* NetUtility.swift in Sources */,
 				8B7D848724DEA02600D01C13 /* SceneDelegate.swift in Sources */,
 				8BD53B1A258E30A800E1121E /* AppSettings.swift in Sources */,
@@ -707,7 +711,7 @@
 				CODE_SIGN_ENTITLEMENTS = vcam/VCAM.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development: Brian Smith (H95H5LFFKT)";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 96DBZ92D3Y;
 				ENABLE_BITCODE = NO;
@@ -748,7 +752,7 @@
 				CODE_SIGN_ENTITLEMENTS = vcam/VCAM.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution: Epic Games International, S.a.r.l. (96DBZ92D3Y)";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 96DBZ92D3Y;
 				ENABLE_BITCODE = NO;

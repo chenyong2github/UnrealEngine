@@ -16,6 +16,7 @@ class WebRTCStreamingConnection : StreamingConnection {
     private var webRTCClientState : RTCIceConnectionState?
     private var signalClient: SignalingClient?
     private var touchControls: TouchControls?
+    private var keyboardControls: KeyboardControls?
     private var webRTCView : WebRTCView?
     private var rtcVideoTrack : RTCVideoTrack?
     
@@ -314,6 +315,7 @@ class WebRTCStreamingConnection : StreamingConnection {
     func attachVideoTrack() {
         if let webRTC = webRTCClient, let view = self.webRTCView, let track = self.rtcVideoTrack {
             self.touchControls = TouchControls(webRTC, touchView: view)
+            self.keyboardControls = KeyboardControls(webRTC)
             view.attachVideoTrack(track: track)
             view.attachTouchDelegate(delegate: self.touchControls!)
             self.sendDeviceResolution()
@@ -349,6 +351,7 @@ class WebRTCStreamingConnection : StreamingConnection {
         }
     }
 }
+
 extension WebRTCStreamingConnection : WebRTCViewDelegate {
     
     func webRTCView(_ view: WebRTCView, didChangeVideoSize size: CGSize) {
@@ -487,12 +490,32 @@ extension WebRTCStreamingConnection: WebRTCClientDelegate {
                 switch payloadType {
                 case .VideoEncoderAvgQP:
                     let qp : String? = String(data: data.dropFirst(), encoding: .utf16LittleEndian)
-                    Log.info("Quality = \(qp ?? "N/A")")
+                    //Log.info("Quality = \(qp ?? "N/A")")
+                case .Command:
+                    let command: String? = String(data: data.dropFirst(), encoding: .utf16LittleEndian)
+                    Log.info("command = \(command ?? "NULL")")
+                    if let commandData = command?.data(using: .utf8) {
+                        do {
+                            let commandJson: PixelStreamingToClientCommand = try JSONDecoder().decode(PixelStreamingToClientCommand.self, from: commandData)
+                            if commandJson.command == "onScreenKeyboard" {
+                                let showKeyboardJson: PixelStreamingToClientShowOnScreenKeyboardCommand = try JSONDecoder().decode(PixelStreamingToClientShowOnScreenKeyboardCommand.self, from: commandData)
+
+                                if showKeyboardJson.showOnScreenKeyboard {
+                                    self.delegate?.streamingConnection(self, requestsTextEditWithContents: showKeyboardJson.contents) { (success, newContents) in
+                                        guard let contents = newContents else { return }
+                                        if success {
+                                            self.keyboardControls?.submitString(contents)
+                                        }
+                                    }
+                                }
+                            }
+                        } catch {
+                            Log.error("An error occurred parsing the command `\(command ?? "<invalid>")` : \(error.localizedDescription)")
+                        }
+                    }
                 case .QualityControlOwnership:
                     fallthrough
                 case .Response:
-                    fallthrough
-                case .Command:
                     fallthrough
                 case .FreezeFrame:
                     fallthrough

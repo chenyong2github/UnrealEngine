@@ -41,6 +41,7 @@ enum PixelStreamingToStreamerMessage : UInt8, Codable {
     case GamepadAnalog = 92
     
     case Transform = 100
+    case TextboxEntry = 101
 }
 
 struct PixelStreamingToStreamerResolutionCommand: Codable {

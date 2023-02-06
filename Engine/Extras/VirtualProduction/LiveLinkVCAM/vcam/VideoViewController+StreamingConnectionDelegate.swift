@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import UIKit
 
 extension VideoViewController : StreamingConnectionDelegate {
 
@@ -34,5 +35,23 @@ extension VideoViewController : StreamingConnectionDelegate {
         }
 
     }
+    
+    func streamingConnection(_ connection: StreamingConnection, requestsTextEditWithContents contents: String, handler: @escaping (Bool, String?) -> Void) {
+        
+        DispatchQueue.main.async {
+            let alert = UIAlertController(title: nil, message: contents.count == 0 ? "Enter the value:" : "Update the value:", preferredStyle: .alert)
+            alert.addTextField()
+            alert.textFields![0].text = contents
+            alert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default) {_ in
+                handler(true, alert.textFields![0].text!)
+            })
+            alert.addAction(UIAlertAction(title: Localized.buttonCancel(), style: .cancel) {_ in
+                handler(false, nil)
+            })
+
+            self.present(alert, animated: true)
+        }
+    }
+
 }
 
