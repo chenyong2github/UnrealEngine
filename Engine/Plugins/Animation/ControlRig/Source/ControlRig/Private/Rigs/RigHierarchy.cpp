@@ -2456,7 +2456,12 @@ void URigHierarchy::Notify(ERigHierarchyNotification InNotifType, const FRigBase
 		ModifiedEvent.Broadcast(InNotifType, this, InElement);
 		if(ModifiedEventDynamic.IsBound())
 		{
-			ModifiedEventDynamic.Broadcast(InNotifType, this, InElement->GetKey());
+			FRigElementKey Key;
+			if(InElement)
+			{
+				Key = InElement->GetKey();
+			}
+			ModifiedEventDynamic.Broadcast(InNotifType, this, Key);
 		}
 	}
 	else
