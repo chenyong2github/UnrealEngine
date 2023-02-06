@@ -2875,6 +2875,11 @@ public:
 		{
 			return false;
 		}
+		// Use NotifyRecursion to turn off maintenance functions like ClearOldBlockTasks that can BusyWait
+		// (and thereby reenter this class and take locks in the wrong order) while we are holding the lock.
+		++NotifyRecursion;
+		ON_SCOPE_EXIT{ --NotifyRecursion; };
+
 		uint16 PakIndex = *PakIndexPtr;
 		FPakData& Pak = CachedPakData[PakIndex];
 		check(Pak.Name == File && Pak.TotalSize == PakFileSize && Pak.Handle);
