@@ -2143,9 +2143,15 @@ uint32 FMaterial::Release() const
 bool FMaterial::PrepareDestroy_GameThread()
 {
 	check(IsInGameThread());
-
-	ReleasePSOPrecacheData(PrecachedPSORequestIDs);
-	PrecachedPSORequestIDs.Empty();
+	
+	// Make local copy to make sure lock is held at short as possible
+	TArray<FMaterialPSOPrecacheRequestID> TmpPrecachedPSORequestIDs;	
+	{
+		FScopeLock ScopeLock(&PrecachedPSORequestIDsCS);
+		TmpPrecachedPSORequestIDs = MoveTemp(PrecachedPSORequestIDs);
+		PrecachedPSORequestIDs.Empty();
+	}
+	ReleasePSOPrecacheData(TmpPrecachedPSORequestIDs);
 
 #if WITH_EDITOR
 	const bool bReleasedCompilingId = ReleaseGameThreadCompilingShaderMap();
@@ -2810,12 +2816,12 @@ FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform, const FMaterialS
 }
 #endif // WITH_EDITOR
 
+FCriticalSection FMaterial::PrecachedPSORequestIDsCS;
+
 FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const FPSOPrecacheParams& PreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::CollectPSOs);
 	
-	check(IsInGameThread());
-
 	FGraphEventArray GraphEvents;
 	for (const FPSOPrecacheVertexFactoryData& VFData : VertexFactoryDataList)
 	{
@@ -2836,6 +2842,7 @@ FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, c
 			OutMaterialPSORequestIDs.AddUnique(RequestID);
 
 			// Verified in game thread above
+			FScopeLock ScopeLock(&PrecachedPSORequestIDsCS);
 			PrecachedPSORequestIDs.AddUnique(RequestID);
 		}
 	}

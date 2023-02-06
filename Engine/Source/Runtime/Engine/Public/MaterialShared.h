@@ -2408,6 +2408,9 @@ private:
 	/** MaterialPSO request IDs currently active for this material */
 	TArray<FMaterialPSOPrecacheRequestID> PrecachedPSORequestIDs;
 
+	/** Shared critical section on PrecachedPSORequestIDs because contention should be very limited */
+	static FCriticalSection PrecachedPSORequestIDsCS;
+
 #if WITH_EDITOR
 	/**
 	* Compiles this material for Platform, storing the result in OutShaderMap if the compile was synchronous
