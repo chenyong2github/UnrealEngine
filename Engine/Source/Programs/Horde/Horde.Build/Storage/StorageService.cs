@@ -264,7 +264,7 @@ namespace Horde.Build.Storage
 		{
 			public IStorageBackend Backend { get; }
 
-			int _refCount;
+			int _refCount = 1;
 
 			public BackendInfo(IStorageBackend backend)
 			{
