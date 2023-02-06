@@ -22,7 +22,12 @@ void FHLODActorDesc::Init(const AActor* InActor)
 	HLODSubActors.Reserve(HLODActor->GetSubActors().Num());
 	Algo::Transform(HLODActor->GetSubActors(), HLODSubActors, [](const FHLODSubActor& SubActor) { return FHLODSubActorDesc(SubActor.ActorGuid, SubActor.ContainerID); });
 
-	SourceHLODLayerName = HLODActor->GetSubActorsHLODLayer()->GetFName();
+	SourceHLODLayerName = NAME_None;
+	if (const UHLODLayer* HLODLayer = HLODActor->GetSubActorsHLODLayer())
+	{
+		SourceHLODLayerName = HLODLayer->GetFName();
+	}
+	
 	HLODStats = HLODActor->GetStats();
 }
 
