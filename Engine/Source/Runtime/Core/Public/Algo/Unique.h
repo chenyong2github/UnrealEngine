@@ -3,13 +3,14 @@
 #pragma once
 
 #include "Templates/UnrealTemplate.h"
+#include "Templates/IdentityFunctor.h"
 #include "Templates/Invoke.h"
 #include "Templates/EqualTo.h"
 
 namespace AlgoImpl
 {
-	template <typename T, typename SizeType, typename BinaryPredicate>
-	SizeType Unique(T* Array, SizeType ArraySize, BinaryPredicate Predicate)
+	template <typename T, typename SizeType, typename ProjectionType, typename BinaryPredicate>
+	SizeType Unique(T* Array, SizeType ArraySize, ProjectionType Proj, BinaryPredicate Predicate)
 	{
 		if (ArraySize <= 1)
 		{
@@ -19,7 +20,7 @@ namespace AlgoImpl
 		T* Result = Array;
 		for (T* Iter = Array + 1; Iter != Array + ArraySize; ++Iter)
 		{
-			if (!Invoke(Predicate, *Result, *Iter)) 
+			if (!Invoke(Predicate, Invoke(Proj, *Result), Invoke(Proj, *Iter))) 
 			{
 				++Result;
 				if (Result != Iter)
@@ -55,14 +56,26 @@ namespace Algo
 	 * See https://en.cppreference.com/w/cpp/algorithm/unique
 	 */
 	template<typename RangeType>
-	auto Unique(RangeType&& Range) -> decltype(AlgoImpl::Unique(GetData(Range), GetNum(Range), TEqualTo<>{}))
+	auto Unique(RangeType&& Range) -> decltype(AlgoImpl::Unique(GetData(Range), GetNum(Range), FIdentityFunctor(), TEqualTo<>{}))
 	{
-		return AlgoImpl::Unique(GetData(Range), GetNum(Range), TEqualTo<>{});
+		return AlgoImpl::Unique(GetData(Range), GetNum(Range), FIdentityFunctor(), TEqualTo<>{});
 	}
 
 	template<typename RangeType, typename BinaryPredicate>
-	auto Unique(RangeType&& Range, BinaryPredicate Predicate) -> decltype(AlgoImpl::Unique(GetData(Range), GetNum(Range), MoveTemp(Predicate)))
+	auto Unique(RangeType&& Range, BinaryPredicate Predicate) -> decltype(AlgoImpl::Unique(GetData(Range), GetNum(Range), FIdentityFunctor(), MoveTemp(Predicate)))
 	{
-		return AlgoImpl::Unique(GetData(Range), GetNum(Range), MoveTemp(Predicate));
+		return AlgoImpl::Unique(GetData(Range), GetNum(Range), FIdentityFunctor(), MoveTemp(Predicate));
+	}
+
+	template<typename RangeType, typename ProjectionType>
+	auto UniqueBy(RangeType&& Range, ProjectionType Proj) -> decltype(AlgoImpl::Unique(GetData(Range), GetNum(Range), MoveTemp(Proj), TEqualTo<>{}))
+	{
+		return AlgoImpl::Unique(GetData(Range), GetNum(Range), MoveTemp(Proj), TEqualTo<>{});
+	}
+
+	template<typename RangeType, typename ProjectionType, typename BinaryPredicate>
+	auto UniqueBy(RangeType&& Range, ProjectionType Proj, BinaryPredicate Predicate) -> decltype(AlgoImpl::Unique(GetData(Range), GetNum(Range), MoveTemp(Proj), MoveTemp(Predicate)))
+	{
+		return AlgoImpl::Unique(GetData(Range), GetNum(Range), MoveTemp(Proj), MoveTemp(Predicate));
 	}
 }
