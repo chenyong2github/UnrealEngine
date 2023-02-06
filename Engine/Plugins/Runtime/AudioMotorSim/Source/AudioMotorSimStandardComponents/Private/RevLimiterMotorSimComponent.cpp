@@ -45,6 +45,10 @@ void URevLimiterMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAu
 		TimeRemaining -= Input.DeltaTime;
 		Input.bClutchEngaged = true;
 	}
+	else if (Input.bDriving == false)
+	{
+		Input.bClutchEngaged = true;
+	}
 
 	if (Input.bGrounded)
 	{
