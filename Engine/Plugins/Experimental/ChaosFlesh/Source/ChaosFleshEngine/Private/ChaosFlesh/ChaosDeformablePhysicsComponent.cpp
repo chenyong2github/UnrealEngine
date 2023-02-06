@@ -94,6 +94,19 @@ void UDeformablePhysicsComponent::EnableSimulation(UDeformableSolverComponent* D
 }
 
 
+void UDeformablePhysicsComponent::EnableSimulationFromActor(ADeformableSolverActor* DeformableSolverActor)
+{
+	if (DeformableSolverActor && DeformableSolverActor->GetDeformableSolverComponent())
+	{
+		PrimarySolverComponent = DeformableSolverActor->GetDeformableSolverComponent();
+		if (!DeformableSolverActor->GetDeformableSolverComponent()->DeformableComponents.Contains(this))
+		{
+			DeformableSolverActor->GetDeformableSolverComponent()->DeformableComponents.Add(this);
+		}
+		DeformableSolverActor->GetDeformableSolverComponent()->AddDeformableProxy(this);
+	}
+}
+
 
 
 

@@ -32,8 +32,31 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/Paths.h"
 
-DECLARE_CYCLE_STAT(TEXT("DeformableSolver.Advance"), STAT_DeformableSolver_Advance, STATGROUP_Chaos);
-
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.Constructor"), STAT_ChaosDeformableSolver_Constructor, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.Destructor"), STAT_ChaosDeformableSolver_Destructor, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.UpdateProxyInputPackages"), STAT_ChaosDeformableSolver_UpdateProxyInputPackages, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.Simulate"), STAT_ChaosDeformableSolver_Simulate, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.AdvanceDt."), STAT_ChaosDeformableSolver_AdvanceDt, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.Reset"), STAT_ChaosDeformableSolver_Reset, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.Update"), STAT_ChaosDeformableSolver_Update, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.UpdateOutputState"), STAT_ChaosDeformableSolver_UpdateOutputState, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.PullOutputPackage"), STAT_ChaosDeformableSolver_PullOutputPackage, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.PushOutputPackage"), STAT_ChaosDeformableSolver_PushOutputPackage, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.PullInputPackage"), STAT_ChaosDeformableSolver_PullInputPackage, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.PushInputPackage"), STAT_ChaosDeformableSolver_PushInputPackage, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeSimulationObjects"), STAT_ChaosDeformableSolver_InitializeSimulationObjects, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeSimulationObject"), STAT_ChaosDeformableSolver_InitializeSimulationObject, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeDeformableParticles"), STAT_ChaosDeformableSolver_InitializeDeformableParticles, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeKinematicParticles"), STAT_ChaosDeformableSolver_InitializeKinematicParticles, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeTetrahedralConstraint"), STAT_ChaosDeformableSolver_InitializeTetrahedralConstraint, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeGidBasedConstraints"), STAT_ChaosDeformableSolver_InitializeGidBasedConstraints, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeKinematicConstraint"), STAT_ChaosDeformableSolver_InitializeKinematicConstraint, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeCollisionBodies"), STAT_ChaosDeformableSolver_InitializeCollisionBodies, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeSelfCollisionVariables"), STAT_ChaosDeformableSolver_InitializeSelfCollisionVariables, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeGridBasedConstraintVariables"), STAT_ChaosDeformableSolver_InitializeGridBasedConstraintVariables, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.RemoveSimulationObjects"), STAT_ChaosDeformableSolver_RemoveSimulationObjects, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.RemoveProxy"), STAT_ChaosDeformableSolver_RemoveProxy, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.AddProxy"), STAT_ChaosDeformableSolver_AddProxy, STATGROUP_Chaos);
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogChaosDeformableSolver, Log, All);
@@ -56,11 +79,16 @@ namespace Chaos::Softs
 		, PreviousInputPackage(TUniquePtr < FDeformablePackage >(nullptr))
 		, Property(InProp)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_Constructor);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_Constructor);
 		Reset(Property);
 	}
 
 	FDeformableSolver::~FDeformableSolver()
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_Destructor);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_Destructor);
+
 		FScopeLock Lock(&InitializationMutex);
 		for (FThreadingProxy* Proxy : UninitializedProxys_Internal)
 		{
@@ -73,7 +101,8 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::Reset(const FDeformableSolverProperties& InProps)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_Reset);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_Reset);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_Reset);
 
 		Property = InProps;
 		MObjects = TArrayCollectionArray<const UObject*>();
@@ -109,6 +138,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::Simulate(FSolverReal DeltaTime)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_Simulate);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_Simulate);
+
 		if (Property.NumSolverIterations)
 		{
 			RemoveSimulationObjects();
@@ -120,8 +152,8 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeSimulationObjects()
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObjects);
-
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeSimulationObjects);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeSimulationObjects);
 		{
 			FScopeLock Lock(&InitializationMutex); // @todo(flesh) : change to threaded task based commands to prevent the lock. 
 			if (UninitializedProxys_Internal.Num())
@@ -155,7 +187,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeSimulationObject(FThreadingProxy& InProxy)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObject);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeSimulationObject);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeSimulationObject);
+
 		if (FFleshThreadingProxy* Proxy = InProxy.As<FFleshThreadingProxy>())
 		{
 			InitializeDeformableParticles(*Proxy);
@@ -167,6 +201,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeDeformableParticles(FFleshThreadingProxy& Proxy)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeDeformableParticles);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeDeformableParticles);
+
 		const FManagedArrayCollection& Dynamic = Proxy.GetDynamicCollection();
 		const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
 
@@ -221,7 +258,8 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeKinematicParticles(FFleshThreadingProxy& Proxy)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeKinematicParticles);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeKinematicParticles);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeKinematicParticles);
 
 		const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
 		const FIntVector2& Range = Proxy.GetSolverParticleRange();
@@ -276,7 +314,8 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeTetrahedralConstraint(FFleshThreadingProxy& Proxy)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeTetrahedralConstraint);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeTetrahedralConstraint);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeTetrahedralConstraint);
 
 		const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
 
@@ -357,7 +396,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeGidBasedConstraints(FFleshThreadingProxy& Proxy)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObject);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeGidBasedConstraints);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeGidBasedConstraints);
+
 		if (Property.bUseGridBasedConstraints)
 		{
 			auto ChaosTet = [](FIntVector4 V, int32 dp) { return Chaos::TVec4<int32>(dp + V.X, dp + V.Y, dp + V.Z, dp + V.W); };
@@ -384,7 +425,8 @@ namespace Chaos::Softs
 	{
 		auto MKineticUpdate = [this](FSolverParticles& MParticles, const FSolverReal Dt, const FSolverReal MTime, const int32 Index)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_MKineticUpdate);
+			SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeKinematicConstraint);
+			TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeKinematicConstraint);
 
 			if (0 <= Index && Index < this->MObjects.Num())
 			{
@@ -493,7 +535,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeCollisionBodies()
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeCollisionBodies);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeCollisionBodies);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeCollisionBodies);
+
 		if (Property.bUseFloor && Evolution->CollisionParticles().Size() == 0)
 		{
 			Chaos::FVec3 Position(0.f);
@@ -508,7 +552,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeSelfCollisionVariables()
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSelfCollisionVariables);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeSelfCollisionVariables);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeSelfCollisionVariables);
+
 
 		int32 NumParticles = Evolution->Particles().Size();
 		SurfaceTriangleMesh->Init(*SurfaceElements);
@@ -539,7 +585,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeGridBasedConstraintVariables()
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeGridBasedConstraintVariables);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeGridBasedConstraintVariables);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeGridBasedConstraintVariables);
+
 
 		GridBasedCorotatedConstraint.Reset(new Chaos::Softs::FXPBDGridBasedCorotatedConstraints<FSolverReal, FSolverParticles>(
 			Evolution->Particles(), *AllElements, Property.GridDx, /*bRecordMetric = */false, (Chaos::Softs::FSolverReal).1, (Chaos::Softs::FSolverReal).01, (Chaos::Softs::FSolverReal).4, (Chaos::Softs::FSolverReal)1000.0));
@@ -568,7 +616,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::RemoveSimulationObjects()
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_RemoveSimulationObjects);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_RemoveSimulationObjects);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_RemoveSimulationObjects);
+
 		TArray< FThreadingProxy* > RemovedProxies;
 		{
 			FScopeLock Lock(&RemovalMutex); // @todo(flesh) : change to threaded task based commands to prevent the lock. 
@@ -629,8 +679,8 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::AdvanceDt(FSolverReal DeltaTime)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_DeformableSolver_Advance);
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_Advance);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_AdvanceDt);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_AdvanceDt);
 
 		EventPreSolve.Broadcast(DeltaTime);
 
@@ -699,15 +749,21 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::PushInputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_PushInputPackage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_PushInputPackage);
+
 		FScopeLock Lock(&PackageInputMutex);
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PushInputPackage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_PushInputPackage);
 		BufferedInputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
 	}
 
 	TUniquePtr<FDeformablePackage> FDeformableSolver::PullInputPackage()
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_PullInputPackage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_PullInputPackage);
+
 		FScopeLock Lock(&PackageInputMutex);
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PullInputPackage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_PullInputPackage);
 		if (BufferedInputPackages.Num())
 			return BufferedInputPackages.Pop();
 		return TUniquePtr<FDeformablePackage>(nullptr);
@@ -715,6 +771,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::UpdateProxyInputPackages()
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_UpdateProxyInputPackages);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_UpdateProxyInputPackages);
+
 		if (CurrentInputPackage)
 		{
 			PreviousInputPackage = TUniquePtr < FDeformablePackage >(CurrentInputPackage.Release());
@@ -731,7 +790,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::Update(FSolverReal DeltaTime)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_Update);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_Update);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_Update);
+
 
 		if (!Proxies.Num()) return;
 
@@ -751,15 +812,21 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::PushOutputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_PushOutputPackage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_PushOutputPackage);
+
 		FScopeLock Lock(&PackageOutputMutex);
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PushPackage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_PushPackage);
 		BufferedOutputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
 	}
 
 	TUniquePtr<FDeformablePackage> FDeformableSolver::PullOutputPackage()
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_PullOutputPackage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_PullOutputPackage);
+
 		FScopeLock Lock(&PackageOutputMutex);
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PullPackage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_PullPackage);
 		if (BufferedOutputPackages.Num())
 			return BufferedOutputPackages.Pop();
 		return TUniquePtr<FDeformablePackage>(nullptr);
@@ -767,6 +834,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::AddProxy(FThreadingProxy* InProxy)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_AddProxy);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_AddProxy);
+
 		FScopeLock Lock(&InitializationMutex);
 		UninitializedProxys_Internal.Add(InProxy);
 		InitializedObjects_External.Add(InProxy->GetOwner());
@@ -774,6 +844,9 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::RemoveProxy(FThreadingProxy* InProxy)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_RemoveProxy);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_RemoveProxy);
+
 		FScopeLock LockA(&RemovalMutex);
 		FScopeLock LockB(&InitializationMutex);
 
@@ -803,7 +876,10 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::UpdateOutputState(FThreadingProxy& InProxy)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_UpdateOutputState);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_UpdateOutputState);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_UpdateOutputState);
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_UpdateOutputState);
 		if (FFleshThreadingProxy* Proxy = InProxy.As<FFleshThreadingProxy>())
 		{
 
@@ -825,7 +901,7 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::WriteFrame(FThreadingProxy& InProxy, const FSolverReal DeltaTime)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_WriteFrame);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_WriteFrame);
 		if (FFleshThreadingProxy* Proxy = InProxy.As<FFleshThreadingProxy>())
 		{
 			if (const FManagedArrayCollection* Rest = &Proxy->GetRestCollection())

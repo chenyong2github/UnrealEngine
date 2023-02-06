@@ -5,8 +5,17 @@
 #include "ChaosFlesh/ChaosDeformablePhysicsComponent.h"
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
 #include "Engine/World.h"
+#include "ChaosStats.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDeformableSolverComponentInternal, Log, All);
+
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableSolverComponent.UpdateDeformableEndTickState"), STAT_ChaosDeformable_UDeformableSolverComponent_UpdateDeformableEndTickState, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableSolverComponent.TickComponent"), STAT_ChaosDeformable_UDeformableSolverComponent_TickComponent, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableSolverComponent.Reset"), STAT_ChaosDeformable_UDeformableSolverComponent_Reset, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableSolverComponent.AddDeformableProxy"), STAT_ChaosDeformable_UDeformableSolverComponent_AddDeformableProxy, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableSolverComponent.Simulate"), STAT_ChaosDeformable_UDeformableSolverComponent_Simulate, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableSolverComponent.UpdateFromGameThread"), STAT_ChaosDeformable_UDeformableSolverComponent_UpdateFromGameThread, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableSolverComponent.UpdateFromSimulation"), STAT_ChaosDeformable_UDeformableSolverComponent_UpdateFromSimulation, STATGROUP_Chaos);
 
 static TAutoConsoleVariable<int32> CVarDeformablePhysicsTickWaitForParallelDeformableTask(
 	TEXT("p.ClothPhysics.WaitForParallelDeformableTask"), 0, 
@@ -94,7 +103,9 @@ bool UDeformableSolverComponent::IsSimulating(UDeformablePhysicsComponent* InCom
 
 void UDeformableSolverComponent::UpdateDeformableEndTickState(bool bRegister)
 {
-	UE_LOG(LogDeformableSolverComponentInternal, Verbose, TEXT("UDeformableSolverComponent::RegiUpdateDeformableEndTickStatesterEndPhysicsTick"));
+	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UDeformableSolverComponent_UpdateDeformableEndTickState);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UDeformableSolverComponent_UpdateDeformableEndTickState);
+
 	bRegister &= PrimaryComponentTick.IsTickFunctionRegistered();
 	if (bDoThreadedAdvance)
 	{
@@ -134,8 +145,8 @@ void UDeformableSolverComponent::BeginPlay()
 
 void UDeformableSolverComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	UE_LOG(LogDeformableSolverComponentInternal, Verbose, TEXT("UDeformableSolverComponent::TickComponent"));
-	TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolverComponent_TickComponent);
+	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UDeformableSolverComponent_TickComponent);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UDeformableSolverComponent_TickComponent);
 
 	if (GChaosEngineDeformableCVarParams.bEnableDeformableSolver)
 	{
@@ -169,6 +180,9 @@ void UDeformableSolverComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 
 void UDeformableSolverComponent::Reset()
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UDeformableSolverComponent_Reset);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UDeformableSolverComponent_Reset);
+
 	if (GChaosEngineDeformableCVarParams.bEnableDeformableSolver)
 	{
 		Solver.Reset(new FDeformableSolver({
@@ -205,7 +219,8 @@ void UDeformableSolverComponent::Reset()
 
 void UDeformableSolverComponent::AddDeformableProxy(UDeformablePhysicsComponent* InComponent)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolverComponent_AddDeformableProxy);
+	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UDeformableSolverComponent_AddDeformableProxy);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UDeformableSolverComponent_AddDeformableProxy);
 
 	if (Solver && IsSimulating(InComponent))
 	{
@@ -219,7 +234,8 @@ void UDeformableSolverComponent::AddDeformableProxy(UDeformablePhysicsComponent*
 
 void UDeformableSolverComponent::Simulate(float DeltaTime)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolverComponent_Simulate);
+	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UDeformableSolverComponent_Simulate);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UDeformableSolverComponent_Simulate);
 
 	if (Solver)
 	{
@@ -231,7 +247,8 @@ void UDeformableSolverComponent::Simulate(float DeltaTime)
 
 void UDeformableSolverComponent::UpdateFromGameThread(float DeltaTime)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolverComponent_UpdateFromGameThread);
+	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UDeformableSolverComponent_UpdateFromGameThread);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UDeformableSolverComponent_UpdateFromGameThread);
 
 	if (Solver)
 	{
@@ -258,7 +275,8 @@ void UDeformableSolverComponent::UpdateFromGameThread(float DeltaTime)
 
 void UDeformableSolverComponent::UpdateFromSimulation(float DeltaTime)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolverComponent_UpdateFromSimulation);
+	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UDeformableSolverComponent_UpdateFromSimulation);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UDeformableSolverComponent_UpdateFromSimulation);
 
 	if (Solver)
 	{

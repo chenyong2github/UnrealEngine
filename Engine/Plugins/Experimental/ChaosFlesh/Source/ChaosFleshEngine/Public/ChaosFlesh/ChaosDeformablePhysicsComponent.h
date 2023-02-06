@@ -30,6 +30,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void EnableSimulation(UDeformableSolverComponent* DeformableSolverComponent);
 
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	void EnableSimulationFromActor(ADeformableSolverActor* DeformableSolverActor);
+
 	virtual FThreadingProxy* NewProxy() { return nullptr; }
 	virtual void AddProxy(Chaos::Softs::FDeformableSolver::FGameThreadAccess& GameThreadSolver);
 	virtual void RemoveProxy(Chaos::Softs::FDeformableSolver::FGameThreadAccess& GameThreadSolver);
