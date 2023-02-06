@@ -176,12 +176,11 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 		OutPoint.Transform.SetLocation(Location);
 
 		// Set seed based on inheritance mode
-		if (ColorInheritance == EPCGCopyPointsInheritanceMode::Relative)
+		if (SeedInheritance == EPCGCopyPointsInheritanceMode::Relative)
 		{
-			const FVector& Position = OutPoint.Transform.GetLocation();
-			OutPoint.Seed = PCGHelpers::ComputeSeed((int)Position.X, (int)Position.Y, (int)Position.Z);
+			OutPoint.Seed = PCGHelpers::ComputeSeed(SourcePoint.Seed, TargetPoint.Seed);
 		}
-		else if (ColorInheritance == EPCGCopyPointsInheritanceMode::Target)
+		else if (SeedInheritance == EPCGCopyPointsInheritanceMode::Target)
 		{
 			OutPoint.Seed = TargetPoint.Seed;
 		}
