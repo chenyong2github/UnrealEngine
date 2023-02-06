@@ -182,7 +182,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	uint32 bPerPixelAtmosphereTransmittance : 1;
 
 	/**
-	 * Whether the light should cast any shadows from opaque meshes onto clouds. This is disabled for AtmosphereLight1.
+	 * Whether the light should cast any shadows from opaque meshes onto clouds. This is disabled when 'Atmosphere Sun Light Index' is set to 1.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud)
 	uint32 bCastShadowsOnClouds : 1;
