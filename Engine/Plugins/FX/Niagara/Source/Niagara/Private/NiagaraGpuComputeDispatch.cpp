@@ -5,6 +5,7 @@
 #include "Async/Async.h"
 #include "CanvasTypes.h"
 #include "ClearQuad.h"
+#include "EngineModule.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -425,6 +426,9 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			// Notify that we are about to begin rendering the 'scene' this is required because some RHIs will ClearState
 			// in the event of submitting commands, i.e. when we write a fence, or indeed perform a manual flush.
 			RHICmdList.BeginScene();
+
+			// Ensure system textures are initialized
+			GetRendererModule().InitializeSystemTextures(RHICmdList);
 
 			// Allow downstream logic to detect we are running pending ticks outside the scene renderer
 			bIsOutsideSceneRenderer = true;
