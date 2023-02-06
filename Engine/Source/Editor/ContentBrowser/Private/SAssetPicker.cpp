@@ -369,7 +369,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 	.AutoWidth()
 	[
 		SNew(SComboButton)
-		.ContentPadding(0)
+		.ContentPadding(0.f)
 		.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
 		.OnGetMenuContent(AssetViewPtr.ToSharedRef(), &SAssetView::GetViewButtonContent)
 		.HasDownArrow(false)

@@ -195,7 +195,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	InitialNumAmortizedTasks = 0;
 	TotalAmortizeTime = 0;
 	AmortizeStartTime = 0;
-	MaxSecondsPerFrame = 0.015;
+	MaxSecondsPerFrame = 0.015f;
 
 	bFillEmptySpaceInTileView = InArgs._FillEmptySpaceInTileView;
 	FillScale = 1.0f;
@@ -223,11 +223,11 @@ void SAssetView::Construct( const FArguments& InArgs )
 	FDisplayMetrics DisplayMetrics;
 	FSlateApplication::Get().GetCachedDisplayMetrics( DisplayMetrics );
 
-	const FVector2D DisplaySize(
+	const FIntPoint DisplaySize(
 		DisplayMetrics.PrimaryDisplayWorkAreaRect.Right - DisplayMetrics.PrimaryDisplayWorkAreaRect.Left,
 		DisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - DisplayMetrics.PrimaryDisplayWorkAreaRect.Top );
 
-	ThumbnailScaleRangeScalar = ( DisplaySize.Y / 2160 );
+	ThumbnailScaleRangeScalar = (float)DisplaySize.Y / 2160.f;
 
 	// Create a thumbnail pool for rendering thumbnails	
 	AssetThumbnailPool = MakeShared<FAssetThumbnailPool>(InArgs._InitialThumbnailPoolSize);
@@ -347,7 +347,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	.Padding(0.0f)
 	[
 		SNew(SBorder)
-		.Padding(0)
+		.Padding(0.f)
 		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 		[
 			VerticalBox
@@ -365,7 +365,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 		[
 			SNew( SBox )
 			.Visibility_Lambda([this] { return InitialNumAmortizedTasks > 0 ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
-			.HeightOverride( 2 )
+			.HeightOverride( 2.f )
 			[
 				SNew( SProgressBar )
 				.Percent( this, &SAssetView::GetIsWorkingProgressBarState )
@@ -429,7 +429,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	// Thumbnail edit mode banner
 	VerticalBox->AddSlot()
 	.AutoHeight()
-	.Padding(0, 4)
+	.Padding(0.f, 4.f)
 	[
 		SNew(SBorder)
 		.Visibility( this, &SAssetView::GetEditModeLabelVisibility )
@@ -439,7 +439,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.Padding(4, 0, 0, 0)
+			.Padding(4.f, 0.f, 0.f, 0.f)
 			.FillWidth(1.f)
 			[
 				SNew(STextBlock)
@@ -482,7 +482,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 			[
 				SNew(SComboButton)
 				.Visibility(InArgs._ShowViewOptions ? EVisibility::Visible : EVisibility::Collapsed)
-				.ContentPadding(0)
+				.ContentPadding(0.f)
 				.ButtonStyle( FAppStyle::Get(), "ToggleButton" ) // Use the tool bar item style for this button
 				.OnGetMenuContent( this, &SAssetView::GetViewButtonContent )
 				.ButtonContent()
@@ -499,7 +499,7 @@ void SAssetView::Construct( const FArguments& InArgs )
  
 					+SHorizontalBox::Slot()
 					.AutoWidth()
-					.Padding(2, 0, 0, 0)
+					.Padding(2.f, 0.f, 0.f, 0.f)
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
@@ -1201,7 +1201,7 @@ void SAssetView::CalculateFillScale( const FGeometry& AllottedGeometry )
 		// If there isn't enough room to support even a single item, don't apply a fill scale.
 		if ( Items > 0 )
 		{
-			float GapSpace = ItemWidth * ( Coverage - Items );
+			float GapSpace = ItemWidth * ( Coverage - (float)Items );
 			float ExpandAmount = GapSpace / (float)Items;
 			FillScale = ( ItemWidth + ExpandAmount ) / ItemWidth;
 			FillScale = FMath::Max( 1.0f, FillScale );
@@ -1628,7 +1628,7 @@ FReply SAssetView::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	// Swallow the key-presses used by the quick-jump in OnKeyChar to avoid other things (such as the viewport commands) getting them instead
 	// eg) Pressing "W" without this would set the viewport to "translate" mode
-	else if(HandleQuickJumpKeyDown(InKeyEvent.GetCharacter(), bIsControlOrCommandDown, InKeyEvent.IsAltDown(), /*bTestOnly*/true).IsEventHandled())
+	else if(HandleQuickJumpKeyDown((TCHAR)InKeyEvent.GetCharacter(), bIsControlOrCommandDown, InKeyEvent.IsAltDown(), /*bTestOnly*/true).IsEventHandled())
 	{
 		return FReply::Handled();
 	}
@@ -3446,7 +3446,7 @@ void SAssetView::SetCurrentViewType(EAssetViewType::Type NewType)
 
 		if (FAssetViewInstanceConfig* Config = GetAssetViewConfig())
 		{
-			Config->ViewType = (int32) NewType;
+			Config->ViewType = (uint8) NewType;
 			UAssetViewConfig::Get()->SaveEditorConfig();
 		}
 	}
@@ -3630,8 +3630,7 @@ TSharedRef<ITableRow> SAssetView::MakeListViewWidget(TSharedPtr<FAssetViewItem> 
 		TSharedPtr<FAssetThumbnail>& AssetThumbnail = RelevantThumbnails.FindOrAdd(AssetItem);
 		if (!AssetThumbnail)
 		{
-			const float ThumbnailResolution = ListViewThumbnailResolution;
-			AssetThumbnail = MakeShared<FAssetThumbnail>(FAssetData(), ThumbnailResolution, ThumbnailResolution, AssetThumbnailPool);
+			AssetThumbnail = MakeShared<FAssetThumbnail>(FAssetData(), ListViewThumbnailResolution, ListViewThumbnailResolution, AssetThumbnailPool);
 			AssetItem->GetItem().UpdateThumbnail(*AssetThumbnail);
 			AssetThumbnail->GetViewportRenderTargetTexture(); // Access the texture once to trigger it to render
 		}
@@ -3644,7 +3643,7 @@ TSharedRef<ITableRow> SAssetView::MakeListViewWidget(TSharedPtr<FAssetViewItem> 
 				SNew(SAssetListItem)
 					.AssetThumbnail(AssetThumbnail)
 					.AssetItem(AssetItem)
-					.ThumbnailPadding(ListViewThumbnailPadding)
+					.ThumbnailPadding((float)ListViewThumbnailPadding)
 					.ItemHeight(this, &SAssetView::GetListViewItemHeight)
 					.OnRenameBegin(this, &SAssetView::AssetRenameBegin)
 					.OnRenameCommit(this, &SAssetView::AssetRenameCommit)
@@ -3685,7 +3684,7 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 		TSharedRef<SAssetTileItem> Item =
 			SNew(SAssetTileItem)
 			.AssetItem(AssetItem)
-			.ThumbnailPadding(TileViewThumbnailPadding)
+			.ThumbnailPadding((float)TileViewThumbnailPadding)
 			.ItemWidth(this, &SAssetView::GetTileViewItemWidth)
 			.OnRenameBegin(this, &SAssetView::AssetRenameBegin)
 			.OnRenameCommit(this, &SAssetView::AssetRenameCommit)
@@ -3705,8 +3704,7 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 		TSharedPtr<FAssetThumbnail>& AssetThumbnail = RelevantThumbnails.FindOrAdd(AssetItem);
 		if (!AssetThumbnail)
 		{
-			const float ThumbnailResolution = TileViewThumbnailResolution;
-			AssetThumbnail = MakeShared<FAssetThumbnail>(FAssetData(), ThumbnailResolution, ThumbnailResolution, AssetThumbnailPool);
+			AssetThumbnail = MakeShared<FAssetThumbnail>(FAssetData(), TileViewThumbnailResolution, TileViewThumbnailResolution, AssetThumbnailPool);
 			AssetItem->GetItem().UpdateThumbnail(*AssetThumbnail);
 			AssetThumbnail->GetViewportRenderTargetTexture(); // Access the texture once to trigger it to render
 		}
@@ -3721,7 +3719,7 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 			SNew(SAssetTileItem)
 			.AssetThumbnail(AssetThumbnail)
 			.AssetItem(AssetItem)
-			.ThumbnailPadding(TileViewThumbnailPadding)
+			.ThumbnailPadding((float)TileViewThumbnailPadding)
 			.CurrentThumbnailSize(this, &SAssetView::GetThumbnailSize)
 			.ItemWidth(this, &SAssetView::GetTileViewItemWidth)
 			.OnRenameBegin(this, &SAssetView::AssetRenameBegin)
@@ -3814,7 +3812,7 @@ void SAssetView::UpdateThumbnails()
 	int32 MinVisibleItemIdx = INDEX_NONE;
 	int32 MaxVisibleItemIdx = INDEX_NONE;
 
-	const int32 HalfNumOffscreenThumbnails = NumOffscreenThumbnails * 0.5;
+	const int32 HalfNumOffscreenThumbnails = NumOffscreenThumbnails / 2;
 	for ( auto ItemIt = VisibleItems.CreateConstIterator(); ItemIt; ++ItemIt )
 	{
 		int32 ItemIdx = FilteredAssetItems.Find(*ItemIt);
@@ -3910,7 +3908,7 @@ TSharedPtr<FAssetThumbnail> SAssetView::AddItemToNewThumbnailRelevancyMap(const 
 		}
 
 		// The thumbnail newly relevant, create a new thumbnail
-		const float ThumbnailResolution = CurrentThumbnailSize * MaxThumbnailScale;
+		const int32 ThumbnailResolution = FMath::TruncToInt((float)CurrentThumbnailSize * MaxThumbnailScale);
 		Thumbnail = MakeShared<FAssetThumbnail>(FAssetData(), ThumbnailResolution, ThumbnailResolution, AssetThumbnailPool);
 		Item->GetItem().UpdateThumbnail(*Thumbnail);
 		Thumbnail->GetViewportRenderTargetTexture(); // Access the texture once to trigger it to render
@@ -4314,7 +4312,7 @@ void SAssetView::OnThumbnailSizeChanged(EThumbnailSize NewThumbnailSize)
 
 	if (FAssetViewInstanceConfig* Config = GetAssetViewConfig())
 	{
-		Config->ThumbnailSize = (int32) NewThumbnailSize;
+		Config->ThumbnailSize = (uint8) NewThumbnailSize;
 		UAssetViewConfig::Get()->SaveEditorConfig();
 	}
 
@@ -4387,17 +4385,17 @@ float SAssetView::GetTileViewTypeNameHeight() const
 
 float SAssetView::GetListViewItemHeight() const
 {
-	return (ListViewThumbnailSize + ListViewThumbnailPadding * 2) * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale());
+	return (float)(ListViewThumbnailSize + ListViewThumbnailPadding * 2) * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale());
 }
 
 float SAssetView::GetTileViewItemHeight() const
 {
-	return ((TileViewNameHeight + GetTileViewTypeNameHeight()) * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale())) + GetTileViewItemBaseHeight() * FillScale;
+	return (((float)TileViewNameHeight + GetTileViewTypeNameHeight()) * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale())) + GetTileViewItemBaseHeight() * FillScale;
 }
 
 float SAssetView::GetTileViewItemBaseHeight() const
 {
-	return (TileViewThumbnailSize + TileViewThumbnailPadding * 2) * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale());
+	return (float)(TileViewThumbnailSize + TileViewThumbnailPadding * 2) * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale());
 }
 
 float SAssetView::GetTileViewItemWidth() const
@@ -4407,7 +4405,7 @@ float SAssetView::GetTileViewItemWidth() const
 
 float SAssetView::GetTileViewItemBaseWidth() const //-V524
 {
-	return ( TileViewThumbnailSize + TileViewThumbnailPadding * 2 ) * FMath::Lerp( MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale() );
+	return (float)( TileViewThumbnailSize + TileViewThumbnailPadding * 2 ) * FMath::Lerp( MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale() );
 }
 
 EColumnSortMode::Type SAssetView::GetColumnSortMode(const FName ColumnId) const

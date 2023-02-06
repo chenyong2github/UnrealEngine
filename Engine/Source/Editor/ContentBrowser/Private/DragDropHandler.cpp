@@ -244,7 +244,7 @@ void HandleDragDropMoveOrCopy(const FContentBrowserItem& InDropTargetItem, const
 	if (NumMovedOrCopiedItems > 0 && InParentWidget)
 	{
 		const FText Message = FText::Format(InMoveOrCopyMsg, NumMovedOrCopiedItems, FText::FromName(InDropTargetPath));
-		const FVector2D& CursorPos = FSlateApplication::Get().GetCursorPos();
+		const FVector2f& CursorPos = FSlateApplication::Get().GetCursorPos();
 		FSlateRect MessageAnchor(CursorPos.X, CursorPos.Y, CursorPos.X, CursorPos.Y);
 		ContentBrowserUtils::DisplayMessage(Message, MessageAnchor, InParentWidget.ToSharedRef());
 	}

@@ -57,7 +57,7 @@ struct FAssetArgs
 	template<typename ExpectedObjectType>
 	TArray<ExpectedObjectType*> LoadObjects(const TSet<FName>& LoadTags = {}, TArray<FAssetData>* OutAssetsThatFailedToLoad = nullptr) const
 	{
-		FScopedSlowTask SlowTask(Assets.Num());
+		FScopedSlowTask SlowTask((float)Assets.Num());
 	
 		TArray<ExpectedObjectType*> LoadedObjects;
 		LoadedObjects.Reserve(Assets.Num());

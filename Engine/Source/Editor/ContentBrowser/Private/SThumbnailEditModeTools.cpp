@@ -60,11 +60,11 @@ void SThumbnailEditModeTools::Construct( const FArguments& InArgs, const TShared
 		+SHorizontalBox::Slot()
 		.VAlign(VAlign_Top)
 		.HAlign(HAlign_Left)
-		.Padding(1)
+		.Padding(1.f)
 		[
 			SNew(SButton)
 			.Visibility(this, &SThumbnailEditModeTools::GetPrimitiveToolsVisibility)
-			.ContentPadding(0)
+			.ContentPadding(0.f)
 			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.OnClicked(this, &SThumbnailEditModeTools::ChangePrimitive)
 			.ToolTipText(LOCTEXT("CyclePrimitiveThumbnailShapes", "Cycle through primitive shape for this thumbnail"))
@@ -76,11 +76,11 @@ void SThumbnailEditModeTools::Construct( const FArguments& InArgs, const TShared
 		+SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Top)
-		.Padding(1)
+		.Padding(1.f)
 		[
 			SNew(SButton)
 			.Visibility(this, &SThumbnailEditModeTools::GetPrimitiveToolsResetToDefaultVisibility)
-			.ContentPadding(0)
+			.ContentPadding(0.f)
 			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.OnClicked(this, &SThumbnailEditModeTools::ResetToDefault)
 			.ToolTipText(LOCTEXT("ResetThumbnailToDefault", "Resets thumbnail to the default"))
@@ -141,7 +141,7 @@ FReply SThumbnailEditModeTools::ChangePrimitive()
 	USceneThumbnailInfoWithPrimitive* ThumbnailInfo = GetSceneThumbnailInfoWithPrimitive();
 	if ( ThumbnailInfo )
 	{
-		uint8 PrimitiveIdx = ThumbnailInfo->PrimitiveType + 1;
+		uint8 PrimitiveIdx = ThumbnailInfo->PrimitiveType.GetIntValue() + 1;
 		if ( PrimitiveIdx >= TPT_MAX )
 		{
 			if ( ThumbnailInfo->PreviewMesh.IsValid() )
@@ -206,7 +206,7 @@ FReply SThumbnailEditModeTools::OnMouseButtonDown( const FGeometry& MyGeometry, 
 			if (RenderInfo != nullptr && RenderInfo->Renderer != nullptr)
 			{
 				bModifiedThumbnailWhileDragging = false;
-				DragStartLocation = FIntPoint(MouseEvent.GetScreenSpacePosition().X, MouseEvent.GetScreenSpacePosition().Y);
+				DragStartLocation = FIntPoint(FMath::TruncToInt32(MouseEvent.GetScreenSpacePosition().X), FMath::TruncToInt32(MouseEvent.GetScreenSpacePosition().Y));
 
 				return FReply::Handled().CaptureMouse(AsShared()).UseHighPrecisionMouseMovement(AsShared()).PreventThrottling();
 			}

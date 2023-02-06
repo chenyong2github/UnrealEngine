@@ -1061,7 +1061,7 @@ void SCollectionView::DeleteCollectionItems( const TArray<TSharedPtr<FCollection
 		else
 		{
 			// Display a warning
-			const FVector2D& CursorPos = FSlateApplication::Get().GetCursorPos();
+			const FVector2f& CursorPos = FSlateApplication::Get().GetCursorPos();
 			FSlateRect MessageAnchor(CursorPos.X, CursorPos.Y, CursorPos.X, CursorPos.Y);
 			ContentBrowserUtils::DisplayMessage(
 				FText::Format( LOCTEXT("CollectionDestroyFailed", "Failed to destroy collection. {0}"), CollectionManagerModule.Get().GetLastError() ),

@@ -513,8 +513,8 @@ public:
 						ensure(NumItemsPerLine > 0);
 
 						// calculate total number of rows and row of current index (1 index)
-						const int32 NumLines = FMath::CeilToInt(NumItems / (float)NumItemsPerLine);
-						const int32 CurLine = FMath::CeilToInt((CurSelectionIndex + 1) / (float)NumItemsPerLine);
+						const int32 NumLines = FMath::CeilToInt((float)NumItems / (float)NumItemsPerLine);
+						const int32 CurLine = FMath::CeilToInt((float)(CurSelectionIndex + 1) / (float)NumItemsPerLine);
 
 						// if not on final row, assume a jagged list and select the final item
 						if (CurLine < NumLines)
@@ -2107,7 +2107,7 @@ protected:
 						if (WidgetTopLeft.ScrollAxis < ListViewTopLeft.ScrollAxis)
 						{
 							// This entry is clipped at the top/left, so simply set it as the new scroll offset target to bump it down into view
-							NewScrollOffset = static_cast<double>(IndexOfItem - NavigationScrollOffset);
+							NewScrollOffset = static_cast<double>(IndexOfItem) - NavigationScrollOffset;
 						}
 						else
 						{

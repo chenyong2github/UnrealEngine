@@ -393,7 +393,7 @@ protected:
 		const bool bWholeListVisible = this->DesiredScrollOffset == 0 && this->bWasAtEndOfList;
 		if (InAllowOverscroll == EAllowOverscroll::Yes && this->Overscroll.ShouldApplyOverscroll(this->DesiredScrollOffset == 0, this->bWasAtEndOfList, ScrollByAmountInSlateUnits))
 		{
-			const float UnclampedScrollDelta = ScrollByAmountInSlateUnits / GetNumItemsPerLine();
+			const float UnclampedScrollDelta = ScrollByAmountInSlateUnits / (float)GetNumItemsPerLine();
 			const float ActuallyScrolledBy = this->Overscroll.ScrollBy(MyGeometry, UnclampedScrollDelta);
 			if (ActuallyScrolledBy != 0.0f)
 			{
@@ -403,7 +403,7 @@ protected:
 		}
 		else if (!bWholeListVisible)
 		{
-			const double NewScrollOffset = this->DesiredScrollOffset + ((ScrollByAmountInSlateUnits * GetNumItemsPerLine()) / GetTileDimensions().ScrollAxis);
+			const double NewScrollOffset = this->DesiredScrollOffset + ((ScrollByAmountInSlateUnits * (float)GetNumItemsPerLine()) / GetTileDimensions().ScrollAxis);
 
 			return this->ScrollTo( (float)NewScrollOffset );
 		}
@@ -466,9 +466,9 @@ protected:
 					// Center the line in the view area
 					NewLineOffset -= NumLinesInView * 0.5f;
 					// Convert the line offset into an item offset
-					double NewScrollOffset = NewLineOffset * NumItemsPerLine;
+					double NewScrollOffset = NewLineOffset * (double)NumItemsPerLine;
 					// And clamp the scroll offset within the allowed limits
-					NewScrollOffset = FMath::Clamp(NewScrollOffset, 0., (double)(GetNumItemsBeingObserved() - NumItemsPerLine * NumLinesInView));
+					NewScrollOffset = FMath::Clamp(NewScrollOffset, 0., (double)GetNumItemsBeingObserved() - (double)NumItemsPerLine * NumLinesInView);
 
 					this->SetScrollOffset((float)NewScrollOffset);
 				}
@@ -478,14 +478,14 @@ protected:
 					if (LineOfItem == MinDisplayedLine)
 					{
 						// This line is clipped at the top/left, so set it as the new offset
-						this->SetScrollOffset(LineOfItem * NumItemsPerLine - (this->FixedLineScrollOffset.IsSet() && LineOfItem > 0 ? 0.f : this->NavigationScrollOffset));
+						this->SetScrollOffset((float)(LineOfItem * NumItemsPerLine) - (this->FixedLineScrollOffset.IsSet() && LineOfItem > 0 ? 0.f : this->NavigationScrollOffset));
 					}
 					else if (LineOfItem == MaxDisplayedLine)
 					{
 						// This line is clipped at the end, so we need to advance just enough to bring it fully into view
 						// Since all tiles are required to be of the same size, this is straightforward
-						const float NewLineOffset = LineOfItem - NumLinesInView + 1.f + (this->FixedLineScrollOffset.IsSet() ? 0.f : this->NavigationScrollOffset);
-						this->SetScrollOffset(NewLineOffset * NumItemsPerLine);
+						const float NewLineOffset = (float)LineOfItem - NumLinesInView + 1.f + (this->FixedLineScrollOffset.IsSet() ? 0.f : this->NavigationScrollOffset);
+						this->SetScrollOffset(NewLineOffset * (float)NumItemsPerLine);
 					}
 				}
 

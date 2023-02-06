@@ -365,7 +365,7 @@ EContentBrowserPathType FContentBrowserVirtualPathTree::TryConvertVirtualPathToI
 	{
 		if (PathCharPtr >= PathStrEnd || *PathCharPtr == TEXT('/'))
 		{
-			const FName CheckPath(PathCharPtr - PathStr, PathStr);
+			const FName CheckPath(int32(PathCharPtr - PathStr), PathStr);
 			bool bCheckPathIsFullyVirtual = false;
 			if (PathExists(CheckPath, bCheckPathIsFullyVirtual))
 			{

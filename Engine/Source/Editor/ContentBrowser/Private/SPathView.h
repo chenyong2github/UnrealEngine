@@ -33,6 +33,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Types/SlateConstants.h"
 #include "Types/SlateEnums.h"
+#include "Types/SlateVector2.h"
 #include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -280,7 +281,7 @@ protected:
 	void GetChildrenForTree(TSharedPtr< FTreeItem > TreeItem, TArray< TSharedPtr<FTreeItem> >& OutChildren);
 
 	/** Handler for when a name was given to a new folder */
-	void FolderNameChanged(const TSharedPtr< FTreeItem >& TreeItem, const FString& ProposedName, const FVector2D& MessageLocation, const ETextCommit::Type CommitType);
+	void FolderNameChanged(const TSharedPtr< FTreeItem >& TreeItem, const FString& ProposedName, const UE::Slate::FDeprecateVector2DParameter& MessageLocation, const ETextCommit::Type CommitType);
 
 	/** Handler used to verify the name of a new folder */
 	bool VerifyFolderNameChanged(const TSharedPtr< FTreeItem >& TreeItem, const FString& ProposedName, FText& OutErrorMessage) const;

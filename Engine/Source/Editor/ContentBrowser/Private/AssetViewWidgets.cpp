@@ -82,7 +82,7 @@ class FDragDropEvent;
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
-static float GenericThumbnailSizes[(int32)EThumbnailSize::MAX] = { 24, 32, 64, 128, 200 };
+static int32 GenericThumbnailSizes[(int32)EThumbnailSize::MAX] = { 24, 32, 64, 128, 200 };
 
 ///////////////////////////////
 // FAssetViewModeUtils
@@ -1756,12 +1756,12 @@ float SAssetListItem::GetExtraStateIconWidth() const
 
 FOptionalSize SAssetListItem::GetExtraStateIconMaxWidth() const
 {
-	return GetThumbnailBoxSize().Get() * 0.7;
+	return GetThumbnailBoxSize().Get() * 0.7f;
 }
 
 FOptionalSize SAssetListItem::GetStateIconImageSize() const
 {
-	float IconSize = FMath::TruncToFloat(GetThumbnailBoxSize().Get() * 0.3);
+	float IconSize = FMath::TruncToFloat(GetThumbnailBoxSize().Get() * 0.3f);
 	return IconSize > 12 ? IconSize : 12;
 }
 
@@ -2024,12 +2024,12 @@ float SAssetTileItem::GetExtraStateIconWidth() const
 
 FOptionalSize SAssetTileItem::GetExtraStateIconMaxWidth() const
 {
-	return GetThumbnailBoxSize().Get() * 0.8;
+	return GetThumbnailBoxSize().Get() * 0.8f;
 }
 
 FOptionalSize SAssetTileItem::GetStateIconImageSize() const
 {
-	float IconSize = FMath::TruncToFloat(GetThumbnailBoxSize().Get() * 0.2);
+	float IconSize = FMath::TruncToFloat(GetThumbnailBoxSize().Get() * 0.2f);
 	return IconSize > 12 ? IconSize : 12;
 }
 

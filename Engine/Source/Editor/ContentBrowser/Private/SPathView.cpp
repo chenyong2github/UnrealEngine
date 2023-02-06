@@ -1742,7 +1742,7 @@ bool SPathView::VerifyFolderNameChanged(const TSharedPtr< FTreeItem >& TreeItem,
 	return true;
 }
 
-void SPathView::FolderNameChanged( const TSharedPtr< FTreeItem >& TreeItem, const FString& ProposedName, const FVector2D& MessageLocation, const ETextCommit::Type CommitType )
+void SPathView::FolderNameChanged( const TSharedPtr< FTreeItem >& TreeItem, const FString& ProposedName, const UE::Slate::FDeprecateVector2DParameter& MessageLocation, const ETextCommit::Type CommitType )
 {
 	bool bSuccess = false;
 	FText ErrorMessage;
@@ -2166,7 +2166,7 @@ TSharedRef<SWidget> SPathView::CreateFavoritesView()
 		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
 		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
 		.HeaderPadding(FMargin(4.0f, 4.0f))
-		.Padding(0)
+		.Padding(0.f)
 		.AllowAnimatedTransition(false)
 		.InitiallyCollapsed(true)
 		.HeaderContent()

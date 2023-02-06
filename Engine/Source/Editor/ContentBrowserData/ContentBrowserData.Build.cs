@@ -6,6 +6,8 @@ public class ContentBrowserData : ModuleRules
 {
 	public ContentBrowserData(ReadOnlyTargetRules Target) : base(Target)
 	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

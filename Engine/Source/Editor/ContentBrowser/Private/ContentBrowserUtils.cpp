@@ -93,7 +93,7 @@ public:
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
-			.Padding(10)
+			.Padding(10.f)
 			.OnMouseButtonDown(this, &SContentBrowserPopup::OnBorderClicked)
 			.BorderBackgroundColor(this, &SContentBrowserPopup::GetBorderBackgroundColor)
 			[
@@ -102,7 +102,7 @@ public:
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
-				.Padding(0, 0, 4, 0)
+				.Padding(0.f, 0.f, 4.f, 0.f)
 				[
 					SNew(SImage) .Image( FAppStyle::GetBrush("ContentBrowser.PopupMessageIcon") )
 				]
@@ -198,12 +198,12 @@ public:
 		[
 			SNew(SBorder)
 			. BorderImage(FAppStyle::GetBrush("Menu.Background"))
-			. Padding(10)
+			. Padding(10.f)
 			[
 				SNew(SVerticalBox)
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(0, 0, 0, 5)
+				.Padding(0.f, 0.f, 0.f, 5.f)
 				.HAlign(HAlign_Center)
 				[
 					SNew(STextBlock)
@@ -215,7 +215,7 @@ public:
 				.HAlign(HAlign_Center)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(3)
+					.SlotPadding(3.f)
 					+ SUniformGridPanel::Slot(0, 0)
 					.HAlign(HAlign_Fill)
 					[
