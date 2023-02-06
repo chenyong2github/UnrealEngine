@@ -408,8 +408,8 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UPreviewMesh> PreviewMesh;
 
-	// TODO We currently need to compute this on the game thread because the implementation has checks for this
-	TUniquePtr<UE::Geometry::FSceneCapturePhotoSet> SceneCapture;
+	// Note: We need to compute this on the game thread because the implementation has checks for this
+	TUniquePtr<UE::Geometry::FSceneCapturePhotoSet> SceneCapture = nullptr;
 
 	// These are used to determine if we need to re-bake results
 	float ComputedValidDepthThreshold;

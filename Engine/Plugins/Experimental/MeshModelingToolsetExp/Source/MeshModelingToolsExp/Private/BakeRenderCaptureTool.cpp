@@ -569,6 +569,9 @@ bool UBakeRenderCaptureTool::CanAccept() const
 
 TUniquePtr<TGenericDataOperator<FMeshMapBaker>> UBakeRenderCaptureTool::MakeNewOperator()
 {
+	// We should not have requested a bake if we don't have a SceneCapture
+	check(SceneCapture.IsValid());
+
 	TUniquePtr<FRenderCaptureMapBakerOp> Op = MakeUnique<FRenderCaptureMapBakerOp>();
 	Op->BaseMesh = &TargetMesh;
 	Op->BaseMeshSpatial = &TargetMeshSpatial;
@@ -1086,39 +1089,39 @@ void UBakeRenderCaptureTool::InvalidateResults(FRenderCaptureUpdate Update)
 	// Note that the bake operation, Compute, updates ResultSettings when results are available via the
 	// Compute->OnResultUpdated delegate.
 
-	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::BaseColor) || Update.bUpdatedBaseColor)
+	if (Update.bUpdatedBaseColor)
 	{
 		ResultSettings->BaseColorMap = nullptr;
 	}
-	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Roughness) || Update.bUpdatedRoughness)
+	if (Update.bUpdatedRoughness)
 	{
 		ResultSettings->RoughnessMap = nullptr;
 	}
-	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Metallic) || Update.bUpdatedMetallic)
+	if (Update.bUpdatedMetallic)
 	{
 		ResultSettings->MetallicMap = nullptr;
 	}
-	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Specular) || Update.bUpdatedSpecular)
+	if (Update.bUpdatedSpecular)
 	{
 		ResultSettings->SpecularMap = nullptr;
 	}
-	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Emissive) || Update.bUpdatedEmissive)
+	if (Update.bUpdatedEmissive)
 	{
 		ResultSettings->EmissiveMap = nullptr;
 	}
-	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::WorldNormal) || Update.bUpdatedNormalMap)
+	if (Update.bUpdatedNormalMap)
 	{
 		ResultSettings->NormalMap = nullptr;
 	}
-	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Opacity) || Update.bUpdatedOpacity)
+	if (Update.bUpdatedOpacity)
 	{
 		ResultSettings->OpacityMap = nullptr;
 	}
-	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor) || Update.bUpdatedSubsurfaceColor)
+	if (Update.bUpdatedSubsurfaceColor)
 	{
 		ResultSettings->SubsurfaceColorMap = nullptr;
 	}
-	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS) || Update.bUpdatedPackedMRS)
+	if (Update.bUpdatedPackedMRS)
 	{
 		ResultSettings->PackedMRSMap = nullptr;
 	}

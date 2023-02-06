@@ -286,42 +286,67 @@ FRenderCaptureUpdate UE::Geometry::UpdatePhotoSets(
 	const FRenderCaptureOptions ComputedOptions = GetComputedPhotoSetOptions(SceneCapture);
 	const TArray<AActor*> ComputedActors = SceneCapture->GetCaptureSceneActors();
 
+	// We track the photo set counts in order to determine which photosets were updated
+	struct FPhotoSetNums
+	{
+		FPhotoSetNums(const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture)
+		{
+			NumBaseColor       = SceneCapture->GetBaseColorPhotoSet().Num();
+			NumRoughness       = SceneCapture->GetRoughnessPhotoSet().Num();
+			NumSpecular        = SceneCapture->GetSpecularPhotoSet().Num();
+			NumMetallic        = SceneCapture->GetMetallicPhotoSet().Num();
+			NumPackedMRS       = SceneCapture->GetPackedMRSPhotoSet().Num();
+			NumNormalMap       = SceneCapture->GetWorldNormalPhotoSet().Num();
+			NumEmissive        = SceneCapture->GetEmissivePhotoSet().Num();
+			NumOpacity         = SceneCapture->GetOpacityPhotoSet().Num();
+			NumSubsurfaceColor = SceneCapture->GetSubsurfaceColorPhotoSet().Num();
+			NumDeviceDepth     = SceneCapture->GetDeviceDepthPhotoSet().Num();
+		}
+		
+		int32 NumBaseColor;
+		int32 NumRoughness;
+		int32 NumSpecular;
+		int32 NumMetallic;
+		int32 NumPackedMRS;
+		int32 NumNormalMap;
+		int32 NumEmissive;
+		int32 NumOpacity;
+		int32 NumSubsurfaceColor;
+		int32 NumDeviceDepth;
+	};
+
+	const FPhotoSetNums Step1(SceneCapture);
+
+	// This will clear any photosets that are disabled or need recomputing
 	UpdateSceneCaptureSettings(SceneCapture, Actors, Options);
 
-	// If the provided Options required some photo sets to recompute they will have been cleared by this point.
-	// The updated photo sets are the ones where the photo sets are empty here but are not empty after the Compute call
-	FRenderCaptureUpdate Update;
-
-	Update.bUpdatedBaseColor       = (SceneCapture->GetBaseColorPhotoSet().Num()       == 0);
-	Update.bUpdatedRoughness       = (SceneCapture->GetRoughnessPhotoSet().Num()       == 0);
-	Update.bUpdatedSpecular        = (SceneCapture->GetSpecularPhotoSet().Num()        == 0);
-	Update.bUpdatedMetallic        = (SceneCapture->GetMetallicPhotoSet().Num()        == 0);
-	Update.bUpdatedPackedMRS       = (SceneCapture->GetPackedMRSPhotoSet().Num()       == 0);
-	Update.bUpdatedNormalMap       = (SceneCapture->GetWorldNormalPhotoSet().Num()     == 0);
-	Update.bUpdatedEmissive        = (SceneCapture->GetEmissivePhotoSet().Num()        == 0);
-	Update.bUpdatedOpacity         = (SceneCapture->GetOpacityPhotoSet().Num()         == 0);
-	Update.bUpdatedSubsurfaceColor = (SceneCapture->GetSubsurfaceColorPhotoSet().Num() == 0);
-	Update.bUpdatedDeviceDepth     = (SceneCapture->GetDeviceDepthPhotoSet().Num()     == 0);
+	const FPhotoSetNums Step2(SceneCapture);
 
 	SceneCapture->SetAllowCancel(bAllowCancel);
 
+	// This will compute newly requested photosets
 	SceneCapture->Compute();
 
 	if (SceneCapture->Cancelled())
 	{
+		// This will clear any newly requested photosets
 		UpdateSceneCaptureSettings(SceneCapture, ComputedActors, ComputedOptions);
 	}
 
-	Update.bUpdatedBaseColor       = (SceneCapture->GetBaseColorPhotoSet().Num()       == 0) != Update.bUpdatedBaseColor;
-	Update.bUpdatedRoughness       = (SceneCapture->GetRoughnessPhotoSet().Num()       == 0) != Update.bUpdatedRoughness;
-	Update.bUpdatedSpecular        = (SceneCapture->GetSpecularPhotoSet().Num()        == 0) != Update.bUpdatedSpecular;
-	Update.bUpdatedMetallic        = (SceneCapture->GetMetallicPhotoSet().Num()        == 0) != Update.bUpdatedMetallic;
-	Update.bUpdatedPackedMRS       = (SceneCapture->GetPackedMRSPhotoSet().Num()       == 0) != Update.bUpdatedPackedMRS;
-	Update.bUpdatedNormalMap       = (SceneCapture->GetWorldNormalPhotoSet().Num()     == 0) != Update.bUpdatedNormalMap;
-	Update.bUpdatedEmissive        = (SceneCapture->GetEmissivePhotoSet().Num()        == 0) != Update.bUpdatedEmissive;
-	Update.bUpdatedOpacity         = (SceneCapture->GetOpacityPhotoSet().Num()         == 0) != Update.bUpdatedOpacity;
-	Update.bUpdatedSubsurfaceColor = (SceneCapture->GetSubsurfaceColorPhotoSet().Num() == 0) != Update.bUpdatedSubsurfaceColor;
-	Update.bUpdatedDeviceDepth     = (SceneCapture->GetDeviceDepthPhotoSet().Num()     == 0) != Update.bUpdatedDeviceDepth;
+	const FPhotoSetNums Step3(SceneCapture);
+
+	// If the photo sets were cleared/computed/recomputed we consider them updated, use the counts to figure this out
+	FRenderCaptureUpdate Update;
+	Update.bUpdatedBaseColor   = !(Step1.NumBaseColor   == Step2.NumBaseColor   && Step2.NumBaseColor   == Step3.NumBaseColor);
+	Update.bUpdatedRoughness   = !(Step1.NumRoughness   == Step2.NumRoughness   && Step2.NumRoughness   == Step3.NumRoughness);
+	Update.bUpdatedSpecular    = !(Step1.NumSpecular    == Step2.NumSpecular    && Step2.NumSpecular    == Step3.NumSpecular);
+	Update.bUpdatedMetallic    = !(Step1.NumMetallic    == Step2.NumMetallic    && Step2.NumMetallic    == Step3.NumMetallic);
+	Update.bUpdatedPackedMRS   = !(Step1.NumPackedMRS   == Step2.NumPackedMRS   && Step2.NumPackedMRS   == Step3.NumPackedMRS);
+	Update.bUpdatedNormalMap   = !(Step1.NumNormalMap   == Step2.NumNormalMap   && Step2.NumNormalMap   == Step3.NumNormalMap);
+	Update.bUpdatedEmissive    = !(Step1.NumEmissive    == Step2.NumEmissive    && Step2.NumEmissive    == Step3.NumEmissive);
+	Update.bUpdatedOpacity     = !(Step1.NumOpacity     == Step2.NumOpacity     && Step2.NumOpacity     == Step3.NumOpacity);
+	Update.bUpdatedDeviceDepth = !(Step1.NumDeviceDepth == Step2.NumDeviceDepth && Step2.NumDeviceDepth == Step3.NumDeviceDepth);
+	Update.bUpdatedSubsurfaceColor = !(Step1.NumSubsurfaceColor == Step2.NumSubsurfaceColor && Step2.NumSubsurfaceColor == Step3.NumSubsurfaceColor);
 
 	return Update;
 }
