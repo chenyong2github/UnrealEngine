@@ -33,6 +33,11 @@ public:
 
 void FInputDebuggingEditorModule::StartupModule()
 {
+	if (!FApp::HasProjectName())
+	{
+		return;
+	}
+
 	// Listen for when input devices change
 	IPlatformInputDeviceMapper::Get().GetOnInputDeviceConnectionChange().AddRaw(this, &FInputDebuggingEditorModule::OnInputDeviceConnectionChange);
 	
@@ -43,6 +48,11 @@ void FInputDebuggingEditorModule::StartupModule()
 
 void FInputDebuggingEditorModule::ShutdownModule()
 {
+	if (!FApp::HasProjectName())
+	{
+		return;
+	}
+
 	// Remove any input listeners
 	IPlatformInputDeviceMapper::Get().GetOnInputDeviceConnectionChange().RemoveAll(this);
 	
