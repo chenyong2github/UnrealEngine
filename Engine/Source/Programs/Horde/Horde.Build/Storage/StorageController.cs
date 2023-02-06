@@ -255,7 +255,7 @@ namespace Horde.Build.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User))
+			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User) && !User.HasClaim(HordeClaimTypes.ReadNamespace, namespaceId.ToString()))
 			{
 				return Forbid(AclAction.ReadBlobs, namespaceId);
 			}
@@ -366,7 +366,7 @@ namespace Horde.Build.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.ReadRefs, User))
+			if (!namespaceConfig.Authorize(AclAction.ReadRefs, User) && !User.HasClaim(HordeClaimTypes.ReadNamespace, namespaceId.ToString()))
 			{
 				return Forbid(AclAction.ReadRefs, namespaceId);
 			}

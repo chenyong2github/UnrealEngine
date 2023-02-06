@@ -62,6 +62,16 @@ namespace Horde.Build.Utilities
 		public const string ExternalIssueUser = Prefix + "external-issue-user";
 
 		/// <summary>
+		/// Claim identifying an agent as executing a particular lease
+		/// </summary>
+		public const string Lease = Prefix + "lease";
+
+		/// <summary>
+		/// Claim allowing a certain namespace to be read from
+		/// </summary>
+		public const string ReadNamespace = Prefix + "read-ns";
+
+		/// <summary>
 		/// Claim allowing a certain namespace to be written to
 		/// </summary>
 		public const string WriteNamespace = Prefix + "write-ns";
