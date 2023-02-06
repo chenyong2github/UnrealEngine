@@ -4847,17 +4847,17 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 
 	GCKeepObjects.Empty();
 
-	for (FPackageData* PackageData : *PackageDatas.Get())
+	PackageDatas->LockAndEnumeratePackageDatas([](FPackageData* PackageData)
 	{
 		if (FGeneratorPackage* GeneratorPackage = PackageData->GetGeneratorPackage())
 		{
 			GeneratorPackage->PostGarbageCollect();
 		}
-	}
-	for (FPackageData* PackageData : *PackageDatas.Get())
+	});
+	PackageDatas->LockAndEnumeratePackageDatas([](FPackageData* PackageData)
 	{
 		PackageData->SetKeepReferencedDuringGC(false);
-	}
+	});
 
 	CookedPackageCountSinceLastGC = 0;
 }
@@ -7040,14 +7040,14 @@ void UCookOnTheFlyServer::OnRequestClusterCompleted(const UE::Cook::FRequestClus
 	{
 		if (bHybridIterativeDebug)
 		{
-			for (FPackageData* PackageData : *PackageDatas)
+			PackageDatas->LockAndEnumeratePackageDatas([](FPackageData* PackageData)
 			{
 				if (!PackageData->AreAllRequestedPlatformsExplored())
 				{
 					UE_LOG(LogCook, Warning, TEXT("Missing dependency: existing requested Package %s was not explored in the first cluster."),
 						*WriteToString<256>(PackageData->GetPackageName()));
 				}
-			}
+			});
 			PackageDatas->SetLogDiscoveredPackages(true); // Turn this on for the rest of the cook after the initial cluster
 		}
 	}
@@ -8608,10 +8608,10 @@ void UCookOnTheFlyServer::ShutdownCookSession()
 		CookAsCookWorkerFinished();
 	}
 
-	for (UE::Cook::FPackageData* PackageData : *PackageDatas)
+	PackageDatas->LockAndEnumeratePackageDatas([](UE::Cook::FPackageData* PackageData)
 	{
 		PackageData->DestroyGeneratorPackage();
-	}
+	});
 
 	if (IsCookByTheBookMode())
 	{
@@ -8863,7 +8863,7 @@ void UCookOnTheFlyServer::ClearPlatformCookedData(const ITargetPlatform* TargetP
 
 void UCookOnTheFlyServer::ResetCook(TConstArrayView<TPair<const ITargetPlatform*, bool>> TargetPlatforms)
 {
-	for (UE::Cook::FPackageData* PackageData : *PackageDatas.Get())
+	PackageDatas->LockAndEnumeratePackageDatas([TargetPlatforms](UE::Cook::FPackageData* PackageData)
 	{
 		for (const TPair<const ITargetPlatform*, bool>& Pair : TargetPlatforms)
 		{
@@ -8881,7 +8881,7 @@ void UCookOnTheFlyServer::ResetCook(TConstArrayView<TPair<const ITargetPlatform*
 				}
 			}
 		}
-	}
+	});
 
 	TArray<FName> PackageNames;
 	for (const TPair<const ITargetPlatform*, bool>& Pair : TargetPlatforms)
@@ -9216,13 +9216,13 @@ void UCookOnTheFlyServer::BeginCookSandbox(FBeginCookContext& BeginContext)
 			// Set the NumPackagesIterativelySkipped field to include all of the already CookedPackages
 			COOK_STAT(DetailedCookStats::NumPackagesIterativelySkipped = 0);
 			const ITargetPlatform* TargetPlatform = AlreadyCookedPlatforms[0];
-			for (UE::Cook::FPackageData* PackageData : *PackageDatas)
+			PackageDatas->LockAndEnumeratePackageDatas([TargetPlatform](UE::Cook::FPackageData* PackageData)
 			{
 				if (PackageData->HasCookedPlatform(TargetPlatform, true /* bIncludeFailed */))
 				{
 					COOK_STAT(++DetailedCookStats::NumPackagesIterativelySkipped);
 				}
-			}
+			});
 		}
 	}
 
@@ -9974,6 +9974,7 @@ void UCookOnTheFlyServer::RecordDLCPackagesFromBaseGame(FBeginCookContext& Begin
 		}
 	}
 
+	bool bFirstAddExistingPackageDatas = true;
 	for (const ITargetPlatform* TargetPlatform : BeginContext.TargetPlatforms)
 	{
 		SCOPED_BOOT_TIMING("AddCookedPlatforms");
@@ -9997,7 +9998,7 @@ void UCookOnTheFlyServer::RecordDLCPackagesFromBaseGame(FBeginCookContext& Begin
 		if (ActivePackageList.Num() > 0)
 		{
 			SCOPED_BOOT_TIMING("AddPackageDataByFileNamesForPlatform");
-			PackageDatas->AddExistingPackageDatasForPlatform(ActivePackageList, TargetPlatform);
+			PackageDatas->AddExistingPackageDatasForPlatform(ActivePackageList, TargetPlatform, bFirstAddExistingPackageDatas);
 		}
 
 		TArray<FName>& PlatformBasedPackages = CookByTheBookOptions->BasedOnReleaseCookedPackages.FindOrAdd(PlatformName);
@@ -10006,6 +10007,7 @@ void UCookOnTheFlyServer::RecordDLCPackagesFromBaseGame(FBeginCookContext& Begin
 		{
 			PlatformBasedPackages.Add(PackageData.NormalizedFileName);
 		}
+		bFirstAddExistingPackageDatas = false;
 	}
 
 	FString ExtraReleaseVersionAssetsFile;
@@ -10433,8 +10435,10 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry(const FString&
 		int32 NumPackages = SerializedState->GetNumAssets();
 		TArray<const FAssetData*> AssetDatas;
 		TSet<FName> PackageNames;
+		FString PackageNameStrBuffer;
 		AssetDatas.Reserve(NumPackages);
 		OutPackageDatas.Reserve(NumPackages);
+		PackageNames.Reserve(NumPackages);
 
 		// Convert the Map of RegistryData into an Array of FAssetData and populate PackageNames in the output array
 		SerializedState->EnumerateAllAssets([&](const FAssetData& RegistryData)
@@ -10452,7 +10456,8 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry(const FString&
 			{
 				return;
 			}
-			if (FPackageName::GetPackageMountPoint(PackageName.ToString()).IsNone())
+			PackageName.ToString(PackageNameStrBuffer);
+			if (FPackageName::GetPackageMountPoint(PackageNameStrBuffer).IsNone())
 			{
 				// Skip any packages that are not currently mounted; if we tried to find their FileNames below
 				// we would get log spam

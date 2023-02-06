@@ -16,7 +16,10 @@
 #include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Optional.h"
+#include "Misc/ScopeRWLock.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "TypedBlockAllocator.h"
 #include "UObject/GCObject.h"
 #include "UObject/NameTypes.h"
 #include "UObject/PackageResourceManager.h"
@@ -260,7 +263,7 @@ public:
 	void ClearCookProgress(const ITargetPlatform* TargetPlatform);
 
 	/** Access the information about platforms interacted with by *this. */
-	const TSortedMap<const ITargetPlatform*, FPlatformData>& GetPlatformDatas() const;
+	const TSortedMap<const ITargetPlatform*, FPlatformData, TInlineAllocator<1>>& GetPlatformDatas() const;
 
 	/** Add a platform if not already existing and return a writable pointer to its flags. */
 	FPlatformData& FindOrAddPlatformData(const ITargetPlatform* TargetPlatform);
@@ -574,7 +577,7 @@ private:
 	TUniquePtr<FGeneratorPackage> GeneratorPackage;
 	FGeneratorPackage* GeneratedOwner;
 	/** Data for each platform that has been interacted with by *this. */
-	TSortedMap<const ITargetPlatform*, FPlatformData> PlatformDatas;
+	TSortedMap<const ITargetPlatform*, FPlatformData, TInlineAllocator<1>> PlatformDatas;
 	TArray<FWeakObjectPtr> CachedObjectsInOuter;
 	FCompletionCallback CompletionCallback;
 	FName PackageName;
@@ -1164,7 +1167,7 @@ public:
 
 	/** Create and mark-cooked a batch of PackageDatas, used by DLC for cooked-in-earlier-release packages. */
 	void AddExistingPackageDatasForPlatform(TConstArrayView<FConstructPackageData> ExistingPackages,
-		const ITargetPlatform* TargetPlatform);
+		const ITargetPlatform* TargetPlatform, bool bExpectPackageDatasAreNew);
 
 	/**
 	 * Try to find the PackageData for the given PackageName.
@@ -1215,10 +1218,6 @@ public:
 	 */
 	void PollPendingCookedPlatformDatas(bool bForce, double& LastCookableObjectTickTime);
 
-	/** RangedFor methods for iterating over all FPackageData managed by this FPackageDatas */
-	TArray<FPackageData*>::RangedForIteratorType begin();
-	TArray<FPackageData*>::RangedForIteratorType end();
-
 	/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
 	void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
@@ -1228,21 +1227,31 @@ public:
 
 	/** Called when a PackageData assigns its instigator, for debugging. */
 	void DebugInstigator(FPackageData& PackageData);
+
+	/** Enter the required locks and enumerate all created PackageDatas. */
+	template <typename CallbackType>
+	void LockAndEnumeratePackageDatas(CallbackType&& Callback);
+
 private:
 	/**
 	 * Construct a new FPackageData with the given PackageName and FileName and store references to it in the maps.
 	 * New FPackageData are always created in the Idle state.
 	 */
 	FPackageData& CreatePackageData(FName PackageName, FName FileName);
+	/** Called from within ExistenceLock, enumerate all created PackageDatas. */
+	template <typename CallbackType>
+	void EnumeratePackageDatasWithinLock(CallbackType&& Callback);
 	/** Return whether a filename exists for the package on disk, and return it, unnormalized. */
 	static bool TryLookupFileNameOnDisk(FName PackageName, FString& OutFileName);
 	/** Return the corresponding PackageName if the normalized filename exists on disk. */
 	static FName LookupPackageNameOnDisk(FName NormalizedFileName, bool bExactMatchRequired, FName& FoundFileName);
 
-	/** Collection of pointers to all FPackageData that have been constructed by *this. */
-	TArray<FPackageData*> PackageDatas;
+	/** Allocator for PackageDatas Guarded by ExistenceLock. */
+	TTypedBlockAllocator<FPackageData> Allocator;
 	FPackageDataMonitor Monitor;
+	/** Guarded by ExistenceLock */
 	TMap<FName, FPackageData*> PackageNameToPackageData;
+	/** Guarded by ExistenceLock */
 	TMap<FName, FPackageData*> FileNameToPackageData;
 	TRingBuffer<FPendingCookedPlatformDataContainer> PendingCookedPlatformDataLists;
 	int32 PendingCookedPlatformDataNum = 0;
@@ -1259,6 +1268,19 @@ private:
 
 	static IAssetRegistry* AssetRegistry;
 };
+
+template <typename CallbackType>
+inline void FPackageDatas::LockAndEnumeratePackageDatas(CallbackType&& Callback)
+{
+	FReadScopeLock ExistenceReadLock(ExistenceLock);
+	EnumeratePackageDatasWithinLock(Forward<CallbackType>(Callback));
+}
+
+template <typename CallbackType>
+inline void FPackageDatas::EnumeratePackageDatasWithinLock(CallbackType&& Callback)
+{
+	Allocator.EnumerateAllocations(Forward<CallbackType>(Callback));
+}
 
 /**
  * A debug-only scope class to confirm that each FPackageData removed from a container during a Pump function

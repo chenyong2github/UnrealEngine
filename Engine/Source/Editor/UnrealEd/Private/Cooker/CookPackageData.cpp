@@ -6,6 +6,7 @@
 #include "Algo/Count.h"
 #include "Algo/Find.h"
 #include "Algo/Sort.h"
+#include "Algo/Unique.h"
 #include "AssetCompilingManager.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/ParallelFor.h"
@@ -381,7 +382,7 @@ void FPackageData::ClearCookProgress(const ITargetPlatform* TargetPlatform)
 	}
 }
 
-const TSortedMap<const ITargetPlatform*, FPackageData::FPlatformData>& FPackageData::GetPlatformDatas() const
+const TSortedMap<const ITargetPlatform*, FPackageData::FPlatformData, TInlineAllocator<1>>& FPackageData::GetPlatformDatas() const
 {
 	return PlatformDatas;
 }
@@ -1259,7 +1260,7 @@ bool FPackageData::HasReferencedObjects() const
 
 void FPackageData::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
 {
-	typedef TSortedMap<const ITargetPlatform*, FPlatformData> MapType;
+	typedef TSortedMap<const ITargetPlatform*, FPlatformData, TInlineAllocator<1>> MapType;
 	MapType NewPlatformDatas;
 	NewPlatformDatas.Reserve(PlatformDatas.Num());
 	for (TPair<const ITargetPlatform*, FPlatformData>& ExistingPair : PlatformDatas)
@@ -2155,6 +2156,8 @@ FPackageDatas::FPackageDatas(UCookOnTheFlyServer& InCookOnTheFlyServer)
 	: CookOnTheFlyServer(InCookOnTheFlyServer)
 	, LastPollAsyncTime(0)
 {
+	Allocator.SetMinBlockSize(1024);
+	Allocator.SetMaxBlockSize(65536);
 }
 
 void FPackageDatas::SetBeginCookConfigSettings(FStringView CookShowInstigator)
@@ -2370,9 +2373,9 @@ FPackageData& FPackageDatas::CreatePackageData(FName PackageName, FName FileName
 {
 	check(!PackageName.IsNone());
 	check(!FileName.IsNone());
-	FPackageData* PackageData = new FPackageData(*this, PackageName, FileName);
 
 	FWriteScopeLock ExistenceWriteLock(ExistenceLock);
+	FPackageData* PackageData = Allocator.NewElement(*this, PackageName, FileName);
 	FPackageData*& ExistingByPackageName = PackageNameToPackageData.FindOrAdd(PackageName);
 	FPackageData*& ExistingByFileName = FileNameToPackageData.FindOrAdd(FileName);
 	if (ExistingByPackageName)
@@ -2387,7 +2390,6 @@ FPackageData& FPackageDatas::CreatePackageData(FName PackageName, FName FileName
 	check(!ExistingByFileName);
 	ExistingByPackageName = PackageData;
 	ExistingByFileName = PackageData;
-	PackageDatas.Add(PackageData);
 	return *PackageData;
 }
 
@@ -2521,71 +2523,55 @@ FName FPackageDatas::GetStandardFileName(FStringView InFileName)
 }
 
 void FPackageDatas::AddExistingPackageDatasForPlatform(TConstArrayView<FConstructPackageData> ExistingPackages,
-	const ITargetPlatform* TargetPlatform)
+	const ITargetPlatform* TargetPlatform, bool bExpectPackageDatasAreNew)
 {
 	int32 NumPackages = ExistingPackages.Num();
+	if (NumPackages == 0)
+	{
+		return;
+	}
 
 	// Make the list unique
-	TMap<FName, FName> UniquePackages;
-	UniquePackages.Reserve(NumPackages);
-	for (const FConstructPackageData& PackageToAdd : ExistingPackages)
-	{
-		FName& AddedFileName = UniquePackages.FindOrAdd(PackageToAdd.PackageName, PackageToAdd.NormalizedFileName);
-		check(AddedFileName == PackageToAdd.NormalizedFileName);
-	}
-	TArray<FConstructPackageData> UniqueArray;
-	if (UniquePackages.Num() != NumPackages)
-	{
-		NumPackages = UniquePackages.Num();
-		UniqueArray.Reserve(NumPackages);
-		for (TPair<FName, FName>& Pair : UniquePackages)
+	TArray<FConstructPackageData> UniqueArray(ExistingPackages);
+	Algo::Sort(UniqueArray, [](const FConstructPackageData& A, const FConstructPackageData& B)
 		{
-			UniqueArray.Add(FConstructPackageData{ Pair.Key, Pair.Value });
-		}
-		ExistingPackages = UniqueArray;
+			return A.PackageName.FastLess(B.PackageName);
+		});
+	UniqueArray.SetNum(Algo::Unique(UniqueArray, [](const FConstructPackageData& A, const FConstructPackageData& B)
+		{
+			return A.PackageName == B.PackageName;
+		}));
+	ExistingPackages = UniqueArray;
+
+	FWriteScopeLock ExistenceWriteLock(ExistenceLock);
+	if (bExpectPackageDatasAreNew)
+	{
+		Allocator.ReserveDelta(NumPackages);
+		FileNameToPackageData.Reserve(FileNameToPackageData.Num() + NumPackages);
+		PackageNameToPackageData.Reserve(PackageNameToPackageData.Num() + NumPackages);
 	}
 
-	// parallelize the read-only operations (and write NewPackageDataObjects by index which has no threading issues)
-	TArray<FPackageData*> NewPackageDataObjects;
-	NewPackageDataObjects.AddZeroed(NumPackages);
-	FWriteScopeLock ExistenceWriteLock(ExistenceLock);
-	ParallelFor(NumPackages,
-		[&ExistingPackages, TargetPlatform, &NewPackageDataObjects, this](int Index)
+	// Create the PackageDatas and mark them as cooked
+	for (const FConstructPackageData& ConstructData : ExistingPackages)
 	{
-		FName PackageName = ExistingPackages[Index].PackageName;
-		FName NormalizedFileName = ExistingPackages[Index].NormalizedFileName;
+		FName PackageName = ConstructData.PackageName;
+		FName NormalizedFileName = ConstructData.NormalizedFileName;
 		check(!PackageName.IsNone());
 		check(!NormalizedFileName.IsNone());
 
-		FPackageData** PackageDataMapAddr = FileNameToPackageData.Find(NormalizedFileName);
-		FPackageData* PackageData = nullptr;
-		if (PackageDataMapAddr != nullptr)
+		FPackageData*& PackageData = FileNameToPackageData.FindOrAdd(NormalizedFileName, nullptr);
+		if (!PackageData)
 		{
-			PackageData = *PackageDataMapAddr;
-		}
-		else
-		{
-			// create the package data and remember it for updating caches after the the ParallelFor
-			PackageData = new FPackageData(*this, PackageName, NormalizedFileName);
-			NewPackageDataObjects[Index] = PackageData;
-		}
-		PackageData->SetPlatformCooked(TargetPlatform, true /* Succeeded */);
-	});
-
-	// update cache for all newly created objects (copied from CreatePackageData)
-	for (FPackageData* PackageData : NewPackageDataObjects)
-	{
-		if (PackageData)
-		{
-			FPackageData* ExistingByFileName = FileNameToPackageData.Add(PackageData->FileName, PackageData);
-			// We looked up by FileName in the loop; it should still have been unset before the write we just did
-			check(ExistingByFileName == PackageData);
-			FPackageData* ExistingByPackageName = PackageNameToPackageData.FindOrAdd(PackageData->PackageName, PackageData);
+			// create the package data (copied from CreatePackageData)
+			FPackageData* NewPackageData = Allocator.NewElement(*this, PackageName, NormalizedFileName);
+			FPackageData* ExistingByPackageName = PackageNameToPackageData.FindOrAdd(PackageName, NewPackageData);
 			// If no other CreatePackageData added the FileName, then they should not have added
 			// the PackageName either
-			check(ExistingByPackageName == PackageData);
-			PackageDatas.Add(PackageData);
+			check(ExistingByPackageName == NewPackageData);
+
+			PackageData = NewPackageData;
 		}
+		PackageData->SetPlatformCooked(TargetPlatform, true /* Succeeded */);
 	}
 }
 
@@ -2635,7 +2621,8 @@ int32 FPackageDatas::GetNumCooked()
 void FPackageDatas::GetCookedPackagesForPlatform(const ITargetPlatform* Platform, TArray<FPackageData*>& CookedPackages,
 	bool bGetFailedCookedPackages, bool bGetSuccessfulCookedPackages)
 {
-	for (FPackageData* PackageData : PackageDatas)
+	LockAndEnumeratePackageDatas(
+	[Platform, &CookedPackages, bGetFailedCookedPackages, bGetSuccessfulCookedPackages](FPackageData* PackageData)
 	{
 		ECookResult CookResults = PackageData->GetCookResults(Platform);
 		if (((CookResults == ECookResult::Succeeded) & (bGetSuccessfulCookedPackages != 0)) |
@@ -2643,7 +2630,7 @@ void FPackageDatas::GetCookedPackagesForPlatform(const ITargetPlatform* Platform
 		{
 			CookedPackages.Add(PackageData);
 		}
-	}
+	});
 }
 
 void FPackageDatas::Clear()
@@ -2654,32 +2641,36 @@ void FPackageDatas::Clear()
 	SaveQueue.Empty();
 	PackageNameToPackageData.Empty();
 	FileNameToPackageData.Empty();
-	for (FPackageData* PackageData : PackageDatas)
 	{
-		PackageData->ClearReferences();
+		// All references must be cleared before any PackageDatas are destroyed
+		EnumeratePackageDatasWithinLock([](FPackageData* PackageData)
+		{
+			PackageData->ClearReferences();
+		});
+		EnumeratePackageDatasWithinLock([](FPackageData* PackageData)
+		{
+			PackageData->~FPackageData();
+		});
+		Allocator.Empty();
 	}
-	for (FPackageData* PackageData : PackageDatas)
-	{
-		delete PackageData;
-	}
-	PackageDatas.Empty();
+
 	ShowInstigatorPackageData = nullptr;
 }
 
 void FPackageDatas::ClearCookedPlatforms()
 {
-	for (FPackageData* PackageData : PackageDatas)
+	LockAndEnumeratePackageDatas([](FPackageData* PackageData)
 	{
 		PackageData->ClearCookProgress();
-	}
+	});
 }
 
 void FPackageDatas::OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform)
 {
-	for (FPackageData* PackageData : PackageDatas)
+	LockAndEnumeratePackageDatas([TargetPlatform](FPackageData* PackageData)
 	{
 		PackageData->OnRemoveSessionPlatform(TargetPlatform);
-	}
+	});
 }
 
 constexpr int32 PendingPlatformDataReservationSize = 128;
@@ -2789,22 +2780,12 @@ void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce, double& LastCook
 	}
 }
 
-TArray<FPackageData*>::RangedForIteratorType FPackageDatas::begin()
-{
-	return PackageDatas.begin();
-}
-
-TArray<FPackageData*>::RangedForIteratorType FPackageDatas::end()
-{
-	return PackageDatas.end();
-}
-
 void FPackageDatas::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
 {
-	for (FPackageData* PackageData : PackageDatas)
+	LockAndEnumeratePackageDatas([&Remap](FPackageData* PackageData)
 	{
 		PackageData->RemapTargetPlatforms(Remap);
-	}
+	});
 	ForEachPendingCookedPlatformData([&Remap](FPendingCookedPlatformData& CookedPlatformData)
 	{
 		CookedPlatformData.RemapTargetPlatforms(Remap);
