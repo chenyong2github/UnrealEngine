@@ -259,6 +259,7 @@ FPackageIndex FLinkerSave::MapObject( const UObject* Object ) const
 						if (DepListForErrorChecking[DepIndex] == *Found)
 						{
 							bFoundDep = true;
+							break;
 						}
 					}
 				}
