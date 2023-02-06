@@ -14,7 +14,7 @@ namespace UnrealBuildTool
 
 		protected override void GetValidSoftwareVersionRange(out string MinVersion, out string? MaxVersion)
 		{
-			MinVersion = "12.0.0";
+			MinVersion = "12.5.0";		// macOS Monterey 12.5 (Released 2022/07/22)
 			MaxVersion = null;
 		}
 	}
