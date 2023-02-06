@@ -11,7 +11,7 @@ public:
 
 	FGLTFFileBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions = nullptr);
 
-	FString AddExternalFile(const FString& URI, const TSharedPtr<FGLTFMemoryArchive>& Archive = MakeShared<FGLTFMemoryArchive>());
+	FString AddExternalFile(const FString& DesiredURI, const TSharedPtr<FGLTFMemoryArchive>& Archive);
 
 	void GetExternalFiles(TArray<FString>& OutFilePaths, const FString& DirPath = TEXT("")) const;
 
@@ -23,7 +23,11 @@ private:
 
 	TMap<FString, TSharedPtr<FGLTFMemoryArchive>> ExternalArchives;
 
-	FString GetUniqueURI(const FString& URI) const;
+	FString GetUniqueFileName(const FString& InFileName) const;
+
+	static FString SanitizeFileName(const FString& InFileName);
+
+	static FString EncodeURI(const FString& InFileName);
 
 protected:
 
