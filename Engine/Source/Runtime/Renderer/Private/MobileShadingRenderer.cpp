@@ -452,7 +452,8 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		Views[ViewIndex].GPUSceneViewId = InstanceCullingManager.RegisterView(Views[ViewIndex]);
 	}
 
-	FILCUpdatePrimTaskData ILCTaskData;
+	FILCUpdatePrimTaskData* ILCTaskData = nullptr;
+	FComputeViewVisibilityCallbacks ComputeViewVisibilityCallbacks;
 	FViewVisibleCommandsPerView ViewCommandsPerView;
 	ViewCommandsPerView.SetNum(Views.Num());
 
@@ -466,7 +467,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		Views[0].InitRHIResources();
 		FXSystem->PostInitViews(GraphBuilder, Views, !ViewFamily.EngineShowFlags.HitProxies);
 	}
-	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager, VirtualTextureUpdater);
+	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager, VirtualTextureUpdater, ComputeViewVisibilityCallbacks);
 	PostVisibilityFrameSetup(ILCTaskData);
 
 	FIntPoint RenderTargetSize = ViewFamily.RenderTarget->GetSizeXY();
@@ -670,9 +671,9 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	SetupMobileBasePassAfterShadowInit(BasePassDepthStencilAccess, ViewCommandsPerView, InstanceCullingManager);
 
 	// if we kicked off ILC update via task, wait and finalize.
-	if (ILCTaskData.TaskRef.IsValid())
+	if (ILCTaskData)
 	{
-		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, ILCTaskData);
+		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, *ILCTaskData);
 	}
 
 	if (bRequiresDistanceField)

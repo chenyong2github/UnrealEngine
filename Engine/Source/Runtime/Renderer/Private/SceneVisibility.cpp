@@ -4608,7 +4608,8 @@ void FSceneRenderer::ComputeViewVisibility(
 	FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
 	FGlobalDynamicReadBuffer& DynamicReadBuffer, 
 	FInstanceCullingManager& InstanceCullingManager,
-	FVirtualTextureUpdater* VirtualTextureUpdater)
+	FVirtualTextureUpdater* VirtualTextureUpdater,
+	const FComputeViewVisibilityCallbacks& Callbacks)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime);
 	SCOPED_NAMED_EVENT(FSceneRenderer_ComputeViewVisibility, FColor::Magenta);
@@ -4928,7 +4929,10 @@ void FSceneRenderer::ComputeViewVisibility(
 
 	ComputeLightVisibilityTask.Wait();
 
-	PreGatherDynamicMeshElements();
+	if (Callbacks.PreGatherDynamicMeshElements)
+	{
+		Callbacks.PreGatherDynamicMeshElements();
+	}
 
 	// Sync the virtual texture update task before gathering dynamic mesh elements. Render proxies can register new
 	// materials which require evaluating uniform expression caches, which can contain virtual textures. Newly allocated
@@ -5182,7 +5186,7 @@ void FSceneRenderer::GatherReflectionCaptureLightMeshElements()
 	}
 }
 
-void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTaskData)
+void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData*& OutILCTaskData)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostVisibilityFrameSetup);
 
@@ -5206,7 +5210,9 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 	if (ViewFamily.EngineShowFlags.HitProxies == 0 && Scene->PrecomputedLightVolumes.Num() > 0
 		&& GILCUpdatePrimTaskEnabled && FPlatformProcess::SupportsMultithreading())
 	{
-		Scene->IndirectLightingCache.StartUpdateCachePrimitivesTask(Scene, *this, true, OutILCTaskData);
+		OutILCTaskData = Allocator.Create<FILCUpdatePrimTaskData>();
+		Scene->IndirectLightingCache.StartUpdateCachePrimitivesTask(Scene, *this, true, *OutILCTaskData);
+		check(OutILCTaskData->TaskRef.IsValid());
 	}
 }
 
@@ -5232,7 +5238,13 @@ void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBu
  * Initialize scene's views.
  * Check visibility, build visible mesh commands, etc.
  */
-void FDeferredShadingSceneRenderer::BeginInitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager, FVirtualTextureUpdater* VirtualTextureUpdater)
+void FDeferredShadingSceneRenderer::BeginInitViews(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
+	FInstanceCullingManager& InstanceCullingManager,
+	FVirtualTextureUpdater* VirtualTextureUpdater,
+	FInitViewTaskDatas& TaskDatas)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViews, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
@@ -5268,7 +5280,16 @@ void FDeferredShadingSceneRenderer::BeginInitViews(FRDGBuilder& GraphBuilder, co
 	FViewVisibleCommandsPerView ViewCommandsPerView;
 	ViewCommandsPerView.SetNum(Views.Num());
 
-	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews, InstanceCullingManager, VirtualTextureUpdater);
+	{
+		FComputeViewVisibilityCallbacks ComputeViewVisibilityCallbacks;
+
+		ComputeViewVisibilityCallbacks.PreGatherDynamicMeshElements = [this, &TaskDatas]
+		{
+			PreGatherDynamicMeshElements(TaskDatas);
+		};
+
+		ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews, InstanceCullingManager, VirtualTextureUpdater, ComputeViewVisibilityCallbacks);
+	}
 
 	// This must happen before we start initialising and using views.
 	if (Scene)
@@ -5284,7 +5305,7 @@ void FDeferredShadingSceneRenderer::BeginInitViews(FRDGBuilder& GraphBuilder, co
 
 	Scene->WaitForCreateLightPrimitiveInteractionsTask();
 
-	PostVisibilityFrameSetup(ILCTaskData);
+	PostVisibilityFrameSetup(TaskDatas.ILCUpdatePrim);
 
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_InitViews_InitRHIResources);
@@ -5314,7 +5335,7 @@ void FDeferredShadingSceneRenderer::BeginInitViews(FRDGBuilder& GraphBuilder, co
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}
 
-	WaitForPrepareDynamicShadowsTask(CurrentDynamicShadowsTaskData);
+	WaitForPrepareDynamicShadowsTask(TaskDatas.DynamicShadows);
 }
 
 template<class T>
@@ -5388,7 +5409,12 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 	}
 }
 
-void FDeferredShadingSceneRenderer::EndInitViews(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue)
+void FDeferredShadingSceneRenderer::EndInitViews(
+	FRDGBuilder& GraphBuilder,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
+	FInstanceCullingManager& InstanceCullingManager,
+	FRDGExternalAccessQueue& ExternalAccessQueue,
+	const FInitViewTaskDatas& TaskDatas)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViewsAfterPrepass, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsPossiblyAfterPrepass);
@@ -5402,10 +5428,9 @@ void FDeferredShadingSceneRenderer::EndInitViews(FRDGBuilder& GraphBuilder, FLum
 		&& !bHasRayTracedOverlay)
 	{
 		// Setup dynamic shadows.
-		if (CurrentDynamicShadowsTaskData)
+		if (TaskDatas.DynamicShadows)
 		{
-			FinishInitDynamicShadows(GraphBuilder, CurrentDynamicShadowsTaskData, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
-			CurrentDynamicShadowsTaskData = nullptr;
+			FinishInitDynamicShadows(GraphBuilder, TaskDatas.DynamicShadows, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
 		}
 		else
 		{
@@ -5424,14 +5449,14 @@ void FDeferredShadingSceneRenderer::EndInitViews(FRDGBuilder& GraphBuilder, FLum
 		&& !(GILCUpdatePrimTaskEnabled && FPlatformProcess::SupportsMultithreading()))
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PostVisibilityFrameSetup_IndirectLightingCache_Update);
-		check(!ILCTaskData.TaskRef.IsValid());
+		check(!TaskDatas.ILCUpdatePrim);
 		Scene->IndirectLightingCache.UpdateCache(Scene, *this, true);
 	}
 
 	// If we kicked off ILC update via task, wait and finalize.
-	if (ILCTaskData.TaskRef.IsValid())
+	if (TaskDatas.ILCUpdatePrim)
 	{
-		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, ILCTaskData);
+		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, *TaskDatas.ILCUpdatePrim);
 	}
 
 	{

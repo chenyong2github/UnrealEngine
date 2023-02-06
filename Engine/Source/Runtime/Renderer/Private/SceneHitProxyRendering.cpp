@@ -631,9 +631,9 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	// Find the visible primitives.
 	FLumenSceneFrameTemporaries LumenFrameTemporaries;
-	FILCUpdatePrimTaskData ILCTaskData;
+	FInitViewTaskDatas InitViewTaskDatas;
 	FRDGExternalAccessQueue ExternalAccessQueue;
-	BeginInitViews(GraphBuilder, SceneTexturesConfig, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData, InstanceCullingManager, nullptr);
+	BeginInitViews(GraphBuilder, SceneTexturesConfig, FExclusiveDepthStencil::DepthWrite_StencilWrite, InstanceCullingManager, nullptr, InitViewTaskDatas);
 
 	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 
@@ -657,7 +657,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, *Scene, Views[ViewIndex], ExternalAccessQueue);
 	}
 
-	EndInitViews(GraphBuilder, LumenFrameTemporaries, ILCTaskData, InstanceCullingManager, ExternalAccessQueue);
+	EndInitViews(GraphBuilder, LumenFrameTemporaries, InstanceCullingManager, ExternalAccessQueue, InitViewTaskDatas);
 
 	ExternalAccessQueue.Submit(GraphBuilder);
 

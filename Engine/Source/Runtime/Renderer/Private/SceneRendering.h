@@ -50,7 +50,6 @@ class FSceneViewState;
 class FViewInfo;
 struct FILCUpdatePrimTaskData;
 class FPostprocessContext;
-struct FILCUpdatePrimTaskData;
 class FRaytracingLightDataPacked;
 class FRayTracingDecals;
 class FRayTracingLocalShaderBindingWriter;
@@ -2401,19 +2400,29 @@ protected:
 	/** Performs once per frame setup prior to visibility determination. */
 	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
 
+	struct FComputeViewVisibilityCallbacks
+	{
+		TFunction<void()> PreGatherDynamicMeshElements;
+	};
+
 	/** Computes which primitives are visible and relevant for each view. */
-	void ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, 
-		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager,
-		FVirtualTextureUpdater* VirtualTextureUpdater);
+	void ComputeViewVisibility(
+		FRHICommandListImmediate& RHICmdList,
+		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
+		FViewVisibleCommandsPerView& ViewCommandsPerView, 
+		FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
+		FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
+		FGlobalDynamicReadBuffer& DynamicReadBuffer,
+		FInstanceCullingManager& InstanceCullingManager,
+		FVirtualTextureUpdater* VirtualTextureUpdater,
+		const FComputeViewVisibilityCallbacks& Callbacks);
 
 	virtual void ComputeLightVisibility();
 
 	void GatherReflectionCaptureLightMeshElements();
 
 	/** Performs once per frame setup after to visibility determination. */
-	void PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTaskData);
-
-	virtual void PreGatherDynamicMeshElements() {}
+	void PostVisibilityFrameSetup(FILCUpdatePrimTaskData*& OutILCTaskData);
 
 	void GatherDynamicMeshElements(
 		TArray<FViewInfo>& InViews, 

@@ -55,6 +55,7 @@ struct FForwardBasePassTextures;
 struct FTranslucentLightInjectionCollector;
 struct FRayTracingPickingFeedback;
 struct FDBufferTextures;
+struct FILCUpdatePrimTaskData;
 
 #if RHI_RAYTRACING
 struct FRayTracingRelevantPrimitiveTaskData;
@@ -524,15 +525,36 @@ private:
 		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& ViewDependentWholeSceneShadows,
 		TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& OutPreShadows);
 
-	void PreGatherDynamicMeshElements() override final;
+	struct FInitViewTaskDatas
+	{
+		FILCUpdatePrimTaskData* ILCUpdatePrim = nullptr;
+	#if RHI_RAYTRACING
+		FRayTracingRelevantPrimitiveTaskData* RayTracingRelevantPrimitives = nullptr;
+	#endif
+		FDynamicShadowsTaskData* DynamicShadows = nullptr;
+	};
+
+	void PreGatherDynamicMeshElements(FInitViewTaskDatas& TaskDatas);
 
 	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
 
 	void ComputeLightVisibility();
 
 	/** Determines which primitives are visible for each view. */
-	void BeginInitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager, FVirtualTextureUpdater* VirtualTextureUpdater);
-	void EndInitViews(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
+	void BeginInitViews(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
+		FInstanceCullingManager& InstanceCullingManager,
+		FVirtualTextureUpdater* VirtualTextureUpdater,
+		FInitViewTaskDatas& TaskDatas);
+
+	void EndInitViews(
+		FRDGBuilder& GraphBuilder,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
+		FInstanceCullingManager& InstanceCullingManager,
+		FRDGExternalAccessQueue& ExternalAccessQueue,
+		const FInitViewTaskDatas& TaskDatas);
 
 	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
@@ -1117,7 +1139,7 @@ private:
 	void RayTracingDisplayPicking(const FRayTracingPickingFeedback& PickingFeedback, FScreenMessageWriter& Writer);
 
 	/** Fills RayTracingScene instance list for the given View and adds relevant ray tracing data to the view. Does not reset previous scene contents. */
-	bool GatherRayTracingWorldInstancesForView(FRDGBuilder& GraphBuilder, FViewInfo& View, FRayTracingScene& RayTracingScene, struct FRayTracingRelevantPrimitiveList& RelevantPrimitiveList);
+	bool GatherRayTracingWorldInstancesForView(FRDGBuilder& GraphBuilder, FViewInfo& View, FRayTracingScene& RayTracingScene, FRayTracingRelevantPrimitiveTaskData* RayTracingRelevantPrimitiveTaskData);
 
 	bool SetupRayTracingPipelineStates(FRDGBuilder& GraphBuilder);
 	void SetupRayTracingLightDataForViews(FRDGBuilder& GraphBuilder);
@@ -1171,18 +1193,10 @@ private:
 	static void PrepareLumenHardwareRayTracingRadianceCacheLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareLumenHardwareRayTracingRadiosityLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareLumenHardwareRayTracingDirectLightingLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
-
-	const FRHITransition* RayTracingDynamicGeometryUpdateEndTransition = nullptr; // Signaled when all AS for this frame are built
 #endif // RHI_RAYTRACING
 
 	/** Set to true if lights were injected into the light grid (this controlled by somewhat complex logic, this flag is used to cross-check). */
 	bool bAreLightsInLightGrid;
-
-	FDynamicShadowsTaskData* CurrentDynamicShadowsTaskData{};
-
-#if RHI_RAYTRACING
-	FRayTracingRelevantPrimitiveTaskData* RayTracingRelevantPrimitiveTaskData = nullptr;
-#endif
 };
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("PrePass"), STAT_CLM_PrePass, STATGROUP_CommandListMarkers, );

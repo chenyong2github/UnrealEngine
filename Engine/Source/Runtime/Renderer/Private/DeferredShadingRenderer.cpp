@@ -1005,18 +1005,41 @@ struct FDeferredShadingRayTracingMaterialGatheringContext : public FRayTracingMa
 	}
 };
 
-bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBuilder& GraphBuilder, FViewInfo& View, FRayTracingScene& RayTracingScene, FRayTracingRelevantPrimitiveList& RelevantPrimitiveList)
+struct FRayTracingRelevantPrimitiveTaskData
 {
-	checkf(IsRayTracingEnabled() && bAnyRayTracingPassEnabled, TEXT("GatherRayTracingWorldInstancesForView should only be called if ray tracing is used"))
+	FRayTracingRelevantPrimitiveList List;
+	FGraphEventRef Task;
+};
 
+bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBuilder& GraphBuilder, FViewInfo& View, FRayTracingScene& RayTracingScene, FRayTracingRelevantPrimitiveTaskData* RayTracingRelevantPrimitiveTaskData)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances);
 	SCOPE_CYCLE_COUNTER(STAT_GatherRayTracingWorldInstances);
 
-	// Ensure that any invalidated cached uniform expressions have been updated on the rendering thread.
+	if (!bAnyRayTracingPassEnabled)
+	{
+		return false;
+	}
+
+	check(RayTracingRelevantPrimitiveTaskData)
+
+	// Wait until RayTracingRelevantPrimitiveList is ready
+	if (RayTracingRelevantPrimitiveTaskData->Task.IsValid())
+	{
+		RayTracingRelevantPrimitiveTaskData->Task->Wait();
+		RayTracingRelevantPrimitiveTaskData->Task.SafeRelease();
+	}
+
+	FRayTracingRelevantPrimitiveList& RelevantPrimitiveList = RayTracingRelevantPrimitiveTaskData->List;
+
+	// Prepare ray tracing scene instance list
+	checkf(RelevantPrimitiveList.bValid, TEXT("Ray tracing relevant primitive list is expected to have been created before GatherRayTracingWorldInstancesForView() is called."));
+
+	// Check that any invalidated cached uniform expressions have been updated on the rendering thread.
 	// Normally this work is done through FMaterialRenderProxy::UpdateUniformExpressionCacheIfNeeded,
 	// however ray tracing material processing (FMaterialShader::GetShaderBindings, which accesses UniformExpressionCache)
 	// is done on task threads, therefore all work must be done here up-front as UpdateUniformExpressionCacheIfNeeded is not free-threaded.
-	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+	check(!FMaterialRenderProxy::HasDeferredUniformExpressionCacheRequests());
 
 	RayTracingCollector.ClearViewMeshArrays();
 
@@ -2323,23 +2346,12 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 				View->LumenHardwareRayTracingMaterialPipeline = ReferenceView.LumenHardwareRayTracingMaterialPipeline;
 			}
 		}
-
-		if (RayTracingDynamicGeometryUpdateEndTransition)
-		{
-			RHICmdList.EndTransition(RayTracingDynamicGeometryUpdateEndTransition);
-			RayTracingDynamicGeometryUpdateEndTransition = nullptr;
-		}
 	});
 }
 
-struct FRayTracingRelevantPrimitiveTaskData
-{
-	FRayTracingRelevantPrimitiveList List;
-	FGraphEventRef Task;
-};
 #endif // RHI_RAYTRACING
 
-void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements()
+void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FInitViewTaskDatas& TaskDatas)
 {
 #if RHI_RAYTRACING
 	if (bAnyRayTracingPassEnabled)
@@ -2347,27 +2359,24 @@ void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements()
 		const int32 ReferenceViewIndex = 0;
 		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
 
-		RayTracingRelevantPrimitiveTaskData = Allocator.Create<FRayTracingRelevantPrimitiveTaskData>();
-		RayTracingRelevantPrimitiveTaskData->Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[Scene = this->Scene, &ReferenceView, &RayTracingRelevantPrimitiveList = RayTracingRelevantPrimitiveTaskData->List]()
-			{
-				FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
-				GatherRayTracingRelevantPrimitives(*Scene, ReferenceView, RayTracingRelevantPrimitiveList);
-			}, TStatId(), nullptr, ENamedThreads::AnyNormalThreadHiPriTask);
+		TaskDatas.RayTracingRelevantPrimitives = Allocator.Create<FRayTracingRelevantPrimitiveTaskData>();
+		TaskDatas.RayTracingRelevantPrimitives->Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[Scene = Scene, &ReferenceView, &RayTracingRelevantPrimitiveList = TaskDatas.RayTracingRelevantPrimitives->List]()
+		{
+			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
+			GatherRayTracingRelevantPrimitives(*Scene, ReferenceView, RayTracingRelevantPrimitiveList);
+		}, TStatId(), nullptr, ENamedThreads::AnyNormalThreadHiPriTask);
 	}
 #endif // RHI_RAYTRACING
-
-	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
 
 	extern int32 GEarlyInitDynamicShadows;
 
 	if (GEarlyInitDynamicShadows &&
-		CurrentDynamicShadowsTaskData == nullptr &&
 		ViewFamily.EngineShowFlags.DynamicShadows
 		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& !bHasRayTracedOverlay)
+		&& !HasRayTracedOverlay(ViewFamily))
 	{
-		CurrentDynamicShadowsTaskData = BeginInitDynamicShadows(true);
+		TaskDatas.DynamicShadows = BeginInitDynamicShadows(true);
 	}
 }
 
@@ -2651,8 +2660,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		? FExclusiveDepthStencil::DepthRead_StencilWrite
 		: FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
-	FILCUpdatePrimTaskData ILCTaskData;
-
 	// Find the visible primitives.
 	if (GDynamicRHI->RHIIncludeOptionalFlushes())
 	{
@@ -2661,9 +2668,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(GetSceneUniforms(), Scene->GPUScene.IsEnabled(), GraphBuilder);
 
+	FInitViewTaskDatas InitViewTaskDatas;
+
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-		BeginInitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData, InstanceCullingManager, VirtualTextureUpdater.Get());
+		BeginInitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, InstanceCullingManager, VirtualTextureUpdater.Get(), InitViewTaskDatas);
 	}
 
 	// GetBinIndexTranslator cannot be called before UpdateAllPrimitiveSceneInfos which can change the number of raster bins
@@ -2844,20 +2853,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 #if RHI_RAYTRACING
-	if (bAnyRayTracingPassEnabled)
-	{
-		// Wait until RayTracingRelevantPrimitiveList is ready
-		if (RayTracingRelevantPrimitiveTaskData->Task.IsValid())
-		{
-			RayTracingRelevantPrimitiveTaskData->Task->Wait();
-			RayTracingRelevantPrimitiveTaskData->Task.SafeRelease();
-		}
-
-		// Prepare ray tracing scene instance list
-		checkf(RayTracingRelevantPrimitiveTaskData->List.bValid, TEXT("Ray tracing relevant primitive list is expected to have been created before GatherRayTracingWorldInstancesForView() is called."));
-
-		GatherRayTracingWorldInstancesForView(GraphBuilder, ReferenceView, RayTracingScene, RayTracingRelevantPrimitiveTaskData->List);
-	}
+	GatherRayTracingWorldInstancesForView(GraphBuilder, ReferenceView, RayTracingScene, InitViewTaskDatas.RayTracingRelevantPrimitives);
 #endif // RHI_RAYTRACING
 
 	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
@@ -2978,7 +2974,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		{
 			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-			EndInitViews(GraphBuilder, LumenFrameTemporaries, ILCTaskData, InstanceCullingManager, ExternalAccessQueue);
+			EndInitViews(GraphBuilder, LumenFrameTemporaries, InstanceCullingManager, ExternalAccessQueue, InitViewTaskDatas);
 		}
 
 		// Dynamic vertex and index buffers need to be committed before rendering.
