@@ -144,7 +144,6 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 	const UClass* Class = SceneAsset.GetSceneInstanceClass();
 	UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 	NewInstance->SceneAsset = &SceneAsset;
-	Bindings.SceneInstancePtr = NewInstance;
 
 	if (Params.Pivots.IsEmpty())
 	{
@@ -203,7 +202,6 @@ UContextualAnimSceneInstance* UContextualAnimManager::TryStartScene(const UConte
 		const UClass* Class = SceneAsset.GetSceneInstanceClass();
 		UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 		NewInstance->SceneAsset = &SceneAsset;
-		Bindings.SceneInstancePtr = NewInstance;
 
 		if (Params.Pivots.IsEmpty())
 		{

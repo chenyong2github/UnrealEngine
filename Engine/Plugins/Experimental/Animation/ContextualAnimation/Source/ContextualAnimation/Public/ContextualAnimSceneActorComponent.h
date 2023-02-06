@@ -105,7 +105,7 @@ protected:
 	void OnTickPose(class USkinnedMeshComponent* SkinnedMeshComponent, float DeltaTime, bool bNeedsValidRootMotion);
 
 	UFUNCTION()
-	void OnRep_Bindings(const FContextualAnimSceneBindings& LastRepBindings);
+	void OnRep_Bindings();
 
 	void SetIgnoreCollisionWithOtherActors(bool bValue) const;
 

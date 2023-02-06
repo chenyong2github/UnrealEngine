@@ -263,14 +263,6 @@ FVector FContextualAnimSceneBindingContext::GetVelocity() const
 	return FVector::ZeroVector;
 }
 
-bool FContextualAnimSceneBindingContext::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-{
-	//@TODO: Serialize optional properties
-	Ar << Actor;
-	bOutSuccess = true;
-	return true;
-}
-
 // FContextualAnimSceneBinding
 ///////////////////////////////////////////////////////////////////////
 
@@ -351,14 +343,6 @@ int32 FContextualAnimSceneBinding::GetCurrentSectionIndex() const
 	return INDEX_NONE;
 }
 
-bool FContextualAnimSceneBinding::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-{
-	Context.NetSerialize(Ar, Map, bOutSuccess);
-	Ar << AnimTrackIdx;
-	bOutSuccess = true;
-	return true;
-}
-
 // FContextualAnimSceneBindings
 ///////////////////////////////////////////////////////////////////////
 
@@ -390,13 +374,11 @@ void FContextualAnimSceneBindings::Reset()
 	SectionIdx = INDEX_NONE;
 	AnimSetIdx = INDEX_NONE;
 	Data.Reset();
-	SceneInstancePtr.Reset();
 }
 
 void FContextualAnimSceneBindings::Clear()
 {
 	Data.Reset();
-	SceneInstancePtr.Reset();
 }
 
 const FContextualAnimSceneBinding* FContextualAnimSceneBindings::GetSyncLeader() const
@@ -463,16 +445,6 @@ FTransform FContextualAnimSceneBindings::GetAlignmentTransformFromBinding(const 
 const FName& FContextualAnimSceneBindings::GetRoleFromBinding(const FContextualAnimSceneBinding& Binding) const
 {
 	return GetAnimTrackFromBinding(Binding).Role;
-}
-
-bool FContextualAnimSceneBindings::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-{
-	Ar << Id;
-	Ar << SceneAsset;
-	Ar << SectionIdx;
-	Ar << AnimSetIdx;
-	bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<10>(Ar, Data, Map);
-	return true;
 }
 
 bool FContextualAnimSceneBindings::CheckConditions(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, int32 AnimSetIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params)

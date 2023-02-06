@@ -16,7 +16,6 @@ class UAnimInstance;
 class UAnimSequenceBase;
 class UContextualAnimSelectionCriterion;
 class UContextualAnimSceneAsset;
-class UContextualAnimSceneInstance;
 class UContextualAnimSceneActorComponent;
 struct FAnimMontageInstance;
 
@@ -301,10 +300,9 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindingContext
 
 	//@TODO: Add accessors for GameplayTags
 
-	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
-
 private:
 
+	UPROPERTY()
 	TWeakObjectPtr<AActor> Actor = nullptr;
 
 	TOptional<FTransform> ExternalTransform;
@@ -312,15 +310,6 @@ private:
 	TOptional<FVector> ExternalVelocity;
 
 	FGameplayTagContainer ExternalGameplayTags;
-};
-
-template<>
-struct TStructOpsTypeTraits<FContextualAnimSceneBindingContext> : public TStructOpsTypeTraitsBase2<FContextualAnimSceneBindingContext>
-{
-	enum
-	{
-		WithNetSerializer = true
-	};
 };
 
 /** Represent an actor bound to a role in the scene */
@@ -358,13 +347,11 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 
 	UContextualAnimSceneActorComponent* GetSceneActorComponent() const;
 
-	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
-
 	static const FContextualAnimSceneBinding InvalidBinding;
 
 private:
 
-	friend UContextualAnimSceneInstance;
+	friend class UContextualAnimSceneInstance;
 	friend struct FContextualAnimSceneBindings;
 
 	UPROPERTY()
@@ -373,23 +360,14 @@ private:
 	UPROPERTY()
 	int32 AnimTrackIdx = INDEX_NONE;
 
-	UPROPERTY()
+	UPROPERTY(NotReplicated)
 	mutable TWeakObjectPtr<UContextualAnimSceneActorComponent> CachedSceneActorComp = nullptr;
 
-	UPROPERTY()
+	UPROPERTY(NotReplicated)
 	mutable TWeakObjectPtr<UAnimInstance> CachedAnimInstance = nullptr;
 
-	UPROPERTY()
+	UPROPERTY(NotReplicated)
 	mutable TWeakObjectPtr<USkeletalMeshComponent> CachedSkeletalMesh = nullptr;
-};
-
-template<>
-struct TStructOpsTypeTraits<FContextualAnimSceneBinding> : public TStructOpsTypeTraitsBase2<FContextualAnimSceneBinding>
-{
-	enum
-	{
-		WithNetSerializer = true
-	};
 };
 
 USTRUCT(BlueprintType)
@@ -417,7 +395,6 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 	FORCEINLINE int32 Num() const { return Data.Num(); }
 	FORCEINLINE int32 Add(const FContextualAnimSceneBinding& NewData) { return Data.Add(NewData); }
 	FORCEINLINE const TArray<FContextualAnimSceneBinding>& GetBindings() const { return Data; }
-	FORCEINLINE const UContextualAnimSceneInstance* GetSceneInstance() const { return SceneInstancePtr.Get(); }
 
 	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForIteratorType      begin() { return Data.begin(); }
 	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForConstIteratorType begin() const { return Data.begin(); }
@@ -449,8 +426,6 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 
 	void Clear();
 
-	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
-
 	void GenerateUniqueId();
 
 private:
@@ -472,19 +447,6 @@ private:
 	/** List of actors bound to each role in the SceneAsset */
 	UPROPERTY()
 	TArray<FContextualAnimSceneBinding> Data;
-
-	/** Ptr back to the scene instance we belong to (if any) */
-	UPROPERTY()
-	TWeakObjectPtr<const UContextualAnimSceneInstance> SceneInstancePtr = nullptr;
-};
-
-template<>
-struct TStructOpsTypeTraits<FContextualAnimSceneBindings> : public TStructOpsTypeTraitsBase2<FContextualAnimSceneBindings>
-{
-	enum
-	{
-		WithNetSerializer = true
-	};
 };
 
 USTRUCT(BlueprintType)
