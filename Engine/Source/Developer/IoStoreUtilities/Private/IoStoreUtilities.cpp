@@ -652,6 +652,7 @@ public:
 
 	FIoStatus Load(const TCHAR* ManifestFilename)
 	{
+		IOSTORE_CPU_SCOPE(LoadCookedPackageStore);
 		FIoStatus Status = PackageStoreManifest.Load(ManifestFilename);
 		if (!Status.IsOk())
 		{
@@ -1704,6 +1705,7 @@ bool ConvertToIoStoreShaderLibrary(
 	TArray<TTuple<FSHAHash, TArray<FIoChunkId>>>& OutShaderMaps,
 	TArray<TTuple<FSHAHash, TSet<FName>>>& OutShaderMapAssetAssociations)
 {
+	IOSTORE_CPU_SCOPE(ConvertShaderLibrary);
 	// ShaderArchive-MyProject-PCD3D.ushaderbytecode
 	FStringView BaseFileNameView = FPathViews::GetBaseFilename(FileName);
 	int32 FormatStartIndex = -1;
@@ -1926,173 +1928,182 @@ void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContaine
 	TMap<FName, TSet<FSHAHash>> PackageNameToShaderMaps;
 	TMap<FContainerTargetSpec*, TSet<FShaderInfo*>> AllContainerShaderLibraryShadersMap;
 
-	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
-		TArray<FShaderInfo> Shaders;
-		for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+		IOSTORE_CPU_SCOPE(ConvertShaderLibraries);
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			if (TargetFile.ChunkType == EContainerChunkType::ShaderCodeLibrary)
+			TArray<FShaderInfo> Shaders;
+			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 			{
-				TSet<FShaderInfo*>& ContainerShaderLibraryShaders = AllContainerShaderLibraryShadersMap.FindOrAdd(ContainerTarget);
+				if (TargetFile.ChunkType == EContainerChunkType::ShaderCodeLibrary)
+				{
+					TSet<FShaderInfo*>& ContainerShaderLibraryShaders = AllContainerShaderLibraryShadersMap.FindOrAdd(ContainerTarget);
 
-				TArray<TTuple<FSHAHash, TArray<FIoChunkId>>> ShaderMaps;
-				TTuple<FIoChunkId, FIoBuffer> LibraryChunk;
-				TArray<TTuple<FIoChunkId, FIoBuffer, uint32>> CodeChunks;
-				TArray<TTuple<FSHAHash, TSet<FName>>> ShaderMapAssetAssociations;
-				if (!ConvertToIoStoreShaderLibrary(*TargetFile.NormalizedSourcePath, LibraryChunk, CodeChunks, ShaderMaps, ShaderMapAssetAssociations))
-				{
-					UE_LOG(LogIoStore, Warning, TEXT("Failed converting shader library '%s'"), *TargetFile.NormalizedSourcePath);
-					continue;
-				}
-				TargetFile.ChunkId = LibraryChunk.Key;
-				TargetFile.SourceBuffer.Emplace(LibraryChunk.Value);
-				const bool bIsGlobalShaderLibrary = FPaths::GetCleanFilename(TargetFile.NormalizedSourcePath).StartsWith(TEXT("ShaderArchive-Global-"));
-				const FShaderInfo::EShaderType ShaderType = bIsGlobalShaderLibrary ? FShaderInfo::Global : FShaderInfo::Normal;
-				for (const TTuple<FIoChunkId, FIoBuffer, uint32>& CodeChunk : CodeChunks)
-				{
-					const FIoChunkId& ShaderChunkId = CodeChunk.Get<0>();
-					FShaderInfo* ShaderInfo = ChunkIdToShaderInfoMap.FindRef(ShaderChunkId);
-					if (!ShaderInfo)
+					TArray<TTuple<FSHAHash, TArray<FIoChunkId>>> ShaderMaps;
+					TTuple<FIoChunkId, FIoBuffer> LibraryChunk;
+					TArray<TTuple<FIoChunkId, FIoBuffer, uint32>> CodeChunks;
+					TArray<TTuple<FSHAHash, TSet<FName>>> ShaderMapAssetAssociations;
+					if (!ConvertToIoStoreShaderLibrary(*TargetFile.NormalizedSourcePath, LibraryChunk, CodeChunks, ShaderMaps, ShaderMapAssetAssociations))
 					{
-						ShaderInfo = new FShaderInfo();
-						ShaderInfo->ChunkId = ShaderChunkId;
-						ShaderInfo->CodeIoBuffer = CodeChunk.Get<1>();
-						ShaderInfo->LoadOrderFactor = CodeChunk.Get<2>();
-						OutShaders.Add(ShaderInfo);
-						ChunkIdToShaderInfoMap.Add(ShaderChunkId, ShaderInfo);
+						UE_LOG(LogIoStore, Warning, TEXT("Failed converting shader library '%s'"), *TargetFile.NormalizedSourcePath);
+						continue;
 					}
-					else
+					TargetFile.ChunkId = LibraryChunk.Key;
+					TargetFile.SourceBuffer.Emplace(LibraryChunk.Value);
+					const bool bIsGlobalShaderLibrary = FPaths::GetCleanFilename(TargetFile.NormalizedSourcePath).StartsWith(TEXT("ShaderArchive-Global-"));
+					const FShaderInfo::EShaderType ShaderType = bIsGlobalShaderLibrary ? FShaderInfo::Global : FShaderInfo::Normal;
+					for (const TTuple<FIoChunkId, FIoBuffer, uint32>& CodeChunk : CodeChunks)
 					{
-						// first, make sure that the code is exactly the same
-						if (ShaderInfo->CodeIoBuffer != CodeChunk.Get<1>())
+						const FIoChunkId& ShaderChunkId = CodeChunk.Get<0>();
+						FShaderInfo* ShaderInfo = ChunkIdToShaderInfoMap.FindRef(ShaderChunkId);
+						if (!ShaderInfo)
 						{
-							UE_LOG(LogIoStore, Error, TEXT("Collision of two shader code chunks, same Id (%s), different code. Packaged game will likely crash, not being able to decompress the shaders."), *LexToString(ShaderChunkId) );
-						}
-
-						// If we already exist, then we have two separate LoadOrderFactors,
-						// which one we got first affects build determinism. Take the lower.
-						if (CodeChunk.Get<2>() < ShaderInfo->LoadOrderFactor)
-						{
+							ShaderInfo = new FShaderInfo();
+							ShaderInfo->ChunkId = ShaderChunkId;
+							ShaderInfo->CodeIoBuffer = CodeChunk.Get<1>();
 							ShaderInfo->LoadOrderFactor = CodeChunk.Get<2>();
+							OutShaders.Add(ShaderInfo);
+							ChunkIdToShaderInfoMap.Add(ShaderChunkId, ShaderInfo);
+						}
+						else
+						{
+							// first, make sure that the code is exactly the same
+							if (ShaderInfo->CodeIoBuffer != CodeChunk.Get<1>())
+							{
+								UE_LOG(LogIoStore, Error, TEXT("Collision of two shader code chunks, same Id (%s), different code. Packaged game will likely crash, not being able to decompress the shaders."), *LexToString(ShaderChunkId) );
+							}
+
+							// If we already exist, then we have two separate LoadOrderFactors,
+							// which one we got first affects build determinism. Take the lower.
+							if (CodeChunk.Get<2>() < ShaderInfo->LoadOrderFactor)
+							{
+								ShaderInfo->LoadOrderFactor = CodeChunk.Get<2>();
+							}
+						}
+
+
+						const FShaderInfo::EShaderType* CurrentShaderTypeInContainer = ShaderInfo->TypeInContainer.Find(ContainerTarget);
+						if (!CurrentShaderTypeInContainer || *CurrentShaderTypeInContainer != FShaderInfo::Global)
+						{
+							// If a shader is both global and shared consider it to be global
+							ShaderInfo->TypeInContainer.Add(ContainerTarget, ShaderType);
+						}
+						
+						ContainerShaderLibraryShaders.Add(ShaderInfo);
+					}
+					for (const TTuple<FSHAHash, TSet<FName>>& ShaderMapAssetAssociation : ShaderMapAssetAssociations)
+					{
+						for (const FName& PackageName : ShaderMapAssetAssociation.Value)
+						{
+							TSet<FSHAHash>& PackageShaderMaps = PackageNameToShaderMaps.FindOrAdd(PackageName);
+							PackageShaderMaps.Add(ShaderMapAssetAssociation.Key);
 						}
 					}
 
-
-					const FShaderInfo::EShaderType* CurrentShaderTypeInContainer = ShaderInfo->TypeInContainer.Find(ContainerTarget);
-					if (!CurrentShaderTypeInContainer || *CurrentShaderTypeInContainer != FShaderInfo::Global)
+					for (TTuple<FSHAHash, TArray<FIoChunkId>>& ShaderMap : ShaderMaps)
 					{
-						// If a shader is both global and shared consider it to be global
-						ShaderInfo->TypeInContainer.Add(ContainerTarget, ShaderType);
+						ShaderChunkIdsByShaderMapHash.Add(ShaderMap.Key, MoveTemp(ShaderMap.Value));
 					}
-					
-					ContainerShaderLibraryShaders.Add(ShaderInfo);
-				}
-				for (const TTuple<FSHAHash, TSet<FName>>& ShaderMapAssetAssociation : ShaderMapAssetAssociations)
-				{
-					for (const FName& PackageName : ShaderMapAssetAssociation.Value)
-					{
-						TSet<FSHAHash>& PackageShaderMaps = PackageNameToShaderMaps.FindOrAdd(PackageName);
-						PackageShaderMaps.Add(ShaderMapAssetAssociation.Key);
-					}
-				}
-
-				for (TTuple<FSHAHash, TArray<FIoChunkId>>& ShaderMap : ShaderMaps)
-				{
-					ShaderChunkIdsByShaderMapHash.Add(ShaderMap.Key, MoveTemp(ShaderMap.Value));
-				}
-			} // end if containerchunktype shadercodelibrary
-		} // end foreach targetfile
-	} // end foreach container
+				} // end if containerchunktype shadercodelibrary
+			} // end foreach targetfile
+		} // end foreach container
+	}
 
 	// 1. Update ShaderInfos with which packages we reference.
 	// 2. Add to packages which shaders we use.
 	// 3. Add to PackageStore what shaders we use.
-	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
-		for (FLegacyCookedPackage* Package : ContainerTarget->Packages)
+		IOSTORE_CPU_SCOPE(UpdatePackageStoreShaders);
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			TSet<FSHAHash>* FindShaderMapHashes = PackageNameToShaderMaps.Find(Package->PackageName);
-			if (FindShaderMapHashes)
+			for (FLegacyCookedPackage* Package : ContainerTarget->Packages)
 			{
-				for (const FSHAHash& ShaderMapHash : *FindShaderMapHashes)
+				TSet<FSHAHash>* FindShaderMapHashes = PackageNameToShaderMaps.Find(Package->PackageName);
+				if (FindShaderMapHashes)
 				{
-					const TArray<FIoChunkId>* FindChunkIds = ShaderChunkIdsByShaderMapHash.Find(ShaderMapHash);
-					if (!FindChunkIds)
+					for (const FSHAHash& ShaderMapHash : *FindShaderMapHashes)
 					{
-						UE_LOG(LogIoStore, Warning, TEXT("Package '%s' in '%s' referencing missing shader map '%s'"), *Package->PackageName.ToString(), *ContainerTarget->Name.ToString(), *ShaderMapHash.ToString());
-						continue;
-					}
-					Package->OptimizedPackage->AddShaderMapHash(ShaderMapHash);
-					for (const FIoChunkId& ShaderChunkId : *FindChunkIds)
-					{
-						FShaderInfo* ShaderInfo = ChunkIdToShaderInfoMap.FindRef(ShaderChunkId);
-						if (!ShaderInfo)
+						const TArray<FIoChunkId>* FindChunkIds = ShaderChunkIdsByShaderMapHash.Find(ShaderMapHash);
+						if (!FindChunkIds)
 						{
-							UE_LOG(LogIoStore, Warning, TEXT("Package '%s' in '%s' referencing missing shader with chunk id '%s'"), *Package->PackageName.ToString(), *ContainerTarget->Name.ToString(), *BytesToHex(ShaderChunkId.GetData(), ShaderChunkId.GetSize()));
+							UE_LOG(LogIoStore, Warning, TEXT("Package '%s' in '%s' referencing missing shader map '%s'"), *Package->PackageName.ToString(), *ContainerTarget->Name.ToString(), *ShaderMapHash.ToString());
 							continue;
 						}
+						Package->OptimizedPackage->AddShaderMapHash(ShaderMapHash);
+						for (const FIoChunkId& ShaderChunkId : *FindChunkIds)
+						{
+							FShaderInfo* ShaderInfo = ChunkIdToShaderInfoMap.FindRef(ShaderChunkId);
+							if (!ShaderInfo)
+							{
+								UE_LOG(LogIoStore, Warning, TEXT("Package '%s' in '%s' referencing missing shader with chunk id '%s'"), *Package->PackageName.ToString(), *ContainerTarget->Name.ToString(), *BytesToHex(ShaderChunkId.GetData(), ShaderChunkId.GetSize()));
+								continue;
+							}
 
-						check(ShaderInfo);
-						ShaderInfo->ReferencedByPackages.Add(Package);
-						Package->Shaders.AddUnique(ShaderInfo);
+							check(ShaderInfo);
+							ShaderInfo->ReferencedByPackages.Add(Package);
+							Package->Shaders.AddUnique(ShaderInfo);
+						}
 					}
 				}
 			}
 		}
 	}
 
-	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
-		auto AddShaderTargetFile = [&ContainerTarget](FShaderInfo* ShaderInfo)
+		IOSTORE_CPU_SCOPE(AddShaderChunks);
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			FContainerTargetFile& ShaderTargetFile = ContainerTarget->TargetFiles.AddDefaulted_GetRef();
-			ShaderTargetFile.ContainerTarget = ContainerTarget;
-			ShaderTargetFile.ChunkId = ShaderInfo->ChunkId;
-			ShaderTargetFile.ChunkType = EContainerChunkType::ShaderCode;
-			ShaderTargetFile.bForceUncompressed = true;
-			ShaderTargetFile.SourceBuffer.Emplace(ShaderInfo->CodeIoBuffer);
-			ShaderTargetFile.SourceSize = ShaderInfo->CodeIoBuffer.DataSize();
-		};
-
-		const TSet<FShaderInfo*>* FindContainerShaderLibraryShaders = AllContainerShaderLibraryShadersMap.Find(ContainerTarget);
-		if (FindContainerShaderLibraryShaders)
-		{
-			for (FLegacyCookedPackage* Package : ContainerTarget->Packages)
+			auto AddShaderTargetFile = [&ContainerTarget](FShaderInfo* ShaderInfo)
 			{
-				for (FShaderInfo* ShaderInfo : Package->Shaders)
+				FContainerTargetFile& ShaderTargetFile = ContainerTarget->TargetFiles.AddDefaulted_GetRef();
+				ShaderTargetFile.ContainerTarget = ContainerTarget;
+				ShaderTargetFile.ChunkId = ShaderInfo->ChunkId;
+				ShaderTargetFile.ChunkType = EContainerChunkType::ShaderCode;
+				ShaderTargetFile.bForceUncompressed = true;
+				ShaderTargetFile.SourceBuffer.Emplace(ShaderInfo->CodeIoBuffer);
+				ShaderTargetFile.SourceSize = ShaderInfo->CodeIoBuffer.DataSize();
+			};
+
+			const TSet<FShaderInfo*>* FindContainerShaderLibraryShaders = AllContainerShaderLibraryShadersMap.Find(ContainerTarget);
+			if (FindContainerShaderLibraryShaders)
+			{
+				for (FLegacyCookedPackage* Package : ContainerTarget->Packages)
 				{
-					if (ShaderInfo->ReferencedByPackages.Num() == 1)
+					for (FShaderInfo* ShaderInfo : Package->Shaders)
 					{
-						FShaderInfo::EShaderType* ShaderType = ShaderInfo->TypeInContainer.Find(ContainerTarget);
-						if (ShaderType && *ShaderType != FShaderInfo::Global)
+						if (ShaderInfo->ReferencedByPackages.Num() == 1)
 						{
-							*ShaderType = FShaderInfo::Inline;
+							FShaderInfo::EShaderType* ShaderType = ShaderInfo->TypeInContainer.Find(ContainerTarget);
+							if (ShaderType && *ShaderType != FShaderInfo::Global)
+							{
+								*ShaderType = FShaderInfo::Inline;
+							}
 						}
 					}
 				}
-			}
-			for (FShaderInfo* ShaderInfo : *FindContainerShaderLibraryShaders)
-			{
-				FShaderInfo::EShaderType* ShaderType = ShaderInfo->TypeInContainer.Find(ContainerTarget);
-				check(ShaderType);
-				if (*ShaderType == FShaderInfo::Global)
+				for (FShaderInfo* ShaderInfo : *FindContainerShaderLibraryShaders)
 				{
-					ContainerTarget->GlobalShaders.Add(ShaderInfo);
+					FShaderInfo::EShaderType* ShaderType = ShaderInfo->TypeInContainer.Find(ContainerTarget);
+					check(ShaderType);
+					if (*ShaderType == FShaderInfo::Global)
+					{
+						ContainerTarget->GlobalShaders.Add(ShaderInfo);
+					}
+					else if (*ShaderType == FShaderInfo::Inline)
+					{
+						ContainerTarget->InlineShaders.Add(ShaderInfo);
+					}
+					else if (ShaderInfo->ReferencedByPackages.Num() > 1)
+					{
+						ContainerTarget->SharedShaders.Add(ShaderInfo);
+					}
+					else
+					{
+						// If there are unreferenced shaders they will go in here and be sorted last
+						ContainerTarget->UniqueShaders.Add(ShaderInfo);
+					}
+					AddShaderTargetFile(ShaderInfo);
 				}
-				else if (*ShaderType == FShaderInfo::Inline)
-				{
-					ContainerTarget->InlineShaders.Add(ShaderInfo);
-				}
-				else if (ShaderInfo->ReferencedByPackages.Num() > 1)
-				{
-					ContainerTarget->SharedShaders.Add(ShaderInfo);
-				}
-				else
-				{
-					// If there are unreferenced shaders they will go in here and be sorted last
-					ContainerTarget->UniqueShaders.Add(ShaderInfo);
-				}
-				AddShaderTargetFile(ShaderInfo);
 			}
 		}
 	}
@@ -3336,6 +3347,7 @@ public:
 
 int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSettings& GeneralIoWriterSettings)
 {
+	IOSTORE_CPU_SCOPE(CreateTarget);
 	TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
 
 #if OUTPUT_CHUNKID_DIRECTORY
@@ -3378,15 +3390,20 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		InitializeContainerTargetsAndPackages(Arguments, Packages, PackageNameMap, PackageIdMap, ContainerTargets, PackageStoreOptimizer);
 	}
 
-	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
-	FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
-	check(IoStatus.IsOk());
+	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext;
+	{
+		IOSTORE_CPU_SCOPE(InitializeIoStoreWriters);
+		IoStoreWriterContext.Reset(new FIoStoreWriterContext());
+		FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
+		check(IoStatus.IsOk());
+	}
 	TArray<TSharedPtr<IIoStoreWriter>> IoStoreWriters;
 	TSharedPtr<IIoStoreWriter> GlobalIoStoreWriter;
 	{
-		IOSTORE_CPU_SCOPE(InitializeIoStoreWriters);
+		IOSTORE_CPU_SCOPE(InitializeWriters);
 		if (!Arguments.IsDLC())
 		{
+			IOSTORE_CPU_SCOPE(InitializeGlobalWriter);
 			FIoContainerSettings GlobalContainerSettings;
 			if (Arguments.bSign)
 			{
@@ -3398,6 +3415,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		}
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
+			IOSTORE_CPU_SCOPE(InitializeWriter);
 			check(ContainerTarget->ContainerId.IsValid());
 			if (!ContainerTarget->OutputPath.IsEmpty())
 			{
@@ -3449,6 +3467,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	if (Arguments.IsDLC() && Arguments.bRemapPluginContentToGame)
 	{
+		IOSTORE_CPU_SCOPE(RemapPluginContent);
 		for (FLegacyCookedPackage* Package : Packages)
 		{
 			const int32 DLCNameLen = Arguments.DLCName.Len() + 1;
@@ -3460,32 +3479,35 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		}
 	}
 
-	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
-		if (ContainerTarget->IoStoreWriter)
+		IOSTORE_CPU_SCOPE(AppendNonPackageChunks);
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+			if (ContainerTarget->IoStoreWriter)
 			{
-				if (TargetFile.ChunkType != EContainerChunkType::PackageData && TargetFile.ChunkType != EContainerChunkType::OptionalSegmentPackageData)
+				for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 				{
-					FIoWriteOptions WriteOptions;
-					WriteOptions.DebugName = *TargetFile.DestinationPath;
-					WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
-					WriteOptions.bIsMemoryMapped = TargetFile.ChunkType == EContainerChunkType::MemoryMappedBulkData;
-					WriteOptions.FileName = TargetFile.DestinationPath;
-					if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentBulkData)
+					if (TargetFile.ChunkType != EContainerChunkType::PackageData && TargetFile.ChunkType != EContainerChunkType::OptionalSegmentPackageData)
 					{
-						FIoChunkId ChunkId = TargetFile.ChunkId;
-						if (TargetFile.Package->OptimizedOptionalSegmentPackage && TargetFile.Package->OptimizedOptionalSegmentPackage->HasEditorData())
+						FIoWriteOptions WriteOptions;
+						WriteOptions.DebugName = *TargetFile.DestinationPath;
+						WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
+						WriteOptions.bIsMemoryMapped = TargetFile.ChunkType == EContainerChunkType::MemoryMappedBulkData;
+						WriteOptions.FileName = TargetFile.DestinationPath;
+						if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentBulkData)
 						{
-							// Auto optional packages replace the non-optional part when the container is mounted
-							ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::BulkData);
+							FIoChunkId ChunkId = TargetFile.ChunkId;
+							if (TargetFile.Package->OptimizedOptionalSegmentPackage && TargetFile.Package->OptimizedOptionalSegmentPackage->HasEditorData())
+							{
+								// Auto optional packages replace the non-optional part when the container is mounted
+								ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::BulkData);
+							}
+							ContainerTarget->OptionalSegmentIoStoreWriter->Append(ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
 						}
-						ContainerTarget->OptionalSegmentIoStoreWriter->Append(ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
-					}
-					else
-					{
-						ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+						else
+						{
+							ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+						}
 					}
 				}
 			}
@@ -3493,10 +3515,13 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 
 	TMap<FPackageId, FPackageStorePackage*> OptimizedPackagesMap;
-	for (FLegacyCookedPackage* Package : Packages)
 	{
-		check(Package->OptimizedPackage);
-		OptimizedPackagesMap.Add(Package->OptimizedPackage->GetId(), Package->OptimizedPackage);
+		IOSTORE_CPU_SCOPE(OptimizedPackagesMap);
+		for (FLegacyCookedPackage* Package : Packages)
+		{
+			check(Package->OptimizedPackage);
+			OptimizedPackagesMap.Add(Package->OptimizedPackage->GetId(), Package->OptimizedPackage);
+		}
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Processing redirects..."));
@@ -3506,13 +3531,16 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	PackageStoreOptimizer.OptimizeExportBundles(OptimizedPackagesMap);
 
 	UE_LOG(LogIoStore, Display, TEXT("Finalizing packages..."));
-	for (FLegacyCookedPackage* Package : Packages)
 	{
-		check(Package->OptimizedPackage);
-		PackageStoreOptimizer.FinalizePackage(Package->OptimizedPackage);
-		if (Package->OptimizedOptionalSegmentPackage)
+		IOSTORE_CPU_SCOPE(FinalizingPackages);
+		for (FLegacyCookedPackage* Package : Packages)
 		{
-			PackageStoreOptimizer.FinalizePackage(Package->OptimizedOptionalSegmentPackage);
+			check(Package->OptimizedPackage);
+			PackageStoreOptimizer.FinalizePackage(Package->OptimizedPackage);
+			if (Package->OptimizedOptionalSegmentPackage)
+			{
+				PackageStoreOptimizer.FinalizePackage(Package->OptimizedOptionalSegmentPackage);
+			}
 		}
 	}
 
@@ -3520,113 +3548,119 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	FString ClusterCSVPath;
 	if (FParse::Value(FCommandLine::Get(), TEXT("ClusterCSV="), ClusterCSVPath))
 	{
+		IOSTORE_CPU_SCOPE(CreateClusterCSV);
 		ClusterStatsCsv.CreateOutputFile(ClusterCSVPath);
 	}
 	CreateDiskLayout(ContainerTargets, Packages, Arguments.OrderMaps, PackageIdMap, Arguments.bClusterByOrderFilePriority);
 
-	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
-		if (ContainerTarget->IoStoreWriter)
+		IOSTORE_CPU_SCOPE(AppendPackageChunks);
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			TArray<FPackageStoreEntryResource> PackageStoreEntries;
-			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+			if (ContainerTarget->IoStoreWriter)
 			{
-				if (TargetFile.ChunkType == EContainerChunkType::PackageData || TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
+				TArray<FPackageStoreEntryResource> PackageStoreEntries;
+				for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 				{
-					check(TargetFile.Package);
-					FIoWriteOptions WriteOptions;
-					WriteOptions.DebugName = *TargetFile.DestinationPath;
-					WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
-					WriteOptions.FileName = TargetFile.DestinationPath;
-					if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
+					if (TargetFile.ChunkType == EContainerChunkType::PackageData || TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
 					{
-						check(ContainerTarget->OptionalSegmentIoStoreWriter);
-						check(TargetFile.Package->OptimizedOptionalSegmentPackage);
-						FIoChunkId ChunkId = TargetFile.ChunkId;
-						if (TargetFile.Package->OptimizedOptionalSegmentPackage->HasEditorData())
+						check(TargetFile.Package);
+						FIoWriteOptions WriteOptions;
+						WriteOptions.DebugName = *TargetFile.DestinationPath;
+						WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
+						WriteOptions.FileName = TargetFile.DestinationPath;
+						if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
 						{
-							// Auto optional packages replace the non-optional part when the container is mounted
-							ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::ExportBundleData);
+							check(ContainerTarget->OptionalSegmentIoStoreWriter);
+							check(TargetFile.Package->OptimizedOptionalSegmentPackage);
+							FIoChunkId ChunkId = TargetFile.ChunkId;
+							if (TargetFile.Package->OptimizedOptionalSegmentPackage->HasEditorData())
+							{
+								// Auto optional packages replace the non-optional part when the container is mounted
+								ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::ExportBundleData);
+							}
+							ContainerTarget->OptionalSegmentIoStoreWriter->Append(ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
 						}
-						ContainerTarget->OptionalSegmentIoStoreWriter->Append(ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
-					}
-					else
-					{
-						ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
-						PackageStoreEntries.Add(PackageStoreOptimizer.CreatePackageStoreEntry(TargetFile.Package->OptimizedPackage, TargetFile.Package->OptimizedOptionalSegmentPackage));
+						else
+						{
+							ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+							PackageStoreEntries.Add(PackageStoreOptimizer.CreatePackageStoreEntry(TargetFile.Package->OptimizedPackage, TargetFile.Package->OptimizedOptionalSegmentPackage));
+						}
 					}
 				}
-			}
 
-			auto WriteContainerHeaderChunk = [](FIoContainerHeader& Header, IIoStoreWriter* IoStoreWriter)
-			{
-				FLargeMemoryWriter HeaderAr(0, true);
-				HeaderAr << Header;
-				int64 DataSize = HeaderAr.TotalSize();
-				FIoBuffer ContainerHeaderBuffer(FIoBuffer::AssumeOwnership, HeaderAr.ReleaseOwnership(), DataSize);
-
-				FIoWriteOptions WriteOptions;
-				WriteOptions.DebugName = TEXT("ContainerHeader");
-				WriteOptions.bForceUncompressed = true;
-				IoStoreWriter->Append(
-					CreateIoChunkId(Header.ContainerId.Value(), 0, EIoChunkType::ContainerHeader),
-					ContainerHeaderBuffer,
-					WriteOptions);
-			};
-
-			ContainerTarget->Header = PackageStoreOptimizer.CreateContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries);
-			WriteContainerHeaderChunk(ContainerTarget->Header, ContainerTarget->IoStoreWriter.Get());
-
-			if (ContainerTarget->OptionalSegmentIoStoreWriter)
-			{
-				ContainerTarget->OptionalSegmentHeader = PackageStoreOptimizer.CreateOptionalContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries);
-				WriteContainerHeaderChunk(ContainerTarget->OptionalSegmentHeader, ContainerTarget->OptionalSegmentIoStoreWriter.Get());
-			}
-		}
-
-		// Check if we need to dump the final order of the packages. Useful, to debug packing.
-		if (FParse::Param(FCommandLine::Get(), TEXT("writefinalorder")))
-		{
-			FString FinalContainerOrderFile = FPaths::GetPath(ContainerTarget->OutputPath) + FPaths::GetBaseFilename(ContainerTarget->OutputPath) + TEXT("-order.txt");
-			TUniquePtr<FArchive> IoOrderListArchive(IFileManager::Get().CreateFileWriter(*FinalContainerOrderFile));
-			if (IoOrderListArchive)
-			{
-				IoOrderListArchive->SetIsTextFormat(true);
-
-				// The TargetFiles list is not the order written to disk - FIoStoreWriter sorts
-				// on the IdealOrder prior to writing.
-				TArray<const FContainerTargetFile*> SortedTargetFiles;
-				SortedTargetFiles.Reserve(ContainerTarget->TargetFiles.Num());
-				for (const FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+				auto WriteContainerHeaderChunk = [](FIoContainerHeader& Header, IIoStoreWriter* IoStoreWriter)
 				{
-					SortedTargetFiles.Add(&TargetFile);
-				}
+					FLargeMemoryWriter HeaderAr(0, true);
+					HeaderAr << Header;
+					int64 DataSize = HeaderAr.TotalSize();
+					FIoBuffer ContainerHeaderBuffer(FIoBuffer::AssumeOwnership, HeaderAr.ReleaseOwnership(), DataSize);
 
-				Algo::SortBy(SortedTargetFiles, [](const FContainerTargetFile* TargetFile) { return TargetFile->IdealOrder; });
+					FIoWriteOptions WriteOptions;
+					WriteOptions.DebugName = TEXT("ContainerHeader");
+					WriteOptions.bForceUncompressed = true;
+					IoStoreWriter->Append(
+						CreateIoChunkId(Header.ContainerId.Value(), 0, EIoChunkType::ContainerHeader),
+						ContainerHeaderBuffer,
+						WriteOptions);
+				};
 
-				for (const FContainerTargetFile* TargetFile : SortedTargetFiles)
+				ContainerTarget->Header = PackageStoreOptimizer.CreateContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries);
+				WriteContainerHeaderChunk(ContainerTarget->Header, ContainerTarget->IoStoreWriter.Get());
+
+				if (ContainerTarget->OptionalSegmentIoStoreWriter)
 				{
-					TStringBuilder<256> Line;
-					Line.Append(LexToString(TargetFile->ChunkId));
+					ContainerTarget->OptionalSegmentHeader = PackageStoreOptimizer.CreateOptionalContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries);
+					WriteContainerHeaderChunk(ContainerTarget->OptionalSegmentHeader, ContainerTarget->OptionalSegmentIoStoreWriter.Get());
+				}
+			}
 
-					if (TargetFile->Package)
+			// Check if we need to dump the final order of the packages. Useful, to debug packing.
+			if (FParse::Param(FCommandLine::Get(), TEXT("writefinalorder")))
+			{
+				IOSTORE_CPU_SCOPE(WriteFinalOrder);
+				FString FinalContainerOrderFile = FPaths::GetPath(ContainerTarget->OutputPath) + FPaths::GetBaseFilename(ContainerTarget->OutputPath) + TEXT("-order.txt");
+				TUniquePtr<FArchive> IoOrderListArchive(IFileManager::Get().CreateFileWriter(*FinalContainerOrderFile));
+				if (IoOrderListArchive)
+				{
+					IoOrderListArchive->SetIsTextFormat(true);
+
+					// The TargetFiles list is not the order written to disk - FIoStoreWriter sorts
+					// on the IdealOrder prior to writing.
+					TArray<const FContainerTargetFile*> SortedTargetFiles;
+					SortedTargetFiles.Reserve(ContainerTarget->TargetFiles.Num());
+					for (const FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 					{
-						Line.Append(TEXT(" "));
-						Line.Append(TargetFile->Package->FileName);
+						SortedTargetFiles.Add(&TargetFile);
 					}
 
-					IoOrderListArchive->Logf(TEXT("%s"), Line.ToString());
+					Algo::SortBy(SortedTargetFiles, [](const FContainerTargetFile* TargetFile) { return TargetFile->IdealOrder; });
+
+					for (const FContainerTargetFile* TargetFile : SortedTargetFiles)
+					{
+						TStringBuilder<256> Line;
+						Line.Append(LexToString(TargetFile->ChunkId));
+
+						if (TargetFile->Package)
+						{
+							Line.Append(TEXT(" "));
+							Line.Append(TargetFile->Package->FileName);
+						}
+
+						IoOrderListArchive->Logf(TEXT("%s"), Line.ToString());
+					}
+
+					IoOrderListArchive->Close();
 				}
-
-				IoOrderListArchive->Close();
 			}
-		}
 
+		}
 	}
 
 	uint64 InitialLoadSize = 0;
 	if (GlobalIoStoreWriter)
 	{
+		IOSTORE_CPU_SCOPE(WriteScriptObjects);
 		FIoBuffer ScriptObjectsBuffer = PackageStoreOptimizer.CreateScriptObjectsBuffer();
 		InitialLoadSize = ScriptObjectsBuffer.DataSize();
 		FIoWriteOptions WriteOptions;
@@ -3635,37 +3669,40 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
-
-	TFuture<void> FlushTask = Async(EAsyncExecution::Thread, [&IoStoreWriterContext]()
 	{
-		IoStoreWriterContext->Flush();
-	});
+		IOSTORE_CPU_SCOPE(Serializing);
 
-	while (!FlushTask.IsReady())
-	{
-		FlushTask.WaitFor(FTimespan::FromSeconds(2.0));
-		FIoStoreWriterContext::FProgress Progress = IoStoreWriterContext->GetProgress();
-		TStringBuilder<1024> ProgressStringBuilder;
-		if (Progress.SerializedChunksCount >= Progress.TotalChunksCount)
+		TFuture<void> FlushTask = Async(EAsyncExecution::Thread, [&IoStoreWriterContext]()
 		{
-			ProgressStringBuilder.Appendf(TEXT("Writing tocs..."));
-		}
-		else if (Progress.SerializedChunksCount)
+			IoStoreWriterContext->Flush();
+		});
+
+		while (!FlushTask.IsReady())
 		{
-			ProgressStringBuilder.Appendf(TEXT("Writing chunks (%llu/%llu)..."), Progress.SerializedChunksCount, Progress.TotalChunksCount);
-			if (Progress.CompressedChunksCount)
+			FlushTask.WaitFor(FTimespan::FromSeconds(2.0));
+			FIoStoreWriterContext::FProgress Progress = IoStoreWriterContext->GetProgress();
+			TStringBuilder<1024> ProgressStringBuilder;
+			if (Progress.SerializedChunksCount >= Progress.TotalChunksCount)
 			{
-				ProgressStringBuilder.Appendf(TEXT(" [%llu compressed]"), Progress.CompressedChunksCount);
+				ProgressStringBuilder.Appendf(TEXT("Writing tocs..."));
 			}
-			if (Progress.ScheduledCompressionTasksCount)
+			else if (Progress.SerializedChunksCount)
 			{
-				ProgressStringBuilder.Appendf(TEXT(" [%llu compression tasks scheduled]"), Progress.ScheduledCompressionTasksCount);
+				ProgressStringBuilder.Appendf(TEXT("Writing chunks (%llu/%llu)..."), Progress.SerializedChunksCount, Progress.TotalChunksCount);
+				if (Progress.CompressedChunksCount)
+				{
+					ProgressStringBuilder.Appendf(TEXT(" [%llu compressed]"), Progress.CompressedChunksCount);
+				}
+				if (Progress.ScheduledCompressionTasksCount)
+				{
+					ProgressStringBuilder.Appendf(TEXT(" [%llu compression tasks scheduled]"), Progress.ScheduledCompressionTasksCount);
+				}
+				UE_LOG(LogIoStore, Display, TEXT("%s"), *ProgressStringBuilder);
 			}
-			UE_LOG(LogIoStore, Display, TEXT("%s"), *ProgressStringBuilder);
-		}
-		else
-		{
-			UE_LOG(LogIoStore, Display, TEXT("Hashing chunks (%llu/%llu) %llu from hash database..."), Progress.HashedChunksCount, Progress.TotalChunksCount, Progress.HashDbChunksCount);
+			else
+			{
+				UE_LOG(LogIoStore, Display, TEXT("Hashing chunks (%llu/%llu) %llu from hash database..."), Progress.HashedChunksCount, Progress.TotalChunksCount, Progress.HashDbChunksCount);
+			}
 		}
 	}
 	if (GeneralIoWriterSettings.bCompressionEnableDDC)
@@ -6317,6 +6354,8 @@ static bool ParseSizeArgument(const TCHAR* CmdLine, const TCHAR* Argument, uint6
 
 static bool ParseOrderFileArguments(FIoStoreArguments& Arguments)
 {
+	IOSTORE_CPU_SCOPE(ParseOrderFileArguments);
+
 	uint64 OrderMapStartIndex = 0;
 	FString OrderFileStr;
 	if (FParse::Value(FCommandLine::Get(), TEXT("Order="), OrderFileStr, false))
@@ -6384,6 +6423,7 @@ static bool ParseOrderFileArguments(FIoStoreArguments& Arguments)
 
 bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWriterSettings& WriterSettings)
 {
+	IOSTORE_CPU_SCOPE(ParseContainerGenerationArguments);
 	if (FParse::Param(FCommandLine::Get(), TEXT("sign")))
 	{
 		Arguments.bSign = true;

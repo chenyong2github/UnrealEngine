@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PackageStoreManifest.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/CompactBinaryContainerSerialization.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -233,6 +234,7 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 
 FIoStatus FPackageStoreManifest::Load(const TCHAR* Filename)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPackageStoreManifest::Load);
 	LLM_SCOPE_BYTAG(Cooker_PackageStoreManifest);
 	FScopeLock Lock(&CriticalSection);
 	PackageInfoByNameMap.Empty();

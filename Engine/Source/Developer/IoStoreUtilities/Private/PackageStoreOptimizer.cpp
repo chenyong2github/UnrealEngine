@@ -807,6 +807,7 @@ TArray<FPackageStorePackage::FExportBundleGraphNode*> FPackageStoreOptimizer::So
 
 void FPackageStoreOptimizer::OptimizeExportBundles(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(OptimizeExportBundles);
 	TArray<FPackageStorePackage*> Packages = SortPackagesInLoadOrder(PackagesMap);
 	for (FPackageStorePackage* Package : Packages)
 	{
@@ -1659,6 +1660,7 @@ void FPackageStoreOptimizer::FindScriptObjectsRecursive(FPackageObjectIndex Oute
 
 void FPackageStoreOptimizer::FindScriptObjects()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FindScriptObjects);
 	TArray<UPackage*> ScriptPackages;
 	FindAllRuntimeScriptPackages(ScriptPackages);
 
@@ -1729,6 +1731,7 @@ FIoBuffer FPackageStoreOptimizer::CreateScriptObjectsBuffer() const
 
 void FPackageStoreOptimizer::LoadScriptObjectsBuffer(const FIoBuffer& ScriptObjectsBuffer)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(LoadScriptObjectsBuffer);
 	FLargeMemoryReader ScriptObjectsArchive(ScriptObjectsBuffer.Data(), ScriptObjectsBuffer.DataSize());
 	TArray<FDisplayNameEntryId> NameMap = LoadNameBatch(ScriptObjectsArchive);
 	int32 NumScriptObjects;
@@ -1778,6 +1781,7 @@ FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const
 
 FIoContainerHeader FPackageStoreOptimizer::CreateContainerHeaderInternal(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries, bool bIsOptional) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreateContainerHeaderInternal);
 	FIoContainerHeader Header;
 	Header.ContainerId = ContainerId;
 	

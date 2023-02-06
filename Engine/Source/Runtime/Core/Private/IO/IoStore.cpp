@@ -317,6 +317,7 @@ public:
 
 	UE_NODISCARD FIoStatus Initialize(const FIoStoreWriterSettings& InWriterSettings)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FIoStoreWriterContext::Initialize);
 		WriterSettings = InWriterSettings;
 		CompressionBufferAvailableEvent = FPlatformProcess::GetSynchEventFromPool(false);
 
@@ -1850,6 +1851,7 @@ TSharedPtr<IIoStoreWriter> FIoStoreWriterContextImpl::CreateContainer(const TCHA
 
 void FIoStoreWriterContextImpl::Flush()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FIoStoreWriterContext::Flush);
 	TArray<FIoStoreWriteQueueEntry*> AllEntries;
 	for (TSharedPtr<FIoStoreWriter> IoStoreWriter : IoStoreWriters)
 	{
@@ -2076,6 +2078,7 @@ public:
 
 	UE_NODISCARD FIoStatus Initialize(const TCHAR* InContainerPath, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FIoStoreReader::Initialize);
 		ContainerPath = InContainerPath;
 
 		TStringBuilder<256> TocFilePath;

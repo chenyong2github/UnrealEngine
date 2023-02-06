@@ -2310,6 +2310,7 @@ private:
 
 	void StartReserveWorkers()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(StartReserveWorkers);
 		if (bReserveWorkersEnabled)
 		{
 			return; // once enabled, reserve workers can't be disabled

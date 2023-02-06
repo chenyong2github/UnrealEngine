@@ -21,6 +21,7 @@
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/Paths.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/LargeMemoryReader.h"
@@ -3694,10 +3695,13 @@ bool FConfigCacheIni::CreateGConfigFromSaved(const TCHAR* Filename)
 	// now let the delegates pull their data out, after GConfig is set up
 //	FCoreDelegates::TSAccessExtraBinaryConfigData().Broadcast(ExtraData);
 
-	FCoreDelegates::TSConfigReadyForUse().Broadcast();
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ConfigReadyForUseBroadcast);
+		FCoreDelegates::TSConfigReadyForUse().Broadcast();
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FCoreDelegates::ConfigReadyForUse.Broadcast();
+		FCoreDelegates::ConfigReadyForUse.Broadcast();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	FMemory::Free(PreloadedData);
 	return true;
@@ -3803,6 +3807,7 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FString IniBootstrapFilename;
 	if (FParse::Value( FCommandLine::Get(), TEXT("IniBootstrap="), IniBootstrapFilename))
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(IniBootstrap);
 		TArray<uint8> FileContent;
 		if (FFileHelper::LoadFileToArray(FileContent, *IniBootstrapFilename, FILEREAD_Silent))
 		{
@@ -3810,6 +3815,7 @@ void FConfigCacheIni::InitializeConfigSystem()
 			GConfig = new FConfigCacheIni(EConfigCacheType::Temporary);
 			GConfig->SerializeStateForBootstrap_Impl(MemoryReader);
 			GConfig->bIsReadyForUse = true;
+			TRACE_CPUPROFILER_EVENT_SCOPE(ConfigReadyForUseBroadcast);
 			FCoreDelegates::TSConfigReadyForUse().Broadcast();
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FCoreDelegates::ConfigReadyForUse.Broadcast();
@@ -3863,6 +3869,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// now we can make use of GConfig
 	GConfig->bIsReadyForUse = true;
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(ConfigReadyForUseBroadcast);
 	FCoreDelegates::TSConfigReadyForUse().Broadcast();
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FCoreDelegates::ConfigReadyForUse.Broadcast();
