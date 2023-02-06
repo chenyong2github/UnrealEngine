@@ -320,10 +320,7 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 		Commands.BeginTransformUVIslandsTool,
 		Commands.BeginUVLayoutTool
 	});
-	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<
-		IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
-	IGeometryProcessing_UVEditorAssetEditor* UVEditorAPI = GeomProcInterfaces.GetUVEditorAssetEditorImplementation();
-	if (UVEditorAPI)
+	if (IModularFeatures::Get().IsModularFeatureAvailable(IUVEditorModularFeature::GetModularFeatureName()))
 	{
 		UVPaletteItems.Add(Commands.LaunchUVEditor);
 	}
