@@ -8,14 +8,13 @@
 #include "PCGEditorGraphSchema.h"
 #include "PCGEditorSettings.h"
 #include "PCGGraph.h"
-
-#include "Misc/TransactionObjectEvent.h"
-#include "GraphEditorActions.h"
 #include "PCGPin.h"
+
+#include "GraphEditorActions.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Widgets/Colors/SColorPicker.h"
-#include "PCGEditorCommands.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphNodeBase"
 
@@ -196,9 +195,35 @@ void UPCGEditorGraphNodeBase::PostPaste()
 		PCGNode->OnNodeChangedDelegate.AddUObject(this, &UPCGEditorGraphNodeBase::OnNodeChanged);
 		PCGNode->PositionX = NodePosX;
 		PCGNode->PositionY = NodePosY;
+
+		if (const UPCGSettings* Settings = PCGNode->GetSettings())
+		{
+			if (Settings->HasDynamicPins())
+			{
+				PCGNode->UpdateAfterSettingsChangeDuringCreation();
+			}
+		}
 	}
 
 	bDisableReconstructFromNode = false;
+}
+
+void UPCGEditorGraphNodeBase::EnableDeferredReconstruct()
+{
+	ensure(DeferredReconstructCounter >= 0);
+	++DeferredReconstructCounter;
+}
+
+void UPCGEditorGraphNodeBase::DisableDeferredReconstruct()
+{
+	ensure(DeferredReconstructCounter > 0);
+	--DeferredReconstructCounter;
+
+	if (DeferredReconstructCounter == 0 && bDeferredReconstruct)
+	{
+		ReconstructNode();
+		bDeferredReconstruct = false;
+	}
 }
 
 void UPCGEditorGraphNodeBase::RebuildEdgesFromPins()
@@ -249,7 +274,7 @@ void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType Cha
 				}
 			}
 		}
-		
+
 		if (!!(ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Node | EPCGChangeType::Edge | EPCGChangeType::Cosmetic)))
 		{
 			ReconstructNode();
@@ -285,6 +310,12 @@ void UPCGEditorGraphNodeBase::ReconstructNode()
 		return;
 	}
 
+	if (DeferredReconstructCounter > 0)
+	{
+		bDeferredReconstruct = true;
+		return;
+	}
+
 	// Store copy of old pins
 	TArray<UEdGraphPin*> OldPins = MoveTemp(Pins);
 	Pins.Reset();
@@ -306,6 +337,20 @@ void UPCGEditorGraphNodeBase::ReconstructNode()
 	for (UEdGraphPin* OldPin : OldPins)
 	{
 		RemovePin(OldPin);
+	}
+
+	// Generate new links
+	// TODO: we should either keep a map in the PCGEditorGraph or do this elsewhere
+	// TODO: this will not work if we have non-PCG nodes in the graph
+	if (PCGNode)
+	{
+		for (UEdGraphPin* Pin : Pins)
+		{
+			Pin->BreakAllPinLinks();
+		}
+		
+		UPCGEditorGraph* PCGEditorGraph = CastChecked<UPCGEditorGraph>(GetGraph());
+		PCGEditorGraph->CreateLinks(this, /*bCreateInbound=*/true, /*bCreateOutbound=*/true);
 	}
 
 	// Notify editor

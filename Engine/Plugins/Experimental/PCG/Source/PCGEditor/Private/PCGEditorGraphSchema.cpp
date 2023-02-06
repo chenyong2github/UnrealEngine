@@ -10,6 +10,7 @@
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNodeBase.h"
+#include "PCGEditorGraphNodeReroute.h"
 #include "PCGEditorGraphSchemaActions.h"
 #include "PCGEditorSettings.h"
 #include "PCGEditorUtils.h"
@@ -113,6 +114,11 @@ const FPinConnectionResponse UPCGEditorGraphSchema::CanCreateConnection(const UE
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypesIncompatible", "Pins are incompatible"));
 	}
 
+	if (!InputPin->AllowMultipleConnections() && InputPin->EdgeCount() > 0)
+	{
+		return FPinConnectionResponse((A->Direction == EGPD_Output) ? CONNECT_RESPONSE_BREAK_OTHERS_B : CONNECT_RESPONSE_BREAK_OTHERS_A, LOCTEXT("ConnectionBreakExisting", "Break existing connection?"));
+	}
+
 	return FPinConnectionResponse();
 }
 
@@ -142,13 +148,7 @@ bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* I
 		UPCGGraph* PCGGraph = PCGNodeA->GetGraph();
 		check(PCGGraph);
 
-		const bool bReconstructNodeB = PCGGraph->AddLabeledEdge(PCGNodeA, A->PinName, PCGNodeB, B->PinName);
-
-		// If AddLabeledEdge return true, then it means that the ToPin triggered a change that requires a full node reconstruct
-		if (bReconstructNodeB)
-		{
-			PCGGraphNodeB->ReconstructNode();
-		}
+		PCGGraph->AddLabeledEdge(PCGNodeA, A->PinName, PCGNodeB, B->PinName);
 	}
 
 	return bModified;
@@ -218,13 +218,16 @@ void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& Act
 	{
 		if (const UPCGSettings* PCGSettings = SettingsClass->GetDefaultObject<UPCGSettings>())
 		{
-			const FText MenuDesc = FText::FromName(PCGSettings->GetDefaultNodeName());
-			const FText Category = StaticEnum<EPCGSettingsType>()->GetDisplayNameTextByValue(static_cast<__underlying_type(EPCGSettingsType)>(PCGSettings->GetType()));
-			const FText Description = PCGSettings->GetNodeTooltipText();
+			if (PCGSettings->bExposeToLibrary)
+			{
+				const FText MenuDesc = FText::FromName(PCGSettings->GetDefaultNodeName());
+				const FText Category = StaticEnum<EPCGSettingsType>()->GetDisplayNameTextByValue(static_cast<__underlying_type(EPCGSettingsType)>(PCGSettings->GetType()));
+				const FText Description = PCGSettings->GetNodeTooltipText();
 
-			TSharedPtr<FPCGEditorGraphSchemaAction_NewNativeElement> NewAction(new FPCGEditorGraphSchemaAction_NewNativeElement(Category, MenuDesc, Description, 0));
-			NewAction->SettingsClass = SettingsClass;
-			ActionMenuBuilder.AddAction(NewAction);
+				TSharedPtr<FPCGEditorGraphSchemaAction_NewNativeElement> NewAction(new FPCGEditorGraphSchemaAction_NewNativeElement(Category, MenuDesc, Description, 0));
+				NewAction->SettingsClass = SettingsClass;
+				ActionMenuBuilder.AddAction(NewAction);
+			}
 		}
 	}
 }
@@ -311,12 +314,20 @@ void UPCGEditorGraphSchema::GetSubgraphElementActions(FGraphActionMenuBuilder& A
 void UPCGEditorGraphSchema::GetExtraElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
 {
 	// Comment action
-	const FText MenuDesc = LOCTEXT("PCGAddComment", "Add Comment...");
-	const FText Category;
-	const FText Description = LOCTEXT("PCGAddCommentTooltip", "Create a resizable comment box.");
+	const FText CommentMenuDesc = LOCTEXT("PCGAddComment", "Add Comment...");
+	const FText CommentCategory;
+	const FText CommentDescription = LOCTEXT("PCGAddCommentTooltip", "Create a resizable comment box.");
 
-	const TSharedPtr<FPCGEditorGraphSchemaAction_NewComment> NewCommentAction(new FPCGEditorGraphSchemaAction_NewComment(Category, MenuDesc, Description, 0));
+	const TSharedPtr<FPCGEditorGraphSchemaAction_NewComment> NewCommentAction(new FPCGEditorGraphSchemaAction_NewComment(CommentCategory, CommentMenuDesc, CommentDescription, 0));
 	ActionMenuBuilder.AddAction(NewCommentAction);
+
+	// Reroute action
+	const FText RerouteMenuDesc = LOCTEXT("PCGAddRerouteNode", "Add Reroute Node");
+	const FText RerouteCategory;
+	const FText RerouteDescription = LOCTEXT("PCGAddRerouteNodeTooltip", "Add a reroute node, aka knot.");
+
+	const TSharedPtr<FPCGEditorGraphSchemaAction_NewReroute> NewRerouteAction(new FPCGEditorGraphSchemaAction_NewReroute(RerouteCategory, RerouteMenuDesc, RerouteDescription, 0));
+	ActionMenuBuilder.AddAction(NewRerouteAction);
 }
 
 void UPCGEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const
@@ -395,6 +406,38 @@ void UPCGEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>&
 	OutOkIcon = false;
 }
 
+void UPCGEditorGraphSchema::OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphPin* PinB, const FVector2D& GraphPosition) const
+{
+	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGCreateRerouteNodeOnWire", "Create Reroute Node"), nullptr);
+
+	const FVector2D NodeSpacerSize(42.0f, 24.0f);
+	const FVector2D KnotTopLeft = GraphPosition - (NodeSpacerSize * 0.5f);
+
+	UEdGraph* EditorGraph = PinA->GetOwningNode()->GetGraph();
+	EditorGraph->Modify();
+
+	FPCGEditorGraphSchemaAction_NewReroute Action;
+
+	if (UPCGEditorGraphNodeReroute* RerouteNode = Cast<UPCGEditorGraphNodeReroute>(Action.PerformAction(EditorGraph, nullptr, KnotTopLeft, /*bSelectNewNode=*/true)))
+	{
+		UEdGraphNode* SourceGraphNode = PinA->GetOwningNode();
+		UEdGraphNode* TargetGraphNode = PinB->GetOwningNode();
+
+		UPCGEditorGraphNodeBase* SourcePCGGraphNode = CastChecked<UPCGEditorGraphNodeBase>(SourceGraphNode);
+		UPCGEditorGraphNodeBase* TargetPCGGraphNode = CastChecked<UPCGEditorGraphNodeBase>(TargetGraphNode);
+
+		// We need to disable full node reconstruction to make sure the pins are valid when creating the connections.
+		SourcePCGGraphNode->EnableDeferredReconstruct();
+		TargetPCGGraphNode->EnableDeferredReconstruct();
+		
+		BreakSinglePinLink(PinA, PinB);
+		TryCreateConnection(PinA, (PinA->Direction == EGPD_Output) ? RerouteNode->GetInputPin() : RerouteNode->GetOutputPin());
+		TryCreateConnection(PinB, (PinB->Direction == EGPD_Output) ? RerouteNode->GetInputPin() : RerouteNode->GetOutputPin());
+
+		SourcePCGGraphNode->DisableDeferredReconstruct();
+		TargetPCGGraphNode->DisableDeferredReconstruct();
+	}
+}
 
 FPCGEditorConnectionDrawingPolicy::FPCGEditorConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraph)
 	: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements)

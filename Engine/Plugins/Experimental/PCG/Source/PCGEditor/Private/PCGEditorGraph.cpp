@@ -2,15 +2,17 @@
 
 #include "PCGEditorGraph.h"
 
-#include "PCGGraph.h"
 #include "PCGEdge.h"
 #include "PCGEditorGraphNode.h"
 #include "PCGEditorGraphNodeInput.h"
 #include "PCGEditorGraphNodeOutput.h"
+#include "PCGEditorGraphNodeReroute.h"
 #include "PCGEditorModule.h"
+#include "PCGGraph.h"
+#include "PCGPin.h"
+#include "Elements/PCGReroute.h"
 
 #include "EdGraph/EdGraphPin.h"
-#include "PCGPin.h"
 
 void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 {
@@ -36,11 +38,27 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 
 	for (UPCGNode* PCGNode : PCGGraph->GetNodes())
 	{
-		FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*this);
-		UPCGEditorGraphNode* GraphNode = NodeCreator.CreateNode(bSelectNewNode);
-		GraphNode->Construct(PCGNode);
-		NodeCreator.Finalize();
-		NodeLookup.Add(PCGNode, GraphNode);
+		if (!IsValid(PCGNode))
+		{
+			continue;	
+		}
+		
+		if (Cast<UPCGRerouteSettings>(PCGNode->GetSettings()))
+		{
+			FGraphNodeCreator<UPCGEditorGraphNodeReroute> NodeCreator(*this);
+			UPCGEditorGraphNodeReroute* RerouteGraphNode = NodeCreator.CreateNode(bSelectNewNode);
+			RerouteGraphNode->Construct(PCGNode);
+			NodeCreator.Finalize();
+			NodeLookup.Add(PCGNode, RerouteGraphNode);
+		}
+		else
+		{
+			FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*this);
+			UPCGEditorGraphNode* GraphNode = NodeCreator.CreateNode(bSelectNewNode);
+			GraphNode->Construct(PCGNode);
+			NodeCreator.Finalize();
+			NodeLookup.Add(PCGNode, GraphNode);
+		}
 	}
 
 	for (const auto& NodeLookupIt : NodeLookup)

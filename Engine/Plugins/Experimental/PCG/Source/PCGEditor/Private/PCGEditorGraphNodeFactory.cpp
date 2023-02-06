@@ -3,17 +3,56 @@
 #include "PCGEditorGraphNodeFactory.h"
 
 #include "PCGEditorGraphNodeBase.h"
+#include "PCGEditorGraphNodeReroute.h"
+#include "PCGNode.h"
 #include "SPCGEditorGraphNode.h"
+#include "Elements/PCGReroute.h"
+
+#include "SGraphNodeKnot.h"
+
+class SPCGEditorGraphNodeKnot : public SGraphNodeKnot
+{
+public:
+	SLATE_BEGIN_ARGS(SPCGEditorGraphNodeKnot) {}
+	SLATE_END_ARGS();
+
+	void Construct(const FArguments& InArgs, UPCGEditorGraphNodeBase* InPCGGraphNode)
+	{
+		SGraphNodeKnot::Construct(SGraphNodeKnot::FArguments(), InPCGGraphNode);
+		InPCGGraphNode->OnNodeChangedDelegate.BindSP(this, &SPCGEditorGraphNodeKnot::OnNodeChanged);
+	}
+
+private:
+	void OnNodeChanged()
+	{
+		UpdateGraphNode();
+	}
+};
+
 
 TSharedPtr<SGraphNode> FPCGEditorGraphNodeFactory::CreateNode(UEdGraphNode* InNode) const
 {
 	if (UPCGEditorGraphNodeBase* GraphNode = Cast<UPCGEditorGraphNodeBase>(InNode))
 	{
-		TSharedRef<SGraphNode> VisualNode =
-			SNew(SPCGEditorGraphNode, GraphNode);
-
+		TSharedPtr<SGraphNode> VisualNode;
+		
+		const UPCGNode* PCGNode = GraphNode->GetPCGNode();
+		if (PCGNode && Cast<UPCGRerouteSettings>(PCGNode->GetSettings()))
+		{
+			SAssignNew(VisualNode, SPCGEditorGraphNodeKnot, GraphNode);
+		}
+		else
+		{
+			SAssignNew(VisualNode, SPCGEditorGraphNode, GraphNode);
+		}
+		
 		VisualNode->SlatePrepass();
 
+		return VisualNode.ToSharedRef();
+	}
+	else if (UPCGEditorGraphNodeReroute* RerouteNode = Cast<UPCGEditorGraphNodeReroute>(InNode))
+	{
+		TSharedRef<SGraphNode> VisualNode = SNew(SGraphNodeKnot, RerouteNode);
 		return VisualNode;
 	}
 

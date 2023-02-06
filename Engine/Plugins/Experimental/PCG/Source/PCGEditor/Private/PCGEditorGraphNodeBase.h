@@ -38,7 +38,7 @@ public:
 	virtual FText GetTooltipText() const override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
-	virtual void OnUpdateCommentText(const FString& NewComment);
+	virtual void OnUpdateCommentText(const FString& NewComment) override;
 	virtual void OnCommentBubbleToggled(bool bInCommentBubbleVisible) override;
 	// ~End UEdGraphNode interface
 
@@ -48,6 +48,11 @@ public:
 	void PostPaste();
 	void SetInspected(bool InIsInspecting) { bIsInspected = InIsInspecting; }
 	bool GetInspected() const { return bIsInspected; }
+	
+	/** Increase deferred reconstruct counter, calls to ReconstructNode will flag reconstruct to happen when count hits zero */
+	void EnableDeferredReconstruct();
+	/** Decrease deferred reconstruct counter, ReconstructNode will be called if counter hits zero and the node is flagged for reconstruction  */
+	void DisableDeferredReconstruct();
 
 	DECLARE_DELEGATE(FOnPCGEditorGraphNodeChanged);
 	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;
@@ -72,6 +77,8 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UPCGNode> PCGNode = nullptr;
 
+	int32 DeferredReconstructCounter = 0;
+	bool bDeferredReconstruct = false;
 	bool bDisableReconstructFromNode = false;
 	bool bIsInspected = false;
 };

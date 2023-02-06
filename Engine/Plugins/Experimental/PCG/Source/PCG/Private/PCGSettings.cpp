@@ -599,6 +599,13 @@ void UPCGSettingsInstance::OnSettingsChanged(UPCGSettings* InSettings, EPCGChang
 }
 #endif
 
+UPCGTrivialSettings::UPCGTrivialSettings()
+{
+#if WITH_EDITORONLY_DATA
+	bExposeToLibrary = false;
+#endif
+}
+
 FPCGElementPtr UPCGTrivialSettings::CreateElement() const
 {
 	return MakeShared<FPCGTrivialElement>();

@@ -597,9 +597,11 @@ void UPCGNode::CreateDefaultPins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator
 	CreatePins(OutputPins, Settings->DefaultOutputPinProperties());
 }
 
-EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator)
+EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator, const UPCGNode* FromNode /*= nullptr*/)
 {
-	if (!GetSettings())
+	const UPCGSettings* Settings = GetSettings();
+	
+	if (!Settings)
 	{
 		bool bChanged = !InputPins.IsEmpty() || !OutputPins.IsEmpty();
 
@@ -629,10 +631,9 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 		OutputPins.Reset();
 		return EPCGChangeType::Edge | EPCGChangeType::Node;
 	}
-
-	UPCGSettings* Settings = GetSettings();
-	TArray<FPCGPinProperties> InboundPinProperties = Settings->AllInputPinProperties();
-	TArray<FPCGPinProperties> OutboundPinProperties = Settings->AllOutputPinProperties();
+	
+	const TArray<FPCGPinProperties> InboundPinProperties = Settings->AllInputPinProperties();
+	const TArray<FPCGPinProperties> OutboundPinProperties = Settings->AllOutputPinProperties();
 
 	auto UpdatePins = [this, &PinAllocator](TArray<UPCGPin*>& Pins, const TArray<FPCGPinProperties>& PinProperties)
 	{
@@ -744,6 +745,48 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 	ChangeType |= UpdatePins(InputPins, InboundPinProperties);
 	ChangeType |= UpdatePins(OutputPins, OutboundPinProperties);
 
+#if WITH_EDITOR
+	OnNodeChangedDelegate.Broadcast(this, ChangeType);
+#endif // WITH_EDITOR
+		
+	return ChangeType;
+}
+
+EPCGChangeType UPCGNode::UpdateDynamicPins(const UPCGNode* FromNode /*= nullptr*/)
+{
+	EPCGChangeType ChangeType = EPCGChangeType::None;
+	const UPCGSettings* Settings = GetSettings();
+	if (!Settings || !Settings->HasDynamicPins())
+	{
+		return ChangeType;
+	}
+
+	ChangeType |= UpdatePins();
+	
+	for (UPCGPin* OutputPin : OutputPins)
+	{
+		for (UPCGEdge* Edge : OutputPin->Edges)
+		{
+			const UPCGPin* OtherPin = Edge->GetOtherPin(OutputPin);
+			if (!OtherPin)
+			{
+				continue;
+			}
+			
+			UPCGNode* OtherNode = OtherPin->Node;
+			if (!OtherNode || OtherNode == FromNode)
+			{
+				continue;
+			}
+			
+			const UPCGSettings* OtherSettings = OtherNode->GetSettings();
+			if (Settings && OtherSettings->HasDynamicPins())
+			{
+				ChangeType |= OtherNode->UpdateDynamicPins(this);
+			}
+		}
+	}
+	
 	return ChangeType;
 }
 

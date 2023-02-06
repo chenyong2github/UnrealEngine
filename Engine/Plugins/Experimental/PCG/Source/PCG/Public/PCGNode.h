@@ -163,7 +163,8 @@ public:
 
 protected:
 	EPCGChangeType UpdatePins();
-	EPCGChangeType UpdatePins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator);
+	EPCGChangeType UpdatePins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator, const UPCGNode* FromNode = nullptr);
+	EPCGChangeType UpdateDynamicPins(const UPCGNode* FromNode = nullptr);
 
 	// When we create a new graph, we initialize the input/output nodes as default, with default pins.
 	// Those default pins are not serialized, therefore if we change the default pins, combined with the use

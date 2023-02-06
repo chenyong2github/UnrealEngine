@@ -135,6 +135,9 @@ public:
 	/** For symmetry reason, do the same with output pins. For now forward just the call to OutputPinProperties */
 	TArray<FPCGPinProperties> AllOutputPinProperties() const;
 
+	/** If the node has any dynamic pins that can change based on input or settings */
+	virtual bool HasDynamicPins() const { return false; }
+
 	// Internal functions, should not be used by any user.
 	// Return a different subset for for input/output pin properties, in case of a default object.
 	virtual TArray<FPCGPinProperties> DefaultInputPinProperties() const;
@@ -200,7 +203,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
-	bool bExposeToLibrary = false;
+	bool bExposeToLibrary = true;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
 	FText Category;
@@ -310,6 +313,9 @@ UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGTrivialSettings : public UPCGSettings
 {
 	GENERATED_BODY()
+	
+public:
+	UPCGTrivialSettings();
 
 protected:
 	//~UPCGSettings implementation

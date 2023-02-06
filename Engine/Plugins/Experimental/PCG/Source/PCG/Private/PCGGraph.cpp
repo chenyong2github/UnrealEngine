@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGraph.h"
+
 #include "PCGInputOutputSettings.h"
 #include "PCGModule.h"
 #include "PCGSubsystem.h"
@@ -333,6 +334,9 @@ bool UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& FromPinLabel, UPCGNo
 		bToPinBrokeOtherEdges = ToPin->BreakAllIncompatibleEdges();
 	}
 	
+	From->UpdateDynamicPins();
+	To->UpdateDynamicPins();
+
 #if WITH_EDITOR
 	NotifyGraphChanged(EPCGChangeType::Structural);
 #endif
@@ -411,12 +415,15 @@ bool UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To,
 
 	const bool bChanged = OutPin && OutPin->BreakEdgeTo(InPin);
 
-#if WITH_EDITOR
 	if (bChanged)
 	{
+		From->UpdateDynamicPins();
+		To->UpdateDynamicPins();
+
+#if WITH_EDITOR
 		NotifyGraphChanged(EPCGChangeType::Structural);
-	}
 #endif
+	}
 
 	return bChanged;
 }
@@ -445,6 +452,7 @@ bool UPCGGraph::RemoveAllInboundEdges(UPCGNode* InNode)
 #if WITH_EDITOR
 	if (bChanged)
 	{
+		InNode->UpdateDynamicPins();
 		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
@@ -464,6 +472,7 @@ bool UPCGGraph::RemoveAllOutboundEdges(UPCGNode* InNode)
 #if WITH_EDITOR
 	if (bChanged)
 	{
+		InNode->UpdateDynamicPins();
 		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
@@ -484,6 +493,7 @@ bool UPCGGraph::RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel)
 #if WITH_EDITOR
 	if (bChanged)
 	{
+		InNode->UpdateDynamicPins();
 		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
@@ -504,6 +514,7 @@ bool UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel
 #if WITH_EDITOR
 	if (bChanged)
 	{
+		InNode->UpdateDynamicPins();
 		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
