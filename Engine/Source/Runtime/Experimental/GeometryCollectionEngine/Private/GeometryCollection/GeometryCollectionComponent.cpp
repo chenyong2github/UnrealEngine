@@ -2732,7 +2732,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 	// do the same thing, but through the geometry collection proxy and lambdas
 	// defined below.  FBodyInstance doesn't work for geometry collections 
 	// because FBodyInstance manages a single particle, where we have many.
-	if (!PhysicsProxy)
+	if (!PhysicsProxy && RestCollection)
 	{
 #if WITH_EDITOR && WITH_EDITORONLY_DATA
 		EditorActor = nullptr;
