@@ -426,4 +426,20 @@ private:
 	virtual bool PassesFilter(FAssetFilterType InItem) const override;
 };
 
+/** A filter that displays only assets the are mark as unsupported */
+class CONTENTBROWSER_API FFrontendFilter_Unsupported : public FFrontendFilter
+{
+public:
+	FFrontendFilter_Unsupported(TSharedPtr<FFrontendFilterCategory> InCategory);
+	~FFrontendFilter_Unsupported() = default;
+
+	// FFrontendFilter implementation
+	virtual FString GetName() const override { return TEXT("Unsupported"); }
+	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_Unsupported", "Unsupported"); }
+	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_UnsupportedTooltip", "Show only assets that are not supported by this project."); }
+
+	// IFilter implementation
+	virtual bool PassesFilter(FAssetFilterType InItem) const override;
+};
+
 #undef LOCTEXT_NAMESPACE

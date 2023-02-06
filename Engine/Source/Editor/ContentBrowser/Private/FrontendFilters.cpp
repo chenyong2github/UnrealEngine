@@ -1549,3 +1549,13 @@ bool FFrontendFilter_VirtualizedData::PassesFilter(FAssetFilterType InItem) cons
 		return false;
 	}
 }
+
+FFrontendFilter_Unsupported::FFrontendFilter_Unsupported(TSharedPtr<FFrontendFilterCategory> InCategory)
+	:FFrontendFilter (InCategory)
+{
+}
+
+bool FFrontendFilter_Unsupported::PassesFilter(FAssetFilterType InItem) const
+{
+	return !InItem.IsSupported();
+}
