@@ -38,6 +38,7 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 
 void FWorldPartitionActorDesc::Init(const AActor* InActor)
 {	
+	check(IsValid(InActor));
 	check(InActor->IsPackageExternal());
 
 	Guid = InActor->GetActorGuid();

@@ -12,7 +12,7 @@
 FWorldPartitionActorViewProxy::FWorldPartitionActorViewProxy(const FWorldPartitionActorDesc* InActorDesc)
 	: FWorldPartitionActorDescView(InActorDesc)
 {
-	if (AActor* Actor = ActorDesc->GetActor())
+	if (AActor* Actor = ActorDesc->GetActor(false))
 	{
 		if (Actor->GetPackage()->IsDirty())
 		{
