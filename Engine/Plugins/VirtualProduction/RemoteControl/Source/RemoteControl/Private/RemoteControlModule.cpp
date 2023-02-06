@@ -1920,6 +1920,27 @@ int32 FRemoteControlModule::EndManualEditorTransaction(const FGuid& TransactionI
 	return INDEX_NONE;
 }
 
+bool FRemoteControlModule::CanBeAccessedRemotely(UObject* Object) const
+{
+	check(Object);
+		
+	if (!GetDefault<URemoteControlSettings>()->bEnableRemotePythonExecution)
+	{
+		static const FName PythonScriptName = "PythonScriptLibrary"; 
+		if (Object->GetClass()->GetFName() == PythonScriptName)
+		{
+			return false;
+		}
+	}
+
+	if (Object == GetDefault<URemoteControlSettings>())
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void FRemoteControlModule::CachePresets() const
 {
 	TArray<FAssetData> Assets;
@@ -2209,6 +2230,7 @@ void FRemoteControlModule::RegisterMaskingFactories()
 	RegisterMaskingFactoryForType(TBaseStructure<FLinearColor>::Get(), FLinearColorMaskingFactory::MakeInstance());
 }
 
+
 #if WITH_EDITOR
 void FRemoteControlModule::EndOngoingModificationIfMismatched(uint32 TypeHash)
 {
@@ -2298,27 +2320,6 @@ FRemoteControlModule::FOngoingChange::FOngoingChange(FRCObjectReference InRefere
 FRemoteControlModule::FOngoingChange::FOngoingChange(FRCCallReference InReference)
 {
 	Reference.Set<FRCCallReference>(MoveTemp(InReference));
-}
-
-bool FRemoteControlModule::CanBeAccessedRemotely(UObject* Object) const
-{
-	check(Object);
-		
-	if (!GetDefault<URemoteControlSettings>()->bEnableRemotePythonExecution)
-	{
-		static const FName PythonScriptName = "PythonScriptLibrary"; 
-		if (Object->GetClass()->GetFName() == PythonScriptName)
-		{
-			return false;
-		}
-	}
-
-	if (Object == GetDefault<URemoteControlSettings>())
-	{
-		return false;
-	}
-
-	return true;
 }
 
 #endif
