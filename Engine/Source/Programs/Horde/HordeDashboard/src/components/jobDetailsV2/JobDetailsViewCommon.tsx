@@ -3,7 +3,7 @@ import { action, makeObservable, observable } from "mobx";
 import { observer } from "mobx-react-lite";
 import moment from "moment";
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import backend from "../../backend";
 import { BatchData, GetJobTimingResponse, GetLabelResponse, GetTemplateRefResponse, GroupData, JobData, JobState, LabelState, NodeData, ReportPlacement, StepData, StreamData } from "../../backend/Api";
 import { JobLabel } from "../../backend/JobDetails";
@@ -16,7 +16,7 @@ import { useQuery } from "../JobDetailCommon";
 import { LabelStatusIcon, StepStatusIcon } from "../StatusIcon";
 
 export abstract class JobDataView {
-   
+
    constructor(details: JobDetailsV2) {
       makeObservable(this);
       this.details = details;
@@ -122,7 +122,7 @@ export abstract class JobDataView {
 const defaultUpdateMS = 5000;
 export class JobDetailsV2 extends PollBase {
 
-   constructor(jobId: string) {      
+   constructor(jobId: string) {
       super(defaultUpdateMS)
       makeObservable(this);
       this.jobId = jobId;
@@ -722,6 +722,45 @@ export class JobDetailsV2 extends PollBase {
       this.views = this.views.filter(v => v !== view);
    }
 
+   getStepDependencies(stepId: string): StepData[] {
+
+      const step = this.stepById(stepId);
+
+      if (!step) {
+         return [];
+      }
+
+      const steps: StepData[] = [];
+
+      const nodes: NodeData[] = [];
+
+      const getStepsRecursive = (stepId: string) => {
+
+         const stepNode = this.nodeByStepId(stepId);
+
+         if (!stepNode || nodes.find(n => stepNode === n)) {
+            return;
+         }
+
+         nodes.push(stepNode);
+
+         [stepNode.inputDependencies, stepNode.orderDependencies].flat().forEach(name => {
+            const s = this.stepByName(name);
+            if (s) {
+               steps.push(s);
+               getStepsRecursive(s.id);
+            }
+         });
+      };
+
+      getStepsRecursive(stepId);
+
+      steps.push(step);
+      
+      return steps;
+
+   }
+
    getDataView<T extends JobDataView>(name: string): T {
 
       let view = this.views.find(v => v.name === name);
@@ -1261,7 +1300,7 @@ export const JobFilterBar: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ 
                   if (idx >= 0) {
                      navigate(location.pathname + `?label=${idx}`);
                   } else {
-                     navigate(location.pathname, {replace: true});
+                     navigate(location.pathname, { replace: true });
                   }
                }
 

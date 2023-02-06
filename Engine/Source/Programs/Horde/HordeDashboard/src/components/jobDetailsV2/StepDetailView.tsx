@@ -12,6 +12,7 @@ import { HealthPanel } from "./JobDetailHealthV2";
 import { StepHistoryPanel } from "./JobDetailStepHistory";
 import { StepTrendsPanel } from "./JobDetailStepTrends";
 import { JobDataView, JobDetailsV2 } from "./JobDetailsViewCommon";
+import { TimelinePanel } from "./JobDetailTimeline";
 import { StepsPanelV2 } from "./JobDetailViewSteps";
 import { StepSummaryPanel } from "./StepDetailSummary";
 import { StepTestReportPanel } from "./StepDetailTestPanel";
@@ -88,6 +89,9 @@ const StepDetailViewInner: React.FC<{ jobDetails: JobDetailsV2, stepId: string }
       <Stack>
          <JobDetailArtifactsV2 jobDetails={jobDetails} stepId={stepId} />
       </Stack>
+      {!!step && <Stack>
+         <TimelinePanel jobDetails={jobDetails} stepId={stepId} />
+      </Stack>}
       {!!step && <Stack>
          <StepTrendsPanel jobDetails={jobDetails} />
       </Stack>}

@@ -284,7 +284,7 @@ class TrendsDataView extends JobDataView {
       });
    };
 
-   order = 7;
+   order = 8;
 }
 
 JobDetailsV2.registerDataView("TrendsDataView", (details: JobDetailsV2) => new TrendsDataView(details));
