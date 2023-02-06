@@ -10,6 +10,7 @@
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "WorldPartition/WorldPartitionRuntimeHash.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeCell)
 
@@ -22,6 +23,24 @@ UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer&
 #endif
 	, RuntimeCellData(nullptr)
 {}
+
+UWorld* UWorldPartitionRuntimeCell::GetOwningWorld() const
+{
+	if (URuntimeHashExternalStreamingObjectBase* StreamingObjectOuter = GetTypedOuter<URuntimeHashExternalStreamingObjectBase>())
+	{
+		return StreamingObjectOuter->GetOwningWorld();
+	}
+	return UObject::GetTypedOuter<UWorldPartition>()->GetWorld();
+}
+
+UWorld* UWorldPartitionRuntimeCell::GetOuterWorld() const
+{
+	if (URuntimeHashExternalStreamingObjectBase* StreamingObjectOuter = GetTypedOuter<URuntimeHashExternalStreamingObjectBase>())
+	{
+		return StreamingObjectOuter->GetOuterWorld();
+	}
+	return UObject::GetTypedOuter<UWorld>();
+}
 
 #if WITH_EDITOR
 void UWorldPartitionRuntimeCell::PostDuplicate(bool bDuplicateForPIE)

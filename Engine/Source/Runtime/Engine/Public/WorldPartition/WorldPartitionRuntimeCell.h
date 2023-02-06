@@ -157,6 +157,17 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif
 
+	template<class T>
+	T* GetTypedOuter() const
+	{
+		static_assert(!std::is_same<T, UWorld>::value, "Use GetOuterWorld instead");
+		static_assert(!std::is_same<T, UWorldPartition>::value, "Use GetOuterWorld()->GetWorldPartition() instead");
+		return Super::GetTypedOuter<T>();
+	}
+
+	UWorld* GetOwningWorld() const;
+	UWorld* GetOuterWorld() const;
+
 	virtual void Load() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Load,);
 	virtual void Unload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Unload,);
 	virtual bool CanUnload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::CanUnload, return true;);

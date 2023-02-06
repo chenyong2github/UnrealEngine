@@ -170,24 +170,6 @@ bool UWorldPartitionRuntimeLevelStreamingCell::IsLoading() const
 	return Super::IsLoading();
 }
 
-UWorld* UWorldPartitionRuntimeLevelStreamingCell::GetOwningWorld() const
-{
-	if (URuntimeHashExternalStreamingObjectBase* StreamingObjectOuter = GetTypedOuter<URuntimeHashExternalStreamingObjectBase>())
-	{
-		return StreamingObjectOuter->GetOwningWorld();
-	}
-	return GetTypedOuter<UWorldPartition>()->GetWorld();
-}
-
-UWorld* UWorldPartitionRuntimeLevelStreamingCell::GetOuterWorld() const
-{
-	if (URuntimeHashExternalStreamingObjectBase* StreamingObjectOuter = GetTypedOuter<URuntimeHashExternalStreamingObjectBase>())
-	{
-		return StreamingObjectOuter->GetOuterWorld();
-	}
-	return GetTypedOuter<UWorld>();
-}
-
 FLinearColor UWorldPartitionRuntimeLevelStreamingCell::GetDebugColor(EWorldPartitionRuntimeCellVisualizeMode VisualizeMode) const
 {
 	switch (VisualizeMode)
@@ -321,7 +303,7 @@ int32 UWorldPartitionRuntimeLevelStreamingCell::GetActorCount() const
 
 FString UWorldPartitionRuntimeLevelStreamingCell::GetPackageNameToCreate() const
 {
-	return UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(GetFName(), GetTypedOuter<UWorld>());
+	return UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(GetFName(), GetOuterWorld());
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::DumpStateLog(FHierarchicalLogArchive& Ar)
@@ -359,7 +341,7 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 	if (LevelStreaming)
 	{
 		// Setup pre-created LevelStreaming's outer to the WorldPartition owning world
-		const UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>();
+		const UWorldPartition* WorldPartition = GetOuterWorld()->GetWorldPartition();
 		UWorld* OwningWorld = GetOwningWorld();
 		if (LevelStreaming->GetWorld() != OwningWorld)
 		{
@@ -500,16 +482,18 @@ void UWorldPartitionRuntimeLevelStreamingCell::Deactivate() const
 
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown()
 {
-	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>(); WorldPartition && WorldPartition->IsInitialized())
+	UWorldPartition* OuterWorldPartition = GetOuterWorld()->GetWorldPartition();
+	if (OuterWorldPartition && OuterWorldPartition->IsInitialized())
 	{
-		WorldPartition->OnCellShown(this);
+		OuterWorldPartition->OnCellShown(this);
 	}
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden()
 {
-	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>(); WorldPartition && WorldPartition->IsInitialized())
+	UWorldPartition* OuterWorldPartition = GetOuterWorld()->GetWorldPartition();
+	if (OuterWorldPartition && OuterWorldPartition->IsInitialized())
 	{
-		WorldPartition->OnCellHidden(this);
+		OuterWorldPartition->OnCellHidden(this);
 	}
 }

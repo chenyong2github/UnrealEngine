@@ -50,7 +50,7 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
 	StreamingPriority = 0;
 
-	UWorld* CellOuterWorld = InCell.GetTypedOuter<UWorld>();
+	UWorld* CellOuterWorld = InCell.GetOuterWorld();
 #if WITH_EDITOR
 	check(ChildPackages.Num() == 0);
 
@@ -647,17 +647,20 @@ bool UWorldPartitionLevelStreamingDynamic::CanChangeVisibility(bool bMakeVisible
 
 			if (!bAlwaysAllowVisibilityChange)
 			{
-				if (const UWorldPartition* WorldPartition = RuntimeLevelStreamingCell->GetTypedOuter<UWorldPartition>())
+				if (const UWorld* OuterWorld = RuntimeLevelStreamingCell->GetOuterWorld())
 				{
-					if (UHLODSubsystem* HLODSubsystem = GetWorld()->GetSubsystem<UHLODSubsystem>())
+					if (const UWorldPartition* WorldPartition = OuterWorld->GetWorldPartition())
 					{
-						if (bMakeVisible)
+						if (UHLODSubsystem* HLODSubsystem = GetWorld()->GetSubsystem<UHLODSubsystem>())
 						{
-							return HLODSubsystem->CanMakeVisible(RuntimeLevelStreamingCell);
-						}
-						else
-						{
-							return HLODSubsystem->CanMakeInvisible(RuntimeLevelStreamingCell);
+							if (bMakeVisible)
+							{
+								return HLODSubsystem->CanMakeVisible(RuntimeLevelStreamingCell);
+							}
+							else
+							{
+								return HLODSubsystem->CanMakeInvisible(RuntimeLevelStreamingCell);
+							}
 						}
 					}
 				}

@@ -4,7 +4,7 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
-#include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
+#include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "Algo/AnyOf.h"
@@ -37,6 +37,10 @@ UWorldPartition* FWorldPartitionHelpers::GetWorldPartition(const UObject* InObje
 	else if (const ULevel* OuterLevel = InObject->GetTypedOuter<ULevel>())
 	{
 		return GetWorldPartition(OuterLevel);
+	}
+	else if (const UWorldPartitionRuntimeCell* Cell = Cast<const UWorldPartitionRuntimeCell>(InObject))
+	{
+		OuterWorld = Cell->GetOuterWorld();
 	}
 
 	if (!OuterWorld)
