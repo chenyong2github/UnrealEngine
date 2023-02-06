@@ -16,10 +16,11 @@ public class LowLevelTests : TestModuleRules
 		if (Target.bBuildWithEditorOnlyData)
 		{
 			PrivateDependencyModuleNames.AddRange(
-				new string[] { "DesktopPlatform" }
-				);
+				new string[] {
+					"DesktopPlatform"
+				});
 		}
 
-		UpdateBuildGraphPropertiesFile(new Metadata("Self"), false);
+		UpdateBuildGraphPropertiesFile(new Metadata("Foundation"), false);
 	}
 }

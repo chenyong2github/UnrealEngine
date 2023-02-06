@@ -7,17 +7,28 @@
 #include "CoreMinimal.h"
 #include "DistanceFieldAtlas.h"
 #include "MeshCardRepresentation.h"
+#include "Modules/ModuleManager.h"
 #include "RenderUtils.h"
 #include "ShaderParameterMetadata.h"
 
+#if WITH_COREUOBJECT
+	#include "Internationalization/EnginePackageLocalizationCache.h"
+	#include "Internationalization/PackageLocalizationManager.h"
+	#include "Templates/SharedPointer.h"
+#endif
+
+struct GlobalEngineInitialization
+{
+	GlobalEngineInitialization()
+	{
+		// Any initialization to be triggered before other global objects
+	}
+} GEngineInitializationLowLevelTests;
 
 void InitAsyncQueues()
 {
 	check(!GDistanceFieldAsyncQueue);
 	GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
-
-	check(!GCardRepresentationAsyncQueue);
-	GCardRepresentationAsyncQueue = new FCardRepresentationAsyncQueue();
 }
 
 void InitRendering()
@@ -35,4 +46,22 @@ void InitRendering()
 		RenderUtilsInit();
 	}
 }
+
+void InitEngine()
+{
+	FModuleManager::Get().LoadModule(TEXT("Engine"));
+	FModuleManager::Get().LoadModule(TEXT("RenderCore"));
+
+#if WITH_COREUOBJECT
+	FPackageLocalizationManager::Get().InitializeFromLazyCallback([](FPackageLocalizationManager& InPackageLocalizationManager)
+	{
+		InPackageLocalizationManager.InitializeFromCache(MakeShareable(new FEnginePackageLocalizationCache()));
+	});
+#endif
+}
+
+void CleanupEngine()
+{
+}
+
 #endif // WITH_ENGINE

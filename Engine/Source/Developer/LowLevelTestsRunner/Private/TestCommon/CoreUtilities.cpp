@@ -10,12 +10,28 @@
 
 #include "TestCommon/CoreUtilities.h"
 
+#if WITH_APPLICATION_CORE
+#include "HAL/PlatformApplicationMisc.h"
+#endif
+
 void InitCommandLine()
 {
 }
 
 void CleanupCommandLine()
 {
+}
+
+void InitGWarn()
+{
+	if (GWarn == nullptr)
+	{
+#if WITH_APPLICATION_CORE
+		GWarn = FPlatformApplicationMisc::GetFeedbackContext();
+#else
+		GWarn = FPlatformOutputDevices::GetFeedbackContext();
+#endif
+	}
 }
 
 void InitIOThreadPool(bool MultiThreaded, int32 StackSize)

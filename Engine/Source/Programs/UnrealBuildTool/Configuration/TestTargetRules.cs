@@ -46,7 +46,7 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Test target override for bCompileAgainstApplicationCore.
-		/// It is set to true if there is any reference to ApplicationCore in the reference chain.
+		/// It is set to true if there is any reference to ApplicationCore in the dependency graph.
 		/// </summary>
 		public override bool bCompileAgainstApplicationCore
 		{
@@ -55,8 +55,13 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// If set to true, it will not compile against ApplicationCore even if "ApplicationCore" is in the dependency graph.
+		/// </summary>
+		public static bool bNeverCompileAgainstApplicationCore = false;
+
+		/// <summary>
 		/// Test target override for bCompileAgainstCoreUObject.
-		/// It is set to true if there is any reference to CoreUObject in the reference chain.
+		/// It is set to true if there is any reference to CoreUObject in the dependency graph.
 		/// </summary>
 		public override bool bCompileAgainstCoreUObject
 		{
@@ -65,8 +70,13 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// If set to true, it will not compile against CoreUObject even if "CoreUObject" is in the dependency graph.
+		/// </summary>
+		public static bool bNeverCompileAgainstCoreUObject = false;
+
+		/// <summary>
 		/// Test target override for bCompileAgainstEngine.
-		/// It is set to true if there is any reference to Engine in the reference chain.
+		/// It is set to true if there is any reference to Engine in the dependency graph.
 		/// </summary>
 		public override bool bCompileAgainstEngine
 		{
@@ -75,14 +85,25 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// If set to true, it will not compile against engine even if "Engine" is in the dependency graph.
+		/// Note: Currently set to true because it requires cooked Engine assets.
+		/// </summary>
+		public static bool bNeverCompileAgainstEngine = true;
+
+		/// <summary>
 		/// Test target override for bCompileAgainstEditor.
-		/// It is set to true if there is any reference to UnrealEd in the reference chain.
+		/// It is set to true if there is any reference to UnrealEd in the dependency graph.
 		/// </summary>
 		public override bool bCompileAgainstEditor
 		{
 			get { return bTestsRequireEditor; }
 			set { bTestsRequireEditor = value; }
 		}
+
+		/// <summary>
+		/// If set to true, it will not compile against editor even if "UnrealEd" is in the dependency graph.
+		/// </summary>
+		public static bool bNeverCompileAgainstEditor = false;
 
 		/// <summary>
 		/// Constructor for TestTargetRules as own target.
@@ -92,12 +113,9 @@ namespace UnrealBuildTool
 		{
 			SetupCommonProperties(Target);
 
-			bExplicitTestsTargetOverride = this.GetType() != typeof(TestTargetRules);
+			ExeBinariesSubFolder = LaunchModuleName = Name + (ExplicitTestsTarget ? string.Empty : "Tests");
 
-			ExeBinariesSubFolder = LaunchModuleName = Name + (bExplicitTestsTargetOverride ? string.Empty : "Tests");
-			IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
-
-			if (bExplicitTestsTargetOverride)
+			if (ExplicitTestsTarget)
 			{
 				bBuildInSolutionByDefault = true;
 				SolutionDirectory = "Programs/LowLevelTests";
@@ -162,6 +180,8 @@ namespace UnrealBuildTool
 
 			this.TestedTarget = TestedTarget;
 
+			TargetFiles = TestedTarget.TargetFiles;
+
 			ExeBinariesSubFolder = Name = TestedTarget.Name + "Tests";
 			TargetSourceFile = File = TestedTarget.File;
 			if (TestedTarget.LaunchModuleName != null)
@@ -178,6 +198,8 @@ namespace UnrealBuildTool
 
 		private void SetupCommonProperties(TargetInfo Target)
 		{
+			IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+
 			bIsTestTargetOverride = true;
 
 			VSTestRunSettingsFile = FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "LowLevelTests", "vstest.runsettings");
@@ -203,18 +225,27 @@ namespace UnrealBuildTool
 			// No need for shaders by default
 			bForceBuildShaderFormats = false;
 
-			// Do not link against the engine, no Chromium Embedded Framework etc.
+			// Do not compile against the engine, editor etc
 			bCompileAgainstEngine = false;
-			bCompileCEF3 = false;
+			bCompileAgainstEditor = false;
 			bCompileAgainstCoreUObject = false;
 			bCompileAgainstApplicationCore = false;
+			bCompileCEF3 = false;
+
+			// No mixing with Functional Test framework
+			bForceDisableAutomationTests = true;
+
+			bDebugBuildsActuallyUseDebugCRT = true;
+
+			// Allow logging in shipping
 			bUseLoggingInShipping = true;
 
 			// Allow exception handling
 			bForceEnableExceptions = true;
 
-			bool bDebugOrDevelopment = Target.Configuration == UnrealTargetConfiguration.Debug || Target.Configuration == UnrealTargetConfiguration.Development;
-			bBuildWithEditorOnlyData = Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) && bDebugOrDevelopment;
+			bBuildWithEditorOnlyData = false;
+			bBuildRequiresCookedData = true;
+			bBuildDeveloperTools = false;
 
 			// Disable malloc profiling in tests
 			bUseMallocProfiler = false;
@@ -223,6 +254,11 @@ namespace UnrealBuildTool
 			if (Target.Configuration == UnrealTargetConfiguration.Debug)
 			{
 				bDebugBuildsActuallyUseDebugCRT = true;
+			}
+
+			if (!ExplicitTestsTarget && TestedTarget != null)
+			{
+				GlobalDefinitions.AddRange(TestedTarget.GlobalDefinitions);
 			}
 
 			GlobalDefinitions.Add("STATS=0");

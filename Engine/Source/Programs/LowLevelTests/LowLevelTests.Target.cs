@@ -8,8 +8,8 @@ public class LowLevelTestsTarget : TestTargetRules
 {
 	public LowLevelTestsTarget(TargetInfo Target) : base(Target)
 	{
+		// Collects all tests decorated with #if WITH_LOW_LEVELTESTS from dependencies
 		bWithLowLevelTestsOverride = true;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{

@@ -6,5 +6,7 @@
 
 void InitAsyncQueues();
 void InitRendering();
+void InitEngine();
+void CleanupEngine();
 
 #endif // WITH_ENGINE

@@ -4477,7 +4477,11 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.Definitions.Add("WITH_DEV_AUTOMATION_TESTS=" + (bCompileDevTests ? "1" : "0"));
 			GlobalCompileEnvironment.Definitions.Add("WITH_PERF_AUTOMATION_TESTS=" + (bCompilePerfTests ? "1" : "0"));
 
+			// Target contains Low Level Tests
 			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_LOW_LEVEL_TESTS={0}", Rules.WithLowLevelTests ? "1" : "0"));
+			// Target derived from TestTargetRules containing Low Level Tests, i.e. an explicit target
+			GlobalCompileEnvironment.Definitions.Add(String.Format("EXPLICIT_TESTS_TARGET={0}", Rules.ExplicitTestsTarget ? "1" : "0"));
+			// Target contains Low Level Tests or Functional Tests
 			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_TESTS={0}", Rules.WithLowLevelTests || bCompileDevTests || bCompilePerfTests ? "1" : "0"));
 
 			GlobalCompileEnvironment.Definitions.Add("UNICODE");

@@ -11,10 +11,12 @@
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
 
+#if WITH_ENGINE
+#include "Framework/Application/SlateApplication.h"
+#endif
+
 void InitCoreUObject()
 {
-	//Initialize the PackageResourceManager, which is needed to load any (non-script) Packages. It is first used in ProcessNewlyLoadedObjects (due to the loading of asset references in Class Default Objects)
-	// It has to be intialized after the AssetRegistryModule; the editor implementations of PackageResourceManager relies on it
 	IPackageResourceManager::Initialize();
 
 	if (!GetTransientPackage())
@@ -25,6 +27,11 @@ void InitCoreUObject()
 
 		FModuleManager::Get().LoadModule(TEXT("CoreUObject"));
 		FCoreDelegates::OnInit.Broadcast();
+
+#if WITH_ENGINE
+		FSlateApplication::InitializeCoreStyle();
+#endif
+
 		ProcessNewlyLoadedUObjects();
 	}
 }

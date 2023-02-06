@@ -7,8 +7,5 @@ public class ChaosUserDataPTTestsTarget : TestTargetRules
 {
 	public ChaosUserDataPTTestsTarget(TargetInfo Target) : base(Target)
 	{
-		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
-		bCompileAgainstCoreUObject = true;
-		bCompileAgainstApplicationCore = true;
 	}
 }

@@ -465,12 +465,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool ExplicitTestsTarget
 		{
-			get { return bExplicitTestsTargetOverride; }
+			get { return GetType().IsSubclassOf(typeof(TestTargetRules)); }
 		}
-		/// <summary>
-		/// This flag is automatically set when classes inherit from TestTargetRules.
-		/// </summary>
-		protected bool bExplicitTestsTargetOverride;
 
 		/// <summary>
 		/// Controls the value of WITH_LOW_LEVEL_TESTS that dictates whether module-specific low level tests are compiled in or not.
@@ -3857,16 +3853,27 @@ namespace UnrealBuildTool
 			get { return "../Binaries/ThirdParty/"; }
 		}
 
+		/// <summary>
+		/// Whether this is a low level tests target.
+		/// </summary>
 		public bool IsTestTarget
 		{
 			get { return Inner.IsTestTarget; }
 		}
 
+		/// <summary>
+		/// Whether this is a test target explicitly defined.
+		/// Explicitley defined test targets always inherit from TestTargetRules and define their own tests.
+		/// Implicit test targets are created from existing targets when building with -Mode=Test and they include tests from all dependencies.
+		/// </summary>
 		public bool ExplicitTestsTarget
 		{
 			get { return Inner.ExplicitTestsTarget; }
 		}
 
+		/// <summary>
+		/// Controls the value of WITH_LOW_LEVEL_TESTS that dictates whether module-specific low level tests are compiled in or not.
+		/// </summary>
 		public bool WithLowLevelTests
 		{
 			get { return Inner.WithLowLevelTests; }

@@ -105,7 +105,7 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 				ExtraArgs.Append(Arg).AppendChar(' ');
 			}
 		}
-		else if (Arg == ANSITEXTVIEW("--"))
+		else if (Arg == ANSITEXTVIEW("--extra-args"))
 		{
 			bExtraArg = true;
 		}

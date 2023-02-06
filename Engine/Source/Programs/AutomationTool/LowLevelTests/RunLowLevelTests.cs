@@ -420,6 +420,22 @@ namespace LowLevelTests
 	}
 
 	/// <summary>
+	/// Platform and test specific extension that provides extra command line arguments.
+	/// </summary>
+	public interface ILowLevelTestsExtension
+	{
+		/// <summary>
+		/// Use this to implement platform and test specific specializations of ILowLevelTestsExtension.
+		/// </summary>
+		bool IsSupported(UnrealTargetPlatform InPlatform, string InTestApp);
+
+		/// <summary>
+		/// Return extra command line arguments specific to a platform and/or test.
+		/// </summary>
+		string ExtraCommandLine(UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath);
+	}
+
+	/// <summary>
 	/// Platform-specific reporting utility for defining Catch2 report path and means to copy it to a saved storage either from its local directory or from a target device.
 	/// </summary>
 	public interface ILowLevelTestsReporting
@@ -555,6 +571,9 @@ namespace LowLevelTests
 
 		private ILowLevelTestsBuildFactory LowLevelTestsBuildFactory;
 		private ILowLevelTestsReporting LowLevelTestsReporting;
+#nullable enable
+		private ILowLevelTestsExtension? LowLevelTestsExtension;
+#nullable disable
 
 		public UnrealTargetPlatform Platform { get; protected set; }
 		public UnrealTargetConfiguration Configuration { get; protected set; }
@@ -583,6 +602,10 @@ namespace LowLevelTests
 			LowLevelTestsReporting = Gauntlet.Utils.InterfaceHelpers.FindImplementations<ILowLevelTestsReporting>(true)
 				.Where(B => B.CanSupportPlatform(InTargetPlatform))
 				.First();
+
+			LowLevelTestsExtension = Gauntlet.Utils.InterfaceHelpers.FindImplementations<ILowLevelTestsExtension>(true)
+				.Where(B => B.IsSupported(InTargetPlatform, InTestApp))
+				.FirstOrDefault();
 		}
 
 		public UnrealAppConfig GetUnrealAppConfig(string InTags, int InSleep, bool InAttachToDebugger, string InReportType)
@@ -616,6 +639,14 @@ namespace LowLevelTests
 				if (InAttachToDebugger)
 				{
 					CachedConfig.CommandLineParams.AddRawCommandline("--attach-to-debugger");
+				}
+				if (LowLevelTestsExtension != null)
+				{
+					string ExtraCmd = LowLevelTestsExtension.ExtraCommandLine(Platform, TestApp, BuildPath);
+					if (!string.IsNullOrEmpty(ExtraCmd))
+					{
+						CachedConfig.CommandLineParams.AddRawCommandline(string.Format("--extra-args {0}", ExtraCmd));
+					}
 				}
 			}
 			return CachedConfig;

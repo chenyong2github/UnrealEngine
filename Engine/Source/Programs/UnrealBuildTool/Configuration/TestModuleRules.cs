@@ -70,6 +70,7 @@ namespace UnrealBuildTool
 			Context = TestedModule.Context;
 
 			PrivateDependencyModuleNames.AddRange(TestedModule.PrivateDependencyModuleNames);
+			PublicDependencyModuleNames.AddRange(TestedModule.PublicDependencyModuleNames);
 
 			// Tests can refer to tested module's Public and Private paths
 			string ModulePublicDir = Path.Combine(TestedModule.ModuleDirectory, "Public");

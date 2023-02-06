@@ -6,7 +6,6 @@
 #include "PBDRigidsSolver.h"
 #include "ChaosSolversModule.h"
 #include "Chaos/Box.h"
-#include "TestCommon/Initialization.h"
 
 class FTestUserData : public Chaos::TUserDataManagerPT<FString> { };
 

@@ -6,7 +6,6 @@
 #include "TestCommon/EngineUtilities.h"
 
 
-
 void InitAllThreadPoolsEditorEx(bool MultiThreaded)
 {
 #if WITH_EDITOR
@@ -30,7 +29,8 @@ void InitAll(bool bAllowLogging, bool bMultithreaded)
 #endif // WITH_ENGINE
 	InitTaskGraph();
 #if WITH_ENGINE
-	InitRendering();
+	InitGWarn();
+	InitEngine();
 #endif // WITH_ENGINE
 #if WITH_EDITOR
 	InitDerivedDataCache();
@@ -45,6 +45,9 @@ void InitAll(bool bAllowLogging, bool bMultithreaded)
 
 void CleanupAll()
 {
+#if WITH_ENGINE
+	CleanupEngine();
+#endif
 #if WITH_COREUOBJECT
 	CleanupCoreUObject();
 #endif

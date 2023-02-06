@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Async/TaskGraphInterfaces.h"
 
+void InitGWarn();
+
 void InitIOThreadPool(bool MultiThreaded = false, int32 StackSize = 128 * 1024);
 
 void InitThreadPool(bool MultiThreaded = false, int32 StackSize = 128 * 1024);

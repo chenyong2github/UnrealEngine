@@ -1284,6 +1284,10 @@ namespace UnrealBuildTool
 		{
 			get
 			{
+				if (IsTestModule)
+				{
+					return Directory.FullName;
+				}
 				return Path.Combine(Directory.FullName, "Tests");
 			}
 		}
@@ -1519,22 +1523,19 @@ namespace UnrealBuildTool
 				TestTargetRules.LowLevelTestsRunnerModule = this;
 			}
 
-			// If one of these modules is in the dependency graph, we must enable their appropriate global definitions
-			if (Name == "UnrealEd")
+			if (Name == "Engine" && !TestTargetRules.bNeverCompileAgainstEngine)
 			{
-				// TODO: more support code required...
-				TestTargetRules.bTestsRequireEditor = false;
+				TestTargetRules.bTestsRequireEngine = true;
 			}
-			if (Name == "Engine")
+			if (Name == "UnrealEd" && !TestTargetRules.bNeverCompileAgainstEditor)
 			{
-				// TODO: more support code required...
-				TestTargetRules.bTestsRequireEngine = false;
+				TestTargetRules.bTestsRequireEditor = true;
 			}
-			if (Name == "ApplicationCore")
+			if (Name == "ApplicationCore" && !TestTargetRules.bNeverCompileAgainstApplicationCore)
 			{
 				TestTargetRules.bTestsRequireApplicationCore = true;
 			}
-			if (Name == "CoreUObject")
+			if (Name == "CoreUObject" && !TestTargetRules.bNeverCompileAgainstCoreUObject)
 			{
 				TestTargetRules.bTestsRequireCoreUObject = true;
 			}
