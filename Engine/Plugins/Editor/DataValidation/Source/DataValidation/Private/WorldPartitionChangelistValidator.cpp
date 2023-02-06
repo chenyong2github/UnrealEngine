@@ -220,7 +220,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		// Invoke static WorldPartition Validation from the ActorDescContainer
 		UWorldPartition::FCheckForErrorsParams Params;
 		Params.ErrorHandler = this;
-		Params.bEnableStreaming = ULevel::GetIsStreamingDisabledFromPackage(MapPath.GetPackageName());;
+		Params.bEnableStreaming = !ULevel::GetIsStreamingDisabledFromPackage(MapPath.GetPackageName());
 
 		ContainersToValidate.ForEachActorDescContainer([&Params](const UActorDescContainer* ActorDescContainer)
 		{

@@ -13,8 +13,8 @@ FWorldPartitionActorDescView::FWorldPartitionActorDescView()
 FWorldPartitionActorDescView::FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc)
 	: ActorDesc(InActorDesc)
 	, bIsForcedNonSpatiallyLoaded(false)
-	, bInvalidDataLayers(false)
-	, bInvalidRuntimeGrid(false)
+	, bIsForcedNoRuntimeGrid(false)
+	, bInvalidDataLayers(false)	
 {}
 
 const FGuid& FWorldPartitionActorDescView::GetGuid() const
@@ -46,12 +46,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FName FWorldPartitionActorDescView::GetRuntimeGrid() const
 {
-	if (bInvalidRuntimeGrid)
-	{
-		return FName();
-	}
-
-	return ActorDesc->GetRuntimeGrid();
+	return bIsForcedNoRuntimeGrid ? NAME_None : ActorDesc->GetRuntimeGrid();
 }
 
 bool FWorldPartitionActorDescView::GetActorIsEditorOnly() const
@@ -220,9 +215,9 @@ void FWorldPartitionActorDescView::SetForcedNonSpatiallyLoaded()
 	}
 }
 
-void FWorldPartitionActorDescView::SetInvalidRuntimeGrid()
+void FWorldPartitionActorDescView::SetForcedNoRuntimeGrid()
 {
-	bInvalidRuntimeGrid = true;	
+	bIsForcedNoRuntimeGrid = true;	
 }
 
 void FWorldPartitionActorDescView::SetInvalidDataLayers()
