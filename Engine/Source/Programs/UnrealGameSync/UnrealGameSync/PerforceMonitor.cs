@@ -596,6 +596,11 @@ namespace UnrealGameSync
 			}
 		}
 
+		public ConfigSection LatestPerforceConfigSection()
+		{
+			return LatestProjectConfigFile.FindSection("Perforce");
+		}
+
 		public int LastChangeByCurrentUser
 		{
 			get;

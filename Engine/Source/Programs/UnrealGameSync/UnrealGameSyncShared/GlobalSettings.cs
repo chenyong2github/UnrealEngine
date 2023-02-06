@@ -174,7 +174,7 @@ namespace UnrealGameSync
 			return settings;
 		}
 
-		public static string[] GetCombinedSyncFilter(Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToFilter, FilterSettings globalFilter, FilterSettings workspaceFilter)
+		public static string[] GetCombinedSyncFilter(Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToFilter, FilterSettings globalFilter, FilterSettings workspaceFilter, ConfigSection perforceSection)
 		{
 			List<string> lines = new List<string>();
 			foreach (string viewLine in Enumerable.Concat(globalFilter.View, workspaceFilter.View).Select(x => x.Trim()).Where(x => x.Length > 0 && !x.StartsWith(";")))
@@ -214,6 +214,14 @@ namespace UnrealGameSync
 				{
 					lines.AddRange(filter.Paths.Select(x => "-" + x.Trim()));
 				}
+			}
+
+			// If there are no filtering lines then we can assume that AdditionalPathsToSync is covered and we do not
+			// need to add them manually.
+			if (lines.Count > 0 && perforceSection != null)
+			{
+				IEnumerable<string> additionalPaths = perforceSection.GetValues("AdditionalPathsToSync", new string[0]);
+				lines = lines.Concat(additionalPaths).ToList();
 			}
 
 			return lines.ToArray();

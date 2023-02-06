@@ -17,14 +17,16 @@ namespace UnrealGameSync
 		Dictionary<Guid, WorkspaceSyncCategory> _uniqueIdToCategory;
 		public FilterSettings GlobalFilter;
 		public FilterSettings WorkspaceFilter;
+		ConfigSection _perforceSection;
 
-		public SyncFilter(Dictionary<Guid, WorkspaceSyncCategory> inUniqueIdToCategory, FilterSettings inGlobalFilter, FilterSettings inWorkspaceFilter)
+		public SyncFilter(Dictionary<Guid, WorkspaceSyncCategory> inUniqueIdToCategory, FilterSettings inGlobalFilter, FilterSettings inWorkspaceFilter, ConfigSection inPerforceSection)
 		{
 			InitializeComponent();
 
 			_uniqueIdToCategory = inUniqueIdToCategory;
 			GlobalFilter = inGlobalFilter;
 			WorkspaceFilter = inWorkspaceFilter;
+			_perforceSection = inPerforceSection;
 
 			Dictionary<Guid, bool> syncCategories = WorkspaceSyncCategory.GetDefault(_uniqueIdToCategory.Values);
 
@@ -156,7 +158,7 @@ namespace UnrealGameSync
 		{
 			GetSettings(out FilterSettings newGlobalFilter, out FilterSettings newWorkspaceFilter);
 
-			string[] filter = UserSettings.GetCombinedSyncFilter(_uniqueIdToCategory, newGlobalFilter, newWorkspaceFilter);
+			string[] filter = UserSettings.GetCombinedSyncFilter(_uniqueIdToCategory, newGlobalFilter, newWorkspaceFilter, _perforceSection);
 			if(filter.Length == 0)
 			{
 				filter = new string[]{ "All files will be synced." };
