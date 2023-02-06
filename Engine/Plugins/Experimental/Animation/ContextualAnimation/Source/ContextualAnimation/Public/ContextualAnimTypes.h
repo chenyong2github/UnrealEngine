@@ -367,13 +367,20 @@ private:
 	friend UContextualAnimSceneInstance;
 	friend struct FContextualAnimSceneBindings;
 
+	UPROPERTY()
 	FContextualAnimSceneBindingContext Context;
 
+	UPROPERTY()
 	int32 AnimTrackIdx = INDEX_NONE;
 
-	mutable TObjectPtr<UContextualAnimSceneActorComponent> CachedSceneActorComp = nullptr;
-	mutable TObjectPtr<UAnimInstance> CachedAnimInstance = nullptr;
-	mutable TObjectPtr<USkeletalMeshComponent> CachedSkeletalMesh = nullptr;
+	UPROPERTY()
+	mutable TWeakObjectPtr<UContextualAnimSceneActorComponent> CachedSceneActorComp = nullptr;
+
+	UPROPERTY()
+	mutable TWeakObjectPtr<UAnimInstance> CachedAnimInstance = nullptr;
+
+	UPROPERTY()
+	mutable TWeakObjectPtr<USkeletalMeshComponent> CachedSkeletalMesh = nullptr;
 };
 
 template<>

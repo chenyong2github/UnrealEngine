@@ -286,7 +286,7 @@ void FContextualAnimSceneBinding::SetAnimTrack(const FContextualAnimTrack& InAni
 
 UContextualAnimSceneActorComponent* FContextualAnimSceneBinding::GetSceneActorComponent() const
 {
-	if (CachedSceneActorComp == nullptr)
+	if (!CachedSceneActorComp.IsValid())
 	{
 		if (AActor* Actor = Context.GetActor())
 		{
@@ -294,27 +294,27 @@ UContextualAnimSceneActorComponent* FContextualAnimSceneBinding::GetSceneActorCo
 		}
 	}
 
-	return CachedSceneActorComp;
+	return CachedSceneActorComp.Get();
 }
 
 UAnimInstance* FContextualAnimSceneBinding::GetAnimInstance() const
 {
-	if (CachedAnimInstance == nullptr)
+	if (!CachedAnimInstance.IsValid())
 	{
 		CachedAnimInstance = UContextualAnimUtilities::TryGetAnimInstance(GetActor());
 	}
 
-	return CachedAnimInstance;
+	return CachedAnimInstance.Get();
 }
 
 USkeletalMeshComponent* FContextualAnimSceneBinding::GetSkeletalMeshComponent() const
 {
-	if(CachedSkeletalMesh == nullptr)
+	if(!CachedSkeletalMesh.IsValid())
 	{
 		CachedSkeletalMesh = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetActor());
 	}
 
-	return CachedSkeletalMesh;
+	return CachedSkeletalMesh.Get();
 }
 
 FAnimMontageInstance* FContextualAnimSceneBinding::GetAnimMontageInstance() const

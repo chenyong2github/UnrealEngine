@@ -71,10 +71,10 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 			{
 				if (Binding.GetActor() != GetOwner())
 				{
-					UContextualAnimSceneActorComponent* Comp = Binding.GetSceneActorComponent();
-					checkf(Comp, TEXT("Missing SceneActorComp on %s"), *GetNameSafe(Binding.GetActor()));
-
-					Comp->JoinScene(InBindings);
+					if (UContextualAnimSceneActorComponent* Comp = Binding.GetSceneActorComponent())
+					{
+						Comp->JoinScene(InBindings);
+					}
 				}
 			}
 
@@ -194,10 +194,10 @@ void UContextualAnimSceneActorComponent::OnRep_Bindings(const FContextualAnimSce
 			{
 				if (Binding.GetActor() != GetOwner())
 				{
-					UContextualAnimSceneActorComponent* Comp = Binding.GetSceneActorComponent();
-					checkf(Comp, TEXT("Missing SceneActorComp on %s"), *GetNameSafe(Binding.GetActor()));
-
-					Comp->JoinScene(RepBindings);
+					if (UContextualAnimSceneActorComponent* Comp = Binding.GetSceneActorComponent())
+					{
+						Comp->JoinScene(RepBindings);
+					}
 				}
 			}
 		}
