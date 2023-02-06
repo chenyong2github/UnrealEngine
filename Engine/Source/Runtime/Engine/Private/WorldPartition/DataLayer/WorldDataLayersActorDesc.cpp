@@ -32,6 +32,9 @@ FArchive& operator<<(FArchive& Ar, FDataLayerInstanceDesc& Desc)
 			Ar << Desc.bIsRuntime << Desc.ShortName;
 		}
 	}
+
+	Desc.FixupAssetPath();
+
 	return Ar;
 }
 
@@ -68,6 +71,15 @@ bool operator < (const FDataLayerInstanceDesc& Lhs, const FDataLayerInstanceDesc
 		return Lhs.ParentName.LexicalLess(Rhs.ParentName);
 	}
 	return Lhs.Name.LexicalLess(Rhs.Name);
+}
+
+// Fixup asset path (in the case where the asset was renamed)
+void FDataLayerInstanceDesc::FixupAssetPath()
+{
+	if (const UDataLayerAsset* DataLayerAsset = GetAsset())
+	{
+		AssetPath = FName(DataLayerAsset->GetPathName());
+	}
 }
 
 UDataLayerAsset* FDataLayerInstanceDesc::GetAsset() const

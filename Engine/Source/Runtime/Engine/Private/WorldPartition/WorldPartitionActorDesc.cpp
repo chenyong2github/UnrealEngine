@@ -535,6 +535,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 	}
+
+	if (bIsUsingDataLayerAsset)
+	{
+		// Fixup asset path (in the case where the asset was renamed)
+		for (FName& DataLayer : DataLayers)
+		{
+			if (UDataLayerAsset* DataLayerAsset = LoadObject<UDataLayerAsset>(nullptr, *DataLayer.ToString()))
+			{
+				DataLayer = FName(DataLayerAsset->GetPathName());
+			}
+		}
+	}
 }
 
 FBox FWorldPartitionActorDesc::GetEditorBounds() const

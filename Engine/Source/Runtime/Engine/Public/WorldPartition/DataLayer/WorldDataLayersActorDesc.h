@@ -25,6 +25,9 @@ public:
 	FString GetShortName() const;
 
 private:
+
+	void FixupAssetPath();
+
 	// DataLayerInstance Name
 	FName Name;
 	// Parent DataLayerInstance Name
