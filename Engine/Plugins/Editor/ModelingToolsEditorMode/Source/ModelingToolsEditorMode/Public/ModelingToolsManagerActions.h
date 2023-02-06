@@ -169,6 +169,7 @@ public:
 	TSharedPtr<FUICommandInfo> AddToFavorites;
 	TSharedPtr<FUICommandInfo> RemoveFromFavorites;
 	TSharedPtr<FUICommandInfo> LoadFavoritesTools;
+	TSharedPtr<FUICommandInfo> LoadSelectionTools;
 	TSharedPtr<FUICommandInfo> LoadShapesTools;
 	TSharedPtr<FUICommandInfo> LoadCreateTools;
 	TSharedPtr<FUICommandInfo> LoadPolyTools;

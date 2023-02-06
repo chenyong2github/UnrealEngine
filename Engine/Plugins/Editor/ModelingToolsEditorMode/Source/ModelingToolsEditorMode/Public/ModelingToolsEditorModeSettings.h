@@ -296,6 +296,9 @@ public:
 
 public:
 
+	/** Toggle between the Legacy Modeling Mode Palette and the new UI (requires exiting and re-entering the Mode) */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
+	bool bUseLegacyModelingPalette = false;
 
 	/** Add the names of Modeling Mode Tool Palette Sections to have them appear at the top of the Tool Palette, in the order listed below. */
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")

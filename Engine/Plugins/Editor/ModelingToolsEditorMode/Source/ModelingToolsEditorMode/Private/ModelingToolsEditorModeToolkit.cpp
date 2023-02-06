@@ -159,204 +159,219 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 				GetToolkitCommands());
 
 	
-	const TSharedPtr<FEditablePalette> EditablePalette =
+	const TSharedPtr<FEditablePalette> FavoritesPalette =
 		MakeShareable(new FEditablePalette(
 			Commands.LoadFavoritesTools.ToSharedRef(),
 			UISettings->ToolFavorites,
 			Commands.AddToFavorites.ToSharedRef(),
 			Commands.RemoveFromFavorites.ToSharedRef()));
-	ToolkitBuilder->AddPalette(StaticCastSharedPtr<FEditablePalette>(EditablePalette));
+	ToolkitBuilder->AddPalette(StaticCastSharedPtr<FEditablePalette>(FavoritesPalette));
 	
+
+	TArray<TSharedPtr<FUICommandInfo>> ShapesPaletteItems({
+		Commands.BeginAddBoxPrimitiveTool,
+		Commands.BeginAddSpherePrimitiveTool,
+		Commands.BeginAddCylinderPrimitiveTool,
+		Commands.BeginAddConePrimitiveTool,
+		Commands.BeginAddTorusPrimitiveTool,
+		Commands.BeginAddArrowPrimitiveTool,
+		Commands.BeginAddRectanglePrimitiveTool,
+		Commands.BeginAddDiscPrimitiveTool,
+		Commands.BeginAddStairsPrimitiveTool
+	});
 	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadShapesTools.ToSharedRef(),
-		TArray(
-		            {
-			            Commands.BeginAddBoxPrimitiveTool,
-			            Commands.BeginAddSpherePrimitiveTool,
-			            Commands.BeginAddCylinderPrimitiveTool,
-			            Commands.BeginAddConePrimitiveTool,
-			            Commands.BeginAddTorusPrimitiveTool,
-			            Commands.BeginAddArrowPrimitiveTool,
-			            Commands.BeginAddRectanglePrimitiveTool,
-			            Commands.BeginAddDiscPrimitiveTool,
-		            	Commands.BeginAddStairsPrimitiveTool
-		            }
-	            ))));
+		MakeShareable( new FToolPalette( Commands.LoadShapesTools.ToSharedRef(), ShapesPaletteItems ) ) );
 
+
+
+	TArray<TSharedPtr<FUICommandInfo>> CreatePaletteItems({
+		Commands.BeginDrawPolygonTool,
+		Commands.BeginDrawPolyPathTool,
+		Commands.BeginDrawAndRevolveTool,
+		Commands.BeginRevolveBoundaryTool,
+		Commands.BeginCombineMeshesTool,
+		Commands.BeginDuplicateMeshesTool,
+		Commands.BeginPatternTool
+	});
 	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadCreateTools.ToSharedRef(),
-		TArray(
-					{
-			            Commands.BeginDrawPolygonTool,
-			            Commands.BeginDrawPolyPathTool,
-			            Commands.BeginDrawAndRevolveTool,
-			            Commands.BeginRevolveBoundaryTool,
-			            Commands.BeginCombineMeshesTool,
-			            Commands.BeginDuplicateMeshesTool,
-			            Commands.BeginPatternTool
-		            }
-	            ))));
+		MakeShareable( new FToolPalette( Commands.LoadCreateTools.ToSharedRef(), CreatePaletteItems ) ) );
 
+
+	TArray<TSharedPtr<FUICommandInfo>> SelectionPaletteItems({
+		Commands.BeginSelectionAction_Delete,
+		Commands.BeginSelectionAction_Extrude,
+		Commands.BeginSelectionAction_Offset,
+
+		Commands.BeginPolyModelTool_PushPull,
+		Commands.BeginPolyModelTool_Inset,
+		Commands.BeginPolyModelTool_Outset,
+		Commands.BeginPolyModelTool_CutFaces,
+		Commands.BeginPolyModelTool_Bevel,
+
+		Commands.BeginPolyModelTool_InsertEdgeLoop,
+		Commands.BeginSelectionAction_Retriangulate,
+
+		Commands.BeginPolyModelTool_PolyEd,
+		Commands.BeginPolyModelTool_TriSel
+	});
+	ToolkitBuilder->AddPalette( 
+		MakeShareable( new FToolPalette( Commands.LoadSelectionTools.ToSharedRef(), SelectionPaletteItems ) ) );
+
+
+	TArray<TSharedPtr<FUICommandInfo>> TransformPaletteItems({
+		Commands.BeginTransformMeshesTool,
+		Commands.BeginAlignObjectsTool,
+		Commands.BeginEditPivotTool,
+		Commands.BeginAddPivotActorTool,
+		Commands.BeginBakeTransformTool,
+		Commands.BeginTransferMeshTool,
+		Commands.BeginConvertMeshesTool,
+		Commands.BeginSplitMeshesTool
+	});
 	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadTransformTools.ToSharedRef(),
-		TArray(
-					{
-			            Commands.BeginTransformMeshesTool,
-			            Commands.BeginAlignObjectsTool,
-			            Commands.BeginEditPivotTool,
-			            Commands.BeginAddPivotActorTool,
-			            Commands.BeginBakeTransformTool,
-			            Commands.BeginTransferMeshTool,
-			            Commands.BeginConvertMeshesTool,
-			            Commands.BeginSplitMeshesTool
-		            }
-	            ))));
+		MakeShareable( new FToolPalette( Commands.LoadTransformTools.ToSharedRef(), TransformPaletteItems ) ) );
 
+
+
+	TArray<TSharedPtr<FUICommandInfo>> DeformPaletteItems({
+		Commands.BeginSculptMeshTool,
+		Commands.BeginRemeshSculptMeshTool,
+		Commands.BeginSmoothMeshTool,
+		Commands.BeginOffsetMeshTool,
+		Commands.BeginMeshSpaceDeformerTool,
+		Commands.BeginLatticeDeformerTool,
+		Commands.BeginDisplaceMeshTool
+	});
 	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadDeformTools.ToSharedRef(),
-		TArray(
-					{
-			            Commands.BeginSculptMeshTool,
-			            Commands.BeginRemeshSculptMeshTool,
-			            Commands.BeginSmoothMeshTool,
-			            Commands.BeginOffsetMeshTool,
-			            Commands.BeginMeshSpaceDeformerTool,
-			            Commands.BeginLatticeDeformerTool,
-			            Commands.BeginDisplaceMeshTool
-		            }
-	            ))));
+		MakeShareable( new FToolPalette( Commands.LoadDeformTools.ToSharedRef(), DeformPaletteItems ) ) );
+	
 
+
+	TArray<TSharedPtr<FUICommandInfo>> PolyToolsPaletteItems({
+		Commands.BeginPolyEditTool,
+		Commands.BeginPolyDeformTool,
+		Commands.BeginCubeGridTool,
+		Commands.BeginMeshBooleanTool,
+		Commands.BeginCutMeshWithMeshTool,
+		Commands.BeginSubdividePolyTool
+	});
 	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadMeshOpsTools.ToSharedRef(),
-		TArray(
-					{
-			            Commands.BeginSimplifyMeshTool,
-			            Commands.BeginRemeshMeshTool,
-			            Commands.BeginWeldEdgesTool,
-			            Commands.BeginRemoveOccludedTrianglesTool,
-			            Commands.BeginSelfUnionTool,
-			            Commands.BeginProjectToTargetTool
-		            }
-	            ))));
+		MakeShareable( new FToolPalette( Commands.LoadPolyTools.ToSharedRef(), PolyToolsPaletteItems ) ) );
 
+
+
+	TArray<TSharedPtr<FUICommandInfo>> TriToolsPaletteItems({
+		Commands.BeginMeshSelectionTool,
+		Commands.BeginTriEditTool,
+		Commands.BeginHoleFillTool,
+		Commands.BeginMirrorTool,
+		Commands.BeginPlaneCutTool,
+		Commands.BeginPolygonCutTool,
+		Commands.BeginMeshTrimTool
+	});
 	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadLodsTools.ToSharedRef(),
-		TArray(
-					{
-			            Commands.BeginLODManagerTool,
-			            Commands.BeginGenerateStaticMeshLODAssetTool,
-			            Commands.BeginISMEditorTool
-		            }
-	            ))));
+		MakeShareable( new FToolPalette( Commands.LoadTriTools.ToSharedRef(), TriToolsPaletteItems ) ) );
 
+
+
+	TArray<TSharedPtr<FUICommandInfo>> MeshOpPaletteItems({
+		Commands.BeginSimplifyMeshTool,
+		Commands.BeginRemeshMeshTool,
+		Commands.BeginWeldEdgesTool,
+		Commands.BeginRemoveOccludedTrianglesTool,
+		Commands.BeginSelfUnionTool,
+		Commands.BeginProjectToTargetTool
+	});
 	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadVoxOpsTools.ToSharedRef(),
-		TArray(
-					{
-			            Commands.BeginVoxelSolidifyTool,
-			            Commands.BeginVoxelBlendTool,
-			            Commands.BeginVoxelMorphologyTool,
-		            }
-	            ))));
+		MakeShareable( new FToolPalette( Commands.LoadMeshOpsTools.ToSharedRef(), MeshOpPaletteItems ) ) );
 
 
+
+	TArray<TSharedPtr<FUICommandInfo>> VoxelPaletteItems({
+		Commands.BeginVoxelSolidifyTool,
+		Commands.BeginVoxelBlendTool,
+		Commands.BeginVoxelMorphologyTool
+	});
+#if WITH_PROXYLOD
+	VoxelPaletteItems.Add(Commands.BeginVoxelBooleanTool);
+	VoxelPaletteItems.Add(Commands.BeginVoxelMergeTool);
+#endif	// WITH_PROXYLOD
 	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadTriTools.ToSharedRef(),
-		TArray(
-					{
-			            Commands.BeginMeshSelectionTool,
-			            Commands.BeginTriEditTool,
-			            Commands.BeginHoleFillTool,
-			            Commands.BeginMirrorTool,
-			            Commands.BeginPlaneCutTool,
-			            Commands.BeginPolygonCutTool,
-			            Commands.BeginMeshTrimTool
-		            }
-	            ))));
+		MakeShareable( new FToolPalette( Commands.LoadVoxOpsTools.ToSharedRef(), VoxelPaletteItems ) ) );
 
+
+
+	TArray<TSharedPtr<FUICommandInfo>> BakingPaletteItems({
+		Commands.BeginBakeMeshAttributeMapsTool,
+		Commands.BeginBakeMultiMeshAttributeMapsTool,
+		Commands.BeginBakeMeshAttributeVertexTool,
+		Commands.BeginBakeRenderCaptureTool
+	});
 	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadPolyTools.ToSharedRef(),
-		TArray(
-					{
-				Commands.BeginPolyEditTool,
-				Commands.BeginPolyDeformTool,
-				Commands.BeginCubeGridTool,
-				Commands.BeginMeshBooleanTool,
-				Commands.BeginCutMeshWithMeshTool,
-				Commands.BeginSubdividePolyTool
-			}
-		))));
-
-	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadAttributesTools.ToSharedRef(),
-		TArray(
-					{
-				Commands.BeginMeshInspectorTool,
-				Commands.BeginEditNormalsTool,
-				Commands.BeginEditTangentsTool,
-				Commands.BeginAttributeEditorTool,
-				Commands.BeginPolyGroupsTool,
-				Commands.BeginMeshGroupPaintTool,
-				Commands.BeginMeshAttributePaintTool,
-				Commands.BeginEditMeshMaterialsTool
-			}
-		))));
-
-		ToolkitBuilder->AddPalette(
-			MakeShareable( new FToolPalette(
-			Commands.LoadBakingTools.ToSharedRef(),
-			TArray(
-						{
-				Commands.BeginBakeMeshAttributeMapsTool,
-				Commands.BeginBakeMultiMeshAttributeMapsTool,
-				Commands.BeginBakeMeshAttributeVertexTool,
-				Commands.BeginBakeRenderCaptureTool
-			}
-		))));
+		MakeShareable( new FToolPalette( Commands.LoadBakingTools.ToSharedRef(), BakingPaletteItems ) ) );
 
 
 
-	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<
-		IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
-
-	TArray<TSharedPtr<FUICommandInfo>>&& PaletteActions =
-	{
+	TArray<TSharedPtr<FUICommandInfo>> UVPaletteItems({
 		Commands.BeginGlobalUVGenerateTool,
 		Commands.BeginGroupUVGenerateTool,
 		Commands.BeginUVProjectionTool,
 		Commands.BeginUVSeamEditTool,
 		Commands.BeginTransformUVIslandsTool,
 		Commands.BeginUVLayoutTool
-	};
-
-
-	ToolkitBuilder->AddPalette(
-		MakeShareable( new FToolPalette(
-		Commands.LoadUVsTools.ToSharedRef(), PaletteActions)));
-
-	PaletteActions = {
-		Commands.BeginVolumeToMeshTool,
-		Commands.BeginMeshToVolumeTool
-	};
-
-	if (Commands.BeginBspConversionTool)
+	});
+	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<
+		IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
+	IGeometryProcessing_UVEditorAssetEditor* UVEditorAPI = GeomProcInterfaces.GetUVEditorAssetEditorImplementation();
+	if (UVEditorAPI)
 	{
-		PaletteActions.Add(Commands.BeginBspConversionTool);
+		UVPaletteItems.Add(Commands.LaunchUVEditor);
 	}
 
-	PaletteActions.Add(Commands.BeginPhysicsInspectorTool);
-	PaletteActions.Add(Commands.BeginSetCollisionGeometryTool);
-	PaletteActions.Add(Commands.BeginExtractCollisionGeometryTool);
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette( Commands.LoadUVsTools.ToSharedRef(), UVPaletteItems)) );
+
+
+
+	TArray<TSharedPtr<FUICommandInfo>> AttributesToolsPaletteItems({
+		Commands.BeginMeshInspectorTool,
+		Commands.BeginEditNormalsTool,
+		Commands.BeginEditTangentsTool,
+		Commands.BeginAttributeEditorTool,
+		Commands.BeginPolyGroupsTool,
+		Commands.BeginMeshGroupPaintTool,
+		Commands.BeginMeshAttributePaintTool,
+		Commands.BeginEditMeshMaterialsTool
+	});
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette( Commands.LoadAttributesTools.ToSharedRef(), AttributesToolsPaletteItems ) ) );
+
+
+
+	TArray<TSharedPtr<FUICommandInfo>> VolumePaletteItems({
+		Commands.BeginPhysicsInspectorTool,
+		Commands.BeginSetCollisionGeometryTool,
+		Commands.BeginExtractCollisionGeometryTool,
+		Commands.BeginVolumeToMeshTool,
+		Commands.BeginMeshToVolumeTool
+	});
+	if (Commands.BeginBspConversionTool)
+	{
+		VolumePaletteItems.Add(Commands.BeginBspConversionTool);
+	}
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette( Commands.LoadVolumeTools.ToSharedRef(), VolumePaletteItems)) );
+
+
+
+	TArray<TSharedPtr<FUICommandInfo>> LODPaletteItems({
+		Commands.BeginLODManagerTool,
+		Commands.BeginGenerateStaticMeshLODAssetTool,
+		Commands.BeginISMEditorTool
+	});
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette( Commands.LoadLodsTools.ToSharedRef(), LODPaletteItems)) );
+
 
 	ToolkitBuilder->OnToolEnded.BindLambda([this]()
 	{
@@ -368,7 +383,8 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 
 void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
 {
-	bUsesToolkitBuilder = false;
+	const UModelingToolsModeCustomizationSettings* UISettings = GetDefault<UModelingToolsModeCustomizationSettings>();
+	bUsesToolkitBuilder = !UISettings->bUseLegacyModelingPalette;
 	
 	// Have to create the ToolkitWidget here because FModeToolkit::Init() is going to ask for it and add
 	// it to the Mode panel, and not ask again afterwards. However we have to call Init() to get the 

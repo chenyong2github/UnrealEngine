@@ -379,13 +379,18 @@ TSharedRef<SWidget> MakeMenu_ModelingModeConfigSettings(FModelingToolsEditorMode
 		}));
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("Section_Settings", LOCTEXT("Section_Settings", "Quick Settings"));
-	MenuBuilder.AddSubMenu(
-		LOCTEXT("QuickSettingsSubMenu", "Jump To Settings"), LOCTEXT("QuickSettingsSubMenu_ToolTip", "Jump to sections of the Settings dialogs relevant to Modeling Mode"),
-		FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
-			MakeSubMenu_QuickSettings(SubMenuBuilder);
-			}));
-	MenuBuilder.EndSection();
+	// only show settings UI quick access in non-Restrictive mode
+	const UModelingToolsEditorModeSettings* Settings = GetDefault<UModelingToolsEditorModeSettings>();
+	if (!Settings->InRestrictiveMode())
+	{
+		MenuBuilder.BeginSection("Section_Settings", LOCTEXT("Section_Settings", "Quick Settings"));
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("QuickSettingsSubMenu", "Jump To Settings"), LOCTEXT("QuickSettingsSubMenu_ToolTip", "Jump to sections of the Settings dialogs relevant to Modeling Mode"),
+			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
+				MakeSubMenu_QuickSettings(SubMenuBuilder);
+				}));
+		MenuBuilder.EndSection();
+	}
 
 	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
 	return MenuWidget;
