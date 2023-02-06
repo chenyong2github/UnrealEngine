@@ -644,6 +644,52 @@ namespace EpicGames.Horde.Storage.Nodes
 		#endregion
 
 		/// <summary>
+		/// Adds files from a flat list of paths
+		/// </summary>
+		/// <param name="baseDir">Base directory to base paths relative to</param>
+		/// <param name="files">Files to add</param>
+		/// <param name="options">Options for chunking file content</param>
+		/// <param name="writer">Writer for new node data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task CopyFilesAsync(DirectoryReference baseDir, IEnumerable<FileReference> files, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+		{
+			Dictionary<DirectoryReference, DirectoryNode> dirToNode = new Dictionary<DirectoryReference, DirectoryNode>();
+			dirToNode.Add(baseDir, this);
+
+			List<(DirectoryNode, FileInfo)> groupedFiles = new List<(DirectoryNode, FileInfo)>();
+			foreach (FileReference file in files)
+			{
+				DirectoryNode? node = FindOrAddDirectory(baseDir, file.Directory, dirToNode);
+				if (node == null)
+				{
+					throw new InvalidOperationException($"File {file} is not under base directory {baseDir}");
+				}
+				groupedFiles.Add((node, file.ToFileInfo()));
+			}
+
+			await CopyFromDirectoryAsync(groupedFiles, options, writer, cancellationToken);
+		}
+
+		DirectoryNode? FindOrAddDirectory(DirectoryReference baseDir, DirectoryReference dir, Dictionary<DirectoryReference, DirectoryNode> dirToNode)
+		{
+			DirectoryNode? node;
+			if (!dirToNode.TryGetValue(dir, out node))
+			{
+				DirectoryReference? parentDir = dir.ParentDirectory;
+				if (parentDir != null)
+				{
+					DirectoryNode? parentNode = FindOrAddDirectory(baseDir, parentDir, dirToNode);
+					if (parentNode != null)
+					{
+						node = parentNode.AddDirectory(dir.GetDirectoryName());
+						dirToNode.Add(dir, node);
+					}
+				}
+			}
+			return node;
+		}
+
+		/// <summary>
 		/// Adds files from a directory on disk
 		/// </summary>
 		/// <param name="directoryInfo"></param>
