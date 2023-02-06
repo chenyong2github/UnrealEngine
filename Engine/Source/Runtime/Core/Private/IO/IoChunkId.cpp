@@ -6,6 +6,7 @@
 #include "Memory/MemoryView.h"
 #include "Serialization/Archive.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "String/HexToBytes.h"
 
 FString LexToString(const EIoChunkType Type)
 {
@@ -52,6 +53,18 @@ void FIoChunkId::ToString(FString& Output) const
 	CharArray.AddUninitialized(sizeof(FIoChunkId) * 2 + 1);
 	UE::String::BytesToHexLower(Id, CharArray.GetData());
 	CharArray.Last() = TCHAR('\0');
+}
+
+FIoChunkId FIoChunkId::FromHex(FStringView Hex)
+{
+	if (Hex.Len() == sizeof(FIoChunkId) * 2)
+	{
+		FIoChunkId ChunkId;
+		UE::String::HexToBytes(Hex, ChunkId.Id);
+		return ChunkId;
+	}
+
+	return InvalidChunkId;
 }
 
 FArchive& operator<<(FArchive& Ar, FIoChunkId& ChunkId)

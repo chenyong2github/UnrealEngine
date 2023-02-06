@@ -113,6 +113,12 @@ public:
 
 	friend class FIoStoreReaderImpl;
 
+	/**
+	 * Creates an I/O chunk ID from a 24 character long hexadecimal string.
+	 * @return The corresponding I/O chunk ID or an invalid ID if the input string is not in the correct format.
+	 */
+	CORE_API static FIoChunkId FromHex(FStringView Hex);
+
 private:
 	static inline FIoChunkId CreateEmptyId()
 	{
