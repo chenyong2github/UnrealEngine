@@ -25,7 +25,7 @@ public:
 private:
 	FRayTracingPipelineState* RayTracingPipelineState = nullptr;
 	FRHIRayTracingScene* RayTracingScene = nullptr;
-	FRHIShaderResourceView* RayTracingSceneView = nullptr;
+	FShaderResourceViewRHIRef RayTracingSceneView = nullptr;
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 };
 

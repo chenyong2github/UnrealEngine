@@ -37,12 +37,6 @@ enum class ERayTracingSceneLayer : uint8
 	NUM
 };
 
-enum class ERayTracingSceneState
-{
-	Writable, // Scene is being built and can't be bound as SRV
-	Readable, // Scene can be used in ray tracing commands (can be bound as SRV)
-};
-
 /**
 * Persistent representation of the scene for ray tracing.
 * Manages top level acceleration structure instances, memory and build process.
@@ -73,8 +67,6 @@ public:
 	// Similar to Reset(), but also releases any persistent CPU and GPU memory allocations.
 	void ResetAndReleaseResources();
 
-	void Transition(FRDGBuilder& GraphBuilder, ERayTracingSceneState InState);
-
 	// Allocates temporary memory that will be valid until the next Reset().
 	// Can be used to store temporary instance transforms, user data, etc.
 	template <typename T>
@@ -95,9 +87,13 @@ public:
 
 	// Returns Buffer for this ray tracing scene.
 	// Valid to call immediately after Create() and does not block.
-	RENDERER_API FRHIBuffer* GetBufferChecked() const;
-	
-	RENDERER_API FRHIShaderResourceView* GetLayerSRVChecked(ERayTracingSceneLayer Layer) const;
+	RENDERER_API FRDGBufferRef GetBufferChecked() const;
+
+	// Creates new RHI view of a layer. Can only be used on valid ray tracing scene. 
+	RENDERER_API FShaderResourceViewRHIRef CreateLayerViewRHI(ERayTracingSceneLayer Layer) const;
+
+	// Returns RDG view of a layer. Can only be used on valid ray tracing scene.
+	RENDERER_API FRDGBufferSRVRef GetLayerView(ERayTracingSceneLayer Layer) const;
 
 	TArrayView<const FRayTracingGeometryInstance> GetInstances() const { return MakeArrayView(Instances); }
 
@@ -143,9 +139,11 @@ private:
 
 	// Persistently allocated buffer that holds the built TLAS
 	FBufferRHIRef RayTracingSceneBuffer;
+	TRefCountPtr<FRDGPooledBuffer>	RayTracingScenePooledBuffer;		
+	FRDGBufferRef RayTracingSceneBufferRDG;
 
 	// Per-layer views for the TLAS buffer that should be used in ray tracing shaders
-	TArray<FShaderResourceViewRHIRef> LayerSRVs;
+	TArray<FRDGBufferSRVRef> LayerSRVs;
 
 	// Transient memory allocator
 	FMemStackBase Allocator;
@@ -166,8 +164,6 @@ private:
 	TArray<FRayTracingGeometryInstance> Instances;
 
 	TArray<FRayTracingInstanceDebugData> InstancesDebugData;
-
-	ERayTracingSceneState State = ERayTracingSceneState::Writable;
 
 	bool bInstanceDebugDataEnabled = false;
 };

@@ -4164,9 +4164,17 @@ struct FRHIBufferSRVCreateInfo
 		}
 	}
 
+	FRHIBufferSRVCreateInfo(uint32 InStartOffsetBytes, uint32 InNumElements)
+		: StartOffsetBytes(InStartOffsetBytes)
+		, NumElements(InNumElements)
+	{}
+
 	FORCEINLINE bool operator==(const FRHIBufferSRVCreateInfo& Other)const
 	{
-		return BytesPerElement == Other.BytesPerElement && Format == Other.Format;
+		return BytesPerElement == Other.BytesPerElement 
+			&& Format == Other.Format
+			&& StartOffsetBytes == Other.StartOffsetBytes
+			&& NumElements == Other.NumElements;
 	}
 
 	FORCEINLINE bool operator!=(const FRHIBufferSRVCreateInfo& Other)const
@@ -4184,6 +4192,12 @@ struct FRHIBufferSRVCreateInfo
 
 	/** Encoding format for the element. */
 	EPixelFormat Format = PF_Unknown;
+
+	/** Offset in bytes from the beginning of buffer */
+	uint32 StartOffsetBytes = 0;
+
+	/** Number of elements (whole buffer by default) */
+	uint32 NumElements = UINT32_MAX;
 };
 
 struct FRHIBufferUAVCreateInfo

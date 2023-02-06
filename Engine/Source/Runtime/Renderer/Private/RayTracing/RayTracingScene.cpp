@@ -86,15 +86,17 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FRayTracingScene::SceneBuffer"));
 		RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), EBufferUsageFlags::AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
-		State = ERayTracingSceneState::Writable;
+
+		FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(1, uint32(SizeInfo.ResultSize));
+		Desc.Usage = EBufferUsageFlags::AccelerationStructure;
+		RayTracingScenePooledBuffer = new FRDGPooledBuffer(RayTracingSceneBuffer, Desc, Desc.NumElements, TEXT("FRayTracingScene::SceneBuffer::RDG"));
 	}
+	RayTracingSceneBufferRDG = GraphBuilder.RegisterExternalBuffer(RayTracingScenePooledBuffer);
 
 	LayerSRVs.SetNum(NumLayers);
-
 	for (uint32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
-		FShaderResourceViewInitializer ViewInitializer(RayTracingSceneBuffer, RayTracingSceneRHI->GetLayerBufferOffset(LayerIndex), 0);
-		LayerSRVs[LayerIndex] = RHICreateShaderResourceView(ViewInitializer);
+		LayerSRVs[LayerIndex] = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RayTracingSceneBufferRDG, RayTracingSceneRHI->GetLayerBufferOffset(LayerIndex), 0));
 	}
 
 	{
@@ -303,16 +305,23 @@ FRHIRayTracingScene* FRayTracingScene::GetRHIRayTracingSceneChecked() const
 	return Result;
 }
 
-FRHIBuffer* FRayTracingScene::GetBufferChecked() const
+FRDGBufferRef FRayTracingScene::GetBufferChecked() const
 {
-	checkf(RayTracingSceneBuffer.IsValid(), TEXT("Ray tracing scene buffer was not created. Perhaps Create() was not called."));
-	return RayTracingSceneBuffer.GetReference();
+	checkf(RayTracingSceneBufferRDG, TEXT("Ray tracing scene buffer was not created. Perhaps Create() was not called."));
+	return RayTracingSceneBufferRDG;
 }
 
-FRHIShaderResourceView* FRayTracingScene::GetLayerSRVChecked(ERayTracingSceneLayer Layer) const
+FShaderResourceViewRHIRef FRayTracingScene::CreateLayerViewRHI(ERayTracingSceneLayer Layer) const
 {
-	checkf(LayerSRVs[uint8(Layer)].IsValid(), TEXT("Ray tracing scene SRV was not created. Perhaps Create() was not called."));
-	return LayerSRVs[uint8(Layer)].GetReference();
+	const uint8 LayerIndex = uint8(Layer);
+	checkf(RayTracingSceneBuffer, TEXT("Ray tracing scene was not created.Perhaps Create() was not called."));
+	return RHICreateShaderResourceView(FShaderResourceViewInitializer(RayTracingSceneBuffer, RayTracingSceneRHI->GetLayerBufferOffset(LayerIndex), 0));
+}
+
+FRDGBufferSRVRef FRayTracingScene::GetLayerView(ERayTracingSceneLayer Layer) const
+{
+	checkf(LayerSRVs[uint8(Layer)], TEXT("Ray tracing scene SRV was not created. Perhaps Create() was not called."));
+	return LayerSRVs[uint8(Layer)];
 }
 
 uint32 FRayTracingScene::AddInstance(FRayTracingGeometryInstance Instance, const FPrimitiveSceneProxy* Proxy, bool bDynamic)
@@ -369,31 +378,8 @@ void FRayTracingScene::ResetAndReleaseResources()
 	GeometriesToBuild.Empty();
 	UsedCoarseMeshStreamingHandles.Empty();
 	RayTracingSceneBuffer = nullptr;
+	RayTracingScenePooledBuffer = nullptr;
 	RayTracingSceneRHI = nullptr;
-	State = ERayTracingSceneState::Writable;
-}
-
-void FRayTracingScene::Transition(FRDGBuilder& GraphBuilder, ERayTracingSceneState InState)
-{
-	if (State == InState)
-	{
-		return;
-	}
-
-	GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingTransition"), ERDGPassFlags::None, 
-		[this, InState](FRHIComputeCommandList& RHICmdList)
-	{
-		if (InState == ERayTracingSceneState::Writable)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(RayTracingSceneBuffer, ERHIAccess::BVHRead | ERHIAccess::SRVMask, ERHIAccess::BVHWrite));
-		}
-		else
-		{
-			RHICmdList.Transition(FRHITransitionInfo(RayTracingSceneBuffer, ERHIAccess::BVHWrite, ERHIAccess::BVHRead | ERHIAccess::SRVMask));
-		}
-	});
-
-	State = InState;
 }
 
 #endif // RHI_RAYTRACING

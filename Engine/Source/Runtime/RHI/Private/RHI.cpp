@@ -2171,7 +2171,7 @@ FRHIShaderResourceView* FRHIBufferViewCache::GetOrCreateSRV(FRHIBuffer* Buffer, 
 	}
 	else
 	{
-		RHIShaderResourceView = RHICreateShaderResourceView(Buffer);
+		RHIShaderResourceView = RHICreateShaderResourceView(FShaderResourceViewInitializer(Buffer, SRVCreateInfo.StartOffsetBytes, SRVCreateInfo.NumElements));
 	}
 
 	FRHIShaderResourceView* View = RHIShaderResourceView.GetReference();

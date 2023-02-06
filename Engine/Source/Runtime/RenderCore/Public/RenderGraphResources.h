@@ -1093,6 +1093,11 @@ struct FRDGBufferSRVDesc final
 		BytesPerElement = GPixelFormats[Format].BlockBytes;
 	}
 
+	FRDGBufferSRVDesc(FRDGBufferRef InBuffer, uint32 InStartOffsetBytes, uint32 InNumElements)
+		: FRHIBufferSRVCreateInfo(InStartOffsetBytes, InNumElements)
+		, Buffer(InBuffer)
+	{}
+
 	bool operator == (const FRDGBufferSRVDesc& Other) const
 	{
 		return Buffer == Other.Buffer && FRHIBufferSRVCreateInfo::operator==(Other);
