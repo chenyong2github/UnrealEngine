@@ -1,3 +1,9 @@
+1.83
+* Open for Edit now also Adds if the file is not already added
+* added Revert command
+* the File History command no longer hangs
+* the Timelapse command now scrolls to the current line
+
 1.80
 * updated Unreal.TestAdapater to report duration's
 * added a menu for extension to improve discover-ability of features
