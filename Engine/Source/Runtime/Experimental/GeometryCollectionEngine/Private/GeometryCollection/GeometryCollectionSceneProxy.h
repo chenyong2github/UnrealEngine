@@ -222,6 +222,7 @@ private:
 class FGeometryCollectionSceneProxy final : public FPrimitiveSceneProxy
 {
 	TArray<UMaterialInterface*> Materials;
+	UMaterialInterface* BoneSelectedMaterial = nullptr;
 
 	FMaterialRelevance MaterialRelevance;
 
@@ -261,7 +262,6 @@ class FGeometryCollectionSceneProxy final : public FPrimitiveSceneProxy
 	bool bShowBoneColors;
 	bool bEnableBoneSelection;
 	bool bSuppressSelectionMaterial;
-	int BoneSelectionMaterialID;
 
 	bool bUseFullPrecisionUVs = false;
 

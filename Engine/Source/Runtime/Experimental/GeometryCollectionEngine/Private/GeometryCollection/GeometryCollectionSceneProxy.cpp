@@ -156,7 +156,6 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 	, bShowBoneColors(Component->GetShowBoneColors())
 	, bEnableBoneSelection(Component->GetEnableBoneSelection())
 	, bSuppressSelectionMaterial(Component->GetSuppressSelectionMaterial())
-	, BoneSelectionMaterialID(Component->GetBoneSelectedMaterialID())
 	, bUseFullPrecisionUVs(Component->GetRestCollection()->bUseFullPrecisionUVs)
 	, TransformVertexBuffersContainsOriginalMesh(false)
 {
@@ -170,6 +169,23 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 		{
 			Materials[MaterialIndex] = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
+	}
+	if (Component->GetRestCollection())
+	{
+		BoneSelectedMaterial = Component->GetRestCollection()->GetBoneSelectedMaterial();
+	}
+	if (!BoneSelectedMaterial)
+	{
+		int32 LegacyBoneMaterialID = Component->GetBoneSelectedMaterialID();
+		if (Materials.IsValidIndex(LegacyBoneMaterialID))
+		{
+			BoneSelectedMaterial = Materials[LegacyBoneMaterialID];
+		}
+	}
+	if (BoneSelectedMaterial && !BoneSelectedMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_GeometryCollections))
+	{
+		// If we have an invalid BoneSelectedMaterial, switch it back to null to skip its usage in GetDynamicMeshElements below
+		BoneSelectedMaterial = nullptr;
 	}
 
 	// Make sure the vertex color material has the usage flag for rendering geometry collections
@@ -1079,9 +1095,9 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			// bone selection is already contained in the rendered colors
 			// #note: This renders the geometry again but with the bone selection material.  Ideally we'd have one render pass and one
 			// material.
-			if ((bShowBoneColors || bEnableBoneSelection) && !bSuppressSelectionMaterial && Materials.IsValidIndex(BoneSelectionMaterialID))
+			if ((bShowBoneColors || bEnableBoneSelection) && !bSuppressSelectionMaterial && BoneSelectedMaterial)
 			{
-				FMaterialRenderProxy* MaterialRenderProxy = Materials[BoneSelectionMaterialID]->GetRenderProxy();
+				FMaterialRenderProxy* MaterialRenderProxy = BoneSelectedMaterial->GetRenderProxy();
 
 				FMeshBatch& Mesh = Collector.AllocateMesh();
 				FMeshBatchElement& BatchElement = Mesh.Elements[0];

@@ -498,8 +498,8 @@ void UGeometryCollection::InitializeMaterials(bool bHasInternalMaterials)
 {
 	Modify();
 
-	// Last Material is the selection one
-	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
+	// Initialize the BoneSelectedMaterial separate from the materials on the collection
+	BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
 
 	TManagedArray<int32>& MaterialIDs = GeometryCollection->MaterialID;
 
@@ -604,8 +604,8 @@ void UGeometryCollection::InitializeMaterials(bool bHasInternalMaterials)
 	// Set new material array on the collection
 	Materials = FinalMaterials;
 
-	// Last Material is the selection one
-	BoneSelectedMaterialIndex = Materials.Add(BoneSelectedMaterial);
+	// BoneSelectedMaterial is no longer stored in the general Materials array
+	BoneSelectedMaterialIndex = INDEX_NONE;
 
 	GeometryCollection->ReindexMaterials();
 	InvalidateCollection();
@@ -731,6 +731,8 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		{
 			Materials[SelectedMaterialIndex] = Materials[0];
 		}
+		// Likewise remove the direct reference to the BoneSelectedMaterial on cook
+		BoneSelectedMaterial = nullptr;
 
 		if (bStripOnCook)
 		{
@@ -913,6 +915,24 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	{
 		// prior this version, damage propagation was not enabled by default
 		DamagePropagationData.bEnabled = false;
+	}
+
+	if (Ar.IsLoading() && !bIsCookedOrCooking && BoneSelectedMaterialIndex != INDEX_NONE)
+	{
+		BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
+		if (Materials.IsValidIndex(BoneSelectedMaterialIndex))
+		{
+			if (!BoneSelectedMaterial)
+			{
+				BoneSelectedMaterial = Materials[BoneSelectedMaterialIndex];
+			}
+			// Remove the material assuming it's the last in the list (otherwise, leave it, as it's not clear why it would be in that state)
+			if (BoneSelectedMaterialIndex == Materials.Num() - 1)
+			{
+				Materials.RemoveAt(BoneSelectedMaterialIndex);
+			}
+		}
+		BoneSelectedMaterialIndex = INDEX_NONE;
 	}
 
 #if WITH_EDITORONLY_DATA

@@ -4171,6 +4171,26 @@ UMaterialInterface* UGeometryCollectionComponent::GetMaterial(int32 MaterialInde
 	}
 }
 
+void UGeometryCollectionComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
+{
+	Super::GetUsedMaterials(OutMaterials, bGetDebugMaterials);
+
+	if (GetRestCollection() && GetRestCollection()->GetBoneSelectedMaterial())
+	{
+		OutMaterials.Add(GetRestCollection()->GetBoneSelectedMaterial());
+	}
+}
+
+FMaterialRelevance UGeometryCollectionComponent::GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const
+{
+	FMaterialRelevance Result = Super::GetMaterialRelevance(InFeatureLevel);
+	if (RestCollection && RestCollection->GetBoneSelectedMaterial())
+	{
+		Result |= RestCollection->GetBoneSelectedMaterial()->GetRelevance_Concurrent(InFeatureLevel);
+	}
+	return Result;
+}
+
 #if WITH_EDITOR
 void UGeometryCollectionComponent::SelectEmbeddedGeometry()
 {
