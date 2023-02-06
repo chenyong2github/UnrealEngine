@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
-#include "WorldPartition/ActorDescContainer.h"
-#include "Engine/World.h"
 
 #if WITH_EDITOR
+#include "Engine/World.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
+#include "WorldPartition/ActorDescContainer.h"
+#include "EditorWorldUtils.h"
 #include "PackageTools.h"
 #endif
 
@@ -37,6 +40,27 @@ namespace WorldPartitionTests
 	{
 		auto TestTrue = [Test](const TCHAR* What, bool Value) -> bool { return Test->TestTrue(What, Value); };
 		auto TestFalse = [Test](const TCHAR* What, bool Value) -> bool { return Test->TestFalse(What, Value); };
+
+		TUniquePtr<FScopedEditorWorld> ScopedEditorWorld = MakeUnique<FScopedEditorWorld>(
+			TEXTVIEW("/Engine/WorldPartition/WorldPartitionUnitTest"),
+			UWorld::InitializationValues()
+				.RequiresHitProxies(false)
+				.ShouldSimulatePhysics(false)
+				.EnableTraceCollision(false)
+				.CreateNavigation(false)
+				.CreateAISystem(false)
+				.AllowAudioPlayback(false)
+				.CreatePhysicsScene(true),
+			EWorldType::None
+		);
+		
+		UWorld* World = ScopedEditorWorld->GetWorld();
+		if (!Test->TestNotNull(TEXT("Missing World Object"), World))
+		{
+			return;
+		}
+
+		TestTrue(TEXT("World type"), World->WorldType == EWorldType::None);
 
 		UActorDescContainer* ActorDescContainer = NewObject<UActorDescContainer>(GetTransientPackage());
 		ActorDescContainer->Initialize({ nullptr, TEXT("/Engine/WorldPartition/WorldPartitionUnitTest") });
@@ -270,15 +294,11 @@ namespace WorldPartitionTests
 			TestTrue(TEXT("Invalid container test"), Reference.IsValid());
 
 			// Make sure to cleanup world before collecting garbage so it gets uninitialized
-			UPackage* Package = FindPackage(NULL, *ActorDescContainer->GetContainerPackage().ToString());
-			check(Package);
-			UWorld* World = UWorld::FindWorldInPackage(Package);
-			check(World->IsInitialized());
-			World->CleanupWorld();
-			
+			ScopedEditorWorld.Reset();
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 			// Unload Package so test can run twice without issues.
+			UPackage* Package = FindPackage(NULL, *ActorDescContainer->GetContainerPackage().ToString());
 			UPackageTools::UnloadPackages({ Package });
 
 			TestFalse(TEXT("Invalid container test"), Handle.IsValid());

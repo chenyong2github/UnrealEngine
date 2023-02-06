@@ -9,30 +9,30 @@ FScopedEditorWorld::FScopedEditorWorld()
 {
 }
 
-FScopedEditorWorld::FScopedEditorWorld(UWorld* InWorld, const UWorld::InitializationValues& InInitializationValues)
+FScopedEditorWorld::FScopedEditorWorld(UWorld* InWorld, const UWorld::InitializationValues& InInitializationValues, EWorldType::Type InWorldType)
 	: FScopedEditorWorld()
 {
-	Init(InWorld, InInitializationValues);
+	Init(InWorld, InInitializationValues, InWorldType);
 }
 
-FScopedEditorWorld::FScopedEditorWorld(const FStringView InLongPackageName, const UWorld::InitializationValues& InInitializationValues)
+FScopedEditorWorld::FScopedEditorWorld(const FStringView InLongPackageName, const UWorld::InitializationValues& InInitializationValues, EWorldType::Type InWorldType)
 	: FScopedEditorWorld()
 {
 	if (UPackage* WorldPackage = LoadWorldPackageForEditor(InLongPackageName))
 	{
 		if (UWorld* RuntimeWorld = UWorld::FindWorldInPackage(WorldPackage))
 		{
-			Init(RuntimeWorld, InInitializationValues);
+			Init(RuntimeWorld, InInitializationValues, InWorldType);
 		}
 	}
 }
 
-FScopedEditorWorld::FScopedEditorWorld(const TSoftObjectPtr<UWorld>& InSoftWorld, const UWorld::InitializationValues& InInitializationValues)
-	: FScopedEditorWorld(InSoftWorld.ToSoftObjectPath().GetLongPackageName(), InInitializationValues)
+FScopedEditorWorld::FScopedEditorWorld(const TSoftObjectPtr<UWorld>& InSoftWorld, const UWorld::InitializationValues& InInitializationValues, EWorldType::Type InWorldType)
+	: FScopedEditorWorld(InSoftWorld.ToSoftObjectPath().GetLongPackageName(), InInitializationValues, InWorldType)
 {
 }
 
-void FScopedEditorWorld::Init(UWorld* InWorld, const UWorld::InitializationValues& InInitializationValues)
+void FScopedEditorWorld::Init(UWorld* InWorld, const UWorld::InitializationValues& InInitializationValues, EWorldType::Type InWorldType)
 {
 	check(InWorld);
 	check(!InWorld->bIsWorldInitialized);
@@ -49,7 +49,7 @@ void FScopedEditorWorld::Init(UWorld* InWorld, const UWorld::InitializationValue
 	GWorld = World;
 
 	// Initialize the world
-	World->WorldType = EWorldType::Editor;
+	World->WorldType = InWorldType;
 	World->InitWorld(InInitializationValues);
 	World->PersistentLevel->UpdateModelComponents();
 	World->UpdateWorldComponents(true /*bRerunConstructionScripts*/, false /*bCurrentLevelOnly*/);

@@ -23,21 +23,21 @@ public:
 	 * @param InWorld					The world to manage.
 	 * @param InInitializationValues	The initialization values to use for the world.
 	 */
-	FScopedEditorWorld(UWorld* InWorld, const UWorld::InitializationValues& InInitializationValues);
+	FScopedEditorWorld(UWorld* InWorld, const UWorld::InitializationValues& InInitializationValues, EWorldType::Type InWorldType = EWorldType::Editor);
 
 	/**
 	 * FStringView Constructor - Load the specified package & initialize the world as an editor world.
 	 * @param InLongPackageName			Path to a package containing a world.
 	 * @param InInitializationValues	The initialization values to use for the world.
 	 */
-	FScopedEditorWorld(const FStringView InLongPackageName, const UWorld::InitializationValues& InInitializationValues);
+	FScopedEditorWorld(const FStringView InLongPackageName, const UWorld::InitializationValues& InInitializationValues, EWorldType::Type InWorldType = EWorldType::Editor);
 
 	/**
 	 * SoftObjectPtr Constructor - Initialize the provided world as an editor world.
 	 * @param InWorld					World soft object pointer.
 	 * @param InInitializationValues	The initialization values to use for the world.
 	 */
-	FScopedEditorWorld(const TSoftObjectPtr<UWorld>& InSoftWorld, const UWorld::InitializationValues& InInitializationValues);
+	FScopedEditorWorld(const TSoftObjectPtr<UWorld>& InSoftWorld, const UWorld::InitializationValues& InInitializationValues, EWorldType::Type InWorldType = EWorldType::Editor);
 
 	/**
 	 * Destructor - Destroy the provided world.
@@ -51,12 +51,11 @@ public:
 
 private:
 	FScopedEditorWorld();
-	void Init(UWorld* InWorld, const UWorld::InitializationValues& InInitializationValues);
+	void Init(UWorld* InWorld, const UWorld::InitializationValues& InInitializationValues, EWorldType::Type InWorldType = EWorldType::Editor);
 
 	UWorld* World;
 	UWorld* PrevGWorld;
 };
-
 
 /**
  * Load a world package, managing the WorldTypePreLoadMap to ensure the correct world type is specified in UWorld::PostLoad()
