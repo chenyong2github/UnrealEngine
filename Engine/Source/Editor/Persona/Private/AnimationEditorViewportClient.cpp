@@ -2340,7 +2340,13 @@ void FAnimationViewportClient::SetupViewForRendering( FSceneViewFamily& ViewFami
 	if (PreviewMeshComponent != nullptr && PreviewMeshComponent->MeshObject != nullptr)
 	{
 		const FBoxSphereBounds& SkelBounds = PreviewMeshComponent->Bounds;
-		CachedScreenSize = ComputeBoundsScreenSize(SkelBounds.Origin, static_cast<float>(SkelBounds.SphereRadius), View);
+
+		const int32 LODIndex = PreviewMeshComponent->GetPredictedLODLevel();
+		USkinnedAsset* SkinnedAsset = PreviewMeshComponent->GetSkinnedAsset();
+		check(SkinnedAsset);
+
+		FPerPlatformFloat ScreenSize = SkinnedAsset->GetLODInfo(LODIndex)->ScreenSize;
+		CachedScreenSize = SkinnedAsset->IsValidLODIndex(LODIndex) ? ScreenSize.GetValue(): CachedScreenSize;
 	}
 }
 
