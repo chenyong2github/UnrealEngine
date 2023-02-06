@@ -219,10 +219,6 @@ FAVResult FEncoderNVENC::SendFrame(TSharedPtr<FVideoResource> const& Resource, u
 			{
 				Picture.encodePicFlags |= NV_ENC_PIC_FLAG_FORCEIDR;
 			}
-			else // HACK (aidan.possemiers) AVCodecs h265 decoder only currently supports intra frames
-			{
-				Picture.encodePicFlags |= NV_ENC_PIC_FLAG_FORCEINTRA;
-			}
 		}
 		else
 		{
