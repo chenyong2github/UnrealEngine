@@ -845,7 +845,9 @@ FHierarchicalStaticMeshSceneProxy::FHierarchicalStaticMeshSceneProxy(UHierarchic
 #endif
 {
 	SetupOcclusion(InComponent);
-	bSupportsMeshCardRepresentation = false;
+
+	// Dynamic draw path without Nanite isn't supported by Lumen
+	bVisibleInLumenScene = false;
 
 	bIsHierarchicalInstancedStaticMesh = true;
 	bIsLandscapeGrass = (ViewRelevance == EHISMViewRelevanceType::Grass);

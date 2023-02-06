@@ -542,8 +542,6 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// Nanite supports the GPUScene instance data buffer.
 	bSupportsInstanceDataBuffer = true;
 
-	// Nanite supports mesh card representation.
-	bSupportsMeshCardRepresentation = true;
 	DistanceFieldSelfShadowBias = FMath::Max(Component->bOverrideDistanceFieldSelfShadowBias ? Component->DistanceFieldSelfShadowBias : Component->GetStaticMesh()->DistanceFieldSelfShadowBias, 0.0f);
 
 	// Use fast path that does not update static draw lists.
@@ -760,6 +758,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	FilterFlags = EFilterFlags::StaticMesh;
 
 	bReverseCulling = Component->bReverseCulling;
+
+	UpdateVisibleInLumenScene();
 }
 
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)

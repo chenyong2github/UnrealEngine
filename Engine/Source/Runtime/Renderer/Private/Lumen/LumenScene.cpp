@@ -584,30 +584,6 @@ FLumenSceneData::~FLumenSceneData()
 	MeshCards.Reset();
 }
 
-bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
-{
-	bool bCanBeTraced = false;
-	if (DoesProjectSupportDistanceFields() && Proxy->AffectsDistanceFieldLighting()
-		&& (Proxy->SupportsDistanceFieldRepresentation() || Proxy->SupportsHeightfieldRepresentation()))
-	{
-		bCanBeTraced = true;
-	}
-
-#if RHI_RAYTRACING
-	if (IsRayTracingAllowed() && Proxy->HasRayTracingRepresentation())
-	{
-		if ((Proxy->IsVisibleInRayTracing() && (Proxy->IsDrawnInGame() || Proxy->AffectsIndirectLightingWhileHidden())) || Proxy->IsRayTracingFarField())
-		{
-			bCanBeTraced = true;
-		}
-	}
-#endif
-
-	const bool bAffectsLumen = Proxy->AffectsDynamicIndirectLighting() && Proxy->SupportsMeshCardRepresentation();
-	const bool bVisible = Proxy->IsDrawnInGame() || Proxy->AffectsIndirectLightingWhileHidden();
-	return bAffectsLumen && bVisible && bCanBeTraced;
-}
-
 bool TrackPrimitiveInstanceForLumenScene(const FMatrix& LocalToWorld, const FBox& LocalBoundingBox, bool bEmissiveLightSource)
 {
 	const FVector LocalToWorldScale = LocalToWorld.GetScaleVector();
@@ -627,7 +603,6 @@ void FScene::LumenAddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 	if (DefaultLumenSceneData->bTrackAllPrimitives)
 	{
 		const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
-		bool bTrackPrimitiveForLumenScene = TrackPrimitiveForLumenScene(Proxy);
 
 		for (FLumenSceneDataIterator LumenSceneData = GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 		{
@@ -636,7 +611,7 @@ void FScene::LumenAddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 			LumenSceneData->PrimitivesToUpdateMeshCards.Add(InPrimitive->GetIndex());
 
-			if (bTrackPrimitiveForLumenScene)
+			if (Proxy->IsVisibleInLumenScene())
 			{
 				ensure(!LumenSceneData->PendingAddOperations.Contains(InPrimitive));
 				ensure(!LumenSceneData->PendingUpdateOperations.Contains(InPrimitive));
@@ -653,7 +628,7 @@ void FScene::LumenUpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 	LLM_SCOPE_BYTAG(Lumen);
 
 	if (DefaultLumenSceneData->bTrackAllPrimitives
-		&& TrackPrimitiveForLumenScene(InPrimitive->Proxy)
+		&& InPrimitive->Proxy->IsVisibleInLumenScene()
 		&& InPrimitive->LumenPrimitiveGroupIndices.Num() > 0)
 	{
 		for (FLumenSceneDataIterator LumenSceneData = GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
@@ -673,7 +648,7 @@ void FScene::LumenInvalidateSurfaceCacheForPrimitive(FPrimitiveSceneInfo* InPrim
 	LLM_SCOPE_BYTAG(Lumen);
 
 	if (DefaultLumenSceneData->bTrackAllPrimitives
-		&& TrackPrimitiveForLumenScene(InPrimitive->Proxy)
+		&& InPrimitive->Proxy->IsVisibleInLumenScene()
 		&& InPrimitive->LumenPrimitiveGroupIndices.Num() > 0)
 	{
 		for (FLumenSceneDataIterator LumenSceneData = GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
@@ -696,7 +671,7 @@ void FScene::LumenRemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 Primit
 	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
 	if (DefaultLumenSceneData->bTrackAllPrimitives
-		&& TrackPrimitiveForLumenScene(Proxy))
+		&& InPrimitive->Proxy->IsVisibleInLumenScene())
 	{
 		for (FLumenSceneDataIterator LumenSceneData = GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 		{

@@ -99,6 +99,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_WRITES_CUSTOM_DEPTH_STENCIL			0x10000000
 #define PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING						0x20000000
 #define PRIMITIVE_SCENE_DATA_FLAG_HOLDOUT								0x40000000
+#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_LUMEN_SCENE				0x80000000
 
 struct FPrimitiveUniformShaderParametersBuilder
 {
@@ -116,6 +117,7 @@ public:
 		bVisibleInReflectionCaptures				= true;
 		bVisibleInRealTimeSkyCaptures				= true;
 		bVisibleInRayTracing						= true;
+		bVisibleInLumenScene						= true;
 
 		// Flags defaulted off
 		bReceivesDecals								= false;
@@ -193,6 +195,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInReflectionCaptures);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInRealTimeSkyCaptures);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInRayTracing);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInLumenScene);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInSceneCaptureOnly);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HiddenInSceneCapture);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			ForceHidden);
@@ -455,6 +458,7 @@ public:
 		Parameters.Flags |= bVisibleInReflectionCaptures ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REFLECTION_CAPTURES : 0u;
 		Parameters.Flags |= bVisibleInRealTimeSkyCaptures ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REAL_TIME_SKY_CAPTURES : 0u;
 		Parameters.Flags |= bVisibleInRayTracing ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING : 0u;
+		Parameters.Flags |= bVisibleInLumenScene ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_LUMEN_SCENE : 0u;
 		Parameters.Flags |= bVisibleInSceneCaptureOnly ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY : 0u;
 		Parameters.Flags |= bHiddenInSceneCapture ? PRIMITIVE_SCENE_DATA_FLAG_HIDDEN_IN_SCENE_CAPTURE : 0u;
 		Parameters.Flags |= bForceHidden ? PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN : 0u;
@@ -497,6 +501,7 @@ private:
 	uint32 bVisibleInReflectionCaptures : 1;
 	uint32 bVisibleInRealTimeSkyCaptures : 1;
 	uint32 bVisibleInRayTracing : 1;
+	uint32 bVisibleInLumenScene : 1;
 	uint32 bVisibleInSceneCaptureOnly : 1;
 	uint32 bHiddenInSceneCapture : 1;
 	uint32 bForceHidden : 1;

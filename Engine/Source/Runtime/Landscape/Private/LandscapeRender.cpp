@@ -1123,7 +1123,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	SharedBuffersKey = (SubsectionSizeLog2 & 0xf) | ((NumSubsections & 0xf) << 4) |	(XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
 
 	bSupportsHeightfieldRepresentation = true;
-	bSupportsMeshCardRepresentation = true;
 
 	// Find where the visibility weightmap lies, if available
 	// TODO: Mobile has its own MobileWeightmapLayerAllocations, and visibility layer could be in a different channel potentially?
@@ -1154,6 +1153,8 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		}
 	}
 #endif
+
+	UpdateVisibleInLumenScene();
 }
 
 void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
@@ -4057,7 +4058,7 @@ public:
 		// Disable Nanite landscape representation for Lumen, distance fields, and ray tracing
 		if (GDisableLandscapeNaniteGI != 0)
 		{
-			bSupportsMeshCardRepresentation = false;
+			bVisibleInLumenScene = false;
 			bSupportsDistanceFieldRepresentation = false;
 			bAffectDynamicIndirectLighting = false;
 			bAffectDistanceFieldLighting = false;

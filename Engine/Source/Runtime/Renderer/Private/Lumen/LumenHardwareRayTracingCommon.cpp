@@ -6,6 +6,7 @@
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracing(
 	TEXT("r.Lumen.HardwareRayTracing"),
@@ -14,7 +15,12 @@ static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracing(
 	TEXT("Lumen will fall back to Software Ray Tracing otherwise.\n")
 	TEXT("Note: Hardware ray tracing has significant scene update costs for\n")
 	TEXT("scenes with more than 100k instances."),
-	ECVF_RenderThreadSafe
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		// Recreate proxies so that FPrimitiveSceneProxy::UpdateVisibleInLumenScene() can pick up any changed state
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 // Note: Driven by URendererSettings and must match the enum exposed there

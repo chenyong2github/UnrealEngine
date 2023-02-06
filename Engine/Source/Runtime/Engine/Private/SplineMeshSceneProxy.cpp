@@ -71,7 +71,10 @@ FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) 
 	FStaticMeshSceneProxy(InComponent, false)
 {
 	bSupportsDistanceFieldRepresentation = false;
-	bSupportsMeshCardRepresentation = false;
+
+	// Dynamic draw path without Nanite isn't supported by Lumen
+	bVisibleInLumenScene = false;
+
 #if RHI_RAYTRACING
 	bDynamicRayTracingGeometry = true;
 #endif

@@ -451,9 +451,6 @@ public:
 	/** return true if we need to call ConditionalUpdateStaticMeshes */
 	bool NeedsUpdateStaticMeshes();
 
-	/** Returns true it primitive contains cached Lumen Card Capture mesh draw commands. */
-	bool HasLumenCaptureMeshPass() const;
-
 	/** return true if we need to call LazyUpdateForRendering */
 	FORCEINLINE bool NeedsUniformBufferUpdate() const
 	{

@@ -614,6 +614,7 @@ public:
 	inline bool IsVisibleInReflectionCaptures() const { return bVisibleInReflectionCaptures; }
 	inline bool IsVisibleInRealTimeSkyCaptures() const { return bVisibleInRealTimeSkyCaptures; }
 	inline bool IsVisibleInRayTracing() const { return bVisibleInRayTracing; }
+	inline bool IsVisibleInLumenScene() const { return bVisibleInLumenScene; }
 	inline bool ShouldRenderInMainPass() const { return bRenderInMainPass; }
 	inline bool ShouldRenderInDepthPass() const { return bRenderInMainPass || bRenderInDepthPass; }
 	inline bool IsCollisionEnabled() const { return bCollisionEnabled; }
@@ -707,7 +708,6 @@ public:
 	inline bool WillEverBeLit() const { return bWillEverBeLit; }
 	inline bool HasValidSettingsForStaticLighting() const { return bHasValidSettingsForStaticLighting; }
 	inline bool SupportsDistanceFieldRepresentation() const { return bSupportsDistanceFieldRepresentation; }
-	inline bool SupportsMeshCardRepresentation() const { return bSupportsMeshCardRepresentation; }
 	inline bool SupportsHeightfieldRepresentation() const { return bSupportsHeightfieldRepresentation; }
 	inline bool SupportsInstanceDataBuffer() const { return bSupportsInstanceDataBuffer; }
 	inline bool SupportsSortedTriangles() const { return bSupportsSortedTriangles; }
@@ -1049,6 +1049,9 @@ public:
 protected:
 	ENGINE_API void UpdateDefaultInstanceSceneData();
 
+	/** Updates bVisibleInLumen, which indicated whether a primitive should be tracked by Lumen scene. Checks if primitive can be ray traced and if it can by captured by surface cache. */
+	ENGINE_API void UpdateVisibleInLumenScene();
+
 	/** Returns true if a primitive can never be rendered outside of a runtime virtual texture. */
 	ENGINE_API bool IsVirtualTextureOnly() const { return bVirtualTextureMainPassDrawNever; }
 
@@ -1154,6 +1157,9 @@ private:
 	friend class FLightPrimitiveInteraction;
 
 protected:
+
+	/** Whether this component should be tracked by Lumen Scene. Turning this off will remove it from Lumen Scene and Lumen won't generate surface cache for it. */
+	uint8 bVisibleInLumenScene : 1;
 
 	/** Whether this component can skip redundant transform updates where applicable. */
 	uint8 bCanSkipRedundantTransformUpdates : 1;
@@ -1291,9 +1297,6 @@ protected:
 
 	/** Whether the primitive type supports a distance field representation.  Does not mean the primitive has a valid representation. */
 	uint8 bSupportsDistanceFieldRepresentation : 1;
-
-	/** Whether the primitive type supports a mesh card representation. */
-	uint8 bSupportsMeshCardRepresentation : 1;
 
 	/** Whether the primitive implements GetHeightfieldRepresentation() */
 	uint8 bSupportsHeightfieldRepresentation : 1;

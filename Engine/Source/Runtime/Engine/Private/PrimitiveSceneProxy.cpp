@@ -219,6 +219,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bForceHidden(false)
 ,	bCollisionEnabled(InComponent->IsCollisionEnabled())
 ,	bTreatAsBackgroundForOcclusion(InComponent->bTreatAsBackgroundForOcclusion)
+,	bVisibleInLumenScene(false)
 ,	bCanSkipRedundantTransformUpdates(true)
 ,	bGoodCandidateForCachedShadowmap(true)
 ,	bNeedsUnbuiltPreviewLighting(!InComponent->IsPrecomputedLightingValid())
@@ -258,7 +259,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bHasWorldPositionOffsetVelocity(false)
 ,	bAnyMaterialHasWorldPositionOffset(false)
 ,	bSupportsDistanceFieldRepresentation(false)
-,	bSupportsMeshCardRepresentation(false)
 ,	bSupportsHeightfieldRepresentation(false)
 ,	bSupportsSortedTriangles(false)
 ,	bShouldNotifyOnWorldAddRemove(false)
@@ -1395,6 +1395,42 @@ bool FPrimitiveSceneProxy::IsShadowCast(const FSceneView* View) const
 	}
 
 	return true;
+}
+
+void FPrimitiveSceneProxy::UpdateVisibleInLumenScene()
+{
+	bool bLumenUsesHardwareRayTracing = false;
+#if RHI_RAYTRACING
+	static const auto LumenUseHardwareRayTracingCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Lumen.HardwareRayTracing"));
+	bLumenUsesHardwareRayTracing = IsRayTracingEnabled()
+		&& (GRHISupportsRayTracingShaders || GRHISupportsInlineRayTracing)
+		&& LumenUseHardwareRayTracingCVar->GetValueOnAnyThread() != 0;
+#endif
+
+	bool bCanBeTraced = false;
+	if (bLumenUsesHardwareRayTracing)
+	{
+#if RHI_RAYTRACING
+		if (IsRayTracingAllowed() && HasRayTracingRepresentation())
+		{
+			if ((IsVisibleInRayTracing() && (IsDrawnInGame() || AffectsIndirectLightingWhileHidden())) || IsRayTracingFarField())
+			{
+				bCanBeTraced = true;
+			}
+		}
+#endif
+	}
+	else
+	{
+		if (DoesProjectSupportDistanceFields() && AffectsDistanceFieldLighting() && (SupportsDistanceFieldRepresentation() || SupportsHeightfieldRepresentation()))
+		{
+			bCanBeTraced = true;
+		}
+	}
+
+	const bool bAffectsLumen = AffectsDynamicIndirectLighting();
+	const bool bVisible = IsDrawnInGame() || AffectsIndirectLightingWhileHidden();
+	bVisibleInLumenScene = bAffectsLumen && bVisible && bCanBeTraced;
 }
 
 void FPrimitiveSceneProxy::RenderBounds(

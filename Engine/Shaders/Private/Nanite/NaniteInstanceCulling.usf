@@ -93,6 +93,7 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags, bool bIsShadowPass)
 	const bool bVisibleInRayTracing				= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING) != 0u;
 	const bool bCastShadow						= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
 	const bool bCastHiddenShadow				= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW) != 0u;
+	const bool bVisibleInLumenScene				= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_LUMEN_SCENE) != 0u;
 
 	const bool bIsSceneCapture					= (RenderFlags & NANITE_RENDER_FLAG_IS_SCENE_CAPTURE) != 0u;
 	const bool bIsReflectionCapture				= (RenderFlags & NANITE_RENDER_FLAG_IS_REFLECTION_CAPTURE) != 0u;
@@ -113,10 +114,19 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags, bool bIsShadowPass)
 		return false;
 	}
 
-	// Primitives may be visible only in ray tracing, but we still want to capture them into surface cache
-	if (bIsLumenCapture && bVisibleInRayTracing)
+	if (bIsLumenCapture)
 	{
-		return true;
+		// No need to capture this primitive, as it isn't tracked by Lumen scene
+		if (!bVisibleInLumenScene)
+		{
+			return false;
+		}
+
+		// Primitives may be visible only in ray tracing, but we still want to capture them into surface cache
+		if (bVisibleInRayTracing)
+		{
+			return true;
+		}
 	}
 
 	if (bIsSceneCapture)

@@ -213,6 +213,7 @@ int32 GVisualizeLumenRayTracingGroups = 0;
 FAutoConsoleVariableRef CVarVisualizeLumenRayTracingGroups(
 	TEXT("r.Lumen.Visualize.RayTracingGroups"),
 	GVisualizeLumenRayTracingGroups,
+	TEXT("Visualize bounds for ray tracing groups. Control visualization distance using r.Lumen.Visualize.CardPlacementDistance.\n")
 	TEXT("0 - disable\n")
 	TEXT("1 - all groups\n")
 	TEXT("2 - groups with a single instance"),
