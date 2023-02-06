@@ -276,7 +276,7 @@ struct FDeviceTriggerBaseData
 
 	/** Which trigger this property should effect */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Triggers")
-	EInputDeviceTriggerMask AffectedTriggers = EInputDeviceTriggerMask::None;
+	EInputDeviceTriggerMask AffectedTriggers = EInputDeviceTriggerMask::All;
 
 	/** True if the triggers should be reset after the duration of this device property */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Triggers")
@@ -293,6 +293,7 @@ public:
 
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId) override;
+	virtual void ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Triggers")
 	FDeviceTriggerBaseData BaseTriggerData;
@@ -365,22 +366,22 @@ struct FDeviceTriggerTriggerResistanceData
 	GENERATED_BODY()
 
 	/** The position that the trigger should start providing resistance */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty", meta = (UIMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty", meta = (UIMin = "0", UIMAX = "9"))
 	int32 StartPosition = 0;
 
 	/** How strong the resistance is */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty", meta = (UIMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty", meta = (UIMin = "0", UIMAX = "8"))
 	int32 StartStrengh = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty", meta = (UIMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty", meta = (UIMin = "0", UIMAX = "9"))
 	int32 EndPosition = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty", meta = (UIMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty", meta = (UIMin = "0", UIMAX = "8"))
 	int32 EndStrengh = 0;
 };
 
 /** 
-* Provides resistance to a trigger while it is being pressed between a start and end value
+* Provides linear resistance to a trigger while it is being pressed between a start and end value
 * 
 * NOTE: This property has platform specific implementations and may behave differently per platform.
 * See the docs for more details on each platform.

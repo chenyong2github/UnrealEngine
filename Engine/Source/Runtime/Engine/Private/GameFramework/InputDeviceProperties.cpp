@@ -205,6 +205,19 @@ void UInputDeviceTriggerEffect::ResetDeviceProperty_Implementation(const FPlatfo
 	}	
 }
 
+void UInputDeviceTriggerEffect::ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId)
+{
+	// If the affected triggers is set to none then nothing will happen and the platform may throw an ensure, so just skip it and log here
+	if (BaseTriggerData.AffectedTriggers != EInputDeviceTriggerMask::None)
+	{
+		Super::ApplyDeviceProperty(UserId, DeviceId);
+	}
+	else
+	{
+		UE_LOG(LogInputDevices, Warning, TEXT("The Affected Triggers is set to none on '%s', nothing will happen!"), *GetFName().ToString());
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////
 // UInputDeviceTriggerFeedbackProperty
 
