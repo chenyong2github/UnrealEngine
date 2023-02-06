@@ -7,6 +7,7 @@
 #include "MuR/SerialisationPrivate.h"
 #include "MuR/MutableMath.h"
 
+#include <initializer_list>
 
 namespace mu
 {
@@ -18,6 +19,8 @@ namespace mu
 
     struct FImageFormatData
 	{
+		static constexpr SIZE_T MAX_BYTES_PER_BLOCK = 16;
+
 		FImageFormatData
 			(
 				unsigned pixelsPerBlockX = 0,
@@ -29,7 +32,21 @@ namespace mu
 			m_pixelsPerBlockX = (uint8)pixelsPerBlockX;
 			m_pixelsPerBlockY = (uint8)pixelsPerBlockY;
 			m_bytesPerBlock = (uint16)bytesPerBlock;
-			m_channels = (uint16)channels;
+			m_channels = (uint16)channels;	
+		}
+
+		FImageFormatData
+			(
+				unsigned pixelsPerBlockX,
+				unsigned pixelsPerBlockY,
+				unsigned bytesPerBlock,
+				unsigned channels,
+				std::initializer_list<uint8> BlackBlockInit
+			)
+			: FImageFormatData(pixelsPerBlockX, pixelsPerBlockY, bytesPerBlock, channels)
+		{
+			check(BlackBlockInit.size() <= MAX_BYTES_PER_BLOCK);
+			FMemory::Memcpy(BlackBlock, BlackBlockInit.begin(), FMath::Min<SIZE_T>(MAX_BYTES_PER_BLOCK, BlackBlockInit.size()));
 		}
 
 		//! For block based formats, size of the block size. For uncompressed formats it will
@@ -42,6 +59,9 @@ namespace mu
 
 		//! Channels in every pixel of the image.
         uint16 m_channels;
+
+		//! Representation of a black block of the image.
+		uint8 BlackBlock[MAX_BYTES_PER_BLOCK] = { 0 };
 	};
 
 

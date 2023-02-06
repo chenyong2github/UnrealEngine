@@ -10,6 +10,15 @@
 #include "MuR/OpImagePixelFormat.h"
 #include "MuR/OpImageResize.h"
 
+bool bDisableCompressedImageBlackBlockInit = false;
+
+static FAutoConsoleVariableRef CVarDisableCompressedImageBlackBlockInit(
+	TEXT("mutable.DisableCompressedImageBlackBlockInit"),
+	bDisableCompressedImageBlackBlockInit,
+	TEXT("A value of 1 disables mutable compressed black block initialization"),
+	ECVF_Default);
+
+
 namespace mu
 {
 
@@ -41,9 +50,9 @@ namespace mu
 
         FImageFormatData( 1, 1, 4, 4 ),		// IF_BGRA_UBYTE
 
-        FImageFormatData( 4, 4, 16, 3 ),	// IF_ASTC_4x4_RGB_LDR
-        FImageFormatData( 4, 4, 16, 4 ),	// IF_ASTC_4x4_RGBA_LDR
-        FImageFormatData( 4, 4, 16, 2 ),	// IF_ASTC_4x4_RG_LDR
+		FImageFormatData(4, 4, 16, 3, {252, 253, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 255, 255}), // IF_ASTC_4x4_RGB_LDR
+		FImageFormatData(4, 4, 16, 4, {252, 253, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0}),     // IF_ASTC_4x4_RGBA_LDR
+        FImageFormatData( 4, 4, 16, 2 ),	// IF_ASTC_4x4_RG_LDR // TODO: check black block for RG.
 		
 		FImageFormatData(8, 8, 16, 3),		// IF_ASTC_8x8_RGB_LDR,
 		FImageFormatData(8, 8, 16, 4),		// IF_ASTC_8x8_RGBA_LDR,
@@ -90,7 +99,33 @@ namespace mu
 			int32 DataSize = CalculateDataSize();
 			if (Init == EInitializationType::Black)
 			{
-				m_data.SetNumZeroed(DataSize);
+				if (bDisableCompressedImageBlackBlockInit)
+				{
+					m_data.SetNumZeroed(DataSize);
+				}
+				else
+				{
+					check(fdata.m_bytesPerBlock <= FImageFormatData::MAX_BYTES_PER_BLOCK);
+					
+					constexpr uint8 ZeroedBlock[FImageFormatData::MAX_BYTES_PER_BLOCK] = { 0 };
+
+					const SIZE_T BlockSizeSanitized = FMath::Min<SIZE_T>(FImageFormatData::MAX_BYTES_PER_BLOCK, fdata.m_bytesPerBlock);
+					const bool bIsFormatBlackBlockZeroed = FMemory::Memcmp(fdata.BlackBlock, ZeroedBlock, BlockSizeSanitized) == 0;
+
+					if (bIsFormatBlackBlockZeroed)
+					{
+						m_data.SetNumZeroed(DataSize);
+					}
+					else
+					{
+						m_data.SetNumUninitialized(DataSize);
+
+						for (int32 BlockDataOffset = 0; BlockDataOffset < DataSize; BlockDataOffset += fdata.m_bytesPerBlock)
+						{
+							FMemory::Memcpy(m_data.GetData() + BlockDataOffset, fdata.BlackBlock, fdata.m_bytesPerBlock);
+						}
+					}
+				}
 			}
 			else
 			{
