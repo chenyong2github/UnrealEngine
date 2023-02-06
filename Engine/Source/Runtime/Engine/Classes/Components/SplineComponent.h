@@ -403,6 +403,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	float GetDistanceAlongSplineAtSplineInputKey(float InKey) const;
 
+	/** Get distance along the spline at closest point of the provided input location */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	float GetDistanceAlongSplineAtLocation(const FVector& InLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+
 	/** Get a metadata property float value along the spline at spline input key */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	float GetFloatPropertyAtSplineInputKey(float InKey, FName PropertyName) const;

@@ -513,6 +513,13 @@ float USplineComponent::GetDistanceAlongSplineAtSplineInputKey(float InKey) cons
 	return 0.0f;
 }
 
+float USplineComponent::GetDistanceAlongSplineAtLocation(const FVector& InLocation, ESplineCoordinateSpace::Type CoordinateSpace) const
+{
+	const FVector LocalLocation = (CoordinateSpace == ESplineCoordinateSpace::World) ? GetComponentTransform().InverseTransformPosition(InLocation) : InLocation;
+	float Dummy;
+	float Key = SplineCurves.Position.InaccurateFindNearest(LocalLocation, Dummy);
+	return GetDistanceAlongSplineAtSplineInputKey(Key);
+}
 
 template<class T>
 T GetPropertyValueAtSplineInputKey(const USplineMetadata* Metadata, float InKey, FName PropertyName)
