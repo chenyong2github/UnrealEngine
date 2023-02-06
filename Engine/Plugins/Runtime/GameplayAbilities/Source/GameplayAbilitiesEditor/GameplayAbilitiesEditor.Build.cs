@@ -13,7 +13,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					Path.Combine(GetModuleDirectory("AssetTools"), "Private"),
 					Path.Combine(GetModuleDirectory("GameplayTagsEditor"), "Private"),
-					Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
 					Path.Combine(GetModuleDirectory("Kismet"), "Private"),
 				});
 

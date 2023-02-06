@@ -10,7 +10,6 @@ public class BehaviorTreeEditor : ModuleRules
             new string[] {
 				System.IO.Path.Combine(GetModuleDirectory("AIGraph"), "Private"),
 				System.IO.Path.Combine(GetModuleDirectory("BehaviorTreeEditor"), "Private"),
-				System.IO.Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
 			}
 		);
 
