@@ -1402,6 +1402,11 @@ FString FHotReloadModule::MakeUBTArgumentsForModuleCompiling()
 		FString FullProjectPath = FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath());
 		AdditionalArguments += FString::Printf(TEXT("\"%s\" "), *FullProjectPath);
 	}
+	
+#if PLATFORM_MAC_ARM64
+	AdditionalArguments += "-architecture=arm64";
+#endif
+
 	return AdditionalArguments;
 }
 
