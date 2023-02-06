@@ -8,7 +8,6 @@ public class NiagaraEditorWidgets : ModuleRules
 	public NiagaraEditorWidgets(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.AddRange(new string[] {
-			System.IO.Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {

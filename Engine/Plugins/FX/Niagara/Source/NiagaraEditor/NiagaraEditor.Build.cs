@@ -14,7 +14,6 @@ public class NiagaraEditor : ModuleRules
 			"NiagaraEditor/Private/Sequencer/NiagaraSequence",
 			"NiagaraEditor/Private/ViewModels",
 			"NiagaraEditor/Private/TypeEditorUtilities",
-			Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
 			Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
 			Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 		});
