@@ -981,32 +981,38 @@ namespace Horde.Agent.Execution
 		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse step, DirectoryReference workspaceDir, string arguments, ILogger logger, CancellationToken cancellationToken)
 		{
 			int result;
-			using (IScope scope = GlobalTracer.Instance.BuildSpan("BuildGraph").StartActive())
+			using IScope scope = GlobalTracer.Instance.BuildSpan("BuildGraph").StartActive();
+			
+			if (!_compileAutomationTool)
 			{
-				if (!_compileAutomationTool)
-				{
-					arguments += " -NoCompile";
-				}
-
-				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-				{
-					result = await ExecuteCommandAsync(step, workspaceDir, Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe", $"/C \"\"{workspaceDir}\\Engine\\Build\\BatchFiles\\RunUAT.bat\" {arguments}\"", logger, cancellationToken);
-				}
-				else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-				{
-					result = await ExecuteCommandAsync(step, workspaceDir, "/bin/bash", $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}", logger, cancellationToken);
-				}
-				else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-				{
-					result = await ExecuteCommandAsync(step, workspaceDir, "/bin/sh", $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}", logger, cancellationToken);
-				}
-				else
-				{
-					throw new Exception("Unsupported platform");
-				}
-
-				_compileAutomationTool = false;
+				arguments += " -NoCompile";
 			}
+
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				result = await ExecuteCommandAsync(step, workspaceDir, Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe", $"/C \"\"{workspaceDir}\\Engine\\Build\\BatchFiles\\RunUAT.bat\" {arguments}\"", logger, cancellationToken);
+			}
+			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+			{
+				string args = $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}";
+				
+				if (_jobOptions.UseWine is true)
+				{
+					args = $"\"{workspaceDir}/Engine/Build/BatchFiles/RunWineUAT.sh\" {arguments}";
+				}
+				
+				result = await ExecuteCommandAsync(step, workspaceDir, "/bin/bash", args, logger, cancellationToken);
+			}
+			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+			{
+				result = await ExecuteCommandAsync(step, workspaceDir, "/bin/sh", $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}", logger, cancellationToken);
+			}
+			else
+			{
+				throw new Exception("Unsupported platform");
+			}
+
+			_compileAutomationTool = false;
 			return result;
 		}
 
