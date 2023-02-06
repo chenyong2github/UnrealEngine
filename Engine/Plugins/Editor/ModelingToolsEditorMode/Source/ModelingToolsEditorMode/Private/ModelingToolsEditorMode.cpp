@@ -428,11 +428,20 @@ void UModelingToolsEditorMode::Enter()
 			[this](const FInputDeviceRay& DeviceRay) { return TestForEditorGizmoHit(DeviceRay); });
 		GetInteractiveToolsContext()->InputRouter->RegisterSource(SelectionInteraction);
 
-		// Disable the SnappingManager while the SelectionInteraction is editing a mesh via transform gizmo
-		SelectionInteraction->OnTransformBegin.AddLambda(
-			[this]() { SceneSnappingManager->PauseSceneGeometryUpdates(); });
-		SelectionInteraction->OnTransformEnd.AddLambda(
-			[this]() { SceneSnappingManager->UnPauseSceneGeometryUpdates(); });
+		SelectionInteraction->OnTransformBegin.AddLambda([this]() 
+		{ 
+			// Disable the SnappingManager while the SelectionInteraction is editing a mesh via transform gizmo
+			SceneSnappingManager->PauseSceneGeometryUpdates();
+
+			// If the transform is happening via the gizmo numerical UI, then we can run into the same slate
+			// throttling issues as tools. We need to continue receiving render/tick while user scrubs the slate values.
+			FSlateThrottleManager::Get().DisableThrottle(true);
+		});
+		SelectionInteraction->OnTransformEnd.AddLambda([this]() 
+		{ 
+			FSlateThrottleManager::Get().DisableThrottle(false);
+			SceneSnappingManager->UnPauseSceneGeometryUpdates(); 
+		});
 	}
 
 	// register level objects observer that will update the snapping manager as the scene changes

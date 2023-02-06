@@ -370,6 +370,14 @@ void UModelingSelectionInteraction::OnEndGizmoTransform(UTransformProxy* Proxy)
 {
 	if (bInActiveTransform)
 	{
+		// If we have an update we haven't applied, apply it now. This is particularly important if the
+		// user transformed the gizmo by typing a new value into the gizmo UI, in which case there will
+		// not have been a chance to do ApplyPendingTransformInteractions() between the update and end calls.
+		if (bGizmoUpdatePending)
+		{
+			ApplyPendingTransformInteractions();
+		}
+
 		SelectionManager->EndTransformation();
 		bInActiveTransform = false;
 
