@@ -7,9 +7,11 @@
 
 namespace UE::HLSL
 {
-#else
+#endif
+#ifndef __cplusplus //HLSL
 #include "/Engine/Private/LargeWorldCoordinates.ush"
 #endif
+
 
 /**
  * Has a 1:1 mapping with FLightRenderParameters, but unlike FLightShaderParameters, this is view-independent
