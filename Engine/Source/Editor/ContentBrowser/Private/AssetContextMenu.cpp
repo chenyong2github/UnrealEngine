@@ -191,6 +191,16 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 		}
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 		const TSharedRef<FPathPermissionList>& WritableFolderPermission = AssetToolsModule.Get().GetWritableFolderPermissionList();
+		
+		ContextObject->bContainsUnsupportedAssets = false;
+		for (const FContentBrowserItem& SelectedItem : SelectedItems)
+		{
+			if(!SelectedItem.IsSupported())
+			{
+				ContextObject->bContainsUnsupportedAssets = true;
+				break;
+			}
+		}
 
 		const TArray<FAssetData>& SelectedAssets = ContextObject->SelectedAssets;
 
@@ -307,6 +317,7 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 		DataContextObject->SelectedItems = SelectedItems;
 		DataContextObject->SelectedCollections = SourcesData.Collections;
 		DataContextObject->bCanBeModified = ContextObject->bCanBeModified;
+		DataContextObject->bContainsUnsupportedAssets = ContextObject->bContainsUnsupportedAssets;
 		DataContextObject->ParentWidget = AssetView;
 		DataContextObject->OnShowInPathsView = OnShowInPathsViewRequested;
 		DataContextObject->OnRefreshView = OnAssetViewRefreshRequested;

@@ -79,6 +79,13 @@ void FAssetFileContextMenu::MakeContextMenu(UToolMenu* InMenu, const TArray<FAss
 	SelectedAssets = InSelectedAssets;
 	OnShowAssetsInPathsView = InOnShowAssetsInPathsView;
 
+	// We don't want the regular menu options if the selection contains unsupported assets
+	const UContentBrowserDataMenuContext_FileMenu* Context = InMenu->FindContext<UContentBrowserDataMenuContext_FileMenu>();
+	if(Context && Context->bContainsUnsupportedAssets)
+	{
+		return;
+	}
+	
 	if (SelectedAssets.Num() > 0)
 	{
 		AddMenuOptions(InMenu);

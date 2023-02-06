@@ -771,6 +771,7 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 			const FText NameText = GetNameText();
 			const FText ClassText = FText::Format(LOCTEXT("ClassName", "({0})"), GetAssetClassText());
 			FText PublicStateText = LOCTEXT("PublicAssetState", "Public");
+			FName PublicStateTextBorder = "ContentBrowser.TileViewTooltip.PillBorder";
 
 			// Create a box to hold every line of info in the body of the tooltip
 			TSharedRef<SVerticalBox> InfoBox = SNew(SVerticalBox);
@@ -823,6 +824,12 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 			if (!AssetItem->GetItem().CanEdit())
 			{
 				PublicStateText = LOCTEXT("ReadOnlyAssetState", "Read Only");
+			}
+
+			if(!AssetItem->GetItem().IsSupported())
+			{
+				PublicStateText = LOCTEXT("UnsupportedAssetState", "Unsupported");
+				PublicStateTextBorder = "ContentBrowser.TileViewTooltip.UnsupportedAssetPillBorder";
 			}
 
 			// Add tags
@@ -900,7 +907,7 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 							.HAlign(HAlign_Right) 
 							[
 								SNew(SBorder)
-								.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.PillBorder"))
+								.BorderImage(FAppStyle::GetBrush(PublicStateTextBorder))
 								.Padding(FMargin(12.0f, 2.0f, 12.0f, 2.0f))
 								.Visibility(bIsPublicAssetUIEnabled ? EVisibility::Visible : EVisibility::Hidden)
 								[
@@ -910,6 +917,18 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 								]
 								
 							]
+						]
+
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SNew(STextBlock)
+							.Visibility_Lambda([this]()
+							{
+								return AssetItem->GetItem().IsSupported() ? EVisibility::Collapsed : EVisibility::Visible;
+							})
+							.Text(LOCTEXT("UnsupportedAssetDescriptionText", "This type of asset is not allowed in this project. Delete unsupported assets to avoid errors."))
+							.ColorAndOpacity(FStyleColors::Warning)
 						]
 
 						+ SVerticalBox::Slot()
@@ -1501,6 +1520,11 @@ FSlateColor SAssetViewItem::GetAssetColor() const
 				}
 			}
 		}
+
+		if(!AssetItem->GetItem().IsSupported())
+		{
+			return FSlateColor::UseForeground();
+		}
 	}
 	return ContentBrowserUtils::GetDefaultColor();
 }
@@ -1578,6 +1602,11 @@ void SAssetListItem::Construct( const FArguments& InArgs )
 		ThumbnailConfig.ThumbnailLabel = InArgs._ThumbnailLabel;
 		ThumbnailConfig.HighlightedText = InArgs._HighlightText;
 		ThumbnailConfig.HintColorAndOpacity = InArgs._ThumbnailHintColorAndOpacity;
+
+		if(!AssetItem->GetItem().IsSupported())
+		{
+			ThumbnailConfig.ClassThumbnailBrushOverride = FName("Icons.WarningWithColor.Thumbnail");
+		}
 
 		{
 			FContentBrowserItemDataAttributeValue ColorAttributeValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemColor);
@@ -1821,6 +1850,11 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 		ThumbnailConfig.Padding= FMargin(2.0f);
 		ThumbnailConfig.GenericThumbnailSize = MakeAttributeSP(this, &SAssetTileItem::GetGenericThumbnailSize);
 
+		if(!AssetItem->GetItem().IsSupported())
+		{
+			ThumbnailConfig.ClassThumbnailBrushOverride = FName("Icons.WarningWithColor.Thumbnail");
+		}
+		
 		{
 			FContentBrowserItemDataAttributeValue ColorAttributeValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemColor);
 			if (ColorAttributeValue.IsValid())
@@ -2321,7 +2355,14 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 		}
 		else
 		{
-			IconBrush = FAppStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+			if(!AssetItem->GetItem().IsSupported())
+			{
+				IconBrush = FAppStyle::GetBrush("Icons.WarningWithColor");
+			}
+			else
+			{
+				IconBrush = FAppStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+			}
 		}
 
 		// Make icon overlays (eg, SCC and dirty status) a reasonable size in relation to the icon size (note: it is assumed this icon is square)

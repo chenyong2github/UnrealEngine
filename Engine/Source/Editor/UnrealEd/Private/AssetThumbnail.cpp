@@ -495,7 +495,7 @@ private:
 		if(!bHasRenderedThumbnail)
 		{
 			const FSlateBrush* ClassThumbnailBrush = GetClassThumbnailBrush();
-			if( ClassThumbnailBrush && ThumbnailClass.Get() )
+			if( (ClassThumbnailBrush && ThumbnailClass.Get())  || !ClassThumbnailBrushOverride.IsNone() )
 			{
 				return EVisibility::Visible;
 			}

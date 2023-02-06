@@ -74,6 +74,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = ContentBrowser)
 	bool bCanBeModified = true;
 
+	UPROPERTY(BlueprintReadOnly, Category = ContentBrowser)
+	bool bContainsUnsupportedAssets = true;
+
 	TWeakPtr<SWidget> ParentWidget;
 
 	FOnShowInPathsView OnShowInPathsView;
