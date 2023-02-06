@@ -1622,56 +1622,52 @@ void FEntityManager::CombineComponents(FMovieSceneEntityID DestinationEntityID, 
 	OnStructureChanged();
 }
 
-int32 FEntityManager::MutateAll(const FEntityComponentFilter& Filter, const IMovieSceneEntityMutation& Mutation)
+int32 FEntityManager::MutateAll(const FEntityComponentFilter& Filter, const IMovieSceneEntityMutation& Mutation, EMutuallyInclusiveComponentType MutualTypes)
 {
 	CheckCanChangeStructure();
 
-	TMap<int32, FComponentMask> AllocationMutations;
-
-	for (int32 AllocationIndex = 0; AllocationIndex < EntityAllocationMasks.GetMaxIndex(); ++AllocationIndex)
-	{
-		if (EntityAllocationMasks.IsAllocated(AllocationIndex) && Filter.Match(EntityAllocationMasks[AllocationIndex]))
-		{
-			FComponentMask NewMutation = EntityAllocationMasks[AllocationIndex];
-			Mutation.CreateMutation(this, &NewMutation);
-
-			if (!NewMutation.CompareSetBits(EntityAllocationMasks[AllocationIndex]))
-			{
-				AllocationMutations.Add(AllocationIndex, MoveTemp(NewMutation));
-			}
-			else
-			{
-				FEntityAllocation* SourceAllocation = EntityAllocations[AllocationIndex];
-				Mutation.InitializeUnmodifiedAllocation(SourceAllocation, NewMutation);
-			}
-		}
-	}
-
-	if (AllocationMutations.Num() == 0)
-	{
-		return 0;
-	}
+	FMutualComponentInitializers MutualInitializers;
+	FEntityAllocationWriteContext WriteContext(*this);
 
 	int32 TotalNumMutations = 0;
 
-	for (TTuple<int32, FComponentMask>& Pair : AllocationMutations)
+	for (int32 AllocationIndex = 0; AllocationIndex < EntityAllocationMasks.GetMaxIndex(); ++AllocationIndex)
 	{
-		int32 AllocationIndex = Pair.Key;
+		if (!EntityAllocationMasks.IsAllocated(AllocationIndex) || !Filter.Match(EntityAllocationMasks[AllocationIndex]))
+		{
+			continue;
+		}
+
+		// Process the mutation
+		FComponentMask NewAllocationType = EntityAllocationMasks[AllocationIndex];
+		Mutation.CreateMutation(this, &NewAllocationType);
+
+		// Add mutual components
+		MutualInitializers.Reset();
+		ComponentRegistry->Factories.ComputeMutuallyInclusiveComponents(MutualTypes, NewAllocationType, MutualInitializers);
+
 		FEntityAllocation* SourceAllocation = EntityAllocations[AllocationIndex];
 
-		// When adding a component to an entire allocation we just reallocate within the same allocation entry to avoid having to fix up 
-		// Specific entity entry indices
-		FEntityAllocation* NewAllocation = MigrateAllocation(AllocationIndex, Pair.Value);
+		// If the type hasn't changed at all, we can just run the unmodified initializer
+		if (NewAllocationType.CompareSetBits(EntityAllocationMasks[AllocationIndex]))
+		{
+			Mutation.InitializeUnmodifiedAllocation(SourceAllocation, NewAllocationType);
+			continue;
+		}
+
+		// The type has changed so we need to migrate the allocation - we just reallocate within
+		// the same allocation index to avoid having to fix up specific entity entry indices
+		FEntityAllocation* NewAllocation = MigrateAllocation(AllocationIndex, NewAllocationType);
 		TotalNumMutations += NewAllocation->Num();
 
-		FComponentMask OldAllocationType = EntityAllocationMasks[Pair.Key];
-		EntityAllocationMasks[Pair.Key] = Pair.Value;
-		EntityAllocations[Pair.Key] = NewAllocation;
+		FComponentMask OldAllocationType = EntityAllocationMasks[AllocationIndex];
+		EntityAllocationMasks[AllocationIndex] = NewAllocationType;
+		EntityAllocations[AllocationIndex] = NewAllocation;
 
 		FEntityAllocationMutexGuard LockGuard(NewAllocation, EComponentHeaderLockMode::LockFree);
 
 		// Default construct all the new components in the allocation, and then allow the mutation to further initialize this data if needed
-		for (FComponentMaskIterator Component = Pair.Value.Iterate(); Component; ++Component)
+		for (FComponentMaskIterator Component = NewAllocationType.Iterate(); Component; ++Component)
 		{
 			FComponentTypeID ComponentTypeID = FComponentTypeID::FromBitIndex(Component.GetIndex());
 			if (OldAllocationType.Contains(ComponentTypeID))
@@ -1688,24 +1684,39 @@ int32 FEntityManager::MutateAll(const FEntityComponentFilter& Filter, const IMov
 				ComponentTypeInfo.ConstructItems(Components, NewAllocation->Num());
 			}
 		}
-		Mutation.InitializeAllocation(NewAllocation, Pair.Value);
 
+		// Run custom initializers
+		MutualInitializers.Execute(FEntityRange{ NewAllocation, 0, NewAllocation->Num() }, WriteContext);
+
+		// Run mutation initializer
+		Mutation.InitializeAllocation(NewAllocation, NewAllocationType);
+
+		// Destroy the old data
 		DestroyAllocation(SourceAllocation);
 	}
 
-	CheckInvariants();
-
-	OnStructureChanged();
+	if (TotalNumMutations != 0)
+	{
+		CheckInvariants();
+		OnStructureChanged();
+	}
 
 	return TotalNumMutations;
 }
 
-int32 FEntityManager::MutateConditional(const FEntityComponentFilter& Filter, const IMovieSceneConditionalEntityMutation& Mutation)
+int32 FEntityManager::MutateConditional(const FEntityComponentFilter& Filter, const IMovieSceneConditionalEntityMutation& Mutation, EMutuallyInclusiveComponentType MutualTypes)
 {
 	CheckCanChangeStructure();
 
-	TMap<int32, TTuple<FComponentMask, TBitArray<>>> AllocationMutations;
+	struct FConditionalMutationState
+	{
+		FComponentMask NewType;
+		TBitArray<> MarkedEntities;
+		FMutualComponentInitializers MutualInitializers;
+	};
+	TMap<int32, FConditionalMutationState> AllocationMutations;
 
+	FMutualComponentInitializers MutualInitializersScratch;
 	for (int32 AllocationIndex = 0; AllocationIndex < EntityAllocationMasks.GetMaxIndex(); ++AllocationIndex)
 	{
 		if (EntityAllocationMasks.IsAllocated(AllocationIndex) && Filter.Match(EntityAllocationMasks[AllocationIndex]))
@@ -1729,9 +1740,17 @@ int32 FEntityManager::MutateConditional(const FEntityComponentFilter& Filter, co
 			FComponentMask NewMutation = EntityAllocationMasks[AllocationIndex];
 			Mutation.CreateMutation(this, &NewMutation);
 
+			// Add mutual components
+			MutualInitializersScratch.Reset();
+			ComponentRegistry->Factories.ComputeMutuallyInclusiveComponents(MutualTypes, NewMutation, MutualInitializersScratch);
+
 			if (!NewMutation.CompareSetBits(EntityAllocationMasks[AllocationIndex]))
 			{
-				AllocationMutations.Add(AllocationIndex, MakeTuple(MoveTemp(NewMutation), MoveTemp(MarkedEntities)));
+				AllocationMutations.Add(AllocationIndex, FConditionalMutationState{
+					MoveTemp(NewMutation),
+					MoveTemp(MarkedEntities),
+					MoveTemp(MutualInitializersScratch)
+				});
 			}
 		}
 	}
@@ -1743,24 +1762,28 @@ int32 FEntityManager::MutateConditional(const FEntityComponentFilter& Filter, co
 
 	int32 TotalNumMutations = 0;
 
-	for (TTuple<int32, TTuple<FComponentMask, TBitArray<>>>& Pair : AllocationMutations)
+	FMutualComponentInitializers MutualInitializers;
+	FEntityAllocationWriteContext WriteContext(*this);
+
+	for (TTuple<int32, FConditionalMutationState>& Pair : AllocationMutations)
 	{
 		const int32 SourceAllocationIndex = Pair.Key;
 		FEntityAllocation* SourceAllocation = EntityAllocations[SourceAllocationIndex];
 
-		const int32 NumEntities = Pair.Value.Value.CountSetBits();
+		const int32 NumEntities = Pair.Value.MarkedEntities.CountSetBits();
 		const bool bAllEntitiesMarked = NumEntities == SourceAllocation->Num();
 
 		TotalNumMutations += NumEntities;
 
+		const FComponentMask& DesiredType = Pair.Value.NewType;
 		if (bAllEntitiesMarked)
 		{
 			// When adding a component to an entire allocation we just reallocate within the same allocation entry to avoid having to fix up 
 			// Specific entity entry indices
-			FEntityAllocation* NewAllocation = MigrateAllocation(SourceAllocationIndex, Pair.Value.Key);
+			FEntityAllocation* NewAllocation = MigrateAllocation(SourceAllocationIndex, DesiredType);
 
 			// Default construct all the new components in the allocation, and then allow the mutation to further initialize this data if needed
-			for (FComponentMaskIterator Component = Pair.Value.Key.Iterate(); Component; ++Component)
+			for (FComponentMaskIterator Component = DesiredType.Iterate(); Component; ++Component)
 			{
 				FComponentTypeID ComponentTypeID = FComponentTypeID::FromBitIndex(Component.GetIndex());
 				if (EntityAllocationMasks[SourceAllocationIndex].Contains(ComponentTypeID))
@@ -1778,19 +1801,22 @@ int32 FEntityManager::MutateConditional(const FEntityComponentFilter& Filter, co
 				}
 			}
 
-			EntityAllocationMasks[SourceAllocationIndex] = Pair.Value.Key;
+			EntityAllocationMasks[SourceAllocationIndex] = DesiredType;
 			EntityAllocations[SourceAllocationIndex] = NewAllocation;
 
 			FEntityRange Range { NewAllocation, 0, NewAllocation->Num() };
 
-			Mutation.InitializeEntities(Range, Pair.Value.Key);
+			// Run custom initializers
+			Pair.Value.MutualInitializers.Execute(Range, WriteContext);
+
+			Mutation.InitializeEntities(Range, DesiredType);
 
 			DestroyAllocation(SourceAllocation);
 		}
 		else
 		{
 			int32 DesiredSlack = NumEntities;
-			const int32 NewAllocationIndex = CreateAllocationWithSlack(Pair.Value.Key, &DesiredSlack);
+			const int32 NewAllocationIndex = CreateAllocationWithSlack(DesiredType, &DesiredSlack);
 
 			const FEntityAllocation* DestAllocation = EntityAllocations[NewAllocationIndex];
 			FEntityRange Range { DestAllocation, DestAllocation->Num(), NumEntities };
@@ -1799,7 +1825,7 @@ int32 FEntityManager::MutateConditional(const FEntityComponentFilter& Filter, co
 
 			// Migrate entities to the new allocation - care is taken to iterate the allocation backwards
 			// since entities can shift around in the allocation as they are migrated
-			for (TBitArray<>::FConstReverseIterator It(Pair.Value.Value); It; ++It)
+			for (TBitArray<>::FConstReverseIterator It(Pair.Value.MarkedEntities); It; ++It)
 			{
 				if (It.GetValue())
 				{
@@ -1811,7 +1837,11 @@ int32 FEntityManager::MutateConditional(const FEntityComponentFilter& Filter, co
 			}
 
 			check(Range.ComponentStartOffset + Range.Num == Range.Allocation->Num());
-			Mutation.InitializeEntities(Range, Pair.Value.Key);
+
+			// Run custom initializers
+			Pair.Value.MutualInitializers.Execute(Range, WriteContext);
+
+			Mutation.InitializeEntities(Range, DesiredType);
 		}
 	}
 
@@ -1893,66 +1923,14 @@ void FEntityManager::AddMutualComponents(const FEntityComponentFilter& InFilter)
 {
 	CheckCanChangeStructure();
 
-	TMap<int32, FComponentMask> AllocationMutations;
-
-	for (int32 AllocationIndex = 0; AllocationIndex < EntityAllocations.GetMaxIndex(); ++AllocationIndex)
+	struct FBenignMutation : IMovieSceneEntityMutation
 	{
-		if (!EntityAllocations.IsValidIndex(AllocationIndex))
-		{
-			continue;
-		}
+		void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override
+		{}
+	};
 
-		FComponentMask NewAllocationType = EntityAllocationMasks[AllocationIndex];
-		if (InFilter.IsValid() && !InFilter.Match(NewAllocationType))
-		{
-			continue;
-		}
-
-		const int32 NumNewComponents = ComponentRegistry->Factories.ComputeMutuallyInclusiveComponents(NewAllocationType);
-		if (NumNewComponents != 0)
-		{
-			AllocationMutations.Add(AllocationIndex, NewAllocationType);
-		}
-	}
-
-	if (AllocationMutations.Num() == 0)
-	{
-		return;
-	}
-
-	for (TTuple<int32, FComponentMask>& Pair : AllocationMutations)
-	{
-		int32 AllocationIndex = Pair.Key;
-		FEntityAllocation* SourceAllocation = EntityAllocations[AllocationIndex];
-
-		// When adding a component to an entire allocation we just reallocate within the same allocation entry to avoid having to fix up 
-		// Specific entity entry indices
-		FEntityAllocation* NewAllocation = MigrateAllocation(AllocationIndex, Pair.Value);
-
-		FComponentMask NewComponents = FComponentMask::BitwiseXOR(Pair.Value, EntityAllocationMasks[AllocationIndex], EBitwiseOperatorFlags::MaxSize);
-
-		for (FComponentMaskIterator Component = NewComponents.Iterate(); Component; ++Component)
-		{
-			FComponentTypeID ComponentTypeID = FComponentTypeID::FromBitIndex(Component.GetIndex());
-
-			const FComponentHeader& ComponentHeader = NewAllocation->GetComponentHeaderChecked(ComponentTypeID);
-			if (!ComponentHeader.IsTag())
-			{
-				const FComponentTypeInfo& ComponentTypeInfo = ComponentRegistry->GetComponentTypeChecked(ComponentTypeID);
-
-				void* Components = ComponentHeader.GetValuePtr(0);
-				ComponentTypeInfo.ConstructItems(Components, NewAllocation->Num());
-			}
-		}
-
-		EntityAllocationMasks[Pair.Key] = Pair.Value;
-		EntityAllocations[Pair.Key] = NewAllocation;
-
-		DestroyAllocation(SourceAllocation);
-	}
-
-	CheckInvariants();
-	OnStructureChanged();
+	FBenignMutation BenignMutation;
+	MutateAll(InFilter, BenignMutation, EMutuallyInclusiveComponentType::All);
 }
 
 FEntityAllocation* FEntityManager::MigrateAllocation(int32 AllocationIndex, const FComponentMask& NewComponentMask)

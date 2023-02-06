@@ -83,7 +83,7 @@ struct TStructOpsTypeTraits<FMovieSceneEntitySystemGraphNodes> : public TStructO
 USTRUCT()
 struct MOVIESCENE_API FMovieSceneEntitySystemGraph
 {
-	using FDirectionalEdge = FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge;
+	using FDirectionalEdge = UE::MovieScene::FDirectedGraph::FDirectionalEdge;
 
 	GENERATED_BODY()
 
@@ -192,7 +192,7 @@ private:
 
 	TMap<uint16, uint16> GlobalToLocalNodeIDs;
 
-	FMovieSceneEntitySystemDirectedGraph ReferenceGraph;
+	UE::MovieScene::FDirectedGraph ReferenceGraph;
 
 	uint32 SerialNumber = 0;
 	uint32 PreviousSerialNumber = 0;

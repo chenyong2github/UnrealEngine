@@ -238,7 +238,6 @@ struct FEasingChannelMutationBase : IMovieSceneConditionalEntityMutation
 	void CreateMutation(FEntityManager* InEntityManager, FComponentMask* InOutEntityComponentTypes) const override
 	{
 		InOutEntityComponentTypes->Set(BuiltInComponents->HierarchicalEasingChannel);
-		Factories->ComputeMutuallyInclusiveComponents(*InOutEntityComponentTypes);
 		InOutEntityComponentTypes->Set(BuiltInComponents->Tags.NeedsLink);
 	}
 
@@ -676,7 +675,7 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 			ProviderFilter.None({ BuiltInComponents->Tags.NeedsUnlink });
 
 			FProviderEasingChannelMutation ProviderMutation(Linker, &SequenceDataMap);
-			Linker->EntityManager.MutateConditional(ProviderFilter, ProviderMutation);
+			Linker->EntityManager.MutateConditional(ProviderFilter, ProviderMutation, EMutuallyInclusiveComponentType::All);
 
 			ProviderMutation.RemoveStaleComponents(Linker);
 		}
@@ -689,7 +688,7 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 			NewFilter.None({ BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->HierarchicalEasingProvider });
 
 			FConsumerEasingChannelMutation ConsumerMutation(Linker, &CachedInstanceIDToChannel);
-			Linker->EntityManager.MutateConditional(NewFilter, ConsumerMutation);
+			Linker->EntityManager.MutateConditional(NewFilter, ConsumerMutation, EMutuallyInclusiveComponentType::All);
 
 			ConsumerMutation.RemoveStaleComponents(Linker);
 		}
@@ -702,7 +701,7 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 		Filter.None({ BuiltInComponents->HierarchicalEasingProvider });
 
 		FConsumerEasingChannelMutation ConsumerMutation(Linker, &CachedInstanceIDToChannel);
-		Linker->EntityManager.MutateConditional(Filter, ConsumerMutation);
+		Linker->EntityManager.MutateConditional(Filter, ConsumerMutation, EMutuallyInclusiveComponentType::All);
 
 		ensure(!ConsumerMutation.HasStaleComponents());
 		ConsumerMutation.RemoveStaleComponents(Linker);

@@ -31,8 +31,6 @@ struct FCameraAnimationInstantiationMutation : IMovieSceneEntityMutation
 	virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const
 	{
 		// Create all output components and bind objects/components.
-		FComponentRegistry* ComponentRegistry = EntityManager->GetComponents();
-		ComponentRegistry->Factories.ComputeMutuallyInclusiveComponents(*InOutEntityComponentTypes);
 		InOutEntityComponentTypes->Set(BuiltInComponents->BoundObject);
 	}
 	virtual void InitializeAllocation(FEntityAllocation* Allocation, const FComponentMask& AllocationType) const
@@ -152,7 +150,7 @@ void UCameraAnimationBoundObjectInstantiator::OnRun(FSystemTaskPrerequisites& In
 				BuiltInComponents->SceneComponentBinding })
 		.All({ BuiltInComponents->InstanceHandle, BuiltInComponents->Tags.NeedsLink })
 		.None({ BuiltInComponents->Tags.NeedsUnlink });
-	Linker->EntityManager.MutateAll(Filter, Mutation);
+	Linker->EntityManager.MutateAll(Filter, Mutation, EMutuallyInclusiveComponentType::All);
 }
 
 UCameraAnimationEntitySystemLinker::UCameraAnimationEntitySystemLinker(const FObjectInitializer& ObjInit)

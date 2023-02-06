@@ -7,6 +7,7 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
+#include "MovieSceneFwd.h"
 
 namespace UE
 {
@@ -32,11 +33,13 @@ void FChildEntityFactory::Apply(UMovieSceneEntitySystemLinker* Linker, FEntityAl
 	const FComponentMask ParentType = ParentAllocationProxy.GetAllocationType();
 
 	FComponentMask DerivedEntityType;
+	FMutualComponentInitializers MutualInitializers;
+
 	{
 		GenerateDerivedType(DerivedEntityType);
 
 		Linker->EntityManager.GetComponents()->Factories.ComputeChildComponents(ParentType, DerivedEntityType);
-		Linker->EntityManager.GetComponents()->Factories.ComputeMutuallyInclusiveComponents(DerivedEntityType);
+		Linker->EntityManager.GetComponents()->Factories.ComputeMutuallyInclusiveComponents(EMutuallyInclusiveComponentType::All, DerivedEntityType, MutualInitializers);
 	}
 
 	const bool bHasAnyType = DerivedEntityType.Find(true) != INDEX_NONE;
@@ -49,7 +52,7 @@ void FChildEntityFactory::Apply(UMovieSceneEntitySystemLinker* Linker, FEntityAl
 
 	int32 CurrentParentOffset = 0;
 	const FEntityAllocation* ParentAllocation = ParentAllocationProxy.GetAllocation();
-	FEntityAllocationWriteContext WriteContext = FEntityAllocationWriteContext::NewAllocation();
+	FEntityAllocationWriteContext WriteContext(Linker->EntityManager);
 
 	// We attempt to allocate all the linker entities contiguously in memory for efficient initialization,
 	// but we may reach capacity constraints within allocations so we may have to run the factories more than once
@@ -79,6 +82,7 @@ void FChildEntityFactory::Apply(UMovieSceneEntitySystemLinker* Linker, FEntityAl
 		// Initialize the bound objects before we call child initializers
 		InitializeAllocation(Linker, ParentType, DerivedEntityType, ParentAllocation, CurrentEntityOffsets, ChildRange);
 
+		MutualInitializers.Execute(ChildRange, WriteContext);
 		Linker->EntityManager.InitializeChildAllocation(ParentType, DerivedEntityType, ParentAllocation, CurrentEntityOffsets, ChildRange);
 
 		CurrentParentOffset += NumAdded;
@@ -233,26 +237,35 @@ void FEntityFactories::DefineChildComponent(TInlineValue<FChildEntityInitializer
 	ChildInitializers.Add(MoveTemp(InInitializer));
 }
 
-void FEntityFactories::DefineMutuallyInclusiveComponent(FComponentTypeID InComponentA, FComponentTypeID InComponentB)
+void FEntityFactories::DefineMutuallyInclusiveComponents(FComponentTypeID InComponentA, std::initializer_list<FComponentTypeID> InMutualComponents)
 {
-	MutualInclusivityGraph.AllocateNode(InComponentA.BitIndex());
-	MutualInclusivityGraph.AllocateNode(InComponentB.BitIndex());
-	MutualInclusivityGraph.MakeEdge(InComponentA.BitIndex(), InComponentB.BitIndex());
-	Masks.AllMutualFirsts.Set(InComponentA);
+	MutualInclusivityGraph.DefineMutualInclusionRule(InComponentA, InMutualComponents);
+}
+
+void FEntityFactories::DefineMutuallyInclusiveComponents(FComponentTypeID InComponentA, std::initializer_list<FComponentTypeID> InMutualComponents, FMutuallyInclusiveComponentParams&& Params)
+{
+	MutualInclusivityGraph.DefineMutualInclusionRule(InComponentA, InMutualComponents, MoveTemp(Params));
 }
 
 void FEntityFactories::DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, FComponentTypeID InComponent)
 {
-	FComponentMask ComponentsToInclude { InComponent };
-	FComplexInclusivity NewComplexInclusivity { InFilter, ComponentsToInclude };
-	DefineComplexInclusiveComponents(NewComplexInclusivity);
+	MutualInclusivityGraph.DefineComplexInclusionRule(InFilter, { InComponent });
 }
 
+void FEntityFactories::DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, std::initializer_list<FComponentTypeID> InComponents, FMutuallyInclusiveComponentParams&& Params)
+{
+	MutualInclusivityGraph.DefineComplexInclusionRule(InFilter, InComponents, MoveTemp(Params));
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FEntityFactories::DefineComplexInclusiveComponents(const FComplexInclusivity& InInclusivity)
 {
-	ComplexInclusivity.Add(InInclusivity);
-	Masks.AllComplexFirsts.CombineWithBitwiseOR(InInclusivity.Filter.Mask, EBitwiseOperatorFlags::MaxSize);
+	for (FComponentMaskIterator It(InInclusivity.ComponentsToInclude.Iterate()); It; ++It)
+	{
+		MutualInclusivityGraph.DefineComplexInclusionRule(InInclusivity.Filter, { FComponentTypeID::FromBitIndex(It.GetIndex()) });
+	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 int32 FEntityFactories::ComputeChildComponents(const FComponentMask& ParentComponentMask, FComponentMask& ChildComponentMask)
 {
@@ -285,85 +298,9 @@ int32 FEntityFactories::ComputeChildComponents(const FComponentMask& ParentCompo
 	return NumNewComponents;
 }
 
-int32 FEntityFactories::ComputeMutuallyInclusiveComponents(FComponentMask& ComponentMask)
+int32 FEntityFactories::ComputeMutuallyInclusiveComponents(EMutuallyInclusiveComponentType MutualTypes, FComponentMask& ComponentMask, FMutualComponentInitializers& OutInitializers)
 {
-	int32 NumNewComponents = 0;
-
-	// We have two things that can add components: filtered includes and mutual includes.
-	//
-	// Since a mutual include might add a component that will make a filter pass, and a passing filter
-	// might add a component that has a mutual include, we need to loop over both until the whole
-	// thing "stabilizes".
-	//
-	// To avoid always having to loop one extra time (with the last loop not doing anything), we check
-	// if the previous loop added anything that can potentially make an additional loop useful. It won't
-	// prevent doing a loop for nothing, but it will prevent it *most* of the time.
-	//
-	while (true)
-	{
-		int32 NumNewComponentsThisTime = 0;
-		FComponentMask NewComponentsFromMutuals;
-
-		// Complex includes.
-		for (const FComplexInclusivity& Inclusivity : ComplexInclusivity)
-		{
-			if (Inclusivity.Filter.Match(ComponentMask))
-			{
-				// Only count the components that we are truly adding. Some of the components in ComponentsToInclude
-				// could already be present in our mask, and wouldn't count as "new" here.
-				const FComponentMask Added = FComponentMask::BitwiseAND(
-						Inclusivity.ComponentsToInclude, FComponentMask::BitwiseNOT(ComponentMask),
-						EBitwiseOperatorFlags::MaxSize);
-				NumNewComponentsThisTime += Added.NumComponents();
-
-				ComponentMask.CombineWithBitwiseOR(Inclusivity.ComponentsToInclude, EBitwiseOperatorFlags::MaxSize);
-			}
-		}
-
-		// Mutual includes.
-		FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch BFS(&MutualInclusivityGraph);
-
-		for (FComponentMaskIterator It = ComponentMask.Iterate(); It; ++It)
-		{
-			const uint16 NodeID = static_cast<uint16>(It.GetIndex());
-			if (MutualInclusivityGraph.IsNodeAllocated(NodeID))
-			{
-				BFS.Search(NodeID);
-			}
-		}
-
-		// Ideally would do a bitwise OR here
-		for (TConstSetBitIterator<> It(BFS.GetVisited()); It; ++It)
-		{
-			FComponentTypeID ComponentType = FComponentTypeID::FromBitIndex(It.GetIndex());
-			if (!ComponentMask.Contains(ComponentType))
-			{
-				NewComponentsFromMutuals.Set(ComponentType);
-				++NumNewComponentsThisTime;
-
-				ComponentMask.Set(ComponentType);
-			}
-		}
-
-		// Accumulate our count of new components.
-		NumNewComponents += NumNewComponentsThisTime;
-
-		// We don't need to do another loop if:
-		//
-		// 1. We didn't add anything this loop... 
-		//   OR
-		// 2. We added something in the "mutuals" part that we know doesn't match
-		//    any complex filter.
-		if (
-				(NumNewComponentsThisTime == 0) ||
-				(!NewComponentsFromMutuals.ContainsAny(Masks.AllComplexFirsts))
-			)
-		{
-			break;
-		}
-	}
-
-	return NumNewComponents;
+	return MutualInclusivityGraph.ComputeMutuallyInclusiveComponents(MutualTypes, ComponentMask, ComponentMask, OutInitializers);
 }
 
 void FEntityFactories::RunInitializers(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange)

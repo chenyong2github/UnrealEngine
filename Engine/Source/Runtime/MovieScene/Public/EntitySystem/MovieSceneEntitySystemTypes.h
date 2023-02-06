@@ -92,6 +92,14 @@ enum class EComplexFilterMode : uint8
 };
 ENUM_CLASS_FLAGS(EComplexFilterMode);
 
+enum class EMutuallyInclusiveComponentType : uint8
+{
+	Mandatory = 1u << 0,
+	Optional  = 1u << 1,
+
+	All = Mandatory | Optional,
+};
+ENUM_CLASS_FLAGS(EMutuallyInclusiveComponentType)
 
 /**
  * Enumeration specifying the locking mechanism to use when accessing component data

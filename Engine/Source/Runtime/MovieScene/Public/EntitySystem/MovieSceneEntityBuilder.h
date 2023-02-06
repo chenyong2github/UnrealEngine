@@ -6,6 +6,8 @@
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneComponentRegistry.h"
+#include "EntitySystem/MovieSceneEntityFactory.h"
+#include "EntitySystem/MovieSceneMutualComponentInclusivity.h"
 #include "Delegates/IntegerSequence.h"
 
 #include <initializer_list>
@@ -75,7 +77,7 @@ struct IEntityBuilder
 	virtual ~IEntityBuilder() {}
 
 	virtual FMovieSceneEntityID Create(FEntityManager* EntityManager) = 0;
-	virtual void GenerateType(FEntityManager* EntityManager, FComponentMask& OutMask) = 0;
+	virtual void GenerateType(FEntityManager* EntityManager, FComponentMask& OutMask, bool& OutAddMutualComponents) = 0;
 	virtual void Initialize(FEntityManager* EntityManager, const FEntityInfo& EntityInfo) = 0;
 };
 
@@ -207,12 +209,13 @@ struct TEntityBuilderImpl<TIntegerSequence<int, Indices...>, T...> : IEntityBuil
 		return CreateEntity(EntityManager);
 	}
 
-	virtual void GenerateType(FEntityManager* EntityManager, FComponentMask& OutMask) override final
+	virtual void GenerateType(FEntityManager* EntityManager, FComponentMask& OutMask, bool& OutAddMutualComponents) override final
 	{
 		VisitTupleElements([&OutMask](auto& In){ In.AccumulateMask(OutMask); }, this->Payload);
+
 		if (bAddMutualComponents)
 		{
-			EntityManager->GetComponents()->Factories.ComputeMutuallyInclusiveComponents(OutMask);
+			OutAddMutualComponents = true;
 		}
 	}
 
@@ -234,10 +237,21 @@ struct TEntityBuilderImpl<TIntegerSequence<int, Indices...>, T...> : IEntityBuil
 	 */
 	FMovieSceneEntityID CreateEntity(FEntityManager* EntityManager, FComponentMask NewType = FComponentMask())
 	{
-		GenerateType(EntityManager, NewType);
+		bool bLocalAddMutualComponents = false;
+		GenerateType(EntityManager, NewType, bLocalAddMutualComponents);
+
+		FMutualComponentInitializers MutualInitializers;
+		FEntityAllocationWriteContext WriteContext(*EntityManager);
+		EMutuallyInclusiveComponentType MutualTypes = bLocalAddMutualComponents ? EMutuallyInclusiveComponentType::All : EMutuallyInclusiveComponentType::Mandatory;
+
+		EntityManager->GetComponents()->Factories.ComputeMutuallyInclusiveComponents(MutualTypes, NewType, MutualInitializers);
 
 		FEntityInfo Entry = EntityManager->AllocateEntity(NewType);
 		Initialize(EntityManager, Entry);
+
+		// Run mutual initializers after the builder has actually constructed the entity
+		// otherwise mutual components would be reading garbage
+		MutualInitializers.Execute(Entry.Data.AsRange(), WriteContext);
 
 		return Entry.EntityID;
 	}
@@ -273,6 +287,12 @@ struct TEntityBuilderImpl<TIntegerSequence<int, Indices...>, T...> : IEntityBuil
 
 		VisitTupleElements([&NewMask](auto& In){ In.AccumulateMask(NewMask); }, this->Payload);
 
+		FMutualComponentInitializers MutualInitializers;
+		FEntityAllocationWriteContext WriteContext(*EntityManager);
+
+		EMutuallyInclusiveComponentType MutualTypes = bAddMutualComponents ? EMutuallyInclusiveComponentType::All : EMutuallyInclusiveComponentType::Mandatory;
+		EntityManager->GetComponents()->Factories.ComputeMutuallyInclusiveComponents(MutualTypes, NewMask, MutualInitializers);
+
 		if (!NewMask.CompareSetBits(OldMask))
 		{
 			EntityManager->ChangeEntityType(EntityID, NewMask);
@@ -283,6 +303,10 @@ struct TEntityBuilderImpl<TIntegerSequence<int, Indices...>, T...> : IEntityBuil
 		if (Entry.Data.Allocation != nullptr)
 		{
 			VisitTupleElements([Entry](auto& In){ In.Apply(Entry.Data.Allocation, Entry.Data.ComponentOffset); }, this->Payload);
+
+			// Run mutual initializers after the builder has actually constructed the entity
+			// otherwise mutual components would be reading garbage
+			MutualInitializers.Execute(Entry.Data.AsRange(), WriteContext);
 		}
 	}
 

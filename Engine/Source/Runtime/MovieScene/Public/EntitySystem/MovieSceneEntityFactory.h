@@ -12,6 +12,7 @@
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntitySystemDirectedGraph.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "EntitySystem/MovieSceneMutualComponentInclusivity.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/InlineValue.h"
 
@@ -22,63 +23,14 @@ namespace UE
 {
 namespace MovieScene
 {
-struct FEntityAllocation;
+
+struct IMutualComponentInitializer;
+
 struct FEntityRange;
+struct FEntityAllocation;
+struct FMutualComponentInitializers;
 
-
-enum class EComplexInclusivityFilterMode
-{
-	AllOf,
-	AnyOf
-};
-
-
-struct FComplexInclusivityFilter
-{
-	FComponentMask Mask;
-	EComplexInclusivityFilterMode Mode;
-
-	FComplexInclusivityFilter(const FComponentMask& InMask, EComplexInclusivityFilterMode InMode)
-		: Mask(InMask), Mode(InMode)
-	{}
-
-	static FComplexInclusivityFilter All(std::initializer_list<FComponentTypeID> InComponentTypes)
-	{
-		return FComplexInclusivityFilter(FComponentMask(InComponentTypes), EComplexInclusivityFilterMode::AllOf);
-	}
-
-	static FComplexInclusivityFilter Any(std::initializer_list<FComponentTypeID> InComponentTypes)
-	{
-		return FComplexInclusivityFilter(FComponentMask(InComponentTypes), EComplexInclusivityFilterMode::AnyOf);
-	}
-
-	bool Match(FComponentMask Input) const
-	{
-		switch (Mode)
-		{
-			case EComplexInclusivityFilterMode::AllOf:
-				{
-					FComponentMask Temp = Mask;
-					Temp.CombineWithBitwiseAND(Input, EBitwiseOperatorFlags::MaintainSize);
-					return Temp == Mask;
-				}
-				break;
-			case EComplexInclusivityFilterMode::AnyOf:
-				{
-					FComponentMask Temp = Mask;
-					Temp.CombineWithBitwiseAND(Input, EBitwiseOperatorFlags::MaintainSize);
-					return Temp.Find(true) != INDEX_NONE;
-				}
-				break;
-			default:
-				checkf(false, TEXT("Not implemented"));
-				return false;
-		}
-	}
-};
-
-
-struct FComplexInclusivity
+struct UE_DEPRECATED(5.2, "Please use DefineComplexInclusiveComponents()") FComplexInclusivity
 {
 	FComplexInclusivityFilter Filter;
 	FComponentMask ComponentsToInclude;
@@ -134,15 +86,24 @@ struct FEntityFactories
 	 * that entity too.
 	 *
 	 * @note: the inverse is not implied (ie B can still exist without A)
-     */
-	MOVIESCENE_API void DefineMutuallyInclusiveComponent(FComponentTypeID InComponentA, FComponentTypeID InComponentB);
+	 */
+	void DefineMutuallyInclusiveComponent(FComponentTypeID InComponentA, FComponentTypeID InComponentB)
+	{
+		DefineMutuallyInclusiveComponents(InComponentA, { InComponentB });
+	}
 
 	/**
-	 * Specifies that if an entity matches the given filter, the specified components should be created on it.
-	 * @note: include "EntitySystem/MovieSceneEntityFactoryTemplates.h" for definition
+	 * Indicates that if the first component exists on an entity, the specified components should be created on
+	 * that entity too.
+	 *
+	 * @note: the inverse is not implied (ie B can still exist without A)
 	 */
-	template<typename... ComponentTypes>
-	void DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, ComponentTypes... InComponents);
+	MOVIESCENE_API void DefineMutuallyInclusiveComponents(FComponentTypeID InComponentA, std::initializer_list<FComponentTypeID> InMutualComponents);
+
+	/**
+	 * Specifies a mutual inclusivity relationship along with a custom initializer for initializing the mutual component(s)
+	 */
+	MOVIESCENE_API void DefineMutuallyInclusiveComponents(FComponentTypeID InComponentA, std::initializer_list<FComponentTypeID> InMutualComponents, FMutuallyInclusiveComponentParams&& Params);
 
 	/**
 	 * Specifies that if an entity matches the given filter, the specified component should be created on it.
@@ -150,9 +111,9 @@ struct FEntityFactories
 	MOVIESCENE_API void DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, FComponentTypeID InComponent);
 
 	/**
-	 * Defines a new complex inclusivity relationship. The helper methods above are easier and preferrable.
+	 * Specifies that if an entity matches the given filter, the specified components should be created on it.
 	 */
-	MOVIESCENE_API void DefineComplexInclusiveComponents(const FComplexInclusivity& InInclusivity);
+	MOVIESCENE_API void DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, std::initializer_list<FComponentTypeID> InComponents, FMutuallyInclusiveComponentParams&& Params);
 
 	/**
 	 * Given a set of components on a parent entity, compute what components should exist on a child entity.
@@ -166,22 +127,36 @@ struct FEntityFactories
 	 *
 	 * This resolves all the mutual and complex inclusivity relationships.
 	 */
-	MOVIESCENE_API int32 ComputeMutuallyInclusiveComponents(FComponentMask& ComponentMask);
+	MOVIESCENE_API int32 ComputeMutuallyInclusiveComponents(EMutuallyInclusiveComponentType MutualTypes, FComponentMask& ComponentMask, FMutualComponentInitializers& OutInitializers);
 
 	MOVIESCENE_API void RunInitializers(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange);
 
-	TArray<TInlineValue<FChildEntityInitializer>> ChildInitializers;
+public:
 
-	TMultiMap<FComponentTypeID, FComponentTypeID> ParentToChildComponentTypes;
-	FMovieSceneEntitySystemDirectedGraph MutualInclusivityGraph;
-	TArray<FComplexInclusivity> ComplexInclusivity;
-
-	struct
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		using FDeprecatedComplexInclusivity = FComplexInclusivity;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	/**
+	 * Specifies that if an entity matches the given filter, the specified components should be created on it.
+	 */
+	template<typename... ComponentTypes>
+	UE_DEPRECATED(5.2, "Please use DefineComplexInclusiveComponents(const FComplexInclusivityFilter&, initializer_list<FComponentTypeID>)")
+	void DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, FComponentTypeID InComponent, ComponentTypes... InComponents)
 	{
-		FComponentMask AllMutualFirsts;
-		FComponentMask AllComplexFirsts;
+		DefineComplexInclusiveComponents(InFilter, std::initializer_list<FComponentTypeID>({ InComponent, InComponents... }), FMutuallyInclusiveComponentParams());
 	}
-	Masks;
+
+	/**
+	 * Defines a new complex inclusivity relationship. The helper methods above are easier and preferrable.
+	 */
+	UE_DEPRECATED(5.2, "Please use DefineComplexInclusiveComponents(const FComplexInclusivityFilter&, FComponentTypeID)")
+	MOVIESCENE_API void DefineComplexInclusiveComponents(const FDeprecatedComplexInclusivity& InInclusivity);
+
+private:
+
+	TArray<TInlineValue<FChildEntityInitializer>> ChildInitializers;
+	TMultiMap<FComponentTypeID, FComponentTypeID> ParentToChildComponentTypes;
+	UE::MovieScene::FMutualInclusivityGraph MutualInclusivityGraph;
 };
 
 

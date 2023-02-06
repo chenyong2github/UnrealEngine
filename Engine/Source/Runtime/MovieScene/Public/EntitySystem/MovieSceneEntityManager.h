@@ -47,12 +47,14 @@ struct FChildEntityInitializer;
 struct FComponentRegistry;
 struct FEntityAllocationIteratorProxy;
 struct FFreeEntityOperation;
+struct FMutualEntityInitializer;
 struct IComponentTypeHandler;
 struct IMovieSceneEntityMutation;
 template <typename T> struct TReadOptional;
 template <typename T> struct TWriteOptional;
 struct IMovieSceneConditionalEntityMutation;
 
+enum class EMutuallyInclusiveComponentType : uint8;
 
 enum class EEntityRecursion : uint8
 {
@@ -583,7 +585,7 @@ public:
 	 * @param Mutation    Implementation that defines how to mutate the entities that match the filter
 	 * @return The number of entities that were mutated, or 0 if none were matched
 	 */
-	int32 MutateAll(const FEntityComponentFilter& Filter, const IMovieSceneEntityMutation& Mutation);
+	int32 MutateAll(const FEntityComponentFilter& Filter, const IMovieSceneEntityMutation& Mutation, EMutuallyInclusiveComponentType MutualTypes = EMutuallyInclusiveComponentType::Mandatory);
 
 
 	/**
@@ -593,7 +595,7 @@ public:
 	 * @param Mutation    Implementation that defines how to mutate the entities that match the filter
 	 * @return The number of entities that were mutated, or 0 if none were matched
 	 */
-	int32 MutateConditional(const FEntityComponentFilter& Filter, const IMovieSceneConditionalEntityMutation& Mutation);
+	int32 MutateConditional(const FEntityComponentFilter& Filter, const IMovieSceneConditionalEntityMutation& Mutation, EMutuallyInclusiveComponentType MutualTypes = EMutuallyInclusiveComponentType::Mandatory);
 
 
 	/**

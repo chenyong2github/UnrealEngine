@@ -94,7 +94,7 @@ int32 FMovieSceneEntitySystemGraph::RemoveIrrelevantSystems(UMovieSceneEntitySys
 
 	int32 NumRemoved = 0;
 
-	FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch Search(&ReferenceGraph);
+	UE::MovieScene::FDirectedGraph::FBreadthFirstSearch Search(&ReferenceGraph);
 
 	// Search from all non-intermediate systems and mark systems that are still referenced
 	for (const FMovieSceneEntitySystemGraphNode& Node : Nodes.Array)
@@ -269,7 +269,7 @@ FString FMovieSceneEntitySystemGraph::ToString() const
 	String += TEXT("\t}\n");
 
 	{
-		FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges CyclicEdges(&ReferenceGraph);
+		FDirectedGraph::FDiscoverCyclicEdges CyclicEdges(&ReferenceGraph);
 		CyclicEdges.Search();
 
 		TArrayView<const FDirectionalEdge> ReferenceEdges = ReferenceGraph.GetEdges();

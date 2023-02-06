@@ -62,6 +62,98 @@ bool FMovieSceneEntityComponentFilterTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneMutuallyInclusiveComponentsTest, 
+		"System.Engine.Sequencer.EntitySystem.MutuallyInclusiveComponents", 
+		EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMovieSceneMutuallyInclusiveComponentsTest::RunTest(const FString& Parameters)
+{
+	using namespace UE::MovieScene;
+
+	FComponentTypeID ComponentTypes[] = {
+		FComponentTypeID::FromBitIndex(0),
+		FComponentTypeID::FromBitIndex(1),
+		FComponentTypeID::FromBitIndex(2),
+		FComponentTypeID::FromBitIndex(3),
+		FComponentTypeID::FromBitIndex(4),
+		FComponentTypeID::FromBitIndex(5),
+		FComponentTypeID::FromBitIndex(6),
+		FComponentTypeID::FromBitIndex(7),
+		FComponentTypeID::FromBitIndex(8),
+	};
+
+	FMutualInclusivityGraph InclusivityGraph;
+
+	// The inclusivity rules for this test are as follows:
+	//       0 requires 1 (Rule A)
+	//       3 requires 4 (Rule B)
+	//       4 requires 5 and 6 (Rule C)
+	//       if 2 and 6 are present, 5 and 7 must be present (Rule D)
+	//       if 1 or 5 are present, 8 must be present (Rule E)
+	// We define theese rules out-of-order to try and ensure order doesn't impact the algorithm
+
+	InclusivityGraph.DefineMutualInclusionRule(ComponentTypes[4], { ComponentTypes[5], ComponentTypes[6] });
+	InclusivityGraph.DefineMutualInclusionRule(ComponentTypes[3], { ComponentTypes[4] });
+	InclusivityGraph.DefineMutualInclusionRule(ComponentTypes[0], { ComponentTypes[1] });
+
+	InclusivityGraph.DefineComplexInclusionRule(FComplexInclusivityFilter({ ComponentTypes[6], ComponentTypes[2] }, EComplexInclusivityFilterMode::AllOf), { ComponentTypes[7], ComponentTypes[5] });
+	InclusivityGraph.DefineComplexInclusionRule(FComplexInclusivityFilter({ ComponentTypes[5], ComponentTypes[1] }, EComplexInclusivityFilterMode::AnyOf), { ComponentTypes[8] });
+
+	struct FTest
+	{
+		FComponentMask Input;
+		FComponentMask ExpectedOutput;
+	};
+	FTest Tests[] = {
+		{ { ComponentTypes[0] }, { ComponentTypes[0], ComponentTypes[1], ComponentTypes[8]} }, // Test Rule A feeding E
+		{ { ComponentTypes[3] }, { ComponentTypes[3], ComponentTypes[4], ComponentTypes[5], ComponentTypes[6], ComponentTypes[8] } }, // Test Rule B feeding C feeding E
+		{ { ComponentTypes[4] }, { ComponentTypes[4], ComponentTypes[5], ComponentTypes[6], ComponentTypes[8] } }, // Test Rule C and E
+		{ { ComponentTypes[2], ComponentTypes[6] }, { ComponentTypes[2], ComponentTypes[5], ComponentTypes[6], ComponentTypes[7], ComponentTypes[8] } }, // Test Rule D which feeds E
+		{ { ComponentTypes[2], ComponentTypes[4] }, { ComponentTypes[2], ComponentTypes[4], ComponentTypes[5], ComponentTypes[6], ComponentTypes[7], ComponentTypes[8] } }, // Test Rule C feeding rule D whcih feeds rule E
+		{ { ComponentTypes[0], ComponentTypes[2], ComponentTypes[6] }, { ComponentTypes[0], ComponentTypes[1], ComponentTypes[2], ComponentTypes[5], ComponentTypes[6], ComponentTypes[7], ComponentTypes[8] } }, // Test Rule A, C, D and E (A feeds E, C feeds D)
+	};
+
+
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Tests); ++Index)
+	{
+		const FTest& Test = Tests[Index];
+
+		FComponentMask Result;
+		FMutualComponentInitializers MutualInitializers;
+		InclusivityGraph.ComputeMutuallyInclusiveComponents(EMutuallyInclusiveComponentType::All, Test.Input, Result, MutualInitializers);
+
+		// Combine the result with the input since ComputeMutuallyInclusiveComponents only adds to Result
+		// if they did not exist in Input
+		Result.CombineWithBitwiseOR(Test.Input, EBitwiseOperatorFlags::MaxSize);
+
+		if (!Result.CompareSetBits(Test.ExpectedOutput) || Result.NumComponents() != Test.ExpectedOutput.NumComponents())
+		{
+			auto ToString = [](const FComponentMask& Mask)
+			{
+
+				TStringBuilder<32> String;
+				for (FComponentMaskIterator It(Mask.Iterate()); It; ++It)
+				{
+					if (String.Len() != 0)
+					{
+						String += TEXT("|");
+					}
+					String += LexToString(It.GetIndex());
+				}
+				return FString(String.ToString());
+			};
+
+			AddError(FString::Printf(TEXT("Test %d failed: result from input %s was %s: expected %s."),
+				Index,
+				*ToString(Test.Input),
+				*ToString(Result),
+				*ToString(Test.ExpectedOutput)
+				));
+		}
+	}
+
+	return true;
+}
+
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneEntityMigrationTest, 
 		"System.Engine.Sequencer.EntitySystem.Migration", 

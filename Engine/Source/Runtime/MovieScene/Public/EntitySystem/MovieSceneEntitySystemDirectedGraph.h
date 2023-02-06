@@ -4,10 +4,24 @@
 
 #include "Containers/Array.h"
 #include "Containers/BitArray.h"
+#include "Templates/Function.h"
+#include "Containers/StringFwd.h"
 
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 
-struct MOVIESCENE_API FMovieSceneEntitySystemDirectedGraph
+namespace UE::MovieScene
+{
+
+struct FDirectedGraphStringParameters
+{
+	FStringView ClusterName;
+	FColor Color = FColor::Black;
+};
+
+/**
+ * Directed graph represented as a bitarray for allocated nodes, and edges defined by pairs of integers (from->to).
+ */
+struct MOVIESCENE_API FDirectedGraph
 {
 	struct FDirectionalEdge
 	{
@@ -46,7 +60,7 @@ public:
 	{
 		TArray<uint16> PostNodes;
 
-		explicit FDepthFirstSearch(const FMovieSceneEntitySystemDirectedGraph* InGraph);
+		explicit FDepthFirstSearch(const FDirectedGraph* InGraph);
 
 		void Search(uint16 Node);
 
@@ -60,14 +74,14 @@ public:
 		TBitArray<> Visited;
 		TBitArray<> IsVisiting;
 
-		const FMovieSceneEntitySystemDirectedGraph* Graph;
+		const FDirectedGraph* Graph;
 	};
 
 	struct MOVIESCENE_API FBreadthFirstSearch
 	{
 		TArray<uint16> Nodes;
 
-		explicit FBreadthFirstSearch(const FMovieSceneEntitySystemDirectedGraph* InGraph);
+		explicit FBreadthFirstSearch(const FDirectedGraph* InGraph);
 
 		void Search(uint16 Node);
 
@@ -79,13 +93,13 @@ public:
 	private:
 
 		TBitArray<> Visited;
-		const FMovieSceneEntitySystemDirectedGraph* Graph;
+		const FDirectedGraph* Graph;
 		int32 StackIndex;
 	};
 
 	struct MOVIESCENE_API FDiscoverCyclicEdges
 	{
-		explicit FDiscoverCyclicEdges(const FMovieSceneEntitySystemDirectedGraph* InGraph);
+		explicit FDiscoverCyclicEdges(const FDirectedGraph* InGraph);
 
 		void Search(uint16 Node);
 
@@ -110,12 +124,12 @@ public:
 		TBitArray<> CyclicEdges;
 		TBitArray<> VisitedEdges;
 		TArray<uint16, TInlineAllocator<16>> EdgeChain;
-		const FMovieSceneEntitySystemDirectedGraph* Graph;
+		const FDirectedGraph* Graph;
 	};
 
 public:
 
-	FMovieSceneEntitySystemDirectedGraph()
+	FDirectedGraph()
 		: bHasDanglingEdges(false)
 	{}
 
@@ -150,6 +164,10 @@ public:
 
 	bool HasEdgeTo(uint16 InNode) const;
 
+	FString ToString(const UE::MovieScene::FDirectedGraphStringParameters& Parameters) const;
+
+	FString ToString(const UE::MovieScene::FDirectedGraphStringParameters& Parameters, TFunctionRef<void(uint16, FStringBuilderBase&)> EmitLabel) const;
+
 private:
 
 	int32 FindEdgeStart(uint16 FromNode) const;
@@ -171,3 +189,5 @@ private:
 	bool bHasDanglingEdges;
 };
 
+
+} // namespace UE::MovieScene

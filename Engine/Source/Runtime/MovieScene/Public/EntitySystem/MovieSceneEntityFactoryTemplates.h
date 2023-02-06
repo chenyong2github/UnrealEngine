@@ -206,14 +206,6 @@ inline void FEntityFactories::DefineChildComponent(TComponentTypeID<ParentCompon
 	ChildInitializers.Add(FInitializer(InParentType, InChildType, Forward<InitializerCallback>(InInitializer)));
 }
 
-template<typename... ComponentTypes>
-inline void FEntityFactories::DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, ComponentTypes... InComponents)
-{
-	FComponentMask ComponentsToInclude { InComponents... };
-	FComplexInclusivity NewComplexInclusivity { InFilter, ComponentsToInclude };
-	DefineComplexInclusiveComponents(NewComplexInclusivity);
-}
-
 template<typename T>
 TComponentTypeID<T> FComponentRegistry::NewComponentType(const TCHAR* const DebugName, EComponentTypeFlags Flags)
 {

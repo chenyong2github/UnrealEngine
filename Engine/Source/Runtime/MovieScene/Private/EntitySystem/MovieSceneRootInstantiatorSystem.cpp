@@ -49,6 +49,7 @@ void UMovieSceneRootInstantiatorSystem::InstantiateAllocation(const UE::MovieSce
 
 	const FComponentMask PreservationMask = Linker->EntityManager.GetComponents()->GetPreservationMask();
 
+	FMutualComponentInitializers MutualInitializers;
 	FComponentMask DerivedEntityType;
 
 	FComponentMask ParentType;
@@ -57,7 +58,7 @@ void UMovieSceneRootInstantiatorSystem::InstantiateAllocation(const UE::MovieSce
 		ParentType.Set(Header.ComponentType);
 	}
 	Linker->EntityManager.GetComponents()->Factories.ComputeChildComponents(ParentType, DerivedEntityType);
-	Linker->EntityManager.GetComponents()->Factories.ComputeMutuallyInclusiveComponents(DerivedEntityType);
+	Linker->EntityManager.GetComponents()->Factories.ComputeMutuallyInclusiveComponents(EMutuallyInclusiveComponentType::All, DerivedEntityType, MutualInitializers);
 
 	const bool bHasAnyType = DerivedEntityType.Find(true) != INDEX_NONE;
 	if (!bHasAnyType)
@@ -76,6 +77,7 @@ void UMovieSceneRootInstantiatorSystem::InstantiateAllocation(const UE::MovieSce
 
 	TArrayView<const FMovieSceneEntityID> ParentIDs = ParentAllocation->GetEntityIDs();
 
+	FEntityAllocationWriteContext WriteContext(Linker->EntityManager);
 	int32 CurrentParentOffset = 0;
 
 	// We attempt to allocate all the linker entities contiguously in memory for efficient initialization,
@@ -87,6 +89,8 @@ void UMovieSceneRootInstantiatorSystem::InstantiateAllocation(const UE::MovieSce
 
 		FEntityDataLocation NewLinkerEntities = Linker->EntityManager.AllocateContiguousEntities(DerivedEntityType, &NumAdded);
 		FEntityRange ChildRange{ NewLinkerEntities.Allocation, NewLinkerEntities.ComponentOffset, NumAdded };
+
+		MutualInitializers.Execute(ChildRange, WriteContext);
 
 		Linker->EntityManager.InitializeChildAllocation(ParentType, DerivedEntityType, ParentAllocation, MakeArrayView(ParentOffsets.GetData() + CurrentParentOffset, NumAdded), ChildRange);
 

@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EntitySystem/MovieSceneEntitySystemDirectedGraph.h"
+#include "Containers/UnrealString.h"
+#include "Misc/StringBuilder.h"
 
 //#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEntitySystemDirectedGraph)
 
-FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch::FDepthFirstSearch(const FMovieSceneEntitySystemDirectedGraph* InGraph)
+namespace UE::MovieScene
+{
+
+FDirectedGraph::FDepthFirstSearch::FDepthFirstSearch(const FDirectedGraph* InGraph)
 	: Visited(false, InGraph->Nodes.Num())
 	, IsVisiting(false, InGraph->Nodes.Num())
 {
@@ -13,11 +18,11 @@ FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch::FDepthFirstSearch(const
 	check(!Graph->bHasDanglingEdges);
 }
 
-void FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch::Search(uint16 InNodeID)
+void FDirectedGraph::FDepthFirstSearch::Search(uint16 InNodeID)
 {
 	IsVisiting[InNodeID] = true;
 
-	for (FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge Edge : Graph->GetEdgesFrom(InNodeID))
+	for (FDirectedGraph::FDirectionalEdge Edge : Graph->GetEdgesFrom(InNodeID))
 	{
 		if (Visited[Edge.ToNode] == false)
 		{
@@ -35,7 +40,7 @@ void FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch::Search(uint16 InNo
 	IsVisiting[InNodeID] = false;
 }
 
-FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch::FBreadthFirstSearch(const FMovieSceneEntitySystemDirectedGraph* InGraph)
+FDirectedGraph::FBreadthFirstSearch::FBreadthFirstSearch(const FDirectedGraph* InGraph)
 	: Visited(false, InGraph->Nodes.Num())
 	, StackIndex(0)
 {
@@ -44,7 +49,7 @@ FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch::FBreadthFirstSearch(c
 	check(!InGraph->bHasDanglingEdges);
 }
 
-void FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch::Search(uint16 InNodeID)
+void FDirectedGraph::FBreadthFirstSearch::Search(uint16 InNodeID)
 {
 	if (Visited[InNodeID] == true)
 	{
@@ -65,7 +70,7 @@ void FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch::Search(uint16 In
 			const uint16 NodeID = Nodes[StackIndex];
 
 			// Visit all nodes this points to
-			for (FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge Edge : Graph->GetEdgesFrom(NodeID))
+			for (FDirectedGraph::FDirectionalEdge Edge : Graph->GetEdgesFrom(NodeID))
 			{
 				if (Visited[Edge.ToNode] == false)
 				{
@@ -77,7 +82,7 @@ void FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch::Search(uint16 In
 	}
 }
 
-FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::FDiscoverCyclicEdges(const FMovieSceneEntitySystemDirectedGraph* InGraph)
+FDirectedGraph::FDiscoverCyclicEdges::FDiscoverCyclicEdges(const FDirectedGraph* InGraph)
 	: CyclicEdges(false, InGraph->SortedEdges.Num())
 	, VisitedEdges(false, InGraph->SortedEdges.Num())
 {
@@ -85,7 +90,7 @@ FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::FDiscoverCyclicEdges
 	check(!Graph->bHasDanglingEdges);
 }
 
-void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::Search()
+void FDirectedGraph::FDiscoverCyclicEdges::Search()
 {
 	for (uint16 EdgeIndex = 0; EdgeIndex < Graph->SortedEdges.Num(); ++EdgeIndex)
 	{
@@ -101,14 +106,14 @@ void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::Search()
 	}
 }
 
-void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::SearchFrom(uint16 NodeID)
+void FDirectedGraph::FDiscoverCyclicEdges::SearchFrom(uint16 NodeID)
 {
 	TBitArray<> VisitedNodes(false, Graph->Nodes.Num());
 	VisitedNodes[NodeID] = true;
 	DiscoverCycles(NodeID, VisitedNodes);
 }
 
-void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::DiscoverCycles(uint16 NodeID, TBitArray<>& VisitedNodes)
+void FDirectedGraph::FDiscoverCyclicEdges::DiscoverCycles(uint16 NodeID, TBitArray<>& VisitedNodes)
 {
 	// Iterate all edges from this node
 	for (int32 SubsequentEdge = Graph->FindEdgeStart(NodeID); SubsequentEdge < Graph->SortedEdges.Num() && Graph->SortedEdges[SubsequentEdge].FromNode == NodeID; ++SubsequentEdge)
@@ -137,7 +142,7 @@ void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::DiscoverCycles(
 	}
 }
 
-void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::TagCyclicChain(uint16 CyclicNodeID)
+void FDirectedGraph::FDiscoverCyclicEdges::TagCyclicChain(uint16 CyclicNodeID)
 {
 	// Found a cycle
 	for (int32 EdgeChainIndex = EdgeChain.Num() - 1; EdgeChainIndex >= 0; --EdgeChainIndex)
@@ -153,19 +158,19 @@ void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::TagCyclicChain(
 	}
 }
 
-void FMovieSceneEntitySystemDirectedGraph::AllocateNode(uint16 NodeID)
+void FDirectedGraph::AllocateNode(uint16 NodeID)
 {
 	CleanUpDanglingEdges();
 	Nodes.PadToNum(NodeID + 1, false);
 	Nodes[NodeID] = true;
 }
 
-bool FMovieSceneEntitySystemDirectedGraph::IsNodeAllocated(uint16 NodeID) const
+bool FDirectedGraph::IsNodeAllocated(uint16 NodeID) const
 {
 	return Nodes.IsValidIndex(NodeID) && Nodes[NodeID] == true;
 }
 
-void FMovieSceneEntitySystemDirectedGraph::RemoveNode(uint16 NodeID)
+void FDirectedGraph::RemoveNode(uint16 NodeID)
 {
 	check(NodeID != TNumericLimits<uint16>::Max() && IsNodeAllocated(NodeID));
 
@@ -175,7 +180,7 @@ void FMovieSceneEntitySystemDirectedGraph::RemoveNode(uint16 NodeID)
 	bHasDanglingEdges = true;
 }
 
-void FMovieSceneEntitySystemDirectedGraph::CleanUpDanglingEdges()
+void FDirectedGraph::CleanUpDanglingEdges()
 {
 	if (!bHasDanglingEdges)
 	{
@@ -197,7 +202,7 @@ void FMovieSceneEntitySystemDirectedGraph::CleanUpDanglingEdges()
 	}
 }
 
-bool FMovieSceneEntitySystemDirectedGraph::IsCyclic() const
+bool FDirectedGraph::IsCyclic() const
 {
 	TBitArray<> Visited(false, Nodes.Num());
 
@@ -220,7 +225,7 @@ bool FMovieSceneEntitySystemDirectedGraph::IsCyclic() const
 	return false;
 }
 
-bool FMovieSceneEntitySystemDirectedGraph::IsCyclicImpl(uint16 NodeID, TBitArray<>& Visiting) const
+bool FDirectedGraph::IsCyclicImpl(uint16 NodeID, TBitArray<>& Visiting) const
 {
 	if (Visiting[NodeID] == true)
 	{
@@ -241,7 +246,7 @@ bool FMovieSceneEntitySystemDirectedGraph::IsCyclicImpl(uint16 NodeID, TBitArray
 	return false;
 }
 
-void FMovieSceneEntitySystemDirectedGraph::MakeEdge(uint16 FromNode, uint16 ToNode)
+void FDirectedGraph::MakeEdge(uint16 FromNode, uint16 ToNode)
 {
 	FDirectionalEdge NewEdge(FromNode, ToNode);
 
@@ -252,7 +257,7 @@ void FMovieSceneEntitySystemDirectedGraph::MakeEdge(uint16 FromNode, uint16 ToNo
 	}
 }
 
-void FMovieSceneEntitySystemDirectedGraph::DestroyEdge(uint16 FromNode, uint16 ToNode)
+void FDirectedGraph::DestroyEdge(uint16 FromNode, uint16 ToNode)
 {
 	FDirectionalEdge Edge(FromNode, ToNode);
 
@@ -263,36 +268,36 @@ void FMovieSceneEntitySystemDirectedGraph::DestroyEdge(uint16 FromNode, uint16 T
 	}
 }
 
-void FMovieSceneEntitySystemDirectedGraph::DestroyAllEdges()
+void FDirectedGraph::DestroyAllEdges()
 {
 	SortedEdges.Reset();
 	bHasDanglingEdges = false;
 }
 
-int32 FMovieSceneEntitySystemDirectedGraph::FindEdgeStart(uint16 FromNode) const
+int32 FDirectedGraph::FindEdgeStart(uint16 FromNode) const
 {
 	return Algo::LowerBoundBy(SortedEdges, FromNode, &FDirectionalEdge::FromNode);
 }
 
-TArrayView<const FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge> FMovieSceneEntitySystemDirectedGraph::GetEdges() const
+TArrayView<const FDirectedGraph::FDirectionalEdge> FDirectedGraph::GetEdges() const
 {
 	check(!bHasDanglingEdges);
 	return SortedEdges;
 }
 
-bool FMovieSceneEntitySystemDirectedGraph::HasEdgeFrom(uint16 InNode) const
+bool FDirectedGraph::HasEdgeFrom(uint16 InNode) const
 {
 	const int32 ExpectedIndex = FindEdgeStart(InNode);
 	return SortedEdges.IsValidIndex(ExpectedIndex) && SortedEdges[ExpectedIndex].FromNode == InNode;
 }
 
-bool FMovieSceneEntitySystemDirectedGraph::HasEdgeTo(uint16 InNode) const
+bool FDirectedGraph::HasEdgeTo(uint16 InNode) const
 {
 	check(InNode != TNumericLimits<uint16>::Max());
 	return Algo::FindBy(SortedEdges, InNode, &FDirectionalEdge::ToNode) != nullptr;
 }
 
-TArrayView<const FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge> FMovieSceneEntitySystemDirectedGraph::GetEdgesFrom(uint16 InNodeID) const
+TArrayView<const FDirectedGraph::FDirectionalEdge> FDirectedGraph::GetEdgesFrom(uint16 InNodeID) const
 {
 	check(!bHasDanglingEdges);
 
@@ -311,7 +316,7 @@ TArrayView<const FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge> FMovieS
 	return TArrayView<const FDirectionalEdge>();
 }
 
-TBitArray<> FMovieSceneEntitySystemDirectedGraph::FindEdgeUpstreamNodes() const
+TBitArray<> FDirectedGraph::FindEdgeUpstreamNodes() const
 {
 	check(!bHasDanglingEdges);
 
@@ -328,13 +333,13 @@ TBitArray<> FMovieSceneEntitySystemDirectedGraph::FindEdgeUpstreamNodes() const
 	return TBitArray<>::BitwiseAND(EdgeNodes, Nodes, EBitwiseOperatorFlags::MaxSize);
 }
 
-int32 FMovieSceneEntitySystemDirectedGraph::FindEdgeIndex(const FDirectionalEdge& Edge) const
+int32 FDirectedGraph::FindEdgeIndex(const FDirectionalEdge& Edge) const
 {
 	check(!bHasDanglingEdges);
 	return Algo::LowerBound(SortedEdges, Edge);
 }
 
-bool FMovieSceneEntitySystemDirectedGraph::EdgeExists(const FDirectionalEdge& Edge) const
+bool FDirectedGraph::EdgeExists(const FDirectionalEdge& Edge) const
 {
 	check(!bHasDanglingEdges);
 
@@ -342,3 +347,61 @@ bool FMovieSceneEntitySystemDirectedGraph::EdgeExists(const FDirectionalEdge& Ed
 	return EdgeIndex < SortedEdges.Num() && SortedEdges[EdgeIndex] == Edge;
 }
 
+FString FDirectedGraph::ToString(const FDirectedGraphStringParameters& Parameters, TFunctionRef<void(uint16, FStringBuilderBase&)> EmitLabel) const
+{
+	TStringBuilder<256> String;
+
+	String += TEXT("\ndigraph FDirectedGraph {\n");
+	String += TEXT("\tnode [shape=record,height=.1];\n");
+	String += TEXT("\tsubgraph cluster_flow_0\n\t{\n");
+	if (Parameters.ClusterName.Len() != 0)
+	{
+		String.Append(TEXT("\tlabel=\""));
+		String.Append(Parameters.ClusterName);
+		String.Append(TEXT("\";\n"));
+	}
+	if (Parameters.Color != FColor::White)
+	{
+		String.Appendf(TEXT("\tcolor=\"%s\";\n"), *Parameters.Color.ToHex());
+	}
+	String += TEXT("\t}\n");
+
+	// Add the nodes to the graph
+	for (TConstSetBitIterator<> SetBitIt(Nodes); SetBitIt; ++SetBitIt)
+	{
+		const uint16 NodeID = static_cast<uint16>(SetBitIt.GetIndex());
+
+		String += TEXT("\t\tnode%d[label=\"");
+		EmitLabel(NodeID, String);
+		String += TEXT("\"];\n");
+	}
+
+	String += TEXT("\t}\n\n");
+
+	// Make edges
+	{
+		FDirectedGraph::FDiscoverCyclicEdges CyclicEdges(this);
+		CyclicEdges.Search();
+
+		TArrayView<const FDirectedGraph::FDirectionalEdge> Edges = GetEdges();
+		for (int32 EdgeIndex = 0; EdgeIndex < Edges.Num(); ++EdgeIndex)
+		{
+			FDirectedGraph::FDirectionalEdge Edge = Edges[EdgeIndex];
+			const bool bIsCyclic = CyclicEdges.IsCyclic(EdgeIndex);
+
+			String += FString::Printf(TEXT("\tnode%d -> node%d [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#3992ad"));
+		}
+	}
+
+	String += TEXT("}\n\n");
+	return String.ToString();
+}
+
+FString FDirectedGraph::ToString(const FDirectedGraphStringParameters& Parameters) const
+{
+	return ToString(Parameters, [](uint16 NodeID, FStringBuilderBase& OutStringBuilder){
+		OutStringBuilder.Appendf(TEXT("Node %d"), NodeID);
+	});
+}
+
+} // namespace UE::MovieScene

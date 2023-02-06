@@ -108,7 +108,7 @@ struct FSystemDependencyGraph
 
 	void GetSubsequents(uint16 FromNodeID, TArray<uint16>& OutSubsequentNodeIDs)
 	{
-		using FDirectionalEdge = FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge;
+		using FDirectionalEdge = FDirectedGraph::FDirectionalEdge;
 
 		UpdateCache();
 
@@ -136,7 +136,7 @@ struct FSystemDependencyGraph
 
 	FString ToString() const
 	{
-		using FDirectionalEdge = FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge;
+		using FDirectionalEdge = FDirectedGraph::FDirectionalEdge;
 
 		FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
 
@@ -249,7 +249,7 @@ struct FSystemDependencyGraph
 		}
 
 		{
-			FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges CyclicEdges(&FlowGraph);
+			FDirectedGraph::FDiscoverCyclicEdges CyclicEdges(&FlowGraph);
 			CyclicEdges.Search();
 
 			TArrayView<const FDirectionalEdge> FlowEdges = FlowGraph.GetEdges();
@@ -309,7 +309,7 @@ private:
 
 		BuildFlowGraph();
 
-		FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch DepthFirstSearch(&FlowGraph);
+		FDirectedGraph::FDepthFirstSearch DepthFirstSearch(&FlowGraph);
 
 		TBitArray<> EdgeNodes = FlowGraph.FindEdgeUpstreamNodes();
 		for (TConstSetBitIterator<> EdgeNodeIt(EdgeNodes); EdgeNodeIt; ++EdgeNodeIt)
@@ -352,7 +352,7 @@ private:
 
 	void SetupFlowDependencies(int32 NodeIndex)
 	{
-		using FDirectionalEdge = FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge;
+		using FDirectionalEdge = FDirectedGraph::FDirectionalEdge;
 
 		const uint16 CurrentNodeID(static_cast<uint16>(NodeIndex));
 
@@ -426,10 +426,10 @@ private:
 
 	TArray<FNode> Nodes;
 
-	FMovieSceneEntitySystemDirectedGraph ImplicitPrerequisites;
-	FMovieSceneEntitySystemDirectedGraph ImplicitSubsequents;
+	FDirectedGraph ImplicitPrerequisites;
+	FDirectedGraph ImplicitSubsequents;
 
-	FMovieSceneEntitySystemDirectedGraph FlowGraph;
+	FDirectedGraph FlowGraph;
 	TArray<uint16> FlowOrderNodes;
 	TArray<uint16> ReverseLookupFlowOrderNodes;
 

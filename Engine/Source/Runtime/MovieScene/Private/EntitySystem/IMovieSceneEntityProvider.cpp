@@ -35,12 +35,20 @@ FMovieSceneEntityID FImportedEntity::Manufacture(const FEntityImportParams& Para
 	.AddConditional(Components->RootInstanceHandle, Params.Sequence.RootInstanceHandle, Params.Sequence.RootInstanceHandle.IsValid())
 	.AddConditional(Components->InstanceHandle, Params.Sequence.InstanceHandle, Params.Sequence.InstanceHandle.IsValid());
 
+	FEntityAllocationWriteContext WriteContext(*EntityManager);
+
+	bool bAddMutualComponents = false;
+
 	FComponentMask NewMask;
-	BaseBuilder.GenerateType(EntityManager, NewMask);
+	BaseBuilder.GenerateType(EntityManager, NewMask, bAddMutualComponents);
 	for (TInlineValue<IEntityBuilder>& Builder : Builders)
 	{
-		Builder->GenerateType(EntityManager, NewMask);
+		Builder->GenerateType(EntityManager, NewMask, bAddMutualComponents);
 	}
+
+	FMutualComponentInitializers MutualInitializers;
+	EMutuallyInclusiveComponentType MutualTypes = bAddMutualComponents ? EMutuallyInclusiveComponentType::All : EMutuallyInclusiveComponentType::Mandatory;
+	EntityManager->GetComponents()->Factories.ComputeMutuallyInclusiveComponents(MutualTypes, NewMask, MutualInitializers);
 
 	FEntityInfo NewEntity = EntityManager->AllocateEntity(NewMask);
 
@@ -49,6 +57,10 @@ FMovieSceneEntityID FImportedEntity::Manufacture(const FEntityImportParams& Para
 	{
 		Builder->Initialize(EntityManager, NewEntity);
 	}
+
+	// Run mutual initializers after the builder has actually constructed the entity
+	// otherwise mutual components would be reading garbage
+	MutualInitializers.Execute(NewEntity.Data.AsRange(), WriteContext);
 
 	return NewEntity.EntityID;
 }
