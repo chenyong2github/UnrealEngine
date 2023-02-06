@@ -13,6 +13,18 @@
 
 #define LOCTEXT_NAMESPACE "PoseSearchFeatureChannels"
 
+UPoseSearchFeatureChannel_Trajectory::UPoseSearchFeatureChannel_Trajectory()
+{
+#if WITH_EDITOR
+	// defaulting UPoseSearchFeatureChannel_Trajectory to a meaningful locomotion setup
+	Weight = 7.f;
+	Samples.Add(FPoseSearchTrajectorySample({ -0.4f, int32(EPoseSearchTrajectoryFlags::PositionXY), 0.4f, 0 }));
+	Samples.Add(FPoseSearchTrajectorySample({ 0.f, int32(EPoseSearchTrajectoryFlags::VelocityXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 2.f }));
+	Samples.Add(FPoseSearchTrajectorySample({ 0.35f, int32(EPoseSearchTrajectoryFlags::PositionXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 0.7f }));
+	Samples.Add(FPoseSearchTrajectorySample({ 0.7f, int32(EPoseSearchTrajectoryFlags::VelocityXY | EPoseSearchTrajectoryFlags::PositionXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 0.5f }));
+#endif
+}
+
 void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 {
 	SubChannels.Reset();
