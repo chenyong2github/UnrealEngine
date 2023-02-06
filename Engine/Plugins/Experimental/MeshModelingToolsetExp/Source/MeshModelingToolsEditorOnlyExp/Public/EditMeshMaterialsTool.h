@@ -121,11 +121,25 @@ protected:
 	FMaterialSetKey InitialMaterialKey;
 	bool bHaveModifiedMaterials = false;
 	bool bShowingMaterialSetError = false;
+	bool bShowingNotEnoughMaterialsError = false;
 
 	virtual void ApplyShutdownAction(EToolShutdownType ShutdownType) override;
 
 	void ExternalUpdateMaterialSet(const TArray<UMaterialInterface*>& NewMaterialSet);
 	friend class FEditMeshMaterials_MaterialSetChange;
+
+private:
+
+	// @return the max material ID used in the PreviewMesh
+	int32 FindMaxActiveMaterialID() const;
+
+	// Clamp material IDs to be less than the number of materials
+	bool FixInvalidMaterialIDs();
+
+	// Update error messages regarding whether we have enough materials on the current mesh
+	void UpdateMaterialSetErrors();
+
+	int32 MaterialSetWatchIndex = -1;
 };
 
 
