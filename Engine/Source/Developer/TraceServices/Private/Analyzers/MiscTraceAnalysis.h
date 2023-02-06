@@ -39,8 +39,6 @@ private:
 		RouteId_SetThreadGroup,
 		RouteId_BeginThreadGroupScope,
 		RouteId_EndThreadGroupScope,
-		RouteId_BookmarkSpec,
-		RouteId_Bookmark,
 		RouteId_BeginFrame,
 		RouteId_EndFrame,
 		RouteId_BeginGameFrame,

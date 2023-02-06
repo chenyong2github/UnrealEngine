@@ -45,8 +45,6 @@ void FMiscTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_SetThreadGroup, "Misc", "SetThreadGroup");
 	Builder.RouteEvent(RouteId_BeginThreadGroupScope, "Misc", "BeginThreadGroupScope");
 	Builder.RouteEvent(RouteId_EndThreadGroupScope, "Misc", "EndThreadGroupScope");
-	Builder.RouteEvent(RouteId_BookmarkSpec, "Misc", "BookmarkSpec");
-	Builder.RouteEvent(RouteId_Bookmark, "Misc", "Bookmark");
 	Builder.RouteEvent(RouteId_BeginFrame, "Misc", "BeginFrame");
 	Builder.RouteEvent(RouteId_EndFrame, "Misc", "EndFrame");
 	Builder.RouteEvent(RouteId_BeginGameFrame, "Misc", "BeginGameFrame");
