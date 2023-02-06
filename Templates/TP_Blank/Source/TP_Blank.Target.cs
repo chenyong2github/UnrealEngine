@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 public class TP_BlankTarget : TargetRules
 {
-	public TP_BlankTarget( TargetInfo Target) : base(Target)
+	public TP_BlankTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.Latest;
