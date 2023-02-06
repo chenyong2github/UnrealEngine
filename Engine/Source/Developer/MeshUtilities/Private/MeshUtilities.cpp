@@ -5577,6 +5577,7 @@ void FMeshUtilities::StartupModule()
 {
 	FModuleManager::Get().LoadModule("MaterialBaking");
 	FModuleManager::Get().LoadModule(TEXT("MeshMergeUtilities"));
+	FModuleManager::Get().LoadModule(TEXT("MeshBoneReduction"));
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
