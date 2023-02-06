@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "UObject/ObjectKey.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectStorage.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
 
 namespace UE::MovieScene

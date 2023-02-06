@@ -17,6 +17,7 @@
 class UActorContainer;
 class UDataLayerAsset;
 class UDataLayerInstance;
+class UWorldPartition;
 struct FHierarchicalLogArchive;
 
 enum class EWorldPartitionRuntimeCellVisualizeMode

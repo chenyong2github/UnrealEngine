@@ -16,6 +16,7 @@
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "SceneTextureReductions.h"
 #include "RenderGraphUtils.h"
+#include "Engine/Engine.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
