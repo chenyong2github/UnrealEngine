@@ -546,7 +546,6 @@ inline uint32 GetTypeHash(const FNaniteRasterMaterialCacheKey& Key)
 
 struct FNaniteRasterMaterialCache
 {
-	const FMaterial* Material = nullptr;
 	const FMaterial* VertexMaterial = nullptr;
 	const FMaterial* PixelMaterial = nullptr;
 	const FMaterial* ComputeMaterial = nullptr;
@@ -560,6 +559,7 @@ struct FNaniteRasterMaterialCache
 	TShaderRef<FMicropolyRasterizeCS> RasterComputeShader;
 
 	TOptional<uint32> MaterialBitFlags;
+	bool bFinalized = false;
 };
 
 #endif

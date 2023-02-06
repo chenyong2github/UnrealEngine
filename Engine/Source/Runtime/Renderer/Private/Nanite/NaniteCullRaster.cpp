@@ -113,7 +113,7 @@ FAutoConsoleVariableRef CVarNaniteRasterSetupTask(
 	TEXT("")
 );
 
-int32 GNaniteRasterSetupCache = 0;
+int32 GNaniteRasterSetupCache = 1;
 FAutoConsoleVariableRef CVarNaniteRasterSetupCache(
 	TEXT("r.Nanite.RasterSetupCache"),
 	GNaniteRasterSetupCache,
@@ -2678,6 +2678,8 @@ FBinningData AddPass_Rasterize(
 
 		FNaniteRasterPipeline RasterPipeline{};
 
+		FNaniteRasterMaterialCache* RasterMaterialCache = nullptr;
+
 		const FMaterialRenderProxy* VertexMaterialProxy		= nullptr;
 		const FMaterialRenderProxy* PixelMaterialProxy		= nullptr;
 		const FMaterialRenderProxy* ComputeMaterialProxy	= nullptr;
@@ -2804,8 +2806,8 @@ FBinningData AddPass_Rasterize(
 			RasterizerPass.RasterComputeShader = FixedMaterialShaderMap->GetShader<FMicropolyRasterizeCS>(PermutationVectorCS);
 			check(!RasterizerPass.RasterComputeShader.IsNull());
 
-			RasterizerPass.VertexMaterial = FixedMaterial;
-			RasterizerPass.PixelMaterial = FixedMaterial;
+			RasterizerPass.VertexMaterial  = FixedMaterial;
+			RasterizerPass.PixelMaterial   = FixedMaterial;
 			RasterizerPass.ComputeMaterial = FixedMaterial;
 		};
 
@@ -2829,43 +2831,45 @@ FBinningData AddPass_Rasterize(
 				const FNaniteRasterEntry& RasterEntry = RasterBin.Value;
 
 				FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
-				RasterizerPass.RasterizerBin = uint32(BinIndexTranslator.Translate(RasterEntry.BinIndex));
-				RasterizerPass.RasterPipeline = RasterEntry.RasterPipeline;
+				RasterizerPass.RasterizerBin    = uint32(BinIndexTranslator.Translate(RasterEntry.BinIndex));
+				RasterizerPass.RasterPipeline   = RasterEntry.RasterPipeline;
 
 				RasterizerPass.VertexMaterialProxy  = FixedMaterialProxy;
 				RasterizerPass.PixelMaterialProxy   = FixedMaterialProxy;
 				RasterizerPass.ComputeMaterialProxy = FixedMaterialProxy;
 
 				FUintVector4& HeaderEntry = HeaderBufferData[RasterizerPass.RasterizerBin];
-				uint32& MaterialBitFlags = HeaderEntry.W;
+				uint32& MaterialBitFlags  = HeaderEntry.W;
 
 #if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
-				FNaniteRasterMaterialCacheKey RasterPipelineCacheKey;
-				RasterPipelineCacheKey.FeatureLevel          = FeatureLevel;
-				RasterPipelineCacheKey.bForceDisableWPO      = RasterEntry.bForceDisableWPO;
-				RasterPipelineCacheKey.bUseMeshShader        = bUseMeshShader;
-				RasterPipelineCacheKey.bUsePrimitiveShader   = bUsePrimitiveShader;
-				RasterPipelineCacheKey.bUseAutoCullingShader = bUseAutoCullingShader;
-				RasterPipelineCacheKey.bVisualizeActive      = VisualizeActive;
-				RasterPipelineCacheKey.bHasVirtualShadowMap  = bHasVirtualShadowMap;
-				RasterPipelineCacheKey.bIsDepthOnly          = RasterMode == EOutputBufferMode::DepthOnly;
-				RasterPipelineCacheKey.bIsTwoSided           = RasterizerPass.RasterPipeline.bIsTwoSided;
+				FNaniteRasterMaterialCacheKey RasterMaterialCacheKey;
+				RasterMaterialCacheKey.FeatureLevel          = FeatureLevel;
+				RasterMaterialCacheKey.bForceDisableWPO      = RasterEntry.bForceDisableWPO;
+				RasterMaterialCacheKey.bUseMeshShader        = bUseMeshShader;
+				RasterMaterialCacheKey.bUsePrimitiveShader   = bUsePrimitiveShader;
+				RasterMaterialCacheKey.bUseAutoCullingShader = bUseAutoCullingShader;
+				RasterMaterialCacheKey.bVisualizeActive      = VisualizeActive;
+				RasterMaterialCacheKey.bHasVirtualShadowMap  = bHasVirtualShadowMap;
+				RasterMaterialCacheKey.bIsDepthOnly          = RasterMode == EOutputBufferMode::DepthOnly;
+				RasterMaterialCacheKey.bIsTwoSided           = RasterizerPass.RasterPipeline.bIsTwoSided;
 
 				FNaniteRasterMaterialCache  EmptyCache;
-				FNaniteRasterMaterialCache& RasterPipelineCache = GNaniteRasterSetupCache > 0 ? RasterEntry.CacheMap.FindOrAdd(RasterPipelineCacheKey) : EmptyCache;
+				FNaniteRasterMaterialCache& RasterMaterialCache = GNaniteRasterSetupCache > 0 ? RasterEntry.CacheMap.FindOrAdd(RasterMaterialCacheKey) : EmptyCache;
 
-				if (!RasterPipelineCache.MaterialBitFlags)
+				RasterizerPass.RasterMaterialCache = &RasterMaterialCache;
+
+				if (!RasterMaterialCache.MaterialBitFlags)
 #endif
 				{
 					const FMaterial& RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(FeatureLevel);
 					MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread(), RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread(), RasterEntry.bForceDisableWPO);
 
 #if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
-					RasterPipelineCache.MaterialBitFlags = MaterialBitFlags;
+					RasterMaterialCache.MaterialBitFlags = MaterialBitFlags;
 				}
 				else
 				{
-					MaterialBitFlags = RasterPipelineCache.MaterialBitFlags.GetValue();
+					MaterialBitFlags = RasterMaterialCache.MaterialBitFlags.GetValue();
 #endif
 				}
 
@@ -2873,33 +2877,18 @@ FBinningData AddPass_Rasterize(
 				RasterizerPass.bPixelProgrammable  = FNaniteMaterialShader::IsPixelProgrammable(MaterialBitFlags);
 
 #if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
-				const auto UpdateCache = [](FNaniteRasterMaterialCache& RasterPipelineCache, const FRasterizerPass& RasterizerPass, const FMaterial* RasterMaterial)
+				if (RasterMaterialCache.bFinalized)
 				{
-					RasterPipelineCache.Material             = RasterMaterial;
-					RasterPipelineCache.VertexMaterialProxy  = RasterizerPass.VertexMaterialProxy;
-					RasterPipelineCache.PixelMaterialProxy   = RasterizerPass.PixelMaterialProxy;
-					RasterPipelineCache.ComputeMaterialProxy = RasterizerPass.ComputeMaterialProxy;
-					RasterPipelineCache.RasterVertexShader   = RasterizerPass.RasterVertexShader;
-					RasterPipelineCache.RasterPixelShader    = RasterizerPass.RasterPixelShader;
-					RasterPipelineCache.RasterMeshShader     = RasterizerPass.RasterMeshShader;
-					RasterPipelineCache.RasterComputeShader  = RasterizerPass.RasterComputeShader;
-					RasterPipelineCache.VertexMaterial       = RasterizerPass.VertexMaterial;
-					RasterPipelineCache.PixelMaterial        = RasterizerPass.PixelMaterial;
-					RasterPipelineCache.ComputeMaterial      = RasterizerPass.ComputeMaterial;
-				};
-
-				if (RasterPipelineCache.Material)
-				{
-					RasterizerPass.VertexMaterialProxy       = RasterPipelineCache.VertexMaterialProxy;
-					RasterizerPass.PixelMaterialProxy        = RasterPipelineCache.PixelMaterialProxy;
-					RasterizerPass.ComputeMaterialProxy      = RasterPipelineCache.ComputeMaterialProxy;
-					RasterizerPass.RasterVertexShader        = RasterPipelineCache.RasterVertexShader;
-					RasterizerPass.RasterPixelShader         = RasterPipelineCache.RasterPixelShader;
-					RasterizerPass.RasterMeshShader          = RasterPipelineCache.RasterMeshShader;
-					RasterizerPass.RasterComputeShader       = RasterPipelineCache.RasterComputeShader;
-					RasterizerPass.VertexMaterial            = RasterPipelineCache.VertexMaterial;
-					RasterizerPass.PixelMaterial             = RasterPipelineCache.PixelMaterial;
-					RasterizerPass.ComputeMaterial           = RasterPipelineCache.ComputeMaterial;
+					RasterizerPass.VertexMaterialProxy   = RasterMaterialCache.VertexMaterialProxy;
+					RasterizerPass.PixelMaterialProxy    = RasterMaterialCache.PixelMaterialProxy;
+					RasterizerPass.ComputeMaterialProxy  = RasterMaterialCache.ComputeMaterialProxy;
+					RasterizerPass.RasterVertexShader    = RasterMaterialCache.RasterVertexShader;
+					RasterizerPass.RasterPixelShader     = RasterMaterialCache.RasterPixelShader;
+					RasterizerPass.RasterMeshShader      = RasterMaterialCache.RasterMeshShader;
+					RasterizerPass.RasterComputeShader   = RasterMaterialCache.RasterComputeShader;
+					RasterizerPass.VertexMaterial        = RasterMaterialCache.VertexMaterial;
+					RasterizerPass.PixelMaterial         = RasterMaterialCache.PixelMaterial;
+					RasterizerPass.ComputeMaterial       = RasterMaterialCache.ComputeMaterial;
 				}
 				else
 #endif
@@ -2951,10 +2940,6 @@ FBinningData AddPass_Rasterize(
 									RasterizerPass.ComputeMaterial = Material;
 								}
 
-#if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
-								UpdateCache(RasterPipelineCache, RasterizerPass, Material);
-#endif
-
 								break;
 							}
 						}
@@ -2975,10 +2960,6 @@ FBinningData AddPass_Rasterize(
 				else
 				{
 					FillFixedMaterialShaders(RasterizerPass);
-
-#if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
-					UpdateCache(RasterPipelineCache, RasterizerPass, FixedMaterial);
-#endif
 				}
 
 				// Note: The indirect args offset is in bytes
@@ -3002,12 +2983,12 @@ FBinningData AddPass_Rasterize(
 		}
 		else
 		{
-			FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
+			FRasterizerPass& RasterizerPass     = RasterizerPasses.AddDefaulted_GetRef();
 			RasterizerPass.VertexMaterialProxy  = FixedMaterialProxy;
 			RasterizerPass.PixelMaterialProxy   = FixedMaterialProxy;
 			RasterizerPass.ComputeMaterialProxy = FixedMaterialProxy;
-			RasterizerPass.IndirectOffset = 0u;
-			RasterizerPass.RasterizerBin = 0u;
+			RasterizerPass.IndirectOffset       = 0u;
+			RasterizerPass.RasterizerBin        = 0u;
 
 			FillFixedMaterialShaders(RasterizerPass);
 
@@ -3083,6 +3064,23 @@ FBinningData AddPass_Rasterize(
 				RasterizerPass.ComputeMaterial = RasterizerPass.ComputeMaterialProxy->GetMaterialNoFallback(FeatureLevel);
 			}
 			check(RasterizerPass.ComputeMaterial);
+
+#if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
+			if (RasterizerPass.RasterMaterialCache && !RasterizerPass.RasterMaterialCache->bFinalized)
+			{
+				RasterizerPass.RasterMaterialCache->VertexMaterialProxy  = RasterizerPass.VertexMaterialProxy;
+				RasterizerPass.RasterMaterialCache->PixelMaterialProxy   = RasterizerPass.PixelMaterialProxy;
+				RasterizerPass.RasterMaterialCache->ComputeMaterialProxy = RasterizerPass.ComputeMaterialProxy;
+				RasterizerPass.RasterMaterialCache->RasterVertexShader   = RasterizerPass.RasterVertexShader;
+				RasterizerPass.RasterMaterialCache->RasterPixelShader    = RasterizerPass.RasterPixelShader;
+				RasterizerPass.RasterMaterialCache->RasterMeshShader     = RasterizerPass.RasterMeshShader;
+				RasterizerPass.RasterMaterialCache->RasterComputeShader  = RasterizerPass.RasterComputeShader;
+				RasterizerPass.RasterMaterialCache->VertexMaterial       = RasterizerPass.VertexMaterial;
+				RasterizerPass.RasterMaterialCache->PixelMaterial        = RasterizerPass.PixelMaterial;
+				RasterizerPass.RasterMaterialCache->ComputeMaterial      = RasterizerPass.ComputeMaterial;
+				RasterizerPass.RasterMaterialCache->bFinalized           = true;
+			}
+#endif
 		}
 	},
 #if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
