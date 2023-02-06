@@ -1262,6 +1262,20 @@ void UActorComponent::SetAsyncPhysicsTickEnabled(bool bEnable)
 	bAsyncPhysicsTickEnabled = bEnable;
 }
 
+void UActorComponent::DeferRemoveAsyncPhysicsTick()
+{
+	if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(WorldPrivate->GetPhysicsScene()))
+	{
+		// Set 0 for the step so that it gets run immediately on the next async tick.
+		Scene->EnqueueAsyncPhysicsCommand(0, this,
+			[this]()
+			{
+				SetAsyncPhysicsTickEnabled(false);
+			}
+		);
+	}
+}
+
 void UActorComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	check(bRegistered);

@@ -1134,10 +1134,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Network)
 	int32 ReplicationAbandonAfterLevel;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing=OnRep_RepData)
 	FGeometryCollectionRepData RepData;
 
 	/** Called post solve to allow authoritative components to update their replication data */
+	UFUNCTION()
+	void OnRep_RepData();
+
+	void RequestUpdateRepData();
 	virtual void UpdateRepData();
 
 	/** Clear all rep data, this is required if the physics proxy has been recreated */
@@ -1146,10 +1150,14 @@ protected:
 	UE_DEPRECATED(5.3, "The argument-free version of ProcessRepData will be removed. Please use the version which takes DeltaTime and SimTime instead.")
 	virtual void ProcessRepData();
 
-	virtual void ProcessRepData(float DeltaTime, float SimTime);
+	virtual bool ProcessRepData(float DeltaTime, float SimTime);
 
 	int32 VersionProcessed = INDEX_NONE;
 
+	// The last time (in milliseconds) the async physics component tick fired.
+	// We track this on the client to be able to turn off the tick for perf reasons
+	// if we spend a lot of ticks sequentially doing nothing.
+	int64 LastAsyncPhysicsTickMs = 0;
 private:
 
 	bool bRenderStateDirty;
@@ -1243,6 +1251,8 @@ private:
 	void BuildInitialFilterData();
 
 	void LoadCollisionProfiles();
+
+	void OnPostPhysicsSync();
 
 	/** The clusters we need to replicate */
 	TUniquePtr<TSet<Chaos::FPBDRigidClusteredParticleHandle*>> ClustersToRep;

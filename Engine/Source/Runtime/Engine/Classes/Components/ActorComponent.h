@@ -1154,6 +1154,10 @@ protected:
 	/** Sets bAsyncPhysicsTickEnabled which determines whether to use use the async physics tick with this component. */
 	void SetAsyncPhysicsTickEnabled(bool bEnabled);
 
+	/** Defers the call to SetAsyncPhysicsTickEnabled(false) to the next async tick. This allows you to remove the
+	 *  async physics tick callback within the async physics tick safely. */
+	void DeferRemoveAsyncPhysicsTick();
+
 private:
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** This is the old name of the tick function. We just want to avoid mistakes with an attempt to override this */
