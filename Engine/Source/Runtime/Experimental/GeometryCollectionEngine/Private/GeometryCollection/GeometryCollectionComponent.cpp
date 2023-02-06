@@ -2984,7 +2984,6 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 	}
 
 	RegisterForEvents();
-	//SetAsyncPhysicsTickEnabled(true);
 }
 
 void UGeometryCollectionComponent::OnPostPhysicsSync()
