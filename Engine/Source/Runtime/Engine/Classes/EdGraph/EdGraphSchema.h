@@ -747,22 +747,23 @@ class ENGINE_API UEdGraphSchema : public UObject
 		InputPin = nullptr;
 		OutputPin = nullptr;
 
-		if ((PinA->Direction == EGPD_Input) && (PinB->Direction == EGPD_Output))
+		bool bResult = false;
+		if (ensure(PinA && PinB))
 		{
-			InputPin = PinA;
-			OutputPin = PinB;
-			return true;
+			if ((PinA->Direction == EGPD_Input) && (PinB->Direction == EGPD_Output))
+			{
+				InputPin = PinA;
+				OutputPin = PinB;
+				bResult = true;
+			}
+			else if ((PinB->Direction == EGPD_Input) && (PinA->Direction == EGPD_Output))
+			{
+				InputPin = PinB;
+				OutputPin = PinA;
+				bResult = true;
+			}
 		}
-		else if ((PinB->Direction == EGPD_Input) && (PinA->Direction == EGPD_Output))
-		{
-			InputPin = PinB;
-			OutputPin = PinA;
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return bResult;
 	}
 
 	/**
