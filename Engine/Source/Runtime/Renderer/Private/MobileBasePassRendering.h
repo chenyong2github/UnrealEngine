@@ -375,19 +375,12 @@ public:
 	{		
 		MobileBasePassModifyCompilationEnvironment(Parameters, OutEnvironment, OutputFormat);
 
-		static auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
-		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
-
 		const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(Parameters.Platform);
 		const bool bEnableClusteredReflections = MobileForwardEnableClusteredReflections(Parameters.Platform);
-		const bool bIsLit = Parameters.MaterialParameters.ShadingModels.IsLit();
 		const bool bTranslucentMaterial = IsTranslucentBlendMode(Parameters.MaterialParameters) || Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
-		const bool bDeferredShadingEnabled = IsMobileDeferredShadingEnabled(Parameters.Platform);
-		const bool bForwardShading = !bDeferredShadingEnabled || bTranslucentMaterial;
-		const bool bRenderSkyLightInBasePass = bEnableSkyLight && bIsLit && (bForwardShading || bAllowStaticLighting);
 
 		TMobileBasePassPSBaseType<LightMapPolicyType>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("ENABLE_SKY_LIGHT"), bRenderSkyLightInBasePass);
+		OutEnvironment.SetDefine(TEXT("ENABLE_SKY_LIGHT"), bEnableSkyLight);
 		OutEnvironment.SetDefine(TEXT("ENABLE_AMBIENT_OCCLUSION"), IsMobileAmbientOcclusionEnabled(Parameters.Platform) ? 1u : 0u);
 		
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);

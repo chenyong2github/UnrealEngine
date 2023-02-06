@@ -6383,11 +6383,19 @@ bool FScene::ShouldRenderSkylightInBasePass(bool bIsTranslucent) const
 	{
 		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting;
 		const bool bIsForwardShading = bIsTranslucent || !IsMobileDeferredShadingEnabled(GetShaderPlatform());
-		const bool bIsDynamicLighting = !ReadOnlyCVARCache.bAllowStaticLighting || GetForceNoPrecomputedLighting();
 
-		// Both stationary and movable skylights are applied in base pass for forward shading
-		// Only stationary skylights are applied in base pass for deferred with static lighting enabled
-		return bRenderSkyLight && (bIsForwardShading || (!bIsDynamicLighting && SkyLight->bWantsStaticShadowing));
+		if (bIsForwardShading)
+		{
+			// Both stationary and movable skylights are applied in base pass for forward shading
+			bRenderSkyLight = bRenderSkyLight && (ReadOnlyCVARCache.bEnableStationarySkylight || !SkyLight->bWantsStaticShadowing);
+		}
+		else
+		{
+			// Only stationary skylights are applied in base pass for deferred
+			bRenderSkyLight = bRenderSkyLight && (ReadOnlyCVARCache.bEnableStationarySkylight && SkyLight->bWantsStaticShadowing);
+		}
+
+		return bRenderSkyLight;
 	}
 	else
 	{
