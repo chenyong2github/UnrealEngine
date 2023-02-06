@@ -10,6 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
+#if UE_MVVM_WITH_VIEWMODEL_EDITOR
 namespace UE::MVVM
 {
 
@@ -66,5 +67,6 @@ void FAssetTypeActions_ViewModelBlueprint::PerformAssetDiff(UObject* Asset1, UOb
 }
 
 } //namespace
+#endif
 
 #undef LOCTEXT_NAMESPACE

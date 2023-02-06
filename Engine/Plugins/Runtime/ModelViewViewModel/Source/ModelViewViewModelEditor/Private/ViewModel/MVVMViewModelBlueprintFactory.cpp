@@ -15,6 +15,8 @@
 
 #define LOCTEXT_NAMESPACE "ViewModelBlueprintFactory"
 
+#if UE_MVVM_WITH_VIEWMODEL_EDITOR
+
 /*------------------------------------------------------------------------------
 	UMVVMViewModelBlueprintFactory implementation.
 ------------------------------------------------------------------------------*/
@@ -46,14 +48,21 @@ public:
 
 }//namespace
 
+#endif
+
 UMVVMViewModelBlueprintFactory::UMVVMViewModelBlueprintFactory()
 {
+#if UE_MVVM_WITH_VIEWMODEL_EDITOR
 	bCreateNew = true;
+#else
+	bCreateNew = false;
+#endif
 	bEditAfterNew = true;
 	SupportedClass = UMVVMViewModelBlueprint::StaticClass();
 	ParentClass = UMVVMViewModelBase::StaticClass();
 }
 
+#if UE_MVVM_WITH_VIEWMODEL_EDITOR
 bool UMVVMViewModelBlueprintFactory::ConfigureProperties()
 {
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
@@ -117,6 +126,8 @@ UObject* UMVVMViewModelBlueprintFactory::FactoryCreateNew(UClass* Class, UObject
 {
 	return FactoryCreateNew(Class, InParent, Name, Flags, Context, Warn, NAME_None);
 }
+
+#endif
 
 #undef LOCTEXT_NAMESPACE
 

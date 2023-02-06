@@ -35,9 +35,12 @@ void FModelViewViewModelEditorModule::StartupModule()
 
 	// Register asset types
 	{
+#if UE_MVVM_WITH_VIEWMODEL_EDITOR
+		// Only remove what is related to the viewmodel editor, not the UMG extention for view.
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 		ViewModelBlueprintActions = MakeShared<UE::MVVM::FAssetTypeActions_ViewModelBlueprint>();
 		AssetTools.RegisterAssetTypeActions(ViewModelBlueprintActions.ToSharedRef());
+#endif
 	}
 
 	PropertyBindingExtension = MakeShared<FMVVMPropertyBindingExtension>();
@@ -76,11 +79,16 @@ void FModelViewViewModelEditorModule::ShutdownModule()
 	}
 	PropertyBindingExtension.Reset();
 
+#if UE_MVVM_WITH_VIEWMODEL_EDITOR
 	// Unregister all the asset types that we registered
 	if (FAssetToolsModule* AssetTools = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools"))
 	{
-		AssetTools->Get().UnregisterAssetTypeActions(ViewModelBlueprintActions.ToSharedRef());
+		if (ViewModelBlueprintActions)
+		{
+			AssetTools->Get().UnregisterAssetTypeActions(ViewModelBlueprintActions.ToSharedRef());
+		}
 	}
+#endif
 
 	FMVVMEditorStyle::DestroyInstance();
 

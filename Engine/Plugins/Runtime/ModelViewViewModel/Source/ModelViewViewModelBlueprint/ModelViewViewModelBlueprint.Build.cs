@@ -35,5 +35,8 @@ public class ModelViewViewModelBlueprint : ModuleRules
 			{
 				"ModelViewViewModel/Private",
 			});
+
+
+		PublicDefinitions.Add("UE_MVVM_WITH_VIEWMODEL_EDITOR=0");
 	}
 }
