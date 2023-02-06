@@ -182,10 +182,7 @@ bool ShouldRenderHeterogeneousVolumesForView(
 {
 	return IsHeterogeneousVolumesEnabled()
 		&& View.Family
-		&& !View.bIsPlanarReflection
-		&& !View.bIsSceneCapture
-		&& !View.bIsReflectionCapture
-		&& View.State;
+		&& !View.bIsReflectionCapture;
 }
 
 bool DoesPlatformSupportHeterogeneousVolumes(EShaderPlatform Platform)
