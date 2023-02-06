@@ -149,6 +149,10 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		bool bTractionControlEnabled;
 
+		/** Max Wheelspin rotation rad/sec */
+		UPROPERTY(EditAnywhere, Category = Wheel)
+		float MaxWheelspinRotation;
+
 		/** Determines how the SetDriveTorque/SetBrakeTorque inputs are combined with the internal torques */
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		ETorqueCombineMethod ExternalTorqueCombineMethod;
@@ -353,6 +357,7 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.TorqueRatio = 0.f;							// calculated later after all wheel info is known
 			PWheelConfig.ABSEnabled = this->bABSEnabled;
 			PWheelConfig.TractionControlEnabled = this->bTractionControlEnabled;
+			PWheelConfig.MaxSpinRotation = this->MaxWheelspinRotation;
 			PWheelConfig.AxleType = static_cast<Chaos::FSimpleWheelConfig::EAxleType>(this->AxleType);
 			PWheelConfig.FrictionMultiplier = this->FrictionForceMultiplier;
 			PWheelConfig.CorneringStiffness = this->CorneringStiffness * 10000.0f;

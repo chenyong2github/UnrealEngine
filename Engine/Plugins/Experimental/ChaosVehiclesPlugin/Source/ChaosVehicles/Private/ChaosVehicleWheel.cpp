@@ -30,6 +30,7 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	SideSlipModifier = 1.0f;
 	SlipThreshold = 20.0f;
 	SkidThreshold = 20.0f;
+	MaxWheelspinRotation = 30;
 
 	bAffectedByBrake = true;
 	bAffectedByHandbrake = false;
