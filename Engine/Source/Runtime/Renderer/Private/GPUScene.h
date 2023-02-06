@@ -383,7 +383,6 @@ private:
 
 	bool bIsEnabled = false;
 	bool bInBeginEndBlock = false;
-	bool bInExternalAccessMode = false;
 	FGPUSceneDynamicContext* CurrentDynamicContext = nullptr;
 	int32 NumScenePrimitives = 0;
 
@@ -413,9 +412,6 @@ private:
 	void AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& IdOnlyUpdateItems);
 
 	void AddClearInstancesPass(FRDGBuilder& GraphBuilder);
-
-	void UseInternalAccessMode(FRDGBuilder& GraphBuilder);
-	void UseExternalAccessMode(FRDGExternalAccessQueue& ExternalAccessQueue, ERHIAccess Access, ERHIPipeline Pipelines);
 };
 
 class FGPUSceneScopeBeginEndHelper
