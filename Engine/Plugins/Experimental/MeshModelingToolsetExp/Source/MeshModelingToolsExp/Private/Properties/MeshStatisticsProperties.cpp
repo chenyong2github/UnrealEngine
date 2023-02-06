@@ -27,7 +27,7 @@ void UMeshStatisticsProperties::Update(const FDynamicMesh3& MeshIn)
 		for ( int k = 0; k < Attribs->NumUVLayers(); k++)
 		{ 
 			const FDynamicMeshUVOverlay* UVLayer = Attribs->GetUVLayer(k);
-			UVString += FString::Printf(TEXT("UV%d: %d"), k, UVLayer->ElementCount());
+			UVString += FString::Printf(TEXT("UV%d: %d  "), k, UVLayer->ElementCount());
 		}
 		this->UV = UVString;
 
