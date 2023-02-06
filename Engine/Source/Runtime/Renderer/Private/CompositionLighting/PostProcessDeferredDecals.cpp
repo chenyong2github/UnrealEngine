@@ -145,6 +145,7 @@ void GetDeferredDecalPassParameters(
 	FDeferredDecalPassParameters& PassParameters)
 {
 	PassParameters.View = View.GetShaderParameters();
+	PassParameters.Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 	PassParameters.DeferredDecal = CreateDeferredDecalUniformBuffer(View);
 	PassParameters.DecalPass = Textures.DecalPassUniformBuffer;
 	

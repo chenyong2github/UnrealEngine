@@ -2780,6 +2780,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				}
 			}
 
+			InstanceCullingResult.SceneUB = GetSceneUniforms().GetBuffer(GraphBuilder);
+
 			FRDGBufferRef CardCaptureRectBuffer = nullptr;
 			FRDGBufferSRVRef CardCaptureRectBufferSRV = nullptr;
 
@@ -2818,13 +2820,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				TRefCountPtr<IPooledRenderTarget> NullRef;
 				FPlatformMemory::Memcpy(&SharedView->PrevViewInfo.HZB, &NullRef, sizeof(SharedView->PrevViewInfo.HZB));
 
-				SharedView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
-				SharedView->CachedViewUniformShaderParameters->PrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer->GetSRV();
-				SharedView->CachedViewUniformShaderParameters->InstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer->GetSRV();
-				SharedView->CachedViewUniformShaderParameters->InstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer->GetSRV();
-				SharedView->CachedViewUniformShaderParameters->LightmapSceneData = Scene->GPUScene.LightmapDataBuffer->GetSRV();
-				SharedView->CachedViewUniformShaderParameters->InstanceSceneDataSOAStride = Scene->GPUScene.InstanceSceneDataSOAStride;
-
+				SharedView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>(); //TODO: remove?
 				SharedView->CreateViewUniformBuffers(*SharedView->CachedViewUniformShaderParameters);
 			}
 

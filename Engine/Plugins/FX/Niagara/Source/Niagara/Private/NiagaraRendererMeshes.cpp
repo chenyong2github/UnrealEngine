@@ -973,12 +973,14 @@ void FNiagaraRendererMeshes::SetupElementForGPUScene(
 
 		// Force it to preserve instance order if we are sorted so that GPU Scene's instance culling doesn't scramble them
 		OutMeshBatchElement.bPreserveInstanceOrder = ParticleMeshRenderData.bNeedsSort;
+		FSceneUniformBuffer& SceneUniforms = View.GetSceneUniforms();
 
 		GPUSceneRes.DynamicPrimitiveData.DataWriterGPU = FGPUSceneWriteDelegate::CreateLambda(				
 			[&GPUSceneRes](FRDGBuilder& GraphBuilder, const FGPUSceneWriteDelegateParams& Params)
 			{
 				GPUSceneRes.GPUWriteParams.GPUSceneWriterParameters	= Params.GPUWriteParams;
 				GPUSceneRes.GPUWriteParams.View						= Params.View->ViewUniformBuffer; // NOTE: Set here, not outside lambda
+				GPUSceneRes.GPUWriteParams.Scene					= Params.View->GetSceneUniforms().GetBuffer(GraphBuilder);
 				GPUSceneRes.GPUWriteParams.PrimitiveId 				= Params.PrimitiveId;
 		
 				FNiagaraGPUSceneUtils::AddUpdateMeshParticleInstancesPass(

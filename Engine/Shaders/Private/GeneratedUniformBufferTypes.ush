@@ -11,3 +11,5 @@
 #include "HairStrands/HairStrandsVisibilityCommonStruct.ush"
 #include "HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "HairStrands/HairStrandsDeepShadowCommonStruct.ush"
+
+#include "/Engine/Shared/LightSceneData.h"

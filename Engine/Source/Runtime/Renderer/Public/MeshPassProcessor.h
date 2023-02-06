@@ -2229,6 +2229,7 @@ public:
 	RENDERER_API void SetRayTracingShaderBindingsForHitGroup(
 		FRayTracingLocalShaderBindingWriter* BindingWriter,
 		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+		FRHIUniformBuffer* SceneUniformBuffer,
 		FRHIUniformBuffer* NaniteUniformBuffer,
 		uint32 InstanceIndex,
 		uint32 SegmentIndex,
@@ -2240,6 +2241,7 @@ public:
 
 private:
 	FShaderUniformBufferParameter ViewUniformBufferParameter;
+	FShaderUniformBufferParameter SceneUniformBufferParameter;
 	FShaderUniformBufferParameter NaniteUniformBufferParameter;
 };
 
@@ -2369,6 +2371,7 @@ public:
 	RENDERER_API void SetRayTracingShaderBindings(
 		FRayTracingLocalShaderBindingWriter* BindingWriter,
 		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+		FRHIUniformBuffer* SceneUniformBuffer,
 		FRHIUniformBuffer* NaniteUniformBuffer,
 		uint32 ShaderIndexInPipeline,
 		uint32 ShaderSlot) const;
@@ -2378,5 +2381,6 @@ public:
 
 private:
 	FShaderUniformBufferParameter ViewUniformBufferParameter;
+	FShaderUniformBufferParameter SceneUniformBufferParameter;
 	FShaderUniformBufferParameter NaniteUniformBufferParameter;
 };

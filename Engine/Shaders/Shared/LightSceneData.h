@@ -7,6 +7,8 @@
 
 namespace UE::HLSL
 {
+#else
+#include "/Engine/Private/LargeWorldCoordinates.ush"
 #endif
 
 /**

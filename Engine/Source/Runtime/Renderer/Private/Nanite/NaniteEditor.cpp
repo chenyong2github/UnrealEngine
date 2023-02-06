@@ -24,6 +24,7 @@ class FEmitHitProxyIdPS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
@@ -121,6 +122,7 @@ void DrawHitProxies(
 		auto* PassParameters = GraphBuilder.AllocParameters<FEmitHitProxyIdPS::FParameters>();
 
 		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 		PassParameters->PageConstants = RasterResults.PageConstants;
 		PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
@@ -170,6 +172,7 @@ void GetEditorSelectionPassParameters(
 	FRDGBufferRef VisibleClustersSWHW = NaniteRasterResults->VisibleClustersSWHW;
 
 	OutPassParameters->View						= View.ViewUniformBuffer;
+	OutPassParameters->Scene					= View.GetSceneUniforms().GetBuffer(GraphBuilder);
 	OutPassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 	OutPassParameters->MaxVisibleClusters		= Nanite::FGlobalResources::GetMaxVisibleClusters();
 	OutPassParameters->PageConstants			= NaniteRasterResults->PageConstants;
@@ -239,6 +242,7 @@ void GetEditorVisualizeLevelInstancePassParameters(
 	FRDGBufferRef VisibleClustersSWHW = NaniteRasterResults->VisibleClustersSWHW;
 
 	OutPassParameters->View = View.ViewUniformBuffer;
+	OutPassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 	OutPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 	OutPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 	OutPassParameters->PageConstants = NaniteRasterResults->PageConstants;

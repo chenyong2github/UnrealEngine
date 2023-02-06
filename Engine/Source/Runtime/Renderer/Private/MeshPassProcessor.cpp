@@ -19,6 +19,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "RenderCore.h"
 #include "UnrealEngine.h"
+#include "SceneUniformBuffer.h"
 
 FRWLock FGraphicsMinimalPipelineStateId::PersistentIdTableLock;
 FGraphicsMinimalPipelineStateId::PersistentTableType FGraphicsMinimalPipelineStateId::PersistentIdTable;
@@ -979,6 +980,7 @@ void FGraphicsMinimalPipelineStateInitializer::ComputePrecachePSOHash()
 void FRayTracingMeshCommand::SetRayTracingShaderBindingsForHitGroup(
 	FRayTracingLocalShaderBindingWriter* BindingWriter,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	FRHIUniformBuffer* SceneUniformBuffer,
 	FRHIUniformBuffer* NaniteUniformBuffer,
 	uint32 InstanceIndex,
 	uint32 SegmentIndex,
@@ -994,6 +996,12 @@ void FRayTracingMeshCommand::SetRayTracingShaderBindingsForHitGroup(
 		Bindings->UniformBuffers[ViewUniformBufferParameter.GetBaseIndex()] = ViewUniformBuffer;
 	}
 
+	if (SceneUniformBufferParameter.IsBound())
+	{
+		check(SceneUniformBuffer);
+		Bindings->UniformBuffers[SceneUniformBufferParameter.GetBaseIndex()] = SceneUniformBuffer;
+	}
+
 	if (NaniteUniformBufferParameter.IsBound())
 	{
 		check(NaniteUniformBuffer);
@@ -1007,6 +1015,7 @@ void FRayTracingMeshCommand::SetShaders(const FMeshProcessorShaders& Shaders)
 	MaterialShaderIndex = Shaders.RayTracingShader.GetRayTracingHitGroupLibraryIndex();
 	MaterialShader = Shaders.RayTracingShader.GetRayTracingShader();
 	ViewUniformBufferParameter = Shaders.RayTracingShader->GetUniformBufferParameter<FViewUniformShaderParameters>();
+	SceneUniformBufferParameter = Shaders.RayTracingShader->GetUniformBufferParameter<FSceneUniformParameters>();
 	NaniteUniformBufferParameter = Shaders.RayTracingShader->GetUniformBufferParameter<FNaniteRayTracingUniformParameters>();
 	ShaderBindings.Initialize(Shaders);
 }
@@ -1014,6 +1023,7 @@ void FRayTracingMeshCommand::SetShaders(const FMeshProcessorShaders& Shaders)
 void FRayTracingShaderCommand::SetRayTracingShaderBindings(
 	FRayTracingLocalShaderBindingWriter* BindingWriter,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	FRHIUniformBuffer* SceneUniformBuffer,
 	FRHIUniformBuffer* NaniteUniformBuffer,
 	uint32 ShaderIndexInPipeline,
 	uint32 ShaderSlot) const
@@ -1024,6 +1034,12 @@ void FRayTracingShaderCommand::SetRayTracingShaderBindings(
 	{
 		check(ViewUniformBuffer);
 		Bindings->UniformBuffers[ViewUniformBufferParameter.GetBaseIndex()] = ViewUniformBuffer;
+	}
+
+	if (SceneUniformBufferParameter.IsBound())
+	{
+		check(SceneUniformBuffer);
+		Bindings->UniformBuffers[SceneUniformBufferParameter.GetBaseIndex()] = SceneUniformBuffer;
 	}
 
 	if (NaniteUniformBufferParameter.IsBound())
@@ -1039,6 +1055,7 @@ void FRayTracingShaderCommand::SetShader(const TShaderRef<FShader>& InShader)
 	ShaderIndex = InShader.GetRayTracingCallableShaderLibraryIndex();
 	Shader = InShader.GetRayTracingShader();
 	ViewUniformBufferParameter = InShader->GetUniformBufferParameter<FViewUniformShaderParameters>();
+	SceneUniformBufferParameter = InShader->GetUniformBufferParameter<FSceneUniformParameters>();
 	NaniteUniformBufferParameter = InShader->GetUniformBufferParameter<FNaniteRayTracingUniformParameters>();
 
 	FMeshProcessorShaders Shaders;
@@ -1763,19 +1780,7 @@ void DrawDynamicMeshPassPrivate(
 
 		check(View.bIsViewInfo);
 		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
-#if DO_GUARD_SLOW
-		if (UseGPUScene(View.GetShaderPlatform(), View.GetFeatureLevel()))
-		{
-			bool bNeedsGPUSceneData = false;
-			for (const auto& VisibleMeshDrawCommand : VisibleMeshDrawCommands)
-			{
-				bNeedsGPUSceneData = bNeedsGPUSceneData || EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex);
-			}
-			ensure(!bNeedsGPUSceneData || ViewInfo->CachedViewUniformShaderParameters->PrimitiveSceneData != GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV);
-			ensure(!bNeedsGPUSceneData || ViewInfo->CachedViewUniformShaderParameters->InstanceSceneData != GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV);
-			ensure(!bNeedsGPUSceneData || ViewInfo->CachedViewUniformShaderParameters->InstancePayloadData != GIdentityPrimitiveBuffer.InstancePayloadDataBufferSRV);
-		}
-#endif // DO_GUARD_SLOW
+
 		SortAndMergeDynamicPassMeshDrawCommands(View, RHICmdList, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor, &ViewInfo->DynamicPrimitiveCollector);
 
 		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, PrimitiveIdBufferStride, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);

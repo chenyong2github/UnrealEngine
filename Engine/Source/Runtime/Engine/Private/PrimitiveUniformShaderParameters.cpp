@@ -32,6 +32,8 @@ void FSinglePrimitiveStructured::InitRHI()
 
 	FRHIResourceCreateInfo CreateInfo(TEXT("PrimitiveSceneDataBuffer"));
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	{	
 		PrimitiveSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4f), FPrimitiveSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f), BUF_Static | BUF_ShaderResource, CreateInfo);
 		PrimitiveSceneDataBufferSRV = RHICreateShaderResourceView(PrimitiveSceneDataBufferRHI);
@@ -58,6 +60,8 @@ void FSinglePrimitiveStructured::InitRHI()
 	InstancePayloadDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4f), 1 /* unused dummy */ * sizeof(FVector4f), BUF_Static | BUF_ShaderResource, CreateInfo);
 	InstancePayloadDataBufferSRV = RHICreateShaderResourceView(InstancePayloadDataBufferRHI);
 
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	CreateInfo.DebugName = TEXT("SkyIrradianceEnvironmentMap");
 	SkyIrradianceEnvironmentMapRHI = RHICreateStructuredBuffer(sizeof(FVector4f), sizeof(FVector4f) * 8, BUF_Static | BUF_ShaderResource, CreateInfo);
 	SkyIrradianceEnvironmentMapSRV = RHICreateShaderResourceView(SkyIrradianceEnvironmentMapRHI);
@@ -68,6 +72,8 @@ void FSinglePrimitiveStructured::InitRHI()
 void FSinglePrimitiveStructured::UploadToGPU()
 {
 	void* LockedData = nullptr;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 	LockedData = RHILockBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f), RLM_WriteOnly);
 	FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data.GetData(), FPrimitiveSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f));
@@ -84,6 +90,8 @@ void FSinglePrimitiveStructured::UploadToGPU()
 	LockedData = RHILockBuffer(InstancePayloadDataBufferRHI, 0, 1 /* unused dummy */ * sizeof(FVector4f), RLM_WriteOnly);
 	FPlatformMemory::Memset(LockedData, 0x00, sizeof(FVector4f));
 	RHIUnlockBuffer(InstancePayloadDataBufferRHI);
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 //#if WITH_EDITOR
 	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
@@ -116,7 +124,9 @@ void FSinglePrimitiveStructured::UploadToGPU()
 }
 
 TGlobalResource<FSinglePrimitiveStructured> GIdentityPrimitiveBuffer;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TGlobalResource<FSinglePrimitiveStructured> GTilePrimitiveBuffer;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy* RESTRICT Proxy)
 	: Data(InPlace, NoInit)

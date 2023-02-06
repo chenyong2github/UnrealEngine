@@ -21,8 +21,8 @@ static FAutoConsoleVariableRef CVarAllowBatchedBuildRenderingCommands(
 	TEXT("Whether to allow batching BuildRenderingCommands for GPU instance culling"),
 	ECVF_RenderThreadSafe);
 
-FInstanceCullingManager::FInstanceCullingManager(bool bInIsEnabled, FRDGBuilder& GraphBuilder)
-	: bIsEnabled(bInIsEnabled)
+FInstanceCullingManager::FInstanceCullingManager(FSceneUniformBuffer& SceneUB, bool bInIsEnabled, FRDGBuilder& GraphBuilder)
+	: SceneUB(SceneUB), bIsEnabled(bInIsEnabled)
 {
 	CullingIntermediate.DummyUniformBuffer = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 }

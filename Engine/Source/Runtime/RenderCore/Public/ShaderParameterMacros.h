@@ -101,6 +101,26 @@ private:
 
 #endif // !PLATFORM_64BITS
 
+/** Retrieve the metadata of a UB type */
+template<class UniformBufferStructType, typename = void>
+struct TUniformBufferMetadataHelper
+{
+	static const FShaderParametersMetadata* GetStructMetadata()
+	{
+		// This uses ADL rather than templates, because template specializations can't be defined in a different namespace
+		return GetForwardDeclaredShaderParametersStructMetadata((UniformBufferStructType*)nullptr);
+	}
+};
+
+template<class UniformBufferStructType>
+struct TUniformBufferMetadataHelper<UniformBufferStructType, typename std::enable_if<!std::is_same<typename UniformBufferStructType::FTypeInfo, void>::value>::type>
+{
+	static const FShaderParametersMetadata* GetStructMetadata()
+	{
+		return UniformBufferStructType::FTypeInfo::GetStructMetadata();
+	}
+};
+
 
 /** A reference to a uniform buffer RHI resource with a specific structure. */
 template<typename TBufferStruct>
@@ -116,7 +136,7 @@ public:
 	/** Creates a uniform buffer with the given value, and returns a structured reference to it. */
 	static TUniformBufferRef<TBufferStruct> CreateUniformBufferImmediate(const TBufferStruct& Value, EUniformBufferUsage Usage, EUniformBufferValidation Validation = EUniformBufferValidation::ValidateResources)
 	{
-		return TUniformBufferRef<TBufferStruct>(RHICreateUniformBuffer(&Value, TBufferStruct::FTypeInfo::GetStructMetadata()->GetLayoutPtr(), Usage, Validation));
+		return TUniformBufferRef<TBufferStruct>(RHICreateUniformBuffer(&Value, TUniformBufferMetadataHelper<TBufferStruct>::GetStructMetadata()->GetLayoutPtr(), Usage, Validation));
 	}
 
 	void UpdateUniformBufferImmediate(const TBufferStruct& Value)
@@ -186,14 +206,14 @@ public:
 	TUniformBufferBinding() = default;
 
 	TUniformBufferBinding(const TUniformBufferRef<TBufferStruct>& InUniformBuffer)
-		: FUniformBufferBinding(InUniformBuffer, TBufferStruct::FTypeInfo::GetStructMetadata()->GetPreferredBindingFlag())
+		: FUniformBufferBinding(InUniformBuffer, TUniformBufferMetadataHelper<TBufferStruct>::GetStructMetadata()->GetPreferredBindingFlag())
 	{}
 
 	TUniformBufferBinding(const TUniformBufferRef<TBufferStruct>& InUniformBuffer, EUniformBufferBindingFlags InBindingFlags)
 		: FUniformBufferBinding(InUniformBuffer, InBindingFlags)
 	{
 #if DO_CHECK
-		const auto* StructMetadata = TBufferStruct::FTypeInfo::GetStructMetadata();
+		const auto* StructMetadata = TUniformBufferMetadataHelper<TBufferStruct>::GetStructMetadata();
 		checkf(
 			EnumHasAllFlags(StructMetadata->GetBindingFlags(), GetBindingFlags()),
 			TEXT("Uniform buffer binding flags don't match those supported by the uniform buffer layout '%s."),
@@ -278,14 +298,14 @@ public:
 	TRDGUniformBufferBinding() = default;
 
 	TRDGUniformBufferBinding(TRDGUniformBuffer<TBufferStruct>* InUniformBuffer)
-		: FRDGUniformBufferBinding(InUniformBuffer, TBufferStruct::FTypeInfo::GetStructMetadata()->GetPreferredBindingFlag())
+		: FRDGUniformBufferBinding(InUniformBuffer, TUniformBufferMetadataHelper<TBufferStruct>::GetStructMetadata()->GetPreferredBindingFlag())
 	{}
 
 	TRDGUniformBufferBinding(TRDGUniformBuffer<TBufferStruct>* InUniformBuffer, EUniformBufferBindingFlags InBindingFlags)
 		: FRDGUniformBufferBinding(InUniformBuffer, InBindingFlags)
 	{
 #if DO_CHECK
-		const auto* StructMetadata = TBufferStruct::FTypeInfo::GetStructMetadata();
+		const auto* StructMetadata = TUniformBufferMetadataHelper<TBufferStruct>::GetStructMetadata();
 		checkf(
 			EnumHasAllFlags(StructMetadata->GetBindingFlags(), GetBindingFlags()),
 			TEXT("RDG uniform buffer binding flags don't match those supported by the uniform buffer layout '%s."),
@@ -1175,25 +1195,6 @@ struct TShaderResourceParameterTypeInfo<ShaderResourceType[InNumElements]>
 	using TAlignedType = TShaderResourceParameterArray<ShaderResourceType, InNumElements>;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
-};
-
-template<class UniformBufferStructType, typename = void>
-struct TUniformBufferMetadataHelper
-{
-	static const FShaderParametersMetadata* GetStructMetadata()
-	{
-		// This uses ADL rather than templates, because template specializations can't be defined in a different namespace
-		return GetForwardDeclaredShaderParametersStructMetadata((UniformBufferStructType*)nullptr);
-	}
-};
-
-template<class UniformBufferStructType>
-struct TUniformBufferMetadataHelper<UniformBufferStructType, typename std::enable_if<!std::is_same<typename UniformBufferStructType::FTypeInfo, void>::value>::type>
-{
-	static const FShaderParametersMetadata* GetStructMetadata()
-	{
-		return UniformBufferStructType::FTypeInfo::GetStructMetadata();
-	}
 };
 
 template<class UniformBufferStructType>

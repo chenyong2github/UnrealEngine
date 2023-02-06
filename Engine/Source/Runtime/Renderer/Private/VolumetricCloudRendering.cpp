@@ -2815,6 +2815,8 @@ bool FSceneRenderer::RenderVolumetricCloud(
 					SkyRC.ViewMatrices = &ViewInfo.ViewMatrices;
 					SkyRC.ViewUniformBuffer = bShouldViewRenderVolumetricCloudRenderTarget ? ViewInfo.VolumetricRenderTargetViewUniformBuffer : ViewInfo.ViewUniformBuffer;
 
+					SkyRC.SceneUniformBuffer = GetSceneUniforms().GetBuffer(GraphBuilder);
+
 					SkyRC.Viewport = bShouldViewRenderVolumetricCloudRenderTarget ?
 						FIntRect(FIntPoint(0, 0), FIntPoint(DestinationRT->Desc.GetSize().X, DestinationRT->Desc.GetSize().Y)) // this texture is per view, so we don't need to use viewrect inside it
 						: ViewInfo.ViewRect;

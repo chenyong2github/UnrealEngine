@@ -100,6 +100,7 @@ class FLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER(int32, SkylightMipCount)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_STRUCT_REF(FIrradianceCachingParameters, IrradianceCachingParameters)
 
 		// Subsurface data
@@ -200,6 +201,7 @@ class FStationaryLightShadowTracingRGS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_SRV(Buffer<int>, LightTypeArray)
 		SHADER_PARAMETER_SRV(Buffer<int>, ChannelIndexArray)

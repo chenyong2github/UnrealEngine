@@ -15,6 +15,7 @@ class FScene;
 class FGPUScenePrimitiveCollector;
 class FInstanceCullingDeferredContext;
 
+DECLARE_UNIFORM_BUFFER_STRUCT(FSceneUniformParameters, RENDERER_API)
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceCullingGlobalUniforms, RENDERER_API)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, InstanceIdsBuffer)
@@ -28,6 +29,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FInstanceCullingDrawParams, )
 	SHADER_PARAMETER(uint32, InstanceDataByteOffset) // offset into per-instance buffer
 	SHADER_PARAMETER(uint32, IndirectArgsByteOffset) // offset into indirect args buffer
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)	
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 END_SHADER_PARAMETER_STRUCT()
 
 FMeshDrawCommandOverrideArgs GetMeshDrawCommandOverrideArgs(const FInstanceCullingDrawParams& InstanceCullingDrawParams);

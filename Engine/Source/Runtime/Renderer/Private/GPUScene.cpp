@@ -596,7 +596,7 @@ void FGPUScene::EndRender()
 
 void FGPUScene::UpdateGPULights(FRDGBuilder& GraphBuilder, FScene& Scene)
 {
-	FRDGUploadData<FLightSceneData> LightData(GraphBuilder, Scene.Lights.Num());
+	FRDGUploadData<FLightSceneData> LightData(GraphBuilder, FMath::Max(1, Scene.Lights.Num()));
 
 	GraphBuilder.AddSetupTask([this, LightData, &Scene]
 	{
@@ -650,7 +650,7 @@ void FGPUScene::InitLightData(const FLightSceneInfoCompact& LightInfoCompact, bo
 	DataOut.LightTypeAndShadowMapChannelMaskPacked = LightInfo.PackLightTypeAndShadowMapChannelMask(bAllowStaticLighting);
 }
 
-void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue)
+void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& SceneUB, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
 
@@ -699,7 +699,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExt
 	check(!BufferState.IsValid());
 
 	FUploadDataSourceAdapterScenePrimitives& Adapter = *GraphBuilder.AllocObject<FUploadDataSourceAdapterScenePrimitives>(Scene, SceneFrameNumber, MoveTemp(PrimitivesToUpdate), MoveTemp(PrimitiveDirtyState));
-	UpdateBufferState(GraphBuilder, Scene, Adapter);
+	UpdateBufferState(GraphBuilder, SceneUB, Scene, Adapter, true);
 
 	// Run a pass that clears (Sets ID to invalid) any instances that need it
 	AddClearInstancesPass(GraphBuilder);
@@ -740,7 +740,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExt
 }
 
 template<typename FUploadDataSourceAdapter>
-void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene& Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter)
+void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& SceneUB, FScene& Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter, bool bIsMainUpdate)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
 
@@ -786,8 +786,11 @@ void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene& Scene, cons
 	BufferState.LightmapDataBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LightmapDataBuffer, LightMapDataBufferSize * sizeof(FLightmapSceneShaderData::Data), TEXT("GPUScene.LightmapData"));
 	BufferState.LightMapDataBufferSize = LightMapDataBufferSize;
 	
-	const uint32 LightDataBufferSize = FMath::RoundUpToPowerOfTwo(FMath::Max(Scene.Lights.Num(), InitialBufferSize));
-	BufferState.LightDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FLightSceneData), FMath::Max(1, Scene.Lights.Num())), TEXT("GPUScene.LightData"));
+	if (bIsMainUpdate)
+	{
+		const uint32 LightDataBufferSize = FMath::RoundUpToPowerOfTwo(FMath::Max(Scene.Lights.Num(), InitialBufferSize));
+		BufferState.LightDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FLightSceneData), FMath::Max(1, Scene.Lights.Num())), TEXT("GPUScene.LightData"));
+	}
 
 	ShaderParameters.GPUSceneInstanceSceneData = GraphBuilder.CreateSRV(BufferState.InstanceSceneDataBuffer);
 	ShaderParameters.GPUSceneInstancePayloadData = GraphBuilder.CreateSRV(BufferState.InstancePayloadDataBuffer);
@@ -798,6 +801,8 @@ void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene& Scene, cons
 	ShaderParameters.NumScenePrimitives = NumScenePrimitives;
 	ShaderParameters.NumInstances = InstanceSceneDataAllocator.GetMaxSize();
 	ShaderParameters.GPUSceneFrameNumber = GetSceneFrameNumber();
+
+	SceneUB.Set(ShaderParameters);
 }
 
 /**
@@ -1553,7 +1558,7 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 			Collector.UploadData->InstancePayloadDataOffset,
 			SceneFrameNumber);
 
-		UpdateBufferState(GraphBuilder, Scene, UploadAdapter);
+		UpdateBufferState(GraphBuilder, View.GetSceneUniforms(), Scene, UploadAdapter, false);
 
 		UseInternalAccessMode(GraphBuilder);
 
@@ -1563,10 +1568,8 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 		UploadGeneral<FUploadDataSourceAdapterDynamicPrimitives>(GraphBuilder, Scene, ExternalAccessQueue, UploadAdapter);
 	}
 
-	if (FillViewShaderParameters(*View.CachedViewUniformShaderParameters))
-	{
-		View.ViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
-	}
+	FSceneUniformBuffer& SceneUniforms = View.GetSceneUniforms();
+	FillSceneUniformBuffer(GraphBuilder, SceneUniforms);
 
 	// Execute any instance data GPU writer callbacks. (Note: Done after the UB update, in case the user requires it)
 	if (bNeedsUpload) 
@@ -1625,27 +1628,13 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 	}
 }
 
-bool FGPUScene::FillViewShaderParameters(FViewUniformShaderParameters& OutParameters)
+bool FGPUScene::FillSceneUniformBuffer(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& SceneUB) const
 {
 	if (!bIsEnabled)
 	{
 		return false;
 	}
-	
-	bool bParametersChanged = false;
-	const auto SetParameter = [&](auto& OutParameter, const auto& InParameter)
-	{
-		bParametersChanged |= OutParameter != InParameter;
-		OutParameter = InParameter;
-	};
-
-	SetParameter(OutParameters.PrimitiveSceneData, PrimitiveBuffer->GetSRV());
-	SetParameter(OutParameters.LightmapSceneData, LightmapDataBuffer->GetSRV());
-	SetParameter(OutParameters.InstancePayloadData, InstancePayloadDataBuffer->GetSRV());
-	SetParameter(OutParameters.InstanceSceneData, InstanceSceneDataBuffer->GetSRV());
-	SetParameter(OutParameters.InstanceSceneDataSOAStride, InstanceSceneDataSOAStride);
-
-	return bParametersChanged;
+	return SceneUB.Set(ShaderParameters);
 }
 
 void FGPUScene::AddPrimitiveToUpdate(int32 PrimitiveId, EPrimitiveDirtyState DirtyState)
@@ -1667,7 +1656,7 @@ void FGPUScene::AddPrimitiveToUpdate(int32 PrimitiveId, EPrimitiveDirtyState Dir
 }
 
 
-void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue)
+void FGPUScene::Update(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& SceneUB, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue)
 {
 	if (bIsEnabled)
 	{
@@ -1675,7 +1664,7 @@ void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAcc
 
 		ensure(bInBeginEndBlock);
 		
-		UpdateInternal(GraphBuilder, Scene, ExternalAccessQueue);
+		UpdateInternal(GraphBuilder, SceneUB, Scene, ExternalAccessQueue);
 	}
 }
 

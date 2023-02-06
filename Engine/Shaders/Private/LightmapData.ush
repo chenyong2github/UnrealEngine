@@ -38,8 +38,8 @@ float4 LoadLightmapDataElement(uint Index)
 	checkStructuredBufferAccessSlow(GPUSceneLightmapData, Index);
 	return GPUSceneLightmapData[Index];
 #else
-	checkStructuredBufferAccessSlow(View.LightmapSceneData, Index);
-	return View.LightmapSceneData[Index];
+	checkStructuredBufferAccessSlow(Scene.GPUScene.GPUSceneLightmapData, Index);
+	return Scene.GPUScene.GPUSceneLightmapData[Index];
 #endif
 }
 

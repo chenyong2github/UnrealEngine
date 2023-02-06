@@ -565,14 +565,12 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 					CubeView.CachedViewUniformShaderParameters->CameraAerialPerspectiveVolume = GSystemTextures.VolumetricBlackDummy->GetRHI();
 				}
 
-				if (CubeView.bSceneHasSkyMaterial)
-				{
-					GPUScene.FillViewShaderParameters(*CubeView.CachedViewUniformShaderParameters);
-				}
-
 				CubeView.CreateViewUniformBuffers(*CubeView.CachedViewUniformShaderParameters);
 
 				SkyRC.ViewUniformBuffer = CubeView.ViewUniformBuffer;
+
+				SkyRC.SceneUniformBuffer = SceneRenderer.GetSceneUniforms().GetBuffer(GraphBuilder);
+
 				SkyRC.ViewMatrices = &CubeViewMatrices;
 
 				SkyRC.SkyAtmosphereViewLutTexture = BlackDummy2dTex;

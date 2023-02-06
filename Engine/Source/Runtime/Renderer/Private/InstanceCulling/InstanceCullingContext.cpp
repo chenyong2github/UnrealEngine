@@ -469,6 +469,11 @@ void FInstanceCullingContext::BuildRenderingCommands(
 {
 	Results = FInstanceCullingResult();
 
+	if (InstanceCullingManager)
+	{
+		Results.SceneUB = InstanceCullingManager->SceneUB.GetBuffer(GraphBuilder);
+	}
+
 	if (!HasCullingCommands())
 	{
 		if (InstanceCullingManager)

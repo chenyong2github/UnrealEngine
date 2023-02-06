@@ -299,6 +299,7 @@ const FViewInfo* CreateEditorPrimitiveView(const FViewInfo& ParentView, FIntRect
 
 BEGIN_SHADER_PARAMETER_STRUCT(FEditorPrimitivesPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 	SHADER_PARAMETER_STRUCT_REF(FMobileReflectionCaptureShaderData, MobileReflectionCaptureData)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
@@ -500,6 +501,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 		{
 			FEditorPrimitivesPassParameters* PassParameters = GraphBuilder.AllocParameters<FEditorPrimitivesPassParameters>();
 			PassParameters->View = EditorView->GetShaderParameters();
+			PassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 			PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 			PassParameters->MobileReflectionCaptureData = View.MobileReflectionCaptureUniformBuffer;
 			PassParameters->InstanceCulling = InstanceCullingManager.GetDummyInstanceCullingUniformBuffer();
@@ -605,6 +607,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 	{
 		FEditorPrimitivesPassParameters* PassParameters = GraphBuilder.AllocParameters<FEditorPrimitivesPassParameters>();
 		PassParameters->View = EditorView->GetShaderParameters();
+		PassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 		PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 		PassParameters->MobileReflectionCaptureData = View.MobileReflectionCaptureUniformBuffer;
 		PassParameters->InstanceCulling = InstanceCullingManager.GetDummyInstanceCullingUniformBuffer();

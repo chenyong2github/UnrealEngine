@@ -10,6 +10,7 @@
 #include "IrradianceCaching.h"
 #include "GPULightmassSettings.h"
 #include "Templates/UniquePtr.h"
+#include "SceneUniformBuffer.h"
 
 class FGPULightmass;
 
@@ -61,19 +62,6 @@ struct FCachedRayTracingSceneData
 	TArray<TArray<FVisibleRayTracingMeshCommand>> VisibleRayTracingMeshCommandsPerLOD;
 	TChunkedArray<FRayTracingMeshCommand> MeshCommandStorage;
 
-	FBufferRHIRef PrimitiveSceneDataBufferRHI;
-	FShaderResourceViewRHIRef PrimitiveSceneDataBufferSRV;
-
-	FBufferRHIRef LightmapSceneDataBufferRHI;
-	FShaderResourceViewRHIRef LightmapSceneDataBufferSRV;
-
-	FBufferRHIRef InstanceSceneDataBufferRHI;
-	FShaderResourceViewRHIRef InstanceSceneDataBufferSRV;
-	uint32 InstanceSceneDataSOAStride;
-
-	FBufferRHIRef InstancePayloadDataBufferRHI;
-	FShaderResourceViewRHIRef InstancePayloadDataBufferSRV;
-
 	FBufferRHIRef InstanceIdsIdentityBufferRHI;
 	FShaderResourceViewRHIRef InstanceIdsIdentityBufferSRV;
 	TArray<uint32> InstanceDataOriginalOffsets;
@@ -81,8 +69,16 @@ struct FCachedRayTracingSceneData
 	TArray<TArray<FRayTracingGeometryInstance>> RayTracingGeometryInstancesPerLOD;
 	TArray<TUniquePtr<FMatrix>> OwnedRayTracingInstanceTransforms;
 
-	void SetupViewUniformBufferFromSceneRenderState(class FSceneRenderState& Scene);
+	TRefCountPtr<FRDGPooledBuffer> GPUScenePrimitiveDataBuffer;
+	TRefCountPtr<FRDGPooledBuffer> GPUSceneLightmapDataBuffer;
+	TRefCountPtr<FRDGPooledBuffer> GPUSceneInstanceDataBuffer;
+	int							   GPUSceneInstanceDataSOAStride;
+	TRefCountPtr<FRDGPooledBuffer> GPUSceneInstancePayloadDataBuffer;
+	TRefCountPtr<FRDGPooledBuffer> GPUSceneLightDataBuffer;
+
+	void SetupViewAndSceneUniformBufferFromSceneRenderState(FRDGBuilder& GraphBuilder, class FSceneRenderState& Scene);
 	void SetupFromSceneRenderState(class FSceneRenderState& Scene);
+	void RestoreCachedBuffers(FRDGBuilder& GraphBuilder, class FSceneRenderState& Scene);
 };
 
 class FSceneRenderState
@@ -92,6 +88,8 @@ public:
 
 	void RenderThreadInit();
 	void BackgroundTick();
+
+	FSceneUniformBuffer SceneUniforms;
 
 	FRayTracingSceneRHIRef RayTracingScene;
 	FShaderResourceViewRHIRef RayTracingSceneSRV;
@@ -122,7 +120,7 @@ public:
 
 	int32 GetPrimitiveIdForGPUScene(const FGeometryInstanceRenderStateRef& GeometryInstanceRef) const;
 
-	bool SetupRayTracingScene(int32 LODIndex = INDEX_NONE);
+	bool SetupRayTracingScene(FRDGBuilder& GraphBuilder, int32 LODIndex = INDEX_NONE);
 	void DestroyRayTracingScene();
 
 	void CalculateDistributionPrefixSumForAllLightmaps();

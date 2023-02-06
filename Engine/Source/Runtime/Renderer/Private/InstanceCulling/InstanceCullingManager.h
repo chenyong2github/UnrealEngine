@@ -42,6 +42,8 @@ struct FInstanceCullingResult
 	uint32 IndirectArgsByteOffset = 0U;
 	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = nullptr;
 
+	TRDGUniformBufferRef<FSceneUniformParameters> SceneUB = nullptr;
+
 	//FRHIBuffer* GetDrawIndirectArgsBufferRHI() const { return DrawIndirectArgsBuffer.IsValid() ? DrawIndirectArgsBuffer->GetVertexBufferRHI() : nullptr; }
 	//FRHIBuffer* GetInstanceIdOffsetBufferRHI() const { return InstanceIdOffsetBuffer.IsValid() ? InstanceIdOffsetBuffer->GetVertexBufferRHI() : nullptr; }
 	void GetDrawParameters(FInstanceCullingDrawParams &OutParams) const
@@ -52,6 +54,7 @@ struct FInstanceCullingResult
 		OutParams.InstanceDataByteOffset = InstanceDataByteOffset;
 		OutParams.IndirectArgsByteOffset = IndirectArgsByteOffset;
 		OutParams.InstanceCulling = UniformBuffer;
+		OutParams.Scene = SceneUB;
 	}
 
 	static void CondGetDrawParameters(const FInstanceCullingResult* InstanceCullingResult, FInstanceCullingDrawParams& OutParams)
@@ -67,6 +70,7 @@ struct FInstanceCullingResult
 			OutParams.InstanceDataByteOffset = 0U;
 			OutParams.IndirectArgsByteOffset = 0U;
 			OutParams.InstanceCulling = nullptr;
+			OutParams.Scene = nullptr;
 		}
 	}
 };
@@ -79,7 +83,7 @@ class FInstanceCullingDeferredContext;
 class FInstanceCullingManager
 {
 public:
-	FInstanceCullingManager(bool bInIsEnabled, FRDGBuilder& GraphBuilder);
+	FInstanceCullingManager(FSceneUniformBuffer& SceneUB, bool bInIsEnabled, FRDGBuilder& GraphBuilder);
 	~FInstanceCullingManager();
 
 	bool IsEnabled() const { return bIsEnabled; }
@@ -130,6 +134,7 @@ private:
 	FInstanceCullingManager() = delete;
 	FInstanceCullingManager(FInstanceCullingManager &) = delete;
 
+	FSceneUniformBuffer& SceneUB;
 	TArray<Nanite::FPackedView> CullingViews;
 	bool bIsEnabled;
 };

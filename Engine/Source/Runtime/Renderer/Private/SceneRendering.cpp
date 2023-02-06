@@ -948,11 +948,7 @@ void FViewInfo::Init()
 		bIsValidTextureGroupSamplerFilters = false;
 	}
 
-	PrimitiveSceneDataOverrideSRV = nullptr;
 	PrimitiveSceneDataTextureOverrideRHI = nullptr;
-	InstanceSceneDataOverrideSRV = nullptr;
-	InstancePayloadDataOverrideSRV = nullptr;
-	LightmapSceneDataOverrideSRV = nullptr;
 
 	DitherFadeInUniformBuffer = nullptr;
 	DitherFadeOutUniformBuffer = nullptr;
@@ -1830,47 +1826,6 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.RuntimeVirtualTextureMipLevel = FVector4f(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTexturePackHeight = FVector2f(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTextureDebugParams = FVector4f(ForceInitToZero);
-	
-	if (UseGPUScene(GMaxRHIShaderPlatform, RHIFeatureLevel))
-	{
-		if (PrimitiveSceneDataOverrideSRV)
-		{
-			ViewUniformShaderParameters.PrimitiveSceneData = PrimitiveSceneDataOverrideSRV;
-		}
-		else if (Scene && Scene->GPUScene.PrimitiveBuffer != nullptr)
-		{
-			ViewUniformShaderParameters.PrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer->GetSRV();
-		}
-
-		if (InstanceSceneDataOverrideSRV)
-		{
-			ViewUniformShaderParameters.InstanceSceneData = InstanceSceneDataOverrideSRV;
-			ViewUniformShaderParameters.InstanceSceneDataSOAStride = 1;
-		}
-		else if (Scene && Scene->GPUScene.InstanceSceneDataBuffer)
-		{
-			ViewUniformShaderParameters.InstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer->GetSRV();
-			ViewUniformShaderParameters.InstanceSceneDataSOAStride = Scene->GPUScene.InstanceSceneDataSOAStride;
-		}
-
-		if (InstancePayloadDataOverrideSRV)
-		{
-			ViewUniformShaderParameters.InstancePayloadData = InstancePayloadDataOverrideSRV;
-		}
-		else if (Scene && Scene->GPUScene.InstancePayloadDataBuffer)
-		{
-			ViewUniformShaderParameters.InstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer->GetSRV();
-		}
-
-		if (LightmapSceneDataOverrideSRV)
-		{
-			ViewUniformShaderParameters.LightmapSceneData = LightmapSceneDataOverrideSRV;
-		}
-		else if (Scene && Scene->GPUScene.LightmapDataBuffer)
-		{
-			ViewUniformShaderParameters.LightmapSceneData = Scene->GPUScene.LightmapDataBuffer->GetSRV();
-		}
-	}
 
 	// Rect area light
 	if (GSystemTextures.LTCMat.IsValid() && GSystemTextures.LTCAmp.IsValid())
@@ -2435,6 +2390,7 @@ FViewFamilyInfo::~FViewFamilyInfo()
 FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer)
 :	Scene(CheckPointer(InViewFamily->Scene)->GetRenderScene())
 ,	ViewFamily(*CheckPointer(InViewFamily))
+,	SceneUniforms()
 ,	MeshCollector(InViewFamily->GetFeatureLevel(), Allocator)
 ,	RayTracingCollector(InViewFamily->GetFeatureLevel(), Allocator)
 ,	VirtualShadowMapArray(*CheckPointer(Scene))
@@ -2450,6 +2406,8 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyCo
 	check(Scene != nullptr);
 
 	check(IsInGameThread());
+
+	ViewFamily.SetSceneRenderer(this);
 
 	// Copy the individual views.
 	bool bAnyViewIsLocked = false;
@@ -4852,39 +4810,59 @@ void FRendererModule::RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBu
 	}
 }
 
+class FScenePrimitiveRenderer : public ISceneRenderer
+{
+public:
+	FScenePrimitiveRenderer()
+		: SceneUniforms()
+	{}
+
+	const FSceneUniformBuffer& GetSceneUniforms() const final override { return SceneUniforms; }
+	FSceneUniformBuffer& GetSceneUniforms() final override { return SceneUniforms; }
+private:
+	FSceneUniformBuffer SceneUniforms;
+};
 
 class FScenePrimitiveRenderingContext : public IScenePrimitiveRenderingContext
 {
 public:
-	FScenePrimitiveRenderingContext(FRDGBuilder& GraphBuilder, FScene& Scene) :
+	FScenePrimitiveRenderingContext(FRDGBuilder& GraphBuilder, FScene& Scene, FSceneViewFamily& ViewFamily) :
+		Renderer(),
 		GPUScene(Scene.GPUScene),
-		GPUSceneDynamicContext(GPUScene)
+		GPUSceneDynamicContext(GPUScene),
+		ViewFamily(ViewFamily)
 	{
+		ViewFamily.SetSceneRenderer(&Renderer);
+
 		Scene.UpdateAllPrimitiveSceneInfos(GraphBuilder);
 		GPUScene.BeginRender(&Scene, GPUSceneDynamicContext);
 
 		FRDGExternalAccessQueue ExternalAccessQueue;
-		Scene.GPUScene.Update(GraphBuilder, Scene, ExternalAccessQueue);
+		Scene.GPUScene.Update(GraphBuilder, Renderer.GetSceneUniforms(), Scene, ExternalAccessQueue);
 		ExternalAccessQueue.Submit(GraphBuilder);
 	}
 
 	virtual ~FScenePrimitiveRenderingContext()
 	{
 		GPUScene.EndRender();
+		ViewFamily.SetSceneRenderer(nullptr);
 	}
 
+	FScenePrimitiveRenderer Renderer;
 	FGPUScene& GPUScene;
 	FGPUSceneDynamicContext GPUSceneDynamicContext;
+	FSceneViewFamily& ViewFamily;
 };
 
 
 IScenePrimitiveRenderingContext* FRendererModule::BeginScenePrimitiveRendering(FRDGBuilder &GraphBuilder, FSceneViewFamily* ViewFamily)
 {
+	check(ViewFamily);
 	check(ViewFamily->Scene);
 	FScene* Scene = ViewFamily->Scene->GetRenderScene();
 	check(Scene);
 
-	FScenePrimitiveRenderingContext* ScenePrimitiveRenderingContext = new FScenePrimitiveRenderingContext(GraphBuilder, *Scene);
+	FScenePrimitiveRenderingContext* ScenePrimitiveRenderingContext = new FScenePrimitiveRenderingContext(GraphBuilder, *Scene, *ViewFamily);
 
 	return ScenePrimitiveRenderingContext;
 }

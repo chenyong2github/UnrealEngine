@@ -505,7 +505,7 @@ void EmitCustomDepthStencilTargets(
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& NaniteMaterialPassCommands,
-	const FSceneRenderer& SceneRenderer,
+	FSceneRenderer& SceneRenderer,
 	const FSceneTextures& SceneTextures,
 	const FRenderTargetBindingSlots& BasePassRenderTargets,
 	const FDBufferTextures& DBufferTextures,

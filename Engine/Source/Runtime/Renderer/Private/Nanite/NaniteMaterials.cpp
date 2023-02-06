@@ -240,6 +240,7 @@ class FEmitMaterialDepthPS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER(uint32, DummyZero)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
@@ -282,6 +283,7 @@ class FEmitSceneDepthPS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
@@ -311,7 +313,8 @@ class FEmitSceneStencilPS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
+
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
@@ -343,6 +346,7 @@ class FEmitCustomDepthStencilPS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
@@ -373,6 +377,7 @@ class FDepthExportCS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
@@ -434,6 +439,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(FIntVector4, ViewRect)
@@ -542,6 +548,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteShadingPassParameters, )
 	SHADER_PARAMETER(uint32, ActiveShadingBin)
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)	// To access VTFeedbackBuffer
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FNaniteUniformParameters, Nanite)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
@@ -948,6 +955,7 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 	}
 
 	Result.View = View.GetShaderParameters(); // To get VTFeedbackBuffer
+	Result.Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 	Result.BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures);
 	Result.ActiveShadingBin = ~uint32(0);
 
@@ -1225,7 +1233,7 @@ void DispatchBasePass(
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& MaterialPassCommands,
-	const FSceneRenderer& SceneRenderer,
+	FSceneRenderer& SceneRenderer,
 	const FSceneTextures& SceneTextures,
 	const FRenderTargetBindingSlots& BasePassRenderTargets,
 	const FDBufferTextures& DBufferTextures,
@@ -1323,6 +1331,7 @@ void DrawBasePass(
 		{
 			FClassifyMaterialsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClassifyMaterialsCS::FParameters>();
 			PassParameters->View					= View.ViewUniformBuffer;
+			PassParameters->Scene					= SceneRenderer.GetSceneUniforms().GetBuffer(GraphBuilder);
 			PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->PageConstants			= RasterResults.PageConstants;
 			PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
@@ -1619,6 +1628,7 @@ void EmitDepthTargets(
 		FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
 
 		PassParameters->View					= View.ViewUniformBuffer;
+		PassParameters->Scene					= View.GetSceneUniforms().GetBuffer(GraphBuilder);
 		PassParameters->InViews					= GraphBuilder.CreateSRV(ViewsBuffer);
 		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 		PassParameters->PageConstants			= PageConstants;
@@ -1672,6 +1682,7 @@ void EmitDepthTargets(
 			auto* PassParameters = GraphBuilder.AllocParameters<FEmitSceneDepthPS::FParameters>();
 
 			PassParameters->View						= View.GetShaderParameters();
+			PassParameters->Scene						= View.GetSceneUniforms().GetBuffer(GraphBuilder);
 			PassParameters->InViews						= GraphBuilder.CreateSRV(ViewsBuffer);
 			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->PageConstants				= PageConstants;
@@ -1701,6 +1712,7 @@ void EmitDepthTargets(
 			auto* PassParameters	= GraphBuilder.AllocParameters<FEmitSceneStencilPS::FParameters>();
 
 			PassParameters->View						= View.ViewUniformBuffer;
+			PassParameters->Scene						= View.GetSceneUniforms().GetBuffer(GraphBuilder);
 			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->PageConstants				= PageConstants;
 			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
@@ -1909,6 +1921,7 @@ void EmitCustomDepthStencilTargets(
 		FRDGTextureSRVRef CustomStencilSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(CustomDepthTextures.Depth, PF_X24_G8));
 
 		PassParameters->View						= View.ViewUniformBuffer;
+		PassParameters->Scene						= View.GetSceneUniforms().GetBuffer(GraphBuilder);
 		PassParameters->InViews						= GraphBuilder.CreateSRV(ViewsBuffer);
 		PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 		PassParameters->PageConstants				= PageConstants;
@@ -2043,6 +2056,7 @@ void DrawLumenMeshCapturePass(
 		FNaniteEmitMaterialIdRectsParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitMaterialIdRectsParameters>();
 
 		PassParameters->PS.View = SharedView->ViewUniformBuffer;
+		PassParameters->PS.Scene = SharedView->GetSceneUniforms().GetBuffer(GraphBuilder);
 		PassParameters->PS.DummyZero = 0u;
 
 		PassParameters->PS.VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
@@ -2246,6 +2260,7 @@ void DrawLumenMeshCapturePass(
 
 		CardPagesToRender[0].PatchView(&Scene, SharedView);
 		PassParameters->Shading.View = SharedView->GetShaderParameters();
+		PassParameters->Shading.Scene = SharedView->GetSceneUniforms().GetBuffer(GraphBuilder);
 		PassParameters->Shading.CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
 
 		TShaderMapRef<FNaniteMultiViewMaterialVS> NaniteVertexShader(SharedView->ShaderMap);

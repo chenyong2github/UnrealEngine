@@ -25,6 +25,7 @@ void GetLumenCardTracingParameters(
 	LLM_SCOPE_BYTAG(Lumen);
 
 	TracingParameters.View = View.ViewUniformBuffer;
+	TracingParameters.Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 	TracingParameters.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(GraphBuilder, View);
 	

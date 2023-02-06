@@ -30,6 +30,8 @@ class FVolumeShadowingShaderParametersGlobal1;
 struct FScreenPassTexture;
 struct FEngineShowFlags;
 
+DECLARE_UNIFORM_BUFFER_STRUCT(FSceneUniformParameters, RENDERER_API)
+
 
 // Use as a global shader parameter struct and also the CPU structure representing the atmosphere it self.
 // This is static for a version of a component. When a component is changed/tweaked, it is recreated.
@@ -93,6 +95,7 @@ struct FSkyAtmosphereRenderContext
 
 	FViewMatrices* ViewMatrices;			// The actual view matrices we use to render the sky
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
+	TRDGUniformBufferRef<FSceneUniformParameters> SceneUniformBuffer;
 
 	FRenderTargetBindingSlots RenderTargets;
 

@@ -247,7 +247,7 @@ void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bo
 
 	if (UseNonNaniteVirtualShadowMaps(SceneRenderer.ShaderPlatform, SceneRenderer.FeatureLevel))
 	{
-		VirtualShadowMapArray.RenderVirtualShadowMapsNonNanite(GraphBuilder, VirtualShadowMapShadows, SceneRenderer.Views);
+		VirtualShadowMapArray.RenderVirtualShadowMapsNonNanite(GraphBuilder, SceneRenderer.GetSceneUniforms(), VirtualShadowMapShadows, SceneRenderer.Views);
 	}
 
 	// If separate static/dynamic caching is enabled, we may need to merge some pages after rendering

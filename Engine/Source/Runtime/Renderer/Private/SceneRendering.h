@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "SceneRendererInterface.h"
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
 #include "Containers/ArrayView.h"
@@ -37,6 +38,7 @@
 #include "SceneTextures.h"
 #include "TranslucencyPass.h"
 #include "SceneTexturesConfig.h"
+#include "SceneUniformBuffer.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstanceBufferUtil.h"
@@ -1590,11 +1592,8 @@ public:
 	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> IndirectShadowPrimitives;
 
 	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
-	FShaderResourceViewRHIRef PrimitiveSceneDataOverrideSRV;
-	FShaderResourceViewRHIRef InstanceSceneDataOverrideSRV;
-	FShaderResourceViewRHIRef InstancePayloadDataOverrideSRV;
+
 	FTexture2DRHIRef PrimitiveSceneDataTextureOverrideRHI;
-	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 
 	FShaderPrintData ShaderPrintData;
 	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
@@ -2033,7 +2032,7 @@ struct FComputeLightGridOutput
  * It is initialized in the game thread by FSceneViewFamily::BeginRender, and then passed to the rendering thread.
  * The rendering thread calls Render(), and deletes the scene renderer when it returns.
  */
-class FSceneRenderer
+class FSceneRenderer : public ISceneRenderer
 {
 public:
 	/** Linear bulk allocator with a lifetime tied to the scene renderer. */
@@ -2050,6 +2049,12 @@ public:
 
 	/** Views across all view families (may contain additional views if rendering multiple families together). */
 	TArray<const FSceneView*> AllFamilyViews;
+
+private:
+	FSceneUniformBuffer SceneUniforms;
+public:
+	const FSceneUniformBuffer& GetSceneUniforms() const final override { return SceneUniforms; }
+	FSceneUniformBuffer& GetSceneUniforms() final override { return SceneUniforms; }
 
 	/** All the dynamic scaling informations */
 	DynamicRenderScaling::TMap<float> DynamicResolutionFractions;

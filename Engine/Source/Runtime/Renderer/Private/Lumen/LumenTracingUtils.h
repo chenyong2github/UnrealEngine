@@ -8,6 +8,8 @@
 #include "IndirectLightRendering.h"
 #include "ReflectionEnvironment.h"
 
+DECLARE_UNIFORM_BUFFER_STRUCT(FSceneUniformParameters, RENDERER_API)
+
 class FLumenCardUpdateContext;
 namespace LumenRadianceCache { class FRadianceCacheInputs; }
 
@@ -32,6 +34,7 @@ public:
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FReflectionUniformParameters, ReflectionStruct)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 	SHADER_PARAMETER(float, DiffuseColorBoost)

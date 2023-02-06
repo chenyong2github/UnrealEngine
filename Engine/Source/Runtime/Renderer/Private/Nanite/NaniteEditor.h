@@ -5,10 +5,13 @@
 #include "NaniteShared.h"
 #include "NaniteCullRaster.h"
 
+DECLARE_UNIFORM_BUFFER_STRUCT(FSceneUniformParameters, RENDERER_API)
+
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteEditor, TEXT("Nanite Editor"));
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteVisualizeLevelInstanceParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 	SHADER_PARAMETER(FVector2f, OutputToInputScale)
 	SHADER_PARAMETER(FVector2f, OutputToInputBias)
 	SHADER_PARAMETER(uint32, MaxVisibleClusters)
@@ -25,6 +28,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteSelectionOutlineParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 	SHADER_PARAMETER(FVector2f, OutputToInputScale)
 	SHADER_PARAMETER(FVector2f, OutputToInputBias)
 	SHADER_PARAMETER(uint32, MaxVisibleClusters)

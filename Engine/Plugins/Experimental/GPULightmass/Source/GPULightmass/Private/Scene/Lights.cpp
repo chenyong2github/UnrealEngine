@@ -385,7 +385,9 @@ void FSkyLightRenderState::PrepareSkyTexture(FRHICommandListImmediate& RHICmdLis
 
 void FDirectionalLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& Scene)
 {
-	if (!Scene.SetupRayTracingScene())
+	FRDGBuilder GraphBuilder(RHICmdList);
+
+	if (!Scene.SetupRayTracingScene(GraphBuilder))
 	{
 		return;
 	}
@@ -413,8 +415,6 @@ void FDirectionalLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImm
 		ShadowMapSizeY = FMath::TruncToInt(FMath::Sqrt(StaticShadowDepthMapMaxSamples / AspectRatio));
 		ShadowMapSizeX = FMath::TruncToInt(StaticShadowDepthMapMaxSamples / (float)ShadowMapSizeY);
 	}
-
-	FRDGBuilder GraphBuilder(RHICmdList);
 	
 	FRDGTextureRef DepthMapTexture = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
@@ -485,7 +485,9 @@ void FDirectionalLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImm
 
 void FSpotLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& Scene)
 {
-	if (!Scene.SetupRayTracingScene())
+	FRDGBuilder GraphBuilder(RHICmdList);
+
+	if (!Scene.SetupRayTracingScene(GraphBuilder))
 	{
 		return;
 	}
@@ -520,8 +522,6 @@ void FSpotLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate&
 		ShadowMapSizeY = FMath::TruncToInt(FMath::Sqrt(StaticShadowDepthMapMaxSamples / AspectRatio));
 		ShadowMapSizeX = FMath::TruncToInt(StaticShadowDepthMapMaxSamples / (float)ShadowMapSizeY);
 	}
-
-	FRDGBuilder GraphBuilder(RHICmdList);
 	
 	FRDGTextureRef DepthMapTexture = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
@@ -604,7 +604,9 @@ void FSpotLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate&
 
 void FPointLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& Scene)
 {
-	if (!Scene.SetupRayTracingScene())
+	FRDGBuilder GraphBuilder(RHICmdList);
+
+	if (!Scene.SetupRayTracingScene(GraphBuilder))
 	{
 		return;
 	}
@@ -625,8 +627,6 @@ void FPointLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate
 		ShadowMapSizeY = FMath::TruncToInt(FMath::Sqrt(StaticShadowDepthMapMaxSamples / AspectRatio));
 		ShadowMapSizeX = FMath::TruncToInt(StaticShadowDepthMapMaxSamples / (float)ShadowMapSizeY);
 	}
-
-	FRDGBuilder GraphBuilder(RHICmdList);
 	
 	FRDGTextureRef DepthMapTexture = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
@@ -697,7 +697,9 @@ void FPointLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate
 
 void FRectLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& Scene)
 {
-	if (!Scene.SetupRayTracingScene())
+	FRDGBuilder GraphBuilder(RHICmdList);
+
+	if (!Scene.SetupRayTracingScene(GraphBuilder))
 	{
 		return;
 	}
@@ -718,8 +720,6 @@ void FRectLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate&
 		ShadowMapSizeY = FMath::TruncToInt(FMath::Sqrt(StaticShadowDepthMapMaxSamples / AspectRatio));
 		ShadowMapSizeX = FMath::TruncToInt(StaticShadowDepthMapMaxSamples / (float)ShadowMapSizeY);
 	}
-
-	FRDGBuilder GraphBuilder(RHICmdList);
 	
 	FRDGTextureRef DepthMapTexture = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(

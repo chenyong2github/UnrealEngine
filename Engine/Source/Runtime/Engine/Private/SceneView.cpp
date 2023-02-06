@@ -2800,6 +2800,12 @@ TArray<const FSceneView*> FSceneView::GetSecondaryViews() const
 	return Views;
 }
 
+FSceneUniformBuffer& FSceneView::GetSceneUniforms() const
+{
+	check(Family);
+	return Family->GetSceneUniforms();
+}
+
 FSceneViewFamily::ConstructionValues::ConstructionValues(
 	const FRenderTarget* InRenderTarget,
 	FSceneInterface* InScene,
@@ -2852,6 +2858,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	SecondaryViewFraction(1.0f),
 	SecondaryScreenPercentageMethod(ESecondaryScreenPercentageMethod::LowerPixelDensitySimulation),
 	ProfileSceneRenderTime(nullptr),
+	SceneRenderer(nullptr),
 	ScreenPercentageInterface(nullptr),
 	TemporalUpscalerInterface(nullptr),
 	PrimarySpatialUpscalerInterface(nullptr),

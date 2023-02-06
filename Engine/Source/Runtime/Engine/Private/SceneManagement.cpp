@@ -976,11 +976,6 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	CameraAerialPerspectiveVolumeRayOnly = GBlackAlpha1VolumeTexture->TextureRHI;
 	CameraAerialPerspectiveVolumeRayOnlySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
-	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
-	InstanceSceneData = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
-	InstancePayloadData = GIdentityPrimitiveBuffer.InstancePayloadDataBufferSRV;
-	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
-
 	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
 
 	PhysicsFieldClipmapBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
@@ -1034,23 +1029,6 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	SSProfilesPreIntegratedTexture = GBlackArrayTexture->TextureRHI;
 	SSProfilesPreIntegratedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	//this can be deleted once sm4 support is removed.
-	if (!PrimitiveSceneData)
-	{
-		PrimitiveSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
-	}
-	if (!InstanceSceneData)
-	{
-		InstanceSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
-	}
-	if (!InstancePayloadData)
-	{
-		InstancePayloadData = GBlackTextureWithSRV->ShaderResourceViewRHI;
-	}
-	if (!LightmapSceneData)
-	{
-		LightmapSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
-	}
 	VTFeedbackBuffer = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 //#if WITH_EDITOR
 	EditorVisualizeLevelInstanceIds = GIdentityPrimitiveBuffer.EditorVisualizeLevelInstanceDataBufferSRV;

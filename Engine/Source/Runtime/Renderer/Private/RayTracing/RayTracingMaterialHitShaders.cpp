@@ -633,13 +633,15 @@ FRHIRayTracingShader* GetRayTracingDefaultHiddenShader(const FGlobalShaderMap* S
 
 
 FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMaterialPipeline(
-	FRHICommandList& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FViewInfo& View,
 	const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline);
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
+
+	FRHICommandList& RHICmdList = GraphBuilder.RHICmdList;
 
 	const bool bIsPathTracing = ViewFamily.EngineShowFlags.PathTracing;
 	const bool bSupportMeshDecals = bIsPathTracing;
@@ -776,6 +778,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 		TaskList.Reserve(NumTasks);
 		View.RayTracingMaterialBindings.SetNum(NumTasks);
 
+		FRHIUniformBuffer* SceneUB = GetSceneUniforms().GetBufferRHI(GraphBuilder);
 		for (uint32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
 		{
 			const uint32 FirstTaskCommandIndex = TaskIndex * CommandsPerTask;
@@ -786,7 +789,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 			View.RayTracingMaterialBindings[TaskIndex] = BindingWriter;
 
 			TaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
-				[&View, bIsPathTracing, PipelineState, BindingWriter, MeshCommands, NumCommands, bEnableMaterials, bEnableShadowMaterials, bSupportMeshDecals,
+				[&View, SceneUB, bIsPathTracing, PipelineState, BindingWriter, MeshCommands, NumCommands, bEnableMaterials, bEnableShadowMaterials, bSupportMeshDecals,
 				OpaqueShadowMaterialIndex, HiddenMaterialIndex, OpaqueMeshDecalHitGroupIndex, HiddenMeshDecalHitGroupIndex, TaskIndex]()
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(BindRayTracingMaterialPipelineTask);
@@ -832,6 +835,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 						{
 							MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
 								View.ViewUniformBuffer,
+								SceneUB,
 								Nanite::GRayTracingManager.GetUniformBuffer(),
 								VisibleMeshCommand.InstanceIndex,
 								MeshCommand.GeometrySegmentIndex,
@@ -857,6 +861,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 								// Full CHS is bound, however material evaluation is skipped for shadow rays using a dynamic branch on a ray payload flag.
 								MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
 									View.ViewUniformBuffer,
+									SceneUB,
 									Nanite::GRayTracingManager.GetUniformBuffer(),
 									VisibleMeshCommand.InstanceIndex,
 									MeshCommand.GeometrySegmentIndex,
@@ -893,6 +898,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 		FGraphEventArray TaskList;
 		TaskList.Reserve(NumTasks);
 		View.RayTracingCallableBindings.SetNum(NumTasks);
+		FRHIUniformBuffer* SceneUB = GetSceneUniforms().GetBufferRHI(GraphBuilder);
 
 		for (uint32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
 		{
@@ -904,7 +910,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 			View.RayTracingCallableBindings[TaskIndex] = BindingWriter;
 
 			TaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
-				[&View, PipelineState, BindingWriter, TaskCallableCommands, NumCommands, bEnableMaterials, DefaultCallableShaderIndex, TaskIndex]()
+				[&View, SceneUB, PipelineState, BindingWriter, TaskCallableCommands, NumCommands, bEnableMaterials, DefaultCallableShaderIndex, TaskIndex]()
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(BindRayTracingMaterialPipelineTask);
 
@@ -923,7 +929,10 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 							}
 						}
 
-						CallableCommand.SetRayTracingShaderBindings(BindingWriter, View.ViewUniformBuffer, Nanite::GRayTracingManager.GetUniformBuffer(), CallableShaderIndex, CallableCommand.SlotInScene);
+						CallableCommand.SetRayTracingShaderBindings(
+							BindingWriter, 
+							View.ViewUniformBuffer, SceneUB, Nanite::GRayTracingManager.GetUniformBuffer(),
+							CallableShaderIndex, CallableCommand.SlotInScene);
 					}
 				},
 				TStatId(), nullptr, ENamedThreads::AnyThread));

@@ -642,6 +642,7 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FAtmosphereUniformShaderParameters, Atmosphere)
 		SHADER_PARAMETER_STRUCT_REF(FSkyAtmosphereInternalCommonParameters, SkyAtmosphere)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		RENDER_TARGET_BINDING_SLOTS()
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, TransmittanceLutTexture)
@@ -1780,6 +1781,7 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 		PsPassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
 		PsPassParameters->SkyAtmosphere = SkyInfo.GetInternalCommonParametersUniformBuffer();
 		PsPassParameters->ViewUniformBuffer = SkyRC.ViewUniformBuffer;
+		PsPassParameters->Scene = SkyRC.SceneUniformBuffer;
 		PsPassParameters->RenderTargets = SkyRC.RenderTargets;
 		PsPassParameters->SceneTextures = SceneTextures;
 		PsPassParameters->MSAADepthTexture = SkyRC.MSAADepthTexture;
@@ -1907,6 +1909,8 @@ void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinim
 
 	FSkyAtmosphereRenderContext SkyRC;
 	SkyRC.ViewMatrices = nullptr;
+
+	SkyRC.SceneUniformBuffer = GetSceneUniforms().GetBuffer(GraphBuilder);
 
 	const FAtmosphereSetup& Atmosphere = SkyAtmosphereSceneProxy.GetAtmosphereSetup();
 	SkyRC.bFastSky = CVarSkyAtmosphereFastSkyLUT.GetValueOnRenderThread() > 0;

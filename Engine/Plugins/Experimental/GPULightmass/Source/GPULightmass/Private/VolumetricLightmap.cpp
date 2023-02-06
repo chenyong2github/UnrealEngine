@@ -114,6 +114,7 @@ FPrecomputedVolumetricLightmap* FVolumetricLightmapRenderer::GetPrecomputedVolum
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVoxelizeMeshPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVLMVoxelizationParams, PassUniformBuffer)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -262,13 +263,14 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 		}
 
 		// Setup ray tracing scene with LOD 0
-		if (!Scene->SetupRayTracingScene())
+		if (!Scene->SetupRayTracingScene(GraphBuilder))
 		{
 			return;
 		}
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FVoxelizeMeshPassParameters>();
 		PassParameters->View = Scene->ReferenceView->ViewUniformBuffer;
+		PassParameters->Scene = Scene->SceneUniforms.GetBuffer(GraphBuilder);
 		PassParameters->PassUniformBuffer = GraphBuilder.CreateUniformBuffer(VLMVoxelizationParams);
 		PassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 
@@ -727,15 +729,15 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVolumetricLightmapRenderer::BackgroundTick);
 
+	FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
+
 	if (IsRayTracingEnabled())
 	{
-		if (!Scene->SetupRayTracingScene())
+		if (!Scene->SetupRayTracingScene(GraphBuilder))
 		{
 			return;
 		}
 	}
-
-	FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());	
 
 	FVolumetricLightmapBrickDataRDG AccumulationBrickDataRDG;
 	AccumulationBrickDataRDG.CreateFromBrickData(GraphBuilder, AccumulationBrickData, VolumetricLightmapData.BrickDataDimensions);

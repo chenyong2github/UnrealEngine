@@ -34,7 +34,7 @@ struct FNaniteTraceRayInlineCallback : FDefaultTraceRayInlineCallback
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(PrimitiveID);
 		uint PrimitiveInstanceIndex = 0; // TODO
 		uint InstanceId = PrimitiveData.InstanceSceneDataOffset + PrimitiveInstanceIndex;
-		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, View.InstanceSceneDataSOAStride);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, Scene.GPUScene.InstanceDataSOAStride);
 
 		if (InstanceData.ValidInstance && InstanceData.NaniteRuntimeResourceID != 0xFFFFFFFFu)
 		{

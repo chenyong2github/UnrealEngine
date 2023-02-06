@@ -7,7 +7,7 @@
  * This header must be included before SceneData.ush, as it modifies the behaviour. 
  * Expects FGPUSceneWriterParameters to be present in the parameter struct (use GPUScene::BeginReadWriteAccess/EndReadWriteAccess/GetWriteParameters)
  * Since this uses the GPU scene loading functions via a global RW buffer this cannot be used in the same translation unit as regular use of 
- * SceneData.ush (where the data is loaded from e.g., View.InstanceSceneData).
+ * SceneData.ush (where the data is loaded from e.g., Scene.GPUScene.GPUSceneInstanceSceneData).
  */
 
 

@@ -16,6 +16,7 @@
 #include "RenderResource.h"
 #include "ShowFlags.h"
 #include "StereoRendering.h"
+#include "SceneRendererInterface.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
@@ -831,7 +832,6 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(int, PhysicsFieldClipmapCount) \
 	VIEW_UNIFORM_BUFFER_MEMBER(int, PhysicsFieldTargetCount) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FIntVector4, PhysicsFieldTargets, MAX_PHYSICS_FIELD_TARGETS) \
-	VIEW_UNIFORM_BUFFER_MEMBER(uint32, InstanceSceneDataSOAStride) \
 	VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(uint32, GPUSceneViewId) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, ViewResolutionFraction) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, SubSurfaceColorAsTransmittanceAtDistanceInMeters) \
@@ -909,10 +909,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_SAMPLER(SamplerState, SharedTrilinearClampedSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedBRDF)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedBRDFSampler)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, PrimitiveSceneData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, InstanceSceneData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, InstancePayloadData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, LightmapSceneData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SkyIrradianceEnvironmentMap)
 	// Atmosphere
 	SHADER_PARAMETER_TEXTURE(Texture2D, TransmittanceLutTexture)
@@ -1662,6 +1658,8 @@ public:
 		return InstancedViewUniformBuffer;
 	}
 
+	FSceneUniformBuffer& GetSceneUniforms() const;
+
 protected:
 	FSceneViewStateInterface* EyeAdaptationViewState = nullptr;
 
@@ -2142,7 +2140,21 @@ public:
 	inline bool GetIsInFocus() const				{ return bIsInFocus; }
 	inline void SetIsInFocus(bool bInIsInFocus)		{ bIsInFocus = bInIsInFocus; }
 
+	FSceneUniformBuffer& GetSceneUniforms() const
+	{
+		check(SceneRenderer);
+		return SceneRenderer->GetSceneUniforms();
+	}
+
+	void SetSceneRenderer(ISceneRenderer* NewSceneRenderer)
+	{
+		SceneRenderer = NewSceneRenderer;
+	}
+
 private:
+	/** The scene renderer that is rendering this view family. This is only initialized in the rendering thread's copies of the FSceneViewFamily. */
+	ISceneRenderer* SceneRenderer;
+
 	/** Interface to handle screen percentage of the views of the family. */
 	ISceneViewFamilyScreenPercentage* ScreenPercentageInterface;
 

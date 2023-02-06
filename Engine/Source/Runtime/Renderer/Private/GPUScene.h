@@ -10,6 +10,7 @@
 #include "InstanceCulling/InstanceCullingLoadBalancer.h"
 #include "MeshBatch.h"
 #include "LightSceneData.h"
+#include "SceneUniformBuffer.h"
 
 class FRDGExternalAccessQueue;
 class FRHICommandList;
@@ -19,18 +20,6 @@ class FLightSceneInfoCompact;
 class FGPUScene;
 class FGPUSceneDynamicContext;
 class FViewUniformShaderParameters;
-
-BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneResourceParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneLightmapData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FGPULight>, GPUSceneLightData)
-	SHADER_PARAMETER(uint32, InstanceDataSOAStride)
-	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
-	SHADER_PARAMETER(int32, NumInstances)
-	SHADER_PARAMETER(int32, NumScenePrimitives)
-END_SHADER_PARAMETER_STRUCT()
 
 /**
  * Used to manage dynamic primitives for a given view, during InitViews the data is collected and then can be committed to the GPU-Scene. 
@@ -223,14 +212,14 @@ public:
 	void UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo& View, FRDGExternalAccessQueue& ExternalAccessQueue, bool bIsShadowView = false);
 
 	/**
-	 * Modifies the GPU scene specific view shader parameters to the current versions. Returns true if any of the parameters changed.
+	 * Modifies the GPUScene specific scene UB parameters to the current versions. Returns true if any of the parameters changed.
 	 */
-	bool FillViewShaderParameters(FViewUniformShaderParameters& View);
+	bool FillSceneUniformBuffer(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& SceneUB) const;
 
 	/**
 	 * Pull all pending updates from Scene and upload primitive & instance data.
 	 */
-	void Update(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue);
+	void Update(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& SceneUB, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue);
 
 	/**
 	 * Queue the given primitive for upload to GPU at next call to Update.
@@ -401,7 +390,7 @@ private:
 	ERHIFeatureLevel::Type FeatureLevel;
 
 	template<typename FUploadDataSourceAdapter>
-	void UpdateBufferState(FRDGBuilder& GraphBuilder, FScene& Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter);
+	void UpdateBufferState(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& SceneUB, FScene& Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter, bool bIsMainUpdate = false);
 
 	/**
 	 * Generalized upload that uses an adapter to abstract the data souce. Enables uploading scene primitives & dynamic primitives using a single path.
@@ -419,7 +408,7 @@ private:
 
 	void UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo& View, FRDGExternalAccessQueue& ExternalAccessQueue, bool bIsShadowView);
 
-	void UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue);
+	void UpdateInternal(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& SceneUB, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue);
 
 	void AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& IdOnlyUpdateItems);
 

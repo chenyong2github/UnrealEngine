@@ -265,8 +265,8 @@ float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemInde
 	checkStructuredBufferAccessSlow(GPUScenePrimitiveSceneDataRW, TargetIdx);
 	return GPUScenePrimitiveSceneDataRW[TargetIdx];
 #else
-	checkStructuredBufferAccessSlow(View.PrimitiveSceneData, TargetIdx);
-	return View.PrimitiveSceneData[TargetIdx];
+	checkStructuredBufferAccessSlow(Scene.GPUScene.GPUScenePrimitiveSceneData, TargetIdx);
+	return Scene.GPUScene.GPUScenePrimitiveSceneData[TargetIdx];
 #endif
 }
 
@@ -522,7 +522,7 @@ uint GetGPUSceneFrameNumber()
 #if USE_GLOBAL_GPU_SCENE_DATA
 	return GPUSceneFrameNumber;
 #else
-	return View.FrameNumber;
+	return Scene.GPUScene.GPUSceneFrameNumber;
 #endif
 }
 
@@ -533,7 +533,7 @@ float4 LoadInstanceSceneDataElement(uint Index)
 #elif USE_GLOBAL_GPU_SCENE_DATA_RW
 	return GPUSceneInstanceSceneDataRW[Index];
 #else
-	return View.InstanceSceneData[Index];
+	return Scene.GPUScene.GPUSceneInstanceSceneData[Index];
 #endif
 }
 
@@ -544,7 +544,7 @@ float4 LoadInstancePayloadDataElement(uint Index)
 #elif USE_GLOBAL_GPU_SCENE_DATA_RW
 	return GPUSceneInstancePayloadDataRW[Index];
 #else
-	return View.InstancePayloadData[Index];
+	return Scene.GPUScene.GPUSceneInstancePayloadData[Index];
 #endif
 }
 
@@ -1105,7 +1105,7 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint InstanceIdOffset, uint Dr
 	}
 #endif
 
-	Intermediates.InstanceData = GetInstanceSceneData(Intermediates.InstanceId, View.InstanceSceneDataSOAStride);
+	Intermediates.InstanceData = GetInstanceSceneData(Intermediates.InstanceId, Scene.GPUScene.InstanceDataSOAStride);
 	Intermediates.PrimitiveId = Intermediates.InstanceData.PrimitiveId;
 	Intermediates.Primitive = GetPrimitiveData(Intermediates.PrimitiveId);
 
@@ -1261,6 +1261,6 @@ FLightSceneData GetLightSceneData(int LightId)
 #elif USE_GLOBAL_GPU_SCENE_DATA_RW
 	return GPUSceneLightsRW[LightId];
 #else
-	return (FLightSceneData)0; //TODO
+	return Scene.GPUScene.GPUSceneLightData[LightId];
 #endif
 }
