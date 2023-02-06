@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/ContainersFwd.h"
 #include "Templates/UnrealTemplate.h"
 #include "Misc/AssertionMacros.h"
 #include "Containers/ArrayView.h"
@@ -38,7 +39,7 @@
 */
 
 /** Pointer with extent and a stride, similar to TArrayView. Designed to allow functions to take pointers to arbitrarily structured data. */
-template<typename InElementType, typename InSizeType = int32>
+template<typename InElementType, typename InSizeType>
 class TStridedView
 {
 public:
@@ -71,6 +72,16 @@ public:
 		{
 			FirstElementPtr = &Other[0];
 		}
+	}
+
+	FORCEINLINE bool IsValidIndex(SizeType Index) const
+	{
+		return (Index >= 0) && (Index < NumElements);
+	}
+
+	FORCEINLINE bool IsEmpty() const
+	{
+		return NumElements == 0;
 	}
 
 	FORCEINLINE SizeType Num() const
@@ -160,7 +171,7 @@ TStridedView<ElementType> MakeStridedView(int32 BytesBetweenElements, ElementTyp
 template <typename BaseStructureType, typename DerivedStructureType>
 TStridedView<BaseStructureType> MakeStridedViewOfBase(TArrayView<DerivedStructureType> StructuredView)
 {
-	static_assert(TIsDerivedFrom<DerivedStructureType, BaseStructureType>::IsDerived, "Expecting derived structure type");
+	static_assert(std::is_base_of_v<BaseStructureType, DerivedStructureType>, "Expecting derived structure type");
 	return MakeStridedView<BaseStructureType>((int32)sizeof(DerivedStructureType), GetData(StructuredView), (int32)GetNum(StructuredView));
 }
 
