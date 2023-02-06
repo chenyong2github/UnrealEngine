@@ -19621,12 +19621,12 @@ FRigVMClientPatchResult URigVMController::PatchIfSelectNodesOnLoad()
 						{
 							if(!FRigVMRegistry::Get().IsWildCardType(*ResolvedTypeIndex))
 							{
-								ChangePinType(Pin, *ResolvedTypeIndex, false, false);
 								NewNode->UpdateFilteredPermutations(Pin, {*ResolvedTypeIndex});
 							}
 						}
 					}
 				}
+				UpdateTemplateNodePinTypes(NewNode, false, false);
 			}
 
 			ApplyPinStates(NewNode, PinStates, {}, false);

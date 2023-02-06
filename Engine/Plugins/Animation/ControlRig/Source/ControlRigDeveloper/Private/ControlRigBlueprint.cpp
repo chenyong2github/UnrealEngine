@@ -1496,7 +1496,7 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 		{
 			if (Controller->RecomputeAllTemplateFilteredPermutations(false))
 			{
-				// ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
+				ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
 				// if you hit this ensure consider to uncomment the code
 				// in URigVMController::ReportPinTypeChange for debugging
 			}
