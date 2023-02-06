@@ -7,6 +7,8 @@
 #include "Chaos/Transform.h"
 #include "Chaos/PBDActiveView.h"
 #include "Chaos/PBDSoftsSolverParticles.h"
+#include "Chaos/WeightedLatticeImplicitObject.h"
+#include "Chaos/Levelset.h"
 #include "Misc/ScopeLock.h"
 
 namespace Chaos::Softs
@@ -77,7 +79,7 @@ private:
 			{
 				const uint32 KinematicGroupId = KinematicGroupIds[CollisionIndex];  // Collision group Id
 
-				if (KinematicGroupId != (uint32)INDEX_NONE && DynamicGroupId != KinematicGroupId)
+				if ((KinematicGroupId != (uint32)INDEX_NONE && DynamicGroupId != KinematicGroupId) || CollisionParticles.Geometry(CollisionIndex)->GetType() == Chaos::ImplicitObjectType::WeightedLatticeBone)
 				{
 					return; // Bail out if the collision groups doesn't match the particle group id, or use INDEX_NONE (= global collision that affects all particle)
 				}
@@ -109,8 +111,35 @@ private:
 					Particles.P(Index) += Penetration * NormalWorld;
 
 					// Friction
-					const FSolverVec3 VectorToPoint = Particles.P(Index) - CollisionParticles.X(CollisionIndex);
-					const FSolverVec3 RelativeDisplacement = (Particles.P(Index) - Particles.X(Index)) - (CollisionParticles.V(CollisionIndex) + FSolverVec3::CrossProduct(CollisionParticles.W(CollisionIndex), VectorToPoint)) * Dt;  // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
+					int32 VelocityBone = CollisionIndex;
+					if (const TWeightedLatticeImplicitObject<FLevelSet>* LevelSet = CollisionParticles.Geometry(CollisionIndex)->GetObject< TWeightedLatticeImplicitObject<FLevelSet> >())
+					{
+						TArray<FWeightedLatticeImplicitObject::FEmbeddingCoordinate> Coordinates;
+						LevelSet->GetEmbeddingCoordinates(PointPair.First, Coordinates, false);
+						int32 ClosestCoordIndex = INDEX_NONE;
+						double ClosestCoordPhi = UE_BIG_NUMBER;
+						for (int32 CoordIndex = 0; CoordIndex < Coordinates.Num(); ++CoordIndex)
+						{
+							FVec3 NormalUnused;
+							const double CoordPhi = FMath::Abs(LevelSet->GetEmbeddedObject()->PhiWithNormal(Coordinates[CoordIndex].UndeformedPosition(LevelSet->GetGrid()), NormalUnused));
+							if (CoordPhi < ClosestCoordPhi)
+							{
+								ClosestCoordIndex = CoordIndex;
+								ClosestCoordPhi = CoordPhi;
+							}
+						}
+						if (ClosestCoordIndex != INDEX_NONE)
+						{
+							const int32 StrongestBone = Coordinates[ClosestCoordIndex].GreatestInfluenceBone(LevelSet->GetBoneData());
+							if (StrongestBone != INDEX_NONE)
+							{
+								VelocityBone = LevelSet->GetSolverBoneIndices()[StrongestBone];
+							}
+						}
+					}
+
+					const FSolverVec3 VectorToPoint = Particles.P(Index) - CollisionParticles.X(VelocityBone);
+					const FSolverVec3 RelativeDisplacement = (Particles.P(Index) - Particles.X(Index)) - (CollisionParticles.V(VelocityBone) + FSolverVec3::CrossProduct(CollisionParticles.W(VelocityBone), VectorToPoint)) * Dt;  // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
 					const FSolverVec3 RelativeDisplacementTangent = RelativeDisplacement - FSolverVec3::DotProduct(RelativeDisplacement, NormalWorld) * NormalWorld;  // Project displacement into the tangential plane
 					const FSolverReal RelativeDisplacementTangentLength = RelativeDisplacementTangent.Size();
 					if (RelativeDisplacementTangentLength >= UE_SMALL_NUMBER)

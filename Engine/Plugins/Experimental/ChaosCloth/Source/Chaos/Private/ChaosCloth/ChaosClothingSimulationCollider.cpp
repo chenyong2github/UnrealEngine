@@ -12,6 +12,7 @@
 #include "Chaos/Convex.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/ImplicitObjectTransformed.h"
+#include "Chaos/WeightedLatticeImplicitObject.h"
 #include "ClothingAsset.h"
 #include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -43,6 +44,7 @@ struct FClothingSimulationCollider::FLODData
 		FClothingSimulationCloth* Cloth,
 		const FClothCollisionData& InClothCollisionData,
 		const TArray<FLevelSetCollisionData>& InLevelSetCollisionData,
+		const TArray<FSkinnedLevelSetCollisionData>& InSkinnedLevelSetCollisionData,
 		const FReal InScale = 1.f,
 		const TArray<int32>& UsedBoneIndices = TArray<int32>());
 	void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
@@ -64,6 +66,7 @@ void FClothingSimulationCollider::FLODData::Add(
 	FClothingSimulationCloth* Cloth,
 	const FClothCollisionData& InClothCollisionData,
 	const TArray<FLevelSetCollisionData>& InLevelSetCollisionData,
+	const TArray<FSkinnedLevelSetCollisionData>& InSkinnedLevelSetCollisionData,
 	const FReal InScale,
 	const TArray<int32>& UsedBoneIndices)
 {
@@ -95,7 +98,14 @@ void FClothingSimulationCollider::FLODData::Add(
 	const uint32 NumConvexes = ClothCollisionData.Convexes.Num();
 	const int32 NumBoxes = ClothCollisionData.Boxes.Num();
 	const int32 NumLevelSets = InLevelSetCollisionData.Num();
-	NumGeometries = NumSpheres + NumCapsules + NumConvexes + NumBoxes + NumLevelSets;
+	const int32 NumSkinnedLevelSets = InSkinnedLevelSetCollisionData.Num();
+	int32 NumSkinnedLevelSetBones = 0;
+	for (const FSkinnedLevelSetCollisionData& SkinnedLevelSetData : InSkinnedLevelSetCollisionData)
+	{
+		NumSkinnedLevelSetBones += SkinnedLevelSetData.MappedSkinnedBones.Num();
+	}
+
+	NumGeometries = NumSpheres + NumCapsules + NumConvexes + NumBoxes + NumLevelSets + NumSkinnedLevelSets + NumSkinnedLevelSetBones;
 
 	// Retrieve cloth group Id, or use INDEX_NONE if this collider applies to all cloths (when Cloth == nullptr)
 	const uint32 GroupId = Cloth ? Cloth->GetGroupId() : INDEX_NONE;
@@ -336,6 +346,49 @@ void FClothingSimulationCollider::FLODData::Add(
 		}
 	}
 
+	const int32 SkinnedLevelSetOffset = LevelSetOffset + NumLevelSets;
+	if (NumSkinnedLevelSets != 0)
+	{
+		int32* const BoneIndices = Solver->GetCollisionBoneIndices(SkinnedLevelSetOffset);
+		Softs::FSolverRigidTransform3* const BaseTransforms = Solver->GetCollisionBaseTransforms(SkinnedLevelSetOffset);
+
+		int32 Index = 0;
+		for (const FSkinnedLevelSetCollisionData& SkinnedCollisionData : InSkinnedLevelSetCollisionData)
+		{
+			// Add bone proxies first so they get updated first?
+			TArray<int32> SolverBoneIndices;
+			SolverBoneIndices.Reserve(SkinnedCollisionData.MappedSkinnedBones.Num());
+			for (int32 MappedSubBoneIndex : SkinnedCollisionData.MappedSkinnedBones)
+			{
+				// Always initialize the collision particle transforms before setting any geometry as otherwise NaNs gets detected during the bounding box updates
+				BaseTransforms[Index] = Softs::FSolverRigidTransform3::Identity;
+
+				BoneIndices[Index] = GetMappedBoneIndex(UsedBoneIndices, MappedSubBoneIndex);
+				UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision skinned level set sub-bone on bone index %d."), BoneIndices[Index]);
+
+				TUniquePtr<FImplicitObject> BoneProxy = MakeUnique<FWeightedLatticeBoneProxy>();
+				Solver->SetCollisionGeometry(SkinnedLevelSetOffset, Index, MoveTemp(BoneProxy));
+
+				SolverBoneIndices.Add(Index + SkinnedLevelSetOffset);
+
+				++Index;
+			}
+
+			// Always initialize the collision particle transforms before setting any geometry as otherwise NaNs gets detected during the bounding box updates
+			BaseTransforms[Index] = Softs::FSolverRigidTransform3::Identity;
+
+			BoneIndices[Index] = GetMappedBoneIndex(UsedBoneIndices, SkinnedCollisionData.BoneIndex);
+			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision skinned level set on bone index %d."), BoneIndices[Index]);
+
+			TUniquePtr<FImplicitObject> SkinnedLevelSet = SkinnedCollisionData.WeightedLevelSet->DeepCopy();
+			SkinnedLevelSet->GetObjectChecked<TWeightedLatticeImplicitObject<FLevelSet>>().SetSolverBoneIndices(MoveTemp(SolverBoneIndices));
+
+			Solver->SetCollisionGeometry(SkinnedLevelSetOffset, Index, MoveTemp(SkinnedLevelSet));
+
+			++Index;
+		}
+	}
+
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Added collisions: %d spheres, %d capsules, %d convexes, %d boxes, % level sets."), NumSpheres, NumCapsules, NumConvexes, NumBoxes, NumLevelSets);
 }
 
@@ -457,7 +510,7 @@ FClothCollisionData FClothingSimulationCollider::GetCollisionData(const FClothin
 	return ClothCollisionData;
 }
 
-void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<FLevelSetCollisionData>& LevelSetCollisions, TArray<int32>& UsedBoneIndices)
+void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<FLevelSetCollisionData>& LevelSetCollisions, TArray<FSkinnedLevelSetCollisionData>& SkinnedLevelSetCollisions, TArray<int32>& UsedBoneIndices)
 {
 	ClothCollisionData.Reset();
 	UsedBoneIndices.Reset();
@@ -619,6 +672,23 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 					LevelSetCollisions.Add({ LevelSetElem.GetLevelSet(), LevelSetElem.GetTransform(), MappedBoneIndex });
 				}
 			}
+
+			for (const FKSkinnedLevelSetElem& SkinnedLevelSetElem : AggGeom.SkinnedLevelSetElems)
+			{
+				if (SkinnedLevelSetElem.GetWeightedLevelSet().IsValid())
+				{
+					TArray<int32> MappedSkinnedBones;
+					const TArray<FName>& SkinnedBones = SkinnedLevelSetElem.GetWeightedLevelSet()->GetUsedBones();
+					MappedSkinnedBones.Reserve(SkinnedBones.Num());
+					for (const FName& SkinnedBoneName : SkinnedBones)
+					{
+						const int32 SkinnedBoneIndex = ReferenceSkeleton ? ReferenceSkeleton->FindBoneIndex(SkinnedBoneName) : INDEX_NONE;
+						const int32 MappedSkinnedBoneIndex = UsedBoneIndices.Add(SkinnedBoneIndex);
+						MappedSkinnedBones.Add(MappedSkinnedBoneIndex);
+					}
+					SkinnedLevelSetCollisions.Add({ SkinnedLevelSetElem.GetWeightedLevelSet(), MappedBoneIndex, MoveTemp(MappedSkinnedBones)});
+				}
+			}
 		}  // End for PhysAsset->SkeletalBodySetups
 	}  // End if PhysicsAsset
 }
@@ -682,10 +752,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Create physics asset collisions, this will affect all LODs, so store it at index 0
 	FClothCollisionData PhysicsAssetCollisionData;
 	TArray<FLevelSetCollisionData> LevelSetCollisions;
+	TArray<FSkinnedLevelSetCollisionData> SkinnedLevelSetCollisions;
 	TArray<int32> UsedBoneIndices;
-	ExtractPhysicsAssetCollision(PhysicsAssetCollisionData, LevelSetCollisions, UsedBoneIndices);
+	ExtractPhysicsAssetCollision(PhysicsAssetCollisionData, LevelSetCollisions, SkinnedLevelSetCollisions, UsedBoneIndices);
 
-	LODData[(int32)ECollisionDataType::LODless]->Add(Solver, Cloth, PhysicsAssetCollisionData, LevelSetCollisions, Scale, UsedBoneIndices);
+	LODData[(int32)ECollisionDataType::LODless]->Add(Solver, Cloth, PhysicsAssetCollisionData, LevelSetCollisions, SkinnedLevelSetCollisions, Scale, UsedBoneIndices);
 }
 
 void FClothingSimulationCollider::Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
@@ -712,8 +783,9 @@ void FClothingSimulationCollider::PreUpdate(FClothingSimulationSolver* Solver, F
 
 	// TODO: Get level sets?
 	const TArray<FLevelSetCollisionData> LevelSetCollisions;
+	const TArray<FSkinnedLevelSetCollisionData> SkinnedLevelSetCollisions;
 
-	LODData[(int32)ECollisionDataType::External]->Add(Solver, Cloth, CollisionData ? *CollisionData : FClothCollisionData(), LevelSetCollisions);
+	LODData[(int32)ECollisionDataType::External]->Add(Solver, Cloth, CollisionData ? *CollisionData : FClothCollisionData(), LevelSetCollisions, SkinnedLevelSetCollisions);
 	
 	// TODO: Find a better way in case the same number but different collisions are being re-added (hash collision data? Provide user dirty function?)
 	bHasExternalCollisionChanged =

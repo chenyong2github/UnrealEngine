@@ -168,6 +168,7 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	const TArray<bool>& GetCollisionStatus() { return MCollided; }
 	const TArray<FSolverVec3>& GetCollisionContacts() const { return MCollisionContacts; }
 	const TArray<FSolverVec3>& GetCollisionNormals() const { return MCollisionNormals; }
+	const TArray<FSolverReal>& GetCollisionPhis() const { return MCollisionPhis; }
 
 	FSolverReal GetTime() const { return MTime; }
 
@@ -192,6 +193,7 @@ private:
 	TArrayCollectionArray<uint32> MParticleGroupIds;  // Used for per group parameters for particles
 	TArray<FSolverVec3> MCollisionContacts;
 	TArray<FSolverVec3> MCollisionNormals;
+	TArray<FSolverReal> MCollisionPhis;
 
 	TArrayCollectionArray<FSolverVec3> MGroupGravityAccelerations;
 	TArrayCollectionArray<FVelocityAndPressureField> MGroupVelocityAndPressureFields;

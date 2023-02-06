@@ -18,6 +18,7 @@ namespace Chaos
 	class FClothingSimulationSolver;
 	class FClothingSimulationCloth;
 	class FLevelSet;
+	template<typename T> class TWeightedLatticeImplicitObject;
 
 	// Collider simulation node
 	class CHAOSCLOTH_API FClothingSimulationCollider final
@@ -90,7 +91,14 @@ namespace Chaos
 			int32 BoneIndex;
 		};
 
-		void ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<FLevelSetCollisionData>& LevelSetCollisions, TArray<int32>& UsedBoneIndices);
+		struct FSkinnedLevelSetCollisionData
+		{
+			const TSharedPtr<Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>, ESPMode::ThreadSafe> WeightedLevelSet;
+			int32 BoneIndex;
+			TArray<int32> MappedSkinnedBones;
+		};
+
+		void ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<FLevelSetCollisionData>& LevelSetCollisions, TArray<FSkinnedLevelSetCollisionData>& SkinnedLevelSetCollisions, TArray<int32>& UsedBoneIndices);
 
 		int32 GetNumGeometries(int32 InSlotIndex) const;
 

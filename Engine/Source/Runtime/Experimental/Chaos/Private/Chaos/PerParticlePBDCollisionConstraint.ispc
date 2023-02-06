@@ -26,8 +26,11 @@ enum ImplicitObjectType
 	Triangle,
 	UnionClustered,
 	TaperedCapsule,
+	WeightedLatticeBone,
+	WeightedLatticeLevelSetType = 38, // == LevelSet | IsWeightedLattice (cannot use expressions like this in ISPC)
 
 	//Add entries above this line for serialization
+	IsWeightedLattice = 1 << 5,
 	IsInstanced = 1 << 6,
 	IsScaled = 1 << 7
 };
@@ -580,176 +583,7 @@ static inline void PhiWithNormalConvex(const uniform uint8 *uniform TypedObjectP
 }
 
 extern "C" unmasked void GetPhiWithNormal(const uniform uint8 *uniform CollisionParticles, const uniform float *uniform V, uniform float *uniform Normal, uniform float *uniform Phi, const uniform int i, const uniform int ProgramCount, const uniform int Mask);
-
-export void ApplyPerParticleCollision(uniform FVector4f ParticlesPandInvM[],
-										const uniform FVector3f ParticlesX[],
-										const uniform FVector3f CollisionV[],
-										const uniform FVector3f CollisionX[],
-										const uniform FVector3f CollisionW[],
-										const uniform FVector4f CollisionR[],
-										const uniform uint32 DynamicGroupIds[],
-										const uniform uint32 KinematicGroupIds[],
-										const uniform float PerGroupFriction[],
-										const uniform float PerGroupThickness[],
-										const uniform uint8 *uniform CollisionParticles,
-										const uniform uint8 *uniform Geometry,
-										const uniform int SizeofFImplicitObject,
-										const uniform int OffsetofGeometryType,
-										const uniform int OffsetOfMargin,
-										const uniform float Dt,
-										const uniform int InnerOffset,
-										const uniform int InnerRange,
-										const uniform int OuterOffset,
-										const uniform int OuterRange)
-{
-	uniform int BailAt = OuterRange;
-	uniform bool bBail = false;
-
-	// Pre-check for bail out.
-	foreach(Index = OuterOffset ... BailAt)
-	{
-		const uint32 DynamicGroupId = DynamicGroupIds[Index]; // Particle group Id
-
-		for(uniform int i = InnerOffset; i < InnerRange; i++)
-		{
-			const uniform uint32 KinematicGroupId = KinematicGroupIds[i];  // Collision group Id
-
-			if (KinematicGroupId != (uint32)INDEX_NONE && DynamicGroupId != KinematicGroupId)
-			{
-				foreach_active(j)
-				{
-					if(!bBail)
-					{
-						BailAt = extract(Index, j);
-						bBail = true;
-					}
-				}
-			}
-		}
-	}
-
-	foreach(Index = OuterOffset ... BailAt)
-	{
-		const FVector4f PandInvM = VectorLoad(&ParticlesPandInvM[extract(Index, 0)]);
-		varying FVector3f P;
-		varying float IM;
-		UnzipPandInvM(PandInvM, P, IM);
-
-		if(all(IM == 0))
-		{
-			continue;
-		}
-
-		const uint32 DynamicGroupId = DynamicGroupIds[Index]; // Particle group Id
-
-		for(uniform int i = InnerOffset; i < InnerRange; i++) // SequentialFor
-		{
-			// InverseTransformPosition. Can skip Scale calculation because it is 1 for xyz.
-			const FVector3f TranslatedVec = P - CollisionX[i];
-			const FVector4f InverseR = QuatInverse(CollisionR[i]);
-			const FVector3f PhiWithNormalInputFloat = VectorQuaternionRotateVector(InverseR, TranslatedVec);
-			const FVector PhiWithNormalInput = ConvertVector3fTo3Native(PhiWithNormalInputFloat);
-			FVector NormalReal;
-			FReal PhiReal;
-			FVector3f Normal;
-			float Phi;
-
-			const uniform SerializedPtr *uniform GeometryPtr = (const uniform SerializedPtr *uniform)Geometry;
-			const uniform uint8 *uniform Ptr = GeometryPtr[i].Ptr;
-			const uniform uint8 *uniform TypedPtr = Ptr + SizeofFImplicitObject;
-			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0x3F;
-
-			switch(Type)
-			{
-			case Sphere:
-				{
-					const uniform FReal Margin = *((const uniform FReal *uniform)(Ptr + OffsetOfMargin));
-					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, Margin);
-					Phi = (varying float)PhiReal;
-					Normal = ConvertVector3NativeTo3f(NormalReal);
-					break;
-				}
-			case Capsule:
-				{
-					const uniform FReal Margin = *((const uniform FReal *uniform)(Ptr + OffsetOfMargin));
-					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, Margin);
-					Phi = (varying float)PhiReal;
-					Normal = ConvertVector3NativeTo3f(NormalReal);
-					break;
-				}
-			case Union:
-				{
-					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, SizeofFImplicitObject, OffsetofGeometryType, OffsetOfMargin);
-					Phi = (varying float)PhiReal;
-					Normal = ConvertVector3NativeTo3f(NormalReal);
-					break;
-				}
-			case TaperedCapsule:
-				{
-					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal);
-					Phi = (varying float)PhiReal;
-					Normal = ConvertVector3NativeTo3f(NormalReal);
-					break;
-				}
-			case Convex:
-				{
-					PhiWithNormalConvex(TypedPtr, PhiWithNormalInputFloat, Normal, Phi);
-					break;
-				}
-			default:
-				{
-					uniform int IMMask;
-					if(IM != 0)
-					{
-						IMMask = lanemask();
-					}
-
-					GetPhiWithNormal(CollisionParticles, (const uniform float *uniform)&PhiWithNormalInputFloat, (uniform float *uniform)&Normal, (uniform float *uniform)&Phi, i, programCount, IMMask);
-					break;
-				}
-			}
-
-			#pragma ignore warning(perf)
-			const float Thickness = PerGroupThickness[DynamicGroupId];
-
-			if(Phi < Thickness)
-			{
-				// TransformVector. Scale is 1 so that part can be removed.
-				const FVector3f NormalWorld = VectorQuaternionRotateVector(CollisionR[i], Normal);
-				P = P + ((-Phi + Thickness) * NormalWorld);
-
-				#pragma ignore warning(perf)
-				const float CoefficientOfFriction = PerGroupFriction[DynamicGroupId];
-
-				if(CoefficientOfFriction > 0.0f)
-				{
-					const uniform float MaximumFrictionCorrectionPerStep = 1.0f; // 1cm absolute maximum correction the friction force can provide
-					const float Penetration = (-Phi + Thickness); // This is related to the Normal impulse
-
-					FVector3f VectorToPoint = P - CollisionX[i];
-					const FVector3f X = VectorLoad(&ParticlesX[extract(Index, 0)]);
-					const FVector3f RelativeDisplacement = (P - X) - (CollisionV[i] + VectorCross(CollisionW[i], VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
-					const FVector3f RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
-					const float RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
-					float PositionCorrection = clamp(Penetration * CoefficientOfFriction, 0.0f, RelativeDisplacementTangentLength);
-					if (PositionCorrection > MaximumFrictionCorrectionPerStep)
-					{
-						PositionCorrection = MaximumFrictionCorrectionPerStep;
-					}
-					if (PositionCorrection > 0)
-					{
-						P = P - ((PositionCorrection / RelativeDisplacementTangentLength) * RelativeDisplacementTangent);
-					}
-				}
-			}
-		}
-
-		if(IM != 0)
-		{
-			VectorStore(&ParticlesPandInvM[extract(Index, 0)], SetVector4(P, IM));
-		}
-	}
-}
+extern "C" unmasked void GetPhiWithNormalAndVelocityBone(const uniform uint8 *uniform CollisionParticles, const uniform float *uniform V, uniform float *uniform Normal, uniform float *uniform Phi, uniform int *uniform VelocityBone, const uniform int i, const uniform float Thickness, const uniform int ProgramCount, const uniform int Mask);
 
 export void ApplyPerParticleCollisionFastFriction(uniform FVector4f ParticlesPandInvM[],
 													const uniform FVector3f ParticlesX[],
@@ -825,6 +659,7 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector4f ParticlesPan
 			const uniform uint8 *uniform TypedPtr = Ptr + SizeofFImplicitObject;
 			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0x3F;
 
+			int32 VelocityBone = i;
 			switch(Type)
 			{
 			case Sphere:
@@ -862,6 +697,21 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector4f ParticlesPan
 					PhiWithNormalConvex(TypedPtr, PhiWithNormalInputFloat, Normal, Phi);
 					break;
 				}
+			case WeightedLatticeBone:
+				{
+					Phi = PerGroupThickness + 10;
+					break;
+				}
+			case WeightedLatticeLevelSetType:
+				{
+					uniform int IMMask;
+					if(IM != 0)
+					{
+						IMMask = lanemask();
+					}
+					GetPhiWithNormalAndVelocityBone(CollisionParticles, (const uniform float *uniform)&PhiWithNormalInputFloat, (uniform float *uniform)&Normal, (uniform float *uniform)&Phi, (uniform int *uniform)&VelocityBone, i, PerGroupThickness, programCount, IMMask);
+					break;
+				}
 			default:
 				{
 					uniform int IMMask;
@@ -881,16 +731,39 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector4f ParticlesPan
 				// TransformVector. Scale is 1 so that part can be removed.
 				const FVector3f NormalWorld = VectorQuaternionRotateVector(CollisionR[i], Normal);
 				P = P + (Penetration * NormalWorld);
+				if(Type == WeightedLatticeLevelSetType)
+				{
+					#pragma ignore warning(perf)
+					const FVector3f CollisionXVal = CollisionX[VelocityBone];
+					const FVector3f VectorToPoint = P - CollisionXVal;
+					const FVector3f X = VectorLoad(&ParticlesX[extract(Index, 0)]);
+					
+					#pragma ignore warning(perf)
+					const FVector3f CollisionVVal = CollisionV[VelocityBone];
+					#pragma ignore warning(perf)
+					const FVector3f CollisionWVal = CollisionW[VelocityBone];
+					const FVector3f RelativeDisplacement = (P - X) - (CollisionVVal + VectorCross(CollisionWVal, VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
+					const FVector3f RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
+					const float RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
 
-				const FVector3f VectorToPoint = P - CollisionX[i];
-				const FVector3f X = VectorLoad(&ParticlesX[extract(Index, 0)]);
-				const FVector3f RelativeDisplacement = (P - X) - (CollisionV[i] + VectorCross(CollisionW[i], VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
-				const FVector3f RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
-				const float RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
+					const float PositionCorrection = min(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
+					const float CorrectionRatio = select(RelativeDisplacementTangentLength < FLOAT_SMALL_NUMBER, 0.0f, PositionCorrection / RelativeDisplacementTangentLength);
+					P = P - (CorrectionRatio * RelativeDisplacementTangent);
+				
+				}
+				else
+				{
+					const FVector3f VectorToPoint = P - CollisionX[i];
+					const FVector3f X = VectorLoad(&ParticlesX[extract(Index, 0)]);
 
-				const float PositionCorrection = min(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
-				const float CorrectionRatio = select(RelativeDisplacementTangentLength < FLOAT_SMALL_NUMBER, 0.0f, PositionCorrection / RelativeDisplacementTangentLength);
-				P = P - (CorrectionRatio * RelativeDisplacementTangent);
+					const FVector3f RelativeDisplacement = (P - X) - (CollisionV[i] + VectorCross(CollisionW[i], VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
+					const FVector3f RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
+					const float RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
+
+					const float PositionCorrection = min(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
+					const float CorrectionRatio = select(RelativeDisplacementTangentLength < FLOAT_SMALL_NUMBER, 0.0f, PositionCorrection / RelativeDisplacementTangentLength);
+					P = P - (CorrectionRatio * RelativeDisplacementTangent);
+				}
 			}
 		}
 
@@ -1009,6 +882,11 @@ export void ApplyPerParticleCollisionNoFriction(uniform FVector4f ParticlesPandI
 			case Convex:
 				{
 					PhiWithNormalConvex(TypedPtr, PhiWithNormalInputFloat, Normal, Phi);
+					break;
+				}
+			case WeightedLatticeBone:
+				{
+					Phi = PerGroupThickness + 10;
 					break;
 				}
 			default:

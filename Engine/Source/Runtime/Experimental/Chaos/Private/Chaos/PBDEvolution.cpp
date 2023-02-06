@@ -427,7 +427,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt)
 					MCollisionTransforms[Index] = FSolverRigidTransform3(CollisionParticles.X(Index), CollisionParticles.R(Index));
 
 					// Update collision transform and velocity
-					MCollisionKinematicUpdate(CollisionParticles, Dt, MTime, Index);
+					MCollisionKinematicUpdate(CollisionParticles, Dt, MTime, Index); // This expects Sequential update.
 				});
 		}
 
@@ -452,14 +452,19 @@ void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt)
 	// Collision rule initializations
 	MCollisionContacts.Reset();
 	MCollisionNormals.Reset();
+	MCollisionPhis.Reset();
 
 	FPerParticlePBDCollisionConstraint CollisionRule(
 		MCollisionParticlesActiveView,
 		MCollided,
+		MCollisionContacts,
+		MCollisionNormals,
+		MCollisionPhis,
 		MParticleGroupIds,
 		MCollisionParticleGroupIds,
 		MGroupCollisionThicknesses,
-		MGroupCoefficientOfFrictions);
+		MGroupCoefficientOfFrictions,
+		bWriteCCDContacts);
 
 	FPerParticlePBDCCDCollisionConstraint CCDCollisionRule(
 		MCollisionParticlesActiveView,

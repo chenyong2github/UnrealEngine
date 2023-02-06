@@ -24,6 +24,7 @@
 #include "Chaos/PBDTriangleMeshCollisions.h"
 #include "Chaos/XPBDBendingConstraints.h"
 #include "Chaos/XPBDSpringConstraints.h"
+#include "Chaos/WeightedLatticeImplicitObject.h"
 #include "DynamicMeshBuilder.h"
 #include "Engine/EngineTypes.h"
 #include "SceneManagement.h"
@@ -34,6 +35,9 @@
 #include "CanvasItem.h"     //
 #include "Engine/Engine.h"  //
 #endif  // #if WITH_EDITOR
+
+static int DrawSkinnedLattice = 0;
+static FAutoConsoleVariableRef CVarClothVizDrawSkinnedLattice(TEXT("p.ChaosClothVisualization.DrawSkinnedLattice"), DrawSkinnedLattice, TEXT("Draw skinned lattice, 0 = none, 1 = filled, 2 = empty, 3 = both"));
 
 namespace Chaos
 {
@@ -463,6 +467,85 @@ namespace Chaos
 		}
 	}
 
+	static void DrawSkinnedLevelSet(FPrimitiveDrawInterface* PDI, const TWeightedLatticeImplicitObject<FLevelSet>& SkinnedLevelSet, const FQuat& Rotation, const FVector& Position, const FMaterialRenderProxy* MaterialRenderProxy)
+	{
+#if WITH_EDITOR
+		if (PDI && MaterialRenderProxy)
+		{
+			TArray<FVector3f> Vertices;
+			TArray<FIntVector> Tris;
+			const FLevelSet* const LevelSet = SkinnedLevelSet.GetEmbeddedObject();
+			LevelSet->GetZeroIsosurfaceGridCellFaces(Vertices, Tris);
+
+			FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+			for (const FVector3f& V : Vertices)
+			{
+				MeshBuilder.AddVertex(FDynamicMeshVertex(FVector3f(SkinnedLevelSet.GetDeformedPoint(FVec3(V)))));
+			}
+			for (const FIntVector& T : Tris)
+			{
+				MeshBuilder.AddTriangle(T[0], T[1], T[2]);
+			}
+
+			MeshBuilder.Draw(PDI, FTransform(Rotation, Position).ToMatrixWithScale(), MaterialRenderProxy, SDPG_World, false, false);
+
+			if (DrawSkinnedLattice)
+			{
+				const Chaos::TUniformGrid<double, 3>& LatticeGrid = SkinnedLevelSet.GetGrid();
+				const Chaos::TArrayND<Chaos::FVec3, 3>& DeformedPoints = SkinnedLevelSet.GetDeformedPoints();
+				const Chaos::TArrayND<bool, 3>& EmptyCells = SkinnedLevelSet.GetEmptyCells();
+				const FColor LatticeColor = FColor::Cyan;
+				const FColor EmptyLatticeColor = FColor::White;
+				const Chaos::TVec3<int32> CellCounts = LatticeGrid.Counts();
+
+				FTransform LocalToWorld(Rotation, Position);
+				for (int32 I = 0; I < CellCounts.X; ++I)
+				{
+					for (int32 J = 0; J < CellCounts.Y; ++J)
+					{
+						for (int32 K = 0; K < CellCounts.Z; ++K)
+						{
+							const bool bIsEmpty = EmptyCells(I, J, K);
+							const int32 EmptyDrawMask = bIsEmpty ? 2 : 1;
+							if (EmptyDrawMask & DrawSkinnedLattice)
+							{
+								const FVector P000 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J, K)));
+								const FVector P001 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J, K + 1)));
+								const FVector P010 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J + 1, K)));
+								const FVector P011 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J + 1, K + 1)));
+								const FVector P100 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I + 1, J, K)));
+								const FVector P101 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I + 1, J, K + 1)));
+								const FVector P110 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I + 1, J + 1, K)));
+								const FVector P111 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I + 1, J + 1, K + 1)));
+
+								PDI->AddReserveLines(SDPG_World, 12);
+								const FColor& Color = bIsEmpty ? EmptyLatticeColor : LatticeColor;
+								PDI->DrawLine(P000, P001, Color, SDPG_World);
+								PDI->DrawLine(P000, P010, Color, SDPG_World);
+								PDI->DrawLine(P000, P100, Color, SDPG_World);
+								PDI->DrawLine(P001, P011, Color, SDPG_World);
+								PDI->DrawLine(P001, P101, Color, SDPG_World);
+								PDI->DrawLine(P010, P011, Color, SDPG_World);
+								PDI->DrawLine(P010, P110, Color, SDPG_World);
+								PDI->DrawLine(P011, P111, Color, SDPG_World);
+								PDI->DrawLine(P100, P101, Color, SDPG_World);
+								PDI->DrawLine(P100, P110, Color, SDPG_World);
+								PDI->DrawLine(P101, P111, Color, SDPG_World);
+								PDI->DrawLine(P110, P111, Color, SDPG_World);
+
+							}
+						}
+					}
+				}
+			}
+		}
+		else
+#endif
+		{
+			DrawCoordinateSystem(PDI, Rotation, Position);
+		}
+	}
+
 	void FClothVisualization::DrawBounds(FPrimitiveDrawInterface* PDI) const
 	{
 		if (!Solver)
@@ -874,7 +957,19 @@ namespace Chaos
 								DrawLevelSet(PDI, CombinedTransform, MaterialRenderProxy, LevelSet);
 							}
 							break;
+						case (ImplicitObjectType::LevelSet | ImplicitObjectType::IsWeightedLattice):
+							{
+								const TWeightedLatticeImplicitObject<FLevelSet>& WeightedLevelset = Object->GetObjectChecked< TWeightedLatticeImplicitObject<FLevelSet> >();
+								const FMaterialRenderProxy* MaterialRenderProxy =
+#if WITH_EDITOR
+									CollisionMaterial->GetRenderProxy();
+#else
+									nullptr;
+#endif
+								DrawSkinnedLevelSet(PDI, WeightedLevelset, Rotation, Position, MaterialRenderProxy);
 
+							}
+							break;
 						default:
 							DrawCoordinateSystem(PDI, Rotation, Position);  // Draw everything else as a coordinate for now
 							break;
@@ -896,6 +991,7 @@ namespace Chaos
 
 		// Draw contacts
 		check(Solver->GetCollisionContacts().Num() == Solver->GetCollisionNormals().Num());
+		const bool bDrawPhis = Solver->GetCollisionContacts().Num() == Solver->GetCollisionPhis().Num();
 		constexpr FReal NormalLength = (FReal)10.;
 
 		const FVec3& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
@@ -917,6 +1013,13 @@ namespace Chaos
 			static const FLinearColor Brown(0.1f, 0.05f, 0.f);
 			const FVec3 Pos1 = Pos0 + NormalLength * Normal;
 			DrawLine(PDI, Pos0, Pos1, Brown);
+
+			if (bDrawPhis)
+			{
+				const FVec3 PhiLocation = Pos0 - Solver->GetCollisionPhis()[i] * Normal;
+				DrawLine(PDI, Pos0, PhiLocation, Brown);
+				DrawPoint(PDI, PhiLocation, FLinearColor::Red, nullptr, 5);
+			}
 		}
 	}
 

@@ -211,6 +211,7 @@ namespace Chaos
 		const bool* GetCollisionStatus(int32 Offset) const;
 		const TArray<Softs::FSolverVec3>& GetCollisionContacts() const;
 		const TArray<Softs::FSolverVec3>& GetCollisionNormals() const;
+		const TArray<Softs::FSolverReal>& GetCollisionPhis() const;
 		// ---- End of the Collider interface ----
 
 		// ---- Field interface ----

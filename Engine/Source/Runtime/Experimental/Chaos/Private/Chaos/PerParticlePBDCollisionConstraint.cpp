@@ -25,6 +25,9 @@ static_assert(ispc::ImplicitObjectType::Capsule == Chaos::ImplicitObjectType::Ca
 static_assert(ispc::ImplicitObjectType::Union == Chaos::ImplicitObjectType::Union);
 static_assert(ispc::ImplicitObjectType::TaperedCapsule == Chaos::ImplicitObjectType::TaperedCapsule);
 static_assert(ispc::ImplicitObjectType::Convex == Chaos::ImplicitObjectType::Convex);
+static_assert(ispc::ImplicitObjectType::WeightedLatticeBone == Chaos::ImplicitObjectType::WeightedLatticeBone);
+static_assert(ispc::ImplicitObjectType::IsWeightedLattice == Chaos::ImplicitObjectType::IsWeightedLattice);
+static_assert(ispc::ImplicitObjectType::WeightedLatticeLevelSetType == (Chaos::ImplicitObjectType::IsWeightedLattice | Chaos::ImplicitObjectType::LevelSet));
 static_assert(sizeof(ispc::TArray) == sizeof(TArray<int>));
 // Sphere
 static_assert(sizeof(Chaos::FImplicitObject) == Chaos::FSphere::FISPCDataVerifier::OffsetOfCenter());
@@ -109,10 +112,8 @@ static FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCEnabled(TEXT("p.
 #endif
 
 static int32 Chaos_PerParticleCollision_ISPC_ParallelBatchSize = 128;
-static bool Chaos_PerParticleCollision_ISPC_FastFriction = true;
 #if !UE_BUILD_SHIPPING
 FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCParallelBatchSize(TEXT("p.Chaos.PerParticleCollision.ISPC.ParallelBatchSize"), Chaos_PerParticleCollision_ISPC_ParallelBatchSize, TEXT("Parallel batch size for ISPC"));
-FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCFastFriction(TEXT("p.Chaos.PerParticleCollision.ISPC.FastFriction"), Chaos_PerParticleCollision_ISPC_FastFriction, TEXT("Faster friction ISPC"));
 #endif
 
 namespace Chaos::Softs {
@@ -145,9 +146,57 @@ extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const FSolverR
 	}
 }
 
+// Helper function to call PhiWithNormal and return data to ISPC
+extern "C" void GetPhiWithNormalAndVelocityBone(const uint8 * CollisionParticles, const FSolverReal * InV, FSolverReal * Normal, FSolverReal * Phi, int32 * VelocityBone, const int32 i, const FSolverReal Thickness, const int32 ProgramCount, const int32 Mask)
+{
+	const TKinematicGeometryParticlesImp<FSolverReal, 3, EGeometryParticlesSimType::Other>& C = *(const TKinematicGeometryParticlesImp<FSolverReal, 3, EGeometryParticlesSimType::Other>*)CollisionParticles;
+
+	for (int32 Index = 0; Index < ProgramCount; ++Index)
+	{
+		if (Mask & (1 << Index))
+		{
+			FSolverVec3 V;
+
+			// aos_to_soa3
+			V.X = InV[Index];
+			V.Y = InV[Index + ProgramCount];
+			V.Z = InV[Index + 2 * ProgramCount];
+
+			VelocityBone[Index] = i;
+
+			FVec3 ImplicitNormal;
+			if (const TWeightedLatticeImplicitObject<FLevelSet>* LevelSet = C.Geometry(i)->GetObject< TWeightedLatticeImplicitObject<FLevelSet> >())
+			{
+				FWeightedLatticeImplicitObject::FEmbeddingCoordinate SurfaceCoord;
+				Phi[Index] = (FSolverReal)LevelSet->PhiWithNormalAndSurfacePoint(FVec3(V), ImplicitNormal, SurfaceCoord);
+				const FSolverReal Penetration = Thickness - Phi[Index]; // This is related to the Normal impulse
+				if (Penetration > (FSolverReal)0.)
+				{
+					const int32 StrongestBone = SurfaceCoord.GreatestInfluenceBone(LevelSet->GetBoneData());
+					if (StrongestBone != INDEX_NONE)
+					{
+						VelocityBone[Index] = LevelSet->GetSolverBoneIndices()[StrongestBone];
+					}
+				}
+			}
+			else
+			{
+				Phi[Index] = (FSolverReal)C.Geometry(i)->PhiWithNormal(FVec3(V), ImplicitNormal);
+			}
+			FSolverVec3 Norm(ImplicitNormal);
+
+			// aos_to_soa3
+			Normal[Index] = Norm.X;
+			Normal[Index + ProgramCount] = Norm.Y;
+			Normal[Index + 2 * ProgramCount] = Norm.Z;
+		}
+	}
+}
+
 void FPerParticlePBDCollisionConstraint::ApplyHelperISPC(FSolverParticles& InParticles, const FSolverReal Dt, const int32 Offset, const int32 Range) const
 {
 	check(bRealTypeCompatibleWithISPC);
+	check(bFastPositionBasedFriction);
 
 	const uint32 DynamicGroupId = MDynamicGroupIds[Offset];
 	const FSolverReal PerGroupFriction = MPerGroupFriction[DynamicGroupId];
@@ -155,115 +204,77 @@ void FPerParticlePBDCollisionConstraint::ApplyHelperISPC(FSolverParticles& InPar
 
 	const int32 NumBatches = FMath::CeilToInt((FSolverReal)(Range - Offset) / (FSolverReal)Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
 
-	if (Chaos_PerParticleCollision_ISPC_FastFriction)
+	if (PerGroupFriction > UE_KINDA_SMALL_NUMBER)  // Fast friction
 	{
-		if (PerGroupFriction > UE_KINDA_SMALL_NUMBER)  // Fast friction
-		{
-			PhysicsParallelFor(NumBatches, [this, &InParticles, Dt, Offset, Range, DynamicGroupId, PerGroupFriction, PerGroupThickness](int32 BatchNumber)
+		PhysicsParallelFor(NumBatches, [this, &InParticles, Dt, Offset, Range, DynamicGroupId, PerGroupFriction, PerGroupThickness](int32 BatchNumber)
 			{
 				const int32 BatchBegin = Offset + (Chaos_PerParticleCollision_ISPC_ParallelBatchSize * BatchNumber);
-				const int32 BatchEnd = FMath::Min(Range, BatchBegin + Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
+		const int32 BatchEnd = FMath::Min(Range, BatchBegin + Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
 
 #if INTEL_ISPC
-				MCollisionParticlesActiveView.RangeFor(
-					[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupFriction, PerGroupThickness](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
-					{
-						ispc::ApplyPerParticleCollisionFastFriction(
-							(ispc::FVector4f*)InParticles.GetPAndInvM().GetData(),
-							(const ispc::FVector3f*)InParticles.XArray().GetData(),
-							(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
-							(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
-							(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
-							(const ispc::FVector4f*)CollisionParticles.AllR().GetData(),
-							DynamicGroupId,
-							MKinematicGroupIds.GetData(),
-							PerGroupFriction,
-							PerGroupThickness,
-							(const uint8*)&CollisionParticles,
-							(const uint8*)CollisionParticles.GetAllGeometry().GetData(),
-							sizeof(FImplicitObject),
-							FImplicitObject::GetOffsetOfType(),
-							FImplicitObject::GetOffsetOfMargin(),
-							Dt,
-							CollisionOffset,
-							CollisionRange,
-							BatchBegin,
-							BatchEnd);
-					});
-#endif  // #if INTEL_ISPC
-				});
-		}
-		else  // No friction
-		{
-			PhysicsParallelFor(NumBatches, [this, &InParticles, Dt, Offset, Range, DynamicGroupId, PerGroupFriction, PerGroupThickness](int32 BatchNumber)
+		MCollisionParticlesActiveView.RangeFor(
+			[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupFriction, PerGroupThickness](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
 			{
-				const int32 BatchBegin = Offset + (Chaos_PerParticleCollision_ISPC_ParallelBatchSize * BatchNumber);
-				const int32 BatchEnd = FMath::Min(Range, BatchBegin + Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
-
-#if INTEL_ISPC
-				MCollisionParticlesActiveView.RangeFor(
-					[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupThickness](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
-					{
-						ispc::ApplyPerParticleCollisionNoFriction(
-							(ispc::FVector4f*)InParticles.GetPAndInvM().GetData(),
-							(const ispc::FVector3f*)InParticles.XArray().GetData(),
-							(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
-							(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
-							(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
-							(const ispc::FVector4f*)CollisionParticles.AllR().GetData(),
-							DynamicGroupId,
-							MKinematicGroupIds.GetData(),
-							PerGroupThickness,
-							(const uint8*)&CollisionParticles,
-							(const uint8*)CollisionParticles.GetAllGeometry().GetData(),
-							sizeof(FImplicitObject),
-							FImplicitObject::GetOffsetOfType(),
-							FImplicitObject::GetOffsetOfMargin(),
-							Dt,
-							CollisionOffset,
-							CollisionRange,
-							BatchBegin,
-							BatchEnd);
-					});
+				ispc::ApplyPerParticleCollisionFastFriction(
+					(ispc::FVector4f*)InParticles.GetPAndInvM().GetData(),
+					(const ispc::FVector3f*)InParticles.XArray().GetData(),
+					(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
+					(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
+					(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
+					(const ispc::FVector4f*)CollisionParticles.AllR().GetData(),
+					DynamicGroupId,
+					MKinematicGroupIds.GetData(),
+					PerGroupFriction,
+					PerGroupThickness,
+					(const uint8*)&CollisionParticles,
+					(const uint8*)CollisionParticles.GetAllGeometry().GetData(),
+					sizeof(FImplicitObject),
+					FImplicitObject::GetOffsetOfType(),
+					FImplicitObject::GetOffsetOfMargin(),
+					Dt,
+					CollisionOffset,
+					CollisionRange,
+					BatchBegin,
+					BatchEnd);
+			});
 #endif  // #if INTEL_ISPC
-				});
-		}
+			});
 	}
-	else
+	else  // No friction
 	{
-		PhysicsParallelFor(NumBatches, [this, &InParticles, Dt, Offset, Range](int32 BatchNumber)
-		{
-			const int32 BatchBegin = Offset + (Chaos_PerParticleCollision_ISPC_ParallelBatchSize * BatchNumber);
-			const int32 BatchEnd = FMath::Min(Range, BatchBegin + Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
+		PhysicsParallelFor(NumBatches, [this, &InParticles, Dt, Offset, Range, DynamicGroupId, PerGroupFriction, PerGroupThickness](int32 BatchNumber)
+			{
+				const int32 BatchBegin = Offset + (Chaos_PerParticleCollision_ISPC_ParallelBatchSize * BatchNumber);
+		const int32 BatchEnd = FMath::Min(Range, BatchBegin + Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
 
 #if INTEL_ISPC
-			MCollisionParticlesActiveView.RangeFor(
-				[this, &InParticles, Dt, BatchBegin, BatchEnd](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
-				{
-					ispc::ApplyPerParticleCollision(
-						(ispc::FVector4f*)InParticles.GetPAndInvM().GetData(),
-						(const ispc::FVector3f*)InParticles.XArray().GetData(),
-						(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
-						(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
-						(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
-						(const ispc::FVector4f*)CollisionParticles.AllR().GetData(),
-						MDynamicGroupIds.GetData(),
-						MKinematicGroupIds.GetData(),
-						MPerGroupFriction.GetData(),
-						MPerGroupThickness.GetData(),
-						(const uint8*)&CollisionParticles,
-						(const uint8*)CollisionParticles.GetAllGeometry().GetData(),
-						sizeof(FImplicitObject),
-						FImplicitObject::GetOffsetOfType(),
-						FImplicitObject::GetOffsetOfMargin(),
-						Dt,
-						CollisionOffset,
-						CollisionRange,
-						BatchBegin,
-						BatchEnd);
-				});
+		MCollisionParticlesActiveView.RangeFor(
+			[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupThickness](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
+			{
+				ispc::ApplyPerParticleCollisionNoFriction(
+					(ispc::FVector4f*)InParticles.GetPAndInvM().GetData(),
+					(const ispc::FVector3f*)InParticles.XArray().GetData(),
+					(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
+					(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
+					(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
+					(const ispc::FVector4f*)CollisionParticles.AllR().GetData(),
+					DynamicGroupId,
+					MKinematicGroupIds.GetData(),
+					PerGroupThickness,
+					(const uint8*)&CollisionParticles,
+					(const uint8*)CollisionParticles.GetAllGeometry().GetData(),
+					sizeof(FImplicitObject),
+					FImplicitObject::GetOffsetOfType(),
+					FImplicitObject::GetOffsetOfMargin(),
+					Dt,
+					CollisionOffset,
+					CollisionRange,
+					BatchBegin,
+					BatchEnd);
+			});
 #endif  // #if INTEL_ISPC
-		});
+			});
+
 	}
 }
 

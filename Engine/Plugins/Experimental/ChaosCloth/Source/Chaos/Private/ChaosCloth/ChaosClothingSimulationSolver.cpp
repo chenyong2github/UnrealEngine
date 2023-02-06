@@ -7,6 +7,8 @@
 #include "ChaosCloth/ChaosClothingSimulation.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "Chaos/PBDEvolution.h"
+#include "Chaos/WeightedLatticeImplicitObject.h"
+#include "Chaos/Levelset.h"
 #if INTEL_ISPC
 #include "ChaosClothingSimulationSolver.ispc.generated.h"
 #endif
@@ -163,6 +165,22 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 			const Softs::FSolverVec3 Axis = Delta.GetRotationAxis();
 			ParticlesInput.W(Index) = (Softs::FSolverVec3)Axis * Angle / Dt;
 			ParticlesInput.R(Index) = NewR;
+
+			if (TWeightedLatticeImplicitObject<FLevelSet>* SkinnedLevelSet = 
+				const_cast<FImplicitObject*>(ParticlesInput.Geometry(Index).Get())->GetObject<TWeightedLatticeImplicitObject<FLevelSet>>())
+			{
+				const TArray<int32>& SubBoneIndices = SkinnedLevelSet->GetSolverBoneIndices();
+				const FTransform RootTransformInv = TRigidTransform<FReal, 3>(ParticlesInput.X(Index), ParticlesInput.R(Index)).Inverse();
+				TArray<FTransform> SubBoneTransforms;
+				SubBoneTransforms.SetNum(SubBoneIndices.Num());
+				for (int32 SubBoneIdx = 0; SubBoneIdx < SubBoneIndices.Num(); ++SubBoneIdx)
+				{
+					checkSlow(SubBoneIndices[SubBoneIdx] < Index);
+					SubBoneTransforms[SubBoneIdx] = TRigidTransform<FReal,3>(ParticlesInput.X(SubBoneIndices[SubBoneIdx]), ParticlesInput.R(SubBoneIndices[SubBoneIdx])) * RootTransformInv;
+				}
+				SkinnedLevelSet->DeformPoints(SubBoneTransforms);
+				SkinnedLevelSet->UpdateSpatialHierarchy();
+			}
 		});
 }
 
@@ -523,6 +541,11 @@ const bool* FClothingSimulationSolver::GetCollisionStatus(int32 Offset) const
 const TArray<Softs::FSolverVec3>& FClothingSimulationSolver::GetCollisionContacts() const
 {
 	return Evolution->GetCollisionContacts();
+}
+
+const TArray<Softs::FSolverReal>& FClothingSimulationSolver::GetCollisionPhis() const
+{
+	return Evolution->GetCollisionPhis();
 }
 
 const TArray<Softs::FSolverVec3>& FClothingSimulationSolver::GetCollisionNormals() const
