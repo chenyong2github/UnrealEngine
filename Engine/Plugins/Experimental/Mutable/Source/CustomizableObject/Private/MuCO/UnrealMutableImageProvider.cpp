@@ -313,6 +313,8 @@ TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageA
 				{
 					UE_LOG(LogMutable, Warning, TEXT("Failed to create an IORequest for a UTexture2D BulkData for an application-specific image parameter."));
 
+					IORequestCompletionEvent->DispatchSubsequents();
+					
 					ResultCallback(CreateDummy());
 					return Invoke(TrivialReturn);
 				}
