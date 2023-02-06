@@ -1954,6 +1954,10 @@ static void ReplaceObjectHelper(UObject*& OldObject, UClass* OldClass, UObject*&
 
 	OldObject->RemoveFromRoot();
 	OldObject->MarkAsGarbage();
+	ForEachObjectWithOuter(OldObject, [](UObject* ObjectInOuter)
+	{
+		ObjectInOuter->MarkAsGarbage();
+	}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 
 	OldToNewInstanceMap.Add(OldObject, NewUObject);
 
@@ -2296,7 +2300,14 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 				for (int32 OldObjIndex = 0; OldObjIndex < ObjectsToReplace.Num(); ++OldObjIndex)
 				{
 					UObject* OldObject = ObjectsToReplace[OldObjIndex];
-					
+
+					// Skipping any object that outer is going to be replaced
+					// This isn't needed for the actor loop as the only outer for actor is a level
+					if (InOldToNewClassMap.Contains(OldObject->GetOuter()->GetClass()))
+					{
+						continue;
+					}
+
 					AActor* OldActor = Cast<AActor>(OldObject);
 
 					// Skip archetype instances, EXCEPT for component templates and child actor templates
