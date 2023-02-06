@@ -63,72 +63,75 @@ namespace impl
 		check(OperationData->UpdateContext->Model);
 		check(OperationData->UpdateContext->Parameters.get());
 
-		mu::SystemPtr System = OperationData->UpdateContext->System;
-		const TSharedPtr<mu::Model,ESPMode::ThreadSafe> Model = OperationData->UpdateContext->Model;
-
-		// For now, we are forcing the recreation of mutable-side instances with every update.
-		mu::Instance::ID InstanceID = System->NewInstance(Model);
-		UE_LOG(LogMutable, Verbose, TEXT("Creating Mutable instance with id [%d] for a single UpdateImage"), InstanceID)
-
-		const mu::Instance* Instance = nullptr;
-
-		// Main instance generation step
+		if (OperationData.IsValid())
 		{
-			// LOD mask, set to all ones to build all LODs
-			uint32 LODMask = 0xFFFFFFFF;
+			mu::SystemPtr System = OperationData->UpdateContext->System;
+			const TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = OperationData->UpdateContext->Model;
 
-			Instance = System->BeginUpdate(InstanceID, OperationData->UpdateContext->Parameters, OperationData->UpdateContext->State, LODMask);
-			check(Instance);
-		}
+			// For now, we are forcing the recreation of mutable-side instances with every update.
+			mu::Instance::ID InstanceID = System->NewInstance(Model);
+			UE_LOG(LogMutable, Verbose, TEXT("Creating Mutable instance with id [%d] for a single UpdateImage"), InstanceID)
 
+				const mu::Instance* Instance = nullptr;
 
-		// Generate the required image
-		{
-			MUTABLE_CPUPROFILER_SCOPE(RequestedImage);
-
-			const FMutableImageReference& ImageRef = OperationData->RequestedImage;
-
-			int32 SurfaceIndex = Instance->FindSurfaceById(ImageRef.LOD, ImageRef.Component, ImageRef.SurfaceId);
-			check(SurfaceIndex>=0);
-
-			// This ID may be different than the ID obtained the first time the image was generated, because the mutable
-			// runtime cannot remember all the resources it has built, and only remembers a fixed amount.
-			mu::RESOURCE_ID MipImageID = Instance->GetImageId(ImageRef.LOD, ImageRef.Component, SurfaceIndex, ImageRef.Image);
-
-			// TODO: Why do we need to do this again? The full size should be stored in the initial image creation.
-			mu::FImageDesc ImageDesc;
-			mu::ImagePtrConst Image;
+			// Main instance generation step
 			{
-				MUTABLE_CPUPROFILER_SCOPE(GetImage);
+				// LOD mask, set to all ones to build all LODs
+				uint32 LODMask = 0xFFFFFFFF;
 
-				Image = System->GetImage(InstanceID, MipImageID, OperationData->MipsToSkip, ImageRef.LOD);
+				Instance = System->BeginUpdate(InstanceID, OperationData->UpdateContext->Parameters, OperationData->UpdateContext->State, LODMask);
+				check(Instance);
 			}
 
-			check(Image);
 
-			OperationData->Result = Image;
-		}
-
-		// End update
-		{
-			MUTABLE_CPUPROFILER_SCOPE(EndUpdate);
-			System->EndUpdate(InstanceID);
-			System->ReleaseInstance(InstanceID);
-		}
-
-		{
-			// The request could be cancelled in parallel from CancelCounterSafely and its value be changed
-			// between reading it and actually running Decrement() and RescheduleCallback(), so lock
-			FScopeLock Lock(&OperationData->CounterTaskLock);
-
-			if (OperationData->Counter) // If the request has been cancelled the counter will be null
+			// Generate the required image
 			{
-				// Make the FMutableTextureMipDataProvider continue
-				OperationData->Counter->Decrement();
+				MUTABLE_CPUPROFILER_SCOPE(RequestedImage);
 
-				if (OperationData->Counter->GetValue() == 0)
+				const FMutableImageReference& ImageRef = OperationData->RequestedImage;
+
+				int32 SurfaceIndex = Instance->FindSurfaceById(ImageRef.LOD, ImageRef.Component, ImageRef.SurfaceId);
+				check(SurfaceIndex >= 0);
+
+				// This ID may be different than the ID obtained the first time the image was generated, because the mutable
+				// runtime cannot remember all the resources it has built, and only remembers a fixed amount.
+				mu::RESOURCE_ID MipImageID = Instance->GetImageId(ImageRef.LOD, ImageRef.Component, SurfaceIndex, ImageRef.Image);
+
+				// TODO: Why do we need to do this again? The full size should be stored in the initial image creation.
+				mu::FImageDesc ImageDesc;
+				mu::ImagePtrConst Image;
 				{
-					OperationData->RescheduleCallback();
+					MUTABLE_CPUPROFILER_SCOPE(GetImage);
+
+					Image = System->GetImage(InstanceID, MipImageID, OperationData->MipsToSkip, ImageRef.LOD);
+				}
+
+				check(Image);
+
+				OperationData->Result = Image;
+			}
+
+			// End update
+			{
+				MUTABLE_CPUPROFILER_SCOPE(EndUpdate);
+				System->EndUpdate(InstanceID);
+				System->ReleaseInstance(InstanceID);
+			}
+
+			{
+				// The request could be cancelled in parallel from CancelCounterSafely and its value be changed
+				// between reading it and actually running Decrement() and RescheduleCallback(), so lock
+				FScopeLock Lock(&OperationData->CounterTaskLock);
+
+				if (OperationData->Counter) // If the request has been cancelled the counter will be null
+				{
+					// Make the FMutableTextureMipDataProvider continue
+					OperationData->Counter->Decrement();
+
+					if (OperationData->Counter->GetValue() == 0)
+					{
+						OperationData->RescheduleCallback();
+					}
 				}
 			}
 		}
@@ -312,12 +315,15 @@ void FMutableTextureMipDataProvider::AbortPollMips()
 
 void FMutableTextureMipDataProvider::CancelCounterSafely()
 {
-	// The Counter could be read in parallel from Task_Mutable_UpdateImage, so lock
-	FScopeLock Lock(&OperationData->CounterTaskLock);
-
-	if (OperationData->Counter)
+	if (OperationData.IsValid())
 	{
-		OperationData->Counter->Set(0);
-		OperationData->Counter = nullptr;
+		// The Counter could be read in parallel from Task_Mutable_UpdateImage, so lock
+		FScopeLock Lock(&OperationData->CounterTaskLock);
+
+		if (OperationData->Counter)
+		{
+			OperationData->Counter->Set(0);
+			OperationData->Counter = nullptr;
+		}
 	}
 }
