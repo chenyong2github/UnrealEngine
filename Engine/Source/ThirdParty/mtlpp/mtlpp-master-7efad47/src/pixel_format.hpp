@@ -179,7 +179,7 @@ namespace mtlpp
 
         BGRG422                                            = 241,
 
-        Depth16Unorm          MTLPP_AVAILABLE_MAC(10_12)   = 250,
+        Depth16Unorm          MTLPP_AVAILABLE(10_12, 11_0)  = 250,
         Depth32Float                                       = 252,
 
         Stencil8                                           = 253,

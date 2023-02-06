@@ -816,8 +816,8 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		GPixelFormats[PF_DepthStencil		].BlockBytes		= 4;
 
 	GPixelFormats[PF_DepthStencil		].Supported			= true;
-	GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth32Float;
-	GPixelFormats[PF_ShadowDepth		].BlockBytes		= 4;
+	GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth16Unorm;
+	GPixelFormats[PF_ShadowDepth		].BlockBytes		= 2;
 	GPixelFormats[PF_ShadowDepth		].Supported			= true;
 		
 	GPixelFormats[PF_BC5				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
