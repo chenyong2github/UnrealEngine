@@ -63,30 +63,6 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 		return;
 	}
 
-	// Add custom handle for { type: "Command", Resolution.Width: "1920", Resolution.Height: "1080" } when doing Editor streaming
-	// because we cannot resize the game viewport, but instead want to resize the parent window.
-	IPixelStreamingInputModule& InputModule = IPixelStreamingInputModule::Get();
-	TSharedPtr<IPixelStreamingInputHandler> InputHandler = InputModule.GetInputHandler();
-	if (InputHandler)
-	{
-		InputHandler->SetCommandHandler("Resolution.Width",
-			[](FString Descriptor, FString WidthString) {
-				bool bSuccess;
-				FString HeightString;
-				UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
-				int Width = FCString::Atoi(*WidthString);
-				int Height = FCString::Atoi(*HeightString);
-				if (Width < 1 || Height < 1)
-				{
-					return;
-				}
-
-				TSharedPtr<SWindow> ParentWindow = IMainFrameModule::Get().GetParentWindow();
-				ParentWindow->Resize(FVector2D(Width, Height));
-				FSlateApplication::Get().OnSizeChanged(ParentWindow->GetNativeWindow().ToSharedRef(), Width, Height);
-			});
-	}
-
 	// Give the editor streamer the default url if the user hasn't specified one when launching the editor
 	if (Streamer->GetSignallingServerURL().IsEmpty())
 	{
@@ -135,6 +111,30 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 	if (!Streamer.IsValid())
 	{
 		return;
+	}
+
+	// Add custom handle for { type: "Command", Resolution.Width: "1920", Resolution.Height: "1080" } when doing Editor streaming
+	// because we cannot resize the game viewport, but instead want to resize the parent window.
+	IPixelStreamingInputModule& InputModule = IPixelStreamingInputModule::Get();
+	TSharedPtr<IPixelStreamingInputHandler> InputHandler = InputModule.GetInputHandler();
+	if (InputHandler)
+	{
+		InputHandler->SetCommandHandler("Resolution.Width",
+			[](FString Descriptor, FString WidthString) {
+				bool bSuccess;
+				FString HeightString;
+				UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
+				int Width = FCString::Atoi(*WidthString);
+				int Height = FCString::Atoi(*HeightString);
+				if (Width < 1 || Height < 1)
+				{
+					return;
+				}
+
+				TSharedPtr<SWindow> ParentWindow = IMainFrameModule::Get().GetParentWindow();
+				ParentWindow->Resize(FVector2D(Width, Height));
+				FSlateApplication::Get().OnSizeChanged(ParentWindow->GetNativeWindow().ToSharedRef(), Width, Height);
+			});
 	}
 
 	StreamType = InStreamType;
