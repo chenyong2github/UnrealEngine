@@ -42,7 +42,7 @@ namespace Dataflow
 		}
 
 		template<class T>
-		const T FindOverrideProperty(const UObject* Owner, FName PropertyName, FString ArrayKey, const T & Default = T())
+		const T FindOverrideProperty(const UObject* Owner, FName PropertyName, FName ArrayKey, const T & Default = T())
 		{
 			if (Owner && Owner->GetClass())
 			{
@@ -56,7 +56,7 @@ namespace Dataflow
 							{
 								for (const FStringValuePair& Pair : *ContainerData)
 								{
-									if (Pair.Key.Equals(ArrayKey))
+									if (Pair.Key.Equals(ArrayKey.ToString()))
 									{
 										return Pair.Value;
 									}

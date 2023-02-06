@@ -91,6 +91,36 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
+
+USTRUCT()
+struct DATAFLOWNODES_API FSkeletalMeshReferenceTransformDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSkeletalMeshReferenceTransformDataflowNode, "SkeletalMeshReferenceTransform", "General", "Skeletal Mesh")
+
+public:
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "SkeletalMesh"))
+	TObjectPtr<const USkeletalMesh> SkeletalMeshIn = nullptr;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "Index"))
+	int32 BoneIndexIn = INDEX_NONE;
+
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "Transform"))
+	FTransform TransformOut = FTransform::Identity;
+
+	FSkeletalMeshReferenceTransformDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&SkeletalMeshIn);
+		RegisterInputConnection(&BoneIndexIn);
+		RegisterOutputConnection(&TransformOut);
+	}
+
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
 namespace Dataflow
 {
 	void RegisterSkeletalMeshNodes();

@@ -18,4 +18,9 @@ enum class EDeformableExecutionModel : uint8
 struct FChaosEngineDeformableCVarParams
 {
 	bool bEnableDeformableSolver = true;
+#ifdef WITH_ENGINE
+	bool bDoDrawSimulationMesh = true;
+#else
+	bool bDoDrawSimulationMesh = false;
+#endif
 };

@@ -534,8 +534,14 @@ struct FMakeLiteralVectorDataflowNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeLiteralVectorDataflowNode, "MakeLiteralVector", "Math|Vector", "")
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Vector");
-	FVector Value = FVector(0.0);
+	UPROPERTY(EditAnywhere, Category = "Vector", meta = (DataflowInput));
+	float X = float(0.0);
+
+	UPROPERTY(EditAnywhere, Category = "Vector", meta = (DataflowInput));
+	float Y = float(0.0);
+
+	UPROPERTY(EditAnywhere, Category = "Vector", meta = (DataflowInput));
+	float Z = float(0.0);
 
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "Vector"))
 	FVector Vector = FVector(0.0);
@@ -543,6 +549,9 @@ public:
 	FMakeLiteralVectorDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
+		RegisterInputConnection(&X);
+		RegisterInputConnection(&Y);
+		RegisterInputConnection(&Z);
 		RegisterOutputConnection(&Vector);
 	}
 
@@ -2098,22 +2107,64 @@ struct FMakeTransformDataflowNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeTransformDataflowNode, "MakeTransform", "Generators|Transform", "")
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DisplayName = "Transform"));
-	FTransform InTransform = FTransform::Identity;
 
-	UPROPERTY(meta = (DataflowOutput));
-	FTransform Transform = FTransform::Identity;
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DataflowInput, DisplayName = "Translation"));
+	FVector InTranslation = FVector(0,0,0);
+
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DataflowInput, DisplayName = "Rotation"));
+	FVector InRotation = FVector(0, 0, 0);
+
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DataflowInput, DisplayName = "Scale"));
+	FVector InScale = FVector(1,1,1);
+
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "Transform"));
+	FTransform OutTransform = FTransform::Identity;
 
 	FMakeTransformDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterOutputConnection(&Transform);
+		RegisterInputConnection(&InTranslation);
+		RegisterInputConnection(&InRotation);
+		RegisterInputConnection(&InScale);
+		RegisterOutputConnection(&OutTransform);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 };
 
+/**
+ *
+ * Description for this node
+ *
+ */
+USTRUCT()
+struct FMultiplyTransformDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FMultiplyTransformDataflowNode, "MultiplyTransform", "Math|Transform", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DisplayName = "Left Transform"));
+	FTransform InLeftTransform = FTransform::Identity;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "Right Transform"));
+	FTransform InRightTransform = FTransform::Identity;
+
+	UPROPERTY(meta = ( DataflowOutput, DisplayName = "Out Transform"));
+	FTransform OutTransform = FTransform::Identity;
+
+	FMultiplyTransformDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&InLeftTransform);
+		RegisterInputConnection(&InRightTransform);
+		RegisterOutputConnection(&OutTransform);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
 
 
 namespace Dataflow

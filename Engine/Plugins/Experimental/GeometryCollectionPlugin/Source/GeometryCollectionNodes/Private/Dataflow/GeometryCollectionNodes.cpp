@@ -99,6 +99,8 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatArrayToVertexSelectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexColorInCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeTransformDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMultiplyTransformDataflowNode);
+		
 
 		// GeometryCollection
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("GeometryCollection", FLinearColor(0.55f, 0.45f, 1.0f), CDefaultNodeBodyTintColor);
@@ -313,6 +315,7 @@ void FMakeLiteralVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const
 {
 	if (Out->IsA<FVector>(&Vector))
 	{
+		FVector Value(GetValue<float>(Context, &X, X), GetValue<float>(Context, &Y, Y), GetValue<float>(Context, &Z, Z));
 		SetValue<FVector>(Context, Value, &Vector);
 	}
 }
@@ -1424,11 +1427,28 @@ void FSetVertexColorInCollectionDataflowNode::Evaluate(Dataflow::FContext& Conte
 
 void FMakeTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FTransform>(&Transform))
+	if (Out->IsA<FTransform>(&OutTransform))
 	{
-		SetValue<FTransform>(Context, FTransform(InTransform), &Transform);
+		SetValue<FTransform>(Context, 
+							 FTransform(FQuat::MakeFromEuler(GetValue<FVector>(Context, &InRotation))
+							 , GetValue<FVector>(Context, &InTranslation)
+							 , GetValue<FVector>(Context, &InScale))
+							 ,&OutTransform);
 	}
 }
+
+void FMultiplyTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FTransform>(&OutTransform))
+	{
+		SetValue<FTransform>(Context,
+			GetValue<FTransform>(Context, &InLeftTransform, FTransform::Identity)
+			*GetValue<FTransform>(Context, &InRightTransform, FTransform::Identity)
+			, &OutTransform);
+	}
+}
+
+
 
 
 

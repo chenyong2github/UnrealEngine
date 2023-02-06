@@ -33,13 +33,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0.0"))
 	double Height = double(1.0);
 
-	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "2"))
 	int32 RadialSample = 2;
 
-	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "3"))
 	int32 AngularSample = 4;
 
-	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "2"))
 	int32 VerticalSample = 2;
 
 	FRadialTetrahedronDataflowNodes(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())

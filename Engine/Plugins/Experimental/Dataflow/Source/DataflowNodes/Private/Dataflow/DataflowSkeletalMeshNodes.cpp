@@ -19,6 +19,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetSkeletalMeshDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetSkeletonDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSkeletalMeshBoneDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSkeletalMeshReferenceTransformDataflowNode);
 	}
 }
 
@@ -79,7 +80,7 @@ void FSkeletalMeshBoneDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 			{
 				if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 				{
-					LocalBoneName = FName(Dataflow::Reflection::FindOverrideProperty< FString >(EngineContext->Owner, PropertyName, FString("BoneName")));
+					LocalBoneName = FName(Dataflow::Reflection::FindOverrideProperty< FString >(EngineContext->Owner, PropertyName, FName("BoneName")));
 				}
 			}
 
@@ -89,6 +90,33 @@ void FSkeletalMeshBoneDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 
 	}
 }
+
+
+void FSkeletalMeshReferenceTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	typedef TObjectPtr<const USkeletalMesh> InDataType;
+	if (Out->IsA<FTransform>(&TransformOut))
+	{
+		SetValue<FTransform>(Context, FTransform::Identity, &TransformOut);
+		
+		int32 BoneIndex = GetValue<int32>(Context, &BoneIndexIn);
+		if (0 <= BoneIndex)
+		{
+			if (InDataType SkeletalMesh = GetValue<InDataType>(Context, &SkeletalMeshIn))
+			{
+				TArray<FTransform> ComponentPose;
+				Dataflow::Animation::GlobalTransforms(SkeletalMesh->GetRefSkeleton(), ComponentPose);
+				if (BoneIndex < ComponentPose.Num())
+				{
+					SetValue<FTransform>(Context, ComponentPose[BoneIndex], &TransformOut);
+
+				}
+			}
+		}
+	}
+}
+
+
 
 
 
