@@ -106,7 +106,13 @@ void UPCGSettings::PostLoad()
 {
 	Super::PostLoad();
 
-	InitializeCachedOverridableParams();
+	// In editor, we always want to rebuild our cache, to make sure we are up to date.
+	// At runtime, we can't rebuild our cache (that is why we cache it in the first place).
+#if WITH_EDITOR
+	InitializeCachedOverridableParams(/*bReset=*/true);
+#else
+	InitializeCachedOverridableParams(/*bReset=*/false);
+#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 	if (ExecutionMode_DEPRECATED != EPCGSettingsExecutionMode::Enabled)
@@ -129,6 +135,12 @@ void UPCGSettings::PostInitProperties()
 
 void UPCGSettings::Serialize(FArchive& Ar)
 {
+	// Don't serialize overridable params in non-cooked builds
+	if (Ar.IsSaving() && !Ar.IsCooking())
+	{
+		CachedOverridableParams.Empty();
+	}
+
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FPCGCustomVersion::GUID);
@@ -159,6 +171,12 @@ void UPCGSettings::Serialize(FArchive& Ar)
 			UserDataVersion = Ar.CustomVer(UserDataGuid);
 		}
 #endif // WITH_EDITOR
+	}
+
+	// Reconstruct it at the end
+	if (Ar.IsSaving() && !Ar.IsCooking())
+	{
+		InitializeCachedOverridableParams(/*bReset=*/true);
 	}
 }
 
@@ -343,7 +361,7 @@ void UPCGSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	if (PropertyChangedEvent.Property && (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, CachedOverridableParams)))
 	{
 		// Need to rebuild properties, if it ever changes.
-		InitializeCachedOverridableParams();
+		InitializeCachedOverridableParams(/*bReset=*/true);
 	}
 
 	if (PropertyChangedEvent.GetPropertyName() != GET_MEMBER_NAME_CHECKED(UPCGSettings, DeterminismSettings))
@@ -409,79 +427,18 @@ void UPCGSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<
 }
 #endif // WITH_EDITOR
 
-namespace PCGSettings
-{
 #if WITH_EDITOR
-	template <typename ClassType>
-	TArray<FPCGSettingsOverridableParam> GetAllParams(const ClassType* Class, bool bCheckMetadata, bool bUseSeed)
-	{
-		// TODO: Was not a concern until now, and we didn't have a solution, but this function
-		// only worked if we don't have names clashes in overriable parameters.
-		// The previous override solution was flatenning structs, and only override use the struct member name,
-		// not prefixed by the struct name or anything else.
-		// We cannot prefix it now, because it will break existing node that were assuming the flatenning.
-		// We'll keep this behavior for now, as it might be solved by passing structs instead of param data,
-		// but we'll still at least raise a warning if there is a clash.
-		TSet<FName> LabelCache;
+TArray<FPCGSettingsOverridableParam> UPCGSettings::GatherOverridableParams() const
+{
+	PCGSettingsHelpers::FPCGGetAllOverridableParamsConfig Config;
+	Config.bUseSeed = bUseSeed;
+	Config.MetadataValues.Add(PCGObjectMetadata::Overridable);
 
-		TArray<FPCGSettingsOverridableParam> Res;
-
-		for (TFieldIterator<FProperty> InputIt(Class, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); InputIt; ++InputIt)
-		{
-			const FProperty* Property = *InputIt;
-			if (Property && (!bCheckMetadata || Property->HasMetaData(PCGObjectMetadata::Overridable)))
-			{
-				// Don't allow to override the seed if the settings doesn't use the seed.
-				if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, Seed) && !bUseSeed)
-				{
-					continue;
-				}
-
-				// Validating that the property can be overriden by params
-				if (PCGAttributeAccessorHelpers::IsPropertyAccessorSupported(Property))
-				{
-					FName Label = *Property->GetDisplayNameText().ToString();
-					if (LabelCache.Contains(Label))
-					{
-						UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored (ie. will not be overridable)"), *Label.ToString());
-						continue;
-					}
-
-					LabelCache.Add(Label);
-
-					FPCGSettingsOverridableParam& Param = Res.Emplace_GetRef();
-					Param.Label = Label;
-					Param.PropertiesNames.Add(Property->GetFName());
-				}
-				else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
-				{
-					FString PropertyName = Property->GetDisplayNameText().ToString();
-					for (const FPCGSettingsOverridableParam& ChildParam : GetAllParams(StructProperty->Struct, /*bCheckMetadata=*/false, /*bUseSeed=*/true))
-					{
-						FName Label = ChildParam.Label;
-						if (LabelCache.Contains(Label))
-						{
-							UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored (ie. will not be overridable)"), *Label.ToString());
-							continue;
-						}
-
-						LabelCache.Add(Label);
-
-						FPCGSettingsOverridableParam& Param = Res.Emplace_GetRef();
-						Param.Label = Label;
-						Param.PropertiesNames.Add(Property->GetFName());
-						Param.PropertiesNames.Append(ChildParam.PropertiesNames);
-					}
-				}
-			}
-		}
-
-		return Res;
-	}
-#endif // WITH_EDITOR
+	return PCGSettingsHelpers::GetAllOverridableParams(GetClass(), Config);
 }
+#endif // WITH_EDITOR
 
-void UPCGSettings::InitializeCachedOverridableParams()
+void UPCGSettings::InitializeCachedOverridableParams(bool bReset)
 {
 	// Don't do it for default object
 	if (HasAnyFlags(RF_ClassDefaultObject))
@@ -492,31 +449,32 @@ void UPCGSettings::InitializeCachedOverridableParams()
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSettings::InitializeCachedOverridableParams);
 
 #if WITH_EDITOR
-	if (CachedOverridableParams.IsEmpty())
+	if (CachedOverridableParams.IsEmpty() || bReset)
 	{
-		CachedOverridableParams = PCGSettings::GetAllParams(GetClass(), true, bUseSeed);
+		CachedOverridableParams = GatherOverridableParams();
 	}
 #endif // WITH_EDITOR
 
 	for (FPCGSettingsOverridableParam& Param : CachedOverridableParams)
 	{
-		check(!Param.PropertiesNames.IsEmpty());
+		check(!Param.PropertiesNames.IsEmpty() && Param.PropertyClass);
 		Param.Properties.Reset(Param.PropertiesNames.Num());
 
 		// Some properties might not be available at runtime. Ignore them.
-		if (const FProperty* Property = GetClass()->FindPropertyByName(Param.PropertiesNames[0]))
+		const FProperty* CurrentProperty = Param.PropertyClass->FindPropertyByName(Param.PropertiesNames[0]);
+		if (ensure(CurrentProperty))
 		{
-			Param.Properties.Add(Property);
+			Param.Properties.Add(CurrentProperty);
 
 			for (int32 i = 1; i < Param.PropertiesNames.Num(); ++i)
 			{
 				// If we have multiple depth properties, it should be Struct properties by construction
-				const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+				const FStructProperty* StructProperty = CastField<FStructProperty>(CurrentProperty);
 				if (ensure(StructProperty))
 				{
-					Property = StructProperty->Struct->FindPropertyByName(Param.PropertiesNames[i]);
-					check(Property);
-					Param.Properties.Add(Property);
+					CurrentProperty = StructProperty->Struct->FindPropertyByName(Param.PropertiesNames[i]);
+					check(CurrentProperty);
+					Param.Properties.Add(CurrentProperty);
 				}
 			}
 		}

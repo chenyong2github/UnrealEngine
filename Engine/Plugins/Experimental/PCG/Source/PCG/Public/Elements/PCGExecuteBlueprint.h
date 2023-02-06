@@ -193,6 +193,9 @@ public:
 	virtual bool HasOverridableParams() const override { return true; }
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
+#if WITH_EDITOR
+	virtual TArray<FPCGSettingsOverridableParam> GatherOverridableParams() const override;
+#endif // WITH_EDITOR
 	// ~End UPCGSettings interface
 
 public:
@@ -256,6 +259,9 @@ struct FPCGBlueprintExecutionContext : public FPCGContext
 	virtual ~FPCGBlueprintExecutionContext();
 
 	UPCGBlueprintElement* BlueprintElementInstance = nullptr;
+
+protected:
+	virtual UObject* GetExternalContainerForOverridableParam(const FPCGSettingsOverridableParam& InParam) override { return BlueprintElementInstance; }
 };
 
 class FPCGExecuteBlueprintElement : public IPCGElement

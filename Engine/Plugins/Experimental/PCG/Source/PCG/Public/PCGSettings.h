@@ -61,6 +61,9 @@ struct FPCGSettingsOverridableParam
 	UPROPERTY()
 	TArray<FName> PropertiesNames;
 
+	UPROPERTY()
+	TObjectPtr<const UStruct> PropertyClass;
+
 	// Transient
 	TArray<const FProperty*> Properties;
 };
@@ -261,12 +264,18 @@ public:
 protected:
 	/** Iterate over OverridableParams to automatically add param pins to the list. */
 	void FillOverridableParamsPins(TArray<FPCGPinProperties>& OutPins) const;
-private:
+
+#if WITH_EDITOR
+	/** Can be overridden to add more custom params (like in BP). */
+	virtual TArray<FPCGSettingsOverridableParam> GatherOverridableParams() const;
+#endif // WITH_EDITOR
+
 	/** Called after intialization to construct the list of all overridable params. 
 	* In Editor, it will first gather all the overridable properties names and labels, based on their metadata.
+	* Can request a "reset" if something changed in the settings.
 	* And then, in Editor and Runtime, will gather the FProperty*.
 	*/
-	void InitializeCachedOverridableParams();
+	void InitializeCachedOverridableParams(bool bReset = false);
 
 	/** Needs to be serialized since property metadata (used to populate this array) is not available at runtime. */
 	UPROPERTY()

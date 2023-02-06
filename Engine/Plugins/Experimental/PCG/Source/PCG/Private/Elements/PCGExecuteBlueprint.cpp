@@ -313,6 +313,9 @@ void UPCGBlueprintSettings::OnBlueprintChanged(UBlueprint* InBlueprint)
 	TeardownBlueprintElementEvent();
 	SetupBlueprintElementEvent();
 
+	// Also, reconstruct overrides
+	InitializeCachedOverridableParams(/*bReset=*/true);
+
 	OnSettingsChangedDelegate.Broadcast(this, EPCGChangeType::Settings);
 }
 
@@ -358,7 +361,10 @@ void UPCGBlueprintSettings::RefreshBlueprintElement()
 	else
 	{
 		BlueprintElementInstance = nullptr;
-	}	
+	}
+
+	// Also, reconstruct overrides
+	InitializeCachedOverridableParams(/*bReset=*/true);
 }
 
 #if WITH_EDITOR
@@ -467,6 +473,26 @@ FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
 	return MakeShared<FPCGExecuteBlueprintElement>();
 }
 
+#if WITH_EDITOR
+TArray<FPCGSettingsOverridableParam> UPCGBlueprintSettings::GatherOverridableParams() const
+{
+	TArray<FPCGSettingsOverridableParam> OverridableParams = Super::GatherOverridableParams();
+
+	if (BlueprintElementInstance)
+	{
+		if (UClass* BPClass = BlueprintElementInstance->GetClass())
+		{
+			PCGSettingsHelpers::FPCGGetAllOverridableParamsConfig Config;
+			Config.bExcludeSuperProperties = true;
+			Config.ExcludePropertyFlags = CPF_DisableEditOnInstance;
+			OverridableParams.Append(PCGSettingsHelpers::GetAllOverridableParams(BPClass, Config));
+		}
+	}
+
+	return OverridableParams;
+}
+#endif // WITH_EDITOR
+
 bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 {
 	FPCGBlueprintExecutionContext* Context = static_cast<FPCGBlueprintExecutionContext*>(InContext);
@@ -488,22 +514,6 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 			}
 		}
 #endif
-
-		/** Apply params overrides to variables if any */
-		if (UPCGParamData* Params = Context->InputData.GetParamsWithDeprecation(Context->Node))
-		{
-			for (TFieldIterator<FProperty> PropertyIt(BPClass); PropertyIt; ++PropertyIt)
-			{
-				FProperty* Property = *PropertyIt;
-				if (Property->IsNative())
-				{
-					continue;
-				}
-
-				// Apply params if any
-				PCGSettingsHelpers::SetValue(Params, Context->BlueprintElementInstance, Property);
-			}
-		}
 
 		// Log info on inputs
 		for (int32 InputIndex = 0; InputIndex < Context->InputData.TaggedData.Num(); ++InputIndex)

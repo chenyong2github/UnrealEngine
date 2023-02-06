@@ -138,11 +138,35 @@ void FPCGContext::OverrideSettings()
 	{
 		check(!Param.Properties.IsEmpty());
 
-		// TODO: Support override on subobjects
-		if (!SettingsWithOverride->IsA(Param.Properties[0]->GetOwnerClass()))
+		// Verification that container is valid and we have the right class.
+		void* Container = nullptr;
+
+		if (!Param.PropertyClass)
 		{
 			continue;
 		}
+
+		if (!SettingsWithOverride->GetClass()->IsChildOf(Param.PropertyClass))
+		{
+			UObject* ObjectPtr = GetExternalContainerForOverridableParam(Param);
+			if (!ObjectPtr || !ObjectPtr->IsA(Param.Properties[0]->GetOwnerClass()))
+			{
+				continue;
+			}
+
+			Container = ObjectPtr;
+		}
+		else
+		{
+			if (!SettingsWithOverride->IsA(Param.Properties[0]->GetOwnerClass()))
+			{
+				continue;
+			}
+
+			Container = SettingsWithOverride.Get();
+		}
+
+		check(Container);
 
 		FName AttributeName = NAME_None;
 		TUniquePtr<const IPCGAttributeAccessor> AttributeAccessor = PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParam(InputData, Param, &AttributeName);
@@ -156,7 +180,7 @@ void FPCGContext::OverrideSettings()
 		TUniquePtr<IPCGAttributeAccessor> PropertyAccessor = PCGAttributeAccessorHelpers::CreatePropertyAccessor(Param.Properties.Last());
 		check(PropertyAccessor.IsValid());
 
-		PCGMetadataAttribute::CallbackWithRightType(PropertyAccessor->GetUnderlyingType(), [this, &AttributeAccessor, &PropertyAccessor, &Param, &AttributeName](auto Dummy) -> bool
+		PCGMetadataAttribute::CallbackWithRightType(PropertyAccessor->GetUnderlyingType(), [this, &AttributeAccessor, &PropertyAccessor, &Param, &AttributeName, Container](auto Dummy) -> bool
 		{
 			using PropertyType = decltype(Dummy);
 
@@ -170,7 +194,7 @@ void FPCGContext::OverrideSettings()
 				return false;
 			}
 			// TODO: Perhaps factorise this code in another property accessor.
-			void* PropertyObjectPtr = SettingsWithOverride.Get();
+			void* PropertyObjectPtr = Container;
 			for (int32 i = 0; i < Param.Properties.Num() - 1; ++i)
 			{
 				PropertyObjectPtr = Param.Properties[i]->ContainerPtrToValuePtr<void>(PropertyObjectPtr);

@@ -10,6 +10,7 @@
 class UPCGComponent;
 class UPCGSettingsInterface;
 struct FPCGGraphCache;
+struct FPCGSettingsOverridableParam;
 
 namespace PCGContextHelpers
 {
@@ -90,6 +91,9 @@ struct PCG_API FPCGContext
 	FString GetTaskName() const;
 	FString GetComponentName() const;
 	bool ShouldStop() const;
+
+protected:
+	virtual UObject* GetExternalContainerForOverridableParam(const FPCGSettingsOverridableParam& InParam) { return nullptr; }
 
 private:
 	template<typename SettingsType>

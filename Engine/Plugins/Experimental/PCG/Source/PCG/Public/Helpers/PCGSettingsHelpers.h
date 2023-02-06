@@ -201,7 +201,27 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return true;
 		});
 	}
+
+#if WITH_EDITOR
+	struct FPCGGetAllOverridableParamsConfig
+	{
+		// If we don't use the seed, don't add it as override.
+		bool bUseSeed = false;
+
+		// Don't look for properties from parents
+		bool bExcludeSuperProperties = false;
+
+		// List of metadata values to find in property metadata
+		TArray<FName> MetadataValues{};
+
+		// Flags to exclude in property flags
+		uint64 ExcludePropertyFlags = 0;
+	};
+
+	TArray<FPCGSettingsOverridableParam> GetAllOverridableParams(const UClass* InClass, const FPCGGetAllOverridableParamsConfig& InConfig);
+	TArray<FPCGSettingsOverridableParam> GetAllOverridableParams(const UScriptStruct* InStruct, const FPCGGetAllOverridableParamsConfig& InConfig);
+#endif
 }
 
 // Deprecated macro, not necessary anymore. Cf. GetValue
-#define PCG_GET_OVERRIDEN_VALUE(Settings, Variable, Params) PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(TRemovePointer<std::remove_const_t<decltype(Settings)>>::Type, Variable), (Settings)->Variable, Params)
+#define PCG_GET_OVERRIDEN_VALUE(Settings, Variable, Params) PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(std::remove_pointer_t<std::remove_const_t<decltype(Settings)>>, Variable), (Settings)->Variable, Params)

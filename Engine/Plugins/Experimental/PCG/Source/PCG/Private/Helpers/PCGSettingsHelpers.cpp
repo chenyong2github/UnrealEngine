@@ -271,4 +271,125 @@ namespace PCGSettingsHelpers
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	template <typename ClassType>
+	TArray<FPCGSettingsOverridableParam> GetAllOverridableParamsImpl(const ClassType* InClass, const FPCGGetAllOverridableParamsConfig& InConfig)
+	{
+		// TODO: Was not a concern until now, and we didn't have a solution, but this function
+		// only worked if we don't have names clashes in overriable parameters.
+		// The previous override solution was flattening structs, and only override use the struct member name,
+		// not prefixed by the struct name or anything else.
+		// We cannot prefix it now, because it will break existing node that were assuming the flattening.
+		// We'll keep this behavior for now, as it might be solved by passing structs instead of param data,
+		// but we'll still at least raise a warning if there is a clash.
+		TSet<FName> LabelCache;
+
+		TArray<FPCGSettingsOverridableParam> Res;
+
+		const bool bCheckMetadata = !InConfig.MetadataValues.IsEmpty();
+		const bool bCheckExcludePropertyFlags = (InConfig.ExcludePropertyFlags != 0);
+		const EFieldIteratorFlags::SuperClassFlags SuperFlag = InConfig.bExcludeSuperProperties ? EFieldIteratorFlags::ExcludeSuper : EFieldIteratorFlags::IncludeSuper;
+
+		check(InClass);
+
+		for (TFieldIterator<FProperty> InputIt(InClass, SuperFlag, EFieldIteratorFlags::ExcludeDeprecated); InputIt; ++InputIt)
+		{
+			const FProperty* Property = *InputIt;
+			if (!Property)
+			{
+				continue;
+			}
+
+			bool bValid = true;
+
+			if (bCheckMetadata)
+			{
+				bool bFoundAny = false;
+				for (const FName& Metadata : InConfig.MetadataValues)
+				{
+					if (Property->HasMetaData(Metadata))
+					{
+						bFoundAny = true;
+						break;
+					}
+				}
+
+				bValid &= bFoundAny;
+			}
+
+			if (bCheckExcludePropertyFlags)
+			{
+				bValid &= !Property->HasAnyPropertyFlags(InConfig.ExcludePropertyFlags);
+			}
+
+			// Don't allow to override the seed if the settings doesn't use the seed.
+			if (!InConfig.bUseSeed)
+			{
+				bValid &= (Property->GetFName() != GET_MEMBER_NAME_CHECKED(UPCGSettings, Seed));
+			}
+
+			if (!bValid)
+			{
+				continue;
+			}
+
+			// Validate that the property can be overriden by params
+			if (PCGAttributeAccessorHelpers::IsPropertyAccessorSupported(Property))
+			{
+				FName Label = *Property->GetDisplayNameText().ToString();
+				if (LabelCache.Contains(Label))
+				{
+					UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored (ie. will not be overridable)"), *Label.ToString());
+					continue;
+				}
+
+				LabelCache.Add(Label);
+
+				FPCGSettingsOverridableParam& Param = Res.Emplace_GetRef();
+				Param.Label = Label;
+				Param.PropertiesNames.Add(Property->GetFName());
+				Param.PropertyClass = InClass;
+			}
+			else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+			{
+				FString PropertyName = Property->GetDisplayNameText().ToString();
+				// Use the seed, and don't check metadata.
+				FPCGGetAllOverridableParamsConfig RecurseConfig = InConfig;
+				RecurseConfig.bUseSeed = true;
+				RecurseConfig.MetadataValues.Empty();
+
+				for (const FPCGSettingsOverridableParam& ChildParam : GetAllOverridableParams(StructProperty->Struct, RecurseConfig))
+				{
+					FName Label = ChildParam.Label;
+					if (LabelCache.Contains(Label))
+					{
+						UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored (ie. will not be overridable)"), *Label.ToString());
+						continue;
+					}
+
+					LabelCache.Add(Label);
+
+					FPCGSettingsOverridableParam& Param = Res.Emplace_GetRef();
+					Param.Label = Label;
+					Param.PropertiesNames.Add(Property->GetFName());
+					Param.PropertiesNames.Append(ChildParam.PropertiesNames);
+					Param.PropertyClass = InClass;
+				}
+			}
+		}
+
+		return Res;
+	}
+
+	TArray<FPCGSettingsOverridableParam> GetAllOverridableParams(const UClass* InClass, const FPCGGetAllOverridableParamsConfig& InConfig)
+	{
+		return GetAllOverridableParamsImpl(InClass, InConfig);
+	}
+
+	TArray<FPCGSettingsOverridableParam> GetAllOverridableParams(const UScriptStruct* InStruct, const FPCGGetAllOverridableParamsConfig& InConfig)
+	{
+		return GetAllOverridableParamsImpl(InStruct, InConfig);
+	}
+#endif // WITH_EDITOR
 }
