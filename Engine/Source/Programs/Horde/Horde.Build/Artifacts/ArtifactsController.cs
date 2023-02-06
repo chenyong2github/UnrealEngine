@@ -115,6 +115,7 @@ namespace Horde.Build.Artifacts
 	/// <summary>
 	/// Public interface for artifacts
 	/// </summary>
+	[Authorize]
 	[ApiController]
 	public class ArtifactsController : HordeControllerBase
 	{
@@ -139,7 +140,6 @@ namespace Horde.Build.Artifacts
 		/// <param name="filter">Filter for returned properties</param>
 		/// <returns>Information about all the artifacts</returns>
 		[HttpGet]
-		[Authorize]
 		[Route("/api/v2/artifacts/{id}")]
 		[ProducesResponseType(typeof(FindArtifactsResponse), 200)]
 		public async Task<ActionResult<object>> GetArtifactAsync(ArtifactId id, [FromQuery] PropertyFilter? filter = null)
@@ -166,7 +166,6 @@ namespace Horde.Build.Artifacts
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Information about all the artifacts</returns>
 		[HttpGet]
-		[Authorize]
 		[Route("/api/v2/artifacts/{id}/browse")]
 		[ProducesResponseType(typeof(GetArtifactDirectoryResponse), 200)]
 		public async Task<ActionResult<object>> BrowseArtifactAsync(ArtifactId id, [FromQuery] string? path = null, [FromQuery] PropertyFilter? filter = null, CancellationToken cancellationToken = default)
@@ -209,12 +208,11 @@ namespace Horde.Build.Artifacts
 		/// <param name="filter">Filter for returned values</param>
 		/// <returns>Information about all the artifacts</returns>
 		[HttpGet]
-		[Authorize]
 		[Route("/api/v2/artifacts")]
 		[ProducesResponseType(typeof(FindArtifactsResponse), 200)]
 		public async Task<ActionResult<object>> FindArtifactsAsync([FromQuery(Name = "id")] IEnumerable<ArtifactId>? ids = null, [FromQuery(Name = "key")] IEnumerable<string>? keys = null, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (ids == null && keys == null)
+			if ((ids == null || !ids.Any()) && (keys == null || !keys.Any()))
 			{
 				return BadRequest("At least one search term must be specified");
 			}

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.ComponentModel;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
@@ -9,6 +10,7 @@ namespace Horde.Build.Artifacts
 	/// Unique id for an artifact
 	/// </summary>
 	/// <param name="Id">Identifier for the artifact</param>
+	[TypeConverter(typeof(ObjectIdTypeConverter<ArtifactId, ArtifactIdConverter>))]
 	[ObjectIdConverter(typeof(ArtifactIdConverter))]
 	public record struct ArtifactId(ObjectId Id)
 	{
