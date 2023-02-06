@@ -572,6 +572,13 @@ public:
 	uint8 bIncludeGridSizeInNameForPartitionedActors : 1;
 #endif
 
+	/**
+	 * Whether to configure the listening socket to allow reuse of the address and port. If this is true, be sure no other
+	 * servers can run on the same port, otherwise this can lead to undefined behavior since packets will go to two servers.
+	 */
+	UPROPERTY(EditAnywhere, Config, Category=Network)
+	uint8 bReuseAddressAndPort : 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AI, meta=(MetaClass="/Script/Engine.AISystemBase", editcondition="bEnableAISystem"), AdvancedDisplay)
 	TSoftClassPtr<UAISystemBase> AISystemClass;
 

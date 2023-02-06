@@ -75,6 +75,10 @@ public:
     UPROPERTY(Config)
     uint32 AllowPlayerPortUnreach:1;
 
+	/** Whether to exit if binding a port failed. */
+	UPROPERTY(Config)
+	uint32 bExitOnBindFailure:1;
+
 	/** Number of ports which will be tried if current one is not available for binding (i.e. if told to bind to port N, will try from N to N+MaxPortCountToTry inclusive) */
 	UPROPERTY(Config)
 	uint32 MaxPortCountToTry;

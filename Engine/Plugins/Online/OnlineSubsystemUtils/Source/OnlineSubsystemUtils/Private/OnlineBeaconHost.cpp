@@ -96,7 +96,7 @@ bool AOnlineBeaconHost::InitHost()
 		if (InitBase() && NetDriver)
 		{
 			FString Error;
-			if (NetDriver->InitListen(this, URL, false, Error))
+			if (NetDriver->InitListen(this, URL, bReuseAddressAndPort, Error))
 			{
 				ListenPort = URL.Port;
 				NetDriver->SetWorld(GetWorld());

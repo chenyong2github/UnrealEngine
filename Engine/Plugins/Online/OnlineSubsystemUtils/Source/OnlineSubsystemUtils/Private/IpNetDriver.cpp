@@ -846,8 +846,15 @@ FUniqueSocket UIpNetDriver::CreateAndBindSocket(TSharedRef<FInternetAddr> BindAd
 	{
 		Error = FString::Printf(TEXT("%s: binding to port %i failed (%i)"), SocketSubsystem->GetSocketAPIName(), AttemptPort,
 			(int32)SocketSubsystem->GetLastErrorCode());
+
+		if (bExitOnBindFailure)
+		{
+			UE_LOG(LogNet, Fatal, TEXT("Fatal error: %s"), *Error);
+		}
+
 		return nullptr;
 	}
+
 	if (NewSocket->SetNonBlocking() == false)
 	{
 		Error = FString::Printf(TEXT("%s: SetNonBlocking failed (%i)"), SocketSubsystem->GetSocketAPIName(),

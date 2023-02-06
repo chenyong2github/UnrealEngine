@@ -34,6 +34,13 @@ public:
 	UPROPERTY(Config)
 	int32 ListenPort;
 
+	/**
+	 * Whether to configure the listening socket to allow reuse of the address and port. If this is true, be sure no other
+	 * servers can run on the same port, otherwise this can lead to undefined behavior since packets will go to two servers.
+	 */
+	UPROPERTY(Config)
+	bool bReuseAddressAndPort = false;
+
 	//~ Begin AActor Interface
 	virtual void OnNetCleanup(UNetConnection* Connection) override;
 	//~ End AActor Interface

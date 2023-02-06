@@ -6407,8 +6407,11 @@ bool UWorld::Listen( FURL& InURL )
 		return false;
 	}
 
+	AWorldSettings* WorldSettings = GetWorldSettings();
+	const bool bReuseAddressAndPort = WorldSettings ? WorldSettings->bReuseAddressAndPort : false;
+
 	FString Error;
-	if( !NetDriver->InitListen( this, InURL, false, Error ) )
+	if( !NetDriver->InitListen( this, InURL, bReuseAddressAndPort, Error ) )
 	{
 		GEngine->BroadcastNetworkFailure(this, NetDriver, ENetworkFailure::NetDriverListenFailure, Error);
 		UE_LOG(LogWorld, Log,  TEXT("Failed to listen: %s"), *Error );

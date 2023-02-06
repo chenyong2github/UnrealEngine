@@ -123,6 +123,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	LastBookmarkClass = DefaultBookmarkClass;
 
 	LevelInstancePivotOffset = FVector::ZeroVector;
+
+	bReuseAddressAndPort = false;
 }
 
 void AWorldSettings::PostInitProperties()
