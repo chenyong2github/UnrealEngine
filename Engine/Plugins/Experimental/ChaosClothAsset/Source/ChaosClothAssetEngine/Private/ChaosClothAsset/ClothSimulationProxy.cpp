@@ -148,14 +148,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		CompleteParallelSimulation_GameThread();
 	}
 
-	void FClothSimulationProxy::Tick_GameThread(float DeltaTime)
+	void FClothSimulationProxy::Tick_GameThread(float DeltaTime, const TArray<FVector>* CachedPositions, const TArray<FVector>* CachedVelocities)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ClothSimulationProxy_TickGame);
 
 		// Fill a new context, note the context is also needed when the simulation is suspended
-		ClothSimulationContext.Fill(ClothComponent, DeltaTime, MaxDeltaTime);
+		ClothSimulationContext.Fill(ClothComponent, DeltaTime, MaxDeltaTime, false, CachedPositions, CachedVelocities);
 
-		if (DeltaTime > 0.f && !ClothComponent.IsSimulationSuspended())
+		const bool bUseCache = ClothSimulationContext.CachedPositions.Num() > 0 || ClothSimulationContext.CachedVelocities.Num() > 0;
+		if (bUseCache)
+		{
+			Solver->SetEnableSolver(false);
+		}
+
+		const bool bCreateParallelTask = (DeltaTime > 0.f && !ClothComponent.IsSimulationSuspended()) || bUseCache;
+		if (bCreateParallelTask)
 		{
 			// Replace physics thread's configs with the game thread's configs
 			for (const TUniquePtr<::Chaos::FClothingSimulationConfig>& Config : Configs)
@@ -179,7 +186,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(FClothSimulationProxy_TickPhysics);
 		SCOPE_CYCLE_COUNTER(STAT_ClothSimulationProxy_TickPhysics);
-		if (ClothSimulationContext.DeltaTime == 0.f)
+		const bool bUseCache = ClothSimulationContext.CachedPositions.Num() > 0 || ClothSimulationContext.CachedVelocities.Num() > 0;
+
+		if (ClothSimulationContext.DeltaTime == 0.f && !bUseCache)
 		{
 			return;
 		}
@@ -214,7 +223,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		// Step the simulation
-		Solver->Update((Softs::FSolverReal)ClothSimulationContext.DeltaTime);
+		if (Solver->GetEnableSolver() || !bUseCache)
+		{
+			Solver->Update((Softs::FSolverReal)ClothSimulationContext.DeltaTime);
+		}
+		else
+		{
+			Solver->UpdateFromCache(ClothSimulationContext.CachedPositions, ClothSimulationContext.CachedVelocities);
+		}
 
 		// Keep the actual used number of iterations for the stats
 		NumIterations = Solver->GetNumUsedIterations();

@@ -47,7 +47,13 @@ namespace UE::Chaos::ClothAsset
 		/** Wind velocity at the component location. */
 		FVector WindVelocity;
 
+		/** Positions used by ChaosCache */
+		TArray<FVector> CachedPositions;
+
+		/** Velocities used by ChaosCache */
+		TArray<FVector> CachedVelocities;
+
 		/** Fill the context from data collected from the specified component. */
-		void Fill(const UChaosClothComponent& ClothComponent, float InDeltaTime, float MaxDeltaTime, bool bIsInitialization = false);
+		void Fill(const UChaosClothComponent& ClothComponent, float InDeltaTime, float MaxDeltaTime, bool bIsInitialization = false, const TArray<FVector>* InCachedPositions = nullptr, const TArray<FVector>* InCachedVelocities = nullptr);
 	};
 }

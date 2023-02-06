@@ -1162,12 +1162,13 @@ void FClothingSimulationSolver::UpdateFromCache(const TArray<FVector>& CachedPos
 {
 	Chaos::Softs::FSolverParticles& SolverParticles = Evolution->Particles();
 	const int32 NumParticles = GetNumParticles();
+	const bool bHasVelocity = CachedVelocities.Num() > 0;
 	if(CachedPositions.Num() == NumParticles)
 	{
 		for(int32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
 		{
 			SolverParticles.X(ParticleIndex) = CachedPositions[ParticleIndex];
-			SolverParticles.V(ParticleIndex) = CachedVelocities[ParticleIndex];
+			SolverParticles.V(ParticleIndex) = bHasVelocity ? CachedVelocities[ParticleIndex] : FVector::ZeroVector;
 		}
 	}
 	PhysicsParallelFor(Cloths.Num(), [this](int32 ClothIndex)

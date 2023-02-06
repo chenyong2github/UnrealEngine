@@ -9,7 +9,7 @@
 
 namespace UE::Chaos::ClothAsset
 {
-	void FClothSimulationContext::Fill(const UChaosClothComponent& ClothComponent, float InDeltaTime, float MaxDeltaTime, bool bIsInitialization)
+	void FClothSimulationContext::Fill(const UChaosClothComponent& ClothComponent, float InDeltaTime, float MaxDeltaTime, bool bIsInitialization, const TArray<FVector>* InCachedPositions, const TArray<FVector>* InCachedVelocities)
 	{
 		// Set the time
 		DeltaTime = FMath::Min(InDeltaTime, MaxDeltaTime);
@@ -127,6 +127,24 @@ namespace UE::Chaos::ClothAsset
 		else
 		{
 			WindVelocity = FVector::ZeroVector;
+		}
+
+		if (InCachedPositions != nullptr)
+		{
+			CachedPositions = *InCachedPositions;
+		}
+		else
+		{
+			CachedPositions.Reset();
+		}
+
+		if (InCachedVelocities != nullptr)
+		{
+			CachedVelocities = *InCachedVelocities;
+		}
+		else
+		{
+			CachedVelocities.Reset();
 		}
 	}
 }  // End namespace UE::Chaos::ClothAsset

@@ -17,6 +17,7 @@ namespace Chaos::Softs
 namespace UE::Chaos::ClothAsset
 {
 	class FClothSimulationProxy;
+	class FClothComponentCacheAdapter;
 }
 
 /**
@@ -29,7 +30,7 @@ UCLASS(
 	HideCategories = (Object, "Mesh|SkeletalAsset", Constraints, Advanced, Cooking, Collision, Navigation))
 class CHAOSCLOTHASSETENGINE_API UChaosClothComponent : public USkinnedMeshComponent
 {
-	GENERATED_BODY()
+	GENERATED_BODY()	
 public:
 	UChaosClothComponent(const FObjectInitializer& ObjectInitializer);
 	UChaosClothComponent(FVTableHelper& Helper);
@@ -83,6 +84,8 @@ public:
 	 * This could also be different from the cloth simulation object until the cloth simulation thread synchronise the properties.
 	 */
 	TSharedPtr<const FManagedArrayCollection> GetPropertyCollection() const { return TSharedPtr<const FManagedArrayCollection>(PropertyCollection); }
+
+	friend UE::Chaos::ClothAsset::FClothComponentCacheAdapter;
 
 protected:
 	//~ Begin UObject Interface

@@ -42,7 +42,7 @@ namespace UE::Chaos::ClothAsset
 		FClothSimulationProxy& operator=(const FClothSimulationProxy&) = delete;
 		FClothSimulationProxy& operator=(FClothSimulationProxy&&) = delete;
 
-		void Tick_GameThread(float DeltaTime);
+		void Tick_GameThread(float DeltaTime, const TArray<FVector>* CachedPositions = nullptr, const TArray<FVector>* CachedVelocities = nullptr);
 
 		/** Wait for the parallel task to complete if one was running, and update the simulation data. */
 		void CompleteParallelSimulation_GameThread();

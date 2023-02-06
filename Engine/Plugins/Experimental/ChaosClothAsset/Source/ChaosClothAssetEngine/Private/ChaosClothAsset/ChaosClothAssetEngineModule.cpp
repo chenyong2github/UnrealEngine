@@ -3,6 +3,7 @@
 #include "ChaosClothAsset/ClothAssetPrivate.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "ChaosClothAsset/ClothComponentCacheAdapter.h"
 
 DEFINE_LOG_CATEGORY(LogChaosClothAsset);
 
@@ -13,11 +14,15 @@ namespace UE::Chaos::ClothAsset
 	public:
 		virtual void StartupModule() override
 		{
+			ClothComponentCacheAdapter = MakeUnique<FClothComponentCacheAdapter>();
+			RegisterAdapter(ClothComponentCacheAdapter.Get());
 		}
 
 		virtual void ShutdownModule() override
 		{
 		}
+	private:
+		TUniquePtr<FClothComponentCacheAdapter> ClothComponentCacheAdapter;
 	};
 }
 IMPLEMENT_MODULE(UE::Chaos::ClothAsset::FClothAssetEngineModule, ChaosClothAssetEngine);
