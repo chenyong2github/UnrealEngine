@@ -432,6 +432,14 @@ public:
 		// it needs to be a surface material.
 		return MD_Surface;
 	}
+	virtual bool IsTangentSpaceNormal() const override
+	{
+		if (const FMaterialResource* Resource = MaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel))
+		{
+			return Resource->IsTangentSpaceNormal();
+		}
+		return false;
+	}
 	virtual bool IsTwoSided() const  override
 	{
 		if (MaterialInterface)
