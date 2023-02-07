@@ -55,7 +55,16 @@ bool FMaterialOverrideNanite::Serialize(FArchive& Ar)
 		// Use non-collecting serialization scope for override material.
 		// This prevents the cook from automatically seeing it, so that we can avoid cooking it on non-nanite platforms.
 		FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::NeverCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
-		Ar << OverrideMaterialRef;
+		// HACK: Soft object ptr model doesn't handle object being renamed which happens in some HLOD generation scenarios where we duplicate MIDs.
+		if (Ar.IsSaving() && Ar.IsPersistent() && OverrideMaterial)
+		{
+			TSoftObjectPtr<UMaterialInterface> UpdatedRef = OverrideMaterial;
+			Ar << UpdatedRef;
+		}
+		else 
+		{
+			Ar << OverrideMaterialRef;
+		}
 	}
 
 	Ar << bEnableOverride;
@@ -77,6 +86,15 @@ bool FMaterialOverrideNanite::Serialize(FArchive& Ar)
 				bSerializeOverrideObject = true;
 				break;
 			}
+		}
+	}
+	else if (UMaterialInterface* LoadedMaterial = OverrideMaterial.Get())
+	{
+		// HACK: Ideally we want to check if the material is in the current package being saved (e.g. created for a specific actorcomponent) and won't be saved otherwise.
+		// Only do this if not cooking, so we can still exclude the material from platforms we don't want it on, even if it's in the same package. 
+		if (!LoadedMaterial->HasAnyFlags(RF_Standalone))
+		{
+			bSerializeOverrideObject = true;
 		}
 	}
 #endif
