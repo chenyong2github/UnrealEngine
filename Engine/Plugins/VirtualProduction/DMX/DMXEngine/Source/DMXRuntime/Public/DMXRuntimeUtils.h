@@ -23,10 +23,15 @@ public:
 	static FString ConvertTransformToGDTF4x3MatrixString(FTransform Transform);
 
 	/**
-	 * Generates a unique name given a base one and a list of existing ones, by appending an index to
-	 * existing names. If InBaseName is an empty String, it returns "Default name".
+	 * Generates a unique name given a base one and a list of existing ones, by appending an index.
+	 * 
+	 * @param InExistingNames					Set of exiting names the new name should not be using.
+	 * @param InDesiredName						The desired Name. Note, desired name should not be empty (ensured). Generates 'New' if desired name is empty.
+	 * @param NumDigitsInPostfix (optional)		The min num digits to generate when appending a post fix.
+	 * @param bAlwaysGeneratePostfix (optional)	If true, always generates digits as postfix.
+	 * @return									Returns the unique name.
 	 */
-	static FString GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName);
+	static FString GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, FString InDesiredName, uint8 NumDigitsInPostfix = 2, bool bAlwaysGeneratePostfix = false);
 
 	/**
 	 * Creates an unique name for an Entity from a specific type, using the type name as base.
