@@ -38,6 +38,7 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API USubdividePolyToolProperties : public U
 
 public:
 
+	/** Number of iterations/levels of subdivision to perform */
 	UPROPERTY(EditAnywhere, Category=Settings, meta = (UIMin = "1", ClampMin = "1", Delta = 1, LinearDeltaSensitivity = 50))
 	int SubdivisionLevel = 3;
 
@@ -51,16 +52,18 @@ public:
 	UPROPERTY(EditAnywhere, Category=Settings)
 	ESubdivisionOutputNormals NormalComputationMethod = ESubdivisionOutputNormals::Generated;
 
-	UPROPERTY(EditAnywhere, Category=Settings)
+	UPROPERTY(EditAnywhere, Category=Settings, meta = (DisplayName = "UV Computation Method"))
 	ESubdivisionOutputUVs UVComputationMethod = ESubdivisionOutputUVs::Interpolated;
 
 	/** Assign a new PolyGroup ID to each newly created face */
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (DisplayName = "New PolyGroups"))
 	bool bNewPolyGroups = false;
 
+	/** Display each PolyGroup with an auto-generated color */
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bRenderGroups = true;
 
+	/** Display the mesh corresponding to Subdivision Level 0 */
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bRenderCage = true;
 

@@ -17,7 +17,7 @@ UENUM()
 enum class ESubdivisionScheme : uint8
 {
 	Bilinear,
-	CatmullClark,
+	CatmullClark UMETA(DisplayName = "Catmull-Clark"),
 	Loop
 };
 
