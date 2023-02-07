@@ -27,7 +27,7 @@ void FHttpConnectionResponseWriteContext::ResetContext(TUniquePtr<FHttpServerRes
 	{
 		// Affix Content-Length Header
 		TArray<FString> ContentLengthValue = { FString::FromInt(Response->Body.Num()) };
-		Response->Headers.Add(FHttpServerHeaderKeys::CONTENT_LENGTH, MoveTemp(ContentLengthValue));
+		Response->Headers.Add(UE_HTTP_SERVER_HEADER_KEYS_CONTENT_LENGTH, MoveTemp(ContentLengthValue));
 
 		// Serialize Headers
 		HeaderBytes.Append(SerializeHeadersUtf8(Response->HttpVersion, Response->Code, Response->Headers));
@@ -46,7 +46,7 @@ EHttpConnectionContextState FHttpConnectionResponseWriteContext::WriteStream(flo
 		int32 DataLen = HeaderBytes.Num() - HeaderBytesWritten;
 		if (!WriteBytes(DataOffset, DataLen, BytesWritten))
 		{
-			AddError(FHttpServerErrorStrings::SocketSendFailure);
+			AddError(UE_HTTP_SERVER_ERROR_STR_SOCKET_SEND_FAILURE);
 			return EHttpConnectionContextState::Error;
 		}
 		HeaderBytesWritten += BytesWritten;
@@ -58,7 +58,7 @@ EHttpConnectionContextState FHttpConnectionResponseWriteContext::WriteStream(flo
 		int32 DataLen = Response->Body.Num() - BodyBytesWritten;
 		if (!WriteBytes(DataOffset, DataLen, BytesWritten))
 		{
-			AddError(FHttpServerErrorStrings::SocketSendFailure);
+			AddError(UE_HTTP_SERVER_ERROR_STR_SOCKET_SEND_FAILURE);
 			return EHttpConnectionContextState::Error;
 		}
 		BodyBytesWritten += BytesWritten;

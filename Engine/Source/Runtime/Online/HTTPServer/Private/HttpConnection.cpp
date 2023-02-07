@@ -146,7 +146,7 @@ void FHttpConnection::ContinueRead(float DeltaTime)
 
 void FHttpConnection::CompleteRead(const TSharedPtr<FHttpServerRequest>& Request)
 {
-	TArray<FString>* ConnectionHeaders = Request->Headers.Find(FHttpServerHeaderKeys::CONNECTION);
+	TArray<FString>* ConnectionHeaders = Request->Headers.Find(UE_HTTP_SERVER_HEADER_KEYS_CONNECTION);
 	if (ConnectionHeaders)
 	{
 		bKeepAlive = ResolveKeepAlive(Request->HttpVersion, *ConnectionHeaders);
@@ -204,8 +204,7 @@ void FHttpConnection::ProcessRequest(const TSharedPtr<FHttpServerRequest>& Reque
 
 	if (!bRequestHandled)
 	{
-		const FString& ResponseError(FHttpServerErrorStrings::NotFound);
-		auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::NotFound, ResponseError);
+		auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::NotFound, UE_HTTP_SERVER_ERROR_STR_ROUTE_HANDLER_NOT_FOUND);
 		OnProcessingComplete(MoveTemp(Response));
 	}
 }
@@ -221,7 +220,7 @@ void FHttpConnection::BeginWrite(TUniquePtr<FHttpServerResponse>&& Response, uin
 	{
 		FString KeepAliveTimeoutStr = FString::Printf(TEXT("timeout=%f"), ConnectionKeepAliveTimeout);
 		TArray<FString> KeepAliveTimeoutValue = { MoveTemp(KeepAliveTimeoutStr) };
-		Response->Headers.Add(FHttpServerHeaderKeys::KEEP_ALIVE, MoveTemp(KeepAliveTimeoutValue));
+		Response->Headers.Add(UE_HTTP_SERVER_HEADER_KEYS_KEEP_ALIVE, MoveTemp(KeepAliveTimeoutValue));
 	}
 
 	WriteContext.ResetContext(MoveTemp(Response));

@@ -15,7 +15,7 @@ TUniquePtr<FHttpServerResponse> FHttpServerResponse::Create(const FString& Text,
 
 	FString Utf8CharsetContentType = FString::Printf(TEXT("%s;charset=utf-8"), *ContentType);
 	TArray<FString> ContentTypeValue = { MoveTemp(Utf8CharsetContentType) };
-	Response->Headers.Add(FHttpServerHeaderKeys::CONTENT_TYPE, MoveTemp(ContentTypeValue));
+	Response->Headers.Add(UE_HTTP_SERVER_HEADER_KEYS_CONTENT_TYPE, MoveTemp(ContentTypeValue));
 
 	return Response;
 }
@@ -26,7 +26,7 @@ TUniquePtr<FHttpServerResponse> FHttpServerResponse::Create(TArray<uint8>&& RawB
 	Response->Code = EHttpServerResponseCodes::Ok;
 
 	TArray<FString> ContentTypeValue = { MoveTemp(ContentType) };
-	Response->Headers.Add(FHttpServerHeaderKeys::CONTENT_TYPE, MoveTemp(ContentTypeValue));
+	Response->Headers.Add(UE_HTTP_SERVER_HEADER_KEYS_CONTENT_TYPE, MoveTemp(ContentTypeValue));
 	return Response;
 }
 
@@ -37,7 +37,7 @@ TUniquePtr<FHttpServerResponse> FHttpServerResponse::Create(const TArrayView<uin
 	Response->Body.Append(RawBytes.GetData(), RawBytes.Num());
 
 	TArray<FString> ContentTypeValue = { MoveTemp(ContentType) };
-	Response->Headers.Add(FHttpServerHeaderKeys::CONTENT_TYPE, MoveTemp(ContentTypeValue));
+	Response->Headers.Add(UE_HTTP_SERVER_HEADER_KEYS_CONTENT_TYPE, MoveTemp(ContentTypeValue));
 	return Response;
 }
 
