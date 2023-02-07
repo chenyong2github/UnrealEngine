@@ -42,7 +42,7 @@ void FDMXFixtureSignalFormatCustomization::CustomizeHeader(TSharedRef<IPropertyH
 			SAssignNew(SignalFormatSelector, SDMXSignalFormatSelector)
 			.HasMultipleValues_Lambda([this]()
 				{
-					return PropertyHandle->GetNumOuterObjects() > 1;
+					return GetSignalFormats().Num() > 1;
 				})
 			.InitialSelection(InitialSelection)
 			.OnSignalFormatSelected(this, &FDMXFixtureSignalFormatCustomization::SetSignalFormats)
@@ -60,7 +60,7 @@ TArray<EDMXFixtureSignalFormat> FDMXFixtureSignalFormatCustomization::GetSignalF
 		const EDMXFixtureSignalFormat* SignalFormatPtr = reinterpret_cast<EDMXFixtureSignalFormat*>(RawData);
 		if (SignalFormatPtr)
 		{
-			SignalFormats.Add(*SignalFormatPtr);
+			SignalFormats.AddUnique(*SignalFormatPtr);
 		}
 	}
 
