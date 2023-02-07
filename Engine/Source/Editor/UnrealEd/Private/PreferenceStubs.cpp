@@ -304,3 +304,9 @@ bool UPersonaOptions::GetAllowIncompatibleSkeletonSelection() const
 {
 	return bAllowIncompatibleSkeletonSelection;
 }
+
+void UPersonaOptions::SetAllowIncompatibleSkeletonSelection(bool bState)
+{
+	bAllowIncompatibleSkeletonSelection = bState;
+	SaveConfig();
+}

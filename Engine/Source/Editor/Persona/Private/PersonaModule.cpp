@@ -1712,7 +1712,7 @@ void FPersonaModule::RegisterToolMenuExtensions()
 								FExecuteAction::CreateLambda([WeakAssetView = TWeakPtr<SAssetView>(AssetView)]()
 								{
 									UPersonaOptions* PersonaOptions = GetMutableDefault<UPersonaOptions>();
-									PersonaOptions->bAllowIncompatibleSkeletonSelection = !PersonaOptions->bAllowIncompatibleSkeletonSelection;
+									PersonaOptions->SetAllowIncompatibleSkeletonSelection(!PersonaOptions->GetAllowIncompatibleSkeletonSelection());
 									if(TSharedPtr<SAssetView> AssetView = WeakAssetView.Pin())
 									{
 										AssetView->RequestSlowFullListRefresh();

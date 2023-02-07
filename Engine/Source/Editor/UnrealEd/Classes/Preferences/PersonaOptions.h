@@ -269,6 +269,7 @@ public:
 	void SetBranchingPointTimingNodeColor(const FLinearColor& InColor);
 	FAssetEditorOptions& GetAssetEditorOptions(const FName& InContext);
 	bool GetAllowIncompatibleSkeletonSelection() const;
+	void SetAllowIncompatibleSkeletonSelection(bool bState);
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUpdateSettingsMulticaster, const UPersonaOptions*, EPropertyChangeType::Type);
 	FOnUpdateSettingsMulticaster OnSettingsChange;
