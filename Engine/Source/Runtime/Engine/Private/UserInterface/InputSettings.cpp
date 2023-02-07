@@ -161,6 +161,7 @@ void UInputSettings::AddInternationalConsoleKey()
 			DefaultConsoleKey = FInputKeyManager::Get().GetKeyFromCodes(VK_OEM_5, 0);
 			break;
 
+		case LANG_SLOVAK:
 		case LANG_SWEDISH:
 			DefaultConsoleKey = EKeys::Section;
 			break;
