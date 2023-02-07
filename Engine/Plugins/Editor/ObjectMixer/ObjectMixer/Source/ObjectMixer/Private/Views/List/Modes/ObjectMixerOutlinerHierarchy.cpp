@@ -599,7 +599,7 @@ TArray<FSceneOutlinerTreeItemPtr> FObjectMixerOutlinerHierarchy::ConditionallyCr
 	}
 
 	const bool bShouldCreateActorItem =
-		bWouldReturnAnyComponentsBeforeFiltering || !bShowingOnlyActorWithValidComponents && DoesWorldObjectHaveAcceptableClass(Actor);
+		bWouldReturnAnyComponentsBeforeFiltering || !bShowingOnlyActorWithValidComponents || DoesWorldObjectHaveAcceptableClass(Actor);
 	
 	if (bShouldCreateActorItem)
 	{
