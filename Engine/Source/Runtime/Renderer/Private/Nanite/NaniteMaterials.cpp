@@ -1789,6 +1789,60 @@ void EmitDepthTargets(
 	OutMaterialDepth = MaterialDepth;
 }
 
+FCustomDepthContext InitCustomDepthStencilContext(
+	FRDGBuilder& GraphBuilder,
+	const FCustomDepthTextures& CustomDepthTextures,
+	bool bWriteCustomStencil
+)
+{
+	enum ECustomDepthExportMethod
+	{
+		DepthExportSeparatePS,	// Emit depth & stencil from PS (Stencil separated and written to RT0)
+		DepthExportCS			// Emit depth & stencil from CS with HTILE (requires RHI support)
+	};
+
+	check(CustomDepthTextures.IsValid());
+
+	const FIntPoint CustomDepthExtent = CustomDepthTextures.Depth->Desc.Extent;
+
+	FCustomDepthContext Output;
+	Output.InputDepth = CustomDepthTextures.Depth;
+	Output.InputStencilSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(CustomDepthTextures.Depth, PF_X24_G8));
+	Output.bComputeExport = UseComputeDepthExport() && GNaniteCustomDepthExportMethod == DepthExportCS;
+
+	if (Output.bComputeExport)
+	{
+		// We can output directly to the depth target using compute
+		Output.DepthTarget = CustomDepthTextures.Depth;
+		Output.StencilTarget = bWriteCustomStencil ? CustomDepthTextures.Depth : nullptr;
+	}
+	else
+	{
+		// Since we cannot output the stencil ref from the pixel shader, we'll combine Nanite and non-Nanite custom depth/stencil
+		// into new, separate targets. Note that stencil test using custom stencil from this point will require tests to be
+		// performed manually in the pixel shader (see PostProcess materials, for example).
+		FRDGTextureDesc OutCustomDepthDesc = FRDGTextureDesc::Create2D(
+			CustomDepthExtent,
+			PF_DepthStencil,
+			FClearValueBinding::DepthFar,
+			TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
+		Output.DepthTarget = GraphBuilder.CreateTexture(OutCustomDepthDesc, TEXT("CombinedCustomDepth"));
+
+		if (bWriteCustomStencil)
+		{
+			FRDGTextureDesc OutCustomStencilDesc = FRDGTextureDesc::Create2D(
+				CustomDepthExtent,
+				PF_R16G16_UINT, //PF_R8G8_UINT,
+				FClearValueBinding::Transparent,
+				TexCreate_RenderTargetable | TexCreate_ShaderResource);
+
+			Output.StencilTarget = GraphBuilder.CreateTexture(OutCustomStencilDesc, TEXT("CombinedCustomStencil"));
+		}
+	}
+
+	return Output;
+}
+
 void EmitCustomDepthStencilTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -1797,29 +1851,20 @@ void EmitCustomDepthStencilTargets(
 	FRDGBufferRef VisibleClustersSWHW,
 	FRDGBufferRef ViewsBuffer,
 	FRDGTextureRef VisBuffer64,
-	bool bWriteCustomStencil,
-	FCustomDepthTextures& CustomDepthTextures
+	const FCustomDepthContext& CustomDepthContext
 )
 {
-	enum ECustomDepthExportMethod
-	{
-		DepthExportSeparatePS,	// Emit depth & stencil from PS (Stencil separated and written to RT0)
-		DepthExportPS,			// Emit depth & stencil from PS into DSV (requires RHI support)
-		DepthExportCS			// Emit depth & stencil from CS with HTILE (requires RHI support)
-	};
-
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::EmitCustomDepthStencilTargets");
 
-	const FSceneTexturesConfig& Config = View.GetSceneTexturesConfig();
-	const FIntPoint SceneTexturesExtent = Config.Extent;
+	FRDGTextureRef CustomDepth = CustomDepthContext.InputDepth;
+	FRDGTextureSRVRef CustomStencilSRV = CustomDepthContext.InputStencilSRV;
+	const FIntPoint CustomDepthExtent = CustomDepth->Desc.Extent;
+	const bool bWriteCustomStencil = CustomDepthContext.StencilTarget != nullptr;
 
-	FRDGTextureRef CustomDepth = CustomDepthTextures.Depth;
-
-	if (UseComputeDepthExport() && GNaniteCustomDepthExportMethod == DepthExportCS)
+	if (CustomDepthContext.bComputeExport)
 	{
 		// Emit custom depth and stencil from a CS that can handle HTILE
-
 		if (GNaniteDecompressDepth != 0)
 		{
 			// Force depth decompression so the depth shader only processes decompressed surfaces
@@ -1840,7 +1885,7 @@ void EmitCustomDepthStencilTargets(
 		// Export depth
 		{
 			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, 8); // Only run DepthExport shader on viewport. We have already asserted that ViewRect.Min=0.
-			const uint32 PlatformConfig = RHIGetHTilePlatformConfig(SceneTexturesExtent.X, SceneTexturesExtent.Y);
+			const uint32 PlatformConfig = RHIGetHTilePlatformConfig(CustomDepthExtent.X, CustomDepthExtent.Y);
 
 			FRDGTextureUAVRef CustomDepthUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(CustomDepth, ERDGTextureMetaDataAccess::CompressedSurface));
 			FRDGTextureUAVRef CustomStencilUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(CustomDepth, ERDGTextureMetaDataAccess::Stencil));
@@ -1853,7 +1898,7 @@ void EmitCustomDepthStencilTargets(
 			PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->PageConstants			= PageConstants;
 			PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-			PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTexturesExtent.X, 0, Nanite::FGlobalResources::GetMaxVisibleClusters());
+			PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, CustomDepthExtent.X, 0, Nanite::FGlobalResources::GetMaxVisibleClusters());
 			PassParameters->ViewRect				= FUint32Vector4((uint32)View.ViewRect.Min.X, (uint32)View.ViewRect.Min.Y, (uint32)View.ViewRect.Max.X, (uint32)View.ViewRect.Max.Y);
 			PassParameters->bWriteCustomStencil		= bWriteCustomStencil;
 			PassParameters->VisBuffer64				= VisBuffer64;
@@ -1882,32 +1927,11 @@ void EmitCustomDepthStencilTargets(
 				DispatchDim
 			);
 		}
-
-		CustomDepthTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(CustomDepth, PF_X24_G8));
 	}
 	else // DepthExportSeparatePS
 	{
-		// Since we cannot output the stencil ref from the pixel shader, we'll combine Nanite and non-Nanite custom depth/stencil
-		// into new, separate targets. Note that stencil test using custom stencil from this point will require tests to be
-		// performed manually in the pixel shader (see PostProcess materials, for example).
-		FRDGTextureDesc OutCustomDepthDesc = FRDGTextureDesc::Create2D(
-			SceneTexturesExtent,
-			PF_DepthStencil,
-			FClearValueBinding::DepthFar,
-			TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
-		FRDGTextureRef OutCustomDepth = GraphBuilder.CreateTexture(OutCustomDepthDesc, TEXT("CombinedCustomDepth"));
-
-		FRDGTextureRef OutCustomStencil = nullptr;
-		if (bWriteCustomStencil)
-		{
-			FRDGTextureDesc OutCustomStencilDesc = FRDGTextureDesc::Create2D(
-				SceneTexturesExtent,
-				PF_R16G16_UINT, //PF_R8G8_UINT,
-				FClearValueBinding::Transparent,
-				TexCreate_RenderTargetable | TexCreate_ShaderResource);
-
-			OutCustomStencil = GraphBuilder.CreateTexture(OutCustomStencilDesc, TEXT("CombinedCustomStencil"));
-		}
+		FRDGTextureRef OutCustomDepth = CustomDepthContext.DepthTarget;
+		FRDGTextureRef OutCustomStencil = CustomDepthContext.StencilTarget;
 
 		FEmitCustomDepthStencilPS::FPermutationDomain PermutationVectorPS;
 		PermutationVectorPS.Set<FEmitCustomDepthStencilPS::FWriteCustomStencilDim>(bWriteCustomStencil);
@@ -1916,9 +1940,7 @@ void EmitCustomDepthStencilTargets(
 		auto* PassParameters = GraphBuilder.AllocParameters<FEmitCustomDepthStencilPS::FParameters>();
 
 		// If we aren't emitting stencil, clear it so it's not garbage
-		ERenderTargetLoadAction StencilLoadAction = bWriteCustomStencil ? ERenderTargetLoadAction::ENoAction : ERenderTargetLoadAction::EClear;
-
-		FRDGTextureSRVRef CustomStencilSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(CustomDepthTextures.Depth, PF_X24_G8));
+		ERenderTargetLoadAction StencilLoadAction = OutCustomStencil ? ERenderTargetLoadAction::ENoAction : ERenderTargetLoadAction::EClear;
 
 		PassParameters->View						= View.ViewUniformBuffer;
 		PassParameters->Scene						= View.GetSceneUniforms().GetBuffer(GraphBuilder);
@@ -1927,15 +1949,15 @@ void EmitCustomDepthStencilTargets(
 		PassParameters->PageConstants				= PageConstants;
 		PassParameters->VisBuffer64					= VisBuffer64;
 		PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-		PassParameters->CustomDepth					= CustomDepthTextures.Depth;
+		PassParameters->CustomDepth					= CustomDepth;
 		PassParameters->CustomStencil				= CustomStencilSRV;
-		PassParameters->RenderTargets[0]			= bWriteCustomStencil ? FRenderTargetBinding(OutCustomStencil, ERenderTargetLoadAction::ENoAction) : FRenderTargetBinding();
+		PassParameters->RenderTargets[0]			= OutCustomStencil ? FRenderTargetBinding(OutCustomStencil, ERenderTargetLoadAction::ENoAction) : FRenderTargetBinding();
 		PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(OutCustomDepth, ERenderTargetLoadAction::ENoAction, StencilLoadAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
 		FPixelShaderUtils::AddFullscreenPass(
 			GraphBuilder,
 			View.ShaderMap,
-			bWriteCustomStencil ? RDG_EVENT_NAME("Emit Custom Depth/Stencil") : RDG_EVENT_NAME("Emit Custom Depth"),
+			OutCustomStencil ? RDG_EVENT_NAME("Emit Custom Depth/Stencil") : RDG_EVENT_NAME("Emit Custom Depth"),
 			PixelShader,
 			PassParameters,
 			View.ViewRect,
@@ -1943,11 +1965,18 @@ void EmitCustomDepthStencilTargets(
 			TStaticRasterizerState<>::GetRHI(),
 			TStaticDepthStencilState<true, CF_Always>::GetRHI()
 		);
-
-		CustomDepthTextures.Depth					= OutCustomDepth;
-		CustomDepthTextures.Stencil					= bWriteCustomStencil ? GraphBuilder.CreateSRV(OutCustomStencil) : CustomStencilSRV;
-		CustomDepthTextures.bSeparateStencilBuffer	= true;
 	}
+}
+
+void FinalizeCustomDepthStencil(
+	FRDGBuilder& GraphBuilder,
+	const FCustomDepthContext& CustomDepthContext,
+	FCustomDepthTextures& OutTextures
+)
+{
+	OutTextures.Depth = CustomDepthContext.DepthTarget;
+	OutTextures.Stencil = CustomDepthContext.StencilTarget ? GraphBuilder.CreateSRV(CustomDepthContext.StencilTarget) : CustomDepthContext.InputStencilSRV;
+	OutTextures.bSeparateStencilBuffer = !CustomDepthContext.bComputeExport;
 }
 
 struct FLumenMeshCaptureMaterialPassIndex

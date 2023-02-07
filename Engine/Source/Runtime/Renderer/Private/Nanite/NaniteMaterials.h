@@ -469,6 +469,15 @@ extern bool UseComputeDepthExport();
 namespace Nanite
 {
 
+struct FCustomDepthContext
+{
+	FRDGTextureRef InputDepth = nullptr;
+	FRDGTextureSRVRef InputStencilSRV = nullptr;
+	FRDGTextureRef DepthTarget = nullptr;
+	FRDGTextureRef StencilTarget = nullptr;
+	bool bComputeExport = true;
+};
+
 struct FShadeBinning
 {
 	FRDGBufferRef ShadingBinMeta  = nullptr;
@@ -490,6 +499,12 @@ void EmitDepthTargets(
 	FRDGTextureRef& OutShadingMask
 );
 
+FCustomDepthContext InitCustomDepthStencilContext(
+	FRDGBuilder& GraphBuilder,
+	const FCustomDepthTextures& CustomDepthTextures,
+	bool bWriteCustomStencil
+);
+
 void EmitCustomDepthStencilTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -498,8 +513,13 @@ void EmitCustomDepthStencilTargets(
 	FRDGBufferRef VisibleClustersSWHW,
 	FRDGBufferRef ViewsBuffer,
 	FRDGTextureRef VisBuffer64,
-	bool bWriteCustomStencil,
-	FCustomDepthTextures& CustomDepthTextures
+	const FCustomDepthContext& CustomDepthContext
+);
+
+void FinalizeCustomDepthStencil(
+	FRDGBuilder& GraphBuilder,
+	const FCustomDepthContext& CustomDepthContext,
+	FCustomDepthTextures& OutTextures
 );
 
 void DrawBasePass(

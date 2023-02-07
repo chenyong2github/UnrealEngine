@@ -300,6 +300,11 @@ bool FSceneRenderer::RenderCustomDepthPass(
 			true // bCustomPass
 		);
 
+		Nanite::FCustomDepthContext CustomDepthContext = Nanite::InitCustomDepthStencilContext(
+			GraphBuilder,
+			CustomDepthTextures,
+			bWriteCustomStencil);
+
 		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = true;
 		CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
@@ -352,10 +357,11 @@ bool FSceneRenderer::RenderCustomDepthPass(
 				CullingContext.VisibleClustersSWHW,
 				CullingContext.ViewsBuffer,
 				RasterContext.VisBuffer64,
-				bWriteCustomStencil,
-				CustomDepthTextures
+				CustomDepthContext
 			);
 		}
+
+		Nanite::FinalizeCustomDepthStencil(GraphBuilder, CustomDepthContext, CustomDepthTextures);
 	}
 	else
 	{
