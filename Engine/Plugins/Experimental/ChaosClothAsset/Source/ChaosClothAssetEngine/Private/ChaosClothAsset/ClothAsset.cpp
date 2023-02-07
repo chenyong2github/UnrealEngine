@@ -327,6 +327,13 @@ void UChaosClothAsset::Build()
 	// Release render resources
 	ReleaseResources();
 
+	// Flush the resource release commands to the rendering thread to ensure that the build doesn't occur while a resource is still
+	// allocated, and potentially accessing the UClothAsset
+	ReleaseResourcesFence.Wait();
+
+	// Clear SkeletalMeshRenderData so it can be rebuilt
+	SetResourceForRendering(nullptr);
+
 	// Set a new Guid to invalidate the DDC
 	AssetGuid = FGuid::NewGuid();
 

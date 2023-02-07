@@ -101,6 +101,10 @@ private:
 	void InitDetailsViewPanel();
 	void OnFinishedChangingAssetProperties(const FPropertyChangedEvent&);
 
+	void PopulateOutliner();
+	void OnClothAssetChanged();
+
+
 	/** Scene in which the 3D sim space preview meshes live. Ownership shared with AdvancedPreviewSettingsWidget*/
 	TSharedPtr<FChaosClothPreviewScene> ClothPreviewScene;
 
@@ -119,6 +123,7 @@ private:
 
 	TSharedPtr<SComboBox<FName>> SelectedGroupNameComboBox;
 	TArray<FName> ClothCollectionGroupNames;		// Data source for SelectedGroupNameComboBox
+
 
 	//~ Begin Dataflow support
 	 
@@ -148,6 +153,5 @@ private:
 	void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection) const;
 
 	//~ End Dataflow support
-
 };
 

@@ -3,44 +3,61 @@
 #pragma once 
 
 #include "Dataflow/DataflowCore.h"
-#include "ChaosClothAsset/ClothAsset.h"
-#include "ChaosClothAsset/ClothCollection.h"
-#include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
 #include "ClothDataflowNodes.generated.h"
 
-USTRUCT()
+
+USTRUCT(meta = (DataflowCloth))
 struct FClothAssetTerminalDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FClothAssetTerminalDataflowNode, "ClothAssetTerminal", "Cloth", "")
-	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FClothAssetTerminalDataflowNode, "ClothAssetTerminal", "Cloth", "Cloth Terminal")
+	//DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
 
 public:
 
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
-	FManagedArrayCollection Collection;		// TODO: Replace with FClothCollection
+	FManagedArrayCollection Collection;
 
-	FClothAssetTerminalDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowTerminalNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterOutputConnection(&Collection, &Collection);
-	}
+	FClothAssetTerminalDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
-	virtual void SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const override
-	{
-		if (UChaosClothAsset* ClothAsset = Cast<UChaosClothAsset>(Asset.Get()))
-		{
-			// TODO: Modify ClothAsset directly
-		}
-	}
+	virtual void SetAssetValue(TObjectPtr<UObject> OutAsset, Dataflow::FContext& Context) const override;
 
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override
-	{
-		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
-	}
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
+
+
+USTRUCT(meta = (DataflowFlesh))
+struct FClothAssetDatasmithImportNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FClothAssetDatasmithImportNode, "Import", "Cloth", "Cloth Datasmith Import")
+	//DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
+
+public:
+	
+	// Datasmith file to read from
+	UPROPERTY(EditAnywhere, Category = "Datasmith Importer")
+	FFilePath DatasmithFile;
+
+	// Package to import into
+	UPROPERTY(EditAnywhere, Category = "Datasmith Importer")
+	FString DestPackageName;
+
+	// ManagedArrayCollection for the first ClothAsset found in the input Datasmith file
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
+	FManagedArrayCollection Collection;
+
+	FClothAssetDatasmithImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+private:
+
+	bool EvaluateImpl(Dataflow::FContext& Context, FManagedArrayCollection& OutCollection) const;
+
+};
+
 
 namespace Dataflow
 {

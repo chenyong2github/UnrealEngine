@@ -686,6 +686,11 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 		PreviewSceneDockTab->SetContent(AdvancedPreviewSettingsWidget.ToSharedRef());
 	}
 
+	PopulateOutliner();
+}
+
+void FChaosClothAssetEditorToolkit::PopulateOutliner()
+{
 	TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection;
 	if (const TObjectPtr<UChaosClothComponent> ClothComponent = ClothPreviewScene->ClothComponent)
 	{
@@ -746,7 +751,9 @@ void FChaosClothAssetEditorToolkit::EvaluateNode(FDataflowNode* Node, FDataflowO
 		}
 		LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
 
-		FDataflowEditorCommands::EvaluateTerminalNode(*DataflowContext.Get(), LastDataflowNodeTimestamp, Dataflow, Node, Out, Asset, DataflowTerminalPath);
+		FDataflowEditorCommands::EvaluateTerminalNode(*DataflowContext.Get(), LastDataflowNodeTimestamp, Dataflow, Node, nullptr, Asset, DataflowTerminalPath);
+
+		OnClothAssetChanged();
 	}
 };
 
@@ -892,5 +899,25 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 }
 
 //~ Ends DataflowEditorActions
+
+void FChaosClothAssetEditorToolkit::OnClothAssetChanged()
+{
+	TArray<TObjectPtr<UObject>> ObjectsToEdit;
+	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
+
+	UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
+	ClothMode->InitializeTargets(ObjectsToEdit);
+
+	if (UChaosClothAsset* const ClothAsset = Cast<UChaosClothAsset>(ObjectsToEdit[0]))
+	{
+		ClothPreviewScene->CreateClothActor(ClothAsset);
+
+		ensure(ClothAsset->HasAnyFlags(RF_Transactional));		// Ensure all objects are transactable for undo/redo in the details panel
+		SetEditingObject(ClothAsset);
+
+		PopulateOutliner();
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

@@ -27,6 +27,8 @@ namespace UE::Chaos::ClothAsset
 		using Super::Serialize;
 		void Serialize(FArchive& Ar);
 
+		virtual void Reset() override { Super::Reset(); Construct(); }
+
 		/** Set the number of elements to one of the groups that have start/end indices while maintaining the correct order of the data. */
 		int32 SetNumElements(int32 InNumElements, const FName& GroupName, TManagedArray<int32>& StartArray, TManagedArray<int32>& EndArray, int32 StartEndIndex);
 
