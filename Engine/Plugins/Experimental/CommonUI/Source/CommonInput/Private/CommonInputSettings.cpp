@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonInputSettings.h"
+#include "ICommonInputModule.h"
 #include "Engine/DataTable.h"
 #include "Engine/PlatformSettingsManager.h"
 
@@ -132,6 +133,12 @@ FDataTableRowHandle UCommonInputSettings::GetDefaultBackAction() const
 	}
 	return FDataTableRowHandle();
 }
+
+bool UCommonInputSettings::IsEnhancedInputSupportEnabled() 
+{
+	static bool bEnabled = ICommonInputModule::Get().GetSettings().GetEnableEnhancedInputSupport();
+	return bEnabled;
+};
 
 void UCommonInputSettings::PostInitProperties()
 {

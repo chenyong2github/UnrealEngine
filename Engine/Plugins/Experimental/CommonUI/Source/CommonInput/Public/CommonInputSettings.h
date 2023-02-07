@@ -54,6 +54,12 @@ public:
 
 	TObjectPtr<UCommonInputActionDomainTable> GetActionDomainTable() const { return ActionDomainTablePtr; }
 
+public:
+
+	/** Static version of enhanced input support check, exists to hide based on edit condition */
+	UFUNCTION()
+	static bool IsEnhancedInputSupportEnabled(); 
+
 private:
 	virtual void PostInitProperties() override;
 

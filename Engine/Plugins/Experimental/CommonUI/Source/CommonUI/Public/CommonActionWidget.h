@@ -98,7 +98,7 @@ protected:
 	/**
 	 * Input Action this common action widget is intended to represent. Optional if using EnhancedInputs
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget, meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
 	TObjectPtr<class UInputAction> EnhancedInputAction;
 
 	//@todo DanH: Create clearer split between support for the new & legacy system in here
