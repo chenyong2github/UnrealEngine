@@ -1,17 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 // .
 
-#include "ShaderFormatVectorVM.h"
-#include "VectorVMBackend.h"
 #include "CoreMinimal.h"
-#include "Misc/FileHelper.h"
-#include "ShaderCore.h"
+#include "CrossCompiler.h"
 #include "CrossCompilerCommon.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/MemoryWriter.h"
 #include "ShaderCompilerCommon.h"
+#include "ShaderCore.h"
+#include "ShaderFormatVectorVM.h"
 #include "ShaderPreprocessor.h"
 
 #include "VectorVM.h"
-#include "Serialization/MemoryWriter.h"
+#include "VectorVMBackend.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogVectorVMShaderCompiler, Log, All); 
 
@@ -136,19 +138,21 @@ bool CompileShader_VectorVM(const FShaderCompilerInput& Input, FShaderCompilerOu
 	FVectorVMCodeBackend VVMBackEnd(CCFlags, HlslCompilerTarget, VMCompilationOutput);
 		FVectorVMLanguageSpec VVMLanguageSpec; 
 
-	bool Result = false;
-	FHlslCrossCompilerContext CrossCompilerContext(CCFlags, Frequency, HlslCompilerTarget);
-	if (CrossCompilerContext.Init(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath), &VVMLanguageSpec))
+	bool bResult = false;
 	{
-		SCOPE_CYCLE_COUNTER(STAT_VectorVM_Compiler_CompileShader_CrossCompilerContextRun);
+		FScopeLock HlslCcLock(CrossCompiler::GetCrossCompilerLock());
+		FHlslCrossCompilerContext CrossCompilerContext(CCFlags, Frequency, HlslCompilerTarget);
+		if (CrossCompilerContext.Init(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath), &VVMLanguageSpec))
+		{
+			SCOPE_CYCLE_COUNTER(STAT_VectorVM_Compiler_CompileShader_CrossCompilerContextRun);
 
-		Result = CrossCompilerContext.Run(
-			TCHAR_TO_ANSI(*PreprocessedShader),
-			TCHAR_TO_ANSI(*Input.EntryPointName),
-			&VVMBackEnd,
-			&ShaderSource,
-			&ErrorLog
-			) ? 1 : 0;
+			bResult = CrossCompilerContext.Run(
+				TCHAR_TO_ANSI(*PreprocessedShader),
+				TCHAR_TO_ANSI(*Input.EntryPointName),
+				&VVMBackEnd,
+				&ShaderSource,
+				&ErrorLog);
+		}
 	}
 
 	if (ErrorLog)
@@ -258,6 +262,6 @@ bool CompileShader_VectorVM(const FShaderCompilerInput& Input, FShaderCompilerOu
 		free(ErrorLog);
 	}
 
-	return Result;
+	return bResult;
 }
 

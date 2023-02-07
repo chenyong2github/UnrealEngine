@@ -2,14 +2,15 @@
 // ..
 
 #include "CoreMinimal.h"
+#include "CrossCompiler.h"
 #include "HAL/FileManager.h"
+#include "HlslccHeaderWriter.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/MemoryWriter.h"
 #include "ShaderFormatOpenGL.h"
-#include "HlslccHeaderWriter.h"
-#include "SpirvReflectCommon.h"
 #include "ShaderParameterParser.h"
+#include "SpirvReflectCommon.h"
 #include <algorithm>
 #include <regex>
 
@@ -3422,18 +3423,20 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 		bool bDefaultPrecisionIsHalf = (CCFlags & HLSLCC_UseFullPrecisionInPS) == 0;
 		FGlslLanguageSpec* LanguageSpec = CreateLanguageSpec(Version, bDefaultPrecisionIsHalf);
 
-		FHlslCrossCompilerContext CrossCompilerContext(CCFlags, HlslFrequency, HlslCompilerTarget);
-		if (CrossCompilerContext.Init(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath), LanguageSpec))
 		{
-			bCompilationSucceeded = CrossCompilerContext.Run(
-				TCHAR_TO_ANSI(*PreprocessedShader),
-				TCHAR_TO_ANSI(*Input.EntryPointName),
-				BackEnd,
-				&GlslShaderSource,
-				&ErrorLog
-			);
+			FScopeLock HlslCcLock(CrossCompiler::GetCrossCompilerLock());
+			FHlslCrossCompilerContext CrossCompilerContext(CCFlags, HlslFrequency, HlslCompilerTarget);
+			if (CrossCompilerContext.Init(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath), LanguageSpec))
+			{
+				bCompilationSucceeded = CrossCompilerContext.Run(
+					TCHAR_TO_ANSI(*PreprocessedShader),
+					TCHAR_TO_ANSI(*Input.EntryPointName),
+					BackEnd,
+					&GlslShaderSource,
+					&ErrorLog
+				);
+			}
 		}
-
 		delete BackEnd;
 		delete LanguageSpec;
 
