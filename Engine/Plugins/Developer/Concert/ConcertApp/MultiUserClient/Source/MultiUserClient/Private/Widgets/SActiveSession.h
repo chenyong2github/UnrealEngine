@@ -12,10 +12,15 @@
 
 class IConcertClientSession;
 class IConcertSyncClient;
+
+class FAsyncTaskNotification;
 struct FConcertConflictDescriptionBase;
 struct FConcertSessionClientInfo;
+
+class SCustomDialog;
 class SDockTab;
 class SExpandableArea;
+
 
 /**
  * Displays the multi-users active session clients and activity, enables the client
@@ -45,6 +50,8 @@ public:
 	* @param InArgs The Slate argument list.
 	*/
 	void Construct(const FArguments& InArgs, TSharedPtr<IConcertSyncClient> InConcertSyncClient);
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 
@@ -93,6 +100,15 @@ private:
 	/** Delegate handler when a conflict between inbound transaction and those stored pending outbound transactions. */
 	void OnSendConflict(const FConcertConflictDescriptionBase& ConflictMsg);
 
+	/** Delegate handler on inbound transactions that focus specifically on packages. */
+	void OnPackageChangeActivity();
+
+	/** Delegate handler to indicate if we can hot reload an inbound package. */
+	bool CanProcessPendingPackages() const;
+
+	/** Delegate handler invoked when an activity has been received by multi-user. */
+	void ActivityUpdated(const FConcertClientInfo& InClientInfo, const FConcertSyncActivity& InActivity, const FStructOnScope& /*unused*/);
+
 private:
 
 	/** Get the text object for the send/receive combo box. */
@@ -136,6 +152,12 @@ private:
 
 	/** Available states for the SendReceiveComboBox */
 	TArray< TSharedPtr< FSendReceiveComboItem > > SendReceiveComboList;
+
+	/** Notification handler for hot reload. */
+	TSharedPtr<SCustomDialog> CanReloadDialog;
+
+	/** Flag to indicate if it is OK to hotreload the packages. */
+	bool bCanHotReload = true;
 
 	/** Keeps the status of 'Clients' area expansion. */
 	bool bClientAreaExpanded = true;

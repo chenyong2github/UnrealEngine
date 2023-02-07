@@ -73,6 +73,9 @@ public:
 			ClientConfig->bAutoConnect |= FParse::Param(CommandLine, TEXT("CONCERTAUTOCONNECT"));
 			FParse::Bool(CommandLine, TEXT("-CONCERTAUTOCONNECT="), ClientConfig->bAutoConnect);
 
+			ClientConfig->bShouldPromptForHotReloadOnLevel |= FParse::Param(CommandLine, TEXT("CONCERTSHOULDPROMPTFORHOTRELOAD"));
+			FParse::Bool(CommandLine, TEXT("-CONCERTSHOULDPROMPTFORHOTRELOAD="), ClientConfig->bShouldPromptForHotReloadOnLevel);
+
 			ClientConfig->bRetryAutoConnectOnError |= FParse::Param(CommandLine, TEXT("CONCERTRETRYAUTOCONNECTONERROR"));
 			FParse::Bool(CommandLine, TEXT("-CONCERTRETRYAUTOCONNECTONERROR="), ClientConfig->bRetryAutoConnectOnError);
 

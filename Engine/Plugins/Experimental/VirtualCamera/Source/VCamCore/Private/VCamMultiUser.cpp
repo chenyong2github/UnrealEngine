@@ -4,6 +4,7 @@
 
 #include "CineCameraComponent.h"
 #include "GameFramework/Actor.h"
+#include "UObject/Package.h"
 
 FMultiUserVCamCameraFocusData::FMultiUserVCamCameraFocusData(const UCineCameraComponent* CineCamera)
 	: ManualFocusDistance(CineCamera->CurrentFocusDistance)
@@ -41,6 +42,9 @@ FMultiUserVCamCameraData::FMultiUserVCamCameraData(const AActor* InOwner, const 
 
 void FMultiUserVCamCameraData::ApplyTo(AActor* InOwner, UCineCameraComponent* InCineCameraComponent) const
 {
+	InOwner->Modify();
+	InCineCameraComponent->Modify();
+
 	InOwner->SetActorLocationAndRotation(CameraActorLocation, CameraActorRotation);
 	InCineCameraComponent->SetRelativeLocationAndRotation(CameraComponentLocation, CameraComponentRotation);
 	InCineCameraComponent->CurrentAperture = CurrentAperture;

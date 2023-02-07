@@ -222,6 +222,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Client Settings")
 	FGameplayTagContainer SendOnlyAssignment;
 
+	/**
+	 * Hot reload of a level happens automatically when level / sublevel is changed. This property allows users
+	 * to receive a prompt before hot reload occurs so that it does not interrupt the user in the current level.
+	 * Can be specified on the editor command with `-CONCERTSHOULDPROMPTFORHOTRELOAD`
+	 */
+	UPROPERTY(config, EditAnywhere, Category="Client Settings")
+	bool bShouldPromptForHotReloadOnLevel = false;
+
 	/** Client & client session settings */
 	UPROPERTY(config, EditAnywhere, Category="Client Settings", meta=(ShowOnlyInnerProperties))
 	FConcertClientSettings ClientSettings;

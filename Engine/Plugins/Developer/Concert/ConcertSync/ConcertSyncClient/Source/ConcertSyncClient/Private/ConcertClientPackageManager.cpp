@@ -631,7 +631,7 @@ bool FConcertClientPackageManager::IsReloadingPackage(FName PackageName) const
 
 bool FConcertClientPackageManager::CanHotReloadOrPurge() const
 {
-	const bool bIsSuspended = LiveSession->GetSession().GetSendReceiveState() == EConcertSendReceiveState::SendOnly;
+	const bool bIsSuspended = LiveSession->GetSession().GetSendReceiveState() != EConcertSendReceiveState::Default;
 	return ConcertSyncClientUtil::CanPerformBlockingAction() && !bIsSuspended;
 }
 

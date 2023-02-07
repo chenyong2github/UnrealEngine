@@ -8,9 +8,13 @@
 #include "ConcertMessageData.h"
 #include "ClientSessionHistoryController.h"
 #include "ConcertMessages.h"
+#include "Dialog/SMessageDialog.h"
+#include "IConcertClientPackageBridge.h"
 #include "IConcertClientPresenceManager.h"
 #include "IConcertClient.h"
+#include "IConcertClientWorkspace.h"
 #include "IConcertSyncClient.h"
+#include "ConcertClientSettings.h"
 #include "IMultiUserClientModule.h"
 
 #include "Algo/Transform.h"
@@ -20,6 +24,7 @@
 #include "Misc/AsyncTaskNotification.h"
 #include "Misc/PackageName.h"
 #include "Styling/AppStyle.h"
+#include "Dialog/SCustomDialog.h"
 #include "Session/History/SSessionHistory.h"
 #include "Session/History/SSessionHistoryWrapper.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -30,6 +35,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "HAL/PlatformFileManager.h"
 
 
 #define LOCTEXT_NAMESPACE "SActiveSession"
@@ -395,6 +401,11 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 			ClientSession->OnSessionClientChanged().AddSP(this, &SActiveSession::HandleSessionClientChanged);
 			InConcertSyncClient->GetTransactionBridge()->OnConflictResolutionForPendingSend().AddSP(this, &SActiveSession::OnSendConflict);
 		}
+
+		TSharedPtr<IConcertClientWorkspace> Workspace = InConcertSyncClient->GetWorkspace();
+		Workspace->OnActivityAddedOrUpdated().AddSP(this, &SActiveSession::ActivityUpdated);
+		Workspace->AddWorkspaceCanProcessPackagesDelegate(
+			TEXT("SActiveSession"), FCanProcessPendingPackages::CreateSP(this, &SActiveSession::CanProcessPendingPackages));
 	}
 
 	SendReceiveComboList = ConstructSendReceiveComboList();
@@ -916,6 +927,92 @@ TSharedPtr<FConcertSessionClientInfo> SActiveSession::FindAvailableClient(const 
 	});
 
 	return FoundClientPtr ? *FoundClientPtr : nullptr;
+}
+
+bool SActiveSession::CanProcessPendingPackages() const
+{
+	return bCanHotReload;
+}
+
+void SActiveSession::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if (bCanHotReload && CanReloadDialog)
+	{
+		CanReloadDialog = {};
+	}
+}
+
+namespace UE::MultiUserClient::Private
+{
+static bool IsMapAsset(FName PackageName)
+{
+	FString FullPath;
+	if (FPackageName::TryConvertLongPackageNameToFilename(PackageName.ToString(), FullPath, FPackageName::GetMapPackageExtension()))
+	{
+		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPath))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+static TSharedPtr<SMessageDialog> MakeReloadDialog(FName PackageName)
+{
+	static const FText DialogTitle = LOCTEXT("ActiveSessionPendingHotReloadTitle", "A level hot reload is pending.");
+
+	static const FText ReloadButton = LOCTEXT("ActiveSessionPendingHotReloadButton", "Reload");
+
+	const FText ReloadMessage =
+		FText::Format(
+			LOCTEXT("ActiveSessionPendingHotReload","A hot reload on {0} is pending. Please dismiss this notification to continue with reload. All transactions will be queued until this occurs."),
+			 FText::FromName(PackageName)
+			);
+
+	return SNew(SMessageDialog)
+		.Title(DialogTitle)
+		.Message(ReloadMessage)
+		.Buttons( { SCustomDialog::FButton(ReloadButton) } );
+}
+
+}
+void SActiveSession::ActivityUpdated(const FConcertClientInfo& InClientInfo, const FConcertSyncActivity& InActivity, const FStructOnScope& ActivitySummary)
+{
+	if (InActivity.EventType == EConcertSyncActivityEventType::Package)
+	{
+		TSharedPtr<IConcertSyncClient> SyncClientPin = WeakConcertSyncClient.Pin();
+		if (!WeakSessionPtr.IsValid() || !SyncClientPin || CanReloadDialog)
+		{
+			return;
+		}
+
+		if (InActivity.EndpointId == WeakSessionPtr.Pin()->GetSessionClientEndpointId())
+		{
+			return;
+		}
+
+		check(ActivitySummary.GetStruct()->IsChildOf(FConcertSyncPackageActivitySummary::StaticStruct()));
+		const FConcertSyncPackageActivitySummary* ActivitySummaryPtr =
+			(FConcertSyncPackageActivitySummary*)ActivitySummary.GetStructMemory();
+
+		// User changed its settings.
+		const UConcertClientConfig* ConcertClientConfig = SyncClientPin->GetConcertClient()->GetConfiguration();
+		if (ConcertClientConfig->bShouldPromptForHotReloadOnLevel)
+		{
+			const bool bIsAMap = UE::MultiUserClient::Private::IsMapAsset(ActivitySummaryPtr->PackageName);
+			if (bIsAMap)
+			{
+				bCanHotReload = false;
+				CanReloadDialog = UE::MultiUserClient::Private::MakeReloadDialog(ActivitySummaryPtr->PackageName);
+				CanReloadDialog->GetOnWindowClosedEvent().AddLambda([this](const TSharedRef<SWindow>& ClosedWindow)
+					{
+						bCanHotReload = true;
+					});
+
+				CanReloadDialog->Show();
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE /* SActiveSession */
