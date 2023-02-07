@@ -303,7 +303,9 @@ struct GraphNodeImpl {
 				}
 
 				case ONNX_NAMESPACE::AttributeProto_AttributeType_STRINGS: {
-                    assert(0);
+                    value.count = proto.strings().size();
+					value.type = GraphAttributeValue::kStrings;
+                    value.strings = (const std::string* const*) proto.strings().data();
 					break;
 				}
             }

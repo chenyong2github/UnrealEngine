@@ -248,7 +248,23 @@ public:
 		else if (Value.GetType() == ENNEAttributeDataType::String)
 		{
 			Attribute->set_type(onnx::AttributeProto::STRING);
-			Attribute->set_s(TCHAR_TO_ANSI(*Value.GetValue<FString>()));
+			Attribute->set_s(TCHAR_TO_UTF8(*Value.GetValue<FString>()));
+		}
+		else if (Value.GetType() == ENNEAttributeDataType::StringArray)
+		{
+			Attribute->set_type(onnx::AttributeProto::STRINGS);
+			for (const FString& Val : Value.GetValue<TArray<FString>>())
+			{
+				Attribute->add_strings(TCHAR_TO_UTF8(*Val));
+			}
+		}
+		else if (Value.GetType() == ENNEAttributeDataType::FloatArray)
+		{
+			Attribute->set_type(onnx::AttributeProto::FLOATS);
+			for (float Val : Value.GetValue<TArray<float>>())
+			{
+				Attribute->add_floats(Val);
+			}
 		}
 		else
 		{

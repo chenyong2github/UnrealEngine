@@ -17,9 +17,11 @@ enum class ENNEAttributeDataType : uint8
 {
 	None,
 	Float,								//!< 32-bit floating number
+	FloatArray,							//!< TArray of 32-bit floating numbers
 	Int32,								//!< 32-bit signed integer
 	Int32Array,							//!< TArray of 32-bit signed integers
-	String								//!< built-in FString
+	String,								//!< built-in FString
+	StringArray							//!< TArray of built-in FString
 };
 
 /**

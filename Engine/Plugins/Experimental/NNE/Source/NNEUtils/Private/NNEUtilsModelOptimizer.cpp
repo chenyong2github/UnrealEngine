@@ -570,6 +570,30 @@ private:
 				{
 					Builder->AddOperatorAttribute(Op, AttrInfo.name, FNNEAttributeValue(FString(AttrValue.s)));
 				}
+				else if (AttrInfo.type == Ort::GraphAttributeType::kStrings)
+				{
+					TArray<FString> Values;
+					Values.SetNum(AttrValue.count);
+
+					for (int i = 0; i < AttrValue.count; i++)
+					{
+						Values[i] = FString(UTF8_TO_TCHAR(AttrValue.strings[i]->c_str()));
+					}
+
+					Builder->AddOperatorAttribute(Op, AttrInfo.name, FNNEAttributeValue(Values));
+				}
+				else if (AttrInfo.type == Ort::GraphAttributeType::kFloats)
+				{
+					TArray<float> Values;
+					Values.SetNumUninitialized(AttrValue.count);
+
+					for (int i = 0; i < AttrValue.count; i++)
+					{
+						Values[i] = AttrValue.floats[i];
+					}
+
+					Builder->AddOperatorAttribute(Op, AttrInfo.name, FNNEAttributeValue(Values));
+				}
 				else
 				{
 					//Note: Would be good to have better error reporting add type (example: sparse tensor) and name of the actual node if any (not the op name but the node one)

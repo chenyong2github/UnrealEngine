@@ -95,7 +95,15 @@ namespace Json
 					Value = FNNEAttributeValue(TmpValue);
 					break;
 				}
-
+				case ENNEAttributeDataType::FloatArray:
+				{
+					TArray<FString> TmpValue;
+					JSON_SERIALIZE_ARRAY("value", TmpValue);
+					TArray<float> ConvertedValue;
+					Algo::Transform(TmpValue, ConvertedValue, [](const FString& In){ return FCString::Atof(*In); });
+					Value = FNNEAttributeValue(ConvertedValue);
+					break;
+				}
 				case ENNEAttributeDataType::Int32:
 				{
 					int TmpValue;
@@ -114,6 +122,13 @@ namespace Json
 				{
 					FString TmpValue;
 					JSON_SERIALIZE("value", TmpValue);
+					Value = FNNEAttributeValue(TmpValue);
+					break;
+				}
+				case ENNEAttributeDataType::StringArray:
+				{
+					TArray<FString> TmpValue;
+					JSON_SERIALIZE_ARRAY("value", TmpValue);
 					Value = FNNEAttributeValue(TmpValue);
 					break;
 				}

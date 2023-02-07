@@ -1,6 +1,7 @@
 #pragma once
 
 #include "onnxruntime_c_api.h"
+#include <string>
 
 #ifdef __cplusplus
 
@@ -135,7 +136,7 @@ struct GraphAttributeValue {
 		
 		float*			floats;
 		int64_t*		ints;
-		const char**	strings;
+		const std::string* const*	strings;
 	};
 
 	int		count;

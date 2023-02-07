@@ -33,3 +33,13 @@ template<> struct TNNEAttributeValueTraits<TArray<int32>>
 {
 	static constexpr ENNEAttributeDataType GetType() { return ENNEAttributeDataType::Int32Array; }
 };
+
+template<> struct TNNEAttributeValueTraits<TArray<float>>
+{
+	static constexpr ENNEAttributeDataType GetType() { return ENNEAttributeDataType::FloatArray; }
+};
+
+template<> struct TNNEAttributeValueTraits<TArray<FString>>
+{
+	static constexpr ENNEAttributeDataType GetType() { return ENNEAttributeDataType::StringArray; }
+};

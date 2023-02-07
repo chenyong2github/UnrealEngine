@@ -294,6 +294,20 @@ private:
 
 					return TEXT("[") + FString::Join(ArrayStrings, TEXT(",")) + TEXT("]");
 				}
+				case ENNEAttributeDataType::StringArray:
+				{
+					return TEXT("[") + FString::Join(Value.GetValue<TArray<FString>>(), TEXT(",")) + TEXT("]");
+				}
+				case ENNEAttributeDataType::FloatArray:
+				{
+					TArray<FString> ArrayStrings;
+					for (float Val : Value.GetValue<TArray<float>>())
+					{
+						ArrayStrings.Add(FString::SanitizeFloat(Val));
+					}
+
+					return TEXT("[") + FString::Join(ArrayStrings, TEXT(",")) + TEXT("]");
+				}
 				case ENNEAttributeDataType::String: return Value.GetValue<FString>();
 			}
 			return TEXT("-");
