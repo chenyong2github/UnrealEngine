@@ -22,6 +22,7 @@ class USkinnedMeshComponent;
 class USkeletalMesh;
 class FSkeletalMeshRenderData;
 class FSkeletalMeshLODRenderData;
+class USkinnedAsset;
 
 /** Flags used when building vertex buffers. */
 enum class ESkeletalMeshVertexFlags : uint8
@@ -133,13 +134,13 @@ struct FClothingSectionData
 };
 
 
-/** Used to recreate all skinned mesh components for a given skeletal mesh */
+/** Used to recreate all skinned mesh components for a given skinned asset. */
 class ENGINE_API FSkinnedMeshComponentRecreateRenderStateContext
 {
 public:
 
 	/** Initialization constructor. */
-	FSkinnedMeshComponentRecreateRenderStateContext(USkeletalMesh* InSkeletalMesh, bool InRefreshBounds = false);
+	FSkinnedMeshComponentRecreateRenderStateContext(USkinnedAsset* InSkinnedAsset, bool InRefreshBounds = false);
 
 	/** Destructor: recreates render state for all components that had their render states destroyed in the constructor. */
 	~FSkinnedMeshComponentRecreateRenderStateContext();
@@ -147,7 +148,7 @@ public:
 private:
 
 	/** List of components to reset */
-	TArray< TWeakObjectPtr<USkinnedMeshComponent>> MeshComponents;
+	TArray<TWeakObjectPtr<USkinnedMeshComponent>> MeshComponents;
 
 	/** Whether we'll refresh the component bounds as we reset */
 	bool bRefreshBounds;
