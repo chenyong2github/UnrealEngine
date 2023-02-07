@@ -6,6 +6,7 @@ import { GetJobsTabResponse } from "../../backend/Api";
 import { useWindowSize } from "../../base/utilities/hooks";
 import { hordeClasses, modeColors } from "../../styles/Styles";
 import { BreadcrumbItem, Breadcrumbs } from "../Breadcrumbs";
+import ErrorHandler from "../ErrorHandler";
 import { useQuery } from "../JobDetailCommon";
 import { TopNav } from "../TopNav";
 import { HealthPanel } from "./JobDetailHealthV2";
@@ -48,10 +49,20 @@ const JobBreadCrumbs: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ jobDe
 
    const jobData = jobDetails.jobData;
    if (!jobData) {
-      return <Breadcrumbs items={[{ text: "Loading Job" }]} title={"Loading Job"} spinner={true} />
+      if (!jobDetails.jobError) {
+         return <Breadcrumbs items={[{ text: "Loading Job" }]} title={"Loading Job"} spinner={true} />
+      }
+      else {
+         ErrorHandler.set({
+            reason: `Error loading job data`,
+            title: `Unable to Load Job`,
+            message: `Job ${jobDetails.jobId} could not be loaded.\n\nPlease check that you are on the network and the job stream exists.`
+         }, true);
+      }
 
-      // return <Stack horizontal horizontalAlign="center" tokens={{childrenGap: 18}}> <Text variant="mediumPlus">Loading Job</Text><Spinner size={SpinnerSize.large} /></Stack>;
+      return null;
    }
+
    const crumbItems: BreadcrumbItem[] = [];
 
    const stream = jobDetails.stream;
@@ -320,7 +331,7 @@ const ScrollRestore: React.FC<{ jobDetails: JobDetailsV2, scrollRef: React.RefOb
    } catch (message) {
       console.error(message);
    }
-   
+
    return null;
 }
 

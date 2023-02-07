@@ -153,6 +153,7 @@ export class JobDetailsV2 extends PollBase {
    clear() {
       super.stop();
       this.jobId = undefined;
+      this.jobError = undefined;
       this.jobData = undefined;
       this.stream = undefined;
       this.template = undefined;
@@ -604,7 +605,7 @@ export class JobDetailsV2 extends PollBase {
 
    async poll() {
 
-      if (!this.jobId) {
+      if (!this.jobId || this.jobError) {
          return;
       }
 
@@ -618,7 +619,13 @@ export class JobDetailsV2 extends PollBase {
 
       await Promise.all(requests as any).then(r => results = r).catch(reason => {
          console.error(reason);
+         this.jobError = reason;
       });
+
+      if (this.jobError) {
+         this.setRootUpdated();
+         return;
+      }
 
       const lastUpdateTime = this.jobData?.updateTime;
 
@@ -697,6 +704,7 @@ export class JobDetailsV2 extends PollBase {
    }
 
    jobId?: string;
+   jobError?: string;
 
    overview?: boolean;
 
