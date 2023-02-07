@@ -99,6 +99,9 @@ namespace UE
 			static void InterpolateAttributes(FMeshAttributeContainer& FromAttributes, const FMeshAttributeContainer& ToAttributes, float Alpha);
 
 			/** Mirror (swap) attributes with the specified MirrorDataTable. Attributes are swapped using the bone mapping such that bones which are mirrored swap attributes */
+			static void MirrorAttributes(FStackAttributeContainer& Attributes, const UMirrorDataTable& MirrorDataTable, const TArray<FCompactPoseBoneIndex>& CompactPoseMirrorBones);
+
+			UE_DEPRECATED(5.2, "MirrorAttributes has been deprecated, use other signature instead")
 			static void MirrorAttributes(FStackAttributeContainer& Attributes, const UMirrorDataTable& MirrorDataTable);
 			
 			/** Helper functionality to retrieve the correct blend type (from UAnimationSettings) for the provided attribute name */

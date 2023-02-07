@@ -208,7 +208,7 @@ void FAnimNode_MirrorBase::Evaluate_AnyThread(FPoseContext& Output)
 
 		if (GetAttributeMirroring())
 		{
-			UE::Anim::Attributes::MirrorAttributes(Output.CustomAttributes, *MirrorDataTable);
+			UE::Anim::Attributes::MirrorAttributes(Output.CustomAttributes, *MirrorDataTable, CompactPoseMirrorBones);
 		}
 	}
 }
