@@ -23,6 +23,12 @@ void SLensEvaluation::Construct(const FArguments& InArgs, TWeakPtr<FCameraCalibr
 
 	WeakStepsController = StepsController;
 
+	if (InLensFile)
+	{
+		MakeDistortionWidget(InLensFile->LensInfo.LensModel);
+		InLensFile->OnLensFileModelChanged().AddSP(this, &SLensEvaluation::MakeDistortionWidget);
+	}
+
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -59,7 +65,7 @@ void SLensEvaluation::Construct(const FArguments& InArgs, TWeakPtr<FCameraCalibr
 				.Padding(5.0f, 5.0f)
 				.FillWidth(0.2f)
 				[
-					MakeDistortionWidget()
+					DistortionWidget.ToSharedRef()
 				]
 				//Image Center section
 				+ SHorizontalBox::Slot()
@@ -78,6 +84,14 @@ void SLensEvaluation::Construct(const FArguments& InArgs, TWeakPtr<FCameraCalibr
 			]
 		]
 	];
+}
+
+SLensEvaluation::~SLensEvaluation()
+{
+	if (ULensFile* LensFilePtr = LensFile.Get())
+	{
+		LensFilePtr->OnLensFileModelChanged().RemoveAll(this);
+	}
 }
 
 void SLensEvaluation::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -493,8 +507,15 @@ TSharedRef<SWidget> SLensEvaluation::MakeEvaluatedFIZWidget() const
 		];
 }
 
-TSharedRef<SWidget> SLensEvaluation::MakeDistortionWidget() const
+void SLensEvaluation::MakeDistortionWidget(const TSubclassOf<ULensModel>& LensModel)
 {
+	if (!DistortionWidget)
+	{
+		DistortionWidget = SNew(SVerticalBox);
+	}
+
+	DistortionWidget->ClearChildren();
+
 	//Find the named distortion parameters the current model has
 	TArray<FText> Parameters;
 	if (LensFile->LensInfo.LensModel)
@@ -508,18 +529,19 @@ TSharedRef<SWidget> SLensEvaluation::MakeDistortionWidget() const
 		.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 		.ShadowOffset(FVector2D(1.0f, 1.0f));
 
+	DistortionWidget->AddSlot()
+		.Padding(0.0f, 5.0f)
+		.AutoHeight()
+		.HAlign(HAlign_Left)
+		[
+			Title
+		]
+	;
+
 	//if there are no parameters, create a simpler widget
 	if (Parameters.Num() <= 0)
 	{
-		return SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.Padding(0.0f, 5.0f)
-			.AutoHeight()
-			.HAlign(HAlign_Left)
-			[
-				Title
-			]
-			+ SVerticalBox::Slot()
+		DistortionWidget->AddSlot()
 			.Padding(0.0f, 5.0f)
 			.AutoHeight()
 			.HAlign(HAlign_Left)
@@ -565,15 +587,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeDistortionWidget() const
 			];
 	}
 
-	return SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.Padding(0.0f, 5.0f)
-		.AutoHeight()
-		.HAlign(HAlign_Left)
-		[
-			Title
-		]
-		+ SVerticalBox::Slot()
+	DistortionWidget->AddSlot()
 		.AutoHeight()
 		.HAlign(HAlign_Left)
 		[

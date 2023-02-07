@@ -42,6 +42,9 @@ public:
 	/** Called every frame */
 	virtual void Tick(float DeltaTime) {};
 
+	/** Returns true if the algo supports the input Lens Model */
+	virtual bool SupportsModel(const TSubclassOf<ULensModel>& LensModel) const { return false; };
+
 	/** Callback when viewport is clicked. Returns false if the event was not handled. */
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return false;  };
 

@@ -27,6 +27,9 @@ class SLensDistortionToolPanel : public SCompoundWidget
 public:
 	void Construct(const FArguments& InArgs, ULensDistortionTool* InTool);
 
+	/** Refreshes the list of available algorithms shown in the AlgosComboBox */
+	void UpdateAlgosOptions();
+
 private:
 
 	/** Builds the wrapper for the currently selected algo UI */
@@ -37,9 +40,6 @@ private:
 
 	/** Updates the UI so that it matches the selected algorithm (if necessary) */
 	void UpdateUI();
-
-	/** Refreshes the list of available algorithms shown in the AlgosComboBox */
-	void UpdateAlgosOptions();
 
 private:
 

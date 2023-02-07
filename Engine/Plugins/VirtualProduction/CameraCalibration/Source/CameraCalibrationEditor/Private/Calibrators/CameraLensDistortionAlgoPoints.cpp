@@ -124,6 +124,11 @@ void UCameraLensDistortionAlgoPoints::Shutdown()
 	LensDistortionTool.Reset();
 }
 
+bool UCameraLensDistortionAlgoPoints::SupportsModel(const TSubclassOf<ULensModel>& LensModel) const
+{
+	return (LensModel == USphericalLensModel::StaticClass());
+}
+
 void UCameraLensDistortionAlgoPoints::Tick(float DeltaTime)
 {
 	if (!LensDistortionTool.IsValid())

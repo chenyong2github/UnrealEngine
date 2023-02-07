@@ -258,6 +258,17 @@ void ULensComponent::PostLoad()
 		bIsDistortionSetup = false;
 	}
 
+	// Cache the currently set LensFile and register for new LensFile events
+	WeakCachedLensFile = LensFilePicker.GetLensFile();
+
+	if (ULensFile* const LensFile = WeakCachedLensFile.Get())
+	{
+		if (!LensFile->OnLensFileModelChanged().IsBoundToObject(this))
+		{
+			LensFile->OnLensFileModelChanged().AddUObject(this, &ULensComponent::OnLensFileModelChanged);
+		}
+	}
+
 #if WITH_EDITOR
 	const int32 UE5MainVersion = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	if (UE5MainVersion < FUE5MainStreamObjectVersion::LensComponentNodalOffset)
@@ -474,6 +485,20 @@ void ULensComponent::SetLensFilePicker(FLensFilePicker LensFile)
 {
 	LensFilePicker = LensFile;
 
+	if (ULensFile* const CachedLensFile = WeakCachedLensFile.Get())
+	{
+		CachedLensFile->OnLensFileModelChanged().RemoveAll(this);
+	}
+
+	WeakCachedLensFile = LensFilePicker.GetLensFile();
+	if (ULensFile* const NewLensFile = WeakCachedLensFile.Get())
+	{
+		if (!NewLensFile->OnLensFileModelChanged().IsBoundToObject(this))
+		{
+			NewLensFile->OnLensFileModelChanged().AddUObject(this, &ULensComponent::OnLensFileModelChanged);
+		}
+	}
+
 	if (DistortionStateSource == EDistortionSource::LensFile)
 	{
 		if (ULensFile* const NewLensFile = LensFilePicker.GetLensFile())
@@ -490,20 +515,11 @@ void ULensComponent::SetLensFilePicker(FLensFilePicker LensFile)
 void ULensComponent::SetLensFile(ULensFile* Lens)
 {
 	// Automatically sets this to false so the component can use the newly set LensFile directly
-	LensFilePicker.bUseDefaultLensFile = false;
-	LensFilePicker.LensFile = Lens;
+	FLensFilePicker NewLensFilePicker;
+	NewLensFilePicker.bUseDefaultLensFile = false;
+	NewLensFilePicker.LensFile = Lens;
 
-	if (DistortionStateSource == EDistortionSource::LensFile)
-	{
-		if (Lens)
-		{
-			SetLensModel(Lens->LensInfo.LensModel);
-		}
-		else
-		{
-			ClearDistortionState();
-		}
-	}
+	SetLensFilePicker(NewLensFilePicker);
 }
 
 EFIZEvaluationMode ULensComponent::GetFIZEvaluationMode() const
@@ -600,6 +616,16 @@ void ULensComponent::SetLensModel(TSubclassOf<ULensModel> Model)
 	{
 		DistortionState.DistortionInfo.Parameters.Empty();
 	}
+
+	OnLensComponentModelChangedDelegate.Broadcast(LensModel);
+}
+
+void ULensComponent::OnLensFileModelChanged(const TSubclassOf<ULensModel>& Model)
+{
+	if (DistortionStateSource == EDistortionSource::LensFile)
+	{
+		SetLensModel(Model);
+	}
 }
 
 FLensDistortionState ULensComponent::GetDistortionState() const
@@ -621,16 +647,16 @@ void ULensComponent::SetDistortionSource(EDistortionSource Source)
 {
 	DistortionStateSource = Source;
 
-	ClearDistortionState();
-
 	// If the new source is a LensFile, update the lens model to match
 	if (DistortionStateSource == EDistortionSource::LensFile)
 	{
 		if (ULensFile* LensFile = LensFilePicker.GetLensFile())
 		{
-			LensModel = LensFile->LensInfo.LensModel;
+			SetLensModel(LensFile->LensInfo.LensModel);
 		}
 	}
+
+	ClearDistortionState();
 }
 
 bool ULensComponent::ShouldApplyDistortion() const

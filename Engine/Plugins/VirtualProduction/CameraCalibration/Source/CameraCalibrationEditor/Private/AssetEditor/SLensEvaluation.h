@@ -10,8 +10,10 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 
-class ULensFile;
 class FCameraCalibrationStepsController;
+class SVerticalBox;
+class ULensFile;
+class ULensModel;
 
 /**
  * Widget using lens file evaluation inputs to evaluate lens file and show resulting data
@@ -23,6 +25,8 @@ public:
 	SLATE_BEGIN_ARGS(SLensEvaluation)
 	{}
 	SLATE_END_ARGS()
+
+	~SLensEvaluation();
 
 	void Construct(const FArguments& InArgs, TWeakPtr<FCameraCalibrationStepsController> StepsController, ULensFile* InLensFile);
 
@@ -63,7 +67,7 @@ private:
 	TSharedRef<SWidget> MakeEvaluatedFIZWidget() const;
 
 	/** Make widget showing distortion data evaluated from LensFile */
-	TSharedRef<SWidget> MakeDistortionWidget() const;
+	void MakeDistortionWidget(const TSubclassOf<ULensModel>& LensModel);
 
 	/** Make widget showing Intrinsic data evaluated from LensFile */
 	TSharedRef<SWidget> MakeIntrinsicsWidget() const;
@@ -85,10 +89,13 @@ private:
 	/** Calibration steps controller */
 	TWeakPtr<FCameraCalibrationStepsController> WeakStepsController;
 
-	//~ Cached LensFile evaluated data
+	/** Cached LensFile evaluated data */
 	FCachedFIZData CachedFIZData;
 	FDistortionInfo CachedDistortionInfo;
 	FFocalLengthInfo CachedFocalLengthInfo;
 	FImageCenterInfo CachedImageCenter;
 	FNodalPointOffset CachedNodalOffset;
+
+	/** Distortion Widget that displays the evaluated distortion parameters */
+	TSharedPtr<SVerticalBox> DistortionWidget;
 };

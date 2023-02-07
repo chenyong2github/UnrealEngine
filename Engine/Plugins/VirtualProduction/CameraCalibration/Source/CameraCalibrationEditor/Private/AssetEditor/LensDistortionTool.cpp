@@ -21,7 +21,6 @@
 #include "ScopedTransaction.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
-#include "SLensDistortionToolPanel.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
@@ -57,6 +56,39 @@ void ULensDistortionTool::Initialize(TWeakPtr<FCameraCalibrationStepsController>
 			}
 		}
 	}
+
+	if (TSharedPtr<FCameraCalibrationStepsController> SharedStepsController = CameraCalibrationStepsController.Pin())
+	{
+		if (ULensFile* const LensFile = SharedStepsController->GetLensFile())
+		{
+			LensFile->OnLensFileModelChanged().AddUObject(this, &ULensDistortionTool::OnLensModelChanged);
+
+			UpdateAlgoMap(LensFile->LensInfo.LensModel);
+		}
+	}
+}
+
+void ULensDistortionTool::OnLensModelChanged(const TSubclassOf<ULensModel>& LensModel)
+{
+	UpdateAlgoMap(LensModel);
+}
+
+void ULensDistortionTool::UpdateAlgoMap(const TSubclassOf<ULensModel>& LensModel)
+{
+	SupportedAlgosMap.Empty();
+	for (const TPair<FName, TSubclassOf<UCameraLensDistortionAlgo>>& AlgoPair : AlgosMap)
+	{
+		const UCameraLensDistortionAlgo* Algo = CastChecked<UCameraLensDistortionAlgo>(AlgoPair.Value->GetDefaultObject());
+
+		if (Algo->SupportsModel(LensModel))
+		{
+			SupportedAlgosMap.Add(AlgoPair);
+		}
+	}
+	if (DistortionWidget)
+	{
+		DistortionWidget->UpdateAlgosOptions();
+	}
 }
 
 void ULensDistortionTool::Shutdown()
@@ -67,6 +99,14 @@ void ULensDistortionTool::Shutdown()
 		CurrentAlgo = nullptr;
 
 		EndCalibrationSession();
+	}
+
+	if (TSharedPtr<FCameraCalibrationStepsController> SharedStepsController = CameraCalibrationStepsController.Pin())
+	{
+		if (ULensFile* const LensFile = SharedStepsController->GetLensFile())
+		{
+			LensFile->OnLensFileModelChanged().RemoveAll(this);
+		}
 	}
 }
 
@@ -95,7 +135,8 @@ bool ULensDistortionTool::OnViewportClicked(const FGeometry& MyGeometry, const F
 
 TSharedRef<SWidget> ULensDistortionTool::BuildUI()
 {
-	return SNew(SLensDistortionToolPanel, this);
+	DistortionWidget = SNew(SLensDistortionToolPanel, this);
+	return DistortionWidget.ToSharedRef();
 }
 
 bool ULensDistortionTool::DependsOnStep(UCameraCalibrationStep* Step) const
@@ -117,6 +158,25 @@ void ULensDistortionTool::Activate()
 void ULensDistortionTool::Deactivate()
 {
 	bIsActive = false;
+}
+
+void ULensDistortionTool::ResetAlgo()
+{
+	// Remove old Algo
+	if (CurrentAlgo)
+	{
+		CurrentAlgo->Shutdown();
+		CurrentAlgo = nullptr;
+
+		EndCalibrationSession();
+	}
+
+	// Set the tool overlay pass' material to the MID associate with the current algo
+	if (TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin())
+	{
+		StepsController->SetOverlayEnabled(false);
+		StepsController->SetOverlayMaterial(nullptr);
+	}
 }
 
 void ULensDistortionTool::SetAlgo(const FName& AlgoName)
@@ -273,7 +333,7 @@ FCameraCalibrationStepsController* ULensDistortionTool::GetCameraCalibrationStep
 TArray<FName> ULensDistortionTool::GetAlgos() const
 {
 	TArray<FName> OutKeys;
-	AlgosMap.GetKeys(OutKeys);
+	SupportedAlgosMap.GetKeys(OutKeys);
 	return OutKeys;
 }
 

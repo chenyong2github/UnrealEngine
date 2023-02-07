@@ -137,6 +137,11 @@ void UCameraLensDistortionAlgoCheckerboard::Shutdown()
 	CalibrationRows.Reset();
 }
 
+bool UCameraLensDistortionAlgoCheckerboard::SupportsModel(const TSubclassOf<ULensModel>& LensModel) const
+{
+	return (LensModel == USphericalLensModel::StaticClass());
+}
+
 void UCameraLensDistortionAlgoCheckerboard::Tick(float DeltaTime)
 {
 	if (!ensure(Tool.IsValid()))

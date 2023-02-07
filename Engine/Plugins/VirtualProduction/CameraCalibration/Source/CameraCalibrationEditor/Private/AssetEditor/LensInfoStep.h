@@ -33,10 +33,13 @@ public:
 public:
 
 	/** Triggered when user edits any of the LensInfo properties */
-	void OnSaveLensInformation();
+	void OnLensInfoChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	/** Triggered when user edits any of the CameraFeedInfo properties */
 	void OnCameraFeedInfoChanged(const FPropertyChangedEvent& PropertyChangedEvent);
+
+	/** Validates the new LensInfo settings and records a transaction for them */
+	void SaveLensInformation();
 
 	/** Reapply the original LensInfo to the LensFile */
 	void ResetToDefault();
@@ -49,7 +52,6 @@ public:
 
 	/** Returns true if the camera feed info has been overriden by the user */
 	bool CameraFeedInfoDiffersFromDefault() const;
-
 
 private:
 	/** Determines the visibility of the aspect ratio warning by comparing the camera feed aspect ratio with that of the camera actor */

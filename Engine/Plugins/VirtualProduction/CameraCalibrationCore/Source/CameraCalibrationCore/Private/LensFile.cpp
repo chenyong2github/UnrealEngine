@@ -217,6 +217,8 @@ void ULensFile::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& P
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensInfo, LensModel))
 		{
+			OnLensFileModelChangedDelegate.Broadcast(LensInfo.LensModel);
+
 			//LensModel has changed, clear distortion and focal length tables
 			LensDataTableUtils::EmptyTable(DistortionTable);
 			LensDataTableUtils::EmptyTable(FocalLengthTable);

@@ -111,6 +111,7 @@ public:
 	//~ Begin UCameraLensDistortionAlgo
 	virtual void Initialize(ULensDistortionTool* InLensDistortionTool) override;
 	virtual void Shutdown() override;
+	virtual bool SupportsModel(const TSubclassOf<ULensModel>& LensModel) const override;
 	virtual void Tick(float DeltaTime) override;
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual TSharedRef<SWidget> BuildUI() override;

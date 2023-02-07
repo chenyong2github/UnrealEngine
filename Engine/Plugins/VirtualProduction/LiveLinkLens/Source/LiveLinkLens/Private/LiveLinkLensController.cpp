@@ -38,18 +38,25 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 	{
 		if (ULensComponent* const LensComponent = Cast<ULensComponent>(GetAttachedComponent()))
 		{
-			UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-			const TSubclassOf<ULensModel> LensModel = SubSystem->GetRegisteredLensModel(StaticData->LensModel);
-			LensComponent->SetLensModel(LensModel);
+			if (LensComponent->GetDistortionSource() == EDistortionSource::LiveLinkLensSubject)
+			{
+				UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+				const TSubclassOf<ULensModel> LensModel = SubSystem->GetRegisteredLensModel(StaticData->LensModel);
 
-			// Update the lens distortion handler with the latest frame of data from the LiveLink source
-			FLensDistortionState DistortionState;
+				if (LensComponent->GetLensModel() != LensModel)
+				{
+					LensComponent->SetLensModel(LensModel);
+				}
 
-			DistortionState.DistortionInfo.Parameters = FrameData->DistortionParameters;
-			DistortionState.FocalLengthInfo.FxFy = FrameData->FxFy;
-			DistortionState.ImageCenter.PrincipalPoint = FrameData->PrincipalPoint;
+				// Update the lens distortion handler with the latest frame of data from the LiveLink source
+				FLensDistortionState DistortionState;
 
-			LensComponent->SetDistortionState(DistortionState);
+				DistortionState.DistortionInfo.Parameters = FrameData->DistortionParameters;
+				DistortionState.FocalLengthInfo.FxFy = FrameData->FxFy;
+				DistortionState.ImageCenter.PrincipalPoint = FrameData->PrincipalPoint;
+
+				LensComponent->SetDistortionState(DistortionState);
+			}
 		}
 	}
 }

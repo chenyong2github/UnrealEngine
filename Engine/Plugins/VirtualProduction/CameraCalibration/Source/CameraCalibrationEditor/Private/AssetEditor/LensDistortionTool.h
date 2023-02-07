@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "CameraCalibrationStep.h"
 #include "ImageCore.h"
+#include "SLensDistortionToolPanel.h"
 
 #include "LensDistortionTool.generated.h"
 
@@ -15,6 +16,7 @@ struct FPointerEvent;
 
 class FJsonObject;
 class UCameraLensDistortionAlgo;
+class ULensModel;
 
 /** Data associated with a lens distortion calibration session */
 struct FLensDistortionSessionInfo
@@ -58,6 +60,9 @@ public:
 	/** Selects the algorithm by name */
 	void SetAlgo(const FName& AlgoName);
 
+	/** Resets the current algo to none */
+	void ResetAlgo();
+
 	/** Returns the currently selected algorithm */
 	UCameraLensDistortionAlgo* GetAlgo() const;
 
@@ -66,6 +71,9 @@ public:
 
 	/** Called by the UI when the user wants to save the calibration data that the current algorithm is providing */
 	void OnSaveCurrentCalibrationData();
+
+	/** Triggered when the Lens Model used by the LensFile changes, allowing the tool to update its list of supported algos */
+	void OnLensModelChanged(const TSubclassOf<ULensModel>& LensModel);
 
 	/** Initiate a new calibration session (if one is not already active) */
 	void StartCalibrationSession();
@@ -95,6 +103,9 @@ private:
 	/** Get the filename of a row with the input index */
 	FString GetRowFilename(int32 RowIndex) const;
 
+	/** Update the list of algos that support the current Lens Model */
+	void UpdateAlgoMap(const TSubclassOf<ULensModel>& LensModel);
+
 public:
 	/** Stores info about the current calibration session of this tool */
 	FLensDistortionSessionInfo SessionInfo;
@@ -112,10 +123,17 @@ private:
 	UPROPERTY(Transient)
 	TMap<FName, TSubclassOf<UCameraLensDistortionAlgo>> AlgosMap;
 
+	/** Holds a subset of the registered algos that support the current Lens Model */
+	UPROPERTY(Transient)
+	TMap<FName, TSubclassOf<UCameraLensDistortionAlgo>> SupportedAlgosMap;
+
 	/** Map of algo names to overlay MIDs used by those algos */
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UMaterialInstanceDynamic>> AlgoOverlayMIDs;
 
 	/** True if this tool is the active one in the panel */
 	bool bIsActive = false;
+
+	/** UI Widget for this Tool */
+	TSharedPtr<SLensDistortionToolPanel> DistortionWidget;
 };

@@ -10,7 +10,12 @@
 
 #include "LensComponent.generated.h"
 
+class FLensComponentDetailCustomization;
 class UCineCameraComponent;
+
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLensComponentModelChanged, const TSubclassOf<ULensModel>&);
+
 
 /** Mode that controls where FIZ inputs are sourced from and how they are used to evaluate the LensFile */
 UENUM(BlueprintType)
@@ -56,6 +61,8 @@ class CAMERACALIBRATIONCORE_API ULensComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
+	friend FLensComponentDetailCustomization;
+
 public:
 	ULensComponent();
 
@@ -75,6 +82,12 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif //WITH_EDITOR
 	//~ End UObject interface
+
+	/** Returns the delegate that is triggered when the LensModel changes */
+	FOnLensComponentModelChanged& OnLensComponentModelChanged() 
+	{ 
+		return OnLensComponentModelChangedDelegate; 
+	}
 
 	/** Get the LensFile picker used by this component */
 	UFUNCTION(BlueprintPure, Category = "Lens Component")
@@ -227,6 +240,9 @@ private:
 	/** Register to the new LiveLink component's callback to be notified when its controller map changes */
 	void OnLiveLinkComponentRegistered(ULiveLinkComponentController* LiveLinkComponent);
 	
+	/** Triggered when the LensFile model changes */
+	void OnLensFileModelChanged(const TSubclassOf<ULensModel>& Model);
+
 	/** Callback executed when a LiveLink component on the same actor ticks */
 	void ProcessLiveLinkData(const ULiveLinkComponentController* const LiveLinkComponent, const FLiveLinkSubjectFrameData& SubjectData);
 
@@ -272,7 +288,7 @@ protected:
 	TSubclassOf<ULensModel> LensModel;
 
 	/** The current distortion state */
-	UPROPERTY(Interp, EditAnywhere, Category = "Distortion", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(Interp, EditAnywhere, Category = "Distortion", meta = (EditCondition = "DistortionStateSource == EDistortionSource::Manual"))
 	FLensDistortionState DistortionState;
 
 	/** Whether to scale the computed overscan by the overscan percentage */
@@ -330,6 +346,9 @@ protected:
 	UPROPERTY()
 	FString TrackedComponentName;
 
+	/** Weak pointer to the currently set LensFile. Useful to unregister events from the previous LensFile when the asset is swapped out */
+	TWeakObjectPtr<ULensFile> WeakCachedLensFile;
+
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property has been deprecated. The LensDistortion component no longer tracks the attached camera's original rotation.")
 	UPROPERTY()
@@ -375,4 +394,7 @@ private:
 
 	/** Latest focal length of the target camera, used to track external changes to the original (no overscan applied) focal length */
 	float LastFocalLength = -1.0f;
+
+	/** Delegate that is triggered when the LensModel changes */
+	FOnLensComponentModelChanged OnLensComponentModelChangedDelegate;
 };

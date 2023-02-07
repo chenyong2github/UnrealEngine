@@ -38,14 +38,7 @@ TSharedRef<SWidget> ULensInfoStep::BuildUI()
 	TSharedRef<FStructOnScope> LensInfoStructOnScope = MakeShared<FStructOnScope>(FLensInfo::StaticStruct(), reinterpret_cast<uint8*>(&LensFile->LensInfo));
 	TSharedPtr<IStructureDetailsView> LensInfoStructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, LensInfoStructDetailsView, LensInfoStructOnScope);
 
-	LensInfoStructureDetailsView->GetOnFinishedChangingPropertiesDelegate().AddLambda([&](const FPropertyChangedEvent& PropertyChangedEvent)
-	{
-		// Ignore temporary interaction (dragging sliders, etc.)
-		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
-		{
-			OnSaveLensInformation();
-		}
-	});
+	LensInfoStructureDetailsView->GetDetailsView()->OnFinishedChangingProperties().AddUObject(this, &ULensInfoStep::OnLensInfoChanged);
 
 	/** Camera Feed Info Details View */
 	FStructureDetailsViewArgs CameraFeedInfoStructDetailsView;
@@ -152,14 +145,39 @@ void ULensInfoStep::Deactivate()
 	bIsActive = false;
 }
 
-void ULensInfoStep::OnSaveLensInformation()
+void ULensInfoStep::OnLensInfoChanged(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Ignore temporary interaction (dragging sliders, etc.)
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::ValueSet)
+	{
+		return;
+	}
+
+	const FName PropertyName = PropertyChangedEvent.Property->GetFName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensInfo, LensModel))
+	{
+		if (ULensFile* const LensFile = CameraCalibrationStepsController.Pin()->GetLensFile())
+		{
+			LensFile->OnLensFileModelChanged().Broadcast(LensFile->LensInfo.LensModel);
+		}
+	}
+
+	SaveLensInformation();
+}
+
+void ULensInfoStep::SaveLensInformation()
 {
 	if (!CameraCalibrationStepsController.IsValid())
 	{
 		return;
 	}
 
-	ULensFile* LensFile = CameraCalibrationStepsController.Pin()->GetLensFile();
+	ULensFile* const LensFile = CameraCalibrationStepsController.Pin()->GetLensFile();
+	if (!LensFile)
+	{
+		return;
+	}
 
 	// Validate sensor dimensions
 	constexpr float MinimumSize = 1.0f; // Limit sensor dimension to 1mm
@@ -305,7 +323,7 @@ void ULensInfoStep::ResetToDefault()
 {
 	ULensFile* LensFile = CameraCalibrationStepsController.Pin()->GetLensFile();
 	LensFile->LensInfo = OriginalLensInfo;
-	OnSaveLensInformation();
+	SaveLensInformation();
 }
 
 bool ULensInfoStep::DiffersFromDefault() const

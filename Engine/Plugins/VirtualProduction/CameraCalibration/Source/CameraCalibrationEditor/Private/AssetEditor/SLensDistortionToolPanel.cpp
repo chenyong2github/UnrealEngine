@@ -132,18 +132,19 @@ void SLensDistortionToolPanel::UpdateUI()
 	const UCameraLensDistortionAlgo* OldAlgo = Tool->GetAlgo();
 
 	// Set new algo by name
-	const FName AlgoName(*AlgosComboBox->GetSelectedItem());
-	Tool->SetAlgo(AlgoName);
+	TSharedPtr<FString> SelectedAlgo = AlgosComboBox->GetSelectedItem();
+	if (!SelectedAlgo)
+	{
+		Tool->ResetAlgo();
+	}
+	else
+	{
+		const FName AlgoName(*SelectedAlgo);
+		Tool->SetAlgo(AlgoName);
+	}
 
 	// Get the new algo
 	UCameraLensDistortionAlgo* Algo = Tool->GetAlgo();
-
-	// nullptr may indicate that it was unregistered, so refresh combobox options.
-	if (!Algo)
-	{
-		UpdateAlgosOptions();
-		return;
-	}
 
 	// If we didn't change the algo, we're done here.
 	if (Algo == OldAlgo)
@@ -154,6 +155,13 @@ void SLensDistortionToolPanel::UpdateUI()
 	// Remove old UI
 	check(UI.IsValid());
 	UI->ClearChildren();
+
+	// nullptr may indicate that it was unregistered, so refresh combobox options.
+	if (!Algo)
+	{
+		UpdateAlgosOptions();
+		return;
+	}
 
 	// Assign GUI
 	UI->AddSlot() [Algo->BuildUI()];
@@ -173,6 +181,16 @@ void SLensDistortionToolPanel::UpdateAlgosOptions()
 	for (FName& AlgoName : Tool->GetAlgos())
 	{
 		CurrentAlgos.Add(MakeShared<FString>(AlgoName.ToString()));
+	}
+
+	// Pick the first option by default (if available)
+	if (CurrentAlgos.Num())
+	{
+		AlgosComboBox->SetSelectedItem(CurrentAlgos[0]);
+	}
+	else
+	{
+		AlgosComboBox->SetSelectedItem(nullptr);
 	}
 
 	// Ask the ComboBox to refresh its options from its source (that we just updated)
