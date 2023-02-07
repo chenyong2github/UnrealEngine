@@ -35,6 +35,9 @@ struct CHAOS_API FAABBTreeCVars
 
 	static int32 DynamicTreeLeafCapacity;
 	static FAutoConsoleVariableRef CVarDynamicTreeLeafCapacity;
+
+	static bool DynamicTreeSkipCheckAuntOnRotate;
+	static FAutoConsoleVariableRef CVarDynamicTreeSkipCheckAuntOnRotate;
 };
 
 struct CHAOS_API FAABBTreeDirtyGridCVars
@@ -1399,8 +1402,11 @@ public:
 			}
 		}
 
+		// Speculative fix for FORT-562490 introduced past hardlock, change protected with cvar.
+		const bool bValidAunt = FAABBTreeCVars::DynamicTreeSkipCheckAuntOnRotate || (BestAuntToSwap != INDEX_NONE);
+
 		// Now do the rotation if required
-		if (BestGrandChildToSwap != INDEX_NONE)
+		if (BestGrandChildToSwap != INDEX_NONE && bValidAunt)
 		{
 			if (debugAssert)
 			{

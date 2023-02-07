@@ -30,3 +30,6 @@ FAutoConsoleVariableRef FAABBTreeCVars::CVarDynamicTreeBoundingBoxPadding(TEXT("
 
 int32 FAABBTreeCVars::DynamicTreeLeafCapacity = 8;
 FAutoConsoleVariableRef FAABBTreeCVars::CVarDynamicTreeLeafCapacity(TEXT("p.aabbtree.DynamicTreeLeafCapacity"), FAABBTreeCVars::DynamicTreeLeafCapacity, TEXT("Dynamic Tree Leaf Capacity"));
+
+bool FAABBTreeCVars::DynamicTreeSkipCheckAuntOnRotate = false;
+FAutoConsoleVariableRef FAABBTreeCVars::CVarDynamicTreeSkipCheckAuntOnRotate(TEXT("p.aabbtree.DynamicTreeSkipCheckAuntOnRotate"), FAABBTreeCVars::DynamicTreeSkipCheckAuntOnRotate, TEXT("When rotating a node to balance a dynamic tree, do not check validity of aunt node before rotating"));

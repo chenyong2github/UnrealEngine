@@ -45,6 +45,9 @@ TAutoConsoleVariable<int32> CVar_ChaosUpdateKinematicsOnDeferredSkelMeshes(TEXT(
 int32 GEnableKinematicDeferralStartPhysicsCondition = 1;
 FAutoConsoleVariableRef CVar_EnableKinematicDeferralStartPhysicsCondition(TEXT("p.EnableKinematicDeferralStartPhysicsCondition"), GEnableKinematicDeferralStartPhysicsCondition, TEXT("If is 1, allow kinematics to be deferred in start physics (probably only called from replication tick). If 0, no deferral in startphysics."));
 
+bool GKinematicDeferralCheckValidBodies = true;
+FAutoConsoleVariableRef CVar_KinematicDeferralCheckValidBodies(TEXT("p.KinematicDeferralCheckValidBodies"), GKinematicDeferralCheckValidBodies, TEXT("If true, don't attempt to update deferred kinematic skeletal mesh bodies which are pending delete."));
+
 DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_UpdateKinematicsOnDeferredSkelMeshesChaos, STATGROUP_Physics);
 
 struct FPendingAsyncPhysicsCommand
@@ -1467,7 +1470,17 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 				for (int32 i = 0; i < NumBodies; i++)
 				{
 					FBodyInstance* BodyInst = SkelComp->Bodies[i];
+					if (GKinematicDeferralCheckValidBodies && (BodyInst == nullptr || !BodyInst->IsValidBodyInstance()))
+					{
+						continue;
+					}
+
 					FPhysicsActorHandle& ActorHandle = BodyInst->ActorHandle;
+					if (GKinematicDeferralCheckValidBodies && (ActorHandle == nullptr || ActorHandle->GetMarkedDeleted()))
+					{
+						continue;
+					}
+
 					if (!BodyInst->IsInstanceSimulatingPhysics())
 					{
 						const int32 BoneIndex = BodyInst->InstanceBoneIndex;
@@ -1519,7 +1532,17 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 				for (int32 i = 0; i < NumBodies; i++)
 				{
 					FBodyInstance* BodyInst = SkelComp->Bodies[i];
+					if (GKinematicDeferralCheckValidBodies && (BodyInst == nullptr || !BodyInst->IsValidBodyInstance()))
+					{
+						continue;
+					}
+
 					FPhysicsActorHandle& ActorHandle = BodyInst->ActorHandle;
+					if (GKinematicDeferralCheckValidBodies && (ActorHandle == nullptr || ActorHandle->GetMarkedDeleted()))
+					{
+						continue;
+					}
+
 					Chaos::FRigidBodyHandle_External& Body_External = ActorHandle->GetGameThreadAPI();
 					if (!BodyInst->IsInstanceSimulatingPhysics())
 					{
