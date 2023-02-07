@@ -6958,11 +6958,6 @@ FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher, IAsync
 	, UncookedPackageLoader(InUncookedPackageLoader)
 	, PackageStore(FPackageStore::Get())
 {
-#if !WITH_EDITOR
-	IsEventDrivenLoaderEnabled(); // make sure the one time init inside runs
-	GEventDrivenLoaderEnabled = true;
-#endif
-
 	EventQueue.SetZenaphore(&AltZenaphore);
 
 	AsyncPackageLookup.Reserve(DefaultAsyncPackagesReserveCount);

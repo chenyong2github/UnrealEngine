@@ -557,15 +557,11 @@ void UMaterialInterface::InitDefaultMaterials()
 		}
 
 		RecursionLevel--;
-#if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
-		bInitialized = !GEventDrivenLoaderEnabled || RecursionLevel == 0;
-#else
-		bInitialized = true;
-#endif
+		bInitialized = RecursionLevel == 0;
 
 		// Now precache PSOs for all the default materials after the default materials are marked initialize
 		// PSO precaching can request default materials so they have to marked as initialized to avoid endless recursion
-		if (PipelineStateCache::IsPSOPrecachingEnabled())
+		if (bInitialized && PipelineStateCache::IsPSOPrecachingEnabled())
 		{
 			TArray<FMaterialPSOPrecacheRequestID> MaterialPrecacheRequestIDs;
 
@@ -657,7 +653,10 @@ void UMaterialInterface::PostLoadDefaultMaterials()
 		if (GPoolSpecialMaterialsCompileJobs == true)
 		{
 			GPoolSpecialMaterialsCompileJobs = false;
-			GShaderCompilingManager->FinishAllCompilation();
+			if (GShaderCompilingManager)
+			{
+				GShaderCompilingManager->FinishAllCompilation();
+			}
 		}
 	}
 }
