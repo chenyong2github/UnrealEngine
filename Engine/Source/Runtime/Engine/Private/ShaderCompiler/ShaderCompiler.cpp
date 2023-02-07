@@ -752,7 +752,7 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 	{
 		const bool bAddToDDC = !(FinishedJob->bIsDefaultMaterial || FinishedJob->bIsGlobalShader);
 		// we only cache jobs that succeded
-		CompletedJobsCache.Add(InputHash, Buffer, NumOutstandingJobsWithSameHash, bAddToDDC);
+		CompletedJobsCache.AddJobOutput(FinishedJob, InputHash, Buffer, NumOutstandingJobsWithSameHash, bAddToDDC);
 	}
 
 	// remove ourselves from the jobs in flight, if we were there (if this job is a cloned job it might not have been)
@@ -927,6 +927,13 @@ static FAutoConsoleVariableRef CVarDumpShaderDebugInfo(
 	TEXT("Global shaders automatically dump debug info if r.ShaderDevelopmentMode is enabled, this cvar is not necessary.\n")
 	TEXT("On iOS, if the PowerVR graphics SDK is installed to the default path, the PowerVR shader compiler will be called and errors will be reported during the cook.")
 	);
+
+static TAutoConsoleVariable<bool> CVarDumpShaderOutputCacheHits(
+	TEXT("r.DumpShaderOutputCacheHits"),
+	false,
+	TEXT("Dumps shader output bytecode and cache hits with reference to original output.\n")
+	TEXT("Dumping shader output bytecode for all compile shaders also requires CVar r.DumpShaderDebugInfo=1."),
+	ECVF_ReadOnly);
 
 static int32 GDumpShaderDebugInfoShort = 0;
 static FAutoConsoleVariableRef CVarDumpShaderDebugShortNames(
@@ -8502,6 +8509,9 @@ public:
 	/** Canned output */
 	FSharedBuffer JobOutput;
 
+	/** Path to where the cached debug info is stored. */
+	FString CachedDebugInfoPath;
+
 	/** Similar to FRefCountBase AddRef, but not atomic */
 	int32 AddRef()
 	{
@@ -8650,7 +8660,7 @@ FShaderJobCache::~FShaderJobCache()
 	}
 }
 
-void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents, int32 InitialHitCount, const bool bAddToDDC)
+void FShaderJobCache::AddJobOutput(const FShaderCommonCompileJob* FinishedJob, const FJobInputHash& Hash, const FJobCachedOutput& Contents, int32 InitialHitCount, const bool bAddToDDC)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderJobCache::Add);
 
@@ -8667,6 +8677,23 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 
 	FJobOutputHash OutputHash = FBlake3::HashBuffer(Contents.GetData(), Contents.GetSize());
 
+	const bool bDumpCachedDebugInfo = CVarDumpShaderOutputCacheHits.GetValueOnAnyThread();
+
+	// Get dump shader debug output path
+	FString InputDebugInfoPath, InputSourceFilename;
+	if (bDumpCachedDebugInfo)
+	{
+		if (const FShaderCompileJob* SingleJob = FinishedJob->GetSingleShaderJob())
+		{
+			const FShaderCompilerInput& Input = SingleJob->Input;
+			if (!Input.DumpDebugInfoPath.IsEmpty())
+			{
+				InputDebugInfoPath = Input.DumpDebugInfoPath;
+				InputSourceFilename = FPaths::GetBaseFilename(Input.GetSourceFilename());
+			}
+		}
+	}
+
 	// add the record
 	const uint64 InputHashToOutputOriginalSize = InputHashToOutput.GetAllocatedSize();
 
@@ -8679,7 +8706,19 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 	if (CannedOutput && (bCachePerShaderDDC == false))
 	{
 		// update the output hit count
-		(*CannedOutput)->AddRef();
+		const int32 NumRef = (*CannedOutput)->AddRef();
+
+		if (bDumpCachedDebugInfo)
+		{
+			// Write cache hit debug file
+			const FString& CachedDebugInfoPath = (*CannedOutput)->CachedDebugInfoPath;
+			if (!CachedDebugInfoPath.IsEmpty())
+			{
+				const int32 CacheHit = NumRef - 1;
+				const FString CacheHitFilename = FString::Printf(TEXT("%s/%s.%d.cachehit"), *CachedDebugInfoPath, *InputSourceFilename, CacheHit);
+				FFileHelper::SaveStringToFile(InputDebugInfoPath, *CacheHitFilename);
+			}
+		}
 	}
 	else
 	{
@@ -8688,11 +8727,21 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 		FStoredOutput* NewStoredOutput = new FStoredOutput();
 		NewStoredOutput->NumHits = InitialHitCount;
 		NewStoredOutput->JobOutput = Contents;
-
+		NewStoredOutput->CachedDebugInfoPath = InputDebugInfoPath;
 		NewStoredOutput->AddRef();
 		Outputs.Add(OutputHash, NewStoredOutput);
 
 		CurrentlyAllocatedMemory += NewStoredOutput->GetAllocatedSize();
+
+		if (bDumpCachedDebugInfo)
+		{
+			// Write new allocated cache file
+			if (!InputDebugInfoPath.IsEmpty())
+			{
+				const FString CacheFilename = FString::Printf(TEXT("%s/%s.bytecode"), *InputDebugInfoPath, *InputSourceFilename);
+				FFileHelper::SaveArrayToFile(NewStoredOutput->JobOutput, *CacheFilename);
+			}
+		}
 
 #if WITH_EDITOR
 		if (bCachePerShaderDDC)

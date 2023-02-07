@@ -59,7 +59,7 @@ public:
 	FJobCachedOutput* Find(const FJobInputHash& Hash, const bool bCheckDDC);
 
 	/** Adds a job output to the cache */
-	void Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents, int InitialHitCount, const bool bAddToDDC);
+	void AddJobOutput(const FShaderCommonCompileJob* FinishedJob, const FJobInputHash& Hash, const FJobCachedOutput& Contents, int InitialHitCount, const bool bAddToDDC);
 
 	/** Calculates memory used by the cache*/
 	uint64 GetAllocatedMemory();
