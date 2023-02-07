@@ -1138,7 +1138,7 @@ bool DoCompileMetalShader(
 				CCHeaderWriter.WriteSideTable(TEXT("spvBufferSizeConstants"), SideTableIndex);
 			}
 
-			CCHeaderWriter.WriteSourceInfo(*Input.GetSourceFilename(), *Input.EntryPointName, *Input.DebugGroupName);
+			CCHeaderWriter.WriteSourceInfo(*Input.VirtualSourceFilePath, *Input.EntryPointName);
 			CCHeaderWriter.WriteCompilerInfo();
 
 			FString MetaData = CCHeaderWriter.ToString();

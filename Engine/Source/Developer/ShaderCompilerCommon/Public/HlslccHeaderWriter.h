@@ -22,7 +22,7 @@ namespace CrossCompiler
 	{
 	public:
 
-		void WriteSourceInfo(const TCHAR* SourceName, const TCHAR* EntryPointName, const TCHAR* DebugGroupName = nullptr);
+		void WriteSourceInfo(const TCHAR* VirtualSourceFilePath, const TCHAR* EntryPointName);
 		void WriteCompilerInfo(const TCHAR* CompilerName = TEXT("ShaderConductor"));
 
 		void WriteInputAttribute(const SpvReflectInterfaceVariable& Attribute);

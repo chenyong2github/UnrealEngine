@@ -21,18 +21,11 @@ namespace CrossCompiler
 		MetaData += FString::Printf(Fmt, Args...);
 	}
 
-	void FHlslccHeaderWriter::WriteSourceInfo(const TCHAR* SourceName, const TCHAR* EntryPointName, const TCHAR* DebugGroupName)
+	void FHlslccHeaderWriter::WriteSourceInfo(const TCHAR* VirtualSourceFilePath, const TCHAR* EntryPointName)
 	{
-		check(SourceName != nullptr);
+		check(VirtualSourceFilePath != nullptr);
 		check(EntryPointName != nullptr);
-		if (DebugGroupName != nullptr)
-		{
-			Strings.SourceInfo = FString::Printf(TEXT("%s/%s:%s"), DebugGroupName, SourceName, EntryPointName);
-		}
-		else
-		{
-			Strings.SourceInfo = FString::Printf(TEXT("%s:%s"), SourceName, EntryPointName);
-		}
+		Strings.SourceInfo = FString::Printf(TEXT("%s:%s"), VirtualSourceFilePath, EntryPointName);
 	}
 
 	void FHlslccHeaderWriter::WriteCompilerInfo(const TCHAR* CompilerName)

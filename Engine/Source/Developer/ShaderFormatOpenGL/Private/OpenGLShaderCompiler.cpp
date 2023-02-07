@@ -3240,7 +3240,7 @@ static bool CompileToGlslWithShaderConductor(
 		}
 
 		// Generate meta data for CCHeader
-		CCHeaderWriter.WriteSourceInfo(*Input.GetSourceFilename(), *Input.EntryPointName, *Input.DebugGroupName);
+		CCHeaderWriter.WriteSourceInfo(*Input.VirtualSourceFilePath, *Input.EntryPointName);
 		CCHeaderWriter.WriteCompilerInfo();
 
 		if (GlslSource.length() > 0)

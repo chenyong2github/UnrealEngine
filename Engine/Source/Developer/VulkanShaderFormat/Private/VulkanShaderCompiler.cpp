@@ -1885,7 +1885,7 @@ static bool BuildShaderOutputFromSpirv(
 	// Build final shader output with meta data
 	FString DebugName = Input.DumpDebugInfoPath.Right(Input.DumpDebugInfoPath.Len() - Input.DumpDebugInfoRootPath.Len());
 
-	CCHeaderWriter.WriteSourceInfo(*Input.GetSourceFilename(), *Input.EntryPointName, *Input.DebugGroupName);
+	CCHeaderWriter.WriteSourceInfo(*Input.VirtualSourceFilePath, *Input.EntryPointName);
 	CCHeaderWriter.WriteCompilerInfo();
 
 	const FString MetaData = CCHeaderWriter.ToString();
