@@ -20,6 +20,8 @@
 #include "../ColorMap.ush"
 #endif
 
+#pragma warning (default:7203) // downgrade 'not enough registers available for the entire program.' to a warning instead of error
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Guides
 struct FGuideData
