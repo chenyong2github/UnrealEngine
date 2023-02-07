@@ -24,9 +24,9 @@ void SDMXFixtureModeEditor::Construct(const FArguments& InArgs, const TSharedRef
 	FixtureTypeSharedData = InDMXEditor->GetFixtureTypeSharedData();
 
 	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXFixtureModeEditor::OnFixtureTypePropertiesChanged);
-	FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureModeEditor::Refresh);
-	FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureModeEditor::Refresh);
-	FixtureTypeSharedData->OnModesSelected.AddSP(this, &SDMXFixtureModeEditor::Refresh);
+	FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureModeEditor::RequestRefresh);
+	FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureModeEditor::RequestRefresh);
+	FixtureTypeSharedData->OnModesSelected.AddSP(this, &SDMXFixtureModeEditor::RequestRefresh);
 
 	// Create a Struct Details View. This is not the most convenient type to work with as a property type customization for the FDMXFixtureMode struct cannot be used.
 	// Reason is soley significant performance gains, it's much faster than the easier approach with a UDMXEntityFixtureType customization as it was used up to 4.27.
@@ -71,7 +71,15 @@ void SDMXFixtureModeEditor::Construct(const FArguments& InArgs, const TSharedRef
 		]
 	];
 
-	Refresh();
+	RefreshInternal();
+}
+
+void SDMXFixtureModeEditor::RequestRefresh()
+{
+	if (!RefreshHandle.IsValid())
+	{
+		RefreshHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXFixtureModeEditor::RefreshInternal));
+	}
 }
 
 void SDMXFixtureModeEditor::NotifyPreChange(FProperty* PropertyAboutToChange)
@@ -144,7 +152,7 @@ void SDMXFixtureModeEditor::NotifyPostChange(const FPropertyChangedEvent& Proper
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, bFixtureMatrixEnabled))
 		{
 			FixtureTypeSharedData->SetFunctionAndMatrixSelection(TArray<int32>(), ModeBeingEditedPtr->bFixtureMatrixEnabled);
-			Refresh();
+			RequestRefresh();
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, bAutoChannelSpan))
 		{
@@ -152,7 +160,7 @@ void SDMXFixtureModeEditor::NotifyPostChange(const FPropertyChangedEvent& Proper
 			{
 				FixtureType->UpdateChannelSpan(ModeIndex);
 			}
-			Refresh();
+			RequestRefresh();
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureCellAttribute, DataType))
 		{
@@ -161,7 +169,7 @@ void SDMXFixtureModeEditor::NotifyPostChange(const FPropertyChangedEvent& Proper
 			FixtureType->SetFixtureMatrixEnabled(ModeIndex, true);
 
 			FixtureType->UpdateChannelSpan(ModeIndex);
-			Refresh();
+			RequestRefresh();
 		}
 		FPropertyChangedEvent ObjectPropertyChangedEvent(PropertyChangedEvent);
 		FixtureType->PostEditChangeProperty(ObjectPropertyChangedEvent);
@@ -170,8 +178,10 @@ void SDMXFixtureModeEditor::NotifyPostChange(const FPropertyChangedEvent& Proper
 	Transaction.Reset();
 }
 
-void SDMXFixtureModeEditor::Refresh()
+void SDMXFixtureModeEditor::RefreshInternal()
 {
+	RefreshHandle.Invalidate();
+
 	const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& SelectedFixtureTypes = FixtureTypeSharedData->GetSelectedFixtureTypes();
 	const TArray<int32>& SelectedModeIndices = FixtureTypeSharedData->GetSelectedModeIndices();
 
@@ -232,7 +242,7 @@ void SDMXFixtureModeEditor::OnFixtureTypePropertiesChanged(const UDMXEntityFixtu
 {
 	if (!Transaction.IsValid() && FixtureType == WeakFixtureType.Get())
 	{
-		Refresh();
+		RequestRefresh();
 	}
 }
 

@@ -33,6 +33,9 @@ public:
 	/** Constructs this widget */
 	void Construct(const FArguments& InArgs, const TSharedRef<FDMXEditor>& InDMXEditor);
 
+	/** Requests to refresh the widget on the next tick */
+	void RequestRefresh();
+
 protected:
 	//~ Begin FNotifyHook Interface
 	virtual void NotifyPreChange(FProperty* PropertyAboutToChange) override;
@@ -40,8 +43,8 @@ protected:
 	//~ End FNotifyHook Interface
 
 private:
-	/** Refereshes the Mode displayed */
-	void Refresh();
+	/** Refereshes the Mode displayed instantly */
+	void RefreshInternal();
 
 	/** Sets the Mode that is being edited */
 	void SetMode(UDMXEntityFixtureType* InFixtureType, int32 InModeIndex);
@@ -72,6 +75,9 @@ private:
 
 	/** Text block that displays info in case the struct details view cannot be shown */
 	TSharedPtr<STextBlock> InfoTextBlock;
+
+	/** Timer handle set while refresh is requested but not carried out yet */
+	FTimerHandle RefreshHandle;
 
 	/** Shared Data for */
 	TSharedPtr<FDMXFixtureTypeSharedData> FixtureTypeSharedData;
