@@ -20,9 +20,8 @@ void FBaseSessionFilterService::GetRootObjects(TArray<FTraceObjectInfo>& OutObje
 	const TraceServices::IChannelProvider* ChannelProvider = Session->ReadProvider<TraceServices::IChannelProvider>("ChannelProvider");
 	if (ChannelProvider)
 	{
-		const uint64 ChannelCount = ChannelProvider->GetChannelCount();		
 		const TArray<TraceServices::FChannelEntry>& Channels = ChannelProvider->GetChannels();
-		for (uint64 ChannelIndex = 0; ChannelIndex < Channels.Num(); ++ChannelIndex)
+		for (int32 ChannelIndex = 0; ChannelIndex < Channels.Num(); ++ChannelIndex)
 		{
 			FTraceObjectInfo& EventInfo = OutObjects.AddDefaulted_GetRef();
 			EventInfo.Name = Channels[ChannelIndex].Name;
@@ -83,9 +82,8 @@ void FBaseSessionFilterService::DisableAllChannels()
 	const TraceServices::IChannelProvider* ChannelProvider = Session->ReadProvider<TraceServices::IChannelProvider>("ChannelProvider");
 	if (ChannelProvider)
 	{
-		const uint64 ChannelCount = ChannelProvider->GetChannelCount();
 		const TArray<TraceServices::FChannelEntry>& Channels = ChannelProvider->GetChannels();
-		for (uint64 ChannelIndex = 0; ChannelIndex < Channels.Num(); ++ChannelIndex)
+		for (int32 ChannelIndex = 0; ChannelIndex < Channels.Num(); ++ChannelIndex)
 		{
 			SetObjectFilterState(Channels[ChannelIndex].Name, false);
 		}

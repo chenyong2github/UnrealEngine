@@ -37,7 +37,8 @@ void FSessionTraceFilterService::OnApplyChannelChanges()
 		return;
 	}
 
-	const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByTraceId(Handle);
+	const uint32 TraceId = static_cast<uint32>(Handle);
+	const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByTraceId(TraceId);
 
 	if (!SessionInfo)
 	{
