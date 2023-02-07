@@ -101,12 +101,19 @@ public:
 	FSparseVolumeTextureSceneProxy();
 	virtual ~FSparseVolumeTextureSceneProxy() override;
 
-	void InitializeRuntimeData(FSparseVolumeTextureRuntime& SparseVolumeTextureRuntime);
+	FSparseVolumeTextureRuntime& GetRuntimeData()
+	{
+		return SparseVolumeTextureRuntime;
+	}
+
+	const FSparseVolumeTextureRuntime& GetRuntimeData() const
+	{
+		return SparseVolumeTextureRuntime;
+	}
 
 	const FSparseVolumeAssetHeader& GetHeader() const 
 	{
-		check(SparseVolumeTextureRuntime);
-		return SparseVolumeTextureRuntime->Header;
+		return SparseVolumeTextureRuntime.Header;
 	}
 
 	FTextureRHIRef GetPhysicalTileDataATextureRHI() const
@@ -122,12 +129,14 @@ public:
 		return PageTableTextureRHI;
 	}
 
+	void GetMemorySize(SIZE_T* SizeCPU, SIZE_T* SizeGPU) const;
+
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 
 private:
 
-	FSparseVolumeTextureRuntime*		SparseVolumeTextureRuntime;
+	FSparseVolumeTextureRuntime			SparseVolumeTextureRuntime;
 
 	FTextureRHIRef						PageTableTextureRHI;
 	FTextureRHIRef						PhysicalTileDataATextureRHI;
@@ -140,11 +149,8 @@ struct ENGINE_API FSparseVolumeTextureFrame
 	// The frame data that can be streamed in when in game.
 	FByteBulkData						RuntimeStreamedInData;
 
-	// The runtime frame data that is created.
-	FSparseVolumeTextureRuntime			SparseVolumeTextureRuntime;
-
 	// The render side proxy for the sparse volume texture asset.
-	FSparseVolumeTextureSceneProxy		SparseVolumeTextureSceneProxy;
+	FSparseVolumeTextureSceneProxy*		SparseVolumeTextureSceneProxy;
 
 #if WITH_EDITORONLY_DATA
 	/** The raw data that can be loaded when we want to update cook the data with different settings or updated code without re importing. */
@@ -153,7 +159,7 @@ struct ENGINE_API FSparseVolumeTextureFrame
 
 	FSparseVolumeTextureFrame();
 	virtual ~FSparseVolumeTextureFrame();
-	bool BuildRuntimeData();
+	bool BuildRuntimeData(FSparseVolumeTextureRuntime* OutRuntimeData);
 	void Serialize(FArchive& Ar, UStreamableSparseVolumeTexture* Owner, int32 FrameIndex);
 };
 
@@ -179,9 +185,8 @@ public:
 	virtual ~USparseVolumeTexture() = default;
 
 	virtual int32 GetFrameCount() const { return 0; }
-	virtual const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader() const { return nullptr; }
-	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return nullptr; }
 	virtual FBox GetVolumeBounds() const { return FBox(); }
+	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return nullptr; }
 
 	/** Getter for the shader uniform parameters with index as ESparseVolumeTextureShaderUniform. */
 	FVector4 GetUniformParameter(int32 Index) const;
@@ -204,26 +209,37 @@ class UStreamableSparseVolumeTexture : public USparseVolumeTexture
 
 public:
 
+	UPROPERTY(VisibleAnywhere, Category = "Rendering", meta = (DisplayName = "Volume Bounds"))
+	FBox VolumeBounds;
+
 	UStreamableSparseVolumeTexture();
 	virtual ~UStreamableSparseVolumeTexture() = default;
 
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
+	virtual void FinishDestroy() override;
 	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	//~ End UObject Interface.
 
+	//~ Begin USparseVolumeTexture Interface.
+	int32 GetFrameCount() const override { return Frames.Num(); }
+	FBox GetVolumeBounds() const override { return VolumeBounds; };
+	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return GetStreamedFrameProxyOrFallback(0); };
+	//~ End USparseVolumeTexture Interface.
+
 	const FSparseVolumeTextureSceneProxy* GetStreamedFrameProxyOrFallback(int32 FrameIndex) const;
+	TArrayView<const FSparseVolumeTextureFrame> GetFrames() const;
 
 protected:
 	TArray<FSparseVolumeTextureFrame, TInlineAllocator<1u>> Frames;
 
 	void GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
 	void GenerateOrLoadDDCRuntimeDataForFrame(FSparseVolumeTextureFrame& Frame, UE::DerivedData::FRequestOwner& DDCRequestOwner);
-	void ConvertRawSourceDataToSparseVolumeTextureRuntime(FSparseVolumeTextureFrame& Frame);
 };
 
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
@@ -233,21 +249,11 @@ class ENGINE_API UStaticSparseVolumeTexture : public UStreamableSparseVolumeText
 
 public:
 
-	UPROPERTY(VisibleAnywhere, Category = "Rendering", meta = (DisplayName = "Volume Bounds"))
-	FBox VolumeBounds;
-
 	UStaticSparseVolumeTexture();
 	virtual ~UStaticSparseVolumeTexture() = default;
 
-	//~ Begin UObject Interface.
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	//~ End UObject Interface.
-
 	//~ Begin USparseVolumeTexture Interface.
 	int32 GetFrameCount() const override { return 1; }
-	const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader() const override;
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override;
-	FBox GetVolumeBounds() const override;
 	//~ End USparseVolumeTexture Interface.
 
 private:
@@ -265,25 +271,11 @@ class ENGINE_API UAnimatedSparseVolumeTexture : public UStreamableSparseVolumeTe
 
 public:
 
-	// The asset frame count.
-	UPROPERTY(VisibleAnywhere, Category = "Animation", meta = (DisplayName = "Frame Count"))
-	int32 FrameCount = 0;
-
-	UPROPERTY(VisibleAnywhere, Category = "Rendering", meta = (DisplayName = "Volume Bounds"))
-	FBox VolumeBounds;
-
 	UAnimatedSparseVolumeTexture();
 	virtual ~UAnimatedSparseVolumeTexture() = default;
 
-	//~ Begin UObject Interface.
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	//~ End UObject Interface.
-
 	//~ Begin USparseVolumeTexture Interface.
-	int32 GetFrameCount() const override { return FrameCount; }
-	const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader() const override;
 	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override;
-	FBox GetVolumeBounds() const override;
 	//~ End USparseVolumeTexture Interface.
 
 	// Used for debugging a specific frame of an animated sequence.
@@ -311,19 +303,17 @@ public:
 
 	static USparseVolumeTextureFrame* CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex);
 
-	void Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FSparseVolumeAssetHeader* InAssetHeader, const FBox& InVolumeBounds);
+	void Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FBox& InVolumeBounds);
 
 	//~ Begin USparseVolumeTexture Interface.
 	int32 GetFrameCount() const override { return 1; }
-	const FSparseVolumeAssetHeader* GetSparseVolumeTextureHeader() const override;
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override;
-	FBox GetVolumeBounds() const override;
+	FBox GetVolumeBounds() const override { return VolumeBounds; };
+	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return SceneProxy; };
 	//~ End USparseVolumeTexture Interface.
 
 private:
-	const FSparseVolumeTextureSceneProxy* SceneProxy;
-	const FSparseVolumeAssetHeader* AssetHeader;
 	FBox VolumeBounds;
+	const FSparseVolumeTextureSceneProxy* SceneProxy;
 };
 
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))

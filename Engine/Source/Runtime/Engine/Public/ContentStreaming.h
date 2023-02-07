@@ -31,6 +31,8 @@ struct FWaveInstance;
 class UAnimStreamable;
 enum class EStreamableRenderAssetType : uint8;
 struct FCompressedAnimSequence;
+class UStreamableSparseVolumeTexture;
+class FSparseVolumeTextureSceneProxy;
 
 using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
 
@@ -628,6 +630,31 @@ struct IAnimationStreamingManager : public IStreamingManager
 };
 
 /**
+ * Interface to add functions specifically related to SparseVolumeTexture streaming
+ */
+struct ISparseVolumeTextureStreamingManager : public IStreamingManager
+{
+	/** Adds a new StreamableSparseVolumeTexture to the streaming manager. */
+	virtual void AddSparseVolumeTexture(UStreamableSparseVolumeTexture* SparseVolumeTexture) = 0;
+
+	/** Removes a StreamableSparseVolumeTexture from the streaming manager. */
+	virtual bool RemoveSparseVolumeTexture(UStreamableSparseVolumeTexture* SparseVolumeTexture) = 0;
+
+	/** Returns the memory a StreamableSparseVolumeTexture is currently using */
+	virtual void GetMemorySizeForSparseVolumeTexture(const UStreamableSparseVolumeTexture* SparseVolumeTexture, SIZE_T* SizeCPU, SIZE_T* SizeGPU) const = 0;
+
+	/**
+	 * Gets a pointer to a proxy of a frame of a SparseVolumeTexture
+	 *
+	 * @param SparseVolumeTexture	SparseVolumeTexture we want a frame from
+	 * @param FrameIndex			Index of the frame we want
+	 * @return Either the desired frame proxy or NULL if it's not loaded
+	 */
+	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(const UStreamableSparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex, bool bTrackAsRequested) = 0;
+};
+
+
+/**
  * Streaming manager collection, routing function calls to streaming managers that have been added
  * via AddStreamingManager.
  */
@@ -737,6 +764,11 @@ struct FStreamingManagerCollection : public IStreamingManager
 	ENGINE_API Nanite::FCoarseMeshStreamingManager* GetNaniteCoarseMeshStreamingManager() const;
 
 	/**
+	 * Gets a reference to the SparseVolumeTexture Streaming Manager interface
+	 */
+	ENGINE_API ISparseVolumeTextureStreamingManager& GetSparseVolumeTextureStreamingManager() const;
+
+	/**
 	 * Adds a streaming manager to the array of managers to route function calls to.
 	 *
 	 * @param StreamingManager	Streaming manager to add
@@ -839,6 +871,9 @@ protected:
 
 	/** The nanite coarse mesh streaming manager, should always exist */
 	Nanite::FCoarseMeshStreamingManager* NaniteCoarseMeshStreamingManager;
+
+	/** The SparseVolumeTexture streaming manager, should always exist */
+	ISparseVolumeTextureStreamingManager* SparseVolumeTextureStreamingManager;
 
 #if WITH_EDITOR
 	// Locks out any audio streaming manager call when we are re-initializing the audio streaming manager.

@@ -23,6 +23,8 @@
 #include "Serialization/BulkDataWriter.h"
 #include "Serialization/EditorBulkDataReader.h"
 
+#include "ContentStreaming.h"
+
 #define LOCTEXT_NAMESPACE "USparseVolumeTexture"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTexture, Log, All);
@@ -124,7 +126,7 @@ void FSparseVolumeTextureRuntime::SetAsDefaultTexture()
 
 FSparseVolumeTextureSceneProxy::FSparseVolumeTextureSceneProxy()
 	: FRenderResource()
-	, SparseVolumeTextureRuntime(nullptr)
+	, SparseVolumeTextureRuntime()
 	, PageTableTextureRHI(nullptr)
 	, PhysicalTileDataATextureRHI(nullptr)
 	, PhysicalTileDataBTextureRHI(nullptr)
@@ -135,9 +137,28 @@ FSparseVolumeTextureSceneProxy::~FSparseVolumeTextureSceneProxy()
 {
 }
 
-void FSparseVolumeTextureSceneProxy::InitializeRuntimeData(FSparseVolumeTextureRuntime& SparseVolumeTextureRuntimeIn)
+void FSparseVolumeTextureSceneProxy::GetMemorySize(SIZE_T* SizeCPU, SIZE_T* SizeGPU) const
 {
-	SparseVolumeTextureRuntime = &SparseVolumeTextureRuntimeIn;
+	*SizeCPU += sizeof(FSparseVolumeTextureSceneProxy);
+	*SizeCPU += SparseVolumeTextureRuntime.PageTable.GetAllocatedSize();
+	*SizeCPU += SparseVolumeTextureRuntime.PhysicalTileDataA.GetAllocatedSize();
+	*SizeCPU += SparseVolumeTextureRuntime.PhysicalTileDataB.GetAllocatedSize();
+
+#if RHI_ENABLE_RESOURCE_INFO
+	FRHIResourceInfo ResourceInfo;
+	if (PageTableTextureRHI && PageTableTextureRHI->GetResourceInfo(ResourceInfo))
+	{
+		*SizeGPU += ResourceInfo.VRamAllocation.AllocationSize;
+	}
+	if (PhysicalTileDataATextureRHI && PhysicalTileDataATextureRHI->GetResourceInfo(ResourceInfo))
+	{
+		*SizeGPU += ResourceInfo.VRamAllocation.AllocationSize;
+	}
+	if (PhysicalTileDataBTextureRHI && PhysicalTileDataBTextureRHI->GetResourceInfo(ResourceInfo))
+	{
+		*SizeGPU += ResourceInfo.VRamAllocation.AllocationSize;
+	}
+#endif
 }
 
 void FSparseVolumeTextureSceneProxy::InitRHI()
@@ -145,7 +166,7 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 	// Page table
 	{
 		EPixelFormat PageEntryFormat = PF_R32_UINT;
-		FIntVector3 PageTableVolumeResolution = SparseVolumeTextureRuntime->Header.PageTableVolumeResolution;
+		FIntVector3 PageTableVolumeResolution = SparseVolumeTextureRuntime.Header.PageTableVolumeResolution;
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create3D(TEXT("SparseVolumeTexture.PageTable.RHITexture"),
 				PageTableVolumeResolution.X, PageTableVolumeResolution.Y, PageTableVolumeResolution.Z, PageEntryFormat)
@@ -155,14 +176,14 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 
 		const int32 FormatSize = GPixelFormats[PageEntryFormat].BlockBytes;
 		const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, PageTableVolumeResolution.X, PageTableVolumeResolution.Y, PageTableVolumeResolution.Z);
-		RHIUpdateTexture3D(PageTableTextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime->PageTable.GetData());
+		RHIUpdateTexture3D(PageTableTextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime.PageTable.GetData());
 	}
 
 	// Tile data
 	{
-		FIntVector3 TileDataVolumeResolution = SparseVolumeTextureRuntime->Header.TileDataVolumeResolution;
-		EPixelFormat VoxelFormatA = SparseVolumeTextureRuntime->Header.AttributesAFormat;
-		EPixelFormat VoxelFormatB = SparseVolumeTextureRuntime->Header.AttributesBFormat;
+		FIntVector3 TileDataVolumeResolution = SparseVolumeTextureRuntime.Header.TileDataVolumeResolution;
+		EPixelFormat VoxelFormatA = SparseVolumeTextureRuntime.Header.AttributesAFormat;
+		EPixelFormat VoxelFormatB = SparseVolumeTextureRuntime.Header.AttributesBFormat;
 		const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, TileDataVolumeResolution.X, TileDataVolumeResolution.Y, TileDataVolumeResolution.Z);
 
 		// A
@@ -176,7 +197,7 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 			PhysicalTileDataATextureRHI = RHICreateTexture(Desc);
 
 			const int32 FormatSize = GPixelFormats[VoxelFormatA].BlockBytes;
-			RHIUpdateTexture3D(PhysicalTileDataATextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime->PhysicalTileDataA.GetData());
+			RHIUpdateTexture3D(PhysicalTileDataATextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime.PhysicalTileDataA.GetData());
 		}
 
 		// B
@@ -190,7 +211,7 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 			PhysicalTileDataBTextureRHI = RHICreateTexture(Desc);
 
 			const int32 FormatSize = GPixelFormats[VoxelFormatB].BlockBytes;
-			RHIUpdateTexture3D(PhysicalTileDataBTextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime->PhysicalTileDataB.GetData());
+			RHIUpdateTexture3D(PhysicalTileDataBTextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime.PhysicalTileDataB.GetData());
 		}
 	}
 }
@@ -203,7 +224,6 @@ void FSparseVolumeTextureSceneProxy::ReleaseRHI()
 
 FSparseVolumeTextureFrame::FSparseVolumeTextureFrame()
 	: RuntimeStreamedInData()
-	, SparseVolumeTextureRuntime()
 	, SparseVolumeTextureSceneProxy()
 #if WITH_EDITORONLY_DATA
 	, RawData()
@@ -215,7 +235,7 @@ FSparseVolumeTextureFrame::~FSparseVolumeTextureFrame()
 {
 }
 
-bool FSparseVolumeTextureFrame::BuildRuntimeData()
+bool FSparseVolumeTextureFrame::BuildRuntimeData(FSparseVolumeTextureRuntime* OutRuntimeData)
 {
 #if WITH_EDITORONLY_DATA
 	// Check if the virtualized bulk data payload is available now
@@ -227,10 +247,10 @@ bool FSparseVolumeTextureFrame::BuildRuntimeData()
 		SparseVolumeRawSource.Serialize(RawDataArchiveReader);
 
 		// Then, convert the raw source data to SVT
-		SparseVolumeTextureRuntime.Header = SparseVolumeRawSource.Header;
-		SparseVolumeTextureRuntime.PageTable = MoveTemp(SparseVolumeRawSource.PageTable);
-		SparseVolumeTextureRuntime.PhysicalTileDataA = MoveTemp(SparseVolumeRawSource.PhysicalTileDataA);
-		SparseVolumeTextureRuntime.PhysicalTileDataB = MoveTemp(SparseVolumeRawSource.PhysicalTileDataB);
+		OutRuntimeData->Header = SparseVolumeRawSource.Header;
+		OutRuntimeData->PageTable = MoveTemp(SparseVolumeRawSource.PageTable);
+		OutRuntimeData->PhysicalTileDataA = MoveTemp(SparseVolumeRawSource.PhysicalTileDataA);
+		OutRuntimeData->PhysicalTileDataB = MoveTemp(SparseVolumeRawSource.PhysicalTileDataB);
 
 		// Now unload the raw data
 		RawData.UnloadData();
@@ -245,7 +265,7 @@ void FSparseVolumeTextureFrame::Serialize(FArchive& Ar, UStreamableSparseVolumeT
 {
 	FStripDataFlags StripFlags(Ar);
 
-	const bool bInlinePayload = (FrameIndex == 0) || true; // SVT_TODO: remove once streaming is working
+	const bool bInlinePayload = (FrameIndex == 0);
 	RuntimeStreamedInData.SetBulkDataFlags(bInlinePayload ? BULKDATA_ForceInlinePayload : BULKDATA_Force_NOT_InlinePayload);
 
 	if (StripFlags.IsEditorDataStripped() && Ar.IsLoadingFromCookedPackage())
@@ -255,30 +275,35 @@ void FSparseVolumeTextureFrame::Serialize(FArchive& Ar, UStreamableSparseVolumeT
 		// Read cooked bulk data from archive
 		RuntimeStreamedInData.Serialize(Ar, Owner);
 
-		// Create runtime data from cooked bulk data
+		if (bInlinePayload)
 		{
-			FBulkDataReader BulkDataReader(RuntimeStreamedInData);
-			SparseVolumeTextureRuntime.Serialize(BulkDataReader);
+			SparseVolumeTextureSceneProxy = new FSparseVolumeTextureSceneProxy();
+
+			// Create runtime data from cooked bulk data
+			{
+				FBulkDataReader BulkDataReader(RuntimeStreamedInData);
+				SparseVolumeTextureSceneProxy->GetRuntimeData().Serialize(BulkDataReader);
+			}
+
+			// The bulk data is no longer needed
+			RuntimeStreamedInData.RemoveBulkData();
+
+			// Runtime data is now valid, initialize the render thread proxy
+			BeginInitResource(SparseVolumeTextureSceneProxy);
 		}
-
-		// The bulk data is no longer needed
-		RuntimeStreamedInData.RemoveBulkData();
-
-		// Runtime data is now valid, create the render thread proxy
-		SparseVolumeTextureSceneProxy.InitializeRuntimeData(SparseVolumeTextureRuntime);
-		BeginInitResource(&SparseVolumeTextureSceneProxy);
 	}
 	else if (Ar.IsCooking())
 	{
 		// We are cooking the game, serialize the asset out.
 
-		const bool bBuiltRuntimeData = BuildRuntimeData();
+		FSparseVolumeTextureRuntime RuntimeData;
+		const bool bBuiltRuntimeData = BuildRuntimeData(&RuntimeData);
 		check(bBuiltRuntimeData); // SVT_TODO: actual error handling
 
 		// Write runtime data into RuntimeStreamedInData
 		{
 			FBulkDataWriter BulkDataWriter(RuntimeStreamedInData);
-			SparseVolumeTextureRuntime.Serialize(BulkDataWriter);
+			RuntimeData.Serialize(BulkDataWriter);
 		}
 
 		// And now write the cooked bulk data to the archive
@@ -388,9 +413,20 @@ UStreamableSparseVolumeTexture::UStreamableSparseVolumeTexture(const FObjectInit
 
 void UStreamableSparseVolumeTexture::PostLoad()
 {
-	GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
-
 	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
+#else
+	IStreamingManager::Get().GetSparseVolumeTextureStreamingManager().AddSparseVolumeTexture(this); // GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy() handles this in editor builds
+#endif
+}
+
+void UStreamableSparseVolumeTexture::FinishDestroy()
+{
+	Super::FinishDestroy();
+
+	IStreamingManager::Get().GetSparseVolumeTextureStreamingManager().RemoveSparseVolumeTexture(this);
 }
 
 void UStreamableSparseVolumeTexture::BeginDestroy()
@@ -398,7 +434,16 @@ void UStreamableSparseVolumeTexture::BeginDestroy()
 	Super::BeginDestroy();
 	for (FSparseVolumeTextureFrame& Frame : Frames)
 	{
-		BeginReleaseResource(&Frame.SparseVolumeTextureSceneProxy);
+		if (Frame.SparseVolumeTextureSceneProxy)
+		{
+			ENQUEUE_RENDER_COMMAND(DeleteSVTProxy)(
+				[Proxy = Frame.SparseVolumeTextureSceneProxy](FRHICommandListImmediate& RHICmdList)
+				{
+					Proxy->ReleaseResource();
+					delete Proxy;
+				});
+			Frame.SparseVolumeTextureSceneProxy = nullptr;
+		}
 	}
 }
 
@@ -429,11 +474,48 @@ void UStreamableSparseVolumeTexture::PostEditChangeProperty(FPropertyChangedEven
 }
 #endif // WITH_EDITOR
 
+void UStreamableSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+	SIZE_T SizeCPU = sizeof(Frames);
+	SIZE_T SizeGPU = 0;
+	SizeCPU += Frames.GetAllocatedSize();
+	for (const FSparseVolumeTextureFrame& Frame : Frames)
+	{
+		if (Frame.SparseVolumeTextureSceneProxy)
+		{
+			Frame.SparseVolumeTextureSceneProxy->GetMemorySize(&SizeCPU, &SizeGPU);
+		}
+	}
+	ISparseVolumeTextureStreamingManager& StreamingManager = IStreamingManager::Get().GetSparseVolumeTextureStreamingManager();
+	StreamingManager.GetMemorySizeForSparseVolumeTexture(this, &SizeCPU, &SizeGPU);
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SizeCPU);
+	CumulativeResourceSize.AddDedicatedVideoMemoryBytes(SizeGPU);
+}
+
 const FSparseVolumeTextureSceneProxy* UStreamableSparseVolumeTexture::GetStreamedFrameProxyOrFallback(int32 FrameIndex) const
 {
-	check(!Frames.IsEmpty());
-	FrameIndex = FrameIndex % Frames.Num();
-	return &Frames[FrameIndex].SparseVolumeTextureSceneProxy;
+	ISparseVolumeTextureStreamingManager& StreamingManager = IStreamingManager::Get().GetSparseVolumeTextureStreamingManager();
+	const FSparseVolumeTextureSceneProxy* Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FrameIndex, true);
+
+	int32 FallbackFrameIndex = FrameIndex;
+	while (!Proxy)
+	{
+		FallbackFrameIndex = FallbackFrameIndex > 0 ? (FallbackFrameIndex - 1) : (Frames.Num() - 1);
+		if (FallbackFrameIndex == FrameIndex)
+		{
+			UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Failed to get ANY streamed SparseVolumeTexture frame  SVT: %s, FrameIndex: %i"), *GetName(), FrameIndex);
+			return nullptr;
+		}
+		Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FallbackFrameIndex, false);
+	}
+
+	return Proxy;
+}
+
+TArrayView<const FSparseVolumeTextureFrame> UStreamableSparseVolumeTexture::GetFrames() const
+{
+	return Frames;
 }
 
 void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy()
@@ -445,7 +527,14 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneP
 		for (FSparseVolumeTextureFrame& Frame : Frames)
 		{
 			// Release any previously allocated render thread proxy
-			BeginReleaseResource(&Frame.SparseVolumeTextureSceneProxy);
+			if (Frame.SparseVolumeTextureSceneProxy)
+			{
+				BeginReleaseResource(Frame.SparseVolumeTextureSceneProxy);
+			}
+			else
+			{
+				Frame.SparseVolumeTextureSceneProxy = new FSparseVolumeTextureSceneProxy();
+			}
 
 			GenerateOrLoadDDCRuntimeDataForFrame(Frame, DDCRequestOwner);
 		}
@@ -456,22 +545,11 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneP
 
 	for (FSparseVolumeTextureFrame& Frame : Frames)
 	{
-		// Runtime data is now valid, create the render thread proxy
-		Frame.SparseVolumeTextureSceneProxy.InitializeRuntimeData(Frame.SparseVolumeTextureRuntime);
-		BeginInitResource(&Frame.SparseVolumeTextureSceneProxy);
+		// Runtime data is now valid, initialize the render thread proxy
+		BeginInitResource(Frame.SparseVolumeTextureSceneProxy);
 	}
-	
-#else
-	// SVT_TODO do we really need to do this in the cooked case?
-	for (FSparseVolumeTextureFrame& Frame : Frames)
-	{
-		// Release any previously allocated render thread proxy
-		BeginReleaseResource(&Frame.SparseVolumeTextureSceneProxy);
 
-		// Create the render thread proxy
-		Frame.SparseVolumeTextureSceneProxy.InitializeRuntimeData(Frame.SparseVolumeTextureRuntime);
-		BeginInitResource(&Frame.SparseVolumeTextureSceneProxy);
-	}
+	IStreamingManager::Get().GetSparseVolumeTextureStreamingManager().AddSparseVolumeTexture(this);
 #endif
 }
 
@@ -496,7 +574,7 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataForFrame(FSpars
 					{
 						FSharedBuffer Data = Value.GetData().Decompress();
 						FMemoryReaderView Ar(Data, true /*bIsPersistent*/);
-						Frame.SparseVolumeTextureRuntime.Serialize(Ar);
+						Frame.SparseVolumeTextureSceneProxy->GetRuntimeData().Serialize(Ar);
 					});
 			}
 			else if (Response.Status == EStatus::Error)
@@ -504,16 +582,28 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataForFrame(FSpars
 				DDCRequestOwner.LaunchTask(TEXT("UStreamableSparseVolumeTexture_DerivedDataBuild"),
 					[this, &Frame, &DDCRequestOwner, Name = Response.Name, Key = Response.Key]()
 					{
-						ConvertRawSourceDataToSparseVolumeTextureRuntime(Frame);
+						FSparseVolumeTextureRuntime& RuntimeData = Frame.SparseVolumeTextureSceneProxy->GetRuntimeData();
+
+						// Check if the virtualized bulk data payload is available now
+						if (Frame.RawData.HasPayloadData())
+						{
+							const bool bSuccess = Frame.BuildRuntimeData(&RuntimeData);
+							ensure(bSuccess);
+						}
+						else
+						{
+							UE_LOG(LogSparseVolumeTexture, Error, TEXT("SparseVolumeTexture - Raw source data is not available for %s. Using default data."), *GetName());
+							RuntimeData.SetAsDefaultTexture();
+						}
 
 						// Using a LargeMemoryWriter for serialization since the data can be bigger than 2 GB
 						FLargeMemoryWriter LargeMemWriter(0, /*bIsPersistent=*/ true);
-						Frame.SparseVolumeTextureRuntime.Serialize(LargeMemWriter);
+						RuntimeData.Serialize(LargeMemWriter);
 
 						int64 UncompressedSize = LargeMemWriter.TotalSize();
 
 						// Since the DDC doesn't support data bigger than 2 GB, we only cache for such uncompressed size.
-						constexpr int64 SizeThreshold = 2147483648;	// 2GB
+						constexpr int64 SizeThreshold = 2147483648LL;	// 2GB
 						const bool bIsCacheable = UncompressedSize < SizeThreshold;
 						if (bIsCacheable)
 						{
@@ -530,23 +620,6 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataForFrame(FSpars
 #endif // WITH_EDITORONLY_DATA
 }
 
-void UStreamableSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRuntime(FSparseVolumeTextureFrame& Frame)
-{
-#if WITH_EDITORONLY_DATA
-	// Check if the virtualized bulk data payload is available now
-	if (Frame.RawData.HasPayloadData())
-	{
-		const bool bSuccess = Frame.BuildRuntimeData();
-		ensure(bSuccess);
-	}
-	else
-	{
-		UE_LOG(LogSparseVolumeTexture, Error, TEXT("SparseVolumeTexture - Raw source data is not available for %s. Using default data."), *GetName());
-		Frame.SparseVolumeTextureRuntime.SetAsDefaultTexture();
-	}
-#endif // WITH_EDITORONLY_DATA
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 UStaticSparseVolumeTexture::UStaticSparseVolumeTexture(const FObjectInitializer& ObjectInitializer)
@@ -554,74 +627,34 @@ UStaticSparseVolumeTexture::UStaticSparseVolumeTexture(const FObjectInitializer&
 {
 }
 
-void UStaticSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
-{
-	Super::GetResourceSizeEx(CumulativeResourceSize);
-	// CumulativeResourceSize.AddDedicatedSystemMemoryBytes but not the RawData size
-}
-
-const FSparseVolumeAssetHeader* UStaticSparseVolumeTexture::GetSparseVolumeTextureHeader() const
-{
-	return &GetStreamedFrameProxyOrFallback(0)->GetHeader();
-}
-
-const FSparseVolumeTextureSceneProxy* UStaticSparseVolumeTexture::GetSparseVolumeTextureSceneProxy() const
-{ 
-	return GetStreamedFrameProxyOrFallback(0);
-}
-
-FBox UStaticSparseVolumeTexture::GetVolumeBounds() const
-{
-	return VolumeBounds;
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 UAnimatedSparseVolumeTexture::UAnimatedSparseVolumeTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, FrameCount(0)
 {
-}
-
-void UAnimatedSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
-{
-	Super::GetResourceSizeEx(CumulativeResourceSize);
-	// CumulativeResourceSize.AddDedicatedSystemMemoryBytes but not the RawData size
-}
-
-const FSparseVolumeAssetHeader* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureHeader() const
-{
-	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
-	check(FrameCount >= 1);
-	const int32 FrameIndex = PreviewFrameIndex % FrameCount;
-	return &GetStreamedFrameProxyOrFallback(FrameIndex)->GetHeader();
 }
 
 const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureSceneProxy() const
 {
-	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using its first frame.
-	check(FrameCount >= 1);
-	const int32 FrameIndex = PreviewFrameIndex % FrameCount;
+	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using a single preview frame.
+	check(!Frames.IsEmpty());
+	const int32 FrameIndex = PreviewFrameIndex % Frames.Num();
 	return GetStreamedFrameProxyOrFallback(FrameIndex);
-}
-
-FBox UAnimatedSparseVolumeTexture::GetVolumeBounds() const
-{
-	return VolumeBounds;
 }
 
 const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex) const
 {
-	check(FrameCount >= 1);
-	FrameIndex = FrameIndex % FrameCount;
+	check(!Frames.IsEmpty());
+	FrameIndex = FrameIndex % Frames.Num();
 	return GetStreamedFrameProxyOrFallback(FrameIndex);
 }
 
 const FSparseVolumeAssetHeader* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameHeader(int32 FrameIndex) const
 {
-	check(FrameCount >= 1);
-	FrameIndex = FrameIndex % FrameCount;
-	return &GetStreamedFrameProxyOrFallback(FrameIndex)->GetHeader();
+	check(!Frames.IsEmpty());
+	FrameIndex = FrameIndex % Frames.Num();
+	const FSparseVolumeTextureSceneProxy* Proxy = GetStreamedFrameProxyOrFallback(FrameIndex);
+	return Proxy ? &Proxy->GetHeader() : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -633,7 +666,8 @@ USparseVolumeTextureFrame::USparseVolumeTextureFrame(const FObjectInitializer& O
 
 USparseVolumeTextureFrame* USparseVolumeTextureFrame::CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex)
 {
-	USparseVolumeTextureFrame* Frame = NewObject<USparseVolumeTextureFrame>();
+	check(Texture);
+	
 	const FSparseVolumeTextureSceneProxy* Proxy = nullptr;
 	if (Texture->IsA<UStreamableSparseVolumeTexture>())
 	{
@@ -645,33 +679,21 @@ USparseVolumeTextureFrame* USparseVolumeTextureFrame::CreateFrame(USparseVolumeT
 	{
 		Proxy = Texture->GetSparseVolumeTextureSceneProxy();
 	}
-	check(Proxy);
 
-	Frame->Initialize(Proxy, &Proxy->GetHeader(), Texture->GetVolumeBounds());
-
-	return Frame;
+	if (Proxy)
+	{
+		USparseVolumeTextureFrame* Frame = NewObject<USparseVolumeTextureFrame>();
+		Frame->Initialize(Proxy, Texture->GetVolumeBounds());
+		return Frame;
+	}
+	
+	return nullptr;
 }
 
-void USparseVolumeTextureFrame::Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FSparseVolumeAssetHeader* InAssetHeader, const FBox& InVolumeBounds)
+void USparseVolumeTextureFrame::Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FBox& InVolumeBounds)
 {
 	SceneProxy = InSceneProxy;
-	AssetHeader = InAssetHeader;
 	VolumeBounds = InVolumeBounds;
-}
-
-const FSparseVolumeAssetHeader* USparseVolumeTextureFrame::GetSparseVolumeTextureHeader() const
-{
-	return AssetHeader;
-}
-
-const FSparseVolumeTextureSceneProxy* USparseVolumeTextureFrame::GetSparseVolumeTextureSceneProxy() const
-{
-	return SceneProxy;
-}
-
-FBox USparseVolumeTextureFrame::GetVolumeBounds() const
-{
-	return VolumeBounds;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

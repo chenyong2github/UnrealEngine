@@ -535,7 +535,6 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		ImportTask.MakeDialog(true);
 
 		// Allocate space for each frame
-		AnimatedSVTexture->FrameCount = NumFrames;
 		AnimatedSVTexture->Frames.SetNum(NumFrames);
 
 		FBox VolumeBounds(FVector(FLT_MAX), FVector(-FLT_MAX));
@@ -628,19 +627,10 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 	}
 
 	// Now notify the system about the imported/updated/created assets
-	AdditionalImportedObjects.Reserve(ResultAssets.Num());
-	for (UObject* Object : ResultAssets)
-	{
-		if (Object)
-		{
-			GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, Object);
-			Object->MarkPackageDirty();
-			Object->PostEditChange();
-			AdditionalImportedObjects.Add(Object);
-		}
-	}
+	check(ResultAssets.Num() == 1);
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, ResultAssets[0]);
 
-	return (ResultAssets.Num() > 0) ? ResultAssets[0] : nullptr;
+	return ResultAssets[0];
 
 #else // OPENVDB_AVAILABLE
 
