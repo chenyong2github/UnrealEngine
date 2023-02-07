@@ -335,6 +335,14 @@ TArray<FString> UEditorUtilityLibrary::GetSelectedFolderPaths()
 	return Paths;
 }
 
+TArray<FString> UEditorUtilityLibrary::GetSelectedPathViewFolderPaths()
+{
+	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+	TArray<FString> Paths;
+    ContentBrowser.GetSelectedPathViewFolders(Paths);
+	return Paths;
+}
+
 void UEditorUtilityLibrary::SyncBrowserToFolders(const TArray<FString>& FolderList)
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");

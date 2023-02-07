@@ -183,6 +183,10 @@ public:
 	// Gets the path to the currently selected folder in the content browser
 	UFUNCTION(BlueprintPure, Category = "Development|Editor")
 	static TArray<FString> GetSelectedFolderPaths();
+	
+	// Returns the folders that are selected in the path view for the content browser
+    UFUNCTION(BlueprintPure, Category = "Development|Editor")
+    static TArray<FString> GetSelectedPathViewFolderPaths();
 
 	/**
 	 * Sync the Content Browser to the given folder(s)
