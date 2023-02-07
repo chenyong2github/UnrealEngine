@@ -1548,6 +1548,7 @@ namespace UnrealBuildTool
 					CompileAction.AdditionalPrerequisiteItems.AddRange(InlinedFiles);
 				}
 
+				CompileAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
 				CompileAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
 				if (!String.IsNullOrEmpty(CompileEnvironment.AdditionalArguments))
