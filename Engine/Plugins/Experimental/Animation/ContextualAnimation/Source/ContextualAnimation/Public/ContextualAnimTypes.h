@@ -292,6 +292,12 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindingContext
 
 	AActor* GetActor() const { return Actor.Get(); }
 
+	UAnimInstance* GetAnimInstance() const;
+
+	USkeletalMeshComponent* GetSkeletalMeshComponent() const;
+
+	UContextualAnimSceneActorComponent* GetSceneActorComponent() const;
+
 	void SetExternalTransform(const FTransform& InTransform);
 
 	FTransform GetTransform() const;
@@ -304,6 +310,15 @@ private:
 
 	UPROPERTY()
 	TWeakObjectPtr<AActor> Actor = nullptr;
+
+	UPROPERTY(NotReplicated)
+	mutable TWeakObjectPtr<UContextualAnimSceneActorComponent> CachedSceneActorComp = nullptr;
+
+	UPROPERTY(NotReplicated)
+	mutable TWeakObjectPtr<UAnimInstance> CachedAnimInstance = nullptr;
+
+	UPROPERTY(NotReplicated)
+	mutable TWeakObjectPtr<USkeletalMeshComponent> CachedSkeletalMesh = nullptr;
 
 	TOptional<FTransform> ExternalTransform;
 
@@ -326,7 +341,9 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 	FORCEINLINE AActor* GetActor() const { return GetContext().GetActor(); }
 	FORCEINLINE FTransform GetTransform() const { return GetContext().GetTransform(); }
 	FORCEINLINE FVector GetVelocity()  const { return GetContext().GetVelocity(); }
-
+	FORCEINLINE UAnimInstance* GetAnimInstance() const { return Context.GetAnimInstance(); }
+	FORCEINLINE USkeletalMeshComponent* GetSkeletalMeshComponent() const { return Context.GetSkeletalMeshComponent(); }
+	FORCEINLINE UContextualAnimSceneActorComponent* GetSceneActorComponent() const { return Context.GetSceneActorComponent(); }
 	FORCEINLINE int32 GetAnimTrackIdx() const { return AnimTrackIdx; }
 	
 	void SetAnimTrack(const FContextualAnimTrack& InAnimTrack);
@@ -341,12 +358,6 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 	/** Returns the ActiveMontageInstance or null in the case of static actors */
 	FAnimMontageInstance* GetAnimMontageInstance() const;
 
-	UAnimInstance* GetAnimInstance() const;
-
-	USkeletalMeshComponent* GetSkeletalMeshComponent() const;
-
-	UContextualAnimSceneActorComponent* GetSceneActorComponent() const;
-
 	static const FContextualAnimSceneBinding InvalidBinding;
 
 private:
@@ -359,15 +370,6 @@ private:
 
 	UPROPERTY()
 	int32 AnimTrackIdx = INDEX_NONE;
-
-	UPROPERTY(NotReplicated)
-	mutable TWeakObjectPtr<UContextualAnimSceneActorComponent> CachedSceneActorComp = nullptr;
-
-	UPROPERTY(NotReplicated)
-	mutable TWeakObjectPtr<UAnimInstance> CachedAnimInstance = nullptr;
-
-	UPROPERTY(NotReplicated)
-	mutable TWeakObjectPtr<USkeletalMeshComponent> CachedSkeletalMesh = nullptr;
 };
 
 USTRUCT(BlueprintType)

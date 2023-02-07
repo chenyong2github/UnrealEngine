@@ -237,13 +237,16 @@ void FContextualAnimSceneBindingContext::SetExternalTransform(const FTransform& 
 
 FTransform FContextualAnimSceneBindingContext::GetTransform() const
 {
+	// If created with an external transform, used that one to represent the location/rotation of the actor
 	if (ExternalTransform.IsSet())
 	{
 		return ExternalTransform.GetValue();
 	}
-	else if (AActor* ActorPtr = GetActor())
+	// If no external transform is provided, use the transform of the scene actor comp
+	// We use this instead of the actor transform so we can have explicit control over the transform that represents the location/rotation of this actor during alignment
+	else if (UContextualAnimSceneActorComponent* Comp = GetSceneActorComponent())
 	{
-		return ActorPtr->GetActorTransform();
+		return Comp->GetComponentTransform();
 	}
 
 	return FTransform::Identity;
@@ -263,6 +266,39 @@ FVector FContextualAnimSceneBindingContext::GetVelocity() const
 	return FVector::ZeroVector;
 }
 
+UContextualAnimSceneActorComponent* FContextualAnimSceneBindingContext::GetSceneActorComponent() const
+{
+	if (!CachedSceneActorComp.IsValid())
+	{
+		if (Actor.IsValid())
+		{
+			CachedSceneActorComp = Actor->FindComponentByClass<UContextualAnimSceneActorComponent>();
+		}
+	}
+
+	return CachedSceneActorComp.Get();
+}
+
+UAnimInstance* FContextualAnimSceneBindingContext::GetAnimInstance() const
+{
+	if (!CachedAnimInstance.IsValid())
+	{
+		CachedAnimInstance = UContextualAnimUtilities::TryGetAnimInstance(GetActor());
+	}
+
+	return CachedAnimInstance.Get();
+}
+
+USkeletalMeshComponent* FContextualAnimSceneBindingContext::GetSkeletalMeshComponent() const
+{
+	if (!CachedSkeletalMesh.IsValid())
+	{
+		CachedSkeletalMesh = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetActor());
+	}
+
+	return CachedSkeletalMesh.Get();
+}
+
 // FContextualAnimSceneBinding
 ///////////////////////////////////////////////////////////////////////
 
@@ -275,39 +311,6 @@ FContextualAnimSceneBinding::FContextualAnimSceneBinding(const FContextualAnimSc
 void FContextualAnimSceneBinding::SetAnimTrack(const FContextualAnimTrack& InAnimTrack) 
 {
 	AnimTrackIdx = InAnimTrack.AnimTrackIdx;
-}
-
-UContextualAnimSceneActorComponent* FContextualAnimSceneBinding::GetSceneActorComponent() const
-{
-	if (!CachedSceneActorComp.IsValid())
-	{
-		if (AActor* Actor = Context.GetActor())
-		{
-			CachedSceneActorComp = Actor->FindComponentByClass<UContextualAnimSceneActorComponent>();
-		}
-	}
-
-	return CachedSceneActorComp.Get();
-}
-
-UAnimInstance* FContextualAnimSceneBinding::GetAnimInstance() const
-{
-	if (!CachedAnimInstance.IsValid())
-	{
-		CachedAnimInstance = UContextualAnimUtilities::TryGetAnimInstance(GetActor());
-	}
-
-	return CachedAnimInstance.Get();
-}
-
-USkeletalMeshComponent* FContextualAnimSceneBinding::GetSkeletalMeshComponent() const
-{
-	if(!CachedSkeletalMesh.IsValid())
-	{
-		CachedSkeletalMesh = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetActor());
-	}
-
-	return CachedSkeletalMesh.Get();
 }
 
 FAnimMontageInstance* FContextualAnimSceneBinding::GetAnimMontageInstance() const
