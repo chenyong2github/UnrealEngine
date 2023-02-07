@@ -29,6 +29,7 @@ class UInputTrigger;
 class UInputVCamSubsystem;
 class UVCamModifierContext;
 class UVCamOutputProviderBase;
+class UVCamSubsystem;
 
 struct FEnhancedActionKeyMapping;
 
