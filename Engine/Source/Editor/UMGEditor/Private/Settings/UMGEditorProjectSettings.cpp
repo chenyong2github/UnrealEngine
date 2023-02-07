@@ -18,8 +18,15 @@ UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 	CurrentVersion = 1;
 	bShowWidgetsFromEngineContent = false;
 	bShowWidgetsFromDeveloperContent = true;
-	bGraphEditorHidden = false;
-	bHideWidgetAnimationEditor = false;
+
+	bEnableMakeVariable = true;
+	bEnableWidgetAnimationEditor = true;
+	bEnablePaletteWindow = true;
+	bEnableLibraryWindow = true;
+	bEnableHierarchyWindow = true;
+	bEnableBindWidgetWindow = true;
+	bEnableNavigationSimulationWindow = true;
+
 	bUseEditorConfigPaletteFiltering = false;
 	bUseUserWidgetParentClassViewerSelector = true;
 	bUseUserWidgetParentDefaultClassViewerSelector = true;

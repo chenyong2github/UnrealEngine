@@ -176,15 +176,35 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Designer)
 	TSubclassOf<UPanelWidget> DefaultRootWidget;
 
-	/** Set true to hide UMG-graph related elements when the graph editor is hidden  */
-	UPROPERTY(EditAnywhere, Category = Designer)
-	bool bGraphEditorHidden;
+	/** Set true to enable the Is Variable checkbox in the UMG editor DetailView. */
+	UPROPERTY(EditAnywhere, Category = "Designer | Window")
+	bool bEnableMakeVariable;
 
-	/** Set true to hide widget animation related elements in the UMG editor  */
-	UPROPERTY(EditAnywhere, Category = Designer)
-	bool bHideWidgetAnimationEditor;
+	/** Set true to hide widget animation related elements in the UMG editor. */
+	UPROPERTY(EditAnywhere, Category = "Designer | Window")
+	bool bEnableWidgetAnimationEditor;
 
-	/** Set true to filter all categories and widgets out in the palette, selectively enabling them later via permission lists  */
+	/** Set true to enabled the Palette window in the UMG editor. */
+	UPROPERTY(EditAnywhere, Category = "Designer | Window")
+	bool bEnablePaletteWindow;
+
+	/** Set true to enabled the LIbrary window in the UMG editor. */
+	UPROPERTY(EditAnywhere, Category = "Designer | Window")
+	bool bEnableLibraryWindow;
+
+	/** Set true to enabled the Widget Hierarchy window in the UMG editor. */
+	UPROPERTY(EditAnywhere, Category = "Designer | Window")
+	bool bEnableHierarchyWindow;
+	
+	/** Set true to enabled the Bind Widget window in the UMG editor. */
+	UPROPERTY(EditAnywhere, Category = "Designer | Window")
+	bool bEnableBindWidgetWindow;
+
+	/** Set true to enabled the Navigation Simulation window in the UMG editor. */
+	UPROPERTY(EditAnywhere, Category = "Designer | Window")
+	bool bEnableNavigationSimulationWindow;
+
+	/** Set true to filter all categories and widgets out in the palette, selectively enabling them later via permission lists. */
 	UPROPERTY(EditAnywhere, config, Category = Designer)
 	bool bUseEditorConfigPaletteFiltering;
 

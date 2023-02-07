@@ -30,6 +30,7 @@
 #include "WidgetBlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
 #include "Styling/SlateIconFinder.h"
+#include "UMGEditorModule.h"
 #include "UMGEditorProjectSettings.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -49,8 +50,11 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 	PropertyView = EditModule.CreateDetailView(DetailsViewArgs);
 
 	// Create a handler for keyframing via the details panel
-	TSharedRef<IDetailKeyframeHandler> KeyframeHandler = MakeShareable( new FUMGDetailKeyframeHandler( InBlueprintEditor ) );
-	PropertyView->SetKeyframeHandler( KeyframeHandler );
+	if (GetDefault<UUMGEditorProjectSettings>()->bEnableWidgetAnimationEditor)
+	{
+		TSharedRef<IDetailKeyframeHandler> KeyframeHandler = MakeShareable(new FUMGDetailKeyframeHandler(InBlueprintEditor));
+		PropertyView->SetKeyframeHandler(KeyframeHandler);
+	}
 
 	// Create a handler for property binding via the details panel
 	TSharedRef<FDetailWidgetExtensionHandler> BindingHandler = MakeShareable( new FDetailWidgetExtensionHandler( InBlueprintEditor ) );
@@ -66,8 +70,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 		SNew(SCheckBox)
 		.IsChecked(this, &SWidgetDetailsView::GetIsVariable)
 		.OnCheckStateChanged(this, &SWidgetDetailsView::HandleIsVariableChanged)
-		.Padding(FMargin(3, 1, 18, 1))
-		.Visibility(GetDefault<UUMGEditorProjectSettings>()->bGraphEditorHidden ? EVisibility::Hidden : EVisibility::Visible)
+		.Padding(FMargin(3.0f, 1.0f, 18.0f, 1.0f))
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("IsVariable", "Is Variable"))
@@ -79,7 +82,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0, 2)
+		.Padding(0.0f, 2.0f)
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
@@ -89,14 +92,14 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 
 				+ SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(4)
+				.Padding(4.0f)
 				[
 					SNew(SHorizontalBox)
 					.Visibility(this, &SWidgetDetailsView::GetCategoryAreaVisibility)
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
-					.Padding(0, 0, 3, 0)
+					.Padding(0.0f, 0.0f, 3.0f, 0.0f)
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
@@ -105,7 +108,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
-					.Padding(0, 0, 6, 0)
+					.Padding(0.0f, 0.0f, 6.0f, 0.0f)
 					[
 						SNew(SBox)
 						.WidthOverride(200.0f)
@@ -123,14 +126,14 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 
 				+ SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(4)
+				.Padding(4.0f)
 				[
 					SNew(SHorizontalBox)
 					.Visibility(this, &SWidgetDetailsView::GetNameAreaVisibility)
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
-					.Padding(0, 0, 3, 0)
+					.Padding(0.0f, 0.0f, 3.0f, 0.0f)
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
@@ -140,7 +143,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
-					.Padding(0, 0, 6, 0)
+					.Padding(0.0f, 0.0f, 6.0f, 0.0f)
 					[
 						SNew(SBox)
 						.WidthOverride(200.0f)
@@ -159,7 +162,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					[
-						GetDefault<UUMGEditorProjectSettings>()->bGraphEditorHidden ? SNullWidget::NullWidget : IsVariableCheckbox
+						GetDefault<UUMGEditorProjectSettings>()->bEnableMakeVariable ? IsVariableCheckbox : SNullWidget::NullWidget
 					]
 
 					+ SHorizontalBox::Slot()
