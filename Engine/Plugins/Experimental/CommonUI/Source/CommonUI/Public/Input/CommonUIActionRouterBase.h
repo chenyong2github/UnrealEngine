@@ -140,6 +140,9 @@ protected:
 
 	bool bIsActivatableTreeEnabled = true;
 
+	/** The currently applied UI input configuration */
+	TOptional<FUIInputConfig> ActiveInputConfig;
+
 	TSharedPtr<FCommonAnalogCursor> AnalogCursor;
 	FTSTicker::FDelegateHandle TickHandle;
 
@@ -200,9 +203,6 @@ private:
 
 	// Note: Treat this as a TSharedRef - only reason it isn't is because TSharedRef doesn't play nice with forward declarations :(
 	TSharedPtr<class FPersistentActionCollection> PersistentActions;
-
-	/** The currently applied UI input configuration */
-	TOptional<FUIInputConfig> ActiveInputConfig;
 
 	bool bForceResetActiveRoot = false;
 
