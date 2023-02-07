@@ -954,7 +954,7 @@ namespace Horde.Agent.Execution
 					}
 					if (pair.Value.Any(x => referencedOutputFiles.Contains(x)))
 					{
-						outputNode.AddDirectory(await TempStorage.ArchiveBlockAsync(step.Name, pair.Key, workspaceDir, pair.Value.ToArray(), treeWriter, logger, cancellationToken));
+						outputNode.AddDirectory(await TempStorage.ArchiveBlockAsync(manifestDir, step.Name, pair.Key, workspaceDir, pair.Value.ToArray(), treeWriter, logger, cancellationToken));
 					}
 				}
 
@@ -973,7 +973,7 @@ namespace Horde.Agent.Execution
 						}
 					}
 
-					outputNode.AddFile(await TempStorage.ArchiveTagAsync(step.Name, outputName, workspaceDir, files, storageBlocks.ToArray(), treeWriter, logger, cancellationToken));
+					outputNode.AddFile(await TempStorage.ArchiveTagAsync(manifestDir, step.Name, outputName, workspaceDir, files, storageBlocks.ToArray(), treeWriter, logger, cancellationToken));
 				}
 
 				// Write the final node
