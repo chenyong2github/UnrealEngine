@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetDataTagMap.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetToolsModule.h"
 #include "Async/Async.h"
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
@@ -804,6 +805,13 @@ TArray<FString> UInterchangeManager::GetSupportedFormatsForObject(const UObject*
 bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* SourceData) const
 {
 	if (!IsInterchangeImportEnabled())
+	{
+		return false;
+	}
+	
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
+	const FString Extension = FPaths::GetExtension(SourceData->GetFilename());
+	if (!AssetTools.IsImportExtensionAllowed(Extension))
 	{
 		return false;
 	}

@@ -1260,6 +1260,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	, AssetFixUpRedirectors(MakeShareable(new FAssetFixUpRedirectors))
 	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
 	, AssetClassPermissionList_DEPRECATED(MakeShared<FNamePermissionList>())
+	, ImportExtensionPermissionList(MakeShared<FNamePermissionList>())
 	, FolderPermissionList(MakeShared<FPathPermissionList>())
 	, WritableFolderPermissionList(MakeShared<FPathPermissionList>())
 	, CreateAssetsAsExternallyReferenceable(true)
@@ -1287,8 +1288,13 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 		}
 	}
 
-	
+	TArray<FString> SupportedImportExtensionArray;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedImportExtensions"), SupportedImportExtensionArray, GEditorIni);
+	for (FString& Extension : SupportedImportExtensionArray)
+	{
+		ImportExtensionPermissionList->AddAllowListItem("AssetToolsConfigFile", FName(*Extension));
+	}
+
 
 	TArray<FString> DenyListedViewPath;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("DenyListAssetPaths"), DenyListedViewPath, GEditorIni);
@@ -5610,9 +5616,16 @@ const TSharedRef<FPathPermissionList>& UAssetToolsImpl::GetAssetClassPathPermiss
 	return Empty;
 }
 
-const TArray<FString>& UAssetToolsImpl::GetSupportedImportExtension() const
+const TSharedRef<FNamePermissionList>& UAssetToolsImpl::GetImportExtensionPermissionList() const
 {
-	return SupportedImportExtensionArray;
+	return ImportExtensionPermissionList;
+}
+
+bool UAssetToolsImpl::IsImportExtensionAllowed(const FString& Extension) const
+{
+	//Always test the extension in lower case
+	FName NameExtension(*Extension);
+	return ImportExtensionPermissionList->PassesFilter(NameExtension);
 }
 
 TSet<EBlueprintType>& UAssetToolsImpl::GetAllowedBlueprintTypes()
@@ -5662,12 +5675,12 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialogImplementation(const FSt
 
 	TMultiMap<uint32, UFactory*> FilterIndexToFactory;
 	// Generate the file types and extensions represented by the selected factories
-	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory, GetSupportedImportExtension());
+	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory);
 
 	if (UInterchangeManager::IsInterchangeImportEnabled())
 	{
 		TArray<FString> InterchangeFileExtensions = UInterchangeManager::GetInterchangeManager().GetSupportedFormats(EInterchangeTranslatorType::Assets);
-		ObjectTools::AppendFormatsFileExtensions(InterchangeFileExtensions, FileTypes, AllExtensions, FilterIndexToFactory, GetSupportedImportExtension());
+		ObjectTools::AppendFormatsFileExtensions(InterchangeFileExtensions, FileTypes, AllExtensions, FilterIndexToFactory);
 	}
 
 	FileTypes = FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);

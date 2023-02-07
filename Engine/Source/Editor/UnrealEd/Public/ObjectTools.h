@@ -14,6 +14,7 @@
 #include "UObject/GCObject.h"
 #include "CollectionManagerTypes.h"
 
+class FNamePermissionList;
 class FTextureRenderTargetResource;
 class SWindow;
 class UExporter;
@@ -493,8 +494,7 @@ namespace ObjectTools
 	UNREALED_API void GenerateFactoryFileExtensions( const UFactory* InFactory
 		, FString& out_Filetypes
 		, FString& out_Extensions
-		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory
-		, const TArray<FString>& SupportedExtensions = TArray<FString>());
+		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory);
 
 	/**
 	 * Populates two strings with all of the file types and extensions the provided factories support.
@@ -507,8 +507,7 @@ namespace ObjectTools
 	UNREALED_API void GenerateFactoryFileExtensions( const TArray<UFactory*>& InFactories
 		, FString& out_Filetypes
 		, FString& out_Extensions
-		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory
-		, const TArray<FString>& SupportedExtensions = TArray<FString>());
+		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory);
 
 	/**
 	 * Generates a list of file types for a given class.
@@ -516,8 +515,7 @@ namespace ObjectTools
 	 */
 	UNREALED_API void AppendFactoryFileExtensions( UFactory* InFactory
 		, FString& out_Filetypes
-		, FString& out_Extensions
-		, const TArray<FString>& SupportedExtensions = TArray<FString>());
+		, FString& out_Extensions);
 
 	/**
 	 * Populates two strings with all of the file types and extensions the format list provides.
@@ -529,8 +527,7 @@ namespace ObjectTools
 	 */
 	UNREALED_API void AppendFormatsFileExtensions(const TArray<FString>& InFormats
 		, FString& out_FileTypes
-		, FString& out_Extensions
-		, const TArray<FString>& SupportedExtensions = TArray<FString>());
+		, FString& out_Extensions);
 
 	/**
 	 * Populates two strings with all of the file types and extensions the format list provides.
@@ -544,8 +541,7 @@ namespace ObjectTools
 	UNREALED_API void AppendFormatsFileExtensions(const TArray<FString>& InFormats
 		, FString& out_FileTypes
 		, FString& out_Extensions
-		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory
-		, const TArray<FString>& SupportedExtensions = TArray<FString>());
+		, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory);
 
 	/**
 	 * Iterates over all classes and assembles a list of non-abstract UExport-derived type instances.

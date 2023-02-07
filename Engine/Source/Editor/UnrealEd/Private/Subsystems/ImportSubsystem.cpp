@@ -10,6 +10,8 @@
 #include "Misc/NamePermissionList.h"
 #include "InterchangeManager.h"
 #include "InterchangeFactoryBase.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 class FImportFilesByPath : public IImportSubsystemTask
 {
@@ -152,8 +154,34 @@ void UImportSubsystem::ImportNextTick(const TArray<FString>& Files, const FStrin
 		AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
 		return;
 	}
+	FString UnsupportedFiles;
+	TArray<FString> ImportFiles;
+	for (const FString& File : Files)
+	{
+		if (AssetToolsModule.Get().IsImportExtensionAllowed(FPaths::GetExtension(File)))
+		{
+			ImportFiles.AddUnique(File);
+		}
+		else
+		{
+			if (!UnsupportedFiles.IsEmpty())
+			{
+				UnsupportedFiles += TEXT("\n");
+			}
+			UnsupportedFiles += File;
+		}
+	}
+	if (ImportFiles.Num() > 0)
+	{
+		PendingTasks.Enqueue(MakeShared<FImportFilesByPath>(ImportFiles, DestinationPath));
+	}
 
-	PendingTasks.Enqueue(MakeShared<FImportFilesByPath>(Files, DestinationPath));
+	if (!UnsupportedFiles.IsEmpty())
+	{
+		FText ErrorMsg = FText::Format(NSLOCTEXT("UImportSubsystem", "ImportNextTickUnsupportedExtension", "Unsupported file format to import:\n\t{0}"), FText::FromString(UnsupportedFiles));
+		FSlateNotificationManager::Get().AddNotification(FNotificationInfo(ErrorMsg));
+	}
+
 	GEditor->GetTimerManager()->SetTimerForNextTick(this, &UImportSubsystem::HandleNextTick);
 }
 

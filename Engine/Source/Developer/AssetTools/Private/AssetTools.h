@@ -135,7 +135,8 @@ public:
 	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetAssetClassPathPermissionList.")
 	TSharedRef<FNamePermissionList>& GetAssetClassPermissionList(EAssetClassAction AssetClassAction);
 	virtual const TSharedRef<FPathPermissionList>& GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) const override;
-	virtual const TArray<FString>& GetSupportedImportExtension() const override;
+	virtual const TSharedRef<FNamePermissionList>& GetImportExtensionPermissionList() const override;
+	virtual bool IsImportExtensionAllowed(const FString& Extension) const override;
 	virtual TSet<EBlueprintType>& GetAllowedBlueprintTypes() override;
 	virtual TSharedRef<FPathPermissionList>& GetFolderPermissionList() override;
 	virtual TSharedRef<FPathPermissionList>& GetWritableFolderPermissionList() override;
@@ -239,8 +240,8 @@ private:
 	/** Permission lists of assets by class path name, one for each EAssetClassAction */
 	TArray<TSharedRef<FPathPermissionList>> AssetClassPermissionList;
 
-	TArray<FString> SupportedImportExtensionArray;
-
+	TSharedRef<FNamePermissionList> ImportExtensionPermissionList;
+	
 	/** Which types of BlueprintFactories are allowed to be returned through GetNewAssetFactories. Empty set allows all types. */
 	TSet<EBlueprintType> AllowedBlueprintTypes;
 

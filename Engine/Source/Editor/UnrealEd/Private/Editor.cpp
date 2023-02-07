@@ -785,14 +785,14 @@ void FReimportManager::GetNewReimportPath(UObject* Obj, TArray<FString>& InOutFi
 	{
 		//Get the extension interchange can translate for this object
 		TArray<FString> TranslatorFormats = UInterchangeManager::GetInterchangeManager().GetSupportedFormatsForObject(Obj);
-		ObjectTools::AppendFormatsFileExtensions(TranslatorFormats, FileTypes, AllExtensions, DummyFilterIndexToFactory, AssetTools.GetSupportedImportExtension());
+		ObjectTools::AppendFormatsFileExtensions(TranslatorFormats, FileTypes, AllExtensions, DummyFilterIndexToFactory);
 	}
 
 	//If this object was not import with interchange add the legacy formats
 	if(AllExtensions.IsEmpty())
 	{
 		// Generate the file types and extensions represented by the selected factories
-		ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, DummyFilterIndexToFactory, AssetTools.GetSupportedImportExtension());
+		ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, DummyFilterIndexToFactory);
 	}
 
 	

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "InterchangeOpenFileDialog.h"
 
-#include "AssetToolsModule.h"
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDesktopPlatform.h"
@@ -17,8 +16,7 @@ namespace UE::Interchange::Utilities::Private
 		FString FileTypes;
 		FString Extensions;
 
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
-		ObjectTools::AppendFormatsFileExtensions(TranslatorFormats, FileTypes, Extensions, AssetTools.GetSupportedImportExtension());
+		ObjectTools::AppendFormatsFileExtensions(TranslatorFormats, FileTypes, Extensions);
 
 		const FString FormatString = FString::Printf(TEXT("All Files (%s)|%s|%s"), *Extensions, *Extensions, *FileTypes);
 

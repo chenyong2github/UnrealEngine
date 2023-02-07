@@ -493,12 +493,12 @@ FString FEditorFileUtils::GetFilterString(EFileInteraction Interaction)
 				FString AllExtensions;
 				TMultiMap<uint32, UFactory*> FilterIndexToFactory;
 				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
-				ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory, AssetTools.GetSupportedImportExtension());
+				ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory);
 
 				if (UInterchangeManager::IsInterchangeImportEnabled())
 				{
 					TArray<FString> InterchangeFileExtensions = UInterchangeManager::GetInterchangeManager().GetSupportedFormats(EInterchangeTranslatorType::Scenes);
-					ObjectTools::AppendFormatsFileExtensions(InterchangeFileExtensions, FileTypes, AllExtensions, AssetTools.GetSupportedImportExtension());
+					ObjectTools::AppendFormatsFileExtensions(InterchangeFileExtensions, FileTypes, AllExtensions);
 				}
 
 				FileTypes = FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);

@@ -1859,6 +1859,21 @@ bool UContentBrowserAssetDataSource::CanHandleDragDropEvent(const FContentBrowse
 			{
 				NewDragCursor = EMouseCursor::SlashedCircle;
 			}
+			else if (ExternalDragDropOp->HasFiles())
+			{
+				bool bSupportOneFile = false;
+				for (const FString& File : ExternalDragDropOp->GetFiles())
+				{
+					if (AssetTools->IsImportExtensionAllowed(FPaths::GetExtension(File)))
+					{
+						bSupportOneFile = true;
+					}
+				}
+				if (!bSupportOneFile)
+				{
+					NewDragCursor = EMouseCursor::SlashedCircle;
+				}
+			}
 			ExternalDragDropOp->SetCursorOverride(NewDragCursor);
 
 			return true; // We will handle this drop, even if the result is invalid (eg, read-only folder)
@@ -1890,10 +1905,35 @@ bool UContentBrowserAssetDataSource::HandleDragDropOnItem(const FContentBrowserI
 		if (TSharedPtr<FExternalDragOperation> ExternalDragDropOp = InDragDropEvent.GetOperationAs<FExternalDragOperation>())
 		{
 			FText ErrorMsg;
+			FString UnsupportedFiles;
 			if (ExternalDragDropOp->HasFiles() && ContentBrowserAssetData::CanModifyPath(AssetTools, FolderPayload->GetInternalPath(), &ErrorMsg))
 			{
-				// Delay import until next tick to avoid blocking the process that files were dragged from
-				GEditor->GetEditorSubsystem<UImportSubsystem>()->ImportNextTick(ExternalDragDropOp->GetFiles(), FolderPayload->GetInternalPath().ToString());
+				TArray<FString> ImportFiles;
+				for (const FString& File : ExternalDragDropOp->GetFiles())
+				{
+					if (AssetTools->IsImportExtensionAllowed(FPaths::GetExtension(File)))
+					{
+						ImportFiles.AddUnique(File);
+					}
+					else
+					{
+						if (!UnsupportedFiles.IsEmpty())
+						{
+							UnsupportedFiles += TEXT("\n");
+						}
+						UnsupportedFiles += File;
+					}
+				}
+				if (ImportFiles.Num() > 0)
+				{
+					// Delay import until next tick to avoid blocking the process that files were dragged from
+					GEditor->GetEditorSubsystem<UImportSubsystem>()->ImportNextTick(ImportFiles, FolderPayload->GetInternalPath().ToString());
+				}
+			}
+
+			if (!UnsupportedFiles.IsEmpty())
+			{
+				ErrorMsg = FText::Format(LOCTEXT("HandleDragDropOnItemUnsupportedFile", "Unsupported file format to import:\n\t{0}"), FText::FromString(UnsupportedFiles));
 			}
 
 			if (!ErrorMsg.IsEmpty())
