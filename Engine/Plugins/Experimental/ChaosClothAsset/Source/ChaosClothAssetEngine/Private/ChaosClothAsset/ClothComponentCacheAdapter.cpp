@@ -15,18 +15,12 @@ namespace UE::Chaos::ClothAsset
 {
 	::Chaos::FComponentCacheAdapter::SupportType FClothComponentCacheAdapter::SupportsComponentClass(UClass* InComponentClass) const
 	{
-		/** The desired class is UChaosClothComponent. 
-		 * But when UChaosClothComponent is a child component of a USkeletalMeshComponent, UChaosClothComponent is not selectible using SoftComponentRef. 
-		 * To get around this issue, we need to select the parent USkeletalMeshComponent in SoftComponentRef, 
-		 * make USkeletalMeshComponent also a supported class for FClothComponentAdapter,
-		 *  and prioritize FClothComponentAdapter over FSkeletalMeshComponentAdapter in CacheManagerActor.
-		 */
 		const UClass* Desired = GetDesiredClass();
-		if(InComponentClass == Desired || InComponentClass == USkeletalMeshComponent::StaticClass())
+		if(InComponentClass == Desired)
 		{
 			return ::Chaos::FComponentCacheAdapter::SupportType::Direct;
 		}
-		else if(InComponentClass->IsChildOf(Desired) || InComponentClass->IsChildOf(USkeletalMeshComponent::StaticClass()))
+		else if(InComponentClass->IsChildOf(Desired))
 		{
 			return ::Chaos::FComponentCacheAdapter::SupportType::Derived;
 		}

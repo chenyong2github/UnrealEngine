@@ -33,7 +33,7 @@ namespace Chaos
 
 	uint8 FSkeletalMeshCacheAdapter::GetPriority() const
 	{
-		return EngineAdapterPriorityBegin + 1; // A trick to prioritize cloth component over skeletal mesh component
+		return EngineAdapterPriorityBegin;
 	}
 
 	void FSkeletalMeshCacheAdapter::Record_PostSolve(UPrimitiveComponent* InComponent, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const
