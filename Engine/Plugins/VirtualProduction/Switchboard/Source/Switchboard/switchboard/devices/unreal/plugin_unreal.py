@@ -515,6 +515,14 @@ class DeviceUnreal(Device):
             value=2980,
             tool_tip="Port of SwitchboardListener"
         ),
+        'osc_port': IntSetting(
+            attr_name='osc_port',
+            nice_name='OSC Port',
+            value=5500,
+            tool_tip=(
+                'Must match the port on which the Unreal Editor OSC server '
+                'is configured to listen for OSC connections.'),
+        ),
         'roles_filename': StringSetting(
             attr_name="roles_filename",
             nice_name="Roles Filename",
@@ -936,6 +944,12 @@ class DeviceUnreal(Device):
         CONFIG.ENGINE_SYNC_METHOD.signal_setting_changed.connect(
             self.on_engine_sync_method_changed)
 
+        osc_port_setting = DeviceUnreal.csettings['osc_port']
+        osc_port_setting.signal_setting_changed.connect(
+            lambda: self._check_recreate_osc_client())
+        osc_port_setting.signal_setting_overridden.connect(
+            lambda: self._check_recreate_osc_client())
+
         self.auto_connect = False
 
         self.runtime_str = ""
@@ -1123,6 +1137,7 @@ class DeviceUnreal(Device):
     def setting_overrides(self):
         overrides = super().setting_overrides() + [
             Device.csettings['is_recording_device'],
+            DeviceUnreal.csettings['osc_port'],
             DeviceUnreal.csettings['command_line_arguments'],
             DeviceUnreal.csettings['exec_cmds'],
             DeviceUnreal.csettings['dp_cvars'],
@@ -1275,6 +1290,10 @@ class DeviceUnreal(Device):
     def on_setting_exclude_from_build_changed(self, exclude_from_build):
         self.widget.update_exclude_from_build(exclude_from_build, not self.is_disconnected)
 
+    @property
+    def device_osc_port(self) -> int:
+        return DeviceUnreal.csettings['osc_port'].get_value(self.name)
+
     def set_slate(self, value):
         if not self.is_recording_device:
             return
@@ -1302,7 +1321,7 @@ class DeviceUnreal(Device):
             os.path.dirname(uproject_path), "Config", "Tags", roles_filename)
         _, msg = message_protocol.create_copy_file_from_listener_message(roles_file_path)
         self.unreal_client.send_message(msg)
-        
+
     def _request_unreal_editor_version_file(self):
         '''
         Requests the Engine/Binaries/[platform]/UnrealEditor.version file.
@@ -1890,9 +1909,7 @@ class DeviceUnreal(Device):
     def generate_unreal_command_line_args(self, map_name):
         command_line_args = f'{self.extra_cmdline_args_setting}'
 
-        command_line_args += f' Log={self.log_filename}'
-
-        command_line_args += " "
+        command_line_args += f' Log={self.log_filename} '
 
         if CONFIG.MUSERVER_AUTO_JOIN.get_value() and self.autojoin_mu_server.get_value():
             command_line_args += (
@@ -1919,7 +1936,6 @@ class DeviceUnreal(Device):
             exec_cmds.append(self.exec_command_for_livelink_preset(livelink_preset_gamepath))
 
         # Exec Commands
-
         exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
 
         if len(exec_cmds):
@@ -2001,6 +2017,14 @@ class DeviceUnreal(Device):
             command_line_args += (
                 ' -UDPMESSAGING_TRANSPORT_STATIC='
                 f'"{",".join(static_endpoints)}"')
+
+        record_on_client = 'True' if self.is_recording_device else 'False'
+        ini_engine = (
+            ' -ini:Engine:'
+            '[/Script/ConcertTakeRecorder.ConcertSessionRecordSettings]:'
+            f'LocalSettings=(bRecordOnClient={record_on_client})'
+        )
+        command_line_args += ini_engine
 
         return (
             f'"{CONFIG.UPROJECT_PATH.get_value(self.name)}" {map_name} '

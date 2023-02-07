@@ -84,6 +84,8 @@ class Device(QtCore.QObject):
         self.device_qt_handler = DeviceQtHandler()
 
         self.setting_address = AddressSetting('address', 'Address', address)
+        self.setting_address.signal_setting_changed.connect(
+            lambda: self._check_recreate_osc_client())
 
         # override any setting that was passed via kwargs
         for setting in self.setting_overrides():
@@ -105,7 +107,7 @@ class Device(QtCore.QObject):
         self.device_hash = random.getrandbits(64)
 
         # Lazily create the OSC client as needed
-        self.osc_client = None
+        self.osc_client: Optional[pythonosc.udp_client.SimpleUDPClient] = None
 
         self.device_recording = None
 
@@ -213,9 +215,6 @@ class Device(QtCore.QObject):
     @address.setter
     def address(self, value: str):
         self.setting_address.update_value(value)
-        # todo-dara: probably better to have the osc client connect to a
-        # change of the address.
-        self.setup_osc_client(CONFIG.OSC_CLIENT_PORT.get_value())
 
     @property
     def status(self):
@@ -252,7 +251,7 @@ class Device(QtCore.QObject):
         self._engine_changelist = value
         self.device_qt_handler.signal_device_engine_changelist_changed.emit(
             self)
-        
+
     @property
     def built_engine_changelist(self):
         return self._built_engine_changelist
@@ -263,6 +262,10 @@ class Device(QtCore.QObject):
         self.device_qt_handler.signal_device_built_engine_changelist_changed.emit(
             self
         )
+
+    @property
+    def device_osc_port(self) -> int:
+        raise NotImplementedError()
 
     def set_slate(self, value):
         pass
@@ -308,15 +311,26 @@ class Device(QtCore.QObject):
 
     def setup_osc_client(self, osc_port):
         try:
+            LOGGER.osc(
+                f'{self.name}: (Re)creating OSC client '
+                f'{self.address}:{osc_port}')
+
             self.osc_client = pythonosc.udp_client.SimpleUDPClient(
                 self.address, osc_port)
         except socket.gaierror as exc:
             LOGGER.error(f'{self.name}: Invalid OSC server address',
                          exc_info=exc)
 
+    def _check_recreate_osc_client(self):
+        if self.osc_client is not None:
+            address_changed = self.osc_client._address != self.address
+            port_changed = self.osc_client._port != self.device_osc_port
+            if address_changed or port_changed:
+                self.setup_osc_client(self.device_osc_port)
+
     def send_osc_message(self, command, value, log=True):
         if not self.osc_client:
-            self.setup_osc_client(CONFIG.OSC_CLIENT_PORT.get_value())
+            self.setup_osc_client(self.device_osc_port)
 
         if log:
             LOGGER.osc(

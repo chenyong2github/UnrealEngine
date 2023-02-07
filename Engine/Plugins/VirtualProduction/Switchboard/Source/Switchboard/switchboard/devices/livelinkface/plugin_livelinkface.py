@@ -1,23 +1,32 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
+import datetime
+
+from PySide2 import QtCore, QtGui
+
 from switchboard import config_osc as osc
-from switchboard.config import CONFIG, SETTINGS
+from switchboard.config import CONFIG, SETTINGS, IntSetting
 from switchboard.devices.device_base import Device, DeviceStatus
 from switchboard.devices.device_widget_base import DeviceWidget
 from switchboard.switchboard_logging import LOGGER
 
-from PySide2 import QtCore, QtGui, QtWidgets
-from PySide2.QtCore import QDirIterator
-
-import datetime
 
 class DeviceLiveLinkFace(Device):
-    QUERY_TIME = 5
+    csettings = {
+        'osc_port': IntSetting(
+            attr_name='osc_port',
+            nice_name='OSC Port',
+            value=8000,
+            tool_tip=(
+                'Must match the port on which the Live Link Face app is '
+                'configured to listen for OSC connections.'),
+        )
+    }
 
-    def __init__(self, name, address, port=CONFIG.OSC_CLIENT_PORT.get_value(), **kwargs):
+    def __init__(self, name, address, **kwargs):
         super().__init__(name, address, **kwargs)
 
         self.auto_connect = False
-        self.port = port
         self._battery = 1.0
         self.look_for_device = True
 
@@ -26,6 +35,21 @@ class DeviceLiveLinkFace(Device):
         sleep_time_in_ms = 1000 * 5
         self.query_timer.start(sleep_time_in_ms)
         self._query_time = datetime.datetime.now()
+
+        osc_port_setting = DeviceLiveLinkFace.csettings['osc_port']
+        osc_port_setting.signal_setting_changed.connect(
+            lambda: self._check_recreate_osc_client())
+        osc_port_setting.signal_setting_overridden.connect(
+            lambda: self._check_recreate_osc_client())
+
+    def setting_overrides(self):
+        return super().setting_overrides() + [
+            DeviceLiveLinkFace.csettings['osc_port'],
+        ]
+
+    @property
+    def device_osc_port(self) -> int:
+        return DeviceLiveLinkFace.csettings['osc_port'].get_value(self.name)
 
     @property
     def battery(self):
@@ -122,11 +146,6 @@ class DeviceLiveLinkFace(Device):
 
         self.send_osc_message(osc.RECORD_START, [slate, take])
 
-    def get_config(self):
-        device_config = super().get_config()
-        device_config['port'] = 8000
-        return device_config
-
 
 class DeviceWidgetLiveLinkFace(DeviceWidget):
     def __init__(self, name, device_hash, address, icons, parent=None):
@@ -146,15 +165,14 @@ class DeviceWidgetLiveLinkFace(DeviceWidget):
         self.look_for_button.clicked.connect(self.look_for_button_clicked)
 
     def set_battery(self, value):
-
         rounded_value = int(round(value * 100 / 10.0)) * 10
-        
+
         qrc_path = f":/icons/images/icon_livelinkface_{rounded_value}.png"
         pixmap = QtGui.QPixmap(qrc_path)
 
         if pixmap.isNull():
             pixmap = self.icon_for_state("enabled").pixmap(QtCore.QSize(40, 40))
-            
+
         self.device_icon.setPixmap(pixmap)
 
     def look_for_button_clicked(self):

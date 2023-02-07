@@ -2159,20 +2159,17 @@ class Config(object):
             self.basic_project_settings["content_plugin_filters"])
 
         self.osc_settings = {
-            "osc_server_port": IntSetting(
-                "osc_server_port",
-                "OSC Server Port",
-                data.get('osc_server_port', 6000)
-            ),
-            "osc_client_port": IntSetting(
-                "osc_client_port",
-                "OSC Client Port",
-                data.get('osc_client_port', 8000)
+            'osc_server_port': IntSetting(
+                attr_name='osc_server_port',
+                nice_name='Internal OSC Server Port',
+                value=data.get('osc_server_port', 6000),
+                tool_tip=(
+                    'The port on which Switchboard listens for incoming OSC '
+                    'connections from other devices/applications.')
             )
         }
 
         self.OSC_SERVER_PORT = self.osc_settings["osc_server_port"]
-        self.OSC_CLIENT_PORT = self.osc_settings["osc_client_port"]
 
         self.source_control_settings = {
             "p4_enabled": BoolSetting(
@@ -2447,7 +2444,6 @@ class Config(object):
 
         # OSC settings
         data["osc_server_port"] = self.OSC_SERVER_PORT.get_value()
-        data["osc_client_port"] = self.OSC_CLIENT_PORT.get_value()
 
         # Source Control Settings
         data["p4_enabled"] = self.P4_ENABLED.get_value()
