@@ -3,6 +3,9 @@
 #include "IdentifierTable/ConcertTransportArchives.h"
 #include "IdentifierTable/ConcertIdentifierTable.h"
 
+namespace UE::Concert::Private::ConcertIdentifierArchiveUtil
+{
+
 enum class EConcertIdentifierSource : uint8
 {
 	/** Plain string value (no suffix) */
@@ -10,8 +13,146 @@ enum class EConcertIdentifierSource : uint8
 	/** Hardcoded FName index value (see MAX_NETWORKED_HARDCODED_NAME) */
 	HardcodedIndex,
 	/** Local identifier table index value (see FConcertLocalIdentifierTable) */
-	LocalIdentifierTableIndex,
+	LocalIdentifierTableIndex_PackedInt,
+	/** Local identifier table index value (see FConcertLocalIdentifierTable) */
+	LocalIdentifierTableIndex_FixedSizeInt32,
+	/** FName table index value (non-portable!) */
+	FNameTableIndex_FixedSizeUInt32,
 };
+
+void WriteName(FArchive& Ar, const FName& Name, FConcertLocalIdentifierTable* LocalIdentifierTable)
+{
+	auto SerializeConcertIdentifierSource = [&Ar](EConcertIdentifierSource InSource)
+	{
+		Ar.Serialize(&InSource, sizeof(EConcertIdentifierSource));
+	};
+
+	auto SerializeIndexValue = [&Ar](int32 InIndex)
+	{
+		check(InIndex >= 0);
+		uint32 UnsignedIndex = (uint32)InIndex;
+		Ar.SerializeIntPacked(UnsignedIndex);
+	};
+
+	if (const EName* Ename = Name.ToEName(); Ename && ShouldReplicateAsInteger(*Ename, Name))
+	{
+		SerializeConcertIdentifierSource(EConcertIdentifierSource::HardcodedIndex);
+		SerializeIndexValue((int32)*Ename);
+	}
+	else if (LocalIdentifierTable == FConcertLocalIdentifierTable::ForceFNameTableIndex)
+	{
+		SerializeConcertIdentifierSource(EConcertIdentifierSource::FNameTableIndex_FixedSizeUInt32);
+		uint32 FNameTableIndex = Name.GetDisplayIndex().ToUnstableInt();
+		Ar << FNameTableIndex; // Note: Don't serialize as a packed int so that the data size remains consistent in case this data gets rewritten (see FConcertIdentifierRewriter)
+	}
+	else if (LocalIdentifierTable)
+	{
+		SerializeConcertIdentifierSource(EConcertIdentifierSource::LocalIdentifierTableIndex_FixedSizeInt32);
+		int32 IdentifierTableIndex = LocalIdentifierTable->MapName(Name);
+		Ar << IdentifierTableIndex; // Note: Don't serialize as a packed int so that the data size remains consistent in case this data gets rewritten (see FConcertIdentifierRewriter)
+	}
+	else
+	{
+		SerializeConcertIdentifierSource(EConcertIdentifierSource::PlainString);
+		FString PlainString = Name.GetPlainNameString();
+		Ar << PlainString;
+	}
+	
+	int32 NameNumber = Name.GetNumber();
+	SerializeIndexValue(NameNumber);
+}
+
+void ReadName(FArchive& Ar, FName& Name, const FConcertLocalIdentifierTable* LocalIdentifierTable)
+{
+	checkf(LocalIdentifierTable != FConcertLocalIdentifierTable::ForceFNameTableIndex, TEXT("FConcertLocalIdentifierTable::ForceFNameTableIndex can only be used when writing!"));
+
+	auto SerializeIndexValue = [&Ar]() -> int32
+	{
+		uint32 UnsignedIndex = 0;
+		Ar.SerializeIntPacked(UnsignedIndex);
+		return (int32)UnsignedIndex;
+	};
+
+	EConcertIdentifierSource Source;
+	Ar.Serialize(&Source, sizeof(EConcertIdentifierSource));
+
+	switch (Source)
+	{
+	case EConcertIdentifierSource::PlainString:
+		{
+			FString PlainString;
+			Ar << PlainString;
+			Name = FName(*PlainString, NAME_NO_NUMBER_INTERNAL, /*bSplitName*/false);
+		}
+		break;
+
+	case EConcertIdentifierSource::HardcodedIndex:
+		{
+			const int32 HardcodedIndex = SerializeIndexValue();
+			Name = EName(HardcodedIndex);
+		}
+		break;
+
+	case EConcertIdentifierSource::LocalIdentifierTableIndex_PackedInt:
+		{
+			const int32 IdentifierTableIndex = SerializeIndexValue();
+			if (!LocalIdentifierTable || !LocalIdentifierTable->UnmapName(IdentifierTableIndex, Name))
+			{
+				Ar.SetError();
+				return;
+			}
+		}
+		break;
+
+	case EConcertIdentifierSource::LocalIdentifierTableIndex_FixedSizeInt32:
+		{
+			int32 IdentifierTableIndex = INDEX_NONE;
+			Ar << IdentifierTableIndex;
+			if (!LocalIdentifierTable || !LocalIdentifierTable->UnmapName(IdentifierTableIndex, Name))
+			{
+				Ar.SetError();
+				return;
+			}
+		}
+		break;
+
+	case EConcertIdentifierSource::FNameTableIndex_FixedSizeUInt32:
+		{
+			uint32 FNameTableIndex = 0;
+			Ar << FNameTableIndex;
+			Name = FName::CreateFromDisplayId(FNameEntryId::FromUnstableInt(FNameTableIndex), 0);
+		}
+		break;
+
+	default:
+		checkf(false, TEXT("Unknown EConcertIdentifierSource!"));
+		break;
+	}
+
+	const int32 NameNumber = SerializeIndexValue();
+	Name.SetNumber(NameNumber);
+}
+
+void WriteSoftObjectPath(FArchive& Ar, const FSoftObjectPath& AssetPtr)
+{
+	// TODO: Serialize via FSoftObjectPath::SerializePath to avoid converting all object paths to FName
+	FNameBuilder ObjPathStr;
+	AssetPtr.ToString(ObjPathStr);
+
+	FName ObjPath = FName(ObjPathStr);
+	Ar << ObjPath;
+}
+
+void ReadSoftObjectPath(FArchive& Ar, FSoftObjectPath& AssetPtr)
+{
+	FName ObjPath;
+	Ar << ObjPath;
+
+	FNameBuilder ObjPathStr(ObjPath);
+	AssetPtr.SetPath(ObjPathStr.ToView());
+}
+
+} // namespace UE::Concert::Private::ConcertIdentifierArchiveUtil
 
 FConcertIdentifierWriter::FConcertIdentifierWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, TArray<uint8>& InBytes, bool bIsPersistent)
 	: FMemoryWriter(InBytes, bIsPersistent)
@@ -21,48 +162,13 @@ FConcertIdentifierWriter::FConcertIdentifierWriter(FConcertLocalIdentifierTable*
 
 FArchive& FConcertIdentifierWriter::operator<<(FName& Name)
 {
-	auto SerializeConcertIdentifierSource = [this](EConcertIdentifierSource InSource)
-	{
-		Serialize(&InSource, sizeof(EConcertIdentifierSource));
-	};
-
-	auto SerializeIndexValue = [this](int32 InIndex)
-	{
-		check(InIndex >= 0);
-		uint32 UnsignedIndex = (uint32)InIndex;
-		SerializeIntPacked(UnsignedIndex);
-	};
-
-	const EName* Ename = Name.ToEName();
-	int32 IdentifierTableIndex = INDEX_NONE;
-	if (Ename && ShouldReplicateAsInteger(*Ename, Name))
-	{
-		SerializeConcertIdentifierSource(EConcertIdentifierSource::HardcodedIndex);
-		SerializeIndexValue((int32)*Ename);
-	}
-	else if (LocalIdentifierTable)
-	{
-		SerializeConcertIdentifierSource(EConcertIdentifierSource::LocalIdentifierTableIndex);
-		IdentifierTableIndex = LocalIdentifierTable->MapName(Name);
-		SerializeIndexValue(IdentifierTableIndex);
-	}
-	else
-	{
-		SerializeConcertIdentifierSource(EConcertIdentifierSource::PlainString);
-		FString PlainString = Name.GetPlainNameString();
-		*this << PlainString;
-	}
-	
-	int32 NameNumber = Name.GetNumber();
-	SerializeIndexValue(NameNumber);
-
+	UE::Concert::Private::ConcertIdentifierArchiveUtil::WriteName(*this, Name, LocalIdentifierTable);
 	return *this;
 }
 
 FArchive& FConcertIdentifierWriter::operator<<(FSoftObjectPath& AssetPtr)
 {
-	FName ObjPath = *AssetPtr.ToString();
-	*this << ObjPath;
+	UE::Concert::Private::ConcertIdentifierArchiveUtil::WriteSoftObjectPath(*this, AssetPtr);
 	return *this;
 }
 
@@ -85,59 +191,13 @@ FArchive& FConcertIdentifierReader::operator<<(FName& Name)
 		return *this;
 	}
 
-	auto SerializeIndexValue = [this]() -> int32
-	{
-		uint32 UnsignedIndex = 0;
-		SerializeIntPacked(UnsignedIndex);
-		return (int32)UnsignedIndex;
-	};
-
-	EConcertIdentifierSource Source;
-	Serialize(&Source, sizeof(EConcertIdentifierSource));
-
-	switch (Source)
-	{
-	case EConcertIdentifierSource::PlainString:
-		{
-			FString PlainString;
-			*this << PlainString;
-			Name = FName(*PlainString, NAME_NO_NUMBER_INTERNAL, /*bSplitName*/false);
-		}
-		break;
-
-	case EConcertIdentifierSource::HardcodedIndex:
-		{
-			const int32 HardcodedIndex = SerializeIndexValue();
-			Name = EName(HardcodedIndex);
-		}
-		break;
-
-	case EConcertIdentifierSource::LocalIdentifierTableIndex:
-		{
-			const int32 IdentifierTableIndex = SerializeIndexValue();
-			if (!LocalIdentifierTable || !LocalIdentifierTable->UnmapName(IdentifierTableIndex, Name))
-			{
-				SetError();
-				return *this;
-			}
-		}
-		break;
-
-	default:
-		checkf(false, TEXT("Unknown EConcertIdentifierSource!"));
-		break;
-	}
-
-	const int32 NameNumber = SerializeIndexValue();
-	Name.SetNumber(NameNumber);
-
+	UE::Concert::Private::ConcertIdentifierArchiveUtil::ReadName(*this, Name, LocalIdentifierTable);
 	return *this;
 }
 
 FArchive& FConcertIdentifierReader::operator<<(FSoftObjectPath& AssetPtr)
 {
-	FName ObjPath = *AssetPtr.ToString();
-	*this << ObjPath;
+	UE::Concert::Private::ConcertIdentifierArchiveUtil::ReadSoftObjectPath(*this, AssetPtr);
 	return *this;
 }
 
@@ -146,3 +206,83 @@ FString FConcertIdentifierReader::GetArchiveName() const
 	return TEXT("FConcertIdentifierReader");
 }
 
+
+FConcertIdentifierRewriter::FConcertIdentifierRewriter(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertLocalIdentifierTable* InRewriteIdentifierTable, TArray<uint8>& InBytes, bool bIsPersistent)
+	: LocalIdentifierTable(InLocalIdentifierTable)
+	, RewriteIdentifierTable(InRewriteIdentifierTable)
+	, Bytes(InBytes)
+{
+	checkf(LocalIdentifierTable && RewriteIdentifierTable, TEXT("FConcertIdentifierRewriter can only rewrite data via an identifier table, as the rewritten data must be the same size!"));
+	SetIsLoading(true);
+	SetIsPersistent(bIsPersistent);
+}
+
+FArchive& FConcertIdentifierRewriter::operator<<(FName& Name)
+{
+	if (GetError())
+	{
+		return *this;
+	}
+
+	const int32 OffsetBeforeNameRead = Offset;
+	UE::Concert::Private::ConcertIdentifierArchiveUtil::ReadName(*this, Name, LocalIdentifierTable);
+	const int32 OffsetAfterNameRead = Offset;
+
+	// Write the name to the scratch buffer using the rewrite identifier table
+	{
+		ScratchBytes.Reset();
+		FMemoryWriter ScratchWriter(ScratchBytes, IsPersistent());
+		UE::Concert::Private::ConcertIdentifierArchiveUtil::WriteName(ScratchWriter, Name, RewriteIdentifierTable);
+	}
+
+	// Patch the scratch buffer into the real buffer
+	// The data must be the same size to avoid serialization issues with tagged data
+	{
+		const int64 OldSerializedSize = OffsetAfterNameRead - OffsetBeforeNameRead;
+		const int64 NewSerializedSize = ScratchBytes.Num();
+		if (ensureAlwaysMsgf(OldSerializedSize == NewSerializedSize, TEXT("FConcertIdentifierRewriter: Rewritten data must be the same size to avoid issues with tagged property serialization! (old: %d, new: %d)"), OldSerializedSize, NewSerializedSize))
+		{
+			FMemory::Memcpy(Bytes.GetData() + OffsetBeforeNameRead, ScratchBytes.GetData(), NewSerializedSize);
+		}
+		else
+		{
+			SetError();
+			return *this;
+		}
+	}
+
+	return *this;
+}
+
+FArchive& FConcertIdentifierRewriter::operator<<(FSoftObjectPath& AssetPtr)
+{
+	UE::Concert::Private::ConcertIdentifierArchiveUtil::WriteSoftObjectPath(*this, AssetPtr);
+	return *this;
+}
+
+int64 FConcertIdentifierRewriter::TotalSize()
+{
+	return (int64)Bytes.Num();
+}
+
+void FConcertIdentifierRewriter::Serialize(void* Data, int64 Num)
+{
+	if (Num && !IsError())
+	{
+		// Only serialize if we have the requested amount of data
+		if (Offset + Num <= TotalSize())
+		{
+			FMemory::Memcpy(Data, Bytes.GetData() + Offset, Num);
+			Offset += Num;
+		}
+		else
+		{
+			SetError();
+		}
+	}
+}
+
+FString FConcertIdentifierRewriter::GetArchiveName() const
+{
+	return TEXT("FConcertIdentifierRewriter");
+}

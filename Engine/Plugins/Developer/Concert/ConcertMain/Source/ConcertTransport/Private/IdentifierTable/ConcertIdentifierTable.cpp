@@ -2,9 +2,16 @@
 
 #include "IdentifierTable/ConcertIdentifierTable.h"
 
+FConcertLocalIdentifierTable* FConcertLocalIdentifierTable::ForceFNameTableIndex = (FConcertLocalIdentifierTable*)INDEX_NONE;
+
 FConcertLocalIdentifierTable::FConcertLocalIdentifierTable(const FConcertLocalIdentifierState& InState)
 {
 	SetState(InState);
+}
+
+bool FConcertLocalIdentifierTable::HasMappings() const
+{
+	return MappedNames.Num() > 0;
 }
 
 int32 FConcertLocalIdentifierTable::MapName(const FName& InName)

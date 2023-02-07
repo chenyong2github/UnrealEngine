@@ -26,7 +26,7 @@ private:
 	FConcertLocalIdentifierTable* LocalIdentifierTable;
 };
 
-/** Archive for reading identifiers (currently names) in a way that avoids duplication by caching them against their internal key, which can then be mapped over the network  */
+/** Archive for reading identifiers (currently names) in a way that avoids duplication by caching them against their internal key, which can then be mapped over the network */
 class CONCERTTRANSPORT_API FConcertIdentifierReader : public FMemoryReader
 {
 public:
@@ -42,4 +42,27 @@ public:
 
 private:
 	const FConcertLocalIdentifierTable* LocalIdentifierTable;
+};
+
+/** Archive for rewriting identifiers (currently names) so that they belong to a different identifier table */
+class CONCERTTRANSPORT_API FConcertIdentifierRewriter : public FMemoryArchive
+{
+public:
+	FConcertIdentifierRewriter(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertLocalIdentifierTable* InRewriteIdentifierTable, TArray<uint8>& InBytes, bool bIsPersistent = false);
+
+	using FMemoryArchive::operator<<; // For visibility of the overloads we don't override
+
+	//~ Begin FArchive Interface
+	virtual FArchive& operator<<(FName& Name) override;
+	virtual FArchive& operator<<(FSoftObjectPath& AssetPtr) override;
+	virtual int64 TotalSize() override final;
+	virtual void Serialize(void* Data, int64 Num) override final;
+	virtual FString GetArchiveName() const override;
+	//~ End FArchive Interface
+
+private:
+	const FConcertLocalIdentifierTable* LocalIdentifierTable = nullptr;
+	FConcertLocalIdentifierTable* RewriteIdentifierTable = nullptr;
+	TArray<uint8>& Bytes;
+	TArray<uint8> ScratchBytes;
 };

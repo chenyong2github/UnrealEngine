@@ -79,7 +79,7 @@ private:
 	FConcertSyncRemapObjectPath RemapObjectPathDelegate;
 };
 
-/** Archive for reading objects that can been received from another instance via Concert */
+/** Archive for reading objects that have been received from another instance via Concert */
 class CONCERTSYNCCORE_API FConcertSyncObjectReader : public FConcertIdentifierReader
 {
 public:
@@ -104,6 +104,27 @@ public:
 private:
 	FConcertSyncWorldRemapper WorldRemapper;
 	FConcertSyncEncounteredMissingObject EncounteredMissingObjectDelegate;
+};
+
+/** Archive for rewriting identifiers (currently names) so that they belong to a different identifier table */
+class CONCERTSYNCCORE_API FConcertSyncObjectRewriter : public FConcertIdentifierRewriter
+{
+public:
+	FConcertSyncObjectRewriter(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertLocalIdentifierTable* InRewriteIdentifierTable, const FConcertSessionVersionInfo* InVersionInfo, TArray<uint8>& InBytes);
+
+	void RewriteObject(const UClass* InClass);
+	void RewriteProperty(const FProperty* InProp);
+
+	using FConcertIdentifierRewriter::operator<<; // For visibility of the overloads we don't override
+
+	//~ Begin FArchive Interface
+	virtual FArchive& operator<<(UObject*& Obj) override;
+	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override;
+	virtual FArchive& operator<<(FObjectPtr& Obj) override;
+	virtual FArchive& operator<<(FSoftObjectPtr& AssetPtr) override;
+	virtual FArchive& operator<<(FWeakObjectPtr& Value) override;
+	virtual FString GetArchiveName() const override;
+	//~ End FArchive Interface
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

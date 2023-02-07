@@ -31,6 +31,16 @@ public:
 	explicit FConcertLocalIdentifierTable(const FConcertLocalIdentifierState& InState);
 
 	/**
+	 * Constant used to force names to serialize as their FName table index value (non-portable!)
+	 */
+	static FConcertLocalIdentifierTable* ForceFNameTableIndex;
+
+	/**
+	 * Does this table have any mappings in it?
+	 */
+	bool HasMappings() const;
+
+	/**
 	 * Map the given name to its identifier index.
 	 */
 	int32 MapName(const FName& InName);
