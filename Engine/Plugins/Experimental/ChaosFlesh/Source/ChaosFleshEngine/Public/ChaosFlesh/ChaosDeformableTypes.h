@@ -5,6 +5,8 @@
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineBaseTypes.h"
 
+#include "ChaosDeformableTypes.generated.h"
+
 UENUM(BlueprintType)
 enum class EDeformableExecutionModel : uint8
 {
