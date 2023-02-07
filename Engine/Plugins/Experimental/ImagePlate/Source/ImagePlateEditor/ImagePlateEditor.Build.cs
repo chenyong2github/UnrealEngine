@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"ImagePlate",
 					"RHI",
+					"Settings",
 					"Slate",
 					"SlateCore",
                     "TimeManagement",
