@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VCamPixelStreamingSubsystem.h"
-#include "Features/IModularFeatures.h"
-#include "ILiveLinkClient.h"
+
+#include "PixelStreamingEditorModule.h"
 #include "VCamPixelStreamingLiveLink.h"
 #include "VCamPixelStreamingSession.h"
-#include "PixelStreamingVCamLog.h"
-#include "PixelStreamingEditorModule.h"
+
+#include "Features/IModularFeatures.h"
+#include "ILiveLinkClient.h"
 
 void UVCamPixelStreamingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {

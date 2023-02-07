@@ -56,7 +56,7 @@ void UVCamInputSettings::PostInitProperties()
 	// If we want default values to change, artists can just copy the settings from Game.ini into DefaultVCamInputSettings.ini..
 	// On the first run, we load from DefaultVCamInputSettings.ini.
 	// After that the engine will continue to use Game.ini.
-	const TSharedPtr<IPlugin> VirtualCameraPlugin = IPluginManager::Get().FindPlugin(TEXT("VirtualCamera"));
+	const TSharedPtr<IPlugin> VirtualCameraPlugin = IPluginManager::Get().FindPlugin(TEXT("VirtualCameraCore"));
 	const FString PluginDefaultConfigFile = VirtualCameraPlugin->GetBaseDir() / TEXT("Config") / TEXT("DefaultVCamInputSettings.ini");
 	const FString RealDefaultConfigFile = GetConfigFilename(this);
 	const bool bNeedsDefaultValues = !GConfig->DoesSectionExist(TEXT("/Script/VCamInput.VCamInputSettings"), RealDefaultConfigFile);

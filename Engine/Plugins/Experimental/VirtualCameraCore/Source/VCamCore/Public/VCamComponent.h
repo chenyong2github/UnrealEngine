@@ -10,7 +10,6 @@
 #include "GameplayTagContainer.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "VCamInputSettings.h"
-#include "VCamSubsystem.h"
 #include "Input/VCamInputDeviceConfig.h"
 #include "Util/VCamViewportLocker.h"
 #include "Subsystems/SubsystemCollection.h"
