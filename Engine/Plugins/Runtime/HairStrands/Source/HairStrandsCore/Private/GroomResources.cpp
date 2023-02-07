@@ -290,7 +290,7 @@ void InternalCreateByteAddressBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, 
 		InBulkData.Unlock();
 	}
 
-	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, PF_R32_UINT); // TODO?
+	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, PF_Unknown);
 }
 
 
