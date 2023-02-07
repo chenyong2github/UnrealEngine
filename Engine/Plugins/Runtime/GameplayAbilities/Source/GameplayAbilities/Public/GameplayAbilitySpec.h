@@ -16,7 +16,7 @@
 
 class UAbilitySystemComponent;
 class UGameplayAbility;
-
+struct FGameplayEventData;
 
 /** Describes the status of activating this ability, this is updated as prediction is handled */
 UENUM(BlueprintType)
@@ -215,6 +215,9 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 	/** This ability should be activated once when it is granted. */
 	UPROPERTY(NotReplicated)
 	uint8 bActivateOnce : 1;
+
+	/** Cached GameplayEventData if this ability was pending for add and activate due to scope lock */
+	TSharedPtr<FGameplayEventData> GameplayEventData = nullptr;
 
 	/** Activation state of this ability. This is not replicated since it needs to be overwritten locally on clients during prediction. */
 	UPROPERTY(NotReplicated)

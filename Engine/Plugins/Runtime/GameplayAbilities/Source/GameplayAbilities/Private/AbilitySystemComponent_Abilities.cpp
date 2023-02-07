@@ -327,6 +327,15 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(F
 			return FGameplayAbilitySpecHandle();
 		}
 	}
+	else if (GameplayEventData)
+	{
+		// Cache the GameplayEventData in the pending spec (if it was correctly queued)
+		FGameplayAbilitySpec& PendingSpec = AbilityPendingAdds.Last();
+		if (PendingSpec.Handle == AddedAbilityHandle)
+		{
+			PendingSpec.GameplayEventData = MakeShared<FGameplayEventData>(*GameplayEventData);
+		}
+	}
 
 	return AddedAbilityHandle;
 }
@@ -720,7 +729,7 @@ void UAbilitySystemComponent::DecrementAbilityListLock()
 		{
 			if (Spec.bActivateOnce)
 			{
-				GiveAbilityAndActivateOnce(Spec);
+				GiveAbilityAndActivateOnce(Spec, Spec.GameplayEventData.Get());
 			}
 			else
 			{
