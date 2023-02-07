@@ -81,8 +81,8 @@ TSharedRef<SWidget> CreateFloatRangeColumnWidget(UChooserTable* Chooser, FChoose
 	
 void RegisterFloatRangeWidgets()
 {
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FFloatContextProperty::StaticStruct(), CreateFloatPropertyWidget);
-	FChooserTableEditor::ColumnWidgetCreators.Add(FFloatRangeColumn::StaticStruct(), CreateFloatRangeColumnWidget);
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(FFloatContextProperty::StaticStruct(), CreateFloatPropertyWidget);
+	FObjectChooserWidgetFactories::RegisterColumnWidgetCreator(FFloatRangeColumn::StaticStruct(), CreateFloatRangeColumnWidget);
 }
 	
 }

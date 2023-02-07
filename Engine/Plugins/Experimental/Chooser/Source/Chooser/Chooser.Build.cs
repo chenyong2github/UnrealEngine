@@ -9,6 +9,7 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"StructUtils",
 					// ... add other public dependencies that you statically link with here ...
 				}
 			);
@@ -20,7 +21,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"GameplayTags",
-					"StructUtils"
 					// ... add private dependencies that you statically link with here ...
 				}
 			);

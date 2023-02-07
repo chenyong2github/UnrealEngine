@@ -433,16 +433,8 @@ public:
 				{
 					FChooserColumnBase* Column = &Chooser->ColumnsStructs[ColumnIndex].GetMutable<FChooserColumnBase>();
 					const UStruct * ColumnStruct = Chooser->ColumnsStructs[ColumnIndex].GetScriptStruct();
-					TSharedPtr<SWidget> ColumnWidget;
-					while (ColumnStruct && !ColumnWidget.IsValid())
-					{
-						if (auto Creator = FChooserTableEditor::ColumnWidgetCreators.Find(ColumnStruct))
-						{
-							ColumnWidget = (*Creator)(Chooser, Column, RowIndex->RowIndex);
-							break;
-						}
-						ColumnStruct = ColumnStruct->GetSuperStruct();
-					}
+
+					TSharedPtr<SWidget> ColumnWidget = FObjectChooserWidgetFactories::CreateColumnWidget(Column, ColumnStruct, Chooser, RowIndex->RowIndex);
 					
 					if (ColumnWidget.IsValid())
 					{
@@ -969,10 +961,6 @@ void FChooserTableEditor::DeleteColumn(int Index)
 	}
 }
 
-/// Result widgets
-
-TMap<const UStruct*, TFunction<TSharedRef<SWidget> (UChooserTable* Chooser, FChooserColumnBase* Column, int Row)>> FChooserTableEditor::ColumnWidgetCreators;
-
 TSharedRef<SWidget> CreateAssetWidget(UObject* TransactionObject, void* Value, UClass* ContextClass)
 {
 	FAssetChooser* DIAsset = static_cast<FAssetChooser*>(Value);
@@ -1147,8 +1135,8 @@ void FChooserColumnDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder
 void FChooserTableEditor::RegisterWidgets()
 {
 	// todo: fallback widget
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FAssetChooser::StaticStruct(), CreateAssetWidget);
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FEvaluateChooser::StaticStruct(), CreateEvaluateChooserWidget);
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(FAssetChooser::StaticStruct(), CreateAssetWidget);
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(FEvaluateChooser::StaticStruct(), CreateEvaluateChooserWidget);
 	
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");

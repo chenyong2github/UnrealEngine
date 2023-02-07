@@ -17,7 +17,35 @@
 
 namespace UE::ChooserEditor
 {
+	
+void FObjectChooserWidgetFactories::RegisterWidgetCreator(const UStruct* Type, FChooserWidgetCreator Creator)
+{
+	ChooserWidgetCreators.Add(Type, Creator);	
+}
+	
+void  FObjectChooserWidgetFactories::RegisterColumnWidgetCreator(const UStruct* ColumnType, FColumnWidgetCreator Creator)
+{
+	ColumnWidgetCreators.Add(ColumnType, Creator);	
+}
+	
+TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateColumnWidget(FChooserColumnBase* Column, const UStruct* ColumnType, UChooserTable* Chooser, int RowIndex)
+{
+	if (Column)
+	{
+		while (ColumnType)
+		{
+			if (FColumnWidgetCreator* Creator = FObjectChooserWidgetFactories::ColumnWidgetCreators.Find(ColumnType))
+			{
+				return (*Creator)(Chooser, Column, RowIndex);
+			}
+			ColumnType = ColumnType->GetSuperStruct();
+		}
+	}
 
+	return nullptr;
+}
+	
+	
 TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UObject* TransactionObject, void* Value, const UStruct* ValueType, UClass* ContextClass)
 {
 	if (Value)
@@ -95,6 +123,7 @@ TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UObject* Transac
 	return Widget;
 }
 
+TMap<const UStruct*, TFunction<TSharedRef<SWidget>(UChooserTable* Chooser, FChooserColumnBase* Column, int Row)>> FObjectChooserWidgetFactories::ColumnWidgetCreators;
 TMap<const UStruct*, FChooserWidgetCreator> FObjectChooserWidgetFactories::ChooserWidgetCreators;
 
 void FObjectChooserWidgetFactories::RegisterWidgets()

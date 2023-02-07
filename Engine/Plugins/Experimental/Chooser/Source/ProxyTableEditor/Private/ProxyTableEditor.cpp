@@ -668,7 +668,7 @@ TSharedRef<SWidget> CreateLookupProxyWidget(UObject* TransactionObject, void* Va
 
 void FProxyTableEditor::RegisterWidgets()
 {
-	UE::ChooserEditor::FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FLookupProxy::StaticStruct(), CreateLookupProxyWidget);
+	UE::ChooserEditor::FObjectChooserWidgetFactories::RegisterWidgetCreator(FLookupProxy::StaticStruct(), CreateLookupProxyWidget);
 }
 	
 }

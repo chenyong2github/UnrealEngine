@@ -141,8 +141,6 @@ namespace UE::ChooserEditor
 	public:
 		TSharedPtr<SComboButton>& GetCreateRowComboButton() { return CreateRowComboButton; };
 
-		static TMap<const UStruct*, TFunction<TSharedRef<SWidget> (UChooserTable* Chooser, FChooserColumnBase* Column, int Row)>> ColumnWidgetCreators;
-	
 		/** The name given to all instances of this type of editor */
 		static const FName ToolkitFName;
 

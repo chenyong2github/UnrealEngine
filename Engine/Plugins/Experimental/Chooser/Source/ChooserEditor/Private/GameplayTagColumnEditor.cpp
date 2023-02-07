@@ -56,8 +56,8 @@ TSharedRef<SWidget> CreateGameplayTagPropertyWidget(UObject* TransactionObject, 
 	
 void RegisterGameplayTagWidgets()
 {
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FGameplayTagContextProperty::StaticStruct(), CreateGameplayTagPropertyWidget);
-	FChooserTableEditor::ColumnWidgetCreators.Add(FGameplayTagColumn::StaticStruct(), CreateGameplayTagColumnWidget);
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(FGameplayTagContextProperty::StaticStruct(), CreateGameplayTagPropertyWidget);
+	FObjectChooserWidgetFactories::RegisterColumnWidgetCreator(FGameplayTagColumn::StaticStruct(), CreateGameplayTagColumnWidget);
 }
 	
 }

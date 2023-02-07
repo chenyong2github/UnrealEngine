@@ -126,8 +126,8 @@ TSharedRef<SWidget> CreateEnumPropertyWidget(UObject* TransactionObject, void* V
 	
 void RegisterEnumWidgets()
 {
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FEnumContextProperty::StaticStruct(), CreateEnumPropertyWidget);
-	FChooserTableEditor::ColumnWidgetCreators.Add(FEnumColumn::StaticStruct(), CreateEnumColumnWidget);
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(FEnumContextProperty::StaticStruct(), CreateEnumPropertyWidget);
+	FObjectChooserWidgetFactories::RegisterColumnWidgetCreator(FEnumColumn::StaticStruct(), CreateEnumColumnWidget);
 }
 	
 }

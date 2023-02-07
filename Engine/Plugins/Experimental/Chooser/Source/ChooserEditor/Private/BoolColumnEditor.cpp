@@ -63,9 +63,9 @@ TSharedRef<SWidget> CreateBoolPropertyWidget(UObject* TransactionObject, void* V
 	
 void RegisterBoolWidgets()
 {
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FBoolContextProperty::StaticStruct(), CreateBoolPropertyWidget);
-	FChooserTableEditor::ColumnWidgetCreators.Add(FBoolColumn::StaticStruct(), CreateBoolColumnWidget);
-	FChooserTableEditor::ColumnWidgetCreators.Add(FOutputBoolColumn::StaticStruct(), CreateOutputBoolColumnWidget);
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(FBoolContextProperty::StaticStruct(), CreateBoolPropertyWidget);
+	FObjectChooserWidgetFactories::RegisterColumnWidgetCreator(FBoolColumn::StaticStruct(), CreateBoolColumnWidget);
+	FObjectChooserWidgetFactories::RegisterColumnWidgetCreator(FOutputBoolColumn::StaticStruct(), CreateOutputBoolColumnWidget);
 }
 	
 }
