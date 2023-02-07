@@ -304,6 +304,12 @@ FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx) const
 			Metadata.ContinuingPoseCostAddend = ContinuingPoseCostBias->CostAddend;
 		}
 	}
+
+	if (IndexingContext.AssetSampler->IsLoopable())
+	{
+		Metadata.CostAddend += IndexingContext.Schema->LoopingCostBias;
+	}
+
 	return Metadata;
 }
 

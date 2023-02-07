@@ -89,6 +89,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	float MirrorMismatchCostBias = 0.f;
 
+	// cost added to all poses from looping assets of databases that uses this schema
+	UPROPERTY(EditAnywhere, Category = "Schema")
+	float LoopingCostBias = 0.f;
+
 	UPROPERTY(EditAnywhere, Category = "Schema", meta = (ExcludeFromHash))
 	TArray<FPoseSearchSchemaColorPreset> ColorPresets;
 	
