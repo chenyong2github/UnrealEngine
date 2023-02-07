@@ -71,7 +71,13 @@ static TAutoConsoleVariable<bool> CVarICVFXPanelAutoPan(
 	true,
 	TEXT("When true, the stage view will automatically tilt and pan on supported map projections as you drag objects near the edges of the screen."));
 
-
+int32 GICVFXPanelDisplayNormalMapVisualization = 0;
+static FAutoConsoleVariableRef CVarICVFXPanelDisplayNormalMapVisualization(
+	TEXT("nDisplay.panel.DisplayNormalMapVisualization"),
+	GICVFXPanelDisplayNormalMapVisualization,
+	TEXT("Displays the normal map visualization of the stage's geometry map, which is used to determine physical stage geometry"),
+	ECVF_RenderThreadSafe
+);
 //////////////////////////////////////////////////////////////////////////
 // FDisplayClusterLightCardEditorViewportClient
 
@@ -368,7 +374,7 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 		DrawCanvas(*Viewport, *View, *Canvas);
 	}
 
-	if (bDisplayNormalMapVisualization)
+	if (bDisplayNormalMapVisualization || GICVFXPanelDisplayNormalMapVisualization)
 	{
 		auto DrawNormalMap = [Canvas, this](bool bShowNorthMap, FVector2D Position)
 		{
@@ -1048,6 +1054,7 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 	FScopedTransaction Transaction(LOCTEXT("AddNewLightCard", "Add New Light Card"));
 
 	ADisplayClusterLightCardActor* LightCard = LightCardEditorPtr.Pin()->SpawnActorAs<ADisplayClusterLightCardActor>(TEXT("LightCard"));
+	ProjectionHelper->VerifyAndFixActorOrigin(LightCard);
 
 	if (!LightCard)
 	{

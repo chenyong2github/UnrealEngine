@@ -255,8 +255,22 @@ void UDisplayClusterStageGeometryComponent::UpdateStageGeometry()
 			return bIsProjectionMesh || bIsScreen;
 		});
 
-		const FBox BoundingBox = RootActor->GetComponentsBoundingBox().ShiftBy(-RootActor->GetActorLocation());
-		StageBoundingRadius = FMath::Max(BoundingBox.Min.Length(), BoundingBox.Max.Length());
+		// Get the bounding box for all of the stage's screens
+		FBox StageBoundingBox(ForceInit);
+		RootActor->ForEachComponent<UPrimitiveComponent>(false, [&StageBoundingBox, &ProjectionMeshNames](const UPrimitiveComponent* PrimitiveComponent)
+		{
+			// Filter out any primitive component that isn't a projection mesh (a static mesh that has a Mesh projection configured for it) or a screen component
+			const bool bIsProjectionMesh = PrimitiveComponent->IsA<UStaticMeshComponent>() && ProjectionMeshNames.Contains(PrimitiveComponent->GetName());
+			const bool bIsScreen = PrimitiveComponent->IsA<UDisplayClusterScreenComponent>();
+
+			if (PrimitiveComponent->IsRegistered() && (bIsProjectionMesh || bIsScreen))
+			{
+				StageBoundingBox += PrimitiveComponent->Bounds.GetBox();
+			}
+		});
+
+		StageBoundingBox = StageBoundingBox.ShiftBy(-RootActor->GetActorLocation());
+		StageBoundingRadius = FMath::Max(StageBoundingBox.Min.Length(), StageBoundingBox.Max.Length());
 	}
 }
 

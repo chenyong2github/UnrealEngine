@@ -976,8 +976,7 @@ ADisplayClusterRootActor* FDisplayClusterLightCardEditorHelper::UpdateRootActor(
 
 	if (NewRootActor)
 	{
-		const FBox BoundingBox = NewRootActor->GetComponentsBoundingBox();
-		RootActorBoundingRadius = FMath::Max(BoundingBox.Min.Length(), BoundingBox.Max.Length());
+		RootActorBoundingRadius = NewRootActor->GetStageGeometryComponent()->GetStageBoundingRadius();
 
 #if WITH_EDITOR
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FDisplayClusterLightCardEditorHelper::OnActorPropertyChanged);
