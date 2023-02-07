@@ -129,7 +129,7 @@ FORCEINLINE void ValidateShaderParameters(const TShaderRef<TShaderClass>& Shader
 }
 
 template<typename TParameterType>
-inline void CollectUAVsToUnset(TArray<FRHIShaderParameterResource, TInlineAllocator<16>>& UAVsToUnset, const TMemoryImageArray<TParameterType>& InParameters)
+inline void CollectUAVsToUnset(TArray<FRHIShaderParameterResource>& UAVsToUnset, const TMemoryImageArray<TParameterType>& InParameters)
 {
 	FRHIUnorderedAccessView* NullUAV = nullptr;
 	for (const TParameterType& Parameter : InParameters)
@@ -144,7 +144,7 @@ inline void CollectUAVsToUnset(TArray<FRHIShaderParameterResource, TInlineAlloca
 }
 
 template<typename TParameterType>
-inline void CollectSRVsToUnset(TArray<FRHIShaderParameterResource, TInlineAllocator<16>>& SRVsToUnset, const TMemoryImageArray<TParameterType>& InParameters)
+inline void CollectSRVsToUnset(TArray<FRHIShaderParameterResource>& SRVsToUnset, const TMemoryImageArray<TParameterType>& InParameters)
 {
 	FRHIShaderResourceView* NullSRV = nullptr;
 	for (const TParameterType& Parameter : InParameters)
@@ -158,56 +158,89 @@ inline void CollectSRVsToUnset(TArray<FRHIShaderParameterResource, TInlineAlloca
 	}
 }
 
-/** Unset compute shader UAVs. */
-template<typename TRHICmdList, typename TShaderClass>
-inline void UnsetShaderUAVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIComputeShader* ShaderRHI)
+inline void UnsetShaderUAVs(FRHIBatchedShaderParameters& BatchedParameters, const FShaderParameterBindings& Bindings)
+{
+	CollectUAVsToUnset(BatchedParameters.ResourceParameters, Bindings.ResourceParameters);
+	CollectUAVsToUnset(BatchedParameters.BindlessParameters, Bindings.BindlessResourceParameters);
+}
+
+inline void UnsetShaderSRVs(FRHIBatchedShaderParameters& BatchedParameters, const FShaderParameterBindings& Bindings)
+{
+	CollectSRVsToUnset(BatchedParameters.ResourceParameters, Bindings.ResourceParameters);
+	CollectSRVsToUnset(BatchedParameters.BindlessParameters, Bindings.BindlessResourceParameters);
+}
+
+template<typename TShaderClass>
+inline void UnsetShaderUAVs(FRHIBatchedShaderParameters& BatchedParameters, const TShaderRef<TShaderClass>& Shader)
 {
 	// TODO(RDG): Once all shader sets their parameter through this, can refactor RHI so all UAVs of a shader get unset through a single RHI function call.
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
 
 	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use UnsetShaderUAVs() for root parameter buffer index."));
 
-	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> ResourceUAVsToUnset;
-	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> BindlessUAVsToUnset;
+	UnsetShaderUAVs(BatchedParameters, Bindings);
+}
 
-	CollectUAVsToUnset(ResourceUAVsToUnset, Bindings.ResourceParameters);
-	CollectUAVsToUnset(BindlessUAVsToUnset, Bindings.BindlessResourceParameters);
+template<typename TShaderClass>
+inline void UnsetShaderSRVs(FRHIBatchedShaderParameters& BatchedParameters, const TShaderRef<TShaderClass>& Shader)
+{
+	// TODO(RDG): Once all shader sets their parameter through this, can refactor RHI so all SRVs of a shader get unset through a single RHI function call.
+	const FShaderParameterBindings& Bindings = Shader->Bindings;
 
-	RHICmdList.SetShaderParameters(ShaderRHI, {}, {}, ResourceUAVsToUnset, BindlessUAVsToUnset);
+	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use UnsetShaderSRVs() for root parameter buffer index."));
+
+	UnsetShaderSRVs(BatchedParameters, Bindings);
+}
+
+/** Unset compute shader UAVs. */
+template<typename TRHICmdList, typename TShaderClass>
+inline void UnsetShaderUAVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIComputeShader* ShaderRHI)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+	UnsetShaderUAVs(BatchedParameters, Shader);
+	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
 }
 
 /** Unset compute shader SRVs. */
 template<typename TRHICmdList, typename TShaderClass>
 inline void UnsetShaderSRVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIComputeShader* ShaderRHI)
 {
-	const FShaderParameterBindings& Bindings = Shader->Bindings;
-
-	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use UnsetShaderSRVs() for root parameter buffer index."));
-
-	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> ResourceSRVsToUnset;
-	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> BindlessSRVsToUnset;
-
-	CollectSRVsToUnset(ResourceSRVsToUnset, Bindings.ResourceParameters);
-	CollectSRVsToUnset(BindlessSRVsToUnset, Bindings.BindlessResourceParameters);
-
-	RHICmdList.SetShaderParameters(ShaderRHI, {}, {}, ResourceSRVsToUnset, BindlessSRVsToUnset);
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+	UnsetShaderSRVs(BatchedParameters, Shader);
+	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
 }
 
 /** Unset compute shader SRVs. */
 template<typename TRHICmdList, typename TShaderClass>
 inline void UnsetShaderSRVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIGraphicsShader* ShaderRHI)
 {
-	const FShaderParameterBindings& Bindings = Shader->Bindings;
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+	UnsetShaderSRVs(BatchedParameters, Shader);
+	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
+}
 
-	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use UnsetShaderSRVs() for root parameter buffer index."));
+RENDERCORE_API void SetShaderParameters(
+	FRHIBatchedShaderParameters& BatchedParameters,
+	const FShaderParameterBindings& Bindings,
+	const FShaderParametersMetadata* ParametersMetadata,
+	const void* ParametersData);
 
-	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> ResourceSRVsToUnset;
-	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> BindlessSRVsToUnset;
+template<typename TShaderClass>
+inline void SetShaderParameters(
+	FRHIBatchedShaderParameters& BatchedParameters,
+	const TShaderRef<TShaderClass>& Shader,
+	const FShaderParametersMetadata* ParametersMetadata,
+	const typename TShaderClass::FParameters& Parameters)
+{
+	ValidateShaderParameters(Shader, ParametersMetadata, &Parameters);
+	SetShaderParameters(BatchedParameters, Shader->Bindings, ParametersMetadata, &Parameters);
+}
 
-	CollectSRVsToUnset(ResourceSRVsToUnset, Bindings.ResourceParameters);
-	CollectSRVsToUnset(BindlessSRVsToUnset, Bindings.BindlessResourceParameters);
-
-	RHICmdList.SetShaderParameters(ShaderRHI, {}, {}, ResourceSRVsToUnset, BindlessSRVsToUnset);
+template<typename TShaderClass>
+inline void SetShaderParameters(FRHIBatchedShaderParameters& BatchedParameters, const TShaderRef<TShaderClass>& Shader, const typename TShaderClass::FParameters& Parameters)
+{
+	const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
+	SetShaderParameters(BatchedParameters, Shader, ParametersMetadata, Parameters);
 }
 
 RENDERCORE_API void SetShaderParameters(

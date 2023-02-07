@@ -19,6 +19,7 @@
 #include "Serialization/MemoryImage.h"
 #include "Serialization/MemoryLayout.h"
 #include "Shader.h"
+#include "ShaderParameterUtils.h"
 #include "Templates/Tuple.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
@@ -289,6 +290,13 @@ public:
 
 	RENDERCORE_API FGlobalShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	
+	template<typename TViewUniformShaderParameters>
+	inline void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHIUniformBuffer* ViewUniformBuffer)
+	{
+		const auto& ViewUniformBufferParameter = static_cast<const FShaderUniformBufferParameter&>(GetUniformBufferParameter<TViewUniformShaderParameters>());
+		SetUniformBufferParameter(BatchedParameters, ViewUniformBufferParameter, ViewUniformBuffer);
+	}
+
 	template<typename TViewUniformShaderParameters, typename ShaderRHIParamRef, typename TRHICmdList>
 	inline void SetParameters(TRHICmdList& RHICmdList, const ShaderRHIParamRef ShaderRHI, FRHIUniformBuffer* ViewUniformBuffer)
 	{

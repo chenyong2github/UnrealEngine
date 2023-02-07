@@ -219,10 +219,21 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 }
 #endif
 
-template<typename TRHIShader, typename TRHICommandList>
+void FMaterialShader::SetViewParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View, const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
+{
+	const auto& ViewUniformBufferParameter = GetUniformBufferParameter<FViewUniformShaderParameters>();
+	SetUniformBufferParameter(BatchedParameters, ViewUniformBufferParameter, ViewUniformBuffer);
+
+	if (View.bShouldBindInstancedViewUB)
+	{
+		// When drawing an instanced stereo scene, the instanced view UB should be taken from the same view where it will contains a copy of both left and eye values (see FViewInfo::CreateViewUniformBuffers).
+		const auto& InstancedViewUniformBufferParameter = GetUniformBufferParameter<FInstancedViewUniformShaderParameters>();
+		SetUniformBufferParameter(BatchedParameters, InstancedViewUniformBufferParameter, View.GetInstancedViewUniformBuffer());
+	}
+}
+
 void FMaterialShader::SetParameters(
-	TRHICommandList& RHICmdList,
-	TRHIShader* ShaderRHI,
+	FRHIBatchedShaderParameters& BatchedParameters,
 	const FMaterialRenderProxy* MaterialRenderProxy,
 	const FMaterial& Material,
 	const FSceneView& View)
@@ -267,7 +278,7 @@ void FMaterialShader::SetParameters(
 		MaterialRenderProxy->EvaluateUniformExpressions(*UniformExpressionCache, MaterialRenderContext);
 	}
 
-	SetUniformBufferParameter(RHICmdList, ShaderRHI, MaterialUniformBuffer, UniformExpressionCache->UniformBuffer);
+	SetUniformBufferParameter(BatchedParameters, MaterialUniformBuffer, UniformExpressionCache->UniformBuffer);
 
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING || !WITH_EDITOR)
 	VerifyExpressionAndShaderMaps(MaterialRenderProxy, Material, UniformExpressionCache);
@@ -322,7 +333,7 @@ void FMaterialShader::SetParameters(
 					GDefaultMaterialParameterCollectionInstances.Num(), *InstancesString);
 			}
 
-			SetUniformBufferParameter(RHICmdList, ShaderRHI, ParameterCollectionUniformBuffers[CollectionIndex], UniformBuffer);			
+			SetUniformBufferParameter(BatchedParameters, ParameterCollectionUniformBuffers[CollectionIndex], UniformBuffer);
 		}
 	}
 
@@ -331,27 +342,6 @@ void FMaterialShader::SetParameters(
 		delete UniformExpressionCache;
 	}
 }
-
-// Doxygen struggles to parse these explicit specializations. Just ignore them for now.
-#if !UE_BUILD_DOCS
-
-#define IMPLEMENT_MATERIAL_SHADER_SetParameters( TRHICommandList, TRHIShader ) \
-	template RENDERER_API void FMaterialShader::SetParameters< TRHIShader, TRHICommandList >( \
-		TRHICommandList& RHICmdList,				\
-		TRHIShader* ShaderRHI,							\
-		const FMaterialRenderProxy* MaterialRenderProxy,\
-		const FMaterial& Material,						\
-		const FSceneView& View							\
-	);
-
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIVertexShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIGeometryShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIPixelShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIMeshShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIComputeShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIComputeCommandList, FRHIComputeShader);
-
-#endif
 
 void FMaterialShader::GetShaderBindings(
 	const FScene* Scene,

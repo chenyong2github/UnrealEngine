@@ -80,28 +80,36 @@ public:
 
 	FRHIUniformBuffer* GetParameterCollectionBuffer(const FGuid& Id, const FSceneInterface* SceneInterface) const;
 
+	void SetViewParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View, const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer);
+
 	template<typename ShaderRHIParamRef, typename TRHICommandList>
 	FORCEINLINE_DEBUGGABLE void SetViewParameters(TRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View, const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
 	{
-		const auto& ViewUniformBufferParameter = GetUniformBufferParameter<FViewUniformShaderParameters>();
-		SetUniformBufferParameter(RHICmdList, ShaderRHI, ViewUniformBufferParameter, ViewUniformBuffer);
-
-		if (View.bShouldBindInstancedViewUB)
-		{
-			// When drawing an instanced stereo scene, the instanced view UB should be taken from the same view where it will contains a copy of both left and eye values (see FViewInfo::CreateViewUniformBuffers).
-			const auto& InstancedViewUniformBufferParameter = GetUniformBufferParameter<FInstancedViewUniformShaderParameters>();
-			SetUniformBufferParameter(RHICmdList, ShaderRHI, InstancedViewUniformBufferParameter, View.GetInstancedViewUniformBuffer());
-		}
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+		SetViewParameters(BatchedParameters, View, ViewUniformBuffer);
+		RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
 	}
 
 	/** Sets pixel parameters that are material specific but not FMeshBatch specific. */
-	template<typename TRHIShader, typename TRHICommandList>
 	void SetParameters(
-		TRHICommandList& RHICmdList,
-		TRHIShader* ShaderRHI,
+		FRHIBatchedShaderParameters& BatchedParameters,
 		const FMaterialRenderProxy* MaterialRenderProxy, 
 		const FMaterial& Material,
 		const FSceneView& View);
+
+	/** Sets pixel parameters that are material specific but not FMeshBatch specific. */
+	template<typename TRHIShader, typename TRHICommandList>
+	inline void SetParameters(
+		TRHICommandList& RHICmdList,
+		TRHIShader* ShaderRHI,
+		const FMaterialRenderProxy* MaterialRenderProxy,
+		const FMaterial& Material,
+		const FSceneView& View)
+	{
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+		SetParameters(BatchedParameters, MaterialRenderProxy, Material, View);
+		RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
+	}
 
 	void GetShaderBindings(
 		const FScene* Scene,

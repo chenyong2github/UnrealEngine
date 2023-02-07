@@ -170,6 +170,56 @@ inline void SetUAVParameter(FRHIBatchedShaderParameters& BatchedParameters, cons
 	}
 }
 
+inline void SetUniformBufferParameter(FRHIBatchedShaderParameters& BatchedParameters, const FShaderUniformBufferParameter& Parameter, FRHIUniformBuffer* UniformBufferRHI)
+{
+	// This will trigger if the parameter was not serialized
+	checkSlow(Parameter.IsInitialized());
+	// If it is bound, we must set it so something valid
+	checkSlow(!Parameter.IsBound() || UniformBufferRHI);
+	if (Parameter.IsBound())
+	{
+		BatchedParameters.SetShaderUniformBuffer(Parameter.GetBaseIndex(), UniformBufferRHI);
+	}
+}
+
+template<typename TBufferStruct>
+inline void SetUniformBufferParameter(FRHIBatchedShaderParameters& BatchedParameters, const TShaderUniformBufferParameter<TBufferStruct>& Parameter, const TUniformBufferRef<TBufferStruct>& UniformBufferRef)
+{
+	// This will trigger if the parameter was not serialized
+	checkSlow(Parameter.IsInitialized());
+	// If it is bound, we must set it so something valid
+	checkSlow(!Parameter.IsBound() || IsValidRef(UniformBufferRef));
+	if (Parameter.IsBound())
+	{
+		SetUniformBufferParameter(BatchedParameters, Parameter, UniformBufferRef.GetReference());
+	}
+}
+
+template<typename TBufferStruct>
+inline void SetUniformBufferParameter(FRHIBatchedShaderParameters& BatchedParameters, const TShaderUniformBufferParameter<TBufferStruct>& Parameter, const TUniformBuffer<TBufferStruct>& UniformBuffer)
+{
+	// This will trigger if the parameter was not serialized
+	checkSlow(Parameter.IsInitialized());
+	// If it is bound, we must set it so something valid
+	checkSlow(!Parameter.IsBound() || UniformBuffer.GetUniformBufferRHI());
+	if (Parameter.IsBound())
+	{
+		SetUniformBufferParameter(BatchedParameters, Parameter, UniformBuffer.GetUniformBufferRHI());
+	}
+}
+
+template<typename TBufferStruct>
+inline void SetUniformBufferParameterImmediate(FRHIBatchedShaderParameters& BatchedParameters, const TShaderUniformBufferParameter<TBufferStruct>& Parameter, const TBufferStruct& UniformBufferValue)
+{
+	// This will trigger if the parameter was not serialized
+	checkSlow(Parameter.IsInitialized());
+	if (Parameter.IsBound())
+	{
+		FUniformBufferRHIRef UniformBufferRef = RHICreateUniformBuffer(&UniformBufferValue, &TBufferStruct::StaticStructMetadata.GetLayout(), UniformBuffer_SingleDraw);
+		SetUniformBufferParameter(BatchedParameters, Parameter, UniformBufferRef.GetReference());
+	}
+}
+
 /// Utility to set all parameters for a Vertex shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
 template<typename TCmdList, typename TShaderType, typename... TArguments>
 inline void SetAllShaderParametersVS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)

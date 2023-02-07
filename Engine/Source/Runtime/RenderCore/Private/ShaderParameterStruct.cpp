@@ -623,8 +623,6 @@ static void ExtractShaderParameters(
 	}
 }
 
-#define UE_SINGLE_SHADER_PARAMETERS_COMMAND_INCLUDE_UB (1)
-
 template<typename BindingParameterType>
 FRHIShaderParameterResource ExtractShaderParameterResource(FShaderParameterReader Reader, const BindingParameterType& Parameter)
 {
@@ -707,10 +705,7 @@ static void ExtractShaderParameterResources(
 	}
 #endif
 
-	int32 NumBindings = Bindings.ResourceParameters.Num();
-#if UE_SINGLE_SHADER_PARAMETERS_COMMAND_INCLUDE_UB
-	NumBindings += Bindings.GraphUniformBuffers.Num() + Bindings.ParameterReferences.Num();
-#endif
+	const int32 NumBindings = Bindings.ResourceParameters.Num() + Bindings.GraphUniformBuffers.Num() + Bindings.ParameterReferences.Num();
 
 	if (NumBindings)
 	{
@@ -722,7 +717,6 @@ static void ExtractShaderParameterResources(
 			OutResourceParameters.Emplace(ShaderParameterResource);
 		}
 
-#if UE_SINGLE_SHADER_PARAMETERS_COMMAND_INCLUDE_UB
 		for (const FShaderParameterBindings::FParameterStructReference& Parameter : Bindings.GraphUniformBuffers)
 		{
 			const FRDGUniformBufferBinding& UniformBufferBinding = Reader.Read<FRDGUniformBufferBinding>(Parameter);
@@ -742,8 +736,24 @@ static void ExtractShaderParameterResources(
 				OutResourceParameters.Emplace(UniformBufferBinding.GetUniformBuffer(), GetParameterIndex(Parameter));
 			}
 		}
-#endif // UE_SINGLE_SHADER_PARAMETERS_COMMAND_INCLUDE_UB
 	}
+}
+
+/** Set batched parameters from a parameters struct. */
+void SetShaderParameters(
+	FRHIBatchedShaderParameters& BatchedParameters,
+	const FShaderParameterBindings& Bindings,
+	const FShaderParametersMetadata* ParametersMetadata,
+	const void* InParametersData)
+{
+	TConstArrayView<uint8> FullParametersData((const uint8*)InParametersData, ParametersMetadata->GetSize());
+
+	for (const FShaderParameterBindings::FParameter& Parameter : Bindings.Parameters)
+	{
+		BatchedParameters.SetShaderParameter(Parameter.BufferIndex, Parameter.BaseIndex, Parameter.ByteSize, FullParametersData.GetData() + Parameter.ByteOffset);
+	}
+
+	ExtractShaderParameterResources(BatchedParameters.ResourceParameters, BatchedParameters.BindlessParameters, Bindings, ParametersMetadata, FullParametersData);
 }
 
 /** Set shader's parameters from its parameters struct. */
@@ -770,31 +780,6 @@ inline void SetShaderParametersInternal(
 	ExtractShaderParameterResources(ResourceParameters, BindlessParameters, Bindings, ParametersMetadata, FullParametersData);
 
 	RHICmdList.SetShaderParameters(ShaderRHI, MinimalParametersData, Parameters, ResourceParameters, BindlessParameters);
-
-#if !UE_SINGLE_SHADER_PARAMETERS_COMMAND_INCLUDE_UB
-	const FShaderParameterReader Reader(FullParametersData);
-
-	// Graph Uniform Buffers
-	for (const FShaderParameterBindings::FParameterStructReference& Parameter : Bindings.GraphUniformBuffers)
-	{
-		const FRDGUniformBufferBinding& UniformBufferBinding = Reader.Read<FRDGUniformBufferBinding>(Parameter);
-		if (UniformBufferBinding.IsShader())
-		{
-			UniformBufferBinding->MarkResourceAsUsed();
-			RHICmdList.SetShaderUniformBuffer(ShaderRHI, Parameter.BufferIndex, UniformBufferBinding->GetRHI());
-		}
-	}
-
-	// Reference structures
-	for (const FShaderParameterBindings::FParameterStructReference& Parameter : Bindings.ParameterReferences)
-	{
-		const FUniformBufferBinding& UniformBufferBinding = Reader.Read<FUniformBufferBinding>(Parameter);
-		if (UniformBufferBinding.IsShader())
-		{
-			RHICmdList.SetShaderUniformBuffer(ShaderRHI, Parameter.BufferIndex, UniformBufferBinding.GetUniformBuffer());
-		}
-	}
-#endif
 }
 
 void SetShaderParameters(
