@@ -77,14 +77,17 @@ const UObjectMixerObjectFilter* FObjectMixerEditorList::GetMainObjectFilterInsta
 void FObjectMixerEditorList::CacheObjectFilterInstances()
 {
 	ObjectFilterInstances.Reset();
-	
-	for (const TSubclassOf<UObjectMixerObjectFilter> Class : GetObjectFilterClasses())
-	{
-		UObjectMixerObjectFilter* NewInstance = NewObject<UObjectMixerObjectFilter>(GetTransientPackage(), Class);
-		ObjectFilterInstances.Add(TObjectPtr<UObjectMixerObjectFilter>(NewInstance));
-	}
 
-	BuildPerformanceCache();
+	if (ObjectFilterClasses.Num() > 0)
+	{
+		for (const TSubclassOf<UObjectMixerObjectFilter> Class : ObjectFilterClasses)
+		{
+			UObjectMixerObjectFilter* NewInstance = NewObject<UObjectMixerObjectFilter>(GetTransientPackage(), Class);
+			ObjectFilterInstances.Add(TObjectPtr<UObjectMixerObjectFilter>(NewInstance));
+		}
+
+		BuildPerformanceCache();
+	}
 }
 
 TSet<UClass*> FObjectMixerEditorList::ForceGetObjectClassesToFilter()
