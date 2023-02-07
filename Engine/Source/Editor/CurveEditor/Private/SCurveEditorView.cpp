@@ -319,6 +319,14 @@ void SCurveEditorView::GetCurveDrawParam(TSharedPtr<FCurveEditor>& CurveEditor,c
 	}
 }
 
+void SCurveEditorView::RefreshRetainer()
+{
+	if (RetainerWidget)
+	{
+		RetainerWidget->RequestRender();
+	}
+}
+
 void SCurveEditorView::CheckCacheAndInvalidateIfNeeded()
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
@@ -378,10 +386,7 @@ void SCurveEditorView::CheckCacheAndInvalidateIfNeeded()
 			CachedDrawParams.Reset();
 			GetCurveDrawParams(CachedDrawParams);
 			CurveCacheFlags = ECurveCacheFlags::CheckCurves;
-			if (RetainerWidget)
-			{
-				RetainerWidget->RequestRender();
-			}
+			RefreshRetainer();
 		}
 		else if (CurveCacheFlags == ECurveCacheFlags::CheckCurves)
 		{
@@ -395,9 +400,9 @@ void SCurveEditorView::CheckCacheAndInvalidateIfNeeded()
 					GetCurveDrawParam(CurveEditor, Params.GetID(), CurveModel, CachedValues.CachedInputMin, CachedValues.CachedInputMax, Params);
 				}
 			}
-			if (bSomethingChanged && RetainerWidget)
+			if (bSomethingChanged)
 			{
-				RetainerWidget->RequestRender();
+				RefreshRetainer();
 			}
 		}
 	}
@@ -411,9 +416,6 @@ void SCurveEditorView::CheckCacheAndInvalidateIfNeeded()
 		CachedDrawParams.Reset();
 		GetCurveDrawParams(CachedDrawParams);
 
-		if (RetainerWidget)
-		{
-			RetainerWidget->RequestRender();
-		}
+		RefreshRetainer();
 	}
 }

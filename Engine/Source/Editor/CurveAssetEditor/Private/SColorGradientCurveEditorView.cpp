@@ -19,6 +19,7 @@ void SColorGradientCurveEditorView::Construct(const FArguments& InArgs, TSharedR
 	bInteractive = 0;
 	bAutoSize = 1;
 	bAllowEmpty = 1;
+	WeakCurveEditor = InCurveEditor;
 
 	ChildSlot
 	[
@@ -33,4 +34,11 @@ void SColorGradientCurveEditorView::Construct(const FArguments& InArgs, TSharedR
 			.IsEditingEnabled(InArgs._IsEditingEnabled)
 		]
 	];
+}
+
+void SColorGradientCurveEditorView::CheckCacheAndInvalidateIfNeeded()
+{
+	// Always refresh for now
+	// Could be improved by combining SCurveEditorView::CheckCacheAndInvalidateIfNeeded with a separate check for changes in the gradient stops
+	RefreshRetainer();
 }

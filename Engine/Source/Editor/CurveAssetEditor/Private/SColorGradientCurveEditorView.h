@@ -39,6 +39,8 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor);
 
 	TSharedRef<SColorGradientEditor> GetGradientEditor() const { return GradientViewer.ToSharedRef(); }
+
+	virtual void CheckCacheAndInvalidateIfNeeded() override;
 private:
 	TSharedPtr<SColorGradientEditor> GradientViewer;
 };

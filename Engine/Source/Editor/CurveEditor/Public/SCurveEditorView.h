@@ -147,7 +147,7 @@ public:
 	void ZoomAround(const FVector2D& Amount, double InputOrigin, double OutputOrigin);
 
 	/** This should be called every tick by an owning widget, to see if the cache is valid, which will then recreate it and invalidate widget*/
-	void CheckCacheAndInvalidateIfNeeded();
+	virtual void CheckCacheAndInvalidateIfNeeded();
 
 public:
 
@@ -217,6 +217,8 @@ protected:
 	void GetCurveDrawParam(TSharedPtr<FCurveEditor>& CurveEditor, const FCurveModelID& ModelID, FCurveModel* CurveModel,
 		double InputMin, double InputMax, FCurveDrawParams& OutDrawParam) const;
 
+	/** Request a new render from the retainer widget */
+	void RefreshRetainer();
 
 	// ~SWidget interface
 	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
