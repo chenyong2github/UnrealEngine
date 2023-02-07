@@ -111,7 +111,7 @@ namespace Jupiter
 
         public int LastAccessRollupFrequencySeconds { get; set; } = 900; // 15 minutes
         public bool EnableLastAccessTracking { get; set; } = true;
-        public bool EnableOnDemandReplication { get; set; } = false;
+        public bool EnableOnDemandReplication { get; set; } = true;
     }
 
     public class MongoSettings

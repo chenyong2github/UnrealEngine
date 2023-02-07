@@ -29,6 +29,10 @@ UnrealCloudDDC:
   ContentIdStoreImplementation :  {{ default "Scylla" $config.ContentIdStoreImplementation }}
   BlobIndexImplementation :  {{ default "Scylla" $config.BlobIndexImplementation }}
 
+{{- if $config.EnableOnDemandReplication -}}
+  EnableOnDemandReplication :  {{ $config.EnableOnDemandReplication }}
+{{- end -}}
+
 {{- if $config.EnableLastAccessTracking -}}
   EnableLastAccessTracking: {{ $config.EnableLastAccessTracking }}
 {{- end -}}
