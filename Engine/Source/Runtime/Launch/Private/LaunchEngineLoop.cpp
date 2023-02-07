@@ -4267,6 +4267,14 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		FAutomationTestFramework::Get().RunSmokeTests();
 	}
 
+#if WITH_ENGINE && (!UE_BUILD_SHIPPING)
+	IRHITestModule* RHIUnitTests = static_cast<IRHITestModule*>(FModuleManager::Get().GetModule(TEXT("RHITests")));
+	if (RHIUnitTests)
+	{
+		RHIUnitTests->RunAllTests();
+	}
+#endif //(!UE_BUILD_SHIPPING)
+
 	FEmbeddedCommunication::ForceTick(9);
 
 	PreInitContext.Cleanup();
@@ -6777,14 +6785,6 @@ void FEngineLoop::PostInitRHI()
 		PixelFormatByteWidth[i] = GPixelFormats[i].BlockBytes;
 	}
 	RHIPostInit(PixelFormatByteWidth);
-
-#if WITH_ENGINE && (!UE_BUILD_SHIPPING)
-	IRHITestModule* RHIUnitTests = static_cast<IRHITestModule*>(FModuleManager::Get().GetModule(TEXT("RHITests")));
-	if (RHIUnitTests)
-	{
-		RHIUnitTests->RunAllTests();
-	}
-#endif //(!UE_BUILD_SHIPPING)
 
 	if (FApp::CanEverRender())
 	{
