@@ -2,6 +2,7 @@
 #include "WorldPartition/ContentBundle/ContentBundleEngineSubsystem.h"
 
 #include "WorldPartition/ContentBundle/ContentBundleClient.h"
+#include "WorldPartition/ContentBundle/ContentBundleTypeFactory.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
@@ -13,6 +14,14 @@ void UContentBundleEngineSubsystem::Initialize(FSubsystemCollectionBase& Collect
 {
 	Super::Initialize(Collection);
 
+	UClass* ContentBundlTypeFactoryClassValue = ContentBundleTypeFactoryClass.Get();
+	if (!ContentBundlTypeFactoryClassValue)
+	{
+		ContentBundlTypeFactoryClassValue = UContentBundleTypeFactory::StaticClass();
+	}
+	ContentBundleTypeFactory = NewObject<UContentBundleTypeFactory>(this, ContentBundlTypeFactoryClassValue);
+	check(ContentBundleTypeFactory);
+
 	FWorldDelegates::OnPreWorldInitialization.AddUObject(this, &UContentBundleEngineSubsystem::OnPreWorldInitialization);
 	FWorldDelegates::OnPostWorldCleanup.AddUObject(this, &UContentBundleEngineSubsystem::OnWorldPostCleanup);
 }
@@ -23,6 +32,8 @@ void UContentBundleEngineSubsystem::Deinitialize()
 
 	FWorldDelegates::OnPreWorldInitialization.RemoveAll(this);
 	FWorldDelegates::OnPostWorldCleanup.RemoveAll(this);
+
+	ContentBundleTypeFactory = nullptr;
 }
 
 TSharedPtr<FContentBundleClient> UContentBundleEngineSubsystem::RegisterContentBundle(const UContentBundleDescriptor* Descriptor, const FString& ClientDisplayName)
@@ -39,7 +50,7 @@ TSharedPtr<FContentBundleClient> UContentBundleEngineSubsystem::RegisterContentB
 		{
 			check(FindRegisteredClient(Descriptor) == nullptr);;
 
-			TSharedPtr<FContentBundleClient>& ContentBundleClient = ContentBundleClients.Add_GetRef(MakeShared<FContentBundleClient>(Descriptor, ClientDisplayName));
+			TSharedPtr<FContentBundleClient>& ContentBundleClient = ContentBundleClients.Add_GetRef(ContentBundleTypeFactory->CreateClient(Descriptor, ClientDisplayName));
 
 			UE_LOG(LogContentBundle, Log, TEXT("[Client] New client registered. Client: %s, Descriptor: %s"), *ContentBundleClient->GetDisplayName(), *ContentBundleClient->GetDescriptor()->GetDisplayName());
 

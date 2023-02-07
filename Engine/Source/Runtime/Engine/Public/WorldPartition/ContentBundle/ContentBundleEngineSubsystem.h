@@ -11,9 +11,10 @@
 
 class FContentBundleClient;
 class UContentBundleDescriptor;
+class UContentBundleTypeFactory;
 class URuntimeHashExternalStreamingObjectBase;
 
-UCLASS()
+UCLASS(Config = Engine)
 class ENGINE_API UContentBundleEngineSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
@@ -50,4 +51,10 @@ private:
 	TSharedPtr<FContentBundleClient>* FindRegisteredClient(FContentBundleClient& InClient);
 
 	TArray<TSharedPtr<FContentBundleClient>> ContentBundleClients;
+
+	UPROPERTY(Config)
+	TSoftClassPtr<UContentBundleTypeFactory> ContentBundleTypeFactoryClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UContentBundleTypeFactory> ContentBundleTypeFactory;
 };
