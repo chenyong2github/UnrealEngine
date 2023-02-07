@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/TaskGraphFwd.h"
 #include "CoreMinimal.h"
 
 class FUnrealInsightsLauncher : public TSharedFromThis<FUnrealInsightsLauncher>
@@ -81,5 +82,37 @@ private:
 private:
 	/** The name of the Unreal Insights log listing. */
 	FName LogListingName;
+};
+
+typedef TMap<FString, uint32> FLiveSessionsMap;
+
+struct FLiveSessionTaskData
+{
+	FLiveSessionsMap TaskLiveSessionData;
+	uint32 StorePort;
+};
+
+class FLiveSessionTracker
+{
+public:
+	FLiveSessionTracker();
+	~FLiveSessionTracker() {}
+
+	void Update();
+	void StartQuery();
+
+	bool HasData();
+	const FLiveSessionsMap& GetLiveSessions();
+	uint32 GetStorePort();
+
+private:
+	bool bHasData = false;
+	bool bIsQueryInProgress = false;
+	uint32 StorePort;
+
+	FLiveSessionsMap LiveSessionMap;
+	TSharedPtr<FLiveSessionTaskData> TaskLiveSessionData;
+
+	FGraphEventRef Event;
 };
 

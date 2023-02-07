@@ -239,11 +239,15 @@ void SInsightsStatusBarWidget::Construct(const FArguments& InArgs)
 	FTraceAuxiliary::OnTraceStopped.AddSP(this, &SInsightsStatusBarWidget::OnTraceStopped);
 	FTraceAuxiliary::OnSnapshotSaved.AddSP(this, &SInsightsStatusBarWidget::OnSnapshotSaved);
 
+	LiveSessionTracker = MakeShared<FLiveSessionTracker>();
+
 	InitCommandList();
 }
 
 TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 {
+	LiveSessionTracker->StartQuery();
+
 	FMenuBuilder MenuBuilder(true, CommandList.ToSharedRef());
 
 	MenuBuilder.BeginSection("TraceData", LOCTEXT("TraceMenu_Section_Data", "Trace Data"));
@@ -471,7 +475,7 @@ void SInsightsStatusBarWidget::Traces_BuildMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(
 			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::OpenTrace, Index),
 					  FCanExecuteAction()),
-			SNew(SRecentTracesListEntry, Traces[Index], TraceStorePath),
+			SNew(SRecentTracesListEntry, Traces[Index], TraceStorePath, LiveSessionTracker),
 			NAME_None,
 			FText::FromString(Traces[Index]->FilePath),
 			EUserInterfaceActionType::Button);
@@ -1011,6 +1015,22 @@ void SInsightsStatusBarWidget::OpenTrace(int32 Index)
 {
 	if (Index < Traces.Num())
 	{
+		if (FTraceAuxiliary::GetConnectionType() == FTraceAuxiliary::EConnectionType::Network)
+		{
+			if (LiveSessionTracker->HasData())
+			{
+				const FLiveSessionsMap& Sessions = LiveSessionTracker->GetLiveSessions();
+				FString FileName = FPaths::GetBaseFilename(Traces[Index]->FilePath);
+				const uint32* TraceId = Sessions.Find(FileName);
+				
+				if (TraceId)
+				{
+					FUnrealInsightsLauncher::Get()->OpenRemoteTrace(TEXT("localhost"), LiveSessionTracker->GetStorePort(), *TraceId);
+					return;
+				}
+			}
+		}
+
 		FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(Traces[Index]->FilePath);
 	}
 }

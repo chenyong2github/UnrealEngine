@@ -190,6 +190,7 @@ public:
 					SNew(STextBlock)
 					.Text(this, &STraceListRow::GetTraceStatus)
 					.ToolTip(STraceListRow::GetTraceTooltip())
+					.ColorAndOpacity(FStyleColors::AccentRed)
 				];
 		}
 		else

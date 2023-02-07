@@ -8,6 +8,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FLiveSessionTracker;
 class FMenuBuilder;
 class FUICommandList;
 
@@ -154,6 +155,8 @@ private:
 
 	TArray<FChannelData> ChannelsInfo;
 	bool bShouldUpdateChannels = false;
+
+	TSharedPtr<FLiveSessionTracker> LiveSessionTracker;
 
 	TSharedPtr<FUICommandList> CommandList;
 

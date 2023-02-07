@@ -15,12 +15,13 @@
 
 #define LOCTEXT_NAMESPACE "RecentTracesList"
 
-void SRecentTracesListEntry::Construct(const FArguments& InArgs, TSharedPtr<FTraceFileInfo> InTrace, const FString& InStorePath)
+void SRecentTracesListEntry::Construct(const FArguments& InArgs, TSharedPtr<FTraceFileInfo> InTrace, const FString& InStorePath, TSharedPtr<FLiveSessionTracker> InLiveSessionTracker)
 {
 	TraceInfo = InTrace;
 	StorePath = InStorePath;
+	LiveSessionTracker = InLiveSessionTracker;
+	TraceName = FPaths::GetBaseFilename(TraceInfo->FilePath);
 
-	FString TraceName = FPaths::GetBaseFilename(TraceInfo->FilePath);
 	TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	int32 LastCharacter = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(TraceName, FAppStyle::GetFontStyle("Menu.Label"), 180);
 	if (LastCharacter < TraceName.Len() - 1 && LastCharacter > 3)
@@ -66,7 +67,7 @@ void SRecentTracesListEntry::Construct(const FArguments& InArgs, TSharedPtr<FTra
 			+ SHorizontalBox::Slot()
 			.VAlign(EVerticalAlignment::VAlign_Center)
 			.HAlign(EHorizontalAlignment::HAlign_Left)
-			.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+			.Padding(2.0f, 2.0f, 0.0f, 0.0f)
 			.AutoWidth()
 			[
 				SNew(STextBlock)
@@ -74,6 +75,19 @@ void SRecentTracesListEntry::Construct(const FArguments& InArgs, TSharedPtr<FTra
 				.Text(FText::FromString(TraceName))
 				.ToolTipText(FText::FromString(TooltipText))
 				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+
+			+ SHorizontalBox::Slot()
+			.VAlign(EVerticalAlignment::VAlign_Center)
+			.HAlign(EHorizontalAlignment::HAlign_Left)
+			.Padding(3.0f, 1.0f, 0.0f, 0.0f)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.ToolTipText(LOCTEXT("LiveSessionTooltip", "This session is currently recording."))
+				.Text(LOCTEXT("LiveSessionLabel", "(LIVE)"))
+				.Visibility(this, &SRecentTracesListEntry::GetLiveLabelVisibility)
+				.ColorAndOpacity(FStyleColors::AccentRed)
 			]
 					
 			+ SHorizontalBox::Slot()
@@ -102,6 +116,19 @@ FReply SRecentTracesListEntry::OpenContainingFolder()
 	FPlatformProcess::ExploreFolder(*FullPath);
 
 	return FReply::Handled();
+}
+
+EVisibility SRecentTracesListEntry::GetLiveLabelVisibility() const
+{
+	if (LiveSessionTracker.IsValid() && LiveSessionTracker->HasData())
+	{
+		if (LiveSessionTracker->GetLiveSessions().Contains(TraceName))
+		{
+			return EVisibility::Visible;
+		}
+	}
+
+	return EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE
