@@ -291,7 +291,6 @@ class FIoStoreWriterContextImpl
 public:
 	FIoStoreWriterContextImpl()
 	{
-		DDC = GetDerivedDataCache();
 	}
 
 	~FIoStoreWriterContextImpl()
@@ -320,6 +319,11 @@ public:
 		TRACE_CPUPROFILER_EVENT_SCOPE(FIoStoreWriterContext::Initialize);
 		WriterSettings = InWriterSettings;
 		CompressionBufferAvailableEvent = FPlatformProcess::GetSynchEventFromPool(false);
+
+		if (WriterSettings.bCompressionEnableDDC)
+		{
+			DDC = GetDerivedDataCache();
+		}
 
 		if (WriterSettings.CompressionMethod != NAME_None)
 		{
