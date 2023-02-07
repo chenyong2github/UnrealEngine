@@ -1167,6 +1167,9 @@ public:
 	// Whether to use FOV when computing mesh LOD.
 	bool bUseFieldOfViewForLOD;
 
+	// Whether this view should use an HMD hidden area mask where appropriate.
+	bool bHMDHiddenAreaMaskActive = false;
+
 	/** Actual field of view and that desired by the camera originally */
 	float FOV;
 	float DesiredFOV;

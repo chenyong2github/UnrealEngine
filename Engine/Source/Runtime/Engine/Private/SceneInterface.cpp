@@ -10,11 +10,6 @@ FSceneInterface::FSceneInterface(ERHIFeatureLevel::Type InFeatureLevel)
 {
 }
 
-TArray<FPrimitiveComponentId> FSceneInterface::GetScenePrimitiveComponentIds() const
-{ 
-	return TArray<FPrimitiveComponentId>(); 
-}
-
 void FSceneInterface::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 {
 	FRDGBuilder GraphBuilder(RHICmdList, FRDGEventName(TEXT("UpdateAllPrimitiveSceneInfos")));
