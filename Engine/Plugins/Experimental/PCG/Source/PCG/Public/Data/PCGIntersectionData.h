@@ -35,6 +35,7 @@ public:
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	virtual bool HasNonTrivialTransform() const override;
 	virtual const UPCGSpatialData* FindShapeFromNetwork(const int InDimension) const override;
+	virtual const UPCGSpatialData* FindFirstConcreteShapeFromNetwork() const override;
 protected:
 	virtual UPCGSpatialData* CopyInternal() const override;
 	//~End UPCGSpatialData interface

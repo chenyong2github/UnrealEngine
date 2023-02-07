@@ -155,6 +155,18 @@ const UPCGSpatialData* UPCGIntersectionData::FindShapeFromNetwork(const int InDi
 	return nullptr;
 }
 
+const UPCGSpatialData* UPCGIntersectionData::FindFirstConcreteShapeFromNetwork() const
+{
+	check(A && B);
+
+	if (const UPCGSpatialData* CandidateA = A->FindFirstConcreteShapeFromNetwork())
+	{
+		return CandidateA;
+	}
+
+	return B->FindFirstConcreteShapeFromNetwork();
+}
+
 const UPCGPointData* UPCGIntersectionData::CreatePointData(FPCGContext* Context) const
 {
 	check(A && B);

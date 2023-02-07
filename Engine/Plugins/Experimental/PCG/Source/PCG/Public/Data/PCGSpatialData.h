@@ -80,7 +80,7 @@ public:
 	/** Transform a world-space position to a world-space position in relation to the current data. (ex: projection on surface) */
 	FVector TransformPosition(const FVector& InPosition) const;
 
-	/** Sample information from this data at the query. Generally OutPoint should be located at the query position, however some data such as Landscape currently also projects the point. Returns true if Transform location and Bounds overlaps this data. */
+	/** Sample rotation, scale and other attributes from this data at the query position. Returns true if Transform location and Bounds overlaps this data. */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const PURE_VIRTUAL(UPCGSpatialData::SamplePoint, return false;);
 
@@ -124,6 +124,9 @@ public:
 
 	/** A call that is made recursively up through the graph to find the best candidate shape for point generation. If InDimension is -1, finds lowest dimensional shape. */
 	virtual const UPCGSpatialData* FindShapeFromNetwork(const int InDimension) const { return (InDimension == -1 || GetDimension() == InDimension) ? this : nullptr; }
+
+	/** Find the first concrete (non-composite) shape in the network. Depth first search. */
+	virtual const UPCGSpatialData* FindFirstConcreteShapeFromNetwork() const { return !(GetDataType() & EPCGDataType::Composite) ? this : nullptr; }
 
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Data)
 	TWeakObjectPtr<AActor> TargetActor = nullptr;

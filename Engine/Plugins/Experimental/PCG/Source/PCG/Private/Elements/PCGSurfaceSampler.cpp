@@ -322,10 +322,22 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	TArray<const UPCGSpatialData*, TInlineAllocator<16>> GeneratingShapes;
 	for (FPCGTaggedData& TaggedData : SurfaceInputs)
 	{
-		if (UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(TaggedData.Data))
+		if (const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(TaggedData.Data))
 		{
-			GeneratingShapes.Add(SpatialData);
-			Outputs.Add(TaggedData);
+			// Find a concrete shape for sampling. Prefer a 2D surface if we can find one.
+			if (const UPCGSpatialData* SurfaceData = SpatialData->FindShapeFromNetwork(/*InDimension=*/2))
+			{
+				GeneratingShapes.Add(SurfaceData);
+				Outputs.Add(TaggedData);
+			}
+			else if (const UPCGSpatialData* ConcreteData = SpatialData->FindFirstConcreteShapeFromNetwork())
+			{
+				// Alternatively surface-sample any concrete data - can be used to sprinkle samples down onto shapes like volumes.
+				// Searching like this allows the user to plonk in any composite network and it will often find the shape of interest.
+				// A potential extension would be to find all (unique?) concrete shapes and use all of them rather than just the first.
+				GeneratingShapes.Add(ConcreteData);
+				Outputs.Add(TaggedData);
+			}
 		}
 	}
 

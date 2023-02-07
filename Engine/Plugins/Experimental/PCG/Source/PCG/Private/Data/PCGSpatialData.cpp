@@ -136,8 +136,15 @@ UPCGSpatialData* UPCGSpatialData::ProjectOn(const UPCGSpatialData* InOther, cons
 		return DuplicateData();
 	}
 
+	const UPCGSpatialData* ConcreteTarget = InOther->FindFirstConcreteShapeFromNetwork();
+	if (!ConcreteTarget)
+	{
+		UE_LOG(LogPCG, Error, TEXT("Could not find a concrete shape in the target data to project onto."));
+		return DuplicateData();
+	}
+
 	UPCGProjectionData* ProjectionData = NewObject<UPCGProjectionData>();
-	ProjectionData->Initialize(this, InOther, InParams);
+	ProjectionData->Initialize(this, ConcreteTarget, InParams);
 
 	return ProjectionData;
 }

@@ -199,6 +199,21 @@ const UPCGSpatialData* UPCGUnionData::FindShapeFromNetwork(const int InDimension
 	return nullptr;
 }
 
+const UPCGSpatialData* UPCGUnionData::FindFirstConcreteShapeFromNetwork() const
+{
+	// Return first concrete candidate data.
+	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	{
+		const UPCGSpatialData* Candidate = Datum ? Datum->FindFirstConcreteShapeFromNetwork() : nullptr;
+		if (Candidate)
+		{
+			return Candidate;
+		}
+	}
+
+	return nullptr;
+}
+
 const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGUnionData::CreatePointData);

@@ -108,10 +108,21 @@ FBox UPCGLandscapeData::GetStrictBounds() const
 
 bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
-	// SamplePoint actually does a projection for this data, so lets make it explicit and delegate to a project function.
-	// TODO fixup samplers and other things that rely on this behavior and then fix this code.
-	FPCGProjectionParams Params{};
-	return ProjectPoint(InTransform, InBounds, Params, OutPoint, OutMetadata);
+	// The point is in/on the shape if it coincides with its projection. I.e. projecting on landscape does not move the point. Implementing
+	// this way shares the sampling code.
+	if (ProjectPoint(InTransform, InBounds, {}, OutPoint, OutMetadata))
+	{
+		if (InBounds.IsValid)
+		{
+			return FMath::PointBoxIntersection(OutPoint.Transform.GetLocation(), InBounds.TransformBy(InTransform));
+		}
+		else
+		{
+			return (InTransform.GetLocation() - OutPoint.Transform.GetLocation()).SquaredLength() < UE_SMALL_NUMBER;
+		}
+	}
+
+	return false;
 }
 
 bool UPCGLandscapeData::ProjectPoint(const FTransform& InTransform, const FBox& InBounds, const FPCGProjectionParams& InParams, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
