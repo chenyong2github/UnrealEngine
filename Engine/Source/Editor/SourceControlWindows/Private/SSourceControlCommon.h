@@ -279,6 +279,9 @@ struct FFileTreeItem : public IFileViewTreeItem
 	/** true if the item is source controlled and not marked for add nor for delete */
 	bool CanDiff() const { return FileState->IsSourceControlled() && !FileState->IsAdded() && !FileState->IsDeleted(); }
 
+	/** true if the item is source controlled and can be reverted */
+	bool CanRevert() const { return FileState->IsSourceControlled() && FileState->CanRevert(); }
+
 	const FAssetDataArrayPtr& GetAssetData() const
 	{
 		return Assets;
