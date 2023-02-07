@@ -1625,6 +1625,10 @@ UPackage* FGeneratorPackage::CreateGeneratedUPackage(FCookGenerationInfo& Genera
 	GeneratedPackage->SetPersistentGuid(InOwnerPackage->GetPersistentGuid());
 	GeneratedPackage->SetPackageFlags(PKG_CookGenerated);
 	GeneratedInfo.SetHasCreatedPackage(true);
+	if (!InOwnerPackage->IsLoadedByEditorPropertiesOnly())
+	{
+		GeneratedPackage->SetLoadedByEditorPropertiesOnly(false);
+	}
 	return GeneratedPackage;
 }
 
