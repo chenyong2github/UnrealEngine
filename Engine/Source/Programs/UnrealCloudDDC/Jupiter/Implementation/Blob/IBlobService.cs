@@ -210,6 +210,7 @@ public class BlobService : IBlobService
         if (policy.PopulateFallbackNamespaceOnUpload && policy.FallbackNamespace.HasValue)
         {
             await PutObjectToStores(policy.FallbackNamespace.Value, bufferedPayload, identifier);
+            await _blobIndex.AddBlobToIndex(policy.FallbackNamespace.Value, identifier);
         }
         return identifier;
     }
@@ -225,6 +226,7 @@ public class BlobService : IBlobService
         if (policy.PopulateFallbackNamespaceOnUpload && policy.FallbackNamespace.HasValue)
         {
             await PutObjectToStores(policy.FallbackNamespace.Value, payload, identifier);
+            await _blobIndex.AddBlobToIndex(policy.FallbackNamespace.Value, identifier);
         }
         return identifier;
     }
