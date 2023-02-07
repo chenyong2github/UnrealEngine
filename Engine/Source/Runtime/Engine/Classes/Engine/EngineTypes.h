@@ -686,6 +686,7 @@ enum EStrataShadingModel : int
 	SSM_LightFunction			UMETA(DisplayName = "LightFunction"),
 	SSM_PostProcess				UMETA(DisplayName = "PostProcess"),
 	SSM_Decal					UMETA(DisplayName = "Decal"),
+	SSM_UI						UMETA(DisplayName = "UI"),
 	/** Number of unique shading models. */
 	SSM_NUM						UMETA(Hidden),
 };

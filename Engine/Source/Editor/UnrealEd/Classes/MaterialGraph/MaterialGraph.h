@@ -64,9 +64,19 @@ struct FMaterialInputInfo
 		}
 		else if( Material->IsUIMaterial() )
 		{
-			if( Property == MP_EmissiveColor || Property == MP_Opacity || Property == MP_OpacityMask || Property == MP_WorldPositionOffset )
+			if (Strata::IsStrataEnabled())
 			{
-				return true;
+				if (Property == MP_FrontMaterial || Property == MP_OpacityMask || Property == MP_WorldPositionOffset)
+				{
+					return true;
+				}
+			}
+			else
+			{
+				if (Property == MP_EmissiveColor || Property == MP_Opacity || Property == MP_OpacityMask || Property == MP_WorldPositionOffset)
+				{
+					return true;
+				}
 			}
 
 			if (Property >= MP_CustomizedUVs0 && Property <= MP_CustomizedUVs7)

@@ -3533,6 +3533,21 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			EditorOnly->FrontMaterial.Connect(0, ConvertToDecalNode);
 			bInvalidateShader = true;
 		}
+		else if (MaterialDomain == MD_UI)
+		{
+			// Some materials don't have their shading mode set correctly to Unlit. Since only Unlit is supported, forcing it here.
+			ShadingModel = MSM_Unlit;
+			ShadingModels.ClearShadingModels();
+			ShadingModels.AddShadingModel(MSM_Unlit);
+
+			UMaterialExpressionStrataUI* UINode = NewObject<UMaterialExpressionStrataUI>(this);
+			SetPosXAndMoveReferenceToTheRight(UINode);
+			MoveConnectionTo(EditorOnly->EmissiveColor, UINode, 0);
+			MoveConnectionTo(EditorOnly->Opacity, UINode, 1);
+
+			EditorOnly->FrontMaterial.Connect(0, UINode);
+			bInvalidateShader = true;
+		}
 
 		BlendMode = ConvertLegacyBlendMode(BlendMode, ShadingModels);
 	}
@@ -4266,6 +4281,11 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 		FString PropertyName = InProperty->GetName();
 		const bool bStrataEnabled = Strata::IsStrataEnabled();
 
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, MaterialDomain))
+		{
+			return !bStrataEnabled; // Material domain is no longer tweakable with Strata. It is instead derived from the graph.
+		}
+
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, PhysMaterial) || PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, PhysMaterialMask))
 		{
 			return MaterialDomain == MD_Surface;
@@ -4873,6 +4893,11 @@ void UMaterial::RebuildShadingModelField()
 				{
 					BlendMode = BLEND_Opaque;
 				}
+			}
+			else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_UI))
+			{
+				MaterialDomain = EMaterialDomain::MD_UI;
+				ShadingModel = MSM_Unlit;
 			}
 			else if (StrataMaterialInfo.HasShadingModel(SSM_Decal))
 			{
@@ -6449,15 +6474,6 @@ bool UMaterial::IsPropertySupported(EMaterialProperty InProperty) const
 		case MP_FrontMaterial:
 			bSupported = true;
 			break;
-		// UI domain uses the following remapping:
-		// * MP_EmissiveColor       -> Final Color
-		// * MP_WorldPositionOffset -> Screen Position
-		// * MP_OpacityMask         -> Opacity Mask
-		// * MP_Opacity             -> Opacity
-		case MP_EmissiveColor:
-		case MP_Opacity:
-			bSupported = MaterialDomain == EMaterialDomain::MD_UI;
-			break;
 		}
 	}
 	return bSupported;
@@ -6585,11 +6601,21 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	}
 	else if (Domain == MD_UI)
 	{
-		return InProperty == MP_EmissiveColor
-			|| (InProperty == MP_WorldPositionOffset)
-			|| (InProperty == MP_OpacityMask && IsMaskedBlendMode(BlendMode))
-			|| (InProperty == MP_Opacity && IsTranslucentBlendMode(BlendMode) && BlendMode != BLEND_Modulate)
-			|| (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7);
+		if (bStrataEnabled)
+		{
+			return InProperty == MP_FrontMaterial
+				|| (InProperty == MP_WorldPositionOffset)
+				|| (InProperty == MP_OpacityMask && IsMaskedBlendMode(BlendMode))
+				|| (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7);
+		}
+		else
+		{
+			return InProperty == MP_EmissiveColor
+				|| (InProperty == MP_WorldPositionOffset)
+				|| (InProperty == MP_OpacityMask && IsMaskedBlendMode(BlendMode))
+				|| (InProperty == MP_Opacity && IsTranslucentBlendMode(BlendMode) && BlendMode != BLEND_Modulate)
+				|| (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7);
+		}
 	}
 
 	// Now processing MD_Surface

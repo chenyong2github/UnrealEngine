@@ -129,17 +129,40 @@ half4 GetMaterialColor( VertexToPixelInterpolants InVertex, float2 MeshUV )
 
 	// Clip if masked
 	GetMaterialCoverageAndClipping( Parameters, PixelMaterialInputs );
+
+	half4 OutColor;
 	
+#if STRATA_ENABLED
+
+	// UI element are always rendered with a unlit BSDF behind the scene
+	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
+	SanitizeStrataUnlit(UnlitBSDF);
+
+#if ((STRATA_OPAQUE_DEFERRED || (STRATA_OPAQUE_MATERIAL && STRATA_FORWARD_SHADING)))
+	OutColor = half4(BSDF_GETEMISSIVE(UnlitBSDF), 1.0f);
+#else // STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING || STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT
+	const float Coverage = saturate(1.0f - UNLIT_TRANSMITTANCE(UnlitBSDF).x);	// Unlit node transmittance is only generated from opacity
+#if MATERIALBLENDING_ADDITIVE
+	OutColor = half4(BSDF_GETEMISSIVE(UnlitBSDF) * Coverage, 0.0f);
+#else
+	OutColor = half4(BSDF_GETEMISSIVE(UnlitBSDF), Coverage);
+#endif
+#endif
+
+	// STRATA_TODO fix premultiplied alpha properly
+
+#else // STRATA_ENABLED
+
 	half Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	half3 Color = GetMaterialEmissive(PixelMaterialInputs);
 
-	half4 OutColor;
+#if MATERIALBLENDING_ADDITIVE
+	OutColor = half4(Color * Opacity, 0.0f);
+#else
+	OutColor = half4(Color, Opacity);
+#endif
 
-	#if MATERIALBLENDING_ADDITIVE
-		OutColor = half4( Color * Opacity, 0.0f );
-	#else
-		OutColor = half4( Color, Opacity );
-	#endif
+#endif // STRATA_ENABLED
 
 	return OutColor;
 }

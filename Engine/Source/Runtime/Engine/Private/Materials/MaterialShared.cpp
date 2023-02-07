@@ -1885,8 +1885,9 @@ bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
 		Material->MaterialDomain == MD_PostProcess || 
 		Material->MaterialDomain == MD_LightFunction ||
 		Material->MaterialDomain == MD_DeferredDecal || 
-		Material->MaterialDomain == MD_Surface || 
-		Material->MaterialDomain == MD_Volume;
+		Material->MaterialDomain == MD_Surface ||
+		Material->MaterialDomain == MD_Volume ||
+		Material->MaterialDomain == MD_UI;
 
 	if (Strata::IsStrataEnabled() && bIsStrataSupportedDomain)
 	{
