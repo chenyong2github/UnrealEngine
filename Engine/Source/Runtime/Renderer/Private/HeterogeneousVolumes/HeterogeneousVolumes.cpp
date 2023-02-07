@@ -207,6 +207,15 @@ bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterial& Material)
 		&& Material.IsUsedWithNiagaraMeshParticles();
 }
 
+bool ShouldRenderPrimitiveWithHeterogeneousVolumes(
+	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const FMaterial& Material
+)
+{
+	check(PrimitiveSceneProxy);
+	return PrimitiveSceneProxy->IsHeterogeneousVolume() && DoesMaterialShaderSupportHeterogeneousVolumes(Material);
+}
+
 namespace HeterogeneousVolumes
 {
 	// CVars
@@ -365,7 +374,7 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 				const FMaterialRenderProxy* MaterialRenderProxy = Mesh->MaterialRenderProxy;
 				const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialRenderProxy);
 				const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.VolumetricMeshBatches[MeshBatchIndex].Proxy;
-				if (!PrimitiveSceneProxy->IsHeterogeneousVolume() || !DoesMaterialShaderSupportHeterogeneousVolumes(Material))
+				if (!ShouldRenderPrimitiveWithHeterogeneousVolumes(PrimitiveSceneProxy, Material))
 				{
 					continue;
 				}

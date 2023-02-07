@@ -677,12 +677,12 @@ void FDeferredShadingSceneRenderer::VoxelizeFogVolumePrimitives(
 						const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialRenderProxy);
 
 						// Skip volumes flagged as rendered with HeterogenousVolumes
-						if (bShouldRenderHeterogeneousVolumes && Material.IsUsedWithNiagaraMeshParticles())
+						const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.VolumetricMeshBatches[MeshBatchIndex].Proxy;
+						if (bShouldRenderHeterogeneousVolumes && ShouldRenderPrimitiveWithHeterogeneousVolumes(PrimitiveSceneProxy, Material))
 						{
 							continue;
 						}
 
-						const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.VolumetricMeshBatches[MeshBatchIndex].Proxy;
 						const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 						const FBoxSphereBounds Bounds = PrimitiveSceneProxy->GetBounds();
 

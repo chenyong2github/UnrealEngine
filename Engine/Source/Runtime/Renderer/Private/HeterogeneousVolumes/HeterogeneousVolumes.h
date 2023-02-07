@@ -28,6 +28,10 @@ bool ShouldRenderHeterogeneousVolumes(const FScene* Scene);
 bool ShouldRenderHeterogeneousVolumesForView(const FSceneView& View);
 bool DoesPlatformSupportHeterogeneousVolumes(EShaderPlatform Platform);
 bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterialShaderParameters& Parameters);
+bool ShouldRenderPrimitiveWithHeterogeneousVolumes(
+	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const FMaterial& Material
+);
 
 //
 // Internal API
