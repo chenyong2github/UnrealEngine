@@ -5,7 +5,7 @@
   <Property Name="HeadlessChaosDisabled" Value="False" />
   <Property Name="FoundationShort" Value="Foundation" />
   <Property Name="HeadlessChaosShort" Value="Headless Chaos" />
-  <Property Name="FoundationTarget" Value="LowLevelTests" />
+  <Property Name="FoundationTarget" Value="FoundationTests" />
   <Property Name="HeadlessChaosTarget" Value="HeadlessChaos" />
   <Property Name="FoundationBinariesRelative" Value="Engine\Binaries" />
   <Property Name="HeadlessChaosBinariesRelative" Value="Engine\Binaries" />

@@ -2,9 +2,9 @@
 using System;
 using UnrealBuildTool;
 
-public class LowLevelTests : TestModuleRules
+public class FoundationTests : TestModuleRules
 {
-	public LowLevelTests(ReadOnlyTargetRules Target) : base(Target, true)
+	public FoundationTests(ReadOnlyTargetRules Target) : base(Target, true)
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

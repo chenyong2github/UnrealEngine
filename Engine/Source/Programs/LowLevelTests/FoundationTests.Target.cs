@@ -4,9 +4,9 @@ using System.IO;
 using UnrealBuildTool;
 
 [SupportedPlatforms(UnrealPlatformClass.All)]
-public class LowLevelTestsTarget : TestTargetRules
+public class FoundationTestsTarget : TestTargetRules
 {
-	public LowLevelTestsTarget(TargetInfo Target) : base(Target)
+	public FoundationTestsTarget(TargetInfo Target) : base(Target)
 	{
 		// Collects all tests decorated with #if WITH_LOW_LEVELTESTS from dependencies
 		bWithLowLevelTestsOverride = true;
