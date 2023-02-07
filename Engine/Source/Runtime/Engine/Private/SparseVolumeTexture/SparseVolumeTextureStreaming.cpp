@@ -2,6 +2,7 @@
 
 #include "SparseVolumeTexture/SparseVolumeTextureStreaming.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
+#include "RenderingThread.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTextureStreaming, Log, All);
 
@@ -312,7 +313,7 @@ void FStreamingSparseVolumeTextureData::FreeLoadedFrame(FLoadedSparseVolumeTextu
 	if (LoadedFrame.bOwnsProxy)
 	{
 		FSparseVolumeTextureSceneProxy* Proxy = LoadedFrame.Proxy.load();
-		ENQUEUE_RENDER_COMMAND(DeleteSVTProxy)(
+		ENQUEUE_RENDER_COMMAND(FStreamingSparseVolumeTextureData_DeleteSVTProxy)(
 			[Proxy](FRHICommandListImmediate& RHICmdList)
 			{
 				Proxy->ReleaseResource();

@@ -9,6 +9,7 @@
 #include "Misc/SecureHash.h"
 #include "EngineUtils.h"
 #include "Shader/ShaderTypes.h"
+#include "RenderingThread.h"
 
 #if WITH_EDITORONLY_DATA
 #include "DerivedDataCache.h"
@@ -436,7 +437,7 @@ void UStreamableSparseVolumeTexture::BeginDestroy()
 	{
 		if (Frame.SparseVolumeTextureSceneProxy)
 		{
-			ENQUEUE_RENDER_COMMAND(DeleteSVTProxy)(
+			ENQUEUE_RENDER_COMMAND(UStreamableSparseVolumeTexture_DeleteSVTProxy)(
 				[Proxy = Frame.SparseVolumeTextureSceneProxy](FRHICommandListImmediate& RHICmdList)
 				{
 					Proxy->ReleaseResource();
