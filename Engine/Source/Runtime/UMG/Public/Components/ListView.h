@@ -23,7 +23,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnListViewScrolledDynamic, float, 
  *
  * To make a widget usable as an entry in a ListView, it must inherit from the IUserObjectListEntry interface.
  */
-UCLASS(meta = (EntryInterface = UserObjectListEntry))
+UCLASS(meta = (EntryInterface = "/Script/UMG.UserObjectListEntry"))
 class UMG_API UListView : public UListViewBase, public ITypedUMGListView<UObject*>
 {
 	GENERATED_BODY()
