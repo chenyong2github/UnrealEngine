@@ -70,8 +70,6 @@ static FAutoConsoleVariableRef CVarHairStrands_UseAttachedSimulationComponents(T
 
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
-#define USE_HAIR_TRIANGLE_STRIP 0
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FLinearColor GetHairGroupDebugColor(int32 GroupIt)
@@ -803,13 +801,9 @@ public:
 		{
 			VertexFactory = (FVertexFactory*)Instance->Strands.VertexFactory;
 			HairVertexCount = Instance->Strands.RestResource->GetVertexCount();
-			#if USE_HAIR_TRIANGLE_STRIP
-			MaxVertexIndex = HairVertexCount * 2;
-			#else
-			MaxVertexIndex = HairVertexCount * 6;
-			#endif
+			MaxVertexIndex = HairVertexCount * HAIR_POINT_TO_VERTEX;
 			bUseCulling = Instance->Strands.bIsCullingEnabled;
-			NumPrimitive = bUseCulling ? 0 : HairVertexCount * 2;
+			NumPrimitive = bUseCulling ? 0 : HairVertexCount * HAIR_POINT_TO_TRIANGLE;
 			if (MaterialRenderProxy == nullptr)
 			{
 				MaterialRenderProxy = HairGroupMaterialProxies[GroupIndex].Strands;

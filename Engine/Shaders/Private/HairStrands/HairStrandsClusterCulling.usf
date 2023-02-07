@@ -392,11 +392,7 @@ void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 					InterlockedAdd(DispatchIndirectParametersClusterCount[0], 1, VisibleClusterId);
 
 					//uint PreviousVertexCount = 0;
-				#if USE_HAIR_TRIANGLE_STRIP
-					InterlockedAdd(DrawIndirectParameters[0], ClusterLOD.VertexCount * 2/*, PreviousVertexCount*/);
-				#else
-					InterlockedAdd(DrawIndirectParameters[0], ClusterLOD.VertexCount * 6/*, PreviousVertexCount*/);
-				#endif
+					InterlockedAdd(DrawIndirectParameters[0], ClusterLOD.VertexCount * HAIR_POINT_TO_VERTEX/*, PreviousVertexCount*/);
 
 					checkBufferAccessSlow(GlobalClusterIdBuffer, VisibleClusterId);
 					GlobalClusterIdBuffer[VisibleClusterId]	  = ClusterId;
@@ -443,7 +439,7 @@ void MainClusterCullingPrepareIndirectDispatchCS(
 	{
 		// DrawIndirectBuffer contains the total number of vertex count needed for drawing quad triangle strips, so 6 vertices per quad / control point
 		const uint VertexCount    = DrawIndirectBuffer[0];
-		const uint ControlPoint   = VertexCount / (USE_HAIR_TRIANGLE_STRIP ? 2u : 6u);
+		const uint ControlPoint   = VertexCount / (HAIR_POINT_TO_VERTEX);
 		const uint DispatchCount  = DivideAndRoundUp(ControlPoint, HAIR_VERTEXCOUNT_GROUP_SIZE);
 
 		DispatchIndirectBuffer[0] = DispatchCount;

@@ -4,12 +4,6 @@
 
 #include "/Engine/Shared/HairStrandsDefinitions.h"
 
-#define HAIR_CONTROLPOINT_INSIDE 0
-#define HAIR_CONTROLPOINT_START	1
-#define HAIR_CONTROLPOINT_END	2
-
-#define USE_HAIR_TRIANGLE_STRIP 0
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair control points
 

@@ -23,6 +23,24 @@
 // Max number of discrete LOD that a hair group can have
 #define MAX_HAIR_LOD 8
 
+// Use triangle strip for HW raster path
+#define USE_HAIR_TRIANGLE_STRIP 0
+
+// Number of vertex per control-point
+#if USE_HAIR_TRIANGLE_STRIP
+#define HAIR_POINT_TO_VERTEX 2u
+#else
+#define HAIR_POINT_TO_VERTEX 6u
+#endif
+
+// Number of triangle per control-point
+#define HAIR_POINT_TO_TRIANGLE 2u
+
+// Type of control points
+#define HAIR_CONTROLPOINT_INSIDE 0u
+#define HAIR_CONTROLPOINT_START	 1u
+#define HAIR_CONTROLPOINT_END	 2u
+
 // Group size for dispatching based on a groom vertex/curve/cluster count. 
 // This defines ensures the group size is consistent across the hair pipeline, 
 // and ensures dispatch count are smaller than 65k limits
