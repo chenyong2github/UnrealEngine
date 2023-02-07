@@ -481,6 +481,13 @@ void UPCGSettings::InitializeCachedOverridableParams(bool bReset)
 	}
 }
 
+TArray<FPCGPinProperties> UPCGSettings::DefaultPointInputPinProperties() const
+{
+	TArray<FPCGPinProperties> Properties;
+	Properties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
+	return Properties;
+}
+
 TArray<FPCGPinProperties> UPCGSettings::DefaultPointOutputPinProperties() const
 {
 	TArray<FPCGPinProperties> Properties;

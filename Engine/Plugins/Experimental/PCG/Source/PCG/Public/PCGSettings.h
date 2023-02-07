@@ -240,6 +240,7 @@ protected:
 	bool bUseSeed = false;
 
 	/** Methods to remove boilerplate code across settings */
+	TArray<FPCGPinProperties> DefaultPointInputPinProperties() const;
 	TArray<FPCGPinProperties> DefaultPointOutputPinProperties() const;
 
 #if WITH_EDITOR

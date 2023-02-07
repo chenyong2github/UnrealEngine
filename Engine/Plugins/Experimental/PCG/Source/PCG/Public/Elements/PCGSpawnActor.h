@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "PCGPin.h"
 #include "PCGSubgraph.h"
 #include "Metadata/PCGAttributePropertySelector.h"
-
 
 #include "PCGSpawnActor.generated.h"
 
@@ -89,10 +89,14 @@ public:
 	virtual UPCGNode* CreateNode() const override;
 
 #if WITH_EDITOR	
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SpawnActor")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Spawn Actor")); }
 	virtual EPCGSettingsType GetType() const override;
 #endif
+
 protected:
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return DefaultPointInputPinProperties(); }
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override { return DefaultPointOutputPinProperties(); }
+
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 
