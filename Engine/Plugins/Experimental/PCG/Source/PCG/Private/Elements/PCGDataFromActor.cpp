@@ -11,6 +11,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDataFromActor)
 
+#define LOCTEXT_NAMESPACE "PCGDataFromActorElement"
+
 #if WITH_EDITOR
 void UPCGDataFromActorSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
 {
@@ -19,6 +21,11 @@ void UPCGDataFromActorSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTag
 	{
 		OutTagToSettings.FindOrAdd(ActorSelector.ActorSelectionTag).Add(this);
 	}
+}
+
+FText UPCGDataFromActorSettings::GetNodeTooltipText() const
+{
+	return LOCTEXT("DataFromActorTooltip", "Builds a collection of PCG-compatible data from the selected actors.");
 }
 #endif
 
@@ -229,7 +236,8 @@ void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGData
 	else
 	{
 		const bool bParseActor = (Settings->Mode != EPCGGetDataFromActorMode::GetSinglePoint);
-		FPCGDataCollection Collection = UPCGComponent::CreateActorPCGDataCollection(FoundActor, Context->SourceComponent.Get(), bParseActor);
+		auto DataFilter = [Settings](EPCGDataType InDataType) { return Settings->DataFilter(InDataType); };
+		FPCGDataCollection Collection = UPCGComponent::CreateActorPCGDataCollection(FoundActor, Context->SourceComponent.Get(), DataFilter, bParseActor);
 		Outputs += Collection.TaggedData;
 	}
 
@@ -244,3 +252,5 @@ void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGData
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
