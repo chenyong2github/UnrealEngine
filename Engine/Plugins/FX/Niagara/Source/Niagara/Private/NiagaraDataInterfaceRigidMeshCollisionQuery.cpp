@@ -936,21 +936,17 @@ struct FNDIRigidMeshCollisionProxy : public FNiagaraDataInterfaceProxy
 					const uint32 BufferBytes = sizeof(uint32) * ElementCount;
 					void* BufferData = RHILockBuffer(ProxyData->AssetBuffer->DFIndexBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
-					const FScene* Scene = Context.GetComputeDispatchInterface().GetScene();
+					const FSceneInterface* Scene = Context.GetComputeDispatchInterface().GetScene();
 					if (Scene && !ProxyData->UniqueComponentIds.IsEmpty())
 					{
 						TArray<uint32> UniqueDistanceFieldIndices;
 						UniqueDistanceFieldIndices.Reserve(ProxyData->UniqueComponentIds.Num());
 
-						for (const FPrimitiveComponentId& ComponentId : ProxyData->UniqueComponentIds)
+						for (const FPrimitiveComponentId ComponentId : ProxyData->UniqueComponentIds)
 						{
-							uint32& DistanceFieldIndex = UniqueDistanceFieldIndices.Add_GetRef(INDEX_NONE);
-							const int32 PrimitiveSceneIndex = Scene->PrimitiveComponentIds.Find(ComponentId);
-							if (PrimitiveSceneIndex != INDEX_NONE)
-							{
-								const TArray<int32, TInlineAllocator<1>>& DFIndices = Scene->Primitives[PrimitiveSceneIndex]->DistanceFieldInstanceIndices;
-								DistanceFieldIndex = DFIndices.IsEmpty() ? INDEX_NONE : DFIndices[0];
-							}
+							const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->GetPrimitiveSceneInfo(ComponentId);
+							const uint32 DistanceFieldIndex = PrimitiveSceneInfo && PrimitiveSceneInfo->DistanceFieldInstanceIndices.Num() > 0 ? PrimitiveSceneInfo->DistanceFieldInstanceIndices[0] : INDEX_NONE;
+							UniqueDistanceFieldIndices.Emplace(DistanceFieldIndex);
 						}
 
 						TArrayView<uint32> BufferView(reinterpret_cast<uint32*>(BufferData), ElementCount);

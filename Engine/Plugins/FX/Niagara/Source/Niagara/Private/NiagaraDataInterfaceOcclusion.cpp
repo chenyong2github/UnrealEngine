@@ -9,7 +9,6 @@
 #include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraSystemInstance.h"
 
-#include "SceneRendering.h"
 #include "SceneView.h"
 #include "ShaderParameterUtils.h"
 #include "Internationalization/Internationalization.h"
@@ -186,8 +185,9 @@ void UNiagaraDataInterfaceOcclusion::SetShaderParameters(const FNiagaraDataInter
 
 	if (Context.IsResourceBound(&ShaderParameters->CloudVolumetricTexture))
 	{
-		TConstArrayView<FViewInfo> SimulationViewInfos = Context.GetComputeDispatchInterface().GetSimulationViewInfos();
-		FRDGTextureRef CloudTexture = SimulationViewInfos.Num() > 0 ? SimulationViewInfos[0].GetVolumetricCloudTexture(Context.GetGraphBuilder()) : nullptr;
+		TConstStridedView<FSceneView> SimulationSceneViews = Context.GetComputeDispatchInterface().GetSimulationSceneViews();
+		const FSceneView* View = SimulationSceneViews.Num() > 0 ? &SimulationSceneViews[0] : nullptr;
+		FRDGTextureRef CloudTexture = View && View->State ? View->State->GetVolumetricCloudTexture(Context.GetGraphBuilder()) : nullptr;
 		if (CloudTexture == nullptr)
 		{
 			CloudTexture = Context.GetComputeDispatchInterface().GetBlackTexture(Context.GetGraphBuilder(), ETextureDimension::Texture2D);

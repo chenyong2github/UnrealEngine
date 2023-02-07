@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/StridedView.h"
 #include "NiagaraCommon.h"
 #include "NiagaraEmptyUAVPool.h"
 #include "NiagaraGpuComputeDataManager.h"
@@ -77,6 +78,7 @@ public:
 	Get access to the Views the simulation is being rendered with.
 	List is only valid during graph building (i.e. during ExecuteTicks) and for simulations in PostInitViews / PostRenderOpaque.
 	*/
+	TConstStridedView<FSceneView> GetSimulationSceneViews() const { return SimulationSceneViews; }
 	TConstArrayView<FViewInfo> GetSimulationViewInfos() const { return SimulationViewInfos; }
 
 	/** Get access to the instance count manager. */
@@ -181,6 +183,7 @@ protected:
 
 	TArray<TPair<FName, TUniquePtr<FNiagaraGpuComputeDataManager>>> GpuDataManagers;
 
+	TConstStridedView<FSceneView>			SimulationSceneViews;
 	TConstArrayView<FViewInfo>				SimulationViewInfos;
 
 	bool									bIsOutsideSceneRenderer = false;

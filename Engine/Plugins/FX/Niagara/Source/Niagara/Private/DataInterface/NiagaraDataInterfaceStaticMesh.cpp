@@ -3062,18 +3062,13 @@ void UNiagaraDataInterfaceStaticMesh::SetShaderParameters(const FNiagaraDataInte
 
 	if (Context.IsParameterBound(&ShaderParameters->InstanceDistanceFieldIndex))
 	{
-		int32 DistanceFieldIndex = -1;
+		int32 DistanceFieldIndex = INDEX_NONE;
 		if (DistanceFieldSceneData != nullptr && InstanceData.DistanceFieldPrimitiveId.IsValid())
 		{
-			if (FScene* Scene = Context.GetComputeDispatchInterface().GetScene())
+			const FSceneInterface* Scene = Context.GetComputeDispatchInterface().GetScene();
+			if (const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene ? Scene->GetPrimitiveSceneInfo(InstanceData.DistanceFieldPrimitiveId) : nullptr)
 			{
-				// Kind of gross, but currently no way to reference other primitive scene infos
-				const int32 PrimitiveSceneIndex = Scene->PrimitiveComponentIds.Find(InstanceData.DistanceFieldPrimitiveId);
-				if (PrimitiveSceneIndex != INDEX_NONE)
-				{
-					const TArray<int32, TInlineAllocator<1>>& DFIndices = Scene->Primitives[PrimitiveSceneIndex]->DistanceFieldInstanceIndices;
-					DistanceFieldIndex = DFIndices.Num() > 0 ? DFIndices[0] : -1;
-				}
+				DistanceFieldIndex = PrimitiveSceneInfo->DistanceFieldInstanceIndices.Num() > 0 ? PrimitiveSceneInfo->DistanceFieldInstanceIndices[0] : INDEX_NONE;
 			}
 		}
 		ShaderParameters->InstanceDistanceFieldIndex = DistanceFieldIndex;

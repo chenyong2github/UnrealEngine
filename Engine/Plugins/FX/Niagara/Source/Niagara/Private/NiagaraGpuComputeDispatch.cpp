@@ -10,6 +10,7 @@
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
+#include "EngineModule.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "Misc/ScopeExit.h"
 #include "ProfilingDebugging/CsvProfiler.h"
@@ -410,17 +411,10 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			ViewInitOptions.ViewRotationMatrix = CachedViewInitOptions.ViewRotationMatrix;
 			ViewInitOptions.ProjectionMatrix = CachedViewInitOptions.ProjectionMatrix;
 
-			FViewInfo DummyView(ViewInitOptions);
+			GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &ViewInitOptions);
+			const FViewInfo* DummyView = (const FViewInfo*)ViewFamily.Views[0];
 
-			DummyView.ViewRect = DummyView.UnscaledViewRect;
-			DummyView.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
-
-			FBox UnusedVolumeBounds[TVC_MAX];
-			DummyView.SetupUniformBufferParameters(UnusedVolumeBounds, TVC_MAX, *DummyView.CachedViewUniformShaderParameters);
-
-			DummyView.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*DummyView.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
-
-			TConstArrayView<FViewInfo> DummyViews = MakeArrayView(&DummyView, 1);
+			TConstArrayView<FViewInfo> DummyViews = MakeArrayView(DummyView, 1);
 			const bool bAllowGPUParticleUpdate = true;
 
 			// Notify that we are about to begin rendering the 'scene' this is required because some RHIs will ClearState
@@ -1050,6 +1044,7 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 	RDG_RHI_EVENT_SCOPE(GraphBuilder, NiagaraGpuComputeDispatch);	//-TODO:RDG: Show TickStage
 
 	// Setup Parameters that can be read from data interfaces
+	SimulationSceneViews = MakeStridedViewOfBase<const FSceneView>(Views);
 	SimulationViewInfos = Views;
 
 	{
@@ -1346,6 +1341,7 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 	);
 
 	// Tear down for tick pass
+	SimulationSceneViews = TConstStridedView<FSceneView>();
 	SimulationViewInfos = TConstArrayView<FViewInfo>();
 	SceneTexturesUniformParams = nullptr;
 	MobileSceneTexturesUniformParams = nullptr;
@@ -1604,7 +1600,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 	// Set ViewUniformBuffer if it's required
 	if (ComputeShader->bNeedsViewUniformBuffer)
 	{
-		DispatchParameters->View = SimulationViewInfos[0].ViewUniformBuffer;
+		DispatchParameters->View = SimulationSceneViews[0].ViewUniformBuffer;
 	}
 	DispatchParameters->SceneTextures.SceneTextures			= SceneTexturesUniformParams;
 	DispatchParameters->SceneTextures.MobileSceneTextures	= MobileSceneTexturesUniformParams;
