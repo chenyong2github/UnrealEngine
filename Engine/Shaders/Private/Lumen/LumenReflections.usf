@@ -415,6 +415,9 @@ RWTexture2D<float> RWResolveVariance;
 uint NumSpatialReconstructionSamples;
 float SpatialReconstructionKernelRadius;
 float SpatialReconstructionRoughnessScale;
+float SpatialResolveTonemapStrength;
+
+const static float DisocclusionVariance = 1.0f;
 
 float Luma(float3 Color) 
 {
@@ -422,25 +425,28 @@ float Luma(float3 Color)
 	return dot(Color, float3(0.2126f, 0.7152f, 0.0722f));
 }
 
-// Loses bright interesting features
-#define TONEMAP_DURING_RESOLVE 0
-
 float3 TonemapLighting(float3 Lighting)
 {
-#if TONEMAP_DURING_RESOLVE
-	return Lighting / (1.0f + Luma(Lighting));
-#else
-	return Lighting;
-#endif
+	float Weight = 1.0f;
+
+	if (SpatialResolveTonemapStrength > 0)
+	{
+		Weight = 1.0f / (1.0f + Luma(Lighting));
+	}
+
+	return Lighting * Weight;
 }
 
 float3 InverseTonemapLighting(float3 TonemappedLighting)
 {
-#if TONEMAP_DURING_RESOLVE
-	return TonemappedLighting / (1.0f - Luma(TonemappedLighting));
-#else
-	return TonemappedLighting;
-#endif
+	float InvertWeight = 1.0f;
+
+	if (SpatialResolveTonemapStrength > 0)
+	{
+		InvertWeight = 1.0f / (1.0f - Luma(TonemappedLighting));
+	}
+
+	return TonemappedLighting * InvertWeight;
 }
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
@@ -458,8 +464,6 @@ void ReflectionResolveCS(
 	float3 ReflectionLighting = 0;
 	float ResolveVariance = 0;
 	float DepthForReprojection = 0;
-
-	const bool bUseCenterSample = ReflectionDownsampleFactor == 1;
 
 	{
 		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord, MaxRoughnessToTrace), true /*bTopLayerRoughness*/);
@@ -506,6 +510,8 @@ void ReflectionResolveCS(
 					bool bUnused;
 					CenterTraceHitDistance = DecodeRayDistance(TraceHit[ReflectionScreenCoord_Flatten].x, bUnused);
 					ClosestHitDepth = CenterTraceHitDistance;
+
+					const bool bUseCenterSample = ReflectionDownsampleFactor == 1;
 
 					if (bUseCenterSample)
 					{
@@ -654,6 +660,8 @@ void ReflectionResolveCS(
 	RWSpecularIndirectDepth[Coord.SvPositionFlatten] = ConvertToDeviceZ(DepthForReprojection);
 
 	#if USE_BILATERAL_FILTER
+		// Clamp the variance range to not overlap with DisocclusionVariance, so the bilateral filter can detect disocclusion
+		ResolveVariance = min(ResolveVariance, DisocclusionVariance - .1f);
 		RWResolveVariance[Coord.SvPositionFlatten] = ResolveVariance;
 	#endif
 
@@ -706,6 +714,7 @@ Texture2D ResolveVarianceHistory;
 
 float HistoryDistanceThreshold;
 float MaxFramesAccumulated;
+float NeighborhoodClampExpandWithResolveVariance;
 
 float4 HistoryScreenPositionScaleBias;
 float4 HistoryUVMinMax;
@@ -854,8 +863,6 @@ bool IsValidHistoryUV(float2 UV)
 	return !(any(UV > HistoryUVMinMax.zw) || any(UV < HistoryUVMinMax.xy));
 }
 
-const static float DisocclusionVariance = 1.0f;
-
 struct Bilinear
 {
 	float2 Origin;
@@ -1002,6 +1009,23 @@ void ReflectionTemporalReprojectionCS(
 		? HistorySpecularIndirectFromReflectionHit 
 		: HistorySpecularIndirectFromSceneDepth;
 
+#if USE_BILATERAL_FILTER
+	float VarianceHistoryWeight = IsValidHistoryUV(HistoryScreenUVFromReflectionHit) ? .9f : 0;
+	float NewResolveVariance = ResolveVariance[Coord.SvPositionFlatten];
+
+	if (dot(OcclusionWeights, 1.0f) < 1.0f)
+	{
+		VarianceHistoryWeight = 0.0f;
+		NewResolveVariance = DisocclusionVariance;
+	}
+
+	float ResolveVarianceHistoryValue = VarianceHistoryWeight > 0.0f ? Texture2DSampleLevel(ResolveVarianceHistory, GlobalBilinearClampedSampler, HistoryScreenUVFromReflectionHit, 0).x : 0;
+	float AccumulatedResolveVariance = max(lerp(NewResolveVariance, ResolveVarianceHistoryValue, VarianceHistoryWeight), 0);
+	RWResolveVariance[Coord.SvPositionFlatten] = AccumulatedResolveVariance;
+	float AccumulatedResolveStdDev = sqrt(AccumulatedResolveVariance);
+	Neighborhood.StdDev = max(Neighborhood.StdDev, NeighborhoodClampExpandWithResolveVariance * AccumulatedResolveStdDev);
+#endif
+
 #define REPROJECTION_USE_STANDARD_DEVIATION_CLAMP 1
 #if REPROJECTION_USE_STANDARD_DEVIATION_CLAMP
 	const float3 HistoryClampMin = Neighborhood.Mean - Neighborhood.StdDev;
@@ -1014,8 +1038,14 @@ void ReflectionTemporalReprojectionCS(
 	HistorySpecularIndirect = clamp(HistorySpecularIndirect, HistoryClampMin, HistoryClampMax);
 
 	float4 NumFramesAccumulatedNeighborhood = HistoryNumFramesAccumulated.GatherRed(GlobalPointClampedSampler, HistoryGatherUV_Extended).wzxy * MaxFramesAccumulated;
-	// Allow more aliasing through as we approach mirror to reduce the temporal reprojection diffusion error
-	float MaxFrames = lerp(2, MaxFramesAccumulated, saturate(Material.TopLayerRoughness / .05f));
+
+	float MaxFrames = MaxFramesAccumulated;
+
+	if (ReflectionDownsampleFactor == 1)
+	{
+		// Allow more aliasing through as we approach mirror to reduce the temporal reprojection diffusion error, which allows TSR to reconstruct a sharper reflection
+		MaxFrames = lerp(2, MaxFramesAccumulated, saturate(Material.TopLayerRoughness / .05f));
+	}
 
 	NumFramesAccumulatedNeighborhood = min(NumFramesAccumulatedNeighborhood + 1.0f, MaxFrames);
 	float NumFramesAccumulated = WeightedAverage(NumFramesAccumulatedNeighborhood, FinalWeights);
@@ -1033,20 +1063,6 @@ void ReflectionTemporalReprojectionCS(
 
 	RWSpecularIndirect[Coord.SvPositionFlatten] = OutReflections;
 	RWNumHistoryFramesAccumulated[Coord.SvPositionFlatten] = NewNumFramesAccumulated / MaxFramesAccumulated;
-
-#if USE_BILATERAL_FILTER
-	float VarianceHistoryWeight = IsValidHistoryUV(HistoryScreenUVFromReflectionHit_Primary) ? .9f : 0;
-	float NewResolveVariance = ResolveVariance[Coord.SvPositionFlatten];
-
-	if (dot(OcclusionWeights, 1.0f) < 1.0f)
-	{
-		VarianceHistoryWeight = 0.0f;
-		NewResolveVariance = DisocclusionVariance;
-	}
-
-	float ResolveVarianceHistoryValue = VarianceHistoryWeight > 0.0f ? Texture2DSampleLevel(ResolveVarianceHistory, GlobalBilinearClampedSampler, HistoryScreenUVFromReflectionHit_Extented, 0).x : 0;
-	RWResolveVariance[Coord.SvPositionFlatten] = max(lerp(NewResolveVariance, ResolveVarianceHistoryValue, VarianceHistoryWeight), 0);
-#endif
 }
 
 // Greatly reduces fireflies in disoccluded areas, doesn't change overall energy
@@ -1103,9 +1119,10 @@ void ReflectionBilateralFilterCS(
 
 			float VarianceFromSpatialResolve = ResolveVariance[Coord.SvPositionFlatten];
 
-			bool bStrongBlur = VarianceFromSpatialResolve > BilateralFilterStrongBlurVarianceThreshold;
+			float StrongBlur = VarianceFromSpatialResolve > BilateralFilterStrongBlurVarianceThreshold ? 1.0f : 0.0f;
+			float DisocclusionBlur = VarianceFromSpatialResolve > DisocclusionVariance - .1f ? 1.0f : 0.0f;
 			float MinKernelRadius = 0.0f;
-			float MaxKernelRadius = BilateralFilterSpatialKernelRadius * View.ViewSizeAndInvSize.x * (bStrongBlur ? 2.0f : 1.0f);
+			float MaxKernelRadius = BilateralFilterSpatialKernelRadius * View.ViewSizeAndInvSize.x * lerp(1.0f, 2.0f, StrongBlur);
 			float KernelRadius = lerp(MinKernelRadius, MaxKernelRadius, saturate(Material.TopLayerRoughness * 8));
 
 			if (KernelRadius >= .5f && VarianceFromSpatialResolve > .04f)
@@ -1118,7 +1135,7 @@ void ReflectionBilateralFilterCS(
 				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 				float4 ScenePlane = float4(Material.WorldNormal, dot(WorldPosition, Material.WorldNormal));
 
-				uint NumBilateralFilterSamples = min(BilateralFilterNumSamples * (bStrongBlur ? 2 : 1), 16u);
+				uint NumBilateralFilterSamples = min(BilateralFilterNumSamples * lerp(1, 2, StrongBlur), 16u);
 
 				for (uint SampleIndex = 0; SampleIndex < NumBilateralFilterSamples; SampleIndex++)
 				{
@@ -1143,7 +1160,7 @@ void ReflectionBilateralFilterCS(
 							float AngleBetweenNormals = acosFast(saturate(dot(ScenePlane.xyz, NeighborMaterial.WorldNormal)));
 							float NormalWeight = 1.0f - saturate(AngleBetweenNormals * InvSpecularLobeAngleThreshold);
 
-							float SampleWeight = SpatialWeight * DepthWeight * NormalWeight;
+							float SampleWeight = SpatialWeight * DepthWeight * lerp(NormalWeight, 1, DisocclusionBlur);
 							OutReflections += TonemapLightingForBilateral(SpecularIndirect[NeighborCoord.SvPositionFlatten]) * SampleWeight;
 							TotalWeight += SampleWeight;
 						}
@@ -1152,9 +1169,9 @@ void ReflectionBilateralFilterCS(
 
 				OutReflections = OutReflections / TotalWeight;
 
-				if (bStrongBlur)
+				if (DisocclusionBlur > 0)
 				{
-					//OutReflections.r = 10;
+					//OutReflections = float3(10, 0, 0);
 				}
 			}
 

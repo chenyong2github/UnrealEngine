@@ -113,12 +113,20 @@ FAutoConsoleVariableRef CVarLumenReflectionTemporalMaxFramesAccumulated(
 	ECVF_RenderThreadSafe
 	);
 
+float GLumenReflectionNeighborhoodClampExpandWithResolveVariance = .1f;
+FAutoConsoleVariableRef CVarLumenReflectionNeighborhoodClampExpandWithResolveVariance(
+	TEXT("r.Lumen.Reflections.Temporal.NeighborhoodClampExpandWithResolveVariance"),
+	GLumenReflectionNeighborhoodClampExpandWithResolveVariance,
+	TEXT("Fraction of the resolve variance to use to expand the neighborhood variance.  This allows some ghosting in noisy areas to avoid flickering when the camera is still.  Only works when the bilateral filter is enabled."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 float GLumenReflectionHistoryDistanceThreshold = .03f;
 FAutoConsoleVariableRef CVarLumenReflectionHistoryDistanceThreshold(
 	TEXT("r.Lumen.Reflections.Temporal.DistanceThreshold"),
 	GLumenReflectionHistoryDistanceThreshold,
 	TEXT("World space distance threshold needed to discard last frame's lighting results.  Lower values reduce ghosting from characters when near a wall but increase flickering artifacts."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GLumenReflectionMaxRayIntensity = 100;
@@ -168,6 +176,14 @@ FAutoConsoleVariableRef CVarLumenReflectionScreenSpaceReconstructionRoughnessSca
 	TEXT("Values higher than 1 allow neighbor traces to be blurred together more aggressively, but is not physically correct."),
 	ECVF_RenderThreadSafe
 	);
+
+float GLumenReflectionSpatialResolveTonemapStrength = 0.0f;
+FAutoConsoleVariableRef CVarLumenReflectionSpatialResolveTonemapStrength(
+	TEXT("r.Lumen.Reflections.ScreenSpaceReconstruction.TonemapStrength"),
+	GLumenReflectionSpatialResolveTonemapStrength,
+	TEXT("Whether to tonemap reflection radiance values when they are averaged together during the spatial resolve.  This reduces noise but also removes bright interesting features in reflections."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 int32 GLumenReflectionBilateralFilter = 1;
 FAutoConsoleVariableRef CVarLumenReflectionBilateralFilter(
@@ -442,6 +458,7 @@ class FReflectionResolveCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, NumSpatialReconstructionSamples)
 		SHADER_PARAMETER(float, SpatialReconstructionKernelRadius)
 		SHADER_PARAMETER(float, SpatialReconstructionRoughnessScale)
+		SHADER_PARAMETER(float, SpatialResolveTonemapStrength)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -486,6 +503,7 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER(float,HistoryDistanceThreshold)
 		SHADER_PARAMETER(float,PrevInvPreExposure)
 		SHADER_PARAMETER(float,MaxFramesAccumulated)
+		SHADER_PARAMETER(float, NeighborhoodClampExpandWithResolveVariance)
 		SHADER_PARAMETER(FVector4f, EffectiveResolution)
 		SHADER_PARAMETER(FVector4f, HistoryEffectiveResolution)
 		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
@@ -497,6 +515,7 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflections)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflectionsDepth)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -796,6 +815,7 @@ void UpdateHistoryReflections(
 	const FViewInfo& View, 
 	const FSceneTextures& SceneTextures,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
+	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	bool bUseBilaterialFilter,
 	FRDGTextureRef ResolvedReflections,
 	FRDGTextureRef ResolvedReflectionsDepth,
@@ -873,6 +893,7 @@ void UpdateHistoryReflections(
 				(HistoryViewRect->Max.X - 0.5f) * InvBufferSize.X,
 				(HistoryViewRect->Max.Y - 0.5f) * InvBufferSize.Y);
 			PassParameters->MaxFramesAccumulated = GLumenReflectionTemporalMaxFramesAccumulated;
+			PassParameters->NeighborhoodClampExpandWithResolveVariance = GLumenReflectionNeighborhoodClampExpandWithResolveVariance;
 
 			PassParameters->VelocityTexture = VelocityTexture;
 			PassParameters->VelocityTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
@@ -881,6 +902,7 @@ void UpdateHistoryReflections(
 			PassParameters->ResolveVariance = ResolveVariance;
 			PassParameters->ResolveVarianceHistory = ResolveVarianceHistory;
 			PassParameters->ReflectionTileParameters = ReflectionTileParameters;
+			PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 			LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
 
 			FReflectionTemporalReprojectionCS::FPermutationDomain PermutationVector;
@@ -1142,6 +1164,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		PassParameters->NumSpatialReconstructionSamples = NumReconstructionSamples;
 		PassParameters->SpatialReconstructionKernelRadius = GLumenReflectionScreenSpaceReconstructionKernelRadius;
 		PassParameters->SpatialReconstructionRoughnessScale = GLumenReflectionScreenSpaceReconstructionRoughnessScale;
+		PassParameters->SpatialResolveTonemapStrength = GLumenReflectionSpatialResolveTonemapStrength;
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
@@ -1192,6 +1215,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			View,
 			SceneTextures,
 			ReflectionTileParameters,
+			ReflectionTracingParameters,
 			bUseBilaterialFilter,
 			ResolvedSpecularIndirect,
 			ResolvedSpecularIndirectDepth,

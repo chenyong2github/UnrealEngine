@@ -45,8 +45,7 @@ Texture2D<float> TraceHit;
 // Returns the jitter offset in the range [0, ReflectionDownsampleFactor - 1]
 float2 GetScreenTileJitter(uint TemporalIndex)
 {
-	//uint2 RandomSeed = Rand3DPCG16(int3(ReflectionTracingCoord, 1)).xy;
-	return UseJitter ? floor(Hammersley16(TemporalIndex, 8, uint2(0, 0)) * ReflectionDownsampleFactor) : 0;
+	return 0;
 }
 
 float2 GetScreenUVFromReflectionTracingCoord(uint2 ReflectionTracingCoord)
