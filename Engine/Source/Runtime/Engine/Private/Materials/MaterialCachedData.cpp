@@ -4,6 +4,7 @@
 #include "MaterialCachedHLSLTree.h"
 #include "MaterialExpressionIO.h"
 #include "Materials/MaterialAttributeDefinitionMap.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"

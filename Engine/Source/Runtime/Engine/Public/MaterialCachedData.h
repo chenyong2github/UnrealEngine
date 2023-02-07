@@ -16,6 +16,7 @@ class UTexture;
 class UCurveLinearColor;
 class UCurveLinearColorAtlas;
 class UFont;
+class UMaterial;
 class UMaterialExpression;
 class URuntimeVirtualTexture;
 class ULandscapeGrassType;
