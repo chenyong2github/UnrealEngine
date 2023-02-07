@@ -3631,7 +3631,7 @@ void FLevelEditorCommands::RegisterCommands()
 
 	UI_COMMAND( MergePolys, "Merge", "Merges multiple polygons on a brush face into as few as possible", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( SeparatePolys, "Separate", "Reverses the effect of a previous merge", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( AlignBrushVerticesToGrid, "Align Brush Verticies To Grid", "Align brush verticies to the grid", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( AlignBrushVerticesToGrid, "Align Brush Vertices To Grid", "Align brush vertices to the grid", EUserInterfaceActionType::Button, FInputChord() );
 
 	// RegroupActors uses GroupActors for it's label and tooltip when simply grouping a selection of actors using overrides. This is to provide display of the chord which is the same for both.
 	UI_COMMAND( GroupActors, "Group", "Groups the selected actors", EUserInterfaceActionType::Button, FInputChord( /*EKeys::G, EModifierKey::Control*/ ) );

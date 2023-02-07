@@ -4005,7 +4005,7 @@ UE::Geometry::EMeshResult UE::Geometry::FIntrinsicMesh::PokeTriangle(int32 Intri
 												{
 													const int32 NumBoundaryPts = BoundingConvexPolyVerts.Num();
 													// In the barycentric space of the intrinsic triangle:
-													// find the (min norm) linear combination convex-poly verticies that is equivalent to the new vertex location
+													// find the (min norm) linear combination convex-poly vertices that is equivalent to the new vertex location
 													TArray<double> MinNormSolution;
 													TArray<double> MatRows[3];
 													for (int32 i = 0; i < 3; ++i)

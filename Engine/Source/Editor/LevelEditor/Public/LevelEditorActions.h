@@ -308,7 +308,7 @@ public:
 	/** Reverse a merge */
 	TSharedPtr< FUICommandInfo > SeparatePolys;
 
-	/** Align brush verticies to the grid */
+	/** Align brush vertices to the grid */
 	TSharedPtr<FUICommandInfo> AlignBrushVerticesToGrid;
 
 	/**
@@ -1340,7 +1340,7 @@ public:
 	static void SnapElementsToElement_Clicked( bool InAlign, bool InUseLineTrace, bool InUseBounds, bool InUsePivot );
 
 	/**
-	 * Aligns brush verticies to the nearest grid point.
+	 * Aligns brush vertices to the nearest grid point.
 	 */
 	static void AlignBrushVerticesToGrid_Execute();
 

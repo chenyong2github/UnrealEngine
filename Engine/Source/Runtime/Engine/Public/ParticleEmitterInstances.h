@@ -183,7 +183,7 @@ struct FParticleEmitterBuildInfo
 
 	int32 ScreenAlignment;
 
-	/** An offset in UV space for the positioning of a sprites verticies. */
+	/** An offset in UV space for the positioning of a sprites vertices. */
 	FVector2D PivotOffset;
 
 	/** If true, local vector fields ignore the component transform. */

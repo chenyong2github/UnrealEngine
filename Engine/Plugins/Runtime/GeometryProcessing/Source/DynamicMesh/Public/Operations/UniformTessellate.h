@@ -17,7 +17,7 @@ class FDynamicMesh3;
 /**
  * Given an input mesh and a tessellation level, this operator generates a new tessellated mesh where every triangle in 
  * the input mesh is uniformly subtriangulated into (TessellationNum + 1)^2 triangles. Per-vertex normals, uvs, 
- * colors and extended per-vertex attributes are linearly interpolated to the new verticies. Per-triangle group 
+ * colors and extended per-vertex attributes are linearly interpolated to the new vertices. Per-triangle group 
  * identifiers/materials and extended triangle attributes for the new triangles are inherited from the corresponding 
  * input mesh triangles they replaced. 
  * 
