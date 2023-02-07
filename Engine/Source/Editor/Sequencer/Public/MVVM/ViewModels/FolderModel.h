@@ -108,7 +108,7 @@ private:
 	/*~ FViewModel interface */
 	void OnConstruct() override;
 
-	static FColor InitialFolderColor;
+	static TMap<TWeakObjectPtr<UMovieSceneFolder>, FColor> InitialFolderColors;
 	static bool bFolderPickerWasCancelled;
 
 	void SetFolderColor();
