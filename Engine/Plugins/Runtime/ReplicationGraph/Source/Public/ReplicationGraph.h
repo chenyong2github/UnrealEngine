@@ -517,7 +517,7 @@ public:
 	// Allow graph to override function for creating the dynamic node in the cell
 	TFunction<UReplicationGraphNode*(UReplicationGraphNode_GridCell* Parent)> CreateDynamicNodeOverride;
 
-	UReplicationGraphNode_DormancyNode* GetDormancyNode();
+	UReplicationGraphNode_DormancyNode* GetDormancyNode(bool bInCreateIfMissing = true);
 
 private:
 
@@ -713,6 +713,9 @@ private:
 
 	// This is a reused TArray for gathering actor nodes. Just to prevent using a stack based TArray everywhere or static/reset patten.
 	TArray<UReplicationGraphNode_GridCell*> GatheredNodes;
+
+	// This is a reused FActorRepListRefView for gathering actors for dormancy cleanup. Just to prevent using a stack based FActorRepListRefView or static/reset patten.
+	FActorRepListRefView GatheredActors;
 
 	friend class AReplicationGraphDebugActor;
 };
@@ -1146,6 +1149,9 @@ private:
 
 	/** Separate bandwidth cap for traffic used when opening actor channels. Ignored if set to 0 */
 	int32 ActorDiscoveryMaxBitsPerFrame;
+
+	/** Optimization to update only one connection each frame */
+	int32 HeavyComputationConnectionSelector = 0;
 
 	/** Internal time used to track when the next update should occur based on frequency settings. */
 	float TimeLeftUntilUpdate = 0.f;

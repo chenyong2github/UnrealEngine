@@ -268,9 +268,9 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 	}
 
 	/** Removes the element quickly but changes the list order */
-	bool RemoveFast(const FActorRepListType& ElementToRemove)
+	bool RemoveFast(const FActorRepListType& ElementToRemove, bool bAllowShrink = true)
 	{
-		return RepList.RemoveSingleSwap(ElementToRemove) > 0;
+		return RepList.RemoveSingleSwap(ElementToRemove, bAllowShrink) > 0;
 	}
 
 	/** Removes the element but keeps the order intact. Generally not recommended for large lists. */
@@ -1417,8 +1417,19 @@ typedef TArray<FNetViewer, FReplicationGraphConnectionsAllocator> FNetViewerArra
 // Parameter structure for what we actually pass down during the Gather phase.
 struct FConnectionGatherActorListParameters
 {
-	FConnectionGatherActorListParameters(FNetViewerArray& InViewers, UNetReplicationGraphConnection& InConnectionManager, const TSet<FName>& InClientVisibleLevelNamesRef, uint32 InReplicationFrameNum, FGatheredReplicationActorLists& InOutGatheredReplicationLists)
-		: Viewers(InViewers), ConnectionManager(InConnectionManager), ReplicationFrameNum(InReplicationFrameNum), OutGatheredReplicationLists(InOutGatheredReplicationLists), ClientVisibleLevelNamesRef(InClientVisibleLevelNamesRef)
+	FConnectionGatherActorListParameters(
+			FNetViewerArray& InViewers,
+			UNetReplicationGraphConnection& InConnectionManager,
+			const TSet<FName>& InClientVisibleLevelNamesRef,
+			uint32 InReplicationFrameNum,
+			FGatheredReplicationActorLists& InOutGatheredReplicationLists,
+			bool bInSelectedForHeavyComputation)
+		: Viewers(InViewers)
+		, ConnectionManager(InConnectionManager)
+		, ReplicationFrameNum(InReplicationFrameNum)
+		, OutGatheredReplicationLists(InOutGatheredReplicationLists)
+		, ClientVisibleLevelNamesRef(InClientVisibleLevelNamesRef)
+		, bIsSelectedForHeavyComputation(bInSelectedForHeavyComputation)
 	{
 	}
 
@@ -1448,6 +1459,7 @@ struct FConnectionGatherActorListParameters
 
 	// Cached off reference for fast Level Visibility lookup
 	const TSet<FName>& ClientVisibleLevelNamesRef;
+	const bool bIsSelectedForHeavyComputation;
 
 private:
 

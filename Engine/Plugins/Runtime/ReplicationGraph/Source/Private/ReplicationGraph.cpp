@@ -66,6 +66,10 @@ namespace UE::Net::Private
 	// uses a densely-stored grid and risks very high memory usage at large coordinates.
 	constexpr double RepGraphWorldMax = UE_OLD_WORLD_MAX;
 	constexpr double RepGraphHalfWorldMax = UE_OLD_HALF_WORLD_MAX;
+
+	constexpr int32 RepGraphDormantActorsListReservedBuffer = 2048;
+	// TInlineAllocator's size is optimized for default DestroyDormantDynamicActorsCellTTL value
+	constexpr int32 RepGraphDormancyNodesInlineBufferSize = 200;
 }
 
 int32 CVar_RepGraph_Pause = 0;
@@ -131,6 +135,9 @@ static TAutoConsoleVariable<float> CVar_ForceConnectionViewerPriority(TEXT("Net.
 
 int32 CVar_RepGraph_GridSpatialization2D_DestroyDormantDynamicActorsDefault = 1;
 static FAutoConsoleVariableRef CVarRepGraphGridSpatialization2DDestroyDormantDynamicActorsDefault(TEXT("Net.RepGraph.GridSpatialization2DDestroyDormantDynamicActorsDefault"), CVar_RepGraph_GridSpatialization2D_DestroyDormantDynamicActorsDefault, TEXT("Configure what the default for UReplicationGraphNode_GridSpatialization2D::DestroyDormantDynamicActors should be."), ECVF_Default);
+
+int32 CVar_RepGraph_ConnectionHeavyComputationAmortization = 0;
+static FAutoConsoleVariableRef CVarRepGraphConnectionHeavyComputationAmortization(TEXT("Net.RepGraph.ConnectionHeavyComputationAmortization"), CVar_RepGraph_ConnectionHeavyComputationAmortization, TEXT("Non zero values enable heavy computation cost amortization by updating one connection per frame."), ECVF_Default);
 
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.LogNetDormancyDetails", CVar_RepGraph_LogNetDormancyDetails, 0, "Logs actors that are removed from the replication graph/nodes.");
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.LogActorRemove", CVar_RepGraph_LogActorRemove, 0, "Logs actors that are removed from the replication graph/nodes.");
@@ -996,6 +1003,9 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 	// Total number of children processed, added to all the connections later for stat tracking purposes.
 	int32 NumChildrenConnectionsProcessed = 0;
 
+	// Wrap around connection selector
+	HeavyComputationConnectionSelector = (HeavyComputationConnectionSelector + 1) % Connections.Num();
+
 	for (UNetReplicationGraphConnection* ConnectionManager: Connections)
 	{
 		// Prepare for Replication also handles children as well.
@@ -1074,7 +1084,17 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 		
 		FGatheredReplicationActorLists GatheredReplicationListsForConnection;
 
-		const FConnectionGatherActorListParameters Parameters(ConnectionViewers, *ConnectionManager, ConnectionManager->GetCachedClientVisibleLevelNames(), FrameNum, GatheredReplicationListsForConnection);
+		const bool bIsSelectedForHeavyComputation =
+			HeavyComputationConnectionSelector == ConnectionManager->ConnectionOrderNum
+			|| CVar_RepGraph_ConnectionHeavyComputationAmortization == 0;
+
+		const FConnectionGatherActorListParameters Parameters(
+			ConnectionViewers,
+			*ConnectionManager,
+			ConnectionManager->GetCachedClientVisibleLevelNames(),
+			FrameNum,
+			GatheredReplicationListsForConnection,
+			bIsSelectedForHeavyComputation);
 
 		UNetReplicationGraphConnection::FRepGraphDestructionViewerInfoArray DestructionViewersInfo;
 
@@ -2686,16 +2706,12 @@ bool UNetReplicationGraphConnection::PrepareForReplication()
 	// -------------------------------------------
 	if (!NodesVisibleCells.IsEmpty())
 	{
-		// First pass decreases TTL and removes dead cells
+		// First pass decreases TTL
 		for (TTuple<TObjectKey<UReplicationGraphNode>, TArray<FVisibleCellInfo>>& NodeCellInfoPair : NodesVisibleCells)
 		{
-			TArray<FVisibleCellInfo>& CellInfos = NodeCellInfoPair.Value;
-			for (int32 Index = 0; Index < CellInfos.Num(); ++Index)
+			for (FVisibleCellInfo& CellInfo : NodeCellInfoPair.Value)
 			{
-				if (--CellInfos[Index].Lifetime < 0)
-				{
-					CellInfos.RemoveAtSwap(Index--);
-				}
+				CellInfo.Lifetime -= (CellInfo.Lifetime > 0);
 			}
 		}
 
@@ -4717,6 +4733,7 @@ void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(F
 {
 	auto GatherDormantDynamicActorsForList = [&](const FActorRepListRefView& InReplicationActorList)
 	{
+		RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_DormancyNode_ConditionalGatherDormantDynamicActors);
 		for (const FActorRepListType& Actor : InReplicationActorList)
 		{
 			if (Actor && !Actor->IsNetStartupActor())
@@ -4731,7 +4748,8 @@ void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(F
 							continue;
 						}
 
-						if (RemoveFromList && RemoveFromList->RemoveFast(Actor))
+						// Keeping the allocation when removing items let's us safe time on multiple items removed from that list.
+						if (RemoveFromList && RemoveFromList->RemoveFast(Actor, false))
 						{
 							Info->bGridSpatilization_AlreadyDormant = false;
 						}
@@ -4876,9 +4894,9 @@ UReplicationGraphNode* UReplicationGraphNode_GridCell::GetDynamicNode()
 	return DynamicNode;
 }
 
-UReplicationGraphNode_DormancyNode* UReplicationGraphNode_GridCell::GetDormancyNode()
+UReplicationGraphNode_DormancyNode* UReplicationGraphNode_GridCell::GetDormancyNode(bool bInCreateIfMissing)
 {
-	if (DormancyNode == nullptr)
+	if (DormancyNode == nullptr && bInCreateIfMissing)
 	{
 		DormancyNode = CreateChildNode<UReplicationGraphNode_DormancyNode>();
 	}
@@ -5798,11 +5816,10 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 		}
 	}
 
-	if (bDestroyDormantDynamicActors && CVar_RepGraph_DormantDynamicActorsDestruction > 0)
+	if (bDestroyDormantDynamicActors && CVar_RepGraph_DormantDynamicActorsDestruction > 0 && Params.bIsSelectedForHeavyComputation)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_DestroyDormantDynamicActors);
 
-		FActorRepListRefView DormantActorList; // temp list of "observable dormant actors"
 		FActorRepListRefView& PrevDormantActorList = Params.ConnectionManager.GetPrevDormantActorListForNode(this);
 		TArray<UNetReplicationGraphConnection::FVisibleCellInfo>& VisibleCells = Params.ConnectionManager.GetVisibleCellsForNode(this);
 
@@ -5810,11 +5827,15 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 		{
 			RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_CollectDestroyedDormantDynamicActors);
 
-			for (const UNetReplicationGraphConnection::FVisibleCellInfo& CellInfo : VisibleCells)
-			{
-				const FIntPoint GridCell = CellInfo.Location;
-				const int32 Lifetime = CellInfo.Lifetime;
+			TArray<UReplicationGraphNode_DormancyNode*, TInlineAllocator<RepGraphDormancyNodesInlineBufferSize>> DormancyNodesCache;
+			DormancyNodesCache.SetNum(VisibleCells.Num());
 
+			// Do validation and cache dormancy nodes
+			for (int32 Index = 0; Index < VisibleCells.Num(); Index++)
+			{
+				const FIntPoint GridCell = VisibleCells[Index].Location;
+
+#if DO_ENSURE
 				bool bPassesValidation = true;
 
 				bPassesValidation &= ensureMsgf(
@@ -5822,37 +5843,51 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 					TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Previously visible cell (%dx%d) is out of bounds due to grid resize, skipping."),
 					GridCell.X, GridCell.Y);
 				bPassesValidation &= ensureMsgf(
-					Lifetime >= 0,
+					VisibleCells[Index].Lifetime >= 0,
 					TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Cell (%dx%d) lifetime was negative, that shouldn't happen."),
 					GridCell.X, GridCell.Y);
-				
+
 				if (!bPassesValidation)
 				{
+					VisibleCells.RemoveAtSwap(Index--, 1, false);
 					continue;
 				}
+#endif
 
-				if (Lifetime == 0)
+				if (UReplicationGraphNode_GridCell* PrevCell = GetCell(GetGridX(GridCell.X), GridCell.Y))
 				{
-					// Add dormant actors from "no longer observable" cell into PrevDormantActorList,
-					// but keep in mind that it could be observable from some other cell, that's why we pass second DormantActorList in
-					if (UReplicationGraphNode_GridCell* PrevCell = GetCell(GetGridX(GridCell.X), GridCell.Y))
+					// don't create a node if missing
+					constexpr bool bDontCreateDormancyNode = false;
+					DormancyNodesCache[Index] = PrevCell->GetDormancyNode(bDontCreateDormancyNode);
+				}
+			}
+
+			// Merge Dormant actor lists by producing set C such that
+			// C = A && !B, where
+			// A - set of actors in cells with Lifetime == 0 (i.e. "dead" cells)
+			// B - set of actors in cells with Lifetime > 0 (i.e. "observable" cells)
+			
+			// Set B - GatheredActors, temp list of "observable dormant actors"
+			GatheredActors.Reset(RepGraphDormantActorsListReservedBuffer);
+			for (int32 Index = 0; Index < VisibleCells.Num(); Index++)
+			{
+				if (VisibleCells[Index].Lifetime == 0)
+				{
+					if (UReplicationGraphNode_DormancyNode* DormancyNode = DormancyNodesCache[Index])
 					{
-						if (UReplicationGraphNode_DormancyNode* DormancyNode = PrevCell->GetDormancyNode())
-						{
-							DormancyNode->ConditionalGatherDormantDynamicActors(PrevDormantActorList, Params, &DormantActorList, true);
-						}
+						// Add dormant actors from "no longer observable" cell into PrevDormantActorList,
+						// but keep in mind that it could be observable from some other cell, that's why we pass second DormantActorList in
+						DormancyNode->ConditionalGatherDormantDynamicActors(PrevDormantActorList, Params, &GatheredActors, true);
 					}
+					// Remove cell after it's processed
+					VisibleCells.RemoveAtSwap(Index--, 1, false);
 				}
 				else
 				{
-					// Everything that lives, adds itself to DormantActorList and is excluded from PrevDormantActorList
-					if (UReplicationGraphNode_GridCell* CellNode = GetCell(GetGridX(GridCell.X), GridCell.Y))
+					if (UReplicationGraphNode_DormancyNode* DormancyNode = DormancyNodesCache[Index])
 					{
-						if (UReplicationGraphNode_DormancyNode* DormancyNode = CellNode->GetDormancyNode())
-						{
-							// Making sure to remove from the PrevDormantActorList since we don't want things added to the DormantActorList to be destroyed anymore
-							DormancyNode->ConditionalGatherDormantDynamicActors(DormantActorList, Params, nullptr, false, &PrevDormantActorList);
-						}
+						// Making sure to remove from the PrevDormantActorList since we don't want things added to the DormantActorList to be destroyed anymore
+						DormancyNode->ConditionalGatherDormantDynamicActors(GatheredActors, Params, nullptr, false, &PrevDormantActorList);
 					}
 				}
 			}
