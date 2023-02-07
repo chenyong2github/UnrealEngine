@@ -34,6 +34,16 @@ static FAutoConsoleVariableRef CVarWaterInfoRenderLandscapeMinimumMipLevel(
 	WaterInfoRenderLandscapeMinimumMipLevel,
 	TEXT("Clamps the minimum allowed mip level for the landscape when rendering the water info texture. Used on the lowest end platforms which cannot support rendering all the landscape vertices at the highest LOD."));
 
+static TAutoConsoleVariable<float> CVarWaterInfoUndergroundDilationDepthOffset(
+		TEXT("r.Water.WaterInfo.UndergroundDilationDepthOffset"),
+		64.f,
+		TEXT("The minimum distance below the ground when we allow dilation to write on top of water"));
+
+static TAutoConsoleVariable<float> CVarWaterInfoDilationOverwriteMinimumDistance(
+		TEXT("r.Water.WaterInfo.DilationOverwriteMinimumDistance"),
+		128.f,
+		TEXT("The minimum distance below the ground when we allow dilation to write on top of water"));
+
 namespace UE::WaterInfo
 {
 
@@ -74,6 +84,8 @@ public:
 		SHADER_PARAMETER(FVector2f, WaterHeightExtents)
 		SHADER_PARAMETER(float, GroundZMin)
 		SHADER_PARAMETER(float, CaptureZ)
+		SHADER_PARAMETER(float, UndergroundDilationDepthOffset)
+		SHADER_PARAMETER(float, DilationOverwriteMinimumDistance)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -122,6 +134,8 @@ static void MergeWaterInfoAndDepth(
 		PassParameters->CaptureZ = Params.CaptureZ;
 		PassParameters->WaterHeightExtents = Params.WaterHeightExtents;
 		PassParameters->GroundZMin = Params.GroundZMin;
+		PassParameters->DilationOverwriteMinimumDistance = CVarWaterInfoDilationOverwriteMinimumDistance.GetValueOnRenderThread();
+		PassParameters->UndergroundDilationDepthOffset = CVarWaterInfoUndergroundDilationDepthOffset.GetValueOnRenderThread();
 
 		TShaderMapRef<FScreenVS> VertexShader(View.ShaderMap);
 		TShaderMapRef<FWaterInfoMergePS> PixelShader(View.ShaderMap);
