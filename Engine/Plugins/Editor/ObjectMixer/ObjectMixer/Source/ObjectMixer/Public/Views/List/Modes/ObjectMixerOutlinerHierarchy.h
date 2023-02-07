@@ -38,16 +38,21 @@ protected:
 
 	void CreateFolderChild(const FFolder& Folder, UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
 
-	void EvaluateActorsByComponentsAndCreateActorItems(AActor* Actor, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
 	void ForEachActorInLevel(AActor* Actor, const ULevelInstanceSubsystem* LevelInstanceSubsystem, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
 	
 	/** Adds all the direct and indirect children of a world to OutItems */
 	void CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
-	/** Create all component items for an actor if we are showing components and place them in OutItems */
+	
+	/**
+	 * Create all component items for an actor if we are showing components and place them in OutItems. Items not added if filtered out.
+	 */
 	void CreateComponentItems(const AActor* Actor, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
-	/** Create all component items for an actor if we are showing components and place them in OutItems */
-	void CreateComponentItems(
-		const AActor* Actor, TArray<FSceneOutlinerTreeItemPtr>& OutItems, const TSet<UObject*>& AllMatchingObjects) const;
+
+	/**
+	 * Create all component items for an actor if we are showing components and place them in OutItems. Items not added if filtered out.
+	 * If components are returned or would be returned before filters, the Actor will be added at the beginning of the array.
+	 */
+	TArray<FSceneOutlinerTreeItemPtr> ConditionallyCreateActorAndComponentItems(AActor* Actor) const;
 
 	// Update the hierarchy when actor or world changing events occur
 	void OnWorldPartitionCreated(UWorld* InWorld);
