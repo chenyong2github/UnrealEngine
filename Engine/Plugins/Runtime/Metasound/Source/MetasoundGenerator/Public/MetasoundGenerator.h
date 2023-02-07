@@ -82,6 +82,7 @@ namespace Metasound
 		}
 
 	private:
+		FMetasoundGeneratorData BuildGeneratorData(const FMetasoundGeneratorInitParams& InInitParams, TUniquePtr<IOperator> InOperator, TUniquePtr<Frontend::FGraphAnalyzer> InAnalyzer) const;
 		TUniquePtr<IOperator> BuildGraphOperator(TArray<FAudioParameter>&& InParameters, FBuildResults& OutBuildResults) const;
 		TUniquePtr<Frontend::FGraphAnalyzer> BuildGraphAnalyzer(TMap<FGuid, FDataReferenceCollection>&& InInternalDataReferences) const;
 		void LogBuildErrors(const FBuildResults& InBuildResults) const;
