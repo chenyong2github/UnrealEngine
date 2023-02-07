@@ -4,6 +4,7 @@
 
 #include "BlueprintModes/WidgetBlueprintApplicationMode.h"
 #include "BlueprintModes/WidgetBlueprintApplicationModes.h"
+#include "Customizations/MVVMBlueprintViewModelContextCustomization.h"
 #include "Customizations/MVVMPropertyBindingExtension.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/LayoutExtender.h"
@@ -13,6 +14,7 @@
 #include "MVVMEditorCommands.h"
 #include "MVVMEditorSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
+#include "PropertyEditorModule.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Tabs/MVVMBindingSummoner.h"
 #include "Tabs/MVVMViewModelSummoner.h"
@@ -46,6 +48,11 @@ void FModelViewViewModelEditorModule::StartupModule()
 	PropertyBindingExtension = MakeShared<FMVVMPropertyBindingExtension>();
 	UMGEditorModule.GetPropertyBindingExtensibilityManager()->AddExtension(PropertyBindingExtension.ToSharedRef());
 
+	UMGEditorModule.RegisterInstancedCustomPropertyTypeLayout(
+		FMVVMBlueprintViewModelContext::StaticStruct()->GetStructPathName()
+		, IUMGEditorModule::FOnGetInstancePropertyTypeCustomizationInstance::CreateStatic(UE::MVVM::FBlueprintViewModelContextDetailCustomization::MakeInstance)
+		);
+
 	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.AddRaw(this, &FModelViewViewModelEditorModule::HandleRenameVariableReferences);
 
 	{
@@ -76,6 +83,10 @@ void FModelViewViewModelEditorModule::ShutdownModule()
 	{
 		UMGEditorModule->OnRegisterTabsForEditor().RemoveAll(this);
 		UMGEditorModule->GetPropertyBindingExtensibilityManager()->RemoveExtension(PropertyBindingExtension.ToSharedRef());
+		if (UObjectInitialized())
+		{
+			UMGEditorModule->UnregisterInstancedCustomPropertyTypeLayout(FMVVMBlueprintViewModelContext::StaticStruct()->GetStructPathName());
+		}
 	}
 	PropertyBindingExtension.Reset();
 

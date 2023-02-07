@@ -1,0 +1,59 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "IPropertyTypeCustomization.h"
+#include "Layout/Visibility.h"
+
+class FWidgetBlueprintEditor;
+struct FBindingChainElement;
+class SWidget;
+
+
+namespace UE::MVVM
+{
+
+class FViewModelPropertyAccessEditor
+{
+public:
+	TWeakObjectPtr<UClass> ClassToLookFor;
+
+	TSharedRef<SWidget> MakePropertyBindingWidget(TSharedRef<FWidgetBlueprintEditor> WidgetBlueprintEditor, FProperty* PropertyToMatch, TSharedRef<IPropertyHandle> AssignToProperty, FName ViewModelPropertyName);
+
+private:
+	bool CanBindProperty(FProperty* Property) const;
+	bool CanBindFunction(UFunction* Function) const;
+	bool CanBindToClass(UClass* Class) const;
+	bool HasValidClassToLookFor() const;
+	void AddBinding(FName, const TArray<FBindingChainElement>& BindingChain);
+
+	FProperty* GeneratePureBindingsProperty = nullptr;
+	FProperty* ViewModelProperty = nullptr;
+	TSharedPtr<IPropertyHandle> AssignToProperty = nullptr;
+};
+
+class FBlueprintViewModelContextDetailCustomization : public IPropertyTypeCustomization
+{
+public:
+	FBlueprintViewModelContextDetailCustomization(TWeakPtr<FWidgetBlueprintEditor> InEditor);
+	~FBlueprintViewModelContextDetailCustomization();
+
+	//~ IDetailCustomization interface
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override {}
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance(TWeakPtr<FWidgetBlueprintEditor> InEditor)
+	{
+		return MakeShared<FBlueprintViewModelContextDetailCustomization>(InEditor);
+	}
+
+private:
+	void HandleClassChanged();
+
+	FViewModelPropertyAccessEditor PropertyAccessEditor;
+	TWeakPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor;
+	TSharedPtr<IPropertyHandle> NotifyFieldValueClassHandle;
+	TSharedPtr<IPropertyHandle> PropertyPathHandle;
+};
+
+} // namespace UE::MVVM

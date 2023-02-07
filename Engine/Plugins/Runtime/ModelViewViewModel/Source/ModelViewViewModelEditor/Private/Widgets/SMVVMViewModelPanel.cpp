@@ -25,6 +25,19 @@
 
 #define LOCTEXT_NAMESPACE "ViewModelPanel"
 
+
+void UMVVMBlueprintViewModelContextWrapper::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	if (UMVVMBlueprintView* BlueprintViewPtr = BlueprintView.Get())
+	{
+		if (FMVVMBlueprintViewModelContext* ViewModelContextPtr = BlueprintViewPtr->FindViewModel(ViewModelId))
+		{
+			*ViewModelContextPtr = Wrapper;
+		}
+	}
+}
+
 namespace UE::MVVM
 {
 
@@ -38,6 +51,8 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 	WeakBlueprintView = CurrentBlueprintView;
 	FieldIterator = MakeUnique<FFieldIterator_Bindable>(WidgetBlueprint, EFieldVisibility::None);
 	FieldExpander = MakeUnique<FFieldExpander_Bindable>();
+
+	WidgetBlueprintEditor->OnSelectedWidgetsChanging.AddSP(this, &SMVVMViewModelPanel::HandleEditorSelectionChanged);
 
 	if (CurrentBlueprintView)
 	{
@@ -68,19 +83,8 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 
 	FillViewModel();
 
+	ModelContextWrapper.Reset(NewObject<UMVVMBlueprintViewModelContextWrapper>());
 
-	FPropertyEditorModule& PropertyEditor = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.NotifyHook = this;
-	DetailsViewArgs.bHideSelectionTip = true;
-	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Hide;
-	DetailsViewArgs.bAllowSearch = false;
-	FStructureDetailsViewArgs StructDetailViewArgs;
-	StructDetailViewArgs.bShowObjects = true;
-	StructDetailViewArgs.bShowInterfaces = true;
-
-	PropertyView = PropertyEditor.CreateStructureDetailView(DetailsViewArgs, StructDetailViewArgs, TSharedPtr<class FStructOnScope>());
 
 	ChildSlot
 	[
@@ -93,11 +97,6 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 			+ SSplitter::Slot()
 			[
 				ViewModelTreeView.ToSharedRef()
-			]
-			+ SSplitter::Slot()
-			.SizeRule(SSplitter::SizeToContent)
-			[
-				PropertyView->GetWidget().ToSharedRef()
 			]
 		]
 	];
@@ -468,28 +467,57 @@ TSharedPtr<SWidget> SMVVMViewModelPanel::HandleContextMenuOpening(UE::PropertyVi
 void SMVVMViewModelPanel::HandleSelectionChanged(UE::PropertyViewer::SPropertyViewer::FHandle ContainerHandle, TArrayView<const FFieldVariant> Fields, ESelectInfo::Type SelectionType)
 {
 	SelectedViewModelGuid = FGuid();
+	ModelContextWrapper->ViewModelId = FGuid();
+	ModelContextWrapper->BlueprintView.Reset();
 
-	bool bSet = false;
-	if (Fields.Num() == 0)
+	if (bIsViewModelSelecting)
 	{
-		if (const FGuid* VMGuidPtr = PropertyViewerHandles.Find(ContainerHandle))
-		{
-			SelectedViewModelGuid = *VMGuidPtr;
+		return;
+	}
 
-			if (UMVVMBlueprintView* BlueprintView = WeakBlueprintView.Get())
+	TGuardValue Tmp = TGuardValue(bIsViewModelSelecting, true);
+
+	if (TSharedPtr<FWidgetBlueprintEditor> BlueprintEditor = WeakBlueprintEditor.Pin())
+	{
+		bool bSet = false;
+		if (Fields.Num() == 0)
+		{
+			if (const FGuid* VMGuidPtr = PropertyViewerHandles.Find(ContainerHandle))
 			{
-				if (FMVVMBlueprintViewModelContext* ViewModelContext = BlueprintView->FindViewModel(SelectedViewModelGuid))
+				SelectedViewModelGuid = *VMGuidPtr;
+
+				if (UMVVMBlueprintView* BlueprintView = WeakBlueprintView.Get())
 				{
-					PropertyView->SetStructureData(MakeShared<FStructOnScope>(FMVVMBlueprintViewModelContext::StaticStruct(), reinterpret_cast<uint8*>(ViewModelContext)));
-					bSet = true;
+					if (FMVVMBlueprintViewModelContext* ViewModelContext = BlueprintView->FindViewModel(SelectedViewModelGuid))
+					{
+						ModelContextWrapper->Wrapper = *ViewModelContext;
+						ModelContextWrapper->ViewModelId = SelectedViewModelGuid;
+						ModelContextWrapper->BlueprintView = WeakBlueprintView;
+						
+						BlueprintEditor->CleanSelection();
+
+						TSet<UObject*> Selections;
+						Selections.Add(ModelContextWrapper.Get());
+						BlueprintEditor->SelectObjects(Selections);
+						bSet = true;
+					}
 				}
 			}
 		}
+
+		if (!bSet && BlueprintEditor->GetSelectedObjects().Contains(ModelContextWrapper.Get()))
+		{
+			BlueprintEditor->SelectObjects(TSet<UObject*>());
+		}
 	}
-	
-	if (!bSet)
+}
+
+
+void SMVVMViewModelPanel::HandleEditorSelectionChanged()
+{
+	if (!bIsViewModelSelecting && SelectedViewModelGuid.IsValid())
 	{
-		PropertyView->SetStructureData(TSharedPtr<FStructOnScope>());
+		ViewModelTreeView->SetSelection(UE::PropertyViewer::SPropertyViewer::FHandle(), TArrayView<const FFieldVariant>());
 	}
 }
 

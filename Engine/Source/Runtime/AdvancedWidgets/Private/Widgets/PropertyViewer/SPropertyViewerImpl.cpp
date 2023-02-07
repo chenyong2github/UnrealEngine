@@ -773,17 +773,17 @@ TSharedPtr<FTreeNode> FPropertyViewerImpl::FindExistingChild(const TSharedPtr<FT
 
 void FPropertyViewerImpl::SetSelection(SPropertyViewer::FHandle Identifier, TArrayView<const FFieldVariant> FieldPath)
 {
+	TreeWidget->ClearSelection();
 	for (const TSharedPtr<FTreeNode>& Node : TreeSource)
 	{
 		if (TSharedPtr<FContainer> Container = Node->GetContainer())
 		{
 			if (Container->GetIdentifier() == Identifier)
 			{
-				TreeWidget->ClearSelection();
-
 				if (TSharedPtr<FTreeNode> FoundNode = FindExistingChild(Node, FieldPath))
 				{
 					TreeWidget->SetItemSelection(FoundNode, true);
+					break;
 				}
 			}
 		}

@@ -6,17 +6,37 @@
 #include "Misc/NotifyHook.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
 
+#include "UObject/StrongObjectPtr.h"
+#include "MVVMBlueprintViewModelContext.h"
+#include "SMVVMViewModelPanel.generated.h"
+
 namespace ETextCommit { enum Type : int; }
 namespace UE::MVVM { class FFieldIterator_Bindable; }
 namespace UE::PropertyViewer { class FFieldExpander_Default; }
 
+class INotifyFieldValueChanged;
 class FWidgetBlueprintEditor;
 class SInlineEditableTextBlock;
 class SPositiveActionButton;
 class UBlueprintExtension;
 class UMVVMBlueprintView;
 class FUICommandList;
-class IStructureDetailsView;
+class IDetailsView;
+
+UCLASS()
+class UMVVMBlueprintViewModelContextWrapper : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	UPROPERTY(EditAnywhere, Category="Viewmodel", meta = (ShowOnlyInnerProperties))
+	FMVVMBlueprintViewModelContext Wrapper;
+
+	TWeakObjectPtr<UMVVMBlueprintView> BlueprintView;
+	FGuid ViewModelId;
+};
 
 namespace UE::MVVM
 {
@@ -48,6 +68,7 @@ private:
 	TSharedRef<SWidget> HandleGenerateContainer(UE::PropertyViewer::SPropertyViewer::FHandle ContainerHandle, TOptional<FText> DisplayName);
 	TSharedPtr<SWidget> HandleContextMenuOpening(UE::PropertyViewer::SPropertyViewer::FHandle ContainerHandle, TArrayView<const FFieldVariant> Field) const;
 	void HandleSelectionChanged(UE::PropertyViewer::SPropertyViewer::FHandle, TArrayView<const FFieldVariant>, ESelectInfo::Type);
+	void HandleEditorSelectionChanged();
 	bool HandleVerifyNameTextChanged(const FText& InText, FText& OutErrorMessage, FGuid ViewModelGuid);
 	void HandleNameTextCommited(const FText& InText, ETextCommit::Type CommitInfo, FGuid ViewModelGuid);
 
@@ -71,7 +92,6 @@ private:
 	TUniquePtr<FFieldIterator_Bindable> FieldIterator;
 	TUniquePtr<UE::PropertyViewer::FFieldExpander_Default> FieldExpander;
 	TSharedPtr<FUICommandList> CommandList;
-	TSharedPtr<IStructureDetailsView> PropertyView;
 
 	TMap<UE::PropertyViewer::SPropertyViewer::FHandle, FGuid> PropertyViewerHandles;
 	TMap<FGuid, TSharedPtr<SInlineEditableTextBlock>> EditableTextBlocks;
@@ -80,8 +100,11 @@ private:
 	TWeakObjectPtr<UMVVMBlueprintView> WeakBlueprintView;
 	FDelegateHandle ViewModelsUpdatedHandle;
 
+	TStrongObjectPtr<UMVVMBlueprintViewModelContextWrapper> ModelContextWrapper;
+
 	FGuid SelectedViewModelGuid;
 	FName PreviousViewModelPropertyName;
+	bool bIsViewModelSelecting = false;
 };
 
 } // namespace
