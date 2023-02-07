@@ -205,7 +205,8 @@ DECLARE_GPU_STAT(LumenSceneLighting);
 
 void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 	FRDGBuilder& GraphBuilder,
-	const FLumenSceneFrameTemporaries& FrameTemporaries)
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenDirectLightingTaskData* DirectLightingTaskData)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::RenderLumenSceneLighting);
@@ -256,6 +257,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			RenderDirectLightingForLumenScene(
 				GraphBuilder,
 				FrameTemporaries,
+				DirectLightingTaskData,
 				DirectLightingCardUpdateContext,
 				ComputePassFlags);
 

@@ -2378,6 +2378,8 @@ void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FInitViewTaskDa
 	{
 		TaskDatas.DynamicShadows = BeginInitDynamicShadows(true);
 	}
+
+	BeginGatherLumenLights(TaskDatas.LumenDirectLighting);
 }
 
 static TAutoConsoleVariable<float> CVarStallInitViews(
@@ -3422,7 +3424,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		LLM_SCOPE_BYTAG(Lumen);
 		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
-		RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries);
+		RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries, InitViewTaskDatas.LumenDirectLighting);
 	}
 
 	{
@@ -3616,7 +3618,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			LLM_SCOPE_BYTAG(Lumen);
 			BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
-			RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries);
+			RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries, InitViewTaskDatas.LumenDirectLighting);
 		}
 	}
 

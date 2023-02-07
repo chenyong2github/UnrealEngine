@@ -56,6 +56,7 @@ struct FTranslucentLightInjectionCollector;
 struct FRayTracingPickingFeedback;
 struct FDBufferTextures;
 struct FILCUpdatePrimTaskData;
+struct FLumenDirectLightingTaskData;
 
 #if RHI_RAYTRACING
 struct FRayTracingRelevantPrimitiveTaskData;
@@ -532,6 +533,7 @@ private:
 		FRayTracingRelevantPrimitiveTaskData* RayTracingRelevantPrimitives = nullptr;
 	#endif
 		FDynamicShadowsTaskData* DynamicShadows = nullptr;
+		FLumenDirectLightingTaskData* LumenDirectLighting = nullptr;
 	};
 
 	void PreGatherDynamicMeshElements(FInitViewTaskDatas& TaskDatas);
@@ -558,11 +560,14 @@ private:
 
 	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
-	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries);
+	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, const FLumenDirectLightingTaskData* DirectLightingTaskData);
+
+	void BeginGatherLumenLights(FLumenDirectLightingTaskData*& TaskData);
 
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,
 		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenDirectLightingTaskData* DirectLightingTaskData,
 		const FLumenCardUpdateContext& CardUpdateContext,
 		ERDGPassFlags ComputePassFlags);
 	
