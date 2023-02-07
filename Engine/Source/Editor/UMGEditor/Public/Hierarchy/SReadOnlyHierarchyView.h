@@ -18,6 +18,19 @@ template <typename ItemType> class STreeView;
 template <typename ItemType> class TreeFilterHandler;
 template <typename ItemType> class TTextFilter;
 
+UENUM()
+enum class ERootSelectionMode : uint8
+{
+	/** The Root Widget is not selectable */
+	Disabled,
+
+	/** The Root Widget is selectable and will show it's name as the display text */
+	Enabled,
+
+	/** The Root Widget is selectable and it will show Self as the display text */
+	Self
+};
+
 class UMGEDITOR_API SReadOnlyHierarchyView : public SCompoundWidget
 {
 private:
@@ -39,6 +52,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SReadOnlyHierarchyView) {}
 		SLATE_ARGUMENT_DEFAULT(bool, ShowSearch) = true;
+		SLATE_ARGUMENT_DEFAULT(ERootSelectionMode, RootSelectionMode) = ERootSelectionMode::Enabled;
 		SLATE_ARGUMENT_DEFAULT(ESelectionMode::Type, SelectionMode) = ESelectionMode::Single;
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
 		SLATE_ARGUMENT(TArray<FName>, ShowOnly)
@@ -83,6 +97,8 @@ private:
 
 	TArray<TSharedPtr<FItem>> RootWidgets;
 	TArray<TSharedPtr<FItem>> FilteredRootWidgets;
+
+	ERootSelectionMode RootSelectionMode;
 
 	FOnSelectionChanged OnSelectionChangedDelegate;
 

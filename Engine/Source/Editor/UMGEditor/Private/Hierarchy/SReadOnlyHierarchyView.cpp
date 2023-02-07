@@ -14,6 +14,7 @@ void SReadOnlyHierarchyView::Construct(const FArguments& InArgs, const UWidgetBl
 	OnSelectionChangedDelegate = InArgs._OnSelectionChanged;
 	WidgetBlueprint = InWidgetBlueprint;
 	ShowOnly = InArgs._ShowOnly;
+	RootSelectionMode = InArgs._RootSelectionMode;
 
 	SearchFilter = MakeShared<FTextFilter>(FTextFilter::FItemToStringArray::CreateSP(this, &SReadOnlyHierarchyView::GetFilterStringsForItem));
 	FilterHandler = MakeShared<FTreeFilterHandler>();
@@ -117,13 +118,26 @@ void SReadOnlyHierarchyView::SetRawFilterText(const FText& Text)
 
 FText SReadOnlyHierarchyView::GetItemText(TSharedPtr<FItem> Item) const
 {
-	if (const UWidget* Widget = Item->Widget.Get())
+	if (Item)
 	{
-		return Widget->GetLabelTextWithMetadata();
-	}
+		// The item is a Widget child in the tree
+		if (const UWidget* Widget = Item->Widget.Get())
+		{
+			return Widget->GetLabelTextWithMetadata();
+		}
 
-	static const FText RootWidgetFormat = LOCTEXT("WidgetNameFormat", "[{0}]");
-	return FText::Format(RootWidgetFormat, FText::FromString(WidgetBlueprint->GetName()));
+		// The widget is the Root WidgetBlueprint
+		if (const UWidgetBlueprint* Blueprint = Item->WidgetBlueprint.Get())
+		{
+			// If using self as the Selection mode, we use Self as the name, otherwise it's the WidgetBlueprint Name
+			FText RootWidgetName = RootSelectionMode == ERootSelectionMode::Self ? FText(LOCTEXT("SelfText", "Self")) : FText::FromString(Blueprint->GetName());
+
+			static const FText RootWidgetFormat = LOCTEXT("WidgetNameFormat", "[{0}]");
+			return FText::Format(RootWidgetFormat, RootWidgetName);
+
+		}
+	}
+	return FText::GetEmpty();
 }
 
 const FSlateBrush* SReadOnlyHierarchyView::GetIconBrush(TSharedPtr<FItem> Item) const
@@ -170,7 +184,18 @@ FText SReadOnlyHierarchyView::GetWidgetToolTipText(TSharedPtr<FItem> Item) const
 
 TSharedRef<ITableRow> SReadOnlyHierarchyView::GenerateRow(TSharedPtr<FItem> Item, const TSharedRef<STableViewBase>& OwnerTable) const
 {
+	bool bIsEnabled = true; 
+	// When Root Selection Mode is Disabled we must check if this is a WidgetBlueprint
+	if (RootSelectionMode == ERootSelectionMode::Disabled)
+	{
+		// If the Widget Blueprint is set, it's the root widget we disable it.
+		if (const UWidgetBlueprint* Blueprint = Item->WidgetBlueprint.Get())
+		{
+			bIsEnabled = false;
+		}
+	}
 	return SNew(STableRow<TSharedPtr<FItem>>, OwnerTable)
+		   .IsEnabled(bIsEnabled)
 		[
 			SNew(SHorizontalBox)
 			// Widget icon
