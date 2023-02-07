@@ -677,6 +677,15 @@ void FContextualAnimViewModel::StartSimulateMode()
 	MovieScene->SetReadOnly(true);
 
 	SimulateModeState = ESimulateModeState::Paused;
+
+	// Stop montage instance used during normal mode to preview the animations
+	for (const FContextualAnimSceneBinding& Binding : SceneBindings)
+	{
+		if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
+		{
+			AnimInstance->StopAllMontages(0);
+		}
+	}
 }
 
 void FContextualAnimViewModel::StopSimulateMode()

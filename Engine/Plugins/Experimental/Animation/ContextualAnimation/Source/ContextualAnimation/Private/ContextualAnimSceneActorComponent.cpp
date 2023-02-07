@@ -343,11 +343,11 @@ void UContextualAnimSceneActorComponent::JoinScene(const FContextualAnimSceneBin
 
 		if (UAnimInstance* AnimInstance = Binding->GetAnimInstance())
 		{
-			AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneActorComponent::OnMontageBlendingOut);
-
 			//@TODO: Add support for dynamic montage
 			UAnimMontage* AnimMontage = Cast<UAnimMontage>(AnimTrack.Animation);
 			AnimInstance->Montage_Play(AnimMontage, 1.f);
+
+			AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneActorComponent::OnMontageBlendingOut);
 		}
 
 		USkeletalMeshComponent* SkelMeshComp = Binding->GetSkeletalMeshComponent();
