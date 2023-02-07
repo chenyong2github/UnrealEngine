@@ -558,11 +558,16 @@ namespace BlueprintSearchMetaDataHelpers
 			WriteTextValue(FText::FromString(String));
 		}
 
+		virtual void WriteStringValue(FStringView String) override
+		{
+			// We just want to make sure all strings are converted into FText hex strings, used by the FiB system
+			WriteTextValue(FText::FromStringView(String));
+		}
+		
 		virtual void WriteTextValue(const FText& Text) override
 		{
 			// Check to see if the value has already been added.
-			int32* TableLookupValuePtr = ReverseLookupTable.Find(FLookupTableItem(Text));
-			if (TableLookupValuePtr)
+			if (int32* TableLookupValuePtr = ReverseLookupTable.Find(FLookupTableItem(Text)))
 			{
 				TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>::WriteStringValue(FString::FromInt(*TableLookupValuePtr));
 			}

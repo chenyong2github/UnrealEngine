@@ -472,7 +472,7 @@ protected:
 
 	virtual void WriteStringValue(const FString& String)
 	{
-		WriteStringValue(FStringView(String));
+		TJsonWriter::WriteStringValue(FStringView(String));
 	}
 
 	template<typename InCharType>
