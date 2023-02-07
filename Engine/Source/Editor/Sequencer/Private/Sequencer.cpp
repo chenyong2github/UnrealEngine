@@ -129,7 +129,6 @@
 #include "ISequencerChannelInterface.h"
 #include "IMovieRendererInterface.h"
 #include "SequencerKeyCollection.h"
-#include "SequencerTimeChangeUndoRedoProxy.h"
 #include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
 #include "CurveDataAbstraction.h"
@@ -528,13 +527,11 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	// Update initial movie scene data
 	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::ActiveMovieSceneChanged );
 
-	//create proxy and set it as child of focused movie scene sequence.
-	if(GetRootMovieSceneSequence())
-	{
-		UndoRedoProxy = NewObject<USequencerTimeChangeUndoRedoProxy>(GetRootMovieSceneSequence(), NAME_None);
-		UndoRedoProxy->SetSequencer(SharedThis(this));
-		UndoRedoProxy->SetFlags(RF_Transactional | RF_Transient);
-	}
+
+	TimeUndoRedoHandler.UndoRedoProxy = NewObject<USequencerTimeChangeUndoRedoProxy>(GetTransientPackage(), NAME_None);
+	TimeUndoRedoHandler.SetSequencer(SharedThis(this));
+	TimeUndoRedoHandler.UndoRedoProxy->SetFlags(RF_Transactional | RF_Transient);
+	
 
 	// Update the view range to the new current time
 	UpdateTimeBoundsToFocusedMovieScene();
@@ -4258,7 +4255,7 @@ void FSequencer::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	Collector.AddReferencedObject( CompiledDataManager );
 	Collector.AddReferencedObject( Settings );
-	Collector.AddReferencedObject( UndoRedoProxy );
+	Collector.AddReferencedObject(TimeUndoRedoHandler.UndoRedoProxy );
 	if (UMovieSceneSequence* RootSequencePtr = RootSequence.Get())
 	{
 		Collector.AddReferencedObject( RootSequencePtr );

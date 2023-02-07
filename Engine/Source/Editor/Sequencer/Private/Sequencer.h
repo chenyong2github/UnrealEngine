@@ -39,6 +39,7 @@
 #include "SequencerSettings.h"
 #include "Curves/RichCurve.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "SequencerTimeChangeUndoRedoProxy.h"
 
 class AActor;
 class ACameraActor;
@@ -72,7 +73,6 @@ struct FMovieSceneSequencePlaybackParams;
 struct FMovieScenePossessable;
 struct FTransformData;
 struct FKeyAttributes;
-class USequencerTimeChangeUndoRedoProxy;
 struct FNotificationInfo;
 struct FEditorViewportViewModifierParams;
 struct FMovieSceneMarkedFrame;
@@ -674,8 +674,8 @@ public:
 	virtual FString GetReferencerName() const override;
 
 private:
-	//gco object for undo redo support for changing time
-	USequencerTimeChangeUndoRedoProxy* UndoRedoProxy;
+	//object for undo redo support for changing time
+	FSequencerTimeChangedHandler TimeUndoRedoHandler;
 
 public:
 

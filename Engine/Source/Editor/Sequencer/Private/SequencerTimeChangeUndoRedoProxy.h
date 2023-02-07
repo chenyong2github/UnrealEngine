@@ -12,24 +12,19 @@
 
 class FSequencer;
 
+
+
 UCLASS()
-class  USequencerTimeChangeUndoRedoProxy : public UObject, public UE::MovieScene::ISignedObjectEventHandler
+class  USequencerTimeChangeUndoRedoProxy : public UObject
 {
 public:
 	GENERATED_BODY()
 	USequencerTimeChangeUndoRedoProxy() :bTimeWasSet(false), WeakSequencer(nullptr) {  };
-	~USequencerTimeChangeUndoRedoProxy();
-
-	void SetSequencer(TSharedRef<FSequencer> InSequencer);
-	void OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID);
+	~USequencerTimeChangeUndoRedoProxy() {};
 
 	/*~ UObject */
 	virtual void PostEditUndo() override;
 
-	/*~ ISignedObjectEventHandler Interface */
-	virtual void  OnModifiedIndirectly(UMovieSceneSignedObject*) override;
-
-private:
 	UPROPERTY(Transient)
 	FQualifiedFrameTime Time;
 	
@@ -37,9 +32,27 @@ private:
 	UPROPERTY(Transient)
 	bool bTimeWasSet = false;
 	
-	FDelegateHandle OnActivateSequenceChangedHandle;
 	TWeakPtr<FSequencer> WeakSequencer;
 
+};
+
+
+class FSequencerTimeChangedHandler: public UE::MovieScene::ISignedObjectEventHandler
+{
+public:
+	FSequencerTimeChangedHandler() : UndoRedoProxy(nullptr), WeakSequencer(nullptr){};
+	virtual ~FSequencerTimeChangedHandler();
+
+	/*~ ISignedObjectEventHandler Interface */
+	virtual void  OnModifiedIndirectly(UMovieSceneSignedObject*) override;
+
+	void SetSequencer(TSharedRef<FSequencer> InSequencer);
+	void OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID);
+
+	USequencerTimeChangeUndoRedoProxy* UndoRedoProxy;
 	UE::MovieScene::TNonIntrusiveEventHandler<UE::MovieScene::ISignedObjectEventHandler> MovieSceneModified;
+	TWeakPtr<FSequencer> WeakSequencer;
+	FDelegateHandle OnActivateSequenceChangedHandle;
+
 };
 

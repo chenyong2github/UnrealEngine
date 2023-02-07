@@ -3,11 +3,12 @@
 #include "SequencerTimeChangeUndoRedoProxy.h"
 #include "Sequencer.h"
 #include "ScopedTransaction.h"
+#include "MovieScene.h"
 #include "CoreGlobals.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
-USequencerTimeChangeUndoRedoProxy::~USequencerTimeChangeUndoRedoProxy()
+FSequencerTimeChangedHandler::~FSequencerTimeChangedHandler()
 {
 	if (OnActivateSequenceChangedHandle.IsValid() && WeakSequencer.IsValid())
 	{
@@ -15,43 +16,54 @@ USequencerTimeChangeUndoRedoProxy::~USequencerTimeChangeUndoRedoProxy()
 	}
 }
 
-void USequencerTimeChangeUndoRedoProxy::SetSequencer(TSharedRef<FSequencer> InSequencer)
+void FSequencerTimeChangedHandler::SetSequencer(TSharedRef<FSequencer> InSequencer)
 {
 	WeakSequencer = InSequencer;
-	OnActivateSequenceChangedHandle = InSequencer->OnActivateSequence().AddUObject(this, &USequencerTimeChangeUndoRedoProxy::OnActivateSequenceChanged);
+	if (UndoRedoProxy)
+	{
+		UndoRedoProxy->WeakSequencer = InSequencer;
+	}
+	OnActivateSequenceChangedHandle = InSequencer->OnActivateSequence().AddRaw(this, &FSequencerTimeChangedHandler::OnActivateSequenceChanged);
 	OnActivateSequenceChanged(InSequencer->GetFocusedTemplateID());
 }
 
-void USequencerTimeChangeUndoRedoProxy::OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID)
+void FSequencerTimeChangedHandler::OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID)
 {
 	if (TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin())
 	{
 		if (SequencerPtr->GetFocusedMovieSceneSequence() && SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene())
 		{
 			using namespace UE::MovieScene;
-			bTimeWasSet = false;
+			if (UndoRedoProxy)
+			{
+				UndoRedoProxy->bTimeWasSet = false;
+			}
 			MovieSceneModified.Unlink();
 			SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene()->UMovieSceneSignedObject::EventHandlers.Link(MovieSceneModified, this);
 		}
 	}
 }
 
-void USequencerTimeChangeUndoRedoProxy::OnModifiedIndirectly(UMovieSceneSignedObject* Object)
+void FSequencerTimeChangedHandler::OnModifiedIndirectly(UMovieSceneSignedObject* Object)
 {
-	if (Object->IsA<UMovieSceneSection>() && WeakSequencer.IsValid())
+	if (UndoRedoProxy == nullptr)
 	{
-		FQualifiedFrameTime InTime = WeakSequencer.Pin()->GetGlobalTime();
+		return;
+	}
+	if (Object->IsA<UMovieSceneSection>() && UndoRedoProxy->WeakSequencer.IsValid())
+	{
+		FQualifiedFrameTime InTime = UndoRedoProxy->WeakSequencer.Pin()->GetGlobalTime();
 
-		if (bTimeWasSet)
+		if (UndoRedoProxy->bTimeWasSet)
 		{
-			if (!GIsTransacting && (InTime.Time != Time.Time || InTime.Rate != Time.Rate))
+			if (!GIsTransacting && (InTime.Time != UndoRedoProxy->Time.Time || InTime.Rate != UndoRedoProxy->Time.Rate))
 			{
 				const FScopedTransaction Transaction(LOCTEXT("TimeChanged", "Time Changed"));
-				Modify();
+				UndoRedoProxy->Modify();
 			}
 		}
-		bTimeWasSet = true;
-		Time = InTime;
+		UndoRedoProxy->bTimeWasSet = true;
+		UndoRedoProxy->Time = InTime;
 	}
 }
 
@@ -62,6 +74,8 @@ void USequencerTimeChangeUndoRedoProxy::PostEditUndo()
 		WeakSequencer.Pin()->SetGlobalTime(Time.Time, true);
 	}
 }
+
+
 
 #undef LOCTEXT_NAMESPACE
 
