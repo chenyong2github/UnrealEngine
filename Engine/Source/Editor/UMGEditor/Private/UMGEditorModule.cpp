@@ -297,6 +297,32 @@ public:
 		return RegisterLayoutExtensions; 
 	}
 
+	virtual void RegisterInstancedCustomPropertyTypeLayout(FTopLevelAssetPath Type, FOnGetInstancePropertyTypeCustomizationInstance Delegate) override
+	{
+		int32 IndexOf = CustomPropertyTypeLayout.IndexOfByPredicate([Type](const FCustomPropertyTypeLayout& Element) { return Element.Type == Type; });
+		if (ensure(!CustomPropertyTypeLayout.IsValidIndex(IndexOf)))
+		{
+			FCustomPropertyTypeLayout Layout;
+			Layout.Type = Type;
+			Layout.Delegate = MoveTemp(Delegate);
+			CustomPropertyTypeLayout.Add(MoveTemp(Layout));
+		}
+	}
+
+	virtual void UnregisterInstancedCustomPropertyTypeLayout(FTopLevelAssetPath Type) override
+	{
+		int32 IndexOf = CustomPropertyTypeLayout.IndexOfByPredicate([Type](const FCustomPropertyTypeLayout& Element){ return Element.Type == Type; });
+		if (CustomPropertyTypeLayout.IsValidIndex(IndexOf))
+		{
+			CustomPropertyTypeLayout.RemoveAtSwap(IndexOf);
+		}
+	}
+
+	virtual TArrayView<const FCustomPropertyTypeLayout> GetAllInstancedCustomPropertyTypeLayout() const override
+	{
+		return CustomPropertyTypeLayout;
+	}
+
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
 	{
@@ -380,6 +406,9 @@ private:
 
 	/** Support layout extensions */
 	FOnRegisterLayoutExtensions	RegisterLayoutExtensions;
+
+	/** */
+	TArray<FCustomPropertyTypeLayout> CustomPropertyTypeLayout;
 
 	/** Handle for the FModuleManager::OnModulesChanged */
 	FDelegateHandle ModuleChangedHandle;

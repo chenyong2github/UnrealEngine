@@ -52,8 +52,6 @@ private:
 	
 	bool IsWidgetCDOSelected() const;
 
-	EVisibility GetBorderAreaVisibility() const;
-
 	EVisibility GetNameAreaVisibility() const;
 
 	const FSlateBrush* GetNameIcon() const;
@@ -78,6 +76,9 @@ private:
 private:
 	/** The editor that owns this details view */
 	TWeakPtr<class FWidgetBlueprintEditor> BlueprintEditor;
+
+	/** The container widget for the class link users can click to open another asset */
+	TSharedPtr<SWidget> BorderArea;
 
 	/** The name text box that users can use to rename their widgets */
 	TSharedPtr<SEditableTextBox> NameTextBox;
