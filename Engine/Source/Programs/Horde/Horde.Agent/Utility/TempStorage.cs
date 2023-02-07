@@ -573,6 +573,7 @@ namespace Horde.Storage.Utility
 				DirectoryNode node = await reader.ReadNodeAsync<DirectoryNode>(refName, cancellationToken: cancellationToken);
 
 				FileEntry fileEntry = node.GetFileEntry(localFileListLocation.GetFileName());
+				DirectoryReference.CreateDirectory(localFileListLocation.Directory);
 				await fileEntry.CopyToFileAsync(reader, localFileListLocation.ToFileInfo(), cancellationToken);
 			}
 			return TempStorageTagManifest.Load(localFileListLocation);
