@@ -9,6 +9,7 @@
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/App.h"
 
 #define LOCTEXT_NAMESPACE "InputDebuggingEditor"
 
