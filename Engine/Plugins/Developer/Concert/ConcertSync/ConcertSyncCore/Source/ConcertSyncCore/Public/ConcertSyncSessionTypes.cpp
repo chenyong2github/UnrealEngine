@@ -30,14 +30,12 @@ FText ToRichTextBold(const FName& InArgs, bool bToRichText)
 
 void DebugPrintExportedObject(const FConcertExportedObject& Object)
 {
-	FString ObjectOuterName = FPackageName::ObjectPathToObjectName(Object.ObjectId.ObjectOuterPathName.ToString());
-	FName PackageName = FName(*FPackageName::ObjectPathToPackageName(Object.ObjectId.ObjectOuterPathName.ToString()));
 	UE_LOG(LogConcert, Display, TEXT("==============================OBJECT==============================="));
 	UE_LOG(LogConcert, Display, TEXT("Object ClassPath: %s"), *Object.ObjectId.ObjectClassPathName.ToString());
 	UE_LOG(LogConcert, Display, TEXT("Object Name: %s"), *Object.ObjectId.ObjectName.ToString());
 	UE_LOG(LogConcert, Display, TEXT("Object OuterPathName: %s"), *Object.ObjectId.ObjectOuterPathName.ToString());
-	UE_LOG(LogConcert, Display, TEXT("Object OwnerName: %s"), ObjectOuterName.StartsWith(TEXT("PersistentLevel")) ? *FPackageName::ObjectPathToObjectName(ObjectOuterName) : *ObjectOuterName);
-	UE_LOG(LogConcert, Display, TEXT("Package: %s"), *PackageName.ToString());
+	UE_LOG(LogConcert, Display, TEXT("Object OwnerName: %s"), *FPackageName::ObjectPathToObjectName(Object.ObjectId.ObjectOuterPathName.ToString()));
+	UE_LOG(LogConcert, Display, TEXT("Package: %s"), *FPackageName::ObjectPathToPackageName(Object.ObjectId.ObjectOuterPathName.ToString()));
 
 	if (Object.ObjectData.bAllowCreate)
 	{
@@ -118,7 +116,7 @@ FName GetObjectDisplayName(const FString& OuterPathName, const FName& ObjectName
 	FName ObjectDisplayName;
 
 	// If this top object is a component of an actor or a sequence (Ex its outer path is an actor like /Game/FooMap.FooMap:PersistentLevel.Cube_1 -> OwnerName == "Cube_1")
-	FString ObjectOwnerName = FPackageName::ObjectPathToObjectName(FPackageName::ObjectPathToObjectName(OuterPathName)); // Run twice to split at both a potential : and potential .
+	FString ObjectOwnerName = FPackageName::ObjectPathToObjectName(OuterPathName);
 	if (ObjectOwnerName.Len() && ObjectOwnerName != TEXT("PersistentLevel"))
 	{
 		// Prefix the object name with its owner name (actor/sequence). (When adding an audio component to a cube for example, return "Cube_2.Audio rather than "Audio".
@@ -135,7 +133,7 @@ FName GetObjectDisplayName(const FString& OuterPathName, const FName& ObjectName
 
 FName GetObjectDisplayName(const FString& ObjectPathName)
 {
-	const FString ObjectName = FPackageName::ObjectPathToObjectName(FPackageName::ObjectPathToObjectName(ObjectPathName)); // Run twice to split at both a potential : and potential .
+	const FString ObjectName = FPackageName::ObjectPathToObjectName(ObjectPathName);
 	if (!ObjectName.Len() || ObjectName == ObjectPathName)
 	{
 		// This is just a package name
@@ -571,7 +569,7 @@ FConcertSyncTransactionActivitySummary FConcertSyncTransactionActivitySummary::C
 			{
 				// Group related objects together if some relation can be found between them.
 				if (RelatedObjectGroup.Num() == 0 ||
-					FPackageName::ObjectPathToObjectName(ModifiedPair.Value->ObjectId.ObjectOuterPathName.ToString()).StartsWith(FPackageName::ObjectPathToObjectName(RelatedObjectGroup[0].Value->ObjectId.ObjectOuterPathName.ToString())))
+					FPackageName::ObjectPathToSubObjectPath(ModifiedPair.Value->ObjectId.ObjectOuterPathName.ToString()).StartsWith(FPackageName::ObjectPathToSubObjectPath(RelatedObjectGroup[0].Value->ObjectId.ObjectOuterPathName.ToString())))
 				{
 					RelatedObjectGroup.Emplace(ModifiedPair);
 				}

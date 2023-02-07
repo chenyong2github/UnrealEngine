@@ -74,7 +74,7 @@ namespace EditorScriptingUtils
 
 	bool IsAValidPathForCreateNewAsset(const FString& ObjectPath, FString& OutFailureReason)
 	{
-		const FString ObjectName = FPackageName::ObjectPathToObjectName(ObjectPath);
+		const FString ObjectName = FPackageName::ObjectPathToPathWithinPackage(ObjectPath);
 
 		// Make sure the name is not already a class or otherwise invalid for saving
 		FText FailureReason;
@@ -219,7 +219,7 @@ namespace EditorScriptingUtils
 		}
 
 		// Get the object name
-		FString ObjectName = FPackageName::ObjectPathToObjectName(AssetFullName);
+		FString ObjectName = FPackageName::ObjectPathToSubObjectPath(AssetFullName);
 		if (ObjectName.IsEmpty())
 		{
 			OutFailureReason = FString::Printf(TEXT("Can't convert the path '%s' because it doesn't contain an asset name."), *AnyAssetPath);

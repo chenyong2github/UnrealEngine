@@ -218,7 +218,6 @@ namespace InternalEditorLevelLibrary
 			{
 				FString ObjectPackageName = Object->GetOutermost()->GetName();
 				FString ObjectLongPackagePath = FPackageName::GetLongPackagePath(ObjectPackageName);
-				FString ObjectName = FPackageName::ObjectPathToObjectName(ObjectPackageName);
 
 				// Remove source from the object name
 				ObjectLongPackagePath.MidInline(OutValidatedPaths.SourceValidDirectoryPath.Len(), MAX_int32, false);

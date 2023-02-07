@@ -1305,7 +1305,7 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, FText
 
 bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const UClass* ObjectClass, FText& OutErrorMessage, bool bAllowExistingAsset)
 {
-	const FString ObjectName = FPackageName::ObjectPathToObjectName(ObjectPath);
+	const FString ObjectName = FPackageName::ObjectPathToPathWithinPackage(ObjectPath);
 
 	// Make sure the name is not already a class or otherwise invalid for saving
 	if ( !FFileHelper::IsFilenameValidForSaving(ObjectName, OutErrorMessage) )

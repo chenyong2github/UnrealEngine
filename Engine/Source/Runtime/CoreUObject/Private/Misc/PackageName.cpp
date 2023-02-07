@@ -7,6 +7,7 @@
 #include "Misc/PackageName.h"
 
 #include "Algo/Find.h"
+#include "Algo/FindLast.h"
 #include "Containers/DirectoryTree.h"
 #include "Containers/StringView.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -2481,18 +2482,80 @@ FString FPackageName::ObjectPathToPackageName(const FString& InObjectPath)
 }
 
 template<class T>
-T ObjectPathToObjectNameImpl(const T& InObjectPath)
+T ObjectPathToPathWithinPackageImpl(const T& InObjectPath)
+{
+	// Check for package delimiter
+	int32 ObjectDelimiterIdx;
+	if (InObjectPath.FindChar('.', ObjectDelimiterIdx))
+	{
+		return InObjectPath.Mid(ObjectDelimiterIdx + 1);
+	}
+
+	// No object delimiter. The path must refer to the package name directly.
+	return T();
+}
+
+FWideStringView FPackageName::ObjectPathToPathWithinPackage(FWideStringView InObjectPath)
+{
+	return ObjectPathToPathWithinPackageImpl(InObjectPath);
+}
+
+FAnsiStringView FPackageName::ObjectPathToPathWithinPackage(FAnsiStringView InObjectPath)
+{
+	return ObjectPathToPathWithinPackageImpl(InObjectPath);
+}
+
+FString FPackageName::ObjectPathToPathWithinPackage(const FString& InObjectPath)
+{
+	return ObjectPathToPathWithinPackageImpl(InObjectPath);
+}
+
+template<class T>
+T ObjectPathToOuterPathImpl(const T& InObjectPath)
+{
+	auto* LeafObjectDelimeterPtr = Algo::FindLastByPredicate(InObjectPath, [](auto Ch)
+	{
+		return Ch == ':' || Ch == '.';
+	});
+
+	if (LeafObjectDelimeterPtr)
+	{
+		int32 LeafObjectDelimeterIdx = UE_PTRDIFF_TO_INT32(LeafObjectDelimeterPtr - GetData(InObjectPath));
+		return InObjectPath.Left(LeafObjectDelimeterIdx);
+	}
+
+	// No object or subobject delimiters. The path must refer to the object name directly (i.e. a package).
+	return T();
+}
+
+FString FPackageName::ObjectPathToOuterPath(const FString& InObjectPath)
+{
+	return ObjectPathToOuterPathImpl(InObjectPath);
+}
+
+FAnsiStringView FPackageName::ObjectPathToOuterPath(FAnsiStringView InObjectPath)
+{
+	return ObjectPathToOuterPathImpl(InObjectPath);
+}
+
+FWideStringView FPackageName::ObjectPathToOuterPath(FWideStringView InObjectPath)
+{
+	return ObjectPathToOuterPathImpl(InObjectPath);
+}
+
+template<class T>
+T ObjectPathToSubObjectPathImpl(const T& InObjectPath)
 {
 	// Check for a subobject
 	int32 SubObjectDelimiterIdx;
-	if ( InObjectPath.FindChar(':', SubObjectDelimiterIdx) )
+	if (InObjectPath.FindChar(':', SubObjectDelimiterIdx))
 	{
 		return InObjectPath.Mid(SubObjectDelimiterIdx + 1);
 	}
 
 	// Check for a top level object
 	int32 ObjectDelimiterIdx;
-	if ( InObjectPath.FindChar('.', ObjectDelimiterIdx) )
+	if (InObjectPath.FindChar('.', ObjectDelimiterIdx))
 	{
 		return InObjectPath.Mid(ObjectDelimiterIdx + 1);
 	}
@@ -2501,7 +2564,45 @@ T ObjectPathToObjectNameImpl(const T& InObjectPath)
 	return InObjectPath;
 }
 
+FWideStringView FPackageName::ObjectPathToSubObjectPath(FWideStringView InObjectPath)
+{
+	return ObjectPathToSubObjectPathImpl(InObjectPath);
+}
+
+FAnsiStringView FPackageName::ObjectPathToSubObjectPath(FAnsiStringView InObjectPath)
+{
+	return ObjectPathToSubObjectPathImpl(InObjectPath);
+}
+
+FString FPackageName::ObjectPathToSubObjectPath(const FString& InObjectPath)
+{
+	return ObjectPathToSubObjectPathImpl(InObjectPath);
+}
+
+template<class T>
+T ObjectPathToObjectNameImpl(const T& InObjectPath)
+{
+	auto* LeafObjectDelimeterPtr = Algo::FindLastByPredicate(InObjectPath, [](auto Ch)
+	{
+		return Ch == ':' || Ch == '.';
+	});
+
+	if (LeafObjectDelimeterPtr)
+	{
+		int32 LeafObjectDelimeterIdx = UE_PTRDIFF_TO_INT32(LeafObjectDelimeterPtr - GetData(InObjectPath));
+		return InObjectPath.Mid(LeafObjectDelimeterIdx + 1);
+	}
+
+	// No object or subobject delimiters. The path must refer to the object name directly (i.e. a package).
+	return InObjectPath;
+}
+
 FString FPackageName::ObjectPathToObjectName(const FString& InObjectPath)
+{
+	return ObjectPathToObjectNameImpl(InObjectPath);
+}
+
+FAnsiStringView FPackageName::ObjectPathToObjectName(FAnsiStringView InObjectPath)
 {
 	return ObjectPathToObjectNameImpl(InObjectPath);
 }
@@ -2681,6 +2782,85 @@ bool FPackageNameTests::RunTest(const FString& Parameters)
 		TestGetSourcePackagePath(TEXT("/Game/L10N"), TEXT("/Game"));
 		TestGetSourcePackagePath(TEXT("/Game/L10N/en"), TEXT("/Game"));
 		TestGetSourcePackagePath(TEXT("/Game/L10N/en/MyAsset"), TEXT("/Game/MyAsset"));
+	}
+
+	// ObjectPath conversions
+	{
+		FStringView SourceObjectPaths[] = {
+			TEXT("/Game/MyAsset.MyAsset:SubObject.AnotherObject"),
+			TEXT("/Game/MyAsset.MyAsset:SubObject"),
+			TEXT("/Game/MyAsset.MyAsset"),
+			TEXT("/Game/MyAsset"),
+		};
+
+		auto RunObjectPathTests = [this, &SourceObjectPaths](FStringView SubTestName, TArrayView<const FStringView> ExpectedOutputPaths, TFunctionRef<FStringView(FStringView)> ObjectPathFunc)
+		{
+			check(UE_ARRAY_COUNT(SourceObjectPaths) == ExpectedOutputPaths.Num());
+
+			for (int32 Index = 0; Index < UE_ARRAY_COUNT(SourceObjectPaths); ++Index)
+			{
+				FStringView ActualOutputPath = ObjectPathFunc(SourceObjectPaths[Index]);
+				if (ActualOutputPath != ExpectedOutputPaths[Index])
+				{
+					AddError(*WriteToString<256>(SubTestName, TEXT(": Expected '"), ExpectedOutputPaths[Index], TEXT("' but got '"), ActualOutputPath, TEXT("' for input '"), SourceObjectPaths[Index], TEXT("'")));
+				}
+			}
+		};
+
+		// ObjectPathToPackageName
+		{
+			FStringView ExpectedOutputPaths[] = {
+				TEXT("/Game/MyAsset"),
+				TEXT("/Game/MyAsset"),
+				TEXT("/Game/MyAsset"),
+				TEXT("/Game/MyAsset"),
+			};
+			RunObjectPathTests(TEXT("ObjectPathToPackageName"), ExpectedOutputPaths, [](FStringView ObjectPath) { return FPackageName::ObjectPathToPackageName(ObjectPath); });
+		}
+
+		// ObjectPathToPathWithinPackage
+		{
+			FStringView ExpectedOutputPaths[] = {
+				TEXT("MyAsset:SubObject.AnotherObject"),
+				TEXT("MyAsset:SubObject"),
+				TEXT("MyAsset"),
+				TEXT(""),
+			};
+			RunObjectPathTests(TEXT("ObjectPathToPathWithinPackage"), ExpectedOutputPaths, [](FStringView ObjectPath) { return FPackageName::ObjectPathToPathWithinPackage(ObjectPath); });
+		}
+
+		// ObjectPathToOuterPath
+		{
+			FStringView ExpectedOutputPaths[] = {
+				TEXT("/Game/MyAsset.MyAsset:SubObject"),
+				TEXT("/Game/MyAsset.MyAsset"),
+				TEXT("/Game/MyAsset"),
+				TEXT(""),
+			};
+			RunObjectPathTests(TEXT("ObjectPathToOuterPath"), ExpectedOutputPaths, [](FStringView ObjectPath) { return FPackageName::ObjectPathToOuterPath(ObjectPath); });
+		}
+
+		// ObjectPathToSubObjectPath
+		{
+			FStringView ExpectedOutputPaths[] = {
+				TEXT("SubObject.AnotherObject"),
+				TEXT("SubObject"),
+				TEXT("MyAsset"),
+				TEXT("/Game/MyAsset"),
+			};
+			RunObjectPathTests(TEXT("ObjectPathToSubObjectPath"), ExpectedOutputPaths, [](FStringView ObjectPath) { return FPackageName::ObjectPathToSubObjectPath(ObjectPath); });
+		}
+
+		// ObjectPathToObjectName
+		{
+			FStringView ExpectedOutputPaths[] = {
+				TEXT("AnotherObject"),
+				TEXT("SubObject"),
+				TEXT("MyAsset"),
+				TEXT("/Game/MyAsset"),
+			};
+			RunObjectPathTests(TEXT("ObjectPathToObjectName"), ExpectedOutputPaths, [](FStringView ObjectPath) { return FPackageName::ObjectPathToObjectName(ObjectPath); });
+		}
 	}
 
 	// TryConvertToMountedPath

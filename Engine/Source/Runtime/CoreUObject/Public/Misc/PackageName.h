@@ -650,13 +650,64 @@ public:
 
 	/** 
 	 * Returns the name of the package referred to by the specified object path
+	 * 
+	 * Examples:
+	 *   "/Game/MyAsset.MyAsset:SubObject.AnotherObject" -> "/Game/MyAsset"
+	 *   "/Game/MyAsset.MyAsset:SubObject"               -> "/Game/MyAsset"
+	 *   "/Game/MyAsset.MyAsset"                         -> "/Game/MyAsset"
+	 *   "/Game/MyAsset"                                 -> "/Game/MyAsset"
 	 */
 	static FWideStringView ObjectPathToPackageName(FWideStringView InObjectPath);
 	static FAnsiStringView ObjectPathToPackageName(FAnsiStringView InObjectPath);
 	static FString ObjectPathToPackageName(const FString& InObjectPath);
 
+	/**
+	 * Returns any remaining object path after trimming the package name from the specified object path
+	 *
+	 * Examples:
+	 *   "/Game/MyAsset.MyAsset:SubObject.AnotherObject" -> "MyAsset:SubObject.AnotherObject"
+	 *   "/Game/MyAsset.MyAsset:SubObject"               -> "MyAsset:SubObject"
+	 *   "/Game/MyAsset.MyAsset"                         -> "MyAsset"
+	 *   "/Game/MyAsset"                                 -> ""
+	 */
+	static FWideStringView ObjectPathToPathWithinPackage(FWideStringView InObjectPath);
+	static FAnsiStringView ObjectPathToPathWithinPackage(FAnsiStringView InObjectPath);
+	static FString ObjectPathToPathWithinPackage(const FString& InObjectPath);
+
+	/**
+	 * Returns the path name of the outer of the leaf object referred to by the specified object path
+	 *
+	 * Examples:
+	 *   "/Game/MyAsset.MyAsset:SubObject.AnotherObject" -> "/Game/MyAsset.MyAsset:SubObject"
+	 *   "/Game/MyAsset.MyAsset:SubObject"               -> "/Game/MyAsset.MyAsset"
+	 *   "/Game/MyAsset.MyAsset"                         -> "/Game/MyAsset"
+	 *   "/Game/MyAsset"                                 -> ""
+	 */
+	static FWideStringView ObjectPathToOuterPath(FWideStringView InObjectPath);
+	static FAnsiStringView ObjectPathToOuterPath(FAnsiStringView InObjectPath);
+	static FString ObjectPathToOuterPath(const FString& InObjectPath);
+
+	/**
+	 * Returns the path from (and including) the subobject referred to by the specified object path
+	 *
+	* Examples:
+	 *   "/Game/MyAsset.MyAsset:SubObject.AnotherObject" -> "SubObject.AnotherObject"
+	 *   "/Game/MyAsset.MyAsset:SubObject"               -> "SubObject"
+	 *   "/Game/MyAsset.MyAsset"                         -> "MyAsset"
+	 *   "/Game/MyAsset"                                 -> "/Game/MyAsset"
+	 */
+	static FWideStringView ObjectPathToSubObjectPath(FWideStringView InObjectPath);
+	static FAnsiStringView ObjectPathToSubObjectPath(FAnsiStringView InObjectPath);
+	static FString ObjectPathToSubObjectPath(const FString& InObjectPath);
+
 	/** 
-	 * Returns the name of the object referred to by the specified object path
+	 * Returns the name of the leaf object referred to by the specified object path
+	 *
+	 * Examples:
+	 *   "/Game/MyAsset.MyAsset:SubObject.AnotherObject" -> "AnotherObject"
+	 *   "/Game/MyAsset.MyAsset:SubObject"               -> "SubObject"
+	 *   "/Game/MyAsset.MyAsset"                         -> "MyAsset"
+	 *   "/Game/MyAsset"                                 -> "/Game/MyAsset"
 	 */
 	static FWideStringView ObjectPathToObjectName(FWideStringView InObjectPath);
 	static FAnsiStringView ObjectPathToObjectName(FAnsiStringView InObjectPath);
