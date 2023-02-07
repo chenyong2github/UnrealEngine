@@ -18,7 +18,7 @@
  */
 UUIFrameworkButton::UUIFrameworkButton()
 {
-	WidgetClass = UButton::StaticClass();
+	WidgetClass = FSoftObjectPath(TEXT("/UIFramework/Widgets/WBP_UIF_Button.WBP_UIF_Button"));
 }
 
 void UUIFrameworkButton::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
