@@ -382,9 +382,18 @@ struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 	FVector3f GetSystemLWCTile() const;
 	bool IsResourceBound(const void* ResourceAddress) const;
 	bool IsParameterBound(const void* ParameterAddress) const;
-	template<typename T> bool IsStructBound(const T* StructAddress) const { return IsStructBoundInternal(StructAddress, sizeof(T)); }
 	bool IsOutputStage() const;
 	bool IsIterationStage() const;
+
+	template<typename T> bool IsStructBound(const T* StructAddress) const
+	{
+		return IsStructBoundInternal(StructAddress, sizeof(T));
+	}
+
+	bool IsStructBound(const uint8* StructAddress, const FShaderParametersMetadata* StructMetadata) const
+	{
+		return IsStructBoundInternal(StructAddress, StructMetadata->GetSize());
+	}
 
 	template<typename T> T* GetParameterNestedStruct() const
 	{
@@ -393,10 +402,14 @@ struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 
 		return reinterpret_cast<T*>(BaseParameters + StructOffset);
 	}
+	inline uint8* GetParameterIncludedStruct(const FShaderParametersMetadata* StructMetadata) const
+	{
+		const uint16 StructOffset = GetParameterIncludedStructInternal(StructMetadata);
+		return BaseParameters + StructOffset;
+	}
 	template<typename T> T* GetParameterIncludedStruct() const
 	{
-		const uint16 StructOffset = GetParameterIncludedStructInternal(TShaderParameterStructTypeInfo<T>::GetStructMetadata());
-		return reinterpret_cast<T*>(BaseParameters + StructOffset);
+		return reinterpret_cast<T*>(GetParameterIncludedStruct(TShaderParameterStructTypeInfo<T>::GetStructMetadata()));
 	}
 	template<typename T> TArrayView<T> GetParameterLooseArray(int32 NumElements) const
 	{

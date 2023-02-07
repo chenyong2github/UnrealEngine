@@ -2,19 +2,18 @@
 
 #pragma once
 
-#include "GlobalDistanceFieldParameters.h"
+#include "HAL/Platform.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "GlobalDistanceFieldParameters.h"
 #include "RenderGraphBuilder.h"
 #endif
 
-class FDistanceFieldSceneData;
-class FDistanceFieldObjectBufferParameters;
-class FDistanceFieldAtlasParameters;
 class FRDGBuilder;
+class FGlobalDistanceFieldParameterData;
+class FGlobalDistanceFieldParameters2;
 
 namespace FNiagaraDistanceFieldHelper
 {
 	NIAGARASHADER_API void SetGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData* OptionalParameterData, FGlobalDistanceFieldParameters2& ShaderParameters);
-	NIAGARASHADER_API void SetMeshDistanceFieldParameters(FRDGBuilder& GraphBuilder, const FDistanceFieldSceneData* OptionalDistanceFieldData, FDistanceFieldObjectBufferParameters& ObjectShaderParameters, FDistanceFieldAtlasParameters& AtlasShaderParameters, FRHIShaderResourceView* DummyFloat4Buffer);
 }

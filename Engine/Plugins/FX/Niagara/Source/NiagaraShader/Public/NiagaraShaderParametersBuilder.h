@@ -41,9 +41,8 @@ public:
 
 	// Adds a shader parameters structure that is global in scope
 	// i.e. if the structure contained "MyFloat" the shader variable would be named "MyFloat"
-	template<typename T> void AddIncludedStruct()
+	inline void AddIncludedStruct(const FShaderParametersMetadata* StructMetadata)
 	{
-		const FShaderParametersMetadata* StructMetadata = TShaderParameterStructTypeInfo<T>::GetStructMetadata();
 		for (const FNiagaraDataInterfaceStructIncludeInfo& Existing : StructIncludeInfos)
 		{
 			if (Existing.StructMetadata == StructMetadata)
@@ -56,7 +55,14 @@ public:
 		NewInfo.StructMetadata = StructMetadata;
 		NewInfo.ParamterOffset = Align(MetadataBuilder.GetNextMemberOffset(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
 
-		MetadataBuilder.AddIncludedStruct<T>();
+		MetadataBuilder.AddIncludedStruct(StructMetadata);
+	}
+
+	// Adds a shader parameters structure that is global in scope
+	// i.e. if the structure contained "MyFloat" the shader variable would be named "MyFloat"
+	template<typename T> void AddIncludedStruct()
+	{
+		AddIncludedStruct(TShaderParameterStructTypeInfo<T>::GetStructMetadata());
 	}
 
 	TConstArrayView<FNiagaraDataInterfaceGeneratedFunction> GetGeneratedFunctions() const { return GPUParamInfo.GeneratedFunctions; }

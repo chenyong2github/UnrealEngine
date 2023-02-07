@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FXRenderingUtils.h"
-#include "MaterialShared.h"
+
+#include "DistanceFieldLightingShared.h"
 #include "Lumen/LumenScreenProbeGather.h"
+#include "MaterialShared.h"
 #include "PrimitiveSceneProxy.h"
 #include "SceneInterface.h"
+#include "ScenePrivate.h"
+#include "SystemTextures.h"
 
-bool FFXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(
+bool UE::FXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(
 	const FSceneViewFamily& ViewFamily,
 	const FPrimitiveSceneProxy& SceneProxy,
 	const FMaterial& Material)
@@ -30,4 +34,115 @@ bool FFXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(
 	}
 		
 	return false;
+}
+
+const FShaderParametersMetadata* UE::FXRenderingUtils::DistanceFields::GetObjectBufferParametersMetadata()
+{
+	return TShaderParameterStructTypeInfo<FDistanceFieldObjectBufferParameters>::GetStructMetadata();
+}
+
+const FShaderParametersMetadata* UE::FXRenderingUtils::DistanceFields::GetAtlasParametersMetadata()
+{
+	return TShaderParameterStructTypeInfo<FDistanceFieldAtlasParameters>::GetStructMetadata();
+}
+
+inline const FDistanceFieldSceneData* GetDistanceFieldSceneData(const FSceneView& View)
+{
+	FSceneInterface* SceneInterface = View.Family && View.Family->Scene ? View.Family->Scene : nullptr;
+	const FScene* Scene = SceneInterface->GetRenderScene();
+	return  Scene ? &Scene->DistanceFieldSceneData : nullptr;
+}
+
+bool UE::FXRenderingUtils::DistanceFields::HasDataToBind(const FSceneView& View)
+{
+	return GetDistanceFieldSceneData(View) != nullptr;
+}
+
+void UE::FXRenderingUtils::DistanceFields::SetupObjectBufferParameters(FRDGBuilder& GraphBuilder, uint8* DestinationData, const FSceneView* View)
+{
+	if (FDistanceFieldObjectBufferParameters* ObjectBufferParameters = reinterpret_cast<FDistanceFieldObjectBufferParameters*>(DestinationData))
+	{
+		const FDistanceFieldSceneData* DistanceFieldSceneData = View ? GetDistanceFieldSceneData(*View) : nullptr;
+
+		if (DistanceFieldSceneData && DistanceFieldSceneData->NumObjectsInBuffer > 0)
+		{
+			*ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(GraphBuilder, *DistanceFieldSceneData);
+		}
+		else
+		{
+			FRDGBufferSRVRef DefaultVector4 = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f))));
+
+			ObjectBufferParameters->SceneObjectBounds = DefaultVector4;
+			ObjectBufferParameters->SceneObjectData = DefaultVector4;
+			ObjectBufferParameters->NumSceneObjects = 0;
+			ObjectBufferParameters->SceneHeightfieldObjectBounds = DefaultVector4;
+			ObjectBufferParameters->SceneHeightfieldObjectData = DefaultVector4;
+			ObjectBufferParameters->NumSceneHeightfieldObjects = 0;
+		}
+	}
+}
+
+class FDFDummyByteAddress : public FRenderResource
+{
+public:
+	TRefCountPtr<FRDGPooledBuffer> PooledBuffer;
+
+	virtual void InitRHI() override
+	{
+		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1);
+		BufferDesc.Usage = BUF_Static | BUF_ShaderResource | BUF_ByteAddressBuffer;
+
+		FRHIResourceCreateInfo CreateInfo(TEXT("FDFDummyByteAddress"));
+		FBufferRHIRef RHIBuffer = RHICreateStructuredBuffer(BufferDesc.BytesPerElement, BufferDesc.GetSize(), BufferDesc.Usage, CreateInfo);
+		{
+			void* Data = RHILockBuffer(RHIBuffer, 0, BufferDesc.GetSize(), RLM_WriteOnly);
+			FMemory::Memset(Data, 0, BufferDesc.GetSize());
+			RHIUnlockBuffer(RHIBuffer);
+		}
+
+		PooledBuffer = new FRDGPooledBuffer(RHIBuffer, BufferDesc, BufferDesc.NumElements, CreateInfo.DebugName);
+	}
+
+	virtual void ReleaseRHI() override
+	{
+		PooledBuffer.SafeRelease();
+	}
+};
+
+static TGlobalResource<FDFDummyByteAddress> GDFDummyByteAddress;
+
+void UE::FXRenderingUtils::DistanceFields::SetupAtlasParameters(FRDGBuilder& GraphBuilder, uint8* DestinationData, const FSceneView* View)
+{
+	if (FDistanceFieldAtlasParameters* AtlasParameters = reinterpret_cast<FDistanceFieldAtlasParameters*>(DestinationData))
+	{
+		const FDistanceFieldSceneData* DistanceFieldSceneData = View ? GetDistanceFieldSceneData(*View) : nullptr;
+
+		if (DistanceFieldSceneData && DistanceFieldSceneData->NumObjectsInBuffer > 0)
+		{
+			*AtlasParameters = DistanceField::SetupAtlasParameters(GraphBuilder, *DistanceFieldSceneData);
+		}
+		else
+		{
+			FRDGBufferSRVRef DefaultVector4 = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f))));
+			FRDGBufferSRVRef DefaultUInt32 = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(GraphBuilder.RegisterExternalBuffer(GDFDummyByteAddress.PooledBuffer, ERDGBufferFlags::SkipTracking)));
+
+			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
+			AtlasParameters->SceneDistanceFieldAssetData = DefaultVector4;
+			AtlasParameters->DistanceFieldIndirectionTable = DefaultUInt32;
+			AtlasParameters->DistanceFieldIndirection2Table = DefaultVector4;
+			AtlasParameters->DistanceFieldIndirectionAtlas = SystemTextures.VolumetricBlack;
+			AtlasParameters->DistanceFieldBrickTexture = SystemTextures.VolumetricBlack;
+			AtlasParameters->DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+			AtlasParameters->DistanceFieldBrickSize = FVector3f::ZeroVector;
+			AtlasParameters->DistanceFieldUniqueDataBrickSize = FVector3f::ZeroVector;
+			AtlasParameters->DistanceFieldBrickAtlasSizeInBricks = FIntVector::ZeroValue;
+			AtlasParameters->DistanceFieldBrickAtlasMask = FIntVector::ZeroValue;
+			AtlasParameters->DistanceFieldBrickAtlasSizeLog2 = FIntVector::ZeroValue;
+			AtlasParameters->DistanceFieldBrickAtlasTexelSize = FVector3f::ZeroVector;
+			AtlasParameters->DistanceFieldBrickAtlasHalfTexelSize = FVector3f::ZeroVector;
+			AtlasParameters->DistanceFieldBrickOffsetToAtlasUVScale = FVector3f::ZeroVector;
+			AtlasParameters->DistanceFieldUniqueDataBrickSizeInAtlasTexels = FVector3f::ZeroVector;
+		}
+	}
 }

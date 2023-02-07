@@ -28,7 +28,6 @@ the same VectorVM byte code / compute shader code
 #include "Tickable.h"
 
 class FGPUSortManager;
-class FDistanceFieldSceneData;
 class FNiagaraAsyncGpuTraceHelper;
 
 //////////////////////////////////////////////////////////////////////////
