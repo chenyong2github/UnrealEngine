@@ -50,6 +50,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Math/UnitConversion.h"
 #include "UnrealEngine.h"
+#include "ColorSpace.h"
 
 #if WITH_EDITOR
 #include "UObject/ArchiveCookContext.h"
@@ -6463,6 +6464,27 @@ void GlobalBeginCompileShader(
 	{
 		const bool bMobileMovableSpotlightShadowsEnabled = IsMobileMovableSpotlightShadowsEnabled(Target.GetPlatform());
 		Input.Environment.SetDefine(TEXT("PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHT_SHADOWS"), bMobileMovableSpotlightShadowsEnabled ? 1 : 0);
+	}
+
+	{
+		using namespace UE::Color;
+		const bool bWorkingColorSpaceIsSRGB = FColorSpace::GetWorking().IsSRGB();
+		Input.Environment.SetDefine(TEXT("WORKING_COLOR_SPACE_IS_SRGB"), bWorkingColorSpaceIsSRGB ? 1 : 0);
+		
+		// We limit matrix definition below when WORKING_COLOR_SPACE_IS_SRGB == 0.
+		if (!bWorkingColorSpaceIsSRGB)
+		{
+			TCHAR MatrixFormat[] = TEXT("float3x3(%0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f)");
+
+			const FColorSpaceTransform FromSRGB(FColorSpace(EColorSpace::sRGB), FColorSpace::GetWorking());
+
+			Input.Environment.SetDefine(
+				TEXT("SRGB_TO_WORKING_COLOR_SPACE_MAT"),
+				FString::Printf(MatrixFormat,
+					FromSRGB.M[0][0], FromSRGB.M[1][0], FromSRGB.M[2][0],
+					FromSRGB.M[0][1], FromSRGB.M[1][1], FromSRGB.M[2][1],
+					FromSRGB.M[0][2], FromSRGB.M[1][2], FromSRGB.M[2][2]));
+		}
 	}
 
 	const double TileSize = FLargeWorldRenderScalar::GetTileSize();

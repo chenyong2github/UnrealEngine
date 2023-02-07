@@ -267,3 +267,27 @@ float3 LAB_2_LCH(float3 LAB)
 	LCH.z = HInDegree0To360;
 	return LCH;
 }
+
+
+//------------------------------------------------------------------
+// sRGB / Working Color Space
+//------------------------------------------------------------------
+float3 SRGBCoefficientsToWorkingColorSpace(in float3 CoefficientsSRGB)
+{
+#if WORKING_COLOR_SPACE_IS_SRGB
+	return CoefficientsSRGB;
+#else
+	float3 TransmittanceSRGB = exp(-CoefficientsSRGB);
+	float3 TransmittanceWCS = mul(SRGB_TO_WORKING_COLOR_SPACE_MAT, TransmittanceSRGB);
+	return -log(TransmittanceWCS);
+#endif
+}
+
+float3 SRGBColorToWorkingColorSpace(in float3 ColorSRGB)
+{
+#if WORKING_COLOR_SPACE_IS_SRGB
+	return ColorSRGB;
+#else
+	return mul(SRGB_TO_WORKING_COLOR_SPACE_MAT, ColorSRGB);
+#endif
+}
