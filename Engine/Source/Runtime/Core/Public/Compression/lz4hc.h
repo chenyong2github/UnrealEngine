@@ -1,7 +1,7 @@
 /*
    LZ4 HC - High Compression Mode of LZ4
    Header File
-   Copyright (C) 2011-2017, Yann Collet.
+   Copyright (C) 2011-2020, Yann Collet.
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 #ifndef LZ4_HC_H_19834876238432
 #define LZ4_HC_H_19834876238432
 
+/* note : lz4hc requires lz4.h/lz4.c for compilation */
 #include "lz4.h"   /* stddef, LZ4LIB_API, LZ4_DEPRECATED */
 
 #if defined (__cplusplus)
@@ -41,7 +42,6 @@ extern "C" {
 #endif
 
 /* --- Dependency --- */
-/* note : lz4hc requires lz4.h/lz4.c for compilation */
 
 
 /* --- Useful constants --- */
@@ -199,62 +199,36 @@ LZ4LIB_API int LZ4_saveDictHC (LZ4_streamHC_t* streamHCPtr, char* safeBuffer, in
 #define LZ4HC_HASH_MASK (LZ4HC_HASHTABLESIZE - 1)
 
 
-#if defined(__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-
-typedef struct LZ4HC_CCtx_internal LZ4HC_CCtx_internal;
-struct LZ4HC_CCtx_internal
-{
-	uint32   hashTable[LZ4HC_HASHTABLESIZE];
-	uint16   chainTable[LZ4HC_MAXD];
-    const uint8* end;         /* next block here to continue on current prefix */
-    const uint8* base;        /* All index relative to this position */
-    const uint8* dictBase;    /* alternate base for extDict */
-    uint32   dictLimit;       /* below that point, need extDict */
-    uint32   lowLimit;        /* below that point, no more dict */
-    uint32   nextToUpdate;    /* index from which to continue dictionary update */
-    short      compressionLevel;
-    int8     favorDecSpeed;   /* favor decompression speed if this flag set,
-                                   otherwise, favor compression ratio */
-    int8     dirty;           /* stream has to be fully reset if this flag is set */
-    const LZ4HC_CCtx_internal* dictCtx;
-};
-
-#else
-
-typedef struct LZ4HC_CCtx_internal LZ4HC_CCtx_internal;
-struct LZ4HC_CCtx_internal
-{
-    unsigned int   hashTable[LZ4HC_HASHTABLESIZE];
-    unsigned short chainTable[LZ4HC_MAXD];
-    const unsigned char* end;        /* next block here to continue on current prefix */
-    const unsigned char* base;       /* All index relative to this position */
-    const unsigned char* dictBase;   /* alternate base for extDict */
-    unsigned int   dictLimit;        /* below that point, need extDict */
-    unsigned int   lowLimit;         /* below that point, no more dict */
-    unsigned int   nextToUpdate;     /* index from which to continue dictionary update */
-    short          compressionLevel;
-    char           favorDecSpeed;    /* favor decompression speed if this flag set,
-                                        otherwise, favor compression ratio */
-    char           dirty;            /* stream has to be fully reset if this flag is set */
-    const LZ4HC_CCtx_internal* dictCtx;
-};
-
-#endif
-
-
-/* Do not use these definitions directly !
+/* Never ever use these definitions directly !
  * Declare or allocate an LZ4_streamHC_t instead.
- */
-#define LZ4_STREAMHCSIZE       (4*LZ4HC_HASHTABLESIZE + 2*LZ4HC_MAXD + 56 + ((sizeof(void*)==16) ? 56 : 0) /* AS400*/ ) /* 262200 or 262256*/
-#define LZ4_STREAMHCSIZE_SIZET (LZ4_STREAMHCSIZE / sizeof(size_t))
+**/
+typedef struct LZ4HC_CCtx_internal LZ4HC_CCtx_internal;
+struct LZ4HC_CCtx_internal
+{
+    LZ4_u32   hashTable[LZ4HC_HASHTABLESIZE];
+    LZ4_u16   chainTable[LZ4HC_MAXD];
+    const LZ4_byte* end;       /* next block here to continue on current prefix */
+    const LZ4_byte* prefixStart;  /* Indexes relative to this position */
+    const LZ4_byte* dictStart; /* alternate reference for extDict */
+    LZ4_u32   dictLimit;       /* below that point, need extDict */
+    LZ4_u32   lowLimit;        /* below that point, no more dict */
+    LZ4_u32   nextToUpdate;    /* index from which to continue dictionary update */
+    short     compressionLevel;
+    LZ4_i8    favorDecSpeed;   /* favor decompression speed if this flag set,
+                                  otherwise, favor compression ratio */
+    LZ4_i8    dirty;           /* stream has to be fully reset if this flag is set */
+    const LZ4HC_CCtx_internal* dictCtx;
+};
+
+#define LZ4_STREAMHC_MINSIZE  262200  /* static size, for inter-version compatibility */
 union LZ4_streamHC_u {
-    size_t table[LZ4_STREAMHCSIZE_SIZET];
+    char minStateSize[LZ4_STREAMHC_MINSIZE];
     LZ4HC_CCtx_internal internal_donotuse;
 }; /* previously typedef'd to LZ4_streamHC_t */
 
 /* LZ4_streamHC_t :
  * This structure allows static allocation of LZ4 HC streaming state.
- * This can be used to allocate statically, on state, or as part of a larger structure.
+ * This can be used to allocate statically on stack, or as part of a larger structure.
  *
  * Such state **must** be initialized using LZ4_initStreamHC() before first use.
  *
@@ -269,7 +243,7 @@ union LZ4_streamHC_u {
  * Required before first use of a statically allocated LZ4_streamHC_t.
  * Before v1.9.0 : use LZ4_resetStreamHC() instead
  */
-LZ4LIB_API LZ4_streamHC_t* LZ4_initStreamHC (void* buffer, size_t size);
+LZ4LIB_API LZ4_streamHC_t* LZ4_initStreamHC(void* buffer, size_t size);
 
 /* LZ4_resetStreamHC() is now replaced by LZ4_initStreamHC().
  * The intention is to emphasize the difference with LZ4_resetStreamHC_fast(),
@@ -295,7 +269,7 @@ LZ4LIB_API void LZ4_resetStreamHC (LZ4_streamHC_t* streamHCPtr, int compressionL
  * They should not be linked from DLL,
  * as there is no guarantee of API stability yet.
  * Prototypes will be promoted to "stable" status
- * after successfull usage in real-life scenarios.
+ * after successful usage in real-life scenarios.
  ***************************************************/
 #ifdef LZ4_HC_STATIC_LINKING_ONLY   /* protection macro */
 #ifndef LZ4_HC_SLO_098092834

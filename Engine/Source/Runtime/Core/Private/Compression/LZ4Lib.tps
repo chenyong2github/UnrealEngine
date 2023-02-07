@@ -9,5 +9,5 @@
     <EndUserGroup>Git</EndUserGroup>
     <EndUserGroup>P4</EndUserGroup>
   </RedistributeTo>
-  <LicenseFolder>//UE4/Main/Engine/Source/ThirdParty/Licenses/LZ4Lib_v1.7.4.2_BSD_License.txt</LicenseFolder>
+  <LicenseFolder>/Engine/Source/ThirdParty/Licenses/LZ4Lib_License.txt</LicenseFolder>
 </TpsData>
