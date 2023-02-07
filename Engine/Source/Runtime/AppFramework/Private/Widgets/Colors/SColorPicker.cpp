@@ -1158,6 +1158,15 @@ FLinearColor SColorPicker::HandleColorSliderStartColor( EColorPickerChannels Cha
 
 void SColorPicker::HandleColorSpectrumValueChanged( FLinearColor NewValue )
 {
+	// In this color, R = H, G = S, B = V
+	if (FMath::IsNearlyZero(NewValue.B))
+	{
+		NewValue.B = 1.0f;
+	}
+	if (!bUseAlpha.Get() || FMath::IsNearlyZero(NewValue.A))
+	{
+		NewValue.A = 1.0f;
+	}
 	SetNewTargetColorHSV(NewValue);
 }
 
