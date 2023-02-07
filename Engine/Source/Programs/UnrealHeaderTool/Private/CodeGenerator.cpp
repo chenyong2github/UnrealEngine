@@ -7328,8 +7328,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	bIncludeDebugOutput = FParse::Param(FCommandLine::Get(), TEXT("IncludeDebugOutput"));
 	bGoWide = !FParse::Param(FCommandLine::Get(), TEXT("NoGoWide"));
 
-	check(GIsUCCMakeStandaloneHeaderGenerator);
-
 	FString ModuleInfoPath = FPaths::GetPath(ModuleInfoFilename);
 
 	// The meta data keywords must be initialized prior to going wide

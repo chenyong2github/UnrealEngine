@@ -212,7 +212,6 @@ extern CORE_API bool PRIVATE_GAllowCommandletAudio;
 */
 extern CORE_API bool GIsEditor;
 extern CORE_API bool GIsImportingT3D;
-extern CORE_API bool GIsUCCMakeStandaloneHeaderGenerator;
 extern CORE_API bool GIsTransacting;
 
 /** Indicates that the game thread is currently paused deep in a call stack,
@@ -226,14 +225,12 @@ extern CORE_API bool			GFirstFrameIntraFrameDebugging;
 
 // Defined as variables during code analysis to prevent lots of '<constant> && <expr>' warnings
 extern CORE_API bool GIsEditor;
-extern CORE_API bool GIsUCCMakeStandaloneHeaderGenerator;
 extern CORE_API bool GIntraFrameDebuggingGameThread;
 extern CORE_API bool GFirstFrameIntraFrameDebugging;
 
 #else
 
 #define GIsEditor								false
-#define GIsUCCMakeStandaloneHeaderGenerator		false
 #define GIntraFrameDebuggingGameThread			false
 #define GFirstFrameIntraFrameDebugging			false
 

@@ -2563,7 +2563,7 @@ void UScriptStruct::PrepareCppStructOps()
 		CppStructOps = GetDeferredCppStructOps().FindRef(GetFlattenedStructPathName());
 		if (!CppStructOps)
 		{
-			if (!GIsUCCMakeStandaloneHeaderGenerator && (StructFlags&STRUCT_Native))
+			if (StructFlags&STRUCT_Native)
 			{
 				UE_LOG(LogClass, Fatal, TEXT("Couldn't bind to native struct %s. Headers need to be rebuilt, or a noexport class is missing a IMPLEMENT_STRUCT."),*GetName());
 			}
@@ -4242,7 +4242,7 @@ void UClass::Bind()
 {
 	UStruct::Bind();
 
-	if( !GIsUCCMakeStandaloneHeaderGenerator && !ClassConstructor && IsNative() )
+	if( !ClassConstructor && IsNative() )
 	{
 		UE_LOG(LogClass, Fatal, TEXT("Can't bind to native class %s"), *GetPathName() );
 	}

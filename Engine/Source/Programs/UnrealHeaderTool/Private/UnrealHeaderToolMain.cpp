@@ -82,7 +82,6 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		FEngineLoop::AppExit();
 	};
 
-	GIsUCCMakeStandaloneHeaderGenerator = true;
 	if (GEngineLoop.PreInit(*ShortCmdLine) != 0)
 	{
 		UE_LOG(LogCompile, Error, TEXT("Failed to initialize the engine (PreInit failed)."));

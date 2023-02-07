@@ -232,7 +232,6 @@ static const TCHAR* ImportProperties(
 	const TMap<AActor*, AActor*>* ActorRemapper
 	)
 {
-	check(!GIsUCCMakeStandaloneHeaderGenerator);
 	check(ObjectStruct!=NULL);
 	check(DestData!=NULL);
 
@@ -889,7 +888,6 @@ static const TCHAR* ImportCreateSubObjectsStep(
 	TMap<FString, UObject*>* ObjectRemapper
 	)
 {
-	check(!GIsUCCMakeStandaloneHeaderGenerator);
 	check(ObjectStruct!=nullptr);
 
 	if (SourceText.IsEmpty())
@@ -1281,7 +1279,6 @@ static const TCHAR* ImportPropertiesStep(
 	TSet<FProperty*>* PropertiesToSkip
 	)
 {
-	check(!GIsUCCMakeStandaloneHeaderGenerator);
 	check(ObjectStruct!=nullptr);
 	check(DestData!=nullptr);
 

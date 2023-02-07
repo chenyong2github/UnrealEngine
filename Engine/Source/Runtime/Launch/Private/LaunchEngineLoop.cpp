@@ -2284,21 +2284,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	};
 #endif
 
-#if WITH_EDITOR
-	if (GIsUCCMakeStandaloneHeaderGenerator)
+	if (IsRunningDedicatedServer())
 	{
-		// Header generation is treated as a commandlet
-		checkf(!IsRunningDedicatedServer(), TEXT("GIsUCCMakeStandaloneHeaderGenerator is not supported in a ServerOnly configuration, or with -server on commandline."));
-
-		SetIsRunningAsCommandlet(TEXT("GIsUCCMakeStandaloneHeaderGenerator"));
-	}
-	else
-#endif
-	{
-		if (IsRunningDedicatedServer())
-		{
-			SetIsRunningAsDedicatedServer();
-		}
+		SetIsRunningAsDedicatedServer();
 	}
 
 #if UE_EDITOR || WITH_ENGINE || WITH_EDITOR

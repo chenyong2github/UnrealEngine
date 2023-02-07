@@ -178,14 +178,12 @@ bool					PRIVATE_GAllowCommandletAudio 		= false;				/** If true, allow audio ev
 #if WITH_EDITORONLY_DATA
 bool					GIsEditor						= false;					/* Whether engine was launched for editing */
 bool					GIsImportingT3D					= false;					/* Whether editor is importing T3D */
-bool					GIsUCCMakeStandaloneHeaderGenerator = false;				/* Are we rebuilding script via the standalone header generator? */
 bool					GIsTransacting					= false;					/* true if there is an undo/redo operation in progress. */
 bool					GIntraFrameDebuggingGameThread	= false;					/* Indicates that the game thread is currently paused deep in a call stack; do not process any game thread tasks */
 bool					GFirstFrameIntraFrameDebugging	= false;					/* Indicates that we're currently processing the first frame of intra-frame debugging */
 #elif USING_CODE_ANALYSIS
 // These are always false during 'non-editor code analysis', just like they would be when #defined.
 bool					GIsEditor						= false;
-bool					GIsUCCMakeStandaloneHeaderGenerator = false;
 bool					GIntraFrameDebuggingGameThread	= false;
 bool					GFirstFrameIntraFrameDebugging	= false;
 #endif // !WITH_EDITORONLY_DATA
