@@ -51,10 +51,11 @@ namespace Horde.Agent.Execution
 		public string BatchId { get; }
 		public string AgentType { get; }
 		public NamespaceId NamespaceId { get; }
+		public string StoragePrefix { get; }
 		public string Token { get; }
 		public JobOptions JobOptions { get; }
 
-		public JobExecutorOptions(ISession session, IServerStorageFactory storageFactory, string jobId, string batchId, string agentType, NamespaceId namespaceId, string token, JobOptions jobOptions)
+		public JobExecutorOptions(ISession session, IServerStorageFactory storageFactory, string jobId, string batchId, string agentType, NamespaceId namespaceId, string storagePrefix, string token, JobOptions jobOptions)
 		{
 			Session = session;
 			StorageFactory = storageFactory;
@@ -62,6 +63,7 @@ namespace Horde.Agent.Execution
 			BatchId = batchId;
 			AgentType = agentType;
 			NamespaceId = namespaceId;
+			StoragePrefix = storagePrefix;
 			Token = token;
 			JobOptions = jobOptions;
 		}
@@ -198,6 +200,7 @@ namespace Horde.Agent.Execution
 		protected readonly ISession _session;
 		protected readonly IServerStorageFactory _storageFactory;
 		private readonly NamespaceId _namespaceId;
+		private readonly string _storagePrefix;
 		private readonly string _token;
 		protected readonly JobOptions _jobOptions;
 
@@ -218,6 +221,7 @@ namespace Horde.Agent.Execution
 			_agentTypeName = options.AgentType;
 
 			_namespaceId = options.NamespaceId;
+			_storagePrefix = options.StoragePrefix;
 			_token = options.Token;
 			_jobOptions = options.JobOptions;
 
@@ -796,7 +800,7 @@ namespace Horde.Agent.Execution
 				string nodeName = input.Substring(0, slashIdx);
 				string tagName = input.Substring(slashIdx + 1);
 
-				TempStorageTagManifest fileList = await TempStorage.RetrieveTagAsync(reader, RefPrefix, nodeName, tagName, manifestDir, logger, cancellationToken);
+				TempStorageTagManifest fileList = await TempStorage.RetrieveTagAsync(reader, _storagePrefix, nodeName, tagName, manifestDir, logger, cancellationToken);
 				tagNameToFileSet[tagName] = fileList.ToFileSet(workspaceDir);
 				inputStorageBlocks.UnionWith(fileList.Blocks);
 			}
@@ -809,7 +813,7 @@ namespace Horde.Agent.Execution
 				scope.Span.SetTag("blocks", inputStorageBlocks.Count);
 				foreach (TempStorageBlockRef inputStorageBlock in inputStorageBlocks)
 				{
-					TempStorageBlockManifest manifest = await TempStorage.RetrieveBlockAsync(reader, RefPrefix, inputStorageBlock.NodeName, inputStorageBlock.OutputName, workspaceDir, manifestDir, logger, cancellationToken);
+					TempStorageBlockManifest manifest = await TempStorage.RetrieveBlockAsync(reader, _storagePrefix, inputStorageBlock.NodeName, inputStorageBlock.OutputName, workspaceDir, manifestDir, logger, cancellationToken);
 					inputManifests[inputStorageBlock] = manifest;
 				}
 				scope.Span.SetTag("size", inputManifests.Sum(x => x.Value.GetTotalSize()));
@@ -937,7 +941,7 @@ namespace Horde.Agent.Execution
 			using (GlobalTracer.Instance.BuildSpan("TempStorage").WithTag("resource", "Write").StartActive())
 			{
 				Stopwatch timer = Stopwatch.StartNew();
-				RefName refName = TempStorage.GetRefNameForNode(RefPrefix, step.Name);
+				RefName refName = TempStorage.GetRefNameForNode(_storagePrefix, step.Name);
 
 				TreeOptions treeOptions = new TreeOptions();
 				using TreeWriter treeWriter = new TreeWriter(storage, treeOptions, refName.Text);
@@ -1146,8 +1150,6 @@ namespace Horde.Agent.Execution
 			}
 		}
 		
-		string RefPrefix => $"{_job.StreamId}/{_job.Change}-{_jobId}";
-
 		async Task<int> ExecuteCommandAsync(BeginStepResponse step, DirectoryReference workspaceDir, string fileName, string arguments, ILogger jobLogger, CancellationToken cancellationToken)
 		{
 			// Combine all the supplied environment variables together

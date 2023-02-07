@@ -15,6 +15,11 @@ namespace Horde.Build.Artifacts
 	public record struct ArtifactType(StringId Id)
 	{
 		/// <summary>
+		/// Default artifact type 
+		/// </summary>
+		public static ArtifactType Unknown { get; } = default;
+
+		/// <summary>
 		/// Output from a build step
 		/// </summary>
 		public static ArtifactType StepOutput { get; } = new ArtifactType("step-output");

@@ -49,7 +49,7 @@ public sealed class WorkspaceExecutorTest : IDisposable
 		_workspace.SetFile(1, "main.cpp", "main");
 		_workspace.SetFile(1, "foo/bar/baz.h", "baz");
 
-		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, JobId, "batch1", AgentType, default, null!, new JobOptions());
+		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, JobId, "batch1", AgentType, default, "", null!, new JobOptions());
 		_executor = new (executorOptions, null, _workspace, NullLogger.Instance);
 	}
 
@@ -71,7 +71,7 @@ public sealed class WorkspaceExecutorTest : IDisposable
 	[TestMethod]
 	public async Task RegularAndAutoSdkWorkspace()
 	{
-		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, JobId, "batch1", AgentType, default, null!, new JobOptions());
+		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, JobId, "batch1", AgentType, default, "", null!, new JobOptions());
 		WorkspaceExecutor executor = new (executorOptions, _autoSdkWorkspace, _workspace, NullLogger.Instance);
 
 		await executor.InitializeAsync(_logger, CancellationToken.None);
@@ -84,7 +84,7 @@ public sealed class WorkspaceExecutorTest : IDisposable
 	[TestMethod]
 	public async Task EnvVars()
 	{
-		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, JobId, "batch1", AgentType, default, null!, new JobOptions());
+		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, JobId, "batch1", AgentType, default, "", null!, new JobOptions());
 		WorkspaceExecutor executor = new (executorOptions, _autoSdkWorkspace, _workspace, NullLogger.Instance);
 		await executor.InitializeAsync(_logger, CancellationToken.None);
 
@@ -109,7 +109,7 @@ public sealed class WorkspaceExecutorTest : IDisposable
 		_server.AddJob("jobPreflight", StreamId, 1, 1000);		
 		_workspace.SetFile(1000, "New/Feature/Foo.cs", "foo");
 
-		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, "jobPreflight", "batch1", AgentType, default, null!, new JobOptions());
+		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, "jobPreflight", "batch1", AgentType, default, "", null!, new JobOptions());
 		WorkspaceExecutor executor = new (executorOptions, null, _workspace, NullLogger.Instance);
 		
 		await executor.InitializeAsync(_logger, CancellationToken.None);
@@ -123,7 +123,7 @@ public sealed class WorkspaceExecutorTest : IDisposable
 	public async Task JobWithNoChange()
 	{
 		_server.AddJob("jobNoChange", StreamId, 0, 0);		
-		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, "jobNoChange", "batch1", AgentType, default, null!, new JobOptions());
+		JobExecutorOptions executorOptions = new JobExecutorOptions(_session, null!, "jobNoChange", "batch1", AgentType, default, "", null!, new JobOptions());
 		WorkspaceExecutor executor = new (executorOptions, null, _workspace, NullLogger.Instance);
 		await Assert.ThrowsExceptionAsync<WorkspaceMaterializationException>(() => executor.InitializeAsync(_logger, CancellationToken.None));
 	}

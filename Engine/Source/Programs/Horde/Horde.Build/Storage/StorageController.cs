@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -176,7 +177,7 @@ namespace Horde.Build.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.WriteBlobs, User) && !User.HasClaim(HordeClaimTypes.WriteNamespace, namespaceId.ToString()))
+			if (!namespaceConfig.Authorize(AclAction.WriteBlobs, User) && !HasPathClaim(User, HordeClaimTypes.WriteNamespace, namespaceId, prefix ?? String.Empty))
 			{
 				return Forbid(AclAction.WriteBlobs, namespaceId);
 			}
@@ -255,7 +256,7 @@ namespace Horde.Build.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User) && !User.HasClaim(HordeClaimTypes.ReadNamespace, namespaceId.ToString()))
+			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User) && !HasPathClaim(User, HordeClaimTypes.ReadNamespace, namespaceId, locator.Inner.ToString()))
 			{
 				return Forbid(AclAction.ReadBlobs, namespaceId);
 			}
@@ -339,7 +340,7 @@ namespace Horde.Build.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.WriteRefs, User) && !User.HasClaim(HordeClaimTypes.WriteNamespace, namespaceConfig.Id.ToString()))
+			if (!namespaceConfig.Authorize(AclAction.WriteRefs, User) && !HasPathClaim(User, HordeClaimTypes.WriteNamespace, namespaceId, refName.ToString()))
 			{
 				return Forbid(AclAction.WriteRefs, namespaceId);
 			}
@@ -366,7 +367,7 @@ namespace Horde.Build.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.ReadRefs, User) && !User.HasClaim(HordeClaimTypes.ReadNamespace, namespaceId.ToString()))
+			if (!namespaceConfig.Authorize(AclAction.ReadRefs, User) && !HasPathClaim(User, HordeClaimTypes.ReadNamespace, namespaceId, refName.ToString()))
 			{
 				return Forbid(AclAction.ReadRefs, namespaceId);
 			}
@@ -380,6 +381,45 @@ namespace Horde.Build.Storage
 			}
 
 			return new ReadRefResponse(target);
+		}
+
+		/// <summary>
+		/// Checks whether the user has an explicit claim to read or write to a path within a namespace
+		/// </summary>
+		/// <param name="user">User to query</param>
+		/// <param name="claimType">The claim name</param>
+		/// <param name="namespaceId">Namespace id to check for</param>
+		/// <param name="entity">Path to the entity to query</param>
+		/// <returns>True if the user is authorized for access to the given path</returns>
+		static bool HasPathClaim(ClaimsPrincipal user, string claimType, NamespaceId namespaceId, string entity)
+		{
+			foreach (Claim claim in user.Claims)
+			{
+				if (claim.Type.Equals(claimType, StringComparison.Ordinal))
+				{
+					int colonIdx = claim.Value.IndexOf(':', StringComparison.Ordinal);
+					if (colonIdx == -1)
+					{
+						if (namespaceId.Text.Equals(claim.Value))
+						{
+							return true;
+						}
+					}
+					else
+					{
+						if (namespaceId.Text.Equals(claim.Value.AsMemory(0, colonIdx)) && HasPathPrefix(entity, claim.Value.AsSpan(colonIdx + 1)))
+						{
+							return true;
+						}
+					}
+				}
+			}
+			return false;
+		}
+
+		static bool HasPathPrefix(string name, ReadOnlySpan<char> prefix)
+		{
+			return name.Length > prefix.Length && name[prefix.Length] == '/' && name.AsSpan(0, prefix.Length).SequenceEqual(prefix);
 		}
 	}
 }

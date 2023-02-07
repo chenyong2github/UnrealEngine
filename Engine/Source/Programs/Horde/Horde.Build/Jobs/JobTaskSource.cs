@@ -833,8 +833,11 @@ namespace Horde.Build.Jobs
 			// Create a bearer token for the job executor
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();
 			claims.Add(new AclClaimConfig(HordeClaimTypes.Lease, leaseId.ToString()));
-			claims.Add(new AclClaimConfig(HordeClaimTypes.WriteNamespace, Namespace.Artifacts.ToString()));
 
+			string storagePrefix = $"{job.StreamId}/{job.Change}-{job.Id}";
+			claims.Add(new AclClaimConfig(HordeClaimTypes.ReadNamespace, $"{Namespace.Artifacts}:{storagePrefix}"));
+			claims.Add(new AclClaimConfig(HordeClaimTypes.WriteNamespace, $"{Namespace.Artifacts}:{storagePrefix}"));
+		
 			// Encode the payload
 			ExecuteJobTask task = new ExecuteJobTask();
 			task.JobId = job.Id.ToString();
@@ -843,6 +846,7 @@ namespace Horde.Build.Jobs
 			task.JobName = leaseName.ToString();
 			task.JobOptions = job.JobOptions;
 			task.NamespaceId = Namespace.Artifacts.ToString();
+			task.StoragePrefix = storagePrefix;
 			task.Token = await _aclService.IssueBearerTokenAsync(claims, null);
 
 			List<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces = new ();

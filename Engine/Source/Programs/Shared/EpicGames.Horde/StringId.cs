@@ -10,7 +10,7 @@ namespace EpicGames.Horde
 	/// <summary>
 	/// Normalized string identifier for a resource
 	/// </summary>
-	public struct StringId : IEquatable<StringId>
+	public struct StringId : IEquatable<StringId>, IEquatable<string>, IEquatable<ReadOnlyMemory<char>>
 	{
 		/// <summary>
 		/// Enum used to disable validation on string arguments
@@ -177,6 +177,27 @@ namespace EpicGames.Horde
 
 		/// <inheritdoc/>
 		public bool Equals(StringId other) => Text.Equals(other.Text);
+
+		/// <inheritdoc/>
+		public bool Equals(string? other) => other != null && Equals(other.AsMemory());
+	
+		/// <inheritdoc/>
+		public bool Equals(ReadOnlyMemory<char> other)
+		{
+			ReadOnlySpan<char> span = other.Span;
+			if (span.Length != Text.Length)
+			{
+				return false;
+			}
+			for (int idx = 0; idx < Text.Length; idx++)
+			{
+				if (span[idx] != Text[idx])
+				{
+					return false;
+				}
+			}
+			return true;
+		}
 
 		/// <inheritdoc/>
 		public override string ToString() => Text.ToString();

@@ -67,14 +67,14 @@ namespace Horde.Build.Utilities
 		public const string Lease = Prefix + "lease";
 
 		/// <summary>
-		/// Claim allowing a certain namespace to be read from
+		/// Claim allowing a certain namespace and/or path to be read from. See <see cref="WriteNamespace"/>.
 		/// </summary>
-		public const string ReadNamespace = Prefix + "read-ns";
+		public const string ReadNamespace = Prefix + "read-namespace";
 
 		/// <summary>
-		/// Claim allowing a certain namespace to be written to
+		/// Claim allowing a certain namespace and/or path to be written to. Value may be a namespace name, or a subpath (eg. ns:a/b will only allow blobs and refs with an a/b prefix to be written).
 		/// </summary>
-		public const string WriteNamespace = Prefix + "write-ns";
+		public const string WriteNamespace = Prefix + "write-namespace";
 
 		/// <summary>
 		/// Claim allowing a certain ref to be written
