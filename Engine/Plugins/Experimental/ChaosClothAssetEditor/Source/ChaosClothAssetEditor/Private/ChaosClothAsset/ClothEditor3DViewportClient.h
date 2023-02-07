@@ -33,7 +33,7 @@ public:
 
 	void SetClothComponent(TObjectPtr<UChaosClothComponent> ClothComponent);
 	void SetClothEdMode(TObjectPtr<UChaosClothAssetEditorMode> ClothEdMode);
-	void SetClothEditorToolkit(TSharedPtr<const FChaosClothAssetEditorToolkit> ClothToolkit);
+	void SetClothEditorToolkit(TWeakPtr<const FChaosClothAssetEditorToolkit> ClothToolkit);
 
 	void SoftResetSimulation();
 	void HardResetSimulation();
@@ -60,7 +60,7 @@ private:
 
 	TObjectPtr<UChaosClothAssetEditorMode> ClothEdMode;
 
-	TSharedPtr<const FChaosClothAssetEditorToolkit> ClothToolkit;
+	TWeakPtr<const FChaosClothAssetEditorToolkit> ClothToolkit;
 	
 	bool bSimMeshWireframe = true;
 	bool bRenderMeshWireframe = false;

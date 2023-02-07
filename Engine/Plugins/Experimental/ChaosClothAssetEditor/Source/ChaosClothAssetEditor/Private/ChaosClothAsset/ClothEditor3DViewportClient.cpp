@@ -68,11 +68,11 @@ void FChaosClothAssetEditor3DViewportClient::Tick(float DeltaSeconds)
 		return Dataflow::FTimestamp::Invalid;
 	};
 
-	if (ClothToolkit.IsValid())
+	if (TSharedPtr<const FChaosClothAssetEditorToolkit> PinnedClothToolkit = ClothToolkit.Pin())
 	{
-		if (const TSharedPtr<Dataflow::FContext> Context = ClothToolkit->GetDataflowContext())
+		if (const TSharedPtr<Dataflow::FContext> Context = PinnedClothToolkit->GetDataflowContext())
 		{
-			if (const UDataflow* const Dataflow = ClothToolkit->GetDataflow())
+			if (const UDataflow* const Dataflow = PinnedClothToolkit->GetDataflow())
 			{
 				if (UDataflowComponent* const DataflowComponent = ClothEdMode->GetDataflowComponent())
 				{
@@ -133,7 +133,7 @@ void FChaosClothAssetEditor3DViewportClient::SetClothEdMode(TObjectPtr<UChaosClo
 	ClothEdMode = InClothEdMode;
 }
 
-void FChaosClothAssetEditor3DViewportClient::SetClothEditorToolkit(TSharedPtr<const FChaosClothAssetEditorToolkit> InClothToolkit)
+void FChaosClothAssetEditor3DViewportClient::SetClothEditorToolkit(TWeakPtr<const FChaosClothAssetEditorToolkit> InClothToolkit)
 {
 	ClothToolkit = InClothToolkit;
 }
