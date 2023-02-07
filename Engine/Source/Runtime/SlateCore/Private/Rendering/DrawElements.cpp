@@ -360,6 +360,7 @@ void FSlateDrawElement::MakeRotatedBox(
 		DrawElement.SetRenderTransform(Concatenate(RotationTransform, DrawElement.GetRenderTransform()));
 	}
 }
+
 #if !UE_BUILD_SHIPPING
 namespace UE::Slate::Private
 {
@@ -387,6 +388,7 @@ void FSlateDrawElement::MakeText( FSlateWindowElementList& ElementList, uint32 I
 		UE_LOG(LogSlate, Log, TEXT("MakeText: '%s'."), *InText);
 	}
 #endif
+
 	FSlateDrawElement& Element = ElementList.AddUninitialized();
 	FSlateTextPayload& DataPayload = ElementList.CreatePayload<FSlateTextPayload>(Element);
 
