@@ -155,7 +155,7 @@ static void LogFailedHRESULT(const TCHAR* FailedExpressionStr, HRESULT Result)
 
 class FDxcMalloc final : public IMalloc
 {
-	ULONG RefCount = 1;
+	std::atomic<ULONG> RefCount{ 1 };
 
 public:
 
@@ -219,16 +219,20 @@ static IMalloc* GetDxcMalloc()
 	return &Instance;
 }
 
+
 static dxc::DxcDllSupport& GetDxcDllHelper()
 {
-	static dxc::DxcDllSupport DxcDllSupport;
-	static bool DxcDllInitialized = false;
-	if (!DxcDllInitialized)
+	struct DxcDllHelper
 	{
-		VERIFYHRESULT(DxcDllSupport.Initialize());
-		DxcDllInitialized = true;
-	}
-	return DxcDllSupport;
+		DxcDllHelper()
+		{
+			VERIFYHRESULT(DxcDllSupport.Initialize());
+		}
+		dxc::DxcDllSupport DxcDllSupport;
+	};
+
+	static DxcDllHelper DllHelper;
+	return DllHelper.DxcDllSupport;
 }
 
 static FString DxcBlobEncodingToFString(TRefCountPtr<IDxcBlobEncoding> DxcBlob)
