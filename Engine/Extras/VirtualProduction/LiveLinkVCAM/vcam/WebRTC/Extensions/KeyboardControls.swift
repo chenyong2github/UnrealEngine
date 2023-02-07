@@ -24,9 +24,9 @@ final class KeyboardControls: KeyboardDelegate {
         bytes.append(UInt8(entry.count))
         
         for char in entry {
-            bytes.append(contentsOf: char.utf16[char.utf16.index(char.utf16.startIndex, offsetBy: 0)].toBytes())
+            bytes.append(contentsOf: char.utf16[char.utf16.index(char.utf16.startIndex, offsetBy: 0)].bigEndian.toBytes())
         }
-        
+
         self.webRTCClient.sendData(Data(bytes))
     }
 }

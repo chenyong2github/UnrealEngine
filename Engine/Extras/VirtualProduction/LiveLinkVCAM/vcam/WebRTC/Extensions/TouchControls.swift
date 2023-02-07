@@ -138,8 +138,6 @@ final class TouchControls : TouchDelegate {
             normalizedY = (normalizedY - 0.5) * (videoAspectRatio / uiAspectRatio) + 0.5
         }
         
-        Log.info("\(normalizedX) \(normalizedY)")
-        
         // normalize force value of touch
         let normalizedForce : UInt8 = touch.maximumPossibleForce > 0 ? UInt8(touch.force / touch.maximumPossibleForce * CGFloat(UInt8.max)) : 1
         
