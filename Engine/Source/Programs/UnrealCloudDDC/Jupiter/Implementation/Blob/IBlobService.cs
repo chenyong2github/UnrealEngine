@@ -8,6 +8,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Mime;
+using System.Security;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
@@ -17,6 +19,7 @@ using Jupiter.Common;
 using Jupiter.Common.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
@@ -69,6 +72,7 @@ public class BlobService : IBlobService
     private readonly IServiceCredentials _serviceCredentials;
     private readonly INamespacePolicyResolver _namespacePolicyResolver;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly RequestHelper? _requestHelper;
     private readonly Tracer _tracer;
     private readonly BufferedPayloadFactory _bufferedPayloadFactory;
     private readonly ILogger _logger;
@@ -79,7 +83,7 @@ public class BlobService : IBlobService
         set => _blobStores = value.ToList();
     }
 
-    public BlobService(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver, IHttpContextAccessor httpContextAccessor, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory, ILogger<BlobService> logger)
+    public BlobService(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver, IHttpContextAccessor httpContextAccessor, RequestHelper? requestHelper, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory, ILogger<BlobService> logger)
     {
         _blobStores = GetBlobStores(provider, settings).ToList();
         _settings = settings;
@@ -89,6 +93,7 @@ public class BlobService : IBlobService
         _serviceCredentials = serviceCredentials;
         _namespacePolicyResolver = namespacePolicyResolver;
         _httpContextAccessor = httpContextAccessor;
+        _requestHelper = requestHelper;
         _tracer = tracer;
         _bufferedPayloadFactory = bufferedPayloadFactory;
         _logger = logger;
@@ -216,6 +221,68 @@ public class BlobService : IBlobService
     }
 
     public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
+    {
+        try
+        {
+            return await GetObjectFromStores(ns, blob, storageLayers);
+        }
+        catch (BlobNotFoundException)
+        {
+            NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+
+            if (policy.FallbackNamespace != null)
+            {
+                ClaimsPrincipal? user = _httpContextAccessor.HttpContext?.User;
+                HttpRequest? request = _httpContextAccessor.HttpContext?.Request;
+
+                if (user == null || request == null)
+                {
+                    _logger.LogWarning("Unable to fallback to namespace {Namespace} due to not finding required http context values", policy.FallbackNamespace.Value);
+                    throw;
+                }
+
+                if (_requestHelper == null)
+                {
+                    _logger.LogWarning("Unable to fallback to namespace {Namespace} due to request helper missing", policy.FallbackNamespace.Value);
+                    throw;
+                }
+
+                ActionResult? result = await _requestHelper.HasAccessToNamespace(user, request, policy.FallbackNamespace.Value, new [] { AclAction.ReadObject });
+                if (result != null)
+                {
+                    _logger.LogInformation("Authorization error when attempting to fallback to namespace {FallbackNamespace}. This may be confusing for users that as they had access to original namespace {Namespace}", policy.FallbackNamespace.Value, ns);
+                    throw new AuthorizationException(result, "Failed to authenticate for fallback namespace");
+                }
+
+                try
+                {
+                    return await GetObjectFromStores(policy.FallbackNamespace.Value, blob, storageLayers);
+
+                }
+                catch (BlobNotFoundException)
+                {
+                    // if we fail to find the blob in the fallback namespace we can carry on as we will rethrow the blob not found exception later (if the replication also fails)
+                }
+            }
+
+            if (ShouldFetchBlobOnDemand(ns))
+            {
+                try
+                {
+                    return await ReplicateObject(ns, blob);
+                }
+                catch (BlobNotFoundException)
+                {
+                    // if the blob is not found we can ignore it as we will just rethrow it later anyway
+                }
+            }
+
+            // we might have attempted to fetch the object and failed, or had no fallback options, either way the blob can not be found so we should rethrow
+            throw;
+        }
+    }
+
+    private async Task<BlobContents> GetObjectFromStores(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
     {
         bool seenBlobNotFound = false;
         bool seenNamespaceNotFound = false;
@@ -408,6 +475,23 @@ public class BlobService : IBlobService
     }
 
     public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
+    {
+        bool exists = await ExistsInStores(ns, blob, storageLayers);
+        if (exists)
+        {
+            return exists;
+        }
+
+        NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+        if (policy.FallbackNamespace != null)
+        {
+            return await ExistsInStores(policy.FallbackNamespace.Value, blob, storageLayers);
+        }
+
+        return false;
+    }
+
+    private async Task<bool> ExistsInStores(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
     {
         bool useBlobIndex = _namespacePolicyResolver.GetPoliciesForNs(ns).UseBlobIndexForExists;
         if (useBlobIndex)

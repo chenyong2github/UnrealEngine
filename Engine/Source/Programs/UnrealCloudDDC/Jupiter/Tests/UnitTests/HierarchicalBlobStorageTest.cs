@@ -12,6 +12,7 @@ using Jupiter.Implementation;
 using Jupiter.Implementation.Blob;
 using Jupiter.Common;
 using Jupiter.Common.Implementation;
+using Jupiter.Controllers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -63,7 +64,7 @@ namespace Jupiter.UnitTests
             IOptionsMonitor<JupiterSettings> jupiterSettings = Mock.Of<IOptionsMonitor<JupiterSettings>>(_ => _.CurrentValue == new JupiterSettings());
             BufferedPayloadFactory bufferedPayloadFactory = new BufferedPayloadFactory(jupiterSettings, tracer);
 
-            _chained = new BlobService(serviceProviderMock.Object, settingsMonitor, Mock.Of<IBlobIndex>(), Mock.Of<IPeerStatusService>(), Mock.Of<IHttpClientFactory>(), Mock.Of<IServiceCredentials>(), mockPolicyResolver.Object, Mock.Of<IHttpContextAccessor>(), tracer, bufferedPayloadFactory, NullLogger<BlobService>.Instance);
+            _chained = new BlobService(serviceProviderMock.Object, settingsMonitor, Mock.Of<IBlobIndex>(), Mock.Of<IPeerStatusService>(), Mock.Of<IHttpClientFactory>(), Mock.Of<IServiceCredentials>(), mockPolicyResolver.Object, Mock.Of<IHttpContextAccessor>(), null, tracer, bufferedPayloadFactory, NullLogger<BlobService>.Instance);
             _chained.BlobStore = new List<IBlobStore> { _first, _second, _third };
 
             await _first.PutObject(Ns, Encoding.ASCII.GetBytes("onlyFirstContent"), _onlyFirstId);

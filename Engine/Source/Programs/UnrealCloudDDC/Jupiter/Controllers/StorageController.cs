@@ -65,6 +65,10 @@ namespace Jupiter.Controllers
             {
                 return NotFound(new ValidationProblemDetails { Title = $"Blob {e.Blob} not found"});
             }
+            catch (AuthorizationException e)
+            {
+                return e.Result;
+            }
         }
         
         [HttpHead("{ns}/{id}")]

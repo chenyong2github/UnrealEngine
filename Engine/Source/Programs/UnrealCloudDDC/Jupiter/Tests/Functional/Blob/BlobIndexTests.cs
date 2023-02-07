@@ -14,7 +14,6 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Jupiter.Implementation;
 using Jupiter.Implementation.Blob;
-using Jupiter;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;

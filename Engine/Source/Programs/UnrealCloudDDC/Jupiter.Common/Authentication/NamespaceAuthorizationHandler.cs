@@ -33,7 +33,7 @@ namespace Jupiter
             NamespaceAccessRequest accessRequest)
         {
             NamespaceId namespaceName = accessRequest.Namespace;
-            if (!_authSettings.CurrentValue.Enabled)
+            if (!_authSettings.CurrentValue.Enabled && !_authSettings.CurrentValue.RequireAcls)
             {
                 context.Succeed(requirement);
                 return Task.CompletedTask;

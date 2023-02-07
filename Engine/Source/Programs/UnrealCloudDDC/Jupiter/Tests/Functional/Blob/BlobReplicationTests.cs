@@ -9,7 +9,6 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
-using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -114,7 +113,21 @@ namespace Jupiter.FunctionalTests.Storage
                             {
                                 TestNamespaceName.ToString(), new NamespacePolicy()
                                 {
-                                    OnDemandReplication = true
+                                    OnDemandReplication = true,
+                                    Acls = new List<AclEntry>()
+                                    {
+                                        new AclEntry()
+                                        {
+                                            Actions = new List<AclAction>()
+                                            {
+                                                AclAction.ReadObject,
+                                            },
+                                            Claims = new List<string>()
+                                            {
+                                                "*"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         };

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
@@ -79,5 +80,15 @@ public class RequestHelper
         }
 
         return null;
+    }
+}
+
+public class AuthorizationException : Exception
+{
+    public ActionResult Result { get; }
+
+    public AuthorizationException(ActionResult result, string errorMessage) : base(errorMessage)
+    {
+        Result = result;
     }
 }

@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Text;
 using Amazon;
 using EpicGames.AspNet;
+using EpicGames.Horde.Storage;
 using Jupiter.Common;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -634,11 +635,17 @@ namespace Jupiter
         /// </summary>
         public bool Enabled { get; set; } = true;
 
+        /// <summary>
+        /// Can be set to require acls to be used even if auth is disabled, mostly used for testing
+        /// </summary>
+        public bool RequireAcls { get; set; } = false;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
         public Dictionary<string, AuthSchemeEntry> Schemes { get; set; } = new Dictionary<string, AuthSchemeEntry>();
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
         public List<AclEntry> Acls { get; set; } = new List<AclEntry>();
+
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
@@ -724,6 +731,7 @@ namespace Jupiter
         public bool UseBlobIndexForExists { get; set; } = false;
         public bool UseBlobIndexForSlowExists { get; set; } = false;
         public bool IsPublicNamespace { get; set; } = true;
+        public NamespaceId? FallbackNamespace { get; set; } = null;
 
         public enum StoragePoolGCMethod  { None, LastAccess, TTL };
 
