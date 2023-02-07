@@ -50,6 +50,8 @@ namespace Horde.Build.Jobs
 			{
 				JobArtifactType.Output => ArtifactType.StepOutput,
 				JobArtifactType.Saved => ArtifactType.StepSaved,
+				JobArtifactType.Trace => ArtifactType.StepTrace,
+				JobArtifactType.TestData => ArtifactType.StepTestData,
 				_ => throw new StructuredRpcException(StatusCode.InvalidArgument, "Invalid artifact type")
 			};
 

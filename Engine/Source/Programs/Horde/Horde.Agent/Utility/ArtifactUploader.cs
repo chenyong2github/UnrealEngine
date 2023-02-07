@@ -46,20 +46,39 @@ namespace Horde.Agent.Utility
             }
             return contentType;
         }
-        
-        /// <summary>
-        /// Uploads an artifact (with retries)
-        /// </summary>
-        /// <param name="rpcConnection">The grpc client</param>
-        /// <param name="jobId">Job id</param>
-        /// <param name="batchId">Job batch id</param>
-        /// <param name="stepId">Job step id</param>
-        /// <param name="artifactName">Name of the artifact</param>
-        /// <param name="artifactFile">File to upload</param>
-        /// <param name="logger">Logger interfact</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns></returns>
-        public static async Task<string?> UploadAsync(IRpcConnection rpcConnection, string jobId, string batchId, string stepId, string artifactName, FileReference artifactFile, ILogger logger, CancellationToken cancellationToken)
+
+		/// <summary>
+		/// Uploads an artifact (with retries)
+		/// </summary>
+		/// <param name="rpcConnection">The grpc client</param>
+		/// <param name="jobId">Job id</param>
+		/// <param name="batchId">Job batch id</param>
+		/// <param name="stepId">Job step id</param>
+		/// <param name="artifacts">List of artifacts</param>
+		/// <param name="logger">Logger interfact</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		/// <returns></returns>
+		public static async Task UploadAsync(IRpcConnection rpcConnection, string jobId, string batchId, string stepId, IEnumerable<(string, FileReference)> artifacts, ILogger logger, CancellationToken cancellationToken)
+		{
+			foreach ((string name, FileReference file) in artifacts)
+			{
+				await UploadAsync(rpcConnection, jobId, batchId, stepId, name, file, logger, cancellationToken);
+			}
+		}
+
+		/// <summary>
+		/// Uploads an artifact (with retries)
+		/// </summary>
+		/// <param name="rpcConnection">The grpc client</param>
+		/// <param name="jobId">Job id</param>
+		/// <param name="batchId">Job batch id</param>
+		/// <param name="stepId">Job step id</param>
+		/// <param name="artifactName">Name of the artifact</param>
+		/// <param name="artifactFile">File to upload</param>
+		/// <param name="logger">Logger interfact</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		/// <returns></returns>
+		public static async Task<string?> UploadAsync(IRpcConnection rpcConnection, string jobId, string batchId, string stepId, string artifactName, FileReference artifactFile, ILogger logger, CancellationToken cancellationToken)
         {
 			try
 			{
