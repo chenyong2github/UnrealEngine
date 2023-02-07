@@ -128,7 +128,9 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		FBox Bounds = Component->GetLocalBounds().GetBox();
 		if (bUpdateViewportFocus && Bounds.IsValid)
 		{
+			bool bCachedShouldOrbitCamera = ShouldOrbitCamera();
 			FocusViewportOnBox(Bounds);
+			ToggleOrbitCamera(bCachedShouldOrbitCamera);
 			SetUpdateViewportFocus(false);
 		}
 	}
