@@ -118,7 +118,7 @@ static bool ReadTexture_SourceData(
 			DestImage.SetDimensions(Dimensions);
 			for (int64 LinearIndex = 0; LinearIndex < Dimensions.Num(); ++LinearIndex)
 			{
-				const FLinearColor& LinearColor = Image.AsRGBA32F()[LinearIndex];
+				const FLinearColor LinearColor = Image.AsRGBA32F()[LinearIndex];
 				DestImage.SetPixel(Dimensions.GetCoords(LinearIndex), ToVector4<float>(LinearColor));
 			}
 
