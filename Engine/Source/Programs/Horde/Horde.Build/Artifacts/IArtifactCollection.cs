@@ -18,7 +18,6 @@ namespace Horde.Build.Artifacts
 		/// Creates a new artifact
 		/// </summary>
 		/// <param name="artifactId">Unique id of the artifact</param>
-		/// <param name="name">Description for the artifact</param>
 		/// <param name="type">Type identifier for the artifact</param>
 		/// <param name="keys">Keys for the artifact</param>
 		/// <param name="namespaceId">Namespace containing the data</param>
@@ -26,7 +25,7 @@ namespace Horde.Build.Artifacts
 		/// <param name="scopeName">Inherited scope used for permissions</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new log file document</returns>
-		Task<IArtifact> AddAsync(ArtifactId artifactId, string name, ArtifactType type, IEnumerable<string> keys, NamespaceId namespaceId, RefName refName, AclScopeName scopeName, CancellationToken cancellationToken = default);
+		Task<IArtifact> AddAsync(ArtifactId artifactId, ArtifactType type, IEnumerable<string> keys, NamespaceId namespaceId, RefName refName, AclScopeName scopeName, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Finds artifacts with the given keys

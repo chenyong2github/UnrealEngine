@@ -29,9 +29,6 @@ namespace Horde.Build.Artifacts
 		/// <inheritdoc cref="IArtifact.Id"/>
 		public string Id => _artifact.Id.ToString();
 
-		/// <inheritdoc cref="IArtifact.Name"/>
-		public string Name => _artifact.Name;
-
 		/// <inheritdoc cref="IArtifact.Type"/>
 		public ArtifactType Type => _artifact.Type;
 

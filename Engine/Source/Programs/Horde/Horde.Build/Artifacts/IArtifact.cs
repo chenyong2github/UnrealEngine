@@ -17,11 +17,6 @@ namespace Horde.Build.Artifacts
 		public ArtifactId Id { get; }
 
 		/// <summary>
-		/// Name for this artifact object.
-		/// </summary>
-		public string Name { get; }
-
-		/// <summary>
 		/// Type of artifact
 		/// </summary>
 		public ArtifactType Type { get; }
