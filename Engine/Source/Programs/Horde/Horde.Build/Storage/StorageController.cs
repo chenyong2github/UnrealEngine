@@ -339,7 +339,7 @@ namespace Horde.Build.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.WriteRefs, User) && (!User.HasClaim(HordeClaimTypes.WriteNamespace, namespaceConfig.Id.ToString()) || !User.HasClaim(HordeClaimTypes.WriteRef, refName.ToString())))
+			if (!namespaceConfig.Authorize(AclAction.WriteRefs, User) && !User.HasClaim(HordeClaimTypes.WriteNamespace, namespaceConfig.Id.ToString()))
 			{
 				return Forbid(AclAction.WriteRefs, namespaceId);
 			}
