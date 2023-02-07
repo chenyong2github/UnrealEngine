@@ -38,6 +38,7 @@
 #include "RendererOnScreenNotification.h"
 #include "Lumen/Lumen.h"
 #include "ScenePrivate.h"
+#include "SceneUniformBuffer.h"
 
 DEFINE_LOG_CATEGORY(LogRenderer);
 
