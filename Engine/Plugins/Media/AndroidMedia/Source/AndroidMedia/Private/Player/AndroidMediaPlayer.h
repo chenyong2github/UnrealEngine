@@ -167,4 +167,7 @@ private:
 
 	/** Video sample object pool. */
 	FAndroidMediaTextureSamplePool* VideoSamplePool;
+
+	/** Device enters background. */
+	bool bEnterBackground;
 };

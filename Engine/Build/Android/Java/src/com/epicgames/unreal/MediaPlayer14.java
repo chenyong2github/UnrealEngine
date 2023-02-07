@@ -638,6 +638,18 @@ public class MediaPlayer14
 		}
 	}
 
+	public void pause()
+	{
+		synchronized(this)
+		{
+			Completed = false;
+			if (Prepared)
+			{
+				super.pause();
+			}
+		}
+	}
+
 	public void stop()
 	{
 		synchronized(this)
