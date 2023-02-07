@@ -559,7 +559,7 @@ namespace DatasmithSolidworks
 
 					SyncState.ComponentsTransformsMap[InNode.ComponentName] = ActorExportInfo.Transform;
 
-					ActorExportInfo.bVisible = ComponentConfig?.bVisible ?? InNode.CommonConfig.bVisible;
+					ActorExportInfo.bVisible = ComponentConfig.bVisible && (ComponentConfig.ConfigName == ActiveConfigName);
 
 					// This component has associated part document -- treat is as a mesh actor
 					ActorExportInfo.Type = EActorType.MeshActor;
