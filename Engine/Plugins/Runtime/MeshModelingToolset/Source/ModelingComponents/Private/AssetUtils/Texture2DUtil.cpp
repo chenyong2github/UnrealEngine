@@ -116,10 +116,11 @@ static bool ReadTexture_SourceData(
 		{
 			const FImageDimensions Dimensions = FImageDimensions(Width, Height);
 			DestImage.SetDimensions(Dimensions);
+
+			TArrayView64<FLinearColor> ImageData = Image.AsRGBA32F();
 			for (int64 LinearIndex = 0; LinearIndex < Dimensions.Num(); ++LinearIndex)
 			{
-				const FLinearColor LinearColor = Image.AsRGBA32F()[LinearIndex];
-				DestImage.SetPixel(Dimensions.GetCoords(LinearIndex), ToVector4<float>(LinearColor));
+				DestImage.SetPixel(Dimensions.GetCoords(LinearIndex), ToVector4<float>(ImageData[LinearIndex]));
 			}
 
 			return true;
