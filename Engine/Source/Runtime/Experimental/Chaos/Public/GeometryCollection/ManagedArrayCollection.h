@@ -158,7 +158,7 @@ public:
 		return Collection;
 	}
 
-	void CopyTo(FManagedArrayCollection* Collection, const TArray<FName>& GroupsToSkip = TArray<FName>()) const
+	void CopyTo(FManagedArrayCollection* Collection, const TArray<FName>& GroupsToSkip = TArray<FName>(), TArray<TTuple<FName, FName>> AttributesToSkip = TArray<TTuple<FName, FName>>()) const
 	{
 		if (!Map.IsEmpty())
 		{
@@ -166,6 +166,14 @@ public:
 			{
 				const FName& AttributeName = Entry.Key.Get<0>();
 				const FName& GroupName = Entry.Key.Get<1>();
+				if (AttributesToSkip.Num() > 0)
+				{
+					const TTuple<FName, FName> GroupAndAttribute{ AttributeName, GroupName };
+					if (AttributesToSkip.Contains(GroupAndAttribute))
+					{
+						continue;
+					}
+				}
 				if (!GroupsToSkip.Contains(GroupName))
 				{
 					if (!Collection->HasGroup(GroupName))
@@ -184,7 +192,6 @@ public:
 			}
 		}
 	}
-
 
 	/**
 	* Add an external attribute of Type(T) to the group for size management. Lifetime is managed by the caller, must make sure the array is alive when the collection is
