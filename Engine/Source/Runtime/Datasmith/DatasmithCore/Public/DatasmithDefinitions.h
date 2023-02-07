@@ -5,8 +5,12 @@
 #include "Misc/CoreMiscDefines.h"
 #include "Misc/EnumClassFlags.h"
 
-#ifdef WITH_COREUOBJECT
-	#include "UObject/ObjectMacros.h"
+#ifndef WITH_COREUOBJECT
+	#define WITH_COREUOBJECT 0
+#endif
+
+#if WITH_COREUOBJECT
+	#include "DatasmithDefinitions.generated.h"
 #else
 	#define UENUM(...)
 #endif // WITH_COREUOBJECT
