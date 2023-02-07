@@ -49,35 +49,32 @@ public:
 	
 	void RequestUnregister();
 
-#if WITH_EDITOR
-	void RequestForceInject(UWorld* WorldToInject);
-	void RequestRemoveForceInjectedContent(UWorld *WorldToInject);
-#endif 
-
 	EContentBundleClientState GetState() const { return State; }
 
 	FString const& GetDisplayName() const { return DisplayName; }
 
-	bool ShouldInjectContent(UWorld* World) const;
-	bool ShouldRemoveContent(UWorld* World) const;
+	virtual bool ShouldInjectContent(UWorld* World) const;
+	virtual bool ShouldRemoveContent(UWorld* World) const;
+
+protected:
+	virtual void DoOnContentRegisteredInWorld(UWorld* InjectedWorld) {};
+	virtual void DoOnContentInjectedInWorld(EContentBundleStatus InjectionStatus, UWorld* InjectedWorld) {};
+	virtual void DoOnContentRemovedFromWorld(UWorld* InjectedWorld) {};
 
 private:
 	bool HasContentToRemove() const;
+
+	void OnContentRegisteredInWorld(EContentBundleStatus ContentBundleStatus, UWorld* World);
+	void OnContentInjectedInWorld(EContentBundleStatus InjectionStatus, UWorld* InjectedWorld);
+	void OnContentRemovedFromWorld(EContentBundleStatus RemovalStatus, UWorld* InjectedWorld);
 
 	void SetState(EContentBundleClientState State);
 	void SetWorldContentState(UWorld* World, EWorldContentState State);
 	EWorldContentState GetWorldContentState(UWorld* World) const;
 
-	void OnContentInjectedInWorld(EContentBundleStatus InjectionStatus, UWorld* InjectedWorld);
-	void OnContentRemovedFromWorld(EContentBundleStatus RemovalStatus, UWorld* InjectedWorld);
-
 	TWeakObjectPtr<const UContentBundleDescriptor> ContentBundleDescriptor;
 	
 	TMap<TWeakObjectPtr<UWorld>, EWorldContentState> WorldContentStates;
-
-#if WITH_EDITOR
-	TSet<TWeakObjectPtr<UWorld>> ForceInjectedWorlds;
-#endif
 
 	FString DisplayName;
 

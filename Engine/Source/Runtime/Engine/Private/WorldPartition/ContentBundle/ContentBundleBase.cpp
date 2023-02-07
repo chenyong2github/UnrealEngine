@@ -29,6 +29,11 @@ void FContentBundleBase::Initialize()
 	DoInitialize();
 
 	check(GetStatus() == EContentBundleStatus::Registered);
+
+	if (TSharedPtr<FContentBundleClient> PinnedClient = Client.Pin())
+	{
+		PinnedClient->OnContentRegisteredInWorld(GetStatus(), GetInjectedWorld());
+	}
 }
 
 void FContentBundleBase::Uninitialize()

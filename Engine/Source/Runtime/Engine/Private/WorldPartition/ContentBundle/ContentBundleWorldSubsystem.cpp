@@ -168,27 +168,6 @@ TSharedPtr<FContentBundleEditor> UContentBundleManager::GetEditorContentBundle(c
 	return nullptr;
 }
 
-bool UContentBundleManager::TryInject(FContentBundleClient& Client)
-{
-	if (CanInject())
-	{
-		if (TUniquePtr<FContentBundleContainer>* Container = GetContentBundleContainer(GetTypedOuter<UWorld>()))
-		{
-			return (*Container)->InjectContentBundle(Client);
-		}
-	}
-
-	return false;
-}
-
-void UContentBundleManager::Remove(FContentBundleClient& Client)
-{
-	if (TUniquePtr<FContentBundleContainer>* Container = GetContentBundleContainer(GetTypedOuter<UWorld>()))
-	{
-		(*Container)->RemoveContentBundle(Client);
-	}
-}
-
 #endif
 
 uint32 UContentBundleManager::GetContentBundleContainerIndex(const UWorld* InjectedWorld) const
