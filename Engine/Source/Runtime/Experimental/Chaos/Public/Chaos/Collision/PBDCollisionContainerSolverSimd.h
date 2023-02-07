@@ -87,7 +87,7 @@ namespace Chaos
 
 			// For testing
 			const FPBDCollisionSolverSimd& GetConstraintSolver(const int32 ConstraintIndex) const { return Solvers[ConstraintIndex]; }
-			const TPBDCollisionSolverManifoldPointsSimd<4>& GetManifoldPointSolver(const int32 RowIndex) const { return Data.SimdManifoldPoints[RowIndex]; }
+			const TPBDCollisionSolverManifoldPointsSimd<4>& GetManifoldPointSolver(const int32 RowIndex) const { return SimdData.SimdManifoldPoints[RowIndex]; }
 
 		private:
 			int32 GetNumLanes() const { return 4; }
@@ -100,8 +100,10 @@ namespace Chaos
 
 			TArray<FPBDCollisionConstraint*> Constraints;
 			TArray<FPBDCollisionSolverSimd> Solvers;
-			FDataSimd<4> Data;
+			FDataSimd<4> SimdData;
+			TArray<bool> bCollisionConstraintPerIterationCollisionDetection;
 			int32 NumConstraints;
+			bool bPerIterationCollisionDetection;
 
 			FSolverBody DummySolverBody;
 			FConstraintSolverBody DummyConstraintSolverBody;

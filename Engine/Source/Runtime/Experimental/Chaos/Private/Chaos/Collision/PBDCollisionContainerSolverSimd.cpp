@@ -40,8 +40,8 @@ namespace Chaos
 		// Transform and copy a single manifold point for use in the solver
 		template<int TNumLanes>
 		void UpdateSolverContactPointFromConstraint(
-			TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPointsBuffer,
-			TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodiesBuffer,
+			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPointsBuffer,
+			const TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodiesBuffer,
 			Private::FPBDCollisionSolverSimd& Solver,
 			const int32 SolverPointIndex, 
 			const FPBDCollisionConstraint* Constraint, 
@@ -141,8 +141,8 @@ namespace Chaos
 		// Transform and copy all of a constraint's manifold point data for use by the solver
 		template<int TNumLanes>
 		void UpdateSolverManifoldFromConstraint(
-			TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPointsBuffer,
-			TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodiesBuffer,
+			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPointsBuffer,
+			const TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodiesBuffer,
 			Private::FPBDCollisionSolverSimd& Solver,
 			const FPBDCollisionConstraint* Constraint, 
 			const FSolverReal Dt, 
@@ -179,12 +179,13 @@ namespace Chaos
 		// Transform and copy all constraint data for use by the solver
 		template<int TNumLanes>
 		void UpdateSolverFromConstraint(
-			TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPointsBuffer,
-			TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodiesBuffer,
+			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPointsBuffer,
+			const TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodiesBuffer,
 			FPBDCollisionSolverSimd& Solver,
 			const FPBDCollisionConstraint* Constraint,
 			const FSolverReal Dt, 
-			const FPBDCollisionSolverSettings& SolverSettings)
+			const FPBDCollisionSolverSettings& SolverSettings,
+			bool& bOutPerIterationCollision)
 		{
 			// Friction values. Static and Dynamic friction are applied in the position solve for most shapes.
 			// We can also run in a mode without static friction at all. This is faster but stacking is not possible.
@@ -225,6 +226,8 @@ namespace Chaos
 			Solver.SolverBody1().SetInvIScale(Constraint->GetInvInertiaScale1());
 			Solver.SolverBody1().SetShockPropagationScale(FReal(1));
 
+			bOutPerIterationCollision = (!Constraint->GetUseManifold() || Constraint->GetUseIncrementalCollisionDetection());
+
 			UpdateSolverManifoldFromConstraint(
 				ManifoldPointsBuffer,
 				SolverBodiesBuffer,
@@ -237,7 +240,7 @@ namespace Chaos
 
 		template<int TNumLanes>
 		void UpdateConstraintFromSolver(
-			TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPointsBuffer,
+			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPointsBuffer,
 			FPBDCollisionConstraint* Constraint,
 			const Private::FPBDCollisionSolverSimd& Solver, 
 			const FSolverReal Dt)
@@ -282,6 +285,7 @@ namespace Chaos
 			: FConstraintContainerSolver(InPriority)
 			, ConstraintContainer(InConstraintContainer)
 			, NumConstraints(0)
+			, bPerIterationCollisionDetection(false)
 			, DummySolverBody(FSolverBody::MakeInitialized())
 			, DummyConstraintSolverBody(DummySolverBody)
 		{
@@ -299,15 +303,16 @@ namespace Chaos
 			// @todo(chaos): allocation policy to reduce number of resizes as contacts increase
 			Constraints.Reset(MaxCollisions);
 			Solvers.Reset(MaxCollisions);
+			bCollisionConstraintPerIterationCollisionDetection.Reset(MaxCollisions);
 
 			// This is over-allocating by up to a factor of NumLanes!
-			Data.SimdManifoldPoints.Reset(MaxCollisions);
-			Data.SimdConstraintIndices.Reset(MaxCollisions);
+			SimdData.SimdManifoldPoints.Reset(MaxCollisions);
+			SimdData.SimdConstraintIndices.Reset(MaxCollisions);
 
 			for (int32 LaneIndex = 0; LaneIndex < GetNumLanes(); ++LaneIndex)
 			{
-				Data.SimdNumConstraints[LaneIndex] = 0;
-				Data.SimdNumManifoldPoints[LaneIndex] = 0;
+				SimdData.SimdNumConstraints[LaneIndex] = 0;
+				SimdData.SimdNumManifoldPoints[LaneIndex] = 0;
 			}
 			NumConstraints = 0;
 		}
@@ -323,20 +328,20 @@ namespace Chaos
 			// Decide what lane this island goes into: Find the lane with the least constraints in it
 			// @todo(chaos): should use manifold point count, not constraint count
 			int32 IslandLaneIndex = 0;
-			int32 IslandLaneNumConstraints = Data.SimdNumConstraints[0];
+			int32 IslandLaneNumConstraints = SimdData.SimdNumConstraints[0];
 			for (int32 LaneIndex = 1; LaneIndex < GetNumLanes(); ++LaneIndex)
 			{
-				if (Data.SimdNumConstraints[LaneIndex] < IslandLaneNumConstraints)
+				if (SimdData.SimdNumConstraints[LaneIndex] < IslandLaneNumConstraints)
 				{
 					IslandLaneIndex = LaneIndex;
-					IslandLaneNumConstraints = Data.SimdNumConstraints[LaneIndex];
+					IslandLaneNumConstraints = SimdData.SimdNumConstraints[LaneIndex];
 				}
 			}
 
 			// Make sure we have enough constraint rows for these constraints (space is pre-allocated)
-			if (Data.SimdConstraintIndices.Num() < IslandLaneNumConstraints + IslandConstraints.Num())
+			if (SimdData.SimdConstraintIndices.Num() < IslandLaneNumConstraints + IslandConstraints.Num())
 			{
-				Data.SimdConstraintIndices.SetNum(IslandLaneNumConstraints + IslandConstraints.Num());
+				SimdData.SimdConstraintIndices.SetNum(IslandLaneNumConstraints + IslandConstraints.Num());
 			}
 
 			// Add all the constraints in the island to the selected lane
@@ -349,10 +354,10 @@ namespace Chaos
 				const int32 ConstraintIndex = Constraints.Add(&Constraint);
 
 				// Add the constraint to its island's lane
-				const int32 RowIndex = Data.SimdNumConstraints[IslandLaneIndex];
-				Data.SimdConstraintIndices[RowIndex].ConstraintIndex[IslandLaneIndex] = ConstraintIndex;
+				const int32 RowIndex = SimdData.SimdNumConstraints[IslandLaneIndex];
+				SimdData.SimdConstraintIndices[RowIndex].ConstraintIndex[IslandLaneIndex] = ConstraintIndex;
 
-				++Data.SimdNumConstraints[IslandLaneIndex];
+				++SimdData.SimdNumConstraints[IslandLaneIndex];
 				++NumConstraints;
 			}
 		}
@@ -361,18 +366,19 @@ namespace Chaos
 		{
 			// Allocate the solvers
 			Solvers.SetNum(Constraints.Num());
+			bCollisionConstraintPerIterationCollisionDetection.SetNum(Constraints.Num());
 
 			// Reset manifold pointer per lane counter
 			for (int32 LaneIndex = 0; LaneIndex < GetNumLanes(); ++LaneIndex)
 			{
-				Data.SimdNumManifoldPoints[LaneIndex] = 0;
+				SimdData.SimdNumManifoldPoints[LaneIndex] = 0;
 			}
 
 			// Determine how many manifold point rows we need and tell each solver where its points are
 			int32 NumManifoldPointRows = 0;
-			for (int32 ConstraintRowIndex = 0; ConstraintRowIndex < Data.SimdConstraintIndices.Num(); ++ConstraintRowIndex)
+			for (int32 ConstraintRowIndex = 0; ConstraintRowIndex < SimdData.SimdConstraintIndices.Num(); ++ConstraintRowIndex)
 			{
-				TConstraintIndexSimd<4>& ConstraintIndices = Data.SimdConstraintIndices[ConstraintRowIndex];
+				TConstraintIndexSimd<4>& ConstraintIndices = SimdData.SimdConstraintIndices[ConstraintRowIndex];
 
 				for (int32 LaneIndex = 0; LaneIndex < GetNumLanes(); ++LaneIndex)
 				{
@@ -385,22 +391,22 @@ namespace Chaos
 						Solvers[ConstraintIndex].SetManifoldPointsBuffer(
 							ConstraintIndex,
 							LaneIndex,
-							Data.SimdNumManifoldPoints[LaneIndex],
+							SimdData.SimdNumManifoldPoints[LaneIndex],
 							NumManifoldPoints);
 
-						Data.SimdNumManifoldPoints[LaneIndex] += NumManifoldPoints;
-						NumManifoldPointRows = FMath::Max(NumManifoldPointRows, Data.SimdNumManifoldPoints[LaneIndex]);
+						SimdData.SimdNumManifoldPoints[LaneIndex] += NumManifoldPoints;
+						NumManifoldPointRows = FMath::Max(NumManifoldPointRows, SimdData.SimdNumManifoldPoints[LaneIndex]);
 					}
 				}
 			}
 
 			// Allocate the manifold point solver rows
-			Data.SimdManifoldPoints.SetNum(NumManifoldPointRows);
+			SimdData.SimdManifoldPoints.SetNum(NumManifoldPointRows);
 
 			// Initalize the set of body pointers with a dummy body.
 			// This allows us to avoid some branches in the body data gather for rows where not all lanes are used
-			Data.SimdSolverBodies.SetNum(NumManifoldPointRows);
-			for (TSolverBodyPtrPairSimd<4>& SolverBodies : Data.SimdSolverBodies)
+			SimdData.SimdSolverBodies.SetNum(NumManifoldPointRows);
+			for (TSolverBodyPtrPairSimd<4>& SolverBodies : SimdData.SimdSolverBodies)
 			{
 				SolverBodies.Body0.SetValues(&DummySolverBody);
 				SolverBodies.Body1.SetValues(&DummySolverBody);
@@ -450,14 +456,16 @@ namespace Chaos
 
 			const FSolverReal Dt = FSolverReal(InDt);
 
-			TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>> ManifoldPointsBuffer = MakeArrayView(Data.SimdManifoldPoints);
-			TArrayView<TSolverBodyPtrPairSimd<4>> SolverBodiesBuffer = MakeArrayView(Data.SimdSolverBodies);
+			TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>> ManifoldPointsBuffer = MakeArrayView(SimdData.SimdManifoldPoints);
+			TArrayView<TSolverBodyPtrPairSimd<4>> SolverBodiesBuffer = MakeArrayView(SimdData.SimdSolverBodies);
 
 			// @todo(chaos): would it be better to iterate over manifold point rows?
+			bool bAnyPerIterationCollisions = false;
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
 				FPBDCollisionConstraint* Constraint = Constraints[ConstraintIndex];
 				FPBDCollisionSolverSimd& Solver = Solvers[ConstraintIndex];
+				bool& bPerIterationCollision = bCollisionConstraintPerIterationCollisionDetection[ConstraintIndex];
 
 				UpdateSolverFromConstraint(
 					ManifoldPointsBuffer,
@@ -465,7 +473,16 @@ namespace Chaos
 					Solver,
 					Constraint, 
 					Dt, 
-					ConstraintContainer.GetSolverSettings());
+					ConstraintContainer.GetSolverSettings(),
+					bPerIterationCollision);
+
+				bAnyPerIterationCollisions = bAnyPerIterationCollisions || bPerIterationCollision;
+			}
+
+			if (bAnyPerIterationCollisions)
+			{
+				// We should lock here? We only ever set to true or do nothing so I think it doesn't matter if this happens on multiple threads...
+				bPerIterationCollisionDetection = true;
 			}
 		}
 
@@ -493,7 +510,7 @@ namespace Chaos
 
 			const FSolverReal Dt = FSolverReal(InDt);
 
-			TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>> ManifoldPointsBuffer = MakeArrayView(Data.SimdManifoldPoints);
+			TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>> ManifoldPointsBuffer = MakeArrayView(SimdData.SimdManifoldPoints);
 
 			// @todo(chaos): would it be better to iterate over manifold point rows?
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
@@ -528,11 +545,11 @@ namespace Chaos
 			// We run collision detection here under two conditions (normally it is run after Integration and before the constraint solver phase):
 			// 1) When deferring collision detection until the solver phase for better joint-collision behaviour (RBAN). In this case, we only do this on the first iteration.
 			// 2) When using no manifolds or incremental manifolds, where we may add/replace manifold points every iteration.
-			//const bool bRunDeferredCollisionDetection = (It == 0) && ConstraintContainer.GetDetectorSettings().bDeferNarrowPhase;
-			//if (bRunDeferredCollisionDetection || bPerIterationCollisionDetection)
-			//{
-			//	UpdateCollisions(InDt, BeginIndex, EndIndex);
-			//}
+			const bool bRunDeferredCollisionDetection = (It == 0) && ConstraintContainer.GetDetectorSettings().bDeferNarrowPhase;
+			if (bRunDeferredCollisionDetection || bPerIterationCollisionDetection)
+			{
+				UpdateCollisions(InDt);
+			}
 
 			// Only apply friction for the last few (tunable) iterations
 			// Adjust max pushout to attempt to make it iteration count independent
@@ -544,16 +561,16 @@ namespace Chaos
 			if (bApplyStaticFriction)
 			{
 				Private::FPBDCollisionSolverHelperSimd::SolvePositionWithFriction(
-					MakeArrayView(Data.SimdManifoldPoints),
-					MakeArrayView(Data.SimdSolverBodies),
+					MakeArrayView(SimdData.SimdManifoldPoints),
+					MakeArrayView(SimdData.SimdSolverBodies),
 					Dt,
 					MaxPushOut);
 			}
 			else
 			{
 				Private::FPBDCollisionSolverHelperSimd::SolvePositionNoFriction(
-					MakeArrayView(Data.SimdManifoldPoints),
-					MakeArrayView(Data.SimdSolverBodies),
+					MakeArrayView(SimdData.SimdManifoldPoints),
+					MakeArrayView(SimdData.SimdSolverBodies),
 					Dt,
 					MaxPushOut);
 			}
@@ -577,15 +594,15 @@ namespace Chaos
 			if (bApplyDynamicFriction)
 			{
 				Private::FPBDCollisionSolverHelperSimd::SolveVelocityWithFriction(
-					MakeArrayView(Data.SimdManifoldPoints),
-					MakeArrayView(Data.SimdSolverBodies),
+					MakeArrayView(SimdData.SimdManifoldPoints),
+					MakeArrayView(SimdData.SimdSolverBodies),
 					Dt);
 			}
 			else
 			{
 				Private::FPBDCollisionSolverHelperSimd::SolveVelocityNoFriction(
-					MakeArrayView(Data.SimdManifoldPoints),
-					MakeArrayView(Data.SimdSolverBodies),
+					MakeArrayView(SimdData.SimdManifoldPoints),
+					MakeArrayView(SimdData.SimdSolverBodies),
 					Dt);
 			}
 		}
@@ -598,84 +615,91 @@ namespace Chaos
 		void FPBDCollisionContainerSolverSimd::UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const FPBDCollisionSolverSettings& SolverSettings)
 		{
 			// If this is the first shock propagation iteration, enable it on each solver
-			//const bool bEnableShockPropagation = (It == NumIts - SolverSettings.NumPositionShockPropagationIterations);
-			//if (bEnableShockPropagation)
-			//{
-			//	for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			//	{
-			//		CollisionSolvers[SolverIndex].EnablePositionShockPropagation();
-			//	}
-			//}
+			const bool bEnableShockPropagation = (It == NumIts - SolverSettings.NumPositionShockPropagationIterations);
+			if (bEnableShockPropagation)
+			{
+				for (int32 SolverIndex = 0; SolverIndex < Solvers.Num(); ++SolverIndex)
+				{
+					Solvers[SolverIndex].EnablePositionShockPropagation(MakeArrayView(SimdData.SimdManifoldPoints));
+				}
+			}
 		}
 
 		void FPBDCollisionContainerSolverSimd::UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const FPBDCollisionSolverSettings& SolverSettings)
 		{
 			// Set/reset the shock propagation based on current iteration. The position solve may
 			// have left the bodies with a mass scale and we want to change or reset it.
-			//const bool bEnableShockPropagation = (It == NumIts - SolverSettings.NumVelocityShockPropagationIterations);
-			//if (bEnableShockPropagation)
-			//{
-			//	for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			//	{
-			//		CollisionSolvers[SolverIndex].EnableVelocityShockPropagation();
-			//	}
-			//}
-			//else if (It == 0)
-			//{
-			//	for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			//	{
-			//		CollisionSolvers[SolverIndex].DisableShockPropagation();
-			//	}
-			//}
+			const bool bEnableShockPropagation = (It == NumIts - SolverSettings.NumVelocityShockPropagationIterations);
+			if (bEnableShockPropagation)
+			{
+				for (int32 SolverIndex = 0; SolverIndex < Solvers.Num(); ++SolverIndex)
+				{
+					Solvers[SolverIndex].EnableVelocityShockPropagation(MakeArrayView(SimdData.SimdManifoldPoints));
+				}
+			}
+			else if (It == 0)
+			{
+				for (int32 SolverIndex = 0; SolverIndex < Solvers.Num(); ++SolverIndex)
+				{
+					Solvers[SolverIndex].DisableShockPropagation(MakeArrayView(SimdData.SimdManifoldPoints));
+				}
+			}
 		}
 
 		void FPBDCollisionContainerSolverSimd::UpdateCollisions(const FReal InDt)
 		{
-			//const FSolverReal Dt = FSolverReal(InDt);
-			//const bool bDeferredCollisionDetection = ConstraintContainer.GetDetectorSettings().bDeferNarrowPhase;
+			const FSolverReal Dt = FSolverReal(InDt);
+			const bool bDeferredCollisionDetection = ConstraintContainer.GetDetectorSettings().bDeferNarrowPhase;
 
-			//bool bNeedsAnotherIteration = false;
-			//for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			//{
-			//	if (bDeferredCollisionDetection || bCollisionConstraintPerIterationCollisionDetection[SolverIndex])
-			//	{
-			//		Private::FPBDCollisionSolverSimd& CollisionSolver = CollisionSolvers[SolverIndex];
-			//		FPBDCollisionConstraint* Constraint = CollisionConstraints[SolverIndex];
+			bool bNeedsAnotherIteration = false;
+			for (int32 SolverIndex = 0; SolverIndex < Solvers.Num(); ++SolverIndex)
+			{
+				if (bDeferredCollisionDetection || bCollisionConstraintPerIterationCollisionDetection[SolverIndex])
+				{
+					Private::FPBDCollisionSolverSimd& CollisionSolver = Solvers[SolverIndex];
+					FPBDCollisionConstraint* Constraint = Constraints[SolverIndex];
 
-			//		// Run collision detection at the current transforms including any correction from previous iterations
-			//		const FSolverBody& Body0 = CollisionSolver.SolverBody0().SolverBody();
-			//		const FSolverBody& Body1 = CollisionSolver.SolverBody1().SolverBody();
-			//		const FRigidTransform3 CorrectedActorWorldTransform0 = FRigidTransform3(Body0.CorrectedActorP(), Body0.CorrectedActorQ());
-			//		const FRigidTransform3 CorrectedActorWorldTransform1 = FRigidTransform3(Body1.CorrectedActorP(), Body1.CorrectedActorQ());
-			//		const FRigidTransform3 CorrectedShapeWorldTransform0 = Constraint->GetShapeRelativeTransform0() * CorrectedActorWorldTransform0;
-			//		const FRigidTransform3 CorrectedShapeWorldTransform1 = Constraint->GetShapeRelativeTransform1() * CorrectedActorWorldTransform1;
+					// Run collision detection at the current transforms including any correction from previous iterations
+					const FSolverBody& Body0 = CollisionSolver.SolverBody0().SolverBody();
+					const FSolverBody& Body1 = CollisionSolver.SolverBody1().SolverBody();
+					const FRigidTransform3 CorrectedActorWorldTransform0 = FRigidTransform3(Body0.CorrectedActorP(), Body0.CorrectedActorQ());
+					const FRigidTransform3 CorrectedActorWorldTransform1 = FRigidTransform3(Body1.CorrectedActorP(), Body1.CorrectedActorQ());
+					const FRigidTransform3 CorrectedShapeWorldTransform0 = Constraint->GetShapeRelativeTransform0() * CorrectedActorWorldTransform0;
+					const FRigidTransform3 CorrectedShapeWorldTransform1 = Constraint->GetShapeRelativeTransform1() * CorrectedActorWorldTransform1;
 
-			//		// @todo(chaos): this is ugly - pass these to the required functions instead and remove from the constraint class
-			//		// This is now only needed for LevelSet collision (see UpdateLevelsetLevelsetConstraint)
-			//		Constraint->SetSolverBodies(&Body0, &Body1);
+					// @todo(chaos): this is ugly - pass these to the required functions instead and remove from the constraint class
+					// This is now only needed for LevelSet collision (see UpdateLevelsetLevelsetConstraint)
+					Constraint->SetSolverBodies(&Body0, &Body1);
 
-			//		// Reset the manifold if we are not using manifolds (we just use the first manifold point)
-			//		if (!Constraint->GetUseManifold())
-			//		{
-			//			Constraint->ResetActiveManifoldContacts();
-			//			CollisionSolver.ResetManifold();
-			//		}
+					// Reset the manifold if we are not using manifolds (we just use the first manifold point)
+					if (!Constraint->GetUseManifold())
+					{
+						Constraint->ResetActiveManifoldContacts();
+						CollisionSolver.ResetManifold();
+					}
 
-			//		// We need to know how many points were added to the manifold
-			//		const int32 BeginPointIndex = Constraint->NumManifoldPoints();
+					// We need to know how many points were added to the manifold
+					const int32 BeginPointIndex = Constraint->NumManifoldPoints();
 
-			//		// NOTE: We deliberately have not updated the ShapwWorldTranforms on the constraint. If we did that, we would calculate 
-			//		// errors incorrectly in UpdateManifoldPoints, because the solver assumes nothing has been moved as we iterate (we accumulate 
-			//		// corrections that will be applied later.)
-			//		Constraint->ResetPhi(Constraint->GetCullDistance());
-			//		Collisions::UpdateConstraint(*Constraint, CorrectedShapeWorldTransform0, CorrectedShapeWorldTransform1, Dt);
+					// NOTE: We deliberately have not updated the ShapwWorldTranforms on the constraint. If we did that, we would calculate 
+					// errors incorrectly in UpdateManifoldPoints, because the solver assumes nothing has been moved as we iterate (we accumulate 
+					// corrections that will be applied later.)
+					Constraint->ResetPhi(Constraint->GetCullDistance());
+					Collisions::UpdateConstraint(*Constraint, CorrectedShapeWorldTransform0, CorrectedShapeWorldTransform1, Dt);
 
-			//		// Update the manifold based on the new or updated contacts
-			//		UpdateCollisionSolverManifoldFromConstraint(CollisionSolver, Constraint, Dt, BeginPointIndex, Constraint->NumManifoldPoints());
+					// Update the manifold based on the new or updated contacts
+					UpdateSolverManifoldFromConstraint(
+						MakeArrayView(SimdData.SimdManifoldPoints),
+						MakeArrayView(SimdData.SimdSolverBodies),
+						CollisionSolver, 
+						Constraint, 
+						Dt, 
+						BeginPointIndex, 
+						Constraint->NumManifoldPoints());
 
-			//		Constraint->SetSolverBodies(nullptr, nullptr);
-			//	}
-			//}
+					Constraint->SetSolverBodies(nullptr, nullptr);
+				}
+			}
 		}
 
 	}	// namespace Private

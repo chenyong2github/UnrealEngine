@@ -18,76 +18,12 @@ namespace Chaos
 {
 	namespace CVars
 	{
-		extern float Chaos_PBDCollisionSolver_Position_MinInvMassScale;
-		extern float Chaos_PBDCollisionSolver_Velocity_MinInvMassScale;
 		extern bool bChaos_PBDCollisionSolver_Velocity_FrictionEnabled;
 		extern float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness;
 	}
-	using namespace CVars;
 
 	namespace Private
 	{
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-		void FPBDCollisionSolverSimd::EnablePositionShockPropagation()
-		{
-			SetShockPropagationInvMassScale(Chaos_PBDCollisionSolver_Position_MinInvMassScale);
-		}
-
-		void FPBDCollisionSolverSimd::EnableVelocityShockPropagation()
-		{
-			SetShockPropagationInvMassScale(Chaos_PBDCollisionSolver_Velocity_MinInvMassScale);
-		}
-
-		void FPBDCollisionSolverSimd::DisableShockPropagation()
-		{
-			SetShockPropagationInvMassScale(FReal(1));
-		}
-
-		void FPBDCollisionSolverSimd::SetShockPropagationInvMassScale(const FSolverReal InvMassScale)
-		{
-			FConstraintSolverBody& Body0 = SolverBody0();
-			FConstraintSolverBody& Body1 = SolverBody1();
-
-			// Shock propagation decreases the inverse mass of bodies that are lower in the pile
-			// of objects. This significantly improves stability of heaps and stacks. Height in the pile is indictaed by the "level". 
-			// No need to set an inverse mass scale if the other body is kinematic (with inv mass of 0).
-			// Bodies at the same level do not take part in shock propagation.
-			if (Body0.IsDynamic() && Body1.IsDynamic() && (Body0.Level() != Body1.Level()))
-			{
-				// Set the inv mass scale of the "lower" body to make it heavier
-				bool bInvMassUpdated = false;
-				if (Body0.Level() < Body1.Level())
-				{
-					if (Body0.ShockPropagationScale() != InvMassScale)
-					{
-						Body0.SetShockPropagationScale(InvMassScale);
-						bInvMassUpdated = true;
-					}
-				}
-				else
-				{
-					if (Body1.ShockPropagationScale() != InvMassScale)
-					{
-						Body1.SetShockPropagationScale(InvMassScale);
-						bInvMassUpdated = true;
-					}
-				}
-
-				// If the masses changed, we need to rebuild the contact mass for each manifold point
-				//if (bInvMassUpdated)
-				//{
-				//	for (int32 PointIndex = 0; PointIndex < NumManifoldPoints(); ++PointIndex)
-				//	{
-				//		State.ManifoldPoints[PointIndex].UpdateMassNormal(Body0, Body1);
-				//	}
-				//}
-			}
-		}
 
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////////////////////////////

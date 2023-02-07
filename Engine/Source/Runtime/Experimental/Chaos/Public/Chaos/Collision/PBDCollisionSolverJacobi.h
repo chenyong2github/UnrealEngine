@@ -7,12 +7,6 @@
 #include "Chaos/Evolution/SolverBody.h"
 #include "Chaos/Framework/UncheckedArray.h"
 
-// Set to 0 to use a linearized error calculation, and set to 1 to use a non-linear error calculation in collision detection. 
-// In principle nonlinear is more accurate when large rotation corrections occur, but this is not too important for collisions because 
-// when the bodies settle the corrections are small. The linearized version is significantly faster than the non-linear version because 
-// the non-linear version requires a quaternion multiply and renormalization whereas the linear version is just a cross product.
-#define CHAOS_NONLINEAR_COLLISIONS_ENABLED 0
-
 namespace Chaos
 {
 	class FManifoldPoint;
