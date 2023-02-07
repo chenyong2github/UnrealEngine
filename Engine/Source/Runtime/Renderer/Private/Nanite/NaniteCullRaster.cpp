@@ -15,6 +15,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "SceneTextureReductions.h"
+#include "Engine/Engine.h"
 #include "RenderGraphUtils.h"
 #include "Engine/Engine.h"
 #include "Materials/Material.h"
