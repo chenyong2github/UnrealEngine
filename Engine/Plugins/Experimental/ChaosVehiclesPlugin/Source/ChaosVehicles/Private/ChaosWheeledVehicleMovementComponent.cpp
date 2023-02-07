@@ -274,7 +274,7 @@ void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FCh
 
 		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && PVehicle->bSuspensionEnabled)
 		{
-			ApplySuspensionForces(DeltaTime);
+			ApplySuspensionForces(DeltaTime, InputData.WheelTraceParams);
 		}
 
 		///////////////////////////////////////////////////////////////////////
@@ -574,7 +574,7 @@ void UChaosWheeledVehicleSimulation::ApplyWheelFrictionForces(float DeltaTime)
 	}
 }
 
-void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
+void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime, TArray<FWheelTraceParams>& WheelTraceParams)
 {
 	using namespace Chaos;
 
@@ -602,7 +602,15 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 					{
 						if (FSuspensionConstraintPhysicsProxy* Proxy = Constraint->GetProxy<FSuspensionConstraintPhysicsProxy>())
 						{
-							const FVec3 TargetPos = HitResult.ImpactPoint + (PWheel.GetEffectiveRadius() * VehicleState.VehicleUpAxis);
+							FVec3 TargetPos;
+							if (WheelTraceParams[WheelIdx].SweepShape == ESweepShape::Raycast)
+							{
+								TargetPos = HitResult.ImpactPoint + (PWheel.GetEffectiveRadius() * VehicleState.VehicleUpAxis);
+							}
+							else
+							{
+								TargetPos = HitResult.Location;
+							}
 
 							Chaos::FPhysicsSolver* Solver = Proxy->GetSolver<Chaos::FPhysicsSolver>();
 

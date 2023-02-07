@@ -605,7 +605,7 @@ public:
 	virtual void ApplyWheelFrictionForces(float DeltaTime);
 
 	/** calculate and apply chassis suspension forces */
-	virtual void ApplySuspensionForces(float DeltaTime);
+	virtual void ApplySuspensionForces(float DeltaTime, TArray<FWheelTraceParams>& WheelTraceParams);
 
 	bool IsWheelSpinning() const;
 	bool ContainsTraces(const FBox& Box, const TArray<struct Chaos::FSuspensionTrace>& SuspensionTrace);
