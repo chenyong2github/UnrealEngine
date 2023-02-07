@@ -732,6 +732,7 @@ namespace Jupiter
         public bool UseBlobIndexForSlowExists { get; set; } = false;
         public bool IsPublicNamespace { get; set; } = true;
         public NamespaceId? FallbackNamespace { get; set; } = null;
+        public bool PopulateFallbackNamespaceOnUpload { get; set; } = true;
 
         public enum StoragePoolGCMethod  { None, LastAccess, TTL };
 
