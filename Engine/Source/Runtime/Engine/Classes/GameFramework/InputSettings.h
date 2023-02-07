@@ -188,8 +188,9 @@ public:
 	// UObject interface
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual void PostReloadConfig( class FProperty* PropertyThatWasLoaded ) override;
 #endif
+
+	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 
 	void RemoveInvalidKeys();
 
@@ -289,6 +290,7 @@ public:
 	
 private:
 	void PopulateAxisConfigs();
+	void AddInternationalConsoleKey();
 };
 
 /**
