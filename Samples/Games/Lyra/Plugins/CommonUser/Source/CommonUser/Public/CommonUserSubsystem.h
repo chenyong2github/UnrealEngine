@@ -6,12 +6,16 @@
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-
+#include "UObject/WeakObjectPtr.h"
 #include "GameplayTagContainer.h"
+#include "CommonUserSubsystem.generated.h"
+
+#if COMMONUSER_OSSV1
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineError.h"
-#include "UObject/WeakObjectPtr.h"
-#include "CommonUserSubsystem.generated.h"
+#else
+#include "Online/OnlineAsyncOpHandle.h"
+#endif
 
 class FNativeGameplayTag;
 class IOnlineSubsystem;

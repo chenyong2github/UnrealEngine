@@ -17,6 +17,7 @@
 #else
 #include "Online/Auth.h"
 #include "Online/ExternalUI.h"
+#include "Online/OnlineResult.h"
 #include "Online/OnlineServices.h"
 #include "Online/OnlineServicesEngineUtils.h"
 #include "Online/Privileges.h"
