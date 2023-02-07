@@ -540,21 +540,27 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Adds a new directory with the given name
 		/// </summary>
+		/// <param name="entry">Name of the new directory</param>
+		public void AddDirectory(DirectoryEntry entry)
+		{
+			if (TryGetFileEntry(entry.Name, out _))
+			{
+				throw new ArgumentException($"A file with the name '{entry.Name}' already exists in this directory", nameof(entry));
+			}
+
+			_nameToDirectoryEntry.Add(entry.Name, entry);
+			MarkAsDirty();
+		}
+
+		/// <summary>
+		/// Adds a new directory with the given name
+		/// </summary>
 		/// <param name="name">Name of the new directory</param>
 		/// <returns>The new directory object</returns>
 		public DirectoryNode AddDirectory(Utf8String name)
 		{
-			if (TryGetFileEntry(name, out _))
-			{
-				throw new ArgumentException($"A file with the name '{name}' already exists in this directory", nameof(name));
-			}
-
 			DirectoryNode node = new DirectoryNode(Flags);
-
-			DirectoryEntry entry = new DirectoryEntry(name, node);
-			_nameToDirectoryEntry.Add(name, entry);
-			MarkAsDirty();
-
+			AddDirectory(new DirectoryEntry(name, node));
 			return node;
 		}
 
@@ -657,7 +663,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			dirToNode.Add(baseDir, this);
 
 			List<(DirectoryNode, FileInfo)> groupedFiles = new List<(DirectoryNode, FileInfo)>();
-			foreach (FileReference file in files)
+			foreach (FileReference file in files.OrderBy(x => x))
 			{
 				DirectoryNode? node = FindOrAddDirectory(file.Directory, baseDir, dirToNode);
 				if (node == null)
