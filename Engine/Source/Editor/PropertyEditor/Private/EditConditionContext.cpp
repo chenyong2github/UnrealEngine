@@ -3,8 +3,10 @@
 #include "EditConditionContext.h"
 #include "EditConditionParser.h"
 
+#include "ObjectPropertyNode.h"
 #include "PropertyNode.h"
 #include "PropertyEditorHelpers.h"
+#include "PropertyPathHelpers.h"
 
 DEFINE_LOG_CATEGORY(LogEditCondition);
 
@@ -61,8 +63,45 @@ const FBoolProperty* FEditConditionContext::GetSingleBoolProperty(const TSharedP
 	return BoolProperty;
 }
 
+const TWeakObjectPtr<UFunction> FEditConditionContext::GetFunction(const FString& FieldName) const
+{
+	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
+	if (!PinnedNode.IsValid())
+	{
+		return nullptr;
+	}
+
+	const FProperty* Property = PinnedNode->GetProperty();
+	if (Property == nullptr)
+	{
+		return nullptr;
+	}
+
+	TWeakObjectPtr<UFunction> Function = FindUField<UFunction>(Property->GetOwnerStruct(), *FieldName);
+
+	if (Function == nullptr && FieldName.Contains(TEXT(".")))
+	{
+		// Function not found in struct, try to see if this is a static function
+		Function = FindObject<UFunction>(nullptr, *FieldName, true);
+
+		if (Function.IsValid() && !Function->HasAnyFunctionFlags(EFunctionFlags::FUNC_Static))
+		{
+			Function = nullptr;
+		}
+	}
+
+	return Function;
+}
+
 static TSet<TPair<FName, FString>> AlreadyLogged;
 
+/**
+ * Attempt to property within the node & log if not found.
+ * 
+ * @param PropertyNode		Property owning the field to search for, ex: a UObject
+ * @param FieldNam			Name of field to search for
+ * @return					Field for given fieldname if found, nullptr otherwise 
+ */
 template<typename T>
 const T* FindTypedField(const TSharedPtr<FPropertyNode>& PropertyNode, const FString& FieldName)
 {
@@ -133,12 +172,78 @@ static const uint8* GetPropertyValuePtr(const FProperty* Property, const TShared
 	return ValuePtr;
 }
 
-TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName) const
+TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName, TWeakObjectPtr<UFunction> CachedFunction) const
 {
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
 	if (!PinnedNode.IsValid())
 	{
 		return TOptional<bool>();
+	}
+
+	if (const UFunction* Function = CachedFunction.Get())
+	{
+		if (CastField<FBoolProperty>(Function->GetReturnProperty()) == nullptr)
+		{
+			// Function return type not bool, return undefined
+			return TOptional<bool>();
+		}
+
+		// Check for external static function references 
+		if (Function->HasAnyFunctionFlags(EFunctionFlags::FUNC_Static))
+		{
+			FString StaticFunctionName = {};
+			UObject* EditConditionExpressionCDO = Function->GetOuterUClass()->GetDefaultObject();
+			Function->GetName(StaticFunctionName);
+
+			{
+				FEditorScriptExecutionGuard ScriptExecutionGuard;
+				FCachedPropertyPath Path(StaticFunctionName);
+				bool bResult = true;
+				if (PropertyPathHelpers::GetPropertyValue(EditConditionExpressionCDO, Path, bResult))
+				{
+					return bResult;
+				}
+				else
+				{
+					// Execution failed, return undefined
+					return TOptional<bool>();
+				}
+			}
+		}
+
+		// We might be selecting multiple objects, account for that
+		TArray<UObject*> OutObjects;
+		FObjectPropertyNode* ObjectNode = PinnedNode->FindObjectItemParent();
+		if (ObjectNode)
+		{
+			int32 NumObjects = ObjectNode->GetNumObjects();
+			for (int32 ObjectIndex = 0; ObjectIndex < NumObjects; ++ObjectIndex)
+			{
+				FEditorScriptExecutionGuard ScriptExecutionGuard;
+
+				UObject* FunctionTarget = ObjectNode->GetUObject(ObjectIndex);
+				FCachedPropertyPath FunctionPath(PropertyName);
+				bool bResult = true;
+				if (PropertyPathHelpers::GetPropertyValue(FunctionTarget, FunctionPath, bResult))
+				{
+					if (!bResult)
+					{
+						return false;
+					}
+				}
+				else
+				{
+					// Execution failed, return undefined
+					return TOptional<bool>();
+				}
+			}
+
+			// Executed our target function over relevant objects with no condtion failures, return true
+			if (NumObjects > 0)
+			{
+				return true;
+			}
+		}
 	}
 
 	const FBoolProperty* BoolProperty = FindTypedField<FBoolProperty>(PinnedNode, PropertyName);
@@ -183,11 +288,17 @@ TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName)
 	return Result;
 }
 
-TOptional<int64> FEditConditionContext::GetIntegerValue(const FString& PropertyName) const
+TOptional<int64> FEditConditionContext::GetIntegerValue(const FString& PropertyName, TWeakObjectPtr<UFunction> CachedFunction) const
 {
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
 	if (!PinnedNode.IsValid())
 	{
+		return TOptional<int64>();
+	}
+
+	if (const UFunction* Function = CachedFunction.Get())
+	{ 
+		// EditConditions Currently only support bool, see: UE-175891
 		return TOptional<int64>();
 	}
 
@@ -244,11 +355,17 @@ TOptional<int64> FEditConditionContext::GetIntegerValue(const FString& PropertyN
 	return Result;
 }
 
-TOptional<double> FEditConditionContext::GetNumericValue(const FString& PropertyName) const
+TOptional<double> FEditConditionContext::GetNumericValue(const FString& PropertyName, TWeakObjectPtr<UFunction> CachedFunction) const
 {
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
 	if (!PinnedNode.IsValid())
 	{
+		return TOptional<double>();
+	}
+
+	if (const UFunction* Function = CachedFunction.Get())
+	{
+		// EditConditions Currently only support bool, see: UE-175891
 		return TOptional<double>();
 	}
 
@@ -304,11 +421,17 @@ TOptional<double> FEditConditionContext::GetNumericValue(const FString& Property
 	return Result;
 }
 
-TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyName) const
+TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyName, TWeakObjectPtr<UFunction> CachedFunction) const
 {
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
 	if (!PinnedNode.IsValid())
 	{
+		return TOptional<FString>();
+	}
+
+	if (const UFunction* Function = CachedFunction.Get())
+	{
+		// EditConditions Currently only support bool, see: UE-175891
 		return TOptional<FString>();
 	}
 
@@ -379,11 +502,17 @@ TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyNa
 	return EnumType->GetNameStringByValue(Result.GetValue());
 }
 
-TOptional<UObject*> FEditConditionContext::GetPointerValue(const FString& PropertyName) const
+TOptional<UObject*> FEditConditionContext::GetPointerValue(const FString& PropertyName, TWeakObjectPtr<UFunction> CachedFunction) const
 {
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
 	if (!PinnedNode.IsValid())
 	{
+		return TOptional<UObject*>();
+	}
+
+	if (const UFunction* Function = CachedFunction.Get())
+	{
+		// EditConditions Currently only support bool, see: UE-175891
 		return TOptional<UObject*>();
 	}
 
@@ -435,7 +564,7 @@ TOptional<UObject*> FEditConditionContext::GetPointerValue(const FString& Proper
 	return Result;
 }
 
-TOptional<FString> FEditConditionContext::GetTypeName(const FString& PropertyName) const
+TOptional<FString> FEditConditionContext::GetTypeName(const FString& PropertyName, TWeakObjectPtr<UFunction> CachedFunction) const
 {
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
 	if (!PinnedNode.IsValid())
@@ -443,26 +572,37 @@ TOptional<FString> FEditConditionContext::GetTypeName(const FString& PropertyNam
 		return TOptional<FString>();
 	}
 
-	const FProperty* Property = FindTypedField<FProperty>(PinnedNode, PropertyName);
-	if (Property == nullptr)
+	auto GetPropertyName = [](const FProperty* Property) -> TOptional<FString>
 	{
-		return TOptional<FString>();
-	}
-
-	if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
-	{
-		return EnumProperty->GetEnum()->GetName();
-	}
-	else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
-	{
-		const UEnum* EnumType = ByteProperty->GetIntPropertyEnum();
-		if (EnumType != nullptr)
+		if (Property == nullptr)
 		{
-			return EnumType->GetName();
+			return TOptional<FString>();
 		}
+
+		if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
+		{
+			return EnumProperty->GetEnum()->GetName();
+		}
+		else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
+		{
+			const UEnum* EnumType = ByteProperty->GetIntPropertyEnum();
+			if (EnumType != nullptr)
+			{
+				return EnumType->GetName();
+			}
+		}
+
+		return Property->GetCPPType();
+	};
+
+	if (const UFunction* Function = CachedFunction.Get())
+	{
+		return GetPropertyName(Function->GetReturnProperty());
 	}
 
-	return Property->GetCPPType();
+	const FProperty* Property = FindTypedField<FProperty>(PinnedNode, PropertyName);
+
+	return GetPropertyName(Property);
 }
 
 TOptional<int64> FEditConditionContext::GetIntegerValueOfEnum(const FString& EnumTypeName, const FString& MemberName) const

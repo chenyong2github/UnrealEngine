@@ -26,6 +26,13 @@ enum EditConditionByteEnum : int
 	Second = 31
 };
 
+
+/**
+ * Test object for edit condition property checks
+ * 
+ * Note: Currently only bool functions are supported (Including static). 
+ * remaining are not used because currently not supported by edit condition parser
+ */
 UCLASS(transient)
 class UEditConditionTestObject : public UObject
 {
@@ -57,4 +64,68 @@ class UEditConditionTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category=Test)
 	TWeakObjectPtr<UObject> WeakObjectPtr;
+
+public:
+	/** Used in test cases that should fail, should not be able to execute a void function in edit condition */
+	UFUNCTION()
+	void VoidFunction() const;
+
+	UFUNCTION()
+	bool GetBoolFunction() const;
+
+	UFUNCTION()
+	EditConditionTestEnum GetEnumFunction() const;
+
+	UFUNCTION()
+	TEnumAsByte<EditConditionByteEnum> GetByteEnumFunction() const;
+
+	UFUNCTION()
+	double GetDoubleFunction() const;
+
+	UFUNCTION()
+	int32 GetIntegerFunction() const;
+
+	UFUNCTION()
+	uint8 GetUintBitfieldFunction() const;
+
+	UFUNCTION()
+	UObject* GetUObjectPtrFunction() const;
+
+	UFUNCTION()
+	TSoftClassPtr<UObject> GetSoftClassPtrFunction() const;
+
+	UFUNCTION()
+	TWeakObjectPtr<UObject> GetWeakObjectPtrFunction() const;
+	
+public:
+	/** Used in test cases that should fail, should not be able to execute a void function in edit condition */
+	UFUNCTION()
+	void StaticVoidFunction();
+
+	UFUNCTION()
+	static bool StaticGetBoolFunction();
+
+	UFUNCTION()
+	static EditConditionTestEnum StaticGetEnumFunction();
+
+	UFUNCTION()
+	static TEnumAsByte<EditConditionByteEnum> StaticGetByteEnumFunction();
+
+	UFUNCTION()
+	static double StaticGetDoubleFunction();
+
+	UFUNCTION()
+	static int32 StaticGetIntegerFunction();
+
+	UFUNCTION()
+	static uint8 StaticGetUintBitfieldFunction();
+
+	UFUNCTION()
+	static UObject* StaticGetUObjectPtrFunction();
+
+	UFUNCTION()
+	static TSoftClassPtr<UObject> StaticGetSoftClassPtrFunction();
+
+	UFUNCTION()
+	static TWeakObjectPtr<UObject> StaticGetWeakObjectPtrFunction();
 };
