@@ -266,6 +266,9 @@ public:
 
 	virtual void SetSceneTexturesUniformBuffer(const TUniformBufferRef<FSceneTextureUniformParameters>& InSceneTexturesUniformParams) {}
 
+	FORCEINLINE FSceneInterface* GetSceneInterface() const { return SceneInterface; }
+	FORCEINLINE void SetSceneInterface(FSceneInterface* InSceneInterface) { SceneInterface = InSceneInterface; }
+
 	FORCEINLINE FScene* GetScene()const { return Scene; }
 	FORCEINLINE void SetScene(FScene* InScene) { Scene = InScene; }
 
@@ -285,7 +288,8 @@ private:
 
 	bool bIsPendingKill = false;
 
-	class FScene* Scene = nullptr;
+	FSceneInterface* SceneInterface = nullptr;
+	FScene* Scene = nullptr;
 
 	static TMap<FName, FCreateCustomFXSystemDelegate> CreateCustomFXDelegates;
 };

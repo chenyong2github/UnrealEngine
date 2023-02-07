@@ -51,6 +51,7 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 	{
 		FFXSystemSet* Set = new FFXSystemSet(GPUSortManager);
 		Scene->SetFXSystem(Set);
+		Set->SetSceneInterface(Scene);
 		Set->SetScene((FScene*)Scene);
 
 		Set->FXSystems.Add(new FFXSystem(InFeatureLevel, InShaderPlatform, GPUSortManager));
@@ -60,6 +61,7 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 			FFXSystemInterface* CustomFX = Ite.Value().Execute(InFeatureLevel, InShaderPlatform, GPUSortManager);
 			if (CustomFX)
 			{
+				CustomFX->SetSceneInterface(Scene);
 				CustomFX->SetScene((FScene*)Scene);
 				Set->FXSystems.Add(CustomFX);
 			}
@@ -70,6 +72,7 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 	{
 		FFXSystemInterface* Ret = new FFXSystem(InFeatureLevel, InShaderPlatform, GPUSortManager);
 		Scene->SetFXSystem(Ret);
+		Ret->SetSceneInterface(Scene);
 		Ret->SetScene((FScene*)Scene);
 		return Ret;
 	}
