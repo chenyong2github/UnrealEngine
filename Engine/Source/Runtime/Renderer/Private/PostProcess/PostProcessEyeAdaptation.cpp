@@ -4,6 +4,7 @@
 
 #include "Engine/Texture.h"
 #include "TranslucentLighting.h"
+#include "Strata/Strata.h"
 
 #include "SceneTextureParameters.h"
 #include "SystemTextures.h"
@@ -710,6 +711,7 @@ class FCalculateExposureIlluminanceCS : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTranslucencyLightingVolumeParameters, TranslucencyLightingVolume)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenTranslucencyLightingUniforms, LumenGIVolumeStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -762,6 +764,7 @@ FRDGTextureRef AddCalculateExposureIlluminancePass(
 			auto* LumenUniforms = GraphBuilder.AllocParameters<FLumenTranslucencyLightingUniforms>();
 			LumenUniforms->Parameters = GetLumenTranslucencyLightingParameters(GraphBuilder, View.LumenTranslucencyGIVolume, View.LumenFrontLayerTranslucency);
 			PassParameters->LumenGIVolumeStruct = GraphBuilder.CreateUniformBuffer(LumenUniforms);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FCalculateExposureIlluminanceCS>();
 
