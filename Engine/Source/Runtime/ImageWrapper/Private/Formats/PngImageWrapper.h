@@ -8,7 +8,7 @@
 #if WITH_UNREALPNG
 
 THIRD_PARTY_INCLUDES_START
-	#include "ThirdParty/zlib/zlib-1.2.5/Inc/zlib.h"
+	#include "zlib.h"
 
 	// make sure no other versions of libpng headers are picked up
 #if WITH_LIBPNG_1_6

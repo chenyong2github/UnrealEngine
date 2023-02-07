@@ -19,7 +19,7 @@
 
 // #include "TargetPlatformBase.h"
 THIRD_PARTY_INCLUDES_START
-#include "ThirdParty/zlib/zlib-1.2.5/Inc/zlib.h"
+#include "zlib.h"
 THIRD_PARTY_INCLUDES_END
 
 THIRD_PARTY_INCLUDES_START
