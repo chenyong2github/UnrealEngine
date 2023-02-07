@@ -135,7 +135,7 @@ SPathView::~SPathView()
 
 void SPathView::Construct( const FArguments& InArgs )
 {
-	EditorConfig = InArgs._EditorConfig;
+	OwningContentBrowserName = InArgs._OwningContentBrowserName;
 	OnItemSelectionChanged = InArgs._OnItemSelectionChanged;
 	bAllowContextMenu = InArgs._AllowContextMenu;
 	OnGetItemContextMenu = InArgs._OnGetItemContextMenu;
@@ -419,7 +419,7 @@ void SPathView::SetPluginPathFilterActive(const TSharedRef<FContentBrowserPlugin
 		PluginPathFilters->Remove(Filter);
 	}
 
-	if (EditorConfig != nullptr)
+	if (FPathViewConfig* EditorConfig = GetEditorConfig())
 	{
 		if (bActive)
 		{
@@ -432,6 +432,22 @@ void SPathView::SetPluginPathFilterActive(const TSharedRef<FContentBrowserPlugin
 		
 		UContentBrowserConfig::Get()->SaveEditorConfig();
 	}
+}
+
+FPathViewConfig* SPathView::GetEditorConfig() const
+{
+	if (OwningContentBrowserName.IsNone())
+	{
+		return nullptr;
+	}
+
+	FContentBrowserInstanceConfig* Config = UContentBrowserConfig::Get()->Instances.Find(OwningContentBrowserName);
+	if (Config == nullptr)
+	{
+		return nullptr;
+	}
+	
+	return &Config->PathView;
 }
 
 void SPathView::SetSelectedPaths(const TArray<FName>& Paths)
@@ -540,7 +556,7 @@ void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 		}
 	}
 
-	if (EditorConfig != nullptr)
+	if (FPathViewConfig* EditorConfig = GetEditorConfig())
 	{
 		EditorConfig->SelectedPaths = LastSelectedPaths.Array();
 
@@ -1134,7 +1150,7 @@ void SPathView::LoadSettings(const FString& IniFilename, const FString& IniSecti
 {
 	// Selected Paths
 	TArray<FName> NewSelectedPaths;
-	if (EditorConfig != nullptr)
+	if (FPathViewConfig* EditorConfig = GetEditorConfig())
 	{
 		NewSelectedPaths = EditorConfig->SelectedPaths;
 	}
@@ -1211,7 +1227,7 @@ void SPathView::LoadSettings(const FString& IniFilename, const FString& IniSecti
 	if (PluginPathFilters.IsValid())
 	{
 		TArray<FString> NewSelectedFilters;
-		if (EditorConfig != nullptr)
+		if (FPathViewConfig* EditorConfig = GetEditorConfig())
 		{
 			NewSelectedFilters = EditorConfig->PluginFilters;
 		}
@@ -1387,7 +1403,7 @@ void SPathView::TreeSelectionChanged( TSharedPtr< FTreeItem > TreeItem, ESelectI
 			}
 		}
 
-		if (EditorConfig != nullptr)
+		if (FPathViewConfig* EditorConfig = GetEditorConfig())
 		{
 			EditorConfig->SelectedPaths = LastSelectedPaths.Array();
 
