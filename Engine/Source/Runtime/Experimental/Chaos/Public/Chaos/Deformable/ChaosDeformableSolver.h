@@ -11,6 +11,7 @@
 #include "Chaos/PBDTriangleMeshCollisions.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/XPBDCorotatedConstraints.h"
+//#include "Chaos/XPBDWeakConstraints.h"
 #include "Chaos/BlendedXPBDCorotatedConstraints.h"
 #include "Chaos/XPBDGridBasedCorotatedConstraints.h"
 #include "Chaos/Deformable/ChaosDeformableSolverTypes.h"
@@ -119,6 +120,7 @@ namespace Chaos::Softs
 		void InitializeKinematicParticles(FFleshThreadingProxy&);
 		void InitializeTetrahedralConstraint(FFleshThreadingProxy&);
 		void InitializeGidBasedConstraints(FFleshThreadingProxy&);
+		//void InitializeWeakConstraints(FFleshThreadingProxy&);
 		void InitializeKinematicConstraint();
 		void InitializeCollisionBodies();
 		void InitializeSelfCollisionVariables();

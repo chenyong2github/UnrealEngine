@@ -20,7 +20,7 @@ namespace Dataflow
 	{
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetFleshAssetDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFleshAssetTerminalDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FComputeFleshMassNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetFleshDefaultPropertiesNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FComputeFiberFieldNode);
 	}
 }
@@ -59,14 +59,26 @@ void FFleshAssetTerminalDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 
 template <class T> using MType = FManagedArrayCollection::TManagedType<T>;
 
-void FComputeFleshMassNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+void FSetFleshDefaultPropertiesNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		
+		//if (InCollection.HasAttributes({
+		//	MType< float >("Stiffness", FGeometryCollection::VerticesGroup),
+		//	MType< float >("Damping", FGeometryCollection::VerticesGroup) })
+		//{
+
+			TManagedArray<float>& ParticleStiffness = InCollection.AddAttribute<float>("Stiffness", FGeometryCollection::VerticesGroup);
+				TManagedArray<float>& ParticleDamping = InCollection.AddAttribute<float>("Damping", FGeometryCollection::VerticesGroup);
+		//}//TManagedArray<float>& Stiffness = InCollection.ModifyAttribute<float>("Stiffness", FGeometryCollection::VerticesGroup);
+		
 
 		if (InCollection.HasAttributes({
 			MType< float >("Mass", FGeometryCollection::VerticesGroup),
+			MType< float >("Stiffness", FGeometryCollection::VerticesGroup),
+			MType< float >("Damping", FGeometryCollection::VerticesGroup),
 			MType< FIntVector4 >(FTetrahedralCollection::TetrahedronAttribute, FTetrahedralCollection::TetrahedralGroup),
 			MType< FVector3f >("Vertex", "Vertices"),
 			MType< TArray<int32> >(FTetrahedralCollection::IncidentElementsAttribute, FGeometryCollection::VerticesGroup),
@@ -78,6 +90,8 @@ void FComputeFleshMassNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 			if (VertsNum && TetsNum)
 			{
 				TManagedArray<float>& Mass = InCollection.ModifyAttribute<float>("Mass", FGeometryCollection::VerticesGroup);
+				TManagedArray<float>& Stiffness = InCollection.ModifyAttribute<float>("Stiffness", FGeometryCollection::VerticesGroup);
+				TManagedArray<float>& Damping = InCollection.ModifyAttribute<float>("Damping", FGeometryCollection::VerticesGroup);
 				const TManagedArray<FIntVector4>& Tetrahedron = InCollection.GetAttribute<FIntVector4>(FTetrahedralCollection::TetrahedronAttribute, FTetrahedralCollection::TetrahedralGroup);
 				const TManagedArray<FVector3f>& Vertex = InCollection.GetAttribute<FVector3f>("Vertex", "Vertices");
 				const TManagedArray<TArray<int32>>& ElemVertexIndex = InCollection.GetAttribute<TArray<int32>>(FTetrahedralCollection::IncidentElementsAttribute, FGeometryCollection::VerticesGroup);
@@ -133,6 +147,9 @@ void FComputeFleshMassNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 				{
 					Mass.Fill(Density * Volume / Vertex.Num());
 				}
+
+				Stiffness.Fill(VertexStiffness);
+				Damping.Fill(VertexDamping);
 			}
 		}
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);

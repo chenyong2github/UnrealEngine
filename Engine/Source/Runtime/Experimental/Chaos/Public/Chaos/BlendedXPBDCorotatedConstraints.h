@@ -46,7 +46,30 @@ namespace Chaos::Softs
 
 			C1Contribution.Init(TVec4<TVector<T, 3>>(TVector<T, 3>((T)0.)), InMesh.Num());
 			C2Contribution.Init(TVec4<TVector<T, 3>>(TVector<T, 3>((T)0.)), InMesh.Num());
+		}
 
+		//this one only accepts tetmesh input and mesh
+		FBlendedXPBDCorotatedConstraints(
+			const ParticleType& InParticles,
+			const TArray<TVector<int32, 4>>& InMesh,
+			const TArray<T>& EMeshArray,
+			const T& NuMesh = (T).3,
+			const bool bRecordMetricIn = false,
+			const T& InZeta = (T)1.
+		)
+			: Base(InParticles, InMesh, EMeshArray, NuMesh, bRecordMetricIn), Zeta(InZeta)
+		{
+			if (Zeta < (T)0.)
+			{
+				Zeta = (T)0.;
+			}
+			if (Zeta > (T)1.)
+			{
+				Zeta = (T)1.;
+			}
+
+			C1Contribution.Init(TVec4<TVector<T, 3>>(TVector<T, 3>((T)0.)), InMesh.Num());
+			C2Contribution.Init(TVec4<TVector<T, 3>>(TVector<T, 3>((T)0.)), InMesh.Num());
 		}
 
 		virtual ~FBlendedXPBDCorotatedConstraints() {}

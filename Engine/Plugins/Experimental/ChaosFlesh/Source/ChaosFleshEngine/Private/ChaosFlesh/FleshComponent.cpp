@@ -188,13 +188,13 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 								}
 							}
 						}
-						return FDataMapValue(new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(this->GetComponentTransform(), AnimationTransforms, ComponentPose, bTempEnableGravity, this));
+						return FDataMapValue(new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(this->GetComponentTransform(), AnimationTransforms, ComponentPose, bTempEnableGravity, StiffnessMultiplier, DampingMultiplier, MassMultiplier, this));
 					}
 				}
 			}
 		}
 	}
-	return FDataMapValue(new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(this->GetComponentTransform(), bTempEnableGravity, this));
+	return FDataMapValue(new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(this->GetComponentTransform(), bTempEnableGravity, StiffnessMultiplier, DampingMultiplier, MassMultiplier, this));
 }
 
 

@@ -209,33 +209,69 @@ namespace Chaos::Softs
 
 		const TManagedArray<FVector3f>& DynamicVertex = Dynamic.GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
 		const TManagedArray<FSolverReal>* MassArray = Rest.FindAttribute<FSolverReal>("Mass", FGeometryCollection::VerticesGroup);
-		uint32 NumParticles = Rest.NumElements(FGeometryCollection::VerticesGroup);
+		const TManagedArray<FSolverReal>* DampingArray = Rest.FindAttribute<FSolverReal>("Damping", FGeometryCollection::VerticesGroup);
 		FSolverReal Mass = 100.0;// @todo(chaos) : make user attributes
 
 		auto ChaosVert = [](FVector3d V) { return Chaos::FVec3(V.X, V.Y, V.Z); };
 		auto ChaosM = [](FSolverReal M, const TManagedArray<float>* AM, int32 Index, int32 Num) { return FSolverReal((AM != nullptr) ? (*AM)[Index] : M / FSolverReal(Num)); };
 		auto ChaosInvM = [](FSolverReal M) { return FSolverReal(FMath::IsNearlyZero(M) ? 0.0 : 1 / M); };
 		auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
-
-		const FTransform& InitialTransform = Proxy.GetInitialTransform();
+		uint32 NumParticles = Rest.NumElements(FGeometryCollection::VerticesGroup);
+		
 		int32 ParticleStart = Evolution->AddParticleRange(NumParticles, GroupOffset, true);
 		GroupOffset += 1;
+		for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
+		{
+			MObjects[ParticleStart + vdx] = Proxy.GetOwner();
+		}
+
+		TArray<FSolverReal> MassWithMultiplier;
+		TArray<FSolverReal> DampingWithMultiplier;
+		MassWithMultiplier.Init(0.f, NumParticles);
+		DampingWithMultiplier.Init(0.f, NumParticles);
+		FSolverReal DampingMultiplier = 0.f;
+		FSolverReal MassMultiplier = 0.f;
+		if (const UObject* Owner = this->MObjects[ParticleStart]) {
+			FFleshThreadingProxy::FFleshInputBuffer* FleshInputBuffer = nullptr;
+			if (this->CurrentInputPackage->ObjectMap.Contains(Owner))
+			{
+				FleshInputBuffer = this->CurrentInputPackage->ObjectMap[Owner]->As<FFleshThreadingProxy::FFleshInputBuffer>();
+				if (FleshInputBuffer)
+				{
+					DampingMultiplier = FleshInputBuffer->DampingMultiplier;
+					MassMultiplier = FleshInputBuffer->MassMultiplier;
+				}
+			}
+		}
+
+		for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
+		{
+			MassWithMultiplier[vdx] = ChaosM(Mass, MassArray, vdx, NumParticles) * MassMultiplier;
+			if (DampingArray)
+			{
+				Evolution->SetParticleDamping((*DampingArray)[vdx], ParticleStart + vdx);
+			}
+		}
+
+		Evolution->SetDamping(DampingMultiplier, GroupOffset - 1);
+		
+		const FTransform& InitialTransform = Proxy.GetInitialTransform();
+
 		
 		for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
 		{
 			int32 SolverParticleIndex = ParticleStart + vdx;
 			Evolution->Particles().X(SolverParticleIndex) = ChaosVert(InitialTransform.TransformPosition(DoubleVert(DynamicVertex[vdx])));
 			Evolution->Particles().V(SolverParticleIndex) = Chaos::FVec3(0.f, 0.f, 0.f);
-			Evolution->Particles().M(SolverParticleIndex) = ChaosM(Mass, MassArray, vdx, NumParticles);
+			Evolution->Particles().M(SolverParticleIndex) = MassWithMultiplier[vdx];
 			Evolution->Particles().InvM(SolverParticleIndex) = ChaosInvM(Evolution->Particles().M(SolverParticleIndex));
 			Evolution->Particles().PAndInvM(SolverParticleIndex).InvM = Evolution->Particles().InvM(SolverParticleIndex);
-			MObjects[SolverParticleIndex] = Proxy.GetOwner();
 		}
 
 		bool ObjectEnableGravity = false;
 
-		int32 SolverParticleIndex = ParticleStart;
-		if (const UObject* Owner = this->MObjects[SolverParticleIndex]) {
+		//int32 SolverParticleIndex = ParticleStart;
+		if (const UObject* Owner = this->MObjects[ParticleStart]) {
 			FFleshThreadingProxy::FFleshInputBuffer* FleshInputBuffer = nullptr;
 			if (this->CurrentInputPackage->ObjectMap.Contains(Owner))
 			{
@@ -312,6 +348,7 @@ namespace Chaos::Softs
 #endif
 	}
 
+
 	void FDeformableSolver::InitializeTetrahedralConstraint(FFleshThreadingProxy& Proxy)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeTetrahedralConstraint);
@@ -345,54 +382,94 @@ namespace Chaos::Softs
 
 			}
 
-
-			int32 InitIndex = Evolution->AddConstraintInitRange(1, true);
-			int32 ConstraintIndex = Evolution->AddConstraintRuleRange(1, true);
-
-			if (Property.bDoBlended) 
+			if (Rest.HasAttributes({ FManagedArrayCollection::TManagedType<FSolverReal>("Stiffness", FGeometryCollection::VerticesGroup) }))
 			{
-				FBlendedXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* BlendedCorotatedConstraint =
-					new FBlendedXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
-						Evolution->Particles(), Elements, /*bRecordMetric = */false, Property.EMesh, (FSolverReal).3, Property.BlendedZeta);
-			
-				Evolution->ConstraintInits()[InitIndex] =
-					[BlendedCorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+				uint32 NumParticles = Rest.NumElements(FGeometryCollection::VerticesGroup);
+				TArray<FSolverReal> StiffnessWithMultiplier;
+				StiffnessWithMultiplier.Init(0.f, NumParticles);
+				FSolverReal StiffnessMultiplier = 0.f;
+
+				if (const UObject* Owner = this->MObjects[Range[0]]) {
+					FFleshThreadingProxy::FFleshInputBuffer* FleshInputBuffer = nullptr;
+					if (this->CurrentInputPackage->ObjectMap.Contains(Owner))
+					{
+						FleshInputBuffer = this->CurrentInputPackage->ObjectMap[Owner]->As<FFleshThreadingProxy::FFleshInputBuffer>();
+						if (FleshInputBuffer)
+						{
+							StiffnessMultiplier = FleshInputBuffer->StiffnessMultiplier;
+						}
+					}
+				}
+				const TManagedArray<FSolverReal>* StiffnessArray = Rest.FindAttribute<FSolverReal>("Stiffness", FGeometryCollection::VerticesGroup);
+				TArray<FSolverReal> TetStiffness;
+				TetStiffness.Init(Property.EMesh, Elements.Num());
+				if (StiffnessArray)
 				{
-					BlendedCorotatedConstraint->Init();
-				};
+					for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
+					{
+						StiffnessWithMultiplier[vdx] = (*StiffnessArray)[vdx] * StiffnessMultiplier;
+					}
+					for (int32 edx = 0; edx < Elements.Num(); edx++)
+					{
+						TetStiffness[edx] = (StiffnessWithMultiplier[Tetrahedron[edx].X] + StiffnessWithMultiplier[Tetrahedron[edx].Y]
+							+ StiffnessWithMultiplier[Tetrahedron[edx].Z] + StiffnessWithMultiplier[Tetrahedron[edx].W]) / 4.f;
+					}
 
-				Evolution->ConstraintRules()[ConstraintIndex] =
-					[BlendedCorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+				}
+				
+				if (Property.bEnableCorotatedConstraints)
 				{
-					BlendedCorotatedConstraint->ApplyInParallel(InParticles, Dt);
-				};
-			
-				BlendedCorotatedConstraints.Add(TUniquePtr<FBlendedXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(BlendedCorotatedConstraint));
 
-			}
-			else
-			{
-				FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
-					new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
-						Evolution->Particles(), Elements, /*bRecordMetric = */false, Property.EMesh);
+					int32 InitIndex = Evolution->AddConstraintInitRange(1, true);
+					int32 ConstraintIndex = Evolution->AddConstraintRuleRange(1, true);
 
-				Evolution->ConstraintInits()[InitIndex] =
-					[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
-				{
-					CorotatedConstraint->Init();
-				};
+					if (Property.bDoBlended)
+					{
+						FBlendedXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* BlendedCorotatedConstraint =
+							new FBlendedXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
+								Evolution->Particles(), Elements, TetStiffness, (FSolverReal).3,/*bRecordMetric = */false, Property.BlendedZeta);
 
-				Evolution->ConstraintRules()[ConstraintIndex] =
-					[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
-				{
-					CorotatedConstraint->ApplyInParallel(InParticles, Dt);
-				};
+						Evolution->ConstraintInits()[InitIndex] =
+							[BlendedCorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+						{
+							BlendedCorotatedConstraint->Init();
+						};
 
-				CorotatedConstraints.Add(TUniquePtr<FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(CorotatedConstraint));
+						Evolution->ConstraintRules()[ConstraintIndex] =
+							[BlendedCorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+						{
+							BlendedCorotatedConstraint->ApplyInParallel(InParticles, Dt);
+						};
+
+						BlendedCorotatedConstraints.Add(TUniquePtr<FBlendedXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(BlendedCorotatedConstraint));
+
+					}
+					else
+					{
+						FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
+							new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
+								Evolution->Particles(), Elements, TetStiffness);
+
+						Evolution->ConstraintInits()[InitIndex] =
+							[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+						{
+							CorotatedConstraint->Init();
+						};
+
+						Evolution->ConstraintRules()[ConstraintIndex] =
+							[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+						{
+							CorotatedConstraint->ApplyInParallel(InParticles, Dt);
+						};
+
+						CorotatedConstraints.Add(TUniquePtr<FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(CorotatedConstraint));
+					}
+				}
 			}
 		
 		}
 	}
+
 
 	void FDeformableSolver::InitializeGidBasedConstraints(FFleshThreadingProxy& Proxy)
 	{

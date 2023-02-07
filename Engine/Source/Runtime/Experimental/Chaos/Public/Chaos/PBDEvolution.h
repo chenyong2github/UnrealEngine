@@ -162,6 +162,10 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	bool GetUseCCD(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupUseCCDs[GroupId]; }
 	void SetUseCCD(const bool bUseCCD, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupUseCCDs[GroupId] = bUseCCD; }
 
+	FSolverReal GetParticleDamping(const uint32 ParticleIndex = 0) const { check(ParticleIndex < this->Particles().Size()); return MParticleDampings[ParticleIndex]; }
+	void SetParticleDamping(const FSolverReal Damping, const uint32 ParticleIndex = 0) { check(ParticleIndex < this->Particles().Size()); MParticleDampings[ParticleIndex] = Damping; }
+
+
 	UE_DEPRECATED(4.27, "Use GetCollisionStatus() instead")
 	const bool Collided(int32 index) { return MCollided[index]; }
 
@@ -203,6 +207,9 @@ private:
 	TArrayCollectionArray<FSolverReal> MGroupDampings;
 	TArrayCollectionArray<FSolverReal> MGroupLocalDampings;
 	TArrayCollectionArray<bool> MGroupUseCCDs;
+
+	//per particle data:
+	TArrayCollectionArray<FSolverReal> MParticleDampings;
 	
 	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>> MConstraintInits;
 	TPBDActiveView<TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>> MConstraintInitsActiveView;

@@ -202,6 +202,7 @@ void UDeformableSolverComponent::Reset()
 			, BlendedZeta
 			, Damping
 			, bEnableGravity
+			, bEnableCorotatedConstraint
 		}));
 
 		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : DeformableComponents)

@@ -109,6 +109,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
 		bool bEnableGravity = true;
+
+	UPROPERTY(EditAnywhere, Category = "Chaos Deformable")
+		bool bEnableCorotatedConstraint = true;
 	//UPROPERTY(EditAnywhere, Category = Chaos)
 	//	bool bWaitForParallelDeformableTask = true;
 

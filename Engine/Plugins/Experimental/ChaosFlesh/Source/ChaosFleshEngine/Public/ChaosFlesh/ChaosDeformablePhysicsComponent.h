@@ -55,6 +55,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chaos Deformable")
 	bool bTempEnableGravity = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attributes, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+		float DampingMultiplier = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attributes, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+		float StiffnessMultiplier = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attributes, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+		float MassMultiplier = 1.f;
+
+
 	const FThreadingProxy* GetPhysicsProxy() const { return PhysicsProxy; }
 	FThreadingProxy* GetPhysicsProxy() { return PhysicsProxy; }
 

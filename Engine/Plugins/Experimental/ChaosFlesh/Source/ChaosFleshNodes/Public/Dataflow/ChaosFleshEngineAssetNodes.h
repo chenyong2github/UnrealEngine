@@ -60,10 +60,10 @@ public:
 
 
 USTRUCT(meta = (DataflowFlesh))
-struct FComputeFleshMassNode : public FDataflowNode
+struct FSetFleshDefaultPropertiesNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FComputeFleshMassNode, "ComputeFleshMass", "Flesh", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSetFleshDefaultPropertiesNode, "SetFleshDefaultProperties", "Flesh", "")
 	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
 
 public:
@@ -71,10 +71,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	float Density = 1.f;
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	float VertexStiffness = 1e6;
+
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float VertexDamping = 0.f;
+
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough  = "Collection"))
 	FManagedArrayCollection Collection;
 
-	FComputeFleshMassNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	FSetFleshDefaultPropertiesNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Collection);

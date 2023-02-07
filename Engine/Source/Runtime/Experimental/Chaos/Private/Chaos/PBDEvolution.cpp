@@ -112,6 +112,7 @@ FPBDEvolution::FPBDEvolution(
 
 	// Add particle arrays
 	MParticles.AddArray(&MParticleGroupIds);
+	MParticles.AddArray(&MParticleDampings);
 	MCollisionParticles.AddArray(&MCollisionTransforms);
 	MCollisionParticles.AddArray(&MCollided);
 	MCollisionParticles.AddArray(&MCollisionParticleGroupIds);
@@ -139,6 +140,7 @@ int32 FPBDEvolution::AddParticleRange(int32 NumParticles, uint32 GroupId, bool b
 		for (int32 i = Offset; i < (int32)MParticles.Size(); ++i)
 		{
 			MParticleGroupIds[i] = GroupId;
+			MParticleDampings[i] = (FSolverReal)0.;
 		}
 
 		// Resize the group parameter arrays
@@ -252,7 +254,7 @@ void FPBDEvolution::PreIterationUpdate(
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverIntegrate);
 
 		constexpr FSolverReal DampingFrequency = (FSolverReal)60.;  // The damping value is the percentage of velocity removed per frame when running at 60Hz
-		const FSolverReal Damping = FMath::Clamp(MGroupDampings[ParticleGroupId], (FSolverReal)0., (FSolverReal)1.);
+		FSolverReal Damping = FMath::Clamp(MGroupDampings[ParticleGroupId], (FSolverReal)0., (FSolverReal)1.);
 		FSolverReal DampingPowDt;
 		FSolverReal DampingIntegrated;
 		if (Damping > (FSolverReal)1. - (FSolverReal)UE_KINDA_SMALL_NUMBER)
@@ -293,9 +295,31 @@ void FPBDEvolution::PreIterationUpdate(
 		{
 			const int32 RangeSize = Range - Offset;
 			PhysicsParallelFor(RangeSize,
-				[this, &Offset, &ForceRule, &Gravity, &VelocityAndPressureField, &DampVelocityRule, DampingPowDt, DampingIntegrated, Dt](int32 i)
+				[this, &Offset, &ForceRule, &Gravity, &VelocityAndPressureField, &DampVelocityRule, &DampingFrequency, &ParticleGroupId,DampingPowDt, DampingIntegrated, Dt](int32 i)
 				{
 					const int32 Index = Offset + i;
+
+					const FSolverReal ParticleDamping = FMath::Clamp(MParticleDampings[Index] * MGroupDampings[ParticleGroupId], (FSolverReal)0., (FSolverReal)1.);
+					FSolverReal ParticleDampingPowDt;
+					FSolverReal ParticleDampingIntegrated;
+					if (ParticleDamping > (FSolverReal)1. - (FSolverReal)UE_KINDA_SMALL_NUMBER)
+					{
+						ParticleDampingIntegrated = ParticleDampingPowDt = (FSolverReal)0.;
+					}
+					else if (ParticleDamping > (FSolverReal)UE_SMALL_NUMBER)
+					{
+						const FSolverReal ParticleLogValueByFrequency = FMath::Loge((FSolverReal)1. - ParticleDamping) * DampingFrequency;
+
+						ParticleDampingPowDt = FMath::Exp(ParticleLogValueByFrequency * Dt);  // DampingPowDt = FMath::Pow(OneMinusDamping, Dt * DampingFrequency);
+						ParticleDampingIntegrated = (ParticleDampingPowDt - (FSolverReal)1.) / ParticleLogValueByFrequency;
+					}
+					else
+					{
+						ParticleDampingPowDt = (FSolverReal)1.;
+						ParticleDampingIntegrated = Dt;
+					}
+
+
 					if (MParticles.InvM(Index) != (FSolverReal)0.)  // Process dynamic particles
 					{
 						// Init forces with GravityForces
@@ -323,9 +347,9 @@ void FPBDEvolution::PreIterationUpdate(
 						}
 
 						// Euler Step with point damping integration
-						MParticles.P(Index) = MParticles.X(Index) + MParticles.V(Index) * DampingIntegrated;
+						MParticles.P(Index) = MParticles.X(Index) + MParticles.V(Index) * ParticleDampingIntegrated;
 
-						MParticles.V(Index) *= DampingPowDt;
+						MParticles.V(Index) *= ParticleDampingPowDt;
 					}
 					else  // Process kinematic particles
 					{

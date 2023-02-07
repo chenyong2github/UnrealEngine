@@ -30,7 +30,8 @@ namespace Chaos::Softs
 			bool InbDoBlended = false,
 			FSolverReal InBlendedZeta = (FSolverReal).1,
 			FSolverReal InDamping = (FSolverReal)0,
-			bool InbEnableGravity = true)
+			bool InbEnableGravity = true, 
+			bool InbEnableCorotatedConstraints = true)
 			: NumSolverSubSteps(InNumSolverSubSteps)
 			, NumSolverIterations(InNumSolverIterations)
 			, FixTimeStep(InFixTimeStep)
@@ -47,6 +48,7 @@ namespace Chaos::Softs
 			, BlendedZeta(InBlendedZeta)
 			, Damping(InDamping)
 			, bEnableGravity(InbEnableGravity)
+			, bEnableCorotatedConstraints(InbEnableCorotatedConstraints)
 		{}
 
 		FDeformableSolverProperties(const FDeformableSolverProperties& InProp)
@@ -66,6 +68,7 @@ namespace Chaos::Softs
 			, BlendedZeta(InProp.BlendedZeta)
 			, Damping(InProp.Damping)
 			, bEnableGravity(InProp.bEnableGravity)
+			, bEnableCorotatedConstraints(InProp.bEnableCorotatedConstraints)
 		{}
 
 		int32 NumSolverSubSteps = 5;
@@ -84,6 +87,7 @@ namespace Chaos::Softs
 		FSolverReal BlendedZeta = (FSolverReal)0.;
 		FSolverReal Damping = (FSolverReal)0.;
 		bool bEnableGravity = true;
+		bool bEnableCorotatedConstraints = true;
 	};
 
 

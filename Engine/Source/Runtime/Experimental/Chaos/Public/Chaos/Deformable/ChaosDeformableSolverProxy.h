@@ -114,20 +114,26 @@ namespace Chaos::Softs
 		public:
 			typedef FFleshThreadingProxy Source;
 
-			FFleshInputBuffer(const FTransform& InGlobalTransform, const bool InbEnableGravity, const UObject* InOwner = nullptr)
+			FFleshInputBuffer(const FTransform& InGlobalTransform, const bool InbEnableGravity, const float InStiffnessMultiplier, const float InDampingMultiplier, const float InMassMultiplier, const UObject* InOwner = nullptr)
 				: Super(InOwner, FFleshThreadingProxy::TypeName())
 				, GlobalTransform(InGlobalTransform)
 				, Transforms(TArray<FTransform>())
 				, RestTransforms(TArray<FTransform>())
 				, bEnableGravity(InbEnableGravity)
+				, StiffnessMultiplier(InStiffnessMultiplier)
+				, DampingMultiplier(InDampingMultiplier)
+				, MassMultiplier(InMassMultiplier)
 			{}
 
-			FFleshInputBuffer(const FTransform& InGlobalTransform, const TArray<FTransform>& InTransforms, const TArray<FTransform>& InRestTransforms, const bool InbEnableGravity, const UObject* InOwner = nullptr)
+			FFleshInputBuffer(const FTransform& InGlobalTransform, const TArray<FTransform>& InTransforms, const TArray<FTransform>& InRestTransforms, const bool InbEnableGravity, const float InStiffnessMultiplier, const float InDampingMultiplier, const float InMassMultiplier, const UObject* InOwner = nullptr)
 				: Super(InOwner, FFleshThreadingProxy::TypeName())
 				, GlobalTransform(InGlobalTransform)
 				, Transforms(InTransforms)
 				, RestTransforms(InRestTransforms)
 				, bEnableGravity(InbEnableGravity)
+				, StiffnessMultiplier(InStiffnessMultiplier)
+				, DampingMultiplier(InDampingMultiplier)
+				, MassMultiplier(InMassMultiplier)
 			{}
 			virtual ~FFleshInputBuffer() {}
 
@@ -135,6 +141,9 @@ namespace Chaos::Softs
 			TArray<FTransform> Transforms;
 			TArray<FTransform> RestTransforms; 
 			bool bEnableGravity;
+			float StiffnessMultiplier;
+			float DampingMultiplier;
+			float MassMultiplier;
 		};
 
 		class FFleshOutputBuffer : public FThreadingProxy::FBuffer
