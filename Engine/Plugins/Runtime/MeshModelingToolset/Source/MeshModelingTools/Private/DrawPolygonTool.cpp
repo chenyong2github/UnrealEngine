@@ -186,11 +186,14 @@ void UDrawPolygonTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
+	// This is an uncommon hotkey to want, and can make tool seem broken if accidentally pressed. The only
+	// reason a user might want it is if the gizmo is in the way of their drawing, in which case they could
+	// presumably translate it in the plane... Still, allow it to be settable if the user wants.
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 2,
-		TEXT("ToggleGizmo"),
-		LOCTEXT("ToggleGizmo", "Toggle Gizmo"),
-		LOCTEXT("ToggleGizmoTooltip", "Toggle visibility of the transformation gizmo"),
-		EModifierKey::None, EKeys::A,
+		TEXT("ToggleGizmoVisibility"),
+		LOCTEXT("ToggleGizmoVisibilityUIName", "Toggle Gizmo"),
+		LOCTEXT("ToggleGizmoVisibilityTooltip", "Toggle visibility of the transformation gizmo"),
+		EModifierKey::None, EKeys::Invalid,
 		[this]() { PolygonProperties->bShowGridGizmo = !PolygonProperties->bShowGridGizmo; });
 }
 
