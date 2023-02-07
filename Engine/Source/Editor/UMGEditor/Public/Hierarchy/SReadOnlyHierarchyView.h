@@ -10,6 +10,8 @@
 #include "WidgetBlueprint.h"
 #include "Widgets/SCompoundWidget.h"
 
+#include "SReadOnlyHierarchyView.generated.h"
+
 class ITableRow;
 class SSearchBox;
 class STableViewBase;
