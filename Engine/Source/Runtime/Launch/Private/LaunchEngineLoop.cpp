@@ -4154,6 +4154,11 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 				}
 			}
 
+			if (FParse::Param(FCommandLine::Get(), TEXT("fastexit")))
+			{
+				FPlatformMisc::RequestExitWithStatus(true, ErrorLevel);
+			}
+
 			// We're ready to exit!
 			return ErrorLevel;
 		}
