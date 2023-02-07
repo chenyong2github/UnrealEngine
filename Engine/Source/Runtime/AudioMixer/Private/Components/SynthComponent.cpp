@@ -568,6 +568,38 @@ void USynthComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 	}
 }
 
+void USynthComponent::SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetSourceBusSendPreEffect(SoundSourceBus, SourceBusSendLevel);
+	}
+}
+
+void USynthComponent::SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetSourceBusSendPostEffect(SoundSourceBus, SourceBusSendLevel);
+	}
+}
+
+void USynthComponent::SetAudioBusSendPreEffect(UAudioBus* AudioBus, float AudioBusSendLevel)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetAudioBusSendPreEffect(AudioBus, AudioBusSendLevel);
+	}
+}
+
+void USynthComponent::SetAudioBusSendPostEffect(UAudioBus* AudioBus, float AudioBusSendLevel)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetAudioBusSendPostEffect(AudioBus, AudioBusSendLevel);
+	}
+}
+
 void USynthComponent::SetLowPassFilterEnabled(bool InLowPassFilterEnabled)
 {
 	if (AudioComponent)

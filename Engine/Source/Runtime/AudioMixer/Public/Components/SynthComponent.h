@@ -18,6 +18,9 @@
 #include "DSP/SinOsc.h"
 #endif
 
+class UAudioBus;
+class USoundSourceBus;
+
 /** Simple interface class to allow objects to route audio between them. */
 class IAudioBufferListener
 {
@@ -119,6 +122,22 @@ public:
 	/** Sets how much audio the sound should send to the given submix. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
+
+	/** Sets how much audio the sound should send to the given SourceBus (pre effect). */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	void SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
+
+	/** Sets how much audio the sound should send to the given SourceBus (post effect). */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	void SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
+
+	/** Sets how much audio the sound should send to the given AudioBus (pre effect). */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	void SetAudioBusSendPreEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
+
+	/** Sets how much audio the sound should send to the given AudioBus (post effect). */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	void SetAudioBusSendPostEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
 
 	/** Sets whether or not the low pass filter is enabled on the audio component. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
