@@ -1,18 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemNull.h"
-#include "HAL/RunnableThread.h"
-#include "OnlineAsyncTaskManagerNull.h"
 
-#include "OnlineSessionInterfaceNull.h"
-#include "OnlineLeaderboardInterfaceNull.h"
-#include "OnlineIdentityNull.h"
-#include "OnlineExternalUINull.h"
+#include "HAL/RunnableThread.h"
+
 #include "OnlineAchievementsInterfaceNull.h"
-#include "OnlineStoreV2InterfaceNull.h"
-#include "OnlinePurchaseInterfaceNull.h"
+#include "OnlineAsyncTaskManagerNull.h"
+#include "OnlineExternalUINull.h"
+#include "OnlineIdentityNull.h"
+#include "OnlineLeaderboardInterfaceNull.h"
 #include "OnlineMessageSanitizerNull.h"
+#include "OnlinePurchaseInterfaceNull.h"
+#include "OnlineSessionInterfaceNull.h"
+#include "OnlineStoreV2InterfaceNull.h"
+
+#if WITH_ENGINE
 #include "VoiceInterfaceImpl.h"
+#endif
+
 #include "Misc/CommandLine.h"
 
 #if WITH_ENGINE
