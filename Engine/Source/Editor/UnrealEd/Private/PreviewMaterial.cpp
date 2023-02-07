@@ -945,6 +945,10 @@ void UMaterialEditorInstanceConstant::CopyBasePropertiesFromParent()
 	{
 		BasePropertyOverrides.DitheredLODTransition = SourceInstance->IsDitheredLODTransition();
 	}
+	if (!BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDistance)
+	{
+		BasePropertyOverrides.MaxWorldPositionOffsetDistance = SourceInstance->GetMaxWorldPositionOffsetDistance();
+	}
 
 	// Copy the Lightmass settings...
 	// The lightmass functions (GetCastShadowAsMasked, etc.) check if the value is overridden and returns the current value if so, otherwise returns the parent value

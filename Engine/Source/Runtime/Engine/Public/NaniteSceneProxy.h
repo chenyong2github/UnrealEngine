@@ -129,6 +129,7 @@ public:
 		HHitProxy* HitProxy = nullptr;
 	#endif
 		int32 MaterialIndex = INDEX_NONE;
+		float MaxWPODistance = 0.0f;
 
 		FMaterialRelevance MaterialRelevance;
 
@@ -234,6 +235,7 @@ public:
 
 protected:
 	ENGINE_API void DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* PDI, const FLightCacheInterface* LCI);
+	ENGINE_API void CalculateMaxWPODistance();
 
 protected:
 	TArray<FMaterialSection> MaterialSections;

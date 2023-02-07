@@ -592,6 +592,8 @@ public:
 	//Cached copies of the base property overrides or the value from the parent to avoid traversing the parent chain for each access.
 	float OpacityMaskClipValue;
 
+	float MaxWorldPositionOffsetDistance;
+
 	FORCEINLINE bool GetReentrantFlag(bool bIsInGameThread = IsInGameThread()) const
 	{
 #if WITH_EDITOR
@@ -772,6 +774,7 @@ public:
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const override;
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;
 	ENGINE_API virtual bool IsMasked() const override;
+	ENGINE_API virtual float GetMaxWorldPositionOffsetDistance() const override;
 	
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;

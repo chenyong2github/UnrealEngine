@@ -1689,11 +1689,12 @@ void FInstancedStaticMeshSceneProxy::OnTransformChanged()
 		InstanceLocalBounds.SetNumUninitialized(1);
 		if (StaticMesh != nullptr)
 		{
-			InstanceLocalBounds[0] = StaticMesh->GetBounds();
+			SetInstanceLocalBounds(0, StaticMesh->GetBounds());
 		}
 		else
 		{
-			InstanceLocalBounds[0] = GetLocalBounds();
+			// NOTE: The proxy's local bounds have already been padded for WPO
+			SetInstanceLocalBounds(0, GetLocalBounds(), false);
 		}
 	}
 }

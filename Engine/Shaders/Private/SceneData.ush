@@ -140,7 +140,6 @@ uint GetDefaultPrimitiveSceneDataFlags()
 
 #define NUM_CUSTOM_PRIMITIVE_DATA 9 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
 
-// Must match FPrimitiveUniformShaderParameters in C++
 struct FPrimitiveSceneData
 {
 	uint		Flags; // TODO: Use 16 bits?
@@ -182,8 +181,7 @@ struct FPrimitiveSceneData
 	float2 		InstanceDrawDistanceMinMaxSquared;
 	float		InstanceWPODisableDistanceSquared;
 	uint		NaniteRayTracingDataOffset;
-	float3		Unused;
-	float		BoundsScale;
+	float		MaxWPODistance;
 	uint		CustomStencilValueAndMask;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
@@ -232,7 +230,7 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	PrimitiveData.InstanceWPODisableDistanceSquared	= Primitive.InstanceWPODisableDistanceSquared;
 	PrimitiveData.PersistentPrimitiveIndex			= Primitive.PersistentPrimitiveIndex;
 	PrimitiveData.NaniteRayTracingDataOffset		= Primitive.NaniteRayTracingDataOffset;
-	PrimitiveData.BoundsScale						= Primitive.BoundsScale;
+	PrimitiveData.MaxWPODistance					= Primitive.MaxWPODistance;
 	PrimitiveData.CustomStencilValueAndMask			= Primitive.CustomStencilValueAndMask;
 	
 	UNROLL
@@ -362,7 +360,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.InstanceDrawDistanceMinMaxSquared		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).xy;
 	PrimitiveData.InstanceWPODisableDistanceSquared		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).z;
 	PrimitiveData.NaniteRayTracingDataOffset			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).w);
-	PrimitiveData.BoundsScale							= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).x;
+	PrimitiveData.MaxWPODistance						= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).x;
 	PrimitiveData.CustomStencilValueAndMask				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).y);
 	// .zw Unused
 

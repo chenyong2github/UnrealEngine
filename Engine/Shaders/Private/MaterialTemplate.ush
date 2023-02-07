@@ -2868,56 +2868,65 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 }
 #endif
 
-float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
+bool ShouldEnableWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
 #if IS_NANITE_PASS
-	BRANCH
-		if (!Parameters.bEvaluateWorldPositionOffset)
-		{
-			return float3(0, 0, 0);
-		}
+	if (!Parameters.bEvaluateWorldPositionOffset)
+	{
+		return false;
+	}
 #endif
 
 #if USE_INSTANCING || USE_INSTANCE_CULLING
 	// skip if this instance is hidden
 	if (Parameters.PerInstanceParams.y < 1.f)
 	{
-		return float3(0, 0, 0);
+		return false;
 	}
 #endif
 
 	if ((GetPrimitiveData(Parameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) == 0)
 	{
-		return float3(0, 0, 0);
+		return false;
 	}
 
+	return true;
+}
+
+float3 ClampWorldPositionOffset(FMaterialVertexParameters Parameters, float3 InOffset)
+{
+	const float MaxWPODim = GetPrimitiveData(Parameters).MaxWPODistance;
+	return MaxWPODim <= 0.0f ? InOffset : clamp(InOffset, -MaxWPODim.xxx, MaxWPODim.xxx);
+}
+
+float3 GetMaterialWorldPositionOffsetRaw(FMaterialVertexParameters Parameters)
+{
+%s;
+}
+
+float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
+{
+	BRANCH
+	if (ShouldEnableWorldPositionOffset(Parameters))
+	{
+		return ClampWorldPositionOffset(Parameters, GetMaterialWorldPositionOffsetRaw(Parameters));
+	}
+	return float3(0, 0, 0);
+}
+
+float3 GetMaterialPreviousWorldPositionOffsetRaw(FMaterialVertexParameters Parameters)
+{
 %s;
 }
 
 float3 GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
-#if IS_NANITE_PASS
 	BRANCH
-		if (!Parameters.bEvaluateWorldPositionOffset)
-		{
-			return float3(0, 0, 0);
-		}
-#endif
-
-#if USE_INSTANCING || USE_INSTANCE_CULLING
-	// skip if this instance is hidden
-	if (Parameters.PerInstanceParams.y < 1.f)
+	if (ShouldEnableWorldPositionOffset(Parameters))
 	{
-		return float3(0, 0, 0);
+		return ClampWorldPositionOffset(Parameters, GetMaterialPreviousWorldPositionOffsetRaw(Parameters));
 	}
-#endif
-
-	if ((GetPrimitiveData(Parameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) == 0)
-	{
-		return float3(0, 0, 0);
-	}
-
-%s;
+	return float3(0, 0, 0);
 }
 
 // .rgb:SubsurfaceColor, .a:SSProfileId in 0..1 range

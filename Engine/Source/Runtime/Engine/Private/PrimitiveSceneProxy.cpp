@@ -7,6 +7,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveViewRelevance.h"
 #include "UObject/Package.h"
+#include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
 #include "PrimitiveSceneInfo.h"
@@ -182,6 +183,53 @@ static bool VertexDeformationOutputsVelocity()
 	return VertexDeformationOutputsVelocity == 1 || (VertexDeformationOutputsVelocity == 2 && bVertexDeformationOutputsVelocityDefault);
 }
 
+static FBoxSphereBounds PadBounds(const FBoxSphereBounds& InBounds, float PadAmount)
+{
+	FBoxSphereBounds Result = InBounds;
+	Result.BoxExtent += FVector(PadAmount);
+	Result.SphereRadius += PadAmount * UE_SQRT_3;
+
+	return Result;
+}
+
+static FVector GetLocalBoundsPadExtent(const FMatrix& LocalToWorld, float PadAmount)
+{
+	if (FMath::Abs(PadAmount) < UE_SMALL_NUMBER)
+	{
+		return FVector::ZeroVector;
+	}
+
+	FVector InvScale = LocalToWorld.GetScaleVector();
+	InvScale = FVector(
+		InvScale.X > 0.0 ? 1.0 / InvScale.X : 0.0,
+		InvScale.Y > 0.0 ? 1.0 / InvScale.Y : 0.0,
+		InvScale.Z > 0.0 ? 1.0 / InvScale.Z : 0.0);
+
+	return FVector(PadAmount) * InvScale;
+}
+
+static FBoxSphereBounds PadLocalBounds(const FBoxSphereBounds& InBounds, const FMatrix& LocalToWorld, float PadAmount)
+{
+	const FVector PadExtent = GetLocalBoundsPadExtent(LocalToWorld, PadAmount);
+
+	FBoxSphereBounds Result = InBounds;
+	Result.BoxExtent += PadExtent;
+	Result.SphereRadius += PadExtent.Length();
+
+	return Result;
+}
+
+static FRenderBounds PadLocalRenderBounds(const FRenderBounds& InBounds, const FMatrix& LocalToWorld, float PadAmount)
+{
+	const FVector3f PadExtent = FVector3f(GetLocalBoundsPadExtent(LocalToWorld, PadAmount));
+
+	FRenderBounds Result = InBounds;
+	Result.Min -= PadExtent;
+	Result.Max += PadExtent;
+
+	return Result;
+}
+
 FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponent, FName InResourceName)
 :
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -296,6 +344,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	VirtualTextureMinCoverage(InComponent->VirtualTextureMinCoverage)
 ,	DynamicIndirectShadowMinVisibility(0)
 ,	DistanceFieldSelfShadowBias(0.0f)
+,	MaxWPODistance(0.0f)
 ,	PrimitiveComponentId(InComponent->ComponentId)
 ,	Scene(InComponent->GetScene())
 ,	PrimitiveSceneInfo(nullptr)
@@ -311,7 +360,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	VisibilityId(InComponent->VisibilityId)
 ,	MaxDrawDistance(InComponent->CachedMaxDrawDistance > 0 ? InComponent->CachedMaxDrawDistance : FLT_MAX)
 ,	MinDrawDistance(InComponent->MinDrawDistance)
-,	BoundsScale(InComponent->BoundsScale)
 ,	ComponentForDebuggingOnly(InComponent)
 #if WITH_EDITOR
 ,	NumUncachedStaticLightingInteractions(0)
@@ -532,6 +580,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.CacheShadowAsStatic(PrimitiveSceneInfo ? PrimitiveSceneInfo->ShouldCacheShadowAsStatic() : false)
 				.OutputVelocity(bOutputVelocity)
 				.EvaluateWorldPositionOffset(EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
+				.MaxWorldPositionOffsetDistance(GetMaxWorldPositionOffsetDistance())
 				.LightingChannelMask(GetLightingChannelMask())
 				.LightmapDataIndex(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0)
 				.LightmapUVIndex(GetLightMapCoordinateIndex())
@@ -637,9 +686,10 @@ void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBo
 	LocalToWorld = InLocalToWorld;
 	bIsLocalToWorldDeterminantNegative = LocalToWorld.Determinant() < 0.0f;
 
-	// Update the cached bounds.
-	Bounds = InBounds;
-	LocalBounds = InLocalBounds;
+	// Update the cached bounds. Pad them to account for max WPO
+	const float PadAmount = GetMaxWorldPositionOffsetDistance();
+	Bounds = PadBounds(InBounds, PadAmount);
+	LocalBounds = PadLocalBounds(InLocalBounds, LocalToWorld, PadAmount);
 	ActorPosition = InActorPosition;
 	
 	// Update cached reflection capture.
@@ -817,7 +867,7 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 
 		// #todo (jnadro) Do I still need to update this?
 		InstanceLocalBounds.SetNumUninitialized(1);
-		InstanceLocalBounds[0] = InStaticMeshBounds;
+		SetInstanceLocalBounds(0, InStaticMeshBounds);
 		bHasPerInstanceRandom = InstanceRandomID.Num() > 0;
 		bHasPerInstanceCustomData = InstanceCustomData.Num() > 0;
 		bHasPerInstanceDynamicData = InstanceDynamicData.Num() > 0;
@@ -840,17 +890,20 @@ bool FPrimitiveSceneProxy::WouldSetTransformBeRedundant_AnyThread(const FMatrix&
 
 	// Can be called by any thread, so be careful about modifying this.
 
+	// Account for padding that will be added to the bounds in SetTransform
+	const float PadAmount = GetMaxWorldPositionOffsetDistance();
+
 	if (ActorPosition != InActorPosition)
 	{
 		return false;
 	}
 
-	if (LocalBounds != InLocalBounds)
+	if (LocalBounds != PadLocalBounds(InLocalBounds, InLocalToWorld, PadAmount))
 	{
 		return false;
 	}
 
-	if (Bounds != InBounds)
+	if (Bounds != PadBounds(InBounds, PadAmount))
 	{
 		return false;
 	}
@@ -1027,6 +1080,13 @@ void FPrimitiveSceneProxy::SetDistanceFieldSelfShadowBias_RenderThread(float New
 	DistanceFieldSelfShadowBias = NewBias;
 }
 
+void FPrimitiveSceneProxy::GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const
+{
+	// if we padded the local bounds for WPO, un-pad them for the "pre-skinned" bounds
+	// (the idea being that WPO is a form of deformation, similar to skinning)
+	OutBounds = PadLocalBounds(LocalBounds, GetLocalToWorld(), -GetMaxWorldPositionOffsetDistance());
+}
+
 /**
  * Updates hover state for the primitive proxy. This is called in the rendering thread by SetHovered_GameThread.
  * @param bInHovered - true if the parent actor is hovered
@@ -1068,6 +1128,12 @@ void FPrimitiveSceneProxy::SetLightingChannels_GameThread(FLightingChannels Ligh
 		PrimitiveSceneProxy->GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
 		PrimitiveSceneProxy->GetScene().RequestGPUSceneUpdate(*PrimitiveSceneProxy->GetPrimitiveSceneInfo(), EPrimitiveDirtyState::ChangedOther);
 	});
+}
+
+void FPrimitiveSceneProxy::SetInstanceLocalBounds(uint32 InstanceIndex, const FRenderBounds& InBounds, bool bPadForWPO)
+{
+	InstanceLocalBounds[InstanceIndex] = bPadForWPO ? 
+		PadLocalRenderBounds(InBounds, GetLocalToWorld(), GetMaxWorldPositionOffsetDistance()) : InBounds;
 }
 
 #if ENABLE_DRAW_DEBUG

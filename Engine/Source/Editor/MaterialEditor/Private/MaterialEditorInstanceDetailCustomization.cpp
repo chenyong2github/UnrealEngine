@@ -1229,6 +1229,7 @@ void FMaterialInstanceParameterDetails::CreateBasePropertyOverrideWidgets(IDetai
 	TAttribute<bool> IsOverrideIsThinSurfaceEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideIsThinSurfaceEnabled));
 	TAttribute<bool> IsOverrideDitheredLODTransitionEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideDitheredLODTransitionEnabled));
 	TAttribute<bool> IsOverrideOutputTranslucentVelocityEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideOutputTranslucentVelocityEnabled));
+	TAttribute<bool> IsOverrideMaxWorldPositionOffsetDistanceEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideMaxWorldPositionOffsetDistanceEnabled));
 
 	TSharedRef<IPropertyHandle> BasePropertyOverridePropery = DetailLayout.GetProperty("BasePropertyOverrides");
 	TSharedPtr<IPropertyHandle> OpacityClipMaskValueProperty = BasePropertyOverridePropery->GetChildHandle("OpacityMaskClipValue");
@@ -1238,6 +1239,7 @@ void FMaterialInstanceParameterDetails::CreateBasePropertyOverrideWidgets(IDetai
 	TSharedPtr<IPropertyHandle> IsThinSurfaceProperty = BasePropertyOverridePropery->GetChildHandle("IsThinSurface");
 	TSharedPtr<IPropertyHandle> DitheredLODTransitionProperty = BasePropertyOverridePropery->GetChildHandle("DitheredLODTransition");
 	TSharedPtr<IPropertyHandle> OutputTranslucentVelocityProperty = BasePropertyOverridePropery->GetChildHandle("bOutputTranslucentVelocity");
+	TSharedPtr<IPropertyHandle> MaxWorldPositionOffsetDistanceProperty = BasePropertyOverridePropery->GetChildHandle("MaxWorldPositionOffsetDistance");
 
 	// Update blend mode display names
 	if (FByteProperty* BlendModeByteProperty = (FByteProperty*)BlendModeProperty->GetProperty())
@@ -1400,6 +1402,25 @@ void FMaterialInstanceParameterDetails::CreateBasePropertyOverrideWidgets(IDetai
 			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::IsOverriddenAndVisible, IsOverrideOutputTranslucentVelocityEnabled)))
 			.OverrideResetToDefault(ResetOutputTranslucentVelocityPropertyOverride);
 	}
+	{
+		FIsResetToDefaultVisible IsMaxWorldPositionOffsetDistancePropertyResetVisible = FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> InHandle) {
+			return MaterialEditorInstance->Parent != nullptr ? MaterialEditorInstance->BasePropertyOverrides.MaxWorldPositionOffsetDistance != MaterialEditorInstance->Parent->GetMaxWorldPositionOffsetDistance() : false;
+			});
+		FResetToDefaultHandler ResetMaxWorldPositionOffsetDistancePropertyHandler = FResetToDefaultHandler::CreateLambda([this](TSharedPtr<IPropertyHandle> InHandle) {
+			if (MaterialEditorInstance->Parent != nullptr)
+			{
+				MaterialEditorInstance->BasePropertyOverrides.MaxWorldPositionOffsetDistance = MaterialEditorInstance->Parent->GetMaxWorldPositionOffsetDistance();
+			}
+			});
+		FResetToDefaultOverride ResetMaxWorldPositionOffsetDistancePropertyOverride = FResetToDefaultOverride::Create(IsMaxWorldPositionOffsetDistancePropertyResetVisible, ResetMaxWorldPositionOffsetDistancePropertyHandler);
+		IDetailPropertyRow& MaxWorldPositionOffsetDistancePropertyRow = BasePropertyOverrideGroup.AddPropertyRow(MaxWorldPositionOffsetDistanceProperty.ToSharedRef());
+		MaxWorldPositionOffsetDistancePropertyRow
+			.DisplayName(MaxWorldPositionOffsetDistanceProperty->GetPropertyDisplayName())
+			.ToolTip(MaxWorldPositionOffsetDistanceProperty->GetToolTipText())
+			.EditCondition(IsOverrideMaxWorldPositionOffsetDistanceEnabled, FOnBooleanValueChanged::CreateSP(this, &FMaterialInstanceParameterDetails::OnOverrideMaxWorldPositionOffsetDistanceChanged))
+			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::IsOverriddenAndVisible, IsOverrideMaxWorldPositionOffsetDistanceEnabled)))
+			.OverrideResetToDefault(ResetMaxWorldPositionOffsetDistancePropertyOverride);
+	}
 }
 
 EVisibility FMaterialInstanceParameterDetails::IsOverriddenAndVisible(TAttribute<bool> IsOverridden) const
@@ -1447,6 +1468,11 @@ bool FMaterialInstanceParameterDetails::OverrideOutputTranslucentVelocityEnabled
 	return MaterialEditorInstance->BasePropertyOverrides.bOverride_OutputTranslucentVelocity;
 }
 
+bool FMaterialInstanceParameterDetails::OverrideMaxWorldPositionOffsetDistanceEnabled() const
+{
+	return MaterialEditorInstance->BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDistance;
+}
+
 void FMaterialInstanceParameterDetails::OnOverrideOpacityClipMaskValueChanged(bool NewValue)
 {
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_OpacityMaskClipValue = NewValue;
@@ -1492,6 +1518,13 @@ void FMaterialInstanceParameterDetails::OnOverrideDitheredLODTransitionChanged(b
 void FMaterialInstanceParameterDetails::OnOverrideOutputTranslucentVelocityChanged(bool NewValue)
 {
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_OutputTranslucentVelocity = NewValue;
+	MaterialEditorInstance->PostEditChange();
+	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+}
+
+void FMaterialInstanceParameterDetails::OnOverrideMaxWorldPositionOffsetDistanceChanged(bool NewValue)
+{
+	MaterialEditorInstance->BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDistance = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 }

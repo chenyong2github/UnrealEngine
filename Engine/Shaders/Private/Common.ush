@@ -1824,7 +1824,8 @@ struct FWriteToSliceGeometryOutput
 
 // Helper macro to globally ignore requests for non-offset world positions in materials when lower than shader model 4. We do this
 // because we are using an extra interpolator for this second world position, and in < ES31 there may not be enough
-#define USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS	(NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && FEATURE_LEVEL >= FEATURE_LEVEL_ES3_1)
+// NOTE: Forced on in development shaders because the Out-Of-Bounds Pixels visualizer uses it
+#define USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS	((NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS || USE_DEVELOPMENT_SHADERS) && FEATURE_LEVEL >= FEATURE_LEVEL_ES3_1)
 
 /** Used for calculating vertex positions and UVs when drawing with DrawRectangle */
 void DrawRectangle(

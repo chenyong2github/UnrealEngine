@@ -201,6 +201,7 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	virtual bool IsTranslucencyWritingVelocity() const override;
 	virtual bool IsDitheredLODTransition() const override;
 	virtual bool IsMasked() const override;
+	virtual float GetMaxWorldPositionOffsetDistance() const override;
 
 	/**
 	 * In order to remap to the correct texture streaming data, we must keep track of each texture renamed.

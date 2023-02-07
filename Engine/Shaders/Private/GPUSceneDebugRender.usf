@@ -118,7 +118,7 @@ void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 
 	const float3 InstanceBoxBoundsCenter = InstanceData.LocalBoundsCenter;
-	const float3 InstanceBoxBoundsExtent = InstanceData.LocalBoundsExtent * PrimitiveData.BoundsScale;
+	const float3 InstanceBoxBoundsExtent = InstanceData.LocalBoundsExtent;
 
 	float3 LocalRayEnd = mul(float4(PickingRayEnd, 1.0f), LWCHackToFloat(InstanceData.WorldToLocal)).xyz;
 	float2 RayResult = LineBoxIntersect(LocalRayStart, LocalRayEnd, InstanceBoxBoundsCenter - InstanceBoxBoundsExtent, InstanceBoxBoundsCenter + InstanceBoxBoundsExtent);

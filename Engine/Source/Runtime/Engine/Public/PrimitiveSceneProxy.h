@@ -424,7 +424,9 @@ public:
 		{
 			check(InstanceLocalBounds.Num() <= 1);
 			InstanceLocalBounds.SetNumUninitialized(1);
-			InstanceLocalBounds[0] = LocalBounds;
+
+			// NOTE: The proxy's local bounds have already been padded for WPO
+			SetInstanceLocalBounds(0, GetLocalBounds(), false);
 		}
 	}
 
@@ -560,8 +562,7 @@ public:
 	inline bool IsLocalToWorldDeterminantNegative() const { return bIsLocalToWorldDeterminantNegative; }
 	inline const FBoxSphereBounds& GetBounds() const { return Bounds; }
 	inline const FBoxSphereBounds& GetLocalBounds() const { return LocalBounds; }
-	inline float GetBoundsScale() const { return BoundsScale; }
-	virtual void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const { OutBounds = LocalBounds; }
+	ENGINE_API virtual void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const;
 	inline FName GetOwnerName() const { return OwnerName; }
 	inline FName GetResourceName() const { return ResourceName; }
 	inline FName GetLevelName() const { return LevelName; }
@@ -730,6 +731,14 @@ public:
 
 	inline bool EvaluateWorldPositionOffset() const { return bEvaluateWorldPositionOffset; }
 	inline bool AnyMaterialHasWorldPositionOffset() const { return bAnyMaterialHasWorldPositionOffset; }
+	inline float GetMaxWorldPositionOffsetDistance() const
+	{
+		if (EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
+		{
+			return MaxWPODistance;
+		}
+		return 0.0f;
+	}
 	
 	/** Returns true if this proxy can change transform so that we should cache previous transform for calculating velocity. */
 	inline bool HasDynamicTransform() const { return IsMovable() || bIsBeingMovedByEditor; }
@@ -905,7 +914,10 @@ public:
 			// TODO: Should change local bounds to the optimized type and clean this up.
 			checkSlow(!bHasPerInstanceLocalBounds);
 			InstanceLocalBounds.SetNumUninitialized(1);
-			InstanceLocalBounds[0] = LocalBounds;
+
+			// NOTE: The proxy's local bounds have already been padded for WPO
+			SetInstanceLocalBounds(0, GetLocalBounds(), false);
+			
 			return InstanceLocalBounds[0];
 		}
 
@@ -1408,6 +1420,12 @@ protected:
 
 	float DistanceFieldSelfShadowBias;
 
+	/**
+	 * Maximum distance of World Position Offset used by materials. Values > 0.0 will cause the WPO to be clamped and the primitive's
+	 * bounds to be padded to account for it. Value of zero will not clamp the WPO of materials nor pad bounds (legacy behavior)
+	 */
+	float MaxWPODistance;
+
 	/** Array of runtime virtual textures that this proxy should render to. */
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
 	/** Set of unique runtime virtual texture material types referenced by RuntimeVirtualTextures. */
@@ -1469,9 +1487,6 @@ private:
 	/** The primitive's minimum cull distance. */
 	float MinDrawDistance;
 
-	/** The primitive's bounds scale. */
-	float BoundsScale;
-
 	/** The primitive's uniform buffer. */
 	TUniformBufferRef<FPrimitiveUniformShaderParameters> UniformBuffer;
 
@@ -1526,6 +1541,12 @@ protected:
 
 	/** Allows child implementations to do render-thread work when bEvaluateWorldPositionOffset changes */
 	ENGINE_API virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() {}
+
+	/**
+	 * Sets the instance local bounds for the specified instance index, and optionally will pad the bounds extents to
+	 * accomodate Max World Position Offset Distance.
+	 */
+	ENGINE_API void SetInstanceLocalBounds(uint32 InstanceIndex, const FRenderBounds& Bounds, bool bPadForWPO = true);
 };
 
 /**

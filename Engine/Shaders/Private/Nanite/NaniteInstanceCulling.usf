@@ -274,7 +274,7 @@ void InstanceCull(
 		}
 
 		const float3 LocalBoundsCenter = InstanceData.LocalBoundsCenter;
-		const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent * PrimitiveData.BoundsScale;
+		const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent;
 
 #if VIRTUAL_TEXTURE_TARGET
 		bool bVisibleAndShouldCacheAsStaticForAnyView = false;
@@ -541,7 +541,7 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 	const bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
 
 	const float3 LocalBoundsCenter = InstanceData.LocalBoundsCenter;
-	const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent * PrimitiveData.BoundsScale;
+	const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent;
 
 	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 	FFrustumCullData Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipCullFrustum);

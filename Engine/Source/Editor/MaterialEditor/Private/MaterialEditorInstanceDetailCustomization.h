@@ -114,6 +114,7 @@ private:
 	bool OverrideIsThinSurfaceEnabled() const;
 	bool OverrideDitheredLODTransitionEnabled() const;
 	bool OverrideOutputTranslucentVelocityEnabled() const;
+	bool OverrideMaxWorldPositionOffsetDistanceEnabled() const;
 	void OnOverrideOpacityClipMaskValueChanged(bool NewValue);
 	void OnOverrideBlendModeChanged(bool NewValue);
 	void OnOverrideShadingModelChanged(bool NewValue);
@@ -121,6 +122,7 @@ private:
 	void OnOverrideIsThinSurfaceChanged(bool NewValue);
 	void OnOverrideDitheredLODTransitionChanged(bool NewValue);
 	void OnOverrideOutputTranslucentVelocityChanged(bool NewValue);
+	void OnOverrideMaxWorldPositionOffsetDistanceChanged(bool NewValue);
 
 private:
 	/** Object that stores all of the possible parameters we can edit */

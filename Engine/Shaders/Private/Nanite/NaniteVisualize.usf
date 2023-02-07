@@ -528,11 +528,13 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 		const float4x4 LocalToWorld = LWCHackToFloat(InstanceData.LocalToWorld);
 
+		// if WPO is enabled, the cluster bounds will have been dilated to account for max WPO distance
+		const float3 WPOExtent = bWPOEnabled ? abs(PrimitiveData.MaxWPODistance * InstanceData.InvNonUniformScale) : (float3)0;
 		const float3 ClusterBoxBoundsCenter = Cluster.BoxBoundsCenter;
-		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent * PrimitiveData.BoundsScale;
+		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent + WPOExtent;
 
 		const float3 InstanceBoxBoundsCenter = InstanceData.LocalBoundsCenter;
-		const float3 InstanceBoxBoundsExtent = InstanceData.LocalBoundsExtent * PrimitiveData.BoundsScale;
+		const float3 InstanceBoxBoundsExtent = InstanceData.LocalBoundsExtent;
 
 		AddOBBWS(
 			ClusterBoxBoundsCenter - ClusterBoxBoundsExtent,

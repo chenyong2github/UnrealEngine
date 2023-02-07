@@ -990,6 +990,14 @@ public:
 	UPROPERTY(EditAnywhere, Category=Refraction)
 	float RefractionDepthBias;
 
+	/**
+	 * Specifies the max world position offset of the material. Use this value to resolve issues with culling and self-occlusion caused by
+	 * World Position Offset, and/or to restrict how much offset is permitted (i.e. values are clamped on each axis).
+	 * NOTE: A value of 0.0 effectively means "no maximum", and will not clamp the offsets, however it will also not extend culling bounds.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPositionOffset, meta = (ClampMin = 0.0f))
+	float MaxWorldPositionOffsetDistance;
+
 	/** Not a UPROPERTY, used to propagate editor only strata material simplification options for preview. */
 	FStrataCompilationConfig StrataCompilationConfig;
 
@@ -1099,6 +1107,7 @@ public:
 	ENGINE_API virtual bool IsPostProcessMaterial() const;
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
+	ENGINE_API virtual float GetMaxWorldPositionOffsetDistance() const override;
 
 	ENGINE_API virtual FGraphEventArray PrecachePSOs(const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const FPSOPrecacheParams& PreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs) override;
 

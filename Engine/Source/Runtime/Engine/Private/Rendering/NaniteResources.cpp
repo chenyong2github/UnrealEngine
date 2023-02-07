@@ -504,6 +504,15 @@ void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* 
 	}
 }
 
+void FSceneProxyBase::CalculateMaxWPODistance()
+{
+	MaxWPODistance = 0.0f;
+	for (const auto& MaterialSection : GetMaterialSections())
+	{
+		MaxWPODistance = FMath::Max(MaxWPODistance, MaterialSection.MaxWPODistance);
+	}
+}
+
 FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 : FSceneProxyBase(Component)
 , MeshInfo(Component)
@@ -659,9 +668,10 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		MaterialSection.ShadingMaterialProxy = ShadingMaterial->GetRenderProxy();
 
 		bool bProgrammableRasterMaterial = false;
-		if (bEvaluateWorldPositionOffset)
+		if (bEvaluateWorldPositionOffset && MaterialSection.MaterialRelevance.bUsesWorldPositionOffset)
 		{
-			bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
+			bProgrammableRasterMaterial = true;
+			MaterialSection.MaxWPODistance = ShadingMaterial->GetMaxWorldPositionOffsetDistance();
 		}
 
 		// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full raster bin
@@ -679,6 +689,9 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 		bHasProgrammableRaster |= bProgrammableRasterMaterial;
 	}
+
+	// Now that the material sections are initialized, we can determine MaxWPODistance
+	CalculateMaxWPODistance();
 
 	// Nanite supports distance field representation for fully opaque meshes.
 	bSupportsDistanceFieldRepresentation = CombinedMaterialRelevance.bOpaque && DistanceFieldData && DistanceFieldData->IsValid();;
@@ -1604,11 +1617,12 @@ void FSceneProxy::OnTransformChanged()
 		InstanceLocalBounds.SetNumUninitialized(1);
 		if (StaticMesh != nullptr)
 		{
-			InstanceLocalBounds[0] = StaticMesh->GetBounds();
+			SetInstanceLocalBounds(0, StaticMesh->GetBounds());
 		}
 		else
 		{
-			InstanceLocalBounds[0] = GetLocalBounds();
+			// NOTE: The proxy's local bounds have already been padded for WPO
+			SetInstanceLocalBounds(0, GetLocalBounds(), false);
 		}
 	}
 }

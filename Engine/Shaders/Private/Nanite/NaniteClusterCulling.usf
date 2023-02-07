@@ -290,8 +290,10 @@ struct FNaniteTraversalClusterCullCallback
 		{
 			float4 LODBounds = HierarchyNodeSlice.LODBounds;
 
+			const float3 LocalWPOExtent = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO != 0u) ?
+				abs(GetPrimitiveData(InstanceData.PrimitiveId).MaxWPODistance * InstanceData.InvNonUniformScale) : (float3)0;
 			const float3 NodeBoxBoundsCenter = HierarchyNodeSlice.BoxBoundsCenter;
-			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent * GetPrimitiveData(InstanceData.PrimitiveId).BoundsScale;
+			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent + LocalWPOExtent;
 
 		#if USE_GLOBAL_CLIP_PLANE
 			bVisible = GlobalClipPlaneCullBox(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
@@ -505,8 +507,10 @@ struct FNaniteTraversalClusterCullCallback
 		bool bVisible = true;
 
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+		const float3 LocalWPOExtent = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) ?
+			abs(PrimitiveData.MaxWPODistance * InstanceData.InvNonUniformScale) : (float3)0;
 		const float3 ClusterBoxBoundsCenter = Cluster.BoxBoundsCenter;
-		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent * PrimitiveData.BoundsScale;
+		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent + LocalWPOExtent;
 
 #if VIRTUAL_TEXTURE_TARGET
 		const bool bMaterialInvalidates = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
