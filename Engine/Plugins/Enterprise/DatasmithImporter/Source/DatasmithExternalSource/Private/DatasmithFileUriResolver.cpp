@@ -7,7 +7,6 @@
 #include "DatasmithTranslatorManager.h"
 
 #if WITH_EDITOR
-#include "AssetToolsModule.h"
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDesktopPlatform.h"
@@ -50,8 +49,7 @@ namespace UE::DatasmithImporter
 		FString FileTypes;
 		FString Extensions;
 
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
-		ObjectTools::AppendFormatsFileExtensions(Formats, FileTypes, Extensions, AssetTools.GetSupportedImportExtension());
+		ObjectTools::AppendFormatsFileExtensions(Formats, FileTypes, Extensions);
 
 		const FString FormatString = FString::Printf(TEXT("All Files (%s)|%s|%s"), *Extensions, *Extensions, *FileTypes);
 		const FString Title = NSLOCTEXT("DatasmithFileUriResolver", "BrowseSourceDialogTitle", "Select Datasmith Source File").ToString();

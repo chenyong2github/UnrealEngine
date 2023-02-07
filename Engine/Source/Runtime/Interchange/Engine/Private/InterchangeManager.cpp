@@ -5,7 +5,9 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetDataTagMap.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#if WITH_EDITOR
 #include "AssetToolsModule.h"
+#endif
 #include "Async/Async.h"
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
@@ -808,13 +810,14 @@ bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* S
 	{
 		return false;
 	}
-	
+#if WITH_EDITOR
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
 	const FString Extension = FPaths::GetExtension(SourceData->GetFilename());
 	if (!AssetTools.IsImportExtensionAllowed(Extension))
 	{
 		return false;
 	}
+#endif
 
 	return GetTranslatorForSourceData(SourceData) != nullptr;
 }

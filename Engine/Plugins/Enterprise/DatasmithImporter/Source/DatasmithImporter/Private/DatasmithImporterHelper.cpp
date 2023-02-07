@@ -5,7 +5,6 @@
 #include "Utility/DatasmithImporterUtils.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetToolsModule.h"
 #include "BusyCursor.h"
 #include "ContentBrowserModule.h"
 #include "DesktopPlatformModule.h"
@@ -254,8 +253,7 @@ FString FDatasmithImporterHelper::GetFilterStringInternal(UFactory* Factory)
 	FString AllExtensions;
 	TMultiMap<uint32, UFactory*> FilterIndexToFactory;
 
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
-	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory, AssetTools.GetSupportedImportExtension());
+	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory);
 
 	return FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);
 }
