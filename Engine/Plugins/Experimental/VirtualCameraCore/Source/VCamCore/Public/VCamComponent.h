@@ -6,6 +6,7 @@
 
 #include "EVCamTargetViewportID.h"
 #include "Modifier/ModifierStackEntry.h"
+#include "VCamSubsystem.h"
 
 #include "GameplayTagContainer.h"
 #include "Roles/LiveLinkCameraTypes.h"
@@ -29,7 +30,6 @@ class UInputTrigger;
 class UInputVCamSubsystem;
 class UVCamModifierContext;
 class UVCamOutputProviderBase;
-class UVCamSubsystem;
 
 struct FEnhancedActionKeyMapping;
 

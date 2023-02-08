@@ -9,6 +9,7 @@
 #include "Templates/NonNullPointer.h"
 #include "VPFullScreenUserWidget.generated.h"
 
+class FSceneViewport;
 class FWidgetRenderer;
 class FVPWidgetPostProcessHitTester;
 class SConstraintCanvas;
@@ -45,18 +46,18 @@ struct FVPFullScreenUserWidget_Viewport
 {
 	GENERATED_BODY()
 
-	FVPFullScreenUserWidget_Viewport();
-	bool Display(UWorld* World, UUserWidget* Widget, float InDPIScale);
+	bool Display(UWorld* World, UUserWidget* Widget, TAttribute<float> InDPIScale);
 	void Hide(UWorld* World);
-	void Tick(UWorld* World, float DeltaSeconds);
 
 #if WITH_EDITOR
-	/** If set, use this viewport instead of GetFirstActiveLevelViewport() */
-	TWeakPtr<SLevelViewport> TargetViewport;
+	/**
+	 * The viewport to use for displaying.
+	 * Defaults to GetFirstActiveLevelViewport().
+	 */
+	TWeakPtr<FSceneViewport> EditorTargetViewport;
 #endif
 
 private:
-	bool bAddedToGameViewport;
 
 	/** Constraint widget that contains the widget we want to display. */
 	TWeakPtr<SConstraintCanvas> FullScreenCanvasWidget;
@@ -76,7 +77,7 @@ struct FVPFullScreenUserWidget_PostProcess
 
 	void SetCustomPostProcessSettingsSource(TWeakObjectPtr<UObject> InCustomPostProcessSettingsSource);
 	
-	bool Display(UWorld* World, UUserWidget* Widget, bool bInRenderToTextureOnly, float InDPIScale);
+	bool Display(UWorld* World, UUserWidget* Widget, bool bInRenderToTextureOnly, TAttribute<float> InDPIScale);
 	void Hide(UWorld* World);
 	void Tick(UWorld* World, float DeltaSeconds);
 
@@ -86,7 +87,7 @@ private:
 	bool InitPostProcessComponent(UWorld* World);
 	void ReleasePostProcessComponent();
 
-	bool CreateRenderer(UWorld* World, UUserWidget* Widget, float InDPIScale);
+	bool CreateRenderer(UWorld* World, UUserWidget* Widget, TAttribute<float> InDPIScale);
 	void ReleaseRenderer();
 	void TickRenderer(UWorld* World, float DeltaSeconds);
 
@@ -96,6 +97,8 @@ private:
 	void RegisterHitTesterWithViewport(UWorld* World);
 	void UnRegisterHitTesterWithViewport();
 
+	TSharedPtr<SViewport> GetViewport(UWorld* World) const;
+	float GetDPIScaleForPostProcessHitTester(TWeakObjectPtr<UWorld> World) const;
 	FPostProcessSettings* GetPostProcessSettings() const;
 
 public:
@@ -153,11 +156,16 @@ public:
     TObjectPtr<UTextureRenderTarget2D> WidgetRenderTarget;
 
 #if WITH_EDITOR
-	/** If set, use this viewport instead of GetFirstActiveLevelViewport() */
-	TWeakPtr<SLevelViewport> TargetViewport;
+	/**
+	 * The viewport to use for displaying.
+	 * 
+	 * Defaults to GetFirstActiveLevelViewport().
+	 */
+	TWeakPtr<FSceneViewport> EditorTargetViewport;
 #endif
 	
 private:
+	
 	/** Post process component used to add the material to the post process chain. */
 	UPROPERTY(Transient)
 	TObjectPtr<UPostProcessComponent> PostProcessComponent;
@@ -229,6 +237,18 @@ public:
 	 */
 	void SetCustomPostProcessSettingsSource(TWeakObjectPtr<UObject> InCustomPostProcessSettingsSource);
 
+#if WITH_EDITOR
+	/**
+	 * Sets the TargetViewport to use on both the Viewport and the PostProcess class.
+	 * 
+	 * Overrides the viewport to use for displaying.
+	 * Defaults to GetFirstActiveLevelViewport().
+	 */
+	void SetEditorTargetViewport(TWeakPtr<FSceneViewport> InTargetViewport);
+	/** Resets the TargetViewport  */
+	void ResetEditorTargetViewport();
+#endif
+
 protected:
 	void InitWidget();
 	void ReleaseWidget();
@@ -270,17 +290,6 @@ public:
 	// Note: This should not be stored!
 	UUserWidget* GetWidget() const { return Widget; };
 
-#if WITH_EDITOR
-	/** If set, use this viewport instead of GetFirstActiveLevelViewport() */
-	TWeakPtr<SLevelViewport> TargetViewport;
-
-	/** Sets the TargetViewport to use on both the Viewport and the PostProcess class */
-	void SetAllTargetViewports(TWeakPtr<SLevelViewport> InTargetViewport);
-
-	/** Resets the TargetViewport  */
-	void ResetAllTargetViewports();
-#endif
-
 private:
 	/** The User Widget object displayed and managed by this component */
 	UPROPERTY(Transient, DuplicateTransient)
@@ -294,4 +303,12 @@ private:
 
 	/** The user requested the widget to be displayed. It's possible that some setting are invalid and the widget will not be displayed. */
 	bool bDisplayRequested;
+
+#if WITH_EDITOR
+	/**
+	 * The viewport to use for displaying.
+	 * Defaults to GetFirstActiveLevelViewport().
+	 */
+	TWeakPtr<FSceneViewport> EditorTargetViewport;
+#endif
 };

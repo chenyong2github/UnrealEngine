@@ -183,7 +183,7 @@ void UVCamOutputProviderBase::CreateUMG()
 	UMGWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
 
 #if WITH_EDITOR
-	UMGWidget->SetAllTargetViewports(GetTargetLevelViewport());
+	UMGWidget->SetEditorTargetViewport(GetSceneViewport(TargetViewport));
 #endif
 
 	UMGWidget->WidgetClass = UMGClass;
@@ -287,7 +287,7 @@ void UVCamOutputProviderBase::DestroyUMG()
 		UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget %s destroyed"), *UMGWidget->GetName());
 
 #if WITH_EDITOR
-		UMGWidget->ResetAllTargetViewports();
+		UMGWidget->ResetEditorTargetViewport();
 #endif
 
 		UMGWidget->ConditionalBeginDestroy();
