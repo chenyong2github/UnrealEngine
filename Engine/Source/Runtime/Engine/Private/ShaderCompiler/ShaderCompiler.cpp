@@ -6430,6 +6430,9 @@ void GlobalBeginCompileShader(
 			Input.Environment.SetDefine(TEXT("STRATA_USE_DBUFFER_PASS"), bStrataDBufferPass ? 1 : 0);
 		}
 
+		const bool bStrataUseAccurateSRGB = bStrata && Strata::IsAccurateSRGBEnabled();
+		Input.Environment.SetDefine(TEXT("STRATA_USE_ACCURATE_SRGB"), bStrataUseAccurateSRGB ? 1 : 0);
+
 		const bool bStrataBackCompatibility = bStrata && Strata::IsBackCompatibilityEnabled();
 		Input.Environment.SetDefine(TEXT("PROJECT_STRATA_BACKCOMPATIBILITY"), bStrataBackCompatibility ? 1 : 0);
 
