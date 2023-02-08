@@ -184,6 +184,7 @@ public:
 	USparseVolumeTexture();
 	virtual ~USparseVolumeTexture() = default;
 
+	UFUNCTION(BlueprintCallable, Category = "Animation")
 	virtual int32 GetFrameCount() const { return 0; }
 	virtual FBox GetVolumeBounds() const { return FBox(); }
 	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return nullptr; }
@@ -330,9 +331,6 @@ public:
 	virtual ~UAnimatedSparseVolumeTextureController() = default;
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void SetSparseVolumeTexture(USparseVolumeTexture* Texture);
-
-	UFUNCTION(BlueprintCallable, Category = "Animation")
 	void Play();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
@@ -345,7 +343,34 @@ public:
 	bool IsPlaying();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	USparseVolumeTextureFrame* Update(float DeltaTime);
+	void Update(float DeltaTime);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	void SetSparseVolumeTexture(USparseVolumeTexture* Texture);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	void SetTime(float Time);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	void SetFractionalFrameIndex(float Frame);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	USparseVolumeTexture* GetSparseVolumeTexture();
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	float GetTime();
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	float GetFractionalFrameIndex();
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	USparseVolumeTextureFrame* GetCurrentFrame();
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	void GetLerpFrames(USparseVolumeTextureFrame*& Frame0, USparseVolumeTextureFrame*& Frame1, float& LerpAlpha);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	float GetDuration();
 
 private:
 	TObjectPtr<USparseVolumeTexture> SparseVolumeTexture;

@@ -667,7 +667,10 @@ USparseVolumeTextureFrame::USparseVolumeTextureFrame(const FObjectInitializer& O
 
 USparseVolumeTextureFrame* USparseVolumeTextureFrame::CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex)
 {
-	check(Texture);
+	if (!Texture)
+	{
+		return nullptr;
+	}
 	
 	const FSparseVolumeTextureSceneProxy* Proxy = nullptr;
 	if (Texture->IsA<UStreamableSparseVolumeTexture>())
@@ -704,18 +707,6 @@ UAnimatedSparseVolumeTextureController::UAnimatedSparseVolumeTextureController(c
 {
 }
 
-void UAnimatedSparseVolumeTextureController::SetSparseVolumeTexture(USparseVolumeTexture* Texture)
-{
-	if (Texture == SparseVolumeTexture)
-	{
-		return;
-	}
-
-	SparseVolumeTexture = Texture;
-	bIsPlaying = bIsPlaying && (SparseVolumeTexture != nullptr);
-	Time = 0.0f;
-}
-
 void UAnimatedSparseVolumeTextureController::Play()
 {
 	bIsPlaying = true;
@@ -740,30 +731,114 @@ bool UAnimatedSparseVolumeTextureController::IsPlaying()
 	return bIsPlaying;
 }
 
-USparseVolumeTextureFrame* UAnimatedSparseVolumeTextureController::Update(float DeltaTime)
+void UAnimatedSparseVolumeTextureController::Update(float DeltaTime)
+{
+	if (!SparseVolumeTexture || !bIsPlaying)
+	{
+		return;
+	}
+
+	// Update animation time
+	const float AnimationDuration = GetDuration();
+	Time = FMath::Fmod(Time + DeltaTime, AnimationDuration + UE_SMALL_NUMBER);
+}
+
+void UAnimatedSparseVolumeTextureController::SetSparseVolumeTexture(USparseVolumeTexture* Texture)
+{
+	if (Texture == SparseVolumeTexture)
+	{
+		return;
+	}
+
+	SparseVolumeTexture = Texture;
+	bIsPlaying = bIsPlaying && (SparseVolumeTexture != nullptr);
+	Time = 0.0f;
+}
+
+void UAnimatedSparseVolumeTextureController::SetTime(float InTime)
+{
+	const float AnimationDuration = GetDuration();
+	Time = FMath::Fmod(InTime, AnimationDuration + UE_SMALL_NUMBER);
+}
+
+void UAnimatedSparseVolumeTextureController::SetFractionalFrameIndex(float Frame)
+{
+	if (!SparseVolumeTexture)
+	{
+		return;
+	}
+
+	const int32 FrameCount = SparseVolumeTexture->GetFrameCount();
+	Frame = FMath::Fmod(Frame, (float)FrameCount);
+	Time = Frame / (FrameRate + UE_SMALL_NUMBER);
+}
+
+USparseVolumeTexture* UAnimatedSparseVolumeTextureController::GetSparseVolumeTexture()
+{
+	return SparseVolumeTexture;
+}
+
+float UAnimatedSparseVolumeTextureController::GetTime()
+{
+	return Time;
+}
+
+float UAnimatedSparseVolumeTextureController::GetFractionalFrameIndex()
+{
+	if (!SparseVolumeTexture)
+	{
+		return 0.0f;
+	}
+
+	const int32 FrameCount = SparseVolumeTexture->GetFrameCount();
+	const float FrameIndexF = FMath::Fmod(Time * FrameRate, (float)FrameCount);
+	return FrameIndexF;
+}
+
+USparseVolumeTextureFrame* UAnimatedSparseVolumeTextureController::GetCurrentFrame()
 {
 	if (!SparseVolumeTexture)
 	{
 		return nullptr;
 	}
 
-	const int32 FrameCount = SparseVolumeTexture->GetFrameCount();
-	const float AnimationDuration = FrameCount / (FrameRate + UE_SMALL_NUMBER);
-
-	// Update animation time
-	if (bIsPlaying)
-	{
-		Time = FMath::Fmod(Time + DeltaTime, AnimationDuration + UE_SMALL_NUMBER);
-	}
-
 	// Compute (fractional) index of frame to sample
-	const float FrameIndexF = FMath::Fmod(Time * FrameRate, (float)FrameCount);
+	const float FrameIndexF = GetFractionalFrameIndex();
 	const int32 FrameIndex = (int32)FrameIndexF;
 
 	// Create and initialize a USparseVolumeTextureFrame which holds the frame to sample and can be bound to shaders
 	USparseVolumeTextureFrame* Frame = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex);
 
 	return Frame;
+}
+
+void UAnimatedSparseVolumeTextureController::GetLerpFrames(USparseVolumeTextureFrame*& Frame0, USparseVolumeTextureFrame*& Frame1, float& LerpAlpha)
+{
+	if (!SparseVolumeTexture)
+	{
+		return;
+	}
+
+	// Compute (fractional) index of frame to sample
+	const float FrameIndexF = GetFractionalFrameIndex();
+	const int32 FrameIndex = (int32)FrameIndexF;
+	LerpAlpha = FMath::Frac(FrameIndexF);
+
+	// Create and initialize a USparseVolumeTextureFrame which holds the frame to sample and can be bound to shaders
+	Frame0 = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex);
+	Frame1 = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex + 1);
+}
+
+float UAnimatedSparseVolumeTextureController::GetDuration()
+{
+	if (!SparseVolumeTexture)
+	{
+		return 0.0f;
+	}
+
+	const int32 FrameCount = SparseVolumeTexture->GetFrameCount();
+	const float AnimationDuration = FrameCount / (FrameRate + UE_SMALL_NUMBER);
+	return AnimationDuration;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
