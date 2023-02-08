@@ -276,9 +276,9 @@ void UPCGSettings::FillOverridableParamsPins(TArray<FPCGPinProperties>& OutPins)
 	{
 		if (InputPinsLabelsAndTypes.Contains(OverridableParam.Label))
 		{
-			const FString ParamsName = OverridableParam.Label.ToString();
-			UE_LOG(LogPCG, Warning, TEXT("[%s-%s] While automatically adding overriable param pins, we found a %s pin. "
-				"Please rename this pin if you want to take advantage of automatic override. Until then, we will not add a %s pin."), *GraphName, *NodeName, *ParamsName, *ParamsName);
+			//const FString ParamsName = OverridableParam.Label.ToString();
+			//UE_LOG(LogPCG, Warning, TEXT("[%s-%s] While automatically adding overriable param pins, we found a %s pin. "
+			//	"Please rename this pin if you want to take advantage of automatic override. Until then, we will not add a %s pin."), *GraphName, *NodeName, *ParamsName, *ParamsName);
 			continue;
 		}
 
