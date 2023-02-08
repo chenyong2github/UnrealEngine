@@ -25,6 +25,9 @@ extern RENDERCORE_API FTextureWithSRV* GTransparentBlackTextureWithSRV;
 // An empty vertex buffer with a UAV
 extern RENDERCORE_API FVertexBufferWithSRV* GEmptyVertexBufferWithUAV;
 
+// An empty structured buffer with a UAV
+extern RENDERCORE_API FVertexBufferWithSRV* GEmptyStructuredBufferWithUAV;
+
 // An empty vertex buffer with a SRV
 extern RENDERCORE_API FVertexBufferWithSRV* GWhiteVertexBufferWithSRV;
 

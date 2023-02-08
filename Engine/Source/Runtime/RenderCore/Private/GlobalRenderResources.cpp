@@ -86,6 +86,23 @@ public:
 	}
 };
 
+class FEmptyStructuredBuffer : public FVertexBufferWithSRV
+{
+public:
+	virtual void InitRHI() override
+	{
+		// Create the buffer RHI.  		
+		FRHIResourceCreateInfo CreateInfo(TEXT("EmptyStructuredBuffer"));
+
+		const uint32 BufferSize = sizeof(uint32) * 4u;
+		VertexBufferRHI = RHICreateStructuredBuffer(sizeof(uint32), BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+
+		// Create a view of the buffer
+		ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI);
+		UnorderedAccessViewRHI = RHICreateUnorderedAccessView(VertexBufferRHI, false, false);
+	}
+};
+
 class FBlackTextureWithSRV : public FColoredTexture<0, 0, 0, 255>
 {
 public:
@@ -110,6 +127,7 @@ FTexture* GBlackTexture = GBlackTextureWithSRV;
 FTexture* GTransparentBlackTexture = GTransparentBlackTextureWithSRV;
 
 FVertexBufferWithSRV* GEmptyVertexBufferWithUAV = new TGlobalResource<FEmptyVertexBuffer>;
+FVertexBufferWithSRV* GEmptyStructuredBufferWithUAV = new TGlobalResource<FEmptyStructuredBuffer>;
 
 class FWhiteVertexBuffer : public FVertexBufferWithSRV
 {

@@ -222,7 +222,7 @@ static FSceneView* CreateSceneView( FSceneViewFamilyContext* ViewFamilyContext, 
 
 	// Create the view's uniform buffer.
 	FViewUniformShaderParameters ViewUniformShaderParameters;
-	ViewUniformShaderParameters.VTFeedbackBuffer = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
+	ViewUniformShaderParameters.VTFeedbackBuffer = GEmptyStructuredBufferWithUAV->UnorderedAccessViewRHI;
 
 	View->SetupCommonViewUniformBufferParameters(
 		ViewUniformShaderParameters,

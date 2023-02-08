@@ -962,7 +962,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_SRV(Buffer<uint>, LandscapeIndirection)
 	SHADER_PARAMETER_SRV(Buffer<float>, LandscapePerComponentData)
 
-	SHADER_PARAMETER_UAV(RWBuffer<uint>, VTFeedbackBuffer)
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, VTFeedbackBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>, EditorVisualizeLevelInstanceIds)
 	SHADER_PARAMETER_SRV(Buffer<uint>, EditorSelectedHitProxyIds)
 

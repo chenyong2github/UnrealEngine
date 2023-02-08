@@ -77,13 +77,12 @@ void FVirtualTextureFeedbackBuffer::Begin(FRDGBuilder& GraphBuilder, const FVirt
 
 	Desc = InDesc;
 
-	FRDGBufferDesc BufferDesc(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Desc.BufferSize.X * Desc.BufferSize.Y));
+	FRDGBufferDesc BufferDesc(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), Desc.BufferSize.X * Desc.BufferSize.Y));
 	BufferDesc.Usage |= BUF_SourceCopy;
 
 	if (AllocatePooledBuffer(BufferDesc, PooledBuffer, TEXT("VirtualTextureFeedbackGPU")))
 	{
-		FRDGBufferUAVDesc UAVDesc;
-		UAVDesc.Format = PF_R32_UINT;
+		FRDGBufferUAVDesc UAVDesc{};
 		UAV = PooledBuffer->GetOrCreateUAV(UAVDesc);
 	}
 
@@ -109,7 +108,7 @@ void FVirtualTextureFeedbackBuffer::End(FRDGBuilder& GraphBuilder)
 
 FRHIUnorderedAccessView* FVirtualTextureFeedbackBuffer::GetUAV() const
 {
-	return UAV ? UAV : GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI.GetReference();
+	return UAV ? UAV : GEmptyStructuredBufferWithUAV->UnorderedAccessViewRHI.GetReference();
 }
 
 void FVirtualTextureFeedbackBuffer::ReleaseRHI()

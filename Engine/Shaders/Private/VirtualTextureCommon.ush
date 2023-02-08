@@ -51,7 +51,7 @@ void StoreVirtualTextureFeedback(in out FVirtualTextureFeedbackParams Params, ui
 }
 
 /** This should be called at the end of the pixel shader to write out the gathered VT feedback info to the OutputBuffer. */
-void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, float4 SvPosition, float Opacity, uint FrameNumber, RWBuffer<uint> OutputBuffer)
+void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, float4 SvPosition, float Opacity, uint FrameNumber, RWStructuredBuffer<uint> OutputBuffer)
 {
 	uint2 PixelTilePos = (uint2)SvPosition.xy & View.VirtualTextureFeedbackMask;
 	uint PixelTileIndex = (PixelTilePos.y << View.VirtualTextureFeedbackShift) + PixelTilePos.x;
