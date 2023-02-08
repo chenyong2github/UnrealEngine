@@ -5,7 +5,7 @@
 #include "Styling/StarshipCoreStyle.h"
 
 
-#define LOCTEXT_NAMESPACE "DataflowGraphEditor"
+#define LOCTEXT_NAMESPACE "SelectionViewWidget"
 
 
 const FName FSelectionViewHeader::IndexColumnNameTransform = FName("Transform Index");
@@ -44,7 +44,6 @@ TSharedRef<SWidget> SSelectionViewRow::GenerateWidgetForColumn(const FName& Colu
 				.Text(FText::FromString(AttrValue))
 				.ShadowColorAndOpacity(FLinearColor(0.1f, 0.1f, 0.1f, 1.f))
 				.Visibility(EVisibility::Visible)
-				.ToolTipText(FText::FromString("This is an example tooltip."))
 				.Font_Lambda([this]() -> FSlateFontInfo
 				{
 					if (Item->Values[1] == FSelectionViewItem::SelectedName.ToString())
@@ -64,9 +63,7 @@ TSharedRef<SWidget> SSelectionViewRow::GenerateWidgetForColumn(const FName& Colu
 // ----------------------------------------------------------------------------
 //
 
-void SSelectionView::Construct(
-	const FArguments& InArgs
-)
+void SSelectionView::Construct(const FArguments& InArgs)
 {
 	SelectedOutput = InArgs._SelectedOutput;
 
@@ -90,7 +87,7 @@ void SSelectionView::Construct(
 			+ SOverlay::Slot()
 			[
 				SAssignNew(ListView, SListView<TSharedPtr<const FSelectionViewItem>>)
-				.SelectionMode(ESelectionMode::None)
+				.SelectionMode(ESelectionMode::Multi)
 				.ListItemsSource(&ListItems)
 				.OnGenerateRow(this, &SSelectionView::GenerateRow)
 				.HeaderRow(HeaderRowWidget)
@@ -153,6 +150,9 @@ void SSelectionView::RegenerateHeader()
 			SHeaderRow::Column(ColumnName)
 			.DefaultLabel(FText::FromName(ColumnName))
 			.FillWidth(CustomFillWidth)
+			.HAlignCell(HAlign_Center)
+			.HAlignHeader(HAlign_Center)
+			.VAlignCell(VAlign_Center)
 		);
 	}
 }
@@ -217,6 +217,21 @@ TSharedRef<ITableRow> SSelectionView::GenerateRow(TSharedPtr<const FSelectionVie
 //
 // ----------------------------------------------------------------------------
 //
+
+void SSelectionViewWidget::NodeOutputsComboBoxSelectionChanged(FName InSelectedOutput, ESelectInfo::Type InSelectInfo)
+{
+	if (SelectionTable)
+	{
+		if (SelectionTable->GetSelectedOutput() != InSelectedOutput)
+		{
+			SelectionTable->SetSelectedOutput(InSelectedOutput);
+
+			NodeOutputsComboBoxLabel->SetText(FText::FromName(SelectionTable->GetSelectedOutput()));
+
+			SetStatusText();
+		}
+	}
+}
 
 
 void SSelectionViewWidget::Construct(const FArguments& InArgs)
@@ -341,36 +356,17 @@ void SSelectionViewWidget::Construct(const FArguments& InArgs)
 			.Padding(10.0f, 0.0f, 10.0f, 10.0f)
 			[
 				SAssignNew(NodeOutputsComboBox, SComboBox<FName>)
+				.ToolTipText(LOCTEXT("NodeOutputsToolTip", "Select a node output to see the output's data"))
 				.OptionsSource(&NodeOutputs)
-				.OnSelectionChanged(SComboBox<FName>::FOnSelectionChanged::CreateLambda(
-					[this](FName SelectedName, ESelectInfo::Type)
-					{
-						if (SelectionTable)
-						{
-							SelectionTable->SetSelectedOutput(SelectedName);
-						}
-
-						SetStatusText();
-					}))
-				.OnGenerateWidget(SComboBox<FName>::FOnGenerateWidget::CreateLambda(
-					[](FName Item)
-					{
-						return SNew(STextBlock)
-							.Text(FText::FromName(Item));
-					}))
+				.OnGenerateWidget(SComboBox<FName>::FOnGenerateWidget::CreateLambda([](FName Item)->TSharedRef<SWidget>
+				{
+					return SNew(STextBlock)
+						.Text(FText::FromName(Item));
+				}))
+				.OnSelectionChanged(this, &SSelectionViewWidget::NodeOutputsComboBoxSelectionChanged)
 				[
-					SNew(STextBlock)
-					.Text_Lambda([this]()
-					{
-						if (SelectionTable)
-						{
-							return FText::FromName(SelectionTable->GetSelectedOutput());
-						}
-						else
-						{
-							return FText::FromString("");
-						}
-					})
+					SAssignNew(NodeOutputsComboBoxLabel, STextBlock)
+					.Text(GetNoOutputText())
 				]
 			]
 		]
@@ -426,6 +422,10 @@ void SSelectionViewWidget::RefreshWidget()
 	{
 		NodeOutputsComboBox->SetSelectedItem(NodeOutputs[0]);
 	}
+	else
+	{
+		NodeOutputsComboBoxLabel->SetText(GetNoOutputText());
+	}
 }
 
 
@@ -442,5 +442,9 @@ void SSelectionViewWidget::SetStatusText()
 	}
 }
 
+FText SSelectionViewWidget::GetNoOutputText()
+{
+	return LOCTEXT("NoOutput", "No Output(s)");
+}
 
 #undef LOCTEXT_NAMESPACE

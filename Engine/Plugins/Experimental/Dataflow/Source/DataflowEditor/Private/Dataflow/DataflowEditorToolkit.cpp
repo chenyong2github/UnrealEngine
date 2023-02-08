@@ -38,8 +38,14 @@ const FName FDataflowEditorToolkit::GraphCanvasTabId(TEXT("DataflowEditor_GraphC
 const FName FDataflowEditorToolkit::AssetDetailsTabId(TEXT("DataflowEditor_AssetDetails"));
 const FName FDataflowEditorToolkit::NodeDetailsTabId(TEXT("DataflowEditor_NodeDetails"));
 const FName FDataflowEditorToolkit::SkeletalTabId(TEXT("DataflowEditor_Skeletal"));
-const FName FDataflowEditorToolkit::SelectionViewTabId(TEXT("DataflowEditor_SelectionView"));
-
+const FName FDataflowEditorToolkit::SelectionViewTabId_1(TEXT("DataflowEditor_SelectionView_1"));
+const FName FDataflowEditorToolkit::SelectionViewTabId_2(TEXT("DataflowEditor_SelectionView_2"));
+const FName FDataflowEditorToolkit::SelectionViewTabId_3(TEXT("DataflowEditor_SelectionView_3"));
+const FName FDataflowEditorToolkit::SelectionViewTabId_4(TEXT("DataflowEditor_SelectionView_4"));
+const FName FDataflowEditorToolkit::CollectionSpreadSheetTabId_1(TEXT("DataflowEditor_CollectionSpreadSheet_1"));
+const FName FDataflowEditorToolkit::CollectionSpreadSheetTabId_2(TEXT("DataflowEditor_CollectionSpreadSheet_2"));
+const FName FDataflowEditorToolkit::CollectionSpreadSheetTabId_3(TEXT("DataflowEditor_CollectionSpreadSheet_3"));
+const FName FDataflowEditorToolkit::CollectionSpreadSheetTabId_4(TEXT("DataflowEditor_CollectionSpreadSheet_4"));
 
 UDataflow* GetDataflowFrom(UObject* InObject)
 {
@@ -463,10 +469,40 @@ TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_Skeletal(const FSpawnTabAr
 
 TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_SelectionView(const FSpawnTabArgs& Args)
 {
-	check(Args.GetTabId() == SelectionViewTabId);
+//	check(Args.GetTabId().TabType == SelectionViewTabId_1);
 
-	DataflowSelectionView = MakeShared<FDataflowSelectionView>(FDataflowSelectionView());
-	ViewListeners.Add(DataflowSelectionView.Get());
+	if (Args.GetTabId() == SelectionViewTabId_1)
+	{
+		DataflowSelectionView_1 = MakeShared<FDataflowSelectionView>(FDataflowSelectionView());
+		if (DataflowSelectionView_1.IsValid())
+		{
+			ViewListeners.Add(DataflowSelectionView_1.Get());
+		}
+	}
+	else if (Args.GetTabId() == SelectionViewTabId_2)
+	{
+		DataflowSelectionView_2 = MakeShared<FDataflowSelectionView>(FDataflowSelectionView());
+		if (DataflowSelectionView_2.IsValid())
+		{
+			ViewListeners.Add(DataflowSelectionView_2.Get());
+		}
+	}
+	else if (Args.GetTabId() == SelectionViewTabId_3)
+	{
+		DataflowSelectionView_3 = MakeShared<FDataflowSelectionView>(FDataflowSelectionView());
+		if (DataflowSelectionView_3.IsValid())
+		{
+			ViewListeners.Add(DataflowSelectionView_3.Get());
+		}
+	}
+	else if (Args.GetTabId() == SelectionViewTabId_4)
+	{
+		DataflowSelectionView_4 = MakeShared<FDataflowSelectionView>(FDataflowSelectionView());
+		if (DataflowSelectionView_4.IsValid())
+		{
+			ViewListeners.Add(DataflowSelectionView_4.Get());
+		}
+	}
 
 	TSharedPtr<SSelectionViewWidget> SelectionViewWidget;
 
@@ -477,14 +513,142 @@ TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_SelectionView(const FSpawn
 
 	if (SelectionViewWidget)
 	{
-		DataflowSelectionView->SetSelectionView(SelectionViewWidget);
-
-		// Set the Context on the interface
-		if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+		if (Args.GetTabId() == SelectionViewTabId_1)
 		{
-			DataflowSelectionView->SetContext(CurrentContext);
+			DataflowSelectionView_1->SetSelectionView(SelectionViewWidget);
+
+			// Set the Context on the interface
+			if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+			{
+				DataflowSelectionView_1->SetContext(CurrentContext);
+			}
+		}
+		else if (Args.GetTabId() == SelectionViewTabId_2)
+		{
+			DataflowSelectionView_2->SetSelectionView(SelectionViewWidget);
+
+			// Set the Context on the interface
+			if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+			{
+				DataflowSelectionView_2->SetContext(CurrentContext);
+			}
+		}
+		else if (Args.GetTabId() == SelectionViewTabId_3)
+		{
+			DataflowSelectionView_3->SetSelectionView(SelectionViewWidget);
+
+			// Set the Context on the interface
+			if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+			{
+				DataflowSelectionView_3->SetContext(CurrentContext);
+			}
+		}
+		else if (Args.GetTabId() == SelectionViewTabId_4)
+		{
+			DataflowSelectionView_4->SetSelectionView(SelectionViewWidget);
+
+			// Set the Context on the interface
+			if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+			{
+				DataflowSelectionView_4->SetContext(CurrentContext);
+			}
 		}
 	}
+
+	DockableTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FDataflowEditorToolkit::OnTabClosed));
+
+	return DockableTab;
+}
+
+TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_CollectionSpreadSheet(const FSpawnTabArgs& Args)
+{
+//	check(Args.GetTabId() == CollectionSpreadSheetTabId_1);
+
+	if (Args.GetTabId() == CollectionSpreadSheetTabId_1)
+	{
+		DataflowCollectionSpreadSheet_1 = MakeShared<FDataflowCollectionSpreadSheet>(FDataflowCollectionSpreadSheet());
+		if (DataflowCollectionSpreadSheet_1.IsValid())
+		{
+			ViewListeners.Add(DataflowCollectionSpreadSheet_1.Get());
+		}
+	}
+	else if (Args.GetTabId() == CollectionSpreadSheetTabId_2)
+	{
+		DataflowCollectionSpreadSheet_2 = MakeShared<FDataflowCollectionSpreadSheet>(FDataflowCollectionSpreadSheet());
+		if (DataflowCollectionSpreadSheet_2.IsValid())
+		{
+			ViewListeners.Add(DataflowCollectionSpreadSheet_2.Get());
+		}
+	}
+	else if (Args.GetTabId() == CollectionSpreadSheetTabId_3)
+	{
+		DataflowCollectionSpreadSheet_3 = MakeShared<FDataflowCollectionSpreadSheet>(FDataflowCollectionSpreadSheet());
+		if (DataflowCollectionSpreadSheet_3.IsValid())
+		{
+			ViewListeners.Add(DataflowCollectionSpreadSheet_3.Get());
+		}
+	}
+	else if (Args.GetTabId() == CollectionSpreadSheetTabId_4)
+	{
+		DataflowCollectionSpreadSheet_4 = MakeShared<FDataflowCollectionSpreadSheet>(FDataflowCollectionSpreadSheet());
+		if (DataflowCollectionSpreadSheet_4.IsValid())
+		{
+			ViewListeners.Add(DataflowCollectionSpreadSheet_4.Get());
+		}
+	}
+
+	TSharedPtr<SCollectionSpreadSheetWidget> CollectionSpreadSheetWidget;
+
+	TSharedRef<SDockTab> DockableTab = SNew(SDockTab)
+	[
+		SAssignNew(CollectionSpreadSheetWidget, SCollectionSpreadSheetWidget)
+	];
+
+	if (CollectionSpreadSheetWidget)
+	{
+		if (Args.GetTabId() == CollectionSpreadSheetTabId_1)
+		{
+			DataflowCollectionSpreadSheet_1->SetCollectionSpreadSheet(CollectionSpreadSheetWidget);
+
+			// Set the Context on the interface
+			if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+			{
+				DataflowCollectionSpreadSheet_1->SetContext(CurrentContext);
+			}
+		}
+		else if (Args.GetTabId() == CollectionSpreadSheetTabId_2)
+		{
+			DataflowCollectionSpreadSheet_2->SetCollectionSpreadSheet(CollectionSpreadSheetWidget);
+
+			// Set the Context on the interface
+			if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+			{
+				DataflowCollectionSpreadSheet_2->SetContext(CurrentContext);
+			}
+		}
+		else if (Args.GetTabId() == CollectionSpreadSheetTabId_3)
+		{
+			DataflowCollectionSpreadSheet_3->SetCollectionSpreadSheet(CollectionSpreadSheetWidget);
+
+			// Set the Context on the interface
+			if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+			{
+				DataflowCollectionSpreadSheet_3->SetContext(CurrentContext);
+			}
+		}
+		else if (Args.GetTabId() == CollectionSpreadSheetTabId_4)
+		{
+			DataflowCollectionSpreadSheet_4->SetCollectionSpreadSheet(CollectionSpreadSheetWidget);
+
+			// Set the Context on the interface
+			if (TSharedPtr<Dataflow::FContext> CurrentContext = this->GetContext())
+			{
+				DataflowCollectionSpreadSheet_4->SetContext(CurrentContext);
+			}
+		}
+	}
+
+	DockableTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FDataflowEditorToolkit::OnTabClosed));
 
 	return DockableTab;
 }
@@ -492,6 +656,8 @@ TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_SelectionView(const FSpawn
 void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	TSharedRef<FWorkspaceItem> WorkspaceMenuCategoryRef = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_DataflowEditor", "Dataflow Editor"));
+	TSharedRef<FWorkspaceItem> SelectionViewWorkspaceMenuCategoryRef = WorkspaceMenuCategoryRef->AddGroup(LOCTEXT("WorkspaceMenu_SelectionView", "Selection View"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+	TSharedRef<FWorkspaceItem> CollectionSpreadSheetWorkspaceMenuCategoryRef = WorkspaceMenuCategoryRef->AddGroup(LOCTEXT("WorkspaceMenu_CollectionSpreadSheet", "Collection SpreadSheet"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
 
 	InTabManager->RegisterTabSpawner(ViewportTabId, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_Viewport))
 		.SetDisplayName(LOCTEXT("DataflowViewportTab", "Dataflow Viewport"))
@@ -518,12 +684,102 @@ void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& 
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.SkeletalHierarchy"));
 
-	InTabManager->RegisterTabSpawner(SelectionViewTabId, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_SelectionView))
-		.SetDisplayName(LOCTEXT("DataflowSelectionViewTab", "Selection View"))
-		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.SelectionView"));
+	InTabManager->RegisterTabSpawner(SelectionViewTabId_1, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_SelectionView))
+		.SetDisplayName(LOCTEXT("DataflowSelectionViewTab1", "Selection View 1"))
+		.SetGroup(SelectionViewWorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
+	InTabManager->RegisterTabSpawner(SelectionViewTabId_2, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_SelectionView))
+		.SetDisplayName(LOCTEXT("DataflowSelectionViewTab2", "Selection View 2"))
+		.SetGroup(SelectionViewWorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
+	InTabManager->RegisterTabSpawner(SelectionViewTabId_3, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_SelectionView))
+		.SetDisplayName(LOCTEXT("DataflowSelectionViewTab3", "Selection View 3"))
+		.SetGroup(SelectionViewWorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
+	InTabManager->RegisterTabSpawner(SelectionViewTabId_4, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_SelectionView))
+		.SetDisplayName(LOCTEXT("DataflowSelectionViewTab4", "Selection View 4"))
+		.SetGroup(SelectionViewWorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
+	InTabManager->RegisterTabSpawner(CollectionSpreadSheetTabId_1, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_CollectionSpreadSheet))
+		.SetDisplayName(LOCTEXT("DataflowCollectionSpreadSheetTab1", "Collection SpreadSheet 1"))
+		.SetGroup(CollectionSpreadSheetWorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
+	InTabManager->RegisterTabSpawner(CollectionSpreadSheetTabId_2, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_CollectionSpreadSheet))
+		.SetDisplayName(LOCTEXT("DataflowCollectionSpreadSheetTab2", "Collection SpreadSheet 2"))
+		.SetGroup(CollectionSpreadSheetWorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
+	InTabManager->RegisterTabSpawner(CollectionSpreadSheetTabId_3, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_CollectionSpreadSheet))
+		.SetDisplayName(LOCTEXT("DataflowCollectionSpreadSheetTab3", "Collection SpreadSheet 3"))
+		.SetGroup(CollectionSpreadSheetWorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
+	InTabManager->RegisterTabSpawner(CollectionSpreadSheetTabId_4, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_CollectionSpreadSheet))
+		.SetDisplayName(LOCTEXT("DataflowCollectionSpreadSheetTab4", "Collection SpreadSheet 4"))
+		.SetGroup(CollectionSpreadSheetWorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
+}
+
+void FDataflowEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+{
+	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
+
+	InTabManager->UnregisterTabSpawner(ViewportTabId);
+	InTabManager->UnregisterTabSpawner(GraphCanvasTabId);
+	InTabManager->UnregisterTabSpawner(AssetDetailsTabId);
+	InTabManager->UnregisterTabSpawner(NodeDetailsTabId);
+	InTabManager->UnregisterTabSpawner(SkeletalTabId);
+	InTabManager->UnregisterTabSpawner(SelectionViewTabId_1);
+	InTabManager->UnregisterTabSpawner(SelectionViewTabId_2);
+	InTabManager->UnregisterTabSpawner(SelectionViewTabId_3);
+	InTabManager->UnregisterTabSpawner(SelectionViewTabId_4);
+	InTabManager->UnregisterTabSpawner(CollectionSpreadSheetTabId_1);
+	InTabManager->UnregisterTabSpawner(CollectionSpreadSheetTabId_2);
+	InTabManager->UnregisterTabSpawner(CollectionSpreadSheetTabId_3);
+	InTabManager->UnregisterTabSpawner(CollectionSpreadSheetTabId_4);
+}
+
+void FDataflowEditorToolkit::OnTabClosed(TSharedRef<SDockTab> Tab)
+{
+	if (Tab->GetTabLabel().EqualTo(FText::FromString("Selection View 1")))
+	{
+		ViewListeners.Remove(DataflowSelectionView_1.Get());
+	}
+	else if (Tab->GetTabLabel().EqualTo(FText::FromString("Selection View 2")))
+	{
+		ViewListeners.Remove(DataflowSelectionView_2.Get());
+	}
+	else if (Tab->GetTabLabel().EqualTo(FText::FromString("Selection View 3")))
+	{
+		ViewListeners.Remove(DataflowSelectionView_3.Get());
+	}
+	else if (Tab->GetTabLabel().EqualTo(FText::FromString("Selection View 4")))
+	{
+		ViewListeners.Remove(DataflowSelectionView_4.Get());
+	}
+	else if (Tab->GetTabLabel().EqualTo(FText::FromString("Collection SpreadSheet 1")))
+	{
+		ViewListeners.Remove(DataflowCollectionSpreadSheet_1.Get());
+	}
+	else if (Tab->GetTabLabel().EqualTo(FText::FromString("Collection SpreadSheet 2")))
+	{
+		ViewListeners.Remove(DataflowCollectionSpreadSheet_2.Get());
+	}
+	else if (Tab->GetTabLabel().EqualTo(FText::FromString("Collection SpreadSheet 3")))
+	{
+		ViewListeners.Remove(DataflowCollectionSpreadSheet_3.Get());
+	}
+	else if (Tab->GetTabLabel().EqualTo(FText::FromString("Collection SpreadSheet 4")))
+	{
+		ViewListeners.Remove(DataflowCollectionSpreadSheet_4.Get());
+	}
 }
 
 FName FDataflowEditorToolkit::GetToolkitFName() const

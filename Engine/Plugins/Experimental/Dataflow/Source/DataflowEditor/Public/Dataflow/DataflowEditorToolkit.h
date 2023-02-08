@@ -10,6 +10,8 @@
 #include "TickableEditorObject.h"
 #include "Dataflow/DataflowSelectionView.h"
 #include "Dataflow/SelectionViewWidget.h"
+#include "Dataflow/DataflowCollectionSpreadSheet.h"
+#include "Dataflow/CollectionSpreadSheetWidget.h"
 
 class FEditorViewportTabContent;
 class IDetailsView;
@@ -61,13 +63,18 @@ public:
 
 	// Tab spawners 
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
+	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
+
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Skeletal(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SelectionView(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_CollectionSpreadSheet(const FSpawnTabArgs& Args);
 
+	// Callbacks for Tab
+	void OnTabClosed(TSharedRef<SDockTab> Tab);
 
 	// Member Access
 	UObject* GetAsset() { return Asset; }
@@ -126,13 +133,32 @@ private:
 	TSharedPtr<class ISkeletonTree> SkeletalEditor;
 	TSharedPtr<ISkeletonTree> CreateSkeletalEditorWidget(UObject* ObjectToEdit);
 
-	static const FName SelectionViewTabId;
-
 	TSet<UObject*> PrevNodeSelection;
-	Dataflow::FTimestamp LastContextRefreshTimestamp = Dataflow::FTimestamp::Invalid;
-	int32 ContextRefreshCounter = 0;
 
-	TSharedPtr<FDataflowSelectionView> DataflowSelectionView;
+	static const FName SelectionViewTabId_1;
+	TSharedPtr<FDataflowSelectionView> DataflowSelectionView_1;
+
+	static const FName SelectionViewTabId_2;
+	TSharedPtr<FDataflowSelectionView> DataflowSelectionView_2;
+
+	static const FName SelectionViewTabId_3;
+	TSharedPtr<FDataflowSelectionView> DataflowSelectionView_3;
+
+	static const FName SelectionViewTabId_4;
+	TSharedPtr<FDataflowSelectionView> DataflowSelectionView_4;
+
+	static const FName CollectionSpreadSheetTabId_1;
+	TSharedPtr<FDataflowCollectionSpreadSheet> DataflowCollectionSpreadSheet_1;
+
+	static const FName CollectionSpreadSheetTabId_2;
+	TSharedPtr<FDataflowCollectionSpreadSheet> DataflowCollectionSpreadSheet_2;
+
+	static const FName CollectionSpreadSheetTabId_3;
+	TSharedPtr<FDataflowCollectionSpreadSheet> DataflowCollectionSpreadSheet_3;
+
+	static const FName CollectionSpreadSheetTabId_4;
+	TSharedPtr<FDataflowCollectionSpreadSheet> DataflowCollectionSpreadSheet_4;
+
 	TArray<IDataflowViewListener*> ViewListeners;
 
 	TSharedPtr<Dataflow::FEngineContext> Context;

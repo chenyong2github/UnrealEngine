@@ -16,7 +16,7 @@
 struct SSelectionInfo
 {
 	FString OutputType;
-	TBitArray<> SelectionArray;
+	const TBitArray<> SelectionArray;
 };
 
 
@@ -130,6 +130,10 @@ public:
 	TSharedPtr<SSelectionView> GetSelectionTable() { return SelectionTable; }
 	void SetStatusText();
 
+	// UI callbacks
+	void NodeOutputsComboBoxSelectionChanged(FName InSelectedOutput, ESelectInfo::Type InSelectInfo);
+	FText GetNoOutputText();
+
 	/** Gets a multicast delegate which is called whenever the PinnedDown button clicked */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPinnedDownChanged, const bool);
 	FOnPinnedDownChanged& GetOnPinnedDownChangedDelegate() { return OnPinnedDownChangedDelegate; }
@@ -141,6 +145,7 @@ public:
 private:
 	TSharedPtr<STextBlock> NodeNameTextBlock;
 	TSharedPtr<SComboBox<FName>> NodeOutputsComboBox;
+	TSharedPtr<STextBlock> NodeOutputsComboBoxLabel;
 	TSharedPtr<SSelectionView> SelectionTable;
 	TSharedPtr<STextBlock> StatusTextBlock;
 
