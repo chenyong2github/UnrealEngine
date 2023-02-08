@@ -4,7 +4,7 @@
 #include "Misc/AutomationTest.h"
 #include "Tests/Benchmark.h"
 #include "HAL/Thread.h"
-#include "HAL/Semaphore.h"
+#include "HAL/UESemaphore.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
 #include "Containers/Array.h"
