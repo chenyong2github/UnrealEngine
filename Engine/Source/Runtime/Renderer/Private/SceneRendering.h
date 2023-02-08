@@ -1342,6 +1342,9 @@ public:
 	/** Mesh batches with a volumetric material. */
 	TArray<FVolumetricMeshBatch, SceneRenderingAllocator> VolumetricMeshBatches;
 
+	/** Mesh batches for heterogeneous volumes rendering. */
+	TArray<FVolumetricMeshBatch, SceneRenderingAllocator> HeterogeneousVolumesMeshBatches;
+
 	/** Mesh batches with a sky material. */
 	TArray<FSkyMeshBatch, SceneRenderingAllocator> SkyMeshBatches;
 

@@ -49,6 +49,7 @@
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "PostProcess/TemporalAA.h"
 #include "RayTracing/RayTracingInstanceCulling.h"
+#include "HeterogeneousVolumes/HeterogeneousVolumes.h"
 #include "RendererModule.h"
 #include "SceneViewExtension.h"
 #include "RenderCore.h"
@@ -2301,6 +2302,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 
 	TArray<FMeshDecalBatch> MeshDecalBatches;
 	TArray<FVolumetricMeshBatch> VolumetricMeshBatches;
+	TArray<FVolumetricMeshBatch> HeterogeneousVolumesMeshBatches;
 	TArray<FSkyMeshBatch> SkyMeshBatches;
 	TArray<FSortedTrianglesMeshBatch> SortedTrianglesMeshBatches;
 	FDrawCommandRelevancePacket DrawCommandPacket;
@@ -2898,10 +2900,20 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 
 						if (ViewRelevance.bHasVolumeMaterialDomain)
 						{
-							VolumetricMeshBatches.AddUninitialized(1);
-							FVolumetricMeshBatch& BatchAndProxy = VolumetricMeshBatches.Last();
-							BatchAndProxy.Mesh = &StaticMesh;
-							BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+							if (ShouldRenderMeshBatchWithHeterogeneousVolumes(&StaticMesh, PrimitiveSceneInfo->Proxy, View.FeatureLevel))
+							{
+								HeterogeneousVolumesMeshBatches.AddUninitialized(1);
+								FVolumetricMeshBatch& BatchAndProxy = HeterogeneousVolumesMeshBatches.Last();
+								BatchAndProxy.Mesh = &StaticMesh;
+								BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+							}
+							else
+							{
+								VolumetricMeshBatches.AddUninitialized(1);
+								FVolumetricMeshBatch& BatchAndProxy = VolumetricMeshBatches.Last();
+								BatchAndProxy.Mesh = &StaticMesh;
+								BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+							}
 						}
 
 						if (ViewRelevance.bUsesSkyMaterial)
@@ -3012,6 +3024,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 
 		WriteView.MeshDecalBatches.Append(MeshDecalBatches);
 		WriteView.VolumetricMeshBatches.Append(VolumetricMeshBatches);
+		WriteView.HeterogeneousVolumesMeshBatches.Append(HeterogeneousVolumesMeshBatches);
 		WriteView.SkyMeshBatches.Append(SkyMeshBatches);
 		WriteView.SortedTrianglesMeshBatches.Append(SortedTrianglesMeshBatches);
 
@@ -3399,10 +3412,20 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 
 	if (ViewRelevance.bHasVolumeMaterialDomain)
 	{
-		View.VolumetricMeshBatches.AddUninitialized(1);
-		FVolumetricMeshBatch& BatchAndProxy = View.VolumetricMeshBatches.Last();
-		BatchAndProxy.Mesh = MeshBatch.Mesh;
-		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+		if (ShouldRenderMeshBatchWithHeterogeneousVolumes(MeshBatch.Mesh, MeshBatch.PrimitiveSceneProxy, View.FeatureLevel))
+		{
+			View.HeterogeneousVolumesMeshBatches.AddUninitialized(1);
+			FVolumetricMeshBatch& BatchAndProxy = View.HeterogeneousVolumesMeshBatches.Last();
+			BatchAndProxy.Mesh = MeshBatch.Mesh;
+			BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+		}
+		else
+		{
+			View.VolumetricMeshBatches.AddUninitialized(1);
+			FVolumetricMeshBatch& BatchAndProxy = View.VolumetricMeshBatches.Last();
+			BatchAndProxy.Mesh = MeshBatch.Mesh;
+			BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+		}
 	}
 
 	if (ViewRelevance.bUsesSkyMaterial)

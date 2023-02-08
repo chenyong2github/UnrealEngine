@@ -25,12 +25,13 @@ struct FSceneTextures;
 //
 
 bool ShouldRenderHeterogeneousVolumes(const FScene* Scene);
-bool ShouldRenderHeterogeneousVolumesForView(const FSceneView& View);
+bool ShouldRenderHeterogeneousVolumesForView(const FViewInfo& View);
 bool DoesPlatformSupportHeterogeneousVolumes(EShaderPlatform Platform);
 bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterialShaderParameters& Parameters);
-bool ShouldRenderPrimitiveWithHeterogeneousVolumes(
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
-	const FMaterial& Material
+bool ShouldRenderMeshBatchWithHeterogeneousVolumes(
+	const FMeshBatch* Mesh,
+	const FPrimitiveSceneProxy* Proxy,
+	ERHIFeatureLevel::Type FeatureLevel
 );
 
 //

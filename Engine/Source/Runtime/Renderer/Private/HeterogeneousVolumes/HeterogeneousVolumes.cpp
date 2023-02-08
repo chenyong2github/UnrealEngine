@@ -177,10 +177,11 @@ bool ShouldRenderHeterogeneousVolumes(
 }
 
 bool ShouldRenderHeterogeneousVolumesForView(
-	const FSceneView& View
+	const FViewInfo& View
 )
 {
 	return IsHeterogeneousVolumesEnabled()
+		&& !View.HeterogeneousVolumesMeshBatches.IsEmpty()
 		&& View.Family
 		&& !View.bIsReflectionCapture;
 }
@@ -207,13 +208,21 @@ bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterial& Material)
 		&& Material.IsUsedWithNiagaraMeshParticles();
 }
 
-bool ShouldRenderPrimitiveWithHeterogeneousVolumes(
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
-	const FMaterial& Material
+bool ShouldRenderMeshBatchWithHeterogeneousVolumes(
+	const FMeshBatch* Mesh,
+	const FPrimitiveSceneProxy* Proxy,
+	ERHIFeatureLevel::Type FeatureLevel
 )
 {
-	check(PrimitiveSceneProxy);
-	return PrimitiveSceneProxy->IsHeterogeneousVolume() && DoesMaterialShaderSupportHeterogeneousVolumes(Material);
+	check(Mesh);
+	check(Proxy);
+	check(Mesh->MaterialRenderProxy);
+
+	const FMaterialRenderProxy* MaterialRenderProxy = Mesh->MaterialRenderProxy;
+	const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, MaterialRenderProxy);
+	return IsHeterogeneousVolumesEnabled()
+		&& Proxy->IsHeterogeneousVolume()
+		&& DoesMaterialShaderSupportHeterogeneousVolumes(Material);
 }
 
 namespace HeterogeneousVolumes
@@ -359,26 +368,24 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 	{
 		FViewInfo& View = Views[ViewIndex];
 
-		// Per-view??
-		FRDGTextureDesc Desc = SceneTextures.Color.Target->Desc;
-		Desc.Format = PF_FloatRGBA;
-		Desc.Flags &= ~(TexCreate_FastVRAM);
-		FRDGTextureRef HeterogeneousVolumeRadiance = GraphBuilder.CreateTexture(Desc, TEXT("HeterogeneousVolumes"));
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(HeterogeneousVolumeRadiance), FLinearColor::Transparent);
-
 		if (ShouldRenderHeterogeneousVolumesForView(View))
 		{
-			for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.VolumetricMeshBatches.Num(); ++MeshBatchIndex)
+			FRDGTextureDesc Desc = SceneTextures.Color.Target->Desc;
+			Desc.Format = PF_FloatRGBA;
+			Desc.Flags &= ~(TexCreate_FastVRAM);
+			FRDGTextureRef HeterogeneousVolumeRadiance = GraphBuilder.CreateTexture(Desc, TEXT("HeterogeneousVolumes"));
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(HeterogeneousVolumeRadiance), FLinearColor::Transparent);
+
+			for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.HeterogeneousVolumesMeshBatches.Num(); ++MeshBatchIndex)
 			{
-				const FMeshBatch* Mesh = View.VolumetricMeshBatches[MeshBatchIndex].Mesh;
-				const FMaterialRenderProxy* MaterialRenderProxy = Mesh->MaterialRenderProxy;
-				const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialRenderProxy);
-				const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.VolumetricMeshBatches[MeshBatchIndex].Proxy;
-				if (!ShouldRenderPrimitiveWithHeterogeneousVolumes(PrimitiveSceneProxy, Material))
+				const FMeshBatch* Mesh = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Mesh;
+				const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Proxy;
+				if (!ShouldRenderMeshBatchWithHeterogeneousVolumes(Mesh, PrimitiveSceneProxy, View.GetFeatureLevel()))
 				{
 					continue;
 				}
 
+				const FMaterialRenderProxy* MaterialRenderProxy = Mesh->MaterialRenderProxy;
 				const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 				const int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
 				const FBoxSphereBounds LocalBoxSphereBounds = PrimitiveSceneProxy->GetLocalBounds();
@@ -445,9 +452,9 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 					);
 				}
 			}
-		}
 
-		View.HeterogeneousVolumeRadiance = HeterogeneousVolumeRadiance;
+			View.HeterogeneousVolumeRadiance = HeterogeneousVolumeRadiance;
+		}
 	}
 }
 
