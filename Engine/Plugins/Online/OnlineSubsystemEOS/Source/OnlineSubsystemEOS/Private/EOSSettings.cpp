@@ -2,7 +2,6 @@
 
 #include "EOSSettings.h"
 #include "OnlineSubsystemEOS.h"
-#include "OnlineSubsystemEOSModule.h"
 #include "OnlineSubsystemEOSPrivate.h"
 
 #include "Algo/Transform.h"

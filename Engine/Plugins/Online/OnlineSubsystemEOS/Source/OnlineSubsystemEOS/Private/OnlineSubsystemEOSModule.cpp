@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineSubsystemEOSModule.h"
 #include "OnlineSubsystemEOSPrivate.h"
 #include "OnlineSubsystemModule.h"
 #include "OnlineSubsystemNames.h"
@@ -14,6 +13,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/LazySingleton.h"
+#include "Modules/ModuleInterface.h"
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
@@ -21,8 +21,6 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "EOS"
-
-IMPLEMENT_MODULE(FOnlineSubsystemEOSModule, OnlineSubsystemEOS);
 
 /**
  * Class responsible for creating instance(s) of the subsystem
@@ -48,6 +46,47 @@ public:
 		return OnlineSub;
 	}
 };
+
+/**
+ * Online subsystem module class  (EOS Implementation)
+ * Code related to the loading of the EOS module
+ */
+class FOnlineSubsystemEOSModule : public IModuleInterface
+{
+private:
+
+	/** Class responsible for creating instance(s) of the subsystem */
+	FOnlineFactoryEOS* EOSFactory;
+
+public:
+
+	FOnlineSubsystemEOSModule() :
+		EOSFactory(NULL)
+	{}
+
+	virtual ~FOnlineSubsystemEOSModule() {}
+
+#if WITH_EDITOR
+	void OnPostEngineInit();
+	void OnPreExit();
+#endif
+
+	// IModuleInterface
+
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+	virtual bool SupportsDynamicReloading() override
+	{
+		return false;
+	}
+
+	virtual bool SupportsAutomaticShutdown() override
+	{
+		return false;
+	}
+};
+
+IMPLEMENT_MODULE(FOnlineSubsystemEOSModule, OnlineSubsystemEOS);
 
 void FOnlineSubsystemEOSModule::StartupModule()
 {
