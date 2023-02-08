@@ -4,6 +4,7 @@
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipeline.h"
 #include "MoviePipelineGameOverrideSetting.h"
+#include "MoviePipelineOutputSetting.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "MovieRenderPipelineDataTypes.h"
@@ -113,9 +114,20 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 	// Start capturing logging messages
 	ValidationMessageGatherer.StartGathering();
 
+	FVector2D WindowSize = FVector2D(1280, 720);
+
+	const UMoviePipelinePIEExecutorSettings* ExecutorSettings = GetDefault<UMoviePipelinePIEExecutorSettings>();
+	if (ExecutorSettings->bResizePIEWindowToOutputResolution)
+	{
+		// Allow creating the PIE window at the size of the output to work around UMG scaling bugs when the main viewport is one resolution and then we re-render it at another.
+		UMoviePipelineOutputSetting* OutputSetting = Cast<UMoviePipelineOutputSetting>(InJob->GetConfiguration()->FindOrAddSettingByClass(UMoviePipelineOutputSetting::StaticClass()));
+		WindowSize = FVector2D(OutputSetting->OutputResolution.X, OutputSetting->OutputResolution.Y);
+	}
+
+
 	// Create a Slate window to hold our preview.
 	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
-		.ClientSize(FVector2D(1280, 720))
+		.ClientSize(WindowSize)
 		.AutoCenter(EAutoCenter::PrimaryWorkArea)
 		.UseOSWindowBorder(true)
 		.FocusWhenFirstShown(false)
