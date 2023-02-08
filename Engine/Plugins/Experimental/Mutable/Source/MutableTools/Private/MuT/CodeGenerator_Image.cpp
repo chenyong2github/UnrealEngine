@@ -1615,7 +1615,7 @@ namespace mu
 
         Ptr<ASTOpImageMakeGrowMap> MakeGrowMapOp = new ASTOpImageMakeGrowMap();
 		MakeGrowMapOp->Mask = rasterop;
-		MakeGrowMapOp->Border = 2;
+		MakeGrowMapOp->Border = MUTABLE_GROW_BORDER_VALUE;
 		
 		// If we want to be able to generate progressive mips efficiently, we need mipmaps for the "displacement map".
 		if (m_compilerOptions->m_optimisationOptions.bEnableProgressiveImages)

@@ -257,12 +257,19 @@ namespace mu
 			IF_IS_PLAIN_COLOUR = 1 << 1,
 
 			// If this is set, the image shouldn't be scaled: it's contents is resoultion-dependent.
-			IF_CANNOT_BE_SCALED = 1 << 2
+			IF_CANNOT_BE_SCALED = 1 << 2,
+
+			// If this is set, the image has an updated relevancy map. This flag is not persisent.
+			IF_HAS_RELEVANCY_MAP = 1 << 3,
 		} EImageFlags;
 
 		//! Persistent flags with some image properties. The meaning will depend of every
 		//! context.
 		mutable uint8 m_flags = 0;
+
+		/** Non-persistent relevancy map. */
+		uint16 RelevancyMinY = 0;
+		uint16 RelevancyMaxY = 0;
 
 		//! Pixel data
 		TArray<uint8> m_data;
@@ -284,6 +291,8 @@ namespace mu
 			pResult->m_format = m_format;
 			pResult->m_lods = m_lods;
 			pResult->m_flags = m_flags;
+			pResult->RelevancyMinY = RelevancyMinY;
+			pResult->RelevancyMaxY = RelevancyMaxY;
 			pResult->m_data = m_data;
 
 			return pResult;
@@ -300,7 +309,10 @@ namespace mu
 			arch << m_lods;
 			arch << (uint8)m_format;
 			arch << m_data;
-			arch << m_flags;
+
+			// Remove non-persistent flags.
+			uint8 flags = m_flags & ~IF_HAS_RELEVANCY_MAP;
+			arch << flags;
 		}
 
 		//!

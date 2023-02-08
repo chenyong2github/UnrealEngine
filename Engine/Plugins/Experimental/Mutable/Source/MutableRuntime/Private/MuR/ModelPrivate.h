@@ -14,6 +14,7 @@
 #include "MuR/OpImageMipmap.h"
 
 #define MUTABLE_MAX_RUNTIME_PARAMETERS_PER_STATE	64
+#define MUTABLE_GROW_BORDER_VALUE					2
 
 namespace mu
 {

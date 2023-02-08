@@ -1173,7 +1173,7 @@ namespace mu
 	class FImageResizeTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageResizeTask(FScheduledOp, FProgramCache&, const OP::ImageResizeArgs&, int32 ImageCompressionQuality);
+		FImageResizeTask(FScheduledOp InOp, FProgramCache& Memory, const Ptr<const Image>& InBase, uint16 InSizeX, uint16 InSizeY, int32 InImageCompressionQuality);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -1182,17 +1182,18 @@ namespace mu
 	private:
 		Ptr<const Image> pBase;
 		Ptr<const Image> Result;
-		OP::ImageResizeArgs Args;
 		int32 ImageCompressionQuality;
+		uint16 SizeX, SizeY;
 	};
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageResizeTask::FImageResizeTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageResizeArgs& InArgs, int32 InImageCompressionQuality)
+	FImageResizeTask::FImageResizeTask(FScheduledOp InOp, FProgramCache& Memory, const Ptr<const Image>& InBase, uint16 InSizeX, uint16 InSizeY, int32 InImageCompressionQuality)
 	{
 		Op = InOp;
-		Args = InArgs;
-		pBase = Memory.GetImage(FCacheAddress(InArgs.source, InOp));
+		SizeX = InSizeX;
+		SizeY = InSizeY;
+		pBase = InBase;
 		ImageCompressionQuality = InImageCompressionQuality;
 	}
 
@@ -1207,11 +1208,7 @@ namespace mu
 			return;
 		}
 
-		FImageSize destSize = FImageSize
-			(
-				Args.size[0],
-				Args.size[1]
-			);
+		FImageSize destSize = FImageSize( SizeX, SizeY );
 
 		ImagePtr pResult;
 
@@ -2019,7 +2016,13 @@ namespace mu
 			if (item.Stage == 1)
 			{
 				OP::ImageResizeArgs Args = program.GetOpArgs<OP::ImageResizeArgs>(item.At);
-				Issued = MakeShared<FImageResizeTask>(item, GetMemory(), Args, m_pSettings->GetPrivate()->m_imageCompressionQuality);
+				Ptr<const Image> pBase = GetMemory().GetImage(FCacheAddress(Args.source, item));
+
+				// \TODO: Shortcut without creating the task and resolving it if there is no need to resize.
+
+				// \TODO: This operation is ignoring the mips-to-skip operation data
+
+				Issued = MakeShared<FImageResizeTask>(item, GetMemory(), pBase, Args.size[0], Args.size[1], m_pSettings->GetPrivate()->m_imageCompressionQuality);
 			}
 			break;
 		}

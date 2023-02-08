@@ -912,8 +912,8 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
 	EImageFormat format = pImage->GetFormat();
     int pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
 
-    int sizeX = pImage->GetSizeX();
-    int sizeY = pImage->GetSizeY();
+    int32 sizeX = pImage->GetSizeX();
+    int32 sizeY = pImage->GetSizeY();
 
     // Get the vertices
     int vertexCount = pMesh->GetVertexCount();
@@ -969,6 +969,37 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
 			}
 		});
 
+	// Update the relevancy map
+	{
+		MUTABLE_CPUPROFILER_SCOPE(ImageRasterProjected_Optimised_Relevancy);
+
+		float MinY = float(sizeY) - 1.0f;
+		float MaxY = 0.0f;
+		for (int f = 0; f < faceCount; ++f)
+		{
+			int i0 = pIndices[f * 3 + 0];
+			int i1 = pIndices[f * 3 + 1];
+			int i2 = pIndices[f * 3 + 2];
+
+			// A bit ugly, probably can be improved if integrated in above loops and made more precise
+			// inside the pixel processor to account for masked out pixels?
+			if (!scratch->culledVertex[i0] ||
+				!scratch->culledVertex[i1] ||
+				!scratch->culledVertex[i2])
+			{
+				MinY = FMath::Min(MinY, scratch->vertices[i0].y);
+				MinY = FMath::Min(MinY, scratch->vertices[i1].y);
+				MinY = FMath::Min(MinY, scratch->vertices[i2].y);
+				MaxY = FMath::Max(MaxY, scratch->vertices[i0].y);
+				MaxY = FMath::Max(MaxY, scratch->vertices[i1].y);
+				MaxY = FMath::Max(MaxY, scratch->vertices[i2].y);
+			}
+		}
+
+		pImage->m_flags |= Image::IF_HAS_RELEVANCY_MAP;
+		pImage->RelevancyMinY = uint16(FMath::FloorToFloat(MinY));
+		pImage->RelevancyMaxY = uint16(FMath::Min( int32(FMath::CeilToFloat(MaxY)), sizeY-1 ));
+	}
 }
 
 

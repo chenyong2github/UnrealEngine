@@ -7,6 +7,8 @@
 #include "Async/ParallelFor.h"
 #include "Templates/UnrealTemplate.h"
 
+#include "MuR/OpImageBlend.h"
+
 namespace mu
 {
 	inline bool IsAnyComponentLargerThan1( FVector4f v )
@@ -1724,19 +1726,32 @@ namespace mu
 		uint8* pBaseBuf = pBase->GetData();
 		const uint8* pBlendedBuf = pBlend->GetData();
 
-		// The base determines the number of lods to process.
-		int32 LODCount = bOnlyFirstLOD ? 1 : pBase->GetLODCount();
-
 		int32 PixelCount = 0;
-		if (bOnlyFirstLOD)
+		uint16 SizeX = pBase->GetSizeX();
+
+		if (pBlend->m_flags & Image::IF_HAS_RELEVANCY_MAP 
+			&& 
+			(bOnlyFirstLOD || pBase->GetLODCount()==1 ) )
 		{
-			PixelCount = pBase->GetSizeX() * pBase->GetSizeY();
+			int32 NumRelevantRows = pBlend->RelevancyMaxY - pBlend->RelevancyMinY + 1;
+			PixelCount = SizeX * NumRelevantRows;
+			int32 DataOffset = pBlend->RelevancyMinY * SizeX * 4;
+			pBaseBuf += DataOffset;
+			pBlendedBuf += DataOffset;
 		}
 		else
-		{
-			PixelCount = pBase->CalculatePixelCount();
+		{ 
+			if (bOnlyFirstLOD)
+			{
+				PixelCount = SizeX * pBase->GetSizeY();
+			}
+			else
+			{
+				PixelCount = pBase->CalculatePixelCount();
+			}
 		}
 
+		// \TODO: Ensure batches operate on 32Kb aligned buffers?
 		constexpr int32 NumBatchElems = 4096*2;
 		const int32 NumBatches = FMath::DivideAndRoundUp(PixelCount, NumBatchElems);
 
@@ -1795,6 +1810,91 @@ namespace mu
 			ParallelFor(NumBatches, ProcessBatch);
 		}
 	}
+
+
+
+	//---------------------------------------------------------------------------------------------
+	template<>
+	inline void BufferLayerComposite<BlendChannelMasked, LightenChannel, false>
+	(
+		Image* pBase,
+		const Image* pBlend,
+		bool bOnlyFirstLOD,
+		uint8 BlendAlphaSourceChannel)
+	{
+		check(pBase->GetFormat() == EImageFormat::IF_RGBA_UBYTE);
+		check(pBlend->GetFormat() == EImageFormat::IF_RGBA_UBYTE);
+		check(pBase->GetSizeX() == pBlend->GetSizeX() && pBase->GetSizeY() == pBlend->GetSizeY());
+		check(bOnlyFirstLOD || pBase->GetLODCount() <= pBlend->GetLODCount());
+		check(BlendAlphaSourceChannel==3);
+
+		uint32* pBaseBuf = reinterpret_cast<uint32*>(pBase->GetData());
+		const uint32* pBlendedBuf = reinterpret_cast<const uint32*>(pBlend->GetData());
+
+		int32 PixelCount = 0;
+		uint16 SizeX = pBase->GetSizeX();
+
+		if (pBlend->m_flags & Image::IF_HAS_RELEVANCY_MAP
+			&&
+			(bOnlyFirstLOD || pBase->GetLODCount() == 1))
+		{
+			int32 NumRelevantRows = pBlend->RelevancyMaxY - pBlend->RelevancyMinY + 1;
+			PixelCount = SizeX * NumRelevantRows;
+			int32 DataOffset = pBlend->RelevancyMinY * SizeX;
+			pBaseBuf += DataOffset;
+			pBlendedBuf += DataOffset;
+		}
+		else
+		{
+			if (bOnlyFirstLOD)
+			{
+				PixelCount = SizeX * pBase->GetSizeY();
+			}
+			else
+			{
+				PixelCount = pBase->CalculatePixelCount();
+			}
+		}
+
+		// \TODO: Ensure batches operate on 32Kb aligned buffers?
+		constexpr int32 NumBatchElems = 4096 * 2;
+		const int32 NumBatches = FMath::DivideAndRoundUp(PixelCount, NumBatchElems);
+
+		auto ProcessBatch =
+			[
+				pBaseBuf, pBlendedBuf, PixelCount, NumBatchElems
+			] (uint32 BatchId)
+		{
+			const int32 BatchBegin = BatchId * NumBatchElems;
+			const int32 BatchEnd = FMath::Min(BatchBegin + NumBatchElems, PixelCount);
+
+			for (int32 i = BatchBegin; i < BatchEnd; ++i)
+			{
+				// TODO: Optimize this (SIMD?)
+				uint32 FullBase = pBaseBuf[i];
+				uint32 FullBlended = pBlendedBuf[i];
+				uint32 mask = (FullBlended & 0xff000000) >> 24;
+
+				uint32 FullResult = 0;
+				FullResult |= BlendChannelMasked((FullBase >>  0) & 0xff, (FullBlended >>  0) & 0xff, mask) << 0;
+				FullResult |= BlendChannelMasked((FullBase >>  8) & 0xff, (FullBlended >>  8) & 0xff, mask) << 8;
+				FullResult |= BlendChannelMasked((FullBase >> 16) & 0xff, (FullBlended >> 16) & 0xff, mask) << 16;
+				FullResult |= LightenChannel	((FullBase >> 24) & 0xff, (FullBlended >> 24) & 0xff) << 24;
+
+				pBaseBuf[i] = FullResult;
+			}
+		};
+
+		if (NumBatches == 1)
+		{
+			ProcessBatch(0);
+		}
+		else if (NumBatches > 1)
+		{
+			ParallelFor(NumBatches, ProcessBatch);
+		}
+	}
+
 
 	//---------------------------------------------------------------------------------------------
 	template< VectorRegister4Int (*RGB_FUNC_MASKED)(const VectorRegister4Int&, const VectorRegister4Int&, const VectorRegister4Int&),
@@ -2556,6 +2656,17 @@ namespace mu
 		{
 			checkf(false, TEXT("Unsupported format."));
 		}
+	}
+
+
+	//! Blend a subimage on the base using a mask.
+	inline void ImageBlendOnBaseNoAlpha(Image* pBase,
+		const Image* pMask,
+		const Image* pBlended,
+		const box< vec2<int> >& rect)
+	{
+		ImageLayerOnBaseNoAlpha< BlendChannel, false>
+			(pBase, pMask, pBlended, rect);
 	}
 
 }

@@ -4089,6 +4089,14 @@ namespace mu
 				if (OriginalSourceScale.x() > 0 && OriginalSourceScale.y() > 0)
 				{
 					ImageDisplace(pNew.get(), pSource.get(), pMap.get());
+					
+					// Update the relevancy data of the image for the worst case. 
+					if (pNew->m_flags & Image::EImageFlags::IF_HAS_RELEVANCY_MAP)
+					{
+						// Displace can encode at max MUTABLE_GROW_BORDER_VALUE pixels away according to "border" in MakeGrowMap.
+						pNew->RelevancyMinY = FMath::Max(int32(pNew->RelevancyMinY) - MUTABLE_GROW_BORDER_VALUE, 0);
+						pNew->RelevancyMaxY = FMath::Min(pNew->RelevancyMaxY + MUTABLE_GROW_BORDER_VALUE, pNew->GetSizeY() - 1);
+					}
 
 					if (OriginalSourceScale != pNew->GetSize())
 					{

@@ -33,18 +33,27 @@ namespace mu
             const uint8_t* pBaseBuf = pBase->GetData();
             uint8_t* pDestBuf = pDest->GetData();
 
-            // Simple nearest pixel implementation
-            for ( int y=0; y<destSize[1]; ++y )
-            {
-                int sy = (y*baseSize[1])/destSize[1];
+			// Simple nearest pixel implementation
+			uint32 dx_16 = (uint32(baseSize[0]) << 16) / destSize[0];
+			uint32 dy_16 = (uint32(baseSize[1]) << 16) / destSize[1];
+			uint32 sy_16 = 0;
+			for (uint16 y = 0; y < destSize[1]; ++y)
+			{
+				uint32 sy = sy_16 >> 16;
+				const uint8_t* pRowBuf = pBase->GetData() + baseSize[0] * sy;
 
-                for ( int x=0; x<destSize[0]; ++x )
-                {
-                    int sx = (x*baseSize[0])/destSize[0];
-                    *pDestBuf = pBaseBuf[sy*baseSize[0]+sx];
-                    pDestBuf++;
-                }
-            }
+				uint32 sx_16 = 0;
+				for (uint16 x = 0; x < destSize[0]; ++x)
+				{
+					uint32 sx = sx_16 >> 16;
+					*pDestBuf = pRowBuf[sx];
+					pDestBuf++;
+
+					sx_16 += dx_16;
+				}
+
+				sy_16 += dy_16;
+			}
 
             break;
         }
@@ -330,6 +339,89 @@ namespace mu
 		ParallelFor(sizeY, ProcessLine);
     }
 
+	inline uint32 AverageChannel(uint32 a, uint32 b)
+	{
+		uint32 r = (a + b) >> 1;
+		return r;
+	}
+
+	template<>
+	inline void ImageMinifyX_Exact<4,2>(Image* pDest, const Image* pBase)
+	{
+		int baseSizeX = pBase->GetSizeX();
+		int destSizeX = pDest->GetSizeX();
+		int sizeY = pBase->GetSizeY();
+
+		const uint8* pBaseBuf = pBase->GetData();
+		uint8* pDestBuf = pDest->GetData();
+
+		int32 TotalBasePixels = baseSizeX * sizeY;
+		constexpr int32 BasePixelsPerBatch = 4096 * 2;
+		int32 NumBatches = FMath::DivideAndRoundUp(TotalBasePixels, BasePixelsPerBatch);
+
+		// Linear filtering
+		const auto& ProcessBatchUnaligned = 
+			[ pDestBuf, pBaseBuf, baseSizeX, destSizeX, BasePixelsPerBatch, TotalBasePixels ]
+		(int32 BatchIndex)
+		{
+			const uint8* pBatchBaseBuf = pBaseBuf + BatchIndex * BasePixelsPerBatch * 4;
+			uint8* pBatchDestBuf = pDestBuf + BatchIndex * BasePixelsPerBatch * 4/2;
+
+			int32 NumBasePixels = FMath::Min(BasePixelsPerBatch, TotalBasePixels-BatchIndex* BasePixelsPerBatch );
+
+			uint16 r[4];
+			for (int x = 0; x < NumBasePixels; x+=2)
+			{
+				r[0] = pBatchBaseBuf[0] + pBatchBaseBuf[0 + 4];
+				r[1] = pBatchBaseBuf[1] + pBatchBaseBuf[1 + 4];
+				r[2] = pBatchBaseBuf[2] + pBatchBaseBuf[2 + 4];
+				r[3] = pBatchBaseBuf[3] + pBatchBaseBuf[3 + 4];
+
+				pBatchDestBuf[0] = (uint8)(r[0] >> 1);
+				pBatchDestBuf[1] = (uint8)(r[1] >> 1);
+				pBatchDestBuf[2] = (uint8)(r[2] >> 1);
+				pBatchDestBuf[3] = (uint8)(r[3] >> 1);
+
+				pBatchBaseBuf += 4 * 2;
+				pBatchDestBuf += 4;
+			}
+		};
+
+		const auto& ProcessBatchAligned =
+			[pDestBuf, pBaseBuf, baseSizeX, destSizeX, BasePixelsPerBatch, TotalBasePixels]
+		(int32 BatchIndex)
+		{
+			const uint32* pBatchBaseBuf = reinterpret_cast<const uint32*>(pBaseBuf) + BatchIndex * BasePixelsPerBatch;
+			uint32* pBatchDestBuf = reinterpret_cast<uint32*>(pDestBuf) + BatchIndex * (BasePixelsPerBatch>>1);
+
+			int32 NumBasePixels = FMath::Min(BasePixelsPerBatch, TotalBasePixels - BatchIndex * BasePixelsPerBatch);
+
+			for (int p=0; p<NumBasePixels;++p)
+			{
+				uint32 FullSource0 = pBatchBaseBuf[p*2+0];
+				uint32 FullSource1 = pBatchBaseBuf[p*2+1];
+
+				uint32 FullResult = 0;
+
+				FullResult |= AverageChannel((FullSource0 >>  0) & 0xff, (FullSource1 >>  0) & 0xff)  <<  0;
+				FullResult |= AverageChannel((FullSource0 >>  8) & 0xff, (FullSource1 >>  8) & 0xff)  <<  8;
+				FullResult |= AverageChannel((FullSource0 >> 16) & 0xff, (FullSource1 >> 16) & 0xff)  << 16;
+				FullResult |= AverageChannel((FullSource0 >> 24) & 0xff, (FullSource1 >> 24) & 0xff)  << 24;
+
+				pBatchDestBuf[p] = FullResult;
+			}
+		};
+
+//		if ( (SIZE_T(pBaseBuf) & 0x3) || (SIZE_T(pDestBuf) & 0x3) )
+		{
+			ParallelFor(NumBatches, ProcessBatchUnaligned);
+		}
+		/*else
+		{
+			ParallelFor(NumBatches, ProcessBatchAligned);
+		}*/
+	}
+
 
     //---------------------------------------------------------------------------------------------
     //! Image minify X version hub.
@@ -397,8 +489,6 @@ namespace mu
         }
 
     }
-
-
 
 
     //---------------------------------------------------------------------------------------------

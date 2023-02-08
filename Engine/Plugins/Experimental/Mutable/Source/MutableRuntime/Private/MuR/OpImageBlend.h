@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MuR/ImagePrivate.h"
-#include "MuR/OpImageLayer.h"
 #include "Math/VectorRegister.h"
 
 namespace mu
@@ -20,16 +19,6 @@ namespace mu
 		uint32 blend = blended;
 		uint32 masked = ( ( ( 255 - mask ) * base ) + ( mask * blend ) ) / 255;
 		return masked;
-	}
-
-	//! Blend a subimage on the base using a mask.
-	inline void ImageBlendOnBaseNoAlpha( Image* pBase,
-										 const Image* pMask,
-										 const Image* pBlended,
-										 const box< vec2<int> >& rect )
-	{
-		ImageLayerOnBaseNoAlpha< BlendChannel, false>
-				( pBase, pMask, pBlended, rect );
 	}
 
 

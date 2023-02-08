@@ -2252,24 +2252,31 @@ namespace
 			int32 Size = IMAGE_DESC.m_size[0];
 			Size = FMath::Max(4, Size / (1 << MipmapsToSkip));
 
-			mu::Ptr<mu::Image> Image = 
-					new mu::Image(IMAGE_DESC.m_size[0], IMAGE_DESC.m_size[1], IMAGE_DESC.m_lods, IMAGE_DESC.m_format);
+			mu::Ptr<mu::Image> Image = new mu::Image(
+				Size, Size, IMAGE_DESC.m_lods,
+				IMAGE_DESC.m_format,
+				mu::EInitializationType::NotInitialized);
 
-			// Generate an alphatested circle with an horizontal gradient color.
+			// Generate an alpha-tested circle with an horizontal gradient color.
 			uint8* Data = Image->GetData();
 			int32 CircleRadius = (Size * 2) / 5;
 			int32 CircleRadius2 = CircleRadius * CircleRadius;
 			int32 Color[3] = { 255,128,0 };
 
-			for (int y = 0; y < Size; ++y)
+			int32 LogSize = FMath::CeilLogTwo(Size);
+
+			int32 HalfSize = Size >> 1;
+			for (int32 RadY = -HalfSize; RadY < HalfSize; ++RadY)
 			{
-				for (int x = 0; x < Size; ++x)
+				int32 RadY2 = RadY * RadY;
+				for (int32 x = 0; x < Size; ++x)
 				{
-					float R2 = (x - Size / 2) * (x - Size / 2) + (y - Size / 2) * (y - Size / 2);
-					int32 Opacity = FMath::Clamp( (CircleRadius2-R2)/CircleRadius2 * 512 - 64, 0, 255 );
-					Data[0] = (Color[0] * x) / Size;
-					Data[1] = (Color[1] * x) / Size;
-					Data[2] = (Color[2] * x) / Size;
+					int32 RadX = (x - HalfSize);
+					int32 R2 = RadX * RadX + RadY2;
+					int32 Opacity = FMath::Clamp(((CircleRadius2 - R2) * 512) / CircleRadius2 - 64, 0, 255);
+					Data[0] = uint8((Color[0] * x) >> LogSize);
+					Data[1] = uint8((Color[1] * x) >> LogSize);
+					Data[2] = uint8((Color[2] * x) >> LogSize);
 					Data[3] = uint8(Opacity);
 					Data += 4;
 				}
