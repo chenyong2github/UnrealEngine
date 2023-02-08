@@ -11,8 +11,6 @@ uint {DataInterfaceName}_NumWeightsBuffer;
 uint {DataInterfaceName}_NumOffsetBuffer;
 uint {DataInterfaceName}_NumMaskBuffer;
 
-float {DataInterfaceName}_Amount;
-
 Buffer<float> {DataInterfaceName}_TetRestVertexBuffer;
 Buffer<float> {DataInterfaceName}_TetVertexBuffer;
 
@@ -24,11 +22,6 @@ Buffer<float> {DataInterfaceName}_MaskBuffer;
 uint ReadNumVertices_{DataInterfaceName}(uint Index)
 {
 	return {DataInterfaceName}_NumVertices;
-}
-
-float ReadAmount_{DataInterfaceName}()
-{
-	return {DataInterfaceName}_Amount;
 }
 
 //

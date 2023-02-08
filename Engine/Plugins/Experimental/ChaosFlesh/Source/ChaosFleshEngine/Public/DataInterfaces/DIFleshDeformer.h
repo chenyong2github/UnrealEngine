@@ -19,13 +19,7 @@ USTRUCT()
 struct FFleshDeformerParameters
 {
 	GENERATED_BODY();
-
-	/** Post-sim amount. */
-	UPROPERTY(EditAnywhere, Category = Deformer, meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float Amount = 1.0f;
-
 };
-
 
 
 /**

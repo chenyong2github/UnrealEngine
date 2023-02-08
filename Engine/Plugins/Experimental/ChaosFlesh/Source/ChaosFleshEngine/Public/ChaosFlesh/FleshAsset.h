@@ -119,7 +119,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Geometry")
 	TObjectPtr<UStaticMesh> StaticMesh;
 
-
+	//
+	// Deformer Target Mesh
+	//
+	UPROPERTY(EditAnywhere, Category = "Deformer")
+	FString TargetSkeletalMesh;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = "Render")
