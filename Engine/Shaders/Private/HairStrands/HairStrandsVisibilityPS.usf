@@ -33,6 +33,7 @@
 uint HairVisibilityPass_HairMacroGroupIndex;
 uint HairVisibilityPass_HairMaterialId;
 uint HairVisibilityPass_LightChannelMask;
+float HairVisibilityPass_HairCoverageScale;
 
 #if HAIR_RENDER_MODE == RENDER_MODE_PPLL
 EARLYDEPTHSTENCIL	// Required for UAV operations to not happen.
@@ -81,7 +82,7 @@ void MainVisibility(
 		const float SceneDepth = ConvertFromDeviceZ(SvPosition.z); // Linear depth in world unit
 		const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : SceneDepth * HairRenderInfo.RadiusAtDepth1Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
 		const float StrandRealRadius = WorldStrandRadius;
-		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
+		Coverage = saturate(StrandRealRadius / max(StrandRealRadius, PixelRadius) * HairVisibilityPass_HairCoverageScale);
 	}
 #endif
 
