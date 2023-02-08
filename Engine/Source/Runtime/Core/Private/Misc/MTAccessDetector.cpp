@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/MTAccessDetector.h"
+
+#if ENABLE_MT_DETECTOR && WITH_DEV_AUTOMATION_TESTS
+
 #include "Misc/AutomationTest.h"
 #include "HAL/Thread.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
-
-#if ENABLE_MT_DETECTOR
+#include "Tasks/Task.h"
+#include "Tests/Benchmark.h"
 
 //----------------------------------------------------------------------//
 // FRWAccessDetector tests
@@ -325,4 +328,177 @@ bool FRWAccessDetector_FullyRecursiveReadReentrance::RunTest(const FString& Para
 	return Success;
 }
 
-#endif // ENABLE_MT_DETECTOR
+/////////////////////////////////////////////////////////////////////////
+
+namespace MTAccessDetector_Private
+{
+	using namespace UE::Tasks;
+
+	// helper for testing concurrent cases
+	class FParallel
+	{
+	private:
+		FTask Task;
+		FTaskEvent TaskStarted{ UE_SOURCE_LOCATION };
+		FTaskEvent FinishTask{ UE_SOURCE_LOCATION };
+
+	public:
+		template<typename PrologType, typename EpilogType>
+		FParallel(PrologType&& Prolog, EpilogType&& Epilog)
+		{
+			Task.Launch(UE_SOURCE_LOCATION, [this, Prolog = MoveTemp(Prolog), Epilog = MoveTemp(Epilog)]
+			{
+				Prolog();
+
+				TaskStarted.Trigger();
+				FinishTask.Wait();
+
+				Epilog();
+			});
+
+			TaskStarted.Wait();
+		}
+
+		~FParallel()
+		{
+			FinishTask.Trigger();
+			Task.Wait();
+		}
+	};
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRWRecursiveAccessDetectorTest, "System.Core.RWRecursiveAccessDetector", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+bool FRWRecursiveAccessDetectorTest::RunTest(const FString& Parameters)
+{
+	// single thread
+
+	{	// single instance
+		UE_MT_DECLARE_MRSW_RECURSIVE_ACCESS_DETECTOR(AD);
+
+		{
+			UE_MT_SCOPED_READ_ACCESS(AD);
+			UE_MT_SCOPED_READ_ACCESS(AD);
+			UE_MT_SCOPED_WRITE_ACCESS(AD);
+			UE_MT_SCOPED_WRITE_ACCESS(AD);
+			UE_MT_SCOPED_READ_ACCESS(AD);
+		}
+	}
+
+	{	// multiple nested instances
+		UE_MT_DECLARE_MRSW_RECURSIVE_ACCESS_DETECTOR(Outer);
+		UE_MT_DECLARE_MRSW_RECURSIVE_ACCESS_DETECTOR(Inner);
+
+		UE_MT_SCOPED_READ_ACCESS(Outer);
+		UE_MT_SCOPED_READ_ACCESS(Inner);
+		UE_MT_SCOPED_WRITE_ACCESS(Outer);
+		UE_MT_SCOPED_WRITE_ACCESS(Inner);
+		UE_MT_SCOPED_WRITE_ACCESS(Outer);
+		UE_MT_SCOPED_WRITE_ACCESS(Inner);
+	}
+
+	{	// destroying detector from inside access scope
+		auto* AD = new FMRSWRecursiveAccessDetector;
+
+		AD->AcquireReadAccess();
+
+		FMRSWRecursiveAccessDetector::FDestructionSentinel DestructionSentinel{ FMRSWRecursiveAccessDetector::EAccessType::Reader };
+		FMRSWRecursiveAccessDetector::FDestructionSentinel* PrevDestructionSentinel = AD->SetDestructionSentinel(&DestructionSentinel);
+
+		delete AD;
+
+		if (!DestructionSentinel.bDestroyed)
+		{
+			AD->SetDestructionSentinel(PrevDestructionSentinel);
+			AD->ReleaseReadAccess();
+		}
+	}
+
+	// multithread
+
+	{	// multireader
+		UE_MT_DECLARE_MRSW_RECURSIVE_ACCESS_DETECTOR(AD);
+		MTAccessDetector_Private::FParallel ParallelReaderScope([&AD] { AD.AcquireReadAccess(); }, [&AD] { AD.ReleaseReadAccess(); });
+		UE_MT_SCOPED_READ_ACCESS(AD);
+	}
+
+#if 0
+	{	// reader/writer, asserts
+		UE_MT_DECLARE_MRSW_RECURSIVE_ACCESS_DETECTOR(AD);
+		MTAccessDetector_Private::FParallel ParallelReaderScope([&AD] { AD.AcquireReadAccess(); }, [&AD] { AD.ReleaseReadAccess(); });
+		UE_MT_SCOPED_WRITE_ACCESS(AD); // must assert on acquiring write access
+	}
+#endif 
+
+#if 0
+	{	// multiwriter, asserts
+		UE_MT_DECLARE_MRSW_RECURSIVE_ACCESS_DETECTOR(AD);
+		MTAccessDetector_Private::FParallel ParallelReaderScope([&AD] { AD.AcquireWriteAccess(); }, [&AD] { AD.ReleaseWriteAccess(); });
+		UE_MT_SCOPED_WRITE_ACCESS(AD); // must assert on acquiring write access
+	}
+#endif
+
+	return true;
+}
+
+template<uint64 Num, typename AccessDetectorType>
+void RWAccessDetectorPerfTest()
+{
+	AccessDetectorType AD;
+	for (int i = 0; i != Num; ++i)
+	{
+		AD.AcquireReadAccess();
+		AD.ReleaseReadAccess();
+	}
+	for (int i = 0; i != Num; ++i)
+	{
+		AD.AcquireWriteAccess();
+		AD.ReleaseWriteAccess();
+	}
+}
+
+template<uint64 Num, typename AccessDetectorType>
+void RWAccessDetectorConcurrentReadersPerfTest()
+{
+	using namespace UE::Tasks;
+
+	AccessDetectorType AD;
+	auto Reader = [&AD]
+	{
+		for (uint64 i = 0; i != Num; ++i)
+		{
+			AD.AcquireReadAccess();
+			AD.ReleaseReadAccess();
+		}
+	};
+
+	TArray<FTask> Tasks;
+	for (int i = 0; i != 3; ++i)
+	{
+		auto TaskBody = Reader;
+		Tasks.Add(Launch(UE_SOURCE_LOCATION, MoveTemp(TaskBody)));
+	}
+
+	Reader();
+
+	Wait(Tasks);
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRWRecursiveAccessDetectorPerfTest, "System.Core.RWRecursiveAccessDetector.Perf", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+bool FRWRecursiveAccessDetectorPerfTest::RunTest(const FString& Parameters)
+{
+	UE_BENCHMARK(5, RWAccessDetectorPerfTest<1'000'000, FRWAccessDetector>);
+	UE_BENCHMARK(5, RWAccessDetectorPerfTest<1'000'000, FRWRecursiveAccessDetector>);
+	UE_BENCHMARK(5, RWAccessDetectorPerfTest<1'000'000, FRWFullyRecursiveAccessDetector>);
+	UE_BENCHMARK(5, RWAccessDetectorPerfTest<1'000'000, FMRSWRecursiveAccessDetector>);
+
+	UE_BENCHMARK(5, RWAccessDetectorConcurrentReadersPerfTest<1'000'000, FRWAccessDetector>);
+	UE_BENCHMARK(5, RWAccessDetectorConcurrentReadersPerfTest<1'000'000, FRWRecursiveAccessDetector>);
+	UE_BENCHMARK(5, RWAccessDetectorConcurrentReadersPerfTest<1'000'000, FRWFullyRecursiveAccessDetector>);
+	UE_BENCHMARK(5, RWAccessDetectorConcurrentReadersPerfTest<1'000'000, FMRSWRecursiveAccessDetector>);
+
+	return true;
+}
+
+#endif // ENABLE_MT_DETECTOR && WITH_DEV_AUTOMATION_TESTS
