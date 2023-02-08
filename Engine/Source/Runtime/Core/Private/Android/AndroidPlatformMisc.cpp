@@ -1639,9 +1639,11 @@ void FAndroidMisc::PrepareMobileHaptics(EMobileHapticsType Type)
 void FAndroidMisc::TriggerMobileHaptics()
 {
 #if USE_ANDROID_JNI
-	extern void AndroidThunkCpp_Vibrate(int32 Duration);
-	// tiny little vibration
-	AndroidThunkCpp_Vibrate(10);
+	extern void AndroidThunkCpp_Vibrate(int32 Intensity, int32 Duration);
+	// directly play a small vibration one-shot
+	// note: this will do nothing if device is already playing force feedback (non-zero intensity)
+	// but will play and not be cancelled by force feedback since it only sends updates when not already above zero
+	AndroidThunkCpp_Vibrate(255, 10);
 #endif
 }
 

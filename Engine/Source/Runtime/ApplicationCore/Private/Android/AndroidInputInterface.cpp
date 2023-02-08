@@ -2,6 +2,7 @@
 
 #include "Android/AndroidInputInterface.h"
 #if USE_ANDROID_INPUT
+#include "Android/AndroidEventManager.h"
 //#include "AndroidInputDeviceMappings.h"
 #include "Misc/ConfigCacheIni.h"
 #include "IInputDevice.h"
@@ -22,7 +23,7 @@ FCriticalSection FAndroidInputInterface::TouchInputCriticalSection;
 
 FAndroidGamepadDeviceMapping FAndroidInputInterface::DeviceMapping[MAX_NUM_CONTROLLERS];
 
-bool FAndroidInputInterface::VibeIsOn;
+int32 FAndroidInputInterface::CurrentVibeIntensity;
 int32 FAndroidInputInterface::MaxVibeTime = 1000;
 double FAndroidInputInterface::LastVibeUpdateTime = 0.0;
 FForceFeedbackValues FAndroidInputInterface::VibeValues;
@@ -33,6 +34,7 @@ bool FAndroidInputInterface::bControllersBlockDeviceFeedback = false;
 
 FAndroidControllerData FAndroidInputInterface::OldControllerData[MAX_NUM_CONTROLLERS];
 FAndroidControllerData FAndroidInputInterface::NewControllerData[MAX_NUM_CONTROLLERS];
+FAndroidControllerVibeState FAndroidInputInterface::ControllerVibeState[MAX_NUM_CONTROLLERS];
 
 FGamepadKeyNames::Type FAndroidInputInterface::ButtonMapping[MAX_NUM_CONTROLLER_BUTTONS];
 float FAndroidInputInterface::InitialButtonRepeatDelay;
@@ -47,6 +49,13 @@ TArray<FAndroidInputInterface::MotionData> FAndroidInputInterface::MotionDataSta
 
 TArray<FAndroidInputInterface::MouseData> FAndroidInputInterface::MouseDataStack
 	= TArray<FAndroidInputInterface::MouseData>();
+
+int32 GAndroidUseControllerFeedback = 1;
+static FAutoConsoleVariableRef CVarAndroidUseControllerFeedback(
+	TEXT("Android.UseControllerFeedback"),
+	GAndroidUseControllerFeedback,
+	TEXT("If set to non-zero, controllers with force feedback support will be active (Default: 1)"),
+	ECVF_Default);
 
 int32 GAndroidOldXBoxWirelessFirmware = 0;
 static FAutoConsoleVariableRef CVarAndroidOldXBoxWirelessFirmware(
@@ -120,13 +129,13 @@ FAndroidInputInterface::FAndroidInputInterface(const TSharedRef< FGenericApplica
 	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("InitialButtonRepeatDelay"), InitialButtonRepeatDelay, GInputIni);
 	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("ButtonRepeatDelay"), ButtonRepeatDelay, GInputIni);
 
-	VibeIsOn = false;
-
-	for (int32 DeviceIndex = 0; DeviceIndex < MAX_NUM_CONTROLLERS; DeviceIndex++)
-	{
-		DeviceMapping[DeviceIndex].DeviceInfo.DeviceId = 0;
-		DeviceMapping[DeviceIndex].DeviceState = MappingState::Unassigned;
-	}
+	CurrentVibeIntensity = 0;
+	FMemory::Memset(VibeValues, 0);
+	
+	FMemory::Memset(DeviceMapping, 0);
+	FMemory::Memset(OldControllerData, 0);
+	FMemory::Memset(NewControllerData, 0);
+	FMemory::Memset(ControllerVibeState, 0);
 }
 
 void FAndroidInputInterface::ResetGamepadAssignments()
@@ -218,12 +227,6 @@ void FAndroidInputInterface::Tick(float DeltaTime)
 	{
 		(*DeviceIt)->Tick(DeltaTime);
 	}
-
-	if (VibeIsOn && 1000 * (FPlatformTime::Seconds() - LastVibeUpdateTime) > MaxVibeTime)
-	{
-		VibeIsOn = false;
-		UpdateVibeMotors();
-	}
 }
 
 void FAndroidInputInterface::SetLightColor(int32 ControllerId, FColor Color)
@@ -254,11 +257,40 @@ void FAndroidInputInterface::SetForceFeedbackChannelValue(int32 ControllerId, FF
 		}
 	}
 
+	// If didn't already assign feedback and active controller has feedback support use it, if enabled
+	if (!bDidFeedback && IsControllerAssignedToGamepad(ControllerId) && GAndroidUseControllerFeedback != 0 && DeviceMapping[ControllerId].DeviceInfo.FeedbackMotorCount > 0)
+	{
+		switch (ChannelType)
+		{
+			case FForceFeedbackChannelType::LEFT_LARGE:
+				ControllerVibeState[ControllerId].VibeValues.LeftLarge = Value;
+				break;
+
+			case FForceFeedbackChannelType::LEFT_SMALL:
+				ControllerVibeState[ControllerId].VibeValues.LeftSmall = Value;
+				break;
+
+			case FForceFeedbackChannelType::RIGHT_LARGE:
+				ControllerVibeState[ControllerId].VibeValues.RightLarge = Value;
+				break;
+
+			case FForceFeedbackChannelType::RIGHT_SMALL:
+				ControllerVibeState[ControllerId].VibeValues.RightSmall = Value;
+				break;
+
+			default:
+				// Unknown channel, so ignore it
+			break;
+		}
+		bDidFeedback = true;
+	}
+
 	bDidFeedback |= IsGamepadAttached() && bControllersBlockDeviceFeedback;
 
 	// If controller handled force feedback don't do it on the phone
 	if (bDidFeedback)
 	{
+		VibeValues.LeftLarge = VibeValues.RightLarge = VibeValues.LeftSmall = VibeValues.RightSmall = 0.0f;
 		return;
 	}
 
@@ -288,9 +320,6 @@ void FAndroidInputInterface::SetForceFeedbackChannelValue(int32 ControllerId, FF
 			// Unknown channel, so ignore it
 			break;
 	}
-
-	// Update with the latest values (wait for SendControllerEvents later?)
-	UpdateVibeMotors();
 }
 
 void FAndroidInputInterface::SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues &Values)
@@ -305,6 +334,13 @@ void FAndroidInputInterface::SetForceFeedbackChannelValues(int32 ControllerId, c
 		}
 	}
 
+	// If didn't already assign feedback and active controller has feedback support use it, if enabled
+	if (!bDidFeedback && IsControllerAssignedToGamepad(ControllerId) && GAndroidUseControllerFeedback != 0 && DeviceMapping[ControllerId].DeviceInfo.FeedbackMotorCount > 0)
+	{
+		ControllerVibeState[ControllerId].VibeValues = Values;
+		bDidFeedback = true;
+	}
+
 	bDidFeedback |= IsGamepadAttached() && bControllersBlockDeviceFeedback;
 
 	// If controller handled force feedback don't do it on the phone
@@ -316,12 +352,6 @@ void FAndroidInputInterface::SetForceFeedbackChannelValues(int32 ControllerId, c
 	{
 		VibeValues = Values;
 	}
-
-	// Note: only one motor on Android at the moment, but remember all the settings
-	// update will look at combination of all values to pick state
-
-	// Update with the latest values (wait for SendControllerEvents later?)
-	UpdateVibeMotors();
 }
 
 void FAndroidInputInterface::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values)
@@ -363,32 +393,112 @@ bool FAndroidInputInterface::IsGamepadAttached() const
 	return AndroidThunkCpp_IsGamepadAttached();
 }
 
-extern void AndroidThunkCpp_Vibrate(int32 Duration);
+static FORCEINLINE int32 ConvertToByte(float Value)
+{
+	int32 Setting = (int32)(Value * 255.0f);
+	return Setting < 0 ? 0 : (Setting < 255 ? Setting : 255);
+}
+
+extern void AndroidThunkCpp_Vibrate(int32 Intensity, int32 Duration);
+extern bool AndroidThunkCpp_SetInputDeviceVibrators(int32 deviceId, int32 leftIntensity, int32 leftDuration, int32 rightIntensity, int32 rightDuration);
 
 void FAndroidInputInterface::UpdateVibeMotors()
 {
+	// Turn off vibe if not in focus
+	bool bActive = CurrentVibeIntensity > 0;
+	if (!FAppEventManager::GetInstance()->IsGameInFocus())
+	{
+		if (bActive)
+		{
+			AndroidThunkCpp_Vibrate(0, MaxVibeTime);
+			CurrentVibeIntensity = 0;
+		}
+		return;
+	}
+
 	// Use largest vibration state as value
 	const float MaxLeft = VibeValues.LeftLarge > VibeValues.LeftSmall ? VibeValues.LeftLarge : VibeValues.LeftSmall;
 	const float MaxRight = VibeValues.RightLarge > VibeValues.RightSmall ? VibeValues.RightLarge : VibeValues.RightSmall;
 	const float Value = MaxLeft > MaxRight ? MaxLeft : MaxRight;
 
-	if (VibeIsOn)
+	int32 Intensity = ConvertToByte(Value);
+
+	// if previously active and overtime, current state is off
+	double CurrentTime = FPlatformTime::Seconds();
+	bool bOvertime = 1000 * (CurrentTime - LastVibeUpdateTime) >= MaxVibeTime;
+	if (bActive && bOvertime)
 	{
-		// Turn it off if below threshold
-		if (Value < 0.3f)
-		{
-			AndroidThunkCpp_Vibrate(0);
-			VibeIsOn = false;
-		}
+		CurrentVibeIntensity = 0;
 	}
-	else {
-		if (Value >= 0.3f)
+
+	// update if not already active at same level
+	if (CurrentVibeIntensity != Intensity)
+	{
+		AndroidThunkCpp_Vibrate(Intensity, MaxVibeTime);
+		CurrentVibeIntensity = Intensity;
+		LastVibeUpdateTime = CurrentTime;
+		//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("VibDevice %f: %d"), (float)LastVibeUpdateTime, Intensity);
+	}
+}
+
+void FAndroidInputInterface::UpdateControllerVibeMotors(int32 ControllerId)
+{
+	FAndroidControllerVibeState& State = ControllerVibeState[ControllerId];
+
+	// Turn off vibe if not in focus
+	bool bActive = State.LeftIntensity > 0 || State.RightIntensity > 0;
+	if (!FAppEventManager::GetInstance()->IsGameInFocus())
+	{
+		if (bActive)
 		{
-			// Turn it on for 10 seconds (or until below threshold)
-			AndroidThunkCpp_Vibrate(MaxVibeTime);
-			LastVibeUpdateTime = FPlatformTime::Seconds();
-			VibeIsOn = true;
+			AndroidThunkCpp_SetInputDeviceVibrators(DeviceMapping[ControllerId].DeviceInfo.DeviceId, 0, MaxVibeTime, 0, MaxVibeTime);
+			State.LeftIntensity = 0;
+			State.RightIntensity = 0;
 		}
+		return;
+	}
+
+	float MaxLeft;
+	float MaxRight;
+
+	// Use largest vibration state as value for controller type
+	switch (DeviceMapping[ControllerId].ControllerClass)
+	{
+		case ControllerClassType::PlaystationWireless:
+//			DS4 maybe should use this?  PS5 seems correct with generic
+//			MaxLeft = (State.VibeValues.LeftLarge > State.VibeValues.RightLarge ? State.VibeValues.LeftLarge : State.VibeValues.RightLarge);
+//			MaxRight = (State.VibeValues.LeftSmall > State.VibeValues.RightSmall ? State.VibeValues.LeftSmall : State.VibeValues.RightSmall);
+//			break;
+
+		case ControllerClassType::Generic:
+		case ControllerClassType::XBoxWired:
+		case ControllerClassType::XBoxWireless:
+		default:
+			MaxLeft = (State.VibeValues.LeftLarge > State.VibeValues.LeftSmall ? State.VibeValues.LeftLarge : State.VibeValues.LeftSmall);
+			MaxRight = (State.VibeValues.RightLarge > State.VibeValues.RightSmall ? State.VibeValues.RightLarge : State.VibeValues.RightSmall);
+			break;
+	}
+
+	int32 LeftIntensity = ConvertToByte(MaxLeft);
+	int32 RightIntensity = ConvertToByte(MaxRight);
+
+	// if previously active and overtime, current state is off
+	double CurrentTime = FPlatformTime::Seconds();
+	bool bOvertime = 1000 * (CurrentTime - ControllerVibeState[ControllerId].LastVibeUpdateTime) >= MaxVibeTime;
+	if (bActive && bOvertime)
+	{
+		State.LeftIntensity = 0;
+		State.RightIntensity = 0;
+	}
+
+	// update if not already active at same level
+	if (State.LeftIntensity != LeftIntensity || State.RightIntensity != RightIntensity)
+	{
+		AndroidThunkCpp_SetInputDeviceVibrators(DeviceMapping[ControllerId].DeviceInfo.DeviceId, LeftIntensity, MaxVibeTime, RightIntensity, MaxVibeTime);
+		State.LeftIntensity = LeftIntensity;
+		State.RightIntensity = RightIntensity;
+		State.LastVibeUpdateTime = CurrentTime;
+		//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("VibController %f: %d, %d"), (float)State.LastVibeUpdateTime, LeftIntensity, RightIntensity);
 	}
 }
 
@@ -855,6 +965,9 @@ void FAndroidInputInterface::SendControllerEvents()
 
 	FScopeLock Lock(&TouchInputCriticalSection);
 
+	// Update device vibe motor with latest values (only one motor so look at combination of all values to pick state)
+	UpdateVibeMotors();
+
 	// Check for gamepads needing validation if enabled
 	if (bAllowControllers)
 	{
@@ -1209,6 +1322,15 @@ void FAndroidInputInterface::SendControllerEvents()
 
 					// Set the button's NextRepeatTime to the ButtonRepeatDelay
 					NewControllerState.NextRepeatTime[ButtonIndex] = CurrentTime + ButtonRepeatDelay;
+				}
+			}
+
+			// send controller force feedback updates if enabled
+			if (GAndroidUseControllerFeedback != 0)
+			{
+				if (DeviceMapping[ControllerIndex].DeviceInfo.FeedbackMotorCount > 0)
+				{
+					UpdateControllerVibeMotors(ControllerIndex);
 				}
 			}
 

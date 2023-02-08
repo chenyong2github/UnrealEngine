@@ -83,7 +83,7 @@ enum TouchType
 
 enum MappingState
 {
-	Unassigned,
+	Unassigned = 0,
 	ToValidate,
 	Valid
 };
@@ -112,6 +112,7 @@ struct FAndroidInputDeviceInfo {
 	int32 ControllerId;
 	FString Name;
 	FString Descriptor;
+	int32 FeedbackMotorCount;
 };
 
 struct FAndroidGamepadDeviceMapping
@@ -185,6 +186,14 @@ struct FAndroidControllerData
 	float RYAnalog;
 	float LTAnalog;
 	float RTAnalog;
+};
+
+struct FAndroidControllerVibeState
+{
+	FForceFeedbackValues VibeValues;
+	int32 LeftIntensity;
+	int32 RightIntensity;
+	double LastVibeUpdateTime;
 };
 
 enum FAndroidMessageType
@@ -290,8 +299,11 @@ private:
 	/** Find controller index corresponding to validated deviceId (returns -1 if not found) */
 	static int32 FindExistingDevice(int32 deviceId);
 
-	/** Push Vibration changes to the controllers */
+	/** Push Vibration changes to the main device */
 	void UpdateVibeMotors();
+
+	/** Push Vibration changes to the controller */
+	void UpdateControllerVibeMotors(int32 ControllerId);
 
 	struct MotionData
 	{
@@ -326,7 +338,7 @@ private:
 	static TArray<TouchInput> TouchInputStack;
 
 	/** Vibration settings */
-	static bool VibeIsOn;
+	static int32 CurrentVibeIntensity;
 	// Maximum time vibration will be triggered without an update
 	static int32 MaxVibeTime;
 	static double LastVibeUpdateTime;
@@ -345,6 +357,7 @@ private:
 
 	static FAndroidControllerData OldControllerData[MAX_NUM_CONTROLLERS];
 	static FAndroidControllerData NewControllerData[MAX_NUM_CONTROLLERS];
+	static FAndroidControllerVibeState ControllerVibeState[MAX_NUM_CONTROLLERS];
 
 	static FGamepadKeyNames::Type ButtonMapping[MAX_NUM_CONTROLLER_BUTTONS];
 

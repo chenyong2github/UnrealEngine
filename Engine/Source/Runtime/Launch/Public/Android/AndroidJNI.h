@@ -45,6 +45,7 @@ public:
 	static jmethodID AndroidThunkJava_ShowProgressDialog;
 	static jmethodID AndroidThunkJava_UpdateProgressDialog;
 	static jmethodID AndroidThunkJava_GetInputDeviceInfo;
+	static jmethodID AndroidThunkJava_SetInputDeviceVibrators;
 	static jmethodID AndroidThunkJava_IsGamepadAttached;
 	static jmethodID AndroidThunkJava_HasMetaDataKey;
 	static jmethodID AndroidThunkJava_GetMetaDataBoolean;
@@ -88,6 +89,7 @@ public:
 	static jfieldID InputDeviceInfo_ControllerId;
 	static jfieldID InputDeviceInfo_Name;
 	static jfieldID InputDeviceInfo_Descriptor;
+	static jfieldID InputDeviceInfo_FeedbackMotorCount;
 
 	// IDs related to google play services
 	static jclass GoogleServicesClassID;

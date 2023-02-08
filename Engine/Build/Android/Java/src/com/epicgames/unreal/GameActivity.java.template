@@ -81,7 +81,10 @@ import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.util.Log;
 
+import android.hardware.input.InputManager;
 import android.os.Vibrator;
+import android.os.VibrationEffect;
+import android.os.VibratorManager;
 import android.os.SystemClock;
 import android.os.Looper;
 import android.os.Handler;
@@ -248,6 +251,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	private Sensor gyroscope;
 	static boolean first_acceleration_sample = true;
 	static final float SampleDecayRate = 0.85f;
+
+	private InputManager inputManager;
+	private Vibrator deviceVibrator;
 
 	private Rect safezone = new Rect(0, 0, 0, 0);
 	private RectF safezoneF = new RectF(0.0f, 0.0f, 0.0f, 0.0f);
@@ -2341,6 +2347,17 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 		gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
 
+		inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
+		deviceVibrator = null;
+		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+		{
+			VibratorManager vibratorManager = (VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+			deviceVibrator = vibratorManager.getDefaultVibrator();
+		}
+		else
+		{
+			deviceVibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+		}
 
 		// disable autofill to avoid possible Android 10 crash (android.view.autofill.AutofillManager.ensureServiceClientAddedIfNeededLocked() SyncResultReceiver$TimeoutException)
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -3933,31 +3950,32 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	}
 
 	private class VibrateRunnable implements Runnable {
-		private int duration;
+		private int intensity;
+		private long duration;
 		private Vibrator vibrator;
 
-		VibrateRunnable(final int Duration, final Vibrator vibrator)
+		VibrateRunnable(final int Intensity, final long Duration, final Vibrator vibrator)
 		{
+			this.intensity = Intensity;
 			this.duration = Duration;
 			this.vibrator = vibrator;
 		}
 		public void run ()
 		{
-			if (duration < 1)
+			if (intensity < 1 || duration < 1)
 			{
 				vibrator.cancel();
 			} else {
-				vibrator.vibrate(duration);
+				vibrator.vibrate(VibrationEffect.createOneShot(duration, intensity));
 			}
 		}
 	}
 
-	public void AndroidThunkJava_Vibrate(int Duration)
+	public void AndroidThunkJava_Vibrate(int Intensity, int Duration)
 	{
-		Vibrator vibrator = (Vibrator)getSystemService(VIBRATOR_SERVICE);
-		if (vibrator != null)
+		if (deviceVibrator != null)
 		{
-			_activity.runOnUiThread(new VibrateRunnable(Duration, vibrator));
+			_activity.runOnUiThread(new VibrateRunnable(Intensity, (long)Duration, deviceVibrator));
 		}
 	}
 
@@ -5245,8 +5263,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		public int controllerId;
 		public String name;
 		public String descriptor;
+		public int feedbackMotorCount;
 
-		InputDeviceInfo(int did, int vid, int pid, int cid, String inName, String inDescriptor)
+		InputDeviceInfo(int did, int vid, int pid, int cid, String inName, String inDescriptor, int fmcount)
 		{
 			deviceId = did;
 			vendorId = vid;
@@ -5254,6 +5273,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			controllerId = cid;
 			name = inName;
 			descriptor = inDescriptor;
+			feedbackMotorCount = fmcount;
 		}
 	}
 
@@ -5268,9 +5288,20 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				int vendorId = 0;
 				int productId = 0;
 				int controllerNumber = 0;
+				int feedbackMotorCount = 0;
 
 				// requires 4.1 (Jellybean)
 				String descriptor = ANDROID_BUILD_VERSION >= 16 ? inputDevice.getDescriptor() : Integer.toString(deviceId);
+				
+				// supported on 12.0 onward
+				if (ANDROID_BUILD_VERSION >= 31)
+				{
+					VibratorManager vibratorManager = (VibratorManager) inputDevice.getVibratorManager();
+					if (vibratorManager != null)
+					{
+						feedbackMotorCount = vibratorManager.getVibratorIds().length;
+					}
+				}
 
 				// supported on 4.4 (KitKat) onward
 				if (ANDROID_BUILD_VERSION >= 19)
@@ -5284,16 +5315,59 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 					{
 						if (deviceInfo.IsMatch(vendorId, productId))
 						{
-							return new InputDeviceInfo(deviceId, vendorId, productId, controllerNumber, deviceInfo.name, descriptor);
+							return new InputDeviceInfo(deviceId, vendorId, productId, controllerNumber, deviceInfo.name, descriptor, feedbackMotorCount);
 						}
 					}
 				}
 
 				// use device name as fallback (may be generic like "Bluetooth HID" so not always useful)
-				return new InputDeviceInfo(deviceId, vendorId, productId, controllerNumber, inputDevice.getName(), descriptor);
+				return new InputDeviceInfo(deviceId, vendorId, productId, controllerNumber, inputDevice.getName(), descriptor, feedbackMotorCount);
 			}
 		}
-		return new InputDeviceInfo(deviceId, 0, 0, -1, "Unknown", "Unknown");
+		return new InputDeviceInfo(deviceId, 0, 0, -1, "Unknown", "Unknown", 0);
+	}
+
+	private boolean UpdateVibrator(Vibrator vibrator, int intensity, long duration)
+	{
+		if (vibrator != null)
+		{
+			_activity.runOnUiThread(new VibrateRunnable(intensity, duration, vibrator));
+			return true;
+		}
+		return false;
+	}
+
+	public boolean AndroidThunkJava_SetInputDeviceVibrators(int deviceId, int leftIntensity, int leftDuration, int rightIntensity, int rightDuration)
+	{
+		boolean result = false;
+		
+		InputDevice inputDevice = inputManager.getInputDevice(deviceId);
+        if (inputDevice != null)
+		{
+			int intensity = leftIntensity > rightIntensity ? leftIntensity : rightIntensity;
+			long duration = leftDuration > rightDuration ? leftDuration : rightDuration;
+			
+			if (ANDROID_BUILD_VERSION >= 31)
+			{
+				VibratorManager vibratorManager = inputDevice.getVibratorManager();
+				int[] vibratorIds = vibratorManager.getVibratorIds();
+				int count = vibratorIds.length;
+				if (count == 1)
+				{
+					result |= UpdateVibrator(vibratorManager.getVibrator(vibratorIds[0]), intensity, duration);
+				}
+				else if (count > 1)
+				{
+					result |= UpdateVibrator(vibratorManager.getVibrator(vibratorIds[0]), leftIntensity, leftDuration);
+					result |= UpdateVibrator(vibratorManager.getVibrator(vibratorIds[1]), rightIntensity, rightDuration);
+				}
+            }
+			else
+			{
+				result |= UpdateVibrator(inputDevice.getVibrator(), intensity, duration);
+            }
+  		}
+		return result;
 	}
 
 	public void AndroidThunkJava_UseSurfaceViewWorkaround()
@@ -5364,7 +5438,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			if (((inputDevice.getSources() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD)
                 || ((inputDevice.getSources() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK))
 			{
-				return true;
+				// make sure it isn't actually a keyboard or finger scanner
+				if ((inputDevice.getKeyboardType() != InputDevice.KEYBOARD_TYPE_ALPHABETIC)
+					&& (!inputDevice.getName().equals("uinput-fpc")))
+				{
+					return true;
+				}
 			}
 		}
 
