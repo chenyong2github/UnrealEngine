@@ -6553,12 +6553,14 @@ public:
 		return World;
 	}
 
-	/**
-	* Return the scene to be used for rendering
-	*/
-	virtual class FScene* GetRenderScene() override
+	virtual FScene* GetRenderScene() override
 	{
-		return NULL;
+		return nullptr;
+	}
+
+	virtual const FScene* GetRenderScene() const override
+	{
+		return nullptr;
 	}
 
 	/**

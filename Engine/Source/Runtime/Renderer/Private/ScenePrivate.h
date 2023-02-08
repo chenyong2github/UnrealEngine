@@ -3274,10 +3274,9 @@ public:
 	/**
 	* Return the scene to be used for rendering
 	*/
-	virtual class FScene* GetRenderScene() override
-	{
-		return this;
-	}
+	virtual FScene* GetRenderScene() final { return this; }
+	virtual const FScene* GetRenderScene() const final { return this; }
+
 	virtual void OnWorldCleanup() override;
 
 

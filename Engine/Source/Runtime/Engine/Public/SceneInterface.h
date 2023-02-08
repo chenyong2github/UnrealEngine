@@ -35,6 +35,7 @@ class FRenderResource;
 class FRenderTarget;
 class FRHICommandListImmediate;
 class FRHIUniformBuffer;
+class FScene;
 class FSceneRenderer;
 class FSceneViewStateInterface;
 class FSkyAtmosphereRenderSceneInfo;
@@ -521,10 +522,8 @@ public:
 	 * Return the scene to be used for rendering. Note that this can return null if rendering has
 	 * been disabled!
 	 */
-	virtual class FScene* GetRenderScene()
-	{
-		return nullptr;
-	}
+	virtual FScene* GetRenderScene() = 0;
+	virtual const FScene* GetRenderScene() const = 0;
 
 	virtual void OnWorldCleanup()
 	{
