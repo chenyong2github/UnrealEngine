@@ -53,8 +53,13 @@ private:
     FString SignallingDomain;
     // The port the streamer will connect to. eg 8888
     int32 StreamerPort;
+
     // The port the streams can be viewed at on the browser. eg 80
+#if PLATFORM_LINUX
+    int32 ViewerPort = 8080; // ports <1000 require superuser privileges on Linux
+#else
     int32 ViewerPort = 80;
+#endif
 
 public:
     bool bUseExternalSignallingServer = false;
