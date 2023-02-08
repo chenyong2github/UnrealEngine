@@ -939,7 +939,20 @@ public:
 		{
 			if ( !Directory.Path.IsEmpty() )
 			{
-				PluginDirectories.Add( Directory.Path );
+				// The directory chooser will try to enforce that the paths
+				// in the setting are within the game content dir, but it's
+				// still possible for the user to manually enter either a
+				// relative or an absolute path that points elsewhere, so aim
+				// to support any of these.
+				FString PluginDirPath = Directory.Path;
+				if ( FPaths::IsRelative( PluginDirPath ) )
+				{
+					PluginDirPath = FPaths::Combine( FPaths::ProjectContentDir(), PluginDirPath );
+					PluginDirPath = FPaths::ConvertRelativePathToFull( PluginDirPath );
+				}
+				FPaths::NormalizeDirectoryName( PluginDirPath );
+				FPaths::CollapseRelativeDirectories( PluginDirPath );
+				PluginDirectories.Add( PluginDirPath );
 			}
 		}
 

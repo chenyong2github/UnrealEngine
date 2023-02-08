@@ -24,8 +24,19 @@ class UUsdProjectSettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
-	// Additional paths to check for USD plugins
-	UPROPERTY( config, EditAnywhere, Category = USD )
+	// Additional paths to check for USD plugins.
+	//
+	// If you want the USD plugins to be included in a packaged game, you must use a relative
+	// path to a location within your project directory, and you must also add that same path
+	// to the "Additional Non-Asset Directories To Copy" Project Packaging setting.
+	//
+	// For example, this relative path could be used to locate USD plugins in a directory at
+	// the root of your project:
+	//     ../USD_Plugins
+	//
+	// The packaging process cannot use an absolute path and will raise an error if given one
+	// when it tries to concatenate the game content directory path with an absolute path.
+	UPROPERTY( config, EditAnywhere, Category = USD, meta = (RelativeToGameContentDir) )
 	TArray<FDirectoryPath> AdditionalPluginDirectories;
 
 	// Material purposes to show on drop-downs in addition to the standard "preview" and "full"
