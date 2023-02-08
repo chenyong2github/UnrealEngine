@@ -343,7 +343,10 @@ void UIKRetargeterController::AutoMapChains(const EAutoMapChainType AutoMapType,
 			}
 		case EAutoMapChainType::Exact:
 			{
-				// auto-map chains with same name
+				// if no exact match is found, then set to None
+				ChainMap->SourceChain = NAME_None;
+				
+				// auto-map chains with EXACT same name
 				for (int32 ChainIndex=0; ChainIndex<SourceChainNames.Num(); ++ChainIndex)
 				{
 					if (SourceChainNames[ChainIndex] == ChainMap->TargetChain)
