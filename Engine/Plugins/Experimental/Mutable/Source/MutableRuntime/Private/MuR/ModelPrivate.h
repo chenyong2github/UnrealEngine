@@ -57,9 +57,10 @@ namespace mu
 	struct FImageLODRange
 	{
 		int32 FirstIndex = 0;
-		int32 LODCount = 0;
 		uint16 ImageSizeX = 0;
 		uint16 ImageSizeY = 0;
+		uint16 _Padding = 0;
+		uint8 LODCount = 0;
 		EImageFormat ImageFormat = EImageFormat::IF_NONE;
 	};
 	MUTABLE_DEFINE_POD_SERIALISABLE(FImageLODRange);
@@ -394,7 +395,13 @@ namespace mu
 				}
 			}
 
-			int32 ImageIndex = m_constantImages.Add({ FirstLODIndexIndex, MipsToStore, pImage->GetSizeX(), pImage->GetSizeY(), pImage->GetFormat() });
+			FImageLODRange LODRange;
+			LODRange.FirstIndex = FirstLODIndexIndex;
+			LODRange.LODCount = MipsToStore;
+			LODRange.ImageFormat = pImage->GetFormat();
+			LODRange.ImageSizeX = pImage->GetSizeX();
+			LODRange.ImageSizeY = pImage->GetSizeY();
+			int32 ImageIndex = m_constantImages.Add(LODRange);
 			return ImageIndex;
 		}
 
