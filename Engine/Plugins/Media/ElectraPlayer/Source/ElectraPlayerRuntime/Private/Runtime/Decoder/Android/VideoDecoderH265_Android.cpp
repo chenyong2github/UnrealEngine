@@ -1558,6 +1558,32 @@ FVideoDecoderH265::EOutputResult FVideoDecoderH265::ProcessOutput(const FDecoded
 		NotifyReadyBufferListener(bHaveAvailSmpBlk);
 		if (RenderOutputBuffer)
 		{
+			// Set the bit depth and the colorimetry.
+			uint8 colour_primaries = 2, transfer_characteristics = 2, matrix_coeffs = 2;
+			uint8 video_full_range_flag = 0, video_format = 5;
+			uint8 num_bits = 8;
+			if (NextImage.SourceInfo.IsValid() && NextImage.SourceInfo->SPSs.Num())
+			{
+				check(NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 == NextImage.SourceInfo->SPSs[0].bit_depth_chroma_minus8);
+				num_bits = NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 + 8;
+				if (NextImage.SourceInfo->SPSs[0].colour_description_present_flag)
+				{
+					colour_primaries = NextImage.SourceInfo->SPSs[0].colour_primaries;
+					transfer_characteristics = NextImage.SourceInfo->SPSs[0].transfer_characteristics;
+					matrix_coeffs = NextImage.SourceInfo->SPSs[0].matrix_coeffs;
+				}
+				if (NextImage.SourceInfo->SPSs[0].video_signal_type_present_flag)
+				{
+					video_full_range_flag = NextImage.SourceInfo->SPSs[0].video_full_range_flag;
+					video_format = NextImage.SourceInfo->SPSs[0].video_format;
+				}
+			}
+			Colorimetry.Update(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format);
+			if (NextImage.SourceInfo.IsValid())
+			{
+				HDR.Update(num_bits, Colorimetry, NextImage.SourceInfo->CSDPrefixSEIMessages, NextImage.SourceInfo->PrefixSEIMessages, false);
+			}
+
 			TUniquePtr<FParamDict> OutputBufferSampleProperties = MakeUnique<FParamDict>();
 			bool bRender = NextImage.SourceInfo->AdjustedPTS.IsValid();
 			if (bRender)
@@ -1587,37 +1613,9 @@ FVideoDecoderH265::EOutputResult FVideoDecoderH265::ProcessOutput(const FDecoded
 					OutputBufferSampleProperties->Set("aspect_h", FVariantValue(ay));
 					OutputBufferSampleProperties->Set("fps_num", FVariantValue((int64)0));
 					OutputBufferSampleProperties->Set("fps_denom", FVariantValue((int64)0));
-
-					// Set the bit depth and the colorimetry.
-					uint8 colour_primaries=2, transfer_characteristics=2, matrix_coeffs=2;
-					uint8 video_full_range_flag=0, video_format=5;
-					uint8 num_bits = 8;
-					if (NextImage.SourceInfo.IsValid() && NextImage.SourceInfo->SPSs.Num())
-					{
-						check(NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 == NextImage.SourceInfo->SPSs[0].bit_depth_chroma_minus8);
-						num_bits = NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 + 8;
-						if (NextImage.SourceInfo->SPSs[0].colour_description_present_flag)
-						{
-							colour_primaries = NextImage.SourceInfo->SPSs[0].colour_primaries;
-							transfer_characteristics = NextImage.SourceInfo->SPSs[0].transfer_characteristics;
-							matrix_coeffs = NextImage.SourceInfo->SPSs[0].matrix_coeffs;
-						}
-						if (NextImage.SourceInfo->SPSs[0].video_signal_type_present_flag)
-						{
-							video_full_range_flag = NextImage.SourceInfo->SPSs[0].video_full_range_flag;
-							video_format = NextImage.SourceInfo->SPSs[0].video_format;
-						}
-					}
-					
 					OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)((num_bits > 8)  ? EPixelFormat::PF_A2B10G10R10 : EPixelFormat::PF_B8G8R8A8)));
 					OutputBufferSampleProperties->Set("bits_per", FVariantValue((int64)num_bits));
-					Colorimetry.Update(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format);
 					Colorimetry.UpdateParamDict(*OutputBufferSampleProperties);
-					// Extract HDR metadata from SEI messages
-					if (NextImage.SourceInfo.IsValid())
-					{
-						HDR.Update(num_bits, Colorimetry, NextImage.SourceInfo->CSDPrefixSEIMessages, NextImage.SourceInfo->PrefixSEIMessages, false);
-					}
 					HDR.UpdateParamDict(*OutputBufferSampleProperties);
 
 					TSharedPtrTS<FElectraPlayerVideoDecoderOutputAndroid> DecoderOutput = RenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputAndroid>();
