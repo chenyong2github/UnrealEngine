@@ -3,6 +3,7 @@
 #include "NetworkFileServerConnection.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Misc/ScopeLock.h"
 #include "Serialization/BufferArchive.h"
 #include "Misc/ConfigCacheIni.h"
@@ -1076,14 +1077,7 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 		Sandbox->IterateDirectory(*RootDirectories[DirIndex], Visitor);
 	}
 
-	// Traverse plugin directories
-	TArray<TSharedRef<IPlugin>> AllPlugins = IPluginManager::Get().GetDiscoveredPlugins();
-	for (TSharedRef<IPlugin> Plugin : AllPlugins)
-	{
-		ScanExtensionRootDirectory(Sandbox.Get(), Plugin->GetBaseDir(), RootDirectories, Visitor.FileTimes);
-	}
-
-	// Traverse platform extension directories
+	// Get PlatformDirectoryNames
 	FString ServerEnginePlatformExtensionsRelativePath = EnginePlatformExtensionsRelativePath;
 	ConvertClientFilenameToServerFilename(ServerEnginePlatformExtensionsRelativePath);
 	FString ServerProjectPlatformExtensionsRelativePath = ProjectPlatformExtensionsRelativePath;
@@ -1105,6 +1099,56 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 			PlatformDirectoryNames.AddUnique(PlatformName);
 		}
 	}
+
+	// Traverse plugin directories
+	TSet<FString> PlatformDirectoryNameSet;
+	PlatformDirectoryNameSet.Append(PlatformDirectoryNames);
+	TArray<TSharedRef<IPlugin>> AllPlugins = IPluginManager::Get().GetDiscoveredPlugins();
+	for (TSharedRef<IPlugin> Plugin : AllPlugins)
+	{
+		// First the base directory of the plugin.
+		ScanExtensionRootDirectory(Sandbox.Get(), Plugin->GetBaseDir(), RootDirectories, Visitor.FileTimes);
+
+		// Next the plugin extension directories of this plugin.
+		TArray<FString> PluginExtensionDirs = Plugin->GetExtensionBaseDirs();
+		for (const FString& ExtensionDir : PluginExtensionDirs)
+		{
+			// Scan for Platforms/X.  If X is not one of our platforms do not scan this extension directory.  
+			// If X is one of our platforms or this extension is not Platforms restricted at all scan it.
+			bool bFoundPlatforms = false;
+			bool bDone = false;
+			bool bWrongPlatform = false;
+			FPathViews::IterateComponents(
+				ExtensionDir,
+				[&bFoundPlatforms, &bDone, &bWrongPlatform, &PlatformDirectoryNameSet](FStringView CurrentPathComponent)
+				{
+					if (!bFoundPlatforms)
+					{
+						if (CurrentPathComponent == FString(TEXT("Platforms")))
+						{
+							bFoundPlatforms = true;
+						}
+					}
+					else if (!bDone)
+					{
+						bWrongPlatform = !PlatformDirectoryNameSet.Contains(FString(CurrentPathComponent));
+						bDone = true;
+					}
+					else
+					{
+						// Do nothing.
+					}
+				}
+			);
+
+			if (!bWrongPlatform)
+			{
+				ScanExtensionRootDirectory(Sandbox.Get(), ExtensionDir, RootDirectories, Visitor.FileTimes);
+			}
+		}
+	}
+
+	// Traverse platform extension directories
 	for (const FString& PlatformDirectoryName : PlatformDirectoryNames)
 	{
 		ScanExtensionRootDirectory(Sandbox.Get(), ServerEnginePlatformExtensionsRelativePath / PlatformDirectoryName, RootDirectories, Visitor.FileTimes);

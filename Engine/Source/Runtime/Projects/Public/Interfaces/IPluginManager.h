@@ -102,6 +102,13 @@ public:
 	virtual FString GetBaseDir() const = 0;
 
 	/**
+	 * Get a filesystem path to the plugin's directory.
+	 *
+	 * @return Filesystem path to the plugin's base directory.
+	 */
+	virtual TArray<FString> GetExtensionBaseDirs() const = 0;
+
+	/**
 	 * Get a filesystem path to the plugin's content directory.
 	 *
 	 * @return Filesystem path to the plugin's content directory.

@@ -376,6 +376,17 @@ FString FPlugin::GetBaseDir() const
 	return FPaths::GetPath(FileName);
 }
 
+TArray<FString> FPlugin::GetExtensionBaseDirs() const
+{
+	TArray<FString> OutDirs;
+	OutDirs.Reserve(PluginExtensionFileNameList.Num());
+	for (const FString& ExtensionFileName : PluginExtensionFileNameList)
+	{
+		OutDirs.Emplace(FPaths::GetPath(ExtensionFileName));
+	}
+	return OutDirs;
+}
+
 FString FPlugin::GetContentDir() const
 {
 	return FPaths::GetPath(FileName) / TEXT("Content");
@@ -895,6 +906,9 @@ void FPluginManager::ReadAllPlugins(FDiscoveredPluginMap& Plugins, const TSet<FS
 					Parent->Descriptor.SupportedTargetPlatforms.AddUnique(SupportedTargetPlatform);
 				}
 			}
+
+			// we need to remember the child's filename so we can make the file findable on the network file system
+			Parent->PluginExtensionFileNameList.Add(Child->FileName);
 		}
 		else
 		{
@@ -2033,7 +2047,7 @@ bool FPluginManager::ConfigureEnabledPluginForTarget(const FPluginReferenceDescr
 			}
 
 			// Check the plugin supports this platform
-			if(!bLoadPluginsForTargetPlatforms && !Plugin.Descriptor.SupportsTargetPlatform(Platform))
+			if(!bLoadPluginsForTargetPlatforms && !Reference.IsSupportedTargetPlatform(Platform))
 			{
 				UE_LOG(LogPluginManager, Verbose, TEXT("Ignoring plugin '%s' due to unsupported platform in plugin descriptor"), *Reference.Name);
 				continue;

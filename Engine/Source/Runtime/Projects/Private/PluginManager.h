@@ -21,6 +21,9 @@ public:
 	/** The filename that the plugin was loaded from */
 	FString FileName;
 
+	/** The filenames from which any child plugins that have been merged were loaded */
+	TArray<FString> PluginExtensionFileNameList;
+
 	/** The plugin's settings */
 	FPluginDescriptor Descriptor;
 
@@ -66,6 +69,7 @@ public:
 	}
 
 	virtual FString GetBaseDir() const override;
+	virtual TArray<FString> GetExtensionBaseDirs() const override;
 	virtual FString GetContentDir() const override;
 	virtual FString GetMountedAssetPath() const override;
 
