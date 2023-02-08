@@ -711,12 +711,20 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 			}
 
 			//Delete binding from default animating rig
+			//if we have skel mesh component binding we can just delete that
 			FGuid CompGuid = WeakSequencer.Pin()->FindObjectId(*(MeshActor->GetSkeletalMeshComponent()), WeakSequencer.Pin()->GetFocusedTemplateID());
 			if (CompGuid.IsValid())
 			{
 				if (!MovieScene->RemovePossessable(CompGuid))
 				{
 					MovieScene->RemoveSpawnable(CompGuid);
+				}
+			}
+			else //otherwise if not delete the track
+			{
+				if (UMovieSceneTrack* ExistingTrack = MovieScene->FindTrack<UMovieSceneControlRigParameterTrack>(ActorTrackGuid))
+				{
+					MovieScene->RemoveTrack(*ExistingTrack);
 				}
 			}
 
