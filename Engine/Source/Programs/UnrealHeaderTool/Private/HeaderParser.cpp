@@ -5115,7 +5115,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		if (Token.IsIdentifier(TEXT("GENERATED_IINTERFACE_BODY"), ESearchCase::CaseSensitive))
 		{
 			// Due to the way IInterface and UInterface share the same class instance, we don't set the legacy body
-			//ClassDef.MarkUsesGeneratedBodyLegacy();
+			ClassDef.MarkNativeInterfaceUsesGeneratedBodyLegacy();
 			CurrentAccessSpecifier = ACCESS_Public;
 		}
 

@@ -423,7 +423,15 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		private StringBuilder AppendClass(StringBuilder builder, UhtClass classObj)
 		{
 			string api = classObj.ClassFlags.HasAnyFlags(EClassFlags.MinimalAPI) ? PackageApi : "NO_API ";
+			bool usesLegacy = classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.UsesGeneratedBodyLegacy);
 			UhtClass? nativeInterface = ObjectInfos[classObj.ObjectTypeIndex].NativeInterface;
+			if (classObj.ClassFlags.HasAnyFlags(EClassFlags.Interface) && nativeInterface == null)
+			{
+				throw new UhtIceException("Interfaces must have an associated native interface");
+			}
+
+			// With interfaces, there are cases where we use the native interface class export flags to check for legacy macro
+			bool alternateUsesLegacy = (classObj.ClassFlags.HasAnyFlags(EClassFlags.Interface) ? nativeInterface! : classObj).ClassExportFlags.HasAnyFlags(UhtClassExportFlags.UsesGeneratedBodyLegacy);
 
 			// Write the spare declarations
 			AppendSparseDeclarations(builder, classObj);
@@ -436,10 +444,10 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			bool hasEditorRpc = reversedFunctions.Any(x => IsRpcFunction(x, true));
 
 			// Output the RPC methods
-			AppendRpcFunctions(builder, classObj, reversedFunctions, false);
+			AppendRpcFunctions(builder, classObj, alternateUsesLegacy, reversedFunctions, false);
 			if (hasEditorRpc)
 			{
-				AppendRpcFunctions(builder, classObj, reversedFunctions, true);
+				AppendRpcFunctions(builder, classObj, alternateUsesLegacy, reversedFunctions, true);
 			}
 
 			// Output property accessors
@@ -448,9 +456,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			// Collect the callback function and sort by name to make the order stable
 			List<UhtFunction> callbackFunctions = new(classObj.Functions.Where(x => x.FunctionFlags.HasAnyFlags(EFunctionFlags.Event) && x.SuperFunction == null));
 			callbackFunctions.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
-
-			// This is now done in.gen.cpp - Generate the callback parameter structures
-			//AppendCallbackParametersDecls(builder, classObj, callbackFunctions);
+			bool hasCallbacks = callbackFunctions.Count > 0;
 
 			// Generate the RPC wrappers for the callbacks
 			AppendCallbackRpcWrapperDecls(builder, classObj, callbackFunctions);
@@ -464,61 +470,95 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			if (classObj.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 			{
-				AppendStandardConstructors(builder, classObj, api);
-				AppendEnhancedConstructors(builder, classObj, api);
+				if (usesLegacy)
+				{
+					AppendStandardConstructors(builder, classObj, api);
+				}
+				else
+				{
+					AppendEnhancedConstructors(builder, classObj, api);
+				}
 
 				using (UhtMacroCreator macro = new(builder, this, classObj, GeneratedUInterfaceBodyMacroSuffix))
 				{
 					AppendCommonGeneratedBody(builder, classObj, api);
 				}
 
-				using (UhtMacroCreator macro = new(builder, this, classObj, GeneratedBodyLegacyMacroSuffix))
+				if (usesLegacy)
 				{
-					builder.Append('\t');
-					AppendGeneratedMacroDeprecationWarning(builder, "GENERATED_UINTERFACE_BODY");
-					builder.Append('\t').Append(DisableDeprecationWarnings).Append(" \\\r\n");
-					builder.Append('\t').AppendMacroName(this, classObj, GeneratedUInterfaceBodyMacroSuffix).Append(" \\\r\n");
-					builder.Append('\t').AppendMacroName(this, classObj, StandardConstructorsMacroSuffix).Append(" \\\r\n");
-					builder.Append('\t').Append(EnableDeprecationWarnings).Append(" \\\r\n");
+					using (UhtMacroCreator macro = new(builder, this, classObj, GeneratedBodyLegacyMacroSuffix))
+					{
+						builder.Append('\t');
+						AppendGeneratedMacroDeprecationWarning(builder, "GENERATED_UINTERFACE_BODY");
+						builder.Append('\t').Append(DisableDeprecationWarnings).Append(" \\\r\n");
+						builder.Append('\t').AppendMacroName(this, classObj, GeneratedUInterfaceBodyMacroSuffix).Append(" \\\r\n");
+						builder.Append('\t').AppendMacroName(this, classObj, StandardConstructorsMacroSuffix).Append(" \\\r\n");
+						builder.Append('\t').Append(EnableDeprecationWarnings).Append(" \\\r\n");
+					}
+				}
+				else
+				{
+					using (UhtMacroCreator macro = new(builder, this, classObj, GeneratedBodyMacroSuffix))
+					{
+						builder.Append('\t').Append(DisableDeprecationWarnings).Append(" \\\r\n");
+						builder.Append('\t').AppendMacroName(this, classObj, GeneratedUInterfaceBodyMacroSuffix).Append(" \\\r\n");
+						builder.Append('\t').AppendMacroName(this, classObj, EnchancedConstructorsMacroSuffix).Append(" \\\r\n");
+						AppendAccessSpecifier(builder, classObj);
+						builder.Append(" \\\r\n");
+						builder.Append('\t').Append(EnableDeprecationWarnings).Append(" \\\r\n");
+					}
 				}
 
-				using (UhtMacroCreator macro = new(builder, this, classObj, GeneratedBodyMacroSuffix))
+				if (alternateUsesLegacy)
 				{
-					builder.Append('\t').Append(DisableDeprecationWarnings).Append(" \\\r\n");
-					builder.Append('\t').AppendMacroName(this, classObj, GeneratedUInterfaceBodyMacroSuffix).Append(" \\\r\n");
-					builder.Append('\t').AppendMacroName(this, classObj, EnchancedConstructorsMacroSuffix).Append(" \\\r\n");
-					AppendAccessSpecifier(builder, classObj);
-					builder.Append(" \\\r\n");
-					builder.Append('\t').Append(EnableDeprecationWarnings).Append(" \\\r\n");
+					using (UhtMacroCreator macro = new(builder, this, classObj, InClassIInterfaceMacroSuffix))
+					{
+						AppendInClassIInterface(builder, classObj, callbackFunctions, api);
+					}
+				}
+				else
+				{
+					using (UhtMacroCreator macro = new(builder, this, classObj, InClassIInterfaceNoPureDeclsMacroSuffix))
+					{
+						AppendInClassIInterface(builder, classObj, callbackFunctions, api);
+					}
 				}
 
-				using (UhtMacroCreator macro = new(builder, this, classObj, InClassIInterfaceNoPureDeclsMacroSuffix))
-				{
-					AppendInClassIInterface(builder, classObj, callbackFunctions, api);
-				}
-
-				using (UhtMacroCreator macro = new(builder, this, classObj, InClassIInterfaceMacroSuffix))
-				{
-					AppendInClassIInterface(builder, classObj, callbackFunctions, api);
-				}
+				AppendProlog(builder, classObj);
+				AppendGeneratedBodyMacroBlock(builder, classObj, nativeInterface!, alternateUsesLegacy, hasEditorRpc, hasCallbacks, null);
 			}
 			else
 			{
-				using (UhtMacroCreator macro = new(builder, this, classObj, InClassNoPureDeclsMacroSuffix))
+				if (usesLegacy)
 				{
-					AppendClassGeneratedBody(builder, classObj, api);
+					using (UhtMacroCreator macro = new(builder, this, classObj, InClassMacroSuffix))
+					{
+						AppendClassGeneratedBody(builder, classObj, api);
+					}
+					AppendStandardConstructors(builder, classObj, api);
+				}
+				else
+				{
+					using (UhtMacroCreator macro = new(builder, this, classObj, InClassNoPureDeclsMacroSuffix))
+					{
+						AppendClassGeneratedBody(builder, classObj, api);
+					}
+					AppendEnhancedConstructors(builder, classObj, api);
 				}
 
-				using (UhtMacroCreator macro = new(builder, this, classObj, InClassMacroSuffix))
-				{
-					AppendClassGeneratedBody(builder, classObj, api);
-				}
-
-				AppendStandardConstructors(builder, classObj, api);
-				AppendEnhancedConstructors(builder, classObj, api);
 				AppendFieldNotify(builder, classObj);
+				AppendProlog(builder, classObj);
+				AppendGeneratedBodyMacroBlock(builder, classObj, classObj, usesLegacy, hasEditorRpc, hasCallbacks, usesLegacy ? "GENERATED_UCLASS_BODY" : null);
 			}
 
+			// Forward declare the StaticClass specialization in the header
+			builder.Append("template<> ").Append(PackageApi).Append("UClass* StaticClass<class ").Append(classObj.SourceName).Append(">();\r\n");
+			builder.Append("\r\n");
+			return builder;
+		}
+
+		private StringBuilder AppendProlog(StringBuilder builder, UhtClass classObj/*, List<UhtFunction> classbackFunctions*/)
+		{
 			using (UhtMacroCreator macro = new(builder, this, classObj.PrologLineNumber, PrologMacroSuffix))
 			{
 				//if (callbackFunctions.Count > 0)
@@ -526,25 +566,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				//	builder.Append('\t').AppendMacroName(this, classObj, EventParamsMacroSuffix).Append(" \\\r\n");
 				//}
 			}
-
-			bool hasCallbacks = callbackFunctions.Count > 0;
-			if (classObj.ClassFlags.HasAnyFlags(EClassFlags.Interface))
-			{
-				if (nativeInterface != null)
-				{
-					AppendGeneratedBodyMacroBlock(builder, classObj, nativeInterface, true, hasEditorRpc, hasCallbacks, null);
-					AppendGeneratedBodyMacroBlock(builder, classObj, nativeInterface, false, hasEditorRpc, hasCallbacks, null);
-				}
-			}
-			else
-			{
-				AppendGeneratedBodyMacroBlock(builder, classObj, classObj, true, hasEditorRpc, hasCallbacks, "GENERATED_UCLASS_BODY");
-				AppendGeneratedBodyMacroBlock(builder, classObj, classObj, false, hasEditorRpc, hasCallbacks, null);
-			}
-
-			// Forward declare the StaticClass specialization in the header
-			builder.Append("template<> ").Append(PackageApi).Append("UClass* StaticClass<class ").Append(classObj.SourceName).Append(">();\r\n");
-			builder.Append("\r\n");
 			return builder;
 		}
 
@@ -689,34 +710,44 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return builder;
 		}
 
-		private StringBuilder AppendRpcFunctions(StringBuilder builder, UhtClass classObj, List<UhtFunction> reversedFunctions, bool editorOnly)
+		private StringBuilder AppendRpcFunctions(StringBuilder builder, UhtClass classObj, bool usesLegacy, List<UhtFunction> reversedFunctions, bool editorOnly)
 		{
 			builder.AppendBeginEditorOnlyGuard(editorOnly);
 
-			using (UhtMacroCreator macro = new(builder, this, classObj, editorOnly ? EditorOnlyRpcWrappersMacroSuffix : RpcWrappersMacroSuffix))
+			if (usesLegacy)
 			{
-				AppendAutogeneratedBlueprintFunctionDeclarations(builder, classObj, reversedFunctions, editorOnly);
-				AppendRpcWrappers(builder, reversedFunctions, editorOnly);
-			}
-
-			using (UhtMacroCreator macro = new(builder, this, classObj, editorOnly ? EditorOnlyRpcWrappersNoPureDeclsMacroSuffix : RpcWrappersNoPureDeclsMacroSuffix))
-			{
-				if (classObj.GeneratedCodeVersion <= EGeneratedCodeVersion.V1)
+				using (UhtMacroCreator macro = new(builder, this, classObj, editorOnly ? EditorOnlyRpcWrappersMacroSuffix : RpcWrappersMacroSuffix))
 				{
-					AppendAutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared(builder, classObj, reversedFunctions, editorOnly);
+					AppendAutogeneratedBlueprintFunctionDeclarations(builder, classObj, reversedFunctions, editorOnly);
+					AppendRpcWrappers(builder, reversedFunctions, editorOnly);
 				}
-				AppendRpcWrappers(builder, reversedFunctions, editorOnly);
+			}
+			else
+			{
+				using (UhtMacroCreator macro = new(builder, this, classObj, editorOnly ? EditorOnlyRpcWrappersNoPureDeclsMacroSuffix : RpcWrappersNoPureDeclsMacroSuffix))
+				{
+					if (classObj.GeneratedCodeVersion <= EGeneratedCodeVersion.V1)
+					{
+						AppendAutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared(builder, classObj, reversedFunctions, editorOnly);
+					}
+					AppendRpcWrappers(builder, reversedFunctions, editorOnly);
+				}
 			}
 
 			if (editorOnly)
 			{
 				builder.Append("#else\r\n");
-				using (UhtMacroCreator macro = new(builder, this, classObj, editorOnly ? EditorOnlyRpcWrappersMacroSuffix : RpcWrappersMacroSuffix))
+				if (usesLegacy)
 				{
+					using (UhtMacroCreator macro = new(builder, this, classObj, editorOnly ? EditorOnlyRpcWrappersMacroSuffix : RpcWrappersMacroSuffix))
+					{
+					}
 				}
-
-				using (UhtMacroCreator macro = new(builder, this, classObj, editorOnly ? EditorOnlyRpcWrappersNoPureDeclsMacroSuffix : RpcWrappersNoPureDeclsMacroSuffix))
+				else
 				{
+					using (UhtMacroCreator macro = new(builder, this, classObj, editorOnly ? EditorOnlyRpcWrappersNoPureDeclsMacroSuffix : RpcWrappersNoPureDeclsMacroSuffix))
+					{
+					}
 				}
 				builder.AppendEndEditorOnlyGuard();
 			}

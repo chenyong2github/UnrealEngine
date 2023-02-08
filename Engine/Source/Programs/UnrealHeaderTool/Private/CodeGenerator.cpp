@@ -2881,31 +2881,36 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			const TCHAR* Offset = TEXT("\t");
 
-			OutGeneratedHeaderText.Log(
-				Macroize(
-					*SourceFile.GetGeneratedBodyMacroName(ClassGeneratedBodyLine, true),
-					FString::Printf(TEXT("\t%s\t%s\t%s()" LINE_TERMINATOR_ANSI "%s\t%s")
-						, *DeprecationWarning
-						, DisableDeprecationWarnings
-						, *InterfaceMacroName
-						, *StandardUObjectConstructorsMacroCall
-						, EnableDeprecationWarnings
+			if (ClassDef.UsesGeneratedBodyLegacy())
+			{
+				OutGeneratedHeaderText.Log(
+					Macroize(
+						*SourceFile.GetGeneratedBodyMacroName(ClassGeneratedBodyLine, true),
+						FString::Printf(TEXT("\t%s\t%s\t%s()" LINE_TERMINATOR_ANSI "%s\t%s")
+							, *DeprecationWarning
+							, DisableDeprecationWarnings
+							, *InterfaceMacroName
+							, *StandardUObjectConstructorsMacroCall
+							, EnableDeprecationWarnings
+						)
 					)
-				)
-			);
-
-			OutGeneratedHeaderText.Log(
-				Macroize(
-					*SourceFile.GetGeneratedBodyMacroName(ClassGeneratedBodyLine),
-					FString::Printf(TEXT("\t%s\t%s()" LINE_TERMINATOR_ANSI "%s%s\t%s")
-						, DisableDeprecationWarnings
-						, *InterfaceMacroName
-						, *EnhancedUObjectConstructorsMacroCall
-						, *GetPreservedAccessSpecifierString(ClassDef)
-						, EnableDeprecationWarnings
+				);
+			}
+			else
+			{
+				OutGeneratedHeaderText.Log(
+					Macroize(
+						*SourceFile.GetGeneratedBodyMacroName(ClassGeneratedBodyLine),
+						FString::Printf(TEXT("\t%s\t%s()" LINE_TERMINATOR_ANSI "%s%s\t%s")
+							, DisableDeprecationWarnings
+							, *InterfaceMacroName
+							, *EnhancedUObjectConstructorsMacroCall
+							, *GetPreservedAccessSpecifierString(ClassDef)
+							, EnableDeprecationWarnings
+						)
 					)
-				)
-			);
+				);
+			}
 
 			// =============================================
 			// Export the pure interface version of the class
@@ -2937,13 +2942,18 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 				WriteReplicatedMacroData(*ClassCPPName, *APIArg, ClassDef, InterfaceBoilerplate, SourceFile, OutFlags);
 			}
 
-			FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_IINTERFACE_NO_PURE_DECLS"));
-			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, InterfaceBoilerplate);
-			ClassNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
-
-			FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_IINTERFACE"));
-			WriteMacro(OutGeneratedHeaderText, MacroName, InterfaceBoilerplate);
-			ClassMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
+			if (ClassDef.NativeInterfaceUsesGeneratedBodyLegacy())
+			{
+				FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_IINTERFACE"));
+				WriteMacro(OutGeneratedHeaderText, MacroName, InterfaceBoilerplate);
+				ClassMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
+			}
+			else
+			{
+				FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_IINTERFACE_NO_PURE_DECLS"));
+				WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, InterfaceBoilerplate);
+				ClassNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
+			}
 		}
 		else
 		{
@@ -2969,13 +2979,18 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 			}
 
 			{
-				FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_NO_PURE_DECLS"));
-				WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, Boilerplate);
-				ClassNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
-
-				FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS"));
-				WriteMacro(OutGeneratedHeaderText, MacroName, Boilerplate);
-				ClassMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
+				if (ClassDef.UsesGeneratedBodyLegacy())
+				{
+					FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS"));
+					WriteMacro(OutGeneratedHeaderText, MacroName, Boilerplate);
+					ClassMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
+				}
+				else
+				{
+					FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_NO_PURE_DECLS"));
+					WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, Boilerplate);
+					ClassNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
+				}
 
 				ExportConstructorsMacros(OutGeneratedHeaderText, OutCpp, StandardUObjectConstructorsMacroCall, EnhancedUObjectConstructorsMacroCall, SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine()), ClassDef, *APIArg);
 				ExportFieldNotify(OutGeneratedHeaderText, OutCpp, StandardUObjectConstructorsMacroCall, EnhancedUObjectConstructorsMacroCall, SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine()), ClassDef);
@@ -3019,8 +3034,14 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 		FString WrappedLegacyGeneratedBody = FString::Printf(TEXT("%s%s%s%s%s%s"), *DeprecationWarning, DisableDeprecationWarnings, Public, *LegacyGeneratedBody, Public, EnableDeprecationWarnings);
 		FString WrappedGeneratedBody = FString::Printf(TEXT("%s%s%s%s%s"), DisableDeprecationWarnings, Public, *GeneratedBody, *GetPreservedAccessSpecifierString(ClassDef), EnableDeprecationWarnings);
 
-		OutGeneratedHeaderText.Log(Macroize(*SourceFile.GetGeneratedBodyMacroName(GeneratedBodyLine, true), MoveTemp(WrappedLegacyGeneratedBody)));
-		OutGeneratedHeaderText.Log(Macroize(*SourceFile.GetGeneratedBodyMacroName(GeneratedBodyLine, false), MoveTemp(WrappedGeneratedBody)));
+		if (ClassDef.IsInterface() ? ClassDef.NativeInterfaceUsesGeneratedBodyLegacy() : ClassDef.UsesGeneratedBodyLegacy())
+		{
+			OutGeneratedHeaderText.Log(Macroize(*SourceFile.GetGeneratedBodyMacroName(GeneratedBodyLine, true), MoveTemp(WrappedLegacyGeneratedBody)));
+		}
+		else
+		{
+			OutGeneratedHeaderText.Log(Macroize(*SourceFile.GetGeneratedBodyMacroName(GeneratedBodyLine, false), MoveTemp(WrappedGeneratedBody)));
+		}
 	}
 
 	// Forward declare the StaticClass specialisation in the header
@@ -3251,8 +3272,14 @@ void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGen
 		OutGeneratedCppText.Logf(TEXT("\t%s::~%s() {}" LINE_TERMINATOR_ANSI), *ClassCPPName, *ClassCPPName);
 	}
 
-	OutGeneratedHeaderText.Log(Macroize(*StdMacroName, *StdMacro));
-	OutGeneratedHeaderText.Log(Macroize(*EnhMacroName, *EnhMacro));
+	if (ClassDef.UsesGeneratedBodyLegacy())
+	{
+		OutGeneratedHeaderText.Log(Macroize(*StdMacroName, *StdMacro));
+	}
+	else
+	{
+		OutGeneratedHeaderText.Log(Macroize(*EnhMacroName, *EnhMacro));
+	}
 
 	StandardUObjectConstructorsMacroCall.Logf(TEXT("\t%s\r\n"), *StdMacroName);
 	EnhancedUObjectConstructorsMacroCall.Logf(TEXT("\t%s\r\n"), *EnhMacroName);
@@ -5095,9 +5122,10 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		OutNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 	}
 
+	bool bRpcWrappersUsesLegacy = ClassDef.HasAnyClassFlags(CLASS_Interface) ? ClassDef.NativeInterfaceUsesGeneratedBodyLegacy() : ClassDef.UsesGeneratedBodyLegacy();
+
 	// Write runtime wrappers
 	{
-		FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_RPC_WRAPPERS"));
 
 		// WriteMacro has an assumption about what will be at the end of this block that is no longer true due to splitting the
 		// definition and implementation, so add on a line terminator to satisfy it
@@ -5106,21 +5134,27 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 			RuntimeStringBuilders.RPCWrappers += LINE_TERMINATOR;
 		}
 
-		WriteMacro(OutGeneratedHeaderText, MacroName, RuntimeStringBuilders.AutogeneratedBlueprintFunctionDeclarations + RuntimeStringBuilders.RPCWrappers);
-		OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
-
-		// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
-		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_RPC_WRAPPERS_NO_PURE_DECLS"));
-		if (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1)
+		if (bRpcWrappersUsesLegacy)
 		{
-			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, RuntimeStringBuilders.RPCWrappers);
+			FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_RPC_WRAPPERS"));
+			WriteMacro(OutGeneratedHeaderText, MacroName, RuntimeStringBuilders.AutogeneratedBlueprintFunctionDeclarations + RuntimeStringBuilders.RPCWrappers);
+			OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 		}
 		else
 		{
-			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, RuntimeStringBuilders.AutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared + RuntimeStringBuilders.RPCWrappers);
-		}
+			// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
+			FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_RPC_WRAPPERS_NO_PURE_DECLS"));
+			if (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1)
+			{
+				WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, RuntimeStringBuilders.RPCWrappers);
+			}
+			else
+			{
+				WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, RuntimeStringBuilders.AutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared + RuntimeStringBuilders.RPCWrappers);
+			}
 
-		OutNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
+			OutNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
+		}
 
 		OutGeneratedCPPText.Log(RuntimeStringBuilders.RPCImplementations);
 	}
@@ -5130,8 +5164,6 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 	{
 		OutGeneratedHeaderText.Log( BeginEditorOnlyGuard );
 
-		FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_EDITOR_ONLY_RPC_WRAPPERS"));
-
 		// WriteMacro has an assumption about what will be at the end of this block that is no longer true due to splitting the
 		// definition and implementation, so add on a line terminator to satisfy it
 		if (EditorStringBuilders.RPCWrappers.Len() > 0)
@@ -5139,26 +5171,39 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 			EditorStringBuilders.RPCWrappers += LINE_TERMINATOR;
 		}
 
-		WriteMacro(OutGeneratedHeaderText, MacroName, EditorStringBuilders.AutogeneratedBlueprintFunctionDeclarations + EditorStringBuilders.RPCWrappers);
-		OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
-
-		// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
+		FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_EDITOR_ONLY_RPC_WRAPPERS"));
 		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_EDITOR_ONLY_RPC_WRAPPERS_NO_PURE_DECLS"));
-		if (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1)
+		if (bRpcWrappersUsesLegacy)
 		{
-			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, EditorStringBuilders.RPCWrappers);
+
+			WriteMacro(OutGeneratedHeaderText, MacroName, EditorStringBuilders.AutogeneratedBlueprintFunctionDeclarations + EditorStringBuilders.RPCWrappers);
+			OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 		}
 		else
 		{
-			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, EditorStringBuilders.AutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared + EditorStringBuilders.RPCWrappers);
+			// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
+			if (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1)
+			{
+				WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, EditorStringBuilders.RPCWrappers);
+			}
+			else
+			{
+				WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, EditorStringBuilders.AutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared + EditorStringBuilders.RPCWrappers);
+			}
 		}
 
 		// write out an else preprocessor block for when not compiling for the editor.  The generated macros should be empty then since the functions are compiled out
 		{
 			OutGeneratedHeaderText.Log(TEXT("#else\r\n"));
 
-			WriteMacro(OutGeneratedHeaderText, MacroName, TEXT(""));
-			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, TEXT(""));
+			if (bRpcWrappersUsesLegacy)
+			{
+				WriteMacro(OutGeneratedHeaderText, MacroName, TEXT(""));
+			}
+			else
+			{
+				WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, TEXT(""));
+			}
 
 			OutGeneratedHeaderText.Log(EndEditorOnlyGuard);
 		}
