@@ -1419,7 +1419,21 @@ void FIoStoreShaderCodeArchive::CreateIoStoreShaderCodeArchiveHeader(const FName
 		ShaderIndicesInGroup.Sort(
 			[&SerializedShaders](const int32 ShaderIndexA, const int32 ShaderIndexB)
 			{
-				return SerializedShaders.ShaderEntries[ShaderIndexA].UncompressedSize < SerializedShaders.ShaderEntries[ShaderIndexB].UncompressedSize;
+				const FShaderCodeEntry& ShaderEntryA = SerializedShaders.ShaderEntries[ShaderIndexA];
+				const FShaderCodeEntry& ShaderEntryB = SerializedShaders.ShaderEntries[ShaderIndexB];
+				if (ShaderEntryA.UncompressedSize != ShaderEntryB.UncompressedSize)
+				{
+					return ShaderEntryA.UncompressedSize < ShaderEntryB.UncompressedSize;
+				}
+				if (ShaderEntryA.Size != ShaderEntryB.Size)
+				{
+					return ShaderEntryA.Size < ShaderEntryB.Size;
+				}
+				if (ShaderEntryA.Frequency != ShaderEntryB.Frequency)
+				{
+					return ShaderEntryA.Frequency < ShaderEntryB.Frequency;
+				}
+				return ShaderEntryA.Offset < ShaderEntryB.Offset;
 			}
 		);
 
@@ -1490,7 +1504,21 @@ void FIoStoreShaderCodeArchive::CreateIoStoreShaderCodeArchiveHeader(const FName
 			CurrentShaderGroup.Sort(
 				[&SerializedShaders](const int32 ShaderIndexA, const int32 ShaderIndexB)
 				{
-					return SerializedShaders.ShaderEntries[ShaderIndexA].UncompressedSize > SerializedShaders.ShaderEntries[ShaderIndexB].UncompressedSize;
+					const FShaderCodeEntry& ShaderEntryA = SerializedShaders.ShaderEntries[ShaderIndexA];
+					const FShaderCodeEntry& ShaderEntryB = SerializedShaders.ShaderEntries[ShaderIndexB];
+					if (ShaderEntryA.UncompressedSize != ShaderEntryB.UncompressedSize)
+					{
+						return ShaderEntryA.UncompressedSize > ShaderEntryB.UncompressedSize;
+					}
+					if (ShaderEntryA.Size != ShaderEntryB.Size)
+					{
+						return ShaderEntryA.Size > ShaderEntryB.Size;
+					}
+					if (ShaderEntryA.Frequency != ShaderEntryB.Frequency)
+					{
+						return ShaderEntryA.Frequency > ShaderEntryB.Frequency;
+					}
+					return ShaderEntryA.Offset > ShaderEntryB.Offset;
 				}
 			);
 
