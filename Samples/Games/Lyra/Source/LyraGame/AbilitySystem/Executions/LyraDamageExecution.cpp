@@ -90,7 +90,10 @@ void ULyraDamageExecution::Execute_Implementation(const FGameplayEffectCustomExe
 	if (HitActor)
 	{
 		ULyraTeamSubsystem* TeamSubsystem = HitActor->GetWorld()->GetSubsystem<ULyraTeamSubsystem>();
-		DamageInteractionAllowedMultiplier = TeamSubsystem->CanCauseDamage(EffectCauser, HitActor) ? 1.0 : 0.0;
+		if (ensure(TeamSubsystem))
+		{
+			DamageInteractionAllowedMultiplier = TeamSubsystem->CanCauseDamage(EffectCauser, HitActor) ? 1.0 : 0.0;
+		}
 	}
 
 	// Determine distance

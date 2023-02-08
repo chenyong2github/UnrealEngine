@@ -40,7 +40,11 @@ void ALyraTeamInfoBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (TeamId != INDEX_NONE)
 	{
 		ULyraTeamSubsystem* TeamSubsystem = GetWorld()->GetSubsystem<ULyraTeamSubsystem>();
-		TeamSubsystem->UnregisterTeamInfo(this);
+		if (TeamSubsystem)
+		{
+			// EndPlay can happen at weird times where the subsystem has already been destroyed
+			TeamSubsystem->UnregisterTeamInfo(this);
+		}
 	}
 
 	Super::EndPlay(EndPlayReason);
@@ -56,7 +60,10 @@ void ALyraTeamInfoBase::TryRegisterWithTeamSubsystem()
 	if (TeamId != INDEX_NONE)
 	{
 		ULyraTeamSubsystem* TeamSubsystem = GetWorld()->GetSubsystem<ULyraTeamSubsystem>();
-		RegisterWithTeamSubsystem(TeamSubsystem);
+		if (ensure(TeamSubsystem))
+		{
+			RegisterWithTeamSubsystem(TeamSubsystem);
+		}
 	}
 }
 
