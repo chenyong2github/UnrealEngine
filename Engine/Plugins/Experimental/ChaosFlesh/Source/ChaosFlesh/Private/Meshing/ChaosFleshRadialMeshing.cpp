@@ -75,7 +75,7 @@ void RegularHexMesh2TetMesh(const TArray<FVector>& HexVertices, const TArray<int
 	if (ensureMsgf(HexElements.Num() % 8 == 0, TEXT("The hex mesh is not divisible by 8."))) 
 	{
 		TArray<FIntVector4> FaceToNodes = { {int32(0), int32(1), int32(2), int32(3)},{int32(0), int32(1), int32(5), int32(4)},{int32(1), int32(2), int32(6), int32(5)},{int32(3), int32(2), int32(6), int32(7)},{int32(0), int32(3), int32(7), int32(4)},{int32(4), int32(5), int32(6), int32(7)} };
-		TArray<FUintVector2> CommonFaces;
+		TArray<FIntVector2> CommonFaces;
 		int32 Offset = HexVertices.Num();
 		TetVertices = HexVertices;
 		TetElements.SetNum(0);
@@ -102,7 +102,7 @@ void RegularHexMesh2TetMesh(const TArray<FVector>& HexVertices, const TArray<int
 			f0 = int32(CommonFaces[f][0]) % 6;
 			h0 = Offset + q0;
 			// The same face is shared by two hexs
-			if (CommonFaces[f][1] > uint32(-1))
+			if (CommonFaces[f][1] > int32(-1))
 			{
 				q1 = int32(CommonFaces[f][1]) / 6;
 				h1 = Offset + q1;
@@ -143,7 +143,7 @@ void RegularHexMesh2TetMesh(const TArray<FVector>& HexVertices, const TArray<int
 	}
 }
 
-void ComputeHexMeshFaces(const TArray<int32>& HexElements, TArray<FUintVector2>& CommonFaces)
+void ComputeHexMeshFaces(const TArray<int32>& HexElements, TArray<FIntVector2>& CommonFaces)
 {
 	auto FaceGreaterThan = [](FIntVector4& i1, FIntVector4& i2)
 	{
@@ -181,7 +181,7 @@ void ComputeHexMeshFaces(const TArray<int32>& HexElements, TArray<FUintVector2>&
 }
 
 template <typename Func1, typename Func2, typename Func3>
-void ComputeMeshFaces(const TArray<int32>& mesh, Func1 GreaterThan, Func2 Equal, TArray<FUintVector2>& CommonFaces, Func3 GenerateFace, int32 PointsPerFace)
+void ComputeMeshFaces(const TArray<int32>& mesh, Func1 GreaterThan, Func2 Equal, TArray<FIntVector2>& CommonFaces, Func3 GenerateFace, int32 PointsPerFace)
 {
 	TArray<int32> Faces;
 	GenerateFace(mesh, Faces);
