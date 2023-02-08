@@ -34,4 +34,4 @@ private:
 	TSharedPtr<IConcertEndpointProvider> EndpointProvider;
 };
 
-IMPLEMENT_MODULE(FConcertClientModule, ConcertClientModule)
+IMPLEMENT_MODULE(FConcertClientModule, ConcertClient)
