@@ -38,17 +38,20 @@ TArray<FName> UAnimGraphNode_ModifyCurve::GetCurvesToAdd() const
 {
 	TArray<FName> CurvesToAdd;
 
-	const FSmartNameMapping* Mapping = GetAnimBlueprint()->TargetSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	if (Mapping)
+	if(HasValidBlueprint() && GetAnimBlueprint()->TargetSkeleton)
 	{
-		Mapping->FillNameArray(CurvesToAdd);
-
-		for (FName ExistingCurveName : Node.CurveNames)
+		const FSmartNameMapping* Mapping = GetAnimBlueprint()->TargetSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+		if (Mapping)
 		{
-			CurvesToAdd.RemoveSingleSwap(ExistingCurveName, false);
-		}
+			Mapping->FillNameArray(CurvesToAdd);
 
-		CurvesToAdd.Sort(FNameLexicalLess());
+			for (FName ExistingCurveName : Node.CurveNames)
+			{
+				CurvesToAdd.RemoveSingleSwap(ExistingCurveName, false);
+			}
+
+			CurvesToAdd.Sort(FNameLexicalLess());
+		}
 	}
 
 	return CurvesToAdd;
