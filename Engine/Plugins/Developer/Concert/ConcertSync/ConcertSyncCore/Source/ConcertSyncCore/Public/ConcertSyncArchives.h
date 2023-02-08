@@ -101,6 +101,9 @@ public:
 	virtual FString GetArchiveName() const override;
 	//~ End FArchive Interface
 
+protected:
+	virtual void OnObjectSerialized(const FSoftObjectPath& Obj) {}
+
 private:
 	FConcertSyncWorldRemapper WorldRemapper;
 	FConcertSyncEncounteredMissingObject EncounteredMissingObjectDelegate;

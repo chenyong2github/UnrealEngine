@@ -133,25 +133,6 @@ void ReadName(FArchive& Ar, FName& Name, const FConcertLocalIdentifierTable* Loc
 	Name.SetNumber(NameNumber);
 }
 
-void WriteSoftObjectPath(FArchive& Ar, const FSoftObjectPath& AssetPtr)
-{
-	// TODO: Serialize via FSoftObjectPath::SerializePath to avoid converting all object paths to FName
-	FNameBuilder ObjPathStr;
-	AssetPtr.ToString(ObjPathStr);
-
-	FName ObjPath = FName(ObjPathStr);
-	Ar << ObjPath;
-}
-
-void ReadSoftObjectPath(FArchive& Ar, FSoftObjectPath& AssetPtr)
-{
-	FName ObjPath;
-	Ar << ObjPath;
-
-	FNameBuilder ObjPathStr(ObjPath);
-	AssetPtr.SetPath(ObjPathStr.ToView());
-}
-
 } // namespace UE::Concert::Private::ConcertIdentifierArchiveUtil
 
 FConcertIdentifierWriter::FConcertIdentifierWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, TArray<uint8>& InBytes, bool bIsPersistent)
@@ -168,7 +149,7 @@ FArchive& FConcertIdentifierWriter::operator<<(FName& Name)
 
 FArchive& FConcertIdentifierWriter::operator<<(FSoftObjectPath& AssetPtr)
 {
-	UE::Concert::Private::ConcertIdentifierArchiveUtil::WriteSoftObjectPath(*this, AssetPtr);
+	AssetPtr.SerializePath(*this);
 	return *this;
 }
 
@@ -197,7 +178,7 @@ FArchive& FConcertIdentifierReader::operator<<(FName& Name)
 
 FArchive& FConcertIdentifierReader::operator<<(FSoftObjectPath& AssetPtr)
 {
-	UE::Concert::Private::ConcertIdentifierArchiveUtil::ReadSoftObjectPath(*this, AssetPtr);
+	AssetPtr.SerializePath(*this);
 	return *this;
 }
 
@@ -256,7 +237,7 @@ FArchive& FConcertIdentifierRewriter::operator<<(FName& Name)
 
 FArchive& FConcertIdentifierRewriter::operator<<(FSoftObjectPath& AssetPtr)
 {
-	UE::Concert::Private::ConcertIdentifierArchiveUtil::WriteSoftObjectPath(*this, AssetPtr);
+	AssetPtr.SerializePath(*this);
 	return *this;
 }
 
