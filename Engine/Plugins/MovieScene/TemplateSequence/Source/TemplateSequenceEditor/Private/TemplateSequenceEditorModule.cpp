@@ -62,9 +62,9 @@ private:
 
 		if (SettingsModule != nullptr)
 		{
-			SettingsModule->RegisterSettings("Project", "Plugins", "TemplateSequencer",
-				LOCTEXT("TemplateSequencerSettingsName", "Template Sequencer"),
-				LOCTEXT("TemplateSequencerSettingsDescription", "Configure the Template Sequence Editor."),
+			SettingsModule->RegisterSettings("Project", "Plugins", "TemplateSequenceEditor",
+				LOCTEXT("TemplateSequenceEditorProjectSettingsName", "Template Sequence Editor"),
+				LOCTEXT("TemplateSequenceEditorProjectSettingsDescription", "Configure the Template Sequence Editor."),
 				GetMutableDefault<UTemplateSequenceEditorSettings>()
 			);
 
@@ -83,7 +83,7 @@ private:
 
 		if (SettingsModule != nullptr)
 		{
-			SettingsModule->UnregisterSettings("Project", "Plugins", "TemplateSequencer");
+			SettingsModule->UnregisterSettings("Project", "Plugins", "TemplateSequenceEditor");
 			SettingsModule->UnregisterSettings("Editor", "ContentEditors", "TemplateSequenceEditor");
 		}
 	}

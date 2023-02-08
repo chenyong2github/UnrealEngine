@@ -416,7 +416,7 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 					[
 						SNew(STextBlock)
 						.ColorAndOpacity(Gray)
-						.Text(LOCTEXT("NoSequencerMessage", "No active Level Sequencer detected. Please edit a Level Sequence to enable full controls."))
+						.Text(LOCTEXT("NoSequencerMessage", "No active Level Sequence Editor detected. Please edit a Level Sequence to enable full controls."))
 					]
 				]
 			]

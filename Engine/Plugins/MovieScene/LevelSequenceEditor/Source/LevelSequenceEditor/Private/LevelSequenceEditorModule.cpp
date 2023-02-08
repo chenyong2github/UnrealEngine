@@ -167,9 +167,9 @@ protected:
 
 		if (SettingsModule != nullptr)
 		{
-			SettingsModule->RegisterSettings("Project", "Plugins", "LevelSequencer",
-				LOCTEXT("LevelSequencerSettingsName", "Level Sequencer"),
-				LOCTEXT("LevelSequencerSettingsDescription", "Configure the Level Sequence Editor."),
+			SettingsModule->RegisterSettings("Project", "Plugins", "LevelSequenceEditor",
+				LOCTEXT("LevelSequenceEditorProjectSettingsName", "Level Sequence Editor"),
+				LOCTEXT("LevelSequenceEditorProjectSettingsDescription", "Configure the Level Sequence Editor."),
 				GetMutableDefault<ULevelSequenceEditorSettings>()
 			);
 
@@ -250,7 +250,7 @@ protected:
 
 		if (SettingsModule != nullptr)
 		{
-			SettingsModule->UnregisterSettings("Project", "Plugins", "LevelSequencer");
+			SettingsModule->UnregisterSettings("Project", "Plugins", "LevelSequenceEditor");
 
 			SettingsModule->UnregisterSettings("Editor", "ContentEditors", "LevelSequenceEditor");
 		}

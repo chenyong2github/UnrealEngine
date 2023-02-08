@@ -13,7 +13,7 @@ class UMovieSceneLiveLinkControllerTrackRecorder;
 
 
 /**
- * Settings for LiveLink Sequencer
+ * Settings for LiveLink Sequence Editor
  */
 UCLASS(config=Game)
 class LIVELINKSEQUENCER_API ULiveLinkSequencerSettings : public UDeveloperSettings

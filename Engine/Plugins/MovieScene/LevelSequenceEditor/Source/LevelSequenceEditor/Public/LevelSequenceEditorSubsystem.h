@@ -40,7 +40,7 @@ struct FMovieSceneScriptingParams
 
 /**
 * ULevelSequenceEditorSubsystem
-* Subsystem for level sequencer related utilities to scripts
+* Subsystem for level sequence editor related utilities to scripts
 */
 UCLASS(Blueprintable)
 class LEVELSEQUENCEEDITOR_API ULevelSequenceEditorSubsystem : public UEditorSubsystem

@@ -52,7 +52,7 @@ const FEditorModeID FSequencerEdMode::EM_SequencerMode(TEXT("EM_SequencerMode"))
 static TAutoConsoleVariable<bool> CVarDrawMeshTrails(
 	TEXT("Sequencer.DrawMeshTrails"),
 	true,
-	TEXT("Toggle to show or hide Level Sequencer VR Editor trails"));
+	TEXT("Toggle to show or hide Level Sequence VR Editor trails"));
 
 //if true still use old motion trails for sequencer objects.
 TAutoConsoleVariable<bool> CVarUseOldSequencerMotionTrails(

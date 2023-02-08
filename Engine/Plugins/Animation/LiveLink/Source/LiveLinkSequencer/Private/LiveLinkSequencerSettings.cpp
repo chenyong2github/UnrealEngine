@@ -12,12 +12,12 @@ FName ULiveLinkSequencerSettings::GetCategoryName() const
 #if WITH_EDITOR
 FText ULiveLinkSequencerSettings::GetSectionText() const
 {
-	return NSLOCTEXT("LiveLinkSequencerSettings", "LiveLinkSequencerSettingsSection", "Live Link Sequencer");
+	return NSLOCTEXT("LiveLinkSequenceEditorSettings", "LiveLinkSequenceEditorSettingsSection", "Live Link Sequence Editor");
 }
 
 FName ULiveLinkSequencerSettings::GetSectionName() const
 {
-	return TEXT("Live Link Sequencer");
+	return TEXT("Live Link Sequence Editor");
 }
 
 #endif
