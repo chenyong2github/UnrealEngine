@@ -176,7 +176,12 @@ bool FSourceControlWindows::SyncLatest()
 	// if properly saved or confirmation given, find all packages and use source control to update them.
 	if (bSaved)
 	{
-		AssetViewUtils::SyncLatestFromSourceControl();
+		bool bSuccess = AssetViewUtils::SyncLatestFromSourceControl();
+		if (!bSuccess)
+		{
+			FText Message(LOCTEXT("SCC_Sync_Failed", "Failed to sync files!"));
+			FMessageLog("SourceControl").Notify(Message);
+		}
 	}
 
 	return false;

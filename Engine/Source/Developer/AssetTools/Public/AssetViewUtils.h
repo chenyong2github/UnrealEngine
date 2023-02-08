@@ -208,14 +208,18 @@ namespace AssetViewUtils
 	/** Gets the maximum path length for a cooked file. Changes behavior based on whether the editor experimental setting for long paths is enabled. */
 	ASSETTOOLS_API int32 GetMaxCookPathLen();
 
-	/** Syncs the specified packages from source control, other than any level assets which are currently being edited.*/
-	ASSETTOOLS_API void SyncPackagesFromSourceControl(const TArray<FString>& PackageNames, bool bIsSyncLatestOperation = false);
+	/** Syncs the specified packages from source control. */
+	UE_DEPRECATED(5.3, "The bIsSyncLatestOperation parameter is deprecated. Use SyncLatestFromSourceControl instead.")
+	ASSETTOOLS_API void SyncPackagesFromSourceControl(const TArray<FString>& PackageNames, bool bIsSyncLatestOperation);
 
-	/** Syncs the content from the specified paths from source control, other than any level assets which are currently being edited */
-	ASSETTOOLS_API void SyncPathsFromSourceControl(const TArray<FString>& ContentPaths);
+	/** Syncs the specified packages from source control. */
+	ASSETTOOLS_API bool SyncPackagesFromSourceControl(const TArray<FString>& PackageNames);
 
-	/** Syncs latest from source control and attempts to reload the world */
-	ASSETTOOLS_API void SyncLatestFromSourceControl();
+	/** Syncs the specified paths from source control. */
+	ASSETTOOLS_API bool SyncPathsFromSourceControl(const TArray<FString>& Paths);
+
+	/** Syncs latest from source control. */
+	ASSETTOOLS_API bool SyncLatestFromSourceControl();
 
 	/** Show an error notification toast if the given error message is not empty */
 	ASSETTOOLS_API void ShowErrorNotifcation(const FText& InErrorMsg);
