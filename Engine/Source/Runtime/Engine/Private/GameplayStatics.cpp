@@ -420,6 +420,43 @@ APlayerCameraManager* UGameplayStatics::GetPlayerCameraManager(const UObject* Wo
 	return PC ? PC->PlayerCameraManager : nullptr;
 }
 
+bool UGameplayStatics::IsAnyLocalPlayerCameraWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange)
+{
+	if (!GEngine || IsRunningDedicatedServer())
+	{
+		return false;
+	}
+	
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		return false;
+	}
+
+	const float MaximumRangeSq = MaximumRange * MaximumRange; 
+
+	for (FConstPlayerControllerIterator PlayerControllerIterator = World->GetPlayerControllerIterator();
+		 PlayerControllerIterator; 
+		 ++PlayerControllerIterator)
+	{
+		const APlayerController* PlayerController = PlayerControllerIterator->Get();
+		if (!PlayerController || !PlayerController->IsLocalController())
+		{
+			continue;
+		}
+
+		if (const APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager)
+		{
+			if (FVector::DistSquared(PlayerCameraManager->GetCameraLocation(), Location) <= MaximumRangeSq)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 APlayerController* UGameplayStatics::CreatePlayer(const UObject* WorldContextObject, int32 ControllerId, bool bSpawnPlayerController)
 {
 	return CreatePlayerFromPlatformUser(WorldContextObject, FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerId), bSpawnPlayerController);

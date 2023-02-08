@@ -218,6 +218,15 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	static class APlayerCameraManager* GetPlayerCameraManager(const UObject* WorldContextObject, int32 PlayerIndex);
 
 	/** 
+	 * Determines if any local player controller's camera is within range of the specified location.
+	 * @param Location		The location from which test range
+	 * @param MaximumRange	The distance away from Location to test range
+	 * @note This will always return false on dedicated servers.
+	 */
+	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Game", meta=(WorldContext="WorldContextObject"))
+	static bool IsAnyLocalPlayerCameraWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange);
+
+	/** 
 	 * Returns the player controller with the specified physical controller ID. This only works for local players.
 	 *
 	 * @param ControllerID	Physical controller ID, the same value returned from Get Player Controller ID
