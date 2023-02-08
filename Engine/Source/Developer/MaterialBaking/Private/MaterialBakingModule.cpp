@@ -21,6 +21,7 @@
 #include "RenderingThread.h"
 #include "RHISurfaceDataConversion.h"
 #include "SceneView.h"
+#include "Serialization/ArchiveCrc32.h"
 #include "Misc/ScopedSlowTask.h"
 #include "MeshDescription.h"
 #include "TextureCompiler.h"
@@ -323,6 +324,29 @@ void FMaterialBakingModule::ShutdownModule()
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 
 	CleanupMaterialProxies();
+}
+
+uint32 FMaterialBakingModule::GetCRC() const
+{
+	FArchiveCrc32 Ar;
+
+	// Base key, changing this will force a rebuild of all HLODs that are relying on material baking.
+	FString ModuleBaseKey = "4167B9A126CA47B3A6EAB520B40A66BB";
+	Ar << ModuleBaseKey;
+
+	bool bUseEmissiveHDR = bEmissiveHDR;
+	Ar << bUseEmissiveHDR;
+
+	uint8 ColorSpace = DefaultColorSpace;
+	Ar << ColorSpace;
+
+	int32 VTWarmupFrames = CVarMaterialBakingVTWarmupFrames.GetValueOnAnyThread();
+	Ar << VTWarmupFrames;
+
+	bool ForceDisableEmissiveScaling = CVarMaterialBakingForceDisableEmissiveScaling.GetValueOnAnyThread();
+	Ar << ForceDisableEmissiveScaling;
+
+	return Ar.GetCrc();
 }
 
 void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutput>& Output)

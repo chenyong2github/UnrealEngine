@@ -41,4 +41,7 @@ public:
 
 	/** Returns whether a specific material property is baked to a linear texture or not */
 	virtual bool IsLinearBake(FMaterialPropertyEx Property) = 0;
+
+	/** Obtain a CRC than can help trigger a rebake if code/global settings impacting the bake result change */
+	virtual uint32 GetCRC() const = 0;
 };

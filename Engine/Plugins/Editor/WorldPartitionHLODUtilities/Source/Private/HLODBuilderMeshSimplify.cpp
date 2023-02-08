@@ -8,7 +8,7 @@
 #include "Materials/Material.h"
 #include "Components/StaticMeshComponent.h"
 
-
+#include "IMaterialBakingModule.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
 #include "Modules/ModuleManager.h"
@@ -43,8 +43,16 @@ uint32 UHLODBuilderMeshSimplifySettings::GetCRC() const
 
 	FArchiveCrc32 Ar;
 
+	// Base mesh simplify key, changing this will force a rebuild of all HLODs from this builder
+	FString HLODBaseKey = "9015D801CD0E420B9D2B0CB997A97813";
+	Ar << HLODBaseKey;
+
 	Ar << This.MeshSimplifySettings;
 	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - MeshSimplifySettings = %d"), Ar.GetCrc());
+
+	IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("MaterialBaking");
+	uint32 MaterialBakingModuleCRC = Module.GetCRC();
+	Ar << MaterialBakingModuleCRC;
 
 	uint32 Hash = Ar.GetCrc();
 

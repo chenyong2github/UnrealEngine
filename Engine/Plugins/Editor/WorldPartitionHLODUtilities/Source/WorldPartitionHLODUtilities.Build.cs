@@ -17,6 +17,7 @@ public class WorldPartitionHLODUtilities : ModuleRules
             new string[]
 			{
 				"Engine",
+				"MaterialBaking",
 				"MaterialUtilities",
 				"MeshDescription",
 				"MeshMergeUtilities",

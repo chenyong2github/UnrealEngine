@@ -8,7 +8,7 @@
 #include "Materials/Material.h"
 #include "Components/StaticMeshComponent.h"
 
-
+#include "IMaterialBakingModule.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
 #include "Modules/ModuleManager.h"
@@ -48,6 +48,13 @@ uint32 UHLODBuilderMeshMergeSettings::GetCRC() const
 
 	Ar << This.MeshMergeSettings;
 	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - MeshMergeSettings = %d"), Ar.GetCrc());
+
+	if (MeshMergeSettings.bMergeMaterials)
+	{
+		IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("MaterialBaking");
+		uint32 MaterialBakingModuleCRC = Module.GetCRC();
+		Ar << MaterialBakingModuleCRC;
+	}
 
 	uint32 Hash = Ar.GetCrc();
 

@@ -46,6 +46,9 @@ public:
 	/** Returns whether a specific material property is baked to a linear texture or not */
 	virtual bool IsLinearBake(FMaterialPropertyEx Property) override;
 
+	/** Obtain a CRC than can help trigger a rebake if code/global settings impacting the bake result change */
+	virtual uint32 GetCRC() const override;
+
 protected:
 	/* Creates and adds or reuses a RenderTarget from the pool */
 	UTextureRenderTarget2D* CreateRenderTarget(bool bInForceLinearGamma, EPixelFormat InPixelFormat, const FIntPoint& InTargetSize, const FColor& BackgroundColor);
