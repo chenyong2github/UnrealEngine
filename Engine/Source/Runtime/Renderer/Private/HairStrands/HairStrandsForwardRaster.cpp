@@ -303,18 +303,9 @@ FRasterForwardCullingOutput AddHairStrandsForwardCullingPass(
 			const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
 			check(HairGroupPublicData);
 
-			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
-
-			uint32 PointCount = VFInput.Strands.PointCount;
-			const bool bCullingPossible = bSupportCulling && GHairVisibilityComputeRaster_Culling;
-			if (!bCullingPossible)
-			{
-				// calculate current view screen size - which can result in fewer strands rasterized in current view
-				const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
-				const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
-
-				PointCount = HairGroupPublicData->GetActiveStrandsPointCount(VFInput.Strands.PointCount, ScreenSize);
-			}
+			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
+			// Sanity check
+			check(PointCount == HairGroupPublicData->VFInput.Strands.PointCount);
 
 			MaxNumPrimIDs += PointCount;
 		}
@@ -371,10 +362,8 @@ FRasterForwardCullingOutput AddHairStrandsForwardCullingPass(
 			const bool bCullingEnable = false; //bSupportCulling && GHairVisibilityComputeRaster_Culling ? HairGroupPublicData->GetCullingResultAvailable() : false;
 			
 			// calculate current view screen size - which can result in fewer strands rasterized in current view
-			const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
-			const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
-			const uint32 CurveCount = VFInput.Strands.CurveCount;
-			const uint32 PointCount = VFInput.Strands.PointCount;
+			const uint32 CurveCount  = HairGroupPublicData->GetActiveStrandsCurveCount();
+			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
 
 			// Curve version
 			#if 1

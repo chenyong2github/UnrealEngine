@@ -192,7 +192,9 @@ public:
 
 	uint32 GetClusterCount() const { return ClusterCount;  }
 
-	uint32 GetActiveStrandsPointCount(uint32 InPointCount, float ScreenSize) const;
+	// Return the number of active point/curve for strand geometry
+	uint32 GetActiveStrandsPointCount() const;
+	uint32 GetActiveStrandsCurveCount() const;
 	float  GetActiveStrandsCoverageScale() const;
 
 	struct FVertexFactoryInput 
@@ -309,7 +311,10 @@ public:
 
 	FBoxSphereBounds ContinuousLODBounds; 	//used by Continuous LOD
 	float MaxScreenSize = 0.f; 				//used by Continuous LOD
-	uint32 TemporalIndex = 0; 				//used by Temporal Layering
+
+	// Active/used point/curved based on select continuous LOD
+	uint32 ContinuousLODPointCount = 0;
+	uint32 ContinuousLODCurveCount = 0;
 
 	// Debug
 	bool  bDebugDrawLODInfo = false; // Enable/disable hair LOD info

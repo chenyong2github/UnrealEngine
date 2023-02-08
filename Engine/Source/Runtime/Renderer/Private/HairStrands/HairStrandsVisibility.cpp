@@ -3255,18 +3255,9 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
 			check(HairGroupPublicData);
 
-			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
-
-			uint32 PointCount = VFInput.Strands.PointCount;
-			const bool bCullingPossible = bSupportCulling && GHairVisibilityComputeRaster_Culling;
-			if (!bCullingPossible)
-			{
-				// calculate current view screen size - which can result in fewer strands rasterized in current view
-				const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
-				const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
-
-				PointCount = HairGroupPublicData->GetActiveStrandsPointCount(VFInput.Strands.PointCount, ScreenSize);
-			}
+			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
+			// Sanity check
+			check(HairGroupPublicData->VFInput.Strands.PointCount == PointCount);
 
 			MaxNumPrimIDs = FMath::Max(MaxNumPrimIDs, PointCount);
 		}
@@ -3446,12 +3437,9 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 
 			const bool bCullingEnable = bSupportCulling && GHairVisibilityComputeRaster_Culling ? HairGroupPublicData->GetCullingResultAvailable() : false;
 			const bool bCullingEnableInRasterizers = bCullingEnable && !bClassification;
-			
-			// calculate current view screen size - which can result in fewer strands rasterized in current view
-			const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
-			const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
 
-			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount(VFInput.Strands.PointCount, ScreenSize);
+			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
+			check(PointCount == HairGroupPublicData->VFInput.Strands.PointCount);
 			const float CoverageScale = HairGroupPublicData->GetActiveStrandsCoverageScale();
 
 			// HW/SW classification
@@ -3513,13 +3501,12 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 					FExclusiveDepthStencil::DepthRead_StencilNop);
 
 				TShaderMapRef<FVisiblityRasterHWVS> VertexShaderRaster = bCullingEnableInRasterizers ? VertexShaderRaster_CullingOn : VertexShaderRaster_CullingOff;
-				const uint32 NumInstances = bCullingEnableInRasterizers ? VFInput.Strands.PointCount : PointCount;
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("HairStrands::VisibilityRasterHW"),
 					Parameters,
 					ERDGPassFlags::Raster,
-					[Parameters, VertexShaderRaster, bClassification, PixelShaderRaster, Viewport, Resolution, NumInstances, DrawIndexedIndirectArgs](FRHICommandList &RHICmdList)
+					[Parameters, VertexShaderRaster, bClassification, PixelShaderRaster, Viewport, Resolution, PointCount, DrawIndexedIndirectArgs](FRHICommandList &RHICmdList)
 					{
 						FGraphicsPipelineStateInitializer GraphicsPSOInit;
 						RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -3543,6 +3530,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 						}
 						else
 						{
+							const uint32 NumInstances = PointCount;
 							RHICmdList.DrawIndexedPrimitive(GTwoTrianglesIndexBuffer.IndexBufferRHI, 0, 0, 6, 0, 2, NumInstances);
 						}
 					});
@@ -3910,7 +3898,7 @@ static void AddHairStrandsHasPositionChangedPass(
 	const FHairGroupPublicData* HairGroupPublicData,
 	FRDGBufferUAVRef InvalidationBuffer)
 {
-	const uint32 PointCount = HairGroupPublicData->RestPointCount;
+	const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
 
 	FRDGBufferRef InvalidationPrintCounter = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Hair.InvalidationPrintCounter"));
 	FRDGBufferUAVRef InvalidationPrintCounterUAV = GraphBuilder.CreateUAV(InvalidationPrintCounter, PF_R32_UINT);

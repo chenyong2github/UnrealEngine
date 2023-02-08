@@ -897,7 +897,7 @@ static void AddHairClusterAABBPass(
 	Parameters->RenderDeformedOffsetBuffer = RenderDeformedOffsetBuffer;
 	Parameters->TotalClusterCount = 1;
 
-	Parameters->PointCount = Instance->HairGroupPublicData->GetActiveStrandsPointCount(Instance->Strands.RestResource->GetPointCount(), Instance->HairGroupPublicData->MaxScreenSize);
+	Parameters->PointCount = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
 
 	if (ShaderPrintData)
 	{
@@ -1549,7 +1549,7 @@ void RegisterClusterData(FHairGroupInstance* Instance, FHairStrandClusterData* I
 	const int32 ClusterDataGroupIndex = InClusterData->HairGroups.Num();
 	FHairStrandClusterData::FHairGroup& HairGroupCluster = InClusterData->HairGroups.Emplace_GetRef();
 	HairGroupCluster.ClusterCount = Instance->HairGroupPublicData->GetClusterCount();
-	HairGroupCluster.VertexCount = Instance->HairGroupPublicData->RestPointCount * HAIR_POINT_TO_VERTEX;
+	HairGroupCluster.VertexCount = Instance->HairGroupPublicData->RestPointCount * HAIR_POINT_TO_VERTEX; // Instance->HairGroupPublicData->GetActiveStrandsPointCount() ?
 	HairGroupCluster.GroupAABBBuffer = &Instance->HairGroupPublicData->GetGroupAABBBuffer();
 	HairGroupCluster.ClusterAABBBuffer = &Instance->HairGroupPublicData->GetClusterAABBBuffer();
 
@@ -1651,8 +1651,8 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PointToCurveBuffer,		Instance->Strands.RestResource->PointToCurveBuffer);
 		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.CurveBuffer,				Instance->Strands.RestResource->CurveBuffer);
 
-		OutVFInput.Strands.PointCount = Instance->Strands.RestResource->GetPointCount();
-		OutVFInput.Strands.CurveCount = Instance->Strands.RestResource->GetCurveCount();
+		OutVFInput.Strands.PointCount = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
+		OutVFInput.Strands.CurveCount = Instance->HairGroupPublicData->GetActiveStrandsCurveCount();
 	}
 	// 3. Render Strands in rest position: used when there are no skinning (rigid binding or no binding), no simulation, and no RBF
 	else
@@ -1668,8 +1668,8 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 
 		OutVFInput.Strands.PositionOffset = Instance->Strands.RestResource->GetPositionOffset();
 		OutVFInput.Strands.PrevPositionOffset = Instance->Strands.RestResource->GetPositionOffset();
-		OutVFInput.Strands.PointCount = Instance->Strands.RestResource->GetPointCount();
-		OutVFInput.Strands.CurveCount = Instance->Strands.RestResource->GetCurveCount();
+		OutVFInput.Strands.PointCount = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
+		OutVFInput.Strands.CurveCount = Instance->HairGroupPublicData->GetActiveStrandsCurveCount();
 	}
 
 	OutVFInput.Strands.HairRadius = (GStrandHairWidth > 0 ? GStrandHairWidth : Instance->Strands.Modifier.HairWidth) * 0.5f;
@@ -1790,6 +1790,9 @@ void ComputeHairStrandsInterpolation(
 			const bool bUseSingleGuide	= bNeedDeformation && bValidGuide && Instance->Strands.InterpolationResource->UseSingleGuide();
 			const bool bHasSkinning		= bNeedDeformation && Instance->BindingType == EHairBindingType::Skinning;
 
+			const uint32 ActivePointCount = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
+			const uint32 ActiveCurveCount = Instance->HairGroupPublicData->GetActiveStrandsCurveCount();
+
 			if (bNeedDeformation)
 			{
 				FRDGImportedBuffer Strands_DeformedPosition = Register(GraphBuilder, Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current), ERDGImportedBufferFlags::CreateViews);
@@ -1874,20 +1877,16 @@ void ComputeHairStrandsInterpolation(
 					}
 				}
 
-				uint32 PointCount = Instance->Strands.RestResource->GetPointCount();
-
 				// 2.1 Compute deformation position based on simulation/skinning/RBF
 				if (Instance->Debug.GroomCacheType != EGroomCacheType::Strands)
 				{
-					PointCount = Instance->HairGroupPublicData->GetActiveStrandsPointCount(Instance->Strands.RestResource->GetPointCount(), Instance->HairGroupPublicData->MaxScreenSize);
-
 					// 2.1.1 Current Position
 					AddHairStrandsInterpolationPass(
 						GraphBuilder,
 						ShaderMap,
 						ShaderPrintData,
 						Instance,
-						PointCount,
+						ActivePointCount,
 						MeshLODIndex,
 						Instance->Strands.Modifier.HairLengthScale,
 						Instance->Strands.HairInterpolationType,
@@ -1925,7 +1924,7 @@ void ComputeHairStrandsInterpolation(
 						GHairStrandsTransferPositionOnLODChange > 0;
 					if (bTransferPrevPosition)
 					{
-						AddTransferPositionPass(GraphBuilder, ShaderMap, PointCount, Strands_DeformedPosition.SRV, Strands_DeformedPrevPosition.UAV);
+						AddTransferPositionPass(GraphBuilder, ShaderMap, ActivePointCount, Strands_DeformedPosition.SRV, Strands_DeformedPrevPosition.UAV);
 						GraphBuilder.SetBufferAccessFinal(Strands_DeformedPrevPosition.Buffer, ERHIAccess::SRVMask);
 					}
 					else if (bRecomputePrevPosition)
@@ -1937,7 +1936,7 @@ void ComputeHairStrandsInterpolation(
 							ShaderMap,
 							ShaderPrintData,
 							Instance,
-							PointCount,
+							ActivePointCount,
 							MeshLODIndex,
 							Instance->Strands.Modifier.HairLengthScale,
 							Instance->Strands.HairInterpolationType,
@@ -1984,7 +1983,7 @@ void ComputeHairStrandsInterpolation(
 					AddGroomCacheUpdatePass(
 						GraphBuilder,
 						ShaderMap,
-						Instance->Strands.RestResource->GetPointCount(),
+						ActivePointCount,
 						GroomCacheGroupData,
 						RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionBuffer),
 						RegisterAsSRV(GraphBuilder, Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current)),
@@ -2001,7 +2000,7 @@ void ComputeHairStrandsInterpolation(
 				AddHairTangentPass(
 					GraphBuilder,
 					ShaderMap,
-					PointCount,
+					ActivePointCount,
 					Instance->HairGroupPublicData,
 					Strands_DeformedPosition.SRV,
 					Strands_DeformedTangent);
@@ -2030,7 +2029,7 @@ void ComputeHairStrandsInterpolation(
 				AddPatchAttributePass(
 					GraphBuilder,
 					ShaderMap,
-					Instance->Strands.RestResource->GetCurveCount(),
+					ActiveCurveCount,
 					PatchMode,
 					bValidGuide,
 					bUseSingleGuide,
@@ -2114,7 +2113,7 @@ void ComputeHairStrandsInterpolation(
 						GraphBuilder,
 						ShaderMap,
 						ShaderPrintData,
-						Instance->Strands.RestResource->GetPointCount(),
+						ActivePointCount,
 						bProceduralPrimitive,
 						ProceduralSplits,
 						HairRadiusRT,
@@ -2152,7 +2151,7 @@ void ComputeHairStrandsInterpolation(
 							FBufferRHIRef IndexBuffer(bProceduralPrimitive ? nullptr : Instance->Strands.RenRaytracingResource->IndexBuffer.Buffer->GetRHI());
 							Instance->Strands.CachedProceduralSplits = ProceduralSplits;
 							BuildHairAccelerationStructure_Strands(RHICmdList,
-								Instance->Strands.RenRaytracingResource->VertexCount,
+								Instance->Strands.RenRaytracingResource->VertexCount, // HAIR_TODO
 								Instance->Strands.RenRaytracingResource->IndexCount,
 								PositionBuffer,
 								IndexBuffer,

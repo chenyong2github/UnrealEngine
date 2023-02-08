@@ -521,7 +521,7 @@ static void AddClusterResetLod0(
 	// Initialise indirect buffers to entire lod 0 dispatch
 	FHairIndBufferClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairIndBufferClearCS::FParameters>();
 	Parameters->DrawIndirectParameters = IndirectBuffer.UAV;
-	Parameters->VertexCountPerInstance = ClusterData.HairGroupPublicPtr->RestPointCount * HAIR_POINT_TO_VERTEX;
+	Parameters->VertexCountPerInstance = ClusterData.HairGroupPublicPtr->GetActiveStrandsPointCount() * HAIR_POINT_TO_VERTEX;
 
 	FHairIndBufferClearCS::FPermutationDomain Permutation;
 	Permutation.Set<FHairIndBufferClearCS::FSetIndirectDraw>(true);

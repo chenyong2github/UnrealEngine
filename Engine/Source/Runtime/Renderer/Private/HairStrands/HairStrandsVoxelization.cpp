@@ -1233,7 +1233,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 					continue;
 				}
 
-				const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount(VFInput.Strands.PointCount, HairGroupPublicData->MaxScreenSize);
+				const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
 				const float CoverageScale = HairGroupPublicData->GetActiveStrandsCoverageScale();
 
 				FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;

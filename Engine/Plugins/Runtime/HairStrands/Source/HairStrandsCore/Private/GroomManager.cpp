@@ -688,6 +688,17 @@ void AddHairStreamingRequest(FHairGroupInstance* Instance, int32 InLODIndex)
 	}
 }
 
+static uint32 GetHairVisibilityComputeRasterPointCount(float ScreenSize, uint32 InPointCount)
+{
+	if (IsHairVisibilityComputeRasterContinuousLODEnabled())
+	{
+		const float Scale = FMath::Clamp(FMath::Pow(FMath::Clamp(ScreenSize, 1.0f / 16.0f, 1.0f), 1.0f), 0.f, 1.f);
+		InPointCount *= Scale;
+	}
+
+	return InPointCount;
+}
+
 static void RunHairLODSelection(
 	FRDGBuilder& GraphBuilder, 
 	const FHairStrandsInstances& Instances, 
@@ -734,7 +745,7 @@ static void RunHairLODSelection(
 
 		// 0. Initial LOD index picking
 		// Insure that MinLOD is necessary taken into account if a force LOD is request (i.e., LODIndex>=0). If a Force LOD 
-		// is not resquested (i.e., LODIndex<0), the MinLOD is applied after ViewLODIndex has been determined in the codeblock below
+		// is not requested (i.e., LODIndex<0), the MinLOD is applied after ViewLODIndex has been determined in the codeblock below
 		const int32 LODCount = Instance->HairGroupPublicData->GetLODVisibilities().Num();
 		const float MinLOD = FMath::Max(0, GHairStrandsMinLOD);
 		
@@ -751,7 +762,7 @@ static void RunHairLODSelection(
 				const float CurrLODViewIndex = FMath::Max(MinLOD, GetHairInstanceLODIndex(Instance->HairGroupPublicData->GetLODScreenSizes(), ScreenSize, LODBias));
 				MaxScreenSize = FMath::Max(MaxScreenSize, ScreenSize);
 
-				// Select highest LOD accross all views
+				// Select highest LOD across all views
 				LODViewIndex = LODViewIndex < 0 ? CurrLODViewIndex : FMath::Min(LODViewIndex, CurrLODViewIndex);
 			}
 
@@ -765,18 +776,16 @@ static void RunHairLODSelection(
 			// Feedback game thread with LOD selection 
 			Instance->Debug.LODPredictedIndex = LODViewIndex;
 			Instance->HairGroupPublicData->DebugScreenSize = MaxScreenSize;
+			Instance->HairGroupPublicData->ContinuousLODPointCount = Instance->HairGroupPublicData->RestPointCount;
+			Instance->HairGroupPublicData->ContinuousLODCurveCount = Instance->HairGroupPublicData->RestCurveCount;
+			Instance->HairGroupPublicData->MaxScreenSize = 1.0;
 
-			if (IsHairStrandContinuousDecimationReorderingEnabled())
+			if (IsHairStrandContinuousDecimationReorderingEnabled() && IsHairVisibilityComputeRasterContinuousLODEnabled())
 			{
-				if (IsHairVisibilityComputeRasterContinuousLODEnabled())
-				{
-					Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
-					Instance->HairGroupPublicData->MaxScreenSize = MaxScreenSize;
-				}
-			}
-			else
-			{
-				Instance->HairGroupPublicData->MaxScreenSize = 1.0;
+				Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
+				Instance->HairGroupPublicData->MaxScreenSize = MaxScreenSize;
+				Instance->HairGroupPublicData->ContinuousLODPointCount = GetHairVisibilityComputeRasterPointCount(MaxScreenSize, Instance->HairGroupPublicData->RestPointCount);
+				Instance->HairGroupPublicData->ContinuousLODCurveCount = Instance->HairGroupPublicData->RestCurveCount;
 			}
 		}
 

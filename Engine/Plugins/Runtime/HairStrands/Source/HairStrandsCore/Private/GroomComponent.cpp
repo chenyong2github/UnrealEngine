@@ -800,7 +800,7 @@ public:
 		else // if (GeometryType == EHairGeometryType::Strands)
 		{
 			VertexFactory = (FVertexFactory*)Instance->Strands.VertexFactory;
-			HairVertexCount = Instance->Strands.RestResource->GetPointCount();
+			HairVertexCount = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
 			MaxVertexIndex = HairVertexCount * HAIR_POINT_TO_VERTEX;
 			bUseCulling = Instance->Strands.bIsCullingEnabled;
 			NumPrimitive = bUseCulling ? 0 : HairVertexCount * HAIR_POINT_TO_TRIANGLE;

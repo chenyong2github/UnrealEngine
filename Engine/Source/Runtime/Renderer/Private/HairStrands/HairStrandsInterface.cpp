@@ -491,32 +491,20 @@ bool IsHairVisibilityComputeRasterContinuousLODEnabled()
 	return IsHairStrandContinuousDecimationReorderingEnabled() && IsHairVisibilityComputeRasterEnabled() && (CVarHairStrandsVisibilityComputeRaster_ContinuousLOD.GetValueOnAnyThread() > 0);
 }
 
-float GetHairVisibilityComputeRasterContinuousLODScale(float ScreenSize)
+uint32 FHairGroupPublicData::GetActiveStrandsPointCount() const
 {
-	//TODO: make values in this calculation customizable per groom 
-	return FMath::Pow(FMath::Clamp(ScreenSize, 1.0f / 16.0f, 1.0f), 1.0f);
+	return ContinuousLODPointCount;
 }
 
-static uint32 GetHairVisibilityComputeRasterPointCount(float ScreenSize, uint32 InPointCount)
+uint32 FHairGroupPublicData::GetActiveStrandsCurveCount() const
 {
-	uint32 PointCount = InPointCount;
-
-	if (IsHairVisibilityComputeRasterContinuousLODEnabled())
-	{
-		PointCount *= GetHairVisibilityComputeRasterContinuousLODScale(ScreenSize);
-	}
-
-	return PointCount;
-}
-
-uint32 FHairGroupPublicData::GetActiveStrandsPointCount(uint32 InPointCount, float ScreenSize) const
-{
-	return GetHairVisibilityComputeRasterPointCount(FMath::Min(MaxScreenSize, ScreenSize), InPointCount);
+	return ContinuousLODCurveCount;
 }
 
 float FHairGroupPublicData::GetActiveStrandsCoverageScale() const
 {
-	return 1.f;
+	const float CurveRatio = ContinuousLODCurveCount / float(RestCurveCount);
+	return 1.f/FMath::Max(CurveRatio, 0.01f);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
