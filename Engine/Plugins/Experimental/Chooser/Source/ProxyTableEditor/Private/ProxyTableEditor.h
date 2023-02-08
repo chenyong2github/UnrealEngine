@@ -86,6 +86,7 @@ namespace UE::ProxyTableEditor
 
 		void UpdateTableColumns();
 		void UpdateTableRows();
+		void MoveRow(int SourceRowIndex, int TargetIndex);
 	private:
 
 		FReply SelectRootProperties();
