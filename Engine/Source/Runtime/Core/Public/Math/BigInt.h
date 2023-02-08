@@ -1050,7 +1050,7 @@ namespace FEncryption
 	 * Greatest common divisor of ValueA and ValueB.
 	 */
 	template <typename IntType>
-	static IntType CalculateGCD(IntType ValueA, IntType ValueB)
+	IntType CalculateGCD(IntType ValueA, IntType ValueB)
 	{ 
 		// Early out in obvious cases
 		if (ValueA == 0)
@@ -1103,7 +1103,7 @@ namespace FEncryption
 	 * We only care to find d = x, which is our multiplicatve inverse of e (a).
 	 */
 	template <typename IntType>
-	static IntType CalculateMultiplicativeInverseOfExponent(IntType Exponent, IntType Totient)
+	IntType CalculateMultiplicativeInverseOfExponent(IntType Exponent, IntType Totient)
 	{
 		IntType x0 = 1;
 		IntType y0 = 0;
@@ -1143,7 +1143,7 @@ namespace FEncryption
 	 * Generate Key Pair for encryption and decryption.
 	 */
 	template <typename IntType>
-	static void GenerateKeyPair(const IntType& P, const IntType& Q, FEncryptionKey& PublicKey, FEncryptionKey& PrivateKey)
+	void GenerateKeyPair(const IntType& P, const IntType& Q, FEncryptionKey& PublicKey, FEncryptionKey& PrivateKey)
 	{
 		const IntType Modulus = P * Q;
 		const IntType Fi = (P - 1) * (Q - 1);
@@ -1168,7 +1168,7 @@ namespace FEncryption
 	 * Raise Base to power of Exponent in mod Modulus.
 	 */
 	template <typename IntType>
-	static IntType ModularPow(IntType Base, IntType Exponent, IntType Modulus)
+	IntType ModularPow(IntType Base, IntType Exponent, IntType Modulus)
 	{
 		const IntType One(1);
 		IntType Result(1);
@@ -1188,7 +1188,7 @@ namespace FEncryption
 	* Encrypts a stream of bytes
 	*/
 	template <typename IntType>
-	static void EncryptBytes(IntType* EncryptedData, const uint8* Data, const int64 DataLength, const FEncryptionKey& EncryptionKey)
+	void EncryptBytes(IntType* EncryptedData, const uint8* Data, const int64 DataLength, const FEncryptionKey& EncryptionKey)
 	{
 		for (int Index = 0; Index < DataLength; ++Index)
 		{
@@ -1200,7 +1200,7 @@ namespace FEncryption
 	* Decrypts a stream of bytes
 	*/
 	template <typename IntType>
-	static void DecryptBytes(uint8* DecryptedData, const IntType* Data, const int64 DataLength, const FEncryptionKey& DecryptionKey)
+	void DecryptBytes(uint8* DecryptedData, const IntType* Data, const int64 DataLength, const FEncryptionKey& DecryptionKey)
 	{
 		for (int64 Index = 0; Index < DataLength; ++Index)
 		{
@@ -1216,7 +1216,7 @@ namespace FEncryption
  * Specialization for int type used in encryption (performance). Avoids using temporary results and most of the operations are inplace.
  */
 template <>
-TEncryptionInt FEncryption::ModularPow(TEncryptionInt Base, TEncryptionInt Exponent, TEncryptionInt Modulus)
+inline TEncryptionInt FEncryption::ModularPow(TEncryptionInt Base, TEncryptionInt Exponent, TEncryptionInt Modulus)
 {
 	TEncryptionInt Result(1LL);
 	while (Exponent.IsGreaterThanZero())
@@ -1294,12 +1294,12 @@ struct FDecryptedSignature : public FSignatureBase<uint32>
 
 namespace FEncryption
 {
-	static void EncryptSignature(const FDecryptedSignature& InUnencryptedSignature, FEncryptedSignature& OutEncryptedSignature, const FEncryptionKey& EncryptionKey)
+	inline void EncryptSignature(const FDecryptedSignature& InUnencryptedSignature, FEncryptedSignature& OutEncryptedSignature, const FEncryptionKey& EncryptionKey)
 	{
 		OutEncryptedSignature.Data = FEncryption::ModularPow(TEncryptionInt(InUnencryptedSignature.Data), EncryptionKey.Exponent, EncryptionKey.Modulus);
 	}
 
-	static void DecryptSignature(const FEncryptedSignature& InEncryptedSignature, FDecryptedSignature& OutUnencryptedSignature, const FEncryptionKey& EncryptionKey)
+	inline void DecryptSignature(const FEncryptedSignature& InEncryptedSignature, FDecryptedSignature& OutUnencryptedSignature, const FEncryptionKey& EncryptionKey)
 	{
 		OutUnencryptedSignature.Data = (FDecryptedSignature::DataType)FEncryption::ModularPow(TEncryptionInt(InEncryptedSignature.Data), EncryptionKey.Exponent, EncryptionKey.Modulus).ToInt();
 	}

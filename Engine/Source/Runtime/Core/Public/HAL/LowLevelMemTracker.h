@@ -271,10 +271,10 @@ enum class ELLMTag : LLM_TAG_TYPE
 static_assert( ELLMTag::GenericTagCount <= ELLMTag::PlatformTagStart,
 	"too many LLM tags defined -- Instead of adding a new tag and updating the limits, please use the LLM_DECLARE_TAG macros below"); 
 
-static constexpr uint32 LLM_TAG_COUNT = 256;
-static constexpr uint32 LLM_CUSTOM_TAG_START = (int32)ELLMTag::PlatformTagStart;
-static constexpr uint32 LLM_CUSTOM_TAG_END = (int32)ELLMTag::ProjectTagEnd;
-static constexpr uint32 LLM_CUSTOM_TAG_COUNT = LLM_CUSTOM_TAG_END + 1 - LLM_CUSTOM_TAG_START;
+constexpr inline uint32 LLM_TAG_COUNT = 256;
+constexpr inline uint32 LLM_CUSTOM_TAG_START = (int32)ELLMTag::PlatformTagStart;
+constexpr inline uint32 LLM_CUSTOM_TAG_END = (int32)ELLMTag::ProjectTagEnd;
+constexpr inline uint32 LLM_CUSTOM_TAG_COUNT = LLM_CUSTOM_TAG_END + 1 - LLM_CUSTOM_TAG_START;
 
 /**
  * Passed in to OnLowLevelAlloc to specify the type of allocation. Used to track FMalloc total

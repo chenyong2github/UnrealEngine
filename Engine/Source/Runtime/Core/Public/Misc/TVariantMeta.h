@@ -42,7 +42,7 @@ namespace Private
 	template <typename T>
 	struct TTypePackContainsDuplicates<T>
 	{
-		static constexpr bool Value = false;
+		static constexpr inline bool Value = false;
 	};
 
 	/**
@@ -52,21 +52,21 @@ namespace Private
 	template <typename T, typename... Ts>
 	struct TTypePackContainsDuplicates<T, T, Ts...>
 	{
-		static constexpr bool Value = true;
+		static constexpr inline bool Value = true;
 	};
 
 	/** Check all pairs of types in a template parameter pack to determine if any type is duplicated */
 	template <typename T, typename U, typename... Rest>
 	struct TTypePackContainsDuplicates<T, U, Rest...>
 	{
-		static constexpr bool Value = TTypePackContainsDuplicates<T, Rest...>::Value || TTypePackContainsDuplicates<U, Rest...>::Value;
+		static constexpr inline bool Value = TTypePackContainsDuplicates<T, Rest...>::Value || TTypePackContainsDuplicates<U, Rest...>::Value;
 	};
 
 	/** Determine if any of the types in a template parameter pack are references */
 	template <typename... Ts>
 	struct TContainsReferenceType
 	{
-		static constexpr bool Value = TOr<TIsReferenceType<Ts>...>::Value;
+		static constexpr inline bool Value = TOr<TIsReferenceType<Ts>...>::Value;
 	};
 
 	/** Determine the max alignof and sizeof of all types in a template parameter pack and provide a type that is compatible with those sizes */
@@ -96,8 +96,8 @@ namespace Private
 			return MaxOf(Sizes);
 		}
 
-		static constexpr SIZE_T SizeofValue = MaxSizeof();
-		static constexpr SIZE_T AlignofValue = MaxAlignof();
+		static constexpr inline SIZE_T SizeofValue = MaxSizeof();
+		static constexpr inline SIZE_T AlignofValue = MaxAlignof();
 		static_assert(SizeofValue > 0, "MaxSizeof must be greater than 0");
 		static_assert(AlignofValue > 0, "MaxAlignof must be greater than 0");
 
@@ -132,28 +132,28 @@ namespace Private
 	template <SIZE_T N, typename LookupType, typename... Ts>
 	struct TParameterPackTypeIndexHelper
 	{
-		static constexpr SIZE_T Value = (SIZE_T)-1;
+		static constexpr inline SIZE_T Value = (SIZE_T)-1;
 	};
 
 	/** When the type we're looking up bubbles up to the top, we return the current index */
 	template <SIZE_T N, typename T, typename... Ts>
 	struct TParameterPackTypeIndexHelper<N, T, T, Ts...>
 	{
-		static constexpr SIZE_T Value = N;
+		static constexpr inline SIZE_T Value = N;
 	};
 
 	/** When different type than the lookup is at the front of the parameter pack, we increase the index and move to the next type */
 	template <SIZE_T N, typename LookupType, typename T, typename... Ts>
 	struct TParameterPackTypeIndexHelper<N, LookupType, T, Ts...>
 	{
-		static constexpr SIZE_T Value = TParameterPackTypeIndexHelper<N + 1, LookupType, Ts...>::Value;
+		static constexpr inline SIZE_T Value = TParameterPackTypeIndexHelper<N + 1, LookupType, Ts...>::Value;
 	};
 
 	/** Entry-point for looking up the index of a type in a template parameter pack */
 	template <typename LookupType, typename... Ts>
 	struct TParameterPackTypeIndex
 	{
-		static constexpr SIZE_T Value = TParameterPackTypeIndexHelper<0, LookupType, Ts...>::Value;
+		static constexpr inline SIZE_T Value = TParameterPackTypeIndexHelper<0, LookupType, Ts...>::Value;
 	};
 
 	/** An adapter for calling DestructItem */

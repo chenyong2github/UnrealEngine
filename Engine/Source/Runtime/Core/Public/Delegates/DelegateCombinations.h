@@ -13,7 +13,7 @@
  */
 
 #if 0 // Example of correct header include
-#include "Delegates/Delegate.h"
+#include "Delegates/Delegate.h" // HEADER_UNIT_IGNORE
 #endif
 
 /** Declares a delegate that can only bind to one native function at a time */

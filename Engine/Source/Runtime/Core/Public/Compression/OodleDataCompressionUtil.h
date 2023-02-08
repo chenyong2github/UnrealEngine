@@ -62,7 +62,7 @@ namespace FOodleCompressedArray
 	* @return						0 if the FCompressedArray isn't valid, or if the compressed array requires PeekSizes64.
 	*								Otherwise, the offset to the compressed data in the array.
 	*/
-	static int32 PeekSizes(TArray<uint8> const& InCompressed, int32& OutCompressedSize, int32& OutDecompressedSize)
+	int32 PeekSizes(TArray<uint8> const& InCompressed, int32& OutCompressedSize, int32& OutDecompressedSize)
 	{
 		// At minimum we need 8 bytes.
 		if (InCompressed.Num() < sizeof(int32)*2)
@@ -88,7 +88,7 @@ namespace FOodleCompressedArray
 
 		return sizeof(int32) * 2;
 	}
-	static int32 PeekSizes64(TArray64<uint8> const& InCompressed, int64& OutCompressedSize, int64& OutDecompressedSize)
+	int32 PeekSizes64(TArray64<uint8> const& InCompressed, int64& OutCompressedSize, int64& OutDecompressedSize)
 	{
 		if (InCompressed.Num() < sizeof(int32)*2)
 		{
@@ -175,12 +175,12 @@ namespace FOodleCompressedArray
 	* See CompressData for parameter discussion.
 	*/
 	template <class T>
-	static bool CompressTArray(TArray<uint8>& OutCompressed, const TArray<T>& InBuffer, FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InLevel)
+	bool CompressTArray(TArray<uint8>& OutCompressed, const TArray<T>& InBuffer, FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InLevel)
 	{
 		return CompressData(OutCompressed, (const void*)InBuffer.GetData(), InBuffer.Num() * sizeof(T), InCompressor, InLevel);
 	}
 	template <class T>
-	static bool CompressTArray64(TArray64<uint8>& OutCompressed, const TArray64<T>& InBuffer, FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InLevel)
+	bool CompressTArray64(TArray64<uint8>& OutCompressed, const TArray64<T>& InBuffer, FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InLevel)
 	{
 		return CompressData64(OutCompressed, (const void*)InBuffer.GetData(), InBuffer.Num() * sizeof(T), InCompressor, InLevel);
 	}
@@ -195,7 +195,7 @@ namespace FOodleCompressedArray
 	*								due to granularity concerns.
 	*/
 	template <class T>
-	static bool DecompressToTArray(TArray<T>& OutDecompressed, TArray<uint8> const& InCompressed)
+	bool DecompressToTArray(TArray<T>& OutDecompressed, TArray<uint8> const& InCompressed)
 	{
 		int32 DecompressedSize, CompressedSize;
 		if (PeekSizes(InCompressed, CompressedSize, DecompressedSize) == 0)
@@ -213,7 +213,7 @@ namespace FOodleCompressedArray
 		return DecompressToExistingBuffer(OutDecompressed.GetData(),DecompressedSize, InCompressed);
 	}
 	template <class T>
-	static bool DecompressToTArray64(TArray64<T>& OutDecompressed, TArray64<uint8> const& InCompressed)
+	bool DecompressToTArray64(TArray64<T>& OutDecompressed, TArray64<uint8> const& InCompressed)
 	{
 		int64 DecompressedSize, CompressedSize;
 		if (PeekSizes64(InCompressed, CompressedSize, DecompressedSize) == 0)

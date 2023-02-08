@@ -17,7 +17,7 @@ namespace InternationalizationUtilities
 	FString SanitizeCurrencyCode(const FString& InCurrencyCode);
 
 	/** Is the given character valid as part of currency code? */
-	static bool IsValidCurencyCodeCharacter(const TCHAR InChar)
+	inline bool IsValidCurencyCodeCharacter(const TCHAR InChar)
 	{
 		return (InChar >= TEXT('A') && InChar <= TEXT('Z')) || (InChar >= TEXT('a') && InChar <= TEXT('z'));
 	};

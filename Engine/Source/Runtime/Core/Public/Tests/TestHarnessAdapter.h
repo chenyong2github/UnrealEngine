@@ -10,7 +10,7 @@
  */
 
 #if WITH_LOW_LEVEL_TESTS
-#include "TestHarness.h"
+#include "TestHarness.h" // HEADER_UNIT_IGNORE
 #elif defined(WITH_AUTOMATION_TESTS) || (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
 #include "Misc/AutomationTest.h"
 #include "Misc/LowLevelTestAdapter.h"

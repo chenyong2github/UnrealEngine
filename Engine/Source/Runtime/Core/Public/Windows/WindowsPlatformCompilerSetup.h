@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #if !PLATFORM_WINDOWS
 #error PLATFORM_WINDOWS not defined
 #endif

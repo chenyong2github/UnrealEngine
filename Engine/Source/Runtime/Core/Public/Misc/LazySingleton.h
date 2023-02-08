@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <new> // IWYU pragma: export
+#include "Misc/AssertionMacros.h"
 
 /** Allows inline friend declaration without forward-declaring TLazySingleton */
 class FLazySingleton

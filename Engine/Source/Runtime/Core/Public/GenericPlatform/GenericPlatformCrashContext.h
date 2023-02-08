@@ -263,51 +263,51 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FAdditionalCrashContextDelegate, FCrashConte
  *	Contains a runtime crash's properties that are common for all platforms.
  *	This may change in the future.
  */
-struct CORE_API FGenericCrashContext
+struct FGenericCrashContext
 {
 public:
 
-	static const ANSICHAR* const CrashContextRuntimeXMLNameA;
-	static const TCHAR* const CrashContextRuntimeXMLNameW;
+	CORE_API static const ANSICHAR* const CrashContextRuntimeXMLNameA;
+	CORE_API static const TCHAR* const CrashContextRuntimeXMLNameW;
 
-	static const ANSICHAR* const CrashConfigFileNameA;
-	static const TCHAR* const CrashConfigFileNameW;
-	static const TCHAR* const CrashConfigExtension;
-	static const TCHAR* const ConfigSectionName;
-	static const TCHAR* const CrashConfigPurgeDays;
-	static const TCHAR* const CrashGUIDRootPrefix;
+	CORE_API static const ANSICHAR* const CrashConfigFileNameA;
+	CORE_API static const TCHAR* const CrashConfigFileNameW;
+	CORE_API static const TCHAR* const CrashConfigExtension;
+	CORE_API static const TCHAR* const ConfigSectionName;
+	CORE_API static const TCHAR* const CrashConfigPurgeDays;
+	CORE_API static const TCHAR* const CrashGUIDRootPrefix;
 
-	static const TCHAR* const CrashContextExtension;
-	static const TCHAR* const RuntimePropertiesTag;
-	static const TCHAR* const PlatformPropertiesTag;
-	static const TCHAR* const EngineDataTag;
-	static const TCHAR* const GameDataTag;
-	static const TCHAR* const EnabledPluginsTag;
-	static const TCHAR* const UEMinidumpName;
-	static const TCHAR* const NewLineTag;
-	static constexpr int32 CrashGUIDLength = 128;
+	CORE_API static const TCHAR* const CrashContextExtension;
+	CORE_API static const TCHAR* const RuntimePropertiesTag;
+	CORE_API static const TCHAR* const PlatformPropertiesTag;
+	CORE_API static const TCHAR* const EngineDataTag;
+	CORE_API static const TCHAR* const GameDataTag;
+	CORE_API static const TCHAR* const EnabledPluginsTag;
+	CORE_API static const TCHAR* const UEMinidumpName;
+	CORE_API static const TCHAR* const NewLineTag;
+	static constexpr inline int32 CrashGUIDLength = 128;
 
-	static const TCHAR* const CrashTypeCrash;
-	static const TCHAR* const CrashTypeAssert;
-	static const TCHAR* const CrashTypeEnsure;
-	static const TCHAR* const CrashTypeStall;
-	static const TCHAR* const CrashTypeGPU;
-	static const TCHAR* const CrashTypeHang;
-	static const TCHAR* const CrashTypeAbnormalShutdown;
-	static const TCHAR* const CrashTypeOutOfMemory;
+	CORE_API static const TCHAR* const CrashTypeCrash;
+	CORE_API static const TCHAR* const CrashTypeAssert;
+	CORE_API static const TCHAR* const CrashTypeEnsure;
+	CORE_API static const TCHAR* const CrashTypeStall;
+	CORE_API static const TCHAR* const CrashTypeGPU;
+	CORE_API static const TCHAR* const CrashTypeHang;
+	CORE_API static const TCHAR* const CrashTypeAbnormalShutdown;
+	CORE_API static const TCHAR* const CrashTypeOutOfMemory;
 
-	static const TCHAR* const EngineModeExUnknown;
-	static const TCHAR* const EngineModeExDirty;
-	static const TCHAR* const EngineModeExVanilla;
+	CORE_API static const TCHAR* const EngineModeExUnknown;
+	CORE_API static const TCHAR* const EngineModeExDirty;
+	CORE_API static const TCHAR* const EngineModeExVanilla;
 
 	// A guid that identifies this particular execution. Allows multiple crash reports from the same run of the project to be tied together
-	static const FGuid ExecutionGuid;
+	CORE_API static const FGuid ExecutionGuid;
 
 	/** Initializes crash context related platform specific data that can be impossible to obtain after a crash. */
-	static void Initialize();
+	CORE_API static void Initialize();
 
 	/** Initialized crash context, using a crash context (e.g. shared from another process). */
-	static void InitializeFromContext(const FSessionContext& Context, const TCHAR* EnabledPlugins, const TCHAR* EngineData, const TCHAR* GameData);
+	CORE_API static void InitializeFromContext(const FSessionContext& Context, const TCHAR* EnabledPlugins, const TCHAR* EngineData, const TCHAR* GameData);
 
 	/**
 	 * @return true, if the generic crash context has been initialized.
@@ -351,28 +351,28 @@ public:
 	 * code can be retrieved, it can be exposed through this function.
 	 * @see GetOutOfProcessCrashReporterExitCode
 	 */
-	static void SetOutOfProcessCrashReporterExitCode(int32 ExitCode);
+	CORE_API static void SetOutOfProcessCrashReporterExitCode(int32 ExitCode);
 
 	/**
 	 * Return the out-of-process crash reporter exit code if available. The exit code is available if crash reporter process died while the application it monitors was still running.
 	 * Then engine periodically poll the health of the crash reporter process and try to read its exit code if it unexpectedly died.
 	 * @note This function is useful to try diagnose why the crash reporter died (crashed/killed/asserted) and gather data for the analytics.
 	 */
-	static TOptional<int32> GetOutOfProcessCrashReporterExitCode();
+	CORE_API static TOptional<int32> GetOutOfProcessCrashReporterExitCode();
 
 	/** Default constructor. Optionally pass a process handle if building a crash context for a process other then current. */
-	FGenericCrashContext(ECrashContextType InType, const TCHAR* ErrorMessage);
+	CORE_API FGenericCrashContext(ECrashContextType InType, const TCHAR* ErrorMessage);
 
 	virtual ~FGenericCrashContext() { }
 
 	/** Get the file path to the temporary session context file that we create for the given process. */
-	static FString GetTempSessionContextFilePath(uint64 ProcessID);
+	CORE_API static FString GetTempSessionContextFilePath(uint64 ProcessID);
 
 	/** Clean up expired context files that were left-over on the user disks (because the consumer crashed and/or failed to delete it). */
-	static void CleanupTempSessionContextFiles(const FTimespan& ExpirationAge);
+	CORE_API static void CleanupTempSessionContextFiles(const FTimespan& ExpirationAge);
 
 	/** Serializes all data to the buffer. */
-	void SerializeContentToBuffer() const;
+	CORE_API void SerializeContentToBuffer() const;
 
 	/**
 	 * @return the buffer containing serialized data.
@@ -385,21 +385,21 @@ public:
 	/**
 	 * @return a globally unique crash name.
 	 */
-	void GetUniqueCrashName(TCHAR* GUIDBuffer, int32 BufferSize) const;
+	CORE_API void GetUniqueCrashName(TCHAR* GUIDBuffer, int32 BufferSize) const;
 
 	/**
 	 * @return whether this crash is a full memory minidump
 	 */
-	const bool IsFullCrashDump() const;
+	CORE_API const bool IsFullCrashDump() const;
 
 	/** Serializes crash's informations to the specified filename. Should be overridden for platforms where using FFileHelper is not safe, all POSIX platforms. */
-	virtual void SerializeAsXML( const TCHAR* Filename ) const;
+	CORE_API virtual void SerializeAsXML( const TCHAR* Filename ) const;
 
 	/** 
 	 * Serializes session context to the given buffer. 
 	 * NOTE: Assumes that the buffer already has a header and section open.
 	 */
-	static void SerializeSessionContext(FString& Buffer);
+	CORE_API static void SerializeSessionContext(FString& Buffer);
 	
 	template <typename Type>
 	void AddCrashProperty(const TCHAR* PropertyName, const Type& Value) const
@@ -408,67 +408,67 @@ public:
 	}
 
 	/** Escapes and appends specified text to XML string */
-	static void AppendEscapedXMLString(FString& OutBuffer, FStringView Text );
-	static void AppendEscapedXMLString(FStringBuilderBase& OutBuffer, FStringView Text);
+	CORE_API static void AppendEscapedXMLString(FString& OutBuffer, FStringView Text );
+	CORE_API static void AppendEscapedXMLString(FStringBuilderBase& OutBuffer, FStringView Text);
 
-	static void AppendPortableCallstack(FString& OutBuffer, TConstArrayView<FCrashStackFrame> StackFrames);
+	CORE_API static void AppendPortableCallstack(FString& OutBuffer, TConstArrayView<FCrashStackFrame> StackFrames);
 
 	/** Unescapes a specified XML string, naive implementation. */
-	static FString UnescapeXMLString( const FString& Text );
+	CORE_API static FString UnescapeXMLString( const FString& Text );
 
 	/** Helper to get the standard string for the crash type based on crash event bool values. */
-	static const TCHAR* GetCrashTypeString(ECrashContextType Type);
+	CORE_API static const TCHAR* GetCrashTypeString(ECrashContextType Type);
 
 	/** Get the Game Name of the crash */
-	static FString GetCrashGameName();
+	CORE_API static FString GetCrashGameName();
 
 	/** Helper to get the crash report client config filepath saved by this instance and copied to each crash report folder. */
-	static const TCHAR* GetCrashConfigFilePath();
+	CORE_API static const TCHAR* GetCrashConfigFilePath();
 
 	/** Helper to get the crash report client config folder used by GetCrashConfigFilePath(). */
-	static const TCHAR* GetCrashConfigFolder();
+	CORE_API static const TCHAR* GetCrashConfigFolder();
 
 	/** Helper to clean out old files in the crash report client config folder. */
-	static void PurgeOldCrashConfig();
+	CORE_API static void PurgeOldCrashConfig();
 
 	/** Clears the engine data dictionary */
-	static void ResetEngineData();
+	CORE_API static void ResetEngineData();
 
 	/** Updates (or adds if not already present) arbitrary engine data to the crash context (will remove the key if passed an empty string) */
-	static void SetEngineData(const FString& Key, const FString& Value);
+	CORE_API static void SetEngineData(const FString& Key, const FString& Value);
 
 	/** Clears the game data dictionary */
-	static void ResetGameData();
+	CORE_API static void ResetGameData();
 
 	/** Updates (or adds if not already present) arbitrary game data to the crash context (will remove the key if passed an empty string) */
-	static void SetGameData(const FString& Key, const FString& Value);
+	CORE_API static void SetGameData(const FString& Key, const FString& Value);
 
 	/** Adds a plugin descriptor string to the enabled plugins list in the crash context */
-	static void AddPlugin(const FString& PluginDesc);
+	CORE_API static void AddPlugin(const FString& PluginDesc);
 
 	/** Flushes the logs. In the case of in memory logs is used on this configuration, dumps them to file. Returns the name of the file */
-	static FString DumpLog(const FString& CrashFolderAbsolute);
+	CORE_API static FString DumpLog(const FString& CrashFolderAbsolute);
 
 	/** Collects additional crash context providers. See FAdditionalCrashContextStack. */
-	static void DumpAdditionalContext(const TCHAR* CrashFolderAbsolute);
+	CORE_API static void DumpAdditionalContext(const TCHAR* CrashFolderAbsolute);
 
 	/** Initializes a shared crash context from current state. Will not set all fields in Dst. */
-	static void CopySharedCrashContext(FSharedCrashContext& Dst);
+	CORE_API static void CopySharedCrashContext(FSharedCrashContext& Dst);
 
 	/** We can't gather memory stats in crash handling function, so we gather them just before raising
 	  * exception and use in crash reporting. 
 	  */
-	static void SetMemoryStats(const FPlatformMemoryStats& MemoryStats);
+	CORE_API static void SetMemoryStats(const FPlatformMemoryStats& MemoryStats);
 
 	/** Attempts to create the output report directory. */
-	static bool CreateCrashReportDirectory(const TCHAR* CrashGUIDRoot, int32 CrashIndex, FString& OutCrashDirectoryAbsolute);
+	CORE_API static bool CreateCrashReportDirectory(const TCHAR* CrashGUIDRoot, int32 CrashIndex, FString& OutCrashDirectoryAbsolute);
 
 	/** Notify the crash context exit has been requested. */
-	static void SetEngineExit(bool bIsRequestExit);
+	CORE_API static void SetEngineExit(bool bIsRequestExit);
 
 #if WITH_ADDITIONAL_CRASH_CONTEXTS
 	/** Delegate for additional crash context. */
-	static FAdditionalCrashContextDelegate& OnAdditionalCrashContextDelegate()
+	static inline FAdditionalCrashContextDelegate& OnAdditionalCrashContextDelegate()
 	{
 		return AdditionalCrashContextDelegate;
 	}
@@ -487,45 +487,45 @@ public:
 	}
 
 	/** Sets the number of stack frames to ignore when symbolicating from a minidump */
-	void SetNumMinidumpFramesToIgnore(int32 InNumMinidumpFramesToIgnore);
+	CORE_API void SetNumMinidumpFramesToIgnore(int32 InNumMinidumpFramesToIgnore);
 
 	/**
 	 * Generate raw call stack for crash report (image base + offset) for the calling thread
 	 * @param ErrorProgramCounter The program counter of where the occur occurred in the callstack being captured
 	 * @param Context Optional thread context information
 	 */
-	void CapturePortableCallStack(void* ErrorProgramCounter, void* Context);
+	CORE_API void CapturePortableCallStack(void* ErrorProgramCounter, void* Context);
 
 	/**
 	 * Generate raw call stack for crash report (image base + offset) for a different thread
 	 * @param InThreadId The thread id of the thread to capture the callstack for
 	 * @param Context Optional thread context information
 	 */
-	void CaptureThreadPortableCallStack(const uint64 ThreadId, void* Context);
+	CORE_API void CaptureThreadPortableCallStack(const uint64 ThreadId, void* Context);
 
 	UE_DEPRECATED(5.0, "")
-	void CapturePortableCallStack(int32 NumStackFramesToIgnore, void* Context);
+	CORE_API void CapturePortableCallStack(int32 NumStackFramesToIgnore, void* Context);
 	
 	/** Sets the portable callstack to a specified stack */
-	virtual void SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames);
+	CORE_API virtual void SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames);
 
 	/** Gets the portable callstack to a specified stack and puts it into OutCallStack */
-	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const;
+	CORE_API virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const;
 
 	/** Store info about loaded modules */
-	virtual void CaptureModules();
+	CORE_API virtual void CaptureModules();
 
 	/** Gets info about loaded modules and stores it in the given array */
-	virtual void GetModules(TArray<FStackWalkModuleInfo>& OutModules) const;
+	CORE_API virtual void GetModules(TArray<FStackWalkModuleInfo>& OutModules) const;
 	
 	/** Adds a portable callstack for a thread */
-	virtual void AddPortableThreadCallStack(uint32 ThreadId, const TCHAR* ThreadName, const uint64* StackFrames, int32 NumStackFrames);
+	CORE_API virtual void AddPortableThreadCallStack(uint32 ThreadId, const TCHAR* ThreadName, const uint64* StackFrames, int32 NumStackFrames);
 
 	/** Allows platform implementations to copy files to report directory. */
-	virtual void CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context);
+	CORE_API virtual void CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context);
 
 	/** Cleanup platform specific files - called on startup, implemented per platform */
-	static void CleanupPlatformSpecificFiles();
+	CORE_API static void CleanupPlatformSpecificFiles();
 
 	/**
 	 * @return the type of this crash
@@ -551,12 +551,12 @@ public:
 	/**
 	 * Set the current deployment name (ie. EpicApp)
 	 */
-	static void SetDeploymentName(const FString& EpicApp);
+	CORE_API static void SetDeploymentName(const FString& EpicApp);
 
 	/**
 	 * Sets the type of crash triggered. Used to distinguish crashes caused for debugging purposes.
 	 */
-	static void SetCrashTrigger(ECrashTrigger Type);
+	CORE_API static void SetCrashTrigger(ECrashTrigger Type);
 
 protected:
 	/**
@@ -575,13 +575,13 @@ protected:
 	TArray<FStackWalkModuleInfo> ModulesInfo;
 
 	/** Allow platform implementations to provide a callstack property. Primarily used when non-native code triggers a crash. */
-	virtual const TCHAR* GetCallstackProperty() const;
+	CORE_API virtual const TCHAR* GetCallstackProperty() const;
 
 	/** Get arbitrary engine data from the crash context */
-	static const FString* GetEngineData(const FString& Key);
+	CORE_API static const FString* GetEngineData(const FString& Key);
 
 	/** Get arbitrary game data from the crash context */
-	static const FString* GetGameData(const FString& Key);
+	CORE_API static const FString* GetGameData(const FString& Key);
 
 private:
 
@@ -632,7 +632,7 @@ private:
 	static bool bIsInitialized;
 
 	/** The ID of the external process reporting crashes if the platform supports it and was configured to use it, zero otherwise (0 is a reserved system process ID, invalid for the out of process reporter). */
-	static uint32 OutOfProcessCrashReporterPid;
+	CORE_API static uint32 OutOfProcessCrashReporterPid;
 
 	/** The out of process crash reporter exit code, if available. The 32 MSB indicates if the exit code is set and the 32 LSB contains the exit code. The value can be read/write from different threads. */
 	static volatile int64 OutOfProcessCrashReporterExitCode;
@@ -642,7 +642,7 @@ private:
 
 #if WITH_ADDITIONAL_CRASH_CONTEXTS
 	/** Delegate for additional crash context. */
-	static FAdditionalCrashContextDelegate AdditionalCrashContextDelegate;
+	CORE_API static FAdditionalCrashContextDelegate AdditionalCrashContextDelegate;
 #endif //WITH_ADDITIONAL_CRASH_CONTEXTS
 
 	/** The buffer used to store the crash's properties. */

@@ -31,10 +31,6 @@ DEFINE_LOG_CATEGORY(LogIoStore);
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr char FIoStoreTocHeader::TocMagicImg[];
-
-//////////////////////////////////////////////////////////////////////////
-
 //TRACE_DECLARE_INT_COUNTER(IoStoreAvailableCompressionBuffers, TEXT("IoStore/AvailableCompressionBuffers"));
 
 template<typename ArrayType>

@@ -198,13 +198,13 @@ private:
 template <typename T>
 struct TIsVariant
 {
-	static constexpr bool Value = false;
+	static constexpr inline bool Value = false;
 };
 
 template <typename... Ts>
 struct TIsVariant<TVariant<Ts...>>
 {
-	static constexpr bool Value = true;
+	static constexpr inline bool Value = true;
 };
 
 template <typename T> struct TIsVariant<T&> : public TIsVariant<T> {};
@@ -217,7 +217,7 @@ template <typename> struct TVariantSize;
 template <typename... Ts>
 struct TVariantSize<TVariant<Ts...>>
 {
-	static constexpr SIZE_T Value = sizeof...(Ts);
+	static constexpr inline SIZE_T Value = sizeof...(Ts);
 };
 
 template <typename T> struct TVariantSize<T&> : public TVariantSize<T> {};

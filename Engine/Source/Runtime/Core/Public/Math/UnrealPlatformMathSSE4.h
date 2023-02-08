@@ -19,42 +19,42 @@ namespace UE4
 {
 namespace SSE4
 {
-	static FORCEINLINE float TruncToFloat(float F)
+	FORCEINLINE float TruncToFloat(float F)
 	{
 		return _mm_cvtss_f32(_mm_round_ps(_mm_set_ss(F), 3));
 	}
 
-	static FORCEINLINE double TruncToDouble(double F)
+	FORCEINLINE double TruncToDouble(double F)
 	{
 		return _mm_cvtsd_f64(_mm_round_pd(_mm_set_sd(F), 3));
 	}
 
-	static FORCEINLINE float FloorToFloat(float F)
+	FORCEINLINE float FloorToFloat(float F)
 	{
 		return _mm_cvtss_f32(_mm_floor_ps(_mm_set_ss(F)));
 	}
 
-	static FORCEINLINE double FloorToDouble(double F)
+	FORCEINLINE double FloorToDouble(double F)
 	{
 		return _mm_cvtsd_f64(_mm_floor_pd(_mm_set_sd(F)));
 	}
 
-	static FORCEINLINE float RoundToFloat(float F)
+	FORCEINLINE float RoundToFloat(float F)
 	{
 		return FloorToFloat(F + 0.5f);
 	}
 
-	static FORCEINLINE double RoundToDouble(double F)
+	FORCEINLINE double RoundToDouble(double F)
 	{
 		return FloorToDouble(F + 0.5);
 	}
 
-	static FORCEINLINE float CeilToFloat(float F)
+	FORCEINLINE float CeilToFloat(float F)
 	{
 		return _mm_cvtss_f32(_mm_ceil_ps(_mm_set_ss(F)));
 	}
 
-	static FORCEINLINE double CeilToDouble(double F)
+	FORCEINLINE double CeilToDouble(double F)
 	{
 		return _mm_cvtsd_f64(_mm_ceil_pd(_mm_set_sd(F)));
 	}

@@ -22,8 +22,10 @@
 	Add FramePro.cpp to your project to allow FramePro to communicate with your application.
 */
 
+// HEADER_UNIT_SKIP - Not included directly
+
 //------------------------------------------------------------------------
-#include "FramePro.h"
+#include "FramePro.h" // HEADER_UNIT_IGNORE
 
 //------------------------------------------------------------------------
 //                         FRAMEPRO_PLATFORM_UE4

@@ -2,6 +2,7 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Cause cirular dependencies for header units
 
 #ifndef PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	#define PRAGMA_DISABLE_DEPRECATION_WARNINGS

@@ -9,20 +9,20 @@
 #include "Serialization/StructuredArchiveSlots.h"
 #include "Templates/UniqueObj.h"
 
-class CORE_API FStructuredArchiveFromArchive
+class FStructuredArchiveFromArchive
 {
 	UE_NONCOPYABLE(FStructuredArchiveFromArchive)
 
-	static constexpr uint32 ImplSize = 400;
-	static constexpr uint32 ImplAlignment = 8;
+	static constexpr inline uint32 ImplSize = 400;
+	static constexpr inline uint32 ImplAlignment = 8;
 
 	struct FImpl;
 
 public:
-	explicit FStructuredArchiveFromArchive(FArchive& Ar);
-	~FStructuredArchiveFromArchive();
+	CORE_API explicit FStructuredArchiveFromArchive(FArchive& Ar);
+	CORE_API ~FStructuredArchiveFromArchive();
 
-	FStructuredArchiveSlot GetSlot();
+	CORE_API FStructuredArchiveSlot GetSlot();
 
 private:
 	// Implmented as a pimpl in order to reduce dependencies, but an inline one to avoid heap allocations

@@ -50,26 +50,26 @@ namespace TextStringificationUtil
 {
 
 #define LOC_DEFINE_REGION
-static const auto& TextMarker = TEXT("TEXT");
-static const auto& InvTextMarker = TEXT("INVTEXT");
-static const auto& NsLocTextMarker = TEXT("NSLOCTEXT");
-static const auto& LocTextMarker = TEXT("LOCTEXT");
-static const auto& LocTableMarker = TEXT("LOCTABLE");
-static const auto& LocGenNumberMarker = TEXT("LOCGEN_NUMBER");
-static const auto& LocGenPercentMarker = TEXT("LOCGEN_PERCENT");
-static const auto& LocGenCurrencyMarker = TEXT("LOCGEN_CURRENCY");
-static const auto& LocGenDateMarker = TEXT("LOCGEN_DATE");
-static const auto& LocGenTimeMarker = TEXT("LOCGEN_TIME");
-static const auto& LocGenDateTimeMarker = TEXT("LOCGEN_DATETIME");
-static const auto& LocGenToLowerMarker = TEXT("LOCGEN_TOLOWER");
-static const auto& LocGenToUpperMarker = TEXT("LOCGEN_TOUPPER");
-static const auto& LocGenFormatOrderedMarker = TEXT("LOCGEN_FORMAT_ORDERED");
-static const auto& LocGenFormatNamedMarker = TEXT("LOCGEN_FORMAT_NAMED");
-static const auto& GroupedSuffix = TEXT("_GROUPED");
-static const auto& UngroupedSuffix = TEXT("_UNGROUPED");
-static const auto& CustomSuffix = TEXT("_CUSTOM");
-static const auto& UtcSuffix = TEXT("_UTC");
-static const auto& LocalSuffix = TEXT("_LOCAL");
+inline const auto& TextMarker = TEXT("TEXT");
+inline const auto& InvTextMarker = TEXT("INVTEXT");
+inline const auto& NsLocTextMarker = TEXT("NSLOCTEXT");
+inline const auto& LocTextMarker = TEXT("LOCTEXT");
+inline const auto& LocTableMarker = TEXT("LOCTABLE");
+inline const auto& LocGenNumberMarker = TEXT("LOCGEN_NUMBER");
+inline const auto& LocGenPercentMarker = TEXT("LOCGEN_PERCENT");
+inline const auto& LocGenCurrencyMarker = TEXT("LOCGEN_CURRENCY");
+inline const auto& LocGenDateMarker = TEXT("LOCGEN_DATE");
+inline const auto& LocGenTimeMarker = TEXT("LOCGEN_TIME");
+inline const auto& LocGenDateTimeMarker = TEXT("LOCGEN_DATETIME");
+inline const auto& LocGenToLowerMarker = TEXT("LOCGEN_TOLOWER");
+inline const auto& LocGenToUpperMarker = TEXT("LOCGEN_TOUPPER");
+inline const auto& LocGenFormatOrderedMarker = TEXT("LOCGEN_FORMAT_ORDERED");
+inline const auto& LocGenFormatNamedMarker = TEXT("LOCGEN_FORMAT_NAMED");
+inline const auto& GroupedSuffix = TEXT("_GROUPED");
+inline const auto& UngroupedSuffix = TEXT("_UNGROUPED");
+inline const auto& CustomSuffix = TEXT("_CUSTOM");
+inline const auto& UtcSuffix = TEXT("_UTC");
+inline const auto& LocalSuffix = TEXT("_LOCAL");
 #undef LOC_DEFINE_REGION
 
 #define TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(Func, ...)		\

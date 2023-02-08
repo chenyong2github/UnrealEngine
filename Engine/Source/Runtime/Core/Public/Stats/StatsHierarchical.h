@@ -157,31 +157,6 @@ public:
 		}
 	};
 
-	// A single entry for profiling.
-	// This data is used internally only and should not
-	// be used directly.
-	struct FHierarchicalStatEntry
-	{
-	private:
-
-		FHierarchicalStatEntry(const ANSICHAR * InLabel, uint32 InCycles)
-			:Label(InLabel)
-			, Cycles(InCycles)
-		{
-		}
-
-		FHierarchicalStatEntry()
-			:Label(nullptr)
-			, Cycles(0)
-		{
-		}
-
-		const ANSICHAR * Label;
-		uint32 Cycles;
-
-		friend class FStatsHierarchical;
-	};
-
 	// Enabled measurements / profiling
 	static void BeginMeasurements();
 
@@ -205,6 +180,29 @@ public:
 	static FName GetUntrackedTimeName();
 
 private:
+
+	// A single entry for profiling.
+	// This data is used internally only and should not
+	// be used directly.
+	struct FHierarchicalStatEntry
+	{
+		FHierarchicalStatEntry(const ANSICHAR * InLabel, uint32 InCycles)
+			:Label(InLabel)
+			, Cycles(InCycles)
+		{
+		}
+
+		FHierarchicalStatEntry()
+			:Label(nullptr)
+			, Cycles(0)
+		{
+		}
+
+		const ANSICHAR * Label;
+		uint32 Cycles;
+
+		friend class FStatsHierarchical;
+	};
 
 	/**
 	 * Begins a single measurement given a label.

@@ -6,7 +6,7 @@
 
 // See FConfigContext.cpp for the types here
 
-static FConfigLayer GConfigLayers[] =
+inline FConfigLayer GConfigLayers[] =
 {
 	/**************************************************
 	**** CRITICAL NOTES
@@ -47,7 +47,7 @@ static FConfigLayer GConfigLayers[] =
 /// <summary>
 /// Plugins don't need to look at the same number of insane layers. Here PROJECT is the Plugin dir
 /// </summary>
-static FConfigLayer GPluginLayers[] =
+inline FConfigLayer GPluginLayers[] =
 {
 	// Engine/Base.ini
 	{ TEXT("AbsoluteBase"),				TEXT("{ENGINE}/Config/Base.ini"), EConfigLayerFlags::NoExpand},
@@ -70,7 +70,7 @@ static FConfigLayer GPluginLayers[] =
 **** CRITICAL NOTES
 **** If you change these arrays, you need to also change EnumerateConfigFileLocations() in ConfigHierarchy.cs!!!
 **************************************************/
-static FConfigLayerExpansion GConfigExpansions[] =
+inline FConfigLayerExpansion GConfigExpansions[] =
 {
 	// No replacements
 	{ nullptr, nullptr, nullptr, nullptr, EConfigExpansionFlags::All },

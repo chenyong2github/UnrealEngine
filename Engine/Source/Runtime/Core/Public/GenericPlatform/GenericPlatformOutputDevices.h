@@ -17,10 +17,10 @@ class FOutputDeviceError;
 /**
  * Generic implementation for most platforms
  */
-struct CORE_API FGenericPlatformOutputDevices
+struct FGenericPlatformOutputDevices
 {
 	/** Add output devices which can vary depending on platform, configuration, command line parameters. */
-	static void							SetupOutputDevices();
+	CORE_API static void				SetupOutputDevices();
 
 	/**
 	 * Returns the absolute log filename generated from the project properties and/or command line parameters.
@@ -28,16 +28,16 @@ struct CORE_API FGenericPlatformOutputDevices
 	 * It depends if the function is called before the log file was successfully opened or after. The log file is
 	 * open lazily.
 	 */
-	static FString						GetAbsoluteLogFilename();
-	static FOutputDevice*				GetLog();
-	static void							GetPerChannelFileOverrides(TArray<FOutputDevice*>& OutputDevices);
+	CORE_API static FString				GetAbsoluteLogFilename();
+	CORE_API static FOutputDevice*		GetLog();
+	CORE_API static void				GetPerChannelFileOverrides(TArray<FOutputDevice*>& OutputDevices);
 	static FOutputDevice*				GetEventLog()
 	{
 		return nullptr; // normally only used for dedicated servers
 	}
 
-	static FOutputDeviceError*			GetError();
-	static FFeedbackContext*            GetFeedbackContext();
+	CORE_API static FOutputDeviceError*	GetError();
+	CORE_API static FFeedbackContext*   GetFeedbackContext();
 
 protected:
 	static void ResetCachedAbsoluteFilename();

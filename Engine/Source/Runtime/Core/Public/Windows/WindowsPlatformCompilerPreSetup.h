@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Cause cirular dependencies for header units
+
 #if defined(__clang__)
 	// UE4 uses a struct packing of 4 for Win32 and 8 for Win64, 
 	// and the default packing is 8 for Win32 and 16 for Win64

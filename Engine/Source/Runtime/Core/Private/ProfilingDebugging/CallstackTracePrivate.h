@@ -35,7 +35,6 @@ UE_TRACE_EVENT_BEGIN_EXTERN(Memory, CallstackSpec, NoSync)
 UE_TRACE_EVENT_END()
 
 ////////////////////////////////////////////////////////////////////////////////
-namespace {
 
 	class FCallstackTracer
 	{
@@ -114,6 +113,5 @@ namespace {
 		FEncounteredCallstackSet 	KnownSet;
 		std::atomic_uint32_t		CallstackIdCounter;
 	};
-}
 
 #endif

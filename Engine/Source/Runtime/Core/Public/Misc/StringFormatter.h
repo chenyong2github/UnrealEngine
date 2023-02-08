@@ -2,24 +2,18 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
 #include "Misc/ExpressionParserTypes.h"
-#include "Templates/UnrealTemplate.h"
 #include "Templates/ValueOrError.h"
 
 struct FStringFormatArg;
-template<typename KeyType,typename ValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
 
 /** A string formatter is responsible for formatting string patterns using a set of named, or ordered arguments */
-class CORE_API FStringFormatter
+class FStringFormatter
 {
 public:
 
-	FStringFormatter();
+	CORE_API FStringFormatter();
 
 	/**
 	 * Format the specified string using the specified arguments. Replaces instances of { Argument } with keys in the map matching 'Argument'
@@ -80,8 +74,8 @@ public:
 private:
 
 	/** Internal formatting logic */
-	TValueOrError<FString, FExpressionError> FormatInternal(const TCHAR* InExpression, const TMap<FString, FStringFormatArg>& InArgs, bool bStrict) const;
-	TValueOrError<FString, FExpressionError> FormatInternal(const TCHAR* InExpression, const TArray<FStringFormatArg>& InArgs, bool bStrict) const;
+	CORE_API TValueOrError<FString, FExpressionError> FormatInternal(const TCHAR* InExpression, const TMap<FString, FStringFormatArg>& InArgs, bool bStrict) const;
+	CORE_API TValueOrError<FString, FExpressionError> FormatInternal(const TCHAR* InExpression, const TArray<FStringFormatArg>& InArgs, bool bStrict) const;
 
 	/** Token definitions for lenient lexers */
 	FTokenDefinitions NamedDefinitions;

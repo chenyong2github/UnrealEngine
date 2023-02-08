@@ -12,25 +12,25 @@
 
 struct FGenericMemoryStats;
 
-class CORE_API FMallocCallstackHandler : public FMalloc
+class FMallocCallstackHandler : public FMalloc
 {
 public:
-	FMallocCallstackHandler(FMalloc* InMalloc);
+	CORE_API FMallocCallstackHandler(FMalloc* InMalloc);
 
 	/**
 	 * Malloc
 	 */
-	virtual void* Malloc(SIZE_T Count, uint32 Alignment = DEFAULT_ALIGNMENT) override;
+	CORE_API virtual void* Malloc(SIZE_T Count, uint32 Alignment = DEFAULT_ALIGNMENT) override;
 
 	/**
 	 * Realloc
 	 */
-	virtual void* Realloc(void* Original, SIZE_T Count, uint32 Alignment = DEFAULT_ALIGNMENT)  override;
+	CORE_API virtual void* Realloc(void* Original, SIZE_T Count, uint32 Alignment = DEFAULT_ALIGNMENT)  override;
 
 	/**
 	 * Free
 	 */
-	virtual void Free(void* Original) override;
+	CORE_API virtual void Free(void* Original) override;
 
 	/**
 	* For some allocators this will return the actual size that should be requested to eliminate
@@ -148,8 +148,8 @@ public:
 		UsedMalloc->OnPostFork();
 	}
 
-	static constexpr SIZE_T MaxCallStackDepth = 64;
-	static constexpr SIZE_T CallStackEntriesToSkipCount = 2;
+	static constexpr inline SIZE_T MaxCallStackDepth = 64;
+	static constexpr inline SIZE_T CallStackEntriesToSkipCount = 2;
 
 	struct FCallStackInfo
 	{
@@ -225,7 +225,7 @@ protected:
 		return FPlatformTLS::GetTlsValue(DisabledTLS) != 0;
 	}
 
-	virtual void TrackRealloc(void* OldPtr, void* NewPtr, uint32 NewSize, uint32 OldSize, int32 CallStackIndex);
+	CORE_API virtual void TrackRealloc(void* OldPtr, void* NewPtr, uint32 NewSize, uint32 OldSize, int32 CallStackIndex);
 	virtual void TrackMalloc(void* Ptr, uint32 Size, int32 CallStackIndex) = 0;
 	virtual void TrackFree(void* Ptr, uint32 OldSize, int32 CallStackIndex) = 0;
 

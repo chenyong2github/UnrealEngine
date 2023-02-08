@@ -12,8 +12,8 @@ class FArchive;
 namespace TextNamespaceUtil
 {
 
-static constexpr TCHAR PackageNamespaceStartMarker = TEXT('[');
-static constexpr TCHAR PackageNamespaceEndMarker = TEXT(']');
+constexpr inline TCHAR PackageNamespaceStartMarker = TEXT('[');
+constexpr inline TCHAR PackageNamespaceEndMarker = TEXT(']');
 
 /**
  * Given a text and package namespace, build the full version that should be used by the localization system.

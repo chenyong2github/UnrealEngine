@@ -91,7 +91,7 @@ enum class EIoErrorCode
 /*
  * Get I/O error code description.
  */
-static const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
+inline const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
 {
 	extern CORE_API const TCHAR* const* GetIoErrorText_ErrorCodeText;
 

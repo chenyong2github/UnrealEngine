@@ -35,7 +35,7 @@ enum class EIoStoreTocVersion : uint8
  */
 struct FIoStoreTocHeader
 {
-	static constexpr char TocMagicImg[] = "-==--==--==--==-";
+	static constexpr inline char TocMagicImg[] = "-==--==--==--==-";
 
 	uint8	TocMagic[16];
 	uint8	Version;

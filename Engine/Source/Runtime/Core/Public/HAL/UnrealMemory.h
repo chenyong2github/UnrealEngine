@@ -295,9 +295,11 @@ private:
 	#endif
 
 	#define FMEMORY_INLINE_FUNCTION_DECORATOR FORCEINLINE
-	#include "FMemory.inl" // IWYU pragma: export
+// IWYU pragma: begin_export
+	#include "FMemory.inl" // HEADER_UNIT_IGNORE - Causes circular includes
+// IWYU pragma: end_export
 #endif
 
 #if PLATFORM_USES_FIXED_GMalloc_CLASS && !FORCE_ANSI_ALLOCATOR && USE_MALLOC_BINNED2
-	#include "HAL/MallocBinned2.h"
+	#include "HAL/MallocBinned2.h" // HEADER_UNIT_IGNORE - Causes circular includes
 #endif

@@ -33,8 +33,10 @@
     - LZ4 source repository : https://github.com/lz4/lz4
 */
 
-#include "CoreMinimal.h"
 
+// HEADER_UNIT_SKIP - Not compatible
+
+#include "HAL/PlatformMemory.h"
 #if defined (__cplusplus)
 extern "C" {
 #endif

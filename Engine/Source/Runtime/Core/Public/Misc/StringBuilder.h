@@ -497,7 +497,7 @@ public:
 template <typename CharType, int32 BufferSize>
 struct TIsContiguousContainer<TWriteToString<CharType, BufferSize>>
 {
-	static constexpr bool Value = true;
+	static constexpr inline bool Value = true;
 };
 
 template <int32 BufferSize> using WriteToString = TWriteToString<TCHAR, BufferSize>;

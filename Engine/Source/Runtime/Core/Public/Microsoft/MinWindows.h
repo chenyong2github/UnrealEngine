@@ -2,7 +2,7 @@
 #pragma once
 
 #if PLATFORM_WINDOWS
-	#include "Windows/MinWindows.h"
+	#include "Windows/MinWindows.h" // HEADER_UNIT_IGNORE
 #else
 	#include "Microsoft/MinWindowsPrivate.h"
 #endif

@@ -11,6 +11,7 @@
 #include "HAL/MemoryBase.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/CallstackTracePrivate.h"
 #include "ProfilingDebugging/MemoryTrace.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"

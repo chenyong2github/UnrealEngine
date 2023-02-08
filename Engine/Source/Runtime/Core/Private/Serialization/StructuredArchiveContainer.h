@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Internal
+
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/StructuredArchiveDefines.h"
 #include "Containers/Set.h"
