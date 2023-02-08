@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "RHIDefinitions.h"
 #include "UObject/ObjectMacros.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
@@ -12,9 +13,16 @@
 class FMaterial;
 class FPrimitiveSceneProxy;
 class FRDGBuilder;
+class FRHIShaderResourceView;
+class FSceneInterface;
 class FSceneView;
 class FSceneViewFamily;
 class FShaderParametersMetadata;
+
+#if RHI_RAYTRACING
+class FRHIRayTracingScene;
+class FVisibleRayTracingMeshCommand;
+#endif
 
 namespace UE::FXRenderingUtils
 {
@@ -30,6 +38,30 @@ namespace UE::FXRenderingUtils
 		RENDERER_API void SetupObjectBufferParameters(FRDGBuilder& GraphBuilder, uint8* DestinationData, const FSceneView* View);
 		RENDERER_API void SetupAtlasParameters(FRDGBuilder& GraphBuilder, uint8* DestinationData, const FSceneView* View);
 	}
+
+	namespace GPUScene
+	{
+		struct FBuffers
+		{
+			FRHIShaderResourceView* InstanceSceneDataBuffer;
+			FRHIShaderResourceView* InstancePayloadDataBuffer;
+			FRHIShaderResourceView* PrimitiveBuffer;
+			uint32                  SceneFrameNumber;
+		};
+
+		RENDERER_API FBuffers GetBuffers(const FSceneInterface* Scene);
+	}
+
+#if RHI_RAYTRACING
+	namespace RayTracing
+	{
+		RENDERER_API bool HasRayTracingScene(const FSceneInterface* Scene);
+		RENDERER_API FRHIRayTracingScene* GetRayTracingScene(const FSceneInterface* Scene);
+		RENDERER_API FRHIShaderResourceView* GetRayTracingSceneView(const FSceneInterface* Scene);
+
+		RENDERER_API TConstArrayView<FVisibleRayTracingMeshCommand> GetVisibleRayTracingMeshCommands(const FSceneView& View);
+	}
+#endif
 }
 
 /**

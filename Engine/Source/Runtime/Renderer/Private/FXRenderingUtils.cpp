@@ -146,3 +146,58 @@ void UE::FXRenderingUtils::DistanceFields::SetupAtlasParameters(FRDGBuilder& Gra
 		}
 	}
 }
+
+UE::FXRenderingUtils::GPUScene::FBuffers UE::FXRenderingUtils::GPUScene::GetBuffers(const FSceneInterface* InScene)
+{
+	UE::FXRenderingUtils::GPUScene::FBuffers Buffers{};
+
+	if (const FScene* Scene = InScene->GetRenderScene())
+	{
+		Buffers.InstanceSceneDataBuffer = Scene->GPUScene.InstanceSceneDataBuffer->GetSRV();
+		Buffers.InstancePayloadDataBuffer = Scene->GPUScene.InstancePayloadDataBuffer->GetSRV();
+		Buffers.PrimitiveBuffer = Scene->GPUScene.PrimitiveBuffer->GetSRV();
+		Buffers.SceneFrameNumber = Scene->GPUScene.GetSceneFrameNumber();
+	}
+
+	return Buffers;
+}
+
+
+#if RHI_RAYTRACING
+
+bool UE::FXRenderingUtils::RayTracing::HasRayTracingScene(const FSceneInterface* InScene)
+{
+	if (const FScene* Scene = InScene->GetRenderScene())
+	{
+		return Scene->RayTracingScene.IsCreated();
+	}
+
+	return false;
+}
+
+FRHIRayTracingScene* UE::FXRenderingUtils::RayTracing::GetRayTracingScene(const FSceneInterface* InScene)
+{
+	if (const FScene* Scene = InScene->GetRenderScene())
+	{
+		return Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
+	}
+
+	return nullptr;
+}
+
+FRHIShaderResourceView* UE::FXRenderingUtils::RayTracing::GetRayTracingSceneView(const FSceneInterface* InScene)
+{
+	if (const FScene* Scene = InScene->GetRenderScene())
+	{
+		return Scene->RayTracingScene.CreateLayerViewRHI(ERayTracingSceneLayer::Base);
+	}
+
+	return nullptr;
+}
+
+TConstArrayView<FVisibleRayTracingMeshCommand> UE::FXRenderingUtils::RayTracing::GetVisibleRayTracingMeshCommands(const FSceneView& View)
+{
+	return static_cast<const FViewInfo&>(View).VisibleRayTracingMeshCommands;
+}
+
+#endif // RHI_RAYTRACING
