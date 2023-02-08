@@ -2504,7 +2504,10 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 		{
 			Context.Function->FunctionFlags |= FUNC_Delegate;
 
-			if (FMulticastDelegateProperty* Property = FindFProperty<FMulticastDelegateProperty>(NewClass, Context.DelegateSignatureName))
+			// We really don't want to find our parent's delegate property and accidentally 
+			// overwrite the signature function, so provide EFieldIterationFlags::None:
+			if (FMulticastDelegateProperty* Property = FindFProperty<FMulticastDelegateProperty>(
+					NewClass, Context.DelegateSignatureName, EFieldIterationFlags::None))
 			{
 				Property->SignatureFunction = Context.Function;
 			}
@@ -4751,6 +4754,10 @@ void FKismetCompilerContext::CompileClassLayout(EInternalCompilerFlags InternalF
 
 		// Conform implemented interfaces here, to ensure we generate all functions required by the interface as stubs
 		FBlueprintEditorUtils::ConformImplementedInterfaces(Blueprint);
+
+		// Make sure we don't have any signature graphs with no corresponding variable - some assets have
+		// managed to get into this state - the UI does not provide a way to fix these objects manually
+		FBlueprintEditorUtils::ConformDelegateSignatureGraphs(Blueprint);
 	}
 
 	// If applicable, register any delegate proxy functions and their captured actor variables

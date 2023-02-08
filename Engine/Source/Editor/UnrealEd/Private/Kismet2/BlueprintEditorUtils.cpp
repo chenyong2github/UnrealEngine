@@ -3,6 +3,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Algo/AnyOf.h"
 #include "Algo/Copy.h"
+#include "Algo/RemoveIf.h"
 #include "Algo/Transform.h"
 #include "BlueprintCompilationManager.h"
 #include "UObject/Interface.h"
@@ -7570,6 +7571,17 @@ void FBlueprintEditorUtils::ConformImplementedInterfaces(UBlueprint* Blueprint)
 		// not going to remove this interface, so let's continue forward
 		++InterfaceIndex;
 	}
+}
+
+void FBlueprintEditorUtils::ConformDelegateSignatureGraphs(UBlueprint* Blueprint)
+{
+	Blueprint->DelegateSignatureGraphs.SetNum( Algo::RemoveIf(Blueprint->DelegateSignatureGraphs, 
+		[Blueprint](UEdGraph* Graph)
+		{
+			const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, Graph->GetFName());
+			return VarIndex == INDEX_NONE;
+		}
+	));
 }
 
 void FBlueprintEditorUtils::ConformAllowDeletionFlag(UBlueprint* Blueprint)
