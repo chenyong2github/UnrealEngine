@@ -36,6 +36,9 @@ class MEDIAPLATE_API UMediaPlateComponent : public UActorComponent,
 
 public:
 	//~ UActorComponent interface.
+#if WITH_EDITOR
+	virtual void PostLoad() override;
+#endif // WITH_EDITOR
 	virtual void OnRegister() override;
 	virtual void BeginPlay() override;
 	virtual void BeginDestroy() override;
@@ -327,6 +330,12 @@ private:
 	static FLazyName MediaComponentName;
 	/** Name for our playlist. */
 	static FLazyName MediaPlaylistName;
+
+#if WITH_EDITORONLY_DATA
+	/** Superseded by MediaTextures. */
+	UPROPERTY(Instanced)
+	TObjectPtr<UMediaTexture> MediaTexture_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Holds the media textures. */
 	UPROPERTY(Instanced)

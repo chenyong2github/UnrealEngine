@@ -90,6 +90,23 @@ UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectIniti
 	VisibleMipsTilesCalculations = EMediaTextureVisibleMipsTiles::Plane;
 }
 
+#if WITH_EDITOR
+void UMediaPlateComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	// Use the old media texture if we have one.
+	if (MediaTexture_DEPRECATED != nullptr)
+	{
+		if (MediaTextures.Num() == 0)
+		{
+			MediaTextures.Add(MediaTexture_DEPRECATED);
+		}
+		MediaTexture_DEPRECATED = nullptr;
+	}
+}
+#endif // WITH_EDITOR
+
 void UMediaPlateComponent::OnRegister()
 {
 	Super::OnRegister();
