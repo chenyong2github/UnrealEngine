@@ -4,10 +4,17 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 using System.Web;
 
 namespace UnrealGameSync
@@ -46,30 +53,11 @@ namespace UnrealGameSync
 	/// </summary>
 	public class EpicTelemetrySink : ITelemetrySink
 	{
-		/// <summary>
-		/// Combined url to post event streams to
-		/// </summary>
-		string _url;
-
-		/// <summary>
-		/// Lock used to modify the event queue
-		/// </summary>
-		object _lockObject = new object();
-
-		/// <summary>
-		/// Whether a flush is queued
-		/// </summary>
-		bool _hasPendingFlush = false;
-
-		/// <summary>
-		/// List of pending events
-		/// </summary>
-		List<string> _pendingEvents = new List<string>();
-
-		/// <summary>
-		/// The log writer to use
-		/// </summary>
-		ILogger _logger;
+		readonly string _url;
+		readonly ILogger _logger;
+		readonly HttpClient _httpClient = new HttpClient();
+		readonly Channel<string> _channel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions());
+		readonly Task _backgroundTask;
 
 		/// <summary>
 		/// Constructor
@@ -80,28 +68,22 @@ namespace UnrealGameSync
 			this._logger = logger;
 
 			logger.LogInformation("Posting to URL: {Url}", url);
+
+			_backgroundTask = Task.Run(WriteEventsAsync);
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Flush();
-		}
-
-		/// <inheritdoc/>
-		public void Flush()
-		{
-			for (; ; )
+			_channel.Writer.TryComplete();
+			try
 			{
-				lock (_lockObject)
-				{
-					if (!_hasPendingFlush)
-					{
-						break;
-					}
-				}
-				Thread.Sleep(10);
+				_backgroundTask.Wait();
 			}
+			catch (OperationCanceledException)
+			{
+			}
+			_httpClient.Dispose();
 		}
 
 		/// <inheritdoc/>
@@ -114,38 +96,24 @@ namespace UnrealGameSync
 			}
 
 			string eventText = attributesText.Insert(1, String.Format("\"EventName\":\"{0}\",", HttpUtility.JavaScriptStringEncode(eventName)));
-			lock (_pendingEvents)
-			{
-				_pendingEvents.Add(eventText);
-				if (!_hasPendingFlush)
-				{
-					ThreadPool.QueueUserWorkItem(obj => BackgroundFlush());
-					_hasPendingFlush = true;
-				}
-			}
+			_channel.Writer.TryWrite(eventText);
 		}
 
 		/// <summary>
 		/// Synchronously sends a telemetry event
 		/// </summary>
-		void BackgroundFlush()
+		async Task WriteEventsAsync()
 		{
-			for (; ; )
+			string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0";
+			while (await _channel.Reader.WaitToReadAsync())
 			{
 				try
 				{
 					// Generate the content for this event
-					List<string> events = new List<string>();
-					lock (_lockObject)
+					List<string> events = await _channel.Reader.ReadAllAsync().ToListAsync();
+					if (events.Count == 0)
 					{
-						if (_pendingEvents.Count == 0)
-						{
-							_hasPendingFlush = false;
-							break;
-						}
-
-						events.AddRange(_pendingEvents);
-						_pendingEvents.Clear();
+						continue;
 					}
 
 					// Print all the events we're sending
@@ -159,42 +127,24 @@ namespace UnrealGameSync
 					byte[] content = Encoding.UTF8.GetBytes(contentText);
 
 					// Post the event data
-					HttpWebRequest request = (HttpWebRequest)WebRequest.Create(_url);
-					request.Method = "POST";
-					request.ContentType = "application/json";
-					request.UserAgent = "ue/ugs";
-					request.Timeout = 5000;
-					request.ContentLength = content.Length;
-					request.ContentType = "application/json";
-					using (Stream requestStream = request.GetRequestStream())
+					using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _url))
 					{
-						requestStream.Write(content, 0, content.Length);
-					}
+						request.Headers.UserAgent.Add(new ProductInfoHeaderValue("UnrealGameSync", version));
+						request.Content = new ByteArrayContent(content);
+						request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-					// Wait for the response and dispose of it immediately
-					using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
-					{
-						_logger.LogInformation("Response: {StatusCode}", (int)response.StatusCode);
-					}
-				}
-				catch (WebException ex)
-				{
-					// Handle errors. Any non-200 responses automatically generate a WebException.
-					HttpWebResponse? response = (HttpWebResponse?)ex.Response;
-					if (response == null)
-					{
-						_logger.LogError(ex, "Exception while attempting to send event");
-					}
-					else
-					{
-						string responseText;
-						using (Stream responseStream = response.GetResponseStream())
+						using (HttpResponseMessage response = await _httpClient.SendAsync(request))
 						{
-							MemoryStream memoryStream = new MemoryStream();
-							responseStream.CopyTo(memoryStream);
-							responseText = Encoding.UTF8.GetString(memoryStream.ToArray());
+							if (response.IsSuccessStatusCode)
+							{
+								_logger.LogInformation("Response: {StatusCode}", (int)response.StatusCode);
+							}
+							else
+							{
+								string responseContent = response.Content.ReadAsStringAsync().Result;
+								_logger.LogError("Unable to send telemetry data to server ({Code}): {Message}", response.StatusCode, responseContent);
+							}
 						}
-						_logger.LogError("Failed to send analytics event. Code = {Code}. Desc = {Dec}. Response = {Response}.", (int)response.StatusCode, response.StatusDescription, responseText);
 					}
 				}
 				catch (Exception ex)

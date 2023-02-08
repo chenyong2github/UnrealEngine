@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
@@ -14,7 +16,7 @@ namespace UnrealGameSync
 {
 	class RestException : Exception
 	{
-		public RestException(string method, string uri, Exception innerException)
+		public RestException(HttpMethod method, string uri, Exception innerException)
 			: base(String.Format("Error executing {0} {1}", method, uri), innerException)
 		{
 		}
@@ -27,51 +29,44 @@ namespace UnrealGameSync
 
 	public static class RestApi
 	{
-		private static async Task<string> SendRequestInternal(string url, string method, string? requestBody, CancellationToken cancellationToken)
-		{
-			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-			request.ContentType = "application/json";
-			request.Method = method;
+		static HttpClient s_httpClient = new HttpClient();
 
-			// Add json to request body
-			if (!string.IsNullOrEmpty(requestBody))
+		private static async Task<string> SendRequestInternalAsync(string url, HttpMethod method, string? requestBody, CancellationToken cancellationToken)
+		{
+			using (HttpRequestMessage request = new HttpRequestMessage(method, url))
 			{
-				if (method == "POST" || method == "PUT")
+				// Add json to request body
+				if (!string.IsNullOrEmpty(requestBody))
 				{
-					byte[] bytes = Encoding.UTF8.GetBytes(requestBody);
-					using (Stream requestStream = request.GetRequestStream())
+					if (method == HttpMethod.Post || method == HttpMethod.Put)
 					{
-						await requestStream.WriteAsync(bytes, 0, bytes.Length, cancellationToken);
+						request.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(requestBody));
+						request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 					}
 				}
-			}
-			try
-			{
-				using (WebResponse response = request.GetResponse())
+
+				try
 				{
-					byte[] data;
-					using (MemoryStream buffer = new MemoryStream())
+					using (HttpResponseMessage response = await s_httpClient.SendAsync(request))
 					{
-						await response.GetResponseStream().CopyToAsync(buffer, cancellationToken);
-						data = buffer.ToArray();
+						return await response.Content.ReadAsStringAsync();
 					}
-					return Encoding.UTF8.GetString(data);
 				}
-			}
-			catch (Exception ex)
-			{
-				throw new RestException(method, request.RequestUri.ToString(), ex);
+				catch (Exception ex)
+				{
+					throw new RestException(method, request.RequestUri.ToString(), ex);
+				}
 			}
 		}
 
 		public static Task<string> PostAsync(string url, string requestBody, CancellationToken cancellationToken)
 		{
-			return SendRequestInternal(url, "POST", requestBody, cancellationToken);
+			return SendRequestInternalAsync(url, HttpMethod.Post, requestBody, cancellationToken);
 		}
 
 		public static Task<string> GetAsync(string url, CancellationToken cancellationToken)
 		{
-			return SendRequestInternal(url, "GET", null, cancellationToken);
+			return SendRequestInternalAsync(url, HttpMethod.Get, null, cancellationToken);
 		}
 
 		public static async Task<T> GetAsync<T>(string url, CancellationToken cancellationToken)
@@ -81,7 +76,7 @@ namespace UnrealGameSync
 
 		public static Task<string> PutAsync<T>(string url, T obj, CancellationToken cancellationToken)
 		{
-			return SendRequestInternal(url, "PUT", JsonSerializer.Serialize(obj), cancellationToken);
+			return SendRequestInternalAsync(url, HttpMethod.Put, JsonSerializer.Serialize(obj), cancellationToken);
 		}
 	}
 }
