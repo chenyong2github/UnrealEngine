@@ -25,31 +25,29 @@ void UPCGMeshSelectorByAttribute::PostLoad()
 void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
-	const UPCGSpatialData* InSpatialData, 
+	const UPCGPointData* InPointData,
 	TArray<FPCGMeshInstanceList>& OutMeshInstances,
 	UPCGPointData* OutPointData) const
 {
-	const UPCGPointData* PointData = InSpatialData->ToPointData(&Context);
-
-	if (!PointData)
+	if (!InPointData)
 	{
-		PCGE_LOG_C(Error, &Context, "Unable to get point data from input");
+		PCGE_LOG_C(Error, &Context, "Missing input data");
 		return;
 	}
 
-	if (!PointData->Metadata)
+	if (!InPointData->Metadata)
 	{
 		PCGE_LOG_C(Error, &Context, "Unable to get metadata from input");
 		return;
 	}
 
-	if (!PointData->Metadata->HasAttribute(AttributeName)) 
+	if (!InPointData->Metadata->HasAttribute(AttributeName))
 	{
 		PCGE_LOG_C(Error, &Context, "Attribute %s is not in the metadata", *AttributeName.ToString());
 		return;
 	}
 
-	const FPCGMetadataAttributeBase* AttributeBase = PointData->Metadata->GetConstAttribute(AttributeName);
+	const FPCGMetadataAttributeBase* AttributeBase = InPointData->Metadata->GetConstAttribute(AttributeName);
 	check(AttributeBase);
 
 	if (AttributeBase->GetTypeId() != PCG::Private::MetadataTypes<FString>::Id)
@@ -60,7 +58,7 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 
 	const FPCGMetadataAttribute<FString>* Attribute = static_cast<const FPCGMetadataAttribute<FString>*>(AttributeBase);
 
-	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, MaterialOverrideMode, MaterialOverrides, MaterialOverrideAttributes, PointData->Metadata);
+	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, MaterialOverrideMode, MaterialOverrides, MaterialOverrideAttributes, InPointData->Metadata);
 
 	if (!MaterialOverrideHelper.IsValid())
 	{
@@ -72,15 +70,15 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 	// ByAttribute takes in SoftObjectPaths per point in the metadata, so we can pass those directly into the outgoing pin if it exists
 	if (OutPointData)
 	{
-		OutPointData->SetPoints(PointData->GetPoints()); 
+		OutPointData->SetPoints(InPointData->GetPoints());
 		OutPointData->Metadata->DeleteAttribute(Settings->OutAttributeName);
-		OutPointData->Metadata->CopyAttribute(PointData->Metadata, AttributeName, Settings->OutAttributeName);
+		OutPointData->Metadata->CopyAttribute(InPointData->Metadata, AttributeName, Settings->OutAttributeName);
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
 
 	// Assign points to entries
-	for (const FPCGPoint& Point : PointData->GetPoints()) 
+	for (const FPCGPoint& Point : InPointData->GetPoints())
 	{
 		if (Point.Density <= 0.0f)
 		{
@@ -117,4 +115,3 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 		OutMeshInstances[Index].Instances.Emplace(Point);
 	}
 }
-

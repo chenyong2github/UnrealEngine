@@ -243,15 +243,6 @@ namespace PCGSelfPruningElement
 	}
 }
 
-TArray<FPCGPinProperties> UPCGSelfPruningSettings::InputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-
-	return PinProperties;
-}
-
 FPCGElementPtr UPCGSelfPruningSettings::CreateElement() const
 {
 	return MakeShared<FPCGSelfPruningElement>();

@@ -21,31 +21,29 @@ struct FPCGInstancesAndWeights
 void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	FPCGContext& Context,
 	const UPCGStaticMeshSpawnerSettings* Settings,
-	const UPCGSpatialData* InSpatialData,
+	const UPCGPointData* InPointData,
 	TArray<FPCGMeshInstanceList>& OutMeshInstances,
 	UPCGPointData* OutPointData) const
 {
-	const UPCGPointData* PointData = InSpatialData->ToPointData(&Context);
-
-	if (!PointData)
+	if (!InPointData)
 	{
-		PCGE_LOG_C(Error, &Context, "Unable to get point data from input");
+		PCGE_LOG_C(Error, &Context, "Missing input data");
 		return;
 	}
 
-	if (!PointData->Metadata)
+	if (!InPointData->Metadata)
 	{
 		PCGE_LOG_C(Error, &Context, "Unable to get metadata from input");
 		return;
 	}
 
-	if (!PointData->Metadata->HasAttribute(CategoryAttribute))
+	if (!InPointData->Metadata->HasAttribute(CategoryAttribute))
 	{
 		PCGE_LOG_C(Error, &Context, "Attribute %s is not in the metadata", *CategoryAttribute.ToString());
 		return;
 	}
 
-	const FPCGMetadataAttributeBase* AttributeBase = PointData->Metadata->GetConstAttribute(CategoryAttribute);
+	const FPCGMetadataAttributeBase* AttributeBase = InPointData->Metadata->GetConstAttribute(CategoryAttribute);
 	check(AttributeBase);
 
 	// TODO: support enum type as well
@@ -129,7 +127,7 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	FPCGMetadataAttribute<FString>* OutAttribute = nullptr;
 	TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey> MeshToValueKey;
 
-	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, PointData->Metadata);
+	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, InPointData->Metadata);
 
 	if (!MaterialOverrideHelper.IsValid())
 	{
@@ -164,7 +162,7 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
 
 	// Assign points to entries
-	for (const FPCGPoint& Point : PointData->GetPoints())
+	for (const FPCGPoint& Point : InPointData->GetPoints())
 	{
 		if (Point.Density <= 0.0f)
 		{

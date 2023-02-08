@@ -65,7 +65,7 @@ public:
 	virtual void SelectInstances_Implementation(
 		UPARAM(ref) FPCGContext& Context, 
 		const UPCGStaticMeshSpawnerSettings* Settings, 
-		const UPCGSpatialData* InSpatialData,
+		const UPCGPointData* InPointData,
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,
 		UPCGPointData* OutPointData) const override;
 

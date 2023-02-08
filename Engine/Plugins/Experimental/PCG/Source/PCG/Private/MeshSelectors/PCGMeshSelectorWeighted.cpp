@@ -73,7 +73,7 @@ namespace PCGMeshSelectorWeighted
 void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
-	const UPCGSpatialData* InSpatialData,
+	const UPCGPointData* InPointData,
 	TArray<FPCGMeshInstanceList>& OutMeshInstances,
 	UPCGPointData* OutPointData) const
 {
@@ -103,11 +103,9 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 		return;
 	}
 
-	const UPCGPointData* PointData = InSpatialData->ToPointData(&Context);
-
-	if (!PointData)
+	if (!InPointData)
 	{
-		PCGE_LOG_C(Error, &Context, "Unable to get point data from input");
+		PCGE_LOG_C(Error, &Context, "Missing input data");
 		return;
 	}
 
@@ -115,7 +113,7 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	FPCGMetadataAttribute<FString>* OutAttribute = nullptr;
 	TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey> MeshToValueKey;
 
-	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, PointData->Metadata);
+	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, InPointData->Metadata);
 
 	if (!MaterialOverrideHelper.IsValid())
 	{
@@ -151,7 +149,7 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
 
-		for (const FPCGPoint& Point : PointData->GetPoints()) 
+		for (const FPCGPoint& Point : InPointData->GetPoints())
 		{
 			if (Point.Density <= 0.0f)
 			{

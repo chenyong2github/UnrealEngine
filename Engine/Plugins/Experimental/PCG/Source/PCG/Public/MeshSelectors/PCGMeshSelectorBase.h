@@ -120,14 +120,14 @@ public:
 	void SelectInstances(
 		FPCGContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
-		const UPCGSpatialData* InSpatialData,
+		const UPCGPointData* InPointData,
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,
 		UPCGPointData* OutPointData) const;
 
 	virtual void SelectInstances_Implementation(
 		FPCGContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
-		const UPCGSpatialData* InSpatialData,
+		const UPCGPointData* InPointData,
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,
 		UPCGPointData* OutPointData) const PURE_VIRTUAL(UPCGMeshSelectorBase::SelectInstances_Implementation);
 

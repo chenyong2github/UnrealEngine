@@ -66,15 +66,20 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 	for (const FPCGTaggedData& Input : Inputs)
 	{
 		const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
-
 		if (!SpatialData)
 		{
 			PCGE_LOG(Error, "Invalid input data");
 			continue;
 		}
 
-		AActor* TargetActor = SpatialData->TargetActor.Get();
+		const UPCGPointData* PointData = SpatialData->ToPointData(Context);
+		if (!PointData)
+		{
+			PCGE_LOG(Error, "Unable to get point data from input");
+			continue;
+		}
 
+		AActor* TargetActor = PointData->TargetActor.Get();
 		if (!TargetActor)
 		{
 			PCGE_LOG(Error, "Invalid target actor");
@@ -88,7 +93,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 			FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
 
 			OutputPointData = NewObject<UPCGPointData>();
-			OutputPointData->InitializeFromData(SpatialData);
+			OutputPointData->InitializeFromData(PointData);
 
 			if (OutputPointData->Metadata->HasAttribute(Settings->OutAttributeName))
 			{
@@ -102,7 +107,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 		}
 
 		TArray<FPCGMeshInstanceList> MeshInstances;
-		Settings->MeshSelectorInstance->SelectInstances(*Context, Settings, SpatialData, MeshInstances, OutputPointData);
+		Settings->MeshSelectorInstance->SelectInstances(*Context, Settings, PointData, MeshInstances, OutputPointData);
 
 		TArray<FPCGPackedCustomData> PackedCustomData;
 		PackedCustomData.SetNum(MeshInstances.Num());
@@ -110,12 +115,12 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 		{
 			for(int32 InstanceListIndex = 0; InstanceListIndex < MeshInstances.Num(); ++InstanceListIndex)
 			{
-				Settings->InstancePackerInstance->PackInstances(*Context, SpatialData, MeshInstances[InstanceListIndex], PackedCustomData[InstanceListIndex]);
+				Settings->InstancePackerInstance->PackInstances(*Context, PointData, MeshInstances[InstanceListIndex], PackedCustomData[InstanceListIndex]);
 			}
 		}
 
 		FPCGStaticMeshSpawnerContext::FPackedInstanceListData& InstanceListData = Context->MeshInstancesData.Emplace_GetRef();
-		InstanceListData.SpatialData = SpatialData;
+		InstanceListData.SpatialData = PointData;
 		InstanceListData.MeshInstances = MoveTemp(MeshInstances);
 		InstanceListData.PackedCustomData = MoveTemp(PackedCustomData);
 	}

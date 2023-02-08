@@ -13,14 +13,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityRemap)
 
-TArray<FPCGPinProperties> UPCGLinearDensityRemapSettings::InputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/ true);
-
-	return PinProperties;
-}
-
 UPCGLinearDensityRemapSettings::UPCGLinearDensityRemapSettings()
 {
 	bUseSeed = true;

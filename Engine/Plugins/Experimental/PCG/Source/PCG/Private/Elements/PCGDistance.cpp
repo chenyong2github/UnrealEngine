@@ -43,9 +43,8 @@ namespace PCGDistance
 TArray<FPCGPinProperties> UPCGDistanceSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGDistance::SourceLabel, EPCGDataType::Spatial);
-	PinProperties.Emplace(PCGDistance::TargetLabel, EPCGDataType::Spatial);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections*/ false);
+	PinProperties.Emplace(PCGDistance::SourceLabel, EPCGDataType::Point);
+	PinProperties.Emplace(PCGDistance::TargetLabel, EPCGDataType::Point);
 
 	return PinProperties;
 }
@@ -88,7 +87,6 @@ bool FPCGDistanceElement::ExecuteInternal(FPCGContext* Context) const
 
 	for (const FPCGTaggedData& Target : Targets)
 	{
-
 		const UPCGSpatialData* TargetData = Cast<UPCGSpatialData>(Target.Data);
 
 		if (!TargetData)
