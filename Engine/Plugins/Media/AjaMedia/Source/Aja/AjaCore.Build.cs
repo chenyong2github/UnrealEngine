@@ -21,6 +21,7 @@ public class AjaCore : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				Path.Combine(AjaThirdPartyPath, "ntv2lib-deploy", "includes"),
+				Path.Combine(AjaThirdPartyPath, "ntv2lib-deploy", "includes", "ajantv2", "includes"),
 				Path.Combine(AjaThirdPartyPath, "ntv2lib-deploy", "includes", "ajantv2", "src", "win")
 			});
 			
