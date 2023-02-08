@@ -5,6 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 #include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
 #include "Misc/NotifyHook.h"
 
 class FDMXEditor;
