@@ -46,6 +46,7 @@
 #include "ShaderPlatformCachedIniValue.h"
 #include "StaticBoundShaderState.h"
 #include "StereoRenderUtils.h"
+#include "Tasks/Task.h"
 #include "UObject/DevObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 #include "Math/UnitConversion.h"
