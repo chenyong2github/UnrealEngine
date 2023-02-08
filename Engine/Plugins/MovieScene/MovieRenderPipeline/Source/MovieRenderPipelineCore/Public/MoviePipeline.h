@@ -517,6 +517,7 @@ public:
 	static FString DefaultDebugWidgetAsset;
 };
 
+
 UCLASS()
 class UMoviePipelineCustomTimeStep : public UEngineCustomTimeStep
 {
@@ -532,9 +533,16 @@ public:
 
 	void SetCachedFrameTiming(const MoviePipeline::FFrameTimeStepCache& InTimeCache);
 
+	// Cache and Restore some of the World Settings settings, as rendering with MRQ in a runtime world needs to restore any changes made to World Settings.
+	void CacheWorldSettings();
+	void RestoreCachedWorldSettings();
 private:
 	/** We don't do any thinking on our own, instead we just spit out the numbers stored in our time cache. */
 	MoviePipeline::FFrameTimeStepCache TimeCache;
+
+	// Not cached in TimeCache as TimeCache is reset every frame.
+	float PrevMinUndilatedFrameTime;
+	float PrevMaxUndilatedFrameTime;
 };
 
 struct FMoviePipelineTimeController : public FMovieSceneTimeController

@@ -204,6 +204,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 
 	CachedSequenceHierarchyRoot = MakeShared<MoviePipeline::FCameraCutSubSectionHierarchyNode>();
 	MoviePipeline::CacheCompleteSequenceHierarchy(TargetSequence, CachedSequenceHierarchyRoot);
+	CustomTimeStep->CacheWorldSettings();
 
 	// Override the frame range on the target sequence if needed first before anyone has a chance to modify it.
 	{
@@ -572,6 +573,7 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			// and cause it to re-allocate at the currrent size on the next render request, which is likely to be the size
 			// of the PIE window (720p) or the Viewport itself.
 			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), TEXT("r.ResetRenderTargetsExtent"), nullptr);
+			CustomTimeStep->RestoreCachedWorldSettings();
 
 			GAreScreenMessagesEnabled = bPrevGScreenMessagesEnabled;
 
@@ -828,6 +830,24 @@ bool UMoviePipelineCustomTimeStep::UpdateTimeStep(UEngine* /*InEngine*/)
 
 	// Return false so the engine doesn't run its own logic to overwrite FApp timings.
 	return false;
+}
+
+void UMoviePipelineCustomTimeStep::CacheWorldSettings()
+{
+	if (AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings())
+	{
+		PrevMinUndilatedFrameTime = WorldSettings->MinUndilatedFrameTime;
+		PrevMaxUndilatedFrameTime = WorldSettings->MaxUndilatedFrameTime;
+	}
+}
+
+void UMoviePipelineCustomTimeStep::RestoreCachedWorldSettings()
+{
+	if (AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings())
+	{
+		WorldSettings->MinUndilatedFrameTime = PrevMinUndilatedFrameTime;
+		WorldSettings->MaxUndilatedFrameTime = PrevMaxUndilatedFrameTime;
+	}
 }
 
 void UMoviePipelineCustomTimeStep::SetCachedFrameTiming(const MoviePipeline::FFrameTimeStepCache& InTimeCache)
