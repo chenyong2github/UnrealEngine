@@ -4,6 +4,8 @@
 #include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyle.h"
 #include "Misc/Paths.h"
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "ISettingsModule.h"
 
