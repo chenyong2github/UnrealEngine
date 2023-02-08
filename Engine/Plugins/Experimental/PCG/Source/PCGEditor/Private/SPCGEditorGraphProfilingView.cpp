@@ -459,7 +459,7 @@ FReply SPCGEditorGraphProfilingView::Refresh()
 			});
 	}
 
-	ListView->SetItemsSource(&ListViewItems);
+	ListView->SetListItemsSource(ListViewItems);
 
 	return FReply::Handled();
 }

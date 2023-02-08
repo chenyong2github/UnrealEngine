@@ -287,7 +287,7 @@ void UPCGEditorGraphNodeBase::OnPickColor()
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bIsModal = true;
 	PickerArgs.bUseAlpha = false;
-	PickerArgs.InitialColor = GetNodeTitleColor();
+	PickerArgs.InitialColorOverride = GetNodeTitleColor();
 	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateUObject(this, &UPCGEditorGraphNodeBase::OnColorPicked);
 
 	OpenColorPicker(PickerArgs);
