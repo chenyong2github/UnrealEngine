@@ -9,6 +9,7 @@
 #include "D3D12Allocation.h"
 #include "Misc/BufferedOutputDevice.h"
 #include "HAL/PlatformStackWalk.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 
 // Fix for random GPU crashes on draw indirects on multiple IHVs. Force all indirect arg buffers as committed resources (see UE-115982)
 static int32 GD3D12AllowPoolAllocateIndirectArgBuffers = 0;
@@ -232,7 +233,8 @@ FD3D12BuddyAllocator::FD3D12BuddyAllocator(FD3D12Device* ParentDevice,
 	EResourceAllocationStrategy InAllocationStrategy,
 	uint32 MaxSizeForPooling,
 	uint32 InMaxBlockSize,
-	uint32 InMinBlockSize)
+	uint32 InMinBlockSize,
+	HeapId InTraceParentHeapId)
 	: FD3D12ResourceAllocator(ParentDevice, VisibleNodes, InInitConfig, Name, MaxSizeForPooling)
 	, MaxBlockSize(InMaxBlockSize)
 	, MinBlockSize(InMinBlockSize)
@@ -242,6 +244,9 @@ FD3D12BuddyAllocator::FD3D12BuddyAllocator(FD3D12Device* ParentDevice,
 	, TotalSizeUsed(0)
 	, HeapFullMessageDisplayed(false)
 {
+#if UE_MEMORY_TRACE_ENABLED
+	TraceHeapId = MemoryTrace_HeapSpec(InTraceParentHeapId, AllocationStrategy == EResourceAllocationStrategy::kPlacedResource ? TEXT("BuddyAllocator (PlacedResource)") : TEXT("BuddyAllocator (ManualSubAllocation)"));
+#endif
 	// maxBlockSize should be evenly dividable by MinBlockSize and  
 	// maxBlockSize / MinBlockSize should be a power of two  
 	check((MaxBlockSize / MinBlockSize) * MinBlockSize == MaxBlockSize); // Evenly dividable  
@@ -282,7 +287,7 @@ void FD3D12BuddyAllocator::Initialize()
 			VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreateHeap(&Desc, IID_PPV_ARGS(&Heap)));
 		}
 
-		BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask());
+		BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask(), TraceHeapId);
 		BackingHeap->SetHeap(Heap, TEXT("BuddyAllocator Heap"));
 
 		// Only track resources that cannot be accessed on the CPU.
@@ -297,6 +302,9 @@ void FD3D12BuddyAllocator::Initialize()
 			LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(ELLMTracker::Default, ELLMAllocType::System);
 			const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(InitConfig.HeapType, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
 			VERIFYD3D12RESULT(Adapter->CreateBuffer(HeapProps, GetGPUMask(), InitConfig.InitialResourceState, ED3D12ResourceStateMode::SingleState, InitConfig.InitialResourceState, MaxBlockSize, BackingResource.GetInitReference(), TEXT("Resource Allocator Underlying Buffer"), InitConfig.ResourceFlags));
+#if UE_MEMORY_TRACE_ENABLED
+			MemoryTrace_MarkAllocAsHeap(BackingResource->GetGPUVirtualAddress(), TraceHeapId);
+#endif
 		}
 
 		if (IsCPUAccessible(InitConfig.HeapType))
@@ -452,6 +460,9 @@ void FD3D12BuddyAllocator::Allocate(uint32 SizeInBytes, uint32 Alignment, FD3D12
 	// which means that the memory would be counted twice. Because of this the tracking had to be disabled here.
 	// This does mean that non-buffer memory that goes through this allocator won't be tracked, so this does need a better solution.
 	// see UpdateBufferStats for a more detailed explanation.
+#if UE_MEMORY_TRACE_ENABLED
+	MemoryTrace_Alloc(ResourceLocation.GetGPUVirtualAddress(), SizeInBytes, Alignment, EMemoryTraceRootHeap::VideoMemory);
+#endif
 #endif
 }
 
@@ -510,6 +521,9 @@ void FD3D12BuddyAllocator::Deallocate(FD3D12ResourceLocation& ResourceLocation)
 	// This does mean that non-buffer memory that goes through this allocator won't be tracked, so this does need a better solution.
 	// see UpdateBufferStats for a more detailed explanation.
 	LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, ResourceLocation.GetAddressForLLMTracking()));
+#if UE_MEMORY_TRACE_ENABLED
+	MemoryTrace_Free(ResourceLocation.GetGPUVirtualAddress(), EMemoryTraceRootHeap::VideoMemory);
+#endif
 #endif
 }
 
@@ -566,6 +580,15 @@ void FD3D12BuddyAllocator::CleanUpAllocations()
 void FD3D12BuddyAllocator::ReleaseAllResources()
 {
 	LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(ELLMTracker::Default, ELLMAllocType::System);
+
+#if UE_MEMORY_TRACE_ENABLED
+	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress = 
+		AllocationStrategy == EResourceAllocationStrategy::kPlacedResource ? (BackingHeap ? BackingHeap->GetGPUVirtualAddress() : 0) : (BackingResource ? BackingResource->GetGPUVirtualAddress() : 0);
+	if (GPUAddress > 0)
+	{
+		MemoryTrace_UnmarkAllocAsHeap(GPUAddress, TraceHeapId);
+	}
+#endif
 
 	for (RetiredBlock& Block : DeferredDeletionQueue)
 	{
@@ -677,12 +700,17 @@ FD3D12MultiBuddyAllocator::FD3D12MultiBuddyAllocator(FD3D12Device* ParentDevice,
 	EResourceAllocationStrategy InAllocationStrategy,
 	uint32 InMaxAllocationSize,
 	uint32 InDefaultPoolSize,
-	uint32 InMinBlockSize)
+	uint32 InMinBlockSize,
+	HeapId InTraceParentHeapId)
 	: FD3D12ResourceAllocator(ParentDevice, VisibleNodes, InInitConfig, Name, InMaxAllocationSize)
 	, AllocationStrategy(InAllocationStrategy)
 	, MinBlockSize(InMinBlockSize)
 	, DefaultPoolSize(InDefaultPoolSize)
-{}
+{
+#if UE_MEMORY_TRACE_ENABLED
+	TraceHeapId = MemoryTrace_HeapSpec(InTraceParentHeapId, *Name);
+#endif
+}
 
 FD3D12MultiBuddyAllocator::~FD3D12MultiBuddyAllocator()
 {
@@ -723,7 +751,8 @@ FD3D12BuddyAllocator* FD3D12MultiBuddyAllocator::CreateNewAllocator(uint32 InMin
 		AllocationStrategy,
 		AllocationSize,
 		AllocationSize,
-		MinBlockSize);
+		MinBlockSize,
+		TraceHeapId);
 }
 
 void FD3D12MultiBuddyAllocator::Initialize()
@@ -1018,13 +1047,14 @@ void FD3D12BucketAllocator::Reset()
 FD3D12UploadHeapAllocator::FD3D12UploadHeapAllocator(FD3D12Adapter* InParent, FD3D12Device* InParentDevice, const FString& InName)
 	: FD3D12AdapterChild(InParent)
 	, FD3D12DeviceChild(InParentDevice)
-	, FD3D12MultiNodeGPUObject(InParentDevice->GetGPUMask(), FRHIGPUMask::All()), // Upload memory, thus they can be trivially visibile to all GPUs
-	SmallBlockAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), InName, EResourceAllocationStrategy::kManualSubAllocation,
-		GD3D12UploadHeapSmallBlockMaxAllocationSize, GD3D12UploadHeapSmallBlockPoolSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT),
-	BigBlockAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), InName, EResourceAllocationStrategy::kManualSubAllocation,
-		GD3D12UploadHeapBigBlockPoolSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, GD3D12UploadHeapBigBlockMaxAllocationSize, FRHIMemoryPool::EFreeListOrder::SortByOffset, false /*defrag*/),
-	FastConstantPageAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), InName, EResourceAllocationStrategy::kManualSubAllocation,
-		GD3D12FastConstantAllocatorPageSize * 64, GD3D12UploadHeapSmallBlockPoolSize, GD3D12FastConstantAllocatorPageSize)
+	, FD3D12MultiNodeGPUObject(InParentDevice->GetGPUMask(), FRHIGPUMask::All()) // Upload memory, thus they can be trivially visibile to all GPUs
+	, TraceHeapId(MemoryTrace_HeapSpec(EMemoryTraceRootHeap::VideoMemory, *FString(InName + TEXT(" (UploadHeapAllocator)")))),
+	SmallBlockAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), TEXT("Small Block Multi Buddy Allocator"), EResourceAllocationStrategy::kManualSubAllocation,
+		GD3D12UploadHeapSmallBlockMaxAllocationSize, GD3D12UploadHeapSmallBlockPoolSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, TraceHeapId),
+	BigBlockAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), TEXT("Big Block Pool Allocator"), EResourceAllocationStrategy::kManualSubAllocation,
+		GD3D12UploadHeapBigBlockPoolSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, GD3D12UploadHeapBigBlockMaxAllocationSize, FRHIMemoryPool::EFreeListOrder::SortByOffset, false /*defrag*/, TraceHeapId),
+	FastConstantPageAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), TEXT("Fast Constant Page Multi Buddy Allocator"), EResourceAllocationStrategy::kManualSubAllocation,
+		GD3D12FastConstantAllocatorPageSize * 64, GD3D12UploadHeapSmallBlockPoolSize, GD3D12FastConstantAllocatorPageSize, TraceHeapId)
 {
 }
 
@@ -1336,6 +1366,7 @@ void FD3D12DefaultBufferPool::UpdateMemoryStats(uint32& IOMemoryAllocated, uint3
 FD3D12DefaultBufferAllocator::FD3D12DefaultBufferAllocator(FD3D12Device* InParent, FRHIGPUMask VisibleNodes)
 	: FD3D12DeviceChild(InParent)
 	, FD3D12MultiNodeGPUObject(InParent->GetGPUMask(), VisibleNodes)
+	, TraceHeapId(MemoryTrace_HeapSpec(EMemoryTraceRootHeap::VideoMemory, TEXT("Default Buffer Allocator")))
 {
 	FMemory::Memset(DefaultBufferPools, 0);
 }
@@ -1371,7 +1402,7 @@ FD3D12BufferPool* FD3D12DefaultBufferAllocator::CreateBufferPool(D3D12_HEAP_TYPE
 	}
 #endif // D3D12_RHI_RAYTRACING
 
-	FD3D12BufferPool* NewPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, PoolAlignment, MaxAllocationSize, FreeListOrder, bDefragEnabled);
+	FD3D12BufferPool* NewPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, PoolAlignment, MaxAllocationSize, FreeListOrder, bDefragEnabled, TraceHeapId);
 
 #else // USE_BUFFER_POOL_ALLOCATOR
 
@@ -1604,7 +1635,8 @@ void FD3D12DefaultBufferAllocator::UpdateMemoryStats()
 #if USE_TEXTURE_POOL_ALLOCATOR
 FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRHIGPUMask VisibilityNode) :
 	FD3D12DeviceChild(Device),
-	FD3D12MultiNodeGPUObject(Device->GetGPUMask(), VisibilityNode)
+	FD3D12MultiNodeGPUObject(Device->GetGPUMask(), VisibilityNode),
+	TraceHeapId(MemoryTrace_HeapSpec(EMemoryTraceRootHeap::VideoMemory, TEXT("Texture Allocator Pool")))
 {	
 	FD3D12ResourceInitConfig SharedInitConfig;
 
@@ -1626,7 +1658,7 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		uint64 PoolSize = 4 * 1024 * 1024;
 		uint64 MaxAllocationSize = PoolSize;
 		bool bDefragEnabled = false; // Disable defrag on 4K pool because it shouldn't really fragment - all allocations are 4K or multiple of 4K and pretty small
-		FD3D12PoolAllocator* ReadOnly4KPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled);
+		FD3D12PoolAllocator* ReadOnly4KPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled, TraceHeapId);
 		ReadOnly4KPool->Initialize();
 
 		PoolAllocators[(int)EPoolType::ReadOnly4K] = ReadOnly4KPool;
@@ -1640,7 +1672,7 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		uint64 PoolSize = GD3D12PoolAllocatorReadOnlyTextureVRAMPoolSize;
 		uint64 MaxAllocationSize = GD3D12PoolAllocatorReadOnlyTextureVRAMMaxAllocationSize;
 		bool bDefragEnabled = true;
-		FD3D12PoolAllocator* ReadOnlyPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled);
+		FD3D12PoolAllocator* ReadOnlyPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled, TraceHeapId);
 		ReadOnlyPool->Initialize();
 
 		PoolAllocators[(int)EPoolType::ReadOnly] = ReadOnlyPool;
@@ -1654,7 +1686,7 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		uint64 PoolSize = GD3D12PoolAllocatorRTUAVTextureVRAMPoolSize;
 		uint64 MaxAllocationSize = GD3D12PoolAllocatorRTUAVTextureVRAMMaxAllocationSize;
 		bool bDefragEnabled = true;
-		FD3D12PoolAllocator* RTPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled);
+		FD3D12PoolAllocator* RTPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled, TraceHeapId);
 		RTPool->Initialize();
 
 		PoolAllocators[(int)EPoolType::RenderTarget] = RTPool;
@@ -1668,7 +1700,7 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		uint64 PoolSize = GD3D12PoolAllocatorRTUAVTextureVRAMPoolSize;
 		uint64 MaxAllocationSize = GD3D12PoolAllocatorRTUAVTextureVRAMMaxAllocationSize;
 		bool bDefragEnabled = true;
-		FD3D12PoolAllocator* UAVPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled);
+		FD3D12PoolAllocator* UAVPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled, TraceHeapId);
 		UAVPool->Initialize();
 
 		PoolAllocators[(int)EPoolType::UAV] = UAVPool;
@@ -1947,7 +1979,7 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(FD3D12ResourceDesc Desc, con
 
 		ID3D12Heap* Heap = nullptr;
 		VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreateHeap(&HeapDesc, IID_PPV_ARGS(&Heap)));
-		TRefCountPtr<FD3D12Heap> BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask());
+		TRefCountPtr<FD3D12Heap> BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask(), TraceHeapId);
 		bool bTrack = false;
 		BackingHeap->SetHeap(Heap, Name, bTrack);
 

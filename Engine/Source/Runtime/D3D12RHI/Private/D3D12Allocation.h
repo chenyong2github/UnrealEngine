@@ -143,7 +143,8 @@ public:
 		EResourceAllocationStrategy InAllocationStrategy,
 		uint32 MaxSizeForPooling,
 		uint32 InMaxBlockSize,
-		uint32 InMinBlockSize);
+		uint32 InMinBlockSize,
+		HeapId InTraceParentHeapId);
 
 	bool TryAllocate(uint32 SizeInBytes, uint32 Alignment, FD3D12ResourceLocation& ResourceLocation);
 
@@ -204,6 +205,7 @@ private:
 	uint64 LastUsedFrameFence;
 	uint32 MaxOrder;
 	uint32 TotalSizeUsed;
+	HeapId TraceHeapId;
 
 	bool HeapFullMessageDisplayed;
 
@@ -253,7 +255,8 @@ public:
 		EResourceAllocationStrategy InAllocationStrategy,
 		uint32 InMaxAllocationSize,
 		uint32 InDefaultPoolSize,
-		uint32 InMinBlockSize);
+		uint32 InMinBlockSize,
+		HeapId InTraceParentHeapId);
 	~FD3D12MultiBuddyAllocator();
 
 	const EResourceAllocationStrategy GetAllocationStrategy() const { return AllocationStrategy; }
@@ -284,6 +287,9 @@ protected:
 	const uint32 DefaultPoolSize;
 
 	TArray<FD3D12BuddyAllocator*> Allocators;
+
+private:
+	HeapId TraceHeapId;
 };
 
 //-----------------------------------------------------------------------------
@@ -376,7 +382,7 @@ public:
 	void UpdateMemoryStats();
 
 private:
-
+	HeapId						TraceHeapId;
 	// Buddy allocator used for all 'small' allocation - fast but aligns to power of 2
 	FD3D12MultiBuddyAllocator	SmallBlockAllocator;
 	// Pool allocator for all bigger allocations - less fast but less alignment waste
@@ -438,6 +444,7 @@ private:
 
 	TArray<FD3D12BufferPool*> DefaultBufferPools;
 	FCriticalSection CS;
+	HeapId TraceHeapId;
 };
 
 //-----------------------------------------------------------------------------
@@ -925,6 +932,7 @@ private:
 	};
 
 	FD3D12PoolAllocator* PoolAllocators[(int)EPoolType::Count];
+	HeapId TraceHeapId;
 };
 #elif D3D12RHI_SEGREGATED_TEXTURE_ALLOC
 class FD3D12TextureAllocatorPool : public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject

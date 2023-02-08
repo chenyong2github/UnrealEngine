@@ -71,7 +71,7 @@ public:
 class FD3D12Heap : public FThreadSafeRefCountedObject, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
 {
 public:
-	FD3D12Heap(FD3D12Device* Parent, FRHIGPUMask VisibleNodes);
+	FD3D12Heap(FD3D12Device* Parent, FRHIGPUMask VisibleNodes, HeapId InTraceParentHeapId = EMemoryTraceRootHeap::VideoMemory);
 	~FD3D12Heap();
 
 	inline ID3D12Heap* GetHeap() const { return Heap.GetReference(); }
@@ -94,6 +94,8 @@ private:
 	D3D12_HEAP_DESC HeapDesc;
 	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress = 0;
 	FD3D12ResidencyHandle ResidencyHandle;
+	HeapId TraceHeapId;
+	HeapId TraceParentHeapId;
 };
 
 struct FD3D12ResourceDesc : public D3D12_RESOURCE_DESC

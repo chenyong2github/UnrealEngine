@@ -7,6 +7,7 @@ D3D12Resources.cpp: D3D RHI utility implementation.
 #include "D3D12RHIPrivate.h"
 #include "EngineModule.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 
 #if INTEL_EXTENSIONS
 	#define INTC_IGDEXT_D3D12 1
@@ -157,15 +158,23 @@ void FD3D12Resource::DeferDelete()
 //	FD3D12 Heap
 /////////////////////////////////////////////////////////////////////
 
-FD3D12Heap::FD3D12Heap(FD3D12Device* Parent, FRHIGPUMask VisibleNodes) :
+FD3D12Heap::FD3D12Heap(FD3D12Device* Parent, FRHIGPUMask VisibleNodes, HeapId InTraceParentHeapId) :
 	FD3D12DeviceChild(Parent),
 	FD3D12MultiNodeGPUObject(Parent->GetGPUMask(), VisibleNodes),
-	ResidencyHandle()
+	ResidencyHandle(),
+	TraceParentHeapId(InTraceParentHeapId)
 {
 }
 
 FD3D12Heap::~FD3D12Heap()
 {
+#if UE_MEMORY_TRACE_ENABLED
+	if (GPUVirtualAddress != 0)
+	{
+		MemoryTrace_UnmarkAllocAsHeap(GPUVirtualAddress, TraceHeapId);
+	}
+#endif	
+
 #if TRACK_RESOURCE_ALLOCATIONS
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
 	if (GPUVirtualAddress != 0 && bTrack)
@@ -212,7 +221,11 @@ void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bIn
 		const D3D12_RESOURCE_DESC BufDesc = CD3DX12_RESOURCE_DESC::Buffer(HeapSize, D3D12_RESOURCE_FLAG_NONE);
 		VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreatePlacedResource(Heap, 0, &BufDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(TempResource.GetInitReference())));
 		GPUVirtualAddress = TempResource->GetGPUVirtualAddress();
-				
+#if UE_MEMORY_TRACE_ENABLED
+		TraceHeapId = MemoryTrace_HeapSpec(TraceParentHeapId, *(FString(InName) + TEXT(" D3D12Heap")));
+		MemoryTrace_Alloc(GPUVirtualAddress, HeapSize, HeapDesc.Alignment, EMemoryTraceRootHeap::VideoMemory);
+		MemoryTrace_MarkAllocAsHeap(GPUVirtualAddress, TraceHeapId);
+#endif				
 #if TRACK_RESOURCE_ALLOCATIONS
 		if (bTrack)
 		{
@@ -301,6 +314,16 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const FD3D12ResourceDesc& InDesc,
 		{
 			(*ppOutResource)->StartTrackingForResidency();
 		}
+
+#if UE_MEMORY_TRACE_ENABLED
+		// Calling GetResourceAllocationInfo is not cheap so check memory allocation tracking is enabled
+		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel))
+		{
+			const D3D12_RESOURCE_DESC ResourceDesc = (*ppOutResource)->GetResource()->GetDesc();
+			const D3D12_RESOURCE_ALLOCATION_INFO Info = RootDevice->GetResourceAllocationInfo(0, 1, &ResourceDesc);
+			MemoryTrace_Alloc((*ppOutResource)->GetGPUVirtualAddress(), Info.SizeInBytes, Info.Alignment, EMemoryTraceRootHeap::VideoMemory);
+		}
+#endif
 	}
 	else	
 	{
@@ -375,7 +398,15 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const FD3D12ResourceDesc& InDesc, FD
 			}
 		}
 #endif		
-
+#if UE_MEMORY_TRACE_ENABLED
+		// Calling GetResourceAllocationInfo is not cheap so check memory allocation tracking is enabled
+		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel))
+		{
+			const D3D12_RESOURCE_DESC ResourceDesc = (*ppOutResource)->GetResource()->GetDesc();
+			const D3D12_RESOURCE_ALLOCATION_INFO Info = RootDevice->GetResourceAllocationInfo(0, 1, &ResourceDesc);
+			MemoryTrace_Alloc((*ppOutResource)->GetGPUVirtualAddress(), Info.SizeInBytes, Info.Alignment, EMemoryTraceRootHeap::VideoMemory);
+		}
+#endif
 		// Set a default name (can override later).
 		SetName(*ppOutResource, Name);
 
@@ -876,6 +907,10 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 	FD3D12Resource* CurrentResource = GetResource();
 	FD3D12PoolAllocator* NewAllocator = GetPoolAllocator();
 
+#if UE_MEMORY_TRACE_ENABLED
+	MemoryTrace_ReallocFree(GPUVirtualAddress, EMemoryTraceRootHeap::VideoMemory);
+#endif
+
 	// If sub allocated and not placed only update the internal data
 	if (NewAllocator->GetAllocationStrategy() == EResourceAllocationStrategy::kManualSubAllocation)
 	{
@@ -883,6 +918,10 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 
 		OffsetFromBaseOfResource = AllocationData.GetOffset();
 		UnderlyingResource = NewAllocator->GetBackingResource(*this);
+
+#if UE_MEMORY_TRACE_ENABLED
+		MemoryTrace_ReallocAlloc(UnderlyingResource->GetGPUVirtualAddress() + OffsetFromBaseOfResource, AllocationData.GetSize(), AllocationData.GetAlignment(), EMemoryTraceRootHeap::VideoMemory);
+#endif
 	}
 	else
 	{

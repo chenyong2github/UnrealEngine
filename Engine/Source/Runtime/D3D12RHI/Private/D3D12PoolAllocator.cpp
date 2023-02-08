@@ -30,6 +30,7 @@ FD3D12MemoryPool::FD3D12MemoryPool(
 		, uint32 InPoolAlignment
 		, ERHIPoolResourceTypes InSupportedResourceTypes
 		, EFreeListOrder InFreeListOrder
+		, HeapId InTraceParentHeapId
 	)
 	: FRHIMemoryPool(InPoolIndex, InPoolSize, InPoolAlignment, InSupportedResourceTypes, InFreeListOrder)
 	, FD3D12DeviceChild(ParentDevice)
@@ -39,6 +40,9 @@ FD3D12MemoryPool::FD3D12MemoryPool(
 	, AllocationStrategy(InAllocationStrategy)
 	, LastUsedFrameFence(0)
 {
+#if UE_MEMORY_TRACE_ENABLED
+	TraceHeapId = MemoryTrace_HeapSpec(InTraceParentHeapId, AllocationStrategy == EResourceAllocationStrategy::kPlacedResource ? TEXT("D3D12MemoryPool (PlacedResource)") : TEXT("D3D12MemoryPool (ManualSubAllocation)"));
+#endif
 }
 
 
@@ -94,7 +98,7 @@ void FD3D12MemoryPool::Init()
 			VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreateHeap(&Desc, IID_PPV_ARGS(&Heap)));
 		}
 
-		BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask());
+		BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask(), TraceHeapId);
 		BackingHeap->SetHeap(Heap, TEXT("PoolAllocator Heap"));
 
 		// Only track resources that cannot be accessed on the CPU.
@@ -109,6 +113,9 @@ void FD3D12MemoryPool::Init()
 			LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(ELLMTracker::Default, ELLMAllocType::System);
 			const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(InitConfig.HeapType, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
 			VERIFYD3D12RESULT(Adapter->CreateBuffer(HeapProps, GetGPUMask(), InitConfig.InitialResourceState, ED3D12ResourceStateMode::SingleState, InitConfig.InitialResourceState, PoolSize, BackingResource.GetInitReference(), TEXT("Resource Allocator Underlying Buffer"), InitConfig.ResourceFlags));
+#if UE_MEMORY_TRACE_ENABLED
+			MemoryTrace_MarkAllocAsHeap(BackingResource->GetGPUVirtualAddress(), TraceHeapId);
+#endif
 		}
 
 		if (IsCPUAccessible(InitConfig.HeapType))
@@ -145,6 +152,9 @@ void FD3D12MemoryPool::Destroy()
 
 	if (BackingResource)
 	{
+#if UE_MEMORY_TRACE_ENABLED
+		MemoryTrace_UnmarkAllocAsHeap(BackingResource->GetGPUVirtualAddress(), TraceHeapId);
+#endif
 		ensure(BackingResource->GetRefCount() == 1 || GNumExplicitGPUsForRendering > 1);
 		BackingResource = nullptr;
 	}
@@ -218,14 +228,18 @@ EResourceAllocationStrategy FD3D12PoolAllocator::GetResourceAllocationStrategy(D
 
 
 FD3D12PoolAllocator::FD3D12PoolAllocator(FD3D12Device* ParentDevice, FRHIGPUMask VisibleNodes, const FD3D12ResourceInitConfig& InInitConfig, const FString& InName,
-	EResourceAllocationStrategy InAllocationStrategy, uint64 InDefaultPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool bInDefragEnabled) :
+	EResourceAllocationStrategy InAllocationStrategy, uint64 InDefaultPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool bInDefragEnabled, HeapId InTraceParentHeapId) :
 	FRHIPoolAllocator(InDefaultPoolSize, InPoolAlignment, InMaxAllocationSize, InFreeListOrder, bInDefragEnabled), 
 	FD3D12DeviceChild(ParentDevice), 
 	FD3D12MultiNodeGPUObject(ParentDevice->GetGPUMask(), VisibleNodes), 
 	InitConfig(InInitConfig), 
 	Name(InName), 
 	AllocationStrategy(InAllocationStrategy)
-{}
+{
+#if UE_MEMORY_TRACE_ENABLED
+	TraceHeapId = MemoryTrace_HeapSpec(InTraceParentHeapId, *Name);
+#endif
+}
 
 
 FD3D12PoolAllocator::~FD3D12PoolAllocator()
@@ -409,7 +423,7 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 
 			ID3D12Heap* Heap = nullptr;
 			VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreateHeap(&HeapDesc, IID_PPV_ARGS(&Heap)));
-			TRefCountPtr<FD3D12Heap> BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask());
+			TRefCountPtr<FD3D12Heap> BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask(), TraceHeapId);
 			bool bTrack = false;
 			BackingHeap->SetHeap(Heap, InName, bTrack);		
 			
@@ -544,7 +558,7 @@ FRHIMemoryPool* FD3D12PoolAllocator::CreateNewPool(int16 InPoolIndex, uint32 InM
 	}
 
 	FD3D12MemoryPool* NewPool = new FD3D12MemoryPool(GetParentDevice(),	GetVisibilityMask(), InitConfig,
-		Name, AllocationStrategy, InPoolIndex, PoolSize, PoolAlignment, InAllocationResourceType, FreeListOrder);
+		Name, AllocationStrategy, InPoolIndex, PoolSize, PoolAlignment, InAllocationResourceType, FreeListOrder, TraceHeapId);
 	NewPool->Init();
 	return NewPool;
 }
