@@ -193,6 +193,13 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 
 FChaosClothAssetEditorToolkit::~FChaosClothAssetEditorToolkit()
 {
+	if (ClothPreviewViewportClient)
+	{
+		// Delete the gizmo in the viewport before deleting the EditorModeManager. The Gizmo Manager can get tripped up if it gets deleted
+		// while it still has active gizmos.
+		ClothPreviewViewportClient->DeleteViewportGizmo();
+	}
+
 	// We need to force the cloth editor mode deletion now because otherwise the preview and rest-space worlds
 	// will end up getting destroyed before the mode's Exit() function gets to run, and we'll get some
 	// warnings when we destroy any mode actors.

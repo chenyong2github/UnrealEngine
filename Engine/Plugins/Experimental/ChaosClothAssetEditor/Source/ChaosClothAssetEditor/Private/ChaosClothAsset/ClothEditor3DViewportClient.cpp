@@ -39,12 +39,26 @@ FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(F
 	const FString GizmoIdentifier = TEXT("ChaosClothAssetEditor3DViewportClientGizmoIdentifier");
 	Gizmo = GizmoManager->Create3AxisTransformGizmo(this, GizmoIdentifier);
 
-	UInteractiveToolManager* const ToolManager = InteractiveToolsContext->ToolManager;
-	Gizmo->SetActiveTarget(TransformProxy, ToolManager);
+	Gizmo->SetActiveTarget(TransformProxy);
 	Gizmo->SetVisibility(true);
 	Gizmo->bUseContextGizmoMode = false;
 	Gizmo->bUseContextCoordinateSystem = false;
 	Gizmo->ActiveGizmoMode = EToolContextTransformGizmoMode::Combined;
+}
+
+FChaosClothAssetEditor3DViewportClient::~FChaosClothAssetEditor3DViewportClient()
+{
+	DeleteViewportGizmo();
+}
+
+void FChaosClothAssetEditor3DViewportClient::DeleteViewportGizmo()
+{
+	if (Gizmo && ModeTools && ModeTools->GetInteractiveToolsContext() && ModeTools->GetInteractiveToolsContext()->GizmoManager)
+	{
+		ModeTools->GetInteractiveToolsContext()->GizmoManager->DestroyGizmo(Gizmo);
+	}
+	Gizmo = nullptr;
+	TransformProxy = nullptr;
 }
 
 void FChaosClothAssetEditor3DViewportClient::AddReferencedObjects(FReferenceCollector& Collector)

@@ -23,7 +23,10 @@ public:
 	FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools, FPreviewScene* InPreviewScene = nullptr,
 		const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
 
-	virtual ~FChaosClothAssetEditor3DViewportClient() = default;
+	virtual ~FChaosClothAssetEditor3DViewportClient();
+
+	// Delete the viewport gizmo and transform proxy
+	void DeleteViewportGizmo();
 
 	void EnableSimMeshWireframe(bool bEnable ) { bSimMeshWireframe = bEnable; }
 	bool SimMeshWireframeEnabled() const { return bSimMeshWireframe; }
