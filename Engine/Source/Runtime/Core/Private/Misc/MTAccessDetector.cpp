@@ -398,7 +398,10 @@ bool FRWRecursiveAccessDetectorTest::RunTest(const FString& Parameters)
 	}
 
 	{	// destroying detector from inside access scope
+#pragma warning(push)
+#pragma warning(disable:6001) // "Using uninitialized memory" warning
 		auto* AD = new FMRSWRecursiveAccessDetector;
+#pragma warning(pop)
 
 		AD->AcquireReadAccess();
 
