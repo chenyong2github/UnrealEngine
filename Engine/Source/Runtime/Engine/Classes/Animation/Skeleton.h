@@ -837,9 +837,9 @@ public:
 	 */
 	ENGINE_API int32 GetMeshBoneIndexFromSkeletonBoneIndex(const USkinnedAsset* InSkinnedAsset, const int32 SkeletonBoneIndex);
 
-	EBoneTranslationRetargetingMode::Type GetBoneTranslationRetargetingMode(const int32 BoneTreeIdx) const
+	EBoneTranslationRetargetingMode::Type GetBoneTranslationRetargetingMode(const int32 BoneTreeIdx, bool bDisableRetargeting = false) const
 	{
-		if (BoneTree.IsValidIndex(BoneTreeIdx))
+		if (!bDisableRetargeting && BoneTree.IsValidIndex(BoneTreeIdx))
 		{
 			return BoneTree[BoneTreeIdx].TranslationRetargetingMode;
 		}
