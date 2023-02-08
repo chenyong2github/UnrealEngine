@@ -84,7 +84,7 @@ namespace UnrealGameSync
 
 		public void SetBisectState(int change, BisectState state)
 		{
-			BisectEntry entry = BisectChanges.FirstOrDefault(x => x.Change == change);
+			BisectEntry? entry = BisectChanges.FirstOrDefault(x => x.Change == change);
 			if (entry == null)
 			{
 				entry = new BisectEntry();
