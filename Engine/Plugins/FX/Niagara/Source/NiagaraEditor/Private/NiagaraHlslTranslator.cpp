@@ -9088,13 +9088,14 @@ void FHlslNiagaraTranslator::Select(UNiagaraNodeSelect* SelectNode, int32 Select
 	{
 		for (const FNiagaraVariable& Variable : OutputVariables)
 		{
-			const FNiagaraVariable DefaultVar(Variable.GetType(), Variable.GetName());
+			FNiagaraTypeDefinition OutputType = FNiagaraTypeHelper::GetSWCType(Variable.GetType());
+			const FNiagaraVariable DefaultVar(OutputType, Variable.GetName());
 			const int32 DefaultConstant = GetConstant(DefaultVar);
 
 			FString SymbolName = Variable.GetName().ToString() + SymbolNameSuffix;
 			SymbolNames.Add(SymbolName);
 			
-			const int32 SymbolIndex = AddBodyChunk(SymbolName, TEXT("{0}"), Variable.GetType(), true);
+			const int32 SymbolIndex = AddBodyChunk(SymbolName, TEXT("{0}"), OutputType, true);
 			FNiagaraCodeChunk& OutputSymbolChunk = CodeChunks[SymbolIndex];
 			OutputSymbolChunk.AddSourceChunk(DefaultConstant);
 			
@@ -9129,7 +9130,7 @@ void FHlslNiagaraTranslator::Select(UNiagaraNodeSelect* SelectNode, int32 Select
 		int32 NaturalIndex = 0;
 		for(int32 CompiledPinCodeChunk : Options[SelectorValues[SelectorValueIndex]])
 		{
-			FNiagaraCodeChunk& BranchChunk = CodeChunks[AddBodyChunk(SymbolNames[NaturalIndex], TEXT("{0}"), OutputVariables[NaturalIndex].GetType(), false)];
+			FNiagaraCodeChunk& BranchChunk = CodeChunks[AddBodyChunk(SymbolNames[NaturalIndex], TEXT("{0}"), FNiagaraTypeHelper::GetSWCType(OutputVariables[NaturalIndex].GetType()), false)];
 			BranchChunk.AddSourceChunk(CompiledPinCodeChunk);
 			NaturalIndex++;
 		}

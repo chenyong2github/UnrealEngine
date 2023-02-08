@@ -3944,19 +3944,6 @@ int FNiagaraEditorUtilities::GetReferencedAssetCount(const FAssetData& SourceAss
 	return FMath::Max(Count, 0);
 }
 
-void FNiagaraEditorUtilities::GetAllowedTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes)
-{
-	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
-	//Only use simulation types here so as to not polute lists with LWC types in the registry. 
-	for (const FNiagaraTypeDefinition& RegisteredType : FNiagaraTypeRegistry::GetSimulationTypes())
-	{
-		if (NiagaraEditorSettings->IsAllowedTypeDefinition(RegisteredType))
-		{
-			OutAllowedTypes.Add(RegisteredType);
-		}
-	}
-}
-
 void FNiagaraEditorUtilities::GetAllowedUserVariableTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes)
 {
 	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();

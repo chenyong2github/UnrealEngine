@@ -271,6 +271,11 @@ void FNiagaraLwcStructConverter::AddConversionStep(int32 InSourceBytes, int32 In
 	check(InSimulationOffset >= 0);
 	// TODO (mg) as an optimization, if the last step was a copy step and this one is as well, they can be merged into one
 	ConversionSteps.Emplace(InSourceBytes, InSourceOffset, InSimulationBytes, InSimulationOffset, ConversionType);
+
+	// SWCSize and LWCSize are the sizes of the full structs.
+	// We're updating them with each added step, as the full struct size should be (last property offset + size).
+	SWCSize = InSimulationOffset + InSimulationBytes;
+	LWCSize = InSourceOffset + InSourceBytes;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -473,7 +478,7 @@ bool FNiagaraTypeHelper::IsLWCStructure(UStruct* InStruct)
 
 bool FNiagaraTypeHelper::IsLWCType(const FNiagaraTypeDefinition& InType)
 {
-	return InType.IsValid() && !InType.IsUObject() && IsLWCStructure(InType.GetStruct());
+	return InType.IsValid() && !InType.IsEnum() && !InType.IsUObject() && IsLWCStructure(InType.GetStruct());
 }
 
 void FNiagaraTypeHelper::TickTypeRemap()
@@ -586,7 +591,8 @@ UScriptStruct* FNiagaraTypeHelper::GetSWCStruct(UScriptStruct* LWCStruct)
 						SWCStruct->AddToRoot();
 					}
 					FNiagaraLwcStructConverter StructConverter = BuildSWCStructure(SWCStruct, LWCStruct);
-					FNiagaraTypeRegistry::RegisterStructConverter(FNiagaraTypeDefinition(LWCStruct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow), StructConverter);
+					FNiagaraTypeDefinition LwcTypeDefinition = FNiagaraTypeRegistry::GetTypeForStruct(LWCStruct);
+					FNiagaraTypeRegistry::RegisterStructConverter(LwcTypeDefinition, StructConverter);
 					SWCStruct->Bind();
 					SWCStruct->PrepareCppStructOps();
 					SWCStruct->StaticLink(true);
@@ -625,6 +631,15 @@ UScriptStruct* FNiagaraTypeHelper::GetLWCStruct(UScriptStruct* SWCStruct)
 	}
 
 	return nullptr;
+}
+
+FNiagaraTypeDefinition FNiagaraTypeHelper::GetSWCType(const FNiagaraTypeDefinition& InType)
+{
+	if (IsLWCType(InType))
+	{
+		return FNiagaraTypeDefinition(FindNiagaraFriendlyTopLevelStruct(CastChecked<UScriptStruct>(InType.GetStruct()), ENiagaraStructConversion::Simulation));
+	}
+	return InType;
 }
 
 UScriptStruct* FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion)

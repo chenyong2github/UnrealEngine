@@ -7,6 +7,8 @@
 #include "NiagaraDataChannelHandler.h"
 #include "NiagaraDataChannelManager.h"
 #include "Engine/Engine.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataChannel)
 
@@ -408,9 +410,74 @@ void FNiagaraWorldDataChannelStore::Tick(UNiagaraDataChannelHandler* Owner)
 
 //////////////////////////////////////////////////////////////////////////
 
+namespace NiagaraDataChannel
+{
+	FNiagaraTypeDefinition GetFVectorDef()
+	{
+		static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
+		static UScriptStruct* VectorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector"));
+		return FNiagaraTypeDefinition(VectorStruct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+	}
+	
+	FNiagaraTypeDefinition GetDoubleDef()
+	{
+		static UPackage* NiagaraPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/Niagara"));
+		static UScriptStruct* DoubleStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraDouble"));
+		return FNiagaraTypeDefinition(DoubleStruct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+	}
+
+	FNiagaraTypeDefinition GetFQuatDef()
+	{
+		static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
+		static UScriptStruct* Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Quat"));
+		return FNiagaraTypeDefinition(Struct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+	}
+	
+	FNiagaraTypeDefinition GetFVector2DDef()
+	{
+		static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
+		static UScriptStruct* VectorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector2D"));
+		return FNiagaraTypeDefinition(VectorStruct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+	}
+
+	FNiagaraTypeDefinition GetFVector4Def()
+	{
+		static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
+		static UScriptStruct* Vector4Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector4"));
+		return FNiagaraTypeDefinition(Vector4Struct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+	}
+}
+
 void UNiagaraDataChannel::PostLoad()
 {
 	Super::PostLoad();
+
+	for (int i = 0; i < Variables.Num(); i++)
+	{
+		// fix up variables deserialized with wrong type
+		// TODO (mga) find a better solution than this
+		FNiagaraVariable& Var = Variables[i];
+		if (Var.GetType() == FNiagaraTypeDefinition::GetVec3Def())
+		{
+			Var.SetType(NiagaraDataChannel::GetFVectorDef());
+		}
+		else if (Var.GetType() == FNiagaraTypeDefinition::GetFloatDef())
+		{
+			Var.SetType(NiagaraDataChannel::GetDoubleDef());
+		}
+		else if (Var.GetType() == FNiagaraTypeDefinition::GetQuatDef())
+		{
+			Var.SetType(NiagaraDataChannel::GetFQuatDef());
+		}
+		else if (Var.GetType() == FNiagaraTypeDefinition::GetVec2Def())
+		{
+			Var.SetType(NiagaraDataChannel::GetFVector2DDef());
+		}
+		else if (Var.GetType() == FNiagaraTypeDefinition::GetVec4Def())
+		{
+			Var.SetType(NiagaraDataChannel::GetFVector4Def());
+		}
+	}
 
 	//TODO: Can serialize?
 	GameDataLayout.Init(Variables);

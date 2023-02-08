@@ -369,10 +369,6 @@ namespace FNiagaraEditorUtilities
 	};
 
 	NIAGARAEDITOR_API int GetReferencedAssetCount(const FAssetData& SourceAsset, TFunction<ETrackAssetResult(const FAssetData&)> Predicate);
-	
-	/** Gets a list of the registered types which are allowed in the current editor context.  This API should be 
-		called when providing a list types to the user instead of getting the type list directly from the type registry. */
-	void GetAllowedTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
 
 	/** Gets a list of the registered user variable types which are allowed in the current editor context.  This API should be
 		called when providing a list types to the user instead of getting the type list directly from the type registry. */

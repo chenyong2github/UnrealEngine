@@ -690,7 +690,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			
 			// Dynamic Makes from type registry. Should include the pin type as well.
 			TArray<FNiagaraTypeDefinition> CandidateTypes;
-			FNiagaraEditorUtilities::GetAllowedTypes(CandidateTypes);
+			FNiagaraEditorUtilities::GetAllowedParameterTypes(CandidateTypes);
 			for (const FNiagaraTypeDefinition& CandidateType : FNiagaraTypeRegistry::GetRegisteredTypes())
 			{
 				bool bAddMake = false;

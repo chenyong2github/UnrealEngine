@@ -293,12 +293,6 @@ struct NIAGARA_API FNiagaraLwcStructConverter
 {
 	GENERATED_USTRUCT_BODY();
 
-	FNiagaraLwcStructConverter(){}
-	FNiagaraLwcStructConverter(UScriptStruct* LWCStruct, UScriptStruct* SWCStruct)
-		: LWCSize(LWCStruct ? LWCStruct->GetStructureSize() : 0)
-		, SWCSize(SWCStruct ? SWCStruct->GetStructureSize() : 0)
-	{
-	}
 	void ConvertDataToSimulation(uint8* DestinationData, const uint8* SourceData, int32 Count = 1) const;
 	void ConvertDataFromSimulation(uint8* DestinationData, const uint8* SourceData, int32 Count = 1) const;
 	
@@ -410,6 +404,7 @@ public:
 	static bool IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion);
 	static UScriptStruct* GetSWCStruct(UScriptStruct* LWCStruct);
 	static UScriptStruct* GetLWCStruct(UScriptStruct* LWCStruct);
+	static FNiagaraTypeDefinition GetSWCType(const FNiagaraTypeDefinition& InType);
 	static void TickTypeRemap();
 
 private:
@@ -797,8 +792,8 @@ struct NIAGARA_API FNiagaraTypeDefinition
 		/// instead of the Transient SWC version of the struct
 		TF_SerializedAsLWC	= 0x02,
 
-		/// indicates this type allows LWC types and should not attempt to convert to SWC.
-		TF_AllowLWC		= 0x04,
+		/// DEPRECATED, DO NOT USE
+		TF_AllowLWC_DEPRECATED		= 0x04,
 	};
 
 public:
@@ -855,11 +850,8 @@ public:
 	{
 		checkSlow(ClassStructOrEnum != nullptr);
 		ensureAlwaysMsgf(AllowUnfriendlyStruct == EAllowUnfriendlyStruct::Allow || FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(StructDef, ENiagaraStructConversion::UserFacing), TEXT("Struct(%s) is not supported."), *StructDef->GetName());
-		if(AllowUnfriendlyStruct == EAllowUnfriendlyStruct::Allow)
-		{
-			Flags |= TF_AllowLWC;
-		}
 	}
+	
 	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct* StructDef) : FNiagaraTypeDefinition(StructDef, EAllowUnfriendlyStruct::Deny) {}
 
 	FORCEINLINE FNiagaraTypeDefinition(const FNiagaraTypeDefinition &Other)
@@ -951,7 +943,7 @@ public:
 			{
 				NameText = FText::Format(NSLOCTEXT("NiagaraTypeDefinition", "FlagFormatNameText", "Static {0}"), NameText);
 			}
-			else if (!AllowsLWC())
+			else
 			{
 				NameText = FText::Format(NSLOCTEXT("NiagaraTypeDefinition", "UnknownNameText", "Unknown Flag Type {0}"), NameText);
 			}
@@ -1010,8 +1002,6 @@ public:
 	bool IsEnum() const { return UnderlyingType == UT_Enum; }
 
 	bool IsStatic() const { return (GetFlags() & TF_Static) != 0; }
-
-	bool AllowsLWC() const { return (GetFlags() & TF_AllowLWC) != 0; }
 
 	void SetFlags(FTypeFlags InFlags)
 	{
@@ -1405,11 +1395,6 @@ public:
 		return Get().RegisteredIndexTypes;
 	}
 
-	static const TArray<FNiagaraTypeDefinition>& GetSimulationTypes()
-	{
-		return Get().RegisteredSimulationTypes;
-	}
-
 	static UNiagaraDataInterfaceBase* GetDefaultDataInterfaceByName(const FString& DIClassName);
 
 	static void ClearUserDefinedRegistry()
@@ -1460,18 +1445,15 @@ public:
 	{
 		FNiagaraTypeRegistry& Registry = Get();
 
-		FNiagaraTypeDefinition SimType = NewType;
-		if (UScriptStruct* Struct = NewType.GetScriptStruct())
+		if (FNiagaraTypeHelper::IsLWCType(NewType))
 		{
-			SimType = FNiagaraTypeDefinition(FNiagaraTypeHelper::GetSWCStruct(Struct), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Deny);			
+			// register the swc type as well if necessary
+			FNiagaraTypeDefinition(FNiagaraTypeHelper::GetSWCStruct(NewType.GetScriptStruct()), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Deny);
 		}
 
 		FRWScopeLock Lock(Registry.RegisteredTypesLock, SLT_Write);
-
 		//TODO: Make this a map of type to a more verbose set of metadata? Such as the hlsl defs, offset table for conversions etc.
 		Registry.RegisteredTypeIndexMap.Add(GetTypeHash(NewType), Registry.RegisteredTypes.AddUnique(NewType));
-
-		Registry.RegisteredSimulationTypes.AddUnique(SimType);
 
 		if (EnumHasAnyFlags(Flags, ENiagaraTypeRegistryFlags::AllowUserVariable))
 		{
@@ -1578,6 +1560,20 @@ public:
 		return FNiagaraLwcStructConverter();
 	}
 
+	static FNiagaraTypeDefinition GetTypeForStruct(UScriptStruct* InStruct)
+	{
+		FNiagaraTypeRegistry& Registry = Get();
+		FReadScopeLock Lock(Registry.RegisteredTypesLock);
+		for (const FNiagaraTypeDefinition& Type : Registry.RegisteredTypes)
+		{
+			if (Type.GetStruct() && InStruct == Type.GetStruct())
+			{
+				return Type;
+			}
+		}
+		return FNiagaraTypeDefinition(InStruct);
+	}
+
 	/** LazySingleton interface */
 	static FNiagaraTypeRegistry& Get();
 	static void TearDown();
@@ -1603,8 +1599,6 @@ private:
 	TArray<FNiagaraTypeDefinition> RegisteredUserDefinedTypes;
 	TArray<FNiagaraTypeDefinition> RegisteredNumericTypes;
 	TArray<FNiagaraTypeDefinition> RegisteredIndexTypes;
-	TArray<FNiagaraTypeDefinition> RegisteredSimulationTypes;
-
 
 	TMap<uint32, int32> RegisteredTypeIndexMap;
 	TMap<TWeakObjectPtr<UScriptStruct>, TWeakObjectPtr<UScriptStruct>> LWCRegisteredStructRemapping;

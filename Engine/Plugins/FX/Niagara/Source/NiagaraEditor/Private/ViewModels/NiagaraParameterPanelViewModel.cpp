@@ -576,7 +576,7 @@ void INiagaraParameterPanelViewModel::GetChangeTypeSubMenu(FMenuBuilder& MenuBui
 {
 	TArray<FNiagaraTypeDefinition> FilteredTypes;
 	TArray<FNiagaraTypeDefinition> AllowedTypes;
-	FNiagaraEditorUtilities::GetAllowedTypes(AllowedTypes);
+	FNiagaraEditorUtilities::GetAllowedParameterTypes(AllowedTypes);
 	for (const FNiagaraTypeDefinition& RegisteredType : AllowedTypes)
 	{
 		// only allow basic types for now

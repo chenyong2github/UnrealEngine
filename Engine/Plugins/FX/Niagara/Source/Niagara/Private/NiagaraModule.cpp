@@ -1144,7 +1144,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 				UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Obj);
 				if (ScriptStruct != nullptr)
 				{
-					ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable;
+					ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::IsUserDefined;
 					if (ParamRefFound)
 					{
 						Flags |= ENiagaraTypeRegistryFlags::AllowParameter;
@@ -1191,7 +1191,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 				UEnum* Enum = Cast<UEnum>(Obj);
 				if (Enum != nullptr)
 				{
-					ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
+					ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter | ENiagaraTypeRegistryFlags::IsUserDefined;
 					
 					FNiagaraTypeDefinition Def(Enum);
 					FNiagaraTypeRegistry::Register(Def, Flags);
@@ -1421,13 +1421,13 @@ bool FNiagaraTypeDefinition::Serialize(FArchive& Ar)
 
 					Flags &= ~TF_SerializedAsLWC;
 				}
-	#if WITH_EDITORONLY_DATA
-				else if((Flags & TF_AllowLWC) == 0)
+#if WITH_EDITORONLY_DATA
+				else if((Flags & TF_AllowLWC_DEPRECATED) == 0)
 				{	
-					//If the type doesn't allow LWC we should convert down to SWC.
+					// If a basic type was serialized with the LWC flag, restore the correct struct
 					ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(static_cast<UScriptStruct*>(ClassStructOrEnum), ENiagaraStructConversion::UserFacing);
 				}
-	#endif
+#endif
 			}
 		}
 	}
