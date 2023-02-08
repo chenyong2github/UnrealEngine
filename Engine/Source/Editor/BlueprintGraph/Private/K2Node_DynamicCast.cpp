@@ -30,6 +30,7 @@
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
 #include "UObject/Class.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/Interface.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
@@ -48,8 +49,81 @@ namespace UK2Node_DynamicCastImpl
 
 UK2Node_DynamicCast::UK2Node_DynamicCast(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bIsPureCast(false)
+	, PureState(EPureState::UseDefault)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// @todo_deprecated - Remove these later.
+	bIsPureCast = false;
+	bIsPureCast_DEPRECATED = bIsPureCast;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void UK2Node_DynamicCast::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::DynamicCastNodesUsePureStateEnum)
+	{
+		if (bIsPureCast_DEPRECATED)
+		{
+			PureState = EPureState::Pure;
+		}
+		else
+		{
+			PureState = EPureState::Impure;
+		}
+	}
+	else
+	{
+		Ar << PureState;
+	}
+}
+
+void UK2Node_DynamicCast::CreateExecPins()
+{
+	// Ensure the node is either pure or impure, based on current settings.
+	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(GetSchema());
+	check(K2Schema != nullptr);
+	if (!K2Schema->DoesGraphSupportImpureFunctions(GetGraph()))
+	{
+		PureState = EPureState::Pure;
+	}
+	else if (PureState == EPureState::UseDefault)
+	{
+		const UBlueprintEditorSettings* BlueprintSettings = GetDefault<UBlueprintEditorSettings>();
+		if (BlueprintSettings->bFavorPureCastNodes)
+		{
+			PureState = EPureState::Pure;
+		}
+		else
+		{
+			PureState = EPureState::Impure;
+		}
+	}
+
+	const bool bIsNodePure = IsNodePure();
+	if (!bIsNodePure)
+	{
+		// Input - Execution Pin
+		CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Execute);
+
+		// Output - Execution Pins
+		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_CastSucceeded);
+		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_CastFailed);
+	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// @todo_deprecated - Remove this later.
+	bIsPureCast = bIsNodePure;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void UK2Node_DynamicCast::CreateSuccessPin()
+{
+	UEdGraphPin* BoolSuccessPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Boolean, UK2Node_DynamicCastImpl::CastSuccessPinName);
+	BoolSuccessPin->bHidden = !IsNodePure();
 }
 
 void UK2Node_DynamicCast::AllocateDefaultPins()
@@ -61,22 +135,8 @@ void UK2Node_DynamicCast::AllocateDefaultPins()
 	}
 	ensure(!bReferenceObsoleteClass);
 
-	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(GetSchema());
-	check(K2Schema != nullptr);
-	if (!K2Schema->DoesGraphSupportImpureFunctions(GetGraph()))
-	{
-		bIsPureCast = true;
-	}
-
-	if (!bIsPureCast)
-	{
-		// Input - Execution Pin
-		CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Execute);
-
-		// Output - Execution Pins
-		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_CastSucceeded);
-		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_CastFailed);
-	}
+	// Exec pins (if needed)
+	CreateExecPins();
 
 	// Input - Source type Pin
 	CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Wildcard, UObject::StaticClass(), UEdGraphSchema_K2::PN_ObjectToCast);
@@ -95,8 +155,8 @@ void UK2Node_DynamicCast::AllocateDefaultPins()
 		}
 	}
 
-	UEdGraphPin* BoolSuccessPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Boolean, UK2Node_DynamicCastImpl::CastSuccessPinName);
-	BoolSuccessPin->bHidden = !bIsPureCast;
+	// Output - Success
+	CreateSuccessPin();
 
 	Super::AllocateDefaultPins();
 }
@@ -175,7 +235,7 @@ void UK2Node_DynamicCast::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeC
 				return bInCanTogglePurity;
 			};
 
-			if (bIsPureCast)
+			if (IsNodePure())
 			{
 				MenuEntryTitle = LOCTEXT("MakeImpureTitle", "Convert to impure cast");
 				MenuEntryTooltip = LOCTEXT("MakeImpureTooltip", "Adds in branching execution pins so that you can separatly handle when the cast fails/succeeds.");
@@ -213,18 +273,10 @@ void UK2Node_DynamicCast::PostReconstructNode()
 	NotifyPinConnectionListChanged(GetCastSourcePin());
 }
 
-void UK2Node_DynamicCast::PostPlacedNewNode()
-{
-	Super::PostPlacedNewNode();
-
-	const UBlueprintEditorSettings* BlueprintSettings = GetDefault<UBlueprintEditorSettings>();
-	SetPurity(BlueprintSettings->bFavorPureCastNodes);
-}
-
 UEdGraphPin* UK2Node_DynamicCast::GetValidCastPin() const
 {
 	UEdGraphPin* Pin = FindPin(UEdGraphSchema_K2::PN_CastSucceeded);
-	check((Pin != nullptr) || bIsPureCast);
+	check((Pin != nullptr) || IsNodePure());
 	check((Pin == nullptr) || (Pin->Direction == EGPD_Output));
 	return Pin;
 }
@@ -232,7 +284,7 @@ UEdGraphPin* UK2Node_DynamicCast::GetValidCastPin() const
 UEdGraphPin* UK2Node_DynamicCast::GetInvalidCastPin() const
 {
 	UEdGraphPin* Pin = FindPin(UEdGraphSchema_K2::PN_CastFailed);
-	check((Pin != nullptr) || bIsPureCast);
+	check((Pin != nullptr) || IsNodePure());
 	check((Pin == nullptr) || (Pin->Direction == EGPD_Output));
 	return Pin;
 }
@@ -272,9 +324,21 @@ UEdGraphPin* UK2Node_DynamicCast::GetBoolSuccessPin() const
 
 void UK2Node_DynamicCast::SetPurity(bool bNewPurity)
 {
-	if (bNewPurity != bIsPureCast)
+	if (bNewPurity != IsNodePure())
 	{
+		if (bNewPurity)
+		{
+			PureState = EPureState::Pure;
+		}
+		else
+		{
+			PureState = EPureState::Impure;
+		}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// @todo_deprecated - Remove this later.
 		bIsPureCast = bNewPurity;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		bool const bHasBeenConstructed = (Pins.Num() > 0);
 		if (bHasBeenConstructed)
@@ -286,11 +350,12 @@ void UK2Node_DynamicCast::SetPurity(bool bNewPurity)
 
 void UK2Node_DynamicCast::TogglePurity()
 {
-	const FText TransactionTitle = bIsPureCast ? LOCTEXT("TogglePurityToImpure", "Convert to Impure Cast") : LOCTEXT("TogglePurityToPure", "Convert to Pure Cast");
+	const bool bIsNodePure = IsNodePure();
+	const FText TransactionTitle = bIsNodePure ? LOCTEXT("TogglePurityToImpure", "Convert to Impure Cast") : LOCTEXT("TogglePurityToPure", "Convert to Pure Cast");
 	const FScopedTransaction Transaction( TransactionTitle );
 	Modify();
 
-	SetPurity(!bIsPureCast);
+	SetPurity(!bIsNodePure);
 }
 
 UK2Node::ERedirectType UK2Node_DynamicCast::DoPinsMatchForReconstruction(const UEdGraphPin* NewPin, int32 NewPinIndex, const UEdGraphPin* OldPin, int32 OldPinIndex) const
@@ -496,7 +561,7 @@ void UK2Node_DynamicCast::ValidateNodeDuringCompilation(FCompilerResultsLog& Mes
 
 bool UK2Node_DynamicCast::ReconnectPureExecPins(TArray<UEdGraphPin*>& OldPins)
 {
-	if (bIsPureCast)
+	if (IsNodePure())
 	{
 		// look for an old exec pin
 		UEdGraphPin* PinExec = nullptr;

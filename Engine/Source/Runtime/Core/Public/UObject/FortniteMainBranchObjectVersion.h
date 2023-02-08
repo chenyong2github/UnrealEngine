@@ -265,6 +265,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Change HLODActors to RuntimeCells mapping to use a GUID instead of the cell name
 		WorldPartitionHLODActorUseSourceCellGuid,
 
+		// Dynamic cast nodes use an enumerated pure node state to include a value for the default setting.
+		DynamicCastNodesUsePureStateEnum,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
