@@ -473,7 +473,7 @@ namespace mu
 		}
 
 		ImagePtr pNew = mu::CloneOrTakeOver<Image>(m_base.get());
-		//ImagePtr pNew = m_base->Clone();
+
 		check(pNew->GetDataSize() == m_base->GetDataSize());
 
 		bool bValid = pNew->GetSizeX() > 0 && pNew->GetSizeY() > 0;
@@ -647,6 +647,9 @@ namespace mu
 		{
 			pNew = ImagePixelFormat(m_imageCompressionQuality, pNew.get(), InitialFormat);
 		}
+
+		// Reset relevancy map.
+		pNew->m_flags &= ~Image::EImageFlags::IF_HAS_RELEVANCY_MAP;
 
 		// Free resources
 		m_base = nullptr;
@@ -858,6 +861,9 @@ namespace mu
 			}
 
 		}
+
+		// Reset relevancy map.
+		pNew->m_flags &= ~Image::EImageFlags::IF_HAS_RELEVANCY_MAP;
 
 		m_base = nullptr;
 		m_mask = nullptr;
@@ -1210,14 +1216,17 @@ namespace mu
 
 		FImageSize destSize = FImageSize( SizeX, SizeY );
 
-		ImagePtr pResult;
+		// Apply the mips-to-skip to the dest size
+		int32 MipsToSkip = Op.ExecutionOptions;
+		destSize[0] = FMath::Max(destSize[0] >> MipsToSkip, 1);
+		destSize[1] = FMath::Max(destSize[1] >> MipsToSkip, 1);
 
 		if ( destSize[0]!=pBase->GetSizeX()
 			 ||
 			 destSize[1]!=pBase->GetSizeY() )
 		{
-			//pResult = ImageResize( pBase.get(), destSize );
-			pResult = ImageResizeLinear( ImageCompressionQuality, pBase.get(), destSize );
+			ImagePtr Resized = ImageResizeLinear( ImageCompressionQuality, pBase.get(), destSize );
+			Result = Resized;
 
 			// If the source image had mips, generate them as well for the resized image.
 			// This shouldn't happen often since "ResizeLike" should be usually optimised out
@@ -1226,28 +1235,23 @@ namespace mu
 			bool sourceHasMips = pBase->GetLODCount()>1;
 			if (sourceHasMips)
 			{
-				int levelCount = Image::GetMipmapCount( pResult->GetSizeX(), pResult->GetSizeY() );
-				ImagePtr pMipmapped = new Image( pResult->GetSizeX(), pResult->GetSizeY(),
-												 levelCount,
-												 pResult->GetFormat() );
+				int levelCount = Image::GetMipmapCount(Resized->GetSizeX(), Resized->GetSizeY() );
+				ImagePtr Mipmapped = new Image(Resized->GetSizeX(), Resized->GetSizeY(), levelCount, Resized->GetFormat() );
 
 				SCRATCH_IMAGE_MIPMAP scratch;
 				FMipmapGenerationSettings mipSettings{};
 
-				ImageMipmap_PrepareScratch( pMipmapped.get(), pResult.get(), levelCount, &scratch );
+				ImageMipmap_PrepareScratch(Mipmapped.get(), Resized.get(), levelCount, &scratch );
 				ImageMipmap( ImageCompressionQuality,
-							 pMipmapped.get(), pResult.get(), levelCount, &scratch, mipSettings );
+							 Mipmapped.get(), Resized.get(), levelCount, &scratch, mipSettings );
 
-				pResult = pMipmapped;
-			}
-
+				Result = Mipmapped;
+			}			
 		}
 		else
 		{
-			pResult = pBase->Clone();
+			Result = pBase;
 		}
-
-		Result = pResult;
 	}
 
 	//---------------------------------------------------------------------------------------------

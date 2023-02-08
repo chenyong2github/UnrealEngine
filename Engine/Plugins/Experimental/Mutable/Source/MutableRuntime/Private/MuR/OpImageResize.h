@@ -474,7 +474,12 @@ namespace mu
                 // Optimised case
                 ImageMinifyX_Exact<4,2>( pDest, pBase );
             }
-            else
+            else if (4 * pDest->GetSizeX() == pBase->GetSizeX())
+			{
+				// Optimised case
+				ImageMinifyX_Exact<4, 4>(pDest, pBase);
+			}
+			else
             {
                 // Generic case
                 ImageMinifyX<4>( pDest, pBase );
@@ -884,6 +889,17 @@ namespace mu
         {
             pDest = ImagePixelFormat( imageCompressionQuality, pDest.get(), sourceFormat );
         }
+
+		// Update the relevancy data of the image.
+		if (pBase->m_flags & Image::EImageFlags::IF_HAS_RELEVANCY_MAP)
+		{
+			pDest->m_flags |= Image::EImageFlags::IF_HAS_RELEVANCY_MAP;
+
+			float FactorY = float(destSize[1]) / float(baseSize[1]);
+
+			pDest->RelevancyMinY = uint16( FMath::FloorToFloat(pBase->RelevancyMinY*FactorY) );
+			pDest->RelevancyMaxY = uint16( FMath::Min((int32)FMath::CeilToFloat(pBase->RelevancyMinY * FactorY), pDest->GetSizeY() - 1) );
+		}
 
         return pDest;
     }

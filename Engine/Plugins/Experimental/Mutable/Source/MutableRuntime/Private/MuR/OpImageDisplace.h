@@ -338,6 +338,14 @@ namespace mu
 		}
 
 
+		// Update the relevancy data of the image for the worst case. 
+		if (pResult->m_flags & Image::EImageFlags::IF_HAS_RELEVANCY_MAP)
+		{
+			// Displace can encode at max MUTABLE_GROW_BORDER_VALUE pixels away according to "border" in MakeGrowMap.
+			pResult->RelevancyMinY = FMath::Max(int32(pResult->RelevancyMinY) - MUTABLE_GROW_BORDER_VALUE, 0);
+			pResult->RelevancyMaxY = FMath::Min(pResult->RelevancyMaxY + MUTABLE_GROW_BORDER_VALUE, pResult->GetSizeY() - 1);
+		}
+
 	}
 
 
