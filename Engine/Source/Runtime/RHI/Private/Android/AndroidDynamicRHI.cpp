@@ -3,6 +3,7 @@
 #include "RHI.h"
 #include "Modules/ModuleManager.h"
 #include "Android/AndroidApplication.h"
+#include "Misc/App.h"
 
 FDynamicRHI* PlatformCreateDynamicRHI()
 {
