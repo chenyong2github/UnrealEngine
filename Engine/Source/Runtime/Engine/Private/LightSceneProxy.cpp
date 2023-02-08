@@ -39,7 +39,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bCastDynamicShadow(InLightComponent->CastShadows&& InLightComponent->CastDynamicShadows)
 	, bCastStaticShadow(InLightComponent->CastShadows&& InLightComponent->CastStaticShadows)
 	, bCastTranslucentShadows(InLightComponent->CastTranslucentShadows)
-	, bTransmission(InLightComponent->bTransmission&& bCastDynamicShadow && !bStaticShadowing)
+	, bTransmission(InLightComponent->bTransmission && bCastDynamicShadow && !bStaticShadowing)
 	, bCastVolumetricShadow(InLightComponent->bCastVolumetricShadow)
 	, bCastHairStrandsDeepShadow(InLightComponent->bCastDeepShadow)
 	, bCastShadowsFromCinematicObjectsOnly(InLightComponent->bCastShadowsFromCinematicObjectsOnly)
@@ -79,6 +79,14 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	// Treat stationary lights as movable when non-nanite VSMs are enabled
 	const bool bNonNaniteVirtualShadowMaps = UseNonNaniteVirtualShadowMaps(SceneInterface->GetShaderPlatform(), SceneInterface->GetFeatureLevel());
 	if (bNonNaniteVirtualShadowMaps)
+	{
+		bStaticShadowing = bStaticLighting;
+	}
+
+	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnGameThread() != 0);
+
+	if (!bAllowStaticLighting)
 	{
 		bStaticShadowing = bStaticLighting;
 	}
