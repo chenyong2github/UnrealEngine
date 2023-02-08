@@ -26,6 +26,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "ObjectChooser_Asset.h"
+#include "ObjectChooser_Class.h"
 #include "ObjectChooserClassFilter.h"
 #include "ObjectChooserWidgetFactories.h"
 #include "GraphEditorSettings.h"
@@ -1008,6 +1009,28 @@ TSharedRef<SWidget> CreateAssetWidget(UObject* TransactionObject, void* Value, U
 			DIAsset->Asset = AssetData.GetAsset();
 		});
 }
+	
+TSharedRef<SWidget> CreateClassWidget(UObject* TransactionObject, void* Value, UClass* ContextClass)
+{
+	FClassChooser* ClassChooser = static_cast<FClassChooser*>(Value);
+
+	UClass* Class = ClassChooser->Class;
+
+	UChooserTable* Chooser = Cast<UChooserTable>(TransactionObject);
+	
+	return SNew(SClassPropertyEntryBox)
+			.MetaClass((Chooser!=nullptr && Chooser->OutputObjectType!=nullptr) ? Chooser->OutputObjectType.Get() : UObject::StaticClass())
+			.SelectedClass_Lambda([ClassChooser]()
+			{
+				return ClassChooser->Class;
+			})
+			.OnSetClass_Lambda([TransactionObject, ClassChooser](const UClass* SelectedClass)
+			{
+				const FScopedTransaction Transaction(LOCTEXT("Edit Class", "Edit Class"));
+				TransactionObject->Modify(true);
+				ClassChooser->Class = const_cast<UClass*>(SelectedClass);
+			});
+}
 
 TSharedRef<SWidget> CreateEvaluateChooserWidget(UObject* TransactionObject, void* Value, UClass* ContextObject)
 {
@@ -1165,6 +1188,7 @@ void FChooserTableEditor::RegisterWidgets()
 {
 	// todo: fallback widget
 	FObjectChooserWidgetFactories::RegisterWidgetCreator(FAssetChooser::StaticStruct(), CreateAssetWidget);
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(FClassChooser::StaticStruct(), CreateClassWidget);
 	FObjectChooserWidgetFactories::RegisterWidgetCreator(FEvaluateChooser::StaticStruct(), CreateEvaluateChooserWidget);
 	
 
