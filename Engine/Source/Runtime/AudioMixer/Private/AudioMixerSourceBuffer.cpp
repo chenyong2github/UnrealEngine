@@ -60,6 +60,13 @@ namespace Audio
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
+		// Fail if the Wave has been flagged to contain an error
+		if (InArgs.SoundWave && InArgs.SoundWave->HasError())
+		{
+			UE_LOG(LogAudioMixer, VeryVerbose, TEXT("FMixerSourceBuffer::Create failed as '%s' is flagged as containing errors"), *InArgs.SoundWave->GetName());
+			return {};
+		}
+
 		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> NewSourceBuffer = MakeShareable(new FMixerSourceBuffer(InArgs, MoveTemp(InDefaultParams)));
 
 		return NewSourceBuffer;
@@ -370,9 +377,13 @@ namespace Audio
 
 		// Handle the case that the decoder has an error and can't continue.
 		if (InDecoder && InDecoder->HasError())
-		{			
-			UE_LOG(LogAudioMixer, Warning, TEXT("Decoder Error, stopping source [%s]"), 
-				*InDecoder->GetStreamingSoundWave()->GetFName().ToString());
+		{
+			FScopeTryLock Lock(&SoundWaveCritSec);
+			if (Lock.IsLocked() && SoundWave)
+			{
+				SoundWave->SetError(TEXT("ICompressedAudioInfo::HasError() flagged on the Decoder"));
+			}
+
 			bHasError = true;
 			bBufferFinished = true;
 			return false;	

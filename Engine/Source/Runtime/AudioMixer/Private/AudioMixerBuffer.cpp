@@ -330,6 +330,13 @@ namespace Audio
 		{
 			return nullptr;
 		}
+		
+		// Ignore attempts to create if this wave has been flagged as containing errors
+		if (InWave->HasError())
+		{
+			UE_LOG(LogAudioMixer, VeryVerbose, TEXT("FMixerBuffer::CreateStreamingBuffer, ignoring '%s' as it contains previously seen errors"), *InWave->GetName() );
+			return nullptr;
+		}
 
 		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(FMixerBuffer::CreateStreamingBuffer);
 
@@ -356,6 +363,12 @@ namespace Audio
 		}
 		else
 		{
+			// Failed to stream in compressed info, so mark the wave as having an error.
+			if (Buffer->DecompressionState)
+			{
+				InWave->SetError(TEXT("ICompressedAudioInfo::StreamCompressedInfo failed"));
+			}
+
 			// When set to seekable streaming, missing the first chunk is possible and
 			// does not signify any issue with the asset itself, so don't mark it as invalid.
 			if (InWave && !InWave->IsSeekable())

@@ -102,6 +102,7 @@ public:
 	virtual bool StreamCompressedData(uint8* InDestination, bool bLooping, uint32 BufferSize, int32& OutNumBytesStreamed) override;
 	virtual int32 GetCurrentChunkIndex() const override {return CurrentStreamingChunkIndex;}
 	virtual int32 GetCurrentChunkOffset() const override {return BufferOffset % CurrentStreamingChunksSize;}
+	virtual bool HasError() const override { return bHasError; }
 	// End of ICompressedAudioInfo Interface
 
 protected:
@@ -131,6 +132,8 @@ private:
 	int32 NextStreamingChunkIndex;
 	uint32 CurrentStreamingChunksSize;
 	bool bHeaderParsed;
+	bool bHasError = false;
+	int32 LastErrorCode = 0;
 
 	// This handle is used to ensure that a chunk currently being decoded isn't evicted until we are done with it.
 	FAudioChunkHandle CurCompressedChunkHandle;

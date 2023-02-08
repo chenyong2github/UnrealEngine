@@ -327,6 +327,27 @@ bool FSoundWaveData::HasCompressedData(FName Format, ITargetPlatform* TargetPlat
 	}
 }
 
+void FSoundWaveData::SetError(const TCHAR* InErrorMsg)
+{
+	UE_CLOG(!bHasError, LogAudio, Warning, TEXT("Flagging SoundWave '%s' to have errors, preventing playback. ErrorMsg='%s'"), 
+		*GetPackageName().ToString(),
+		InErrorMsg ? InErrorMsg : TEXT("")
+	);
+	bHasError = true;
+}
+
+bool FSoundWaveData::HasError() const
+{
+	return bHasError;
+}
+
+bool FSoundWaveData::ResetError()
+{
+	bool bHadError = bHasError;
+	bHasError = false;
+	return bHadError;
+}
+
 FByteBulkData* FSoundWaveData::GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides)
 {
 	if (IsTemplate() || IsRunningDedicatedServer())
@@ -3847,6 +3868,10 @@ void USoundWave::UpdateAsset(bool bMarkDirty)
 	InvalidateCompressedData();
 	FreeResources();
 	UpdatePlatformData();
+	
+	// Reset any error state we've encountered.
+	ResetError();
+
 	if(bMarkDirty)
 	{
 		MarkPackageDirty();
@@ -4266,4 +4291,22 @@ TArrayView<const uint8> FSoundWaveProxy::GetZerothChunk(const FSoundWaveProxyPtr
 	}
 
 	return {};
+}
+
+void USoundWave::SetError(const TCHAR* InErrorMsg)
+{
+	check(SoundWaveDataPtr);
+	SoundWaveDataPtr->SetError(InErrorMsg);
+}
+
+void USoundWave::ResetError()
+{
+	check(SoundWaveDataPtr);
+	SoundWaveDataPtr->ResetError();
+}
+
+bool USoundWave::HasError() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->HasError();
 }

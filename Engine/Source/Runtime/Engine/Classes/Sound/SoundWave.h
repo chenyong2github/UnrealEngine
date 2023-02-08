@@ -1153,6 +1153,10 @@ public:
 	*/
 	float GetSampleRateForCompressionOverrides(const FPlatformAudioCookOverrides* CompressionOverrides);
 
+	void SetError(const TCHAR* InErrorMsg=nullptr);
+	void ResetError();
+	bool HasError() const;
+
 #if WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
@@ -1247,6 +1251,7 @@ public:
 		, bIsSeekable(0)
 		, bShouldUseStreamCaching(0)
 		, bLoadingBehaviorOverridden(0)
+		, bHasError(0)
 #if WITH_EDITOR
 		, bLoadedFromCookedData(0)
 #endif //WITH_EDITOR
@@ -1276,6 +1281,10 @@ public:
 	float GetDuration() const { return Duration; }
 
 	void ReleaseCompressedAudio();
+
+	void SetError(const TCHAR* InErrorMsg=nullptr);  
+	bool HasError() const;
+	bool ResetError();
 
 	bool IsStreaming() const { return bIsStreaming; }
 	ESoundAssetCompressionType GetSoundCompressionType() const { return SoundAssetCompressionType; }
@@ -1352,7 +1361,7 @@ private:
 	FObjectKey SoundWaveKeyCached;
 	TArray<FSoundWaveCuePoint> CuePoints;
 	ESoundAssetCompressionType SoundAssetCompressionType;
-
+	
 	float SampleRate = 0;
 	float Duration = 0;
 
@@ -1366,6 +1375,7 @@ private:
 	uint8 bIsSeekable : 1;
 	uint8 bShouldUseStreamCaching : 1;
 	uint8 bLoadingBehaviorOverridden : 1;
+	uint8 bHasError : 1;
 
 #if WITH_EDITOR
 	uint8 bLoadedFromCookedData : 1;

@@ -313,6 +313,7 @@ bool FVorbisAudioInfo::GetCompressedInfoCommon(void* Callbacks, FSoundQualityInf
 	if (!bDllLoaded)
 	{
 		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::GetCompressedInfoCommon failed due to vorbis DLL not being loaded."));
+		bHasError = true;
 		return false;
 	}
 
@@ -320,7 +321,9 @@ bool FVorbisAudioInfo::GetCompressedInfoCommon(void* Callbacks, FSoundQualityInf
 	int Result = ov_open_callbacks(this, &VFWrapper->vf, NULL, 0, (*(ov_callbacks*)Callbacks));
 	if (Result < 0)
 	{
-		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::ReadCompressedInfo, ov_open_callbacks error code: %d : %s"), Result,GetVorbisError(Result));
+		UE_LOG(LogAudio, Warning, TEXT("FVorbisAudioInfo::ReadCompressedInfo, ov_open_callbacks error code: %d : %s"), Result,GetVorbisError(Result));
+		bHasError = true;
+		LastErrorCode = Result;
 		return false;
 	}
 
@@ -603,7 +606,8 @@ bool FVorbisAudioInfo::StreamCompressedInfoInternal(const FSoundWaveProxyPtr& In
 		bHeaderParsed = GetCompressedInfoCommon(&Callbacks, QualityInfo);
 		if (!bHeaderParsed)
 		{
-			UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed to parse header for '%s'."), *InWaveProxy->GetFName().ToString());
+			UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed to parse header for '%s'. LastError=%s"), 
+				*InWaveProxy->GetFName().ToString(), GetVorbisError(LastErrorCode));
 		}
 	
 
@@ -734,7 +738,9 @@ bool FVorbisAudioInfo::StreamCompressedData(uint8* InDestination, bool bLooping,
 			int Result = ov_open_callbacks(this, &VFWrapper->vf, NULL, 0, Callbacks);
 			if (Result < 0)
 			{
-				UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedData, ov_open_callbacks error code: %d"), Result);
+				LastErrorCode = Result;
+				bHasError = true;
+				UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedData, ov_open_callbacks error code: %d : %s"), Result, GetVorbisError(Result));
 				break;
 			}
 
