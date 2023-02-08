@@ -560,9 +560,6 @@ FGuid ULevelSequence::FindOrAddBinding(UObject* InObject)
 	}
 
 	AActor* Actor = Cast<AActor>(InObject);
-	// @todo: sequencer-python: need to figure out how we go from a spawned object to an object binding without the spawn register or any IMovieScenePlayer interface
-	// Normally this process would happen through sequencer, since it has more context than just the level sequence asset.
-	// For now we cannot possess spawnables or anything within them since we have no way of retrieving the spawnable from the object
 	if (Actor && Actor->ActorHasTag("SequencerActor"))
 	{
 		TOptional<FMovieSceneSpawnableAnnotation> Annotation = FMovieSceneSpawnableAnnotation::Find(Actor);
@@ -570,9 +567,9 @@ FGuid ULevelSequence::FindOrAddBinding(UObject* InObject)
 		{
 			return Annotation->ObjectBindingID;
 		}
-
-		UE_LOG(LogLevelSequence, Error, TEXT("Unable to possess object '%s' since it is, or is part of a spawnable that is not in this sequence."), *InObject->GetName());
-		return FGuid();
+		
+		// If this actor is a spawnable and is not in the same originating sequence, it's likely a spawnable that will be possessed. 
+		// SetSpawnableObjectBindingID will need to be called on that possessable.
 	}
 
 	UObject* ParentObject = GetParentObject(InObject);

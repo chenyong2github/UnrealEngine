@@ -343,3 +343,20 @@ void UMovieSceneBindingExtensions::MoveBindingContents(const FMovieSceneBindingP
 	}
 }
 
+void UMovieSceneBindingExtensions::SetSpawnableBindingID(const FMovieSceneBindingProxy& InBinding, const FMovieSceneObjectBindingID& SpawnableBindingID)
+{
+	if (!InBinding.Sequence)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetSpawnableBindingID with a binding with a null sequence"), ELogVerbosity::Error);
+		return;
+	}
+
+	FMovieScenePossessable* Possessable = InBinding.Sequence->GetMovieScene()->FindPossessable(InBinding.BindingID);
+	if (!Possessable)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetSpawnableBindingID with a null possessable"), ELogVerbosity::Error);
+		return;
+	}
+	
+	Possessable->SetSpawnableObjectBindingID(SpawnableBindingID);
+}

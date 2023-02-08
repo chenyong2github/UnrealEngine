@@ -154,7 +154,7 @@ public:
 	}
 
 	/* Set the optional binding id for binding to a spawnable */
-	void SetSpawnableObjectBindingID(const FMovieSceneObjectBindingID& InSpawnableObjectBindingID)
+	MOVIESCENE_API void SetSpawnableObjectBindingID(const FMovieSceneObjectBindingID& InSpawnableObjectBindingID)
 	{
 		SpawnableObjectBindingID = InSpawnableObjectBindingID;
 	}
