@@ -1761,6 +1761,7 @@ FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const
 	}
 	
 	Result.PackageName = Package->Name;
+	Result.PackageId = FPackageId::FromName(Package->Name);
 	Result.SourcePackageName = Package->SourceName;
 	Result.Region = FName(*Package->Region);
 	Result.ExportInfo.ExportCount = Package->Exports.Num();

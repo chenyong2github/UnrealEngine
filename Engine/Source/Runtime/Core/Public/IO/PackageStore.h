@@ -85,6 +85,7 @@ struct FPackageStoreEntryResource
 	EPackageStoreEntryFlags Flags = EPackageStoreEntryFlags::None;
 	/** The package name. */
 	FName PackageName;
+	FPackageId PackageId;
 	/** Used for localized and redirected packages. */
 	FName SourcePackageName;
 	/** Region name for localized packages. */
@@ -103,7 +104,7 @@ struct FPackageStoreEntryResource
 	/** Returns the package ID. */
 	FPackageId GetPackageId() const
 	{
-		return FPackageId::FromName(PackageName);
+		return PackageId;
 	}
 
 	/** Returns the source package ID. */
