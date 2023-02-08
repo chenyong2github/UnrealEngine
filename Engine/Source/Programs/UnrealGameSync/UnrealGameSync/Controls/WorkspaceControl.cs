@@ -949,7 +949,7 @@ namespace UnrealGameSync
 					string[]? zippedBinariesSyncFilter;
 					if (TryGetProjectSetting(_perforceMonitor.LatestProjectConfigFile, "ZippedBinariesSyncFilter", out zippedBinariesSyncFilter) && zippedBinariesSyncFilter.Length > 0)
 					{
-						context.SyncFilter = Enumerable.Concat(context.SyncFilter, zippedBinariesSyncFilter).ToArray();
+						context.SyncFilter = Enumerable.Concat(context.SyncFilter ?? Enumerable.Empty<string>(), zippedBinariesSyncFilter).ToArray();
 					}
 
 					context.ArchiveTypeToArchive[archive.Type] = new Tuple<IArchiveInfo, string>(archive, archivePath);
@@ -2154,7 +2154,12 @@ namespace UnrealGameSync
 
 		private void BuildList_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
 		{
-			ChangesRecord change = (ChangesRecord)e.Item.Tag;
+			if (e.Item == null || e.SubItem == null)
+			{
+				return;
+			}
+
+			ChangesRecord? change = (ChangesRecord?)e.Item?.Tag;
 			if (change == null)
 			{
 				return;
@@ -2212,7 +2217,7 @@ namespace UnrealGameSync
 						int firstPass, firstFail;
 						GetRemainingBisectRange(out firstPass, out firstFail);
 
-						BisectEntry entry = _workspaceState.BisectChanges.FirstOrDefault(x => x.Change == change.Number);
+						BisectEntry? entry = _workspaceState.BisectChanges.FirstOrDefault(x => x.Change == change.Number);
 						if (entry == null || entry.State == BisectState.Exclude)
 						{
 							qualityIcon = new Rectangle(0, 0, 0, 0);
@@ -2618,7 +2623,7 @@ namespace UnrealGameSync
 				ProcessStartInfo startInfo = new ProcessStartInfo();
 				startInfo.FileName = url;
 				startInfo.UseShellExecute = true;
-				using Process _ = Process.Start(startInfo);
+				using Process? _ = Process.Start(startInfo);
 			}
 			catch
 			{
@@ -2634,7 +2639,7 @@ namespace UnrealGameSync
 				startInfo.FileName = url;
 				startInfo.Arguments = arguments;
 				startInfo.UseShellExecute = true;
-				using Process _ = Process.Start(startInfo);
+				using Process? _ = Process.Start(startInfo);
 			}
 			catch
 			{
@@ -2651,7 +2656,7 @@ namespace UnrealGameSync
 				startInfo.Arguments = arguments;
 				startInfo.WorkingDirectory = workingDir;
 				startInfo.UseShellExecute = true;
-				using Process _ = Process.Start(startInfo);
+				using Process? _ = Process.Start(startInfo);
 			}
 			catch
 			{
@@ -4172,14 +4177,14 @@ namespace UnrealGameSync
 				bool isBusy = _workspace.IsBusy();
 				bool isCurrentChange = (_contextMenuChange.Number == _workspace.CurrentChangeNumber);
 				BuildListContextMenu_Sync.Visible = !isBusy;
-				BuildListContextMenu_Sync.Font = new Font(SystemFonts.MenuFont, isCurrentChange ? FontStyle.Regular : FontStyle.Bold);
+				BuildListContextMenu_Sync.Font = new Font(SystemFonts.MenuFont!, isCurrentChange ? FontStyle.Regular : FontStyle.Bold);
 				BuildListContextMenu_SyncContentOnly.Visible = !isBusy && ShouldSyncPrecompiledEditor;
 				BuildListContextMenu_SyncOnlyThisChange.Visible = !isBusy && !isCurrentChange && _contextMenuChange.Number > _workspace.CurrentChangeNumber && _workspace.CurrentChangeNumber != -1;
 				BuildListContextMenu_Build.Visible = !isBusy && isCurrentChange && !ShouldSyncPrecompiledEditor;
 				BuildListContextMenu_Rebuild.Visible = !isBusy && isCurrentChange && !ShouldSyncPrecompiledEditor;
 				BuildListContextMenu_GenerateProjectFiles.Visible = !isBusy && isCurrentChange;
 				BuildListContextMenu_LaunchEditor.Visible = !isBusy && _contextMenuChange.Number == _workspace.CurrentChangeNumber;
-				BuildListContextMenu_LaunchEditor.Font = new Font(SystemFonts.MenuFont, FontStyle.Bold);
+				BuildListContextMenu_LaunchEditor.Font = new Font(SystemFonts.MenuFont!, FontStyle.Bold);
 				BuildListContextMenu_OpenVisualStudio.Visible = !isBusy && isCurrentChange;
 				BuildListContextMenu_Cancel.Visible = isBusy;
 
@@ -4350,7 +4355,7 @@ namespace UnrealGameSync
 			Dictionary<string, KeyValuePair<IArchiveInfo, int>> archiveTypeToSelection = new Dictionary<string, KeyValuePair<IArchiveInfo, int>>();
 			foreach (IArchiveInfo archive in archives)
 			{
-				ArchiveSettings archiveSettings = _settings.Archives.FirstOrDefault(x => x.Type == archive.Type);
+				ArchiveSettings? archiveSettings = _settings.Archives.FirstOrDefault(x => x.Type == archive.Type);
 				if (archiveSettings != null && archiveSettings.Enabled)
 				{
 					int preference = archiveSettings.Order.IndexOf(archive.Name);
@@ -4382,7 +4387,7 @@ namespace UnrealGameSync
 
 		private void SetSelectedArchive(IArchiveInfo archive, bool selected)
 		{
-			ArchiveSettings archiveSettings = _settings.Archives.FirstOrDefault(x => x.Type == archive.Type);
+			ArchiveSettings? archiveSettings = _settings.Archives.FirstOrDefault(x => x.Type == archive.Type);
 			if (archiveSettings == null)
 			{
 				archiveSettings = new ArchiveSettings(selected, archive.Type, new string[] { archive.Name });
@@ -5040,7 +5045,7 @@ namespace UnrealGameSync
 			{
 				// Check the project config if they have a scheduled setting selected.
 				string? scheduledSyncTypeId = null;
-				UserSelectedProjectSettings projectSetting = _settings.ScheduleProjects.FirstOrDefault(x => x.LocalPath != null && x.LocalPath.Equals(SelectedProject.LocalPath, StringComparison.OrdinalIgnoreCase));
+				UserSelectedProjectSettings? projectSetting = _settings.ScheduleProjects.FirstOrDefault(x => x.LocalPath != null && x.LocalPath.Equals(SelectedProject.LocalPath, StringComparison.OrdinalIgnoreCase));
 				if (projectSetting != null)
 				{
 					scheduledSyncTypeId = projectSetting.ScheduledSyncTypeId;
@@ -5324,7 +5329,7 @@ namespace UnrealGameSync
 						while (stack.Count > 0)
 						{
 							Guid id = stack.Pop();
-							BuildStep nextStep = allSteps.FirstOrDefault(x => x.UniqueId == id);
+							BuildStep? nextStep = allSteps.FirstOrDefault(x => x.UniqueId == id);
 							if (nextStep != null)
 							{
 								foreach (Guid requiresId in nextStep.Requires)
@@ -5472,7 +5477,7 @@ namespace UnrealGameSync
 		{
 			if (OptionsContextMenu_SyncPrecompiledBinaries.DropDownItems.Count == 0)
 			{
-				IArchiveInfo editorArchive = GetArchives().FirstOrDefault(x => x.Type == IArchiveInfo.EditorArchiveType);
+				IArchiveInfo? editorArchive = GetArchives().FirstOrDefault(x => x.Type == IArchiveInfo.EditorArchiveType);
 				if (editorArchive != null)
 				{
 					SetSelectedArchive(editorArchive, !OptionsContextMenu_SyncPrecompiledBinaries.Checked);
@@ -6209,7 +6214,7 @@ namespace UnrealGameSync
 			ConfigFile config = new ConfigFile();
 			config.Load(newConfigFile);
 
-			ConfigSection section = config.FindSection("/Script/EditorStyle.EditorStyleSettings");
+			ConfigSection? section = config.FindSection("/Script/EditorStyle.EditorStyleSettings");
 			if (section == null)
 			{
 				return null;
@@ -6249,7 +6254,7 @@ namespace UnrealGameSync
 			ConfigFile config = new ConfigFile();
 			config.Load(fileName);
 
-			ConfigSection section = config.FindSection("/Script/EditorStyle.EditorStyleSettings");
+			ConfigSection? section = config.FindSection("/Script/EditorStyle.EditorStyleSettings");
 			if (section == null)
 			{
 				return null;

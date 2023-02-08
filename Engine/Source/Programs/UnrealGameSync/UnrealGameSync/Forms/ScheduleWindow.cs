@@ -76,7 +76,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void ProjectListBox_ItemCheck(object sender, ItemCheckEventArgs e)
+		private void ProjectListBox_ItemCheck(object? sender, ItemCheckEventArgs e)
 		{
 			bool isAnyOpenProjectIndex = e.Index == 0;
 			if (e.NewValue == CheckState.Checked && !isAnyOpenProjectIndex)
@@ -90,7 +90,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void SyncTypeDropDown_Closed(object sender, ToolStripDropDownClosedEventArgs e)
+		private void SyncTypeDropDown_Closed(object? sender, ToolStripDropDownClosedEventArgs e)
 		{
 			if (e.CloseReason != ToolStripDropDownCloseReason.ItemClicked)
 			{

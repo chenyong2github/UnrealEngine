@@ -273,7 +273,7 @@ namespace UnrealGameSync
 				}
 
 				// Add in additional paths property
-				ConfigSection projectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
+				ConfigSection? projectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
 				if (projectConfigSection != null)
 				{
 					IEnumerable<string> additionalPaths = projectConfigSection.GetValues("AdditionalPathsToSync", new string[0]);
@@ -399,7 +399,11 @@ namespace UnrealGameSync
 
 		Func<string, bool>? CreateCodeFilterFunc()
 		{
-			ConfigSection projectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
+			ConfigSection? projectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
+			if (projectConfigSection == null)
+			{
+				return null;
+			}
 
 			string[] rules = projectConfigSection.GetValues("CodeFilter", new string[0]);
 			if (rules.Length == 0)
@@ -419,7 +423,7 @@ namespace UnrealGameSync
 		public async Task<bool> UpdateChangeTypesAsync(IPerforceConnection perforce, CancellationToken cancellationToken)
 		{
 			// Get the filter for code changes
-			ConfigSection projectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
+			ConfigSection? projectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
 
 			string[] codeRules = projectConfigSection?.GetValues("CodeFilter", (string[]?)null) ?? Array.Empty<string>();
 			if (!Enumerable.SequenceEqual(codeRules, prevCodeRules))
@@ -596,7 +600,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		public ConfigSection LatestPerforceConfigSection()
+		public ConfigSection? LatestPerforceConfigSection()
 		{
 			return LatestProjectConfigFile.FindSection("Perforce");
 		}

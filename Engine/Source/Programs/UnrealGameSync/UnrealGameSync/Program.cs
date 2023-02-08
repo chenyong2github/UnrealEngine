@@ -147,7 +147,7 @@ namespace UnrealGameSync
 			{
 				if (File.Exists(updateSpawn))
 				{
-					Directory.SetCurrentDirectory(Path.GetDirectoryName(updateSpawn));
+					Directory.SetCurrentDirectory(Path.GetDirectoryName(updateSpawn)!);
 				}
 			}
 

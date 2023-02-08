@@ -261,24 +261,24 @@ namespace UnrealGameSync
 			_tokenStore = TokenStoreFactory.CreateTokenStore();
 			List<(DirectoryInfo, DirectoryInfo?)> configurationLocations = new List<(DirectoryInfo, DirectoryInfo?)>();
 			List<string> allowedProviders = new List<string>();
-			foreach ((UserSelectedProjectSettings, ModalTask<OpenProjectInfo>) StartupTask in startupTasks)
+			foreach ((UserSelectedProjectSettings, ModalTask<OpenProjectInfo>) startupTask in startupTasks)
 			{
 				try
 				{
 
-					ConfigFile ConfigFile = StartupTask.Item2.Result.LatestProjectConfigFile;
-					if (ConfigFile == null)
+					ConfigFile configFile = startupTask.Item2.Result.LatestProjectConfigFile;
+					if (configFile == null)
 					{
 						continue;
 					}
 
-					ConfigSection ProviderSection = ConfigFile.FindSection("OIDCProvider");
-					if (ProviderSection == null)
+					ConfigSection? providerSection = configFile.FindSection("OIDCProvider");
+					if (providerSection == null)
 					{
 						continue;
 					}
 
-					string[] oidcAllowedProviders = ProviderSection.GetValues("OidcProviderAllowList", Array.Empty<string>());
+					string[] oidcAllowedProviders = providerSection.GetValues("OidcProviderAllowList", Array.Empty<string>());
 					if (oidcAllowedProviders.Length == 0)
 					{
 						continue;
@@ -286,7 +286,7 @@ namespace UnrealGameSync
 
 					allowedProviders.AddRange(oidcAllowedProviders);
 					
-					ProjectInfo projectInfo = StartupTask.Item2.Result.ProjectInfo;
+					ProjectInfo projectInfo = startupTask.Item2.Result.ProjectInfo;
 					configurationLocations.Add((projectInfo.EngineDir.ToDirectoryInfo(), projectInfo.ProjectDir?.ToDirectoryInfo()));
 				}
 				catch (Exception)
@@ -333,7 +333,7 @@ namespace UnrealGameSync
 			_mainWindowInstance.FormClosed += MainWindowInstance_FormClosed;
 		}
 
-		private void MainWindowInstance_FormClosed(object sender, FormClosedEventArgs e)
+		private void MainWindowInstance_FormClosed(object? sender, FormClosedEventArgs e)
 		{
 			ExitThread();
 		}
@@ -418,7 +418,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void NotifyIcon_MouseDown(object sender, MouseEventArgs e)
+		private void NotifyIcon_MouseDown(object? sender, MouseEventArgs e)
 		{
 			// Have to set up this stuff here, because the menu is laid out before Opening() is called on it after mouse-up.
 			bool canSyncNow = _mainWindowInstance != null && _mainWindowInstance.CanSyncNow();

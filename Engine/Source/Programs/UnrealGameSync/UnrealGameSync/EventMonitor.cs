@@ -1142,19 +1142,19 @@ namespace UnrealGameSync
 		public bool IsUnderInvestigation(int changeNumber)
 		{
 			UpdateActiveInvestigations();
-			return _activeInvestigations.Any(x => x.Change <= changeNumber);
+			return _activeInvestigations?.Any(x => x.Change <= changeNumber) ?? false;
 		}
 
 		public bool IsUnderInvestigationByCurrentUser(int changeNumber)
 		{
 			UpdateActiveInvestigations();
-			return _activeInvestigations.Any(x => x.Change <= changeNumber && String.Compare(x.UserName, _currentUserName, true) == 0);
+			return _activeInvestigations?.Any(x => x.Change <= changeNumber && String.Compare(x.UserName, _currentUserName, true) == 0) ?? false;
 		}
 
 		public IEnumerable<string> GetInvestigatingUsers(int changeNumber)
 		{
 			UpdateActiveInvestigations();
-			return _activeInvestigations.Where(x => changeNumber >= x.Change).Select(x => x.UserName);
+			return _activeInvestigations?.Where(x => changeNumber >= x.Change).Select(x => x.UserName) ?? Array.Empty<string>();
 		}
 
 		public int GetInvestigationStartChangeNumber(int lastChangeNumber)

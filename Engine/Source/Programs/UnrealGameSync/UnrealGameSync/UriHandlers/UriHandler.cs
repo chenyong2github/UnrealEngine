@@ -297,7 +297,7 @@ namespace UnrealGameSync
 
 		public static string CurrentProcessFilePath
 		{
-			get { return Path.ChangeExtension(Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName), ".exe"); }
+			get { return Path.ChangeExtension(Path.GetFullPath(Process.GetCurrentProcess().MainModule!.FileName!), ".exe"); }
 		}
 
 		static List<RegistrySetting> GetGlobalRegistrySettings()

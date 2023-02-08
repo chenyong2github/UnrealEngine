@@ -234,7 +234,7 @@ namespace UnrealGameSync
 			e.Graphics.DrawRectangle(Pens.Black, new Rectangle(0, 0, Width - 1, Height - 1));
 
 			e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-			e.Graphics.DrawImage(_logoBitmap, _logoBounds);
+			e.Graphics.DrawImage(_logoBitmap!, _logoBounds);
 		}
 
 		protected override void OnPaint(PaintEventArgs e)

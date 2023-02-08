@@ -595,7 +595,7 @@ namespace UnrealGameSync
 
 					// Check if the new sync filter matches the previous one. If not, we'll enumerate all files in the workspace and make sure there's nothing extra there.
 					string? nextSyncFilterHash = null;
-					using (SHA1Managed sha = new SHA1Managed())
+					using (SHA1 sha = SHA1.Create())
 					{
 						StringBuilder combinedFilter = new StringBuilder();
 						foreach (string relativeSyncPath in relativeSyncPaths)
@@ -1795,7 +1795,7 @@ namespace UnrealGameSync
 				return null;
 			}
 
-			return response.Data.Contents.Select(x => x.Trim()).Where(x => x.Length > 0).ToList().AsReadOnly();
+			return response.Data.Contents?.Select(x => x.Trim()).Where(x => x.Length > 0).ToList().AsReadOnly();
 		}
 
 		static string FormatTime(long seconds)
@@ -1958,7 +1958,7 @@ namespace UnrealGameSync
 				}
 				else
 				{
-					Directory.CreateDirectory(Path.GetDirectoryName(localPath));
+					Directory.CreateDirectory(Path.GetDirectoryName(localPath)!);
 					Utility.ForceDeleteFile(localPath);
 					if (depotPath != null)
 					{

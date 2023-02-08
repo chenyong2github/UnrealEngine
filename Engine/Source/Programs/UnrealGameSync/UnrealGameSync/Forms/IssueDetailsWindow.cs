@@ -455,7 +455,7 @@ namespace UnrealGameSync
 			foreach (IGrouping<long, IssueDiagnosticData> group in diagnostics.GroupBy(x => x.BuildId ?? -1))
 			{
 				// Step 'Foo'
-				IssueBuildData build = issueBuilds.FirstOrDefault(x => x.Id == group.Key);
+				IssueBuildData? build = issueBuilds.FirstOrDefault(x => x.Id == group.Key);
 				if (build != null)
 				{
 					richText.Append(@"\pard");   // Paragraph default
@@ -527,7 +527,7 @@ namespace UnrealGameSync
 		{
 			UpdateSummaryTextIfChanged(SummaryTextBox, _issue.Summary.ToString());
 
-			IssueBuildData firstFailingBuild = _issueBuilds.FirstOrDefault(x => x.ErrorUrl != null);
+			IssueBuildData? firstFailingBuild = _issueBuilds.FirstOrDefault(x => x.ErrorUrl != null);
 			BuildLinkLabel.Text = (firstFailingBuild != null)? firstFailingBuild.JobName : "Unknown";
 
 			StringBuilder status = new StringBuilder();
@@ -1044,7 +1044,7 @@ namespace UnrealGameSync
 
 		public static void Show(Form owner, IssueMonitor issueMonitor, IPerforceSettings perforceSettings, TimeSpan? serverTimeOffset, IssueData issue, List<IssueBuildData> issueBuilds, IServiceProvider serviceProvider, string? currentStream)
 		{
-			IssueDetailsWindow window = _existingWindows.FirstOrDefault(x => x._issueMonitor == issueMonitor && x._issue.Id == issue.Id);
+			IssueDetailsWindow? window = _existingWindows.FirstOrDefault(x => x._issueMonitor == issueMonitor && x._issue.Id == issue.Id);
 			if(window == null)
 			{
 				List<IssueDiagnosticData> diagnostics = new List<IssueDiagnosticData>();
@@ -1141,6 +1141,11 @@ namespace UnrealGameSync
 
 		private void BuildListView_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
 		{
+			if (e.Item == null || e.SubItem == null)
+			{
+				return;
+			}
+
 			Font currentFont = this.Font;//BuildFont;(Change.Number == Workspace.PendingChangeNumber || Change.Number == Workspace.CurrentChangeNumber)? SelectedBuildFont : BuildFont;
 
 			Color textColor = SystemColors.WindowText;
@@ -1369,7 +1374,7 @@ namespace UnrealGameSync
 
 		private void DescriptionLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			IssueBuildData lastBuild = _issueBuilds.Where(x => x.Stream == _selectedStream).OrderByDescending(x => x.Change).ThenByDescending(x => x.ErrorUrl).FirstOrDefault();
+			IssueBuildData? lastBuild = _issueBuilds.Where(x => x.Stream == _selectedStream).OrderByDescending(x => x.Change).ThenByDescending(x => x.ErrorUrl).FirstOrDefault();
 			if(lastBuild != null)
 			{
 				Utility.OpenUrl(lastBuild.ErrorUrl);
@@ -1417,7 +1422,7 @@ namespace UnrealGameSync
 
 		private void BuildLinkLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			IssueBuildData build = _issueBuilds.FirstOrDefault(x => x.ErrorUrl != null);
+			IssueBuildData? build = _issueBuilds.FirstOrDefault(x => x.ErrorUrl != null);
 			if (build != null)
 			{
 				Utility.OpenUrl(build.ErrorUrl);
@@ -1426,7 +1431,10 @@ namespace UnrealGameSync
 
 		private void DetailsTextBox_LinkClicked(object sender, LinkClickedEventArgs e)
 		{
-			Utility.OpenUrl(e.LinkText);
+			if (e.LinkText != null)
+			{
+				Utility.OpenUrl(e.LinkText);
+			}
 		}
 	}
 }

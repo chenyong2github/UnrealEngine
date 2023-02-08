@@ -142,10 +142,9 @@ namespace UnrealGameSync
 
 		private void BuildStepList_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
 		{
-			if(e.ColumnIndex == 0)
+			if(e.ColumnIndex == 0 || e.Item == null)
 			{
 				e.DrawDefault = true;
-				return;
 			}
 			else
 			{

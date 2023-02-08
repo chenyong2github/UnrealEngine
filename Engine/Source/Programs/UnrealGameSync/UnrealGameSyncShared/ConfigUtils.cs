@@ -386,7 +386,7 @@ namespace UnrealGameSync
 			string path = selectedProjectIdentifier;
 			for (; ; )
 			{
-				ConfigSection projectSection = projectConfigFile.FindSection(path);
+				ConfigSection? projectSection = projectConfigFile.FindSection(path);
 				if (projectSection != null)
 				{
 					string? newValue = projectSection.GetValue(name, null);
@@ -406,7 +406,7 @@ namespace UnrealGameSync
 				path = path.Substring(0, lastSlash);
 			}
 
-			ConfigSection defaultSection = projectConfigFile.FindSection("Default");
+			ConfigSection? defaultSection = projectConfigFile.FindSection("Default");
 			if (defaultSection != null)
 			{
 				string? newValue = defaultSection.GetValue(name, null);

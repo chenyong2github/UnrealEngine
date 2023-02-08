@@ -62,7 +62,7 @@ namespace UnrealGameSync
 			errorMessage = "";
 			VisualStudioInstallation? install = VisualStudioInstallations.GetPreferredInstallation();
 
-			if (install == null)
+			if (install == null || install.DevEnvPath == null)
 			{
 				errorMessage = string.Format("Unable to get Visual Studio installation");
 				return false;
@@ -215,7 +215,7 @@ namespace UnrealGameSync
 				return CachedInstalls.First();
 			}
 
-			VisualStudioInstallation installation = CachedInstalls.FirstOrDefault(install => { return install.MajorVersion == majorVersion; });
+			VisualStudioInstallation? installation = CachedInstalls.FirstOrDefault(install => { return install.MajorVersion == majorVersion; });
 
 			return installation;
 

@@ -145,7 +145,11 @@ namespace UnrealGameSync
 
 		private void SdkListView_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
 		{
-			if(e.ColumnIndex != columnHeader3.Index)
+			if (e.Item == null || e.SubItem == null)
+			{
+				e.DrawDefault = true;
+			}
+			else if(e.ColumnIndex != columnHeader3.Index)
 			{
 				TextRenderer.DrawText(e.Graphics, e.SubItem.Text, SdkListView.Font, e.Bounds, SdkListView.ForeColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 			}

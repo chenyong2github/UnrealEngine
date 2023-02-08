@@ -512,7 +512,7 @@ namespace UnrealGameSync
 			}
 			else if (nodeData.File != null)
 			{
-				Process.Start("explorer.exe", String.Format("\"{0}\"", nodeData.File.Directory.FullName));
+				Process.Start("explorer.exe", String.Format("\"{0}\"", nodeData.File.Directory!.FullName));
 			}
 		}
 	}

@@ -148,7 +148,7 @@ namespace UnrealGameSync
 			List<PerforceArchiveInfo> newArchives = new List<PerforceArchiveInfo>();
 
 			// Find all the zipped binaries under this stream
-			ConfigSection projectConfigSection = latestProjectConfigFile.FindSection(projectIdentifier);
+			ConfigSection? projectConfigSection = latestProjectConfigFile.FindSection(projectIdentifier);
 			if (projectConfigSection != null)
 			{
 				// Legacy

@@ -17,16 +17,16 @@ namespace UnrealGameSync
 		Dictionary<Guid, WorkspaceSyncCategory> _uniqueIdToCategory;
 		public FilterSettings GlobalFilter;
 		public FilterSettings WorkspaceFilter;
-		ConfigSection _perforceSection;
+		ConfigSection? _perforceSection;
 
-		public SyncFilter(Dictionary<Guid, WorkspaceSyncCategory> inUniqueIdToCategory, FilterSettings inGlobalFilter, FilterSettings inWorkspaceFilter, ConfigSection inPerforceSection)
+		public SyncFilter(Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToCategory, FilterSettings globalFilter, FilterSettings workspaceFilter, ConfigSection? perforceSection)
 		{
 			InitializeComponent();
 
-			_uniqueIdToCategory = inUniqueIdToCategory;
-			GlobalFilter = inGlobalFilter;
-			WorkspaceFilter = inWorkspaceFilter;
-			_perforceSection = inPerforceSection;
+			_uniqueIdToCategory = uniqueIdToCategory;
+			GlobalFilter = globalFilter;
+			WorkspaceFilter = workspaceFilter;
+			_perforceSection = perforceSection;
 
 			Dictionary<Guid, bool> syncCategories = WorkspaceSyncCategory.GetDefault(_uniqueIdToCategory.Values);
 

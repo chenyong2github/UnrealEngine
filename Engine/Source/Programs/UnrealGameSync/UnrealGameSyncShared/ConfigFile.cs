@@ -591,14 +591,14 @@ namespace UnrealGameSync
 			FileReference.Move(tempFileName, fileName);
 		}
 
-		public ConfigSection FindSection(string name)
+		public ConfigSection? FindSection(string name)
 		{
 			return _sections.FirstOrDefault(x => String.Compare(x.Name, name, true) == 0);
 		}
 
 		public ConfigSection FindOrAddSection(string name)
 		{
-			ConfigSection section = FindSection(name);
+			ConfigSection? section = FindSection(name);
 			if(section == null)
 			{
 				section = new ConfigSection(name);
@@ -638,14 +638,14 @@ namespace UnrealGameSync
 		public bool GetValue(string key, bool defaultValue)
 		{
 			int dotIdx = key.IndexOf('.');
-			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			ConfigSection? section = FindSection(key.Substring(0, dotIdx));
 			return (section == null)? defaultValue : section.GetValue(key.Substring(dotIdx + 1), defaultValue);
 		}
 
 		public int GetValue(string key, int defaultValue)
 		{
 			int dotIdx = key.IndexOf('.');
-			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			ConfigSection? section = FindSection(key.Substring(0, dotIdx));
 			return (section == null)? defaultValue : section.GetValue(key.Substring(dotIdx + 1), defaultValue);
 		}
 
@@ -653,7 +653,7 @@ namespace UnrealGameSync
 		public string? GetValue(string key, string? defaultValue)
 		{
 			int dotIdx = key.IndexOf('.');
-			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			ConfigSection? section = FindSection(key.Substring(0, dotIdx));
 			return (section == null)? defaultValue : section.GetValue(key.Substring(dotIdx + 1), defaultValue);
 		}
 
@@ -661,7 +661,7 @@ namespace UnrealGameSync
 		public string[]? GetValues(string key, string[]? defaultValue)
 		{
 			int dotIdx = key.IndexOf('.');
-			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			ConfigSection? section = FindSection(key.Substring(0, dotIdx));
 			return (section == null)? defaultValue : section.GetValues(key.Substring(dotIdx + 1), defaultValue);
 		}
 
@@ -669,7 +669,7 @@ namespace UnrealGameSync
 		public Guid[]? GetGuidValues(string key, Guid[]? defaultValue)
 		{
 			int dotIdx = key.IndexOf('.');
-			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			ConfigSection? section = FindSection(key.Substring(0, dotIdx));
 			return (section == null)? defaultValue : section.GetValues(key.Substring(dotIdx + 1), defaultValue);
 		}
 	}

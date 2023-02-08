@@ -130,7 +130,7 @@ namespace UnrealGameSync
 
 		public static string GetPathWithCorrectCase(FileInfo info)
 		{
-			DirectoryInfo parentInfo = info.Directory;
+			DirectoryInfo parentInfo = info.Directory!;
 			if(info.Exists)
 			{
 				return Path.Combine(GetPathWithCorrectCase(parentInfo), parentInfo.GetFiles(info.Name)[0].Name); 
@@ -143,7 +143,7 @@ namespace UnrealGameSync
 
 		public static string GetPathWithCorrectCase(DirectoryInfo info)
 		{
-			DirectoryInfo parentInfo = info.Parent;
+			DirectoryInfo? parentInfo = info.Parent;
 			if(parentInfo == null)
 			{
 				return info.FullName.ToUpperInvariant();
@@ -372,7 +372,7 @@ namespace UnrealGameSync
 
 			if (projectFile.Name.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
 			{
-				AddLocalConfigPaths_WithExtensionDirs(projectFile.Directory, "Build", "UnrealGameSync.ini", searchPaths);
+				AddLocalConfigPaths_WithExtensionDirs(projectFile.Directory!, "Build", "UnrealGameSync.ini", searchPaths);
 			}
 			else
 			{
@@ -596,7 +596,7 @@ namespace UnrealGameSync
 			ProcessStartInfo startInfo = new ProcessStartInfo();
 			startInfo.FileName = url;
 			startInfo.UseShellExecute = true;
-			using Process _ = Process.Start(startInfo);
+			using Process? _ = Process.Start(startInfo);
 		}
 	}
 }
