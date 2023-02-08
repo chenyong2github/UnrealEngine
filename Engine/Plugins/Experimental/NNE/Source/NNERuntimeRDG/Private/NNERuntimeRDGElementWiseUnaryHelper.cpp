@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGElementWiseUnaryHelper.h"
+#include "NNECoreTensor.h"
 #include "Math/UnrealMathUtility.h"
 
-namespace UE::NNERuntimeRDG::Private::ElementWiseUnaryCPUHelper
+namespace UE::NNERuntimeRDG::Internal::ElementWiseUnaryCPUHelper
 {
+	template<NNECore::Internal::EElementWiseUnaryOperatorType OpType> float Apply(float X, float Alpha, float Beta, float Gamma);
+	
 	template<> float Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Abs>(float X, float Alpha, float Beta, float Gamma) { return FMath::Abs(X); }
 
 	template<> float Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Acos>(float X, float Alpha, float Beta, float Gamma) { return FMath::Acos(X); }
@@ -12,7 +15,7 @@ namespace UE::NNERuntimeRDG::Private::ElementWiseUnaryCPUHelper
 	template<> float Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Acosh>(float X, float Alpha, float Beta, float Gamma) {
 		//https://mathworld.wolfram.com/InverseHyperbolicCosine.html
 		float FloatNan = FMath::Sqrt(-1.0f);
-		float yAboveOne = FMath::Loge(X + FMath::Sqrt(X + 1.0f) + FMath::Sqrt(X - 1.0f));
+		float yAboveOne = FMath::Loge(X + FMath::Sqrt(X + 1.0f) * FMath::Sqrt(X - 1.0f));
 		if (X == 1.0f)
 		{
 			return 0.0f;
@@ -43,7 +46,7 @@ namespace UE::NNERuntimeRDG::Private::ElementWiseUnaryCPUHelper
 	
 	template<> float Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Cosh>(float X, float Alpha, float Beta, float Gamma) {
 		//https://mathworld.wolfram.com/HyperbolicCosine.html
-		return 0.5f * (FMath::Exp(X) - FMath::Exp(-X));
+		return 0.5f * (FMath::Exp(X) + FMath::Exp(-X));
 	}
 	
 	template<> float Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Elu>(float X, float Alpha, float Beta, float Gamma) {
@@ -119,6 +122,135 @@ namespace UE::NNERuntimeRDG::Private::ElementWiseUnaryCPUHelper
 		float b = 11.0f / 109.0f;
 		float x3 = X * X * X;
 		return Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Tanh>(a * X + b * x3, Alpha, Beta, Gamma);
+	}
+
+	template<NNECore::Internal::EElementWiseUnaryOperatorType OpType> void Apply(const NNECore::Internal::FTensor& Tensor, float Alpha, float Beta, float Gamma, NNECore::Internal::FTensor& OutputTensor)
+	{
+		//Heuristic to avoid unexpected performance hit. This helper being intended for shape related arithmetic only.
+		static constexpr int32 MaxItemInInputTensors = NNECore::FTensorShape::MaxRank * 2;
+
+		if (Tensor.HasPreparedData() && (Tensor.GetVolume() <= MaxItemInInputTensors))
+		{
+			TConstArrayView<float> TensorData = Tensor.GetPreparedData<float>();
+			TArray<float> OutputData;
+			OutputData.Reserve(TensorData.Num());
+			for (float elem : TensorData)
+			{
+				OutputData.Add(Apply<OpType>(elem, Alpha, Beta, Gamma));
+			}
+			OutputTensor.SetPreparedData<float>(OutputData);
+		}
+	}
+
+	void Apply(NNECore::Internal::EElementWiseUnaryOperatorType OpType, const NNECore::Internal::FTensor& Tensor, float Alpha, float Beta, float Gamma, NNECore::Internal::FTensor& OutputTensor)
+	{
+		switch (OpType)
+		{
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Abs:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Abs>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Acos:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Acos>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Acosh:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Acosh>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Asin:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Asin>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Asinh:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Asinh>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Atan:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Atan>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Atanh:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Atanh>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Ceil:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Ceil>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Cos:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Cos>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Cosh:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Cosh>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Elu:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Elu>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Erf:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Erf>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Exp:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Exp>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Floor:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Floor>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::IsInf:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::IsInf>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::IsNan:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::IsNan>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::HardSigmoid:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::HardSigmoid>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::HardSwish:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::HardSwish>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::LeakyRelu:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::LeakyRelu>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Log:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Log>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Neg:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Neg>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Reciprocal:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Reciprocal>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Relu:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Relu>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Round:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Round>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Selu:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Selu>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Sigmoid:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Sigmoid>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Sign:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Sign>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Sin:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Sin>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Sinh:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Sinh>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Softplus:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Softplus>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Softsign:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Softsign>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Sqrt:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Sqrt>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Tan:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Tan>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Tanh:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Tanh>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		default:
+			break;
+		}
 	}
 	
 } // UE::NNERuntimeRDG::Private::ElementWiseUnaryCPUHelper

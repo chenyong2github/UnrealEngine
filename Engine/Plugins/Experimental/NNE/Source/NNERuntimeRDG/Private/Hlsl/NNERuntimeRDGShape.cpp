@@ -74,8 +74,17 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		FInputValidator InputValidator;
+		InputValidator.AddSupportedType(ENNETensorDataType::Half);
 		InputValidator.AddSupportedType(ENNETensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Double);
+		InputValidator.AddSupportedType(ENNETensorDataType::Int8);
+		InputValidator.AddSupportedType(ENNETensorDataType::Int16);
+		InputValidator.AddSupportedType(ENNETensorDataType::Int32);
 		InputValidator.AddSupportedType(ENNETensorDataType::Int64);
+		InputValidator.AddSupportedType(ENNETensorDataType::UInt8);
+		InputValidator.AddSupportedType(ENNETensorDataType::UInt16);
+		InputValidator.AddSupportedType(ENNETensorDataType::UInt32);
+		InputValidator.AddSupportedType(ENNETensorDataType::UInt64);
 		InputValidator.AddRequired();
 		bIsValid &= InputValidator.Validate(InputTypes);
 

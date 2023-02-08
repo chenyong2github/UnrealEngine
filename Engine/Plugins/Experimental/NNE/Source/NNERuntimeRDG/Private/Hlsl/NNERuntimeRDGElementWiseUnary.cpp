@@ -41,17 +41,8 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			OutputTensors[0]->SetShape(InputTensors[0]->GetShape());
 
 			const NNECore::Internal::FTensor& X = *InputTensors[0];
-			if (X.HasPreparedData())
-			{
-				TConstArrayView<float> XData = X.GetPreparedData<float>();
-				TArray<float> OutputData;
-				OutputData.Reserve(XData.Num());
-				for (float elem : XData)
-				{
-					OutputData.Add(ElementWiseUnaryCPUHelper::Apply<OpType>(elem, Alpha, Beta, Gamma));
-				}
-				OutputTensors[0]->SetPreparedData<float>(OutputData);
-			}
+
+			Internal::ElementWiseUnaryCPUHelper::Apply(OpType, X, Alpha, Beta, Gamma, *OutputTensors[0]);
 			
 			return 0;
 		}

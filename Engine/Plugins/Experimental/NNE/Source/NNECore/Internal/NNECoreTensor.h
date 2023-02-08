@@ -62,11 +62,11 @@ namespace UE::NNECore::Internal
 		template <typename T> void SetPreparedData(TConstArrayView<T> Data)
 		{
 			const uint8* DataPtr = reinterpret_cast<const uint8*>(Data.GetData());
-			TConstArrayView<uint8> DataAsByte = MakeArrayView(DataPtr, Data.Num() / sizeof(T));
+			TConstArrayView<uint8> DataAsByte = MakeArrayView(DataPtr, Data.Num() * sizeof(T));
 			
 			checkf(DataAsByte.Num() == DataSize, TEXT("Incorrect data size, it should match tensor shape and data type."));
 			PreparedData.Reset();
-			PreparedData.Append(Data);
+			PreparedData.Append(DataAsByte);
 		}
 
 		bool HasPreparedData() const

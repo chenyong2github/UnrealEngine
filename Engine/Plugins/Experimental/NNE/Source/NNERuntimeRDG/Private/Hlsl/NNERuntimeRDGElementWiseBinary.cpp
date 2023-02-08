@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGElementWiseBinary.h"
+#include "NNERuntimeRDGElementWiseBinaryHelper.h"
 #include "NNEHlslShadersElementWiseBinaryCS.h"
 #include "NNERuntimeRDGHlslHelper.h"
 #include "NNECoreTensor.h"
@@ -56,6 +57,8 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
 			
 			OutputTensors[0]->SetShape(OutputShape);
+
+			Internal::ElementWiseBinaryCPUHelper::Apply(OpType, *InputTensors[0], *InputTensors[1], *OutputTensors[0]);
 			
 			return 0;
 		}

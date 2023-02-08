@@ -23,6 +23,7 @@ public class NNEQA : ModuleRules
 				"Json",
 				"CoreUObject",
 				"NNECore",
+				"NNERuntimeRDG",
 				"NNEUtils",
 				"RHI",
 				"RenderCore"
