@@ -2022,7 +2022,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Expiration)
 	TArray<TSubclassOf<UGameplayEffect>> RoutineExpirationEffectClasses;
 
-	/** If true, cues will only trigger when GE modifiers succeed being applied (whether through modifiers or executions) */
+	/** If true, cues will only trigger when any GE modifiers succeed being applied (whether through modifiers or executions), or if there were no modifiers application attempts. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Display)
 	bool bRequireModifierSuccessToTriggerCues;
 
