@@ -2,21 +2,21 @@
 
 #pragma once
 
-#include "Chooser.h"
+#include "ProxyTable.h"
 #include "AssetDefinitionDefault.h"
 
-#include "AssetDefinition_ChooserTable.generated.h"
+#include "AssetDefinition_ProxyTable.generated.h"
 
 UCLASS()
-class UAssetDefinition_ChooserTable : public UAssetDefinitionDefault
+class UAssetDefinition_ProxyTable : public UAssetDefinitionDefault
 {
 	GENERATED_BODY()
 
 public:
 	// UAssetDefinition Begin
-	virtual FText GetAssetDisplayName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ChooserTable", "Chooser Table"); }
+	virtual FText GetAssetDisplayName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ProxyTable", "Proxy Table"); }
 	virtual FLinearColor GetAssetColor() const override { return FLinearColor(FColor(128,128,64)); }
-	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UChooserTable::StaticClass(); }
+	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UProxyTable::StaticClass(); }
 	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override
 	{
 		static const auto Categories = { FAssetCategoryPath(EAssetCategoryPaths::Misc) };

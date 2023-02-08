@@ -8,8 +8,6 @@
 namespace UE::ChooserEditor
 {
 
-class FAssetTypeActions_ChooserTable;
-
 class FModule : public IModuleInterface
 {
 private:

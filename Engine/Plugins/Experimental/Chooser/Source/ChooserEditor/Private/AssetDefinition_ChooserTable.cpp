@@ -7,8 +7,12 @@
 
 EAssetCommandResult UAssetDefinition_ChooserTable::OpenAssets(const FAssetOpenArgs& OpenArgs) const
 {
-	TArray<UObject*> ChooserTables = TArray<UObject*>(OpenArgs.LoadObjects<UChooserTable>());
-	UE::ChooserEditor::FChooserTableEditor::CreateEditor(OpenArgs.GetToolkitMode(), OpenArgs.ToolkitHost, ChooserTables);
+	TArray<UObject*> Objects = OpenArgs.LoadObjects<UObject>();
+	
+	for (UObject* Object : Objects)
+	{
+		UE::ChooserEditor::FChooserTableEditor::CreateEditor(OpenArgs.GetToolkitMode(), OpenArgs.ToolkitHost, Object);
+	}
 
 	return EAssetCommandResult::Handled;
 }

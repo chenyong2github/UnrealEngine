@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"AssetTools",
+					"AssetDefinition",
 					"Chooser",
 					"ChooserEditor",
 					"ProxyTable",
