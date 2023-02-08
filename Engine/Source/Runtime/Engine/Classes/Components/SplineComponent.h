@@ -356,6 +356,9 @@ public:
 
 	void ApplyComponentInstanceData(struct FSplineInstanceData* ComponentInstanceData, const bool bPostUCS);
 
+	/** Reset the spline to its default shape (a spline of two points) */
+	void ResetToDefault();
+
 	/** Update the spline tangents and SplineReparamTable */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	virtual void UpdateSpline();
@@ -810,6 +813,10 @@ private:
 	static const FInterpCurvePointVector DummyPointScale;
 
 private:
+
+	/** Set the SplineCurves with the default shape i.e. a spline of two points (Used by default constructor) */
+	void SetDefaultSpline();
+
 	/** Returns the length of the specified spline segment up to the parametric value given */
 	float GetSegmentLength(const int32 Index, const float Param = 1.0f) const;
 

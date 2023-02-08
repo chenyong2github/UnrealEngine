@@ -55,17 +55,7 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer)
 	, ScaleVisualizationWidth(30.0f)
 #endif
 {
-	SplineCurves.Position.Points.Reset(10);
-	SplineCurves.Rotation.Points.Reset(10);
-	SplineCurves.Scale.Points.Reset(10);
-
-	SplineCurves.Position.Points.Emplace(0.0f, FVector(0, 0, 0), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
-	SplineCurves.Rotation.Points.Emplace(0.0f, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
-	SplineCurves.Scale.Points.Emplace(0.0f, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
-	
-	SplineCurves.Position.Points.Emplace(1.0f, FVector(100, 0, 0), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
-	SplineCurves.Rotation.Points.Emplace(1.0f, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
-	SplineCurves.Scale.Points.Emplace(1.0f, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
+	SetDefaultSpline();
 
 #if WITH_EDITORONLY_DATA
 	if (GEngine)
@@ -81,6 +71,45 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer)
 	SplineRotInfo_DEPRECATED = SplineCurves.Rotation;
 	SplineScaleInfo_DEPRECATED = SplineCurves.Scale;
 	SplineReparamTable_DEPRECATED = SplineCurves.ReparamTable;
+}
+
+void USplineComponent::ResetToDefault()
+{
+	SetDefaultSpline();
+
+	bAllowSplineEditingPerInstance_DEPRECATED = true;
+	ReparamStepsPerSegment = 10;
+	Duration = 1.0f;
+	bStationaryEndpoints = false;
+	bSplineHasBeenEdited = false;
+	bModifiedByConstructionScript = false;
+	bInputSplinePointsToConstructionScript = false;
+	bDrawDebug  = true ;
+	bClosedLoop = false;
+	DefaultUpVector = FVector::UpVector;
+#if WITH_EDITORONLY_DATA
+	EditorUnselectedSplineSegmentColor = FStyleColors::White.GetSpecifiedColor();
+	EditorSelectedSplineSegmentColor = FStyleColors::AccentOrange.GetSpecifiedColor();
+	EditorTangentColor = FLinearColor(0.718f, 0.589f, 0.921f);
+	bAllowDiscontinuousSpline = false;
+	bShouldVisualizeScale = false;
+	ScaleVisualizationWidth = 30.0f;
+#endif
+}
+
+void USplineComponent::SetDefaultSpline()
+{
+	SplineCurves.Position.Points.Reset(10);
+	SplineCurves.Rotation.Points.Reset(10);
+	SplineCurves.Scale.Points.Reset(10);
+
+	SplineCurves.Position.Points.Emplace(0.0f, FVector(0, 0, 0), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
+	SplineCurves.Rotation.Points.Emplace(0.0f, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
+	SplineCurves.Scale.Points.Emplace(0.0f, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
+
+	SplineCurves.Position.Points.Emplace(1.0f, FVector(100, 0, 0), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
+	SplineCurves.Rotation.Points.Emplace(1.0f, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
+	SplineCurves.Scale.Points.Emplace(1.0f, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
 }
 
 void USplineComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

@@ -3070,6 +3070,8 @@ void FSplineComponentVisualizer::OnResetToDefault()
 	check(SelectionState);
 
 	SplineComp->Modify();
+	SplineComp->ResetToDefault();
+
 	if (AActor* Owner = SplineComp->GetOwner())
 	{
 		Owner->Modify();
