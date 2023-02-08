@@ -2924,6 +2924,7 @@ struct FMaterialShaderParameters
 			uint64 bIsDefaultMaterial : 1;
 			uint64 bIsSpecialEngineMaterial : 1;
 			uint64 bIsMasked : 1;
+			uint64 bIsDitherMasked : 1;
 			uint64 bIsTwoSided : 1;
 			uint64 bIsThinSurface : 1;
 			uint64 bIsDistorted : 1;

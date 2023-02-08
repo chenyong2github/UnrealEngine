@@ -8,6 +8,20 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingDefaultOpaqueCHS,
 	FRayTracingIntersectionAttributes, Attributes)
 {
 	PackedPayload.HitT = RayTCurrent();
+	if (PackedPayload.IsVisibilityRay())
+	{
+		// mark shadow fully opaque
+		PackedPayload.SetRayThroughput(0.0);
+	}
+	else
+	{
+		// mark hit as solid black
+		FPathTracingPayload Payload = (FPathTracingPayload)0;
+		Payload.ShadingModelID = SHADINGMODELID_UNLIT;
+		Payload.BlendingMode   = RAY_TRACING_BLEND_MODE_OPAQUE;
+		Payload.Opacity = 1.0;
+		PackedPayload = PackPathTracingPayload(Payload);
+	}
 }
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingDefaultHiddenCHS,

@@ -1129,25 +1129,16 @@ FRayTracingLightFunctionMap GatherLightFunctionLightsPathTracing(FScene* Scene, 
 	return RayTracingLightFunctionMap;
 }
 
-static bool NeedsAnyHitShader(bool bIsMasked, EBlendMode BlendMode)
+static bool NeedsAnyHitShader(bool bIsMasked, bool bIsDitherMasked)
 {
-	if (bIsMasked)
-	{
-		return true;
-	}
-	else if (IsOpaqueBlendMode(BlendMode) || IsAlphaHoldoutBlendMode(BlendMode))
-	{
-		return false;
-	}
-	else
-	{
-		return true;
-	}
+	// Masked materials use AHS to quickly reject masked out portions
+	// However, dither masking gets treated as ordinary translucency
+	return (bIsMasked && !bIsDitherMasked);
 }
 
 static bool NeedsAnyHitShader(const FMaterial& RESTRICT MaterialResource)
 {
-	return NeedsAnyHitShader(MaterialResource.IsMasked(), MaterialResource.GetBlendMode());
+	return NeedsAnyHitShader(MaterialResource.IsMasked(), MaterialResource.IsDitherMasked());
 }
 
 template<bool UseAnyHitShader, bool UseIntersectionShader, bool UseSimplifiedShader>
@@ -1173,9 +1164,13 @@ public:
 			// does the VF support ray tracing at all?
 			return false;
 		}
-		if (NeedsAnyHitShader(Parameters.MaterialParameters.bIsMasked, Parameters.MaterialParameters.BlendMode) != UseAnyHitShader)
+		if (Parameters.MaterialParameters.MaterialDomain == MD_DeferredDecal)
 		{
-			// the anyhit permutation is only required if the material is masked or has a non-opaque blend mode
+			// decals are handled elsewhere
+			return false;
+		}
+		if (NeedsAnyHitShader(Parameters.MaterialParameters.bIsMasked, Parameters.MaterialParameters.bIsDitherMasked) != UseAnyHitShader)
+		{
 			return false;
 		}
 		const bool bUseProceduralPrimitive = Parameters.VertexFactoryType->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(Parameters.Platform);
@@ -1322,52 +1317,50 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 {
 	FMaterialShaderTypes ShaderTypes;
 
-	const bool bUseProceduralPrimitive = MeshBatch.VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() &&
-		FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform);
-
-	const bool bIsDecal = MaterialResource.GetMaterialDomain() == MD_DeferredDecal;
-	FShaderType* DecalShaderType_CHS = GetRayTracingDecalMaterialShaderType(false);
-	FShaderType* DecalShaderType_CHS_AHS = GetRayTracingDecalMaterialShaderType(true);
-
-	switch (RayTracingMeshCommandsMode)
+	if (MaterialResource.GetMaterialDomain() == MD_DeferredDecal)
 	{
-		case ERayTracingMeshCommandsMode::PATH_TRACING:
+		ShaderTypes.AddShaderType(GetRayTracingDecalMaterialShaderType(MaterialResource.GetBlendMode()));
+	}
+	else
+	{
+		const bool bUseProceduralPrimitive = MeshBatch.VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() &&
+			FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform);
+		switch (RayTracingMeshCommandsMode)
 		{
-			if (NeedsAnyHitShader(MaterialResource))
+			case ERayTracingMeshCommandsMode::PATH_TRACING:
 			{
-				if (bIsDecal)
-					ShaderTypes.AddShaderType(DecalShaderType_CHS_AHS);
-				else if (bUseProceduralPrimitive)
-					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS_IS>();
+				if (NeedsAnyHitShader(MaterialResource))
+				{
+					if (bUseProceduralPrimitive)
+						ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS_IS>();
+					else
+						ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
+				}
 				else
-					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
+				{
+					if (bUseProceduralPrimitive)
+						ShaderTypes.AddShaderType<FPathTracingMaterialCHS_IS>();
+					else
+						ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
+				}
+				break;
 			}
-			else
+			case ERayTracingMeshCommandsMode::LIGHTMAP_TRACING:
 			{
-				if (bIsDecal)
-					ShaderTypes.AddShaderType(DecalShaderType_CHS);
-				else if (bUseProceduralPrimitive)
-					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_IS>();
+				if (NeedsAnyHitShader(MaterialResource))
+				{
+					ShaderTypes.AddShaderType<FGPULightmassCHS_AHS>();
+				}
 				else
-					ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
+				{
+					ShaderTypes.AddShaderType<FGPULightmassCHS>();
+				}
+				break;
 			}
-			break;
-		}
-		case ERayTracingMeshCommandsMode::LIGHTMAP_TRACING:
-		{
-			if (NeedsAnyHitShader(MaterialResource))
+			default:
 			{
-				ShaderTypes.AddShaderType<FGPULightmassCHS_AHS>();
+				return false;
 			}
-			else
-			{
-				ShaderTypes.AddShaderType<FGPULightmassCHS>();
-			}
-			break;
-		}
-		default:
-		{
-		    return false;
 		}
 	}
 

@@ -225,6 +225,11 @@ IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::Decals, 60);
 
 IMPLEMENT_SHADER_TYPE(, FRayTracingDecalMaterialShader, TEXT("/Engine/Private/RayTracing/RayTracingDecalMaterialShader.usf"), TEXT("RayTracingDecalMaterialShader"), SF_RayCallable);
 
+static bool NeedsAnyHitShader(EBlendMode BlendMode)
+{
+	return BlendMode != BLEND_Opaque;
+}
+
 template<bool bUseAnyHitShader>
 class TRayTracingDecalMaterial : public FMeshMaterialShader
 {
@@ -252,7 +257,7 @@ public:
 		{
 			return false;
 		}
-		if ((Parameters.MaterialParameters.bIsMasked || Parameters.MaterialParameters.BlendMode != BLEND_Opaque) != bUseAnyHitShader)
+		if (NeedsAnyHitShader(Parameters.MaterialParameters.BlendMode) != bUseAnyHitShader)
 		{
 			// the anyhit permutation is only required if the material is masked or has a non-opaque blend mode
 			return false;
@@ -270,6 +275,7 @@ public:
 		FDecalBlendDesc DecalBlendDesc = DecalRendering::ComputeDecalBlendDesc(Parameters.Platform, Parameters.MaterialParameters);
 
 		OutEnvironment.SetDefine(TEXT("DECAL_PAYLOAD_FLAGS"), CalculateDecalWriteFlags(DecalBlendDesc));
+		OutEnvironment.SetDefine(TEXT("USE_MATERIAL_ANY_HIT_SHADER"), bUseAnyHitShader ? 1 : 0);
 	}
 
 	static bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)
@@ -306,11 +312,11 @@ using FRayTracingDecalMaterialCHS_AHS = TRayTracingDecalMaterial<true>;
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FRayTracingDecalMaterialCHS, TEXT("/Engine/Private/RayTracing/RayTracingDecalMaterialShader.usf"), TEXT("closesthit=RayTracingDecalMaterialCHS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FRayTracingDecalMaterialCHS_AHS, TEXT("/Engine/Private/RayTracing/RayTracingDecalMaterialShader.usf"), TEXT("closesthit=RayTracingDecalMaterialCHS anyhit=RayTracingDecalMaterialAHS"), SF_RayHitGroup);
 
-FShaderType* GetRayTracingDecalMaterialShaderType(bool bUseAnyHitShader)
+FShaderType* GetRayTracingDecalMaterialShaderType(EBlendMode BlendMode)
 {
-	if (bUseAnyHitShader)
+	if (NeedsAnyHitShader(BlendMode))
 	{
-		return &FRayTracingDecalMaterialCHS_AHS::StaticType;
+		return &FRayTracingDecalMaterialCHS_AHS::StaticType; 
 	}
 	else
 	{

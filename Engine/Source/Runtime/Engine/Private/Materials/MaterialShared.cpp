@@ -4960,6 +4960,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	bIsDefaultMaterial = InMaterial->IsDefaultMaterial();
 	bIsSpecialEngineMaterial = InMaterial->IsSpecialEngineMaterial();
 	bIsMasked = InMaterial->IsMasked();
+	bIsDitherMasked = InMaterial->IsDitherMasked();
 	bIsTwoSided = InMaterial->IsTwoSided();
 	bIsThinSurface = InMaterial->IsThinSurface();
 	bIsDistorted = InMaterial->IsDistorted();

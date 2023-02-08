@@ -175,6 +175,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDecalMaterialCHS,
 	return;
 }
 
+#if USE_MATERIAL_ANY_HIT_SHADER
+
 RAY_TRACING_ENTRY_ANY_HIT(RayTracingDecalMaterialAHS,
 	FDecalShaderPayload, Payload,
 	FRayTracingIntersectionAttributes, Attributes)
@@ -208,5 +210,7 @@ RAY_TRACING_ENTRY_ANY_HIT(RayTracingDecalMaterialAHS,
 		return;
 	}
 }
+
+#endif // USE_MATERIAL_ANY_HIT_SHADER
 
 #endif // RAYHITGROUPSHADER

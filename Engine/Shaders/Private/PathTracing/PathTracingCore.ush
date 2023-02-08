@@ -612,7 +612,7 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint Mis
 		return 1.0;
 	}
 
-	const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+	const uint RayFlags = 0;
 	const uint InstanceInclusionMask = PATHTRACER_MASK_SHADOW | (length2(Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE) ? PATHTRACER_MASK_HAIR_SHADOW : 0);
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
@@ -626,40 +626,51 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint Mis
 		Ray.TMax = POSITIVE_INFINITY;
 	}
 
-	// Trace the ray
-	TraceRay(
-		TLAS,
-		RayFlags,
-		InstanceInclusionMask,
-		RayContributionToHitGroupIndex,
-		MultiplierForGeometryContributionToShaderIndex,
-		MissShaderIndex,
-		Ray.GetNativeDesc(),
-		PackedPayload);
-
-	if (PackedPayload.IsMiss())
+	// Trace the ray - progressing in steps through transparent geometry
+	for (;;)
 	{
-		float3 Throughput = PackedPayload.GetRayThroughput();
-		if (bCastShadows)
+		TraceRay(
+			TLAS,
+			RayFlags,
+			InstanceInclusionMask,
+			RayContributionToHitGroupIndex,
+			MultiplierForGeometryContributionToShaderIndex,
+			MissShaderIndex,
+			Ray.GetNativeDesc(),
+			PackedPayload);
+
+		if (PackedPayload.IsMiss())
 		{
-			FVolumeIntersectionList VolumeIsectList = VolumeIntersect(Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
-			if (VolumeIsectList.HitBlocker())
-			{
-				// blockers are opaque -- done!
-				return 0.0;
-			}
-			if (VolumeIsectList.HitVolume())
-			{
-				Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, RandSequence);
-			}
+			// we didn't hit anything, we are done
+			break;
 		}
-		// we didn't hit any geo - just return whatever throughput is left
-		float3 Tau = PackedPayload.GetTau() * AbsorptionScale;
-		return Throughput * exp(-max(Tau, 0.0));
+		if (!any(PackedPayload.GetRayThroughput() > 0))
+		{
+			// we've accumulated to full opacity, we are done
+			break;
+		}
+		// we hit some geometry, move one ulp past the hit and trace the same ray again
+		Ray.TMin = asfloat(asuint(PackedPayload.HitT) + 1);
 	}
 
-	// we registered a hit -- assumed to be fully opaque
-	return 0.0;
+	float3 Throughput = PackedPayload.GetRayThroughput();
+	if (bCastShadows && any(Throughput > 0))
+	{
+		FVolumeIntersectionList VolumeIsectList = VolumeIntersect(Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
+		if (VolumeIsectList.HitBlocker())
+		{
+			// blockers are opaque -- done!
+			return 0.0;
+		}
+		if (VolumeIsectList.HitVolume())
+		{
+			Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, RandSequence);
+		}
+		// add in the medium extinction
+		const float3 Tau = PackedPayload.GetTau() * AbsorptionScale;
+		Throughput *= exp(-max(Tau, 0.0));
+	}
+	return Throughput;
 }
 
 struct FProbeResult

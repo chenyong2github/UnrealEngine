@@ -302,7 +302,7 @@ FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool Las
 
 float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness)
 {
-	const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+	const uint RayFlags = 0;
 	const uint InstanceInclusionMask = PATHTRACER_MASK_SHADOW;
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
@@ -310,25 +310,32 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness)
 
 	FPackedPathTracingPayload PackedPayload = InitPathTracingVisibilityPayload(PathRoughness);
 
-	// Trace the ray
-	TraceRay(
-		TLAS,
-		RayFlags,
-		InstanceInclusionMask,
-		RayContributionToHitGroupIndex,
-		MultiplierForGeometryContributionToShaderIndex,
-		MissShaderIndex,
-		Ray.GetNativeDesc(),
-		PackedPayload);
-
-	if (PackedPayload.IsMiss())
+	for (;;)
 	{
-		// we didn't hit any geo - just return whatever throughput is left
-		return PackedPayload.GetRayThroughput();
+		// Trace the ray
+		TraceRay(
+			TLAS,
+			RayFlags,
+			InstanceInclusionMask,
+			RayContributionToHitGroupIndex,
+			MultiplierForGeometryContributionToShaderIndex,
+			MissShaderIndex,
+			Ray.GetNativeDesc(),
+			PackedPayload);
+		if (PackedPayload.IsMiss())
+		{
+			break;
+		}
+		if (!any(PackedPayload.GetRayThroughput()))
+		{
+			// accumulated to fully opacity already
+			break;
+		}
+		// one past the current hit to get the next transparent hit
+		Ray.TMin = asfloat(asuint(PackedPayload.HitT) + 1);
 	}
 
-	// we registered a hit -- assumed to be fully opaque
-	return 0;
+	return PackedPayload.GetRayThroughput();
 }
 
 void PathTracingKernel(
