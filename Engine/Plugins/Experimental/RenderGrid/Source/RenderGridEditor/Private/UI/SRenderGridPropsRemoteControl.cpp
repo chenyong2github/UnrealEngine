@@ -54,7 +54,7 @@ void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::UpdateStoredValuesA
 {
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		IRenderGridModule::Get().GetManager().UpdateRenderGridJobsPropValues(BlueprintEditor->GetInstance());
+		IRenderGridModule::Get().GetManager().UpdateStoredRenderGridJobsPropValues(BlueprintEditor->GetInstance());
 		Refresh(bForce);
 	}
 }

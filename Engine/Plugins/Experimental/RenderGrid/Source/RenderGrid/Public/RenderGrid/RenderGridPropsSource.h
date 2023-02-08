@@ -102,7 +102,7 @@ class RENDERGRID_API URenderGridPropsLocal : public URenderGridPropsBase
 /**
  * The local properties implementation of the render grid properties source abstraction.
  */
-UCLASS(BlueprintType, HideCategories=Object)
+UCLASS(BlueprintType, HideCategories=Object, Meta=(DontUseGenericSpawnObject="true"))
 class RENDERGRID_API URenderGridPropsSourceLocal : public URenderGridPropsSourceBase
 {
 	GENERATED_BODY()
@@ -194,7 +194,7 @@ protected:
 /**
  * The remote control properties implementation of the render grid properties source abstraction.
  */
-UCLASS(BlueprintType, HideCategories=Object)
+UCLASS(BlueprintType, HideCategories=Object, Meta=(DontUseGenericSpawnObject="true"))
 class RENDERGRID_API URenderGridPropsSourceRemoteControl : public URenderGridPropsSourceBase
 {
 	GENERATED_BODY()

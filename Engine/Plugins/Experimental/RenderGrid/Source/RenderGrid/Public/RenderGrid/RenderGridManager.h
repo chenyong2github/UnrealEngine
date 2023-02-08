@@ -108,7 +108,7 @@ namespace UE::RenderGrid
 
 
 		/** Makes sure that all the data from the current props source is stored in all of the render grid jobs of this render grid. */
-		void UpdateRenderGridJobsPropValues(URenderGrid* Grid);
+		void UpdateStoredRenderGridJobsPropValues(URenderGrid* Grid);
 
 		/** Applies the props of the given render grid job, also requires the render grid to be given as well (to know what props the render grid job is using). */
 		FRenderGridManagerPreviousPropValues ApplyJobPropValues(const URenderGrid* Grid, const URenderGridJob* Job);

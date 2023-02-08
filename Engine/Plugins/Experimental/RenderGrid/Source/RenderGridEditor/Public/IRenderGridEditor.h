@@ -39,7 +39,7 @@ namespace UE::RenderGrid
 		virtual TSharedPtr<Private::FRenderGridBlueprintEditorToolbar> GetRenderGridToolbarBuilder() = 0;
 
 		/** Returns whether it is currently rendering or playing (so changes in the level and such should be ignored). */
-		virtual bool IsCurrentlyRenderingOrPlaying() const { return IsBatchRendering() || IsPreviewRendering() || URenderGridQueue::IsExecutingAny() || IsValid(GEditor->PlayWorld); }
+		virtual bool IsCurrentlyRenderingOrPlaying() const { return IsBatchRendering() || IsPreviewRendering() || URenderGridQueue::IsRenderingAny() || IsValid(GEditor->PlayWorld); }
 
 		/** Returns whether it can currently render (like a preview render or a batch render) or not. */
 		virtual bool CanCurrentlyRender() const { return !IsCurrentlyRenderingOrPlaying(); }

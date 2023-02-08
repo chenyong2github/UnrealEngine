@@ -175,7 +175,7 @@ UTexture2D* UE::RenderGrid::FRenderGridManager::GetRenderedPreviewFrame(URenderG
 }
 
 
-void UE::RenderGrid::FRenderGridManager::UpdateRenderGridJobsPropValues(URenderGrid* Grid)
+void UE::RenderGrid::FRenderGridManager::UpdateStoredRenderGridJobsPropValues(URenderGrid* Grid)
 {
 	if (!IsValid(Grid))
 	{
@@ -200,7 +200,7 @@ void UE::RenderGrid::FRenderGridManager::UpdateRenderGridJobsPropValues(URenderG
 		{
 			for (URenderGridJob* Job : Jobs)
 			{
-				if (!Job->HasRemoteControlValueBytes(Entity))
+				if (!Job->HasStoredRemoteControlValueBytes(Entity))
 				{
 					Job->SetRemoteControlValueBytes(Entity, Bytes);
 				}
@@ -230,7 +230,7 @@ FRenderGridManagerPreviousPropValues UE::RenderGrid::FRenderGridManager::ApplyJo
 			}
 
 			TArray<uint8> PropData;
-			if (!Job->ConstGetRemoteControlValueBytes(Prop->GetRemoteControlEntity(), PropData))
+			if (!Job->GetRemoteControlValueBytes(Prop->GetRemoteControlEntity(), PropData))
 			{
 				continue;
 			}

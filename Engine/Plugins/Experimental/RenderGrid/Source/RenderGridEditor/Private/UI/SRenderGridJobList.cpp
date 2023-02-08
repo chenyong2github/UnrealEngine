@@ -696,7 +696,7 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridJobListTableRow::Generat
 		else if (ColumnName == FRenderGridJobListColumns::Duration)
 		{
 			FText Text;
-			if (TOptional<double> Duration = Job->GetDurationInSeconds())
+			if (TOptional<double> Duration = Job->GetDuration())
 			{
 				FTimespan Timespan = FTimespan::FromSeconds(*Duration);
 				int32 Hours = static_cast<int32>(Timespan.GetTotalHours());

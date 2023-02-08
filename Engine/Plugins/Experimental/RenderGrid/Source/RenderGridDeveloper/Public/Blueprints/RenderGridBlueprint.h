@@ -20,7 +20,7 @@ namespace UE::RenderGrid
  *
  * Required in order for a RenderGrid to be able to have a blueprint graph.
  */
-UCLASS(BlueprintType, Meta=(IgnoreClassThumbnail))
+UCLASS(BlueprintType, Meta=(IgnoreClassThumbnail, DontUseGenericSpawnObject="true"))
 class RENDERGRIDDEVELOPER_API URenderGridBlueprint : public UBlueprint
 {
 	GENERATED_BODY()

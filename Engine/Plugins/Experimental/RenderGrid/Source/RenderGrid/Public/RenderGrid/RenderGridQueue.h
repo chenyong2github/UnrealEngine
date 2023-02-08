@@ -10,16 +10,17 @@
 #include "RenderGridQueue.generated.h"
 
 
-class UMoviePipelineSetting;
-class UMoviePipelineOutputBase;
-struct FMoviePipelineOutputData;
-class URenderGrid;
-class URenderGridJob;
+class FJsonValue;
 class UMoviePipelineExecutorBase;
+class UMoviePipelineExecutorJob;
+class UMoviePipelineOutputBase;
 class UMoviePipelinePIEExecutor;
 class UMoviePipelineQueue;
-class UMoviePipelineExecutorJob;
+class UMoviePipelineSetting;
+class URenderGrid;
+class URenderGridJob;
 class URenderGridQueue;
+struct FMoviePipelineOutputData;
 
 namespace UE::RenderGrid::Private
 {
@@ -98,8 +99,21 @@ public:
 	/** Retrieves the rendering status of the given render grid job. */
 	FString GetStatus() const;
 
+	/** Retrieves the rendering status of the given render grid job. */
+	float GetStatusPercentage() const;
+
 	/** Retrieves the "Engine Warm Up Count" value from the AntiAliasingSettings from the render preset that this render grid job uses. */
 	int32 GetEngineWarmUpCount() const;
+
+public:
+	/** An event that will be fired when the rendering process is waiting for this job's engine warm up. */
+	void OnWaitForEngineWarmUpCount();
+
+	/** An event that will be fired when the rendering process is executing the BeginJobRender event for this job. */
+	void OnPreRenderEvent();
+
+	/** An event that will be fired when the rendering process is executing the EndJobRender event for this job. */
+	void OnPostRenderEvent();
 
 public:
 	/** Returns true if this render job was canceled (which for example can be caused by calling Cancel(), or by closing the render popup). */
@@ -150,50 +164,57 @@ protected:
 	/** Whether the entry was canceled (like by calling Cancel(), or by closing the render popup). */
 	UPROPERTY(Transient)
 	bool bCanceled;
+
+	/** Whether the entry has finished (or was canceled). */
+	UPROPERTY(Transient)
+	bool bFinished;
 };
 
 
 /**
  * This class is responsible for rendering the given render grid jobs.
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, Meta=(DontUseGenericSpawnObject="true"))
 class RENDERGRID_API URenderGridQueue : public UObject, public FTickableGameObject
 {
 	GENERATED_BODY()
 
 public:
-	/** Returns true if it's currently executing any rendering queues. */
-	static bool IsExecutingAny();
+	DECLARE_MULTICAST_DELEGATE(FOnRenderingQueueChanged);
+	/** The event that will be fired when the currently rendering queue changes (like for example when the previous one has finished rendering). */
+	static FOnRenderingQueueChanged& OnRenderingQueueChanged() { return OnRenderingQueueChangedDelegate; }
 
-	DECLARE_MULTICAST_DELEGATE(FOnExecutionQueueChanged);
-	/** The event that will be fired when the currently executing rendering queue changes (like for example when the previous one has completed its execution). */
-	static FOnExecutionQueueChanged& OnExecutionQueueChanged() { return OnExecutionQueueChangedDelegate; }
-
-	/** Call this function to make it so that the editor will be closed when all rendering queues finish execution. This function has to be only called once. */
+	/** Call this function to make it so that the editor will be closed when all rendering queues have finished. This function has to only be called once. */
 	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="execution execute finish close stop end done quit"))
 	static void CloseEditorOnCompletion();
 
 private:
+	/** Closes the editor, but only if CloseEditorOnCompletion has been called. */
 	static void RequestAppExitIfSetToExitOnCompletion();
 
-private:
-	/** Returns the currently executing queue, or NULL if there isn't any currently executing. */
-	static URenderGridQueue* GetCurrentlyExecutingQueue();
+public:
+	/** Returns true if it's currently rendering any queues. */
+	static bool IsRenderingAny();
 
-	/** Adds the given queue. Will automatically execute it if it's the only one currently. */
-	static void AddExecutingQueue(URenderGridQueue* Queue);
-
-	/** Executes the next queue, if any. Nothing will happen until the next tick. */
-	static void DoNextExecutingQueue();
+	/** Returns the currently rendering queue, or NULL if there isn't any currently rendering. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="executing execution execute running rendering"))
+	static URenderGridQueue* GetCurrentlyRenderingQueue();
 
 private:
-	/** The queue of executing queues. This contains the currently rendering queue, as well as the ones that should be rendering after it. */
-	static TQueue<TObjectPtr<URenderGridQueue>> ExecutingQueues;
+	/** Adds the given queue. Will automatically start rendering it if it's the only one currently. */
+	static void AddRenderingQueue(URenderGridQueue* Queue);
+
+	/** Starts the next rendering queue, if there is one. Nothing will happen until the next tick. */
+	static void DoNextRenderingQueue();
+
+private:
+	/** The queue of rendering queues. This contains the currently rendering queue, as well as the ones that should be rendered after it. */
+	static TQueue<TObjectPtr<URenderGridQueue>> RenderingQueues;
 
 	/** The delegate for when data in the ExecutingQueues has changed. */
-	static FOnExecutionQueueChanged OnExecutionQueueChangedDelegate;
+	static FOnRenderingQueueChanged OnRenderingQueueChangedDelegate;
 
-	/** Whether the editor should be closed when all rendering queues finish their execution. */
+	/** Whether the editor should be closed when all rendering queues finish rendering. */
 	static bool bExitOnCompletion;
 
 public:
@@ -210,13 +231,29 @@ public:
 	}
 	//~ End FTickableGameObject interface
 
+public:
 	/** Creates a new render queue, it won't be started right away. */
 	static URenderGridQueue* Create(const UE::RenderGrid::FRenderGridQueueCreateArgs& Args);
+
+	/** Obtains a string representation of this object. Shouldn't be used for anything other than logging/debugging. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(DisplayName="To Debug String (Render Grid Queue)", CompactNodeTitle="DEBUG"))
+	FString ToDebugString() const;
+
+	/** Obtains a JSON representation of this object. Shouldn't be used for anything other than logging/debugging. */
+	TSharedPtr<FJsonValue> ToDebugJson() const;
 
 	/** Starts this render queue. */
 	void Execute();
 
 public:
+	/** Returns the GUID, which is randomly generated at creation. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Queue")
+	FGuid GetGuid() const { return Guid; }
+
+	/** Randomly generates a new GUID. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue")
+	void GenerateNewGuid() { Guid = FGuid::NewGuid(); }
+
 	/** Queues the given job. */
 	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="render append"))
 	void AddJob(URenderGridJob* Job);
@@ -251,15 +288,23 @@ public:
 
 	/** Returns true if this queue is the one that's currently rendering, returns false if it hasn't started yet, or if it's waiting in the queue, or if it has finished. */
 	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="stopped quited exited killed terminated ended succeeded completed finished canceled cancelled"))
-	bool IsCurrentlyRendering() const { return (GetCurrentlyExecutingQueue() == this); }
+	bool IsCurrentlyRendering() const { return (GetCurrentlyRenderingQueue() == this); }
 
 	/** Retrieves the rendering status of the given render grid job. */
-	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering obtain text"))
+	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering"))
 	URenderGrid* GetRenderGrid() const { return RenderGrid; }
 
-	/** Retrieves the rendering status of the given render grid job. */
+	/** Retrieves the currently rendering render grid job, can return NULL. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain"))
+	URenderGridJob* GetCurrentlyRenderingJob() const;
+
+	/** Retrieves the rendering status of the given render grid job. Will return an empty string if this job wasn't found in this queue. */
 	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain text"))
 	FString GetJobStatus(URenderGridJob* Job) const;
+
+	/** Returns the percentage of the rendering status of the given render grid job. Will return 0 if this job wasn't found in this queue. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount finished complete completion"))
+	float GetJobStatusPercentage(URenderGridJob* Job) const;
 
 	/** Returns all the jobs that have been and will be rendered. */
 	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain"))
@@ -269,21 +314,21 @@ public:
 	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount"))
 	int32 GetJobsCount() const;
 
-	/** Returns the number of jobs that have finished rendering. Basically just returns [Get Jobs Count] minus [Get Jobs Remaining Count]. */
-	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
-	int32 GetJobsCompletedCount() const;
-
-	/** Returns the percentage of jobs finished, this includes the progression of the job that is currently rendering. */
-	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
-	float GetStatusPercentage() const;
-
 	/** Returns the number of jobs that are still left to render, includes the job that is currently rendering. */
 	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
 	int32 GetJobsRemainingCount() const;
 
+	/** Returns the number of jobs that have finished rendering. Basically just returns [Get Jobs Count] minus [Get Jobs Remaining Count]. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
+	int32 GetJobsCompletedCount() const;
+
 	/** Returns the status of the rendering process. */
 	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain text"))
 	FString GetStatus() const;
+
+	/** Returns the percentage of jobs finished, this includes the progression of the job that is currently rendering. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount finished complete completion"))
+	float GetStatusPercentage() const;
 
 protected:
 	void OnStart();
@@ -291,6 +336,10 @@ protected:
 	void OnFinish();
 
 protected:
+	/** The unique ID of this queue. */
+	UPROPERTY()
+	FGuid Guid;
+
 	/** The queue containing the render actions. */
 	UE::RenderGrid::FRenderGridQueueCreateArgs Args;
 
@@ -304,6 +353,14 @@ protected:
 	/** The render grid jobs that are to be rendered, mapped to the movie pipeline render job of each specific render grid job. */
 	UPROPERTY(Transient)
 	TMap<TObjectPtr<URenderGridJob>, TObjectPtr<URenderGridMoviePipelineRenderJob>> Entries;
+
+	/** The render grid jobs that is currently being rendered. */
+	UPROPERTY(Transient)
+	TObjectPtr<URenderGridJob> CurrentJob;
+
+	/** The movie pipeline render job that is currently being rendered. */
+	UPROPERTY(Transient)
+	TObjectPtr<URenderGridMoviePipelineRenderJob> CurrentEntry;
 
 	/** The render grid of the given render grid job that will be rendered. */
 	UPROPERTY(Transient)

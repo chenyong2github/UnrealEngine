@@ -10,7 +10,7 @@
 
 FText URenderGridBlueprintAssetDefinition::GetAssetDisplayName() const
 {
-	return LOCTEXT("AssetTypeActions_RenderGrid", "Render Grid");
+	return LOCTEXT("AssetDefinition_DisplayName_RenderGrid", "Render Grid");
 }
 
 FLinearColor URenderGridBlueprintAssetDefinition::GetAssetColor() const

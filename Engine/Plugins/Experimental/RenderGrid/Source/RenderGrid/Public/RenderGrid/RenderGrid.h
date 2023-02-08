@@ -7,11 +7,12 @@
 #include "RenderGrid.generated.h"
 
 
-class URenderGridQueue;
+class FJsonValue;
+class ULevelSequence;
 class UMoviePipelineOutputSetting;
 class UMoviePipelinePrimaryConfig;
-class ULevelSequence;
 class URenderGrid;
+class URenderGridQueue;
 
 
 /**
@@ -109,7 +110,7 @@ public:
  * 
  * Each RenderGridJob must belong to a RenderGrid.
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, Meta=(DontUseGenericSpawnObject="true"))
 class RENDERGRID_API URenderGridJob : public UObject
 {
 	GENERATED_BODY()
@@ -117,6 +118,14 @@ class RENDERGRID_API URenderGridJob : public UObject
 public:
 	URenderGridJob();
 
+	/** Obtains a string representation of this object. Shouldn't be used for anything other than logging/debugging. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Job", Meta=(DisplayName="To Debug String (Render Grid Job)", CompactNodeTitle="DEBUG"))
+	FString ToDebugString() const;
+
+	/** Obtains a JSON representation of this object. Shouldn't be used for anything other than logging/debugging. */
+	TSharedPtr<FJsonValue> ToDebugJson() const;
+
+public:
 	/** Gets the calculated start frame, not taking the framerate of the render preset into account. */
 	TOptional<int32> GetSequenceStartFrame() const;
 
@@ -129,20 +138,43 @@ public:
 	/** Sets the custom end frame to match the given sequence end frame. */
 	bool SetSequenceEndFrame(const int32 NewCustomEndFrame);
 
-	/** Gets the calculated start frame. */
+
+	/** Gets the calculated start frame, if possible. */
 	TOptional<int32> GetStartFrame() const;
 
-	/** Gets the calculated end frame. */
+	/** Gets the calculated end frame, if possible. */
 	TOptional<int32> GetEndFrame() const;
 
-	/** Gets the calculated start time. */
+	/** Gets the calculated start time (in seconds), if possible. */
 	TOptional<double> GetStartTime() const;
 
-	/** Gets the calculated end time. */
+	/** Gets the calculated end time (in seconds), if possible. */
 	TOptional<double> GetEndTime() const;
 
-	/** Gets the calculated duration in seconds. */
-	TOptional<double> GetDurationInSeconds() const;
+	/** Gets the calculated duration (in seconds), if possible. */
+	TOptional<double> GetDuration() const;
+
+public:
+	/** Gets the calculated start frame, if possible. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Job")
+	void GetStartFrame(bool& bSuccess, int32& StartFrame) const;
+
+	/** Gets the calculated end frame, if possible. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Job")
+	void GetEndFrame(bool& bSuccess, int32& EndFrame) const;
+
+	/** Gets the calculated start time, if possible. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Job")
+	void GetStartTime(bool& bSuccess, double& StartTime) const;
+
+	/** Gets the calculated end time, if possible. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Job")
+	void GetEndTime(bool& bSuccess, double& EndTime) const;
+
+	/** Gets the calculated duration in seconds, if possible. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Job")
+	void GetDuration(bool& bSuccess, double& Duration) const;
+
 
 	/** Gets the resolution that this job will be rendered in. */
 	UFUNCTION(BlueprintPure, Category="Render Grid Job")
@@ -264,40 +296,33 @@ public:
 	void SetRenderPreset(UMoviePipelinePrimaryConfig* NewRenderPreset) { RenderPreset = NewRenderPreset; }
 
 
-	TArray<URemoteControlPreset*> GetRemoteControlPresets();
+	TArray<URemoteControlPreset*> GetRemoteControlPresets() const;
 
-	bool HasRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity) const;
-	bool ConstGetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes) const;
-	bool GetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes);
+	bool HasStoredRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity) const;
+	bool GetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes) const;
 	bool SetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& Bytes);
 
-	bool HasRemoteControlValueBytes(const FGuid& FieldId) const;
-	bool ConstGetRemoteControlValueBytes(const FGuid& FieldId, TArray<uint8>& OutBytes) const;
-	bool GetRemoteControlValueBytes(const FGuid& FieldId, TArray<uint8>& OutBytes);
+	bool HasStoredRemoteControlValueBytes(const FGuid& FieldId) const;
+	bool GetRemoteControlValueBytes(const FGuid& FieldId, TArray<uint8>& OutBytes) const;
 	bool SetRemoteControlValueBytes(const FGuid& FieldId, const TArray<uint8>& Bytes);
 
 	TMap<FGuid, FRenderGridRemoteControlPropertyData>& GetRemoteControlValuesBytesRef() { return RemoteControlValues; }
 
 
 	UFUNCTION(BlueprintPure, Category="Render Grid Job")
-	bool HasRemoteControlValue(const FGuid& FieldId) const;
-
-	bool ConstGetRemoteControlValue(const FGuid& FieldId, FString& Json) const;
-
-	UFUNCTION(BlueprintPure, Category="Render Grid Job")
-	bool GetRemoteControlValue(const FGuid& FieldId, FString& Json);
+	bool GetRemoteControlValue(const FGuid& FieldId, FString& Json) const;
 
 	UFUNCTION(BlueprintCallable, Category="Render Grid Job")
 	bool SetRemoteControlValue(const FGuid& FieldId, const FString& Json);
 
 	UFUNCTION(BlueprintPure, Category="Render Grid Job")
-	bool GetRemoteControlFieldIdFromLabel(const FString& Label, FGuid& FieldId);
+	bool GetRemoteControlFieldIdFromLabel(const FString& Label, FGuid& FieldId) const;
 
 	UFUNCTION(BlueprintPure, Category="Render Grid Job")
-	bool GetRemoteControlLabelFromFieldId(const FGuid& FieldId, FString& Label);
+	bool GetRemoteControlLabelFromFieldId(const FGuid& FieldId, FString& Label) const;
 
 	UFUNCTION(BlueprintCallable, Category="Render Grid Job")
-	TMap<FGuid, FString> GetRemoteControlValues();
+	TMap<FGuid, FString> GetRemoteControlValues() const;
 
 private:
 	/** The unique ID of this job. */
@@ -358,7 +383,7 @@ private:
 
 	/** The remote control plugin can be used to customize and modify the way a job is rendered. If remote control is being used, the property values of this job will be stored in this map (remote control entity id -> value as bytes). */
 	UPROPERTY()
-	TMap<FGuid, FRenderGridRemoteControlPropertyData> RemoteControlValues;
+	mutable TMap<FGuid, FRenderGridRemoteControlPropertyData> RemoteControlValues;
 };
 
 
@@ -374,6 +399,14 @@ class RENDERGRID_API URenderGrid : public UObject
 public:
 	URenderGrid();
 
+	/** Obtains a string representation of this object. Shouldn't be used for anything other than logging/debugging. */
+	UFUNCTION(BlueprintPure, Category="Render Grid", Meta=(DisplayName="To Debug String (Render Grid)", CompactNodeTitle="DEBUG"))
+	FString ToDebugString() const;
+
+	/** Obtains a JSON representation of this object. Shouldn't be used for anything other than logging/debugging. */
+	TSharedPtr<FJsonValue> ToDebugJson() const;
+
+public:
 	//UObject interface
 	virtual UWorld* GetWorld() const override;
 	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
