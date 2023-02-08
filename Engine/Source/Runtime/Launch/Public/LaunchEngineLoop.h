@@ -178,26 +178,6 @@ protected:
 
 private:
 
-	/** Enumeration representing the type of the command-line argument representing the game (typically the first argument). */
-	enum class EGameStringType
-	{
-		GameName,
-		ProjectPath,
-		ProjectShortName,
-		Unknown
-	};
-
-	/** Takes a command-line string and returns an array of tokens (splits arguments using whitespaces). */
-	static TArray<FString> TokenizeCommandline(const TCHAR* CmdLine);
-
-	/**
-	  * Finds a command-line argument representing the game, removes it from the array and returns.
-	  * 
-	  * @param TokenArray    Array of the tokenized command line
-	  * @param OutStringType Type of the game string found.
-	  * @return String representing the game command-line parameter; empty string if not found (OutStringType == Unknown in such case).
-	  */
-	static FString ExtractGameStringArgument(TArray<FString>& TokenArray, EGameStringType& OutStringType);
 
 #if WITH_ENGINE
 
