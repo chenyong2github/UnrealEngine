@@ -802,7 +802,8 @@ public:
 			TEXT("2.9.5"),
 			TEXT("2.9.6"),
 			TEXT("2.9.7"),
-			TEXT("2.9.8")
+			TEXT("2.9.8"),
+			TEXT("2.9.9")
 		};
 		const int32 OodleTextureVersionsCount = (int32)( sizeof(OodleTextureVersions)/sizeof(OodleTextureVersions[0]) );
 
