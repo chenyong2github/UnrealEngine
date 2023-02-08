@@ -6,6 +6,11 @@
 #include "MuR/System.h"
 #include "UObject/GCObject.h"
 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+#include "Tasks/Task.h"
+#else
+#endif
+
 class UTexture2D;
 
 
@@ -17,7 +22,11 @@ public:
 
 	// mu::ImageParameterGenerator interface
 	// Thread: worker
-	virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void (mu::Ptr<mu::Image>)>& ResultCallback) override;
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+	virtual TTuple<UE::Tasks::FTask, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override;
+#else
+	virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override;
+#endif
 
 	virtual mu::FImageDesc GetImageDesc(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip) override;
 

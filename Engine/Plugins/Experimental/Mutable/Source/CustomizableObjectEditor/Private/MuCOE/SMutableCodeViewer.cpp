@@ -2241,7 +2241,11 @@ namespace
 			mu::FImageDesc(mu::FImageSize(1024, 1024), mu::EImageFormat::IF_RGBA_UBYTE, 1);
 		
 	public:
-		TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void (mu::Ptr<mu::Image>)>& ResultCallback) override
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		TTuple<UE::Tasks::FTask, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override
+#else
+		TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override
+#endif
 		{
 			MUTABLE_CPUPROFILER_SCOPE(TestImageProvider_GetImage);
 
@@ -2272,8 +2276,14 @@ namespace
 			}
 
 			ResultCallback(Image);
+
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+			UE::Tasks::FTaskEvent CompletionEvent(TEXT("TestImageProvider_GetImageAsunc_Completed"));
+			CompletionEvent.Trigger();
+#else
 			FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
 			CompletionEvent->DispatchSubsequents();
+#endif
 
 			return MakeTuple(CompletionEvent, []() -> void {});
 		}

@@ -2018,7 +2018,11 @@ namespace impl
 
 		// Task: Mutable GetImages
 		//-------------------------------------------------------------
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::FTask Mutable_GetImagesTask;
+#else
 		FGraphEventRef Mutable_GetImagesTask;
+#endif
 		{
 			// Task inputs
 			check(CustomizableObject->GetPrivate() != nullptr);
@@ -2078,7 +2082,11 @@ namespace impl
 		check(CurrentOperationData);
 		CurrentOperationData->InstanceID = IDToRelease;
 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::FTask Mutable_GetMeshTask;
+#else
 		FGraphEventRef Mutable_GetMeshTask;
+#endif
 		{
 			// Task inputs
 			TSharedPtr<FMutableOperation> CurrentMutableOperation = SystemPrivateData->CurrentMutableOperation;
@@ -2264,7 +2272,11 @@ namespace impl
 			CurrentOperationData->RequestedLODs = Operation->InstanceDescriptorRuntimeHash.GetRequestedLODs();
 		}
 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::FTask Mutable_GetMeshTask;
+#else
 		FGraphEventRef Mutable_GetMeshTask;
+#endif
 		{
 			// Task inputs
 			TWeakObjectPtr<UCustomizableObjectInstance> CustomizableObjectInstancePtr = CandidateInstance;

@@ -113,7 +113,11 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+	TTuple<UE::Tasks::FTask, TFunction<void()>> CodeRunner::LoadExternalImageAsync(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback)
+#else
 	TTuple<FGraphEventRef, TFunction<void()>> CodeRunner::LoadExternalImageAsync(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback)
+#endif
     {
 		MUTABLE_CPUPROFILER_SCOPE(LoadExternalImageAsync);
 
@@ -134,8 +138,13 @@ namespace mu
 		}
 
 		// Not needed as it should never reach this point, but added for correctness.
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::FTaskEvent CompletionEvent(TEXT("LoadExternalImageAsyncCompletion"));
+		CompletionEvent.Trigger();
+#else
 		FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
 		CompletionEvent->DispatchSubsequents();
+#endif
 
 		return MakeTuple(CompletionEvent, []() -> void {});
 	}

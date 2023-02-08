@@ -115,7 +115,11 @@ mu::EImageFormat GetMutablePixelFormat(EPixelFormat InTextureFormat)
 
 
 //-------------------------------------------------------------------------------------------------
-TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void (mu::Ptr<mu::Image>)>& ResultCallback)
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+	TTuple<UE::Tasks::FTask, TFunction<void()>> FUnrealMutableImageProvider::GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback)
+#else
+	TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback)
+#endif
 {
 	// Thread: worker
 	MUTABLE_CPUPROFILER_SCOPE(FUnrealMutableImageProvider::GetImage);
@@ -133,6 +137,15 @@ TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageA
 	mu::EImageFormat MutImageFormat = mu::EImageFormat::IF_NONE;
 	int32 MutImageDataSize = 0;
 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+	auto TrivialReturn = []() -> TTuple<UE::Tasks::FTask, TFunction<void()>>
+	{
+		UE::Tasks::FTaskEvent CompletionEvent(TEXT("GetImageAsyncCompleted"));
+		CompletionEvent.Trigger();
+
+		return MakeTuple(CompletionEvent, []() -> void {});
+	};
+#else
 	auto TrivialReturn = []() -> TTuple<FGraphEventRef, TFunction<void()>>
 	{
 		FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
@@ -140,6 +153,7 @@ TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageA
 
 		return MakeTuple(CompletionEvent, []() -> void {});
 	};
+#endif
 
 	{
 		FScopeLock Lock(&ExternalImagesLock);
@@ -222,7 +236,12 @@ TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageA
 			// Create a streaming request if the data is not loaded or copy the mip data
 			if (!BulkData.IsBulkDataLoaded())
 			{
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+				UE::Tasks::FTaskEvent IORequestCompletionEvent(TEXT("Mutable_IORequestCompletionEvent"));
+#else
 				FGraphEventRef IORequestCompletionEvent = FGraphEvent::CreateGraphEvent();
+#endif
+
 
 				TFunction<void(bool, IBulkDataIORequest*)> IOCallback =
 					[
@@ -237,10 +256,15 @@ TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageA
 				{
 					ON_SCOPE_EXIT
 					{
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+						UE::Tasks::FTaskEvent EventCopy = IORequestCompletionEvent;
+						EventCopy.Trigger();
+#else
 						if (IORequestCompletionEvent.IsValid())
 						{
 							IORequestCompletionEvent->DispatchSubsequents();
 						}
+#endif
 					};
 					
 					// Should we do someting different than returning a dummy image if cancelled?

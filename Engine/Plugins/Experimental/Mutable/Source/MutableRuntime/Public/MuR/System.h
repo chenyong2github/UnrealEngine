@@ -17,6 +17,11 @@
 // This is currently broken in Switch and maybe other consoles, for some unknown reason.
 //#define MUTABLE_USE_NEW_TASKGRAPH
 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+#include "Tasks/Task.h"
+#else
+#endif
+
 
 namespace mu
 {
@@ -72,7 +77,11 @@ namespace mu
         virtual ~ImageParameterGenerator() = default;
 
         //! Returns the completion event and a cleanup function that must be called once event is completed.
-        virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void (Ptr<Image>)>& ResultCallback) = 0;
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		virtual TTuple<UE::Tasks::FTask, TFunction<void()>> GetImageAsync(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback) = 0;
+#else
+		virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback) = 0;
+#endif
 
         virtual mu::FImageDesc GetImageDesc(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip) = 0;
     };

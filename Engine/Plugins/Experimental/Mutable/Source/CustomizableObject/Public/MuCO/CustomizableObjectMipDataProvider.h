@@ -8,6 +8,9 @@
 #include "MuR/Image.h"
 #include "Streaming/TextureMipDataProvider.h"
 
+ // For the MUTABLE_USE_NEW_TASKGRAPH define
+#include "MuR/System.h"
+
 #include "CustomizableObjectMipDataProvider.generated.h"
 
 enum EPixelFormat : uint8;
@@ -97,7 +100,11 @@ public:
 	bool bRequestAborted = false;
 
 	TSharedPtr<FMutableImageOperationData> OperationData;
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+	UE::Tasks::FTask UpdateImageMutableTaskEvent;
+#else
 	FGraphEventRef UpdateImageMutableTaskEvent;
+#endif
 };
 
 

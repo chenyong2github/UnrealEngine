@@ -236,7 +236,12 @@ struct FMutableTask
 
 	/** From the traditional event graph system, still used to wait for async loads. */
 	FGraphEventRef GraphDependency0;
+	
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+	UE::Tasks::FTask GraphDependency1;
+#else
 	FGraphEventRef GraphDependency1;
+#endif
 
 	/** Check if all the dependencies of this task have been completed. */
 	inline bool AreDependenciesComplete() const
@@ -246,7 +251,7 @@ struct FMutableTask
 			&&
 			(!GraphDependency0 || GraphDependency0->IsComplete())
 			&&
-			(!GraphDependency1 || GraphDependency1->IsComplete());
+			(GraphDependency1.IsCompleted());
 #else
 		return 
 			(!GraphDependency0 || GraphDependency0->IsComplete())
@@ -262,7 +267,12 @@ struct FMutableTask
 		Dependency = {};
 #endif
 		GraphDependency0 = nullptr;
+
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		GraphDependency1 = {};
+#else
 		GraphDependency1 = nullptr;
+#endif
 	}
 };
 
@@ -608,6 +618,7 @@ public:
 
 		return LastMutableTask;
 	}
+#endif
 
 	/** This should only be used when shutting down. */
 	inline void WaitForMutableTasks()
@@ -648,14 +659,18 @@ public:
 	{
 		check(IsInGameThread());
 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::Launch(DebugName, MoveTemp(TaskBody), Priority);
+#else
 		FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
 			MoveTemp(TaskBody),
 			TStatId{},
 			nullptr,
 			ENamedThreads::AnyThread);
 		Task->SetDebugName(TEXT("Mutable_Anythread"));
-	}
 #endif
+	}
+
 
 	//
 	//TSharedPtr<FMutableOperationData> CurrentOperationData;

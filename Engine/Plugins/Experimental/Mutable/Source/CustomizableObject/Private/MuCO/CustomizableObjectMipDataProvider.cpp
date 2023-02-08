@@ -248,7 +248,14 @@ bool FMutableTextureMipDataProvider::PollMips(const FTextureUpdateSyncOptions& S
 	}
 #endif
 
-	if (!bRequestAborted && UpdateImageMutableTaskEvent)
+	if (!bRequestAborted 
+		&& 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UpdateImageMutableTaskEvent.IsCompleted()
+#else
+		UpdateImageMutableTaskEvent
+#endif
+		)
 	{
 		if (OperationData && OperationData->Result && OperationData->Levels.Num())
 		{
