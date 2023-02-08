@@ -33,7 +33,11 @@ static mtlpp::SamplerAddressMode TranslateWrapMode(ESamplerAddressMode AddressMo
 	{
 		case AM_Clamp:	return mtlpp::SamplerAddressMode::ClampToEdge;
 		case AM_Mirror: return mtlpp::SamplerAddressMode::MirrorRepeat;
+#if PLATFORM_MAC
+		case AM_Border: return mtlpp::SamplerAddressMode::ClampToBorderColor;
+#else
 		case AM_Border: return mtlpp::SamplerAddressMode::ClampToEdge;
+#endif
 		default:		return mtlpp::SamplerAddressMode::Repeat;
 	}
 }
