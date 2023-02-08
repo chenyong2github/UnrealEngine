@@ -75,6 +75,7 @@ FPreviewScene::FPreviewScene(FPreviewScene::ConstructionValues CVS)
 		DirectionalLight = NewObject<UDirectionalLightComponent>(GetTransientPackage(), NAME_None, RF_Transient);
 		DirectionalLight->Intensity = CVS.LightBrightness;
 		DirectionalLight->LightColor = FColor::White;
+		DirectionalLight->bTransmission = true;
 		AddComponent(DirectionalLight, FTransform(CVS.LightRotation));
 
 		SkyLight = NewObject<USkyLightComponent>(GetTransientPackage(), NAME_None, RF_Transient);
