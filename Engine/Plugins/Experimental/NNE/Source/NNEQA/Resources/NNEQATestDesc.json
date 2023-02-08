@@ -326,6 +326,15 @@
 			"targets": [
 				{ "target": "Upsample" }
 			]
+		},
+		{
+			"category": "GRU",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true }
+			],
+			"targets": [
+				{ "target": "GRU", "absolute_tolerance": 1e-6 }
+			]
 		}
 	],
 
@@ -721,6 +730,30 @@
 					"comment": "from 'mosaic-9-sim.onnx'"
 				}
 			]
+		},
+		{ 
+			"name": "GRU.Defaults",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 3, 2 ] }, { "shape": [ 1, 15, 2 ] }, { "shape": [ 1, 15, 5 ] } ], "outputs": [ { "shape": [ 1, 1, 3, 5 ] }, { "shape": [ 1, 3, 5 ] } ] }
+			]
+		},
+		{ 
+			"name": "GRU.InitialBias",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 3, 3 ] }, { "shape": [ 1, 9, 3 ] }, { "shape": [ 1, 9, 3 ] }, { "shape": [ 1, 18 ] } ], "outputs": [ { "shape": [ 1, 1, 3, 3 ] }, { "shape": [ 1, 3, 3 ] } ] }
+			]
+		},
+		{ 
+			"name": "GRU.SeqLength",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 3 ] }, { "shape": [ 1, 15, 3 ] }, { "shape": [ 1, 15, 5 ] }, { "shape": [ 1, 30 ] } ], "outputs": [ { "shape": [ 2, 1, 3, 5 ] }, { "shape": [ 1, 3, 5 ] } ] }
+			]
+		},
+		{ 
+			"name": "GRU.Activations",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 3 ] }, { "shape": [ 1, 15, 3 ] }, { "shape": [ 1, 15, 5 ] }, { "shape": [ 1, 30 ] } ], "outputs": [ { "shape": [ 2, 1, 3, 5 ] }, { "shape": [ 1, 3, 5 ] } ] }
+			]
 		}
 	],
 
@@ -1035,6 +1068,40 @@
 			"attribute_maps": [
 				{ "attributes": [
 					{ "name": "pads", "value": [ 0, 1, 1, 3, 0, 0, 2, 4 ], "type": "Int32Array" }
+				] }
+			]
+		},
+		{
+			"name": "GRU.Defaults",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "hidden_size", "value": 5, "type": "Int32" }
+				] }
+			]
+		},
+		{
+			"name": "GRU.InitialBias",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "hidden_size", "value": 3, "type": "Int32" }
+				] }
+			]
+		},
+		{
+			"name": "GRU.SeqLength",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "hidden_size", "value": 5, "type": "Int32" }
+				] }
+			]
+		},
+		{
+			"name": "GRU.Activations",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "hidden_size", "value": 5, "type": "Int32" },
+					{ "name": "activations", "value": ["Tanh", "Sigmoid"], "type": "StringArray" },
+					{ "name": "activation_alpha", "value": [0.01, 0.2], "type": "FloatArray" }
 				] }
 			]
 		}
