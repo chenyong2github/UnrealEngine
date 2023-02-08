@@ -113,7 +113,7 @@ void FRigLogicEditor::ExecuteDNAReimport(class UObject* Mesh)
 
 	if (!AssetData->IsEmpty())
 	{
-		const UDNAAsset* DNAAsset = Cast<UDNAAsset>(&AssetData[0]);
+		const UDNAAsset* DNAAsset = Cast<UDNAAsset>((*AssetData)[0]);
 		if (DNAAsset)
 		{
 			const TArray<FString> Filenames = { DNAAsset->DnaFileName };
