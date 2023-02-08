@@ -625,6 +625,13 @@ struct FMaterialConnectedPropertiesAnalyzer
 					bVisitAllInputExpressions = false;
 				}
 			}
+			else if (UMaterialExpressionNamedRerouteUsage* ExpressionRerouteUsage = Cast<UMaterialExpressionNamedRerouteUsage>(Expression))
+			{
+				if (ExpressionRerouteUsage->Declaration)
+				{
+					PushUnexploredExpression(ExpressionRerouteUsage->Declaration->Input.Expression);
+				}
+			}
 
 			// If otherwise specified, explore all input expressions to this node.
 			if (bVisitAllInputExpressions)
@@ -758,6 +765,16 @@ void FMaterialCachedExpressionData::AnalyzeMaterial(UMaterial& Material)
 				Analyzer.PushUnexploredExpression(Input->Expression);
 				SetPropertyConnected(Property);
 			}
+		}
+	}
+	
+	// If there are any connected function output expressions, mark them as unexplored expressions.
+	// This occurs when the user opens a MaterialFunction in the editor.
+	for (UMaterialExpression* Expression : Material.GetExpressions())
+	{
+		if (Expression->IsA<UMaterialExpressionFunctionOutput>())
+		{
+			Analyzer.PushUnexploredExpression(Expression);
 		}
 	}
 
