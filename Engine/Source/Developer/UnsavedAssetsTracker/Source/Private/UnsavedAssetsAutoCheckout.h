@@ -5,6 +5,7 @@
 #include "Templates/SharedPointer.h"
 #include "Containers/Map.h"
 #include "ISourceControlProvider.h"
+#include "SourceControlOperations.h"
 
 class ISourceControlOperation;
 class FUnsavedAssetsTrackerModule;
@@ -28,9 +29,14 @@ private:
 	bool OnProcessCheckoutBatch(float);
 	bool bProcessCheckoutBatchPending;
 
-	void AsyncCheckout(const TArray<FString>& FilesToCheckout);
+	void TriggerAsyncCheckout(const TArray<FString>& FilesToCheckout, const FSourceControlOperationRef& Operation);
 
-	TMap<ISourceControlOperation*, TArray<FString>> OperationToPaths;
+	void NotifySuccess(TConstArrayView<FString> Files, const FSourceControlOperationRef& Operation);
+	void NotifyFailure(TConstArrayView<FString> Files, const FSourceControlOperationRef& Operation);
+	void NotifyCancel(TConstArrayView<FString> Files, const FSourceControlOperationRef& Operation);
 
-	TSet<FString> CheckoutBatch;
+	TMap<FSourceControlOperationRef, TArray<FString>> OperationToFiles;
+
+	TSet<FString> CheckOutBatch;
+	FSourceControlOperationRef CheckOutOperation;
 };
