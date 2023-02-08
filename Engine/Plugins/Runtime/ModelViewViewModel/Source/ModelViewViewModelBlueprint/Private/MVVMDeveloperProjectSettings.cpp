@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVMDeveloperProjectSettings.h"
+#include "Engine/Blueprint.h"
 
 #define LOCTEXT_NAMESPACE "MVVMDeveloperProjectSettings"
 
@@ -47,6 +48,20 @@ bool UMVVMDeveloperProjectSettings::IsFunctionAllowed(const UFunction* Function)
 		return !Settings->DisallowedFieldNames.Find(Function->GetFName());
 	}
 	return true;
+}
+
+TArray<const UClass*> UMVVMDeveloperProjectSettings::GetAllowedConversionFunctionClasses() const
+{
+	TArray<const UClass*> Result;
+	for (const FSoftClassPath& SoftClass : AllowedClassForConversionFunctions)
+	{
+		if (UClass* Class = SoftClass.ResolveClass())
+		{
+			Result.Add(Class);
+		}
+	}
+
+	return Result;
 }
 
 #undef LOCTEXT_NAMESPACE

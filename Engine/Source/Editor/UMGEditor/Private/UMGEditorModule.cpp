@@ -299,13 +299,12 @@ public:
 
 	virtual void RegisterInstancedCustomPropertyTypeLayout(FTopLevelAssetPath Type, FOnGetInstancePropertyTypeCustomizationInstance Delegate) override
 	{
-		int32 IndexOf = CustomPropertyTypeLayout.IndexOfByPredicate([Type](const FCustomPropertyTypeLayout& Element) { return Element.Type == Type; });
-		if (ensure(!CustomPropertyTypeLayout.IsValidIndex(IndexOf)))
+		bool bIncluded = CustomPropertyTypeLayout.ContainsByPredicate([Type](const FCustomPropertyTypeLayout& Element) { return Element.Type == Type; });
+		if (ensure(!bIncluded))
 		{
-			FCustomPropertyTypeLayout Layout;
+			FCustomPropertyTypeLayout& Layout = CustomPropertyTypeLayout.AddDefaulted_GetRef();
 			Layout.Type = Type;
 			Layout.Delegate = MoveTemp(Delegate);
-			CustomPropertyTypeLayout.Add(MoveTemp(Layout));
 		}
 	}
 

@@ -24,6 +24,16 @@ struct FMVVMDeveloperProjectWidgetSettings
 	TSet<FName> AdvancedFieldNames;
 };
 
+/**
+ *
+ */
+UENUM()
+enum class EMVVMDeveloperConversionFunctionFilterType : uint8
+{
+	BlueprintActionRegistry,
+	AllowedList,
+};
+
 
 /**
  * Implements the settings for the MVVM Editor
@@ -47,6 +57,13 @@ public:
 		return AllowedExecutionMode.Contains(ExecutionMode);
 	}
 
+	EMVVMDeveloperConversionFunctionFilterType GetConversionFunctionFilter() const
+	{
+		return ConversionFunctionFilter;
+	}
+
+	TArray<const UClass*> GetAllowedConversionFunctionClasses() const;
+
 private:
 	/** Permission list for filtering which properties are visible in UI. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
@@ -55,6 +72,15 @@ private:
 	/** Permission list for filtering which execution mode is allowed. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	TSet<EMVVMExecutionMode> AllowedExecutionMode;
+
+public:
+	/** Permission list for filtering which execution mode is allowed. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	EMVVMDeveloperConversionFunctionFilterType ConversionFunctionFilter = EMVVMDeveloperConversionFunctionFilterType::BlueprintActionRegistry;
+
+	/** Individual class that are allowed to be uses as conversion functions. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel", meta = (EditCondition = "ConversionFunctionFilter == EMVVMDeveloperConversionFunctionFilterType::AllowedList"))
+	TSet<FSoftClassPath> AllowedClassForConversionFunctions;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

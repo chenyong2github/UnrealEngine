@@ -17,6 +17,7 @@
 #include "K2Node_FunctionResult.h"
 #include "K2Node_VariableGet.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMDeveloperProjectSettings.h"
 #include "MVVMSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "ScopedTransaction.h"
@@ -673,31 +674,78 @@ TArray<UFunction*> UMVVMEditorSubsystem::GetAvailableConversionFunctions(const U
 {
 	TArray<UFunction*> ConversionFunctions;
 
-	FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
-	const FBlueprintActionDatabase::FActionRegistry& ActionRegistry = ActionDatabase.GetAllActions();
-
-	for (auto It = ActionRegistry.CreateConstIterator(); It; ++It)
+	auto AddFunction = [this, &Source, &Destination, WidgetBlueprint, &ConversionFunctions](const UFunction* Function)
 	{
-		if (UObject* ActionObject = It->Key.ResolveObjectPtr())
+		// functions in the widget blueprint can do anything they want, other functions have to be static functions in a BlueprintFunctionLibrary
+		const UClass* FunctionClass = Function->GetOuterUClass();
+
+		bool bIsFromWidgetBlueprint = WidgetBlueprint->GeneratedClass->IsChildOf(FunctionClass) && Function->HasAllFunctionFlags(FUNC_BlueprintPure);
+		bool bFromBlueprintFunctionLibrary = FunctionClass->IsChildOf<UBlueprintFunctionLibrary>() && Function->HasAllFunctionFlags(FUNC_Static | FUNC_BlueprintPure);
+		if (bIsFromWidgetBlueprint || bFromBlueprintFunctionLibrary)
 		{
-			for (const UBlueprintNodeSpawner* NodeSpawner : It->Value)
+			if (IsValidConversionFunction(Function, Source, Destination))
 			{
-				FBlueprintActionInfo BlueprintAction(ActionObject, NodeSpawner);
-				const UFunction* Function = BlueprintAction.GetAssociatedFunction();
-				if (Function != nullptr)
+				ConversionFunctions.Add(const_cast<UFunction*>(Function));
+			}
+		}
+	};
+
+	EMVVMDeveloperConversionFunctionFilterType FilterType = GetDefault<UMVVMDeveloperProjectSettings>()->GetConversionFunctionFilter();
+	if (FilterType == EMVVMDeveloperConversionFunctionFilterType::BlueprintActionRegistry)
+	{
+		const FBlueprintActionDatabase::FActionRegistry& ActionRegistry = FBlueprintActionDatabase::Get().GetAllActions();
+		for (auto It = ActionRegistry.CreateConstIterator(); It; ++It)
+		{
+			if (UObject* ActionObject = It->Key.ResolveObjectPtr())
+			{
+				for (const UBlueprintNodeSpawner* NodeSpawner : It->Value)
 				{
-					// functions in the widget blueprint can do anything they want, other functions have to be static functions in a BlueprintFunctionLibrary
-					const UClass* FunctionClass = Function->GetOuterUClass();
-					if ((FunctionClass->ClassGeneratedBy == WidgetBlueprint) ||
-						(WidgetBlueprint->ParentClass && WidgetBlueprint->ParentClass->IsChildOf(FunctionClass) && Function->HasAllFunctionFlags(FUNC_Static | FUNC_BlueprintPure)) ||
-						(FunctionClass->IsChildOf<UBlueprintFunctionLibrary>() && Function->HasAllFunctionFlags(FUNC_Static | FUNC_BlueprintPure)))
+					FBlueprintActionInfo BlueprintAction(ActionObject, NodeSpawner);
+					const UFunction* Function = BlueprintAction.GetAssociatedFunction();
+					if (Function != nullptr)
 					{
-						if (IsValidConversionFunction(Function, Source, Destination))
-						{
-							ConversionFunctions.Add(const_cast<UFunction*>(Function));
-						}
+						AddFunction(Function);
 					}
 				}
+			}
+		}
+	}
+	else if (FilterType == EMVVMDeveloperConversionFunctionFilterType::AllowedList)
+	{
+		auto IsInheritedBlueprintFunction = [](const UFunction* Function)
+		{
+			bool bIsBpInheritedFunc = false;
+			if (UClass* FuncClass = Function->GetOwnerClass())
+			{
+				if (UBlueprint* BpOwner = Cast<UBlueprint>(FuncClass->ClassGeneratedBy))
+				{
+					FName FuncName = Function->GetFName();
+					if (UClass* ParentClass = BpOwner->ParentClass)
+					{
+						bIsBpInheritedFunc = (ParentClass->FindFunctionByName(FuncName, EIncludeSuperFlag::IncludeSuper) != nullptr);
+					}
+				}
+			}
+			return bIsBpInheritedFunc;
+		};
+
+		TArray<const UClass*> Classes = GetDefault<UMVVMDeveloperProjectSettings>()->GetAllowedConversionFunctionClasses();
+		Classes.Add(WidgetBlueprint->GeneratedClass);
+		for (const UClass* Class : Classes)
+		{
+			for (TFieldIterator<UFunction> FunctionIt(Class, EFieldIteratorFlags::ExcludeSuper); FunctionIt; ++FunctionIt)
+			{
+				UFunction* Function = *FunctionIt;
+				if (IsInheritedBlueprintFunction(Function))
+				{
+					continue;
+				}
+				if (!Function->HasAllFunctionFlags(FUNC_BlueprintCallable))
+				{
+					continue;
+				}
+
+				AddFunction(Function);
 			}
 		}
 	}
