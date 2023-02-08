@@ -2620,6 +2620,9 @@ namespace UnrealBuildTool
 					break;
 			}
 
+			bool bEnableMulticastSupport = false; 
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableMulticastSupport", out bEnableMulticastSupport);
+
 			// only apply density to configChanges if using android-24 or higher and minimum sdk is 17
 			bool bAddDensity = (SDKLevelInt >= 24) && (MinSDKVersion >= 17);
 
@@ -2996,6 +2999,13 @@ namespace UnrealBuildTool
 			//	Text.AppendLine("\t<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>");
 				Text.AppendLine("\t<uses-permission android:name=\"com.android.vending.CHECK_LICENSE\"/>");
 				Text.AppendLine("\t<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>");
+
+				if(bEnableMulticastSupport)
+				{
+					// This permission is needed to be able to acquire a WifiManager.MulticastLock so broadcast/multcast traffic is 
+					// not filtered out by the device network interface 
+					Text.AppendLine("\t<uses-permission android:name=\"android.permission.CHANGE_WIFI_MULTICAST_STATE\"/>");
+				}
 
 				if (bRestoreNotificationsOnReboot)
 				{

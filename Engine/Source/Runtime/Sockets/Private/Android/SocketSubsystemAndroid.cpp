@@ -2,6 +2,7 @@
 
 #include "SocketSubsystemAndroid.h"
 #include "SocketSubsystemModule.h"
+#include "SocketsAndroid.h"
 #include "IPAddress.h"
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"
@@ -35,6 +36,15 @@ void DestroySocketSubsystem( FSocketSubsystemModule& SocketSubsystemModule )
 {
 	SocketSubsystemModule.UnregisterSocketSubsystem(FName(TEXT("ANDROID")));
 	FSocketSubsystemAndroid::Destroy();
+}
+
+/**
+ * Create a FSocketBSD sub class capable of acquiring WifiManager.MulticastLock if needed.
+ */
+FSocketBSD* FSocketSubsystemAndroid::InternalBSDSocketFactory( SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol)
+{
+	// return a new socket object
+	return new FSocketAndroid(Socket, SocketType, SocketDescription, SocketProtocol, this);
 }
 
 /** 

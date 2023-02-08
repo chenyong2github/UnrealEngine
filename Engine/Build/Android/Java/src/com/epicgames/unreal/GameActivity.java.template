@@ -156,6 +156,7 @@ import android.text.TextUtils;
 import android.media.AudioManager;
 
 import android.net.ConnectivityManager;
+import android.net.wifi.WifiManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 
@@ -535,6 +536,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public static final int ANDROID_BUILD_VERSION = android.os.Build.VERSION.SDK_INT;
 	
 	private StoreHelper IapStoreHelper;
+
+	/** App wide Multicast lock used to allow broadcast/multicast communication */
+	private WifiManager.MulticastLock MultiCastLock = null;
 
 //$${gameActivityClassAdditions}$$
 
@@ -2357,6 +2361,13 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		else
 		{
 			deviceVibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+		}
+
+		if (PermissionHelper.checkPermission("android.permission.CHANGE_WIFI_MULTICAST_STATE"))
+		{
+			WifiManager wifiManager = (WifiManager)getSystemService(Context.WIFI_SERVICE);
+			MultiCastLock = wifiManager.createMulticastLock("UE");
+			MultiCastLock.setReferenceCounted(true);
 		}
 
 		// disable autofill to avoid possible Android 10 crash (android.view.autofill.AutofillManager.ensureServiceClientAddedIfNeededLocked() SyncResultReceiver$TimeoutException)
@@ -6638,6 +6649,24 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			return true;
 		}
 		return false;
+	}
+
+	public boolean AndroidThunkJava_AcquireWifiManagerMulticastLock()
+	{
+		if (MultiCastLock != null)
+		{		
+			MultiCastLock.acquire();
+			return true;
+		}
+		return false;
+	}
+
+	public void AndroidThunkJava_ReleaseWifiManagerMulticastLock()
+	{
+		if (MultiCastLock != null)
+		{		
+			MultiCastLock.release();
+		}
 	}
 
 	public void SetCrashContextData(String Key, String Value)

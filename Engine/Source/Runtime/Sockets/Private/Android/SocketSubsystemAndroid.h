@@ -19,6 +19,11 @@ protected:
 	/** Whether Init() has been called before or not */
 	bool bTriedToInit;
 
+	/**
+	 * Create a FSocketBSD sub class capable of acquiring WifiManager.MulticastLock if needed.
+	 */
+	virtual class FSocketBSD* InternalBSDSocketFactory( SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol) override;
+
 	// @todo android: (inherited from iOS) This is kind of hacky, since there's no UBT that should set PACKAGE_SCOPE
 // PACKAGE_SCOPE:
 public:

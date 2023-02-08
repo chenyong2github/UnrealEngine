@@ -145,6 +145,10 @@ public:
 	static jmethodID CurrentThreadMethod;
 	static jmethodID SetNameMethod;
 
+	// WifiManager's Multicastlock handling
+	static jmethodID AndroidThunkJava_AcquireWifiManagerMulticastLock;
+	static jmethodID AndroidThunkJava_ReleaseWifiManagerMulticastLock;
+
 	/**
 	 * Find all known classes and methods
 	 */
