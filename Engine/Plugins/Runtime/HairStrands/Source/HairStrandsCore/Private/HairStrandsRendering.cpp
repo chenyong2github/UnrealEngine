@@ -827,8 +827,7 @@ class FHairClusterAABBCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER(uint32, TotalClusterCount)
-		SHADER_PARAMETER(uint32, VertexCount)
-		SHADER_PARAMETER(float, RcpSampleWeight)
+		SHADER_PARAMETER(uint32, PointCount)
 
 		SHADER_PARAMETER(FVector3f, CPUBoundMin)
 		SHADER_PARAMETER(FVector3f, CPUBoundMax)
@@ -898,8 +897,7 @@ static void AddHairClusterAABBPass(
 	Parameters->RenderDeformedOffsetBuffer = RenderDeformedOffsetBuffer;
 	Parameters->TotalClusterCount = 1;
 
-	Parameters->VertexCount = Instance->HairGroupPublicData->GetActiveStrandsPointCount(Instance->Strands.RestResource->GetPointCount(), Instance->HairGroupPublicData->MaxScreenSize);
-	Parameters->RcpSampleWeight = 1.0 / Instance->HairGroupPublicData->GetActiveStrandsSampleWeight(true, Instance->HairGroupPublicData->MaxScreenSize);
+	Parameters->PointCount = Instance->HairGroupPublicData->GetActiveStrandsPointCount(Instance->Strands.RestResource->GetPointCount(), Instance->HairGroupPublicData->MaxScreenSize);
 
 	if (ShaderPrintData)
 	{
@@ -1920,7 +1918,7 @@ void ComputeHairStrandsInterpolation(
 					// 2.1.2 Previous Position
 					// * Transfer prev. position
 					// * Or recompute interpolation pass for previous positions if needed
-					const bool bRecomputePrevPosition = IsHairVisibilityComputeRasterContinuousLODEnabled() || IsHairVisibilityComputeRasterTemporalLayeringEnabled();
+					const bool bRecomputePrevPosition = IsHairVisibilityComputeRasterContinuousLODEnabled();
 					const bool bTransferPrevPosition = 
 						!bRecomputePrevPosition &&
 						Instance->HairGroupPublicData->VFInput.bHasLODSwitch && 

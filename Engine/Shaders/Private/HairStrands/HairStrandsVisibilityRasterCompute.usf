@@ -73,7 +73,7 @@ uint			HairMaterialId;
 Texture2D<float> SceneDepthTexture;
 
 uint 			VertexCount;
-float			SampleWeight;
+float			CoverageScale;
 
 float3 NDCToPixelCoord(float4 InDC)
 {
@@ -851,7 +851,7 @@ void PlotInternal(int2 Coords, float AntiAliasingFactor, float4 P0, float4 P1, f
 		if (PackedDepthCov > group_SubTile[LinearIndex].w)
 		{
 			const float Rad = ComputePerspectiveCorrectRadius(Rad0, Rad1, Alpha, P0.w, P1.w);
-			InterlockedAdd(group_SubTile[LinearIndex].z, min(Rad, 0.5f) * 2.0f * 1000.0f * SampleWeight * AntiAliasingFactor);
+			InterlockedAdd(group_SubTile[LinearIndex].z, min(Rad, 0.5f) * 2.0f * 1000.0f * CoverageScale * AntiAliasingFactor);
 		}
 	}
 }
@@ -1260,7 +1260,7 @@ void Plot(int2 Coord, float4 P0, float4 P1, float Rad0, float Rad1, float Segmen
 		if (PackedDepthCov > group_SubTileSceneDepth[LinearIndex])
 		{
 			const float Rad = ComputePerspectiveCorrectRadius(Rad0, Rad1, Alpha, P0.w, P1.w);
-			const uint HairCount = min(Rad, 0.5f) * 2.0f * 1000.0f * SampleWeight;
+			const uint HairCount = min(Rad, 0.5f) * 2.0f * 1000.0f * CoverageScale;
 
 			const uint CoverageMask = GetCoverageMask(Coord, P0.xy, P1.xy);
 

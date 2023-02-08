@@ -193,8 +193,7 @@ public:
 	uint32 GetClusterCount() const { return ClusterCount;  }
 
 	uint32 GetActiveStrandsPointCount(uint32 InPointCount, float ScreenSize) const;
-	float GetActiveStrandsSampleWeight(bool bUseTemporalWeight, float ScreenSize) const;
-	void UpdateTemporalIndex();
+	float  GetActiveStrandsCoverageScale() const;
 
 	struct FVertexFactoryInput 
 	{
@@ -390,9 +389,6 @@ RENDERER_API bool IsHairStrandContinuousDecimationReorderingEnabled();
 
 // Return true if continuous LOD is enabled - implies computer raster and continuous decimation reordering is true
 RENDERER_API bool IsHairVisibilityComputeRasterContinuousLODEnabled();
-
-// Return true if temporal layering is enabled - implies computer raster and continuous decimation reordering is true
-RENDERER_API bool IsHairVisibilityComputeRasterTemporalLayeringEnabled();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

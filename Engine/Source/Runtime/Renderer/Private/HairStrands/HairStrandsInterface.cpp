@@ -83,21 +83,6 @@ static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_Contin
 	TEXT("Enable Continuos LOD when using compute rasterization. Experimental"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_TemporalLayering(
-	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering"), 1,
-	TEXT("Enable Experimental WIP Temporal Layering (requires TAA changes to work well)"),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_TemporalLayering_LayerCount(
-	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering.LayerCount"), 2,
-	TEXT("Temporal Layering Layer Count (default: 2)"),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_TemporalLayering_OverrideIndex(
-	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering.OverrideIndex"), -1,
-	TEXT("Enable Temporal Layering Override Index (default: -1 = no override)"),
-	ECVF_RenderThreadSafe);
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair strands instance ref. counting for debug purpose only
 uint32 FHairStrandsInstance::GetRefCount() const
@@ -512,42 +497,9 @@ float GetHairVisibilityComputeRasterContinuousLODScale(float ScreenSize)
 	return FMath::Pow(FMath::Clamp(ScreenSize, 1.0f / 16.0f, 1.0f), 1.0f);
 }
 
-bool IsHairVisibilityComputeRasterTemporalLayeringEnabled()
-{
-	return IsHairStrandContinuousDecimationReorderingEnabled() && IsHairVisibilityComputeRasterEnabled() && (CVarHairStrandsVisibilityComputeRaster_TemporalLayering.GetValueOnAnyThread() > 0);
-}
-
-int32 GetHairVisibilityComputeRasterTemporalLayerCount()
-{
-	const uint32 LayerCount = FMath::Clamp(CVarHairStrandsVisibilityComputeRaster_TemporalLayering_LayerCount.GetValueOnAnyThread(), 1, 32);
-	return LayerCount;
-}
-
-uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalIndex, uint32 InVertexCount)
-{
-	uint32 VertexStart = 0;
-
-	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled())
-	{
-		const uint32 LayerCount = GetHairVisibilityComputeRasterTemporalLayerCount();
-		const int32 OverrideIndex = CVarHairStrandsVisibilityComputeRaster_TemporalLayering_OverrideIndex.GetValueOnAnyThread();
-
-		const uint32 VertexCount = InVertexCount / LayerCount;
-
-		VertexStart = (((OverrideIndex >= 0) ? OverrideIndex : TemporalIndex) % LayerCount) * VertexCount;
-	}
-
-	return VertexStart;
-}
-
-uint32 GetHairVisibilityComputeRasterPointCount(float ScreenSize, uint32 InPointCount)
+static uint32 GetHairVisibilityComputeRasterPointCount(float ScreenSize, uint32 InPointCount)
 {
 	uint32 PointCount = InPointCount;
-
-	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled())
-	{
-		PointCount /= GetHairVisibilityComputeRasterTemporalLayerCount();
-	}
 
 	if (IsHairVisibilityComputeRasterContinuousLODEnabled())
 	{
@@ -557,38 +509,14 @@ uint32 GetHairVisibilityComputeRasterPointCount(float ScreenSize, uint32 InPoint
 	return PointCount;
 }
 
-float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize, bool bUseTemporalWeight)
-{
-	float SampleWeight = 1.0;
-
-	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled() && bUseTemporalWeight)
-	{
-		// sample weight should increase if layer count increases
-		SampleWeight *= GetHairVisibilityComputeRasterTemporalLayerCount();
-	}
-
-	if (IsHairVisibilityComputeRasterContinuousLODEnabled())
-	{
-		//sample weight should increase if decimation scale is lower
-		SampleWeight /= GetHairVisibilityComputeRasterContinuousLODScale(ScreenSize);
-	}
-
-	return SampleWeight;
-}
-
 uint32 FHairGroupPublicData::GetActiveStrandsPointCount(uint32 InPointCount, float ScreenSize) const
 {
 	return GetHairVisibilityComputeRasterPointCount(FMath::Min(MaxScreenSize, ScreenSize), InPointCount);
 }
 
-float FHairGroupPublicData::GetActiveStrandsSampleWeight(bool bUseTemporalWeight, float ScreenSize) const
+float FHairGroupPublicData::GetActiveStrandsCoverageScale() const
 {
-	return GetHairVisibilityComputeRasterSampleWeight(FMath::Min(MaxScreenSize, ScreenSize), bUseTemporalWeight);
-}
-
-void FHairGroupPublicData::UpdateTemporalIndex()
-{
-	TemporalIndex = IsHairVisibilityComputeRasterTemporalLayeringEnabled() ? ((TemporalIndex + 1) % GetHairVisibilityComputeRasterTemporalLayerCount()) : 0;
+	return 1.f;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

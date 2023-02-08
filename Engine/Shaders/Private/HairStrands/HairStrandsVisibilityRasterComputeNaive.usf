@@ -23,7 +23,7 @@ Buffer<uint>		IndirectPrimIDs;
 float2				OutputResolution;
 uint				HairMaterialId;
 uint				ControlPointCount;
-float				SampleWeight;
+float				CoverageScale;
 uint				NumWorkGroups;
 
 // Line clipping based on "CLIPPING USING HOMOGENEOUS COORDINATES" by Blinn et al.
@@ -110,7 +110,7 @@ void Plot(int2 Coord, float AntiAliasingFactor, float4 P0, float4 P1, float Rad0
 		// Divide by W to make thickness dependent on screen space depth? This division was kept from the previous line rasterization algorithm.
 		const float Rad = lerp(Rad0, Rad1, PerspectiveAlpha) * LerpedRcpW;
 
-		InterlockedAdd(OutHairCountTexture[Coord], min(Rad, 0.5f) * 2.0f * 1000.0f * SampleWeight * AntiAliasingFactor);
+		InterlockedAdd(OutHairCountTexture[Coord], min(Rad, 0.5f) * 2.0f * 1000.0f * CoverageScale * AntiAliasingFactor);
 	}
 }
 

@@ -2982,7 +2982,7 @@ class FVisiblityRasterComputeRasterizeCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, HairMaterialId)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceParameters, HairInstance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
-		SHADER_PARAMETER(float, SampleWeight)
+		SHADER_PARAMETER(float, CoverageScale)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTilePrims)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTileArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisTileData)
@@ -3020,7 +3020,7 @@ class FVisiblityRasterComputeRasterizeMultiSampleCS : public FGlobalShader
 			SHADER_PARAMETER(uint32, HairMaterialId)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceParameters, HairInstance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
-		SHADER_PARAMETER(float, SampleWeight)
+		SHADER_PARAMETER(float, CoverageScale)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTilePrims)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTileArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisTileData)
@@ -3121,7 +3121,7 @@ class FVisiblityRasterHWPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutHairCountTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutDepthCovTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutPrimMatTexture)
-		SHADER_PARAMETER(float, SampleWeight)
+		SHADER_PARAMETER(float, CoverageScale)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -3156,7 +3156,7 @@ class FVisiblityRasterComputeNaiveCS : public FGlobalShader
 		SHADER_PARAMETER(FVector2f, OutputResolution)
 		SHADER_PARAMETER(uint32, HairMaterialId)
 		SHADER_PARAMETER(uint32, ControlPointCount)
-		SHADER_PARAMETER(float, SampleWeight)
+		SHADER_PARAMETER(float, CoverageScale)
 		SHADER_PARAMETER(uint32, NumWorkGroups)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceParameters, HairInstance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -3435,7 +3435,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
 
 			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount(VFInput.Strands.PointCount, ScreenSize);
-			const float SampleWeight = HairGroupPublicData->GetActiveStrandsSampleWeight(false, ScreenSize);
+			const float CoverageScale = HairGroupPublicData->GetActiveStrandsCoverageScale();
 
 			// HW/SW classification
 			if (bClassification)
@@ -3488,7 +3488,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 				Parameters->PS.OutHairCountTexture = HairCountTextureUAV;
 				Parameters->PS.OutDepthCovTexture = DepthCovTextureUAV;
 				Parameters->PS.OutPrimMatTexture = PrimMatTextureUAV;
-				Parameters->PS.SampleWeight = SampleWeight;
+				Parameters->PS.CoverageScale = CoverageScale;
 				Parameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(
 					SceneDepthTexture,
 					ERenderTargetLoadAction::ELoad,
@@ -3541,7 +3541,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 					RasterParameters->OutputResolution = Common.OutputResolutionf;
 					RasterParameters->HairMaterialId = PrimitiveInfo.MaterialId;
 					RasterParameters->ControlPointCount = PointCount;
-					RasterParameters->SampleWeight = SampleWeight;
+					RasterParameters->CoverageScale = CoverageScale;
 					RasterParameters->NumWorkGroups = NumWorkGroups;
 					RasterParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnableInRasterizers, bForceRegister);
 					RasterParameters->ViewUniformBuffer = ViewUniformShaderParameters;
@@ -3627,7 +3627,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 						RasterParameters->OutHairCountTexture = HairCountTextureUAV;
 						RasterParameters->OutDepthCovTexture = DepthCovTextureUAV;
 						RasterParameters->OutPrimMatTexture = PrimMatTextureUAV;
-						RasterParameters->SampleWeight = SampleWeight;
+						RasterParameters->CoverageScale = CoverageScale;
 						RasterParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnableInRasterizers, bForceRegister);
 						RasterParameters->VisTilePrims = bTileCompactionPass ? GraphBuilder.CreateSRV(CompactedVisTilePrims, PF_R32_UINT) : VisTilePrimsSRV;
 						RasterParameters->VisTileArgs = bTileCompactionPass ? GraphBuilder.CreateSRV(CompactedVisTileArgs, PF_R32_UINT) : VisTileArgsSRV;
@@ -3646,7 +3646,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 						RasterParameters->OutHairCountTexture = HairCountTextureUAV;
 						RasterParameters->OutDepthCovTexture = DepthCovTextureUAV;
 						RasterParameters->OutPrimMatTexture = PrimMatTextureUAV;
-						RasterParameters->SampleWeight = SampleWeight;
+						RasterParameters->CoverageScale = CoverageScale;
 						RasterParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnableInRasterizers, bForceRegister);
 						RasterParameters->VisTilePrims = bTileCompactionPass ? GraphBuilder.CreateSRV(CompactedVisTilePrims, PF_R32_UINT) : VisTilePrimsSRV;
 						RasterParameters->VisTileArgs = bTileCompactionPass ? GraphBuilder.CreateSRV(CompactedVisTileArgs, PF_R32_UINT) : VisTileArgsSRV;

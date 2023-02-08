@@ -139,7 +139,7 @@ VSOutput VSMain(VSInput Input)
 RWTexture2D<uint>	OutHairCountTexture;
 RWTexture2D<uint>	OutDepthCovTexture;
 RWTexture2D<uint>	OutPrimMatTexture;
-float				SampleWeight;
+float				CoverageScale;
 
 [earlydepthstencil]
 void PSMain(
@@ -151,7 +151,7 @@ void PSMain(
 	const uint2 Coord = Position.xy;
 	const uint PackedDepthCov = PackHairVisDepthCoverage(Position.z, 1.0f);
 
-	InterlockedAdd(OutHairCountTexture[Coord], min(Radius / Position.w, 0.5f) * 2.0f * 1000.0f * SampleWeight);
+	InterlockedAdd(OutHairCountTexture[Coord], min(Radius / Position.w, 0.5f) * 2.0f * 1000.0f * CoverageScale);
 
 	// Write Depth + PrimMatID if depth test against hair depths is passed
 	uint OldValue;

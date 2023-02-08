@@ -182,8 +182,6 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FHairVisibilityComposeSamplePS, "/Engine/Private/HairStrands/HairStrandsVisibilityComposeSubPixelPS.usf", "ComposeSamplePS", SF_Pixel);
 
-int32 GetHairVisibilityComputeRasterTemporalLayerCount();
-
 static void AddHairVisibilityComposeSamplePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -198,7 +196,7 @@ static void AddHairVisibilityComposeSamplePass(
 	check(VisibilityData.SampleLightingTexture);
 	const bool bDOFEnable = HairDOFDepthTexture != nullptr ? 1 : 0;
 
-	const bool bTemporal = HairTemporalAccumulationTexture != nullptr ? 1 : 0;
+	const bool bTemporal = false; //HAIR_TODO: remove
 
 	TRDGUniformBufferRef<FFogUniformParameters> FogBuffer = CreateFogUniformBuffer(GraphBuilder, View);
 
@@ -210,7 +208,7 @@ static void AddHairVisibilityComposeSamplePass(
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->HairStrands = View.HairStrandsViewData.UniformBuffer;
 	Parameters->FogStruct = FogBuffer;
-	Parameters->TemporalLayerCount = bTemporal ? GetHairVisibilityComputeRasterTemporalLayerCount() : 1;
+	Parameters->TemporalLayerCount = 1;
 	Parameters->HairTemporalAccumulationTexture = bTemporal ? HairTemporalAccumulationTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutColorTexture, bTemporal ? ERenderTargetLoadAction::ELoad : (bTemporalLayeringEnabled ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad) );
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);	
@@ -516,7 +514,7 @@ static void InternalRenderHairComposition(
 
 		FRDGTextureRef AccumulatedColor = nullptr;
 
-		const bool bTemporalLayeringEnabled = IsHairVisibilityComputeRasterTemporalLayeringEnabled() && View.ViewState;
+		const bool bTemporalLayeringEnabled = false; // HAIR_TODO: remove
 
 		if (bTemporalLayeringEnabled)
 		{

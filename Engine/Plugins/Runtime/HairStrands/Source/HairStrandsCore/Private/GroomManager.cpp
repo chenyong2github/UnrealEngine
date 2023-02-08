@@ -773,8 +773,6 @@ static void RunHairLODSelection(
 					Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
 					Instance->HairGroupPublicData->MaxScreenSize = MaxScreenSize;
 				}
-
-				Instance->HairGroupPublicData->UpdateTemporalIndex();
 			}
 			else
 			{
