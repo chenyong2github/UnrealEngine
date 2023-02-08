@@ -545,7 +545,6 @@ namespace Chaos::Softs
 								{
 									if (FleshInputBuffer)
 									{
-										bParticleTouched = true;
 										TArray<int32> BoneIndices = WeightsFacade.GetBoneIndices()[ObjectVertexIndex];
 										TArray<float> BoneWeights = WeightsFacade.GetBoneWeights()[ObjectVertexIndex];
 
@@ -574,7 +573,12 @@ namespace Chaos::Softs
 											}
 
 											MParticles.X(Index) = GlobalTransform.TransformPosition(ComponentPointAtT);
+											bParticleTouched = true;
 
+											// @todo(flesh): Add non rigid skinning weights. 
+											// Currently this just grabs the last joint, ideally
+											// we would be using the weighted average for the vertex
+											// positions.
 
 #if WITH_EDITOR
 											//debug draw
@@ -586,11 +590,6 @@ namespace Chaos::Softs
 												Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(DoubleVert(MParticles.X(Index)), FColor::Red, false, -1.0f, 0, 5);
 											}
 #endif
-
-											// @todo(flesh): Add non rigid skinning weights. 
-											// Currently this just grabs the last joint, ideally
-											// we would be using the weighted average for the vertex
-											// positions.
 											break;
 										}
 										MParticles.PAndInvM(Index).P = MParticles.X(Index);
