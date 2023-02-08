@@ -219,6 +219,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Enhanced Input|User Settings")
 	const TMap<FName, FKeyMappingRow>& GetPlayerMappedActions() const;
 
+	/** Resets every player key mapping to this action back to it's default value */
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
+	void ResetActionMappingsToDefault(const FName InActionName);
+	
+	/** Get all the key mappings associated with the given action name on this profile */
+	FKeyMappingRow* FindKeyMappingRowMutable(const FName InActionName);
+
 	/** Get all the key mappings associated with the given action name on this profile */
 	const FKeyMappingRow* FindKeyMappingRow(const FName InActionName) const;
 
@@ -230,10 +237,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual FString ToString() const;
 	
-protected:
+	/**
+	 * Returns all FKey's bound to the given Action Name on this profile.
+	 *
+	 * Returns the number of keys mapped to this action
+	 */
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (ReturnDisplayName = "Number of keys"))
+	virtual int32 GetKeysMappedToAction(const FName ActionName, /*OUT*/ TArray<FKey>& OutKeys) const;
+
+	/**
+	 * Populates the OutMappedActionNames with every action on this profile that has a mapping to the given key.
+	 *
+	 * Returns the number of actions mapped to this key
+	 */
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (ReturnDisplayName = "Number of actions"))
+	virtual int32 GetActionsMappedToKey(const FKey& InKey, /*OUT*/ TArray<FName>& OutMappedActionNames) const;
 
 	/** Returns a pointer to the player key mapping that fits with the given arguments. Returns null if none exist. */
 	virtual FPlayerKeyMapping* FindKeyMapping(const FMapPlayerKeyArgs& InArgs) const;
+	
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta=(DisplayName="Find Key Mapping", AutoCreateRefTerm="OutKeyMapping"))
+	void K2_FindKeyMapping(FPlayerKeyMapping& OutKeyMapping, const FMapPlayerKeyArgs& InArgs) const;
+	
+protected:
+
 	
 	/**
 	 * Resets all the key mappings in this profile to their default value from their Input Mapping Context.
@@ -381,6 +408,9 @@ public:
 	{
 		return Cast<T>(GetCurrentKeyProfile());
 	}
+
+	/** Returns all player saved key profiles */
+	const TMap<FGameplayTag, TObjectPtr<UEnhancedPlayerMappableKeyProfile>>& GetAllSavedKeyProfiles() const;
 
 	/**
 	 * Creates a new profile with this name and type.
