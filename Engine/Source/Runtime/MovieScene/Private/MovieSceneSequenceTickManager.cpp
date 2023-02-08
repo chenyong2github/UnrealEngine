@@ -152,8 +152,11 @@ void UMovieSceneSequenceTickManager::RegisterTickClient(const FMovieSceneSequenc
 			LinkerName.Appendf(TEXT("_%i_ms"), DesiredTickIntervalMs);
 		}
 
-
-		UMovieSceneEntitySystemLinker* Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(GetWorld(), EEntitySystemLinkerRole::LevelSequences, LinkerName.ToString());
+		// With support for multi-frame evaluations, it is possible for the linker group
+		// to be torn down mid evaluation which can leave the linker in a bad state. Use a unique
+		// linker name to avoid reusing those linkers.
+		const FName UniqueLinkerName = MakeUniqueObjectName(GetWorld(), UMovieSceneEntitySystemLinker::StaticClass(), LinkerName.ToString());
+		UMovieSceneEntitySystemLinker* Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(GetWorld(), EEntitySystemLinkerRole::LevelSequences, *UniqueLinkerName.ToString());
 		check(Linker);
 
 		FLinkerGroup& NewGroup = LinkerGroups[LinkerIndex];
