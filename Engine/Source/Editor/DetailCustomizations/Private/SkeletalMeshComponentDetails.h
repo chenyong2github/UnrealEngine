@@ -45,9 +45,11 @@ private:
 	EVisibility VisibilityForAnimationMode(EAnimationMode::Type AnimationMode) const;
 
 	/** Helper wrapper functions for VisibilityForAnimationMode */
-	EVisibility VisibilityForBlueprintMode() const { return VisibilityForAnimationMode(EAnimationMode::AnimationBlueprint); }
+	EVisibility VisibilityForBlueprintMode() const;
 	EVisibility VisibilityForSingleAnimMode() const { return VisibilityForAnimationMode(EAnimationMode::AnimationSingleNode); }
 	bool AnimPickerIsEnabled() const;
+
+	EVisibility VisibilityForAnimModeProperty() const;
 
 	/** Handler for filtering animation assets in the UI picker when asset mode is selected */
 	bool OnShouldFilterAnimAsset(const FAssetData& AssetData);

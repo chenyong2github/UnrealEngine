@@ -51,6 +51,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Settings/AnimBlueprintSettings.h"
 
 class SWidget;
 
@@ -135,7 +136,8 @@ void FSkeletalMeshComponentDetails::UpdateAnimationCategory(IDetailLayoutBuilder
 	AnimationBlueprintHandle = DetailBuilder.GetProperty(AnimationBlueprintName);
 	check(AnimationBlueprintHandle->IsValidHandle());
 
-	AnimationCategory.AddProperty(AnimationModeHandle);
+	AnimationCategory.AddProperty(AnimationModeHandle)
+		.Visibility({ this, &FSkeletalMeshComponentDetails::VisibilityForAnimModeProperty });
 
 	// Place the blueprint property next (which may be hidden, depending on the mode)
 	TAttribute<EVisibility> BlueprintVisibility( this, &FSkeletalMeshComponentDetails::VisibilityForBlueprintMode );
@@ -238,6 +240,20 @@ void FSkeletalMeshComponentDetails::UpdateAnimationCategory(IDetailLayoutBuilder
 			AnimationCategory.AddProperty(ChildHandle).Visibility(SingleAnimVisibility);
 		}
 	}
+}
+
+EVisibility FSkeletalMeshComponentDetails::VisibilityForAnimModeProperty() const
+{
+	return GetDefault<UAnimBlueprintSettings>()->bAllowAnimBlueprints ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+EVisibility FSkeletalMeshComponentDetails::VisibilityForBlueprintMode() const
+{
+	if (!GetDefault<UAnimBlueprintSettings>()->bAllowAnimBlueprints)
+	{
+		return EVisibility::Hidden;
+	}
+	return VisibilityForAnimationMode(EAnimationMode::AnimationBlueprint);
 }
 
 void FSkeletalMeshComponentDetails::UpdatePhysicsCategory(IDetailLayoutBuilder& DetailBuilder)

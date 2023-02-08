@@ -15,6 +15,10 @@ class UNREALED_API UAnimBlueprintSettings : public UObject
 	GENERATED_BODY()
 
 public:
+	/** Whether to allow using animation blueprints */
+	UPROPERTY()
+	bool bAllowAnimBlueprints = true;
+
 	/** Whether to allow event graphs to be created/displayed in animation blueprints */
 	UPROPERTY()
 	bool bAllowEventGraphs = true;

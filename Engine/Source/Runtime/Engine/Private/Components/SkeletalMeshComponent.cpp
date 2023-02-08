@@ -42,6 +42,7 @@
 #include "UObject/Stack.h"
 #if WITH_EDITOR
 #include "Engine/PoseWatch.h"
+#include "Settings/AnimBlueprintSettings.h"
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshComponent)
@@ -379,6 +380,21 @@ void USkeletalMeshComponent::PostLoad()
 	SkeletalMeshAsset = GetSkeletalMeshAsset();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
+}
+
+void USkeletalMeshComponent::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+#if WITH_EDITORONLY_DATA
+		if (!GetDefault<UAnimBlueprintSettings>()->bAllowAnimBlueprints && AnimationMode == EAnimationMode::AnimationBlueprint)
+		{
+			AnimationMode = EAnimationMode::AnimationSingleNode;
+		}
+#endif
+	}
 }
 
 void USkeletalMeshComponent::RegisterComponentTickFunctions(bool bRegister)
