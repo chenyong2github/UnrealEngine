@@ -605,20 +605,19 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 		MutableTable->SetCell(CurrentColumn, RowIdx, Value);
 	}
 
-	//TODO
-	//else if (const FNumericProperty* DoubleNumProperty = CastField<FDoubleProperty>(Property))
-	//{
-	//	CurrentColumn = MutableTable->FindColumn(TCHAR_TO_ANSI(*ColumnName));
-	//
-	//	if (CurrentColumn == INDEX_NONE)
-	//	{
-	//		CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_SCALAR);
-	//	}
-	//
-	//	// Setting cell value
-	//	float Value = DoubleNumProperty->GetFloatingPointPropertyValue(CellData);
-	//	MutableTable->SetCell(CurrentColumn, RowIdx, Value);
-	//}
+	else if (const FNumericProperty* DoubleNumProperty = CastField<FDoubleProperty>(Property))
+	{
+		CurrentColumn = MutableTable->FindColumn(TCHAR_TO_ANSI(*ColumnName));
+	
+		if (CurrentColumn == INDEX_NONE)
+		{
+			CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_SCALAR);
+		}
+	
+		// Setting cell value
+		float Value = DoubleNumProperty->GetFloatingPointPropertyValue(CellData);
+		MutableTable->SetCell(CurrentColumn, RowIdx, Value);
+	}
 }
 
 

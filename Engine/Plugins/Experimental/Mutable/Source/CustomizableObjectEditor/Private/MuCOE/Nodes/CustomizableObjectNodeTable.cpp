@@ -202,7 +202,12 @@ void UCustomizableObjectNodeTable::AllocateDefaultPins(UCustomizableObjectNodeRe
 			}
 		}
 
-		else if (const FNumericProperty* NumProperty = CastField<FFloatProperty>(ColumnProperty))
+		else if (const FNumericProperty* NumFloatProperty = CastField<FFloatProperty>(ColumnProperty))
+		{
+			OutPin = CustomCreatePin(EGPD_Output, Schema->PC_Float, FName(*PinName));
+		}
+		
+		else if (const FNumericProperty* NumDoubleProperty = CastField<FDoubleProperty>(ColumnProperty))
 		{
 			OutPin = CustomCreatePin(EGPD_Output, Schema->PC_Float, FName(*PinName));
 		}
@@ -468,7 +473,18 @@ bool UCustomizableObjectNodeTable::IsNodeOutDatedAndNeedsRefresh()
 					NumPins++;
 				}
 			}
-			else if (const FFloatProperty* NumProperty = CastField<FFloatProperty>(ColumnProperty))
+			else if (const FFloatProperty* FloatNumProperty = CastField<FFloatProperty>(ColumnProperty))
+			{
+				FString PinName = DataTableUtils::GetPropertyExportName(ColumnProperty);
+
+				if (CheckPinUpdated(PinName, Schema->PC_Float))
+				{
+					bNeedsUpdate = true;
+				}
+
+				NumPins++;
+			}
+			else if (const FDoubleProperty* DoubleNumProperty = CastField<FDoubleProperty>(ColumnProperty))
 			{
 				FString PinName = DataTableUtils::GetPropertyExportName(ColumnProperty);
 
