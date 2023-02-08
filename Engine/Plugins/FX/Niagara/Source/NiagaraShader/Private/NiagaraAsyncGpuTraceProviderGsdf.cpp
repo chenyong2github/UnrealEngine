@@ -7,9 +7,12 @@
 #include "NiagaraDistanceFieldHelper.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSettings.h"
+#include "RenderGraphUtils.h"
+#include "SceneInterface.h"
 #include "SceneManagement.h"
+#include "ShaderParameterStruct.h"
+
 #include "ScenePrivate.h"
-#include "SceneRendering.h"
 
 static int GNiagaraAsyncGpuTraceGsdfEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraAsyncGpuTraceGsdfEnabled(
@@ -96,7 +99,7 @@ bool FNiagaraAsyncGpuTraceProviderGsdf::IsAvailable() const
 	}
 
 	// check the feature level of the scene.  Gsdf sampling requires SM5+
-	if (Dispatcher->GetScene()->GetFeatureLevel() < ERHIFeatureLevel::SM5)
+	if (Dispatcher->GetSceneInterface()->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 	{
 		return false;
 	}

@@ -32,8 +32,8 @@
 #include "PipelineStateCache.h"
 #include "RHI.h"
 #include "SceneInterface.h"
-#include "ScenePrivate.h"
 #include "SceneRendering.h"
+#include "SceneRenderTargetParameters.h"
 #include "ShaderParameterUtils.h"
 #include "TextureResource.h"
 

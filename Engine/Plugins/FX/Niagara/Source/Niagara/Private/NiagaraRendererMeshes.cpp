@@ -6,6 +6,8 @@
 #include "Engine/StaticMesh.h"
 #include "FXRenderingUtils.h"
 #include "IXRTrackingSystem.h"
+#include "MaterialDomain.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "NiagaraComponent.h"
 #include "NiagaraCullProxyComponent.h"
@@ -23,7 +25,9 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
-#include "ScenePrivate.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
+#include "SceneInterface.h"
 
 DECLARE_CYCLE_STAT(TEXT("Generate Mesh Vertex Data [GT]"), STAT_NiagaraGenMeshVertexData, STATGROUP_Niagara);
 
@@ -480,17 +484,16 @@ void FNiagaraRendererMeshes::InitializeSortInfo(const FParticleMeshRenderData& P
 		OutViewOrigin = View.ViewMatrices.GetViewOrigin();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		const FSceneViewState* ViewState = View.State != nullptr ? View.State->GetConcreteViewState() : nullptr;
-		if (ViewState && ViewState->bIsFrozen && ViewState->bIsFrozenViewMatricesCached)
+		if (const FViewMatrices* CachedViewMatrices = View.State ? View.State->GetFrozenViewMatrices() : nullptr)
 		{
 			// Use the frozen view for culling so we can test that it's working
-			OutViewOrigin = ViewState->CachedViewMatrices.GetViewOrigin();
+			OutViewOrigin = CachedViewMatrices->GetViewOrigin();
 
 			// Don't retrieve the cached matrices for shadow views
 			bool bIsShadowView = View.GetDynamicMeshElementsShadowCullFrustum() != nullptr;
 			if (!bIsShadowView)
 			{
-				return ViewState->CachedViewMatrices;
+				return *CachedViewMatrices;
 			}
 		}
 #endif

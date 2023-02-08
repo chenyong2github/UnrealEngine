@@ -9,6 +9,10 @@
 #include "NiagaraShaderParticleID.h"
 #include "ScenePrivate.h"
 
+#include "PrimitiveSceneInfo.h"
+#include "RenderGraphUtils.h"
+#include "ShaderParameterStruct.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -194,7 +198,7 @@ void FNiagaraAsyncGpuTraceProvider::ClearResults(FRHICommandList& RHICmdList, ES
 	UnsetShaderUAVs(RHICmdList, TraceShader, TraceShader.GetComputeShader());
 }
 
-void FNiagaraAsyncGpuTraceProvider::BuildCollisionGroupHashMap(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, const TMap<FPrimitiveComponentId, uint32>& CollisionGroupMap, FCollisionGroupHashMap& Result)
+void FNiagaraAsyncGpuTraceProvider::BuildCollisionGroupHashMap(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FSceneInterface* Scene, const TMap<FPrimitiveComponentId, uint32>& CollisionGroupMap, FCollisionGroupHashMap& Result)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, NiagaraUpdateCollisionGroupsMap);
 
@@ -225,13 +229,8 @@ void FNiagaraAsyncGpuTraceProvider::BuildCollisionGroupHashMap(FRHICommandList& 
 		FPrimitiveComponentId PrimId = Entry.Key;
 		uint32 CollisionGroup = Entry.Value;
 
-		uint32 GPUSceneInstanceIndex = INDEX_NONE;
-		//Ugh this is a bit pants. Maybe try to rework things so I can use the direct prim index.
-		int32 PrimIndex = Scene->PrimitiveComponentIds.Find(PrimId);
-		if (PrimIndex != INDEX_NONE)
-		{
-			GPUSceneInstanceIndex = Scene->Primitives[PrimIndex]->GetInstanceSceneDataOffset();
-		}
+		const FPrimitiveSceneInfo* const PrimitiveSceneInfo = Scene->GetPrimitiveSceneInfo(PrimId);
+		const uint32 GPUSceneInstanceIndex = PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceSceneDataOffset() : INDEX_NONE;
 
 		PrimIdCollisionGroupPairPtr[0] = GPUSceneInstanceIndex;
 		PrimIdCollisionGroupPairPtr[1] = CollisionGroup;

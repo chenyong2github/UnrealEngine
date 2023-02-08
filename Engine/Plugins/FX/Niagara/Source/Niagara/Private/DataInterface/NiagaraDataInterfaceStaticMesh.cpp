@@ -12,11 +12,11 @@
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataInterfaceUtilities.h"
-#include "ScenePrivate.h"
-#include "SceneRendering.h"
+#include "SceneInterface.h"
 #include "ShaderParameterUtils.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "NiagaraStats.h"
+#include "PrimitiveSceneInfo.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -3063,7 +3063,7 @@ void UNiagaraDataInterfaceStaticMesh::SetShaderParameters(const FNiagaraDataInte
 		int32 DistanceFieldIndex = INDEX_NONE;
 		if (bDistanceFieldParametersExist && InstanceData.DistanceFieldPrimitiveId.IsValid())
 		{
-			const FSceneInterface* Scene = Context.GetComputeDispatchInterface().GetScene();
+			const FSceneInterface* Scene = Context.GetComputeDispatchInterface().GetSceneInterface();
 			if (const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene ? Scene->GetPrimitiveSceneInfo(InstanceData.DistanceFieldPrimitiveId) : nullptr)
 			{
 				DistanceFieldIndex = PrimitiveSceneInfo->DistanceFieldInstanceIndices.Num() > 0 ? PrimitiveSceneInfo->DistanceFieldInstanceIndices[0] : INDEX_NONE;

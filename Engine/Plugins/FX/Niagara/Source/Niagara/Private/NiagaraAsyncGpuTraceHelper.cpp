@@ -121,7 +121,7 @@ void FNiagaraAsyncGpuTraceHelper::PostRenderOpaque(FRHICommandList& RHICmdList, 
 #if NIAGARA_ASYNC_GPU_TRACE_COLLISION_GROUPS
 	if (bCollisionGroupMapDirty)
 	{
-		FNiagaraAsyncGpuTraceProvider::BuildCollisionGroupHashMap(RHICmdList, FeatureLevel, Dispatcher->GetScene(), CollisionGroupMap, CollisionGroupHashMapBuffer);
+		FNiagaraAsyncGpuTraceProvider::BuildCollisionGroupHashMap(RHICmdList, FeatureLevel, Dispatcher->GetSceneInterface(), CollisionGroupMap, CollisionGroupHashMapBuffer);
 		bCollisionGroupMapDirty = false;
 	}
 #endif

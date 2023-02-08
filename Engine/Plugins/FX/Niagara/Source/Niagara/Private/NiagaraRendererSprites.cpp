@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraRendererSprites.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "NiagaraComponent.h"
@@ -17,7 +18,6 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
-#include "ScenePrivate.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumSprites"), STAT_NiagaraNumSprites, STATGROUP_Niagara);
 
@@ -407,14 +407,13 @@ void FNiagaraRendererSprites::InitializeSortInfo(FParticleSpriteRenderData& Part
 		[](const FSceneView& View) -> const FViewMatrices&
 		{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			const FSceneViewState* ViewState = View.State != nullptr ? View.State->GetConcreteViewState() : nullptr;
-			if (ViewState && ViewState->bIsFrozen && ViewState->bIsFrozenViewMatricesCached)
+			if (const FViewMatrices* ViewMatrices = View.State ? View.State->GetFrozenViewMatrices() : nullptr)
 			{
 				// Don't retrieve the cached matrices for shadow views
 				bool bIsShadow = View.GetDynamicMeshElementsShadowCullFrustum() != nullptr;
 				if (!bIsShadow)
 				{
-					return ViewState->CachedViewMatrices;
+					return *ViewMatrices;
 				}
 			}
 #endif
