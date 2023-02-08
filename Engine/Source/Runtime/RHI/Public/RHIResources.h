@@ -3261,7 +3261,7 @@ public:
 			RenderTargetFormats != rhs.RenderTargetFormats || 
 			!RelevantRenderTargetFlagsEqual(RenderTargetFlags, rhs.RenderTargetFlags) || 
 			DepthStencilTargetFormat != rhs.DepthStencilTargetFormat || 
-			DepthStencilTargetFlag != rhs.DepthStencilTargetFlag ||
+			!RelevantDepthStencilFlagsEqual(DepthStencilTargetFlag, rhs.DepthStencilTargetFlag) ||
 			DepthTargetLoadAction != rhs.DepthTargetLoadAction ||
 			DepthTargetStoreAction != rhs.DepthTargetStoreAction ||
 			StencilTargetLoadAction != rhs.StencilTargetLoadAction ||
@@ -3282,6 +3282,10 @@ public:
 	// In most RHIs, the format is only influenced by TexCreate_SRGB. D3D12 additionally uses TexCreate_Shared in its format selection logic.
 	static constexpr ETextureCreateFlags RelevantRenderTargetFlagMask = ETextureCreateFlags::SRGB | ETextureCreateFlags::Shared;
 
+	// We care about flags that influence DS formats (which is the only thing the underlying API cares about).
+	// D3D12 shares the format choice function with the RT, so preserving all the flags used there out of abundance of caution.
+	static constexpr ETextureCreateFlags RelevantDepthStencilFlagMask = ETextureCreateFlags::SRGB | ETextureCreateFlags::Shared | ETextureCreateFlags::DepthStencilTargetable;
+
 	static bool RelevantRenderTargetFlagsEqual(const TRenderTargetFlags& A, const TRenderTargetFlags& B)
 	{
 		for (int32 Index = 0; Index < A.Num(); ++Index)
@@ -3294,6 +3298,13 @@ public:
 			}
 		}
 		return true;
+	}
+
+	static bool RelevantDepthStencilFlagsEqual(const ETextureCreateFlags A, const ETextureCreateFlags B)
+	{
+		ETextureCreateFlags FlagsA = (A & RelevantDepthStencilFlagMask);
+		ETextureCreateFlags FlagsB = (B & RelevantDepthStencilFlagMask);
+		return (FlagsA == FlagsB);
 	}
 
 	uint32 ComputeNumValidRenderTargets() const

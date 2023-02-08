@@ -1870,6 +1870,7 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 		{
 			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("These vertex shaders are used with an inconsistent vertex format:"), SuspiciousVertexShaders.Num());
 			int32 SuspectVSIdx = 0;
+			const int32 kMaxSuspectToPrint = 50;
 			for (const FSHAHash& SuspectVS : SuspiciousVertexShaders)
 			{
 				const TArray<FStableShaderKeyAndValue>* Out = InverseMap.Find(SuspectVS);
@@ -1903,6 +1904,12 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 					UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("Unknown shader with a hash %s"), *SuspectVS.ToString());
 				}
 				++SuspectVSIdx;
+
+				if (SuspectVSIdx > kMaxSuspectToPrint)
+				{
+					UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("... and %d more VS hashes"), SuspiciousVertexShaders.Num() - SuspectVSIdx - 1);
+					break;
+				}
 			}
 		}
 	}

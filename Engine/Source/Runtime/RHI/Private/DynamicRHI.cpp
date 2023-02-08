@@ -645,7 +645,7 @@ bool FDynamicRHI::RHIMatchPrecachePSOInitializers(const FGraphicsPipelineStateIn
 		LHS.RenderTargetFormats != RHS.RenderTargetFormats ||
 		!FGraphicsPipelineStateInitializer::RelevantRenderTargetFlagsEqual(LHS.RenderTargetFlags, RHS.RenderTargetFlags) ||
 		LHS.DepthStencilTargetFormat != RHS.DepthStencilTargetFormat ||
-		LHS.DepthStencilTargetFlag != RHS.DepthStencilTargetFlag ||
+		!FGraphicsPipelineStateInitializer::RelevantDepthStencilFlagsEqual(LHS.DepthStencilTargetFlag, RHS.DepthStencilTargetFlag) ||
 		LHS.DepthTargetLoadAction != RHS.DepthTargetLoadAction ||
 		LHS.DepthTargetStoreAction != RHS.DepthTargetStoreAction ||
 		LHS.StencilTargetLoadAction != RHS.StencilTargetLoadAction ||

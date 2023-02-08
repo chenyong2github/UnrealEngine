@@ -177,6 +177,9 @@ struct RHI_API FPipelineCacheFileFormatPSO
 
 		/** Not all RT flags make sense for the replayed PSO, only those that can influence the RT formats */
 		static ETextureCreateFlags ReduceRTFlags(ETextureCreateFlags InFlags);
+
+		/** Not all DepthStencil flags make sense for the replayed PSO, only those that can influence the actual format */
+		static ETextureCreateFlags ReduceDSFlags(ETextureCreateFlags InFlags);
 	};
 	struct RHI_API FPipelineFileCacheRayTracingDesc
 	{
@@ -248,7 +251,7 @@ struct RHI_API FPipelineCacheFileFormatPSO
 	void CommonFromString(const FStringView& Src);
 
 	/** Prints out human-readable representation of the PSO, for any type */
-	FString ToStringReadable();
+	FString ToStringReadable() const;
 	
 	// Potential cases for seperating verify logic if requiired: RunTime-Logging, RunTime-UserCaching, RunTime-PreCompile, CommandLet-Cooking
 	bool Verify() const;

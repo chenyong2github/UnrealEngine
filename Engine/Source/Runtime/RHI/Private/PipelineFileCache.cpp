@@ -448,15 +448,25 @@ void FPipelineCacheFileFormatPSO::GraphicsDescriptor::AddShadersToReadableString
 		OutBuilder << TEXT(" VS:");
 		OutBuilder << VertexShader;
 	}
-	if (FragmentShader != FSHAHash())
+	if (MeshShader != FSHAHash())
 	{
-		OutBuilder << TEXT(" PS:");
-		OutBuilder << FragmentShader;
+		OutBuilder << TEXT(" MS:");
+		OutBuilder << MeshShader;
 	}
 	if (GeometryShader != FSHAHash())
 	{
 		OutBuilder << TEXT(" GS:");
 		OutBuilder << GeometryShader;
+	}
+	if (AmplificationShader != FSHAHash())
+	{
+		OutBuilder << TEXT(" AS:");
+		OutBuilder << AmplificationShader;
+	}
+	if (FragmentShader != FSHAHash())
+	{
+		OutBuilder << TEXT(" PS:");
+		OutBuilder << FragmentShader;
 	}
 }
 
@@ -562,12 +572,12 @@ void FPipelineCacheFileFormatPSO::GraphicsDescriptor::AddStateToReadableString(T
 	OutBuilder << DepthStencilState.ToString();
 	OutBuilder << TEXT("\n");
 
-	OutBuilder << TEXT(" MSAA:");
+	OutBuilder << TEXT(" NumMSAA:");
 	OutBuilder << MSAASamples;
 	OutBuilder << TEXT(" DSfmt:");
 	OutBuilder << uint32(DepthStencilFormat);
 	OutBuilder << TEXT(" DSflags:");
-	OutBuilder << uint32(DepthStencilFlags);
+	OutBuilder << uint64(DepthStencilFlags);
 	OutBuilder << TEXT("\n");
 
 	OutBuilder << TEXT(" DL:");
@@ -596,7 +606,7 @@ void FPipelineCacheFileFormatPSO::GraphicsDescriptor::AddStateToReadableString(T
 			OutBuilder << TEXT(":fmt=");
 			OutBuilder << uint32(RenderTargetFormats[Index]);
 			OutBuilder << TEXT(" flg=");
-			OutBuilder << uint32(RenderTargetFlags[Index]);
+			OutBuilder << uint64(RenderTargetFlags[Index]);
 		}
 		OutBuilder << TEXT("\n");
 	}
@@ -660,7 +670,9 @@ bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FStr
 	check(PartEnd - PartIt >= 3); //not a very robust parser
 	LexFromString(MSAASamples, *PartIt++);
 	LexFromString((uint32&)DepthStencilFormat, *PartIt++);
-	LexFromString(DepthStencilFlags, *PartIt++);
+	ETextureCreateFlags DSFlags;
+	LexFromString(DSFlags, *PartIt++);
+	DepthStencilFlags = ReduceDSFlags(DSFlags);
 
 	check(PartEnd - PartIt >= 5); //not a very robust parser
 	LexFromString((uint32&)DepthLoad, *PartIt++);
@@ -760,6 +772,11 @@ ETextureCreateFlags FPipelineCacheFileFormatPSO::GraphicsDescriptor::ReduceRTFla
 	// We care about flags that influence RT formats (which is the only thing the underlying API cares about).
 	// In most RHIs, the format is only influenced by TexCreate_SRGB. D3D12 additionally uses TexCreate_Shared in its format selection logic.
 	return (InFlags & FGraphicsPipelineStateInitializer::RelevantRenderTargetFlagMask);
+}
+
+ETextureCreateFlags FPipelineCacheFileFormatPSO::GraphicsDescriptor::ReduceDSFlags(ETextureCreateFlags InFlags)
+{
+	return (InFlags & FGraphicsPipelineStateInitializer::RelevantDepthStencilFlagMask);
 }
 
 FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateHeaderLine()
@@ -871,7 +888,7 @@ FString FPipelineCacheFileFormatPSO::CommonToString() const
 	return FString::Printf(TEXT("\"%d,%llu\""), Count, Mask);
 }
 
-FString FPipelineCacheFileFormatPSO::ToStringReadable()
+FString FPipelineCacheFileFormatPSO::ToStringReadable() const
 {
 	TReadableStringBuilder Builder;
 
@@ -1259,7 +1276,7 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 				else
 				{
 					static_assert(sizeof(uint64) == sizeof(Info.GraphicsDesc.RenderTargetFlags[i]), "ETextureCreateFlags size changed, please change serialization");
-					uint64 RTFlags = static_cast<uint64>(Info.GraphicsDesc.RenderTargetFlags[i]);
+					uint64 RTFlags = static_cast<uint64>(FPipelineCacheFileFormatPSO::GraphicsDescriptor::ReduceRTFlags(Info.GraphicsDesc.RenderTargetFlags[i]));
 					Ar << RTFlags;
 					Info.GraphicsDesc.RenderTargetFlags[i] = FPipelineCacheFileFormatPSO::GraphicsDescriptor::ReduceRTFlags(static_cast<ETextureCreateFlags>(RTFlags));
 				}
@@ -1279,12 +1296,14 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 			{
 				uint32 DepthStencilFlags = 0;
 				Ar << DepthStencilFlags;
-				Info.GraphicsDesc.DepthStencilFlags = static_cast<ETextureCreateFlags>(DepthStencilFlags);
+				Info.GraphicsDesc.DepthStencilFlags = FPipelineCacheFileFormatPSO::GraphicsDescriptor::ReduceDSFlags(static_cast<ETextureCreateFlags>(DepthStencilFlags));
 			}
 			else
 			{
 				static_assert(sizeof(uint64) == sizeof(Info.GraphicsDesc.DepthStencilFlags), "ETextureCreateFlags size changed, please change serialization");
-				Ar << Info.GraphicsDesc.DepthStencilFlags;
+				uint64 DepthStencilFlags = static_cast<uint64>(FPipelineCacheFileFormatPSO::GraphicsDescriptor::ReduceDSFlags(Info.GraphicsDesc.DepthStencilFlags));
+				Ar << DepthStencilFlags;
+				Info.GraphicsDesc.DepthStencilFlags = FPipelineCacheFileFormatPSO::GraphicsDescriptor::ReduceDSFlags(static_cast<ETextureCreateFlags>(DepthStencilFlags));
 			}
 			Ar << Info.GraphicsDesc.DepthLoad;
 			Ar << Info.GraphicsDesc.StencilLoad;
@@ -1475,7 +1494,7 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 	PSO.GraphicsDesc.MSAASamples = Init.NumSamples;
 	
 	PSO.GraphicsDesc.DepthStencilFormat = Init.DepthStencilTargetFormat;
-	PSO.GraphicsDesc.DepthStencilFlags = Init.DepthStencilTargetFlag;
+	PSO.GraphicsDesc.DepthStencilFlags = FPipelineCacheFileFormatPSO::GraphicsDescriptor::ReduceDSFlags(Init.DepthStencilTargetFlag);
 	PSO.GraphicsDesc.DepthLoad = Init.DepthTargetLoadAction;
 	PSO.GraphicsDesc.StencilLoad = Init.StencilTargetLoadAction;
 	PSO.GraphicsDesc.DepthStore = Init.DepthTargetStoreAction;
@@ -1649,7 +1668,7 @@ struct FPipelineCacheFileFormatTOC
 	
 	FPipelineFileCacheManager::PSOOrder SortedOrder;
 	TMap<uint32, FPipelineCacheFileFormatPSOMetaData> MetaData;
-	void DumpToLog()
+	void DumpToLog() const
 	{
 		for (TMap<uint32, FPipelineCacheFileFormatPSOMetaData>::TConstIterator It(MetaData); It; ++It)
 		{
@@ -2137,7 +2156,7 @@ public:
 
 		UE_LOG(LogRHI, VeryVerbose, TEXT("-- opened bundled %s cache:"), *NameIn);
 		TOC.DumpToLog();
-		UE_LOG(LogRHI, VeryVerbose, TEXT("-- opened bundled %s cache:"), *NameIn);
+		UE_LOG(LogRHI, VeryVerbose, TEXT("-- end of dump (%s)"), *NameIn);
 
 		return bGameFileOk;
 	}
@@ -2737,6 +2756,7 @@ public:
 	bool IsPSOEntryCachedInternal(FPipelineCacheFileFormatPSO const& NewEntry, FPSOUsageData* EntryData = nullptr) const
 	{
 		uint32 PSOHash = GetTypeHash(NewEntry);
+		check(!EntryData || EntryData->PSOHash == PSOHash);
 		FPipelineCacheFileFormatPSOMetaData const * const Existing = TOC.MetaData.Find(PSOHash);
 		
 		if(Existing != nullptr && EntryData != nullptr)
@@ -3376,6 +3396,13 @@ void FPipelineFileCacheManager::CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPi
 				if (!FPipelineFileCacheManager::IsPSOEntryCached(NewEntry, &CurrentUsageData))
 				{
 					bool bActuallyNewPSO = !NewPSOHashes.Contains(PSOHash);
+					if (Initializer.bFromPSOFileCache)
+					{
+						// FIXME: this is a workaround. Needs proper investigation
+						UE_LOG(LogRHI, Warning, TEXT("PSO from the cache was not found in the cache! PSOHash: %u"), PSOHash);
+						bActuallyNewPSO = false;
+					}
+
 					if (bActuallyNewPSO && IsOpenGLPlatform(GMaxRHIShaderPlatform)) // OpenGL is a BSS platform and so we don't report BSS matches as missing.
 					{
 						bActuallyNewPSO = !FPipelineFileCacheManager::IsBSSEquivalentPSOEntryCached(NewEntry);
