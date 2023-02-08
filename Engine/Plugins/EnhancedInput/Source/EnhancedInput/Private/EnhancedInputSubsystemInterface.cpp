@@ -4,6 +4,8 @@
 
 #include "EnhancedInputModule.h"
 #include "EnhancedInputPlatformSettings.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
+#include "EnhancedInputDeveloperSettings.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "InputMappingContext.h"
@@ -26,6 +28,48 @@ static FAutoConsoleVariableRef GCVarGlobalAxisConfigMode(
 	GGlobalAxisConfigMode,
 	TEXT("Whether or not to apply Global Axis Config settings. 0 = Default (Mouse Only), 1 = All, 2 = None")
 );
+
+UEnhancedInputUserSettings* IEnhancedInputSubsystemInterface::GetUserSettings() const
+{
+	if (const UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
+	{
+		return PlayerInput->GetUserSettings();
+	}
+	return nullptr;
+}
+
+void IEnhancedInputSubsystemInterface::BindUserSettingDelegates()
+{
+	UEnhancedInputUserSettings* Settings = GetUserSettings();
+	if (!Settings)
+	{
+		UE_LOG(LogEnhancedInput, Error, TEXT("Unable to get the user settings object!"));
+		return;
+	}
+
+	// There is no need to bind to any delegates if the setting is turned off. We shouldn't even get here,
+	// but do this in case someone implements this interface
+	if (!GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
+	{
+		UE_LOG(LogEnhancedInput, Error, TEXT("Attempting to bind to user settings delegates but they are disabled in UEnhancedInputDeveloperSettings!"));
+		return;
+	}
+
+	Settings->OnSettingsChanged.AddDynamic(this, &IEnhancedInputSubsystemInterface::OnUserSettingsChanged);
+	Settings->OnKeyProfileChanged.AddDynamic(this, &IEnhancedInputSubsystemInterface::OnUserKeyProfileChanged);
+}
+
+void IEnhancedInputSubsystemInterface::OnUserSettingsChanged(UEnhancedInputUserSettings* Settings)
+{
+	// We want to rebuild our control mappings whenever a setting has changed
+	RequestRebuildControlMappings();
+}
+
+void IEnhancedInputSubsystemInterface::OnUserKeyProfileChanged(const UEnhancedPlayerMappableKeyProfile* InNewProfile)
+{
+	// We want to rebuild our control mappings whenever a setting has changed
+	RequestRebuildControlMappings();
+}
 
 void IEnhancedInputSubsystemInterface::InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
 {

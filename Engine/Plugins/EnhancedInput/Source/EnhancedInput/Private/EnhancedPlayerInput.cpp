@@ -8,6 +8,8 @@
 #include "GameFramework/WorldSettings.h"
 #include "EnhancedInputDeveloperSettings.h"
 #include "InputMappingContext.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
+#include "EnhancedInputModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedPlayerInput)
 
@@ -39,6 +41,46 @@ UEnhancedPlayerInput::UEnhancedPlayerInput()
 				AppliedInputContexts.Add(IMC, DefaultContext.Priority);
 			}
 		}
+	}
+}
+
+void UEnhancedPlayerInput::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+	
+	InitalizeUserSettings();
+}
+
+void UEnhancedPlayerInput::InitalizeUserSettings()
+{
+	// We don't want to be re-creating any user settings, they should share the lifetime with the player input object
+	if (!ensureMsgf(!UserSettings, TEXT("Attempting to initalize the User Settings, but they have already been created!")))
+	{
+		return;
+	}
+	
+	const UEnhancedInputDeveloperSettings* DevSettings = GetDefault<UEnhancedInputDeveloperSettings>();
+	
+	// These are player settings, so only player owned input components can have them.
+	const bool bHasValidPlayerController = GetOuterAPlayerController() != nullptr;
+
+	if (bHasValidPlayerController && DevSettings->bEnableUserSettings && !IsDefaultSubobject())
+	{
+		// Spawn a new instance of the specified user settings class. This is a "NoClear" UPROPERTY so it should always be set
+		const UClass* SettingsClass = DevSettings->UserSettingsClass.Get();
+		if (ensure(SettingsClass))
+		{
+			UserSettings = UEnhancedInputUserSettings::LoadOrCreateSettings(this);
+		}
+	}
+	else
+	{
+		UE_LOG(LogEnhancedInput, Log, TEXT("bEnableUserSettings is set to false, skipping creation of UEnhancedInputUserSettings!"));
 	}
 }
 
@@ -186,7 +228,7 @@ void UEnhancedPlayerInput::ProcessActionMappingEvent(TObjectPtr<const UInputActi
 		// Apply modifications to the raw value
 		EInputActionValueType ValueType = ActionData.Value.GetValueType();
 		FInputActionValue ModifiedValue = ApplyModifiers(Modifiers, FInputActionValue(ValueType, RawKeyValue.Get<FVector>()), DeltaTime);
-		//UE_CLOG(RawKeyValue.GetMagnitudeSq(), LogTemp, Warning, TEXT("Modified %s -> %s"), *RawKeyValue.ToString(), *ModifiedValue.ToString());
+		//UE_CLOG(RawKeyValue.GetMagnitudeSq(), LogEnhancedInput, Warning, TEXT("Modified %s -> %s"), *RawKeyValue.ToString(), *ModifiedValue.ToString());
 
 		// Derive an initial trigger state for this mapping using all applicable triggers
 		ETriggerState CalcedState = TriggerStateTracker.EvaluateTriggers(this, Triggers, ModifiedValue, DeltaTime);
@@ -253,6 +295,11 @@ float UEnhancedPlayerInput::GetEffectiveTimeDilation() const
 	return 1.0f;
 }
 
+UEnhancedInputUserSettings* UEnhancedPlayerInput::GetUserSettings() const
+{
+	return UserSettings;
+}
+
 void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
 {
 	// We need to grab the down states of all keys before calling Super::ProcessInputStack as it will leave bDownPrevious in the same state as bDown (i.e. this frame, not last).
@@ -302,7 +349,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 
 		FKeyState* KeyState = GetKeyState(Mapping.Key);
 		FVector RawKeyValue = KeyState ? KeyState->RawValue : FVector::ZeroVector;
-		//UE_CLOG(RawKeyValue.SizeSquared(), LogTemp, Warning, TEXT("Key %s - state %s"), *Mapping.Key.GetDisplayName().ToString(), *RawKeyValue.ToString());
+		//UE_CLOG(RawKeyValue.SizeSquared(), LogEnhancedInput, Warning, TEXT("Key %s - state %s"), *Mapping.Key.GetDisplayName().ToString(), *RawKeyValue.ToString());
 
 		// Should this key be ignored because it was down during a context switch?
 		// If so, check if it is back up, otherwise ignore it.
@@ -503,7 +550,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 						bCanTrigger = !TriggeredActionsThisTick.Contains(DepAction.SourceAction);
 						if(!bCanTrigger)
 						{
-							UE_LOG(LogTemp, Warning, TEXT("'%s' action was cancelled, its dependant on '%s'"), *DelegateAction->GetName(), *DepAction.SourceAction->GetName());
+							UE_LOG(LogEnhancedInput, Warning, TEXT("'%s' action was cancelled, its dependant on '%s'"), *DelegateAction->GetName(), *DepAction.SourceAction->GetName());
 						}
 						break;
 					}

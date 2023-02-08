@@ -50,7 +50,7 @@ namespace UE::EnhancedInput
 	static void DumpAllKeyProfilesToLog(const TArray<FString>& Args)
 	{
 		// Dump every local player subsystem's logs
-		/*UEnhancedInputLibrary::ForEachSubsystem([Args](IEnhancedInputSubsystemInterface* Subsystem)
+		UEnhancedInputLibrary::ForEachSubsystem([Args](IEnhancedInputSubsystemInterface* Subsystem)
 		{
 			if (const UEnhancedInputUserSettings* Settings = Subsystem->GetUserSettings())
 			{
@@ -59,7 +59,7 @@ namespace UE::EnhancedInput
 					Profile->DumpProfileToLog();	
 				}
 			}
-		});*/
+		});
 	}
 	
 	static FAutoConsoleCommand ConsoelCommandDumpProfileToLog(

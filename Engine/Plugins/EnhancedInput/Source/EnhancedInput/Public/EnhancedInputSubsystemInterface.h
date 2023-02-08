@@ -21,6 +21,8 @@ class UInputModifier;
 class UInputTrigger;
 class UPlayerMappableInputConfig;
 class UWorldSubsystem;
+class UEnhancedInputUserSettings;
+class UEnhancedPlayerMappableKeyProfile;
 
 // Subsystem interface
 UINTERFACE(MinimalAPI, meta=(CannotImplementInterfaceInBlueprint))
@@ -71,6 +73,28 @@ public:
 
 	virtual UEnhancedPlayerInput* GetPlayerInput() const = 0;
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Enhanced Input|User Settings")
+	virtual UEnhancedInputUserSettings* GetUserSettings() const;
+
+	template<class T>
+	inline T* GetUserSettings() const
+	{
+		return Cast<T>(GetUserSettings());
+	}
+
+protected:
+	
+	/** Binds to any delegates of interest on the UEnhancedInputUserSettings if they are enabled in the developer settings. */
+	virtual void BindUserSettingDelegates();
+	
+	/** Callback for when any Enhanced Input user settings have been changed (a new key mapping for example) */
+	virtual void OnUserSettingsChanged(UEnhancedInputUserSettings* Settings);
+
+	/** A callback for when the user has applied a new mappable key profile. */
+	virtual void OnUserKeyProfileChanged(const UEnhancedPlayerMappableKeyProfile* InNewProfile);
+
+public:
+	
 	/**
 	 * Input simulation via injection. Runs modifiers and triggers delegates as if the input had come through the underlying input system as FKeys.
 	 * Applies action modifiers and triggers on top.
