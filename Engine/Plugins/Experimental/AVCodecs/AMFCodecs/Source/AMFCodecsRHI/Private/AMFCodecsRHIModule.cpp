@@ -3,6 +3,7 @@
 #include "Modules/ModuleManager.h"
 
 #include "IVulkanDynamicRHI.h"
+#include "Misc/App.h"
 
 #if PLATFORM_WINDOWS
 #include "ID3D11DynamicRHI.h"

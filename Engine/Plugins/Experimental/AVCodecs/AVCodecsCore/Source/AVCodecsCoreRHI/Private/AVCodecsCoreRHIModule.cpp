@@ -3,6 +3,7 @@
 #include "Modules/ModuleManager.h"
 
 #include "IVulkanDynamicRHI.h"
+#include "Misc/App.h"
 
 #include "Video/Resources/VideoResourceRHI.h"
 #include "Video/Resources/VideoResourceVulkan.h"
