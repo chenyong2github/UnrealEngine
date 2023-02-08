@@ -116,7 +116,10 @@ namespace UnrealGameSync
 
 		public async Task<bool> DownloadArchive(IPerforceConnection perforce, string archiveKey, DirectoryReference localRootPath, FileReference manifestFileName, ILogger logger, ProgressValue progress, CancellationToken cancellationToken)
 		{
-			FileReference tempZipFileName = new FileReference(Path.GetTempFileName());
+			DirectoryReference configDir = UserSettings.GetConfigDir(localRootPath);
+			UserSettings.CreateConfigDir(configDir);
+
+			FileReference tempZipFileName = FileReference.Combine(configDir, "archive.zip");
 			try
 			{
 				PrintRecord record = await perforce.PrintAsync(tempZipFileName.FullName, archiveKey, cancellationToken);
