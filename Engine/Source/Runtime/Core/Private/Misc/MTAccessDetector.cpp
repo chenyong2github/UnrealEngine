@@ -400,7 +400,7 @@ bool FRWRecursiveAccessDetectorTest::RunTest(const FString& Parameters)
 	{	// destroying detector from inside access scope
 #pragma warning(push)
 #pragma warning(disable:6001) // "Using uninitialized memory" warning
-		auto* AD = new FMRSWRecursiveAccessDetector;
+		auto* AD = new FMRSWRecursiveAccessDetector; //-V774: "The 'AD' pointer was used after the memory was released." - no, it wasn't because of the `if`
 #pragma warning(pop)
 
 		AD->AcquireReadAccess();
