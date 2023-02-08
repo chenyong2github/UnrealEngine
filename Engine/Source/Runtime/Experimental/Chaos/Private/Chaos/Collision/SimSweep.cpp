@@ -25,5 +25,22 @@ namespace Chaos
 
 			return OutHit.IsHit();
 		}
-	}
-}
+
+		bool SimOverlapBoundsAll(
+			ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* SpatialAcceleration,
+			const FAABB3& QueryBounds,
+			TArray<FSimOverlapParticleShape>& Overlaps)
+		{
+			// Accept all particles and shapes
+			const auto& ParticleFilter = [](const FGeometryParticleHandle* Particle) -> bool { return true; };
+			const auto& ShapeFilter = [](const FPerShapeData* Shape, const FImplicitObject* Implicit) { return true; };
+			const auto& OverlapCollector = [&Overlaps](const FSimOverlapParticleShape& Overlap) { Overlaps.Add(Overlap); };
+			const int32 InitialOverlapCount = Overlaps.Num();
+
+			SimOverlapBounds(SpatialAcceleration, QueryBounds, ParticleFilter, ShapeFilter, OverlapCollector);
+
+			return (Overlaps.Num() > InitialOverlapCount);
+		}
+
+	} // namespace Private
+} // namespace Chaos

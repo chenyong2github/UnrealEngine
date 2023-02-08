@@ -61,6 +61,26 @@ namespace Chaos
 		};
 
 		/**
+		* Results from SimOverlapBounds test
+		*/
+		class FSimOverlapParticleShape
+		{
+		public:
+			FSimOverlapParticleShape()
+			{
+			}
+
+			// The particle that we hit, or null
+			const FGeometryParticleHandle* HitParticle;
+
+			// The shape that we hit (or uninitialized)
+			const FPerShapeData* HitShape;
+
+			// The world-space transform of the geometry that was hit
+			FRigidTransform3 ShapeWorldTransform;
+		};
+
+		/**
 		* A spatial acceleration visitor that forwards callbacks to a functor
 		*/
 		template<typename TVisitor>
@@ -98,6 +118,76 @@ namespace Chaos
 
 			const TVisitor& Visitor;
 		};
+
+		/**
+		* Produce a set of particles and their shapes that overlap the query bounds and pass the particle and shape filters.
+		* 
+		* @TParam TParticleFilter a particle that returns true to check a particle for overlaps. Signature bool(const FGeometryParticleHandle*)
+		* 
+		* @TParam TShapeFilter a shape that returns true to check a particle for overlaps. Signature bool(const FPerShapeData*, const FImplicitObject*)
+		*
+		* @TParam TOverlapCollector an overlap collector functor with the signature void(const FSimOverlapParticleShape&)
+		*/
+		template<typename TParticleFilter, typename TShapeFilter, typename TOverlapCollector>
+		void SimOverlapBounds(
+			ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* SpatialAcceleration,
+			const FAABB3& QueryBounds,
+			TParticleFilter& ParticleFilter,
+			TShapeFilter& ShapeFilter,
+			TOverlapCollector& OverlapCollector)
+		{
+			FImplicitBox3 QueryBox(QueryBounds.Min(), QueryBounds.Max());
+
+			// Functor: Process a particle encountered by the overla through the spatial acceleration
+			const auto& ProcessParticle =
+				[&QueryBox, &ParticleFilter, &ShapeFilter, &OverlapCollector]
+				(const FGeometryParticleHandle* OtherParticle)
+				-> void
+			{
+				// Check the particle filter to see if we should process this particle pair
+				if (ParticleFilter(OtherParticle))
+				{
+					// The particle transform
+					const FRigidTransform3 OtherWorldTransform = OtherParticle->GetTransformXR();
+					for (const TUniquePtr<FPerShapeData>& OtherShape : OtherParticle->ShapesArray())
+					{
+						const FImplicitObject* OtherImplicit = OtherShape->GetLeafGeometry();
+
+						// Check the filter to see if we want to  process this shape pair
+						const bool bOverlapShape = ShapeFilter(OtherShape.Get(), OtherImplicit);
+
+						if (bOverlapShape)
+						{
+							const FRigidTransform3 OtherShapeWorldTransform = FRigidTransform3(OtherShape->GetLeafRelativeTransform()) * OtherWorldTransform;
+
+							FMTDInfo MTDInfo;
+							const bool bOverlapHit = OverlapQuery(
+								*OtherImplicit,
+								OtherShapeWorldTransform,
+								QueryBox,
+								FRigidTransform3::Identity,
+								0/*Thickness*/,
+								nullptr);
+
+							// If we have a hit, pass it to the collector
+							if (bOverlapHit)
+							{
+								FSimOverlapParticleShape Overlap;
+								Overlap.HitParticle = OtherParticle;
+								Overlap.HitShape = OtherShape.Get();
+								Overlap.ShapeWorldTransform = OtherShapeWorldTransform;
+
+								OverlapCollector(Overlap);
+							}
+						}
+					}
+				}
+			};
+
+			// Generate the set of objects that overlap the bounds
+			TSimSweepSQVisitor SpatialAcclerationVisitor(ProcessParticle);
+			SpatialAcceleration->Overlap(QueryBounds, SpatialAcclerationVisitor);
+		}
 
 		/**
 		* Sweep SweptParticle against OtherParticle. The provided filter policy can be used to reject shape pairs.
@@ -412,6 +502,15 @@ namespace Chaos
 			const FReal Length,
 			FSimSweepParticleHit& OutHit,
 			const FReal InHitDistanceEqualTolerance = UE_KINDA_SMALL_NUMBER);
+
+		/**
+		* Collect all the shapes that overlap a bounding box.
+		* @todo(chaos): Add a few more options like Complex vs Simple collection
+		*/
+		extern bool SimOverlapBoundsAll(
+			ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* SpatialAcceleration,
+			const FAABB3& QueryBounds,
+			TArray<FSimOverlapParticleShape>& Overlaps);
 	}
 
 }
