@@ -3,6 +3,7 @@
 #include "Dataflow/ChaosFleshEngineAssetNodes.h"
 
 #include "Chaos/Math/Poisson.h"
+#include "Chaos/Utilities.h"
 #include "ChaosFlesh/ChaosFlesh.h"
 #include "ChaosFlesh/FleshAsset.h"
 #include "ChaosFlesh/FleshCollection.h"
@@ -94,62 +95,100 @@ void FSetFleshDefaultPropertiesNode::Evaluate(Dataflow::FContext& Context, const
 				TManagedArray<float>& Damping = InCollection.ModifyAttribute<float>("Damping", FGeometryCollection::VerticesGroup);
 				const TManagedArray<FIntVector4>& Tetrahedron = InCollection.GetAttribute<FIntVector4>(FTetrahedralCollection::TetrahedronAttribute, FTetrahedralCollection::TetrahedralGroup);
 				const TManagedArray<FVector3f>& Vertex = InCollection.GetAttribute<FVector3f>("Vertex", "Vertices");
-				const TManagedArray<TArray<int32>>& ElemVertexIndex = InCollection.GetAttribute<TArray<int32>>(FTetrahedralCollection::IncidentElementsAttribute, FGeometryCollection::VerticesGroup);
-				const TManagedArray<TArray<int32>>& ElemLocalIndex = InCollection.GetAttribute<TArray<int32>>(FTetrahedralCollection::IncidentElementsLocalIndexAttribute, FGeometryCollection::VerticesGroup);
+				const TManagedArray<TArray<int32>>& IncidentElements = InCollection.GetAttribute<TArray<int32>>(FTetrahedralCollection::IncidentElementsAttribute, FGeometryCollection::VerticesGroup);
+				const TManagedArray<TArray<int32>>& IncidentElementsLocalIndex = InCollection.GetAttribute<TArray<int32>>(FTetrahedralCollection::IncidentElementsLocalIndexAttribute, FGeometryCollection::VerticesGroup);
 
-				double Volume = 0.0;
-				TArray<float> ElementMass, Measure;
-				ElementMass.Init(0.f, 4 * TetsNum);
-				Measure.Init(0.f, TetsNum);
+				double TotalVolume = 0.0;
+				TArray<float> ElementMass;
+				TArray<float> ElementVolume;
+				ElementMass.Init(0.f, TetsNum);
+				ElementVolume.Init(0.f, TetsNum);
 				for (int e = 0; e < TetsNum; e++)
 				{
 					FVector3f X0 = Vertex[Tetrahedron[e][0]];
 					FVector3f X1 = Vertex[Tetrahedron[e][1]];
 					FVector3f X2 = Vertex[Tetrahedron[e][2]];
 					FVector3f X3 = Vertex[Tetrahedron[e][3]];
-					Measure[e] = ((X1 - X0).Dot(FVector3f::CrossProduct(X3 - X0, X2 - X0))) / 6.f;
-					if (Measure[e] < 0.f)
+					ElementVolume[e] = ((X1 - X0).Dot(FVector3f::CrossProduct(X3 - X0, X2 - X0))) / 6.f;
+					if (ElementVolume[e] < 0.f)
 					{
-						Measure[e] = -Measure[e];
+						ElementVolume[e] = -ElementVolume[e];
 					}
-					Volume += Measure[e];
+					TotalVolume += ElementVolume[e];
 				}
 				for (int32 e = 0; e < TetsNum; e++)
 				{
-					float ElementNodalMass = Density * Measure[e] / 4.f;
-					for (int i = 0; i < 4; i++)
-					{
-						ElementMass[4 * e + i] = ElementNodalMass;
-					}
+					ElementMass[e] = Density * ElementVolume[e];
 				}
 
-				bool WasMassSet = false;
-				for (int32 i = 0; i < ElemVertexIndex.Num(); i++)
+				//
+				// Set per-node mass by connected volume
+				//
+
+				TSet<int32> Visited;
+				for (int32 i = 0; i < IncidentElements.Num(); i++)
 				{
-					if (ensure(ElemVertexIndex[i].Num() == ElemLocalIndex[i].Num()))
+					const TArray<int32>& IncidentElems = IncidentElements[i];
+					for (int32 j = 0; j < IncidentElems.Num(); j++)
 					{
-						for (int32 j = 0; j < ElemVertexIndex[i].Num(); j++)
+						const int32 TetIndex = IncidentElems[j];
+						if (Tetrahedron.GetConstArray().IsValidIndex(TetIndex))
 						{
-							int32 TetIndex = ElemVertexIndex[i][j];
-							if (0 <= TetIndex && TetIndex < TetsNum)
+							for (int32 k = 0; k < 4; k++)
 							{
-								int32 MassIndex = Tetrahedron[TetIndex][ElemLocalIndex[i][j]];
-								if (0 <= MassIndex && MassIndex < VertsNum)
+								const int32 MassIndex = Tetrahedron[TetIndex][k];
+								if (Mass.GetConstArray().IsValidIndex(MassIndex))
 								{
-									WasMassSet = true;
-									Mass[MassIndex] += ElementMass[ElemVertexIndex[i][j] * 4 + ElemLocalIndex[i][j]];
+									Mass[MassIndex] += ElementMass[TetIndex] / 4;
+									Visited.Add(MassIndex);
 								}
 							}
 						}
 					}
 				}
-				if (!WasMassSet && Vertex.Num())
+				
+				int32 NumSet = 0;
+				float MinV = TNumericLimits<float>::Max();
+				float MaxV = -TNumericLimits<float>::Max();
+				double AvgV = 0.0;
+				if (Visited.Num())
 				{
-					Mass.Fill(Density * Volume / Vertex.Num());
+					NumSet = Visited.Num();
+					for (TSet<int32>::TConstIterator It = Visited.CreateConstIterator(); It; ++It)
+					{
+						const int32 MassIndex = *It;
+						AvgV += Mass[MassIndex];
+						MinV = MinV < Mass[MassIndex] ? MinV : Mass[MassIndex];
+						MaxV = MaxV > Mass[MassIndex] ? MaxV : Mass[MassIndex];
+					}
+					AvgV /= NumSet;
+				}
+				else
+				{
+					MinV = MaxV = 0.0;
+				}
+
+				//
+				// If that didn't work, set a uniform mass
+				//
+
+				if (!Visited.Num() && Vertex.Num())
+				{
+					Mass.Fill(Density * TotalVolume / Vertex.Num());
+					NumSet = Mass.Num();
+					Chaos::Utilities::GetMinAvgMax(Mass.GetConstArray(), MinV, AvgV, MaxV);
 				}
 
 				Stiffness.Fill(VertexStiffness);
 				Damping.Fill(VertexDamping);
+
+				UE_LOG(LogChaosFlesh, Display,
+					TEXT("'%s' - Set mass on %d nodes:\n"
+						"    method: %s\n"
+						"    min, avg, max: %f, %f, %f"),
+					*GetName().ToString(), NumSet, 
+					(Visited.Num() > 0 ? TEXT("connected tet volume") : TEXT("uniform")),
+					MinV, AvgV, MaxV);
 			}
 		}
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);

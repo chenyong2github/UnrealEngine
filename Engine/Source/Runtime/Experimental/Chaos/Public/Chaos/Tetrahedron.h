@@ -173,12 +173,30 @@ namespace Chaos {
 		static bool Inside(const TArray<TTriangle<T>>& Tris, const TVec3<T>& Location, const T HalfThickness=0)
 		{
 			checkSlow(Tris.Num() == 4);
+
 			for(int32 i=0; i < Tris.Num(); i++)
-				if (Tris[i].GetPlane().SignedDistance(Location) > HalfThickness)
+				if (Inside(Tris[i].GetPlane(), Location, -HalfThickness))
 				{
 					return false;
 				}
 			return true;
+		}
+
+		bool Outside(const TVec3<T>& Location, const T HalfThickness = 0) const
+		{
+			TArray<TTriangle<T>> Tris = GetTriangles();
+			return Outside(Tris, Location, HalfThickness);
+		}
+
+		static bool Outside(const TArray<TTriangle<T>>& Tris, const TVec3<T>& Location, const T HalfThickness = 0)
+		{
+			checkSlow(Tris.Num() == 4);
+			for (int32 i = 0; i < Tris.Num(); i++)
+				if (Outside(Tris[i].GetPlane(), Location, HalfThickness))
+				{
+					return true;
+				}
+			return false;
 		}
 
 		//! \p Tolerance should be a small negative number to include boundary.
@@ -332,6 +350,16 @@ namespace Chaos {
 		static int32 Sign(const T Value)
 		{
 			return Value < static_cast<T>(0) ? -1 : 1;
+		}
+
+		static bool Inside(const TPlane<T, 3>& Plane, const TVec3<T>& Location, const T HalfThickness = 0)
+		{
+			return Plane.SignedDistance(Location) <= -HalfThickness;
+		}
+
+		static bool Outside(const TPlane<T, 3>& Plane, const TVec3<T>& Location, const T HalfThickness = 0)
+		{
+			return !Inside(Plane, Location, -HalfThickness);
 		}
 
 		friend FChaosArchive& operator<<(FChaosArchive& Ar, TTetrahedron);

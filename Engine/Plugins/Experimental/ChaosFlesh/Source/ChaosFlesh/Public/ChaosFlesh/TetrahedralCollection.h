@@ -73,7 +73,7 @@ public:
 
 	/**
 	* Incident Elements Attribute
-	* For each vertex, a list of tetrahedra that includes that vertex, and the vertex's index in the tet.
+	* For each vertex, a list of tetrahedra that includes that vertex.
 	*/
 	static const FName IncidentElementsAttribute;
 	TManagedArray<TArray<int32>> IncidentElements;

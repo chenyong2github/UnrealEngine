@@ -118,10 +118,13 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 				FTetrahedralCollection::TetrahedronAttribute, FTetrahedralCollection::TetrahedralGroup);
 		TManagedArray<int32>* TetrahedronStart =
 			OutCollection.FindAttribute<int32>(
-				"TetrahedronStart", FGeometryCollection::GeometryGroup);
+				FTetrahedralCollection::TetrahedronStartAttribute, FGeometryCollection::GeometryGroup);
 		TManagedArray<int32>* TetrahedronCount =
 			OutCollection.FindAttribute<int32>(
-				"TetrahedronCount", FGeometryCollection::GeometryGroup);
+				FTetrahedralCollection::TetrahedronCountAttribute, FGeometryCollection::GeometryGroup);
+		TManagedArray<TArray<int32>>* IncidentElements =
+			OutCollection.FindAttribute<TArray<int32>>(
+				FTetrahedralCollection::IncidentElementsAttribute, FGeometryCollection::VerticesGroup);
 
 		TManagedArray<FIntVector>* Triangle =
 			OutCollection.FindAttribute<FIntVector>(
@@ -220,13 +223,14 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 				const int32 TetMeshCount = (*TetrahedronCount)[TetMeshIdx];
 
 				// Build Tetrahedra
-				TArray<Chaos::TTetrahedron<Chaos::FReal>> Tets;
+				TArray<Chaos::TTetrahedron<Chaos::FReal>> Tets;			// Index 0 == TetMeshStart
 				TArray<Chaos::TTetrahedron<Chaos::FReal>*> BVHTetPtrs;
 				Tets.SetNumUninitialized(TetMeshCount);
 				BVHTetPtrs.SetNumUninitialized(TetMeshCount);
-				for (int32 i = TetMeshStart; i < TetMeshStart + TetMeshCount; i++)
+				for (int32 i = 0; i < TetMeshCount; i++)
 				{
-					const FIntVector4& Tet = (*Tetrahedron)[i];
+					const int32 Idx = TetMeshStart + i;
+					const FIntVector4& Tet = (*Tetrahedron)[Idx];
 					Tets[i] = Chaos::TTetrahedron<Chaos::FReal>(
 						(*Vertex)[Tet[0]],
 						(*Vertex)[Tet[1]],
@@ -246,35 +250,42 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 				// Init boundary mesh for projections.
 				//
 
+				Chaos::FTriangleMesh TetBoundaryMesh;
+				Chaos::FTriangleMesh::TBVHType<Chaos::FRealDouble> TetBoundaryBVH;
+				TArray<Chaos::FVec3> VertexD;
+				TConstArrayView<Chaos::TVec3<Chaos::FRealDouble>> VertexDView(VertexD);
+				TArray<Chaos::FVec3> PointNormals;
 				const int32 TriMeshStart = (*FacesStart)[TetMeshIdx];
 				const int32 TriMeshCount = (*FacesCount)[TetMeshIdx];
-				Chaos::FTriangleMesh TetBoundaryMesh;
-				if (TriMeshCount == Triangle->GetConstArray().Num())
+				if (bDoSurfaceProjection)
 				{
-					TetBoundaryMesh.Init(
-						reinterpret_cast<const TArray<Chaos::TVec3<int32>>&>(Triangle->GetConstArray()), 0, -1, false);
-				}
-				else
-				{
-					TArray<Chaos::TVec3<int32>> Faces; Faces.SetNumUninitialized(TriMeshCount);
-					for (int32 i = TriMeshStart; i < TriMeshStart + TriMeshCount; i++)
+					if (TriMeshCount == Triangle->GetConstArray().Num())
 					{
-						Faces[i] = reinterpret_cast<const Chaos::TVec3<int32>&>(Triangle->GetConstArray()[i]);
+						TetBoundaryMesh.Init(
+							reinterpret_cast<const TArray<Chaos::TVec3<int32>>&>(Triangle->GetConstArray()), 0, -1, false);
 					}
-					TetBoundaryMesh.Init(Faces, 0, -1, false);
-				}
-				
-				// Promote vertices to double because that's what FTriangleMesh wants.
-				TArray<Chaos::FVec3> VertexD; VertexD.SetNumUninitialized(Vertex->Num());
-				for (int32 i = 0; i < VertexD.Num(); i++)
-				{
-					VertexD[i] = Chaos::FVec3((*Vertex)[i][0], (*Vertex)[i][1], (*Vertex)[i][2]);
-				}
-				TConstArrayView<Chaos::TVec3<Chaos::FRealDouble>> VertexDView(VertexD);
-				TArray<Chaos::FVec3> PointNormals = TetBoundaryMesh.GetPointNormals(VertexDView, false, true);
+					else
+					{
+						TArray<Chaos::TVec3<int32>> Faces; Faces.SetNumUninitialized(TriMeshCount);
+						for (int32 i = 0; i < TriMeshCount; i++)
+						{
+							const int32 Idx = TriMeshStart + i;
+							Faces[i] = reinterpret_cast<const Chaos::TVec3<int32>&>(Triangle->GetConstArray()[Idx]);
+						}
+						TetBoundaryMesh.Init(Faces, 0, -1, false);
+					}
 
-				Chaos::FTriangleMesh::TBVHType<Chaos::FRealDouble> TetBoundaryBVH;
-				TetBoundaryMesh.BuildBVH(VertexDView, TetBoundaryBVH);
+					// Promote vertices to double because that's what FTriangleMesh wants.
+					VertexD.SetNumUninitialized(Vertex->Num());
+					for (int32 i = 0; i < VertexD.Num(); i++)
+					{
+						VertexD[i] = Chaos::FVec3((*Vertex)[i][0], (*Vertex)[i][1], (*Vertex)[i][2]);
+					}
+					VertexDView = TConstArrayView<Chaos::TVec3<Chaos::FRealDouble>>(VertexD);
+
+					PointNormals = TetBoundaryMesh.GetPointNormals(VertexDView, false, true);
+					TetBoundaryMesh.BuildBVH(VertexDView, TetBoundaryBVH);
+				}
 
 				//
 				// Do intersection tests against tets, then the surface.
@@ -302,7 +313,7 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 						Parents[LOD][i] = FIntVector4(INDEX_NONE);
 						Weights[LOD][i] = FVector4f(0);
 						Offsets[LOD][i] = FVector3f(0);
-						Masks[LOD][i] = 1.0;
+						Masks[LOD][i] = 0.0; // Shader does skinning for this vertex
 
 						const FVector3f& Pos = MeshVertices[LOD][i];
 						Chaos::TVec3<Chaos::FReal> PosD(Pos[0], Pos[1], Pos[2]);
@@ -311,13 +322,14 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 						for (; j < TetIntersections.Num(); j++)
 						{
 							const int32 TetIdx = TetIntersections[j];
-							if (Tets[TetIdx].RobustInside(Pos, -1.0e-4)) // includes boundary
+							if (!Tets[TetIdx].Outside(Pos, 1.0e-2)) // includes boundary
 							{
 								TetHits++;
-								Parents[LOD][i] = (*Tetrahedron)[TetIdx];
+								Parents[LOD][i] = (*Tetrahedron)[TetIdx + TetMeshStart];
 								Chaos::TVector<Chaos::FReal, 4> WeightsD = Tets[TetIdx].GetBarycentricCoordinates(Pos);
 								Weights[LOD][i] = FVector4f(WeightsD[0], WeightsD[1], WeightsD[2], WeightsD[3]);
 								Offsets[LOD][i] = FVector3f(0);
+								Masks[LOD][i] = 1.0; // Shader does sim for this vertex
 
 								FVector3f EmbeddedPos =
 									(*Vertex)[Parents[LOD][i][0]] * Weights[LOD][i][0] +
@@ -334,14 +346,15 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 							// This vertex didn't land inside any tetrahedra. Project it to the tet boundary surface.
 							int32 TriIdx = INDEX_NONE;
 							Chaos::FVec3 TriWeights;
-							if (TetBoundaryMesh.SmoothProject(
-								TetBoundaryBVH,
-								VertexDView,
-								PointNormals, Pos,
-								TriIdx, TriWeights, SurfaceProjectionIterations))
+							if (bDoSurfaceProjection && 
+								TetBoundaryMesh.SmoothProject(
+									TetBoundaryBVH,
+									VertexDView,
+									PointNormals, Pos,
+									TriIdx, TriWeights, SurfaceProjectionIterations))
 							{
 								TriHits++;
-								const FIntVector& Tri = (*Triangle)[TriIdx];
+								const FIntVector& Tri = (*Triangle)[TriIdx + TriMeshStart];
 								Parents[LOD][i][0] = Tri[0];
 								Parents[LOD][i][1] = Tri[1];
 								Parents[LOD][i][2] = Tri[2];
@@ -357,6 +370,8 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 									TriWeights[1] * Vertex->GetConstArray()[Tri[1]] +
 									TriWeights[2] * Vertex->GetConstArray()[Tri[2]];
 								Offsets[LOD][i] = EmbeddedPos - Pos;
+
+								Masks[LOD][i] = 1.0; // Shader does sim for this vertex
 							}
 							else
 							{
@@ -388,7 +403,7 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 
 					const TArray<TArray<uint32>>& NeighborNodes = MeshNeighborNodes[LOD];
 					TSet<int32> OrphanSet(Orphans);
-					while (Orphans.Num())
+					while (bDoOrphanReparenting && Orphans.Num())
 					{
 						// Find the orphan with the fewest number of orphan neighbors, and the 
 						// most non-orphans in their 1 ring.
@@ -419,6 +434,11 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 								NumNonOrphanNeighbors = NonOrphanCount;
 							}
 						}
+						if (Orphan == INDEX_NONE)
+						{
+							// We only have orphans with no neighbors left.
+							break;
+						}
 						const FVector3f& Pos = MeshVertices[LOD][Orphan];
 						Chaos::TVec3<Chaos::FReal> PosD(Pos[0], Pos[1], Pos[2]);
 
@@ -445,55 +465,36 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 							{
 								continue;
 							}
-							else if (NumValid == 4)
-							{
-								// Parent is a tetrahedron. Reconstruct rather than go looking for it.
-								Chaos::TTetrahedron<Chaos::FReal> Tet = Chaos::TTetrahedron<Chaos::FReal>(
-									(*Vertex)[P[0]], (*Vertex)[P[1]], (*Vertex)[P[2]], (*Vertex)[P[3]]);
-
-								 Chaos::TVec4<Chaos::FReal> W;
-								 Chaos::TVec3<Chaos::FReal> EmbeddedPos = Tet.FindClosestPointAndBary(PosD, W, 1.0e-4);
-								 Chaos::TVec3<Chaos::FReal> O = EmbeddedPos - PosD;
-								 Chaos::FReal Dist = O.SquaredLength();
-								 if (Dist < CurrDist)
-								 {
-									 CurrDist = Dist;
-									 Parents[LOD][Orphan] = P;
-									 Weights[LOD][Orphan] = FVector4f(W[0], W[1], W[2], W[3]);
-									 Offsets[LOD][Orphan] = FVector3f(O[0], O[1], O[2]);
-									 Masks[LOD][i] = 1.0;
-									 FoundBinding = true;
-								 }
-							}
 							else 
 							{
-								// Find tets that share all parent indices
-								for (int32 j = 0; j < Tets.Num(); j++)
+								// Find tets that share parent indices
+								for(int32 j=0; j < 4; j++)
 								{
-									const FIntVector4& Tet = (*Tetrahedron)[j];
-									bool Valid = true;
-									for (int32 k = 0; k < 4 && Valid; k++)
+									const int32 ParentIdx = P[j];
+									if (IncidentElements->GetConstArray().IsValidIndex(ParentIdx))
 									{
-										Valid &= P[k] == INDEX_NONE || // parent index is unused
-											P[k] == Tet[0] || // or it matches one tet vertex
-											P[k] == Tet[1] ||
-											P[k] == Tet[2] ||
-											P[k] == Tet[3];
-									}
-									if (Valid)
-									{
-										Chaos::TVec4<Chaos::FReal> W;
-										Chaos::TVec3<Chaos::FReal> EmbeddedPos = Tets[j].FindClosestPointAndBary(PosD, W, 1.0e-4);
-										Chaos::TVec3<Chaos::FReal> O = EmbeddedPos - PosD;
-										Chaos::FReal Dist = O.SquaredLength();
-										if (Dist < CurrDist)
+										const TArray<int32>& NeighborTets = (*IncidentElements)[ParentIdx];
+										for (int32 k = 0; k < NeighborTets.Num(); k++)
 										{
-											CurrDist = Dist;
-											Parents[LOD][Orphan] = Tet;
-											Weights[LOD][Orphan] = FVector4f(W[0], W[1], W[2], W[3]);
-											Offsets[LOD][Orphan] = FVector3f(O[0], O[1], O[2]);
-											Masks[LOD][i] = 1.0;
-											FoundBinding = true;
+											const int32 TetIdx = NeighborTets[k] - TetMeshStart;
+											if (ensure(Tets.IsValidIndex(TetIdx)))
+											{
+												const Chaos::FTetrahedron& Tet = Tets[TetIdx];
+
+												Chaos::TVec4<Chaos::FReal> W;
+												Chaos::TVec3<Chaos::FReal> EmbeddedPos = Tet.FindClosestPointAndBary(PosD, W, 1.0e-4);
+												Chaos::TVec3<Chaos::FReal> O = EmbeddedPos - PosD;
+												Chaos::FReal Dist = O.SquaredLength();
+												if (Dist < CurrDist)
+												{
+													CurrDist = Dist;
+													Parents[LOD][Orphan] = (*Tetrahedron)[TetIdx + TetMeshStart];
+													Weights[LOD][Orphan] = FVector4f(W[0], W[1], W[2], W[3]);
+													Offsets[LOD][Orphan] = FVector3f(O[0], O[1], O[2]);
+													Masks[LOD][i] = 1.0; // Shader does sim for this vertex
+													FoundBinding = true;
+												}
+											}
 										}
 									}
 								}
@@ -511,7 +512,8 @@ FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* 
 						{
 							NumOrphans++;
 						}
-					}
+					} // end while(Orphans)
+					NumOrphans += Orphans.Num();
 
 					//ELogVerbosity::Type Verbosity = Orphans.Num() > 0 ? ELogVerbosity::Error : ELogVerbosity::Display;
 					UE_LOG(LogMeshBindings, Display,

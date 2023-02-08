@@ -139,6 +139,26 @@ int32 FTetrahedralCollection::AppendGeometry(
 		TetrahedronCount[NumGeometry + Idx] = Other.TetrahedronCount[Idx];
 	}
 
+	// --- VERTICES GROUP --
+	int32 NumVertices = VerticesIndex;
+	int32 OtherNumVertices = Other.IncidentElements.Num();
+	for (int32 Idx = 0; Idx < OtherNumVertices; Idx++)
+	{
+		const TArray<int32>& OtherIncidentElements = Other.IncidentElements[Idx];
+		TArray<int32>& ThisIncidentElements = IncidentElements[VerticesIndex + Idx];
+		ThisIncidentElements.SetNumUninitialized(OtherIncidentElements.Num());
+		for (int32 i = 0; i < ThisIncidentElements.Num(); i++)
+		{
+			// Offset by the number of tets we started with
+			ThisIncidentElements[i] = OtherIncidentElements[i] + NumTets;
+		}
+
+		const TArray<int32>& OtherIncidentElementsLocalIndex = Other.IncidentElementsLocalIndex[Idx];
+		TArray<int32>& ThisIncidentElementsLocalIndex = IncidentElementsLocalIndex[Idx];
+		// No offset necessary, just copy
+		ThisIncidentElementsLocalIndex = OtherIncidentElementsLocalIndex;
+	}
+
 	return ID;
 }
 
