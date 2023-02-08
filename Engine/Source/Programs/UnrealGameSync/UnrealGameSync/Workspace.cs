@@ -25,7 +25,8 @@ namespace UnrealGameSync
 	public sealed class Workspace : IDisposable
 	{
 		public IPerforceSettings PerforceSettings { get; }
-		public UserWorkspaceState State { get; }
+		WorkspaceStateWrapper _stateWrapper;
+		public ReadOnlyWorkspaceState State { get; private set; }
 		public ProjectInfo Project { get; }
 		public SynchronizationContext SynchronizationContext { get; }
 		ILogger _logger;
@@ -36,19 +37,44 @@ namespace UnrealGameSync
 
 		public event Action<WorkspaceUpdateContext, WorkspaceUpdateResult, string>? OnUpdateComplete;
 
+		public event Action<ReadOnlyWorkspaceState>? OnStateChanged;
+
 		IAsyncDisposer _asyncDisposer;
 
-		public Workspace(IPerforceSettings inPerfoceSettings, ProjectInfo inProject, UserWorkspaceState inState, ConfigFile projectConfigFile, IReadOnlyList<string>? projectStreamFilter, ILogger logger, IServiceProvider serviceProvider)
+		public Workspace(IPerforceSettings perforceSettings, ProjectInfo project, WorkspaceStateWrapper stateWrapper, ConfigFile projectConfigFile, IReadOnlyList<string>? projectStreamFilter, ILogger logger, IServiceProvider serviceProvider)
 		{
-			PerforceSettings = inPerfoceSettings;
-			Project = inProject;
-			State = inState;
+			PerforceSettings = perforceSettings;
+			Project = project;
+			_stateWrapper = stateWrapper;
+			_stateWrapper.OnModified += OnStateChangedInternal;
+			State = stateWrapper.Current;
+
 			this.SynchronizationContext = SynchronizationContext.Current!;
 			this._logger = logger;
 			this._asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
 
 			this.ProjectConfigFile = projectConfigFile;
 			this.ProjectStreamFilter = projectStreamFilter;
+		}
+
+		public void ModifyState(Action<WorkspaceState> action)
+		{
+			_stateWrapper.Modify(x =>
+			{
+				x.ResetForProject(Project);
+				action(x);
+			});
+		}
+
+		private void OnStateChangedInternal(ReadOnlyWorkspaceState state)
+		{
+			SynchronizationContext.Post(x => OnStateChangedInternalMainThread(state), null);
+		}
+
+		private void OnStateChangedInternalMainThread(ReadOnlyWorkspaceState state)
+		{
+			State = state.ResetForProject(Project);
+			OnStateChanged?.Invoke(state);
 		}
 
 		public void Dispose()
@@ -58,6 +84,7 @@ namespace UnrealGameSync
 			{
 				_asyncDisposer.Add(_prevUpdateTask);
 			}
+			_stateWrapper.Dispose();
 		}
 
 		public ConfigFile ProjectConfigFile
@@ -120,7 +147,7 @@ namespace UnrealGameSync
 
 			try
 			{
-				(result, statusMessage) = await update.ExecuteAsync(PerforceSettings, Project, State, _logger, cancellationToken);
+				(result, statusMessage) = await update.ExecuteAsync(PerforceSettings, Project, _stateWrapper, _logger, cancellationToken);
 				if (result != WorkspaceUpdateResult.Success)
 				{
 					_logger.LogError("{Message}", statusMessage);
@@ -149,8 +176,18 @@ namespace UnrealGameSync
 			{
 				WorkspaceUpdateContext context = update.Context;
 
-				State.SetLastSyncState(result, context, statusMessage);
-				State.Save(_logger);
+				ModifyState(x =>
+				{
+					if (result == WorkspaceUpdateResult.Canceled)
+					{
+						x.LastSyncChangeNumber = update.Context.ChangeNumber;
+						x.LastSyncResult = WorkspaceUpdateResult.Canceled;
+						x.LastSyncResultMessage = null;
+						x.LastSyncTime = null;
+						x.LastSyncDurationSeconds = 0;
+					}
+					x.SetLastSyncState(result, context, statusMessage);
+				});
 
 				_currentUpdate = null;
 

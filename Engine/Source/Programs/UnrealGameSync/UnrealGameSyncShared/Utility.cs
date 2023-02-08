@@ -104,13 +104,26 @@ namespace UnrealGameSync
 			}
 		}
 
+		public static T? TryDeserializeJson<T>(byte[] data) where T : class
+		{
+			try
+			{
+				return JsonSerializer.Deserialize<T>(data, DefaultJsonSerializerOptions)!;
+			}
+			catch (Exception ex)
+			{
+				TraceException?.Invoke(ex);
+				return null;
+			}
+		}
+
 		public static T LoadJson<T>(FileReference file)
 		{
 			byte[] data = FileReference.ReadAllBytes(file);
 			return JsonSerializer.Deserialize<T>(data, DefaultJsonSerializerOptions)!;
 		}
 
-		public static void SaveJson<T>(FileReference file, T obj)
+		public static byte[] SerializeJson<T>(T obj)
 		{
 			JsonSerializerOptions options = new JsonSerializerOptions { IgnoreNullValues = true, WriteIndented = true };
 			options.Converters.Add(new JsonStringEnumConverter());
@@ -125,6 +138,12 @@ namespace UnrealGameSync
 				buffer = stream.ToArray();
 			}
 
+			return buffer;
+		}
+
+		public static void SaveJson<T>(FileReference file, T obj)
+		{
+			byte[] buffer = SerializeJson(obj);
 			FileReference.WriteAllBytes(file, buffer);
 		}
 

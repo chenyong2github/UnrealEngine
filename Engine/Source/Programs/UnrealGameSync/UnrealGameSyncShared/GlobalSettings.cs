@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace UnrealGameSync
@@ -92,7 +93,7 @@ namespace UnrealGameSync
 		{
 		}
 
-		protected virtual void ImportWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath, UserWorkspaceState workspaceState)
+		protected virtual void ImportWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath, WorkspaceState workspaceState)
 		{
 		}
 
@@ -126,33 +127,26 @@ namespace UnrealGameSync
 			}
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(UserWorkspaceSettings settings, ILogger logger)
+		public WorkspaceStateWrapper FindOrAddWorkspaceState(UserWorkspaceSettings settings, ILogger logger)
 		{
 			return FindOrAddWorkspaceState(settings.RootDir, settings.ClientName, settings.BranchPath, logger);
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath, ILogger logger)
+		public WorkspaceStateWrapper FindOrAddWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath, ILogger logger)
 		{
-			UserWorkspaceState? state;
-			if (!UserWorkspaceState.TryLoad(rootDir, out state))
+			return new WorkspaceStateWrapper(rootDir, () =>
 			{
-				state = new UserWorkspaceState();
-				state.RootDir = rootDir;
+				WorkspaceState state = new WorkspaceState();
 				ImportWorkspaceState(rootDir, clientName, branchPath, state);
-				state.Save(logger);
-			}
-			return state;
+				return state;
+			});
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(ProjectInfo projectInfo, UserWorkspaceSettings settings, ILogger logger)
+		public WorkspaceStateWrapper FindOrAddWorkspaceState(ProjectInfo projectInfo, UserWorkspaceSettings settings, ILogger logger)
 		{
-			UserWorkspaceState state = FindOrAddWorkspaceState(projectInfo.LocalRootPath, projectInfo.ClientName, projectInfo.BranchPath, logger);
-			if (!state.IsValid(projectInfo))
-			{
-				state = new UserWorkspaceState();
-			}
-			state.UpdateCachedProjectInfo(projectInfo, settings.LastModifiedTimeUtc);
-			return state;
+			WorkspaceStateWrapper wrapper = FindOrAddWorkspaceState(projectInfo.LocalRootPath, projectInfo.ClientName, projectInfo.BranchPath, logger);
+			wrapper.Modify(x => x.UpdateCachedProjectInfo(projectInfo, settings.LastModifiedTimeUtc));
+			return wrapper;
 		}
 
 		public UserWorkspaceSettings FindOrAddWorkspaceSettings(DirectoryReference rootDir, string? serverAndPort, string? userName, string clientName, string branchPath, string projectPath, ILogger logger)

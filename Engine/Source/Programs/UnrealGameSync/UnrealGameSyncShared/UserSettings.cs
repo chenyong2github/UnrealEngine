@@ -405,140 +405,6 @@ namespace UnrealGameSync
 		}
 	}
 
-	public class UserWorkspaceState
-	{
-		[JsonIgnore]
-		public DirectoryReference RootDir { get; set; } = null!;
-
-		// Cached state about the project, configured using UserWorkspaceSettings and taken from computed values in ProjectInfo. Assumed valid unless manually updated.
-		public long SettingsTimeUtc { get; set; }
-		public string ClientName { get; set; } = String.Empty;
-		public string BranchPath { get; set; } = String.Empty;
-		public string ProjectPath { get; set; } = String.Empty;
-		public string? StreamName { get; set; }
-		public string ProjectIdentifier { get; set; } = String.Empty; // Should be fully reset if this changes
-		public bool IsEnterpriseProject { get; set; }
-
-		// Settings for the currently synced project in this workspace. CurrentChangeNumber is only valid for this workspace if CurrentProjectPath is the current project.
-		public int CurrentChangeNumber { get; set; } = -1;
-		public int CurrentCodeChangeNumber { get; set; } = -1;
-		public string? CurrentSyncFilterHash { get; set; }
-		public List<int> AdditionalChangeNumbers { get; set; } = new List<int>();
-
-		// Settings for the last attempted sync. These values are set to persist error messages between runs.
-		public int LastSyncChangeNumber { get; set; }
-		public WorkspaceUpdateResult LastSyncResult { get; set; }
-		public string? LastSyncResultMessage { get; set; }
-		public DateTime? LastSyncTime { get; set; }
-		public int LastSyncDurationSeconds { get; set; }
-
-		// The last successful build, regardless of whether a failed sync has happened in the meantime. Used to determine whether to force a clean due to entries in the project config file.
-		public int LastBuiltChangeNumber { get; set; }
-
-		// Expanded archives in the workspace
-		public string[]? ExpandedArchiveTypes { get; set; }
-
-		// The changes that we're regressing at the moment
-		public List<BisectEntry> BisectChanges { get; set; } = new List<BisectEntry>();
-
-		// Path to the config file
-		[JsonIgnore]
-		public FileReference ConfigFile => GetConfigFile(RootDir);
-
-		public static UserWorkspaceState CreateNew(DirectoryReference rootDir)
-		{
-			UserWorkspaceState state = new UserWorkspaceState();
-			state.RootDir = rootDir;
-			return state;
-		}
-
-		public ProjectInfo CreateProjectInfo()
-		{
-			return new ProjectInfo(RootDir, ClientName, BranchPath, ProjectPath, StreamName, ProjectIdentifier, IsEnterpriseProject);
-		}
-
-		public void UpdateCachedProjectInfo(ProjectInfo projectInfo, long settingsTimeUtc)
-		{
-			this.SettingsTimeUtc = settingsTimeUtc;
-
-			RootDir = projectInfo.LocalRootPath;
-			ClientName = projectInfo.ClientName;
-			BranchPath = projectInfo.BranchPath;
-			ProjectPath = projectInfo.ProjectPath;
-			StreamName = projectInfo.StreamName;
-			ProjectIdentifier = projectInfo.ProjectIdentifier;
-			IsEnterpriseProject = projectInfo.IsEnterpriseProject;
-		}
-
-		public bool IsValid(ProjectInfo projectInfo)
-		{
-			return ProjectIdentifier.Equals(projectInfo.ProjectIdentifier, StringComparison.OrdinalIgnoreCase);
-		}
-
-		public void SetBisectState(int change, BisectState state)
-		{
-			BisectEntry? entry = BisectChanges.FirstOrDefault(x => x.Change == change);
-			if (entry == null)
-			{
-				entry = new BisectEntry();
-				entry.Change = change;
-				BisectChanges.Add(entry);
-			}
-			entry.State = state;
-		}
-
-		public static bool TryLoad(DirectoryReference rootDir, [NotNullWhen(true)] out UserWorkspaceState? state)
-		{
-			FileReference configFile = GetConfigFile(rootDir);
-			if (Utility.TryLoadJson(configFile, out state))
-			{
-				state.RootDir = rootDir;
-				return true;
-			}
-			else
-			{
-				state = null;
-				return false;
-			}
-		}
-
-		public void SetLastSyncState(WorkspaceUpdateResult result, WorkspaceUpdateContext context, string statusMessage)
-		{
-			LastSyncChangeNumber = context.ChangeNumber;
-			LastSyncResult = result;
-			LastSyncResultMessage = statusMessage;
-			LastSyncTime = DateTime.UtcNow;
-			LastSyncDurationSeconds = (int)(LastSyncTime.Value - context.StartTime).TotalSeconds;
-		}
-
-		static object _syncRoot = new object();
-
-		public bool Save(ILogger logger)
-		{
-			try
-			{
-				SaveInternal();
-				return true;
-			}
-			catch (Exception ex)
-			{
-				logger.LogError(ex, "Unable to save {ConfigFile}: {Message}", ConfigFile, ex.Message);
-				return false;
-			}
-		}
-
-		private void SaveInternal()
-		{
-			lock (_syncRoot)
-			{
-				UserSettings.CreateConfigDir(ConfigFile.Directory);
-				Utility.SaveJson(ConfigFile, this);
-			}
-		}
-
-		public static FileReference GetConfigFile(DirectoryReference rootDir) => FileReference.Combine(UserSettings.GetConfigDir(rootDir), "state.json");
-	}
-
 	public class UserProjectSettings
 	{
 		[JsonIgnore]
@@ -661,7 +527,6 @@ namespace UnrealGameSync
 		public int NotifyUnresolvedMinutes;
 
 		// Project settings
-		Dictionary<DirectoryReference, UserWorkspaceState> _workspaceDirToState = new Dictionary<DirectoryReference, UserWorkspaceState>();
 		Dictionary<DirectoryReference, UserWorkspaceSettings> _workspaceDirToSettings = new Dictionary<DirectoryReference, UserWorkspaceSettings>();
 		Dictionary<FileReference, UserProjectSettings> _projectKeyToSettings = new Dictionary<FileReference, UserProjectSettings>();
 
@@ -1007,7 +872,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		protected override void ImportWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath, UserWorkspaceState currentWorkspace)
+		protected override void ImportWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath, WorkspaceState currentWorkspace)
 		{
 			// Read the workspace settings
 			ConfigSection? workspaceSection = _configFile.FindSection(clientName + branchPath);
@@ -1374,7 +1239,6 @@ namespace UnrealGameSync
 		{
 			List<FileReference> files = new List<FileReference>();
 			files.AddRange(_workspaceDirToSettings.Values.Select(x => x.ConfigFile));
-			files.AddRange(_workspaceDirToState.Values.Select(x => x.ConfigFile));
 			files.AddRange(_projectKeyToSettings.Keys);
 			return files;
 		}

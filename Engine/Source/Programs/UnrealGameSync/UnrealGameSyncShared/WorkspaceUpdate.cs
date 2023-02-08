@@ -200,6 +200,11 @@ namespace UnrealGameSync
 		public static DirectoryReference GetDataFolder(DirectoryReference workspaceDir) => DirectoryReference.Combine(workspaceDir, ".ugs");
 		public static DirectoryReference GetCacheFolder(DirectoryReference workspaceDir) => DirectoryReference.Combine(workspaceDir, ".ugs", "cache");
 
+		public ProjectInfo(DirectoryReference localRootPath, ReadOnlyWorkspaceState state)
+			: this(localRootPath, state.ClientName, state.BranchPath, state.ProjectPath, state.StreamName, state.ProjectIdentifier, state.IsEnterpriseProject)
+		{
+		}
+
 		public ProjectInfo(DirectoryReference localRootPath, string clientName, string branchPath, string projectPath, string? streamName, string projectIdentifier, bool isEnterpriseProject)
 		{
 			ValidateBranchPath(branchPath);
@@ -562,9 +567,11 @@ namespace UnrealGameSync
 			}
 		}
 
-		public async Task<(WorkspaceUpdateResult, string)> ExecuteAsync(IPerforceSettings perforceSettings, ProjectInfo project, UserWorkspaceState state, ILogger logger, CancellationToken cancellationToken)
+		public async Task<(WorkspaceUpdateResult, string)> ExecuteAsync(IPerforceSettings perforceSettings, ProjectInfo project, WorkspaceStateWrapper stateMgr, ILogger logger, CancellationToken cancellationToken)
 		{
 			using IPerforceConnection perforce = await PerforceConnection.CreateAsync(perforceSettings, logger);
+
+			ReadOnlyWorkspaceState state = stateMgr.Current;
 
 			List<Tuple<string, TimeSpan>> times = new List<Tuple<string, TimeSpan>>();
 
@@ -696,8 +703,7 @@ namespace UnrealGameSync
 							if (removeDepotPaths.Count > 0)
 							{
 								// Clear the current sync filter hash. If the sync is canceled, we'll be in an indeterminate state, and we should always clean next time round.
-								state.CurrentSyncFilterHash = "INVALID";
-								state.Save(logger);
+								state = stateMgr.Modify(x => x.CurrentSyncFilterHash = "INVALID");
 
 								// Find all the depot paths that will be synced
 								HashSet<string> remainingDepotPathsToRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -715,8 +721,7 @@ namespace UnrealGameSync
 							}
 
 							// Update the sync filter hash. We've removed any files we need to at this point.
-							state.CurrentSyncFilterHash = nextSyncFilterHash;
-							state.Save(logger);
+							state = stateMgr.Modify(x => x.CurrentSyncFilterHash = nextSyncFilterHash);
 						}
 					}
 
@@ -857,9 +862,11 @@ namespace UnrealGameSync
 					// Clear the current sync changelist, in case we cancel
 					if (!Context.Options.HasFlag(WorkspaceUpdateOptions.SyncSingleChange))
 					{
-						state.CurrentChangeNumber = -1;
-						state.AdditionalChangeNumbers.Clear();
-						state.Save(logger);
+						state = stateMgr.Modify(x =>
+						{
+							x.CurrentChangeNumber = -1;
+							x.AdditionalChangeNumbers.Clear();
+						});
 					}
 
 					// Find all the depot paths that will be synced
@@ -1079,16 +1086,18 @@ namespace UnrealGameSync
 					}
 
 					// Update the current state
+					state = stateMgr.Modify(x =>
+					{
 					if (Context.Options.HasFlag(WorkspaceUpdateOptions.SyncSingleChange))
 					{
-						state.AdditionalChangeNumbers.Add(Context.ChangeNumber);
+							x.AdditionalChangeNumbers.Add(Context.ChangeNumber);
 					}
 					else
 					{
-						state.CurrentChangeNumber = Context.ChangeNumber;
-						state.CurrentCodeChangeNumber = versionChangeNumber;
+							x.CurrentChangeNumber = Context.ChangeNumber;
+							x.CurrentCodeChangeNumber = versionChangeNumber;
 					}
-					state.Save(logger);
+					});
 
 					// Update the timing info
 					times.Add(new Tuple<string, TimeSpan>("Sync", syncTelemetryStopwatch.Stop("Success")));
@@ -1148,8 +1157,7 @@ namespace UnrealGameSync
 					}
 
 					// Update the state
-					state.ExpandedArchiveTypes = Context.ArchiveTypeToArchive.Where(x => x.Value != null).Select(x => x.Key).ToArray();
-					state.Save(logger);
+					state = stateMgr.Modify(x => x.ExpandedArchiveTypes = Context.ArchiveTypeToArchive.Where(x => x.Value != null).Select(x => x.Key).ToArray());
 
 					// Add the finish time
 					times.Add(new Tuple<string, TimeSpan>("Archive", stopwatch.Stop("Success")));
@@ -1397,8 +1405,7 @@ namespace UnrealGameSync
 				// Update the last successful build change number
 				if (Context.CustomBuildSteps == null || Context.CustomBuildSteps.Count == 0)
 				{
-					state.LastBuiltChangeNumber = state.CurrentChangeNumber;
-					state.Save(logger);
+					state = stateMgr.Modify(x => x.LastBuiltChangeNumber = state.CurrentChangeNumber);
 				}
 			}
 

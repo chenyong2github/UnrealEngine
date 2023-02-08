@@ -21,20 +21,20 @@ namespace UnrealGameSync
 		public IPerforceSettings PerforceSettings { get; }
 		public ProjectInfo ProjectInfo { get; }
 		public UserWorkspaceSettings WorkspaceSettings { get; }
-		public UserWorkspaceState WorkspaceState { get; }
+		public WorkspaceStateWrapper WorkspaceStateWrapper { get; }
 		public ConfigFile LatestProjectConfigFile { get; }
 		public ConfigFile WorkspaceProjectConfigFile { get; }
 		public IReadOnlyList<string>? WorkspaceProjectStreamFilter { get; }
 		public List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles { get; }
 
-		public OpenProjectInfo(UserSelectedProjectSettings selectedProject, IPerforceSettings perforceSettings, ProjectInfo projectInfo, UserWorkspaceSettings workspaceSettings, UserWorkspaceState workspaceState, ConfigFile latestProjectConfigFile, ConfigFile workspaceProjectConfigFile, IReadOnlyList<string>? workspaceProjectStreamFilter, List<KeyValuePair<FileReference, DateTime>> localConfigFiles)
+		public OpenProjectInfo(UserSelectedProjectSettings selectedProject, IPerforceSettings perforceSettings, ProjectInfo projectInfo, UserWorkspaceSettings workspaceSettings, WorkspaceStateWrapper workspaceStateWrapper, ConfigFile latestProjectConfigFile, ConfigFile workspaceProjectConfigFile, IReadOnlyList<string>? workspaceProjectStreamFilter, List<KeyValuePair<FileReference, DateTime>> localConfigFiles)
 		{
 			this.SelectedProject = selectedProject;
 
 			this.PerforceSettings = perforceSettings;
 			this.ProjectInfo = projectInfo;
 			this.WorkspaceSettings = workspaceSettings;
-			this.WorkspaceState = workspaceState;
+			this.WorkspaceStateWrapper = workspaceStateWrapper;
 			this.LatestProjectConfigFile = latestProjectConfigFile;
 			this.WorkspaceProjectConfigFile = workspaceProjectConfigFile;
 			this.WorkspaceProjectStreamFilter = workspaceProjectStreamFilter;
@@ -218,7 +218,7 @@ namespace UnrealGameSync
 				ProjectInfo projectInfo = await ProjectInfo.CreateAsync(perforceClient, userWorkspaceSettings, cancellationToken);
 
 				// Update the cached workspace state
-				UserWorkspaceState userWorkspaceState = userSettings.FindOrAddWorkspaceState(projectInfo, userWorkspaceSettings, logger);
+				WorkspaceStateWrapper workspaceStateWrapper = userSettings.FindOrAddWorkspaceState(projectInfo, userWorkspaceSettings, logger);
 
 				// Read the initial config file
 				List<KeyValuePair<FileReference, DateTime>> localConfigFiles = new List<KeyValuePair<FileReference, DateTime>>();
@@ -228,7 +228,7 @@ namespace UnrealGameSync
 				ConfigFile workspaceProjectConfigFile = await WorkspaceUpdate.ReadProjectConfigFile(branchDirectoryName, newSelectedFileName, logger);
 				IReadOnlyList<string>? workspaceProjectStreamFilter = await WorkspaceUpdate.ReadProjectStreamFilter(perforceClient, workspaceProjectConfigFile, logger, cancellationToken);
 
-				OpenProjectInfo workspaceSettings = new OpenProjectInfo(selectedProject, perforceSettings, projectInfo, userWorkspaceSettings, userWorkspaceState, latestProjectConfigFile, workspaceProjectConfigFile, workspaceProjectStreamFilter, localConfigFiles);
+				OpenProjectInfo workspaceSettings = new OpenProjectInfo(selectedProject, perforceSettings, projectInfo, userWorkspaceSettings, workspaceStateWrapper, latestProjectConfigFile, workspaceProjectConfigFile, workspaceProjectStreamFilter, localConfigFiles);
 
 				return workspaceSettings;
 			}

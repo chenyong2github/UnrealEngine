@@ -211,7 +211,6 @@ namespace UnrealGameSync
 		ProjectInfo ProjectInfo { get; }
 
 		UserSettings _settings;
-		UserWorkspaceState _workspaceState;
 		UserWorkspaceSettings _workspaceSettings;
 		UserProjectSettings _projectSettings;
 
@@ -307,8 +306,7 @@ namespace UnrealGameSync
 			_perforceSettings = openProjectInfo.PerforceSettings;
 			ProjectInfo = openProjectInfo.ProjectInfo;
 			_settings = inSettings;
-			this._workspaceSettings = openProjectInfo.WorkspaceSettings;
-			this._workspaceState = openProjectInfo.WorkspaceState;
+			_workspaceSettings = openProjectInfo.WorkspaceSettings;
 			_projectSettings = inSettings.FindOrAddProjectSettings(openProjectInfo.ProjectInfo, openProjectInfo.WorkspaceSettings, _logger);
 
 			DesiredTaskbarState = Tuple.Create(TaskbarState.NoProgress, 0.0f);
@@ -366,7 +364,8 @@ namespace UnrealGameSync
 
 			ProjectInfo project = openProjectInfo.ProjectInfo;
 
-			_workspace = new Workspace(perforceClientSettings, project, _workspaceState, openProjectInfo.WorkspaceProjectConfigFile, openProjectInfo.WorkspaceProjectStreamFilter, new LogControlTextWriter(SyncLog), _serviceProvider);
+			_workspace = new Workspace(perforceClientSettings, project, openProjectInfo.WorkspaceStateWrapper, openProjectInfo.WorkspaceProjectConfigFile, openProjectInfo.WorkspaceProjectStreamFilter, new LogControlTextWriter(SyncLog), _serviceProvider);
+			_workspace.OnStateChanged += StateChangedCallback;
 			_workspace.OnUpdateComplete += UpdateCompleteCallback;
 
 			FileReference projectLogBaseName = FileReference.Combine(_workspaceDataFolder, "sync.log");
@@ -1015,13 +1014,6 @@ namespace UnrealGameSync
 		{
 			if (_workspace.IsBusy() && MessageBox.Show("Are you sure you want to cancel the current operation?", "Cancel operation", MessageBoxButtons.YesNo) == DialogResult.Yes)
 			{
-				_workspaceState.LastSyncChangeNumber = _workspace.PendingChangeNumber;
-				_workspaceState.LastSyncResult = WorkspaceUpdateResult.Canceled;
-				_workspaceState.LastSyncResultMessage = null;
-				_workspaceState.LastSyncTime = null;
-				_workspaceState.LastSyncDurationSeconds = 0;
-				_workspaceState.Save(_logger);
-
 				_workspace.CancelUpdate();
 
 				if (_updateCallback != null)
@@ -1038,6 +1030,13 @@ namespace UnrealGameSync
 				DesiredTaskbarState = Tuple.Create(TaskbarState.NoProgress, 0.0f);
 				_owner.UpdateProgress();
 			}
+		}
+
+		void StateChangedCallback(ReadOnlyWorkspaceState state)
+		{
+			_changeNumberToLayoutInfo.Clear();
+			UpdateBuildList();
+			UpdateStatusPanel();
 		}
 
 		void UpdateCompleteCallback(WorkspaceUpdateContext context, WorkspaceUpdateResult result, string resultMessage)
@@ -1466,7 +1465,7 @@ namespace UnrealGameSync
 					return false;
 				}
 			}
-			if (IsBisectModeEnabled() && !_workspaceState.BisectChanges.Any(x => x.Change == change.Number))
+			if (IsBisectModeEnabled() && !_workspace.State.BisectChanges.Any(x => x.Change == change.Number))
 			{
 				return false;
 			}
@@ -2131,7 +2130,7 @@ namespace UnrealGameSync
 		private void GetRemainingBisectRange(out int outPassChangeNumber, out int outFailChangeNumber)
 		{
 			int passChangeNumber = -1;
-			foreach (BisectEntry entry in _workspaceState.BisectChanges)
+			foreach (BisectEntry entry in _workspace.State.BisectChanges)
 			{
 				if (entry.State == BisectState.Pass && (entry.Change > passChangeNumber || passChangeNumber == -1))
 				{
@@ -2140,7 +2139,7 @@ namespace UnrealGameSync
 			}
 
 			int failChangeNumber = -1;
-			foreach (BisectEntry entry in _workspaceState.BisectChanges)
+			foreach (BisectEntry entry in _workspace.State.BisectChanges)
 			{
 				if (entry.State == BisectState.Fail && entry.Change > passChangeNumber && (entry.Change < failChangeNumber || failChangeNumber == -1))
 				{
@@ -2179,7 +2178,7 @@ namespace UnrealGameSync
 
 			bool allowSync = CanSyncChange(change.Number);
 			int badgeAlpha = allowSync ? 255 : 128;
-			Color textColor = (allowSync || change.Number == _workspace.PendingChangeNumber || change.Number == _workspace.CurrentChangeNumber || _workspaceState.AdditionalChangeNumbers.Contains(change.Number)) ? SystemColors.WindowText : Blend(SystemColors.Window, SystemColors.WindowText, 0.25f);
+			Color textColor = (allowSync || change.Number == _workspace.PendingChangeNumber || change.Number == _workspace.CurrentChangeNumber || _workspace.State.AdditionalChangeNumbers.Contains(change.Number)) ? SystemColors.WindowText : Blend(SystemColors.Window, SystemColors.WindowText, 0.25f);
 
 			const int fadeRange = 6;
 			if (e.ItemIndex >= BuildList.Items.Count - fadeRange && _numChanges >= _perforceMonitor.CurrentMaxChanges && !IsBisectModeEnabled())
@@ -2198,7 +2197,7 @@ namespace UnrealGameSync
 				{
 					e.Graphics.DrawImage(Properties.Resources.Icons, minX * dpiScaleX, iconY, _previousSyncIcon, GraphicsUnit.Pixel);
 				}
-				else if (_workspaceSettings != null && _workspaceState.AdditionalChangeNumbers.Contains(change.Number))
+				else if (_workspaceSettings != null && _workspace != null && _workspace.State.AdditionalChangeNumbers.Contains(change.Number))
 				{
 					e.Graphics.DrawImage(Properties.Resources.Icons, minX * dpiScaleX, iconY, _additionalSyncIcon, GraphicsUnit.Pixel);
 				}
@@ -2217,7 +2216,7 @@ namespace UnrealGameSync
 						int firstPass, firstFail;
 						GetRemainingBisectRange(out firstPass, out firstFail);
 
-						BisectEntry? entry = _workspaceState.BisectChanges.FirstOrDefault(x => x.Change == change.Number);
+						BisectEntry? entry = _workspace?.State.BisectChanges.FirstOrDefault(x => x.Change == change.Number);
 						if (entry == null || entry.State == BisectState.Exclude)
 						{
 							qualityIcon = new Rectangle(0, 0, 0, 0);
@@ -2363,7 +2362,7 @@ namespace UnrealGameSync
 					}
 
 					string? summaryText;
-					if (_workspaceState.LastSyncChangeNumber == -1 || _workspaceState.LastSyncChangeNumber != change.Number || !GetLastUpdateMessage(_workspaceState.LastSyncResult, _workspaceState.LastSyncResultMessage, out summaryText))
+					if (_workspace.State.LastSyncChangeNumber == -1 || _workspace.State.LastSyncChangeNumber != change.Number || !GetLastUpdateMessage(_workspace.State.LastSyncResult, _workspace.State.LastSyncResultMessage, out summaryText))
 					{
 						StringBuilder summaryTextBuilder = new StringBuilder();
 
@@ -3527,19 +3526,19 @@ namespace UnrealGameSync
 				lines.Add(programsLine);
 
 				// Get the summary of the last sync
-				if (_workspaceState.LastSyncChangeNumber > 0)
+				if (_workspace.State.LastSyncChangeNumber > 0)
 				{
 					string? summaryText;
-					if (_workspaceState.LastSyncChangeNumber == _workspace.CurrentChangeNumber && _workspaceState.LastSyncResult == WorkspaceUpdateResult.Success && _workspaceState.LastSyncTime.HasValue)
+					if (_workspace.State.LastSyncChangeNumber == _workspace.CurrentChangeNumber && _workspace.State.LastSyncResult == WorkspaceUpdateResult.Success && _workspace.State.LastSyncTime.HasValue)
 					{
 						lines.Add(new StatusLine() { LineHeight = 0.5f });
 
 						StatusLine successLine = new StatusLine();
 						successLine.AddIcon(Properties.Resources.StatusIcons, new Size(16, 16), 0);
-						successLine.AddText(String.Format("  Sync took {0}{1}s, completed at {2}.", (_workspaceState.LastSyncDurationSeconds >= 60) ? String.Format("{0}m ", _workspaceState.LastSyncDurationSeconds / 60) : "", _workspaceState.LastSyncDurationSeconds % 60, _workspaceState.LastSyncTime.Value.ToLocalTime().ToString("h\\:mmtt").ToLowerInvariant()));
+						successLine.AddText(String.Format("  Sync took {0}{1}s, completed at {2}.", (_workspace.State.LastSyncDurationSeconds >= 60) ? String.Format("{0}m ", _workspace.State.LastSyncDurationSeconds / 60) : "", _workspace.State.LastSyncDurationSeconds % 60, _workspace.State.LastSyncTime.Value.ToLocalTime().ToString("h\\:mmtt").ToLowerInvariant()));
 						lines.Add(successLine);
 					}
-					else if (GetLastUpdateMessage(_workspaceState.LastSyncResult, _workspaceState.LastSyncResultMessage, out summaryText))
+					else if (GetLastUpdateMessage(_workspace.State.LastSyncResult, _workspace.State.LastSyncResultMessage, out summaryText))
 					{
 						lines.Add(new StatusLine() { LineHeight = 0.5f });
 
@@ -3945,10 +3944,10 @@ namespace UnrealGameSync
 		private void ViewLastSyncStatus()
 		{
 			string? summaryText;
-			if (GetLastUpdateMessage(_workspaceState.LastSyncResult, _workspaceState.LastSyncResultMessage, out summaryText))
+			if (GetLastUpdateMessage(_workspace.State.LastSyncResult, _workspace.State.LastSyncResultMessage, out summaryText))
 			{
 				string? captionText;
-				if (!GetGenericLastUpdateMessage(_workspaceState.LastSyncResult, out captionText))
+				if (!GetGenericLastUpdateMessage(_workspace.State.LastSyncResult, out captionText))
 				{
 					captionText = "Sync error";
 				}
@@ -4188,7 +4187,7 @@ namespace UnrealGameSync
 				BuildListContextMenu_OpenVisualStudio.Visible = !isBusy && isCurrentChange;
 				BuildListContextMenu_Cancel.Visible = isBusy;
 
-				BisectState state = _workspaceState.BisectChanges.FirstOrDefault(x => x.Change == _contextMenuChange.Number)?.State ?? BisectState.Include;
+				BisectState state = _workspace.State.BisectChanges.FirstOrDefault(x => x.Change == _contextMenuChange.Number)?.State ?? BisectState.Include;
 				bool isBisectMode = IsBisectModeEnabled();
 				BuildListContextMenu_Bisect_Pass.Visible = isBisectMode && state != BisectState.Pass;
 				BuildListContextMenu_Bisect_Fail.Visible = isBisectMode && state != BisectState.Fail;
@@ -5870,7 +5869,7 @@ namespace UnrealGameSync
 
 		private bool IsBisectModeEnabled()
 		{
-			return _workspaceState.BisectChanges.Count >= 2;
+			return _workspace.State.BisectChanges.Count >= 2;
 		}
 
 		private void EnableBisectMode()
@@ -5890,40 +5889,28 @@ namespace UnrealGameSync
 				changeNumberToBisectState[changeNumberToBisectState.Keys.Min()] = BisectState.Pass;
 				changeNumberToBisectState[changeNumberToBisectState.Keys.Max()] = BisectState.Fail;
 
-				_workspaceState.BisectChanges = changeNumberToBisectState.Select(x => new BisectEntry { Change = x.Key, State = x.Value }).ToList();
-				_workspaceState.Save(_logger);
-
-				UpdateBuildList();
-				UpdateStatusPanel();
+				_workspace.ModifyState(x => x.BisectChanges = changeNumberToBisectState.Select(x => new BisectEntry { Change = x.Key, State = x.Value }).ToList());
 			}
 		}
 
 		private void CancelBisectMode()
 		{
-			_workspaceState.BisectChanges.Clear();
-			_workspaceState.Save(_logger);
-
-			UpdateBuildList();
-			UpdateStatusPanel();
+			_workspace.ModifyState(x => x.BisectChanges.Clear());
 		}
 
 		private void SetBisectStateForSelection(BisectState state)
 		{
-			foreach (ListViewItem? selectedItem in BuildList.SelectedItems)
+			_workspace.ModifyState(x =>
 			{
-				ChangesRecord? change = selectedItem?.Tag as ChangesRecord;
-				if (change != null)
+				foreach (ListViewItem? selectedItem in BuildList.SelectedItems)
 				{
-					_workspaceState.SetBisectState(change.Number, state);
+					ChangesRecord? change = selectedItem?.Tag as ChangesRecord;
+					if (change != null)
+					{
+						x.SetBisectState(change.Number, state);
+					}
 				}
-			}
-
-			_workspaceState.Save(_logger);
-
-			_changeNumberToLayoutInfo.Clear();
-			BuildList.Invalidate();
-
-			UpdateStatusPanel();
+			});
 		}
 
 		private int GetBisectChangeNumber()
@@ -5933,7 +5920,7 @@ namespace UnrealGameSync
 			GetRemainingBisectRange(out passChangeNumber, out failChangeNumber);
 
 			List<int> changeNumbers = new List<int>();
-			foreach (BisectEntry entry in _workspaceState.BisectChanges)
+			foreach (BisectEntry entry in _workspace.State.BisectChanges)
 			{
 				if (entry.State == BisectState.Include && entry.Change > passChangeNumber && entry.Change < failChangeNumber)
 				{
