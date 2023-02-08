@@ -68,6 +68,15 @@ UWorldPartitionRuntimeHash::UWorldPartitionRuntimeHash(const FObjectInitializer&
 {}
 
 #if WITH_EDITOR
+URuntimeHashExternalStreamingObjectBase* UWorldPartitionRuntimeHash::CreateExternalStreamingObject(TSubclassOf<URuntimeHashExternalStreamingObjectBase> InClass, UObject* InOuter, FName InName, UWorld* InOwningWorld, UWorld* InOuterWorld)
+{
+	check(!InOwningWorld->IsGameWorld());
+	URuntimeHashExternalStreamingObjectBase* StreamingObject = NewObject<URuntimeHashExternalStreamingObjectBase>(InOuter, InClass, InName, RF_Public);
+	StreamingObject->OwningWorld = InOwningWorld;
+	StreamingObject->OuterWorld = InOuterWorld;
+	return StreamingObject;
+}
+
 void UWorldPartitionRuntimeHash::OnBeginPlay()
 {
 	// Mark always loaded actors so that the Level will force reference to these actors for PIE.

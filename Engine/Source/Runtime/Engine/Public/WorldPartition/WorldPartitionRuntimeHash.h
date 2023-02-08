@@ -4,13 +4,12 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "Templates/SubclassOf.h"
 #include "Engine/World.h"
 #include "WorldPartition.h"
-#include "WorldPartitionActorDescView.h"
 #include "WorldPartition/ActorDescList.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/WorldPartitionStreamingGeneration.h"
 #include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 #if WITH_EDITOR
@@ -19,7 +18,6 @@
 #endif
 #include "WorldPartitionRuntimeHash.generated.h"
 
-class FActorDescViewMap;
 struct FHierarchicalLogArchive;
 
 UENUM()
@@ -35,17 +33,15 @@ class ENGINE_API URuntimeHashExternalStreamingObjectBase : public UObject
 {
 	GENERATED_BODY()
 
+	friend class UWorldPartitionRuntimeHash;
+
 public:
-	virtual void Initialize(UWorld* InOwningWorld, UWorld* InOuterWorld) 
-	{ 
-		OwningWorld = InOwningWorld;  
-		OuterWorld = InOuterWorld;
-	}
+	//~ Begin UObject Interface
+	virtual class UWorld* GetWorld() const override final { return GetOwningWorld(); }
+	//~ End UObject Interface
 
 	UWorld* GetOwningWorld() const { return OwningWorld.Get(); }
 	UWorld* GetOuterWorld() const { return OuterWorld.Get(); }
-
-	virtual class UWorld* GetWorld() const override final { return GetOwningWorld(); }
 
 	void ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func);
 	
@@ -158,12 +154,16 @@ public:
 protected:
 	virtual EWorldPartitionStreamingPerformance GetStreamingPerformanceForCell(const UWorldPartitionRuntimeCell* Cell) const { return EWorldPartitionStreamingPerformance::Good; }
 
-private:
 #if WITH_EDITOR
-	void ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE);
+	static URuntimeHashExternalStreamingObjectBase* CreateExternalStreamingObject(TSubclassOf<URuntimeHashExternalStreamingObjectBase> InClass, UObject* InOuter, FName InName, UWorld* InOwningWorld, UWorld* InOuterWorld);
+
+	template <class T>
+	T* CreateExternalStreamingObject(UObject* InOuter, FName InName)
+	{
+		return static_cast<T*>(CreateExternalStreamingObject(T::StaticClass(), InOuter, InName, GetWorld(), GetTypedOuter<UWorld>()));
+	}
 #endif
 
-protected:
 #if WITH_EDITORONLY_DATA
 	struct FAlwaysLoadedActorForPIE
 	{
@@ -181,5 +181,10 @@ protected:
 
 public:
 	mutable FActorDescList ModifiedActorDescListForPIE;
+#endif
+
+#if WITH_EDITOR
+private:
+	void ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE);
 #endif
 };
