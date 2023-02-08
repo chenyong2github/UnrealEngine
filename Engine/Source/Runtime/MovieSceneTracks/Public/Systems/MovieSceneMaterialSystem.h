@@ -155,12 +155,12 @@ struct TApplyMaterialSwitchers
 template<typename AccessorType, typename... RequiredComponents>
 struct TInitializeBoundMaterials
 {
-	static bool InitializeBoundMaterial(typename TCallTraits<RequiredComponents>::ParamType... Inputs, UObject*& OutDynamicMaterial)
+	static bool InitializeBoundMaterial(typename TCallTraits<RequiredComponents>::ParamType... Inputs, FObjectComponent& OutDynamicMaterial)
 	{
 		AccessorType Accessor(Inputs...);
 		if (!Accessor)
 		{
-			OutDynamicMaterial = nullptr;
+			OutDynamicMaterial = FObjectComponent::Null();
 			return false;
 		}
 
@@ -168,7 +168,7 @@ struct TInitializeBoundMaterials
 
 		if (!ExistingMaterial)
 		{
-			OutDynamicMaterial = nullptr;
+			OutDynamicMaterial = FObjectComponent::Null();
 			return true;
 		}
 
@@ -176,13 +176,13 @@ struct TInitializeBoundMaterials
 		{
 			if (OutDynamicMaterial != MID)
 			{
-				OutDynamicMaterial = MID;
+				OutDynamicMaterial = FObjectComponent::Weak(MID);
 				return true;
 			}
 			return false;
 		}
 
-		UMaterialInstanceDynamic* CurrentMID = Cast<UMaterialInstanceDynamic>(OutDynamicMaterial);
+		UMaterialInstanceDynamic* CurrentMID = Cast<UMaterialInstanceDynamic>(OutDynamicMaterial.GetObject());
 		if (CurrentMID && CurrentMID->Parent == ExistingMaterial)
 		{
 			Accessor.SetMaterial(CurrentMID);
@@ -190,12 +190,12 @@ struct TInitializeBoundMaterials
 		}
 		
 		UMaterialInstanceDynamic* NewMaterial = Accessor.CreateDynamicMaterial(ExistingMaterial);
-		OutDynamicMaterial = NewMaterial;
+		OutDynamicMaterial = FObjectComponent::Weak(NewMaterial);
 		Accessor.SetMaterial(NewMaterial);
 		return true;
 	}
 
-	static void ForEachEntity(typename TCallTraits<RequiredComponents>::ParamType... Inputs, UObject*& OutDynamicMaterial)
+	static void ForEachEntity(typename TCallTraits<RequiredComponents>::ParamType... Inputs, FObjectComponent& OutDynamicMaterial)
 	{
 		InitializeBoundMaterial(Inputs..., OutDynamicMaterial);
 	}
@@ -212,7 +212,7 @@ struct TReinitializeBoundMaterials
 		: Linker(InLinker)
 	{}
 
-	void ForEachAllocation(int32 Num, const FMovieSceneEntityID* EntityIDs, const RequiredComponents*... Inputs, UObject** Objects)
+	void ForEachAllocation(int32 Num, const FMovieSceneEntityID* EntityIDs, const RequiredComponents*... Inputs, FObjectComponent* Objects)
 	{
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
@@ -220,7 +220,7 @@ struct TReinitializeBoundMaterials
 		}
 	}
 
-	void ForEachEntity(FMovieSceneEntityID EntityID, typename TCallTraits<RequiredComponents>::ParamType... Inputs, UObject*& OutDynamicMaterial)
+	void ForEachEntity(FMovieSceneEntityID EntityID, typename TCallTraits<RequiredComponents>::ParamType... Inputs, FObjectComponent& OutDynamicMaterial)
 	{
 		if (TInitializeBoundMaterials<AccessorType, RequiredComponents...>::InitializeBoundMaterial(Inputs..., OutDynamicMaterial))
 		{
@@ -256,16 +256,16 @@ struct TAddBoundMaterialMutationImpl<AccessorType, TIntegerSequence<int, Indices
 	}
 	virtual void InitializeAllocation(FEntityAllocation* Allocation, const FComponentMask& AllocationType) const
 	{
-		TComponentWriter<UObject*> BoundMaterials = Allocation->WriteComponents(TracksComponents->BoundMaterial, FEntityAllocationWriteContext::NewAllocation());
+		TComponentWriter<FObjectComponent> BoundMaterials = Allocation->WriteComponents(TracksComponents->BoundMaterial, FEntityAllocationWriteContext::NewAllocation());
 		InitializeAllocation(Allocation, BoundMaterials, Allocation->ReadComponents(ComponentTypes.template Get<Indices>())...);
 	}
 
-	void InitializeAllocation(FEntityAllocation* Allocation, UObject** OutBoundMaterials, const RequiredComponents*... InRequiredComponents) const
+	void InitializeAllocation(FEntityAllocation* Allocation, FObjectComponent* OutBoundMaterials, const RequiredComponents*... InRequiredComponents) const
 	{
 		const int32 Num = Allocation->Num();
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
-			OutBoundMaterials[Index] = nullptr;
+			OutBoundMaterials[Index] = FObjectComponent::Null();
 		}
 	}
 private:

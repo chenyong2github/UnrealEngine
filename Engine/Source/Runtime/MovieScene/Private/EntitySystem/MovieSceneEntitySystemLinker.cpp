@@ -293,8 +293,9 @@ void UMovieSceneEntitySystemLinker::TagInvalidBoundObjects()
 	// Tag any bound objects that are now invalid
 	TArray<FMovieSceneEntityID> ExpiredBoundObjects;
 
-	auto Iter = [&ExpiredBoundObjects](FMovieSceneEntityID EntityID, UObject* BoundObject)
+	auto Iter = [&ExpiredBoundObjects](FMovieSceneEntityID EntityID, const FObjectKey& BoundObjectKey)
 	{
+		UObject* BoundObject = BoundObjectKey.ResolveObjectPtr();
 		if (FBuiltInComponentTypes::IsBoundObjectGarbage(BoundObject))
 		{
 			ExpiredBoundObjects.Add(EntityID);
@@ -302,7 +303,7 @@ void UMovieSceneEntitySystemLinker::TagInvalidBoundObjects()
 	};
 	FEntityTaskBuilder()
 	.ReadEntityIDs()
-	.Read(BuiltInComponents->BoundObject)
+	.Read(BuiltInComponents->BoundObjectKey)
 	.Iterate_PerEntity(&EntityManager, Iter);
 
 	for (FMovieSceneEntityID Entity : ExpiredBoundObjects)

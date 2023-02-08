@@ -13,7 +13,7 @@ void UMovieSceneTrackInstance::Initialize(UObject* InAnimatedObject, UMovieScene
 {
 	// We make the difference between a root track instance, and a bound track instance that lost its binding,
 	// by remembering if this track instance was initialized with a valid bound object.
-	AnimatedObject = InAnimatedObject;
+	WeakAnimatedObject = InAnimatedObject;
 	bIsRootTrackInstance = (InAnimatedObject == nullptr);
 
 	PrivateLinker = InLinker;
@@ -30,7 +30,7 @@ void UMovieSceneTrackInstance::Destroy()
 {
 	using namespace UE::MovieScene;
 
-	if (bIsRootTrackInstance || !UE::MovieScene::FBuiltInComponentTypes::IsBoundObjectGarbage(AnimatedObject))
+	if (bIsRootTrackInstance || !UE::MovieScene::FBuiltInComponentTypes::IsBoundObjectGarbage(WeakAnimatedObject.Get()))
 	{
 		OnDestroyed();
 	}
@@ -152,6 +152,7 @@ void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput
 
 UWorld* UMovieSceneTrackInstance::GetWorld() const
 {
+	UObject* AnimatedObject = WeakAnimatedObject.Get();
 	return AnimatedObject ? AnimatedObject->GetWorld() : Super::GetWorld();
 }
 

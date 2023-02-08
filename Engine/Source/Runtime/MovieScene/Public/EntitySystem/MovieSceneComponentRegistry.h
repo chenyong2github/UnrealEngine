@@ -20,6 +20,28 @@ namespace MovieScene
 
 template<typename> struct TPropertyComponents;
 
+struct FNewComponentTypeParams
+{
+	FNewComponentTypeParams()
+		: ReferenceCollectionCallback(nullptr)
+		, Flags(EComponentTypeFlags::None)
+	{}
+
+	/** Implicit construction from type flags to support legacy API */
+	FNewComponentTypeParams(EComponentTypeFlags InFlags)
+		: ReferenceCollectionCallback(nullptr)
+		, Flags(InFlags)
+	{}
+
+	explicit FNewComponentTypeParams(FComponentReferenceCollectionPtr RefCollectionPtr, EComponentTypeFlags InFlags)
+		: ReferenceCollectionCallback(RefCollectionPtr)
+		, Flags(InFlags)
+	{}
+
+	FComponentReferenceCollectionPtr ReferenceCollectionCallback;
+	EComponentTypeFlags Flags;
+};
+
 struct MOVIESCENE_API FComponentRegistry
 {
 public:
@@ -39,8 +61,8 @@ public:
 	 * Define a new tag type using the specified information. Tags have 0 memory overhead.
 	 * @note Transitory tag types must be unregistered when no longer required by calling DestroyComponentTypeSafe or Unsafe to prevent leaking component type IDs
 	 *
-	 * @param Flags          Flags relating to the new component type
 	 * @param DebugName      A developer friendly name that accompanies this component type for debugging purposes
+	 * @param Flags          Flags relating to the new component type
 	 * @return A new component type identifier for the tag
 	 */
 	FComponentTypeID NewTag(const TCHAR* const DebugName, EComponentTypeFlags Flags = EComponentTypeFlags::None);
@@ -51,16 +73,16 @@ public:
 	 * @note Transitory tag types must be unregistered when no longer required by calling DestroyComponentTypeSafe or Unsafe to prevent leaking component type IDs
 	 *
 	 * @param DebugName      A developer friendly name that accompanies this component type for debugging purposes
-	 * @param Flags          (Optional) Flags relating to the new component type
+	 * @param Params         (Optional) Parameters for the type including component flags
 	 * @return A new component type identifier for the tag
 	 */
 	template<typename T>
-	TComponentTypeID<T> NewComponentType(const TCHAR* const DebugName, EComponentTypeFlags Flags = EComponentTypeFlags::None);
+	TComponentTypeID<T> NewComponentType(const TCHAR* const DebugName, const FNewComponentTypeParams& Params = FNewComponentTypeParams());
 
 	template<typename T>
-	void NewComponentType(TComponentTypeID<T>* Ref, const TCHAR* const DebugName, EComponentTypeFlags Flags = EComponentTypeFlags::None)
+	void NewComponentType(TComponentTypeID<T>* Ref, const TCHAR* const DebugName, const FNewComponentTypeParams& Params = FNewComponentTypeParams())
 	{
-		*Ref = NewComponentType<T>(DebugName, Flags);
+		*Ref = NewComponentType<T>(DebugName, Params);
 	}
 
 	template<typename PropertyTraits>

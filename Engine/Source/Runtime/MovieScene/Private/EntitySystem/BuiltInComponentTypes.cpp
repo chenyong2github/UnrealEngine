@@ -17,8 +17,50 @@ namespace UE
 namespace MovieScene
 {
 
+bool FObjectComponent::IsStrongReference() const
+{
+	return ObjectKey == FObjectKey();
+}
+
+UObject* FObjectComponent::GetObject() const
+{
+	if (IsStrongReference())
+	{
+		return ObjectPtr;
+	}
+	return ObjectKey.ResolveObjectPtr();
+}
+
+void AddReferencedObjectForComponent(FReferenceCollector& ReferenceCollector, FObjectComponent* ComponentData)
+{
+	if (ComponentData->IsStrongReference())
+	{
+		ReferenceCollector.AddReferencedObject(ComponentData->ObjectPtr);
+	}
+}
+void AddReferencedObjectForBoundObject(FReferenceCollector& ReferenceCollector, void* ComponentData, int32 Num)
+{
+	// Intentionally hidden from the reference graph
+}
+
 static bool GMovieSceneBuiltInComponentTypesDestroyed = false;
 static TUniquePtr<FBuiltInComponentTypes> GMovieSceneBuiltInComponentTypes;
+
+struct FBoundObjectKeyInitializer : IMutualComponentInitializer
+{
+	void Run(const FEntityRange& Range, const FEntityAllocationWriteContext& WriteContext) override
+	{
+		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+		TComponentReader<UObject*>   Objects    = Range.Allocation->ReadComponents(BuiltInComponents->BoundObject);
+		TComponentWriter<FObjectKey> ObjectKeys = Range.Allocation->WriteComponents(BuiltInComponents->BoundObjectKey, WriteContext);
+
+		for (int32 Index = 0; Index < Range.Num; ++Index)
+		{
+			ObjectKeys[Range.ComponentStartOffset + Index] = Objects[Range.ComponentStartOffset + Index];
+		}
+	}
+};
 
 FBuiltInComponentTypes::FBuiltInComponentTypes()
 {
@@ -34,7 +76,8 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&EvalTime,              TEXT("Eval Time"));
 	ComponentRegistry->NewComponentType(&EvalSeconds,           TEXT("Eval Seconds"));
 
-	ComponentRegistry->NewComponentType(&BoundObject,           TEXT("Bound Object"));
+	ComponentRegistry->NewComponentType(&BoundObjectKey,        TEXT("Bound Object Key"));
+	ComponentRegistry->NewComponentType(&BoundObject,           TEXT("Bound Object"), FNewComponentTypeParams(&AddReferencedObjectForBoundObject, EComponentTypeFlags::None));
 
 	ComponentRegistry->NewComponentType(&PropertyBinding,         TEXT("Property Binding"), EComponentTypeFlags::CopyToOutput);
 	ComponentRegistry->NewComponentType(&GenericObjectBinding,    TEXT("Generic Object Binding ID"));
@@ -158,6 +201,14 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	SymbolicTags.CreatesEntities = ComponentRegistry->NewTag(TEXT("~~ SYMBOLIC ~~ Creates Entities"));
 
 	FinishedMask.SetAll({ Tags.NeedsUnlink, Tags.Finished });
+
+	{
+		FMutuallyInclusiveComponentParams ObjectKeyParams;
+		ObjectKeyParams.CustomInitializer = MakeUnique<FBoundObjectKeyInitializer>();
+		ObjectKeyParams.Type = EMutuallyInclusiveComponentType::Mandatory;
+
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponents(BoundObject, { BoundObjectKey }, MoveTemp(ObjectKeyParams));
+	}
 
 	// New children always need link
 	ComponentRegistry->Factories.DefineChildComponent(Tags.NeedsLink);

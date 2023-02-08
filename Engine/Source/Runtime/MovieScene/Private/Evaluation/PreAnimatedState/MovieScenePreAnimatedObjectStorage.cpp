@@ -19,6 +19,11 @@ FPreAnimatedStorageGroupHandle FBoundObjectPreAnimatedStateTraits::MakeGroupImpl
 	return ObjectGroupManager->MakeGroupForKey(BoundObject);
 }
 
+FPreAnimatedStorageGroupHandle FBoundObjectPreAnimatedStateTraits::MakeGroupImpl(const FObjectComponent& BoundObject)
+{
+	return ObjectGroupManager->MakeGroupForKey(BoundObject.GetObject());
+}
+
 } // namespace MovieScene
 } // namespace UE
 

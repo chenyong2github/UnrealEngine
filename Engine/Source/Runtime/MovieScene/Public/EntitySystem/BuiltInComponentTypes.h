@@ -216,6 +216,98 @@ struct FSourceObjectPathChannel
 	const FMovieSceneObjectPathChannel* Source;
 };
 
+/** A component that represents a UObject* either as a strong or weak reference */
+struct FObjectComponent
+{
+	FObjectComponent()
+		: ObjectPtr(nullptr)
+	{}
+
+	/** Construct a new null component */
+	static FObjectComponent Null()
+	{
+		return FObjectComponent{ nullptr, FObjectKey() };
+	}
+
+	/** Construct a new strongly-referenced component from an object ptr */
+	static FObjectComponent Strong(UObject* InObject)
+	{
+		return FObjectComponent{ InObject, FObjectKey() };
+	}
+
+	/** Construct a new weakly-referenced component from an object ptr */
+	static FObjectComponent Weak(UObject* InObject)
+	{
+		return FObjectComponent{ InObject, InObject };
+	}
+
+	/** Check whether this object component is valid */
+	explicit operator bool() const
+	{
+		return ObjectPtr != nullptr;
+	}
+
+	/** Compare this component with another object ptr */
+	bool operator==(UObject* InObject) const
+	{
+		return ObjectPtr == InObject;
+	}
+
+	/** Compare this component with another object ptr */
+	bool operator!=(UObject* InObject) const
+	{
+		return ObjectPtr != InObject;
+	}
+
+	/** Equality operator */
+	friend bool operator==(const FObjectComponent& A, const FObjectComponent& B)
+	{
+		if (A.ObjectKey != FObjectKey() || B.ObjectKey != FObjectKey())
+		{
+			return A.ObjectKey == B.ObjectKey;
+		}
+
+		return A.ObjectPtr == B.ObjectPtr;
+	}
+
+	/** Generate a type has from this component */
+	friend uint32 GetTypeHash(const FObjectComponent& In)
+	{
+		if (In.ObjectKey != FObjectKey())
+		{
+			return GetTypeHash(In.ObjectKey);
+		}
+
+		return GetTypeHash(In.ObjectPtr);
+	}
+
+	UObject* operator->() const
+	{
+		UObject* Object = GetObject();
+		checkSlow(Object);
+		return Object;
+	}
+
+	MOVIESCENE_API UObject* GetObject() const;
+
+	/** Conditionally add a reference for the specified component data based on whether it is strongly referenced or not */
+	friend void AddReferencedObjectForComponent(FReferenceCollector& ReferenceCollector, FObjectComponent* ComponentData);
+
+private:
+
+	FObjectComponent(UObject* InObject, const FObjectKey& InObjectKey)
+		: ObjectPtr(InObject)
+		, ObjectKey(InObjectKey)
+	{}
+
+	bool IsStrongReference() const;
+
+	/** Raw pointer to the object. This is explicitly assigned for both strong and weak ptrs, but is only added to the reference graph when FObjectKey() is default constructed.  */
+	UObject* ObjectPtr;
+
+	/** Default constructed for strong pointers. Assigned on construction for weak ptrs. */
+	FObjectKey ObjectKey;
+};
 
 /**
  * Pre-defined built in component types
@@ -238,7 +330,12 @@ public:
 
 	TComponentTypeID<FMovieSceneEntityID> ParentEntity;
 
+	/**
+	 * A bound object ptr component that defines the object being animated. This ptr is explicitly hidden from the reference graph and cleaned up
+	 * after a garbage collection pass if it becomes invalid by checking the BoundObjectKey component that must exist alongside it
+	 */
 	TComponentTypeID<UObject*>            BoundObject;
+	TComponentTypeID<FObjectKey>          BoundObjectKey;
 
 	TComponentTypeID<FInstanceHandle>     InstanceHandle;
 

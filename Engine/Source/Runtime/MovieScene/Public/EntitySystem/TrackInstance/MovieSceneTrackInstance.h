@@ -142,7 +142,7 @@ public:
 	 */
 	UObject* GetAnimatedObject() const
 	{
-		return AnimatedObject;
+		return WeakAnimatedObject.Get();
 	}
 
 
@@ -191,7 +191,7 @@ private:
 private:
 
 	UPROPERTY()
-	TObjectPtr<UObject> AnimatedObject;
+	TWeakObjectPtr<UObject> WeakAnimatedObject;
 
 	UPROPERTY()
 	bool bIsRootTrackInstance;

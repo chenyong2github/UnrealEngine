@@ -457,7 +457,7 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TComponentTypeID<FName> ColorParameterName;
 	TComponentTypeID<FName> TransformParameterName;
 
-	TComponentTypeID<UObject*> BoundMaterial;
+	TComponentTypeID<FObjectComponent> BoundMaterial;
 	TComponentTypeID<UMaterialParameterCollection*> MPC;
 
 	TComponentTypeID<FFadeComponentData> Fade;

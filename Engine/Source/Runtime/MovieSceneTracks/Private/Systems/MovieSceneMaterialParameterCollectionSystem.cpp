@@ -74,7 +74,7 @@ void UMovieSceneMaterialParameterCollectionSystem::OnRun(FSystemTaskPrerequisite
 		}
 		virtual void InitializeAllocation(FEntityAllocation* Allocation, const FComponentMask& AllocationType) const
 		{
-			TComponentWriter<UObject*> OutBoundMaterials = Allocation->WriteComponents(TracksComponents->BoundMaterial, FEntityAllocationWriteContext::NewAllocation());
+			TComponentWriter<FObjectComponent> OutBoundMaterials = Allocation->WriteComponents(TracksComponents->BoundMaterial, FEntityAllocationWriteContext::NewAllocation());
 			TComponentReader<UMaterialParameterCollection*> MPCs = Allocation->ReadComponents(TracksComponents->MPC);
 			TComponentReader<FInstanceHandle> InstanceHandles = Allocation->ReadComponents(BuiltInComponents->InstanceHandle);
 
@@ -85,7 +85,7 @@ void UMovieSceneMaterialParameterCollectionSystem::OnRun(FSystemTaskPrerequisite
 			const int32 Num = Allocation->Num();
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				OutBoundMaterials[Index] = nullptr;
+				OutBoundMaterials[Index] = FObjectComponent::Null();
 
 				UMaterialParameterCollection* Collection = MPCs[Index];
 				IMovieScenePlayer* Player = InstanceRegistry->GetInstance(InstanceHandles[Index]).GetPlayer();
@@ -94,7 +94,7 @@ void UMovieSceneMaterialParameterCollectionSystem::OnRun(FSystemTaskPrerequisite
 				if (World && Collection)
 				{
 					UMaterialParameterCollectionInstance* Instance = World->GetParameterCollectionInstance(Collection);
-					OutBoundMaterials[Index] = Instance;
+					OutBoundMaterials[Index] = FObjectComponent::Weak(Instance);
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 					if (ensureAlwaysMsgf(Instance != nullptr,
@@ -177,7 +177,7 @@ void UMovieSceneMaterialParameterCollectionSystem::SavePreAnimatedState(const FP
 	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TracksComponents  = FMovieSceneTracksComponentTypes::Get();
 
-	TPreAnimatedStateTaskParams<UObject*, FName> Params;
+	TPreAnimatedStateTaskParams<FObjectComponent, FName> Params;
 
 	Params.AdditionalFilter.All({ TracksComponents->MPC });
 	ScalarParameterStorage->BeginTrackingEntitiesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->ScalarParameterName);

@@ -15,7 +15,7 @@ struct FMaterialParameterKey
 	FObjectKey BoundMaterial;
 	FName ParameterName;
 
-	MOVIESCENETRACKS_API FMaterialParameterKey(UObject* InBoundMaterial, const FName& InParameterName);
+	MOVIESCENETRACKS_API FMaterialParameterKey(const FObjectComponent& InBoundMaterial, const FName& InParameterName);
 
 	friend MOVIESCENETRACKS_API uint32 GetTypeHash(const FMaterialParameterKey& InKey);
 
@@ -29,7 +29,7 @@ struct FMaterialParameterCollectionScalarTraits : FBoundObjectPreAnimatedStateTr
 
 	static MOVIESCENETRACKS_API void ReplaceObject(FMaterialParameterKey& InOutKey, const FObjectKey& NewObject);
 
-	static MOVIESCENETRACKS_API float CachePreAnimatedValue(UObject* InBoundMaterial, const FName& ParameterName);
+	static MOVIESCENETRACKS_API float CachePreAnimatedValue(const FObjectComponent& InBoundMaterial, const FName& ParameterName);
 
 	static MOVIESCENETRACKS_API void RestorePreAnimatedValue(const FMaterialParameterKey& InKey, float OldValue, const FRestoreStateParams& Params);
 };
@@ -41,7 +41,7 @@ struct FMaterialParameterCollectionVectorTraits : FBoundObjectPreAnimatedStateTr
 
 	static MOVIESCENETRACKS_API void ReplaceObject(FMaterialParameterKey& InOutKey, const FObjectKey& NewObject);
 
-	static MOVIESCENETRACKS_API FLinearColor CachePreAnimatedValue(UObject* InBoundMaterial, const FName& ParameterName);
+	static MOVIESCENETRACKS_API FLinearColor CachePreAnimatedValue(const FObjectComponent& InBoundMaterial, const FName& ParameterName);
 
 	static MOVIESCENETRACKS_API void RestorePreAnimatedValue(const FMaterialParameterKey& InKey, const FLinearColor& OldValue, const FRestoreStateParams& Params);
 };

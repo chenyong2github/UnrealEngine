@@ -18,6 +18,7 @@ namespace MovieScene
 struct FNotImplemented;
 struct FComponentTypeDebugInfo;
 
+using FComponentReferenceCollectionPtr = void (*)(FReferenceCollector&, void*, int32);
 
 /**
  * Stub for components that do not need reference collection. Overload void AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, T* Component) for your own implementation
@@ -183,10 +184,19 @@ struct FComponentTypeInfo
 		ComplexComponentOps = MakeUnique<TComplexComponentOps<T>>();
 	}
 
+	/**
+	 * Define complex component with a specific reference collection callback
+	 */
+	template<typename T>
+	void MakeComplexComponentOps(FComponentReferenceCollectionPtr RefCollectionPtr)
+	{
+		ComplexComponentOps = MakeUnique<TComplexComponentOpsCustomRefCollection<T>>(RefCollectionPtr);
+	}
+
 private:
 
 	template<typename T>
-	struct TComplexComponentOps : IComplexComponentOps
+	struct TComplexComponentOpsBase : IComplexComponentOps
 	{
 		virtual void ConstructItems(void* Components, int32 Num) const
 		{
@@ -224,6 +234,10 @@ private:
 				++TypedSrc;
 			}
 		}
+	};
+	template<typename T>
+	struct TComplexComponentOps : TComplexComponentOpsBase<T>
+	{
 		virtual void AddReferencedObjects(FReferenceCollector& ReferenceCollector, void* ComponentStart, int32 Num)
 		{
 			T* ComponentData = static_cast<T*>(ComponentStart);
@@ -233,6 +247,19 @@ private:
 
 				++ComponentData;
 			}
+		}
+	};
+	template<typename T>
+	struct TComplexComponentOpsCustomRefCollection : TComplexComponentOpsBase<T>
+	{
+		FComponentReferenceCollectionPtr RefCollectionPtr;
+		TComplexComponentOpsCustomRefCollection(FComponentReferenceCollectionPtr InRefCollectionPtr)
+			: RefCollectionPtr(InRefCollectionPtr)
+		{}
+
+		virtual void AddReferencedObjects(FReferenceCollector& ReferenceCollector, void* ComponentStart, int32 Num)
+		{
+			(*RefCollectionPtr)(ReferenceCollector, ComponentStart, Num);
 		}
 	};
 };

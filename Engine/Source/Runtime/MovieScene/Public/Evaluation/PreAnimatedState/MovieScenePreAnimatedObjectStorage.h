@@ -38,7 +38,14 @@ struct MOVIESCENE_API FBoundObjectPreAnimatedStateTraits : FPreAnimatedStateTrai
 	{
 		return MakeGroupImpl(BoundObject);
 	}
+	template<typename... T>
+	FPreAnimatedStorageGroupHandle MakeGroup(const FObjectComponent& BoundObject, T&&... Unused)
+	{
+		return MakeGroupImpl(BoundObject);
+	}
+
 	FPreAnimatedStorageGroupHandle MakeGroupImpl(UObject* BoundObject);
+	FPreAnimatedStorageGroupHandle MakeGroupImpl(const FObjectComponent& BoundObject);
 
 	template<typename ...T>
 	void ReplaceObject(TTuple<FObjectKey, T...>& InOutKey, const FObjectKey& NewObject)
