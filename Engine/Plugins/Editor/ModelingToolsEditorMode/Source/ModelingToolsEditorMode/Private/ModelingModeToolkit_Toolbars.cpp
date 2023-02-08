@@ -411,7 +411,7 @@ void FModelingToolsEditorModeToolkit::ExtendSecondaryModeToolbar(UToolMenu *InMo
 	}
 
 	UModelingToolsEditorModeSettings* ModelingModeSettings = GetMutableDefault<UModelingToolsEditorModeSettings>();
-	const bool bEnableSelectionUI = ModelingModeSettings && ModelingModeSettings->bEnableMeshSelections;
+	const bool bEnableSelectionUI = ModelingModeSettings && ModelingModeSettings->GetMeshSelectionsEnabled();
 	if ( !bEnableSelectionUI )
 	{
 		return;

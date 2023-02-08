@@ -146,13 +146,21 @@ public:
 	// Selection
 	//
 
-	// old preference that should be ignored now
-	UPROPERTY()
+	// old preference for mesh selection system that will be disabled in 5.3
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Selection", meta = (DisplayName="Enable Mesh Selection UI"))
 	bool bEnablePersistentSelections = false;
 
+	// new default-enabled preference for the mesh selection system that we will switch to in 5.3
 	/** Enable/Disable new Mesh Selection System (Experimental). */
-	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Selection", meta = (DisplayName="Enable Mesh Selection UI"))
+	//UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Selection", meta = (DisplayName="Enable Mesh Selection UI"))
+	UPROPERTY()
 	bool bEnableMeshSelections = true;
+
+	virtual bool GetMeshSelectionsEnabled() const
+	{
+		return bEnablePersistentSelections;
+		//return bEnableMeshSelections;
+	}
 
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(UModelingToolsEditorModeSettingsModified, UObject*, FProperty*);

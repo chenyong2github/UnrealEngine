@@ -153,6 +153,7 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 
 	UEdMode* ScriptableMode = GetScriptableEditorMode().Get();
 	UModelingToolsModeCustomizationSettings* UISettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
+	UModelingToolsEditorModeSettings* ModelingModeSettings = GetMutableDefault<UModelingToolsEditorModeSettings>();
 	
 	ToolkitBuilder = MakeShared<FToolkitBuilder>(
 				ScriptableMode->GetModeInfo().ToolbarCustomizationName, 
@@ -196,26 +197,28 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 	ToolkitBuilder->AddPalette(
 		MakeShareable( new FToolPalette( Commands.LoadCreateTools.ToSharedRef(), CreatePaletteItems ) ) );
 
+	if ( ModelingModeSettings && ModelingModeSettings->GetMeshSelectionsEnabled() )
+	{
+		TArray<TSharedPtr<FUICommandInfo>> SelectionPaletteItems({
+			Commands.BeginSelectionAction_Delete,
+			Commands.BeginSelectionAction_Extrude,
+			Commands.BeginSelectionAction_Offset,
 
-	TArray<TSharedPtr<FUICommandInfo>> SelectionPaletteItems({
-		Commands.BeginSelectionAction_Delete,
-		Commands.BeginSelectionAction_Extrude,
-		Commands.BeginSelectionAction_Offset,
+			Commands.BeginPolyModelTool_PushPull,
+			Commands.BeginPolyModelTool_Inset,
+			Commands.BeginPolyModelTool_Outset,
+			Commands.BeginPolyModelTool_CutFaces,
+			Commands.BeginPolyModelTool_Bevel,
 
-		Commands.BeginPolyModelTool_PushPull,
-		Commands.BeginPolyModelTool_Inset,
-		Commands.BeginPolyModelTool_Outset,
-		Commands.BeginPolyModelTool_CutFaces,
-		Commands.BeginPolyModelTool_Bevel,
+			Commands.BeginPolyModelTool_InsertEdgeLoop,
+			Commands.BeginSelectionAction_Retriangulate,
 
-		Commands.BeginPolyModelTool_InsertEdgeLoop,
-		Commands.BeginSelectionAction_Retriangulate,
-
-		Commands.BeginPolyModelTool_PolyEd,
-		Commands.BeginPolyModelTool_TriSel
-	});
-	ToolkitBuilder->AddPalette( 
-		MakeShareable( new FToolPalette( Commands.LoadSelectionTools.ToSharedRef(), SelectionPaletteItems ) ) );
+			Commands.BeginPolyModelTool_PolyEd,
+			Commands.BeginPolyModelTool_TriSel
+		});
+		ToolkitBuilder->AddPalette( 
+			MakeShareable( new FToolPalette( Commands.LoadSelectionTools.ToSharedRef(), SelectionPaletteItems ) ) );
+	}
 
 
 	TArray<TSharedPtr<FUICommandInfo>> TransformPaletteItems({
@@ -1284,7 +1287,7 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& Palette
 	}
 
 	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
-	bool bEnableSelectionUI = ModelingModeSettings && ModelingModeSettings->bEnableMeshSelections;
+	bool bEnableSelectionUI = ModelingModeSettings && ModelingModeSettings->GetMeshSelectionsEnabled();
 	if (bEnableSelectionUI)
 	{
 		if (bShowActiveSelectionActions)
