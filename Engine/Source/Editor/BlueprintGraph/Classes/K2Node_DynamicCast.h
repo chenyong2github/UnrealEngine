@@ -34,10 +34,6 @@ class UK2Node_DynamicCast : public UK2Node
 	UPROPERTY()
 	TSubclassOf<class UObject>  TargetType;
 
-	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar);
-	//~ End UObject Interface
-
 	//~ Begin UEdGraphNode Interface
 	virtual void AllocateDefaultPins() override;
 	virtual FLinearColor GetNodeTitleColor() const override;
@@ -47,6 +43,7 @@ class UK2Node_DynamicCast : public UK2Node
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual bool IncludeParentNodeContextMenu() const override { return true; }
 	virtual void PostReconstructNode() override;
+	virtual void PostPlacedNewNode() override;
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	//~ End UEdGraphNode Interface
 
@@ -55,7 +52,7 @@ class UK2Node_DynamicCast : public UK2Node
 	virtual class FNodeHandlingFunctor* CreateNodeHandler(class FKismetCompilerContext& CompilerContext) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FBlueprintNodeSignature GetSignature() const override;
-	virtual bool IsNodePure() const override { return PureState == EPureState::Pure; }
+	virtual bool IsNodePure() const override { return bIsPureCast; }
 	virtual bool IsConnectionDisallowed(const UEdGraphPin* MyPin, const UEdGraphPin* OtherPin, FString& OutReason) const override;
 	virtual void NotifyPinConnectionListChanged(UEdGraphPin* Pin) override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
@@ -82,17 +79,11 @@ class UK2Node_DynamicCast : public UK2Node
 	 * Will change the node's purity, and reallocate pins accordingly (adding/
 	 * removing exec pins).
 	 * 
-	 * @param  bNewPurity  Whether to configure node as pure.
+	 * @param  bNewPurity  The new value for bIsPureCast.
 	 */
 	BLUEPRINTGRAPH_API void SetPurity(bool bNewPurity);
 
 protected:
-	/** Determine purity and create exec pins if needed */
-	void CreateExecPins();
-
-	/** Create success output signal pin (visible only if pure) */
-	void CreateSuccessPin();
-
 	/** Flips the node's purity (adding/removing exec pins as needed). */
 	void TogglePurity();
 
@@ -102,23 +93,7 @@ protected:
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTextCache CachedNodeTitle;
 
-	/** [DEPRECATED] This member is no longer in use. */
-	UE_DEPRECATED(5.3, "Use IsNodePure() instead.")
-	bool bIsPureCast;
-
-private:
-	enum class EPureState : uint8
-	{
-		Pure,
-		Impure,
-		UseDefault
-	};
-
-	/** Internal state used to determine purity */
-	EPureState PureState;
-
-	/** [DEPRECATED] Receives the old value on load if previously saved */
 	UPROPERTY()
-	bool bIsPureCast_DEPRECATED;
+	bool bIsPureCast;
 };
 

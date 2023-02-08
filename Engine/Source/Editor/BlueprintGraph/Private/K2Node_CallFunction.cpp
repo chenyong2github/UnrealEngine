@@ -2278,24 +2278,6 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 			).ToString();
 			MessageLog.Error(*ErrorString, this);
 		}
-		else if (Pin && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object && Pin->PinName == UEdGraphSchema_K2::PN_Self)
-		{
-			const UEdGraphPin* SelfPin = MessageLog.FindSourcePin(Pin);
-			for (const UEdGraphPin* LinkedTo : SelfPin->LinkedTo)
-			{
-				if (ensure(LinkedTo) && LinkedTo->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface)
-				{
-					if (LinkedTo->PinType.IsArray())
-					{
-						MessageLog.Note(*FText::Format(LOCTEXT("InterfaceArrayTargetConnectionNote", "@@: An array of interface types can no longer be directly connected to '{0}'. Each entry must first be cast to the object type. However, the existing connection to '{1}' will continue to work for backwards-compatibility."), FText::FromString(SelfPin->GetName()), FText::FromString(LinkedTo->GetName())).ToString(), this);
-					}
-					else
-					{
-						MessageLog.Note(*FText::Format(LOCTEXT("InterfaceTargetConnectionNote", "@@: An interface type can no longer be directly connected to '{0}'. It must first be cast to the object type. However, the existing connection to '{1}' will continue to work for backwards-compatibility."), FText::FromString(SelfPin->GetName()), FText::FromString(LinkedTo->GetName())).ToString(), this);
-					}
-				}
-			}
-		}
 	}
 }
 
@@ -2767,34 +2749,18 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 		}
 	}
 
-	// Older assets may have interface pins wired directly to the target pin in the source graph (due to an earlier regression).
-	UEdGraphPin* SelfPin = Schema->FindSelfPin(*this, EEdGraphPinDirection::EGPD_Input);
-	if (SelfPin && SelfPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object)
-	{
-		for (UEdGraphPin* PinLinkedToSelfPin : SelfPin->LinkedTo)
-		{
-			if (PinLinkedToSelfPin && PinLinkedToSelfPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface && !PinLinkedToSelfPin->PinType.IsContainer())
-			{
-				PinLinkedToSelfPin->BreakLinkTo(SelfPin);
-				if (!Schema->TryCreateConnection(PinLinkedToSelfPin, SelfPin))
-				{
-					PinLinkedToSelfPin->MakeLinkTo(SelfPin);
-				}
-			}
-		}
-	}
-
 	// Then we go through and expand out array iteration if necessary
 	const bool bAllowMultipleSelfs = AllowMultipleSelfs(true);
-	if(bAllowMultipleSelfs && SelfPin && !SelfPin->PinType.IsArray())
+	UEdGraphPin* MultiSelf = Schema->FindSelfPin(*this, EEdGraphPinDirection::EGPD_Input);
+	if(bAllowMultipleSelfs && MultiSelf && !MultiSelf->PinType.IsArray())
 	{
 		const bool bProperInputToExpandForEach = 
-			(1 == SelfPin->LinkedTo.Num()) &&
-			(nullptr != SelfPin->LinkedTo[0]) &&
-			(SelfPin->LinkedTo[0]->PinType.IsArray());
+			(1 == MultiSelf->LinkedTo.Num()) && 
+			(nullptr != MultiSelf->LinkedTo[0]) && 
+			(MultiSelf->LinkedTo[0]->PinType.IsArray());
 		if(bProperInputToExpandForEach)
 		{
-			CallForEachElementInArrayExpansion(this, SelfPin, CompilerContext, SourceGraph);
+			CallForEachElementInArrayExpansion(this, MultiSelf, CompilerContext, SourceGraph);
 		}
 	}
 }

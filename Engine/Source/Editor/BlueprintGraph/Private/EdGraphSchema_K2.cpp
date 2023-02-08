@@ -2686,7 +2686,7 @@ TOptional<UEdGraphSchema_K2::FFindSpecializedConversionNodeResults> UEdGraphSche
 	const bool bTryAlternateObjectProperty =
 		InputPin.GetOwningNode()->IsA(UK2Node_CallFunction::StaticClass()) &&
 		IsSelfPin(InputPin) &&
-		((OutputPinType.PinCategory == PC_Object) || ((OutputPinType.PinCategory == PC_Interface) && !OutputPinType.IsContainer()));
+		((OutputPinType.PinCategory == PC_Object) || (OutputPinType.PinCategory == PC_Interface));
 
 	if (bConvertScalarToArray)
 	{
@@ -2764,9 +2764,8 @@ TOptional<UEdGraphSchema_K2::FFindSpecializedConversionNodeResults> UEdGraphSche
 				Result->TargetNode = CastByteToEnum;
 			}
 		}
-		else if (!OutputPinType.IsContainer())
+		else
 		{
-			// Note: The nodes here do not support a ForEach-style expansion, so we exclude container types.
 			UClass* InputClass  = FBlueprintEditorUtils::GetTypeForPin(InputPin);
 			const UClass* OutputClass = Cast<UClass>(OutputPinType.PinSubCategoryObject.Get());
 

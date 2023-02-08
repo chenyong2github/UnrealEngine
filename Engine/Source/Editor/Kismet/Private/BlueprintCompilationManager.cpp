@@ -2731,11 +2731,6 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 		}
 
 		UFunction* ParentFn = ParentClass->FindFunctionByName(NewFunction->GetFName());
-
-		// Set the parent function prior to searching for a corresponding interface class function. This matches what
-		// is done in the full path (@see FKismetCompilerContext::PrecompileFunction). It is ok for this to be NULL.
-		NewFunction->SetSuperStruct(ParentFn);
-
 		if(ParentFn == nullptr)
 		{
 			// check for function in implemented interfaces:
@@ -2763,6 +2758,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 				}
 			}
 		}
+		NewFunction->SetSuperStruct( ParentFn );
 		
 		InCurrentParamStorageLocation = &NewFunction->ChildProperties;
 
