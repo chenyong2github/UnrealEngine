@@ -999,7 +999,7 @@ void ReflectionTemporalReprojectionCS(
 
 	const uint2 MinScreenCoord = View.ViewRectMinAndSize.xy;
 	const uint2 MaxScreenCoord = View.ViewRectMinAndSize.xy + View.ViewRectMinAndSize.zw - 1;
-	const FNeighborStatistics Neighborhood = GetNeighborStatistics(Coord.SvPosition, MinScreenCoord, MaxScreenCoord, NewSpecular, Coord.TileBSDFIndex);
+	FNeighborStatistics Neighborhood = GetNeighborStatistics(Coord.SvPosition, MinScreenCoord, MaxScreenCoord, NewSpecular, Coord.TileBSDFIndex);
 
 	const float InvalidHistoryErrorThreshold = 1e6;
 	const float ErrorFromReflectionHit = IsValidHistoryUV(HistoryScreenUVFromReflectionHit_Primary) ? abs(Luma(HistorySpecularIndirectFromReflectionHit) - Luma(Neighborhood.Mean)) : InvalidHistoryErrorThreshold;
@@ -1010,7 +1010,7 @@ void ReflectionTemporalReprojectionCS(
 		: HistorySpecularIndirectFromSceneDepth;
 
 #if USE_BILATERAL_FILTER
-	float VarianceHistoryWeight = IsValidHistoryUV(HistoryScreenUVFromReflectionHit) ? .9f : 0;
+	float VarianceHistoryWeight = IsValidHistoryUV(HistoryScreenUVFromReflectionHit_Primary) ? .9f : 0;
 	float NewResolveVariance = ResolveVariance[Coord.SvPositionFlatten];
 
 	if (dot(OcclusionWeights, 1.0f) < 1.0f)
@@ -1019,7 +1019,7 @@ void ReflectionTemporalReprojectionCS(
 		NewResolveVariance = DisocclusionVariance;
 	}
 
-	float ResolveVarianceHistoryValue = VarianceHistoryWeight > 0.0f ? Texture2DSampleLevel(ResolveVarianceHistory, GlobalBilinearClampedSampler, HistoryScreenUVFromReflectionHit, 0).x : 0;
+	float ResolveVarianceHistoryValue = VarianceHistoryWeight > 0.0f ? Texture2DSampleLevel(ResolveVarianceHistory, GlobalBilinearClampedSampler, HistoryScreenUVFromReflectionHit_Primary, 0).x : 0;
 	float AccumulatedResolveVariance = max(lerp(NewResolveVariance, ResolveVarianceHistoryValue, VarianceHistoryWeight), 0);
 	RWResolveVariance[Coord.SvPositionFlatten] = AccumulatedResolveVariance;
 	float AccumulatedResolveStdDev = sqrt(AccumulatedResolveVariance);
