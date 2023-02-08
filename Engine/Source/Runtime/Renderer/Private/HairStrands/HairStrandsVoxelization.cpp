@@ -1233,7 +1233,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 					continue;
 				}
 
-				const uint32 VertexCount = HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, HairGroupPublicData->MaxScreenSize);
+				const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount(VFInput.Strands.PointCount, HairGroupPublicData->MaxScreenSize);
 				const float SampleWeight = HairGroupPublicData->GetActiveStrandsSampleWeight(false, HairGroupPublicData->MaxScreenSize);
 
 				FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;
@@ -1247,7 +1247,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->OutPageTexture = PageTextureUAV;
 				PassParameters->FrameIdMod8 = FrameIdMode8;
 
-				PassParameters->VertexCount = VertexCount;
+				PassParameters->VertexCount = PointCount;
 				PassParameters->SampleWeight = SampleWeight;
 			
 				const bool bCullingEnable = !IsHairStrandContinuousDecimationReorderingEnabled() && HairGroupPublicData->GetCullingResultAvailable();

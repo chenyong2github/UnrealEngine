@@ -314,16 +314,6 @@ FHairGroupPublicData::FHairGroupPublicData(uint32 InGroupIndex, const FName& InO
 {
 	SetOwnerName(InOwnerName);
 	GroupIndex = InGroupIndex;
-	GroupControlTriangleStripVertexCount = 0;
-	ClusterCount = 0;
-	VertexCount = 0;
-}
-
-void FHairGroupPublicData::SetClusters(uint32 InClusterCount, uint32 InVertexCount)
-{
-	GroupControlTriangleStripVertexCount = InVertexCount * 6; // 6 vertex per point for a quad
-	ClusterCount = InClusterCount;
-	VertexCount = InVertexCount; // Control points
 }
 
 void FHairGroupPublicData::InitRHI()
@@ -366,8 +356,8 @@ void FHairGroupPublicData::Allocate(FRDGBuilder& GraphBuilder)
 	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), ClusterCount * 6, EPixelFormat::PF_R32_SINT, ClusterAABBBuffer, TEXT("Hair.Cluster_ClusterAABBBuffer"), GetOwnerName());
 	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), 6, EPixelFormat::PF_R32_SINT, GroupAABBBuffer, TEXT("Hair.Cluster_GroupAABBBuffer"), GetOwnerName());
 
-	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), VertexCount, EPixelFormat::PF_R32_UINT, CulledVertexIdBuffer, TEXT("Hair.Cluster_CulledVertexIdBuffer"), GetOwnerName());
-	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(float), VertexCount, EPixelFormat::PF_R32_FLOAT, CulledVertexRadiusScaleBuffer, TEXT("Hair.Cluster_CulledVertexRadiusScaleBuffer"), GetOwnerName(), true);
+	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), RestPointCount, EPixelFormat::PF_R32_UINT, CulledVertexIdBuffer, TEXT("Hair.Cluster_CulledVertexIdBuffer"), GetOwnerName());
+	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(float), RestPointCount, EPixelFormat::PF_R32_FLOAT, CulledVertexRadiusScaleBuffer, TEXT("Hair.Cluster_CulledVertexRadiusScaleBuffer"), GetOwnerName(), true);
 
 	GraphBuilder.SetBufferAccessFinal(Register(GraphBuilder, DrawIndirectBuffer, ERDGImportedBufferFlags::None).Buffer, ERHIAccess::IndirectArgs);
 
@@ -550,21 +540,21 @@ uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalIndex, uint32 In
 	return VertexStart;
 }
 
-uint32 GetHairVisibilityComputeRasterVertexCount(float ScreenSize, uint32 InVertexCount)
+uint32 GetHairVisibilityComputeRasterPointCount(float ScreenSize, uint32 InPointCount)
 {
-	uint32 VertexCount = InVertexCount;
+	uint32 PointCount = InPointCount;
 
 	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled())
 	{
-		VertexCount /= GetHairVisibilityComputeRasterTemporalLayerCount();
+		PointCount /= GetHairVisibilityComputeRasterTemporalLayerCount();
 	}
 
 	if (IsHairVisibilityComputeRasterContinuousLODEnabled())
 	{
-		VertexCount *= GetHairVisibilityComputeRasterContinuousLODScale(ScreenSize);
+		PointCount *= GetHairVisibilityComputeRasterContinuousLODScale(ScreenSize);
 	}
 
-	return VertexCount;
+	return PointCount;
 }
 
 float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize, bool bUseTemporalWeight)
@@ -586,9 +576,9 @@ float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize, bool bUseTemp
 	return SampleWeight;
 }
 
-uint32 FHairGroupPublicData::GetActiveStrandsVertexCount(uint32 InVertexCount, float ScreenSize) const
+uint32 FHairGroupPublicData::GetActiveStrandsPointCount(uint32 InPointCount, float ScreenSize) const
 {
-	return GetHairVisibilityComputeRasterVertexCount(FMath::Min(MaxScreenSize, ScreenSize), InVertexCount);
+	return GetHairVisibilityComputeRasterPointCount(FMath::Min(MaxScreenSize, ScreenSize), InPointCount);
 }
 
 float FHairGroupPublicData::GetActiveStrandsSampleWeight(bool bUseTemporalWeight, float ScreenSize) const

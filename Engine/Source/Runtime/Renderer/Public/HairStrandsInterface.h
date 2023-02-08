@@ -15,6 +15,7 @@
 #include "RenderGraphResources.h"
 #include "ShaderPrintParameters.h"
 #include "GroomVisualizationData.h"
+#include "HairStrandsDefinitions.h"
 
 class UTexture2D;
 
@@ -108,7 +109,6 @@ class RENDERER_API FHairGroupPublicData : public FRenderResource
 {
 public:
 	FHairGroupPublicData(uint32 InGroupIndex, const FName& OwnerName);
-	void SetClusters(uint32 InClusterCount, uint32 InVertexCount);
 	
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -116,10 +116,6 @@ public:
 	void Allocate(FRDGBuilder& GraphBuilder);
 	void Release();
 	uint32 GetResourcesSize() const;
-
-	// The primitive count when no culling and neither lod happens
-	uint32 GetGroupInstanceVertexCount() const { return GroupControlTriangleStripVertexCount; }
-	uint32 GetGroupControlPointCount() const { return VertexCount; }
 
 	uint32 GetGroupIndex() const { return GroupIndex; }
 
@@ -196,9 +192,8 @@ public:
 
 	uint32 GetClusterCount() const { return ClusterCount;  }
 
-	uint32 GetActiveStrandsVertexCount(uint32 InVertexCount, float ScreenSize) const;
+	uint32 GetActiveStrandsPointCount(uint32 InPointCount, float ScreenSize) const;
 	float GetActiveStrandsSampleWeight(bool bUseTemporalWeight, float ScreenSize) const;
-
 	void UpdateTemporalIndex();
 
 	struct FVertexFactoryInput 
@@ -209,7 +204,7 @@ public:
 			FRDGImportedBuffer PrevPositionBuffer;
 			FRDGImportedBuffer TangentBuffer;
 			FRDGImportedBuffer AttributeBuffer;
-			FRDGImportedBuffer VertexToCurveBuffer;
+			FRDGImportedBuffer PointToCurveBuffer;
 			FRDGImportedBuffer PositionOffsetBuffer;
 			FRDGImportedBuffer PrevPositionOffsetBuffer;
 			FRDGImportedBuffer CurveBuffer;
@@ -218,7 +213,7 @@ public:
 			FRDGExternalBuffer PrevPositionBufferExternal;
 			FRDGExternalBuffer TangentBufferExternal;
 			FRDGExternalBuffer AttributeBufferExternal;
-			FRDGExternalBuffer VertexToCurveBufferExternal;
+			FRDGExternalBuffer PointToCurveBufferExternal;
 			FRDGExternalBuffer PositionOffsetBufferExternal;
 			FRDGExternalBuffer PrevPositionOffsetBufferExternal;
 			FRDGExternalBuffer CurveBufferExternal;
@@ -227,7 +222,7 @@ public:
 			FShaderResourceViewRHIRef PrevPositionBufferRHISRV			= nullptr;
 			FShaderResourceViewRHIRef TangentBufferRHISRV				= nullptr;
 			FShaderResourceViewRHIRef AttributeBufferRHISRV				= nullptr;
-			FShaderResourceViewRHIRef VertexToCurveBufferRHISRV			= nullptr;
+			FShaderResourceViewRHIRef PointToCurveBufferRHISRV			= nullptr;
 			FShaderResourceViewRHIRef PositionOffsetBufferRHISRV		= nullptr;
 			FShaderResourceViewRHIRef PrevPositionOffsetBufferRHISRV	= nullptr;
 			FShaderResourceViewRHIRef CurveBufferRHISRV					= nullptr;
@@ -237,7 +232,7 @@ public:
 			TArray<uint32> AttributeOffsets;
 
 			uint32 CurveCount = 0;
-			uint32 VertexCount = 0;
+			uint32 PointCount = 0;
 			float HairRadius = 0;
 			float HairRootScale = 0;
 			float HairTipScale = 0;
@@ -273,10 +268,10 @@ public:
 	FVertexFactoryInput VFInput;
 	uint32 ClusterDataIndex = ~0; // #hair_todo: move this into instance data, or remove FHairStrandClusterData
 
-	uint32 GroupControlTriangleStripVertexCount;
-	uint32 GroupIndex;
-	uint32 ClusterCount;
-	uint32 VertexCount;
+	uint32 GroupIndex = 0;
+	uint32 ClusterCount = 0;
+	uint32 RestPointCount = 0;
+	uint32 RestCurveCount = 0;
 
 	/* Indirect draw buffer to draw everything or the result of the culling per pass */
 	FRDGExternalBuffer DrawIndirectBuffer;

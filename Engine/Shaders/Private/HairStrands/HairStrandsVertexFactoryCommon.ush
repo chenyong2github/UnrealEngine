@@ -143,7 +143,7 @@ float			HairStrandsVF_Length;
 float			HairStrandsVF_Density;
 uint			HairStrandsVF_bUseStableRasterization;
 float3			HairStrandsVF_PositionOffset;
-uint			HairStrandsVF_VertexCount;
+uint			HairStrandsVF_PointCount;
 uint			HairStrandsVF_CurveCount;
 float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
 float4x4		HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform;

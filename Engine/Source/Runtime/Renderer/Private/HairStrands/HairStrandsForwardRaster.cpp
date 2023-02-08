@@ -305,7 +305,7 @@ FRasterForwardCullingOutput AddHairStrandsForwardCullingPass(
 
 			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
 
-			uint32 VertexCount = VFInput.Strands.VertexCount;
+			uint32 PointCount = VFInput.Strands.PointCount;
 			const bool bCullingPossible = bSupportCulling && GHairVisibilityComputeRaster_Culling;
 			if (!bCullingPossible)
 			{
@@ -313,10 +313,10 @@ FRasterForwardCullingOutput AddHairStrandsForwardCullingPass(
 				const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
 				const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
 
-				VertexCount = HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, ScreenSize);
+				PointCount = HairGroupPublicData->GetActiveStrandsPointCount(VFInput.Strands.PointCount, ScreenSize);
 			}
 
-			MaxNumPrimIDs += VertexCount;
+			MaxNumPrimIDs += PointCount;
 		}
 	}
 
@@ -373,15 +373,15 @@ FRasterForwardCullingOutput AddHairStrandsForwardCullingPass(
 			// calculate current view screen size - which can result in fewer strands rasterized in current view
 			const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
 			const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
-			const uint32 CurveCount = VFInput.Strands.CurveCount; //HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, ScreenSize);
-			const uint32 VertexCount = VFInput.Strands.VertexCount; //HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, ScreenSize);
+			const uint32 CurveCount = VFInput.Strands.CurveCount;
+			const uint32 PointCount = VFInput.Strands.PointCount;
 
 			// Curve version
 			#if 1
 			FHairCullSegmentCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairCullSegmentCS::FParameters>();
 			Parameters->OutputResolution		= Out.Resolution;
 			Parameters->HairMaterialId			= PrimitiveInfo.MaterialId;
-			Parameters->ControlPointCount		= VertexCount;
+			Parameters->ControlPointCount		= PointCount;
 			Parameters->CurveCount				= CurveCount;
 			Parameters->RWHairVis				= GraphBuilder.CreateUAV(Out.NodeVis);
 			Parameters->RWCoord					= GraphBuilder.CreateUAV(Out.NodeCoord, PF_R16G16_UINT);

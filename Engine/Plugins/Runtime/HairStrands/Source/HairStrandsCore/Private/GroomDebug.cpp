@@ -600,13 +600,13 @@ static void AddDrawDebugStrandsCVsPass(
 	Parameters->DepthTexture = DepthTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	const uint32 VertexCount = Instance->HairGroupPublicData->VFInput.Strands.VertexCount;
+	const uint32 PointCount = Instance->HairGroupPublicData->VFInput.Strands.PointCount;
 	FComputeShaderUtils::AddPass(
 		GraphBuilder, 
 		RDG_EVENT_NAME("HairStrands::DrawCVs"), 
 		ComputeShader, 
 		Parameters,
-		FIntVector::DivideAndRoundUp(FIntVector(VertexCount, 1, 1), FIntVector(256, 1, 1)));
+		FIntVector::DivideAndRoundUp(FIntVector(PointCount, 1, 1), FIntVector(256, 1, 1)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -684,8 +684,8 @@ static void AddDrawDebugCardsGuidesPass(
 	}
 	
 	const uint32 MaxCount = FMath::Max(
-		Instance->Guides.RestResource ? Instance->Guides.RestResource->GetVertexCount() * 2 : 0,
-		LOD.Guides.RestResource ? LOD.Guides.RestResource->GetVertexCount() * 2 : 0);
+		Instance->Guides.RestResource ? Instance->Guides.RestResource->GetPointCount() * 2 : 0,
+		LOD.Guides.RestResource ? LOD.Guides.RestResource->GetPointCount() * 2 : 0);
 	ShaderPrint::RequestSpaceForLines(MaxCount);
 
 	TShaderMapRef<FDrawDebugCardGuidesCS> ComputeShader(ShaderMap);
@@ -717,7 +717,7 @@ static void AddDrawDebugCardsGuidesPass(
 
 	if (bRen)
 	{
-		Parameters->RenVertexCount = LOD.Guides.RestResource->GetVertexCount();
+		Parameters->RenVertexCount = LOD.Guides.RestResource->GetPointCount();
 		Parameters->RenRestOffset = (FVector3f)LOD.Guides.RestResource->GetPositionOffset();
 		Parameters->RenRestPosition = RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->PositionBuffer);
 		if (bDeformed)
@@ -729,7 +729,7 @@ static void AddDrawDebugCardsGuidesPass(
 
 	if (!bRen)
 	{
-		Parameters->SimVertexCount = Instance->Guides.RestResource->GetVertexCount();
+		Parameters->SimVertexCount = Instance->Guides.RestResource->GetPointCount();
 		Parameters->SimRestOffset = (FVector3f)Instance->Guides.RestResource->GetPositionOffset();
 		Parameters->SimRestPosition = RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->PositionBuffer);
 		if (bDeformed)

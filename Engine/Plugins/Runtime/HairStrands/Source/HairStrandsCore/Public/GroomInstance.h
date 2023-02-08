@@ -69,7 +69,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParam
 	SHADER_PARAMETER_SRV(Buffer<uint4>, PreviousPositionBuffer)
 
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, AttributeBuffer)
-	SHADER_PARAMETER_SRV(Buffer<uint>, VertexToCurveBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>, PointToCurveBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, TangentBuffer)
 
 	SHADER_PARAMETER_SRV(Buffer<uint>, CulledVertexIdsBuffer)

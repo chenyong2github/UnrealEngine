@@ -2725,7 +2725,7 @@ void AddMeshDrawTransitionPass(
 			ExternalAccessQueue.Add(VFInput.Strands.PrevPositionBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.TangentBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.AttributeBuffer.Buffer);
-			ExternalAccessQueue.Add(VFInput.Strands.VertexToCurveBuffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.PointToCurveBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PositionOffsetBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PrevPositionOffsetBuffer.Buffer);
 
@@ -2743,7 +2743,7 @@ void AddMeshDrawTransitionPass(
 				VFInput.Strands.PrevPositionBuffer			= FRDGImportedBuffer();
 				VFInput.Strands.TangentBuffer				= FRDGImportedBuffer();
 				VFInput.Strands.AttributeBuffer				= FRDGImportedBuffer();
-				VFInput.Strands.VertexToCurveBuffer			= FRDGImportedBuffer();
+				VFInput.Strands.PointToCurveBuffer			= FRDGImportedBuffer();
 				VFInput.Strands.PositionOffsetBuffer		= FRDGImportedBuffer();
 				VFInput.Strands.PrevPositionOffsetBuffer	= FRDGImportedBuffer();
 			}
@@ -2816,7 +2816,7 @@ FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& Gra
 		Out.HairStrandsVF_PositionBuffer		= Register(GraphBuilder, VFInput.Strands.PositionBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
 		Out.HairStrandsVF_PositionOffsetBuffer	= Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
 		Out.HairStrandsVF_CurveBuffer			= Register(GraphBuilder, VFInput.Strands.CurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-		Out.HairStrandsVF_VertexToCurveBuffer	= Register(GraphBuilder, VFInput.Strands.VertexToCurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.HairStrandsVF_PointToCurveBuffer	= Register(GraphBuilder, VFInput.Strands.PointToCurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
 		Out.HairStrandsVF_AttributeBuffer		= Register(GraphBuilder, VFInput.Strands.AttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
 	}
 	else
@@ -2824,11 +2824,11 @@ FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& Gra
 		Out.HairStrandsVF_PositionBuffer		= VFInput.Strands.PositionBuffer.SRV;
 		Out.HairStrandsVF_PositionOffsetBuffer	= VFInput.Strands.PositionOffsetBuffer.SRV;
 		Out.HairStrandsVF_CurveBuffer			= VFInput.Strands.CurveBuffer.SRV;
-		Out.HairStrandsVF_VertexToCurveBuffer	= VFInput.Strands.VertexToCurveBuffer.SRV;
+		Out.HairStrandsVF_PointToCurveBuffer	= VFInput.Strands.PointToCurveBuffer.SRV;
 		Out.HairStrandsVF_AttributeBuffer		= VFInput.Strands.AttributeBuffer.SRV;
 	}
 
-	Out.HairStrandsVF_VertexCount				= VFInput.Strands.VertexCount;
+	Out.HairStrandsVF_PointCount				= VFInput.Strands.PointCount;
 	Out.HairStrandsVF_CurveCount				= VFInput.Strands.CurveCount;
 	Out.HairStrandsVF_Radius					= VFInput.Strands.HairRadius;
 	Out.HairStrandsVF_RootScale					= VFInput.Strands.HairRootScale;
@@ -3240,7 +3240,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 
 			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
 
-			uint32 VertexCount = VFInput.Strands.VertexCount;
+			uint32 PointCount = VFInput.Strands.PointCount;
 			const bool bCullingPossible = bSupportCulling && GHairVisibilityComputeRaster_Culling;
 			if (!bCullingPossible)
 			{
@@ -3248,10 +3248,10 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 				const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
 				const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
 
-				VertexCount = HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, ScreenSize);
+				PointCount = HairGroupPublicData->GetActiveStrandsPointCount(VFInput.Strands.PointCount, ScreenSize);
 			}
 
-			MaxNumPrimIDs = FMath::Max(MaxNumPrimIDs, VertexCount);
+			MaxNumPrimIDs = FMath::Max(MaxNumPrimIDs, PointCount);
 		}
 	}
 
@@ -3434,7 +3434,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
 			const float ScreenSize = ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo);
 
-			const uint32 VertexCount = HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, ScreenSize);
+			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount(VFInput.Strands.PointCount, ScreenSize);
 			const float SampleWeight = HairGroupPublicData->GetActiveStrandsSampleWeight(false, ScreenSize);
 
 			// HW/SW classification
@@ -3450,7 +3450,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 
 				FVisiblityRasterClassificationCS::FParameters* ClassificationParameters = GraphBuilder.AllocParameters<FVisiblityRasterClassificationCS::FParameters>();
 				ClassificationParameters->Common = Common;
-				ClassificationParameters->ControlPointCount = VertexCount;
+				ClassificationParameters->ControlPointCount = PointCount;
 				ClassificationParameters->PrimIDsBufferSize = MaxNumPrimIDs;
 				ClassificationParameters->NumWorkGroups = NumWorkGroups;
 				ClassificationParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnable, bForceRegister);
@@ -3496,7 +3496,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 					FExclusiveDepthStencil::DepthRead_StencilNop);
 
 				TShaderMapRef<FVisiblityRasterHWVS> VertexShaderRaster = bCullingEnableInRasterizers ? VertexShaderRaster_CullingOn : VertexShaderRaster_CullingOff;
-				const uint32 NumInstances = bCullingEnableInRasterizers ? VFInput.Strands.VertexCount : VertexCount;
+				const uint32 NumInstances = bCullingEnableInRasterizers ? VFInput.Strands.PointCount : PointCount;
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("HairStrands::VisibilityRasterHW"),
@@ -3540,7 +3540,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 					FVisiblityRasterComputeNaiveCS::FParameters* RasterParameters = GraphBuilder.AllocParameters<FVisiblityRasterComputeNaiveCS::FParameters>();
 					RasterParameters->OutputResolution = Common.OutputResolutionf;
 					RasterParameters->HairMaterialId = PrimitiveInfo.MaterialId;
-					RasterParameters->ControlPointCount = VertexCount;
+					RasterParameters->ControlPointCount = PointCount;
 					RasterParameters->SampleWeight = SampleWeight;
 					RasterParameters->NumWorkGroups = NumWorkGroups;
 					RasterParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnableInRasterizers, bForceRegister);
@@ -3586,7 +3586,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 						BinningParameters->OutVisTileArgs = VisTileArgsUAV;
 						BinningParameters->OutVisTileData = GraphBuilder.CreateUAV(VisTileData);
 						BinningParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnableInRasterizers, bForceRegister);
-						BinningParameters->VertexCount = VertexCount;
+						BinningParameters->VertexCount = PointCount;
 						BinningParameters->VisTileBinningGridTex = VisTileBinningGrid;
 						BinningParameters->IndirectPrimIDCount = bClassification ? SWRasterPrimIDCountSRV : nullptr;
 						BinningParameters->IndirectPrimIDs = bClassification ? RasterizerPrimIDsSRV : nullptr;
@@ -3863,7 +3863,6 @@ class FHairStrandsPositionChangedCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
-		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(float, PositionThreshold2)
 		SHADER_PARAMETER(uint32, HairStrandsVF_bIsCullingEnable)
 		SHADER_PARAMETER(uint32, bDrawInvalidElement)
@@ -3894,14 +3893,14 @@ static void AddHairStrandsHasPositionChangedPass(
 	const FHairGroupPublicData* HairGroupPublicData,
 	FRDGBufferUAVRef InvalidationBuffer)
 {
-	const uint32 VertexCount = HairGroupPublicData->VertexCount;
+	const uint32 PointCount = HairGroupPublicData->RestPointCount;
 
 	FRDGBufferRef InvalidationPrintCounter = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Hair.InvalidationPrintCounter"));
 	FRDGBufferUAVRef InvalidationPrintCounterUAV = GraphBuilder.CreateUAV(InvalidationPrintCounter, PF_R32_UINT);
 	AddClearUAVPass(GraphBuilder, InvalidationPrintCounterUAV, 0u);
 
 	FHairStrandsPositionChangedCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsPositionChangedCS::FParameters>();
-	Parameters->VertexCount = VertexCount;
+	Parameters->VertexCount = PointCount;
 	Parameters->PositionThreshold2 = FMath::Square(GHairStrands_InvalidationPosition_Threshold);
 	Parameters->bDrawInvalidElement = GHairStrands_InvalidationPosition_Debug > 0 ? 1u : 0u;
 	Parameters->HairStrandsVF_bIsCullingEnable = 0u;
@@ -3920,7 +3919,7 @@ static void AddHairStrandsHasPositionChangedPass(
 		Parameters->HairStrandsVF_bIsCullingEnable = 1;
 	}
 
-	const FIntVector DispatchCount(FMath::DivideAndRoundUp(VertexCount, FHairStrandsPositionChangedCS::GetGroupSize()), 1, 1);
+	const FIntVector DispatchCount(FMath::DivideAndRoundUp(PointCount, FHairStrandsPositionChangedCS::GetGroupSize()), 1, 1);
 	TShaderMapRef<FHairStrandsPositionChangedCS> ComputeShader(View->ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,

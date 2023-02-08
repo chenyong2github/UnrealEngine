@@ -800,7 +800,7 @@ public:
 		else // if (GeometryType == EHairGeometryType::Strands)
 		{
 			VertexFactory = (FVertexFactory*)Instance->Strands.VertexFactory;
-			HairVertexCount = Instance->Strands.RestResource->GetVertexCount();
+			HairVertexCount = Instance->Strands.RestResource->GetPointCount();
 			MaxVertexIndex = HairVertexCount * HAIR_POINT_TO_VERTEX;
 			bUseCulling = Instance->Strands.bIsCullingEnabled;
 			NumPrimitive = bUseCulling ? 0 : HairVertexCount * HAIR_POINT_TO_TRIANGLE;
@@ -2679,6 +2679,9 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			check(GroupIt < GroomGroupsDesc.Num());
 
 			HairGroupInstance->Strands.Data = &GroupData.Strands.BulkData;
+			HairGroupInstance->HairGroupPublicData->RestPointCount = GroupData.Strands.BulkData.GetNumPoints();
+			HairGroupInstance->HairGroupPublicData->RestCurveCount = GroupData.Strands.BulkData.GetNumCurves();
+			HairGroupInstance->HairGroupPublicData->ClusterCount = 0u;
 
 			// (Lazy) Allocate interpolation resources, only if guides are required
 			if (bNeedGuides)
@@ -2797,7 +2800,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 						check(GroupData.Strands.ClusterCullingResource->BulkData.LODVisibility[LODIt] == LODVisibilities[LODIt]);
 					}
 				}
-				HairGroupInstance->HairGroupPublicData->SetClusters(HairGroupInstance->Strands.ClusterCullingResource->BulkData.ClusterCount, GroupData.Strands.BulkData.GetNumPoints());
+				HairGroupInstance->HairGroupPublicData->ClusterCount = HairGroupInstance->Strands.ClusterCullingResource->BulkData.ClusterCount;
 				BeginInitResource(HairGroupInstance->HairGroupPublicData);
 			}
 

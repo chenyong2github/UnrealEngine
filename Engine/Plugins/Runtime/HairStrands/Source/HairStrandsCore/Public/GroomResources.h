@@ -314,7 +314,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 		Total += GetBufferTotalNumBytes(PositionOffsetBuffer);
 		Total += GetBufferTotalNumBytes(TangentBuffer);
 		Total += GetBufferTotalNumBytes(AttributeBuffer);
-		Total += GetBufferTotalNumBytes(VertexToCurveBuffer);
+		Total += GetBufferTotalNumBytes(PointToCurveBuffer);
 		Total += GetBufferTotalNumBytes(CurveBuffer);
 		return Total;
 	}
@@ -332,7 +332,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	FRDGExternalBuffer AttributeBuffer;
 
 	/* Strand hair vertex to curve index mapping */
-	FRDGExternalBuffer VertexToCurveBuffer;
+	FRDGExternalBuffer PointToCurveBuffer;
 
 	/* Strand hair curves buffer (contains curves' points offset and count) */
 	FRDGExternalBuffer CurveBuffer;
@@ -346,7 +346,10 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
 
-	inline uint32 GetVertexCount() const { return BulkData.PointCount; }
+	/* Curve: Point offset & count */
+	TArray<FPackedHairCurve> CurveData;
+
+	inline uint32 GetPointCount() const { return BulkData.PointCount; }
 	inline uint32 GetCurveCount() const { return BulkData.CurveCount; }
 };
 

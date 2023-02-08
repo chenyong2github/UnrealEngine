@@ -104,7 +104,7 @@ FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStan
 	Out.PositionBuffer				= VFInput.Strands.PositionBufferRHISRV;
 	Out.PreviousPositionBuffer		= VFInput.Strands.PrevPositionBufferRHISRV;
 	Out.AttributeBuffer				= VFInput.Strands.AttributeBufferRHISRV;
-	Out.VertexToCurveBuffer			= VFInput.Strands.VertexToCurveBufferRHISRV;
+	Out.PointToCurveBuffer			= VFInput.Strands.PointToCurveBufferRHISRV;
 	Out.TangentBuffer 				= VFInput.Strands.TangentBufferRHISRV;
 	Out.PositionOffsetBuffer 		= VFInput.Strands.PositionOffsetBufferRHISRV;
 	Out.PreviousPositionOffsetBuffer= VFInput.Strands.PrevPositionOffsetBufferRHISRV;
@@ -113,7 +113,7 @@ FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStan
 	if (!Out.PositionBuffer) 				{ Out.PositionBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
 	if (!Out.PreviousPositionBuffer) 		{ Out.PreviousPositionBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
 	if (!Out.AttributeBuffer) 				{ Out.AttributeBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVByteAddress; }
-	if (!Out.VertexToCurveBuffer) 			{ Out.VertexToCurveBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVUint; }
+	if (!Out.PointToCurveBuffer) 			{ Out.PointToCurveBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVUint; }
 	if (!Out.TangentBuffer) 				{ Out.TangentBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
 	if (!Out.PositionOffsetBuffer) 			{ Out.PositionOffsetBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
 	if (!Out.PreviousPositionOffsetBuffer) 	{ Out.PreviousPositionOffsetBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }

@@ -182,7 +182,7 @@ void FOptimusGroomDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder
 			FResources& R = Resources.AddDefaulted_GetRef();
 			R.PositionSRV		= Register(GraphBuilder, Instance->Strands.RestResource->PositionBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
 			R.AttributeSRV		= Register(GraphBuilder, Instance->Strands.RestResource->AttributeBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-			R.VertexToCurveSRV	= Register(GraphBuilder, Instance->Strands.RestResource->VertexToCurveBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
+			R.VertexToCurveSRV	= Register(GraphBuilder, Instance->Strands.RestResource->PointToCurveBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
 			R.CurveSRV			= Register(GraphBuilder, Instance->Strands.RestResource->CurveBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
 			R.FallbackSRV		= GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
 		}
