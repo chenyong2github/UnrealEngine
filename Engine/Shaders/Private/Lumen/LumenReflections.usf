@@ -1019,7 +1019,7 @@ void ReflectionTemporalReprojectionCS(
 		NewResolveVariance = DisocclusionVariance;
 	}
 
-	float ResolveVarianceHistoryValue = VarianceHistoryWeight > 0.0f ? Texture2DSampleLevel(ResolveVarianceHistory, GlobalBilinearClampedSampler, HistoryScreenUVFromReflectionHit_Primary, 0).x : 0;
+	float ResolveVarianceHistoryValue = VarianceHistoryWeight > 0.0f ? Texture2DSampleLevel(ResolveVarianceHistory, GlobalBilinearClampedSampler, HistoryScreenUVFromReflectionHit_Extented, 0).x : 0;
 	float AccumulatedResolveVariance = max(lerp(NewResolveVariance, ResolveVarianceHistoryValue, VarianceHistoryWeight), 0);
 	RWResolveVariance[Coord.SvPositionFlatten] = AccumulatedResolveVariance;
 	float AccumulatedResolveStdDev = sqrt(AccumulatedResolveVariance);
