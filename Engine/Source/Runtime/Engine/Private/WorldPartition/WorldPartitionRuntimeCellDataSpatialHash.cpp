@@ -21,6 +21,12 @@ UWorldPartitionRuntimeCellDataSpatialHash::UWorldPartitionRuntimeCellDataSpatial
 	, CachedMinSquareDistanceToSource(MAX_dbl)
 {}
 
+void UWorldPartitionRuntimeCellDataSpatialHash::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar << DebugName;
+}
+
 void UWorldPartitionRuntimeCellDataSpatialHash::ResetStreamingSourceInfo() const
 {
 	Super::ResetStreamingSourceInfo();
@@ -174,5 +180,5 @@ bool UWorldPartitionRuntimeCellDataSpatialHash::IsDebugShown() const
 
 FString UWorldPartitionRuntimeCellDataSpatialHash::GetDebugName() const
 {
-	return DebugName;
+	return DebugName.GetString();
 }

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "StringDev.h"
 #include "WorldPartition/WorldPartitionRuntimeCellData.h"
 #include "WorldPartitionRuntimeCellDataSpatialHash.generated.h"
 
@@ -12,6 +13,10 @@ UCLASS(Within = WorldPartitionRuntimeCell)
 class ENGINE_API UWorldPartitionRuntimeCellDataSpatialHash : public UWorldPartitionRuntimeCellData
 {
 	GENERATED_UCLASS_BODY()
+
+	//~Begin UObject Interface
+	void Serialize(FArchive& Ar);
+	//~End UObject Interface
 
 	//~Begin UWorldPartitionRuntimeCellData
 	virtual void ResetStreamingSourceInfo() const override;
@@ -38,8 +43,7 @@ class ENGINE_API UWorldPartitionRuntimeCellDataSpatialHash : public UWorldPartit
 	UPROPERTY()
 	FName GridName;
 
-	UPROPERTY()
-	FString DebugName;
+	FStringDev DebugName;
 
 private:
 	float ComputeSourceToCellAngleFactor(const FSphericalSector& SourceShape) const;
