@@ -965,7 +965,7 @@ private:
 class FD3D12TextureAllocator : public FD3D12MultiBuddyAllocator
 {
 public:
-	FD3D12TextureAllocator(FD3D12Device* Device, FRHIGPUMask VisibleNodes, const FString& Name, uint32 HeapSize, D3D12_HEAP_FLAGS Flags);
+	FD3D12TextureAllocator(FD3D12Device* Device, FRHIGPUMask VisibleNodes, const FString& Name, uint32 HeapSize, D3D12_HEAP_FLAGS Flags, HeapId InTraceParentHeapId);
 
 	~FD3D12TextureAllocator();
 
@@ -986,6 +986,7 @@ public:
 	bool GetMemoryStats(uint64& OutTotalAllocated, uint64& OutTotalUnused) const { OutTotalAllocated = 0; OutTotalUnused = 0; return false; }
 
 private:
+	HeapId TraceHeapId;
 	FD3D12TextureAllocator ReadOnlyTexturePool;
 };
 #endif
