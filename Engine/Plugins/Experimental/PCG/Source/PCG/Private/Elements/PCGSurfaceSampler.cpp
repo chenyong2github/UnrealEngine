@@ -348,8 +348,15 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			GeneratingShapes.Add(GeneratorFromBoundingShapeInput);
 
-			check(BoundingShapeInputs.Num() > 0);
-			Outputs.Add(BoundingShapeInputs[0]);
+			// If there was a bounding shape input, use it as the starting point to get the tags
+			if (BoundingShapeInputs.Num() > 0)
+			{
+				Outputs.Add(BoundingShapeInputs[0]);
+			}
+			else
+			{
+				Outputs.Emplace();
+			}
 		}
 	}
 
