@@ -299,15 +299,14 @@ namespace UnrealGameSyncCmd
 			return settings;
 		}
 
-		public static async Task<UserWorkspaceState> ReadWorkspaceState(IPerforceConnection perforceClient, UserWorkspaceSettings settings, GlobalSettingsFile userSettings, ILogger logger)
+		public static async Task<WorkspaceStateWrapper> ReadWorkspaceState(IPerforceConnection perforceClient, UserWorkspaceSettings settings, GlobalSettingsFile userSettings, ILogger logger)
 		{
-			UserWorkspaceState state = userSettings.FindOrAddWorkspaceState(settings, logger);
-			if (state.SettingsTimeUtc != settings.LastModifiedTimeUtc)
+			WorkspaceStateWrapper state = userSettings.FindOrAddWorkspaceState(settings, logger);
+			if (state.Current.SettingsTimeUtc != settings.LastModifiedTimeUtc)
 			{
 				logger.LogDebug("Updating state due to modified settings timestamp");
 				ProjectInfo info = await ProjectInfo.CreateAsync(perforceClient, settings, CancellationToken.None);
-				state.UpdateCachedProjectInfo(info, settings.LastModifiedTimeUtc);
-				state.Save(logger);
+				state.Modify(x => x.UpdateCachedProjectInfo(info, settings.LastModifiedTimeUtc));
 			}
 			return state;
 		}
@@ -613,11 +612,11 @@ namespace UnrealGameSyncCmd
 
 				UserWorkspaceSettings settings = ReadRequiredUserWorkspaceSettings();
 				using IPerforceConnection perforceClient = await ConnectAsync(settings, context.LoggerFactory);
-				UserWorkspaceState state = await ReadWorkspaceState(perforceClient, settings, context.UserSettings, logger);
+				WorkspaceStateWrapper state = await ReadWorkspaceState(perforceClient, settings, context.UserSettings, logger);
 
 				changeString ??= "latest";
 
-				ProjectInfo projectInfo = state.CreateProjectInfo();
+				ProjectInfo projectInfo = new ProjectInfo(settings.RootDir, state.Current);
 				UserProjectSettings projectSettings = context.UserSettings.FindOrAddProjectSettings(projectInfo, settings, logger);
 
 				ConfigFile projectConfig = await ConfigUtils.ReadProjectConfigFileAsync(perforceClient, projectInfo, logger, CancellationToken.None);
@@ -659,10 +658,17 @@ namespace UnrealGameSyncCmd
 
 				string[] syncFilter = ReadSyncFilter(settings, context.UserSettings, projectConfig);
 
+				using WorkspaceLock workspaceLock = new WorkspaceLock(settings.RootDir);
+				if (!workspaceLock.TryAcquire())
+				{
+					logger.LogError("Another process is already syncing this workspace.");
+					return;
+				}
+
 				WorkspaceUpdateContext updateContext = new WorkspaceUpdateContext(change, options, BuildConfig.Development, syncFilter, projectSettings.BuildSteps, null);
 				if (syncOptions.Binaries)
 				{
-					List<PerforceArchiveInfo> archives = await PerforceArchive.EnumerateAsync(perforceClient, projectConfig, state.ProjectIdentifier, CancellationToken.None);
+					List<PerforceArchiveInfo> archives = await PerforceArchive.EnumerateAsync(perforceClient, projectConfig, state.Current.ProjectIdentifier, CancellationToken.None);
 
 					PerforceArchiveInfo? editorArchiveInfo = archives.FirstOrDefault(x => x.Name == IArchiveInfo.EditorArchiveType);
 					if (editorArchiveInfo == null)
@@ -719,8 +725,7 @@ namespace UnrealGameSyncCmd
 					logger.LogError("{Message} (Result: {Result})", message, result);
 				}
 
-				state.SetLastSyncState(result, updateContext, message);
-				state.Save(logger);
+				state.Modify(x => x.SetLastSyncState(result, updateContext, message));
 			}
 		}
 
@@ -759,9 +764,9 @@ namespace UnrealGameSyncCmd
 
 				UserWorkspaceSettings settings = ReadRequiredUserWorkspaceSettings();
 				using IPerforceConnection perforceClient = await ConnectAsync(settings, context.LoggerFactory);
-				UserWorkspaceState state = await ReadWorkspaceState(perforceClient, settings, context.UserSettings, logger);
+				WorkspaceStateWrapper state = await ReadWorkspaceState(perforceClient, settings, context.UserSettings, logger);
 
-				ProjectInfo projectInfo = state.CreateProjectInfo();
+				ProjectInfo projectInfo = new ProjectInfo(settings.RootDir, state.Current);
 				ConfigFile projectConfig = await ConfigUtils.ReadProjectConfigFileAsync(perforceClient, projectInfo, logger, CancellationToken.None);
 
 				FileReference receiptFile = ConfigUtils.GetEditorReceiptFile(projectInfo, projectConfig, EditorConfig);
@@ -946,8 +951,8 @@ namespace UnrealGameSyncCmd
 
 				UserWorkspaceSettings workspaceSettings = ReadRequiredUserWorkspaceSettings();
 				using IPerforceConnection perforceClient = await ConnectAsync(workspaceSettings, context.LoggerFactory);
-				UserWorkspaceState workspaceState = await ReadWorkspaceState(perforceClient, workspaceSettings, context.UserSettings, logger);
-				ProjectInfo projectInfo = workspaceState.CreateProjectInfo();
+				WorkspaceStateWrapper workspaceState = await ReadWorkspaceState(perforceClient, workspaceSettings, context.UserSettings, logger);
+				ProjectInfo projectInfo = new ProjectInfo(workspaceSettings.RootDir, workspaceState.Current);
 
 				ConfigFile projectConfig = await ConfigUtils.ReadProjectConfigFileAsync(perforceClient, projectInfo, logger, CancellationToken.None);
 				Dictionary<Guid, WorkspaceSyncCategory> syncCategories = ConfigUtils.GetSyncCategories(projectConfig);
@@ -1094,9 +1099,9 @@ namespace UnrealGameSyncCmd
 
 				UserWorkspaceSettings settings = ReadRequiredUserWorkspaceSettings();
 				using IPerforceConnection perforceClient = await ConnectAsync(settings, context.LoggerFactory);
-				UserWorkspaceState state = await ReadWorkspaceState(perforceClient, settings, context.UserSettings, logger);
+				WorkspaceStateWrapper state = await ReadWorkspaceState(perforceClient, settings, context.UserSettings, logger);
 
-				ProjectInfo projectInfo = state.CreateProjectInfo();
+				ProjectInfo projectInfo = new ProjectInfo(settings.RootDir, state.Current);
 
 				if (listOnly)
 				{
@@ -1128,7 +1133,7 @@ namespace UnrealGameSyncCmd
 					steps = new HashSet<Guid> { id };
 				}
 
-				WorkspaceUpdateContext updateContext = new WorkspaceUpdateContext(state.CurrentChangeNumber, WorkspaceUpdateOptions.Build, BuildConfig.Development, null, new List<ConfigObject>(), steps);
+				WorkspaceUpdateContext updateContext = new WorkspaceUpdateContext(state.Current.CurrentChangeNumber, WorkspaceUpdateOptions.Build, BuildConfig.Development, null, new List<ConfigObject>(), steps);
 
 				WorkspaceUpdate update = new WorkspaceUpdate(updateContext);
 				await update.ExecuteAsync(perforceClient.Settings, projectInfo, state, context.Logger, CancellationToken.None);
@@ -1150,25 +1155,25 @@ namespace UnrealGameSyncCmd
 
 				using IPerforceConnection perforceClient = await ConnectAsync(settings, context.LoggerFactory);
 
-				UserWorkspaceState state = await ReadWorkspaceState(perforceClient, settings, context.UserSettings, logger);
+				WorkspaceStateWrapper state = await ReadWorkspaceState(perforceClient, settings, context.UserSettings, logger);
 				if (update)
 				{
 					ProjectInfo newProjectInfo = await ProjectInfo.CreateAsync(perforceClient, settings, CancellationToken.None);
-					state.UpdateCachedProjectInfo(newProjectInfo, settings.LastModifiedTimeUtc);
+					state.Modify(x => x.UpdateCachedProjectInfo(newProjectInfo, settings.LastModifiedTimeUtc));
 				}
 
-				string streamOrBranchName = state.StreamName ?? settings.BranchPath.TrimStart('/');
-				if (state.LastSyncResultMessage == null)
+				string streamOrBranchName = state.Current.StreamName ?? settings.BranchPath.TrimStart('/');
+				if (state.Current.LastSyncResultMessage == null)
 				{
 					logger.LogInformation("Not currently synced to {Stream}", streamOrBranchName);
 				}
-				else if (state.LastSyncResult == WorkspaceUpdateResult.Success)
+				else if (state.Current.LastSyncResult == WorkspaceUpdateResult.Success)
 				{
-					logger.LogInformation("Synced to {Stream} CL {Change}", streamOrBranchName, state.LastSyncChangeNumber);
+					logger.LogInformation("Synced to {Stream} CL {Change}", streamOrBranchName, state.Current.LastSyncChangeNumber);
 				}
 				else
 				{
-					logger.LogWarning("Last sync to {Stream} CL {Change} failed: {Result}", streamOrBranchName, state.LastSyncChangeNumber, state.LastSyncResultMessage);
+					logger.LogWarning("Last sync to {Stream} CL {Change} failed: {Result}", streamOrBranchName, state.Current.LastSyncChangeNumber, state.Current.LastSyncResultMessage);
 				}
 			}
 		}

@@ -29,6 +29,7 @@ namespace UnrealGameSync
 		public ReadOnlyWorkspaceState State { get; private set; }
 		public ProjectInfo Project { get; }
 		public SynchronizationContext SynchronizationContext { get; }
+		public WorkspaceLock Lock { get; }
 		ILogger _logger;
 
 		bool Syncing => _currentUpdate != null;
@@ -49,6 +50,9 @@ namespace UnrealGameSync
 			_stateWrapper.OnModified += OnStateChangedInternal;
 			State = stateWrapper.Current;
 
+			Lock = new WorkspaceLock(project.LocalRootPath);
+			Lock.OnChange += OnLockChangedInternal;
+
 			this.SynchronizationContext = SynchronizationContext.Current!;
 			this._logger = logger;
 			this._asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
@@ -57,6 +61,8 @@ namespace UnrealGameSync
 			this.ProjectStreamFilter = projectStreamFilter;
 		}
 
+		public bool IsExternalSyncActive() => Lock.IsLockedByOtherProcess();
+
 		public void ModifyState(Action<WorkspaceState> action)
 		{
 			_stateWrapper.Modify(x =>
@@ -64,6 +70,16 @@ namespace UnrealGameSync
 				x.ResetForProject(Project);
 				action(x);
 			});
+		}
+
+		private void OnLockChangedInternal(bool locked)
+		{
+			SynchronizationContext.Post(OnLockChangedInternalMainThread, null);
+		}
+
+		private void OnLockChangedInternalMainThread(object? obj)
+		{
+			OnStateChanged?.Invoke(State);
 		}
 
 		private void OnStateChangedInternal(ReadOnlyWorkspaceState state)
@@ -85,6 +101,7 @@ namespace UnrealGameSync
 				_asyncDisposer.Add(_prevUpdateTask);
 			}
 			_stateWrapper.Dispose();
+			Lock.Dispose();
 		}
 
 		public ConfigFile ProjectConfigFile
@@ -145,23 +162,35 @@ namespace UnrealGameSync
 			string statusMessage;
 			WorkspaceUpdateResult result = WorkspaceUpdateResult.FailedToSync;
 
-			try
+			if (!Lock.TryAcquire())
 			{
-				(result, statusMessage) = await update.ExecuteAsync(PerforceSettings, Project, _stateWrapper, _logger, cancellationToken);
-				if (result != WorkspaceUpdateResult.Success)
+				statusMessage = "Command line sync already in progress";
+				_logger.LogError("Another process is already syncing this workspace.");
+			}
+			else
+			{
+				try
 				{
-					_logger.LogError("{Message}", statusMessage);
+					(result, statusMessage) = await update.ExecuteAsync(PerforceSettings, Project, _stateWrapper, _logger, cancellationToken);
+					if (result != WorkspaceUpdateResult.Success)
+					{
+						_logger.LogError("{Message}", statusMessage);
+					}
 				}
-			}
-			catch (OperationCanceledException)
-			{
-				statusMessage = "Canceled.";
-				_logger.LogError("Canceled.");
-			}
-			catch (Exception ex)
-			{
-				statusMessage = "Failed with exception - " + ex.ToString();
-				_logger.LogError(ex, "Failed with exception");
+				catch (OperationCanceledException)
+				{
+					statusMessage = "Canceled.";
+					_logger.LogError("Canceled.");
+				}
+				catch (Exception ex)
+				{
+					statusMessage = "Failed with exception - " + ex.ToString();
+					_logger.LogError(ex, "Failed with exception");
+				}
+				finally
+				{
+					Lock.Release();
+				}
 			}
 
 			ProjectConfigFile = context.ProjectConfigFile;

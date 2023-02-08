@@ -3330,6 +3330,12 @@ namespace UnrealGameSync
 				if (progress.Item2 > 0.0f) progressLine.AddProgressBar(progress.Item2);
 				lines.Add(progressLine);
 			}
+			else if (_workspace.IsExternalSyncActive())
+			{
+				StatusLine summaryLine = new StatusLine();
+				summaryLine.AddText("Command-line sync in progress...");
+				lines.Add(summaryLine);
+			}
 			else
 			{
 				// Project

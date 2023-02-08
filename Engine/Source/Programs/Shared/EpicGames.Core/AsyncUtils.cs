@@ -199,5 +199,34 @@ namespace EpicGames.Core
 				return Prefetch(source, count - 1, cancellationToken);
 			}
 		}
+
+		/// <summary>
+		/// Waits for a native wait handle to be signalled
+		/// </summary>
+		/// <param name="handle">Handle to wait for</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static Task WaitOneAsync(this WaitHandle handle, CancellationToken cancellationToken = default) => handle.WaitOneAsync(-1, cancellationToken);
+
+		/// <summary>
+		/// Waits for a native wait handle to be signalled
+		/// </summary>
+		/// <param name="handle">Handle to wait for</param>
+		/// <param name="timeoutMs">Timeout for the wait</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async Task WaitOneAsync(this WaitHandle handle, int timeoutMs, CancellationToken cancellationToken = default)
+		{
+			TaskCompletionSource<bool> completionSource = new TaskCompletionSource<bool>();
+
+			RegisteredWaitHandle waitHandle = ThreadPool.RegisterWaitForSingleObject(handle, (state, timedOut) => ((TaskCompletionSource<bool>)state!).TrySetResult(!timedOut), completionSource, timeoutMs, true);
+			try
+			{
+				using IDisposable registration = cancellationToken.Register(x => ((TaskCompletionSource<bool>)x!).SetCanceled(), completionSource);
+				await completionSource.Task;
+			}
+			finally
+			{
+				waitHandle.Unregister(null);
+			}
+		}
 	}
 }
