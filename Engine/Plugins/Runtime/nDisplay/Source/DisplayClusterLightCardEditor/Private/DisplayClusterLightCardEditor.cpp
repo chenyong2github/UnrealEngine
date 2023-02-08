@@ -490,7 +490,20 @@ void FDisplayClusterLightCardEditor::AddLightCardsToActor(const TArray<ADisplayC
 
 bool FDisplayClusterLightCardEditor::CanAddNewActor() const
 {
-	return ActiveRootActor.IsValid() && ActiveRootActor->GetWorld() != nullptr;
+	return CanAddNewActor(nullptr);
+}
+
+bool FDisplayClusterLightCardEditor::CanAddNewActor(UClass* InClass) const
+{
+	bool bClassAllowed = true;
+	if (InClass && InClass->IsChildOf(ADisplayClusterChromakeyCardActor::StaticClass()))
+	{
+		// @todo uv chromakey cards
+		bClassAllowed = !ViewportView.IsValid() ||
+			ViewportView->GetLightCardEditorViewportClient()->GetProjectionMode() != EDisplayClusterMeshProjectionType::UV;
+	}
+
+	return bClassAllowed && ActiveRootActor.IsValid() && ActiveRootActor->GetWorld() != nullptr;
 }
 
 void FDisplayClusterLightCardEditor::CutSelectedActors()
@@ -1112,7 +1125,7 @@ TSharedRef<SWidget> FDisplayClusterLightCardEditor::GeneratePlaceActorsMenu()
 			FSlateIcon StageActorIcon = FSlateIconFinder::FindIconForClass(Class);
 			MenuBuilder.AddMenuEntry(Label, LOCTEXT("AddStageActorHeader", "Add a stage actor to the scene"), StageActorIcon,
 				FUIAction(FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::AddNewDynamic, Class),
-					FCanExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::CanAddNewActor)));
+					FCanExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::CanAddNewActor, Class)));
 		}
 
 		if (CanAddNewActor())

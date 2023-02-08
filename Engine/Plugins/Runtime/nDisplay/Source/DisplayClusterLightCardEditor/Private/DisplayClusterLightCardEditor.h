@@ -118,6 +118,7 @@ public:
 
 	/** If a Light Card can currently be added */
 	bool CanAddNewActor() const;
+	bool CanAddNewActor(UClass* InClass) const;
 
 	/** Copies any selected actors to the clipboard, and then deletes them */
 	void CutSelectedActors();

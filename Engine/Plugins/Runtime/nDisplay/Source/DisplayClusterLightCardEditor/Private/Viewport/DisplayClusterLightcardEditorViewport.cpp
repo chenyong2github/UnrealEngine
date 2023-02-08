@@ -760,7 +760,7 @@ void SDisplayClusterLightCardEditorViewport::MakePlaceActorsSubMenu(FMenuBuilder
 			LOCTEXT("AddStageActorHeader", "Add a stage actor to the scene"), 
 			StageActorIcon,
 			FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddStageActorHere, Class),
-				FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::CanPlaceActorHere)));
+				FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::CanPlaceActorHere, Class)));
 	}
 }
 
@@ -929,7 +929,12 @@ void SDisplayClusterLightCardEditorViewport::AddStageActorHere(UClass* InClass)
 
 bool SDisplayClusterLightCardEditorViewport::CanPlaceActorHere() const
 {
-	return LightCardEditorPtr.IsValid() && LightCardEditorPtr.Pin()->CanAddNewActor();
+	return CanPlaceActorHere(nullptr);
+}
+
+bool SDisplayClusterLightCardEditorViewport::CanPlaceActorHere(UClass* Class) const
+{
+	return LightCardEditorPtr.IsValid() && LightCardEditorPtr.Pin()->CanAddNewActor(Class);
 }
 
 void SDisplayClusterLightCardEditorViewport::ToggleLabels()

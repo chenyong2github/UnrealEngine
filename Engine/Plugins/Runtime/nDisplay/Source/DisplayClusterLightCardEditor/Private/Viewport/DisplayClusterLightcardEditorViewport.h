@@ -112,6 +112,7 @@ private:
 
 	/** If placing actors is allowed */
 	bool CanPlaceActorHere() const;
+	bool CanPlaceActorHere(UClass* Class) const;
 
 	/** Toggles light card labels on or off */
 	void ToggleLabels();
