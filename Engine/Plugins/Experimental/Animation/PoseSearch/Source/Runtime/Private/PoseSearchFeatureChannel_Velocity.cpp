@@ -93,28 +93,14 @@ void UPoseSearchFeatureChannel_Velocity::BuildQuery(UE::PoseSearch::FSearchConte
 	}
 	else
 	{
-		FVector LinearVelocity;
-		if (bBoneValid)
-		{
-			check(SearchContext.History);
-			const float HistorySameplInterval = SearchContext.History->GetSampleTimeInterval();
-			check(HistorySameplInterval > UE_KINDA_SMALL_NUMBER);
+		const float HistorySampleInterval = SearchContext.History ? SearchContext.History->GetSampleTimeInterval() : 1 / 60.0f;
+		check(HistorySampleInterval > UE_KINDA_SMALL_NUMBER);
 
-			// @todo: optimize this code for SchemaBoneIdx == FSearchContext::SchemaRootBoneIdx (!InOutQuery.GetSchema()->BoneReferences[SchemaBoneIdx].HasValidSetup())
-			// calculating the Transforms in component space for the bone indexed by SchemaBoneIdx
-			const FTransform TransformCurrent = SearchContext.GetComponentSpaceTransform(SampleTimeOffset, 0.f, InOutQuery.GetSchema(), SchemaBoneIdx);
-			const FTransform TransformPrevious = SearchContext.GetComponentSpaceTransform(SampleTimeOffset - HistorySameplInterval, -HistorySameplInterval, InOutQuery.GetSchema(), SchemaBoneIdx);
+		// calculating the Transforms in component space for the bone indexed by SchemaBoneIdx
+		const FTransform TransformCurrent = SearchContext.GetComponentSpaceTransform(SampleTimeOffset, 0.f, InOutQuery.GetSchema(), SchemaBoneIdx, bBoneValid);
+		const FTransform TransformPrevious = SearchContext.GetComponentSpaceTransform(SampleTimeOffset - HistorySampleInterval, bUseCharacterSpaceVelocities ? -HistorySampleInterval : 0.f, InOutQuery.GetSchema(), SchemaBoneIdx, bBoneValid);
 
-			LinearVelocity = (TransformCurrent.GetTranslation() - TransformPrevious.GetTranslation()) / HistorySameplInterval;
-		}
-		else
-		{
-			check(SearchContext.Trajectory);
-			// @todo: make this call consistent with Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema());
-			const FTrajectorySample TrajectorySample = SearchContext.Trajectory->GetSampleAtTime(SampleTimeOffset);
-			LinearVelocity = TrajectorySample.LinearVelocity;
-		}
-
+		FVector LinearVelocity = (TransformCurrent.GetTranslation() - TransformPrevious.GetTranslation()) / HistorySampleInterval;
 		if (bNormalize)
 		{
 			LinearVelocity = LinearVelocity.GetClampedToMaxSize(1.f);

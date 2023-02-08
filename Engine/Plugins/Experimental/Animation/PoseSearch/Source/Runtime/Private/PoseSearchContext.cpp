@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearch/PoseSearchContext.h"
+#include "Animation/MotionTrajectoryTypes.h"
 #include "AnimationRuntime.h"
 #include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchDatabase.h"
@@ -147,11 +148,21 @@ void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseIdx)
 //////////////////////////////////////////////////////////////////////////
 // FSearchContext
 
-FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx)
+FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool bUseHistoryRoot)
 {
 	// collecting the RootTransform from the FPoseHistory
 	FTransform RootTransform = FTransform::Identity;
-	History->GetRootTransformAtTime(SampleTime, RootTransform);
+	if (bUseHistoryRoot)
+	{
+		check(History);
+		History->GetRootTransformAtTime(SampleTime, RootTransform);
+	}
+	else
+	{
+		check(Trajectory);
+		const FTrajectorySample TrajectorySample = Trajectory->GetSampleAtTime(SampleTime);
+		RootTransform = TrajectorySample.Transform;
+	}
 
 	const FBoneIndexType BoneIndexType = Schema->GetBoneIndexType(SchemaBoneIdx);
 	if (BoneIndexType != RootBoneIndexType)
@@ -165,7 +176,7 @@ FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchem
 
 FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx)
 {
-	check(History && Schema);
+	check(Schema);
 
 	const FBoneIndexType BoneIndexType = Schema->GetBoneIndexType(SchemaBoneIdx);
 	if (BoneIndexType != RootBoneIndexType)
@@ -176,6 +187,7 @@ FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UP
 		}
 	
 		// collecting the local bone transforms from the FPoseHistory
+		check(History);
 		TArray<FTransform> SampledLocalPose;
 		History->GetLocalPoseAtTime(SampleTime, Schema->BoneIndicesWithParents, SampledLocalPose);
 		
@@ -194,15 +206,15 @@ FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UP
 	return FTransform::Identity;
 }
 
-FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, float OriginTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx)
+FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, float OriginTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool bUseHistoryRoot)
 {
 	if (SampleTime == OriginTime)
 	{
 		return GetComponentSpaceTransform(SampleTime, Schema, SchemaBoneIdx);
 	}
 
-	const FTransform RootBoneTransform = GetTransform(OriginTime, Schema);
-	FTransform BoneTransform = GetTransform(SampleTime, Schema, SchemaBoneIdx);
+	const FTransform RootBoneTransform = GetTransform(OriginTime, Schema, RootSchemaBoneIdx, bUseHistoryRoot);
+	FTransform BoneTransform = GetTransform(SampleTime, Schema, SchemaBoneIdx, bUseHistoryRoot);
 	BoneTransform.SetToRelativeTransform(RootBoneTransform);
 	return BoneTransform;
 }

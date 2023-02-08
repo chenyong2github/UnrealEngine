@@ -64,19 +64,8 @@ void UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchConte
 	}
 	else
 	{
-		FTransform Transform;
-		if (bBoneValid)
-		{
-			// calculating the Transform in component space for the bone indexed by SchemaBoneIdx
-			Transform = SearchContext.GetComponentSpaceTransform(SampleTimeOffset, 0.f, InOutQuery.GetSchema(), SchemaBoneIdx);
-		}
-		else
-		{
-			check(SearchContext.Trajectory);
-			// @todo: make this call consistent with Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema());
-			const FTrajectorySample TrajectorySample = SearchContext.Trajectory->GetSampleAtTime(SampleTimeOffset);
-			Transform = TrajectorySample.Transform;
-		}
+		// calculating the Transform in component space for the bone indexed by SchemaBoneIdx
+		const FTransform Transform = SearchContext.GetComponentSpaceTransform(SampleTimeOffset, 0.f, InOutQuery.GetSchema(), SchemaBoneIdx, bBoneValid);
 
 		FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), ChannelDataOffset, Transform.GetTranslation(), ComponentStripping);
 	}
