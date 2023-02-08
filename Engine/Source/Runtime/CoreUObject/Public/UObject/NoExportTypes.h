@@ -1369,14 +1369,14 @@ struct FLinearColor
 USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FBox3f
 {
-	UPROPERTY(EditAnywhere, Category = Box, SaveGame, meta=(EditCondition="IsValid"))
+	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
 	FVector3f Min;
 
-	UPROPERTY(EditAnywhere, Category = Box, SaveGame, meta=(EditCondition="IsValid"))
+	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
 	FVector3f Max;
 
-	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
-	bool IsValid;
+	UPROPERTY()
+	uint8 IsValid;
 };
 
 
@@ -1387,14 +1387,14 @@ struct FBox3f
 USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FBox3d
 {
-	UPROPERTY(EditAnywhere, Category = Box, SaveGame, meta=(EditCondition="IsValid"))
+	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
 	FVector3d Min;
 
-	UPROPERTY(EditAnywhere, Category = Box, SaveGame, meta=(EditCondition="IsValid"))
+	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
 	FVector3d Max;
 
-	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
-	bool IsValid;
+	UPROPERTY()
+	uint8 IsValid;
 };
 
 /**
@@ -1404,14 +1404,14 @@ struct FBox3d
 USTRUCT(immutable, noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType, meta=(HasNativeMake="/Script/Engine.KismetMathLibrary.MakeBox"))
 struct FBox
 {
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box, SaveGame, meta=(EditCondition="IsValid"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box, SaveGame)
 	FVector Min;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box, SaveGame, meta=(EditCondition="IsValid"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box, SaveGame)
 	FVector Max;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box, SaveGame)
-	bool IsValid;
+	UPROPERTY()
+	uint8 IsValid;
 };
 
 /**
@@ -1421,14 +1421,14 @@ struct FBox
 USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FBox2f
 {
-	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame, meta=(EditCondition="bIsValid"))
+	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
 	FVector2f Min;
 
-	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame, meta=(EditCondition="bIsValid"))
+	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
 	FVector2f Max;
 
-	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
-	bool bIsValid;
+	UPROPERTY()
+	uint8 bIsValid;
 };
 
 /**
@@ -1439,14 +1439,14 @@ struct FBox2f
 // USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 // struct FBox2d
 // {
-// 	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame, meta=(EditCondition="bIsValid"))
+// 	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
 // 	FVector2d Min;
 //
-// 	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame, meta=(EditCondition="bIsValid"))
+// 	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
 // 	FVector2d Max;
 //
-// 	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
-// 	bool bIsValid;
+// 	UPROPERTY()
+// 	uint8 bIsValid;
 // };
 
 /**
@@ -1456,14 +1456,14 @@ struct FBox2f
 USTRUCT(immutable, noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType, meta=(HasNativeMake="/Script/Engine.KismetMathLibrary.MakeBox2D"))
 struct FBox2D
 {
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box2D, SaveGame, meta=(EditCondition="bIsValid"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box2D, SaveGame)
 	FVector2D Min;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box2D, SaveGame, meta=(EditCondition="bIsValid"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box2D, SaveGame)
 	FVector2D Max;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Box2D, SaveGame)
-	bool bIsValid;
+	UPROPERTY()
+	uint8 bIsValid;
 };
 
 /**
