@@ -145,6 +145,11 @@ private:
 	FOnlineServicesRegistry() {}
 	~FOnlineServicesRegistry();
 	friend FLazySingleton;
+
+	/**
+	* Resolves a generic (like Platform and Default) service enum value into the value of the real corresponding service.
+	*/
+	EOnlineServices ResolveServiceName(EOnlineServices OnlineServices) const;
 };
 
 /* UE::Online */ }
