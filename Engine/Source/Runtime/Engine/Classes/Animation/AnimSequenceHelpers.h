@@ -245,11 +245,12 @@ namespace Anim {
 
 		struct ENGINE_API FRetargetingScope
 		{
-			FRetargetingScope(FCompactPose& ToRetargetPose, const DataModel::FEvaluationContext& InEvaluationContext);
+			FRetargetingScope(const USkeleton* InSourceSkeleton, FCompactPose& ToRetargetPose, const DataModel::FEvaluationContext& InEvaluationContext);
 			~FRetargetingScope();
 			
 			void AddTrackedBone(FCompactPoseBoneIndex CompactBoneIndex, int32 SkeletonBoneIndex) const;
 		private:
+			const USkeleton* SourceSkeleton;
 			FCompactPose& RetargetPose;
 			const DataModel::FEvaluationContext& EvaluationContext;
 			TArray<FRetargetTracking>& RetargetTracking;

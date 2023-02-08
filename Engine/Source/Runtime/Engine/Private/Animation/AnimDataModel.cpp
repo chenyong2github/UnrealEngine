@@ -794,7 +794,7 @@ void UAnimDataModel::Evaluate(FAnimationPoseData& InOutPoseData, const UE::Anim:
 	}
 
 	{		
-		UE::Anim::Retargeting::FRetargetingScope RetargetingScope(OutPose, EvaluationContext);
+		UE::Anim::Retargeting::FRetargetingScope RetargetingScope(GetSkeleton(), OutPose, EvaluationContext);
 		if (bShouldInterpolate)
 		{		
 			ExtractPose<true>(BoneAnimationTracks, ActiveCurves, OutPose, KeyIndex1, KeyIndex2, Alpha, TimePerFrame, RetargetingScope);
@@ -853,6 +853,20 @@ FRichCurve* UAnimDataModel::GetMutableRichCurve(const FAnimationCurveIdentifier&
 	}
 
 	return RichCurve;
+}
+
+USkeleton* UAnimDataModel::GetSkeleton() const
+{
+	const UAnimationAsset* AnimationAsset = CastChecked<UAnimationAsset>(GetOuter());	
+	checkf(AnimationAsset, TEXT("Unable to retrieve owning AnimationAsset"));
+
+	USkeleton* Skeleton = AnimationAsset->GetSkeleton();
+	if (Skeleton == nullptr)
+	{
+		IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnableToFindSkeleton", "Unable to retrieve target USkeleton for Animation Asset ({0})"), FText::FromString(*AnimationAsset->GetPathName()));
+	} 
+
+	return Skeleton;
 }
 
 FBoneAnimationTrack* UAnimDataModel::FindMutableBoneTrackByName(FName Name)

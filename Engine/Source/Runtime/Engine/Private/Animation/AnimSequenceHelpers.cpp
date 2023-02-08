@@ -189,12 +189,14 @@ void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Ske
 	}	
 }
 	
-Retargeting::FRetargetingScope::FRetargetingScope(FCompactPose& ToRetargetPose, const DataModel::FEvaluationContext& InEvaluationContext)
-	: RetargetPose(ToRetargetPose),
+Retargeting::FRetargetingScope::FRetargetingScope(const USkeleton* InSourceSkeleton, FCompactPose& ToRetargetPose, const DataModel::FEvaluationContext& InEvaluationContext)
+	: SourceSkeleton(InSourceSkeleton),
+	RetargetPose(ToRetargetPose),
 	EvaluationContext(InEvaluationContext),
 	RetargetTracking(FBuildRawPoseScratchArea::Get().RetargetTracking),
 	bShouldRetarget(!ToRetargetPose.GetBoneContainer().GetDisableRetargeting() && EvaluationContext.RetargetTransforms.Num())
 {
+	check(SourceSkeleton);
 	RetargetTracking.Reset();
 }
 
@@ -211,10 +213,9 @@ Retargeting::FRetargetingScope::~FRetargetingScope()
 	if (bShouldRetarget)
 	{
 		const FBoneContainer& RequiredBones = RetargetPose.GetBoneContainer();
-		const USkeleton* Skeleton = RequiredBones.GetSkeletonAsset();
 		for (const FRetargetTracking& RT : RetargetTracking)
 		{
-			FAnimationRuntime::RetargetBoneTransform(Skeleton, EvaluationContext.RetargetSource, EvaluationContext.RetargetTransforms, RetargetPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
+			FAnimationRuntime::RetargetBoneTransform(SourceSkeleton, EvaluationContext.RetargetSource, EvaluationContext.RetargetTransforms, RetargetPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
 		}
 	}
 }

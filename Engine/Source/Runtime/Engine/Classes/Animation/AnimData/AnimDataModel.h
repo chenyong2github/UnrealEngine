@@ -94,6 +94,8 @@ private:
 	FAnimCurveBase* FindMutableCurveById(const FAnimationCurveIdentifier& CurveIdentifier);	   
 	FRichCurve* GetMutableRichCurve(const FAnimationCurveIdentifier& CurveIdentifier);
 
+	USkeleton* GetSkeleton() const;
+
 private:
 	UPROPERTY(Transient)
 	int32 BracketCounter = 0;

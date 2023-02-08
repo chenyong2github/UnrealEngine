@@ -1130,7 +1130,7 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 			RigPose.ResetToRefPose();
 			const FBoneContainer& RequiredBones = RigPose.GetBoneContainer();
 			FBlendedCurve& Curve = InOutPoseData.GetCurve();
-			UE::Anim::Retargeting::FRetargetingScope RetargetingScope(RigPose, EvaluationContext);
+			UE::Anim::Retargeting::FRetargetingScope RetargetingScope(GetSkeleton(), RigPose, EvaluationContext);
 			
 			// Populate bone/curve elements to Pose/Curve indices
 			{
