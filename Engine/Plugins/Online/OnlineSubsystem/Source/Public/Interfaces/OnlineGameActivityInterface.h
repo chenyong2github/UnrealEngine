@@ -4,6 +4,7 @@
 
 #include "Math/Vector.h"
 #include "OnlineDelegateMacros.h"
+#include "Online/CoreOnlineFwd.h"
 
 class FOnlineEventParms;
 template <typename OptionalType> struct TOptional;

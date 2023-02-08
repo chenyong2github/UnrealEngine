@@ -13,6 +13,8 @@ class FShaderType;
 class FRHIRayTracingShader;
 class FGlobalShaderMap;
 
+enum EBlendMode : int;
+
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRayTracingDecals, RENDERER_API)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, Grid)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridData)
