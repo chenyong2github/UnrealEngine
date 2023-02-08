@@ -100,7 +100,7 @@ void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(UObject* ReadObjec
 			*Referencer.ToString(), *Referenced.ToString());
 	}
 
-	LLM_SCOPE_BYNAME(TEXTVIEW("TObjectPtr"));
+	LLM_SCOPE_BYNAME(TEXTVIEW("PackageBuildDependencyTracker"));
 
 	FBuildDependencyAccessData AccessData{Referenced, AccumulatedScopeData->TargetPlatform};
 	FScopeLock RecordsScopeLock(&Singleton.RecordsLock);
