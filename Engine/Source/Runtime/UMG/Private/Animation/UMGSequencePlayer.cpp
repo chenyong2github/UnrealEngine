@@ -42,7 +42,6 @@ UUMGSequencePlayer::UUMGSequencePlayer(const FObjectInitializer& ObjectInitializ
 	PlaybackSpeed = 1;
 	bRestoreState = false;
 	Animation = nullptr;
-	bIsEvaluating = false;
 	bIsStopping = false;
 	bIsBeginningPlay = false;
 	bCompleteOnPostEvaluation = false;
@@ -84,12 +83,14 @@ UMovieSceneEntitySystemLinker* UUMGSequencePlayer::ConstructEntitySystemLinker()
 
 void UUMGSequencePlayer::Tick(float DeltaTime)
 {
-	if (bIsStopping || bIsBeginningPlay || bIsEvaluating)
+	if (IsEvaluating())
 	{
-		if (bIsEvaluating)
-		{
-			BlockedDeltaTimeCompensation += DeltaTime;
-		}
+		BlockedDeltaTimeCompensation += DeltaTime;
+		return;
+	}
+
+	if (bIsStopping || bIsBeginningPlay)
+	{
 		return;
 	}
 
@@ -501,19 +502,14 @@ void UUMGSequencePlayer::SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlayb
 	PlayerStatus = InPlaybackStatus;
 }
 
-void UUMGSequencePlayer::PreEvaluation(const FMovieSceneContext& Context)
+void UUMGSequencePlayer::PopulateUpdateFlags(UE::MovieScene::ESequenceInstanceUpdateFlags& OutFlags)
 {
-	bIsEvaluating = true;
-}
-
-void UUMGSequencePlayer::PostEvaluation(const FMovieSceneContext& Context)
-{
-	bIsEvaluating = false;
+	// Leave empty so Pre and PostEvaluation are not called
 }
 
 bool UUMGSequencePlayer::NeedsQueueLatentAction() const
 {
-	return bIsEvaluating;
+	return IsEvaluating();
 }
 
 void UUMGSequencePlayer::QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate)

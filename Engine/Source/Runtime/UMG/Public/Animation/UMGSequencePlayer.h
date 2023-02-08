@@ -79,8 +79,7 @@ public:
 	virtual UObject* GetPlaybackContext() const override;
 	virtual TArray<UObject*> GetEventContexts() const override;
 	virtual void SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatus) override;
-	virtual void PreEvaluation(const FMovieSceneContext& Context) override;
-	virtual void PostEvaluation(const FMovieSceneContext& Context) override;
+	virtual void PopulateUpdateFlags(UE::MovieScene::ESequenceInstanceUpdateFlags& OutFlags) override;
 
 	/** UObject interface */
 	virtual void BeginDestroy() override;
@@ -166,9 +165,6 @@ private:
 
 	/** True if the animation is playing forward, otherwise false and it's playing in reverse. */
 	bool bIsPlayingForward;
-
-	/** Set to true while evaluating to prevent reentrancy */
-	bool bIsEvaluating : 1;
 
 	/** Set to true when this player is in the process of being stopped */
 	bool bIsStopping : 1;

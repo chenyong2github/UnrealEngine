@@ -35,6 +35,7 @@ struct FSequenceUpdater_Flat : ISequenceUpdater
 	explicit FSequenceUpdater_Flat(FMovieSceneCompiledDataID InCompiledDataID);
 	~FSequenceUpdater_Flat();
 
+	virtual void PopulateUpdateFlags(UMovieSceneEntitySystemLinker* InLinker, IMovieScenePlayer* InPlayer, ESequenceInstanceUpdateFlags& OutUpdateFlags) override;
 	virtual void DissectContext(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* InPlayer, const FMovieSceneContext& Context, TArray<TRange<FFrameTime>>& OutDissections) override;
 	virtual void Start(UMovieSceneEntitySystemLinker* Linker, FRootInstanceHandle InstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) override;
 	virtual void Update(UMovieSceneEntitySystemLinker* Linker, FRootInstanceHandle InstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& Context) override;
@@ -63,6 +64,7 @@ struct FSequenceUpdater_Hierarchical : ISequenceUpdater
 
 	~FSequenceUpdater_Hierarchical();
 
+	virtual void PopulateUpdateFlags(UMovieSceneEntitySystemLinker* InLinker, IMovieScenePlayer* InPlayer, ESequenceInstanceUpdateFlags& OutUpdateFlags) override;
 	virtual void DissectContext(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* InPlayer, const FMovieSceneContext& Context, TArray<TRange<FFrameTime>>& OutDissections) override;
 	virtual void Start(UMovieSceneEntitySystemLinker* Linker, FRootInstanceHandle InstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) override;
 	virtual void Update(UMovieSceneEntitySystemLinker* Linker, FRootInstanceHandle InstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& Context) override;
@@ -194,6 +196,31 @@ TUniquePtr<ISequenceUpdater> FSequenceUpdater_Flat::MigrateToHierarchical()
 	return MakeUnique<FSequenceUpdater_Hierarchical>(CompiledDataID);
 }
 
+void FSequenceUpdater_Flat::PopulateUpdateFlags(UMovieSceneEntitySystemLinker* InLinker, IMovieScenePlayer* InPlayer, ESequenceInstanceUpdateFlags& OutUpdateFlags)
+{
+	if (!CachedDeterminismFences.IsSet())
+	{
+		UMovieSceneCompiledDataManager* CompiledDataManager = InPlayer->GetEvaluationTemplate().GetCompiledDataManager();
+		TArrayView<const FFrameTime>    DeterminismFences   = CompiledDataManager->GetEntryRef(CompiledDataID).DeterminismFences;
+
+		if (DeterminismFences.Num() != 0)
+		{
+			CachedDeterminismFences = TArray<FFrameTime>(DeterminismFences.GetData(), DeterminismFences.Num());
+		}
+		else
+		{
+			CachedDeterminismFences.Emplace();
+		}
+	}
+
+	InPlayer->PopulateUpdateFlags(OutUpdateFlags);
+
+	if (CachedDeterminismFences.IsSet() && CachedDeterminismFences->Num() > 0)
+	{
+		OutUpdateFlags |= ESequenceInstanceUpdateFlags::NeedsDissection;
+	}
+}
+
 void FSequenceUpdater_Flat::DissectContext(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* InPlayer, const FMovieSceneContext& Context, TArray<TRange<FFrameTime>>& OutDissections)
 {
 	if (!CachedDeterminismFences.IsSet())
@@ -323,6 +350,42 @@ FSequenceUpdater_Hierarchical::FSequenceUpdater_Hierarchical(FMovieSceneCompiled
 
 FSequenceUpdater_Hierarchical::~FSequenceUpdater_Hierarchical()
 {
+}
+
+void FSequenceUpdater_Hierarchical::PopulateUpdateFlags(UMovieSceneEntitySystemLinker* InLinker, IMovieScenePlayer* InPlayer, ESequenceInstanceUpdateFlags& OutUpdateFlags)
+{
+	InPlayer->PopulateUpdateFlags(OutUpdateFlags);
+
+	// If we've already been told we need dissection there's nothing left to do
+	if (EnumHasAnyFlags(OutUpdateFlags, ESequenceInstanceUpdateFlags::NeedsDissection))
+	{
+		return;
+	}
+
+	UMovieSceneCompiledDataManager* CompiledDataManager = InPlayer->GetEvaluationTemplate().GetCompiledDataManager();
+
+	{
+		const FMovieSceneCompiledDataEntry& RootDataEntry = CompiledDataManager->GetEntryRef(CompiledDataID);
+		if (RootDataEntry.DeterminismFences.Num() > 0)
+		{
+			OutUpdateFlags |= ESequenceInstanceUpdateFlags::NeedsDissection;
+		}
+	}
+
+	if (const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(CompiledDataID))
+	{
+		for (const TPair<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+		{
+			UMovieSceneSequence*      SubSequence = Pair.Value.GetSequence();
+			FMovieSceneCompiledDataID SubDataID   = SubSequence ? CompiledDataManager->GetDataID(SubSequence) : FMovieSceneCompiledDataID();
+
+			if (SubDataID.IsValid() && CompiledDataManager->GetEntryRef(SubDataID).DeterminismFences.Num() > 0)
+			{
+				OutUpdateFlags |= ESequenceInstanceUpdateFlags::NeedsDissection;
+				break;
+			}
+		}
+	}
 }
 
 void FSequenceUpdater_Hierarchical::DissectContext(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* InPlayer, const FMovieSceneContext& Context, TArray<TRange<FFrameTime>>& OutDissections)

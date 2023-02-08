@@ -116,7 +116,6 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, Status(EMovieScenePlayerStatus::Stopped)
 	, bReversePlayback(false)
 	, bPendingOnStartedPlaying(false)
-	, bIsEvaluating(false)
 	, bIsAsyncUpdate(false)
 	, bSkipNextUpdate(false)
 	, Sequence(nullptr)
@@ -785,7 +784,7 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence)
 {
 	check(InSequence);
-	check(!bIsEvaluating);
+	check(!IsEvaluating());
 
 	// If we have a valid sequence that may have been played back,
 	// Explicitly stop and tear down the template instance before 
@@ -938,7 +937,7 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 
 		if (!bSkipNextUpdate)
 		{
-			check(!bIsEvaluating);
+			check(!IsEvaluating());
 
 			FFrameTime NewTime = TimeController->RequestCurrentTime(GetCurrentTime(), PlayRate, GetDisplayRate());
 			UpdateTimeCursorPosition(NewTime, EUpdatePositionMethod::Play);
@@ -974,7 +973,7 @@ void UMovieSceneSequencePlayer::UpdateAsync(const float DeltaSeconds)
 
 void UMovieSceneSequencePlayer::UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride)
 {
-	if (ensure(!bIsEvaluating))
+	if (ensure(!IsEvaluating()))
 	{
 		UpdateTimeCursorPosition_Internal(NewPosition, Method, bHasJumpedOverride);
 	}
@@ -1154,7 +1153,7 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 
 		// Now that the evaluation has taken place we call Pause (to trigger delegates, etc.), however if we're running the evaluation
 		// as async we actually need to queue a latent action to do it so that it happens after the data is actually updated. We can't
-		// use the QueueLatentAction inside of Pause() because bIsEvaluating is only set during actual evaluation so it won't be set yet.
+		// use the QueueLatentAction inside of Pause() because IsEvaluating() is only set during actual evaluation so it won't be set yet.
 		if (PauseRange.IsSet())
 		{
 			if (Args.bIsAsync)
@@ -1249,8 +1248,6 @@ bool UMovieSceneSequencePlayer::HasDynamicWeighting() const
 void UMovieSceneSequencePlayer::PreEvaluation(const FMovieSceneContext& Context)
 {
 	RunPreEvaluationCallbacks();
-
-	bIsEvaluating = true;
 }
 
 void UMovieSceneSequencePlayer::PostEvaluation(const FMovieSceneContext& Context)
@@ -1260,8 +1257,6 @@ void UMovieSceneSequencePlayer::PostEvaluation(const FMovieSceneContext& Context
 	OnMovieSceneSequencePlayerUpdate.Broadcast(*this, CurrentTime, PreviousTime);
 
 	RunPostEvaluationCallbacks();
-
-	bIsEvaluating = false;
 }
 
 void UMovieSceneSequencePlayer::RunPreEvaluationCallbacks()
@@ -1790,7 +1785,7 @@ bool UMovieSceneSequencePlayer::CallRemoteFunction(UFunction* Function, void* Pa
 
 bool UMovieSceneSequencePlayer::NeedsQueueLatentAction() const
 {
-	return bIsEvaluating;
+	return IsEvaluating();
 }
 
 void UMovieSceneSequencePlayer::QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate)

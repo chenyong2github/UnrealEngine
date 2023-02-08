@@ -15,6 +15,7 @@
 DECLARE_CYCLE_STAT(TEXT("Runner Flush"), 				MovieSceneEval_RunnerFlush, 				STATGROUP_MovieSceneEval);
 
 DECLARE_CYCLE_STAT(TEXT("Spawn Phase"),                 MovieSceneEval_SpawnPhase,              	STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Post Spawn Event"),            MovieSceneEval_PostSpawnEvent,            	STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Instantiation Phase"), 		MovieSceneEval_InstantiationPhase, 			STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Instantiation Async Tasks"), 	MovieSceneEval_AsyncInstantiationTasks,		STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Post Instantiation"), 			MovieSceneEval_PostInstantiation, 			STATGROUP_MovieSceneECS);
@@ -685,12 +686,22 @@ bool FMovieSceneEntitySystemRunner::GameThread_UpdateSequenceInstances(UMovieSce
 		}
 	}
 
+	AccumulatedUpdateFlags = ESequenceInstanceUpdateFlags::None;
+
 	// Let sequence instances do any pre-evaluation work.
 	for (const FQueuedUpdateParams& UpdatedInstance : CurrentInstances)
 	{
 		if (!EnumHasAnyFlags(UpdatedInstance.UpdateFlags, ERunnerUpdateFlags::Destroy))
 		{
-			InstanceRegistry->MutateInstance(UpdatedInstance.InstanceHandle).PreEvaluation(Linker);
+			FSequenceInstance& SequenceInstance = InstanceRegistry->MutateInstance(UpdatedInstance.InstanceHandle);
+
+			AccumulatedUpdateFlags |= SequenceInstance.GetUpdateFlags();
+			IMovieScenePlayer::SetIsEvaluatingFlag(SequenceInstance.GetPlayerIndex(), true);
+
+			if (EnumHasAnyFlags(SequenceInstance.GetUpdateFlags(), ESequenceInstanceUpdateFlags::NeedsPreEvaluation))
+			{
+				SequenceInstance.PreEvaluation(Linker);
+			}
 		}
 	}
 
@@ -711,6 +722,9 @@ bool FMovieSceneEntitySystemRunner::GameThread_UpdateSequenceInstances(UMovieSce
 			if (Update.OnFlushed.IsBound())
 			{
 				OnFlushedDelegates.Add(MoveTemp(Update.OnFlushed));
+
+				// If we have any on-flushed delegates then we have to do a full Post-Eval phase
+				AccumulatedUpdateFlags |= ESequenceInstanceUpdateFlags::NeedsPostEvaluation;
 			}
 
 			if (EnumHasAnyFlags(Update.UpdateFlags, ERunnerUpdateFlags::Destroy))
@@ -805,8 +819,10 @@ bool FMovieSceneEntitySystemRunner::GameThread_SpawnPhase(UMovieSceneEntitySyste
 		}
 	}
 
-
-	Linker->Events.PostSpawnEvent.Broadcast(Linker);
+	{
+		SCOPE_CYCLE_COUNTER(MovieSceneEval_PostSpawnEvent);
+		Linker->Events.PostSpawnEvent.Broadcast(Linker);
+	}
 
 	// --------------------------------------------------------------------------------------------------------------------------------------------
 	// Only run the instantiation phase if there is anything to instantiate. This must come after the spawn phase because new instantiations may
@@ -1013,7 +1029,14 @@ void FMovieSceneEntitySystemRunner::GameThread_PostEvaluationPhase(UMovieSceneEn
 			if (InstanceRegistry->IsHandleValid(UpdateParams.InstanceHandle))
 			{
 				FSequenceInstance& Instance = InstanceRegistry->MutateInstance(UpdateParams.InstanceHandle);
-				Instance.PostEvaluation(Linker);
+
+				Instance.Ledger.UnlinkOneShots(Linker);
+				IMovieScenePlayer::SetIsEvaluatingFlag(Instance.GetPlayerIndex(), false);
+
+				if (EnumHasAnyFlags(Instance.GetUpdateFlags(), ESequenceInstanceUpdateFlags::NeedsPostEvaluation))
+				{
+					Instance.PostEvaluation(Linker);
+				}
 
 				if (EnumHasAnyFlags(UpdateParams.UpdateFlags, ERunnerUpdateFlags::Destroy))
 				{

@@ -34,6 +34,15 @@ struct FSequenceInstance;
 struct FSubSequencePath;
 struct ISequenceUpdater;
 
+enum class ESequenceInstanceUpdateFlags : uint8
+{
+	None                = 0,
+	NeedsDissection     = 1u << 0,
+	NeedsPreEvaluation  = 1u << 1,
+	NeedsPostEvaluation = 1u << 2,
+};
+ENUM_CLASS_FLAGS(ESequenceInstanceUpdateFlags);
+
 /**
  * A sequence instance represents a specific instance of a currently playing sequence, either as a top-level sequence in an IMovieScenePlayer, or as a sub sequence.
  * Any given sequence asset may have any number of instances created for it at any given time depending on how many times it is referenced by playing sequences
@@ -118,6 +127,14 @@ public:
 	 * @return A pointer to this instance's player
 	 */
 	IMovieScenePlayer* GetPlayer() const;
+
+	/**
+	 * Retrieve the IMovieScenePlayer's unique index
+	 */
+	uint16 GetPlayerIndex() const
+	{
+		return PlayerIndex;
+	}
 
 	/**
 	 * Retrieve the SequenceID for this instance
@@ -209,6 +226,14 @@ public:
 	bool HasEverUpdated() const
 	{
 		return bHasEverUpdated;
+	}
+
+	/**
+	 * Retrieve this sequence's update flags
+	 */
+	ESequenceInstanceUpdateFlags GetUpdateFlags() const
+	{
+		return UpdateFlags;
 	}
 
 	/**
@@ -321,7 +346,9 @@ private:
 	/** When SequenceID != MovieSceneSequenceID::Root, specifies an ID to override as a simulated root. */
 	FMovieSceneSequenceID RootOverrideSequenceID;
 	/** The index of this instance's IMovieScenePlayer retrievable through IMovieScenePlayer::Get(). */
-	int32 PlayerIndex;
+	uint16 PlayerIndex;
+	/** Cached update flags denoting what kinds of updates are required by this instance */
+	ESequenceInstanceUpdateFlags UpdateFlags;
 	/** This instance's handle. */
 	FInstanceHandle InstanceHandle;
 	/** This instance's parent handle. */

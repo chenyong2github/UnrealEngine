@@ -258,6 +258,8 @@ private:
 	TArray<FDissectedUpdate> DissectedUpdates;
 	TArray<FSimpleDelegate> OnFlushedDelegates;
 	FMovieSceneEntitySystemEventTriggers EventTriggers;
+	/** Update flags that are accumulated for all currently active sequence instances being evaluated */
+	UE::MovieScene::ESequenceInstanceUpdateFlags AccumulatedUpdateFlags;
 
 	/** The number of times this runner has been re-entrant */
 	uint32 ReentrancyCount;

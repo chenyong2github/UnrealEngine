@@ -644,9 +644,6 @@ protected:
 	/** Set to true to invoke OnStartedPlaying on first update tick for started playing */
 	uint32 bPendingOnStartedPlaying : 1;
 
-	/** Set to true while the player's sequence is being evaluated */
-	uint32 bIsEvaluating : 1;
-
 	/** Set to true when the player is currently in the main level update */
 	uint32 bIsAsyncUpdate : 1;
 

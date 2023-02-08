@@ -869,6 +869,8 @@ void FEntityManager::Compact()
 		Swap(AllocationsWithCapacity, Temp);
 	}
 
+	EntityLocations.Shrink();
+
 	CheckInvariants();
 
 	OnStructureChanged();

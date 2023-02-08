@@ -31,6 +31,10 @@ struct FMovieSceneRootEvaluationTemplateInstance;
 class FMovieSceneSequenceInstance;
 class IMovieScenePlayer;
 
+namespace UE::MovieScene
+{
+	enum class ESequenceInstanceUpdateFlags : uint8;
+}
 
 struct EMovieSceneViewportParams
 {
@@ -193,6 +197,11 @@ public:
 	virtual void NotifyBindingUpdate(const FGuid& InGuid, FMovieSceneSequenceIDRef InSequenceID, TArrayView<TWeakObjectPtr<>> Objects) { NotifyBindingsChanged(); }
 
 	/**
+	 * Called to initialize the flag structure that denotes what functions need to be called on this updater
+	 */
+	MOVIESCENE_API virtual void PopulateUpdateFlags(UE::MovieScene::ESequenceInstanceUpdateFlags& OutFlags);
+
+	/**
 	 * Called whenever any object bindings have changed
 	 */
 	virtual void NotifyBindingsChanged() {}
@@ -336,6 +345,10 @@ public:
 	MOVIESCENE_API void InvalidateCachedData();
 
 	MOVIESCENE_API static IMovieScenePlayer* Get(uint16 InUniqueIndex);
+
+	MOVIESCENE_API static void SetIsEvaluatingFlag(uint16 InUniqueIndex, bool bIsUpdating);
+
+	MOVIESCENE_API bool IsEvaluating() const;
 
 	uint16 GetUniqueIndex() const
 	{

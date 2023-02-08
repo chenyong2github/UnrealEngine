@@ -15,6 +15,7 @@ namespace MovieScene
 
 static FRWLock                          GGlobalPlayerRegistryLock;
 static TSparseArray<IMovieScenePlayer*> GGlobalPlayerRegistry;
+static TBitArray<> GGlobalPlayerUpdateFlags;
 
 } // namespace MovieScene
 } // namespace UE
@@ -22,7 +23,11 @@ static TSparseArray<IMovieScenePlayer*> GGlobalPlayerRegistry;
 IMovieScenePlayer::IMovieScenePlayer()
 {
 	FWriteScopeLock ScopeLock(UE::MovieScene::GGlobalPlayerRegistryLock);
+
+	UE::MovieScene::GGlobalPlayerRegistry.Shrink();
 	UniqueIndex = UE::MovieScene::GGlobalPlayerRegistry.Add(this);
+
+	UE::MovieScene::GGlobalPlayerUpdateFlags.PadToNum(UniqueIndex + 1, false);
 }
 
 IMovieScenePlayer::~IMovieScenePlayer()
@@ -36,6 +41,24 @@ IMovieScenePlayer* IMovieScenePlayer::Get(uint16 InUniqueIndex)
 	FReadScopeLock ScopeLock(UE::MovieScene::GGlobalPlayerRegistryLock);
 	check(UE::MovieScene::GGlobalPlayerRegistry.IsValidIndex(InUniqueIndex));
 	return UE::MovieScene::GGlobalPlayerRegistry[InUniqueIndex];
+}
+
+void IMovieScenePlayer::SetIsEvaluatingFlag(uint16 InUniqueIndex, bool bIsUpdating)
+{
+	check(UE::MovieScene::GGlobalPlayerUpdateFlags.IsValidIndex(InUniqueIndex));
+	UE::MovieScene::GGlobalPlayerUpdateFlags[InUniqueIndex] = bIsUpdating;
+}
+
+bool IMovieScenePlayer::IsEvaluating() const
+{
+	return UE::MovieScene::GGlobalPlayerUpdateFlags[UniqueIndex];
+}
+
+void IMovieScenePlayer::PopulateUpdateFlags(UE::MovieScene::ESequenceInstanceUpdateFlags& OutFlags)
+{
+	using namespace UE::MovieScene;
+
+	OutFlags |= ESequenceInstanceUpdateFlags::NeedsPreEvaluation | ESequenceInstanceUpdateFlags::NeedsPostEvaluation;
 }
 
 void IMovieScenePlayer::ResolveBoundObjects(const FGuid& InBindingId, FMovieSceneSequenceID SequenceID, UMovieSceneSequence& Sequence, UObject* ResolutionContext, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const

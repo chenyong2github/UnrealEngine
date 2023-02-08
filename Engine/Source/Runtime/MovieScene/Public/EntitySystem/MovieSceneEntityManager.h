@@ -741,7 +741,7 @@ public:
 	bool ContainsAnyComponent(const FComponentMask& ComponentTypeIDs) const
 	{
 		const FComponentMask& Mask = GetAccumulatedMask();
-		return FComponentMask::BitwiseAND(Mask, ComponentTypeIDs, EBitwiseOperatorFlags::MinSize).NumComponents() != 0;
+		return FComponentMask::BitwiseAND(Mask, ComponentTypeIDs, EBitwiseOperatorFlags::MinSize).First() != FComponentTypeID::Invalid();
 	}
 
 	/**
