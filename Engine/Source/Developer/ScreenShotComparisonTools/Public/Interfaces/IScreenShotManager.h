@@ -68,7 +68,7 @@ public:
 	/**
 	 * Exports target screenshot report to the export location specified
 	 */
-	virtual FScreenshotExportResult ExportScreenshotComparisonResult(FString ScreenshotName, FString ExportPath = TEXT("")) = 0;
+	virtual FScreenshotExportResult ExportScreenshotComparisonResult(FString ScreenshotName, FString ExportPath = TEXT(""), bool bOnlyIncoming = false) = 0;
 
 	/**
 	 * Imports screenshot comparison data from a given path.
