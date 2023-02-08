@@ -224,6 +224,7 @@ protected:
 		const TSet<FName>& PropertySkipList = {}
 	);
 
-	void CreateActorTextInfoColumns(UWorld *WorldPtr, FSceneOutlinerInitializationOptions& OutInitOptions);
+	FText GetLevelColumnName() const;
+	void CreateActorTextInfoColumns(FSceneOutlinerInitializationOptions& OutInitOptions);
 	void SetupColumns(FSceneOutlinerInitializationOptions& OutInitOptions);
 };
