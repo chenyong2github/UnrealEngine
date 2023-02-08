@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/UnrealString.h"
 
 /**
  * A string that is present in memory only in editor and development builds.
