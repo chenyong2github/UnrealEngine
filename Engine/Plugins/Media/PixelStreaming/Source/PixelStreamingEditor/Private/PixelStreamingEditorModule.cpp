@@ -89,6 +89,8 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 		}
 	}
 
+	Streamer->SetConfigOption(FName(*FString(TEXT("DefaultToHover"))), TEXT("true"));
+
 	IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([&](TSharedPtr<SWindow> RootWindow, bool bIsRunningStartupDialog) {
 		MaybeResizeEditor(RootWindow);
 

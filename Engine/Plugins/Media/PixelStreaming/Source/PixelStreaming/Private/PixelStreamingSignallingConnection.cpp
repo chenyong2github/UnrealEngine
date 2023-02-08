@@ -123,11 +123,6 @@ void FPixelStreamingSignallingConnection::SendOffer(FPixelStreamingPlayerId Play
 	FString SdpStr = UE::PixelStreaming::ToString(SdpAnsi);
 	OfferJson->SetStringField(TEXT("sdp"), SdpStr);
 
-#if WITH_EDITOR
-	// Default hover preference needs to be sent with the offer to prevent error messages on older infrastructure
-	OfferJson->SetStringField(TEXT("defaultToHover"), TEXT("true"));
-#endif // WITH_EDITOR
-
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Sending player=%s \"offer\" to SS %s"), *PlayerId, *Url);
 	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("SDP offer\n%s"), *SdpStr);
 

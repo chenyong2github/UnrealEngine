@@ -257,4 +257,12 @@ public:
 	 * @brief Remove the audio input from the Pixel Streaming mix.
 	 */
 	virtual void RemoveAudioInput(TSharedPtr<IPixelStreamingAudioInput> AudioInput) = 0;
+
+	/**
+	 * @brief Allows sending arbitrary configuration options during initial connection
+	 *
+	 * @param Value Setting a value to an empty string clears it from the mapping and prevents it being sent
+	 */
+	virtual void SetConfigOption(const FName& OptionName, const FString& Value) = 0;
+	virtual bool GetConfigOption(const FName& OptionName, FString& OutValue) = 0;
 };

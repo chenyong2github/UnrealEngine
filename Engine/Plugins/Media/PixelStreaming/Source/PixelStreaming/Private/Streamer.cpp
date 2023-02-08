@@ -368,6 +368,32 @@ namespace UE::PixelStreaming
 		FPixelStreamingPeerConnection::RemoveAudioInput(AudioInput);
 	}
 
+	void FStreamer::SetConfigOption(const FName& OptionName, const FString& Value)
+	{
+		if (Value.IsEmpty())
+		{
+			ConfigOptions.Remove(OptionName);
+		}
+		else
+		{
+			ConfigOptions.Add(OptionName, Value);
+		}
+	}
+
+	bool FStreamer::GetConfigOption(const FName& OptionName, FString& OutValue)
+	{
+		FString* OptionValue = ConfigOptions.Find(OptionName);
+		if (OptionValue)
+		{
+			OutValue = *OptionValue;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
 	void FStreamer::AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject)
 	{
 		checkf(InputHandler.IsValid(), TEXT("No Input Device available when populating Player Config"));
@@ -800,7 +826,20 @@ namespace UE::PixelStreaming
 			Settings::CVarPixelStreamingEnableFillerData.GetValueOnAnyThread() ? 1 : 0,
 			*Settings::CVarPixelStreamingEncoderMultipass.GetValueOnAnyThread());
 
-		const FString FullPayload = FString::Printf(TEXT("{ \"PixelStreaming\": %s, \"Encoder\": %s, \"WebRTC\": %s }"), *PixelStreamingPayload, *EncoderPayload, *WebRTCPayload);
+		FString ConfigPayload = TEXT("{ ");
+		bool bComma = false; // Simplest way to avoid complaints from pedantic JSON parsers
+		for (const TPair<FName, FString>& Option: ConfigOptions)
+		{
+			if (bComma)
+			{
+				ConfigPayload.Append(TEXT(", "));
+			}
+			ConfigPayload.Append(FString::Printf(TEXT("\"%s\": \"%s\""), *Option.Key.ToString(), *Option.Value));
+			bComma = true;
+		}
+		ConfigPayload.Append(TEXT("}"));
+
+		const FString FullPayload = FString::Printf(TEXT("{ \"PixelStreaming\": %s, \"Encoder\": %s, \"WebRTC\": %s, \"ConfigOptions\": %s }"), *PixelStreamingPayload, *EncoderPayload, *WebRTCPayload, *ConfigPayload);
 
 		if (const FPlayerContext* PlayerContext = Players.Find(PlayerId))
 		{

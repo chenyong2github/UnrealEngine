@@ -70,6 +70,9 @@ namespace UE::PixelStreaming
 		TSharedPtr<IPixelStreamingAudioInput> CreateAudioInput() override;
 		void RemoveAudioInput(TSharedPtr<IPixelStreamingAudioInput> AudioInput) override;
 
+		virtual void SetConfigOption(const FName& OptionName, const FString& Value) override;
+		virtual bool GetConfigOption(const FName& OptionName, FString& OutValue) override;
+
 		// TODO(Luke) hook this back up so that the Engine can change how the interface is working browser side
 		void AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject);
 
@@ -138,5 +141,7 @@ namespace UE::PixelStreaming
 		FDelegateHandle AllConnectionsClosedHandle;
 
 		IPixelStreamingModule& Module;
+
+		TMap<FName, FString> ConfigOptions;
 	};
 } // namespace UE::PixelStreaming
