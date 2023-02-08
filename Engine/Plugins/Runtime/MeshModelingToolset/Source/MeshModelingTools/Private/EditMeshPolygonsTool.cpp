@@ -50,6 +50,7 @@
 #include "TransformTypes.h"
 #include "Util/CompactMaps.h"
 #include "Selections/GeometrySelection.h"
+#include "Selection/GeometrySelectionManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditMeshPolygonsTool)
 
@@ -133,6 +134,42 @@ void UEditMeshPolygonsToolBuilder::InitializeNewTool(USingleTargetWithSelectionT
 }
 
 
+bool UEditMeshPolygonsActionModeToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	if (UEditMeshPolygonsToolBuilder::CanBuildTool(SceneState))
+	{
+		if ( StartupAction == EEditMeshPolygonsToolActions::SimplifyByGroups
+			 || StartupAction == EEditMeshPolygonsToolActions::InsertEdge
+			 || StartupAction == EEditMeshPolygonsToolActions::InsertEdgeLoop )
+		{
+			return true;
+		}
+
+		if ( UGeometrySelectionManager* SelectionManager = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGeometrySelectionManager>() )
+		{
+			EGeometryTopologyType TopologyType = EGeometryTopologyType::Triangle;
+			EGeometryElementType ElementType = EGeometryElementType::Face;
+			int NumTargets;
+			bool bIsEmpty = false;
+			SelectionManager->GetActiveSelectionInfo(TopologyType, ElementType, NumTargets, bIsEmpty);
+			if (StartupAction == EEditMeshPolygonsToolActions::Extrude
+				|| StartupAction == EEditMeshPolygonsToolActions::PushPull
+				|| StartupAction == EEditMeshPolygonsToolActions::Offset
+				|| StartupAction == EEditMeshPolygonsToolActions::Inset
+				|| StartupAction == EEditMeshPolygonsToolActions::Outset
+				|| StartupAction == EEditMeshPolygonsToolActions::CutFaces)
+			{
+				return (TopologyType == EGeometryTopologyType::Polygroup && ElementType == EGeometryElementType::Face && bIsEmpty == false);
+			}
+			else if (StartupAction == EEditMeshPolygonsToolActions::BevelAuto)
+			{
+				return (TopologyType == EGeometryTopologyType::Polygroup && ElementType != EGeometryElementType::Vertex && bIsEmpty == false);
+			}
+		}
+	}
+	return false;
+}
+
 
 void UEditMeshPolygonsActionModeToolBuilder::InitializeNewTool(USingleTargetWithSelectionTool* Tool, const FToolBuilderState& SceneState) const
 {
@@ -149,46 +186,101 @@ void UEditMeshPolygonsActionModeToolBuilder::InitializeNewTool(USingleTargetWith
 
 
 
+bool UEditMeshPolygonsSelectionModeToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	if (UEditMeshPolygonsToolBuilder::CanBuildTool(SceneState))
+	{
+		if ( UGeometrySelectionManager* SelectionManager = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGeometrySelectionManager>() )
+		{
+			// if not actively selecting mesh components, tool can be started in 'standard' full-PolyEd mode
+			if (SelectionManager->GetMeshTopologyMode() == UGeometrySelectionManager::EMeshTopologyMode::None)
+			{
+				return true;
+			}
+			// otherwise can only start tool in sub-modes
+			EGeometryTopologyType TopologyType = EGeometryTopologyType::Triangle;
+			EGeometryElementType ElementType = EGeometryElementType::Face;
+			int NumTargets;
+			bool bIsEmpty = false;
+			SelectionManager->GetActiveSelectionInfo(TopologyType, ElementType, NumTargets, bIsEmpty);
+			if (TopologyType == EGeometryTopologyType::Polygroup)
+			{
+				return ElementType != EGeometryElementType::Vertex;
+			}
+		}
+	}
+	return false;
+}
+
 void UEditMeshPolygonsSelectionModeToolBuilder::InitializeNewTool(USingleTargetWithSelectionTool* Tool, const FToolBuilderState& SceneState) const
 {
 	UEditMeshPolygonsToolBuilder::InitializeNewTool(Tool, SceneState);
 	UEditMeshPolygonsTool* EditPolygonsTool = CastChecked<UEditMeshPolygonsTool>(Tool);
 
-	EEditMeshPolygonsToolSelectionMode UseMode = SelectionMode;
-	EditPolygonsTool->PostSetupFunction = [UseMode](UEditMeshPolygonsTool* PolyTool)
+	// if not actively selecting mesh components, start in full-PolyEd mode
+	if (UGeometrySelectionManager* SelectionManager = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGeometrySelectionManager>())
 	{
-		PolyTool->SetToSelectionModeInterface();
-
-		UPolygonSelectionMechanic* SelectionMechanic = PolyTool->SelectionMechanic;
-		UMeshTopologySelectionMechanicProperties* SelectionProps = SelectionMechanic->Properties;
-		SelectionProps->bSelectFaces = SelectionProps->bSelectEdges = SelectionProps->bSelectVertices = false;
-		SelectionProps->bSelectEdgeLoops = SelectionProps->bSelectEdgeRings = false;
-
-		switch (UseMode)
+		if (SelectionManager->GetMeshTopologyMode() == UGeometrySelectionManager::EMeshTopologyMode::None)
 		{
-		default:
-		case EEditMeshPolygonsToolSelectionMode::Faces:
-			SelectionProps->bSelectFaces = true;
-			break;
-		case EEditMeshPolygonsToolSelectionMode::Edges:
-			SelectionProps->bSelectEdges = true;
-			break;
-		case EEditMeshPolygonsToolSelectionMode::Vertices:
-			SelectionProps->bSelectVertices = true;
-			break;
-		case EEditMeshPolygonsToolSelectionMode::Loops:
-			SelectionProps->bSelectEdges = true;
-			SelectionProps->bSelectEdgeLoops = true;
-			break;
-		case EEditMeshPolygonsToolSelectionMode::Rings:
-			SelectionProps->bSelectEdges = true;
-			SelectionProps->bSelectEdgeRings = true;
-			break;
-		case EEditMeshPolygonsToolSelectionMode::FacesEdgesVertices:
-			SelectionProps->bSelectFaces = SelectionProps->bSelectEdges = SelectionProps->bSelectVertices = true;
-			break;
+			return;
 		}
-	};
+
+		// otherwise can only start tool in sub-modes
+		EGeometryTopologyType TopologyType = EGeometryTopologyType::Triangle;
+		EGeometryElementType ElementType = EGeometryElementType::Face;
+		int NumTargets;
+		bool bIsEmpty = false;
+		SelectionManager->GetActiveSelectionInfo(TopologyType, ElementType, NumTargets, bIsEmpty);
+		if (TopologyType != EGeometryTopologyType::Polygroup)
+		{
+			return;		// should not happen...
+		}
+
+		EEditMeshPolygonsToolSelectionMode UseMode = EEditMeshPolygonsToolSelectionMode::Faces;
+		bool bIsEdgeSelection = false;
+		if (ElementType == EGeometryElementType::Edge)
+		{
+			bIsEdgeSelection = true;
+			UseMode = EEditMeshPolygonsToolSelectionMode::Edges;
+		}
+		else if (ElementType == EGeometryElementType::Vertex)
+		{
+			UseMode = EEditMeshPolygonsToolSelectionMode::Vertices;
+		}
+
+		EditPolygonsTool->PostSetupFunction = [UseMode, bIsEdgeSelection](UEditMeshPolygonsTool* PolyTool)
+		{
+			PolyTool->SetToolPropertySourceEnabled(PolyTool->EditActions, !bIsEdgeSelection);
+			PolyTool->SetToolPropertySourceEnabled(PolyTool->EditEdgeActions, bIsEdgeSelection);
+			PolyTool->SetToolPropertySourceEnabled(PolyTool->EditUVActions, !bIsEdgeSelection);
+			
+			PolyTool->SetToolPropertySourceEnabled(PolyTool->TopologyProperties, false);
+
+			UPolygonSelectionMechanic* SelectionMechanic = PolyTool->SelectionMechanic;
+			UMeshTopologySelectionMechanicProperties* SelectionProps = SelectionMechanic->Properties;
+			SelectionProps->bSelectFaces = SelectionProps->bSelectEdges = SelectionProps->bSelectVertices = false;
+			SelectionProps->bSelectEdgeLoops = SelectionProps->bSelectEdgeRings = false;
+
+			switch (UseMode)
+			{
+			default:
+			case EEditMeshPolygonsToolSelectionMode::Faces:
+				SelectionProps->bSelectFaces = true;
+				break;
+			case EEditMeshPolygonsToolSelectionMode::Edges:
+				SelectionProps->bSelectEdges = true;
+				break;
+			case EEditMeshPolygonsToolSelectionMode::Vertices:
+				SelectionProps->bSelectVertices = true;
+				break;
+			}
+
+			PolyTool->SetToolPropertySourceEnabled(SelectionProps, false);
+		};
+	}
+
+
+
 }
 
 

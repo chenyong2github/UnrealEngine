@@ -257,6 +257,11 @@ public:
 	/** @return true if there is an active element selection */
 	virtual bool HasSelection() const;
 
+	/** 
+	 * Get avaialble information about the active selection/state
+	 */
+	virtual void GetActiveSelectionInfo(EGeometryTopologyType& TopologyTypeOut, EGeometryElementType& ElementTypeOut, int& NumTargetsOut, bool& bIsEmpty) const;
+
 	/** @return a world-space bounding box for the active element selection */
 	virtual bool GetSelectionBounds(FGeometrySelectionBounds& BoundsOut) const;
 	/** @return a 3D transformation frame suitable for use with the active element selection */

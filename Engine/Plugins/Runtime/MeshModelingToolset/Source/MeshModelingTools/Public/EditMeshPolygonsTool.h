@@ -153,6 +153,7 @@ class MESHMODELINGTOOLS_API UEditMeshPolygonsActionModeToolBuilder : public UEdi
 public:
 	EEditMeshPolygonsToolActions StartupAction = EEditMeshPolygonsToolActions::Extrude;
 
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual void InitializeNewTool(USingleTargetWithSelectionTool* Tool, const FToolBuilderState& SceneState) const override;
 };
 
@@ -174,6 +175,7 @@ class MESHMODELINGTOOLS_API UEditMeshPolygonsSelectionModeToolBuilder : public U
 public:
 	EEditMeshPolygonsToolSelectionMode SelectionMode = EEditMeshPolygonsToolSelectionMode::Faces;
 
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual void InitializeNewTool(USingleTargetWithSelectionTool* Tool, const FToolBuilderState& SceneState) const override;
 };
 

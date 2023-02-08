@@ -240,7 +240,14 @@ bool UGeometrySelectionManager::HasSelection() const
 }
 
 
-
+void UGeometrySelectionManager::GetActiveSelectionInfo(EGeometryTopologyType& TopologyTypeOut, EGeometryElementType& ElementTypeOut, int& NumTargetsOut, bool& bIsEmpty) const
+{
+	FGeometrySelectionHitQueryConfig Config = GetCurrentSelectionQueryConfig();
+	TopologyTypeOut = Config.TopologyType;
+	ElementTypeOut = Config.ElementType;
+	NumTargetsOut = ActiveTargetReferences.Num();
+	bIsEmpty = (NumTargetsOut == 0) || ActiveTargetReferences[0]->Selection.IsEmpty();
+}
 
 
 class FGeometrySelectionManager_ActiveTargetsChange : public FToolCommandChange

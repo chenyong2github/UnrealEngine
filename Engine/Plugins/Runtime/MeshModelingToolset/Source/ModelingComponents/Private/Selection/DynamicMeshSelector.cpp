@@ -185,7 +185,8 @@ void FBaseDynamicMeshSelector::UpdateSelectionFromSelection(
 		return;
 	}
 
-	ensure(false);		// todo: support this type of convert selection
+	// todo: support additional conversion types here
+	//ensure(false);
 }
 
 
