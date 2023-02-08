@@ -28,6 +28,11 @@ public class ShaderCompilerCommon : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "SPIRVReflect");
 		}
 
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PublicSystemLibraries.Add("ImageHlp.lib");
+		}
+
 		// We only need a header containing definitions
 		PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "hlslcc/hlslcc/src/hlslcc_lib"));
 		PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "SPIRV-Reflect/SPIRV-Reflect"));

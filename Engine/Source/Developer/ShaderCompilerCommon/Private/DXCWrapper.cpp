@@ -5,15 +5,25 @@
 #include "HAL/FileManager.h"
 #include "Templates/RefCounting.h"
 #include "Misc/Paths.h"
-#include "Hash/CityHash.h"
+#include "Hash/xxhash.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
+#include "ImageHlp.h"
 #endif // PLATFORM_WINDOWS
 
 static TRefCountPtr<FDllHandle> GDxilHandle;
 static TRefCountPtr<FDllHandle> GDxcHandle;
 static TRefCountPtr<FDllHandle> GShaderConductorHandle;
+
+#if PLATFORM_WINDOWS
+BOOL __stdcall DigestHash(DIGEST_HANDLE Handle, PBYTE Data, DWORD Length)
+{
+	FXxHash64Builder& Hasher = *reinterpret_cast<FXxHash64Builder*>(Handle);
+	Hasher.Update(Data, Length);
+	return true;
+}
+#endif
 
 static uint64 GetLoadedModuleVersion(const TCHAR* ModuleName)
 {
@@ -32,18 +42,25 @@ static uint64 GetLoadedModuleVersion(const TCHAR* ModuleName)
 	}
 	check(PathLen < UE_ARRAY_COUNT(DllPath));
 
-	uint64 FileVersion = 0;
-
-	TUniquePtr<FArchive> FileReader(IFileManager::Get().CreateFileReader(DllPath));
-	if (FileReader)
+	HANDLE DllHandle = ::CreateFileW(DllPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+	FXxHash64Builder FileHashBuilder;
+	// ImageHlp APIs are not threadsafe; need a mutex around all calls.
+	// At the moment this is the only usage of said APIs in the engine; if other usage 
+	// is added this should be moved to a shared utility.
+	static FCriticalSection ImageHlpCs;
 	{
-		TArray<char> FileContents;
-		FileContents.SetNumUninitialized(FileReader->TotalSize());
-		FileReader->Serialize(FileContents.GetData(), FileContents.Num());
-		FileVersion = CityHash64(FileContents.GetData(), FileContents.Num());
+		FScopeLock Lock(&ImageHlpCs);
+		bool bResult = ImageGetDigestStream(
+			DllHandle,
+			CERT_PE_IMAGE_DIGEST_ALL_IMPORT_INFO | CERT_PE_IMAGE_DIGEST_RESOURCES,
+			DigestHash,
+			reinterpret_cast<DIGEST_HANDLE>(&FileHashBuilder));
+		check(bResult);
 	}
 
-	return FileVersion;
+	CloseHandle(DllHandle);
+
+	return FileHashBuilder.Finalize().Hash;
 #else // PLATFORM_WINDOWS
 	return 0;
 #endif // PLATFORM_WINDOWS
