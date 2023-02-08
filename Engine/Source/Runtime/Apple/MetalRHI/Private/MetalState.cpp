@@ -6,6 +6,7 @@
 
 #include "MetalRHIPrivate.h"
 #include "MetalProfiler.h"
+#include "RHIUtilities.h"
 
 static uint32 GetMetalMaxAnisotropy(ESamplerFilter Filter, uint32 MaxAniso)
 {
