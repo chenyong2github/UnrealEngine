@@ -117,6 +117,20 @@ namespace UnrealGameSync
 			UserBuildStepObjects = inUserBuildSteps;
 			CustomBuildSteps = inCustomBuildSteps;
 		}
+
+		public static WorkspaceUpdateOptions GetOptionsFromConfig(GlobalSettings globalSettings, UserWorkspaceSettings workspaceSettings)
+		{
+			WorkspaceUpdateOptions options = 0;
+			if (workspaceSettings.Filter.AllProjects ?? globalSettings.Filter.AllProjects ?? false)
+			{
+				options |= WorkspaceUpdateOptions.SyncAllProjects | WorkspaceUpdateOptions.IncludeAllProjectsInSolution;
+			}
+			if (workspaceSettings.Filter.AllProjectsInSln ?? globalSettings.Filter.AllProjectsInSln ?? false)
+			{
+				options |= WorkspaceUpdateOptions.IncludeAllProjectsInSolution;
+			}
+			return options;
+		}
 	}
 
 	public class WorkspaceSyncCategory

@@ -963,14 +963,7 @@ namespace UnrealGameSync
 			{
 				context.Options |= WorkspaceUpdateOptions.AutoResolveChanges;
 			}
-			if (_workspaceSettings.Filter.AllProjects ?? _settings.Global.Filter.AllProjects ?? false)
-			{
-				context.Options |= WorkspaceUpdateOptions.SyncAllProjects | WorkspaceUpdateOptions.IncludeAllProjectsInSolution;
-			}
-			if (_workspaceSettings.Filter.AllProjectsInSln ?? _settings.Global.Filter.AllProjectsInSln ?? false)
-			{
-				context.Options |= WorkspaceUpdateOptions.IncludeAllProjectsInSolution;
-			}
+			context.Options |= WorkspaceUpdateContext.GetOptionsFromConfig(_settings.Global, _workspaceSettings);
 
 			_updateCallback = callback;
 

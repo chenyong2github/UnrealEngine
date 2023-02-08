@@ -654,6 +654,7 @@ namespace UnrealGameSyncCmd
 				{
 					options |= WorkspaceUpdateOptions.Refilter;
 				}
+				options |= WorkspaceUpdateContext.GetOptionsFromConfig(context.UserSettings.Global, settings);
 				options |= WorkspaceUpdateOptions.RemoveFilteredFiles;
 
 				string[] syncFilter = ReadSyncFilter(settings, context.UserSettings, projectConfig);
