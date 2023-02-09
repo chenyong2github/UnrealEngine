@@ -19,6 +19,7 @@
 #include "Customizations/SlateBrushCustomization.h"
 #include "Customizations/SlateFontInfoCustomization.h"
 #include "Customizations/WidgetTypeCustomization.h"
+#include "Customizations/WidgetChildTypeCustomization.h"
 #include "Customizations/WidgetNavigationCustomization.h"
 #include "Customizations/CanvasSlotCustomization.h"
 #include "Customizations/HorizontalAlignmentCustomization.h"
@@ -200,6 +201,7 @@ SWidgetDetailsView::~SWidgetDetailsView()
 
 	// Unregister the property type layouts
 	PropertyView->UnregisterInstancedCustomPropertyTypeLayout(TEXT("Widget"));
+	PropertyView->UnregisterInstancedCustomPropertyTypeLayout(TEXT("WidgetChild"));
 	PropertyView->UnregisterInstancedCustomPropertyTypeLayout(TEXT("WidgetNavigation"));
 	PropertyView->UnregisterInstancedCustomPropertyTypeLayout(TEXT("PanelSlot"));
 	PropertyView->UnregisterInstancedCustomPropertyTypeLayout(TEXT("EHorizontalAlignment"));
@@ -217,6 +219,7 @@ void SWidgetDetailsView::RegisterCustomizations()
 
 	PropertyView->RegisterInstancedCustomPropertyLayout(UWidget::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FBlueprintWidgetCustomization::MakeInstance, BlueprintEditorRef, BlueprintEditorRef->GetBlueprintObj()));
 	PropertyView->RegisterInstancedCustomPropertyTypeLayout(TEXT("Widget"), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FWidgetTypeCustomization::MakeInstance, BlueprintEditorRef), nullptr);
+	PropertyView->RegisterInstancedCustomPropertyTypeLayout(TEXT("WidgetChild"), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FWidgetChildTypeCustomization::MakeInstance, BlueprintEditor.Pin().ToSharedRef()), nullptr);
 	PropertyView->RegisterInstancedCustomPropertyTypeLayout(TEXT("WidgetNavigation"), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FWidgetNavigationCustomization::MakeInstance, BlueprintEditorRef));
 	PropertyView->RegisterInstancedCustomPropertyTypeLayout(TEXT("PanelSlot"), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FCanvasSlotCustomization::MakeInstance, BlueprintEditorRef->GetBlueprintObj()));
 	PropertyView->RegisterInstancedCustomPropertyTypeLayout(TEXT("EHorizontalAlignment"), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FHorizontalAlignmentCustomization::MakeInstance));
