@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MuR/ImagePrivate.h"
+#include "MuR/ModelPrivate.h"
 #include "MuR/Platform.h"
 #include "MuR/ConvertData.h"
 #include "Async/ParallelFor.h"
