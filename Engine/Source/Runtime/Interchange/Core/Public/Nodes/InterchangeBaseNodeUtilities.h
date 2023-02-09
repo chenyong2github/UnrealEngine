@@ -365,8 +365,8 @@ public:
 		{
 			FAttributeKey IndexKey = GetKeyAttribute(CachedKeysAndValues.Num());
 			FAttributeKey AttributeKey = GetValueAttribute(InKey);
-			check(AttributesPtr->RegisterAttribute<KeyType>(IndexKey, InKey) == EAttributeStorageResult::Operation_Success);
-			check(AttributesPtr->RegisterAttribute<ValueType>(AttributeKey, InValue) == EAttributeStorageResult::Operation_Success);
+			ensure(AttributesPtr->RegisterAttribute<KeyType>(IndexKey, InKey) == EAttributeStorageResult::Operation_Success);
+			ensure(AttributesPtr->RegisterAttribute<ValueType>(AttributeKey, InValue) == EAttributeStorageResult::Operation_Success);
 			CachedKeysAndValues.AddByHash(
 				Hash
 				, InKey

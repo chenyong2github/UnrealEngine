@@ -329,6 +329,7 @@ void UInterchangeGenericMaterialPipeline::ExecutePipeline(UInterchangeBaseNodeCo
 	{
 		SourceNode->GetCustomImportUnusedMaterial(bImportUnusedMaterial);
 	}
+	bImportUnusedMaterial |= bImportMaterials;
 
 #if !WITH_EDITOR
 	// Can't import materials at runtime, fallback to instances
