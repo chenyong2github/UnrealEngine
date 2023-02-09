@@ -571,13 +571,15 @@ void FObjectMixerOutlinerHierarchy::CreateComponentItems(const AActor* Actor, TA
 
 TArray<FSceneOutlinerTreeItemPtr> FObjectMixerOutlinerHierarchy::ConditionallyCreateActorAndComponentItems(AActor* Actor) const
 {
-	check(IsValid(Actor));
-	
-	TArray<FSceneOutlinerTreeItemPtr> ReturnValue;
+	if (!IsValid(Actor))
+	{
+		return {};
+	}
 	
 	// Whether or not we have components to return, we should create an actor row if components would be returned if there were no filters
 	bool bWouldReturnAnyComponentsBeforeFiltering = false;
 	
+	TArray<FSceneOutlinerTreeItemPtr> ComponentRows;
 	if (bShowingComponents)
 	{
 		TArray<UActorComponent*> ActorComponents;
@@ -592,7 +594,7 @@ TArray<FSceneOutlinerTreeItemPtr> FObjectMixerOutlinerHierarchy::ConditionallyCr
 					Mode->CreateItemFor<FObjectMixerEditorListRowComponent>(
 						FObjectMixerEditorListRowComponent(Component, GetCastedMode()->GetSceneOutliner())))
 				{
-					ReturnValue.Add(ComponentItem);
+					ComponentRows.Add(ComponentItem);
 				}
 			}
 		}
@@ -600,24 +602,29 @@ TArray<FSceneOutlinerTreeItemPtr> FObjectMixerOutlinerHierarchy::ConditionallyCr
 
 	const bool bShouldCreateActorItem =
 		bWouldReturnAnyComponentsBeforeFiltering || !bShowingOnlyActorWithValidComponents || DoesWorldObjectHaveAcceptableClass(Actor);
-	
+
+	TArray<FSceneOutlinerTreeItemPtr> ReturnValue;
 	if (bShouldCreateActorItem)
 	{
 		if (const FSceneOutlinerTreeItemPtr ActorItem =
 			Mode->CreateItemFor<FObjectMixerEditorListRowActor>(
 				FObjectMixerEditorListRowActor(Actor, GetCastedMode()->GetSceneOutliner())))
 		{	
-			if (ReturnValue.Num() == 1) // Create hybrid row
+			if (ComponentRows.Num() == 1) // Create hybrid row
 			{
 				if (FObjectMixerEditorListRowActor* AsActorRow = FObjectMixerUtils::AsActorRow(ActorItem))
 				{
-					const FComponentTreeItem* ComponentItem = ReturnValue[0]->CastTo<FComponentTreeItem>();
+					const FComponentTreeItem* ComponentItem = ComponentRows[0]->CastTo<FComponentTreeItem>();
 
 					if (ComponentItem && ComponentItem->Component.IsValid())
 					{
 						AsActorRow->RowData.SetHybridComponent(ComponentItem->Component.Get());
 					}
 				}
+			}
+			else
+			{
+				ReturnValue.Append(ComponentRows);
 			}
 
 			// Place ActorItem before components
