@@ -131,8 +131,8 @@ extern RENDERCORE_API bool AllowDebugViewmodes();
 /** Returns true if debug viewmodes are allowed for the given platform. */
 extern RENDERCORE_API bool AllowDebugViewmodes(EShaderPlatform Platform);
 
-/** Returns the shader compression format (passing ShaderFormat for future proofing, but as of now the setting is global for all formats). */
-extern RENDERCORE_API FName GetShaderCompressionFormat(const FName& ShaderFormat = NAME_None);
+/** Returns the shader compression format. Oodle is used exclusively now. r.Shaders.SkipCompression configures Oodle to be uncompressed instead of returning NAME_None.*/
+extern RENDERCORE_API FName GetShaderCompressionFormat();
 
 namespace FOodleDataCompression
 {

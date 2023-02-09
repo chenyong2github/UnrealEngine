@@ -2393,6 +2393,8 @@ void FShaderCode::Compress(FName ShaderCompressionFormat, FOodleDataCompression:
 {
 	checkf(OptionalDataSize == -1, TEXT("FShaderCode::Compress() was called before calling FShaderCode::FinalizeShaderCode()"));
 
+	check(ShaderCompressionFormat == NAME_Oodle); // We now force shaders to compress with oodle (even if they are uncompressed)
+
 	TArray<uint8> Compressed;
 	// conventional formats will fail if the compressed size isn't enough, Oodle needs a more precise estimate
 	int32 CompressedSize = (ShaderCompressionFormat != NAME_Oodle) ? ShaderCodeWithOptionalData.Num() : FOodleDataCompression::CompressedBufferSizeNeeded(ShaderCodeWithOptionalData.Num());

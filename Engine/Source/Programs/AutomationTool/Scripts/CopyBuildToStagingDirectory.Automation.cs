@@ -2680,6 +2680,28 @@ namespace AutomationScripts
 				CompressionFormats = "";
 			}
 
+			// Always pass -compresslevel because we use it to inform the compression level of
+			// shaders, which are always compressed even if the containers aren't compressed.
+			int CompressionLevel = 0;
+			// GetInt32 fills out with = 0 if not found
+			if (Params.Distribution)
+			{
+				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionLevel_Distribution", out CompressionLevel);
+			}
+			else if (SC.StageTargetConfigurations.Any(Config => Config == UnrealTargetConfiguration.Test || Config == UnrealTargetConfiguration.Shipping))
+			{
+				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionLevel_TestShipping", out CompressionLevel);
+			}
+			else
+			{
+				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionLevel_DebugDevelopment", out CompressionLevel);
+			}
+
+			if (CompressionLevel != 0)
+			{
+				CompressionFormats += " -compresslevel=" + CompressionLevel;
+			}
+
 			string AdditionalCompressionOptionsOnCommandLine = "";
 			if (Params.Compressed)
 			{
@@ -2688,36 +2710,11 @@ namespace AutomationScripts
 				// there's not a great way to communicate random strings down into the plugins during plugin init time)
 				PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PackageAdditionalCompressionOptions", out AdditionalCompressionOptionsOnCommandLine);
 
-				//LogInformation("PackageAdditionalCompressionOptions = {0}", AdditionalCompressionOptionsOnCommandLine);
-
 				string CompressionMethod;
 				PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionMethod", out CompressionMethod);
 				if (!string.IsNullOrWhiteSpace(CompressionMethod))
 				{
-					//LogInformation("CompressionMethod = {0}", CompressionMethod);
 					CompressionFormats += " -compressmethod=" + CompressionMethod;
-				}
-
-				// get the encoder compression effort level based on the cook type
-				int CompressionLevel = 0;
-				// GetInt32 fills out with = 0 if not found
-				if (Params.Distribution)
-				{
-					PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionLevel_Distribution", out CompressionLevel);
-				}
-				else if (SC.StageTargetConfigurations.Any(Config => Config == UnrealTargetConfiguration.Test || Config == UnrealTargetConfiguration.Shipping))
-				{
-					PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionLevel_TestShipping", out CompressionLevel);
-				}
-				else
-				{
-					PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionLevel_DebugDevelopment", out CompressionLevel);
-				}
-
-				if (CompressionLevel != 0)
-				{
-					//LogInformation(" CompressionLevel = {0}", CompressionLevel);
-					CompressionFormats += " -compresslevel=" + CompressionLevel;
 				}
 
 

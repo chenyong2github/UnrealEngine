@@ -109,6 +109,7 @@ enum class ECompressionLevel : int8
 bool CORE_API ECompressionLevelFromValue(int8 InValue, ECompressionLevel& OutLevel);
 bool CORE_API ECompressionLevelToString(ECompressionLevel InLevel, const TCHAR** OutName);
 CORE_API const TCHAR * ECompressionLevelToString(ECompressionLevel InLevel);
+CORE_API bool ECompressionLevelFromString(const TCHAR* InName, ECompressionLevel& OutLevel);
 
 enum class ECompressionCommonUsage : uint8
 {

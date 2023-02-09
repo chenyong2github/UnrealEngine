@@ -869,6 +869,9 @@ struct FIoStoreArguments
 	bool bFileRegions = false;
 	EAssetRegistryWritebackMethod WriteBackMetadataToAssetRegistry = EAssetRegistryWritebackMethod::Disabled;
 
+	FOodleDataCompression::ECompressor ShaderOodleCompressor = FOodleDataCompression::ECompressor::Mermaid;
+	FOodleDataCompression::ECompressionLevel ShaderOodleLevel = FOodleDataCompression::ECompressionLevel::Normal;
+
 	bool IsDLC() const
 	{
 		return DLCPluginPath.Len() > 0;
@@ -1691,8 +1694,10 @@ bool LoadShaderAssetInfo(const FString& Filename, TMap<FSHAHash, TSet<FName>>& O
 	return true;
 }
 
-bool ConvertToIoStoreShaderLibrary(
+static bool ConvertToIoStoreShaderLibrary(
 	const TCHAR* FileName,
+	FOodleDataCompression::ECompressor InShaderOodleCompressor,
+	FOodleDataCompression::ECompressionLevel InShaderOodleLevel,
 	TTuple<FIoChunkId, FIoBuffer>& OutLibraryIoChunk,
 	TArray<TTuple<FIoChunkId, FIoBuffer, uint32>>& OutCodeIoChunks,
 	TArray<TTuple<FSHAHash, TArray<FIoChunkId>>>& OutShaderMaps,
@@ -1751,7 +1756,7 @@ bool ConvertToIoStoreShaderLibrary(
 	OutCodeIoChunks.SetNum(GroupCount);
 	FCriticalSection DiskArchiveAccess;
 	ParallelFor(OutCodeIoChunks.Num(),
-		[&OutCodeIoChunks, &IoStoreLibraryHeader, &DiskArchiveAccess, &LibraryAr, &SerializedShaders, &OffsetToShaderCode](int32 GroupIndex)
+		[&OutCodeIoChunks, &IoStoreLibraryHeader, &DiskArchiveAccess, &LibraryAr, &SerializedShaders, &OffsetToShaderCode, InShaderOodleCompressor, InShaderOodleLevel](int32 GroupIndex)
 		{
 			FIoStoreShaderGroupEntry& Group = IoStoreLibraryHeader.ShaderGroupEntries[GroupIndex];
 			uint8* UncompressedGroupMemory = reinterpret_cast<uint8*>(FMemory::Malloc(Group.UncompressedSize));
@@ -1794,7 +1799,7 @@ bool ConvertToIoStoreShaderLibrary(
 						}
 
 						// This function will crash if decompression fails.
-						ShaderCodeArchive::DecompressShader(ShaderStart, IndividuallyCompressedShader.UncompressedSize, CompressedShaderMemory, IndividuallyCompressedShader.Size);
+						ShaderCodeArchive::DecompressShaderWithOodle(ShaderStart, IndividuallyCompressedShader.UncompressedSize, CompressedShaderMemory, IndividuallyCompressedShader.Size);
 
 						FMemory::Free(CompressedShaderMemory);
 					}
@@ -1809,11 +1814,12 @@ bool ConvertToIoStoreShaderLibrary(
 
 			// now compress the whole group
 			int64 CompressedGroupSize = 0;
-			ShaderCodeArchive::CompressShaderUsingCurrentSettings(nullptr, CompressedGroupSize, UncompressedGroupMemory, Group.UncompressedSize);
+			uint8* CompressedShaderGroupMemory = nullptr;
+			ShaderCodeArchive::CompressShaderWithOodle(nullptr, CompressedGroupSize, UncompressedGroupMemory, Group.UncompressedSize, InShaderOodleCompressor, InShaderOodleLevel);
 			checkf(CompressedGroupSize > 0, TEXT("CompressedGroupSize estimate seems wrong (%lld)"), CompressedGroupSize);
 
-			uint8* CompressedShaderGroupMemory = reinterpret_cast<uint8*>(FMemory::Malloc(CompressedGroupSize));
-			bool bCompressed = ShaderCodeArchive::CompressShaderUsingCurrentSettings(CompressedShaderGroupMemory, CompressedGroupSize, UncompressedGroupMemory, Group.UncompressedSize);
+			CompressedShaderGroupMemory = reinterpret_cast<uint8*>(FMemory::Malloc(CompressedGroupSize));
+			bool bCompressed = ShaderCodeArchive::CompressShaderWithOodle(CompressedShaderGroupMemory, CompressedGroupSize, UncompressedGroupMemory, Group.UncompressedSize, InShaderOodleCompressor, InShaderOodleLevel);
 			checkf(bCompressed, TEXT("We could not compress the shader group after providing an estimated memory."));
 
 			TTuple<FIoChunkId, FIoBuffer, uint32>& OutCodeIoChunk = OutCodeIoChunks[GroupIndex];
@@ -1913,7 +1919,7 @@ bool ConvertToIoStoreShaderLibrary(
 	return true;
 }
 
-void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContainerTargetSpec*>& ContainerTargets, TArray<FShaderInfo*> OutShaders)
+static void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContainerTargetSpec*>& ContainerTargets, TArray<FShaderInfo*> OutShaders)
 {
 	IOSTORE_CPU_SCOPE(ProcessShaderLibraries);
 
@@ -1936,7 +1942,7 @@ void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContaine
 					TTuple<FIoChunkId, FIoBuffer> LibraryChunk;
 					TArray<TTuple<FIoChunkId, FIoBuffer, uint32>> CodeChunks;
 					TArray<TTuple<FSHAHash, TSet<FName>>> ShaderMapAssetAssociations;
-					if (!ConvertToIoStoreShaderLibrary(*TargetFile.NormalizedSourcePath, LibraryChunk, CodeChunks, ShaderMaps, ShaderMapAssetAssociations))
+				    if (!ConvertToIoStoreShaderLibrary(*TargetFile.NormalizedSourcePath, Arguments.ShaderOodleCompressor, Arguments.ShaderOodleLevel, LibraryChunk, CodeChunks, ShaderMaps, ShaderMapAssetAssociations))
 					{
 						UE_LOG(LogIoStore, Warning, TEXT("Failed converting shader library '%s'"), *TargetFile.NormalizedSourcePath);
 						continue;
@@ -3455,7 +3461,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		ParsePackageAssetsFromFiles(Packages, PackageStoreOptimizer);
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("Processing shader libraries..."));
+	UE_LOG(LogIoStore, Display, TEXT("Processing shader libraries, compressing with Oodle %s, level %d (%s)"), FOodleDataCompression::ECompressorToString(Arguments.ShaderOodleCompressor), (int32)Arguments.ShaderOodleLevel, FOodleDataCompression::ECompressionLevelToString(Arguments.ShaderOodleLevel));
 	TArray<FShaderInfo*> Shaders;
 	ProcessShaderLibraries(Arguments, ContainerTargets, Shaders);
 
@@ -6887,6 +6893,22 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	{
 		UE_LOG(LogIoStore, Error, TEXT("CookedDirectory must be specified"));
 		return -1;
+	}
+
+	//
+	// -compresslevel is technically consumed by OodleDataCompressionFormat, however the setting that it represents (PackageCompressionLevel_*)
+	// is the intention of package compression, and so should also determine the compression we use for shaders. For Shaders we want fast decompression,
+	// so we always used Mermaid. Note that this relies on compresslevel being passed even when the containers aren't compressed.
+	//
+	FString ShaderOodleLevel;
+	FParse::Value(FCommandLine::Get(), TEXT("compresslevel="), ShaderOodleLevel);
+	if (ShaderOodleLevel.Len())
+	{
+		if (FOodleDataCompression::ECompressionLevelFromString(*ShaderOodleLevel, Arguments.ShaderOodleLevel))
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Selected Oodle level %d (%s) from command line for shaders"), (int)Arguments.ShaderOodleLevel, FOodleDataCompression::ECompressionLevelToString(Arguments.ShaderOodleLevel));
+		}
+		
 	}
 
 	// Whether or not to write compressed asset sizes back to the asset registry.

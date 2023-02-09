@@ -83,6 +83,31 @@ static struct { ECompressionLevel Level; const TCHAR* Name; } CompressionLevelNa
 	{ECompressionLevel::Optimal4, TEXT("Optimal4")}
 };
 
+CORE_API bool ECompressionLevelFromString(const TCHAR* InName, ECompressionLevel& OutLevel)
+{
+	for (SIZE_T i = 0; i < sizeof(CompressionLevelNameMap) / sizeof(CompressionLevelNameMap[0]); i++)
+	{
+		if (FCString::Stricmp(CompressionLevelNameMap[i].Name, InName) == 0)
+		{
+			OutLevel = CompressionLevelNameMap[i].Level;
+			return true;
+		}
+	}
+	// Since 0 is a valid compression level, we can't just atoi it or we'd always succeed.
+	if ((InName[0] == '-' && FChar::IsDigit(InName[1]))
+		|| FChar::IsDigit(InName[0]) )
+	{
+		int32 PossibleCompressionLevel = FCString::Atoi(InName);
+		if (PossibleCompressionLevel >= OodleLZ_CompressionLevel_Min &&
+			PossibleCompressionLevel <= OodleLZ_CompressionLevel_Max)
+		{
+			OutLevel = (ECompressionLevel)PossibleCompressionLevel;
+			return true;
+		}
+	}
+	return false;
+}
+
 CORE_API bool ECompressionLevelToString(ECompressionLevel InLevel, const TCHAR** OutName)
 {
 	for (SIZE_T i = 0; i < sizeof(CompressionLevelNameMap) / sizeof(CompressionLevelNameMap[0]); i++)

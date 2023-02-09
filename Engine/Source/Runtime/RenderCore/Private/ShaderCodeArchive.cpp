@@ -348,47 +348,30 @@ void FShaderUsageVisualizer::SaveShaderUsageBitmap(const FString& Name, EShaderP
 }
 #endif
 
-void ShaderCodeArchive::DecompressShader(uint8* OutDecompressedShader, int64 UncompressedSize, const uint8* CompressedShaderCode, int64 CompressedSize)
+void ShaderCodeArchive::DecompressShaderWithOodle(uint8* OutDecompressedShader, int64 UncompressedSize, const uint8* CompressedShaderCode, int64 CompressedSize)
 {
-	bool bSucceed = FCompression::UncompressMemory(GetShaderCompressionFormat(), OutDecompressedShader, UncompressedSize, CompressedShaderCode, CompressedSize);
+	// Iostore always compresses with Oodle.
+	bool bSucceed = FCompression::UncompressMemory(NAME_Oodle, OutDecompressedShader, UncompressedSize, CompressedShaderCode, CompressedSize);
 	if (!bSucceed)
 	{
-		UE_LOG(LogShaderLibrary, Fatal, TEXT("ShaderCodeArchive::DecompressShader(): Could not decompress shader (GetShaderCompressionFormat=%s)"), *GetShaderCompressionFormat().ToString());
+		UE_LOG(LogShaderLibrary, Fatal, TEXT("ShaderCodeArchive::DecompressShader(): Could not decompress shader with Oodle"));
 	}
 }
 
-bool ShaderCodeArchive::CompressShaderUsingCurrentSettings(uint8* OutCompressedShader, int64& OutCompressedSize, const uint8* UncompressedShaderCode, int64 UncompressedSize)
+bool ShaderCodeArchive::CompressShaderWithOodle(uint8* OutCompressedShader, int64& OutCompressedSize, const uint8* InUncompressedShaderCode, int64 InUncompressedSize, FOodleDataCompression::ECompressor InOodleCompressor, FOodleDataCompression::ECompressionLevel InOodleLevel)
 {
-	// see FShaderCode::Compress - while this doesn't have to match exactly, it should match at least the parameters used there
-	const FName ShaderCompressionFormat = GetShaderCompressionFormat();
-
-	bool bCompressed = false;
-	if (ShaderCompressionFormat != NAME_Oodle)
+	if (OutCompressedShader)
 	{
-		int32 CompressedSize32 = static_cast<int32>(OutCompressedSize);
-		checkf(static_cast<int64>(CompressedSize32) == OutCompressedSize, TEXT("CompressedSize is too large (%lld) for an old API that takes int32"), OutCompressedSize);
-		bCompressed = FCompression::CompressMemory(ShaderCompressionFormat, OutCompressedShader, CompressedSize32, UncompressedShaderCode, UncompressedSize, COMPRESS_BiasSize);
-		OutCompressedSize = static_cast<int64>(CompressedSize32);
+		OutCompressedSize = FOodleDataCompression::Compress(OutCompressedShader, OutCompressedSize, InUncompressedShaderCode, InUncompressedSize, InOodleCompressor, InOodleLevel);
+		check(OutCompressedSize != 0);
+		return OutCompressedSize != 0;
 	}
 	else
 	{
-		FOodleDataCompression::ECompressor OodleCompressor;
-		FOodleDataCompression::ECompressionLevel OodleLevel;
-		GetShaderCompressionOodleSettings(OodleCompressor, OodleLevel);
-
-		// don't pass a nullptr to Oodle if we're only requesting an estimate
-		OutCompressedSize = OutCompressedShader ? FOodleDataCompression::Compress(OutCompressedShader, OutCompressedSize, UncompressedShaderCode, UncompressedSize, OodleCompressor, OodleLevel) : 0;
-		bCompressed = OutCompressedSize != 0;
-
-		// Oodle needs to return an estimate
-		if (!bCompressed)
-		{
-			// for Oodle, there is a separate estimation functon
-			OutCompressedSize = FOodleDataCompression::CompressedBufferSizeNeeded(UncompressedSize);
-		}	
-	}
-
-	return bCompressed;
+		// Just requesting an estimate.
+		OutCompressedSize = FOodleDataCompression::CompressedBufferSizeNeeded(InUncompressedSize);
+		return false;
+	}	
 }
 
 void FSerializedShaderArchive::DecompressShader(int32 Index, const TArray<TArray<uint8>>& ShaderCode, TArray<uint8>& OutDecompressedShader) const
@@ -401,7 +384,7 @@ void FSerializedShaderArchive::DecompressShader(int32 Index, const TArray<TArray
 	}
 	else
 	{
-		ShaderCodeArchive::DecompressShader(OutDecompressedShader.GetData(), Entry.UncompressedSize, ShaderCode[Index].GetData(), Entry.Size);
+		ShaderCodeArchive::DecompressShaderWithOodle(OutDecompressedShader.GetData(), Entry.UncompressedSize, ShaderCode[Index].GetData(), Entry.Size);
 	}
 }
 
@@ -1233,7 +1216,7 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 	if (ShaderEntry.UncompressedSize != ShaderEntry.Size)
 	{
 		uint8* UncompressedCode = reinterpret_cast<uint8*>(MemStack.Alloc(ShaderEntry.UncompressedSize, 16));
-		ShaderCodeArchive::DecompressShader(UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.Size);
+		ShaderCodeArchive::DecompressShaderWithOodle(UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.Size);
 		ShaderCode = (uint8*)UncompressedCode;
 	}
 
@@ -2069,7 +2052,7 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 ShaderInd
 	if (GroupEntry.IsGroupCompressed())
 	{
 		uint8* UncompressedCode = reinterpret_cast<uint8*>(MemStack.Alloc(GroupEntry.UncompressedSize, 16));
-		ShaderCodeArchive::DecompressShader(UncompressedCode, GroupEntry.UncompressedSize, ShaderCode, GroupEntry.CompressedSize);
+		ShaderCodeArchive::DecompressShaderWithOodle(UncompressedCode, GroupEntry.UncompressedSize, ShaderCode, GroupEntry.CompressedSize);
 		ShaderCode = reinterpret_cast<uint8*>(UncompressedCode) + ShaderEntry.UncompressedOffsetInGroup;
 
 #if UE_SCA_VISUALIZE_SHADER_USAGE

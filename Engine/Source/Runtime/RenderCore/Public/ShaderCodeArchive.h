@@ -385,13 +385,11 @@ namespace ShaderCodeArchive
 	/** Decompresses the shader into caller-provided memory. Caller is assumed to allocate at least ShaderEntry uncompressed size value.
 	 * The engine will crash (LogFatal) if this function fails.
 	 */
-	RENDERCORE_API void DecompressShader(uint8* OutDecompressedShader, int64 UncompressedSize, const uint8* CompressedShaderCode, int64 CompressedSize);
-
-	/** Compresses the shader into caller-provided memory using the current CVar settings (e.g. on Windows), which is as opposed to potentially different settings on 
-	 * the platform where the shaders are going to be decompressed (e.g. on console). It is the caller's responsibility to make sure those two match.
-	 * This function can also be used for the estimation as it will return false if the provided CompressedBufferLength isn't sufficient (it is safe to pass nullptr in that case).
-	 */
-	RENDERCORE_API bool CompressShaderUsingCurrentSettings(uint8* OutCompressedShader, int64& OutCompressedSize, const uint8* UncompressedShaderCode, int64 UncompressedSize);
+	RENDERCORE_API void DecompressShaderWithOodle(uint8* OutDecompressedShader, int64 UncompressedSize, const uint8* CompressedShaderCode, int64 CompressedSize);
+	
+	// We decompression, group, and recompress shaders when they are added to iostore containers in UnrealPak, where we don't have access to cvars - so there's no way 
+	// to configure - so we force Oodle and allow specification of the parameters here.
+	RENDERCORE_API bool CompressShaderWithOodle(uint8* OutCompressedShader, int64& OutCompressedSize, const uint8* InUncompressedShaderCode, int64 InUncompressedSize, FOodleDataCompression::ECompressor InOodleCompressor, FOodleDataCompression::ECompressionLevel InOodleLevel);
 }
 
 /** Descriptor of a shader map. This concept exists in run time, so this class describes the information stored in the library for a particular FShaderMap */
