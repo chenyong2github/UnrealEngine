@@ -28,7 +28,8 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemSimulation.h"
 #include "PhysicsEngine/PhysicsAsset.h"
-#include "ScenePrivate.h"
+#include "PrimitiveSceneInfo.h"
+#include "SceneInterface.h"
 #include "ShaderParameterUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRigidMeshCollisionQuery)
@@ -936,7 +937,7 @@ struct FNDIRigidMeshCollisionProxy : public FNiagaraDataInterfaceProxy
 					const uint32 BufferBytes = sizeof(uint32) * ElementCount;
 					void* BufferData = RHILockBuffer(ProxyData->AssetBuffer->DFIndexBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
-					const FSceneInterface* Scene = Context.GetComputeDispatchInterface().GetScene();
+					const FSceneInterface* Scene = Context.GetComputeDispatchInterface().GetSceneInterface();
 					if (Scene && !ProxyData->UniqueComponentIds.IsEmpty())
 					{
 						TArray<uint32> UniqueDistanceFieldIndices;

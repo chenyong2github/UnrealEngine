@@ -7,7 +7,6 @@
 #include "NiagaraAsyncGpuTraceProviderHwrt.h"
 #include "NiagaraSettings.h"
 #include "NiagaraShaderParticleID.h"
-#include "ScenePrivate.h"
 
 #include "PrimitiveSceneInfo.h"
 #include "RenderGraphUtils.h"

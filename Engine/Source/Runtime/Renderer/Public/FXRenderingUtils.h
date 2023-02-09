@@ -3,7 +3,9 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "RenderGraphFwd.h"
 #include "RHIDefinitions.h"
+#include "SceneRenderTargetParameters.h"
 #include "UObject/ObjectMacros.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
@@ -27,6 +29,20 @@ class FVisibleRayTracingMeshCommand;
 namespace UE::FXRenderingUtils
 {
 	RENDERER_API bool CanMaterialRenderBeforeFXPostOpaque(const FSceneViewFamily& ViewFamily, const FPrimitiveSceneProxy& SceneProxy, const FMaterial& Material);
+
+	RENDERER_API const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameterData(TConstStridedView<FSceneView> Views);
+	RENDERER_API FRDGTextureRef GetSceneVelocityTexture(const FSceneView& View);
+
+	RENDERER_API TRDGUniformBufferRef<FSceneTextureUniformParameters> GetOrCreateSceneTextureUniformBuffer(
+		FRDGBuilder& GraphBuilder,
+		TConstStridedView<FSceneView> Views,
+		ERHIFeatureLevel::Type FeatureLevel,
+		ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
+
+	RENDERER_API TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> GetOrCreateMobileSceneTextureUniformBuffer(
+		FRDGBuilder& GraphBuilder,
+		TConstStridedView<FSceneView> Views,
+		EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::All);
 
 	namespace DistanceFields
 	{

@@ -32,10 +32,12 @@
 #include "PipelineStateCache.h"
 #include "RHI.h"
 #include "SceneInterface.h"
-#include "SceneRendering.h"
 #include "SceneRenderTargetParameters.h"
 #include "ShaderParameterUtils.h"
 #include "TextureResource.h"
+#include "FXRenderingUtils.h"
+
+#include "ScenePrivate.h"
 
 DECLARE_CYCLE_STAT(TEXT("GPU Dispatch Setup [RT]"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);
@@ -1047,24 +1049,13 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 	SimulationSceneViews = MakeStridedViewOfBase<const FSceneView>(Views);
 	SimulationViewInfos = Views;
 
+	if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
 	{
-		const FSceneTextures* SceneTextures = Views.Num() > 0 ? GetViewFamilyInfo(Views).GetSceneTexturesChecked() : nullptr;
-		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
-		{
-			SceneTexturesUniformParams = SceneTextures ? SceneTextures->UniformBuffer : nullptr;
-			if (SceneTexturesUniformParams == nullptr)
-			{
-				SceneTexturesUniformParams = CreateSceneTextureUniformBuffer(GraphBuilder, nullptr, FeatureLevel, ESceneTextureSetupMode::SceneVelocity);
-			}
-		}
-		else if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
-		{
-			MobileSceneTexturesUniformParams = SceneTextures ? SceneTextures->MobileUniformBuffer : nullptr;
-			if (MobileSceneTexturesUniformParams == nullptr)
-			{
-				MobileSceneTexturesUniformParams = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures, EMobileSceneTextureSetupMode::None);
-			}
-		}
+		SceneTexturesUniformParams = UE::FXRenderingUtils::GetOrCreateSceneTextureUniformBuffer(GraphBuilder, SimulationSceneViews, FeatureLevel, ESceneTextureSetupMode::SceneVelocity);
+	}
+	else if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
+	{
+		MobileSceneTexturesUniformParams = UE::FXRenderingUtils::GetOrCreateMobileSceneTextureUniformBuffer(GraphBuilder, SimulationSceneViews, EMobileSceneTextureSetupMode::None);
 	}
 
 	// Loop over dispatches

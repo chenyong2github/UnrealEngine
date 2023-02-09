@@ -14,8 +14,6 @@
 #include "ShaderParameterMacros.h"
 #include "ShaderParameterStruct.h"
 #include "Templates/Function.h"
-
-#include "ScenePrivate.h"
 #include "RayTracingPayloadType.h"
 
 static int GNiagaraAsyncGpuTraceHwrtEnabled = 1;

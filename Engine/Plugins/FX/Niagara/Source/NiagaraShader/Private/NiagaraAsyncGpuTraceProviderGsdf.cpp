@@ -3,6 +3,7 @@
 #include "NiagaraAsyncGpuTraceProviderGsdf.h"
 
 #include "DataDrivenShaderPlatformInfo.h"
+#include "FXRenderingUtils.h"
 #include "GlobalShader.h"
 #include "NiagaraDistanceFieldHelper.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
@@ -109,9 +110,15 @@ bool FNiagaraAsyncGpuTraceProviderGsdf::IsAvailable() const
 
 void FNiagaraAsyncGpuTraceProviderGsdf::PostRenderOpaque(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views, FCollisionGroupHashMap* CollisionGroupHash)
 {
-	const FViewInfo& ReferenceView = Views[0];
-	m_DistanceFieldData = ReferenceView.GlobalDistanceFieldInfo.ParameterData;
-	m_ViewUniformBuffer = ReferenceView.ViewUniformBuffer;
+	if (const FGlobalDistanceFieldParameterData* DistanceFieldData = UE::FXRenderingUtils::GetGlobalDistanceFieldParameterData(MakeStridedViewOfBase<const FSceneView>(Views)))
+	{
+		m_DistanceFieldData = *DistanceFieldData;
+	}
+	else
+	{
+		m_DistanceFieldData = {};
+	}
+	m_ViewUniformBuffer = Views[0].ViewUniformBuffer;
 }
 
 void FNiagaraAsyncGpuTraceProviderGsdf::IssueTraces(FRHICommandList& RHICmdList, const FDispatchRequest& Request, FCollisionGroupHashMap* CollisionHashMap)

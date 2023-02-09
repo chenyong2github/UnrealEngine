@@ -36,6 +36,61 @@ bool UE::FXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(
 	return false;
 }
 
+const FGlobalDistanceFieldParameterData* UE::FXRenderingUtils::GetGlobalDistanceFieldParameterData(TConstStridedView<FSceneView> Views)
+{
+	return Views.Num() > 0 ? &static_cast<const FViewInfo&>(Views[0]).GlobalDistanceFieldInfo.ParameterData : nullptr;
+}
+
+FRDGTextureRef UE::FXRenderingUtils::GetSceneVelocityTexture(const FSceneView& View)
+{
+	const FViewFamilyInfo* ViewFamily = static_cast<const FViewFamilyInfo*>(View.Family);
+	const FSceneTextures* SceneTextures = ViewFamily ? ViewFamily->GetSceneTexturesChecked() : nullptr;
+	return SceneTextures ? SceneTextures->Velocity : nullptr;
+}
+
+TRDGUniformBufferRef<FSceneTextureUniformParameters> UE::FXRenderingUtils::GetOrCreateSceneTextureUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	TConstStridedView<FSceneView> Views,
+	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode)
+{
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams = nullptr;
+
+	const FViewInfo* View = Views.Num() > 0 ? static_cast<const FViewInfo*>(&Views[0]) : nullptr;
+	if (const FSceneTextures* SceneTextures = View ? static_cast<const FViewFamilyInfo*>(View->Family)->GetSceneTexturesChecked() : nullptr)
+	{
+		SceneTexturesUniformParams = SceneTextures->UniformBuffer;
+	}
+
+	if (SceneTexturesUniformParams == nullptr)
+	{
+		SceneTexturesUniformParams = CreateSceneTextureUniformBuffer(GraphBuilder, nullptr, FeatureLevel, SetupMode);
+	}
+
+	return SceneTexturesUniformParams;
+}
+
+TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> UE::FXRenderingUtils::GetOrCreateMobileSceneTextureUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	TConstStridedView<FSceneView> Views,
+	EMobileSceneTextureSetupMode SetupMode)
+{
+	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTexturesUniformParams = nullptr;
+
+	const FViewInfo* View = Views.Num() > 0 ? static_cast<const FViewInfo*>(&Views[0]) : nullptr;
+	if (const FSceneTextures* SceneTextures = View ? static_cast<const FViewFamilyInfo*>(View->Family)->GetSceneTexturesChecked() : nullptr)
+	{
+		MobileSceneTexturesUniformParams = SceneTextures->MobileUniformBuffer;
+	}
+
+	if (MobileSceneTexturesUniformParams == nullptr)
+	{
+		MobileSceneTexturesUniformParams = CreateMobileSceneTextureUniformBuffer(GraphBuilder, nullptr, SetupMode);
+	}
+
+	return MobileSceneTexturesUniformParams;
+}
+
 const FShaderParametersMetadata* UE::FXRenderingUtils::DistanceFields::GetObjectBufferParametersMetadata()
 {
 	return TShaderParameterStructTypeInfo<FDistanceFieldObjectBufferParameters>::GetStructMetadata();
