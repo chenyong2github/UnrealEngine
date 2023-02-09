@@ -176,14 +176,17 @@ namespace FAnimUpdateRateManager
 
 	void CleanupUpdateRateParametersRef(USkinnedMeshComponent* SkinnedComponent)
 	{
-		UObject* TrackerIndex = GetMapIndexForComponent(SkinnedComponent);
-
-		FAnimUpdateRateParametersTracker* Tracker = ActorToUpdateRateParams.FindChecked(TrackerIndex);
-		Tracker->RegisteredComponents.Remove(SkinnedComponent);
-		if (Tracker->RegisteredComponents.Num() == 0)
+		const UObject* TrackerIndex = GetMapIndexForComponent(SkinnedComponent);
+		FAnimUpdateRateParametersTracker** TrackerPtr = ActorToUpdateRateParams.Find(TrackerIndex);
+		if (TrackerPtr)
 		{
-			ActorToUpdateRateParams.Remove(TrackerIndex);
-			delete Tracker;
+			FAnimUpdateRateParametersTracker* Tracker = *TrackerPtr;
+			Tracker->RegisteredComponents.Remove(SkinnedComponent);
+			if (Tracker->RegisteredComponents.Num() == 0)
+			{
+				ActorToUpdateRateParams.Remove(TrackerIndex);
+				delete Tracker;
+			}
 		}
 	}
 
