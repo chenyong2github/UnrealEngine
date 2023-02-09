@@ -194,19 +194,11 @@ void FSequenceInstance::InvalidateCachedData(UMovieSceneEntitySystemLinker* Link
 	}
 }
 
-void FSequenceInstance::DissectContext(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext, TArray<TRange<FFrameTime>>& OutDissections)
+void FSequenceInstance::ConditionalRecompile(UMovieSceneEntitySystemLinker* Linker)
 {
-	if (!EnumHasAnyFlags(UpdateFlags, ESequenceInstanceUpdateFlags::NeedsDissection))
-	{
-		return;
-	}
-
-	check(SequenceID == MovieSceneSequenceID::Root);
-
-	IMovieScenePlayer* Player = GetPlayer();
-
 	if (VolatilityManager)
 	{
+		IMovieScenePlayer*                         Player              = GetPlayer();
 		FMovieSceneRootEvaluationTemplateInstance& RootTemplate        = Player->GetEvaluationTemplate();
 		UMovieSceneCompiledDataManager*            CompiledDataManager = RootTemplate.GetCompiledDataManager();
 		FMovieSceneCompiledDataID                  RootCompiledDataID  = RootTemplate.GetCompiledDataID();
@@ -216,8 +208,15 @@ void FSequenceInstance::DissectContext(UMovieSceneEntitySystemLinker* Linker, co
 			InvalidateCachedData(Linker);
 		}
 	}
+}
 
-	SequenceUpdater->DissectContext(Linker, Player, InContext, OutDissections);
+void FSequenceInstance::DissectContext(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext, TArray<TRange<FFrameTime>>& OutDissections)
+{
+	if (EnumHasAnyFlags(UpdateFlags, ESequenceInstanceUpdateFlags::NeedsDissection))
+	{
+		check(SequenceID == MovieSceneSequenceID::Root);
+		SequenceUpdater->DissectContext(Linker, GetPlayer(), InContext, OutDissections);
+	}
 }
 
 void FSequenceInstance::Start(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext)

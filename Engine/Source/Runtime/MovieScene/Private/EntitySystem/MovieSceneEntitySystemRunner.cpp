@@ -614,6 +614,8 @@ bool FMovieSceneEntitySystemRunner::GameThread_UpdateSequenceInstances(UMovieSce
 				);
 				continue;
 			}
+
+			Instance.ConditionalRecompile(Linker);
 			Instance.DissectContext(Linker, Request.Context, Dissections);
 
 			if (Dissections.Num() != 0)
