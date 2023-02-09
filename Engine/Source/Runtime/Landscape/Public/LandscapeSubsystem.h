@@ -10,6 +10,7 @@
 class ALandscapeProxy;
 class ULandscapeInfo;
 class FLandscapeNotificationManager;
+struct FDateTime;
 
 #if WITH_EDITOR
 struct FOnHeightmapStreamedContext
@@ -86,6 +87,7 @@ public:
 	FLandscapeNotificationManager* GetNotificationManager() { return NotificationManager; }
 	FOnHeightmapStreamedDelegate& GetOnHeightmapStreamedDelegate() { return OnHeightmapStreamed; }
 	LANDSCAPE_API bool AnyViewShowCollisions() const { return bAnyViewShowCollisions; }  //! Returns true if any view has view collisions enabled.
+	FDateTime GetAppCurrentDateTime();
 #endif // WITH_EDITOR
 
 private:
@@ -109,5 +111,6 @@ private:
 	FLandscapeNotificationManager* NotificationManager;
 	FOnHeightmapStreamedDelegate OnHeightmapStreamed;
 	bool bAnyViewShowCollisions = false;
+	FDateTime AppCurrentDateTime; // Represents FDateTime::Now(), at the beginning of the frame (useful to get a human-readable date/time that is fixed during the frame)
 #endif // WITH_EDITOR
 };

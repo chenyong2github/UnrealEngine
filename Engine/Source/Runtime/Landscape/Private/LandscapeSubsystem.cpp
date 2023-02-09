@@ -28,6 +28,9 @@
 #include "Algo/Transform.h"
 #include "Algo/RemoveIf.h"
 #include "Algo/Unique.h"
+#include "Misc/App.h"
+#include "Misc/DateTime.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeSubsystem)
 
@@ -185,6 +188,11 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 #if WITH_EDITOR
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(YOUPI);
+		AppCurrentDateTime = FDateTime::Now();
+	}
+
 	//Check if we need to start or stop creating Collision SceneProxies
 	ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
 	int32 NumViewsWithShowCollision = LandscapeModule.GetLandscapeSceneViewExtension()->GetNumViewsWithShowCollision();
@@ -559,6 +567,11 @@ void ULandscapeSubsystem::DisplayMessages(FCanvas* Canvas, float& XPos, float& Y
 	}
 }
 
-#endif
+FDateTime ULandscapeSubsystem::GetAppCurrentDateTime()
+{
+	return AppCurrentDateTime;
+}
+
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

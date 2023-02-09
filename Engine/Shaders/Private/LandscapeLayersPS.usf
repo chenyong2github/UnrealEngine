@@ -14,6 +14,7 @@ float3 LandscapeGridScale;						// x == LS Actor DrawScale.X, y == LS Actor Draw
 float CurrentMipComponentVertexCount;
 float2 CurrentMipTextureSize;
 float2 ParentMipTextureSize;
+float4 SourceOffsetAndSizeUV;
 
 float ExtractAndScaleHeight(float2 InPackedHeight)
 {
@@ -381,7 +382,9 @@ void CopyTextureVS(in uint VertexId : SV_VertexID, out float4 OutPosition : SV_P
 	OutPosition.zw = float2(0, 1);
 }
 
-void CopyTexturePS(in float4 InPosition : SV_POSITION, in noperspective float2 InTexCoord : TEXCOORD0, out float4 OutColor : SV_Target0)
+void CopyTexturePS(in float4 InPosition : SV_POSITION, in noperspective float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
 {
-	OutColor = ReadTexture1.SampleLevel(ReadTexture1Sampler, InTexCoord, 0);
+	// InUV is in the [0,1] range but in the viewport space, whose size is CopySize, so we need to adjust it to sample the corresponding range in the source texture : 
+	float2 SampleUV = (InUV * SourceOffsetAndSizeUV.zw) + SourceOffsetAndSizeUV.xy;
+	OutColor = ReadTexture1.SampleLevel(ReadTexture1Sampler, SampleUV, 0);
 }
