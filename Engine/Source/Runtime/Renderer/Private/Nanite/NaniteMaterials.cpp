@@ -1030,7 +1030,7 @@ void DispatchBasePass(
 	const TArray<TPimplPtr<FNaniteShadingCommand>>& ShadingCommands = Scene.NaniteShadingCommands[ENaniteMeshPass::BasePass];
 	const uint32 ShadingBinCount = uint32(ShadingCommands.Num());
 
-	if (ShadingBinCount)
+	if (ShadingBinCount == 0u)
 	{
 		return;
 	}
