@@ -4579,6 +4579,8 @@ void UTextureFactory::ParseFromJson(TSharedRef<class FJsonObject> ImportSettings
 
 /*------------------------------------------------------------------------------
 	UTextureExporterPCX implementation.
+	UTextureExporterPCX does not use TextureExporterGeneric because there's no PCX ImageWrapper
+		therefore does not support UDIM and other niceties like TextureExporterGeneric
 ------------------------------------------------------------------------------*/
 UTextureExporterPCX::UTextureExporterPCX(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -4587,7 +4589,6 @@ UTextureExporterPCX::UTextureExporterPCX(const FObjectInitializer& ObjectInitial
 	PreferredFormatIndex = 0;
 	FormatExtension.Add(TEXT("PCX"));
 	FormatDescription.Add(TEXT("PCX File"));
-
 }
 
 bool UTextureExporterPCX::SupportsObject(UObject* Object) const
@@ -4600,6 +4601,12 @@ bool UTextureExporterPCX::SupportsObject(UObject* Object) const
 		if (Texture)
 		{
 			bSupportsObject = Texture->Source.GetFormat() == TSF_BGRA8;
+			
+			if (Texture->Source.GetNumBlocks() > 1 )
+			{
+				// does not support UDIM
+				bSupportsObject = false;
+			}		
 		}
 	}
 	return bSupportsObject;
@@ -4663,7 +4670,8 @@ bool UTextureExporterPCX::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 
 /*------------------------------------------------------------------------------
 	UTextureExporterDDS implementation.
-
+	UTextureExporterDDS does use UTextureExporterGeneric, but overrides its methods to do its own writing
+	because it can work on more complex textures, not just simple 2D like the base class
 ------------------------------------------------------------------------------*/
 
 UTextureExporterDDS::UTextureExporterDDS(const FObjectInitializer& ObjectInitializer)
@@ -5159,6 +5167,12 @@ URenderTargetCubeExporterHDR::URenderTargetCubeExporterHDR(const FObjectInitiali
 	SupportedClass = UTextureRenderTargetCube::StaticClass();
 }
 
+//-------------
+// UTextureExporterJPEG does not let you compress data to JPEG
+//	it only writes out existing JPEG data
+// do NOT use UTextureExporterGeneric here, that would go to ImageWrapper and compress to JPEG
+// note: does not support UDIM blocks like UTextureExporterGeneric
+
 UTextureExporterJPEG::UTextureExporterJPEG(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -5177,6 +5191,12 @@ bool UTextureExporterJPEG::SupportsObject(UObject* Object) const
 		if (Texture)
 		{
 			// we do NOT do lossy recompression
+			
+			if (Texture->Source.GetNumBlocks() > 1 )
+			{
+				// does not support UDIM
+				return false;
+			}
 
 			// Check it has JPEG BulkData :
 			if ( Texture->Source.GetSourceCompression() == TSCF_JPEG &&
@@ -5216,156 +5236,16 @@ bool UTextureExporterJPEG::ExportBinary( UObject* Object, const TCHAR* Type, FAr
 	UTextureExporterTGA implementation.
 ------------------------------------------------------------------------------*/
 UTextureExporterTGA::UTextureExporterTGA(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	: UTextureExporterGeneric(ObjectInitializer)
 {
-	SupportedClass = UTexture2D::StaticClass();
-	PreferredFormatIndex = 0;
 	FormatExtension.Add(TEXT("TGA"));
 	FormatDescription.Add(TEXT("Targa"));
 }
 
-bool UTextureExporterTGA::SupportsObject(UObject* Object) const
+bool UTextureExporterTGA::SupportsTexture(UTexture* Texture) const
 {
-	bool bSupportsObject = false;
-	if (Super::SupportsObject(Object))
-	{
-		UTexture2D* Texture = Cast<UTexture2D>(Object);
-
-		if (Texture)
-		{
-			bSupportsObject = Texture->Source.GetFormat() == TSF_BGRA8;
-		}
-	}
-	return bSupportsObject;
-}
-
-bool UTextureExporterTGA::ExportBinary( UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags )
-{
-	UTexture2D* Texture = CastChecked<UTexture2D>( Object );
-
-	// could move to TGAImageWrapper and use generic exporter instead
-	//	maybe just leave this as-is
-
-	if (!Texture->Source.IsValid() || (Texture->Source.GetFormat() != TSF_BGRA8 && Texture->Source.GetFormat() != TSF_RGBA16))
-	{
-		return false;
-	}
-
-	// legacy code would claim to support 16 bit, but then just drop the bottom 8 bits
-	// this is no longer used
-	const bool bIsRGBA16 = Texture->Source.GetFormat() == TSF_RGBA16;
-
-	if (bIsRGBA16)
-	{
-		FMessageLog ExportWarning("EditorErrors");
-		FFormatNamedArguments Arguments;
-		Arguments.Add(TEXT("Name"), FText::FromString(Texture->GetName()));
-		ExportWarning.Warning(FText::Format(LOCTEXT("BitDepthTGAWarning", "{Name}: Texture is RGBA16 and cannot be represented at such high bit depth in .tga. Color will be scaled to RGBA8."), Arguments));
-		ExportWarning.Open(EMessageSeverity::Warning);
-	}
-
-	const int32 BytesPerPixel = bIsRGBA16 ? 8 : 4;
-
-	// Detects alpha channel
-	// writes either 24 or 32 bit
-
-	int32 SizeX = Texture->Source.GetSizeX();
-	int32 SizeY = Texture->Source.GetSizeY();
-	TArray64<uint8> RawData;
-	Texture->Source.GetMipData(RawData, 0);
-
-	// If we should export the file with no alpha info.  
-	// If the texture is compressed with no alpha we should definitely not export an alpha channel
-	//  Umm what
-	//bool bExportWithAlpha = !Texture->CompressionNoAlpha;
-	bool bExportWithAlpha = true;
-	if( bExportWithAlpha )
-	{
-		// If the texture isn't compressed with no alpha scan the texture to see if the alpha values are all 255 which means we can skip exporting it.
-		// This is a relatively slow process but we are just exporting textures 
-		bExportWithAlpha = false;
-		const int32 AlphaOffset = bIsRGBA16 ? 7 : 3;
-		for( int32 Y = SizeY - 1; Y >= 0; --Y )
-		{
-			uint8* Color = &RawData[Y * SizeX * BytesPerPixel];
-			for( int32 X = SizeX; X > 0; --X )
-			{
-				// Skip color info
-				Color += AlphaOffset;
-				// Get Alpha value then increment the pointer past it for the next pixel
-				uint8 Alpha = *Color++;
-				if( Alpha != 255 )
-				{
-					// When a texture is imported with no alpha, the alpha bits are set to 255
-					// So if the texture has non 255 alpha values, the texture is a valid alpha channel
-					bExportWithAlpha = true;
-					break;
-				}
-			}
-			if( bExportWithAlpha )
-			{
-				break;
-			}
-		}
-	}
-
-	const uint16 OriginalWidth = IntCastChecked<uint16>(SizeX);
-	const uint16 OriginalHeight = IntCastChecked<uint16>(SizeY);
-
-	FTGAFileHeader TGA;
-	FMemory::Memzero( &TGA, sizeof(TGA) );
-	TGA.ImageTypeCode = 2;
-	TGA.BitsPerPixel = bExportWithAlpha ? 32 : 24 ;
-	TGA.Height = OriginalHeight;
-	TGA.Width = OriginalWidth;
-	Ar.Serialize( &TGA, sizeof(TGA) );
-
-	if( bExportWithAlpha && !bIsRGBA16)
-	{
-		for( int32 Y=0;Y < OriginalHeight;Y++ )
-		{
-			// If we aren't skipping alpha channels we can serialize each line
-			Ar.Serialize( &RawData[ (OriginalHeight - Y - 1) * OriginalWidth * 4 ], OriginalWidth * 4 );
-		}
-	}
-	else
-	{
-		// Serialize each pixel
-		for( int32 Y = OriginalHeight - 1; Y >= 0; --Y )
-		{
-			uint8* Color = &RawData[Y * OriginalWidth * BytesPerPixel];
-			for( int32 X = OriginalWidth; X > 0; --X )
-			{
-				if (bIsRGBA16)
-				{
-					// From RGB to BGR
-					Ar << Color[5];
-					Ar << Color[3];
-					Ar << Color[1];
-					if (bExportWithAlpha)
-					{
-						Ar << Color[7];
-					}
-					Color += 8;
-				}
-				else
-				{
-					Ar << *Color++;
-					Ar << *Color++;
-					Ar << *Color++;
-					// Skip alpha channel since we are exporting with no alpha
-					Color++;
-				}
-			}
-		}
-	}
-
-	FTGAFileFooter Ftr;
-	FMemory::Memzero( &Ftr, sizeof(Ftr) );
-	FMemory::Memcpy( Ftr.Signature, "TRUEVISION-XFILE", 16 );
-	Ftr.TrailingPeriod = '.';
-	Ar.Serialize( &Ftr, sizeof(Ftr) );
-	return true;
+	ETextureSourceFormat TSF = Texture->Source.GetFormat();
+	return TSF == TSF_BGRA8;
 }
 
 /*------------------------------------------------------------------------------

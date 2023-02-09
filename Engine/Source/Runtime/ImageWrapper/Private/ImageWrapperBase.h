@@ -118,6 +118,11 @@ protected:
 	int GetBytesPerPel() const { return GetRGBFormatBytesPerPel(Format,BitDepth); }
 	int GetBytesPerRow() const { return Width * GetBytesPerPel(); }
 
+	// For writers: after SetRaw(), call this to get an ImageView of the raw data that was set
+	//	can return false if the SetRaw does not map to an image format
+	//	pixels point at the RawData array
+	bool GetImageViewOfSetRawForCompress(FImageView & OutImage) const;
+
 	/** Arrays of compressed/raw data */
 	TArray64<uint8> RawData;
 	TArray64<uint8> CompressedData;
@@ -127,6 +132,7 @@ protected:
 	int BitDepth;
 
 	/** Width/Height of the image data */
+	// @todo Oodle : change these to int64
 	int32 Width;
 	int32 Height;
 	

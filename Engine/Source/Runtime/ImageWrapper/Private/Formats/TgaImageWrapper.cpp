@@ -23,36 +23,86 @@ void FTgaImageWrapper::Compress(int32 Quality)
 {
 	CompressedData.Reset();
 
-	int64 SurfaceBytes = Width * Height * 4;
-	check( RawData.Num() == SurfaceBytes );
+	FImageView Image;
+	if ( ! GetImageViewOfSetRawForCompress(Image) )
+	{
+		SetError(TEXT("No valid image to compress"));
+		return;
+	}
+	
+	if ( Width > UINT16_MAX || Height > UINT16_MAX )
+	{
+		SetError(TEXT("Image is too large to export as TGA"));
+		return;
+	}
+			
+	check( Image.Format == ERawImageFormat::BGRA8 );
+	int64 ImageRowBytes = Width * 4;
+	
+	// write 32-bit if we have a non-all-255 alpha channel, else write 24 bit
+	bool bHasAlpha = FImageCore::DetectAlphaChannel(Image);
+	int64 OutBytesPerPixel = bHasAlpha ? 4 : 3;
+	int64 OutSurfaceBytes = (int64) Width * Height * OutBytesPerPixel;
 
-	int64 CompresedSize = sizeof(FTGAFileHeader) + SurfaceBytes;
+	int64 CompresedSize = sizeof(FTGAFileHeader) + OutSurfaceBytes;
 	CompressedData.SetNum(CompresedSize);
 
 	uint8 * CompressedPtr = CompressedData.GetData();
 	
-	// super lazy TGA writer here :
-	//	always writes 32 bit BGRA
-
+	// http://www.paulbourke.net/dataformats/tga/
+	// https://en.wikipedia.org/wiki/Truevision_TGA
 	FTGAFileHeader header = { };
-
-	header.Width  = INTEL_ORDER16( (uint16) Width );
-	header.Height = INTEL_ORDER16( (uint16) Height );
+	
+	uint16 Width16  = IntCastChecked<uint16>( Width );
+	uint16 Height16 = IntCastChecked<uint16>( Height );
+	header.Width  = INTEL_ORDER16( Width16 );
+	header.Height = INTEL_ORDER16( Height16 );
 	header.ImageTypeCode = 2;
-	header.BitsPerPixel = 32;
-	header.ImageDescriptor = 8;
+	header.BitsPerPixel = OutBytesPerPixel*8;
+
+	// Image descriptor (1 byte): bits 3-0 give the alpha channel depth, bits 5-4 give pixel ordering
+	header.ImageDescriptor = bHasAlpha ? 8 : 0;
 
 	memcpy(CompressedPtr,&header,sizeof(header));
 	CompressedPtr += sizeof(header);
 
 	// write rows BGRA , bottom up :
-	for(int y = Height-1; y>= 0;y--)
+	for(int32 y = Height-1; y>= 0;y--)
 	{
-		int64 RowBytes = Width * 4;
-		const void * From = &RawData[y * RowBytes]; 
-		memcpy(CompressedPtr,From,RowBytes);
-		CompressedPtr += RowBytes;
+		const uint8 * From = &RawData[y * ImageRowBytes]; 
+
+		if ( bHasAlpha )
+		{
+			check( OutBytesPerPixel == 4 );
+			check( RawData.Num() == OutSurfaceBytes );
+
+			memcpy(CompressedPtr,From,ImageRowBytes);
+			CompressedPtr += ImageRowBytes;
+		}
+		else
+		{
+			check( OutBytesPerPixel == 3 );
+			
+			for(int32 x=0;x<Width;x++)
+			{
+				// copy RGB, skip A
+				CompressedPtr[0] = From[0];
+				CompressedPtr[1] = From[1];
+				CompressedPtr[2] = From[2];
+				From += 4;
+				CompressedPtr += 3;
+			}
+		}
 	}
+
+	// TGA file footer is optional :
+	/*
+	FTGAFileFooter Ftr;
+	FMemory::Memzero( &Ftr, sizeof(Ftr) );
+	FMemory::Memcpy( Ftr.Signature, "TRUEVISION-XFILE", 16 );
+	Ftr.TrailingPeriod = '.';
+	Ar.Serialize( &Ftr, sizeof(Ftr) );
+	*/
 
 	check( CompressedPtr == CompressedData.GetData() + CompressedData.Num() );
 }
