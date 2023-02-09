@@ -79,6 +79,9 @@ public:
 
 		return Viewports;
 	}
+
+	// Current world is a tools window (configurator, other tools)
+	bool IsEditorPreviewWorld() const;
 #endif
 
 	virtual IDisplayClusterViewport* FindViewport(const FString& InViewportId) const override

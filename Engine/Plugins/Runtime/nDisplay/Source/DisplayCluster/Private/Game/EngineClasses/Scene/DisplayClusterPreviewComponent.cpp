@@ -115,6 +115,9 @@ void UDisplayClusterPreviewComponent::RestorePreviewMeshMaterial()
 		PreviewMesh->SetMaterial(0, OriginalMaterial);
 		OriginalMaterial = nullptr;
 	}
+
+	// Release RTTs
+	ReleasePreviewRenderTarget();
 }
 
 void UDisplayClusterPreviewComponent::SetPreviewMeshMaterial()

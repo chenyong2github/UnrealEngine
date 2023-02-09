@@ -36,6 +36,7 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 
 #include "Engine/TextureRenderTarget2D.h"
 
@@ -126,6 +127,12 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 {
 	if (IsPreviewEnabled())
 	{
+		// Restore ViewportManager
+		if (ViewportManager.IsValid() == false)
+		{
+			ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
+		}
+
 		if (bDeferPreviewGeneration)
 		{
 			// Hack to generate preview components on instances during map load.
@@ -152,6 +159,21 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 	else
 	{
 		ResetPreviewInternals_Editor();
+		if (ViewportManager.IsValid())
+		{
+			if (FDisplayClusterViewportManager* ViewportManagerPrivate = static_cast<FDisplayClusterViewportManager*>(ViewportManager.Get()))
+			{
+				switch (ViewportManagerPrivate->GetRenderFrameSettings().RenderMode)
+				{
+				case EDisplayClusterRenderFrameMode::PreviewInScene:
+					// Release viewport manager with resources immediatelly for preview in scene
+					ViewportManager.Reset();
+					break;
+				default:
+					break;
+				}
+			}
+		}
 	}
 	
 	SetChromakeyCardsOwner();
@@ -190,9 +212,6 @@ void ADisplayClusterRootActor::Destroyed_Editor()
 	ReleasePreviewComponents();
 
 	MarkAsGarbage();
-
-	// Force garbage collector
-	GEngine->ForceGarbageCollection(true);
 }
 
 void ADisplayClusterRootActor::BeginDestroy_Editor()

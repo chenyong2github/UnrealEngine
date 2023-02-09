@@ -29,6 +29,23 @@
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfigurationHelpers_Postprocess.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////
+int32 GDisplayClusterPreviewEnableViewState = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterPreviewEnableViewState(
+	TEXT("nDisplay.preview.EnableViewState"),
+	GDisplayClusterPreviewEnableViewState,
+	TEXT("Enable view state for preview (0 - disable).\n"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GDisplayClusterPreviewEnableConfiguratorViewState = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterPreviewEnableConfiguratorViewState(
+	TEXT("nDisplay.preview.EnableConfiguratorViewState"),
+	GDisplayClusterPreviewEnableConfiguratorViewState,
+	TEXT("Enable view state for preview in Configurator window (0 - disable).\n"),
+	ECVF_RenderThreadSafe
+);
+
+///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewport
 ///////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterViewport::CleanupViewState()
@@ -48,6 +65,14 @@ void FDisplayClusterViewport::CleanupViewState()
 
 FSceneViewStateInterface* FDisplayClusterViewport::GetViewState(uint32 ViewIndex)
 {
+	if (GDisplayClusterPreviewEnableViewState == 0 || (GDisplayClusterPreviewEnableConfiguratorViewState == 0 && Owner.IsEditorPreviewWorld()))
+	{
+		// Disable ViewState
+		ViewStates.Empty();
+
+		return nullptr;
+	}
+
 	int32 RequiredAmount = (int32)ViewIndex - ViewStates.Num() + 1;
 	if (RequiredAmount > 0)
 	{

@@ -32,6 +32,22 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportManager
 ///////////////////////////////////////////////////////////////////////////////////////
+bool FDisplayClusterViewportManager::IsEditorPreviewWorld() const
+{
+	if (UWorld* CurrentWorld = GetCurrentWorld())
+	{
+		switch (CurrentWorld->WorldType)
+		{
+		case EWorldType::EditorPreview:
+			return true;
+
+		default:
+			break;
+		}
+	}
+
+	return false;
+}
 
 void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 {
