@@ -455,29 +455,63 @@ void UPCGSettings::InitializeCachedOverridableParams(bool bReset)
 	}
 #endif // WITH_EDITOR
 
-	for (FPCGSettingsOverridableParam& Param : CachedOverridableParams)
+	for (int32 i = 0; i < CachedOverridableParams.Num(); ++i)
 	{
-		check(!Param.PropertiesNames.IsEmpty() && Param.PropertyClass);
+		FPCGSettingsOverridableParam& Param = CachedOverridableParams[i];
+
+		if (Param.PropertiesNames.IsEmpty())
+		{
+			UE_LOG(LogPCG, Error, TEXT("[InitializeCachedOverridableParams] %s one param is missing its property names, we cannot use this one as overridable param"), *GetName());
+			CachedOverridableParams.RemoveAt(i--);
+			continue;
+		}
+
+		// In some cases, the property class is not serialized correctly. We can still try to recover from this.
+		if (!Param.PropertyClass)
+		{
+			FixingOverridableParamPropertyClass(Param);
+			
+			if (!Param.PropertyClass)
+			{
+				UE_LOG(LogPCG, Error, TEXT("[InitializeCachedOverridableParams] %s one param is missing its property class, we cannot use this one as overridable param"), *GetName());
+				CachedOverridableParams.RemoveAt(i--);
+				continue;
+			}
+		}
+
 		Param.Properties.Reset(Param.PropertiesNames.Num());
 
 		// Some properties might not be available at runtime. Ignore them.
 		const FProperty* CurrentProperty = Param.PropertyClass->FindPropertyByName(Param.PropertiesNames[0]);
-		if (ensure(CurrentProperty))
+		if (CurrentProperty)
 		{
 			Param.Properties.Add(CurrentProperty);
 
-			for (int32 i = 1; i < Param.PropertiesNames.Num(); ++i)
+			for (int32 j = 1; j < Param.PropertiesNames.Num(); ++j)
 			{
 				// If we have multiple depth properties, it should be Struct properties by construction
 				const FStructProperty* StructProperty = CastField<FStructProperty>(CurrentProperty);
 				if (ensure(StructProperty))
 				{
-					CurrentProperty = StructProperty->Struct->FindPropertyByName(Param.PropertiesNames[i]);
+					CurrentProperty = StructProperty->Struct->FindPropertyByName(Param.PropertiesNames[j]);
 					check(CurrentProperty);
 					Param.Properties.Add(CurrentProperty);
 				}
 			}
 		}
+	}
+}
+
+void UPCGSettings::FixingOverridableParamPropertyClass(FPCGSettingsOverridableParam& Param) const
+{
+	if (!GetClass() || Param.PropertiesNames.IsEmpty())
+	{
+		return;
+	}
+
+	if (GetClass()->FindPropertyByName(Param.PropertiesNames[0]) != nullptr)
+	{
+		Param.PropertyClass = GetClass();
 	}
 }
 
