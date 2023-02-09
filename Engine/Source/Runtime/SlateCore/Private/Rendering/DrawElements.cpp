@@ -45,7 +45,7 @@ static bool ShouldCull(const FSlateWindowElementList& ElementList)
 		}
 		else if (ClippingState.GetClippingMethod() == EClippingMethod::Stencil)
 		{
-			FSlateRect WindowRect = FSlateRect(FVector2f(0, 0), ElementList.GetWindowSize());
+			FSlateRect WindowRect = ElementList.GetPaintWindow()->GetClippingRectangleInWindow();
 			if (WindowRect.GetArea() > 0)
 			{
 				for (const FSlateClippingZone& Stencil : ClippingState.StencilQuads)
