@@ -37,6 +37,9 @@ struct ENGINE_API FAnimSync
 	// Reset internal buffers ready for writing
 	void Reset();
 
+	// Completely reset the sync system back to its starting state
+	void ResetAll();
+	
 	// Adds a tick record in the list for the correct group or the ungrouped array.
 	void AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSyncParams& InSyncParams = FAnimSyncParams());
 

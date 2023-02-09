@@ -25,6 +25,25 @@ void FAnimSync::Reset()
 	}
 }
 
+void FAnimSync::ResetAll()
+{
+	for(TArray<FAnimTickRecord>& UngroupedActivePlayers : UngroupedActivePlayerArrays)
+	{
+		UngroupedActivePlayers.Reset();
+	}
+
+	for(FSyncGroupMap& SyncGroupMap : SyncGroupMaps)
+	{
+		for (auto& SyncGroupPair : SyncGroupMap)
+		{
+			SyncGroupPair.Value.Reset();
+		}
+	}
+
+	MirrorDataTable = nullptr;
+	SyncGroupWriteIndex = 0;
+}
+
 void FAnimSync::AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSyncParams& InSyncParams)
 {
 	if (InSyncParams.GroupName != NAME_None)

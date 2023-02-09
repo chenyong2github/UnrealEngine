@@ -433,6 +433,7 @@ void FAnimInstanceProxy::Uninitialize(UAnimInstance* InAnimInstance)
 	ResetAnimationCurves();
 	MaterialParametersToClear.Reset();
 	ActiveAnimNotifiesSinceLastTick.Reset();
+	Sync.ResetAll();
 }
 
 void FAnimInstanceProxy::UpdateActiveAnimNotifiesSinceLastTick(const FAnimNotifyQueue& AnimInstanceQueue)

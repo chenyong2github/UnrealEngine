@@ -946,6 +946,12 @@ protected:
 	static void EvaluateInputProxy(FAnimInstanceProxy* InputProxy, FPoseContext& Output);
 	static void ResetCounterInputProxy(FAnimInstanceProxy* InputProxy);
 
+	/** Reset the sync system to its starting state */
+	void ResetSync()
+	{
+		Sync.ResetAll();
+	}
+
 private:
 
 	/** Executes the provided functor on each valid state machine on this anim instance */

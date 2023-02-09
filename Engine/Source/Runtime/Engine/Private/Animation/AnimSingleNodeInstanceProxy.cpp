@@ -218,6 +218,7 @@ void FAnimSingleNodeInstanceProxy::SetAnimationAsset(class UAnimationAsset* NewA
 	BlendSpacePosition = FVector::ZeroVector;
 	BlendSampleData.Reset();
 	MarkerTickRecord.Reset();
+	ResetSync();
 	UpdateBlendspaceSamples(BlendSpacePosition);
 
 #if WITH_EDITORONLY_DATA
