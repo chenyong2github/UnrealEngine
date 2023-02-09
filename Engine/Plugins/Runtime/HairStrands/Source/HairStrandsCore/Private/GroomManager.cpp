@@ -37,6 +37,9 @@ static FAutoConsoleVariableRef CVarGHairStrands_ManualSkinCache(TEXT("r.HairStra
 static int32 GHairStrands_InterpolationFrustumCullingEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrands_InterpolationFrustumCullingEnable(TEXT("r.HairStrands.Interoplation.FrustumCulling"), GHairStrands_InterpolationFrustumCullingEnable, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
 
+static int32 GHairStrands_ContinousLOD = 0;
+static FAutoConsoleVariableRef CVarHairStrands_ContinousLOD(TEXT("r.HairStrands.ContinuousLOD"), GHairStrands_ContinousLOD, TEXT("Continuous LODing toggle."));
+
 EHairBufferSwapType GetHairSwapBufferType()
 {
 	switch (GHairStrands_SwapBufferType)
@@ -699,6 +702,44 @@ static uint32 GetHairVisibilityComputeRasterPointCount(float ScreenSize, uint32 
 	return InPointCount;
 }
 
+static FVector2f ComputeProjectedScreenPos(const FVector& InWorldPos, const FSceneView& View)
+{
+	// Compute the MinP/MaxP in pixel coord, relative to View.ViewRect.Min
+	const FMatrix& WorldToView = View.ViewMatrices.GetViewMatrix();
+	const FMatrix& ViewToProj = View.ViewMatrices.GetProjectionMatrix();
+	const float NearClippingDistance = View.NearClippingDistance + SMALL_NUMBER;
+	const FIntRect ViewRect = View.UnconstrainedViewRect;
+
+	// Clamp position on the near plane to get valid rect even if bounds' points are behind the camera
+	FPlane P_View = WorldToView.TransformFVector4(FVector4(InWorldPos, 1.f));
+	if (P_View.Z <= NearClippingDistance)
+	{
+		P_View.Z = NearClippingDistance;
+	}
+
+	// Project from view to projective space
+	FVector2D MinP(FLT_MAX, FLT_MAX);
+	FVector2D MaxP(-FLT_MAX, -FLT_MAX);
+	FVector2D ScreenPos;
+	const bool bIsValid = FSceneView::ProjectWorldToScreen(P_View, ViewRect, ViewToProj, ScreenPos);
+
+	// Clamp to pixel border
+	ScreenPos = FIntPoint(FMath::FloorToInt(ScreenPos.X), FMath::FloorToInt(ScreenPos.Y));
+
+	// Clamp to screen rect
+	ScreenPos.X = FMath::Clamp(ScreenPos.X, ViewRect.Min.X, ViewRect.Max.X);
+	ScreenPos.Y = FMath::Clamp(ScreenPos.Y, ViewRect.Min.Y, ViewRect.Max.Y);
+
+	return FVector2f(ScreenPos.X, ScreenPos.Y);
+}
+
+static uint32 ComputeActiveCurveCount(float InScreenSize, uint32 InCurveCount)
+{
+	const float Power = 1.8f; // Per Groom settings?
+	const uint32 OutCurveCount = InCurveCount * FMath::Pow(FMath::Clamp(InScreenSize, 0.f, 1.0f), Power);
+	return FMath::Clamp(OutCurveCount, 1, InCurveCount);
+}
+
 static void RunHairLODSelection(
 	FRDGBuilder& GraphBuilder, 
 	const FHairStrandsInstances& Instances, 
@@ -751,16 +792,26 @@ static void RunHairLODSelection(
 		
 		// If continuous LOD is enabled, we bypass all other type of geometric representation, and only use LOD0
 		float LODIndex = IsHairVisibilityComputeRasterContinuousLODEnabled() ? 0.0 : (Instance->Debug.LODForcedIndex >= 0 ? FMath::Max(Instance->Debug.LODForcedIndex, MinLOD) : -1.0f);
-		float LODViewIndex = -1;
 		{
-			float MaxScreenSize = 0.f;
+			FVector2f MaxContinuousLODScreenPos = FVector2f(0.f, 0.f);
+			float LODViewIndex = -1;
+			float MaxScreenSize_RestBound = 0.f;
+			float MaxScreenSize_Bound = 0.f;
 			const FSphere SphereBound = Instance->GetBounds().GetSphere();
 			for (const FSceneView* View : Views)
 			{
-				const float ScreenSize = ComputeBoundsScreenSize(FVector4(SphereBound.Center, 1), SphereBound.W, *View);
-				const float LODBias = Instance->Strands.Modifier.LODBias;
-				const float CurrLODViewIndex = FMath::Max(MinLOD, GetHairInstanceLODIndex(Instance->HairGroupPublicData->GetLODScreenSizes(), ScreenSize, LODBias));
-				MaxScreenSize = FMath::Max(MaxScreenSize, ScreenSize);
+				const FVector3d BoundScale = Instance->LocalToWorld.GetScale3D();
+				const FVector3f BoundExtent = FVector3f(Instance->Strands.Data->BoundingBox.GetExtent());
+				const float BoundRadius = FMath::Max3(BoundExtent.X, BoundExtent.Y, BoundExtent.Z) * FMath::Max3(BoundScale.X, BoundScale.Y, BoundScale.Z);
+
+				const float ScreenSize_RestBound = FMath::Clamp(ComputeBoundsScreenSize(FVector4(SphereBound.Center, 1), BoundRadius, *View), 0.f, 1.0f);
+				const float ScreenSize_Bound = FMath::Clamp(ComputeBoundsScreenSize(FVector4(SphereBound.Center, 1), SphereBound.W, *View), 0.f, 1.0f);
+
+				const float CurrLODViewIndex = FMath::Max(MinLOD, GetHairInstanceLODIndex(Instance->HairGroupPublicData->GetLODScreenSizes(), ScreenSize_Bound, Instance->Strands.Modifier.LODBias));
+
+				MaxScreenSize_Bound = FMath::Max(MaxScreenSize_Bound, ScreenSize_Bound);
+				MaxScreenSize_RestBound = FMath::Max(MaxScreenSize_RestBound, ScreenSize_RestBound);
+				MaxContinuousLODScreenPos = ComputeProjectedScreenPos(SphereBound.Center, *View);
 
 				// Select highest LOD across all views
 				LODViewIndex = LODViewIndex < 0 ? CurrLODViewIndex : FMath::Min(LODViewIndex, CurrLODViewIndex);
@@ -770,21 +821,26 @@ static void RunHairLODSelection(
 			{
 				LODIndex = LODViewIndex;
 			}
-
 			LODIndex = FMath::Clamp(LODIndex, 0.f, float(LODCount - 1));
 
 			// Feedback game thread with LOD selection 
 			Instance->Debug.LODPredictedIndex = LODViewIndex;
-			Instance->HairGroupPublicData->DebugScreenSize = MaxScreenSize;
+			Instance->HairGroupPublicData->DebugScreenSize = MaxScreenSize_Bound;
 			Instance->HairGroupPublicData->ContinuousLODPointCount = Instance->HairGroupPublicData->RestPointCount;
 			Instance->HairGroupPublicData->ContinuousLODCurveCount = Instance->HairGroupPublicData->RestCurveCount;
-			Instance->HairGroupPublicData->MaxScreenSize = 1.0;
+			Instance->HairGroupPublicData->ContinuousLODScreenSize = MaxScreenSize_RestBound;
+			Instance->HairGroupPublicData->ContinuousLODScreenPos = MaxContinuousLODScreenPos;
+			Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
 
-			if (IsHairStrandContinuousDecimationReorderingEnabled() && IsHairVisibilityComputeRasterContinuousLODEnabled())
+			if (GHairStrands_ContinousLOD > 0)
 			{
-				Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
-				Instance->HairGroupPublicData->MaxScreenSize = MaxScreenSize;
-				Instance->HairGroupPublicData->ContinuousLODPointCount = GetHairVisibilityComputeRasterPointCount(MaxScreenSize, Instance->HairGroupPublicData->RestPointCount);
+				// These values are set later, once the resources are loaded
+				Instance->HairGroupPublicData->ContinuousLODCurveCount = 0;
+				Instance->HairGroupPublicData->ContinuousLODPointCount = 0;
+			}
+			else if (IsHairStrandContinuousDecimationReorderingEnabled() && IsHairVisibilityComputeRasterContinuousLODEnabled())
+			{
+				Instance->HairGroupPublicData->ContinuousLODPointCount = GetHairVisibilityComputeRasterPointCount(MaxScreenSize_Bound, Instance->HairGroupPublicData->RestPointCount);
 				Instance->HairGroupPublicData->ContinuousLODCurveCount = Instance->HairGroupPublicData->RestCurveCount;
 			}
 		}
@@ -951,6 +1007,19 @@ static void RunHairLODSelection(
 			if (!bIsLODDataReady && (!bIsLODValid || bHasMeshLODChanged))
 			{
 				return false;
+			}
+
+			// Adapt the number curve/point based on Bound/CPU screen-size
+			if (GeometryType == EHairGeometryType::Strands && GHairStrands_ContinousLOD)
+			{
+				check(bIsLODDataReady);
+
+				const uint32 ActiveCurveCount = ComputeActiveCurveCount(Instance->HairGroupPublicData->ContinuousLODScreenSize, Instance->HairGroupPublicData->RestCurveCount);
+				const FPackedHairCurve Curve = Instance->Strands.RestResource->CurveData[ActiveCurveCount - 1];
+				const uint32 ActiveVertexCount = ActiveCurveCount < Instance->HairGroupPublicData->RestCurveCount ? (Curve.PointOffset + Curve.PointCount) : Instance->HairGroupPublicData->RestPointCount;
+
+				Instance->HairGroupPublicData->ContinuousLODCurveCount = ActiveCurveCount;
+				Instance->HairGroupPublicData->ContinuousLODPointCount = ActiveVertexCount;
 			}
 			return true;
 		};

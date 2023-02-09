@@ -909,6 +909,16 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	RestOffset.Add((FVector3f)BulkData.GetPositionOffset());// LWC_TODO: precision loss
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, RestOffset, PositionOffsetBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionOffsetBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static, ERDGInitialDataFlags::None);
 	GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, PositionOffsetBuffer, ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
+
+	// Copy curve data for CPU lookup
+	{
+		CurveData.SetNum(CurveCount);
+		uint32* Data = (uint32*)CurveData.GetData();
+
+		const uint32* ReadOnlyData = (const uint32*)BulkData.Curves.Lock(LOCK_READ_ONLY);
+		memcpy(Data, ReadOnlyData, sizeof(uint32) * CurveCount);
+		BulkData.Curves.Unlock();
+	}
 }
 
 void AddHairTangentPass(

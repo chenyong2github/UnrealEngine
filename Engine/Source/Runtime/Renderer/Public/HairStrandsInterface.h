@@ -309,12 +309,12 @@ public:
 	float LODBias = 0;			// Current LOD bias
 	bool bLODVisibility = true; // Enable/disable hair rendering for this component
 
-	FBoxSphereBounds ContinuousLODBounds; 	//used by Continuous LOD
-	float MaxScreenSize = 0.f; 				//used by Continuous LOD
-
 	// Active/used point/curved based on select continuous LOD
 	uint32 ContinuousLODPointCount = 0;
 	uint32 ContinuousLODCurveCount = 0;
+	float ContinuousLODScreenSize = 1.f;
+	FVector2f ContinuousLODScreenPos = FVector2f(0,0);
+	FBoxSphereBounds ContinuousLODBounds; 	//used by Continuous LOD
 
 	// Debug
 	bool  bDebugDrawLODInfo = false; // Enable/disable hair LOD info

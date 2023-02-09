@@ -1077,6 +1077,8 @@ StructuredBuffer<uint2> NameInfos;
 Buffer<uint>			Names;
 Buffer<int>				InstanceAABB;
 
+float4					InstanceScreenSphereBound;
+
 struct FInstanceInfo
 {
 	uint  GroupIndex;
@@ -1092,6 +1094,9 @@ struct FInstanceInfo
 	// Strands data
 	uint StrandsCount;
 	uint VertexCount;
+	float ScreenSize;
+	uint ActivePointCount;
+	uint ActiveCurveCount;
 
 	// Binding
 	uint UniqueTriangle;
@@ -1148,6 +1153,9 @@ FInstanceInfo ReadInstanceInfo(uint Index)
 
 	Out.bIsVisibleInPrimaryView = Data2.x & 0x1;
 	Out.bIsVisibleInShadowView	= Data2.x & 0x2;
+	Out.ScreenSize				= f16tof32((Data2.x>>16) & 0xFFFF);
+	Out.ActivePointCount		= Data2.y;
+	Out.ActiveCurveCount		= Data2.z;
 
 	return Out;
 }
@@ -1259,7 +1267,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Newline(Context);
 
 	// Draw instance details
-	Print(Context, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip    Strands Vertex  Bind.Triangle Bind.Section Primary Shadow Name"));
+	Print(Context, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip Screen Strands          Vertex           Bind.Tri/Sect Primary Shadow Name"));
 	Newline(Context);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -1309,20 +1317,29 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		// Clip
 		if (Info.ClipValue >= 0)
-			Print(Context,Info.ClipValue, FontGreen, 7);
+			Print(Context,Info.ClipValue, FontGreen, 5,3);
 		else 
-			Print(Context,0u, FontSilver, 7);
-		Print(Context, TEXT(" "));
+			Print(Context,0u, FontSilver, 5, 3);
+
+		// Strands effective
+		Print(Context, Info.ScreenSize, FontOrange, 4, 2);
+		Print(Context, TEXT("   "));
 
 		// Strands/Vertex sCount
-		Print(Context,Info.StrandsCount, FontOrange, 8);
-		Print(Context,Info.VertexCount,  FontSilver, 8);
+		const uint EffectiveStrandsCount = ceil(Info.StrandsCount * Info.ScreenSize);
+		Print(Context, Info.ActiveCurveCount, FontOrange, 8);
+		Print(Context, TEXT("/"));
+		Print(Context,Info.StrandsCount, FontSilver, 8);
+
+		Print(Context, Info.ActivePointCount, FontOrange, 8);
+		Print(Context, TEXT("/"));
+		Print(Context,Info.VertexCount, FontSilver, 8);
 
 		// Binding data
 		Print(Context,Info.UniqueTriangle, FontOrange, 8);
-		Print(Context, TEXT("      "));
-		Print(Context,Info.UniqueSection, FontSilver, 8);
-		Print(Context, TEXT("     "));
+		Print(Context, TEXT(" "));
+		Print(Context,Info.UniqueSection, FontSilver, 3);
+		Print(Context, TEXT("  "));
 
 		// Primary view
 		if (Info.bIsVisibleInPrimaryView)
@@ -1337,7 +1354,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			Print(Context, TEXT("True "), FontGreen);
 		else
 			Print(Context, TEXT("False"), FontRed);
-		Print(Context, TEXT(" "), FontWhite);
+		Print(Context, TEXT("  "), FontWhite);
 
 		// Name
 		PrintInstanceName(Context, InstanceIndex, FontWhite);
@@ -1349,8 +1366,13 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 {
 	if (all(DispatchThreadId == 0))
 	{
+		// Bound
 		const FHairAABB AABB = ReadHairAABB(0, InstanceAABB);
 		AddAABBTWS(AABB.Min, AABB.Max, ColorDarkGreen);
+
+		// Screen size
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50));
+		AddCircleSS(Context, InstanceScreenSphereBound.xy, InstanceScreenSphereBound.w, ColorGreen);
 	}
 }
 #endif // PERMUTATION_OUTPUT_TYPE
