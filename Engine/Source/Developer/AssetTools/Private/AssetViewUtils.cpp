@@ -18,6 +18,7 @@
 #include "Engine/Level.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "Settings/EditorLoadingSavingSettings.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
@@ -336,7 +337,8 @@ void AssetViewUtils::MoveAssets(const TArray<UObject*>& Assets, const FString& D
 
 	if ( AssetsAndNames.Num() > 0 )
 	{
-		AssetToolsModule.Get().RenameAssetsWithDialog(AssetsAndNames);
+		const UEditorLoadingSavingSettings* Settings = GetDefault<UEditorLoadingSavingSettings>();
+		AssetToolsModule.Get().RenameAssetsWithDialog(AssetsAndNames, Settings->GetAutomaticallyCheckoutOnAssetModification());
 	}
 }
 
