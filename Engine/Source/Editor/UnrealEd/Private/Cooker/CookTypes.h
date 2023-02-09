@@ -530,7 +530,7 @@ void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severit
 LLM_DECLARE_TAG(Cooker);
 
 inline constexpr uint32 ExpectedMaxNumPlatforms = 32;
-#define REMAPPED_PLUGINS TEXT("RemappedPlugins")
+#define REMAPPED_PLUGINS TEXTVIEW("RemappedPlugins")
 extern float GCookProgressWarnBusyTime;
 
 inline constexpr float TickCookableObjectsFrameTime = .100f;

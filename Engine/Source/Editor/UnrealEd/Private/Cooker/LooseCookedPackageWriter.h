@@ -112,20 +112,14 @@ private:
 
 	/* Delete the sandbox directory (asynchronously) in preparation for a clean cook */
 	void DeleteSandboxDirectory();
-	/**
-	* Searches the disk for all the cooked files in the sandbox path provided
-	* Returns a map of the uncooked file path matches to the cooked file path for each package which exists
-	*
-	* @param UncookedpathToCookedPath out Map of the uncooked path matched with the cooked package which exists
-	* @param SandboxRootDir root dir to search for cooked packages in
-	*/
+	/** Searches the disk for all the cooked files in the sandbox. Stores results in PackageNameToCookedFiles. */
 	void GetAllCookedFiles();
 
-	FName ConvertCookedPathToUncookedPath(
+	FName ConvertCookedPathToPackageName(
 		const FString& SandboxRootDir, const FString& RelativeRootDir,
 		const FString& SandboxProjectDir, const FString& RelativeProjectDir,
-		const FString& CookedPath, FString& OutUncookedPath) const;
-	void RemoveCookedPackagesByUncookedFilename(const TArray<FName>& UncookedFileNamesToRemove);
+		const FString& CookedPath, FString& ScratchFileName, FString& ScratchPackageName) const;
+	void RemoveCookedPackagesByPackageName(TArrayView<const FName> PackageNamesToRemove, bool bRemoveRecords);
 	void AsyncSave(FRecord& Record, const FCommitPackageInfo& Info);
 
 	void CollectForSavePackageData(FRecord& Record, FCommitContext& Context);
@@ -146,7 +140,7 @@ private:
 	// If EWriteOptions::ComputeHash is not set, the package will not get added to this.
 	TMap<FName, TRefCountPtr<FPackageHashes>> AllPackageHashes;
 
-	TMap<FName, FName> UncookedPathToCookedPath;
+	TMap<FName, TArray<FString>> PackageNameToCookedFiles;
 	/** CommitPackage can be called in parallel if using recursive save, so we need a lock for shared containers used during CommitPackage */
 	FCriticalSection PackageHashesLock;
 	FString OutputPath;
