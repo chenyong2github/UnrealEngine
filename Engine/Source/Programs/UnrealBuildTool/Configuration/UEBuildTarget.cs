@@ -1224,56 +1224,6 @@ namespace UnrealBuildTool
 				RulesObject.DependencyListFileNames.Add(DependencyListFile);
 			}
 
-			// If we're compiling only specific files, we need to prevent unity builds from running
-			if (Descriptor.SpecificFilesToCompile.Count > 0)
-			{
-				RulesObject.bUseUnityBuild = false;
-				RulesObject.bForceUnityBuild = false;
-				RulesObject.bUsePCHFiles = false;
-				RulesObject.bDisableLinking = true;
-				RulesObject.bIgnoreBuildOutputs = true;
-			}
-
-			// If the files to compile contains headers, figure out the cpp files that include them
-			Func<FileReference, bool> IsHeader = x => x.HasExtension(".h") || x.HasExtension(".hpp") || x.HasExtension(".hxx");
-			List<FileReference> SpecificHeaderFiles = Descriptor.SpecificFilesToCompile.Where(IsHeader).ToList();
-			if (SpecificHeaderFiles.Count > 0)
-			{
-				List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
-				BaseDirs.Add(Unreal.EngineDirectory);
-
-				DirectoryReference CacheDir = Unreal.EngineDirectory;
-				if (RulesObject.ProjectFile != null)
-				{
-					BaseDirs.Add(RulesObject.ProjectFile.Directory);
-					CacheDir = RulesObject.ProjectFile.Directory;
-				}
-
-				FileReference IncludeCache = FileReference.Combine(CacheDir, "Intermediate", "HeaderLookup.dat");
-
-				Logger.LogInformation("Building dependency cache for specified headers");
-				foreach (FileReference HeaderFile in SpecificHeaderFiles)
-				{
-					Logger.LogDebug("  {HeaderFile}", HeaderFile);
-				}
-
-				CppIncludeLookup IncludeLookup = new CppIncludeLookup(IncludeCache);
-				IncludeLookup.Load();
-				IncludeLookup.Update(BaseDirs);
-				IncludeLookup.Save();
-
-				List<FileReference> NewFiles = IncludeLookup.FindFiles(Descriptor.SpecificFilesToCompile.Select(x => x.GetFileName())).Select(x => x.Location).ToList();
-				NewFiles.RemoveAll(x => IsHeader(x));
-				NewFiles = NewFiles.Except(Descriptor.SpecificFilesToCompile).ToList();
-
-				Logger.LogInformation("Found {NewFilesCount} source files", NewFiles.Count);
-				foreach (FileReference NewFile in NewFiles)
-				{
-					Logger.LogDebug("  {NewFile}", NewFile);
-				}
-
-				Descriptor.OptionalFilesToCompile.AddRange(NewFiles.Except(Descriptor.SpecificFilesToCompile));
-			}
 
 			// If we're compiling a plugin, and this target is monolithic, just create the object files
 			if (Descriptor.ForeignPlugin != null && RulesObject.LinkType == TargetLinkType.Monolithic)
@@ -1587,7 +1537,7 @@ namespace UnrealBuildTool
 			RulesAssembly = InRulesAssembly;
 			TargetType = Rules.Type;
 			ForeignPlugin = InDescriptor.ForeignPlugin;
-			bDeployAfterCompile = InRules.bDeployAfterCompile && !InRules.bDisableLinking && InDescriptor.SpecificFilesToCompile.Count == 0 && InDescriptor.OnlyModuleNames.Count == 0;
+			bDeployAfterCompile = InRules.bDeployAfterCompile && !InRules.bDisableLinking && InDescriptor.OnlyModuleNames.Count == 0;
 
 			// now that we have the platform, we can set the intermediate path to include the platform/architecture name
 			PlatformIntermediateFolder = GetPlatformIntermediateFolder(Platform, Architectures, false);
@@ -2433,29 +2383,13 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// Find the set of binaries to build. If we're compiling only specific files, filter the list of binaries to only include the files we're interested in.
-			HashSet<FileReference> SpecificFilesToCompile = new();
-			SpecificFilesToCompile.UnionWith(TargetDescriptor.SpecificFilesToCompile);
-			SpecificFilesToCompile.UnionWith(TargetDescriptor.OptionalFilesToCompile);
-			if (TargetDescriptor.SpecificFilesToCompile.Count > 0 && !BuildConfiguration.bIgnoreInvalidFiles)
-			{
-				foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
-				{
-					UEBuildBinary? Binary = Binaries.Find(x => x.Modules.Any(y => y.ContainsFile(SpecificFile)));
-					if (Binary == null)
-					{
-						throw new BuildException("Couldn't find any module containing {0} in {1}.", SpecificFile, TargetName);
-					}
-				}
-			}
-
 			// Build the target's binaries.
 			DirectoryReference ExeDir = GetExecutableDir();
 			using (GlobalTracer.Instance.BuildSpan("UEBuildBinary.Build()").StartActive())
 			{
 				foreach (UEBuildBinary Binary in Binaries)
 				{
-					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, SpecificFilesToCompile.ToList(), WorkingSet, ExeDir, MakefileBuilder, Logger);
+					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, WorkingSet, ExeDir, MakefileBuilder, Logger);
 					Makefile.OutputItems.AddRange(BinaryOutputItems);
 				}
 			}

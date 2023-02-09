@@ -180,55 +180,64 @@ namespace UnrealBuildTool
 								InputFiles.AddRange(InputFileCollection.CPPFiles);
 								InputFiles.AddRange(InputFileCollection.CCFiles);
 
-								var fileList = new List<FileReference>();
+								HashSet<FileItem> FilterFileList = new();
 								foreach (FileItem InputFile in InputFiles)
 								{
 									if (FileFilter == null || FileFilter.Matches(InputFile.Location.MakeRelativeTo(Unreal.RootDirectory)))
 									{
-										var fileRef = new FileReference(InputFile.AbsolutePath);
-										fileList.Add(fileRef);
+										FilterFileList.Add(InputFile);
 									}
 								}
 
-								if (fileList.Any())
+								CaptureActionGraphBuilder ActionGraphBuilder = new CaptureActionGraphBuilder(Logger);
+
+								Module.Compile(Target.Rules, TargetToolChain, BinaryCompileEnvironment, WorkingSet, ActionGraphBuilder, Logger);
+
+								List<IExternalAction> ValidActions = new();
+								foreach (IExternalAction Action in ActionGraphBuilder.CapturedActions)
 								{
-									CaptureActionGraphBuilder ActionGraphBuilder = new CaptureActionGraphBuilder(Logger);
-
-									Module.Compile(Target.Rules, TargetToolChain, BinaryCompileEnvironment, fileList, WorkingSet, ActionGraphBuilder, Logger);
-
-									IEnumerable<IExternalAction> CompileActions = ActionGraphBuilder.CapturedActions.Where(Action => Action.ActionType == ActionType.Compile);
-
-									if (CompileActions.Any())
+									if (Action.ActionType == ActionType.Compile && Action.ProducedItems.Any())
 									{
-										// convert any rsp files
-										Dictionary<string, string> UpdatedResFiles = new Dictionary<string, string>();
-										foreach (Tuple<FileItem, IEnumerable<string>> FileAndContents in ActionGraphBuilder.CapturedTextFiles)
+										foreach (FileItem Prereq in Action.PrerequisiteItems)
 										{
-											if (FileAndContents.Item1.AbsolutePath.EndsWith(".rsp") || FileAndContents.Item1.AbsolutePath.EndsWith(".response"))
+											if (FilterFileList.Contains(Prereq))
 											{
-												string NewResPath = ConvertResponseFile(FileAndContents.Item1, FileAndContents.Item2, Logger);
-												UpdatedResFiles[FileAndContents.Item1.AbsolutePath] = NewResPath;
+												ValidActions.Add(Action);
 											}
 										}
+									}
+								}
 
-										foreach (IExternalAction Action in CompileActions)
+								if (ValidActions.Count != 0)
+								{
+									// convert any rsp files
+									Dictionary<string, string> UpdatedResFiles = new Dictionary<string, string>();
+									foreach (Tuple<FileItem, IEnumerable<string>> FileAndContents in ActionGraphBuilder.CapturedTextFiles)
+									{
+										if (FileAndContents.Item1.AbsolutePath.EndsWith(".rsp") || FileAndContents.Item1.AbsolutePath.EndsWith(".response"))
 										{
-											// Create the command
-											StringBuilder CommandBuilder = new StringBuilder();
-											string CommandArguments = Action.CommandArguments.Replace(".rsp", ".rsp.gcd").Replace(".response", ".response.gcd");
-											CommandBuilder.AppendFormat("\"{0}\" {1}", Action.CommandPath, CommandArguments);
+											string NewResPath = ConvertResponseFile(FileAndContents.Item1, FileAndContents.Item2, Logger);
+											UpdatedResFiles[FileAndContents.Item1.AbsolutePath] = NewResPath;
+										}
+									}
 
-											foreach (string ExtraArgument in GetExtraPlatformArguments(TargetToolChain))
-											{
-												CommandBuilder.AppendFormat(" {0}", ExtraArgument);
-											}
+									foreach (IExternalAction Action in ValidActions)
+									{
+										// Create the command
+										StringBuilder CommandBuilder = new StringBuilder();
+										string CommandArguments = Action.CommandArguments.Replace(".rsp", ".rsp.gcd").Replace(".response", ".response.gcd");
+										CommandBuilder.AppendFormat("\"{0}\" {1}", Action.CommandPath, CommandArguments);
 
-											// find source file
-											var SourceFile = Action.PrerequisiteItems.FirstOrDefault(fi => fi.HasExtension(".cpp") || fi.HasExtension(".c") || fi.HasExtension(".c"));
-											if (SourceFile != null)
-											{
-												FileToCommand[SourceFile.Location] = CommandBuilder.ToString();
-											}
+										foreach (string ExtraArgument in GetExtraPlatformArguments(TargetToolChain))
+										{
+											CommandBuilder.AppendFormat(" {0}", ExtraArgument);
+										}
+
+										// find source file
+										var SourceFile = Action.PrerequisiteItems.FirstOrDefault(fi => fi.HasExtension(".cpp") || fi.HasExtension(".c") || fi.HasExtension(".c"));
+										if (SourceFile != null)
+										{
+											FileToCommand[SourceFile.Location] = CommandBuilder.ToString();
 										}
 									}
 								}
@@ -253,6 +262,8 @@ namespace UnrealBuildTool
 					}
 					Writer.WriteArrayEnd();
 				}
+				Logger.LogInformation($"ClangDatabase written to {DatabaseFile.FullName}");
+
 			}
 
 			return 0;

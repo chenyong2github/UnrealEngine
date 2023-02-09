@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -430,6 +431,23 @@ namespace UnrealBuildTool
 			}
 			return ReturnString;
 		}
+	}
+
+	/// <summary>
+	/// Interface that is used when -SingleFile=xx is used on the cmd line to make specific files compile
+	/// Actions that has this interface can be used to create real actions that can compile the specific files
+	/// </summary>
+	interface ISpecificFileAction
+	{
+		/// <summary>
+		/// The directory this action can create actions for
+		/// </summary>
+		DirectoryReference RootDirectory { get; }
+
+		/// <summary>
+		/// Creates an action for a specific file. It can return null if for example file extension is not handled
+		/// </summary>
+		IExternalAction? CreateAction(FileItem SourceFile, ILogger Logger);
 	}
 
 	/// <summary>

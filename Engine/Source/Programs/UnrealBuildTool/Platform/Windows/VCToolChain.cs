@@ -2,11 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Microsoft.Win32;
 using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
@@ -1368,7 +1365,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
+		private VCCompileAction CreateBaseCompileAction(CppCompileEnvironment CompileEnvironment)
 		{
 			VCCompileAction BaseCompileAction = new VCCompileAction(EnvVars);
 
@@ -1422,6 +1419,12 @@ namespace UnrealBuildTool
 					BaseCompileAction.Arguments.Add("/d1reportTime");
 				}
 			}
+			return BaseCompileAction;
+		}
+
+		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
+		{
+			VCCompileAction BaseCompileAction = CreateBaseCompileAction(CompileEnvironment);
 
 			// Create a compile action for each source file.
 			List<VCCompileAction> Actions = new List<VCCompileAction>();
@@ -2080,6 +2083,13 @@ namespace UnrealBuildTool
 			NewCompileEnvironment.AdditionalResponseFiles.Add(FileItem);
 
 			return NewCompileEnvironment;
+		}
+
+		public override void CreateSpecificFileAction(CppCompileEnvironment CompileEnvironment, DirectoryReference SourceDir, DirectoryReference OutputDir, IActionGraphBuilder Graph)
+		{
+			VCCompileAction BaseCompileAction = CreateBaseCompileAction(CompileEnvironment);
+			AppendCLArguments_CPP(CompileEnvironment, BaseCompileAction.Arguments);
+			Graph.AddAction(new VcSpecificFileAction(SourceDir, OutputDir, BaseCompileAction));
 		}
 
 		/// <summary>

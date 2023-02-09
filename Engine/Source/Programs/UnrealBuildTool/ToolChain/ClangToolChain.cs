@@ -844,9 +844,6 @@ namespace UnrealBuildTool
 			// Add include paths to the argument list.
 			GetCompileArguments_IncludePaths(CompileEnvironment, Arguments);
 
-			// Add force include paths to the argument list.
-			GetCompileArguments_ForceInclude(CompileEnvironment, Arguments);
-
 			// Add preprocessor definitions to the argument list.
 			GetCompileArguments_PreprocessorDefinitions(CompileEnvironment, Arguments);
 
@@ -893,6 +890,10 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add(GetResponseFileArgument(AdditionalResponseFile));
 			}
+
+			// Add force include paths to the argument list.
+			GetCompileArguments_ForceInclude(CompileEnvironment, Arguments);
+
 
 			// Add the C++ source file and its included files to the prerequisite item list.
 			CompileAction.PrerequisiteItems.UnionWith(CompileEnvironment.ForceIncludeFiles);
@@ -1047,6 +1048,23 @@ namespace UnrealBuildTool
 
 
 			return NewCompileEnvironment;
+		}
+
+		public override void CreateSpecificFileAction(CppCompileEnvironment CompileEnvironment, DirectoryReference SourceDir, DirectoryReference OutputDir, IActionGraphBuilder Graph)
+		{
+			List<string> GlobalArguments = new();
+			if (CompileEnvironment.SystemIncludePaths.Count != 0)
+			{
+				GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
+			}
+
+			FileItem DummyFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, "SingleFile.cpp"));
+			CPPOutput Result = new();
+			ClangSpecificFileActionGraphBuilder GraphBuilder = new(Logger);
+			Action Action = CompileCPPFile(CompileEnvironment, DummyFile, OutputDir, "<Unknown>", GraphBuilder, GlobalArguments, Result);
+			Action.PrerequisiteItems.Clear();
+
+			Graph.AddAction(new ClangSpecificFileAction(SourceDir, OutputDir, Action, GraphBuilder.ContentLines));
 		}
 
 		protected virtual Action CompileCPPFile(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph, IReadOnlyCollection<string> GlobalArguments, CPPOutput Result)

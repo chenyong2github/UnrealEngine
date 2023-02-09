@@ -439,11 +439,34 @@ namespace UnrealBuildTool
 					ActionGraph.CheckPathLengths(BuildConfiguration, Makefiles.SelectMany(x => x.Actions), Logger);
 				}
 
+				HashSet<FileItem> MergedOutputItems = new HashSet<FileItem>();
+
 				// Create a QueuedAction instance for each action in the makefiles
 				List<LinkedAction>[] QueuedActions = new List<LinkedAction>[Makefiles.Length];
-				for(int Idx = 0; Idx < Makefiles.Length; Idx++)
+				for (int Idx = 0; Idx < Makefiles.Length; Idx++)
 				{
-					QueuedActions[Idx] = Makefiles[Idx].Actions.ConvertAll(x => new LinkedAction(x, TargetDescriptors[Idx]));
+					TargetDescriptor TargetDescriptor = TargetDescriptors[Idx];
+					List<FileReference> FilesToBuild = TargetDescriptor.SpecificFilesToCompile;
+
+					// No specific files to filter on, queue all actions
+					if (FilesToBuild.Count == 0)
+					{
+						QueuedActions[Idx] = Makefiles[Idx].Actions.ConvertAll(x => new LinkedAction(x, TargetDescriptors[Idx]));
+					}
+					else
+					{
+						// If there are headers in the list, expand the FilesToBuild to also include all files that include those headers
+						FilesToBuild = GetAllSourceFilesIncludingHeader(FilesToBuild, TargetDescriptor.ProjectFile, Makefiles[Idx].Actions, Logger);
+
+						// We have specific files to compile so we will only queue up those files.
+						QueuedActions[Idx] = CreateLinkedActionsFromFileList(TargetDescriptor, FilesToBuild, Makefiles[Idx].Actions, Logger);
+
+						// Add all queued actions to the MergedOutputItems to make sure they are not skipped
+						foreach (LinkedAction Action in QueuedActions[Idx])
+						{
+							MergedOutputItems.Add(Action.ProducedItems.First());
+						}
+					}
 				}
 
 				// Clean up any previous hot reload runs, and reapply the current state if it's already active
@@ -465,7 +488,6 @@ namespace UnrealBuildTool
 				}
 
 				// Gather all the prerequisite actions that are part of the targets
-				HashSet<FileItem> MergedOutputItems = new HashSet<FileItem>();
 				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 				{
 					GatherOutputItems(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], MergedOutputItems);
@@ -610,17 +632,6 @@ namespace UnrealBuildTool
 
 					// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.
 					ActionGraph.GatherAllOutdatedActions(PrerequisiteActions, History, ActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
-					if (TargetDescriptor.SpecificFilesToCompile.Count != 0)
-					{
-						HashSet<FileReference> ForceBuildFiles = new HashSet<FileReference>();
-						ForceBuildFiles.UnionWith(TargetDescriptor.SpecificFilesToCompile);
-						ForceBuildFiles.UnionWith(TargetDescriptor.OptionalFilesToCompile);
-
-						foreach (LinkedAction PrerequisiteAction in PrerequisiteActions.Where(x => x.PrerequisiteItems.Any(y => ForceBuildFiles.Contains(y.Location))))
-						{
-							ActionToOutdatedFlag[PrerequisiteAction] = true;
-						}
-					}
 				}
 
 				// Link the action graph again to sort it
@@ -767,6 +778,188 @@ namespace UnrealBuildTool
 			}
 		}
 
+		internal static List<LinkedAction> CreateLinkedActionsFromFileList(TargetDescriptor? Target, List<FileReference> FileList, List<IExternalAction> Actions, ILogger Logger)
+		{
+			// We have specific files to compile so we will only queue up those files.
+			// We will also add them to the MergedOutputItems to make sure they are not skipped
+			List<LinkedAction> LinkedActions = new();
+
+			// First, find all the SpecificFileActions.
+			// These are used to create a custom action for the source file in case it is inside a unity or normally not part of the build (headers for example)
+			Dictionary<DirectoryReference, ISpecificFileAction> SpecificFileActions = new();
+			foreach (IExternalAction Action in Actions)
+			{
+				if (Action is ISpecificFileAction SpecificFileAction)
+				{
+					SpecificFileActions.TryAdd(SpecificFileAction.RootDirectory, SpecificFileAction);
+				}
+			}
+
+			// Now traverse all specific files and make sure we find or create actions for them.
+			foreach (FileReference FileRef in FileList)
+			{
+				FileItem SourceFile = FileItem.GetItemByFileReference(FileRef);
+
+				ISpecificFileAction? SpecificFileAction = null;
+
+				// Traverse upwards from file directory to try to find a SpecificFileAction.
+				DirectoryItem Dir = SourceFile.Directory;
+				while (true)
+				{
+					if (SpecificFileActions.TryGetValue(Dir.Location, out SpecificFileAction))
+					{
+						break;
+					}
+					DirectoryItem? ParentDir = Dir.GetParentDirectoryItem();
+					if (ParentDir == null)
+					{
+						break;
+					}
+					Dir = ParentDir;
+				}
+
+				// We found an action to take care of this file.
+				if (SpecificFileAction != null)
+				{
+					IExternalAction? NewAction = SpecificFileAction.CreateAction(SourceFile, Logger);
+					if (NewAction != null)
+					{
+						LinkedActions.Add(new LinkedAction(NewAction, Target));
+						continue;
+					}
+				}
+
+				// There is no special action for this file.. let's look for an action that has this exact file as input and use that (for example ispc files)
+				bool FoundAction = false;
+				foreach (IExternalAction Action in Actions)
+				{
+					foreach (FileItem PrereqItem in Action.PrerequisiteItems)
+					{
+						if (PrereqItem == SourceFile)
+						{
+							FoundAction = true;
+							LinkedActions.Add(new LinkedAction(Action, Target));
+							break;
+						}
+					}
+					if (FoundAction)
+					{
+						break;
+					}
+				}
+
+				if (!FoundAction)
+				{
+					Logger.LogError($"{FileRef.FullName} - ERROR: Failed to find an Action that can be used to build this file (does target use this file?)");
+				}
+			}
+
+			return LinkedActions;
+		}
+
+
+		/// <summary>
+		/// If there are headers in the specific list, this function will exand the list to include all files that include those headers
+		/// </summary>
+		/// <param name="SpecificFilesToCompile">List of files to compile</param>
+		/// <param name="ProjectFile">Project file if there is one</param>
+		/// <param name="Actions">Actions to filter out expansion of files</param>
+		/// <param name="Logger">Logger for output</param>
+		internal static List<FileReference> GetAllSourceFilesIncludingHeader(List<FileReference> SpecificFilesToCompile, FileReference? ProjectFile, List<IExternalAction> Actions, ILogger Logger)
+		{
+			Func<FileReference, bool> IsCode = x => IsHeader(x)|| x.HasExtension(".cpp") || x.HasExtension(".c");
+			List<FileReference> SpecificHeaderFiles = SpecificFilesToCompile.Where(IsHeader).ToList();
+			if (SpecificHeaderFiles.Count == 0)
+				return SpecificFilesToCompile;
+
+			// TODO: This code below works very similar to the code before this changelist but is not a great solution for figuring out which files to compile.
+			// Suggested approach is to:
+			// 1. Write out a file with additional include paths per module.
+			// 2. Use the special single file actions to figure out if the specific headers are included by the source files using additional include paths
+			// 3. Fix so CppIncludeLookup is including headers... Current code does not handle this: A.h <- B.h <- C.cpp... C.cpp is not added.
+			// 4. Cache which files unity files include to reduce number of files needed to be read
+
+			List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
+			BaseDirs.Add(Unreal.EngineDirectory);
+
+			DirectoryReference CacheDir = Unreal.EngineDirectory;
+			if (ProjectFile != null)
+			{
+				BaseDirs.Add(ProjectFile.Directory);
+				CacheDir = ProjectFile.Directory;
+			}
+
+			FileReference IncludeCache = FileReference.Combine(CacheDir, "Intermediate", "HeaderLookup.dat");
+
+			Logger.LogInformation("Building dependency cache for specified headers");
+			foreach (FileReference HeaderFile in SpecificHeaderFiles)
+			{
+				Logger.LogDebug("  {HeaderFile}", HeaderFile);
+			}
+
+			CppIncludeLookup IncludeLookup = new CppIncludeLookup(IncludeCache);
+			IncludeLookup.Load();
+			IncludeLookup.Update(BaseDirs);
+			IncludeLookup.Save();
+
+			// Find all files that can be part of this build
+			ConcurrentDictionary<FileReference, int> UsedFiles = new();
+			Parallel.ForEach(Actions, (Action) =>
+			{
+				foreach (FileItem File in Action.PrerequisiteItems)
+				{
+					if (!IsCode(File.Location))
+					{
+						continue;
+					}
+
+					// If file is a unity file we want to traverse the internal files and add them as UsedFiles
+					if (File.Name.StartsWith(Unity.ModulePrefix))
+					{
+						foreach (string Line in System.IO.File.ReadAllLines(File.FullName))
+						{
+							int IncludeStart = Line.IndexOf('"') + 1;
+							if (IncludeStart != 0)
+							{
+								string Include = Line.Substring(IncludeStart, Line.Length - IncludeStart - 1);
+								FileItem SourceFile = FileItem.GetItemByFileReference(FileReference.Combine(Unreal.EngineSourceDirectory, Include));
+								UsedFiles.TryAdd(SourceFile.Location, 0);
+							}
+						}
+					}
+					else
+					{
+						UsedFiles.TryAdd(File.Location, 0);
+					}
+				}
+			});
+
+
+			SortedSet<FileReference> NewFiles = new();
+			List<FileReference> FoundFiles = IncludeLookup.FindFiles(SpecificFilesToCompile.Select(x => x.GetFileName())).Select(x => x.Location).ToList();
+
+			// Found files can be a lot (Commandline.h gives 130.000+ files). And we only want to build the ones that are in existing actions
+			Parallel.ForEach(FoundFiles, (File) =>
+			{
+				if (UsedFiles.ContainsKey(File))
+				{
+					lock (NewFiles)
+					{
+						NewFiles.Add(File);
+					}
+				}
+			});
+
+			Logger.LogInformation("Found {NewFilesCount} source files", NewFiles.Count);
+			foreach (FileReference NewFile in NewFiles)
+			{
+				Logger.LogDebug("  {NewFile}", NewFile);
+			}
+
+			NewFiles.UnionWith(SpecificFilesToCompile);
+			return NewFiles.ToList(); ;
+		}
+
 		/// <summary>
 		/// Outputs the toolchain used to build each target
 		/// </summary>
@@ -804,6 +997,12 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Returns true if File is header
+		/// </summary>
+		/// <param name="File">File to check</param>
+		internal static bool IsHeader(FileReference File) { return File.HasExtension(".h") || File.HasExtension(".hpp") || File.HasExtension(".hxx"); }
+
+		/// <summary>
 		/// Creates the makefile for a target. If an existing, valid makefile already exists on disk, loads that instead.
 		/// </summary>
 		/// <param name="BuildConfiguration">The build configuration</param>
@@ -815,7 +1014,7 @@ namespace UnrealBuildTool
 		{
 			// Get the path to the makefile for this target
 			FileReference? MakefileLocation = null;
-			if(BuildConfiguration.bUseUBTMakefiles && TargetDescriptor.SpecificFilesToCompile.Count == 0)
+			if(BuildConfiguration.bUseUBTMakefiles)
 			{
 				MakefileLocation = TargetMakefile.GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Architectures, TargetDescriptor.Configuration);
 			}
@@ -946,11 +1145,6 @@ namespace UnrealBuildTool
 		{
 			if(TargetDescriptor.SpecificFilesToCompile.Count > 0)
 			{
-				// If we're just compiling a specific files, set the target items to be all the derived items
-				List<FileItem> FilesToCompile = TargetDescriptor.SpecificFilesToCompile.Union(TargetDescriptor.OptionalFilesToCompile).Select(x => FileItem.GetItemByFileReference(x)).ToList();
-				OutputItems.UnionWith(
-					Makefile.Actions.Where(x => x.PrerequisiteItems.Any(y => FilesToCompile.Contains(y)))
-					.SelectMany(x => x.ProducedItems));
 			}
 			else if(TargetDescriptor.OnlyModuleNames.Count > 0)
 			{
@@ -988,6 +1182,11 @@ namespace UnrealBuildTool
 				string GroupPrefix = String.Format("{0}-{1}-{2}", TargetDescriptors[TargetIdx].Name, TargetDescriptors[TargetIdx].Platform, TargetDescriptors[TargetIdx].Configuration);
 				foreach(LinkedAction TargetAction in TargetActions[TargetIdx])
 				{
+					if (!TargetAction.ProducedItems.Any())
+					{
+						continue;
+					}
+					
 					if (TargetAction.IgnoreConflicts())
 					{
 						IgnoreConflictActions.Add(TargetAction);

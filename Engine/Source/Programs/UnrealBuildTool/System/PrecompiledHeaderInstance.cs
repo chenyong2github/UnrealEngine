@@ -20,6 +20,11 @@ namespace UnrealBuildTool
 		public FileItem HeaderFile;
 
 		/// <summary>
+		/// The definitions file
+		/// </summary>
+		public FileItem DefinitionsFile;
+
+		/// <summary>
 		/// The compile environment for this shared PCH
 		/// </summary>
 		public CppCompileEnvironment CompileEnvironment;
@@ -35,13 +40,20 @@ namespace UnrealBuildTool
 		public List<UEBuildModuleCPP> Modules = new List<UEBuildModuleCPP>();
 
 		/// <summary>
+		/// These are definitions that are immutable and should never be #undef. There are a few exceptions and we make sure those are not ending up in this list
+		/// </summary>
+		public HashSet<string> ImmutableDefinitions;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PrecompiledHeaderInstance(FileItem HeaderFile, CppCompileEnvironment CompileEnvironment, CPPOutput Output)
+		public PrecompiledHeaderInstance(FileItem HeaderFile, FileItem DefinitionsFile, CppCompileEnvironment CompileEnvironment, CPPOutput Output, HashSet<string> ImmutableDefinitions)
 		{
 			this.HeaderFile = HeaderFile;
+			this.DefinitionsFile = DefinitionsFile;
 			this.CompileEnvironment = CompileEnvironment;
 			this.Output = Output;
+			this.ImmutableDefinitions = ImmutableDefinitions;
 		}
 
 		/// <summary>

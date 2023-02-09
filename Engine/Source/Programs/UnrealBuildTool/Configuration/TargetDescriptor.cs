@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
@@ -61,12 +60,6 @@ namespace UnrealBuildTool
 		[CommandLine("-File=")]
 		[CommandLine("-SingleFile=")]
 		public List<FileReference> SpecificFilesToCompile = new List<FileReference>();
-
-		/// <summary>
-		/// Individual files to compile which may or may not be part of the target. This file set is built from a header scan, and may include files
-		/// not part of the target by design.
-		/// </summary>
-		public List<FileReference> OptionalFilesToCompile = new List<FileReference>();
 
 		/// <summary>
 		/// Whether to perform hot reload for this target

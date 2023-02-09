@@ -341,11 +341,11 @@ namespace UnrealBuildTool
 		}
 
 		// UEBuildModule interface.
-		public override List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment BinaryCompileEnvironment, List<FileReference> SpecificFilesToCompile, ISourceFileWorkingSet WorkingSet, IActionGraphBuilder Graph, ILogger Logger)
+		public override List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment BinaryCompileEnvironment, ISourceFileWorkingSet WorkingSet, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			//UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BinaryCompileEnvironment.Platform);
 
-			List<FileItem> LinkInputFiles = base.Compile(Target, ToolChain, BinaryCompileEnvironment, SpecificFilesToCompile, WorkingSet, Graph, Logger);
+			List<FileItem> LinkInputFiles = base.Compile(Target, ToolChain, BinaryCompileEnvironment, WorkingSet, Graph, Logger);
 
 			CppCompileEnvironment ModuleCompileEnvironment = CreateModuleCompileEnvironment(Target, BinaryCompileEnvironment, Logger);
 
@@ -385,27 +385,6 @@ namespace UnrealBuildTool
 			foreach (KeyValuePair<DirectoryItem, FileItem[]> Pair in DirectoryToSourceFiles)
 			{
 				Graph.AddSourceFiles(Pair.Key, Pair.Value);
-			}
-
-			// If we're compiling only specific files, strip out anything else. This prevents us clobbering response files for anything we're 
-			// not going to build, triggering a larger build than necessary when we do a regular build again.
-			if(SpecificFilesToCompile.Count > 0)
-			{
-				InputFiles.CPPFiles.RemoveAll(x => !SpecificFilesToCompile.Contains(x.Location));
-				InputFiles.CCFiles.RemoveAll(x => !SpecificFilesToCompile.Contains(x.Location));
-				InputFiles.CFiles.RemoveAll(x => !SpecificFilesToCompile.Contains(x.Location));
-				InputFiles.MMFiles.RemoveAll(x => !SpecificFilesToCompile.Contains(x.Location));
-				InputFiles.RCFiles.RemoveAll(x => !SpecificFilesToCompile.Contains(x.Location));
-
-				if (InputFiles.CPPFiles.Count == 0
-					&& InputFiles.CCFiles.Count == 0
-					&& InputFiles.CFiles.Count == 0
-					&& InputFiles.MMFiles.Count == 0
-					&& InputFiles.RCFiles.Count == 0
-					&& !SpecificFilesToCompile.Any(x => ContainsFile(x)))
-				{
-					return new List<FileItem>();
-				}
 			}
 
 			// We are building with IWYU and thismodule does not support it, early out
@@ -485,36 +464,23 @@ namespace UnrealBuildTool
 			if (GeneratedCppDirectories != null && !CompileEnvironment.bHackHeaderGenerator)
 			{
 				var GeneratedFiles = new Dictionary<string, FileItem>();
-				if (SpecificFilesToCompile.Count == 0)
+				foreach (string GeneratedDir in GeneratedCppDirectories)
 				{
-					foreach (string GeneratedDir in GeneratedCppDirectories)
+					if (!Directory.Exists(GeneratedDir))
 					{
-						if (!Directory.Exists(GeneratedDir))
-						{
-							continue;
-						}
-
-						string Prefix = Path.GetFileName(GeneratedDir) + '/'; // "UHT/" or "VNI/"
-
-						DirectoryItem DirItem = DirectoryItem.GetItemByPath(GeneratedDir);
-						foreach (FileItem File in DirItem.EnumerateFiles())
-						{
-							string FileName = File.Name;
-							if (FileName.EndsWith(".gen.cpp"))
-							{
-								string Key = Prefix + FileName.Substring(0, FileName.Length - ".gen.cpp".Length);
-								GeneratedFiles.Add(Key, File);
-							}
-						}
+						continue;
 					}
-				}
-				else
-				{
-					foreach (FileReference FileToCompile in SpecificFilesToCompile)
+
+					string Prefix = Path.GetFileName(GeneratedDir) + '/'; // "UHT/" or "VNI/"
+
+					DirectoryItem DirItem = DirectoryItem.GetItemByPath(GeneratedDir);
+					foreach (FileItem File in DirItem.EnumerateFiles())
 					{
-						if (GeneratedCppDirectories.Any(x => FileToCompile.IsUnderDirectory(new DirectoryReference(x))))
+						string FileName = File.Name;
+						if (FileName.EndsWith(".gen.cpp"))
 						{
-							GeneratedFiles.Add(FileToCompile.GetFileNameWithoutAnyExtensions(), FileItem.GetItemByFileReference(FileToCompile));
+							string Key = Prefix + FileName.Substring(0, FileName.Length - ".gen.cpp".Length);
+							GeneratedFiles.Add(Key, File);
 						}
 					}
 				}
@@ -593,10 +559,7 @@ namespace UnrealBuildTool
 					// Compile all the generated files
 					foreach (FileItem GeneratedCppFileItem in GeneratedFiles.Values)
 					{
-						if (SpecificFilesToCompile.Count == 0 || SpecificFilesToCompile.Contains(GeneratedCppFileItem.Location))
-						{
-							GeneratedFileItems.Add(GeneratedCppFileItem);
-						}
+						GeneratedFileItems.Add(GeneratedCppFileItem);
 					}
 				}
 			}
@@ -688,7 +651,7 @@ namespace UnrealBuildTool
 					out List<FileItem> NormalFiles, out List<FileItem> AdaptiveFiles, NumIncludedBytesPerUnityCPP);
 				LinkInputFiles.AddRange(CompileFilesWithToolChain(Target, ToolChain, CodeCompileEnvironment, ModuleCompileEnvironment, NormalFiles, AdaptiveFiles, Graph, Logger).ObjectFiles);
 			}
-			else if (SpecificFilesToCompile.Count == 0)
+			else
 			{
 				Unity.GetAdaptiveFiles(Target, CPPFiles, InputFiles.HeaderFiles, CodeCompileEnvironment, WorkingSet, Rules.ShortName ?? Name, IntermediateDirectory, Graph, 
 					out List<FileItem> NormalFiles, out List<FileItem> AdaptiveFiles);
@@ -698,10 +661,6 @@ namespace UnrealBuildTool
 					AdaptiveFiles.RemoveAll(new HashSet<FileItem>(NormalFiles).Contains);
 				}
 				LinkInputFiles.AddRange(CompileFilesWithToolChain(Target, ToolChain, CodeCompileEnvironment, ModuleCompileEnvironment, NormalFiles, AdaptiveFiles, Graph, Logger).ObjectFiles);
-			}
-			else
-			{
-				LinkInputFiles.AddRange(CompileFilesWithToolChain(Target, ToolChain, CodeCompileEnvironment, ModuleCompileEnvironment, CPPFiles, new List<FileItem>(), Graph, Logger).ObjectFiles);
 			}
 
 			// Compile ISPC files directly
@@ -866,6 +825,23 @@ namespace UnrealBuildTool
 			return new PrecompiledHeaderTemplate(this, CompileEnvironment, HeaderFile, PrecompiledHeaderDir);
 		}
 
+		private HashSet<string> GetImmutableDefinitions(List<string> Definitions)
+		{
+			HashSet<string> ImmutableDefinitions = new();
+			foreach (string Definition in Definitions)
+			{
+				if (Definition.Contains("UE_IS_ENGINE_MODULE") ||
+					Definition.Contains("DEPRECATED_FORGAME") ||
+					Definition.Contains("UE_DEPRECATED_FORGAME") ||
+					Definition.Contains("UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_"))
+				{
+					continue;
+				}
+				ImmutableDefinitions.Add(Definition);
+			}
+			return ImmutableDefinitions;
+		}
+
 		/// <summary>
 		/// Creates a precompiled header action to generate a new pch file 
 		/// </summary>
@@ -877,8 +853,9 @@ namespace UnrealBuildTool
 		private PrecompiledHeaderInstance CreatePrivatePCH(UEToolChain? ToolChain, FileItem HeaderFile, CppCompileEnvironment ModuleCompileEnvironment, IActionGraphBuilder Graph)
 		{
 			// Create the wrapper file, which sets all the definitions needed to compile it
+			FileItem DefinitionsFileItem = CreateHeaderForDefinitions(ModuleCompileEnvironment, IntermediateDirectory, null, Graph)!;
 			FileReference WrapperLocation = FileReference.Combine(IntermediateDirectory, String.Format("PCH.{0}.h", Name));
-			FileItem WrapperFile = CreatePCHWrapperFile(WrapperLocation, ModuleCompileEnvironment.Definitions, HeaderFile, Graph);
+			FileItem WrapperFile = CreatePCHWrapperFile(WrapperLocation, DefinitionsFileItem!, HeaderFile, Graph);
 
 			// Create a new C++ environment that is used to create the PCH.
 			CppCompileEnvironment CompileEnvironment = new CppCompileEnvironment(ModuleCompileEnvironment);
@@ -897,7 +874,8 @@ namespace UnrealBuildTool
 			{
 				Output = ToolChain.CompileAllCPPFiles(CompileEnvironment, new List<FileItem>() { WrapperFile }, IntermediateDirectory, Name, Graph);
 			}
-			return new PrecompiledHeaderInstance(WrapperFile, CompileEnvironment, Output);
+
+			return new PrecompiledHeaderInstance(WrapperFile, DefinitionsFileItem, CompileEnvironment, Output, GetImmutableDefinitions(ModuleCompileEnvironment.Definitions));
 		}
 
 		/// <summary>
@@ -929,9 +907,16 @@ namespace UnrealBuildTool
 				// Create a suffix to distinguish this shared PCH variant from any others. Currently only optimized and non-optimized shared PCHs are supported.
 				string Variant = GetSuffixForSharedPCH(ModuleCompileEnvironment, Template.BaseCompileEnvironment);
 
+				FileReference SharedDefinitionsLocation = FileReference.Combine(Template.OutputDir, String.Format("SharedDefinitions.{0}{1}.h", Template.Module.Name, Variant));
+				List<string> NewDefinitions = new();
+				StringBuilder Writer = new StringBuilder();
+				Writer.AppendLine("#pragma once");
+				WriteDefinitions(Definitions, Writer);
+				FileItem SharedDefinitionsFileItem = Graph.CreateIntermediateTextFile(SharedDefinitionsLocation, Writer.ToString());
+
 				// Create the wrapper file, which sets all the definitions needed to compile it
 				FileReference WrapperLocation = FileReference.Combine(Template.OutputDir, String.Format("SharedPCH.{0}{1}.h", Template.Module.Name, Variant));
-				FileItem WrapperFile = CreatePCHWrapperFile(WrapperLocation, Definitions, Template.HeaderFile, Graph);
+				FileItem WrapperFile = CreatePCHWrapperFile(WrapperLocation, SharedDefinitionsFileItem, Template.HeaderFile, Graph);
 
 				// Create the compile environment for this PCH
 				CppCompileEnvironment CompileEnvironment = new CppCompileEnvironment(Template.BaseCompileEnvironment);
@@ -950,7 +935,7 @@ namespace UnrealBuildTool
 				{
 					Output = ToolChain.CompileAllCPPFiles(CompileEnvironment, new List<FileItem>() { WrapperFile }, Template.OutputDir, "Shared", Graph);
 				}
-				Instance = new PrecompiledHeaderInstance(WrapperFile, CompileEnvironment, Output);
+				Instance = new PrecompiledHeaderInstance(WrapperFile, SharedDefinitionsFileItem, CompileEnvironment, Output, GetImmutableDefinitions(Template.BaseCompileEnvironment.Definitions));
 				Template.Instances.Add(Instance);
 			}
 
@@ -1187,6 +1172,15 @@ namespace UnrealBuildTool
 				AdaptiveFiles = new List<FileItem>();
 			}
 
+			// Create and register a special action that can be used to compile single files (even when unity is enabled)
+			if (NormalFiles.Count > 0 || AdaptiveFiles.Count > 0)
+			{
+				PrecompiledHeaderAction OldAction = CompileEnvironment.PrecompiledHeaderAction;
+				CompileEnvironment.PrecompiledHeaderAction = PrecompiledHeaderAction.None;
+				ToolChain.CreateSpecificFileAction(CompileEnvironment, ModuleDirectory, IntermediateDirectory, Graph);
+				CompileEnvironment.PrecompiledHeaderAction = OldAction;
+			}
+
 			CPPOutput OutputFiles = new CPPOutput();
 
 			if (NormalFiles.Count > 0)
@@ -1353,8 +1347,8 @@ namespace UnrealBuildTool
 						FileItem PrivateDefinitionsFileItem;
 						{
 							StringBuilder Writer = new();
-							// Remove the module _API definition for cases where there are circular dependencies between the shared PCH module and modules using it
-							Writer.AppendLine("#undef {0}", ModuleApiDefine);
+
+							Writer.AppendLine($"#include \"{GetIncludeString(Instance.DefinitionsFile)}\"");
 
 							// Games may choose to use shared PCHs from the engine, so allow them to change the value of these macros
 							if(!Rules.bTreatAsEngineModule)
@@ -1370,7 +1364,26 @@ namespace UnrealBuildTool
 								}
 							}
 
-							WriteDefinitions(CompileEnvironment.Definitions, Writer);
+							// Only add new definitions that are not already existing in the shared pch
+							List<string> NewDefinitions = new();
+							bool ModuleApiUndef = false;
+							foreach (string Definition in CompileEnvironment.Definitions)
+							{
+								if (Instance.ImmutableDefinitions.Contains(Definition))
+								{
+									continue;
+								}
+
+								NewDefinitions.Add(Definition);
+
+								// Remove the module _API definition for cases where there are circular dependencies between the shared PCH module and modules using it
+								if (!ModuleApiUndef && Definition.StartsWith(ModuleApiDefine))
+								{
+									ModuleApiUndef = true;
+									Writer.AppendLine("#undef {0}", ModuleApiDefine);
+								}
+							}
+							WriteDefinitions(NewDefinitions, Writer);
 							PrivateDefinitionsFileItem = Graph.CreateIntermediateTextFile(PrivateDefinitionsFile, Writer.ToString());
 						}
 
@@ -1398,7 +1411,7 @@ namespace UnrealBuildTool
 		/// <param name="IntermediateDirectory">Directory to create the intermediate file</param>
 		/// <param name="HeaderSuffix">Suffix for the included file</param>
 		/// <param name="Graph">The action graph being built</param>
-		static void CreateHeaderForDefinitions(CppCompileEnvironment CompileEnvironment, DirectoryReference IntermediateDirectory, string? HeaderSuffix, IActionGraphBuilder Graph)
+		static FileItem? CreateHeaderForDefinitions(CppCompileEnvironment CompileEnvironment, DirectoryReference IntermediateDirectory, string? HeaderSuffix, IActionGraphBuilder Graph)
 		{
 			if(CompileEnvironment.Definitions.Count > 0)
 			{
@@ -1418,8 +1431,10 @@ namespace UnrealBuildTool
 
 					FileItem PrivateDefinitionsFileItem = Graph.CreateIntermediateTextFile(PrivateDefinitionsFile, Writer.ToString());
 					CompileEnvironment.ForceIncludeFiles.Add(PrivateDefinitionsFileItem);
+					return PrivateDefinitionsFileItem;
 				}
 			}
+			return null;
 		}
 
 		/// <summary>
@@ -1438,29 +1453,35 @@ namespace UnrealBuildTool
 			CompileEnvironment.UserIncludePaths.Add(IntermediateDirectory);
 		}
 
+		static string GetIncludeString(FileItem FileItem)
+		{
+			string IncludeFileString = FileItem.AbsolutePath;
+			if (FileItem.Location.IsUnderDirectory(Unreal.RootDirectory))
+			{
+				IncludeFileString = FileItem.Location.MakeRelativeTo(Unreal.EngineSourceDirectory);
+			}
+			return IncludeFileString.Replace('\\', '/');
+		}
+
 		/// <summary>
 		/// Create a header file containing the module definitions, which also includes the PCH itself. Including through another file is necessary on 
 		/// Clang, since we get warnings about #pragma once otherwise, but it also allows us to consistently define the preprocessor state on all 
 		/// platforms.
 		/// </summary>
 		/// <param name="OutputFile">The output file to create</param>
-		/// <param name="Definitions">Definitions required by the PCH</param>
+		/// <param name="DefinitionsFile">File containing definitions required by the PCH</param>
 		/// <param name="IncludedFile">The PCH file to include</param>
 		/// <param name="Graph">The action graph builder</param>
 		/// <returns>FileItem for the created file</returns>
-		static FileItem CreatePCHWrapperFile(FileReference OutputFile, IEnumerable<string> Definitions, FileItem IncludedFile, IActionGraphBuilder Graph)
+		static FileItem CreatePCHWrapperFile(FileReference OutputFile, FileItem DefinitionsFile, FileItem IncludedFile, IActionGraphBuilder Graph)
 		{
 			// Build the contents of the wrapper file
 			StringBuilder WrapperContents = new StringBuilder();
 			{
-				string IncludeFileString = IncludedFile.AbsolutePath;
-				if (IncludedFile.Location.IsUnderDirectory(Unreal.RootDirectory))
-				{
-					IncludeFileString = IncludedFile.Location.MakeRelativeTo(Unreal.EngineSourceDirectory);
-				}
-				IncludeFileString = IncludeFileString.Replace('\\', '/');
+				string IncludeFileString = GetIncludeString(IncludedFile);
+				string DefinitionsFileString = GetIncludeString(DefinitionsFile);
 				WrapperContents.AppendLine("// PCH for {0}", IncludeFileString);
-				WriteDefinitions(Definitions, WrapperContents);
+				WrapperContents.AppendLine("#include \"{0}\"", DefinitionsFileString);
 				WrapperContents.AppendLine("#include \"{0}\"", IncludeFileString);
 			}
 

@@ -157,6 +157,10 @@ namespace UnrealBuildTool
 			return CompileEnvironment;
 		}
 
+		public virtual void CreateSpecificFileAction(CppCompileEnvironment CompileEnvironment, DirectoryReference SourceDir, DirectoryReference OutputDir, IActionGraphBuilder Graph)
+		{
+		}
+
 		/// <summary>
 		/// Get the name of the response file for the current compile environment and output file
 		/// </summary>
