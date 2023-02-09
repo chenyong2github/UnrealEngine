@@ -1185,17 +1185,19 @@ const UObject* FGameplayCueParameters::GetSourceObject() const
 void FMinimalReplicationTagCountMap::RemoveTag(const FGameplayTag& Tag)
 {
 	MapID++;
-	int32& Count = TagMap.FindOrAdd(Tag);
-	Count--;
-	if (Count == 0)
+	if (int32* CountPtr = TagMap.Find(Tag))
 	{
-		// Remove from map so that we do not replicate
-		TagMap.Remove(Tag);
+		int32& Count = *CountPtr;
+		Count--;
+		if (Count <= 0)
+		{
+			// Remove from map so that we do not replicate
+			TagMap.Remove(Tag);
+		}
 	}
-	else if (Count < 0)
+	else
 	{
-		ABILITY_LOG(Error, TEXT("FMinimalReplicationTagCountMap::RemoveTag called on Tag %s and count is now < 0"), *Tag.ToString());
-		Count = 0;
+		ABILITY_LOG(Error, TEXT("FMinimalReplicationTagCountMap::RemoveTag called on Tag %s that wasn't in the tag map."), *Tag.ToString());
 	}
 }
 

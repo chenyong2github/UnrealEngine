@@ -1536,7 +1536,7 @@ struct GAMEPLAYABILITIES_API FMinimalReplicationTagCountMap
 	{
 		MapID++;
 		int32& Count = TagMap.FindOrAdd(Tag);
-		Count = NewCount;
+		Count = FMath::Max(0, NewCount);
 		
 		if (Count == 0)
 		{
