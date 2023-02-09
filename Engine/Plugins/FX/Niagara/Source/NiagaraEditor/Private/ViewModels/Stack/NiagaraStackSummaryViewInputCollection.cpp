@@ -113,7 +113,7 @@ void UNiagaraStackSummaryViewObject::AppendEmitterCategory(FFunctionCallNodesSta
 		bool bIsFirst = true;
 		for (UNiagaraNodeFunctionCall* ModuleNode : ModuleNodes)
 		{
-			if (ModuleNode && (ModuleNode->HasValidScriptAndGraph() || ModuleNode->Signature.IsValid()))
+			if (ModuleNode && ModuleNode->IsNodeEnabled() && (ModuleNode->HasValidScriptAndGraph() || ModuleNode->Signature.IsValid()))
 			{
 				AppendInputsForFunctionCall(State, ModuleNode, ModuleNode, NewIssues, true);
 			}
