@@ -34,6 +34,7 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	, HardRefCount(0)
 	, Container(nullptr)
 	, bIsForcedNonSpatiallyLoaded(false)
+	, bFailedToLoad(false)
 {}
 
 void FWorldPartitionActorDesc::Init(const AActor* InActor)
@@ -611,6 +612,8 @@ AActor* FWorldPartitionActorDesc::GetActor(bool bEvenIfPendingKill, bool bEvenIf
 
 AActor* FWorldPartitionActorDesc::Load() const
 {
+	bFailedToLoad = false;
+
 	if (ActorPtr.IsExplicitlyNull() || ActorPtr.IsStale())
 	{
 		// First, try to find the existing actor which could have been loaded by another actor (through standard serialization)
@@ -640,6 +643,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 			if (!ActorPtr.IsValid())
 			{
 				UE_LOG(LogWorldPartition, Warning, TEXT("Can't load actor guid `%s` ('%s') from package '%s'"), *Guid.ToString(), *GetActorName().ToString(), *ActorPackage.ToString());
+				bFailedToLoad = true;
 			}
 		}
 	}

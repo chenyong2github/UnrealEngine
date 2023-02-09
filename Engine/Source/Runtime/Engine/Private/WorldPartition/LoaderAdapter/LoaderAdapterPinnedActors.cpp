@@ -20,6 +20,11 @@ FText FLoaderAdapterPinnedActors::GetUnloadedReason(FWorldPartitionActorDesc* In
 {
 	if (InActorDesc)
 	{
+		if (InActorDesc->FailedToLoad())
+		{
+			return LOCTEXT("FailedToLoadReason", "Failed to load");
+		}
+
 		UActorDescContainer* ActorDescContainer = InActorDesc->GetContainer();
 		UWorldPartition* WorldPartition = ActorDescContainer != nullptr ? ActorDescContainer->GetWorldPartition() : nullptr;
 		bool bShouldBeLoaded = !InActorDesc->GetIsSpatiallyLoaded() && !InActorDesc->GetActorIsRuntimeOnly();
