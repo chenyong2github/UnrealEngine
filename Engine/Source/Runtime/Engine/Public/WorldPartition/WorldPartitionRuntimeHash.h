@@ -99,16 +99,11 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	void OnBeginPlay();
 	void OnEndPlay();
 
-	inline UWorldPartitionRuntimeCell* CreateRuntimeCell(UClass* CellClass, UClass* CellDataClass, FName CellName)
-	{
-		check(!FindObject<UWorldPartitionRuntimeCell>(this, *CellName.ToString()));
-		UWorldPartitionRuntimeCell* RuntimeCell = NewObject<UWorldPartitionRuntimeCell>(this, CellClass, CellName);
-		RuntimeCell->RuntimeCellData = NewObject<UWorldPartitionRuntimeCellData>(RuntimeCell, CellDataClass);
-		return RuntimeCell;
-	}
+	UWorldPartitionRuntimeCell* CreateRuntimeCell(UClass* CellClass, UClass* CellDataClass, const FString& CellName);
 
 protected:
 	bool ConditionalRegisterAlwaysLoadedActorsForPIE(const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance, bool bIsMainWorldPartition, bool bIsMainContainer, bool bIsCellAlwaysLoaded);
+	bool PopulateCellActorInstances(const TArray<const IStreamingGenerationContext::FActorSetInstance*> ActorSetInstances, bool bIsMainWorldPartition, bool bIsCellAlwaysLoaded, TArray<IStreamingGenerationContext::FActorInstance>& OutCellActorInstances);
 	void PopulateRuntimeCell(UWorldPartitionRuntimeCell* RuntimeCell, const TArray<IStreamingGenerationContext::FActorInstance>& ActorInstances, TArray<FString>* OutPackagesToGenerate);
 #endif
 

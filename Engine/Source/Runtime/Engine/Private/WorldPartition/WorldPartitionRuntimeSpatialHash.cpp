@@ -1325,101 +1325,53 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				// Cell cannot be treated as always loaded if it has data layers
 				const bool bIsCellAlwaysLoaded = (&TempCell == &PartionedActors.GetAlwaysLoadedCell()) && !GridCellDataChunk.HasDataLayers() && !GridCellDataChunk.GetContentBundleID().IsValid();
 				
-				const TArray<const IStreamingGenerationContext::FActorSetInstance*> ActorSetInstances = GridCellDataChunk.GetActorSetInstances();
-
 				TArray<IStreamingGenerationContext::FActorInstance> FilteredActors;
-				for (const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance : ActorSetInstances)
+				if (PopulateCellActorInstances(GridCellDataChunk.GetActorSetInstances(), bIsMainWorldPartition, bIsCellAlwaysLoaded, FilteredActors))
 				{
-					if (!ConditionalRegisterAlwaysLoadedActorsForPIE(ActorSetInstance, bIsMainWorldPartition, ActorSetInstance->ContainerID.IsMainContainer(), bIsCellAlwaysLoaded))
+					FGridCellCoord CellGlobalCoords;
+					verify(PartionedActors.GetCellGlobalCoords(FGridCellCoord(CellCoordX, CellCoordY, Level), CellGlobalCoords));
+					const FString CellName = GetCellNameString(OuterWorld->GetPackage()->GetFName(), CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
+					const FGuid CellGuid = GetCellGuid(CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
+
+					UWorldPartitionRuntimeCell* StreamingCell = CreateRuntimeCell(StreamingPolicy->GetRuntimeCellClass(), UWorldPartitionRuntimeCellDataSpatialHash::StaticClass(), CellName);
+					UWorldPartitionRuntimeCellDataSpatialHash* CellDataSpatialHash = CastChecked<UWorldPartitionRuntimeCellDataSpatialHash>(StreamingCell->RuntimeCellData);
+
+					StreamingCell->SetIsAlwaysLoaded(bIsCellAlwaysLoaded);
+					StreamingCell->SetDataLayers(GridCellDataChunk.GetDataLayers());
+					StreamingCell->SetContentBundleUID(GridCellDataChunk.GetContentBundleID());
+					StreamingCell->SetPriority(RuntimeGrid.Priority);
+					StreamingCell->SetClientOnlyVisible(CurrentStreamingGrid.bClientOnlyVisible);
+					StreamingCell->SetBlockOnSlowLoading(CurrentStreamingGrid.bBlockOnSlowStreaming);
+					StreamingCell->SetIsHLOD(RuntimeGrid.HLODLayer ? true : false);
+					StreamingCell->SetGuid(CellGuid);
+
+					FBox2D Bounds;
+					verify(TempLevel.GetCellBounds(FGridCellCoord2(CellCoordX, CellCoordY), Bounds));				
+					const double CellExtent = Bounds.GetExtent().X;
+					check(CellExtent < MAX_flt);
+
+					CellDataSpatialHash->Level = Level;
+					CellDataSpatialHash->Position = FVector(Bounds.GetCenter(), 0.f);
+					CellDataSpatialHash->Extent = (float)CellExtent;
+					CellDataSpatialHash->GridName = RuntimeGrid.GridName;			
+					CellDataSpatialHash->DebugName = CellName;
+
+					PopulateRuntimeCell(StreamingCell, FilteredActors, OutPackagesToGenerate);
+
+					int32 LayerCellIndex;
+					int32* LayerCellIndexPtr = GridLevel.LayerCellsMapping.Find(CellIndex);
+					if (LayerCellIndexPtr)
 					{
-						for (const FGuid& ActorGuid : ActorSetInstance->ActorSet->Actors)
-						{
-							// Instanced world partition, ContainerID is the main container, but it's not the main world partition,
-							// so the always loaded actors don't be part of the process of ForceExternalActorLevelReference/AlwaysLoadedActorsForPIE.
-							// In PIE, always loaded actors of an instanced world partition will go in the always loaded cell.
-							// 
-							// WorldDataLayers::ShouldLevelKeepRefIfExternal return true, so it will always be part of the partitioned 
-							// persistent level of a world partition (ideally we would need this information to be part of the ActorDesc).
-							// 
-							// In PIE, for an instanced world partition, we don't want this WorldDataLayers actor to be both in the persistent level 
-							// and also part of the always loaded cell level.
-							//
-							// @todo_ow: We need to implement PIE always loaded actors of instanced world partitions to be part
-							//			 of the persistent level and get rid of the always loaded cell (to have the same behavior
-							//			 as non-instanced world partition and as cooked world partition).
-							//
-							// For now, we force skip AWorldDataLayers actors.
-							IStreamingGenerationContext::FActorInstance ActorInstance(ActorGuid, ActorSetInstance);
-							if (!ActorInstance.GetActorDescView().GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
-							{
-								FilteredActors.Emplace(ActorGuid, ActorSetInstance);
-							}
-						}
+						LayerCellIndex = *LayerCellIndexPtr;
 					}
+					else
+					{
+						LayerCellIndex = GridLevel.LayerCells.AddDefaulted();
+						GridLevel.LayerCellsMapping.Add(CellIndex, LayerCellIndex);
+					}
+
+					GridLevel.LayerCells[LayerCellIndex].GridCells.Add(StreamingCell);
 				}
-				
-				if (!FilteredActors.Num())
-				{
-					continue;
-				}
-				
-				auto GetCellObjectName = [](FString CellName) -> FString
-				{
-					FArchiveMD5 ArMD5;
-					ArMD5 << CellName;
-
-					FMD5Hash MD5Hash;
-					ArMD5.GetHash(MD5Hash);
-
-					FGuid CellNameGuid = MD5HashToGuid(MD5Hash);
-					check(CellNameGuid.IsValid());
-
-					return CellNameGuid.ToString(EGuidFormats::Base36Encoded);
-				};
-
-				FGridCellCoord CellGlobalCoords;
-				verify(PartionedActors.GetCellGlobalCoords(FGridCellCoord(CellCoordX, CellCoordY, Level), CellGlobalCoords));
-				const FString CellName = GetCellNameString(OuterWorld->GetPackage()->GetFName(), CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
-				const FGuid CellGuid = GetCellGuid(CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
-
-				UWorldPartitionRuntimeCell* StreamingCell = CreateRuntimeCell(StreamingPolicy->GetRuntimeCellClass(), UWorldPartitionRuntimeCellDataSpatialHash::StaticClass(), FName(GetCellObjectName(CellName.ToLower())));
-				UWorldPartitionRuntimeCellDataSpatialHash* CellDataSpatialHash = CastChecked<UWorldPartitionRuntimeCellDataSpatialHash>(StreamingCell->RuntimeCellData);
-
-				StreamingCell->SetIsAlwaysLoaded(bIsCellAlwaysLoaded);
-				StreamingCell->SetDataLayers(GridCellDataChunk.GetDataLayers());
-				StreamingCell->SetContentBundleUID(GridCellDataChunk.GetContentBundleID());
-				StreamingCell->SetPriority(RuntimeGrid.Priority);
-				StreamingCell->SetClientOnlyVisible(CurrentStreamingGrid.bClientOnlyVisible);
-				StreamingCell->SetBlockOnSlowLoading(CurrentStreamingGrid.bBlockOnSlowStreaming);
-				StreamingCell->SetIsHLOD(RuntimeGrid.HLODLayer ? true : false);
-				StreamingCell->SetGuid(CellGuid);
-
-				FBox2D Bounds;
-				verify(TempLevel.GetCellBounds(FGridCellCoord2(CellCoordX, CellCoordY), Bounds));				
-				const double CellExtent = Bounds.GetExtent().X;
-				check(CellExtent < MAX_flt);
-
-				CellDataSpatialHash->Level = Level;
-				CellDataSpatialHash->Position = FVector(Bounds.GetCenter(), 0.f);
-				CellDataSpatialHash->Extent = (float)CellExtent;
-				CellDataSpatialHash->GridName = RuntimeGrid.GridName;			
-				CellDataSpatialHash->DebugName = CellName;
-
-				PopulateRuntimeCell(StreamingCell, FilteredActors, OutPackagesToGenerate);
-
-				int32 LayerCellIndex;
-				int32* LayerCellIndexPtr = GridLevel.LayerCellsMapping.Find(CellIndex);
-				if (LayerCellIndexPtr)
-				{
-					LayerCellIndex = *LayerCellIndexPtr;
-				}
-				else
-				{
-					LayerCellIndex = GridLevel.LayerCells.AddDefaulted();
-					GridLevel.LayerCellsMapping.Add(CellIndex, LayerCellIndex);
-				}
-
-				GridLevel.LayerCells[LayerCellIndex].GridCells.Add(StreamingCell);
 			}
 		}
 	}

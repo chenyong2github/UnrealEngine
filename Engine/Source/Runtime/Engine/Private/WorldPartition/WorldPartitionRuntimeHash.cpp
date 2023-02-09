@@ -10,6 +10,7 @@
 #include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #if WITH_EDITOR
+#include "Misc/ArchiveMD5.h"
 #include "WorldPartition/Cook/WorldPartitionCookPackage.h"
 #endif
 
@@ -95,6 +96,32 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	ModifiedActorDescListForPIE.Empty();
 }
 
+UWorldPartitionRuntimeCell* UWorldPartitionRuntimeHash::CreateRuntimeCell(UClass* CellClass, UClass* CellDataClass, const FString& CellName)
+{
+	//@todo_ow: to reduce file paths on windows, we compute a MD5 hash from the unique cell name and use that hash as the cell filename. We
+	//			should create the runtime cell using the name but make sure the package that gets associated with it when cooking gets the
+	//			hash indtead.
+	auto GetCellObjectName = [](FString CellName) -> FString
+	{
+		FArchiveMD5 ArMD5;
+		ArMD5 << CellName;
+
+		FMD5Hash MD5Hash;
+		ArMD5.GetHash(MD5Hash);
+
+		FGuid CellNameGuid = MD5HashToGuid(MD5Hash);
+		check(CellNameGuid.IsValid());
+
+		return CellNameGuid.ToString(EGuidFormats::Base36Encoded);
+	};
+
+	const FString CellObjectName = GetCellObjectName(CellName);
+	check(!FindObject<UWorldPartitionRuntimeCell>(this, *CellObjectName));
+	UWorldPartitionRuntimeCell* RuntimeCell = NewObject<UWorldPartitionRuntimeCell>(this, CellClass, *CellObjectName);
+	RuntimeCell->RuntimeCellData = NewObject<UWorldPartitionRuntimeCellData>(RuntimeCell, CellDataClass);
+	return RuntimeCell;
+}
+
 bool UWorldPartitionRuntimeHash::GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate)
 {
 	return PackagesToGenerateForCook.IsEmpty();
@@ -141,6 +168,36 @@ bool UWorldPartitionRuntimeHash::ConditionalRegisterAlwaysLoadedActorsForPIE(con
 	}
 
 	return false;
+}
+
+bool UWorldPartitionRuntimeHash::PopulateCellActorInstances(const TArray<const IStreamingGenerationContext::FActorSetInstance*> ActorSetInstances, bool bIsMainWorldPartition, bool bIsCellAlwaysLoaded, TArray<IStreamingGenerationContext::FActorInstance>& OutCellActorInstances)
+{
+	for (const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance : ActorSetInstances)
+	{
+		// Instanced world partition, ContainerID is the main container, but it's not the main world partition,
+		// so the always loaded actors don't be part of the process of ForceExternalActorLevelReference/AlwaysLoadedActorsForPIE.
+		// In PIE, always loaded actors of an instanced world partition will go in the always loaded cell.
+		if (!ConditionalRegisterAlwaysLoadedActorsForPIE(ActorSetInstance, bIsMainWorldPartition, ActorSetInstance->ContainerID.IsMainContainer(), bIsCellAlwaysLoaded))
+		{
+			for (const FGuid& ActorGuid : ActorSetInstance->ActorSet->Actors)
+			{
+				// Actors that return true to ShouldLevelKeepRefIfExternal will always be part of the partitioned persistent level of a
+				// world partition. In PIE, for an instanced world partition, we don't want this actor to be both in the persistent level
+				// and also part of the always loaded cell level.
+				//
+				// @todo_ow: We need to implement PIE always loaded actors of instanced world partitions to be part
+				//			 of the persistent level and get rid of the always loaded cell (to have the same behavior
+				//			 as non-instanced world partition and as cooked world partition).
+				IStreamingGenerationContext::FActorInstance ActorInstance(ActorGuid, ActorSetInstance);
+				if (!CastChecked<AActor>(ActorInstance.GetActorDescView().GetActorNativeClass()->GetDefaultObject())->ShouldLevelKeepRefIfExternal())
+				{
+					OutCellActorInstances.Emplace(ActorInstance);
+				}
+			}
+		}
+	}
+
+	return OutCellActorInstances.Num() > 0;
 }
 
 void UWorldPartitionRuntimeHash::PopulateRuntimeCell(UWorldPartitionRuntimeCell* RuntimeCell, const TArray<IStreamingGenerationContext::FActorInstance>& ActorInstances, TArray<FString>* OutPackagesToGenerate)
