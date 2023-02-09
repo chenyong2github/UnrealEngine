@@ -212,7 +212,8 @@ bool FStateTreeCompiler::CreateStates()
 	// Create main tree (omit subtrees)
 	for (UStateTreeState* SubTree : EditorData->SubTrees)
 	{
-		if (SubTree != nullptr)
+		if (SubTree != nullptr
+			&& SubTree->Type != EStateTreeStateType::Subtree)
 		{
 			if (!CreateStateRecursive(*SubTree, FStateTreeStateHandle::Invalid))
 			{

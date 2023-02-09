@@ -152,6 +152,14 @@ void FStateTreePropertyBindingCompiler::Finalize()
 
 int32 FStateTreePropertyBindingCompiler::AddSourceStruct(const FStateTreeBindableStructDesc& SourceStruct)
 {
+	const int32 ExistingIndex = SourceStructs.IndexOfByPredicate([&SourceStruct](const FStateTreeBindableStructDesc& Struct) { return (Struct.ID == SourceStruct.ID); });
+	if (ExistingIndex != INDEX_NONE)
+	{
+		const FStateTreeBindableStructDesc& ExistingStruct = SourceStructs[ExistingIndex];
+		UE_LOG(LogStateTree, Error, TEXT("Struct '%s' already exists as '%s'"),
+			*SourceStruct.Name.ToString(), *SourceStruct.ID.ToString(), *ExistingStruct.Name.ToString());
+	}
+	
 	SourceStructs.Add(SourceStruct);
 	return SourceStructs.Num() - 1;
 }
