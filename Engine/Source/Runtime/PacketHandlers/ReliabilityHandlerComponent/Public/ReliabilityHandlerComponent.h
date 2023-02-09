@@ -15,8 +15,9 @@ class FString;
 struct FBitReader;
 struct FBitWriter;
 
-// Symmetric Stream cipher
-class RELIABILITYHANDLERCOMPONENT_API ReliabilityHandlerComponent : public HandlerComponent
+
+class UE_DEPRECATED(5.3, "This handler is not supported. For fully-reliable data, use reliable RPCs or a separate connection with a reliable protocol.")
+RELIABILITYHANDLERCOMPONENT_API ReliabilityHandlerComponent : public HandlerComponent
 {
 public:
 	/* Initializes default data */

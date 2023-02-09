@@ -215,9 +215,13 @@ void PacketHandler::Initialize(Handler::Mode InMode, uint32 InMaxPacketBits, boo
 
 	if (bEnableReliability && !ReliabilityComponent.IsValid())
 	{
+		UE_LOG(PacketHandlerLog, Warning, TEXT("bEnableReliability for PacketHandlerComponents is deprecated. For fully-reliable data, use reliable RPCs or a separate connection with a reliable protocol."));
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TSharedPtr<HandlerComponent> NewComponent = MakeShareable(new ReliabilityHandlerComponent);
 		ReliabilityComponent = StaticCastSharedPtr<ReliabilityHandlerComponent>(NewComponent);
 		AddHandler(NewComponent, true);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -802,8 +806,10 @@ const ProcessedPacket PacketHandler::Outgoing_Internal(uint8* Packet, int32 Coun
 
 			if (!bConnectionless && ReliabilityComponent.IsValid() && OutgoingPacket.GetNumBits() > 0)
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				// Let the reliability handler know about all processed packets, so it can record them for resending if needed
 				ReliabilityComponent->QueuePacketForResending(OutgoingPacket.GetData(), OutgoingPacket.GetNumBits(), Traits);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 		// Buffer any packets being sent from game code until processors are initialized
@@ -969,8 +975,10 @@ void PacketHandler::SendHandlerPacket(HandlerComponent* InComponent, FBitWriter&
 
 			if (ReliabilityComponent.IsValid())
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				// Let the reliability handler know about all processed packets, so it can record them for resending if needed
 				ReliabilityComponent->QueueHandlerPacketForResending(InComponent, Writer.GetData(), Writer.GetNumBits(), Traits);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			// Now finish off with a raw send (as we don't want to go through the PacketHandler chain again)

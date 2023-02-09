@@ -9,8 +9,8 @@
 /*
 * Abstract class for block encryptors
 */
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class BLOCKENCRYPTIONHANDLERCOMPONENT_API BlockEncryptor
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+BLOCKENCRYPTIONHANDLERCOMPONENT_API BlockEncryptor
 {
 public:
 	/* Initialized the encryptor */
@@ -37,8 +37,8 @@ protected:
 };
 
 /* Block Encryptor Module Interface */
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class FBlockEncryptorModuleInterface : public IModuleInterface
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+FBlockEncryptorModuleInterface : public IModuleInterface
 {
 public:
 	virtual BlockEncryptor* CreateBlockEncryptorInstance() = 0;
@@ -47,8 +47,8 @@ public:
 /*
 * Symmetric block cipher handler component using AES as the cipher
 */
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class BLOCKENCRYPTIONHANDLERCOMPONENT_API BlockEncryptionHandlerComponent : public HandlerComponent
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+BLOCKENCRYPTIONHANDLERCOMPONENT_API BlockEncryptionHandlerComponent : public HandlerComponent
 {
 public:
 	/* Initializes default data, can provide the key size in bytes */
@@ -83,8 +83,8 @@ protected:
 };
 
 /* Block Encryption Handler Component Module Interface */
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class FBlockEncryptionHandlerComponentModuleInterface : public FPacketHandlerComponentModuleInterface
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+FBlockEncryptionHandlerComponentModuleInterface : public FPacketHandlerComponentModuleInterface
 {
 public:
 	/* Creates an instance of this component */

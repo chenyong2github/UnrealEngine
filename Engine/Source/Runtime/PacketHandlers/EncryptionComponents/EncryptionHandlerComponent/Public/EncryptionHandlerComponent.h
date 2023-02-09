@@ -7,7 +7,8 @@
 #include "Modules/ModuleManager.h"
 
 /** Encryption Handler Component Module Interface */
-class FEncryptionHandlerComponentModuleInterface : public FPacketHandlerComponentModuleInterface
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+FEncryptionHandlerComponentModuleInterface : public FPacketHandlerComponentModuleInterface
 {
 	public:
 	/* Creates an instance of this component */
@@ -30,7 +31,8 @@ namespace EEncryptionHandler
 * to the remote side. Defaults are RSA for asymmetric encryption and XOR stream cipher
 * for symmetric encryption.
 */
-class ENCRYPTIONHANDLERCOMPONENT_API EncryptionHandlerComponent : public HandlerComponent
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+ENCRYPTIONHANDLERCOMPONENT_API EncryptionHandlerComponent : public HandlerComponent
 {
 public:
 	/* Initializes the default encryption handler components unless specified by the user */ 

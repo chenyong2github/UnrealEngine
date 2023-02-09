@@ -4,8 +4,8 @@
 
 #include "PacketHandler.h"
 
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class STREAMENCRYPTIONHANDLERCOMPONENT_API StreamEncryptor
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+STREAMENCRYPTIONHANDLERCOMPONENT_API StreamEncryptor
 {
 public:
 	/* Initialized the encryptor */
@@ -26,8 +26,8 @@ protected:
 };
 
 /* Stream Encryptor Module Interface */
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class FStreamEncryptorModuleInterface : public IModuleInterface
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+FStreamEncryptorModuleInterface : public IModuleInterface
 {
 public:
 	virtual StreamEncryptor* CreateStreamEncryptorInstance() = 0;
@@ -36,8 +36,8 @@ public:
 /*
 * Symmetric block cipher handler component using AES as the cipher
 */
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class STREAMENCRYPTIONHANDLERCOMPONENT_API StreamEncryptionHandlerComponent : public HandlerComponent
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+STREAMENCRYPTIONHANDLERCOMPONENT_API StreamEncryptionHandlerComponent : public HandlerComponent
 {
 public:
 	/* Initializes default data, can provide the key size in bytes */
@@ -72,8 +72,8 @@ protected:
 };
 
 /* Stream Encryption Handler Component Module Interface */
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class FStreamEncryptionHandlerComponentModuleInterface : public FPacketHandlerComponentModuleInterface
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+FStreamEncryptionHandlerComponentModuleInterface : public FPacketHandlerComponentModuleInterface
 {
 public:
 	/* Creates an instance of this component */

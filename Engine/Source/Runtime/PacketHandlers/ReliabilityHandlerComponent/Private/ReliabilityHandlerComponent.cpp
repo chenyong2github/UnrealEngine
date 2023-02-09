@@ -173,5 +173,7 @@ int32 ReliabilityHandlerComponent::GetReservedPacketBits() const
 // MODULE INTERFACE
 TSharedPtr<HandlerComponent> FReliabilityHandlerComponentModuleInterface::CreateComponentInstance(FString& Options)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return MakeShareable(new ReliabilityHandlerComponent);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

@@ -6,8 +6,8 @@
 #include "CryptoPP/5.6.5/include/blowfish.h"
 
 /* BlowFish Block Encryptor Module Interface */
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class FBlowFishBlockEncryptorModuleInterface : public FBlockEncryptorModuleInterface
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+FBlowFishBlockEncryptorModuleInterface : public FBlockEncryptorModuleInterface
 {
 	virtual BlockEncryptor* CreateBlockEncryptorInstance() override;
 };
@@ -16,8 +16,8 @@ class FBlowFishBlockEncryptorModuleInterface : public FBlockEncryptorModuleInter
 /*
 * BlowFish Block encryption
 */
-UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
-class BLOWFISHBLOCKENCRYPTOR_API BlowFishBlockEncryptor : public BlockEncryptor
+class UE_DEPRECATED(5.3, "This component is not supported for encryption.")
+BLOWFISHBLOCKENCRYPTOR_API BlowFishBlockEncryptor : public BlockEncryptor
 {
 public:
 	/* Initialized the encryptor */
