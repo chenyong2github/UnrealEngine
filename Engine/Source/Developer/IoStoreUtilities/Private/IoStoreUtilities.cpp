@@ -2,6 +2,7 @@
 
 #include "IoStoreUtilities.h"
 
+#include "IoStoreOnDemand.h"
 #include "Async/AsyncWork.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
@@ -417,6 +418,7 @@ struct FContainerSourceSpec
 	FName Name;
 	FString OutputPath;
 	FString OptionalOutputPath;
+	FString OnDemandOutputPath;
 	TArray<FContainerSourceFile> SourceFiles;
 	FString PatchTargetFile;
 	TArray<FString> PatchSourceContainerFiles;
@@ -887,6 +889,7 @@ struct FContainerTargetSpec
 	FGuid EncryptionKeyGuid;
 	FString OutputPath;
 	FString OptionalSegmentOutputPath;
+	FString OnDemandOutputPath;
 	TSharedPtr<IIoStoreWriter> IoStoreWriter;
 	TSharedPtr<IIoStoreWriter> OptionalSegmentIoStoreWriter;
 	TArray<FContainerTargetFile> TargetFiles;
@@ -2358,6 +2361,7 @@ void InitializeContainerTargetsAndPackages(
 	{
 		FContainerTargetSpec* ContainerTarget = AddContainer(ContainerSource.Name, ContainerTargets);
 		ContainerTarget->OutputPath = ContainerSource.OutputPath;
+		ContainerTarget->OnDemandOutputPath = ContainerSource.OnDemandOutputPath;
 		ContainerTarget->bGenerateDiffPatch = ContainerSource.bGenerateDiffPatch;
 		if (Arguments.bSign)
 		{
@@ -3419,34 +3423,46 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			check(ContainerTarget->ContainerId.IsValid());
 			if (!ContainerTarget->OutputPath.IsEmpty())
 			{
-				FIoContainerSettings ContainerSettings;
-				ContainerSettings.ContainerId = ContainerTarget->ContainerId;
-				if (Arguments.bCreateDirectoryIndex)
+				if (!ContainerTarget->OnDemandOutputPath.IsEmpty())
 				{
-					ContainerSettings.ContainerFlags = ContainerTarget->ContainerFlags | EIoContainerFlags::Indexed;
+					FOnDemandWriterSettings WriterSettings;
+					WriterSettings.ContainerName = ContainerTarget->Name;
+					WriterSettings.TocFilePath = ContainerTarget->OutputPath;
+					WriterSettings.OutputDirectory = ContainerTarget->OnDemandOutputPath;
+					ContainerTarget->IoStoreWriter = TSharedPtr<IIoStoreWriter>(MakeOnDemandIoStoreWriter(WriterSettings).Release());
+					IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 				}
-				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
+				else
 				{
-					const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(ContainerTarget->EncryptionKeyGuid);
-					check(Key);
-					ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
-					ContainerSettings.EncryptionKey = Key->Key;
-				}
-				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Signed))
-				{
-					ContainerSettings.SigningKey = Arguments.KeyChain.GetSigningKey();
-					ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
-				}
-				ContainerSettings.bGenerateDiffPatch = ContainerTarget->bGenerateDiffPatch;
-				ContainerTarget->IoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OutputPath, ContainerSettings);
-				ContainerTarget->IoStoreWriter->EnableDiskLayoutOrdering(ContainerTarget->PatchSourceReaders);
-				ContainerTarget->IoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
-				ContainerTarget->IoStoreWriter->SetHashDatabase(HashDatabase, Arguments.bVerifyHashDatabase);
-				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
-				if (!ContainerTarget->OptionalSegmentOutputPath.IsEmpty())
-				{
-					ContainerTarget->OptionalSegmentIoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OptionalSegmentOutputPath, ContainerSettings);
-					IoStoreWriters.Add(ContainerTarget->OptionalSegmentIoStoreWriter);
+					FIoContainerSettings ContainerSettings;
+					ContainerSettings.ContainerId = ContainerTarget->ContainerId;
+					if (Arguments.bCreateDirectoryIndex)
+					{
+						ContainerSettings.ContainerFlags = ContainerTarget->ContainerFlags | EIoContainerFlags::Indexed;
+					}
+					if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
+					{
+						const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(ContainerTarget->EncryptionKeyGuid);
+						check(Key);
+						ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
+						ContainerSettings.EncryptionKey = Key->Key;
+					}
+					if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Signed))
+					{
+						ContainerSettings.SigningKey = Arguments.KeyChain.GetSigningKey();
+						ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+					}
+					ContainerSettings.bGenerateDiffPatch = ContainerTarget->bGenerateDiffPatch;
+					ContainerTarget->IoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OutputPath, ContainerSettings);
+					ContainerTarget->IoStoreWriter->EnableDiskLayoutOrdering(ContainerTarget->PatchSourceReaders);
+					ContainerTarget->IoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
+					ContainerTarget->IoStoreWriter->SetHashDatabase(HashDatabase, Arguments.bVerifyHashDatabase);
+					IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
+					if (!ContainerTarget->OptionalSegmentOutputPath.IsEmpty())
+					{
+						ContainerTarget->OptionalSegmentIoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OptionalSegmentOutputPath, ContainerSettings);
+						IoStoreWriters.Add(ContainerTarget->OptionalSegmentIoStoreWriter);
+					}
 				}
 			}
 		}
@@ -6586,6 +6602,7 @@ bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWri
 			ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
 
 			FParse::Value(*Command, TEXT("OptionalOutput="), ContainerSpec.OptionalOutputPath);
+			FParse::Value(*Command, TEXT("OnDemandOutput="), ContainerSpec.OnDemandOutputPath);
 
 			FString ContainerName;
 			if (FParse::Value(*Command, TEXT("ContainerName="), ContainerName))
