@@ -419,18 +419,17 @@ public:
 		, bDisplayElementNum(InDisplayElementNum)
 	{
 		check( ArrayProperty.IsValid() );
-
+		
 		// Delegate for when the number of children in the array changes
 		FSimpleDelegate OnNumChildrenChanged = FSimpleDelegate::CreateRaw( this, &FDetailArrayBuilder::OnNumChildrenChanged );
-		ArrayProperty->SetOnNumElementsChanged( OnNumChildrenChanged );
+		OnNumElementsChangedHandle = ArrayProperty->SetOnNumElementsChanged( OnNumChildrenChanged );
 
 		BaseProperty->MarkHiddenByCustomization();
 	}
 	
 	~FDetailArrayBuilder()
 	{
-		FSimpleDelegate Empty;
-		ArrayProperty->SetOnNumElementsChanged( Empty );
+		ArrayProperty->UnregisterOnNumElementsChanged(OnNumElementsChangedHandle);
 	}
 
 	void SetDisplayName( const FText& InDisplayName )
@@ -541,6 +540,7 @@ private:
 	bool bGenerateHeader;
 	bool bDisplayResetToDefault;
 	bool bDisplayElementNum;
+	FDelegateHandle OnNumElementsChangedHandle;
 };
 
 /**

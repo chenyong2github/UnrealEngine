@@ -171,7 +171,12 @@ public:
 	/**
 	 * Sets a delegate to call when children of the property node must be rebuilt
 	 */
-	void SetOnRebuildChildren( const FSimpleDelegate& InOnRebuildChildren );
+	FDelegateHandle SetOnRebuildChildren( const FSimpleDelegate& InOnRebuildChildren );
+
+	/**
+	 * Unregisters a delegate called when children of the property node must be rebuilt
+	 */
+	void UnregisterOnRebuildChildren(FDelegateHandle Handle);
 
 	/**
 	 * Get the value of a property as a formatted string.
@@ -683,7 +688,8 @@ public:
 	virtual FPropertyAccess::Result DeleteItem( int32 Index ) override;
 	virtual FPropertyAccess::Result SwapItems(int32 FirstIndex, int32 SecondIndex) override;
 	virtual FPropertyAccess::Result GetNumElements( uint32& OutNumItems ) const override;
-	virtual void SetOnNumElementsChanged( FSimpleDelegate& InOnNumElementsChanged ) override;
+	virtual FDelegateHandle SetOnNumElementsChanged( const FSimpleDelegate& InOnNumElementsChanged ) override;
+	virtual void UnregisterOnNumElementsChanged(FDelegateHandle Handle) override;
 	virtual TSharedPtr<IPropertyHandleArray> AsArray() override;
 	virtual TSharedRef<IPropertyHandle> GetElement( int32 Index ) const override;
 	virtual FPropertyAccess::Result MoveElementTo(int32 OriginalIndex, int32 NewIndex) override;
@@ -717,7 +723,8 @@ public:
 	virtual FPropertyAccess::Result GetNumElements(uint32& OutNumElements) override;
 	virtual TSharedRef<IPropertyHandle> GetElement(int32 Index) const override;
 
-	virtual void SetOnNumElementsChanged(FSimpleDelegate& InOnNumElementsChanged) override;
+	virtual FDelegateHandle SetOnNumElementsChanged( const FSimpleDelegate& InOnNumElementsChanged ) override;
+	virtual void UnregisterOnNumElementsChanged(FDelegateHandle Handle) override;
 	virtual bool HasDocumentation() override { return true; }
 	virtual FString GetDocumentationLink() override { return FString("Engine/UI/LevelEditor/Details/Properties/Set/"); }
 	virtual FString GetDocumentationExcerptName() override { return FString("Sets"); }
@@ -737,7 +744,8 @@ public:
 	virtual FPropertyAccess::Result Empty() override;
 	virtual FPropertyAccess::Result DeleteItem(int32 Index) override;
 	virtual FPropertyAccess::Result GetNumElements(uint32& OutNumElements) override;
-	virtual void SetOnNumElementsChanged(FSimpleDelegate& InOnNumElementsChanged) override;
+	virtual FDelegateHandle SetOnNumElementsChanged( const FSimpleDelegate& InOnNumElementsChanged ) override;
+	virtual void UnregisterOnNumElementsChanged(FDelegateHandle Handle) override;
 	virtual bool HasDocumentation() override { return true; }
 	virtual FString GetDocumentationLink() override { return FString("Engine/UI/LevelEditor/Details/Properties/Map/"); }
 	virtual FString GetDocumentationExcerptName() override { return FString("Maps"); }

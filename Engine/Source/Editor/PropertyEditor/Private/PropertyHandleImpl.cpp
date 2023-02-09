@@ -595,13 +595,23 @@ void FPropertyValueImpl::SetOnPropertyResetToDefault(const FSimpleDelegate& InOn
 	}
 }
 
-void FPropertyValueImpl::SetOnRebuildChildren( const FSimpleDelegate& InOnRebuildChildren )
+FDelegateHandle FPropertyValueImpl::SetOnRebuildChildren( const FSimpleDelegate& InOnRebuildChildren )
 {
 	if( PropertyNode.IsValid() )
 	{
-		PropertyNode.Pin()->SetOnRebuildChildren( InOnRebuildChildren );
+		return PropertyNode.Pin()->OnRebuildChildren().Add(InOnRebuildChildren);
+	}
+	return {};
+} 
+
+void FPropertyValueImpl::UnregisterOnRebuildChildren(FDelegateHandle Handle)
+{
+	if (PropertyNode.IsValid())
+	{
+		PropertyNode.Pin()->OnRebuildChildren().Remove(Handle);
 	}
 }
+
 /**
  * Gets the max valid index for a array property of an object
  * @param InObjectNode - The parent of the variable being clamped
@@ -4765,9 +4775,14 @@ FPropertyAccess::Result FPropertyHandleArray::GetNumElements( uint32 &OutNumItem
 	return FPropertyAccess::Success;
 }
 
-void FPropertyHandleArray::SetOnNumElementsChanged( FSimpleDelegate& OnChildrenChanged )
+FDelegateHandle FPropertyHandleArray::SetOnNumElementsChanged( const FSimpleDelegate& OnChildrenChanged )
 {
-	Implementation->SetOnRebuildChildren( OnChildrenChanged );
+	return Implementation->SetOnRebuildChildren( OnChildrenChanged );
+}
+
+void FPropertyHandleArray::UnregisterOnNumElementsChanged(FDelegateHandle Handle)
+{
+	Implementation->UnregisterOnRebuildChildren(Handle);
 }
 
 TSharedPtr<IPropertyHandleArray> FPropertyHandleArray::AsArray()
@@ -4923,9 +4938,14 @@ TSharedRef<IPropertyHandle> FPropertyHandleSet::GetElement(int32 Index) const
 	return PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), Implementation->GetNotifyHook(), Implementation->GetPropertyUtilities()).ToSharedRef();
 }
 
-void FPropertyHandleSet::SetOnNumElementsChanged(FSimpleDelegate& OnChildrenChanged)
+FDelegateHandle FPropertyHandleSet::SetOnNumElementsChanged( const FSimpleDelegate& OnChildrenChanged )
 {
-	Implementation->SetOnRebuildChildren(OnChildrenChanged);
+	return Implementation->SetOnRebuildChildren(OnChildrenChanged);
+}
+
+void FPropertyHandleSet::UnregisterOnNumElementsChanged(FDelegateHandle Handle)
+{
+	Implementation->UnregisterOnRebuildChildren(Handle);
 }
 
 TSharedPtr<IPropertyHandleSet> FPropertyHandleSet::AsSet()
@@ -5021,9 +5041,14 @@ FPropertyAccess::Result FPropertyHandleMap::GetNumElements(uint32& OutNumChildre
 	return FPropertyAccess::Success;
 }
 
-void FPropertyHandleMap::SetOnNumElementsChanged(FSimpleDelegate& OnChildrenChanged)
+FDelegateHandle FPropertyHandleMap::SetOnNumElementsChanged( const FSimpleDelegate& OnChildrenChanged )
 {
-	Implementation->SetOnRebuildChildren(OnChildrenChanged);
+	return Implementation->SetOnRebuildChildren(OnChildrenChanged);
+}
+
+void FPropertyHandleMap::UnregisterOnNumElementsChanged(FDelegateHandle Handle)
+{
+	Implementation->UnregisterOnRebuildChildren(Handle);
 }
 
 TSharedPtr<IPropertyHandleMap> FPropertyHandleMap::AsMap()

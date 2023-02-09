@@ -766,7 +766,12 @@ public:
 	/**
 	 * Sets a delegate to call when the number of elements changes
 	 */
-	virtual void SetOnNumElementsChanged( FSimpleDelegate& InOnNumElementsChanged ) = 0;
+	virtual FDelegateHandle SetOnNumElementsChanged( const FSimpleDelegate& InOnNumElementsChanged ) = 0;
+
+	/**
+	 * Unregisters a delegate that is called when the number of elements changes
+	 */
+	virtual void UnregisterOnNumElementsChanged(FDelegateHandle Handle) = 0;
 };
 
 /**
@@ -814,7 +819,12 @@ public:
 	/**
 	 * Sets a delegate to call when the number of elements changes
 	 */
-	virtual void SetOnNumElementsChanged(FSimpleDelegate& InOnNumElementsChanged) = 0;
+	virtual FDelegateHandle SetOnNumElementsChanged(const FSimpleDelegate& InOnNumElementsChanged) = 0;
+
+	/**
+	 * Unregisters a delegate that is called when the number of elements changes
+	 */
+	virtual void UnregisterOnNumElementsChanged(FDelegateHandle Handle) = 0;
 };
 
 /**
@@ -856,5 +866,10 @@ public:
 	/**
 	 * Sets a delegate to call when the number of elements changes
 	 */
-	virtual void SetOnNumElementsChanged(FSimpleDelegate& InOnNumElementsChanged) = 0;
+	virtual FDelegateHandle SetOnNumElementsChanged(const FSimpleDelegate& InOnNumElementsChanged) = 0;
+	
+	/**
+	 * Unregisters a delegate that is called when the number of elements changes
+	 */
+	virtual void UnregisterOnNumElementsChanged(FDelegateHandle Handle) = 0;
 };

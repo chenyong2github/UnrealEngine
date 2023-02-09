@@ -688,7 +688,9 @@ public:
 
 	void NotifyPostChange(FPropertyChangedEvent& InPropertyChangedEvent, FNotifyHook* InNotifyHook);
 
-	void SetOnRebuildChildren(FSimpleDelegate InOnRebuildChildren);
+	DECLARE_EVENT(FPropertyNode, FPropertyChildrenRebuiltEvent);
+	FDelegateHandle SetOnRebuildChildren(const FSimpleDelegate& InOnRebuildChildren);
+	FPropertyChildrenRebuiltEvent& OnRebuildChildren() { return OnRebuildChildrenEvent; }
 
 	/**
 	 * Propagates the property change to all instances of an archetype
@@ -1171,7 +1173,7 @@ protected:
 	TArray< TSharedPtr<FPropertyNode> > ChildNodes;
 
 	/** Called when this node's children are rebuilt */
-	FSimpleDelegate OnRebuildChildren;
+	FPropertyChildrenRebuiltEvent OnRebuildChildrenEvent;
 
 	/** Called when this node's property value is about to change (called during NotifyPreChange) */
 	FPropertyValuePreChangeEvent PropertyValuePreChangeEvent;

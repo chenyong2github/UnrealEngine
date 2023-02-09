@@ -302,7 +302,7 @@ void FPropertyNode::RebuildChildren()
 	bChildrenRebuilt = true;
 
 	// Notify any listener that children have been rebuilt
-	OnRebuildChildren.ExecuteIfBound();
+	OnRebuildChildrenEvent.Broadcast();
 }
 
 void FPropertyNode::AddChildNode(TSharedPtr<FPropertyNode> InNode)
@@ -3068,9 +3068,9 @@ void FPropertyNode::SetExpandedChildPropertyNodes(const TSet<FString>& InNodesTo
 	} while (RecursiveStack.Num() > 0);
 }
 
-void FPropertyNode::SetOnRebuildChildren( FSimpleDelegate InOnRebuildChildren )
+FDelegateHandle FPropertyNode::SetOnRebuildChildren(const FSimpleDelegate& InOnRebuildChildren)
 {
-	OnRebuildChildren = InOnRebuildChildren;
+	return OnRebuildChildrenEvent.Add(InOnRebuildChildren);
 }
 
 TSharedPtr< FPropertyItemValueDataTrackerSlate > FPropertyNode::GetValueTracker( UObject* Object, uint32 ObjIndex )
