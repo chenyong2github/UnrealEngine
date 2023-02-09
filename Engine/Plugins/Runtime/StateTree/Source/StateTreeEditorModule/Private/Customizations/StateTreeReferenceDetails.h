@@ -6,6 +6,7 @@
 
 class IPropertyHandle;
 class UStateTree;
+class IPropertyUtilities;
 
 /**
  * Type customization for FStateTreeReference.
@@ -34,4 +35,5 @@ private:
 	void SyncParameters(const UStateTree* StateTreeToSync = nullptr) const;
 
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
+	TSharedPtr<IPropertyUtilities> PropUtils;
 };
