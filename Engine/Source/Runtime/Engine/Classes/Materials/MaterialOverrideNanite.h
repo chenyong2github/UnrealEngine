@@ -63,7 +63,7 @@ struct FMaterialOverrideNanite
 	/** Call this from the owning object on edit changes. */
 	void PostEditChange(UObject* OptionalOwner = nullptr);
 	/** Initialize the cached override material pointer according to platform support. Call this from the owning object's BeginCacheForCookedPlatformData(). */
-	void LoadOverrideForPlatform(const ITargetPlatform* TargetPlatform);
+	void LoadOverrideForPlatform(const ITargetPlatform* TargetPlatform, UObject* OptionalOwner = nullptr);
 	/** Clear the cached override material pointer. Call this from the owning object's ClearAllCachedCookedPlatformData() */
 	void ClearOverride();
 #endif
