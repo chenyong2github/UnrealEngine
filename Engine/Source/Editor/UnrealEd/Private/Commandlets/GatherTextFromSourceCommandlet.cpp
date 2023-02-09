@@ -2,6 +2,7 @@
 
 #include "Commandlets/GatherTextFromSourceCommandlet.h"
 #include "HAL/FileManager.h"
+#include "Misc/AsciiSet.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ExpressionParserTypes.h"
@@ -144,9 +145,10 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 	TArray<FString> IncludePathFilters;
 	Algo::Transform(SearchDirectoryPaths, IncludePathFilters, [](const FString& SearchDirectoryPath)
 	{
-		return SearchDirectoryPath.EndsWith(TEXT("*"), ESearchCase::CaseSensitive)
+		const TCHAR LastChar = SearchDirectoryPath.Len() > 0 ? SearchDirectoryPath[SearchDirectoryPath.Len() - 1] : 0;
+		return (LastChar == TEXT('*') || LastChar == TEXT('?'))
 			? SearchDirectoryPath								// Already a wildcard
-			: FPaths::Combine(SearchDirectoryPath, TEXT("*"));	// Add a wildcard
+			: FPaths::Combine(SearchDirectoryPath, TEXT("*"));	// Add a catch-all wildcard
 	});
 
 	FGatherTextDelegates::GetAdditionalGatherPaths.Broadcast(GatherManifestHelper->GetTargetName(), IncludePathFilters, ExcludePathFilters);
@@ -158,10 +160,13 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 		TSet<FString, FLocKeySetFuncs> ProcessedSearchDirectoryPaths;
 		for (const FString& IncludePathFilter : IncludePathFilters)
 		{
+			constexpr FAsciiSet Wildcards("*?");
+
 			FString SearchDirectoryPath = IncludePathFilter;
-			if (SearchDirectoryPath.EndsWith(TEXT("*"), ESearchCase::CaseSensitive))
+			if (const TCHAR* FirstWildcard = FAsciiSet::FindFirstOrEnd(*SearchDirectoryPath, Wildcards); *FirstWildcard != 0)
 			{
 				// Trim the wildcard from this search path
+				SearchDirectoryPath = SearchDirectoryPath.Left(UE_PTRDIFF_TO_INT32(FirstWildcard - *SearchDirectoryPath));
 				SearchDirectoryPath = FPaths::GetPath(MoveTemp(SearchDirectoryPath));
 			}
 

@@ -3,6 +3,7 @@
 #include "LocalizationTargetTypes.h"
 #include "Templates/Casts.h"
 #include "HAL/FileManager.h"
+#include "Misc/AsciiSet.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/App.h"
@@ -84,16 +85,11 @@ bool FGatherTextSearchDirectory::Validate(const bool bIsEngineTarget, FText& Out
 	}
 
 	{
-		int32 WildcardIndex = INDEX_NONE;
-		if (ResolvedPath.FindChar(TEXT('*'), WildcardIndex))
+		constexpr FAsciiSet Wildcards("*?");
+		if (const TCHAR* FirstWildcard = FAsciiSet::FindFirstOrEnd(*ResolvedPath, Wildcards); *FirstWildcard != 0)
 		{
-			if (WildcardIndex != ResolvedPath.Len() - 1)
-			{
-				OutError = LOCTEXT("SearchDirectoryInvalidWildcardMustBeTrailingError", "Search directory can only use a trailing wildcard.");
-				return false;
-			}
-
-			// Trim the wildcard from the search path, as it would fail the rest of the validation with it
+			// Trim the wildcard from this search path, as it would fail the rest of the validation with it
+			ResolvedPath = ResolvedPath.Left(UE_PTRDIFF_TO_INT32(FirstWildcard - *ResolvedPath));
 			ResolvedPath = FPaths::GetPath(MoveTemp(ResolvedPath));
 		}
 	}
