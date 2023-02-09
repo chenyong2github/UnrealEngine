@@ -13,6 +13,7 @@ class IDetailChildrenBuilder;
 class IPropertyHandle;
 class UWidget;
 struct FWidgetChild;
+class SComboButton;
 class SSearchBox;
 
 class FWidgetChildTypeCustomization : public IPropertyTypeCustomization
