@@ -848,7 +848,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				if (!FoundAction && BuildConfiguration.bIgnoreInvalidFiles)
+				if (!FoundAction && !BuildConfiguration.bIgnoreInvalidFiles)
 				{
 					Logger.LogError($"{FileRef.FullName} - ERROR: Failed to find an Action that can be used to build this file (does target use this file?)");
 				}
