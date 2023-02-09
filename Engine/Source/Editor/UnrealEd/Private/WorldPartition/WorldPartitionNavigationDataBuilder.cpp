@@ -234,7 +234,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 			}
 		}
 
-		if (!SavePackages(PackagesToSave))
+		if (!SavePackages(PackageHelper, PackagesToSave))
 		{
 			return true;
 		}
@@ -391,7 +391,7 @@ bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartitio
 	return true;
 }
 
-bool UWorldPartitionNavigationDataBuilder::SavePackages(const TArray<UPackage*>& PackagesToSave) const
+bool UWorldPartitionNavigationDataBuilder::SavePackages(const FPackageSourceControlHelper& PackageHelper, const TArray<UPackage*>& PackagesToSave) const
 {
 	// Save packages
 	TRACE_CPUPROFILER_EVENT_SCOPE(SavingPackages);
@@ -403,7 +403,7 @@ bool UWorldPartitionNavigationDataBuilder::SavePackages(const TArray<UPackage*>&
 		FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
 		FSavePackageArgs SaveArgs;
 		SaveArgs.TopLevelFlags = RF_Standalone;
-		SaveArgs.SaveFlags = SAVE_Async;
+		SaveArgs.SaveFlags = PackageHelper.UseSourceControl() ? ESaveFlags::SAVE_None : ESaveFlags::SAVE_Async;
 		if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 		{
 			UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("   Error saving package %s."), *Package->GetName());
@@ -414,7 +414,7 @@ bool UWorldPartitionNavigationDataBuilder::SavePackages(const TArray<UPackage*>&
 	return true;
 }
 
-bool UWorldPartitionNavigationDataBuilder::DeletePackages(FPackageSourceControlHelper& PackageHelper, const TArray<UPackage*>& PackagesToDelete) const
+bool UWorldPartitionNavigationDataBuilder::DeletePackages(const FPackageSourceControlHelper& PackageHelper, const TArray<UPackage*>& PackagesToDelete) const
 {
 	if (!PackagesToDelete.IsEmpty())
 	{
