@@ -193,6 +193,8 @@ public class Win64Platform : Platform
 			// currently the icon updating doesn't run under mono
 			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
+				LogInformation("Patching bootstrap executable; {0}", IntermediateFile.FullName);
+
 				// Get the icon from the build directory if possible
 				GroupIconResource GroupIcon = null;
 				if(FileReference.Exists(FileReference.Combine(SC.ProjectRoot, "Build/Windows/Application.ico")))
@@ -216,6 +218,10 @@ public class Win64Platform : Platform
 					const int ExecArgsResourceId = 202;
 					Update.SetData(ExecArgsResourceId, ResourceType.RawData, Encoding.Unicode.GetBytes(StagedArguments + "\0"));
 				}
+			}
+			else
+			{
+				LogInformation("Skipping patching of bootstrap executable (unsupported host platform)");
 			}
 
 			// Copy it to the staging directory
