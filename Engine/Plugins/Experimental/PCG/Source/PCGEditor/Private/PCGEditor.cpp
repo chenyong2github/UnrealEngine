@@ -415,12 +415,10 @@ void FPCGEditor::BindCommands()
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanConvertToStandaloneNodes));
 
 	GraphEditorCommands->MapAction(
-		PCGEditorCommands.StartInspectNode,
-		FExecuteAction::CreateSP(this, &FPCGEditor::OnStartInspectNode));
-
-	GraphEditorCommands->MapAction(
-		PCGEditorCommands.StopInspectNode,
-		FExecuteAction::CreateSP(this, &FPCGEditor::OnStopInspectNode));
+		PCGEditorCommands.ToggleInspect,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnToggleInspected),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanToggleInspected),
+		FGetActionCheckState::CreateSP(this, &FPCGEditor::GetInspectedCheckState));
 
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.RunDeterminismNodeTest,
@@ -1198,50 +1196,88 @@ bool FPCGEditor::CanConvertToStandaloneNodes() const
 	return false;
 }
 
-void FPCGEditor::OnStartInspectNode()
+void FPCGEditor::OnToggleInspected()
 {
 	if (!GraphEditorWidget.IsValid())
 	{
 		return;
 	}
 
-	UEdGraphNode* GraphNode = GraphEditorWidget->GetSingleSelectedNode();
-	if (!GraphNode)
-	{
-		return;
-	}
-
-	UPCGEditorGraphNodeBase* PCGGraphNodeBase = Cast<UPCGEditorGraphNodeBase>(GraphNode);
-	if (!PCGGraphNodeBase)
-	{
-		return;
-	}
-	
-	if (PCGGraphNodeBase == PCGGraphNodeBeingInspected)
-	{
-		return;
-	}
-	
 	if (PCGGraphNodeBeingInspected)
 	{
 		PCGGraphNodeBeingInspected->SetInspected(false);
 	}
-
-	PCGGraphNodeBeingInspected = PCGGraphNodeBase;
-	PCGGraphNodeBeingInspected->SetInspected(true);
+	
+	UEdGraphNode* GraphNode = GraphEditorWidget->GetSingleSelectedNode();
+	UPCGEditorGraphNodeBase* PCGGraphNodeBase = Cast<UPCGEditorGraphNodeBase>(GraphNode);
+	if (PCGGraphNodeBase && PCGGraphNodeBase != PCGGraphNodeBeingInspected)
+	{
+		PCGGraphNodeBeingInspected = PCGGraphNodeBase;
+		PCGGraphNodeBeingInspected->SetInspected(true);
+	}
+	else
+	{
+		PCGGraphNodeBeingInspected = nullptr;
+	}
+	
 	OnInspectedNodeChangedDelegate.Broadcast(PCGGraphNodeBeingInspected);
-
 	GetTabManager()->TryInvokeTab(FPCGEditor_private::AttributesID);
 }
 
-void FPCGEditor::OnStopInspectNode()
+bool FPCGEditor::CanToggleInspected() const
 {
 	if (PCGGraphNodeBeingInspected)
 	{
-		PCGGraphNodeBeingInspected->SetInspected(false);
-		PCGGraphNodeBeingInspected = nullptr;
-		OnInspectedNodeChangedDelegate.Broadcast(nullptr);
+		return true;
 	}
+
+	if (!GraphEditorWidget.IsValid())
+	{
+		return false;
+	}
+
+	const UEdGraphNode* GraphNode = GraphEditorWidget->GetSingleSelectedNode();
+
+	return GraphNode && GraphNode->IsA<UPCGEditorGraphNodeBase>();
+}
+
+ECheckBoxState FPCGEditor::GetInspectedCheckState() const
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		const FGraphPanelSelectionSet& SelectedNodes = GraphEditorWidget->GetSelectedNodes();
+
+		if (SelectedNodes.IsEmpty())
+		{
+			return ECheckBoxState::Unchecked;
+		}
+	
+		bool bAllEnabled = true;
+		bool bAnyEnabled = false;
+		
+		for (UObject* Object : SelectedNodes)
+		{
+			const UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<UPCGEditorGraphNodeBase>(Object);
+			if (!PCGEditorGraphNode)
+			{
+				continue;
+			}
+			
+			bAllEnabled &= PCGEditorGraphNode->GetInspected();
+			bAnyEnabled |= PCGEditorGraphNode->GetInspected();
+		}
+
+		if (bAllEnabled)
+		{
+			return ECheckBoxState::Checked;
+		}
+		else if (bAnyEnabled)
+		{
+			return ECheckBoxState::Undetermined; 
+		}
+	}
+	
+	return ECheckBoxState::Unchecked;	
 }
 
 void FPCGEditor::OnToggleEnabled()

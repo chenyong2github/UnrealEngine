@@ -107,11 +107,13 @@ private:
 	/** Force a regeneration by invoking the graph notifications  */
 	void OnForceGraphRegeneration_Clicked();
 
-	/** Start inspecting the current selected node */
-	void OnStartInspectNode();
-	/** Stop inspecting the current inspected node */
-	void OnStopInspectNode();
-
+	/** Toggle node inspection state for selected nodes */
+	void OnToggleInspected();
+	/** Whether we can toggle inspection of selected nodes */
+	bool CanToggleInspected() const;
+	/** Whether selected nodes are inspected or not */
+	ECheckBoxState GetInspectedCheckState() const;
+	
 	/** Toggle node enabled state for selected nodes */
 	void OnToggleEnabled();
 	/** Whether selected nodes are enabled or not */

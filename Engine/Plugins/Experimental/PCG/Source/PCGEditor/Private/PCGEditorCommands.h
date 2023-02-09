@@ -22,9 +22,8 @@ public:
 	TSharedPtr<FUICommandInfo> RunDeterminismNodeTest;
 	TSharedPtr<FUICommandInfo> RunDeterminismGraphTest;
 	TSharedPtr<FUICommandInfo> EditGraphSettings;
-	TSharedPtr<FUICommandInfo> StartInspectNode;
-	TSharedPtr<FUICommandInfo> StopInspectNode;
 	TSharedPtr<FUICommandInfo> CancelExecution;
 	TSharedPtr<FUICommandInfo> ToggleEnabled;
 	TSharedPtr<FUICommandInfo> ToggleDebug;
+	TSharedPtr<FUICommandInfo> ToggleInspect;
 };
