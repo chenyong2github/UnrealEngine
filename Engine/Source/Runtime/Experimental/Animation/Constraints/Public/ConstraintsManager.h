@@ -263,6 +263,8 @@ public:
 	/** Go through each constraint in order and evaluate and tick them*/
 	void EvaluateAllConstraints() const;
 
+	/** when PIEing/Simulating it's possible that the constraint isn't in the active manager but still lives*/
+	bool DoesExistInAnyWorld(UTickableConstraint* InConstraint);
 	
 private:
 	/** Delegeate that's fired when a scene component is constrained, this is needed to make sure things like gizmo's get updated after the constraint tick happens*/

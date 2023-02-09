@@ -23,7 +23,7 @@
 class UTickableConstraint;
 
 
-UTickableConstraint* CreateConstraintIfNeeded(FConstraintsManagerController& Controller, FConstraintAndActiveChannel* ConstraintAndActiveChannel,const  FConstraintComponentData& ConstraintChannel)
+static UTickableConstraint* CreateConstraintIfNeeded(FConstraintsManagerController& Controller, FConstraintAndActiveChannel* ConstraintAndActiveChannel,const  FConstraintComponentData& ConstraintChannel)
 {
 	if (ConstraintAndActiveChannel->Constraint.IsPending())
 	{
@@ -40,7 +40,14 @@ UTickableConstraint* CreateConstraintIfNeeded(FConstraintsManagerController& Con
 		const TArray< TObjectPtr<UTickableConstraint>>& ConstraintsArray = Controller.GetConstraintsArray();
 		if (ConstraintsArray.Find(Constraint) == INDEX_NONE)
 		{
-			Controller.AddConstraint(Constraint);
+			//it's possible it belongs to another Manager
+			if (Controller.DoesExistInAnyWorld(Constraint) == false) //it's no where make a copy and add it
+			{
+				Constraint = Controller.AddConstraintFromCopy(ConstraintAndActiveChannel->ConstraintCopyToSpawn);
+				Controller.AddConstraint(Constraint);
+				ConstraintChannel.Section->ReplaceConstraint(ConstraintChannel.ConstraintName, Constraint);
+			}
+
 		}
 	}
 	return Constraint;

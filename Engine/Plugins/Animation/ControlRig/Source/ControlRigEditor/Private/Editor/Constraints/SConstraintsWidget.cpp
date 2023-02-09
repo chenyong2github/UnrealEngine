@@ -496,7 +496,7 @@ void SEditableConstraintItem::Construct(
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
 		return Controller.GetConstraint(ConstraintItem->Name);
 	};
-	UTickableConstraint* Constraint = GetConstraint();
+	TWeakObjectPtr<UTickableConstraint> Constraint = GetConstraint();
 
 	// sequencer
 	TWeakPtr<ISequencer> WeakSequencer = GetSequencerChecked();
@@ -510,7 +510,7 @@ void SEditableConstraintItem::Construct(
 	}
 	
 	FString ParentFullLabel = ParentLabel, ChildFullLabel = ChildLabel;
-	if (IsValid(Constraint))
+	if (IsValid(Constraint.Get()))
 	{
 		Constraint->GetFullLabel().Split(TEXT("."), &ParentFullLabel, &ChildFullLabel);
 	}
@@ -532,7 +532,7 @@ void SEditableConstraintItem::Construct(
 			.BorderImage(RoundedBoxBrush)
 			.BorderBackgroundColor_Lambda([Constraint]()
 			{
-				if (!IsValid(Constraint))
+				if (!Constraint.IsValid() || !IsValid(Constraint.Get()))
 				{
 					return FStyleColors::Transparent;
 				}
@@ -568,7 +568,7 @@ void SEditableConstraintItem::Construct(
 					})
 					.Font_Lambda([Constraint]()
 					{
-						if (!IsValid(Constraint))
+						if (!Constraint.IsValid() || !IsValid(Constraint.Get()))
 						{
 							return IDetailLayoutBuilder::GetDetailFont();
 						}
@@ -576,7 +576,7 @@ void SEditableConstraintItem::Construct(
 					})
 					.ToolTipText_Lambda( [Constraint, ParentFullLabel, ChildFullLabel]()
 					{
-						if (!IsValid(Constraint))
+						if (!Constraint.IsValid() || !IsValid(Constraint.Get()))
 						{
 							return FText();
 						}
@@ -608,7 +608,7 @@ void SEditableConstraintItem::Construct(
 			.ContentPadding(0)
 			.OnClicked_Lambda(	[Constraint, WeakSequencer]()
 			{
-				if (!IsValid(Constraint))
+				if (!Constraint.IsValid() || !IsValid(Constraint.Get()))
 				{
 					return FReply::Handled();
 				}

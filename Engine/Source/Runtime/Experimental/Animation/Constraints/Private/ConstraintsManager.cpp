@@ -8,6 +8,7 @@
 
 #include "Engine/World.h"
 #include "Engine/Level.h"
+#include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintsManager)
 
@@ -344,6 +345,35 @@ FConstraintsManagerController& FConstraintsManagerController::Get(UWorld* InWorl
 	return Singleton;
 }
 
+bool FConstraintsManagerController::DoesExistInAnyWorld(UTickableConstraint* InConstraint) 
+{
+	bool bFound = false;
+	if (InConstraint)
+	{
+		UConstraintsManager* Outer = InConstraint->GetTypedOuter<UConstraintsManager>();
+		if (Outer)
+		{
+			UWorld* CurrentWorld = World; //save current World
+			for (const FWorldContext& Context : GEngine->GetWorldContexts())
+			{
+				World = Context.World();
+				UConstraintsManager* Manager = FindManager();
+				if (Manager)
+				{
+					if (Manager->Constraints.Find(InConstraint) != INDEX_NONE)
+					{
+						bFound = true;
+						break;
+					}
+				}
+			}
+			World = CurrentWorld; //restore current World
+		}
+	}
+	return bFound;
+}
+
+
 UConstraintsManager* FConstraintsManagerController::GetManager() const
 {
 	if (!World)
@@ -432,14 +462,7 @@ bool FConstraintsManagerController::AddConstraint(UTickableConstraint* InConstra
 	}
 
 	Manager->Modify();
-	//it's possible this constraint was actually in another ConstraintActor::ConstraintManager so we need to move it over via Rename.
-	//and clear out it ticks function since that may have been registered
-	UConstraintsManager* Outer = InConstraint->GetTypedOuter<UConstraintsManager>();
-	if (Outer && Outer != Manager)
-	{
-		InConstraint->ConstraintTick.UnRegisterTickFunction();
-		InConstraint->Rename(nullptr, Manager, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-	}
+
 	Manager->Constraints.Emplace(InConstraint);
 
 	InConstraint->ConstraintTick.RegisterFunction(InConstraint->GetFunction());
