@@ -120,8 +120,9 @@ FStaticMeshComponentBulkReregisterContext::FStaticMeshComponentBulkReregisterCon
 	{
 		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 
-		// When running a render state update, only process components that are dirty
-		if (StaticMeshComponent && StaticMeshComponent->SceneProxy && (ReregisterType == EBulkReregister::Component || StaticMeshComponent->IsRenderStateDirty()))
+		// When running a render state update, only batch process components that are dirty and not hidden
+		if (StaticMeshComponent && StaticMeshComponent->SceneProxy &&
+			(ReregisterType == EBulkReregister::Component || (StaticMeshComponent->IsRenderStateDirty() && StaticMeshComponent->ShouldComponentAddToScene())))
 		{
 			StaticMeshComponents.Add(StaticMeshComponent);
 
