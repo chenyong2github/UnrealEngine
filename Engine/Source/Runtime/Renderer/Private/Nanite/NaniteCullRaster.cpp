@@ -1045,10 +1045,10 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
 	}
 
-	void SetParameters(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ShaderRHI, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
 	{
-		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		FMaterialShader::SetViewParameters(BatchedParameters, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(BatchedParameters, MaterialProxy, Material, View);
 	}
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FMicropolyRasterizeCS, TEXT("/Engine/Private/Nanite/NaniteRasterizer.usf"), TEXT("MicropolyRasterize"), SF_Compute);
@@ -1151,12 +1151,10 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
 	{
-		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
-
-		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		FMaterialShader::SetViewParameters(BatchedParameters, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(BatchedParameters, MaterialProxy, Material, View);
 	}
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FHWRasterizeVS, TEXT("/Engine/Private/Nanite/NaniteRasterizer.usf"), TEXT("HWRasterizeVS"), SF_Vertex);
@@ -1249,12 +1247,10 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
 	{
-		FRHIMeshShader* ShaderRHI = RHICmdList.GetBoundMeshShader();
-
-		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		FMaterialShader::SetViewParameters(BatchedParameters, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(BatchedParameters, MaterialProxy, Material, View);
 	}
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FHWRasterizeMS, TEXT("/Engine/Private/Nanite/NaniteRasterizer.usf"), TEXT("HWRasterizeMS"), SF_Mesh);
@@ -1369,12 +1365,10 @@ public:
 		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
-		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		FMaterialShader::SetViewParameters(BatchedParameters, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(BatchedParameters, MaterialProxy, Material, View);
 	}
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FHWRasterizePS, TEXT("/Engine/Private/Nanite/NaniteRasterizer.usf"), TEXT("HWRasterizePS"), SF_Pixel);
@@ -3270,25 +3264,14 @@ FBinningData AddPass_Rasterize(
 			{
 				if (bUseMeshShader)
 				{
-					PassToBind.RasterMeshShader->SetParameters(RHICmdList, SceneView, PassToBind.VertexMaterialProxy, *PassToBind.VertexMaterial);
+					SetShaderParametersMixedMS(RHICmdList, PassToBind.RasterMeshShader, Parameters, SceneView, PassToBind.VertexMaterialProxy, *PassToBind.VertexMaterial);
 				}
 				else
 				{
-					PassToBind.RasterVertexShader->SetParameters(RHICmdList, SceneView, PassToBind.VertexMaterialProxy, *PassToBind.VertexMaterial);
+					SetShaderParametersMixedVS(RHICmdList, PassToBind.RasterVertexShader, Parameters, SceneView, PassToBind.VertexMaterialProxy, *PassToBind.VertexMaterial);
 				}
 
-				PassToBind.RasterPixelShader->SetParameters(RHICmdList, SceneView, PassToBind.PixelMaterialProxy, *PassToBind.PixelMaterial);
-
-				if (bUseMeshShader)
-				{
-					SetShaderParameters(RHICmdList, PassToBind.RasterMeshShader, PassToBind.RasterMeshShader.GetMeshShader(), Parameters);
-				}
-				else
-				{
-					SetShaderParameters(RHICmdList, PassToBind.RasterVertexShader, PassToBind.RasterVertexShader.GetVertexShader(), Parameters);
-				}
-
-				SetShaderParameters(RHICmdList, PassToBind.RasterPixelShader, PassToBind.RasterPixelShader.GetPixelShader(), Parameters);
+				SetShaderParametersMixedPS(RHICmdList, PassToBind.RasterPixelShader, Parameters, SceneView, PassToBind.PixelMaterialProxy, *PassToBind.PixelMaterial);
 			};
 
 			BindShadersToPSOInit(RasterizerPass);
@@ -3357,11 +3340,11 @@ FBinningData AddPass_Rasterize(
 
 				FComputeShaderUtils::ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), RasterizerPass.IndirectOffset, IndirectArgsBuffer->GetStride());
 				SetComputePipelineState(RHICmdList, ShaderRHI);
-				SetShaderParameters(RHICmdList, RasterizerPass.RasterComputeShader, ShaderRHI, Parameters);
-				
-				RasterizerPass.RasterComputeShader->SetParameters(
+
+				SetShaderParametersMixedCS(
 					RHICmdList,
-					RasterizerPass.RasterComputeShader.GetComputeShader(),
+					RasterizerPass.RasterComputeShader,
+					Parameters,
 					SceneView,
 					RasterizerPass.ComputeMaterialProxy,
 					*RasterizerPass.ComputeMaterial

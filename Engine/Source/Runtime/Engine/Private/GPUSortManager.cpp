@@ -217,7 +217,7 @@ void CopyUIntBufferToTargets(FRHICommandListImmediate& RHICmdList, ERHIFeatureLe
 		const int32 NumTargetsInPass = FMath::Min<int32>(NumTargets - Index0InPass, COPYUINTCS_BUFFER_COUNT);
 		const int32 NumElementsInPass = TargetSizes[Index0InPass + NumTargetsInPass - 1] - StartingOffset;
 
-		SetAllShaderParametersCS(RHICmdList, CopyBufferCS, SourceSRV, TargetUAVs + Index0InPass, TargetSizes + Index0InPass, StartingOffset, NumTargetsInPass);
+		SetShaderParametersLegacyCS(RHICmdList, CopyBufferCS, SourceSRV, TargetUAVs + Index0InPass, TargetSizes + Index0InPass, StartingOffset, NumTargetsInPass);
 
 		DispatchComputeShader(RHICmdList, CopyBufferCS, FMath::DivideAndRoundUp(NumElementsInPass, COPYUINTCS_THREAD_COUNT), 1, 1);
 
@@ -225,7 +225,7 @@ void CopyUIntBufferToTargets(FRHICommandListImmediate& RHICmdList, ERHIFeatureLe
 		Index0InPass += COPYUINTCS_BUFFER_COUNT;
 	};
 
-	UnsetAllShaderParametersCS(RHICmdList, CopyBufferCS);
+	UnsetShaderParametersLegacyCS(RHICmdList, CopyBufferCS);
 
 	CopyBufferCS->End(RHICmdList);
 }

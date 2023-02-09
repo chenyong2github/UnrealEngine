@@ -936,7 +936,7 @@ public:
 		TShaderMapRef<FLandscapeLayerWeightmapExtractMaterialLayersCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 		SetComputePipelineState(InRHICmdList, ComputeShader.GetComputeShader());
 
-		SetAllShaderParametersCS(InRHICmdList, ComputeShader, ShaderParams);
+		SetShaderParametersLegacyCS(InRHICmdList, ComputeShader, ShaderParams);
 
 		// In case the CS is executed twice in a row, we need a barrier since we want to prevent UAV overlaps:
 		InRHICmdList.Transition(FRHITransitionInfo(ShaderParams.AtlasWeightmapsPerLayer->TextureRHI, ERHIAccess::UAVMask, ERHIAccess::UAVMask));
@@ -947,7 +947,7 @@ public:
 
 		DispatchComputeShader(InRHICmdList, ComputeShader.GetShader(), ThreadGroupCountX, ThreadGroupCountY, ShaderParams.ComputeShaderResource->GetComponentsDataCount());
 
-		UnsetAllShaderParametersCS(InRHICmdList, ComputeShader);
+		UnsetShaderParametersLegacyCS(InRHICmdList, ComputeShader);
 
 		ShaderParams.ComputeShaderResource->ReleaseResource();
 		delete ShaderParams.ComputeShaderResource;
@@ -1130,7 +1130,7 @@ public:
 		TShaderMapRef<FLandscapeLayerWeightmapPackMaterialLayersCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 		SetComputePipelineState(InRHICmdList, ComputeShader.GetComputeShader());
 
-		SetAllShaderParametersCS(InRHICmdList, ComputeShader, ShaderParams);
+		SetShaderParametersLegacyCS(InRHICmdList, ComputeShader, ShaderParams);
 
 		uint32 ThreadGroupCountX = FMath::CeilToInt((float)ShaderParams.ComponentSize / (float)GLandscapeLayerWeightmapThreadGroupSizeX);
 		uint32 ThreadGroupCountY = FMath::CeilToInt((float)ShaderParams.ComponentSize / (float)GLandscapeLayerWeightmapThreadGroupSizeY);
@@ -1138,7 +1138,7 @@ public:
 
 		DispatchComputeShader(InRHICmdList, ComputeShader.GetShader(), ThreadGroupCountX, ThreadGroupCountY, ShaderParams.ComputeShaderResource->GetComponentsDataCount());
 
-		UnsetAllShaderParametersCS(InRHICmdList, ComputeShader);
+		UnsetShaderParametersLegacyCS(InRHICmdList, ComputeShader);
 
 		ShaderParams.ComputeShaderResource->ReleaseResource();
 		delete ShaderParams.ComputeShaderResource;
@@ -1596,7 +1596,7 @@ private:
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0);
 
-		SetAllShaderParametersPS(InRHICmdList, PixelShader, Params.SourceResource->TextureRHI, Params.SourcePosition, Size);
+		SetShaderParametersLegacyPS(InRHICmdList, PixelShader, Params.SourceResource->TextureRHI, Params.SourcePosition, Size);
 
 		InRHICmdList.SetViewport((float)Params.DestPosition.X, (float)Params.DestPosition.Y, 0.0f, (float)(Params.DestPosition.X + Size.X), (float)(Params.DestPosition.Y + Size.Y), 1.0f);
 		InRHICmdList.DrawIndexedPrimitive(GTwoTrianglesIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2, 1);
@@ -1726,8 +1726,8 @@ public:
 			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0);
 
 			// Set shader params
-			SetAllShaderParametersVS(InRHICmdList, VertexShader, FMatrix44f(ProjectionMatrix));		// LWC_TODo: Precision loss?
-			SetAllShaderParametersPS(InRHICmdList, PixelShader, ShaderParams);
+			SetShaderParametersLegacyVS(InRHICmdList, VertexShader, FMatrix44f(ProjectionMatrix));		// LWC_TODo: Precision loss?
+			SetShaderParametersLegacyPS(InRHICmdList, PixelShader, ShaderParams);
 		}
 		else
 		{
@@ -1744,8 +1744,8 @@ public:
 			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0);
 
 			// Set shader params
-			SetAllShaderParametersVS(InRHICmdList, VertexShader, FMatrix44f(ProjectionMatrix));		// LWC_TODo: Precision loss?
-			SetAllShaderParametersPS(InRHICmdList, PixelShader, ShaderParams);
+			SetShaderParametersLegacyVS(InRHICmdList, VertexShader, FMatrix44f(ProjectionMatrix));		// LWC_TODo: Precision loss?
+			SetShaderParametersLegacyPS(InRHICmdList, PixelShader, ShaderParams);
 		}
 
 		InRHICmdList.SetScissorRect(false, 0, 0, 0, 0);
@@ -2698,7 +2698,7 @@ void ALandscape::CopyTexturePS(const FString& InSourceDebugName, FTextureResourc
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-		SetAllShaderParametersPS(RHICmdList, PixelShader, InSourceResource->TextureRHI);
+		SetShaderParametersLegacyPS(RHICmdList, PixelShader, InSourceResource->TextureRHI);
 
 		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)InDestResource->GetSizeX(), (float)InDestResource->GetSizeY(), 1.0f);
 		RHICmdList.DrawIndexedPrimitive(GTwoTrianglesIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2, 1);

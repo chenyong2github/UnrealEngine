@@ -670,7 +670,7 @@ void FBatchedElements::PrepareShaders(
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-			SetAllShaderParametersPS(RHICmdList, HitTestingPixelShader, Texture);
+			SetShaderParametersLegacyPS(RHICmdList, HitTestingPixelShader, Texture);
 		}
 		else
 		{
@@ -688,7 +688,7 @@ void FBatchedElements::PrepareShaders(
 
 					MaskedPixelShader->SetEditorCompositingParameters(RHICmdList, View);
 
-					SetAllShaderParametersPS(RHICmdList, MaskedPixelShader, Texture, Gamma, OpacityMaskRefVal, BlendMode);
+					SetShaderParametersLegacyPS(RHICmdList, MaskedPixelShader, Texture, Gamma, OpacityMaskRefVal, BlendMode);
 				}
 				else
 				{
@@ -698,7 +698,7 @@ void FBatchedElements::PrepareShaders(
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 					MaskedPixelShader->SetEditorCompositingParameters(RHICmdList, View);
-					SetAllShaderParametersPS(RHICmdList, MaskedPixelShader, Texture, Gamma, OpacityMaskRefVal, BlendMode);
+					SetShaderParametersLegacyPS(RHICmdList, MaskedPixelShader, Texture, Gamma, OpacityMaskRefVal, BlendMode);
 				}
 			}
 			// render distance field elements
@@ -737,7 +737,7 @@ void FBatchedElements::PrepareShaders(
 					BlendMode == SE_BLEND_TranslucentDistanceFieldShadowed
 					);
 
-				SetAllShaderParametersPS(
+				SetShaderParametersLegacyPS(
 					RHICmdList,
 					DistanceFieldPixelShader,
 					Texture,
@@ -766,7 +766,7 @@ void FBatchedElements::PrepareShaders(
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					SetAllShaderParametersPS(RHICmdList, AlphaOnlyPixelShader, Texture);
+					SetShaderParametersLegacyPS(RHICmdList, AlphaOnlyPixelShader, Texture);
 					AlphaOnlyPixelShader->SetEditorCompositingParameters(RHICmdList, View);
 				}
 				else
@@ -776,7 +776,7 @@ void FBatchedElements::PrepareShaders(
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					SetAllShaderParametersPS(RHICmdList, GammaAlphaOnlyPixelShader, Texture, Gamma, BlendMode);
+					SetShaderParametersLegacyPS(RHICmdList, GammaAlphaOnlyPixelShader, Texture, Gamma, BlendMode);
 					GammaAlphaOnlyPixelShader->SetEditorCompositingParameters(RHICmdList, View);
 				}
 			}
@@ -787,7 +787,7 @@ void FBatchedElements::PrepareShaders(
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 			
-				SetAllShaderParametersPS(RHICmdList, ColorChannelMaskPixelShader, Texture, ColorWeights, GammaToUse);
+				SetShaderParametersLegacyPS(RHICmdList, ColorChannelMaskPixelShader, Texture, ColorWeights, GammaToUse);
 			}
 			else
 			{
@@ -800,7 +800,7 @@ void FBatchedElements::PrepareShaders(
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					SetAllShaderParametersPS(RHICmdList, PixelShader, Texture);
+					SetShaderParametersLegacyPS(RHICmdList, PixelShader, Texture);
 					PixelShader->SetEditorCompositingParameters(RHICmdList, View);
 				}
 				else
@@ -820,14 +820,14 @@ void FBatchedElements::PrepareShaders(
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = BasePixelShader.GetPixelShader();
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					SetAllShaderParametersPS(RHICmdList, BasePixelShader, Texture, Gamma, BlendMode);
+					SetShaderParametersLegacyPS(RHICmdList, BasePixelShader, Texture, Gamma, BlendMode);
 					BasePixelShader->SetEditorCompositingParameters(RHICmdList, View);
 				}
 			}
 		}
 
 		// Set the simple element vertex shader parameters
-		SetAllShaderParametersVS(RHICmdList, VertexShader, ViewMatrices);
+		SetShaderParametersLegacyVS(RHICmdList, VertexShader, ViewMatrices);
 	}
 }
 

@@ -963,10 +963,10 @@ void InjectTranslucencyLightingVolumeAmbientCubemap(
 					GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-					SetAllShaderParametersVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(TranslucencyLightingVolumeDim));
+					SetShaderParametersLegacyVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(TranslucencyLightingVolumeDim));
 					if (GeometryShader.IsValid())
 					{
-						SetAllShaderParametersGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
+						SetShaderParametersLegacyGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
 					}
 					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 				});
@@ -1217,10 +1217,10 @@ void InjectTranslucencyLightingVolume(
 
 					const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
-					SetAllShaderParametersVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(TranslucencyLightingVolumeDim));
+					SetShaderParametersLegacyVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(TranslucencyLightingVolumeDim));
 					if (GeometryShader.IsValid())
 					{
-						SetAllShaderParametersGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
+						SetShaderParametersLegacyGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
 					}
 
 					PixelShader->SetParameters(RHICmdList, View, InjectionData.LightFunctionMaterialProxy);
@@ -1344,10 +1344,10 @@ void InjectSimpleTranslucencyLightingVolumeArray(
 							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-							SetAllShaderParametersVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(TranslucencyLightingVolumeDim));
+							SetShaderParametersLegacyVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(TranslucencyLightingVolumeDim));
 							if (GeometryShader.IsValid())
 							{
-								SetAllShaderParametersGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
+								SetShaderParametersLegacyGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
 							}
 							SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 							RasterizeToVolumeTexture(RHICmdList, VolumeBounds);
@@ -1428,10 +1428,10 @@ void FilterTranslucencyLightingVolume(
 				GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-				SetAllShaderParametersVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(TranslucencyLightingVolumeDim));
+				SetShaderParametersLegacyVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(TranslucencyLightingVolumeDim));
 				if (GeometryShader.IsValid())
 				{
-					SetAllShaderParametersGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
+					SetShaderParametersLegacyGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
 				}
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 				RasterizeToVolumeTexture(RHICmdList, VolumeBounds);

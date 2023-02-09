@@ -1168,7 +1168,7 @@ public:
 
 			SetUniformBufferParameter(RHICmdList, CompositeCS.GetComputeShader(), CompositeCS->GetUniformBufferParameter<FCompositeAnimatedVectorFieldUniformParameters>(), UniformBuffer);
 
-			SetAllShaderParametersCS(
+			SetShaderParametersLegacyCS(
 				RHICmdList,
 				CompositeCS,
 				VolumeTextureUAV,
@@ -1182,7 +1182,7 @@ public:
 				SizeY / THREADS_PER_AXIS,
 				SizeZ / THREADS_PER_AXIS );
 
-			UnsetAllShaderParametersCS(RHICmdList, CompositeCS);
+			UnsetShaderParametersLegacyCS(RHICmdList, CompositeCS);
 
 			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 		}

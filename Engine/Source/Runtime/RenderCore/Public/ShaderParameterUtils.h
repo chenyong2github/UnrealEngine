@@ -220,72 +220,135 @@ inline void SetUniformBufferParameterImmediate(FRHIBatchedShaderParameters& Batc
 	}
 }
 
-/// Utility to set all parameters for a Vertex shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
-template<typename TCmdList, typename TShaderType, typename... TArguments>
-inline void SetAllShaderParametersVS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+// Mixed mode binding utilities
+
+/// Utility to set all legacy and non-legacy parameters for a shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename TShaderTypeRHI, typename... TArguments>
+inline void SetShaderParametersMixed(
+	TRHICmdList& RHICmdList,
+	const TShaderRef<TShaderType>& InShader,
+	TShaderTypeRHI* InShaderRHI,
+	const typename TShaderType::FParameters& Parameters,
+	TArguments&&... InArguments)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+	// New Style first
+	SetShaderParameters(BatchedParameters, InShader, Parameters);
+
+	// Legacy second
+	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
+
+	RHICmdList.SetBatchedShaderParameters(InShaderRHI, BatchedParameters);
+}
+
+/// Utility to set all legacy and non-legacy parameters for a Vertex shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersMixedVS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, const typename TShaderType::FParameters& Parameters, TArguments&&... InArguments)
+{
+	SetShaderParametersMixed(RHICmdList, InShader, InShader.GetVertexShader(), Parameters, Forward<TArguments>(InArguments)...);
+}
+
+/// Utility to set all legacy and non-legacy parameters for a Mesh shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersMixedMS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, const typename TShaderType::FParameters& Parameters, TArguments&&... InArguments)
+{
+	SetShaderParametersMixed(RHICmdList, InShader, InShader.GetMeshShader(), Parameters, Forward<TArguments>(InArguments)...);
+}
+
+/// Utility to set all legacy and non-legacy parameters for an Amplification shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersMixedAS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, const typename TShaderType::FParameters& Parameters, TArguments&&... InArguments)
+{
+	SetShaderParametersMixed(RHICmdList, InShader, InShader.GetAmplificationShader(), Parameters, Forward<TArguments>(InArguments)...);
+}
+
+/// Utility to set all legacy and non-legacy parameters for a Pixel shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersMixedPS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, const typename TShaderType::FParameters& Parameters, TArguments&&... InArguments)
+{
+	SetShaderParametersMixed(RHICmdList, InShader, InShader.GetPixelShader(), Parameters, Forward<TArguments>(InArguments)...);
+}
+
+/// Utility to set all legacy and non-legacy parameters for a Geometry shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersMixedGS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, const typename TShaderType::FParameters& Parameters, TArguments&&... InArguments)
+{
+	SetShaderParametersMixed(RHICmdList, InShader, InShader.GetGeometryShader(), Parameters, Forward<TArguments>(InArguments)...);
+}
+
+/// Utility to set all legacy and non-legacy parameters for a Compute shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersMixedCS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, const typename TShaderType::FParameters& Parameters, TArguments&&... InArguments)
+{
+	SetShaderParametersMixed(RHICmdList, InShader, InShader.GetComputeShader(), Parameters, Forward<TArguments>(InArguments)...);
+}
+
+// Legacy binding utilities
+
+/// Utility to set all legacy parameters for a shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename TShaderTypeRHI, typename... TArguments>
+inline void SetShaderParametersLegacy(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TShaderTypeRHI* InShaderRHI, TArguments&&... InArguments)
 {
 	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
-	RHICmdList.SetBatchedShaderParameters(InShader.GetVertexShader(), BatchedParameters);
+	RHICmdList.SetBatchedShaderParameters(InShaderRHI, BatchedParameters);
 }
 
-/// Utility to set all parameters for a Mesh shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
-template<typename TCmdList, typename TShaderType, typename... TArguments>
-inline void SetAllShaderParametersMS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+/// Utility to set all legacy parameters for a Vertex shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersLegacyVS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
-	RHICmdList.SetBatchedShaderParameters(InShader.GetMeshShader(), BatchedParameters);
+	SetShaderParametersLegacy(RHICmdList, InShader, InShader.GetVertexShader(), Forward<TArguments>(InArguments)...);
 }
 
-/// Utility to set all parameters for an Amplification shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
-template<typename TCmdList, typename TShaderType, typename... TArguments>
-inline void SetAllShaderParametersAS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+/// Utility to set all legacy parameters for a Mesh shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersLegacyMS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
-	RHICmdList.SetBatchedShaderParameters(InShader.GetAmplificationShader(), BatchedParameters);
+	SetShaderParametersLegacy(RHICmdList, InShader, InShader.GetMeshShader(), Forward<TArguments>(InArguments)...);
 }
 
-/// Utility to set all parameters for a Pixel shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
-template<typename TCmdList, typename TShaderType, typename... TArguments>
-inline void SetAllShaderParametersPS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+/// Utility to set all legacy parameters for an Amplification shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersLegacyAS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
-	RHICmdList.SetBatchedShaderParameters(InShader.GetPixelShader(), BatchedParameters);
+	SetShaderParametersLegacy(RHICmdList, InShader, InShader.GetAmplificationShader(), Forward<TArguments>(InArguments)...);
 }
 
-/// Utility to set all parameters for a Geometry shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
-template<typename TCmdList, typename TShaderType, typename... TArguments>
-inline void SetAllShaderParametersGS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+/// Utility to set all legacy parameters for a Pixel shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersLegacyPS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
-	RHICmdList.SetBatchedShaderParameters(InShader.GetGeometryShader(), BatchedParameters);
+	SetShaderParametersLegacy(RHICmdList, InShader, InShader.GetPixelShader(), Forward<TArguments>(InArguments)...);
 }
 
-/// Utility to set all parameters for a Compute shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
-template<typename TCmdList, typename TShaderType, typename... TArguments>
-inline void SetAllShaderParametersCS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+/// Utility to set all legacy parameters for a Geometry shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersLegacyGS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	InShader->SetParameters(BatchedParameters, Forward<TArguments>(InArguments)...);
-	RHICmdList.SetBatchedShaderParameters(InShader.GetComputeShader(), BatchedParameters);
+	SetShaderParametersLegacy(RHICmdList, InShader, InShader.GetGeometryShader(), Forward<TArguments>(InArguments)...);
 }
 
-/// Utility to unset all parameters for a Pixel shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
-template<typename TCmdList, typename TShaderType>
-inline void UnsetAllShaderParametersPS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
+/// Utility to set all legacy parameters for a Compute shader. Requires the shader type to implement SetParameters(FRHIBatchedShaderParameters& BatchedParameters, ...)
+template<typename TRHICmdList, typename TShaderType, typename... TArguments>
+inline void SetShaderParametersLegacyCS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader, TArguments&&... InArguments)
+{
+	SetShaderParametersLegacy(RHICmdList, InShader, InShader.GetComputeShader(), Forward<TArguments>(InArguments)...);
+}
+
+/// Utility to unset all legacy parameters for a Pixel shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+template<typename TRHICmdList, typename TShaderType>
+inline void UnsetShaderParametersLegacyPS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
 {
 	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->UnsetParameters(BatchedParameters);
 	RHICmdList.SetBatchedShaderParameters(InShader.GetPixelShader(), BatchedParameters);
 }
 
-/// Utility to unset all parameters for a Compute shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
-template<typename TCmdList, typename TShaderType>
-inline void UnsetAllShaderParametersCS(TCmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
+/// Utility to unset all legacy parameters for a Compute shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+template<typename TRHICmdList, typename TShaderType>
+inline void UnsetShaderParametersLegacyCS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
 {
 	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 	InShader->UnsetParameters(BatchedParameters);

@@ -1186,9 +1186,9 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 
 			const FRWBuffer& ShaderStagingBuffer = GRecomputeTangentsParallelDispatch ? DispatchData.GetIntermediateAccumulatedTangentBuffer()->Buffer : StagingBuffer->Buffer;
 
-			SetAllShaderParametersCS(RHICmdList, Shader, Entry, DispatchData, ShaderStagingBuffer);
+			SetShaderParametersLegacyCS(RHICmdList, Shader, Entry, DispatchData, ShaderStagingBuffer);
 			DispatchComputeShader(RHICmdList, Shader.GetShader(), ThreadGroupCountValue, 1, 1);
-			UnsetAllShaderParametersCS(RHICmdList, Shader);
+			UnsetShaderParametersLegacyCS(RHICmdList, Shader);
 
 			IncrementDispatchCounter(RHICmdList);
 		}
@@ -1221,9 +1221,9 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 				});
 		}
 
-		SetAllShaderParametersCS(RHICmdList, ComputeShader, Entry, DispatchData, GRecomputeTangentsParallelDispatch ? DispatchData.GetIntermediateAccumulatedTangentBuffer()->Buffer : StagingBuffer->Buffer);
+		SetShaderParametersLegacyCS(RHICmdList, ComputeShader, Entry, DispatchData, GRecomputeTangentsParallelDispatch ? DispatchData.GetIntermediateAccumulatedTangentBuffer()->Buffer : StagingBuffer->Buffer);
 		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), ThreadGroupCountValue, 1, 1);
-		UnsetAllShaderParametersCS(RHICmdList, ComputeShader);
+		UnsetShaderParametersLegacyCS(RHICmdList, ComputeShader);
 
 		IncrementDispatchCounter(RHICmdList);
 	}
@@ -1883,7 +1883,7 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	{
 		SetComputePipelineState(RHICmdList, Shader.GetComputeShader());
 
-		SetAllShaderParametersCS(
+		SetShaderParametersLegacyCS(
 			RHICmdList,
 			Shader,
 			PrevBoneBuffer,
@@ -1896,7 +1896,7 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 		uint32 VertexCountAlign64 = FMath::DivideAndRoundUp(DispatchData.NumVertices, (uint32)64);
 		INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumVertices, VertexCountAlign64 * 64);
 		RHICmdList.DispatchComputeShader(VertexCountAlign64, 1, 1);
-		UnsetAllShaderParametersCS(RHICmdList, Shader);
+		UnsetShaderParametersLegacyCS(RHICmdList, Shader);
 
 		IncrementDispatchCounter(RHICmdList);
 		BuffersToTransitionToRead.Add(DispatchData.GetPreviousPositionRWBuffer());
@@ -1906,7 +1906,7 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	{
 		SetComputePipelineState(RHICmdList, Shader.GetComputeShader());
 
-		SetAllShaderParametersCS(
+		SetShaderParametersLegacyCS(
 			RHICmdList,
 			Shader,
 			BoneBuffer,
@@ -1920,7 +1920,7 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 		INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumVertices, VertexCountAlign64 * 64);
 		RHICmdList.DispatchComputeShader(VertexCountAlign64, 1, 1);
 
-		UnsetAllShaderParametersCS(RHICmdList, Shader);
+		UnsetShaderParametersLegacyCS(RHICmdList, Shader);
 
 		IncrementDispatchCounter(RHICmdList);
 		BuffersToTransitionToRead.Add(DispatchData.GetPositionRWBuffer());

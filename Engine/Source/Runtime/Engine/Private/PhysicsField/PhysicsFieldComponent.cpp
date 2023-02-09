@@ -567,9 +567,9 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 			const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
 			const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FResetPhysicsFieldClipmapCS::ThreadGroupSize);
 
-			SetAllShaderParametersCS(RHICmdList, ComputeShader, this, TimeSeconds, NumCells);
+			SetShaderParametersLegacyCS(RHICmdList, ComputeShader, this, TimeSeconds, NumCells);
 			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, 1, 1);
-			UnsetAllShaderParametersCS(RHICmdList, ComputeShader);
+			UnsetShaderParametersLegacyCS(RHICmdList, ComputeShader);
 
 			RHICmdList.Transition(FRHITransitionInfo(this->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 		}
@@ -596,9 +596,9 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 			const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
 			const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FBuildPhysicsFieldClipmapCS::ThreadGroupSize);
 
-			SetAllShaderParametersCS(RHICmdList, ComputeShader, this, TimeSeconds, NumCells);
+			SetShaderParametersLegacyCS(RHICmdList, ComputeShader, this, TimeSeconds, NumCells);
 			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, 1, 1);
-			UnsetAllShaderParametersCS(RHICmdList, ComputeShader);
+			UnsetShaderParametersLegacyCS(RHICmdList, ComputeShader);
 
 			RHICmdList.Transition(FRHITransitionInfo(this->ClipmapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 		}

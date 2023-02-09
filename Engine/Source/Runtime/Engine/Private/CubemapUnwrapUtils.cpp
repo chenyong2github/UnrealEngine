@@ -226,8 +226,8 @@ void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList,
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
-	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture, ColorWeights, MipLevel, SliceIndex, bIsTextureCubeArray, ViewMatrix, bShowLongLatUnwrap, InGamma, bUsePointSampling);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyPS(RHICmdList, PixelShader, Texture, ColorWeights, MipLevel, SliceIndex, bIsTextureCubeArray, ViewMatrix, bShowLongLatUnwrap, InGamma, bUsePointSampling);
 }
 
 FIESLightProfilePS::FIESLightProfilePS() = default;
@@ -273,6 +273,6 @@ void FIESLightProfileBatchedElementParameters::BindShaders( FRHICommandList& RHI
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
-	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture, BrightnessInLumens);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyPS(RHICmdList, PixelShader, Texture, BrightnessInLumens);
 }

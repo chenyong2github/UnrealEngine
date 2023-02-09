@@ -84,7 +84,7 @@ void FNormalMapBatchedElementParameters::BindShaders(
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
-	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyPS(RHICmdList, PixelShader, Texture);
 }
 

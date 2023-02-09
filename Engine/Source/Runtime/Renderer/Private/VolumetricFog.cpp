@@ -619,7 +619,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 
 						if (GeometryShader.IsValid())
 						{
-							SetAllShaderParametersGS(RHICmdList, GeometryShader, VolumeZBounds.X);
+							SetShaderParametersLegacyGS(RHICmdList, GeometryShader, VolumeZBounds.X);
 						}
 
 						RHICmdList.SetStreamSource(0, GCircleRasterizeVertexBuffer.VertexBufferRHI, 0);

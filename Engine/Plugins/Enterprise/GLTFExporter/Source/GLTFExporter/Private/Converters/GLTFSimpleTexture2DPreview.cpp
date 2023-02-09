@@ -74,6 +74,6 @@ void FGLTFSimpleTexture2DPreview::BindShaders(
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::CheckApply);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
-	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyPS(RHICmdList, PixelShader, Texture);
 }

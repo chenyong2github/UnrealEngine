@@ -580,11 +580,11 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 			
 			// Clear the offsets buffer.
 			SetComputePipelineState(RHICmdList, ClearOffsetsCS.GetComputeShader());
-			SetAllShaderParametersCS(RHICmdList, ClearOffsetsCS, GSortOffsetBuffers.BufferUAVs[0]);
+			SetShaderParametersLegacyCS(RHICmdList, ClearOffsetsCS, GSortOffsetBuffers.BufferUAVs[0]);
 
 			DispatchComputeShader(RHICmdList, ClearOffsetsCS.GetShader(), 1, 1 ,1 );
 
-			UnsetAllShaderParametersCS(RHICmdList, ClearOffsetsCS);
+			UnsetShaderParametersLegacyCS(RHICmdList, ClearOffsetsCS);
 
 			//make UAV safe for readback
 			RHICmdList.Transition({
@@ -596,11 +596,11 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 			SetComputePipelineState(RHICmdList, UpsweepCS.GetComputeShader());
 
 			SetUniformBufferParameter(RHICmdList, UpsweepCS.GetComputeShader(), UpsweepCS->GetUniformBufferParameter<FRadixSortParameters>(), SortUniformBufferRef);
-			SetAllShaderParametersCS(RHICmdList, UpsweepCS, GSortOffsetBuffers.BufferUAVs[0], SortBuffers.RemoteKeySRVs[BufferIndex], SortUniformBufferRef, GRadixSortParametersBuffer.SortParametersBufferSRV);
+			SetShaderParametersLegacyCS(RHICmdList, UpsweepCS, GSortOffsetBuffers.BufferUAVs[0], SortBuffers.RemoteKeySRVs[BufferIndex], SortUniformBufferRef, GRadixSortParametersBuffer.SortParametersBufferSRV);
 
 			DispatchComputeShader(RHICmdList, UpsweepCS.GetShader(), GroupCount, 1, 1);
 
-			UnsetAllShaderParametersCS(RHICmdList, UpsweepCS);
+			UnsetShaderParametersLegacyCS(RHICmdList, UpsweepCS);
 
 			//barrier both UAVS since for next step.
 			RHICmdList.Transition({
@@ -616,11 +616,11 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 
 			// Phase 2: Parallel prefix scan on the offsets buffer.
 			SetComputePipelineState(RHICmdList, SpineCS.GetComputeShader());
-			SetAllShaderParametersCS(RHICmdList, SpineCS, GSortOffsetBuffers.BufferUAVs[1], GSortOffsetBuffers.BufferSRVs[0]);
+			SetShaderParametersLegacyCS(RHICmdList, SpineCS, GSortOffsetBuffers.BufferUAVs[1], GSortOffsetBuffers.BufferSRVs[0]);
 
 			DispatchComputeShader(RHICmdList, SpineCS.GetShader(), 1, 1, 1 );
 
-			UnsetAllShaderParametersCS(RHICmdList, SpineCS);
+			UnsetShaderParametersLegacyCS(RHICmdList, SpineCS);
 
 			if (bDebugOffsets)
 			{
@@ -655,10 +655,10 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 
 				FRHIShaderResourceView* ValuesSRV = (PassIndex == 0 && SortBuffers.FirstValuesSRV) ? SortBuffers.FirstValuesSRV : SortBuffers.RemoteValueSRVs[BufferIndex];
 
-				SetAllShaderParametersCS(RHICmdList, DownsweepCS, SortBuffers.RemoteKeyUAVs[BufferIndex ^ 0x1], ValuesUAV, SortBuffers.RemoteKeySRVs[BufferIndex], ValuesSRV, GSortOffsetBuffers.BufferSRVs[1], GRadixSortParametersBuffer.SortParametersBufferSRV);
+				SetShaderParametersLegacyCS(RHICmdList, DownsweepCS, SortBuffers.RemoteKeyUAVs[BufferIndex ^ 0x1], ValuesUAV, SortBuffers.RemoteKeySRVs[BufferIndex], ValuesSRV, GSortOffsetBuffers.BufferSRVs[1], GRadixSortParametersBuffer.SortParametersBufferSRV);
 			}
 			DispatchComputeShader(RHICmdList, DownsweepCS.GetShader(), GroupCount, 1, 1 );
-			UnsetAllShaderParametersCS(RHICmdList, DownsweepCS);
+			UnsetShaderParametersLegacyCS(RHICmdList, DownsweepCS);
 
 
 			RHICmdList.Transition({

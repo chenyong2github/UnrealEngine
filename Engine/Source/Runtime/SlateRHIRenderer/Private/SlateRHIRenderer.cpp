@@ -1234,17 +1234,17 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 						GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-						SetAllShaderParametersVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(VolumeBounds.MaxX - VolumeBounds.MinX));
+						SetShaderParametersLegacyVS(RHICmdList, VertexShader, VolumeBounds, FIntVector(VolumeBounds.MaxX - VolumeBounds.MinX));
 
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 						if (GeometryShader.IsValid())
 						{
-							SetAllShaderParametersGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
+							SetShaderParametersLegacyGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
 						}
 #endif
 						const float DisplayMaxLuminance = HDRGetDisplayMaximumLuminance();
 
-						SetAllShaderParametersPS(RHICmdList, PixelShader, ViewportInfo.HDRDisplayOutputFormat, ViewportInfo.HDRDisplayColorGamut, DisplayMaxLuminance);
+						SetShaderParametersLegacyPS(RHICmdList, PixelShader, ViewportInfo.HDRDisplayOutputFormat, ViewportInfo.HDRDisplayColorGamut, DisplayMaxLuminance);
 
 						RasterizeToVolumeTexture(RHICmdList, VolumeBounds);
 					}
@@ -1329,7 +1329,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-						SetAllShaderParametersPS(RHICmdList, PixelShader, 
+						SetShaderParametersLegacyPS(RHICmdList, PixelShader, 
 							ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, FinalBufferCopy->GetRHI(), ViewportInfo.ColorSpaceLUT,
 							GSlateColorDeficiencyCorrection, GSlateColorDeficiencyType, GSlateColorDeficiencySeverity, GSlateShowColorDeficiencyCorrectionWithDeficiency);
 
@@ -1379,7 +1379,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 					FVector4f SceneTextureDimensions((float)ViewportWidth, (float)ViewportHeight, 1.0f/(float)ViewportWidth, 1.0f/(float)ViewportHeight);
 					SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 
-					SetAllShaderParametersCS(RHICmdList, ComputeShader,
+					SetShaderParametersLegacyCS(RHICmdList, ComputeShader,
 						ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, BackBufferUAV, ViewportInfo.ColorSpaceLUT, SceneTextureDimensions,
 						GSlateColorDeficiencyCorrection, GSlateColorDeficiencyType, GSlateColorDeficiencySeverity, GSlateShowColorDeficiencyCorrectionWithDeficiency);
 
@@ -1419,7 +1419,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-				SetAllShaderParametersPS(RHICmdList, PixelShader, HDRRenderRT->GetRHI());
+				SetShaderParametersLegacyPS(RHICmdList, PixelShader, HDRRenderRT->GetRHI());
 
 				static const FName RendererModuleName("Renderer");
 				IRendererModule& RendererModule = FModuleManager::GetModuleChecked<IRendererModule>(RendererModuleName);

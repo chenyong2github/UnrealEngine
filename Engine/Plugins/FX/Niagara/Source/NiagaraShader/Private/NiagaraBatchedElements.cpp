@@ -65,7 +65,7 @@ void FBatchedElementNiagara2DArrayAttribute::BindShaders(FRHICommandList& RHICmd
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
 
 	FNiagaraSimpleElement2DArrayAttribute::FParameters PassParameters;
 	PassParameters.InAttributeSlices = AttributeSlices;
@@ -135,7 +135,7 @@ void FBatchedElementNiagaraVolumeAttribute::BindShaders(FRHICommandList& RHICmdL
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
 
 	FNiagaraSimpleElementVolumeAttribute::FParameters PassParameters;
 	PassParameters.InNumAttributes	= AttributeUVs.Num();
@@ -198,7 +198,7 @@ void FBatchedElementNiagaraInvertColorChannel::BindShaders(FRHICommandList& RHIC
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
 
 	FNiagaraSimpleElementPS::FParameters PassParameters;
 	PassParameters.InColorWeights	= FMatrix44f::Identity;
@@ -222,7 +222,7 @@ void FBatchedElementNiagaraSimple::BindShaders(FRHICommandList& RHICmdList, FGra
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
 
 	FNiagaraSimpleElementPS::FParameters PassParameters;
 	PassParameters.InColorWeights = FMatrix44f(ColorTransform);

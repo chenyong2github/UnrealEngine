@@ -166,7 +166,7 @@ void FBatchedElementTexture2DPreviewParameters::BindShaders(
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
 
 	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), Parameters);
 }

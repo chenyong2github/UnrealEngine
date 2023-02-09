@@ -162,14 +162,14 @@ int32 GenerateParticleSortKeys(
 			FParticleKeyGenUniformBufferRef KeyGenUniformBuffer = FParticleKeyGenUniformBufferRef::CreateUniformBufferImmediate( KeyGenParameters, UniformBuffer_SingleDraw );
 			SetUniformBufferParameter(RHICmdList, KeyGenCS.GetComputeShader(), KeyGenCS->GetUniformBufferParameter<FParticleKeyGenParameters>(), KeyGenUniformBuffer);
 
-			SetAllShaderParametersCS(RHICmdList, KeyGenCS, KeyBufferUAV, SortedVertexBufferUAV, PositionTextureRHI, SortInfo.VertexBufferSRV);
+			SetShaderParametersLegacyCS(RHICmdList, KeyGenCS, KeyBufferUAV, SortedVertexBufferUAV, PositionTextureRHI, SortInfo.VertexBufferSRV);
 
 			DispatchComputeShader(RHICmdList, KeyGenCS.GetShader(), GroupCount, 1, 1);
 		}
 	}
 
 	// Clear the output buffer.
-	UnsetAllShaderParametersCS(RHICmdList, KeyGenCS);
+	UnsetShaderParametersLegacyCS(RHICmdList, KeyGenCS);
 
 	RHICmdList.EndUAVOverlap({ KeyBufferUAV, SortedVertexBufferUAV });
 

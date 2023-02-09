@@ -205,6 +205,6 @@ void FBatchedElementVolumeTexturePreviewParameters::BindShaders(
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	SetAllShaderParametersVS(RHICmdList, VertexShader, InTransform);
-	SetAllShaderParametersPS(RHICmdList, PixelShader, Texture, SizeZ, ColorWeights, InGamma, MipLevel, Opacity, TraceOrientation, bUsePointSampling);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, InTransform);
+	SetShaderParametersLegacyPS(RHICmdList, PixelShader, Texture, SizeZ, ColorWeights, InGamma, MipLevel, Opacity, TraceOrientation, bUsePointSampling);
 }
