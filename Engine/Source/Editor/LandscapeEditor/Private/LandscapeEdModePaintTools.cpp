@@ -95,9 +95,11 @@ namespace
 template<class TToolTarget, class TStrokeClass>
 class FLandscapeToolPaintBase : public FLandscapeToolBase<TStrokeClass>
 {
+	using Super = FLandscapeToolBase<TStrokeClass>;
+
 public:
 	FLandscapeToolPaintBase(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<TStrokeClass>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -111,9 +113,11 @@ public:
 template<class ToolTarget>
 class FLandscapeToolStrokePaintBase : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokePaintBase(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, Cache(InTarget)
 	{
 	}
@@ -127,7 +131,8 @@ protected:
 //
 class FLandscapeToolStrokePaint : public FLandscapeToolStrokePaintBase<FWeightmapToolTarget>
 {
-	typedef FWeightmapToolTarget ToolTarget;
+	using Super = FLandscapeToolStrokePaintBase<FWeightmapToolTarget>;
+	using ToolTarget = FWeightmapToolTarget;
 
 	TMap<FIntPoint, float> TotalInfluenceMap; // amount of time and weight the brush has spent on each vertex.
 
@@ -138,7 +143,7 @@ public:
 	enum { UseContinuousApply = false };
 
 	FLandscapeToolStrokePaint(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokePaintBase<FWeightmapToolTarget>(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, bIsAllowListMode(EdMode->UISettings->PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentAllowList &&
 		                   (InViewportClient->Viewport->KeyState(EKeys::Equals) || InViewportClient->Viewport->KeyState(EKeys::Hyphen)))
 		, bAddToAllowList(bIsAllowListMode && InViewportClient->Viewport->KeyState(EKeys::Equals))
@@ -147,6 +152,8 @@ public:
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokePaint_Apply);
+
 		// Invert when holding Shift
 		bool bInvert = InteractorPositions.Last().bModifierPressed;
 		UE_LOG(LogLandscapeTools, VeryVerbose, TEXT("bInvert = %d"), bInvert);
@@ -311,9 +318,11 @@ public:
 
 class FLandscapeToolPaint : public FLandscapeToolPaintBase<FWeightmapToolTarget, FLandscapeToolStrokePaint>
 {
+	using Super = FLandscapeToolPaintBase<FWeightmapToolTarget, FLandscapeToolStrokePaint>;
+
 public:
 	FLandscapeToolPaint(FEdModeLandscape* InEdMode)
-		: FLandscapeToolPaintBase<FWeightmapToolTarget, FLandscapeToolStrokePaint>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -328,13 +337,14 @@ public:
 			EdMode->UISettings->UpdateComponentLayerAllowList();
 		}
 
-		FLandscapeToolPaintBase::EnterTool();
+		Super::EnterTool();
 	}
 };
 
 class FLandscapeToolStrokeErase : public FLandscapeToolStrokePaintBase<FHeightmapToolTarget>
 {
-	typedef FHeightmapToolTarget ToolTarget;
+	using Super = FLandscapeToolStrokePaintBase<FHeightmapToolTarget>;
+	using ToolTarget = FHeightmapToolTarget;
 	const typename ToolTarget::CacheClass::DataType FlattenHeight;
 
 public:
@@ -342,13 +352,15 @@ public:
 	enum { UseContinuousApply = true };
 
 	FLandscapeToolStrokeErase(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokePaintBase<FHeightmapToolTarget>(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, FlattenHeight(LandscapeDataAccess::GetTexHeight(0.f))
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeErase_Apply);
+
 		if (!this->LandscapeInfo) return;
 
 		// Get list of verts to update
@@ -410,19 +422,22 @@ public:
 //
 class FLandscapeToolStrokeSculpt : public FLandscapeToolStrokePaintBase<FHeightmapToolTarget>
 {
-	typedef FHeightmapToolTarget ToolTarget;
+	using Super = FLandscapeToolStrokePaintBase<FHeightmapToolTarget>;
+	using ToolTarget = FHeightmapToolTarget;
 
 public:
 	// Heightmap sculpt tool will continuously sculpt in the same location, weightmap paint tool doesn't
 	enum { UseContinuousApply = true };
 
 	FLandscapeToolStrokeSculpt(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokePaintBase<FHeightmapToolTarget>(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeSculpt_Apply);
+
 		// Invert when holding Shift
 		bool bInvert = InteractorPositions.Last().bModifierPressed;
 		UE_LOG(LogLandscapeTools, VeryVerbose, TEXT("bInvert = %d"), bInvert);
@@ -482,6 +497,8 @@ public:
 
 		if (bUseClayBrush)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ComputeClayBrush);
+
 			// Calculate normals for brush verts in data space
 			Normals.Empty(SourceDataArrayPtr->Num());
 			Normals.AddZeroed(SourceDataArrayPtr->Num());
@@ -566,50 +583,54 @@ public:
 		}
 
 		// Apply the brush
-		for (int32 Y = BrushInfo.GetBounds().Min.Y; Y < BrushInfo.GetBounds().Max.Y; Y++)
 		{
-			const float* BrushScanline = BrushInfo.GetDataPtr(FIntPoint(0, Y));
-			auto* DataScanline = Data.GetData() + (Y - Y1) * (X2 - X1 + 1) + (0 - X1);
-			auto* SourceDataScanline = SourceDataArrayPtr->GetData() + (Y - Y1) * (X2 - X1 + 1) + (0 - X1);
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApplyBrush);
 
-			for (int32 X = BrushInfo.GetBounds().Min.X; X < BrushInfo.GetBounds().Max.X; X++)
+			for (int32 Y = BrushInfo.GetBounds().Min.Y; Y < BrushInfo.GetBounds().Max.Y; Y++)
 			{
-				const FIntPoint Key = FIntPoint(X, Y);
-				const float BrushValue = BrushScanline[X];
+				const float* BrushScanline = BrushInfo.GetDataPtr(FIntPoint(0, Y));
+				auto* DataScanline = Data.GetData() + (Y - Y1) * (X2 - X1 + 1) + (0 - X1);
+				auto* SourceDataScanline = SourceDataArrayPtr->GetData() + (Y - Y1) * (X2 - X1 + 1) + (0 - X1);
 
-				float SculptAmount = BrushValue * SculptStrength;
-				auto& CurrentValue = DataScanline[X];
-				const auto& SourceValue = SourceDataScanline[X];
-
-				if (bUseClayBrush)
+				for (int32 X = BrushInfo.GetBounds().Min.X; X < BrushInfo.GetBounds().Max.X; X++)
 				{
-					// Brush application starts from original world location at start of stroke
-					FVector WorldLoc = ToWorld.TransformPosition(FVector(X, Y, SourceValue));
+					const FIntPoint Key = FIntPoint(X, Y);
+					const float BrushValue = BrushScanline[X];
 
-					// Calculate new location on the brush plane
-					WorldLoc.Z = (BrushPlane.W - BrushPlane.X*WorldLoc.X - BrushPlane.Y*WorldLoc.Y) / BrushPlane.Z;
+					float SculptAmount = BrushValue * SculptStrength;
+					auto& CurrentValue = DataScanline[X];
+					const auto& SourceValue = SourceDataScanline[X];
 
-					// Painted amount lerps based on brush falloff.
-					float PaintValue = FMath::Lerp<float>((float)SourceValue, FromWorld.TransformPosition(WorldLoc).Z, BrushValue);
-
-					if (bInvert)
+					if (bUseClayBrush)
 					{
-						CurrentValue = ToolTarget::CacheClass::ClampValue(FMath::Min<int32>(FMath::RoundToInt(PaintValue), CurrentValue));
+						// Brush application starts from original world location at start of stroke
+						FVector WorldLoc = ToWorld.TransformPosition(FVector(X, Y, SourceValue));
+
+						// Calculate new location on the brush plane
+						WorldLoc.Z = (BrushPlane.W - BrushPlane.X*WorldLoc.X - BrushPlane.Y*WorldLoc.Y) / BrushPlane.Z;
+
+						// Painted amount lerps based on brush falloff.
+						float PaintValue = FMath::Lerp<float>((float)SourceValue, FromWorld.TransformPosition(WorldLoc).Z, BrushValue);
+
+						if (bInvert)
+						{
+							CurrentValue = ToolTarget::CacheClass::ClampValue(FMath::Min<int32>(FMath::RoundToInt(PaintValue), CurrentValue));
+						}
+						else
+						{
+							CurrentValue = ToolTarget::CacheClass::ClampValue(FMath::Max<int32>(FMath::RoundToInt(PaintValue), CurrentValue));
+						}
 					}
 					else
 					{
-						CurrentValue = ToolTarget::CacheClass::ClampValue(FMath::Max<int32>(FMath::RoundToInt(PaintValue), CurrentValue));
-					}
-				}
-				else
-				{
-					if (bInvert)
-					{
-						CurrentValue = ToolTarget::CacheClass::ClampValue(FMath::Min<int32>(SourceValue - FMath::RoundToInt(SculptAmount), CurrentValue));
-					}
-					else
-					{
-						CurrentValue = ToolTarget::CacheClass::ClampValue(FMath::Max<int32>(SourceValue + FMath::RoundToInt(SculptAmount), CurrentValue));
+						if (bInvert)
+						{
+							CurrentValue = ToolTarget::CacheClass::ClampValue(FMath::Min<int32>(SourceValue - FMath::RoundToInt(SculptAmount), CurrentValue));
+						}
+						else
+						{
+							CurrentValue = ToolTarget::CacheClass::ClampValue(FMath::Max<int32>(SourceValue + FMath::RoundToInt(SculptAmount), CurrentValue));
+						}
 					}
 				}
 			}
@@ -622,9 +643,11 @@ public:
 
 class FLandscapeToolSculpt : public FLandscapeToolPaintBase<FHeightmapToolTarget, FLandscapeToolStrokeSculpt>
 {
+	using Super = FLandscapeToolPaintBase<FHeightmapToolTarget, FLandscapeToolStrokeSculpt>;
+
 public:
 	FLandscapeToolSculpt(FEdModeLandscape* InEdMode)
-		: FLandscapeToolPaintBase<FHeightmapToolTarget, FLandscapeToolStrokeSculpt>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -635,9 +658,11 @@ public:
 
 class FLandscapeToolErase : public FLandscapeToolPaintBase<FHeightmapToolTarget, FLandscapeToolStrokeErase>
 {
+	using Super = FLandscapeToolPaintBase<FHeightmapToolTarget, FLandscapeToolStrokeErase>;
+
 public:
 	FLandscapeToolErase(FEdModeLandscape* InEdMode)
-		: FLandscapeToolPaintBase<FHeightmapToolTarget, FLandscapeToolStrokeErase>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -653,11 +678,13 @@ public:
 template<class ToolTarget>
 class FLandscapeToolStrokeSmooth : public FLandscapeToolStrokePaintBase<ToolTarget>
 {
+	using Super = FLandscapeToolStrokePaintBase<ToolTarget>;
+
 	bool bTargetIsHeightmap;
 	FLandscapeLayerDataCache<ToolTarget> LayerDataCache;
 public:
 	FLandscapeToolStrokeSmooth(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokePaintBase<ToolTarget>(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, bTargetIsHeightmap(InTarget.TargetType == ELandscapeToolTargetType::Heightmap)
 		, LayerDataCache(InTarget, this->Cache)
 	{
@@ -665,6 +692,8 @@ public:
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeSmooth_Apply);
+
 		if (!this->LandscapeInfo) return;
 
 		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
@@ -775,9 +804,11 @@ public:
 template<class ToolTarget>
 class FLandscapeToolSmooth : public FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeSmooth<ToolTarget>>
 {
+	using Super = FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeSmooth<ToolTarget>>;
+
 public:
 	FLandscapeToolSmooth(FEdModeLandscape* InEdMode)
-		: FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeSmooth<ToolTarget> >(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -1061,8 +1092,10 @@ public:
 };
 
 template<class ToolTarget>
-class FLandscapeToolFlatten : public FLandscapeToolPaintBase < ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget> >
+class FLandscapeToolFlatten : public FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>
 {
+	using Super = FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>;
+
 protected:
 	UStaticMesh* HeightmapFlattenPlaneMesh;
 	UStaticMeshComponent* HeightmapFlattenPreviewComponent;
@@ -1072,7 +1105,7 @@ protected:
 
 public:
 	FLandscapeToolFlatten(FEdModeLandscape* InEdMode)
-		: FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>(InEdMode)
+		: Super(InEdMode)
 		, HeightmapFlattenPlaneMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/EditorLandscapeResources/FlattenPlaneMesh.FlattenPlaneMesh")))
 		, HeightmapFlattenPreviewComponent(nullptr)
 		, CanToolBeActivatedNextTick(false)
@@ -1117,7 +1150,7 @@ public:
 			CanToolBeActivatedNextTick = false;
 		}
 
-		FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>::Tick(ViewportClient, DeltaTime);
+		Super::Tick(ViewportClient, DeltaTime);
 
 		if (HeightmapFlattenPreviewComponent != nullptr)
 		{
@@ -1128,7 +1161,7 @@ public:
 
 	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) override
 	{
-		bool bResult = FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>::MouseMove(ViewportClient, Viewport, x, y);
+		bool bResult = Super::MouseMove(ViewportClient, Viewport, x, y);
 
 		if (ViewportClient->IsLevelEditorClient() && HeightmapFlattenPreviewComponent != nullptr)
 		{
@@ -1156,7 +1189,7 @@ public:
 
 	virtual void EnterTool() override
 	{
-		FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>::EnterTool();
+		Super::EnterTool();
 		if (!this->EdMode->CurrentToolTarget.LandscapeInfo.Get())
 		{
 			return;
@@ -1184,7 +1217,7 @@ public:
 
 	virtual void ExitTool() override
 	{
-		FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>::ExitTool();
+		Super::ExitTool();
 
 		if (HeightmapFlattenPreviewComponent != nullptr)
 		{
@@ -1201,14 +1234,18 @@ public:
 template<class ToolTarget>
 class FLandscapeToolStrokeNoise : public FLandscapeToolStrokePaintBase<ToolTarget>
 {
+	using Super = FLandscapeToolStrokePaintBase<ToolTarget>;
+
 public:
 	FLandscapeToolStrokeNoise(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokePaintBase<ToolTarget>(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeNoise_Apply);
+
 		if (!this->LandscapeInfo) return;
 
 		// Get list of verts to update
@@ -1306,11 +1343,13 @@ public:
 };
 
 template<class ToolTarget>
-class FLandscapeToolNoise : public FLandscapeToolPaintBase < ToolTarget, FLandscapeToolStrokeNoise<ToolTarget> >
+class FLandscapeToolNoise : public FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeNoise<ToolTarget>>
 {
+	using Super = FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeNoise<ToolTarget>>;
+
 public:
 	FLandscapeToolNoise(FEdModeLandscape* InEdMode)
-		: FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeNoise<ToolTarget> >(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 

@@ -297,6 +297,8 @@ public:
 	// Note that this should maybe be called "ExtendDataCache" because the region here will be combined with the existing cached region, not loaded independently, giving a cached region that is the bounding box of previous and new
 	void CacheData(int32 X1, int32 Y1, int32 X2, int32 Y2, bool bCacheOriginalData = false)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TLandscapeEditCache_CacheData);
+
 		if (!bIsValid)
 		{
 			if (Accessor::bUseInterp)
@@ -550,6 +552,8 @@ public:
 	// X2/Y2 Coordinates are "inclusive" max values
 	bool GetCachedData(int32 X1, int32 Y1, int32 X2, int32 Y2, TArray<AccessorType>& OutData)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TLandscapeEditCache_GetCachedData);
+
 		const int32 XSize = (1 + X2 - X1);
 		const int32 YSize = (1 + Y2 - Y1);
 		const int32 NumSamples = XSize * YSize;
@@ -585,6 +589,8 @@ public:
 	// X2/Y2 Coordinates are "inclusive" max values
 	void SetCachedData(int32 X1, int32 Y1, int32 X2, int32 Y2, TArray<AccessorType>& Data, ELandscapeLayerPaintingRestriction PaintingRestriction = ELandscapeLayerPaintingRestriction::None, bool bUpdateData = true)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TLandscapeEditCache_SetCachedData);
+
 		checkSlow(Data.Num() == (1 + Y2 - Y1) * (1 + X2 - X1));
 
 		// Update cache
@@ -607,6 +613,8 @@ public:
 	// X2/Y2 Coordinates are "inclusive" max values
 	void GetOriginalData(int32 X1, int32 Y1, int32 X2, int32 Y2, TArray<AccessorType>& OutOriginalData)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TLandscapeEditCache_GetOriginalData);
+
 		int32 NumSamples = (1 + X2 - X1)*(1 + Y2 - Y1);
 		OutOriginalData.Empty(NumSamples);
 		OutOriginalData.AddUninitialized(NumSamples);
@@ -626,6 +634,7 @@ public:
 
 	void Flush()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TLandscapeEditCache_Flush);
 		DataAccess.Flush();
 	}
 
@@ -1393,6 +1402,8 @@ protected:
 template<class TStrokeClass>
 class FLandscapeToolBase : public FLandscapeTool
 {
+	using Super = FLandscapeTool;
+
 public:
 	FLandscapeToolBase(FEdModeLandscape* InEdMode)
 		: LastInteractorPosition(FVector2D::ZeroVector)
@@ -1427,6 +1438,8 @@ public:
 
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
+		TRACE_BOOKMARK(TEXT("BeginTool - %s"), GetToolName());
+
 		if (ShouldUpdateEditingLayer())
 		{
 			ALandscape* Landscape = this->EdMode->GetLandscape();
@@ -1515,6 +1528,8 @@ public:
 				Landscape->SetGrassUpdateEnabled(true);
 			}
 		}
+
+		TRACE_BOOKMARK(TEXT("EndTool - %s"), GetToolName());
 	}
 
 	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) override

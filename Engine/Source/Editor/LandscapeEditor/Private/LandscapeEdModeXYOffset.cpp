@@ -51,15 +51,19 @@ namespace
 
 class FLandscapeToolStrokeRetopologize : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokeRetopologize(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, Cache(InTarget)
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeRetopologize_Apply);
+
 		if (!LandscapeInfo)
 		{
 			return;
@@ -551,9 +555,11 @@ protected:
 
 class FLandscapeToolRetopologize : public FLandscapeToolBase<FLandscapeToolStrokeRetopologize>
 {
+	using Super = FLandscapeToolBase<FLandscapeToolStrokeRetopologize>;
+
 public:
 	FLandscapeToolRetopologize(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<FLandscapeToolStrokeRetopologize>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 

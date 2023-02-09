@@ -17,9 +17,11 @@
 //
 class FLandscapeToolStrokeErosionBase : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokeErosionBase(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, HeightCache(InTarget)
 		, LayerHeightDataCache(InTarget, this->HeightCache)
 		, WeightCache(InTarget)
@@ -37,9 +39,11 @@ protected:
 template<class TStrokeClass>
 class FLandscapeToolErosionBase : public FLandscapeToolBase<TStrokeClass>
 {
+	using Super = FLandscapeToolBase<TStrokeClass>;
+
 public:
 	FLandscapeToolErosionBase(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<TStrokeClass>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -55,14 +59,18 @@ public:
 
 class FLandscapeToolStrokeErosion : public FLandscapeToolStrokeErosionBase
 {
+	using Super = FLandscapeToolStrokeErosionBase;
+
 public:
 	FLandscapeToolStrokeErosion(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeErosionBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeErosion_Apply);
+
 		if (!this->LandscapeInfo)
 		{
 			return;
@@ -272,9 +280,11 @@ public:
 
 class FLandscapeToolErosion : public FLandscapeToolErosionBase<FLandscapeToolStrokeErosion>
 {
+	using Super = FLandscapeToolErosionBase<FLandscapeToolStrokeErosion>;
+
 public:
 	FLandscapeToolErosion(FEdModeLandscape* InEdMode)
-		: FLandscapeToolErosionBase(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -290,14 +300,18 @@ public:
 
 class FLandscapeToolStrokeHydraErosion : public FLandscapeToolStrokeErosionBase
 {
+	using Super = FLandscapeToolStrokeErosionBase;
+
 public:
 	FLandscapeToolStrokeHydraErosion(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeErosionBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeHydraErosion_Apply);
+
 		if (!this->LandscapeInfo)
 		{
 			return;
@@ -493,9 +507,11 @@ public:
 
 class FLandscapeToolHydraErosion : public FLandscapeToolErosionBase<FLandscapeToolStrokeHydraErosion>
 {
+	using Super = FLandscapeToolErosionBase<FLandscapeToolStrokeHydraErosion>;
+
 public:
 	FLandscapeToolHydraErosion(FEdModeLandscape* InEdMode)
-		: FLandscapeToolErosionBase(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 

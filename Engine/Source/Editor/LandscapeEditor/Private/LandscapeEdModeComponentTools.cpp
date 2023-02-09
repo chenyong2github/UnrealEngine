@@ -31,13 +31,15 @@
 //
 class FLandscapeToolStrokeSelect : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 	bool bInitializedComponentInvert;
 	bool bInvert;
 	bool bNeedsSelectionUpdate;
 
 public:
 	FLandscapeToolStrokeSelect(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, bInitializedComponentInvert(false)
 		, bNeedsSelectionUpdate(false)
 		, Cache(InTarget)
@@ -62,6 +64,8 @@ public:
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeSelect_Apply);
+
 		if (LandscapeInfo)
 		{
 			LandscapeInfo->Modify();
@@ -125,9 +129,11 @@ protected:
 
 class FLandscapeToolSelect : public FLandscapeToolBase<FLandscapeToolStrokeSelect>
 {
+	using Super = FLandscapeToolBase<FLandscapeToolStrokeSelect>;
+
 public:
 	FLandscapeToolSelect(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<FLandscapeToolStrokeSelect>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -161,15 +167,19 @@ public:
 //
 class FLandscapeToolStrokeMask : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokeMask(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, Cache(InTarget)
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeMask_Apply);
+
 		if (LandscapeInfo)
 		{
 			LandscapeInfo->Modify();
@@ -245,9 +255,11 @@ protected:
 
 class FLandscapeToolMask : public FLandscapeToolBase<FLandscapeToolStrokeMask>
 {
+	using Super = FLandscapeToolBase<FLandscapeToolStrokeMask>;
+
 public:
 	FLandscapeToolMask(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<FLandscapeToolStrokeMask>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -268,15 +280,19 @@ public:
 //
 class FLandscapeToolStrokeVisibility : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokeVisibility(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, Cache(InTarget)
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeVisibility_Apply);
+
 		if (LandscapeInfo)
 		{
 			LandscapeInfo->Modify();
@@ -328,15 +344,17 @@ protected:
 
 class FLandscapeToolVisibility : public FLandscapeToolBase<FLandscapeToolStrokeVisibility>
 {
+	using Super = FLandscapeToolBase<FLandscapeToolStrokeVisibility>;
+
 public:
 	FLandscapeToolVisibility(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<FLandscapeToolStrokeVisibility>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
-		return FLandscapeToolBase<FLandscapeToolStrokeVisibility>::BeginTool(ViewportClient, InTarget, InHitLocation);
+		return Super::BeginTool(ViewportClient, InTarget, InHitLocation);
 	}
 
 	virtual const TCHAR* GetToolName() const override { return TEXT("Visibility"); }
@@ -357,14 +375,18 @@ public:
 //
 class FLandscapeToolStrokeMoveToLevel : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokeMoveToLevel(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeMoveToLevel_Apply);
+
 		ALandscape* Landscape = LandscapeInfo ? LandscapeInfo->LandscapeActor.Get() : nullptr;
 
 		if (Landscape)
@@ -494,9 +516,11 @@ public:
 
 class FLandscapeToolMoveToLevel : public FLandscapeToolBase<FLandscapeToolStrokeMoveToLevel>
 {
+	using Super = FLandscapeToolBase<FLandscapeToolStrokeMoveToLevel>;
+
 public:
 	FLandscapeToolMoveToLevel(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<FLandscapeToolStrokeMoveToLevel>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 	virtual bool AffectsEditLayers() const override { return false; }
@@ -514,9 +538,11 @@ public:
 //
 class FLandscapeToolStrokeAddComponent : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokeAddComponent(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, HeightCache(InTarget)
 		, XYOffsetCache(InTarget)
 	{
@@ -531,6 +557,8 @@ public:
 
 	virtual void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeAddComponent_Apply);
+
 		if (LandscapeInfo)
 		{
 			check(Brush->GetBrushType() == ELandscapeBrushType::Component);
@@ -784,9 +812,11 @@ protected:
 
 class FLandscapeToolAddComponent : public FLandscapeToolBase<FLandscapeToolStrokeAddComponent>
 {
+	using Super = FLandscapeToolBase<FLandscapeToolStrokeAddComponent>;
+
 public:
 	FLandscapeToolAddComponent(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<FLandscapeToolStrokeAddComponent>(InEdMode)
+		: Super(InEdMode)
 		, bIsToolActionResolutionCompliant(true)
 	{
 	}
@@ -804,7 +834,7 @@ public:
 
 	virtual bool CanToolBeActivated() const override
 	{ 
-		return FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::CanToolBeActivated() && bIsToolActionResolutionCompliant;
+		return Super::CanToolBeActivated() && bIsToolActionResolutionCompliant;
 	}
 
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override
@@ -814,12 +844,12 @@ public:
 			bIsToolActionResolutionCompliant = EdMode->IsLandscapeResolutionCompliant();
 		}
 
-		FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::Tick(ViewportClient, DeltaTime);
+		Super::Tick(ViewportClient, DeltaTime);
 	}
 	
 	virtual void EnterTool() override
 	{
-		FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::EnterTool();
+		Super::EnterTool();
 		AddCollision.Reset();
 		if(ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get())
 		{
@@ -829,7 +859,7 @@ public:
 
 	virtual void ExitTool() override
 	{
-		FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::ExitTool();
+		Super::ExitTool();
 
 		AddCollision.Reset();
 	}
@@ -958,14 +988,18 @@ private:
 //
 class FLandscapeToolStrokeDeleteComponent : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokeDeleteComponent(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 	{
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeDeleteComponent_Apply);
+
 		if (LandscapeInfo)
 		{
 			auto SelectedComponents = LandscapeInfo->GetSelectedComponents();
@@ -994,9 +1028,11 @@ public:
 
 class FLandscapeToolDeleteComponent : public FLandscapeToolBase<FLandscapeToolStrokeDeleteComponent>
 {
+	using Super = FLandscapeToolBase<FLandscapeToolStrokeDeleteComponent>;
+
 public:
 	FLandscapeToolDeleteComponent(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<FLandscapeToolStrokeDeleteComponent>(InEdMode)
+		: Super(InEdMode)
 	{
 	}
 
@@ -1016,9 +1052,11 @@ public:
 template<class ToolTarget>
 class FLandscapeToolStrokeCopy : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokeCopy(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, Cache(InTarget)
 		, HeightCache(InTarget)
 		, WeightCache(InTarget)
@@ -1033,6 +1071,8 @@ public:
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeCopy_Apply);
+
 		//ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo;
 		ALandscapeGizmoActiveActor* Gizmo = EdMode->CurrentGizmoActor.Get();
 		if (LandscapeInfo && Gizmo && Gizmo->GizmoTexture && Gizmo->GetRootComponent())
@@ -1321,9 +1361,11 @@ protected:
 template<class ToolTarget>
 class FLandscapeToolCopy : public FLandscapeToolBase<FLandscapeToolStrokeCopy<ToolTarget>>
 {
+	using Super = FLandscapeToolBase<FLandscapeToolStrokeCopy<ToolTarget>>;
+
 public:
 	FLandscapeToolCopy(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<FLandscapeToolStrokeCopy<ToolTarget> >(InEdMode)
+		: Super(InEdMode)
 		, BackupCurrentBrush(nullptr)
 	{
 	}
@@ -1353,12 +1395,12 @@ public:
 		BackupCurrentBrush = this->EdMode->CurrentBrush;
 		this->EdMode->CurrentBrush = this->EdMode->GizmoBrush;
 
-		return FLandscapeToolBase<FLandscapeToolStrokeCopy<ToolTarget>>::BeginTool(ViewportClient, InTarget, InHitLocation);
+		return Super::BeginTool(ViewportClient, InTarget, InHitLocation);
 	}
 
 	virtual void EndTool(FEditorViewportClient* ViewportClient) override
 	{
-		FLandscapeToolBase<FLandscapeToolStrokeCopy<ToolTarget>>::EndTool(ViewportClient);
+		Super::EndTool(ViewportClient);
 
 		this->EdMode->CurrentBrush = BackupCurrentBrush;
 	}
@@ -1373,9 +1415,11 @@ protected:
 template<class ToolTarget>
 class FLandscapeToolStrokePaste : public FLandscapeToolStrokeBase
 {
+	using Super = FLandscapeToolStrokeBase;
+
 public:
 	FLandscapeToolStrokePaste(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
-		: FLandscapeToolStrokeBase(InEdMode, InViewportClient, InTarget)
+		: Super(InEdMode, InViewportClient, InTarget)
 		, Cache(InTarget)
 		, HeightCache(InTarget)
 		, WeightCache(InTarget)
@@ -1384,6 +1428,8 @@ public:
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokePaste_Apply);
+
 		//ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo;
 		ALandscapeGizmoActiveActor* Gizmo = EdMode->CurrentGizmoActor.Get();
 		// Cache and copy in Gizmo's region...
@@ -1639,9 +1685,11 @@ protected:
 template<class ToolTarget>
 class FLandscapeToolPaste : public FLandscapeToolBase<FLandscapeToolStrokePaste<ToolTarget>>
 {
+	using Super = FLandscapeToolBase<FLandscapeToolStrokePaste<ToolTarget>>;
+
 public:
 	FLandscapeToolPaste(FEdModeLandscape* InEdMode)
-		: FLandscapeToolBase<FLandscapeToolStrokePaste<ToolTarget>>(InEdMode)
+		: Super(InEdMode)
 		, bUseGizmoRegion(false)
 		, BackupCurrentBrush(nullptr)
 	{
@@ -1685,12 +1733,12 @@ public:
 			this->EdMode->CurrentBrush = this->EdMode->GizmoBrush;
 		}
 
-		return FLandscapeToolBase<FLandscapeToolStrokePaste<ToolTarget>>::BeginTool(ViewportClient, InTarget, InHitLocation);
+		return Super::BeginTool(ViewportClient, InTarget, InHitLocation);
 	}
 
 	virtual void EndTool(FEditorViewportClient* ViewportClient) override
 	{
-		FLandscapeToolBase<FLandscapeToolStrokePaste<ToolTarget>>::EndTool(ViewportClient);
+		Super::EndTool(ViewportClient);
 
 		if (bUseGizmoRegion)
 		{
