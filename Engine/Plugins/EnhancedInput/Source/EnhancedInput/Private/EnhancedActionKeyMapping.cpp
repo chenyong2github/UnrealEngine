@@ -21,7 +21,15 @@ UPlayerMappableKeySettings* FEnhancedActionKeyMapping::GetPlayerMappableKeySetti
 	return nullptr;
 }
 
-ENHANCEDINPUT_API FName FEnhancedActionKeyMapping::GetMappingName() const
+FEnhancedActionKeyMapping::FEnhancedActionKeyMapping(const UInputAction* InAction /*= nullptr*/, const FKey InKey /*= EKeys::Invalid*/)
+	: PlayerMappableOptions(InAction)
+	, Action(InAction)
+	, Key(InKey)
+	, bShouldBeIgnored(false)
+	, bIsPlayerMappable(false)
+{}
+
+FName FEnhancedActionKeyMapping::GetMappingName() const
 {
 	if (IsPlayerMappable())
 	{
@@ -155,5 +163,13 @@ EDataValidationResult FEnhancedActionKeyMapping::IsDataValid(TArray<FText>& Vali
 }
 
 #endif // WITH_EDITOR
+
+bool FEnhancedActionKeyMapping::operator==(const FEnhancedActionKeyMapping& Other) const
+{
+	return (Action == Other.Action &&
+			Key == Other.Key &&
+			Triggers == Other.Triggers &&
+			Modifiers == Other.Modifiers);
+}
 
 #undef LOCTEXT_NAMESPACE
