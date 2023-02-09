@@ -1030,61 +1030,54 @@ void UAnimationSequencerDataModel::IterateTransformControlCurve(const FName& Bon
 	const URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 	
 	const FRigElementKey BoneControlKey(UFKControlRig::GetControlName(BoneName, ERigElementType::Bone), ERigElementType::Control);
-	if (Hierarchy->Contains(BoneControlKey))
+	if (const FTransformParameterNameAndCurves* ControlCurvePtr = Section->GetTransformParameterNamesAndCurves().FindByPredicate([CurveName = BoneControlKey.Name](const FTransformParameterNameAndCurves& TransformParameter)
 	{
-		if (const FTransformParameterNameAndCurves* ControlCurvePtr = Section->GetTransformParameterNamesAndCurves().FindByPredicate([CurveName = BoneControlKey.Name](const FTransformParameterNameAndCurves& TransformParameter)
+		return TransformParameter.ParameterName == CurveName;
+	}))
+	{
+		const FTransformParameterNameAndCurves& ControlCurve = *ControlCurvePtr;
+
+		FVector3f Location(0.f);
+		FVector3f EulerAngles(0.f);
+		FVector3f Scale = FVector3f::OneVector;
+
+		// Check whether or not any data is contained
+		bool bContainsData = false;
+		bool bContainsKeys = false;
+		for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
 		{
-			return TransformParameter.ParameterName == CurveName;
-		}))
+			bContainsData |= ControlCurve.Translation[ChannelIndex].HasAnyData();
+			bContainsKeys |= ControlCurve.Translation[ChannelIndex].GetNumKeys() != 0;
+			bContainsData |= ControlCurve.Rotation[ChannelIndex].HasAnyData();		
+			bContainsKeys |= ControlCurve.Rotation[ChannelIndex].GetNumKeys() != 0;		
+			bContainsData |= ControlCurve.Scale[ChannelIndex].HasAnyData();
+			bContainsKeys |= ControlCurve.Scale[ChannelIndex].GetNumKeys() != 0;
+		}
+
+		if (bContainsData)
 		{
-			const FTransformParameterNameAndCurves& ControlCurve = *ControlCurvePtr;
-
-			FVector3f Location(0.f);
-			FVector3f EulerAngles(0.f);
-			FVector3f Scale = FVector3f::OneVector;
-
-			// Check whether or not any data is contained
-			bool bContainsData = false;
-			bool bContainsKeys = false;
-			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
+			const int32 NumberOfKeysToIterate = InFrameNumbers != nullptr ? InFrameNumbers->Num() : GetNumberOfKeys();
+			for (int32 KeyIndex = 0; KeyIndex < NumberOfKeysToIterate; ++KeyIndex)
 			{
-				bContainsData |= ControlCurve.Translation[ChannelIndex].HasAnyData();
-				bContainsKeys |= ControlCurve.Translation[ChannelIndex].GetNumKeys() != 0;
-				bContainsData |= ControlCurve.Rotation[ChannelIndex].HasAnyData();		
-				bContainsKeys |= ControlCurve.Rotation[ChannelIndex].GetNumKeys() != 0;		
-				bContainsData |= ControlCurve.Scale[ChannelIndex].HasAnyData();
-				bContainsKeys |= ControlCurve.Scale[ChannelIndex].GetNumKeys() != 0;
-			}
-
-			if (bContainsData)
-			{
-				const int32 NumberOfKeysToIterate = InFrameNumbers != nullptr ? InFrameNumbers->Num() : GetNumberOfKeys();
-				for (int32 KeyIndex = 0; KeyIndex < NumberOfKeysToIterate; ++KeyIndex)
+				const FFrameNumber Frame = InFrameNumbers != nullptr ? (*InFrameNumbers)[KeyIndex] : FFrameNumber(KeyIndex);
+				for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
 				{
-					const FFrameNumber Frame = InFrameNumbers != nullptr ? (*InFrameNumbers)[KeyIndex] : FFrameNumber(KeyIndex);
-					for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
-					{
-						ControlCurve.Translation[ChannelIndex].Evaluate(Frame, Location[ChannelIndex]);
-						ControlCurve.Rotation[ChannelIndex].Evaluate(Frame, EulerAngles[ChannelIndex]);
-						ControlCurve.Scale[ChannelIndex].Evaluate(Frame, Scale[ChannelIndex]);
-					}
-
-					FTransform Transform;
-					Transform.SetLocation(FVector(Location));
-					Transform.SetRotation(FQuat::MakeFromEuler(FVector(EulerAngles)));
-					Transform.SetScale3D(FVector(Scale));
-
-					Transform.NormalizeRotation();
-
-					IterationFunction(Transform, Frame);
+					ControlCurve.Translation[ChannelIndex].Evaluate(Frame, Location[ChannelIndex]);
+					ControlCurve.Rotation[ChannelIndex].Evaluate(Frame, EulerAngles[ChannelIndex]);
+					ControlCurve.Scale[ChannelIndex].Evaluate(Frame, Scale[ChannelIndex]);
 				}
+
+				FTransform Transform;
+				Transform.SetLocation(FVector(Location));
+				Transform.SetRotation(FQuat::MakeFromEuler(FVector(EulerAngles)));
+				Transform.SetScale3D(FVector(Scale));
+
+				Transform.NormalizeRotation();
+
+				IterationFunction(Transform, Frame);
 			}
 		}
 	}
-	 else
-	 {
-		 ensure(false);
-	 }
 }
 
 void UAnimationSequencerDataModel::GenerateTransformKeysForControl(const FName& BoneName, TArray<FTransform>& InOutTransforms, TArray<FFrameNumber>& InOutFrameNumbers) const
@@ -1524,110 +1517,107 @@ void UAnimationSequencerDataModel::IterateBoneKeys(const FName& BoneName, TFunct
 	const URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 	
 	const FRigElementKey BoneControlKey(UFKControlRig::GetControlName(BoneName, ERigElementType::Bone), ERigElementType::Control);
-	if (Hierarchy->Contains(BoneControlKey))
+	if (const FTransformParameterNameAndCurves* ControlCurvePtr = Section->GetTransformParameterNamesAndCurves().FindByPredicate([CurveName = BoneControlKey.Name](const FTransformParameterNameAndCurves& TransformParameter)
 	{
-		if (const FTransformParameterNameAndCurves* ControlCurvePtr = Section->GetTransformParameterNamesAndCurves().FindByPredicate([CurveName = BoneControlKey.Name](const FTransformParameterNameAndCurves& TransformParameter)
+		return TransformParameter.ParameterName == CurveName;
+	}))
+	{
+		const FTransformParameterNameAndCurves& ControlCurve = *ControlCurvePtr;
+
+		struct FChannelInfo
 		{
-			return TransformParameter.ParameterName == CurveName;
-		}))
+			bool bConstant = true;
+			bool bUniform = true;
+		};			
+		FChannelInfo PosChannels[3];
+		FChannelInfo RotChannels[3];
+		FChannelInfo ScaleChannels[3];
+
+		const int32 NumberOfKeys = GetNumberOfKeys();
+
+		int32 MaxNumberOfKeys = 1;
+		TSet<FFrameNumber> FrameNumbers;
+		for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
 		{
-			const FTransformParameterNameAndCurves& ControlCurve = *ControlCurvePtr;
-
-			struct FChannelInfo
+			auto ProcessChannel = [&MaxNumberOfKeys, NumberOfKeys](const FMovieSceneFloatChannel& Channel, FChannelInfo& Info)
 			{
-				bool bConstant = true;
-				bool bUniform = true;
-			};			
-			FChannelInfo PosChannels[3];
-			FChannelInfo RotChannels[3];
-			FChannelInfo ScaleChannels[3];
-
-			const int32 NumberOfKeys = GetNumberOfKeys();
-
-			int32 MaxNumberOfKeys = 1;
-			TSet<FFrameNumber> FrameNumbers;
-			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
-			{
-				auto ProcessChannel = [&MaxNumberOfKeys, NumberOfKeys](const FMovieSceneFloatChannel& Channel, FChannelInfo& Info)
+				if (Channel.HasAnyData())
 				{
-					if (Channel.HasAnyData())
+					if (Channel.GetNumKeys() == 0)
 					{
-						if (Channel.GetNumKeys() == 0)
+						Info.bUniform = false;
+					}
+					else
+					{
+						Info.bConstant = false;
+						if (Channel.GetNumKeys() != NumberOfKeys)
 						{
 							Info.bUniform = false;
 						}
-						else
-						{
-							Info.bConstant = false;
-							if (Channel.GetNumKeys() != NumberOfKeys)
-							{
-								Info.bUniform = false;
-							}
 
-							MaxNumberOfKeys = FMath::Max(MaxNumberOfKeys, Channel.GetNumKeys());
-						}
+						MaxNumberOfKeys = FMath::Max(MaxNumberOfKeys, Channel.GetNumKeys());
 					}
-				};
+				}
+			};
 
-				ProcessChannel(ControlCurve.Translation[ChannelIndex], PosChannels[ChannelIndex]);
-				ProcessChannel(ControlCurve.Rotation[ChannelIndex], RotChannels[ChannelIndex]);
-				ProcessChannel(ControlCurve.Scale[ChannelIndex], ScaleChannels[ChannelIndex]);
+			ProcessChannel(ControlCurve.Translation[ChannelIndex], PosChannels[ChannelIndex]);
+			ProcessChannel(ControlCurve.Rotation[ChannelIndex], RotChannels[ChannelIndex]);
+			ProcessChannel(ControlCurve.Scale[ChannelIndex], ScaleChannels[ChannelIndex]);
+		}
+
+
+		const int32 NumberOfKeysToIterate = MaxNumberOfKeys;
+		FVector3f PreviousPos, PreviousScale, PreviousRot;
+		FQuat4f PreviousQuat;
+
+		for (int32 KeyIndex = 0; KeyIndex < NumberOfKeysToIterate; ++KeyIndex)
+		{
+			const FFrameNumber Frame = KeyIndex;
+			
+			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
+			{
+				if (PosChannels[ChannelIndex].bConstant)
+				{
+					if (KeyIndex == 0)
+					{
+						PreviousPos[ChannelIndex] = ControlCurve.Translation[ChannelIndex].GetDefault().GetValue();
+					}
+				}
+				else
+				{
+					ControlCurve.Translation[ChannelIndex].Evaluate(Frame, PreviousPos[ChannelIndex]);
+				}
+				
+				if (RotChannels[ChannelIndex].bConstant)
+				{
+					if (KeyIndex == 0)
+					{
+						PreviousRot[ChannelIndex] = ControlCurve.Rotation[ChannelIndex].GetDefault().GetValue();
+					}
+				}
+				else
+				{
+					ControlCurve.Rotation[ChannelIndex].Evaluate(Frame, PreviousRot[ChannelIndex]);
+				}
+
+				if (ScaleChannels[ChannelIndex].bConstant)
+				{
+					if (KeyIndex == 0)
+					{
+						PreviousScale[ChannelIndex] = ControlCurve.Scale[ChannelIndex].GetDefault().GetValue();
+					}
+				}
+				else
+				{
+					ControlCurve.Scale[ChannelIndex].Evaluate(Frame, PreviousScale[ChannelIndex]);
+				}
+				
 			}
 
-
-			const int32 NumberOfKeysToIterate = MaxNumberOfKeys;
-			FVector3f PreviousPos, PreviousScale, PreviousRot;
-			FQuat4f PreviousQuat;
-
-			for (int32 KeyIndex = 0; KeyIndex < NumberOfKeysToIterate; ++KeyIndex)
+			PreviousQuat = FQuat4f::MakeFromEuler(PreviousRot);
+			if(!IterationFunction(PreviousPos, PreviousQuat, PreviousScale, Frame))
 			{
-				const FFrameNumber Frame = KeyIndex;
-				
-				for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
-				{
-					if (PosChannels[ChannelIndex].bConstant)
-					{
-						if (KeyIndex == 0)
-						{
-							PreviousPos[ChannelIndex] = ControlCurve.Translation[ChannelIndex].GetDefault().GetValue();
-						}
-					}
-					else
-					{
-						ControlCurve.Translation[ChannelIndex].Evaluate(Frame, PreviousPos[ChannelIndex]);
-					}
-					
-					if (RotChannels[ChannelIndex].bConstant)
-					{
-						if (KeyIndex == 0)
-						{
-							PreviousRot[ChannelIndex] = ControlCurve.Rotation[ChannelIndex].GetDefault().GetValue();
-						}
-					}
-					else
-					{
-						ControlCurve.Rotation[ChannelIndex].Evaluate(Frame, PreviousRot[ChannelIndex]);
-					}
-
-					if (ScaleChannels[ChannelIndex].bConstant)
-					{
-						if (KeyIndex == 0)
-						{
-							PreviousScale[ChannelIndex] = ControlCurve.Scale[ChannelIndex].GetDefault().GetValue();
-						}
-					}
-					else
-					{
-						ControlCurve.Scale[ChannelIndex].Evaluate(Frame, PreviousScale[ChannelIndex]);
-					}
-					
-				}
-
-				PreviousQuat = FQuat4f::MakeFromEuler(PreviousRot);
-				if(!IterationFunction(PreviousPos, PreviousQuat, PreviousScale, Frame))
-				{
-					return;
-				}
+				return;
 			}
 		}
 	}

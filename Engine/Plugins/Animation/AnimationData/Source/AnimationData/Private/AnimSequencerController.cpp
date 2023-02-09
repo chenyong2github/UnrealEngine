@@ -2329,7 +2329,7 @@ void UAnimSequencerController::UpdateWithSkeleton(USkeleton* TargetSkeleton, boo
 
 		// (re-)generate the rig hierarchy
 		Model->InitializeFKControlRig(CastChecked<UFKControlRig>(Model->GetControlRig()), TargetSkeleton);
-
+		
 		// Remove any bone tracks that do not exist in the new hierarchy
 		RemoveBoneTracksMissingFromSkeleton(TargetSkeleton, bShouldTransact);
 
@@ -2397,18 +2397,23 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 
 		if (const UAnimSequence* AnimSequence = Model->GetAnimationSequence())
 		{
+			const USkeleton* Skeleton = AnimSequence->GetSkeleton();
+		
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_PopulateBoneTrack);
 				for (const FBoneAnimationTrack& BoneTrack : BoneTracks)
 				{
-					AddBoneCurve(BoneTrack.Name, false);
-					SetBoneTrackKeys(BoneTrack.Name, BoneTrack.InternalTrackData.PosKeys, BoneTrack.InternalTrackData.RotKeys, BoneTrack.InternalTrackData.ScaleKeys, false);		
+					// It could be that the existing model has out-of-date track data for bones previously removed from the Skeleton
+					if (Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneTrack.Name) != INDEX_NONE)
+					{
+						AddBoneCurve(BoneTrack.Name, false);
+						SetBoneTrackKeys(BoneTrack.Name, BoneTrack.InternalTrackData.PosKeys, BoneTrack.InternalTrackData.RotKeys, BoneTrack.InternalTrackData.ScaleKeys, false);
+					}
 				}
 			}
 
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_PopulateCurves);
-				const USkeleton* Skeleton = AnimSequence->GetSkeleton();
 				for (const FFloatCurve& Curve : InModel->GetCurveData().FloatCurves)
 				{
 					const FAnimationCurveIdentifier CurveId = Skeleton ? UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, Curve.Name.DisplayName, ERawCurveTrackTypes::RCT_Float) : FAnimationCurveIdentifier(Curve.Name, ERawCurveTrackTypes::RCT_Float);
@@ -2682,13 +2687,20 @@ bool UAnimSequencerController::RemoveBoneControl(const FName& BoneName) const
 			if(URigHierarchy* Hierarchy = FKRig->GetHierarchy())
 			{
 				const FRigElementKey BoneNameControlKey(UFKControlRig::GetControlName(URigHierarchy::GetSanitizedName(BoneName.ToString()), ERigElementType::Bone), ERigElementType::Control);
-				if(Hierarchy->Contains(BoneNameControlKey))
+				
+				const bool bContainsTransformCurve = Section->GetTransformParameterNamesAndCurves().ContainsByPredicate([BoneNameControlKey](const FTransformParameterNameAndCurves& Parameter)
+				{
+					return Parameter.ParameterName == BoneNameControlKey.Name;
+				});
+				
+				const bool bContainsBoneControl = Hierarchy->Contains(BoneNameControlKey);
+				if( bContainsBoneControl|| bContainsTransformCurve)
 				{
 					if(URigHierarchyController* HierarchyController = Hierarchy->GetController())
 					{
 						bool bRemoved = false;
-						bRemoved |= HierarchyController->RemoveElement(BoneNameControlKey);
-						bRemoved |= Section->RemoveTransformParameter(BoneNameControlKey.Name);
+						bRemoved |= (bContainsBoneControl && HierarchyController->RemoveElement(BoneNameControlKey));
+						bRemoved |= (bContainsTransformCurve && Section->RemoveTransformParameter(BoneNameControlKey.Name));
 						ensure(bRemoved);
 				
 						return true;
