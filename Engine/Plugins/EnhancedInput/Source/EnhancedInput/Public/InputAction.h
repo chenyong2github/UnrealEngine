@@ -88,7 +88,7 @@ private:
 	/**
 	* Holds setting information about this Action Input for setting screen and save purposes.
 	*/
-	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Input|Settings", meta=(AllowPrivateAccess))
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "User Settings", meta=(AllowPrivateAccess))
 	TObjectPtr<UPlayerMappableKeySettings> PlayerMappableKeySettings;
 };
 
