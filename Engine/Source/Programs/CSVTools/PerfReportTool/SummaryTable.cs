@@ -67,7 +67,7 @@ namespace PerfSummaries
 
 	class SummaryTableInfo
 	{
-		public SummaryTableInfo(XElement tableElement, Dictionary<string,string> substitutionsDict)
+		public SummaryTableInfo(XElement tableElement, Dictionary<string,string> substitutionsDict, string[] appendList)
 		{
 			XAttribute rowSortAt = tableElement.Attribute("rowSort");
 			if (rowSortAt != null)
@@ -86,6 +86,11 @@ namespace PerfSummaries
 			{
 				columnFilterList.AddRange(filterEl.Value.Split(','));
 				ApplySubstitutionsToList(columnFilterList, substitutionsDict);
+			}
+
+			if (appendList != null)
+			{
+				columnFilterList.AddRange(appendList);
 			}
 
 			bReverseSortRows = tableElement.GetSafeAttibute<bool>("reverseSortRows", false);

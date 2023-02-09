@@ -67,7 +67,7 @@ namespace PerfReportTool
 			return false;
 		}
 
-		public ReportXML(string graphXMLFilenameIn, string reportXMLFilenameIn, string baseXMLDirectoryOverride, string additionalSummaryTableXmlFilename, string summaryTableXmlSubstStr)
+		public ReportXML(string graphXMLFilenameIn, string reportXMLFilenameIn, string baseXMLDirectoryOverride, string additionalSummaryTableXmlFilename, string summaryTableXmlSubstStr, string summaryTableXmlAppendStr)
 		{
 			
 			string location = System.Reflection.Assembly.GetEntryAssembly().Location.ToLower();
@@ -274,11 +274,17 @@ namespace PerfReportTool
 					}
 				}
 
+				string[] appendList = null;
+				if ( summaryTableXmlAppendStr != null )
+				{
+					appendList = summaryTableXmlAppendStr.Split(',');
+				}
+
 
 				summaryTables = new Dictionary<string, SummaryTableInfo>();
 				foreach (XElement summaryElement in summaryTablesElement.Elements("summaryTable"))
 				{
-					SummaryTableInfo table = new SummaryTableInfo(summaryElement, substitutionsDict);
+					SummaryTableInfo table = new SummaryTableInfo(summaryElement, substitutionsDict, appendList);
 					summaryTables.Add(summaryElement.Attribute("name").Value.ToLower(), table);
 				}
 			}

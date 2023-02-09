@@ -26,7 +26,7 @@ namespace PerfReportTool
     class Version
     {
 		// Format: Major.Minor.Bugfix
-        private static string VersionString = "4.100.0";
+        private static string VersionString = "4.101.0";
 
         public static string Get() { return VersionString; }
     };
@@ -165,6 +165,7 @@ namespace PerfReportTool
 			"  -summaryTableStatThreshold <n> : stat/metric columns in the summarytable will be filtered out if all values are\n" +
 			"     less than the threshold\n" +
 			"  -summaryTableXmlSubst <find1>=<replace1>,<find2>=<replace2>... : replace summarytable XML row and filter entries\n" +
+			"  -summaryTableXmlAppend <list,of,stats> : append these stats to the summary table's filter list\n" +
 			"  -transposeTable : write the summary tables transposed\n"+
 			"  -transposeCollatedTable : write the collated summary table transposed (disables min/max columns)\n" +
             "  -addDiffRows : adds diff rows after the first two rows\n" + 
@@ -354,7 +355,7 @@ namespace PerfReportTool
 			}
 
 			// Load the report + graph XML data
-			reportXML = new ReportXML(GetArg("graphxml", false), GetArg("reportxml", false), GetArg("reportxmlbasedir", false), GetArg("summaryTableXml", false), GetArg("summaryTableXmlSubst", false));
+			reportXML = new ReportXML(GetArg("graphxml", false), GetArg("reportxml", false), GetArg("reportxmlbasedir", false), GetArg("summaryTableXml", false), GetArg("summaryTableXmlSubst", false), GetArg("summaryTableXmlAppend", false));
 
 			if (GetBoolArg("listSummaryTables"))
 			{
