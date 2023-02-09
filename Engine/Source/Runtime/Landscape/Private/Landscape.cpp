@@ -3020,7 +3020,7 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 			InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
 		}
 
-		// Remove cooked collision data from Nanite landscape meshes, since collisions are handled by ULandscapeHeighfieldCollisionComponent :		
+		// Remove cooked collision data from Nanite landscape meshes, since collisions are handled by ULandscapeHeightfieldCollisionComponent :		
 		if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData)
 		{
 			// This will force the Nanite meshes to be properly regenerated during the next save :

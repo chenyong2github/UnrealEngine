@@ -208,7 +208,7 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 	{
 		BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
-		// We won't ever enable collisions (since collisions are handled by ULandscapeHeighfieldCollisionComponent), ensure we don't even cook or load any collision data on this mesh: 
+		// We won't ever enable collisions (since collisions are handled by ULandscapeHeightfieldCollisionComponent), ensure we don't even cook or load any collision data on this mesh: 
 		BodySetup->bNeverNeedsCookedCollisionData = true;
 	}
 
