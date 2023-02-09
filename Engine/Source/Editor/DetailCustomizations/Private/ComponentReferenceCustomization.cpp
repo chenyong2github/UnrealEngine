@@ -74,14 +74,18 @@ void FComponentReferenceCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 	bAllowClear = false;
 	bAllowAnyActor = false;
 	bUseComponentPicker = PropertyHandle->HasMetaData(NAME_UseComponentPicker);
+	bIsSoftReference = false;
 
 	if (bUseComponentPicker)
 	{
 		FProperty* Property = InPropertyHandle->GetProperty();
-		check(CastField<FStructProperty>(Property) && FComponentReference::StaticStruct() == CastFieldChecked<const FStructProperty>(Property)->Struct);
+		check(CastField<FStructProperty>(Property) &&
+				(FComponentReference::StaticStruct() == CastFieldChecked<const FStructProperty>(Property)->Struct ||
+				FSoftComponentReference::StaticStruct() == CastFieldChecked<const FStructProperty>(Property)->Struct));
 
 		bAllowClear = !(InPropertyHandle->GetMetaDataProperty()->PropertyFlags & CPF_NoClear);
 		bAllowAnyActor = InPropertyHandle->HasMetaData(NAME_AllowAnyActor);
+		bIsSoftReference = FSoftComponentReference::StaticStruct() == CastFieldChecked<const FStructProperty>(Property)->Struct;
 
 		BuildClassFilters();
 		BuildComboBox();
@@ -369,8 +373,21 @@ void FComponentReferenceCustomization::SetValue(const FComponentReference& Value
 	if (bIsEmpty || bAllowedToSetBasedOnFilter)
 	{
 		FString TextValue;
-		CastFieldChecked<const FStructProperty>(PropertyHandle->GetProperty())->Struct->ExportText(TextValue, &Value, &Value, nullptr, EPropertyPortFlags::PPF_None, nullptr);
-		ensure(PropertyHandle->SetValueFromFormattedString(TextValue) == FPropertyAccess::Result::Success);
+		if (bIsSoftReference)
+		{
+			FSoftComponentReference SoftValue;
+			if (Value.OtherActor.IsValid())
+			{
+				SoftValue.OtherActor = Value.OtherActor.Get();
+			}
+			CastFieldChecked<const FStructProperty>(PropertyHandle->GetProperty())->Struct->ExportText(TextValue, &SoftValue, &SoftValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+			ensure(PropertyHandle->SetValueFromFormattedString(TextValue) == FPropertyAccess::Result::Success);
+		}
+		else
+		{
+			CastFieldChecked<const FStructProperty>(PropertyHandle->GetProperty())->Struct->ExportText(TextValue, &Value, &Value, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+			ensure(PropertyHandle->SetValueFromFormattedString(TextValue) == FPropertyAccess::Result::Success);
+		}
 	}
 }
 
@@ -394,7 +411,19 @@ FPropertyAccess::Result FComponentReferenceCustomization::GetValue(FComponentRef
 		{
 			if (RawPtr)
 			{
-				const FComponentReference& ThisReference = *reinterpret_cast<const FComponentReference*>(RawPtr);
+				FComponentReference ThisReference;
+				if (bIsSoftReference)
+				{
+					FSoftComponentReference SoftReference = *reinterpret_cast<const FSoftComponentReference*>(RawPtr);
+					if (SoftReference.OtherActor.IsValid())
+					{
+						ThisReference.OtherActor = SoftReference.OtherActor.Get();
+					}
+				}
+				else
+				{
+					ThisReference = *reinterpret_cast<const FComponentReference*>(RawPtr);
+				}
 				if (Result == FPropertyAccess::Success)
 				{
 					if (ThisReference.GetComponent(CurrentActor) != CurrentComponent)

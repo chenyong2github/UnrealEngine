@@ -53,7 +53,7 @@ struct FControlRigComponentMappedElement
 	GENERATED_BODY()
 
 		FControlRigComponentMappedElement()
-		: ComponentReference(FComponentReference())
+		: SoftComponentReference(FSoftComponentReference())
 		, TransformIndex(INDEX_NONE)
 		, TransformName(NAME_None)
 		, ElementType(ERigElementType::Bone)
@@ -68,9 +68,14 @@ struct FControlRigComponentMappedElement
 	{
 	}
 
+#if WITH_EDITORONLY_DATA
 	// The component to map to the Control Rig
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage = "ComponentReference has been deprecated, use SoftComponentReference instead."))
+	FComponentReference ComponentReference_DEPRECATED;
+#endif
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mapping")
-	FComponentReference ComponentReference;
+	FSoftComponentReference SoftComponentReference;
 
 	// An optional index that can be used with components
 	// with multiple transforms (for example the InstancedStaticMeshComponent)
@@ -210,6 +215,7 @@ public:
 	//~ Begin UObject interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
 #endif
 
 	virtual void BeginDestroy() override;

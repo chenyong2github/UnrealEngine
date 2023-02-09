@@ -19,6 +19,7 @@ class UActorComponent;
 class UClass;
 class UObject;
 struct FComponentReference;
+struct FSoftComponentReference;
 struct FSlateBrush;
 
 class FComponentReferenceCustomization : public IPropertyTypeCustomization
@@ -128,6 +129,9 @@ private:
 
 	/** Do it has the UseComponentPicker metadata */
 	bool bUseComponentPicker;
+
+	/** Whether or not the component reference is a FSoftComponentReference */
+	bool bIsSoftReference;
 
 	/** Cached ComponentReference */
 	TWeakObjectPtr<AActor> CachedFirstOuterActor;

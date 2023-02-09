@@ -90,6 +90,26 @@ void UControlRigComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 		ValidateMappingData();
 	}
 }
+
+void UControlRigComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	for (FControlRigComponentMappedElement& MappedComponent : UserDefinedElements)
+	{
+		if (MappedComponent.ComponentReference_DEPRECATED.OtherActor.IsValid())
+		{
+			MappedComponent.SoftComponentReference.OtherActor = MappedComponent.ComponentReference_DEPRECATED.OtherActor.Get();
+		}
+	}
+	for (FControlRigComponentMappedElement& MappedComponent : MappedElements)
+	{
+		if (MappedComponent.ComponentReference_DEPRECATED.OtherActor.IsValid())
+		{
+			MappedComponent.SoftComponentReference.OtherActor = MappedComponent.ComponentReference_DEPRECATED.OtherActor.Get();
+		}
+	}
+}
 #endif
 
 void UControlRigComponent::BeginDestroy()
@@ -595,8 +615,8 @@ void UControlRigComponent::AddMappedComponents(TArray<FControlRigComponentMapped
 		USceneComponent* Component = ComponentToMap.Component;
 
 		FControlRigComponentMappedElement ElementToMap;
-		ElementToMap.ComponentReference.OtherActor = Component->GetOwner() != GetOwner() ? Component->GetOwner() : nullptr;
-		ElementToMap.ComponentReference.ComponentProperty = GetComponentNameWithinActor(Component);
+		ElementToMap.SoftComponentReference.OtherActor = Component->GetOwner() != GetOwner() ? Component->GetOwner() : nullptr;
+		ElementToMap.SoftComponentReference.ComponentProperty = GetComponentNameWithinActor(Component);
 
 		ElementToMap.ElementName = ComponentToMap.ElementName;
 		ElementToMap.ElementType = ComponentToMap.ElementType;
@@ -702,8 +722,8 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 		}
 
 		FControlRigComponentMappedElement ElementToMap;
-		ElementToMap.ComponentReference.OtherActor = SkeletalMeshComponent->GetOwner() != GetOwner() ? SkeletalMeshComponent->GetOwner() : nullptr;
-		ElementToMap.ComponentReference.ComponentProperty = GetComponentNameWithinActor(SkeletalMeshComponent);
+		ElementToMap.SoftComponentReference.OtherActor = SkeletalMeshComponent->GetOwner() != GetOwner() ? SkeletalMeshComponent->GetOwner() : nullptr;
+		ElementToMap.SoftComponentReference.ComponentProperty = GetComponentNameWithinActor(SkeletalMeshComponent);
 
 		ElementToMap.ElementName = BoneToMap.Source;
 		ElementToMap.ElementType = ERigElementType::Bone;
@@ -721,8 +741,8 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 		}
 
 		FControlRigComponentMappedElement ElementToMap;
-		ElementToMap.ComponentReference.OtherActor = SkeletalMeshComponent->GetOwner() != GetOwner() ? SkeletalMeshComponent->GetOwner() : nullptr;
-		ElementToMap.ComponentReference.ComponentProperty = GetComponentNameWithinActor(SkeletalMeshComponent);
+		ElementToMap.SoftComponentReference.OtherActor = SkeletalMeshComponent->GetOwner() != GetOwner() ? SkeletalMeshComponent->GetOwner() : nullptr;
+		ElementToMap.SoftComponentReference.ComponentProperty = GetComponentNameWithinActor(SkeletalMeshComponent);
 
 		ElementToMap.ElementName = CurveToMap.Source;
 		ElementToMap.ElementType = ERigElementType::Curve;
@@ -1303,17 +1323,17 @@ void UControlRigComponent::ValidateMappingData()
 			MappedElement.ElementIndex = INDEX_NONE;
 			MappedElement.SubIndex = INDEX_NONE;
 
-			AActor* MappedOwner = !MappedElement.ComponentReference.OtherActor.IsValid() ? GetOwner() : MappedElement.ComponentReference.OtherActor.Get();
-			MappedElement.SceneComponent = Cast<USceneComponent>(MappedElement.ComponentReference.GetComponent(MappedOwner));
+			AActor* MappedOwner = !MappedElement.SoftComponentReference.OtherActor.IsValid() ? GetOwner() : MappedElement.SoftComponentReference.OtherActor.Get();
+			MappedElement.SceneComponent = Cast<USceneComponent>(MappedElement.SoftComponentReference.GetComponent(MappedOwner));
 
 			// try again with the path to the component
 			if (MappedElement.SceneComponent == nullptr)
 			{
-				FComponentReference TempReference;
-				TempReference.PathToComponent = MappedElement.ComponentReference.ComponentProperty.ToString();
+				FSoftComponentReference TempReference;
+				TempReference.PathToComponent = MappedElement.SoftComponentReference.ComponentProperty.ToString();
 				if (USceneComponent* TempSceneComponent = Cast<USceneComponent>(TempReference.GetComponent(MappedOwner)))
 				{
-					MappedElement.ComponentReference = TempReference;
+					MappedElement.SoftComponentReference = TempReference;
 					MappedElement.SceneComponent = TempSceneComponent;
 				}
 			}
@@ -1326,7 +1346,7 @@ void UControlRigComponent::ValidateMappingData()
 			}
 
 			// cache the scene component also in the override component to avoid on further relying on names
-			MappedElement.ComponentReference.OverrideComponent = MappedElement.SceneComponent;
+			MappedElement.SoftComponentReference.OverrideComponent = MappedElement.SceneComponent;
 
 			if (MappedElement.Direction == EControlRigComponentMapDirection::Output && MappedElement.Weight <= SMALL_NUMBER)
 			{
