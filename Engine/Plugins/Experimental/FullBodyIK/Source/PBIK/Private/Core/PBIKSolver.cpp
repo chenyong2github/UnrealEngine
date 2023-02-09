@@ -168,6 +168,12 @@ void FPBIKSolver::Solve(const FPBIKSolverSettings& Settings)
 		Body.UpdateFromInputs(Settings);
 	}
 
+	// update constraints with new local pin locations relative to (possibly) translated joint positions
+	for (const TSharedPtr<PBIK::FConstraint>& Constraint : Constraints)
+	{
+		Constraint->UpdateFromInputs();
+	}
+
 	// optionally pin root in-place (convenience, does not require an effector)
 	if (RootPin.IsValid())
 	{
@@ -574,7 +580,7 @@ bool FPBIKSolver::InitBodies()
 	Bodies.Empty();
 	
 	// create bodies
-	for (FEffector& Effector : Effectors)
+	for (const FEffector& Effector : Effectors)
 	{
 		FBone* NextBone = Effector.Bone;
 		while (true)

@@ -100,9 +100,11 @@ public:
 
 	FRigidBody(FBone* InBone);
 
-	void Initialize(FBone* SolverRoot);
+	void Initialize(const FBone* SolverRoot);
 
 	void UpdateFromInputs(const FPBIKSolverSettings& Settings);
+
+	void UpdateTransformAndMassFromBones();
 
 	int GetNumBonesToRoot() const;
 

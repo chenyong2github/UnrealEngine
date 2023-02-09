@@ -72,6 +72,13 @@ void FJointConstraint::RemoveStretch(const float Percent)
 	B->Position -= Correction * Percent;
 }
 
+void FJointConstraint::UpdateFromInputs()
+{
+	const FVector PinPoint = B->Bone->Position;
+	PinPointLocalToA = A->Rotation.Inverse() * (PinPoint - A->Position);
+	PinPointLocalToB = B->Rotation.Inverse() * (PinPoint - B->Position);
+}
+
 FVector FJointConstraint::GetPositionCorrection(FVector& OutBodyToA, FVector& OutBodyToB) const
 {
 	OutBodyToA = A->Rotation * PinPointLocalToA;

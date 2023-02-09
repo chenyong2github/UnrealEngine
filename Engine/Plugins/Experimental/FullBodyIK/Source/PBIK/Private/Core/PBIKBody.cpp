@@ -52,30 +52,17 @@ FRigidBody::FRigidBody(FBone* InBone)
 	J = FBoneSettings();
 }
 
-void FRigidBody::Initialize(FBone* SolverRoot)
+void FRigidBody::Initialize(const FBone* SolverRoot)
 {
-	FVector Centroid = Bone->Position;
-	Mass = 0.0f;
-	for(const FBone* Child : Bone->Children)
-	{
-		Centroid += Child->Position;
-		Mass += (Bone->Position - Child->Position).Size();
-	}
-	Centroid = Centroid * (1.0f / (Bone->Children.Num() + 1.0f));
+	// calculate transform and mass of body based on the skeleton
+	UpdateTransformAndMassFromBones();
 
-	Position = Centroid;
-	Rotation = InitialRotation = Bone->Rotation;
-	BoneLocalPosition = Rotation.Inverse() * (Bone->Position - Centroid);
-
-	for (FBone* Child : Bone->Children)
-	{
-		FVector ChildLocalPos = Rotation.Inverse() * (Child->Position - Centroid);
-		ChildLocalPositions.Add(ChildLocalPos);
-	}
-
+	// store initial rotation from ref pose
+	InitialRotation = Rotation;
+	
 	// calculate num bones distance to root
 	NumBonesToRoot = 0;
-	FBone* Parent = Bone;
+	const FBone* Parent = Bone;
 	while (Parent && Parent != SolverRoot)
 	{
 		NumBonesToRoot += 1;
@@ -87,10 +74,7 @@ void FRigidBody::UpdateFromInputs(const FPBIKSolverSettings& Settings)
 {
 	if (Settings.bStartSolveFromInputPose)
 	{
-		// set to input pose
-		Position = Bone->Position - Bone->Rotation * BoneLocalPosition;
-		Rotation = Bone->Rotation;
-		InputPosition = Position;
+		UpdateTransformAndMassFromBones();
 	}
 
 	// update InvMass based on global mass multiplier
@@ -98,6 +82,29 @@ void FRigidBody::UpdateFromInputs(const FPBIKSolverSettings& Settings)
 	InvMass = 1.0f / FMath::Max(MinMass,(Mass * Settings.MassMultiplier * GLOBAL_UNITS));
 
 	SolverSettings = &Settings;
+}
+
+void FRigidBody::UpdateTransformAndMassFromBones()
+{
+	FVector Centroid = Bone->Position;
+	Mass = 0.0f;
+	for(const FBone* Child : Bone->Children)
+	{
+		Centroid += Child->Position;
+		Mass += (Bone->Position - Child->Position).Size();
+	}
+	Centroid = Centroid * (1.0f / (Bone->Children.Num() + 1.0f));
+
+	Position = InputPosition = Centroid;
+	Rotation = InitialRotation = Bone->Rotation;
+	BoneLocalPosition = Bone->Rotation.Inverse() * (Bone->Position - Centroid);
+
+	ChildLocalPositions.Reserve(Bone->Children.Num());
+	for (const FBone* Child : Bone->Children)
+	{
+		FVector ChildLocalPos = Rotation.Inverse() * (Child->Position - Centroid);
+		ChildLocalPositions.Add(ChildLocalPos);
+	}
 }
 
 int FRigidBody::GetNumBonesToRoot() const

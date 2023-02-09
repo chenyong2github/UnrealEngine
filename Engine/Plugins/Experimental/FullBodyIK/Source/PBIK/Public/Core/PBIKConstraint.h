@@ -16,6 +16,7 @@ struct FConstraint
 
 	virtual void Solve(const FPBIKSolverSettings& Settings) = 0;
 	virtual void RemoveStretch(const float Percent){};
+	virtual void UpdateFromInputs(){};
 };
 
 struct FJointConstraint : public FConstraint
@@ -57,6 +58,8 @@ public:
 	virtual void Solve(const FPBIKSolverSettings& Settings) override;
 
 	virtual void RemoveStretch(const float Percent) override;
+
+	virtual void UpdateFromInputs() override;
 
 private:
 
