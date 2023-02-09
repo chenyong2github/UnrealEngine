@@ -26,7 +26,7 @@ public:
 
 #if WITH_EOS_SDK
 
-/** Class to handle all callbacks generically using a lambda to process callback results */
+/** Wrapper for EOS notification callbacks, ensures calling object is still alive before calling passed lambda. */
 template<typename CallbackFuncType, typename CallbackParamType, typename OwningType, typename CallbackReturnType = void, typename... CallbackExtraParams>
 class TEOSGlobalCallback :
 	public FCallbackBase
@@ -82,6 +82,57 @@ private:
 			// we need to return _something_ to compile.
 			return CallbackReturnType{};
 		}
+	}
+};
+
+/** Wrapper for EOS async API callbacks, ensures the caller is still alive before calling passed lambda, then deletes itself. */
+template<typename CallbackFuncType, typename CallbackType, typename OwningType>
+class TEOSCallback :
+	public FCallbackBase
+{
+public:
+	TFunction<void(const CallbackType*)> CallbackLambda;
+
+	TEOSCallback(TWeakPtr<OwningType> InOwner)
+		: FCallbackBase()
+		, Owner(InOwner)
+	{
+	}
+	TEOSCallback(TWeakPtr<const OwningType> InOwner)
+		: FCallbackBase()
+		, Owner(InOwner)
+	{
+	}
+	virtual ~TEOSCallback() = default;
+
+	CallbackFuncType GetCallbackPtr()
+	{
+		return &CallbackImpl;
+	}
+
+protected:
+	/** The object that needs to be checked for lifetime before calling the callback */
+	TWeakPtr<const OwningType> Owner;
+
+private:
+	static void EOS_CALL CallbackImpl(const CallbackType* Data)
+	{
+		if (EOS_EResult_IsOperationComplete(Data->ResultCode) == EOS_FALSE)
+		{
+			// Ignore
+			return;
+		}
+		check(IsInGameThread());
+
+		TEOSCallback* CallbackThis = (TEOSCallback*)Data->ClientData;
+		check(CallbackThis);
+
+		if (CallbackThis->Owner.IsValid())
+		{
+			check(CallbackThis->CallbackLambda);
+			CallbackThis->CallbackLambda(Data);
+		}
+		delete CallbackThis;
 	}
 };
 

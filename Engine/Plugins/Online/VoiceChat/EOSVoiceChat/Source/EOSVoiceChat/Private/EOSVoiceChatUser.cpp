@@ -26,10 +26,7 @@
 #include "eos_rtc_audio.h"
 #include "eos_sdk.h"
 
-
 #define EOS_VOICE_TODO 0
-
-#define CHECKPIN() FEOSVoiceChatUserPtr StrongThis = WeakThis.Pin(); if(!StrongThis) return
 
 namespace
 {
@@ -84,6 +81,7 @@ namespace
 	}
 
 	using FAudioBeforeSendCallback = TEOSGlobalCallback<EOS_RTCAudio_OnAudioBeforeSendCallback, EOS_RTCAudio_AudioBeforeSendCallbackInfo, FEOSVoiceChatUser>;
+	using FUpdateSendingAudioCallback = TEOSCallback<EOS_RTCAudio_OnUpdateSendingCallback, EOS_RTCAudio_UpdateSendingCallbackInfo, FEOSVoiceChatUser>;
 }
 
 static TAutoConsoleVariable<bool> CVarFakeAudioInputEnabled(
@@ -329,7 +327,7 @@ FVoiceChatDeviceInfo FEOSVoiceChatUser::GetDefaultOutputDeviceInfo() const
 	{
 		DefaultDeviceInfo = EOSVoiceChat.InitSession.EosAudioDevicePool->GetCachedOutputDeviceInfos()[EOSVoiceChat.InitSession.EosAudioDevicePool->GetDefaultOutputDeviceInfoIdx()];
 	}
-	 
+
 	return DefaultDeviceInfo;
 }
 
@@ -1328,9 +1326,13 @@ void FEOSVoiceChatUser::ApplySendingOptions(FChannelSession& ChannelSession)
 		? EOS_ERTCAudioStatus::EOS_RTCAS_Enabled
 		: EOS_ERTCAudioStatus::EOS_RTCAS_Disabled;
 
+	// Protect against the callback firing after this object is destroyed.
+	TUniquePtr<FUpdateSendingAudioCallback> Callback = MakeUnique<FUpdateSendingAudioCallback>(AsWeak());
+	Callback->CallbackLambda = [this](const EOS_RTCAudio_UpdateSendingCallbackInfo* Data) { OnUpdateSendingAudio(Data); };
+
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EOSVoiceChat);
 	QUICK_SCOPE_CYCLE_COUNTER(EOS_RTCAudio_UpdateSending);
-	EOS_RTCAudio_UpdateSending(EOS_RTC_GetAudioInterface(GetRtcInterface()), &UpdateSendingOptions, this, &FEOSVoiceChatUser::OnUpdateSendingAudioStatic);
+	EOS_RTCAudio_UpdateSending(EOS_RTC_GetAudioInterface(GetRtcInterface()), &UpdateSendingOptions, Callback.Get(), Callback->GetCallbackPtr());
 }
 
 void FEOSVoiceChatUser::BindLoginCallbacks()
@@ -1942,25 +1944,6 @@ void FEOSVoiceChatUser::OnUpdateReceivingAudio(const EOS_RTCAudio_UpdateReceivin
 	else
 	{
 		EOSVOICECHATUSER_LOG(Warning, TEXT("OnUpdateReceiving ChannelName=[%s] PlayerName=[%s] failed error=[%s]"), *ChannelName, *PlayerName, *LexToString(ResultCode));
-	}
-}
-
-void EOS_CALL FEOSVoiceChatUser::OnUpdateSendingAudioStatic(const EOS_RTCAudio_UpdateSendingCallbackInfo* CallbackInfo)
-{
-	if (CallbackInfo)
-	{
-		if (FEOSVoiceChatUser* EosVoiceChatPtr = static_cast<FEOSVoiceChatUser*>(CallbackInfo->ClientData))
-		{
-			EosVoiceChatPtr->OnUpdateSendingAudio(CallbackInfo);
-		}
-		else
-		{
-			UE_LOG(LogEOSVoiceChat, Warning, TEXT("OnUpdateSendingStatic Error EosVoiceChatPtr=nullptr"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogEOSVoiceChat, Warning, TEXT("OnUpdateSendingStatic Error CallbackInfo=nullptr"));
 	}
 }
 
@@ -2753,7 +2736,5 @@ const TCHAR* LexToString(FEOSVoiceChatUser::EChannelJoinState State)
 		return TEXT("Unknown");
 	}
 }
-
-#undef CHECKPIN
 
 #endif // WITH_EOS_RTC

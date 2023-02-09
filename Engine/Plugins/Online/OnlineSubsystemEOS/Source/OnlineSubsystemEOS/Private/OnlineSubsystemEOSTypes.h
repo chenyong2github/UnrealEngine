@@ -296,58 +296,6 @@ protected:
 	EInviteStatus::Type InviteStatus;
 };
 
-/** Class to handle all callbacks generically using a lambda to process callback results */
-template<typename CallbackFuncType, typename CallbackType, typename OwningType>
-class TEOSCallback :
-	public FCallbackBase
-{
-public:
-	TFunction<void(const CallbackType*)> CallbackLambda;
-
-	TEOSCallback(TWeakPtr<OwningType> InOwner)
-		: FCallbackBase()
-		, Owner(InOwner)
-	{
-	}
-	TEOSCallback(TWeakPtr<const OwningType> InOwner)
-		: FCallbackBase()
-		, Owner(InOwner)
-	{
-	}
-	virtual ~TEOSCallback() = default;
-
-
-	CallbackFuncType GetCallbackPtr()
-	{
-		return &CallbackImpl;
-	}
-
-protected:
-	/** The object that needs to be checked for lifetime before calling the callback */
-	TWeakPtr<const OwningType> Owner;
-
-private:
-	static void EOS_CALL CallbackImpl(const CallbackType* Data)
-	{
-		if (EOS_EResult_IsOperationComplete(Data->ResultCode) == EOS_FALSE)
-		{
-			// Ignore
-			return;
-		}
-		check(IsInGameThread());
-
-		TEOSCallback* CallbackThis = (TEOSCallback*)Data->ClientData;
-		check(CallbackThis);
-
-		if (CallbackThis->Owner.IsValid())
-		{
-			check(CallbackThis->CallbackLambda);
-			CallbackThis->CallbackLambda(Data);
-		}
-		delete CallbackThis;
-	}
-};
-
 namespace OSSInternalCallback
 {
 	/** Create a callback for a non-SDK function that is tied to the lifetime of an arbitrary shared pointer. */
