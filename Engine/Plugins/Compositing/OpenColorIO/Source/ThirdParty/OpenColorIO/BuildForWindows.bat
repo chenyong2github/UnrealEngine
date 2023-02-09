@@ -27,6 +27,8 @@ git clone --depth 1 --branch v2.2.0 https://github.com/AcademySoftwareFoundation
 
 cd /d .\%OCIO_LIB_NAME%
 
+git apply ../ue_ocio_v22.patch
+
 rem Configure OCIO cmake and launch a release build
 echo Configuring x64 build...
 if %WITH_PYTHON% equ true (

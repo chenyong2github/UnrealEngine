@@ -15,17 +15,19 @@ cd $SCRIPT_DIR
 # fi
 
 # Remove previously extracted build library folder
-#if [ -d "$OCIO_LIB_NAME" ]; then
-#    echo "Deleting previously extracted $OCIO_LIB_NAME folder"
-#    rm -rf "$OCIO_LIB_NAME"
-#fi
+if [ -d "$OCIO_LIB_NAME" ]; then
+   echo "Deleting previously extracted $OCIO_LIB_NAME folder"
+   rm -rf "$OCIO_LIB_NAME"
+fi
 
 # echo "Extracting $OCIO_LIB_NAME.zip..."
 # unzip "v2.2.0.zip" -d .
 
-# git clone --depth 1 --branch v2.2.0 https://github.com/AcademySoftwareFoundation/OpenColorIO.git $OCIO_LIB_NAME
+git clone --depth 1 --branch v2.2.0 https://github.com/AcademySoftwareFoundation/OpenColorIO.git $OCIO_LIB_NAME
 
 pushd $OCIO_LIB_NAME
+
+git apply ../ue_ocio_v22.patch
 
 UE_C_FLAGS="-mmacosx-version-min=10.9 -arch x86_64 -arch arm64"
 UE_CXX_FLAGS="-mmacosx-version-min=10.9 -arch x86_64 -arch arm64"
@@ -41,7 +43,8 @@ cmake -S . -B build \
     -DCMAKE_MACOSX_RPATH=TRUE \
     -DBUILD_SHARED_LIBS=ON \
     -DCMAKE_CXX_STANDARD=11 \
-    -DCMAKE_CXX_FLAGS="$CXX_FLAGS" \
+    -DCMAKE_C_FLAGS="${UE_C_FLAGS}" \
+    -DCMAKE_CXX_FLAGS="${UE_CXX_FLAGS}" \
     -DOCIO_BUILD_APPS=OFF \
     -DOCIO_BUILD_GPU_TESTS=OFF \
     -DOCIO_BUILD_NUKE=OFF \
@@ -61,8 +64,7 @@ cmake -S . -B build \
     -Dpystring_STATIC_LIBRARY=ON \
     -Dpystring_C_FLAGS="${UE_C_FLAGS}" \
     -Dpystring_CXX_FLAGS="${UE_CXX_FLAGS}" \
-    -Dminizip-ng_STATIC_LIBRARY=ON \
-    -DMINIZIP-NG_CMAKE_ARGS="-DCMAKE_C_FLAGS="${UE_C_FLAGS}" -DCMAKE_CXX_FLAGS="${UE_CXX_FLAGS}""
+    -Dminizip-ng_STATIC_LIBRARY=ON
 
 echo "Building Release build..."
 cmake --build build --config Release

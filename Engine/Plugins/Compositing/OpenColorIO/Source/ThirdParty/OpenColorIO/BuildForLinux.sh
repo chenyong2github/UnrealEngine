@@ -8,10 +8,12 @@ UE_ENGINE_DIR=`cd $SCRIPT_DIR/../../../../../..; pwd`
 UE_THIRD_PARTY_DIR="$UE_ENGINE_DIR/Source/ThirdParty"
 
 # Using the toolchain downloaded by Engine/Build/BatchFiles/Linux/SetupToolchain.sh
-#source "$UE_ENGINE_DIR/Build/BatchFiles/Linux/SetupToolchain.sh"
+#pushd "$UE_ENGINE_DIR/Build/BatchFiles/Linux"
+#source "SetupToolchain.sh"
+#popd
 
-C_COMPILER="$UE_ENGINE_DIR/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64/v20_clang-13.0.1-centos7/x86_64-unknown-linux-gnu/bin/clang"
-CXX_COMPILER="$UE_ENGINE_DIR/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64/v20_clang-13.0.1-centos7/x86_64-unknown-linux-gnu/bin/clang++"
+C_COMPILER="$UE_ENGINE_DIR/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64/v21_clang-15.0.1-centos7/x86_64-unknown-linux-gnu/bin/clang"
+CXX_COMPILER="$UE_ENGINE_DIR/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64/v21_clang-15.0.1-centos7/x86_64-unknown-linux-gnu/bin/clang++"
 
 cd $SCRIPT_DIR
 
@@ -32,6 +34,8 @@ fi
 git clone --depth 1 --branch v2.2.0 https://github.com/AcademySoftwareFoundation/OpenColorIO.git $OCIO_LIB_NAME
 
 cd $OCIO_LIB_NAME
+
+git apply ../ue_ocio_v22.patch
 
 ARCH_NAME=x86_64-unknown-linux-gnu
 CXX_FLAGS="-nostdinc++ -I$UE_THIRD_PARTY_DIR/Unix/LibCxx/include  -I$UE_THIRD_PARTY_DIR/Unix/LibCxx/include/c++/v1"
