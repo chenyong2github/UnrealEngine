@@ -50,10 +50,6 @@ static FAutoConsoleVariableRef CVarHairStrandsDebugBSDFAbsorption(TEXT("r.HairSt
 static float GHairStrandsDebugPlotBsdfExposure = 1.1f;
 static FAutoConsoleVariableRef CVarHairStrandsDebugBSDFExposure(TEXT("r.HairStrands.PlotBsdf.Exposure"), GHairStrandsDebugPlotBsdfExposure, TEXT("Change the exposure of the plot."));
 
-static int32 GHairVirtualVoxel_DrawDebugPage = 0;
-static FAutoConsoleVariableRef CVarHairVirtualVoxel_DrawDebugPage(TEXT("r.HairStrands.Voxelization.Virtual.DrawDebugPage"), GHairVirtualVoxel_DrawDebugPage, TEXT("When voxel debug rendering is enable 1: render the page bounds, instead of the voxel 2: the occupancy within the page (i.e., 8x8x8 brick)"));
-static int32 GHairVirtualVoxel_ForceMipLevel = -1;
-static FAutoConsoleVariableRef CVarHairVirtualVoxel_ForceMipLevel(TEXT("r.HairStrands.Voxelization.Virtual.ForceMipLevel"), GHairVirtualVoxel_ForceMipLevel, TEXT("Force a particular mip-level"));
 static int32 GHairVirtualVoxel_DebugTraversalType = 0;
 static FAutoConsoleVariableRef CVarHairVirtualVoxel_DebugTraversalType(TEXT("r.HairStrands.Voxelization.Virtual.DebugTraversalType"), GHairVirtualVoxel_DebugTraversalType, TEXT("Traversal mode (0:linear, 1:mip) for debug voxel visualization."));
 
@@ -724,8 +720,6 @@ class FVoxelVirtualRaymarchingCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER(FVector2f, OutputResolution)
-		SHADER_PARAMETER( int32, ForcedMipLevel)
-		SHADER_PARAMETER(uint32, bDrawPage)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(uint32, MacroGroupCount)
 		SHADER_PARAMETER(uint32, MaxTotalPageIndexCount)
@@ -769,8 +763,6 @@ static void AddVoxelPageRaymarchingPass(
 		Parameters->ViewUniformBuffer		= View.ViewUniformBuffer;
 		Parameters->OutputResolution		= Resolution;
 		Parameters->SceneTextures			= SceneTextures;
-		Parameters->bDrawPage				= FMath::Clamp(GHairVirtualVoxel_DrawDebugPage, 0, 2);
-		Parameters->ForcedMipLevel			= FMath::Clamp(GHairVirtualVoxel_ForceMipLevel, -1, 5);
 		Parameters->MacroGroupId			= MacroGroupData.MacroGroupId;
 		Parameters->MacroGroupCount			= MacroGroupDatas.Num();
 		Parameters->MaxTotalPageIndexCount  = VoxelResources.Parameters.Common.PageIndexCount;

@@ -22,8 +22,6 @@
 #include "HairStrandsVoxelPageTraversal.ush"
 
 float2 OutputResolution; 
-uint bDrawPage;
-int ForcedMipLevel;
 uint MacroGroupId;
 uint MacroGroupCount;
 uint MaxTotalPageIndexCount;
@@ -61,7 +59,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxel.NodeDescBuffer[MacroGroupId], VirtualVoxel.PageResolution);
 	const bool bIsNodeValid = all(NodeDesc.PageIndexResolution != 0);
-
 
 	const bool bPrint = all(uint2(PixelCoord) == 0);
 
@@ -254,9 +251,23 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		}
 	}
 
+
+	// Draw widgets
+	bool bDrawPage = false;
+	int ForcedMipLevel = -1;
+	{
+		FShaderPrintContext WidgetContext = InitShaderPrintContext(MacroGroupId == 0 && bPrint, uint2(500, 100));
+		bDrawPage = AddCheckbox(WidgetContext, TEXT("Draw Pages"), false, FontWhite); Newline(WidgetContext);
+		bool  bForceMipLevel = AddCheckbox(WidgetContext, TEXT("Force MIP"), false, FontWhite); Newline(WidgetContext);
+		if (bForceMipLevel)
+		{
+			ForcedMipLevel = 8u * AddSlider(WidgetContext, TEXT("MIP"), 0, FontWhite); Newline(WidgetContext);
+		}
+	}
+
 	bool bIsValid = false;
 	float3 HitColor = 0;
-	if (bDrawPage > 0)
+	if (bDrawPage)
 	{
 		// Reverse-Z
 		const float3 O = PrimaryView.TranslatedWorldCameraOrigin;
