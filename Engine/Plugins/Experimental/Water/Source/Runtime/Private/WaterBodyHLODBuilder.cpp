@@ -77,7 +77,8 @@ TArray<UActorComponent*> UWaterBodyHLODBuilder::Build(const FHLODBuildContext& I
 
 	for (UWaterBodyComponent* WaterBodyComponent : SourceWaterBodyComponents)
 	{
-		UStaticMesh* StaticMesh = NewObject<UStaticMesh>(InHLODBuildContext.AssetsOuter);
+		FName StaticMeshName = MakeUniqueObjectName(nullptr, UStaticMesh::StaticClass(), TEXT("WaterBodyHLODMesh"));
+		UStaticMesh* StaticMesh = NewObject<UStaticMesh>(InHLODBuildContext.AssetsOuter, StaticMeshName);
 
 		// Mesh
 		{
