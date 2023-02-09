@@ -17,10 +17,20 @@ namespace Dataflow
 		static const FLinearColor CDefaultNodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f, 0.5f);
 
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateNonOverlappingConvexHullsDataflowNode);
-
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateClusterConvexHullsFromLeafHullsDataflowNode);
 	}
 }
 
+FCreateNonOverlappingConvexHullsDataflowNode::FCreateNonOverlappingConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FDataflowNode(InParam, InGuid)
+{
+	RegisterInputConnection(&Collection);
+	RegisterInputConnection(&CanRemoveFraction);
+	RegisterInputConnection(&SimplificationDistanceThreshold);
+	RegisterInputConnection(&CanExceedFraction);
+	RegisterInputConnection(&OverlapRemovalShrinkPercent);
+	RegisterOutputConnection(&Collection);
+}
 
 void FCreateNonOverlappingConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -43,6 +53,38 @@ void FCreateNonOverlappingConvexHullsDataflowNode::Evaluate(Dataflow::FContext& 
 				InOverlapRemovalShrinkPercent);
 
 			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
+		}
+	}
+}
+
+FGenerateClusterConvexHullsFromLeafHullsDataflowNode::FGenerateClusterConvexHullsFromLeafHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FDataflowNode(InParam, InGuid)
+{
+	RegisterInputConnection(&Collection);
+	RegisterInputConnection(&ConvexCount);
+	RegisterInputConnection(&ErrorTolerance);
+
+	RegisterOutputConnection(&Collection);
+}
+
+void FGenerateClusterConvexHullsFromLeafHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
+		{
+			const int32 InConvexCount = GetValue(Context, &ConvexCount);
+			const double InErrorToleranceInCm = GetValue(Context, &ErrorTolerance);
+
+			FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(
+				*GeomCollection,
+				InConvexCount,
+				InErrorToleranceInCm
+			);
+
+			SetValue<FManagedArrayCollection>(Context, static_cast<const FManagedArrayCollection>(*GeomCollection), &Collection);
 		}
 	}
 }

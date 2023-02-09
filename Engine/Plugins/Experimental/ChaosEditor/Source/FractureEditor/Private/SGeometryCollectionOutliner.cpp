@@ -20,6 +20,7 @@
 #include "GeometryCollectionOutlinerDragDrop.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SGeometryCollectionOutliner)
@@ -230,6 +231,8 @@ TSharedRef<SWidget> SGeometryCollectionOutlinerRow::GenerateWidgetForColumn(cons
 		return Item->MakeRemovalTimeColumnWidget();
 	if (ColumnName == SGeometryCollectionOutlinerColumnID::ImportedCollisions)
 		return Item->MakeImportedCollisionsColumnWidget();
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::ConvexCount)
+		return Item->MakeConvexCountColumnWidget();
 	return Item->MakeEmptyColumnWidget();
 }
 
@@ -341,6 +344,13 @@ void SGeometryCollectionOutliner::RegenerateHeader()
 		break;
 		
 	case EOutlinerColumnMode::Collision:
+		HeaderRowWidget->AddColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::ConvexCount)
+			.DefaultLabel(LOCTEXT("GCOutliner_Column_ConvexCount", "Convex Count"))
+			.DefaultTooltip(LOCTEXT("GCOutliner_Column_ConvexCount_ToolTip", "Number of convex collisions)"))
+			.HAlignHeader(EHorizontalAlignment::HAlign_Right)
+			.FillWidth(CustomFillWidth)
+		);
 		HeaderRowWidget->AddColumn(
 			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::ImportedCollisions)
 				.DefaultLabel(LOCTEXT("GCOutliner_Column_ImportedCollisions", "Imported Collisions"))
@@ -623,6 +633,7 @@ FGeometryCollectionItemDataFacade::FGeometryCollectionItemDataFacade(FManagedArr
 	, SimulationTypeAttribute(InCollection, "SimulationType", DataCollectionGroup)
 	, HasSourceCollisionAttribute(InCollection, "HasSourceCollision", DataCollectionGroup)
 	, SourceCollisionUsedAttribute(InCollection, "SourceCollisionUsed", DataCollectionGroup)
+	, ConvexCountAttribute(InCollection, "ConvexCount", DataCollectionGroup)
 {
 }
 
@@ -677,6 +688,11 @@ bool FGeometryCollectionItemDataFacade::HasSourceCollision(int32 Index) const
 bool FGeometryCollectionItemDataFacade::IsSourceCollisionUsed(int32 Index) const
 {
 	return GetAttributeValue(SourceCollisionUsedAttribute, Index, false);
+}
+
+int32 FGeometryCollectionItemDataFacade::GetConvexCount(int32 Index) const
+{
+	return GetAttributeValue(ConvexCountAttribute, Index, 0);
 }
 
 void FGeometryCollectionItemDataFacade::FillFromGeometryCollectionComponent(const UGeometryCollectionComponent& GeometryCollectionComponent, EOutlinerColumnMode ColumnMode)
@@ -785,6 +801,40 @@ void FGeometryCollectionItemDataFacade::FillFromGeometryCollectionComponent(cons
 					SourceCollisionUsed[Index] = RestCollection->bImportCollisionFromSource;
 				}
 			}
+			
+			TManagedArrayAccessor<TSet<int32>> GCTransformToConvexIndicesAttribute(GeometryCollection, "TransformToConvexIndices", FGeometryCollection::TransformGroup);
+			TManagedArray<int32>& ConvexCountArray = ConvexCountAttribute.Add();
+			ConvexCountAttribute.Fill(0);
+
+			if (GCTransformToConvexIndicesAttribute.IsValid())
+			{
+				const TManagedArray<TSet<int32>>& GCTransformToConvexIndices = GCTransformToConvexIndicesAttribute.Get();
+
+				Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(GeometryCollection);
+				const TArray<int32> TransformIndices = HierarchyFacade.GetTransformArrayInDepthFirstOrder();
+
+				for (int32 TransformIndex: TransformIndices)
+				{
+					const int32 ConvexCount = GCTransformToConvexIndices[TransformIndex].Num();
+					if (ConvexCount > 0)
+					{
+						ConvexCountArray[TransformIndex] = ConvexCount;
+					}
+					// if count == 0 then we have already accumulated the children in the parents, no need to do anything
+					// so now just pass it to the direct parent ( we parse the index in a depth first manner ) 
+					int32 ParentTransformIndex = GeometryCollection.Parent[TransformIndex];
+					if (ParentTransformIndex != INDEX_NONE)
+					{		
+						// if parent has no convex then it will be a union of the aggregated children
+						const int32 ParentConvexCount = GCTransformToConvexIndices[ParentTransformIndex].Num();
+						if (ParentConvexCount == 0)
+						{
+							// negative values means union 
+							ConvexCountArray[ParentTransformIndex] -= FMath::Abs(ConvexCountArray[TransformIndex]);
+						}
+					}
+				}
+			}			
 		}
 		else if (ColumnMode == EOutlinerColumnMode::Removal)
 		{
@@ -1262,6 +1312,25 @@ TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeImportedCollisionsColum
 			SNew(STextBlock)
 			.Text(ImportedCollisionText)
 			.ColorAndOpacity(ItemColor)
+		];
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeConvexCountColumnWidget() const
+{
+	const FGeometryCollectionItemDataFacade& DataCollectionFacade = GetDataCollectionFacade();
+	const int32 ConvexCount = DataCollectionFacade.GetConvexCount(BoneIndex);
+	const bool bIsUnionOfConvex = (ConvexCount < 0);
+
+	const FText ItemText = bIsUnionOfConvex? FText::Format(LOCTEXT("GCOutliner_ConvexCount_Format", "Union of {0}"), FMath::Abs(ConvexCount)): FText::AsNumber(ConvexCount);
+
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.Padding(12.f, 0.f)
+		.HAlign(HAlign_Right)
+		[
+			SNew(STextBlock)
+			.Text(ItemText)
+		.ColorAndOpacity(ItemColor)
 		];
 }
 

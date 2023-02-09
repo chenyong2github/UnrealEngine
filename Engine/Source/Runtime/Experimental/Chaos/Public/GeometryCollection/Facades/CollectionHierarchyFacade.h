@@ -44,6 +44,9 @@ namespace Chaos::Facades
 		/** Get the root indicies */
 		TArray<int32> GetRootIndices() const;
 
+		/** Get direct children from a specific transform index */
+		TArray<int32> GetChildrenAsArray(int32 TransformIndex) const;
+
 		/** 
 		* Get initial level of a specific transform index 
 		* If the attribute is missing return INDEX_NONE
@@ -55,6 +58,11 @@ namespace Chaos::Facades
 		* @Param PersistencePolicy whether to make the attribute persistent or keep the existing state
 		*/ 
 		void GenerateLevelAttribute();
+
+		/**
+		* Get transform indices in a depth first order 
+		*/
+		TArray<int32> GetTransformArrayInDepthFirstOrder() const;
 
 	public:
 		/** Get the root indicies */

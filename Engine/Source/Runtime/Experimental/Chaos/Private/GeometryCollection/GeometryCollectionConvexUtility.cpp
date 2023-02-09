@@ -6,9 +6,13 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
+#include "GeometryCollection/Facades/CollectionTransformFacade.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "CompGeom/ConvexHull3.h"
 #include "Templates/Sorting.h"
 #include "Spatial/PointHashGrid3.h"
+#include "CompGeom/ConvexDecomposition3.h"
+#include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 
 bool UseVolumeToComputeRelativeSize = false;
 FAutoConsoleVariableRef CVarUseVolumeToComputeRelativeSize(TEXT("p.gc.UseVolumeToComputeRelativeSize"), UseVolumeToComputeRelativeSize, TEXT("Use Volume To Compute RelativeSize instead of the side of the cubic volume (def: false)"));
@@ -1353,31 +1357,155 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 	ConvexHull = MoveTemp(UseLeafHulls->Hulls);
 
 	// clear all null and empty hulls
-	TArray<int32> EmptyConvex;
-	for (int32 ConvexIdx = 0; ConvexIdx < ConvexHull.Num(); ConvexIdx++)
-	{
-		if (ConvexHull[ConvexIdx].IsValid())
-		{
-			if (ConvexHull[ConvexIdx]->NumVertices() == 0)
-			{
-				ConvexHull[ConvexIdx].Reset();
-				EmptyConvex.Add(ConvexIdx);
-			}
-		}
-		else // (!ConvexHull[ConvexIdx].IsValid())
-		{
-			EmptyConvex.Add(ConvexIdx);
-		}
-	}
-	FManagedArrayCollection::FProcessingParameters Params;
-	Params.bDoValidation = false; // for perf reasons
-	GeometryCollection->RemoveElements("Convex", EmptyConvex, Params);
+	RemoveEmptyConvexHulls(*GeometryCollection);
 
 	checkSlow(FGeometryCollectionConvexUtility::ValidateConvexData(GeometryCollection));
 
 	return { TransformToConvexIndices, ConvexHull };
 }
 
+
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection,	int32 ConvexCount, double ErrorToleranceInCm)
+{
+	static FName ConvexGroupName("Convex");
+	static FName ConvexHullAttributeName("ConvexHull");
+	static FName TransformToConvexIndicesName("TransformToConvexIndices");
+
+	TManagedArrayAccessor<TUniquePtr<Chaos::FConvex>> ConvexHullAttribute(Collection, ConvexHullAttributeName, ConvexGroupName);
+	TManagedArrayAccessor<TSet<int32>> TransformToConvexIndicesAttribute(Collection, TransformToConvexIndicesName, FGeometryCollection::TransformGroup);
+
+	// if any of the leaves hulls has been computed those two attributes should be valid
+	if (!ConvexHullAttribute.IsValid() || !TransformToConvexIndicesAttribute.IsValid())
+	{
+		return;
+	}
+
+	GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(Collection);
+	Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(Collection);
+
+	FGeometryCollectionProximityUtility ProximityUtility(&Collection);
+	ProximityUtility.RequireProximity();
+	const TManagedArray<TSet<int32>>& Proximity = Collection.GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+
+	const TArray<FTransform> GlobalTransforms = TransformFacade.ComputeCollectionSpaceTransforms();
+	const TArray<int32> DepthFirstTransformIndices = HierarchyFacade.GetTransformArrayInDepthFirstOrder();
+
+	const TManagedArrayAccessor<int32> SimulationTypeAttribute(Collection, FGeometryCollection::SimulationTypeAttribute, FTransformCollection::TransformGroup);
+
+	for (int32 TransformIndex: DepthFirstTransformIndices)
+	{
+		// only do this for clusters
+		const bool bIsCluster = (SimulationTypeAttribute.IsValid() && SimulationTypeAttribute.Get()[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered);
+		if (bIsCluster)
+		{
+			// compute using the leaf nodes 
+			// we cannot use the direct cluster children because they do not have proximity data that is stored at the geo level )
+			TArray<int32> SourceTransformIndices;
+			FGeometryCollectionClusteringUtility::GetLeafBones(&Collection, TransformIndex, true, SourceTransformIndices);
+
+			UE::Geometry::FDynamicMesh3 CombinedGeometry;
+			if (SourceTransformIndices.Num() > 0)
+			{
+				const FTransform& ParentTransform = GlobalTransforms[TransformIndex];
+
+				TManagedArray<TSet<int32>>& TransformToConvexIndices = TransformToConvexIndicesAttribute.Modify();
+				TManagedArray<TUniquePtr<Chaos::FConvex>>& ConvexHull = ConvexHullAttribute.Modify();
+
+				struct FHullInfo
+				{
+					Chaos::FConvex* Convex = nullptr;
+					FTransform Transform;
+				};
+
+				// build information required for merging hulls 
+				TArray<FHullInfo> Hulls;
+				TMap<int32, TArray<int32>> TransformToHullIdx;
+				TArray<TPair<int32, int32>> HullProximity;
+
+				for (int32 SourceTransformIndex : SourceTransformIndices)
+				{
+					const FTransform InnerTransform = GlobalTransforms[SourceTransformIndex];
+					FTransform ChildToParentTransform = InnerTransform.GetRelativeTransform(ParentTransform);
+					int32 HullIdxStart = Hulls.Num();
+					for (int32 SourceConvexIdx : TransformToConvexIndices[SourceTransformIndex])
+					{
+						FHullInfo HullInfo;
+						HullInfo.Convex = ConvexHull[SourceConvexIdx].Get();
+						HullInfo.Transform = ChildToParentTransform;
+						const int32 HullIdx = Hulls.Emplace(HullInfo);
+						TransformToHullIdx.FindOrAdd(SourceTransformIndex).Add(HullIdx);
+					}
+				}
+				// get hull proximity out of geometry proximity.  (Note: Only works if merging leaf convexes ... need a more general source of proximity!)
+				for (int32 SourceTransformIndex : SourceTransformIndices)
+				{
+					const TArray<int32, TInlineAllocator<8>> SourceHullIndices{ TransformToHullIdx.FindOrAdd(SourceTransformIndex) };
+					const int32 GeoIdx = Collection.TransformToGeometryIndex[SourceTransformIndex];
+					if (GeoIdx > INDEX_NONE)
+					{
+						for (int32 NeighborGeoIndex : Proximity[GeoIdx])
+						{
+							const int32 NeightborTransformIdx = Collection.TransformIndex[NeighborGeoIndex];
+							if (const TArray<int32>* NeighborHullIndices = TransformToHullIdx.Find(NeightborTransformIdx))
+							{
+								for (int32 SourceHullIdx : SourceHullIndices)
+								{
+									for (int32 NeighborHullIdx : (*NeighborHullIndices))
+									{
+										HullProximity.Emplace(SourceHullIdx, NeighborHullIdx);
+									}
+								}
+							}
+						}
+					}
+				}
+
+				// try to merge the leaf convex into a simpler set of convex
+				const auto GetHullVolume = [&Hulls](int32 Idx) { return (double)Hulls[Idx].Convex->GetVolume(); };
+				const auto GetHullNumVertices = [&Hulls](int32 Idx) { return Hulls[Idx].Convex->NumVertices(); };
+				const auto GetHullVertex = [&Hulls](int32 Hull, int32 V) {
+					const FVector3d LocalVertex(Hulls[Hull].Convex->GetVertex(V));
+					return Hulls[Hull].Transform.TransformPosition(LocalVertex);
+				};
+				UE::Geometry::FConvexDecomposition3 ConvexDecomposition;
+				ConvexDecomposition.InitializeFromHulls(Hulls.Num(), GetHullVolume, GetHullNumVertices, GetHullVertex, HullProximity);
+				ConvexDecomposition.MergeBest(ConvexCount, ErrorToleranceInCm, 0, true);
+				
+				// reset existing hulls for this transform index
+				for (int32 ConvexIndex : TransformToConvexIndices[TransformIndex])
+				{
+					ConvexHull[ConvexIndex] = nullptr;
+				}
+				TransformToConvexIndices[TransformIndex].Reset();
+
+				// add new computed ones
+				for (int32 DecompIndex = 0; DecompIndex < ConvexDecomposition.Decomposition.Num(); DecompIndex++)
+				{
+					// Make Implicit Convex of a decomposed element
+					TArray<Chaos::FConvex::FVec3Type> Particles;
+					const TArray<FVector> Points = ConvexDecomposition.GetVertices<double>(DecompIndex);
+					Particles.SetNum(Points.Num());
+					for (int32 PointIndex = 0; PointIndex < Points.Num(); PointIndex++)
+					{
+						Particles[PointIndex] = Points[PointIndex];
+					}
+					TUniquePtr<Chaos::FConvex> ImplicitConvex = MakeUnique<Chaos::FConvex>(MoveTemp(Particles), 0.0f);
+
+					// Add the the element to the union
+					const int32 NewConvexIndex = Collection.AddElements(1, ConvexGroupName);
+					ConvexHull[NewConvexIndex] = MoveTemp(ImplicitConvex);
+					TransformToConvexIndices[TransformIndex].Add(NewConvexIndex);
+				}
+			}
+		}
+	}
+
+	// remove empty or null convex hulls
+	RemoveEmptyConvexHulls(Collection);
+
+	checkSlow(FGeometryCollectionConvexUtility::ValidateConvexData(&Collection));
+
+}
 
 bool FGeometryCollectionConvexUtility::ValidateConvexData(const FGeometryCollection* GeometryCollection)
 {
@@ -1453,6 +1581,40 @@ void FGeometryCollectionConvexUtility::RemoveConvexHulls(FGeometryCollection* Ge
 	}
 }
 
+/** Delete the convex hulls that are null */
+void FGeometryCollectionConvexUtility::RemoveEmptyConvexHulls(FManagedArrayCollection& Collection)
+{
+	const FName ConvexGroupName("Convex");
+	const FName ConvexAttributeName("ConvexHull");
+
+	TManagedArrayAccessor<TUniquePtr<Chaos::FConvex>> ConvexHullAttribute(Collection, ConvexAttributeName, ConvexGroupName);
+	if (ConvexHullAttribute.IsValid())
+	{
+		TManagedArray<TUniquePtr<Chaos::FConvex>>& ConvexHull = ConvexHullAttribute.Modify();
+
+		// clear all null and empty hulls
+		TArray<int32> EmptyConvex;
+		for (int32 ConvexIdx = 0; ConvexIdx < ConvexHull.Num(); ConvexIdx++)
+		{
+			if (ConvexHull[ConvexIdx].IsValid())
+			{
+				if (ConvexHull[ConvexIdx]->NumVertices() == 0)
+				{
+					ConvexHull[ConvexIdx].Reset();
+					EmptyConvex.Add(ConvexIdx);
+				}
+			}
+			else // (!ConvexHull[ConvexIdx].IsValid())
+			{
+				EmptyConvex.Add(ConvexIdx);
+			}
+		}
+
+		FManagedArrayCollection::FProcessingParameters Params;
+		Params.bDoValidation = false; // for perf reasons
+		Collection.RemoveElements(ConvexGroupName, EmptyConvex, Params);
+	}
+}
 
 void FGeometryCollectionConvexUtility::SetDefaults(FGeometryCollection* GeometryCollection, FName Group, uint32 StartSize, uint32 NumElements)
 {

@@ -51,16 +51,40 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.f, UIMax = 100.f))
 	float OverlapRemovalShrinkPercent = 0.f;
 
-	FCreateNonOverlappingConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterInputConnection(&CanRemoveFraction);
-		RegisterInputConnection(&SimplificationDistanceThreshold);
-		RegisterInputConnection(&CanExceedFraction);
-		RegisterInputConnection(&OverlapRemovalShrinkPercent);
-		RegisterOutputConnection(&Collection);
-	}
+	FCreateNonOverlappingConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+/**
+ *
+ * Generates cluster convex hulls for leafs hulls
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FGenerateClusterConvexHullsFromLeafHullsDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGenerateClusterConvexHullsFromLeafHullsDataflowNode, "GenerateClusterConvexHullsFromLeafHulls", "GeometryCollection|Utilities", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DataflowOutput))
+	FManagedArrayCollection Collection;
+
+	/** Maximum number of convex to generate for a specific cluster. Will be ignored if error tolerance is used instead */
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, EditCondition = "ErrorTolerance == 0"))
+	int32 ConvexCount = 2;
+	
+	/** 
+	* Error tolerance to use to decide to merge leaf convex together. 
+	* This is in centimeters and represents the side of a cube, the volume of which will be used as threshold
+	* to know if the volume of the generated convex is too large compared to the sum of the volume of the leaf convex
+	*/
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = "0", UIMax = "100.", Units = cm))
+	double ErrorTolerance = 0.0;
+
+	FGenerateClusterConvexHullsFromLeafHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 

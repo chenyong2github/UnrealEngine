@@ -55,6 +55,16 @@ namespace Chaos::Facades
 		return GetRootIndices(ParentAttribute);
 	}
 
+	TArray<int32> FCollectionHierarchyFacade::GetChildrenAsArray(int32 TransformIndex) const
+	{
+		TArray<int32> ChildrenArray;
+		if (ChildrenAttribute.IsValid())
+		{
+			return ChildrenAttribute.Get()[TransformIndex].Array();
+		}
+		return ChildrenArray;
+	}
+
 	int32 FCollectionHierarchyFacade::GetInitialLevel(int32 TransformIndex) const
 	{
 		if (HasLevelAttribute())
@@ -133,5 +143,70 @@ namespace Chaos::Facades
 		}
 
 		return Roots;
+	}
+
+	TArray<int32> FCollectionHierarchyFacade::GetTransformArrayInDepthFirstOrder() const
+	{
+		TArray<int32> OrderedTransforms;
+		if (ParentAttribute.IsValid() && ChildrenAttribute.IsValid())
+		{
+			const TManagedArray<int32>& Parent = ParentAttribute.Get();
+			const TManagedArray<TSet<int32>>& Children = ChildrenAttribute.Get();
+
+			//traverse cluster hierarchy in depth first and record order
+			struct FClusterProcessing
+			{
+				int32 TransformGroupIndex;
+				enum
+				{
+					None,
+					VisitingChildren
+				} State;
+
+				FClusterProcessing(int32 InIndex) : TransformGroupIndex(InIndex), State(None) {};
+			};
+
+			TArray<FClusterProcessing> ClustersToProcess;
+			//enqueue all roots
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < Parent.Num(); TransformGroupIndex++)
+			{
+				if (Parent[TransformGroupIndex] == INDEX_NONE)
+				{
+					ClustersToProcess.Emplace(TransformGroupIndex);
+				}
+			}
+
+			OrderedTransforms.Reserve(Parent.Num());
+
+			while (ClustersToProcess.Num())
+			{
+				FClusterProcessing CurCluster = ClustersToProcess.Pop();
+				const int32 ClusterTransformIdx = CurCluster.TransformGroupIndex;
+				if (CurCluster.State == FClusterProcessing::VisitingChildren)
+				{
+					//children already visited
+					OrderedTransforms.Add(ClusterTransformIdx);
+				}
+				else
+				{
+					if (Children[ClusterTransformIdx].Num())
+					{
+						CurCluster.State = FClusterProcessing::VisitingChildren;
+						ClustersToProcess.Add(CurCluster);
+
+						//order of children doesn't matter as long as all children appear before parent
+						for (int32 ChildIdx : Children[ClusterTransformIdx])
+						{
+							ClustersToProcess.Emplace(ChildIdx);
+						}
+					}
+					else
+					{
+						OrderedTransforms.Add(ClusterTransformIdx);
+					}
+				}
+			}
+		}
+		return OrderedTransforms;
 	}
 }

@@ -806,32 +806,37 @@ void FGeometryCollectionClusteringUtility::ValidateResults(FGeometryCollection* 
 	}
 }
 
-void FGeometryCollectionClusteringUtility::GetLeafBones(const FGeometryCollection* GeometryCollection, int BoneIndex, bool bOnlyRigids, TArray<int32>& LeafBonesOut)
+void FGeometryCollectionClusteringUtility::GetLeafBones(const FManagedArrayCollection* Collection, int BoneIndex, bool bOnlyRigids, TArray<int32>& LeafBonesOut)
 {
-	if (!ensure(BoneIndex >= 0))
+	if (!ensure(BoneIndex >= 0 && Collection != nullptr))
 	{
 		return;
 	}
 
-	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
-	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
+	const TManagedArrayAccessor<TSet<int32>> ChildrenAttribute(*Collection, FGeometryCollection::ChildrenAttribute, FGeometryCollection::TransformGroup);
+	const TManagedArrayAccessor<int32> SimulationTypeAttribute(*Collection , FGeometryCollection::SimulationTypeAttribute, FGeometryCollection::TransformGroup);
 
-	if (!bOnlyRigids && Children[BoneIndex].Num() == 0)
+	if (ChildrenAttribute.IsValid() && SimulationTypeAttribute.IsValid())
 	{
-		LeafBonesOut.Push(BoneIndex);
-	}
-	else if (bOnlyRigids && GeometryCollection->IsRigid(BoneIndex))
-	{
-		LeafBonesOut.Push(BoneIndex);
-	}
-	else if (Children[BoneIndex].Num() > 0)
-	{
-		for (int32 ChildElement : Children[BoneIndex])
+		const TManagedArray<TSet<int32>>& Children = ChildrenAttribute.Get();
+		const TManagedArray<int32>& SimulationType = SimulationTypeAttribute.Get();
+
+		if (!bOnlyRigids && Children[BoneIndex].Num() == 0)
 		{
-			GetLeafBones(GeometryCollection, ChildElement, bOnlyRigids, LeafBonesOut);
+			LeafBonesOut.Push(BoneIndex);
+		}
+		else if (bOnlyRigids && SimulationType[BoneIndex] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+		{
+			LeafBonesOut.Push(BoneIndex);
+		}
+		else if (Children[BoneIndex].Num() > 0)
+		{
+			for (int32 ChildElement : Children[BoneIndex])
+			{
+				GetLeafBones(Collection, ChildElement, bOnlyRigids, LeafBonesOut);
+			}
 		}
 	}
-
 }
 
 void FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones)
