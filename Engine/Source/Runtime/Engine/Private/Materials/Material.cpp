@@ -598,7 +598,7 @@ void UMaterialInterface::InitDefaultMaterials()
 
 void UMaterialInterface::PostCDOContruct()
 {
-	if (GEventDrivenLoaderEnabled && EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
+	if (FPlatformProperties::RequiresCookedData())
 	{
 		UMaterial::StaticClass()->GetDefaultObject();
 		UMaterialInterface::InitDefaultMaterials();
