@@ -128,7 +128,8 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 	InstanceAuxData1 = 0; // TODO: pack something useful here 
 #endif // ALLOW_STATIC_LIGHTING
 
-	const uint PackedPrimitiveFlags = ((PrimitiveData.Flags & 0x01FFFFFF) | (InstanceData.Flags << 25u));
+	// 24 bits for Primitive flags + 8 bits for Instance flags
+	const uint PackedPrimitiveFlags = ((PrimitiveData.Flags & 0x00FFFFFF) | (InstanceData.Flags << 24u));
 
 	// This will only write out the relative instance transform, but that's fine; the tile coordinate of the instance transform comes from the primitive data
 	float4 InstanceOriginAndId = InstanceData.LocalToWorld.M[3];
