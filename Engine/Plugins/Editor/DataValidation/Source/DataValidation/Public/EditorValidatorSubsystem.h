@@ -19,6 +19,27 @@ typedef TSharedPtr<class ISourceControlChangelist, ESPMode::ThreadSafe> FSourceC
 DECLARE_LOG_CATEGORY_EXTERN(LogContentValidation, Log, All);
 
 USTRUCT(BlueprintType)
+struct DATAVALIDATION_API FValidateAssetsDetails
+{
+	GENERATED_BODY()
+
+	/** Package Name */
+	FName PackageName;
+
+	/** Asset Name */
+	FName AssetName;
+
+	/** Validation Result */
+	EDataValidationResult Result = EDataValidationResult::Valid;
+
+	/** Validation Errors */
+	TArray<FText> ValidationErrors;
+
+	/** Validation Warnings */
+	TArray<FText> ValidationWarnings;
+};
+
+USTRUCT(BlueprintType)
 struct DATAVALIDATION_API FValidateAssetsResults
 {
 	GENERATED_BODY()
@@ -48,6 +69,14 @@ struct DATAVALIDATION_API FValidateAssetsResults
 	/** Amount of assets that could not be validated */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Validation")
 	int NumUnableToValidate = 0;
+
+	/** 
+	 * Per asset details
+	 * Indexed by object path
+	 * Only returned if FValidateAssetsSettings::bCollectPerAssetDetails is true.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Validation")
+	TMap<FString, FValidateAssetsDetails> AssetsDetails;
 };
 
 USTRUCT(BlueprintType)
@@ -64,6 +93,10 @@ struct DATAVALIDATION_API FValidateAssetsSettings
 	/** If true, will add notifications for files with no validation and display even if everything passes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Validation")
 	bool bShowIfNoFailures = true;
+
+	/** If true, will add an FValidateAssetsDetails for each asset to the results */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Validation")
+	bool bCollectPerAssetDetails = false;
 
 	/** The usecase requiring datavalidation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Validation")

@@ -336,6 +336,16 @@ int32 UEditorValidatorSubsystem::ValidateAssetsWithSettings(const TArray<FAssetD
 				++NumFilesUnableToValidate;
 			}
 		}
+
+		if (InSettings.bCollectPerAssetDetails)
+		{
+			FValidateAssetsDetails& Details = OutResults.AssetsDetails.Emplace(Data.GetObjectPathString());
+			Details.PackageName = Data.PackageName;
+			Details.AssetName = Data.AssetName;
+			Details.Result = Result;
+			Details.ValidationErrors = MoveTemp(ValidationErrors);
+			Details.ValidationWarnings = MoveTemp(ValidationWarnings);
+		}
 	}
 
 	const bool bFailed = (NumInvalidFiles > 0);
