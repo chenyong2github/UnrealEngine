@@ -5,6 +5,8 @@
 #include "RHIDefinitions.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "VisualizeTexture.h"
+#include "ScenePrivate.h"
+#include "SystemTextures.h"
 
 class FRTWriteMaskDecodeCS : public FGlobalShader
 {
@@ -188,4 +190,37 @@ FDepthBounds::FDepthBoundsValues FDepthBounds::CalculateNearFarDepthExcludingSky
 	}
 
 	return Values;
+}
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataPublicGlobalUniformParameters, "StrataPublic");
+
+namespace Strata
+{
+	void PreInitViews(FScene& Scene)
+	{
+		FStrataSceneData& StrataScene = Scene.StrataSceneData;
+		StrataScene.StrataPublicGlobalUniformParameters = nullptr;
+	}
+
+	void PostRender(FScene& Scene)
+	{
+		FStrataSceneData& StrataScene = Scene.StrataSceneData;
+		StrataScene.StrataPublicGlobalUniformParameters = nullptr;
+	}
+
+	TRDGUniformBufferRef<FStrataPublicGlobalUniformParameters> GetPublicGlobalUniformBuffer(FRDGBuilder& GraphBuilder, FScene& Scene)
+	{		
+		if(::Strata::IsStrataEnabled())
+		{
+			FStrataSceneData& StrataScene = Scene.StrataSceneData;
+
+			if(StrataScene.StrataPublicGlobalUniformParameters == nullptr)
+			{
+				return CreatePublicGlobalUniformBuffer(GraphBuilder, nullptr);//We are creating a dummy here so pass in null for the scene data.
+			}
+			return StrataScene.StrataPublicGlobalUniformParameters;
+		}
+
+		return nullptr;
+	}
 }

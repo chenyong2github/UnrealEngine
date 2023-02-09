@@ -428,6 +428,11 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 	{
 		Strata::InitialiseStrataViewData(GraphBuilder, SceneRenderer.Views[ViewIndex], SceneRenderer.GetActiveSceneTexturesConfig(), bNeedBSDFOffsets, Out);
 	}
+
+	if (IsStrataEnabled())
+	{
+		Out.StrataPublicGlobalUniformParameters = ::Strata::CreatePublicGlobalUniformBuffer(GraphBuilder, &Out);
+	}
 }
 
 void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FStrataBasePassUniformParameters& OutStrataUniformParameters)
@@ -565,6 +570,29 @@ TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformPara
 {
 	check(View.StrataViewData.StrataGlobalUniformParameters != nullptr || !IsStrataEnabled());
 	return View.StrataViewData.StrataGlobalUniformParameters;
+}
+
+static void BindStrataPublicGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrataSceneData* StrataSceneData, FStrataPublicGlobalUniformParameters& OutStrataUniformParameters)
+{
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+	if (StrataSceneData && StrataSceneData->TopLayerTexture)
+	{
+		OutStrataUniformParameters.TopLayerTexture = StrataSceneData->TopLayerTexture;
+	}
+	else
+	{
+		OutStrataUniformParameters.TopLayerTexture = SystemTextures.Black;
+	}
+
+	//TODO: Other Strata scene textures or other globals.
+}
+
+TRDGUniformBufferRef<FStrataPublicGlobalUniformParameters> CreatePublicGlobalUniformBuffer(FRDGBuilder& GraphBuilder, FStrataSceneData* StrataScene)
+{
+	FStrataPublicGlobalUniformParameters* StrataPublicUniformParameters = GraphBuilder.AllocParameters<FStrataPublicGlobalUniformParameters>();
+	check(StrataPublicUniformParameters);
+	BindStrataPublicGlobalUniformParameters(GraphBuilder, StrataScene, *StrataPublicUniformParameters);
+	return GraphBuilder.CreateUniformBuffer(StrataPublicUniformParameters);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

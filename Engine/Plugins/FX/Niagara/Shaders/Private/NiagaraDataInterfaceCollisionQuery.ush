@@ -3,6 +3,7 @@
 #pragma once
 
 #include "/Engine/Private/Common.ush"
+#include "/Engine/Public/StrataPublic.ush"
 
 #define NDICOLLISIONQUERY_USE_GBUFFER_NORMAL    (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 
@@ -39,7 +40,12 @@ void NDICollisionQuery_QuerySceneDepthGPU(in float3 In_SamplePos, in float3 In_L
 		FLWCVector3 WorldPosition = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
 
 #if NDICOLLISIONQUERY_USE_GBUFFER_NORMAL
+#if STRATA_ENABLED
+		uint2 ScreenPos = uint2(ScreenUV * View.BufferSizeAndInvSize.xy);
+		float3 WorldNormal = StrataPublic_GetWorldNormal(ScreenPos);
+#else
 		float3 WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
+#endif
 #else
 		float CollisionDepthBounds = 500.0f;
 		float SceneDepth0 = CalcSceneDepth(ScreenUV + float2(View.BufferSizeAndInvSize.z, 0.0));
@@ -96,7 +102,13 @@ void NDICollisionQuery_QueryCustomDepthGPU(in float3 In_SamplePos, in float3 In_
 		FLWCVector3 WorldPosition = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
 
 #if NDICOLLISIONQUERY_USE_GBUFFER_NORMAL
+#if STRATA_ENABLED
+		uint2 ScreenPos = uint2(ScreenUV * View.BufferSizeAndInvSize.xy);
+		float3 WorldNormal = StrataPublic_GetWorldNormal(ScreenPos);
+#else
 		float3 WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
+#endif
+
 #else
 		float CollisionDepthBounds = 500.0f;
 		float SceneDepth0 = NDICollisionQuery_GetCustomSceneDepth(ScreenUV + float2(View.BufferSizeAndInvSize.z, 0.0));

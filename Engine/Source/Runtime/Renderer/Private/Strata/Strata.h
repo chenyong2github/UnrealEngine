@@ -11,6 +11,7 @@
 #include "StrataDefinitions.h"
 #include "RenderGraphUtils.h"
 #include "GBufferInfo.h"
+#include "RendererUtils.h"
 
 // Forward declarations.
 class FScene;
@@ -119,6 +120,9 @@ struct FStrataSceneData
 
 	// Used for Luminance that should go through opaque rough refraction (when under a top layer interface)
 	FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor = nullptr;
+
+	//Public facing minimal uniform data.
+	TRDGUniformBufferRef<FStrataPublicGlobalUniformParameters> StrataPublicGlobalUniformParameters{};
 };
 
 struct FStrataViewData
@@ -171,6 +175,7 @@ TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformPara
 void AppendStrataMRTs(const FSceneRenderer& SceneRenderer, uint32& BasePassTextureCount, TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets>& BasePassTextures);
 void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, FShaderCompilerEnvironment& OutEnvironment, EGBufferLayout GBufferLayout);
 
+TRDGUniformBufferRef<FStrataPublicGlobalUniformParameters> CreatePublicGlobalUniformBuffer(FRDGBuilder& GraphBuilder, FStrataSceneData* StrataScene);
 
 void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FDBufferTextures& DBufferTextures, const TArray<FViewInfo>& Views);
 void AddStrataDBufferPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FDBufferTextures& DBufferTextures, const TArray<FViewInfo>& Views);

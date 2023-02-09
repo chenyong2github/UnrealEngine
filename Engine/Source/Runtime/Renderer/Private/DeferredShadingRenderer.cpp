@@ -2675,6 +2675,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FInitViewTaskDatas InitViewTaskDatas;
 
+	::Strata::PreInitViews(*Scene);
+
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
 		BeginInitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, InstanceCullingManager, VirtualTextureUpdater.Get(), InitViewTaskDatas);
@@ -4312,6 +4314,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	QueueSceneTextureExtractions(GraphBuilder, SceneTextures);
+
+	::Strata::PostRender(*Scene);
 
 	// Release the view's previous frame histories so that their memory can be reused at the graph's execution.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)

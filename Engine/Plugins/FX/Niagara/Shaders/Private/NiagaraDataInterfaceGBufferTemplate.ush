@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Private/DeferredShadingCommon.ush"
+#include "/Engine/Public/StrataPublic.ush"
 
 #define NDIGBUFFER_HAS_GBUFFER				(FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 #define NDIGBUFFER_USE_GBUFFER_VELOCITY		(false && NDIGBUFFER_HAS_GBUFFER)
@@ -37,9 +38,15 @@ void DecodeWorldNormal_{ParameterName}(in float2 ScreenUV, in bool bApplyViewpor
 {
 #if NDIGBUFFER_HAS_GBUFFER
 	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
-	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
-	OutValue = GBufferData.WorldNormal;
+
+	#if STRATA_ENABLED
+		uint2 ScreenPos = uint2(ScreenUV * View.BufferSizeAndInvSize.xy);
+		OutValue = StrataPublic_GetWorldNormal(ScreenPos);
+	#else
+		FGBufferData GBufferData = GetGBufferData(ScreenUV);
+		OutValue = GBufferData.WorldNormal;
+	#endif
 #else
 	IsValid = false;
 	OutValue = 0;
