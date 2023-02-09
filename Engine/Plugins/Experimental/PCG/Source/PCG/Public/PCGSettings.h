@@ -278,6 +278,12 @@ protected:
 	*/
 	void InitializeCachedOverridableParams(bool bReset = false);
 
+	/**
+	* There is a weird issue where the BP class is not set correctly in some Server cases.
+	* We can try to recover if the PropertyClass is null.
+	*/
+	virtual void FixingOverridableParamPropertyClass(FPCGSettingsOverridableParam& Param) const;
+
 	/** Needs to be serialized since property metadata (used to populate this array) is not available at runtime. */
 	UPROPERTY()
 	TArray<FPCGSettingsOverridableParam> CachedOverridableParams;

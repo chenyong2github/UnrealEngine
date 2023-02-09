@@ -493,6 +493,26 @@ TArray<FPCGSettingsOverridableParam> UPCGBlueprintSettings::GatherOverridablePar
 }
 #endif // WITH_EDITOR
 
+void UPCGBlueprintSettings::FixingOverridableParamPropertyClass(FPCGSettingsOverridableParam& Param) const
+{
+	bool bFound = false;
+
+	if (BlueprintElementInstance && !Param.PropertiesNames.IsEmpty())
+	{
+		UClass* BPClass = BlueprintElementInstance->GetClass();
+		if (BPClass && BPClass->FindPropertyByName(Param.PropertiesNames[0]))
+		{
+			Param.PropertyClass = BPClass;
+			bFound = true;
+		}
+	}
+
+	if(!bFound)
+	{
+		Super::FixingOverridableParamPropertyClass(Param);
+	}
+}
+
 bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 {
 	FPCGBlueprintExecutionContext* Context = static_cast<FPCGBlueprintExecutionContext*>(InContext);
