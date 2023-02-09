@@ -697,7 +697,7 @@ void UMediaPlateComponent::ProxySetTextureBlend(int32 LayerIndex, int32 TextureI
 			if (MID != nullptr)
 			{
 				int32 MatNumLayers = MediaTextures.Num() / MatNumTexPerLayer;
-				if (LayerIndex < MatNumLayers)
+				if ((LayerIndex < MatNumLayers) && (LayerIndex < TextureLayers.Num()))
 				{
 					const TArray<int32>& Layer = TextureLayers[LayerIndex];
 					for (int32 LayerTexIndex = 0;
