@@ -298,7 +298,7 @@ void UChaosClothAsset::CalculateBounds()
 
 			const int32 RenderVerticesStart = ClothCollection->RenderVerticesStart[PatternElementIndex];
 			const int32 RenderVerticesEnd = ClothCollection->RenderVerticesEnd[PatternElementIndex];
-			if (RenderVerticesStart != INDEX_NONE && RenderVerticesStart != INDEX_NONE)
+			if (RenderVerticesStart != INDEX_NONE && RenderVerticesEnd != INDEX_NONE)
 			{
 				for (int32 RenderVertexIndex = RenderVerticesStart; RenderVertexIndex <= RenderVerticesEnd; ++RenderVertexIndex)
 				{
