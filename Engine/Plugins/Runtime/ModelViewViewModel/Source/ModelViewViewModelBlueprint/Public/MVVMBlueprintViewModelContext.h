@@ -7,6 +7,8 @@
 
 #include "MVVMBlueprintViewModelContext.generated.h"
 
+class UMVVMViewModelResolver;
+
 /**
  *
  */
@@ -21,12 +23,14 @@ enum class EMVVMBlueprintViewModelContextCreationType : uint8
 	GlobalViewModelCollection,
 	// The viewmodel will be fetched by evaluating a function or a property path.
 	PropertyPath,
+	// The viewmodel will be fetched by evaluating the resolver object.
+	Resolver,
 };
 
 /**
  *
  */
-USTRUCT(BlueprintType)
+USTRUCT()
 struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewModelContext
 {
 	GENERATED_BODY()
@@ -106,6 +110,9 @@ public:
 	/** The Path to get the viewmodel instance. */
 	UPROPERTY(EditAnywhere, Category = "Viewmodel", AdvancedDisplay, meta = (EditCondition = "CreationType == EMVVMBlueprintViewModelContextCreationType::PropertyPath", EditConditionHides))
 	FString ViewModelPropertyPath;
+
+	UPROPERTY(EditAnywhere, Category = "Viewmodel", Instanced, AdvancedDisplay, meta = (EditInline, EditCondition = "CreationType == EMVVMBlueprintViewModelContextCreationType::Resolver", EditConditionHides))
+	TObjectPtr<UMVVMViewModelResolver> Resolver = nullptr;
 
 	/**
 	 * Generate a setter function for this viewmodel.

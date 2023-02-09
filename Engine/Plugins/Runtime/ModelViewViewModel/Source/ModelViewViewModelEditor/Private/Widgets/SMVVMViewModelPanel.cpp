@@ -7,6 +7,7 @@
 #include "MVVMBlueprintView.h"
 #include "MVVMEditorSubsystem.h"
 #include "PropertyEditorModule.h"
+#include "View/MVVMViewModelResolver.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintEditor.h"
 
@@ -33,6 +34,10 @@ void UMVVMBlueprintViewModelContextWrapper::PostEditChangeProperty(struct FPrope
 	{
 		if (FMVVMBlueprintViewModelContext* ViewModelContextPtr = BlueprintViewPtr->FindViewModel(ViewModelId))
 		{
+			if (Wrapper.Resolver && (Wrapper.Resolver->GetOuter() == this || Wrapper.Resolver->GetOuter() == GetTransientPackage()))
+			{
+				Wrapper.Resolver->Rename(nullptr, BlueprintViewPtr);
+			}
 			*ViewModelContextPtr = Wrapper;
 		}
 	}
@@ -212,6 +217,7 @@ TSharedRef<SWidget> SMVVMViewModelPanel::MakeAddMenu()
 			SNew(SMVVMSelectViewModel, WidgetBlueprint)
 			.OnCancel(this, &SMVVMViewModelPanel::HandleCancelAddMenu)
 			.OnViewModelCommitted(this, &SMVVMViewModelPanel::HandleAddMenuViewModel)
+			.DisallowedClassFlags(CLASS_HideDropDown | CLASS_Hidden | CLASS_Deprecated | CLASS_NotPlaceable)
 		];
 }
 

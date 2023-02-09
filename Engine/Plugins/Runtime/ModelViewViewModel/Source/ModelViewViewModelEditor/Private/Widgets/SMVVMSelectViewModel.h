@@ -4,6 +4,7 @@
 
 #include "ClassViewerFilter.h"
 #include "Widgets/SCompoundWidget.h"
+#include "UObject/ObjectMacros.h"
 
 class SClassViewer;
 class UWidgetBlueprint;
@@ -19,6 +20,8 @@ public:
 
 	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override;
 	virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef<const IUnloadedBlueprintData> InUnloadedClassData, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override;
+
+	EClassFlags DisallowedClassFlags = CLASS_HideDropDown | CLASS_Hidden | CLASS_Deprecated | CLASS_Abstract | CLASS_NotPlaceable;
 };
 
 class SMVVMSelectViewModel : public SCompoundWidget
@@ -29,6 +32,7 @@ public:
 	SLATE_BEGIN_ARGS(SMVVMSelectViewModel) {}
 		SLATE_EVENT(FSimpleDelegate, OnCancel)
 		SLATE_EVENT(FOnValueChanged, OnViewModelCommitted)
+		SLATE_ARGUMENT(TOptional<EClassFlags>, DisallowedClassFlags)
 	SLATE_END_ARGS()
 
 public:
@@ -47,6 +51,7 @@ private:
 
 	FSimpleDelegate OnCancel;
 	FOnValueChanged OnViewModelCommitted;
+	EClassFlags DisallowedClassFlags;
 };
 
 } //namespace

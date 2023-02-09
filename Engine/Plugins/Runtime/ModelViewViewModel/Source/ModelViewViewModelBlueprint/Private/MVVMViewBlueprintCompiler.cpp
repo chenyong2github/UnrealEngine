@@ -10,8 +10,9 @@
 #include "HAL/IConsoleManager.h"
 #include "MVVMFunctionGraphHelper.h"
 #include "Templates/ValueOrError.h"
-#include "View/MVVMViewClass.h"
 #include "Types/MVVMBindingName.h"
+#include "View/MVVMViewClass.h"
+#include "View/MVVMViewModelResolver.h"
 #include "UObject/LinkerLoad.h"
 
 #define LOCTEXT_NAMESPACE "MVVMViewBlueprintCompiler"
@@ -806,6 +807,15 @@ bool FMVVMViewBlueprintCompiler::PreCompileSourceCreators(UWidgetBlueprintGenera
 					continue;
 				}
 			}
+			else if (ViewModelContext.CreationType == EMVVMBlueprintViewModelContextCreationType::Resolver)
+			{
+				if (!ViewModelContext.Resolver)
+				{
+					AddErrorForViewModel(ViewModelContext, LOCTEXT("ViewmodelInvalidResolver", "Viewmodel doesn't have a valid Resolver. You can specify a new one in the Viewmodels panel."));
+					bAreSourcesCreatorValid = false;
+					continue;
+				}
+			}
 			else
 			{
 				AddErrorForViewModel(ViewModelContext, LOCTEXT("ViewmodelInvalidCreationType", "Viewmodel doesn't have a valid creation type. You can select one in the Viewmodels panel."));
@@ -873,6 +883,18 @@ bool FMVVMViewBlueprintCompiler::CompileSourceCreators(const FCompiledBindingLib
 				}
 
 				CompiledSourceCreator = FMVVMViewClass_SourceCreator::MakeGlobalContext(ViewModelContext.GetViewModelName(), MoveTemp(GlobalViewModelInstance), ViewModelContext.bOptional);
+			}
+			else if (ViewModelContext.CreationType == EMVVMBlueprintViewModelContextCreationType::Resolver)
+			{
+				UMVVMViewModelResolver* Resolver = DuplicateObject(ViewModelContext.Resolver.Get(), ViewExtension);
+				if (!Resolver)
+				{
+					AddErrorForViewModel(ViewModelContext, LOCTEXT("ViewmodelFailedResolverDuplicate", "Internal error. The resolver could not be dupliated."));
+					bAreSourcesCreatorValid = false;
+					continue;
+				}
+
+				CompiledSourceCreator = FMVVMViewClass_SourceCreator::MakeResolver(ViewModelContext.GetViewModelName(), ViewModelContext.GetViewModelClass(), Resolver, ViewModelContext.bOptional);
 			}
 			else
 			{

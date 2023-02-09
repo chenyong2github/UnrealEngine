@@ -3,6 +3,7 @@
 #include "View/MVVMViewClass.h"
 #include "Types/MVVMFieldContext.h"
 #include "View/MVVMView.h"
+#include "View/MVVMViewModelResolver.h"
 
 #include "Bindings/MVVMFieldPathHelper.h"
 #include "Blueprint/UserWidget.h"
@@ -79,6 +80,19 @@ FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeGlobalContext(FNa
 	return Result;
 }
 
+FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeResolver(FName InName, UClass* InNotifyFieldValueChangedClass, UMVVMViewModelResolver* InResolver, bool bOptional)
+{
+	FMVVMViewClass_SourceCreator Result;
+	if (ensure(InResolver && InNotifyFieldValueChangedClass && InNotifyFieldValueChangedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))
+	{
+		Result.PropertyName = InName;
+		Result.ExpectedSourceType = InNotifyFieldValueChangedClass;
+		Result.Resolver = InResolver;
+		Result.bOptional = bOptional;
+		ensure(InResolver->GetPackage() != GetTransientPackage() && !InResolver->HasAnyFlags(RF_Transient));
+	}
+	return Result;
+}
 
 UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InViewClass, UMVVMView* InView, UUserWidget* InUserWidget) const
 {
@@ -93,8 +107,7 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 	{
 		auto AssignProperty = [FoundObjectProperty, InUserWidget](UObject* NewObject)
 		{
-			check(NewObject);
-			if (ensure(NewObject->GetClass()->IsChildOf(FoundObjectProperty->PropertyClass)))
+			if (ensure(NewObject == nullptr || NewObject->GetClass()->IsChildOf(FoundObjectProperty->PropertyClass)))
 			{
 				FoundObjectProperty->SetObjectPropertyValue_InContainer(InUserWidget, NewObject);
 			}
@@ -105,12 +118,27 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 			if (ExpectedSourceType.Get() != nullptr)
 			{
 				Result = NewObject<UObject>(InUserWidget, ExpectedSourceType.Get(), NAME_None, RF_Transient);
-				AssignProperty(Result);
 			}
 			else if (!bOptional)
 			{
 				UE::MVVM::FMessageLog Log(InUserWidget);
 				Log.Error(FText::Format(LOCTEXT("CreateInstanceCreateInstance", "The source '{0}' could not be created. The class is not loaded."), FText::FromName(PropertyName)));
+			}
+		}
+		else if (Resolver)
+		{
+			Result = Resolver->CreateInstance(ExpectedSourceType.Get(), InUserWidget, InView);
+			if (!Result && !bOptional)
+			{
+				UE::MVVM::FMessageLog Log(InUserWidget);
+				Log.Error(FText::Format(LOCTEXT("CreateInstanceFailResolver", "The source '{0}' could not be created. Resolver returned an invalid value."), FText::FromName(PropertyName)));
+			}
+			if (Result && !Result->IsA(ExpectedSourceType.Get()))
+			{
+				Result = nullptr;
+
+				UE::MVVM::FMessageLog Log(InUserWidget);
+				Log.Error(FText::Format(LOCTEXT("CreateInstanceFailResolverExpected", "The source '{0}' could not be created. Resolver returned viewodel of an unexpected type."), FText::FromName(PropertyName)));
 			}
 		}
 		else if (GlobalViewModelInstance.IsValid())
@@ -133,7 +161,6 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 			{
 				ensureMsgf(FoundViewModelInstance->IsA(GlobalViewModelInstance.ContextClass), TEXT("The Global View Model Instance is not of the expected type."));
 				Result = FoundViewModelInstance;
-				AssignProperty(Result);
 			}
 			else if (!bOptional)
 			{
@@ -157,7 +184,6 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 				if (ObjectResult.HasValue() && ObjectResult.GetValue() != nullptr)
 				{
 					Result = ObjectResult.GetValue();
-					AssignProperty(ObjectResult.GetValue());
 				}
 			}
 
@@ -167,6 +193,8 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 				Log.Error(FText::Format(LOCTEXT("CreateInstanceInvalidBiding", "The source '{0}' was evaluated to be invalid at initialization."), FText::FromName(PropertyName)));
 			}
 		}
+
+		AssignProperty(Result);
 	}
 
 	return Result;

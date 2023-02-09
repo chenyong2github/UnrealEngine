@@ -19,9 +19,7 @@ namespace UE::MVVM
 
 namespace Private
 {
-	static const EClassFlags DisallowedClassFlags = CLASS_HideDropDown | CLASS_Hidden | CLASS_Deprecated | CLASS_Abstract | CLASS_NotPlaceable;
-
-	bool IsValidViewModel(const UClass* InClass)
+	bool IsValidViewModel(const UClass* InClass, EClassFlags DisallowedClassFlags)
 	{
 		if (InClass == nullptr || InClass->IsChildOf(UWidget::StaticClass()))
 		{
@@ -33,7 +31,7 @@ namespace Private
 
 bool FViewModelClassFilter::IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs)
 {
-	return Private::IsValidViewModel(InClass);
+	return Private::IsValidViewModel(InClass, DisallowedClassFlags);
 }
 
 bool FViewModelClassFilter::IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef<const IUnloadedBlueprintData> InUnloadedClassData, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs)
@@ -42,7 +40,7 @@ bool FViewModelClassFilter::IsUnloadedClassAllowed(const FClassViewerInitializat
 	{
 		return false;
 	}
-	return InUnloadedClassData->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()) && !InUnloadedClassData->HasAnyClassFlags(Private::DisallowedClassFlags);
+	return InUnloadedClassData->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()) && !InUnloadedClassData->HasAnyClassFlags(DisallowedClassFlags);
 }
 
 
@@ -51,11 +49,15 @@ void SMVVMSelectViewModel::Construct(const FArguments& InArgs, const UWidgetBlue
 	OnCancel = InArgs._OnCancel;
 	OnViewModelCommitted = InArgs._OnViewModelCommitted;
 
+	TSharedRef<FViewModelClassFilter> ClassFilter = MakeShared<FViewModelClassFilter>();
+	DisallowedClassFlags = InArgs._DisallowedClassFlags.Get(ClassFilter->DisallowedClassFlags);
+	ClassFilter->DisallowedClassFlags = InArgs._DisallowedClassFlags.GetValue();
+
 	FClassViewerInitializationOptions ClassViewerOptions;
 	ClassViewerOptions.DisplayMode = EClassViewerDisplayMode::TreeView;
 	ClassViewerOptions.Mode = EClassViewerMode::ClassPicker;
 	ClassViewerOptions.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
-	ClassViewerOptions.ClassFilters.Add(MakeShared<FViewModelClassFilter>());
+	ClassViewerOptions.ClassFilters.Add(ClassFilter);
 
 	ClassViewer = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer")
 		.CreateClassViewer(ClassViewerOptions, FOnClassPicked::CreateSP(this, &SMVVMSelectViewModel::HandleClassPicked));
@@ -132,7 +134,7 @@ void SMVVMSelectViewModel::HandleClassPicked(UClass* ClassPicked)
 	BindingListWidget->ClearSources();
 	SelectedClass.Reset();
 
-	if (Private::IsValidViewModel(ClassPicked))
+	if (Private::IsValidViewModel(ClassPicked, DisallowedClassFlags))
 	{
 		SelectedClass = ClassPicked;
 		BindingListWidget->AddSource(ClassPicked, FName(), FGuid());
