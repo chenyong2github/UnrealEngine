@@ -42,7 +42,6 @@ Buffer<int>									MacroGroupAABBBuffer;
 RWBuffer<int>								MacroGroupVoxelAlignedAABBBuffer;
 RWBuffer<uint4>								OutPageIndexResolutionAndOffsetBuffer;
 RWBuffer<uint>								OutPageIndexAllocationIndirectBufferArgs;
-RWStructuredBuffer<FVoxelizationViewInfo>	OutVoxelizationViewInfoBuffer;
 
 
 #if GROUP_SIZE != MAX_HAIR_MACROGROUP_COUNT
@@ -141,14 +140,6 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 			// Clear all output if the allocation is not valid
 			OutPageIndexResolutionAndOffsetBuffer[MacroGroupId] = uint4(0, 0, 0, 0);
 			WriteDispatchIndirectArgs(OutPageIndexAllocationIndirectBufferArgs, MacroGroupId, 0, 1, 1);
-
-			FVoxelizationViewInfo ViewInfo;
-			ViewInfo.TranslatedWorldToClip = 0;
-			ViewInfo.ViewForward = 0;
-			ViewInfo.RasterResolution = 0;
-			ViewInfo.Pad0 = 0;
-			ViewInfo.Pad1 = 0;
-			OutVoxelizationViewInfoBuffer[MacroGroupId] = ViewInfo;
 		}
 	}
 
@@ -161,69 +152,6 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		const uint AllocatedPageIndexCount = PageIndexResolution.x * PageIndexResolution.y * PageIndexResolution.z;
 		WriteDispatchIndirectArgs(OutPageIndexAllocationIndirectBufferArgs, MacroGroupId, DivideAndRoundUp(AllocatedPageIndexCount, IndirectDispatchGroupSize), 1, 1);
-	}
-
-	// Matrix generation
-	if (bIsValid)
-	{
-		// Find the largest resolution and its dominant axis
-		uint2 RasterResolution = uint2(0, 0);
-		float3 RasterProjectionSize = float3(0, 0, 0);
-		float3 RasterDirection = float3(0, 0, 0);
-		float3 RasterUp = float3(0, 0, 0);
-		const int3 TotalVoxelResolution = PageIndexResolution * PageResolution;
-		{
-			const uint ResolutionXY = TotalVoxelResolution.x * TotalVoxelResolution.y;
-			const uint ResolutionXZ = TotalVoxelResolution.x * TotalVoxelResolution.z;
-			const uint ResolutionYZ = TotalVoxelResolution.y * TotalVoxelResolution.y;
-			if (ResolutionXY >= ResolutionXZ && ResolutionXY >= ResolutionYZ)
-			{
-				RasterResolution = int2(TotalVoxelResolution.x, TotalVoxelResolution.y);
-				RasterDirection = float3(0, 0, 1);
-				RasterUp = float3(0, 1, 0);
-
-				FHairAABB ProjRasterAABB;
-				ProjRasterAABB.Min = float3(Bound.Min.x, Bound.Min.y, Bound.Min.z);
-				ProjRasterAABB.Max = float3(Bound.Max.x, Bound.Max.y, Bound.Max.z);
-				RasterProjectionSize = ProjRasterAABB.Max - ProjRasterAABB.Min;
-			}
-			else if (ResolutionXZ >= ResolutionXY && ResolutionXZ >= ResolutionYZ)
-			{
-				RasterResolution = int2(TotalVoxelResolution.x, TotalVoxelResolution.z);
-				RasterDirection = float3(0, -1, 0);
-				RasterUp = float3(0, 0, 1);
-
-				FHairAABB ProjRasterAABB;
-				ProjRasterAABB.Min = float3(Bound.Min.x, Bound.Min.z, Bound.Min.y);
-				ProjRasterAABB.Max = float3(Bound.Max.x, Bound.Max.z, Bound.Max.y);
-				RasterProjectionSize = ProjRasterAABB.Max - ProjRasterAABB.Min;
-			}
-			else
-			{
-				RasterResolution = int2(TotalVoxelResolution.y, TotalVoxelResolution.z);
-				RasterDirection = float3(1, 0, 0);
-				RasterUp = float3(0, 0, 1);
-
-				FHairAABB ProjRasterAABB;
-				ProjRasterAABB.Min = float3(Bound.Min.y, Bound.Min.z, Bound.Min.x);
-				ProjRasterAABB.Max = float3(Bound.Max.y, Bound.Max.z, Bound.Max.x);
-				RasterProjectionSize = ProjRasterAABB.Max - ProjRasterAABB.Min;
-			}
-		}
-
-		const float3 RasterAABBSize = Bound.Max - Bound.Min;
-		const float3 RasterAABBCenter = (Bound.Max + Bound.Min) * 0.5f;
-
-		const float4x4 ProjMatrix = ReversedZOrthoMatrix(0.5f * RasterProjectionSize.x, 0.5f * RasterProjectionSize.y, 1.0f / RasterProjectionSize.z, 0);
-		const float4x4 TranslatedViewMatrix = LookAtMatrix(RasterAABBCenter - RasterDirection * RasterProjectionSize.z * 0.5f, RasterAABBCenter, RasterUp);
-
-		FVoxelizationViewInfo ViewInfo;
-		ViewInfo.TranslatedWorldToClip = mul(TranslatedViewMatrix, ProjMatrix);
-		ViewInfo.ViewForward = RasterDirection;
-		ViewInfo.RasterResolution = RasterResolution;
-		ViewInfo.Pad0 = 0;
-		ViewInfo.Pad1 = 0;
-		OutVoxelizationViewInfoBuffer[MacroGroupId] = ViewInfo;
 	}
 }
 #endif

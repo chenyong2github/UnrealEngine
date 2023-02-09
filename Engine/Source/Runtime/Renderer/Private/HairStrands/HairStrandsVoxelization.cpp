@@ -261,7 +261,6 @@ class FVoxelAllocatePageIndexCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, MacroGroupVoxelAlignedAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint4>, OutPageIndexResolutionAndOffsetBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutVoxelizationViewInfoBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutPageIndexAllocationIndirectBufferArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -510,7 +509,6 @@ static void AddAllocateVoxelPagesPass(
 	FRDGBufferRef& OutNodeDescBuffer,
 	FRDGBufferRef& OutIndirectArgsBuffer,
 	FRDGBufferRef& OutPageIndexGlobalCounter,
-	FRDGBufferRef& OutVoxelizationViewInfoBuffer,
 	FRDGBufferRef& CurrGPUMinVoxelSize,
 	FRDGBufferRef& NextGPUMinVoxelSize)
 {
@@ -584,9 +582,6 @@ static void AddAllocateVoxelPagesPass(
 	FRDGBufferUAVRef PageIndexOccupancyBufferUAV = GraphBuilder.CreateUAV(PageIndexOccupancyBuffer, PF_R32G32_UINT);
 	FRDGBufferUAVRef PageIndexGlobalCounterUAV = GraphBuilder.CreateUAV(PageIndexGlobalCounter, PF_R32_UINT);
 	
-	// Stored FVoxelizationViewInfo structs
-	// See HairStrandsVoxelPageCommonStruct.ush for more details
-	FRDGBufferRef VoxelizationViewInfoBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(24 * sizeof(float), MacroGroupCount), TEXT("Hair.VoxelizationViewInfo"));
 	FRDGBufferRef PageIndexResolutionBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(MacroGroupCount * 4 * sizeof(uint32), OutTotalPageIndexCount), TEXT("Hair.PageIndexResolutionBuffer"));
 	FRDGBufferRef PageIndexAllocationIndirectBufferArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(MacroGroupCount), TEXT("Hair.PageIndexAllocationIndirectBufferArgs"));
 
@@ -626,7 +621,6 @@ static void AddAllocateVoxelPagesPass(
 		Parameters->MacroGroupVoxelAlignedAABBBuffer = GraphBuilder.CreateUAV(MacroGroupResources.MacroGroupVoxelAlignedAABBsBuffer, PF_R32_SINT);
 		Parameters->IndirectDispatchGroupSize = FVoxelAllocateVoxelPageCS::GetGroupSize();
 		Parameters->OutPageIndexResolutionAndOffsetBuffer = GraphBuilder.CreateUAV(PageIndexResolutionBuffer, PF_R32G32B32A32_UINT);
-		Parameters->OutVoxelizationViewInfoBuffer = GraphBuilder.CreateUAV(VoxelizationViewInfoBuffer);
 		Parameters->OutPageIndexAllocationIndirectBufferArgs = GraphBuilder.CreateUAV(PageIndexAllocationIndirectBufferArgs);
 		Parameters->CPU_bUseCPUData = bIsGPUDriven ? 0 : 1;
 		Parameters->GPUVoxelWorldSize = CurrGPUMinVoxelSizeSRV;
@@ -836,7 +830,6 @@ static void AddAllocateVoxelPagesPass(
 	OutNodeDescBuffer = NodeDescBuffer;
 	OutIndirectArgsBuffer = IndirectArgsBuffer;
 	OutPageIndexGlobalCounter = PageIndexGlobalCounter;
-	OutVoxelizationViewInfoBuffer = VoxelizationViewInfoBuffer;
 }
 
 static float RoundHairVoxeliSize(float In)
@@ -927,7 +920,6 @@ static FHairStrandsVoxelResources AllocateVirtualVoxelResources(
 		Out.NodeDescBuffer,
 		Out.IndirectArgsBuffer,
 		Out.PageIndexGlobalCounter,
-		Out.VoxelizationViewInfoBuffer,
 		CurrGPUMinVoxelSize,
 		NextGPUMinVoxelSize);
 
@@ -1020,7 +1012,6 @@ static FHairStrandsVoxelResources AllocateDummyVirtualVoxelResources(
 	Out.NodeDescBuffer				= DummyStructBuffer;
 	Out.IndirectArgsBuffer			= Dummy4BytesBuffer;
 	Out.PageIndexGlobalCounter		= Dummy4BytesBuffer;
-	Out.VoxelizationViewInfoBuffer	= DummyStructBuffer;
 	Out.PageTexture					= GSystemTextures.GetDefaultTexture(GraphBuilder, ETextureDimension::Texture3D, PF_R32_UINT, 0u);
 
 	Out.Parameters.Common.PageIndexBuffer			= GraphBuilder.CreateSRV(Out.PageIndexBuffer, PF_R32_UINT);
@@ -1108,7 +1099,6 @@ class FVoxelRasterComputeCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MaxRasterCount)
 		SHADER_PARAMETER(uint32, FrameIdMod8)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceParameters, HairInstance)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VoxelizationViewInfoBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutPageTexture)
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(float, CoverageScale)
@@ -1141,7 +1131,6 @@ static void AddVirtualVoxelizationComputeRasterPass(
 	{
 		const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos = MacroGroup.PrimitivesInfos;
 
-		FRDGBufferSRVRef VoxelizationViewInfoBufferSRV = GraphBuilder.CreateSRV(VoxelResources.VoxelizationViewInfoBuffer);
 		FRDGTextureUAVRef PageTextureUAV = GraphBuilder.CreateUAV(VoxelResources.PageTexture);
 
 		const uint32 FrameIdMode8 = ViewInfo && ViewInfo->ViewState ? (ViewInfo->ViewState->GetFrameIndex() % 8) : 0;
@@ -1177,7 +1166,6 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->MaxRasterCount = FMath::Clamp(GHairStrandsVoxelComputeRasterMaxVoxelCount, 1, 256);
 				PassParameters->VirtualVoxelParams = VoxelResources.Parameters.Common;
 				PassParameters->MacroGroupId = MacroGroup.MacroGroupId;
-				PassParameters->VoxelizationViewInfoBuffer = VoxelizationViewInfoBufferSRV;
 				PassParameters->OutPageTexture = PageTextureUAV;
 				PassParameters->FrameIdMod8 = FrameIdMode8;
 

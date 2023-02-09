@@ -245,7 +245,6 @@ struct FHairStrandsVoxelResources
 	FRDGBufferRef PageIndexCoordBuffer = nullptr;
 	FRDGBufferRef IndirectArgsBuffer = nullptr;
 	FRDGBufferRef PageIndexGlobalCounter = nullptr;
-	FRDGBufferRef VoxelizationViewInfoBuffer = nullptr;
 
 	const bool IsValid() const { return UniformBuffer != nullptr && PageTexture != nullptr && NodeDescBuffer != nullptr; }
 };
