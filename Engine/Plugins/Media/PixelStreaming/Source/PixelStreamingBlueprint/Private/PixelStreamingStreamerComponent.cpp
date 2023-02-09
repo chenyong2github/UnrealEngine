@@ -14,14 +14,26 @@ UPixelStreamingStreamerComponent::UPixelStreamingStreamerComponent(const FObject
 	});
 }
 
+UPixelStreamingStreamerComponent::~UPixelStreamingStreamerComponent()
+{
+	if (Streamer)
+	{
+		IPixelStreamingModule::Get().DeleteStreamer(Streamer);
+	}
+}
+
 FString UPixelStreamingStreamerComponent::GetId()
 {
-	return Streamer->GetId();
+	if (Streamer)
+	{
+		return Streamer->GetId();
+	}
+	return "";
 }
 
 bool UPixelStreamingStreamerComponent::IsSignallingConnected()
 {
-	return Streamer->IsSignallingConnected();
+	return Streamer && Streamer->IsSignallingConnected();
 }
 
 void UPixelStreamingStreamerComponent::StartStreaming()
@@ -35,6 +47,10 @@ void UPixelStreamingStreamerComponent::StartStreaming()
 	{
 		Streamer->SetVideoInput(VideoInput->GetVideoInput());
 	}
+	else
+	{
+		Streamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
+	}
 
 	Streamer->SetCoupleFramerate(CoupleFramerate);
 	Streamer->SetStreamFPS(StreamFPS);
@@ -44,32 +60,47 @@ void UPixelStreamingStreamerComponent::StartStreaming()
 
 void UPixelStreamingStreamerComponent::StopStreaming()
 {
-	Streamer->StopStreaming();
+	if (Streamer)
+	{
+		Streamer->StopStreaming();
+	}
 }
 
 bool UPixelStreamingStreamerComponent::IsStreaming()
 {
-	return Streamer->IsStreaming();
+	return Streamer && Streamer->IsStreaming();
 }
 
 void UPixelStreamingStreamerComponent::ForceKeyFrame()
 {
-	Streamer->ForceKeyFrame();
+	if (Streamer)
+	{
+		Streamer->ForceKeyFrame();
+	}
 }
 
 void UPixelStreamingStreamerComponent::FreezeStream(UTexture2D* Texture)
 {
-	Streamer->FreezeStream(Texture);
+	if (Streamer)
+	{
+		Streamer->FreezeStream(Texture);
+	}
 }
 
 void UPixelStreamingStreamerComponent::UnfreezeStream()
 {
-	Streamer->UnfreezeStream();
+	if (Streamer)
+	{
+		Streamer->UnfreezeStream();
+	}
 }
 
 void UPixelStreamingStreamerComponent::SendPlayerMessage(uint8 Type, const FString& Descriptor)
 {
-	Streamer->SendPlayerMessage(Type, Descriptor);
+	if (Streamer)
+	{
+		Streamer->SendPlayerMessage(Type, Descriptor);
+	}
 }
 
 void UPixelStreamingStreamerComponent::OnPostEngineInit()
@@ -78,6 +109,7 @@ void UPixelStreamingStreamerComponent::OnPostEngineInit()
 	{
 		SetupStreamerInput();
 	}
+
 	bEngineStarted = true;
 }
 

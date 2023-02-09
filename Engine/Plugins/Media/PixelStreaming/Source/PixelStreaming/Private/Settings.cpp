@@ -215,7 +215,7 @@ namespace UE::PixelStreaming::Settings
 
 	TAutoConsoleVariable<bool> CVarSendPlayerIdAsInteger(
 		TEXT("PixelStreaming.SendPlayerIdAsInteger"),
-		true,
+		false,
 		TEXT("If true transmit the player id as an integer (for backward compatibility) or as a string."),
 		ECVF_Default);
 

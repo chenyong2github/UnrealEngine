@@ -44,6 +44,10 @@ public:
 	// If true then the Live Link Subject of the owning VCam Component will be set to the subject created by this Output Provider when the Provider is enabled
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool bAutoSetLiveLinkSubject = true;
+
+	// Set the name of this stream to be reported to the signalling server. If none is supplied a default will be used. If ids are not unique issues can occur.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
+	FString StreamerId;
 	
 protected:
 	UPROPERTY(Transient)

@@ -257,11 +257,11 @@ namespace UE::PixelStreamingServers::Utils
 		return OutString;
 	}
 
-	FString ToString(TSharedRef<FJsonObject> JSONObj)
+	FString ToString(TSharedPtr<FJsonObject> JSONObj)
 	{
 		FString Res;
 		auto JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Res);
-		bool bSerialized = FJsonSerializer::Serialize(JSONObj, JsonWriter);
+		bool bSerialized = FJsonSerializer::Serialize(JSONObj.ToSharedRef(), JsonWriter);
 		if(!bSerialized)
 		{
 			UE_LOG(LogPixelStreamingServers, Error, TEXT("Failed to stringify JSON object."));
@@ -269,10 +269,15 @@ namespace UE::PixelStreamingServers::Utils
 		return Res;
 	}
 
-	bool Jsonify(FString InJSONString, TSharedPtr<FJsonObject>& OutJSON)
+	TSharedPtr<FJsonObject> ToJSON(const FString& InString)
 	{
-		const auto JsonReader = TJsonReaderFactory<TCHAR>::Create(InJSONString);
-		return FJsonSerializer::Deserialize(JsonReader, OutJSON);
+		TSharedPtr<FJsonObject> OutJSON = MakeShared<FJsonObject>();
+		const auto JsonReader = TJsonReaderFactory<TCHAR>::Create(InString);
+		if (FJsonSerializer::Deserialize(JsonReader, OutJSON))
+		{
+			return OutJSON;
+		}
+		return nullptr;
 	}
 
 } // UE::PixelStreamingServers::Utils

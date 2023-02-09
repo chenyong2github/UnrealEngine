@@ -33,7 +33,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"PixelStreaming",
+					"PixelStreaming"
 				});
 		}
 	}

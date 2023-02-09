@@ -118,6 +118,39 @@ namespace UE::PixelStreamingServers
 		return false;
 	}
 
+	void FWebSocketServerWrapper::NameConnection(uint16 ConnectionId, const FString& Name)
+	{
+		if (auto* Connection = Connections.Find(ConnectionId))
+		{
+			NamedConnections.FindOrAdd(Name) = ConnectionId;
+		}
+	}
+
+	void FWebSocketServerWrapper::RemoveName(const FString& Name)
+	{
+		NamedConnections.Remove(Name);
+	}
+
+	bool FWebSocketServerWrapper::GetNamedConnection(const FString& Name, uint16& OutConnectionId) const
+	{
+		if (auto* ConnectionId = NamedConnections.Find(Name))
+		{
+			OutConnectionId = *ConnectionId;
+			return true;
+		}
+		return false;
+	}
+
+	TArray<FString> FWebSocketServerWrapper::GetConnectionNames() const
+	{
+		TArray<FString> Names;
+		for (auto [Name, ConnectionId] : NamedConnections)
+		{
+			Names.Add(Name);
+		}
+		return Names;
+	}
+
 	void FWebSocketServerWrapper::Stop()
 	{
 		bLaunched = false;
@@ -150,6 +183,15 @@ namespace UE::PixelStreamingServers
 			UE_LOG(LogPixelStreamingServers, Warning, TEXT("Did not send websocket message because there was no connection=%d."), ConnectionId);
 			return false;
 		}
+	}
+
+	bool FWebSocketServerWrapper::Send(const FString& ConnectionName, FString Message) const
+	{
+		if (auto* ConnectionId = NamedConnections.Find(ConnectionName))
+		{
+			return Send(*ConnectionId, Message);
+		}
+		return false;
 	}
 
 	void FWebSocketServerWrapper::OnConnectionOpened(INetworkingWebSocket* Socket)

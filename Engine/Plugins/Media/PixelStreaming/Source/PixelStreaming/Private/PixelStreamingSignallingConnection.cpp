@@ -85,15 +85,15 @@ void FPixelStreamingSignallingConnection::TryConnect(FString InUrl)
 
 void FPixelStreamingSignallingConnection::Disconnect()
 {
-	if (!WebSocket)
-	{
-		return;
-	}
-
 	if (!IsEngineExitRequested())
 	{
 		StopKeepAliveTimer();
 		StopReconnectTimer();
+	}
+
+	if (!WebSocket)
+	{
+		return;
 	}
 
 	WebSocket->OnConnected().Remove(OnConnectedHandle);

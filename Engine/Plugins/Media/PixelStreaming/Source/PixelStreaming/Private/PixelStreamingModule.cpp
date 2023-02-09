@@ -217,29 +217,21 @@ namespace UE::PixelStreaming
 
 	bool FPixelStreamingModule::StartStreaming()
 	{
-		bool bSuccess = true;
-		ForEachStreamer([&bSuccess](TSharedPtr<IPixelStreamingStreamer> Streamer) {
-			if (Streamer.IsValid())
-			{
-				Streamer->StartStreaming();
-				bSuccess &= true;
-			}
-			else
-			{
-				bSuccess = false;
-			}
-		});
-		return bSuccess;
+		if (DefaultStreamer.IsValid())
+		{
+			DefaultStreamer->StartStreaming();
+			return true;
+		}
+
+		return false;
 	}
 
 	void FPixelStreamingModule::StopStreaming()
 	{
-		ForEachStreamer([this](TSharedPtr<IPixelStreamingStreamer> Streamer) {
-			if (Streamer.IsValid())
-			{
-				Streamer->StopStreaming();
-			}
-		});
+		if (DefaultStreamer.IsValid())
+		{
+			DefaultStreamer->StopStreaming();
+		}
 	}
 
 	TSharedPtr<IPixelStreamingStreamer> FPixelStreamingModule::CreateStreamer(const FString& StreamerId)
@@ -287,6 +279,19 @@ namespace UE::PixelStreaming
 			Streamers.Remove(StreamerId);
 		}
 		return ToBeDeleted;
+	}
+
+	void FPixelStreamingModule::DeleteStreamer(TSharedPtr<IPixelStreamingStreamer> ToBeDeleted)
+	{
+		FScopeLock Lock(&StreamersCS);
+		for (auto& [Id, Streamer] : Streamers)
+		{
+			if (Streamer == ToBeDeleted)
+			{
+				Streamers.Remove(Id);
+				break;
+			}
+		}
 	}
 
 	void FPixelStreamingModule::SetExternalVideoSourceFPS(uint32 InFPS)
@@ -372,11 +377,7 @@ namespace UE::PixelStreaming
 			}
 		}
 
-		TSharedPtr<IPixelStreamingStreamer> Streamer = CreateStreamer(Settings::GetDefaultStreamerID());
-		TSharedPtr<IPixelStreamingSignallingConnection> SignallingConnection = MakeShared<FPixelStreamingSignallingConnection>(Streamer->GetSignallingConnectionObserver().Pin(), Settings::GetDefaultStreamerID());
-		SignallingConnection->SetAutoReconnect(true);
-		Streamer->SetSignallingConnection(SignallingConnection);
-
+		DefaultStreamer = CreateStreamer(Settings::GetDefaultStreamerID());
 		// The PixelStreamingEditorModule handles setting video input in the editor
 		if (!GIsEditor)
 		{
@@ -386,8 +387,8 @@ namespace UE::PixelStreaming
 				TSharedPtr<FSceneViewport> TargetViewport = GameEngine->SceneViewport;
 				if (TargetViewport.IsValid())
 				{
-					Streamer->SetTargetViewport(TargetViewport->GetViewportWidget());
-					Streamer->SetTargetWindow(TargetViewport->FindWindow());
+					DefaultStreamer->SetTargetViewport(TargetViewport->GetViewportWidget());
+					DefaultStreamer->SetTargetWindow(TargetViewport->FindWindow());
 				}
 				else
 				{
@@ -402,9 +403,9 @@ namespace UE::PixelStreaming
 			// in that case, set up the video input for them (as long as we're not in editor)
 			if (!GIsEditor)
 			{
-				Streamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
+				DefaultStreamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
 			}
-			Streamer->SetSignallingServerURL(SignallingServerURL);
+			DefaultStreamer->SetSignallingServerURL(SignallingServerURL);
 		}
 	}
 

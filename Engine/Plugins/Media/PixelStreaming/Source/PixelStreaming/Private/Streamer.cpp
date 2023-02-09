@@ -51,11 +51,15 @@ namespace UE::PixelStreaming
 		VideoSourceGroup = FVideoSourceGroup::Create();
 		Observer = MakeShared<FPixelStreamingSignallingConnectionObserver>(*this);
 
+		SignallingServerConnection = MakeShared<FPixelStreamingSignallingConnection>(Observer, InStreamerId);
+		SignallingServerConnection->SetAutoReconnect(true);
+
 		IPixelStreamingInputModule::Get().OnProtocolUpdated.AddRaw(this, &FStreamer::OnProtocolUpdated);
 	}
 
 	FStreamer::~FStreamer()
 	{
+		StopStreaming();
 		IPixelStreamingInputModule::Get().OnProtocolUpdated.RemoveAll(this);
 	}
 
@@ -87,23 +91,30 @@ namespace UE::PixelStreaming
 	void FStreamer::SetVideoInput(TSharedPtr<FPixelStreamingVideoInput> Input)
 	{
 		VideoSourceGroup->SetVideoInput(Input);
-		Input->OnFrameCaptured.AddLambda([this, Input]() {
-			TSharedPtr<IPixelCaptureOutputFrame> OutputFrame = Input->RequestFormat(PixelCaptureBufferFormat::FORMAT_RHI);
-			if (OutputFrame && bCaptureNextBackBufferAndStream)
+		TWeakPtr<FStreamer> WeakSelf = AsShared();
+		Input->OnFrameCaptured.AddLambda([WeakSelf, Input]() {
+			if (auto ThisPtr = WeakSelf.Pin())
 			{
-				bCaptureNextBackBufferAndStream = false;
+				TSharedPtr<IPixelCaptureOutputFrame> OutputFrame = Input->RequestFormat(PixelCaptureBufferFormat::FORMAT_RHI);
+				if (OutputFrame && ThisPtr->bCaptureNextBackBufferAndStream)
+				{
+					ThisPtr->bCaptureNextBackBufferAndStream = false;
 
-				ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)
-				([this, OutputFrame](FRHICommandListImmediate& RHICmdList) {
-					FPixelCaptureOutputFrameRHI* RHISourceFrame = StaticCast<FPixelCaptureOutputFrameRHI*>(OutputFrame.Get());
+					ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)
+					([WeakSelf, OutputFrame](FRHICommandListImmediate& RHICmdList) {
+						if (auto ThisPtr = WeakSelf.Pin())
+						{
+							FPixelCaptureOutputFrameRHI* RHISourceFrame = StaticCast<FPixelCaptureOutputFrameRHI*>(OutputFrame.Get());
 
-					// Read the data out of the back buffer and send as a JPEG.
-					FIntRect Rect(0, 0, RHISourceFrame->GetWidth(), RHISourceFrame->GetHeight());
-					TArray<FColor> Data;
+							// Read the data out of the back buffer and send as a JPEG.
+							FIntRect Rect(0, 0, RHISourceFrame->GetWidth(), RHISourceFrame->GetHeight());
+							TArray<FColor> Data;
 
-					RHICmdList.ReadSurfaceData(RHISourceFrame->GetFrameTexture(), Rect, Data, FReadSurfaceDataFlags());
-					SendFreezeFrame(MoveTemp(Data), Rect);
-				});
+							RHICmdList.ReadSurfaceData(RHISourceFrame->GetFrameTexture(), Rect, Data, FReadSurfaceDataFlags());
+							ThisPtr->SendFreezeFrame(MoveTemp(Data), Rect);
+						}
+					});
+				}
 			}
 		});
 	}
@@ -202,7 +213,10 @@ namespace UE::PixelStreaming
 			Delegates->OnAllConnectionsClosedNative.Remove(AllConnectionsClosedHandle);
 		}
 
-		SignallingServerConnection->Disconnect();
+		if (SignallingServerConnection)
+		{
+			SignallingServerConnection->Disconnect();
+		}
 		VideoSourceGroup->Stop();
 		TriggerMouseLeave(StreamerId);
 

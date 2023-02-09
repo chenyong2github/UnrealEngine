@@ -14,6 +14,8 @@ class PIXELSTREAMINGBLUEPRINT_API UPixelStreamingStreamerComponent : public UAct
 	GENERATED_UCLASS_BODY()
 
 public:
+	virtual ~UPixelStreamingStreamerComponent();
+
 	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
 	FString GetId();
 

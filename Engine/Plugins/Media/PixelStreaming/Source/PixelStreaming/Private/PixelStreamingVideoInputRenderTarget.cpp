@@ -23,8 +23,11 @@ FPixelStreamingVideoInputRenderTarget::FPixelStreamingVideoInputRenderTarget(UTe
 
 void FPixelStreamingVideoInputRenderTarget::OnEndFrameRenderThread()
 {
-	if (FTexture2DRHIRef Texture = Target->GetResource()->GetTexture2DRHI())
+	if (Target)
 	{
-		OnFrame(FPixelCaptureInputFrameRHI(Texture));
+		if (FTexture2DRHIRef Texture = Target->GetResource()->GetTexture2DRHI())
+		{
+			OnFrame(FPixelCaptureInputFrameRHI(Texture));
+		}
 	}
 }

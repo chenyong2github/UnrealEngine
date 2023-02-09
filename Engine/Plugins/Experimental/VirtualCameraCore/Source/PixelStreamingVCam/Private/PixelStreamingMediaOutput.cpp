@@ -23,7 +23,23 @@ UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 	if (!Streamer.IsValid())
 	{
 		IPixelStreamingModule& Module = FModuleManager::LoadModuleChecked<IPixelStreamingModule>("PixelStreaming");
-		Streamer = Module.GetStreamer(Module.GetDefaultStreamerID());
+		FString Sid = StreamerId;
+		if (Sid.IsEmpty())
+		{
+			Sid = Module.GetDefaultStreamerID();
+		}
+		Streamer = Module.CreateStreamer(Sid);
+		if (Streamer->GetSignallingServerURL().IsEmpty())
+		{
+			if (SignallingServerURL.IsEmpty())
+			{
+				Streamer->SetSignallingServerURL("ws://127.0.0.1:8888");
+			}
+			else
+			{
+				Streamer->SetSignallingServerURL(SignallingServerURL);
+			}
+		}
 		RegisterRemoteResolutionCommandHandler();
 	}
 

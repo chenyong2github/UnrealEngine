@@ -52,7 +52,14 @@ namespace UE::PixelStreamingServers
 		 * @return True if the message able to be sent.
 		 */
 		bool Send(uint16 ConnectionId, FString Message) const;
+		bool Send(const FString& ConnectionName, FString Message) const;
 		bool GetFirstConnection(uint16& OutConnectionId) const;
+		TMap<uint16, TUniquePtr<FWebSocketConnection>>& GetConnections() { return Connections; }
+
+		void NameConnection(uint16 ConnectionId, const FString& Name);
+		void RemoveName(const FString& Name);
+		bool GetNamedConnection(const FString& Name, uint16& OutConnectionId) const;
+		TArray<FString> GetConnectionNames() const;
 
 		/* Begin FTickableGameObject */
 		virtual bool IsTickableWhenPaused() const { return true; }
@@ -61,6 +68,8 @@ namespace UE::PixelStreamingServers
 		virtual bool IsAllowedToTick() const { return true; }
 		TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FWebSocketServerWrapper, STATGROUP_Tickables); }
 		/* End FTickableGameObject */
+
+		int32 Count() const { return NamedConnections.Num(); }
 
 	public:
 		DECLARE_MULTICAST_DELEGATE_OneParam(FOnNewWebSocketConnection, uint16 /*Connection Id*/);
@@ -82,6 +91,7 @@ namespace UE::PixelStreamingServers
 		TUniquePtr<IWebSocketServer> WSServer;
 		FWebSocketClientConnectedCallBack OnClientConnectedCallback;
 		TMap<uint16, TUniquePtr<FWebSocketConnection>> Connections;
+		TMap<FString, uint16> NamedConnections;
 		bool bEnableWebServer = false;
 		TArray<FWebSocketHttpMount> DirectoriesToServe;
 	};

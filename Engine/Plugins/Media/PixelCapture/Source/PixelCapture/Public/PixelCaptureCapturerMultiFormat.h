@@ -70,10 +70,10 @@ public:
 	 * process is not dependent on this calling thread or we will deadlock.
 	 * @param Format The format we want the output in.
 	 * @param LayerIndex The layer we want to get the output of.
-	 * @param MaxWaitTime The max number of milliseconds to wait for a frame. Default is MAX_uint32 (forever).
+	 * @param MaxWaitTime The max number of milliseconds to wait for a frame. Default is 5 seconds.
 	 * @return The final buffer of a given format or null in case of timeout or the capturer has been disconnected.
 	 */
-	TSharedPtr<IPixelCaptureOutputFrame> WaitForFormat(int32 Format, int32 LayerIndex, uint32 MaxWaitTime = MAX_uint32);
+	TSharedPtr<IPixelCaptureOutputFrame> WaitForFormat(int32 Format, int32 LayerIndex, uint32 MaxWaitTime = 5000);
 
 	/**
 	 * Call to notify this capturer that it has been disconnected and no more frames

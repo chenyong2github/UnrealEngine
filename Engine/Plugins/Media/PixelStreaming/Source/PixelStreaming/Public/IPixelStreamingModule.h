@@ -108,6 +108,12 @@ public:
 	virtual TSharedPtr<IPixelStreamingStreamer> DeleteStreamer(const FString& StreamerId) = 0;
 
 	/**
+	 * Remove a streamer by its pointer
+	 * @param ToBeDeleted The streamer to remove from the internal management.
+	 */
+	virtual void DeleteStreamer(TSharedPtr<IPixelStreamingStreamer> ToBeDeleted) = 0;
+
+	/**
 	 * Get the protocol currently used by each peer.
 	 */
 	UE_DEPRECATED(5.2, "GetProtocol() is deprecated. Simply access the required direction with FPixelStreamingInputProtocol::ToStreamerProcol or FPixelStreamingInputProtocol::FromStreamerProcol")

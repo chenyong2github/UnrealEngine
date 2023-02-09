@@ -89,15 +89,14 @@ namespace UE::PixelStreamingServers
 		 * @param JSONObj A JSON object.
 		 * @return The stringified JSON object.
 		 **/
-		FString ToString(TSharedRef<FJsonObject> JSONObj);
+		FString ToString(TSharedPtr<FJsonObject> JSONObj);
 
 		/** 
 		 * Convert a JSON formatted string into a JSON object, if possible.
-		 * @param InJSONString The JSON object expressed as a string.
-		 * @param OutJSON The output json object.
-		 * @return True if we were able to deserialize the string into a JSON object.
+		 * @param InString The JSON object expressed as a string.
+		 * @return The output json object or null on failure.
 		 **/
-		bool Jsonify(FString InJSONString, TSharedPtr<FJsonObject>& OutJSON);
+		TSharedPtr<FJsonObject> ToJSON(const FString& InString);
 
 	} // Utils
 } // UE::PixelStreamingServers

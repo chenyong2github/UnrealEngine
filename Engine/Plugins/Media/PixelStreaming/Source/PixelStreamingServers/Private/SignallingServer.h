@@ -11,7 +11,6 @@
 
 namespace UE::PixelStreamingServers
 {
-
 	/**
 	 * A native C++ implementation of a Pixel Streaming signalling server (similar to cirrus.js).
 	 * This implementation is missing some features such as SFU, matchmaker, and Webserver support.
@@ -21,6 +20,7 @@ namespace UE::PixelStreamingServers
 	{
 
 	public:
+		FSignallingServer();
 		virtual ~FSignallingServer() = default;
 
 		// Begin FServerBase
@@ -31,24 +31,43 @@ namespace UE::PixelStreamingServers
 		// End FServerBase
 
 	protected:
-		void OnStreamerConnected(uint16 ConnectionId);
-		void OnStreamerMessage(uint16 ConnectionId, TArrayView<uint8> Message);
-		virtual void SendPlayerMessage(uint16 PlayerConnectionId, FString MessageType, FString Message);
-
-		void OnPlayerMessage(uint16 ConnectionId, TArrayView<uint8> Message);
-		virtual void SendStreamerMessage(uint16 StreamerConnectionId, FString MessageType, FString Message);
-
-		virtual void OnPlayerConnected(uint16 ConnectionId);
-
 		TArray<FWebSocketHttpMount> GenerateDirectoriesToServe() const;
-		FString CreateConfigJSON() const;
-		TSharedPtr<FJsonObject> ParseToJSON(FString Message) const;
-		bool GetMessageType(TSharedPtr<FJsonObject> JSONObj, FString& OutMessageType) const;
+		TSharedRef<FJsonObject> CreateConfigJSON() const;
+		TSharedPtr<FJsonObject> ParseMessage(const FString& InMessage, FString& OutMessageType) const;
 
+		void SubscribePlayer(uint16 PlayerConnectionId, const FString& StreamerName);
+		void UnsubscribePlayer(uint16 PlayerConnectionId);
+
+		virtual void SendPlayerMessage(uint16 PlayerId, TSharedPtr<FJsonObject> JSONObj);
+		virtual void SendStreamerMessage(uint16 StreamerId, TSharedPtr<FJsonObject> JSONObj);
+
+		// event handlers
+		virtual void OnStreamerConnected(uint16 ConnectionId);
+		virtual void OnStreamerDisconnected(uint16 ConnectionId);
+		virtual void OnStreamerMessage(uint16 ConnectionId, TArrayView<uint8> Message);
+		virtual void OnPlayerConnected(uint16 ConnectionId);
+		virtual void OnPlayerDisconnected(uint16 ConnectionId);
+		virtual void OnPlayerMessage(uint16 ConnectionId, TArrayView<uint8> Message);
+
+		// message handlers
+		void OnStreamerIdMessage(uint16 ConnectionId, TSharedPtr<FJsonObject> JSONObj);
+		void OnStreamerPingMessage(uint16 ConnectionId, TSharedPtr<FJsonObject> JSONObj);
+		void OnStreamerDisconnectMessage(uint16 ConnectionId, TSharedPtr<FJsonObject> JSONObj);
+		void OnPlayerListStreamersMessage(uint16 ConnectionId, TSharedPtr<FJsonObject> JSONObj);
+		void OnPlayerSubscribeMessage(uint16 ConnectionId, TSharedPtr<FJsonObject> JSONObj);
+		void OnPlayerUnsubscribeMessage(uint16 ConnectionId, TSharedPtr<FJsonObject> JSONObj);
+		void OnPlayerStatsMessage(uint16 ConnectionId, TSharedPtr<FJsonObject> JSONObj);
+		
 	protected:
 		TUniquePtr<FWebSocketProbe> Probe;
 		TUniquePtr<FWebSocketServerWrapper> StreamersWS;
 		TUniquePtr<FWebSocketServerWrapper> PlayersWS;
+
+		TMap<uint16, uint16> PlayerSubscriptions;
+
+		DECLARE_DELEGATE_TwoParams(FMessageHandler, uint16, TSharedPtr<FJsonObject>);
+		TMap<FString, FMessageHandler> StreamerMessageHandlers;
+		TMap<FString, FMessageHandler> PlayerMessageHandlers;
 	};
 
 } // namespace UE::PixelStreamingServers

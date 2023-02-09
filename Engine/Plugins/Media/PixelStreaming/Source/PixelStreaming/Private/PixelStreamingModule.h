@@ -35,6 +35,7 @@ namespace UE::PixelStreaming
 		virtual TArray<FString> GetStreamerIds() override;
 		virtual TSharedPtr<IPixelStreamingStreamer> GetStreamer(const FString& StreamerId) override;
 		virtual TSharedPtr<IPixelStreamingStreamer> DeleteStreamer(const FString& StreamerId) override;
+		void DeleteStreamer(TSharedPtr<IPixelStreamingStreamer> ToBeDeleted) override;
 		virtual FString GetDefaultStreamerID() override;
 		virtual FString GetDefaultSignallingURL() override;
 
@@ -79,5 +80,6 @@ namespace UE::PixelStreaming
 		TSharedPtr<FVideoSourceGroup> ExternalVideoSourceGroup;
 		mutable FCriticalSection StreamersCS;
 		TMap<FString, TSharedPtr<IPixelStreamingStreamer>> Streamers;
+		TSharedPtr<IPixelStreamingStreamer> DefaultStreamer;
 	};
 } // namespace UE::PixelStreaming

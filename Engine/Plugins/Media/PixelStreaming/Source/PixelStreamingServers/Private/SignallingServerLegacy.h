@@ -15,9 +15,8 @@ namespace UE::PixelStreamingServers
 	class FSignallingServerLegacy : public FSignallingServer
 	{
 	protected:
-		virtual void SendPlayerMessage(uint16 PlayerConnectionId, FString MessageType, FString Message) override;
-		virtual void SendStreamerMessage(uint16 StreamerConnectionId, FString MessageType, FString Message) override;
-		virtual void OnPlayerConnected(uint16 ConnectionId) override;
+		virtual void SendPlayerMessage(uint16 PlayerId, TSharedPtr<FJsonObject> JSONObj) override;
+		virtual void SendStreamerMessage(uint16 StreamerId, TSharedPtr<FJsonObject> JSONObj) override;
 	};
 
 } // namespace UE::PixelStreamingServers

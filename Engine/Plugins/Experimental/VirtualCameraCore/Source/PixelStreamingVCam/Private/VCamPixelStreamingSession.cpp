@@ -81,6 +81,8 @@ void UVCamPixelStreamingSession::Activate()
 		MediaOutput->OnRemoteResolutionChanged().AddUObject(this, &UVCamPixelStreamingSession::OnRemoteResolutionChanged);
 	}
 
+	MediaOutput->StreamerId = StreamerId;
+
 	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
 	bOldThrottleCPUWhenNotForeground = Settings->bThrottleCPUWhenNotForeground;
 	if (PreventEditorIdle)
