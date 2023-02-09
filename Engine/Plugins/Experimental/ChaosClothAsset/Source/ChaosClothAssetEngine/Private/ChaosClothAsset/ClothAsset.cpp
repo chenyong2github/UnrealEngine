@@ -298,10 +298,12 @@ void UChaosClothAsset::CalculateBounds()
 
 			const int32 RenderVerticesStart = ClothCollection->RenderVerticesStart[PatternElementIndex];
 			const int32 RenderVerticesEnd = ClothCollection->RenderVerticesEnd[PatternElementIndex];
-
-			for (int32 RenderVertexIndex = RenderVerticesStart; RenderVertexIndex <= RenderVerticesEnd; ++RenderVertexIndex)
+			if (RenderVerticesStart != INDEX_NONE && RenderVerticesStart != INDEX_NONE)
 			{
-				BoundingBox += (FVector)ClothCollection->RenderPosition[RenderVertexIndex];
+				for (int32 RenderVertexIndex = RenderVerticesStart; RenderVertexIndex <= RenderVerticesEnd; ++RenderVertexIndex)
+				{
+					BoundingBox += (FVector)ClothCollection->RenderPosition[RenderVertexIndex];
+				}
 			}
 		}
 	}
@@ -346,7 +348,7 @@ void UChaosClothAsset::Build()
 
 	// Add LODs to the render data
 	const FClothConstAdapter Cloth(ClothCollection);
-	const int32 NumLods = Cloth.GetNumLods();
+	const int32 NumLods = FMath::Max(Cloth.GetNumLods(), 1);  // The render data will always look for at least one default LOD 0
 
 	// Rebuild LOD Infos
 	LODInfo.Reset(NumLods);

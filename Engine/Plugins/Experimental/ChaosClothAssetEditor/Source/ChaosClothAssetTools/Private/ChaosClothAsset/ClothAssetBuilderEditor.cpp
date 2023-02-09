@@ -32,31 +32,37 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 	TMap<int32, TArray<int32>> SectionFacesMap;
 	SectionFacesMap.Reserve(ClothAsset.GetMaterials().Num());
 
+	TArray<uint32> LodRenderIndexRemap;
+
 	const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAsset.GetClothCollection();
 	const int32 PatternStart = ClothCollection->PatternStart[LodIndex];
 	const int32 PatternEnd = ClothCollection->PatternEnd[LodIndex];
-
-	for (int32 PatternIndex = PatternStart; PatternIndex <= PatternEnd; ++PatternIndex)
+	if (PatternStart != INDEX_NONE && PatternEnd != INDEX_NONE)
 	{
-		const int32 RenderFacesStart = ClothCollection->RenderFacesStart[PatternIndex];
-		const int32 RenderFacesEnd = ClothCollection->RenderFacesEnd[PatternIndex];
-
-		for (int32 RenderFaceIndex = RenderFacesStart; RenderFaceIndex <= RenderFacesEnd; ++RenderFaceIndex)
+		for (int32 PatternIndex = PatternStart; PatternIndex <= PatternEnd; ++PatternIndex)
 		{
-			const int32 MaterialIndex = ClothCollection->RenderMaterialIndex[RenderFaceIndex];
+			const int32 RenderFacesStart = ClothCollection->RenderFacesStart[PatternIndex];
+			const int32 RenderFacesEnd = ClothCollection->RenderFacesEnd[PatternIndex];
 
-			TArray<int32>& SectionFaces = SectionFacesMap.FindOrAdd(MaterialIndex);
-			SectionFaces.Add(RenderFaceIndex);
+			if (RenderFacesStart != INDEX_NONE && RenderFacesEnd != INDEX_NONE)
+			{
+				for (int32 RenderFaceIndex = RenderFacesStart; RenderFaceIndex <= RenderFacesEnd; ++RenderFaceIndex)
+				{
+					const int32 MaterialIndex = ClothCollection->RenderMaterialIndex[RenderFaceIndex];
+
+					TArray<int32>& SectionFaces = SectionFacesMap.FindOrAdd(MaterialIndex);
+					SectionFaces.Add(RenderFaceIndex);
+				}
+			}
 		}
+
+		// Initialize the remapping array to start at LodRenderVerticesStart with the maximum number of vertices used in this LOD
+		const int32 LodRenderVerticesStart = ClothCollection->RenderVerticesStart[PatternStart];
+		const int32 LodRenderVerticesEnd = ClothCollection->RenderVerticesEnd[PatternEnd];
+		const int32 NumLodRenderVertices = LodRenderVerticesEnd - LodRenderVerticesStart + 1;
+
+		LodRenderIndexRemap.SetNumUninitialized(NumLodRenderVertices);
 	}
-
-	// Initialize the remapping array to start at LodRenderVerticesStart with the maximum number of vertices used in this LOD
-	const int32 LodRenderVerticesStart = ClothCollection->RenderVerticesStart[PatternStart];
-	const int32 LodRenderVerticesEnd = ClothCollection->RenderVerticesEnd[PatternEnd];
-	const int32 NumLodRenderVertices = LodRenderVerticesEnd - LodRenderVerticesStart + 1;
-
-	TArray<uint32> LodRenderIndexRemap;
-	LodRenderIndexRemap.SetNumUninitialized(NumLodRenderVertices);
 
 	// Keep track of the active bone indices for this LOD model
 	TSet<FBoneIndexType> ActiveBoneIndices;

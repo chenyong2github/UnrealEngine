@@ -94,11 +94,6 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	check(Cloth);
 	check(Cloth->Mesh);
 
-	if (!NumParticles)
-	{
-		return;
-	}
-
 	// Add a new solver data chunk
 	check(!SolverData.Find(Solver));
 	FSolverData& SolverDatum = SolverData.Add(Solver);
@@ -107,6 +102,11 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 
 	// Add particles
 	Offset = Solver->AddParticles(NumParticles, Cloth->GroupId);  // TODO: Have a per solver map of offset
+
+	if (!NumParticles)
+	{
+		return;
+	}
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 	// Update source mesh for this LOD, this is required prior to reset the start pose
@@ -245,14 +245,15 @@ void FClothingSimulationCloth::FLODData::UpdateNormals(FClothingSimulationSolver
 	const int32 Offset = SolverDatum.Offset;
 	const FTriangleMesh& TriangleMesh = SolverDatum.TriangleMesh;
 
-	check(Offset != INDEX_NONE);
+	if (Offset != INDEX_NONE)
+	{
+		TConstArrayView<Softs::FSolverVec3> Points(Solver->GetParticleXs(Offset) - Offset, Offset + NumParticles);  // TODO: TriangleMesh still uses global array
+		TArray<Softs::FSolverVec3> FaceNormals;
+		TriangleMesh.GetFaceNormals(FaceNormals, Points, /*ReturnEmptyOnError =*/ false);
 
-	TConstArrayView<Softs::FSolverVec3> Points(Solver->GetParticleXs(Offset) - Offset, Offset + NumParticles);  // TODO: TriangleMesh still uses global array
-	TArray<Softs::FSolverVec3> FaceNormals;
-	TriangleMesh.GetFaceNormals(FaceNormals, Points, /*ReturnEmptyOnError =*/ false);
-
-	TArrayView<Softs::FSolverVec3> Normals(Solver->GetNormals(Offset), NumParticles);
-	TriangleMesh.GetPointNormals(Normals, TConstArrayView<Softs::FSolverVec3>(FaceNormals), /*bUseGlobalArray =*/ false);
+		TArrayView<Softs::FSolverVec3> Normals(Solver->GetNormals(Offset), NumParticles);
+		TriangleMesh.GetPointNormals(Normals, TConstArrayView<Softs::FSolverVec3>(FaceNormals), /*bUseGlobalArray =*/ false);
+	}
 }
 
 FClothingSimulationCloth::FClothingSimulationCloth(
@@ -813,7 +814,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Update the source mesh skinned positions
 	const int32 PrevOffset = GetOffset(Solver, PrevLODIndex);
 	const int32 Offset = GetOffset(Solver, LODIndex);
-	check(PrevOffset != INDEX_NONE && Offset != INDEX_NONE);
+	if (PrevOffset == INDEX_NONE || Offset == INDEX_NONE)
+	{
+		return;
+	}
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 	Mesh->Update(Solver, PrevLODIndex, LODIndex, PrevOffset, Offset);

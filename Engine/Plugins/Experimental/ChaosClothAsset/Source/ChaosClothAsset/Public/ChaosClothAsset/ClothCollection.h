@@ -5,8 +5,7 @@
 #include "GeometryCollection/ManagedArrayCollection.h"
 
 // TODO:
-// - Transition Sim LOD data
-// - Move wrap deformer into struct similar to FMeshToMeshVertData
+// - Transition Sim LOD data?
 
 namespace UE::Chaos::ClothAsset
 {
@@ -24,10 +23,12 @@ namespace UE::Chaos::ClothAsset
 		FClothCollection(FClothCollection&&) = default;
 		FClothCollection& operator=(FClothCollection&&) = default;
 
+		//~ Begin FManagedArrayCollection interface
+		virtual void Reset() override { Super::Reset(); Construct(); }
+		//~ Begin FManagedArrayCollection interface
+
 		using Super::Serialize;
 		void Serialize(FArchive& Ar);
-
-		virtual void Reset() override { Super::Reset(); Construct(); }
 
 		/** Set the number of elements to one of the groups that have start/end indices while maintaining the correct order of the data. */
 		int32 SetNumElements(int32 InNumElements, const FName& GroupName, TManagedArray<int32>& StartArray, TManagedArray<int32>& EndArray, int32 StartEndIndex);
@@ -48,7 +49,7 @@ namespace UE::Chaos::ClothAsset
 		inline TArrayView<T> GetPatternsElements(TManagedArray<T>& ElementArray, const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray, int32 LodIndex);
 
 		template<bool bStart = true, bool bEnd = true>
-		inline TTuple<int32, int32> GetPatternsElementsStartEnd(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray, int32 StartEndIndex) const;
+		TTuple<int32, int32> GetPatternsElementsStartEnd(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray, int32 StartEndIndex) const;
 
 		// Attribute groups, predefined data member of the collection
 		static const FName SimVerticesGroup;  // Contains patterns' 2D positions, 3D draped position (rest)
@@ -88,14 +89,6 @@ namespace UE::Chaos::ClothAsset
 		TManagedArray<FIntVector3> RenderIndices;  // The indices point to the elements in the Render Vertices arrays but don't include the LOD start offset
 		TManagedArray<int32> RenderMaterialIndex;  // Render material per triangle
 
-		// TODO: FMeshToMeshVertData
-		//// Wrap Deformers Group (render mesh captured, sim mesh capturing)
-		//TManagedArray<FVector4f> CapturedPosition;  // Barycentric coordinate and distance for captured render positions
-		//TManagedArray<FVector4f> CapturedNormal;  // Barycentric coordinate and distance for captured render normals
-		//TManagedArray<FVector4f> CapturedTangent;  // Barycentric coordinate and distance for captured render tangents
-		//TManagedArray<int32> CapturingFace;  // Sim triangle index
-		//TManagedArray<float> CapturingWeight;  // Weight for when using multiple capture influence per point, 1.0 otherwise
-
 		// Patterns Group
 		TManagedArray<int32> SimVerticesStart;
 		TManagedArray<int32> SimVerticesEnd;
@@ -124,7 +117,7 @@ namespace UE::Chaos::ClothAsset
 		TManagedArray<int32> TetherStart;
 		TManagedArray<int32> TetherEnd;
 
-		// LOD Group
+		// LODs Group
 		TManagedArray<int32> PatternStart;
 		TManagedArray<int32> PatternEnd;
 		TManagedArray<int32> SeamStart;
@@ -177,27 +170,5 @@ namespace UE::Chaos::ClothAsset
 
 		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
 		return Start == INDEX_NONE ? TArrayView<T>() : TArrayView<T>(ElementArray.GetData() + Start, End - Start + 1);
-	}
-
-	template<bool bStart, bool bEnd>
-	inline TTuple<int32, int32> FClothCollection::GetPatternsElementsStartEnd(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray, int32 LodIndex) const
-	{
-		const int32 LodPatternStart = PatternStart[LodIndex];
-		const int32 LodPatternEnd = PatternEnd[LodIndex];
-
-		int32 Start = INDEX_NONE;  // Find Start and End indices for the entire LOD minding empty patterns on the way
-		int32 End = INDEX_NONE;
-		for (int32 PatternIndex = LodPatternStart; PatternIndex <= LodPatternEnd; ++PatternIndex)
-		{
-			if (bStart && StartArray[PatternIndex] != INDEX_NONE)
-			{
-				Start = (Start == INDEX_NONE) ? StartArray[PatternIndex] : FMath::Min(Start, StartArray[PatternIndex]);
-			}
-			if (bEnd && EndArray[PatternIndex] != INDEX_NONE)
-			{
-				End = (End == INDEX_NONE) ? EndArray[PatternIndex] : FMath::Max(End, EndArray[PatternIndex]);
-			}
-		}
-		return TTuple<int32, int32>(Start, End);
 	}
 }  // End namespace UE::Chaos::ClothAsset

@@ -95,7 +95,7 @@ namespace UE::Chaos::ClothAsset
 		AddExternalAttribute<int32>("TetherStart", TetherBatchesGroup, TetherStart, TethersDependency);
 		AddExternalAttribute<int32>("TetherEnd", TetherBatchesGroup, TetherEnd, TethersDependency);
 
-		// LOD Group
+		// LODs Group
 		AddExternalAttribute<int32>("PatternStart", LodsGroup, PatternStart, PatternsDependency);
 		AddExternalAttribute<int32>("PatternEnd", LodsGroup, PatternEnd, PatternsDependency);
 		AddExternalAttribute<int32>("StitchingStart", LodsGroup, SeamStart, StitchingsDependency);
@@ -181,4 +181,33 @@ namespace UE::Chaos::ClothAsset
 
 		return Start == INDEX_NONE ? 0 : End - Start + 1;
 	}
+
+	template<bool bStart, bool bEnd>
+	TTuple<int32, int32> FClothCollection::GetPatternsElementsStartEnd(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray, int32 LodIndex) const
+	{
+		const int32 LodPatternStart = PatternStart[LodIndex];
+		const int32 LodPatternEnd = PatternEnd[LodIndex];
+
+		int32 Start = INDEX_NONE;  // Find Start and End indices for the entire LOD minding empty patterns on the way
+		int32 End = INDEX_NONE;
+
+		if (LodPatternStart != INDEX_NONE && LodPatternEnd != INDEX_NONE)
+		{
+			for (int32 PatternIndex = LodPatternStart; PatternIndex <= LodPatternEnd; ++PatternIndex)
+			{
+				if (bStart && StartArray[PatternIndex] != INDEX_NONE)
+				{
+					Start = (Start == INDEX_NONE) ? StartArray[PatternIndex] : FMath::Min(Start, StartArray[PatternIndex]);
+				}
+				if (bEnd && EndArray[PatternIndex] != INDEX_NONE)
+				{
+					End = (End == INDEX_NONE) ? EndArray[PatternIndex] : FMath::Max(End, EndArray[PatternIndex]);
+				}
+			}
+		}
+		return TTuple<int32, int32>(Start, End);
+	}
+	template CHAOSCLOTHASSET_API TTuple<int32, int32> FClothCollection::GetPatternsElementsStartEnd<true, false>(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray, int32 LodIndex) const;
+	template CHAOSCLOTHASSET_API TTuple<int32, int32> FClothCollection::GetPatternsElementsStartEnd<false, true>(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray, int32 LodIndex) const;
+	template CHAOSCLOTHASSET_API TTuple<int32, int32> FClothCollection::GetPatternsElementsStartEnd<true, true>(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray, int32 LodIndex) const;
 } // End namespace UE::Chaos::ClothAsset
