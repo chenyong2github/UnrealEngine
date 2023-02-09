@@ -18,21 +18,35 @@ class FTidPacketTransport
 {
 public:
 	typedef UPTRINT ThreadIter;
+	
+	enum class ETransportResult : uint8
+	{
+		Ok,
+		Error
+	};
 
-	void					Update();
+	ETransportResult		Update();
 	uint32					GetThreadCount() const;
 	FStreamReader*			GetThreadStream(uint32 Index);
 	uint32					GetThreadId(uint32 Index) const;
 	uint32					GetSyncCount() const;
 
 private:
+	
 	struct FThreadStream
 	{
 		FStreamBuffer		Buffer;
 		uint32				ThreadId;
 	};
 
-	bool					ReadPacket();
+	enum class EReadPacketResult : uint8
+	{
+		NeedMoreData,
+		Continue,
+		ReadError
+	};
+
+	EReadPacketResult		ReadPacket();
 	FThreadStream*			FindOrAddThread(uint32 ThreadId, bool bAddIfNotFound);
 	TArray<FThreadStream>	Threads = {
 								{ {}, ETransportTid::Events },

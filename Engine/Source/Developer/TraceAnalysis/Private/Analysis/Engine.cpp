@@ -2299,7 +2299,12 @@ FProtocol2Stage::EStatus FProtocol2Stage::OnData(
 {
 	auto* InnerTransport = (FTidPacketTransport*)Transport;
 	InnerTransport->SetReader(Reader);
-	InnerTransport->Update();
+	const FTidPacketTransport::ETransportResult Result = InnerTransport->Update();
+	if (Result == FTidPacketTransport::ETransportResult::Error)
+	{
+		Context.Log->Error(LOCTEXT("TransportError", "An error was detected in the transport layer, most likely due to a corrupt trace file. See log for details."));
+		return EStatus::Error;
+	}
 
 	struct FRotaItem
 	{
@@ -2954,7 +2959,12 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnData(
 	const FMachineContext& Context)
 {
 	Transport.SetReader(Reader);
-	Transport.Update();
+	const FTidPacketTransport::ETransportResult Result = Transport.Update();
+	if (Result == FTidPacketTransport::ETransportResult::Error)
+	{
+		Context.Log->Error(LOCTEXT("TransportError", "An error was detected in the transport layer, most likely due to a corrupt trace file. See log for details."));
+		return EStatus::Error;
+	}
 
 	// New-events. They must be processed before anything else otherwise events
 	// can not be interpreted.
