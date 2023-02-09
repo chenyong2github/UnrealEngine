@@ -175,7 +175,7 @@ namespace Chaos {
 			checkSlow(Tris.Num() == 4);
 
 			for(int32 i=0; i < Tris.Num(); i++)
-				if (Inside(Tris[i].GetPlane(), Location, -HalfThickness))
+				if (!Inside(Tris[i].GetPlane(), Location, -HalfThickness))
 				{
 					return false;
 				}
