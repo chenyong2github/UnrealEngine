@@ -308,6 +308,8 @@ $ bStopOnError : Whether to stop on error
 
 $ MsvcCRTRedistVersion : Which MSVC CRT Redist version to use
 
+$ CompilerVersion : Which MSVC Compiler version to use
+
 ### HordeExecutor
 
 $ NumRemoteParallelProcesses : How many processes that will be executed in parallel remotely
