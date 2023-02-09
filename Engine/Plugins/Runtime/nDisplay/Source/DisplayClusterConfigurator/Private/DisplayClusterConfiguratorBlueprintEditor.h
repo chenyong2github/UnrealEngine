@@ -28,6 +28,19 @@ class FSubobjectEditorTreeNode;
 class FDisplayClusterConfiguratorBlueprintEditor
 	: public IDisplayClusterConfiguratorBlueprintEditor
 {
+public:
+	/** Registers any panel extension factories needed for the blueprint editor */
+	static void RegisterPanelExtensionFactory();
+
+	/** Unregisters any panel extension factories that were registered for the blueprint editor */
+	static void UnregisterPanelExtensionFactory();
+
+private:
+	/** Raised when the blueprint editor's subobject editor is creating extensions next to the Add Component button */
+	static TSharedRef<SWidget> OnExtendAddComponentButton(FWeakObjectPtr ExtensionContext);
+
+	/** A list of instantiated blueprint editors that are queried when the AddComponentButton panel extension is creating widgets */
+	static TArray<TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor>> EditorsRegisteredForPanelExtension;
 
 public:
 	~FDisplayClusterConfiguratorBlueprintEditor();
@@ -145,7 +158,7 @@ protected:
 	void CreateDCSCSEditors();
 	void ShutdownDCSCSEditors();
 
-	static TSharedRef<SWidget> CreateSCSEditorExtensionWidget(FWeakObjectPtr ExtensionContext);
+	TSharedRef<SWidget> CreateAddComponentButton();
 
 	void CreateSCSEditorWrapper();
 
@@ -242,8 +255,6 @@ private:
 
 	/** The currently loaded blueprint. */
 	TWeakObjectPtr<UDisplayClusterBlueprint> LoadedBlueprint;
-
-	FName SCSEditorExtensionIdentifier;
 
 	FDelegateHandle RenameVariableHandle;
 	FDelegateHandle FocusChangedHandle;
