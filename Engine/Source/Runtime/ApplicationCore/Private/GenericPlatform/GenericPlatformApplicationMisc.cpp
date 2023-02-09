@@ -27,6 +27,15 @@ FAutoConsoleVariableRef FGenericPlatformApplicationMisc::CVarEnableHighDPIAwaren
 	ECVF_ReadOnly
 );
 
+static bool bAllowVirtualKeyboard  = false;
+
+FAutoConsoleVariableRef FGenericPlatformApplicationMisc::CVarAllowVirtualKeyboard(
+	TEXT("AllowVirtualKeyboard"),
+	bAllowVirtualKeyboard,
+	TEXT("Allow the use of a virtual keyboard despite platform main screen being non-touch"),
+	ECVF_ReadOnly
+);
+
 void FGenericPlatformApplicationMisc::PreInit()
 {
 }
@@ -80,6 +89,11 @@ bool FGenericPlatformApplicationMisc::IsThisApplicationForeground()
 {
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::IsThisApplicationForeground not implemented on this platform"));
 	return false;
+}
+
+bool FGenericPlatformApplicationMisc::RequiresVirtualKeyboard()
+{
+	return PLATFORM_HAS_TOUCH_MAIN_SCREEN || bAllowVirtualKeyboard;
 }
 
 FLinearColor FGenericPlatformApplicationMisc::GetScreenPixelColor(const FVector2D& InScreenPos, float InGamma)

@@ -124,10 +124,7 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	/**
 	* Returns whether the platform wants to use a touch screen for a virtual keyboard.
 	*/
-	static bool RequiresVirtualKeyboard()
-	{
-		return PLATFORM_HAS_TOUCH_MAIN_SCREEN;
-	}
+	static bool RequiresVirtualKeyboard();
 
 	/**
 	 *	Pumps Windows messages.
@@ -389,5 +386,6 @@ protected:
 	static EScreenPhysicalAccuracy CachedPhysicalScreenAccuracy;
 	static int32 CachedPhysicalScreenDensity;
 	static FAutoConsoleVariableRef CVarEnableHighDPIAwareness;
+	static FAutoConsoleVariableRef CVarAllowVirtualKeyboard;
 
 };
