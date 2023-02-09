@@ -41,13 +41,30 @@ struct FMaterialAudit
 {
 	FString AssetName;
 	TArray<FMaterialAuditEntry, TInlineAllocator<4>> Entries;
+	UMaterialInterface* FallbackMaterial = nullptr;
 	uint8 bHasAnyError : 1;
+
+	FORCEINLINE bool IsValid() const
+	{
+		return !bHasAnyError;
+	}
 
 	FORCEINLINE UMaterialInterface* GetMaterial(int32 MaterialIndex) const
 	{
 		if (Entries.IsValidIndex(MaterialIndex))
 		{
 			return Entries[MaterialIndex].Material;
+		}
+
+		return nullptr;
+	}
+
+	FORCEINLINE UMaterialInterface* GetSafeMaterial(int32 MaterialIndex) const
+	{
+		if (Entries.IsValidIndex(MaterialIndex))
+		{
+			const FMaterialAuditEntry& AuditEntry = Entries[MaterialIndex];
+			return AuditEntry.bHasAnyError ? FallbackMaterial : AuditEntry.Material;
 		}
 
 		return nullptr;
@@ -75,7 +92,6 @@ struct FMaterialAudit
 };
 
 ENGINE_API void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit);
-ENGINE_API void FixupMaterials(FMaterialAudit& Audit);
 ENGINE_API bool IsSupportedBlendMode(EBlendMode Mode);
 ENGINE_API bool IsSupportedBlendMode(const FMaterial& In);
 ENGINE_API bool IsSupportedBlendMode(const FMaterialShaderParameters& In);
@@ -265,9 +281,9 @@ class ENGINE_API FSceneProxy : public FSceneProxyBase
 public:
 	using Super = FSceneProxyBase;
 
-	FSceneProxy(UStaticMeshComponent* Component);
-	FSceneProxy(UInstancedStaticMeshComponent* Component);
-	FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component);
+	FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshComponent* Component);
+	FSceneProxy(const FMaterialAudit& MaterialAudit, UInstancedStaticMeshComponent* Component);
+	FSceneProxy(const FMaterialAudit& MaterialAudit, UHierarchicalInstancedStaticMeshComponent* Component);
 
 	virtual ~FSceneProxy();
 

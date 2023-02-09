@@ -3177,9 +3177,17 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		ProxySize = PerInstanceRenderData->ResourceSize;
 		INC_DWORD_STAT_BY(STAT_FoliageInstanceBuffers, ProxySize);
 
-		if (ShouldCreateNaniteProxy())
+		Nanite::FMaterialAudit NaniteMaterials{};
+
+		bool bUseNanite = ShouldCreateNaniteProxy();
+		if (bUseNanite)
 		{
-			return ::new Nanite::FSceneProxy(this);
+			Nanite::AuditMaterials(this, NaniteMaterials);
+		}
+
+		if (bUseNanite && NaniteMaterials.IsValid())
+		{
+			return ::new Nanite::FSceneProxy(NaniteMaterials, this);
 		}
 		// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
 		else if (GetStaticMesh()->HasValidNaniteData() && NaniteProxyRenderMode != 0)

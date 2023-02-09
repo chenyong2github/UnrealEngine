@@ -2498,21 +2498,30 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
+	Nanite::FMaterialAudit NaniteMaterials{};
+
+#if WITH_EDITORONLY_DATA
+	const bool bForceFallback = bDisplayNaniteFallbackMesh;
+#else
+	const bool bForceFallback = false;
+#endif
+
 	// Is Nanite supported, and is there built Nanite data for this static mesh?
-	if (ShouldCreateNaniteProxy() 
-	#if WITH_EDITORONLY_DATA
-		&& !bDisplayNaniteFallbackMesh
-	#endif
-	)
+	bool bUseNanite = ShouldCreateNaniteProxy() && !bForceFallback;
+	if (bUseNanite)
+	{
+		Nanite::AuditMaterials(this, NaniteMaterials);
+	}
+
+	if (bUseNanite && NaniteMaterials.IsValid())
 	{
 		LLM_SCOPE(ELLMTag::StaticMesh);
 
 		// Nanite is fully supported
-		return ::new Nanite::FSceneProxy(this);
+		return ::new Nanite::FSceneProxy(NaniteMaterials, this);
 	}
-
 	// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
-	if (HasValidNaniteData())
+	else if (HasValidNaniteData() && NaniteMaterials.IsValid())
 	{
 		const bool bAllowProxyRender = GNaniteProxyRenderMode == 0
 	#if WITH_EDITORONLY_DATA

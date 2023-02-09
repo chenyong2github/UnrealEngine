@@ -4053,7 +4053,7 @@ class FLandscapeNaniteSceneProxy : public Nanite::FSceneProxy
 public:
 	using Super = Nanite::FSceneProxy;
 
-	FLandscapeNaniteSceneProxy(ULandscapeNaniteComponent* Component) : Super(Component)
+	FLandscapeNaniteSceneProxy(const Nanite::FMaterialAudit& MaterialAudit, ULandscapeNaniteComponent* Component) : Super(MaterialAudit, Component)
 	{
 		// Disable Nanite landscape representation for Lumen, distance fields, and ray tracing
 		if (GDisableLandscapeNaniteGI != 0)
@@ -4074,7 +4074,9 @@ FPrimitiveSceneProxy* ULandscapeNaniteComponent::CreateSceneProxy()
 	// Is Nanite supported, and is there built Nanite data for this static mesh?
 	if (IsEnabled() && ShouldCreateNaniteProxy())
 	{
-		return ::new FLandscapeNaniteSceneProxy(this);
+		Nanite::FMaterialAudit MaterialAudit;
+		Nanite::AuditMaterials(this, MaterialAudit);
+		return ::new FLandscapeNaniteSceneProxy(MaterialAudit, this);
 	}
 
 	// We *only* want a Nanite proxy for this component, otherwise return null to prevent fallback rendering.
