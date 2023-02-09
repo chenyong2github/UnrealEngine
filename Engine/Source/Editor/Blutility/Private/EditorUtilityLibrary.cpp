@@ -327,6 +327,12 @@ bool UEditorUtilityLibrary::GetCurrentContentBrowserPath(FString& OutPath)
 	}
 }
 
+FContentBrowserItemPath UEditorUtilityLibrary::GetCurrentContentBrowserItemPath()
+{
+	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+	return ContentBrowser.GetCurrentPath();
+}
+
 TArray<FString> UEditorUtilityLibrary::GetSelectedFolderPaths()
 {
 	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
