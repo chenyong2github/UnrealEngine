@@ -669,7 +669,9 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("NotificationList.SuccessImage", new IMAGE_BRUSH("Icons/notificationlist_success", Icon16x16));
 		Style->Set("NotificationList.FailImage", new IMAGE_BRUSH("Icons/notificationlist_fail", Icon16x16));
 
-	
+		Style->Set("NotificationList.WidgetText", FTextBlockStyle(NormalText)
+		.SetOverflowPolicy(ETextOverflowPolicy::Ellipsis));
+
 	}
 
 	// SSeparator defaults...

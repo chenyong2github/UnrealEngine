@@ -462,6 +462,8 @@ public:
 				.Visibility(this, &SNotificationItemImpl::GetHyperlinkVisibility)
 				.Text(this, &SNotificationItemImpl::GetHyperlinkText)
 				.OnNavigate(this, &SNotificationItemImpl::OnHyperlinkClicked)
+				.ToolTipText(this, &SNotificationItemImpl::GetHyperlinkText)
+				.TextStyle(&FAppStyle::GetWidgetStyle<FTextBlockStyle>("NotificationList.WidgetText"))
 			];
 		}
 
@@ -480,6 +482,8 @@ public:
 				[
 					SNew(STextBlock)
 					.Text(InArgs._CheckBoxText)
+					.TextStyle(&FAppStyle::GetWidgetStyle<FTextBlockStyle>("NotificationList.WidgetText"))
+					.ToolTipText(InArgs._CheckBoxText)
 				]
 			];
 		}
@@ -494,13 +498,13 @@ public:
 
 				ButtonsBox->AddSlot()
 				.AutoWidth()
-
 				.VAlign(VAlign_Center)
 				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
 					SNew(SButton)
 					.Text(Button.Text)
-					.ToolTipText(Button.ToolTip)
+					.ToolTipText(Button.ToolTip.IsEmpty() ? Button.Text : Button.ToolTip)
+					.TextStyle(&FAppStyle::GetWidgetStyle<FTextBlockStyle>("NotificationList.WidgetText"))
 					.OnClicked(this, &SNotificationItemImpl::OnButtonClicked, Button.Callback) 
 					.Visibility( this, &SNotificationItemImpl::GetButtonVisibility, Button.VisibilityOnNone, Button.VisibilityOnPending, Button.VisibilityOnSuccess, Button.VisibilityOnFail )
 				];

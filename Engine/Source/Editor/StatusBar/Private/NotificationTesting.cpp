@@ -212,6 +212,38 @@ static void TestNotifications()
 
 			return false;
 		});
+
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 9.0f, [](float DeltaTime)
+		{
+			FNotificationInfo NotificationInfo(FText::FromString(TEXT("This one has a lot of text on the buttons which should overflow properly")));
+			NotificationInfo.FadeInDuration = 2.0f;
+			NotificationInfo.FadeOutDuration = 2.0f;
+			NotificationInfo.ExpireDuration = Timeout;
+
+			NotificationInfo.CheckBoxText = FText::FromString(TEXT("This is a checkbox with a lot of text. Hover over it to read the full text in the tooltip."));
+			NotificationInfo.CheckBoxState = ECheckBoxState::Checked;
+			NotificationInfo.CheckBoxStateChanged = FOnCheckStateChanged::CreateStatic([](ECheckBoxState NewState) {});
+
+			NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda([]() {});
+			NotificationInfo.HyperlinkText = FText::FromString(TEXT("This is a hyperlink with a lot of text. Hover over it to read the full text in the tooltip."));
+
+			NotificationInfo.bUseSuccessFailIcons = true;
+			NotificationInfo.bUseThrobber = true;
+
+
+			FNotificationButtonInfo Button1(FText::FromString("This is a button with a lot of text. Hover over it to read the full text in the tooltip."), FText::GetEmpty(), FSimpleDelegate());
+			FNotificationButtonInfo Button2(FText::FromString("This is another button with a lot of text. Hover over it to read the full text in the tooltip."), FText::GetEmpty(), FSimpleDelegate());
+
+			NotificationInfo.ButtonDetails.Add(Button1);
+			NotificationInfo.ButtonDetails.Add(Button2);
+
+			auto Notification = FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+			Notification->SetCompletionState(SNotificationItem::CS_Pending);
+
+			Notification->ExpireAndFadeout();
+
+			return false;
+		});
 }
 
 FAutoConsoleCommand TestNotificationCommand(TEXT("Slate.TestNotifications"), TEXT(""), FConsoleCommandDelegate::CreateStatic(&TestNotifications));
