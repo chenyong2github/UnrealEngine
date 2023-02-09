@@ -74,6 +74,11 @@ namespace UnrealGameSync
 			Quiet,
 		}
 
+		/// <summary>
+		/// Minimum version of the launcher that should be installed. Users will be prompted to upgrade it if the installed version is older than this.
+		/// </summary>
+		static readonly int s_minLauncherVersion = MakeLauncherVersion(1, 19);
+
 		[DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
 		static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
 
@@ -793,7 +798,7 @@ namespace UnrealGameSync
 
 		public bool CanPerformUpdate()
 		{
-			if(ContainsFocus || Form.ActiveForm == this)
+			if (ContainsFocus || Form.ActiveForm == this || !CanFocus)
 			{
 				return false;
 			}
@@ -916,6 +921,82 @@ namespace UnrealGameSync
 				_logger.LogInformation("Schedule: Started ScheduleTimer for {Time} ({Time} remaining)", nextScheduleTime, intervalToFirstTick);
 			}
 		}
+
+		private void CheckLauncherVersionTimer_Tick(object sender, EventArgs e)
+		{
+			if (!CanPerformUpdate())
+			{
+				return;
+			}
+
+			CheckLauncherVersionTimer.Enabled = false;
+
+			FileReference executableFile = new FileReference(Assembly.GetExecutingAssembly()!.Location);
+			FileReference installerFile = FileReference.Combine(executableFile.Directory, "UnrealGameSync.msi");
+			if (!FileReference.Exists(installerFile))
+			{
+				return;
+			}
+
+			DateTime now = DateTime.UtcNow;
+			if (now.Ticks < _settings.NextLauncherVersionCheck)
+			{
+				return;
+			}
+
+			int version = GetLauncherVersion();
+			if (version >= s_minLauncherVersion)
+			{
+				return;
+			}
+
+			LauncherUpdateWindow update = new LauncherUpdateWindow();
+			if (update.ShowDialog(this) == DialogResult.Ignore)
+			{
+				_settings.NextLauncherVersionCheck = (now + TimeSpan.FromDays(1.0)).Ticks;
+				_settings.Save(_logger);
+
+				CheckLauncherVersionTimer.Enabled = true;
+				return;
+			}
+
+			using (Process childProcess = new Process())
+			{
+				childProcess.StartInfo.FileName = installerFile.FullName;
+				childProcess.StartInfo.UseShellExecute = true;
+				childProcess.Start();
+			}
+
+			ForceClose();
+		}
+
+		static int GetLauncherVersion()
+		{
+			try
+			{
+				DirectoryReference? programFiles = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86);
+				if (programFiles == null)
+				{
+					return 0;
+				}
+
+				FileReference launcherFile = FileReference.Combine(programFiles, "UnrealGameSync", "UnrealGameSyncLauncher.exe");
+				if (!FileReference.Exists(launcherFile))
+				{
+					return 0;
+				}
+
+				FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(launcherFile.FullName);
+				return MakeLauncherVersion(versionInfo.FileMajorPart, versionInfo.FileMinorPart);
+			}
+			catch (Exception ex)
+			{
+				Program.CaptureException(ex);
+				return 0;
+			}
+		}
+
+		static int MakeLauncherVersion(int major, int minor) => (major << 16) + minor;
 
 		private void StopScheduleTimer()
 		{

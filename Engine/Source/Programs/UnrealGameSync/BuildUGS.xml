@@ -6,6 +6,7 @@
 	<Option Name="SubmitToStream" DefaultValue="" Description="Stream to submit binaries to"/>
 	<Option Name="SubmitToBranch" DefaultValue="" Description="Branch to submit binaries to"/>
 	<Option Name="SubmitPath" DefaultValue="" Description="Relative path within the stream/branch to submit binaries"/>
+	<Option Name="IncludeInstaller" DefaultValue="false" Description="Whether to include the launcher installer in the regular client distribution"/>
 
 	<Property Name="UgsDir" Value="$(RootDir)/Engine/Source/Programs/UnrealGameSync"/>
 	<Property Name="UgsOutputDir" Value="$(RootDir)/LocalBuilds/UnrealGameSync"/>
@@ -18,18 +19,36 @@
 	<Property Name="VersionArguments" Value="/p:Version=$(Version).0 /p:InformationalVersion=$(InformationalVersion)"/>
 	
 	<Agent Name="UnrealGameSync Agent" Type="Win64">
+		<Property Name="InstallerDir" Value="$(RootDir)/Engine/Source/Programs/UnrealGameSync/Installer"/>
+
 		<Property Name="UgsPublishDir" Value="$(UgsOutputDir)"/>
 		<Property Name="UgsPublishDir" Value="$(UgsPublishDir)/$(SubmitPath)" If="'$(SubmitPath)' != ''"/>
 
 		<Property Name="UgsZipPublishDir" Value="$(UgsZipOutputDir)"/>
 		<Property Name="UgsZipPublishDir" Value="$(UgsZipPublishDir)/$(SubmitPath)" If="'$(SubmitPath)' != ''"/>
-	
-		<Node Name="Build UnrealGameSync">
+
+		<Node Name="Build UnrealGameSync Installer">
+			<Property Name="WixDir" Value="$(RootDir)/Engine/Source/ThirdParty/WiX/3.8"/>
+			<Property Name="UgsLauncherPublishDir" Value="$(UgsDir)/UnrealGameSyncLauncher/bin/Release/netcoreapp3.1/win-x64/publish"/>
+
+			<Delete Files="$(UgsLauncherPublishDir)/..."/>
+			<DotNet Arguments="publish &quot;$(UgsDir)/UnrealGameSyncLauncher/UnrealGameSyncLauncher.csproj&quot; --output=&quot;$(UgsLauncherPublishDir)&quot; --no-self-contained -c Release -r win-x64 $(VersionArguments)"/>
+
+			<Spawn Exe="$(WixDir)/heat.exe" Arguments="dir &quot;$(UgsLauncherPublishDir)&quot; -cg UGSLauncher_Project -dr INSTALLFOLDER -scom -sreg -srd -var var.BasePath -gg -sfrag -out obj/Release/UGSLauncher.wxs" WorkingDir="$(InstallerDir)"/>
+			<Spawn Exe="$(WixDir)/candle.exe" Arguments="-dBasePath=&quot;$(UgsLauncherPublishDir)&quot; -out obj\Release\ -dConfiguration=Release -dPlatform=x64 -arch x86 -ext ..\..\..\ThirdParty\WiX\3.8\WixUtilExtension.dll Product.wxs obj/Release/UGSLauncher.wxs" WorkingDir="$(InstallerDir)"/>
+			<Spawn Exe="$(WixDir)/light.exe" Arguments="-out &quot;bin/Release/UnrealGameSync.msi&quot; -pdbout &quot;bin/Release/UnrealGameSync.wixpdb&quot; -cultures:null -ext ..\..\..\ThirdParty\WiX\3.8\WixUtilExtension.dll -sice:ICE69 &quot;obj\Release\Product.wixobj&quot; &quot;obj\Release\UGSLauncher.wixobj&quot;" WorkingDir="$(InstallerDir)"/>
+		</Node>
+		
+		<Property Name="InstallerDependency" Value=""/>
+		<Property Name="InstallerDependency" Value="Build UnrealGameSync Installer" If="IncludeInstaller"/>
+		
+		<Node Name="Build UnrealGameSync" Requires="$(InstallerDependency)">
 			<Delete Files="$(UgsOutputDir)/..."/>
 			<DotNet Arguments="publish &quot;$(UgsDir)/UnrealGameSyncCmd/UnrealGameSyncCmd.csproj&quot; --output=&quot;$(UgsPublishDir)&quot; --no-self-contained -c Release -r win-x64 $(VersionArguments)"/>
 			<DotNet Arguments="publish &quot;$(UgsDir)/UnrealGameSyncCmd/UnrealGameSyncCmd.csproj&quot; --output=&quot;$(UgsPublishDir)&quot; --no-self-contained -c Release -r osx-x64 $(VersionArguments)"/>
 			<DotNet Arguments="publish &quot;$(UgsDir)/UnrealGameSyncCmd/UnrealGameSyncCmd.csproj&quot; --output=&quot;$(UgsPublishDir)&quot; --no-self-contained -c Release -r linux-x64 $(VersionArguments)"/>
 			<DotNet Arguments="publish &quot;$(UgsDir)/UnrealGameSync/UnrealGameSync.csproj&quot; --output=&quot;$(UgsPublishDir)&quot; --no-self-contained -c Release -r win-x64 $(VersionArguments)"/>
+			<Copy From="$(InstallerDir)/bin/Release/UnrealGameSync.msi" To="$(UgsPublishDir)/UnrealGameSync.msi" If="$(IncludeInstaller)"/>
 		</Node>
 		<Node Name="Publish Unstable" Requires="Build UnrealGameSync">
 			<Submit Description="Updating UGS from CL $(Change)" Workspace="Temp" Files="$(UgsPublishDir)/..." RootDir="$(UgsOutputDir)" Stream="$(SubmitToStream)" Branch="$(SubmitToBranch)/UnstableRelease"/>
@@ -44,21 +63,6 @@
 		<Node Name="Publish Live Zip" Requires="Build UnrealGameSync">
 			<Zip FromDir="$(UgsOutputDir)" ZipFile="$(UgsZipPublishDir)/Release.zip"/>
 			<Submit Description="Updating UGS from CL $(Change) (Zip)" Workspace="Temp" Files="$(UgsZipPublishDir)/Release.zip" RootDir="$(UgsZipOutputDir)" Stream="$(SubmitToStream)" Branch="$(SubmitToBranch)"/>
-		</Node>
-	</Agent>
-	
-	<Agent Name="UnrealGameSync Installer" Type="Win64">
-		<Node Name="Build HordeInstaller">
-			<Property Name="WixDir" Value="$(RootDir)/Engine/Source/ThirdParty/WiX/3.8"/>
-			<Property Name="SourceDir" Value="$(RootDir)/Engine/Source/Programs/UnrealGameSync/Installer"/>
-			<Property Name="UgsLauncherPublishDir" Value="$(UgsDir)/UnrealGameSyncLauncher/bin/Release/netcoreapp3.1/win-x64/publish"/>
-
-			<Delete Files="$(UgsLauncherPublishDir)/..."/>
-			<DotNet Arguments="publish &quot;$(UgsDir)/UnrealGameSyncLauncher/UnrealGameSyncLauncher.csproj&quot; --output=&quot;$(UgsLauncherPublishDir)&quot; --no-self-contained -c Release -r win-x64 $(VersionArguments)"/>
-
-			<Spawn Exe="$(WixDir)/heat.exe" Arguments="dir &quot;$(UgsLauncherPublishDir)&quot; -cg UGSLauncher_Project -dr INSTALLFOLDER -scom -sreg -srd -var var.BasePath -gg -sfrag -out obj/Release/UGSLauncher.wxs" WorkingDir="$(SourceDir)"/>
-			<Spawn Exe="$(WixDir)/candle.exe" Arguments="-dBasePath=&quot;$(UgsLauncherPublishDir)&quot; -out obj\Release\ -dConfiguration=Release -dPlatform=x64 -arch x86 -ext ..\..\..\ThirdParty\WiX\3.8\WixUtilExtension.dll Product.wxs obj/Release/UGSLauncher.wxs" WorkingDir="$(SourceDir)"/>
-			<Spawn Exe="$(WixDir)/light.exe" Arguments="-out &quot;bin/Release/UnrealGameSync.msi&quot; -pdbout &quot;bin/Release/UnrealGameSync.wixpdb&quot; -cultures:null -ext ..\..\..\ThirdParty\WiX\3.8\WixUtilExtension.dll -sice:ICE69 &quot;obj\Release\Product.wixobj&quot; &quot;obj\Release\UGSLauncher.wixobj&quot;" WorkingDir="$(SourceDir)"/>
 		</Node>
 	</Agent>
 

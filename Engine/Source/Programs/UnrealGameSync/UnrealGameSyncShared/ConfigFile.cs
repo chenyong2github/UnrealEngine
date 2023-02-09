@@ -355,6 +355,11 @@ namespace UnrealGameSync
 			Pairs[key] = value.ToString();
 		}
 
+		public void SetValue(string key, long value)
+		{
+			Pairs[key] = value.ToString();
+		}
+
 		public void SetValue(string key, bool value)
 		{
 			Pairs[key] = value? "1" : "0";
@@ -421,6 +426,20 @@ namespace UnrealGameSync
 			{
 				int value;
 				if(int.TryParse(valueString, out value))
+				{
+					return value;
+				}
+			}
+			return defaultValue;
+		}
+
+		public long GetValue(string key, long defaultValue)
+		{
+			string? valueString = GetValue(key);
+			if (valueString != null)
+			{
+				long value;
+				if (long.TryParse(valueString, out value))
 				{
 					return value;
 				}

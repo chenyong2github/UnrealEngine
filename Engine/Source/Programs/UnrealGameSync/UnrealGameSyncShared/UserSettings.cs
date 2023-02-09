@@ -498,6 +498,7 @@ namespace UnrealGameSync
 		public string SyncTypeId;
 		public BuildConfig CompiledEditorBuildConfig; // NB: This assumes not using precompiled editor. See CurrentBuildConfig.
 		public TabLabels TabLabels;
+		public long NextLauncherVersionCheck;
 
 		// Precompiled binaries
 		public List<ArchiveSettings> Archives = new List<ArchiveSettings>();
@@ -625,6 +626,7 @@ namespace UnrealGameSync
 			AutoResolveConflicts = (_configFile.GetValue("General.AutoResolveConflicts", "1") != "0");
 			ShowUnreviewedChanges = _configFile.GetValue("General.ShowUnreviewed", true);
 			ShowAutomatedChanges = _configFile.GetValue("General.ShowAutomated", false);
+			NextLauncherVersionCheck = _configFile.GetValue("General.NextLauncherVersionCheck", 0);
 
 			// safely parse the filter enum
 			ShowRobomerge = RobomergeShowChangesOption.All;
@@ -1037,6 +1039,7 @@ namespace UnrealGameSync
 			generalSection.SetValue("FilterIndex", FilterIndex);
 			generalSection.SetValues("RecentProjects", RecentProjects.Select(x => x.ToConfigEntry()).ToArray());
 			generalSection.SetValue("SyncTypeID", SyncTypeId);
+			generalSection.SetValue("NextLauncherVersionCheck", NextLauncherVersionCheck);
 
 			// Build configuration
 			generalSection.SetValue("BuildConfig", CompiledEditorBuildConfig.ToString());
