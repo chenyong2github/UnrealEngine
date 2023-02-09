@@ -3,9 +3,11 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
-#include "Types/MVVMExecutionMode.h"
 
 #include "MVVMDeveloperProjectSettings.generated.h"
+
+enum class EMVVMBlueprintViewModelContextCreationType : uint8;
+enum class EMVVMExecutionMode : uint8;
 
 /**
  * 
@@ -57,6 +59,11 @@ public:
 		return AllowedExecutionMode.Contains(ExecutionMode);
 	}
 
+	bool IsContextCreationTypeAllowed(EMVVMBlueprintViewModelContextCreationType ContextCreationType) const
+	{
+		return AllowedContextCreationType.Contains(ContextCreationType);
+	}
+
 	EMVVMDeveloperConversionFunctionFilterType GetConversionFunctionFilter() const
 	{
 		return ConversionFunctionFilter;
@@ -72,8 +79,16 @@ private:
 	/** Permission list for filtering which execution mode is allowed. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	TSet<EMVVMExecutionMode> AllowedExecutionMode;
+	
+	/** Permission list for filtering which context creation type is allowed. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	TSet<EMVVMBlueprintViewModelContextCreationType> AllowedContextCreationType;
 
 public:
+	/** Binding can be made from the DetailView Bind option. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	bool bAllowBindingFromDetailView = true;
+
 	/** Permission list for filtering which execution mode is allowed. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	EMVVMDeveloperConversionFunctionFilterType ConversionFunctionFilter = EMVVMDeveloperConversionFunctionFilterType::BlueprintActionRegistry;

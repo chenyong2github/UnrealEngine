@@ -101,7 +101,7 @@ private:
 	TSharedPtr<FEdGraphSchemaAction> Action;
 };
 
-TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWeakPtr<FWidgetBlueprintEditor> InEditor, UFunction* SignatureFunction, TSharedRef<IPropertyHandle> InPropertyHandle, bool bInGeneratePureBindings)
+TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWeakPtr<FWidgetBlueprintEditor> InEditor, UFunction* SignatureFunction, TSharedRef<IPropertyHandle> InPropertyHandle, bool bInGeneratePureBindings, bool bAllowOldBinding)
 {
 	if (!IModularFeatures::Get().IsModularFeatureAvailable("PropertyAccessEditor"))
 	{
@@ -582,6 +582,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 	});
 
 	Args.bGeneratePureBindings = bInGeneratePureBindings;
+	Args.bAllowNewBindings = bAllowOldBinding;
 
 	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 	return PropertyAccessEditor.MakePropertyBindingWidget(InEditor.Pin()->GetBlueprintObj(), Args);
@@ -653,6 +654,11 @@ bool FBlueprintWidgetCustomization::HasPropertyBindings(TWeakPtr<FWidgetBlueprin
 void FBlueprintWidgetCustomization::CreateEventCustomization( IDetailLayoutBuilder& DetailLayout, FDelegateProperty* Property, UWidget* Widget )
 {
 	TSharedRef<IPropertyHandle> DelegatePropertyHandle = DetailLayout.GetProperty(Property->GetFName(), Property->GetOwnerChecked<UClass>());
+	UWidgetBlueprint* BlueprintObj = Blueprint.Get();
+	if (!BlueprintObj)
+	{
+		return;
+	}
 
 	const bool bHasValidHandle = DelegatePropertyHandle->IsValidHandle();
 	if(!bHasValidHandle)
@@ -696,7 +702,7 @@ void FBlueprintWidgetCustomization::CreateEventCustomization( IDetailLayoutBuild
 		.MinDesiredWidth(200)
 		.MaxDesiredWidth(250)
 		[
-			MakePropertyBindingWidget(Editor.Pin(), Property->SignatureFunction, DelegatePropertyHandle, false)
+			MakePropertyBindingWidget(Editor.Pin(), Property->SignatureFunction, DelegatePropertyHandle, false, BlueprintObj->ArePropertyBindingsAllowed())
 		];
 }
 
@@ -704,42 +710,49 @@ void FBlueprintWidgetCustomization::ResetToDefault_RemoveBinding(TSharedPtr<IPro
 {
 	const FScopedTransaction Transaction(LOCTEXT("UnbindDelegate", "Remove Binding"));
 
-	Blueprint->Modify();
-
-	TArray<UObject*> OuterObjects;
-	PropertyHandle->GetOuterObjects(OuterObjects);
-	for ( UObject* SelectedObject : OuterObjects )
+	UWidgetBlueprint* BlueprintObj = Blueprint.Get();
+	if (BlueprintObj)
 	{
-		FDelegateEditorBinding Binding;
-		Binding.ObjectName = SelectedObject->GetName();
-		Binding.PropertyName = PropertyHandle->GetProperty()->GetFName();
+		BlueprintObj->Modify();
+		
+		TArray<UObject*> OuterObjects;
+		PropertyHandle->GetOuterObjects(OuterObjects);
+		for (UObject* SelectedObject : OuterObjects)
+		{
+			FDelegateEditorBinding Binding;
+			Binding.ObjectName = SelectedObject->GetName();
+			Binding.PropertyName = PropertyHandle->GetProperty()->GetFName();
 
-		Blueprint->Bindings.Remove(Binding);
+			BlueprintObj->Bindings.Remove(Binding);
+		}
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BlueprintObj);
 	}
 
-	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+
 }
 
 
 FReply FBlueprintWidgetCustomization::HandleAddOrViewEventForVariable(const FName EventName, FName PropertyName, TWeakObjectPtr<UClass> PropertyClass)
 {
-	UBlueprint* BlueprintObj = Blueprint;
-
-	// Find the corresponding variable property in the Blueprint
-	FObjectProperty* VariableProperty = FindFProperty<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
-
-	if (VariableProperty)
+	if (UBlueprint* BlueprintObj = Blueprint.Get())
 	{
-		if (!FKismetEditorUtilities::FindBoundEventForComponent(BlueprintObj, EventName, VariableProperty->GetFName()))
+		// Find the corresponding variable property in the Blueprint
+		FObjectProperty* VariableProperty = FindFProperty<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
+
+		if (VariableProperty)
 		{
-			FKismetEditorUtilities::CreateNewBoundEventForClass(PropertyClass.Get(), EventName, BlueprintObj, VariableProperty);
-		}
-		else
-		{
-			const UK2Node_ComponentBoundEvent* ExistingNode = FKismetEditorUtilities::FindBoundEventForComponent(BlueprintObj, EventName, VariableProperty->GetFName());
-			if (ExistingNode)
+			if (!FKismetEditorUtilities::FindBoundEventForComponent(BlueprintObj, EventName, VariableProperty->GetFName()))
 			{
-				FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(ExistingNode);
+				FKismetEditorUtilities::CreateNewBoundEventForClass(PropertyClass.Get(), EventName, BlueprintObj, VariableProperty);
+			}
+			else
+			{
+				const UK2Node_ComponentBoundEvent* ExistingNode = FKismetEditorUtilities::FindBoundEventForComponent(BlueprintObj, EventName, VariableProperty->GetFName());
+				if (ExistingNode)
+				{
+					FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(ExistingNode);
+				}
 			}
 		}
 	}
@@ -749,18 +762,26 @@ FReply FBlueprintWidgetCustomization::HandleAddOrViewEventForVariable(const FNam
 
 int32 FBlueprintWidgetCustomization::HandleAddOrViewIndexForButton(const FName EventName, FName PropertyName) const
 {
-	UBlueprint* BlueprintObj = Blueprint;
-
-	if (FKismetEditorUtilities::FindBoundEventForComponent(BlueprintObj, EventName, PropertyName))
+	if (UBlueprint* BlueprintObj = Blueprint.Get())
 	{
-		return 0; // View
-	}
+		if (FKismetEditorUtilities::FindBoundEventForComponent(BlueprintObj, EventName, PropertyName))
+		{
+			return 0; // View
+		}
 
-	return 1; // Add
+		return 1; // Add
+	}
+	return 0;
 }
 
 void FBlueprintWidgetCustomization::CreateMulticastEventCustomization(IDetailLayoutBuilder& DetailLayout, FName ThisComponentName, UClass* PropertyClass, FMulticastDelegateProperty* DelegateProperty)
 {
+	UBlueprint* BlueprintObj = Blueprint.Get();
+	if (BlueprintObj == nullptr)
+	{
+		return;
+	}
+
 	const FString AddString = FString(TEXT("Add "));
 	const FString ViewString = FString(TEXT("View "));
 
@@ -777,7 +798,7 @@ void FBlueprintWidgetCustomization::CreateMulticastEventCustomization(IDetailLay
 		PropertyTooltip = FText::FromString(DelegateProperty->GetName());
 	}
 
-	FObjectProperty* ComponentProperty = FindFProperty<FObjectProperty>(Blueprint->SkeletonGeneratedClass, ThisComponentName);
+	FObjectProperty* ComponentProperty = FindFProperty<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, ThisComponentName);
 
 	if ( !ComponentProperty )
 	{
@@ -937,6 +958,12 @@ void FBlueprintWidgetCustomization::PerformAccessibilityCustomization(IDetailLay
 
 void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayoutBuilder& DetailLayout, const FName& BehaviorPropertyName, const FName& TextPropertyName)
 {
+	UWidgetBlueprint* BlueprintObj = Blueprint.Get();
+	if (!BlueprintObj)
+	{
+		return;
+	}
+
 	// Treat AccessibleBehavior as the "base" property for the row, and then add the AccessibleText binding to the end of it.
 	TSharedRef<IPropertyHandle> AccessibleBehaviorPropertyHandle = DetailLayout.GetProperty(BehaviorPropertyName);
 	IDetailPropertyRow& AccessibilityRow = DetailLayout.EditCategory("Accessibility").AddProperty(AccessibleBehaviorPropertyHandle);
@@ -954,7 +981,7 @@ void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayout
 			return !HasPropertyBindings(ThisEditor, AccessibleTextPropertyHandle);
 		}));
 
-	TSharedRef<SWidget> BindingWidget = MakePropertyBindingWidget(Editor, AccessibleTextDelegateProperty->SignatureFunction, AccessibleTextPropertyHandle, false);
+	TSharedRef<SWidget> BindingWidget = MakePropertyBindingWidget(Editor, AccessibleTextDelegateProperty->SignatureFunction, AccessibleTextPropertyHandle, false, BlueprintObj->ArePropertyBindingsAllowed());
 	TSharedRef<SHorizontalBox> CustomTextLayout = SNew(SHorizontalBox)
 	.Visibility(TAttribute<EVisibility>::Create([AccessibleBehaviorPropertyHandle]() -> EVisibility
 	{

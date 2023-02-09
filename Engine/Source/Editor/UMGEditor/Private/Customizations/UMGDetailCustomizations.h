@@ -33,7 +33,7 @@ public:
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailLayout ) override;
 
 	/** Make a property binding widget */
-	static TSharedRef<SWidget> MakePropertyBindingWidget(TWeakPtr<FWidgetBlueprintEditor> InEditor, UFunction* SignatureFunction, TSharedRef<IPropertyHandle> InDelegatePropertyHandle, bool bInGeneratePureBindings);
+	static TSharedRef<SWidget> MakePropertyBindingWidget(TWeakPtr<FWidgetBlueprintEditor> InEditor, UFunction* SignatureFunction, TSharedRef<IPropertyHandle> InDelegatePropertyHandle, bool bInGeneratePureBindings, bool bAllowOldBinding);
 
 	/** Whether the property (or its parent property, if this is an array/struct element) currently has bindings */
 	static bool HasPropertyBindings(TWeakPtr<FWidgetBlueprintEditor> InEditor, const TSharedRef<IPropertyHandle>& InPropertyHandle);
@@ -57,6 +57,5 @@ private:
 private:
 
 	TWeakPtr<FWidgetBlueprintEditor> Editor;
-
-	UWidgetBlueprint* Blueprint;
+	TWeakObjectPtr<UWidgetBlueprint> Blueprint;
 };

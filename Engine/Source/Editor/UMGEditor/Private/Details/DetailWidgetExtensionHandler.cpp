@@ -140,8 +140,10 @@ void FDetailWidgetExtensionHandler::ExtendWidgetRow(
 
 	const UWidgetBlueprint* WidgetBlueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
 
+	bool bShouldShowOldBindingWidget = Private::ShouldShowOldBindingWidget(WidgetBlueprint, PropertyHandleRef.Get());
+
 	bool bShouldShowWidget = false;
-	bShouldShowWidget |= Private::ShouldShowOldBindingWidget(WidgetBlueprint, PropertyHandleRef.Get());
+	bShouldShowWidget |= bShouldShowOldBindingWidget;
 	
 	TArray<UObject*> Objects;
 	InPropertyHandle->GetOuterObjects(Objects);
@@ -174,6 +176,6 @@ void FDetailWidgetExtensionHandler::ExtendWidgetRow(
 
 	InWidgetRow.ExtensionContent()
 	[
-		FBlueprintWidgetCustomization::MakePropertyBindingWidget(BlueprintEditor, SignatureFunction, InPropertyHandle.ToSharedRef(), true)
+		FBlueprintWidgetCustomization::MakePropertyBindingWidget(BlueprintEditor, SignatureFunction, InPropertyHandle.ToSharedRef(), true, bShouldShowOldBindingWidget)
 	];
 }

@@ -7,6 +7,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMDeveloperProjectSettings.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
@@ -225,6 +226,11 @@ TSharedPtr<FExtender> FMVVMPropertyBindingExtension::CreateMenuExtender(const UW
 
 bool FMVVMPropertyBindingExtension::CanExtend(const UWidgetBlueprint* WidgetBlueprint, const UWidget* Widget, const FProperty* Property) const
 {
+	if (!GetDefault<UMVVMDeveloperProjectSettings>()->bAllowBindingFromDetailView)
+	{
+		return false;
+	}
+
 	const UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint);
 	if (MVVMExtensionPtr == nullptr)
 	{

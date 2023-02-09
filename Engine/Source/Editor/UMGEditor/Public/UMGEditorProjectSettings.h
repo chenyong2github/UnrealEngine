@@ -140,11 +140,11 @@ public:
 	// End UObject Interface
 #endif
 
-protected:
-
+public:
 	UPROPERTY(EditAnywhere, config, Category = Compiler)
 	FWidgetCompilerOptions DefaultCompilerOptions;
 
+private:
 	UPROPERTY(EditAnywhere, config, Category = Compiler)
 	TArray<FDirectoryWidgetCompilerOptions> DirectoryCompilerOptions;
 

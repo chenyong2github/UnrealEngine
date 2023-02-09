@@ -3,6 +3,9 @@
 #include "MVVMDeveloperProjectSettings.h"
 #include "Engine/Blueprint.h"
 
+#include "MVVMBlueprintViewModelContext.h"
+#include "Types/MVVMExecutionMode.h"
+
 #define LOCTEXT_NAMESPACE "MVVMDeveloperProjectSettings"
 
 UMVVMDeveloperProjectSettings::UMVVMDeveloperProjectSettings()
@@ -10,6 +13,13 @@ UMVVMDeveloperProjectSettings::UMVVMDeveloperProjectSettings()
 	AllowedExecutionMode.Add(EMVVMExecutionMode::Immediate);
 	AllowedExecutionMode.Add(EMVVMExecutionMode::Delayed);
 	AllowedExecutionMode.Add(EMVVMExecutionMode::Tick);
+	
+	AllowedContextCreationType.Add(EMVVMBlueprintViewModelContextCreationType::Manual);
+	AllowedContextCreationType.Add(EMVVMBlueprintViewModelContextCreationType::CreateInstance);
+	AllowedContextCreationType.Add(EMVVMBlueprintViewModelContextCreationType::GlobalViewModelCollection);
+	AllowedContextCreationType.Add(EMVVMBlueprintViewModelContextCreationType::PropertyPath);
+	AllowedContextCreationType.Add(EMVVMBlueprintViewModelContextCreationType::PropertyPath);
+	AllowedContextCreationType.Add(EMVVMBlueprintViewModelContextCreationType::Resolver);
 }
 
 FName UMVVMDeveloperProjectSettings::GetCategoryName() const
