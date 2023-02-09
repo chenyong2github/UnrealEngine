@@ -117,6 +117,7 @@ struct FTestEval_A : public FStateTreeEvaluatorBase
 	using FInstanceDataType = FTestEval_AInstanceData;
 
 	FTestEval_A() = default;
+	FTestEval_A(const FName InName) { Name = InName; }
 	virtual ~FTestEval_A() override {}
 
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
@@ -149,6 +150,54 @@ struct FTestTask_B : public FStateTreeTaskBase
 	
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 };
+
+USTRUCT()
+struct FTestTask_PrintValueInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Parameter")
+	int32 Value = 0;
+};
+
+USTRUCT()
+struct FTestTask_PrintValue : public FStateTreeTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FTestTask_PrintValueInstanceData;
+
+	FTestTask_PrintValue() = default;
+	FTestTask_PrintValue(const FName InName) { Name = InName; }
+	virtual ~FTestTask_PrintValue() override {}
+	
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
+	{
+		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
+		const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		TestContext.Log(Name,  FString::Printf(TEXT("EnterState%d"), InstanceData.Value));
+		return EStateTreeRunStatus::Running;
+	}
+
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
+	{
+		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
+		const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		TestContext.Log(Name,  FString::Printf(TEXT("ExitState%d"), InstanceData.Value));
+	}
+
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override
+	{
+		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
+		const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		TestContext.Log(Name,  FString::Printf(TEXT("Tick%d"), InstanceData.Value));
+		
+		return EStateTreeRunStatus::Running;
+	};
+};
+
 
 USTRUCT()
 struct FTestTask_StandInstanceData

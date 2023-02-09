@@ -616,6 +616,9 @@ void FStateTreeExecutionContext::UpdateInstanceData(const FStateTreeActiveStates
 	FStateTreeExecutionState& Exec = GetExecState();
 	Exec.FirstTaskStructIndex = FStateTreeIndex16(FirstTaskStructIndex);
 	Exec.FirstTaskObjectIndex = FStateTreeIndex16(FirstTaskObjectIndex);
+
+	// Clear dataviews so that we dont have anything point to potentially stale data (e.g. the pointers for instanced structs may have changed).
+	DataViews.Init({}, DataViews.Num());
 }
 
 EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTransitionResult& Transition)
@@ -633,24 +636,33 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 	FStateTreeExecutionState& Exec = GetExecState();
 	Exec.StateChangeCount++;
 	Exec.CompletedStateHandle = FStateTreeStateHandle::Invalid;
+	Exec.EnterStateFailedTaskIndex = FStateTreeIndex16::Invalid; // This will make all tasks to be accepted.
+	Exec.ActiveStates.Reset();
 
 	// On target branch means that the state is the target of current transition or child of it.
 	// States which were active before and will remain active, but are not on target branch will not get
 	// EnterState called. That is, a transition is handled as "replan from this state".
 	bool bOnTargetBranch = false;
-
 	FStateTreeTransitionResult CurrentTransition = Transition;
-	
 	EStateTreeRunStatus Result = EStateTreeRunStatus::Running;
+	int32 InstanceStructIndex = 1; // Exec is at index 0
+	int32 InstanceObjectIndex = 0;
 
-	Exec.EnterStateFailedTaskIndex = FStateTreeIndex16::Invalid; // This will make all tasks to be accepted.
-	Exec.ActiveStates.Reset();
+	// Update data views for evaluators and global tasks as UpdateInstanceData() might have changed the location of the instance data.
+	// Evaluators
+	for (int32 EvalIndex = StateTree.EvaluatorsBegin; EvalIndex < (StateTree.EvaluatorsBegin + StateTree.EvaluatorsNum); EvalIndex++)
+	{
+		const FStateTreeEvaluatorBase& Eval = StateTree.Nodes[EvalIndex].Get<FStateTreeEvaluatorBase>();
+		SetNodeDataView(Eval, InstanceStructIndex, InstanceObjectIndex);
+	}
+
+	// Global tasks
+	for (int32 TaskIndex = StateTree.GlobalTasksBegin; TaskIndex < (StateTree.GlobalTasksBegin + StateTree.GlobalTasksNum); TaskIndex++)
+	{
+		const FStateTreeTaskBase& Task =  StateTree.Nodes[TaskIndex].Get<FStateTreeTaskBase>();
+		SetNodeDataView(Task, InstanceStructIndex, InstanceObjectIndex);
+	}
 	
-	// Do property copy on all states, propagating the results from last tick.
-	check(Exec.FirstTaskStructIndex.IsValid() && Exec.FirstTaskObjectIndex.IsValid()); 
-	int32 InstanceStructIndex = Exec.FirstTaskStructIndex.Get();
-	int32 InstanceObjectIndex = Exec.FirstTaskObjectIndex.Get();
-
 	STATETREE_LOG(Log, TEXT("Enter state '%s' (%d)"), *DebugGetStatePath(Transition.NextActiveStates), Exec.StateChangeCount);
 
 	for (int32 Index = 0; Index < Transition.NextActiveStates.Num() && Result != EStateTreeRunStatus::Failed; Index++)
