@@ -29,6 +29,12 @@ namespace AutomationTest
 		TEXT("Automation.CaptureLogEvents"),
 		bCaptureLogEvents,
 		TEXT("Consider warning/error log events during a test as impacting the test itself"));
+
+	static bool bSkipStackWalk = true;
+	static FAutoConsoleVariableRef CVarAutomationSkipStackWalk(
+		TEXT("Automation.SkipStackWalk"),
+		bSkipStackWalk,
+		TEXT("Whether to skip stack walk while iterating for listing the tests"));
 };
 
 
@@ -257,6 +263,12 @@ FString FAutomationTestFramework::GetUserAutomationDirectory() const
 	const FString DefaultAutomationSubFolder = TEXT("Unreal Automation");
 	return FString(FPlatformProcess::UserDir()) + DefaultAutomationSubFolder;
 }
+
+bool FAutomationTestFramework::NeedSkipStackWalk()
+{
+	return AutomationTest::bSkipStackWalk;
+}
+
 
 bool FAutomationTestFramework::RegisterAutomationTest( const FString& InTestNameToRegister, FAutomationTestBase* InTestToRegister )
 {
