@@ -903,15 +903,6 @@ void AftermathResolveMarkerCallback(const void* pMarker, void* pUserData, void**
 }
 #endif
 
-#include "VulkanRHIBridge.h"
-namespace VulkanRHIBridge
-{
-	FVulkanDevice* GetDevice(FVulkanDynamicRHI* RHI)
-	{
-		return RHI->GetDevice();
-	}
-}
-
 namespace VulkanRHI
 {
 	VkBuffer CreateBuffer(FVulkanDevice* InDevice, VkDeviceSize Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryRequirements& OutMemoryRequirements)

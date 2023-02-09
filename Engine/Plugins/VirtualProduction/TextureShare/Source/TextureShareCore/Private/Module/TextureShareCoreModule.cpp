@@ -6,7 +6,7 @@
 #include "Core/TextureShareCore.h"
 
 #ifdef TEXTURESHARECORE_INITIALIZEVULKANEXTENSIONS
-#include "VulkanRHIBridge.h"
+#include "IVulkanDynamicRHI.h"
 #endif
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -45,8 +45,8 @@ void FTextureShareCoreModule::StartupModule()
 		const TArray<const ANSICHAR*> InstanceLayers = {
 		};
 
-		VulkanRHIBridge::AddEnabledDeviceExtensionsAndLayers(DeviceExtensions, DeviceLayers);
-		VulkanRHIBridge::AddEnabledInstanceExtensionsAndLayers(InstanceExtensions, InstanceLayers);
+		IVulkanDynamicRHI::AddEnabledDeviceExtensionsAndLayers(DeviceExtensions, DeviceLayers);
+		IVulkanDynamicRHI::AddEnabledInstanceExtensionsAndLayers(InstanceExtensions, InstanceLayers);
 	}
 #endif
 }
