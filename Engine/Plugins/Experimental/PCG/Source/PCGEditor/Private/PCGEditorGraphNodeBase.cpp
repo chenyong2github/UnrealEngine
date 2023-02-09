@@ -455,10 +455,6 @@ FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)
 			EdPinType.PinSubCategory = FPCGEditorCommon::PrimitiveDataType;
 		}
 	}
-	else if (CheckType(EPCGDataType::Composite))
-	{
-		EdPinType.PinCategory = FPCGEditorCommon::CompositeDataType;
-	}
 	else if (CheckType(EPCGDataType::Spatial))
 	{
 		EdPinType.PinCategory = FPCGEditorCommon::SpatialDataType;

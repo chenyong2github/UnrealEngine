@@ -37,7 +37,7 @@ public:
 	void SetDensityFunction(EPCGUnionDensityFunction InDensityFunction) { DensityFunction = InDensityFunction; }
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Composite; }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
 	// ~End UPCGData interface
 
 	//~Begin UPCGSpatialData interface

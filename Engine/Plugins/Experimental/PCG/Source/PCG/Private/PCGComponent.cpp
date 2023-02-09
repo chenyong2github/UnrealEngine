@@ -1948,7 +1948,7 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 	// Some actor types we will forego full parsing to build strictly on the actor existence, such as partition actors, volumes and landscape
 	// TODO: add factory for extensibility
 	// TODO: review the !bParseActor cases - it might make sense to have just a point for a partition actor, even if we preintersect it.
-	APCGPartitionActor* PartitionActor = InDataFilter(EPCGDataType::Composite) ? Cast<APCGPartitionActor>(Actor) : nullptr;
+	APCGPartitionActor* PartitionActor = InDataFilter(EPCGDataType::Spatial) ? Cast<APCGPartitionActor>(Actor) : nullptr;
 	ALandscapeProxy* LandscapeActor = InDataFilter(EPCGDataType::Landscape) ? Cast<ALandscapeProxy>(Actor) : nullptr;
 	AVolume* VolumeActor = InDataFilter(EPCGDataType::Volume) ? Cast<AVolume>(Actor) : nullptr;
 	if (PartitionActor)

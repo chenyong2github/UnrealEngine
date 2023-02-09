@@ -25,7 +25,7 @@ public:
 	void Initialize(const UPCGSpatialData* InA, const UPCGSpatialData* InB);
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Composite; }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
 	// ~End UPCGData interface
 
 	//~Begin UPCGSpatialData interface

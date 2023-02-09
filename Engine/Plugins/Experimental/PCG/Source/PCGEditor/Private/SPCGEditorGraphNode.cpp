@@ -314,7 +314,7 @@ void SPCGEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 
 				PinToAdd->SetCustomPinIcon(ConnectedBrush, DisconnectedBrush);
 			}
-			else if (Pin->Properties.AllowedTypes == EPCGDataType::Composite)
+			else if (Pin->Properties.AllowedTypes == EPCGDataType::Spatial)
 			{
 				const FSlateBrush* ConnectedBrush = FPCGEditorStyle::Get().GetBrush(bIsInPin ? PCGEditorStyleConstants::Pin_Composite_IN_C : PCGEditorStyleConstants::Pin_Composite_OUT_C);
 				const FSlateBrush* DisconnectedBrush = FPCGEditorStyle::Get().GetBrush(bIsInPin ? PCGEditorStyleConstants::Pin_Composite_IN_DC : PCGEditorStyleConstants::Pin_Composite_OUT_DC);

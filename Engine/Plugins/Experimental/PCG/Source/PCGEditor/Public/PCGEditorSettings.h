@@ -80,10 +80,6 @@ public:
 	/** Color used for spatial data pins */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
 	FLinearColor SpatialDataPinColor;
-
-	/** Color used for composite shape spatial data pins */
-	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
-	FLinearColor CompositeDataPinColor;	
 	
 	/** Color used for concrete/simple spatial data pins */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))

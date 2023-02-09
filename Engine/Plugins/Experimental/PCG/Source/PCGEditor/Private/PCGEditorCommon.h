@@ -32,8 +32,6 @@ namespace FPCGEditorCommon
 	const FName SettingsDataType = FName(TEXT("Settings Data"));
 	const FName OtherDataType = FName(TEXT("Other Data"));
 
-	const FName CompositeDataType = FName(TEXT("Composite Data"));
-	
 	const FName ConcreteDataType = FName(TEXT("Concrete Data"));
 	const FName PointDataType = FName(TEXT("Point Data"));
 	const FName PolyLineDataType = FName(TEXT("Poly Line Data"));

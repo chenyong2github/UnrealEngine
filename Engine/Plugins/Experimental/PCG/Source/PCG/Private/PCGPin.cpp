@@ -225,16 +225,16 @@ bool UPCGPin::IsCompatible(const UPCGPin* OtherPin) const
 
 	// Concrete can always be used as a composite - allow connections from concrete to composite
 	const bool bUpstreamConcrete = !!(UpstreamPin->Properties.AllowedTypes & EPCGDataType::Concrete);
-	const bool bDownstreamComposite = !!(DownstreamPin->Properties.AllowedTypes & EPCGDataType::Composite);
-	if (bUpstreamConcrete && bDownstreamComposite)
+	const bool bDownstreamSpatial = !!(DownstreamPin->Properties.AllowedTypes & EPCGDataType::Spatial);
+	if (bUpstreamConcrete && bDownstreamSpatial)
 	{
 		return true;
 	}
 
 	// Catch case when a composite type is being connected to a concrete type - that can require collapse
-	const bool bUpstreamComposite = !!(UpstreamPin->Properties.AllowedTypes & EPCGDataType::Composite);
+	const bool bUpstreamSpatial = !!(UpstreamPin->Properties.AllowedTypes & EPCGDataType::Spatial);
 	const bool bDownstreamConcrete = !!(DownstreamPin->Properties.AllowedTypes & EPCGDataType::Concrete);
-	if (bUpstreamComposite && bDownstreamConcrete)
+	if (bUpstreamSpatial && bDownstreamConcrete)
 	{
 		// This will trigger a collapse, but let it slide for now.
 		// TODO in the future we should inject a conversion node.

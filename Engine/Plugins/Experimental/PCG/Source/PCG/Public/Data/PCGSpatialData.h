@@ -126,7 +126,7 @@ public:
 	virtual const UPCGSpatialData* FindShapeFromNetwork(const int InDimension) const { return (InDimension == -1 || GetDimension() == InDimension) ? this : nullptr; }
 
 	/** Find the first concrete (non-composite) shape in the network. Depth first search. */
-	virtual const UPCGSpatialData* FindFirstConcreteShapeFromNetwork() const { return !(GetDataType() & EPCGDataType::Composite) ? this : nullptr; }
+	virtual const UPCGSpatialData* FindFirstConcreteShapeFromNetwork() const { return !!(GetDataType() & EPCGDataType::Concrete) ? this : nullptr; }
 
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Data)
 	TWeakObjectPtr<AActor> TargetActor = nullptr;

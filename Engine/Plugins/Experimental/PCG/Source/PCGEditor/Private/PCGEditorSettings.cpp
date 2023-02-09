@@ -25,8 +25,7 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 
 	DefaultPinColor = FLinearColor(1.0f, 1.0f, 1.0f);
 
-	SpatialDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
-	CompositeDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
+	SpatialDataPinColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	ConcreteDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
 	PointDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
 	PolyLineDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
@@ -147,10 +146,6 @@ FLinearColor UPCGEditorSettings::GetPinColor(const FEdGraphPinType& PinType) con
 		{
 			return ConcreteDataPinColor;
 		}
-	}
-	else if (PinType.PinCategory == FPCGEditorCommon::CompositeDataType)
-	{
-		return CompositeDataPinColor;
 	}
 	else if (PinType.PinCategory == FPCGEditorCommon::SpatialDataType)
 	{
