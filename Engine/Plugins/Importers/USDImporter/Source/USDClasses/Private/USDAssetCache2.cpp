@@ -546,13 +546,14 @@ void UUsdAssetCache2::CacheAsset(const FString& Hash, UObject* Asset, const UObj
 
 	if (UObject* ExistingAsset = AssetStorage.FindRef(Hash))
 	{
-		FWriteScopeLock Lock(RWLock);
-
 		if (Asset == ExistingAsset)
 		{
 			// We're trying to cache an asset that's already in the cache with this same hash.
 			// Just record that we "touched" this asset and return
 			Modify();
+
+			FWriteScopeLock Lock(RWLock);
+
 			if (ReferencerToUse)
 			{
 				FoundInfo->Referencers.Add(FObjectKey{ ReferencerToUse });
@@ -947,9 +948,9 @@ TArray<FString> UUsdAssetCache2::GetAllCachedAssetPaths() const
 
 void UUsdAssetCache2::Reset()
 {
-	FWriteScopeLock Lock(RWLock);
-
 	Modify();
+
+	FWriteScopeLock Lock(RWLock);
 
 	// We never want the LRUCache to drop items by itself
 	const int32 MaxElements = -1;
