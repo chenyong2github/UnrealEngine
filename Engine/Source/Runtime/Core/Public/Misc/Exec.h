@@ -58,6 +58,9 @@ public:
 #endif // !UE_ALLOW_EXEC_COMMANDS
 
 protected:
+	/** Implementation of Exec that is called on all targets where UE_ALLOW_EXEC_COMMANDS is true */
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) { return false; }
+
 	/** Implementation of Exec that is only called in non-shipping targets */
 	virtual bool Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) { return false; }
 

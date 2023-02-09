@@ -208,9 +208,14 @@ public:
 	{}
 
 	//~ Begin FExec Interface.
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
+#endif
+protected:
+	virtual bool Exec_Runtime( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
 	//~ End FExec Interface.
 
+public:
 	/**
 	 * Gives the game's custom viewport client a way to handle F11 or Alt+Enter before processing the input
 	 */

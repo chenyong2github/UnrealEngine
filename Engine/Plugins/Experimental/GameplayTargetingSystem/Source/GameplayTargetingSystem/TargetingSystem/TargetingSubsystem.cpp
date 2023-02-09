@@ -139,7 +139,7 @@ void UTargetingSubsystem::Deinitialize()
 	AsyncTargetingRequests.Empty();
 }
 
-bool UTargetingSubsystem::Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool UTargetingSubsystem::Exec_Runtime(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject) || IsDefaultSubobject())
 	{

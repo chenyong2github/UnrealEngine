@@ -19,6 +19,8 @@ bool FExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	bExecSuccess = bExecSuccess || Exec_Dev( InWorld, Cmd, Ar );
 #endif
 
+	bExecSuccess = bExecSuccess || Exec_Runtime( InWorld, Cmd, Ar );
+
 	return bExecSuccess;
 }
 #endif // UE_ALLOW_EXEC_COMMANDS

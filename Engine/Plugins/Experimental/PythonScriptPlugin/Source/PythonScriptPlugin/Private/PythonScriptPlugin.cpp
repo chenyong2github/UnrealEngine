@@ -705,7 +705,7 @@ void FPythonScriptPlugin::ShutdownModule()
 #endif	// WITH_PYTHON
 }
 
-bool FPythonScriptPlugin::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FPythonScriptPlugin::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if WITH_PYTHON
 	if (FParse::Command(&Cmd, TEXT("PY")))

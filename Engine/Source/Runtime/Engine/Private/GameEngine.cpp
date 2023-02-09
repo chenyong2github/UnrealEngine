@@ -1016,7 +1016,7 @@ public:
 		return GEngineIni;
 	}
 
-	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override
+	virtual bool Exec_Runtime(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 		if (FParse::Command(&Cmd, TEXT("exitembedded")))
 		{
@@ -1378,7 +1378,51 @@ bool UGameEngine::ShouldDoAsyncEndOfFrameTasks() const
 	Command line executor.
 -----------------------------------------------------------------------------*/
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool UGameEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
+{
+	if (FExec::Exec(InWorld, Cmd, Ar))
+	{
+		return true;
+	}
+	else if (InWorld && InWorld->Exec(InWorld, Cmd, Ar))
+	{
+		return true;
+	}
+	else if (InWorld && InWorld->GetAuthGameMode() && InWorld->GetAuthGameMode()->ProcessConsoleExec(Cmd, Ar, nullptr))
+	{
+		return true;
+	}
+	else
+	{
+#if UE_BUILD_SHIPPING
+		// disallow set of actor properties if network game
+		if ((FParse::Command(&Cmd, TEXT("SET")) || FParse::Command(&Cmd, TEXT("SETNOPEC"))))
+		{
+			FWorldContext &Context = GetWorldContextFromWorldChecked(InWorld);
+			if (Context.PendingNetGame != NULL || InWorld->GetNetMode() != NM_Standalone)
+			{
+				return true;
+			}
+			// the effects of this cannot be easily reversed, so prevent the user from playing network games without restarting to avoid potential exploits
+			GDisallowNetworkTravel = true;
+		}
+#endif // UE_BUILD_SHIPPING
+		if (UEngine::Exec(InWorld, Cmd, Ar))
+		{
+			return true;
+		}
+		else if (UPlatformInterfaceBase::StaticExec(Cmd, Ar))
+		{
+			return true;
+		}
+
+		return false;
+	}
+}
+#endif // UE_ALLOW_EXEC_COMMANDS
+
+bool UGameEngine::Exec_Runtime( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	if( FParse::Command( &Cmd,TEXT("REATTACHCOMPONENTS")) || FParse::Command( &Cmd,TEXT("REREGISTERCOMPONENTS")))
 	{
@@ -1472,14 +1516,26 @@ bool UGameEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 
 		return true;
 	}
+
+	return false;
+}
+
+bool UGameEngine::Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
+{
 #if !UE_BUILD_SHIPPING
-	else if( FParse::Command( &Cmd, TEXT("ApplyUserSettings") ) )
+	if( FParse::Command( &Cmd, TEXT("ApplyUserSettings") ) )
 	{
-		return HandleApplyUserSettingsCommand( Cmd, Ar );
+		return HandleApplyUserSettingsCommand(Cmd, Ar);
 	}
 #endif // !UE_BUILD_SHIPPING
+
+	return false;
+}
+
+bool UGameEngine::Exec_Editor( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
+{
 #if WITH_EDITOR
-	else if( FParse::Command(&Cmd,TEXT("STARTMOVIECAPTURE")) && GIsEditor )
+	if( FParse::Command(&Cmd,TEXT("STARTMOVIECAPTURE")) && GIsEditor )
 	{
 		IMovieSceneCaptureInterface* CaptureInterface = IMovieSceneCaptureModule::Get().GetFirstActiveMovieSceneCapture();
 		if (CaptureInterface)
@@ -1496,41 +1552,9 @@ bool UGameEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		}
 		return false;
 	}
-#endif
-	else if( InWorld && InWorld->Exec( InWorld, Cmd, Ar ) )
-	{
-		return true;
-	}
-	else if( InWorld && InWorld->GetAuthGameMode() && InWorld->GetAuthGameMode()->ProcessConsoleExec(Cmd,Ar,NULL) )
-	{
-		return true;
-	}
-	else
-	{
-#if UE_BUILD_SHIPPING
-		// disallow set of actor properties if network game
-		if ((FParse::Command( &Cmd, TEXT("SET")) || FParse::Command( &Cmd, TEXT("SETNOPEC"))))
-		{
-			FWorldContext &Context = GetWorldContextFromWorldChecked(InWorld);
-			if( Context.PendingNetGame != NULL || InWorld->GetNetMode() != NM_Standalone)
-			{
-				return true;
-			}
-			// the effects of this cannot be easily reversed, so prevent the user from playing network games without restarting to avoid potential exploits
-			GDisallowNetworkTravel = true;
-		}
-#endif // UE_BUILD_SHIPPING
-		if (UEngine::Exec(InWorld, Cmd, Ar))
-		{
-			return true;
-		}
-		else if (UPlatformInterfaceBase::StaticExec(Cmd, Ar))
-		{
-			return true;
-		}
-	
-		return false;
-	}
+#endif // WITH_EDITOR
+
+	return false;
 }
 
 bool UGameEngine::HandleExitCommand( const TCHAR* Cmd, FOutputDevice& Ar )

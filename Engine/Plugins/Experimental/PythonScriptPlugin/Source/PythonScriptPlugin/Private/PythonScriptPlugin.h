@@ -116,9 +116,6 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	//~ FSelfRegisteringExec interface
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	//~ FEnumEditorUtils::INotifyOnEnumChanged interface
 	virtual void PreChange(const UUserDefinedEnum* Enum, FEnumEditorUtils::EEnumEditorChangeInfo Info) override;
 	virtual void PostChange(const UUserDefinedEnum* Enum, FEnumEditorUtils::EEnumEditorChangeInfo Info) override;
@@ -154,6 +151,10 @@ public:
 	PyObject* GetConsoleGlobalDict() { return PyConsoleGlobalDict.Get(); }
 	PyObject* GetConsoleLocalDict()  { return PyConsoleLocalDict.Get();  }
 #endif	// WITH_PYTHON
+
+protected:
+	//~ FSelfRegisteringExec interface
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 private:
 #if WITH_PYTHON

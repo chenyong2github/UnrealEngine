@@ -96,7 +96,7 @@ private:
 	// End USubsystem
 
 	/** FSelfRegisteringExec implementation */
-	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Runtime(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	/** ~FSelfRegisteringExec implementation */
 
 	// FTickableGameObject interface

@@ -2954,7 +2954,33 @@ void UGameViewportClient::SetHideCursorDuringCapture(bool InHideCursorDuringCapt
 	}
 }
 
-bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
+#if UE_ALLOW_EXEC_COMMANDS
+bool UGameViewportClient::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	if (FExec::Exec(InWorld, Cmd, Ar))
+	{
+		return true;
+	}
+	else if (ProcessConsoleExec(Cmd, Ar, NULL))
+	{
+		return true;
+	}
+	else if (GameInstance && (GameInstance->Exec(InWorld, Cmd, Ar) || GameInstance->ProcessConsoleExec(Cmd, Ar, nullptr)))
+	{
+		return true;
+	}
+	else if (GEngine->Exec(InWorld, Cmd, Ar))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+#endif // UE_ALLOW_EXEC_COMMANDS
+
+bool UGameViewportClient::Exec_Runtime( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 {
 	if ( FParse::Command(&Cmd,TEXT("FORCEFULLSCREEN")) )
 	{
@@ -3059,19 +3085,6 @@ bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice&
 	else if (FParse::Command(&Cmd, TEXT("PAUSERENDERCLOCK")))
 	{
 		return HandlePauseRenderClockCommand( Cmd, Ar );
-	}
-
-	if(ProcessConsoleExec(Cmd,Ar,NULL))
-	{
-		return true;
-	}
-	else if ( GameInstance && (GameInstance->Exec(InWorld, Cmd, Ar) || GameInstance->ProcessConsoleExec(Cmd, Ar, nullptr)) )
-	{
-		return true;
-	}
-	else if( GEngine->Exec( InWorld, Cmd,Ar) )
-	{
-		return true;
 	}
 	else
 	{
