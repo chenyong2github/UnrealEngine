@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AbilityTask_PerformTargeting.h"
-#include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemLogs.h"
+#include "TargetingSystem/TargetingSubsystem.h"
+#include "Types/TargetingSystemLogs.h"
 
 void UAbilityTask_PerformTargeting::Activate()
 {

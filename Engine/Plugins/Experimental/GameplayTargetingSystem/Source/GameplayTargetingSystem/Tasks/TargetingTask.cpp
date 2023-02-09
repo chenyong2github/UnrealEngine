@@ -2,7 +2,7 @@
 #include "TargetingTask.h"
 
 #include "GameFramework/Actor.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
+#include "Types/TargetingSystemTypes.h"
 
 
 UTargetingTask::UTargetingTask(const FObjectInitializer& ObjectInitializer)

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "TargetingSystemTypes.h"
 
-#include "GameplayTargetingSystem/TargetingSystem/TargetingPreset.h"
-#include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
-#include "GameplayTargetingSystem/Tasks/TargetingTask.h"
+#include "TargetingSystem/TargetingPreset.h"
+#include "TargetingSystem/TargetingSubsystem.h"
+#include "Tasks/TargetingTask.h"
 #include "TargetingSystemLogs.h"
 #include "TargetingSystemDataStores.h"
 

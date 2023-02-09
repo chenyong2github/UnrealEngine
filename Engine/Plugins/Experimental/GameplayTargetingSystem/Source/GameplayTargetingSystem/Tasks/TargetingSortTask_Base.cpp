@@ -3,7 +3,7 @@
 #include "TargetingSortTask_Base.h"
 
 #include "GameFramework/Actor.h"
-#include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
+#include "TargetingSystem/TargetingSubsystem.h"
 #include "Kismet/KismetMathLibrary.h"
 
 #if ENABLE_DRAW_DEBUG

@@ -3,7 +3,7 @@
 
 #include "UObject/Object.h"
 #include "Engine/DataAsset.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
+#include "Types/TargetingSystemTypes.h"
 
 #include "TargetingPreset.generated.h"
 

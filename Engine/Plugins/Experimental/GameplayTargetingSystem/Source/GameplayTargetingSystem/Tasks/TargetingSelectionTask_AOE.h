@@ -4,7 +4,7 @@
 #include "CollisionShape.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/EngineTypes.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
+#include "Types/TargetingSystemTypes.h"
 #include "ScalableFloat.h"
 #include "TargetingTask.h"
 #include "UObject/Object.h"

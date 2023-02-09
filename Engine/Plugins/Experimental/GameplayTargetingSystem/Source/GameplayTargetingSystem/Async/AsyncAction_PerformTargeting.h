@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
+#include "Types/TargetingSystemTypes.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "UObject/ObjectMacros.h"
 

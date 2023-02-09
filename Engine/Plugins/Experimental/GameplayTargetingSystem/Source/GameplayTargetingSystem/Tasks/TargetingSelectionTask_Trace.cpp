@@ -7,8 +7,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
-#include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemLogs.h"
+#include "TargetingSystem/TargetingSubsystem.h"
+#include "Types/TargetingSystemLogs.h"
 
 #if ENABLE_DRAW_DEBUG
 #include "Engine/Canvas.h"

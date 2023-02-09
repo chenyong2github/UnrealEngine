@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Engine/EngineTypes.h"
-#include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
+#include "TargetingSystem/TargetingSubsystem.h"
 #include "TargetingSystemTypes.h"
 
 

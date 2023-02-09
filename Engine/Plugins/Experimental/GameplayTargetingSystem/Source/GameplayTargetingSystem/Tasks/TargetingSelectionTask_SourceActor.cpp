@@ -2,7 +2,7 @@
 #include "TargetingSelectionTask_SourceActor.h"
 
 #include "GameFramework/Actor.h"
-#include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
+#include "TargetingSystem/TargetingSubsystem.h"
 
 #if ENABLE_DRAW_DEBUG
 #include "Engine/Canvas.h"

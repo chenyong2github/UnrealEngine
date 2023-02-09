@@ -3,8 +3,8 @@
 
 #include "CoreMinimal.h"
 #include "DrawDebugHelpers.h"
-#include "GameplayTargetingSystem/Tasks/TargetingTask.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
+#include "Tasks/TargetingTask.h"
+#include "Types/TargetingSystemTypes.h"
 #include "Misc/CoreMisc.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Tickable.h"

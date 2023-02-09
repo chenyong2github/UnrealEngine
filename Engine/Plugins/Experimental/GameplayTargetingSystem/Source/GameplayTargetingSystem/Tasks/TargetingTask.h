@@ -2,7 +2,7 @@
 #pragma once
 
 #include "DrawDebugHelpers.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
+#include "Types/TargetingSystemTypes.h"
 #include "UObject/Object.h"
 
 #include "TargetingTask.generated.h"

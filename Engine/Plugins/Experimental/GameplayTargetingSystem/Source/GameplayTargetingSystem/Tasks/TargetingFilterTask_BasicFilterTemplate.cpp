@@ -2,8 +2,8 @@
 #include "TargetingFilterTask_BasicFilterTemplate.h"
 
 #include "GameFramework/Actor.h"
-#include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
+#include "TargetingSystem/TargetingSubsystem.h"
+#include "Types/TargetingSystemTypes.h"
 
 #if ENABLE_DRAW_DEBUG
 #include "Engine/Canvas.h"

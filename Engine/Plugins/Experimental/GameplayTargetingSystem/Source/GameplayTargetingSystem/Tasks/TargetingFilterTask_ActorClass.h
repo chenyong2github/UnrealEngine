@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "GameplayTargetingSystem/Tasks/TargetingFilterTask_BasicFilterTemplate.h"
-#include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
+#include "Tasks/TargetingFilterTask_BasicFilterTemplate.h"
+#include "Types/TargetingSystemTypes.h"
 
 #include "TargetingFilterTask_ActorClass.generated.h"
 
