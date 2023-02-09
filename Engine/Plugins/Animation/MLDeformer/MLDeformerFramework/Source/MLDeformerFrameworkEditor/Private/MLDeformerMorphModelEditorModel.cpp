@@ -47,7 +47,10 @@ namespace UE::MLDeformer
 		{
 			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 			{
-				InitEngineMorphTargets(GetMorphModel()->GetMorphTargetDeltas());
+				if (GetMorphModel()->CanDynamicallyUpdateMorphTargets())
+				{
+					InitEngineMorphTargets(GetMorphModel()->GetMorphTargetDeltas());
+				}
 			}
 		}
 		else if (Property->GetFName() == UMLDeformerMorphModelVizSettings::GetMorphTargetNumberPropertyName())

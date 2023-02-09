@@ -28,12 +28,12 @@ UE::MLDeformer::FMLDeformerEditorModel* UMLDeformerTrainingModel::GetEditorModel
 
 int32 UMLDeformerTrainingModel::GetNumberSampleTransforms() const
 {
-	return GetModel()->GetInputInfo()->GetNumBones();
+	return EditorModel->GetEditorInputInfo()->GetNumBones();
 }
 
 int32 UMLDeformerTrainingModel::GetNumberSampleCurves() const
 {
-	return GetModel()->GetInputInfo()->GetNumCurves();
+	return EditorModel->GetEditorInputInfo()->GetNumCurves();
 }
 
 int32 UMLDeformerTrainingModel::NumSamples() const
@@ -43,7 +43,7 @@ int32 UMLDeformerTrainingModel::NumSamples() const
 
 int32 UMLDeformerTrainingModel::GetNumberSampleDeltas() const
 {
-	return GetModel()->GetNumBaseMeshVerts();
+	return EditorModel->GetEditorInputInfo()->GetNumBaseMeshVertices();
 }
 
 void UMLDeformerTrainingModel::SetNumFloatsPerCurve(int32 NumFloatsPerCurve)

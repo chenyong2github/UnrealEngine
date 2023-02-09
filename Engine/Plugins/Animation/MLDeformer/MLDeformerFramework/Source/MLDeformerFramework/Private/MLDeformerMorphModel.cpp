@@ -56,6 +56,11 @@ void UMLDeformerMorphModel::PostLoad()
 #endif
 }
 
+bool UMLDeformerMorphModel::CanDynamicallyUpdateMorphTargets() const
+{
+	return GetMorphTargetDeltas().Num() == (GetNumBaseMeshVerts() * GetNumMorphTargets());
+}
+
 UMLDeformerModelInstance* UMLDeformerMorphModel::CreateModelInstance(UMLDeformerComponent* Component)
 {
 	return NewObject<UMLDeformerMorphModelInstance>(Component);

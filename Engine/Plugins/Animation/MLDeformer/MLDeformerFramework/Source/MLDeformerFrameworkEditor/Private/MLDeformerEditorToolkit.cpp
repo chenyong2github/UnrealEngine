@@ -388,11 +388,11 @@ namespace UE::MLDeformer
 						}
 
 						// Initialize the training inputs.
-						ActiveModel->InitInputInfo(Model->GetInputInfo());
+						ActiveModel->UpdateEditorInputInfo();
 
 						// Make sure we have something to train on.
 						// If this triggers, the train button most likely was enabled while it shouldn't be.
-						check(!Model->GetInputInfo()->IsEmpty());
+						check(!ActiveModel->GetEditorInputInfo()->IsEmpty());
 
 						// Train the model, which executes the Python code's "train" function.
 						const double StartTime = FPlatformTime::Seconds();
@@ -492,6 +492,7 @@ namespace UE::MLDeformer
 					FFormatNamedArguments SuccessArgs;
 					SuccessArgs.Add(TEXT("Duration"), TrainingDurationText);
 					WindowMessage = FText::Format(LOCTEXT("TrainingSuccess", "Training completed successfully!\n\nTraining time: {Duration}"), SuccessArgs);
+					ActiveModel->InitInputInfo(ActiveModel->GetModel()->GetInputInfo());
 					bMarkDirty = true;
 				}
 			}
@@ -516,6 +517,7 @@ namespace UE::MLDeformer
 					else
 					{
 						ShowNotification(LOCTEXT("PartialTrainingSuccess", "Training partially completed!"), SNotificationItem::ECompletionState::CS_Success, true);
+						ActiveModel->InitInputInfo(ActiveModel->GetModel()->GetInputInfo());
 						bMarkDirty = true;
 					}
 				}
@@ -637,7 +639,7 @@ namespace UE::MLDeformer
 			ActiveModel->SetDefaultDeformerGraphIfNeeded();
 			ActiveModel->CreateActors(InPersonaPreviewScene);
 			ActiveModel->UpdateActorVisibility();
-			ActiveModel->OnInputAssetsChanged();
+			ActiveModel->TriggerInputAssetChanged(false);
 			ActiveModel->CreateHeatMapAssets();
 			ActiveModel->SetHeatMapMaterialEnabled(ActiveModel->GetModel()->GetVizSettings()->GetShowHeatMap());
 			ActiveModel->SetResamplingInputOutputsNeeded(true);

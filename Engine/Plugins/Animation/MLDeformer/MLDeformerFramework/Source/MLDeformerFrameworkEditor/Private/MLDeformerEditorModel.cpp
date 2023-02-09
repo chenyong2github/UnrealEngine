@@ -35,6 +35,7 @@
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheTrack.h"
 #include "BoneContainer.h"
+#include "Misc/ScopedSlowTask.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerEditorModel"
 
@@ -158,7 +159,6 @@ namespace UE::MLDeformer
 		SkelMeshComponent->RegisterComponent();
 		SkelMeshComponent->SetVisibility(false);
 		SkelMeshComponent->MarkRenderStateDirty();
-
 
 		// Register the editor actor.
 		const FLinearColor LabelColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.BaseMesh.LabelColor");
@@ -1556,10 +1556,18 @@ namespace UE::MLDeformer
 		OnInputAssetsChanged();
 		OnPostInputAssetChanged();
 		UpdateMemoryUsage();
-		GetEditor()->GetModelDetailsView()->ForceRefresh();
+
+		if (Editor->GetModelDetailsView())
+		{
+			Editor->GetModelDetailsView()->ForceRefresh();
+		}
+
 		if (bRefreshVizSettings)
 		{
-			GetEditor()->GetVizSettingsDetailsView()->ForceRefresh();
+			if (Editor->GetVizSettingsDetailsView())
+			{
+				Editor->GetVizSettingsDetailsView()->ForceRefresh();
+			}
 		}
 	}
 
@@ -1652,11 +1660,23 @@ namespace UE::MLDeformer
 			return;
 		}
 
+		// Used to sort vertices.
+		struct FMLDeformerCompareMorphTargetDeltas
+		{
+			FORCEINLINE bool operator()(const FMorphTargetDelta& A, const FMorphTargetDelta& B) const
+			{
+				return A.SourceIdx < B.SourceIdx;
+			}
+		};
+
 		const int32 NumBaseMeshVerts = Model->GetNumBaseMeshVerts();
 		check(Deltas.Num() % NumBaseMeshVerts == 0);
 		const int32 NumMorphTargets = Deltas.Num() / NumBaseMeshVerts;
 		check((Deltas.Num() / NumMorphTargets) == NumBaseMeshVerts);
 		check(!Model->GetVertexMap().IsEmpty());
+
+		FScopedSlowTask Task(NumMorphTargets, LOCTEXT("CreateEngineMorphTargetProgress", "Creating morph targets"));
+		Task.MakeDialog(false);	
 
 		USkeletalMesh* SkelMesh = Model->GetSkeletalMesh();
 		FSkeletalMeshRenderData* RenderData = SkelMesh->GetResourceForRendering();
@@ -1666,6 +1686,8 @@ namespace UE::MLDeformer
 
 		// Calculate the normals for the base mesh.
 		const FSkeletalMeshModel* ImportedModel = SkelMesh->GetImportedModel();
+		check(ImportedModel);
+		check(ImportedModel->LODModels.IsValidIndex(LOD));
 		const TArrayView<const uint32> IndexArray = ImportedModel->LODModels[LOD].IndexBuffer;
 		const TArrayView<const int32> VertexMap = ImportedModel->LODModels[LOD].MeshToImportVertexMap;
 		const TArrayView<const FVector3f> BaseVertexPositions = Sampler->GetUnskinnedVertexPositions();
@@ -1702,15 +1724,6 @@ namespace UE::MLDeformer
 			MorphLODModel.Reset();
 			MorphLODModel.bGeneratedByEngine = true;
 			MorphLODModel.NumBaseMeshVerts = NumRenderVertices;
-			MorphLODModel.NumVertices = NumRenderVertices;
-
-			// Init sections.
-			const int32 NumSections = RenderData->LODRenderData[LOD].RenderSections.Num();
-			MorphLODModel.SectionIndices.AddUninitialized(NumSections);
-			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
-			{
-				MorphLODModel.SectionIndices[SectionIndex] = SectionIndex;
-			}
 
 			// Init deltas for this morph target.
 			MorphLODModel.Vertices.Reserve(NumRenderVertices);
@@ -1740,24 +1753,37 @@ namespace UE::MLDeformer
 						}
 					}
 
-					const FVector3f Delta = Deltas[ImportedVertexNumber + MorphTargetIndex * NumBaseMeshVerts];
-					if (Delta.Length() * VertexWeight > DeltaThreshold)
+					// Update the sections.
+					int32 SectionIndex = INDEX_NONE;
+					int32 SectionVertexIndex = INDEX_NONE;
+					ImportedModel->LODModels[LOD].GetSectionFromVertexIndex(VertexIndex, SectionIndex, SectionVertexIndex);
+
+					const FVector3f Delta = Deltas[ImportedVertexNumber + MorphTargetIndex * NumBaseMeshVerts] * VertexWeight;
+					if (Delta.Length() > DeltaThreshold)
 					{
 						MorphLODModel.Vertices.AddDefaulted();
 						FMorphTargetDelta& MorphTargetDelta = MorphLODModel.Vertices.Last();
-						MorphTargetDelta.PositionDelta = Delta * VertexWeight;
+						MorphTargetDelta.PositionDelta = Delta;
 						MorphTargetDelta.SourceIdx = VertexIndex;
 						MorphTargetDelta.TangentZDelta = bIncludeNormals ? DeltaNormals[ImportedVertexNumber] * VertexWeight : FVector3f::ZeroVector;
+
+						MorphLODModel.SectionIndices.AddUnique(SectionIndex);
 					}
 				}
 			}
 
 			MorphLODModel.Vertices.Shrink();
+			MorphLODModel.Vertices.Sort(FMLDeformerCompareMorphTargetDeltas());
+			MorphLODModel.NumVertices = MorphLODModel.Vertices.Num();
+			Task.EnterProgressFrame();
 		}
 	}
 
 	void FMLDeformerEditorModel::CompressEngineMorphTargets(FMorphTargetVertexInfoBuffers& OutMorphBuffers, const TArray<UMorphTarget*>& MorphTargets, int32 LOD, float MorphErrorTolerance)
 	{
+		FScopedSlowTask Task(2, LOCTEXT("CompressEngineMorphTargetProgress", "Compressing morph targets"));
+		Task.MakeDialog(false);	
+
 		USkeletalMesh* SkelMesh = Model->GetSkeletalMesh();
 		FSkeletalMeshRenderData* RenderData = SkelMesh->GetResourceForRendering();
 		check(RenderData);
@@ -1785,6 +1811,8 @@ namespace UE::MLDeformer
 			MorphErrorTolerance
 		);
 
+		Task.EnterProgressFrame();
+
 		// Reinit the render resources.
 		if (OutMorphBuffers.IsMorphCPUDataValid() && OutMorphBuffers.GetNumMorphs() > 0 && OutMorphBuffers.GetNumBatches() > 0)
 		{
@@ -1803,6 +1831,7 @@ namespace UE::MLDeformer
 		}
 
 		UpdateMemoryUsage();
+		Task.EnterProgressFrame();
 	}
 
 	void FMLDeformerEditorModel::DrawMorphTarget(FPrimitiveDrawInterface* PDI, const TArray<FVector3f>& MorphDeltas, float DeltaThreshold, int32 MorphTargetIndex, const FVector& DrawOffset)
