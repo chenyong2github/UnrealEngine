@@ -2254,6 +2254,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FSceneOnScreenMessagesDelegate, FScreenMessageWriter&);
 	FSceneOnScreenMessagesDelegate OnGetOnScreenMessages;
 
+	inline TConstStridedView<FSceneView> GetSceneViews() const { return MakeStridedViewOfBase<const FSceneView>(MakeArrayView(Views)); }
+
 protected:
 
 	/** Size of the family. */

@@ -1466,7 +1466,7 @@ void AddPostProcessingPasses(
 		{
 			if (FFXSystemInterface* FXSystem = View.Family->Scene->GetFXSystem())
 			{
-				FXSystem->DrawSceneDebug_RenderThread(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
+				FXSystem->DrawSceneDebug_RenderThread(GraphBuilder, (const FSceneView&)View, SceneColor.Texture, SceneDepth.Texture);
 			}
 		}
 	}

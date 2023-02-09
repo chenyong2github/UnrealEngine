@@ -84,10 +84,10 @@ public:
 	bool ShouldDrawDebug() const;
 
 	// Draw all the debug information for the system
-	void DrawDebug(FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output);
+	void DrawDebug(FRDGBuilder& GraphBuilder, const FSceneView& View, const struct FScreenPassRenderTarget& Output);
 
 	// Draw debug information that requires rendering into the scene
-	void DrawSceneDebug(FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth);
+	void DrawSceneDebug(FRDGBuilder& GraphBuilder, const FSceneView& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth);
 
 private:
 	ERHIFeatureLevel::Type FeatureLevel;

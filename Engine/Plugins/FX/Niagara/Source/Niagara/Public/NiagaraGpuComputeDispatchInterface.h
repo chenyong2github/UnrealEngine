@@ -9,9 +9,9 @@
 #include "NiagaraGPUInstanceCountManager.h"
 #include "FXSystem.h"
 
-class RENDERCORE_API FRDGBuilder;
+class FRDGBuilder;
 class FRDGExternalAccessQueue;
-class FViewInfo;
+class FSceneView;
 
 class FNiagaraAsyncGpuTraceHelper;
 struct FNiagaraComputeExecutionContext;
@@ -79,7 +79,6 @@ public:
 	List is only valid during graph building (i.e. during ExecuteTicks) and for simulations in PostInitViews / PostRenderOpaque.
 	*/
 	TConstStridedView<FSceneView> GetSimulationSceneViews() const { return SimulationSceneViews; }
-	TConstArrayView<FViewInfo> GetSimulationViewInfos() const { return SimulationViewInfos; }
 
 	/** Get access to the instance count manager. */
 	FORCEINLINE FNiagaraGPUInstanceCountManager& GetGPUInstanceCounterManager() { check(IsInRenderingThread()); return GPUInstanceCounterManager; }
@@ -184,7 +183,6 @@ protected:
 	TArray<TPair<FName, TUniquePtr<FNiagaraGpuComputeDataManager>>> GpuDataManagers;
 
 	TConstStridedView<FSceneView>			SimulationSceneViews;
-	TConstArrayView<FViewInfo>				SimulationViewInfos;
 
 	bool									bIsOutsideSceneRenderer = false;
 };

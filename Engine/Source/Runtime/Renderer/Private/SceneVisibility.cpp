@@ -5294,7 +5294,7 @@ void FDeferredShadingSceneRenderer::BeginInitViews(
 				InstancedView->InitRHIResources();
 			}
 			Views[0].InitRHIResources();
-			FXSystem->PostInitViews(GraphBuilder, Views, !ViewFamily.EngineShowFlags.HitProxies);
+			FXSystem->PostInitViews(GraphBuilder, GetSceneViews(), !ViewFamily.EngineShowFlags.HitProxies);
 		}
 	}
 

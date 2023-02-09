@@ -635,7 +635,7 @@ template <typename TFunction>
 FORCEINLINE void AddDrawCanvasPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
-	const FViewInfo& View,
+	const FSceneView& View,
 	FScreenPassRenderTarget Output,
 	TFunction Function)
 {

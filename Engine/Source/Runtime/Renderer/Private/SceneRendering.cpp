@@ -3619,7 +3619,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 					});
 					if (bFxDebugDraw)
 					{
-						FXInterface->DrawDebug_RenderThread(GraphBuilder, View, Output);
+						FXInterface->DrawDebug_RenderThread(GraphBuilder, (const FSceneView&)View, Output);
 					}
 				}
 			}

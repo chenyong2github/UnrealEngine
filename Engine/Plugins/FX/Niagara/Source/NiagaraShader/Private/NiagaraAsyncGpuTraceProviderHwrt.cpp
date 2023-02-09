@@ -16,8 +16,6 @@
 #include "Templates/Function.h"
 #include "RayTracingPayloadType.h"
 
-#include "ScenePrivate.h"
-
 static int GNiagaraAsyncGpuTraceHwrtEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraAsyncGpuTraceHwrtEnabled(
 	TEXT("fx.Niagara.AsyncGpuTrace.HWRayTraceEnabled"),
@@ -311,7 +309,7 @@ bool FNiagaraAsyncGpuTraceProviderHwrt::IsAvailable() const
 	return UE::FXRenderingUtils::RayTracing::HasRayTracingScene(Dispatcher->GetSceneInterface());
 }
 
-void FNiagaraAsyncGpuTraceProviderHwrt::PostRenderOpaque(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views, FCollisionGroupHashMap* CollisionGroupHash)
+void FNiagaraAsyncGpuTraceProviderHwrt::PostRenderOpaque(FRHICommandList& RHICmdList, TConstStridedView<FSceneView> Views, FCollisionGroupHashMap* CollisionGroupHash)
 {
 	check(IsAvailable());
 	check(Views.Num() > 0);

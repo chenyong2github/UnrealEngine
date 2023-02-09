@@ -116,7 +116,7 @@ void FNiagaraAsyncGpuTraceHelper::BeginFrame(FRHICommandList& RHICmdList, FNiaga
 	}
 }
 
-void FNiagaraAsyncGpuTraceHelper::PostRenderOpaque(FRHICommandList& RHICmdList, FNiagaraGpuComputeDispatchInterface* Dispatcher, TConstArrayView<FViewInfo> Views)
+void FNiagaraAsyncGpuTraceHelper::PostRenderOpaque(FRHICommandList& RHICmdList, FNiagaraGpuComputeDispatchInterface* Dispatcher, TConstStridedView<FSceneView> Views)
 {
 #if NIAGARA_ASYNC_GPU_TRACE_COLLISION_GROUPS
 	if (bCollisionGroupMapDirty)
@@ -128,7 +128,7 @@ void FNiagaraAsyncGpuTraceHelper::PostRenderOpaque(FRHICommandList& RHICmdList, 
 
 	FNiagaraAsyncGpuTraceProvider::FCollisionGroupHashMap* CollisionHashMap = GetCollisionGroupHashMap();
 
-	for (const auto& TraceProvider : TraceProviders)
+	for (const TUniquePtr<FNiagaraAsyncGpuTraceProvider>& TraceProvider : TraceProviders)
 	{
 		if (TraceProvider->IsAvailable())
 		{

@@ -623,7 +623,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 static void RenderOpaqueFX(
 	FRDGBuilder& GraphBuilder,
-	TArrayView<const FViewInfo> Views,
+	TConstStridedView<FSceneView> Views,
 	FFXSystemInterface* FXSystem,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer)
 {
@@ -2802,7 +2802,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_FXPreRender));
-		FXSystem->PreRender(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
+		FXSystem->PreRender(GraphBuilder, GetSceneViews(), true /*bAllowGPUParticleUpdate*/);
 		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{
 			GPUSortManager->OnPreRender(GraphBuilder);
@@ -3927,7 +3927,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FRDGTextureRef ExposureIlluminance = AddCalculateExposureIlluminancePass(GraphBuilder, Views, SceneTextures, TranslucencyLightingVolumeTextures, ExposureIlluminanceSetup);
 
-	RenderOpaqueFX(GraphBuilder, Views, FXSystem, SceneTextures.UniformBuffer);
+	RenderOpaqueFX(GraphBuilder, GetSceneViews(), FXSystem, SceneTextures.UniformBuffer);
 
 	FRendererModule& RendererModule = static_cast<FRendererModule&>(GetRendererModule());
 	RendererModule.RenderPostOpaqueExtensions(GraphBuilder, Views, SceneTextures);

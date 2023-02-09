@@ -28,6 +28,9 @@ class FVisibleRayTracingMeshCommand;
 
 namespace UE::FXRenderingUtils
 {
+	RENDERER_API TConstStridedView<FSceneView> ConvertViewArray(TConstArrayView<FViewInfo> Views);
+	RENDERER_API FIntRect GetRawViewRectUnsafe(const FSceneView& View);
+
 	RENDERER_API bool CanMaterialRenderBeforeFXPostOpaque(const FSceneViewFamily& ViewFamily, const FPrimitiveSceneProxy& SceneProxy, const FMaterial& Material);
 
 	RENDERER_API const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameterData(TConstStridedView<FSceneView> Views);

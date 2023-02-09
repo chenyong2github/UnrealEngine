@@ -207,12 +207,18 @@ public:
 	 * @param View The view we are rendering for
 	 * @param Output The output buffer information
 	 */
-	virtual void DrawDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output) {}
+	virtual void DrawDebug_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const struct FScreenPassRenderTarget& Output) {}
+	
+	UE_DEPRECATED(5.3, "Passing FViewInfo is deprecated in favor of FSceneView. This function will do nothing.")
+	inline void DrawDebug_RenderThread(FRDGBuilder& GraphBuilder, const FViewInfo& View, const struct FScreenPassRenderTarget& Output) {}
 
 	/**
 	 * Call to handle debug drawing to the scene (i.e. where depth is available)
 	 */
-	virtual void DrawSceneDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth) {}
+	virtual void DrawSceneDebug_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth) {}
+
+	UE_DEPRECATED(5.3, "Passing FViewInfo is deprecated in favor of FSceneView. This function will do nothing.")
+	inline void DrawSceneDebug_RenderThread(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth) {}
 
 	/**
 	 * Add a vector field to the FX system.
@@ -238,7 +244,10 @@ public:
 	 */
 	virtual void PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate) = 0;
 
-	virtual void PostInitViews(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) = 0;
+	virtual void PostInitViews(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, bool bAllowGPUParticleUpdate) = 0;
+
+	UE_DEPRECATED(5.3, "Passing an array of FViewInfo is deprecated in favor of FSceneView. This function will do nothing.")
+	inline void PostInitViews(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) {}
 
 	virtual bool UsesGlobalDistanceField() const = 0;
 
@@ -252,12 +261,18 @@ public:
 	 * Notification from the renderer that it is about to draw FX belonging to
 	 * this system.
 	 */
-	virtual void PreRender(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) = 0;
+	virtual void PreRender(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, bool bAllowGPUParticleUpdate) = 0;
+
+	UE_DEPRECATED(5.3, "Passing an array of FViewInfo is deprecated in favor of FSceneView. This function will do nothing.")
+	inline void PreRender(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) {}
 
 	/**
 	 * Notification from the renderer that opaque primitives have rendered.
 	 */
-	virtual void PostRenderOpaque(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) = 0;
+	virtual void PostRenderOpaque(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, bool bAllowGPUParticleUpdate) = 0;
+
+	UE_DEPRECATED(5.3, "Passing an array of FViewInfo is deprecated in favor of FSceneView. This function will do nothing.")
+	inline void PostRenderOpaque(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) {}
 
 	bool IsPendingKill() const { return bIsPendingKill; }
 
@@ -278,11 +293,6 @@ protected:
 
 	/** By making the destructor protected, an instance must be destroyed via FFXSystemInterface::Destroy. */
 	ENGINE_API virtual ~FFXSystemInterface() {}
-
-	
-	ENGINE_API static TUniformBufferRef<FViewUniformShaderParameters> GetReferenceViewUniformBuffer(TConstArrayView<FViewInfo> Views);
-	ENGINE_API static bool GetReferenceAllowGPUUpdate(TConstArrayView<FViewInfo> Views);
-	ENGINE_API static const FGlobalDistanceFieldParameterData* GetReferenceGlobalDistanceFieldData(TConstArrayView<FViewInfo> Views);
 
 private:
 

@@ -22,7 +22,7 @@ class FRHIUniformBuffer;
 class FRHIUnorderedAccessView;
 struct FRWBuffer;
 class FScene;
-class FViewInfo;
+class FSceneView;
 
 // we currently support assigning, from blueprint, primitives into collision groups which can be excluded
 // from ray traces.  Currently only supported with HWRT
@@ -68,7 +68,7 @@ public:
 	void Reset();
 
 	void BeginFrame(FRHICommandList& RHICmdList, FNiagaraGpuComputeDispatchInterface* Dispatcher);
-	void PostRenderOpaque(FRHICommandList& RHICmdList, FNiagaraGpuComputeDispatchInterface* Dispatcher, TConstArrayView<FViewInfo> Views);
+	void PostRenderOpaque(FRHICommandList& RHICmdList, FNiagaraGpuComputeDispatchInterface* Dispatcher, TConstStridedView<FSceneView> Views);
 	void EndFrame(FRHICommandList& RHICmdList, FNiagaraGpuComputeDispatchInterface* Dispatcher);
 
 	/** Accumulates ray requests from user DIs into single dispatches per DI. */

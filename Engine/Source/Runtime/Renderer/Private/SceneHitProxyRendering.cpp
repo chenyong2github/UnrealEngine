@@ -683,14 +683,14 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	if (FXSystem && Views.IsValidIndex(0))
 	{
 		FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager();
-		FXSystem->PreRender(GraphBuilder, Views, false);
+		FXSystem->PreRender(GraphBuilder, GetSceneViews(), false);
 		if (GPUSortManager)
 		{
 			GPUSortManager->OnPreRender(GraphBuilder);
 		}
 		// Call PostRenderOpaque now as this is irrelevant for when rendering hit proxies.
 		// because we don't tick the particles in the render loop (see last param being "false").
-		FXSystem->PostRenderOpaque(GraphBuilder, Views, false /*bAllowGPUParticleUpdate*/);
+		FXSystem->PostRenderOpaque(GraphBuilder, GetSceneViews(), false /*bAllowGPUParticleUpdate*/);
 		if (GPUSortManager)
 		{
 			GPUSortManager->OnPostRenderOpaque(GraphBuilder);

@@ -13,8 +13,6 @@
 #include "SceneManagement.h"
 #include "ShaderParameterStruct.h"
 
-#include "ScenePrivate.h"
-
 static int GNiagaraAsyncGpuTraceGsdfEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraAsyncGpuTraceGsdfEnabled(
 	TEXT("fx.Niagara.AsyncGpuTrace.GlobalSdfEnabled"),
@@ -108,9 +106,9 @@ bool FNiagaraAsyncGpuTraceProviderGsdf::IsAvailable() const
 	return true;
 }
 
-void FNiagaraAsyncGpuTraceProviderGsdf::PostRenderOpaque(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views, FCollisionGroupHashMap* CollisionGroupHash)
+void FNiagaraAsyncGpuTraceProviderGsdf::PostRenderOpaque(FRHICommandList& RHICmdList, TConstStridedView<FSceneView> Views, FCollisionGroupHashMap* CollisionGroupHash)
 {
-	if (const FGlobalDistanceFieldParameterData* DistanceFieldData = UE::FXRenderingUtils::GetGlobalDistanceFieldParameterData(MakeStridedViewOfBase<const FSceneView>(Views)))
+	if (const FGlobalDistanceFieldParameterData* DistanceFieldData = UE::FXRenderingUtils::GetGlobalDistanceFieldParameterData(Views))
 	{
 		m_DistanceFieldData = *DistanceFieldData;
 	}

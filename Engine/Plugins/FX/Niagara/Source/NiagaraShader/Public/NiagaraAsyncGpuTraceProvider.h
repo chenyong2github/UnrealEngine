@@ -6,9 +6,9 @@
 #include "NiagaraSettings.h"
 #include "RHIDefinitions.h"
 
-class FScene;
 class FNiagaraGpuComputeDispatchInterface;
-class FViewInfo;
+class FScene;
+class FSceneView;
 
 // mirrors structure in Engine\Plugins\FX\Niagara\Shaders\Private\NiagaraAsyncGpuTraceCommon.ush
 struct FNiagaraAsyncGpuTrace
@@ -77,9 +77,7 @@ public:
 	virtual bool IsAvailable() const = 0;
 	virtual EProviderType GetType() const = 0;
 
-	virtual void PostRenderOpaque(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views, FCollisionGroupHashMap* CollisionGroupHash)
-	{
-	}
+	virtual void PostRenderOpaque(FRHICommandList& RHICmdList, TConstStridedView<FSceneView> Views, FCollisionGroupHashMap* CollisionGroupHash);
 
 	virtual void IssueTraces(FRHICommandList& RHICmdList, const FDispatchRequest& Request, FCollisionGroupHashMap* CollisionGroupHash)
 	{

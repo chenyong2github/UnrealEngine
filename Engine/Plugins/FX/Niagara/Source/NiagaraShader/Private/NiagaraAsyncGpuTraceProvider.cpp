@@ -2,6 +2,7 @@
 
 #include "NiagaraAsyncGpuTraceProvider.h"
 
+#include "Containers/StridedView.h"
 #include "GlobalShader.h"
 #include "NiagaraAsyncGpuTraceProviderGsdf.h"
 #include "NiagaraAsyncGpuTraceProviderHwrt.h"
@@ -279,4 +280,8 @@ void FNiagaraAsyncGpuTraceProvider::BuildCollisionGroupHashMap(FRHICommandList& 
 
 	RHICmdList.Transition(FRHITransitionInfo(Result.PrimIdHashTable.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 	RHICmdList.Transition(FRHITransitionInfo(Result.HashToCollisionGroups.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+}
+
+void FNiagaraAsyncGpuTraceProvider::PostRenderOpaque(FRHICommandList& RHICmdList, TConstStridedView<FSceneView> Views, FCollisionGroupHashMap* CollisionGroupHash)
+{
 }

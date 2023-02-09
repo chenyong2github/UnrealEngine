@@ -15,6 +15,8 @@
 #include "SceneInterface.h"
 #include "SceneRendering.h" // needed for STATGROUP_CommandListMarkers
 #include "DataDrivenShaderPlatformInfo.h"
+#include "FXRenderingUtils.h"
+#include "Containers/StridedView.h"
 
 
 TMap<FName, FCreateCustomFXSystemDelegate> FFXSystemInterface::CreateCustomFXDelegates;
@@ -108,25 +110,6 @@ void FFXSystemInterface::RegisterCustomFXSystem(const FName& InterfaceName, cons
 void FFXSystemInterface::UnregisterCustomFXSystem(const FName& InterfaceName)
 {
 	CreateCustomFXDelegates.Remove(InterfaceName);
-}
-
-TUniformBufferRef<FViewUniformShaderParameters> FFXSystemInterface::GetReferenceViewUniformBuffer(TConstArrayView<FViewInfo> Views)
-{
-	check(Views.Num() > 0);
-	return Views[0].ViewUniformBuffer;
-}
-
-bool FFXSystemInterface::GetReferenceAllowGPUUpdate(TConstArrayView<FViewInfo> Views)
-{
-	check(Views.Num() > 0);
-	return Views[0].AllowGPUParticleUpdate();
-}
-
-const FGlobalDistanceFieldParameterData* FFXSystemInterface::GetReferenceGlobalDistanceFieldData(TConstArrayView<FViewInfo> Views)
-{
-	check(Views.Num() > 0);
-	const FViewInfo& ReferenceView = Views[0];
-	return &ReferenceView.GlobalDistanceFieldInfo.ParameterData;
 }
 
 /*------------------------------------------------------------------------------
@@ -446,7 +429,7 @@ void FFXSystem::PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUp
 	}
 }
 
-void FFXSystem::PostInitViews(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate)
+void FFXSystem::PostInitViews(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, bool bAllowGPUParticleUpdate)
 {
 	// nothing to do here
 }
@@ -501,17 +484,17 @@ DECLARE_CYCLE_STAT(TEXT("FXPreRender_FinalizeCDF"), STAT_CLM_FXPreRender_Finaliz
 DECLARE_GPU_DRAWCALL_STAT(FXSystemPreRender);
 DECLARE_GPU_DRAWCALL_STAT(FXSystemPostRenderOpaque);
 
-void FFXSystem::PreRender(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleSceneUpdate)
+void FFXSystem::PreRender(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, bool bAllowGPUParticleSceneUpdate)
 {
-	bAllowGPUParticleSceneUpdate = bAllowGPUParticleSceneUpdate && GetReferenceAllowGPUUpdate(Views);
+	bAllowGPUParticleSceneUpdate = bAllowGPUParticleSceneUpdate && Views.Num() > 0 && Views[0].AllowGPUParticleUpdate();
 
 	if (RHISupportsGPUParticles() && bAllowGPUParticleSceneUpdate)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, FXSystemPreRender);
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, FXSystem);
 
-		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
-		const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData = GetReferenceGlobalDistanceFieldData(Views);
+		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer = Views[0].ViewUniformBuffer;
+		const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData = &static_cast<const FViewInfo&>(Views[0]).GlobalDistanceFieldInfo.ParameterData;
 
 		AddPass(
 			GraphBuilder,
@@ -548,16 +531,16 @@ void FFXSystem::PreRender(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> 
     }
 }
 
-void FFXSystem::PostRenderOpaque(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate)
+void FFXSystem::PostRenderOpaque(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, bool bAllowGPUParticleUpdate)
 {
-	bAllowGPUParticleUpdate = bAllowGPUParticleUpdate && GetReferenceAllowGPUUpdate(Views);
+	bAllowGPUParticleUpdate = bAllowGPUParticleUpdate && Views.Num() > 0 && Views[0].AllowGPUParticleUpdate();
 
 	if (RHISupportsGPUParticles() && IsParticleCollisionModeSupported(GetShaderPlatform(), PCM_DepthBuffer) && bAllowGPUParticleUpdate)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, FXSystemPostRenderOpaque);
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, FXSystem);
 
-		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
+		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer = Views[0].ViewUniformBuffer;
 
 		AddPass(GraphBuilder, RDG_EVENT_NAME("FFXSystem::PostRenderOpaque"), 
 			[this, ViewUniformBuffer](FRHICommandListImmediate& RHICmdList)

@@ -2,6 +2,7 @@
 
 #include "FXRenderingUtils.h"
 
+#include "Containers/StridedView.h"
 #include "DistanceFieldLightingShared.h"
 #include "Lumen/LumenScreenProbeGather.h"
 #include "MaterialShared.h"
@@ -9,6 +10,16 @@
 #include "SceneInterface.h"
 #include "ScenePrivate.h"
 #include "SystemTextures.h"
+
+TConstStridedView<FSceneView> UE::FXRenderingUtils::ConvertViewArray(TConstArrayView<FViewInfo> Views)
+{
+	return MakeStridedViewOfBase<const FSceneView>(Views);
+}
+
+FIntRect UE::FXRenderingUtils::GetRawViewRectUnsafe(const FSceneView& View)
+{
+	return static_cast<const FViewInfo&>(View).ViewRect;
+}
 
 bool UE::FXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(
 	const FSceneViewFamily& ViewFamily,

@@ -9,7 +9,7 @@
 #include "RHIUtilities.h"
 
 class FScene;
-class FViewInfo;
+class FSceneView;
 class FRayTracingPipelineState;
 class FRHICommandList;
 class FRHIRayTracingScene;
