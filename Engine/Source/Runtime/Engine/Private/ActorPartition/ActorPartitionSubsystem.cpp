@@ -163,13 +163,6 @@ private:
 	{
 		check(InLevelHint);
 		ULevel* SpawnLevel = InLevelHint;
-		if (ILevelPartitionInterface* LevelPartition = InLevelHint->GetLevelPartition())
-		{
-			if (ULevel* SubLevel = LevelPartition->GetSubLevel(InLocationHint))
-			{
-				SpawnLevel = SubLevel;
-			}
-		}
 		return SpawnLevel;
 	}
 

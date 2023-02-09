@@ -126,16 +126,6 @@ void FStreamingLevelCollectionModel::UnloadLevels(const FLevelModelList& InLevel
 			// this level is dirty and can be removed from the world
 			bHaveDirtyLevels = true;
 		}
-
-		if (const ULevel* Level = LevelModel->GetLevelObject())
-		{
-			if (Level->IsPartitionSubLevel())
-			{
-				// this level is a partition sublevel and cannot be removed from the world
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("RemoveLevel_PartitionSubLevel", "Cannot remove a level which is part of a partition. Delete the top level instead."));
-				return;
-			}
-		}
 	}
 
 	// Depending on the state of the level, create a warning message

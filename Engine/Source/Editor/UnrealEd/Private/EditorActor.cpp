@@ -484,9 +484,7 @@ public:
 		// Paste to the dest level
 		{
 			ULevel* CurrentDestLevel = DestLevel->OwningWorld->GetCurrentLevel();
-
-			FLevelPartitionOperationScope LevelPartitionScope(DestLevel);
-			DestLevel->OwningWorld->SetCurrentLevel(LevelPartitionScope.GetLevel());
+			DestLevel->OwningWorld->SetCurrentLevel(DestLevel);
 
 			TArray<AActor*> PastedActors;
 			GUnrealEd->PasteActors(PastedActors, DestLevel->OwningWorld, LocationOffset, /*bDuplicate*/true, /*bWarnIfHidden*/true, &ScratchData);

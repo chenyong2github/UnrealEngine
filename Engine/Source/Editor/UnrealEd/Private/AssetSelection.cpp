@@ -587,15 +587,6 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 
 	ULevel* DesiredLevel = GWorld->GetCurrentLevel();
 
-	// If DesireLevel is part of a LevelPartition find the proper DesiredLevel by asking the Partition
-	if (const ILevelPartitionInterface* LevelPartition = DesiredLevel->GetLevelPartition())
-	{
-		if (ULevel* SubLevel = LevelPartition->GetSubLevel(ActorTransform.GetLocation()))
-		{
-			DesiredLevel = SubLevel;
-		}
-	}
-
 	bool bSpawnActor = true;
 
 	if ((ObjectFlags & RF_Transactional) != 0)

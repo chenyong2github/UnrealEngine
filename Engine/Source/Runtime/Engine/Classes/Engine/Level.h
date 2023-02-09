@@ -34,37 +34,12 @@ class UNavigationDataChunk;
 class UTexture2D;
 struct FLevelCollection;
 class ULevelActorContainer;
-class FLevelPartitionOperationScope;
 class FRegisterComponentContext;
 class SNotificationItem;
 class UActorFolder;
 class IWorldPartitionCell;
 class UWorldPartitionRuntimeCell;
 struct FFolder;
-
-UINTERFACE()
-class ULevelPartitionInterface : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class ILevelPartitionInterface
-{
-	GENERATED_BODY()
-
-#if WITH_EDITOR
-	friend class FLevelPartitionOperationScope;
-#endif
-
-public:
-	virtual ULevel* GetSubLevel(const FVector& Coords) const = 0;
-
-private:
-#if WITH_EDITOR
-	virtual void BeginOperation(class FLevelPartitionOperationScope* Scope) = 0;
-	virtual void EndOperation() = 0;
-#endif
-};
 
 #if WITH_EDITOR
 struct ENGINE_API FLevelActorFoldersHelper
@@ -84,22 +59,6 @@ private:
 	friend class UWorldPartitionLevelStreamingDynamic;
 };
 
-class ENGINE_API FLevelPartitionOperationScope
-{
-public:
-	FLevelPartitionOperationScope(ULevel* Level);
-	~FLevelPartitionOperationScope();
-		
-	TArray<AActor*> GetActors() const;
-	ULevel* GetLevel() const;
-
-private:
-	static ULevel* CreateTransientLevel(UWorld* InWorld);
-	static void DestroyTransientLevel(ULevel* InLevel);
-
-	ILevelPartitionInterface* InterfacePtr = nullptr;
-	ULevel* Level = nullptr;
-};
 #endif
 
 // Actor container class used to duplicate actors during cells streaming in PIE
@@ -725,22 +684,6 @@ public:
 	UPROPERTY()
 	EActorPackagingScheme ActorPackagingScheme;
 
-	/** Returns true if the current level is a partitioned level */
-	ENGINE_API bool IsPartitionedLevel() const;
-
-	/** Returns true if the current level is a sublevel (managed by a parent partitioned level) */
-	ENGINE_API bool IsPartitionSubLevel() const;
-
-	/** Assign a level partition to this level */
-	ENGINE_API void SetLevelPartition(ILevelPartitionInterface* LevelPartition);
-
-	/** Get the level partition assigned to this level, if any */
-	ENGINE_API ILevelPartitionInterface* GetLevelPartition();
-	ENGINE_API const ILevelPartitionInterface* GetLevelPartition() const;
-	
-	/** Setup the provided sublevel so that it is handled by this level's partition */
-	ENGINE_API void SetPartitionSubLevel(ULevel* SubLevel);
-
 #endif //WITH_EDITORONLY_DATA
 
 	/** Actor which defines level logical bounding box				*/
@@ -820,14 +763,6 @@ private:
 	TArray<FReplicatedStaticActorDestructionInfo> DestroyedReplicatedStaticActors;
 
 #if WITH_EDITORONLY_DATA
-	/** Level partition, if any */
-	UPROPERTY(EditInstanceOnly, Category = World)
-	TScriptInterface<ILevelPartitionInterface> LevelPartition;
-
-	/** When the level is partitioned, this will point to the owner partition (will be the same as this->LevelPartition in case that is the top partition level */
-	UPROPERTY()
-	TSoftObjectPtr<UObject> OwnerLevelPartition;
-
 	/** Use actor folder objects, actor folders of this level will be persistent in their own object. */
 	UPROPERTY(EditInstanceOnly, Category = World)
 	bool bUseActorFolders;
@@ -892,7 +827,6 @@ public:
 	virtual void PostEditUndo() override;	
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
-	virtual bool CanEditChange(const FProperty* PropertyThatWillChange) const override;
 #endif // WITH_EDITOR
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
 	virtual void PostLoad() override;

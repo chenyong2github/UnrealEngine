@@ -73,7 +73,6 @@ void SWorldDetails::OnBrowseWorld(UWorld* InWorld)
 		Args.bHideSelectionTip = true;
 	
 		DetailsView = PropertyModule.CreateDetailView(Args);
-		WorldDetailsView = PropertyModule.CreateDetailView(Args);
 		ChildSlot
 		[
 			SNew(SBorder)
@@ -186,29 +185,10 @@ void SWorldDetails::OnSelectionChanged()
 	{
 		// Clear ComboBox selection in case we have multiple selection
 		SubLevelsComboBox->ClearSelection();
-		WorldDetailsView->SetObject(nullptr);
 	}
 	else
 	{
 		SubLevelsComboBox->SetSelectedItem(SelectedLevels[0]);
-		ULevel* LevelObject = SelectedLevels[0]->GetLevelObject();
-		UObject* LevelPartition = Cast<UObject>(LevelObject ? LevelObject->GetLevelPartition() : nullptr);
-
-		if (LevelPartition)
-		{
-			VerticalBox->AddSlot()
-				.FillHeight(1.f)
-				.Padding(0,4,0,0)
-				[
-					SAssignNew(VerticalBoxBorder, SBorder)
-					.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-					[
-						WorldDetailsView.ToSharedRef()
-					]
-				];
-		}
-
-		WorldDetailsView->SetObject(LevelPartition);
 	}
 
 	bUpdatingSelection = false;

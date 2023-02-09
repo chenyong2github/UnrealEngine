@@ -1846,21 +1846,17 @@ namespace DatasmithConsumerUtils
 
 		UEditorLevelUtils::SetLevelVisibility(DestLevel, true, false, ELevelVisibilityDirtyMode::DontModify);
 
-		// Scope this so that Actors that have been pasted will have their final levels set before doing the actor mapping
-		{
-			// Set the new level and force it visible while we do the paste
-			FLevelPartitionOperationScope LevelPartitionScope(DestLevel);
-			OwningWorld->SetCurrentLevel(LevelPartitionScope.GetLevel());
+		// Set the new level and force it visible while we do the paste
+		OwningWorld->SetCurrentLevel(DestLevel);
 
-			//const bool bDuplicate = false;
-			const bool bOffsetLocations = false;
-			const bool bWarnIfHidden = false;
-			GEditor->edactPasteSelected(OwningWorld, bDuplicate, bOffsetLocations, bWarnIfHidden);
+		//const bool bDuplicate = false;
+		const bool bOffsetLocations = false;
+		const bool bWarnIfHidden = false;
+		GEditor->edactPasteSelected(OwningWorld, bDuplicate, bOffsetLocations, bWarnIfHidden);
 
-			// Restore the original current level
-			OwningWorld->SetCurrentLevel(OldCurrentLevel);
-		}
-
+		// Restore the original current level
+		OwningWorld->SetCurrentLevel(OldCurrentLevel);
+		
 		TArray<AActor*> NewActors;
 		NewActors.Reserve(GEditor->GetSelectedActorCount());
 

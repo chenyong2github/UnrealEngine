@@ -146,72 +146,6 @@ void FLevelActorFoldersHelper::DeleteFolder(ULevel* InLevel, const FFolder& InFo
 	}
 };
 
-FLevelPartitionOperationScope::FLevelPartitionOperationScope(ULevel* InLevel)
-{
-	InterfacePtr = InLevel->GetLevelPartition();
-	Level = InLevel;
-	if (InterfacePtr)
-	{
-		InterfacePtr->BeginOperation(this);
-		Level = CreateTransientLevel(InLevel->GetWorld());
-	}
-}
-
-FLevelPartitionOperationScope::~FLevelPartitionOperationScope()
-{
-	if (InterfacePtr)
-	{
-		InterfacePtr->EndOperation();
-		DestroyTransientLevel(Level);
-	}
-	Level = nullptr;
-}
-
-TArray<AActor*> FLevelPartitionOperationScope::GetActors() const
-{
-	if (InterfacePtr)
-	{
-		return Level->Actors;
-	}
-
-	return {};
-}
-
-ULevel* FLevelPartitionOperationScope::GetLevel() const
-{
-	check(Level);
-	return Level;
-}
-
-ULevel* FLevelPartitionOperationScope::CreateTransientLevel(UWorld* InWorld)
-{
-	ULevel* Level = NewObject<ULevel>(GetTransientPackage(), TEXT("TempLevelPartitionOperationScopeLevel"));
-	check(Level);
-	Level->Initialize(FURL(nullptr));
-	Level->AddToRoot();
-	Level->OwningWorld = InWorld;
-	Level->Model = NewObject<UModel>(Level);
-	Level->Model->Initialize(nullptr, true);
-	Level->bIsVisible = true;
-
-	Level->SetFlags(RF_Transactional);
-	Level->Model->SetFlags(RF_Transactional);
-
-	return Level;
-}
-
-void FLevelPartitionOperationScope::DestroyTransientLevel(ULevel* Level)
-{
-	check(Level->GetOutermost() == GetTransientPackage());
-	// Make sure Level doesn't contain any Actors before destroying. That would mean the operation failed.
-	check(!Algo::AnyOf(Level->Actors, [](AActor* Actor) { return Actor != nullptr; }));
-	// Delete the temporary level
-	Level->ClearLevelComponents();
-	Level->GetWorld()->RemoveLevel(Level);
-	Level->OwningWorld = nullptr;
-	Level->RemoveFromRoot();
-	Level = nullptr;
-}
 #endif
 
 /*-----------------------------------------------------------------------------
@@ -4163,32 +4097,6 @@ void ULevel::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatfo
 	}
 }
 
-bool ULevel::CanEditChange(const FProperty* PropertyThatWillChange) const
-{
-	static FName NAME_LevelPartition = GET_MEMBER_NAME_CHECKED(ULevel, LevelPartition);
-	if (PropertyThatWillChange->GetFName() == NAME_LevelPartition)
-	{
-		// Can't set a partition on the persistent level
-		if (IsPersistentLevel())
-		{
-			return false;
-		}
-
-		// Can't set a partition on partition sublevels
-		if (IsPartitionSubLevel())
-		{
-			return false;
-		}
-
-		// Can't set a partition if using world composition or partition
-		if (WorldSettings && (WorldSettings->bEnableWorldComposition || WorldSettings->IsPartitionedWorld()))
-		{
-			return false;
-		}
-	}
-	return Super::CanEditChange(PropertyThatWillChange);
-}
-
 void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> InCustomFixupFunction)
 {
 	FPIEFixupSerializer FixupSerializer(this, InPIEInstanceID, InCustomFixupFunction);
@@ -4430,42 +4338,6 @@ bool ULevel::HasVisibilityChangeRequestPending() const
 	return (OwningWorld && ( this == OwningWorld->GetCurrentLevelPendingVisibility() || this == OwningWorld->GetCurrentLevelPendingInvisibility() ) );
 }
 
-#if WITH_EDITORONLY_DATA
-
-bool ULevel::IsPartitionedLevel() const
-{
-	return LevelPartition != nullptr;
-}
-
-bool ULevel::IsPartitionSubLevel() const
-{
-	return OwnerLevelPartition.IsValid() && LevelPartition == nullptr;
-}
-
-void ULevel::SetLevelPartition(ILevelPartitionInterface* InLevelPartition)
-{
-	UObject* PartitionObject = Cast<UObject>(InLevelPartition);
-	LevelPartition = PartitionObject;
-	OwnerLevelPartition = PartitionObject;
-}
-
-ILevelPartitionInterface* ULevel::GetLevelPartition()
-{
-	return Cast<ILevelPartitionInterface>(OwnerLevelPartition.Get());
-}
-
-const ILevelPartitionInterface* ULevel::GetLevelPartition() const
-{
-	return Cast<ILevelPartitionInterface>(OwnerLevelPartition.Get());
-}
-
-void ULevel::SetPartitionSubLevel(ULevel* SubLevel)
-{
-	check(LevelPartition);
-	SubLevel->OwnerLevelPartition = Cast<UObject>(&*LevelPartition);
-}
-
-#endif // #if WITH_EDITORONLY_DATA
 #if WITH_EDITOR
 void ULevel::RepairLevelScript()
 {
