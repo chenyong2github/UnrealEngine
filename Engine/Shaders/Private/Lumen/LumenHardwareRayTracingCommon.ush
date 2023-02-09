@@ -514,39 +514,45 @@ float3 CalculateDirectLighting(
 	return DirectLighting;
 }
 
-float3 GetDirectionalAlbedo(inout FPackedMaterialClosestHitPayload PackedPayload, in FRayDesc Ray)
-#if STRATA_ENABLED
+// Return approximate diffuse color as if the entire surface was diffuse in order to conserve energy in secondary bounces
+float3 GetApproxFullyRoughDiffuseColor(inout FPackedMaterialClosestHitPayload PackedPayload, in FRayDesc Ray)
 {
-	float3 Out = 0;
+	float3 DiffuseColor = 0.0f;
+	float3 SpecularColor = 0.0f;
 
-	const float3 V = -Ray.Direction;
-	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
-
-	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0, 0, 0);
-	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(PackedPayload.StrataData, StrataAddressing, PackedPayload.StrataData);
-
-	Strata_for(uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
+	#if STRATA_ENABLED
 	{
-		FStrataBSDF BSDF = UnpackStrataBSDF(PackedPayload.StrataData, StrataAddressing, StrataPixelHeader);
+		const float3 V = -Ray.Direction;
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
 
-		// Create the BSDF context
-		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
-		const float3 BSDFThroughput = LuminanceWeight(StrataBSDFContext, BSDF);
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0, 0, 0);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(PackedPayload.StrataData, StrataAddressing, PackedPayload.StrataData);
 
-		// Evaluate environment lighting
-		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);
+		Strata_for(uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
+		{
+			FStrataBSDF BSDF = UnpackStrataBSDF(PackedPayload.StrataData, StrataAddressing, StrataPixelHeader);
 
-		Out += BSDFThroughput * StrataEnvLight.DiffuseWeight;
-		Out += BSDFThroughput * StrataEnvLight.SpecularWeight;
+			// Create the BSDF context
+			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
+			const float3 BSDFThroughput = LuminanceWeight(StrataBSDFContext, BSDF);
+
+			// Evaluate environment lighting
+			FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);
+
+			DiffuseColor += BSDFThroughput * StrataEnvLight.DiffuseWeight;
+			SpecularColor += BSDFThroughput * StrataEnvLight.SpecularWeight;
+		}
 	}
+	#else
+	{
+		DiffuseColor = PackedPayload.GetDiffuseColor();
+		SpecularColor = PackedPayload.GetSpecularColor();
+	}
+	#endif // STRATA_ENABLED
 
-	return Out;
+	EnvBRDFApproxFullyRough(DiffuseColor, SpecularColor);
+	return DiffuseColor;
 }
-#else
-{
-	return PackedPayload.GetDiffuseColor();
-}
-#endif // STRATA_ENABLED
 
 float3 CalculateRayTracedLighting(
 	in FRayDesc Ray,
@@ -568,16 +574,16 @@ float3 CalculateRayTracedLighting(
 		Radiance += CalculateDirectLighting(Ray, Context, Payload, RayHitTranslatedWorldPosition, RayHitWorldNormal);
 	}
 	
-	float3 DiffuseColor = GetDirectionalAlbedo(Payload, Ray);
+	float3 ApproxFullyRoughDiffuseColor = GetApproxFullyRoughDiffuseColor(Payload, Ray);
 
 	if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING)
 	{
 		// STRATA_TODO: this path is not supported yet, as PackedPayload does not have space for indirect irradiance
-		Radiance += DiffuseColor * Payload.GetIndirectIrradiance();
+		Radiance += ApproxFullyRoughDiffuseColor * Payload.GetIndirectIrradiance();
 	}
 	else
 	{
-		FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(Ray, Context, RayHitTranslatedWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode);
+		FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(Ray, Context, RayHitTranslatedWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, ApproxFullyRoughDiffuseColor, LightingMode);
 
 		// The Surface Cache lighting was computed using the front face, don't leak to the backface
 		if (dot(Ray.Direction, RayHitWorldNormal) <= 0 || (Payload.GetFlags() | RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED))
