@@ -7,8 +7,11 @@
 #include "Tickable.h"
 #include "CommonBoundActionBar.generated.h"
 
-class IWidgetCompilerLog;
+class ICommonBoundActionButtonInterface;
 class IConsoleVariable;
+class IWidgetCompilerLog;
+
+struct FUIActionBindingHandle;
 
 /**
  * A box populated with current actions available per CommonUI's Input Handler.
@@ -33,6 +36,8 @@ protected:
 	virtual void OnWidgetRebuilt() override;
 	virtual void SynchronizeProperties() override;
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+
+	virtual void NativeOnActionButtonCreated(ICommonBoundActionButtonInterface* ActionButton, FUIActionBindingHandle const& RepresentedAction) { }
 
 #if WITH_EDITOR
 	void ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const override;

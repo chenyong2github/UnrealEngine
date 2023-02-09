@@ -247,6 +247,7 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 						if (ensure(ActionButton))
 						{
 							ActionButton->SetRepresentedAction(BindingHandle);
+							NativeOnActionButtonCreated(ActionButton, BindingHandle);
 						}
 					}
 				}
