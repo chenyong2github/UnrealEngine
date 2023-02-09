@@ -293,7 +293,7 @@ public:
 	 * @param	Ar				Archive to serialize with
 	 * @param	bNeedsCPUAccess	Whether the elements need to be accessed by the CPU
 	 */
-	void Serialize(FArchive& Ar, bool bNeedsCPUAccess);
+	ENGINE_API void Serialize(FArchive& Ar, bool bNeedsCPUAccess);
 
 	/** Serialize only meta data (e.g. number of indices) but not the actual index data */
 	void SerializeMetaData(FArchive& Ar);

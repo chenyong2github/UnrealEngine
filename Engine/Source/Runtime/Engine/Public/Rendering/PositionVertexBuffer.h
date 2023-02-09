@@ -64,7 +64,7 @@ public:
 	* @param	Ar					Archive to serialize with
 	* @param	bInNeedsCPUAccess	Whether the elements need to be accessed by the CPU
 	*/
-	void Serialize(FArchive& Ar, bool bInNeedsCPUAccess);
+	ENGINE_API void Serialize(FArchive& Ar, bool bInNeedsCPUAccess);
 
 	void SerializeMetaData(FArchive& Ar);
 
