@@ -200,12 +200,6 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			}
 		}
 		
-		FInputValidator InputValidator;
-		InputValidator.AddSupportedType(ENNETensorDataType::Float);
-		InputValidator.AddRequired();
-		InputValidator.AddRequired();
-		bIsValid &= InputValidator.Validate(InputTypes);
-
 		return bIsValid;
 	}
 

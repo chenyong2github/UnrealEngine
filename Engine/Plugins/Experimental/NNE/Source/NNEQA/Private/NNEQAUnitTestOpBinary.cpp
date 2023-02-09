@@ -4,7 +4,7 @@
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
 #include "NNEQAUnitTestHelper.h"
-#include "NNERuntimeRDGElementWiseBinaryHelper.h"
+#include "NNERuntimeRDGHelperElementWiseBinary.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Misc/AutomationTest.h"
@@ -33,21 +33,21 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::BinaryOp
 
 		//Test output tensor math is correct when both inputs are constant including broadcasting
 		FTensor Y = MakeTensor(TEXT("Y"), { 1 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Add, XC1, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Add, XC1, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1+XC1"), Y.GetPreparedData<float>()[0], 1.0f + 1.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Add, XC1x2, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Add, XC1x2, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1x2+XC1[0]"), Y.GetPreparedData<float>()[0], 1.0f + 1.0f);
 		UTEST_EQUAL(TEXT("XC1x2+XC1[1]"), Y.GetPreparedData<float>()[1], 2.0f + 1.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Add, XC1x2, XC1x2, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Add, XC1x2, XC1x2, Y);
 		UTEST_EQUAL(TEXT("XC1x2+XC1x2[0]"), Y.GetPreparedData<float>()[0], 1.0f + 1.0f);
 		UTEST_EQUAL(TEXT("XC1x2+XC1x2[1]"), Y.GetPreparedData<float>()[1], 2.0f + 2.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 2,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Add, XC1x2, XC2x1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Add, XC1x2, XC2x1, Y);
 		UTEST_EQUAL(TEXT("XC1x2+XC2x1[0]"), Y.GetPreparedData<float>()[0], 1.0f + 3.0f);
 		UTEST_EQUAL(TEXT("XC1x2+XC2x1[1]"), Y.GetPreparedData<float>()[1], 2.0f + 3.0f);
 		UTEST_EQUAL(TEXT("XC1x2+XC2x1[2]"), Y.GetPreparedData<float>()[2], 1.0f + 4.0f);
@@ -70,21 +70,21 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::BinaryOp
 
 		//Test output tensor math is correct when both inputs are constant including broadcasting
 		FTensor Y = MakeTensor(TEXT("Y"), { 1 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Div, XC1, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Div, XC1, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1/XC1"), Y.GetPreparedData<float>()[0], 1.0f / 1.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Div, XC1x2, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Div, XC1x2, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1x2/XC1[0]"), Y.GetPreparedData<float>()[0], 1.0f / 1.0f);
 		UTEST_EQUAL(TEXT("XC1x2/XC1[1]"), Y.GetPreparedData<float>()[1], 2.0f / 1.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Div, XC1x2, XC1x2, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Div, XC1x2, XC1x2, Y);
 		UTEST_EQUAL(TEXT("XC1x2/XC1x2[0]"), Y.GetPreparedData<float>()[0], 1.0f / 1.0f);
 		UTEST_EQUAL(TEXT("XC1x2/XC1x2[1]"), Y.GetPreparedData<float>()[1], 2.0f / 2.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 2,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Div, XC1x2, XC2x1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Div, XC1x2, XC2x1, Y);
 		UTEST_EQUAL(TEXT("XC1x2/XC2x1[0]"), Y.GetPreparedData<float>()[0], 1.0f / 3.0f);
 		UTEST_EQUAL(TEXT("XC1x2/XC2x1[1]"), Y.GetPreparedData<float>()[1], 2.0f / 3.0f);
 		UTEST_EQUAL(TEXT("XC1x2/XC2x1[2]"), Y.GetPreparedData<float>()[2], 1.0f / 4.0f);
@@ -107,21 +107,21 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::BinaryOp
 
 		//Test output tensor math is correct when both inputs are constant including broadcasting
 		FTensor Y = MakeTensor(TEXT("Y"), { 1 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Mul, XC1, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1*XC1"), Y.GetPreparedData<float>()[0], 1.0f * 1.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1x2*XC1[0]"), Y.GetPreparedData<float>()[0], 1.0f * 1.0f);
 		UTEST_EQUAL(TEXT("XC1x2*XC1[1]"), Y.GetPreparedData<float>()[1], 2.0f * 1.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC1x2, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC1x2, Y);
 		UTEST_EQUAL(TEXT("XC1x2*XC1x2[0]"), Y.GetPreparedData<float>()[0], 1.0f * 1.0f);
 		UTEST_EQUAL(TEXT("XC1x2*XC1x2[1]"), Y.GetPreparedData<float>()[1], 2.0f * 2.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 2,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC2x1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC2x1, Y);
 		UTEST_EQUAL(TEXT("XC1x2*XC2x1[0]"), Y.GetPreparedData<float>()[0], 1.0f * 3.0f);
 		UTEST_EQUAL(TEXT("XC1x2*XC2x1[1]"), Y.GetPreparedData<float>()[1], 2.0f * 3.0f);
 		UTEST_EQUAL(TEXT("XC1x2*XC2x1[2]"), Y.GetPreparedData<float>()[2], 1.0f * 4.0f);
@@ -144,21 +144,21 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::BinaryOp
 
 		//Test output tensor math is correct when both inputs are constant including broadcasting
 		FTensor Y = MakeTensor(TEXT("Y"), { 1 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Sub, XC1, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Sub, XC1, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1-XC1"), Y.GetPreparedData<float>()[0], 1.0f - 1.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Sub, XC1x2, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Sub, XC1x2, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1x2-XC1[0]"), Y.GetPreparedData<float>()[0], 1.0f - 1.0f);
 		UTEST_EQUAL(TEXT("XC1x2-XC1[1]"), Y.GetPreparedData<float>()[1], 2.0f - 1.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Sub, XC1x2, XC1x2, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Sub, XC1x2, XC1x2, Y);
 		UTEST_EQUAL(TEXT("XC1x2-XC1x2[0]"), Y.GetPreparedData<float>()[0], 1.0f - 1.0f);
 		UTEST_EQUAL(TEXT("XC1x2-XC1x2[1]"), Y.GetPreparedData<float>()[1], 2.0f - 2.0f);
 
 		Y = MakeTensor(TEXT("Y"), { 2,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Sub, XC1x2, XC2x1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Sub, XC1x2, XC2x1, Y);
 		UTEST_EQUAL(TEXT("XC1x2-XC2x1[0]"), Y.GetPreparedData<float>()[0], 1.0f - 3.0f);
 		UTEST_EQUAL(TEXT("XC1x2-XC2x1[1]"), Y.GetPreparedData<float>()[1], 2.0f - 3.0f);
 		UTEST_EQUAL(TEXT("XC1x2-XC2x1[2]"), Y.GetPreparedData<float>()[2], 1.0f - 4.0f);
@@ -181,21 +181,21 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::BinaryOp
 
 		//Test output tensor math is correct when both inputs are constant including broadcasting
 		FTensor Y = MakeTensor(TEXT("Y"), { 1 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Mod, XC1, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mod, XC1, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1%XC1"), Y.GetPreparedData<float>()[0], FMath::Fmod(1.0f, 1.0f));
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Mod, XC1x2, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mod, XC1x2, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1x2%XC1[0]"), Y.GetPreparedData<float>()[0], FMath::Fmod(1.0f, 1.0f));
 		UTEST_EQUAL(TEXT("XC1x2%XC1[1]"), Y.GetPreparedData<float>()[1], FMath::Fmod(2.0f, 1.0f));
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Mod, XC1x2, XC1x2, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mod, XC1x2, XC1x2, Y);
 		UTEST_EQUAL(TEXT("XC1x2%XC1x2[0]"), Y.GetPreparedData<float>()[0], FMath::Fmod(1.0f, 1.0f));
 		UTEST_EQUAL(TEXT("XC1x2%XC1x2[1]"), Y.GetPreparedData<float>()[1], FMath::Fmod(2.0f, 2.0f));
 
 		Y = MakeTensor(TEXT("Y"), { 2,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Mod, XC1x2, XC2x1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mod, XC1x2, XC2x1, Y);
 		UTEST_EQUAL(TEXT("XC1x2%XC2x1[0]"), Y.GetPreparedData<float>()[0], FMath::Fmod(1.0f, 3.0f));
 		UTEST_EQUAL(TEXT("XC1x2%XC2x1[1]"), Y.GetPreparedData<float>()[1], FMath::Fmod(2.0f, 3.0f));
 		UTEST_EQUAL(TEXT("XC1x2%XC2x1[2]"), Y.GetPreparedData<float>()[2], FMath::Fmod(1.0f, 4.0f));
@@ -218,21 +218,21 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::BinaryOp
 
 		//Test output tensor math is correct when both inputs are constant including broadcasting
 		FTensor Y = MakeTensor(TEXT("Y"), { 1 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Pow, XC1, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Pow, XC1, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1^XC1"), Y.GetPreparedData<float>()[0], FMath::Pow(1.0f, 1.0f));
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Pow, XC1x2, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Pow, XC1x2, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1x2^XC1[0]"), Y.GetPreparedData<float>()[0], FMath::Pow(1.0f, 1.0f));
 		UTEST_EQUAL(TEXT("XC1x2^XC1[1]"), Y.GetPreparedData<float>()[1], FMath::Pow(2.0f, 1.0f));
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Pow, XC1x2, XC1x2, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Pow, XC1x2, XC1x2, Y);
 		UTEST_EQUAL(TEXT("XC1x2^XC1x2[0]"), Y.GetPreparedData<float>()[0], FMath::Pow(1.0f, 1.0f));
 		UTEST_EQUAL(TEXT("XC1x2^XC1x2[1]"), Y.GetPreparedData<float>()[1], FMath::Pow(2.0f, 2.0f));
 
 		Y = MakeTensor(TEXT("Y"), { 2,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Pow, XC1x2, XC2x1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Pow, XC1x2, XC2x1, Y);
 		UTEST_EQUAL(TEXT("XC1x2^XC2x1[0]"), Y.GetPreparedData<float>()[0], FMath::Pow(1.0f, 3.0f));
 		UTEST_EQUAL(TEXT("XC1x2^XC2x1[1]"), Y.GetPreparedData<float>()[1], FMath::Pow(2.0f, 3.0f));
 		UTEST_EQUAL(TEXT("XC1x2^XC2x1[2]"), Y.GetPreparedData<float>()[2], FMath::Pow(1.0f, 4.0f));
@@ -257,21 +257,21 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::BinaryOp
 
 		//Test output tensor math is correct when both inputs are constant including broadcasting
 		FTensor Y = MakeTensor(TEXT("Y"), { 1 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Prelu, XC1, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Prelu, XC1, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1_XC1"), Y.GetPreparedData<float>()[0], Prelu(1.0f, 1.0f));
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Prelu, XC1x2, XC1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Prelu, XC1x2, XC1, Y);
 		UTEST_EQUAL(TEXT("XC1x2_XC1[0]"), Y.GetPreparedData<float>()[0], Prelu(1.0f, 1.0f));
 		UTEST_EQUAL(TEXT("XC1x2_XC1[1]"), Y.GetPreparedData<float>()[1], Prelu(2.0f, 1.0f));
 
 		Y = MakeTensor(TEXT("Y"), { 1,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Prelu, XC1x2, XC1x2, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Prelu, XC1x2, XC1x2, Y);
 		UTEST_EQUAL(TEXT("XC1x2_XC1x2[0]"), Y.GetPreparedData<float>()[0], Prelu(1.0f, 1.0f));
 		UTEST_EQUAL(TEXT("XC1x2_XC1x2[1]"), Y.GetPreparedData<float>()[1], Prelu(2.0f, 2.0f));
 
 		Y = MakeTensor(TEXT("Y"), { 2,2 });
-		ElementWiseBinaryCPUHelper::Apply(EElementWiseBinaryOperatorType::Prelu, XC1x2, XC2x1, Y);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Prelu, XC1x2, XC2x1, Y);
 		UTEST_EQUAL(TEXT("XC1x2_XC2x1[0]"), Y.GetPreparedData<float>()[0], Prelu(1.0f, 3.0f));
 		UTEST_EQUAL(TEXT("XC1x2_XC2x1[1]"), Y.GetPreparedData<float>()[1], Prelu(2.0f, 3.0f));
 		UTEST_EQUAL(TEXT("XC1x2_XC2x1[2]"), Y.GetPreparedData<float>()[2], Prelu(1.0f, 4.0f));

@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNERuntimeRDGElementWiseUnaryHelper.h"
+#include "NNERuntimeRDGHelperElementWiseUnary.h"
 #include "NNECoreTensor.h"
 #include "Math/UnrealMathUtility.h"
 
-namespace UE::NNERuntimeRDG::Internal::ElementWiseUnaryCPUHelper
+namespace UE::NNERuntimeRDG::Internal::CPUHelper::ElementWiseUnary
 {
 	template<NNECore::Internal::EElementWiseUnaryOperatorType OpType> float Apply(float X, float Alpha, float Beta, float Gamma);
 	
@@ -253,4 +253,4 @@ namespace UE::NNERuntimeRDG::Internal::ElementWiseUnaryCPUHelper
 		}
 	}
 	
-} // UE::NNERuntimeRDG::Private::ElementWiseUnaryCPUHelper
+} // UE::NNERuntimeRDG::Internal::CPUHelper::ElementWiseUnary

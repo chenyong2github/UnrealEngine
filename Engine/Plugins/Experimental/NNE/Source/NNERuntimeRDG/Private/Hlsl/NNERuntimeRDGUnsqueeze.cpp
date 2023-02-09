@@ -1,20 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNERuntimeRDGShape.h"
+#include "NNERuntimeRDGUnsqueeze.h"
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {
 	/**
-	 * Shape operator implementation
+	 * Unsqueeze operator implementation
 	 */
-	class FShape : public FOperatorHlsl
+	class FUnsqueeze : public FOperatorHlsl
 	{
 	public:
 
-		FShape() {}
-		virtual ~FShape() = default;
+		FUnsqueeze() {}
+		virtual ~FUnsqueeze() = default;
+
+		TArray<int32> Axes;
 
 	public:
 
@@ -22,23 +24,25 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		{
 			check(InputTensors.Num() == 1);
 			check(OutputTensors.Num() == 1);
-			check(OutputTensors[0]->GetDataType() == ENNETensorDataType::Int64);
 
 			const NNECore::Internal::FTensor& X = *InputTensors[0];
+			TArray<uint32> OutputShapeData(X.GetShape().GetData());
 
-			TArray<uint32> OutputShapeData;
+			if (!X.HasPreparedData())
+			{
+				UE_LOG(LogNNE, Warning, TEXT("Unsqueeze input 'Data' (name: %s) should be constant, Unsqueeze is not implemented on GPU at the moment."), *X.GetName());
+				return -1;
+			}
 			
-			OutputShapeData.Emplace(X.GetShape().Rank());
+			for (int32 Axe : Axes)
+			{
+				OutputShapeData.Insert(1, Axe);
+			}
 			
 			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
-			TArray<int64> OutputData;
 			
 			OutputTensors[0]->SetShape(OutputShape);
-			for (int32 i = 0; i < X.GetShape().Rank(); ++i)
-			{
-				OutputData.Emplace(X.GetShape().GetData()[i]);
-			}
-			OutputTensors[0]->SetPreparedData<int64>(OutputData);
+			OutputTensors[0]->SetPreparedData<uint8>(X.GetPreparedData<uint8>());
 			
 			return 0;
 		};
@@ -48,10 +52,19 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			check(InputTensorDescs.Num() == 1);
 			check(OutputTensorDescs.Num() == 1);
 
-			if (OutputTensorDescs[0].GetDataType() != ENNETensorDataType::Int64)
+			Axes = Attributes.GetValue<TArray<int32>>(TEXT("pads"));
+			for (int32 Axe : Axes)
 			{
-				UE_LOG(LogNNE, Warning, TEXT("Shape should output a tensor of type Int64"));
-				return false;
+				if (Axe < 0)
+				{
+					UE_LOG(LogNNE, Warning, TEXT("Unsqueeze operator does not support negative axes"));
+					return false;
+				}
+				if (Axe >= InputTensorDescs[0].GetShape().Rank() + Axes.Num())
+				{
+					UE_LOG(LogNNE, Warning, TEXT("Unsqueeze operator does not support axes greater than the number of dimensions of the resulting tensor shape"));
+					return false;
+				}
 			}
 			
 			return true;
@@ -64,13 +77,14 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateShapeOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateUnsqueezeOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputUnsqueezes)
 	{
 		bool bIsValid = true;
 
-		//This match version 1 of the shape operator (next version is with opset 13)
-		//https://github.com/onnx/onnx/blob/main/docs/Changelog.md#Shape-1
+		//This match version 1 of the Unsqueeze operator, next version are 11 and 13
+		//https://github.com/onnx/onnx/blob/main/docs/Operators.md#Unsqueeze
 		FAttributeValidator AttributeValidator;
+		AttributeValidator.AddRequired(TEXT("axes"), ENNEAttributeDataType::Int32Array);
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		FInputValidator InputValidator;
@@ -86,19 +100,20 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		InputValidator.AddSupportedType(ENNETensorDataType::UInt32);
 		InputValidator.AddSupportedType(ENNETensorDataType::UInt64);
 		InputValidator.AddRequired();
+
 		bIsValid &= InputValidator.Validate(InputTypes);
 
 		return bIsValid;
 	}
 
-	FOperatorHlsl* CreateShapeOperator()
+	FOperatorHlsl* CreateUnsqueezeOperator()
 	{
-		return new FShape();
+		return new FUnsqueeze();
 	}
 
-	bool RegisterShapeOperator(FOperatorRegistryHlsl& Registry)
+	bool RegisterUnsqueezeOperator(FOperatorRegistryHlsl& Registry)
 	{
-		Registry.OpAdd(TEXT("Shape"), CreateShapeOperator, ValidateShapeOperator);
+		Registry.OpAdd(TEXT("Unsqueeze"), CreateUnsqueezeOperator, ValidateUnsqueezeOperator);
 		return true;
 	}
 } // UE::NNERuntimeRDG::Private::Hlsl

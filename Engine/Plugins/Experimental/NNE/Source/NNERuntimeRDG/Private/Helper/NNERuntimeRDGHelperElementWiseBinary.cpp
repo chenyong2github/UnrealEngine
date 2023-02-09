@@ -1,59 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNERuntimeRDGElementWiseBinaryHelper.h"
+#include "NNERuntimeRDGHelperElementWiseBinary.h"
+#include "NNERuntimeRDGTensorIdxIterator.h"
 #include "NNECoreTypes.h"
 #include "NNECoreTensor.h"
 #include "Math/UnrealMathUtility.h"
 #include "MathUtil.h"
 
-namespace UE::NNERuntimeRDG::Internal::ElementWiseBinaryCPUHelper
+namespace UE::NNERuntimeRDG::Internal::CPUHelper::ElementWiseBinary
 {
-	class TensorIdxIterator
-	{
-		const NNECore::FTensorShape& TensorShape;
-		TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>> CurrentPosition;
-
-	public:
-		TensorIdxIterator(const NNECore::FTensorShape& InTensorShape);
-		bool Advance();
-		int32 GetIndexToBroadcastedShape(const NNECore::FTensorShape& InTensorShape) const;
-	};
-	
-	TensorIdxIterator::TensorIdxIterator(const NNECore::FTensorShape& InTensorShape) : TensorShape(InTensorShape)
-	{
-		CurrentPosition.Init(0, InTensorShape.Rank());
-	}
-
-	bool TensorIdxIterator::Advance()
-	{
-		for (int32 i = TensorShape.Rank() - 1; i >= 0; --i)
-		{
-			++CurrentPosition[i];
-			if (CurrentPosition[i] < TensorShape.GetData()[i])
-			{
-				return true;
-			}
-			CurrentPosition[i] = 0;
-		}
-		return false;
-	}
-
-	int32 TensorIdxIterator::GetIndexToBroadcastedShape(const NNECore::FTensorShape& InTensorShape) const
-	{
-		int32 Index = 0;
-		int32 DimBaseOffset = 1;
-		for (int32 r = TensorShape.Rank() - 1; r >= 0; --r)
-		{
-			if (r >= InTensorShape.Rank())
-			{
-				break;
-			}
-			Index += FMath::Min(CurrentPosition[r], InTensorShape.GetData()[r]-1) * DimBaseOffset;
-			DimBaseOffset *= FMath::Min(TensorShape.GetData()[r], InTensorShape.GetData()[r]);
-		}
-		return Index;
-	}
-
 	template<NNECore::Internal::EElementWiseBinaryOperatorType OpType> float Apply(float X, float Y);
 	template<> float Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Add>(float X, float Y) { return X + Y; }
 	template<> float Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Div>(float X, float Y) { return X / Y; }
@@ -78,7 +33,7 @@ namespace UE::NNERuntimeRDG::Internal::ElementWiseBinaryCPUHelper
 			TArray<float> OutputData;
 			OutputData.Reserve(OutputTensor.GetVolume());
 
-			TensorIdxIterator it(OutputTensor.GetShape());
+			Private::TensorIdxIterator it(OutputTensor.GetShape());
 			do
 			{
 				int32 LHSIdx = it.GetIndexToBroadcastedShape(LHSTensor.GetShape());
@@ -123,4 +78,4 @@ namespace UE::NNERuntimeRDG::Internal::ElementWiseBinaryCPUHelper
 		}
 	}
 	
-} // UE::NNERuntimeRDG::Internal::ElementWiseUnaryCPUHelper
+} // UE::NNERuntimeRDG::Internal::CPUHelper::ElementWiseBinary

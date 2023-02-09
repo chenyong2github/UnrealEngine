@@ -2,8 +2,8 @@
 
 #include "NNEQAUnitTestHelper.h"
 #include "NNECoreTypes.h"
-#include "NNERuntimeRDGElementWiseBinaryHelper.h"
-#include "NNERuntimeRDGElementWiseUnaryHelper.h"
+#include "NNERuntimeRDGHelperElementWiseBinary.h"
+#include "NNERuntimeRDGHelperElementWiseUnary.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Misc/AutomationTest.h"
@@ -58,31 +58,31 @@ bool FShapeInferenceHelperUnitTestBase::TestBinaryOutputIsOnlyComputedWhenItShou
 	//Tests if output tensors are only computed if both inputs are constant and below a certain size
 	
 	FTensor Y = MakeTensor(TEXT("Y"), { 1 });
-	ElementWiseBinaryCPUHelper::Apply(OpType, XC1, XC1, Y);
+	CPUHelper::ElementWiseBinary::Apply(OpType, XC1, XC1, Y);
 	UTEST_TRUE(TEXT("Y const if both inputs are const"), Y.HasPreparedData());
 
 	Y = MakeTensor(TEXT("Y"), { 1 });
-	ElementWiseBinaryCPUHelper::Apply(OpType, X1, XC1, Y);
+	CPUHelper::ElementWiseBinary::Apply(OpType, X1, XC1, Y);
 	UTEST_FALSE(TEXT("Y not const when LHS not const"), Y.HasPreparedData());
 
 	Y = MakeTensor(TEXT("Y"), { 1 });
-	ElementWiseBinaryCPUHelper::Apply(OpType, XC1, X1, Y);
+	CPUHelper::ElementWiseBinary::Apply(OpType, XC1, X1, Y);
 	UTEST_FALSE(TEXT("Y not const when RHS not const"), Y.HasPreparedData());
 
 	Y = MakeTensor(TEXT("Y"), { 1 });
-	ElementWiseBinaryCPUHelper::Apply(OpType, X1, X1, Y);
+	CPUHelper::ElementWiseBinary::Apply(OpType, X1, X1, Y);
 	UTEST_FALSE(TEXT("Y not const when LHS and RHS not const"), Y.HasPreparedData());
 
 	Y = MakeTensor(TEXT("Y"), { 20 });
-	ElementWiseBinaryCPUHelper::Apply(OpType, XC20, XC1, Y);
+	CPUHelper::ElementWiseBinary::Apply(OpType, XC20, XC1, Y);
 	UTEST_FALSE(TEXT("Y not const when LHS too large"), Y.HasPreparedData());
 
 	Y = MakeTensor(TEXT("Y"), { 20 });
-	ElementWiseBinaryCPUHelper::Apply(OpType, XC1, XC20, Y);
+	CPUHelper::ElementWiseBinary::Apply(OpType, XC1, XC20, Y);
 	UTEST_FALSE(TEXT("Y not const when RHS too large"), Y.HasPreparedData());
 
 	Y = MakeTensor(TEXT("Y"), { 20 });
-	ElementWiseBinaryCPUHelper::Apply(OpType, XC20, XC20, Y);
+	CPUHelper::ElementWiseBinary::Apply(OpType, XC20, XC20, Y);
 	UTEST_FALSE(TEXT("Y not const when LHS and RHS too large"), Y.HasPreparedData());
 
 	return true;
@@ -97,15 +97,15 @@ bool FShapeInferenceHelperUnitTestBase::TestUnaryOutputIsOnlyComputedWhenItShoul
 	//Tests if output tensors are only computed if inputs are constant and below a certain size
 
 	FTensor Y = MakeTensor(TEXT("Y"), { 1 });
-	ElementWiseUnaryCPUHelper::Apply(OpType, XC1, 1.0f, 1.0f, 1.0f, Y);
+	CPUHelper::ElementWiseUnary::Apply(OpType, XC1, 1.0f, 1.0f, 1.0f, Y);
 	UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 
 	Y = MakeTensor(TEXT("Y"), { 1 });
-	ElementWiseUnaryCPUHelper::Apply(OpType, X1, 1.0f, 1.0f, 1.0f, Y);
+	CPUHelper::ElementWiseUnary::Apply(OpType, X1, 1.0f, 1.0f, 1.0f, Y);
 	UTEST_FALSE(TEXT("Y not const if input is not const"), Y.HasPreparedData());
 
 	Y = MakeTensor(TEXT("Y"), { 20 });
-	ElementWiseUnaryCPUHelper::Apply(OpType, XC20, 1.0f, 1.0f, 1.0f, Y);
+	CPUHelper::ElementWiseUnary::Apply(OpType, XC20, 1.0f, 1.0f, 1.0f, Y);
 	UTEST_FALSE(TEXT("Y not const if input is too large "), Y.HasPreparedData());
 
 	return true;

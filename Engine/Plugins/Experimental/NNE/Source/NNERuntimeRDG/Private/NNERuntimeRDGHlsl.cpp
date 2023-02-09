@@ -10,6 +10,7 @@
 #include "NNEUtilsModelOptimizer.h"
 #include "Hlsl/NNERuntimeRDGConv.h"
 #include "Hlsl/NNERuntimeRDGConv.h"
+#include "Hlsl/NNERuntimeRDGConcat.h"
 #include "Hlsl/NNERuntimeRDGConvTranspose.h"
 #include "Hlsl/NNERuntimeRDGElementWiseBinary.h"
 #include "Hlsl/NNERuntimeRDGElementWiseUnary.h"
@@ -18,6 +19,8 @@
 #include "Hlsl/NNERuntimeRDGInstanceNormalization.h"
 #include "Hlsl/NNERuntimeRDGPad.h"
 #include "Hlsl/NNERuntimeRDGShape.h"
+#include "Hlsl/NNERuntimeRDGSlice.h"
+#include "Hlsl/NNERuntimeRDGUnsqueeze.h"
 #include "Hlsl/NNERuntimeRDGUpsample.h"
 #include "Hlsl/NNERuntimeRDGMatMul.h"
 
@@ -42,6 +45,9 @@ bool UNNERuntimeRDGHlslImpl::Init()
 	RegisterUpsampleOperator(*registry);
 	RegisterPadOperator(*registry);
 	RegisterShapeOperator(*registry);
+	RegisterSliceOperator(*registry);
+	RegisterConcatOperator(*registry);
+	RegisterUnsqueezeOperator(*registry);
 
 	return true;
 }

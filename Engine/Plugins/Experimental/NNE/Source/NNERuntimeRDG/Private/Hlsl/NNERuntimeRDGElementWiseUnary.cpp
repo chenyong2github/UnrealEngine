@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGElementWiseUnary.h"
-#include "NNERuntimeRDGElementWiseUnaryHelper.h"
+#include "NNERuntimeRDGHelperElementWiseUnary.h"
 #include "NNEHlslShadersElementWiseUnaryCS.h"
 #include "NNERuntimeRDGHlslHelper.h"
 #include "NNECoreAttributeMap.h"
@@ -42,7 +42,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			const NNECore::Internal::FTensor& X = *InputTensors[0];
 
-			Internal::ElementWiseUnaryCPUHelper::Apply(OpType, X, Alpha, Beta, Gamma, *OutputTensors[0]);
+			Internal::CPUHelper::ElementWiseUnary::Apply(OpType, X, Alpha, Beta, Gamma, *OutputTensors[0]);
 			
 			return 0;
 		}

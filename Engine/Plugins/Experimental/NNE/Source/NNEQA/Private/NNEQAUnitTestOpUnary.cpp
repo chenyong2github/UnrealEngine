@@ -5,7 +5,7 @@
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
 #include "NNEQAUnitTestHelper.h"
-#include "NNERuntimeRDGElementWiseUnaryHelper.h"
+#include "NNERuntimeRDGHelperElementWiseUnary.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Misc/AutomationTest.h"
@@ -40,7 +40,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -1.0f, 2.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Abs, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Abs, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Abs(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Abs(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Abs(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Abs(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -51,7 +52,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Acos, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Acos, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Acos(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Acos(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Acos(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Acos(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -62,7 +64,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 1.0f, 1.5f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Acosh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Acosh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Acosh(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.0f);
 		UTEST_EQUAL(TEXT("Acosh(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 0.9624236501192069f);
 		return true;
@@ -73,7 +76,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Asin, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Asin, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Asin(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Asin(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Asin(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Asin(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -84,7 +88,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 1.0f, 2.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Asinh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Asinh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Asinh(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.881373587019543f);
 		UTEST_EQUAL(TEXT("Asinh(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 1.4436354751788103f);
 		return true;
@@ -95,7 +100,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Atan, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Atan, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Atan(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Atan(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Atan(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Atan(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -106,7 +112,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Ceil, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Ceil, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Ceil(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::CeilToFloat(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Ceil(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::CeilToFloat(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -116,7 +123,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Cos, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Cos, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Cos(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Cos(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Cos(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Cos(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -127,7 +135,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 1.0f, 2.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Cosh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Cosh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Cosh(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 1.5430806348152437f);
 		UTEST_EQUAL(TEXT("Cosh(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 3.7621956910836314f);
 		return true;
@@ -137,7 +146,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Elu, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Elu, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Elu(XC2x1)[0]"), Y.GetPreparedData<float>()[0], -0.3934693402873666f);
 		UTEST_EQUAL(TEXT("Elu(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 0.8f);
 		return true;
@@ -148,7 +158,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 1.0f, 2.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Erf, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Erf, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL_TOLERANCE(TEXT("Erf(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.8427007929497149f, 1e-3f);
 		UTEST_EQUAL_TOLERANCE(TEXT("Erf(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 0.9953222650189527f, 1e-3f);
 		return true;
@@ -159,7 +170,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Exp, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Exp, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Exp(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Exp(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Exp(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Exp(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -170,7 +182,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Floor, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Floor, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Floor(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Floor(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Floor(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Floor(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -181,7 +194,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, INFINITY });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::IsInf, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::IsInf, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("IsInf(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.0f);
 		UTEST_EQUAL(TEXT("IsInf(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 1.0f);
 		return true;
@@ -193,7 +207,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 		float FloatNan = FMath::Sqrt(-1.0f);
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, FloatNan });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::IsNan, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::IsNan, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("IsNan(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.0f);
 		UTEST_EQUAL(TEXT("IsNan(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 1.0f);
 		return true;
@@ -204,7 +219,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 0.0f, -1.5f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::HardSigmoid, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::HardSigmoid, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("HardSigmoid(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 1.0f);
 		UTEST_EQUAL(TEXT("HardSigmoid(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 0.5f);
 		return true;
@@ -215,7 +231,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 0.0f, 1.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::HardSwish, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::HardSwish, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("HardSwitch(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.5f);
 		UTEST_EQUAL(TEXT("HardSwitch(XC2x1)[1]"), Y.GetPreparedData<float>()[1], (1.0f / 6.0f) + 0.5f);
 		return true;
@@ -226,7 +243,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 1.0f, -1.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::LeakyRelu, XC2x1, -0.5f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::LeakyRelu, XC2x1, -0.5f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("LeakyRelu(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 1.0f);
 		UTEST_EQUAL(TEXT("LeakyRelu(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 0.5f);
 		return true;
@@ -237,7 +255,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Log, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Log, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Log(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Loge(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Log(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Loge(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -248,7 +267,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Neg, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Neg, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Neg(XC2x1)[0]"), Y.GetPreparedData<float>()[0], -XC2x1.GetPreparedData<float>()[0]);
 		UTEST_EQUAL(TEXT("Neg(XC2x1)[1]"), Y.GetPreparedData<float>()[1], -XC2x1.GetPreparedData<float>()[1]);
 		return true;
@@ -259,7 +279,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Reciprocal, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Reciprocal, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Reciprocal(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 1.0f / (XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Reciprocal(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 1.0f / (XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -270,7 +291,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Relu, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Relu, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Relu(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.0f);
 		UTEST_EQUAL(TEXT("Relu(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 0.8f);
 		return true;
@@ -281,7 +303,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 0.1f, -1.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Selu, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Selu, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Selu(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.3f);
 		UTEST_EQUAL(TEXT("Selu(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 3.0f * (0.36787944117144233f - 1.0f));
 		return true;
@@ -292,7 +315,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 0.0f, 1.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Sigmoid, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Sigmoid, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Sigmoid(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.5f);
 		UTEST_EQUAL(TEXT("Sigmoid(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 1.0f / (1.0f + 0.36787944117144233f));
 		return true;
@@ -303,7 +327,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Sign, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Sign, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Sign(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Sign(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Sign(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Sign(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -314,7 +339,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Sin, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Sin, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Sin(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Sin(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Sin(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Sin(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -325,7 +351,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Sinh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Sinh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Sinh(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Sinh(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Sinh(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Sinh(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -336,7 +363,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 0.0f, 1.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Softplus, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Softplus, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Softplus(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.6931471805599453f);
 		UTEST_EQUAL(TEXT("Softplus(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 1.3132616875182228f);
 		return true;
@@ -347,7 +375,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 0.0f, 1.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Softsign, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Softsign, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Softsign(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.0f);
 		UTEST_EQUAL(TEXT("Softsign(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 0.5f);
 		return true;
@@ -358,7 +387,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 2.0f, 1.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Sqrt, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Sqrt, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Sqrt(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Sqrt(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Sqrt(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Sqrt(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -369,7 +399,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { -0.5f, 0.8f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Tan, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Tan, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Tan(XC2x1)[0]"), Y.GetPreparedData<float>()[0], FMath::Tan(XC2x1.GetPreparedData<float>()[0]));
 		UTEST_EQUAL(TEXT("Tan(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::Tan(XC2x1.GetPreparedData<float>()[1]));
 		return true;
@@ -380,7 +411,8 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 	{
 		FTensor XC2x1 = MakeConstTensor(TEXT("XC2x1"), { 2,1 }, { 1.0f, 2.0f });
 		FTensor Y = MakeTensor(TEXT("Y"), { 2,1 });
-		ElementWiseUnaryCPUHelper::Apply(EElementWiseUnaryOperatorType::Tanh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Tanh, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
 		UTEST_EQUAL(TEXT("Tanh(XC2x1)[0]"), Y.GetPreparedData<float>()[0], 0.7615941559557649f);
 		UTEST_EQUAL(TEXT("Tanh(XC2x1)[1]"), Y.GetPreparedData<float>()[1], 0.9640275800758169f);
 		return true;
