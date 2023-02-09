@@ -681,22 +681,7 @@ public:
 				)
 			);
 
-		
-			DiffSection.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
-			{
-				if (this->CanDiffSelected())
-				{
-					InSection.AddMenuEntry(
-						TEXT("DiffSelected"),
-						NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffSelected", "Diff Selected"),
-						NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffSelectedTooltip", "Diff the two assets that you have selected."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &SSourceControlHistoryWidget::OnDiffSelected)
-						)
-					);
-				}
-			}));
+			DiffSection.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateSP(this, &SSourceControlHistoryWidget::CreateDiffSelectedMenu));
 			
 		}
 
@@ -1466,6 +1451,25 @@ private:
 			{
 				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("SourceControl.HistoryWindow", "UnableToLoadAssets", "Unable to load assets to diff. Content may no longer be supported?"));
 			}
+		}
+	}
+
+	/** 
+	* CanDiffSelected gives a dynamic response based on a number of factors, so CreateDiffSelectedMenu ensures we are checking on each menu open event and correctly adding the related menu item(s) for each case.
+	*/
+	void CreateDiffSelectedMenu(FToolMenuSection& InSection)
+	{
+		if (CanDiffSelected())
+		{
+			InSection.AddMenuEntry(
+				TEXT("DiffSelected"),
+				NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffSelected", "Diff Selected"),
+				NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffSelectedTooltip", "Diff the two assets that you have selected."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SSourceControlHistoryWidget::OnDiffSelected)
+				)
+			);
 		}
 	}
 
