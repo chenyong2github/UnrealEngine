@@ -455,6 +455,12 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
+		protected override string EscapePreprocessorDefinition(string Definition)
+		{
+			return Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
+		}
+
+		/// <inheritdoc/>
 		protected override void GetCompileArguments_WarningsAndErrors(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
