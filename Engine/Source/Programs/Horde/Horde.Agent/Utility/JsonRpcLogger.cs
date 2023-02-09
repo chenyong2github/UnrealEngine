@@ -147,8 +147,11 @@ namespace Horde.Agent.Utility
 		async Task RunDataWriter()
 		{
 			// Current position and line number in the log file
-			long offset = 0;
-			int lineIndex = 0;
+			long packetOffset = 0;
+			int packetLineIndex = 0;
+
+			// Index of the next line to write to the log
+			int nextLineIndex = 0;
 
 			// Total number of errors and warnings
 			const int MaxErrors = 50;
@@ -168,9 +171,6 @@ namespace Horde.Agent.Utility
 			{
 				events.Clear();
 
-				// Save off the current line number for sending to the server
-				int initialLineIndex = lineIndex;
-
 				// Get the next data
 				Task waitTask = Task.Delay(TimeSpan.FromSeconds(2.0));
 				while (writer.PacketLength < writer.MaxPacketLength)
@@ -183,14 +183,14 @@ namespace Horde.Agent.Utility
 						{
 							if (jsonLogEvent.Level == LogLevel.Warning && ++numWarnings <= MaxWarnings)
 							{
-								AddEvent(jsonLogEvent.Data.Span, lineIndex, Math.Max(lineCount, jsonLogEvent.LineCount), EventSeverity.Warning, events);
+								AddEvent(jsonLogEvent.Data.Span, nextLineIndex, Math.Max(lineCount, jsonLogEvent.LineCount), EventSeverity.Warning, events);
 							}
 							else if ((jsonLogEvent.Level == LogLevel.Error || jsonLogEvent.Level == LogLevel.Critical) && ++numErrors <= MaxErrors)
 							{
-								AddEvent(jsonLogEvent.Data.Span, lineIndex, Math.Max(lineCount, jsonLogEvent.LineCount), EventSeverity.Error, events);
+								AddEvent(jsonLogEvent.Data.Span, nextLineIndex, Math.Max(lineCount, jsonLogEvent.LineCount), EventSeverity.Error, events);
 							}
 						}
-						lineIndex += lineCount;
+						nextLineIndex += lineCount;
 					}
 					{
 						Task<bool> readTask = _dataChannel.Reader.WaitToReadAsync().AsTask();
@@ -208,16 +208,17 @@ namespace Horde.Agent.Utility
 				// Upload it to the server
 				if (writer.PacketLength > 0)
 				{
-					ByteString packet = UnsafeByteOperations.UnsafeWrap(writer.CreatePacket());
+					(ReadOnlyMemory<byte> packet, int packetLineCount) = writer.CreatePacket();
 					try
 					{
-						await _sink.WriteOutputAsync(new WriteOutputRequest(_logId, offset, initialLineIndex, packet, false), CancellationToken.None);
+						await _sink.WriteOutputAsync(new WriteOutputRequest(_logId, packetOffset, packetLineIndex, UnsafeByteOperations.UnsafeWrap(packet), false), CancellationToken.None);
+						packetOffset += packet.Length;
+						packetLineIndex += packetLineCount;
 					}
 					catch (Exception ex)
 					{
-						_inner.LogWarning(ex, "Unable to write data to server (log {LogId}, offset {Offset}, length {Length}, lines {StartLine}-{EndLine})", _logId, offset, packet.Length, initialLineIndex, lineIndex);
+						_inner.LogWarning(ex, "Unable to write data to server (log {LogId}, offset {Offset}, length {Length}, lines {StartLine}-{EndLine})", _logId, packetOffset, packet.Length, packetLineIndex, packetLineIndex + packetLineCount);
 					}
-					offset += packet.Length;
 				}
 
 				// Write all the events
@@ -248,15 +249,15 @@ namespace Horde.Agent.Utility
 				}
 
 				// Wait for more data to be available
-				if (!await _dataChannel.Reader.WaitToReadAsync())
+				if (writer.PacketLength <= 0 && !await _dataChannel.Reader.WaitToReadAsync())
 				{
 					try
 					{
-						await _sink.WriteOutputAsync(new WriteOutputRequest(_logId, offset, lineIndex, ByteString.Empty, true), CancellationToken.None);
+						await _sink.WriteOutputAsync(new WriteOutputRequest(_logId, packetOffset, packetLineIndex, ByteString.Empty, true), CancellationToken.None);
 					}
 					catch (Exception ex)
 					{
-						_inner.LogWarning(ex, "Unable to flush data to server (log {LogId}, offset {Offset})", _logId, offset);
+						_inner.LogWarning(ex, "Unable to flush data to server (log {LogId}, offset {Offset})", _logId, packetOffset);
 					}
 					break;
 				}

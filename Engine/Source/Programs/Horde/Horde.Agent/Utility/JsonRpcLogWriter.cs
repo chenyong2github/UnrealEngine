@@ -74,8 +74,8 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Creates a packet from the current data
 		/// </summary>
-		/// <returns>Packet data</returns>
-		public ReadOnlyMemory<byte> CreatePacket()
+		/// <returns>Packet data and number of lines written</returns>
+		public (ReadOnlyMemory<byte>, int) CreatePacket()
 		{
 			_packetWriter.Clear();
 
@@ -93,7 +93,7 @@ namespace Horde.Agent.Utility
 			}
 			_logEvents.RemoveRange(0, eventCount);
 
-			return _packetWriter.WrittenMemory;
+			return (_packetWriter.WrittenMemory, eventCount);
 		}
 
 		/// <summary>

@@ -1691,17 +1691,17 @@ namespace Horde.Build.Logs
 			if (chunkIdx + 1 < logFile.Chunks.Count)
 			{
 				ILogChunk nextChunk = logFile.Chunks[chunkIdx + 1];
-				chunkData = await RepairChunkDataAsync(logFile, chunkIdx, chunkData, (int)(nextChunk.Offset - chunk.Offset), nextChunk.LineIndex - chunk.LineIndex);
+				chunkData = await RepairChunkDataAsync(logFile, chunkIdx, chunkData, (int)(nextChunk.Offset - chunk.Offset), nextChunk.LineIndex - chunk.LineIndex, $"before next");
 			}
 			else
 			{
 				if (logFile.MaxLineIndex != null && chunk.Length != 0)
 				{
-					chunkData = await RepairChunkDataAsync(logFile, chunkIdx, chunkData, chunk.Length, logFile.MaxLineIndex.Value - chunk.LineIndex);
+					chunkData = await RepairChunkDataAsync(logFile, chunkIdx, chunkData, chunk.Length, logFile.MaxLineIndex.Value - chunk.LineIndex, $"last chunk (max line index = {logFile.MaxLineIndex})");
 				}
 				else
 				{
-					chunkData ??= await RepairChunkDataAsync(logFile, chunkIdx, chunkData, 1024, 1);
+					chunkData ??= await RepairChunkDataAsync(logFile, chunkIdx, chunkData, 1024, 1, "default");
 				}
 			}
 
@@ -1716,8 +1716,9 @@ namespace Horde.Build.Logs
 		/// <param name="chunkData">The chunk data that was read</param>
 		/// <param name="length">Expected length of the data</param>
 		/// <param name="lineCount">Expected number of lines in the data</param>
+		/// <param name="context">Context string for diagnostic output</param>
 		/// <returns>Repaired chunk data</returns>
-		async Task<LogChunkData> RepairChunkDataAsync(ILogFile logFile, int chunkIdx, LogChunkData? chunkData, int length, int lineCount)
+		async Task<LogChunkData> RepairChunkDataAsync(ILogFile logFile, int chunkIdx, LogChunkData? chunkData, int length, int lineCount, string context)
 		{
 			int currentLength = 0;
 			int currentLineCount = 0;
@@ -1729,7 +1730,7 @@ namespace Horde.Build.Logs
 
 			if (chunkData == null || currentLength < length || currentLineCount < lineCount)
 			{
-				_logger.LogWarning("Creating placeholder subchunk for log {LogId} chunk {ChunkIdx} (length {Length} vs expected {ExpLength}, lines {LineCount} vs expected {ExpLineCount})", logFile.Id, chunkIdx, currentLength, length, currentLineCount, lineCount);
+				_logger.LogWarning("Creating placeholder subchunk for log {LogId} chunk {ChunkIdx} (length {Length} vs expected {ExpLength}, lines {LineCount} vs expected {ExpLineCount}, context {Context})", logFile.Id, chunkIdx, currentLength, length, currentLineCount, lineCount, context);
 
 				List<LogSubChunkData> subChunks = new List<LogSubChunkData>();
 				if (chunkData != null && chunkData.Length < length && chunkData.LineCount < lineCount)
