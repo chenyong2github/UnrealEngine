@@ -399,6 +399,7 @@ void USequencerPivotTool::UpdateTransformAndSelectionOnEntering()
 		}
 		SetGizmoBasedOnSelection(!bShiftPressedWhenStarted && !bCtrlPressedWhenStarted);
 	}
+	SavePivotTransforms();
 }
 
 bool USequencerPivotTool::ProcessCommandBindings(const FKey Key, const bool bRepeat) const
@@ -964,6 +965,7 @@ void USequencerPivotTool::OnClicked(const FInputDeviceRay& ClickPos)
 		{
 			GizmoTransform.SetLocation(HitLocation);
 			UpdateGizmoTransform();
+			SavePivotTransforms();
 		}
 	}
 }
