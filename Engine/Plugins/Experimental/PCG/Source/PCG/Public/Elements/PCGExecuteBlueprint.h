@@ -200,7 +200,6 @@ protected:
 #if WITH_EDITOR
 	virtual TArray<FPCGSettingsOverridableParam> GatherOverridableParams() const override;
 #endif // WITH_EDITOR
-	virtual void FixingOverridableParamPropertyClass(FPCGSettingsOverridableParam& Param) const override;
 	// ~End UPCGSettings interface
 
 public:
