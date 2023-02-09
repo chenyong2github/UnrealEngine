@@ -1119,7 +1119,8 @@ void SVisualLogger::OnLogLineSelectionChanged(TSharedPtr<struct FLogEntryItem> S
 	}
 }
 
-void SVisualLogger::OnScrubPositionChanged(double NewScrubPosition, bool bScrubbing)
+// @todo NewScrubPosition needs to be `double`, waiting for 5.2 merge
+void SVisualLogger::OnScrubPositionChanged(float NewScrubPosition, bool bScrubbing)
 {
 	const TArray<FName> &SelectedRows = FVisualLoggerDatabase::Get().GetSelectedRows();
 	const double ScrubTime = FLogVisualizer::Get().GetTimeSliderController()->GetTimeSliderArgs().ScrubPosition.Get();
@@ -1140,7 +1141,7 @@ void SVisualLogger::OnScrubPositionChanged(double NewScrubPosition, bool bScrubb
 		FVisualLogExtensionInterface* Extension = (*Iterator).Value;
 		if (Extension != NULL)
 		{
-			Extension->OnScrubPositionChanged(FVisualLoggerEditorInterface::Get(), NewScrubPosition, bScrubbing);
+			Extension->OnScrubPositionChanged(FVisualLoggerEditorInterface::Get(), double(NewScrubPosition), bScrubbing);
 		}
 	}
 }

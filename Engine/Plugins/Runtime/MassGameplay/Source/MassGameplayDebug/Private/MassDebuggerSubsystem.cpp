@@ -34,11 +34,7 @@ void UMassDebuggerSubsystem::Deinitialize()
 
 bool UMassDebuggerSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	return
-#if WITH_MASSENTITY_DEBUG
-		WorldType == EWorldType::EditorStorage ||
-#endif
-		Super::DoesSupportWorldType(WorldType);
+	return Super::DoesSupportWorldType(WorldType);
 }
 
 #if WITH_MASSENTITY_DEBUG

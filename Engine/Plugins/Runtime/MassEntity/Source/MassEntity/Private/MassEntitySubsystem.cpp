@@ -42,7 +42,7 @@ void UMassEntitySubsystem::Deinitialize()
 
 bool UMassEntitySubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	return WorldType == EWorldType::EditorStorage || Super::DoesSupportWorldType(WorldType);
+	return Super::DoesSupportWorldType(WorldType);
 }
 
 #if WITH_MASSENTITY_DEBUG

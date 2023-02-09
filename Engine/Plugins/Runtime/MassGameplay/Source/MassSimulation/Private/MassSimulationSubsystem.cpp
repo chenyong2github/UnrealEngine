@@ -58,7 +58,7 @@ void UMassSimulationSubsystem::BeginDestroy()
 
 bool UMassSimulationSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	return WorldType == EWorldType::EditorStorage || Super::DoesSupportWorldType(WorldType);
+	return Super::DoesSupportWorldType(WorldType);
 }
 
 FMassProcessingPhase::FOnPhaseEvent& UMassSimulationSubsystem::GetOnProcessingPhaseStarted(const EMassProcessingPhase Phase)
@@ -201,12 +201,8 @@ void UMassSimulationSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds
 #if WITH_EDITOR
 void UMassSimulationSubsystem::OnPieBegin(const bool bIsSimulation)
 {
-	UWorld* World = GetWorld();
-	if (!World || (World && !World->IsStorageWorld()))
-	{
-		// called so that we're not processing phases for the editor world while PIE/SIE is running
-		StopSimulation();
-	}
+	// called so that we're not processing phases for the editor world while PIE/SIE is running
+	StopSimulation();
 }
 
 void UMassSimulationSubsystem::OnPieEnded(const bool bIsSimulation)

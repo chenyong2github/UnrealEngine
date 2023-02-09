@@ -41,8 +41,7 @@ namespace UE::Mass::Debugger::Private
 		return 
 			WorldType == EWorldType::Game || 
 			WorldType == EWorldType::Editor || 
-			WorldType == EWorldType::PIE || 
-			WorldType == EWorldType::EditorStorage;
+			WorldType == EWorldType::PIE;
 	}
 }
 

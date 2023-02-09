@@ -97,7 +97,7 @@ void UMassActorSubsystem::Deinitialize()
 
 bool UMassActorSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	return WorldType == EWorldType::Type::EditorStorage || Super::DoesSupportWorldType(WorldType);
+	return Super::DoesSupportWorldType(WorldType);
 }
 
 //----------------------------------------------------------------------//

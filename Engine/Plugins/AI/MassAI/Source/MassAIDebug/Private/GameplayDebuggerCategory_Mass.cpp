@@ -29,6 +29,13 @@
 #include "Engine/World.h"
 #include "MassDebugger.h"
 
+// temporary namespace to bridge the gap between UE5 revisions when integrating changes. 
+// @TODO: remove
+namespace UE::Mass::Temp
+{
+	constexpr FVector::FReal DefaultFloatPrecision = 1. / 16.; 
+}
+
 namespace UE::Mass::Debug
 {
 	FMassEntityHandle GetEntityFromActor(const AActor& Actor, const UMassAgentComponent*& OutMassAgentComponent)
@@ -750,7 +757,7 @@ void FGameplayDebuggerCategory_Mass::DrawData(APlayerController* OwnerPC, FGamep
 				Coverage += (IntersectingArea * InvArea) * Other.Alpha;
 			}
 
-			Rect.Alpha = FloatCastChecked<float>(FMath::Square(1.0 - FMath::Min(Coverage, 1.0)), UE::LWC::DefaultFloatPrecision);
+			Rect.Alpha = FloatCastChecked<float>(FMath::Square(1.0 - FMath::Min(Coverage, 1.0)), UE::Mass::Temp::DefaultFloatPrecision);
 			
 			if (Rect.Alpha > KINDA_SMALL_NUMBER)
 			{
@@ -770,11 +777,11 @@ void FGameplayDebuggerCategory_Mass::DrawData(APlayerController* OwnerPC, FGamep
 		FCanvasTileItem Background(Rect.Min - Padding, Rect.Max - Rect.Min + Padding * 2.0f, FLinearColor(0.0f, 0.0f, 0.0f, 0.35f * Rect.Alpha));
 		Background.BlendMode = SE_BLEND_TranslucentAlphaOnly;
 		CanvasContext.DrawItem(Background
-			, FloatCastChecked<float>(BackgroundPosition.X, UE::LWC::DefaultFloatPrecision)
-			, FloatCastChecked<float>(BackgroundPosition.Y, UE::LWC::DefaultFloatPrecision));
+			, FloatCastChecked<float>(BackgroundPosition.X, UE::Mass::Temp::DefaultFloatPrecision)
+			, FloatCastChecked<float>(BackgroundPosition.Y, UE::Mass::Temp::DefaultFloatPrecision));
 
-		CanvasContext.PrintAt(FloatCastChecked<float>(Rect.Min.X, UE::LWC::DefaultFloatPrecision)
-			, FloatCastChecked<float>(Rect.Min.Y, UE::LWC::DefaultFloatPrecision)
+		CanvasContext.PrintAt(FloatCastChecked<float>(Rect.Min.X, UE::Mass::Temp::DefaultFloatPrecision)
+			, FloatCastChecked<float>(Rect.Min.Y, UE::Mass::Temp::DefaultFloatPrecision)
 			, FColor::White, Rect.Alpha, Desc.Description);
 	}
 
