@@ -31,9 +31,9 @@ uint				IndirectDispatchGroupSize;
 uint				bDoesMacroGroupSupportVoxelization;
 
 // For testing parity with CPU version
-float3				CPU_TranslatedWorldMinAABB;
-float3				CPU_TranslatedWorldMaxAABB;
-int3				CPU_PageIndexResolution;
+float4				CPU_TranslatedWorldMinAABB[MAX_HAIR_MACROGROUP_COUNT];
+float4				CPU_TranslatedWorldMaxAABB[MAX_HAIR_MACROGROUP_COUNT];
+int4				CPU_PageIndexResolution[MAX_HAIR_MACROGROUP_COUNT];
 uint				CPU_bUseCPUData;
 
 Buffer<float>								GPUVoxelWorldSize;
@@ -65,7 +65,16 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	if (bIsValid)
 	{
 		const bool bSupportVoxelization = (bDoesMacroGroupSupportVoxelization >> MacroGroupId) & 0x1;
-		Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+		if (CPU_bUseCPUData > 0)
+		{
+			Bound.Min = CPU_TranslatedWorldMinAABB[MacroGroupId];
+			Bound.Max = CPU_TranslatedWorldMaxAABB[MacroGroupId];
+		}
+		else
+		{
+			Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+		}
+
 		const float VoxelWorldSize = bUseCPUVoxelWorldSize ? CPUVoxelWorldSize : max(GPUVoxelWorldSize[0], MacroGroupVoxelSizeBuffer[MacroGroupId]);
 		PageWorldSize = VoxelWorldSize * PageResolution;
 
@@ -86,11 +95,17 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		// because the macro group AABBs for voxelization need to be snapped to the voxel page boundary.
 
 		// Allocate enough pages to cover the AABB, where page (0,0,0) origin sit on MinAABB.
-		float3 MacroGroupSize = 0;
 		if (bIsValid)
 		{
-			MacroGroupSize = Bound.Max - Bound.Min;
-			PageIndexResolution = ceil(MacroGroupSize / PageWorldSize);
+			float3 MacroGroupSize = Bound.Max - Bound.Min;
+			if (CPU_bUseCPUData > 0) 
+			{ 
+				PageIndexResolution = CPU_PageIndexResolution[MacroGroupId]; 
+			}
+			else
+			{
+				PageIndexResolution = ceil(MacroGroupSize / PageWorldSize);
+			}
 			MacroGroupSize = PageIndexResolution * PageWorldSize;
 			Bound.Max = MacroGroupSize + Bound.Min;
 		}
@@ -140,16 +155,6 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	if (!bIsValid)
 	{
 		return;
-	}
-
-	// Use CPU data, which allow to compare the GPU driven part with CPU data
-	// This code path is only for debug purpose and work only when there is a single instance group
-	if (CPU_bUseCPUData > 0)
-	{
-		Bound.Min = CPU_TranslatedWorldMinAABB;
-		Bound.Max = CPU_TranslatedWorldMaxAABB;
-		PageIndexResolution = CPU_PageIndexResolution;
-		WriteHairAABB(MacroGroupId, Bound, MacroGroupVoxelAlignedAABBBuffer);
 	}
 
 	// Prepare indirect buffer for doing the actual page index allocation and filling the page index
@@ -228,6 +233,9 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if SHADER_MARKVALID_PREPARE
 uint			MaxClusterCount;
 uint			MacroGroupId;
+uint			bUseMacroGroupBoundCPU;
+float3			MacroGroupBoundCPU_TranslatedWorldMinAABB;
+float3			MacroGroupBoundCPU_TranslatedWorldMaxAABB;
 
 Buffer<int>		GroupAABBsBuffer;
 Buffer<int>		ClusterAABBsBuffer;
@@ -316,7 +324,6 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 void MarkValid_PrepareCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
-	const FHairAABB MacroGroupBound = ReadHairAABB(MacroGroupId, MacroGroupVoxelAlignedAABBBuffer);
 	const int3 PageIndexResolution = PageIndexResolutionAndOffset.xyz;
 	const uint PageIndexOffset = PageIndexResolutionAndOffset.w;
 
@@ -324,7 +331,23 @@ void MarkValid_PrepareCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (any(Coord >= PageIndexResolution))
 		return;
 
-	const FHairAABB GroupBound = ReadHairAABB(0, GroupAABBsBuffer);
+	FHairAABB MacroGroupBound;
+	FHairAABB GroupBound;
+	if (bUseMacroGroupBoundCPU)
+	{
+		MacroGroupBound.Min = MacroGroupBoundCPU_TranslatedWorldMinAABB;
+		MacroGroupBound.Max = MacroGroupBoundCPU_TranslatedWorldMaxAABB;
+
+		// HAIR_TODO: Can we have reliable primitive AABB to have tigher bound?
+		GroupBound.Min = MacroGroupBoundCPU_TranslatedWorldMinAABB;
+		GroupBound.Max = MacroGroupBoundCPU_TranslatedWorldMaxAABB;
+	}
+	else
+	{
+		MacroGroupBound = ReadHairAABB(MacroGroupId, MacroGroupVoxelAlignedAABBBuffer);
+		GroupBound = ReadHairAABB(0, GroupAABBsBuffer);
+	}
+
 	const uint3 MinCoord = PositionToCoord(GroupBound.Min, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
 	const uint3 MaxCoord = PositionToCoord(GroupBound.Max, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
 
@@ -343,83 +366,6 @@ void MarkValid_PrepareCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 }
 #endif // PERMUTATION_USE_CLUSTER
 #endif // SHADER_MARKVALID_PREPARE
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if SHADER_MARKVALID
-uint			MaxClusterCount;
-int3			CPU_PageIndexResolution;
-float3			CPU_TranslatedWorldMinAABB;
-uint			CPU_PageIndexOffset;
-float3			CPU_TranslatedWorldMaxAABB;
-uint			MacroGroupId;
-
-Buffer<int>		ClusterAABBsBuffer;
-Buffer<int>		MacroGroupVoxelAlignedAABBBuffer;
-Buffer<uint4>	PageIndexResolutionAndOffsetBuffer;
-RWBuffer<uint>	OutValidPageIndexBuffer;
-
-// PageIndexBuffer      is sampled with linear coordinate computed from the 3d page coordinate. VALID NODE ARE NOT COMPACTED. It contains the LINEAR PAGE INDEX (to map to the 3d volume).
-// PageIndexCoordBuffer is sampled with linear coordinate for allocated nodes. VALID NODE ARE COMPACTED. It contains the 3d page coordinate and ClustedId. Only used for opaque voxel injection.
-
-[numthreads(GROUP_SIZE, 1, 1)]
-void MarkValidCS(uint2 DispatchThreadId : SV_DispatchThreadID)
-{
-	const uint ClusterIndex = DispatchThreadId.x;
-	if (ClusterIndex >= MaxClusterCount)
-		return;
-
-	const uint BaseClusterIndex = 6 * ClusterIndex;
-
-	FHairAABB ClusterBound;
-	ClusterBound.Min.x = float(ClusterAABBsBuffer[BaseClusterIndex + 0]);
-	ClusterBound.Min.y = float(ClusterAABBsBuffer[BaseClusterIndex + 1]);
-	ClusterBound.Min.z = float(ClusterAABBsBuffer[BaseClusterIndex + 2]);
-
-	ClusterBound.Max.x = float(ClusterAABBsBuffer[BaseClusterIndex + 3]);
-	ClusterBound.Max.y = float(ClusterAABBsBuffer[BaseClusterIndex + 4]);
-	ClusterBound.Max.z = float(ClusterAABBsBuffer[BaseClusterIndex + 5]);
-
-	FHairAABB MacroGroupBound;
-	int3 PageIndexResolution;
-	uint PageIndexOffset;
-
-#if PERMUTATION_GPU_DRIVEN == 1
-	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
-
-	MacroGroupBound = ReadHairAABB(MacroGroupId, MacroGroupVoxelAlignedAABBBuffer);
-	PageIndexResolution = PageIndexResolutionAndOffset.xyz;
-	PageIndexOffset = PageIndexResolutionAndOffset.w;
-#else
-	MacroGroupBound.Min = CPU_TranslatedWorldMinAABB;
-	MacroGroupBound.Max = CPU_TranslatedWorldMaxAABB;
-	PageIndexResolution = CPU_PageIndexResolution;
-	PageIndexOffset = CPU_PageIndexOffset;
-#endif
-
-	uint3 MinCoord = PositionToCoord(ClusterBound.Min, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
-	uint3 MaxCoord = PositionToCoord(ClusterBound.Max, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
-
-	uint3 PageIndexResolutionMinusOne = PageIndexResolution - 1;
-	MinCoord = clamp(MinCoord, uint3(0, 0, 0), PageIndexResolutionMinusOne);
-	MaxCoord = clamp(MaxCoord, uint3(0, 0, 0), PageIndexResolutionMinusOne);
-
-	// Splat cluster contribution
-	// Change this to be a bit smarter (use graphics pipe?)
-	for (uint z = MinCoord.z; z <= MaxCoord.z; ++z)
-	{
-		for (uint y = MinCoord.y; y <= MaxCoord.y; ++y)
-		{
-			for (uint x = MinCoord.x; x <= MaxCoord.x; ++x)
-			{
-				const uint3 PageIndexCoord = uint3(x, y, z);
-				const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, PageIndexResolution, PageIndexOffset);
-				InterlockedOr(OutValidPageIndexBuffer[LinearPageIndexCoord], 1u);
-			}
-		}
-	}
-}
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
