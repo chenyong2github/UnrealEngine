@@ -16,6 +16,8 @@
 #include "Templates/Function.h"
 #include "RayTracingPayloadType.h"
 
+#include "ScenePrivate.h"
+
 static int GNiagaraAsyncGpuTraceHwrtEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraAsyncGpuTraceHwrtEnabled(
 	TEXT("fx.Niagara.AsyncGpuTrace.HWRayTraceEnabled"),
