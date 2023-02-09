@@ -156,36 +156,6 @@ namespace DatasmithSolidworks
 			return Result;
 		}
 
-		public static float[] LookAt(FVec3 InDirectionZ, FVec3 InFromPoint = null, FVec3 InUp = null)
-		{
-			float[] Ret = null;
-
-			if (InDirectionZ != null)
-			{
-				if (InUp == null)
-				{
-					InUp = new FVec3(0f, 1f, 0f);
-				}
-
-				var DirectionZ = InDirectionZ.Normalized();
-				var DirectionX = FVec3.Cross(InUp, DirectionZ);
-				var DirectionY = FVec3.Cross(DirectionZ, DirectionX);
-				Ret = new[] { DirectionX.X, DirectionY.X, DirectionZ.X, 0f ,
-							  DirectionX.Y, DirectionY.Y, DirectionZ.Y, 0f ,
-							  DirectionX.Z, DirectionY.Z, DirectionZ.Z, 0f ,
-							  0f, 0f, 0f, 1f };
-
-				if (InFromPoint != null)
-				{
-					Ret[3] = InFromPoint.X;
-					Ret[7] = InFromPoint.Y;
-					Ret[11] = InFromPoint.Z;
-				}
-			}
-
-			return Ret;
-		}
-
 		public static float[] FMatrix4x4Multiply(float[] InMatrixA, float[] InMatrixB)
 		{
 			float[] Ret = null;

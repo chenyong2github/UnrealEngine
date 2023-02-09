@@ -95,8 +95,8 @@ namespace DatasmithSolidworks
 			if (InDirection != null)
 			{
 				FVec3 Forward = InDirection.Normalized();
-				FVec3 Right = FVec3.Cross(FVec3.YAxis, Forward);
-				FVec3 Up = FVec3.Cross(Forward, Right);
+				FVec3 Right = - FVec3.Cross(FVec3.YAxis, Forward);
+				FVec3 Up = - FVec3.Cross(Forward, Right);
 
 				Ret[0] = Forward.X;
 				Ret[1] = Forward.Y;

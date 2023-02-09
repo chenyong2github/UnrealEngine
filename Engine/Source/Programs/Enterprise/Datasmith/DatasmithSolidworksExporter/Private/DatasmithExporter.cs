@@ -305,7 +305,7 @@ namespace DatasmithSolidworks
 			{
 				case FLight.EType.Directional:
 				{
-					LightDirection = InLight.DirLightDirection;
+					LightDirection = - InLight.DirLightDirection; // Direction FROM the light source, SW gives away direction TOWARDS light source
 					ExportInfo.Type = EActorType.DirLightActor;
 				}
 				break;
@@ -318,7 +318,7 @@ namespace DatasmithSolidworks
 				case FLight.EType.Spot:
 				{
 					LightPosition = InLight.SpotLightPosition;
-					LightDirection = (InLight.SpotLightPosition - InLight.SpotLightTarget ).Normalized();  // Inverted direction
+					LightDirection = (InLight.SpotLightTarget - InLight.SpotLightPosition).Normalized();  // Direction FROM the light source
 					ExportInfo.Type = EActorType.SpotLightActor;
 				}
 				break;

@@ -188,6 +188,11 @@ namespace DatasmithSolidworks
             return new FVec3(V.X - M.X, V.Y - M.Y, V.Z - M.Z);
         }
 
+        public static FVec3 operator -(FVec3 V)
+        {
+	        return new FVec3(-V.X, -V.Y, -V.Z);
+        }
+
         public static FVec3 operator +(FVec3 V, float M)
         {
             return new FVec3(V.X + M, V.Y + M, V.Z + M);

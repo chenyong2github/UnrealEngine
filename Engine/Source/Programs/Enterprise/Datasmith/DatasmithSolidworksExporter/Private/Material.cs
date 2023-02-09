@@ -909,7 +909,7 @@ namespace DatasmithSolidworks
 				XPos * UDir.Y + YPos * VDir.Y - CenterPoint.Y,
 				XPos * UDir.Z + YPos * VDir.Z - CenterPoint.Z);
 
-			UVPlane.Normal = new FVec3() - FVec3.Cross(UVPlane.UDirection, UVPlane.VDirection);
+			UVPlane.Normal = - FVec3.Cross(UVPlane.UDirection, UVPlane.VDirection);
 
 			return UVPlane;
 		}
@@ -929,7 +929,7 @@ namespace DatasmithSolidworks
 				case FMaterial.EMappingType.TYPE_AUTOMATIC:
 				case FMaterial.EMappingType.TYPE_CYLINDRICAL:
 				{
-					FVec3 cross = new FVec3(0f, 0f, 0f) - FVec3.Cross(UDirection, VDirection);
+					FVec3 cross = - FVec3.Cross(UDirection, VDirection);
 					Planes.Add(GetUVPlane(UDirection, VDirection));
 					Planes.Add(GetUVPlane(UDirection, cross));
 					Planes.Add(GetUVPlane(VDirection, cross));
@@ -989,7 +989,7 @@ namespace DatasmithSolidworks
 		public FVec2 ComputeNormalAtan2(FVec3 InVertex, FVec3 InModelCenter)
 		{
 			FVec3 Normal = InVertex - InModelCenter;
-			FVec3 UVCross = FVec3.Cross(new FVec3() - UDirection, VDirection);
+			FVec3 UVCross = FVec3.Cross(- UDirection, VDirection);
 			FVec3 UVNormal = new FVec3(-FVec3.Dot(Normal, UDirection), FVec3.Dot(Normal, VDirection), FVec3.Dot(Normal, UVCross));
 			return new FVec2(((float)Math.Atan2(UVNormal.Z, UVNormal.X) / (Math.PI * 2)), UVNormal.Y);
 		}
