@@ -99,19 +99,17 @@ bool FUnsavedAssetsAutoCheckout::OnProcessCheckoutBatch(float)
 			continue;
 		}
 
-		// Why are we checking if the package is still dirty?
-		// Some packages become temporarily dirty, for example during world recreation.
-		// By the time we try to check them out they may no longer be dirty.
+		// Why are we checking if the package is still loaded and dirty?
+		// Some packages become temporarily dirty, for example during world destruction / world recreation.
+		// By the time we try to check them out they may no longer be dirty or even loaded.
 		FString PackageName;
 		if (FPackageName::TryConvertFilenameToLongPackageName(File, PackageName))
 		{
-			if (UPackage* Package = FindPackage(nullptr, *PackageName))
+			UPackage* Package = FindPackage(nullptr, *PackageName);
+			if (!Package || !Package->IsDirty())
 			{
-				if (!Package->IsDirty())
-				{
-					FilesToCancel.Add(File);
-					continue;
-				}
+				FilesToCancel.Add(File);
+				continue;
 			}
 		}
 
