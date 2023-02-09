@@ -214,3 +214,14 @@ protected:
 	
 	int32 TestValue = 0;
 };
+
+UCLASS(hidden)
+class UWorldConditionOwnerClass : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FWorldConditionQueryDefinition Definition;
+};

@@ -3,6 +3,9 @@
 #include "AITestsCommon.h"
 #include "Engine/World.h"
 #include "WorldConditionTestTypes.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_WorldConditionsTest"
 
@@ -265,6 +268,39 @@ struct FWorldConditionTest_FailingActivate : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_FailingActivate, "System.WorldConditions.FailingActivate");
+
+struct FWorldConditionTest_Serialization : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		UWorldConditionOwnerClass* Owner = NewAutoDestroyObject<UWorldConditionOwnerClass>();
+		const bool bInitialized = Owner->Definition.Initialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
+			{
+				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest())),
+				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest())),
+			});
+
+		AITEST_TRUE("Query definition should get initialized", bInitialized);
+		AITEST_EQUAL("Query successfully initialized definition should be valid", bInitialized, Owner->Definition.IsValid());
+
+		TArray<uint8> Data;
+		FMemoryWriter Writer(Data);
+		FObjectAndNameAsStringProxyArchive WriterProxy(Writer, /*bInLoadIfFindFails*/true);
+		Owner->Serialize(WriterProxy);
+
+		// Read back on new object
+		Owner = NewAutoDestroyObject<UWorldConditionOwnerClass>();
+		
+		FMemoryReader Reader(Data);
+		FObjectAndNameAsStringProxyArchive ReaderProxy(Reader, /*bInLoadIfFindFails*/true);
+		Owner->Serialize(ReaderProxy);
+
+		AITEST_TRUE("Query definition should be initialized after loading", Owner->Definition.IsValid());
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_Serialization, "System.WorldConditions.Serialization");
 
 UE_ENABLE_OPTIMIZATION_SHIP
 

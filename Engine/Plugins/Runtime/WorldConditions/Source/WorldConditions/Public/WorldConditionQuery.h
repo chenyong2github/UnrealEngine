@@ -87,11 +87,12 @@ struct WORLDCONDITIONS_API FWorldConditionEditable
 USTRUCT()
 struct WORLDCONDITIONS_API FWorldConditionQuerySharedDefinition
 {
-private:
-	struct FPrivateToken { explicit FPrivateToken() = default; };
-	
-public:
 	GENERATED_BODY()
+	
+	FWorldConditionQuerySharedDefinition()
+		: bIsLinked(false)
+	{
+	}
 
 	void PostSerialize(const FArchive& Ar);
 
@@ -107,6 +108,9 @@ public:
 	/** @return the alignment of the memory needed for the state (in bytes). */
 	int32 GetStateMinAlignment() const { return StateMinAlignment; }
 
+	/** @return true if the shared definition is successfully linked. */
+	bool IsLinked() const { return bIsLinked; }
+	
 private:
 
 	/** Updates the state memory layout and initializes the conditions. */
@@ -129,6 +133,9 @@ private:
 	
 	/** Size of the state storage */
 	int32 StateSize = 0;
+
+	/** Flag indicating the last result of Link(), if true, the definition is ready to use. */
+	uint8 bIsLinked : 1;
 	
 	friend struct FWorldConditionQueryDefinition;
 };

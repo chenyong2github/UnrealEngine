@@ -270,41 +270,23 @@ void FWorldConditionQuerySharedDefinition::Set(const TSubclassOf<UWorldCondition
 
 void FWorldConditionQuerySharedDefinition::PostSerialize(const FArchive& Ar)
 {
-	if (Conditions.Num() > 0)
+	const FUObjectSerializeContext* LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
+	const UObject* SerializedObject = LoadContext ? LoadContext->SerializedObject : nullptr;
+	
+	if (!Link())
 	{
-		const FUObjectSerializeContext* LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
-		const UObject* SerializedObject = LoadContext ? LoadContext->SerializedObject : nullptr;
-		
-		// Initialize conditions. This is done always on load so that any changes to the schema take affect.
-		if (SchemaClass)
-		{
-			const UWorldConditionSchema* Schema = SchemaClass.GetDefaultObject();
-			bool bResult = true;
-			for (int32 Index = 0; Index < Conditions.Num(); Index++)
-			{
-				FWorldConditionBase& Condition = Conditions[Index].GetMutable<FWorldConditionBase>();
-				bResult &= Condition.Initialize(*Schema);
-			}
-			if (!bResult)
-			{
-				UE_LOG(LogWorldCondition, Error, TEXT("World Condition: Failed to initialize query for %s."),
-					*GetNameSafe(SerializedObject));
-			}
-		}
-		else
- 
-		{
-			UE_LOG(LogWorldCondition, Error, TEXT("World Condition: shared definition for %s has empty schema, and %d conditions."),
-				*GetNameSafe(SerializedObject), Conditions.Num());
-		}
+		UE_LOG(LogWorldCondition, Error, TEXT("World Condition: Failed to link query for %s."),
+			*GetNameSafe(SerializedObject));
 	}
-
-	Link();
 }
 
 bool FWorldConditionQuerySharedDefinition::Link()
 {
 	bool bResult = true;
+
+	StateMinAlignment = 0;
+	StateSize = 0;
+	bIsLinked = false;
 
 	const UWorldConditionSchema* Schema = SchemaClass.GetDefaultObject();
 	if (!Schema)
@@ -360,14 +342,16 @@ bool FWorldConditionQuerySharedDefinition::Link()
 		}
 	}
 
-	StateMinAlignment = MinAlignment;
-	StateSize = Offset;
+	StateMinAlignment = uint8(MinAlignment);
+	StateSize = uint16(Offset);
 	
 	for (int32 Index = 0; Index < Conditions.Num(); Index++)
 	{
 		FWorldConditionBase& Condition = Conditions[Index].GetMutable<FWorldConditionBase>();
 		bResult &= Condition.Initialize(*Schema);
 	}
+
+	bIsLinked = bResult;
 
 	return bResult;
 }
@@ -378,7 +362,7 @@ bool FWorldConditionQuerySharedDefinition::Link()
 
 bool FWorldConditionQueryDefinition::IsValid() const
 {
-	return SharedDefinition.IsValid();
+	return SharedDefinition.IsValid() && SharedDefinition->IsLinked();
 }
 
 void FWorldConditionQueryDefinition::SetSchemaClass(const TSubclassOf<UWorldConditionSchema> InSchema)
@@ -509,6 +493,8 @@ bool FWorldConditionQueryDefinition::Serialize(FArchive& Ar)
 		{
 			UScriptStruct* Struct = TBaseStructure<FWorldConditionQuerySharedDefinition>::Get();
 			Struct->SerializeTaggedProperties(Ar, (uint8*)SharedDefinition.Get(), Struct, nullptr);
+			// SerializeTaggedProperties does not call PostSerialize() on the struct it's called (calls in items), call it manually.
+			SharedDefinition->PostSerialize(Ar);
 		}
 	}
 #if WITH_EDITOR
