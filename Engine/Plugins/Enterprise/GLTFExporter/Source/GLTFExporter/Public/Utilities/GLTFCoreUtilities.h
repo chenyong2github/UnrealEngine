@@ -29,9 +29,9 @@ struct GLTFEXPORTER_API FGLTFCoreUtilities
 	static FGLTFInt8Vector4 ConvertNormal(const FPackedNormal& Normal);
 	static FGLTFInt16Vector4 ConvertNormal(const FPackedRGBA16N& Normal);
 
-	static FGLTFVector4 ConvertTangent(const FVector4f& Tangent);
-	static FGLTFInt8Vector4 ConvertTangent(const FPackedNormal& Tangent);
-	static FGLTFInt16Vector4 ConvertTangent(const FPackedRGBA16N& Tangent);
+	static FGLTFVector4 ConvertTangent(const FVector3f& Tangent, const FVector4f& Normal = FVector4f(ForceInitToZero));
+	static FGLTFInt8Vector4 ConvertTangent(const FPackedNormal& Tangent, const FPackedNormal& Normal = FPackedNormal());
+	static FGLTFInt16Vector4 ConvertTangent(const FPackedRGBA16N& Tangent, const FPackedRGBA16N& Normal = FPackedRGBA16N());
 
 	static FGLTFVector2 ConvertUV(const FVector2f& UV);
 	static FGLTFVector2 ConvertUV(const FVector2DHalf& UV);

@@ -32,18 +32,18 @@ namespace
 	template <typename DestinationType, typename SourceType>
 	struct TGLTFVertexTangentUtilities
 	{
-		static DestinationType Convert(const SourceType& Tangent)
+		static DestinationType Convert(const SourceType& TangentX, const SourceType& TangentZ)
 		{
-			return FGLTFCoreUtilities::ConvertTangent(Tangent);
+			return FGLTFCoreUtilities::ConvertTangent(TangentX, TangentZ);
 		}
 	};
 
 	template <typename SourceType>
 	struct TGLTFVertexTangentUtilities<FGLTFVector4, SourceType>
 	{
-		static FGLTFVector4 Convert(const SourceType& Tangent)
+		static FGLTFVector4 Convert(const SourceType& TangentX, const SourceType& TangentZ)
 		{
-			return FGLTFCoreUtilities::ConvertTangent(Tangent.ToFVector4f());
+			return FGLTFCoreUtilities::ConvertTangent(TangentX.ToFVector3f(), TangentZ.ToFVector4f());
 		}
 	};
 }
@@ -212,8 +212,8 @@ FGLTFJsonBufferView* FGLTFNormalBufferConverter::ConvertBufferView(const FGLTFMe
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
 
-	typedef TStaticMeshVertexTangentDatum<SourceType> VertexTangentType;
-	const VertexTangentType* TangentData= static_cast<const VertexTangentType*>(SourceData);
+	typedef TStaticMeshVertexTangentDatum<SourceType> TangentDatumType;
+	const TangentDatumType* TangentData = static_cast<const TangentDatumType*>(SourceData);
 
 	TArray<DestinationType> Normals;
 	Normals.AddUninitialized(VertexCount);
@@ -221,8 +221,8 @@ FGLTFJsonBufferView* FGLTFNormalBufferConverter::ConvertBufferView(const FGLTFMe
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
-		const SourceType& Normal = TangentData[MappedVertexIndex].TangentZ;
-		Normals[VertexIndex] = TGLTFVertexNormalUtilities<DestinationType, SourceType>::Convert(Normal);
+		const TangentDatumType& TangentDatum = TangentData[MappedVertexIndex];
+		Normals[VertexIndex] = TGLTFVertexNormalUtilities<DestinationType, SourceType>::Convert(TangentDatum.TangentZ);
 	}
 
 	return Builder.AddBufferView(Normals, EGLTFJsonBufferTarget::ArrayBuffer);
@@ -289,8 +289,8 @@ FGLTFJsonBufferView* FGLTFTangentBufferConverter::ConvertBufferView(const FGLTFM
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
 
-	typedef TStaticMeshVertexTangentDatum<SourceType> VertexTangentType;
-	const VertexTangentType* VertexTangents = static_cast<const VertexTangentType*>(SourceData);
+	typedef TStaticMeshVertexTangentDatum<SourceType> TangentDatumType;
+	const TangentDatumType* VertexData = static_cast<const TangentDatumType*>(SourceData);
 
 	TArray<DestinationType> Tangents;
 	Tangents.AddUninitialized(VertexCount);
@@ -298,8 +298,8 @@ FGLTFJsonBufferView* FGLTFTangentBufferConverter::ConvertBufferView(const FGLTFM
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
-		const SourceType& Tangent = VertexTangents[MappedVertexIndex].TangentX;
-		Tangents[VertexIndex] = TGLTFVertexTangentUtilities<DestinationType, SourceType>::Convert(Tangent);
+		const TangentDatumType& TangentDatum = VertexData[MappedVertexIndex];
+		Tangents[VertexIndex] = TGLTFVertexTangentUtilities<DestinationType, SourceType>::Convert(TangentDatum.TangentX, TangentDatum.TangentZ);
 	}
 
 	return Builder.AddBufferView(Tangents, EGLTFJsonBufferTarget::ArrayBuffer);

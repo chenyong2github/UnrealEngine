@@ -43,22 +43,24 @@ FGLTFInt16Vector4 FGLTFCoreUtilities::ConvertNormal(const FPackedRGBA16N& Normal
 	return { SafeNormal.X, SafeNormal.Z, SafeNormal.Y, 0 };
 }
 
-FGLTFVector4 FGLTFCoreUtilities::ConvertTangent(const FVector4f& Tangent)
+FGLTFVector4 FGLTFCoreUtilities::ConvertTangent(const FVector3f& Tangent, const FVector4f& Normal)
 {
+	// Unreal keeps the binormal sign in the normal's w-component.
+	// glTF keeps the binormal sign in the tangent's w-component.
 	const FVector3f SafeTangent = Tangent.GetSafeNormal();
-	return { SafeTangent.X, SafeTangent.Z, SafeTangent.Y, Tangent.W < 0 ? -1.0f : +1.0f };
+	return { SafeTangent.X, SafeTangent.Z, SafeTangent.Y, Normal.W >= 0 ? 1.0f : -1.0f };
 }
 
-FGLTFInt8Vector4 FGLTFCoreUtilities::ConvertTangent(const FPackedNormal& Tangent)
+FGLTFInt8Vector4 FGLTFCoreUtilities::ConvertTangent(const FPackedNormal& Tangent, const FPackedNormal& Normal)
 {
 	const FPackedNormal SafeTangent = Tangent.ToFVector3f().GetSafeNormal();
-	return { SafeTangent.Vector.X, SafeTangent.Vector.Z, SafeTangent.Vector.Y, Tangent.Vector.W < 0 ? MIN_int8 : MAX_int8 };
+	return { SafeTangent.Vector.X, SafeTangent.Vector.Z, SafeTangent.Vector.Y, Normal.Vector.W >= 0 ? MAX_int8 : MIN_int8 };
 }
 
-FGLTFInt16Vector4 FGLTFCoreUtilities::ConvertTangent(const FPackedRGBA16N& Tangent)
+FGLTFInt16Vector4 FGLTFCoreUtilities::ConvertTangent(const FPackedRGBA16N& Tangent, const FPackedRGBA16N& Normal)
 {
 	const FPackedRGBA16N SafeTangent = Tangent.ToFVector3f().GetSafeNormal();
-	return { SafeTangent.X, SafeTangent.Z, SafeTangent.Y, Tangent.W < 0 ? MIN_int16 : MAX_int16 };
+	return { SafeTangent.X, SafeTangent.Z, SafeTangent.Y, Normal.W >= 0 ? MAX_int16 : MIN_int16 };
 }
 
 FGLTFVector2 FGLTFCoreUtilities::ConvertUV(const FVector2f& UV)
