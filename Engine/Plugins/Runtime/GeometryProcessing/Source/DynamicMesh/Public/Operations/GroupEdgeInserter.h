@@ -58,6 +58,13 @@ public:
 		 */
 		double VertexTolerance = KINDA_SMALL_NUMBER * 10;
 
+		/**
+		 * When inserting edges, we can locally simplify to improve mesh quality along the edge path.
+		 * Only does so when it should not change mesh shape, UVs, triangle groups, etc,
+		 * and only applies when Insertion Mode is "Plane Cut"
+		 */
+		bool bSimplifyAlongPath = true;
+
 		/** 
 		 * Determines how the edge is inserted: by using a cutting plane to cut existing triangles
 		 * along the path, or deleting triangles and retriangulating. Retriangulation will keep
@@ -137,6 +144,13 @@ public:
 		 * inserting using plane cut).
 		 */
 		double VertexTolerance = KINDA_SMALL_NUMBER * 10;
+
+		/**
+		 * When inserting edges, we can locally simplify to improve mesh quality along the edge path.
+		 * Only does so when it should not change mesh shape, UVs, triangle groups, etc,
+		 * and only applies when Insertion Mode is "Plane Cut"
+		 */
+		bool bSimplifyAlongPath = true;
 
 		EInsertionMode Mode = EInsertionMode::Retriangulate;
 	};

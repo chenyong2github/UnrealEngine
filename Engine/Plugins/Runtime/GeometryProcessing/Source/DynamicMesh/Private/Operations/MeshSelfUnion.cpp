@@ -4,6 +4,7 @@
 
 #include "Operations/MeshSelfUnion.h"
 #include "Operations/MeshMeshCut.h"
+#include "Operations/LocalPlanarSimplify.h"
 
 #include "Selections/MeshConnectedComponents.h"
 
@@ -550,8 +551,8 @@ void FMeshSelfUnion::SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<i
 			int NumFlat = 0;
 			for (int VIdx = 0; VIdx < 2; VIdx++)
 			{
-				Flat[VIdx] = FMeshBoolean::IsFlat(*Mesh, Edge.Vert[VIdx], DotTolerance, FlatNormals[VIdx][0]) 
-						  && FMeshBoolean::IsFlat(*Mesh, Matches[VIdx], DotTolerance, FlatNormals[VIdx][1]);
+				Flat[VIdx] = FLocalPlanarSimplify::IsFlat(*Mesh, Edge.Vert[VIdx], DotTolerance, FlatNormals[VIdx][0]) 
+						  && FLocalPlanarSimplify::IsFlat(*Mesh, Matches[VIdx], DotTolerance, FlatNormals[VIdx][1]);
 
 				if (Flat[VIdx])
 				{
@@ -591,10 +592,10 @@ void FMeshSelfUnion::SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<i
 					int KeepV = WhichEdge == 0 ? Edge.Vert[KeepVIdx] : Matches[KeepVIdx];
 					int SourceEID = WhichEdge == 0 ? EID : MatchEID;
 
-					bHasBadEdge = bHasBadEdge || FMeshBoolean::CollapseWouldHurtTriangleQuality(
+					bHasBadEdge = bHasBadEdge || FLocalPlanarSimplify::CollapseWouldHurtTriangleQuality(
 						*Mesh, FlatNormals[RemoveVIdx][WhichEdge], RemoveV, RemoveVPos, KeepV, KeepVPos, TryToImproveTriQualityThreshold);
 
-					bHasBadEdge = bHasBadEdge || FMeshBoolean::CollapseWouldChangeShapeOrUVs(
+					bHasBadEdge = bHasBadEdge || FLocalPlanarSimplify::CollapseWouldChangeShapeOrUVs(
 						*Mesh, CutBoundaryEdgeSet, DotTolerance,
 						SourceEID, RemoveV, RemoveVPos, KeepV, KeepVPos, EdgeDir, bPreserveTriangleGroups,
 						true, bPreserveVertexUVs, bPreserveOverlayUVs, UVDistortTolerance * UVDistortTolerance,

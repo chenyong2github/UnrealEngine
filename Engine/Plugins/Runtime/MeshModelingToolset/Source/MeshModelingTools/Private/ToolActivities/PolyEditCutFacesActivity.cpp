@@ -166,10 +166,17 @@ void UPolyEditCutFacesActivity::ApplyCutFaces()
 	// apply the cut to edges of selected triangles
 	FGroupTopologySelection OutputSelection;
 	FMeshPlaneCut Cut(ActivityContext->CurrentMesh.Get(), PlaneOrigin, PlaneNormal);
+	Cut.bSimplifyAlongNewEdges = !ActivityContext->bTriangleMode;
+	Cut.SimplifySettings.bPreserveVertexNormals = false;
 	FMeshEdgeSelection Edges(ActivityContext->CurrentMesh.Get());
 	Edges.SelectTriangleEdges(ActiveTriangleSelection);
 	Cut.EdgeFilterFunc = [&](int EdgeID) { return Edges.IsSelected(EdgeID); };
-	if (Cut.SplitEdgesOnly(true))
+	TSet<int32> TriangleSelectionSet;
+	if (ActivityContext->bTriangleMode)
+	{
+		TriangleSelectionSet.Append(ActiveTriangleSelection);
+	}
+	if (Cut.SplitEdgesOnly(true, ActivityContext->bTriangleMode ? &TriangleSelectionSet : nullptr))
 	{
 		if (!ActivityContext->bTriangleMode)
 		{
@@ -180,11 +187,7 @@ void UPolyEditCutFacesActivity::ApplyCutFaces()
 		}
 		else
 		{
-			// Retain the selection along the cut. ResultSeedTriangles does not
-			// contain selected tris that are not cut, so re-add the original selected
-			// tris.
-			OutputSelection.SelectedGroupIDs.Append(Cut.ResultSeedTriangles);
-			OutputSelection.SelectedGroupIDs.Append(ActiveTriangleSelection);
+			OutputSelection.SelectedGroupIDs.Append(TriangleSelectionSet);
 		}
 	}
 

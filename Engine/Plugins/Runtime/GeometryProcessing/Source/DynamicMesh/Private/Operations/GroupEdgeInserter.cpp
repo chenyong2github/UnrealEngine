@@ -14,6 +14,7 @@
 #include "Operations/MeshPlaneCut.h"
 #include "Operations/EmbedSurfacePath.h"
 #include "Operations/SimpleHoleFiller.h"
+#include "Operations/LocalPlanarSimplify.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Util/ProgressCancel.h"
 #include "Util/IndexUtil.h"
@@ -70,12 +71,12 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray <FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	double VertexTolerance, int32& NumGroupsCreated, 
+	double VertexTolerance, bool bSimplifyAlongPath, int32& NumGroupsCreated,
 	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, FProgressCancel* Progress);
 bool EmbedPlaneCutPath(FDynamicMesh3& Mesh, const FGroupTopology& Topology, int32 GroupID,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint,
-	double VertexTolerance, TSet<int32>& PathEidsOut, 
+	double VertexTolerance, bool bSimplifyAlongPath, TSet<int32>& PathEidsOut, 
 	TSet<int32>* ChangedTrisOut, FProgressCancel* Progress);
 bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalGroupID, int32& NumGroupsCreated, 
 	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, FProgressCancel* Progress);
@@ -556,7 +557,7 @@ bool ConnectEndpoints(
 	else if (Params.Mode == FGroupEdgeInserter::EInsertionMode::PlaneCut)
 	{
 		return ConnectMultipleUsingPlaneCut(*Params.Mesh, *Params.Topology, GroupID,
-			GroupBoundary, StartPoints, EndPoints, Params.VertexTolerance,
+			GroupBoundary, StartPoints, EndPoints, Params.VertexTolerance, Params.bSimplifyAlongPath,
 			NumGroupsCreated, OptionalOut, Progress);
 	}
 	else
@@ -921,7 +922,7 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray <FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	double VertexTolerance, int32& NumGroupsCreated, 
+	double VertexTolerance, bool bSimplifyAlongPath, int32& NumGroupsCreated,
 	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, 
 	FProgressCancel* Progress)
 {
@@ -936,7 +937,7 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 	for (int32 i = 0; i < NumEdgesToInsert; ++i)
 	{
 		bool bSuccess = EmbedPlaneCutPath(Mesh, Topology, GroupID, StartPoints[i], EndPoints[i],
-			VertexTolerance, PathsEids, OptionalOut.ChangedTidsOut, Progress);
+			VertexTolerance, bSimplifyAlongPath, PathsEids, OptionalOut.ChangedTidsOut, Progress);
 
 		if (!bSuccess || (Progress && Progress->Cancelled()))
 		{
@@ -960,7 +961,7 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 bool EmbedPlaneCutPath(FDynamicMesh3& Mesh, const FGroupTopology& Topology,
 	int32 GroupID, const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint,
-	double VertexTolerance, TSet<int32>& PathEidsOut, 
+	double VertexTolerance, bool bSimplifyAlongPath, TSet<int32>& PathEidsOut, 
 	TSet<int32>* ChangedTrisOut, FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())
@@ -1039,6 +1040,15 @@ bool EmbedPlaneCutPath(FDynamicMesh3& Mesh, const FGroupTopology& Topology,
 			PathEidsOut.Add(Eid);
 		}
 	}
+	
+	if (bSimplifyAlongPath)
+	{
+		FLocalPlanarSimplify Simplify;
+		// Note: Vertex normals are not reliable here, so preserving them will just prevent simplifications that are fine ...
+		Simplify.bPreserveVertexNormals = false;
+		// Note: Any triangles that this simplify can remove should already be in ChangedTrisOut, so we shouldn't need to update that array here
+		Simplify.SimplifyAlongEdges(Mesh, PathEidsOut);
+	}
 
 	return true;
 }
@@ -1056,7 +1066,7 @@ bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalG
 		return false;
 	}
 
-	// Create the new groups. We do so
+	// Create the new groups.
 	TSet<int32> SeedTriangleSet;
 	for (int32 Eid : PathEids)
 	{
@@ -1144,7 +1154,7 @@ bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, FGro
 		TSet<int32>* NewEids = OptionalOut.NewEidsOut ? OptionalOut.NewEidsOut : &TempNewEids;
 
 		bool bSuccess = EmbedPlaneCutPath(*Params.Mesh, *Params.Topology, Params.GroupID, Params.StartPoint,
-			Params.EndPoint, Params.VertexTolerance, *NewEids, OptionalOut.ChangedTidsOut, Progress);
+			Params.EndPoint, Params.VertexTolerance, Params.bSimplifyAlongPath, *NewEids, OptionalOut.ChangedTidsOut, Progress);
 		if (!bSuccess || (Progress && Progress->Cancelled()))
 		{
 			return false;

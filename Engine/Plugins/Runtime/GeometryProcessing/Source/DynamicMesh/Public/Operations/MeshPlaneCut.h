@@ -10,6 +10,7 @@
 #include "MeshBoundaryLoops.h"
 #include "Curve/GeneralPolygon2.h"
 
+#include "Operations/LocalPlanarSimplify.h"
 
 
 namespace UE
@@ -62,6 +63,13 @@ public:
 	double PlaneTolerance = FMathf::ZeroTolerance * 10.0;
 
 
+	/** Control whether we attempt to auto-simplify the small planar triangles that the plane cut operation tends to generate */
+	bool bSimplifyAlongNewEdges = false;
+
+	/** Settings to apply if bSimplifyAlongNewEdges == true */
+	FLocalPlanarSimplify SimplifySettings;
+
+
 	// TODO support optionally restricting plane cut to a mesh selection
 	//MeshFaceSelection CutFaceSet;
 
@@ -91,8 +99,13 @@ public:
 	};
 	/** List of output cut regions (eg that have separate GroupIDs). Currently only calculated by SplitEdgesOnly() path */
 	TArray<FCutResultRegion> ResultRegions;
+
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** List of output cut triangles representing the seed triangles along the cut. Currently only calculated by SplitEdgesOnly() path */
+	UE_DEPRECATED(5.3, "To preserve a triangle selection when using SplitEdgesOnly(), instead pass the selection as a pointer to that function.")
 	TArray<int32> ResultSeedTriangles;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 public:
 
@@ -102,7 +115,11 @@ public:
 	FMeshPlaneCut(FDynamicMesh3* Mesh, FVector3d Origin, FVector3d Normal) : Mesh(Mesh), PlaneOrigin(Origin), PlaneNormal(Normal)
 	{
 	}
+
+	// Note: deprecation warnings disabled on destructor due to deprecated member variables
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual ~FMeshPlaneCut() {}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	/**
 	 * @return EOperationValidationResult::Ok if we can apply operation, or error code if we cannot
@@ -137,9 +154,19 @@ public:
 	/**
 	 * Compute the plane cut by splitting mesh edges that cross the cut plane, and then optionally update groups
 	 * @param bAssignNewGroups if true, update group IDs such that each group-connected-component on either side of the cut plane is assigned a new unique group ID
+	 * @param OptionalTriangleSelection if non-null, a set of triangle IDs that must be updated along with any triangle splits or deletions in the edge split process
 	 * @return true if operation succeeds
 	 */
-	virtual bool SplitEdgesOnly(bool bAssignNewGroups);
+	virtual bool SplitEdgesOnly(bool bAssignNewGroups, TSet<int32>* OptionalTriangleSelection)
+	{
+		return SplitEdgesOnlyHelper(bAssignNewGroups, OptionalTriangleSelection, false);
+	}
+
+	UE_DEPRECATED(5.3, "Instead use the two-parameter version of SplitEdgesOnly, which has direction selection tracking and does not populate the deprecated ResultSeedTriangles")
+	virtual bool SplitEdgesOnly(bool bAssignNewGroups)
+	{
+		return SplitEdgesOnlyHelper(bAssignNewGroups, nullptr, true);
+	}
 
 	/**
 	 *  Fill cut loops with FSimpleHoleFiller
@@ -158,13 +185,33 @@ public:
 
 protected:
 
+	UE_DEPRECATED(5.3, "Use the single-set CollapseDegenerateEdges instead")
 	void CollapseDegenerateEdges(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges);
+	
+	/// Collapse degenerate edges
+	/// @param Edges									Edges to consider for collapse; will updated by removing edges at they are collapsed
+	/// @param bRemoveAllDegenerateFromInputSet			Whether we should also check whether the neighbor edges removed by collapse were also in the set
+	/// 												(typically this is not needed, and has additional cost)
+	/// @param TriangleSelection						Optional set tracking an active selection. Any triangles removed by collapse will also be removed from the set.
+	void CollapseDegenerateEdges(TSet<int>& Edges, bool bRemoveAllDegenerateFromInputSet, TSet<int>* TriangleSelection = nullptr);
+	
 	void SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, bool bDeleteTrisOnPlane = true);
 	void SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, TSet<int>& OnSplitEdges, bool bDeleteTrisOnPlane = true);
+	void SplitCrossingEdges(bool bDeleteTrisOnPlane, TArray<double>& Signs, TSet<int>& AlreadyOnPlaneEdges, TSet<int32>& CutPlaneEdges, 
+		TSet<int>* SplitEdges = nullptr, TSet<int>* OnPlaneVertices = nullptr, TSet<int>* TriangleSelection = nullptr);
+	
 	bool ExtractBoundaryLoops(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges, FMeshPlaneCut::FOpenBoundary& Boundary);
 
 	// set of vertices lying on plane after calling SplitCrossingEdges
+	UE_DEPRECATED(5.3, "If needed, explicitly request the vertices on the cut plane the the OnPlaneVertices argument of SplitCrossingEdges")
 	TSet<int32> OnCutVertices;
+
+private:
+
+	// Helper to compute signed distances from the cutting plane for all vertices of the mesh.  Value at Invalid Vertex IDs will be set to InvalidDist.
+	void ComputeVertexSignedDistances(TArray<double>& Signs, double InvalidDist);
+
+	bool SplitEdgesOnlyHelper(bool bAssignNewGroups, TSet<int32>* OptionalTriangleSelection, bool bAddDeprecatedResultSeedTriangles);
 };
 
 

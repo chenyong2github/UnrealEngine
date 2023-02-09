@@ -17,33 +17,11 @@
 
 using namespace UE::Geometry;
 
-void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, bool bDeleteTrisOnPlane)
+void FMeshPlaneCut::ComputeVertexSignedDistances(TArray<double>& Signs, double InvalidDist)
 {
-	TSet<int> OnSplitEdges;
-	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges, OnSplitEdges, bDeleteTrisOnPlane);
-}
-
-void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, TSet<int>& OnSplitEdges, bool bDeleteTrisOnPlane)
-{
-	Signs.Reset(); ZeroEdges.Reset(); OnCutEdges.Reset(); OnSplitEdges.Reset();
-	OnCutVertices.Reset();
-
-	double InvalidDist = -FMathd::MaxReal;
-
-	// TODO: handle selections
-	//MeshEdgeSelection CutEdgeSet = null;
-	//MeshVertexSelection CutVertexSet = null;
-	//if (CutFaceSet != null) {
-	//	CutEdgeSet = new MeshEdgeSelection(Mesh, CutFaceSet);
-	//	CutVertexSet = new MeshVertexSelection(Mesh, CutEdgeSet);
-	//}
-
-	// compute Signs
 	int MaxVID = Mesh->MaxVertexID();
-	
 	Signs.SetNum(MaxVID);
-
-	bool bNoParallel = false;
+	constexpr bool bNoParallel = false;
 	ParallelFor(MaxVID, [&](int32 VID)
 	{
 		if (Mesh->IsVertex(VID))
@@ -55,6 +33,23 @@ void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdg
 			Signs[VID] = InvalidDist;
 		}
 	}, bNoParallel);
+}
+
+void FMeshPlaneCut::SplitCrossingEdges(bool bDeleteTrisOnPlane, TArray<double>& Signs, TSet<int>& AlreadyOnPlaneEdges, TSet<int32>& CutPlaneEdges, TSet<int>* OnSplitEdges, TSet<int>* OnPlaneVertices, TSet<int32>* TriangleSelection)
+{
+	AlreadyOnPlaneEdges.Reset();
+	CutPlaneEdges.Reset();
+	if (OnSplitEdges)
+	{
+		OnSplitEdges->Reset();
+	}
+	if (OnPlaneVertices)
+	{
+		OnPlaneVertices->Reset();
+	}
+
+	// Compute signed distances at all vertices. Set invalid dists to zero, because any vertex we add will be on the plane.
+	ComputeVertexSignedDistances(Signs, 0.0);
 
 	if (bDeleteTrisOnPlane)
 	{
@@ -67,26 +62,15 @@ void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdg
 
 			FIndex3i Tri = Mesh->GetTriangle(TID);
 			FIndex3i TriEdges = Mesh->GetTriEdges(TID);
-			if (   FMathd::Abs(Signs[Tri.A]) < PlaneTolerance
-				&& FMathd::Abs(Signs[Tri.B]) < PlaneTolerance
-				&& FMathd::Abs(Signs[Tri.C]) < PlaneTolerance)
+			if (FMathd::Abs(Signs[Tri.A]) < PlaneTolerance &&
+				FMathd::Abs(Signs[Tri.B]) < PlaneTolerance &&
+				FMathd::Abs(Signs[Tri.C]) < PlaneTolerance)
 			{
-				EMeshResult Res = Mesh->RemoveTriangle(TID, true, false);
-				ensure(Res == EMeshResult::Ok);
-				for (int EIdx = 0; EIdx < 3; EIdx++)
+				Mesh->RemoveTriangle(TID, true, false);
+				if (TriangleSelection)
 				{
-					int EID = TriEdges[EIdx];
-					if (Mesh->IsEdge(EID))
-					{
-						// any edge that still exists after removal is a possible cut edge
-						OnCutEdges.Add(EID);
-					}
-					else
-					{
-						// in case the now-gone edge was added to cut edges earlier, make sure it's removed
-						// (note: if it's not present this function will just do nothing, which is fine)
-						OnCutEdges.Remove(EID);
-					}
+					// Remove triangle from the selection as well (does nothing if it was not in the selection already)
+					TriangleSelection->Remove(TID);
 				}
 			}
 		}
@@ -95,22 +79,19 @@ void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdg
 	// have to skip processing of new edges. If edge id
 	// is > max at start, is new. Otherwise if in NewEdges list, also new.
 	int MaxEID = Mesh->MaxEdgeID();
-	TSet<int> NewEdges;
-
-	FDynamicMesh3::edge_iterator EdgeItr = Mesh->EdgeIndicesItr();
-	// TODO: selection logic
-	//IEnumerable<int> edgeItr = Interval1i.Range(MaxEID);
-	//if (CutEdgeSet != null)
-	//	edgeItr = CutEdgeSet;
+	TSet<int> NewEdgesBeforeMaxID;
+	auto AddNewEdge = [&NewEdgesBeforeMaxID, MaxEID](int32 NewEID)
+	{
+		if (NewEID < MaxEID)
+		{
+			NewEdgesBeforeMaxID.Add(NewEID);
+		}
+	};
 
 	// cut existing edges with plane, using edge split
-	for (int EID : EdgeItr)
+	for (int32 EID = 0; EID < MaxEID; ++EID)
 	{
-		if (!Mesh->IsEdge(EID))
-		{
-			continue;
-		}
-		if (EID >= MaxEID || NewEdges.Contains(EID))
+		if (!Mesh->IsEdge(EID) || NewEdgesBeforeMaxID.Contains(EID))
 		{
 			continue;
 		}
@@ -119,71 +100,126 @@ void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdg
 			continue;
 		}
 
-		FIndex2i ev = Mesh->GetEdgeV(EID);
-		double f0 = Signs[ev.A];
-		double f1 = Signs[ev.B];
+		FIndex2i EdgeV = Mesh->GetEdgeV(EID);
+		const double DistA = Signs[EdgeV.A];
+		const double DistB = Signs[EdgeV.B];
 
 		// If both Signs are 0, this edge is on-contour
 		// If one sign is 0, that vertex is on-contour
-		int n0 = (FMathd::Abs(f0) < PlaneTolerance) ? 1 : 0;
-		int n1 = (FMathd::Abs(f1) < PlaneTolerance) ? 1 : 0;
-		if (n0 + n1 > 0)
+		int AOnPlane = (FMathd::Abs(DistA) < PlaneTolerance) ? 1 : 0;
+		int BOnPlane = (FMathd::Abs(DistB) < PlaneTolerance) ? 1 : 0;
+		if (AOnPlane || BOnPlane)
 		{
-			if (n0 + n1 == 2)
+			if (AOnPlane && BOnPlane)
 			{
-				ZeroEdges.Add(EID);
-				OnCutVertices.Add(ev.A);
-				OnCutVertices.Add(ev.B);
+				AlreadyOnPlaneEdges.Add(EID);
+				if (OnPlaneVertices)
+				{
+					OnPlaneVertices->Add(EdgeV.A);
+					OnPlaneVertices->Add(EdgeV.B);
+				}
 			}
-			else
+			else if (OnPlaneVertices)
 			{
-				OnCutVertices.Add((n0 == 1) ? ev[0] : ev[1]);
-				//ZeroVertices.Add((n0 == 1) ? ev[0] : ev[1]);
+				// Note: if (!BOnPlane), then this will pick EdgeV.A, otherwise it will pick EdgeV.B
+				OnPlaneVertices->Add(EdgeV[BOnPlane]);
 			}
 			continue;
 		}
 
 		// no crossing
-		if (f0 * f1 > 0)
+		if (DistA * DistB > 0)
 		{
 			continue;
 		}
 
-		FDynamicMesh3::FEdgeSplitInfo splitInfo;
-		double t = f0 / (f0 - f1);
-		EMeshResult result = Mesh->SplitEdge(EID, splitInfo, t);
-		if (!ensureMsgf(result == EMeshResult::Ok, TEXT("FMeshPlaneCut::Cut: failed to SplitEdge")))
+		FDynamicMesh3::FEdgeSplitInfo SplitInfo;
+		double Param = DistA / (DistA - DistB);
+		EMeshResult SplitResult = Mesh->SplitEdge(EID, SplitInfo, Param);
+		if (!ensureMsgf(SplitResult == EMeshResult::Ok, TEXT("FMeshPlaneCut::Cut: failed to SplitEdge")))
 		{
 			continue; // edge split really shouldn't fail; skip the edge if it somehow does
 		}
 
-		OnSplitEdges.Add(EID);
-		NewEdges.Add(splitInfo.NewEdges.A); OnSplitEdges.Add(splitInfo.NewEdges.A);
-		NewEdges.Add(splitInfo.NewEdges.B); OnCutEdges.Add(splitInfo.NewEdges.B);
-		if (splitInfo.NewEdges.C != FDynamicMesh3::InvalidID)
+		if (TriangleSelection && TriangleSelection->Contains(SplitInfo.OriginalTriangles.A))
 		{
-			NewEdges.Add(splitInfo.NewEdges.C); OnCutEdges.Add(splitInfo.NewEdges.C);
+			TriangleSelection->Add(SplitInfo.NewTriangles.A);
 		}
 
-		OnCutVertices.Add(splitInfo.NewVertex);
+		AddNewEdge(SplitInfo.NewEdges.A);
+		AddNewEdge(SplitInfo.NewEdges.B);
+
+		// If requested, track the edges we've split
+		if (OnSplitEdges)
+		{
+			OnSplitEdges->Add(EID);
+			OnSplitEdges->Add(SplitInfo.NewEdges.A);
+		}
+
+		// We need to check whether the other vertices are on plane to decide if the connected edges are on the plane or not
+		int32 OtherVIDA = SplitInfo.OtherVertices.A;
+		// Other vertex is on plane if it's newly created  or within plane tolerance
+		if (OtherVIDA >= Signs.Num() || FMath::Abs(Signs[OtherVIDA]) < PlaneTolerance)
+		{
+			CutPlaneEdges.Add(SplitInfo.NewEdges.B);
+		}
+		
+		if (SplitInfo.NewEdges.C != FDynamicMesh3::InvalidID)
+		{
+			if (TriangleSelection && TriangleSelection->Contains(SplitInfo.OriginalTriangles.B))
+			{
+				TriangleSelection->Add(SplitInfo.NewTriangles.B);
+			}
+			AddNewEdge(SplitInfo.NewEdges.C);
+			int32 OtherVIDB = SplitInfo.OtherVertices.B;
+			if (OtherVIDB >= Signs.Num() || FMath::Abs(Signs[OtherVIDB]) < PlaneTolerance)
+			{
+				CutPlaneEdges.Add(SplitInfo.NewEdges.C);
+			}
+		}
+
+		if (OnPlaneVertices)
+		{
+			OnPlaneVertices->Add(SplitInfo.NewVertex);
+		}
 	}
 }
+
+void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, TSet<int>& OnSplitEdges, bool bDeleteTrisOnPlane)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SplitCrossingEdges(bDeleteTrisOnPlane, Signs, ZeroEdges, OnCutEdges, &OnSplitEdges, &OnCutVertices, nullptr);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, bool bDeleteTrisOnPlane)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SplitCrossingEdges(bDeleteTrisOnPlane, Signs, ZeroEdges, OnCutEdges, nullptr, &OnCutVertices, nullptr);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 
 bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVertices, TDynamicMeshScalarTriangleAttribute<int>* TriLabels, int NewLabelStartID, bool bAddBoundariesFirstHalf, bool bAddBoundariesSecondHalf)
 {
 	TArray<double> Signs;
-	TSet<int> ZeroEdges, OnCutEdges;
-	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges, bSplitVerticesAtPlane /* only delete on-plane tris if we're also splitting vertices apart */);
+	TSet<int> AlreadyOnPlaneEdges, OnCutEdges;
+	SplitCrossingEdges(bSplitVerticesAtPlane, Signs, AlreadyOnPlaneEdges, OnCutEdges, nullptr, nullptr);
 
 	if (!bSplitVerticesAtPlane)
 	{
 		ensure(OffsetVertices == 0.0); // it would be weird to not split vertices and still request any offset of the 'other side' vertices; please don't do that
 	}
 
-	// collapse degenerate edges if we got em
+	// collapse degenerate edges
 	if (bCollapseDegenerateEdgesOnCut)
 	{
-		CollapseDegenerateEdges(OnCutEdges, ZeroEdges);
+		CollapseDegenerateEdges(OnCutEdges, false);
+	}
+
+	if (bSimplifyAlongNewEdges)
+	{
+		SimplifySettings.SimplifyAlongEdges(*Mesh, OnCutEdges);
 	}
 
 	if (!bSplitVerticesAtPlane)
@@ -191,8 +227,12 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 		return true;
 	}
 
-	ensure(TriLabels); // need labels to split verts currently
+	if (!ensure(TriLabels))
+	{
+		return false; // need labels to split verts currently
+	}
 
+	// Update label IDs for triangles on the positive side of the plane, and shift vertices by the offset vector
 	TMap<int, int> OldLabelToNew;
 	int AvailableID = NewLabelStartID;
 	FVector3d VertexOffsetVec = (double)OffsetVertices * PlaneNormal;
@@ -225,7 +265,7 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 	// split the mesh apart and add open boundary info
 	TMap<int, int> SplitVertices;
 	TSet<int> BoundaryVertices;
-	const TSet<int>* Sets[2] { &OnCutEdges, &ZeroEdges };
+	const TSet<int>* Sets[2] { &AlreadyOnPlaneEdges, &OnCutEdges };
 	for (int SetIdx = 0; SetIdx < 2; SetIdx++)
 	{
 		const TSet<int>& Set = *(Sets[SetIdx]);
@@ -261,8 +301,9 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 				NonSplitTriCount++;
 			}
 		}
-		if (NonSplitTriCount > 0) // connected to both old and new labels -- needs split
+		if (NonSplitTriCount > 0) // connected to old labels
 		{
+			// if also connected to new labels, needs split
 			if (Triangles.Num() > 0 && EMeshResult::Ok == Mesh->SplitVertex(VID, Triangles, SplitInfo))
 			{
 				SplitVertices.Add(VID, SplitInfo.NewVertex);
@@ -326,7 +367,7 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 			}
 		}
 	
-		TSet<int> UnusedZeroEdgesSet;
+		TSet<int> UnusedZeroEdgesSet; // This set is unused except to pass to ExtractBoundaryLoops, which expects two sets of edges
 		for (TPair<int, TSet<int>>& LabelIDEdges : LabelToCutEdges)
 		{
 			int LabelID = LabelIDEdges.Key;
@@ -346,7 +387,6 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 				Boundary.NormalSign = -1;
 			}
 
-			check(UnusedZeroEdgesSet.Num() == 0); // for simplicity, we only put stuff in the CutEdges set
 			bool ExtractOk = ExtractBoundaryLoops(Edges, UnusedZeroEdgesSet, Boundary);
 			AllExtractionsOk = ExtractOk && AllExtractionsOk;
 		}
@@ -359,16 +399,12 @@ bool FMeshPlaneCut::Cut()
 {
 	TArray<double> Signs;
 	TSet<int> ZeroEdges, OnCutEdges;
-	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges);
+	SplitCrossingEdges(true, Signs, ZeroEdges, OnCutEdges, nullptr, nullptr);
 	
-	// @todo handle selection logic
-	//IEnumerable<int> vertexSet = Interval1i.Range(MaxVID);
-	//if (CutVertexSet != null)
-	//	vertexSet = CutVertexSet;
 	// remove one-rings of all positive-side vertices. 
-	for (int VID : Mesh->VertexIndicesItr())
+	for (int VID = 0; VID < Signs.Num(); ++VID)
 	{
-		if (VID < Signs.Num() && Signs[VID] > PlaneTolerance)
+		if (Signs[VID] > PlaneTolerance)
 		{
 			constexpr bool bPreserveManifold = false;
 			Mesh->RemoveVertex(VID, bPreserveManifold);
@@ -378,7 +414,12 @@ bool FMeshPlaneCut::Cut()
 	// collapse degenerate edges if we got em
 	if (bCollapseDegenerateEdgesOnCut)
 	{
-		CollapseDegenerateEdges(OnCutEdges, ZeroEdges);
+		CollapseDegenerateEdges(OnCutEdges, false);
+	}
+
+	if (bSimplifyAlongNewEdges)
+	{
+		SimplifySettings.SimplifyAlongEdges(*Mesh, OnCutEdges);
 	}
 
 	FMeshPlaneCut::FOpenBoundary& Boundary = OpenBoundaries.Emplace_GetRef();
@@ -386,41 +427,58 @@ bool FMeshPlaneCut::Cut()
 
 }
 
-bool FMeshPlaneCut::SplitEdgesOnly(bool bAssignNewGroups)
+bool FMeshPlaneCut::SplitEdgesOnlyHelper(bool bAssignNewGroups, TSet<int32>* TriangleSelection, bool bAddDeprecatedResultSeedTriangles)
 {
 	// split edges with current plane
 	TArray<double> Signs;
 	TSet<int32> ZeroEdges, OnCutEdges, OnSplitEdges;
-	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges, OnSplitEdges, false);
+	SplitCrossingEdges(false, Signs, ZeroEdges, OnCutEdges, &OnSplitEdges, nullptr, TriangleSelection);
 
 	if (bAssignNewGroups == false)
 	{
 		return true;
 	}
 
-	// find relevant edges/triangles/groups on cut
-	TSet<int32> CutEdges;				// edges lying on the cut
+	if (bSimplifyAlongNewEdges)
+	{
+		if (ensureMsgf(!bAddDeprecatedResultSeedTriangles, TEXT("Deprecated SplitEdgesOnly without TriangleSelection parameter does not support simplification option")))
+		{
+			// TODO: Consider making the simplification also preserve the TriangleSelection boundary
+			CollapseDegenerateEdges(OnCutEdges, false, TriangleSelection);
+			if (TriangleSelection)
+			{
+				SimplifySettings.SimplifyAlongEdges(*Mesh, OnCutEdges, [&TriangleSelection](const DynamicMeshInfo::FEdgeCollapseInfo& CollapseInfo)
+				{
+					TriangleSelection->Remove(CollapseInfo.RemovedTris.A);
+					if (CollapseInfo.RemovedTris.B != FDynamicMesh3::InvalidID)
+					{
+						TriangleSelection->Remove(CollapseInfo.RemovedTris.B);
+					}
+				});
+			}
+			else
+			{
+				SimplifySettings.SimplifyAlongEdges(*Mesh, OnCutEdges);
+			}
+		}
+	}
+
+	TSet<int32> OnPlaneEdges = ZeroEdges;
+	OnPlaneEdges.Append(OnCutEdges);
+
+	// Use the edges along the cut (both pre-existing and newly added) to assign group IDs across both sides of the triangulation
 	TArray<int32> CutEdgeTriangles;		// triangles connected to those edges
 	TSet<int32> CutEdgeGroups;			// group IDs of those triangles (ie groups touching cut)
-	TSet<int32>* EdgeLists[2] = { &ZeroEdges, &OnCutEdges };
-	for (TSet<int32>* EdgeList : EdgeLists)
+	for (int32 EID : OnPlaneEdges)
 	{
-		for (int32 eid : *EdgeList)
+		FIndex2i EdgeTris = Mesh->GetEdgeT(EID);
+		for (int32 j = 0; j < 2; ++j)
 		{
-			FIndex2i EdgeVerts = Mesh->GetEdgeV(eid);
-			if (OnCutVertices.Contains(EdgeVerts.A) && OnCutVertices.Contains(EdgeVerts.B) && CutEdges.Contains(eid) == false )
+			if (EdgeTris[j] != FDynamicMesh3::InvalidID)
 			{
-				CutEdges.Add(eid);
-				FIndex2i EdgeTris = Mesh->GetEdgeT(eid);
-				for (int32 j = 0; j < 2; ++j)
-				{
-					if (EdgeTris[j] != FDynamicMesh3::InvalidID)
-					{
-						CutEdgeTriangles.Add(EdgeTris[j]);
-						int32 Group = Mesh->GetTriangleGroup(EdgeTris[j]);
-						CutEdgeGroups.Add(Group);
-					}
-				}
+				CutEdgeTriangles.Add(EdgeTris[j]);
+				int32 Group = Mesh->GetTriangleGroup(EdgeTris[j]);
+				CutEdgeGroups.Add(Group);
 			}
 		}
 	}
@@ -433,7 +491,7 @@ bool FMeshPlaneCut::SplitEdgesOnly(bool bAssignNewGroups)
 		if (Group0 == Group1)
 		{
 			int32 SharedEdge = Mesh->FindEdgeFromTriPair(t0, t1);
-			if (CutEdges.Contains(SharedEdge) == false)
+			if (OnPlaneEdges.Contains(SharedEdge) == false)
 			{
 				return true;
 			}
@@ -441,7 +499,7 @@ bool FMeshPlaneCut::SplitEdgesOnly(bool bAssignNewGroups)
 		return false;
 	});
 
-	// Assign a new group id for each component
+	// Assign a new group ID for each component
 	// Do we want to keep existing groups? possibly cleaner to assign new ones because one input group may
 	// be split into multiple child groups on each side of the cut. 
 	// But perhaps should track group-mapping?
@@ -460,6 +518,13 @@ bool FMeshPlaneCut::SplitEdgesOnly(bool bAssignNewGroups)
 		Result.Triangles = MoveTemp(Component.Indices);
 	}
 
+	if (!bAddDeprecatedResultSeedTriangles)
+	{
+		return true;
+	}
+
+	// Note: the below logic will be removed when ResultSeedTriangles is removed
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Compute the set of triangle IDs in the cut mesh that represent
 	// the original/seed triangle selection along the cut. This assumes
 	// that the edge filter function contains edges that originate
@@ -491,7 +556,7 @@ bool FMeshPlaneCut::SplitEdgesOnly(bool bAssignNewGroups)
 			int eid = TriEdges[j];
 			FIndex2i ev = Mesh->GetEdgeV(eid);
 			bool bIsSeedEdge = (EdgeFilterFunc && EdgeFilterFunc(eid));
-			if (bIsSeedEdge || CutEdges.Contains(eid) || OnSplitEdges.Contains(eid))
+			if (bIsSeedEdge || OnCutEdges.Contains(eid) || OnSplitEdges.Contains(eid))
 			{
 				continue;
 			}
@@ -500,6 +565,7 @@ bool FMeshPlaneCut::SplitEdgesOnly(bool bAssignNewGroups)
 			ResultSeedTriangles.Add(EdgeTris.B);
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return true;
 }
 
@@ -532,6 +598,7 @@ bool FMeshPlaneCut::ExtractBoundaryLoops(const TSet<int>& OnCutEdges, const TSet
 	return !Boundary.CutLoopsFailed;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FMeshPlaneCut::CollapseDegenerateEdges(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges)
 {
 	const TSet<int>* Sets[2] { &OnCutEdges, &ZeroEdges };
@@ -578,7 +645,73 @@ void FMeshPlaneCut::CollapseDegenerateEdges(const TSet<int>& OnCutEdges, const T
 		}
 	} while (Collapsed != 0);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+void FMeshPlaneCut::CollapseDegenerateEdges(TSet<int32>& Edges, bool bRemoveAllDegenerateFromInputSet, TSet<int>* TriangleSelection)
+{
+	double Tol2 = DegenerateEdgeTol * DegenerateEdgeTol;
+	FVector3d A, B;
+	TArray<int32> ToRemove;
+	int Collapsed = 0;
+	do
+	{
+		Collapsed = 0;
+		for (auto EdgesIter = Edges.CreateIterator(); EdgesIter; ++EdgesIter)
+		{
+			int32 EID = *EdgesIter;
+			if (!Mesh->IsEdge(EID))
+			{
+				continue;
+			}
+			Mesh->GetEdgeV(EID, A, B);
+			if (DistanceSquared(A, B) > Tol2)
+			{
+				continue;
+			}
+
+			FIndex2i EV = Mesh->GetEdgeV(EID);
+			// if the vertex we'd remove is on a seam, try removing the other one instead
+			if (Mesh->HasAttributes() && Mesh->Attributes()->IsSeamVertex(EV.B, false))
+			{
+				Swap(EV.A, EV.B);
+				// if they were both on seams, then collapse should not happen?  (& would break OnCollapseEdge assumptions in overlay)
+				if (Mesh->HasAttributes() && Mesh->Attributes()->IsSeamVertex(EV.B, false))
+				{
+					continue;
+				}
+			}
+			FDynamicMesh3::FEdgeCollapseInfo CollapseInfo;
+			EMeshResult Result = Mesh->CollapseEdge(EV.A, EV.B, CollapseInfo);
+			if (Result == EMeshResult::Ok)
+			{
+				Collapsed++;
+				EdgesIter.RemoveCurrent();
+				if (TriangleSelection)
+				{
+					TriangleSelection->Remove(CollapseInfo.RemovedEdges.A);
+					if (CollapseInfo.RemovedEdges.B != FDynamicMesh3::InvalidID)
+					{
+						TriangleSelection->Remove(CollapseInfo.RemovedEdges.B);
+					}
+				}
+				// Add the other edge for later removal, so we don't potentially invalidate our iterator
+				// (but only if we really need to remove invalid edges here; some algorithms may be ok with leaving invalid EIDs in the set)
+				if (bRemoveAllDegenerateFromInputSet && CollapseInfo.RemovedEdges.B != FDynamicMesh3::InvalidID)
+				{
+					ToRemove.Add(CollapseInfo.RemovedEdges.B);
+				}
+			}
+		}
+	} while (Collapsed != 0);
+
+	if (bRemoveAllDegenerateFromInputSet)
+	{
+		for (int32 EID : ToRemove)
+		{
+			Edges.Remove(EID);
+		}
+	}
+}
 
 bool FMeshPlaneCut::SimpleHoleFill(int ConstantGroupID)
 {
