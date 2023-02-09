@@ -216,8 +216,9 @@ namespace UnrealBuildTool
 				throw new BuildException($"Failed to create directory \"{IntermediateDir}\".");
 			}
 
+			int IdCounter = 0;
 			// Build the json script file to describe all the actions and their dependencies
-			var ActionIds = Actions.ToDictionary(a => a, a => Guid.NewGuid().ToString());
+			var ActionIds = Actions.ToDictionary(a => a, a => new Guid(++IdCounter, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0).ToString());
 			JsonSerializerOptions JsonOption = new JsonSerializerOptions();
 			JsonOption.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
 			File.WriteAllText(ScriptFile.FullName, JsonSerializer.Serialize(new Dictionary<string, object>()
