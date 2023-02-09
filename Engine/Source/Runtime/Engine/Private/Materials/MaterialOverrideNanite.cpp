@@ -19,7 +19,7 @@ bool FMaterialOverrideNanite::CanUseOverride(EShaderPlatform ShaderPlatform) con
 
 #if WITH_EDITOR
 
-void FMaterialOverrideNanite::RefreshOverrideMaterial()
+void FMaterialOverrideNanite::RefreshOverrideMaterial(UObject* OptionalOwner)
 {
 	// We don't resolve the soft pointer if we're cooking. 
 	// Instead we defer any resolve to LoadOverrideForPlatform() which should be called in BeginCacheForCookedPlatformData().
@@ -27,22 +27,36 @@ void FMaterialOverrideNanite::RefreshOverrideMaterial()
 	{
 		check(IsInGameThread());
 		
-		OverrideMaterial = bEnableOverride && !OverrideMaterialRef.IsNull() ? OverrideMaterialRef.LoadSynchronous() : nullptr;
+		if (bEnableOverride && !OverrideMaterialRef.IsNull())
+		{
+			OverrideMaterial = OverrideMaterialRef.LoadSynchronous();
 
-		// When we are routing PostLoad, LoadSynchronous can return a valid object pointer when the asset has not loaded.
-		// We can still store the TObjectPtr, but we need to ensure that the material re-inits on completion of the async load.
-		if (OverrideMaterial && OverrideMaterial->HasAnyFlags(RF_NeedLoad))
-		{ 
-			const FString LongPackageName = OverrideMaterialRef.GetLongPackageName();
-			UE_LOG(LogMaterial, Display, TEXT("Async loading NaniteOverrideMaterial '%s'"), *LongPackageName);
-			LoadPackageAsync(LongPackageName, FLoadPackageAsyncDelegate::CreateLambda(
-				[WeakOverrideMaterial = MakeWeakObjectPtr(OverrideMaterial)](const FName&, UPackage*, EAsyncLoadingResult::Type)
+			if (OverrideMaterial)
+			{
+				// When we are routing PostLoad, LoadSynchronous can return a valid object pointer when the asset has not loaded.
+				// We can still store the TObjectPtr, but we need to ensure that the material re-inits on completion of the async load.
+				if (OverrideMaterial && OverrideMaterial->HasAnyFlags(RF_NeedLoad))
 				{
-					if (UMaterialInterface* Material = WeakOverrideMaterial.Get())
-					{
-						Material->ForceRecompileForRendering();
-					}
-				}));
+					const FString LongPackageName = OverrideMaterialRef.GetLongPackageName();
+					UE_LOG(LogMaterial, Display, TEXT("Async loading NaniteOverrideMaterial '%s'"), *LongPackageName);
+					LoadPackageAsync(LongPackageName, FLoadPackageAsyncDelegate::CreateLambda(
+						[WeakOverrideMaterial = MakeWeakObjectPtr(OverrideMaterial)](const FName&, UPackage*, EAsyncLoadingResult::Type)
+						{
+							if (UMaterialInterface* Material = WeakOverrideMaterial.Get())
+							{
+								Material->ForceRecompileForRendering();
+							}
+						}));
+				}
+			}
+			else
+			{
+				UE_LOG(LogMaterial, Warning, TEXT("MaterialOverrideNanite with owner '%s' has an enabled override material (%s) but it could not be loaded."), OptionalOwner ? *OptionalOwner->GetPathName() : TEXT("UNKNOWN"), *OverrideMaterialRef.ToString());
+			}
+		}
+		else
+		{
+			OverrideMaterial = nullptr;
 		}
 	}
 }
@@ -129,9 +143,9 @@ void FMaterialOverrideNanite::PostLoad()
 
 #if WITH_EDITOR
 
-void FMaterialOverrideNanite::PostEditChange()
+void FMaterialOverrideNanite::PostEditChange(UObject* OptionalOwner)
 {
-	RefreshOverrideMaterial();
+	RefreshOverrideMaterial(OptionalOwner);
 }
 
 void FMaterialOverrideNanite::LoadOverrideForPlatform(const ITargetPlatform* TargetPlatform)

@@ -1790,7 +1790,7 @@ UMaterialInterface* UMaterialInstance::GetNaniteOverride(TMicRecursionGuard Recu
 {
 	if (NaniteOverrideMaterial.bEnableOverride)
 	{
-		return NaniteOverrideMaterial.GetOverrideMaterial();
+		return NaniteOverrideMaterial.GetOverrideMaterial(this);
 	}
 	else if (Parent && !RecursionGuard.Contains(this))
 	{
@@ -3837,7 +3837,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	if (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterial, NaniteOverrideMaterial))
 	{
-		NaniteOverrideMaterial.PostEditChange();
+		NaniteOverrideMaterial.PostEditChange(this);
 
 		// Update primitives that might depend on the nanite override material.
 		FGlobalComponentRecreateRenderStateContext RecreateComponentsRenderState;
@@ -3883,7 +3883,7 @@ void UMaterialInstance::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	NaniteOverrideMaterial.PostEditChange();
+	NaniteOverrideMaterial.PostEditChange(this);
 }
 
 #endif // WITH_EDITOR

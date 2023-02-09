@@ -39,13 +39,14 @@ struct FMaterialOverrideNanite
 	/** 
 	 * This will return the cached override material pointer, if the override material is set and enabled, or nullptr otherwise.
 	 * In a cooked game this will always return nullptr if the platform can't support nanite.
+	 * Supply an OptionalOwner, if you can, so that if the override fails to load, the log warning can report the referencer
 	 */
-	UMaterialInterface* GetOverrideMaterial()
+	UMaterialInterface* GetOverrideMaterial(UObject* OptionalOwner = nullptr)
 	{
 #if WITH_EDITOR
 		if (bIsRefreshRequested)
 		{
-			RefreshOverrideMaterial();
+			RefreshOverrideMaterial(OptionalOwner);
 			bIsRefreshRequested = false;
 		}
 #endif
@@ -60,7 +61,7 @@ struct FMaterialOverrideNanite
 
 #if WITH_EDITOR
 	/** Call this from the owning object on edit changes. */
-	void PostEditChange();
+	void PostEditChange(UObject* OptionalOwner = nullptr);
 	/** Initialize the cached override material pointer according to platform support. Call this from the owning object's BeginCacheForCookedPlatformData(). */
 	void LoadOverrideForPlatform(const ITargetPlatform* TargetPlatform);
 	/** Clear the cached override material pointer. Call this from the owning object's ClearAllCachedCookedPlatformData() */
@@ -86,7 +87,7 @@ protected:
 	bool bIsRefreshRequested = false;
 
 	/** Refresh the cached hard reference to the override material. */
-	void RefreshOverrideMaterial();
+	void RefreshOverrideMaterial(UObject* OptionalOwner = nullptr);
 #endif
 };
 

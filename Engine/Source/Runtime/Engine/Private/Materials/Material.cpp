@@ -2132,7 +2132,7 @@ void UMaterial::SetRenderTracePhysicalMaterialOutputs(TArrayView<TObjectPtr<clas
 
 UMaterialInterface* UMaterial::GetNaniteOverride(TMicRecursionGuard RecursionGuard)
 {
-	return NaniteOverrideMaterial.GetOverrideMaterial();
+	return NaniteOverrideMaterial.GetOverrideMaterial(this);
 }
 
 /** Helper functions for text output of properties... */
@@ -4536,7 +4536,7 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 
 	if (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterial, NaniteOverrideMaterial))
 	{
-		NaniteOverrideMaterial.PostEditChange();
+		NaniteOverrideMaterial.PostEditChange(this);
 	}
 
 	TranslucencyDirectionalLightingIntensity = FMath::Clamp(TranslucencyDirectionalLightingIntensity, .1f, 10.0f);
