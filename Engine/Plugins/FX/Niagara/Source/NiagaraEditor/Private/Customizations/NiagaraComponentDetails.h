@@ -179,6 +179,14 @@ public:
 		if (System.IsValid() && bDelegatesInitialized)
 		{
 			System->GetExposedParameters().OnStructureChanged().RemoveAll(this);
+
+			if(SystemViewModel.IsValid() && SystemViewModel.Pin()->GetUserParameterPanelViewModel().IsValid())
+			{
+				if (TSharedPtr<FNiagaraUserParameterPanelViewModel> PanelViewModel = SystemViewModel.Pin()->GetUserParameterPanelViewModel())
+				{
+					PanelViewModel->OnRefreshRequested().Unbind();
+				}
+			}
 			
 			if(SystemViewModel.IsValid() && SystemViewModel.Pin()->GetUserParametersHierarchyViewModel())
 			{

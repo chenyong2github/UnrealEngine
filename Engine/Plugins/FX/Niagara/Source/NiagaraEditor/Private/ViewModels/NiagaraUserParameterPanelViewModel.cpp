@@ -16,3 +16,8 @@ void FNiagaraUserParameterPanelViewModel::Initialize(TSharedRef<FNiagaraSystemVi
 	SystemViewModelWeak = InSystemViewModel;
 	RegisteredHandle = RegisterViewModelWithMap(&(SystemViewModelWeak.Pin()->GetSystem()), this);
 }
+
+void FNiagaraUserParameterPanelViewModel::Refresh() const
+{
+	OnRefreshRequestedDelegate.ExecuteIfBound();
+}

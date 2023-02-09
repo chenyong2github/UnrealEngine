@@ -1310,11 +1310,18 @@ const FNiagaraVariableBase* FNiagaraParameterStore::FindVariable(const UNiagaraD
 
 void FNiagaraParameterStore::CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& Parameter) const
 {
-	int32 DestIndex = DestStore.IndexOf(Parameter);
-	int32 SrcIndex = IndexOf(Parameter);
+	CopyParameterData(DestStore, Parameter, Parameter);
+}
+
+void FNiagaraParameterStore::CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& SourceParameter, const FNiagaraVariable& TargetParameter) const
+{
+	ensure(SourceParameter.GetType() == TargetParameter.GetType());
+	
+	int32 DestIndex = DestStore.IndexOf(TargetParameter);
+	int32 SrcIndex = IndexOf(SourceParameter);
 	if (DestIndex != INDEX_NONE && SrcIndex != INDEX_NONE)
 	{
-		if (Parameter.IsDataInterface())
+		if (SourceParameter.IsDataInterface())
 		{
 			ensure(DestStore.DataInterfaces.IsValidIndex(DestIndex));
 			UNiagaraDataInterface* DestDataInterface = DestStore.DataInterfaces[DestIndex];
@@ -1322,8 +1329,8 @@ void FNiagaraParameterStore::CopyParameterData(FNiagaraParameterStore& DestStore
 			{
 				if (ensureMsgf(DestStore.Owner != nullptr, TEXT("Destination data interface pointer was null and a new one couldn't be created because the destination store's owner pointer was also null.")))
 				{
-					UE_LOG(LogNiagara, Warning, TEXT("While trying to copy parameter data the destination data interface was null, creating a new one.  Parameter: %s Destination Store Owner: %s"), *Parameter.GetName().ToString(), *GetPathNameSafe(DestStore.Owner.Get()));
-					DestDataInterface = NewObject<UNiagaraDataInterface>(DestStore.Owner.Get(), Parameter.GetType().GetClass(), NAME_None, RF_Transactional | RF_Public);
+					UE_LOG(LogNiagara, Warning, TEXT("While trying to copy parameter data the destination data interface was null, creating a new one.  Parameter: %s Destination Store Owner: %s"), *SourceParameter.GetName().ToString(), *GetPathNameSafe(DestStore.Owner.Get()));
+					DestDataInterface = NewObject<UNiagaraDataInterface>(DestStore.Owner.Get(), SourceParameter.GetType().GetClass(), NAME_None, RF_Transactional | RF_Public);
 					DestStore.DataInterfaces[DestIndex] = DestDataInterface;
 				}
 				else
@@ -1334,18 +1341,18 @@ void FNiagaraParameterStore::CopyParameterData(FNiagaraParameterStore& DestStore
 			DataInterfaces[SrcIndex]->CopyTo(DestDataInterface);
 			DestStore.OnInterfaceChange();
 		}
-		else if (Parameter.IsUObject())
+		else if (SourceParameter.IsUObject())
 		{
 			DestStore.SetUObject(GetUObject(SrcIndex), DestIndex);
 		}
-		else if (Parameter.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+		else if (SourceParameter.GetType() == FNiagaraTypeDefinition::GetPositionDef())
 		{
-			const FVector* SourceVector = GetPositionParameterValue(Parameter.GetName());
-			DestStore.SetPositionParameterValue(SourceVector ? *SourceVector : FVector::ZeroVector, Parameter.GetName());
+			const FVector* SourceVector = GetPositionParameterValue(SourceParameter.GetName());
+			DestStore.SetPositionParameterValue(SourceVector ? *SourceVector : FVector::ZeroVector, TargetParameter.GetName());
 		}
 		else
 		{
-			DestStore.SetParameterData(GetParameterData(SrcIndex), DestIndex, Parameter.GetSizeInBytes());
+			DestStore.SetParameterData(GetParameterData(SrcIndex), DestIndex, SourceParameter.GetSizeInBytes());
 		}
 	}
 }

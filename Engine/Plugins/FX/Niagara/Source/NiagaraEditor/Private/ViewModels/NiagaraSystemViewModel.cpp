@@ -35,6 +35,7 @@
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraNodeParameterMapGet.h"
+#include "NiagaraNotificationWidgetProvider.h"
 #include "NiagaraOverviewNode.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
 #include "NiagaraScriptGraphViewModel.h"
@@ -64,6 +65,7 @@
 #include "ViewModels/TNiagaraViewModelManager.h"
 #include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SystemViewModel - CompileSystem"), STAT_NiagaraEditor_SystemViewModel_CompileSystem, STATGROUP_NiagaraEditor);
@@ -582,6 +584,8 @@ void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate
 	}
 
 	GetSystem().Modify();
+
+	TMap<FGuid, UNiagaraSystem*> NewHandleToOriginalSystemMap;
 	for (FEmitterHandleToDuplicate& EmitterHandleToDuplicate : EmitterHandlesToDuplicate)
 	{
 		UNiagaraSystem* SourceSystem = nullptr;
@@ -613,6 +617,7 @@ void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate
 			const FNiagaraEmitterHandle& EmitterHandle = GetSystem().DuplicateEmitterHandle(HandleToDuplicate, FNiagaraUtilities::GetUniqueName(HandleToDuplicate.GetName(), EmitterHandleNames));
 			FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(*SourceSystem, EmitterHandle.GetInstance());
 			EmitterHandleNames.Add(EmitterHandle.GetName());
+			NewHandleToOriginalSystemMap.Add(EmitterHandle.GetId(), SourceSystem);
 			if (EmitterHandleToDuplicate.OverviewNode)
 			{
 				EmitterHandleToDuplicate.OverviewNode->Initialize(&GetSystem(), EmitterHandle.GetId());
@@ -624,6 +629,127 @@ void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate
 	GetEditorData().SynchronizeOverviewGraphWithSystem(GetSystem());
 	RefreshAll();
 	bForceAutoCompileOnce = true;
+
+	// We copy over referenced User Parameters now
+	TArray<TSharedPtr<FNiagaraEmitterHandleViewModel>> NewEmitterHandleViewModels;
+	FNiagaraUserRedirectionParameterStore& TargetParameterStore = GetSystem().GetExposedParameters();
+
+	// we have to keep track of parameters we have already added but renamed.
+	// i.e. if we copy paste 2 emitters into a new system and both reference the same parameter, but there was already one with matching name and mismatched type
+	// we create a new parameter with unique name _once_ that both emitters should point to.
+	TMap<FNiagaraVariable, FNiagaraVariable> RenamedUserParameters;
+	
+	for(auto& Element : NewHandleToOriginalSystemMap)
+	{
+		// if the source system of the current emitter is the system we are currently editing, we skip the copy paste of user parameters
+		if(Element.Value == &GetSystem())
+		{
+			continue;
+		}
+		
+		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetEmitterHandleViewModelById(Element.Key);
+		TArray<FNiagaraVariable> ReferencedUserParameters = FNiagaraEditorUtilities::GetReferencedUserParametersFromEmitter(EmitterHandleViewModel->GetEmitterViewModel());
+
+		UNiagaraSystem* OriginalSystem = Element.Value;
+		
+		for(const FNiagaraVariable& UserParameter : ReferencedUserParameters)
+		{
+			// in case we already have a parameter with the same name & type, we simply skip the parameter by default.
+			// if the user wants to add a new User Parameter, he can do that too.
+			if(TargetParameterStore.FindParameterVariable(UserParameter, false) != nullptr)
+			{
+				continue;
+			}
+			// if we have a parameter with the same name but a different type, we need to create a new parameter with a different name, copy the data and fixup the references
+			// if we have already added a new unique user parameter with the same name, we reuse that parameter
+			else if(TargetParameterStore.FindParameterVariable(UserParameter, true) != nullptr)
+			{
+				TArray<FNiagaraVariable> ExistingUserParameters;
+				TargetParameterStore.GetUserParameters(ExistingUserParameters);
+
+				TSet<FName> ExistingUserParameterNames;
+				for(const FNiagaraVariable& ExistingUserParameter : ExistingUserParameters)
+				{
+					FNiagaraVariable RedirectedUserParameter = ExistingUserParameter;
+					TargetParameterStore.RedirectUserVariable(RedirectedUserParameter);
+					ExistingUserParameterNames.Add(RedirectedUserParameter.GetName());
+				}
+
+				bool bParameterWasRenamed = RenamedUserParameters.Contains(UserParameter);
+
+				if(!bParameterWasRenamed)
+				{
+					FNiagaraVariable NewUserParameter = FNiagaraVariable(UserParameter.GetType(), FNiagaraUtilities::GetUniqueName(UserParameter.GetName(), ExistingUserParameterNames));
+					TargetParameterStore.AddParameter(NewUserParameter);
+					OriginalSystem->GetExposedParameters().CopyParameterData(TargetParameterStore, UserParameter, NewUserParameter);
+					FNiagaraEditorUtilities::ReplaceUserParameterReferences(EmitterHandleViewModel->GetEmitterViewModel(), UserParameter, NewUserParameter);
+					RenamedUserParameters.Add(UserParameter, NewUserParameter);
+				}
+				else
+				{
+					FNiagaraVariable RenamedUserParameter = RenamedUserParameters[UserParameter];
+					FNiagaraEditorUtilities::ReplaceUserParameterReferences(EmitterHandleViewModel->GetEmitterViewModel(), UserParameter, RenamedUserParameter);
+				}
+			}
+			// if the parameter doesn't exist at all, we just add it, copy the data and we're done
+			else
+			{
+				const FNiagaraVariableWithOffset* ExistingUserParameter = OriginalSystem->GetExposedParameters().FindParameterVariable(UserParameter);
+				if(ensure(ExistingUserParameter != nullptr))
+				{
+					TargetParameterStore.AddParameter(UserParameter);
+					OriginalSystem->GetExposedParameters().CopyParameterData(GetSystem().GetExposedParameters(), UserParameter);
+				}
+			}
+		}
+	}
+
+	if(RenamedUserParameters.Num() > 0)
+	{
+		TSharedRef<SVerticalBox> WidgetContent = SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(STextBlock).Text(LOCTEXT("RenamedParametersDuringPasteNotificationStart", "Renamed the following User Parameters on the new emitters.\n"))
+		];
+		
+		for(auto& RenamedVariable : RenamedUserParameters)
+		{
+			WidgetContent->AddSlot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					FNiagaraParameterUtilities::GetParameterWidget(RenamedVariable.Key, false, false)
+				]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(3.f)
+				[
+					SNew(STextBlock).Text(LOCTEXT("RenamedParametersDuringPasteParameterConnector", "to"))
+				]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					FNiagaraParameterUtilities::GetParameterWidget(RenamedVariable.Value, false, false)
+				]
+			];
+		}
+		
+		TSharedRef<FNiagaraParameterNotificationWidgetProvider> WidgetProvider = MakeShared<FNiagaraParameterNotificationWidgetProvider>(WidgetContent);
+		FNotificationInfo Info(WidgetProvider);
+		Info.WidthOverride = FOptionalSize();
+		Info.ExpireDuration = 5.f;
+		FSlateNotificationManager::Get().AddNotification(Info);
+	}
+
+	for(TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : NewEmitterHandleViewModels)
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->RefreshChildren();
+	}
 }
 
 FGuid FNiagaraSystemViewModel::GetMessageLogGuid() const

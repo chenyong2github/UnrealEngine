@@ -22,12 +22,14 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
+#include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraOverviewNode.h"
 #include "NiagaraParameterMapHistory.h"
 #include "NiagaraParameterDefinitions.h"
 #include "NiagaraScript.h"
+#include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraSettings.h"
@@ -60,6 +62,7 @@
 #include "Misc/ScopeExit.h"
 #include "Styling/CoreStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "UObject/PropertyIterator.h"
 #include "UObject/StructOnScope.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -2211,6 +2214,179 @@ bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariabl
 	return bSuccess;
 }
 
+TArray<FNiagaraVariable> FNiagaraEditorUtilities::GetReferencedUserParametersFromEmitter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel)
+{
+	TArray<FNiagaraVariable> UserParameters;
+	
+	TSharedRef<FNiagaraScriptGraphViewModel> GraphViewModel = EmitterViewModel->GetSharedScriptViewModel()->GetGraphViewModel();
+
+	TArray<UNiagaraNodeParameterMapGet*> MapGetNodes;
+	GraphViewModel->GetGraph()->GetNodesOfClass<UNiagaraNodeParameterMapGet>(MapGetNodes);
+
+	// first we check for direct references on parameter map get nodes
+	for(UNiagaraNodeParameterMapGet* MapGetNode : MapGetNodes)
+	{
+		TArray<UEdGraphPin*> OutputPins;
+		MapGetNode->GetOutputPins(OutputPins);
+
+		for(UEdGraphPin* Pin : OutputPins)
+		{
+			if(!Pin->bOrphanedPin && Pin->PinType.PinSubCategory == UNiagaraNodeParameterMapBase::ParameterPinSubCategory)
+			{
+				FNiagaraVariable Variable = UEdGraphSchema_Niagara::PinToNiagaraVariable(Pin);
+				FNiagaraParameterHandle Handle(Variable.GetName());
+				if(Handle.IsUserHandle())
+				{
+					UserParameters.AddUnique(Variable);
+				}
+			}			
+		}
+	}
+
+	TArray<UNiagaraNodeInput*> InputNodes;
+	GraphViewModel->GetGraph()->GetNodesOfClass<UNiagaraNodeInput>(InputNodes);
+
+	// then we check for DI user parameter binding properties
+	for(UNiagaraNodeInput* Input : InputNodes)
+	{
+		if(Input->GetDataInterface() != nullptr)
+		{
+			for(TFieldIterator<FStructProperty> It(Input->GetDataInterface()->GetClass()); It; ++It)
+			{
+				if((*It)->Struct == StaticStruct<FNiagaraUserParameterBinding>())
+				{
+					FNiagaraUserParameterBinding ParameterBinding;
+					(*It)->GetValue_InContainer(Input->GetDataInterface(), &ParameterBinding);
+
+					if(ParameterBinding.Parameter.IsValid())
+					{
+						FNiagaraParameterHandle ReferencedParameter(ParameterBinding.Parameter.GetName());
+						if(ReferencedParameter.IsUserHandle())
+						{
+							UserParameters.AddUnique(ParameterBinding.Parameter);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// then we check for user parameter bindings on renderers
+	const TArray<UNiagaraRendererProperties*>& Renderers = EmitterViewModel->GetEmitter().GetEmitterData()->GetRenderers();
+	for(UNiagaraRendererProperties* Renderer : Renderers)
+	{
+		for(TFieldIterator<FStructProperty> It(Renderer->GetClass()); It; ++It)
+		{
+			if((*It)->Struct == StaticStruct<FNiagaraUserParameterBinding>())
+			{
+				FNiagaraUserParameterBinding ParameterBinding;
+				(*It)->GetValue_InContainer(Renderer, &ParameterBinding);
+
+				if(ParameterBinding.Parameter.IsValid())
+				{
+					FNiagaraParameterHandle ReferencedParameter(ParameterBinding.Parameter.GetName());
+					if(ReferencedParameter.IsUserHandle())
+					{
+						UserParameters.AddUnique(ParameterBinding.Parameter);
+					}
+				}
+			}
+		}
+	}
+	
+	return UserParameters;
+}
+
+TArray<UNiagaraNodeParameterMapGet*> FNiagaraEditorUtilities::GetParameterMapGetNodesWithUserParameter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel, FNiagaraVariable UserParameter)
+{
+	TArray<UNiagaraNodeParameterMapGet*> Result;
+
+	TSharedRef<FNiagaraScriptGraphViewModel> GraphViewModel = EmitterViewModel->GetSharedScriptViewModel()->GetGraphViewModel();
+
+	TArray<UNiagaraNodeParameterMapGet*> MapGetNodes;
+	GraphViewModel->GetGraph()->GetNodesOfClass<UNiagaraNodeParameterMapGet>(MapGetNodes);
+
+	for(UNiagaraNodeParameterMapGet* MapGetNode : MapGetNodes)
+	{
+		TArray<UEdGraphPin*> OutputPins;
+		MapGetNode->GetOutputPins(OutputPins);
+
+		for(UEdGraphPin* Pin : OutputPins)
+		{
+			if(!Pin->bOrphanedPin && Pin->PinType.PinSubCategory == UNiagaraNodeParameterMapBase::ParameterPinSubCategory)
+			{
+				FNiagaraVariable Variable = UEdGraphSchema_Niagara::PinToNiagaraVariable(Pin);
+				FNiagaraParameterHandle Handle(Variable.GetName());
+				if(Handle.IsUserHandle() && Variable == UserParameter)
+				{
+					Result.AddUnique(MapGetNode);
+					break;
+				}
+			}			
+		}
+	}
+
+	return Result;
+}
+
+TArray<FNiagaraUserParameterBinding*> FNiagaraEditorUtilities::GetUserParameterBindingsForUserParameter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel, FNiagaraVariable UserParameter)
+{
+	TArray<FNiagaraUserParameterBinding*> Bindings;
+
+	// First we gather the bindings on renderers of an emitter
+	const TArray<UNiagaraRendererProperties*>& Renderers = EmitterViewModel->GetEmitter().GetEmitterData()->GetRenderers();
+	for(UNiagaraRendererProperties* Renderer : Renderers)
+	{
+		for(TFieldIterator<FStructProperty> It(Renderer->GetClass()); It; ++It)
+		{
+			if((*It)->Struct == StaticStruct<FNiagaraUserParameterBinding>())
+			{				
+				FNiagaraUserParameterBinding* ParameterBinding = (FNiagaraUserParameterBinding*) (*It)->ContainerPtrToValuePtr<void>(Renderer, 0);
+				
+				if(ParameterBinding->Parameter.IsValid())
+				{
+					FNiagaraParameterHandle ReferencedParameter(ParameterBinding->Parameter.GetName());
+					if(ReferencedParameter.IsUserHandle() && ParameterBinding->Parameter == UserParameter)
+					{
+						Bindings.Add(ParameterBinding);
+					}
+				}
+			}
+		}
+	}
+
+	// then we get the bindings on DIs which live on input nodes in the emitter graph
+	TSharedRef<FNiagaraScriptGraphViewModel> GraphViewModel = EmitterViewModel->GetSharedScriptViewModel()->GetGraphViewModel();
+
+	TArray<UNiagaraNodeInput*> InputNodes;
+	GraphViewModel->GetGraph()->GetNodesOfClass<UNiagaraNodeInput>(InputNodes);
+
+	for(UNiagaraNodeInput* Input : InputNodes)
+	{
+		if(Input->GetDataInterface() != nullptr)
+		{
+			for(TFieldIterator<FStructProperty> It(Input->GetDataInterface()->GetClass()); It; ++It)
+			{
+				if((*It)->Struct == StaticStruct<FNiagaraUserParameterBinding>())
+				{					
+					FNiagaraUserParameterBinding* ParameterBinding = (FNiagaraUserParameterBinding*) (*It)->ContainerPtrToValuePtr<void>(Input->GetDataInterface(), 0);
+
+					if(ParameterBinding->Parameter.IsValid())
+					{
+						FNiagaraParameterHandle ReferencedParameter(ParameterBinding->Parameter.GetName());
+						if(ReferencedParameter.IsUserHandle() && ParameterBinding->Parameter == UserParameter)
+						{
+							Bindings.Add(ParameterBinding);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return Bindings;
+}
+
 TObjectPtr<UNiagaraScriptVariable> FNiagaraEditorUtilities::GetScriptVariableForUserParameter(const FNiagaraVariable& UserParameter, TSharedPtr<FNiagaraSystemViewModel> SystemViewModel)
 {
 	return Cast<UNiagaraSystemEditorData>(SystemViewModel->GetSystem().GetEditorData())->FindOrAddUserScriptVariable(UserParameter, SystemViewModel->GetSystem());
@@ -2224,6 +2400,37 @@ TObjectPtr<UNiagaraScriptVariable> FNiagaraEditorUtilities::GetScriptVariableFor
 TObjectPtr<UNiagaraScriptVariable> FNiagaraEditorUtilities::FindScriptVariableForUserParameter(const FGuid& UserParameterGuid, UNiagaraSystem& System)
 {
 	return Cast<UNiagaraSystemEditorData>(System.GetEditorData())->FindUserScriptVariable(UserParameterGuid);
+}
+
+void FNiagaraEditorUtilities::ReplaceUserParameterReferences(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel,	FNiagaraVariable OldUserParameter, FNiagaraVariable NewUserParameter)
+{
+	TArray<FNiagaraUserParameterBinding*> ReferencingBindings = FNiagaraEditorUtilities::GetUserParameterBindingsForUserParameter(EmitterViewModel, OldUserParameter);
+
+	for(FNiagaraUserParameterBinding* ReferencingBinding : ReferencingBindings)
+	{
+		ReferencingBinding->Parameter = NewUserParameter;
+	}
+
+	TArray<UNiagaraNodeParameterMapGet*> ReferencingMapGetNodes = FNiagaraEditorUtilities::GetParameterMapGetNodesWithUserParameter(EmitterViewModel, OldUserParameter);
+
+	for(UNiagaraNodeParameterMapGet* MapGet : ReferencingMapGetNodes)
+	{
+		TArray<UEdGraphPin*> OutputPins;
+		MapGet->GetOutputPins(OutputPins);
+
+		for(UEdGraphPin* GraphPin : OutputPins)
+		{
+			if(GraphPin->PinType.PinSubCategory == UNiagaraNodeParameterMapBase::ParameterPinSubCategory && GraphPin->bOrphanedPin == false)
+			{
+				FNiagaraVariable RepresentingVariable = UEdGraphSchema_Niagara::PinToNiagaraVariable(GraphPin);
+
+				if(RepresentingVariable == OldUserParameter)
+				{
+					GraphPin->PinName = NewUserParameter.GetName();
+				}
+			}
+		}
+	}
 }
 
 void FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser(TSharedRef<FNiagaraEmitterViewModel> Emitter)

@@ -477,7 +477,8 @@ public:
 
 	/** Copies the passed parameter from this parameter store into another. */
 	void CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& Parameter) const;
-
+	void CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& SourceParameter, const FNiagaraVariable& TargetParameter) const;
+	
 	enum class EDataInterfaceCopyMethod
 	{
 		/** A new data interface will be created and it will be synchronized using the CopyTo method. */
