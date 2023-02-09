@@ -4,6 +4,8 @@
 
 #include "ScreenPass.h"
 
+class FScene;
+
 struct FMobileDistortionAccumulateInputs
 {
 	FScreenPassTexture SceneColor;

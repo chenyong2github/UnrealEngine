@@ -25,6 +25,8 @@
 #include "TextureResource.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "RHIGPUReadback.h"
+#include "ScenePrivate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MediaCapture)
 

@@ -5,6 +5,7 @@
 #include "Curves/CurveFloat.h"
 #include "UnrealEngine.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "SceneRendering.h"
 
 extern bool IsExtendLuminanceRangeEnabled();
 

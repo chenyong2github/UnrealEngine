@@ -25,6 +25,7 @@
 #include "RenderCore.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "VolumetricFog.h"
+#include "PostProcess/SceneRenderTargets.h"
 
 #include "BasePassRendering.inl"
 

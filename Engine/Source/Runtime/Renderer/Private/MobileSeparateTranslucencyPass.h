@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ScreenPass.h"
+
+class FScene;
 
 struct FMobileSeparateTranslucencyInputs
 {

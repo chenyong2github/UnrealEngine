@@ -12,6 +12,7 @@
 #include "MediaShaders.h"
 #include "RHI.h"
 #include "Runtime/Renderer/Private/ScreenPass.h"
+#include "PostProcess/SceneFilterRendering.h"
 
 namespace UE::PixelStreaming
 {

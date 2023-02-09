@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RenderGraphFwd.h"
+#include "SceneTexturesConfig.h"
 #include "ScreenPass.h"
 #include "ShaderParameterMacros.h"
 #include "Math/IntPoint.h"

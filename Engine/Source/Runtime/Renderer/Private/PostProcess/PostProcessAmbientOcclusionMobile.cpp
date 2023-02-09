@@ -10,6 +10,7 @@
 #include "ShaderParameterStruct.h"
 #include "SceneRendering.h"
 #include "RenderTargetPool.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "SystemTextures.h"
 #include "ScreenPass.h"

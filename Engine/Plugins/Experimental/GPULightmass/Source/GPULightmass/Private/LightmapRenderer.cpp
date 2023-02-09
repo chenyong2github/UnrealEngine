@@ -31,6 +31,7 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "IESTextureManager.h"
 #include "PathTracing.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "SceneUniformBuffer.h"
 
 RENDERER_API uint8 BlendModeToRayTracingInstanceMask(const EBlendMode BlendMode, ERayTracingViewMaskMode MaskMode);

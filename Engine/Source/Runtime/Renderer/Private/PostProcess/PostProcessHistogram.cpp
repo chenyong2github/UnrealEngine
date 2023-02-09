@@ -8,6 +8,7 @@
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "ShaderCompilerCore.h"
 
+#include "SceneRendering.h"
 #include "SceneTextureParameters.h"
 #include "SystemTextures.h"
 #include "DataDrivenShaderPlatformInfo.h"

@@ -9,6 +9,7 @@
 #include "ShaderParameterMacros.h"
 #include "RenderGraphUtils.h"
 #include "PostProcess/PostProcessing.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "HairStrandsRendering.h"
 #include "HairStrandsTile.h"
 #include "FogRendering.h"

@@ -19,6 +19,8 @@
 #include "ShaderParameterStruct.h"
 #include "RenderGraphUtils.h"
 #include "PostProcess/PostProcessing.h"
+#include "PostProcess/SceneFilterRendering.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "SceneTextureParameters.h"
 #include "DynamicPrimitiveDrawing.h"
 #include "RenderTargetTemp.h"

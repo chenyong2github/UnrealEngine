@@ -16,6 +16,7 @@
 #include "SceneTextureParameters.h"
 #include "RenderGraphUtils.h"
 #include "PostProcess/PostProcessing.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "MeshPassProcessor.inl"
 #include "ScenePrivate.h"
 #include "SceneTextureReductions.h"

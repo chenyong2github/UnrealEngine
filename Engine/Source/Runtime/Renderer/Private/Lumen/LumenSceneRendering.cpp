@@ -22,6 +22,7 @@
 #include "GlobalDistanceField.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "HAL/LowLevelMemStats.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "StaticMeshBatch.h"

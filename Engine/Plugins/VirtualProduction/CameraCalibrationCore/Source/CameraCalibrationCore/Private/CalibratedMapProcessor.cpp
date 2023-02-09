@@ -12,7 +12,7 @@
 #include "ShaderParameterStruct.h"
 #include "TextureResource.h"
 #include "DataDrivenShaderPlatformInfo.h"
-
+#include "RHIGPUReadback.h"
 
 class FCalibratedMapDerivedDataCS : public FGlobalShader
 {

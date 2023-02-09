@@ -6,6 +6,7 @@
 #include "PostProcess/PostProcessing.h"
 #include "ClearQuad.h"
 #include "PostProcess/PostProcessing.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
 #include "ScenePrivate.h"

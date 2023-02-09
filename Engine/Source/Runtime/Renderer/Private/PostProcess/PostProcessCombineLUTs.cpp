@@ -4,6 +4,7 @@
 #include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/Texture.h"
 #include "PostProcess/PostProcessTonemap.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "ScenePrivate.h"
 #include "VolumeRendering.h"
 #include "HDRHelper.h"

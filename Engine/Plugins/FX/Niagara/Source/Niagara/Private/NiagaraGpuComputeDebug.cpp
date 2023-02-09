@@ -10,6 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "RHI.h"
 #include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
 #include "ScreenPass.h"
 #include "ScreenRendering.h"
 

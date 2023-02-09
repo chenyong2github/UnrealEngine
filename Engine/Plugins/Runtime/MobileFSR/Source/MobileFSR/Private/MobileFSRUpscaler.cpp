@@ -2,6 +2,7 @@
 
 #include "MobileFSRUpscaler.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "ScenePrivate.h"
 
 #define A_CPU 1
 // ffx_a.ush will override these definitions

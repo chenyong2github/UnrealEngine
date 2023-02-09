@@ -10,7 +10,6 @@
 
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
-#include "SceneTextures.h"
 #include "FXRenderingUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceGBuffer)

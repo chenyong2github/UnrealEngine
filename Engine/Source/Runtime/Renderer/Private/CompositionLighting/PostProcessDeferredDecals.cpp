@@ -7,6 +7,7 @@
 #include "DBufferTextures.h"
 #include "DecalRenderingShared.h"
 #include "PipelineStateCache.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "RendererUtils.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"

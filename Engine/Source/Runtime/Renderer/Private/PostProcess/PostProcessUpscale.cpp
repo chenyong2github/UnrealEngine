@@ -3,6 +3,7 @@
 #include "PostProcess/PostProcessUpscale.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "SceneRendering.h"
 
 namespace
 {

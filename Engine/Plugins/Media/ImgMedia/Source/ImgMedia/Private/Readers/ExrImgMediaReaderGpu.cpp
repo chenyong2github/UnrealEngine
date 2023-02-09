@@ -19,6 +19,7 @@
 #include "GlobalShader.h"
 #include "CommonRenderResources.h"
 #include "ImgMediaLoader.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "RHIStaticStates.h"
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"

@@ -4,6 +4,7 @@
 #include "PostProcess/PostProcessTonemap.h"
 #include "UnrealEngine.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "SceneRendering.h"
 
 TAutoConsoleVariable<int> CVarLocalExposureVisualizeDebugMode(
 	TEXT("r.LocalExposure.VisualizeDebugMode"),

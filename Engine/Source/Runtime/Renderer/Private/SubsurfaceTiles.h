@@ -12,6 +12,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"
 #include "ScreenPass.h"
+#include "SceneRendering.h"
 
 // Adapted from FHairStrandsTile
 struct FSubsurfaceTiles

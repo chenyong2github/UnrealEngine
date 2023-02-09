@@ -7,6 +7,8 @@
 #include "PostProcess/PostProcessDownsample.h"
 #include "PixelShaderUtils.h"
 #include "TextureResource.h"
+#include "ScenePrivate.h"
+#include "PostProcess/SceneFilterRendering.h"
 
 DECLARE_GPU_STAT(LensFlare);
 

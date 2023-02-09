@@ -7,6 +7,7 @@
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "SceneTextureParameters.h"
 #include "ScenePrivate.h"
 #include "Strata/Strata.h"

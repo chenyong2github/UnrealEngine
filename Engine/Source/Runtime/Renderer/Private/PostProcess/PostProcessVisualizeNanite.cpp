@@ -4,6 +4,7 @@
 #include "NaniteVisualizationData.h"
 #include "UnrealEngine.h"
 #include "RHIStaticStates.h"
+#include "SceneRendering.h"
 
 class FVisualizeNanitePS : public FGlobalShader
 {

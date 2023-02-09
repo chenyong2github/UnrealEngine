@@ -15,6 +15,7 @@
 #include "SceneTextureParameters.h"
 #include "RenderGraphUtils.h"
 #include "PostProcess/PostProcessing.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "ShaderPrintParameters.h"
 #include "LightSceneInfo.h"
 #include "ShaderPrint.h"

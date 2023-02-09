@@ -3,12 +3,14 @@
 
 #include "DistortionRenderingUtils.h"
 
+#include "Containers/DynamicRHIResourceArray.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"
 #include "ScreenPass.h"
 #include "TextureResource.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIUtilities.h"
 
 class FUndistortImagePointsCS : public FGlobalShader
 {

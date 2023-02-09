@@ -7,6 +7,7 @@
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PixelShaderUtils.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "SceneRendering.h"
 
 namespace
 {

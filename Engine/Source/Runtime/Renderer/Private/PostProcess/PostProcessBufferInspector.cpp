@@ -5,6 +5,7 @@
 #include "PostProcess/PostProcessBufferInspector.h"
 #include "SceneTextureParameters.h"
 #include "ScenePrivate.h"
+#include "UnrealClient.h"
 #include "UnrealEngine.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPixelInspectorParameters, )

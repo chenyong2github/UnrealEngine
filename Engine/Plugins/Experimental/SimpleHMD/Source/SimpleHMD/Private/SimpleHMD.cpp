@@ -6,6 +6,7 @@
 #include "ISimpleHMDPlugin.h"
 #include "PostProcess/PostProcessHMD.h"
 #include "GameFramework/WorldSettings.h"
+#include "ScenePrivate.h"
 
 //---------------------------------------------------
 // SimpleHMD Plugin Implementation

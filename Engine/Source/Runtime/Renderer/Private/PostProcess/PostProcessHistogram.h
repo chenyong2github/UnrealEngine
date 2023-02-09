@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "ScreenPass.h"
+#include "RenderGraphFwd.h"
 
 class FEyeAdaptationParameters;
+class FSceneTextureParameters;
+class FViewInfo;
+struct FScreenPassTexture;
 
 FRDGTextureRef AddHistogramPass(
 	FRDGBuilder& GraphBuilder,

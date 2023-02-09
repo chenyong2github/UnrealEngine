@@ -11,6 +11,7 @@
 #include "ScreenSpaceRayTracing.h"
 #include "DeferredShadingRenderer.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/TemporalAA.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "CompositionLighting/CompositionLighting.h"

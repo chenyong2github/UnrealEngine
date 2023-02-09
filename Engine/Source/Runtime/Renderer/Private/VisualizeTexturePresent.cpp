@@ -7,6 +7,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "RenderTargetPool.h"
+#include "SceneRendering.h"
 
 void FVisualizeTexturePresent::OnStartRender(const FViewInfo& View)
 {

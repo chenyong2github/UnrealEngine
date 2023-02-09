@@ -3,6 +3,7 @@
 #include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "UnrealEngine.h"
 #include "DebugViewModeRendering.h"
+#include "SceneRendering.h"
 
 namespace
 {

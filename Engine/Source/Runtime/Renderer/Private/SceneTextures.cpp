@@ -10,6 +10,7 @@
 #include "EngineGlobals.h"
 #include "UnrealEngine.h"
 #include "RendererModule.h"
+#include "SceneRendering.h"
 #include "StereoRendering.h"
 #include "StereoRenderTargetManager.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
@@ -1005,6 +1006,16 @@ FSceneTextureShaderParameters CreateSceneTextureShaderParameters(
 		Parameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures, Translate(SetupMode));
 	}
 	return Parameters;
+}
+
+TRDGUniformBufferRef<FSceneTextureUniformParameters> GetSceneTextureUnformBuffer(const FSceneView& View)
+{
+	if (const FSceneTextures* SceneTextures = static_cast<const FViewFamilyInfo*>(View.Family)->GetSceneTexturesChecked())
+	{
+		return SceneTextures->UniformBuffer;
+	}
+
+	return TRDGUniformBufferRef<FSceneTextureUniformParameters>{};
 }
 
 bool IsSceneTexturesValid()

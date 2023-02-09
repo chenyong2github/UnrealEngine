@@ -7,6 +7,8 @@
 #include "RHI.h"
 #include "ScreenPass.h"
 #include "ScreenRendering.h"
+#include "RenderGraphUtils.h"
+#include "ScenePrivate.h"
 
 /*
     * Copy from one texture to another.

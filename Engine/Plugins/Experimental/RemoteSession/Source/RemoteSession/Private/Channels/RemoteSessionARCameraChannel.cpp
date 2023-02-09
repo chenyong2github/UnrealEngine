@@ -22,6 +22,8 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "UObject/Package.h"
+#include "PostProcess/SceneFilterRendering.h"
+#include "ScenePrivate.h"
 
 #define CAMERA_MESSAGE_ADDRESS TEXT("/ARCamera")
 

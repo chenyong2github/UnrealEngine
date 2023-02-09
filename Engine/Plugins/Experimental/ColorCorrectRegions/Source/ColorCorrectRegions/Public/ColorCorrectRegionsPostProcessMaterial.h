@@ -14,6 +14,7 @@
 #include "RenderGraphResources.h"
 #include "RenderGraphResources.h"
 #include "RenderResource.h"
+#include "SceneManagement.h"
 #include "ShaderParameterUtils.h"
 #include "UObject/ConstructorHelpers.h"
 
