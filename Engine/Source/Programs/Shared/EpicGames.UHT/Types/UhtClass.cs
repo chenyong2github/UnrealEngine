@@ -663,14 +663,6 @@ namespace EpicGames.UHT.Types
 			{
 				case UhtResolvePhase.Bases:
 					UhtClass? superClass = SuperClass;
-					if (superClass != null)
-					{
-						superClass.Resolve(UhtResolvePhase.Bases);
-					}
-					foreach (UhtStruct baseStruct in Bases)
-					{
-						baseStruct.Resolve(UhtResolvePhase.Bases);
-					}
 
 					// Force the MatchedSerializers on for anything being exported
 					if (!ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))

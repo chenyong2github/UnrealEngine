@@ -583,6 +583,29 @@ namespace EpicGames.UHT.Types
 	}
 
 	/// <summary>
+	/// Extension methods of UhtResolvePhase
+	/// </summary>
+	public static class UhtResolvePhaseExtensions
+	{
+
+		/// <summary>
+		/// Returns true if the phase should execute multi-threaded.
+		/// </summary>
+		/// <param name="resolvePhase">Phase to be tested</param>
+		/// <returns>True if the phase should execute multi-threaded</returns>
+		public static bool IsMultiThreadedResolvePhase(this UhtResolvePhase resolvePhase)
+		{
+			switch (resolvePhase)
+			{
+				case UhtResolvePhase.Final:
+					return false;
+				default:
+					return true;
+			}
+		}
+	}
+
+	/// <summary>
 	/// Flags for required documentation
 	/// </summary>
 	public class UhtDocumentationPolicy
@@ -933,11 +956,14 @@ namespace EpicGames.UHT.Types
 			}
 			else if (currentState == initState)
 			{
-				do
+				if (phase.IsMultiThreadedResolvePhase())
 				{
-					Thread.Yield();
-					currentState = Interlocked.Add(ref _resolveState, 0);
-				} while (currentState == initState);
+					do
+					{
+						Thread.Yield();
+						currentState = Interlocked.Add(ref _resolveState, 0);
+					} while (currentState == initState);
+				}
 				return true;
 			}
 			else

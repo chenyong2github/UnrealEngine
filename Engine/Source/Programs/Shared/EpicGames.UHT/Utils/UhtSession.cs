@@ -1056,6 +1056,7 @@ namespace EpicGames.UHT.Utils
 				_referenceDeleteTask.Wait();
 			}
 
+			Log.Logger.LogTrace("Step - Starting exporters.");
 			StepExport();
 		}
 
@@ -1990,36 +1991,43 @@ namespace EpicGames.UHT.Utils
 
 		private void StepBindSuperAndBases()
 		{
-			StepForAllHeaders(headerFile => BindSuperAndBases(headerFile));
+			Log.Logger.LogTrace("Step - Bind super and bases");
+			StepForAllHeaders(headerFile => BindSuperAndBases(headerFile), true);
 		}
 
 		private void StepResolveBases()
 		{
-			StepForAllHeaders(headerFile => Resolve(headerFile, UhtResolvePhase.Bases));
+			Log.Logger.LogTrace("Step - Resolve bases");
+			ResolveAllHeaders(UhtResolvePhase.Bases);
 		}
 
 		private void StepResolveInvalidCheck()
 		{
-			StepForAllHeaders(headerFile => Resolve(headerFile, UhtResolvePhase.InvalidCheck));
+			Log.Logger.LogTrace("Step - Resolve invalid check");
+			ResolveAllHeaders(UhtResolvePhase.InvalidCheck);
 		}
 
 		private void StepResolveProperties()
 		{
-			StepForAllHeaders(headerFile => Resolve(headerFile, UhtResolvePhase.Properties));
+			Log.Logger.LogTrace("Step - Resolve properties");
+			ResolveAllHeaders(UhtResolvePhase.Properties);
 		}
 
 		private void StepResolveFinal()
 		{
-			StepForAllHeaders(headerFile => Resolve(headerFile, UhtResolvePhase.Final));
+			Log.Logger.LogTrace("Step - Resolve final");
+			ResolveAllHeaders(UhtResolvePhase.Final);
 		}
 
 		private void StepResolveValidate()
 		{
-			StepForAllHeaders(headerFile => UhtType.ValidateType(headerFile, UhtValidationOptions.None));
+			Log.Logger.LogTrace("Step - Resolve validate");
+			StepForAllHeaders(headerFile => UhtType.ValidateType(headerFile, UhtValidationOptions.None), true);
 		}
 
 		private void StepCollectReferences()
 		{
+			Log.Logger.LogTrace("Step - Collect references");
 			StepForAllHeaders(headerFile =>
 			{
 				foreach (UhtType child in headerFile.Children)
@@ -2030,7 +2038,12 @@ namespace EpicGames.UHT.Utils
 				{
 					headerFile.AddReferencedHeader(refHeaderFile);
 				}
-			});
+			}, true);
+		}
+
+		private void ResolveAllHeaders(UhtResolvePhase resolvePhase)
+		{
+			StepForAllHeaders(headerFile => Resolve(headerFile, resolvePhase), resolvePhase.IsMultiThreadedResolvePhase());
 		}
 
 		private void Resolve(UhtHeaderFile headerFile, UhtResolvePhase resolvePhase)
@@ -2059,14 +2072,14 @@ namespace EpicGames.UHT.Utils
 
 		private delegate void StepDelegate(UhtHeaderFile headerFile);
 
-		private void StepForAllHeaders(StepDelegate stepDelegate)
+		private void StepForAllHeaders(StepDelegate stepDelegate, bool allowGoWide)
 		{
 			if (HasErrors)
 			{
 				return;
 			}
 
-			if (GoWide)
+			if (GoWide && allowGoWide)
 			{
 				Parallel.ForEach(_headerFiles, headerFile =>
 				{

@@ -2218,7 +2218,7 @@ namespace EpicGames.UHT.Types
 			if (hash == 0)
 			{
 				string type = referingType is UhtProperty ? "property" : "object";
-				referingType.LogWarning($"The {type} \"{referingType.SourceName}\" references type \"{obj.SourceName}\" but the code generation hash is zero");
+				referingType.LogError($"The {type} \"{referingType.SourceName}\" references type \"{obj.SourceName}\" but the code generation hash is zero.  Check for circular dependencies or missing includes.");
 			}
 			builder.Append(context.GetTypeHash(obj));
 			return builder;

@@ -724,7 +724,6 @@ namespace EpicGames.UHT.Types
 					UhtScriptStruct? superScriptStruct = SuperScriptStruct;
 					if (superScriptStruct != null)
 					{
-						superScriptStruct.Resolve(UhtResolvePhase.Bases);
 						ScriptStructFlags |= superScriptStruct.ScriptStructFlags & EStructFlags.Inherit;
 					}
 					break;
