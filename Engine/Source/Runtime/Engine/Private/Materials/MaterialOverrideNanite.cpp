@@ -35,7 +35,7 @@ void FMaterialOverrideNanite::RefreshOverrideMaterial(UObject* OptionalOwner)
 			{
 				// When we are routing PostLoad, LoadSynchronous can return a valid object pointer when the asset has not loaded.
 				// We can still store the TObjectPtr, but we need to ensure that the material re-inits on completion of the async load.
-				if (OverrideMaterial && OverrideMaterial->HasAnyFlags(RF_NeedLoad))
+				if (OverrideMaterial->HasAnyFlags(RF_NeedLoad))
 				{
 					const FString LongPackageName = OverrideMaterialRef.GetLongPackageName();
 					UE_LOG(LogMaterial, Display, TEXT("Async loading NaniteOverrideMaterial '%s'"), *LongPackageName);
