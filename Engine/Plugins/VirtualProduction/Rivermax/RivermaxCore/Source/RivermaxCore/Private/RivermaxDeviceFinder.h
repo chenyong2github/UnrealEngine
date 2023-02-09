@@ -51,6 +51,9 @@ namespace UE::RivermaxCore::Private
 			/** String representation of the IP */
 			FString DeviceIP;
 
+			/** String representation of IP component separated by '.' */
+			TArray<FString> Tokens;
+
 			/** IPv4 representation of the IP with numerical tokens */
 			FIPv4Address Address;
 

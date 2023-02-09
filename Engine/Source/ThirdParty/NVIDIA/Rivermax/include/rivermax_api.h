@@ -43,10 +43,10 @@
 #define RMAX_MAJOR(version)   (version >> RMAX_VERSION_MAJOR_SHIFT)
 #define RMAX_MINOR(version)   (version & 0xFFFF)
 
-#define RMAX_API_MAJOR          13
-#define RMAX_API_MINOR          3
-#define RMAX_RELEASE_VERSION    11
-#define RMAX_BUILD              20
+#define RMAX_API_MAJOR          14
+#define RMAX_API_MINOR          1
+#define RMAX_RELEASE_VERSION    13
+#define RMAX_BUILD              10
 #define RMAX_API_VERSION        RMAX_VERSION(RMAX_API_MAJOR, RMAX_API_MINOR)
 
 typedef uint64_t rmax_cpu_mask_t;
@@ -60,6 +60,7 @@ typedef uint64_t rmax_cpu_mask_t;
 #define RMAX_MAX_DUP_STREAMS 2
 
 typedef enum {
+    RIVERMAX_INIT_CONFIG_NONE            =   0,
     /**
     * @brief Causes Rivermax to handle signal sent by OS, and return RMAX_SIGNAL in API functions.
     *
@@ -73,7 +74,6 @@ typedef enum {
     RIVERMAX_HANDLE_SIGNAL               =   (1ul << 0), /**< features */
 
     RIVERMAX_CPU_MASK                    =   (1ul << 1), /**< use @ref rmax_init_config.cpu_mask to set CPU affinity */
-    RIVERMAX_ENABLE_CLOCK_CONFIGURATION  =   (1ul << 2), /**< use @ref rmax_init_config.clock_configurations to set time handler */
 } rivermax_init_config_flags;
 
 /**
@@ -151,9 +151,6 @@ struct rmax_init_config {
     /* A bit mask representing the CPUs in the system, used for setting the
      * internal thread affinity */
     struct rmax_cpu_set_t cpu_mask;
-
-    /* Clock configurations */
-    struct rmax_clock_t clock_configurations;
 };
 
 typedef int rmax_stream_id;
@@ -217,6 +214,78 @@ typedef enum {
 
     RMAX_ERR_LAST                            = 100
 } rmax_status_t;
+
+/**
+ * @brief: Rivermax device configuration flags.
+ */
+typedef enum rmax_dev_config_flags {
+    /** Configure nothing */
+    RMAX_DEV_CONFIG_NONE = 0ULL,
+    /** Enables RTP dynamic header data split usage for SMPTE-2110-20 protocol.
+     *
+     * When set, Rivermax will be able to receive packets with RTP application
+     * header for SMPTE-2110-20 protocol with varied number of SRDs when doing header data split.
+     *
+     * Use @ref rmax_device_config_t.ip_address to set the IP address of the device
+     * dynamic header data split support will be enabled on.
+     *
+     * @note: RTP dynamic HDS for SMPTE-2110-20 protocol supported
+     * when @ref rmax_device_caps_mask_t.RMAX_DEV_CAP_RTP_DYNAMIC_HDS is supported.
+     */
+     RMAX_DEV_CONFIG_RTP_SMPTE_2110_20_DYNAMIC_HDS_CONFIG = (1ULL << 0),
+    /** Enables RTP dynamic header data split usage for dynamic number of RTP CSRC fields.
+     *
+     * When set, Rivermax will be able to receive packets with RTP application
+     * header with varied number of RTP CSRC fields when doing header data split.
+     *
+     * Use @ref rmax_device_config_t.ip_address to set the IP address of the device
+     * dynamic header data split support will be enabled on.
+     *
+     * @note:
+     *     - RTP dynamic HDS for dynamic number of CSRC fields in RTP header supported
+     *       when @ref rmax_device_caps_mask_t.RMAX_DEV_CAP_RTP_DYNAMIC_HDS is supported.
+     *     - This option is supported when enabled with @ref RMAX_DEV_CONFIG_RTP_SMPTE_2110_20_DYNAMIC_HDS_CONFIG
+     *       and doesn't stand alone.
+     */
+     RMAX_DEV_CONFIG_RTP_CSRC_FIELDS_DYNAMIC_HDS_CONFIG = (1ULL << 1),
+} rmax_dev_config_flags_t;
+
+/**
+ * @brief: Bit mask used to query needed device capabilities.
+ */
+typedef enum rmax_device_caps_mask {
+    /** Query nothing */
+    RMAX_DEV_CAP_NONE = 0x00ULL,
+    /** Real Time Clock (RTC) is supported */
+    RMAX_DEV_CAP_PTP_CLOCK = (1ULL << 0),
+    /** Stream which will place the incoming packets according to RTP sequence number is supported */
+    RMAX_DEV_CAP_STREAM_RTP_SEQN_PLACEMENT_ORDER = (1ULL << 1),
+    /** Stream which will place the incoming packets according to RTP extended sequence number is supported */
+    RMAX_DEV_CAP_STREAM_RTP_EXT_SEQN_PLACEMENT_ORDER = (1ULL << 2),
+    /** RTP dynamic header data split is supported */
+    RMAX_DEV_CAP_RTP_DYNAMIC_HDS = (1ULL << 3),
+} rmax_device_caps_mask_t;
+
+/**
+ * @brief: Data structure to describe device capabilities.
+ *
+ * @param[in] supported_caps - Each bit represent capability using bits from @ref rmax_device_caps_mask_t.
+ * Non zero value means that this capabilities is supported.
+ */
+typedef struct rmax_device_caps {
+    uint64_t supported_caps;
+} rmax_device_caps_t;
+
+/**
+ * @brief: Data structure to describe Rivermax device configuration.
+ *
+ * @param[in] config_flags - Configuration flags bit mask of @ref rmax_dev_config_flags_t
+ * @param[in] ip_address - IP address of the device.
+ */
+typedef struct rmax_device_config {
+    uint64_t config_flags;
+    struct in_addr ip_address;
+} rmax_device_config_t;
 
 /**
  * Commit call flags
@@ -602,24 +671,37 @@ struct rmax_in_memblock {
 };
 
 /**
- * Rivermax in buffer attributes flags.
- * RMAX_IN_BUFFER_ATTER_STREAM_RTP_SEQN_PLACEMENT_ORDER - when set input stream will locate
- * the incoming packets according to RTP sequence number
- * RMAX_IN_BUFFER_ATTER_STREAM_RTP_EXT_SEQN_PLACEMENT_ORDER - when set input stream will
- * locate the incoming packets according to RTP extended sequence number
- * RMAX_IN_BUFFER_ATTR_BUFFER_DATA_MKEY_IS_SET - when set Rivermax skips
- * memory registration and use @ref mkey field from @ref
- * rmax_in_buffer_attr.data as memory key for data memory block
- * RMAX_IN_BUFFER_ATTR_BUFFER_APP_HDR_MKEY_IS_SET - when set Rivermax skips
- * memory registration and use @ref mkey field from @ref
- * rmax_in_buffer_attr.hdr as memory key for application headers memory block
+ * @brief: Rivermax in buffer attributes flags.
  */
 typedef enum rmax_in_buffer_attr_flags_t {
+    /** No buffer attribute flags */
     RMAX_IN_BUFFER_ATTER_FLAG_NONE = 0x00,
+    /** When set, input stream will locate the incoming packets according to RTP sequence number */
     RMAX_IN_BUFFER_ATTER_STREAM_RTP_SEQN_PLACEMENT_ORDER = 0x01,
+    /** When set, input stream will locate the  incoming packets according to RTP extended sequence number */
     RMAX_IN_BUFFER_ATTER_STREAM_RTP_EXT_SEQN_PLACEMENT_ORDER = 0x02,
+    /**
+     * When set, Rivermax skips memory registration and use @ref mkey field from @ref rmax_in_buffer_attr.data
+     * as memory key for data memory */
     RMAX_IN_BUFFER_ATTR_BUFFER_DATA_MKEY_IS_SET = 0x04,
+    /**
+     * When set, Rivermax skips memory registration and use @ref mkey field from @refr max_in_buffer_attr.hdr
+     * as memory key for application headers memory block */
     RMAX_IN_BUFFER_ATTR_BUFFER_APP_HDR_MKEY_IS_SET = 0x08,
+    /**
+     * When set, Rivermax will be able to receive packets with RTP application
+     * header for SMPTE-2110-20 protocol with varied number of SRDs when doing header data split.
+     *
+     * @note: - Device assigned to this buffer must enable RTP dynamic HDS for SMPTE-2110-20 protocol
+     *          by setting @ref rmax_dev_config_flags_t.RMAX_DEV_CONFIG_RTP_SMPTE_2110_20_DYNAMIC_HDS_CONFIG. */
+    RMAX_IN_BUFFER_ATTR_BUFFER_RTP_SMPTE_2110_20_DYNAMIC_HDS = 0x10,
+    /**
+     * When set, Rivermax will be able to receive packets with RTP application
+     * header with varied number of CSRC fields when doing header data split.
+     *
+     * @note: - Device assigned to this buffer must enable RTP dynamic HDS for dynamic number of CSRC fields
+     *          by setting @ref rmax_dev_config_flags_t.RMAX_DEV_CONFIG_RTP_CSRC_FIELDS_DYNAMIC_HDS_CONFIG. */
+     RMAX_IN_BUFFER_ATTR_BUFFER_RTP_CSRC_FIELDS_DYNAMIC_HDS = 0x20,
 } rmax_in_buffer_attr_flags;
 
 /**
@@ -628,6 +710,17 @@ typedef enum rmax_in_buffer_attr_flags_t {
  *     by Rivermax.
  * @param data - describes payload part of an incoming packet
  * @param hdr - describes user header part of an incoming packet
+ * @note
+ *     - When using header splitting with dynamic header size, i.e. @ref hdr.stride_size > 0 and
+ *       @ref rmax_in_buffer_attr_flags::RMAX_IN_BUFFER_ATTR_BUFFER_RTP_<*>_DYNAMIC_HDS is set,
+ *       @ref hdr.stride_size should be big enough to contain the header and the zero padding that will be added by Rivermax.
+ *       @ref hdr.stride_size should be set to the maximum header size possible
+ *       by the chosen dynamic header data split configuration.
+ *           - @ref rmax_dev_config_flags_t.RMAX_DEV_CONFIG_RTP_SMPTE_2110_20_DYNAMIC_HDS_CONFIG, @ref hdr.stride_size is
+ *             12(RTP constant part) + 20(SRDs part) = 32 [bytes].
+ *           - @ref rmax_dev_config_flags_t.RMAX_DEV_CONFIG_RTP_SMPTE_2110_20_DYNAMIC_HDS_CONFIG and
+ *             @ref rmax_dev_config_flags_t.RMAX_DEV_CONFIG_RTP_CSRC_FIELDS_DYNAMIC_HDS_CONFIG, @ref hdr.stride_size is
+ *             12(RTP constant part) + 60(Max of CSRC part) + 20(SRDs part) = 92 [bytes].
  * @attr_flags - describes in buffer attributes, see @ref rmax_in_buffer_attr_flags.
  * @note In case user provides a data pointer and no hdr pointer but does provide
  * header sizes, it is assumed that the length of the data buffer is big enough to hold both the
@@ -654,10 +747,13 @@ struct rmax_in_buffer_attr {
  *     in the incoming packet
  * @ref remote_addr - IP/Port of the peer, i.e. appears as a source IP/Port address in the incoming
  *     packet
- * @ref flow_id - Flow ID is non-zero value, set by application and is returned by input stream upon
+ * @ref flow_id - Flow ID is a non-zero value, set by the application and is
+ *     associated with a unique flow of a given stream. It is returned upon
  *     packet reception via @rmax_in_packet_info field of @rmax_in_completion.
- *     Allows to dispatch the received packet to the right flow (without parsing headers),
- *     this is essential in case multiple flows are associated with the same input stream.
+ *     It allows dispatching the received packet to the right flow (without
+ *     parsing network headers), it is essential in case multiple flows are
+ *     associated with the same input stream.
+ *     To disable the use of Flow ID, the application must set it with a value of zero.
  */
 struct rmax_in_flow_attr {
     struct sockaddr_in local_addr;
@@ -666,8 +762,9 @@ struct rmax_in_flow_attr {
 };
 
 /**
- * Represents incoming packet info.
- * @ref data_size - the size of the packet received.
+ * @brief: Represents incoming packet info.
+ *
+ * @param[in] data_size - the size of the packet received.
  * @note:
  *     if header splitting is disabled (hdr_stride_size == 0) data size represents the whole
  *     incoming packet.
@@ -676,14 +773,20 @@ struct rmax_in_flow_attr {
  *     - for RMAX_APP_PROTOCOL_PACKET data_size represents only L4 payload
  *     If header splitting is enabled (hdr_stride_size > 0) data_size represents only data without
  *     the split headers.
- * @ref hdr_size - the size of the header, reserved when hdr_stride_size == 0.
+ * @param[in] hdr_size - the size of the header, reserved when hdr_stride_size == 0.
  * @note:
- *     - for RMAX_RAW_PACKET hdr_size represents both network header and application header
- *       (e.g. RTP) sizes.
- *     - for RMAX_APP_PROTOCOL_PACKET hdr_size represents only application header (e.g. RTP) sizes,
- *       without network headers that are removed.
- * @ref flow_id - flow id of the packet provided by application upon rmax_in_attach_flow() call
- * @ref timestamp - timestamp of the packet as described in @ref rmax_in_timestamp_format
+ *        - For RMAX_RAW_PACKET hdr_size represents both network header and application header (e.g. RTP) sizes.
+ *        - For RMAX_APP_PROTOCOL_PACKET hdr_size represents only application header (e.g. RTP) sizes,
+ *          without network headers that are removed.
+ *        - When using header splitting with dynamic header size, i.e. @ref rmax_in_buffer_attr.hdr.stride_size > 0 and
+ *          @ref rmax_in_buffer_attr_flags::RMAX_IN_BUFFER_ATTR_BUFFER_RTP_<*>_DYNAMIC_HDS is set,
+ *          the header size will be always @ref rmax_in_buffer_attr.hdr.stride_size with
+ *          zero padding at the end of the header.
+ *          The padding size will be @ref hdr_size - <real header size received>.
+ *          When hdr_size is the maximum header size possible by the chosen dynamic header data split configuration,
+ *          as mentioned in @ref rmax_in_buffer_attr.hdr documentation.
+ * @param[in] flow_id - flow id of the packet provided by application upon rmax_in_attach_flow() call
+ * @param[in] timestamp - timestamp of the packet as described in @ref rmax_in_timestamp_format
  */
 struct rmax_in_packet_info {
     uint16_t data_size;
@@ -799,6 +902,34 @@ static inline rmax_status_t rmax_init(struct rmax_init_config *init_config) {
  */
 __export
 rmax_status_t rmax_cleanup(void);
+
+/**
+ * @brief: Query device capabilities.
+ *
+ * @param [in] ip - The IP address of device to query
+ * @param [in] caps_mask - Capabilities bit mask, using bits from @ref rmax_device_caps_mask_t
+ * @param [out] caps - Structure to store supported device capabilities @ref rmax_device_caps_t
+ */
+__export
+rmax_status_t rmax_device_get_caps(const struct in_addr ip, uint64_t caps_mask, rmax_device_caps_t* caps);
+
+/**
+ * @brief: Set device configuration.
+ *
+ * @param [in] device_config - The device to set.
+ */
+__export
+rmax_status_t rmax_set_device_config(const rmax_device_config_t* device_config);
+
+/**
+ * @brief: Unset device configuration.
+ *
+ * This method unset device configuration previously set by @ref rmax_set_device_config.
+ *
+ * @param [in] device_config - The device to set.
+ */
+__export
+rmax_status_t rmax_unset_device_config(const rmax_device_config_t* device_config);
 
 #ifdef __linux__
 /**
@@ -1342,6 +1473,14 @@ typedef enum rmax_time_type_t {
 } rmax_time_type;
 
 /**
+ * @brief Set global clock
+ *
+ * @param [in] clock - @ref rmax_clock_t structure to describe clock configuration
+ */
+__export
+rmax_status_t rmax_set_clock(struct rmax_clock_t* clock);
+
+/**
 * @brief Get time
 * @param clock_type as defined by @ref rmax_time_type
 * @param return time value
@@ -1349,6 +1488,49 @@ typedef enum rmax_time_type_t {
 */
 __export
 rmax_status_t rmax_get_time(rmax_time_type time_type, uint64_t *p_time);
+
+typedef struct rmax_ip_addr {
+    uint8_t family;
+    union {
+        struct in_addr ipv4_addr;
+    } addr;
+} rmax_ip_addr_t;
+
+/**
+ * @brief Data structure to describe device
+ */
+typedef struct rmax_device {
+    /* Interface device name */
+    const char *ifa_name;
+    /* Array of IP addresses for device @ref rmax_ip_addr_t */
+    const rmax_ip_addr_t *ip_addrs;
+    /* Size of array IP addresses */
+    size_t ip_addrs_count;
+    /* Byte array with device MAC address*/
+    const uint8_t *mac_addr;
+    /* Device ID */
+    uint32_t device_id;
+    /* Device serial number */
+    const char *serial_number;
+} rmax_device_t;
+
+/**
+ * @brief Obtain a list of devices supported by Rivermax
+ * @param [out] supported_devices - pointer to an array of @ref rmax_device_t
+ *     devices supported by Rivermax
+ * @param [out] num_devices - length of the supported devices array
+ * @return status code as defined by @ref rmax_status_t
+ */
+__export
+rmax_status_t rmax_get_supported_devices_list(rmax_device_t **supported_devices, size_t *num_devices);
+
+/**
+ * @brief Free a supported devices list array obtained by @ref rmax_get_supported_devices_list
+ * @param [in] supported_devices - pointer to an array of supported devices obtained by @ref rmax_get_supported_devices_list
+ * @return status code as defined by @ref rmax_status_t
+ */
+__export
+rmax_status_t rmax_free_supported_devices_list(rmax_device_t *supported_devices);
 
 #ifdef __cplusplus
 }

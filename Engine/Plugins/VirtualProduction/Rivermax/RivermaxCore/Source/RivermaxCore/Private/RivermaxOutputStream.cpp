@@ -35,7 +35,7 @@ namespace UE::RivermaxCore::Private
 		TEXT("Interval at which to show stats in seconds"),
 		ECVF_Default);
 
-	bool FindPayloadSize(const FRivermaxStreamOptions& InOptions, uint32 InBytesPerLine, const FVideoFormatInfo& FormatInfo, uint16& OutPayloadSize)
+	bool FindPayloadSize(const FRivermaxOutputStreamOptions& InOptions, uint32 InBytesPerLine, const FVideoFormatInfo& FormatInfo, uint16& OutPayloadSize)
 	{
 		using namespace UE::RivermaxCore::Private::Utils;
 
@@ -79,7 +79,7 @@ namespace UE::RivermaxCore::Private
 		return false;
 	}
 
-	uint32 FindChunksPerLine(const FRivermaxStreamOptions& InOptions)
+	uint32 FindChunksPerLine(const FRivermaxOutputStreamOptions& InOptions)
 	{
 		uint32 ChunksPerLine = 1; //Will need to revisit the impact of that
 		static constexpr uint32 MaxChunksPerLine = 10;
@@ -108,12 +108,12 @@ namespace UE::RivermaxCore::Private
 		Uninitialize();
 	}
 
-	bool FRivermaxOutputStream::Initialize(const FRivermaxStreamOptions& InOptions, IRivermaxOutputStreamListener& InListener)
+	bool FRivermaxOutputStream::Initialize(const FRivermaxOutputStreamOptions& InOptions, IRivermaxOutputStreamListener& InListener)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::Initialize);
 
-		IRivermaxCoreModule& RivermaxModule = FModuleManager::LoadModuleChecked<IRivermaxCoreModule>(TEXT("RivermaxCore"));
-		if (RivermaxModule.GetRivermaxManager()->IsInitialized() == false)
+		RivermaxModule = FModuleManager::GetModulePtr<IRivermaxCoreModule>(TEXT("RivermaxCore"));
+		if (RivermaxModule->GetRivermaxManager()->IsInitialized() == false)
 		{
 			UE_LOG(LogRivermax, Warning, TEXT("Can't create Rivermax Output Stream. Library isn't initialized."));
 			return false;
@@ -131,7 +131,7 @@ namespace UE::RivermaxCore::Private
 		}
 
 		// We do (try) to make gpu allocations here to let the capturer know if we require it or not.
-		if (RivermaxModule.GetRivermaxManager()->IsGPUDirectSupported() && Options.bUseGPUDirect)
+		if (RivermaxModule->GetRivermaxManager()->IsGPUDirectSupported() && Options.bUseGPUDirect)
 		{
 			bUseGPUDirect = AllocateGPUBuffers();
 		}
@@ -242,12 +242,8 @@ namespace UE::RivermaxCore::Private
 			{
 				const FString TraceName = FString::Format(TEXT("FRivermaxOutputStream::PushFrame {0}"), { AvailableFrame->FrameIndex });
 				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
-
-				FScopeLock Lock(&FrameCriticalSection);
 				
-				AvailableFrames.Remove(AvailableFrame);
-				FramesToSend.Add(MoveTemp(AvailableFrame));
-				ReadyToSendEvent->Trigger();
+				MarkFrameToBeSent(MoveTemp(AvailableFrame));
 			}
 
 			return true;
@@ -258,6 +254,8 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxOutputStream::Process_AnyThread()
 	{
+		using namespace UE::RivermaxCore::Private::Utils;
+
 		// Not the best path but it seems to work without tearing for now
 		// Wait for the next time a frame should be sent (based on frame interval)
 		// If a frame had been sent, make it available again
@@ -276,19 +274,21 @@ namespace UE::RivermaxCore::Private
 				PrepareNextFrame();
 			}
 
-			
-
-			if (bIsActive == false)
+			// At this point, if there is no frame to send, move on to wait for next round
+			if(CurrentFrame.IsValid() == false || !bIsActive)
 			{
 				return;
 			}
+
+			StreamData.LastSendStartTimeNanoSec = RivermaxModule->GetRivermaxManager()->GetTime();
 			
 			// Add markup when we start pushing out a frame with its timestamp to track it across network
 			if (StreamData.bHasFrameFirstChunkBeenFetched == false)
 			{
 				const uint32 MediaTimestamp = GetTimestampFromTime(StreamData.NextAlignmentPointNanosec, MediaClockSampleRate);
-				const FString TraceName = FString::Format(TEXT("RmaxOutput::StartSending {0}"), { MediaTimestamp });
+				const FString TraceName = FString::Format(TEXT("RmaxOutput::StartSending {0}|{1}"), { MediaTimestamp, CurrentFrame->FrameIdentifier });
 				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
+				UE_LOG(LogRivermax, Verbose, TEXT("RmaxTX frame number %u with timestamp %u."), CurrentFrame->FrameIdentifier, MediaTimestamp);
 			}
 
 			const FString TraceName = FString::Format(TEXT("RmaxOutput::SendFrame {0}"), { CurrentFrame->FrameIndex });
@@ -296,7 +296,7 @@ namespace UE::RivermaxCore::Private
 			do 
 			{
 				if (bIsActive)
-				{
+				{	
 					GetNextChunk();
 				}
 
@@ -460,7 +460,7 @@ namespace UE::RivermaxCore::Private
 	TSharedPtr<FRivermaxOutputFrame> FRivermaxOutputStream::GetNextAvailableFrame(uint32 InFrameIdentifier)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::GetNextAvailableFrame);
-
+		
 		TSharedPtr<FRivermaxOutputFrame> NextFrame;
 
 		{
@@ -488,6 +488,8 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxOutputStream::BuildRTPHeader(FOutputRTPHeader& OutHeader) const
 	{
+		using namespace UE::RivermaxCore::Private::Utils;
+
 		// build RTP header - 12 bytes
 		/*
 		0                   1                   2                   3
@@ -504,7 +506,15 @@ namespace UE::RivermaxCore::Private
 		OutHeader.RawHeader[2] = (StreamData.SequenceNumber >> 8) & 0xFF;  // sequence number
 		OutHeader.RawHeader[3] = (StreamData.SequenceNumber) & 0xFF;  // sequence number
 
-		const uint32 MediaTimestamp = GetTimestampFromTime(StreamData.NextAlignmentPointNanosec, MediaClockSampleRate);
+		// For now, in order to be able to use a framelocked input, we pipe frame number in the timestamp for a UE-UE interaction
+		// Follow up work to investigate adding this in RTP header
+		uint64 InputTime = StreamData.NextAlignmentPointNanosec;
+		if (Options.bDoFrameCounterTimestamping)
+		{
+			InputTime = UE::RivermaxCore::GetAlignmentPointFromFrameNumber(CurrentFrame->FrameIdentifier, Options.FrameRate);
+		}
+		uint32 MediaTimestamp = GetTimestampFromTime(InputTime, MediaClockSampleRate);
+		
 		*(uint32*)&OutHeader.RawHeader[4] = ByteSwap(MediaTimestamp);
 
 		//2110 specific header
@@ -570,78 +580,37 @@ namespace UE::RivermaxCore::Private
 			Status = rmax_out_destroy_stream(StreamId);
 			if (RMAX_ERR_BUSY == Status) 
 			{
-				FPlatformProcess::SleepNoStats(0.01f);
+				FPlatformProcess::SleepNoStats(SleepTimeSeconds);
 			}
 		} while (Status == RMAX_ERR_BUSY);
 	}
 
 	void FRivermaxOutputStream::WaitForNextRound()
 	{
-		IRivermaxCoreModule& RivermaxModule = FModuleManager::LoadModuleChecked<IRivermaxCoreModule>(TEXT("RivermaxCore"));
-		const uint64 CurrentTimeNanosec = RivermaxModule.GetRivermaxManager()->GetTime();
+		const uint64 CurrentTimeNanosec = RivermaxModule->GetRivermaxManager()->GetTime();
 		const double CurrentPlatformTime = FPlatformTime::Seconds();
 		const uint64 CurrentFrameNumber = UE::RivermaxCore::GetFrameNumber(CurrentTimeNanosec, Options.FrameRate);
 
-		// Frame number we will want to align with
-		uint64 NextFrameNumber = CurrentFrameNumber;
-
-		bool bHasValidTimings = true;
-		if (StreamData.bHasValidNextFrameNumber == false)
+		switch (Options.AlignmentMode)
 		{
-			// Number here is quite big to patch an issue found during testing.
-			// Sometimes, first wait is not long enough and we end up scheduling 2 frames super close. 
-			// Which causes rivermax hardware send queues to fill up and cause retries
-			// which increases the time it takes to commit all chunks per frame
-			// Will need to be improved. 
-			NextFrameNumber = CurrentFrameNumber + 10;
-		}
-		else
-		{
-			// Case where we are back and frame number is the previous one. Depending on offsets, this could happen
-			if (CurrentFrameNumber == StreamData.NextAlignmentPointFrameNumber - 1)
+			case ERivermaxAlignmentMode::AlignmentPoint:
 			{
-				NextFrameNumber = StreamData.NextAlignmentPointFrameNumber + 1;
-				UE_LOG(LogRivermax, Verbose, TEXT("Scheduling last frame was faster than expected. (CurrentFrame: '%llu' LastScheduled: '%llu') Scheduling for following expected one.")
-				, CurrentFrameNumber
-				, StreamData.NextAlignmentPointFrameNumber);
+				CalculateNextScheduleTime_AlignementPoints(CurrentTimeNanosec, CurrentFrameNumber);
+				break;
 			}
-			else
+			case ERivermaxAlignmentMode::FrameCreation:
 			{
-				// We expect current frame number to be the one we scheduled for the last time or greater if something happened
-				if (CurrentFrameNumber >= StreamData.NextAlignmentPointFrameNumber)
-				{
-					// If current frame is greater than last scheduled, we missed an alignment point. Shouldn't happen with continuous thread independent of engine.
-					const uint64 DeltaFrames = CurrentFrameNumber - StreamData.NextAlignmentPointFrameNumber;
-					if (DeltaFrames >= 1)
-					{
-						UE_LOG(LogRivermax, Warning, TEXT("Output missed %llu frames."), DeltaFrames);
-						// For now, schedule for the following frame as normal but might need to revisit this behavior if it causes issues.
-					}
-
-					NextFrameNumber = CurrentFrameNumber + 1;
-				}
-				else
-				{
-					// This is not expected (going back in time) but we should be able to continue. Scheduling immediately
-					ensure(false);
-					bHasValidTimings = false;
-				}
+				CalculateNextScheduleTime_FrameCreation(CurrentTimeNanosec, CurrentFrameNumber);
+				break;
+			}
+			default:
+			{
+				checkNoEntry();
 			}
 		}
-
-		// Get next alignment point based on the frame number we are aligning with
-		const uint64 NextAlignmentNano = UE::RivermaxCore::GetAlignmentPointFromFrameNumber(NextFrameNumber, Options.FrameRate);
-
-		// Add Tro offset to next alignment point and configurable offset
-		StreamData.NextAlignmentPointNanosec = NextAlignmentNano;
-		StreamData.NextScheduleTimeNanosec = NextAlignmentNano + TransmitOffsetNanosec + CVarRivermaxScheduleOffset.GetValueOnAnyThread();
-		StreamData.NextAlignmentPointFrameNumber = NextFrameNumber;
 
 		// Offset wakeup if desired to give more time for scheduling. 
-		const uint64 WakeupTime = NextAlignmentNano - CVarRivermaxWakeupOffset.GetValueOnAnyThread();
-
-		// Used to know if we schedule blindly in the future or based on previous data
-		StreamData.bHasValidNextFrameNumber = bHasValidTimings;
+		const uint64 WakeupTime = StreamData.NextAlignmentPointNanosec - CVarRivermaxWakeupOffset.GetValueOnAnyThread();
 		
 		uint64 WaitTimeNanosec = WakeupTime - CurrentTimeNanosec;
 
@@ -653,13 +622,7 @@ namespace UE::RivermaxCore::Private
 
 		static constexpr float SleepThresholdSec = 5.0f * (1.0f / 1000.0f);
 		static constexpr float YieldTimeSec = 2.0f * (1.0f / 1000.0f);
-		double WaitTimeSec = WaitTimeNanosec / 1E9;
-
-		// Protect for erroneously long wait time
-		if (!ensure(WaitTimeSec < 1.0))
-		{
-			WaitTimeSec = 1.0;
-		}
+		const double WaitTimeSec = FMath::Min(WaitTimeNanosec / 1E9, 1.0);
 
 		// Sleep for the largest chunk of time
 		if (WaitTimeSec > SleepThresholdSec)
@@ -673,7 +636,7 @@ namespace UE::RivermaxCore::Private
 		constexpr bool bUsePlatformTimeToSpin = true;
 		if (bUsePlatformTimeToSpin == false)
 		{
-			while (RivermaxModule.GetRivermaxManager()->GetTime() < WakeupTime)
+			while (RivermaxModule->GetRivermaxManager()->GetTime() < WakeupTime)
 			{
 				FPlatformProcess::SleepNoStats(0.f);
 			}
@@ -688,8 +651,8 @@ namespace UE::RivermaxCore::Private
 
 		if (StreamData.bHasValidNextFrameNumber)
 		{
-			const uint64 AfterSleepTimeNanosec = RivermaxModule.GetRivermaxManager()->GetTime();
-			UE_LOG(LogRivermax, Verbose, TEXT("Scheduling at %llu. CurrentTime %llu. NextAlign %llu. Waiting %0.9f"), StreamData.NextScheduleTimeNanosec, CurrentTimeNanosec, NextAlignmentNano, (double)WaitTimeNanosec / 1E9);
+			const uint64 AfterSleepTimeNanosec = RivermaxModule->GetRivermaxManager()->GetTime();
+			UE_LOG(LogRivermax, Verbose, TEXT("Scheduling at %llu. CurrentTime %llu. NextAlign %llu. Waiting %0.9f"), StreamData.NextScheduleTimeNanosec, CurrentTimeNanosec, StreamData.NextAlignmentPointNanosec, (double)WaitTimeNanosec / 1E9);
 		}
 	}
 
@@ -754,8 +717,7 @@ namespace UE::RivermaxCore::Private
 			const rmax_commit_flags_t CommitFlags{};
 			if (ScheduleTime != 0)
 			{
-				IRivermaxCoreModule& RivermaxModule = FModuleManager::LoadModuleChecked<IRivermaxCoreModule>(TEXT("RivermaxCore"));
-				const uint64 CurrentTimeNanosec = RivermaxModule.GetRivermaxManager()->GetTime();
+				const uint64 CurrentTimeNanosec = RivermaxModule->GetRivermaxManager()->GetTime();
 				TRACE_BOOKMARK(TEXT("Sched A: %llu, C: %llu"), StreamData.NextAlignmentPointNanosec, CurrentTimeNanosec);
 				if (ScheduleTime <= CurrentTimeNanosec)
 				{
@@ -798,7 +760,12 @@ namespace UE::RivermaxCore::Private
 
 	uint32 FRivermaxOutputStream::Run()
 	{
-		ReadyToSendEvent->Wait();
+		// Initial wait for a frame to be produced
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::InitialWait);
+			ReadyToSendEvent->Wait();
+		}
+
 		while (bIsActive)
 		{
 			ShowStats();
@@ -829,24 +796,48 @@ namespace UE::RivermaxCore::Private
 			bHasFrameToSend = FramesToSend.IsEmpty() == false;
 		}
 
-		// First frame occurrence when none were produced yet so we wait for the first one to be available
-		if (CurrentFrame.IsValid() == false && bHasFrameToSend == false)
+		const uint64 CurrentTimeNanosec = RivermaxModule->GetRivermaxManager()->GetTime();
+
+		// Different scenarios here.
+		// When aligning on frame creation, we will always wait for a frame to be available.
+		// When aligning on alignment points, we either repeat the last one if none is available and continuous mode is on
+		// or skip sending one if continuous mode is off.
+		if (Options.AlignmentMode == ERivermaxAlignmentMode::FrameCreation)
 		{
-			//First iteration before first frame available
-			ReadyToSendEvent->Wait();
+			if (!bHasFrameToSend)
+			{
+				// No frame in this mode means we are going to wait for it
+				//First iteration before first frame available
+				TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::WaitForNewFrame);
+				do
+				{
+					FPlatformProcess::SleepNoStats(SleepTimeSeconds);
+
+					// Early exit if stream isn't active anymore
+					if (!bIsActive)
+					{
+						return;
+					}
+
+					{
+						FScopeLock Lock(&FrameCriticalSection);
+						bHasFrameToSend = FramesToSend.IsEmpty() == false;
+					}
+
+				} while (bHasFrameToSend == false);
+			}
 		}
 
-		// Here, we either have a frame available to send or the last one to resend
 		{
 			{
 				FScopeLock Lock(&FrameCriticalSection);
 				bHasFrameToSend = FramesToSend.IsEmpty() == false;
 			}
 
-			check(bHasFrameToSend || CurrentFrame.IsValid());
-
-			if (bHasFrameToSend)
+			// If we have a frame or we're not doing continuous output, we always release the last frame.
+			if (!Options.bDoContinuousOutput || bHasFrameToSend)
 			{
+				// Not doing a continuous output and no frame to send, release the last one sent if any and move on waiting
 				if (CurrentFrame.IsValid())
 				{
 					//Release last frame sent. We keep hold to avoid overwriting it as rivermax is sending it
@@ -864,11 +855,11 @@ namespace UE::RivermaxCore::Private
 			{
 				// No frame to send, keep last one and restarts its internal counters
 				UE_LOG(LogRivermax, Verbose, TEXT("No frame to send. Reusing last frame '%d'"), CurrentFrame->FrameIndex);
-				InitializeNextFrame(CurrentFrame);		
-				
+				InitializeNextFrame(CurrentFrame);
+
 				// Since we want to resend last frame, we need to fast forward chunk pointer to re-point to the one we just sent
 				rmax_status_t Status;
-				do 
+				do
 				{
 					Status = rmax_out_skip_chunks(StreamId, StreamMemory.ChunksPerFrameField * (Options.NumberOfBuffers - 1));
 					if (Status != RMAX_OK)
@@ -879,7 +870,7 @@ namespace UE::RivermaxCore::Private
 							UE_LOG(LogRivermax, Warning, TEXT("No chunks ready to skip. Waiting"));
 						}
 						else
-						{ 
+						{
 							ensure(false);
 							UE_LOG(LogRivermax, Error, TEXT("Invalid error happened while trying to skip chunks. Status: %d."), Status);
 							Listener->OnStreamError();
@@ -987,7 +978,7 @@ namespace UE::RivermaxCore::Private
 		const int32 Stride = GetStride();
 		if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextAvailableFrame(NewFrame.FrameIdentifier))
 		{
-			const FString TraceName = FString::Format(TEXT("FRivermaxOutputStream::PushFrame {0}"), { AvailableFrame->FrameIndex });
+			const FString TraceName = FString::Format(TEXT("FRivermaxOutputStream::PushFrame {0}|{1}"), { AvailableFrame->FrameIndex, NewFrame.FrameIdentifier });
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
 
 			FCUDAModule& CudaModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
@@ -1031,11 +1022,7 @@ namespace UE::RivermaxCore::Private
 							const FString TraceName = FString::Format(TEXT("FRivermaxOutputStream::PushFrame {0}"), { AvailableFrame->FrameIndex });
 							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
 
-							// Make frame available to be sent
-							FScopeLock Lock(&Stream->FrameCriticalSection);
-							Stream->AvailableFrames.Remove(AvailableFrame);
-							Stream->FramesToSend.Add(MoveTemp(AvailableFrame));
-							Stream->ReadyToSendEvent->Trigger();
+							Stream->MarkFrameToBeSent(MoveTemp(AvailableFrame));
 						}
 					}
 				}
@@ -1328,5 +1315,95 @@ namespace UE::RivermaxCore::Private
 		// At this point, we have the mapped buffer in cuda space and we can use it to schedule a memcpy on cuda engine.
 		return BufferCudaMemoryMap[InBuffer];
 	}
+
+	void FRivermaxOutputStream::CalculateNextScheduleTime_AlignementPoints(uint64 CurrentClockTimeNanosec, uint64 CurrentFrameNumber)
+	{
+		// Frame number we will want to align with
+		uint64 NextFrameNumber = CurrentFrameNumber;
+
+		bool bFoundValidTimings = true;
+		
+		if (StreamData.bHasValidNextFrameNumber == false)
+		{
+			// Now that the stream starts when a frame was produced, we can reduce our wait
+			// We wait one frame here to start sending at the next frame boundary.
+			// Since it takes a frame to send it, we could detect if we are in the first 10% (arbitrary)
+			// of the interval and start sending right away but we might be overlapping with the next one
+			NextFrameNumber = CurrentFrameNumber + 1;
+		}
+		else
+		{
+			// Case where we are back and frame number is the previous one. Depending on offsets, this could happen
+			if (CurrentFrameNumber == StreamData.NextAlignmentPointFrameNumber - 1)
+			{
+				NextFrameNumber = StreamData.NextAlignmentPointFrameNumber + 1;
+				UE_LOG(LogRivermax, Verbose, TEXT("Scheduling last frame was faster than expected. (CurrentFrame: '%llu' LastScheduled: '%llu') Scheduling for following expected one.")
+					, CurrentFrameNumber
+					, StreamData.NextAlignmentPointFrameNumber);
+			}
+			else
+			{
+				// We expect current frame number to be the one we scheduled for the last time or greater if something happened
+				if (CurrentFrameNumber >= StreamData.NextAlignmentPointFrameNumber)
+				{
+					// If current frame is greater than last scheduled, we missed an alignment point. Shouldn't happen with continuous thread independent of engine.
+					const uint64 DeltaFrames = CurrentFrameNumber - StreamData.NextAlignmentPointFrameNumber;
+					if (DeltaFrames >= 1)
+					{
+						UE_LOG(LogRivermax, Warning, TEXT("Output missed %llu frames."), DeltaFrames);
+						// For now, schedule for the following frame as normal but might need to revisit this behavior if it causes issues.
+					}
+
+					NextFrameNumber = CurrentFrameNumber + 1;
+				}
+				else
+				{
+					// This is not expected (going back in time) but we should be able to continue. Scheduling immediately
+					ensureMsgf(false, TEXT("Unexpected behaviour during output stream's alignment point calculation. Current time has gone back in time compared to last scheduling."));
+					bFoundValidTimings = false;
+				}
+			}
+		}
+
+		// Get next alignment point based on the frame number we are aligning with
+		const uint64 NextAlignmentNano = UE::RivermaxCore::GetAlignmentPointFromFrameNumber(NextFrameNumber, Options.FrameRate);
+
+		// Add Tro offset to next alignment point and configurable offset
+		StreamData.NextAlignmentPointNanosec = NextAlignmentNano;
+		StreamData.NextScheduleTimeNanosec = NextAlignmentNano + TransmitOffsetNanosec + CVarRivermaxScheduleOffset.GetValueOnAnyThread();
+		StreamData.NextAlignmentPointFrameNumber = NextFrameNumber;
+
+		StreamData.bHasValidNextFrameNumber = bFoundValidTimings;
+	}
+
+	void FRivermaxOutputStream::CalculateNextScheduleTime_FrameCreation(uint64 CurrentClockTimeNanosec, uint64 CurrentFrameNumber)
+	{
+		double NextWaitTime = 0.0;
+		if (StreamData.bHasValidNextFrameNumber == false)
+		{
+			StreamData.NextAlignmentPointNanosec = CurrentClockTimeNanosec;
+			StreamData.NextScheduleTimeNanosec = StreamData.NextAlignmentPointNanosec + CVarRivermaxScheduleOffset.GetValueOnAnyThread();
+			StreamData.NextAlignmentPointFrameNumber = CurrentFrameNumber;
+			StreamData.bHasValidNextFrameNumber = true;
+		}
+		else
+		{
+			// In this mode, we just take last time we started to send and add a frame interval
+			StreamData.NextAlignmentPointNanosec = StreamData.LastSendStartTimeNanoSec + StreamData.FrameFieldTimeIntervalNs;
+			StreamData.NextScheduleTimeNanosec = StreamData.NextAlignmentPointNanosec + CVarRivermaxScheduleOffset.GetValueOnAnyThread();
+			StreamData.NextAlignmentPointFrameNumber = UE::RivermaxCore::GetFrameNumber(StreamData.NextAlignmentPointNanosec, Options.FrameRate);
+		}
+	}
+
+	void FRivermaxOutputStream::MarkFrameToBeSent(TSharedPtr<FRivermaxOutputFrame> ReadyFrame)
+	{
+		// Make frame available to be sent
+		FScopeLock Lock(&FrameCriticalSection);
+		ReadyFrame->ReadyTimestamp = RivermaxModule->GetRivermaxManager()->GetTime();
+		AvailableFrames.Remove(ReadyFrame);
+		FramesToSend.Add(MoveTemp(ReadyFrame));
+		ReadyToSendEvent->Trigger();
+	}
+
 }
 

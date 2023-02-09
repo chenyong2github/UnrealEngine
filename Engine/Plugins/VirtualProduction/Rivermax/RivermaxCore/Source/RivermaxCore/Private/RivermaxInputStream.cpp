@@ -130,6 +130,18 @@ namespace UE::RivermaxCore::Private
 		return InHeader;
 	}
 
+	/** 
+	 * Converts a timestamp in MediaClock period units to a frame number for a given frame rate 
+	 * 2110-20 streams uses a standard media clock rate of 90kHz
+	 */
+	uint32 TimestampToFrameNumber(uint32 Timestamp, const FFrameRate& FrameRate)
+	{
+		using namespace UE::RivermaxCore::Private::Utils;
+		const double MediaFrameTime = Timestamp / MediaClockSampleRate;
+		const uint32 FrameNumber = FMath::Floor(MediaFrameTime * FrameRate.AsDecimal());
+		return FrameNumber;
+	}
+
 	FRivermaxInputStream::FRivermaxInputStream()
 	{
 
@@ -140,7 +152,7 @@ namespace UE::RivermaxCore::Private
 		Uninitialize();
 	}
 
-	bool FRivermaxInputStream::Initialize(const FRivermaxStreamOptions& InOptions, IRivermaxInputStreamListener& InListener)
+	bool FRivermaxInputStream::Initialize(const FRivermaxInputStreamOptions& InOptions, IRivermaxInputStreamListener& InListener)
 	{
 		IRivermaxCoreModule& RivermaxModule = FModuleManager::LoadModuleChecked<IRivermaxCoreModule>(TEXT("RivermaxCore"));
 		if (RivermaxModule.GetRivermaxManager()->IsInitialized() == false)
@@ -246,7 +258,10 @@ namespace UE::RivermaxCore::Private
 				}
 			}
 
-			Listener->OnInitializationCompleted(bWasSuccessful);
+			FRivermaxInputInitializationResult Result;
+			Result.bHasSucceed = bWasSuccessful;
+			Result.bIsGPUDirectSupported = bIsUsingGPUDirect;
+			Listener->OnInitializationCompleted(Result);
 		});
 		
 		return true;
@@ -386,6 +401,11 @@ namespace UE::RivermaxCore::Private
 				break;
 			}
 
+			if (FlowAttribute.flow_id && Completion.packet_info_arr[StrideIndex].flow_id != FlowAttribute.flow_id)
+			{
+				UE_LOG(LogRivermax, Error, TEXT("Received data from unexpected FlowId '%d'. Expected '%d'."), Completion.packet_info_arr[StrideIndex].flow_id, FlowAttribute.flow_id);
+			}
+
 			uint8* RawHeaderPtr = (uint8*)Completion.hdr_ptr + StrideIndex * (size_t)BufferConfiguration.HeaderMemory.stride_size; 
 			uint8* DataPtr = (uint8*)Completion.data_ptr + StrideIndex * (size_t)BufferConfiguration.DataMemory.stride_size; // The payload is our data
 
@@ -406,65 +426,28 @@ namespace UE::RivermaxCore::Private
 						bIsFirstPacketReceived = true;
 					}
 
-					if (bIsFirstFrameReceived)
+					StreamStats.BytesReceived += Completion.packet_info_arr[StrideIndex].data_size + Completion.packet_info_arr[StrideIndex].hdr_size;
+
+					switch (State)
 					{
-						StreamStats.BytesReceived += Completion.packet_info_arr[StrideIndex].data_size + Completion.packet_info_arr[StrideIndex].hdr_size;
-
-						uint64 LastSequenceNumberIncremented = StreamData.LastSequenceNumber + 1;
-
-						bool bCanProcessSRD = true;
-						const uint64 LostPackets = ((uint64)RTPHeader.SequencerNumber + 0x100000000 - LastSequenceNumberIncremented) & 0xFFFFFFFF;
-						if (LostPackets > 0)
+						case EReceptionState::Receiving:
 						{
-							bCanProcessSRD = false;
-							StreamData.WritingOffset = 0;
-							StreamData.ReceivedSize = 0;
-							++StreamStats.TotalPacketLossCount;
-							++StreamStats.FramePacketLossCount;
-							
-							// For now, if packets were lost, skip the incoming frame. We could improve that and have corrupted frames instead of skipping them but can be added later
-							bIsFirstFrameReceived = false;
-							
-							UE_LOG(LogRivermax, Warning, TEXT("Lost %llu packets"), LostPackets);
+							FrameReceptionState(RTPHeader, DataPtr);
+							break;
 						}
-
-						StreamData.LastSequenceNumber = RTPHeader.SequencerNumber;
-
-						//if flags are RMAX_IN_CREATE_STREAM_INFO_PER_PACKET todo 
+						case EReceptionState::WaitingForMarker:
 						{
-							if (FlowAttribute.flow_id && Completion.packet_info_arr[StrideIndex].flow_id != FlowAttribute.flow_id)
-							{
-								UE_LOG(LogRivermax, Error, TEXT("Received data from unexpected FlowId '%d'. Expected '%d'."), Completion.packet_info_arr[StrideIndex].flow_id, FlowAttribute.flow_id);
-							}
+							WaitForMarkerState(RTPHeader);
+							break;
 						}
-
-						if (bCanProcessSRD)
+						case EReceptionState::FrameError:
 						{
-							ProcessSRD(RTPHeader, DataPtr);
-							
-							if (StreamData.ReceivedSize > StreamData.ExpectedSize)
-							{
-								UE_LOG(LogRivermax, Warning, TEXT("Received too much data (%d). Expected %d but received (%d)"), StreamData.ReceivedSize - StreamData.ExpectedSize, StreamData.ExpectedSize, StreamData.ReceivedSize);
-								StreamData.WritingOffset = 0;
-								StreamData.ReceivedSize = 0;
-								++StreamStats.BiggerFramesCount;
-							}
-							else if (RTPHeader.bIsMarkerBit)
-							{
-								ProcessLastSRD(RTPHeader, DataPtr);
-								
-								StreamStats.FramePacketLossCount = 0;
-								++StreamStats.EndOfFrameReceived;
-							}
+							FrameErrorState(RTPHeader);
+							break;
 						}
-					}
-					else
-					{
-						if (RTPHeader.bIsMarkerBit)
+						default:
 						{
-							StreamData.LastSequenceNumber = RTPHeader.SequencerNumber;
-							PrepareNextFrame();
-							bIsFirstFrameReceived = (StreamData.CurrentFrame != nullptr);
+							checkNoEntry();
 						}
 					}
 				}
@@ -480,12 +463,13 @@ namespace UE::RivermaxCore::Private
 		}
 	}
 
-	void FRivermaxInputStream::PrepareNextFrame()
+	bool FRivermaxInputStream::PrepareNextFrame(const FRTPHeader& RTPHeader)
 	{
 		using namespace UE::RivermaxCore::Private::Utils;
 
 		FRivermaxInputVideoFrameDescriptor Descriptor;
-		Descriptor.bIsUsingGPUDirect = bIsUsingGPUDirect;
+		Descriptor.Timestamp = RTPHeader.Timestamp;
+		Descriptor.FrameNumber = TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
 		FRivermaxInputVideoFrameRequest Request;
 		const int32 Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
 		Descriptor.VideoBufferSize = Options.Resolution.Y * Stride;
@@ -512,7 +496,11 @@ namespace UE::RivermaxCore::Private
 		if (StreamData.CurrentFrame == nullptr)
 		{
 			// If we failed getting one, reset the valid first frame received and wait for the next one
-			bIsFirstFrameReceived = false;
+			UE_LOG(LogRivermax, Verbose, TEXT("Could not get a new frame for incoming frame with timestamp %u and frame number %u"), RTPHeader.Timestamp, Descriptor.FrameNumber);
+			Listener->OnVideoFrameReceptionError(Descriptor);
+			State = EReceptionState::FrameError;
+			FrameErrorState(RTPHeader);
+			return false;
 		}
 
 		StreamData.WritingOffset = 0;
@@ -526,6 +514,8 @@ namespace UE::RivermaxCore::Private
 
 		// New frame starting, reset tracked SRD
 		LastSRDLength.Reset();
+
+		return true;
 	}
 
 	void FRivermaxInputStream::LogStats()
@@ -584,14 +574,14 @@ namespace UE::RivermaxCore::Private
 
 		FCUDAModule& CudaModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
 
-		CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContextForDevice(DeviceIndex));
+		CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContextForDevice(GPUDeviceIndex));
 
 		// Todo: Add support for mgpu. 
 		CUdevice CudaDevice;
-		CUresult Status = CudaModule.DriverAPI()->cuDeviceGet(&CudaDevice, DeviceIndex);
+		CUresult Status = CudaModule.DriverAPI()->cuDeviceGet(&CudaDevice, GPUDeviceIndex);
 		if (Status != CUDA_SUCCESS)
 		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize input to use GPUDirect. Failed to get a Cuda device for GPU %d. Status: %d"), DeviceIndex, Status);
+			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize input to use GPUDirect. Failed to get a Cuda device for GPU %d. Status: %d"), GPUDeviceIndex, Status);
 			return false;
 		}
 
@@ -702,7 +692,7 @@ namespace UE::RivermaxCore::Private
 		if (GPUAllocatedMemorySize > 0)
 		{
 			FCUDAModule& CudaModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
-			CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContextForDevice(DeviceIndex));
+			CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContextForDevice(GPUDeviceIndex));
 
 			const CUdeviceptr BaseAddress = reinterpret_cast<CUdeviceptr>(GPUAllocatedMemoryBaseAddress);
 			CUresult Status = CudaModule.DriverAPI()->cuMemUnmap(BaseAddress, GPUAllocatedMemorySize);
@@ -831,8 +821,16 @@ namespace UE::RivermaxCore::Private
 		return BufferGPUMemoryMap[InBuffer];
 	}
 
-	void FRivermaxInputStream::ProcessSRD(const FRTPHeader& RTPHeader, uint8* DataPtr)
+	void FRivermaxInputStream::ProcessSRD(const FRTPHeader& RTPHeader, const uint8* DataPtr)
 	{
+		if (StreamData.CurrentFrame == nullptr)
+		{
+			if (PrepareNextFrame(RTPHeader) == false)
+			{
+				return;
+			}
+		}
+
 		uint32 DataOffset = 0;
 		StreamData.ReceivedSize += RTPHeader.SRD1.Length;
 		if (bIsUsingGPUDirect)
@@ -879,21 +877,21 @@ namespace UE::RivermaxCore::Private
 		}
 	}
 
-	void FRivermaxInputStream::ProcessLastSRD(const FRTPHeader& RTPHeader, uint8* DataPtr)
+	void FRivermaxInputStream::ProcessLastSRD(const FRTPHeader& RTPHeader, const uint8* DataPtr)
 	{
+		FRivermaxInputVideoFrameDescriptor Descriptor;
+		Descriptor.Width = Options.Resolution.X;
+		Descriptor.Height = Options.Resolution.Y;
+		Descriptor.Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		Descriptor.Timestamp = RTPHeader.Timestamp;
+		Descriptor.FrameNumber = TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
+
 		if (StreamData.ReceivedSize == StreamData.ExpectedSize)
 		{
-			const FString TraceName = FString::Format(TEXT("RmaxInput::ReceivedFrame {0}"), { RTPHeader.Timestamp });
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
-
 			++StreamStats.FramesReceived;
-
-			FRivermaxInputVideoFrameDescriptor Descriptor;
-			Descriptor.Width = Options.Resolution.X;
-			Descriptor.Height = Options.Resolution.Y;
-			Descriptor.Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
-			Descriptor.bIsUsingGPUDirect = bIsUsingGPUDirect;
-			FRivermaxInputVideoFrameReception NewFrame;
+			
+			const FString TraceName = FString::Format(TEXT("RmaxReceivedFrame {0}|{1}"), { RTPHeader.Timestamp, Descriptor.FrameNumber });
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
 
 			if (bIsUsingGPUDirect)
 			{
@@ -943,7 +941,9 @@ namespace UE::RivermaxCore::Private
 				if (Result != CUDA_SUCCESS)
 				{
 					UE_LOG(LogRivermax, Warning, TEXT("Failed to copy received buffer to shared memory. Error: %d"), Result);
-					bIsFirstFrameReceived = false;
+					Listener->OnVideoFrameReceptionError(Descriptor);
+					State = EReceptionState::FrameError;
+					FrameErrorState(RTPHeader);
 					return;
 				}
 
@@ -978,6 +978,7 @@ namespace UE::RivermaxCore::Private
 					{
 						if (FPlatformTime::Seconds() - CallbackTimestamp > CVarWaitForCompletionTimeout.GetValueOnAnyThread())
 						{
+							UE_LOG(LogRivermax, Error, TEXT("Waiting for gpu copy of sample timed out."));
 							Listener->OnStreamError();
 							CallbackPayload->bIsWaitingForPendingCopy = false;
 							break;
@@ -986,22 +987,110 @@ namespace UE::RivermaxCore::Private
 				}
 			}
 
-			NewFrame.VideoBuffer = reinterpret_cast<uint8*>(StreamData.CurrentFrame);
 
 			// No need to provide the new frame and prepare the next one if we are shutting down
 			if (bIsShuttingDown == false)
 			{
+				UE_LOG(LogRivermax, Verbose, TEXT("RmaxRX frame number %u with timestamp %u."), Descriptor.FrameNumber, Descriptor.Timestamp);
+				
+				FRivermaxInputVideoFrameReception NewFrame;
+				NewFrame.VideoBuffer = reinterpret_cast<uint8*>(StreamData.CurrentFrame);
 				Listener->OnVideoFrameReceived(Descriptor, NewFrame);
-				PrepareNextFrame();
+				StreamData.CurrentFrame = nullptr;
+
+				// Finished receiving a frame, move back to reception
+				State = EReceptionState::Receiving;
 			}
 		}
 		else
 		{
-			UE_LOG(LogRivermax, Warning, TEXT("End of frame received (Marker bit) but not enough data was received (missing %d). Expected %d but received (%d)"), StreamData.ExpectedSize - StreamData.ReceivedSize, StreamData.ExpectedSize, StreamData.ReceivedSize);
-			StreamData.WritingOffset = 0;
-			StreamData.ReceivedSize = 0;
+			UE_LOG(LogRivermax, Warning, TEXT("End of frame received but not enough data was received (missing %d). Expected %d but received (%d)"), StreamData.ExpectedSize - StreamData.ReceivedSize, StreamData.ExpectedSize, StreamData.ReceivedSize);
+			
+			Listener->OnVideoFrameReceptionError(Descriptor);
+			State = EReceptionState::FrameError;
+			FrameErrorState(RTPHeader);
+			
 			++StreamStats.InvalidFramesCount;
 		}
 	}
+
+	void FRivermaxInputStream::FrameReceptionState(const FRTPHeader& RTPHeader, const uint8* DataPtr)
+	{
+		FRivermaxInputVideoFrameDescriptor Descriptor;
+		Descriptor.Width = Options.Resolution.X;
+		Descriptor.Height = Options.Resolution.Y;
+		Descriptor.Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		Descriptor.Timestamp = RTPHeader.Timestamp;
+		Descriptor.FrameNumber = TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
+
+		const uint64 LastSequenceNumberIncremented = StreamData.LastSequenceNumber + 1;
+
+		const uint64 LostPackets = ((uint64)RTPHeader.SequencerNumber + 0x100000000 - LastSequenceNumberIncremented) & 0xFFFFFFFF;
+		if (LostPackets > 0)
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("Lost %llu packets during reception of packet %u"), LostPackets, Descriptor.FrameNumber);
+			
+			StreamData.WritingOffset = 0;
+			StreamData.ReceivedSize = 0;
+			++StreamStats.TotalPacketLossCount;
+			++StreamStats.FramePacketLossCount;
+
+			// For now, if packets were lost, skip the incoming frame. We could improve that and have corrupted frames instead of skipping them but can be added later
+			Listener->OnVideoFrameReceptionError(Descriptor);
+			State = EReceptionState::FrameError;
+			FrameErrorState(RTPHeader);
+			return;
+		}
+
+		StreamData.LastSequenceNumber = RTPHeader.SequencerNumber;
+
+		ProcessSRD(RTPHeader, DataPtr);
+
+		if (StreamData.ReceivedSize > StreamData.ExpectedSize)
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("Received too much data (%d). Expected %d but received (%d)"), StreamData.ReceivedSize - StreamData.ExpectedSize, StreamData.ExpectedSize, StreamData.ReceivedSize);
+			StreamData.WritingOffset = 0;
+			StreamData.ReceivedSize = 0;
+			++StreamStats.BiggerFramesCount;
+
+			Listener->OnVideoFrameReceptionError(Descriptor);
+			State = EReceptionState::FrameError;
+			FrameErrorState(RTPHeader);
+			return;
+		}
+
+		if (RTPHeader.bIsMarkerBit)
+		{
+			ProcessLastSRD(RTPHeader, DataPtr);
+
+			StreamStats.FramePacketLossCount = 0;
+			++StreamStats.EndOfFrameReceived;
+		}
+	}
+
+	void FRivermaxInputStream::WaitForMarkerState(const FRTPHeader& RTPHeader)
+	{
+		if (RTPHeader.bIsMarkerBit)
+		{
+			StreamData.LastSequenceNumber = RTPHeader.SequencerNumber;
+			StreamData.WritingOffset = 0;
+			StreamData.ReceivedSize = 0;
+			StreamData.DeviceWritePointerOne = nullptr;
+			StreamData.SizeToWriteOne = 0;
+			StreamData.DeviceWritePointerTwo = nullptr;
+			StreamData.SizeToWriteTwo = 0;
+			bIsFirstPacketReceived = false;
+
+			StreamData.CurrentFrame = nullptr;
+			State = EReceptionState::Receiving;
+		}
+	}
+
+	void FRivermaxInputStream::FrameErrorState(const FRTPHeader& RTPHeader)
+	{
+		// In error, we just wait for the end of frame (marker bit) to restart reception
+		WaitForMarkerState(RTPHeader);
+	}
+
 }
 

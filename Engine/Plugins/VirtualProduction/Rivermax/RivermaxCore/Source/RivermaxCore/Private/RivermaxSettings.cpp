@@ -11,6 +11,6 @@ FName URivermaxSettings::GetCategoryName() const
 #if WITH_EDITOR
 FText URivermaxSettings::GetSectionText() const
 {
-	return NSLOCTEXT("RivermaxCorePlugin", "RivermaxSettingsSection", "Rivermax");
+	return NSLOCTEXT("RivermaxCorePlugin", "RivermaxSettingsSection", "NVIDIA Rivermax");
 }
 #endif //WITH_EDITOR

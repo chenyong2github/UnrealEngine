@@ -318,12 +318,14 @@ CUcontext FCUDAModule::GetCudaContext()
 {
 	if (IsAvailable() == false)
 	{
-		UE_LOG(LogCUDA, Fatal, TEXT("You have requested a CUDA context when the CUDA Driver API is not loaded."));
+		UE_LOG(LogCUDA, Error, TEXT("You have requested a CUDA context when the CUDA Driver API is not loaded."));
+		return nullptr;
 	}
 	
 	if(rhiDeviceIndex == -1)
 	{
-		UE_LOG(LogCUDA, Fatal, TEXT("You have requested a CUDA context when the RHI selected device does not have a CUDA context, did initialisation fail?"));
+		UE_LOG(LogCUDA, Error, TEXT("You have requested a CUDA context when the RHI selected device does not have a CUDA context, did initialisation fail?"));
+		return nullptr;
 	}
 	
 	return contextMap[rhiDeviceIndex];

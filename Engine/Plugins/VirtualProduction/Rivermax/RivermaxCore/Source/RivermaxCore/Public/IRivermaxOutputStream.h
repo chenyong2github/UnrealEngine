@@ -9,7 +9,7 @@
 
 namespace UE::RivermaxCore
 {
-	struct FRivermaxStreamOptions;
+	struct FRivermaxOutputStreamOptions;
 
 	struct RIVERMAXCORE_API FRivermaxOutputVideoFrameInfo
 	{
@@ -42,7 +42,7 @@ namespace UE::RivermaxCore
 		 * Initializes stream using input options. Returns false if stream creation has failed. 
 		 * Initialization is completed when OnInitializationCompletion has been called with result.
 		 */
-		virtual bool Initialize(const FRivermaxStreamOptions& Options, IRivermaxOutputStreamListener& InListener) = 0;
+		virtual bool Initialize(const FRivermaxOutputStreamOptions& Options, IRivermaxOutputStreamListener& InListener) = 0;
 
 		/** Uninitializes current stream */
 		virtual void Uninitialize() = 0;

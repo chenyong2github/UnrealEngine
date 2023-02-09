@@ -3,11 +3,15 @@
 #include "RivermaxMediaTextureSample.h"
 
 #include "RenderGraphUtils.h"
+#include "RivermaxMediaPlayer.h"
 #include "RivermaxMediaTextureSampleConverter.h"
 #include "RivermaxMediaUtils.h"
 
+namespace UE::RivermaxMedia
+{
+
 FRivermaxMediaTextureSample::FRivermaxMediaTextureSample()
-	: TextureConverter(MakeUnique<FRivermaxMediaTextureSampleConverter>())
+	: Converter(MakePimpl<FRivermaxMediaTextureSampleConverter>())
 {
 	
 }
@@ -19,7 +23,7 @@ const FMatrix& FRivermaxMediaTextureSample::GetYUVToRGBMatrix() const
 
 IMediaTextureSampleConverter* FRivermaxMediaTextureSample::GetMediaTextureSampleConverter()
 {
-	return TextureConverter.Get();
+	return Converter.Get();
 }
 
 bool FRivermaxMediaTextureSample::IsOutputSrgb() const
@@ -29,10 +33,10 @@ bool FRivermaxMediaTextureSample::IsOutputSrgb() const
 	return false;
 }
 
-bool FRivermaxMediaTextureSample::ConfigureSample(uint32 InWidth, uint32 InHeight, uint32 InStride, ERivermaxMediaSourcePixelFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput)
+bool FRivermaxMediaTextureSample::ConfigureSample(const FSampleConfigurationArgs& Args)
 {
 	EMediaTextureSampleFormat VideoSampleFormat;
-	switch (InSampleFormat)
+	switch (Args.SampleFormat)
 	{
 		case ERivermaxMediaSourcePixelFormat::RGB_12bit:
 			// Falls through
@@ -59,8 +63,16 @@ bool FRivermaxMediaTextureSample::ConfigureSample(uint32 InWidth, uint32 InHeigh
 		}
 	}
 
-	TextureConverter->Setup(InSampleFormat, AsShared(), bInIsSRGBInput);
-	return Super::SetProperties(InStride, InWidth, InHeight, VideoSampleFormat, InTime, InFrameRate, InTimecode, bInIsSRGBInput);
+	Converter->Setup(AsShared());
+
+	WeakPlayer = Args.Player;
+	InputFormat = Args.SampleFormat;
+	Dimension = FIntPoint(Args.Width, Args.Height);
+	Time = Args.Time;
+	Duration = FTimespan(1); // We keep our frame to have a duration of 1 frame
+	bIsInputSRGB = Args.bInIsSRGBInput;
+
+	return true;
 }
 
 TRefCountPtr<FRDGPooledBuffer> FRivermaxMediaTextureSample::GetGPUBuffer() const
@@ -88,5 +100,103 @@ void FRivermaxMediaTextureSample::InitializeGPUBuffer(const FIntPoint& InResolut
 			Sample->GPUBuffer = AllocatePooledBuffer(RDGBufferDesc, TEXT("RmaxInput Buffer"));
 		}
 	});
+}
+
+const void* FRivermaxMediaTextureSample::GetBuffer()
+{
+	return Buffer.GetData();
+}
+
+FIntPoint FRivermaxMediaTextureSample::GetDim() const
+{
+	return Dimension;
+}
+
+FTimespan FRivermaxMediaTextureSample::GetDuration() const
+{
+	return Duration;
+}
+
+EMediaTextureSampleFormat FRivermaxMediaTextureSample::GetFormat() const
+{
+	return SampleFormat;
+}
+
+FIntPoint FRivermaxMediaTextureSample::GetOutputDim() const
+{
+	return GetDim();
+}
+
+uint32 FRivermaxMediaTextureSample::GetStride() const
+{
+	return Stride;
+}
+
+FMediaTimeStamp FRivermaxMediaTextureSample::GetTime() const
+{
+	return FMediaTimeStamp(Time);
+}
+
+bool FRivermaxMediaTextureSample::IsCacheable() const
+{
+	return false;
+}
+
+FRHITexture* FRivermaxMediaTextureSample::GetTexture() const
+{
+	return nullptr;
+}
+
+void* FRivermaxMediaTextureSample::RequestBuffer(uint32 InBufferSize)
+{
+	Buffer.Reset();
+	Buffer.SetNumUninitialized(InBufferSize);
+	return Buffer.GetData();
+}
+
+void FRivermaxMediaTextureSample::SetBuffer(TRefCountPtr<FRDGPooledBuffer> NewBuffer)
+{
+	GPUBuffer = NewBuffer;
+}
+
+TSharedPtr<FRivermaxMediaPlayer> FRivermaxMediaTextureSample::GetPlayer() const
+{
+	return WeakPlayer.Pin();
+}
+
+ERivermaxMediaSourcePixelFormat FRivermaxMediaTextureSample::GetInputFormat() const
+{
+	return InputFormat;
+}
+
+bool FRivermaxMediaTextureSample::NeedsSRGBToLinearConversion() const
+{
+	return bIsInputSRGB;
+}
+
+bool FRivermaxMediaTextureSamples::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample)
+{
+	if (!CurrentSample.IsValid())
+	{
+		return false;
+	}
+
+	OutSample = CurrentSample;
+
+	CurrentSample.Reset();
+
+	return true;
+}
+
+bool FRivermaxMediaTextureSamples::PeekVideoSampleTime(FMediaTimeStamp& TimeStamp)
+{
+	return false;
+}
+
+void FRivermaxMediaTextureSamples::FlushSamples()
+{
+	CurrentSample.Reset();
+}
+
 }
 

@@ -85,7 +85,7 @@ namespace UE::RivermaxCore::Private::Utils
 		}
 	}
 
-	void StreamOptionsToSDPDescription(const UE::RivermaxCore::FRivermaxStreamOptions& Options, FAnsiStringBuilderBase& OutSDPDescription)
+	void StreamOptionsToSDPDescription(const UE::RivermaxCore::FRivermaxOutputStreamOptions& Options, FAnsiStringBuilderBase& OutSDPDescription)
 	{
 		// Basic SDP string creation from a set of options. At some point, having a proper SDP loader / creator would be useful.
 		// Refer to https://datatracker.ietf.org/doc/html/rfc4570

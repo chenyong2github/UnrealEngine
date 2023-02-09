@@ -7,17 +7,52 @@
 #include "RivermaxMediaSource.h"
 
 
+class FRDGPooledBuffer;
+class FRDGBuilder;
+
+namespace UE::RivermaxMedia
+{
+
 class FRivermaxMediaTextureSample;
+class FRivermaxMediaPlayer;
+
+using FPreInputConvertFunc = TUniqueFunction<void(FRDGBuilder& GraphBuilder)>;
+using FPostInputConvertFunc = TUniqueFunction<void(FRDGBuilder& GraphBuilder)>;
+
+/** Structure used during late update to let player configure some operations */
+struct FSampleConverterOperationSetup
+{
+	/** 
+	 * GPUBuffer pointer to the sample data to use during conversion 
+	 * Only valid when GPUDirect is used
+	 */
+	TRefCountPtr<FRDGPooledBuffer> GPUBuffer = nullptr;
+
+	/** System memory pointer to the sample data to use during conversion */
+	const void* SystemBuffer = nullptr;
+
+	/** Function to be called before setting up the sample conversion graph */
+	FPreInputConvertFunc PreConvertFunc = nullptr;
+
+	/** Function to be called after setting up the sample conversion graph */
+	FPostInputConvertFunc PostConvertFunc = nullptr;
+};
+
 
 /**
- * 
+ * Sample converter used for 2110 video samples. Supports some of the pixel formats
+ * from 2110-20. Data is expected to be packed in a buffer and will be converted to 
+ * an output texture to be rendered.
  */
 class FRivermaxMediaTextureSampleConverter : public IMediaTextureSampleConverter
 {
 public:
 
+	FRivermaxMediaTextureSampleConverter() = default;
+	~FRivermaxMediaTextureSampleConverter() = default;
+
 	/** Configures settings to convert incoming sample */
-	void Setup(ERivermaxMediaSourcePixelFormat InPixelFormat, TWeakPtr<FRivermaxMediaTextureSample> InSample, bool bInDoSRGBToLinear);
+	void Setup(const TSharedPtr<FRivermaxMediaTextureSample>& InSample);
 
 	//~ Begin IMediaTextureSampleConverter interface
 	virtual bool Convert(FTexture2DRHIRef& InDstTexture, const FConversionHints& Hints) override;
@@ -26,12 +61,8 @@ public:
 
 private:
 
-	/** Incoming pixel format used to know how to handle the input buffer */
-	ERivermaxMediaSourcePixelFormat InputPixelFormat = ERivermaxMediaSourcePixelFormat::RGB_10bit;
-
 	/** Sample holding the buffer to convert */
 	TWeakPtr<FRivermaxMediaTextureSample> Sample;
-
-	/** Whether shader should do a sRGB to linear conversion before writing out to the texture */
-	bool bDoSRGBToLinear = false;
 };
+
+}

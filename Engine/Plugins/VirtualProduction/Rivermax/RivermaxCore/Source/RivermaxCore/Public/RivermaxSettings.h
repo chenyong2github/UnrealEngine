@@ -11,7 +11,8 @@ UENUM()
 enum class ERivermaxTimeSource
 {
 	PTP,
-	Platform
+	Engine,
+	System
 };
 
 /**

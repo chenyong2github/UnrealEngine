@@ -144,4 +144,25 @@ namespace UE::RivermaxMediaUtils::Private
 		return Description;
 	}
 
+	UE::RivermaxCore::ERivermaxAlignmentMode MediaOutputAlignmentToRivermaxAlignment(ERivermaxMediaAlignmentMode InAlignmentMode)
+	{
+		using namespace UE::RivermaxCore;
+
+		switch (InAlignmentMode)
+		{
+		case ERivermaxMediaAlignmentMode::AlignmentPoint:
+		{
+			return ERivermaxAlignmentMode::AlignmentPoint;
+		}
+		case ERivermaxMediaAlignmentMode::FrameCreation:
+		{
+			return ERivermaxAlignmentMode::FrameCreation;
+		}
+		default:
+		{
+			checkNoEntry();
+			return ERivermaxAlignmentMode::AlignmentPoint;
+		}
+		}
+	}
 }

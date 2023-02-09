@@ -8,7 +8,7 @@
 
 namespace UE::RivermaxCore
 {
-	struct FRivermaxStreamOptions;
+	struct FRivermaxOutputStreamOptions;
 }
 
 namespace UE::RivermaxCore::Private::Utils
@@ -24,6 +24,9 @@ namespace UE::RivermaxCore::Private::Utils
 	/** Smallest payload size to bound our search for a payload that can be equal across a line */
 	static constexpr uint32 MinPayloadSize = 950;
 
+	/** SMTPE 2110-10.The Media Clock and RTP Clock rate for streams compliant to this standard shall be 90 kHz. */
+	static constexpr double MediaClockSampleRate = 90000.0;
+
 	/** Convert a set of streaming option to its SDP description. Currently only support video type. */
-	void StreamOptionsToSDPDescription(const UE::RivermaxCore::FRivermaxStreamOptions& Options, FAnsiStringBuilderBase& OutSDPDescription);
+	void StreamOptionsToSDPDescription(const UE::RivermaxCore::FRivermaxOutputStreamOptions& Options, FAnsiStringBuilderBase& OutSDPDescription);
 }

@@ -60,6 +60,9 @@ namespace UE::RivermaxCore::Private
 		void* PayloadPtr = nullptr;
 		void* HeaderPtr = nullptr;
 
+		/** Time at which this frame was made available to be sent */
+		uint64 ReadyTimestamp = 0;
+
 	private:
 
 		/** Method called to deallocate memory. */

@@ -21,11 +21,26 @@ enum class ERivermaxMediaOutputPixelFormat : uint8
 	PF_FLOAT16_RGB UMETA(DisplayName = "16bit Float RGB")
 };
 
+UENUM()
+enum class ERivermaxMediaAlignmentMode : uint8
+{
+	/** 
+	 * Uses NVIDIA Rivermax clock to calculate alignment points based on ST2059 
+	 */
+	AlignmentPoint,
+
+	/** 
+	 * Aligns frame scheduling with frame creation not going faster than frame interval 
+	 * In its current shape, useful for a faster stream than frame creation rate
+	 */
+	FrameCreation,
+};
+
 
 /**
  * Output information for a Rivermax media capture.
  */
-UCLASS(BlueprintType, meta=(MediaIOCustomLayout="Rivermax"))
+UCLASS(BlueprintType, meta=(MediaIOCustomLayout="Rivermax", DisplayName = "NVIDIA Rivermax Output"))
 class RIVERMAXMEDIA_API URivermaxMediaOutput : public UMediaOutput
 {
 	GENERATED_BODY()
@@ -51,31 +66,55 @@ public:
 #endif //WITH_EDITOR
 	//~ End UObject interface
 
+	/** Used by frame scheduler to know how to align the output */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
+	ERivermaxMediaAlignmentMode AlignmentMode = ERivermaxMediaAlignmentMode::AlignmentPoint;
+
+	/** 
+	 * Whether to produce a continuous output stream repeating last frame if no new frames provided 
+	 * Note: Not supported in frame creation mode
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (EditCondition = "AlignmentMode != ERivermaxMediaAlignmentMode::FrameCreation"))
+	bool bDoContinuousOutput = true;
+
+	/** 
+	 * Experimental flag to use frame counter instead of using NVIDIA Rivermax clock for timestamping output frames
+	 * Meant to be used for UE-UE streams where frame locking is done, e.g. nDisplay.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Output", meta = (EditCondition = "AlignmentMode == ERivermaxMediaAlignmentMode::FrameCreation"))
+	bool bDoFrameCounterTimestamping = true;
+
 	/** Resolution of this output stream */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Format")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
 	FIntPoint Resolution = {1920, 1080};
 	
 	/** Frame rate of this output stream */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FFrameRate FrameRate = {24,1};
 	
 	/** Pixel format for this output stream */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	ERivermaxMediaOutputPixelFormat PixelFormat = ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB;
 
-	/** Address of NIC interface to use. Supports wildcard, i.e. 10.*.69.*. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
-	FString InterfaceAddress;
+	/**
+	 * Network card interface to use to send data
+	 * Wildcards are supported to match against an interface found on the machine
+	 * 192.*.0.110
+	 * 192.168.0.1?0
+	 * 192.168.0.1*
+	 */	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	FString InterfaceAddress = TEXT("*.*.*.*");
 
 	/** Address of the stream. Can be multicast, i.e. 224.1.1.1) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
-	FString StreamAddress;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	FString StreamAddress = TEXT("224.1.1.1");
 
 	/** Port to use for this output */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	int32 Port = 50000;
 
 	/** Whether to use GPUDirect if available (Memcopy from GPU to NIC directly bypassing system) if available */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Output")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Video")
 	bool bUseGPUDirect = true;
 };

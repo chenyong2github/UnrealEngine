@@ -12,11 +12,6 @@
 #include "RivermaxMediaCapture.generated.h"
 
 
-namespace UE::RivermaxCore
-{
-	struct FRivermaxStreamOptions;
-}
-
 class URivermaxMediaOutput;
 
 /**
@@ -72,7 +67,7 @@ private:
 	bool AreSyncHandlersBusy() const;
 
 	/** Configures rivermax stream with desired output options */
-	bool ConfigureStream(URivermaxMediaOutput* InMediaOutput, UE::RivermaxCore::FRivermaxStreamOptions& OutOptions) const;
+	bool ConfigureStream(URivermaxMediaOutput* InMediaOutput, UE::RivermaxCore::FRivermaxOutputStreamOptions& OutOptions) const;
 
 	/** When GPUDirect is involved, we add a pass after the conversion pass to write a fence and know when we can consume the buffer */
 	void AddSyncPointPass(FRDGBuilder& GraphBuilder, const FCaptureBaseData& InBaseData, FRDGBufferRef OutputBuffer);
@@ -83,7 +78,7 @@ private:
 	TUniquePtr<UE::RivermaxCore::IRivermaxOutputStream> RivermaxStream;
 
 	/** Set of options used to configure output stream */
-	UE::RivermaxCore::FRivermaxStreamOptions Options;
+	UE::RivermaxCore::FRivermaxOutputStreamOptions Options;
 
 	/** Whether sync handlers have been initialized or not.  */
 	bool bAreSyncHandlersInitialized = false;

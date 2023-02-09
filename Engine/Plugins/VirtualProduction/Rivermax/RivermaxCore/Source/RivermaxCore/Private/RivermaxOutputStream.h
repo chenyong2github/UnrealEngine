@@ -12,10 +12,11 @@
 
 
 class FEvent;
+class IRivermaxCoreModule;
 
 namespace UE::RivermaxCore::Private
 {
-	using UE::RivermaxCore::FRivermaxStreamOptions;
+	using UE::RivermaxCore::FRivermaxOutputStreamOptions;
 	using UE::RivermaxCore::FRivermaxOutputVideoFrameInfo;
 	
 	// Todo make a proper RTP header struct
@@ -84,8 +85,10 @@ namespace UE::RivermaxCore::Private
 		
 		/** Next alignment point frame number treated to detect missed frames */
 		uint64 NextAlignmentPointFrameNumber = 0;
-	};
 
+		/** Timestamp at which we started commiting a frame */
+		uint64 LastSendStartTimeNanoSec = 0;
+	};
 
 	class FRivermaxOutputStream : public UE::RivermaxCore::IRivermaxOutputStream, public FRunnable
 	{
@@ -96,7 +99,7 @@ namespace UE::RivermaxCore::Private
 	public:
 
 		//~ Begin IRivermaxOutputStream interface
-		virtual bool Initialize(const FRivermaxStreamOptions& Options, IRivermaxOutputStreamListener& InListener) override;
+		virtual bool Initialize(const FRivermaxOutputStreamOptions& Options, IRivermaxOutputStreamListener& InListener) override;
 		virtual void Uninitialize() override;
 		virtual bool PushVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame) override;
 		virtual bool PushGPUVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame, FBufferRHIRef CapturedBuffer) override;
@@ -113,31 +116,77 @@ namespace UE::RivermaxCore::Private
 		//~ End FRunnable interface
 
 	private:
+
+		/** Configures chunks, packetizing, memory blocks of the stream */
 		bool InitializeStreamMemoryConfig();
-		void InitializeNextFrame(const TSharedPtr<FRivermaxOutputFrame>& NextFrame);
-		TSharedPtr<FRivermaxOutputFrame> GetNextFrameToSend();
-		TSharedPtr<FRivermaxOutputFrame> GetNextAvailableFrame(uint32 InFrameIdentifier);
-		void BuildRTPHeader(FOutputRTPHeader& OutHeader) const;
-		void DestroyStream();
-		void WaitForNextRound();
-		void GetNextChunk();
-		void SetupRTPHeaders();
-		void CommitNextChunks();
-		void PrepareNextFrame();
+		
+		/** Initializes timing setup for this stream. TRO, frame interval etc... */
 		void InitializeStreamTimingSettings();
+
+		/** Allocates buffers on gpu for gpudirect usage */
+		bool AllocateGPUBuffers();
+
+		/** Allocates buffers on system memory */
+		void AllocateSystemBuffers();
+
+		/** Clean up allocated buffers */
+		void DeallocateBuffers();
+
+		/** Resets NextFrame to be ready to send it out */
+		void InitializeNextFrame(const TSharedPtr<FRivermaxOutputFrame>& NextFrame);
+
+		/** Returns next frame ready to be sent */
+		TSharedPtr<FRivermaxOutputFrame> GetNextFrameToSend();
+
+		/** Returns next frame ready to be filled / written by the capture */
+		TSharedPtr<FRivermaxOutputFrame> GetNextAvailableFrame(uint32 InFrameIdentifier);
+
+		/** Fills RTP and SRD header using current state */
+		void BuildRTPHeader(FOutputRTPHeader& OutHeader) const;
+
+		/** Destroys rivermax stream. Will wait until it's ready to be destroyed */
+		void DestroyStream();
+
+		/** Waits for the next point in time to send out a new frame */
+		void WaitForNextRound();
+
+		/** Calculate next frame scheduling time for alignment points mode */
+		void CalculateNextScheduleTime_AlignementPoints(uint64 CurrentClockTimeNanosec, uint64 CurrentFrameNumber);
+		
+		/** Calculate next frame scheduling time for frame creation mode */
+		void CalculateNextScheduleTime_FrameCreation(uint64 CurrentClockTimeNanosec, uint64 CurrentFrameNumber);
+
+		/** Query rivermax library for the next chunk to work with */
+		void GetNextChunk();
+
+		/** Fills RTP header for all packets to be sent for this chunk */
+		void SetupRTPHeaders();
+
+		/** Commits chunk to rivermax so they are scheduled to be sent */
+		void CommitNextChunks();
+
+		/** Fetches next frame to send and prepares it for sending */
+		void PrepareNextFrame();
+
+		/** If enabled, print stats related to this stream */
 		void ShowStats();
+
+		/** Returns a mediaclock timestamp, for rtp, based on a clock time */
 		uint32 GetTimestampFromTime(uint64 InTimeNanosec, double InMediaClockRate) const;
 		
-		bool AllocateGPUBuffers();
-		void AllocateSystemBuffers();
-		void DeallocateBuffers();
+		/** Get row stride for the current stream configuration */
 		int32 GetStride() const;
+
+		/** Get mapped address in cuda space for a given buffer. Cache will be updated if not found */
 		void* GetMappedAddress(const FBufferRHIRef& InBuffer);
+
+		/** Makes a frame available to be sent, i.e. moved to the right container and mark its arrival time */
+		void MarkFrameToBeSent(TSharedPtr<FRivermaxOutputFrame> ReadyFrame);
 
 	private:
 
 		/** Options related to this stream. i.e resolution, frame rate, etc... */
-		FRivermaxStreamOptions Options;
+		FRivermaxOutputStreamOptions Options;
 
 		/** Rivermax memory configuration. i.e. memblock, chunks */
 		FRivermaxOutputStreamMemory StreamMemory;
@@ -175,9 +224,6 @@ namespace UE::RivermaxCore::Private
 		/** Listener for this stream events */
 		IRivermaxOutputStreamListener* Listener = nullptr;
 
-		/** Required to comply with SMTPE 2110 - 10.The Media Clock and RTP Clock rate for streams compliant to this standard shall be 90 kHz. */
-		static constexpr double MediaClockSampleRate = 90000.0; 
-
 		/** Type of stream created. Only 21110-20 (Video is supported now) */
 		ERivermaxStreamType StreamType = ERivermaxStreamType::VIDEO_2110_20_STREAM;
 
@@ -207,6 +253,12 @@ namespace UE::RivermaxCore::Private
 
 		/** Cuda stream used for our operations */
 		void* GPUStream = nullptr;
+
+		/** Our own module pointer kept for ease of use */
+		IRivermaxCoreModule* RivermaxModule = nullptr;
+
+		/** Time to sleep when waiting for an operation to complete */
+		static constexpr double SleepTimeSeconds = 50.0 * 1E-6;
 	};
 }
 

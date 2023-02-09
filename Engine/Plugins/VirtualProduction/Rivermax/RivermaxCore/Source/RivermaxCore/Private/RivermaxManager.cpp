@@ -13,7 +13,7 @@
 #include "RivermaxHeader.h"
 #include "RivermaxLog.h"
 
-
+#include <chrono>
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -24,7 +24,6 @@
 #include "Windows/PostWindowsApi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
-
 
 
 namespace UE::RivermaxCore::Private
@@ -69,7 +68,7 @@ namespace UE::RivermaxCore::Private
 
 	FRivermaxManager::~FRivermaxManager()
 	{
-		if (IsInitialized())
+		if (bIsCleanupRequired)
 		{
 			rmax_status_t Status = rmax_cleanup();
 			if (Status != RMAX_OK)
@@ -115,18 +114,32 @@ namespace UE::RivermaxCore::Private
 	{
 		uint64 Time = 0;
 
-		if (IsInitialized() && GetTimeSource() == ERivermaxTimeSource::PTP)
+		switch (GetTimeSource())
 		{
-			//Rivermax is usable and configured to read PTP
-			if (rmax_get_time(RMAX_CLOCK_PTP, &Time) != RMAX_OK)
+			case ERivermaxTimeSource::PTP:
 			{
-				UE_LOG(LogRivermax, Warning, TEXT("PTP time is the time source but was unavailable"));
+				//Rivermax is usable and configured to read PTP
+				if (rmax_get_time(RMAX_CLOCK_PTP, &Time) != RMAX_OK)
+				{
+					UE_LOG(LogRivermax, Warning, TEXT("PTP time is the time source but was unavailable"));
+				}
+				break;
 			}
-		}
-		else
-		{
-			// PTP was not available so we fall back on system time
-			Time = uint64(FPlatformTime::Seconds() * 1E9);
+			case ERivermaxTimeSource::Engine:
+			{
+				Time = uint64(FPlatformTime::Seconds() * 1E9);
+				break;
+			}
+			case ERivermaxTimeSource::System:
+			{
+				// Using chrono to get nanoseconds precision. 
+				Time = (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>((std::chrono::system_clock::now()).time_since_epoch()).count();
+				break;
+			}
+			default:
+			{
+				checkNoEntry();
+			}
 		}
 
 		return Time;
@@ -141,79 +154,44 @@ namespace UE::RivermaxCore::Private
 	{
 		rmax_init_config Config;
 		memset(&Config, 0, sizeof(Config));
-		Config.flags |= RIVERMAX_ENABLE_CLOCK_CONFIGURATION;
-
-		ERivermaxTimeSource ConfiguredSource = ERivermaxTimeSource::Platform;
-		const auto ConfigurePlatformClock = [&ConfiguredSource](rmax_init_config& InOutConfig)
-		{
-			InOutConfig.clock_configurations.clock_type = rmax_clock_types::RIVERMAX_USER_CLOCK_HANDLER;
-			InOutConfig.clock_configurations.clock_u.rmax_user_clock_handler.clock_handler = RivermaxTimeHandler;
-			InOutConfig.clock_configurations.clock_u.rmax_user_clock_handler.ctx = nullptr;
-			ConfiguredSource = ERivermaxTimeSource::Platform;
-		};
-			
-		const URivermaxSettings* Settings = GetDefault<URivermaxSettings>();
-
-		bool bConfiguredSuccessfully = false;
-		if (Settings->TimeSource == ERivermaxTimeSource::PTP)
-		{
-			Config.clock_configurations.clock_type = rmax_clock_types::RIVERMAX_PTP_CLOCK;
-
-			FString PTPAddress;
-			if (DeviceFinder->ResolveIP(Settings->PTPInterfaceAddress, PTPAddress))
-			{
-				if (inet_pton(AF_INET, StringCast<ANSICHAR>(*PTPAddress).Get(), &Config.clock_configurations.clock_u.rmax_ptp_clock.device_ip_addr))
-				{
-					UE_LOG(LogRivermax, Display, TEXT("Initialize Rivermax clock as PTP using device interface %s"), *PTPAddress);
-					ConfiguredSource = ERivermaxTimeSource::PTP;
-					bConfiguredSuccessfully = true;
-				}
-			}
-
-			if (bConfiguredSuccessfully == false)
-			{
-				UE_LOG(LogRivermax, Warning, TEXT("Could not configure Rivermax to use PTP using interface '%s'. Falling back to platform time."), *Settings->PTPInterfaceAddress);
-			}
-		}
-
-		if (bConfiguredSuccessfully == false)
-		{
-			ConfigurePlatformClock(Config);
-		}
 
 		rmax_status_t Status = rmax_init(&Config);
-		if (Status == RMAX_ERR_CLOCK_TYPE_NOT_SUPPORTED)
-		{
-			if (Settings->TimeSource == ERivermaxTimeSource::PTP)
-			{
-				UE_LOG(LogRivermax, Warning, TEXT("Failed to configure Rivermax using PTP clock. Falling back to platform clock."));
-				ConfigurePlatformClock(Config);
-				Status = rmax_init(&Config);
-			}
-		}
-
 		if (Status == RMAX_OK)
 		{
-			uint32 Major = 0;
-			uint32 Minor = 0;
-			uint32 Release = 0;
-			uint32 Build = 0;
-			Status = rmax_get_version(&Major, &Minor, &Release, &Build);
-			if (Status == RMAX_OK)
-			{
-				if (CVarRivermaxEnableGPUDirectCapability.GetValueOnGameThread())
-				{
-					VerifyGPUDirectCapability();
-				}
+			bIsCleanupRequired = true;
 
-				bIsInitialized = true;
-				TimeSource = ConfiguredSource;
-				const TCHAR* GPUDirectSupport = bIsGPUDirectSupported ? TEXT("with GPUDirect support.") : TEXT("without GPUDirect support.");
-				UE_LOG(LogRivermax, Log, TEXT("Rivermax library version %d.%d.%d.%d succesfully initialized, %s"), Major, Minor, Release, Build, GPUDirectSupport);
-			}
-			else
+			const URivermaxSettings* Settings = GetDefault<URivermaxSettings>();
+			TimeSource = Settings->TimeSource;
+			bool bIsClockConfigured = InitializeClock(TimeSource);
+
+			if(!bIsClockConfigured && TimeSource == ERivermaxTimeSource::PTP)
 			{
-				UE_LOG(LogRivermax, Log, TEXT("Failed to retrieve Rivermax library version. Status: %d"), Status);
+				TimeSource = ERivermaxTimeSource::System;
+				bIsClockConfigured = InitializeClock(TimeSource);
+			}
+
+			if (bIsClockConfigured)
+			{
+				uint32 Major = 0;
+				uint32 Minor = 0;
+				uint32 Release = 0;
+				uint32 Build = 0;
+				Status = rmax_get_version(&Major, &Minor, &Release, &Build);
+				if (Status == RMAX_OK)
+				{
+					if (CVarRivermaxEnableGPUDirectCapability.GetValueOnGameThread())
+					{
+						VerifyGPUDirectCapability();
+					}
+
+					bIsInitialized = true;
+					const TCHAR* GPUDirectSupport = bIsGPUDirectSupported ? TEXT("with GPUDirect support.") : TEXT("without GPUDirect support.");
+					UE_LOG(LogRivermax, Log, TEXT("Rivermax library version %d.%d.%d.%d succesfully initialized, %s"), Major, Minor, Release, Build, GPUDirectSupport);
+				}
+				else
+				{
+					UE_LOG(LogRivermax, Log, TEXT("Failed to retrieve Rivermax library version. Status: %d"), Status);
+				}
 			}
 		}
 		else if (Status == RMAX_ERR_LICENSE_ISSUE)
@@ -260,8 +238,15 @@ namespace UE::RivermaxCore::Private
 		
 		FCUDAModule* CudaModule = FModuleManager::GetModulePtr<FCUDAModule>("CUDA");
 		if (CudaModule)
-		{
-			CudaModule->DriverAPI()->cuCtxPushCurrent(CudaModule->GetCudaContext());
+		{	
+			CUcontext Context = CudaModule->GetCudaContext();
+			if (Context == nullptr)
+			{
+				UE_LOG(LogRivermax, Log, TEXT("GPUDirect won't be available for Rivermax since Cuda context can't be fetched."));
+				return;
+			}
+
+			CudaModule->DriverAPI()->cuCtxPushCurrent(Context);
 
 			int DeviceCount = -1;
 			CUresult Result = CudaModule->DriverAPI()->cuDeviceGetCount(&DeviceCount);
@@ -301,7 +286,83 @@ namespace UE::RivermaxCore::Private
 			bIsGPUDirectSupported = true;
 		}
 	}
+
+	bool FRivermaxManager::InitializeClock(ERivermaxTimeSource DesiredTimeSource)
+	{
+		rmax_clock_t ClockConfig;
+		memset(&ClockConfig, 0, sizeof(ClockConfig));
+
+		switch (DesiredTimeSource)
+		{
+			case ERivermaxTimeSource::PTP:
+			{
+				ClockConfig.clock_type = rmax_clock_types::RIVERMAX_PTP_CLOCK;
+
+				FString PTPAddress;
+				const URivermaxSettings* Settings = GetDefault<URivermaxSettings>();
+				if (DeviceFinder->ResolveIP(Settings->PTPInterfaceAddress, PTPAddress))
+				{
+					if (inet_pton(AF_INET, StringCast<ANSICHAR>(*PTPAddress).Get(), &ClockConfig.clock_u.rmax_ptp_clock.device_ip_addr))
+					{
+						UE_LOG(LogRivermax, Display, TEXT("Configure Rivermax clock for PTP using device interface %s"), *PTPAddress);
+						rmax_status_t Status = rmax_set_clock(&ClockConfig);
+						if (Status == RMAX_OK)
+						{
+							return true;
+						}
+						else if (Status == RMAX_ERR_CLOCK_TYPE_NOT_SUPPORTED)
+						{
+							UE_LOG(LogRivermax, Warning, TEXT("PTP clock not supported on device interface %s. Falling back to system clock."), *PTPAddress);
+						}
+						else
+						{
+							UE_LOG(LogRivermax, Warning, TEXT("Failed to configure PTP clock on device interface %s with error '%d'. Falling back to system clock."), *PTPAddress, Status);
+						}
+
+						return false;
+					}
+				}
+
+				UE_LOG(LogRivermax, Warning, TEXT("Failed to configure PTP clock. Device interface %s was invalid. Falling back to system clock."), *PTPAddress);
+				return false;
+			}
+			case ERivermaxTimeSource::Engine:
+			{
+				ClockConfig.clock_type = rmax_clock_types::RIVERMAX_USER_CLOCK_HANDLER;
+				ClockConfig.clock_u.rmax_user_clock_handler.clock_handler = RivermaxTimeHandler;
+				ClockConfig.clock_u.rmax_user_clock_handler.ctx = nullptr;
+
+				UE_LOG(LogRivermax, Display, TEXT("Configure Rivermax clock for engine time"));
+				rmax_status_t Status = rmax_set_clock(&ClockConfig);
+				if (Status != RMAX_OK)
+				{
+					UE_LOG(LogRivermax, Warning, TEXT("Failed to configure clock to use engine time with error '%d'."), Status);
+				}
+
+				return Status == RMAX_OK;
+			}
+			case ERivermaxTimeSource::System:
+			{
+				ClockConfig.clock_type = rmax_clock_types::RIVERMAX_SYSTEM_CLOCK;
+
+				UE_LOG(LogRivermax, Display, TEXT("Configure Rivermax clock for system time"));
+				rmax_status_t Status = rmax_set_clock(&ClockConfig);
+				if (Status != RMAX_OK)
+				{
+					UE_LOG(LogRivermax, Warning, TEXT("Failed to configure clock to use system time with error '%d'."), Status);
+				}
+
+				return Status == RMAX_OK;
+			}
+			default:
+			{
+				checkNoEntry();
+				return false;
+			}
+		}
+	}
 }
+
 
 
 

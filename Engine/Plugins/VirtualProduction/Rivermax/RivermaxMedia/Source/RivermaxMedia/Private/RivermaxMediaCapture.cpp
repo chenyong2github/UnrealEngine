@@ -272,7 +272,7 @@ bool URivermaxMediaCapture::AreSyncHandlersBusy() const
 	return SyncHandlers.ContainsByPredicate(IsBusyFunc);
 }
 
-bool URivermaxMediaCapture::ConfigureStream(URivermaxMediaOutput* InMediaOutput, UE::RivermaxCore::FRivermaxStreamOptions& OutOptions) const
+bool URivermaxMediaCapture::ConfigureStream(URivermaxMediaOutput* InMediaOutput, UE::RivermaxCore::FRivermaxOutputStreamOptions& OutOptions) const
 {
 	using namespace UE::RivermaxCore;
 
@@ -296,6 +296,11 @@ bool URivermaxMediaCapture::ConfigureStream(URivermaxMediaOutput* InMediaOutput,
 	OutOptions.FrameRate = InMediaOutput->FrameRate;
 	OutOptions.NumberOfBuffers = InMediaOutput->NumberOfTextureBuffers;
 	OutOptions.bUseGPUDirect = InMediaOutput->bUseGPUDirect;
+	OutOptions.AlignmentMode = UE::RivermaxMediaUtils::Private::MediaOutputAlignmentToRivermaxAlignment(InMediaOutput->AlignmentMode);
+
+	// Setup alignment dependent configs
+	OutOptions.bDoContinuousOutput = OutOptions.AlignmentMode == ERivermaxAlignmentMode::AlignmentPoint ? InMediaOutput->bDoContinuousOutput : false;
+	OutOptions.bDoFrameCounterTimestamping = OutOptions.AlignmentMode == ERivermaxAlignmentMode::FrameCreation ? InMediaOutput->bDoFrameCounterTimestamping : false;
 
 	OutOptions.PixelFormat = UE::RivermaxMediaUtils::Private::MediaOutputPixelFormatToRivermaxSamplingType(InMediaOutput->PixelFormat);
 	const FVideoFormatInfo Info = FStandardVideoFormat::GetVideoFormatInfo(OutOptions.PixelFormat);
@@ -321,7 +326,7 @@ void URivermaxMediaCapture::AddSyncPointPass(FRDGBuilder& GraphBuilder, const FC
 
 	// Prepare frame info we are going to push
 	UE::RivermaxCore::FRivermaxOutputVideoFrameInfo NewFrameInfo;
-	NewFrameInfo.FrameIdentifier = InBaseData.SourceFrameNumber;
+	NewFrameInfo.FrameIdentifier = InBaseData.SourceFrameNumberRenderThread;
 
 	URivermaxMediaCapture* Capturer = this;
 	GraphBuilder.AddPass(
@@ -382,7 +387,7 @@ void URivermaxMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseDa
 	NewFrame.Width = Width;
 	NewFrame.Stride = BytesPerRow;
 	NewFrame.VideoBuffer = InBuffer;
-	NewFrame.FrameIdentifier = InBaseData.SourceFrameNumber;
+	NewFrame.FrameIdentifier = InBaseData.SourceFrameNumberRenderThread;
 	if (RivermaxStream->PushVideoFrame(NewFrame) == false)
 	{
 		UE_LOG(LogRivermaxMedia, Verbose, TEXT("Failed to pushed captured frame"));

@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 
 #include "RivermaxFormats.h"
-#include "RivermaxMediaSource.h"
 #include "RivermaxMediaOutput.h"
+#include "RivermaxMediaSource.h"
+#include "RivermaxTypes.h"
 
 namespace UE::RivermaxMediaUtils::Private
 {
@@ -21,6 +22,7 @@ namespace UE::RivermaxMediaUtils::Private
 
 	UE::RivermaxCore::ESamplingType MediaOutputPixelFormatToRivermaxSamplingType(ERivermaxMediaOutputPixelFormat InPixelFormat);
 	UE::RivermaxCore::ESamplingType MediaSourcePixelFormatToRivermaxSamplingType(ERivermaxMediaSourcePixelFormat InPixelFormat);
+	UE::RivermaxCore::ERivermaxAlignmentMode MediaOutputAlignmentToRivermaxAlignment(ERivermaxMediaAlignmentMode InAlignmentMode);
 	FSourceBufferDesc GetBufferDescription(const FIntPoint& Resolution, ERivermaxMediaSourcePixelFormat InPixelFormat);
 
 }

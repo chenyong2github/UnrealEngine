@@ -20,6 +20,10 @@ bool URivermaxMediaSource::GetMediaOption(const FName& Key, bool DefaultValue) c
 	{
 		return bUseGPUDirect;
 	}
+	if (Key == RivermaxMediaOption::ZeroLatency)
+	{
+		return bUseZeroLatency;
+	}
 	return Super::GetMediaOption(Key, DefaultValue);
 }
 
@@ -48,6 +52,10 @@ int64 URivermaxMediaSource::GetMediaOption(const FName& Key, int64 DefaultValue)
 	else if (Key == FMediaIOCoreMediaOption::ResolutionHeight)
 	{
 		return Resolution.Y;
+	}
+	else if (Key == RivermaxMediaOption::PlayerMode)
+	{
+		return (int64)PlayerMode;
 	}
 	return Super::GetMediaOption(Key, DefaultValue);
 }

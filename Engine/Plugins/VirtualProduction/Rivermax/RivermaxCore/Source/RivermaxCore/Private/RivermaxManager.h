@@ -29,11 +29,15 @@ namespace UE::RivermaxCore::Private
 		bool LoadRivermaxLibrary();
 		void InitializeLibrary();
 		void VerifyGPUDirectCapability();
+		bool InitializeClock(ERivermaxTimeSource DesiredTimeSource);
 
 	private:
 
 		/** Whether the library has been initialized and is usable */
 		bool bIsInitialized = false;
+
+		/** Whether library was initialized but failed along the way and needs to be cleaned up on exit */
+		bool bIsCleanupRequired = false;
 
 		/** Handle pointer to the loaded library */
 		void* LibraryHandle = nullptr;

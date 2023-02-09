@@ -41,10 +41,23 @@ namespace UE::RivermaxCore::Private
 		{
 			for (const FString& Token : SourceTokens)
 			{
-				if (FCString::IsNumeric(*Token) == false && Token.Equals(TEXT("*")) == false)
+				if (!FCString::IsNumeric(*Token))
 				{
-					bIsValid = false;
-					break;
+					// If it's not a pure number, look for individual characters
+					for (int32 Index = 0; Index < Token.Len(); ++Index)
+					{
+						const TCHAR& Character = Token[Index];
+						if (!(FChar::IsDigit(Character) || Character == '*' || Character == '?'))
+						{
+							bIsValid = false;
+							break;
+						}
+					}
+
+					if (!bIsValid)
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -82,6 +95,9 @@ namespace UE::RivermaxCore::Private
 					NewDevice.AddressTokens[1] = NewDevice.Address.B;
 					NewDevice.AddressTokens[2] = NewDevice.Address.C;
 					NewDevice.AddressTokens[3] = NewDevice.Address.D;
+
+					// Also cache tokens as string
+					NewDevice.DeviceIP.ParseIntoArray(NewDevice.Tokens, TEXT("."), false /*CullEmpty*/);
 				}
 
 				const FDeviceInfo& CachedDevice = DevicesCache[DeviceIPHash];
@@ -89,16 +105,12 @@ namespace UE::RivermaxCore::Private
 				bool bMatchingDeviceFound = true;
 				for (int32 TokenIndex = 0; TokenIndex < 4; ++TokenIndex)
 				{
-					if (FoundQuery.Tokens[TokenIndex].Equals(TEXT("*")) == false)
+					const FString& DesiredToken = FoundQuery.Tokens[TokenIndex];
+					const FString& DeviceToken = CachedDevice.Tokens[TokenIndex];
+					if (!DeviceToken.MatchesWildcard(DesiredToken))
 					{
-						// If not a wildcard, token must match by value
-						const uint8 TokenValue = FCString::Atoi(*FoundQuery.Tokens[TokenIndex]);
-						const uint8 DeviceTokenValue = CachedDevice.AddressTokens[TokenIndex];
-						if (TokenValue != DeviceTokenValue)
-						{
-							bMatchingDeviceFound = false;
-							break;
-						}
+						bMatchingDeviceFound = false;
+						break;
 					}
 				}
 
@@ -190,5 +202,4 @@ namespace UE::RivermaxCore::Private
 
 
 }
-
 
