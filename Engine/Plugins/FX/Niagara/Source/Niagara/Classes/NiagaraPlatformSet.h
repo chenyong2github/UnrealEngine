@@ -394,7 +394,7 @@ public:
 	void OnChanged();
 
 	/** Inspects the passed sets and generates an array of all conflicts between these sets. Used to keep arrays of platform sets orthogonal. */
-	static bool GatherConflicts(const TArray<const FNiagaraPlatformSet*>& PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts);
+	static bool GatherConflicts(TConstArrayView<const FNiagaraPlatformSet*> PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts);
 	
 	DECLARE_DELEGATE_RetVal(int32, FOnOverrideQualityLevel);
 	FOnOverrideQualityLevel OnOverrideQualityLevelDelegate;
