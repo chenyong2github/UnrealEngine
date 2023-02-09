@@ -11,6 +11,7 @@ public class Paper2DEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"ApplicationCore",
+				"AssetTools",
 				"Slate",
 				"SlateCore",
 				"Engine",
@@ -39,14 +40,7 @@ public class Paper2DEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Settings",
-				"AssetTools",
 				"LevelEditor"
 			});
-
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[] {
-				"AssetTools"
-			});
-
 	}
 }
