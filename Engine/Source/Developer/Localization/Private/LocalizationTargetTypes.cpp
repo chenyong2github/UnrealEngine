@@ -76,11 +76,26 @@ bool FGatherTextSearchDirectory::Validate(const bool bIsEngineTarget, FText& Out
 		return false;
 	}
 
-	const FString ResolvedPath = FPaths::IsRelative(Path) ? FPaths::Combine(*FLocalizationGatherPathRootUtil::GetResolvedPathRoot(PathRoot, bIsEngineTarget), *Path) : Path;
+	FString ResolvedPath = FPaths::IsRelative(Path) ? FPaths::Combine(*FLocalizationGatherPathRootUtil::GetResolvedPathRoot(PathRoot, bIsEngineTarget), *Path) : Path;
 	if (ResolvedPath.IsEmpty())
 	{
 		OutError = LOCTEXT("SearchDirectoryEmptyError", "Search directory not specified. Use \".\" to specify the root directory.");
 		return false;
+	}
+
+	{
+		int32 WildcardIndex = INDEX_NONE;
+		if (ResolvedPath.FindChar(TEXT('*'), WildcardIndex))
+		{
+			if (WildcardIndex != ResolvedPath.Len() - 1)
+			{
+				OutError = LOCTEXT("SearchDirectoryInvalidWildcardMustBeTrailingError", "Search directory can only use a trailing wildcard.");
+				return false;
+			}
+
+			// Trim the wildcard from the search path, as it would fail the rest of the validation with it
+			ResolvedPath = FPaths::GetPath(MoveTemp(ResolvedPath));
+		}
 	}
 
 	FText InvalidPathReason;

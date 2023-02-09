@@ -144,7 +144,9 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 	TArray<FString> IncludePathFilters;
 	Algo::Transform(SearchDirectoryPaths, IncludePathFilters, [](const FString& SearchDirectoryPath)
 	{
-		return SearchDirectoryPath / TEXT("*");
+		return SearchDirectoryPath.EndsWith(TEXT("*"), ESearchCase::CaseSensitive)
+			? SearchDirectoryPath								// Already a wildcard
+			: FPaths::Combine(SearchDirectoryPath, TEXT("*"));	// Add a wildcard
 	});
 
 	FGatherTextDelegates::GetAdditionalGatherPaths.Broadcast(GatherManifestHelper->GetTargetName(), IncludePathFilters, ExcludePathFilters);
@@ -153,6 +155,7 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 	TArray<FString> FilesToProcess;
 	{
 		TArray<FString> RootSourceFiles;
+		TSet<FString, FLocKeySetFuncs> ProcessedSearchDirectoryPaths;
 		for (const FString& IncludePathFilter : IncludePathFilters)
 		{
 			FString SearchDirectoryPath = IncludePathFilter;
@@ -160,6 +163,13 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 			{
 				// Trim the wildcard from this search path
 				SearchDirectoryPath = FPaths::GetPath(MoveTemp(SearchDirectoryPath));
+			}
+
+			bool bAlreadyProcessed = false;
+			ProcessedSearchDirectoryPaths.Add(SearchDirectoryPath, &bAlreadyProcessed);
+			if (bAlreadyProcessed)
+			{
+				continue;
 			}
 
 			for (const FString& UniqueSourceFileSearchFilter : UniqueSourceFileSearchFilters)
