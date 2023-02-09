@@ -308,7 +308,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 		if (pending.change.userRequest) {
 			const shelfMsg = `${owner}, please merge this change by hand.\nMore info at ${this.sourceNode.getBotUrl()}\n\n` + failure.description
-			await this.shelveChangelist(pending, shelfMsg)
+			await this.shelveChangelist(pending, false, shelfMsg)
 			this.edgeBotLogger.info(`${logMessage}. Shelved CL ${pending.newCl} for ${owner} to resolve manually (from reconsider).`)
 			return
 		}
@@ -658,12 +658,12 @@ class EdgeBotImpl extends PerforceStatefulBot {
 				const approval = this.options.approval
 
 				// shelve
-				await this.shelveChangelist(pending)
+				await this.shelveChangelist(pending, true)
 	
 				// still notify as a 'failure' to trigger normal blockage mechanism
 				failure = { kind: 'Approval required', description: approval.description }
 	
-				if (pending.change.userRequest) {
+				if (pending.change.userRequest || approval.block === false) {
 					this.sourceNode.reportApprovalRequired(approval, pending) 
 				}
 				else {
@@ -784,7 +784,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		return new EdgeIntegrationDetails('ok', finalCl)
 	}
 
-	private async shelveChangelist(pending: PendingChange, reason?: string) {
+	private async shelveChangelist(pending: PendingChange, forApproval?: boolean, reason?: string) {
 		const changenum = pending.newCl
 		const owner = getIntegrationOwner(pending) || pending.change.author
 		this._log_action(`Shelving CL ${changenum} (change owned by ${owner})`)
@@ -803,6 +803,10 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		if (pending.change.additionalDescriptionText) {
 			final_desc += pending.change.additionalDescriptionText
 		}
+
+		/*if (forApproval) {
+			final_desc += "\n#review"
+		}*/
 
 		const edgeServerAddress = pending.change.edgeServerToHostShelf && pending.change.edgeServerToHostShelf.address
 		const destRoboWorkspace = pending.change.targetWorkspaceOverride || this.targetBranch.workspace
@@ -843,13 +847,13 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 		// figure out what workspace to put it in
 		const branch_stream = this.targetBranch.stream ? this.targetBranch.stream.toLowerCase() : null
-		let targetWorkspace: string | null = null
+		let targetWorkspace: string | undefined = undefined
 		// Check for specified workspace from createShelf operation
 		if (pending.change.targetWorkspaceForShelf) {
 			targetWorkspace = pending.change.targetWorkspaceForShelf
 		}
 		// Find a suitable workspace from one of the owner's workspaces
-		else {
+		else if (!forApproval) {
 			// use p4.find_workspaces to find a workspace (owned by the user) for this change if this is a stream branch
 			// not supporting edge servers yet - really need to send a separate shelf request instead
 			// so specify to only look for workspaces on the commit server
@@ -886,12 +890,13 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			this.edgeBotLogger.info(`Moving CL ${changenum} to workspace '${targetWorkspace}'`)
 			opts.newWorkspace = targetWorkspace
 		}
-		else {
+		else if (!forApproval) {
 			this.edgeBotLogger.warn(`Unable to find appropriate workspace for ${owner}` + (branch_stream || this.targetBranch.name))
 		}
 
 		// edit the owner to the author so they can resolve and submit themselves
-		await this.p4.editOwner(destRoboWorkspace, changenum, owner, opts)
+		let shelfOwner = forApproval ? pending.change.author : owner
+		await this.p4.editOwner(destRoboWorkspace, changenum, shelfOwner, opts)
 	}
 
 	onGlobalChange(info: ChangeInfo) {

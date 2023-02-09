@@ -206,9 +206,9 @@ type EdgeOptionFields = {
 	ignoreInCycleDetection: boolean
 
 	approval: {
-		description: string,
-		channelName: string
+		description: string
 		channelId: string
+		block: boolean
 	}
 }
 

@@ -490,7 +490,7 @@ export class BotNotifications implements BotEventHandler {
 
 		const isBotUser = isUserAKnownBot(blockage.owner)
 		const text =
-			blockage.approval ?				`${channelPing}'s change needs to be approved in ${blockage.approval.settings.channelName}` :
+			blockage.approval ?				`${channelPing}'s change needs to be approved in <#${blockage.approval.settings.channelId}>` :
 			isBotUser ? 									`Blockage caused by \`${blockage.owner}\` commit!` :
 			blockage.failure.kind === 'Too many files' ?	`${channelPing}, please request a shelf for this large changelist` :
 															`${channelPing}, please resolve the following ${issue}:`
@@ -596,10 +596,10 @@ export class BotNotifications implements BotEventHandler {
 			if (blockage.approval) {
 				dm = {
 					title: 'Approval needed to commit to ' + targetBranch.name,
-					text: `Your change has been shelved in ${makeClLink(cl)} and sent to ${blockage.approval.settings.channelName} for approval\n\n` +
+					text: `Your change has been shelved in ${makeClLink(cl)} and sent to <#${blockage.approval.settings.channelId}> for approval\n\n` +
 							blockage.approval.settings.description,
 					channel: "",
-					mrkdwn: false
+					mrkdwn: true
 				}
 			}
 			else {

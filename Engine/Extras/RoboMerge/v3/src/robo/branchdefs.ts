@@ -162,8 +162,8 @@ const edgeOptionFieldsPrototype = {
 
 	approval: {
 		description: '',
-		channelName: '',
-		channelId: ''
+		channelId: '',
+		block: true
 	}
 }
 
@@ -461,7 +461,7 @@ export class BranchDefs {
 
 				if (edge.approval) {
 					// should be replaced by generic handling of objects in the prototype
-					if (!edge.approval.description || !edge.approval.channelName || !edge.approval.channelId) {
+					if (!edge.approval.description || !edge.approval.channelId) {
 						throw new Error(`Invalid approval settings for edge ${edge.from}->${edge.to}`)
 					}
 				}

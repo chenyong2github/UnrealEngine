@@ -2008,7 +2008,8 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 			const opts: SlackMessage = { 
 				title:'', 
-				text: `${channelPing}'s change needs to be approved.`, 
+				text: `${channelPing}'s change in ${pending.action.branch.name} needs to be approved.\n\n` +
+						approval.description, 
 				style: SlackMessageStyles.DANGER, 
 				fields,
 				mrkdwn: true,

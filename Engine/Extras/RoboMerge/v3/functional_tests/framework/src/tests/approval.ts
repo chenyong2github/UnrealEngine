@@ -31,8 +31,8 @@ export class Approval extends SimpleMainAndReleaseTestBase {
 		  { from: this.fullBranchName('Release'), to: this.fullBranchName('Main')
 		  , approval: {
 		      description: 'hey there!',
-		      channelName: 'approvers',
-		      channelId: 'abc123'
+		      channelId: 'abc123',
+		      block: true
 		    }
 		  }
 		]
