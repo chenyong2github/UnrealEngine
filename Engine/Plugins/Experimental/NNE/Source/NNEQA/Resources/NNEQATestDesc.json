@@ -311,18 +311,12 @@
 		},
 		{
 			"category": "InstanceNormalization",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml", "skip": true }
-			],
 			"targets": [
 				{ "target": "InstanceNormalization", "absolute_tolerance": 1e-5 }
 			]
 		},
 		{
 			"category": "Upsample",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml", "skip": true	}
-			],
 			"targets": [
 				{ "target": "Upsample" }
 			]
@@ -658,15 +652,38 @@
 		{
 			"name": "InstanceNormalization",
 			"datasets": [
-				{ "inputs": [ { "shape": [ 1, 1, 3 ] }, { "shape": [ 1 ] }, { "shape": [ 1 ] } ], "outputs": [ { "shape": [ 1, 1, 3 ] } ], "runtimes": [ { "name": "NNERuntimeORTDml", "skip": true, "comment": "Not supported" } ] },
-				{ "inputs": [ { "shape": [ 1, 2, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 1, 2, 3 ] } ], "runtimes": [ { "name": "NNERuntimeORTDml", "skip": true, "comment": "Not supported" } ] },
-				{ "inputs": [ { "shape": [ 2, 2, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 3 ] } ], "runtimes": [ { "name": "NNERuntimeORTDml", "skip": true, "comment": "Not supported" } ]},
-				{ "inputs": [ { "shape": [ 1, 2, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 1, 2, 1, 3 ] } ] },
-				{ "inputs": [ { "shape": [ 2, 2, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 1, 3 ] } ] },
-				{ "inputs": [ { "shape": [ 2, 2, 2, 2 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 2, 2 ] } ] },
+				{ 
+					"inputs": [ { "shape": [ 1, 1, 3 ] }, { "shape": [ 1 ] }, { "shape": [ 1 ] } ], "outputs": [ { "shape": [ 1, 1, 3 ] } ], 
+					"runtimes": [ 
+						{ "name": "NNERuntimeORTDml", "skip": true, "comment": "Not supported" }  
+					] 
+				},
+				{ 
+					"inputs": [ { "shape": [ 1, 2, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 1, 2, 3 ] } ], 
+					"runtimes": [ 
+						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "Not supported" },
+						{ "name": "NNERuntimeORTDml", "skip": true, "comment": "Not supported" }
+					] 
+				},
+				{ 
+					"inputs": [ { "shape": [ 2, 2, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 3 ] } ], 
+					"runtimes": [
+						{ "name": "NNERuntimeORTDml", "skip": true, "comment": "Not supported" } 
+					]
+				},
+				{ 
+					"inputs": [ { "shape": [ 1, 2, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 1, 2, 1, 3 ] } ] 
+				},
+				{ 
+					"inputs": [ { "shape": [ 2, 2, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 1, 3 ] } ]
+				},
+				{ 
+					"inputs": [ { "shape": [ 2, 2, 2, 2 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 2, 2 ] } ]
+				},
 				{
 					"inputs": [ { "shape": [ 2, 2, 4, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 4, 1, 3 ] } ],
 					"runtimes": [
+						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "Not supported" },
 						{ "name": "NNERuntimeRDGHlsl" },
 						{ "name": "NNERuntimeORTCpu" },
 						{ "name": "NNERuntimeORTDml", "skip": true, "comment": "Not supported" }
@@ -675,6 +692,7 @@
 				{
 					"inputs": [ { "shape": [ 2, 2, 4, 4 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 4, 4 ] } ],
 					"runtimes": [
+						{ "name": "NNERuntimeRDGDml" },
 						{ "name": "NNERuntimeRDGHlsl" },
 						{ "name": "NNERuntimeORTCpu" },
 						{ "name": "NNERuntimeORTDml" }
@@ -683,6 +701,7 @@
 				{
 					"inputs": [ { "shape": [ 2, 2, 8, 8 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 8, 8 ] } ],
 					"runtimes": [
+						{ "name": "NNERuntimeRDGDml" },
 						{ "name": "NNERuntimeRDGHlsl" },
 						{ "name": "NNERuntimeORTCpu" },
 						{ "name": "NNERuntimeORTDml" }
@@ -691,6 +710,7 @@
 				{
 					"inputs": [ { "shape": [ 2, 128, 8, 8 ] }, { "shape": [ 128 ] }, { "shape": [ 128 ] } ], "outputs": [ { "shape": [ 2, 128, 8, 8 ] } ],
 					"runtimes": [
+						{ "name": "NNERuntimeRDGDml" },
 						{ "name": "NNERuntimeRDGHlsl" },
 						{ "name": "NNERuntimeORTCpu" },
 						{ "name": "NNERuntimeORTDml" }
@@ -699,6 +719,7 @@
 				{
 					"inputs": [ { "shape": [ 128, 2, 8, 8 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 128, 2, 8, 8 ] } ],
 					"runtimes": [
+						{ "name": "NNERuntimeRDGDml" },
 						{ "name": "NNERuntimeRDGHlsl" },
 						{ "name": "NNERuntimeORTCpu" },
 						{ "name": "NNERuntimeORTDml" }
@@ -707,6 +728,7 @@
 				{
 					"inputs": [ { "shape": [ 64, 64, 8, 8 ] }, { "shape": [ 64 ] }, { "shape": [ 64 ] } ], "outputs": [ { "shape": [ 64, 64, 8, 8 ] } ],
 					"runtimes": [
+						{ "name": "NNERuntimeRDGDml" },
 						{ "name": "NNERuntimeRDGHlsl" },
 						{ "name": "NNERuntimeORTCpu" },
 						{ "name": "NNERuntimeORTDml" }
@@ -715,6 +737,7 @@
 				{
 					"inputs": [ { "shape": [ 2, 2, 45, 45 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 45, 45 ] } ],
 					"runtimes": [
+						{ "name": "NNERuntimeRDGDml" },
 						{ "name": "NNERuntimeRDGHlsl" },
 						{ "name": "NNERuntimeORTCpu" },
 						{ "name": "NNERuntimeORTDml" }
@@ -723,6 +746,7 @@
 				{
 					"inputs": [ { "shape": [ 1, 128, 56, 56 ] }, { "shape": [ 128 ] }, { "shape": [ 128 ] } ], "outputs": [ { "shape": [ 1, 128, 56, 56 ] } ],
 					"runtimes": [
+						{ "name": "NNERuntimeRDGDml" },
 						{ "name": "NNERuntimeRDGHlsl" },
 						{ "name": "NNERuntimeORTCpu" },
 						{ "name": "NNERuntimeORTDml" }

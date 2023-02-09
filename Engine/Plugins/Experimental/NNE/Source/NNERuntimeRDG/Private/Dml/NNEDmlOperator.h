@@ -25,6 +25,11 @@ static FDmlOperator##OpName##Registrator RegisterDmlOperator##OpName;
 
 namespace UE::NNERuntimeRDG::Private::Dml
 {
+
+static constexpr uint32_t NcdhwDimensionCount = 5;
+static constexpr uint32_t NcdhwSpatialDimensionCount = 3;
+static constexpr uint32_t NonspatialDimensionCount = 2; // The batch and channel dimensions of NCW, NCHW, NCDHW....
+
 //
 //
 //
@@ -40,12 +45,28 @@ public:
 
 namespace DmlUtil
 {
+	using FSmallUIntArray = TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
+
 	struct FTensorDesc
 	{
-		DML_BUFFER_TENSOR_DESC												BuffDesc;
-		DML_TENSOR_DESC														Desc;
-		TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>	Sizes;
-		TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>	Strides;
+		DML_BUFFER_TENSOR_DESC	BuffDesc;
+		DML_TENSOR_DESC			Desc;
+		FSmallUIntArray			Sizes;
+		FSmallUIntArray			Strides;
+		uint64					ElemSizeInBytes;
+
+		bool InitFromTensor(const NNECore::Internal::FTensor& InputDesc, int32 MinTensorRank, TConstArrayView<uint32> Broadcast = MakeArrayView((uint32*) nullptr, 0));
+		bool InitFromTensor1D(const NNECore::Internal::FTensor& InputDesc, int32 Rank);
+
+	private:
+		void Reset();
+
+		void SetShape(TConstArrayView<uint32> Shape, int32 MinTensorRank);
+		void SetShapeAndStrides(TConstArrayView<uint32> Shape, TConstArrayView<uint32> BroadcastShape);
+		void SetShape1D(uint32 Dimension, int32 Rank);
+		
+		void Update(DML_TENSOR_DATA_TYPE DataType, bool bHasWeightData = false);
+		uint64 CalculateBufferSize();
 	};
 
 	extern void SetTensorStrides(FTensorDesc& TensorDesc, const NNECore::Internal::FTensor& InputDesc);
@@ -70,8 +91,8 @@ public:
 
 protected:
 
-	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& TensorDesc);
-	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& TensorDesc, const NNECore::Internal::FTensor& BroadcastDesc);
+	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& Tensor);
+	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& Tensor, const NNECore::Internal::FTensor& Broadcast);
 	
 	bool CreateOperator(IDMLDevice* Device, const DML_OPERATOR_DESC& DmlOpDesc);
 

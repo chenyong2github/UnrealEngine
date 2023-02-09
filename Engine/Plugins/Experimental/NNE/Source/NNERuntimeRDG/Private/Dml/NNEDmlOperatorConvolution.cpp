@@ -12,13 +12,8 @@ namespace UE::NNERuntimeRDG::Private::Dml
 template <DML_CONVOLUTION_DIRECTION Direction>
 class FOperatorDmlConv : public FOperatorDml
 {
-	static constexpr uint32_t NcdhwDimensionCount = 5;
-	static constexpr uint32_t NcdhwSpatialDimensionCount = 3;
-	static constexpr uint32_t NonspatialDimensionCount = 2; // The batch and channel dimensions of NCW, NCHW, NCDHW....
-
 	using FSmallArray = TArray<uint32, TInlineAllocator<NcdhwSpatialDimensionCount>>;
 	using FIntArray = TArray<int32>;
-	using FUIntArray = TArray<uint32>;
 	
 	enum EAutoPad
 	{

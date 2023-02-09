@@ -10,6 +10,176 @@ namespace UE::NNERuntimeRDG::Private::Dml
 
 namespace DmlUtil
 {
+	bool FTensorDesc::InitFromTensor(const NNECore::Internal::FTensor& Tensor, int32 MinTensorRank, TConstArrayView<uint32> BroadcastShape)
+	{
+		Reset();
+
+		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(Tensor.GetDataType());
+
+		if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
+		{
+			return false;
+		}
+
+		TConstArrayView<uint32> InShape = Tensor.GetShape().GetData();
+
+		ElemSizeInBytes = Tensor.GetElemByteSize();
+
+		if (BroadcastShape.IsEmpty())
+		{
+			SetShape(InShape, MinTensorRank);
+		}
+		else
+		{
+			SetShapeAndStrides(InShape, BroadcastShape);
+		}
+
+		//Note: We should support tensor padding using strides defined in FTensorDesc
+		//DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc.Strides);
+
+		Update(DmlDataType, Tensor.HasPreparedData());
+
+		return true;
+	}
+
+	bool FTensorDesc::InitFromTensor1D(const NNECore::Internal::FTensor& Tensor, int32 Rank)
+	{
+		Reset();
+
+		if (Tensor.GetShape().Rank() != 1)
+		{
+			return false;
+		}
+
+		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(Tensor.GetDataType());
+
+		if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
+		{
+			return false;
+		}
+		
+		ElemSizeInBytes = Tensor.GetElemByteSize();
+
+		SetShape1D(Tensor.GetShape().GetData()[0], Rank);
+		Update(DmlDataType);
+
+		return true;
+	}
+
+	void FTensorDesc::Reset()
+	{
+		BuffDesc = DML_BUFFER_TENSOR_DESC{};
+		Desc = DML_TENSOR_DESC{};
+		Sizes.Reset();
+		Strides.Reset();
+		ElemSizeInBytes = 0;
+	}
+
+	void FTensorDesc::SetShape(TConstArrayView<uint32> Shape, int32 MinTensorRank)
+	{
+		Sizes = FSmallUIntArray(Shape.GetData(), Shape.Num());
+		const int32 DimOffset = MinTensorRank - Sizes.Num();
+
+		for (int Dim = 0; Dim < DimOffset; ++Dim)
+		{
+			Sizes.Insert(1, 0);
+		}
+	}
+
+	void FTensorDesc::SetShapeAndStrides(TConstArrayView<uint32> Shape, TConstArrayView<uint32> BroadcastShape)
+	{
+		const uint32 TargetDimension = BroadcastShape.Num() != -1 ? BroadcastShape.Num() : Shape.Num();
+		checkf(BroadcastShape.Num() >= Shape.Num(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), Shape.Num(), TargetDimension);
+		
+		Sizes.SetNum(TargetDimension);
+		Strides.SetNum(TargetDimension);
+
+		const int32 DimensionOffset = int32(TargetDimension - Shape.Num());
+		
+		for (int32 i = 0; i < (int32) TargetDimension; ++i)
+		{
+			Sizes[i] = i < DimensionOffset ? 1 : Shape[i - DimensionOffset];
+		}
+
+		uint32 CurrStride = 1;
+
+		for (int32 i = TargetDimension - 1; i >= 0; --i)
+		{
+			const bool bBroadcast = Sizes[i] < BroadcastShape[i];
+
+			Strides[i] = bBroadcast ? 0 : CurrStride;
+			CurrStride *= Sizes[i];
+
+			Sizes[i] = BroadcastShape[i];
+		}
+	}
+
+	void FTensorDesc::SetShape1D(uint32 Dimension, int32 Rank)
+	{
+		Sizes.Reset();
+
+		Sizes.Add(1);
+		Sizes.Add(Dimension);
+		Sizes.Add(1);
+
+		for (int32 Dim = 3; Dim < Rank; ++Dim)
+		{
+			Sizes.Add(1);
+		}
+	}
+
+	void FTensorDesc::Update(DML_TENSOR_DATA_TYPE DataType, bool bHasWeightData)
+	{
+		BuffDesc.DataType = DataType;
+		BuffDesc.Flags = bHasWeightData ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
+		BuffDesc.DimensionCount = Sizes.Num();
+		BuffDesc.Sizes = Sizes.GetData();
+		BuffDesc.Strides = Strides.IsEmpty() ? nullptr : Strides.GetData();
+		BuffDesc.TotalTensorSizeInBytes = CalculateBufferSize();
+
+		Desc = DML_TENSOR_DESC{ DML_TENSOR_TYPE_BUFFER, &BuffDesc };
+	}
+
+	uint64 FTensorDesc::CalculateBufferSize()
+	{
+		if (ElemSizeInBytes == 0)
+		{
+			return 0;
+		}
+
+		uint64 MinSizeInBytes = 0;
+		
+		if (Strides.IsEmpty())
+		{
+			MinSizeInBytes = Sizes[0];
+
+			for (int32 i = 1; i < Sizes.Num(); ++i)
+			{
+				MinSizeInBytes *= Sizes[i];
+			}
+
+			MinSizeInBytes *= ElemSizeInBytes;
+		}
+		else
+		{
+			uint32 IndexOfLastElement = 0;
+
+			for (int32 i = 0; i < Sizes.Num(); ++i)
+			{
+				IndexOfLastElement += (Sizes[i] - 1) * Strides[i];
+			}
+
+			MinSizeInBytes = (static_cast<uint64>(IndexOfLastElement) + 1) * ElemSizeInBytes;
+		}
+
+		// Round up to the nearest 4 bytes
+		MinSizeInBytes = (MinSizeInBytes + 3) & ~3ull;
+
+		return MinSizeInBytes;
+	}
+
+
+
 	void SetTensorStrides(FTensorDesc& TensorDesc, const NNECore::Internal::FTensor& InputDesc)
 	{
 		uint32 CurrStride = 1;
@@ -147,9 +317,9 @@ IDMLOperator* FOperatorDml::GetOperator()
 	return DmlOp;
 }
 
-bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& TensorDesc)
+bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& Tensor)
 {
-	DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(TensorDesc.GetDataType());
+	DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(Tensor.GetDataType());
 
 	if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
 	{
@@ -159,7 +329,7 @@ bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const 
 		return false;
 	}
 
-	DmlTensorDesc.Sizes = TensorDesc.GetShape().GetData();
+	DmlTensorDesc.Sizes = Tensor.GetShape().GetData();
 	//Note: We should support tensor padding using strides defined in FTensorDesc
 	//DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc.Strides);
 		
@@ -167,20 +337,20 @@ bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const 
 
 	BuffDesc = DML_BUFFER_TENSOR_DESC{};
 	BuffDesc.DataType = DmlDataType;
-	BuffDesc.Flags = TensorDesc.HasPreparedData() ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
-	BuffDesc.DimensionCount = TensorDesc.GetShape().Rank();
+	BuffDesc.Flags = Tensor.HasPreparedData() ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
+	BuffDesc.DimensionCount = Tensor.GetShape().Rank();
 	BuffDesc.Sizes = DmlTensorDesc.Sizes.GetData();
 	BuffDesc.Strides = nullptr;
-	BuffDesc.TotalTensorSizeInBytes = TensorDesc.GetDataSize();
+	BuffDesc.TotalTensorSizeInBytes = Tensor.GetDataSize(); // DmlUtil::CalculateBufferSize(DmlTensorDesc, Tensor);
 
 	DmlTensorDesc.Desc = DML_TENSOR_DESC{ DML_TENSOR_TYPE_BUFFER, &DmlTensorDesc.BuffDesc };
 
 	return true;
 }
 
-bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& TensorDesc, const NNECore::Internal::FTensor& BroadcastDesc)
+bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& Tensor, const NNECore::Internal::FTensor& Broadcast)
 {
-	DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(TensorDesc.GetDataType());
+	DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(Tensor.GetDataType());
 
 	if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
 	{
@@ -190,27 +360,27 @@ bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const 
 		return false;
 	}
 
-	if (DmlUtil::IsSameShape(TensorDesc, BroadcastDesc))
+	if (DmlUtil::IsSameShape(Tensor, Broadcast))
 	{
-		DmlTensorDesc.Sizes = TensorDesc.GetShape().GetData();
-		DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc);
+		DmlTensorDesc.Sizes = Tensor.GetShape().GetData();
+		DmlUtil::SetTensorStrides(DmlTensorDesc, Tensor);
 	}
-	else if (TensorDesc.GetShape().Rank() > BroadcastDesc.GetShape().Rank())
+	else if (Tensor.GetShape().Rank() > Broadcast.GetShape().Rank())
 	{
 		return false;
 	}
 	else
 	{
-		DmlUtil::SetTensorSizesAndStridesForBroadcast(DmlTensorDesc, TensorDesc, BroadcastDesc);
+		DmlUtil::SetTensorSizesAndStridesForBroadcast(DmlTensorDesc, Tensor, Broadcast);
 	}
 
 	//UE_LOG(LogNNE, Warning, TEXT("DmlTensorDesc:%d,%d,%d -> %d,%d,%d"),
-	//	TensorDesc.Sizes[0],
-	//	TensorDesc.Dimension > 1 ? TensorDesc.Sizes[1] : 0,
-	//	TensorDesc.Dimension > 2 ? TensorDesc.Sizes[2] : 0,
-	//	DmlTensorDesc.Sizes[0],
-	//	DmlTensorDesc.Dimension > 1 ? DmlTensorDesc.Sizes[1] : 0,
-	//	DmlTensorDesc.Dimension > 2 ? DmlTensorDesc.Sizes[2] : 0
+	//	Tensor.Sizes[0],
+	//	Tensor.Dimension > 1 ? Tensor.Sizes[1] : 0,
+	//	Tensor.Dimension > 2 ? Tensor.Sizes[2] : 0,
+	//	DmlTensor.Sizes[0],
+	//	DmlTensor.Dimension > 1 ? DmlTensor.Sizes[1] : 0,
+	//	DmlTensor.Dimension > 2 ? DmlTensor.Sizes[2] : 0
 	//);
 
 	//UE_LOG(LogNNE, Warning, TEXT("DmlTensorStrides:%d,%d,%d"),
@@ -224,11 +394,11 @@ bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const 
 	BuffDesc = DML_BUFFER_TENSOR_DESC{};
 
 	BuffDesc.DataType = DmlDataType;
-	BuffDesc.Flags = TensorDesc.HasPreparedData() ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
+	BuffDesc.Flags = Tensor.HasPreparedData() ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
 	BuffDesc.DimensionCount = DmlTensorDesc.Sizes.Num();
 	BuffDesc.Sizes = DmlTensorDesc.Sizes.GetData();
 	BuffDesc.Strides = DmlTensorDesc.Strides.GetData();
-	BuffDesc.TotalTensorSizeInBytes = DmlUtil::CalculateBufferSize(DmlTensorDesc, TensorDesc);
+	BuffDesc.TotalTensorSizeInBytes = DmlUtil::CalculateBufferSize(DmlTensorDesc, Tensor);
 		
 	DmlTensorDesc.Desc = DML_TENSOR_DESC{ DML_TENSOR_TYPE_BUFFER, &DmlTensorDesc.BuffDesc };
 
