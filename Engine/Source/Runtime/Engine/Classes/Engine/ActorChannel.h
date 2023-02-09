@@ -15,6 +15,11 @@
 #define NET_ENABLE_SUBOBJECT_REPKEYS 1
 #endif // NET_ENABLE_SUBOBJECT_REPKEYS
 
+// Enable the code allowing to validate replicate subobjects when converting from the legacy method to the explicit registration list
+#ifndef SUBOBJECT_TRANSITION_VALIDATION
+	#define SUBOBJECT_TRANSITION_VALIDATION !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif
+
 class UActorComponent;
 class AActor;
 class FInBunch;
@@ -300,6 +305,11 @@ public:
     */
 	static void SetCurrentSubObjectOwner(AActor* SubObjectOwner);
 	static void SetCurrentSubObjectOwner(UActorComponent* SubObjectOwner);
+
+#if SUBOBJECT_TRANSITION_VALIDATION
+	/** Only returns true when calling ReplicateSubobjects() while we are trying to detect bad usage of the legacy function. */
+	static bool CanIgnoreDeprecatedReplicateSubObjects();
+#endif
 
 	/** Replicates given subobject on this actor channel */
 	bool ReplicateSubobject(UObject* Obj, FOutBunch& Bunch, FReplicationFlags RepFlags);

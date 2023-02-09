@@ -499,6 +499,14 @@ bool AActor::ReplicateSubobjects(UActorChannel *Channel, FOutBunch *Bunch, FRepl
 		{
 			UActorChannel::SetCurrentSubObjectOwner(ActorComp);
 			WroteSomething |= ActorComp->ReplicateSubobjects(Channel, Bunch, RepFlags);		// Lets the component add subobjects before replicating its own properties.
+
+#if SUBOBJECT_TRANSITION_VALIDATION
+			if (UActorChannel::CanIgnoreDeprecatedReplicateSubObjects())
+			{
+				// Don't replicate the component itself when testing since we know this function is not voluntarily implemented
+				continue;
+			}
+#endif
 			UActorChannel::SetCurrentSubObjectOwner(this);
 			WroteSomething |= Channel->ReplicateSubobject(ActorComp, *Bunch, *RepFlags);	// (this makes those subobjects 'supported', and from here on those objects may have reference replicated)		
 		}

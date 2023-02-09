@@ -56,11 +56,6 @@ DECLARE_CYCLE_STAT(TEXT("ActorChan_FindOrCreateRep"), Stat_ActorChanFindOrCreate
 DECLARE_LLM_MEMORY_STAT(TEXT("NetChannel"), STAT_NetChannelLLM, STATGROUP_LLMFULL);
 LLM_DEFINE_TAG(NetChannel, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetChannelLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
 
-// Enable the code allowing to validate replicate subobjects when converting from the legacy method to the explicit registration list
-#ifndef SUBOBJECT_TRANSITION_VALIDATION
-	#define SUBOBJECT_TRANSITION_VALIDATION !UE_BUILD_SHIPPING
-#endif
-
 extern int32 GDoReplicationContextString;
 extern int32 GNetDormancyValidate;
 extern bool GbNetReuseReplicatorsForDormantObjects;
@@ -130,7 +125,7 @@ namespace UE::Net
 		TEXT("Only allow property replication of actors that had BeginPlay called on them."), ECVF_Default);
 
 #if SUBOBJECT_TRANSITION_VALIDATION
-	static int32 GCVarCompareSubObjectsReplicated = 0;
+	static bool GCVarCompareSubObjectsReplicated = false;
 	static FAutoConsoleVariableRef CVarCompareSubObjectsReplicated(
 		TEXT("net.SubObjects.CompareWithLegacy"),
 		GCVarCompareSubObjectsReplicated,
@@ -140,6 +135,12 @@ namespace UE::Net
 		TEXT("net.SubObjects.LogAllComparisonErrors"),
 		0,
 		TEXT("If enabled log all the errors detected by the CompareWithLegacy cheat. Otherwise only the first ensure triggered gets logged."));
+
+	static bool GCVarDetectDeprecatedReplicateSubObjects = false;
+	static FAutoConsoleVariableRef CVarDetectDeprecatedReplicateSubObjects(
+		TEXT("net.SubObjects.DetectDeprecatedReplicatedSubObjects"),
+		GCVarDetectDeprecatedReplicateSubObjects,
+		TEXT("When turned on, we trigger an ensure if we detect a ReplicateSubObjects() function is still implemented in a class that is using the new SubObject list."));
 #endif
 
 	static bool bEnableNetInitialSubObjects = true;
@@ -3756,12 +3757,12 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 	check(Actor->IsUsingRegisteredSubObjectList());
 
 #if SUBOBJECT_TRANSITION_VALIDATION
-	if (GCVarCompareSubObjectsReplicated)
+	if (GCVarCompareSubObjectsReplicated || GCVarDetectDeprecatedReplicateSubObjects)
 	{
 		TestLegacyReplicateSubObjects(Bunch, RepFlags);
 
-		// From here track all subobjects that write into the bunch.
-		DataChannelInternal::bTrackReplicatedSubObjects = true;
+		// From here track all subobjects from the real registry that write into the bunch.
+		DataChannelInternal::bTrackReplicatedSubObjects = GCVarCompareSubObjectsReplicated;
 	}
 #endif
 
@@ -3818,6 +3819,13 @@ void UActorChannel::SetCurrentSubObjectOwner(UActorComponent* SubObjectOwner)
 	DataChannelInternal::bIgnoreLegacyReplicateSubObject = SubObjectOwner && SubObjectOwner->IsUsingRegisteredSubObjectList();
 }
 
+#if SUBOBJECT_TRANSITION_VALIDATION
+bool UActorChannel::CanIgnoreDeprecatedReplicateSubObjects()
+{
+	return UE::Net::GCVarDetectDeprecatedReplicateSubObjects && DataChannelInternal::bTestingLegacyMethodForComparison;
+}
+#endif
+
 bool UActorChannel::ReplicateSubobject(UObject* SubObj, FOutBunch& Bunch, FReplicationFlags RepFlags)
 {
 	if (!IsValid(SubObj))
@@ -3828,7 +3836,25 @@ bool UActorChannel::ReplicateSubobject(UObject* SubObj, FOutBunch& Bunch, FRepli
 #if SUBOBJECT_TRANSITION_VALIDATION
 	if (DataChannelInternal::bTestingLegacyMethodForComparison)
 	{
-		DataChannelInternal::LegacySubObjectsCollected.Emplace(DataChannelInternal::FSubObjectReplicatedInfo(SubObj));
+		if (UE::Net::GCVarDetectDeprecatedReplicateSubObjects)
+		{
+			if (DataChannelInternal::CurrentSubObjectOwner == Actor)
+			{
+				ensureMsgf(false, TEXT("ReplicateSubObjects() should not be implemented in class %s since bReplicateUsingRegisteredSubObjectList is true. Delete the function and use AddReplicatedSubObject instead."),
+					*Actor->GetName(), *Actor->GetClass()->GetName());
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("ReplicateSubObjects() should not be implemented in class %s owned by %s (class %s) since bReplicateUsingRegisteredSubObjectList is true. Delete the function and use AddReplicatedSubObject instead."),
+					*GetNameSafe(DataChannelInternal::CurrentSubObjectOwner?DataChannelInternal::CurrentSubObjectOwner->GetClass():nullptr),
+					*Actor->GetName(), *Actor->GetClass()->GetName());
+			}
+		}
+		else
+		{
+			DataChannelInternal::LegacySubObjectsCollected.Emplace(DataChannelInternal::FSubObjectReplicatedInfo(SubObj));
+		}
+
 		return false;
 	}
 #endif
@@ -3889,16 +3915,18 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 		return false;
 	}
 
+	using namespace UE::Net;
+
 	// This traps actor components using the registration list even if their owning Actor isn't using the list itself.
 	if (ReplicatedComponent->IsUsingRegisteredSubObjectList() && !DataChannelInternal::bTestingLegacyMethodForComparison)
 	{
 #if SUBOBJECT_TRANSITION_VALIDATION
-		if (UE::Net::GCVarCompareSubObjectsReplicated)
+		if (GCVarCompareSubObjectsReplicated || GCVarDetectDeprecatedReplicateSubObjects)
 		{
 			TestLegacyReplicateSubObjects(ReplicatedComponent, Bunch, RepFlags);
 
-			// From here track all subobjects that write into the bunch.
-			DataChannelInternal::bTrackReplicatedSubObjects = true;
+			// From here track all subobjects from the real registry that write into the bunch.
+			DataChannelInternal::bTrackReplicatedSubObjects = GCVarCompareSubObjectsReplicated;
 		}
 #endif
 
@@ -3913,7 +3941,7 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 		bWroteSomethingImportant |= WriteComponentSubObjects(ReplicatedComponent, Bunch, RepFlags, ConditionMap);
 
 #if SUBOBJECT_TRANSITION_VALIDATION
-		if (UE::Net::GCVarCompareSubObjectsReplicated)
+		if (GCVarCompareSubObjectsReplicated)
 		{
 			ValidateReplicatedSubObjects();
 

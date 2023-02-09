@@ -1653,8 +1653,17 @@ void UAbilitySystemComponent::ForceAvatarReplication()
 	}
 }
 
-bool UAbilitySystemComponent::ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags)
+bool UAbilitySystemComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags *RepFlags)
 {
+#if SUBOBJECT_TRANSITION_VALIDATION
+	// When true it means we are calling this function to find any leftover replicated subobjects in classes that transitioned to the new registry list.
+	// This shared class needs to keep supporting the old ways until we fully deprecate the API, so by only returning false we prevent the ensures to trigger
+	if (UActorChannel::CanIgnoreDeprecatedReplicateSubObjects())
+	{
+		return false;
+	}
+#endif
+
 	bool WroteSomething = Super::ReplicateSubobjects(Channel, Bunch, RepFlags);
 
 	for (const UAttributeSet* Set : GetSpawnedAttributes())
