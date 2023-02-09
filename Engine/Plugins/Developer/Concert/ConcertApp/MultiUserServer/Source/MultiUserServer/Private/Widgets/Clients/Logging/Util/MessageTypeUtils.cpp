@@ -85,10 +85,10 @@ namespace UE::MultiUserServer::MessageTypeUtils
 			}
 			return Result;
 		}();
-
-		return CachedSanitizedNames[MessageTypeName];
+		const FString* SanitizedName = CachedSanitizedNames.Find(MessageTypeName);
+		return SanitizedName ? *SanitizedName : "UNKNOWN";
 	}
-	
+
 	static TSet<FName> FilterAllMessageTypes(TFunctionRef<bool(UStruct*)> ConsumerFunc)
 	{
 		TSet<FName> Result;
