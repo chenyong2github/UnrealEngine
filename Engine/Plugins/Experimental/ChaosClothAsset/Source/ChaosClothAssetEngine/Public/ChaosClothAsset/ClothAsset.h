@@ -13,12 +13,14 @@ class FSkeletalMeshModel;
 struct FChaosClothSimulationModel;
 struct FSkeletalMeshLODInfo;
 class UDataflow;
+class FSkinnedAssetCompilationContext;
 
 UENUM()
 enum class EClothAssetAsyncProperties : uint64
 {
 	None = 0,
 	RenderData = 1 << 0,
+	ThumbnailInfo = 1 << 1,
 	All = MAX_uint64
 };
 ENUM_CLASS_FLAGS(EClothAssetAsyncProperties);
@@ -179,7 +181,16 @@ private:
 
 #if WITH_EDITOR
 	/** Load render data from DDC if the data is cached, otherwise generate render data and save into DDC */
-	void CacheDerivedData(FSkinnedAssetPostLoadContext* Context);
+	void CacheDerivedData(FSkinnedAssetCompilationContext* Context);
+
+	/** Initial step for the building process - Can't be done in parallel. USkinnedAsset Interface. */
+	virtual void BeginBuildInternal(FSkinnedAssetBuildContext& Context) override;
+
+	/** Thread-safe part. USkinnedAsset Interface. */
+	virtual void ExecuteBuildInternal(FSkinnedAssetBuildContext& Context) override;
+
+	/** Complete the building process - Can't be done in parallel. USkinnedAsset Interface. */
+	virtual void FinishBuildInternal(FSkinnedAssetBuildContext& Context) override;
 #endif
 
 	/** Reregister all components using this asset to reset the simulation in case anything has changed. */

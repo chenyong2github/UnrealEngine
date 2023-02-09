@@ -109,7 +109,7 @@ public:
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FSkinnedAssetAsyncBuildWorker, STATGROUP_ThreadPoolAsyncTasks);
 	}
 
-	void DoWork();
+	void ENGINE_API DoWork();
 };
 
 struct FSkinnedAssetAsyncBuildTask : public FAsyncTask<FSkinnedAssetAsyncBuildWorker>

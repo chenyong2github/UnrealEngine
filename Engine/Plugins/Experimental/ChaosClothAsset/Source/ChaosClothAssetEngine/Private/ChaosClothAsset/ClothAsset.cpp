@@ -326,15 +326,14 @@ void UChaosClothAsset::Build()
 {
 	using namespace UE::Chaos::ClothAsset;
 
-	// Release render resources
+#if WITH_EDITOR
+	FSkinnedAssetAsyncBuildScope AsyncBuildScope(this);
+
+	FSkinnedAssetBuildContext Context;
+	BeginBuildInternal(Context);
+#else
 	ReleaseResources();
-
-	// Flush the resource release commands to the rendering thread to ensure that the build doesn't occur while a resource is still
-	// allocated, and potentially accessing the UClothAsset
-	ReleaseResourcesFence.Wait();
-
-	// Clear SkeletalMeshRenderData so it can be rebuilt
-	SetResourceForRendering(nullptr);
+#endif
 
 	// Set a new Guid to invalidate the DDC
 	AssetGuid = FGuid::NewGuid();
@@ -364,7 +363,8 @@ void UChaosClothAsset::Build()
 
 	// Load/save render data from/to DDC
 #if WITH_EDITOR
-	CacheDerivedData(nullptr);
+	ExecuteBuildInternal(Context);
+	FinishBuildInternal(Context);
 #endif
 
 	if (FApp::CanEverRender())
@@ -375,6 +375,48 @@ void UChaosClothAsset::Build()
 	// Re-register any components using this asset to restart the simulation with the updated asset
 	ReregisterComponents();
 }
+
+#if WITH_EDITOR
+void UChaosClothAsset::ExecuteBuildInternal(FSkinnedAssetBuildContext& Context)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UChaosClothAsset::ExecuteBuildInternal);
+
+	// This scope allows us to use any locked properties without causing stalls
+	FSkinnedAssetAsyncBuildScope AsyncBuildScope(this);
+
+	// rebuild render data from imported model
+	CacheDerivedData(&Context);
+}
+
+void UChaosClothAsset::BeginBuildInternal(FSkinnedAssetBuildContext& Context)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UChaosClothAsset::BeginBuildInternal);
+
+	SetInternalFlags(EInternalObjectFlags::Async);
+	
+	// Unregister all instances of this component
+	Context.RecreateRenderStateContext = MakeUnique<FSkinnedMeshComponentRecreateRenderStateContext>(this, false);
+
+	// Release the render data resources.
+	ReleaseResources();
+
+	// Flush the resource release commands to the rendering thread to ensure that the build doesn't occur while a resource is still
+	// allocated, and potentially accessing the UChaosClothAsset.
+	ReleaseResourcesFence.Wait();
+
+	// Lock all properties that should not be modified/accessed during async post-load
+	AcquireAsyncProperty();
+}
+
+void UChaosClothAsset::FinishBuildInternal(FSkinnedAssetBuildContext& Context)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UChaosClothAsset::FinishBuildInternal);
+
+	ClearInternalFlags(EInternalObjectFlags::Async);
+
+	ReleaseAsyncProperty();
+}
+#endif // #if WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 void UChaosClothAsset::BuildMeshModel()
@@ -444,24 +486,21 @@ FString UChaosClothAsset::GetAsyncPropertyName(uint64 Property) const
 }
 
 #if WITH_EDITOR
-void UChaosClothAsset::CacheDerivedData(FSkinnedAssetPostLoadContext* Context)
+void UChaosClothAsset::CacheDerivedData(FSkinnedAssetCompilationContext* Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UChaosClothAsset::CacheDerivedData);
+	check(Context);
 
-	if (!GetOutermost()->bIsCookedForEditor)
-	{
-		if (GetResourceForRendering() == nullptr)
-		{
-			// Cache derived data for the running platform.
-			ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-			check(RunningPlatform);
+	// Cache derived data for the running platform.
+	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	check(RunningPlatform);
 
-			// Create the render data
-			SetResourceForRendering(MakeUnique<FSkeletalMeshRenderData>());
-			// Load render data from DDC, or generate it and save to DDC
-			GetResourceForRendering()->Cache(RunningPlatform, this, Context);
-		}
-	}
+	// Create the render data
+	SetResourceForRendering(MakeUnique<FSkeletalMeshRenderData>());
+
+	// Load render data from DDC, or generate it and save to DDC
+	GetResourceForRendering()->Cache(RunningPlatform, this, Context);
+
 }
 
 FString UChaosClothAsset::BuildDerivedDataKey(const ITargetPlatform* TargetPlatform)
