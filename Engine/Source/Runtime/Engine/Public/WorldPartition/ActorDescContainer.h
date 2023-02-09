@@ -18,6 +18,7 @@ class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 {
 	GENERATED_UCLASS_BODY()
 
+#if WITH_EDITOR
 	friend struct FWorldPartitionHandleUtils;
 	friend class FWorldPartitionActorDesc;
 
@@ -36,10 +37,8 @@ public:
 		/* The long package name of the container package on disk. */
 		FName PackageName;
 
-#if WITH_EDITOR
 		/* Custom filter function used to filter actors descriptors. */
 		TUniqueFunction<bool(const FWorldPartitionActorDesc*)> FilterActorDesc;
-#endif
 	};
 
 	UE_DEPRECATED(5.1, "UActorDescContainer::Initialize is deprecated, UActorDescContainer::Initialize with UActorDescContainer::FInitializeParams should be used instead.")
@@ -48,7 +47,6 @@ public:
 	void Update();
 	void Uninitialize();
 
-#if WITH_EDITOR
 	bool IsInitialized() const { return bContainerInitialized; }
 
 	void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
@@ -108,7 +106,6 @@ public:
 	FGuid ContentBundleGuid;
 
 	TArray<TUniquePtr<FWorldPartitionActorDesc>> InvalidActors;
-#endif
 
 protected:
 	//~ Begin UObject Interface
@@ -119,7 +116,6 @@ private:
 	// GetWorld() should never be called on an ActorDescContainer to avoid any confusion as it can be used as a template
 	virtual UWorld* GetWorld() const override { return nullptr; }
 
-#if WITH_EDITOR
 	bool ShouldRegisterDelegates();
 	void RegisterEditorDelegates();
 	void UnregisterEditorDelegates();

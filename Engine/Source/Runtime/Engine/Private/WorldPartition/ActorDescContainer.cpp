@@ -25,6 +25,7 @@ UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitial
 #endif
 {}
 
+#if WITH_EDITOR
 void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 {
 	Initialize({ InWorld, InPackageName });
@@ -39,7 +40,6 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 	// With this, we could always find the owning WorldPartition and of course the owning world (GetOwningWorldPartition()->GetWorld()).
 	UWorld* OwningWorld = InitParams.World;
 
-#if WITH_EDITOR
 	check(!bContainerInitialized);
 	ContainerPackageName = InitParams.PackageName;
 	TArray<FAssetData> Assets;
@@ -89,12 +89,10 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 	RegisterEditorDelegates();
 
 	bContainerInitialized = true;
-#endif
 }
 
 void UActorDescContainer::Update()
 {
-#if WITH_EDITOR
 	check(bContainerInitialized);
 	TArray<FAssetData> Assets;
 
@@ -157,12 +155,10 @@ void UActorDescContainer::Update()
 			RemoveActor(ActorDescGuidToRemove);
 		}
 	}
-#endif
 }
 
 void UActorDescContainer::Uninitialize()
 {
-#if WITH_EDITOR
 	if (bContainerInitialized)
 	{
 		UnregisterEditorDelegates();
@@ -177,7 +173,6 @@ void UActorDescContainer::Uninitialize()
 		}
 		ActorDescPtr.Reset();
 	}
-#endif
 }
 
 void UActorDescContainer::BeginDestroy()
@@ -187,7 +182,6 @@ void UActorDescContainer::BeginDestroy()
 	Uninitialize();
 }
 
-#if WITH_EDITOR
 FString UActorDescContainer::GetExternalActorPath() const
 {
 	return ULevel::GetExternalActorsPath(ContainerPackageName.ToString());
