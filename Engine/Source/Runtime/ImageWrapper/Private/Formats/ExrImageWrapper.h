@@ -47,6 +47,16 @@ public:
 	
 	virtual bool CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const override;
 	virtual ERawImageFormat::Type GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const override;
+
+	typedef TUniquePtr<char[]> FUniqueCString;
+	FUniqueCString MakeUniqueCString(const char *str)
+	{
+		size_t num = strlen(str)+1;
+		FUniqueCString Ret = MakeUnique<char[]>( num );
+		memcpy(Ret.Get(),str,num);
+		return Ret;
+	}
+	TArray< FUniqueCString > FileChannelNames;
 };
 
 #endif // WITH_UNREALEXR
