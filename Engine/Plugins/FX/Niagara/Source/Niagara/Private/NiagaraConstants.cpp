@@ -60,6 +60,7 @@ const FString FNiagaraConstants::StackContextNamespaceString(TEXT("StackContext"
 const FString FNiagaraConstants::SystemNamespaceString(TEXT("System"));
 const FString FNiagaraConstants::UserNamespaceString(TEXT("User"));
 const FString FNiagaraConstants::InternalNamespaceString(TEXT("__INTERNAL__"));
+const FString FNiagaraConstants::PreviousNamespaceString(TEXT("Previous"));
 
 const FName FNiagaraConstants::InputScopeName(TEXT("Input"));
 const FName FNiagaraConstants::OutputScopeName(TEXT("Output"));

@@ -229,15 +229,19 @@ struct FNiagaraSimCacheDataBuffersLayout
 	struct FVariableCopyContext
 	{
 		float					FrameFraction		= 0.0f;
-		float					RecipDt				= 0.0f;
+		float					FrameDeltaSeconds	= 0.0f;
+		float					SimDeltaSeconds		= 0.0f;
+		float					PrevFrameFraction	= 0.0f;
 		uint32					NumInstances		= 0;
-		uint8*					Dest				= nullptr;
+		uint8*					DestCurr			= nullptr;
+		uint8*					DestPrev			= nullptr;
 		uint32					DestStride			= 0;
-		const uint8*			SourceAComponent	= nullptr;
+		const uint8*			SourceACurr			= nullptr;
+		const uint8*			SourceAPrev			= nullptr;
 		uint32					SourceAStride		= 0;
-		const uint8*			SourceBComponent	= nullptr;
+		const uint8*			SourceBCurr			= nullptr;
 		uint32					SourceBStride		= 0;
-		const uint8*			VelocityComponent	= nullptr;
+		const uint8*			Velocity			= nullptr;
 		FTransform				RebaseTransform;
 		TConstArrayView<uint32>	InterpMappings;
 	};
@@ -248,14 +252,26 @@ struct FNiagaraSimCacheDataBuffersLayout
 	{
 		FVariableCopyMapping() = default;
 		explicit FVariableCopyMapping(uint16 InComponentFrom, uint16 InComponentTo, FVariableCopyFunction InCopyFunc)
-			: ComponentFrom(InComponentFrom)
-			, ComponentTo(InComponentTo)
+			: CurrComponentFrom(InComponentFrom)
+			, PrevComponentFrom(InComponentFrom)
+			, CurrComponentTo(InComponentTo)
+			, PrevComponentTo(InComponentTo)
+			, CopyFunc(InCopyFunc)
+		{
+		}
+		explicit FVariableCopyMapping(uint16 InCurrComponentFrom, uint16 InPrevComponentFrom, uint16 InCurrComponentTo, uint16 InPrevComponentTo, FVariableCopyFunction InCopyFunc)
+			: CurrComponentFrom(InCurrComponentFrom)
+			, PrevComponentFrom(InPrevComponentFrom)
+			, CurrComponentTo(InCurrComponentTo)
+			, PrevComponentTo(InPrevComponentTo)
 			, CopyFunc(InCopyFunc)
 		{
 		}
 
-		uint16					ComponentFrom = 0;
-		uint16					ComponentTo = 0;
+		uint16					CurrComponentFrom = 0;
+		uint16					PrevComponentFrom = 0;
+		uint16					CurrComponentTo = 0;
+		uint16					PrevComponentTo = 0;
 		FVariableCopyFunction	CopyFunc;
 	};
 
@@ -292,12 +308,19 @@ struct FNiagaraSimCacheDataBuffersLayout
 	UPROPERTY()
 	TArray<FName> InterpVariableNames;
 
-	TArray<uint16> ComponentMappingsToDataBuffer;
-	TArray<FVariableCopyMapping> VariableCopyMappingsToDataBuffer;
+	UPROPERTY()
 	uint16 ComponentVelocity = INDEX_NONE;
 
+	// Transient value used to map particles between frames for interpolation
+	uint16 ComponentUniqueID = INDEX_NONE;
+
+	TArray<uint16> ComponentMappingsToDataBuffer;
+	TArray<FVariableCopyMapping> VariableCopyMappingsToDataBuffer;
+
 	TArray<uint16>	ComponentMappingsFromDataBuffer;
-	uint16			ComponentUniqueID = INDEX_NONE;
+
+	int32 IndexOfCacheVariable(const FNiagaraVariableBase& InVariable) const;
+	const FNiagaraSimCacheVariable* FindCacheVariable(const FNiagaraVariableBase& InVariable) const;
 };
 
 USTRUCT()
