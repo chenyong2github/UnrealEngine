@@ -112,7 +112,7 @@ protected:
 	void MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfaceSet);
 
 	void ApplyEdgeCriteria(FTopologicalEdge& Edge);
-	void ApplyFaceCriteria(FTopologicalFace& Face);
+	static void ApplyFaceCriteria(FTopologicalFace& Face, const TArray<TSharedPtr<FCriterion>>& Criteria);
 
 	/**
 	 * Generate Edge Elements on active edge from Edge cutting points
