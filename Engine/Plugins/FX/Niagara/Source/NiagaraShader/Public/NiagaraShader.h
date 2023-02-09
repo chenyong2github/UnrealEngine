@@ -16,12 +16,11 @@
 #include "NiagaraShared.h"
 #include "NiagaraShaderType.h"
 #include "SceneTexturesConfig.h"
+#include "RendererUtils.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "RenderGraph.h"
 #include "SceneRenderTargetParameters.h"
-
-#include "RendererUtils.h"
 #endif
 
 class UClass;
