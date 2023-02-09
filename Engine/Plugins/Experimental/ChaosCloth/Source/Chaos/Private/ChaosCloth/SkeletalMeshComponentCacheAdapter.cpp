@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosCloth/SkeletalMeshComponentCacheAdapter.h"
 #include "Chaos/ParticleHandle.h"
@@ -282,5 +282,15 @@ namespace Chaos
 			ClothSolver->SetEnableSolver(false);
 		}
 		return true;
+	}
+
+	void FSkeletalMeshCacheAdapter::WaitForSolverTasks(UPrimitiveComponent* InComponent) const
+	{
+		EnsureIsInGameThreadContext();
+
+		if (USkeletalMeshComponent* MeshComp = CastChecked<USkeletalMeshComponent>(InComponent))
+		{
+			MeshComp->WaitForExistingParallelClothSimulation_GameThread();
+		}
 	}
 }    // namespace Chaos

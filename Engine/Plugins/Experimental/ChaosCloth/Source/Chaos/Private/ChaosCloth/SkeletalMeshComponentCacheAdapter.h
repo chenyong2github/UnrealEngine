@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -34,6 +34,7 @@ namespace Chaos
 										 Chaos::FReal                                       InTime,
 										 FPlaybackTickRecord&								TickRecord,
 										 TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids) const override;
+		virtual void                   WaitForSolverTasks(UPrimitiveComponent* InComponent) const override;
 		// ~End FComponentCacheAdapter interface
 
 	private :

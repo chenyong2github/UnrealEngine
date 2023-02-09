@@ -179,6 +179,12 @@ namespace Chaos
 		 */
 		virtual bool ValidForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const = 0;
 
+		/**
+		* Stall on any solver tasks that could broadcast events via the EventsSolver. Called from game thread.
+		* This is necessary so that the cache manager can teardown and setup new event handling.
+		*/
+		virtual void WaitForSolverTasks(UPrimitiveComponent* InComponent) const {};
+
 	protected:
 	private:
 	};

@@ -174,9 +174,14 @@ namespace Chaos
 	public:
 
 		/** Only allow construction with valid parameters as well as restricting to module construction */
-		virtual ~FPhysicsSolverEvents() { ClearCallbacks(); }
+		virtual ~FPhysicsSolverEvents()
+		{ 
+			EventTeardown.Broadcast();
+			ClearCallbacks(); 
+		}
 		
 		/** Events */
+		/** WARNING: Events are not threadsafe!*/
 		/** Pre advance is called before any physics processing or simulation happens in a given physics update */
 		FDelegateHandle AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate);
 		bool            RemovePreAdvanceCallback(FDelegateHandle InHandle);

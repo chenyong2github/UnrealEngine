@@ -247,6 +247,8 @@ void AChaosCacheManager::BeginPlay()
 
 void AChaosCacheManager::BeginEvaluate()
 {
+	EndEvaluate();
+
 	using namespace Chaos;
 	bIsSimulating = !(CacheMode == ECacheMode::None);
 	
@@ -271,7 +273,7 @@ void AChaosCacheManager::BeginEvaluate()
 	{
 		Adapter->Initialize();
 	}
-	ActiveAdapters.Reset();
+	check(ActiveAdapters.IsEmpty()); // Should be empty from calling EndEvaluate
 
 	int32       NumFailedPlaybackEntries = 0;
 	const int32 NumComponents            = ObservedComponents.Num();
@@ -457,6 +459,8 @@ void AChaosCacheManager::EndEvaluate()
 	
 	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 	check(Module);
+
+	WaitForObservedComponentSolverTasks();
 
 	for(TPair<Chaos::FPhysicsSolverEvents*, FPerSolverData> PerSolver : PerSolverData)
 	{
@@ -777,6 +781,20 @@ void AChaosCacheManager::TickObservedComponents(const TArray<int32>& InIndices, 
 
 			Observed.TimeSinceTrigger += InDt;
 			InCallable(Observed.Cache, Observed, Adapter);
+		}
+	}
+}
+
+void AChaosCacheManager::WaitForObservedComponentSolverTasks()
+{
+	check(ActiveAdapters.IsEmpty() || ObservedComponents.Num() == ActiveAdapters.Num());
+
+	for (int32 CompIndex = 0; CompIndex < ActiveAdapters.Num(); ++CompIndex)
+	{
+		if(const Chaos::FComponentCacheAdapter* Adapter = ActiveAdapters[CompIndex])
+		{
+			FObservedComponent& Observed = ObservedComponents[CompIndex];
+			Adapter->WaitForSolverTasks(Observed.GetComponent());
 		}
 	}
 }

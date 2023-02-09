@@ -3883,6 +3883,13 @@ void USkeletalMeshComponent::GetUpdateClothSimulationData_AnyThread(TMap<int32, 
 	}
 }
 
+void USkeletalMeshComponent::WaitForExistingParallelClothSimulation_GameThread()
+{
+	// Should only kick new parallel cloth simulations from game thread, so should be safe to also wait for existing ones there.
+	check(IsInGameThread());
+	HandleExistingParallelClothSimulation();
+}
+
 void USkeletalMeshComponent::DebugDrawClothing(FPrimitiveDrawInterface* PDI)
 {
 #if WITH_EDITOR && ENABLE_DRAW_DEBUG

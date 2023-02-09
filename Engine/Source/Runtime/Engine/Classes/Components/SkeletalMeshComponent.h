@@ -1443,6 +1443,9 @@ public:
 	/** Get the current simulation data map for the clothing on this component. This will stall until the cloth simulation is complete. */
 	const TMap<int32, FClothSimulData>& GetCurrentClothingData_AnyThread() const;
 
+	/** Stalls on any currently running clothing simulations.*/
+	void WaitForExistingParallelClothSimulation_GameThread();
+
 private:
 
 	/** Let the cloth tick and completion tasks have access to private clothing data */

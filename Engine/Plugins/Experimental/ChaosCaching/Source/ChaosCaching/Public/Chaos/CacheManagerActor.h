@@ -337,11 +337,16 @@ private:
 	 */
 	void TickObservedComponents(const TArray<int32>& InIndices, Chaos::FReal InDt, FTickObservedFunction InCallable);
 
+	/**
+	* Stall on any in flight solver tasks that might call callbacks. Necessary before editing callbacks.
+	*/
+	void WaitForObservedComponentSolverTasks();
+
 	/** List of observed objects and their caches */
 	UPROPERTY(EditAnywhere, Category = "Caching")
 	TArray<FObservedComponent> ObservedComponents;
 
-	/** 1-1 list of adapters for the observed components, populated on BeginPlay */
+	/** 1-1 list of adapters for the observed components, populated on BeginEvaluate */
 	TArray<Chaos::FComponentCacheAdapter*> ActiveAdapters;
 
 	/** List of particles returned by the adapter as requiring a kinematic update */
