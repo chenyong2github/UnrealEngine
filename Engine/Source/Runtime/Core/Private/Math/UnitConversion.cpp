@@ -11,8 +11,6 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/CString.h"
 #include "Misc/ExpressionParser.h"
-#include "Misc/ExpressionParserTypes.h"
-#include "Misc/ExpressionParserTypes.inl"
 #include "Misc/Guid.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"

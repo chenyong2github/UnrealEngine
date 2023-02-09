@@ -5,7 +5,7 @@
 #include "Containers/SparseArray.h"
 #include "Math/BasicMathExpressionEvaluator.h"
 #include "Misc/CString.h"
-#include "Misc/ExpressionParserTypes.inl"
+#include "Misc/ExpressionParserTypes.h"
 #include "Misc/Guid.h"
 #include "Templates/Function.h"
 #include "Templates/ValueOrError.h"

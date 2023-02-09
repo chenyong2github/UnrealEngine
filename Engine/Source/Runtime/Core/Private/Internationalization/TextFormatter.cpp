@@ -17,7 +17,6 @@
 #include "Misc/Char.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/ExpressionParser.h"
-#include "Misc/ExpressionParserTypes.inl"
 #include "Misc/Guid.h"
 #include "Misc/Optional.h"
 #include "Misc/ScopeLock.h"
