@@ -19,6 +19,22 @@ public:
 	bool bUsesObjectLocalBounds = false;
 	bool bUsesPreSkinnedLocalBounds = false;
 	bool bUsesCustomPrimitiveData = false;
+	bool bUsesTransformVector = false;
+	bool bUsesTransformPosition = false;
+
+	bool UsesPrimitiveData() const
+	{
+		return bUsesActorPosition
+			|| bUsesObjectPosition
+			|| bUsesObjectOrientation
+			|| bUsesObjectRadius
+			|| bUsesObjectBounds
+			|| bUsesObjectLocalBounds
+			|| bUsesPreSkinnedLocalBounds
+			|| bUsesCustomPrimitiveData
+			|| bUsesTransformVector
+			|| bUsesTransformPosition;
+	}
 
 	using FProxyMaterialCompiler::FProxyMaterialCompiler;
 
@@ -79,6 +95,18 @@ public:
 	{
 		bUsesCustomPrimitiveData = true;
 		return Compiler->CustomPrimitiveData(OutputIndex, Type);
+	}
+
+	virtual int32 TransformVector(EMaterialCommonBasis SourceCoordBasis, EMaterialCommonBasis DestCoordBasis, int32 A) override
+	{
+		if (SourceCoordBasis != DestCoordBasis) bUsesTransformVector = true; // TODO: optimize later by ignoring some irrelevant basis (like MCB_View and MCB_Camera)
+		return Compiler->TransformVector(SourceCoordBasis, DestCoordBasis, A);
+	}
+
+	virtual int32 TransformPosition(EMaterialCommonBasis SourceCoordBasis, EMaterialCommonBasis DestCoordBasis, int32 A) override
+	{
+		if (SourceCoordBasis != DestCoordBasis) bUsesTransformPosition = true; // TODO: optimize later by ignoring some irrelevant basis (like MCB_View and MCB_Camera)
+		return Compiler->TransformPosition(SourceCoordBasis, DestCoordBasis, A);
 	}
 
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override

@@ -276,15 +276,7 @@ void FGLTFMaterialUtilities::AnalyzeMaterialProperty(const UMaterialInterface* I
 			BaseMaterial->CompileProperty(&ProxyCompiler, InProperty.Type);
 		}
 
-		bRequiresPrimitiveData =
-			ProxyCompiler.bUsesActorPosition ||
-			ProxyCompiler.bUsesObjectPosition ||
-			ProxyCompiler.bUsesObjectOrientation ||
-			ProxyCompiler.bUsesObjectRadius ||
-			ProxyCompiler.bUsesObjectBounds ||
-			ProxyCompiler.bUsesObjectLocalBounds ||
-			ProxyCompiler.bUsesPreSkinnedLocalBounds ||
-			ProxyCompiler.bUsesCustomPrimitiveData;
+		bRequiresPrimitiveData = ProxyCompiler.UsesPrimitiveData();
 	}, OutAnalysis);
 
 	// Also make sure the analysis takes into account primitive data
