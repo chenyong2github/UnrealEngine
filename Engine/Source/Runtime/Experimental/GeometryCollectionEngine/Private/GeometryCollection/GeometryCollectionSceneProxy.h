@@ -257,7 +257,16 @@ class FGeometryCollectionSceneProxy final : public FPrimitiveSceneProxy
 #endif
 
 	FGeometryCollectionDynamicData* DynamicData;
-	FGeometryCollectionConstantData* ConstantData;
+
+	struct SubsetConstantData
+	{
+		TArray<FIntVector> Indices;
+		TArray<int32> BoneMap;
+		uint32 NumTransforms;
+		TArray<FIntVector> OriginalMeshIndices;
+		TArray<FGeometryCollectionSection> OriginalMeshSections;
+		TArray<FMatrix44f> RestTransforms;
+	} SubsetConstantData;
 
 	bool bShowBoneColors;
 	bool bEnableBoneSelection;
@@ -288,13 +297,13 @@ public:
 	int32 GetRequiredIndexCount() const { return NumIndices; }
 
 	/** Called on render thread to setup static geometry for rendering */
-	void SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit = false);
+	void SetConstantData_RenderThread(const TUniquePtr<FGeometryCollectionConstantData>& NewConstantData, bool ForceInit = false);
 
 	/** Called on render thread to setup dynamic geometry for rendering */
 	void SetDynamicData_RenderThread(FGeometryCollectionDynamicData* NewDynamicData);
 
 	/** Called on render thread to construct the vertex definitions */
-	void BuildGeometry(const FGeometryCollectionConstantData* ConstantDataIn, TArray<FDynamicMeshVertex>& OutVertices, TArray<int32>& OutIndices, TArray<int32> &OutOriginalMeshIndices);
+	void BuildGeometry(const TUniquePtr<FGeometryCollectionConstantData>& ConstantDataIn, TArray<FDynamicMeshVertex>& OutVertices, TArray<int32>& OutIndices, TArray<int32> &OutOriginalMeshIndices);
 
 	/** Called on render thread to setup dynamic geometry for rendering */
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
@@ -341,7 +350,7 @@ public:
 protected:
 
 	/** Create the rendering buffer resources */
-	void InitResources();
+	void InitResources(const TUniquePtr<FGeometryCollectionConstantData>& ConstantData);
 
 	/** Return the rendering buffer resources */
 	void ReleaseResources();
@@ -412,7 +421,7 @@ public:
 	virtual Nanite::FResourceMeshInfo GetResourceMeshInfo() const override;
 
 	/** Called on render thread to setup static geometry for rendering */
-	void SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit = false);
+	void SetConstantData_RenderThread(const TUniquePtr<FGeometryCollectionConstantData>& NewConstantData, bool ForceInit = false);
 
 	/** Called on render thread to setup dynamic geometry for rendering */
 	void SetDynamicData_RenderThread(FGeometryCollectionDynamicData* NewDynamicData);

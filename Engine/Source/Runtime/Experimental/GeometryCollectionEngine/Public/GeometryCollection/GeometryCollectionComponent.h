@@ -1065,7 +1065,7 @@ protected:
 	int32 ISMPoolRootProxyMeshId = INDEX_NONE;
 
 	/** Populate the static geometry structures for the render thread. */
-	void InitConstantData(FGeometryCollectionConstantData* ConstantData) const;
+	void InitConstantData(TUniquePtr<FGeometryCollectionConstantData>& ConstantData) const;
 
 	/** Populate the dynamic particle data for the render thread. */
 	FGeometryCollectionDynamicData* InitDynamicData(bool bInitialization);

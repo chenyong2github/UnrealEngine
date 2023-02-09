@@ -701,7 +701,7 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 
 		if (RestCollection->HasVisibleGeometry())
 		{
-			FGeometryCollectionConstantData* const ConstantData = ::new FGeometryCollectionConstantData;
+			TUniquePtr<FGeometryCollectionConstantData> ConstantData = MakeUnique<FGeometryCollectionConstantData>();
 			InitConstantData(ConstantData);
 
 			FGeometryCollectionDynamicData* const DynamicData = InitDynamicData(true /* initialization */);
@@ -720,7 +720,7 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 			#endif
 
 				ENQUEUE_RENDER_COMMAND(CreateRenderState)(
-					[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
+					[GeometryCollectionSceneProxy, ConstantData = MoveTemp(ConstantData), DynamicData](FRHICommandListImmediate& RHICmdList)
 					{
 						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
 
@@ -753,7 +753,7 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 			#endif
 
 				ENQUEUE_RENDER_COMMAND(CreateRenderState)(
-					[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
+					[GeometryCollectionSceneProxy, ConstantData = MoveTemp(ConstantData), DynamicData](FRHICommandListImmediate& RHICmdList)
 					{
 						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
 						if (DynamicData)
@@ -2053,7 +2053,7 @@ void UGeometryCollectionComponent::SetInitialClusterBreaks(const TArray<int32>& 
 }
 
 
-void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantData* ConstantData) const
+void UGeometryCollectionComponent::InitConstantData(TUniquePtr<FGeometryCollectionConstantData>& ConstantData) const
 {
 	// Constant data should all be moved to the DDC as time permits.
 	// todo : this should be computed once per asset not per component or at least the part that does not depend on the component properties
