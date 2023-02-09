@@ -2543,14 +2543,19 @@ namespace mu
 			OP::ImageLayerArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerArgs>(item.At);
             switch (item.Stage)
             {
-            case 0:
-                    AddOp( FScheduledOp( item.At, item, 1),
-                           FScheduledOp( args.base, item),
-                           FScheduledOp( args.blended, item),
-                           FScheduledOp( args.mask, item) );
-                break;
+			case 0:
+				AddOp(FScheduledOp(item.At, item, 1),
+					FScheduledOp(args.base, item));
+				break;
 
-            case 1:
+			case 1:
+				// Request the rest of the data.
+				AddOp(FScheduledOp(item.At, item, 2),
+					FScheduledOp(args.blended, item),
+					FScheduledOp(args.mask, item));
+				break;
+
+			case 2:
 				// This has been moved to a task. It should have been intercepted in IssueOp.
 				check(false);
 				break;
