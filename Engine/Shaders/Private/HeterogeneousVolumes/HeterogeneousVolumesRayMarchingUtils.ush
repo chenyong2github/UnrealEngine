@@ -274,7 +274,7 @@ float3 ComputeInscattering(
 	float3 TransmittanceUVW = saturate((LocalShadowRayOrigin - LocalBoundsMin) / (2.0 * GetLocalBoundsExtent()));
 	float MipLevel = 0;
 
-	Inscattering = SampleLightingCache(TransmittanceUVW, MipLevel);
+	Inscattering = SampleLightingCache(TransmittanceUVW, MipLevel) * View.OneOverPreExposure;
 
 #else // DIM_USE_INSCATTERING_VOLUME
 	float3 L = LightData.Direction;

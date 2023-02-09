@@ -246,7 +246,7 @@ void RenderLightingCacheWithLiveShadingCS(
 
 #elif DIM_LIGHTING_CACHE_MODE == LIGHTING_CACHE_INSCATTERING
 	float3 Inscattering = ComputeInscattering(WorldRayOrigin, LightData, LightType, MaxStepCount, bApplyShadowTransmittance);
-	RWLightingCacheTexture[VoxelIndex] += Inscattering;
+	RWLightingCacheTexture[VoxelIndex] += Inscattering * View.PreExposure;
 #endif // DIM_LIGHTING_CACHE_MODE
 }
 
@@ -335,7 +335,7 @@ void RenderSingleScatteringWithLiveShadingCS(
 
 		// Output..
 		float3 Opacity = bApplyEmissionAndTransmittance ? 1.0 - Transmittance : 0.0;
-		RWLightingTexture[PixelCoord] += float4(Radiance, Luminance(Opacity));
+		RWLightingTexture[PixelCoord] += float4(Radiance * View.PreExposure, Luminance(Opacity));
 
 		// Debug output
 		//RWDebugOutputBuffer[LinearIndex] = DebugOutput;
