@@ -11,6 +11,8 @@
 #include "ShaderParameterMacros.h"
 #include "RenderGraphFwd.h"
 
+struct FStrataSceneData;
+class FScene;
 class FGlobalShaderMap;
 class FRDGBuilder;
 class FRHICommandListImmediate;
@@ -55,8 +57,6 @@ public:
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataPublicGlobalUniformParameters, RENDERER_API)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, TopLayerTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-struct FStrataSceneData;
 
 namespace Strata
 {
