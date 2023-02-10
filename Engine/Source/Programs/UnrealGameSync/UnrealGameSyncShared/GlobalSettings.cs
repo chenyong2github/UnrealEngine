@@ -53,6 +53,7 @@ namespace UnrealGameSync
 
 	public class GlobalSettings
 	{
+		public PerforceSyncOptions Perforce { get; set; } = new PerforceSyncOptions();
 		public FilterSettings Filter { get; set; } = new FilterSettings();
 	}
 

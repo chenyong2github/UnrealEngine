@@ -93,7 +93,7 @@ namespace UnrealGameSync
 			this.UserNameTextBox.Select(UserNameTextBox.TextLength, 0);
 			this.UserNameTextBox.CueBanner = $"Default ({defaultPerforceSettings.UserName})";
 
-			this.ParallelSyncThreadsSpinner.Value = Math.Max(Math.Min(settings.SyncOptions.NumThreads, ParallelSyncThreadsSpinner.Maximum), ParallelSyncThreadsSpinner.Minimum);
+			this.ParallelSyncThreadsSpinner.Value = Math.Max(Math.Min(settings.SyncOptions.NumThreads ?? PerforceSyncOptions.DefaultNumThreads, ParallelSyncThreadsSpinner.Maximum), ParallelSyncThreadsSpinner.Minimum);
 
 			this.DepotPathTextBox.Text = _initialDepotPath;
 			this.DepotPathTextBox.Select(DepotPathTextBox.TextLength, 0);
@@ -223,7 +223,8 @@ namespace UnrealGameSync
 
 			if (_settings.KeepInTray != KeepInTrayCheckBox.Checked || _settings.SyncOptions.NumThreads != ParallelSyncThreadsSpinner.Value)
 			{
-				_settings.SyncOptions.NumThreads = (int)ParallelSyncThreadsSpinner.Value;
+				int numThreads = (int)ParallelSyncThreadsSpinner.Value;
+				_settings.SyncOptions.NumThreads = (numThreads != PerforceSyncOptions.DefaultNumThreads)? (int?)numThreads : null;
 				_settings.KeepInTray = KeepInTrayCheckBox.Checked;
 				_settings.Save(_logger);
 			}

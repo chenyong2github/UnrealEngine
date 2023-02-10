@@ -419,7 +419,9 @@ namespace UnrealGameSync
 			Pairs.Remove(key);
 		}
 
-		public int GetValue(string key, int defaultValue)
+		public int GetValue(string key, int defaultValue) => GetOptionalIntValue(key, defaultValue) ?? defaultValue;
+
+		public int? GetOptionalIntValue(string key, int? defaultValue)
 		{
 			string? valueString = GetValue(key);
 			if(valueString != null)
@@ -626,6 +628,15 @@ namespace UnrealGameSync
 			return section;
 		}
 
+		public void RemoveSection(string name)
+		{
+			ConfigSection? section = FindSection(name);
+			if (section != null)
+			{
+				_sections.Remove(section);
+			}
+		}
+
 		public void SetValue(string key, int value)
 		{
 			int dotIdx = key.IndexOf('.');
@@ -666,6 +677,13 @@ namespace UnrealGameSync
 			int dotIdx = key.IndexOf('.');
 			ConfigSection? section = FindSection(key.Substring(0, dotIdx));
 			return (section == null)? defaultValue : section.GetValue(key.Substring(dotIdx + 1), defaultValue);
+		}
+
+		public int? GetOptionalIntValue(string key, int? defaultValue)
+		{
+			int dotIdx = key.IndexOf('.');
+			ConfigSection? section = FindSection(key.Substring(0, dotIdx));
+			return (section == null) ? defaultValue : section.GetOptionalIntValue(key.Substring(dotIdx + 1), defaultValue);
 		}
 
 		[return: NotNullIfNotNull("defaultValue")]

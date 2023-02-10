@@ -70,16 +70,12 @@ namespace UnrealGameSync
 		public const int DefaultMaxSizePerBatch = 128 * 1024 * 1024;
 		public const int DefaultNumSyncErrorRetries = 0;
 
-		public int NumRetries = DefaultNumRetries;
-		public int NumThreads = DefaultNumThreads;
-		public int TcpBufferSize = DefaultTcpBufferSize;
-		public int FileBufferSize = DefaultFileBufferSize;
+		public int? NumThreads { get; set; }
 
-		public int MaxCommandsPerBatch = DefaultMaxCommandsPerBatch;
-		public int MaxSizePerBatch = DefaultMaxSizePerBatch;
-
-		public int NumSyncErrorRetries = DefaultNumSyncErrorRetries;
-
+		public int? MaxCommandsPerBatch { get; set; }
+		public int? MaxSizePerBatch { get; set; }
+		
+		public int? NumSyncErrorRetries { get; set; }
 
 		public PerforceSyncOptions Clone()
 		{
@@ -1678,7 +1674,7 @@ namespace UnrealGameSync
 				WorkspaceUpdateResult result = WorkspaceUpdateResult.FailedToSync;
 				string statusMessage = "";
 
-				int retries = (null != context.PerforceSyncOptions) ? context.PerforceSyncOptions!.NumSyncErrorRetries : 0;
+				int retries = context.PerforceSyncOptions!.NumSyncErrorRetries ?? PerforceSyncOptions.DefaultNumSyncErrorRetries;
 
 				while (retries >= 0 && WorkspaceUpdateResult.FailedToSync == result)
 				{

@@ -125,7 +125,7 @@ namespace UnrealGameSync
 
 		public static byte[] SerializeJson<T>(T obj)
 		{
-			JsonSerializerOptions options = new JsonSerializerOptions { IgnoreNullValues = true, WriteIndented = true };
+			JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault };
 			options.Converters.Add(new JsonStringEnumConverter());
 
 			byte[] buffer;

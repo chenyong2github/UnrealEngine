@@ -532,7 +532,7 @@ namespace UnrealGameSync
 		Dictionary<FileReference, UserProjectSettings> _projectKeyToSettings = new Dictionary<FileReference, UserProjectSettings>();
 
 		// Perforce settings
-		public PerforceSyncOptions SyncOptions = new PerforceSyncOptions();
+		public PerforceSyncOptions SyncOptions => base.Global.Perforce;
 
 		private List<UserSelectedProjectSettings> ReadProjectList(string settingName, string legacySettingName)
 		{
@@ -771,25 +771,22 @@ namespace UnrealGameSync
 			NotifyUnresolvedMinutes = _configFile.GetValue("Notifications.NotifyUnresolvedMinutes", -1);
 
 			// Perforce settings
-			if(!int.TryParse(_configFile.GetValue("Perforce.NumRetries", "0"), out SyncOptions.NumRetries))
+			string? numThreadsStr = _configFile.GetValue("Perforce.NumThreads", null);
+			if (numThreadsStr != null)
 			{
-				SyncOptions.NumRetries = 0;
-			}
-
-			int numThreads;
-			if(int.TryParse(_configFile.GetValue("Perforce.NumThreads", "0"), out numThreads) && numThreads > 0)
-			{
-				if(Version >= UserSettingsVersion.DefaultNumberOfThreads || numThreads > 1)
+				int numThreads;
+				if (int.TryParse(numThreadsStr, out numThreads) && numThreads > 0)
 				{
-					SyncOptions.NumThreads = numThreads;
+					if (Version >= UserSettingsVersion.DefaultNumberOfThreads || numThreads > 1)
+					{
+						SyncOptions.NumThreads = numThreads;
+					}
 				}
 			}
 
-			SyncOptions.TcpBufferSize = _configFile.GetValue("Perforce.TcpBufferSize", PerforceSyncOptions.DefaultTcpBufferSize);
-			SyncOptions.FileBufferSize = _configFile.GetValue("Perforce.FileBufferSize", PerforceSyncOptions.DefaultFileBufferSize);
-			SyncOptions.MaxCommandsPerBatch = _configFile.GetValue("Perforce.MaxCommandsPerBatch", PerforceSyncOptions.DefaultMaxCommandsPerBatch);
-			SyncOptions.MaxSizePerBatch = _configFile.GetValue("Perforce.MaxSizePerBatch", PerforceSyncOptions.DefaultMaxSizePerBatch);
-			SyncOptions.NumSyncErrorRetries = _configFile.GetValue("Perforce.NumSyncErrorRetries", PerforceSyncOptions.DefaultNumSyncErrorRetries);
+			SyncOptions.MaxCommandsPerBatch = _configFile.GetOptionalIntValue("Perforce.MaxCommandsPerBatch", SyncOptions.MaxCommandsPerBatch);
+			SyncOptions.MaxSizePerBatch = _configFile.GetOptionalIntValue("Perforce.MaxSizePerBatch", SyncOptions.MaxSizePerBatch);
+			SyncOptions.NumSyncErrorRetries = _configFile.GetOptionalIntValue("Perforce.NumSyncErrorRetries", SyncOptions.NumSyncErrorRetries);
 		}
 
 		static Dictionary<Guid, bool> GetCategorySettings(ConfigSection? section, string includedKey, string excludedKey)
@@ -1112,36 +1109,7 @@ namespace UnrealGameSync
 			}
 
 			// Perforce settings
-			ConfigSection perforceSection = _configFile.FindOrAddSection("Perforce");
-			perforceSection.Clear();
-			if(SyncOptions.NumRetries > 0 && SyncOptions.NumRetries != PerforceSyncOptions.DefaultNumRetries)
-			{
-				perforceSection.SetValue("NumRetries", SyncOptions.NumRetries);
-			}
-			if(SyncOptions.NumThreads > 0 && SyncOptions.NumThreads != PerforceSyncOptions.DefaultNumThreads)
-			{
-				perforceSection.SetValue("NumThreads", SyncOptions.NumThreads);
-			}
-			if(SyncOptions.TcpBufferSize > 0 && SyncOptions.TcpBufferSize != PerforceSyncOptions.DefaultTcpBufferSize)
-			{
-				perforceSection.SetValue("TcpBufferSize", SyncOptions.TcpBufferSize);
-			}
-			if (SyncOptions.FileBufferSize > 0 && SyncOptions.FileBufferSize != PerforceSyncOptions.DefaultFileBufferSize)
-			{
-				perforceSection.SetValue("FileBufferSize", SyncOptions.FileBufferSize);
-			}
-			if (SyncOptions.MaxCommandsPerBatch > 0 && SyncOptions.MaxCommandsPerBatch != PerforceSyncOptions.DefaultMaxCommandsPerBatch)
-			{
-				perforceSection.SetValue("MaxCommandsPerBatch", SyncOptions.MaxCommandsPerBatch);
-			}
-			if (SyncOptions.MaxSizePerBatch > 0 && SyncOptions.MaxSizePerBatch != PerforceSyncOptions.DefaultMaxSizePerBatch)
-			{
-				perforceSection.SetValue("MaxSizePerBatch", SyncOptions.MaxSizePerBatch);
-			}
-			if (SyncOptions.NumSyncErrorRetries > 0 && SyncOptions.NumSyncErrorRetries != PerforceSyncOptions.DefaultNumSyncErrorRetries)
-			{
-				perforceSection.SetValue("NumSyncErrorRetries", SyncOptions.NumSyncErrorRetries);
-			}
+			_configFile.RemoveSection("Perforce");
 
 			// Save the file
 			try

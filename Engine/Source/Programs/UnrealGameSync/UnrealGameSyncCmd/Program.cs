@@ -667,6 +667,8 @@ namespace UnrealGameSyncCmd
 				}
 
 				WorkspaceUpdateContext updateContext = new WorkspaceUpdateContext(change, options, BuildConfig.Development, syncFilter, projectSettings.BuildSteps, null);
+				updateContext.PerforceSyncOptions = context.UserSettings.Global.Perforce;
+
 				if (syncOptions.Binaries)
 				{
 					List<PerforceArchiveInfo> archives = await PerforceArchive.EnumerateAsync(perforceClient, projectConfig, state.Current.ProjectIdentifier, CancellationToken.None);
