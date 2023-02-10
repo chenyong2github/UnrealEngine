@@ -454,7 +454,11 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 
 			for (const class FNativeGameplayTag* NativeTag : FNativeGameplayTag::GetRegisteredNativeTags())
 			{
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
+				AddTagTableRow(NativeTag->GetGameplayTagTableRow(), NativeTag->GetModuleName());
+#else
 				AddTagTableRow(NativeTag->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
+#endif
 			}
 		}
 
@@ -1104,7 +1108,7 @@ void UGameplayTagsManager::AddTagTableRow(const FGameplayTagTableRow& TagRow, FN
 			CurNode->bAncestorHasConflict = bHasSeenConflict;
 
 			// If the sources don't match and the tag is explicit and we should've added the tag explicitly here, we have a conflict
-			if (CurNode->SourceName != SourceName && (CurNode->bIsExplicitTag && bIsExplicitTag))
+			if (CurNode->GetFirstSourceName() != SourceName && (CurNode->bIsExplicitTag && bIsExplicitTag))
 			{
 				// mark all ancestors as having a bad descendant
 				for (TSharedPtr<FGameplayTagNode> CurAncestorNode : AncestorNodes)
@@ -1116,10 +1120,7 @@ void UGameplayTagsManager::AddTagTableRow(const FGameplayTagTableRow& TagRow, FN
 				CurNode->bNodeHasConflict = true;
 
 				// append source names
-				FString CombinedSources = CurNode->SourceName.ToString();
-				CombinedSources.Append(TEXT(" and "));
-				CombinedSources.Append(SourceName.ToString());
-				CurNode->SourceName = FName(*CombinedSources);
+				CurNode->SourceNames.Add(SourceName);
 
 				// mark all current descendants as having a bad ancestor
 				MarkChildrenOfNodeConflict(CurNode);
@@ -1292,18 +1293,8 @@ int32 UGameplayTagsManager::InsertTagIntoNodeArray(FName Tag, FName FullTag, TSh
 	}
 
 #if WITH_EDITOR
-	static FName NativeSourceName = FGameplayTagSource::GetNativeName();
-
 	// Set/update editor only data
-	if (NodeArray[FoundNodeIdx]->SourceName.IsNone() && !SourceName.IsNone())
-	{
-		NodeArray[FoundNodeIdx]->SourceName = SourceName;
-	}
-	else if (SourceName == NativeSourceName)
-	{
-		// Native overrides other types
-		NodeArray[FoundNodeIdx]->SourceName = SourceName;
-	}
+	NodeArray[FoundNodeIdx]->SourceNames.AddUnique(SourceName);
 
 	if (NodeArray[FoundNodeIdx]->DevComment.IsEmpty() && !DevComment.IsEmpty())
 	{
@@ -1646,7 +1637,7 @@ void UGameplayTagsManager::GetAllTagsFromSource(FName TagSource, TArray< TShared
 {
 	for (const TPair<FGameplayTag, TSharedPtr<FGameplayTagNode>>& NodePair : GameplayTagNodeMap)
 	{
-		if (NodePair.Value->SourceName == TagSource)
+		if (NodePair.Value->SourceNames.Contains(TagSource))
 		{
 			OutTagArray.Add(NodePair.Value);
 		}
@@ -1664,13 +1655,28 @@ bool UGameplayTagsManager::IsDictionaryTag(FName TagName) const
 	return false;
 }
 
-bool UGameplayTagsManager::GetTagEditorData(FName TagName, FString& OutComment, FName& OutTagSource, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const
+bool UGameplayTagsManager::GetTagEditorData(FName TagName, FString& OutComment, FName& OutFirstTagSource, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const
 {
 	TSharedPtr<FGameplayTagNode> Node = FindTagNode(TagName);
 	if (Node.IsValid())
 	{
 		OutComment = Node->DevComment;
-		OutTagSource = Node->SourceName;
+		OutFirstTagSource = Node->GetFirstSourceName();
+		bOutIsTagExplicit = Node->bIsExplicitTag;
+		bOutIsRestrictedTag = Node->bIsRestrictedTag;
+		bOutAllowNonRestrictedChildren = Node->bAllowNonRestrictedChildren;
+		return true;
+	}
+	return false;
+}
+
+bool UGameplayTagsManager::GetTagEditorData(FName TagName, FString& OutComment, TArray<FName>& OutTagSources, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const
+{
+	TSharedPtr<FGameplayTagNode> Node = FindTagNode(TagName);
+	if (Node.IsValid())
+	{
+		OutComment = Node->DevComment;
+		OutTagSources = Node->GetAllSourceNames();
 		bOutIsTagExplicit = Node->bIsExplicitTag;
 		bOutIsRestrictedTag = Node->bIsRestrictedTag;
 		bOutAllowNonRestrictedChildren = Node->bAllowNonRestrictedChildren;
@@ -1754,7 +1760,7 @@ FGameplayTagContainer UGameplayTagsManager::RequestGameplayTagDirectDescendantsI
 			if (ChildNode.IsValid())
 			{
 				// if the tag isn't in the dictionary, add its children to the list
-				if (ChildNode->SourceName == NAME_None)
+				if (ChildNode->GetFirstSourceName() == NAME_None)
 				{
 					TArray< TSharedPtr<FGameplayTagNode> >& GrandChildrenNodes = ChildNode->GetChildTagNodes();
 					ChildrenNodes.Append(GrandChildrenNodes);
@@ -1811,6 +1817,48 @@ FGameplayTagSource* UGameplayTagsManager::FindTagSource(FName TagSourceName)
 	return TagSources.Find(TagSourceName);
 }
 
+void UGameplayTagsManager::FindTagsWithSource(FStringView PackageNameOrPath, TArray<FGameplayTag>& OutTags) const
+{
+	for (const auto& TagSourceEntry : TagSources)
+	{
+		const FGameplayTagSource& Source = TagSourceEntry.Value;
+		
+		FString SourcePackagePath;
+		switch (Source.SourceType)
+		{
+		case EGameplayTagSourceType::TagList:
+			if (Source.SourceTagList)
+			{
+				const FString ContentFilePath = FPaths::GetPath(Source.SourceTagList->ConfigFileName) / TEXT("../../Content/");
+				FString RootContentPath;
+				if (FPackageName::TryConvertFilenameToLongPackageName(ContentFilePath, RootContentPath))
+				{
+					SourcePackagePath = *RootContentPath;
+				}
+			}
+			break;
+		case EGameplayTagSourceType::DataTable:
+			SourcePackagePath = Source.SourceName.ToString();
+			break;
+		case EGameplayTagSourceType::Native:
+			SourcePackagePath = Source.SourceName.ToString();
+		default:
+			break;
+		}
+
+		if (SourcePackagePath.StartsWith(PackageNameOrPath))
+		{
+			if (Source.SourceTagList)
+			{
+				for (const FGameplayTagTableRow& Row : Source.SourceTagList->GameplayTagList)
+				{
+					OutTags.Add(FGameplayTag(Row.Tag));
+				}
+			}
+		}
+	}
+}
+
 void UGameplayTagsManager::FindTagSourcesWithType(EGameplayTagSourceType TagSourceType, TArray<const FGameplayTagSource*>& OutArray) const
 {
 	for (auto TagSourceIt = TagSources.CreateConstIterator(); TagSourceIt; ++TagSourceIt)
@@ -1839,7 +1887,11 @@ FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName
 
 	FGameplayTagSource* NewSource = &TagSources.Add(TagSourceName, FGameplayTagSource(TagSourceName, SourceType));
 
-	if (SourceType == EGameplayTagSourceType::DefaultTagList)
+	if (SourceType == EGameplayTagSourceType::Native)
+	{
+		NewSource->SourceTagList = NewObject<UGameplayTagsList>(this, TagSourceName, RF_Transient);
+	}
+	else if (SourceType == EGameplayTagSourceType::DefaultTagList)
 	{
 		NewSource->SourceTagList = GetMutableDefault<UGameplayTagsSettings>();
 	}
@@ -2059,8 +2111,11 @@ FGameplayTag UGameplayTagsManager::AddNativeGameplayTag(FName TagName, const FSt
 
 void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource)
 {
+	const FGameplayTagSource* NativeSource = FindOrAddTagSource(TagSource->GetModuleName(), EGameplayTagSourceType::Native);
+	NativeSource->SourceTagList->GameplayTagList.Add(TagSource->GetGameplayTagTableRow());
+	
 	// This adds it to the temporary tree, but expects the caller to add it to FNativeGameplayTag::GetRegisteredNativeTags for later refreshes
-	AddTagTableRow(TagSource->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
+	AddTagTableRow(TagSource->GetGameplayTagTableRow(), NativeSource->SourceName);
 
 	HandleGameplayTagTreeChanged(false);
 }
@@ -2194,7 +2249,7 @@ void UGameplayTagsManager::AddChildrenTags(FGameplayTagContainer& TagContainer, 
 				bool bShouldInclude = true;
 
 #if WITH_EDITORONLY_DATA
-				if (OnlyIncludeDictionaryTags && ChildNode->SourceName == NAME_None)
+				if (OnlyIncludeDictionaryTags && ChildNode->GetFirstSourceName() == NAME_None)
 				{
 					// Only have info to do this in editor builds
 					bShouldInclude = false;
@@ -2409,7 +2464,7 @@ void FGameplayTagNode::ResetNode()
 	ParentNode.Reset();
 
 #if WITH_EDITORONLY_DATA
-	SourceName = NAME_None;
+	SourceNames.Reset();
 	DevComment = "";
 	bIsExplicitTag = false;
 	bIsRestrictedTag = false;

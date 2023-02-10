@@ -74,12 +74,19 @@ public:
 #endif
 	}
 
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
+	FName GetPlugin() const { return PluginName; }
+	FName GetModuleName() const { return ModuleName; }
+	FName GetModulePackageName() const { return ModulePackageName; }
+#endif
+
 private:
 	FGameplayTag InternalTag;
 
 #if !UE_BUILD_SHIPPING
 	FName PluginName;
 	FName ModuleName;
+	FName ModulePackageName;
 	mutable bool bValidated = false;
 
 	void ValidateTagRegistration() const;

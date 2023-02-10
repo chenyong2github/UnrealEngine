@@ -6,6 +6,7 @@
 #include "ProjectDescriptor.h"
 #include "PluginDescriptor.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/PackageName.h"
 
 #define LOCTEXT_NAMESPACE "FNativeGameplayTag"
 
@@ -59,6 +60,7 @@ FNativeGameplayTag::FNativeGameplayTag(FName InPluginName, FName InModuleName, F
 #if !UE_BUILD_SHIPPING
 	PluginName = InPluginName;
 	ModuleName = InModuleName;
+	ModulePackageName = FPackageName::GetModuleScriptPackageName(InModuleName);
 #endif
 
 	InternalTag = TagName.IsNone() ? FGameplayTag() : FGameplayTag(TagName);
