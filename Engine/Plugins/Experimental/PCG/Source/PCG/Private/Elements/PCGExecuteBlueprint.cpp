@@ -179,7 +179,7 @@ UPCGBlueprintSettings::UPCGBlueprintSettings()
 	bUseSeed = true;
 	
 #if WITH_EDITORONLY_DATA
-	bExposeToLibrary = false;
+	bExposeToLibrary = HasAnyFlags(RF_ClassDefaultObject);
 #endif
 }
 
