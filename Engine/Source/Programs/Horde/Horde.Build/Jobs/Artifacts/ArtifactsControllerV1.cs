@@ -58,7 +58,7 @@ namespace Horde.Build.Jobs.Artifacts
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v1/artifacts")]
-		public async Task<ActionResult<CreateArtifactResponse>> CreateArtifact([FromQuery] JobId jobId, [FromQuery]string? stepId, IFormFile file)
+		public async Task<ActionResult<CreateJobArtifactResponse>> CreateArtifact([FromQuery] JobId jobId, [FromQuery]string? stepId, IFormFile file)
 		{
 			IJob? job = await _jobService.GetJobAsync(jobId);
 			if(job == null)
@@ -94,7 +94,7 @@ namespace Horde.Build.Jobs.Artifacts
 			}
 
 			IArtifactV1 newArtifact = await _artifactCollection.CreateArtifactAsync(job.Id, step?.Id, file.FileName, file.ContentType ?? "horde-mime/unknown", file.OpenReadStream());
-			return new CreateArtifactResponse(newArtifact.Id.ToString());
+			return new CreateJobArtifactResponse(newArtifact.Id.ToString());
 		}
 
 		/// <summary>
@@ -106,7 +106,7 @@ namespace Horde.Build.Jobs.Artifacts
 		[HttpPut]
 		[Authorize]
 		[Route("/api/v1/artifacts/{artifactId}")]
-		public async Task<ActionResult<CreateArtifactResponse>> UpdateArtifact(string artifactId, IFormFile file)
+		public async Task<ActionResult<CreateJobArtifactResponse>> UpdateArtifact(string artifactId, IFormFile file)
 		{
 			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
 			if (artifact == null)
@@ -133,7 +133,7 @@ namespace Horde.Build.Jobs.Artifacts
 		[HttpGet]
 		[Authorize]
 		[Route("/api/v1/artifacts")]
-		[ProducesResponseType(typeof(List<GetArtifactResponse>), 200)]
+		[ProducesResponseType(typeof(List<GetJobArtifactResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetArtifacts([FromQuery] JobId jobId, [FromQuery] string? stepId = null, [FromQuery] bool code = false, [FromQuery] PropertyFilter? filter = null)
 		{
 			if (!await _jobService.AuthorizeAsync(jobId, AclAction.DownloadArtifact, User, _globalConfig.Value))
@@ -144,7 +144,7 @@ namespace Horde.Build.Jobs.Artifacts
 			string? downloadCode = code ? (string?)await GetDirectDownloadCodeForJobAsync(jobId) : null;
 
 			List<IArtifactV1> artifacts = await _artifactCollection.GetArtifactsAsync(jobId, stepId?.ToSubResourceId(), null);
-			return artifacts.ConvertAll(x => new GetArtifactResponse(x, downloadCode).ApplyFilter(filter));
+			return artifacts.ConvertAll(x => new GetJobArtifactResponse(x, downloadCode).ApplyFilter(filter));
 		}
 
 		/// <summary>
@@ -178,7 +178,7 @@ namespace Horde.Build.Jobs.Artifacts
 		[HttpGet]
 		[Authorize]
 		[Route("/api/v1/artifacts/{artifactId}")]
-		[ProducesResponseType(typeof(GetArtifactResponse), 200)]
+		[ProducesResponseType(typeof(GetJobArtifactResponse), 200)]
 		public async Task<ActionResult<object>> GetArtifact(string artifactId, bool code = false, [FromQuery] PropertyFilter? filter = null)
 		{
 			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
@@ -192,7 +192,7 @@ namespace Horde.Build.Jobs.Artifacts
 			}
 
 			string? downloadCode = code? (string?)await GetDirectDownloadCodeForJobAsync(artifact.JobId) : null;
-			return new GetArtifactResponse(artifact, downloadCode).ApplyFilter(filter);
+			return new GetJobArtifactResponse(artifact, downloadCode).ApplyFilter(filter);
 		}
 
 		/// <summary>
@@ -329,7 +329,7 @@ namespace Horde.Build.Jobs.Artifacts
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v1/artifacts/zip")]
-		public async Task<ActionResult> ZipArtifacts(GetArtifactZipRequest artifactZipRequest)
+		public async Task<ActionResult> ZipArtifacts(GetJobArtifactZipRequest artifactZipRequest)
 		{
 			if (artifactZipRequest.JobId == null)
 			{
