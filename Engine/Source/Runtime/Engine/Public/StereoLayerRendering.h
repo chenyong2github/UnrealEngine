@@ -76,11 +76,17 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
+	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI, bool bIsOpaque)
 	{
 		FRHIPixelShader* PS = RHICmdList.GetBoundPixelShader();
 
 		SetTextureParameter(RHICmdList, PS, InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
+
+		if (InIsOpaque.IsBound())
+		{
+			const float OpaqueVal = bIsOpaque ? 1.0 : 0.0;
+			SetShaderValue(RHICmdList, PS, InIsOpaque, OpaqueVal);
+		}
 	}
 
 protected:
@@ -89,11 +95,13 @@ protected:
 	{
 		InTexture.Bind(Initializer.ParameterMap, TextureParamName, SPF_Mandatory);
 		InTextureSampler.Bind(Initializer.ParameterMap, TEXT("InTextureSampler"));
+		InIsOpaque.Bind(Initializer.ParameterMap, TEXT("InIsOpaque"));
 	}
 	FStereoLayerPS_Base() {}
 
 	LAYOUT_FIELD(FShaderResourceParameter, InTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
+	LAYOUT_FIELD(FShaderParameter, InIsOpaque);
 };
 
 /**

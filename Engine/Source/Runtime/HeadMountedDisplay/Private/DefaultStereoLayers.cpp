@@ -151,7 +151,8 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 		PixelShader->SetParameters(
 			RHICmdList,
 			TStaticSamplerState<SF_Trilinear>::GetRHI(),
-			Layer.Texture);
+			Layer.Texture,
+			bIsOpaque);
 
 		const FIntPoint TargetSize = RenderParams.Viewport.Size();
 		// Draw primitive
