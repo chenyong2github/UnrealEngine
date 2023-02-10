@@ -22,7 +22,7 @@ public class Engine : ModuleRules
 				"AudioMixerCore",
 				"MovieSceneCapture", 
 				"PacketHandler", 
-				"Renderer", 
+				"Renderer"
 			}
 		);
 
@@ -187,7 +187,8 @@ public class Engine : ModuleRules
 
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
-					"TextureBuildUtilities"
+					"TextureBuildUtilities",
+					"Horde"
 				}
 			);
 

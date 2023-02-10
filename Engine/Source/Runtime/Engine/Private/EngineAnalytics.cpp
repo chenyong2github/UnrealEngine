@@ -10,6 +10,7 @@
 #include "IAnalyticsProviderET.h"
 #include "GeneralProjectSettings.h"
 #include "Misc/EngineVersion.h"
+#include "BuildSettings.h"
 #include "RHI.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "StudioAnalytics.h"
@@ -20,6 +21,7 @@
 #include "AnalyticsSessionSummarySender.h"
 #include "Analytics/EditorAnalyticsSessionSummary.h"
 #include "EditorAnalyticsSession.h" // DEPRECATED: kept around to clean up expired old sessions.
+#include "Horde.h"
 #endif
 
 bool FEngineAnalytics::bIsInitialized;
@@ -125,6 +127,7 @@ void FEngineAnalytics::Initialize()
 				Analytics->SetUserID(FString::Printf(TEXT("%s|%s|%s"), *FPlatformMisc::GetLoginId(), *FPlatformMisc::GetEpicAccountId(), *FPlatformMisc::GetOperatingSystemId()));
 			}
 
+			const FString UserID = FPlatformProcess::UserName(false);
 			const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
 
 			TArray<FAnalyticsEventAttribute> StartSessionAttributes;
@@ -137,6 +140,19 @@ void FEngineAnalytics::Initialize()
 			StartSessionAttributes.Emplace(TEXT("ProjectID"), ProjectSettings.ProjectID);
 			StartSessionAttributes.Emplace(TEXT("ProjectDescription"), ProjectSettings.Description);
 			StartSessionAttributes.Emplace(TEXT("ProjectVersion"), ProjectSettings.ProjectVersion);
+			StartSessionAttributes.Emplace(TEXT("Application.Commandline"), FCommandLine::Get());
+			StartSessionAttributes.Emplace(TEXT("User.ID"), UserID);
+			StartSessionAttributes.Emplace(TEXT("Build.Configuration"), LexToString(FApp::GetBuildConfiguration()));
+			StartSessionAttributes.Emplace(TEXT("Build.IsInternalBuild"), FEngineBuildSettings::IsInternalBuild());
+			StartSessionAttributes.Emplace(TEXT("Build.IsPerforceBuild"), FEngineBuildSettings::IsPerforceBuild());
+			StartSessionAttributes.Emplace(TEXT("Build.IsPromotedBuild"), FApp::GetEngineIsPromotedBuild() == 0 ? false : true);
+			StartSessionAttributes.Emplace(TEXT("Build.BranchName"), FApp::GetBranchName());
+			StartSessionAttributes.Emplace(TEXT("Build.Changelist"), BuildSettings::GetCurrentChangelist());
+			StartSessionAttributes.Emplace(TEXT("Config.IsEditor"), GIsEditor);
+			StartSessionAttributes.Emplace(TEXT("Config.IsUnattended"), FApp::IsUnattended());
+			StartSessionAttributes.Emplace(TEXT("Config.IsBuildMachine"), GIsBuildMachine);
+			StartSessionAttributes.Emplace(TEXT("Config.IsRunningCommandlet"), IsRunningCommandlet());
+			StartSessionAttributes.Emplace(TEXT("Platform.IsRemoteSession"), FPlatformMisc::IsRemoteSession());
 			StartSessionAttributes.Emplace(TEXT("GPUVendorID"), GRHIVendorId);
 			StartSessionAttributes.Emplace(TEXT("GPUDeviceID"), GRHIDeviceId);
 			StartSessionAttributes.Emplace(TEXT("GRHIDeviceRevision"), GRHIDeviceRevision);
@@ -154,6 +170,18 @@ void FEngineAnalytics::Initialize()
 			StartSessionAttributes.Emplace(TEXT("OSMinor"), OSMinor);
 			StartSessionAttributes.Emplace(TEXT("OSVersion"), FPlatformMisc::GetOSVersion());
 			StartSessionAttributes.Emplace(TEXT("Is64BitOS"), FPlatformMisc::Is64bitOperatingSystem());
+
+#if WITH_EDITOR
+			StartSessionAttributes.Emplace(TEXT("Horde.TemplateID"), FHorde::GetTemplateId());
+			StartSessionAttributes.Emplace(TEXT("Horde.TemplateName"), FHorde::GetTemplateName());
+			StartSessionAttributes.Emplace(TEXT("Horde.JobURL"), FHorde::GetJobURL());
+			StartSessionAttributes.Emplace(TEXT("Horde.JobID"), FHorde::GetJobId());
+			StartSessionAttributes.Emplace(TEXT("Horde.StepName"), FHorde::GetStepName());
+			StartSessionAttributes.Emplace(TEXT("Horde.StepID"), FHorde::GetStepId());
+			StartSessionAttributes.Emplace(TEXT("Horde.StepURL"), FHorde::GetStepURL());
+			StartSessionAttributes.Emplace(TEXT("Horde.BatchID"), FHorde::GetBatchId());
+#endif
+
 #if PLATFORM_MAC
 #if PLATFORM_MAC_ARM64
             StartSessionAttributes.Emplace(TEXT("UEBuildArch"), FString(TEXT("AppleSilicon")));
