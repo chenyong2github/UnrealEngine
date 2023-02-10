@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScreenPass.h"
+
 #include "DataDrivenShaderPlatformInfo.h"
 #include "EngineGlobals.h"
-#include "ScenePrivate.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "RendererModule.h"
 #include "RenderGraphUtils.h"
+#include "ScenePrivate.h"
 #include "SystemTextures.h"
+#include "UnrealClient.h"
 
 IMPLEMENT_GLOBAL_SHADER(FScreenPassVS, "/Engine/Private/ScreenPass.usf", "ScreenPassVS", SF_Vertex);
 
@@ -37,6 +40,43 @@ FRDGTextureRef TryCreateViewFamilyTexture(FRDGBuilder& GraphBuilder, const FScen
 		GraphBuilder.SetTextureAccessFinal(Texture, ERHIAccess::RTV);
 	}
 	return Texture;
+}
+
+FScreenPassRenderTarget FScreenPassRenderTarget::CreateFromInput(
+	FRDGBuilder& GraphBuilder,
+	FScreenPassTexture Input,
+	ERenderTargetLoadAction OutputLoadAction,
+	const TCHAR* OutputName)
+{
+	check(Input.IsValid());
+
+	FRDGTextureDesc OutputDesc = Input.Texture->Desc;
+	OutputDesc.Reset();
+
+	return FScreenPassRenderTarget(GraphBuilder.CreateTexture(OutputDesc, OutputName), Input.ViewRect, OutputLoadAction);
+}
+
+FScreenPassRenderTarget FScreenPassRenderTarget::CreateViewFamilyOutput(FRDGTextureRef ViewFamilyTexture, const FViewInfo& View)
+{
+	const FIntRect ViewRect = View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput ? View.ViewRect : View.UnscaledViewRect;
+
+	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
+
+	if (!View.IsFirstInFamily() || View.Family->bAdditionalViewFamily)
+	{
+		LoadAction = ERenderTargetLoadAction::ELoad;
+	}
+	else if (ViewRect.Min != FIntPoint::ZeroValue || ViewRect.Size() != ViewFamilyTexture->Desc.Extent)
+	{
+		LoadAction = ERenderTargetLoadAction::EClear;
+	}
+
+	return FScreenPassRenderTarget(
+		ViewFamilyTexture,
+		// Raw output mode uses the original view rect. Otherwise the final unscaled rect is used.
+		ViewRect,
+		// First view clears the view family texture; all remaining views load.
+		LoadAction);
 }
 
 FScreenPassTextureViewportParameters GetScreenPassTextureViewportParameters(const FScreenPassTextureViewport& InViewport)
@@ -112,9 +152,40 @@ void SetScreenPassPipelineState(FRHICommandList& RHICmdList, const FScreenPassPi
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, ScreenPassDraw.StencilRef);
 }
 
+void DrawScreenPass_PostSetup(
+	FRHICommandList& RHICmdList,
+	const FSceneView& View,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	const FScreenPassPipelineState& PipelineState,
+	EScreenPassDrawFlags Flags)
+{
+	const FIntRect InputRect = InputViewport.Rect;
+	const FIntPoint InputSize = InputViewport.Extent;
+	const FIntRect OutputRect = OutputViewport.Rect;
+	const FIntPoint OutputSize = OutputViewport.Rect.Size();
+
+	FIntPoint LocalOutputPos(FIntPoint::ZeroValue);
+	FIntPoint LocalOutputSize(OutputSize);
+	EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
+
+	const bool bUseHMDHiddenAreaMask = EnumHasAllFlags(Flags, EScreenPassDrawFlags::AllowHMDHiddenAreaMask) && View.bHMDHiddenAreaMaskActive;
+
+	DrawPostProcessPass(
+		RHICmdList,
+		LocalOutputPos.X, LocalOutputPos.Y, LocalOutputSize.X, LocalOutputSize.Y,
+		InputRect.Min.X, InputRect.Min.Y, InputRect.Width(), InputRect.Height(),
+		OutputSize,
+		InputSize,
+		PipelineState.VertexShader,
+		View.StereoViewIndex,
+		bUseHMDHiddenAreaMask,
+		DrawRectangleFlags);
+}
+
 void AddDrawTexturePass(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
+	const FSceneView& View,
 	FRDGTextureRef InputTexture,
 	FRDGTextureRef OutputTexture,
 	FIntPoint InputPosition,
@@ -144,7 +215,7 @@ void AddDrawTexturePass(
 	const FScreenPassTextureViewport InputViewport(InputDesc.Extent, FIntRect(InputPosition, InputPosition + Size));
 	const FScreenPassTextureViewport OutputViewport(OutputDesc.Extent, FIntRect(OutputPosition, OutputPosition + Size));
 
-	TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
+	TShaderMapRef<FCopyRectPS> PixelShader(static_cast<const FViewInfo&>(View).ShaderMap);
 
 	FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
 	Parameters->InputTexture = InputTexture;
@@ -156,14 +227,14 @@ void AddDrawTexturePass(
 
 void AddDrawTexturePass(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
+	const FSceneView& View,
 	FScreenPassTexture Input,
 	FScreenPassRenderTarget Output)
 {
 	const FScreenPassTextureViewport InputViewport(Input);
 	const FScreenPassTextureViewport OutputViewport(Output);
 
-	TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
+	TShaderMapRef<FCopyRectPS> PixelShader(static_cast<const FViewInfo&>(View).ShaderMap);
 
 	FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
 	Parameters->InputTexture = Input.Texture;

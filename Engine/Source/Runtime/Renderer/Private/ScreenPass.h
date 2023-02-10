@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CanvasTypes.h"
 #include "CommonRenderResources.h"
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"
-#include "RenderGraph.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "RenderTargetTemp.h"
-#include "CanvasTypes.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
+#include "RHIStaticStates.h"
+#include "SceneView.h"
 
 // Returns whether a HMD hidden area mask is being used for VR.
 bool IsHMDHiddenAreaMaskActive();
@@ -61,7 +61,7 @@ struct FScreenPassTexture
 // Describes a texture with a load action for usage as a render target.
 struct FScreenPassRenderTarget : public FScreenPassTexture
 {
-	static FScreenPassRenderTarget CreateFromInput(
+	RENDERER_API static FScreenPassRenderTarget CreateFromInput(
 		FRDGBuilder& GraphBuilder,
 		FScreenPassTexture Input,
 		ERenderTargetLoadAction OutputLoadAction,
@@ -392,6 +392,14 @@ enum class EScreenPassDrawFlags : uint8
 };
 ENUM_CLASS_FLAGS(EScreenPassDrawFlags);
 
+RENDERER_API void DrawScreenPass_PostSetup(
+	FRHICommandList& RHICmdList,
+	const FSceneView& View,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	const FScreenPassPipelineState& PipelineState,
+	EScreenPassDrawFlags Flags);
+
 /** More advanced variant of screen pass drawing. Supports overriding blend / depth stencil
  *  pipeline state, and providing a custom vertex shader. Shader parameters are not bound by
  *  this method, instead the user provides a setup function that is called prior to draw, but
@@ -400,7 +408,7 @@ ENUM_CLASS_FLAGS(EScreenPassDrawFlags);
 template<typename TSetupFunction>
 void DrawScreenPass(
 	FRHICommandList& RHICmdList,
-	const FViewInfo& View,
+	const FSceneView& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const FScreenPassPipelineState& PipelineState,
@@ -409,10 +417,7 @@ void DrawScreenPass(
 {
 	PipelineState.Validate();
 
-	const FIntRect InputRect = InputViewport.Rect;
-	const FIntPoint InputSize = InputViewport.Extent;
 	const FIntRect OutputRect = OutputViewport.Rect;
-	const FIntPoint OutputSize = OutputRect.Size();
 
 	RHICmdList.SetViewport(OutputRect.Min.X, OutputRect.Min.Y, 0.0f, OutputRect.Max.X, OutputRect.Max.Y, 1.0f);
 
@@ -420,24 +425,7 @@ void DrawScreenPass(
 
 	SetupFunction(RHICmdList);
 
-	FIntPoint LocalOutputPos(FIntPoint::ZeroValue);
-	FIntPoint LocalOutputSize(OutputSize);
-	EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
-
-	const bool bUseHMDHiddenAreaMask = (Flags & EScreenPassDrawFlags::AllowHMDHiddenAreaMask) == EScreenPassDrawFlags::AllowHMDHiddenAreaMask
-		? View.bHMDHiddenAreaMaskActive
-		: false;
-
-	DrawPostProcessPass(
-		RHICmdList,
-		LocalOutputPos.X, LocalOutputPos.Y, LocalOutputSize.X, LocalOutputSize.Y,
-		InputRect.Min.X, InputRect.Min.Y, InputRect.Width(), InputRect.Height(),
-		OutputSize,
-		InputSize,
-		PipelineState.VertexShader,
-		View.StereoViewIndex,
-		bUseHMDHiddenAreaMask,
-		DrawRectangleFlags);
+	DrawScreenPass_PostSetup(RHICmdList, View, OutputViewport, InputViewport, PipelineState, Flags);
 }
 
 /** Render graph variant of simpler DrawScreenPass function. Clears graph resources unused by the
@@ -447,7 +435,7 @@ template <typename PixelShaderType>
 FORCEINLINE void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
-	const FViewInfo& View,
+	const FSceneView& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const TShaderRef<FShader>& VertexShader,
@@ -482,7 +470,7 @@ template <typename PixelShaderType>
 FORCEINLINE void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
-	const FViewInfo& View,
+	const FSceneView& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const TShaderRef<FShader>& VertexShader,
@@ -499,7 +487,7 @@ template <typename PixelShaderType>
 FORCEINLINE void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
-	const FViewInfo& View,
+	const FSceneView& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const TShaderRef<FShader>& VertexShader,
@@ -516,7 +504,7 @@ template <typename PixelShaderType>
 FORCEINLINE void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
-	const FViewInfo& View,
+	const FSceneView& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const TShaderRef<FShader>& VertexShader,
@@ -533,14 +521,15 @@ template <typename PixelShaderType>
 FORCEINLINE void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
-	const FViewInfo& View,
+	const FSceneView& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const TShaderRef<PixelShaderType>& PixelShader,
 	typename PixelShaderType::FParameters* PixelShaderParameters,
 	EScreenPassDrawFlags Flags = EScreenPassDrawFlags::None)
 {
-	TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(View.GetFeatureLevel());
+	TShaderMapRef<FScreenPassVS> VertexShader(ShaderMap);
 	FRHIBlendState* BlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
 	FRHIDepthStencilState* DepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
 	AddDrawScreenPass(GraphBuilder, Forward<FRDGEventName&&>(PassName), View, OutputViewport, InputViewport, VertexShader, PixelShader, BlendState, DepthStencilState, PixelShaderParameters, Flags);
@@ -553,7 +542,7 @@ template <typename TSetupFunction, typename TPassParameterStruct>
 FORCEINLINE void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
-	const FViewInfo& View,
+	const FSceneView& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const FScreenPassPipelineState& PipelineState,
@@ -578,7 +567,7 @@ template <typename TSetupFunction, typename TPassParameterStruct>
 FORCEINLINE void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
-	const FViewInfo& View,
+	const FSceneView& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const FScreenPassPipelineState& PipelineState,
@@ -595,7 +584,7 @@ FORCEINLINE void AddDrawScreenPass(
  */
 void RENDERER_API AddDrawTexturePass(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
+	const FSceneView& View,
 	FRDGTextureRef InputTexture,
 	FRDGTextureRef OutputTexture,
 	FIntPoint InputPosition = FIntPoint::ZeroValue,
@@ -605,7 +594,7 @@ void RENDERER_API AddDrawTexturePass(
 /** Helper variant which takes a shared viewport instead of unique input / output positions. */
 FORCEINLINE void AddDrawTexturePass(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
+	const FSceneView& View,
 	FRDGTextureRef InputTexture,
 	FRDGTextureRef OutputTexture,
 	FIntRect ViewportRect)
@@ -615,7 +604,7 @@ FORCEINLINE void AddDrawTexturePass(
 
 void RENDERER_API AddDrawTexturePass(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
+	const FSceneView& View,
 	FScreenPassTexture Input,
 	FScreenPassRenderTarget Output);
 

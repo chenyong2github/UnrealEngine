@@ -63,43 +63,6 @@ inline FIntRect GetRectFromExtent(FIntPoint Extent)
 	return FIntRect(FIntPoint::ZeroValue, Extent);
 }
 
-inline FScreenPassRenderTarget FScreenPassRenderTarget::CreateFromInput(
-	FRDGBuilder& GraphBuilder,
-	FScreenPassTexture Input,
-	ERenderTargetLoadAction OutputLoadAction,
-	const TCHAR* OutputName)
-{
-	check(Input.IsValid());
-
-	FRDGTextureDesc OutputDesc = Input.Texture->Desc;
-	OutputDesc.Reset();
-
-	return FScreenPassRenderTarget(GraphBuilder.CreateTexture(OutputDesc, OutputName), Input.ViewRect, OutputLoadAction);
-}
-
-inline FScreenPassRenderTarget FScreenPassRenderTarget::CreateViewFamilyOutput(FRDGTextureRef ViewFamilyTexture, const FViewInfo& View)
-{
-	const FIntRect ViewRect = View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput ? View.ViewRect : View.UnscaledViewRect;
-
-	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
-
-	if (!View.IsFirstInFamily() || View.Family->bAdditionalViewFamily)
-	{
-		LoadAction = ERenderTargetLoadAction::ELoad;
-	}
-	else if (ViewRect.Min != FIntPoint::ZeroValue || ViewRect.Size() != ViewFamilyTexture->Desc.Extent)
-	{
-		LoadAction = ERenderTargetLoadAction::EClear;
-	}
-
-	return FScreenPassRenderTarget(
-		ViewFamilyTexture,
-		// Raw output mode uses the original view rect. Otherwise the final unscaled rect is used.
-		ViewRect,
-		// First view clears the view family texture; all remaining views load.
-		LoadAction);
-}
-
 inline FScreenPassTexture::FScreenPassTexture(FRDGTextureRef InTexture)
 	: Texture(InTexture)
 {
