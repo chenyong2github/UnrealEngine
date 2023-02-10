@@ -96,7 +96,7 @@ protected:
 	FText GetSelectedCallstackFrameFileName() const;
 	void OpenSourceFileInIDE(const TCHAR* File, uint32 Line) const;
 	void ExportMemorySnapshot() const;
-	bool IsExportMemorySnaphotAvailable() const;
+	bool IsExportMemorySnapshotAvailable() const;
 
 private:
 	void OnQueryInvalidated();
