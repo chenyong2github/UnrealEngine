@@ -14,6 +14,7 @@
 class FGlobalShaderMap;
 class FRDGBuilder;
 class FRHICommandListImmediate;
+class FScene;
 struct IPooledRenderTarget;
 template <typename ReferencedType> class TRefCountPtr;
 
