@@ -191,7 +191,7 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackag
 				const FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
 				FSavePackageArgs SaveArgs;
 				SaveArgs.TopLevelFlags = RF_Standalone;
-				SaveArgs.SaveFlags = SAVE_Async;
+				SaveArgs.SaveFlags = SAVE_None;
 				if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 				{
 					UE_LOG(LogSmartObject, Error, TEXT("Error saving package %s."), *Package->GetName());
@@ -212,8 +212,6 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackag
 					continue;
 				}
 			}
-
-			UPackage::WaitForAsyncFileWrites();
 		}
 	}
 

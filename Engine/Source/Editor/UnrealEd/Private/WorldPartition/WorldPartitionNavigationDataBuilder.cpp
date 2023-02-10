@@ -234,7 +234,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 			}
 		}
 
-		if (!SavePackages(PackageHelper, PackagesToSave))
+		if (!SavePackages(PackagesToSave))
 		{
 			return true;
 		}
@@ -391,7 +391,7 @@ bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartitio
 	return true;
 }
 
-bool UWorldPartitionNavigationDataBuilder::SavePackages(const FPackageSourceControlHelper& PackageHelper, const TArray<UPackage*>& PackagesToSave) const
+bool UWorldPartitionNavigationDataBuilder::SavePackages(const TArray<UPackage*>& PackagesToSave) const
 {
 	// Save packages
 	TRACE_CPUPROFILER_EVENT_SCOPE(SavingPackages);
@@ -403,13 +403,15 @@ bool UWorldPartitionNavigationDataBuilder::SavePackages(const FPackageSourceCont
 		FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
 		FSavePackageArgs SaveArgs;
 		SaveArgs.TopLevelFlags = RF_Standalone;
-		SaveArgs.SaveFlags = PackageHelper.UseSourceControl() ? ESaveFlags::SAVE_None : ESaveFlags::SAVE_Async;
+		SaveArgs.SaveFlags = SAVE_Async;
 		if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 		{
 			UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("   Error saving package %s."), *Package->GetName());
 			return false;
 		}
 	}
+
+	UPackage::WaitForAsyncFileWrites();
 
 	return true;
 }

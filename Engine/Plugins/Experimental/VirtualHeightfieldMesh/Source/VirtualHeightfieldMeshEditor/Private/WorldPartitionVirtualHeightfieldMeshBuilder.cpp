@@ -52,7 +52,7 @@ bool UWorldPartitionVirtualHeightfieldMeshBuilder::RunInternal(UWorld* World, co
 			FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
 			FSavePackageArgs SaveArgs;
 			SaveArgs.TopLevelFlags = RF_Standalone;
-			SaveArgs.SaveFlags = SAVE_Async;
+			SaveArgs.SaveFlags = SAVE_None;
 			if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 			{
 				UE_LOG(LogWorldPartitionVirtualHeightfieldMeshBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
@@ -66,8 +66,6 @@ bool UWorldPartitionVirtualHeightfieldMeshBuilder::RunInternal(UWorld* World, co
 			}
 		}
 	}
-
-	UPackage::WaitForAsyncFileWrites();
 
 	return true;
 }
