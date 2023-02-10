@@ -245,6 +245,11 @@ struct FGameplayTagNode
 		return true;
 	}
 
+#if WITH_EDITORONLY_DATA
+	FName GetFirstSourceName() const { return SourceNames.Num() == 0 ? NAME_None : SourceNames[0]; }
+	const TArray<FName>& GetAllSourceNames() const { return SourceNames; }
+#endif
+
 private:
 	/** Raw name for this tag at current rank in the tree */
 	FName Tag;
@@ -262,8 +267,8 @@ private:
 	FGameplayTagNetIndex NetIndex;
 
 #if WITH_EDITORONLY_DATA
-	/** Package or config file this tag came from. This is the first one added. If None, this is an implicitly added tag */
-	FName SourceName;
+	/** Module or Package or config file this tag came from. If empty this is an implicitly added tag */
+	TArray<FName> SourceNames;
 
 	/** Comment for this tag */
 	FString DevComment;
@@ -514,6 +519,8 @@ public:
 	/** Fills in an array with all tag sources of a specific type */
 	void FindTagSourcesWithType(EGameplayTagSourceType TagSourceType, TArray<const FGameplayTagSource*>& OutArray) const;
 
+	void FindTagsWithSource(FStringView PackageNameOrPath, TArray<FGameplayTag>& OutTags) const;
+
 	/**
 	 * Check to see how closely two FGameplayTags match. Higher values indicate more matching terms in the tags.
 	 *
@@ -653,7 +660,10 @@ public:
 	bool IsDictionaryTag(FName TagName) const;
 
 	/** Returns information about tag. If not found return false */
-	bool GetTagEditorData(FName TagName, FString& OutComment, FName &OutTagSource, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const;
+	bool GetTagEditorData(FName TagName, FString& OutComment, FName &OutFirstTagSource, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const;
+	
+	/** Returns information about tag. If not found return false */
+    bool GetTagEditorData(FName TagName, FString& OutComment, TArray<FName>& OutTagSources, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const;
 
 #if WITH_EDITOR
 	/** This is called after EditorRefreshGameplayTagTree. Useful if you need to do anything editor related when tags are added or removed */
