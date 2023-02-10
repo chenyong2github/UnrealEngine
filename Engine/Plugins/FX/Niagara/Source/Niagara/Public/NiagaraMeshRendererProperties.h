@@ -251,7 +251,7 @@ public:
 	uint32 bOverrideMaterials : 1;
 
 	/** Whether or not to render with heterogeneous volumes.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	UPROPERTY(EditAnywhere, Category = "Rendering")
 	uint32 bUseHeterogeneousVolumes : 1;
 
 	/** If true, the particles are only sorted when using a translucent material. */
