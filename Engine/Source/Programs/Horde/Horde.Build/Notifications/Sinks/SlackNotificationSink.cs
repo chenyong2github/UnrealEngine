@@ -1551,7 +1551,7 @@ namespace Horde.Build.Notifications.Sinks
 		{
 			GlobalConfig globalConfig = _globalConfig.CurrentValue;
 
-			foreach (IssueReport report in group.Reports.OrderBy(x => x.WorkflowId).ThenBy(x => x.StreamId))
+			foreach (IssueReport report in group.Reports.OrderBy(x => x.WorkflowId.Id.Text).ThenBy(x => x.StreamId.Id.Text))
 			{
 				await SendIssueReportForStreamAsync(globalConfig, group.Channel, group.Time, report);
 			}
