@@ -245,7 +245,7 @@ public:
 	{
 		return Cameras.FindByPredicate([InViewportId](const FCameraSettings& CameraIt)
 			{
-				return CameraIt.Resource.IsValid() && CameraIt.Resource.ViewportId == InViewportId;
+				return CameraIt.Resource.ViewportId == InViewportId;
 			});
 	}
 
