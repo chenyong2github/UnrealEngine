@@ -111,7 +111,7 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 		for (int32 Idx = TagItems.Num() - 1; Idx >= 0; --Idx)
 		{
 			bool DelegateShouldHide = false;
-			FGameplayTagSource* Source = Manager.FindTagSource(TagItems[Idx]->GetFirstSourceName());
+			FGameplayTagSource* Source = Manager.FindTagSource(TagItems[Idx]->SourceName);
 			Manager.OnFilterGameplayTag.Broadcast(UGameplayTagsManager::FFilterGameplayTagContext(RootFilterString, TagItems[Idx], Source, PropertyHandle), DelegateShouldHide);
 			if (DelegateShouldHide)
 			{
@@ -425,7 +425,7 @@ bool SGameplayTagWidget::FilterChildrenCheck( TSharedPtr<FGameplayTagNode> InIte
 	Manager.OnFilterGameplayTagChildren.Broadcast(RootFilterString, InItem, DelegateShouldHide);
 	if (!DelegateShouldHide && Manager.OnFilterGameplayTag.IsBound())
 	{
-		FGameplayTagSource* Source = Manager.FindTagSource(InItem->GetFirstSourceName());
+		FGameplayTagSource* Source = Manager.FindTagSource(InItem->SourceName);
 		Manager.OnFilterGameplayTag.Broadcast(UGameplayTagsManager::FFilterGameplayTagContext(RootFilterString, InItem, Source, PropertyHandle), DelegateShouldHide);
 	}
 	if (DelegateShouldHide)
@@ -463,7 +463,7 @@ TSharedRef<ITableRow> SGameplayTagWidget::OnGenerateRow(TSharedPtr<FGameplayTagN
 
 				if (Node->bIsExplicitTag)
 				{
-					TagSource = Node->GetFirstSourceName();
+					TagSource = Node->SourceName;
 				}
 				else
 				{
@@ -930,7 +930,7 @@ TSharedRef<SWidget> SGameplayTagWidget::MakeTagActionsMenu(TSharedPtr<FGameplayT
 	}
 
 	// we can only rename or delete tags if they came from an ini file
-	if (!InTagNode->GetFirstSourceName().ToString().EndsWith(TEXT(".ini")))
+	if (!InTagNode->SourceName.ToString().EndsWith(TEXT(".ini")))
 	{
 		bShowManagement = false;
 	}
@@ -1255,7 +1255,7 @@ void SGameplayTagWidget::RefreshTags()
 		for (int32 Idx = TagItems.Num() - 1; Idx >= 0; --Idx)
 		{
 			bool DelegateShouldHide = false;
-			FGameplayTagSource* Source = Manager.FindTagSource(TagItems[Idx]->GetFirstSourceName());
+			FGameplayTagSource* Source = Manager.FindTagSource(TagItems[Idx]->SourceName);
 			Manager.OnFilterGameplayTag.Broadcast(UGameplayTagsManager::FFilterGameplayTagContext(RootFilterString, TagItems[Idx], Source, PropertyHandle), DelegateShouldHide);
 			if (DelegateShouldHide)
 			{
