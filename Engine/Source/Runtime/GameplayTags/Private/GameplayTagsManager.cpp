@@ -454,7 +454,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 
 			for (const class FNativeGameplayTag* NativeTag : FNativeGameplayTag::GetRegisteredNativeTags())
 			{
-#if UE_INCLUDE_NATIVE_GAMEPLAYTAG_METADATA
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
 				AddTagTableRow(NativeTag->GetGameplayTagTableRow(), NativeTag->GetModuleName());
 #else
 				AddTagTableRow(NativeTag->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
