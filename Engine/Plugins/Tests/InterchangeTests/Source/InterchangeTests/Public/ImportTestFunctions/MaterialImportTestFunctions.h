@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Engine/EngineTypes.h"
 #include "ImportTestFunctionsBase.h"
 #include "MaterialImportTestFunctions.generated.h"
 
@@ -27,6 +28,22 @@ public:
 	/** Check whether the expected number of material instances are imported */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckImportedMaterialInstanceCount(const TArray<UMaterialInterface*>& MaterialInterfaces, int32 ExpectedNumberOfImportedMaterialInstances);
+
+	/** Check whether the imported material has the expected shading model */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckShadingModel(const UMaterialInterface* MaterialInterface, EMaterialShadingModel ExpectedShadingModel);
+
+	/** Check whether the imported material has the expected blend mode */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckBlendMode(const UMaterialInterface* MaterialInterface, EBlendMode ExpectedBlendMode);
+
+	/** Check whether the imported material has the expected two-sided setting */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckIsTwoSided(const UMaterialInterface* MaterialInterface, bool ExpectedIsTwoSided);
+
+	/** Check whether the imported material has the expected opacity mask clip value */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckOpacityMaskClipValue(const UMaterialInterface* MaterialInterface, float ExpectedOpacityMaskClipValue);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

@@ -62,3 +62,69 @@ FInterchangeTestFunctionResult UMaterialImportTestFunctions::CheckImportedMateri
 	return Result;
 }
 
+FInterchangeTestFunctionResult UMaterialImportTestFunctions::CheckShadingModel(const UMaterialInterface* MaterialInterface, EMaterialShadingModel ExpectedShadingModel)
+{
+	FInterchangeTestFunctionResult Result;
+	const FMaterialShadingModelField ImportedShadingModels = MaterialInterface->GetShadingModels();
+
+	const int32 NumImportedShadingModels = ImportedShadingModels.CountShadingModels();
+	if (NumImportedShadingModels != 1)
+	{
+		Result.AddError(FString::Printf(TEXT("Expected only 1 shading model, imported %d."), NumImportedShadingModels));
+	}
+	else
+	{
+		const EMaterialShadingModel ImportedShadingModel = ImportedShadingModels.GetFirstShadingModel();
+		if (ImportedShadingModel != ExpectedShadingModel)
+		{
+			const FString ImportedDisplayValue = UEnum::GetDisplayValueAsText(ImportedShadingModel).ToString();
+			const FString ExpectedDisplayValue = UEnum::GetDisplayValueAsText(ExpectedShadingModel).ToString();
+			Result.AddError(FString::Printf(TEXT("Expected shading model %s, imported %s."), *ExpectedDisplayValue, *ImportedDisplayValue));
+		}
+	}
+
+	return Result;
+}
+
+FInterchangeTestFunctionResult UMaterialImportTestFunctions::CheckBlendMode(const UMaterialInterface* MaterialInterface, EBlendMode ExpectedBlendMode)
+{
+	FInterchangeTestFunctionResult Result;
+	const EBlendMode ImportedBlendMode = MaterialInterface->GetBlendMode();
+
+	if (ImportedBlendMode != ExpectedBlendMode)
+	{
+		const FString ImportedDisplayValue = UEnum::GetDisplayValueAsText(ImportedBlendMode).ToString();
+		const FString ExpectedDisplayValue = UEnum::GetDisplayValueAsText(ExpectedBlendMode).ToString();
+		Result.AddError(FString::Printf(TEXT("Expected blend mode %s, imported %s."), *ExpectedDisplayValue, *ImportedDisplayValue));
+	}
+
+	return Result;
+}
+
+FInterchangeTestFunctionResult UMaterialImportTestFunctions::CheckIsTwoSided(const UMaterialInterface* MaterialInterface, bool ExpectedIsTwoSided)
+{
+	FInterchangeTestFunctionResult Result;
+	const bool ImportedIsTwoSided = MaterialInterface->IsTwoSided();
+
+	if (ImportedIsTwoSided != ExpectedIsTwoSided)
+	{
+		const TCHAR* ImportedDisplayValue = ImportedIsTwoSided ? TEXT("True") : TEXT("False");
+		const TCHAR* ExpectedDisplayValue = ExpectedIsTwoSided ? TEXT("True") : TEXT("False");
+		Result.AddError(FString::Printf(TEXT("Expected two-sided setting to be %s, imported %s."), ExpectedDisplayValue, ImportedDisplayValue));
+	}
+
+	return Result;
+}
+
+FInterchangeTestFunctionResult UMaterialImportTestFunctions::CheckOpacityMaskClipValue(const UMaterialInterface* MaterialInterface, float ExpectedOpacityMaskClipValue)
+{
+	FInterchangeTestFunctionResult Result;
+	const float ImportedOpacityMaskClipValue = MaterialInterface->GetOpacityMaskClipValue();
+
+	if (!FMath::IsNearlyEqual(ImportedOpacityMaskClipValue, ExpectedOpacityMaskClipValue))
+	{
+		Result.AddError(FString::Printf(TEXT("Expected opacity mask clip value %.2f, imported %.2f."), ExpectedOpacityMaskClipValue, ImportedOpacityMaskClipValue));
+	}
+
+	return Result;
+}

@@ -29,7 +29,8 @@ namespace UnrealBuildTool.Rules
 					"InterchangeEngine",
 					"MeshDescription",
 					"StaticMeshDescription",
-					"UnrealEd"
+					"UnrealEd",
+					"VariantManagerContent"
 				}
 			);
 		}

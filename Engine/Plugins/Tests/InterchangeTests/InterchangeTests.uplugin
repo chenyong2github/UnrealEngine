@@ -35,6 +35,10 @@
 				"Editor",
 				"Program"
 			]
+		},
+		{
+			"Name": "VariantManagerContent",
+			"Enabled": true
 		}
 	]
 }
