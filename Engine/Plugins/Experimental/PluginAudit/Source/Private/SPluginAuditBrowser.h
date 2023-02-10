@@ -15,6 +15,8 @@ class UGameplayTagsManager;
 struct FGameplayTag;
 class IMessageLogListing;
 class IMessageToken;
+class STableViewBase;
+class ITableRow;
 
 class SPluginAuditBrowser : public SCompoundWidget
 {
