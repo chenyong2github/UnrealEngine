@@ -329,6 +329,15 @@
 			"targets": [
 				{ "target": "GRU", "absolute_tolerance": 1e-6 }
 			]
+		},
+		{
+			"category": "TransposeOp",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true }
+			],
+			"targets": [
+				{ "target": "Transpose" }
+			]
 		}
 	],
 
@@ -778,6 +787,24 @@
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 3, 3 ] }, { "shape": [ 1, 15, 3 ] }, { "shape": [ 1, 15, 5 ] }, { "shape": [ 1, 30 ] } ], "outputs": [ { "shape": [ 2, 1, 3, 5 ] }, { "shape": [ 1, 3, 5 ] } ] }
 			]
+		},
+		{ 
+			"name": "TransposeOp.234to243",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 4 ] } ], "outputs": [ { "shape": [ 2, 4, 3 ] } ] }
+			]
+		},
+		{ 
+			"name": "TransposeOp.234to423",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 4 ] } ], "outputs": [ { "shape": [ 4, 2, 3 ] } ] }
+			]
+		},
+		{ 
+			"name": "TransposeOp.Default",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 5, 7, 8 ] } ], "outputs": [ { "shape": [ 8, 7, 5 ] } ] }
+			]
 		}
 	],
 
@@ -1127,6 +1154,28 @@
 					{ "name": "activations", "value": ["Tanh", "Sigmoid"], "type": "StringArray" },
 					{ "name": "activation_alpha", "value": [0.01, 0.2], "type": "FloatArray" }
 				] }
+			]
+		},
+		{
+			"name": "TransposeOp.234to243",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "perm", "value": [0, 2, 1], "type": "Int32Array" }
+				] }
+			]
+		},
+		{
+			"name": "TransposeOp.234to423",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "perm", "value": [2, 0, 1], "type": "Int32Array" }
+				] }
+			]
+		},
+		{
+			"name": "TransposeOp.Default",
+			"attribute_maps": [
+				{ "attributes": [] }
 			]
 		}
 	]

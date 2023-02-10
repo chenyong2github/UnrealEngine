@@ -10,6 +10,29 @@ namespace UE::NNERuntimeRDG::Private::Dml
 
 namespace DmlUtil
 {
+
+	void FTensorDesc::UpdateShapesAndStrides(TConstArrayView<uint32> InSizes, TConstArrayView<uint32> InStrides)
+	{
+		Sizes = InSizes;
+        BuffDesc.Sizes = Sizes.GetData();
+
+		Strides = InStrides;
+        BuffDesc.Strides = Strides.GetData();
+	}
+
+	void FTensorDesc::SetStridesFromFTensor(const NNECore::Internal::FTensor& InputDesc)
+	{
+		uint32 CurrStride = 1;
+
+		Strides.SetNum(InputDesc.GetShape().Rank());
+		
+		for (int32 i = InputDesc.GetShape().Rank() - 1; i >= 0; --i)
+		{
+			Strides[i] = CurrStride;
+			CurrStride *= InputDesc.GetShape().GetData()[i];
+		}
+	}
+
 	bool FTensorDesc::InitFromTensor(const NNECore::Internal::FTensor& Tensor, int32 MinTensorRank, TConstArrayView<uint32> BroadcastShape)
 	{
 		Reset();
@@ -84,6 +107,7 @@ namespace DmlUtil
 		{
 			Sizes.Insert(1, 0);
 		}
+
 	}
 
 	void FTensorDesc::SetShapeAndStrides(TConstArrayView<uint32> Shape, TConstArrayView<uint32> BroadcastShape)

@@ -45,18 +45,24 @@ public:
 
 namespace DmlUtil
 {
+	using FSmallIntArray = TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
 	using FSmallUIntArray = TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
 
 	struct FTensorDesc
 	{
 		DML_BUFFER_TENSOR_DESC	BuffDesc;
 		DML_TENSOR_DESC			Desc;
+		// Don't edit Sizes and Strides directly, use methods
 		FSmallUIntArray			Sizes;
 		FSmallUIntArray			Strides;
 		uint64					ElemSizeInBytes;
 
 		bool InitFromTensor(const NNECore::Internal::FTensor& InputDesc, int32 MinTensorRank, TConstArrayView<uint32> Broadcast = MakeArrayView((uint32*) nullptr, 0));
 		bool InitFromTensor1D(const NNECore::Internal::FTensor& InputDesc, int32 Rank);
+
+		void SetStridesFromFTensor(const NNECore::Internal::FTensor& InputDesc);
+
+		void UpdateShapesAndStrides(TConstArrayView<uint32> InSizes, TConstArrayView<uint32> InStrides);
 
 	private:
 		void Reset();
