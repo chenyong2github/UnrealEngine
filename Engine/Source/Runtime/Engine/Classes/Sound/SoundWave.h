@@ -1046,6 +1046,9 @@ private:
 	// Removes any in-progress async loading data formats. 
 	void FlushAsyncLoadingDataFormats();
 
+	// Waits for audio rendering commands to execute
+	void FlushAudioRenderingCommands() const;
+
 	void BakeFFTAnalysis();
 	void BakeEnvelopeAnalysis();
 
