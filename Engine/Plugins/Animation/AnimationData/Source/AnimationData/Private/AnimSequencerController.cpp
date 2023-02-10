@@ -2350,16 +2350,7 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 	if (InModel.GetObject() && InModel.GetObject()->IsA<UAnimDataModel>())
 	{
 		IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);	
-		if (const UAnimSequence* AnimationSequence = Model->GetAnimationSequence())
-		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			Model->CachedRawDataGUID = AnimationSequence->GetRawDataGuid();
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-		else
-		{
-			ReportError(LOCTEXT("UnableToGetOuterAnimSequenceError", "Unable to retrieve outer Animation Sequence"));
-		}
+		Model->CachedRawDataGUID = InModel->GenerateGuid();
 		
 		// Copy over frame-rate from model
 		const FFrameRate ModelFrameRate = InModel->GetFrameRate();

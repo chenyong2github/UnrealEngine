@@ -181,6 +181,8 @@ void UAnimationSequencerDataModel::PostLoad()
 			}
 		}
 
+		CachedRawDataGUID.Invalidate();
+
 		RemoveOutOfDateControls();
 
 		ValidateData();
