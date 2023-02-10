@@ -6911,10 +6911,12 @@ void ULandscapeComponent::GenerateMobileWeightmapLayerAllocations()
 void ULandscapeComponent::GenerateMobilePlatformPixelData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
 {
 	check(!IsTemplate());
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeComponent::GenerateMobilePlatformPixelData);
 
 	GenerateMobileWeightmapLayerAllocations();
 
 	int32 WeightmapSize = (SubsectionSizeQuads + 1) * NumSubsections;
+	UE::Landscape::FBatchTextureCopy CopyRequests;
 
 	MobileWeightmapTextures.Empty();
 	{
@@ -6937,7 +6939,8 @@ void ULandscapeComponent::GenerateMobilePlatformPixelData(bool bIsCooking, const
 					MobileWeightmapTextures.Add(CurrentWeightmapTexture);
 				}
 
-				LandscapeData.CopyTextureFromWeightmap(CurrentWeightmapTexture, CurrentChannel, this, Allocation.LayerInfo);
+				CopyRequests.AddWeightmapCopy(CurrentWeightmapTexture, CurrentChannel, this, Allocation.LayerInfo);
+
 				// update Allocation
 				Allocation.WeightmapTextureIndex = MobileWeightmapTextures.Num() - 1;
 				Allocation.WeightmapTextureChannel = CurrentChannel;
@@ -6946,6 +6949,8 @@ void ULandscapeComponent::GenerateMobilePlatformPixelData(bool bIsCooking, const
 			}
 		}
 	}
+
+	CopyRequests.ProcessTextureCopies();
 
 	GDisableAutomaticTextureMaterialUpdateDependencies = true;
 	for (int TextureIdx = 0; TextureIdx < MobileWeightmapTextures.Num(); TextureIdx++)

@@ -11,6 +11,9 @@
 
 class ULevel;
 enum EShaderPlatform : uint16;
+class ULandscapeComponent;
+class ULandscapeLayerInfoObject;
+class UTexture2D;
 
 namespace UE::Landscape
 {
@@ -22,6 +25,52 @@ namespace UE::Landscape
 LANDSCAPE_API bool DoesPlatformSupportEditLayers(EShaderPlatform InShaderPlatform);
 
 #if WITH_EDITOR
+
+struct FTextureCopyRequest
+{
+	UTexture2D* Source = nullptr;
+	UTexture2D* Destination = nullptr;
+};
+
+uint32 GetTypeHash(const FTextureCopyRequest& InKey);
+bool operator==(const FTextureCopyRequest& InEntryA, const FTextureCopyRequest& InEntryB);
+
+/** Represents the DestinationChannel->SourceChannel binding.DestinationChannel is used as index.
+ *  For example if the source channel is 1 and the destination channel is 2, then Mappings[2] == 1.
+ */
+struct FTextureCopyChannelMapping
+{
+	FTextureCopyChannelMapping()
+		: Mappings{ INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE }
+	{}
+
+	int8& operator[](int32 Index) { return Mappings[Index]; }
+	const int8 operator[](int32 Index) const { return Mappings[Index]; }
+
+	int8 Mappings[4];
+};
+
+class LANDSCAPE_API FBatchTextureCopy
+{
+public:
+	/**
+	* Uses the provided arguments to add proper source/destination entries to internal copy requests.
+	* @param	InDestination	The texture used as a destination for the copy.
+	* @param	InDestinationChannel	The channel used as a destination for the copy.
+	* @param	InComponent		The component containing the wanted source weightmap.
+	* @param	InLayerInfo		The layer info used to retrieve the proper source weightmap and channel.
+	* @return True if the copy has been successfully added.
+	*/
+	bool AddWeightmapCopy(UTexture2D* InDestination, int8 InDestinationChannel, const ULandscapeComponent* InComponent, ULandscapeLayerInfoObject* InLayerInfo);
+
+	/** Process pending internal copy requests. */
+	bool ProcessTextureCopies();
+
+private:
+	using FTextureCopyChannelMappingMap = TMap<FTextureCopyRequest, FTextureCopyChannelMapping>;
+
+	FTextureCopyChannelMappingMap CopyRequests;
+};
 
 /**
  * Returns a generated path used for Landscape Shared Assets

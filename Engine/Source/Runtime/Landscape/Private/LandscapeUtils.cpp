@@ -7,8 +7,14 @@
 
 #if WITH_EDITOR
 #include "EditorDirectories.h"
+#include "Engine/Texture2D.h"
+#include "LandscapeComponent.h"
+#include "LandscapeLayerInfoObject.h"
 #include "ObjectTools.h"
 #endif
+
+// Channel remapping
+extern const size_t ChannelOffsets[4];
 
 namespace UE::Landscape
 {
@@ -63,6 +69,175 @@ FString GetLayerInfoObjectPackageName(const ULevel* InLevel, const FName& InLaye
 
 	return PackageName;
 }
+
+uint32 GetTypeHash(const FTextureCopyRequest& InKey)
+{
+	uint32 Hash = GetTypeHash(InKey.Source);
+	return HashCombine(Hash, GetTypeHash(InKey.Destination));
+}
+
+bool operator==(const FTextureCopyRequest& InEntryA, const FTextureCopyRequest& InEntryB)
+{
+	return (InEntryA.Source == InEntryB.Source) && (InEntryA.Destination == InEntryB.Destination);
+}
+
+bool FBatchTextureCopy::AddWeightmapCopy(UTexture2D* InDestination, int8 InDestinationChannel, const ULandscapeComponent* InComponent, ULandscapeLayerInfoObject* InLayerInfo)
+{
+	FTextureCopyRequest CopyRequest;
+	const TArray<UTexture2D*>& ComponentWeightmapTextures = InComponent->GetWeightmapTextures();
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = InComponent->GetWeightmapLayerAllocations();
+	int8 SourceChannel = INDEX_NONE;
+
+	CopyRequest.Destination = InDestination;
+
+	// Find the proper Source Texture and channel from Layer Allocations
+	for (const FWeightmapLayerAllocationInfo& ComponentWeightmapLayerAllocation : ComponentWeightmapLayerAllocations)
+	{
+		if (ComponentWeightmapLayerAllocation.LayerInfo == InLayerInfo)
+		{
+			CopyRequest.Source = ComponentWeightmapTextures[ComponentWeightmapLayerAllocation.WeightmapTextureIndex];
+			SourceChannel = ComponentWeightmapLayerAllocation.WeightmapTextureChannel;
+			break;
+		}
+	}
+
+	// Check if we found a proper allocation for this LayerInfo
+	if (SourceChannel != INDEX_NONE)
+	{
+		check((InDestinationChannel < 4) && (SourceChannel < 4));
+		FTextureCopyChannelMapping& ChannelMapping = CopyRequests.FindOrAdd(MoveTemp(CopyRequest));
+		ChannelMapping[ChannelOffsets[InDestinationChannel]] = ChannelOffsets[SourceChannel];
+		return true;
+	}
+
+	return false;
+}
+
+struct FSourceDataMipNumber
+{
+	TArray<const uint8*> SourceDataPtr;
+	int32 MipNumber = 0;
+};
+
+struct FDestinationDataMipNumber
+{
+	TArray<uint8*> DestinationDataPtr;
+	int32 MipNumber = 0;
+};
+
+bool FBatchTextureCopy::ProcessTextureCopies()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBatchTextureCopy::ProcessTextureCopyRequest);
+	TMap<UTexture2D*, FSourceDataMipNumber> Sources;
+	TMap<UTexture2D*, FDestinationDataMipNumber> Destinations;
+
+	if (CopyRequests.Num() == 0)
+	{
+		return false;
+	}
+
+	// Populate source/destination maps to filter unique occurences
+	for (const TPair<FTextureCopyRequest, FTextureCopyChannelMapping>& CopyRequest : CopyRequests)
+	{
+		FSourceDataMipNumber& SourceData = Sources.Add(CopyRequest.Key.Source);
+		SourceData.MipNumber = CopyRequest.Key.Source->Source.GetNumMips();
+
+		FDestinationDataMipNumber& DestinationData = Destinations.Add(CopyRequest.Key.Destination);
+		DestinationData.MipNumber = CopyRequest.Key.Destination->Source.GetNumMips();
+	}
+
+	// Lock all sources mips
+	for (TPair<UTexture2D*, FSourceDataMipNumber>& Source : Sources)
+	{
+		int32 MipNumber = Source.Value.MipNumber;
+		TArray<const uint8*>& SourceDataPtr = Source.Value.SourceDataPtr;
+		
+		SourceDataPtr.Reserve(MipNumber);
+
+		for (int32 MipLevel = 0; MipLevel < MipNumber; ++MipLevel)
+		{
+			SourceDataPtr.Add(Source.Key->Source.LockMipReadOnly(MipLevel));
+		}
+	}
+
+	// Lock all destinations mips
+	for (TPair<UTexture2D*, FDestinationDataMipNumber>& Destination : Destinations)
+	{
+		int32 MipNumber = Destination.Value.MipNumber;
+		TArray<uint8*>& DestinationDataPtr = Destination.Value.DestinationDataPtr;
+
+		for (int32 MipLevel = 0; MipLevel < MipNumber; ++MipLevel)
+		{
+			DestinationDataPtr.Add(Destination.Key->Source.LockMip(MipLevel));
+		}
+	}
+
+	for (const TPair<FTextureCopyRequest, FTextureCopyChannelMapping>& CopyRequest : CopyRequests)
+	{
+		const FSourceDataMipNumber* SourceDataMipNumber = Sources.Find(CopyRequest.Key.Source);
+		const FDestinationDataMipNumber* DestinationDataMipNumber = Destinations.Find(CopyRequest.Key.Destination);
+
+		check((SourceDataMipNumber != nullptr) && (DestinationDataMipNumber != nullptr));
+		check(SourceDataMipNumber->MipNumber == DestinationDataMipNumber->MipNumber);
+
+		const int32 MipNumber = SourceDataMipNumber->MipNumber;
+
+		for (int32 MipLevel = 0; MipLevel < MipNumber; ++MipLevel)
+		{
+			const int32 MipSize = CopyRequest.Key.Destination->Source.GetSizeX() >> MipLevel;
+			check(MipSize == (CopyRequest.Key.Destination->Source.GetSizeY() >> MipLevel));
+
+			int32 MipSizeSquare = FMath::Square(MipSize);
+			const uint8* SourceTextureData = SourceDataMipNumber->SourceDataPtr[MipLevel];
+			uint8* DestTextureData = DestinationDataMipNumber->DestinationDataPtr[MipLevel];
+
+			check((SourceTextureData != nullptr) && (DestTextureData != nullptr));
+
+			const FTextureCopyChannelMapping& ChannelMapping = CopyRequest.Value;
+
+			// Perform the copy, redirecting channels using mappings
+			for (int32 Index = 0; Index < MipSizeSquare; ++Index)
+			{
+				int32 Base = Index * 4;
+
+				for (int32 Channel = 0; Channel < 4; ++Channel)
+				{
+					if (ChannelMapping[Channel] == INDEX_NONE)
+					{
+						continue;
+					}
+
+					DestTextureData[Base + Channel] = SourceTextureData[Base + ChannelMapping[Channel]];
+				}
+			}
+		}
+	}
+
+	// Unlock all sources mips
+	for (TPair<UTexture2D*, FSourceDataMipNumber>& Source : Sources)
+	{
+		int32 MipNumber = Source.Value.MipNumber;
+		
+		for (int32 MipLevel = 0; MipLevel < MipNumber; ++MipLevel)
+		{
+			Source.Key->Source.UnlockMip(MipLevel);
+		}
+	}
+	
+	// Unlock all destination mips
+	for (TPair<UTexture2D*, FDestinationDataMipNumber>& Destination : Destinations)
+	{
+		int32 MipNumber = Destination.Value.MipNumber;
+		
+		for (int32 MipLevel = 0; MipLevel < MipNumber; ++MipLevel)
+		{
+			Destination.Key->Source.UnlockMip(MipLevel);
+		}
+	}
+
+	return true;
+}
+
 
 #endif //!WITH_EDITOR
 
