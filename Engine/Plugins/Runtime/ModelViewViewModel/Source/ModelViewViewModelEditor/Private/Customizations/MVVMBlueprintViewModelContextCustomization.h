@@ -8,7 +8,7 @@
 class FWidgetBlueprintEditor;
 struct FBindingChainElement;
 class SWidget;
-
+enum class EMVVMBlueprintViewModelContextCreationType : uint8;
 
 namespace UE::MVVM
 {
@@ -36,7 +36,6 @@ class FBlueprintViewModelContextDetailCustomization : public IPropertyTypeCustom
 {
 public:
 	FBlueprintViewModelContextDetailCustomization(TWeakPtr<FWidgetBlueprintEditor> InEditor);
-	~FBlueprintViewModelContextDetailCustomization();
 
 	//~ IDetailCustomization interface
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override {}
@@ -48,12 +47,17 @@ public:
 	}
 
 private:
+	TSharedRef<SWidget> CreateExecutionTypeMenuContent();
+	FText GetCreationTypeValue() const;
+	FText GetExecutionTypeValueToolTip() const;
 	void HandleClassChanged();
 
 	FViewModelPropertyAccessEditor PropertyAccessEditor;
 	TWeakPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor;
 	TSharedPtr<IPropertyHandle> NotifyFieldValueClassHandle;
 	TSharedPtr<IPropertyHandle> PropertyPathHandle;
+	TSharedPtr<IPropertyHandle> CreationTypeHandle;
+	TArray<EMVVMBlueprintViewModelContextCreationType> AllowedCreationTypes;
 };
 
 } // namespace UE::MVVM

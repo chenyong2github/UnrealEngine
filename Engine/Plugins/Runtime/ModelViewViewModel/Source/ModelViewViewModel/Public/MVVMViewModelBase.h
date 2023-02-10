@@ -17,6 +17,18 @@
 #define UE_MVVM_SET_PROPERTY_VALUE(MemberName, NewValue) \
 	SetPropertyValue(MemberName, NewValue, ThisClass::FFieldNotificationClassDescriptor::MemberName)
 
+namespace UMMVVMViewModelBase
+{
+	// valid keywords for the UCLASS macro
+	enum
+	{
+		// [ClassMetadata] Specifies which ContextCreationType is allowed for that viewmodel. ex: UCLASS(meta=(MVVMAllowedContextCreationType="Manual|CreateInstance"))
+		MVVMAllowedContextCreationType,
+		// [ClassMetadata] Specifies which ContextCreationType is disallowed for that viewmodel, all other type are allowed. ex: UCLASS(meta=(MVVMDisallowedContextCreationType="Manual|CreateInstance"))
+		MVVMDisallowedContextCreationType
+	};
+}
+
 
 /** Base class for MVVM viewmodel. */
 UCLASS(Blueprintable, Abstract, DisplayName="MVVM ViewModel")

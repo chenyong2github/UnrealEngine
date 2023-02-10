@@ -749,9 +749,18 @@ bool FMVVMViewBlueprintCompiler::PreCompileSourceCreators(UWidgetBlueprintGenera
 
 			if (ViewModelContext.GetViewModelClass()->HasAllClassFlags(CLASS_Deprecated))
 			{
-				AddErrorForViewModel(ViewModelContext, FText::Format(LOCTEXT("ViewModelTypeDeprecated", "Viewmodel type '{0}' is deprecated and should not be used. Please update it in the View Models panel."),
+				AddErrorForViewModel(ViewModelContext, FText::Format(LOCTEXT("ViewModelTypeDeprecated", "Viewmodel class '{0}' is deprecated and should not be used. Please update it in the View Models panel."),
 					ViewModelContext.GetViewModelClass()->GetDisplayNameText()
 				));
+			}
+
+			if (!GetAllowedContextCreationType(ViewModelContext.GetViewModelClass()).Contains(ViewModelContext.CreationType))
+			{
+				AddErrorForViewModel(ViewModelContext, FText::Format(LOCTEXT("ViewModelContextCreationTypeInvalid", "Viewmodel '{0}' has an invalidate creation type. You can change it in the View Models panel."),
+					ViewModelContext.GetViewModelClass()->GetDisplayNameText()
+				));
+				bAreSourcesCreatorValid = false;
+				continue;
 			}
 
 			if (ViewModelContext.CreationType == EMVVMBlueprintViewModelContextCreationType::Manual)
@@ -761,7 +770,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileSourceCreators(UWidgetBlueprintGenera
 			{
 				if (ViewModelContext.GetViewModelClass()->HasAllClassFlags(CLASS_Abstract))
 				{
-					AddErrorForViewModel(ViewModelContext, FText::Format(LOCTEXT("ViewModelTypeAbstract", "Viewmodel type '{0}' is abstract and can't be created. You can change it in the View Models panel."),
+					AddErrorForViewModel(ViewModelContext, FText::Format(LOCTEXT("ViewModelTypeAbstract", "Viewmodel class '{0}' is abstract and can't be created. You can change it in the View Models panel."),
 						ViewModelContext.GetViewModelClass()->GetDisplayNameText()
 					));
 					bAreSourcesCreatorValid = false;

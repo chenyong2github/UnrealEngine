@@ -2,6 +2,7 @@
 
 #include "MVVMBlueprintViewModelContextCustomization.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"
 #include "IDetailChildrenBuilder.h"
@@ -11,6 +12,7 @@
 #include "Bindings/MVVMBindingHelper.h"
 #include "Features/IModularFeatures.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/SMVVMViewModelPanel.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintViewModelContextDetailCustomization"
@@ -114,9 +116,6 @@ FBlueprintViewModelContextDetailCustomization::FBlueprintViewModelContextDetailC
 	: WidgetBlueprintEditor(InEditor)
 {}
 
-FBlueprintViewModelContextDetailCustomization::~FBlueprintViewModelContextDetailCustomization()
-{
-}
 
 void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
@@ -136,7 +135,12 @@ void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef
 			UObject* Object = nullptr;
 			if (ChildHandle->GetValue(Object) == FPropertyAccess::Success)
 			{
-				PropertyAccessEditor.ClassToLookFor = Cast<UClass>(Object);
+				UClass* ViewModelClass = Cast<UClass>(Object);
+				if (ViewModelClass)
+				{
+					AllowedCreationTypes = GetAllowedContextCreationType(ViewModelClass);
+				}
+				PropertyAccessEditor.ClassToLookFor = ViewModelClass;
 			}
 			ChildHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FBlueprintViewModelContextDetailCustomization::HandleClassChanged));
 		}
@@ -151,6 +155,12 @@ void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef
 		{
 			ensure(CastField<FStrProperty>(ChildHandle->GetProperty()));
 			PropertyPathHandle = ChildHandle;
+		}
+
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewModelContext, CreationType))
+		{
+			ensure(CastField<FEnumProperty>(ChildHandle->GetProperty()));
+			CreationTypeHandle = ChildHandle;
 		}
 	}
 
@@ -191,6 +201,30 @@ void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef
 					];
 				}
 			}
+			else if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewModelContext, CreationType))
+			{
+				IDetailPropertyRow& PropertyRow = ChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+
+				TSharedPtr<SWidget> NameWidget, ValueWidget;
+				PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget);
+				PropertyRow.CustomWidget()
+					.NameContent()
+					[
+						NameWidget.ToSharedRef()
+					]
+					.ValueContent()
+					[
+						SNew(SComboButton)
+						.ContentPadding(FMargin(4.f, 0.f))
+						.OnGetMenuContent(this, &FBlueprintViewModelContextDetailCustomization::CreateExecutionTypeMenuContent)
+						.ButtonContent()
+						[
+							SNew(STextBlock)
+							.Text(this, &FBlueprintViewModelContextDetailCustomization::GetCreationTypeValue)
+							.ToolTipText(this, &FBlueprintViewModelContextDetailCustomization::GetExecutionTypeValueToolTip)
+						]
+					];
+			}
 			else
 			{
 				ChildBuilder.AddProperty(ChildHandle.ToSharedRef());
@@ -202,14 +236,64 @@ void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef
 void FBlueprintViewModelContextDetailCustomization::HandleClassChanged()
 {
 	UObject* Object = nullptr;
+	AllowedCreationTypes.Reset();
+	PropertyAccessEditor.ClassToLookFor.Reset();
 	if (NotifyFieldValueClassHandle->GetValue(Object) == FPropertyAccess::Success)
 	{
-		PropertyAccessEditor.ClassToLookFor = Cast<UClass>(Object);
+		if (UClass* ViewModelClass = Cast<UClass>(Object))
+		{
+			PropertyAccessEditor.ClassToLookFor = ViewModelClass;
+			AllowedCreationTypes = GetAllowedContextCreationType(ViewModelClass);
+		}
 	}
-	else
+}
+
+TSharedRef<SWidget> FBlueprintViewModelContextDetailCustomization::CreateExecutionTypeMenuContent()
+{
+	const bool bCloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(bCloseAfterSelection, nullptr, nullptr, true);
+
+	const UEnum* EnumCreationType = StaticEnum<EMVVMBlueprintViewModelContextCreationType>();
+	for (EMVVMBlueprintViewModelContextCreationType Type : AllowedCreationTypes)
 	{
-		PropertyAccessEditor.ClassToLookFor.Reset();
+		int32 Index = EnumCreationType->GetIndexByValue((int64)Type);
+		MenuBuilder.AddMenuEntry(
+			EnumCreationType->GetDisplayNameTextByIndex(Index),
+			EnumCreationType->GetToolTipTextByIndex(Index),
+			FSlateIcon(),
+			FUIAction
+			(
+				FExecuteAction::CreateLambda([this, Type]()
+				{
+					uint8 Value = static_cast<uint8>(Type);
+					CreationTypeHandle->SetValue(Value);
+				})
+			)
+		);
 	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+FText FBlueprintViewModelContextDetailCustomization::GetCreationTypeValue() const
+{
+	uint8 Value = 0;
+	if (CreationTypeHandle->GetValue(Value) == FPropertyAccess::Result::Success)
+	{
+		return StaticEnum<EMVVMBlueprintViewModelContextCreationType>()->GetDisplayNameTextByValue((int64)Value);
+	}
+	return FText::GetEmpty();
+}
+
+FText FBlueprintViewModelContextDetailCustomization::GetExecutionTypeValueToolTip() const
+{
+	uint8 Value = 0;
+	if (CreationTypeHandle->GetValue(Value) == FPropertyAccess::Result::Success)
+	{
+		UEnum* EnumCreationType = StaticEnum<EMVVMBlueprintViewModelContextCreationType>();
+		return EnumCreationType->GetToolTipTextByIndex(EnumCreationType->GetIndexByValue((int64)Value));
+	}
+	return FText::GetEmpty();
 }
 
 } // namespace UE::MVVM

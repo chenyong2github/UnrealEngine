@@ -27,6 +27,13 @@ enum class EMVVMBlueprintViewModelContextCreationType : uint8
 	Resolver,
 };
 
+namespace UE::MVVM
+{
+#if WITH_EDITOR
+	UE_NODISCARD MODELVIEWVIEWMODELBLUEPRINT_API TArray<EMVVMBlueprintViewModelContextCreationType> GetAllowedContextCreationType(const UClass* Class);
+#endif
+}
+
 /**
  *
  */
