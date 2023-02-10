@@ -28,6 +28,7 @@ float4 MorphTargetWeights[GMorphTargetDispatchBatchSize / 4];
 
 float4 PositionScale;
 float2 Precision;
+uint NumGroups;
 
 groupshared uint LocalGroupOffsets[GMorphTargetDispatchBatchSize];
 
@@ -114,6 +115,11 @@ void GPUMorphUpdateCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_Gro
 	LoadLocalData(GroupThreadIndex);
 
 	const uint GroupIndex = GetUnWrappedDispatchGroupId(GroupId);
+	if (GroupIndex >= NumGroups)
+	{
+		return;
+	}
+
 	const uint MorphTargetLocalIndex = GroupIndexToMorphTargetLocalIndex(GroupIndex);
 
 	const uint BatchStartIndex = MorphTargetBatchOffsets[MorphTargetLocalIndex >> 2][MorphTargetLocalIndex & 3u];			//TODO: use a buffer instead of packing into constant buffer?
@@ -152,12 +158,18 @@ void GPUMorphUpdateCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_Gro
 	}
 }
 
+uint NumVertices;
+
 [numthreads(64, 1, 1)]
 void GPUMorphNormalizeCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
 {
 	const uint DestVertexIndex = GetUnWrappedDispatchThreadId(GroupId, GroupThreadIndex, 64);
-	const uint DestVertexAddress = DestVertexIndex * 6;
+	if (DestVertexIndex >= NumVertices)
+	{
+		return;
+	}
 
+	const uint DestVertexAddress = DestVertexIndex * 6;
 	const float3 Position = float3(int3(MorphVertexBuffer[DestVertexAddress + 0], MorphVertexBuffer[DestVertexAddress + 1], MorphVertexBuffer[DestVertexAddress + 2])) * PositionScale.xyz;
 
 	MorphVertexBuffer[DestVertexAddress + 0] = asuint(Position.x);
