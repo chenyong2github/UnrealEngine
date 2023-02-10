@@ -85,6 +85,7 @@ struct FVPFullScreenUserWidget_PostProcess
 
 private:
 	bool InitPostProcessComponent(UWorld* World);
+	bool InitPostProcessMaterial();
 	void ReleasePostProcessComponent();
 
 	bool CreateRenderer(UWorld* World, UUserWidget* Widget, TAttribute<float> InDPIScale);
