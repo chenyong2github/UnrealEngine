@@ -119,12 +119,6 @@ namespace UnrealBuildTool
 			// Read the XML configuration files
 			XmlConfig.ApplyTo(this);
 
-			// Apply to architecture configs that need to read commandline arguments and didn't have the Arguments passed in during construction
-			foreach (UnrealArchitectureConfig Config in UnrealArchitectureConfig.AllConfigs())
-			{
-				Arguments.ApplyTo(Config);
-			}
-
 			// Fixup the log path if it wasn't overridden by a config file
 			if (BaseLogFileName == null)
 			{
