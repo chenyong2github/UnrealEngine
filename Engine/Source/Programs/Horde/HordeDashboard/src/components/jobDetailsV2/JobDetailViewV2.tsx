@@ -1,4 +1,4 @@
-import { mergeStyleSets, Pivot, PivotItem, Stack, Text } from "@fluentui/react";
+import { mergeStyleSets, Pivot, PivotItem, Stack } from "@fluentui/react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";

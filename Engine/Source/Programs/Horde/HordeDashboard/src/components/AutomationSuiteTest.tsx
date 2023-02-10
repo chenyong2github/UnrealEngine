@@ -1,14 +1,14 @@
 
-import { FontIcon, Image, Label, ScrollablePane, ScrollbarVisibility, Spinner, SpinnerSize, Stack, Text } from "@fluentui/react";
+import { DefaultButton, FontIcon, IContextualMenuItem, IContextualMenuItemProps, IContextualMenuProps, Image, Label, ScrollablePane, ScrollbarVisibility, Spinner, SpinnerSize, Stack, Text } from "@fluentui/react";
 import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import backend from "../backend";
-import { ArtifactData, GetSuiteTestDataResponse, GetTestDataDetailsResponse, GetTestDataRefResponse, GetTestMetaResponse, GetTestResponse, GetTestSuiteResponse, TestOutcome } from "../backend/Api";
+import { ArtifactData, GetSuiteTestDataResponse, GetTestDataDetailsResponse, GetTestDataRefResponse, GetTestMetaResponse, GetTestResponse, GetTestSuiteResponse, TestData, TestOutcome } from "../backend/Api";
+import { TestDataHandler } from "../backend/AutomationTestData";
 import dashboard, { StatusColor } from "../backend/Dashboard";
 import { getShortNiceTime } from "../base/utilities/timeUtils";
-
 
 type EventType = "Error" | "Info" | "Warning";
 
@@ -44,62 +44,166 @@ class SuiteTestHandler {
       this.suite = suite;
       this.test = test;
 
-      this.details = details;
-      this.testRef = testRef;
-      this.metaData = metaData;
+      this.refs.set(testRef.id, testRef);
+      this.details.set(details.id, details);
+      this.metaData.set(metaData.id, metaData);
 
-      this.metaName = `${metaData.platforms.join(" - ")} / ${metaData.configurations.join(" - ")} / ${metaData.buildTargets.join(" - ")} / ${metaData.rhi === "default" ? "Default" : metaData.rhi?.toUpperCase()} / ${metaData.variation === "default" ? "Default" : metaData.variation?.toUpperCase()}`;
-
-      this.load();
+      this.initialize(metaData, testRef);
    }
 
-   async load() {
+   clear() {
+      this.events = [];
+      this.jobId = undefined;
+      this.stepId = undefined;
+   }
 
-      const suiteTest = this.suiteTest = this.details.suiteTests?.find(t => t.testId === this.test.id);
+   get jobArtifacts(): ArtifactData[] | undefined {
+      if (!this.jobId || !this.stepId) {
+         return undefined;
+      }
+
+      const key = this.jobId + this.stepId;
+      return this.artifacts.get(key);
+   }
+
+   getSuiteTest(metaId: string) {
+
+      const ref = Array.from(this.refs.values()).find(r => r.metaId === metaId);
+
+      if (!ref) {
+         return undefined;
+      }
+
+      const details = this.details.get(ref.id);
+
+      if (!details) {
+         return undefined;
+      }
+
+      return details.suiteTests?.find(t => t.testId === this.test.id);
+   }
+
+   async set(testRef: GetTestDataRefResponse, initialUpdate = false) {
+
+      if (this.cref?.id === testRef.id) {
+         return;
+      }
+
+      this.clear();
+
+      this.loading = true;
+
+      if (!initialUpdate) {
+         this.setUpdated();
+      }
+
+      let details = this.details.get(testRef.id);
+      if (!details) {
+         console.error("Missing details");
+         return;
+      }
+
+      this.cref = testRef;
+      this.cmetaData = this.metaData.get(testRef.metaId)!;
+      this.cdetails = details;
+
+      // handle test data
+      const requestIds = details.testDataIds.filter(id => !this.testData.get(id));
+      if (requestIds) {
+         const requests = requestIds.map(id => backend.getTestData(id));
+         const responses = await Promise.all(requests);
+         responses.forEach(r => {
+            this.testData.set(r.id, r);
+         });
+      }
+      // Automated Test Session
+      // Unreal Automated Tests::UE.EditorAutomation(RunTest=Rendering) Win64 d3d12
+      // Automated Test Session Result Details::e5f21037-c022-47df-b3d7-028d54e03205
+
+      const testData = details.testDataIds.map(id => this.testData.get(id)!);
+
+      if (!!testData.find(td => !td)) {
+         console.error("Missing testdata");
+         return;
+      }
+
+      const suiteTest = this.csuiteTest = details.suiteTests?.find(t => t.testId === this.test.id);
       if (!suiteTest) {
          console.error("SuiteTestHandler: Missing suite test");
          return;
       }
 
-      if (!this.details.testDataIds?.length) {
-         console.error("SuiteTestHandler: Suite test has no test id data");
+
+      // @todo: these lookups aren't great 
+      const session = testData.find(t => (t.data as any)["Type"]?.trim() === "Automated Test Session");
+      //const tests = testData.find(t => (t.data as any)["Type"]?.trim() === "Unreal Automated Tests");
+      const results = testData.find(t => (t.key as any)?.trim().startsWith("Automated Test Session Result Details"));
+
+      this.events = [];
+
+      this.jobId = session?.jobId;
+      this.stepId = session?.stepId;
+
+      if (!this.jobId || !this.stepId) {
+         console.error("Couldn't get job or step id ");
          return;
       }
 
-      // @todo: can cache these
-      const requests = this.details.testDataIds.map(id => backend.getTestData(id));
-      const responses = await Promise.all(requests);
+      if (results) {
 
-      const jobId = this.jobId = responses[0].jobId as string;
-      const stepId = this.stepId = responses[1].stepId as string;
-
-      if (!jobId || !stepId) {
-         console.error("SuiteTestHandler: Missing job or step id");
-         return;
-      }
-
-      const data = responses.map(r => r.data as Record<string, any>);
-      data.forEach(d => {
-
-         const testData = d[suiteTest.uid];
-         if (testData) {
-            if (testData.Events) {
-               for (let e of (testData.Events as TestEvent[])) {
-                  this.events.push(e);
-               }
+         const data = (results.data as Record<string, any>)[suiteTest.uid];
+         if (data.Events) {
+            for (let e of (data.Events as TestEvent[])) {
+               this.events.push(e);
             }
          }
-      });
 
-      let needArtifacts = !!this.events.find(e => e.Tag === EventTag.ImageComparison);
+         let needArtifacts = !!this.events.find(e => e.Tag === EventTag.ImageComparison);
 
-      if (needArtifacts) {
-         this.jobArtifacts = await backend.getJobArtifacts(this.jobId, this.stepId);
+         if (needArtifacts) {
+            const key = this.jobId + this.stepId;
+            if (!this.artifacts.get(key)) {
+               const artifacts = await backend.getJobArtifacts(this.jobId, this.stepId);
+               this.artifacts.set(key, artifacts);
+            }
+         }
       }
 
-      this.loaded = true;
-
+      this.loading = false;
       this.setUpdated();
+   }
+
+   private async initialize(srcMetaData: GetTestMetaResponse, srcRef: GetTestDataRefResponse) {
+
+      const instance = TestDataHandler.instance;
+
+      const suiteMetaIds = Array.from(instance.metaData.keys()).filter(meta => !!this.suite.metadata.find(m => m === meta));
+      suiteMetaIds.forEach(metaId => {
+         const metaData = instance.metaData.get(metaId)!;
+         this.metaData.set(metaData.id, metaData);
+         this.metaNames.set(metaId, `${metaData.platforms.join(" - ")} / ${metaData.configurations.join(" - ")} / ${metaData.buildTargets.join(" - ")} / ${metaData.rhi === "default" ? "Default" : metaData.rhi?.toUpperCase()} / ${metaData.variation === "default" ? "Default" : metaData.variation?.toUpperCase()}`);
+      })
+
+      let altRefs: GetTestDataRefResponse[] = [];
+      const altMetaIds = suiteMetaIds.filter(id => id !== srcMetaData.id);
+      if (altMetaIds.length) {
+         altRefs = await backend.getTestRefs([srcRef.streamId], altMetaIds, undefined, undefined, srcRef.buildChangeList, srcRef.buildChangeList, undefined, [this.suite.id]);
+         altRefs.forEach(r => {
+            this.refs.set(r.id, r);
+         });
+      }
+
+      // want details here, so we can put the state in the dropdown, otherwise annoying to have to cycle to each 
+      if (altRefs.length) {
+         const altDetails = await backend.getTestDetails(altRefs.map(v => v.id));
+         altDetails.forEach(d => {
+            this.details.set(d.id, d);
+         });
+      }
+
+      this.initialized = true;
+
+      await this.set(srcRef, true);
    }
 
    @action
@@ -110,21 +214,36 @@ class SuiteTestHandler {
    @observable
    updated: number = 0;
 
-   events: TestEvent[] = [];
-
    suite: GetTestSuiteResponse;
+
+   cref?: GetTestDataRefResponse;
+   cdetails?: GetTestDataDetailsResponse;
+   cmetaData?: GetTestMetaResponse;
+   csuiteTest?: GetSuiteTestDataResponse;
+
+   // test ref id => refs
+   refs = new Map<string, GetTestDataRefResponse>();
+
+   // test ref id => details
+   details = new Map<string, GetTestDataDetailsResponse>();
+
+   // meta data id => meta data
+   metaData = new Map<string, GetTestMetaResponse>();
+
+   testData = new Map<string, TestData>();
+
+   metaNames = new Map<string, string>();
+
    test: GetTestResponse;
-   suiteTest?: GetSuiteTestDataResponse;
-   details: GetTestDataDetailsResponse;
-   testRef: GetTestDataRefResponse;
-   metaData: GetTestMetaResponse;
-   metaName: string;
+
+   initialized = false;
+
+   loading = false;
 
    jobId?: string;
    stepId?: string;
-   jobArtifacts?: ArtifactData[];
-
-   loaded = false;
+   artifacts: Map<string, ArtifactData[]> = new Map();
+   events: TestEvent[] = [];
 
 }
 
@@ -133,6 +252,18 @@ let idCounter = 0;
 const EventPanel: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler }) => {
 
    if (handler.updated) { }
+
+   if (handler.loading) {
+
+      return <Stack grow style={{ paddingTop: 16 }} horizontalAlign="center" tokens={{ childrenGap: 18 }}>
+         <Stack>
+            <Text variant="mediumPlus">Loading Events</Text>
+         </Stack>
+         <Stack>
+            <Spinner size={SpinnerSize.large} />
+         </Stack>
+      </Stack>
+   }
 
    const events = handler.events.map(e => {
 
@@ -190,7 +321,7 @@ const EventPanel: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler 
          }
 
          return <Stack horizontalAlign="center" style={{ paddingBottom: 12 }}>
-            <Image width="100%" style={{ minWidth: 200, maxWidth: 400, minHeight: 120 }} src={url} />
+            <Image width="340px" height="190px" src={url} />
             <Text>{tag}</Text>
          </Stack>
       });
@@ -231,11 +362,110 @@ const EventPanel: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler 
 });
 
 
+const MetaChooser: React.FC<{ handler: SuiteTestHandler }> = ({ handler }) => {
+
+   const metaIds = new Set<string>(Array.from(handler.refs.values()).map(r => r.metaId));
+   const metaData: GetTestMetaResponse[] = [];
+   metaIds.forEach(id => {
+      metaData.push(handler.metaData.get(id)!);
+   });
+
+   const platforms = Array.from(new Set<string>(metaData.map(d => d.platforms).flat())).sort((a, b) => a.localeCompare(b));
+
+   const options: IContextualMenuItem[] = [];
+
+   platforms.forEach(platform => {
+
+      const metaItems: IContextualMenuItem[] = [];
+
+      const pmeta = metaData.filter(m => m.platforms.indexOf(platform) !== -1).sort((a, b) => handler.metaNames.get(a.id)!.localeCompare(handler.metaNames.get(b.id)!));
+
+      pmeta.forEach(pm => {
+
+         const suiteTest = handler.getSuiteTest(pm.id);
+
+         metaItems.push({
+            key: `meta_select_${platform}_${pm.id}}`, text: handler.metaNames.get(pm.id), onClick: (ev, item) => {
+
+               if (!item) {
+                  return;
+               }
+
+               const ref = Array.from(handler.refs.values()).find(r => r.metaId === pm.id);
+
+               if (ref) {
+                  handler.set(ref);
+               }
+
+               // don't close
+               //ev?.preventDefault()
+            },
+            data: suiteTest
+         });
+
+      });
+
+      const renderMeta = (props: IContextualMenuItemProps) => {
+
+         const test = props.item.data as GetSuiteTestDataResponse | undefined;
+
+         const scolors = dashboard.getStatusColors();
+
+         let color = scolors.get(StatusColor.Unspecified);
+
+         if (test?.outcome === TestOutcome.Success) {
+            color = scolors.get(StatusColor.Success)!;
+         }
+
+         if (test?.outcome === TestOutcome.Failure) {
+            color = scolors.get(StatusColor.Failure)!;
+         }
+
+         if (test?.outcome === TestOutcome.Skipped) {
+            color = scolors.get(StatusColor.Skipped)!;
+         }
+
+         return <Stack style={{ paddingLeft: 4 }}><Stack horizontal tokens={{ childrenGap: 8 }}>
+            <Stack>
+               <FontIcon style={{ color: color, fontSize: 11 }} iconName="Square" />
+            </Stack>
+            <Text style={{ fontSize: 11 }} >{props.item.text}</Text>
+         </Stack>
+         </Stack>;
+      };
+
+      const subMenuProps: IContextualMenuProps = {
+         contextualMenuItemAs: renderMeta,
+         shouldFocusOnMount: true,
+         subMenuHoverDelay: 0,
+         items: metaItems,
+      };
+
+      options.push({ key: `test_platform_select_${platform}`, text: platform, subMenuProps: subMenuProps });
+
+   });
+
+   const menuProps: IContextualMenuProps = {
+      shouldFocusOnMount: true,
+      subMenuHoverDelay: 0,
+      items: options,
+   };
+
+   return <DefaultButton style={{ width: 280, textAlign: "left" }} menuProps={menuProps} text={"Alternate Platform"} />
+
+}
+
 const TestInfoBox: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler }) => {
 
 
    const labelWidth = 120;
    const textWidth = 120;
+
+   if (handler.updated) { }
+
+   if (!handler.cref) {
+      return null;
+   }
 
    const infoItem = (label: string, textIn: any, link?: string) => {
       const text = textIn.toString();
@@ -260,11 +490,11 @@ const TestInfoBox: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler
       infoItems.push(infoItem("Horde", "Job Step", `/job/${handler.jobId}/?step=${handler.stepId}`));
    }
 
-   const timestamp = handler.testRef.id.substring(0, 8)
+   const timestamp = handler.cref.id.substring(0, 8)
    const time = getShortNiceTime(new Date(parseInt(timestamp, 16) * 1000), true);
 
 
-   infoItems.push(infoItem("Change", handler.testRef.buildChangeList));
+   infoItems.push(infoItem("Change", handler.cref.buildChangeList));
    infoItems.push(infoItem("Date", time));
    infoItems.push(infoItem("Errors", errorCount));
    infoItems.push(infoItem("Warnings", warningCount));
@@ -279,7 +509,7 @@ const AutomationSuiteTestInner: React.FC<{ handler: SuiteTestHandler }> = observ
 
    if (handler.updated) { }
 
-   if (!handler.loaded) {
+   if (!handler.initialized) {
       return <Stack style={{ paddingTop: 16 }} horizontalAlign="center" tokens={{ childrenGap: 18 }}>
          <Stack>
             <Text variant="mediumPlus">Loading Events</Text>
@@ -291,7 +521,7 @@ const AutomationSuiteTestInner: React.FC<{ handler: SuiteTestHandler }> = observ
    }
 
    const test = handler.test;
-   const suiteTest = handler.suiteTest;
+   const suiteTest = handler.csuiteTest;
 
    if (!suiteTest) {
       return null;
@@ -326,17 +556,27 @@ const AutomationSuiteTestInner: React.FC<{ handler: SuiteTestHandler }> = observ
 
    return <Stack style={{ height: "100%" }} >
       <Stack horizontal tokens={{ childrenGap: 4 }} verticalAlign="center" style={{ paddingBottom: 12 }}>
-         <Stack className="horde-no-darktheme" style={{ paddingTop: 3, paddingRight: 4 }}>
+         <Stack className="horde-no-darktheme" style={{ paddingTop: 2, paddingRight: 4 }}>
             <FontIcon style={{ color: color }} iconName="Square" />
          </Stack>
-         <Stack>
-            <Text style={{ fontSize: 14, fontFamily: "Horde Open Sans Semibold" }}>{testName}</Text>
+         <Stack tokens={{childrenGap: 4}}>
+            <Stack>
+               <Text style={{ fontSize: 13, fontFamily: "Horde Open Sans Semibold" }}>{testName}</Text>
+            </Stack>
+            <Stack>
+               <Text style={{ fontSize: 11, fontFamily: "Horde Open Sans Semibold" }}>{handler.metaNames.get(handler.cmetaData!.id)}</Text>
+            </Stack>
          </Stack>
       </Stack>
 
       <Stack grow>
          <Stack horizontal style={{ height: "100%" }}>
-            <TestInfoBox handler={handler} />
+            <Stack>
+               <Stack style={{ paddingTop: 8, paddingBottom: 18 }}>
+                  <MetaChooser handler={handler} />
+               </Stack>
+               <TestInfoBox handler={handler} />
+            </Stack>
             <EventPanel handler={handler} />
          </Stack>
       </Stack>

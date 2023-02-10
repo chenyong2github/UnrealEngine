@@ -50,7 +50,7 @@ class SuiteHandler {
    constructor(suite: GetTestSuiteResponse, suiteRefs: GetTestDataRefResponse[], metaData: GetTestMetaResponse) {
 
       makeObservable(this);
-
+      
       this.suite = suite;
 
       const dedupe = new Set<number>();
@@ -70,7 +70,7 @@ class SuiteHandler {
       this.metaData = metaData;
 
       this.metaName = `${metaData.platforms.join(" - ")} / ${metaData.configurations.join(" - ")} / ${metaData.buildTargets.join(" - ")} / ${metaData.rhi === "default" ? "Default" : metaData.rhi?.toUpperCase()} / ${metaData.variation === "default" ? "Default" : metaData.variation?.toUpperCase()}`;
-         
+
       this.load();
    }
 
@@ -248,8 +248,13 @@ class SuiteHandler {
 
       this.setUpdated();
 
-      // const sdetails = this.testDetails.get(debugRef)!;
-      //this.setSelection({ ref: this.suiteRefs.find(s => s.id === debugRef)!, details: sdetails, testId: debugTestId })
+      /*
+      const debugRef = "63d9a44acf52968117e67b39";
+      const debugTestId = "6376b26ee30d43884952c55d";
+
+      const sdetails = this.testDetails.get(debugRef)!;
+      this.setSelection({ ref: this.suiteRefs.find(s => s.id === debugRef)!, details: sdetails, testId: debugTestId })
+      */
    }
 
    setFilterState(nstate?: FilterState) {
@@ -385,7 +390,7 @@ class SuiteHandler {
 
    selection?: TestSelection;
 
-   metrics?: TestMetrics;
+   metrics?: TestMetrics;   
 
    static fixedTestNames = new Map<TestId, string>();
    static lowerCaseTestNames = new Map<TestId, string>();
@@ -898,28 +903,28 @@ const SuiteTestList: React.FC<{ handler: SuiteHandler }> = observer(({ handler }
    return <Stack key={`key_automation_suite_list_${id_counter++}`} className={hordeClasses.raised} style={{ flexBasis: flexBasic, flexShrink: 0 }}>
       <Stack >
          <Stack>
-            {!!metrics && <Stack horizontal tokens={{childrenGap: 24}} style={{paddingBottom: 8}}>
+            {!!metrics && <Stack horizontal tokens={{ childrenGap: 24 }} style={{ paddingBottom: 8 }}>
                <Stack>
                   <Text>{`Tests: ${metrics.total}`}</Text>
                </Stack>
                {!!metrics.success && <Stack>
                   <Stack>
-                     <Text>{`Success: ${metrics.success} / ${Math.ceil((metrics.success / metrics.total)* 100)}%`}</Text>
+                     <Text>{`Success: ${metrics.success} / ${Math.ceil((metrics.success / metrics.total) * 100)}%`}</Text>
                   </Stack>
                </Stack>}
                {!!metrics.error && <Stack>
                   <Stack>
-                     <Text>{`Error: ${metrics.error} / ${Math.ceil((metrics.error / metrics.total)* 100)}%`}</Text>
+                     <Text>{`Error: ${metrics.error} / ${Math.ceil((metrics.error / metrics.total) * 100)}%`}</Text>
                   </Stack>
                </Stack>}
                {!!metrics.skipped && <Stack>
                   <Stack>
-                     <Text>{`Skipped: ${metrics.skipped} / ${Math.ceil((metrics.skipped / metrics.total)* 100)}%`}</Text>
+                     <Text>{`Skipped: ${metrics.skipped} / ${Math.ceil((metrics.skipped / metrics.total) * 100)}%`}</Text>
                   </Stack>
                </Stack>}
                {!!metrics.unspecified && <Stack>
                   <Stack>
-                     <Text>{`Unspecified: ${metrics.unspecified} / ${Math.ceil((metrics.unspecified / metrics.total)* 100)}%`}</Text>
+                     <Text>{`Unspecified: ${metrics.unspecified} / ${Math.ceil((metrics.unspecified / metrics.total) * 100)}%`}</Text>
                   </Stack>
                </Stack>}
             </Stack>}
@@ -957,8 +962,6 @@ const SuiteTestViewPanel: React.FC<{ handler: SuiteHandler }> = observer(({ hand
       </Stack>
    </Stack>
 });
-
-
 
 export const AutomationSuiteDetails: React.FC<{ suite: GetTestSuiteResponse, suiteRefs: GetTestDataRefResponse[], metaData: GetTestMetaResponse, onClose: () => void }> = observer(({ suite, suiteRefs, metaData, onClose }) => {
 
