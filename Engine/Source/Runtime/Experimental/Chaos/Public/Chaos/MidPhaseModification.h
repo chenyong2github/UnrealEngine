@@ -147,9 +147,6 @@ namespace Chaos
 	class CHAOS_API FMidPhaseModifierAccessor
 	{
 	public:
-		friend class FMidPhaseModifier;
-		friend class FMidPhasePairModifierIterator;
-
 		// Get an object which allows for range iteration over the list of
 		// midphases for a particle
 		FMidPhaseModifierParticleRange GetMidPhases(FGeometryParticleHandle* Particle);
@@ -157,6 +154,4 @@ namespace Chaos
 		// Get a midphase modifier for a particular object pair
 		FMidPhaseModifier GetMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1);
 	};
-
-	using FMidPhaseModifierCallback = TFunction<void(const FCollisionContactModifier&)>;
 }

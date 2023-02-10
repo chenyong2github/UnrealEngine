@@ -1853,7 +1853,7 @@ namespace Chaos
 			// Call the version of DeltaExceedsThreshold that provides access to its
 			// intermediate variables so we can debug draw them
 			FVec3 AbsLocalDelta, AxisThresholdScaled, AxisThresholdDiff;
-			const bool bEnableCCD = CCDHelpers::DeltaExceedsThreshold(
+			const bool bEnableCCD = FCCDHelpers::DeltaExceedsThreshold(
 				AxisThreshold, DeltaX, R, AbsLocalDelta, AxisThresholdScaled, AxisThresholdDiff);
 			const FVector AxisPercents = AbsLocalDelta / AxisThresholdScaled;
 

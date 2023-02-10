@@ -85,7 +85,7 @@ namespace Chaos
 			const TPBDRigidParticleHandle<FReal, 3>* Rigid = Constraint->GetParticle(i)->CastToRigidParticle();
 			if (Rigid && Rigid->ObjectState() == EObjectStateType::Kinematic)
 			{
-				if (CCDHelpers::DeltaExceedsThreshold(Rigid->CCDAxisThreshold(), Displacements[i], Rigid->Q()))
+				if (FCCDHelpers::DeltaExceedsThreshold(Rigid->CCDAxisThreshold(), Displacements[i], Rigid->Q()))
 				{
 					return i;
 				}
@@ -201,7 +201,7 @@ namespace Chaos
 			// Determine if this particle pair should trigger CCD
 			const auto Particle0 = Constraint->GetParticle(0);
 			const auto Particle1 = Constraint->GetParticle(1);
-			bNeedCCDSolve = CCDHelpers::DeltaExceedsThreshold(*Particle0, *Particle1, Dt);
+			bNeedCCDSolve = FCCDHelpers::DeltaExceedsThreshold(*Particle0, *Particle1, Dt);
 
 			// make sure we ignore pairs that don't include any dynamics
 			if (CCDParticlePair[0] != nullptr || CCDParticlePair[1] != nullptr)
@@ -1076,13 +1076,34 @@ namespace Chaos
 		}
 	}
 
-	bool CCDHelpers::DeltaExceedsThreshold(const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R)
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+	FRigidTransform3 FCCDHelpers::GetParticleTransformAtTOI(const FGeometryParticleHandle* InParticle, const FReal TOI, const FReal Dt)
+	{
+		// Particles are swept using their latest rotation. We interpolate using velocity rather that Lerp(X,P,TOI)
+		// to handle the case where the center of mass is offset from the particle position.
+		const FConstGenericParticleHandle Particle = InParticle;
+		if (Particle->CCDEnabled())
+		{
+			const FReal InvClampedTOI = FMath::Clamp(FReal(1) - TOI, FReal(0), FReal(1));
+			return FRigidTransform3(
+				Particle->P() - (InvClampedTOI * Dt) * Particle->V(),
+				Particle->Q());
+		}
+		return Particle->GetTransformXR();
+	}
+
+	bool FCCDHelpers::DeltaExceedsThreshold(const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R)
 	{
 		FVec3 AbsLocalDelta, AxisThresholdScaled, AxisThresholdDiff;
 		return DeltaExceedsThreshold(AxisThreshold, DeltaX, R, AbsLocalDelta, AxisThresholdScaled, AxisThresholdDiff);
 	}
 
-	bool CCDHelpers::DeltaExceedsThreshold(const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R, FVec3& OutAbsLocalDelta, FVec3& OutAxisThresholdScaled, FVec3& OutAxisThresholdDiff)
+	bool FCCDHelpers::DeltaExceedsThreshold(const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R, FVec3& OutAbsLocalDelta, FVec3& OutAxisThresholdScaled, FVec3& OutAxisThresholdDiff)
 	{
 		if (CVars::CCDEnableThresholdBoundsScale < 0.f) { return false; }
 		if (CVars::CCDEnableThresholdBoundsScale == 0.f) { return true; }
@@ -1104,11 +1125,11 @@ namespace Chaos
 		return OutAxisThresholdDiff.GetMax() > 0.f;
 	}
 
-	bool CCDHelpers::DeltaExceedsThreshold(
+	bool FCCDHelpers::DeltaExceedsThreshold(
 		const FVec3& AxisThreshold0, const FVec3& DeltaX0, const FQuat& R0,
 		const FVec3& AxisThreshold1, const FVec3& DeltaX1, const FQuat& R1)
 	{
-		return CCDHelpers::DeltaExceedsThreshold(
+		return FCCDHelpers::DeltaExceedsThreshold(
 
 			// To combine axis thresholds:
 			// * transform particle1's threshold into particle0's local space
@@ -1134,7 +1155,7 @@ namespace Chaos
 			R0);
 	}
 
-	bool CCDHelpers::DeltaExceedsThreshold(const FGeometryParticleHandle& Particle0, const FGeometryParticleHandle& Particle1)
+	bool FCCDHelpers::DeltaExceedsThreshold(const FGeometryParticleHandle& Particle0, const FGeometryParticleHandle& Particle1)
 	{
 		// For rigids, compute DeltaX from the X - P diff and use Q for the rotation.
 		// For non-rigids, DeltaX is zero and use R for rotation.
@@ -1149,7 +1170,7 @@ namespace Chaos
 			Particle1.CCDAxisThreshold(), DeltaX1, R1);
 	}
 
-	bool CCDHelpers::DeltaExceedsThreshold(const FGeometryParticleHandle& Particle0, const FGeometryParticleHandle& Particle1, const FReal Dt)
+	bool FCCDHelpers::DeltaExceedsThreshold(const FGeometryParticleHandle& Particle0, const FGeometryParticleHandle& Particle1, const FReal Dt)
 	{
 		// For rigids, compute DeltaX from the V * Dt and use Q for the rotation.
 		// For non-rigids, DeltaX is zero and use R for rotation.

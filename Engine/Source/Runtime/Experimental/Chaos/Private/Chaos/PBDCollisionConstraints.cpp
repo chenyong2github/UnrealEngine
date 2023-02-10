@@ -6,6 +6,7 @@
 #include "Chaos/ContactModification.h"
 #include "Chaos/MidPhaseModification.h"
 #include "Chaos/PBDCollisionConstraintsContact.h"
+#include "Chaos/CCDModification.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CollisionPruning.h"
 #include "Chaos/Collision/PBDCollisionContainerSolver.h"
@@ -594,6 +595,15 @@ namespace Chaos
 		for(ISimCallbackObject* ModifierCallback : MidPhaseModifiers)
 		{
 			ModifierCallback->MidPhaseModification_Internal(ModifierAccessor);
+		}
+	}
+
+	void FPBDCollisionConstraints::ApplyCCDModifier(const TArray<ISimCallbackObject*>& CCDModifiers, FReal Dt)
+	{
+		FCCDModifierAccessor ModifierAccessor(Dt);
+		for (ISimCallbackObject* ModifierCallback : CCDModifiers)
+		{
+			ModifierCallback->CCDModification_Internal(ModifierAccessor);
 		}
 	}
 

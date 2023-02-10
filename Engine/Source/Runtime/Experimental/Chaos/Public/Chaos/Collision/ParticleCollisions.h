@@ -107,7 +107,7 @@ namespace Chaos
 
 		/**
 		 * @brief Visit all the collisions on this particle
-		 * @tparam TLambda visitor type with signature void(FPBDCollisionParticle&)
+		 * @tparam TLambda visitor type with signature void(FPBDCollisionConstraint&)
 		 * 
 		 * @note do not delete constraint from the lambda. You may disable them though.
 		*/
@@ -116,7 +116,7 @@ namespace Chaos
 
 		/**
 		 * @brief Visit all the collisions on this particle
-		 * @tparam TLambda visitor type with signature void(const FPBDCollisionParticle&)
+		 * @tparam TLambda visitor type with signature void(const FPBDCollisionConstraint&)
 		 * 
 		 * @note do not delete constraint from the lambda. You may disable them though.
 		*/

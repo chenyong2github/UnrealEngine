@@ -122,8 +122,10 @@ namespace Chaos
 		TArray<int32> IslandConstraintStart, IslandConstraintNum, IslandConstraintEnd; // The duplication of information in IslandConstraintNum and IslandConstraintEnd is needed when we group constraints using islands.
 	};
 
-	struct CCDHelpers
+	struct FCCDHelpers
 	{
+		static FRigidTransform3 GetParticleTransformAtTOI(const FGeometryParticleHandle* Particle, const FReal TOI, const FReal Dt);
+
 		// Return true if DeltaX indicates a movement beyond a set of threshold
 		// distances for each local axis.
 		static bool DeltaExceedsThreshold(const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R);
@@ -146,4 +148,7 @@ namespace Chaos
 		// R: For rigid particles, use Q. For non-rigids, use R.
 		static bool DeltaExceedsThreshold(const FGeometryParticleHandle& Particle0, const FGeometryParticleHandle& Particle1, const FReal Dt);
 	};
+
+
+	using CCDHelpers UE_DEPRECATED(5.3, "Renamed to FCCDHelpers to meet naming conventions") = FCCDHelpers;
 }

@@ -147,7 +147,7 @@ namespace Chaos
 				return false;
 			}
 
-			bool bUseCCD = CCDHelpers::DeltaExceedsThreshold(
+			bool bUseCCD = FCCDHelpers::DeltaExceedsThreshold(
 				Particle0->CCDAxisThreshold(), DeltaX0, FConstGenericParticleHandle(Particle0)->Q(),
 				Particle1->CCDAxisThreshold(), DeltaX1, FConstGenericParticleHandle(Particle1)->Q());
 

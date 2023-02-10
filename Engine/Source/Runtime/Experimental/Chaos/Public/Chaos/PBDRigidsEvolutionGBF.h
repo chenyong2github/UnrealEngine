@@ -66,7 +66,13 @@ namespace Chaos
 		static constexpr FRealSingle DefaultCollisionMaxPushOutVelocity = 1000.0f;
 		static constexpr int32 DefaultRestitutionThreshold = 1000;
 
-		CHAOS_API FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InMidPhaseModifiers = nullptr, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
+		CHAOS_API FPBDRigidsEvolutionGBF(
+			FPBDRigidsSOAs& InParticles, 
+			THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, 
+			const TArray<ISimCallbackObject*>* InMidPhaseModifiers = nullptr,
+			const TArray<ISimCallbackObject*>* InCCDModifiers = nullptr,
+			const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr,
+			bool InIsSingleThreaded = false);
 		CHAOS_API ~FPBDRigidsEvolutionGBF();
 
 		FORCEINLINE void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
@@ -283,7 +289,7 @@ namespace Chaos
 						}
 #endif
 
-						if (CCDHelpers::DeltaExceedsThreshold(Particle.CCDAxisThreshold(), Particle.P() - Particle.X(), Particle.Q()))
+						if (FCCDHelpers::DeltaExceedsThreshold(Particle.CCDAxisThreshold(), Particle.P() - Particle.X(), Particle.Q()))
 						{
 							// We sweep the bounds from P back along the velocity and expand by a small amount.
 							// If not using tight bounds we also expand the bounds in all directions by Velocity. This is necessary only for secondary CCD collisions
@@ -369,7 +375,10 @@ namespace Chaos
 		FPBDRigidsEvolutionCallback PreApplyCallback;
 		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
 		FEvolutionResimCache* CurrentStepResimCacheImp;
+
+		// @todo(chaos): evolution and collision constraints should not know about ISimCallbackObject. Fix this.
 		const TArray<ISimCallbackObject*>* MidPhaseModifiers;
+		const TArray<ISimCallbackObject*>* CCDModifiers;
 		const TArray<ISimCallbackObject*>* CollisionModifiers;
 
 		FCCDManager CCDManager;

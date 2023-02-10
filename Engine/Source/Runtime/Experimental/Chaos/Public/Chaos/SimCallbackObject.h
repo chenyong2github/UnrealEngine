@@ -11,6 +11,7 @@ namespace Chaos
 {
 class FPhysicsSolverBase;
 class FMidPhaseModifierAccessor;
+class FCCDModifierAccessor;
 class FCollisionContactModifier;
 class FSingleParticlePhysicsProxy;
 
@@ -23,11 +24,12 @@ enum class ESimCallbackOptions : uint8
 {
 	Presimulate				= 1 << 0,
 	MidPhaseModification	= 1 << 1,
-	ContactModification		= 1 << 2,
-	ParticleRegister		= 1 << 3,
-	ParticleUnregister		= 1 << 4,
-	RunOnFrozenGameThread	= 1 << 5,
-	Rewind					= 1 << 6
+	CCDModification			= 1 << 2,
+	ContactModification		= 1 << 3,
+	ParticleRegister		= 1 << 4,
+	ParticleUnregister		= 1 << 5,
+	RunOnFrozenGameThread	= 1 << 6,
+	Rewind					= 1 << 7
 };
 ENUM_CLASS_FLAGS(ESimCallbackOptions)
 
@@ -70,6 +72,11 @@ public:
 	void MidPhaseModification_Internal(FMidPhaseModifierAccessor& Modifier)
 	{
 		OnMidPhaseModification_Internal(Modifier);
+	}
+
+	void CCDModification_Internal(FCCDModifierAccessor& Modifier)
+	{
+		OnCCDModification_Internal(Modifier);
 	}
 
 	void ContactModification_Internal(FCollisionContactModifier& Modifier)
@@ -169,6 +176,17 @@ private:
 	* NOTE: you must explicitly request midphase modification when registering the callback for this to be called
 	*/
 	virtual void OnMidPhaseModification_Internal(FMidPhaseModifierAccessor& Modifier)
+	{
+		check(false);
+	}
+
+
+	/**
+	* Called once per simulation step. Allows user to modify CCD results
+	*
+	* NOTE: you must explicitly request CCD modification when registering the callback for this to be called
+	*/
+	virtual void OnCCDModification_Internal(FCCDModifierAccessor& Modifier)
 	{
 		check(false);
 	}

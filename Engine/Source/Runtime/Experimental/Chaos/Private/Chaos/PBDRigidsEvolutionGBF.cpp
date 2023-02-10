@@ -110,11 +110,21 @@ namespace Chaos
 		FRealSingle ChaosSolverMaxInvInertiaComponentRatio = 0;
 		FAutoConsoleVariableRef  CVarChaosSolverInertiaConditioningMaxInvInertiaComponentRatio(TEXT("p.Chaos.Solver.InertiaConditioning.MaxInvInertiaComponentRatio"), ChaosSolverMaxInvInertiaComponentRatio, TEXT("An input to inertia conditioning system. The largest inertia component must be at least least multiple of the smallest component"));
 
+		// Collision modifiers are run after the CCD rewind and manifold regeneration because the CCD "contact" data is only used to rewind the particle 
+		// and we regenerate the manifold at that new position. Running the modifier callback before CCD rewind would mean that the user does not have 
+		// data related to the actual contacts that will be resolved, and the positions and normals may be misleading. 
+		// This cvar allows use to run the modifiers before CCD rewind which is how it used to be, just in case.
+		// The new way to disable CCD contacts (pre-rewind) is to do it in a MidPhase- or CCD-Modifier callbacks. See FCCDModifier.
+		bool bChaosCollisionModiferBeforeCCD = false;
+		FAutoConsoleVariableRef  CVarChaosCollisionModiferBeforeCCD(TEXT("p.Chaos.Solver.CollisionModifiersBeforeCCD"), bChaosCollisionModiferBeforeCCD, TEXT("True: run the collision modifiers before CCD rewind is applied; False(default): run modifiers after CCD rewind. See comments in code."));
+
+
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_Evolution_AdvanceOneTimeStep, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UnclusterUnions"), STAT_Evolution_UnclusterUnions, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Integrate"), STAT_Evolution_Integrate, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::KinematicTargets"), STAT_Evolution_KinematicTargets, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::PostIntegrateCallback"), STAT_Evolution_PostIntegrateCallback, STATGROUP_Chaos);
+		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::CCDModifierCallback"), STAT_Evolution_CCDModifierCallback, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::CollisionModifierCallback"), STAT_Evolution_CollisionModifierCallback, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::MidPhaseModifierCallback"), STAT_Evolution_MidPhaseModifierCallback, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::CCD"), STAT_Evolution_CCD, STATGROUP_Chaos);
@@ -425,7 +435,13 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		TransferJointConstraintCollisions();
 	}
 
-	if(CollisionModifiers)
+	if (CCDModifiers)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_CCDModifierCallback);
+		CollisionConstraints.ApplyCCDModifier(*CCDModifiers, Dt);
+	}
+
+	if(CollisionModifiers && CVars::bChaosCollisionModiferBeforeCCD)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CollisionModifierCallback);
 		CollisionConstraints.ApplyCollisionModifier(*CollisionModifiers, Dt);
@@ -440,6 +456,12 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CCD);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, CCD);
 		CCDManager.ApplyConstraintsPhaseCCD(Dt, &CollisionConstraints.GetConstraintAllocator(), Particles.GetActiveParticlesView().Num());
+	}
+
+	if (CollisionModifiers && !CVars::bChaosCollisionModiferBeforeCCD)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_CollisionModifierCallback);
+		CollisionConstraints.ApplyCollisionModifier(*CollisionModifiers, Dt);
 	}
 
 	{
@@ -672,7 +694,13 @@ void FPBDRigidsEvolutionGBF::TestModeResetCollisions()
 	}
 }
 
-FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InMidPhaseModifiers, const TArray<ISimCallbackObject*>* InCollisionModifiers, bool InIsSingleThreaded)
+FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(
+	FPBDRigidsSOAs& InParticles, 
+	THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, 
+	const TArray<ISimCallbackObject*>* InMidPhaseModifiers,
+	const TArray<ISimCallbackObject*>* InCCDModifiers,
+	const TArray<ISimCallbackObject*>* InCollisionModifiers,
+	bool InIsSingleThreaded)
 	: Base(InParticles, SolverPhysicsMaterials, InIsSingleThreaded)
 	, Clustering(*this, Particles.GetClusteredParticles())
 	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, &SolverPhysicsMaterials, CalculateNumCollisionsPerBlock(), DefaultRestitutionThreshold)
@@ -682,6 +710,7 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THan
 	, PreApplyCallback(nullptr)
 	, CurrentStepResimCacheImp(nullptr)
 	, MidPhaseModifiers(InMidPhaseModifiers)
+	, CCDModifiers(InCCDModifiers)
 	, CollisionModifiers(InCollisionModifiers)
 	, CCDManager()
 	, bIsDeterministic(false)
