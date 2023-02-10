@@ -37,7 +37,7 @@ bool FIndicatorProjection::Project(const UIndicatorDescriptor& IndicatorDescript
 					OutScreenSpacePosition.X += IndicatorDescriptor.GetScreenSpaceOffset().X * (bInFrontOfCamera ? 1 : -1);
 					OutScreenSpacePosition.Y += IndicatorDescriptor.GetScreenSpaceOffset().Y;
 
-					if (!bInFrontOfCamera)
+					if (!bInFrontOfCamera && FBox2f(FVector2f::Zero(), ScreenSize).IsInside((FVector2f)OutScreenSpacePosition))
 					{
 						const FVector2f CenterToPosition = (FVector2f(OutScreenSpacePosition) - (ScreenSize / 2)).GetSafeNormal();
 						OutScreenSpacePosition = FVector2D((ScreenSize / 2) + CenterToPosition * ScreenSize);
@@ -74,9 +74,10 @@ bool FIndicatorProjection::Project(const UIndicatorDescriptor& IndicatorDescript
 				ScreenPositionWithDepth.Y = FMath::Lerp(LL.Y, UR.Y, BoundingBoxAnchor.Y) + ScreenSpaceOffset.Y;
 				ScreenPositionWithDepth.Z = FVector::Dist(InProjectionData.ViewOrigin, ProjectWorldLocation);
 
-				if (!bInFrontOfCamera)
+				const FVector2f ScreenSpacePosition = FVector2f(FVector2D(ScreenPositionWithDepth));
+				if (!bInFrontOfCamera && FBox2f(FVector2f::Zero(), ScreenSize).IsInside(ScreenSpacePosition))
 				{
-					const FVector2f CenterToPosition = (FVector2f(FVector2D(ScreenPositionWithDepth)) - (ScreenSize / 2)).GetSafeNormal();
+					const FVector2f CenterToPosition = (ScreenSpacePosition - (ScreenSize / 2)).GetSafeNormal();
 					const FVector2f ScreenPositionFromBehind = (ScreenSize / 2) + CenterToPosition * ScreenSize;
 					ScreenPositionWithDepth.X = ScreenPositionFromBehind.X;
 					ScreenPositionWithDepth.Y = ScreenPositionFromBehind.Y;
@@ -105,7 +106,7 @@ bool FIndicatorProjection::Project(const UIndicatorDescriptor& IndicatorDescript
 				OutScreenSpacePosition.X += IndicatorDescriptor.GetScreenSpaceOffset().X * (bInFrontOfCamera ? 1 : -1);
 				OutScreenSpacePosition.Y += IndicatorDescriptor.GetScreenSpaceOffset().Y;
 
-				if (!bInFrontOfCamera)
+				if (!bInFrontOfCamera && FBox2f(FVector2f::Zero(), ScreenSize).IsInside((FVector2f)OutScreenSpacePosition))
 				{
 					const FVector2f CenterToPosition = (FVector2f(OutScreenSpacePosition) - (ScreenSize / 2)).GetSafeNormal();
 					OutScreenSpacePosition = FVector2D((ScreenSize / 2) + CenterToPosition * ScreenSize);
