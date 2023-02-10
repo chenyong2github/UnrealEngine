@@ -493,6 +493,11 @@ private:
 		return (GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen);
 	}
 
+	virtual bool IsLumenGIEnabled(const FViewInfo& View) const override
+	{
+		return GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
+	}
+
 	virtual bool AnyViewHasGIMethodSupportingDFAO() const override
 	{
 		bool bAnyViewHasGIMethodSupportingDFAO = false;

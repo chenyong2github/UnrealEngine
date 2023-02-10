@@ -2233,6 +2233,7 @@ public:
 	void DrawGPUSkinCacheVisualizationInfoText();
 
 	virtual bool IsLumenEnabled(const FViewInfo& View) const { return false; }
+	virtual bool IsLumenGIEnabled(const FViewInfo& View) const { return false; }
 	virtual bool AnyViewHasGIMethodSupportingDFAO() const { return false; }
 
 	/** Gets a readable light name for use with a draw event. */

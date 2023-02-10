@@ -956,7 +956,8 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 
 	Result.View = View.GetShaderParameters(); // To get VTFeedbackBuffer
 	Result.Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
-	Result.BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures);
+	const bool bLumenGIEnabled = SceneRenderer.IsLumenGIEnabled(View);
+	Result.BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures, bLumenGIEnabled);
 	Result.ActiveShadingBin = ~uint32(0);
 
 	if (UseComputeMaterials())
