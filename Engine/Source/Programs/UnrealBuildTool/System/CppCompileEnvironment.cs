@@ -498,6 +498,11 @@ namespace UnrealBuildTool
 		public FileItem? PrecompiledHeaderFile = null;
 
 		/// <summary>
+		/// The parent file containing the precompiled header data.
+		/// </summary>
+		public FileItem? ParentPrecompiledHeaderFile = null;
+
+		/// <summary>
 		/// A dictionary of PCH files for multiple architectures
 		/// </summary>
 		public Dictionary<UnrealArch, FileItem>? PerArchPrecompiledHeaderFiles = null;
@@ -645,6 +650,7 @@ namespace UnrealBuildTool
 			AdditionalArguments = Other.AdditionalArguments;
 			AdditionalFrameworks.AddRange(Other.AdditionalFrameworks);
 			PrecompiledHeaderFile = Other.PrecompiledHeaderFile;
+			ParentPrecompiledHeaderFile = Other.ParentPrecompiledHeaderFile;
 			bHackHeaderGenerator = Other.bHackHeaderGenerator;
 			bHideSymbolsByDefault = Other.bHideSymbolsByDefault;
 			CppStandard = Other.CppStandard;

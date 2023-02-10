@@ -11,6 +11,7 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -1189,6 +1190,7 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteValue("SharedPCH", FileReference.Combine(ModuleDirectory, Rules.SharedPCHHeaderFile).FullName);
 			}
+			Writer.WriteValue("ChainSharedPCH", Rules.Target.bChainPCHs);
 
 			ExportJsonModuleArray(Writer, "PublicDependencyModules", PublicDependencyModules);
 			ExportJsonModuleArray(Writer, "PublicIncludePathModules", PublicIncludePathModules);
@@ -1270,6 +1272,91 @@ namespace UnrealBuildTool
 				}
 			}
 			Writer.WriteArrayEnd();
+		}
+
+		/// <summary>
+		/// Returns a copy of Nodes sorted by dependency.  Independent or circularly-dependent nodes should
+		/// remain in their same relative order within the original Nodes sequence.
+		/// </summary>
+		/// <param name="NodeList">The list of nodes to sort.</param>
+		static public List<UEBuildModule> StableTopologicalSort(List<UEBuildModule> NodeList)
+		{
+			int NodeCount = NodeList.Count;
+
+			// For each Node in NodeList, populated with the full circular dependency list from
+			// Node.GetAllDependencyModules()
+			List<Task<HashSet<UEBuildModule>>> NodeDependencies = new List<Task<HashSet<UEBuildModule>>>(NodeCount);
+			// Used to populate an element of NodeDependencies
+			HashSet<UEBuildModule> FetchDependencies(int NodeIndex)
+			{
+				HashSet<UEBuildModule> Dependencies = new HashSet<UEBuildModule>();
+				NodeList[NodeIndex].GetAllDependencyModules(new List<UEBuildModule>(), Dependencies, true, true, false);
+				return Dependencies;
+			}
+
+			// For each Node in NodeList, populated with the nodes with a lower index in NodeList that Node depends on
+			List<Task<HashSet<UEBuildModule>>> PrecedingDependents = new List<Task<HashSet<UEBuildModule>>>(NodeCount);
+			HashSet<UEBuildModule> ComputePrecedingDependents(int NodeIndex)
+			{
+				HashSet<UEBuildModule> Results = new HashSet<UEBuildModule>();
+
+				UEBuildModule Node = NodeList[NodeIndex];
+				HashSet<UEBuildModule> Dependencies = NodeDependencies[NodeIndex].Result;
+
+				for (int I = 0; I < NodeIndex; ++I)
+				{
+					if (NodeDependencies[I].Result.Contains(Node) && !Dependencies.Contains(NodeList[I]))
+					{
+						Results.Add(NodeList[I]);
+					}
+				}
+
+				return Results;
+			}
+
+			for (int I = 0; I < NodeCount; ++I)
+			{
+				int LocalI = I;
+				NodeDependencies.Add(Task.Run(() => FetchDependencies(LocalI)));
+				PrecedingDependents.Add(Task.Run(() => ComputePrecedingDependents(LocalI)));
+			}
+
+			List<UEBuildModule> Out = new List<UEBuildModule>(NodeCount);
+			// Write the ordered output			
+			for (int Index1 = 0; Index1 != NodeCount; ++Index1)
+			{
+				UEBuildModule Node1 = NodeList[Index1];
+				HashSet<UEBuildModule> NodesThatDependOnNode1 = PrecedingDependents[Index1].Result;
+				Out.Add(Node1);
+
+				if (NodesThatDependOnNode1.Count == 0)
+				{
+					continue;
+				}
+
+				for (int Index2 = 0; Index2 != Index1; ++Index2)
+				{
+					UEBuildModule Node2 = Out[Index2];
+
+					if (NodesThatDependOnNode1.Contains(Node2))
+					{
+						// Rotate element at Index1 into position at Index2
+						for (int Index3 = Index1; Index3 != Index2;)
+						{
+							--Index3;
+							Out[Index3 + 1] = Out[Index3];
+						}
+
+						Out[Index2] = Node1;
+
+						// Break out of this loop, because this iteration must have covered all existing cases
+						// involving the node formerly at position Index1
+						break;
+					}
+				}
+			}
+
+			return Out;
 		}
 	};
 }

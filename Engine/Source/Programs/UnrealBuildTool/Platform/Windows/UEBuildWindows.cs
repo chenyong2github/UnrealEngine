@@ -1061,6 +1061,13 @@ namespace UnrealBuildTool
 			{
 				Target.bUsePCHFiles = false;
 			}
+			
+			// Disable chaining PCH files if not using clang
+			if (!Target.WindowsPlatform.Compiler.IsClang())
+			{
+				Target.bChainPCHs = false;
+			}
+
 
 			// E&C support.
 			if (Target.bSupportEditAndContinue || Target.bAdaptiveUnityEnablesEditAndContinue)

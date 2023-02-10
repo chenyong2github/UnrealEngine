@@ -164,6 +164,10 @@ namespace UnrealBuildTool
 							foreach (PrecompiledHeaderInstance Instance in SortedInstances)
 							{
 								Logger.LogInformation("   {InstanceName} - Used by {TimesUsed} modules:", Instance.CompileEnvironment.PrecompiledHeaderIncludeFilename, Instance.Modules.Count);
+								if (Instance.ParentPCHInstance != null)
+								{
+									Logger.LogInformation("    ParentPCH: {ParentInstanceName}", Instance.ParentPCHInstance.CompileEnvironment.PrecompiledHeaderIncludeFilename);
+								}
 
 								List<UEBuildModuleCPP> SortedModules = new(Instance.Modules);
 								SortedModules.SortBy(Module => Module.Name);

@@ -290,91 +290,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns a copy of Nodes sorted by dependency.  Independent or circularly-dependent nodes should
-		/// remain in their same relative order within the original Nodes sequence.
-		/// </summary>
-		/// <param name="NodeList">The list of nodes to sort.</param>
-		static List<UEBuildModuleCPP> StableTopologicalSort(List<UEBuildModuleCPP> NodeList)
-		{
-			int NodeCount = NodeList.Count;
-
-			// For each Node in NodeList, populated with the full circular dependency list from
-			// Node.GetAllDependencyModules()
-			List<Task<HashSet<UEBuildModule>>> NodeDependencies = new List<Task<HashSet<UEBuildModule>>>(NodeCount);
-			// Used to populate an element of NodeDependencies
-			HashSet<UEBuildModule> FetchDependencies(int NodeIndex)
-			{
-				HashSet<UEBuildModule> Dependencies = new HashSet<UEBuildModule>();
-				NodeList[NodeIndex].GetAllDependencyModules(new List<UEBuildModule>(), Dependencies, true, true, false);
-				return Dependencies;
-			}
-
-			// For each Node in NodeList, populated with the nodes with a lower index in NodeList that Node depends on
-			List<Task<HashSet<UEBuildModuleCPP>>> PrecedingDependents = new List<Task<HashSet<UEBuildModuleCPP>>>(NodeCount);
-			HashSet<UEBuildModuleCPP> ComputePrecedingDependents(int NodeIndex)
-			{
-				HashSet<UEBuildModuleCPP> Results = new HashSet<UEBuildModuleCPP>();
-
-				UEBuildModuleCPP Node = NodeList[NodeIndex];
-				HashSet<UEBuildModule> Dependencies = NodeDependencies[NodeIndex].Result;
-
-				for (int I = 0; I < NodeIndex; ++I)
-				{
-					if (NodeDependencies[I].Result.Contains(Node) && !Dependencies.Contains(NodeList[I]))
-					{
-						Results.Add(NodeList[I]);
-					}
-				}
-				
-				return Results;
-			}
-			
-			for (int I = 0; I < NodeCount; ++I)
-			{
-				int LocalI = I;
-				NodeDependencies.Add(Task.Run(() => FetchDependencies(LocalI)));
-				PrecedingDependents.Add(Task.Run(() => ComputePrecedingDependents(LocalI)));
-			}
-			
-			List<UEBuildModuleCPP> Out = new List<UEBuildModuleCPP>(NodeCount);
-			// Write the ordered output			
-			for (int Index1 = 0; Index1 != NodeCount; ++Index1)
-			{
-				UEBuildModuleCPP Node1 = NodeList[Index1];
-				HashSet<UEBuildModuleCPP> NodesThatDependOnNode1 = PrecedingDependents[Index1].Result;
-				Out.Add(Node1);
-
-				if (NodesThatDependOnNode1.Count == 0)
-				{
-					continue;
-				}
-
-				for (int Index2 = 0; Index2 != Index1; ++Index2)
-				{
-					UEBuildModuleCPP Node2 = Out[Index2];
-
-					if (NodesThatDependOnNode1.Contains(Node2))
-					{
-						// Rotate element at Index1 into position at Index2
-						for (int Index3 = Index1; Index3 != Index2;)
-						{
-							--Index3;
-							Out[Index3 + 1] = Out[Index3];
-						}
-
-						Out[Index2] = Node1;
-
-						// Break out of this loop, because this iteration must have covered all existing cases
-						// involving the node formerly at position Index1
-						break;
-					}
-				}
-			}
-
-			return Out;
-		}
-
-		/// <summary>
 		/// Gets the module type for a given rules object
 		/// </summary>
 		/// <param name="RulesObject">The rules object</param>
@@ -506,7 +421,7 @@ namespace UnrealBuildTool
 
 			// Sort modules by type, then by dependency
 			List<UEBuildModuleCPP> ModulesSortedByType = ModulesToGenerateHeadersFor.OrderBy(c => ModuleToType[c]).ToList();
-			ModulesSortedByType = StableTopologicalSort(ModulesSortedByType);
+			ModulesSortedByType = UEBuildModule.StableTopologicalSort(ModulesSortedByType.Cast<UEBuildModule>().ToList()).Cast<UEBuildModuleCPP>().ToList();
 
 			// Create the info for each module in parallel
 			UHTModuleInfo[] ModuleInfoArray = new UHTModuleInfo[ModulesSortedByType.Count];

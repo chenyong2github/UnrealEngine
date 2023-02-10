@@ -1630,14 +1630,14 @@ namespace UnrealBuildTool
 		public bool bUsePCHFiles = true;
 
 		/// <summary>
-		/// Set flags require for determinstic linking (experimental, may not be fully supported).
+		/// Set flags require for deterministic linking (experimental, may not be fully supported).
 		/// Deterministic compiling is controlled via ModuleRules.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bDeterministic = false;
 
 		/// <summary>
-		/// Force set flags require for determinstic compiling and linking (experimental, may not be fully supported).
+		/// Force set flags require for deterministic compiling and linking (experimental, may not be fully supported).
 		/// This setting is only recommended for testing, instead:
 		/// * Set bDeterministic on a per module basis in ModuleRules to control deterministic compiling.
 		/// * Set bDeterministic on a per target basis in TargetRules to control deterministic linking.
@@ -1645,6 +1645,13 @@ namespace UnrealBuildTool
 		[CommandLine("-Deterministic")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bForceDeterministic = false;
+
+		/// <summary>
+		/// Whether PCHs should be chained when compiling with clang.
+		/// </summary>
+		[CommandLine("-NoPCHChain", Value = "false")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bChainPCHs = true;
 
 		/// <summary>
 		/// Whether PCH headers should be force included for gen.cpp files when PCH is disabled.
@@ -3408,6 +3415,11 @@ namespace UnrealBuildTool
 		public bool bForceDeterministic
 		{
 			get { return Inner.bForceDeterministic; }
+		}
+
+		public bool bChainPCHs
+		{
+			get { return Inner.bChainPCHs; }
 		}
 
 		public bool bForceIncludePCHHeadersForGenCppFilesWhenPCHIsDisabled

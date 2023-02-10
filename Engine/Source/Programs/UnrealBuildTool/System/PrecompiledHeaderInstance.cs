@@ -45,6 +45,16 @@ namespace UnrealBuildTool
 		public HashSet<string> ImmutableDefinitions;
 
 		/// <summary>
+		/// Parent PCH instance used in PCH chaining
+		/// </summary>
+		public PrecompiledHeaderInstance? ParentPCHInstance;
+
+		/// <summary>
+		/// Dictionary of definitions use in the CppCompileEnvironment
+		/// </summary>
+		public Dictionary<string,string>? DefinitionsDictionary;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		public PrecompiledHeaderInstance(FileItem HeaderFile, FileItem DefinitionsFile, CppCompileEnvironment CompileEnvironment, CPPOutput Output, HashSet<string> ImmutableDefinitions)

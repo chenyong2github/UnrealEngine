@@ -950,6 +950,12 @@ namespace UnrealBuildTool
 			{
 				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".gch")));
 				CompileResult.PrecompiledHeaderFile = OutputFile;
+
+				if (CompileEnvironment.ParentPrecompiledHeaderFile != null)
+				{
+					Arguments.Add(GetIncludePCHFileArgument(CompileEnvironment.ParentPrecompiledHeaderFile));
+					CompileAction.PrerequisiteItems.Add(CompileEnvironment.ParentPrecompiledHeaderFile!);
+				}
 			}
 			else if (CompileEnvironment.bPreprocessOnly)
 			{

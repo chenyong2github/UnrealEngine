@@ -8,6 +8,7 @@ using System.Text;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
+using static UnrealBuildTool.ProjectFile;
 
 namespace UnrealBuildTool
 {
@@ -881,12 +882,13 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Generates a precompiled header instance from the given template, or returns an existing one if it already exists
 		/// </summary>
+		/// <param name="Target">The target which owns this module</param>
 		/// <param name="ToolChain">The toolchain being used to build this module</param>
 		/// <param name="Template">The PCH template</param>
 		/// <param name="ModuleCompileEnvironment">Compile environment for the current module</param>
 		/// <param name="Graph">List of actions to be executed. Additional actions will be added to this list.</param>
 		/// <returns>Instance of a PCH</returns>
-		public PrecompiledHeaderInstance FindOrCreateSharedPCH(UEToolChain? ToolChain, PrecompiledHeaderTemplate Template, CppCompileEnvironment ModuleCompileEnvironment, IActionGraphBuilder Graph)
+		public PrecompiledHeaderInstance FindOrCreateSharedPCH(ReadOnlyTargetRules Target, UEToolChain? ToolChain, PrecompiledHeaderTemplate Template, CppCompileEnvironment ModuleCompileEnvironment, IActionGraphBuilder Graph)
 		{
 			PrecompiledHeaderInstance? Instance = Template.Instances.Find(x => IsCompatibleForSharedPCH(x.CompileEnvironment, ModuleCompileEnvironment));
 			if(Instance == null)
@@ -925,6 +927,52 @@ namespace UnrealBuildTool
 				CompileEnvironment.PrecompiledHeaderIncludeFilename = WrapperFile.Location;
 				CopySettingsForSharedPCH(ModuleCompileEnvironment, CompileEnvironment);
 
+				// Setup PCH chaining
+				PrecompiledHeaderInstance? ParentPCHInstance = null;
+				Dictionary<string, string>? DefinitionsDictionary = null;
+				if (Rules.Target.bChainPCHs)
+				{
+					// Create a lookup table for the definitions
+					DefinitionsDictionary = Definitions.ToHashSet().ToDictionary(x => x.Split('=')[0], x => (x.Split("=").Length >= 2) ? x.Split("=")[1] : string.Empty);
+
+					// Find all the dependencies of this module
+					HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
+					Template.Module.GetAllDependencyModules(new List<UEBuildModule>(), ReferencedModules, bIncludeDynamicallyLoaded: false, bForceCircular: false, bOnlyDirectDependencies: false);
+
+					foreach (PrecompiledHeaderTemplate ParentTemplate in CompileEnvironment.SharedPCHs.Where(x => ReferencedModules.Contains(x.Module)))
+					{
+						if (ParentTemplate.IsValidFor(CompileEnvironment))
+						{
+							bool AreSharedPCHDefinitionsCompatible(PrecompiledHeaderInstance ParentInstance)
+							{
+								if (ParentInstance.DefinitionsDictionary == null)
+								{
+									return false;
+								}
+
+								foreach (var Definition in DefinitionsDictionary)
+								{
+									if (ParentInstance.DefinitionsDictionary.TryGetValue(Definition.Key, out string? ParentValue))
+									{
+										if (ParentValue != Definition.Value)
+										{
+											return false;
+										}
+									}
+								}
+								return true;
+							}
+
+							ParentPCHInstance = ParentTemplate.Instances.Find(x => IsCompatibleForSharedPCH(x.CompileEnvironment, ModuleCompileEnvironment) && AreSharedPCHDefinitionsCompatible(x));
+							if (ParentPCHInstance != null)
+							{
+								CompileEnvironment.ParentPrecompiledHeaderFile = ParentPCHInstance.Output.PrecompiledHeaderFile;
+								break;
+							}
+						}
+					}
+				}
+
 				// Create the PCH
 				CPPOutput Output;
 				if (ToolChain == null)
@@ -935,7 +983,11 @@ namespace UnrealBuildTool
 				{
 					Output = ToolChain.CompileAllCPPFiles(CompileEnvironment, new List<FileItem>() { WrapperFile }, Template.OutputDir, "Shared", Graph);
 				}
-				Instance = new PrecompiledHeaderInstance(WrapperFile, SharedDefinitionsFileItem, CompileEnvironment, Output, GetImmutableDefinitions(Template.BaseCompileEnvironment.Definitions));
+				Instance = new PrecompiledHeaderInstance(WrapperFile, SharedDefinitionsFileItem, CompileEnvironment, Output, GetImmutableDefinitions(Template.BaseCompileEnvironment.Definitions))
+				{
+					DefinitionsDictionary = DefinitionsDictionary,
+					ParentPCHInstance = ParentPCHInstance
+				};
 				Template.Instances.Add(Instance);
 			}
 
@@ -1340,7 +1392,7 @@ namespace UnrealBuildTool
 					PrecompiledHeaderTemplate? Template = CompileEnvironment.SharedPCHs.FirstOrDefault(x => ReferencedModules.Contains(x.Module));
 					if(Template != null && Template.IsValidFor(CompileEnvironment))
 					{
-						PrecompiledHeaderInstance Instance = FindOrCreateSharedPCH(ToolChain, Template, CompileEnvironment, Graph);
+						PrecompiledHeaderInstance Instance = FindOrCreateSharedPCH(Target, ToolChain, Template, CompileEnvironment, Graph);
 
 						FileReference PrivateDefinitionsFile = FileReference.Combine(IntermediateDirectory, String.Format("Definitions.{0}.h", Name));
 
