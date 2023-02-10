@@ -2,7 +2,6 @@
 
 #include "Stack/SNiagaraStackModuleItem.h"
 
-#include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "NiagaraActions.h"
 #include "NiagaraConstants.h"
@@ -18,11 +17,8 @@
 #include "ScopedTransaction.h"
 #include "SDropTarget.h"
 #include "SGraphActionMenu.h"
-#include "SNiagaraGraphActionWidget.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -34,7 +30,6 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 

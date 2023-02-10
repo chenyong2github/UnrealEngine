@@ -5,18 +5,11 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorUtilities.h"
 #include "ViewModels/Stack/INiagaraStackItemGroupAddUtilities.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "EdGraph/EdGraph.h"
 #include "SGraphActionMenu.h"
 #include "SNiagaraGraphActionWidget.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Styling/SlateTypes.h"
 #include "Widgets/SItemSelector.h"
-#include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
 #include "Widgets/Text/SRichTextBlock.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackItemGroupAddMenu"
 

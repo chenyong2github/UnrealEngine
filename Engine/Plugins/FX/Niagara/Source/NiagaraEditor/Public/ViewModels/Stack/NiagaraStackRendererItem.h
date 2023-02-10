@@ -36,15 +36,15 @@ public:
 	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
 	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
 
-	virtual bool SupportsPaste() const { return true; }
+	virtual bool SupportsPaste() const override { return true; }
 	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
 	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
 	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
 
 	virtual bool SupportsDelete() const override { return true; }
-	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const;
+	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
 	virtual FText GetDeleteTransactionText() const override;
-	virtual void Delete();
+	virtual void Delete() override;
 
 	virtual bool SupportsInheritance() const override { return true; }
 	virtual bool GetIsInherited() const override;
@@ -71,6 +71,11 @@ public:
 	bool IsOwningEmitterExcludedFromScalability() const;
 
 	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
+
+	bool CanMoveRendererUp() const;
+	void MoveRendererUp() const;
+	bool CanMoveRendererDown() const;
+	void MoveRendererDown() const;
 protected:
 	virtual void FinalizeInternal() override;
 

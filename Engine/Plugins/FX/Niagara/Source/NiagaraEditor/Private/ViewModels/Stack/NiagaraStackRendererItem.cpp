@@ -24,7 +24,6 @@
 #include "NiagaraClipboard.h"
 #include "NiagaraEmitterEditorData.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
-
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 
@@ -98,6 +97,64 @@ const UNiagaraStackRendererItem::FCollectedUsageData& UNiagaraStackRendererItem:
 	}
 
 	return CachedCollectedUsageData.GetValue();
+}
+
+bool UNiagaraStackRendererItem::CanMoveRendererUp() const
+{
+	if (HasBaseRenderer() || RendererProperties.IsValid() == false)
+	{
+		return false;
+	}
+	if (FVersionedNiagaraEmitterData* EmitterData = GetEmitterViewModel()->GetEmitter().GetEmitterData())
+	{
+		return EmitterData->GetRenderers().IndexOfByKey(RendererProperties.Get()) > 0;
+	}
+	return false;
+}
+
+void UNiagaraStackRendererItem::MoveRendererUp() const
+{
+	if (!CanMoveRendererUp())
+	{
+		return;
+	}
+
+	FVersionedNiagaraEmitter VersionedEmitter = GetEmitterViewModel()->GetEmitter();
+	if (FVersionedNiagaraEmitterData* EmitterData = VersionedEmitter.GetEmitterData())
+	{
+		FScopedTransaction ScopedTransaction(LOCTEXT("MoveRendererUpTransaction", "Move renderer up"));
+		int32 CurrentIndex = EmitterData->GetRenderers().IndexOfByKey(RendererProperties.Get());
+		VersionedEmitter.Emitter->MoveRenderer(RendererProperties.Get(), CurrentIndex - 1, VersionedEmitter.Version);
+	}
+}
+
+bool UNiagaraStackRendererItem::CanMoveRendererDown() const
+{
+	if (HasBaseRenderer() || RendererProperties.IsValid() == false)
+	{
+		return false;
+	}
+	if (FVersionedNiagaraEmitterData* EmitterData = GetEmitterViewModel()->GetEmitter().GetEmitterData())
+	{
+		return EmitterData->GetRenderers().IndexOfByKey(RendererProperties.Get()) < EmitterData->GetRenderers().Num() - 1;
+	}
+	return false;
+}
+
+void UNiagaraStackRendererItem::MoveRendererDown() const
+{
+	if (!CanMoveRendererDown())
+	{
+		return;
+	}
+
+	FVersionedNiagaraEmitter VersionedEmitter = GetEmitterViewModel()->GetEmitter();
+	if (FVersionedNiagaraEmitterData* EmitterData = VersionedEmitter.GetEmitterData())
+	{
+		FScopedTransaction ScopedTransaction(LOCTEXT("MoveRendererDownTransaction", "Move renderer down"));
+		int32 CurrentIndex = EmitterData->GetRenderers().IndexOfByKey(RendererProperties.Get());
+		VersionedEmitter.Emitter->MoveRenderer(RendererProperties.Get(), CurrentIndex + 1, VersionedEmitter.Version);
+	}
 }
 
 TArray<FNiagaraVariable> UNiagaraStackRendererItem::GetMissingVariables(UNiagaraRendererProperties* RendererProperties, const FVersionedNiagaraEmitterData* EmitterData)

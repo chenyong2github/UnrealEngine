@@ -2972,6 +2972,32 @@ void UNiagaraEmitter::RemoveRenderer(UNiagaraRendererProperties* Renderer, FGuid
 	EmitterData->RebuildRendererBindings(*this);
 }
 
+void UNiagaraEmitter::MoveRenderer(UNiagaraRendererProperties* Renderer, int32 NewIndex, FGuid EmitterVersion)
+{
+	FVersionedNiagaraEmitterData* EmitterData = GetEmitterData(EmitterVersion);
+	int32 CurrentIndex = EmitterData->RendererProperties.IndexOfByKey(Renderer);
+	if (CurrentIndex == INDEX_NONE || CurrentIndex == NewIndex || !EmitterData->RendererProperties.IsValidIndex(NewIndex))
+	{
+		return;
+	}
+	
+	FNiagaraSystemUpdateContext UpdateContext;
+	UpdateContext.SetDestroyOnAdd(true);
+	if (UNiagaraSystem* Owner = GetTypedOuter<UNiagaraSystem>())
+	{
+		UpdateContext.Add(Owner, true);
+	}
+
+	Modify();
+	EmitterData->RendererProperties.RemoveAt(CurrentIndex);
+	EmitterData->RendererProperties.Insert(Renderer, NewIndex);
+#if WITH_EDITOR
+	UpdateChangeId(TEXT("Renderer moved"));
+	OnRenderersChangedDelegate.Broadcast();
+#endif
+	EmitterData->RebuildRendererBindings(*this);
+}
+
 FNiagaraEventScriptProperties* FVersionedNiagaraEmitterData::GetEventHandlerByIdUnsafe(FGuid ScriptUsageId)
 {
 	for (FNiagaraEventScriptProperties& EventScriptProperties : EventHandlerScriptProps)

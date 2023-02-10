@@ -22,14 +22,12 @@
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "NiagaraEditorCommands.h"
-#include "NiagaraEmitter.h"
 #include "NiagaraEmitterEditorData.h"
-#include "NiagaraMessages.h"
 #include "NiagaraSystemEditorData.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
+#include "ViewModels/Stack/NiagaraStackRendererItem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackEditorWidgetsUtilities"
 
@@ -375,29 +373,27 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBu
 					EUserInterfaceActionType::Check);
 			}
 
-			UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(&StackItem);
+			if (UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(&StackItem))
+			{
+				if (ModuleItem->GetIsEnabled() == false)
+				{
+					MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().HideDisabledModules);
+				}
+				
+				if (ModuleItem->GetModuleNode().ContainsDebugSwitch())
+				{
+					FUIAction Action(FExecuteAction::CreateStatic(&ToggleShouldDebugDraw, TWeakObjectPtr<UNiagaraStackItem>(&StackItem)),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateUObject(ModuleItem, &UNiagaraStackModuleItem::IsDebugDrawEnabled));
+					MenuBuilder.AddMenuEntry(
+						LOCTEXT("ShouldDebugDraw", "Enable Debug Draw"),
+						LOCTEXT("ToggleShouldDebugDrawToolTip", "Toggle debug draw enable/disabled"),
+						FSlateIcon(),
+						Action,
+						NAME_None,
+						EUserInterfaceActionType::Check);
+				}
 
-			if (ModuleItem && ModuleItem->GetIsEnabled() == false)
-			{
-				MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().HideDisabledModules);
-			}
-			
-			if (ModuleItem && ModuleItem->GetModuleNode().ContainsDebugSwitch())
-			{
-				FUIAction Action(FExecuteAction::CreateStatic(&ToggleShouldDebugDraw, TWeakObjectPtr<UNiagaraStackItem>(&StackItem)),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateUObject(ModuleItem, &UNiagaraStackModuleItem::IsDebugDrawEnabled));
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("ShouldDebugDraw", "Enable Debug Draw"),
-					LOCTEXT("ToggleShouldDebugDrawToolTip", "Toggle debug draw enable/disabled"),
-					FSlateIcon(),
-					Action,
-					NAME_None,
-					EUserInterfaceActionType::Check);
-			}
-
-			if(ModuleItem)
-			{
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("AddNote", "Add Note"),
 					LOCTEXT("AddNoteToolTip", "Add a note to this module item."),
@@ -405,6 +401,24 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBu
 					FUIAction(FExecuteAction::CreateStatic(&EnableNoteMode, TWeakObjectPtr<UNiagaraStackModuleItem>(ModuleItem))));
 			}
 
+			if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(&StackItem))
+			{
+				FUIAction UpAction(FExecuteAction::CreateUObject(RendererItem, &UNiagaraStackRendererItem::MoveRendererUp),
+					FCanExecuteAction::CreateUObject(RendererItem, &UNiagaraStackRendererItem::CanMoveRendererUp));
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("MoveRendererUp", "Move up"),
+					LOCTEXT("MoveRendererUpToolTip", "Moves the renderer up, so it renders before other renderers with the same render order hint"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ArrowUp"),
+					UpAction);
+
+				FUIAction DownAction(FExecuteAction::CreateUObject(RendererItem, &UNiagaraStackRendererItem::MoveRendererDown),
+					FCanExecuteAction::CreateUObject(RendererItem, &UNiagaraStackRendererItem::CanMoveRendererDown));
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("MoveRendererUp", "Move down"),
+					LOCTEXT("MoveRendererUpToolTip", "Moves the renderer down, so it renders after other renderers with the same render order hint"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ArrowDown"),
+					DownAction);
+			}
 		}
 		MenuBuilder.EndSection();
 		return true;
