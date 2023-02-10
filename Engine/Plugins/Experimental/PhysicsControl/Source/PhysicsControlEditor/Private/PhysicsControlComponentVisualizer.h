@@ -3,7 +3,7 @@
 #pragma once
 #include "ComponentVisualizer.h"
 
-class PHYSICSCONTROLVISUALIZER_API FPhysicsControlComponentVisualizer : public FComponentVisualizer
+class PHYSICSCONTROLEDITOR_API FPhysicsControlComponentVisualizer : public FComponentVisualizer
 {
 private:
 	virtual void DrawVisualization(

@@ -22,7 +22,7 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "PhysicsControlVisualizer",
+			"Name": "PhysicsControlEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
 		}

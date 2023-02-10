@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-
-public class PhysicsControlVisualizer : ModuleRules
+public class PhysicsControlEditor : ModuleRules
 {
-	public PhysicsControlVisualizer(ReadOnlyTargetRules Target) : base(Target)
+	public PhysicsControlEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
@@ -17,8 +16,8 @@ public class PhysicsControlVisualizer : ModuleRules
 				
 		
 		PrivateIncludePaths.AddRange(
-			new string[] {
-
+			new string[] 
+			{
 				// ... add other private include paths required here ...
 			}
 			);
@@ -37,8 +36,15 @@ public class PhysicsControlVisualizer : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"EditorFramework",
+				"Engine",
+				"Slate",
+				"SlateCore",
 				"UnrealEd",
+				"Persona",
+				"AnimationEditMode",
 				"ComponentVisualizers",
+				"AnimGraph",
 				"PhysicsControl"
 			}
 			);
