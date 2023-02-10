@@ -116,8 +116,6 @@ public:
 	void AddBinding(FUIActionBindingHandle Binding);
 	void RemoveBinding(FUIActionBindingHandle Binding);
 
-	bool IsVirtualAcceptPressedBound() const;
-
 	int32 GetLocalPlayerIndex() const;
 
 	void RefreshActiveRootFocus();
