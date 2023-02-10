@@ -48,7 +48,7 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 	{
 		const FString ContainerExternalActorsPath = GetExternalActorPath();
 
-		// Do a synchronous scan of the level external actors path.			
+		// Do a synchronous scan of the level external actors path.					
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ScanPathsSynchronous);
@@ -70,14 +70,13 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 		{
 			TUniquePtr<FWorldPartitionActorDesc> ActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Asset);
 
-			if (ActorDesc.IsValid() && ActorDesc->GetNativeClass().IsValid() && (!InitParams.FilterActorDesc || InitParams.FilterActorDesc(ActorDesc.Get())))
-			{
-				AddActorDescriptor(ActorDesc.Release(), OwningWorld);
-			}
-			else
+			if (!ActorDesc.IsValid() || !FWorldPartitionActorDescUtils::ValidateActorDescClass(ActorDesc.Get()) || (InitParams.FilterActorDesc && !InitParams.FilterActorDesc(ActorDesc.Get())))
 			{
 				InvalidActors.Emplace(MoveTemp(ActorDesc));
+				continue;
 			}
+
+			AddActorDescriptor(ActorDesc.Release(), OwningWorld);
 		}
 	}
 
