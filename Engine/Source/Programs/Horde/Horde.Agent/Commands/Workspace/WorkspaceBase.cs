@@ -15,7 +15,7 @@ namespace Horde.Agent.Commands.Workspace
 {
 	abstract class WorkspaceBase : Command
 	{
-		[CommandLine("-Server")]
+		[CommandLine("-ServerAndPort")]
 		[Description("Specifies the Perforce server and port")]
 		protected string ServerAndPort { get; set; } = PerforceSettings.Default.ServerAndPort;
 
