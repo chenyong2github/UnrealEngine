@@ -59,6 +59,24 @@ FORCEINLINE VectorRegister4Float VectorUnpackLo(const VectorRegister4Float& A, c
 }
 
 /**
+ * Selects and interleaves the higher two SP FP values from A and B.
+ *
+ * @param A	1st vector
+ * @param B	2nd vector
+ * @return		VectorRegister4Float( A.z, B.z, A.w, B.w)
+ */
+FORCEINLINE VectorRegister4Float VectorUnpackHi(const VectorRegister4Float& A, const VectorRegister4Float& B)
+{
+#if PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+	return vzip2q_f32(A, B);
+#elif PLATFORM_ENABLE_VECTORINTRINSICS
+	return _mm_unpackhi_ps(A, B);
+#else
+	return MakeVectorRegisterFloat(A.V[2], B.V[2], A.V[3], B.V[3]);
+#endif
+}
+
+/**
  * Moves the lower 2 SP FP values of b to the upper 2 SP FP values of the result. The lower 2 SP FP values of a are passed through to the result.
  *
  * @param A	1st vector

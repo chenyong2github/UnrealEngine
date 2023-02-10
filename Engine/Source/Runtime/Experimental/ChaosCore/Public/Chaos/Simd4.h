@@ -31,7 +31,7 @@ namespace Chaos
 		FORCEINLINE TSimdSelector<4> TSimdSelector<4>::True()
 		{
 			TSimdSelector<4> Selector;
-			VectorIntStoreAligned(MakeVectorRegisterIntConstant(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF), Selector.V);
+			VectorIntStoreAligned(GlobalVectorConstants::IntAllMask, Selector.V);
 			return Selector;
 		}
 
@@ -39,7 +39,7 @@ namespace Chaos
 		FORCEINLINE TSimdSelector<4> TSimdSelector<4>::False()
 		{
 			TSimdSelector<4> Selector;
-			VectorIntStoreAligned(MakeVectorRegisterIntConstant(0, 0, 0, 0), Selector.V);
+			VectorIntStoreAligned(GlobalVectorConstants::IntZero, Selector.V);
 			return Selector;
 		}
 
@@ -55,7 +55,7 @@ namespace Chaos
 		FORCEINLINE TSimdInt32<4> TSimdInt32<4>::Zero()
 		{
 			TSimdInt32<4> I;
-			VectorIntStoreAligned(MakeVectorRegisterIntConstant(0, 0, 0, 0), I.V);
+			VectorIntStoreAligned(GlobalVectorConstants::IntZero, I.V);
 			return I;
 		}
 
@@ -138,6 +138,17 @@ namespace Chaos
 			return ((VectorMaskBits(L) & 0xF) == 0xF);
 		}
 
+		FORCEINLINE FSimd4Selector SimdNot(const FSimd4Selector& InL)
+		{
+			VectorRegister4f L = VectorLoadAligned(InL.V);
+		
+			VectorRegister4f Mask = VectorBitwiseNotAnd(L, GlobalVectorConstants::AllMask());
+
+			FSimd4Selector Out;
+			VectorStoreAligned(Mask, Out.V);
+			return Out;
+		}
+
 		FORCEINLINE FSimd4Selector SimdOr(const FSimd4Selector& InL, const FSimd4Selector& InR)
 		{
 			VectorRegister4f L = VectorLoadAligned(InL.V);
@@ -196,6 +207,18 @@ namespace Chaos
 
 			FSimd4Selector Out;
 			VectorStoreAligned(Mask.V, Out.V);
+			return Out;
+		}
+
+		FORCEINLINE FSimd4Selector SimdGreaterEqual(const FSimd4Realf& InL, const FSimd4Realf& InR)
+		{
+			VectorRegister4f L = VectorLoadAligned(InL.V);
+			VectorRegister4f R = VectorLoadAligned(InR.V);
+
+			VectorRegister4f Mask = VectorCompareGE(L, R);
+
+			FSimd4Selector Out;
+			VectorStoreAligned(Mask, Out.V);
 			return Out;
 		}
 
@@ -507,6 +530,39 @@ namespace Chaos
 
 			FSimd4Realf Out;
 			VectorStoreAligned(Max, Out.V);
+			return Out;
+		}
+
+		///////////////////////////////////////////////////////////////////////
+		//
+		// 4-wide Gather/Scatter operations
+		//
+		///////////////////////////////////////////////////////////////////////
+
+		// Convert 4 row-vectors into 3 column-vectors
+		// NOTE: The input vectors must be 16-byte aligned and padded to 16 bytes to avoid reading past valid memory
+		FORCEINLINE FSimd4Vec3f SimdGatherAligned(const FVec3f& InA, const FVec3f& InB, const FVec3f& InC, const FVec3f& InD)
+		{
+			VectorRegister4f A = VectorLoadAligned(&InA.X);	// Ax Ay Az Aw
+			VectorRegister4f B = VectorLoadAligned(&InB.X);	// Bx By Bz Bw
+			VectorRegister4f C = VectorLoadAligned(&InC.X);	// Cx Cy Cz Cw
+			VectorRegister4f D = VectorLoadAligned(&InD.X);	// Dx Dy Dz Dw
+
+			// This can be done with fewer registers, but the compiler should figure that out
+			// and its much easier to follow when left like this...
+			VectorRegister4f P = VectorUnpackLo(A, C);		// Ax Cx Ay Cy
+			VectorRegister4f Q = VectorUnpackLo(B, D);		// Bx Dx By Dy
+			VectorRegister4f R = VectorUnpackHi(A, C);		// Az Cz Aw Cw
+			VectorRegister4f S = VectorUnpackHi(B, D);		// Bz Dz Bw Dw
+			
+			VectorRegister4f X = VectorUnpackLo(P, Q);		// Ax Bx Cx Dx
+			VectorRegister4f Y = VectorUnpackHi(P, Q);		// Ay By Cy Dy 
+			VectorRegister4f Z = VectorUnpackLo(R, S);		// Az Bz Cz Dz
+
+			FSimd4Vec3f Out;
+			VectorStoreAligned(X, Out.VX);
+			VectorStoreAligned(Y, Out.VY);
+			VectorStoreAligned(Z, Out.VZ);
 			return Out;
 		}
 

@@ -49,46 +49,55 @@ namespace Chaos
 			}
 		}
 
-		FORCEINLINE void PrefetchManifoldPoint(const TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>>& ManifoldPoints, const int32 Index)
-		{
-			if (Index < ManifoldPoints.Num())
-			{
-				//PrefetchObject(&ManifoldPoints[Index]);
-				FPlatformMisc::PrefetchBlock(&ManifoldPoints[Index], sizeof(TPBDCollisionSolverManifoldPointsSimd<4>));
-			}
-		}
-
-		FORCEINLINE void PrefetchPositionSolverBodies(const TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodies, const int32 Index)
-		{
-			if (Index < SolverBodies.Num())
-			{
-				for (int32 LaneIndex = 0; LaneIndex < 4; ++LaneIndex)
-				{
-					SolverBodies[Index].Body0.GetValue(LaneIndex)->PrefetchPositionSolverData();
-					SolverBodies[Index].Body1.GetValue(LaneIndex)->PrefetchPositionSolverData();
-				}
-			}
-		}
-
-
-		FORCEINLINE void PrefetchVelocitySolverBodies(const TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodies, const int32 Index)
-		{
-			if (Index < SolverBodies.Num())
-			{
-				for (int32 LaneIndex = 0; LaneIndex < 4; ++LaneIndex)
-				{
-					SolverBodies[Index].Body0.GetValue(LaneIndex)->PrefetchVelocitySolverData();
-					SolverBodies[Index].Body1.GetValue(LaneIndex)->PrefetchVelocitySolverData();
-				}
-			}
-		}
-
+		// Is there any point in having a value greater than 1? Tune this
 		static const int32 PrefetchCount = 4;
+
+		FORCEINLINE void PrefetchSolvePosition(
+			const int32 Index,
+			const TArrayView<TPBDCollisionSolverSimd<4>>& Solvers,
+			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>>& ManifoldPoints,
+			const TArrayView<TSolverBodyPtrPairSimd<4>>& Bodies)
+		{
+			if (Index < Solvers.Num())
+			{
+				FPlatformMisc::PrefetchBlock(&Solvers[Index], sizeof(TPBDCollisionSolverSimd<4>));
+
+				FPlatformMisc::PrefetchBlock(&Solvers[Index].GetManifoldPoint(0, ManifoldPoints), 4 * sizeof(TPBDCollisionSolverManifoldPointsSimd<4>));
+
+				for (int32 LaneIndex = 0; LaneIndex < 4; ++LaneIndex)
+				{
+					Bodies[Index].Body0.GetValue(LaneIndex)->PrefetchPositionSolverData();
+					Bodies[Index].Body1.GetValue(LaneIndex)->PrefetchPositionSolverData();
+				}
+			}
+		}
+
+
+		FORCEINLINE void PrefetchSolveVelocity(
+			const int32 Index,
+			const TArrayView<TPBDCollisionSolverSimd<4>>& Solvers,
+			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>>& ManifoldPoints,
+			const TArrayView<TSolverBodyPtrPairSimd<4>>& Bodies)
+		{
+			if (Index < Solvers.Num())
+			{
+				FPlatformMisc::PrefetchBlock(&Solvers[Index], sizeof(TPBDCollisionSolverSimd<4>));
+
+				FPlatformMisc::PrefetchBlock(&Solvers[Index].GetManifoldPoint(0, ManifoldPoints), 4 * sizeof(TPBDCollisionSolverManifoldPointsSimd<4>));
+
+				for (int32 LaneIndex = 0; LaneIndex < 4; ++LaneIndex)
+				{
+					Bodies[Index].Body0.GetValue(LaneIndex)->PrefetchVelocitySolverData();
+					Bodies[Index].Body1.GetValue(LaneIndex)->PrefetchVelocitySolverData();
+				}
+			}
+		}
 
 		template<>
 		void FPBDCollisionSolverHelperSimd::SolvePositionNoFriction<4>(
+			const TArrayView<TPBDCollisionSolverSimd<4>>& Solvers,
 			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>>& ManifoldPoints,
-			const TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodies,
+			const TArrayView<TSolverBodyPtrPairSimd<4>>& Bodies,
 			const FSolverReal InDt,
 			const FSolverReal InMaxPushOut)
 		{
@@ -96,23 +105,22 @@ namespace Chaos
 
 			for (int32 Index = 0; Index < PrefetchCount; ++Index)
 			{
-				PrefetchManifoldPoint(ManifoldPoints, Index);
-				PrefetchPositionSolverBodies(SolverBodies, Index);
+				PrefetchSolvePosition(Index, Solvers, ManifoldPoints, Bodies);
 			}
 
-			for (int32 Index = 0; Index < ManifoldPoints.Num(); ++Index)
+			for (int32 Index = 0; Index < Solvers.Num(); ++Index)
 			{
-				PrefetchManifoldPoint(ManifoldPoints, Index + PrefetchCount);
-				PrefetchPositionSolverBodies(SolverBodies, Index + PrefetchCount);
+				PrefetchSolvePosition(Index + PrefetchCount, Solvers, ManifoldPoints, Bodies);
 
-				ManifoldPoints[Index].SolvePositionNoFriction(SolverBodies[Index].Body0, SolverBodies[Index].Body1, MaxPushOut);
+				Solvers[Index].SolvePositionNoFriction(ManifoldPoints, Bodies[Index].Body0, Bodies[Index].Body1, MaxPushOut);
 			}
 		}
 
 		template<>
 		void FPBDCollisionSolverHelperSimd::SolvePositionWithFriction<4>(
+			const TArrayView<TPBDCollisionSolverSimd<4>>& Solvers,
 			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>>& ManifoldPoints,
-			const TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodies,
+			const TArrayView<TSolverBodyPtrPairSimd<4>>& Bodies,
 			const FSolverReal InDt,
 			const FSolverReal InMaxPushOut)
 		{
@@ -121,69 +129,65 @@ namespace Chaos
 
 			for (int32 Index = 0; Index < PrefetchCount; ++Index)
 			{
-				PrefetchManifoldPoint(ManifoldPoints, Index);
-				PrefetchPositionSolverBodies(SolverBodies, Index);
+				PrefetchSolvePosition(Index, Solvers, ManifoldPoints, Bodies);
 			}
 
-			for (int32 Index = 0; Index < ManifoldPoints.Num(); ++Index)
+			for (int32 Index = 0; Index < Solvers.Num(); ++Index)
 			{
-				PrefetchManifoldPoint(ManifoldPoints, Index + PrefetchCount);
-				PrefetchPositionSolverBodies(SolverBodies, Index + PrefetchCount);
+				PrefetchSolvePosition(Index + PrefetchCount, Solvers, ManifoldPoints, Bodies);
 
-				ManifoldPoints[Index].SolvePositionWithFriction(SolverBodies[Index].Body0, SolverBodies[Index].Body1, MaxPushOut, FrictionStiffnessScale);
+				Solvers[Index].SolvePositionWithFriction(ManifoldPoints, Bodies[Index].Body0, Bodies[Index].Body1, MaxPushOut, FrictionStiffnessScale);
 			}
 		}
 
 		template<>
 		void FPBDCollisionSolverHelperSimd::SolveVelocityNoFriction<4>(
+			const TArrayView<TPBDCollisionSolverSimd<4>>& Solvers,
 			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>>& ManifoldPoints,
-			const TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodies,
+			const TArrayView<TSolverBodyPtrPairSimd<4>>& Bodies,
 			const FSolverReal InDt)
 		{
 			const FSimd4Realf Dt = FSimd4Realf::Make(InDt);
 
 			for (int32 Index = 0; Index < PrefetchCount; ++Index)
 			{
-				PrefetchManifoldPoint(ManifoldPoints, Index);
-				PrefetchVelocitySolverBodies(SolverBodies, Index);
+				PrefetchSolveVelocity(Index, Solvers, ManifoldPoints, Bodies);
 			}
 
-			for (int32 Index = 0; Index < ManifoldPoints.Num(); ++Index)
+			for (int32 Index = 0; Index < Solvers.Num(); ++Index)
 			{
-				PrefetchManifoldPoint(ManifoldPoints, Index + PrefetchCount);
-				PrefetchVelocitySolverBodies(SolverBodies, Index + PrefetchCount);
+				PrefetchSolveVelocity(Index + PrefetchCount, Solvers, ManifoldPoints, Bodies);
 
-				ManifoldPoints[Index].SolveVelocityNoFriction(SolverBodies[Index].Body0, SolverBodies[Index].Body1, Dt);
+				Solvers[Index].SolveVelocityNoFriction(ManifoldPoints, Bodies[Index].Body0, Bodies[Index].Body1, Dt);
 			}
 		}
 
 		template<>
 		void FPBDCollisionSolverHelperSimd::SolveVelocityWithFriction<4>(
+			const TArrayView<TPBDCollisionSolverSimd<4>>& Solvers,
 			const TArrayView<TPBDCollisionSolverManifoldPointsSimd<4>>& ManifoldPoints,
-			const TArrayView<TSolverBodyPtrPairSimd<4>>& SolverBodies,
+			const TArrayView<TSolverBodyPtrPairSimd<4>>& Bodies,
 			const FSolverReal InDt)
 		{
 			if (!CVars::bChaos_PBDCollisionSolver_Velocity_FrictionEnabled)
 			{
-				SolveVelocityNoFriction(ManifoldPoints, SolverBodies, InDt);
+				SolveVelocityNoFriction(Solvers, ManifoldPoints, Bodies, InDt);
 				return;
 			}
 
 			for (int32 Index = 0; Index < PrefetchCount; ++Index)
 			{
-				PrefetchManifoldPoint(ManifoldPoints, Index);
-				PrefetchVelocitySolverBodies(SolverBodies, Index);
+				PrefetchSolveVelocity(Index, Solvers, ManifoldPoints, Bodies);
 			}
 
 			const FSimd4Realf Dt = FSimd4Realf::Make(InDt);
 			const FSimd4Realf FrictionStiffnessScale = FSimd4Realf::Make(CVars::Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness);
 
-			for (int32 Index = 0; Index < ManifoldPoints.Num(); ++Index)
+			for (int32 Index = 0; Index < Solvers.Num(); ++Index)
 			{
-				PrefetchManifoldPoint(ManifoldPoints, Index + PrefetchCount);
-				PrefetchVelocitySolverBodies(SolverBodies, Index + PrefetchCount);
+				PrefetchSolveVelocity(Index + PrefetchCount, Solvers, ManifoldPoints, Bodies);
 
-				ManifoldPoints[Index].SolveVelocityWithFriction(SolverBodies[Index].Body0, SolverBodies[Index].Body1, Dt, FrictionStiffnessScale);
+				Solvers[Index].SolveVelocityWithFriction(ManifoldPoints, Bodies[Index].Body0, Bodies[Index].Body1, Dt, FrictionStiffnessScale);
 			}
 		}
 

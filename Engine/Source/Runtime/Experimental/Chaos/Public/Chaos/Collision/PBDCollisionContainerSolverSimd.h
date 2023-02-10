@@ -19,6 +19,9 @@ namespace Chaos
 		class FPBDIsland;
 		class FPBDIslandConstraint;
 
+		template<int TNumLanes>
+		using TConstraintPtrSimd = TSimdValue<FPBDCollisionConstraint*, TNumLanes>;
+
 		/**
 		 * The solver for a set of collision constraints. This collects all the data required to solve a set of collision
 		 * constraints into a contiguous, ordered buffer.
@@ -51,62 +54,50 @@ namespace Chaos
 			virtual void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
 			virtual void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
 
-			template<int TNumLanes>
-			struct TConstraintIndexSimd
-			{
-				TConstraintIndexSimd()
-				{
-					for (int32 LaneIndex = 0; LaneIndex < TNumLanes; ++LaneIndex)
-					{
-						ConstraintIndex[LaneIndex] = INDEX_NONE;
-					}
-				}
-
-				int32 ConstraintIndex[TNumLanes];
-			};
-
 			// Rows of collision constraints and solvers. 
 			// We solve each row using SIMD. 
 			// NumLanes is the width of a row and will be the same as the float SIMD register width (or less).
 			template<int TNumLanes>
 			struct FDataSimd
 			{
-				FDataSimd()
-					: SimdNumConstraints{ 0, }
-					, SimdNumManifoldPoints{ 0, }
-				{
-				}
-
-				int32 SimdNumConstraints[TNumLanes];
-				int32 SimdNumManifoldPoints[TNumLanes];
-
+				TSimdInt32<TNumLanes> SimdNumConstraints;
 				TArray<TSolverBodyPtrPairSimd<TNumLanes>> SimdSolverBodies;
-				TArray<TConstraintIndexSimd<TNumLanes>> SimdConstraintIndices;
+				TArray<TPBDCollisionSolverSimd<TNumLanes>> SimdSolvers;
 				TArray<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>> SimdManifoldPoints;
+				TArray<TConstraintPtrSimd<TNumLanes>> SimdConstraints;
+				FSolverBody DummySolverBody0[TNumLanes];
+				FSolverBody DummySolverBody1[TNumLanes];
+			};
+
+			// Used to recover the solver for a constraint
+			// @todo(chaos): this is only really needed for debug validation
+			struct FConstraintSolverId
+			{
+				int32 SolverIndex;
+				int32 LaneIndex;
 			};
 
 			// For testing
-			const FPBDCollisionSolverSimd& GetConstraintSolver(const int32 ConstraintIndex) const { return Solvers[ConstraintIndex]; }
-			const TPBDCollisionSolverManifoldPointsSimd<4>& GetManifoldPointSolver(const int32 RowIndex) const { return SimdData.SimdManifoldPoints[RowIndex]; }
+			const FConstraintSolverId& GetConstraintSolverId(const int32 ConstraintIndex) const { return ConstraintSolverIds[ConstraintIndex]; }
+			const TPBDCollisionSolverSimd<4>& GetConstraintSolver(const int32 SolverIndex) const { return SimdData.SimdSolvers[SolverIndex]; }
+			const TPBDCollisionSolverManifoldPointsSimd<4>& GetManifoldPointSolver(const int32 PointIndex) const { return SimdData.SimdManifoldPoints[PointIndex]; }
+			TArrayView<const TPBDCollisionSolverManifoldPointsSimd<4>> GetManifoldPointBuffer() const { return MakeArrayView(SimdData.SimdManifoldPoints); }
 
 		private:
 			int32 GetNumLanes() const { return 4; }
 			void CreateSolvers();
-			void UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const FPBDCollisionSolverSettings& SolverSettings);
-			void UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const FPBDCollisionSolverSettings& SolverSettings);
-			void UpdateCollisions(const FReal InDt);
+			void UpdatePositionShockPropagation(const int32 It, const int32 NumIts, const FPBDCollisionSolverSettings& SolverSettings);
+			void UpdateVelocityShockPropagation(const int32 It, const int32 NumIts, const FPBDCollisionSolverSettings& SolverSettings);
+			void ApplyShockPropagation(const FSolverReal ShockPropagation);
+			void UpdateCollisions(const FSolverReal InDt);
 
 			const FPBDCollisionConstraints& ConstraintContainer;
 
-			TArray<FPBDCollisionConstraint*> Constraints;
-			TArray<FPBDCollisionSolverSimd> Solvers;
 			FDataSimd<4> SimdData;
-			TArray<bool> bCollisionConstraintPerIterationCollisionDetection;
+			TArray<FConstraintSolverId> ConstraintSolverIds;
 			int32 NumConstraints;
+			FSolverReal AppliedShockPropagation;
 			bool bPerIterationCollisionDetection;
-
-			FSolverBody DummySolverBody;
-			FConstraintSolverBody DummyConstraintSolverBody;
 		};
 
 	}	// namespace Private

@@ -42,7 +42,9 @@ namespace Chaos
 			{
 				PreApplyPositionConstraints,
 				PostApplyPositionConstraints,
+				PreApplyVelocityConstraints,
 				PostApplyVelocityConstraints,
+				PreApplyProjectionConstraints,
 				PostApplyProjectionConstraints,
 			};
 
@@ -157,6 +159,8 @@ namespace Chaos
 
 				SolverA->PreApplyVelocityConstraints(Dt);
 				SolverB->PreApplyVelocityConstraints(Dt);
+
+				CallABTestFunctor(ESolverPhase::PreApplyProjectionConstraints);
 			}
 
 			virtual void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final
@@ -173,6 +177,8 @@ namespace Chaos
 
 				SolverA->PreApplyProjectionConstraints(Dt);
 				SolverB->PreApplyProjectionConstraints(Dt);
+
+				CallABTestFunctor(ESolverPhase::PreApplyProjectionConstraints);
 			}
 
 			virtual void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final

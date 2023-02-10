@@ -2,6 +2,8 @@
 #pragma once
 
 #include "Chaos/Core.h"
+#include "Chaos/VectorUtility.h"
+#include "Math/VectorRegister.h"
 
 namespace Chaos
 {
@@ -142,6 +144,16 @@ namespace Chaos
 			FORCEINLINE void SetValues(const int32 I)
 			{
 				*this = Make(I);
+			}
+
+			FORCEINLINE int32 GetMaxValue() const
+			{
+				int32 MaxValue = V[0];
+				for (int32 LaneIndex = 1; LaneIndex < TNumLanes; ++LaneIndex)
+				{
+					MaxValue = FMath::Max(MaxValue, V[LaneIndex]);
+				}
+				return MaxValue;
 			}
 
 			static TSimdInt32<TNumLanes> Make(const int32 I);
