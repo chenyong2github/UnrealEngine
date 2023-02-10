@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "PhysicsControlProfileEditorData.h"
 #include "PhysicsControlProfileAsset.h"
 #include "Engine/SkeletalMesh.h"
