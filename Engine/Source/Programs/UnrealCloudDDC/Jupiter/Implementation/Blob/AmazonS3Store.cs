@@ -10,7 +10,6 @@ using Amazon.S3.Model;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
 using Jupiter.Common;
-using Jupiter.Common.Implementation;
 using Microsoft.Extensions.Options;
 using KeyNotFoundException = System.Collections.Generic.KeyNotFoundException;
 using System.Threading;
@@ -63,7 +62,14 @@ namespace Jupiter.Implementation
         {
             try
             {
-                string storagePool = _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool;
+                NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+                string storagePool = policy.StoragePool;
+                // if the bucket to use for the storage pool has been overriden we use the override
+                if (_settings.StoragePoolBucketOverride.TryGetValue(storagePool, out string? containerOverride))
+                {
+                    return containerOverride;
+                }
+                // by default we use the storage pool as a suffix to determine the bucket for that pool
                 string storagePoolSuffix = string.IsNullOrEmpty(storagePool) ? "" : $"-{storagePool}";
                 return $"{_settings.BucketName}{storagePoolSuffix}";
             }

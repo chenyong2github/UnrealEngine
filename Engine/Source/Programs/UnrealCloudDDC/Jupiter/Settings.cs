@@ -173,6 +173,10 @@ namespace Jupiter
         public bool SetBucketPolicies { get; set; } = true;
 
         public bool UseBlobIndexForExistsCheck { get; set; } = false;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Modified by settings")]
+        // ReSharper disable once CollectionNeverUpdated.Global
+        public Dictionary<string, string> StoragePoolBucketOverride { get; set; } = new Dictionary<string, string>();
     }
 
     public class GCSettings
