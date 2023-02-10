@@ -285,7 +285,7 @@ void SPluginAuditBrowser::RefreshViolations()
 							else
 							{
 								Message->AddToken(FTextToken::Create(
-									FText::FormatNamed(LOCTEXT("", " from {AssetPlugin}. The {ReferencerPlugin} needs to depend on {AssetPlugin} in its .uplugin file."),
+									FText::FormatNamed(LOCTEXT("GameplayTagFromAssetPlugin", " from {AssetPlugin}. The {ReferencerPlugin} needs to depend on {AssetPlugin} in its .uplugin file."),
 										TEXT("ReferencerPlugin"), FText::FromString(ReferencerPlugin->GetName()),
 										TEXT("AssetPlugin"), FText::FromString(FPackageName::GetPackageMountPoint(Asset.PackageName.ToString()).ToString())
 									)
@@ -405,7 +405,7 @@ void SPluginAuditBrowser::RefreshViolations()
 						}))
 					);
 					Message->AddToken(FTextToken::Create(
-						FText::FormatNamed(LOCTEXT("FromAssetPlugin", " from {AssetPlugin}. The {AssetPlugin} is disabled or sunset and so can not be referenced."),
+						FText::FormatNamed(LOCTEXT("AssetFromAssetPlugin", " from {AssetPlugin}. The {AssetPlugin} is disabled or sunset and so can not be referenced."),
 							TEXT("AssetPlugin"), FText::FromString(FPackageName::GetPackageMountPoint(Asset.PackageName.ToString()).ToString())
 						)
 					));
