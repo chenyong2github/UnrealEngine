@@ -73,7 +73,7 @@ public:
 
 	virtual UEnhancedPlayerInput* GetPlayerInput() const = 0;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Enhanced Input|User Settings")
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual UEnhancedInputUserSettings* GetUserSettings() const;
 
 	template<class T>
