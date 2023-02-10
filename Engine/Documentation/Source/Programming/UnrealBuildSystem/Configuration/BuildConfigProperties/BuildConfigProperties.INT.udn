@@ -102,11 +102,13 @@ $ bUsePDBFiles : Whether PDB files should be used for Visual C++ builds.
 
 $ bUsePCHFiles : Whether PCH files should be used.
 
-$ bDeterministic : Set flags require for determinstic linking (experimental, may not be fully supported). Deterministic compiling is controlled via ModuleRules.
+$ bDeterministic : Set flags require for deterministic linking (experimental, may not be fully supported). Deterministic compiling is controlled via ModuleRules.
 
-$ bForceDeterministic : Force set flags require for determinstic compiling and linking (experimental, may not be fully supported). This setting is only recommended for testing, instead:
+$ bForceDeterministic : Force set flags require for deterministic compiling and linking (experimental, may not be fully supported). This setting is only recommended for testing, instead:
         * Set bDeterministic on a per module basis in ModuleRules to control deterministic compiling.
         * Set bDeterministic on a per target basis in TargetRules to control deterministic linking.
+
+$ bChainPCHs : Whether PCHs should be chained when compiling with clang.
 
 $ bForceIncludePCHHeadersForGenCppFilesWhenPCHIsDisabled : Whether PCH headers should be force included for gen.cpp files when PCH is disabled.
 
