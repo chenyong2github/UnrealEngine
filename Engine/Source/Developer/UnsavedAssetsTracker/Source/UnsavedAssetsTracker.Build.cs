@@ -13,6 +13,7 @@ public class UnsavedAssetsTracker : ModuleRules
 				"Engine",
 				"EditorSubsystem",
 				"SourceControl",
+				"UncontrolledChangelists",
 			}
 		);
 

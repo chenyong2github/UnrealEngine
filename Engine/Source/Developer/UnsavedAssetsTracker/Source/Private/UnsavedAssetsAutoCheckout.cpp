@@ -10,6 +10,7 @@
 #include "UObject/Package.h"
 #include "SourceControlOperations.h"
 #include "UnsavedAssetsTrackerModule.h"
+#include "UncontrolledChangelistsModule.h"
 
 FUnsavedAssetsAutoCheckout::FUnsavedAssetsAutoCheckout(FUnsavedAssetsTrackerModule* Module)
 	: bProcessCheckoutBatchPending(false)
@@ -31,6 +32,30 @@ void FUnsavedAssetsAutoCheckout::OnAsyncCheckout(const FString& AbsoluteAssetFil
 	if (!Settings->GetAutomaticallyCheckoutOnAssetModification())
 	{
 		return;
+	}
+
+	// Check if SourceControl is enabled and available.
+	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+	if (!SourceControlModule.IsEnabled())
+	{
+		return;
+	}
+	else
+	{
+		bool bIsAvailable = SourceControlModule.GetProvider().IsAvailable();
+		if (!bIsAvailable)
+		{
+			// The UncontrolledChangelists module relies on the 'checkout' to make the files locally writable
+			// and able to reconcile later. So if used and enabled, allow the 'checkout' to continue.
+			bool bUncontrolledChangelistsUsed = SourceControlModule.GetProvider().UsesUncontrolledChangelists();
+			bool bUncontrolledChangelistsEnabled = FUncontrolledChangelistsModule::Get().IsEnabled();
+			
+			bool bUncontrolledChangelistsRequiresCheckout = bUncontrolledChangelistsUsed && bUncontrolledChangelistsEnabled;
+			if (!bUncontrolledChangelistsRequiresCheckout)
+			{
+				return;
+			}
+		}
 	}
 
 	// Add to CheckOutBatch.
