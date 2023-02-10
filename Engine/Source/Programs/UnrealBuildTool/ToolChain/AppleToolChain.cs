@@ -259,6 +259,11 @@ namespace UnrealBuildTool
 			return DestFile;
 		}
 
+		public override void CreateSpecificFileAction(CppCompileEnvironment CompileEnvironment, DirectoryReference SourceDir, DirectoryReference OutputDir, IActionGraphBuilder Graph)
+		{
+			// Temporarily turn of single file compile in apple toolchain
+		}
+
 
 		/// <inheritdoc/>
 		protected override string EscapePreprocessorDefinition(string Definition)
