@@ -16,11 +16,14 @@
 #include "Engine/Selection.h"
 #include "EngineUtils.h"
 #include "Animation/SkeletalMeshActor.h"
+#include "AssetViewerSettings.h"
+#include "Editor/EditorPerProjectUserSettings.h"
 
 FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools,
-	FPreviewScene* InPreviewScene, 
+	TSharedPtr<FChaosClothPreviewScene> InPreviewScene,
 	const TWeakPtr<SEditorViewport>& InEditorViewportWidget)
-	: FEditorViewportClient(InModeTools, InPreviewScene, InEditorViewportWidget)
+	: FEditorViewportClient(InModeTools, InPreviewScene.Get(), InEditorViewportWidget),
+	  ClothPreviewScene(InPreviewScene)
 {
 	// We want our near clip plane to be quite close so that we can zoom in further.
 	OverrideNearClipPlane(KINDA_SMALL_NUMBER);
@@ -44,11 +47,23 @@ FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(F
 	Gizmo->bUseContextGizmoMode = false;
 	Gizmo->bUseContextCoordinateSystem = false;
 	Gizmo->ActiveGizmoMode = EToolContextTransformGizmoMode::Combined;
+
+	// Set correct flags according to current profile settings
+	SetAdvancedShowFlagsForScene(UAssetViewerSettings::Get()->Profiles[GetMutableDefault<UEditorPerProjectUserSettings>()->AssetViewerProfileIndex].bPostProcessingEnabled);
+}
+
+void FChaosClothAssetEditor3DViewportClient::RegisterSettingsChangedDelegate()
+{
+	// Remove any existing delegate in case this function is called twice
+	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().RemoveAll(this);
+	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().AddSP(this, &FChaosClothAssetEditor3DViewportClient::OnAssetViewerSettingsChanged);
 }
 
 FChaosClothAssetEditor3DViewportClient::~FChaosClothAssetEditor3DViewportClient()
 {
 	DeleteViewportGizmo();
+
+	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().RemoveAll(this);
 }
 
 void FChaosClothAssetEditor3DViewportClient::DeleteViewportGizmo()
@@ -298,4 +313,34 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 		Gizmo->SetVisibility(false);
 	}
 
+}
+
+
+void FChaosClothAssetEditor3DViewportClient::OnAssetViewerSettingsChanged(const FName& InPropertyName)
+{
+	if (InPropertyName == GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, bPostProcessingEnabled) || InPropertyName == NAME_None)
+	{
+		const UAssetViewerSettings* const Settings = UAssetViewerSettings::Get();
+		const TSharedPtr<const FChaosClothPreviewScene> PinnedClothPreviewScene = ClothPreviewScene.Pin();
+		if (Settings && PinnedClothPreviewScene)
+		{
+			const int32 ProfileIndex = PinnedClothPreviewScene->GetCurrentProfileIndex();
+			if (Settings->Profiles.IsValidIndex(ProfileIndex))
+			{
+				SetAdvancedShowFlagsForScene(Settings->Profiles[ProfileIndex].bPostProcessingEnabled);
+			}
+		}
+	}
+}
+
+void FChaosClothAssetEditor3DViewportClient::SetAdvancedShowFlagsForScene(const bool bAdvancedShowFlags)
+{
+	if (bAdvancedShowFlags)
+	{
+		EngineShowFlags.EnableAdvancedFeatures();
+	}
+	else
+	{
+		EngineShowFlags.DisableAdvancedFeatures();
+	}
 }

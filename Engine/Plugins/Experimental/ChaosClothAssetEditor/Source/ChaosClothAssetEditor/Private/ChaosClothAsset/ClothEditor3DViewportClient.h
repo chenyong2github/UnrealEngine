@@ -11,17 +11,21 @@ class UChaosClothAssetEditorMode;
 class FChaosClothAssetEditorToolkit;
 class UTransformProxy;
 class UCombinedTransformGizmo;
+class FChaosClothPreviewScene;
 
 /**
  * Viewport client for the 3d sim preview in the cloth editor. Currently same as editor viewport
  * client but doesn't allow editor gizmos/widgets.
  */
-class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditor3DViewportClient : public FEditorViewportClient
+class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditor3DViewportClient : public FEditorViewportClient, public TSharedFromThis<FChaosClothAssetEditor3DViewportClient>
 {
 public:
 
-	FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools, FPreviewScene* InPreviewScene = nullptr,
+	FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools, TSharedPtr<FChaosClothPreviewScene> InPreviewScene,
 		const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
+
+	// Call this after construction to initialize callbacks when settings change
+	void RegisterSettingsChangedDelegate();
 
 	virtual ~FChaosClothAssetEditor3DViewportClient();
 
@@ -58,6 +62,11 @@ private:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
 	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
+
+	void OnAssetViewerSettingsChanged(const FName& InPropertyName);
+	void SetAdvancedShowFlagsForScene(const bool bAdvancedShowFlags);
+
+	TWeakPtr<FChaosClothPreviewScene> ClothPreviewScene;
 
 	TObjectPtr<UChaosClothComponent> ClothComponent;
 
