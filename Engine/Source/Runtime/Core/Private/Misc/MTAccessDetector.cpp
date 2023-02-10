@@ -412,7 +412,7 @@ bool FRWRecursiveAccessDetectorTest::RunTest(const FString& Parameters)
 
 		if (!DestructionSentinel.bDestroyed)
 		{
-			AD->SetDestructionSentinel(PrevDestructionSentinel);  //-V774: same as above
+			AD->SetDestructionSentinel(PrevDestructionSentinel);  //-V774
 			AD->ReleaseReadAccess();  //-V774
 		}
 	}
