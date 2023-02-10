@@ -587,6 +587,12 @@ void SInsightsStatusBarWidget::OpenProfilingDirectory_OnClicked()
 void SInsightsStatusBarWidget::OpenProfilingDirectory()
 {
 	FString FullPath(FPaths::ConvertRelativePathToFull(FPaths::ProfilingDir()));
+
+	if (!IFileManager::Get().DirectoryExists(*FullPath))
+	{
+		IFileManager::Get().MakeDirectory(*FullPath);
+	}
+
 	FPlatformProcess::ExploreFolder(*FullPath);
 }
 
