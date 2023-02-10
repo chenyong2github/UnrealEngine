@@ -1720,11 +1720,6 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.PathTracingFilterWidth = Src.PathTracingFilterWidth;
 		}
 
-		if (Src.bOverride_PathTracingEnableEmissive)
-		{
-			Dest.PathTracingEnableEmissive = Src.PathTracingEnableEmissive;
-		}
-
 		if (Src.bOverride_PathTracingMaxPathExposure)
 		{
 			Dest.PathTracingMaxPathExposure = Src.PathTracingMaxPathExposure;
@@ -1750,9 +1745,19 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.PathTracingIncludeEmissive = Src.PathTracingIncludeEmissive;
 		}
 
+		if (Src.bOverride_PathTracingIncludeIndirectEmissive)
+		{
+			Dest.PathTracingIncludeIndirectEmissive = Src.PathTracingIncludeIndirectEmissive;
+		}
+
 		if (Src.bOverride_PathTracingIncludeDiffuse)
 		{
 			Dest.PathTracingIncludeDiffuse = Src.PathTracingIncludeDiffuse;
+		}
+
+		if (Src.bOverride_PathTracingIncludeIndirectDiffuse)
+		{
+			Dest.PathTracingIncludeIndirectDiffuse = Src.PathTracingIncludeIndirectDiffuse;
 		}
 
 		if (Src.bOverride_PathTracingIncludeSpecular)
@@ -1760,9 +1765,19 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.PathTracingIncludeSpecular = Src.PathTracingIncludeSpecular;
 		}
 
+		if (Src.bOverride_PathTracingIncludeIndirectSpecular)
+		{
+			Dest.PathTracingIncludeIndirectSpecular = Src.PathTracingIncludeIndirectSpecular;
+		}
+
 		if (Src.bOverride_PathTracingIncludeVolume)
 		{
 			Dest.PathTracingIncludeVolume = Src.PathTracingIncludeVolume;
+		}
+
+		if (Src.bOverride_PathTracingIncludeIndirectVolume)
+		{
+			Dest.PathTracingIncludeIndirectVolume = Src.PathTracingIncludeIndirectVolume;
 		}
 
 		if (Src.bOverride_DepthOfFieldBladeCount)

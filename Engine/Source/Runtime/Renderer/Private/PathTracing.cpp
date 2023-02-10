@@ -324,14 +324,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(uint32, VolumeMISMode)
 	SHADER_PARAMETER(uint32, ApproximateCaustics)
 	SHADER_PARAMETER(uint32, EnableCameraBackfaceCulling)
-	SHADER_PARAMETER(uint32, EnableDirectLighting)
-	SHADER_PARAMETER(uint32, EnableEmissive)
 	SHADER_PARAMETER(uint32, SamplerType)
 	SHADER_PARAMETER(uint32, VisualizeLightGrid)
 	SHADER_PARAMETER(uint32, VisualizeDecalGrid)
 	SHADER_PARAMETER(uint32, EnableAtmosphere)
 	SHADER_PARAMETER(uint32, EnableFog)
-	SHADER_PARAMETER(uint32, EnabledLightingContributions) // PATHTRACER_CONTRIBUTION_*
+	SHADER_PARAMETER(uint32, EnabledDirectLightingContributions)   // PATHTRACER_CONTRIBUTION_*
+	SHADER_PARAMETER(uint32, EnabledIndirectLightingContributions) // PATHTRACER_CONTRIBUTION_*
 	SHADER_PARAMETER(uint32, ApplyDiffuseSpecularOverrides)
 	SHADER_PARAMETER(int32, MaxRaymarchSteps)
 	SHADER_PARAMETER(float, MaxPathIntensity)
@@ -372,8 +371,6 @@ struct FPathTracingConfig
 			PathTracingData.SamplerType != Other.PathTracingData.SamplerType ||
 			PathTracingData.ApproximateCaustics != Other.PathTracingData.ApproximateCaustics ||
 			PathTracingData.EnableCameraBackfaceCulling != Other.PathTracingData.EnableCameraBackfaceCulling ||
-			PathTracingData.EnableDirectLighting != Other.PathTracingData.EnableDirectLighting ||
-			PathTracingData.EnableEmissive != Other.PathTracingData.EnableEmissive ||
 			PathTracingData.VisualizeLightGrid != Other.PathTracingData.VisualizeLightGrid ||
 			PathTracingData.VisualizeDecalGrid != Other.PathTracingData.VisualizeDecalGrid ||
 			PathTracingData.MaxPathIntensity != Other.PathTracingData.MaxPathIntensity ||
@@ -382,7 +379,8 @@ struct FPathTracingConfig
 			PathTracingData.EnableAtmosphere != Other.PathTracingData.EnableAtmosphere ||
 			PathTracingData.EnableFog != Other.PathTracingData.EnableFog ||
 			PathTracingData.ApplyDiffuseSpecularOverrides != Other.PathTracingData.ApplyDiffuseSpecularOverrides ||
-			PathTracingData.EnabledLightingContributions != Other.PathTracingData.EnabledLightingContributions ||
+			PathTracingData.EnabledDirectLightingContributions != Other.PathTracingData.EnabledDirectLightingContributions ||
+			PathTracingData.EnabledIndirectLightingContributions != Other.PathTracingData.EnabledIndirectLightingContributions ||
 			PathTracingData.DecalRoughnessCutoff != Other.PathTracingData.DecalRoughnessCutoff ||
 			PathTracingData.MeshDecalRoughnessCutoff != Other.PathTracingData.MeshDecalRoughnessCutoff ||
 			PathTracingData.MeshDecalBias != Other.PathTracingData.MeshDecalBias ||
@@ -481,36 +479,17 @@ namespace PathTracing
 // This function prepares the portion of shader arguments that may involve invalidating the path traced state
 static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, FPathTracingData& PathTracingData)
 {
-	PathTracingData.EnableDirectLighting = true;
+	const FFinalPostProcessSettings& PPV = View.FinalPostProcessSettings;
+	const FEngineShowFlags& ShowFlags = View.Family->EngineShowFlags;
+
 	int32 MaxBounces = CVarPathTracingMaxBounces.GetValueOnRenderThread();
 	if (MaxBounces < 0)
 	{
-		MaxBounces = View.FinalPostProcessSettings.PathTracingMaxBounces;
-	}
-	if (View.Family->EngineShowFlags.DirectLighting)
-	{
-		if (!View.Family->EngineShowFlags.GlobalIllumination)
-		{
-			// direct lighting, but no GI
-			MaxBounces = 1;
-		}
-	}
-	else
-	{
-		PathTracingData.EnableDirectLighting = false;
-		if (View.Family->EngineShowFlags.GlobalIllumination)
-		{
-			// skip direct lighting, but still do the full bounces
-		}
-		else
-		{
-			// neither direct, nor GI is on
-			MaxBounces = 0;
-		}
+		MaxBounces = PPV.PathTracingMaxBounces;
 	}
 
 	PathTracingData.MaxBounces = MaxBounces;
-	PathTracingData.MaxSSSBounces = View.Family->EngineShowFlags.SubsurfaceScattering ? CVarPathTracingMaxSSSBounces.GetValueOnRenderThread() : 0;
+	PathTracingData.MaxSSSBounces = ShowFlags.SubsurfaceScattering ? CVarPathTracingMaxSSSBounces.GetValueOnRenderThread() : 0;
 	PathTracingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 	PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
 	PathTracingData.VolumeMISMode = CVarPathTracingVolumeMISMode.GetValueOnRenderThread();
@@ -518,38 +497,36 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 	if (PathTracingData.MaxPathIntensity <= 0)
 	{
 		// cvar clamp disabled, use PPV exposure value instad
-		PathTracingData.MaxPathIntensity = FMath::Pow(2.0f, View.FinalPostProcessSettings.PathTracingMaxPathExposure);
+		PathTracingData.MaxPathIntensity = FMath::Pow(2.0f, PPV.PathTracingMaxPathExposure);
 	}
 	PathTracingData.ApproximateCaustics = CVarPathTracingApproximateCaustics.GetValueOnRenderThread();
 	PathTracingData.EnableCameraBackfaceCulling = CVarPathTracingEnableCameraBackfaceCulling.GetValueOnRenderThread();
 	PathTracingData.SamplerType = CVarPathTracingSamplerType.GetValueOnRenderThread();
-	int32 EnableEmissive = CVarPathTracingEnableEmissive.GetValueOnRenderThread();
-	PathTracingData.EnableEmissive = EnableEmissive < 0 ? View.FinalPostProcessSettings.PathTracingEnableEmissive : EnableEmissive;
 	PathTracingData.VisualizeLightGrid = CVarPathTracingLightGridVisualize.GetValueOnRenderThread();
 	PathTracingData.VisualizeDecalGrid = CVarPathTracingDecalGridVisualize.GetValueOnRenderThread();
 	float FilterWidth = CVarPathTracingFilterWidth.GetValueOnRenderThread();
 	if (FilterWidth < 0)
 	{
-		FilterWidth = View.FinalPostProcessSettings.PathTracingFilterWidth;
+		FilterWidth = PPV.PathTracingFilterWidth;
 	}
 	PathTracingData.FilterWidth = FilterWidth;
 	PathTracingData.AbsorptionScale = CVarPathTracingAbsorptionScale.GetValueOnRenderThread();
 	PathTracingData.CameraFocusDistance = 0;
 	PathTracingData.CameraLensRadius = FVector2f::ZeroVector;
-	if (View.Family->EngineShowFlags.DepthOfField &&
-		View.FinalPostProcessSettings.PathTracingEnableReferenceDOF &&
-		View.FinalPostProcessSettings.DepthOfFieldFocalDistance > 0 &&
-		View.FinalPostProcessSettings.DepthOfFieldFstop > 0)
+	if (ShowFlags.DepthOfField &&
+		PPV.PathTracingEnableReferenceDOF &&
+		PPV.DepthOfFieldFocalDistance > 0 &&
+		PPV.DepthOfFieldFstop > 0)
 	{
-		const float FocalLengthInCM = 0.05f * View.FinalPostProcessSettings.DepthOfFieldSensorWidth * View.ViewMatrices.GetProjectionMatrix().M[0][0];
-		PathTracingData.CameraFocusDistance = View.FinalPostProcessSettings.DepthOfFieldFocalDistance;
-		PathTracingData.CameraLensRadius.Y = 0.5f * FocalLengthInCM / View.FinalPostProcessSettings.DepthOfFieldFstop;
-		PathTracingData.CameraLensRadius.X = PathTracingData.CameraLensRadius.Y / FMath::Clamp(View.FinalPostProcessSettings.DepthOfFieldSqueezeFactor, 1.0f, 2.0f);
+		const float FocalLengthInCM = 0.05f * PPV.DepthOfFieldSensorWidth * View.ViewMatrices.GetProjectionMatrix().M[0][0];
+		PathTracingData.CameraFocusDistance = PPV.DepthOfFieldFocalDistance;
+		PathTracingData.CameraLensRadius.Y = 0.5f * FocalLengthInCM / PPV.DepthOfFieldFstop;
+		PathTracingData.CameraLensRadius.X = PathTracingData.CameraLensRadius.Y / FMath::Clamp(PPV.DepthOfFieldSqueezeFactor, 1.0f, 2.0f);
 	}
 	PathTracingData.EnableAtmosphere =
-		ShouldRenderSkyAtmosphere(Scene, View.Family->EngineShowFlags) && 
-		View.SkyAtmosphereUniformShaderParameters &&
-		View.FinalPostProcessSettings.PathTracingEnableReferenceAtmosphere;
+		ShouldRenderSkyAtmosphere(Scene, ShowFlags) && 
+		View.SkyAtmosphereUniformShaderParameters != nullptr &&
+		PPV.PathTracingEnableReferenceAtmosphere != 0;
 
 	PathTracingData.EnableFog = ShouldRenderFog(*View.Family)
 		&& Scene->ExponentialFogs.Num() > 0
@@ -568,15 +545,27 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 
 	// NOTE: Diffuse and Specular show flags also modify the override colors, but we prefer to tie those to the lighting contribution mechanism below which is more principled
 	PathTracingData.ApplyDiffuseSpecularOverrides =
-		View.Family->EngineShowFlags.LightingOnlyOverride       != 0 ||
-		View.Family->EngineShowFlags.OverrideDiffuseAndSpecular != 0 ||
-		View.Family->EngineShowFlags.ReflectionOverride         != 0;
+		ShowFlags.LightingOnlyOverride       != 0 ||
+		ShowFlags.OverrideDiffuseAndSpecular != 0 ||
+		ShowFlags.ReflectionOverride         != 0;
 
-	PathTracingData.EnabledLightingContributions = 0;
-	PathTracingData.EnabledLightingContributions |= (View.FinalPostProcessSettings.PathTracingIncludeEmissive != 0                                              ) ? PATHTRACER_CONTRIBUTION_EMISSIVE : 0;
-	PathTracingData.EnabledLightingContributions |= (View.FinalPostProcessSettings.PathTracingIncludeDiffuse  != 0 && View.Family->EngineShowFlags.Diffuse  != 0) ? PATHTRACER_CONTRIBUTION_DIFFUSE  : 0;
-	PathTracingData.EnabledLightingContributions |= (View.FinalPostProcessSettings.PathTracingIncludeSpecular != 0 && View.Family->EngineShowFlags.Specular != 0) ? PATHTRACER_CONTRIBUTION_SPECULAR : 0;
-	PathTracingData.EnabledLightingContributions |= (View.FinalPostProcessSettings.PathTracingIncludeVolume   != 0                                              ) ? PATHTRACER_CONTRIBUTION_VOLUME   : 0;
+	PathTracingData.EnabledDirectLightingContributions = 0;
+	if (ShowFlags.DirectLighting != 0)
+	{
+		PathTracingData.EnabledDirectLightingContributions |= (PPV.PathTracingIncludeEmissive != 0                           ) ? PATHTRACER_CONTRIBUTION_EMISSIVE : 0;
+		PathTracingData.EnabledDirectLightingContributions |= (PPV.PathTracingIncludeDiffuse  != 0 && ShowFlags.Diffuse  != 0) ? PATHTRACER_CONTRIBUTION_DIFFUSE  : 0;
+		PathTracingData.EnabledDirectLightingContributions |= (PPV.PathTracingIncludeSpecular != 0 && ShowFlags.Specular != 0) ? PATHTRACER_CONTRIBUTION_SPECULAR : 0;
+		PathTracingData.EnabledDirectLightingContributions |= (PPV.PathTracingIncludeVolume   != 0                           ) ? PATHTRACER_CONTRIBUTION_VOLUME   : 0;
+	}
+	PathTracingData.EnabledIndirectLightingContributions = 0;
+	if (ShowFlags.GlobalIllumination != 0)
+	{
+		const bool bEnableEmissive = CVarPathTracingEnableEmissive.GetValueOnRenderThread() != 0;
+		PathTracingData.EnabledIndirectLightingContributions |= (PPV.PathTracingIncludeIndirectEmissive != 0 && bEnableEmissive        ) ? PATHTRACER_CONTRIBUTION_EMISSIVE : 0;
+		PathTracingData.EnabledIndirectLightingContributions |= (PPV.PathTracingIncludeIndirectDiffuse  != 0 && ShowFlags.Diffuse  != 0) ? PATHTRACER_CONTRIBUTION_DIFFUSE  : 0;
+		PathTracingData.EnabledIndirectLightingContributions |= (PPV.PathTracingIncludeIndirectSpecular != 0 && ShowFlags.Specular != 0) ? PATHTRACER_CONTRIBUTION_SPECULAR : 0;
+		PathTracingData.EnabledIndirectLightingContributions |= (PPV.PathTracingIncludeIndirectVolume   != 0                           ) ? PATHTRACER_CONTRIBUTION_VOLUME   : 0;
+	}
 }
 
 static bool ShouldCompilePathTracingShadersForProject(EShaderPlatform ShaderPlatform)
@@ -2384,11 +2373,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 								PassParameters->SceneLights = PreviousPassParameters->SceneLights;
 								PassParameters->SkylightParameters = PreviousPassParameters->SkylightParameters;
 							}
-							if (Config.PathTracingData.EnableDirectLighting == 0)
-							{
-								PassParameters->SceneVisibleLightCount = 0;
-							}
-
 							PassParameters->DecalParameters = View.RayTracingDecalUniformBuffer;
 
 							PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);

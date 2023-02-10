@@ -129,7 +129,6 @@ static const uint MISMode = 2;
 
 static const uint ApproximateCaustics = 1;
 static const uint EnableCameraBackfaceCulling = 0;
-static const uint EnableDirectLighting = 1;
 static const uint EnableEmissive = 1;
 static const float MaxNormalBias = 0.1;
 
@@ -395,7 +394,7 @@ void PathTracingKernel(
 	{		
 		const bool bIsCameraRay = Bounce == 0;
 		const bool bIsLastBounce = Bounce == MaxBounces;
-		const bool bIncludeEmissive = (EnableDirectLighting != 0 || Bounce > 1) &&
+		const bool bIncludeEmissive = (Bounce > 1) &&
 									  (EnableEmissive       != 0 || bIsCameraRay);
 		FPathTracingPayload Payload = (FPathTracingPayload)0;
 		
@@ -563,12 +562,10 @@ void PathTracingKernel(
 		// Choose a random number for both Light sampling and BxDF sampling
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
 
-		const bool bDoLightLoop = EnableDirectLighting != 0 || Bounce > 0;
-
 		float LightPickingCdfSum = 0;
 
 		// If we are using Light sampling and the material can use it ...
-		if (MISMode != 0 && SceneLightCount > 0 && bDoLightLoop)
+		if (MISMode != 0 && SceneLightCount > 0)
 		{
 			// Choose a light and sample it
 			float3 TranslatedWorldPos = Payload.TranslatedWorldPos;
@@ -764,7 +761,7 @@ void PathTracingKernel(
 		}
 		
 		// If we are using Material sampling for lights
-		if (MISMode != 1 && bDoLightLoop)
+		if (MISMode != 1)
 		{
 			// Check which lights can be seen by the material ray and trace a dedicated shadow ray
 			// While it would be possible to just loop around and use the indirect ray to do this, it would prevent the application

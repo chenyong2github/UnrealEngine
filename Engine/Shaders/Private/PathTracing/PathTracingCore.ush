@@ -47,13 +47,12 @@ uint VolumeMISMode;
 
 uint ApproximateCaustics;
 uint EnableCameraBackfaceCulling;
-uint EnableDirectLighting;
-uint EnableEmissive;
 uint SamplerType;
 uint VisualizeLightGrid;
 uint VisualizeDecalGrid;
 uint ApplyDiffuseSpecularOverrides;
-uint EnabledLightingContributions;
+uint EnabledDirectLightingContributions;
+uint EnabledIndirectLightingContributions;
 float DecalRoughnessCutoff;
 float MeshDecalRoughnessCutoff;
 float MeshDecalBias;
@@ -109,33 +108,38 @@ struct FPathState
 		switch (FirstScatterType)
 		{
 			// In these cases, only keep tracing if the corresponding lighting component is enabled
-			case PATHTRACER_SCATTER_DIFFUSE:  return (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_DIFFUSE ) != 0;
-			case PATHTRACER_SCATTER_SPECULAR: return (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_SPECULAR) != 0;
-			case PATHTRACER_SCATTER_VOLUME:   return (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_VOLUME  ) != 0;
+			case PATHTRACER_SCATTER_DIFFUSE:  return (GetEnabledLightingContributions() & PATHTRACER_CONTRIBUTION_DIFFUSE ) != 0;
+			case PATHTRACER_SCATTER_SPECULAR: return (GetEnabledLightingContributions() & PATHTRACER_CONTRIBUTION_SPECULAR) != 0;
+			case PATHTRACER_SCATTER_VOLUME:   return (GetEnabledLightingContributions() & PATHTRACER_CONTRIBUTION_VOLUME  ) != 0;
 		}
 		// In all other cases, keep tracing, we haven't made a final decision on what this path is yet
 		return true;
 	}
 
+	uint GetEnabledLightingContributions()
+	{
+		return HasMadeContributionScatter() ? EnabledIndirectLightingContributions : EnabledDirectLightingContributions;
+	}
+
 	// The following functions allow us to scale down the contributions for lighting components before we have scattered
 	bool ShouldAccumulateEmissive()
 	{
-		return (HasMadeContributionScatter() || (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_EMISSIVE) != 0);
+		return (GetEnabledLightingContributions() & PATHTRACER_CONTRIBUTION_EMISSIVE) != 0;
 	}
 
 	bool ShouldAccumulateDiffuse()
 	{
-		return (HasMadeContributionScatter() || (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_DIFFUSE) != 0);
+		return (GetEnabledLightingContributions() & PATHTRACER_CONTRIBUTION_DIFFUSE) != 0;
 	}
 
 	bool ShouldAccumulateSpecular()
 	{
-		return (HasMadeContributionScatter() || (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_SPECULAR) != 0);
+		return (GetEnabledLightingContributions() & PATHTRACER_CONTRIBUTION_SPECULAR) != 0;
 	}
 
 	bool ShouldAccumulateVolume()
 	{
-		return (HasMadeContributionScatter() || (EnabledLightingContributions & PATHTRACER_CONTRIBUTION_VOLUME) != 0);
+		return (GetEnabledLightingContributions() & PATHTRACER_CONTRIBUTION_VOLUME) != 0;
 	}
 
 	float2 GetDiffuseSpecularScale(bool bIsVolumeSample)
@@ -1002,10 +1006,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 #endif
 	const bool bIsCameraRay = Bounce == 0;
 	const bool bIsLastBounce = Bounce == MaxBounces;
-	const bool bIncludeEmissive =
-		(EnableDirectLighting != 0 || Bounce > 1) &&
-		(EnableEmissive != 0 || bIsCameraRay) &&
-		PathState.ShouldAccumulateEmissive();
+	const bool bIncludeEmissive = PathState.ShouldAccumulateEmissive();
 
 	// number of directly visible lights for the first bounce
 	// after the first bounce, we don't need to include lights in the trace call
@@ -1193,7 +1194,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 	float2 DiffuseSpecularScale = PathState.GetDiffuseSpecularScale(bIsVolumeSample);
 
-	const bool bDoLightLoop = (EnableDirectLighting != 0 || Bounce > 0) && any(DiffuseSpecularScale > 0);
+	const bool bDoLightLoop = any(DiffuseSpecularScale > 0);
 
 	float LightPickingCdfSum = 0;
 
