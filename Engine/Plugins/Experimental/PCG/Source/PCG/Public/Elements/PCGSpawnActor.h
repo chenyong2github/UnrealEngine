@@ -9,6 +9,7 @@
 #include "PCGSpawnActor.generated.h"
 
 class AActor;
+class UPCGGraphInterface;
 
 UENUM()
 enum class EPCGSpawnActorOption : uint8
@@ -102,7 +103,7 @@ protected:
 
 public:
 	//~Begin UPCGBaseSubgraphSettings interface
-	virtual UPCGGraph* GetSubgraph() const override;
+	virtual UPCGGraphInterface* GetSubgraphInterface() const override;
 
 protected:
 #if WITH_EDITOR
@@ -123,7 +124,7 @@ class PCG_API UPCGSpawnActorNode : public UPCGBaseSubgraphNode
 	GENERATED_BODY()
 public:
 	/** ~Begin UPCGBaseSubgraphNode interface */
-	virtual TObjectPtr<UPCGGraph> GetSubgraph() const override;
+	virtual TObjectPtr<UPCGGraphInterface> GetSubgraphInterface() const override;
 	/** ~End UPCGBaseSubgraphNode interface */
 };
 

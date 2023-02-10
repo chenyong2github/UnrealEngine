@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGSubgraph.h"
-#include "PCGGraph.h"
+
 #include "PCGComponent.h"
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
@@ -26,22 +26,43 @@ namespace PCGSubgraphSettings
 	}
 }
 
+UPCGGraph* UPCGBaseSubgraphSettings::GetSubgraph() const
+{
+	UPCGGraphInterface* SubgraphInterface = GetSubgraphInterface();
+	return SubgraphInterface ? SubgraphInterface->GetGraph() : nullptr;
+}
+
+void UPCGBaseSubgraphSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+#if WITH_EDITOR
+	if (UPCGGraphInterface* Subgraph = GetSubgraphInterface())
+	{
+		Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGBaseSubgraphSettings::OnSubgraphChanged);
+	}
+#endif
+}
+
 void UPCGBaseSubgraphSettings::PostLoad()
 {
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	if (UPCGGraph* Subgraph = GetSubgraph())
+	if (UPCGGraphInterface* Subgraph = GetSubgraphInterface())
 	{
-		Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGSubgraphSettings::OnSubgraphChanged);
+		// We might have already connected in PostInitProperties
+		// To be sure, remove it and re-add it.
+		Subgraph->OnGraphChangedDelegate.RemoveAll(this);
+		Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGBaseSubgraphSettings::OnSubgraphChanged);
 	}
 #endif
 }
 
-void UPCGBaseSubgraphSettings::SetSubgraph(UPCGGraph* InGraph)
+void UPCGBaseSubgraphSettings::SetSubgraph(UPCGGraphInterface* InGraph)
 {
 #if WITH_EDITOR
-	if (UPCGGraph* Subgraph = GetSubgraph())
+	if (UPCGGraphInterface* Subgraph = GetSubgraphInterface())
 	{
 		Subgraph->OnGraphChangedDelegate.RemoveAll(this);
 	}
@@ -50,9 +71,9 @@ void UPCGBaseSubgraphSettings::SetSubgraph(UPCGGraph* InGraph)
 	SetSubgraphInternal(InGraph);
 
 #if WITH_EDITOR
-	if (UPCGGraph* Subgraph = GetSubgraph())
+	if (UPCGGraphInterface* Subgraph = GetSubgraphInterface())
 	{
-		Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGSubgraphSettings::OnSubgraphChanged);
+		Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGBaseSubgraphSettings::OnSubgraphChanged);
 	}
 #endif // WITH_EDITOR
 }
@@ -60,7 +81,7 @@ void UPCGBaseSubgraphSettings::SetSubgraph(UPCGGraph* InGraph)
 void UPCGBaseSubgraphSettings::BeginDestroy()
 {
 #if WITH_EDITOR
-	if (UPCGGraph* Subgraph = GetSubgraph())
+	if (UPCGGraphInterface* Subgraph = GetSubgraphInterface())
 	{
 		Subgraph->OnGraphChangedDelegate.RemoveAll(this);
 	}
@@ -74,7 +95,7 @@ void UPCGBaseSubgraphSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if (PropertyAboutToChange && IsStructuralProperty(PropertyAboutToChange->GetFName()))
 	{
-		if (UPCGGraph* Subgraph = GetSubgraph())
+		if (UPCGGraphInterface* Subgraph = GetSubgraphInterface())
 		{
 			Subgraph->OnGraphChangedDelegate.RemoveAll(this);
 		}
@@ -89,9 +110,9 @@ void UPCGBaseSubgraphSettings::PostEditChangeProperty(struct FPropertyChangedEve
 
 	if (PropertyChangedEvent.Property && IsStructuralProperty(PropertyChangedEvent.Property->GetFName()))
 	{
-		if (UPCGGraph* Subgraph = GetSubgraph())
+		if (UPCGGraphInterface* Subgraph = GetSubgraphInterface())
 		{
-			Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGSubgraphSettings::OnSubgraphChanged);
+			Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGBaseSubgraphSettings::OnSubgraphChanged);
 		}
 	}
 }
@@ -109,9 +130,9 @@ bool UPCGBaseSubgraphSettings::IsStructuralProperty(const FName& InPropertyName)
 	return InPropertyName == GET_MEMBER_NAME_CHECKED(UPCGSettingsInterface, bEnabled) || Super::IsStructuralProperty(InPropertyName);
 }
 
-void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType)
+void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType)
 {
-	if (InGraph == GetSubgraph())
+	if (InGraph == GetSubgraphInterface())
 	{
 		OnSettingsChangedDelegate.Broadcast(this, (ChangeType | EPCGChangeType::Settings));
 	}
@@ -146,6 +167,12 @@ TArray<FPCGPinProperties> UPCGBaseSubgraphSettings::OutputPinProperties() const
 	}
 }
 
+UPCGSubgraphSettings::UPCGSubgraphSettings(const FObjectInitializer& InObjectInitializer)
+	: Super(InObjectInitializer)
+{
+	SubgraphInstance = InObjectInitializer.CreateDefaultSubobject<UPCGGraphInstance>(this, TEXT("PCGSubgraphInstance"));
+}
+
 UPCGNode* UPCGSubgraphSettings::CreateNode() const
 {
 	return NewObject<UPCGSubgraphNode>();
@@ -163,17 +190,36 @@ FName UPCGSubgraphSettings::AdditionalTaskName() const
 	}
 }
 
+void UPCGSubgraphSettings::SetSubgraphInternal(UPCGGraphInterface* InGraph)
+{
+	SubgraphInstance->SetGraph(InGraph);
+}
+
+void UPCGSubgraphSettings::PostLoad()
+{
+#if WITH_EDITOR
+	if (Subgraph_DEPRECATED)
+	{
+		SubgraphInstance->SetGraph(Subgraph_DEPRECATED);
+		Subgraph_DEPRECATED = nullptr;
+	}
+#endif // WITH_EDITOR
+
+	Super::PostLoad();
+}
+
 #if WITH_EDITOR
 UObject* UPCGSubgraphSettings::GetJumpTargetForDoubleClick() const
 {
 	// Note that there is a const_cast done behind the scenes in Cast.
 	// And this behavior is already used in similar part of UE.
-	return Cast<UObject>(Subgraph);
+	return Cast<UObject>(GetSubgraph());
 }
 
 bool UPCGSubgraphSettings::IsStructuralProperty(const FName& InPropertyName) const
 {
-	return (InPropertyName == GET_MEMBER_NAME_CHECKED(UPCGSubgraphSettings, Subgraph)) || Super::IsStructuralProperty(InPropertyName);
+	// Force structural if name is none. We are probably in a undo/redo situation
+	return (InPropertyName == NAME_None) || (InPropertyName == GET_MEMBER_NAME_CHECKED(UPCGSubgraphSettings, SubgraphInstance)) || Super::IsStructuralProperty(InPropertyName);
 }
 #endif
 
@@ -182,10 +228,16 @@ FPCGElementPtr UPCGSubgraphSettings::CreateElement() const
 	return MakeShared<FPCGSubgraphElement>();
 }
 
-TObjectPtr<UPCGGraph> UPCGSubgraphNode::GetSubgraph() const
+TObjectPtr<UPCGGraph> UPCGBaseSubgraphNode::GetSubgraph() const
+{
+	UPCGGraphInterface* SubgraphInterface = GetSubgraphInterface();
+	return SubgraphInterface ? SubgraphInterface->GetGraph() : nullptr;
+}
+
+TObjectPtr<UPCGGraphInterface> UPCGSubgraphNode::GetSubgraphInterface() const
 {
 	TObjectPtr<UPCGSubgraphSettings> Settings = Cast<UPCGSubgraphSettings>(GetSettings());
-	return Settings ? Settings->Subgraph : nullptr;
+	return Settings ? Settings->GetSubgraphInterface() : nullptr;
 }
 
 FPCGContext* FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
@@ -211,7 +263,7 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 		{
 			const UPCGSubgraphSettings* Settings = Context->GetInputSettings<UPCGSubgraphSettings>();
 			check(Settings);
-			UPCGGraph* Subgraph = Settings->Subgraph;
+			UPCGGraph* Subgraph = Settings->GetSubgraph();
 
 			UPCGSubsystem* Subsystem = Context->SourceComponent.IsValid() ? Context->SourceComponent->GetSubsystem() : nullptr;
 

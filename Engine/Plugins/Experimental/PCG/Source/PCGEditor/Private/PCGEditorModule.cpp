@@ -15,6 +15,7 @@
 
 #include "Details/PCGBlueprintSettingsDetails.h"
 #include "Details/PCGGraphDetails.h"
+#include "Details/PCGGraphInstanceDetails.h"
 #include "Details/PCGVolumeDetails.h"
 #include "Details/PCGAttributePropertySelectorDetails.h"
 
@@ -75,6 +76,7 @@ void FPCGEditorModule::RegisterDetailsCustomizations()
 	PropertyEditor.RegisterCustomClassLayout("PCGBlueprintSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGBlueprintSettingsDetails::MakeInstance));
 	PropertyEditor.RegisterCustomClassLayout("PCGComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGComponentDetails::MakeInstance));
 	PropertyEditor.RegisterCustomClassLayout("PCGGraph", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGGraphDetails::MakeInstance));
+	PropertyEditor.RegisterCustomClassLayout("PCGGraphInstance", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGGraphInstanceDetails::MakeInstance));
 	PropertyEditor.RegisterCustomClassLayout("PCGVolume", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGVolumeDetails::MakeInstance));
 
 	PropertyEditor.RegisterCustomPropertyTypeLayout("PCGAttributePropertySelector", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPCGAttributePropertySelectorDetails::MakeInstance));
@@ -89,6 +91,7 @@ void FPCGEditorModule::UnregisterDetailsCustomizations()
 		PropertyModule->UnregisterCustomClassLayout("PCGBlueprintSettings");
 		PropertyModule->UnregisterCustomClassLayout("PCGComponent");
 		PropertyModule->UnregisterCustomClassLayout("PCGGraph");
+		PropertyModule->UnregisterCustomClassLayout("PCGGraphInstance");
 		PropertyModule->UnregisterCustomClassLayout("PCGVolume");
 
 		PropertyModule->UnregisterCustomPropertyTypeLayout("PCGAttributePropertySelector");
@@ -103,6 +106,8 @@ void FPCGEditorModule::RegisterAssetTypeActions()
 	PCGAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("PCG")), LOCTEXT("PCGAssetCategory", "PCG"));
 
 	RegisteredAssetTypeActions.Emplace(MakeShareable(new FPCGGraphAssetTypeActions()));
+	RegisteredAssetTypeActions.Emplace(MakeShareable(new FPCGGraphInstanceAssetTypeActions()));
+	RegisteredAssetTypeActions.Emplace(MakeShareable(new FPCGGraphInterfaceAssetTypeActions()));
 	RegisteredAssetTypeActions.Emplace(MakeShareable(new FPCGSettingsAssetTypeActions()));
 
 	for (auto Action : RegisteredAssetTypeActions)

@@ -94,33 +94,45 @@ void UPCGComponent::SetIsPartitioned(bool bIsNowPartitioned)
 
 void UPCGComponent::SetGraph_Implementation(UPCGGraph* InGraph)
 {
-	SetGraphLocal(InGraph);
+	SetGraphInterfaceLocal(InGraph);
+}
+
+UPCGGraph* UPCGComponent::GetGraph() const
+{
+	return (GraphInstance ? GraphInstance->GetGraph() : nullptr);
 }
 
 void UPCGComponent::SetGraphLocal(UPCGGraph* InGraph)
 {
-	if(Graph == InGraph)
+	SetGraphInterfaceLocal(InGraph);
+}
+
+void UPCGComponent::SetGraphInterfaceLocal(UPCGGraphInterface* InGraphInterface)
+{
+	if (ensure(GraphInstance))
 	{
-		return;
+		GraphInstance->SetGraph(InGraphInterface);
+		RefreshAfterGraphChanged(GraphInstance, /*bIsStructural=*/true, /*bDirtyInputs=*/true);
 	}
+}
+
+void UPCGComponent::SetGraphInstanceFromParent(UPCGGraphInstance* InParentGraphInstance)
+{
+	// Since it must be used on local components only, add a check here
+	check(bIsComponentLocal);
 
 #if WITH_EDITOR
-	if (Graph)
+	if (GraphInstance)
 	{
-		Graph->OnGraphChangedDelegate.RemoveAll(this);
+		GraphInstance->OnGraphChangedDelegate.RemoveAll(this);
 	}
-#endif
+#endif // WITH_EDITOR
 
-	Graph = InGraph;
+	GraphInstance = InParentGraphInstance;
 
 #if WITH_EDITOR
-	if (InGraph)
-	{
-		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
-	}
-#endif
-
-	RefreshAfterGraphChanged(Graph, /*bIsStructural=*/true, /*bDirtyInputs=*/true);
+	SetupCallbacksOnCreation();
+#endif // WITH_EDITOR
 }
 
 void UPCGComponent::AddToManagedResources(UPCGManagedResource* InResource)
@@ -150,7 +162,7 @@ void UPCGComponent::ForEachManagedResource(TFunctionRef<void(UPCGManagedResource
 
 bool UPCGComponent::ShouldGenerate(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger) const
 {
-	if (!bActivated || !Graph || !GetSubsystem())
+	if (!bActivated || !GetGraph() || !GetSubsystem())
 	{
 		return false;
 	}
@@ -193,7 +205,7 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 #if WITH_EDITOR
 	const bool bHasDirtyInput = InputType != NewInputType;
 	const bool bHasDirtyExclusions = !(ExcludedTags.Num() == Original->ExcludedTags.Num() && ExcludedTags.Includes(Original->ExcludedTags));
-	const bool bIsDirty = bHasDirtyInput || bHasDirtyExclusions || Graph != Original->Graph;
+	const bool bIsDirty = bHasDirtyInput || bHasDirtyExclusions || GraphInstance != Original->GraphInstance;
 
 	if (bHasDirtyExclusions)
 	{
@@ -208,7 +220,7 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 
 	InputType = NewInputType;
 	Seed = Original->Seed;
-	SetGraphLocal(Original->Graph);
+	GraphInstance = Original->GraphInstance;
 
 	GenerationTrigger = Original->GenerationTrigger;
 
@@ -951,9 +963,18 @@ void UPCGComponent::PostLoad()
 			GeneratedActors_DEPRECATED.Reset();
 		}
 	}
-#endif
 
-#if WITH_EDITOR
+	if (Graph_DEPRECATED)
+	{
+		if (!GraphInstance)
+		{
+			GraphInstance = NewObject<UPCGGraphInstance>(this, TEXT("PCGGraphInstance"), RF_Transactional | RF_Public);
+		}
+
+		GraphInstance->SetGraph(Graph_DEPRECATED);
+		Graph_DEPRECATED = nullptr;
+	}
+
 	SetupCallbacksOnCreation();
 #endif
 }
@@ -973,20 +994,28 @@ void UPCGComponent::SetupCallbacksOnCreation()
 		UpdateTrackedLandscape(/*bBoundsCheck=*/false);
 	}
 
-	if (Graph)
+	if (GraphInstance)
 	{
-		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
+		// We might have already connected in PostInitProperties
+		// To be sure, remove it and re-add it.
+		GraphInstance->OnGraphChangedDelegate.RemoveAll(this);
+		GraphInstance->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 	}
+}
+
+bool UPCGComponent::CanEditChange(const FProperty* InProperty) const
+{
+	// Can't change anything if the component is local
+	return !bIsComponentLocal;
 }
 #endif
 
 void UPCGComponent::BeginDestroy()
 {
 #if WITH_EDITOR
-	if (Graph)
+	if (GraphInstance)
 	{
-		Graph->OnGraphChangedDelegate.RemoveAll(this);
-		Graph = nullptr;
+		GraphInstance->OnGraphChangedDelegate.RemoveAll(this);
 	}
 
 	if (!IsEngineExitRequested())
@@ -998,6 +1027,21 @@ void UPCGComponent::BeginDestroy()
 #endif
 
 	Super::BeginDestroy();
+}
+
+void UPCGComponent::PostInitProperties()
+{
+	// Don't initialize the graph instance for default objects and not for local components (since it will be overriden when generated).
+	if (!GraphInstance && !bIsComponentLocal && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		GraphInstance = NewObject<UPCGGraphInstance>(this, TEXT("PCGGraphInstance"), RF_Transactional | RF_Public);
+
+#if WITH_EDITOR
+		GraphInstance->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
+#endif // WITH_EDITOR
+	}
+
+	Super::PostInitProperties();
 }
 
 void UPCGComponent::OnRegister()
@@ -1028,7 +1072,7 @@ TStructOnScope<FActorComponentInstanceData> UPCGComponent::GetComponentInstanceD
 	return InstanceData;
 }
 
-void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType)
+void UPCGComponent::OnGraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType)
 {
 	const bool bIsStructural = ((ChangeType & (EPCGChangeType::Edge | EPCGChangeType::Structural)) != EPCGChangeType::None);
 	const bool bDirtyInputs = bIsStructural || ((ChangeType & EPCGChangeType::Input) != EPCGChangeType::None);
@@ -1036,12 +1080,14 @@ void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType
 	RefreshAfterGraphChanged(InGraph, bIsStructural, bDirtyInputs);
 }
 
-void UPCGComponent::RefreshAfterGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bDirtyInputs)
+void UPCGComponent::RefreshAfterGraphChanged(UPCGGraphInterface* InGraph, bool bIsStructural, bool bDirtyInputs)
 {
-	if (InGraph != Graph)
+	if (InGraph != GraphInstance)
 	{
 		return;
 	}
+
+	const bool bHasGraph = (InGraph && InGraph->GetGraph());
 
 #if WITH_EDITOR
 	// In editor, since we've changed the graph, we might have changed the tracked actor tags as well
@@ -1058,11 +1104,11 @@ void UPCGComponent::RefreshAfterGraphChanged(UPCGGraph* InGraph, bool bIsStructu
 		}
 
 		DirtyGenerated(bDirtyInputs ? (EPCGComponentDirtyFlag::Actor | EPCGComponentDirtyFlag::Landscape) : EPCGComponentDirtyFlag::None);
-		if (InGraph)
+		if (bHasGraph)
 		{
 			Refresh();
 		}
-		else if (!InGraph)
+		else
 		{
 			// With no graph, we clean up
 			CleanupLocal(/*bRemoveComponents=*/true, /*bSave=*/ false);
@@ -1074,11 +1120,11 @@ void UPCGComponent::RefreshAfterGraphChanged(UPCGGraph* InGraph, bool bIsStructu
 #endif
 
 	// Otherwise, if we are in PIE or runtime, force generate if we have a graph (and were generated). Or cleanup if we have no graph
-	if (InGraph && bGenerated)
+	if (bHasGraph && bGenerated)
 	{
 		GenerateLocal(/*bForce=*/true);
 	}
-	else if (!InGraph)
+	else if (!bHasGraph)
 	{
 		CleanupLocal(/*bRemoveComponents=*/true, /*bSave=*/ false);
 	}
@@ -1091,11 +1137,7 @@ void UPCGComponent::PreEditChange(FProperty* PropertyAboutToChange)
 	{
 		const FName PropName = PropertyAboutToChange->GetFName();
 
-		if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, Graph) && Graph)
-		{
-			Graph->OnGraphChangedDelegate.RemoveAll(this);
-		}
-		else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, ExcludedTags))
+		if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, ExcludedTags))
 		{
 			TeardownTrackingCallbacks();
 		}
@@ -1138,14 +1180,9 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			}
 		}
 	}
-	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, Graph))
+	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, GraphInstance))
 	{
-		if (Graph)
-		{
-			Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
-		}
-
-		RefreshAfterGraphChanged(Graph, /*bIsStructural=*/true, /*bDirtyInputs=*/true);
+		OnGraphChanged(GraphInstance, EPCGChangeType::Structural);
 	}
 	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, InputType))
 	{
@@ -1192,12 +1229,6 @@ void UPCGComponent::PreEditUndo()
 	// so we can have a consistent state
 	LastGeneratedBoundsPriorToUndo = LastGeneratedBounds;
 
-	// We don't know what is changing so remove all callbacks
-	if (Graph)
-	{
-		Graph->OnGraphChangedDelegate.RemoveAll(this);
-	}
-
 	if (bGenerated)
 	{
 		// Cleanup so managed resources are cleaned in all cases
@@ -1212,11 +1243,6 @@ void UPCGComponent::PreEditUndo()
 void UPCGComponent::PostEditUndo()
 {
 	LastGeneratedBounds = LastGeneratedBoundsPriorToUndo;
-
-	if (Graph)
-	{
-		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
-	}
 
 	SetupTrackingCallbacks();
 	RefreshTrackingData();
@@ -1245,9 +1271,9 @@ void UPCGComponent::TeardownActorCallbacks()
 void UPCGComponent::SetupTrackingCallbacks()
 {
 	CachedTrackedTagsToSettings.Reset();
-	if (Graph)
+	if (UPCGGraph* PCGGraph = GetGraph())
 	{
-		CachedTrackedTagsToSettings = Graph->GetTrackedTagsToSettings();
+		CachedTrackedTagsToSettings = PCGGraph->GetTrackedTagsToSettings();
 	}
 
 	if(!ExcludedTags.IsEmpty() || !CachedTrackedTagsToSettings.IsEmpty())
@@ -1321,7 +1347,7 @@ bool UPCGComponent::UpdateExcludedActor(AActor* InActor)
 
 bool UPCGComponent::ActorIsTracked(AActor* InActor) const
 {
-	if (!InActor || !Graph)
+	if (!InActor || !GetGraph())
 	{
 		return false;
 	}
@@ -1346,7 +1372,7 @@ void UPCGComponent::OnActorAdded(AActor* InActor)
 
 	if (bIsExcluded || bIsTracked)
 	{
-		DirtyGenerated(bIsExcluded ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None);
+		DirtyGenerated(bIsExcluded ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/ false);
 		Refresh();
 	}
 }
@@ -1358,7 +1384,7 @@ void UPCGComponent::OnActorDeleted(AActor* InActor)
 
 	if (bWasExcluded || bWasTracked)
 	{
-		DirtyGenerated(bWasExcluded ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None);
+		DirtyGenerated(bWasExcluded ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/ false);
 		Refresh();
 	}
 }
@@ -1396,7 +1422,7 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 
 		if (bDirtyAndRefresh)
 		{
-			DirtyGenerated(bDirtyExclusions ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None);
+			DirtyGenerated(bDirtyExclusions ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/true);
 			Refresh();
 		}
 	}
@@ -1492,7 +1518,7 @@ void UPCGComponent::OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandsc
 
 		if (DirtyFlag != EPCGComponentDirtyFlag::None)
 		{
-			DirtyGenerated(DirtyFlag);
+			DirtyGenerated(DirtyFlag, /*bDispatchToLocalComponents=*/ false);
 			Refresh();
 		}
 	}
@@ -1570,13 +1596,13 @@ void UPCGComponent::OnActorChanged(AActor* Actor, UObject* InObject, bool bActor
 
 		if (bDirtyAndRefresh)
 		{
-			DirtyGenerated();
+			DirtyGenerated(EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/ false);
 			Refresh();
 		}
 	}
 }
 
-void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag)
+void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag, const bool bDispatchToLocalComponents)
 {
 	if (GetSubsystem() && GetSubsystem()->IsGraphCacheDebuggingEnabled())
 	{
@@ -1628,11 +1654,9 @@ void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag)
 		CachedPCGData = nullptr;
 	}
 
-	// For partitioned graph, we must forward the call to the partition actor
-	// Note that we do not need to forward "normal" dirty as these will be picked up by the local PCG components
-	// However, input changes / moves of the partitioned object will not be caught
-	// It would be possible for partitioned actors to add callbacks to their original component, but that inverses the processing flow
-	if (DirtyFlag != EPCGComponentDirtyFlag::None && bActivated && IsPartitioned())
+	// For partitioned graph, we must forward the call to the partition actor, if we need to
+	// TODO: Don't forward for None for now, as it could break some stuff
+	if (DirtyFlag != EPCGComponentDirtyFlag::None && bActivated && IsPartitioned() && bDispatchToLocalComponents)
 	{
 		if (GetSubsystem())
 		{
@@ -1969,7 +1993,8 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 	else if (LandscapeActor)
 	{
 		UPCGLandscapeData* Data = NewObject<UPCGLandscapeData>();
-		const bool bUseLandscapeMetadata = (!Component || !Component->Graph || (Component->Graph && Component->Graph->bLandscapeUsesMetadata));
+		const UPCGGraph* PCGGraph = Component ? Component->GetGraph() : nullptr;
+		const bool bUseLandscapeMetadata = (!PCGGraph || PCGGraph->bLandscapeUsesMetadata);
 
 		Data->Initialize({ LandscapeActor }, PCGHelpers::GetGridBounds(Actor, Component), /*bHeightOnly=*/false, bUseLandscapeMetadata);
 
@@ -2193,7 +2218,8 @@ UPCGData* UPCGComponent::CreateLandscapePCGData(bool bHeightOnly)
 
 	// TODO: we're creating separate landscape data instances here so we can do some tweaks on it (such as storing the right target actor) but this probably should change
 	UPCGLandscapeData* LandscapeData = NewObject<UPCGLandscapeData>();
-	LandscapeData->Initialize(Landscapes, LandscapeBounds, bHeightOnly, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
+	const UPCGGraph* PCGGraph = GetGraph();
+	LandscapeData->Initialize(Landscapes, LandscapeBounds, bHeightOnly, /*bUseMetadata=*/PCGGraph && PCGGraph->bLandscapeUsesMetadata);
 	// Need to override target actor for this one, not the landscape
 	LandscapeData->TargetActor = Actor;
 
@@ -2262,7 +2288,8 @@ bool UPCGComponent::IsLandscapeCachedDataDirty(const UPCGData* Data) const
 
 	if (const UPCGLandscapeData* CachedData = Cast<UPCGLandscapeData>(Data))
 	{
-		IsCacheDirty = Graph && (CachedData->IsUsingMetadata() != Graph->bLandscapeUsesMetadata);
+		const UPCGGraph* PCGGraph = GetGraph();
+		IsCacheDirty = PCGGraph && (CachedData->IsUsingMetadata() != PCGGraph->bLandscapeUsesMetadata);
 	}
 
 	return IsCacheDirty;
@@ -2460,9 +2487,10 @@ void UPCGComponent::DirtyCacheForAllTrackedTags()
 
 bool UPCGComponent::GraphUsesLandscapePin() const
 {
-	return Graph &&
-		(Graph->GetInputNode()->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeLabel) ||
-		Graph->GetInputNode()->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeHeightLabel));
+	const UPCGGraph* PCGGraph = GetGraph();
+	return PCGGraph &&
+		(PCGGraph->GetInputNode()->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeLabel) ||
+		PCGGraph->GetInputNode()->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeHeightLabel));
 }
 
 #endif // WITH_EDITOR

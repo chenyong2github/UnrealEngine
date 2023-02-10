@@ -2,10 +2,12 @@
 
 #include "PCGGraph.h"
 
+#include "PCGComponent.h"
 #include "PCGInputOutputSettings.h"
 #include "PCGModule.h"
-#include "PCGSubsystem.h"
 #include "PCGPin.h"
+#include "PCGSubsystem.h"
+#include "PCGSubgraph.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGGraph)
 
@@ -14,6 +16,19 @@
 #else
 #include "UObject/Package.h"
 #endif
+
+/****************************
+* UPCGGraphInterface
+****************************/
+
+bool UPCGGraphInterface::IsInstance() const
+{
+	return this != GetGraph();
+}
+
+/****************************
+* UPCGGraph
+****************************/
 
 UPCGGraph::UPCGGraph(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -675,3 +690,141 @@ void UPCGGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 }
 #endif // WITH_EDITOR
 
+/****************************
+* UPCGGraphInstance
+****************************/
+
+void UPCGGraphInstance::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (Graph)
+	{
+		Graph->ConditionalPostLoad();
+		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+	}
+#endif // WITH_EDITOR
+}
+
+void UPCGGraphInstance::BeginDestroy()
+{
+#if WITH_EDITOR
+	if (Graph)
+	{
+		Graph->OnGraphChangedDelegate.RemoveAll(this);
+	}
+#endif // WITH_EDITOR
+
+	Super::BeginDestroy();
+}
+
+#if WITH_EDITOR
+void UPCGGraphInstance::PreEditChange(FProperty* InProperty)
+{
+	Super::PreEditChange(InProperty);
+
+	if (InProperty && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, Graph) && Graph)
+	{
+		Graph->OnGraphChangedDelegate.RemoveAll(this);
+	}
+}
+
+void UPCGGraphInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, Graph) && Graph)
+	{
+		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+	}
+}
+
+void UPCGGraphInstance::PreEditUndo()
+{
+	Super::PreEditUndo();
+
+	if (Graph)
+	{
+		Graph->OnGraphChangedDelegate.RemoveAll(this);
+	}
+
+	UndoRedoGraphCache = Graph;
+}
+
+void UPCGGraphInstance::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	if (Graph)
+	{
+		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+	}
+}
+
+void UPCGGraphInstance::OnGraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType)
+{
+	if (InGraph == Graph)
+	{
+		OnGraphChangedDelegate.Broadcast(this, ChangeType);
+	}
+}
+
+bool UPCGGraphInstance::CanEditChange(const FProperty* InProperty) const
+{
+	// Graph can only be changed if it is in a PCGComponent (not local) or a PCGSubgraphSettings
+	if (InProperty && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, Graph))
+	{
+		UObject* Outer = this->GetOuter();
+
+		if (UPCGComponent* Component = Cast<UPCGComponent>(Outer))
+		{
+			return !Component->IsLocalComponent();
+		}
+		else
+		{
+			return Outer && Outer->IsA<UPCGSubgraphSettings>();
+		}
+	}
+
+	return true;
+}
+#endif
+
+void UPCGGraphInstance::SetGraph(UPCGGraphInterface* InGraph)
+{
+	if (InGraph == this)
+	{
+		UE_LOG(LogPCG, Error, TEXT("Try to set the graph of a graph instance to itself, would cause infinite recursion."));
+		return;
+	}
+
+#if WITH_EDITOR
+	if (Graph)
+	{
+		Graph->OnGraphChangedDelegate.RemoveAll(this);
+	}
+#endif // WITH_EDITOR
+
+	Graph = InGraph;
+
+#if WITH_EDITOR
+	if (Graph)
+	{
+		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+	}
+#endif // WITH_EDITOR
+}
+
+TObjectPtr<UPCGGraphInterface> UPCGGraphInstance::CreateInstance(UObject* InOwner, UPCGGraphInterface* InGraph)
+{
+	if (!InOwner || !InGraph)
+	{
+		return nullptr;
+	}
+
+	TObjectPtr<UPCGGraphInstance> GraphInstance = NewObject<UPCGGraphInstance>(InOwner, MakeUniqueObjectName(InOwner, UPCGGraphInstance::StaticClass(), InGraph->GetFName()), RF_Transactional | RF_Public);
+	GraphInstance->SetGraph(InGraph);
+
+	return GraphInstance;
+}

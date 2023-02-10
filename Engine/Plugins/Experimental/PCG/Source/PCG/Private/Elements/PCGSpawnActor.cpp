@@ -2,12 +2,13 @@
 
 #include "Elements/PCGSpawnActor.h"
 
-#include "Data/PCGSpatialData.h"
 #include "PCGComponent.h"
+#include "PCGGraph.h"
 #include "PCGHelpers.h"
 #include "PCGManagedResource.h"
 
 #include "Data/PCGPointData.h"
+#include "Data/PCGSpatialData.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
@@ -131,7 +132,7 @@ FPCGElementPtr UPCGSpawnActorSettings::CreateElement() const
 	return MakeShared<FPCGSpawnActorElement>();
 }
 
-UPCGGraph* UPCGSpawnActorSettings::GetSubgraph() const
+UPCGGraphInterface* UPCGSpawnActorSettings::GetSubgraphInterface() const
 {
 	if(!TemplateActorClass || TemplateActorClass->HasAnyClassFlags(CLASS_Abstract))
 	{
@@ -150,9 +151,10 @@ UPCGGraph* UPCGSpawnActorSettings::GetSubgraph() const
 	{
 		if (UPCGComponent* PCGComponent = Cast<UPCGComponent>(Component))
 		{
+			// If there is no graph, there is no graph instance
 			if (PCGComponent->GetGraph() && PCGComponent->bActivated)
 			{
-				return PCGComponent->GetGraph();
+				return PCGComponent->GetGraphInstance();
 			}
 		}
 	}
@@ -221,10 +223,10 @@ bool UPCGSpawnActorSettings::IsStructuralProperty(const FName& InPropertyName) c
 }
 #endif // WITH_EDITOR
 
-TObjectPtr<UPCGGraph> UPCGSpawnActorNode::GetSubgraph() const
+TObjectPtr<UPCGGraphInterface> UPCGSpawnActorNode::GetSubgraphInterface() const
 {
 	TObjectPtr<UPCGSpawnActorSettings> Settings = Cast<UPCGSpawnActorSettings>(GetSettings());
-	return (Settings && Settings->Option != EPCGSpawnActorOption::NoMerging) ? Settings->GetSubgraph() : nullptr;
+	return (Settings && Settings->Option != EPCGSpawnActorOption::NoMerging) ? Settings->GetSubgraphInterface() : nullptr;
 }
 
 #if WITH_EDITOR

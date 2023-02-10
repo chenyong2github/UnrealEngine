@@ -16,6 +16,8 @@ class APCGPartitionActor;
 struct FPCGContext;
 class UPCGComponent;
 class UPCGGraph;
+class UPCGGraphInterface;
+class UPCGGraphInstance;
 class UPCGManagedResource;
 class UPCGData;
 class UPCGSubsystem;
@@ -69,9 +71,11 @@ class PCG_API UPCGComponent : public UActorComponent
 public:
 	/** ~Begin UObject interface */
 	virtual void PostLoad() override;
+	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 
 #if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditImport() override;
 #endif
 	/** ~End UObject interface */
@@ -99,7 +103,9 @@ public:
 
 	bool CanPartition() const;
 
-	UPCGGraph* GetGraph() const { return Graph; }
+	UPCGGraph* GetGraph() const;
+	UPCGGraphInstance* GetGraphInstance() const { return GraphInstance; }
+
 	void SetGraphLocal(UPCGGraph* InGraph);
 
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = PCG)
@@ -210,7 +216,10 @@ public:
 	void Refresh();
 	void OnRefresh();
 
-	void DirtyGenerated(EPCGComponentDirtyFlag DataToDirtyFlag = EPCGComponentDirtyFlag::None);
+	/** Dirty generated data depending on the flag. By default the call is forwarded to the local components.
+	    We don't forward if the local component has callbacks that would dirty them too.
+		For example: When a tracked actor move, we only want to dirty the impacted local components.*/
+	void DirtyGenerated(EPCGComponentDirtyFlag DataToDirtyFlag = EPCGComponentDirtyFlag::None, const bool bDispatchToLocalComponents = true);
 
 	/** Reset last generated bounds to force PCGPartitionActor creation on next refresh */
 	void ResetLastGeneratedBounds();
@@ -249,8 +258,13 @@ public:
 	static UPCGData* CreateActorPCGData(AActor* Actor, const UPCGComponent* Component, bool bParseActor = true);
 
 protected:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
-	TObjectPtr<UPCGGraph> Graph;
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Properties, Instanced, meta = (NoResetToDefault, ShowOnlyInnerProperties))
+	TObjectPtr<UPCGGraphInstance> GraphInstance;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TObjectPtr<UPCGGraph> Graph_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 	UPCGData* CreatePCGData();
@@ -286,8 +300,8 @@ private:
 
 	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds);
 
-	void RefreshAfterGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bDirtyInputs);
-	void OnGraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType);
+	void RefreshAfterGraphChanged(UPCGGraphInterface* InGraph, bool bIsStructural, bool bDirtyInputs);
+	void OnGraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType);
 
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
@@ -407,6 +421,14 @@ private:
 #endif
 
 	mutable FCriticalSection GeneratedResourcesLock;
+
+	// Graph instance
+private:
+	/** Will set the given graph interface into our owned graph instance. Must not be used on local components.*/
+	void SetGraphInterfaceLocal(UPCGGraphInterface* InGraphInterface);
+
+	/** Replace the graph instance by this one. Must only be used with local components.*/
+	void SetGraphInstanceFromParent(UPCGGraphInstance* InParentGraphInstance);
 
 #if WITH_EDITOR
 public:

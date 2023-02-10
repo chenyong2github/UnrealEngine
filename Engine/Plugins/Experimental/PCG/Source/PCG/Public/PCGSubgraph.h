@@ -3,9 +3,10 @@
 #pragma once
 
 #include "PCGContext.h"
+#include "PCGGraph.h"
 #include "PCGSettings.h"
 
-class UPCGGraph;
+#include "UObject/ObjectPtr.h"
 
 #include "PCGSubgraph.generated.h"
 
@@ -14,15 +15,17 @@ class PCG_API UPCGBaseSubgraphSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 public:
-	virtual UPCGGraph* GetSubgraph() const { return nullptr; }
+	UPCGGraph* GetSubgraph() const;
+	virtual UPCGGraphInterface* GetSubgraphInterface() const { return nullptr; }
 
 	// Use this method from the outside to set the subgraph, as it will connect editor callbacks
-	virtual void SetSubgraph(UPCGGraph* InGraph);
+	virtual void SetSubgraph(UPCGGraphInterface* InGraph);
 
 protected:
 	//~Begin UObject interface implementation
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
+	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -37,10 +40,10 @@ protected:
 	TArray<FPCGPinProperties> OutputPinProperties() const override;
 	//~End UPCGSettings interface
 
-	virtual void SetSubgraphInternal(UPCGGraph* InGraph) {}
+	virtual void SetSubgraphInternal(UPCGGraphInterface* InGraph) {}
 
 #if WITH_EDITOR
-	void OnSubgraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType);
+	void OnSubgraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType);
 #endif
 };
 
@@ -48,6 +51,14 @@ UCLASS(BlueprintType, ClassGroup=(Procedural))
 class PCG_API UPCGSubgraphSettings : public UPCGBaseSubgraphSettings
 {
 	GENERATED_BODY()
+
+public:
+	UPCGSubgraphSettings(const FObjectInitializer& InObjectInitializer);
+
+protected:
+	//~Begin UObject interface implementation
+	virtual void PostLoad() override;
+	//~End UObject interface implementation
 
 public:
 	//~UPCGSettings interface implementation
@@ -67,17 +78,22 @@ protected:
 
 	//~Begin UPCGBaseSubgraphSettings interface
 public:
-	virtual UPCGGraph* GetSubgraph() const override { return Subgraph; }
+	virtual UPCGGraphInterface* GetSubgraphInterface() const override { return SubgraphInstance.Get(); }
 protected:
-	virtual void SetSubgraphInternal(UPCGGraph* InGraph) override { Subgraph = InGraph; }
+	virtual void SetSubgraphInternal(UPCGGraphInterface* InGraph) override;
 #if WITH_EDITOR
 	virtual bool IsStructuralProperty(const FName& InPropertyName) const override;
 #endif
 	//~End UPCGBaseSubgraphSettings interface
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TObjectPtr<UPCGGraph> Subgraph;
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Properties, Instanced, meta = (NoResetToDefault, ShowOnlyInnerProperties))
+	TObjectPtr<UPCGGraphInstance> SubgraphInstance;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TObjectPtr<UPCGGraph> Subgraph_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 };
 
 UCLASS(Abstract)
@@ -89,7 +105,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bDynamicGraph = false;
 
-	virtual TObjectPtr<UPCGGraph> GetSubgraph() const { return nullptr; }
+	TObjectPtr<UPCGGraph> GetSubgraph() const;
+	virtual TObjectPtr<UPCGGraphInterface> GetSubgraphInterface() const { return nullptr; }
 };
 
 UCLASS(ClassGroup = (Procedural))
@@ -99,7 +116,7 @@ class PCG_API UPCGSubgraphNode : public UPCGBaseSubgraphNode
 
 public:
 	/** ~Begin UPCGBaseSubgraphNode interface */
-	virtual TObjectPtr<UPCGGraph> GetSubgraph() const override;
+	virtual TObjectPtr<UPCGGraphInterface> GetSubgraphInterface() const override;
 	/** ~End UPCGBaseSubgraphNode interface */
 };
 

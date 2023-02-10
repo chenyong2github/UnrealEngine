@@ -5,14 +5,32 @@
 #include "PCGNode.h"
 #include "PCGSettings.h"
 
+#include "UObject/ObjectPtr.h"
+
 #include "PCGGraph.generated.h"
 
 #if WITH_EDITOR
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGGraphChanged, UPCGGraph* /*Graph*/, EPCGChangeType /*ChangeType*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGGraphChanged, UPCGGraphInterface* /*Graph*/, EPCGChangeType /*ChangeType*/);
 #endif // WITH_EDITOR
 
+UCLASS(Abstract)
+class PCG_API UPCGGraphInterface : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual UPCGGraph* GetGraph() PURE_VIRTUAL(UPCGGraphInterface::GetGraph, return nullptr;)
+	virtual const UPCGGraph* GetGraph() const PURE_VIRTUAL(UPCGGraphInterface::GetGraph, return nullptr;)
+
+	bool IsInstance() const;
+
+#if WITH_EDITOR
+	FOnPCGGraphChanged OnGraphChangedDelegate;
+#endif // WITH_EDITOR
+};
+
 UCLASS(BlueprintType, ClassGroup = (Procedural), hidecategories=(Object))
-class PCG_API UPCGGraph : public UObject
+class PCG_API UPCGGraph : public UPCGGraphInterface
 {
 #if WITH_EDITOR
 	friend class FPCGEditor;
@@ -34,6 +52,11 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	/** ~End UObject interface */
+
+	/** ~Begin UPCGGraphInterface interface */
+	virtual UPCGGraph* GetGraph() override { return this; }
+	virtual const UPCGGraph* GetGraph() const override { return this; }
+	/** ~End UPCGGraphInterface interface */
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
@@ -123,10 +146,6 @@ public:
 	void GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const;
 #endif
 
-#if WITH_EDITOR
-	FOnPCGGraphChanged OnGraphChangedDelegate;
-#endif // WITH_EDITOR
-
 protected:
 	void OnNodeAdded(UPCGNode* InNode);
 	void OnNodeRemoved(UPCGNode* InNode);
@@ -158,6 +177,49 @@ private:
 	bool bIsNotifying = false;
 	bool bUserPausedNotificationsInGraphEditor = false;
 #endif // WITH_EDITOR
+};
+
+UCLASS(BlueprintType, ClassGroup = (Procedural), hidecategories = (Object))
+class PCG_API UPCGGraphInstance : public UPCGGraphInterface
+{
+	GENERATED_BODY()
+public:
+	/** ~Begin UPCGGraphInterface interface */
+	virtual UPCGGraph* GetGraph() override { return Graph ? Graph->GetGraph() : nullptr; }
+	virtual const UPCGGraph* GetGraph() const override { return Graph ? Graph->GetGraph() : nullptr; }
+	/** ~End UPCGGraphInterface interface */
+
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+
+#if WITH_EDITOR
+	virtual void PreEditChange(FProperty* InProperty) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
+#endif
+	// ~End UObject interface
+
+protected:
+#if WITH_EDITOR
+	void OnGraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType);
+#endif
+
+public:
+	static TObjectPtr<UPCGGraphInterface> CreateInstance(UObject* InOwner, UPCGGraphInterface* InGraph);
+
+	void SetGraph(UPCGGraphInterface* InGraph);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Instance)
+	TObjectPtr<UPCGGraphInterface> Graph;
+
+#if WITH_EDITORONLY_DATA
+private:
+	// Transient, to keep track the undo/redo changed the graph.
+	UPCGGraphInterface* UndoRedoGraphCache = nullptr;
+#endif // WITH_EDITORONLY_DATA
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

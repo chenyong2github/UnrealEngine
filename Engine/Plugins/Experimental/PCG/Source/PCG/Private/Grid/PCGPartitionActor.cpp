@@ -67,6 +67,7 @@ void APCGPartitionActor::PostLoad()
 	for (UPCGComponent* LocalComponent : GetAllLocalPCGComponents())
 	{
 		LocalComponent->MarkAsLocalComponent();
+		LocalComponent->ConditionalPostLoad();
 	}
 
 	bWasPostCreatedLoaded = true;

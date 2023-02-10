@@ -25,3 +25,23 @@ void FPCGGraphAssetTypeActions::OpenAssetEditor(const TArray<UObject*>& InObject
 		}
 	}
 }
+
+FText FPCGGraphInstanceAssetTypeActions::GetName() const
+{
+	return NSLOCTEXT("AssetTypeActions", "PCGGraphInstanceAssetTypeActions", "PCG Graph Instance");
+}
+
+UClass* FPCGGraphInstanceAssetTypeActions::GetSupportedClass() const
+{
+	return UPCGGraphInstance::StaticClass();
+}
+
+FText FPCGGraphInterfaceAssetTypeActions::GetName() const
+{
+	return NSLOCTEXT("AssetTypeActions", "PCGGraphInterfaceAssetTypeActions", "PCG Graph Interface");
+}
+
+UClass* FPCGGraphInterfaceAssetTypeActions::GetSupportedClass() const
+{
+	return UPCGGraphInterface::StaticClass();
+}
