@@ -19,6 +19,32 @@ uint32 FMetadataTrace::SaveStack()
 	return Id;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+FMetadataRestoreScope::FMetadataRestoreScope(uint32 SavedMetadataIdentifier)
+{
+	if (SavedMetadataIdentifier)
+	{
+		ActivateScope(SavedMetadataIdentifier);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+FMetadataRestoreScope::~FMetadataRestoreScope()
+{}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+void FMetadataRestoreScope::ActivateScope(uint32 InStackId)
+{
+	if (auto LogScope = FMetadataStackRestoreStackFields::LogScopeType::ScopedEnter<FMetadataStackRestoreStackFields>())
+	{
+		if (const auto& __restrict MemoryScope = *(FMetadataStackRestoreStackFields*)(&LogScope))
+		{
+			Inner.SetActive();
+			LogScope += LogScope << MemoryScope.Id(InStackId);
+		}
+	}
+}
+
 #endif // UE_TRACE_METADATA_ENABLED
 
 

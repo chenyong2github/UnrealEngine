@@ -54,29 +54,44 @@ namespace UE
 		UE_NONCOPYABLE(FInheritedContextScope);
 
 		friend class FInheritedContextBase; // allow construction only by `FInheritedContextBase`
-
+		
 		FInheritedContextScope(
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 			const FLLMActiveTagsCapture& InInheritedLLMTag
-	#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
+	#if UE_TRACE_ENABLED && (UE_MEMORY_TAGS_TRACE_ENABLED || UE_TRACE_METADATA_ENABLED)
 			,
 	#endif
 #endif
-#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
+#if (UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED)
 			int32 InInheritedMemTag
+	#if (UE_TRACE_METADATA_ENABLED && UE_TRACE_ENABLED)
+			,
+	#endif
+#endif
+#if (UE_TRACE_METADATA_ENABLED && UE_TRACE_ENABLED)
+			uint32 InInheritedMetadataId
 #endif
 		)
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 			: LLMScopes(InInheritedLLMTag)
-	#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
+	#if UE_TRACE_ENABLED && (UE_MEMORY_TAGS_TRACE_ENABLED || UE_TRACE_METADATA_ENABLED)
 			,
 	#endif
 #endif
-#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
+#if (UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED)
 	#if !ENABLE_LOW_LEVEL_MEM_TRACKER
 			:
 	#endif
 			MemScope(InInheritedMemTag)
+	#if (UE_TRACE_METADATA_ENABLED && UE_TRACE_ENABLED)
+			,
+	#endif
+#endif
+#if (UE_TRACE_METADATA_ENABLED && UE_TRACE_ENABLED)
+	#if !ENABLE_LOW_LEVEL_MEM_TRACKER && !(UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED)
+			:
+	#endif
+			MetaScope(InInheritedMetadataId)
 #endif
 		{
 		}
@@ -86,8 +101,12 @@ namespace UE
 		FLLMActiveTagsScope LLMScopes;
 #endif
 
-#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
+#if (UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED)
 		FMemScope MemScope;
+#endif
+
+#if (UE_TRACE_METADATA_ENABLED && UE_TRACE_ENABLED) 
+		FMetadataRestoreScope MetaScope;
 #endif
 	};
 
@@ -107,7 +126,7 @@ namespace UE
 			InheritedMemTag = MemoryTrace_GetActiveTag();
 #endif
 
-#if UE_TRACE_METADATA_ENABLED
+#if UE_TRACE_METADATA_ENABLED && UE_TRACE_ENABLED
 			InheritedMetadataId = UE_TRACE_METADATA_SAVE_STACK();
 #endif
 		}
@@ -124,7 +143,7 @@ namespace UE
 		int32 InheritedMemTag;
 #endif
 
-#if UE_TRACE_METADATA_ENABLED
+#if UE_TRACE_METADATA_ENABLED && UE_TRACE_ENABLED
 		uint32 InheritedMetadataId;
 #endif
 	};

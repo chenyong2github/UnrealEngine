@@ -73,12 +73,17 @@ public:
 	FMetadataTrace::SaveStack();
 
 /**
- * Restore a previously saved stack.
+ * A scope that restores a meta stack previously stored with UE_TRACE_METADATA_SAVE_STACK during it's lifetime.
  */
-#define UE_TRACE_METADATA_RESTORE_STACK(InId) \
-	UE_TRACE_LOG_SCOPED(MetadataStack, RestoreStack, MetadataChannel) \
-		<< RestoreStack.Id(InId);
-
+class FMetadataRestoreScope
+{
+public:
+	CORE_API FMetadataRestoreScope(uint32 SavedMetadataIdentifier);
+	CORE_API ~FMetadataRestoreScope();;
+private:
+	void ActivateScope(uint32 InStackId);
+	UE::Trace::Private::FScopedLogScope Inner;
+};
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #else
