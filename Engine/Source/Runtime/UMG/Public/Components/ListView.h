@@ -34,7 +34,8 @@ public:
 	UListView(const FObjectInitializer& Initializer);
 
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	
+	virtual void PostLoad() override;
+
 	/** Set the list of items to display within this listview */
 	template <typename ItemObjectT, typename AllocatorType = FDefaultAllocator>
 	void SetListItems(const TArray<ItemObjectT, AllocatorType>& InListItems)
@@ -197,9 +198,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView)
 	bool bIsFocusable = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView, meta = (ClampMin = 0))
-	float EntrySpacing = 0.f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView)
 	bool bReturnFocusToSelection = false;
 
@@ -207,6 +205,35 @@ protected:
 	TArray<TObjectPtr<UObject>> ListItems;
 
 	TSharedPtr<SListView<UObject*>> MyListView;
+
+#if WITH_EDITORONLY_DATA
+	/**
+	 * This deprecated property was originally BlueprintReadOnly. To satisfy the compiler requirment to have a BlueprintGetter for this property, 
+	 * it relies on the newly added UFunction GetHorizontalEntrySpacing() to act as its BlueprintGetter.
+	 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "EntrySpacing has been deprecated. Please use HorizontalEntrySpacing and VerticalEntrySpacing."), BlueprintReadOnly, BlueprintGetter = "GetHorizontalEntrySpacing", Category = ListView, meta = (ClampMin = 0))
+	float EntrySpacing_DEPRECATED = 0.f;
+#endif  // WITH_EDITOR
+
+private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = ListView, meta = (ClampMin = 0, AllowPrivateAccess = "true"))
+	float HorizontalEntrySpacing = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = ListView, meta = (ClampMin = 0, AllowPrivateAccess = "true"))
+	float VerticalEntrySpacing = 0.f;
+
+public:
+	/** Get the horizontal spacing between entries. */
+	UFUNCTION(BlueprintCallable, Category = ListView)
+	float GetHorizontalEntrySpacing() const { return HorizontalEntrySpacing; }
+
+	/** Get the vertical spacing between entries. */
+	UFUNCTION(BlueprintCallable, Category = ListView)
+	float GetVerticalEntrySpacing() const { return VerticalEntrySpacing; }
+
+protected:
+	void InitHorizontalEntrySpacing(float InHorizontalEntrySpacing);
+	void InitVerticalEntrySpacing(float InVerticalEntrySpacing);
 
 private:
 	// BP exposure of ITypedUMGListView API

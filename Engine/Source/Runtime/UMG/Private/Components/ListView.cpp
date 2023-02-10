@@ -330,12 +330,12 @@ FMargin UListView::GetDesiredEntryPadding(UObject* Item) const
 		if (Orientation == EOrientation::Orient_Horizontal)
 		{
 			// For all entries after the first one, add the spacing as left padding
-			return FMargin(EntrySpacing, 0.f, 0.0f, 0.f);
+			return FMargin(HorizontalEntrySpacing, 0.f, 0.0f, 0.f);
 		}
 		else
 		{
 			// For all entries after the first one, add the spacing as top padding
-			return FMargin(0.f, EntrySpacing, 0.f, 0.f);
+			return FMargin(0.f, VerticalEntrySpacing, 0.f, 0.f);
 		}
 	}
 
@@ -377,6 +377,35 @@ void UListView::OnListViewScrolledInternal(float ItemOffset, float DistanceRemai
 	BP_OnListViewScrolled.Broadcast(ItemOffset, DistanceRemaining);
 }
 
+void UListView::InitHorizontalEntrySpacing(float InHorizontalEntrySpacing)
+{
+	ensureMsgf(!MyListView.IsValid(), TEXT("The SWidget is already created."));
+	HorizontalEntrySpacing = InHorizontalEntrySpacing;
+}
+
+void UListView::InitVerticalEntrySpacing(float InVerticalEntrySpacing)
+{
+	ensureMsgf(!MyListView.IsValid(), TEXT("The SWidget is already created."));
+	VerticalEntrySpacing = InVerticalEntrySpacing;
+}
+
+void UListView::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+		if (EntrySpacing_DEPRECATED != 0.f)
+		{
+			HorizontalEntrySpacing = EntrySpacing_DEPRECATED;
+			VerticalEntrySpacing = EntrySpacing_DEPRECATED;
+			EntrySpacing_DEPRECATED = 0.f;
+		}
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITOR
+}
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

@@ -55,16 +55,34 @@ protected:
 		Args.ConsumeMouseWheel = ConsumeMouseWheel;
 		Args.bReturnFocusToSelection = bReturnFocusToSelection;
 		Args.TileAlignment = TileAlignment;
-		Args.EntryHeight = EntryHeight;
-		Args.EntryWidth = EntryWidth;
 		Args.bWrapDirectionalNavigation = bWrapHorizontalNavigation;
 		Args.Orientation = Orientation;
 		Args.ScrollBarStyle = &ScrollBarStyle;
+
+		if (IsAligned() && !bEntrySizeIncludesEntrySpacing)
+		{
+			// This tells the underlying ListView to expect entries with the final width/height equal to EntryWidth/EntryHeight + spacing
+			// It allows the entry widget to always occupy the entire EntryWidth/EntryHeight.
+			Args.EntryWidth = GetHorizontalEntrySpacing();
+			Args.EntryHeight = GetVerticalEntrySpacing();
+		}
+		else
+		{
+			// This tells the underlying ListView to expect entries with the final width/height equal to EntryWidth/EntryHeight.
+			// It forces the entry widget size to adjust so that the summation of entry widget width/height and spacing does not exceed EntryWidth/EntryHeight.
+			Args.EntryWidth = EntryWidth;
+			Args.EntryHeight = EntryHeight;
+		}
 
 		MyListView = MyTileView = ITypedUMGListView<UObject*>::ConstructTileView<TileViewT>(this, ListItems, Args);
 		MyTileView->SetOnEntryInitialized(SListView<UObject*>::FOnEntryInitialized::CreateUObject(this, &UTileView::HandleOnEntryInitializedInternal));
 		return StaticCastSharedRef<TileViewT<UObject*>>(MyTileView.ToSharedRef());
 	}
+
+private:
+	/** Returns whether the TileView is left, right or center aligned. */
+	UFUNCTION()
+	bool IsAligned() const;
 
 protected:
 	/** The height of each tile */
@@ -84,4 +102,12 @@ protected:
 	bool bWrapHorizontalNavigation = false;
 
 	TSharedPtr<STileView<UObject*>> MyTileView;
+
+private:
+	/**
+	 * True if entry dimensions should be the sum of the entry widget dimensions and the spacing.
+	 * This means the size of the entry widget will be adjusted so that the summation of the widget size and entry spacing always equals entry size.
+	 */
+	UPROPERTY(EditAnywhere, Category = ListEntries, meta = (EditCondition = "IsAligned"))
+	bool bEntrySizeIncludesEntrySpacing = true;
 };

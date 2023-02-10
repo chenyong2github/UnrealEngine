@@ -19,7 +19,8 @@ UCommonListView::UCommonListView(const FObjectInitializer& ObjectInitializer)
 
 void UCommonListView::SetEntrySpacing(float InEntrySpacing)
 {
-	EntrySpacing = InEntrySpacing;
+	InitHorizontalEntrySpacing(InEntrySpacing);
+	InitVerticalEntrySpacing(InEntrySpacing);
 }
 
 #if WITH_EDITOR
