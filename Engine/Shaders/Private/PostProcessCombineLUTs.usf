@@ -135,12 +135,7 @@ float OutputMaxLuminance;
 
 uint GetOutputDevice()
 {
-#if FEATURE_LEVEL > FEATURE_LEVEL_ES3_1
 	return OutputDevice;
-#else
-	// Only sRGB output for Mobile
-	return 0;
-#endif 
 }
 
 float BlueCorrection;
