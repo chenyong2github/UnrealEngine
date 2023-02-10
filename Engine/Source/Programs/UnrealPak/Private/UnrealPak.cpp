@@ -20,6 +20,11 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	UE_LOG(LogPakFile, Display, TEXT("UnrealPak executed in %f seconds"), FPlatformTime::Seconds() - StartTime);
 
+	if (FParse::Param(FCommandLine::Get(), TEXT("fastexit")))
+	{
+		FPlatformMisc::RequestExitWithStatus(true, Result);
+	}
+
 	GLog->Flush();
 
 	RequestEngineExit(TEXT("UnrealPak Exiting"));

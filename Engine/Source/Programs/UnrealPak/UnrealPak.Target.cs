@@ -12,25 +12,34 @@ public class UnrealPakTarget : TargetRules
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "UnrealPak";
 
-		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
-		bCompileWithPluginSupport = true;
-		bIncludePluginsForTargetPlatforms = true;
+		bUseXGEController					= false;
+		bCompileFreeType					= false;
+		bLoggingToMemoryEnabled				= false;
+		bUseLoggingInShipping				= true;
+		bCompileWithAccessibilitySupport	= false;
+		bCompileWithPluginSupport			= true;
+		bIncludePluginsForTargetPlatforms	= true;
+		bWithServerCode						= false;
+		bCompileNavmeshClusterLinks			= false;
+		bCompileNavmeshSegmentLinks			= false;
+		bCompileRecast						= false;
+		bCompileICU 						= false;
+		bWithLiveCoding						= false;
+		bBuildDeveloperTools				= false;
+		bUseMallocProfiler					= false;
+		bBuildWithEditorOnlyData			= true;
+		bCompileAgainstEngine				= false;
+		bCompileAgainstCoreUObject			= true;
+		bCompileAgainstApplicationCore		= true;
+		bUsesSlate							= false;
+		bIsBuildingConsoleApplication		= true;
 
-		// Editor-only data, however, is needed
-		bBuildWithEditorOnlyData = true;
-
-		// Currently this app uses AssetRegistry and CoreUObject, but not Engine
-		bCompileAgainstEngine = false;
-		bCompileAgainstCoreUObject = true;
-
-		// ICU is not needed
-		bCompileICU = false;
-
-		// UnrealPak is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
-		bCompileAgainstApplicationCore = true;
-		bIsBuildingConsoleApplication = true;
+		WindowsPlatform.bUseBundledDbgHelp = false;
+		WindowsPlatform.bPixProfilingEnabled = false;
+		WindowsPlatform.bMergeIdenticalCOMDATs = true;
+		WindowsPlatform.bStripUnreferencedSymbols = true;
 
 		GlobalDefinitions.Add("UE_TRACE_ENABLED=1");
+		GlobalDefinitions.Add("UE_EXTERNAL_PROFILING_ENABLED=0");
 	}
 }
