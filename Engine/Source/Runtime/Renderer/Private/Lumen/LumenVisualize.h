@@ -12,6 +12,7 @@ class FScene;
 class FSceneTextureParameters;
 class FViewInfo;
 class FLumenCardTracingInputs;
+class FLumenCardTracingParameters;
 class FLumenIndirectTracingParameters;
 
 struct FLumenSceneFrameTemporaries;

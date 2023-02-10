@@ -26,6 +26,7 @@
 #include "Widgets/SMediaSourceEditorDetails.h"
 #include "UObject/Package.h"
 
+#include "PostProcess/SceneFilterRendering.h" // Renderer/Private
 
 #define LOCTEXT_NAMESPACE "FMediaSourceEditorToolkit"
 
