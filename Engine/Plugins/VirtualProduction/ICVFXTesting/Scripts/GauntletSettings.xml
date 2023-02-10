@@ -15,15 +15,12 @@
 
 	<!-- Hack solution to set target test list for BuildAndTest.xml -->
 	<Do If="'$(EditorTestList)' == ''">
-		<!-- <Property Name="EditorTestList" Value="CitySampleTest.AutoTest+" If="$(WithEditorAutoTest)" />
-		<Property Name="EditorTestList" Value="$(EditorTestList)UE.EditorAutomation(RunTest=Project.)+" If="$(WithEditorAutomationAll)" />
-		<Property Name="EditorTestList" Value="$(EditorTestList)UE.EditorAutomation(RunTest=Project.Maps.PIE)" If="!$(WithEditorAutomationAll) and $(WithEditorAutomationPIETest)" />-->
-		<Property Name="TargetTestList" Value="$(EditorTestList)$(ProjectTestName).MemoryReport+" If="$(WithMemoryReportTest)" />
-		<Property Name="EditorTestList" Value="$(EditorTestList)$(ProjectTestName).PerformanceReport+" If="$(WithPerformanceReportTest)" />
-		<Property Name="EditorTestList" Value="$(EditorTestList)$(ProjectTestName).PerformanceReport_MGPU+" If="$(WithPerformanceReportTest)" />
-		<Property Name="EditorTestList" Value="$(EditorTestList)$(ProjectTestName).PerformanceReport_Nanite+" If="$(WithPerformanceReportTest)" />
-		<Property Name="EditorTestList" Value="$(EditorTestList)$(ProjectTestName).PerformanceReport_NaniteLumen+" If="$(WithPerformanceReportTest)" />
-		<Property Name="EditorTestList" Value="$(EditorTestList)$(ProjectTestName).PerformanceReport_Vulkan+" If="$(WithPerformanceReportTest)" />
+		<Property Name="TargetTestList" Value="$(EditorTestList)ICVFXTest.MemoryReport+" If="$(WithMemoryReportTest)" />
+		<Property Name="EditorTestList" Value="$(EditorTestList)ICVFXTest.PerformanceReport+" If="$(WithPerformanceReportTest)" />
+		<Property Name="EditorTestList" Value="$(EditorTestList)ICVFXTest.PerformanceReport_MGPU+" If="$(WithPerformanceReportTest)" />
+		<Property Name="EditorTestList" Value="$(EditorTestList)ICVFXTest.PerformanceReport_Nanite+" If="$(WithPerformanceReportTest)" />
+		<Property Name="EditorTestList" Value="$(EditorTestList)ICVFXTest.PerformanceReport_NaniteLumen+" If="$(WithPerformanceReportTest)" />
+		<Property Name="EditorTestList" Value="$(EditorTestList)ICVFXTest.PerformanceReport_Vulkan+" If="$(WithPerformanceReportTest)" />
 	</Do>
 
 	<!-- How long to give Gauntlet before a test is considered timed out (some tests will time out earlier if they detect inactivity)-->
@@ -43,7 +40,7 @@
 	<Option Name="WithD3DDebug" Restrict="true|false" DefaultValue="false" Description="Whether to add d3ddebug command line argument."/>
 	<Option Name="WithGPUCrashDebugging" Restrict="true|false" DefaultValue="false" Description="Whether to add gpucrashdebugging  command line argument."/>
 	<Option Name="MaxGPUCount" DefaultValue="1" Description="Number of GPUs to use for the test."/>
-	<Option Name="MaxRunCount" DefaultValue="2" Description="Number of iterations to do."/>
+	<Option Name="MaxRunCount" DefaultValue="1" Description="Number of iterations to do."/>
 	<Option Name="WithRDGImmediate" Restrict="true|false" DefaultValue="false" Description="Whether to run with -rdgimmediate"/>
 	<Option Name="WithNoRHIThread" Restrict="true|false" DefaultValue="false" Description="Whether to run with -norhithread"/>
 	<Option Name="WithVirtualShadowMaps" Restrict="true|false" DefaultValue="true" Description="Whether to use virtual shadow maps"/>
@@ -55,7 +52,7 @@
 	<!-- Automation uses its own network output directory -->
 	<Property Name="AutomationNetworkRootDir" Value="\\epicgames.net\root\Builds\Automation\Reports\$(ProjectName)Perf"/>
 	<Property Name="AutomationNetworkRootDir" Value="/Volumes/Builds/Automation/Reports/$(ProjectName)Perf" If="'$(HostPlatform)' != 'Win64'"/>
-	<Property Name="AutomationLocalOutputDir" Value="$(RootDir)/LocalBuilds/Reports"/>
+	<Property Name="AutomationLocalOutputDir" Value="$(RootDir)/LocalBuilds/Reports/$(ProjectName)Perf"/>
 
 	<!-- Outputs for this run keeping slashes flipped the right way because it shows up on the webapp this way -->
 	<Property Name="AutomationNetworkOutputDir" Value="$(AutomationNetworkRootDir)\$(BuildName)"/>
@@ -66,33 +63,30 @@
 	<Property Name="SummaryReportPath" Value="$(AutomationLocalOutputDir)"/>
 	<Property Name="SummaryReportPath" Value="$(AutomationNetworkRootDir)" If="$(IsBuildMachine)"/>
 	
+	<Property Name="ReportCacheDirRoot" Value="$(AutomationLocalOutputDir)/PerfCache" />
 	
 	<Property Name="TestOutputDir" Value="$(AutomationOutputDir)/$(ProjectName)$(Platform)$(ProjectName)Perf"/>
 	<Property Name="LogOutputParams" Value="-logdir=&quot;$(TestOutputDir)&quot;"/>
-	<!-- <Property Name="ReportParams" Value="-WriteTestResultsForHorde -HordeTestDataKey=&quot;$(NodeName)&quot;"/> -->
-	<!--<Property Name="ReportParams" Value="-WriteTestResultsForHorde"/>-->
-	<!--<Property Name="ArtifactName" Value="$(Phase)$(IterationSuffix)$(TestNameSuffix)"/>-->
-	<!--<Property Name="AllGauntletArgs" Value="-Project=$(Project) -Platform=$(Platform) $(GauntletArgs) $(ReportParams) $(LogOutputParams) -artifactname=&quot;$(ArtifactName)&quot;"/>-->
-	<!--<Property Name="AllGauntletArgs" Value="$(LogOutputParams)"/>-->
 	
 		
-	<Property Name="ExtraGauntletCommonArgs" Value="-screenshotperiod=30 -$(ProjectTestName).StatCommands -$(ProjectTestName).MaxRunCount=$(MaxRunCount) $(LogOutputParams)" />
+	<Property Name="ExtraGauntletCommonArgs" Value="-screenshotperiod=30 -ICVFXTest.StatCommands -ICVFXTest.MaxRunCount=$(MaxRunCount) $(LogOutputParams)" />
 	<Property Name="ExtraGauntletEditorTestArgs" Value="-game" />
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).MapOverride=$(MapOverride) -$(ProjectTestName).DisplayConfig=$(DisplayConfigPath) -$(ProjectTestName).ViewportScreenPercentage=$(ViewportScreenPercentage)" />
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).DisplayClusterNodeName=$(DisplayClusterNodeName)" />
 	
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).D3DDebug" If="$(WithD3DDebug)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).GPUCrashDebugging" If="$(WithGPUCrashDebugging)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).Nanite=$(WithNanite)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).Lumen=$(WithLumen)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).MaxGPUCount=$(MaxGPUCount)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).SummaryReportPath=$(SummaryReportPath)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).RDGImmediate" If="$(WithRDGImmediate)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).NoRHIThread" If="$(WithNoRHIThread)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).DisableVirtualShadowMaps" If="!$(WithVirtualShadowMaps)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).EnableTrace" If="$(WithTrace)"/>
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -$(ProjectTestName).TraceRootFolder=$(TestOutputDir)/$(BuildName)" If="$(WithTrace)"/>
-	
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.TestName=$(ProjectTestName)" />
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.MapOverride=$(MapOverride) -ICVFXTest.DisplayConfig=$(DisplayConfigPath) -ICVFXTest.ViewportScreenPercentage=$(ViewportScreenPercentage)" />
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.DisplayClusterNodeName=$(DisplayClusterNodeName)" />
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.D3DDebug" If="$(WithD3DDebug)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.GPUCrashDebugging" If="$(WithGPUCrashDebugging)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.Nanite=$(WithNanite)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.Lumen=$(WithLumen)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.MaxGPUCount=$(MaxGPUCount)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.SummaryReportPath=$(SummaryReportPath)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.RDGImmediate" If="$(WithRDGImmediate)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.NoRHIThread" If="$(WithNoRHIThread)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.DisableVirtualShadowMaps" If="!$(WithVirtualShadowMaps)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.EnableTrace" If="$(WithTrace)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.TraceRootFolder=$(TestOutputDir)/$(BuildName)" If="$(WithTrace)"/>
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.PerfCacheFolder=$(ReportCacheDirRoot)"/>
 	
 	<!-- Common Gauntlet settings -->
 	<Include Script="../../../../../Engine/Build/Graph/Tasks/Inc/GauntletSettings.xml" />
