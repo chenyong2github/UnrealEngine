@@ -19,7 +19,6 @@ namespace UnrealBuildTool.Rules
 					"GameplayTags",
 					"DataRegistry",
 					"GameplayTagsEditor",
-					"AssetManagerEditor",
 					"DataTableEditor",
 					"InputCore",
 					"PropertyEditor",

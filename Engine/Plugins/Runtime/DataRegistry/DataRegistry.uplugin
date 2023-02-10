@@ -31,11 +31,6 @@
 		{
 			"Name": "GameplayTagsEditor",
 			"Enabled": true
-		},
-		{
-			"Name": "AssetManagerEditor",
-			"Enabled": true
 		}
 	]
-
 }
