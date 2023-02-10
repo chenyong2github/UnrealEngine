@@ -10,18 +10,6 @@
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
 
-namespace UE::VCamCore::Private
-{
-	static EInputConsumptionRule DetermineInputConsumptionRule(UInputVCamSubsystem& Subsystem, bool bShouldGamepadConsumeAlways)
-	{
-		return Subsystem.GetWorld()->IsGameWorld()
-			// Normal gameplay behaviour
-		   ? EInputConsumptionRule::ConsumeIfUsed
-			// Editor should not consume all input ever. At most gamepads.
-		   : bShouldGamepadConsumeAlways ? EInputConsumptionRule::ConsumeOnlyGamepadIfUsed : EInputConsumptionRule::DoNotConsume;
-	}
-}
-
 void UInputVCamSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -37,7 +25,7 @@ void UInputVCamSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		// whereas probably expected by gameplay code.
 		using namespace UE::VCamCore::Private;
 		constexpr bool bDefaultShouldConsumeGamepads = false;
-		InputPreprocessor = MakeShared<FVCamInputProcessor>(*this, DetermineInputConsumptionRule(*this, bDefaultShouldConsumeGamepads));
+		InputPreprocessor = MakeShared<FVCamInputProcessor>(*this, EInputConsumptionRule::DoNotConsume);
 		FSlateApplication::Get().RegisterInputPreProcessor(InputPreprocessor, 0);	
 	}
 }
@@ -124,7 +112,7 @@ void UInputVCamSubsystem::SetInputSettings(const FVCamInputDeviceConfig& Input)
 
 	const bool bShouldConsumeGamepad = Input.GamepadInputMode == EVCamGamepadInputMode::IgnoreAndConsume;
 	InputPreprocessor->SetInputConsumptionRule(
-		UE::VCamCore::Private::DetermineInputConsumptionRule(*this, bShouldConsumeGamepad)
+		bShouldConsumeGamepad ? UE::VCamCore::Private::EInputConsumptionRule::ConsumeOnlyGamepadIfUsed : UE::VCamCore::Private::EInputConsumptionRule::DoNotConsume
 		);
 }
 

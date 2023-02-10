@@ -26,7 +26,7 @@ enum class EVCamInputLoggingMode : uint8
 UENUM()
 enum class EVCamInputMode : uint8
 {
-	/** Input is forwarded to input action. */
+	/** Input is forwarded to input action but not consumed. */
 	Allow,
 	/** Input is not forwarded to input actions. */
 	Ignore
@@ -35,7 +35,7 @@ enum class EVCamInputMode : uint8
 UENUM()
 enum class EVCamGamepadInputMode : uint8
 {
-	/** Input is forwarded to input action. */
+	/** Input is forwarded to input action but not consumed. */
 	Allow,
 	/** Input is not forwarded to input actions. */
 	Ignore,

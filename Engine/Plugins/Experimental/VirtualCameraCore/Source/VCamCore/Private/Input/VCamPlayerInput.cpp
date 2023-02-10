@@ -60,14 +60,27 @@ namespace UE::VCamCore::Private
 	}
 }
 
+static TAutoConsoleVariable<bool> CVarSkipMouseAxisInput(
+	TEXT("VCam.SkipMouseAxisInput"),
+	false,
+	TEXT("Whether VCam input should skip processing mouse axis events. This is useful for setting break points in UVCamPlayerInput::InputKey, which would get spammed by mouse axis events otherwise."),
+	ECVF_Default
+	);
+
 bool UVCamPlayerInput::InputKey(const FInputKeyParams& Params)
 {
+	const bool bIsMouseAxis = Params.Key == EKeys::MouseX || Params.Key == EKeys::MouseY || Params.Key == EKeys::Mouse2D;
+	if (bIsMouseAxis && CVarSkipMouseAxisInput.GetValueOnGameThread())
+	{
+		return false;
+	}
+	
 	const bool bIsKeyboard = !Params.IsGamepad() && !Params.Key.IsAnalog() && !Params.Key.IsMouseButton() && !Params.Key.IsTouch()
 		// Keyboard is always mapped to 0
 		&& Params.InputDevice.GetId() == 0;
 	const bool bCanCheckAllowList = Params.InputDevice != INPUTDEVICEID_NONE && !bIsKeyboard;
 	
-	const bool bSkipGamepad = Params.IsGamepad() && (InputDeviceSettings.GamepadInputMode != EVCamGamepadInputMode::Allow);
+	const bool bSkipGamepad = Params.IsGamepad() && InputDeviceSettings.GamepadInputMode != EVCamGamepadInputMode::Allow;
 	const bool bSkipMouse = InputDeviceSettings.MouseInputMode == EVCamInputMode::Ignore && Params.Key.IsMouseButton();
 	const bool bSkipKeyboard = InputDeviceSettings.KeyboardInputMode == EVCamInputMode::Ignore && bIsKeyboard;
 	const bool bSkipNonAllowListed = bCanCheckAllowList && !InputDeviceSettings.AllowedInputDeviceIds.Contains(Params.InputDevice.GetId());
@@ -79,8 +92,8 @@ bool UVCamPlayerInput::InputKey(const FInputKeyParams& Params)
 		return Super::InputKey(Params);
 	}
 
-	const bool bSkippedGamepad = bSkipGamepad && InputDeviceSettings.GamepadInputMode == EVCamGamepadInputMode::IgnoreAndConsume;
-	return bSkippedGamepad;
+	const bool bConsumeGamepad = Params.IsGamepad() && InputDeviceSettings.GamepadInputMode == EVCamGamepadInputMode::IgnoreAndConsume;
+	return bConsumeGamepad;
 }
 
 void UVCamPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
