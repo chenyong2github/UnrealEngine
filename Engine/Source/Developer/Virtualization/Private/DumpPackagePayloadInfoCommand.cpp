@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
-#include "Misc/PackagePath.h"
-#include "UObject/PackageTrailer.h"
 #include "Misc/PackageName.h"
-#include "HAL/FileManager.h"
-
+#include "Misc/PackagePath.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/PackageResourceManager.h"
+#include "UObject/PackageTrailer.h"
 
 namespace UE
 {
