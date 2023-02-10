@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -28,7 +25,7 @@ namespace UnrealGameSync
 
 		public ModalTask(Task task)
 		{
-			this.Task = task;
+			Task = task;
 		}
 
 		public string Error
@@ -58,8 +55,12 @@ namespace UnrealGameSync
 
 		public static ModalTask? Execute(IWin32Window? owner, string title, string message, Func<CancellationToken, Task> taskFunc, ModalTaskFlags flags = ModalTaskFlags.None)
 		{
-			Func<CancellationToken, Task<int>> typedTaskFunc = async x => { await taskFunc(x); return 0; };
-			return Execute(owner, title, message, typedTaskFunc, flags);
+			async Task<int> TypedTaskFunc(CancellationToken cancellationToken)
+			{
+				await taskFunc(cancellationToken);
+				return 0;
+			}
+			return Execute(owner, title, message, TypedTaskFunc, flags);
 		}
 
 		public static ModalTask<T>? Execute<T>(IWin32Window? owner, string title, string message, Func<CancellationToken, Task<T>> taskFunc, ModalTaskFlags flags = ModalTaskFlags.None)

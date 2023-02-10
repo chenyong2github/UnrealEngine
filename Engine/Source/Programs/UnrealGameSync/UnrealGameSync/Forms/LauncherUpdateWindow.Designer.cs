@@ -56,7 +56,6 @@ namespace UnrealGameSync.Forms
             this.UpdateNowBtn.TabIndex = 1;
             this.UpdateNowBtn.Text = "Update Now";
             this.UpdateNowBtn.UseVisualStyleBackColor = true;
-            this.UpdateNowBtn.Click += new System.EventHandler(this.button1_Click);
             // 
             // LaterBtn
             // 

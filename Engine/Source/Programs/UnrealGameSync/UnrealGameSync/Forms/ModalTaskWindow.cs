@@ -1,13 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -16,8 +9,8 @@ namespace UnrealGameSync
 {
 	partial class ModalTaskWindow : Form
 	{
-		Task _task;
-		CancellationTokenSource _cancellationSource;
+		readonly Task _task;
+		readonly CancellationTokenSource _cancellationSource;
 
 		public ModalTaskWindow(string inTitle, string inMessage, FormStartPosition inStartPosition, Task inTask, CancellationTokenSource inCancellationSource)//, Func<CancellationToken, Task> InTaskFunc)
 		{

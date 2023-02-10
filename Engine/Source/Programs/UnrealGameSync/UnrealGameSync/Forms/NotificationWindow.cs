@@ -1,16 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 
 namespace UnrealGameSync
 {
@@ -135,11 +128,8 @@ namespace UnrealGameSync
 		{
 			base.OnFontChanged(e);
 
-			if(_captionFont != null)
-			{
-				_captionFont.Dispose();
-			}
-			_captionFont = new Font(this.Font.Name, this.Font.Size * (12.0f / 9.0f), FontStyle.Regular);
+			_captionFont?.Dispose();
+			_captionFont = new Font(Font.Name, Font.Size * (12.0f / 9.0f), FontStyle.Regular);
 
 			CalculateBounds();
 			Invalidate();

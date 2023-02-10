@@ -1,16 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 
 namespace UnrealGameSync
 {
@@ -20,8 +13,12 @@ namespace UnrealGameSync
 
 		public Image? Image
 		{
-			get { return _imageValue; }
-			set { _imageValue = value; Invalidate(); }
+			get => _imageValue;
+			set 
+			{ 
+				_imageValue = value; 
+				Invalidate(); 
+			}
 		}
 
 		public AlertImageControl()

@@ -3,7 +3,6 @@
 using EpicGames.Core;
 using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -50,11 +49,11 @@ namespace UnrealGameSyncLauncher
 				GlobalPerforceSettings.ReadGlobalPerforceSettings(ref serverAndPort, ref userName, ref depotPath, ref preview);
 
 				// If the shift key is held down, immediately show the settings window
-				SettingsWindow.SyncAndRunDelegate syncAndRunWrapper = (perforce, depotParam, previewParam, logWriter, cancellationToken) => SyncAndRun(perforce, depotParam, previewParam, args, instanceMutex, logWriter, cancellationToken);
+				Task SyncAndRunWrapper(IPerforceConnection perforce, string? depotPath, bool preview, ILogger logWriter, CancellationToken cancellationToken) => SyncAndRun(perforce, depotPath, preview, args, instanceMutex, logWriter, cancellationToken);
 				if ((Control.ModifierKeys & Keys.Shift) != 0)
 				{
 					// Show the settings window immediately
-					SettingsWindow updateError = new SettingsWindow(null, null, serverAndPort, userName, depotPath, preview, syncAndRunWrapper);
+					SettingsWindow updateError = new SettingsWindow(null, null, serverAndPort, userName, depotPath, preview, SyncAndRunWrapper);
 					if(updateError.ShowDialog() == DialogResult.OK)
 					{
 						return 0;
@@ -77,7 +76,7 @@ namespace UnrealGameSyncLauncher
 						return 0;
 					}
 
-					SettingsWindow updateError = new SettingsWindow("Unable to update UnrealGameSync from Perforce. Verify that your connection settings are correct.", logger.Render(Environment.NewLine), serverAndPort, userName, depotPath, preview, syncAndRunWrapper);
+					SettingsWindow updateError = new SettingsWindow("Unable to update UnrealGameSync from Perforce. Verify that your connection settings are correct.", logger.Render(Environment.NewLine), serverAndPort, userName, depotPath, preview, SyncAndRunWrapper);
 					if(updateError.ShowDialog() == DialogResult.OK)
 					{
 						return 0;
@@ -310,7 +309,7 @@ namespace UnrealGameSyncLauncher
 				DirectoryInfo directory = new DirectoryInfo(directoryName);
 				foreach(FileInfo childFile in directory.EnumerateFiles("*", SearchOption.AllDirectories))
 				{
-					childFile.Attributes = childFile.Attributes & ~FileAttributes.ReadOnly;
+					childFile.Attributes &= ~FileAttributes.ReadOnly;
 					childFile.Delete();
 				}
 				foreach(DirectoryInfo childDirectory in directory.EnumerateDirectories())

@@ -2,14 +2,12 @@
 
 using EpicGames.Core;
 using EpicGames.Perforce;
-using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -36,20 +34,17 @@ namespace UnrealGameSync
 		public string DepotPath { get; }
 		public string? Target { get; }
 
-		public string BasePath
-		{
-			get { return DepotPath; }
-		}
+		public string BasePath => DepotPath;
 
 		// TODO: executable/configuration?
 		public SortedList<int, string> ChangeNumberToFileRevision = new SortedList<int, string>();
 
 		public PerforceArchiveInfo(string name, string type, string depotPath, string? target)
 		{
-			this.Name = name;
-			this.Type = type;
-			this.DepotPath = depotPath;
-			this.Target = target;
+			Name = name;
+			Type = type;
+			DepotPath = depotPath;
+			Target = target;
 		}
 
 		public override bool Equals(object? other)
@@ -188,7 +183,7 @@ namespace UnrealGameSync
 									if (tokens[0].StartsWith("[CL") && tokens[1].EndsWith("]"))
 									{
 										int originalChangeNumber;
-										if (int.TryParse(tokens[1].Substring(0, tokens[1].Length - 1), out originalChangeNumber) && !newArchive.ChangeNumberToFileRevision.ContainsKey(originalChangeNumber))
+										if (Int32.TryParse(tokens[1].Substring(0, tokens[1].Length - 1), out originalChangeNumber) && !newArchive.ChangeNumberToFileRevision.ContainsKey(originalChangeNumber))
 										{
 											newArchive.ChangeNumberToFileRevision[originalChangeNumber] = $"{newArchive.DepotPath}#{revision.RevisionNumber}";
 										}

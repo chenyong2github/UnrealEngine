@@ -1,21 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using Microsoft.Win32;
-using System.Reflection;
-using System.Threading;
-using System.Collections.Specialized;
-using System.Web;
-using System.Linq;
 using System.Diagnostics;
-using System.Windows.Forms;
-using System.Configuration;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
-using System.Text;
-using System.Security;
 using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealGameSync
@@ -26,6 +15,8 @@ namespace UnrealGameSync
 		const uint CredTypeDomainPassword = 2;
 		const uint CredPersistLocalMachine = 2;
 
+#pragma warning disable IDE0044
+#pragma warning disable IDE1006
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
 		struct CredentialAttribute
 		{
@@ -51,6 +42,8 @@ namespace UnrealGameSync
 			public string? TargetAlias;
 			public string? UserName;
 		}
+#pragma warning restore IDE0044
+#pragma warning restore IDE1006
 
 		[DllImport("Advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
 		static extern bool CredRead(string target, uint type, int reservedFlag, out IntPtr buffer);

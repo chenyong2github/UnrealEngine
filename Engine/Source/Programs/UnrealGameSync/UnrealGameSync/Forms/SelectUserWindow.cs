@@ -5,13 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -31,14 +25,14 @@ namespace UnrealGameSync
 		}
 
 		private int _selectedUserIndex;
-		private List<UsersRecord> _users;
+		private readonly List<UsersRecord> _users;
 		
 		private SelectUserWindow(List<UsersRecord> users, int selectedUserIndex)
 		{
 			InitializeComponent();
 
-			this._selectedUserIndex = selectedUserIndex;
-			this._users = users;
+			_selectedUserIndex = selectedUserIndex;
+			_users = users;
 
 			PopulateList();
 			UpdateOkButton();

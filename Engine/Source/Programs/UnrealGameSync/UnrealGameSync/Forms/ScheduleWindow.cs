@@ -2,22 +2,16 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Drawing;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
 	partial class ScheduleWindow : Form
 	{
-
-		Dictionary<UserSelectedProjectSettings, List<LatestChangeType>> _projectToLatestChangeTypes;
+		readonly Dictionary<UserSelectedProjectSettings, List<LatestChangeType>> _projectToLatestChangeTypes;
 
 		public ScheduleWindow(
 			bool inEnabled,
@@ -69,7 +63,7 @@ namespace UnrealGameSync
 					menuItem.Name = changeType.Name;
 					menuItem.Text = changeType.Description;
 					menuItem.Size = new System.Drawing.Size(189, 22);
-					menuItem.Click += (sender, e) => SyncTypeDropDown_Click(sender, e, changeType.Name);
+					menuItem.Click += (sender, e) => SyncTypeDropDown_Click(changeType.Name);
 
 					SyncTypeDropDown.Items.Add(menuItem);
 				}
@@ -98,7 +92,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void SyncTypeDropDown_Click(object? sender, EventArgs e, string syncTypeId)
+		private void SyncTypeDropDown_Click(string syncTypeId)
 		{
 			UserSelectedProjectSettings? projectSetting = ProjectListBox.Items[ProjectListBox.SelectedIndex] as UserSelectedProjectSettings;
 			if (projectSetting != null)

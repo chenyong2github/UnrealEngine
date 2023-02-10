@@ -3,25 +3,19 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
 	partial class IssueSettingsWindow : Form
 	{
-		UserSettings _settings;
-		ILogger _logger;
+		readonly UserSettings _settings;
+		readonly ILogger _logger;
 
 		public IssueSettingsWindow(UserSettings settings, string currentProject, ILogger logger)
 		{
-			this._settings = settings;
-			this._logger = logger;
+			_settings = settings;
+			_logger = logger;
 
 			InitializeComponent();
 
@@ -112,7 +106,7 @@ namespace UnrealGameSync
 			if(NotifyUnresolvedCheckBox.Checked)
 			{
 				ushort newNotifyUnresolvedMinutesValue;
-				if(!ushort.TryParse(NotifyUnresolvedTextBox.Text, out newNotifyUnresolvedMinutesValue))
+				if(!UInt16.TryParse(NotifyUnresolvedTextBox.Text, out newNotifyUnresolvedMinutesValue))
 				{
 					MessageBox.Show("Invalid time");
 					return;
@@ -124,7 +118,7 @@ namespace UnrealGameSync
 			if (NotifyUnacknowledgedCheckBox.Checked)
 			{
 				ushort newNotifyUnacknowledgedMinutesValue;
-				if (!ushort.TryParse(NotifyUnacknowledgedTextBox.Text, out newNotifyUnacknowledgedMinutesValue))
+				if (!UInt16.TryParse(NotifyUnacknowledgedTextBox.Text, out newNotifyUnacknowledgedMinutesValue))
 				{
 					MessageBox.Show("Invalid time");
 					return;
@@ -136,7 +130,7 @@ namespace UnrealGameSync
 			if(NotifyUnassignedCheckBox.Checked)
 			{
 				ushort newNotifyUnassignedMinutesValue;
-				if(!ushort.TryParse(NotifyUnassignedTextBox.Text, out newNotifyUnassignedMinutesValue))
+				if(!UInt16.TryParse(NotifyUnassignedTextBox.Text, out newNotifyUnassignedMinutesValue))
 				{
 					MessageBox.Show("Invalid time");
 					return;

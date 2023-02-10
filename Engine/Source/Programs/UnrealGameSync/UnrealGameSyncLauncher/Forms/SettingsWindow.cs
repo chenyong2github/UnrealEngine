@@ -4,14 +4,7 @@ using EpicGames.Core;
 using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -29,7 +22,7 @@ namespace UnrealGameSyncLauncher
 		const int EmSetcuebanner = 0x1501;
 
 		string? _logText;
-		SyncAndRunDelegate _syncAndRun;
+		readonly SyncAndRunDelegate _syncAndRun;
 
 		public SettingsWindow(string? prompt, string? logText, string? serverAndPort, string? userName, string? depotPath, bool preview, SyncAndRunDelegate syncAndRun)
 		{
@@ -37,15 +30,15 @@ namespace UnrealGameSyncLauncher
 
 			if(prompt != null)
 			{
-				this.PromptLabel.Text = prompt;
+				PromptLabel.Text = prompt;
 			}
 
-			this._logText = logText;
-			this.ServerTextBox.Text = serverAndPort ?? String.Empty;
-			this.UserNameTextBox.Text = userName ?? String.Empty;
-			this.DepotPathTextBox.Text = depotPath ?? String.Empty;
-			this.UsePreviewBuildCheckBox.Checked = preview;
-			this._syncAndRun = syncAndRun;
+			_logText = logText;
+			ServerTextBox.Text = serverAndPort ?? String.Empty;
+			UserNameTextBox.Text = userName ?? String.Empty;
+			DepotPathTextBox.Text = depotPath ?? String.Empty;
+			UsePreviewBuildCheckBox.Checked = preview;
+			_syncAndRun = syncAndRun;
 
 			ViewLogBtn.Visible = logText != null;
 		}

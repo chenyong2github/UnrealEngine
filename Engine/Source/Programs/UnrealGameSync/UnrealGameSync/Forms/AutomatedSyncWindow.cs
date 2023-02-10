@@ -5,13 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -53,15 +50,15 @@ namespace UnrealGameSync
 
 		class ValidateWorkspaceTask
 		{
-			public string WorkspaceName;
-			public string StreamName;
-			public bool RequiresStreamSwitch;
-			public bool HasOpenFiles;
+			public string WorkspaceName { get; }
+			public string StreamName { get; }
+			public bool RequiresStreamSwitch { get; private set; }
+			public bool HasOpenFiles { get; private set; }
 
 			public ValidateWorkspaceTask(string workspaceName, string streamName)
 			{
-				this.WorkspaceName = workspaceName;
-				this.StreamName = streamName;
+				WorkspaceName = workspaceName;
+				StreamName = streamName;
 			}
 
 			public async Task RunAsync(IPerforceConnection perforce, CancellationToken cancellationToken)
@@ -88,26 +85,26 @@ namespace UnrealGameSync
 
 			public WorkspaceInfo(string serverAndPort, string userName, string workspaceName, bool requiresStreamSwitch)
 			{
-				this.ServerAndPort = serverAndPort;
-				this.UserName = userName;
-				this.WorkspaceName = workspaceName;
-				this.RequiresStreamSwitch = requiresStreamSwitch;
+				ServerAndPort = serverAndPort;
+				UserName = userName;
+				WorkspaceName = workspaceName;
+				RequiresStreamSwitch = requiresStreamSwitch;
 			}
 		}
 
-		string _streamName;
-		IServiceProvider _serviceProvider;
+		readonly string _streamName;
+		readonly IServiceProvider _serviceProvider;
 
 		string? _serverAndPortOverride;
 		string? _userNameOverride;
-		IPerforceSettings _defaultPerforceSettings;
+		readonly IPerforceSettings _defaultPerforceSettings;
 		WorkspaceInfo? _selectedWorkspaceInfo;
 
 		private AutomatedSyncWindow(string streamName, string projectPath, string? workspaceName, IPerforceSettings defaultPerforceSettings, IServiceProvider serviceProvider)
 		{
-			this._streamName = streamName;
-			this._defaultPerforceSettings = defaultPerforceSettings;
-			this._serviceProvider = serviceProvider;
+			_streamName = streamName;
+			_defaultPerforceSettings = defaultPerforceSettings;
+			_serviceProvider = serviceProvider;
 
 			InitializeComponent();
 

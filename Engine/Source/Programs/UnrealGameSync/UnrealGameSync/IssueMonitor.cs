@@ -1,22 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EnvDTE;
 using EpicGames.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Security.Policy;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-
-using Thread = System.Threading.Thread;
 
 #nullable enable
 
@@ -136,33 +130,33 @@ namespace UnrealGameSync
 
 	class IssueMonitor : IDisposable
 	{
-		public readonly string? ApiUrl;
-		public readonly string UserName;
+		public string? ApiUrl { get; }
+		public string UserName { get; }
 		int _refCount = 1;
 		Task? _workerTask;
-		ILogger _logger;
-		CancellationTokenSource _cancellationSource;
-		AsyncEvent _refreshEvent;
+		readonly ILogger _logger;
+		readonly CancellationTokenSource _cancellationSource;
+		readonly AsyncEvent _refreshEvent;
 		int _updateIntervalMs;
-		List<long> _trackingIssueIds = new List<long>();
+		readonly List<long> _trackingIssueIds = new List<long>();
 		List<IssueData> _issues = new List<IssueData>();
-		object _lockObject = new object();
-		List<IssueUpdateData> _pendingUpdates = new List<IssueUpdateData>();
-		IAsyncDisposer _asyncDisposer;
+		readonly object _lockObject = new object();
+		readonly List<IssueUpdateData> _pendingUpdates = new List<IssueUpdateData>();
+		readonly IAsyncDisposer _asyncDisposer;
 
 		public Action? OnIssuesChanged { get; set; }
 
 		// Only used by MainWindow, but easier to just store here
-		public Dictionary<long, IssueAlertReason> IssueIdToAlertReason = new Dictionary<long, IssueAlertReason>();
+		public Dictionary<long, IssueAlertReason> IssueIdToAlertReason { get; } = new Dictionary<long, IssueAlertReason>();
 
 		public IssueMonitor(string? apiUrl, string userName, TimeSpan updateInterval, IServiceProvider serviceProvider)
 		{
-			this.ApiUrl = apiUrl;
-			this.UserName = userName;
-			this._updateIntervalMs = (int)updateInterval.TotalMilliseconds;
-			this._logger = serviceProvider.GetRequiredService<ILogger<IssueMonitor>>();
+			ApiUrl = apiUrl;
+			UserName = userName;
+			_updateIntervalMs = (int)updateInterval.TotalMilliseconds;
+			_logger = serviceProvider.GetRequiredService<ILogger<IssueMonitor>>();
 			_cancellationSource = new CancellationTokenSource();
-			this._asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
+			_asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
 
 			if (apiUrl == null)
 			{
@@ -170,7 +164,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				_logger.LogInformation("Using connection string: {ApiUrl}", this.ApiUrl);
+				_logger.LogInformation("Using connection string: {ApiUrl}", ApiUrl);
 			}
 
 			_refreshEvent = new AsyncEvent();
@@ -347,7 +341,10 @@ namespace UnrealGameSync
 				{
 					if (await SendUpdateAsync(pendingUpdate, cancellationToken))
 					{
-						lock (_lockObject) { _pendingUpdates.RemoveAt(0); }
+						lock (_lockObject)
+						{ 
+							_pendingUpdates.RemoveAt(0);
+						}
 					}
 					else
 					{
@@ -449,10 +446,7 @@ namespace UnrealGameSync
 				// Update the main thread
 				if(initialNumIssues > 0 || _issues.Count > 0)
 				{
-					if(OnIssuesChanged != null)
-					{
-						OnIssuesChanged();
-					}
+					OnIssuesChanged?.Invoke();
 				}
 
 				// Update the stats

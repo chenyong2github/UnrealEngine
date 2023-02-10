@@ -8,13 +8,13 @@ namespace UnrealGameSync
 {
 	partial class PerforceSyncSettingsWindow : Form
 	{
-		UserSettings _settings;
-		ILogger _logger;
+		readonly UserSettings _settings;
+		readonly ILogger _logger;
 
 		public PerforceSyncSettingsWindow(UserSettings settings, ILogger logger)
 		{
-			this._settings = settings;
-			this._logger = logger;
+			_settings = settings;
+			_logger = logger;
 
 			InitializeComponent();
 		}
@@ -51,7 +51,6 @@ namespace UnrealGameSync
 
 		private void ResetButton_Click(object sender, EventArgs e)
 		{
-			PerforceSyncOptions syncOptions = _settings.SyncOptions;
 			numericUpDownMaxCommandsPerBatch.Value = PerforceSyncOptions.DefaultMaxCommandsPerBatch;
 			numericUpDownMaxSizePerBatch.Value = PerforceSyncOptions.DefaultMaxSizePerBatch / 1024 / 1024;
 			numericUpDownRetriesOnSyncError.Value = PerforceSyncOptions.DefaultNumSyncErrorRetries;

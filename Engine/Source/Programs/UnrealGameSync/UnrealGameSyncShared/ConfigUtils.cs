@@ -9,8 +9,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -249,7 +247,7 @@ namespace UnrealGameSync
 			if (TryGetProjectSetting(projectConfig, projectInfo.ProjectIdentifier, "UseSharedEditor", out setting))
 			{
 				bool value;
-				if (bool.TryParse(setting, out value))
+				if (Boolean.TryParse(setting, out value))
 				{
 					return value;
 				}

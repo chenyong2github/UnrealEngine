@@ -10,7 +10,6 @@ using System.Web;
 using System.Linq;
 using System.Diagnostics;
 using System.Windows.Forms;
-using System.Configuration;
 using System.IO;
 using Microsoft.Extensions.Logging;
 
@@ -41,7 +40,7 @@ namespace UnrealGameSync
 				// Check if this is a registered uri request
 				if (!Handlers.TryGetValue(uri.Host, out MethodInfo? info))
 				{
-					return new UriResult() { Error = string.Format("Unknown Uri {0}", uri.Host) };
+					return new UriResult() { Error = String.Format("Unknown Uri {0}", uri.Host) };
 				}
 
 				NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
@@ -56,7 +55,7 @@ namespace UnrealGameSync
 					{
 						if (!param.HasDefaultValue)
 						{
-							return new UriResult() { Error = string.Format("Uri {0} is missing required parameter {1}", uri.Host, param.Name) };
+							return new UriResult() { Error = String.Format("Uri {0} is missing required parameter {1}", uri.Host, param.Name) };
 						}
 
 						parameters.Add(param.DefaultValue!);
@@ -79,24 +78,24 @@ namespace UnrealGameSync
 						}
 						else
 						{
-							return new UriResult() { Error = string.Format("Uri {0} bool parameter {1} must be true or false", uri.Host, param.Name) };
+							return new UriResult() { Error = String.Format("Uri {0} bool parameter {1} must be true or false", uri.Host, param.Name) };
 						}
 					}
 					else if (param.ParameterType == typeof(int))
 					{
 						int numberValue;
-						if (!int.TryParse(value, out numberValue))
+						if (!Int32.TryParse(value, out numberValue))
 						{
-							return new UriResult() { Error = string.Format("Uri {0} invalid integer parameter {1} : {2}", uri.Host, param.Name, value) };
+							return new UriResult() { Error = String.Format("Uri {0} invalid integer parameter {1} : {2}", uri.Host, param.Name, value) };
 						}
 						parameters.Add(numberValue);
 					}
 					else if (param.ParameterType == typeof(float))
 					{
 						float numberValue;
-						if (!float.TryParse(value, out numberValue))
+						if (!Single.TryParse(value, out numberValue))
 						{
-							return new UriResult() { Error = string.Format("Uri {0} invalid number parameter {1} : {2}", uri.Host, param.Name, value) };
+							return new UriResult() { Error = String.Format("Uri {0} invalid number parameter {1} : {2}", uri.Host, param.Name, value) };
 						}
 						parameters.Add(numberValue);
 					}
@@ -145,7 +144,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				string uriIn = string.Empty;
+				string uriIn = String.Empty;
 				for (int idx = 0; idx < args.Length; idx++)
 				{
 					const string prefix = "-uri=";
@@ -155,7 +154,7 @@ namespace UnrealGameSync
 					}
 				}
 
-				if (uriIn == string.Empty)
+				if (uriIn == String.Empty)
 				{
 					return false;
 				}
@@ -208,7 +207,6 @@ namespace UnrealGameSync
 			}
 		}
 
-
 		static UriHandler()
 		{
 			foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
@@ -218,17 +216,17 @@ namespace UnrealGameSync
 				{
 					if (!methodInfo.IsStatic)
 					{
-						throw new Exception(string.Format("UriHandler method {0} must be static", methodInfo.Name));
+						throw new Exception(String.Format("UriHandler method {0} must be static", methodInfo.Name));
 					}
 
 					if (methodInfo.ReturnType != typeof(UriResult))
 					{
-						throw new Exception(string.Format("UriHandler method {0} must return UriResult type", methodInfo.Name));
+						throw new Exception(String.Format("UriHandler method {0} must return UriResult type", methodInfo.Name));
 					}
 
 					if (Handlers.ContainsKey(methodInfo.Name))
 					{
-						throw new Exception(string.Format("UriHandler method {0} clashes with another handler", methodInfo.Name));
+						throw new Exception(String.Format("UriHandler method {0} clashes with another handler", methodInfo.Name));
 					}
 
 					foreach (ParameterInfo parameterInfo in methodInfo.GetParameters())
@@ -236,7 +234,7 @@ namespace UnrealGameSync
 						Type parameterType = parameterInfo.ParameterType;
 						if (parameterType != typeof(bool) && parameterType != typeof(string) && parameterType != typeof(float) && parameterType != typeof(int))
 						{
-							throw new Exception(string.Format("UriHandler method parameter {0} must be bool, string, int, or float", parameterInfo.Name));
+							throw new Exception(String.Format("UriHandler method parameter {0} must be bool, string, int, or float", parameterInfo.Name));
 						}
 					}
 
@@ -258,11 +256,11 @@ namespace UnrealGameSync
 	[AttributeUsage(AttributeTargets.Method)]
 	class UriHandlerAttribute : Attribute
 	{
-		public bool Terminate;
+		public bool Terminate { get; set; }
 
 		public UriHandlerAttribute(bool terminate = false)
 		{
-			this.Terminate = terminate;			
+			Terminate = terminate;			
 		}
 	}
 
@@ -288,17 +286,14 @@ namespace UnrealGameSync
 
 			public RegistrySetting(RegistryKey rootKey, string keyName, string? valueName, string value)
 			{
-				this.RootKey = rootKey;
-				this.KeyName = keyName;
-				this.ValueName = valueName;
-				this.Value = value;
+				RootKey = rootKey;
+				KeyName = keyName;
+				ValueName = valueName;
+				Value = value;
 			}
 		}
 
-		public static string CurrentProcessFilePath
-		{
-			get { return Path.ChangeExtension(Path.GetFullPath(Process.GetCurrentProcess().MainModule!.FileName!), ".exe"); }
-		}
+		public static string CurrentProcessFilePath => Path.ChangeExtension(Path.GetFullPath(Process.GetCurrentProcess().MainModule!.FileName!), ".exe");
 
 		static List<RegistrySetting> GetGlobalRegistrySettings()
 		{
@@ -441,6 +436,3 @@ namespace UnrealGameSync
 		}
 	}
 }
-
-
-

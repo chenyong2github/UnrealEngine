@@ -3,16 +3,12 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Web;
@@ -64,8 +60,8 @@ namespace UnrealGameSync
 		/// </summary>
 		public EpicTelemetrySink(string url, ILogger logger)
 		{
-			this._url = url;
-			this._logger = logger;
+			_url = url;
+			_logger = logger;
 
 			logger.LogInformation("Posting to URL: {Url}", url);
 

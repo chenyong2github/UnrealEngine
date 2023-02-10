@@ -1,19 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
 	class ActivationListener : IDisposable
 	{
 		Thread? _backgroundThread;
-		EventWaitHandle _activateEventHandle;
-		EventWaitHandle _quitEventHandle;
+		readonly EventWaitHandle _activateEventHandle;
+		readonly EventWaitHandle _quitEventHandle;
 
 		public event Action? OnActivate;
 

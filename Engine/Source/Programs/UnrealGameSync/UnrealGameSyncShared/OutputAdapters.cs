@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 #nullable enable
 
@@ -15,8 +11,8 @@ namespace UnrealGameSync
 {
 	class PrefixedTextWriter : ILogger
 	{
-		string _prefix;
-		ILogger _inner;
+		readonly string _prefix;
+		readonly ILogger _inner;
 
 		public PrefixedTextWriter(string inPrefix, ILogger inInner)
 		{
@@ -37,7 +33,7 @@ namespace UnrealGameSync
 	public class ProgressValue
 	{
 		Tuple<string, float> _state = null!;
-		Stack<Tuple<float, float>> _ranges = new Stack<Tuple<float,float>>();
+		readonly Stack<Tuple<float, float>> _ranges = new Stack<Tuple<float,float>>();
 
 		public ProgressValue()
 		{
@@ -52,10 +48,7 @@ namespace UnrealGameSync
 			_ranges.Push(new Tuple<float, float>(0.0f, 1.0f));
 		}
 
-		public Tuple<string, float> Current
-		{
-			get { return _state; }
-		}
+		public Tuple<string, float> Current => _state;
 
 		public void Set(string message)
 		{
@@ -251,7 +244,7 @@ namespace UnrealGameSync
 			if(tokenIdx + 2 <= tokens.Count && tokens[tokenIdx + 1] == "%")
 			{
 				int numerator;
-				if(int.TryParse(tokens[tokenIdx], out numerator))
+				if(Int32.TryParse(tokens[tokenIdx], out numerator))
 				{
 					fraction = (float)numerator / 100.0f;
 					tokenIdx += 2;
@@ -263,7 +256,7 @@ namespace UnrealGameSync
 			if(tokenIdx + 3 <= tokens.Count && tokens[tokenIdx + 1] == "/")
 			{
 				int numerator, denominator;
-				if(int.TryParse(tokens[tokenIdx], out numerator) && int.TryParse(tokens[tokenIdx + 2], out denominator))
+				if(Int32.TryParse(tokens[tokenIdx], out numerator) && Int32.TryParse(tokens[tokenIdx + 2], out denominator))
 				{
 					fraction = (float)numerator / (float)denominator;
 					tokenIdx += 3;

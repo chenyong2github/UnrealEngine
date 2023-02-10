@@ -1,48 +1,39 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Perforce;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
 	partial class ConnectWindow : Form
 	{
-		IPerforceSettings _defaultPerforceSettings;
+		readonly IPerforceSettings _defaultPerforceSettings;
 		string? _serverAndPortOverride;
 		string? _userNameOverride;
-		IServiceProvider _serviceProvider;
+		readonly IServiceProvider _serviceProvider;
 
 		private ConnectWindow(IPerforceSettings defaultPerforceSettings, string? serverAndPortOverride, string? userNameOverride, IServiceProvider serviceProvider)
 		{
 			InitializeComponent();
 
-			this._defaultPerforceSettings = defaultPerforceSettings;
-			this._serviceProvider = serviceProvider;
+			_defaultPerforceSettings = defaultPerforceSettings;
+			_serviceProvider = serviceProvider;
 
 			if(!String.IsNullOrWhiteSpace(serverAndPortOverride))
 			{
-				this._serverAndPortOverride = serverAndPortOverride.Trim();
+				_serverAndPortOverride = serverAndPortOverride.Trim();
 			}
 			if(!String.IsNullOrEmpty(userNameOverride))
 			{
-				this._userNameOverride = userNameOverride.Trim();
+				_userNameOverride = userNameOverride.Trim();
 			}
 
 			ServerAndPortTextBox.CueBanner = defaultPerforceSettings.ServerAndPort;
-			ServerAndPortTextBox.Text = this._serverAndPortOverride ?? defaultPerforceSettings.ServerAndPort;
+			ServerAndPortTextBox.Text = _serverAndPortOverride ?? defaultPerforceSettings.ServerAndPort;
 			UserNameTextBox.CueBanner = defaultPerforceSettings.UserName;
-			UserNameTextBox.Text = this._userNameOverride ?? defaultPerforceSettings.UserName;
-			UseDefaultConnectionSettings.Checked = this._serverAndPortOverride == null && this._userNameOverride == null;
+			UserNameTextBox.Text = _userNameOverride ?? defaultPerforceSettings.UserName;
+			UseDefaultConnectionSettings.Checked = _serverAndPortOverride == null && _userNameOverride == null;
 
 			UpdateEnabledControls();
 		}

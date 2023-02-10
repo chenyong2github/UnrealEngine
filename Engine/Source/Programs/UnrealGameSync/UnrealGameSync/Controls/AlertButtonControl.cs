@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 
 namespace UnrealGameSync
 {
@@ -77,14 +71,22 @@ namespace UnrealGameSync
 
 		public AlertButtonTheme Theme
 		{
-			get { return _themeValue; }
-			set { _themeValue = value; UpdateThemeColors(); }
+			get => _themeValue;
+			set 
+			{ 
+				_themeValue = value; 
+				UpdateThemeColors(); 
+			}
 		}
 
 		public AlertButtonColors CustomColors
 		{
-			get { return _customColorsValue; }
-			set { _customColorsValue = value; UpdateThemeColors(); }
+			get => _customColorsValue;
+			set 
+			{ 
+				_customColorsValue = value; 
+				UpdateThemeColors();
+			}
 		}
 
 		public AlertButtonControl()

@@ -3,10 +3,6 @@
 using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -19,7 +15,7 @@ namespace UnrealGameSync
 
 		public PerforceLoginException(PerforceResponse<LoginRecord> response) : base($"Login failed: {response}")
 		{
-			this.Response = response;
+			Response = response;
 		}
 	}
 
@@ -27,8 +23,13 @@ namespace UnrealGameSync
 	{
 		public static ModalTask? Execute(IWin32Window? owner, string title, string message, IPerforceSettings perforceSettings, Func<IPerforceConnection, CancellationToken, Task> executeAsync, ILogger logger, ModalTaskFlags flags = ModalTaskFlags.None)
 		{
-			Func<IPerforceConnection, CancellationToken, Task<int>> executeTypedAsync = async (p, c) => { await executeAsync(p, c); return 0; };
-			return Execute(owner, title, message, perforceSettings, executeTypedAsync, logger, flags);
+			async Task<int> ExecuteTypedAsync(IPerforceConnection perforce, CancellationToken cancellationToken)
+			{
+				await executeAsync(perforce, cancellationToken); 
+				return 0; 
+			}
+
+			return Execute(owner, title, message, perforceSettings, ExecuteTypedAsync, logger, flags);
 		}
 
 		public static ModalTask<T>? Execute<T>(IWin32Window? owner, string title, string message, IPerforceSettings perforceSettings, Func<IPerforceConnection, CancellationToken, Task<T>> executeAsync, ILogger logger, ModalTaskFlags flags = ModalTaskFlags.None)
@@ -36,12 +37,12 @@ namespace UnrealGameSync
 			IPerforceConnection? connection = null;
 			try
 			{
-				Func<Task<IPerforceConnection>> connectAsync = async () =>
+				async Task<IPerforceConnection> ConnectAsync()
 				{
 					connection ??= await PerforceConnection.CreateAsync(perforceSettings, logger);
 					return connection;
-				};
-				return ExecuteInternal(owner, title, message, perforceSettings, connectAsync, executeAsync, flags);
+				}
+				return ExecuteInternal(owner, title, message, perforceSettings, ConnectAsync, executeAsync, flags);
 			}
 			finally
 			{
@@ -51,11 +52,15 @@ namespace UnrealGameSync
 
 		public static ModalTask? Execute(IWin32Window? owner, string title, string message, IPerforceConnection perforceConnection, Func<IPerforceConnection, CancellationToken, Task> executeAsync, ILogger logger, ModalTaskFlags flags = ModalTaskFlags.None)
 		{
-			Func<IPerforceConnection, CancellationToken, Task<int>> executeTypedAsync = async (p, c) => { await executeAsync(p, c); return 0; };
-			return Execute(owner, title, message, perforceConnection, executeTypedAsync, logger, flags);
+			async Task<int> ExecuteTypedAsync(IPerforceConnection perforce, CancellationToken cancellationToken)
+			{
+				await executeAsync(perforce, cancellationToken);
+				return 0;
+			}
+			return Execute(owner, title, message, perforceConnection, ExecuteTypedAsync, logger, flags);
 		}
 
-		public static ModalTask<T>? Execute<T>(IWin32Window? owner, string title, string message, IPerforceConnection perforceConnection, Func<IPerforceConnection, CancellationToken, Task<T>> executeAsync, ILogger logger, ModalTaskFlags flags = ModalTaskFlags.None)
+		public static ModalTask<T>? Execute<T>(IWin32Window? owner, string title, string message, IPerforceConnection perforceConnection, Func<IPerforceConnection, CancellationToken, Task<T>> executeAsync, ModalTaskFlags flags = ModalTaskFlags.None)
 		{
 			return ExecuteInternal(owner, title, message, perforceConnection.Settings, () => Task.FromResult(perforceConnection), executeAsync, flags);
 		}
@@ -65,9 +70,9 @@ namespace UnrealGameSync
 			string? password = perforceSettings.Password;
 			for(;;)
 			{
-				Func<CancellationToken, Task<T>> runAsync = cancellationToken => LoginAndExecuteAsync(password, connectAsync, executeAsync, cancellationToken);
+				Task<T> RunAsync(CancellationToken cancellationToken) => LoginAndExecuteAsync(password, connectAsync, executeAsync, cancellationToken);
 
-				ModalTask<T>? result = ModalTask.Execute(owner, title, message, runAsync, ModalTaskFlags.Quiet);
+				ModalTask<T>? result = ModalTask.Execute(owner, title, message, RunAsync, ModalTaskFlags.Quiet);
 				if (result != null && result.Failed && (flags & ModalTaskFlags.Quiet) == 0)
 				{
 					if (result.Exception is PerforceLoginException)

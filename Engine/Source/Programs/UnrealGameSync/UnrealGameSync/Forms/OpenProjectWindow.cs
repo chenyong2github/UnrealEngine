@@ -1,17 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using EpicGames.Perforce;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,20 +21,20 @@ namespace UnrealGameSync
 		string? _serverAndPortOverride;
 		string? _userNameOverride;
 		OpenProjectInfo? _openProjectInfo;
-		IPerforceSettings _defaultSettings;
-		IServiceProvider _serviceProvider;
-		UserSettings _settings;
-		ILogger _logger;
+		readonly IPerforceSettings _defaultSettings;
+		readonly IServiceProvider _serviceProvider;
+		readonly UserSettings _settings;
+		readonly ILogger _logger;
 
 		private OpenProjectWindow(UserSelectedProjectSettings? project, UserSettings settings, IPerforceSettings defaultSettings, IServiceProvider serviceProvider, ILogger logger)
 		{
 			InitializeComponent();
 
-			this._settings = settings;
-			this._openProjectInfo = null;
-			this._defaultSettings = defaultSettings;
-			this._serviceProvider = serviceProvider;
-			this._logger = logger;
+			_settings = settings;
+			_openProjectInfo = null;
+			_defaultSettings = defaultSettings;
+			_serviceProvider = serviceProvider;
+			_logger = logger;
 
 			if (project == null)
 			{
@@ -87,12 +82,9 @@ namespace UnrealGameSync
 			UpdateOkButton();
 		}
 
-		private IPerforceSettings Perforce
-		{
-			get => Utility.OverridePerforceSettings(_defaultSettings, _serverAndPortOverride, _userNameOverride);
-		}
+		private IPerforceSettings Perforce => Utility.OverridePerforceSettings(_defaultSettings, _serverAndPortOverride, _userNameOverride);
 
-		public static OpenProjectInfo? ShowModal(IWin32Window owner, UserSelectedProjectSettings? project, UserSettings settings, DirectoryReference dataFolder, DirectoryReference cacheFolder, IPerforceSettings defaultPerforceSettings, IServiceProvider serviceProvider, ILogger logger)
+		public static OpenProjectInfo? ShowModal(IWin32Window owner, UserSelectedProjectSettings? project, UserSettings settings, IPerforceSettings defaultPerforceSettings, IServiceProvider serviceProvider, ILogger logger)
 		{
 			OpenProjectWindow window = new OpenProjectWindow(project, settings, defaultPerforceSettings, serviceProvider, logger);
 			if(window.ShowDialog(owner) == DialogResult.OK)
@@ -161,14 +153,12 @@ namespace UnrealGameSync
 
 		private void UpdateWorkspacePathBrowseButton()
 		{
-			string? workspaceName;
-			WorkspacePathBrowseBtn.Enabled = TryGetWorkspaceName(out workspaceName);
+			WorkspacePathBrowseBtn.Enabled = TryGetWorkspaceName(out _);
 		}
 
 		private void UpdateOkButton()
 		{
-			string? projectPath;
-			OkBtn.Enabled = WorkspaceRadioBtn.Checked? TryGetClientPath(out projectPath) : TryGetLocalPath(out projectPath);
+			OkBtn.Enabled = WorkspaceRadioBtn.Checked? TryGetClientPath(out _) : TryGetLocalPath(out _);
 		}
 
 		private void WorkspaceNewBtn_Click(object sender, EventArgs e)

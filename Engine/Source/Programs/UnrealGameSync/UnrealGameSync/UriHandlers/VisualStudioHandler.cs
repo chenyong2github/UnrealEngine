@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using EnvDTE;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace UnrealGameSync
 {
-
 	/// <summary>
 	/// VisualStudio Uri Handler
 	/// </summary>
@@ -27,7 +22,5 @@ namespace UnrealGameSync
 
 			return new UriResult() { Success = true };
 		}
-
 	}
-
 }

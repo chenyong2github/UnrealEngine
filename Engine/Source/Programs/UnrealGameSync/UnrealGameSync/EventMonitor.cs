@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -81,15 +80,9 @@ namespace UnrealGameSync
 		public string Url { get; set; } = String.Empty;
 		public string Project { get; set; } = String.Empty;
 
-		public bool IsSuccess
-		{
-			get { return Result == BadgeResult.Success || Result == BadgeResult.Warning; }
-		}
+		public bool IsSuccess => Result == BadgeResult.Success || Result == BadgeResult.Warning;
 
-		public bool IsFailure
-		{
-			get { return Result == BadgeResult.Failure; }
-		}
+		public bool IsFailure => Result == BadgeResult.Failure;
 
 		public string BadgeName
 		{
@@ -212,33 +205,33 @@ namespace UnrealGameSync
 
 	class EventMonitor : IDisposable
 	{
-		string? _apiUrl;
+		readonly string? _apiUrl;
 		int _apiVersion;
-		string _project;
-		string _currentUserName;
-		SynchronizationContext _synchronizationContext;
-		CancellationTokenSource _cancellationSource;
+		readonly string _project;
+		readonly string _currentUserName;
+		readonly SynchronizationContext _synchronizationContext;
+		readonly CancellationTokenSource _cancellationSource;
 		Task? _workerTask;
-		AsyncEvent _refreshEvent = new AsyncEvent();
-		ConcurrentQueue<EventData> _outgoingEvents = new ConcurrentQueue<EventData>();
-		ConcurrentQueue<EventData> _incomingEvents = new ConcurrentQueue<EventData>();
-		ConcurrentQueue<CommentData> _outgoingComments = new ConcurrentQueue<CommentData>();
-		ConcurrentQueue<CommentData> _incomingComments = new ConcurrentQueue<CommentData>();
-		ConcurrentQueue<BadgeData> _incomingBadges = new ConcurrentQueue<BadgeData>();
-		SortedDictionary<int, EventSummary> _changeNumberToSummary = new SortedDictionary<int, EventSummary>();
-		Dictionary<string, EventData> _userNameToLastSyncEvent = new Dictionary<string, EventData>(StringComparer.InvariantCultureIgnoreCase);
-		Dictionary<string, BadgeData> _badgeNameToLatestData = new Dictionary<string, BadgeData>();
-		ILogger _logger;
-		IAsyncDisposer _asyncDisposer;
-		LatestData _latestIds;
+		readonly AsyncEvent _refreshEvent = new AsyncEvent();
+		readonly ConcurrentQueue<EventData> _outgoingEvents = new ConcurrentQueue<EventData>();
+		readonly ConcurrentQueue<EventData> _incomingEvents = new ConcurrentQueue<EventData>();
+		readonly ConcurrentQueue<CommentData> _outgoingComments = new ConcurrentQueue<CommentData>();
+		readonly ConcurrentQueue<CommentData> _incomingComments = new ConcurrentQueue<CommentData>();
+		readonly ConcurrentQueue<BadgeData> _incomingBadges = new ConcurrentQueue<BadgeData>();
+		readonly SortedDictionary<int, EventSummary> _changeNumberToSummary = new SortedDictionary<int, EventSummary>();
+		readonly Dictionary<string, EventData> _userNameToLastSyncEvent = new Dictionary<string, EventData>(StringComparer.InvariantCultureIgnoreCase);
+		readonly Dictionary<string, BadgeData> _badgeNameToLatestData = new Dictionary<string, BadgeData>();
+		readonly ILogger _logger;
+		readonly IAsyncDisposer _asyncDisposer;
+		readonly LatestData _latestIds;
 		HashSet<int> _filterChangeNumbers = new HashSet<int>();
-		List<EventData> _investigationEvents = new List<EventData>();
+		readonly List<EventData> _investigationEvents = new List<EventData>();
 		List<EventData>? _activeInvestigations;
 
 		// MetadataV2
-		string _metadataStream;
-		string _metadataProject;
-		ConcurrentQueue<GetMetadataResponseV2> _incomingMetadata = new ConcurrentQueue<GetMetadataResponseV2>();
+		readonly string _metadataStream;
+		readonly string _metadataProject;
+		readonly ConcurrentQueue<GetMetadataResponseV2> _incomingMetadata = new ConcurrentQueue<GetMetadataResponseV2>();
 		int _minChange;
 		int _newMinChange;
 		long _metadataSequenceNumber;
@@ -285,10 +278,7 @@ namespace UnrealGameSync
 
 		public void Start()
 		{
-			if (_workerTask == null)
-			{
-				_workerTask = Task.Run(() => PollForUpdatesAsync(_cancellationSource.Token));
-			}
+			_workerTask ??= Task.Run(() => PollForUpdatesAsync(_cancellationSource.Token));
 		}
 
 		public void Dispose()
@@ -491,7 +481,7 @@ namespace UnrealGameSync
 		void ApplyCommentUpdate(CommentData comment)
 		{
 			EventSummary summary = FindOrAddSummary(comment.ChangeNumber);
-			if(String.Compare(comment.UserName, _currentUserName, true) == 0 && summary.Comments.Count > 0 && summary.Comments.Last().Id == long.MaxValue)
+			if(String.Compare(comment.UserName, _currentUserName, true) == 0 && summary.Comments.Count > 0 && summary.Comments.Last().Id == Int64.MaxValue)
 			{
 				// This comment was added by PostComment(), to mask the latency of a round trip to the server. Remove it now we have the sorted comment.
 				summary.Comments.RemoveAt(summary.Comments.Count - 1);
@@ -560,7 +550,7 @@ namespace UnrealGameSync
 				newSummary.ProjectMetadata = summary.ProjectMetadata;
 			}
 
-			if (string.IsNullOrEmpty(metadata.Project))
+			if (String.IsNullOrEmpty(metadata.Project))
 			{
 				newSummary.SharedMetadata = metadata;
 			}
@@ -781,7 +771,7 @@ namespace UnrealGameSync
 				_logger.LogInformation("Posting event... ({Change}, {UserName}, {Type})", evt.Change, evt.UserName, evt.Type);
 				if (_apiVersion == 2)
 				{
-					await SendMetadataUpdateUpdateV2Async(evt.Change, evt.Project, evt.UserName, evt.Type, null, cancellationToken);
+					await SendMetadataUpdateUpdateV2Async(evt.Change, evt.UserName, evt.Type, null, cancellationToken);
 				}
 				else
 				{
@@ -804,7 +794,7 @@ namespace UnrealGameSync
 				_logger.LogInformation("Posting comment... ({Change}, {User}, {Text}, {Project})", comment.ChangeNumber, comment.UserName, comment.Text, comment.Project);
 				if (_apiVersion == 2)
 				{
-					await SendMetadataUpdateUpdateV2Async(comment.ChangeNumber, comment.Project, comment.UserName, null, comment.Text, cancellationToken);
+					await SendMetadataUpdateUpdateV2Async(comment.ChangeNumber, comment.UserName, null, comment.Text, cancellationToken);
 				}
 				else
 				{
@@ -820,7 +810,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		async Task SendMetadataUpdateUpdateV2Async(int change, string project, string userName, EventType? evt, string? comment, CancellationToken cancellationToken)
+		async Task SendMetadataUpdateUpdateV2Async(int change, string userName, EventType? evt, string? comment, CancellationToken cancellationToken)
 		{
 			UpdateMetadataRequestV2 update = new UpdateMetadataRequestV2();
 			update.Stream = _metadataStream;
@@ -977,11 +967,6 @@ namespace UnrealGameSync
 			}
 		}
 
-		static bool MatchesWildcard(string wildcard, string project)
-		{
-			return wildcard.EndsWith("...") && project.StartsWith(wildcard.Substring(0, wildcard.Length - 3), StringComparison.InvariantCultureIgnoreCase);
-		}
-
 		public void PostEvent(int changeNumber, EventType type)
 		{
 			if(_apiUrl != null)
@@ -1005,7 +990,7 @@ namespace UnrealGameSync
 			if(_apiUrl != null)
 			{
 				CommentData comment = new CommentData();
-				comment.Id = long.MaxValue;
+				comment.Id = Int64.MaxValue;
 				comment.ChangeNumber = changeNumber;
 				comment.UserName = _currentUserName;
 				comment.Text = text;

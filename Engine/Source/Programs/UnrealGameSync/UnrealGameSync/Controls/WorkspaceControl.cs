@@ -7,7 +7,6 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -78,16 +77,16 @@ namespace UnrealGameSync
 
 		class BadgeInfo
 		{
-			public string Label;
-			public string? Group;
-			public string? UniqueId;
-			public int Offset;
-			public int Width;
-			public int Height;
-			public Color BackgroundColor;
-			public Color HoverBackgroundColor;
-			public Action? ClickHandler;
-			public string? ToolTip;
+			public string _label;
+			public string? _group;
+			public string? _uniqueId;
+			public int _offset;
+			public int _width;
+			public int _height;
+			public Color _backgroundColor;
+			public Color _hoverBackgroundColor;
+			public Action? _clickHandler;
+			public string? _toolTip;
 
 			public BadgeInfo(string label, string group, Color badgeColor)
 				: this(label, group, null, badgeColor, badgeColor, null)
@@ -96,39 +95,39 @@ namespace UnrealGameSync
 
 			public BadgeInfo(string label, string? group, string? uniqueId, Color backgroundColor, Color hoverBackgroundColor, Action? clickHandler)
 			{
-				this.Label = label;
-				this.Group = group;
-				this.UniqueId = uniqueId;
-				this.BackgroundColor = backgroundColor;
-				this.HoverBackgroundColor = hoverBackgroundColor;
-				this.ClickHandler = clickHandler;
+				_label = label;
+				_group = group;
+				_uniqueId = uniqueId;
+				_backgroundColor = backgroundColor;
+				_hoverBackgroundColor = hoverBackgroundColor;
+				_clickHandler = clickHandler;
 			}
 
 			public BadgeInfo(BadgeInfo other)
-				: this(other.Label, other.Group, other.UniqueId, other.BackgroundColor, other.HoverBackgroundColor, other.ClickHandler)
+				: this(other._label, other._group, other._uniqueId, other._backgroundColor, other._hoverBackgroundColor, other._clickHandler)
 			{
-				this.Offset = other.Offset;
-				this.Width = other.Width;
-				this.Height = other.Height;
+				_offset = other._offset;
+				_width = other._width;
+				_height = other._height;
 			}
 
 			public Rectangle GetBounds(Point listLocation)
 			{
-				return new Rectangle(listLocation.X + Offset, listLocation.Y, Width, Height);
+				return new Rectangle(listLocation.X + _offset, listLocation.Y, _width, _height);
 			}
 		}
 
 		class ServiceBadgeInfo : IEquatable<ServiceBadgeInfo>
 		{
-			public string Name;
-			public string? Url;
-			public BadgeResult Result;
+			public string Name { get; }
+			public string? Url { get; }
+			public BadgeResult Result { get; }
 
 			public ServiceBadgeInfo(string name, string? url, BadgeResult result)
 			{
-				this.Name = name;
-				this.Url = url;
-				this.Result = result;
+				Name = name;
+				Url = url;
+				Result = result;
 			}
 
 			public bool Equals(ServiceBadgeInfo? otherBadge)
@@ -149,10 +148,10 @@ namespace UnrealGameSync
 
 		class ChangeLayoutInfo
 		{
-			public List<BadgeInfo> DescriptionBadges = new List<BadgeInfo>();
-			public List<BadgeInfo> TypeBadges = new List<BadgeInfo>();
-			public List<BadgeInfo> BuildBadges = new List<BadgeInfo>();
-			public Dictionary<string, List<BadgeInfo>> CustomBadges = new Dictionary<string, List<BadgeInfo>>();
+			public List<BadgeInfo> _descriptionBadges = new List<BadgeInfo>();
+			public List<BadgeInfo> _typeBadges = new List<BadgeInfo>();
+			public List<BadgeInfo> _buildBadges = new List<BadgeInfo>();
+			public Dictionary<string, List<BadgeInfo>> _customBadges = new Dictionary<string, List<BadgeInfo>>();
 		}
 
 		class BuildListItemComparer : System.Collections.IComparer
@@ -176,43 +175,41 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static Rectangle GoodBuildIcon = new Rectangle(0, 0, 16, 16);
-		public static Rectangle MixedBuildIcon = new Rectangle(16, 0, 16, 16);
-		public static Rectangle BadBuildIcon = new Rectangle(32, 0, 16, 16);
-		public static Rectangle DefaultBuildIcon = new Rectangle(48, 0, 16, 16);
-		static Rectangle _promotedBuildIcon = new Rectangle(64, 0, 16, 16);
-		static Rectangle _detailsIcon = new Rectangle(80, 0, 16, 16);
-		static Rectangle _infoIcon = new Rectangle(96, 0, 16, 16);
-		static Rectangle _cancelIcon = new Rectangle(112, 0, 16, 16);
-		static Rectangle _syncIcon = new Rectangle(128, 0, 32, 16);
-		static Rectangle _happyIcon = new Rectangle(160, 0, 16, 16);
-		static Rectangle _disabledHappyIcon = new Rectangle(176, 0, 16, 16);
-		static Rectangle _frownIcon = new Rectangle(192, 0, 16, 16);
-		static Rectangle _disabledFrownIcon = new Rectangle(208, 0, 16, 16);
-		static Rectangle _previousSyncIcon = new Rectangle(224, 0, 16, 16);
-		static Rectangle _additionalSyncIcon = new Rectangle(240, 0, 16, 16);
-		static Rectangle _bisectPassIcon = new Rectangle(256, 0, 16, 16);
-		static Rectangle _bisectFailIcon = new Rectangle(273, 0, 16, 16);
-		static Rectangle _bisectImplicitPassIcon = new Rectangle(290, 0, 16, 16);
-		static Rectangle _bisectImplicitFailIcon = new Rectangle(307, 0, 16, 16);
+		public static Rectangle GoodBuildIcon { get; } = new Rectangle(0, 0, 16, 16);
+		public static Rectangle MixedBuildIcon { get; } = new Rectangle(16, 0, 16, 16);
+		public static Rectangle BadBuildIcon { get; } = new Rectangle(32, 0, 16, 16);
+		public static Rectangle DefaultBuildIcon { get; } = new Rectangle(48, 0, 16, 16);
+		static Rectangle PromotedBuildIcon { get; } = new Rectangle(64, 0, 16, 16);
+		static Rectangle InfoIcon { get; } = new Rectangle(96, 0, 16, 16);
+		static Rectangle CancelIcon { get; } = new Rectangle(112, 0, 16, 16);
+		static Rectangle HappyIcon { get; } = new Rectangle(160, 0, 16, 16);
+		static Rectangle DisabledHappyIcon { get; } = new Rectangle(176, 0, 16, 16);
+		static Rectangle FrownIcon { get; } = new Rectangle(192, 0, 16, 16);
+		static Rectangle DisabledFrownIcon { get; } = new Rectangle(208, 0, 16, 16);
+		static Rectangle PreviousSyncIcon { get; } = new Rectangle(224, 0, 16, 16);
+		static Rectangle AdditionalSyncIcon { get; } = new Rectangle(240, 0, 16, 16);
+		static Rectangle BisectPassIcon { get; } = new Rectangle(256, 0, 16, 16);
+		static Rectangle BisectFailIcon { get; } = new Rectangle(273, 0, 16, 16);
+		static Rectangle BisectImplicitPassIcon { get; } = new Rectangle(290, 0, 16, 16);
+		static Rectangle BisectImplicitFailIcon { get; } = new Rectangle(307, 0, 16, 16);
 
 		[DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
 		static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
 
 		const int BuildListExpandCount = 250;
 
-		IWorkspaceControlOwner _owner;
-		DirectoryReference _appDataFolder;
-		string? _apiUrl;
-		DirectoryReference _workspaceDataFolder;
-		IServiceProvider _serviceProvider;
-		ILogger _logger;
-		IPerforceSettings _perforceSettings;
+		readonly IWorkspaceControlOwner _owner;
+		readonly DirectoryReference _appDataFolder;
+		readonly string? _apiUrl;
+		readonly DirectoryReference _workspaceDataFolder;
+		readonly IServiceProvider _serviceProvider;
+		readonly ILogger _logger;
+		readonly IPerforceSettings _perforceSettings;
 		ProjectInfo ProjectInfo { get; }
 
-		UserSettings _settings;
-		UserWorkspaceSettings _workspaceSettings;
-		UserProjectSettings _projectSettings;
+		readonly UserSettings _settings;
+		readonly UserWorkspaceSettings _workspaceSettings;
+		readonly UserProjectSettings _projectSettings;
 
 		bool _userHasOpenIssues = false;
 
@@ -224,7 +221,7 @@ namespace UnrealGameSync
 		public string? StreamName => ProjectInfo.StreamName;
 		public string ClientName => ProjectInfo.ClientName;
 
-		SynchronizationContext _mainThreadSynchronizationContext;
+		readonly SynchronizationContext _mainThreadSynchronizationContext;
 		bool _isDisposing;
 
 		JupiterMonitor _jupiterMonitor;
@@ -232,19 +229,19 @@ namespace UnrealGameSync
 		Workspace _workspace;
 		IssueMonitor _issueMonitor;
 		EventMonitor _eventMonitor;
-		System.Windows.Forms.Timer _updateTimer;
+		readonly System.Windows.Forms.Timer _updateTimer;
 		HashSet<int> _promotedChangeNumbers = new HashSet<int>();
 		List<int> _listIndexToChangeIndex = new List<int>();
 		List<int> _sortedChangeNumbers = new List<int>();
-		Dictionary<string, Dictionary<int, string?>> _archiveToChangeNumberToArchiveKey = new Dictionary<string, Dictionary<int, string?>>();
-		Dictionary<int, ChangeLayoutInfo> _changeNumberToLayoutInfo = new Dictionary<int, ChangeLayoutInfo>();
-		List<ContextMenuStrip> _customStatusPanelMenus = new List<ContextMenuStrip>();
-		List<(string, Action<Point, Rectangle>)> _customStatusPanelLinks = new List<(string, Action<Point, Rectangle>)>();
+		readonly Dictionary<string, Dictionary<int, string?>> _archiveToChangeNumberToArchiveKey = new Dictionary<string, Dictionary<int, string?>>();
+		readonly Dictionary<int, ChangeLayoutInfo> _changeNumberToLayoutInfo = new Dictionary<int, ChangeLayoutInfo>();
+		readonly List<ContextMenuStrip> _customStatusPanelMenus = new List<ContextMenuStrip>();
+		readonly List<(string, Action<Point, Rectangle>)> _customStatusPanelLinks = new List<(string, Action<Point, Rectangle>)>();
 		int _numChanges;
 		int _pendingSelectedChangeNumber = -1;
 		bool _hasBuildSteps = false;
 
-		Dictionary<string, int> _notifiedBuildTypeToChangeNumber = new Dictionary<string, int>();
+		readonly Dictionary<string, int> _notifiedBuildTypeToChangeNumber = new Dictionary<string, int>();
 
 		bool _mouseOverExpandLink;
 
@@ -255,7 +252,7 @@ namespace UnrealGameSync
 		Font? _selectedBuildFont;
 		Font? _badgeFont;
 		List<KeyValuePair<string, string>> _badgeNameAndGroupPairs = new List<KeyValuePair<string, string>>();
-		Dictionary<string, Size> _badgeLabelToSize = new Dictionary<string, Size>();
+		readonly Dictionary<string, Size> _badgeLabelToSize = new Dictionary<string, Size>();
 		List<ServiceBadgeInfo> _serviceBadges = new List<ServiceBadgeInfo>();
 
 		NotificationWindow _notificationWindow;
@@ -289,7 +286,7 @@ namespace UnrealGameSync
 		string _authorFilterText = "";
 
 		// Placeholder text that is in the control and cleared when the user starts editing.
-		static string _authorFilterPlaceholderText = "<username>";
+		const string AuthorFilterPlaceholderText = "<username>";
 
 		public WorkspaceControl(IWorkspaceControlOwner inOwner, DirectoryReference inAppDataFolder, string? inApiUrl, OpenProjectInfo openProjectInfo, IServiceProvider inServiceProvider, UserSettings inSettings, OidcTokenManager? inOidcTokenManager)
 		{
@@ -400,7 +397,13 @@ namespace UnrealGameSync
 			_perforceMonitor.Start();
 			_eventMonitor.Start();
 
-			_startupTimer = new System.Threading.Timer(x => _mainThreadSynchronizationContext.Post((o) => { if (!IsDisposed) { StartupTimerElapsed(false); } }, null), null, TimeSpan.FromSeconds(20.0), TimeSpan.FromMilliseconds(-1.0));
+			_startupTimer = new System.Threading.Timer(x => _mainThreadSynchronizationContext.Post((o) => 
+			{ 
+				if (!IsDisposed) 
+				{ 
+					StartupTimerElapsed(false); 
+				} 
+			}, null), null, TimeSpan.FromSeconds(20.0), TimeSpan.FromMilliseconds(-1.0));
 			_startupCallbacks = new List<WorkspaceStartupCallback>();
 
 			string? issuesApiUrl = GetIssuesApiUrl();
@@ -427,7 +430,13 @@ namespace UnrealGameSync
 
 		public void IssueMonitor_OnIssuesChangedAsync()
 		{
-			_mainThreadSynchronizationContext.Post((o) => { if (_issueMonitor != null) { IssueMonitor_OnIssuesChanged(); } }, null);
+			_mainThreadSynchronizationContext.Post((o) => 
+			{ 
+				if (_issueMonitor != null) 
+				{ 
+					IssueMonitor_OnIssuesChanged(); 
+				} 
+			}, null);
 		}
 
 		public List<IssueData> GetOpenIssuesForUser()
@@ -455,8 +464,7 @@ namespace UnrealGameSync
 		{
 			if (_startupTimer != null)
 			{
-				int latestChangeNumber;
-				if (FindChangeToSync(_settings.SyncTypeId, out latestChangeNumber))
+				if (FindChangeToSync(_settings.SyncTypeId, out _))
 				{
 					StartupTimerElapsed(false);
 				}
@@ -537,7 +545,7 @@ namespace UnrealGameSync
 								int index = columnConfig.GetValue("Index", -1);
 								if (index < 0 || index > BuildList.Columns.Count)
 								{
-									index = ((_customColumns.Count > 0) ? _customColumns[_customColumns.Count - 1].Index : CISColumn.Index) + 1;
+									index = ((_customColumns.Count > 0) ? _customColumns[^1].Index : CISColumn.Index) + 1;
 								}
 
 								column = new ColumnHeader();
@@ -693,10 +701,7 @@ namespace UnrealGameSync
 				components.Dispose();
 			}
 
-			if (_updateTimer != null)
-			{
-				_updateTimer.Stop();
-			}
+			_updateTimer?.Stop();
 
 			if (_startupCallbacks != null)
 			{
@@ -710,10 +715,7 @@ namespace UnrealGameSync
 			if (_issueMonitor != null)
 			{
 				_issueMonitor.OnIssuesChanged -= IssueMonitor_OnIssuesChangedAsync;
-				if (_owner != null)
-				{
-					_owner.ReleaseIssueMonitor(_issueMonitor);
-				}
+				_owner?.ReleaseIssueMonitor(_issueMonitor);
 				_issueMonitor = null!;
 			}
 			if (_startupTimer != null)
@@ -859,7 +861,7 @@ namespace UnrealGameSync
 				{
 					newPendingMaxChanges = _listIndexToChangeIndex[lastVisibleIndex];
 				}
-				newPendingMaxChanges = _perforceMonitor.InitialMaxChangesValue + ((Math.Max(newPendingMaxChanges - _perforceMonitor.InitialMaxChangesValue, 0) + BuildListExpandCount - 1) / BuildListExpandCount) * BuildListExpandCount;
+				newPendingMaxChanges = PerforceMonitor.InitialMaxChangesValue + ((Math.Max(newPendingMaxChanges - PerforceMonitor.InitialMaxChangesValue, 0) + BuildListExpandCount - 1) / BuildListExpandCount) * BuildListExpandCount;
 
 				// Shrink the number of changes retained by the PerforceMonitor class
 				if (_perforceMonitor.PendingMaxChanges > newPendingMaxChanges)
@@ -990,7 +992,11 @@ namespace UnrealGameSync
 						FileReference receiptFile = ConfigUtils.GetReceiptFile(_workspace.Project, _workspace.ProjectConfigFile, targetFile, config.ToString());
 						if (FileReference.Exists(receiptFile))
 						{
-							try { FileReference.Delete(receiptFile); } catch (Exception) { }
+							try 
+							{ 
+								FileReference.Delete(receiptFile); 
+							} 
+							catch (Exception) { }
 						}
 					}
 				}
@@ -1034,10 +1040,16 @@ namespace UnrealGameSync
 
 		void UpdateCompleteCallback(WorkspaceUpdateContext context, WorkspaceUpdateResult result, string resultMessage)
 		{
-			_mainThreadSynchronizationContext.Post((o) => { if (!_isDisposing) { UpdateComplete(context, result, resultMessage); } }, null);
+			_mainThreadSynchronizationContext.Post((o) => 
+			{ 
+				if (!_isDisposing) 
+				{ 
+					UpdateComplete(context, result); 
+				} 
+			}, null);
 		}
 
-		void UpdateComplete(WorkspaceUpdateContext context, WorkspaceUpdateResult result, string resultMessage)
+		void UpdateComplete(WorkspaceUpdateContext context, WorkspaceUpdateResult result)
 		{
 			if (_isDisposing)
 			{
@@ -1137,7 +1149,14 @@ namespace UnrealGameSync
 			if (!_updateBuildListPosted)
 			{
 				_updateBuildListPosted = true;
-				_mainThreadSynchronizationContext.Post((o) => { _updateBuildListPosted = false; if (!_isDisposing) { UpdateBuildList(); } }, null);
+				_mainThreadSynchronizationContext.Post((o) => 
+				{ 
+					_updateBuildListPosted = false; 
+					if (!_isDisposing) 
+					{ 
+						UpdateBuildList(); 
+					} 
+				}, null);
 			}
 		}
 
@@ -1410,9 +1429,9 @@ namespace UnrealGameSync
 			}
 
 			// if filtering by user, only show changes where the author contains the filter text
-			if (!string.IsNullOrEmpty(this._authorFilterText)
-				&& this._authorFilterText != _authorFilterPlaceholderText
-				&& change.User!.IndexOf(this._authorFilterText, StringComparison.OrdinalIgnoreCase) < 0)
+			if (!String.IsNullOrEmpty(_authorFilterText)
+				&& _authorFilterText != AuthorFilterPlaceholderText
+				&& change.User!.IndexOf(_authorFilterText, StringComparison.OrdinalIgnoreCase) < 0)
 			{
 				return false;
 			}
@@ -1470,7 +1489,14 @@ namespace UnrealGameSync
 			if (!_updateBuildMetadataPosted)
 			{
 				_updateBuildMetadataPosted = true;
-				_mainThreadSynchronizationContext.Post((o) => { _updateBuildMetadataPosted = false; if (!_isDisposing) { UpdateBuildMetadata(); } }, null);
+				_mainThreadSynchronizationContext.Post((o) => 
+				{ 
+					_updateBuildMetadataPosted = false; 
+					if (!_isDisposing) 
+					{ 
+						UpdateBuildMetadata(); 
+					} 
+				}, null);
 			}
 		}
 
@@ -1627,7 +1653,7 @@ namespace UnrealGameSync
 			if (dummyBadges.Count > 0)
 			{
 				LayoutBadges(dummyBadges);
-				width = dummyBadges[dummyBadges.Count - 1].Offset + dummyBadges[dummyBadges.Count - 1].Width;
+				width = dummyBadges[^1]._offset + dummyBadges[^1]._width;
 			}
 			return width;
 		}
@@ -1705,7 +1731,7 @@ namespace UnrealGameSync
 
 		void ParseUncontrolledChangelistsPersistencyFile(string inProjectRoot, HashSet<string> outUncontrolledFiles)
 		{
-			String uncontrolledChangelistPersistencyFilePath = Path.Combine(inProjectRoot, "Saved", "SourceControl", "UncontrolledChangelists.json");
+			string uncontrolledChangelistPersistencyFilePath = Path.Combine(inProjectRoot, "Saved", "SourceControl", "UncontrolledChangelists.json");
 
 			if (File.Exists(uncontrolledChangelistPersistencyFilePath))
 			{
@@ -1736,7 +1762,14 @@ namespace UnrealGameSync
 			if (!_updateReviewsPosted)
 			{
 				_updateReviewsPosted = true;
-				_mainThreadSynchronizationContext.Post((o) => { _updateReviewsPosted = false; if (!_isDisposing) { UpdateReviews(); } }, null);
+				_mainThreadSynchronizationContext.Post((o) => 
+				{ 
+					_updateReviewsPosted = false; 
+					if (!_isDisposing) 
+					{ 
+						UpdateReviews(); 
+					} 
+				}, null);
 			}
 		}
 
@@ -1849,7 +1882,7 @@ namespace UnrealGameSync
 				}
 				if (notifyBuilds.Count > 1)
 				{
-					platformList.AppendFormat(" and {0}", notifyBuilds[notifyBuilds.Count - 1].BuildType);
+					platformList.AppendFormat(" and {0}", notifyBuilds[^1].BuildType);
 				}
 
 				// Show the balloon tooltip
@@ -1868,7 +1901,11 @@ namespace UnrealGameSync
 
 				// Set the link to open the right build pages
 				int highlightChange = notifyBuilds.Max(x => x.ChangeNumber);
-				_notificationWindow.OnMoreInformation = () => { _owner.ShowAndActivate(); SelectChange(highlightChange); };
+				_notificationWindow.OnMoreInformation = () => 
+				{ 
+					_owner.ShowAndActivate(); 
+					SelectChange(highlightChange); 
+				};
 
 				// Don't show messages for this change again
 				foreach (BadgeData notifyBuild in notifyBuilds)
@@ -1885,10 +1922,10 @@ namespace UnrealGameSync
 
 		class ExpandRowLayout
 		{
-			public string? MainText;
-			public Rectangle MainRect;
-			public string? LinkText;
-			public Rectangle LinkRect;
+			public string? _mainText;
+			public Rectangle _mainRect;
+			public string? _linkText;
+			public Rectangle _linkRect;
 		}
 
 		ExpandRowLayout LayoutExpandRow(Graphics graphics, Rectangle bounds)
@@ -1900,35 +1937,35 @@ namespace UnrealGameSync
 			int currentMaxChanges = _perforceMonitor.CurrentMaxChanges;
 			if (_perforceMonitor.PendingMaxChanges > currentMaxChanges)
 			{
-				layout.MainText = String.Format("{0}. Fetching {1} more from server...  ", showingChanges, _perforceMonitor.PendingMaxChanges - currentMaxChanges);
-				layout.LinkText = "Cancel";
+				layout._mainText = String.Format("{0}. Fetching {1} more from server...  ", showingChanges, _perforceMonitor.PendingMaxChanges - currentMaxChanges);
+				layout._linkText = "Cancel";
 			}
 			else if (_perforceMonitor.CurrentMaxChanges > _numChanges)
 			{
-				layout.MainText = showingChanges;
-				layout.LinkText = "";
+				layout._mainText = showingChanges;
+				layout._linkText = "";
 			}
 			else
 			{
-				layout.MainText = String.Format("{0}  ", showingChanges);
-				layout.LinkText = "Show more...";
+				layout._mainText = String.Format("{0}  ", showingChanges);
+				layout._linkText = "Show more...";
 			}
 
-			Size mainTextSize = TextRenderer.MeasureText(graphics, layout.MainText, _buildFont, new Size(1000, 1000), TextFormatFlags.NoPadding);
-			Size linkTextSize = TextRenderer.MeasureText(graphics, layout.LinkText, _buildFont, new Size(1000, 1000), TextFormatFlags.NoPadding);
+			Size mainTextSize = TextRenderer.MeasureText(graphics, layout._mainText, _buildFont, new Size(1000, 1000), TextFormatFlags.NoPadding);
+			Size linkTextSize = TextRenderer.MeasureText(graphics, layout._linkText, _buildFont, new Size(1000, 1000), TextFormatFlags.NoPadding);
 
 			int minX = bounds.Left + (bounds.Width - mainTextSize.Width - linkTextSize.Width) / 2;
 			int minY = bounds.Bottom - mainTextSize.Height - 1;
 
-			layout.MainRect = new Rectangle(new Point(minX, minY), mainTextSize);
-			layout.LinkRect = new Rectangle(new Point(minX + mainTextSize.Width, minY), linkTextSize);
+			layout._mainRect = new Rectangle(new Point(minX, minY), mainTextSize);
+			layout._linkRect = new Rectangle(new Point(minX + mainTextSize.Width, minY), linkTextSize);
 
 			return layout;
 		}
 
 		private void DrawExpandRow(Graphics graphics, ExpandRowLayout layout)
 		{
-			TextRenderer.DrawText(graphics, layout.MainText, _buildFont, layout.MainRect, SystemColors.WindowText, TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+			TextRenderer.DrawText(graphics, layout._mainText, _buildFont, layout._mainRect, SystemColors.WindowText, TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
 
 			Color linkColor = SystemColors.HotTrack;
 			if (_mouseOverExpandLink)
@@ -1936,7 +1973,7 @@ namespace UnrealGameSync
 				linkColor = Color.FromArgb(linkColor.B, linkColor.G, linkColor.R);
 			}
 
-			TextRenderer.DrawText(graphics, layout.LinkText, _buildFont, layout.LinkRect, linkColor, TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+			TextRenderer.DrawText(graphics, layout._linkText, _buildFont, layout._linkRect, linkColor, TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
 		}
 
 		private bool HitTestExpandLink(Point location)
@@ -1948,7 +1985,7 @@ namespace UnrealGameSync
 			using (Graphics graphics = Graphics.FromHwnd(IntPtr.Zero))
 			{
 				ExpandRowLayout layout = LayoutExpandRow(graphics, _expandItem.Bounds);
-				return layout.LinkRect.Contains(location);
+				return layout._linkRect.Contains(location);
 			}
 		}
 
@@ -2018,9 +2055,9 @@ namespace UnrealGameSync
 			return archivePath;
 		}
 
-		private Color Blend(Color first, Color second, float T)
+		private Color Blend(Color first, Color second, float t)
 		{
-			return Color.FromArgb((int)(first.R + (second.R - first.R) * T), (int)(first.G + (second.G - first.G) * T), (int)(first.B + (second.B - first.B) * T));
+			return Color.FromArgb((int)(first.R + (second.R - first.R) * t), (int)(first.G + (second.G - first.G) * t), (int)(first.B + (second.B - first.B) * t));
 		}
 
 		private bool CanSyncChange(int changeNumber)
@@ -2108,12 +2145,12 @@ namespace UnrealGameSync
 			{
 				layoutInfo = new ChangeLayoutInfo();
 
-				layoutInfo.DescriptionBadges = CreateDescriptionBadges(change);
-				layoutInfo.TypeBadges = CreateTypeBadges(change.Number);
+				layoutInfo._descriptionBadges = CreateDescriptionBadges(change);
+				layoutInfo._typeBadges = CreateTypeBadges(change.Number);
 
 				EventSummary? summary = _eventMonitor.GetSummaryForChange(change.Number);
-				layoutInfo.BuildBadges = CreateBuildBadges(change.Number, summary);
-				layoutInfo.CustomBadges = CreateCustomBadges(change.Number, summary);
+				layoutInfo._buildBadges = CreateBuildBadges(change.Number, summary);
+				layoutInfo._customBadges = CreateCustomBadges(change.Number, summary);
 
 				_changeNumberToLayoutInfo[change.Number] = layoutInfo;
 			}
@@ -2173,10 +2210,10 @@ namespace UnrealGameSync
 			int badgeAlpha = allowSync ? 255 : 128;
 			Color textColor = (allowSync || change.Number == _workspace.PendingChangeNumber || change.Number == _workspace.CurrentChangeNumber || _workspace.State.AdditionalChangeNumbers.Contains(change.Number)) ? SystemColors.WindowText : Blend(SystemColors.Window, SystemColors.WindowText, 0.25f);
 
-			const int fadeRange = 6;
-			if (e.ItemIndex >= BuildList.Items.Count - fadeRange && _numChanges >= _perforceMonitor.CurrentMaxChanges && !IsBisectModeEnabled())
+			const int FadeRange = 6;
+			if (e.ItemIndex >= BuildList.Items.Count - FadeRange && _numChanges >= _perforceMonitor.CurrentMaxChanges && !IsBisectModeEnabled())
 			{
-				float opacity = (float)(BuildList.Items.Count - e.ItemIndex - 0.9f) / fadeRange;
+				float opacity = (float)(BuildList.Items.Count - e.ItemIndex - 0.9f) / FadeRange;
 				badgeAlpha = (int)(badgeAlpha * opacity);
 				textColor = Blend(SystemColors.Window, textColor, opacity);
 			}
@@ -2188,17 +2225,17 @@ namespace UnrealGameSync
 				float minX = 4 * dpiScaleX;
 				if ((summary != null && _eventMonitor.WasSyncedByCurrentUser(summary.ChangeNumber)) || (_workspace != null && _workspace.CurrentChangeNumber == change.Number))
 				{
-					e.Graphics.DrawImage(Properties.Resources.Icons, minX * dpiScaleX, iconY, _previousSyncIcon, GraphicsUnit.Pixel);
+					e.Graphics.DrawImage(Properties.Resources.Icons, minX * dpiScaleX, iconY, PreviousSyncIcon, GraphicsUnit.Pixel);
 				}
 				else if (_workspaceSettings != null && _workspace != null && _workspace.State.AdditionalChangeNumbers.Contains(change.Number))
 				{
-					e.Graphics.DrawImage(Properties.Resources.Icons, minX * dpiScaleX, iconY, _additionalSyncIcon, GraphicsUnit.Pixel);
+					e.Graphics.DrawImage(Properties.Resources.Icons, minX * dpiScaleX, iconY, AdditionalSyncIcon, GraphicsUnit.Pixel);
 				}
 				else if (allowSync && ((summary != null && summary.LastStarReview != null && summary.LastStarReview.Type == EventType.Starred) || _promotedChangeNumbers.Contains(change.Number)))
 				{
-					e.Graphics.DrawImage(Properties.Resources.Icons, minX * dpiScaleX, iconY, _promotedBuildIcon, GraphicsUnit.Pixel);
+					e.Graphics.DrawImage(Properties.Resources.Icons, minX * dpiScaleX, iconY, PromotedBuildIcon, GraphicsUnit.Pixel);
 				}
-				minX += _promotedBuildIcon.Width * dpiScaleX;
+				minX += PromotedBuildIcon.Width * dpiScaleX;
 
 				if (allowSync)
 				{
@@ -2216,19 +2253,19 @@ namespace UnrealGameSync
 						}
 						else if (entry.State == BisectState.Pass)
 						{
-							qualityIcon = _bisectPassIcon;
+							qualityIcon = BisectPassIcon;
 						}
 						else if (entry.State == BisectState.Fail)
 						{
-							qualityIcon = _bisectFailIcon;
+							qualityIcon = BisectFailIcon;
 						}
 						else if (firstFail != -1 && change.Number > firstFail)
 						{
-							qualityIcon = _bisectImplicitFailIcon;
+							qualityIcon = BisectImplicitFailIcon;
 						}
 						else if (firstPass != -1 && change.Number < firstPass)
 						{
-							qualityIcon = _bisectImplicitPassIcon;
+							qualityIcon = BisectImplicitPassIcon;
 						}
 					}
 					else
@@ -2271,15 +2308,15 @@ namespace UnrealGameSync
 				ChangeLayoutInfo layout = GetChangeLayoutInfo(change);
 
 				Rectangle remainingBounds = e.Bounds;
-				if (layout.DescriptionBadges.Count > 0)
+				if (layout._descriptionBadges.Count > 0)
 				{
 					e.Graphics.IntersectClip(e.Bounds);
 					e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
 
 					remainingBounds = new Rectangle(remainingBounds.Left, remainingBounds.Top, remainingBounds.Width - (int)(2 * dpiScaleX), remainingBounds.Height);
 
-					Point listLocation = GetBadgeListLocation(layout.DescriptionBadges, remainingBounds, HorizontalAlign.Right, VerticalAlignment.Middle);
-					DrawBadges(e.Graphics, listLocation, layout.DescriptionBadges, badgeAlpha);
+					Point listLocation = GetBadgeListLocation(layout._descriptionBadges, remainingBounds, HorizontalAlign.Right, VerticalAlignment.Middle);
+					DrawBadges(e.Graphics, listLocation, layout._descriptionBadges, badgeAlpha);
 
 					remainingBounds = new Rectangle(remainingBounds.Left, remainingBounds.Top, listLocation.X - remainingBounds.Left - (int)(2 * dpiScaleX), remainingBounds.Height);
 				}
@@ -2289,26 +2326,26 @@ namespace UnrealGameSync
 			else if (e.ColumnIndex == TypeColumn.Index)
 			{
 				ChangeLayoutInfo layout = GetChangeLayoutInfo(change);
-				if (layout.TypeBadges.Count > 0)
+				if (layout._typeBadges.Count > 0)
 				{
 					e.Graphics.IntersectClip(e.Bounds);
 					e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
-					Point typeLocation = GetBadgeListLocation(layout.TypeBadges, e.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
-					DrawBadges(e.Graphics, typeLocation, layout.TypeBadges, badgeAlpha);
+					Point typeLocation = GetBadgeListLocation(layout._typeBadges, e.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
+					DrawBadges(e.Graphics, typeLocation, layout._typeBadges, badgeAlpha);
 				}
 			}
 			else if (e.ColumnIndex == CISColumn.Index)
 			{
 				ChangeLayoutInfo layout = GetChangeLayoutInfo(change);
-				if (layout.BuildBadges.Count > 0)
+				if (layout._buildBadges.Count > 0)
 				{
 					e.Graphics.IntersectClip(e.Bounds);
 					e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
 
-					Point buildsLocation = GetBadgeListLocation(layout.BuildBadges, e.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
+					Point buildsLocation = GetBadgeListLocation(layout._buildBadges, e.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
 					buildsLocation.X = Math.Max(buildsLocation.X, e.Bounds.Left);
 
-					DrawBadges(e.Graphics, buildsLocation, layout.BuildBadges, badgeAlpha);
+					DrawBadges(e.Graphics, buildsLocation, layout._buildBadges, badgeAlpha);
 				}
 			}
 			else if (e.ColumnIndex == StatusColumn.Index)
@@ -2319,13 +2356,13 @@ namespace UnrealGameSync
 				{
 					Tuple<string, float> progress = _workspace.CurrentProgress;
 
-					maxX -= _cancelIcon.Width;
-					e.Graphics.DrawImage(Properties.Resources.Icons, maxX, iconY, _cancelIcon, GraphicsUnit.Pixel);
+					maxX -= CancelIcon.Width;
+					e.Graphics.DrawImage(Properties.Resources.Icons, maxX, iconY, CancelIcon, GraphicsUnit.Pixel);
 
 					if (!Splitter.IsLogVisible())
 					{
-						maxX -= _infoIcon.Width;
-						e.Graphics.DrawImage(Properties.Resources.Icons, maxX, iconY, _infoIcon, GraphicsUnit.Pixel);
+						maxX -= InfoIcon.Width;
+						e.Graphics.DrawImage(Properties.Resources.Icons, maxX, iconY, InfoIcon, GraphicsUnit.Pixel);
 					}
 
 					float minX = e.Bounds.Left;
@@ -2341,11 +2378,11 @@ namespace UnrealGameSync
 					{
 						EventData? review = _eventMonitor.GetReviewByCurrentUser(change.Number);
 
-						maxX -= _frownIcon.Width * dpiScaleX;
-						e.Graphics.DrawImage(Properties.Resources.Icons, maxX, iconY, (review == null || !EventMonitor.IsPositiveReview(review.Type)) ? _frownIcon : _disabledFrownIcon, GraphicsUnit.Pixel);
+						maxX -= FrownIcon.Width * dpiScaleX;
+						e.Graphics.DrawImage(Properties.Resources.Icons, maxX, iconY, (review == null || !EventMonitor.IsPositiveReview(review.Type)) ? FrownIcon : DisabledFrownIcon, GraphicsUnit.Pixel);
 
-						maxX -= _happyIcon.Width * dpiScaleX;
-						e.Graphics.DrawImage(Properties.Resources.Icons, maxX, iconY, (review == null || !EventMonitor.IsNegativeReview(review.Type)) ? _happyIcon : _disabledHappyIcon, GraphicsUnit.Pixel);
+						maxX -= HappyIcon.Width * dpiScaleX;
+						e.Graphics.DrawImage(Properties.Resources.Icons, maxX, iconY, (review == null || !EventMonitor.IsNegativeReview(review.Type)) ? HappyIcon : DisabledHappyIcon, GraphicsUnit.Pixel);
 					}
 					else if (e.ItemIndex == BuildList.HoverItem && allowSync)
 					{
@@ -2395,7 +2432,7 @@ namespace UnrealGameSync
 					ChangeLayoutInfo layout = GetChangeLayoutInfo(change);
 
 					List<BadgeInfo>? badges;
-					if (layout.CustomBadges.TryGetValue(column.Text, out badges) && badges.Count > 0)
+					if (layout._customBadges.TryGetValue(column.Text, out badges) && badges.Count > 0)
 					{
 						e.Graphics.IntersectClip(e.Bounds);
 						e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
@@ -2414,15 +2451,15 @@ namespace UnrealGameSync
 			{
 				BadgeInfo badge = badges[idx];
 
-				if (idx > 0 && badge.Group != badges[idx - 1].Group)
+				if (idx > 0 && badge._group != badges[idx - 1]._group)
 				{
 					offset += 6;
 				}
-				badge.Offset = offset;
+				badge._offset = offset;
 
-				Size badgeSize = GetBadgeSize(badge.Label);
-				badge.Width = badgeSize.Width;
-				badge.Height = badgeSize.Height;
+				Size badgeSize = GetBadgeSize(badge._label);
+				badge._width = badgeSize.Width;
+				badge._height = badgeSize.Height;
 
 				offset += badgeSize.Width + 1;
 			}
@@ -2430,22 +2467,21 @@ namespace UnrealGameSync
 
 		private Point GetBadgeListLocation(List<BadgeInfo> badges, Rectangle bounds, HorizontalAlign horzAlign, VerticalAlignment vertAlign)
 		{
-			Point location = bounds.Location;
 			if (badges.Count == 0)
 			{
 				return bounds.Location;
 			}
 
-			BadgeInfo lastBadge = badges[badges.Count - 1];
+			BadgeInfo lastBadge = badges[^1];
 
 			int x = bounds.X;
 			switch (horzAlign)
 			{
 				case HorizontalAlign.Center:
-					x += (bounds.Width - lastBadge.Width - lastBadge.Offset) / 2;
+					x += (bounds.Width - lastBadge._width - lastBadge._offset) / 2;
 					break;
 				case HorizontalAlign.Right:
-					x += (bounds.Width - lastBadge.Width - lastBadge.Offset);
+					x += (bounds.Width - lastBadge._width - lastBadge._offset);
 					break;
 			}
 
@@ -2453,10 +2489,10 @@ namespace UnrealGameSync
 			switch (vertAlign)
 			{
 				case VerticalAlignment.Middle:
-					y += (bounds.Height - lastBadge.Height) / 2;
+					y += (bounds.Height - lastBadge._height) / 2;
 					break;
 				case VerticalAlignment.Bottom:
-					y += (bounds.Height - lastBadge.Height);
+					y += (bounds.Height - lastBadge._height);
 					break;
 			}
 
@@ -2468,17 +2504,17 @@ namespace UnrealGameSync
 			for (int idx = 0; idx < badges.Count; idx++)
 			{
 				BadgeInfo badge = badges[idx];
-				bool mergeLeft = (idx > 0 && badges[idx - 1].Group == badge.Group);
-				bool mergeRight = (idx < badges.Count - 1 && badges[idx + 1].Group == badge.Group);
+				bool mergeLeft = (idx > 0 && badges[idx - 1]._group == badge._group);
+				bool mergeRight = (idx < badges.Count - 1 && badges[idx + 1]._group == badge._group);
 
-				Rectangle bounds = new Rectangle(listLocation.X + badge.Offset, listLocation.Y, badge.Width, badge.Height);
-				if (badge.UniqueId != null && badge.UniqueId == _hoverBadgeUniqueId)
+				Rectangle bounds = new Rectangle(listLocation.X + badge._offset, listLocation.Y, badge._width, badge._height);
+				if (badge._uniqueId != null && badge._uniqueId == _hoverBadgeUniqueId)
 				{
-					DrawBadge(graphics, bounds, badge.Label, Color.FromArgb((alpha * badge.HoverBackgroundColor.A) / 255, badge.HoverBackgroundColor), mergeLeft, mergeRight);
+					DrawBadge(graphics, bounds, badge._label, Color.FromArgb((alpha * badge._hoverBackgroundColor.A) / 255, badge._hoverBackgroundColor), mergeLeft, mergeRight);
 				}
 				else
 				{
-					DrawBadge(graphics, bounds, badge.Label, Color.FromArgb((alpha * badge.BackgroundColor.A) / 255, badge.BackgroundColor), mergeLeft, mergeRight);
+					DrawBadge(graphics, bounds, badge._label, Color.FromArgb((alpha * badge._backgroundColor.A) / 255, badge._backgroundColor), mergeLeft, mergeRight);
 				}
 			}
 		}
@@ -2563,11 +2599,10 @@ namespace UnrealGameSync
 			ShowErrorDialog("{0} Erroring String({1}) \n {2}", errorMessage, erroringDefinition, usageMessage);
 		}
 
-
-		/**
-		 * Array of config specified options for what the Latest Change to Sync should be.
-		 * See PrintLatestChangeTypeUsage for usage information
-		 */
+		/// <summary>
+		/// Array of config specified options for what the Latest Change to Sync should be.
+		/// See PrintLatestChangeTypeUsage for usage information
+		/// </summary>
 		public List<LatestChangeType> GetCustomLatestChangeTypes()
 		{
 			List<LatestChangeType> foundLatestChangeTypes = new List<LatestChangeType>();
@@ -2721,26 +2756,6 @@ namespace UnrealGameSync
 			}
 		}
 
-		private bool TryGetProjectSetting(ConfigFile projectConfigFile, string name, string legacyName, [NotNullWhen(true)] out string? value)
-		{
-			string? newValue;
-			if (TryGetProjectSetting(projectConfigFile, name, out newValue))
-			{
-				value = newValue;
-				return true;
-			}
-
-			newValue = projectConfigFile.GetValue(legacyName, null);
-			if (newValue != null)
-			{
-				value = newValue;
-				return true;
-			}
-
-			value = null;
-			return false;
-		}
-
 		private List<BadgeInfo> CreateBuildBadges(int changeNumber, EventSummary? summary)
 		{
 			List<BadgeInfo> badges = new List<BadgeInfo>();
@@ -2761,10 +2776,10 @@ namespace UnrealGameSync
 					badgeNameToBuildData.TryGetValue(badgeNameAndGroup.Key, out badgeData);
 
 					BadgeInfo badgeInfo = CreateBadge(changeNumber, badgeNameAndGroup.Key, badgeNameAndGroup.Value, badgeData);
-					if (_maxBuildBadgeChars != -1 && badgeInfo.Label.Length > _maxBuildBadgeChars)
+					if (_maxBuildBadgeChars != -1 && badgeInfo._label.Length > _maxBuildBadgeChars)
 					{
-						badgeInfo.ToolTip = badgeInfo.Label;
-						badgeInfo.Label = badgeInfo.Label.Substring(0, _maxBuildBadgeChars);
+						badgeInfo._toolTip = badgeInfo._label;
+						badgeInfo._label = badgeInfo._label.Substring(0, _maxBuildBadgeChars);
 					}
 					badges.Add(badgeInfo);
 				}
@@ -2858,16 +2873,6 @@ namespace UnrealGameSync
 		{
 			Size badgeSize = GetBadgeSize("Sync");
 			return new Rectangle(bounds.Right - badgeSize.Width - 2, bounds.Top + (bounds.Height - badgeSize.Height) / 2, badgeSize.Width, badgeSize.Height);
-		}
-
-		private void DrawSingleBadge(Graphics graphics, Rectangle displayRectangle, string badgeText, Color badgeColor)
-		{
-			Size badgeSize = GetBadgeSize(badgeText);
-
-			int x = displayRectangle.Left + (displayRectangle.Width - badgeSize.Width) / 2;
-			int y = displayRectangle.Top + (displayRectangle.Height - badgeSize.Height) / 2;
-
-			DrawBadge(graphics, new Rectangle(x, y, badgeSize.Width, badgeSize.Height), badgeText, badgeColor, false, false);
 		}
 
 		private void DrawBadge(Graphics graphics, Rectangle badgeRect, string badgeText, Color badgeColor, bool mergeLeft, bool mergeRight)
@@ -3257,7 +3262,6 @@ namespace UnrealGameSync
 			SafeProcessStart("p4v.exe", commandLine.ToString());
 		}
 
-
 		void RunTool(ToolDefinition tool, ToolLink link)
 		{
 			DirectoryReference? toolDir = _owner.ToolUpdateMonitor.GetToolPath(tool.Name);
@@ -3320,7 +3324,10 @@ namespace UnrealGameSync
 
 				StatusLine progressLine = new StatusLine();
 				progressLine.AddText(String.Format("{0}  ", progress.Item1));
-				if (progress.Item2 > 0.0f) progressLine.AddProgressBar(progress.Item2);
+				if (progress.Item2 > 0.0f)
+				{
+					progressLine.AddProgressBar(progress.Item2);
+				}
 				lines.Add(progressLine);
 			}
 			else if (_workspace.IsExternalSyncActive())
@@ -3387,7 +3394,7 @@ namespace UnrealGameSync
 							summaryLine.AddText(" at changelist ");
 						}
 						summaryLine.AddLink(String.Format("{0}.", _workspace.CurrentChangeNumber), FontStyle.Regular, () => { SelectChange(_workspace.CurrentChangeNumber); });
-						summaryLine.AddLink(" \u25BE", 0, (P, R) =>
+						summaryLine.AddLink(" \u25BE", 0, (point, bounds) =>
 						{
 							// Try to find the CL record in our stored list in order to avoid requesting the info from p4:
 							foreach (ListViewItem? item in BuildList.Items)
@@ -3405,7 +3412,7 @@ namespace UnrealGameSync
 										else if (summary.Number == _workspace.CurrentChangeNumber)
 										{
 											_contextMenuChange = summary;
-											ShowChangelistContextMenu(StatusPanel, showTimeRelatedItems: false, new Point(R.Left, R.Bottom), ToolStripDropDownDirection.BelowRight);
+											ShowChangelistContextMenu(StatusPanel, showTimeRelatedItems: false, new Point(bounds.Left, bounds.Bottom), ToolStripDropDownDirection.BelowRight);
 											return;
 										}
 									}
@@ -3414,21 +3421,21 @@ namespace UnrealGameSync
 
 							// Couldn't find the CL in our BuildList, get the info from p4 :
 							ChangesRecord? foundRecord = null;
-							Func<IPerforceConnection, CancellationToken, Task<bool>> getChangesRecordFunc = async (Perforce, CancellationToken) =>
+							async Task<bool> GetChangesRecordFunc(IPerforceConnection perforce, CancellationToken cancellationToken)
 							{
-								List<ChangesRecord> changes = await Perforce.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, $"//{_perforceSettings.ClientName}/...@{_workspace.CurrentChangeNumber},{_workspace.CurrentChangeNumber}", CancellationToken);
+								List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, $"//{_perforceSettings.ClientName}/...@{_workspace.CurrentChangeNumber},{_workspace.CurrentChangeNumber}", cancellationToken);
 								if (changes.Count == 1)
 								{
 									foundRecord = changes[0];
 								}
 								return true;
-							};
+							}
 
-							ModalTask<bool>? getChangesTask = PerforceModalTask.Execute<bool>(this, "Getting CL info", "Please wait...", _perforceSettings, getChangesRecordFunc, _logger);
+							ModalTask<bool>? getChangesTask = PerforceModalTask.Execute<bool>(this, "Getting CL info", "Please wait...", _perforceSettings, GetChangesRecordFunc, _logger);
 							if ((getChangesTask != null) && getChangesTask.Succeeded && (foundRecord != null))
 							{
 								_contextMenuChange = foundRecord;
-								ShowChangelistContextMenu(StatusPanel, showTimeRelatedItems: false, new Point(R.Left, R.Bottom), ToolStripDropDownDirection.BelowRight);
+								ShowChangelistContextMenu(StatusPanel, showTimeRelatedItems: false, new Point(bounds.Left, bounds.Bottom), ToolStripDropDownDirection.BelowRight);
 							}
 						});
 					}
@@ -3909,7 +3916,7 @@ namespace UnrealGameSync
 				{
 					for (int idx = 0; idx < 2; idx++)
 					{
-						Func<IPerforceConnection, CancellationToken, Task<bool>> switchFunc = async (perforce, cancellationToken) =>
+						async Task<bool> SwitchFunc(IPerforceConnection perforce, CancellationToken cancellationToken)
 						{
 							if (idx == 1 || !await perforce.OpenedAsync(OpenedOptions.None, FileSpecList.Any, cancellationToken).AnyAsync())
 							{
@@ -3917,9 +3924,9 @@ namespace UnrealGameSync
 								return true;
 							}
 							return false;
-						};
+						}
 
-						ModalTask<bool>? switchTask = PerforceModalTask.Execute<bool>(this, "Switching streams", "Please wait...", _perforceSettings, switchFunc, _logger);
+						ModalTask<bool>? switchTask = PerforceModalTask.Execute<bool>(this, "Switching streams", "Please wait...", _perforceSettings, SwitchFunc, _logger);
 						if (switchTask == null || !switchTask.Succeeded)
 						{
 							break;
@@ -3999,10 +4006,7 @@ namespace UnrealGameSync
 			if (_perforceMonitor.PendingMaxChanges <= currentMaxChanges && BuildList.SelectedItems.Count == 0)
 			{
 				_perforceMonitor.PendingMaxChanges = currentMaxChanges + BuildListExpandCount;
-				if (_expandItem != null)
-				{
-					_expandItem.EnsureVisible();
-				}
+				_expandItem?.EnsureVisible();
 			}
 		}
 
@@ -4077,17 +4081,17 @@ namespace UnrealGameSync
 						if (DescriptionColumn.Index < hitTest.Item.SubItems.Count && hitTest.Item.SubItems[DescriptionColumn.Index] == hitTest.SubItem)
 						{
 							ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo(change);
-							if (layoutInfo.DescriptionBadges.Count > 0)
+							if (layoutInfo._descriptionBadges.Count > 0)
 							{
-								Point buildListLocation = GetBadgeListLocation(layoutInfo.DescriptionBadges, hitTest.SubItem.Bounds, HorizontalAlign.Right, VerticalAlignment.Middle);
+								Point buildListLocation = GetBadgeListLocation(layoutInfo._descriptionBadges, hitTest.SubItem.Bounds, HorizontalAlign.Right, VerticalAlignment.Middle);
 								buildListLocation.Offset(-2, 0);
 
-								foreach (BadgeInfo badge in layoutInfo.DescriptionBadges)
+								foreach (BadgeInfo badge in layoutInfo._descriptionBadges)
 								{
 									Rectangle badgeBounds = badge.GetBounds(buildListLocation);
-									if (badgeBounds.Contains(args.Location) && badge.ClickHandler != null)
+									if (badgeBounds.Contains(args.Location) && badge._clickHandler != null)
 									{
-										badge.ClickHandler();
+										badge._clickHandler();
 										break;
 									}
 								}
@@ -4097,15 +4101,15 @@ namespace UnrealGameSync
 						if (CISColumn.Index < hitTest.Item.SubItems.Count && hitTest.Item.SubItems[CISColumn.Index] == hitTest.SubItem)
 						{
 							ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo(change);
-							if (layoutInfo.BuildBadges.Count > 0)
+							if (layoutInfo._buildBadges.Count > 0)
 							{
-								Point buildListLocation = GetBadgeListLocation(layoutInfo.BuildBadges, hitTest.SubItem.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
+								Point buildListLocation = GetBadgeListLocation(layoutInfo._buildBadges, hitTest.SubItem.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
 								buildListLocation.X = Math.Max(buildListLocation.X, hitTest.SubItem.Bounds.Left);
 
-								BadgeInfo? badgeInfo = HitTestBadge(args.Location, layoutInfo.BuildBadges, buildListLocation);
-								if (badgeInfo != null && badgeInfo.ClickHandler != null)
+								BadgeInfo? badgeInfo = HitTestBadge(args.Location, layoutInfo._buildBadges, buildListLocation);
+								if (badgeInfo != null && badgeInfo._clickHandler != null)
 								{
-									badgeInfo.ClickHandler();
+									badgeInfo._clickHandler();
 								}
 							}
 						}
@@ -4117,14 +4121,14 @@ namespace UnrealGameSync
 								ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo((ChangesRecord)hitTest.Item.Tag);
 
 								List<BadgeInfo>? badges;
-								if (layoutInfo.CustomBadges.TryGetValue(customColumn.Text, out badges) && badges.Count > 0)
+								if (layoutInfo._customBadges.TryGetValue(customColumn.Text, out badges) && badges.Count > 0)
 								{
 									Point listLocation = GetBadgeListLocation(badges, hitTest.SubItem.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
 
 									BadgeInfo? badgeInfo = HitTestBadge(args.Location, badges, listLocation);
-									if (badgeInfo != null && badgeInfo.ClickHandler != null)
+									if (badgeInfo != null && badgeInfo._clickHandler != null)
 									{
-										badgeInfo.ClickHandler();
+										badgeInfo._clickHandler();
 									}
 								}
 							}
@@ -4267,34 +4271,34 @@ namespace UnrealGameSync
 			}
 
 			string? newHoverBadgeUniqueId = null;
-			if (hitTest.Item != null && hitTest.Item.Tag is ChangesRecord)
+			if (hitTest.Item != null && hitTest.Item.Tag is ChangesRecord changesRecord)
 			{
 				int columnIndex = hitTest.Item.SubItems.IndexOf(hitTest.SubItem);
 				if (columnIndex == DescriptionColumn.Index)
 				{
-					ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo((ChangesRecord)hitTest.Item.Tag);
-					if (layoutInfo.DescriptionBadges.Count > 0)
+					ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo(changesRecord);
+					if (layoutInfo._descriptionBadges.Count > 0)
 					{
-						Point listLocation = GetBadgeListLocation(layoutInfo.DescriptionBadges, hitTest.SubItem.Bounds, HorizontalAlign.Right, VerticalAlignment.Middle);
-						newHoverBadgeUniqueId = HitTestBadge(e.Location, layoutInfo.DescriptionBadges, listLocation)?.UniqueId;
+						Point listLocation = GetBadgeListLocation(layoutInfo._descriptionBadges, hitTest.SubItem.Bounds, HorizontalAlign.Right, VerticalAlignment.Middle);
+						newHoverBadgeUniqueId = HitTestBadge(e.Location, layoutInfo._descriptionBadges, listLocation)?._uniqueId;
 					}
 				}
 				else if (columnIndex == CISColumn.Index)
 				{
-					ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo((ChangesRecord)hitTest.Item.Tag);
-					if (layoutInfo.BuildBadges.Count > 0)
+					ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo(changesRecord);
+					if (layoutInfo._buildBadges.Count > 0)
 					{
-						Point buildListLocation = GetBadgeListLocation(layoutInfo.BuildBadges, hitTest.SubItem.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
+						Point buildListLocation = GetBadgeListLocation(layoutInfo._buildBadges, hitTest.SubItem.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
 						buildListLocation.X = Math.Max(buildListLocation.X, hitTest.SubItem.Bounds.Left);
 
-						BadgeInfo? badge = HitTestBadge(e.Location, layoutInfo.BuildBadges, buildListLocation);
-						newHoverBadgeUniqueId = (badge != null) ? badge.UniqueId : null;
+						BadgeInfo? badge = HitTestBadge(e.Location, layoutInfo._buildBadges, buildListLocation);
+						newHoverBadgeUniqueId = badge?._uniqueId;
 
 						if (_hoverBadgeUniqueId != newHoverBadgeUniqueId)
 						{
-							if (badge != null && badge.ToolTip != null && badge.BackgroundColor.A != 0)
+							if (badge?._toolTip != null && badge._backgroundColor.A != 0)
 							{
-								BuildListToolTip.Show(badge.ToolTip, BuildList, new Point(buildListLocation.X + badge.Offset, hitTest.Item.Bounds.Bottom + 2));
+								BuildListToolTip.Show(badge._toolTip, BuildList, new Point(buildListLocation.X + badge._offset, hitTest.Item.Bounds.Bottom + 2));
 							}
 							else
 							{
@@ -4310,10 +4314,10 @@ namespace UnrealGameSync
 					ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo((ChangesRecord)hitTest.Item.Tag);
 
 					List<BadgeInfo>? badges;
-					if (layoutInfo.CustomBadges.TryGetValue(column.Text, out badges) && badges.Count > 0)
+					if (layoutInfo._customBadges.TryGetValue(column.Text, out badges) && badges.Count > 0)
 					{
 						Point listLocation = GetBadgeListLocation(badges, hitTest.SubItem.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
-						newHoverBadgeUniqueId = HitTestBadge(e.Location, badges, listLocation)?.UniqueId;
+						newHoverBadgeUniqueId = HitTestBadge(e.Location, badges, listLocation)?._uniqueId;
 					}
 				}
 			}
@@ -4480,7 +4484,9 @@ namespace UnrealGameSync
 		{
 			IReadOnlyList<IArchiveInfo>? availableArchives = _jupiterMonitor?.AvailableArchives;
 			if (availableArchives != null && availableArchives.Count != 0)
+			{
 				return availableArchives;
+			}
 
 			// if jupiter had no archives we fallback to the perforce monitor
 			if (_perforceMonitor != null)
@@ -4539,22 +4545,13 @@ namespace UnrealGameSync
 
 		private void BuildList_FontChanged(object? sender, EventArgs e)
 		{
-			if (_buildFont != null)
-			{
-				_buildFont.Dispose();
-			}
+			_buildFont?.Dispose();
 			_buildFont = BuildList.Font;
 
-			if (_selectedBuildFont != null)
-			{
-				_selectedBuildFont.Dispose();
-			}
+			_selectedBuildFont?.Dispose();
 			_selectedBuildFont = new Font(_buildFont, FontStyle.Bold);
 
-			if (_badgeFont != null)
-			{
-				_badgeFont.Dispose();
-			}
+			_badgeFont?.Dispose();
 			_badgeFont = new Font(_buildFont.FontFamily, _buildFont.SizeInPoints - 2, FontStyle.Bold);
 		}
 
@@ -4798,10 +4795,7 @@ namespace UnrealGameSync
 		{
 			UpdateSyncActionCheckboxes();
 
-			if (_perforceMonitor != null)
-			{
-				_perforceMonitor.Refresh();
-			}
+			_perforceMonitor?.Refresh();
 
 			if (DesiredTaskbarState.Item1 == TaskbarState.Error)
 			{
@@ -4843,7 +4837,7 @@ namespace UnrealGameSync
 						if (descriptionBounds.Contains(clientPoint))
 						{
 							ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo(change);
-							if (layoutInfo.DescriptionBadges.Count == 0 || clientPoint.X < GetBadgeListLocation(layoutInfo.DescriptionBadges, descriptionBounds, HorizontalAlign.Right, VerticalAlignment.Middle).X - 2)
+							if (layoutInfo._descriptionBadges.Count == 0 || clientPoint.X < GetBadgeListLocation(layoutInfo._descriptionBadges, descriptionBounds, HorizontalAlign.Right, VerticalAlignment.Middle).X - 2)
 							{
 								BuildListToolTip.Show(change.Description, BuildList, new Point(descriptionBounds.Left, descriptionBounds.Bottom + 2));
 								return;
@@ -5051,7 +5045,7 @@ namespace UnrealGameSync
 
 				_logger.LogInformation("Scheduled sync at {0} for {1}.",
 					DateTime.Now,
-					scheduledSyncTypeId != null ? scheduledSyncTypeId : "Default");
+					scheduledSyncTypeId ?? "Default");
 
 				int changeNumber;
 				if (!FindChangeToSync(scheduledSyncTypeId, out changeNumber))
@@ -5435,10 +5429,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private bool ShouldSyncPrecompiledEditor
-		{
-			get { return _settings.Archives.Any(x => x.Enabled && x.Type == IArchiveInfo.EditorArchiveType) && GetArchives().Any(x => x.Type == "Editor"); }
-		}
+		private bool ShouldSyncPrecompiledEditor => _settings.Archives.Any(x => x.Enabled && x.Type == IArchiveInfo.EditorArchiveType) && GetArchives().Any(x => x.Type == "Editor");
 
 		public BuildConfig GetEditorBuildConfig()
 		{
@@ -5528,8 +5519,9 @@ namespace UnrealGameSync
 		{
 			SyncContextMenu.Items.Clear();
 			SyncContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-			this.SyncContexMenu_EnterChangelist,
-			this.toolStripSeparator8});
+				SyncContexMenu_EnterChangelist,
+				toolStripSeparator8
+			});
 
 			foreach (LatestChangeType changeType in GetCustomLatestChangeTypes())
 			{
@@ -5537,7 +5529,7 @@ namespace UnrealGameSync
 				menuItem.Name = changeType.Name;
 				menuItem.Text = changeType.Description;
 				menuItem.Size = new System.Drawing.Size(189, 22);
-				menuItem.Click += (sender, e) => this.SyncContextMenu_LatestChangeType_Click(sender, e, changeType.Name);
+				menuItem.Click += (sender, e) => SyncContextMenu_LatestChangeType_Click(changeType.Name);
 
 				SyncContextMenu.Items.Add(menuItem);
 			}
@@ -5579,7 +5571,7 @@ namespace UnrealGameSync
 			SyncContextMenu.Show(StatusPanel, new Point(bounds.Left, bounds.Bottom), ToolStripDropDownDirection.BelowRight);
 		}
 
-		private void SyncContextMenu_LatestChangeType_Click(object? sender, EventArgs e, string syncTypeId)
+		private void SyncContextMenu_LatestChangeType_Click(string syncTypeId)
 		{
 			_settings.SyncTypeId = syncTypeId;
 			_settings.Save(_logger);
@@ -5603,10 +5595,7 @@ namespace UnrealGameSync
 		{
 			if (args.KeyCode == Keys.F5 || (args.Control && args.KeyCode == Keys.R))
 			{
-				if (_perforceMonitor != null)
-				{
-					_perforceMonitor.Refresh();
-				}
+				_perforceMonitor?.Refresh();
 			}
 
 			if (args.Control && args.KeyCode == Keys.C && BuildList.SelectedItems.Count > 0)
@@ -6018,7 +6007,7 @@ namespace UnrealGameSync
 			FilterContextMenu_Robomerge_Annotate.Checked = _settings.AnnotateRobmergeChanges;
 
 			// Set checks if an author filter string is set
-			FilterContextMenu_Author.Checked = !string.IsNullOrEmpty(this._authorFilterText) && this._authorFilterText != _authorFilterPlaceholderText;
+			FilterContextMenu_Author.Checked = !String.IsNullOrEmpty(_authorFilterText) && _authorFilterText != AuthorFilterPlaceholderText;
 
 			FilterContextMenu.Show(FilterButton, new Point(0, FilterButton.Height));
 		}
@@ -6096,10 +6085,10 @@ namespace UnrealGameSync
 		/// <param name="e"></param>
 		private void FilterContextMenu_Author_Name_GotFocus(object sender, EventArgs e)
 		{
-			if (this.FilterContextMenu_Author_Name.Text == _authorFilterPlaceholderText)
+			if (FilterContextMenu_Author_Name.Text == AuthorFilterPlaceholderText)
 			{
-				this.FilterContextMenu_Author_Name.Text = "";
-				this.FilterContextMenu_Author_Name.TextBox.ForeColor = Color.Black;
+				FilterContextMenu_Author_Name.Text = "";
+				FilterContextMenu_Author_Name.TextBox.ForeColor = Color.Black;
 			}
 		}
 
@@ -6111,10 +6100,10 @@ namespace UnrealGameSync
 		/// <param name="e"></param>
 		private void FilterContextMenu_Author_Name_LostFocus(object sender, EventArgs e)
 		{
-			if (string.IsNullOrEmpty(this.FilterContextMenu_Author_Name.Text))
+			if (String.IsNullOrEmpty(FilterContextMenu_Author_Name.Text))
 			{
-				this.FilterContextMenu_Author_Name.Text = _authorFilterPlaceholderText;
-				this.FilterContextMenu_Author_Name.TextBox.ForeColor = Color.DarkGray;
+				FilterContextMenu_Author_Name.Text = AuthorFilterPlaceholderText;
+				FilterContextMenu_Author_Name.TextBox.ForeColor = Color.DarkGray;
 			}
 		}
 
@@ -6126,10 +6115,9 @@ namespace UnrealGameSync
 		/// <param name="e"></param>
 		private void FilterContextMenu_Author_Name_Changed(object sender, EventArgs e)
 		{
-			_authorFilterText = this.FilterContextMenu_Author_Name.Text;
+			_authorFilterText = FilterContextMenu_Author_Name.Text;
 			UpdateBuildListFilter();
 		}
-
 
 		private void FilterContextMenu_Type_ShowAll_Click(object sender, EventArgs e)
 		{
@@ -6221,7 +6209,7 @@ namespace UnrealGameSync
 			ConfigObject overrideObject = new ConfigObject(backgroundColor);
 
 			float r, g, b;
-			if (!float.TryParse(overrideObject.GetValue("R", ""), out r) || !float.TryParse(overrideObject.GetValue("G", ""), out g) || !float.TryParse(overrideObject.GetValue("B", ""), out b))
+			if (!Single.TryParse(overrideObject.GetValue("R", ""), out r) || !Single.TryParse(overrideObject.GetValue("G", ""), out g) || !Single.TryParse(overrideObject.GetValue("B", ""), out b))
 			{
 				return null;
 			}
@@ -6275,7 +6263,7 @@ namespace UnrealGameSync
 			ConfigObject specifiedColorObject = new ConfigObject(specifiedColorValue);
 
 			float r, g, b;
-			if (!float.TryParse(specifiedColorObject.GetValue("R", ""), out r) || !float.TryParse(specifiedColorObject.GetValue("G", ""), out g) || !float.TryParse(specifiedColorObject.GetValue("B", ""), out b))
+			if (!Single.TryParse(specifiedColorObject.GetValue("R", ""), out r) || !Single.TryParse(specifiedColorObject.GetValue("G", ""), out g) || !Single.TryParse(specifiedColorObject.GetValue("B", ""), out b))
 			{
 				return null;
 			}

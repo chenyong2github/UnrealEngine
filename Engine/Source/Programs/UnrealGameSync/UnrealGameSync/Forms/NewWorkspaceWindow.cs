@@ -6,10 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -29,23 +27,23 @@ namespace UnrealGameSync
 
 			public NewWorkspaceSettings(string name, string stream, DirectoryReference rootDir)
 			{
-				this.Name = name;
-				this.Stream = stream;
-				this.RootDir = rootDir;
+				Name = name;
+				Stream = stream;
+				RootDir = rootDir;
 			}
 		}
 
 		class FindWorkspaceSettingsTask
 		{
-			public InfoRecord Info;
-			public List<ClientsRecord> Clients;
-			public string? CurrentStream;
+			public InfoRecord Info { get; }
+			public List<ClientsRecord> Clients { get; }
+			public string? CurrentStream { get; }
 
 			public FindWorkspaceSettingsTask(InfoRecord info, List<ClientsRecord> clients, string? currentStream)
 			{
-				this.Info = info;
-				this.Clients = clients;
-				this.CurrentStream = currentStream;
+				Info = info;
+				Clients = clients;
+				CurrentStream = currentStream;
 			}
 
 			public static async Task<FindWorkspaceSettingsTask> RunAsync(IPerforceConnection perforce, string currentWorkspaceName, CancellationToken cancellationToken)
@@ -85,21 +83,21 @@ namespace UnrealGameSync
 			}
 		}
 
-		IPerforceSettings _perforceSettings;
-		InfoRecord _info;
-		List<ClientsRecord> _clients;
-		IServiceProvider _serviceProvider;
+		readonly IPerforceSettings _perforceSettings;
+		readonly InfoRecord _info;
+		readonly List<ClientsRecord> _clients;
+		readonly IServiceProvider _serviceProvider;
 		NewWorkspaceSettings? _settings;
-		DirectoryReference? _defaultRootPath;
+		readonly DirectoryReference? _defaultRootPath;
 
 		private NewWorkspaceWindow(IPerforceSettings perforceSettings, string? forceStream, string? defaultStream, InfoRecord info, List<ClientsRecord> clients, IServiceProvider serviceProvider)
 		{
 			InitializeComponent();
 
-			this._perforceSettings = perforceSettings;
-			this._info = info;
-			this._clients = clients;
-			this._serviceProvider = serviceProvider;
+			_perforceSettings = perforceSettings;
+			_info = info;
+			_clients = clients;
+			_serviceProvider = serviceProvider;
 
 			Dictionary<DirectoryReference, int> rootPathToCount = new Dictionary<DirectoryReference, int>();
 			foreach(ClientsRecord client in clients)
@@ -244,8 +242,7 @@ namespace UnrealGameSync
 
 		private void UpdateOkButton()
 		{
-			NewWorkspaceSettings? settings;
-			OkBtn.Enabled = TryGetWorkspaceSettings(out settings);
+			OkBtn.Enabled = TryGetWorkspaceSettings(out _);
 		}
 
 		private bool TryGetWorkspaceSettings([NotNullWhen(true)] out NewWorkspaceSettings? settings)

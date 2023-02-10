@@ -71,7 +71,6 @@ namespace UnrealGameSync
 				{
 					_archives = newArchives;
 				}
-
 			}
 			catch (Exception exception)
 			{
@@ -83,30 +82,40 @@ namespace UnrealGameSync
 		{
 			ConfigSection jupiterConfigSection = configFile.FindSection("Jupiter");
 			if (jupiterConfigSection == null)
+			{
 				return null;
+			}
 
 			string jupiterUrl = jupiterConfigSection.GetValue("JupiterUrl");
 			string oidcProviderIdentifier = jupiterConfigSection.GetValue("OIDCProviderIdentifier");
 
 			ConfigSection projectConfigSection = configFile.FindSection(selectedProjectIdentifier);
 			if (projectConfigSection == null)
+			{
 				return null;
+			}
 
 			string jupiterNamespace = projectConfigSection.GetValue("JupiterNamespace");
 			// Is no namespace has been specified we are unable to fetch builds
 			if (jupiterNamespace == null)
+			{
 				return null;
+			}
 
 			string expectedBranch = projectConfigSection.GetValue("ExpectedBranch");
 			// If we do not know which branch to fetch we can not list builds, as it would risk getting binaries from other branches
 			if (expectedBranch == null)
+			{
 				return null;
+			}
 
 			oidcProviderIdentifier = projectConfigSection.GetValue("OIDCProviderIdentifier") ?? oidcProviderIdentifier;
 
 			// with no oidc provider we are unable to login, thus it is required
 			if (oidcProviderIdentifier == null)
+			{
 				return null;
+			}
 
 			// project specific overrides
 			jupiterUrl = projectConfigSection.GetValue("JupiterUrl") ?? jupiterUrl;
@@ -148,22 +157,24 @@ namespace UnrealGameSync
 
 					// skip if we do not have metadata as we need that to be able to determine if this root is of the type we want
 					if (branch == null || project == null || archiveType == null || changelistString == null)
+					{
 						continue;
+					}
 
-					if (!string.Equals(_expectedBranch, branch, StringComparison.InvariantCultureIgnoreCase))
+					if (!String.Equals(_expectedBranch, branch, StringComparison.InvariantCultureIgnoreCase))
 					{
 						continue;
 					}
 
 					int changelist;
-					if (!int.TryParse(changelistString, out changelist))
+					if (!Int32.TryParse(changelistString, out changelist))
 					{
 						continue; // invalid changelist format
 					}
 
 					JupiterArchiveInfo existingArchive = newArchives.FirstOrDefault(info =>
-						string.Equals(info.Name, project, StringComparison.InvariantCultureIgnoreCase) &&
-						string.Equals(info.Type, archiveType, StringComparison.InvariantCultureIgnoreCase));
+						String.Equals(info.Name, project, StringComparison.InvariantCultureIgnoreCase) &&
+						String.Equals(info.Type, archiveType, StringComparison.InvariantCultureIgnoreCase));
 					if (existingArchive == null)
 					{
 						JupiterArchiveInfo archive = new JupiterArchiveInfo(project, archiveType, _jupiterUrl.ToString(), _jupiterNamespace);
@@ -211,10 +222,7 @@ namespace UnrealGameSync
 			public string Name { get; }
 			public string Type { get; }
 
-			public string BasePath
-			{
-				get { return null; } 
-			}
+			public string BasePath => null;
 
 			public string Target => throw new NotSupportedException();
 

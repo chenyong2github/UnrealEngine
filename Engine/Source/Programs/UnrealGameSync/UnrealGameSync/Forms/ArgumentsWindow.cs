@@ -2,13 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 
@@ -22,7 +17,7 @@ namespace UnrealGameSync
 		const int EmSetsel = 0xb1;
 
 		[DllImport("user32.dll", CharSet = CharSet.Auto)]
-		static extern IntPtr SendMessage(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam);
+		static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 		
 		[DllImport("user32.dll")]
 		static extern bool SetWindowText(IntPtr hWnd, string text);
@@ -49,10 +44,7 @@ namespace UnrealGameSync
 			PromptBeforeLaunchCheckBox.Checked = promptBeforeLaunch;
 		}
 
-		public bool PromptBeforeLaunch
-		{
-			get { return PromptBeforeLaunchCheckBox.Checked; }
-		}
+		public bool PromptBeforeLaunch => PromptBeforeLaunchCheckBox.Checked;
 
 		public List<Tuple<string, bool>> GetItems()
 		{
@@ -224,12 +216,6 @@ namespace UnrealGameSync
 		{
 			MoveUpButton.Enabled = (ArgumentsList.SelectedIndices.Count == 1 && ArgumentsList.SelectedIndices[0] > 0);
 			MoveDownButton.Enabled = (ArgumentsList.SelectedIndices.Count == 1 && ArgumentsList.SelectedIndices[0] < ArgumentsList.Items.Count - 2);
-		}
-
-		private void checkBox1_CheckedChanged(object sender, EventArgs e)
-		{
-
-
 		}
 	}
 }

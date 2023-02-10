@@ -11,7 +11,6 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
@@ -182,7 +181,7 @@ namespace UnrealGameSync
 			if(stringValue != null)
 			{
 				int value;
-				if(int.TryParse(stringValue, out value))
+				if(Int32.TryParse(stringValue, out value))
 				{
 					return value;
 				}
@@ -196,7 +195,7 @@ namespace UnrealGameSync
 			if(stringValue != null)
 			{
 				bool value;
-				if(bool.TryParse(stringValue, out value))
+				if(Boolean.TryParse(stringValue, out value))
 				{
 					return value;
 				}
@@ -241,8 +240,8 @@ namespace UnrealGameSync
 
 		public string? this[string key]
 		{
-			get { return GetValue(key); }
-			set { SetValue(key, value); }
+			get => GetValue(key);
+			set => SetValue(key, value);
 		}
 
 		public void SetDefaults(ConfigObject other)
@@ -427,7 +426,7 @@ namespace UnrealGameSync
 			if(valueString != null)
 			{
 				int value;
-				if(int.TryParse(valueString, out value))
+				if(Int32.TryParse(valueString, out value))
 				{
 					return value;
 				}
@@ -441,7 +440,7 @@ namespace UnrealGameSync
 			if (valueString != null)
 			{
 				long value;
-				if (long.TryParse(valueString, out value))
+				if (Int64.TryParse(valueString, out value))
 				{
 					return value;
 				}
@@ -504,7 +503,7 @@ namespace UnrealGameSync
 
 	public class ConfigFile
 	{
-		List<ConfigSection> _sections = new List<ConfigSection>();
+		readonly List<ConfigSection> _sections = new List<ConfigSection>();
 
 		public ConfigFile()
 		{

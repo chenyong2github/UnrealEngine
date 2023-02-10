@@ -2,12 +2,9 @@
 
 using EpicGames.Core;
 using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
@@ -28,7 +25,7 @@ namespace UnrealGameSync
 		EventWaitHandle? _lockedEvent;
 
 		Thread? _monitorThread;
-		ManualResetEvent _cancelMonitorEvent = new ManualResetEvent(false);
+		readonly ManualResetEvent _cancelMonitorEvent = new ManualResetEvent(false);
 
 		/// <summary>
 		/// Callback for the lock state changing

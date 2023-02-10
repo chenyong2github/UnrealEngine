@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 namespace UnrealGameSync
 {
@@ -135,7 +135,6 @@ namespace UnrealGameSync
 			this.PromptBeforeLaunchCheckBox.TabIndex = 8;
 			this.PromptBeforeLaunchCheckBox.Text = "Always show this dialog before launching the editor";
 			this.PromptBeforeLaunchCheckBox.UseVisualStyleBackColor = true;
-			this.PromptBeforeLaunchCheckBox.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
 			// 
 			// ArgumentsWindow
 			// 

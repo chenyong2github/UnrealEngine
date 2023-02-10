@@ -3,7 +3,6 @@
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.Collections.Generic;
@@ -21,16 +20,16 @@ namespace UnrealGameSync
 		[DllImport("user32.dll", SetLastError=true)]
 		static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int width, int height, uint flags);
 
-		public readonly IssueMonitor IssueMonitor;
+		public IssueMonitor IssueMonitor { get; }
 
-		public bool isWarning;
+		public bool IsWarning { get; set; }
 
-		public bool? strongAlert;
+		public bool? StrongAlert { get; set; }
 
 		public IssueAlertWindow(IssueMonitor issueMonitor, IssueData issue, IssueAlertReason reason)
 		{
-			this.IssueMonitor = issueMonitor;
-			this.Issue = issue;
+			IssueMonitor = issueMonitor;
+			Issue = issue;
 
 			InitializeComponent();
 
@@ -53,9 +52,9 @@ namespace UnrealGameSync
 		{
 			base.OnPaintBackground(e);
 
-			if(strongAlert ?? false)
+			if(StrongAlert ?? false)
 			{
-				Color stripeColor = isWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(200, 74, 49);//214, 69, 64);
+				Color stripeColor = IsWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(200, 74, 49);//214, 69, 64);
 				using (Brush stripeBrush = new SolidBrush(stripeColor))
 				{
 					e.Graphics.FillRectangle(stripeBrush, 0, 0, Bounds.Width, Bounds.Height);
@@ -67,7 +66,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				Color stripeColor = isWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(214, 69, 64);
+				Color stripeColor = IsWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(214, 69, 64);
 
 				Color backgroundColor = Color.FromArgb(241, 236, 236);
 				using(Brush solidBrush = new SolidBrush(backgroundColor))
@@ -75,7 +74,6 @@ namespace UnrealGameSync
 	//				e.Graphics.FillRectangle(SolidBrush, 0, 0, Bounds.Width - 1, Bounds.Height - 1);
 				}
 
-				Color borderColor = stripeColor; 
 				using(Pen pen = new Pen(Color.FromArgb(128, 128, 128)))
 				{
 					e.Graphics.DrawRectangle(pen, 0, 0, Bounds.Width - 1, Bounds.Height - 1);
@@ -140,7 +138,7 @@ namespace UnrealGameSync
 				summary = summary.Substring(0, maxLength).TrimEnd() + "...";
 			}
 
-			if(summary != SummaryLabel.Text || ownerText != OwnerLabel.Text || Reason != newReason || isWarning != newIsWarning || strongAlert != newStrongAlert)
+			if(summary != SummaryLabel.Text || ownerText != OwnerLabel.Text || Reason != newReason || IsWarning != newIsWarning || StrongAlert != newStrongAlert)
 			{
 				Rectangle prevBounds = Bounds;
 				SuspendLayout();
@@ -149,9 +147,9 @@ namespace UnrealGameSync
 				OwnerLabel.Text = ownerText;
 
 				bool forceUpdateButtons = false;
-				if(strongAlert != newStrongAlert)
+				if(StrongAlert != newStrongAlert)
 				{
-					strongAlert = newStrongAlert;
+					StrongAlert = newStrongAlert;
 
 					if(newStrongAlert)
 					{
@@ -175,9 +173,9 @@ namespace UnrealGameSync
 					forceUpdateButtons = true;
 				}
 
-				if (isWarning != newIsWarning)
+				if (IsWarning != newIsWarning)
 				{
-					isWarning = newIsWarning;
+					IsWarning = newIsWarning;
 				}
 
 				if(Reason != newReason || forceUpdateButtons)
@@ -226,10 +224,7 @@ namespace UnrealGameSync
 			SetWindowPos(Handle, HwndTopmost, 0, 0, 0, 0, SwpNomove | SwpNosize | SwpNoactivate);
 		}
 
-		protected override bool ShowWithoutActivation 
-		{
-			get { return true; }
-		}
+		protected override bool ShowWithoutActivation => true;
 
 		private void SummaryLabel_LinkClicked(object sender, System.Windows.Forms.LinkLabelLinkClickedEventArgs e)
 		{

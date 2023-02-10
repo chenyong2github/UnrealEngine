@@ -1,16 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Runtime.InteropServices;
-using System.Collections.Concurrent;
 
 namespace UnrealGameSync
 {
@@ -47,10 +40,7 @@ namespace UnrealGameSync
 			SplitterMoved += OnSplitterMoved;
 		}
 
-		protected Font CaptionFont
-		{
-			get { return SystemFonts.IconTitleFont!; }
-		}
+		protected Font CaptionFont => SystemFonts.IconTitleFont!;
 
 		protected override void OnCreateControl()
 		{
@@ -215,10 +205,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		protected override bool ShowFocusCues
-		{
-			get { return false; }
-		}
+		protected override bool ShowFocusCues => false;
 
 		protected override void OnResize(EventArgs e)
 		{
@@ -301,9 +288,6 @@ namespace UnrealGameSync
 			}
 		}
 
-		Rectangle CloseButtonRectangle
-		{
-			get { return new Rectangle(ClientRectangle.Right - 20, SplitterDistance, 20, SplitterWidth); }
-		}
+		Rectangle CloseButtonRectangle => new Rectangle(ClientRectangle.Right - 20, SplitterDistance, 20, SplitterWidth);
 	}
 }

@@ -2,15 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 #nullable enable
@@ -23,13 +20,13 @@ namespace UnrealGameSync
 		{
 			public string Category { get; }
 			public string Description { get; }
-			public string? Install;
-			public string? Browse;
+			public string? Install { get; set; }
+			public string? Browse { get; set; }
 
 			public SdkItem(string category, string description)
 			{
-				this.Category = category;
-				this.Description = description;
+				Category = category;
+				Description = description;
 			}
 		}
 
@@ -37,24 +34,24 @@ namespace UnrealGameSync
 		{
 			public string UniqueId { get; }
 			public string Label { get; }
-			public Rectangle Rectangle;
-			public Action? OnClick;
+			public Rectangle Rectangle { get; set; }
+			public Action? OnClick { get; set; }
 
 			public BadgeInfo(string uniqueId, string label)
 			{
-				this.UniqueId = uniqueId;
-				this.Label = label;
+				UniqueId = uniqueId;
+				Label = label;
 			}
 		}
 
-		Font _badgeFont;
+		readonly Font _badgeFont;
 		string? _hoverBadgeUniqueId;
 
 		public SdkInfoWindow(string[] sdkInfoEntries, Dictionary<string, string> variables, Font badgeFont)
 		{
 			InitializeComponent();
 
-			this._badgeFont = badgeFont;
+			_badgeFont = badgeFont;
 
 			Dictionary<string, ConfigObject> uniqueIdToObject = new Dictionary<string, ConfigObject>(StringComparer.InvariantCultureIgnoreCase);
 			foreach(string sdkInfoEntry in sdkInfoEntries)
@@ -127,7 +124,7 @@ namespace UnrealGameSync
 
 			if(SdkListView.Items.Count > 0)
 			{
-				int itemsHeight = SdkListView.Items[SdkListView.Items.Count - 1].Bounds.Bottom + 20;
+				int itemsHeight = SdkListView.Items[^1].Bounds.Bottom + 20;
 				Height = SdkListView.Top + itemsHeight + (Height - SdkListView.Bottom);
 			}
 		}

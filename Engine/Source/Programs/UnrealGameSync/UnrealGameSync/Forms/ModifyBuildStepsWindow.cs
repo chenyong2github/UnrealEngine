@@ -3,12 +3,7 @@
 using EpicGames.Core;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 
@@ -16,12 +11,12 @@ namespace UnrealGameSync
 {
 	partial class ModifyBuildStepsWindow : Form
 	{
-		List<string> _targetNames;
-		List<BuildStep> _steps;
-		HashSet<Guid> _projectSteps;
-		DirectoryReference _baseDirectory;
+		readonly List<string> _targetNames;
+		readonly List<BuildStep> _steps;
+		readonly HashSet<Guid> _projectSteps;
+		readonly DirectoryReference _baseDirectory;
 		ListViewItem.ListViewSubItem? _mouseDownSubItem = null;
-		IReadOnlyDictionary<string, string> _variables;
+		readonly IReadOnlyDictionary<string, string> _variables;
 
 		public ModifyBuildStepsWindow(List<string> inTargetNames, List<BuildStep> inSteps, HashSet<Guid> inProjectSteps, DirectoryReference inBaseDirectory, IReadOnlyDictionary<string, string> inVariables)
 		{

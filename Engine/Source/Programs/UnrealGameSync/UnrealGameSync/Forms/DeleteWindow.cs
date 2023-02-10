@@ -2,20 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
 	public partial class DeleteWindow : Form
 	{
-		Dictionary<string, bool> _filesToDelete;
+		readonly Dictionary<string, bool> _filesToDelete;
 
 		public DeleteWindow(Dictionary<string, bool> inFilesToDelete)
 		{

@@ -7,10 +7,8 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -33,28 +31,28 @@ namespace UnrealGameSync
 
 			public BuildGroup(string jobName, string jobUrl, int change, IssueBuildOutcome outcome, IReadOnlyList<IssueBuildData> builds)
 			{
-				this.JobName = jobName;
-				this.JobUrl = jobUrl;
-				this.Change = change;
-				this.Outcome = outcome;
-				this.Builds = builds;
+				JobName = jobName;
+				JobUrl = jobUrl;
+				Change = change;
+				Outcome = outcome;
+				Builds = builds;
 			}
 		}
 
 		class PerforceChangeRange
 		{
-			public bool Expanded;
+			public bool Expanded { get; set; }
 			public int MinChange { get; }
 			public int MaxChange { get; }
-			public List<ChangesRecord>? Changes;
-			public string? ErrorMessage;
+			public List<ChangesRecord>? Changes { get; set; }
+			public string? ErrorMessage { get; set; }
 			public BuildGroup BuildGroup { get; }
 
 			public PerforceChangeRange(int minChange, int maxChange, BuildGroup buildGroup)
 			{
-				this.MinChange = minChange;
-				this.MaxChange = maxChange;
-				this.BuildGroup = buildGroup;
+				MinChange = minChange;
+				MaxChange = maxChange;
+				BuildGroup = buildGroup;
 			}
 		}
 
@@ -65,7 +63,7 @@ namespace UnrealGameSync
 			public PerforceChangeDetailsWithDescribeRecord(DescribeRecord describeRecord)
 				: base(describeRecord)
 			{
-				this.DescribeRecord = describeRecord;
+				DescribeRecord = describeRecord;
 			}
 		}
 
@@ -79,19 +77,19 @@ namespace UnrealGameSync
 			readonly object _lockObject = new object();
 			readonly SynchronizationContext _synchronizationContext;
 			Task? _workerTask;
-			CancellationTokenSource _cancellationSource;
-			AsyncEvent _refreshEvent;
-			List<PerforceChangeRange> _requests = new List<PerforceChangeRange>();
-			Dictionary<int, PerforceChangeDetailsWithDescribeRecord> _changeNumberToDetails = new Dictionary<int, PerforceChangeDetailsWithDescribeRecord>();
+			readonly CancellationTokenSource _cancellationSource;
+			readonly AsyncEvent _refreshEvent;
+			readonly List<PerforceChangeRange> _requests = new List<PerforceChangeRange>();
+			readonly Dictionary<int, PerforceChangeDetailsWithDescribeRecord> _changeNumberToDetails = new Dictionary<int, PerforceChangeDetailsWithDescribeRecord>();
 
 			public PerforceWorkerTask(IPerforceSettings perforceSettings, string filter, Action<PerforceChangeRange>? onUpdateChanges, Action<ChangesRecord>? onUpdateChangeMetadata, ILogger logger)
 			{
-				this._perforceSettings = perforceSettings;
-				this._filter = filter;
-				this._onUpdateChanges = onUpdateChanges;
-				this._onUpdateChangeMetadata = onUpdateChangeMetadata;
-				this._logger = logger;
-				this._synchronizationContext = SynchronizationContext.Current!;
+				_perforceSettings = perforceSettings;
+				_filter = filter;
+				_onUpdateChanges = onUpdateChanges;
+				_onUpdateChangeMetadata = onUpdateChangeMetadata;
+				_logger = logger;
+				_synchronizationContext = SynchronizationContext.Current!;
 
 				_refreshEvent = new AsyncEvent();
 				_cancellationSource = new CancellationTokenSource();
@@ -211,25 +209,25 @@ namespace UnrealGameSync
 
 		class BadgeInfo
 		{
-			public string Label;
-			public Color Color;
+			public string _label;
+			public Color _color;
 
 			public BadgeInfo(string label, Color color)
 			{
-				this.Label = label;
-				this.Color = color;
+				_label = label;
+				_color = color;
 			}
 		}
 
 		class ExpandRangeStatusElement : StatusElement
 		{
-			string _text;
-			Action _linkAction;
+			readonly string _text;
+			readonly Action _linkAction;
 
 			public ExpandRangeStatusElement(string text, Action inLinkAction)
 			{
-				this._text = text;
-				this._linkAction = inLinkAction;
+				_text = text;
+				_linkAction = inLinkAction;
 				Cursor = NativeCursors.Hand;
 			}
 
@@ -240,7 +238,7 @@ namespace UnrealGameSync
 
 			public override Size Measure(Graphics graphics, StatusElementResources resources)
 			{
-				return TextRenderer.MeasureText(graphics, _text, resources.FindOrAddFont(FontStyle.Regular), new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+				return TextRenderer.MeasureText(graphics, _text, resources.FindOrAddFont(FontStyle.Regular), new Size(Int32.MaxValue, Int32.MaxValue), TextFormatFlags.NoPadding);
 			}
 
 			public override void Draw(Graphics graphics, StatusElementResources resources)
@@ -263,13 +261,13 @@ namespace UnrealGameSync
 
 		IssueMonitor _issueMonitor;
 		IssueData _issue;
-		List<IssueBuildData> _issueBuilds;
-		List<IssueDiagnosticData> _diagnostics;
-		IPerforceSettings _perforceSettings;
-		TimeSpan? _serverTimeOffset;
+		readonly List<IssueBuildData> _issueBuilds;
+		readonly List<IssueDiagnosticData> _diagnostics;
+		readonly IPerforceSettings _perforceSettings;
+		readonly TimeSpan? _serverTimeOffset;
 		PerforceWorkerTask? _perforceWorker;
-		IServiceProvider _serviceProvider;
-		SynchronizationContext _mainThreadSynchronizationContext;
+		readonly IServiceProvider _serviceProvider;
+		readonly SynchronizationContext _mainThreadSynchronizationContext;
 		string? _selectedStream;
 		List<PerforceChangeRange> _selectedStreamRanges = new List<PerforceChangeRange>();
 		bool _isDisposing;
@@ -282,13 +280,13 @@ namespace UnrealGameSync
 
 		IssueDetailsWindow(IssueMonitor issueMonitor, IssueData issue, List<IssueBuildData> issueBuilds, List<IssueDiagnosticData> diagnostics, IPerforceSettings perforceSettings, TimeSpan? serverTimeOffset, IServiceProvider serviceProvider, string? currentStream)
 		{
-			this._issueMonitor = issueMonitor;
-			this._issue = issue;
-			this._issueBuilds = issueBuilds;
-			this._diagnostics = diagnostics;
-			this._perforceSettings = perforceSettings;
-			this._serverTimeOffset = serverTimeOffset;
-			this._serviceProvider = serviceProvider;
+			_issueMonitor = issueMonitor;
+			_issue = issue;
+			_issueBuilds = issueBuilds;
+			_diagnostics = diagnostics;
+			_perforceSettings = perforceSettings;
+			_serverTimeOffset = serverTimeOffset;
+			_serviceProvider = serviceProvider;
 
 			issueMonitor.AddRef();
 
@@ -296,9 +294,9 @@ namespace UnrealGameSync
 
 			InitializeComponent();
 
-			this.Text = String.Format("Issue {0}", issue.Id);
-			this._statusElementResources = new StatusElementResources(BuildListView.Font);
-			base.Disposed += IssueDetailsWindow_Disposed;
+			Text = String.Format("Issue {0}", issue.Id);
+			_statusElementResources = new StatusElementResources(BuildListView.Font);
+			Disposed += IssueDetailsWindow_Disposed;
 
 			issueMonitor.OnIssuesChanged += OnUpdateIssuesAsync;
 			issueMonitor.StartTracking(issue.Id);
@@ -397,16 +395,6 @@ namespace UnrealGameSync
 			}
 		}
 
-		void UpdateSummaryTextIfChanged(TextBox textBox, string newText)
-		{
-			if(textBox.Text != newText)
-			{
-				textBox.Text = newText;
-				textBox.SelectionLength = 0;
-				textBox.SelectionStart = newText.Length;
-			}
-		}
-
 		static void AppendEscapedRtf(StringBuilder result, string text)
 		{
 			for (int idx = 0; idx < text.Length; idx++)
@@ -443,7 +431,7 @@ namespace UnrealGameSync
 			richText.Append(@"}");
 		}
 
-		static string CreateRichTextErrors(IssueData issue, List<IssueBuildData> issueBuilds, List<IssueDiagnosticData> diagnostics)
+		static string CreateRichTextErrors(List<IssueBuildData> issueBuilds, List<IssueDiagnosticData> diagnostics)
 		{
 			StringBuilder richText = new StringBuilder();
 
@@ -604,7 +592,7 @@ namespace UnrealGameSync
 			UpdateSummaryTextIfChanged(StepNamesTextBox, String.Join(", ", _issueBuilds.Select(x => x.JobStepName).Distinct().OrderBy(x => x)));
 			UpdateSummaryTextIfChanged(StreamNamesTextBox, String.Join(", ", _issueBuilds.Select(x => x.Stream).Distinct().OrderBy(x => x)));
 
-			string rtfText = CreateRichTextErrors(_issue, _issueBuilds, _diagnostics);
+			string rtfText = CreateRichTextErrors(_issueBuilds, _diagnostics);
 			if (_lastDetailsText != rtfText)
 			{
 				using (MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(rtfText), false))
@@ -629,14 +617,6 @@ namespace UnrealGameSync
 		{
 			_isDisposing = true;
 			DestroyWorker();
-		}
-
-		void FetchAllBuildChanges()
-		{
-			foreach(PerforceChangeRange range in _selectedStreamRanges)
-			{
-				FetchBuildChanges(range);
-			}
 		}
 
 		void FetchBuildChanges(PerforceChangeRange range)
@@ -945,7 +925,7 @@ namespace UnrealGameSync
 							FetchBuildChanges(_selectedStreamRanges[idx + 1]);
 						}
 					}
-					FetchBuildChanges(_selectedStreamRanges[_selectedStreamRanges.Count - 1]);
+					FetchBuildChanges(_selectedStreamRanges[^1]);
 				}
 
 				BuildListView.EndUpdate();
@@ -969,7 +949,13 @@ namespace UnrealGameSync
 
 		private void OnUpdateIssuesAsync()
 		{
-			_mainThreadSynchronizationContext.Post((o) => { if(!_isDisposing){ OnUpdateIssues(); } }, null);
+			_mainThreadSynchronizationContext.Post((o) => 
+			{ 
+				if(!_isDisposing)
+				{ 
+					OnUpdateIssues(); 
+				} 
+			}, null);
 		}
 
 		void DestroyWorker()
@@ -1011,19 +997,19 @@ namespace UnrealGameSync
 			}
 		}
 
-		static List<IssueDetailsWindow> _existingWindows = new List<IssueDetailsWindow>();
+		static readonly List<IssueDetailsWindow> s_existingWindows = new List<IssueDetailsWindow>();
 
 		class UpdateIssueDetailsTask
 		{
-			string _apiUrl;
-			long _issueId;
-			List<IssueDiagnosticData> _diagnostics;
+			readonly string _apiUrl;
+			readonly long _issueId;
+			readonly List<IssueDiagnosticData> _diagnostics;
 
 			public UpdateIssueDetailsTask(string apiUrl, long issueId, List<IssueDiagnosticData> diagnostics)
 			{
-				this._apiUrl = apiUrl;
-				this._issueId = issueId;
-				this._diagnostics = diagnostics;
+				_apiUrl = apiUrl;
+				_issueId = issueId;
+				_diagnostics = diagnostics;
 			}
 
 			public async Task RunAsync(CancellationToken cancellationToken)
@@ -1034,8 +1020,9 @@ namespace UnrealGameSync
 
 		public static void Show(Form owner, IssueMonitor issueMonitor, IPerforceSettings perforceSettings, TimeSpan? serverTimeOffset, IssueData issue, IServiceProvider serviceProvider, string? currentStream)
 		{
-			Func<CancellationToken, Task<List<IssueBuildData>>> func = x => RestApi.GetAsync<List<IssueBuildData>>($"{issueMonitor.ApiUrl}/api/issues/{issue.Id}/builds", x);
-			ModalTask<List<IssueBuildData>>? issueBuilds = ModalTask.Execute(owner, "Querying issue", "Querying issue, please wait...", func);
+			Task<List<IssueBuildData>> Func(CancellationToken cancellationToken) => RestApi.GetAsync<List<IssueBuildData>>($"{issueMonitor.ApiUrl}/api/issues/{issue.Id}/builds", cancellationToken);
+
+			ModalTask<List<IssueBuildData>>? issueBuilds = ModalTask.Execute(owner, "Querying issue", "Querying issue, please wait...", Func);
 			if (issueBuilds != null && issueBuilds.Succeeded)
 			{
 				Show(owner, issueMonitor, perforceSettings, serverTimeOffset, issue, issueBuilds.Result, serviceProvider, currentStream);
@@ -1044,7 +1031,7 @@ namespace UnrealGameSync
 
 		public static void Show(Form owner, IssueMonitor issueMonitor, IPerforceSettings perforceSettings, TimeSpan? serverTimeOffset, IssueData issue, List<IssueBuildData> issueBuilds, IServiceProvider serviceProvider, string? currentStream)
 		{
-			IssueDetailsWindow? window = _existingWindows.FirstOrDefault(x => x._issueMonitor == issueMonitor && x._issue.Id == issue.Id);
+			IssueDetailsWindow? window = s_existingWindows.FirstOrDefault(x => x._issueMonitor == issueMonitor && x._issue.Id == issue.Id);
 			if(window == null)
 			{
 				List<IssueDiagnosticData> diagnostics = new List<IssueDiagnosticData>();
@@ -1069,8 +1056,8 @@ namespace UnrealGameSync
 				}
 				window.Show();
 
-				_existingWindows.Add(window);
-				window.FormClosed += (s, e) => _existingWindows.Remove(window);
+				s_existingWindows.Add(window);
+				window.FormClosed += (s, e) => s_existingWindows.Remove(window);
 			}
 			else
 			{
@@ -1106,10 +1093,8 @@ namespace UnrealGameSync
 			{
 				BuildListView.DrawTrackedBackground(e.Graphics, e.Bounds);
 			}
-			else if(e.Item.Tag is BuildGroup)
+			else if(e.Item.Tag is BuildGroup buildGroup)
 			{
-				BuildGroup buildGroup = (BuildGroup)e.Item.Tag;
-
 				Color backgroundColor;
 				if(buildGroup.Outcome == IssueBuildOutcome.Error)
 				{
@@ -1146,7 +1131,7 @@ namespace UnrealGameSync
 				return;
 			}
 
-			Font currentFont = this.Font;//BuildFont;(Change.Number == Workspace.PendingChangeNumber || Change.Number == Workspace.CurrentChangeNumber)? SelectedBuildFont : BuildFont;
+			Font currentFont = Font;//BuildFont;(Change.Number == Workspace.PendingChangeNumber || Change.Number == Workspace.CurrentChangeNumber)? SelectedBuildFont : BuildFont;
 
 			Color textColor = SystemColors.WindowText;
 
@@ -1154,10 +1139,8 @@ namespace UnrealGameSync
 			{
 				BuildListView.DrawCustomSubItem(e.Graphics, e.SubItem);
 			}
-			else if(e.Item.Tag is ChangesRecord)
+			else if(e.Item.Tag is ChangesRecord change)
 			{
-				ChangesRecord change = (ChangesRecord)e.Item.Tag;
-
 				Font changeFont = BuildListView.Font;
 				if(_issue.Owner != null && String.Compare(change.User, _issue.Owner, StringComparison.OrdinalIgnoreCase) == 0)
 				{
@@ -1181,12 +1164,11 @@ namespace UnrealGameSync
 					TextRenderer.DrawText(e.Graphics, e.SubItem.Text, changeFont, e.Bounds, textColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 				}
 			}
-			else if(e.Item.Tag is IssueBuildData)
+			else if(e.Item.Tag is IssueBuildData buildData)
 			{
 				Font boldFont = BuildListView.Font;
 
 //				TextColor = SystemColors.Window;
-				IssueBuildData buildData = (IssueBuildData)e.Item.Tag;
 				if(e.ColumnIndex == IconHeader.Index)
 				{
 					if(buildData.Outcome == IssueBuildOutcome.Success)
@@ -1258,16 +1240,10 @@ namespace UnrealGameSync
 
 		private void BuildListView_FontChanged(object sender, EventArgs e)
 		{
-			if(_boldFont != null)
-			{
-				_boldFont.Dispose();
-			}
+			_boldFont?.Dispose();
 			_boldFont = new Font(BuildListView.Font.FontFamily, BuildListView.Font.SizeInPoints, FontStyle.Bold);
 
-			if(_statusElementResources != null)
-			{
-				_statusElementResources.Dispose();
-			}
+			_statusElementResources?.Dispose();
 			_statusElementResources = new StatusElementResources(BuildListView.Font);
 		}
 

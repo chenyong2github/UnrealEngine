@@ -9,10 +9,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 #nullable enable
 
@@ -27,8 +25,8 @@ namespace UnrealGameSync
 
 		public ToolLink(string label, string fileName)
 		{
-			this.Label = label;
-			this.FileName = fileName;
+			Label = label;
+			FileName = fileName;
 		}
 	}
 
@@ -48,26 +46,26 @@ namespace UnrealGameSync
 
 		public ToolDefinition(Guid id, string name, string description, string zipPath, int zipChange, string configPath, int configChange)
 		{
-			this.Id = id;
-			this.Name = name;
-			this.Description = description;
-			this.ZipPath = zipPath;
-			this.ZipChange = zipChange;
-			this.ConfigPath = configPath;
-			this.ConfigChange = configChange;
+			Id = id;
+			Name = name;
+			Description = description;
+			ZipPath = zipPath;
+			ZipChange = zipChange;
+			ConfigPath = configPath;
+			ConfigChange = configChange;
 		}
 	}
 
 	class ToolUpdateMonitor : IDisposable
 	{
-		CancellationTokenSource _cancellationSource;
-		SynchronizationContext _synchronizationContext;
+		readonly CancellationTokenSource _cancellationSource;
+		readonly SynchronizationContext _synchronizationContext;
 		Task? _workerTask;
-		AsyncEvent _wakeEvent;
-		ILogger _logger;
+		readonly AsyncEvent _wakeEvent;
+		readonly ILogger _logger;
 		public List<ToolDefinition> Tools { get; private set; } = new List<ToolDefinition>();
-		int _lastChange = -1;
-		IAsyncDisposer _asyncDisposer;
+		readonly int _lastChange = -1;
+		readonly IAsyncDisposer _asyncDisposer;
 
 		IPerforceSettings PerforceSettings { get; }
 		DirectoryReference ToolsDir { get; }
@@ -79,11 +77,11 @@ namespace UnrealGameSync
 		{
 			_cancellationSource = new CancellationTokenSource();
 			_synchronizationContext = SynchronizationContext.Current!;
-			this.ToolsDir = DirectoryReference.Combine(dataDir, "Tools");
-			this.PerforceSettings = perforceSettings;
-			this.Settings = settings;
-			this._logger = serviceProvider.GetRequiredService<ILogger<ToolUpdateMonitor>>();
-			this._asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
+			ToolsDir = DirectoryReference.Combine(dataDir, "Tools");
+			PerforceSettings = perforceSettings;
+			Settings = settings;
+			_logger = serviceProvider.GetRequiredService<ILogger<ToolUpdateMonitor>>();
+			_asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
 
 			DirectoryReference.CreateDirectory(ToolsDir);
 
@@ -185,7 +183,7 @@ namespace UnrealGameSync
 					ToolDefinition? tool = Tools.FirstOrDefault(x => x.ConfigPath.Equals(fileRecord.DepotFile, StringComparison.Ordinal));
 					if (tool == null || tool.ConfigChange != fileRecord.HeadChange)
 					{
-						tool = await ReadToolDefinitionAsync(perforce, fileRecord.DepotFile, fileRecord.HeadChange, logger, cancellationToken);
+						tool = await ReadToolDefinitionAsync(perforce, fileRecord.DepotFile, fileRecord.HeadChange, cancellationToken);
 					}
 					if (tool != null)
 					{
@@ -245,7 +243,7 @@ namespace UnrealGameSync
 			_synchronizationContext.Post(_ => OnChange?.Invoke(), null);
 		}
 
-		async Task<ToolDefinition?> ReadToolDefinitionAsync(IPerforceConnection perforce, string depotPath, int change, ILogger logger, CancellationToken cancellationToken)
+		async Task<ToolDefinition?> ReadToolDefinitionAsync(IPerforceConnection perforce, string depotPath, int change, CancellationToken cancellationToken)
 		{
 			PerforceResponse<PrintRecord<string[]>> response = await perforce.TryPrintLinesAsync($"{depotPath}@{change}", cancellationToken);
 			if (!response.Succeeded || response.Data.Contents == null)
@@ -319,7 +317,7 @@ namespace UnrealGameSync
 			DirectoryReference toolPath = GetToolPathInternal(toolName);
 
 			string commandExe = command;
-			string commandArgs = string.Empty;
+			string commandArgs = String.Empty;
 
 			int spaceIdx = command.IndexOf(' ');
 			if (spaceIdx != -1)

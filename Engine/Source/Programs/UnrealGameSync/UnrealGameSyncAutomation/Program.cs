@@ -2,13 +2,10 @@
 
 using Microsoft.Win32;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace UnrealGameSyncAutomation
 {
@@ -31,7 +28,7 @@ namespace UnrealGameSyncAutomation
 			NotFound
 		}
 
-		static void Main(string[] Arguments)
+		static void Main()
 		{
 			// Create the request data
 			MemoryStream InputDataStream = new MemoryStream();

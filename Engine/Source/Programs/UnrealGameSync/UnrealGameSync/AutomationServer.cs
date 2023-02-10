@@ -31,8 +31,8 @@ namespace UnrealGameSync
 
 		public AutomationRequestInput(AutomationRequestType type, byte[] data)
 		{
-			this.Type = type;
-			this.Data = data;
+			Type = type;
+			Data = data;
 		}
 
 		public static AutomationRequestInput Read(Stream inputStream)
@@ -73,14 +73,14 @@ namespace UnrealGameSync
 
 		public AutomationRequestOutput(AutomationRequestResult result)
 		{
-			this.Result = result;
-			this.Data = new byte[0];
+			Result = result;
+			Data = new byte[0];
 		}
 
 		public AutomationRequestOutput(AutomationRequestResult result, byte[] data)
 		{
-			this.Result = result;
-			this.Data = data;
+			Result = result;
+			Data = data;
 		}
 
 		public static AutomationRequestOutput Read(Stream inputStream)
@@ -113,13 +113,13 @@ namespace UnrealGameSync
 
 		public AutomationRequest(AutomationRequestInput input)
 		{
-			this.Input = input;
-			this.Complete = new ManualResetEventSlim(false);
+			Input = input;
+			Complete = new ManualResetEventSlim(false);
 		}
 
 		public void SetOutput(AutomationRequestOutput output)
 		{
-			this.Output = output;
+			Output = output;
 			Complete?.Set();
 		}
 
@@ -133,22 +133,22 @@ namespace UnrealGameSync
 	{
 		static readonly UnicodeEncoding _streamEncoding = new UnicodeEncoding();
 
-		CancellationTokenSource _cancellationSource = new CancellationTokenSource();
+		readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
 
 		const string IpcChannel = @"\.\pipe\UGSChannel";
-		ConfiguredTaskAwaitable _ipcTask;
+		readonly ConfiguredTaskAwaitable _ipcTask;
 
 		public const int DefaultPortNumber = 30422;
-		ConfiguredTaskAwaitable? _tcpTask;
+		readonly ConfiguredTaskAwaitable? _tcpTask;
 
-		Action<AutomationRequest> _postRequest;
+		readonly Action<AutomationRequest> _postRequest;
 
-		ILogger _logger;
+		readonly ILogger _logger;
 
 		public AutomationServer(Action<AutomationRequest> postRequest, string? uri, ILogger<AutomationServer> logger)
 		{
-			this._postRequest = postRequest;
-			this._logger = logger;
+			_postRequest = postRequest;
+			_logger = logger;
 
 			try
 			{
@@ -190,9 +190,9 @@ namespace UnrealGameSync
 		public static int GetPortNumber()
 		{
 			object? portValue = Registry.GetValue("HKEY_CURRENT_USER\\Software\\Epic Games\\UnrealGameSync", "AutomationPort", null);
-			if (portValue != null && portValue is int)
+			if (portValue != null && portValue is int portValueInt)
 			{
-				return (int)portValue;
+				return portValueInt;
 			}
 			else
 			{
@@ -203,7 +203,7 @@ namespace UnrealGameSync
 		async Task RunIpcAsync(string? commandLineUri, CancellationToken cancellationToken)
 		{
 			// Handle main process command line URI request
-			if (!string.IsNullOrEmpty(commandLineUri))
+			if (!String.IsNullOrEmpty(commandLineUri))
 			{
 				HandleUri(commandLineUri);
 			}
@@ -300,7 +300,7 @@ namespace UnrealGameSync
 				UriResult result = UriHandler.HandleUri(uri);
 				if (!result.Success)
 				{
-					if (!string.IsNullOrEmpty(result.Error))
+					if (!String.IsNullOrEmpty(result.Error))
 					{
 						MessageBox.Show(String.Format("Error handling uri: {0}", result.Error));
 					}
@@ -353,9 +353,9 @@ namespace UnrealGameSync
 
 			int len = outBuffer.Length;
 
-			if (len > ushort.MaxValue)
+			if (len > UInt16.MaxValue)
 			{
-				len = ushort.MaxValue;
+				len = UInt16.MaxValue;
 			}
 
 			stream.WriteByte((byte)(len / 256));

@@ -2,14 +2,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
@@ -27,7 +24,7 @@ namespace UnrealGameSync
 
 	class StatusElementResources
 	{
-		Dictionary<FontStyle, Font> _fontCache = new Dictionary<FontStyle, Font>();
+		readonly Dictionary<FontStyle, Font> _fontCache = new Dictionary<FontStyle, Font>();
 		public readonly Font BadgeFont;
 
 		public StatusElementResources(Font baseFont)
@@ -67,10 +64,10 @@ namespace UnrealGameSync
 
 	abstract class StatusElement
 	{
-		public Cursor Cursor = Cursors.Arrow;
-		public bool MouseOver;
-		public bool MouseDown;
-		public Rectangle Bounds;
+		public Cursor Cursor { get; set; } = Cursors.Arrow;
+		public bool MouseOver { get; set; }
+		public bool MouseDown { get; set; }
+		public Rectangle Bounds { get; set; }
 
 		public Point Layout(Graphics graphics, Point location, StatusElementResources resources)
 		{
@@ -89,7 +86,7 @@ namespace UnrealGameSync
 
 	class IconStatusElement : StatusElement
 	{
-		Image _icon;
+		readonly Image _icon;
 
 		public IconStatusElement(Image inIcon)
 		{
@@ -109,15 +106,15 @@ namespace UnrealGameSync
 
 	class IconStripStatusElement : StatusElement
 	{
-		Image _strip;
-		Size _iconSize;
-		int _index;
+		readonly Image _strip;
+		readonly Size _iconSize;
+		readonly int _index;
 
-		public IconStripStatusElement(Image inStrip, Size inIconSize, int inIndex)
+		public IconStripStatusElement(Image strip, Size iconSize, int index)
 		{
-			_strip = inStrip;
-			_iconSize = inIconSize;
-			_index = inIndex;
+			_strip = strip;
+			_iconSize = iconSize;
+			_index = index;
 		}
 
 		public override Size Measure(Graphics graphics, StatusElementResources resources)
@@ -133,9 +130,9 @@ namespace UnrealGameSync
 
 	class TextStatusElement : StatusElement
 	{
-		string _text;
-		Color _color;
-		FontStyle _style;
+		readonly string _text;
+		readonly Color _color;
+		readonly FontStyle _style;
 
 		public TextStatusElement(string inText, Color inColor, FontStyle inStyle)
 		{
@@ -146,7 +143,7 @@ namespace UnrealGameSync
 
 		public override Size Measure(Graphics graphics, StatusElementResources resources)
 		{
-			return TextRenderer.MeasureText(graphics, _text, resources.FindOrAddFont(_style), new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+			return TextRenderer.MeasureText(graphics, _text, resources.FindOrAddFont(_style), new Size(Int32.MaxValue, Int32.MaxValue), TextFormatFlags.NoPadding);
 		}
 
 		public override void Draw(Graphics graphics, StatusElementResources resources)
@@ -157,15 +154,15 @@ namespace UnrealGameSync
 
 	class LinkStatusElement : StatusElement
 	{
-		string _text;
-		FontStyle _style;
-		Action<Point, Rectangle> _linkAction;
+		readonly string _text;
+		readonly FontStyle _style;
+		readonly Action<Point, Rectangle> _linkAction;
 
-		public LinkStatusElement(string inText, FontStyle inStyle, Action<Point, Rectangle> inLinkAction)
+		public LinkStatusElement(string text, FontStyle style, Action<Point, Rectangle> linkAction)
 		{
-			_text = inText;
-			_style = inStyle;
-			_linkAction = inLinkAction;
+			_text = text;
+			_style = style;
+			_linkAction = linkAction;
 			Cursor = NativeCursors.Hand;
 		}
 
@@ -176,7 +173,7 @@ namespace UnrealGameSync
 
 		public override Size Measure(Graphics graphics, StatusElementResources resources)
 		{
-			return TextRenderer.MeasureText(graphics, _text, resources.FindOrAddFont(_style), new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+			return TextRenderer.MeasureText(graphics, _text, resources.FindOrAddFont(_style), new Size(Int32.MaxValue, Int32.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
 		}
 
 		public override void Draw(Graphics graphics, StatusElementResources resources)
@@ -196,10 +193,10 @@ namespace UnrealGameSync
 
 	class BadgeStatusElement : StatusElement
 	{
-		string _name;
-		Color _backgroundColor;
-		Color _hoverBackgroundColor;
-		Action<Point, Rectangle>? _clickAction;
+		readonly string _name;
+		readonly Color _backgroundColor;
+		readonly Color _hoverBackgroundColor;
+		readonly Action<Point, Rectangle>? _clickAction;
 
 		public bool MergeLeft
 		{
@@ -273,7 +270,7 @@ namespace UnrealGameSync
 
 	class ProgressBarStatusElement : StatusElement
 	{
-		float _progress;
+		readonly float _progress;
 
 		public ProgressBarStatusElement(float inProgress)
 		{
@@ -304,7 +301,7 @@ namespace UnrealGameSync
 	class StatusLine
 	{
 		bool _modified;
-		List<StatusElement> _elements = new List<StatusElement>();
+		readonly List<StatusElement> _elements = new List<StatusElement>();
 
 		public StatusLine()
 		{
@@ -381,8 +378,8 @@ namespace UnrealGameSync
 			_elements.Add(new BadgeStatusElement(inText, inBackgroundColor, inClickAction));
 			if(_elements.Count >= 2)
 			{
-				BadgeStatusElement? prevBadge = _elements[_elements.Count - 2] as BadgeStatusElement;
-				BadgeStatusElement? nextBadge = _elements[_elements.Count - 1] as BadgeStatusElement;
+				BadgeStatusElement? prevBadge = _elements[^2] as BadgeStatusElement;
+				BadgeStatusElement? nextBadge = _elements[^1] as BadgeStatusElement;
 				if(prevBadge != null && nextBadge != null)
 				{
 					prevBadge.MergeRight = true;
@@ -446,7 +443,7 @@ namespace UnrealGameSync
 		bool _disposeProjectLogo;
 		Rectangle _projectLogoBounds;
 		StatusElementResources? _resources;
-		List<StatusLine> _lines = new List<StatusLine>();
+		readonly List<StatusLine> _lines = new List<StatusLine>();
 		StatusLine? _caption;
 		Pen? _alertDividerPen;
 		int _alertDividerY;
@@ -543,10 +540,7 @@ namespace UnrealGameSync
 
 		public void Set(IEnumerable<StatusLine> newLines, StatusLine? newCaption, StatusLine? newAlert, Color? newTintColor)
 		{
-			if(_resources == null)
-			{
-				_resources = new StatusElementResources(Font);
-			}
+			_resources ??= new StatusElementResources(Font);
 
 			if(_tintColor != newTintColor)
 			{
@@ -761,10 +755,9 @@ namespace UnrealGameSync
 				{
 					line.Draw(e.Graphics, _resources!);
 				}
-				if(_caption != null)
-				{
-					_caption.Draw(e.Graphics, _resources!);
-				}
+
+				_caption?.Draw(e.Graphics, _resources!);
+
 				if(_alert != null)
 				{
 					e.Graphics.DrawLine(_alertDividerPen!, 0, _alertDividerY, Width, _alertDividerY);

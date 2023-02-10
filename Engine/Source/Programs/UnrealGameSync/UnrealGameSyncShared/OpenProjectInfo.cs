@@ -5,10 +5,8 @@ using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,16 +27,16 @@ namespace UnrealGameSync
 
 		public OpenProjectInfo(UserSelectedProjectSettings selectedProject, IPerforceSettings perforceSettings, ProjectInfo projectInfo, UserWorkspaceSettings workspaceSettings, WorkspaceStateWrapper workspaceStateWrapper, ConfigFile latestProjectConfigFile, ConfigFile workspaceProjectConfigFile, IReadOnlyList<string>? workspaceProjectStreamFilter, List<KeyValuePair<FileReference, DateTime>> localConfigFiles)
 		{
-			this.SelectedProject = selectedProject;
+			SelectedProject = selectedProject;
 
-			this.PerforceSettings = perforceSettings;
-			this.ProjectInfo = projectInfo;
-			this.WorkspaceSettings = workspaceSettings;
-			this.WorkspaceStateWrapper = workspaceStateWrapper;
-			this.LatestProjectConfigFile = latestProjectConfigFile;
-			this.WorkspaceProjectConfigFile = workspaceProjectConfigFile;
-			this.WorkspaceProjectStreamFilter = workspaceProjectStreamFilter;
-			this.LocalConfigFiles = localConfigFiles;
+			PerforceSettings = perforceSettings;
+			ProjectInfo = projectInfo;
+			WorkspaceSettings = workspaceSettings;
+			WorkspaceStateWrapper = workspaceStateWrapper;
+			LatestProjectConfigFile = latestProjectConfigFile;
+			WorkspaceProjectConfigFile = workspaceProjectConfigFile;
+			WorkspaceProjectStreamFilter = workspaceProjectStreamFilter;
+			LocalConfigFiles = localConfigFiles;
 		}
 
 		public static async Task<OpenProjectInfo> CreateAsync(IPerforceSettings defaultPerforceSettings, UserSelectedProjectSettings selectedProject, UserSettings userSettings, ILogger<OpenProjectInfo> logger, CancellationToken cancellationToken)
@@ -218,7 +216,7 @@ namespace UnrealGameSync
 				ProjectInfo projectInfo = await ProjectInfo.CreateAsync(perforceClient, userWorkspaceSettings, cancellationToken);
 
 				// Update the cached workspace state
-				WorkspaceStateWrapper workspaceStateWrapper = userSettings.FindOrAddWorkspaceState(projectInfo, userWorkspaceSettings, logger);
+				WorkspaceStateWrapper workspaceStateWrapper = userSettings.FindOrAddWorkspaceState(projectInfo, userWorkspaceSettings);
 
 				// Read the initial config file
 				List<KeyValuePair<FileReference, DateTime>> localConfigFiles = new List<KeyValuePair<FileReference, DateTime>>();
@@ -226,7 +224,7 @@ namespace UnrealGameSync
 
 				// Get the local config file and stream filter
 				ConfigFile workspaceProjectConfigFile = await WorkspaceUpdate.ReadProjectConfigFile(branchDirectoryName, newSelectedFileName, logger);
-				IReadOnlyList<string>? workspaceProjectStreamFilter = await WorkspaceUpdate.ReadProjectStreamFilter(perforceClient, workspaceProjectConfigFile, logger, cancellationToken);
+				IReadOnlyList<string>? workspaceProjectStreamFilter = await WorkspaceUpdate.ReadProjectStreamFilter(perforceClient, workspaceProjectConfigFile, cancellationToken);
 
 				OpenProjectInfo workspaceSettings = new OpenProjectInfo(selectedProject, perforceSettings, projectInfo, userWorkspaceSettings, workspaceStateWrapper, latestProjectConfigFile, workspaceProjectConfigFile, workspaceProjectStreamFilter, localConfigFiles);
 

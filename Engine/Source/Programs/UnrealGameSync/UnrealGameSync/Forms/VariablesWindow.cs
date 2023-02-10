@@ -3,12 +3,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 #nullable enable
@@ -17,7 +12,7 @@ namespace UnrealGameSync
 {
 	public partial class VariablesWindow : Form
 	{
-		static HashSet<string> _legacyVariables = new HashSet<string>()
+		static readonly HashSet<string> s_legacyVariables = new HashSet<string>()
 		{
 			"UE4EditorConfig",
 			"UE4EditorDebugArg",
@@ -42,7 +37,7 @@ namespace UnrealGameSync
 
 			foreach(KeyValuePair<string, string> pair in variables)
 			{
-				if (!_legacyVariables.Contains(pair.Key))
+				if (!s_legacyVariables.Contains(pair.Key))
 				{
 					ListViewItem item = new ListViewItem(String.Format("$({0})", pair.Key));
 					item.SubItems.Add(pair.Value);
@@ -64,10 +59,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		protected override bool ShowWithoutActivation
-		{
-			get { return true; }
-		}
+		protected override bool ShowWithoutActivation => true;
 
 		private void OkButton_Click(object sender, EventArgs e)
 		{

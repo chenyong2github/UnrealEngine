@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
@@ -29,13 +25,13 @@ namespace UnrealGameSync
 		const int WmVscroll = 0x115;
 		const int WmMousewheel = 0x020A;
 
-		const int SbHorz = 0;
+		//const int SbHorz = 0;
 		const int SbVert = 1;
 
 		const int SifRange = 0x0001;
 		const int SifPage = 0x0002;
 		const int SifPos = 0x0004;
-		const int SifDisablenoscroll = 0x0008;
+		//const int SifDisablenoscroll = 0x0008;
 		const int SifTrackpos = 0x0010;
 		const int SifAll = (SifRange | SifPage | SifPos | SifTrackpos);        
 
@@ -49,7 +45,7 @@ namespace UnrealGameSync
 		private static extern int SetScrollInfo(IntPtr hwnd, int fnBar, Scrollinfo lpsi, int redraw);
 
 		[DllImport("user32.dll", CharSet = CharSet.Auto)]
-		private static extern IntPtr SendMessage(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam);
+		private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
 		public delegate void OnScrollDelegate();
 
@@ -148,8 +144,8 @@ namespace UnrealGameSync
 		[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 		public override Font Font
 		{
-			get { return base.Font; }
-			set { base.Font = value; }
+			get => base.Font;
+			set => base.Font = value;
 		}
 	}
 }

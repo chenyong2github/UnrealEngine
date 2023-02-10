@@ -5,13 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -37,7 +34,7 @@ namespace UnrealGameSync
 
 			public StreamNode(StreamsRecord record)
 			{
-				this.Record = record;
+				Record = record;
 			}
 
 			public void Sort()
@@ -57,7 +54,7 @@ namespace UnrealGameSync
 
 			public StreamDepot(string name)
 			{
-				this.Name = name;
+				Name = name;
 			}
 
 			public void Sort()
@@ -71,13 +68,13 @@ namespace UnrealGameSync
 		}
 
 		private string? _selectedStream;
-		private List<StreamDepot> _depots = new List<StreamDepot>();
+		private readonly List<StreamDepot> _depots = new List<StreamDepot>();
 
 		private SelectStreamWindow(List<StreamsRecord> streams, string? streamName)
 		{
 			InitializeComponent();
 
-			this._selectedStream = streamName;
+			_selectedStream = streamName;
 
 			// Set up the image list
 			ImageList perforceImageList = new ImageList();

@@ -5,14 +5,10 @@ using EpicGames.Perforce;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -33,29 +29,29 @@ namespace UnrealGameSync
 			}
 		}
 
-		public int InitialMaxChangesValue = 100;
-		public bool ShowChangesForAllProjects = true;
+		public const int InitialMaxChangesValue = 100;
+		public bool ShowChangesForAllProjects { get; set; } = true;
 
-		IPerforceSettings _perforceSettings;
+		readonly IPerforceSettings _perforceSettings;
 		readonly string _branchClientPath;
 		readonly string _selectedClientFileName;
 		readonly string _selectedProjectIdentifier;
 		Task? _workerTask;
-		CancellationTokenSource _cancellationSource;
+		readonly CancellationTokenSource _cancellationSource;
 		int _pendingMaxChangesValue;
 		SortedSet<ChangesRecord> _changes = new SortedSet<ChangesRecord>(new PerforceChangeSorter());
-		SortedDictionary<int, PerforceChangeDetails> _changeDetails = new SortedDictionary<int,PerforceChangeDetails>();
-		SortedSet<int> _promotedChangeNumbers = new SortedSet<int>();
+		readonly SortedDictionary<int, PerforceChangeDetails> _changeDetails = new SortedDictionary<int,PerforceChangeDetails>();
+		readonly SortedSet<int> _promotedChangeNumbers = new SortedSet<int>();
 		List<PerforceArchiveInfo> _archives = new List<PerforceArchiveInfo>();
-		AsyncEvent _refreshEvent = new AsyncEvent();
-		ILogger _logger;
-		bool _isEnterpriseProject;
-		DirectoryReference _cacheFolder;
-		List<KeyValuePair<FileReference, DateTime>> _localConfigFiles;
-		IAsyncDisposer _asyncDisposeTasks;
+		readonly AsyncEvent _refreshEvent = new AsyncEvent();
+		readonly ILogger _logger;
+		readonly bool _isEnterpriseProject;
+		readonly DirectoryReference _cacheFolder;
+		readonly List<KeyValuePair<FileReference, DateTime>> _localConfigFiles;
+		readonly IAsyncDisposer _asyncDisposeTasks;
 		string[] prevCodeRules = Array.Empty<string>();
 
-		SynchronizationContext _synchronizationContext;
+		readonly SynchronizationContext _synchronizationContext;
 		public event Action? OnUpdate;
 		public event Action? OnUpdateMetadata;
 		public event Action? OnStreamChange;
@@ -90,10 +86,7 @@ namespace UnrealGameSync
 
 		public void Start()
 		{
-			if (_workerTask == null)
-			{
-				_workerTask = Task.Run(() => PollForUpdates(_cancellationSource.Token));
-			}
+			_workerTask ??= Task.Run(() => PollForUpdates(_cancellationSource.Token));
 		}
 
 		public void Dispose()
@@ -131,8 +124,18 @@ namespace UnrealGameSync
 
 		public int PendingMaxChanges
 		{
-			get { return _pendingMaxChangesValue; }
-			set { lock(this){ if(value != _pendingMaxChangesValue){ _pendingMaxChangesValue = value; _refreshEvent.Set(); } } }
+			get => _pendingMaxChangesValue;
+			set 
+			{ 
+				lock(this)
+				{ 
+					if(value != _pendingMaxChangesValue)
+					{ 
+						_pendingMaxChangesValue = value; 
+						_refreshEvent.Set(); 
+					} 
+				} 
+			}
 		}
 
 		async Task PollForUpdates(CancellationToken cancellationToken)
@@ -279,7 +282,7 @@ namespace UnrealGameSync
 					IEnumerable<string> additionalPaths = projectConfigSection.GetValues("AdditionalPathsToSync", new string[0]);
 
 					// turn into //ws/path
-					depotPaths.AddRange(additionalPaths.Select(p => string.Format("{0}/{1}", _branchClientPath, p.TrimStart('/'))));
+					depotPaths.AddRange(additionalPaths.Select(p => String.Format("{0}/{1}", _branchClientPath, p.TrimStart('/'))));
 				}
 			}
 
@@ -395,29 +398,6 @@ namespace UnrealGameSync
 				_synchronizationContext.Post(_ => OnUpdate?.Invoke(), null);
 			}
 			return true;
-		}
-
-		Func<string, bool>? CreateCodeFilterFunc()
-		{
-			ConfigSection? projectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
-			if (projectConfigSection == null)
-			{
-				return null;
-			}
-
-			string[] rules = projectConfigSection.GetValues("CodeFilter", new string[0]);
-			if (rules.Length == 0)
-			{
-				return null;
-			}
-
-			FileFilter filter = new FileFilter(PerforceUtils.CodeExtensions.Select(x => $"*.{x}"));
-			foreach (string rule in rules)
-			{
-				filter.AddRule(rule);
-			}
-
-			return filter.Matches;
 		}
 
 		public async Task<bool> UpdateChangeTypesAsync(IPerforceConnection perforce, CancellationToken cancellationToken)

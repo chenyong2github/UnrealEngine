@@ -2,9 +2,7 @@
 
 using Microsoft.Win32;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -74,7 +72,7 @@ namespace UnrealGameSync
 
 					if (String.IsNullOrEmpty(serverAndPort))
 					{
-						try { key.DeleteValue("ServerAndPort"); } catch (Exception) { }
+						DeleteValueGuarded(key, "ServerAndPort");
 					}
 					else
 					{
@@ -83,7 +81,7 @@ namespace UnrealGameSync
 
 					if (String.IsNullOrEmpty(userName))
 					{
-						try { key.DeleteValue("UserName"); } catch (Exception) { }
+						DeleteValueGuarded(key, "UserName");
 					}
 					else
 					{
@@ -105,13 +103,24 @@ namespace UnrealGameSync
 					}
 					else
 					{
-						try { key.DeleteValue("Preview"); } catch (Exception) { }
+						DeleteValueGuarded(key, "Preview"); 
 					}
 				}
 			}
 			catch (Exception ex)
 			{
 				MessageBox.Show("Unable to save settings.\n\n" + ex.ToString());
+			}
+		}
+
+		static void DeleteValueGuarded(RegistryKey key, string name)
+		{
+			try
+			{
+				key.DeleteValue(name);
+			}
+			catch (Exception)
+			{
 			}
 		}
 	}

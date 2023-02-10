@@ -5,14 +5,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -74,7 +72,7 @@ namespace UnrealGameSync
 		[DllImport("Shell32.dll", EntryPoint = "ExtractIconExW", CharSet = CharSet.Unicode, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
 		private static extern int ExtractIconEx(string sFile, int iIndex, IntPtr piLargeVersion, out IntPtr piSmallVersion, int amountIcons);
 
-		List<string> _projectFiles;
+		readonly List<string> _projectFiles;
 		string _selectedProjectFile;
 
 		class ProjectNode
@@ -85,7 +83,7 @@ namespace UnrealGameSync
 
 			public ProjectNode(string fullName)
 			{
-				this.FullName = fullName;
+				FullName = fullName;
 
 				int slashIdx = fullName.LastIndexOf('/');
 				Folder = fullName.Substring(0, slashIdx);
@@ -97,8 +95,8 @@ namespace UnrealGameSync
 		{
 			InitializeComponent();
 			
-			this._projectFiles = projectFiles;
-			this._selectedProjectFile = selectedProjectFile;
+			_projectFiles = projectFiles;
+			_selectedProjectFile = selectedProjectFile;
 
 			// Make the image strip containing icons for nodes in the tree
 			IntPtr folderIconPtr;

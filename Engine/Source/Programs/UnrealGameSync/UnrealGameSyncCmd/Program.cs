@@ -7,13 +7,11 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,8 +31,8 @@ namespace UnrealGameSyncCmd
 		public UserErrorException(LogEvent evt)
 			: base(evt.ToString())
 		{
-			this.Event = evt;
-			this.Code = 1;
+			Event = evt;
+			Code = 1;
 		}
 
 		public UserErrorException(string message, params object[] args)
@@ -56,14 +54,14 @@ namespace UnrealGameSyncCmd
 
 			public CommandInfo(string name, Type type, string usage, string brief)
 			{
-				this.Name = name;
-				this.Type = type;
-				this.Usage = usage;
-				this.Brief = brief;
+				Name = name;
+				Type = type;
+				Usage = usage;
+				Brief = brief;
 			}
 		}
 
-		static CommandInfo[] _commands =
+		static readonly CommandInfo[] _commands =
 		{
 			new CommandInfo("init", typeof(InitCommand),
 				"ugs init [stream-path] [-client=..] [-server=..] [-user=..] [-branch=..] [-project=..]",
@@ -124,10 +122,10 @@ namespace UnrealGameSyncCmd
 
 			public CommandContext(CommandLineArguments arguments, ILogger logger, ILoggerFactory loggerFactory, GlobalSettingsFile userSettings)
 			{
-				this.Arguments = arguments;
-				this.Logger = logger;
-				this.LoggerFactory = loggerFactory;
-				this.UserSettings = userSettings;
+				Arguments = arguments;
+				Logger = logger;
+				LoggerFactory = loggerFactory;
+				UserSettings = userSettings;
 			}
 		}
 
@@ -301,7 +299,7 @@ namespace UnrealGameSyncCmd
 
 		public static async Task<WorkspaceStateWrapper> ReadWorkspaceState(IPerforceConnection perforceClient, UserWorkspaceSettings settings, GlobalSettingsFile userSettings, ILogger logger)
 		{
-			WorkspaceStateWrapper state = userSettings.FindOrAddWorkspaceState(settings, logger);
+			WorkspaceStateWrapper state = userSettings.FindOrAddWorkspaceState(settings);
 			if (state.Current.SettingsTimeUtc != settings.LastModifiedTimeUtc)
 			{
 				logger.LogDebug("Updating state due to modified settings timestamp");
@@ -407,15 +405,15 @@ namespace UnrealGameSyncCmd
 				// Create the perforce connection
 				if (initName != null)
 				{
-					await InitNewClientAsync(perforce, context, initName, hostName, options, logger);
+					await InitNewClientAsync(perforce, initName, hostName, options, logger);
 				}
 				else
 				{
-					await InitExistingClientAsync(perforce, context, hostName, options, logger);
+					await InitExistingClientAsync(perforce, hostName, options, logger);
 				}
 			}
 
-			async Task InitNewClientAsync(IPerforceConnection perforce, CommandContext context, string streamName, string hostName, ProjectInitOptions options, ILogger logger)
+			async Task InitNewClientAsync(IPerforceConnection perforce, string streamName, string hostName, ProjectInitOptions options, ILogger logger)
 			{
 				logger.LogInformation("Checking stream...");
 
@@ -481,7 +479,7 @@ namespace UnrealGameSyncCmd
 				}
 			}
 
-			async Task InitExistingClientAsync(IPerforceConnection perforce, CommandContext context, string hostName, ProjectInitOptions options, ILogger logger)
+			async Task InitExistingClientAsync(IPerforceConnection perforce, string hostName, ProjectInitOptions options, ILogger logger)
 			{
 				DirectoryReference currentDir = DirectoryReference.GetCurrentDirectory();
 
@@ -624,7 +622,7 @@ namespace UnrealGameSyncCmd
 				bool syncLatest = String.Equals(changeString, "latest", StringComparison.OrdinalIgnoreCase);
 
 				int change;
-				if (!int.TryParse(changeString, out change))
+				if (!Int32.TryParse(changeString, out change))
 				{
 					if (syncLatest)
 					{

@@ -5,11 +5,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
@@ -100,8 +95,8 @@ namespace UnrealGameSync
 
 		public GlobalSettingsFile(FileReference file, GlobalSettings global)
 		{
-			this.File = file;
-			this.Global = global;
+			File = file;
+			Global = global;
 		}
 
 		public static GlobalSettingsFile Create(FileReference file)
@@ -128,12 +123,12 @@ namespace UnrealGameSync
 			}
 		}
 
-		public WorkspaceStateWrapper FindOrAddWorkspaceState(UserWorkspaceSettings settings, ILogger logger)
+		public WorkspaceStateWrapper FindOrAddWorkspaceState(UserWorkspaceSettings settings)
 		{
-			return FindOrAddWorkspaceState(settings.RootDir, settings.ClientName, settings.BranchPath, logger);
+			return FindOrAddWorkspaceState(settings.RootDir, settings.ClientName, settings.BranchPath);
 		}
 
-		public WorkspaceStateWrapper FindOrAddWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath, ILogger logger)
+		public WorkspaceStateWrapper FindOrAddWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath)
 		{
 			return new WorkspaceStateWrapper(rootDir, () =>
 			{
@@ -143,9 +138,9 @@ namespace UnrealGameSync
 			});
 		}
 
-		public WorkspaceStateWrapper FindOrAddWorkspaceState(ProjectInfo projectInfo, UserWorkspaceSettings settings, ILogger logger)
+		public WorkspaceStateWrapper FindOrAddWorkspaceState(ProjectInfo projectInfo, UserWorkspaceSettings settings)
 		{
-			WorkspaceStateWrapper wrapper = FindOrAddWorkspaceState(projectInfo.LocalRootPath, projectInfo.ClientName, projectInfo.BranchPath, logger);
+			WorkspaceStateWrapper wrapper = FindOrAddWorkspaceState(projectInfo.LocalRootPath, projectInfo.ClientName, projectInfo.BranchPath);
 			wrapper.Modify(x => x.UpdateCachedProjectInfo(projectInfo, settings.LastModifiedTimeUtc));
 			return wrapper;
 		}

@@ -3,7 +3,6 @@
 using EpicGames.Core;
 using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,7 +13,6 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,15 +24,15 @@ namespace UnrealGameSync
 
 		public UserErrorException(string message, int code = 1) : base(message)
 		{
-			this.Code = code;
+			Code = code;
 		}
 	}
 
 	public class PerforceChangeDetails
 	{
-		public string Description;
-		public bool ContainsCode;
-		public bool ContainsContent;
+		public string Description { get; }
+		public bool ContainsCode { get; }
+		public bool ContainsContent { get; }
 
 		public PerforceChangeDetails(DescribeRecord describeRecord, Func<string, bool>? isCodeFile = null)
 		{
@@ -125,7 +123,7 @@ namespace UnrealGameSync
 
 		public static byte[] SerializeJson<T>(T obj)
 		{
-			JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault };
+			JsonSerializerOptions options = new JsonSerializerOptions { IgnoreNullValues = true, WriteIndented = true };
 			options.Converters.Add(new JsonStringEnumConverter());
 
 			byte[] buffer;
@@ -520,9 +518,9 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static Color Blend(Color first, Color second, float T)
+		public static Color Blend(Color first, Color second, float t)
 		{
-			return Color.FromArgb((int)(first.R + (second.R - first.R) * T), (int)(first.G + (second.G - first.G) * T), (int)(first.B + (second.B - first.B) * T));
+			return Color.FromArgb((int)(first.R + (second.R - first.R) * t), (int)(first.G + (second.G - first.G) * t), (int)(first.B + (second.B - first.B) * t));
 		}
 
 		public static PerforceSettings OverridePerforceSettings(IPerforceSettings defaultConnection, string? serverAndPort, string? userName)

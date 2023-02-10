@@ -11,7 +11,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 
 namespace UnrealGameSync
 {
@@ -150,9 +149,9 @@ namespace UnrealGameSync
 
 		public ArchiveSettings(bool enabled, string type, IEnumerable<string> order)
 		{
-			this.Enabled = enabled;
-			this.Type = type;
-			this.Order = new List<string>(order);
+			Enabled = enabled;
+			Type = type;
+			Order = new List<string>(order);
 		}
 
 		public static bool TryParseConfigEntry(string text, [NotNullWhen(true)] out ArchiveSettings? settings)
@@ -203,11 +202,11 @@ namespace UnrealGameSync
 
 		public UserSelectedProjectSettings(string? serverAndPort, string? userName, UserSelectedProjectType type, string? clientPath, string? localPath)
 		{
-			this.ServerAndPort = serverAndPort;
-			this.UserName = userName;
-			this.Type = type;
-			this.ClientPath = clientPath;
-			this.LocalPath = localPath;
+			ServerAndPort = serverAndPort;
+			UserName = userName;
+			Type = type;
+			ClientPath = clientPath;
+			LocalPath = localPath;
 		}
 
 		public static bool TryParseConfigEntry(string text, [NotNullWhen(true)] out UserSelectedProjectSettings? project)
@@ -350,11 +349,11 @@ namespace UnrealGameSync
 			ProjectInfo.ValidateBranchPath(branchPath);
 			ProjectInfo.ValidateProjectPath(projectPath);
 
-			this.ServerAndPort = serverAndPort;
-			this.UserName = userName;
-			this.ClientName = clientName;
-			this.BranchPath = branchPath;
-			this.ProjectPath = projectPath;
+			ServerAndPort = serverAndPort;
+			UserName = userName;
+			ClientName = clientName;
+			BranchPath = branchPath;
+			ProjectPath = projectPath;
 		}
 
 		public static bool TryLoad(DirectoryReference rootDir, [NotNullWhen(true)] out UserWorkspaceSettings? settings)
@@ -373,7 +372,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		static object _syncRoot = new object();
+		static readonly object _syncRoot = new object();
 
 		public bool Save(ILogger logger)
 		{
@@ -414,7 +413,7 @@ namespace UnrealGameSync
 		public FilterType FilterType { get; set; }
 		public HashSet<string> FilterBadges { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-		static object _syncRoot = new object();
+		static readonly object _syncRoot = new object();
 
 		private UserProjectSettings()
 		{
@@ -422,7 +421,7 @@ namespace UnrealGameSync
 
 		public UserProjectSettings(FileReference configFile)
 		{
-			this.ConfigFile = configFile;
+			ConfigFile = configFile;
 		}
 
 		public static bool TryLoad(FileReference configFile, [NotNullWhen(true)] out UserProjectSettings? settings)
@@ -474,8 +473,8 @@ namespace UnrealGameSync
 			None		// Show no robomerge changes
 		};
 
-		FileReference _fileName;
-		ConfigFile _configFile;
+		readonly FileReference _fileName;
+		readonly ConfigFile _configFile;
 
 		// General settings
 		public UserSettingsVersion Version = UserSettingsVersion.Latest;
@@ -528,8 +527,8 @@ namespace UnrealGameSync
 		public int NotifyUnresolvedMinutes;
 
 		// Project settings
-		Dictionary<DirectoryReference, UserWorkspaceSettings> _workspaceDirToSettings = new Dictionary<DirectoryReference, UserWorkspaceSettings>();
-		Dictionary<FileReference, UserProjectSettings> _projectKeyToSettings = new Dictionary<FileReference, UserProjectSettings>();
+		readonly Dictionary<DirectoryReference, UserWorkspaceSettings> _workspaceDirToSettings = new Dictionary<DirectoryReference, UserWorkspaceSettings>();
+		readonly Dictionary<FileReference, UserProjectSettings> _projectKeyToSettings = new Dictionary<FileReference, UserProjectSettings>();
 
 		// Perforce settings
 		public PerforceSyncOptions SyncOptions => base.Global.Perforce;
@@ -613,8 +612,8 @@ namespace UnrealGameSync
 		public UserSettings(FileReference inFileName, ConfigFile inConfigFile, FileReference inCoreFileName, GlobalSettings inCoreSettingsData)
 			: base(inCoreFileName, inCoreSettingsData)
 		{
-			this._fileName = inFileName;
-			this._configFile = inConfigFile;
+			_fileName = inFileName;
+			_configFile = inConfigFile;
 
 			// General settings
 			Version = (UserSettingsVersion)_configFile.GetValue("General.Version", (int)UserSettingsVersion.Initial);
@@ -645,9 +644,9 @@ namespace UnrealGameSync
 			{
 				enabledTools.Add(new Guid("922EED87-E732-464C-92DC-5A8F7ED955E2"));
 			}
-			this.EnabledTools = enabledTools.ToArray();
+			EnabledTools = enabledTools.ToArray();
 
-			int.TryParse(_configFile.GetValue("General.FilterIndex", "0"), out FilterIndex);
+			Int32.TryParse(_configFile.GetValue("General.FilterIndex", "0"), out FilterIndex);
 
 			string? lastProjectString = _configFile.GetValue("General.LastProject", null);
 			if(lastProjectString != null)
@@ -775,7 +774,7 @@ namespace UnrealGameSync
 			if (numThreadsStr != null)
 			{
 				int numThreads;
-				if (int.TryParse(numThreadsStr, out numThreads) && numThreads > 0)
+				if (Int32.TryParse(numThreadsStr, out numThreads) && numThreads > 0)
 				{
 					if (Version >= UserSettingsVersion.DefaultNumberOfThreads || numThreads > 1)
 					{
@@ -804,21 +803,6 @@ namespace UnrealGameSync
 				}
 			}
 			return result;
-		}
-
-		static void SetCategorySettings(ConfigSection section, string includedKey, string excludedKey, Dictionary<Guid, bool> categories)
-		{
-			Guid[] includedCategories = categories.Where(x => x.Value).Select(x => x.Key).ToArray();
-			if (includedCategories.Length > 0)
-			{
-				section.SetValues(includedKey, includedCategories);
-			}
-
-			Guid[] excludedCategories = categories.Where(x => !x.Value).Select(x => x.Key).ToArray();
-			if (excludedCategories.Length > 0)
-			{
-				section.SetValues(excludedKey, excludedCategories);
-			}
 		}
 
 		static Rectangle? ParseRectangleValue(string text)
@@ -892,7 +876,7 @@ namespace UnrealGameSync
 					if(atIdx != -1)
 					{
 						int changeNumber;
-						if(int.TryParse(currentSync.Substring(atIdx + 1), out changeNumber))
+						if(Int32.TryParse(currentSync.Substring(atIdx + 1), out changeNumber))
 						{
 							currentWorkspace.ProjectIdentifier = currentSync.Substring(0, atIdx);
 							currentWorkspace.CurrentChangeNumber = changeNumber;
@@ -907,7 +891,7 @@ namespace UnrealGameSync
 					if(colonIdx != -1)
 					{
 						int changeNumber;
-						if(int.TryParse(lastUpdateResultText.Substring(0, colonIdx), out changeNumber))
+						if(Int32.TryParse(lastUpdateResultText.Substring(0, colonIdx), out changeNumber))
 						{
 							WorkspaceUpdateResult result;
 							if(Enum.TryParse(lastUpdateResultText.Substring(colonIdx + 1), out result))
@@ -927,7 +911,7 @@ namespace UnrealGameSync
 				foreach(string additionalChangeNumberString in workspaceSection.GetValues("AdditionalChangeNumbers", new string[0]))
 				{
 					int additionalChangeNumber;
-					if(int.TryParse(additionalChangeNumberString, out additionalChangeNumber))
+					if(Int32.TryParse(additionalChangeNumberString, out additionalChangeNumber))
 					{
 						currentWorkspace.AdditionalChangeNumbers.Add(additionalChangeNumber);
 					}
@@ -1077,7 +1061,6 @@ namespace UnrealGameSync
 			}
 			oidcSection.SetValues("Tokens", tokenObjects.Select(x => x.ToString()).ToArray());
 
-
 			// Window settings
 			ConfigSection windowSection = _configFile.FindOrAddSection("Window");
 			windowSection.Clear();
@@ -1122,45 +1105,6 @@ namespace UnrealGameSync
 				logger.LogError(ex, "Unable to save config file {FileName}: {Message}", _fileName, ex.Message);
 				return false;
 			}
-		}
-
-		[return: NotNullIfNotNull("text")]
-		static string? EscapeText(string? text)
-		{
-			if(text == null)
-			{
-				return null;
-			}
-
-			StringBuilder result = new StringBuilder();
-			for(int idx = 0; idx < text.Length; idx++)
-			{
-				switch(text[idx])
-				{
-					case '\\':
-						result.Append("\\\\");
-						break;
-					case '\t':
-						result.Append("\\t");
-						break;
-					case '\r':
-						result.Append("\\r");
-						break;
-					case '\n':
-						result.Append("\\n");
-						break;
-					case '\'':
-						result.Append("\\\'");
-						break;
-					case '\"':
-						result.Append("\\\"");
-						break;
-					default:
-						result.Append(text[idx]);
-						break;
-				}
-			}
-			return result.ToString();
 		}
 
 		[return: NotNullIfNotNull("text")]

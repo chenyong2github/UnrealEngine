@@ -11,7 +11,6 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -24,36 +23,36 @@ namespace UnrealGameSync
 {
 	class ProgramApplicationContext : ApplicationContext
 	{
-		SynchronizationContext _mainThreadSynchronizationContext;
+		readonly SynchronizationContext _mainThreadSynchronizationContext;
 
-		IPerforceSettings _defaultPerforceSettings;
+		readonly IPerforceSettings _defaultPerforceSettings;
 		UpdateMonitor _updateMonitor;
-		string? _apiUrl;
-		DirectoryReference _dataFolder;
-		DirectoryReference _cacheFolder;
-		bool _restoreState;
-		string? _updateSpawn;
-		bool _preview;
+		readonly string? _apiUrl;
+		readonly DirectoryReference _dataFolder;
+		readonly DirectoryReference _cacheFolder;
+		readonly bool _restoreState;
+		readonly string? _updateSpawn;
+		readonly bool _preview;
 		bool _isClosing;
-		string? _uri;
+		readonly string? _uri;
 
-		IServiceProvider _serviceProvider;
-		ILogger _logger;
-		UserSettings _settings;
+		readonly IServiceProvider _serviceProvider;
+		readonly ILogger _logger;
+		readonly UserSettings _settings;
 		ActivationListener _activationListener;
 
 		Container _components = new Container();
 		NotifyIcon _notifyIcon;
-		ContextMenuStrip _notifyMenu;
-		ToolStripMenuItem _notifyMenuOpenUnrealGameSync;
-		ToolStripSeparator _notifyMenuOpenUnrealGameSyncSeparator;
-		ToolStripMenuItem _notifyMenuSyncNow;
-		ToolStripMenuItem _notifyMenuLaunchEditor;
-		ToolStripSeparator _notifyMenuExitSeparator;
-		ToolStripMenuItem _notifyMenuExit;
+		readonly ContextMenuStrip _notifyMenu;
+		readonly ToolStripMenuItem _notifyMenuOpenUnrealGameSync;
+		readonly ToolStripSeparator _notifyMenuOpenUnrealGameSyncSeparator;
+		readonly ToolStripMenuItem _notifyMenuSyncNow;
+		readonly ToolStripMenuItem _notifyMenuLaunchEditor;
+		readonly ToolStripSeparator _notifyMenuExitSeparator;
+		readonly ToolStripMenuItem _notifyMenuExit;
 
 		CancellationTokenSource _startupCancellationSource = new CancellationTokenSource();
-		Task _startupTask;
+		readonly Task _startupTask;
 		ModalTaskWindow? _startupWindow;
 		MainWindow? _mainWindowInstance;
 
@@ -62,17 +61,17 @@ namespace UnrealGameSync
 
 		public ProgramApplicationContext(IPerforceSettings defaultPerforceSettings, UpdateMonitor updateMonitor, string? apiUrl, DirectoryReference dataFolder, EventWaitHandle activateEvent, bool restoreState, string? updateSpawn, string? projectFileName, bool preview, IServiceProvider serviceProvider, string? uri)
 		{
-			this._defaultPerforceSettings = defaultPerforceSettings;
-			this._updateMonitor = updateMonitor;
-			this._apiUrl = apiUrl;
-			this._dataFolder = dataFolder;
-			this._cacheFolder = DirectoryReference.Combine(dataFolder, "Cache");
-			this._restoreState = restoreState;
-			this._updateSpawn = updateSpawn;
-			this._preview = preview;
-			this._serviceProvider = serviceProvider;
-			this._logger = serviceProvider.GetRequiredService<ILogger<ProgramApplicationContext>>();
-			this._uri = uri;
+			_defaultPerforceSettings = defaultPerforceSettings;
+			_updateMonitor = updateMonitor;
+			_apiUrl = apiUrl;
+			_dataFolder = dataFolder;
+			_cacheFolder = DirectoryReference.Combine(dataFolder, "Cache");
+			_restoreState = restoreState;
+			_updateSpawn = updateSpawn;
+			_preview = preview;
+			_serviceProvider = serviceProvider;
+			_logger = serviceProvider.GetRequiredService<ILogger<ProgramApplicationContext>>();
+			_uri = uri;
 
 			// Create the directories
 			DirectoryReference.CreateDirectory(dataFolder);
@@ -321,7 +320,7 @@ namespace UnrealGameSync
 			}
 
 			// Create the main window 
-			_mainWindowInstance = new MainWindow(_updateMonitor, _apiUrl, _dataFolder, _cacheFolder, _restoreState, _updateSpawn ?? originalExe, _preview, startupTasks, _defaultPerforceSettings, _serviceProvider, _settings, _uri, _oidcTokenManager);
+			_mainWindowInstance = new MainWindow(_updateMonitor, _apiUrl, _dataFolder, _updateSpawn ?? originalExe, _preview, startupTasks, _defaultPerforceSettings, _serviceProvider, _settings, _uri, _oidcTokenManager);
 			if(visible)
 			{
 				_mainWindowInstance.Show();
@@ -428,46 +427,28 @@ namespace UnrealGameSync
 			_notifyMenuExitSeparator.Visible = canSyncNow || canLaunchEditor;
 
 			// Show the startup window, if not already visible
-			if(_startupWindow != null)
-			{
-				_startupWindow.Show();
-			}
+			_startupWindow?.Show();
 		}
 
 		private void NotifyIcon_DoubleClick(object? sender, EventArgs e)
 		{
-			if(_mainWindowInstance != null)
-			{
-				_mainWindowInstance.ShowAndActivate();
-			}
+			_mainWindowInstance?.ShowAndActivate();
 		}
 
 		private void NotifyMenu_OpenUnrealGameSync_Click(object? sender, EventArgs e)
 		{
-			if(_startupWindow != null)
-			{
-				_startupWindow.ShowAndActivate();
-			}
-			if(_mainWindowInstance != null)
-			{
-				_mainWindowInstance.ShowAndActivate();
-			}
+			_startupWindow?.ShowAndActivate();
+			_mainWindowInstance?.ShowAndActivate();
 		}
 
 		private void NotifyMenu_SyncNow_Click(object? sender, EventArgs e)
 		{
-			if(_mainWindowInstance != null)
-			{
-				_mainWindowInstance.SyncLatestChange();
-			}
+			_mainWindowInstance?.SyncLatestChange();
 		}
 
 		private void NotifyMenu_LaunchEditor_Click(object? sender, EventArgs e)
 		{
-			if(_mainWindowInstance != null)
-			{
-				_mainWindowInstance.LaunchEditor();
-			}
+			_mainWindowInstance?.LaunchEditor();
 		}
 
 		private void NotifyMenu_Exit_Click(object? sender, EventArgs e)

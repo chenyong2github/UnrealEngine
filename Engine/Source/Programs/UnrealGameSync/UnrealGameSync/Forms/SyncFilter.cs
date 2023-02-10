@@ -2,22 +2,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
 	partial class SyncFilter : Form
 	{
-		Dictionary<Guid, WorkspaceSyncCategory> _uniqueIdToCategory;
+		readonly Dictionary<Guid, WorkspaceSyncCategory> _uniqueIdToCategory;
 		public FilterSettings GlobalFilter;
 		public FilterSettings WorkspaceFilter;
-		ConfigSection? _perforceSection;
+		readonly ConfigSection? _perforceSection;
 
 		public SyncFilter(Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToCategory, FilterSettings globalFilter, FilterSettings workspaceFilter, ConfigSection? perforceSection)
 		{
@@ -119,16 +114,6 @@ namespace UnrealGameSync
 				}
 			}
 			return result;
-		}
-
-		private static string[] GetView(TextBox filterText)
-		{
-			List<string> newLines = new List<string>(filterText.Lines);
-			while (newLines.Count > 0 && newLines.Last().Trim().Length == 0)
-			{
-				newLines.RemoveAt(newLines.Count - 1);
-			}
-			return newLines.Count > 0 ? filterText.Lines : new string[0];
 		}
 
 		private void OkButton_Click(object sender, EventArgs e)

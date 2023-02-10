@@ -1,19 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Collections.Generic;
+using System;
 using System.IO;
-using System.Text;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
-
 	/// <summary>
 	/// UGS handler 
 	/// </summary>
 	static class UgsHandler
 	{
-
 		[UriHandler]
 		public static UriResult OpenProject(string stream, string project, bool sync = false)
 		{
@@ -34,7 +31,7 @@ namespace UnrealGameSync
 		[UriHandler]
 		public static UriResult BuildStep(string project, string stream, string step, string changelist, string arguments)
 		{
-			MessageBox.Show(string.Format("Project: {0}\nStream: {1}\nStep: {2}\nChange: {3}\nArguments: {4}", project, stream, step, changelist, arguments), "UGS Build Step Handler");
+			MessageBox.Show(String.Format("Project: {0}\nStream: {1}\nStep: {2}\nChange: {3}\nArguments: {4}", project, stream, step, changelist, arguments), "UGS Build Step Handler");
 
 			return new UriResult() { Success = true };
 		}

@@ -36,10 +36,10 @@ namespace UnrealGameSync
 			}
 
 			// unable to get DTE connection, so launch nesw VS instance
-			string arguments = string.Format("\"{0}\"", fileName);
+			string arguments = String.Format("\"{0}\"", fileName);
 			if (line != -1)
 			{
-				arguments += string.Format(" /command \"edit.goto {0}\"", line);
+				arguments += String.Format(" /command \"edit.goto {0}\"", line);
 			}
 
 			// Launch new visual studio instance
@@ -64,7 +64,7 @@ namespace UnrealGameSync
 
 			if (install == null || install.DevEnvPath == null)
 			{
-				errorMessage = string.Format("Unable to get Visual Studio installation");
+				errorMessage = String.Format("Unable to get Visual Studio installation");
 				return false;
 			}
 			try
@@ -116,7 +116,7 @@ namespace UnrealGameSync
 					try
 					{
 						currentMoniker.GetDisplayName(bindContext, null, out outDisplayName);
-						if (string.IsNullOrEmpty(outDisplayName) || !IsVisualStudioDteMoniker(outDisplayName))
+						if (String.IsNullOrEmpty(outDisplayName) || !IsVisualStudioDteMoniker(outDisplayName))
 						{
 							continue;
 						}
@@ -143,9 +143,9 @@ namespace UnrealGameSync
 
 		static bool IsVisualStudioDteMoniker(string inName)
 		{
-			VisualStudioInstallation[] installs = VisualStudioInstallations.Installs;
+			IReadOnlyList<VisualStudioInstallation> installs = VisualStudioInstallations.Installs;
 
-			for (int idx = 0; idx < installs.Length; idx++)
+			for (int idx = 0; idx < installs.Count; idx++)
 			{
 				string? moniker = installs[idx].RotMoniker;
 				if (moniker != null && inName.StartsWith(moniker))
@@ -162,13 +162,11 @@ namespace UnrealGameSync
 			return result >= 0;
 		}
 
-
 		[DllImport("ole32.dll")]
 		public static extern int CreateBindCtx(int reserved, out IBindCtx bindCtx);
 
 		[DllImport("ole32.dll")]
 		public static extern int GetRunningObjectTable(int reserved, out IRunningObjectTable rot);
-
 	}
 
 	class VisualStudioInstallation
@@ -176,24 +174,22 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Base directory for the installation
 		/// </summary>
-		public string? BaseDir;
-
+		public string? BaseDir { get; set; }
 
 		/// <summary>
 		/// Path of the devenv executable
 		/// </summary>
-		public string? DevEnvPath;
+		public string? DevEnvPath { get; set; }
 
 		/// <summary>
 		/// Visual Studio major version number
 		/// </summary>
-		public int MajorVersion;
+		public int MajorVersion { get; set; }
 
 		/// <summary>
 		/// Running Object Table moniker for this installation
 		/// </summary>
-		public string? RotMoniker;
-
+		public string? RotMoniker { get; set; }
 	}
 
 	/// <summary>
@@ -205,26 +201,23 @@ namespace UnrealGameSync
 		public static VisualStudioInstallation? GetPreferredInstallation(int majorVersion = 0)
 		{
 
-			if (CachedInstalls.Count == 0)
+			if (s_cachedInstalls.Count == 0)
 			{
 				return null;
 			}
 
 			if (majorVersion == 0)
 			{
-				return CachedInstalls.First();
+				return s_cachedInstalls.First();
 			}
 
-			VisualStudioInstallation? installation = CachedInstalls.FirstOrDefault(install => { return install.MajorVersion == majorVersion; });
+			VisualStudioInstallation? installation = s_cachedInstalls.FirstOrDefault(install => { return install.MajorVersion == majorVersion; });
 
 			return installation;
 
 		}
 
-		public static VisualStudioInstallation[] Installs
-		{
-			get { return CachedInstalls.ToArray(); }
-		}
+		public static IReadOnlyList<VisualStudioInstallation> Installs => s_cachedInstalls;
 
 		public static void Refresh()
 		{
@@ -233,7 +226,7 @@ namespace UnrealGameSync
 
 		static List<VisualStudioInstallation> GetVisualStudioInstallations()
 		{
-			CachedInstalls.Clear();
+			s_cachedInstalls.Clear();
 
 			try
 			{
@@ -266,32 +259,31 @@ namespace UnrealGameSync
 						string installationPath = instance.GetInstallationPath();
 						string devEnvPath = Path.Combine(installationPath, "Common7\\IDE\\devenv.exe");
 
-						if (!int.TryParse(components[0], out majorVersion) || (majorVersion != 15 && majorVersion != 16))
+						if (!Int32.TryParse(components[0], out majorVersion) || (majorVersion != 15 && majorVersion != 16))
 						{
 							continue;
 						}
-
 
 						if (!File.Exists(devEnvPath))
 						{
 							continue;
 						}
 
-						VisualStudioInstallation installation = new VisualStudioInstallation() { BaseDir = installationPath, DevEnvPath = devEnvPath, MajorVersion = majorVersion, RotMoniker = string.Format("!VisualStudio.DTE.{0}.0", majorVersion) };
+						VisualStudioInstallation installation = new VisualStudioInstallation() { BaseDir = installationPath, DevEnvPath = devEnvPath, MajorVersion = majorVersion, RotMoniker = String.Format("!VisualStudio.DTE.{0}.0", majorVersion) };
 
-						CachedInstalls.Add(installation);
+						s_cachedInstalls.Add(installation);
 					}
 				}
 			}
 			catch (Exception ex)
 			{
-				MessageBox.Show(string.Format("Exception while finding Visual Studio installations {0}", ex.Message));
+				MessageBox.Show(String.Format("Exception while finding Visual Studio installations {0}", ex.Message));
 			}
 
 			// prefer newer versions
-			CachedInstalls.Sort((a, b) => { return -a.MajorVersion.CompareTo(b.MajorVersion); });
+			s_cachedInstalls.Sort((a, b) => { return -a.MajorVersion.CompareTo(b.MajorVersion); });
 
-			return CachedInstalls;
+			return s_cachedInstalls;
 		}
 
 		static VisualStudioInstallations()
@@ -299,8 +291,6 @@ namespace UnrealGameSync
 			GetVisualStudioInstallations();
 		}
 
-		static readonly List<VisualStudioInstallation> CachedInstalls = new List<VisualStudioInstallation>();
-
+		static readonly List<VisualStudioInstallation> s_cachedInstalls = new List<VisualStudioInstallation>();
 	}
-
 }

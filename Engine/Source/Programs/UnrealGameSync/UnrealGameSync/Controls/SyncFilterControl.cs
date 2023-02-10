@@ -1,21 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
 using System.Data;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Runtime.InteropServices;
 
 namespace UnrealGameSync.Controls
 {
 	public partial class SyncFilterControl : UserControl
 	{
-		HashSet<string> _stripLines = new HashSet<string>()
+		static readonly HashSet<string> s_stripLines = new HashSet<string>()
 		{
 			"; Rules are specified one per line, and may use any standard Perforce wildcards:",
 			";    ?    Matches one character.",
@@ -39,7 +33,7 @@ namespace UnrealGameSync.Controls
 
 		public void SetView(string[] view)
 		{
-			ViewTextBox.Lines = view.Where(x => !_stripLines.Contains(x.Trim())).SkipWhile(x => x.Trim().Length == 0 || x.Trim() == ";").ToArray();
+			ViewTextBox.Lines = view.Where(x => !s_stripLines.Contains(x.Trim())).SkipWhile(x => x.Trim().Length == 0 || x.Trim() == ";").ToArray();
 			ViewTextBox.Select(ViewTextBox.Text.Length, 0);
 		}
 

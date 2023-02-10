@@ -10,7 +10,7 @@ namespace UnrealGameSync.Controls
 {
 	public partial class OidcControl : UserControl
 	{
-		private Font _badgeFont;
+		private readonly Font _badgeFont;
 		private readonly OidcTokenManager _oidcManager;
 		private readonly string _providerIdentifier;
 
@@ -22,7 +22,7 @@ namespace UnrealGameSync.Controls
 			_oidcManager = inOidcManager;
 			_providerIdentifier = inProviderIdentifier;
 
-			_badgeFont = new Font(this.Font.FontFamily, this.Font.SizeInPoints - 2, FontStyle.Bold);
+			_badgeFont = new Font(Font.FontFamily, Font.SizeInPoints - 2, FontStyle.Bold);
 
 			OidcStatus serviceStatus = _oidcManager.GetStatusForProvider(_providerIdentifier);
 			LoginButton.Enabled = serviceStatus == OidcStatus.NotLoggedIn;

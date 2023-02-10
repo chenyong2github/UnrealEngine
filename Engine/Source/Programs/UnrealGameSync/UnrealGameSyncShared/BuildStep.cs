@@ -3,9 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
@@ -85,7 +82,7 @@ namespace UnrealGameSync
 			Description = obj.GetValue("Description", "Untitled");
 			StatusText = obj.GetValue("StatusText", "Untitled");
 
-			if(!int.TryParse(obj.GetValue("EstimatedDuration", ""), out EstimatedDuration) || EstimatedDuration < 1)
+			if(!Int32.TryParse(obj.GetValue("EstimatedDuration", ""), out EstimatedDuration) || EstimatedDuration < 1)
 			{
 				EstimatedDuration = 1;
 			}
@@ -133,7 +130,7 @@ namespace UnrealGameSync
 					requires.Add(require);
 				}
 			}
-			this.Requires = requires.ToArray();
+			Requires = requires.ToArray();
 	
 			if (!Guid.TryParse(obj.GetValue("Tool", ""), out ToolId))
 			{

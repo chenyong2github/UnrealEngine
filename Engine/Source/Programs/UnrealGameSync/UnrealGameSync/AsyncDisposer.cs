@@ -3,8 +3,6 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace UnrealGameSync
@@ -16,13 +14,13 @@ namespace UnrealGameSync
 
 	internal class AsyncDisposer : IAsyncDisposer, IAsyncDisposable
 	{
-		object _lockObject = new object();
-		List<Task> _tasks = new List<Task>();
-		ILogger _logger;
+		readonly object _lockObject = new object();
+		readonly List<Task> _tasks = new List<Task>();
+		readonly ILogger _logger;
 
 		public AsyncDisposer(ILogger<AsyncDisposer> logger)
 		{
-			this._logger = logger;
+			_logger = logger;
 		}
 
 		public void Add(Task task)

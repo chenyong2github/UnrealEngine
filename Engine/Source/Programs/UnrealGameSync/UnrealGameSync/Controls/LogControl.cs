@@ -2,12 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
 using System.Data;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Collections.Concurrent;
@@ -66,7 +64,7 @@ namespace UnrealGameSync
 		static extern int GetScrollInfo(IntPtr hwnd, ScrollBarType fnBar, Scrollinfo lpsi);
 
 		[DllImport("user32.dll", CharSet = CharSet.Auto)]
-		static extern IntPtr SendMessage(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam);
+		static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
 		struct TextLocation
 		{
@@ -107,7 +105,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		List<string> _lines = new List<string>();
+		readonly List<string> _lines = new List<string>();
 		int _maxLineLength;
 
 		int _scrollLine;
@@ -288,7 +286,7 @@ namespace UnrealGameSync
 						}
 						catch(Exception ex)
 						{
-							textToAppend += String.Format("Failed to write to log file ({0}): {1}\n", _logFileStream.Name, ex.ToString());
+							newLines.Add(String.Format("Failed to write to log file ({0}): {1}\n", _logFileStream.Name, ex.ToString()));
 						}
 					}
 
@@ -346,15 +344,6 @@ namespace UnrealGameSync
 			}
 
 			Invalidate();
-		}
-
-		private Scrollinfo GetScrollInfo(ScrollBarType type, ScrollInfoMask mask)
-		{
-			Scrollinfo scrollInfo = new Scrollinfo();
-			scrollInfo.cbSize = Marshal.SizeOf(VerticalScroll);
-			scrollInfo.fMask = mask;
-			GetScrollInfo(Handle, ScrollBarType.SbVert, scrollInfo);
-			return scrollInfo;
 		}
 
 		private bool IsTrackingLastLine()
@@ -495,7 +484,7 @@ namespace UnrealGameSync
 		{
 			using(Graphics graphics = CreateGraphics())
 			{
-				_fontSize = TextRenderer.MeasureText(graphics, "A", Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+				_fontSize = TextRenderer.MeasureText(graphics, "A", Font, new Size(Int32.MaxValue, Int32.MaxValue), TextFormatFlags.NoPadding);
 			}
 		}
 
@@ -924,7 +913,7 @@ namespace UnrealGameSync
 			public void Dispose() { }
 		}
 
-		LogControl _logControl;
+		readonly LogControl _logControl;
 
 		public LogControlTextWriter(LogControl inLogControl)
 		{

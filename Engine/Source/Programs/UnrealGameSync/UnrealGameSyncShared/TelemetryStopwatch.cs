@@ -15,7 +15,7 @@ namespace UnrealGameSync
 
 		public TelemetryStopwatch(string eventName, string project)
 		{
-			this._eventName = eventName;
+			_eventName = eventName;
 
 			_eventData = new Dictionary<string, object?>();
 			_eventData["Project"] = project;
@@ -52,9 +52,6 @@ namespace UnrealGameSync
 			Telemetry.SendEvent(_eventName, _eventData);
 		}
 
-		public TimeSpan Elapsed
-		{
-			get { return _timer.Elapsed; }
-		}
+		public TimeSpan Elapsed => _timer.Elapsed;
 	}
 }

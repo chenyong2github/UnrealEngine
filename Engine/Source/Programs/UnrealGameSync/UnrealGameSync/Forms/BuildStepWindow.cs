@@ -3,23 +3,19 @@
 using EpicGames.Core;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
 	partial class BuildStepWindow : Form
 	{
-		BuildStep _step;
-		List<string> _targetNames;
-		DirectoryReference _baseDirectory;
-		IReadOnlyDictionary<string, string> _variables;
+		readonly BuildStep _step;
+		readonly List<string> _targetNames;
+		readonly DirectoryReference _baseDirectory;
+		readonly IReadOnlyDictionary<string, string> _variables;
 		VariablesWindow? _variablesWindow;
 
 		public BuildStepWindow(BuildStep inTask, List<string> inTargetNames, DirectoryReference inBaseDirectory, IReadOnlyDictionary<string, string> inVariables)
@@ -31,8 +27,8 @@ namespace UnrealGameSync
 
 			InitializeComponent();
 
-			this.MaximumSize = new System.Drawing.Size(32768, Height);
-			this.MinimumSize = new System.Drawing.Size(Width, Height);
+			MaximumSize = new System.Drawing.Size(32768, Height);
+			MinimumSize = new System.Drawing.Size(Width, Height);
 		}
 
 		private void BuildTaskWindow_Load(object sender, EventArgs e)
@@ -122,7 +118,7 @@ namespace UnrealGameSync
 			_step.StatusText = StatusTextTextBox.Text;
 			_step.StatusPanelLink = StatusPanelLinkTextBox.Text;
 
-			if (!int.TryParse(DurationTextBox.Text, out _step.EstimatedDuration))
+			if (!Int32.TryParse(DurationTextBox.Text, out _step.EstimatedDuration))
 			{
 				_step.EstimatedDuration = 1;
 			}

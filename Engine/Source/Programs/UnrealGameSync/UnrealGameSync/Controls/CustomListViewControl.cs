@@ -1,13 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 
@@ -31,8 +25,8 @@ namespace UnrealGameSync
 
 		public CustomListViewWidget(ListViewItem item)
 		{
-			this.Item = item;
-			this.Cursor = Cursors.Arrow;
+			Item = item;
+			Cursor = Cursors.Arrow;
 		}
 
 		public void Invalidate()
@@ -79,8 +73,8 @@ namespace UnrealGameSync
 
 	class StatusLineListViewWidget : CustomListViewWidget
 	{
-		public StatusElementResources Resources;
-		public StatusLine Line = new StatusLine();
+		public StatusElementResources Resources { get; }
+		public StatusLine Line { get; } = new StatusLine();
 
 		public HorizontalAlignment HorizontalAlignment
 		{
@@ -94,8 +88,8 @@ namespace UnrealGameSync
 		public StatusLineListViewWidget(ListViewItem item, StatusElementResources resources)
 			: base(item)
 		{
-			this.Resources = resources;
-			this.HorizontalAlignment = HorizontalAlignment.Center;
+			Resources = resources;
+			HorizontalAlignment = HorizontalAlignment.Center;
 		}
 
 		public override bool RequiresLayout()
@@ -171,7 +165,7 @@ namespace UnrealGameSync
 
 		public override void Layout(Graphics graphics, Rectangle bounds)
 		{
-			this._bounds = bounds;
+			_bounds = bounds;
 
 			int offsetY = bounds.Y + bounds.Height / 2;
 			Line.Layout(graphics, new Point(bounds.X, offsetY), Resources);
@@ -198,8 +192,9 @@ namespace UnrealGameSync
 
 	partial class CustomListViewControl : ListView
 	{
-		VisualStyleRenderer? _selectedItemRenderer;
-		VisualStyleRenderer? _trackedItemRenderer;
+		readonly VisualStyleRenderer? _selectedItemRenderer;
+		readonly VisualStyleRenderer? _trackedItemRenderer;
+		
 		public int HoverItem = -1;
 
 		CustomListViewWidget? _mouseOverWidget;
@@ -336,7 +331,7 @@ namespace UnrealGameSync
 
 		protected override void OnMouseMove(MouseEventArgs e)
 		{
-			ListViewHitTestInfo hitTest = this.HitTest(e.Location);
+			ListViewHitTestInfo hitTest = HitTest(e.Location);
 
 			CustomListViewWidget? newMouseOverWidget = FindWidget(hitTest);
 			if(_mouseOverWidget != null && _mouseOverWidget != newMouseOverWidget)

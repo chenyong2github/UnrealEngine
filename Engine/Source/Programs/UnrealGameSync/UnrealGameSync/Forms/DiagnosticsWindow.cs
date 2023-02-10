@@ -13,9 +13,9 @@ namespace UnrealGameSync
 {
 	public partial class DiagnosticsWindow : Form
 	{
-		DirectoryReference _appDataFolder;
-		DirectoryReference _workspaceDataFolder;
-		List<FileReference> _extraFiles;
+		readonly DirectoryReference _appDataFolder;
+		readonly DirectoryReference _workspaceDataFolder;
+		readonly List<FileReference> _extraFiles;
 
 		public DiagnosticsWindow(DirectoryReference inAppDataFolder, DirectoryReference inWorkspaceDataFolder, string inDiagnosticsText, IEnumerable<FileReference> inExtraFiles)
 		{

@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
@@ -28,17 +26,17 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Root node for the tree.
 		/// </summary>
-		FileFilterNode _rootNode;
+		readonly FileFilterNode _rootNode;
 
 		/// <summary>
 		/// The default node, which will match any path
 		/// </summary>
-		FileFilterNode _defaultNode;
+		readonly FileFilterNode _defaultNode;
 
 		/// <summary>
 		/// Terminating nodes for each rule added to the filter
 		/// </summary>
-		List<FileFilterNode> _rules = new List<FileFilterNode>();
+		readonly List<FileFilterNode> _rules = new List<FileFilterNode>();
 
 		/// <summary>
 		/// Default constructor

@@ -1,12 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -29,14 +25,14 @@ namespace UnrealGameSync
 
 	public static class RestApi
 	{
-		static HttpClient s_httpClient = new HttpClient();
+		static readonly HttpClient s_httpClient = new HttpClient();
 
 		private static async Task<string> SendRequestInternalAsync(string url, HttpMethod method, string? requestBody, CancellationToken cancellationToken)
 		{
 			using (HttpRequestMessage request = new HttpRequestMessage(method, url))
 			{
 				// Add json to request body
-				if (!string.IsNullOrEmpty(requestBody))
+				if (!String.IsNullOrEmpty(requestBody))
 				{
 					if (method == HttpMethod.Post || method == HttpMethod.Put)
 					{
@@ -47,7 +43,7 @@ namespace UnrealGameSync
 
 				try
 				{
-					using (HttpResponseMessage response = await s_httpClient.SendAsync(request))
+					using (HttpResponseMessage response = await s_httpClient.SendAsync(request, cancellationToken))
 					{
 						return await response.Content.ReadAsStringAsync();
 					}

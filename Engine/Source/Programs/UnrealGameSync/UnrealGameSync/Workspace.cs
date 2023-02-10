@@ -5,18 +5,7 @@ using EpicGames.Perforce;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,12 +14,12 @@ namespace UnrealGameSync
 	public sealed class Workspace : IDisposable
 	{
 		public IPerforceSettings PerforceSettings { get; }
-		WorkspaceStateWrapper _stateWrapper;
+		readonly WorkspaceStateWrapper _stateWrapper;
 		public ReadOnlyWorkspaceState State { get; private set; }
 		public ProjectInfo Project { get; }
 		public SynchronizationContext SynchronizationContext { get; }
 		public WorkspaceLock Lock { get; }
-		ILogger _logger;
+		readonly ILogger _logger;
 
 		bool Syncing => _currentUpdate != null;
 
@@ -40,7 +29,7 @@ namespace UnrealGameSync
 
 		public event Action<ReadOnlyWorkspaceState>? OnStateChanged;
 
-		IAsyncDisposer _asyncDisposer;
+		readonly IAsyncDisposer _asyncDisposer;
 
 		public Workspace(IPerforceSettings perforceSettings, ProjectInfo project, WorkspaceStateWrapper stateWrapper, ConfigFile projectConfigFile, IReadOnlyList<string>? projectStreamFilter, ILogger logger, IServiceProvider serviceProvider)
 		{
@@ -53,12 +42,12 @@ namespace UnrealGameSync
 			Lock = new WorkspaceLock(project.LocalRootPath);
 			Lock.OnChange += OnLockChangedInternal;
 
-			this.SynchronizationContext = SynchronizationContext.Current!;
-			this._logger = logger;
-			this._asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
+			SynchronizationContext = SynchronizationContext.Current!;
+			_logger = logger;
+			_asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
 
-			this.ProjectConfigFile = projectConfigFile;
-			this.ProjectStreamFilter = projectStreamFilter;
+			ProjectConfigFile = projectConfigFile;
+			ProjectStreamFilter = projectStreamFilter;
 		}
 
 		public bool IsExternalSyncActive() => Lock.IsLockedByOtherProcess();
@@ -247,10 +236,7 @@ namespace UnrealGameSync
 
 		public int PendingChangeNumber => _currentUpdate?.Context?.ChangeNumber ?? CurrentChangeNumber;
 
-		public string ClientName
-		{
-			get { return PerforceSettings.ClientName!; }
-		}
+		public string ClientName => PerforceSettings.ClientName!;
 
 		public Tuple<string, float> CurrentProgress => _currentUpdate?.CurrentProgress ?? new Tuple<string, float>("", 0.0f);
 	}

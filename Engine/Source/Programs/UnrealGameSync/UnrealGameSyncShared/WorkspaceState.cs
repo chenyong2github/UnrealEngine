@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using JetBrains.Annotations;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 
 namespace UnrealGameSync
@@ -50,7 +48,7 @@ namespace UnrealGameSync
 
 		public void UpdateCachedProjectInfo(ProjectInfo projectInfo, long settingsTimeUtc)
 		{
-			this.SettingsTimeUtc = settingsTimeUtc;
+			SettingsTimeUtc = settingsTimeUtc;
 
 			ClientName = projectInfo.ClientName;
 			BranchPath = projectInfo.BranchPath;
