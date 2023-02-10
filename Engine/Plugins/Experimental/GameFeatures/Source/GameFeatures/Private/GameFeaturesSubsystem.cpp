@@ -1145,42 +1145,26 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 
 	UAssetManager::Get().PushBulkScanning();
 
-	const FString& PluginDescriptorFilename = Plugin->GetDescriptorFileName();
-
-	// Make sure you are in a game feature plugins folder. All GameFeaturePlugins are rooted in a GameFeatures folder.
-	if (!PluginDescriptorFilename.IsEmpty() && GetDefault<UGameFeaturesSubsystemSettings>()->IsValidGameFeaturePlugin(FPaths::ConvertRelativePathToFull(PluginDescriptorFilename)) && FPaths::FileExists(PluginDescriptorFilename))
+	FString PluginURL;
+	FGameFeaturePluginDetails PluginDetails;
+	if (GetGameFeaturePluginDetails(Plugin, PluginURL, PluginDetails))
 	{
-		FString PluginURL;
-		bool bIsFileProtocol = true;
-		if (GetPluginURLByName(Plugin->GetName(), PluginURL))
+		if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
 		{
-			bIsFileProtocol = UGameFeaturesSubsystem::IsPluginURLProtocol(PluginURL, EGameFeaturePluginProtocol::File);
-		}
-		else
-		{
-			PluginURL = GetPluginURL_FileProtocol(PluginDescriptorFilename);
-		}
-
-		if (bIsFileProtocol && GameSpecificPolicies->IsPluginAllowed(PluginURL))
-		{
-			FGameFeaturePluginDetails PluginDetails;
-			if (GetGameFeaturePluginDetails(PluginDescriptorFilename, PluginDetails))
+			FBuiltInGameFeaturePluginBehaviorOptions BehaviorOptions;
+			const bool bShouldProcess = AdditionalFilter(Plugin->GetDescriptorFileName(), PluginDetails, BehaviorOptions);
+			if (bShouldProcess)
 			{
-				FBuiltInGameFeaturePluginBehaviorOptions BehaviorOptions;
-				bool bShouldProcess = AdditionalFilter(PluginDescriptorFilename, PluginDetails, BehaviorOptions);
-				if (bShouldProcess)
-				{
-					UGameFeaturePluginStateMachine* StateMachine = FindOrCreateGameFeaturePluginStateMachine(PluginURL);
+				UGameFeaturePluginStateMachine* StateMachine = FindOrCreateGameFeaturePluginStateMachine(PluginURL);
 
-					const EBuiltInAutoState InitialAutoState = (BehaviorOptions.AutoStateOverride != EBuiltInAutoState::Invalid) ? BehaviorOptions.AutoStateOverride : PluginDetails.BuiltInAutoState;
-						
-					const EGameFeaturePluginState DestinationState = ConvertInitialFeatureStateToTargetState(InitialAutoState);
+				const EBuiltInAutoState InitialAutoState = (BehaviorOptions.AutoStateOverride != EBuiltInAutoState::Invalid) ? BehaviorOptions.AutoStateOverride : PluginDetails.BuiltInAutoState;
+				
+				const EGameFeaturePluginState DestinationState = ConvertInitialFeatureStateToTargetState(InitialAutoState);
 
-					// If we're already at the destination or beyond, don't transition back
-					FGameFeaturePluginStateRange Destination(DestinationState, EGameFeaturePluginState::Active);
-					ChangeGameFeatureDestination(StateMachine, Destination, 
-						FGameFeaturePluginChangeStateComplete::CreateUObject(this, &ThisClass::LoadBuiltInGameFeaturePluginComplete, StateMachine, Destination));
-				}
+				// If we're already at the destination or beyond, don't transition back
+				FGameFeaturePluginStateRange Destination(DestinationState, EGameFeaturePluginState::Active);
+				ChangeGameFeatureDestination(StateMachine, Destination, 
+					FGameFeaturePluginChangeStateComplete::CreateUObject(this, &ThisClass::LoadBuiltInGameFeaturePluginComplete, StateMachine, Destination));
 			}
 		}
 	}
@@ -1350,6 +1334,32 @@ EGameFeaturePluginState UGameFeaturesSubsystem::GetPluginState(FGameFeaturePlugi
 	{
 		return EGameFeaturePluginState::UnknownStatus;
 	}
+}
+
+bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const TSharedRef<IPlugin>& Plugin, FString& OutPluginURL, struct FGameFeaturePluginDetails& OutPluginDetails) const
+{
+	const FString& PluginDescriptorFilename = Plugin->GetDescriptorFileName();
+
+	// Make sure you are in a game feature plugins folder. All GameFeaturePlugins are rooted in a GameFeatures folder.
+	if (!PluginDescriptorFilename.IsEmpty() && GetDefault<UGameFeaturesSubsystemSettings>()->IsValidGameFeaturePlugin(FPaths::ConvertRelativePathToFull(PluginDescriptorFilename)) && FPaths::FileExists(PluginDescriptorFilename))
+	{
+		bool bIsFileProtocol = true;
+		if (GetPluginURLByName(Plugin->GetName(), OutPluginURL))
+		{
+			bIsFileProtocol = UGameFeaturesSubsystem::IsPluginURLProtocol(OutPluginURL, EGameFeaturePluginProtocol::File);
+		}
+		else
+		{
+			OutPluginURL = GetPluginURL_FileProtocol(PluginDescriptorFilename);
+		}
+
+		if (bIsFileProtocol)
+		{
+			return GetGameFeaturePluginDetails(PluginDescriptorFilename, OutPluginDetails);
+		}
+	}
+
+	return false;
 }
 
 bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDescriptorFilename, FGameFeaturePluginDetails& OutPluginDetails) const
