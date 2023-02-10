@@ -288,10 +288,10 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 
 	Parsables.Add(new FStringTableEntryMetaDataMacroDescriptor());
 
-	Parsables.Add(new FStructuredLogMacroDescriptor(TEXT("UE_SLOG_LOC"), FStructuredLogMacroDescriptor::EFlags::None));
-	Parsables.Add(new FStructuredLogMacroDescriptor(TEXT("UE_SLOG_LOC_EX"), FStructuredLogMacroDescriptor::EFlags::None));
-	Parsables.Add(new FStructuredLogMacroDescriptor(TEXT("UE_SLOG_NSLOC"), FStructuredLogMacroDescriptor::EFlags::Namespace));
-	Parsables.Add(new FStructuredLogMacroDescriptor(TEXT("UE_SLOG_NSLOC_EX"), FStructuredLogMacroDescriptor::EFlags::Namespace));
+	Parsables.Add(new FStructuredLogMacroDescriptor(TEXT("UE_LOGFMT_LOC"), FStructuredLogMacroDescriptor::EFlags::None));
+	Parsables.Add(new FStructuredLogMacroDescriptor(TEXT("UE_LOGFMT_LOC_EX"), FStructuredLogMacroDescriptor::EFlags::None));
+	Parsables.Add(new FStructuredLogMacroDescriptor(TEXT("UE_LOGFMT_NSLOC"), FStructuredLogMacroDescriptor::EFlags::Namespace));
+	Parsables.Add(new FStructuredLogMacroDescriptor(TEXT("UE_LOGFMT_NSLOC_EX"), FStructuredLogMacroDescriptor::EFlags::Namespace));
 
 	Parsables.Add(new FIniNamespaceDescriptor());
 
@@ -2302,8 +2302,8 @@ UGatherTextFromSourceCommandlet::FStructuredLogMacroDescriptor::FStructuredLogMa
 void UGatherTextFromSourceCommandlet::FStructuredLogMacroDescriptor::TryParse(const FString& Text, FSourceFileParseContext& Context) const
 {
 	// Attempt to parse something of the format
-	// UE_SLOG_LOC[_EX](CategoryName, Verbosity, Key, Format, ...)
-	// UE_SLOG_NSLOC[_EX](CategoryName, Verbosity, Namespace, Key, Format, ...)
+	// UE_LOGFMT_LOC[_EX](CategoryName, Verbosity, Key, Format, ...)
+	// UE_LOGFMT_NSLOC[_EX](CategoryName, Verbosity, Namespace, Key, Format, ...)
 	int32 NextArg = 2;
 
 	if (!Context.ExcludedRegion && !Context.WithinBlockComment && !Context.WithinLineComment && !Context.WithinStringLiteral)
