@@ -80,6 +80,10 @@ public:
 	/** If true, will attempt to fill cut holes even if they're ill-formed (e.g. because they connect to pre-existing holes in the geometry) */
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (EditCondition = "bFillCutHole"))
 	bool bFillSpans = false;
+
+	/** If true, will simplify triangulation along plane cut when doing so will not affect the shape, UVs or PolyGroups */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	bool bSimplifyAlongCut = true;
 };
 
 

@@ -37,6 +37,7 @@ void FMirrorOp::CalculateResult(FProgressCancel* Progress)
 
 		FMeshPlaneCut Cutter(ResultMesh.Get(), LocalPlaneOrigin, LocalPlaneNormal);
 		Cutter.PlaneTolerance = PlaneTolerance;
+		Cutter.bSimplifyAlongNewEdges = bSimplifyAlongNewEdges;
 		Cutter.Cut();
 
 		if (Progress && Progress->Cancelled())

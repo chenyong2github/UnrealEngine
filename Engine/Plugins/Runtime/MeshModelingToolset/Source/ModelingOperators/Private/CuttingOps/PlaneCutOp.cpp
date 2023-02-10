@@ -34,6 +34,7 @@ void FPlaneCutOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 	Cut.UVScaleFactor = UVScaleFactor;
+	Cut.bSimplifyAlongNewEdges = bSimplifyAlongNewEdges;
 
 
 	if (Progress && Progress->Cancelled())

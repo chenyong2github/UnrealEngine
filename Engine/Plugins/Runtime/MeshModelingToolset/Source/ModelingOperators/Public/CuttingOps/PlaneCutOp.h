@@ -23,6 +23,7 @@ public:
 	bool bFillCutHole = true;
 	bool bFillSpans = false;
 	bool bKeepBothHalves = false;
+	bool bSimplifyAlongNewEdges = true;
 	double CutPlaneLocalThickness = 0; // plane thickness in the local space of the mesh
 	double UVScaleFactor = 0;
 	static const FName ObjectIndexAttribute;

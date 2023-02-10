@@ -27,6 +27,9 @@ public:
 	/** Whether to crop the result first along the plane. */
 	bool bCropFirst = true;
 
+	/** Whether to locally simplify the new edges created when cropping along the plane. Only relevant if bCropFirst is true. */
+	bool bSimplifyAlongNewEdges = true;
+
 	/** If true, the mirrored portion is appended to the original. If false, the result is just the mirrored portion. */
 	bool bAppendToOriginal = true;
 

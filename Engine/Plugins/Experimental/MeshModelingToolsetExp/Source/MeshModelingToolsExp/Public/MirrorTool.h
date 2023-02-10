@@ -71,6 +71,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bCropAlongMirrorPlaneFirst = true;
 
+	/** Whether to locally simplify new edges created when cropping along the mirror plane. Will only simplify when doing so will not change the shape, UVs or PolyGroups. */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (EditCondition = "bCropAlongMirrorPlaneFirst"))
+	bool bSimplifyAlongCrop = true;
+
 	/** Weld vertices that lie on the mirror plane. Vertices will not be welded if doing so would give an edge more than two faces, or if they are part of a face in the plane. */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (
 		EditCondition = "OperationMode == EMirrorOperationMode::MirrorAndAppend", EditConditionHides))
