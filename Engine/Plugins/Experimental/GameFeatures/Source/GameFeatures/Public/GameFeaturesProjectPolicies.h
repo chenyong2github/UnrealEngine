@@ -23,6 +23,9 @@ public:
 	// Called when the game feature manager is shut down
 	virtual void ShutdownGameFeatureManager() { }
 
+	// Called to determined the expected state of a plugin under the WhenLoading conditions.
+	virtual bool WillPluginBeCooked(const FString& PluginFilename, const FGameFeaturePluginDetails& PluginDetails) const;
+
 	// Called when a game feature plugin enters the Loading state to determine additional assets to load
 	virtual TArray<FPrimaryAssetId> GetPreloadAssetListForGameFeature(const UGameFeatureData* GameFeatureToLoad, bool bIncludeLoadedAssets = false) const { return TArray<FPrimaryAssetId>(); }
 
