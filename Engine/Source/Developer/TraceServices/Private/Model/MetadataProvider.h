@@ -79,10 +79,7 @@ private:
 		uint32 ThreadId;
 		TArray<FMetadataStackEntry> CurrentStack;
 		TPagedArray<FMetadataEntry> Metadata; // a metadata id is an index in this array
-		bool bIsClearStackScope;
-		bool bIsRestoreSavedStackScope;
-		uint32 RestoreSavedStackId;
-		uint32 RestoreSavedStackSize;
+		TArray<uint32> SavedMetadataStack; // stack of MetadataId values for each saved Clear or Restore scope
 	};
 
 	struct FMetadataSavedStackInfo
@@ -143,6 +140,7 @@ private:
 	void InternalPushStackEntry(FMetadataThread& InMetadataThread, uint16 InType, const void* InData, uint32 InSize);
 	void InternalPopStackEntry(FMetadataThread& InMetadataThread);
 	void InternalClearStack(FMetadataThread& InMetadataThread);
+	void InternalPushSavedStack(FMetadataThread& InMetadataThread, FMetadataThread& InSavedMetadataThread, uint32 InSavedMetadataId);
 
 private:
 	IAnalysisSession& Session;
@@ -160,6 +158,7 @@ private:
 	uint32 MetaScopeErrors = 0; // debug
 	uint32 ClearScopeErrors = 0; // debug
 	uint32 RestoreScopeErrors = 0; // debug
+	uint32 PushSavedStackErrors = 0; // debug
 
 	uint64 EventCount = 0; // debug
 	uint64 AllocationEventCount = 0; // debug
