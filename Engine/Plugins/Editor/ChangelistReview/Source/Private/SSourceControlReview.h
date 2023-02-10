@@ -206,6 +206,12 @@ private:
 	 */
 	static FString AsAssetPath(const FString& FullCLPath);
 
+	// helper function that sets bUncommittedChangelistNum to false and upgrades CLHistory[0] from a entry to an official one
+	void CommitTempChangelistNumToHistory();
+	
+	// helper function that sets bUncommittedChangelistNum to false and removes CLHistory[0] if it's uncommitted
+	void RemoveUncommittedChangelistNumFromHistory();
+
 	// used for asynchronous changelist loading
 	bool bChangelistLoading = false;
 	uint32 FilesToLoad = 0;
