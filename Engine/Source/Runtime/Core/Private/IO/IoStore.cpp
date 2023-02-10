@@ -1497,7 +1497,7 @@ private:
 		//
 		// Check if this chunk exists in the reference cache.
 		//
-		if (ReferenceChunkDatabase.IsValid())
+		if (ReferenceChunkDatabase.IsValid() && CompressionMethod != NAME_None)
 		{
 			TPair<FIoContainerId, FIoChunkHash> ChunkKey(ContainerSettings.ContainerId, Entry->ChunkHash);
 
