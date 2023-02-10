@@ -71,7 +71,7 @@ namespace Jupiter.Implementation
             await Task.WhenAll(cacheUpdateLastAccess, upstreamUpdateLastAccess);
         }
 
-        public IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
+        public IAsyncEnumerable<(NamespaceId, BucketId, IoHashKey, DateTime)> GetRecords()
         {
             throw new NotImplementedException("GetRecords not supported on a cached reference store");
         }
@@ -169,7 +169,7 @@ namespace Jupiter.Implementation
             await Get(ns, bucket, key, IReferencesStore.FieldFlags.None);
         }
 
-        public IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
+        public IAsyncEnumerable<(NamespaceId, BucketId, IoHashKey, DateTime)> GetRecords()
         {
             throw new NotImplementedException("GetRecords is not supported on a upstream reference store");
         }

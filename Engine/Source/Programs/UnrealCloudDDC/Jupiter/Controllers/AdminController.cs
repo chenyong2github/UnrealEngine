@@ -72,16 +72,16 @@ namespace Jupiter.Controllers
         /// Manually triggers a cleanup of the refs keys based on last access time. This is done automatically so the only reason to use this endpoint is for debugging purposes.
         /// </remarks>
         /// <returns></returns>
-        [HttpPost("refCleanup/{ns}")]
-        public async Task<IActionResult> RefCleanup([FromRoute] [Required] NamespaceId ns)
+        [HttpPost("refCleanup")]
+        public async Task<IActionResult> RefCleanup()
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.AdminAction });
+            ActionResult? result = await _requestHelper.HasAccessForGlobalOperations(User, new [] { AclAction.AdminAction });
             if (result != null)
             {
                 return result;
             }
 
-            int countOfDeletedRecords = await _refCleanup.Cleanup(ns, CancellationToken.None);
+            int countOfDeletedRecords = await _refCleanup.Cleanup(CancellationToken.None);
             return Ok(new RemovedRefRecordsResponse(countOfDeletedRecords));
         }
         

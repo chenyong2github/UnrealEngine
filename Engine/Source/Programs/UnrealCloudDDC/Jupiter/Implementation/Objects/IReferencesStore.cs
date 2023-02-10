@@ -23,7 +23,7 @@ namespace Jupiter.Implementation
         Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobIdentifier);
 
         Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime newLastAccessTime);
-        IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns);
+        IAsyncEnumerable<(NamespaceId, BucketId, IoHashKey, DateTime)> GetRecords();
 
         IAsyncEnumerable<NamespaceId> GetNamespaces();
         Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key);

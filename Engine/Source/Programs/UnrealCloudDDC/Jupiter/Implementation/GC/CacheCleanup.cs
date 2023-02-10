@@ -15,7 +15,7 @@ namespace Jupiter.Implementation
 {
     public interface IRefCleanup
     {
-        Task<int> Cleanup(NamespaceId ns, CancellationToken cancellationToken);
+        Task<int> Cleanup(CancellationToken cancellationToken);
     }
 
     public class RefLastAccessCleanup : IRefCleanup
@@ -26,69 +26,57 @@ namespace Jupiter.Implementation
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly Tracer _tracer;
         private readonly ILogger _logger;
-        private readonly IObjectService _objectService;
-        private readonly OrphanBlobCleanupRefs _blobCleanup;
 
         public RefLastAccessCleanup(IOptionsMonitor<GCSettings> settings, IReferencesStore referencesStore,
-            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver, IObjectService objectService,  OrphanBlobCleanupRefs blobCleanup, Tracer tracer, ILogger<RefLastAccessCleanup> logger)
+            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer, ILogger<RefLastAccessCleanup> logger)
         {
             _settings = settings;
             _referencesStore = referencesStore;
             _replicationLog = replicationLog;
             _namespacePolicyResolver = namespacePolicyResolver;
-            _objectService = objectService;
-            _blobCleanup = blobCleanup;
             _tracer = tracer;
             _logger = logger;
         }
 
-        public Task<int> Cleanup(NamespaceId ns, CancellationToken cancellationToken)
+        private bool ShouldGCNamespace(NamespaceId ns)
         {
-            NamespacePolicy policies;
-            try
-            {
-                policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
-            }
-            catch (UnknownNamespaceException)
-            {
-                _logger.LogWarning("Namespace {Namespace} does not configure any policy, not running ref cleanup on it.",
-                    ns);
-                return Task.FromResult(0);
-            }
-
             if (ns == INamespacePolicyResolver.JupiterInternalNamespace)
             {
                 // do not apply our cleanup policies to the internal namespace
-                return Task.FromResult(0);
+                return false;
             }
 
-            if (_namespacePolicyResolver.GetPoliciesForNs(ns).GcMethod != NamespacePolicy.StoragePoolGCMethod.LastAccess)
+            NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+
+            if (policy.GcMethod == NamespacePolicy.StoragePoolGCMethod.LastAccess)
             {
-                // only run for namepsaces set to use last access tracking
+                // only run for namespaces set to use last access tracking
+                return true;
             }
 
-            return CleanNamespace(ns, cancellationToken);
+            return false;
         }
 
-        private async Task<int> CleanNamespace(NamespaceId ns, CancellationToken cancellationToken)
+        public async Task<int> Cleanup(CancellationToken cancellationToken)
         {
             int countOfDeletedRecords = 0;
             DateTime cutoffTime = DateTime.Now.AddSeconds(-1 * _settings.CurrentValue.LastAccessCutoff.TotalSeconds);
             ulong consideredCount = 0;
             DateTime cleanupStart = DateTime.Now;
-            NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
-            string storagePool = policy.StoragePool;
-            List<NamespaceId> namespaces = await _objectService.GetNamespaces().ToListAsync(cancellationToken: cancellationToken);
-            List<NamespaceId> namespacesThatSharePool = namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool).ToList();
 
-            await Parallel.ForEachAsync(_referencesStore.GetRecords(ns),
+            await Parallel.ForEachAsync(_referencesStore.GetRecords(),
                 new ParallelOptions
                 {
                     MaxDegreeOfParallelism = _settings.CurrentValue.OrphanRefMaxParallelOperations,
                     CancellationToken = cancellationToken
                 }, async (tuple, token) =>
                 {
-                    (BucketId bucket, IoHashKey name, DateTime lastAccessTime) = tuple;
+                    (NamespaceId ns, BucketId bucket, IoHashKey name, DateTime lastAccessTime) = tuple;
+
+                    if (!ShouldGCNamespace(ns))
+                    {
+                        return;
+                    }
 
                     _logger.LogDebug(
                         "Considering object in {Namespace} {Bucket} {Name} for deletion, was last updated {LastAccessTime}",
@@ -112,29 +100,11 @@ namespace Jupiter.Implementation
                     bool storeDelete = false;
                     try
                     {
-                        List<BlobIdentifier> referencedBlobs = new List<BlobIdentifier>();
-                        try
-                        {
-                            referencedBlobs = await _objectService.GetReferencedBlobs(ns, bucket, name);
-
-                        }
-                        catch (ReferenceIsMissingBlobsException)
-                        {
-                            // ignore missing blobs
-                        }
                         storeDelete = await _referencesStore.Delete(ns, bucket, name);
-                        if (storeDelete)
+                        if (storeDelete && _settings.CurrentValue.WriteDeleteToReplicationLog)
                         {
                             // insert a delete event into the transaction log
                             await _replicationLog.InsertDeleteEvent(ns, bucket, name, null);
-
-                            List<Task<bool>> deletedBlobs = new List<Task<bool>>();
-                            foreach (BlobIdentifier blob in referencedBlobs)
-                            {
-                                deletedBlobs.Add(_blobCleanup.GCBlob(storagePool, namespacesThatSharePool, blob, lastAccessTime, cancellationToken));
-                            }
-
-                            await Task.WhenAll(deletedBlobs);
                         }
                     }
                     catch (Exception e)
@@ -155,8 +125,7 @@ namespace Jupiter.Implementation
 
             TimeSpan cleanupDuration = DateTime.Now - cleanupStart;
             _logger.LogInformation(
-                "Finished cleaning {Namespace}. Refs considered: {ConsideredCount} Refs Deleted: {DeletedCount}. Cleanup took: {CleanupDuration}", ns,
-                consideredCount, countOfDeletedRecords, cleanupDuration);
+                "Finished cleaning refs. Refs considered: {ConsideredCount} Refs Deleted: {DeletedCount}. Cleanup took: {CleanupDuration}", consideredCount, countOfDeletedRecords, cleanupDuration);
 
             return countOfDeletedRecords;
         }

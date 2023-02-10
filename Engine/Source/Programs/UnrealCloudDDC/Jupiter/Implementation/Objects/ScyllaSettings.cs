@@ -59,6 +59,18 @@ public class ScyllaSettings : IValidatableObject
     public bool UseSSL { get; set; } = true;
 
     /// <summary>
+    /// Toggle to enable reading objects from the object_last_access_time_v2 table
+    /// Experimental option.
+    /// </summary>
+    public bool ListObjectsFromLastAccessTable { get; set; } = false;
+
+    /// <summary>
+    /// Set to update the last access field in the object table, this is legacy and causes extra compaction work on the database
+    /// </summary>
+    public bool UpdateLegacyLastAccessField { get; set; } = true;
+
+
+    /// <summary>
     /// Read timeout in milliseconds
     /// Set to -1 to get the default timeout, set to 0 to disable timeouts
     /// </summary>

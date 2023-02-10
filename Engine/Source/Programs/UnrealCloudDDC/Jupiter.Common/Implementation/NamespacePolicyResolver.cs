@@ -9,10 +9,12 @@ namespace Jupiter.Common
 {
     public interface INamespacePolicyResolver
     {
+        public IEnumerable<(NamespaceId, NamespacePolicy)> GetAllPolicies();
         public NamespacePolicy GetPoliciesForNs(NamespaceId ns);
 
         static NamespaceId JupiterInternalNamespace => new NamespaceId("jupiter-internal");
     }
+
     public class NamespacePolicyResolver : INamespacePolicyResolver
     {
         private readonly IOptionsMonitor<NamespaceSettings> _namespaceSettings;
@@ -23,13 +25,22 @@ namespace Jupiter.Common
             _namespaceSettings = namespaceSettings;
             _internalNamespacePolicy = new NamespacePolicy()
             {
-                StoragePool = "persistent"
+                StoragePool = "persistent",
+                GcMethod = NamespacePolicy.StoragePoolGCMethod.None
             };
 
             // if auth is disabled add a default namespace policy that allows access to everything unless something else exists to override it
             if (!authSettings.CurrentValue.Enabled)
             {
                 _namespaceSettings.CurrentValue.Policies.TryAdd("*", new NamespacePolicy() { Acls = new List<AclEntry> { new() { Claims = new List<string> {"*"} } } });
+            }
+        }
+
+        public IEnumerable<(NamespaceId, NamespacePolicy)> GetAllPolicies()
+        {
+            foreach (KeyValuePair<string, NamespacePolicy> pair in _namespaceSettings.CurrentValue.Policies)
+            {
+                yield return (new NamespaceId(pair.Key), pair.Value);
             }
         }
 

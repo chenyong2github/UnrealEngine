@@ -82,9 +82,9 @@ namespace Jupiter.Implementation.Objects
             return _actualStore.UpdateLastAccessTime(ns, bucket, key, newLastAccessTime);
         }
 
-        public IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
+        public IAsyncEnumerable<(NamespaceId, BucketId, IoHashKey, DateTime)> GetRecords()
         {
-            return _actualStore.GetRecords(ns);
+            return _actualStore.GetRecords();
         }
 
         public IAsyncEnumerable<NamespaceId> GetNamespaces()

@@ -29,6 +29,7 @@ namespace Jupiter.Implementation
         Task<long> DropNamespace(NamespaceId ns);
         Task<long> DeleteBucket(NamespaceId ns, BucketId bucket);
 
+        Task<bool> Exists(NamespaceId ns, BucketId bucket, IoHashKey key);
         Task<List<BlobIdentifier>> GetReferencedBlobs(NamespaceId ns, BucketId bucket, IoHashKey key);
     }
 
@@ -251,6 +252,36 @@ namespace Jupiter.Implementation
         public Task<long> DeleteBucket(NamespaceId ns, BucketId bucket)
         {
             return _referencesStore.DeleteBucket(ns, bucket);
+        }
+
+        public async Task<bool> Exists(NamespaceId ns, BucketId bucket, IoHashKey key)
+        {
+            try
+            {
+                (ObjectRecord, BlobContents?) _ = await Get(ns, bucket, key, new string[] {"name"});
+            }
+            catch (NamespaceNotFoundException)
+            {
+                return false;
+            }
+            catch (BlobNotFoundException)
+            {
+                return false;
+            }
+            catch (ObjectNotFoundException)
+            {
+                return false;
+            }
+            catch (PartialReferenceResolveException)
+            {
+                return false;
+            }
+            catch (ReferenceIsMissingBlobsException)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         public async Task<List<BlobIdentifier>> GetReferencedBlobs(NamespaceId ns, BucketId bucket, IoHashKey name)

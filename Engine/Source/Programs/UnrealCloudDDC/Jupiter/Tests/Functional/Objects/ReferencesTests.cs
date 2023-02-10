@@ -1846,11 +1846,11 @@ namespace Jupiter.FunctionalTests.References
                 result.EnsureSuccessStatusCode();
             }
 
-            List<(BucketId, IoHashKey, DateTime)> records = await ReferencesStore.GetRecords(TestNamespace).ToListAsync();
+            List<(NamespaceId, BucketId, IoHashKey, DateTime)> records = await ReferencesStore.GetRecords().ToListAsync();
 
-            (BucketId, IoHashKey, DateTime)? oldRecord = records.First(record => record.Item2 == key);
-            Assert.AreEqual(key, oldRecord.Value.Item2);
-            Assert.AreEqual("bucket", oldRecord.Value.Item1.ToString());
+            (NamespaceId oldNs, BucketId oldBucket, IoHashKey oldName, DateTime oldDate) = records.Where(tuple => tuple.Item1 == TestNamespace).First(record => record.Item3 == key);
+            Assert.AreEqual(key, oldName);
+            Assert.AreEqual("bucket", oldBucket.ToString());
         }
         
         [TestMethod]

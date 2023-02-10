@@ -19,7 +19,7 @@ namespace Jupiter.Implementation
         }
 
         public IRefCleanup RefCleanup { get; }
-        public Dictionary<NamespaceId, Task> RunningCleanupTasks { get; } = new Dictionary<NamespaceId, Task>();
+        public Task? RunningCleanupTask { get; set; } = null;
     }
 
     public class RefCleanupService : PollingService<RefCleanupState>
@@ -58,21 +58,18 @@ namespace Jupiter.Implementation
                     _logger.LogInformation("Skipped ref cleanup run as this instance was not the leader");
                     return false;
                 }
-                List<NamespaceId>? namespaces = await _referencesStore.GetNamespaces().ToListAsync(cancellationToken);
 
-                foreach(NamespaceId ns in namespaces)
+                if (!state.RunningCleanupTask?.IsCompleted ?? false)
                 {
-                    if (state.RunningCleanupTasks.TryGetValue(ns, out Task? runningTask))
-                    {
-                        if (!runningTask.IsCompleted)
-                        {
-                            continue;
-                        }
-                        await runningTask;
-                        state.RunningCleanupTasks.Remove(ns);
-                    }
-                    state.RunningCleanupTasks.Add(ns, DoCleanup(ns, state, cancellationToken));
+                    return false;
                 }
+
+                if (state.RunningCleanupTask != null)
+                {
+                    await state.RunningCleanupTask;
+                }
+                state.RunningCleanupTask = DoCleanup(state, cancellationToken);
+
                 return true;
 
             }
@@ -82,18 +79,17 @@ namespace Jupiter.Implementation
             }
         }
 
-        private async Task DoCleanup(NamespaceId ns, RefCleanupState state, CancellationToken cancellationToken)
+        private async Task DoCleanup(RefCleanupState state, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Attempting to run Refs Cleanup of {Namespace}. ", ns);
+            _logger.LogInformation("Attempting to run Refs Cleanup. ");
             try
             {
-                int countOfRemovedRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
-                _logger.LogInformation("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns,
-                    countOfRemovedRecords);
+                int countOfRemovedRecords = await state.RefCleanup.Cleanup(cancellationToken);
+                _logger.LogInformation("Ran Refs Cleanup. Deleted {CountRefRecords}", countOfRemovedRecords);
             }
             catch (Exception e)
             {
-                _logger.LogError("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
+                _logger.LogError("Error running Refs Cleanup. {Exception}",  e);
             }
         }
     }

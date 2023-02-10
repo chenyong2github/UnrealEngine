@@ -37,6 +37,29 @@ namespace Jupiter.FunctionalTests.GC
         }
     }
 
+    
+    [TestClass]
+    public class ScyllaPerShardGCReferencesTests : GCReferencesTests
+    {
+        protected override string GetImplementation()
+        {
+            return "Scylla";
+        }
+
+        protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
+        {
+            return new List<KeyValuePair<string, string>>()
+            {
+                new KeyValuePair<string, string>("UnrealCloudDDC:StorageImplementations:0", "Memory"),
+                new KeyValuePair<string, string>("UnrealCloudDDC:BlobIndexImplementation", "Scylla"),
+                new KeyValuePair<string, string>("UnrealCloudDDC:ReferencesDbImplementation", "Scylla"),
+                new KeyValuePair<string, string>("Scylla:UsePerShardScanning", "true"),
+                new KeyValuePair<string, string>("Scylla:CountOfCoresPerNode", "2"),
+                new KeyValuePair<string, string>("Scylla:CountOfNodes", "1"),
+            };
+        }
+    }
+
     public abstract class GCReferencesTests : IDisposable
     {
         private HttpClient? _httpClient;
@@ -76,11 +99,7 @@ namespace Jupiter.FunctionalTests.GC
                 // we are not reading the base appSettings here as we want exact control over what runs in the tests
                 .AddJsonFile("appsettings.Testing.json", false)
                 .AddEnvironmentVariables()
-                .AddInMemoryCollection(new List<KeyValuePair<string, string>>()
-                {
-                    new KeyValuePair<string, string>("UnrealCloudDDC:StorageImplementations:0", "Memory"),
-                    new KeyValuePair<string, string>("UnrealCloudDDC:BlobIndexImplementation", GetImplementation()),
-                })
+                .AddInMemoryCollection(GetSettings())
                 .Build();
             Logger logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(configuration)
@@ -138,6 +157,16 @@ namespace Jupiter.FunctionalTests.GC
             await referenceStore.UpdateLastAccessTime(TestNamespace, DefaultBucket, object6Name, oldTimestamp);
         }
 
+        protected virtual IEnumerable<KeyValuePair<string, string>> GetSettings()
+        {
+            return new List<KeyValuePair<string, string>>()
+            {
+                new KeyValuePair<string, string>("UnrealCloudDDC:StorageImplementations:0", "Memory"),
+                new KeyValuePair<string, string>("UnrealCloudDDC:ReferencesDbImplementation", GetImplementation()),
+                new KeyValuePair<string, string>("UnrealCloudDDC:BlobIndexImplementation", GetImplementation()),
+            };
+        }
+
         protected abstract string GetImplementation();
 
         [TestMethod]
@@ -145,20 +174,20 @@ namespace Jupiter.FunctionalTests.GC
         {
             // trigger the cleanup
             using StringContent content = new StringContent(string.Empty);
-            HttpResponseMessage cleanupResponse = await _httpClient!.PostAsync(new Uri($"api/v1/admin/refCleanup/{TestNamespace}", UriKind.Relative), content);
+            HttpResponseMessage cleanupResponse = await _httpClient!.PostAsync(new Uri($"api/v1/admin/refCleanup", UriKind.Relative), content);
             cleanupResponse.EnsureSuccessStatusCode();
             RemovedRefRecordsResponse removedRefRecords = await cleanupResponse.Content.ReadAsAsync<RemovedRefRecordsResponse>();
             Assert.AreEqual(4, removedRefRecords.CountOfRemovedRecords);
 
-            IBlobService blobService = _server!.Services.GetService<IBlobService>()!;
-            // some blobs should have been collected during the GC while others should remain
-            Assert.IsFalse(await blobService.Exists(TestNamespace, object0id));
-            Assert.IsTrue(await blobService.Exists(TestNamespace, object1id));
-            Assert.IsFalse(await blobService.Exists(TestNamespace, object2id));
-            Assert.IsFalse(await blobService.Exists(TestNamespace, object3id));
-            Assert.IsTrue(await blobService.Exists(TestNamespace, object4id));
-            Assert.IsTrue(await blobService.Exists(TestNamespace, object5id));
-            Assert.IsFalse(await blobService.Exists(TestNamespace, object6id));
+            IObjectService objectService = _server!.Services.GetService<IObjectService>()!;
+            // some object should have been deleted while others remain
+            Assert.IsFalse(await objectService.Exists(TestNamespace, DefaultBucket, object0Name), $"{object0Name} should have been deleted");
+            Assert.IsTrue(await objectService.Exists(TestNamespace, DefaultBucket, object1Name), $"{object1Name} should still be found");
+            Assert.IsFalse(await objectService.Exists(TestNamespace, DefaultBucket, object2Name), $"{object2Name} should have been deleted");
+            Assert.IsFalse(await objectService.Exists(TestNamespace, DefaultBucket, object3Name), $"{object3Name} should have been deleted");
+            Assert.IsTrue(await objectService.Exists(TestNamespace, DefaultBucket, object4Name), $"{object4Name} should still be found");
+            Assert.IsTrue(await objectService.Exists(TestNamespace, DefaultBucket, object5Name), $"{object5Name} should still be found");
+            Assert.IsFalse(await objectService.Exists(TestNamespace, DefaultBucket, object6Name), $"{object6Name} should have been deleted");
         }
 
         private static (BlobIdentifier, CbObject) GetCBWithAttachment(BlobIdentifier blobIdentifier)

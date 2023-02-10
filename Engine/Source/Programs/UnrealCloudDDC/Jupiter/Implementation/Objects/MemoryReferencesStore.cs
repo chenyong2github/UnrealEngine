@@ -65,12 +65,12 @@ namespace Jupiter.Implementation
             return Task.CompletedTask;
         }
 
-        public async IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
+        public async IAsyncEnumerable<(NamespaceId, BucketId, IoHashKey, DateTime)> GetRecords()
         {
-            foreach (MemoryStoreObject o in _objects.Values.Where(o => o.Namespace == ns).OrderBy(o => o.LastAccessTime))
+            foreach (MemoryStoreObject o in _objects.Values.OrderBy(o => o.LastAccessTime))
             {
                 await Task.CompletedTask;
-                yield return (o.Bucket, o.Name, o.LastAccessTime);
+                yield return (o.Namespace, o.Bucket, o.Name, o.LastAccessTime);
             }
         }
 

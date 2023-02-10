@@ -117,16 +117,16 @@ namespace Jupiter.Implementation
             );
         }
 
-        public async IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
+        public async IAsyncEnumerable<(NamespaceId, BucketId, IoHashKey, DateTime)> GetRecords()
         {
             IMongoCollection<MongoReferencesModelV0> collection = GetCollection<MongoReferencesModelV0>();
-            IAsyncCursor<MongoReferencesModelV0>? cursor = await collection.FindAsync(model => model.Ns == ns.ToString());
+            IAsyncCursor<MongoReferencesModelV0>? cursor = await collection.FindAsync(FilterDefinition<MongoReferencesModelV0>.Empty);
 
             while (await cursor.MoveNextAsync())
             {
                 foreach (MongoReferencesModelV0 model in cursor.Current)
                 {
-                    yield return (new BucketId(model.Bucket), new IoHashKey(model.Key), model.LastAccessTime);
+                    yield return (new NamespaceId(model.Ns), new BucketId(model.Bucket), new IoHashKey(model.Key), model.LastAccessTime);
                 }
             }
         }
