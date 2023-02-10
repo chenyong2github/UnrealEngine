@@ -28,8 +28,8 @@ const getStyles: IStyleFunction<IMarkdownStyleProps, IMarkdownStyles> = () => {
   };
 
   return {
-    root: 'ms-Markdown',
-    subComponentStyles: { image: imageStyles } as IMarkdownSubComponentStyles,
+     root: { fontSize: "13px", fontFamily: "Horde Open Sans Regular" },
+     subComponentStyles: { image: imageStyles } as IMarkdownSubComponentStyles,
   };
 };
 
