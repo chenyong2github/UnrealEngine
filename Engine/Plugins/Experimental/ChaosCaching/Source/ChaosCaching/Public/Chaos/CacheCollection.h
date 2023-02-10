@@ -6,7 +6,7 @@
 
 class UChaosCache;
 
-UCLASS(Experimental)
+UCLASS(Experimental, BlueprintType)
 class CHAOSCACHING_API UChaosCacheCollection : public UObject
 {
 	GENERATED_BODY()
