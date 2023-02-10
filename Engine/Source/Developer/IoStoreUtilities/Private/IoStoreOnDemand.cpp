@@ -231,7 +231,7 @@ public:
 		return WriteResult;
 	}
 
-	virtual void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const override
+	virtual void EnumerateChunks(TFunction<bool(FIoStoreTocChunkInfo&&)>&& Callback) const override
 	{
 	}
 
