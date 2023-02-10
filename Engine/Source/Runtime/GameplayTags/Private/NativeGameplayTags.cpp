@@ -50,11 +50,6 @@ static bool VerifyModuleCanContainGameplayTag(FName ModuleName, FName TagName, c
 
 #endif
 
-namespace UE::NativeGameplayTag
-{
-	const FName NAME_Native = FName(TEXT("Native"));
-}
-
 FNativeGameplayTag::FNativeGameplayTag(FName InPluginName, FName InModuleName, FName TagName, const FString& TagDevComment, ENativeGameplayTagToken)
 {
 	// TODO NDarnell To try and make sure nobody is using these during non-static init
@@ -90,13 +85,6 @@ FNativeGameplayTag::~FNativeGameplayTag()
 		Manager->RemoveNativeGameplayTag(this);
 	}
 }
-
-#if !UE_INCLUDE_NATIVE_GAMEPLAYTAG_METADATA
-FName FNativeGameplayTag::GetModuleName() const
-{
-	return UE::NativeGameplayTag::NAME_Native;
-}
-#endif
 
 #if !UE_BUILD_SHIPPING
 

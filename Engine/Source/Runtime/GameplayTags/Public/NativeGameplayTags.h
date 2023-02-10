@@ -83,7 +83,7 @@ public:
 	FName GetModuleName() const { return ModuleName; }
 	FName GetModulePackageName() const { return ModulePackageName; }
 #else
-	FName GetModuleName() const;
+	FName GetModuleName() const { return NAME_Native; }
 #endif
 
 private:
