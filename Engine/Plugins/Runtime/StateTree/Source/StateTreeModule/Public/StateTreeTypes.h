@@ -955,7 +955,7 @@ struct STATETREEMODULE_API FStateTreeDataView
 	FStateTreeDataView() = default;
 
 	// USTRUCT() constructor.
-	FStateTreeDataView(const UScriptStruct* InScriptStruct, uint8* InMemory) : Struct(InScriptStruct), Memory(InMemory)
+	FStateTreeDataView(const UStruct* InStruct, uint8* InMemory) : Struct(InStruct), Memory(InMemory)
 	{
 		// Must have type with valid pointer.
 		check(!Memory || (Memory && Struct));

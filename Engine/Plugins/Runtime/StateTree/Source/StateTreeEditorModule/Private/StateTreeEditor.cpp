@@ -654,9 +654,9 @@ namespace UE::StateTree::Editor::Internal
 			return;
 		}
 
-		TMap<FGuid, const UStruct*> AllStructIDs;
-		TreeData->GetAllStructIDs(AllStructIDs);
-		TreeData->GetPropertyEditorBindings()->RemoveUnusedBindings(AllStructIDs);
+		TMap<FGuid, const FStateTreeDataView> AllStructValues;
+		TreeData->GetAllStructValues(AllStructValues);
+		TreeData->GetPropertyEditorBindings()->RemoveUnusedBindings(AllStructValues);
 	}
 
 	void UpdateLinkedStateParameters(UStateTree& StateTree)

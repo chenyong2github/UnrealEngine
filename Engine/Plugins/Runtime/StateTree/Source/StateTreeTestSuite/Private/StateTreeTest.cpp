@@ -49,23 +49,23 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 		
 		// State A
 		auto& TaskB1 = StateA.AddTask<FTestTask_B>();
-		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("IntA")), FStateTreeEditorPropertyPath(TaskB1.ID, TEXT("IntB")));
+		EditorData.AddPropertyBinding(EvalA, TEXT("IntA"), TaskB1, TEXT("IntB"));
 
 		auto& IntCond = StateA.AddEnterCondition<FStateTreeCompareIntCondition>(EGenericAICheck::Less);
 		IntCond.GetInstanceData().Right = 2;
 
-		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("IntA")), FStateTreeEditorPropertyPath(IntCond.ID, TEXT("Left")));
+		EditorData.AddPropertyBinding(EvalA, TEXT("IntA"), IntCond, TEXT("Left"));
 
 		StateA.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &StateB);
 
 		// State B
 		auto& TaskB2 = StateB.AddTask<FTestTask_B>();
-		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("bBoolA")), FStateTreeEditorPropertyPath(TaskB2.ID, TEXT("bBoolB")));
+		EditorData.AddPropertyBinding(EvalA, TEXT("bBoolA"), TaskB2, TEXT("bBoolB"));
 
 		FStateTreeTransition& Trans = StateB.AddTransition({}, EStateTreeTransitionType::GotoState, &Root);
 		auto& TransFloatCond = Trans.AddCondition<FStateTreeCompareFloatCondition>(EGenericAICheck::Less);
 		TransFloatCond.GetInstanceData().Right = 13.0f;
-		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("FloatA")), FStateTreeEditorPropertyPath(TransFloatCond.ID, TEXT("Left")));
+		EditorData.AddPropertyBinding(EvalA, TEXT("FloatA"), TransFloatCond, TEXT("Left"));
 
 		StateB.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
 
@@ -656,9 +656,9 @@ struct FStateTreeTest_TransitionGlobalDataView : FAITestBase
 
 		// State B
 		auto& Task1 = StateB.AddTask<FTestTask_PrintValue>(FName(TEXT("Task1")));
-		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("IntA")), FStateTreeEditorPropertyPath(Task1.ID, TEXT("Value")));
+		EditorData.AddPropertyBinding(EvalA, TEXT("IntA"), Task1, TEXT("Value"));
 		auto& Task2 = StateB.AddTask<FTestTask_PrintValue>(FName(TEXT("Task2")));
-		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(GlobalTask.ID, TEXT("Value")), FStateTreeEditorPropertyPath(Task2.ID, TEXT("Value")));
+		EditorData.AddPropertyBinding(GlobalTask, TEXT("Value"), Task2, TEXT("Value"));
 
 		FStateTreeCompilerLog Log;
 		FStateTreeCompiler Compiler(Log);
@@ -691,6 +691,323 @@ struct FStateTreeTest_TransitionGlobalDataView : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_TransitionGlobalDataView, "System.StateTree.Transition.GlobalDataView");
+
+struct FStateTreeTest_PropertyPathOffset : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FStateTreePropertyPath Path;
+		const bool bParseResult = Path.FromString(TEXT("StructB.B"));
+
+		AITEST_TRUE("Parsing path should succeeed", bParseResult);
+		AITEST_EQUAL("Should have 2 path segments", Path.NumSegments(), 2);
+
+		FString ResolveErrors;
+		TArray<FStateTreePropertyPathIndirection> Indirections;
+		const bool bResolveResult = Path.ResolveIndirections(FStateTreeTest_PropertyStruct::StaticStruct(), Indirections, &ResolveErrors);
+
+		AITEST_TRUE("Resolve path should succeeed", bResolveResult);
+		AITEST_EQUAL("Should have no resolve errors", ResolveErrors.Len(), 0);
+		
+		AITEST_EQUAL("Should have 2 indirections", Indirections.Num(), 2);
+		AITEST_EQUAL("Indirection 0 should be Offset type", Indirections[0].GetAccessType(), EStateTreePropertyAccessType::Offset);
+		AITEST_EQUAL("Indirection 1 should be Offset type", Indirections[1].GetAccessType(), EStateTreePropertyAccessType::Offset);
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathOffset, "System.StateTree.PropertyPath.Offset");
+
+struct FStateTreeTest_PropertyPathParseFail : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		{
+			FStateTreePropertyPath Path;
+			const bool bParseResult = Path.FromString(TEXT("")); // empty is valid.
+			AITEST_TRUE("Parsing path should succeed", bParseResult);
+		}
+
+		{
+			FStateTreePropertyPath Path;
+			const bool bParseResult = Path.FromString(TEXT("StructB.[0]B"));
+			AITEST_FALSE("Parsing path should fail", bParseResult);
+		}
+
+		{
+			FStateTreePropertyPath Path;
+			const bool bParseResult = Path.FromString(TEXT("StructB..NoThere"));
+			AITEST_FALSE("Parsing path should fail", bParseResult);
+		}
+
+		{
+			FStateTreePropertyPath Path;
+			const bool bParseResult = Path.FromString(TEXT("."));
+			AITEST_FALSE("Parsing path should fail", bParseResult);
+		}
+
+		{
+			FStateTreePropertyPath Path;
+			const bool bParseResult = Path.FromString(TEXT("StructB..B"));
+			AITEST_FALSE("Parsing path should fail", bParseResult);
+		}
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathParseFail, "System.StateTree.PropertyPath.ParseFail");
+
+struct FStateTreeTest_PropertyPathOffsetFail : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FStateTreePropertyPath Path;
+		const bool bParseResult = Path.FromString(TEXT("StructB.Q"));
+
+		AITEST_TRUE("Parsing path should succeeed", bParseResult);
+		AITEST_EQUAL("Should have 2 path segments", Path.NumSegments(), 2);
+
+		FString ResolveErrors;
+		TArray<FStateTreePropertyPathIndirection> Indirections;
+		const bool bResolveResult = Path.ResolveIndirections(FStateTreeTest_PropertyStruct::StaticStruct(), Indirections, &ResolveErrors);
+
+		AITEST_FALSE("Resolve path should not succeeed", bResolveResult);
+		AITEST_NOT_EQUAL("Should have errors", ResolveErrors.Len(), 0);
+		
+		AITEST_EQUAL("Should have 0 indirections", Indirections.Num(), 0);
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathOffsetFail, "System.StateTree.PropertyPath.OffsetFail");
+
+struct FStateTreeTest_PropertyPathObject : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FStateTreePropertyPath Path;
+		const bool bParseResult = Path.FromString(TEXT("InstancedObject.A"));
+
+		AITEST_TRUE("Parsing path should succeeed", bParseResult);
+		AITEST_EQUAL("Should have 2 path segments", Path.NumSegments(), 2);
+
+		UStateTreeTest_PropertyObject* Object = NewObject<UStateTreeTest_PropertyObject>();
+		Object->InstancedObject = NewObject<UStateTreeTest_PropertyObjectInstanced>();
+		
+		const bool bUpdateResult = Path.UpdateInstanceStructsFromValue(FStateTreeDataView(Object));
+
+		AITEST_TRUE("Update instance types should succeeed", bUpdateResult);
+		AITEST_TRUE("Path segment 0 instance type should be UStateTreeTest_PropertyObjectInstanced", Path.GetSegment(0).GetInstanceStruct() == UStateTreeTest_PropertyObjectInstanced::StaticClass());
+		AITEST_TRUE("Path segment 1 instance type should be nullptr", Path.GetSegment(1).GetInstanceStruct() == nullptr);
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathObject, "System.StateTree.PropertyPath.Object");
+
+struct FStateTreeTest_PropertyPathWrongObject : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FStateTreePropertyPath Path;
+		const bool bParseResult = Path.FromString(TEXT("InstancedObject.B"));
+
+		AITEST_TRUE("Parsing path should succeeed", bParseResult);
+		AITEST_EQUAL("Should have 2 path segments", Path.NumSegments(), 2);
+
+		UStateTreeTest_PropertyObject* Object = NewObject<UStateTreeTest_PropertyObject>();
+
+		Object->InstancedObject = NewObject<UStateTreeTest_PropertyObjectInstancedWithB>();
+		{
+			FString ResolveErrors;
+			TArray<FStateTreePropertyPathIndirection> Indirections;
+			const bool bResolveResult = Path.ResolveIndirectionsWithValue(FStateTreeDataView(Object), Indirections, &ResolveErrors);
+
+			AITEST_TRUE("Resolve path should succeeed", bResolveResult);
+			AITEST_EQUAL("Should have 2 indirections", Indirections.Num(), 2);
+			AITEST_TRUE("Object ", Indirections[0].GetAccessType() == EStateTreePropertyAccessType::ObjectInstance);
+			AITEST_TRUE("Object ", Indirections[0].GetContainerStruct() == Object->GetClass());
+			AITEST_TRUE("Object ", Indirections[0].GetInstanceStruct() == UStateTreeTest_PropertyObjectInstancedWithB::StaticClass());
+			AITEST_EQUAL("Should not have error", ResolveErrors.Len(), 0);
+		}
+
+		Object->InstancedObject = NewObject<UStateTreeTest_PropertyObjectInstanced>();
+		{
+			FString ResolveErrors;
+			TArray<FStateTreePropertyPathIndirection> Indirections;
+			const bool bResolveResult = Path.ResolveIndirectionsWithValue(FStateTreeDataView(Object), Indirections, &ResolveErrors);
+
+			AITEST_FALSE("Resolve path should fail", bResolveResult);
+			AITEST_EQUAL("Should have 0 indirections", Indirections.Num(), 0);
+			AITEST_NOT_EQUAL("Should have error", ResolveErrors.Len(), 0);
+		}
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathWrongObject, "System.StateTree.PropertyPath.WrongObject");
+
+struct FStateTreeTest_PropertyPathArray : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FStateTreePropertyPath Path;
+		const bool bParseResult = Path.FromString(TEXT("ArrayOfInts[1]"));
+
+		AITEST_TRUE("Parsing path should succeeed", bParseResult);
+		AITEST_EQUAL("Should have 1 path segments", Path.NumSegments(), 1);
+
+		UStateTreeTest_PropertyObject* Object = NewObject<UStateTreeTest_PropertyObject>();
+		Object->ArrayOfInts.Add(42);
+		Object->ArrayOfInts.Add(123);
+
+		FString ResolveErrors;
+		TArray<FStateTreePropertyPathIndirection> Indirections;
+		const bool bResolveResult = Path.ResolveIndirectionsWithValue(FStateTreeDataView(Object), Indirections, &ResolveErrors);
+
+		AITEST_TRUE("Resolve path should succeeed", bResolveResult);
+		AITEST_EQUAL("Should have no resolve errors", ResolveErrors.Len(), 0);
+		AITEST_EQUAL("Should have 2 indirections", Indirections.Num(), 2);
+		AITEST_EQUAL("Indirection 0 should be IndexArray type", Indirections[0].GetAccessType(), EStateTreePropertyAccessType::IndexArray);
+		AITEST_EQUAL("Indirection 1 should be Offset type", Indirections[1].GetAccessType(), EStateTreePropertyAccessType::Offset);
+
+		const int32 Value = *reinterpret_cast<const int32*>(Indirections[1].GetPropertyAddress());
+		AITEST_EQUAL("Value should be 123", Value, 123);
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathArray, "System.StateTree.PropertyPath.Array");
+
+struct FStateTreeTest_PropertyPathArrayInvalidIndex : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FStateTreePropertyPath Path;
+		const bool bParseResult = Path.FromString(TEXT("ArrayOfInts[123]"));
+
+		AITEST_TRUE("Parsing path should succeeed", bParseResult);
+		AITEST_EQUAL("Should have 1 path segments", Path.NumSegments(), 1);
+
+		UStateTreeTest_PropertyObject* Object = NewObject<UStateTreeTest_PropertyObject>();
+		Object->ArrayOfInts.Add(42);
+		Object->ArrayOfInts.Add(123);
+
+		FString ResolveErrors;
+		TArray<FStateTreePropertyPathIndirection> Indirections;
+		const bool bResolveResult = Path.ResolveIndirectionsWithValue(FStateTreeDataView(Object), Indirections, &ResolveErrors);
+
+		AITEST_FALSE("Resolve path should fail", bResolveResult);
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathArrayInvalidIndex, "System.StateTree.PropertyPath.ArrayInvalidIndex");
+
+struct FStateTreeTest_PropertyPathArrayOfStructs : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FStateTreePropertyPath Path1;
+		Path1.FromString(TEXT("ArrayOfStruct[0].B"));
+
+		FStateTreePropertyPath Path2;
+		Path2.FromString(TEXT("ArrayOfStruct[2].StructB.B"));
+
+		UStateTreeTest_PropertyObject* Object = NewObject<UStateTreeTest_PropertyObject>();
+		Object->ArrayOfStruct.AddDefaulted_GetRef().B = 3;
+		Object->ArrayOfStruct.AddDefaulted();
+		Object->ArrayOfStruct.AddDefaulted_GetRef().StructB.B = 42;
+
+		{
+			FString ResolveErrors;
+			TArray<FStateTreePropertyPathIndirection> Indirections;
+			const bool bResolveResult = Path1.ResolveIndirectionsWithValue(FStateTreeDataView(Object), Indirections, &ResolveErrors);
+
+			AITEST_TRUE("Resolve path1 should succeeed", bResolveResult);
+			AITEST_EQUAL("Should have no resolve errors", ResolveErrors.Len(), 0);
+			AITEST_EQUAL("Should have 3 indirections", Indirections.Num(), 3);
+			AITEST_EQUAL("Indirection 0 should be ArrayIndex type", Indirections[0].GetAccessType(), EStateTreePropertyAccessType::IndexArray);
+			AITEST_EQUAL("Indirection 1 should be Offset type", Indirections[1].GetAccessType(), EStateTreePropertyAccessType::Offset);
+			AITEST_EQUAL("Indirection 2 should be Offset type", Indirections[2].GetAccessType(), EStateTreePropertyAccessType::Offset);
+
+			const int32 Value = *reinterpret_cast<const int32*>(Indirections[2].GetPropertyAddress());
+			AITEST_EQUAL("Value should be 3", Value, 3);
+		}
+
+		{
+			FString ResolveErrors;
+			TArray<FStateTreePropertyPathIndirection> Indirections;
+			const bool bResolveResult = Path2.ResolveIndirectionsWithValue(FStateTreeDataView(Object), Indirections, &ResolveErrors);
+
+			AITEST_TRUE("Resolve path2 should succeeed", bResolveResult);
+			AITEST_EQUAL("Should have no resolve errors", ResolveErrors.Len(), 0);
+			AITEST_EQUAL("Should have 4 indirections", Indirections.Num(), 4);
+			AITEST_EQUAL("Indirection 0 should be ArrayIndex type", Indirections[0].GetAccessType(), EStateTreePropertyAccessType::IndexArray);
+			AITEST_EQUAL("Indirection 1 should be Offset type", Indirections[1].GetAccessType(), EStateTreePropertyAccessType::Offset);
+			AITEST_EQUAL("Indirection 2 should be Offset type", Indirections[2].GetAccessType(), EStateTreePropertyAccessType::Offset);
+			AITEST_EQUAL("Indirection 3 should be Offset type", Indirections[3].GetAccessType(), EStateTreePropertyAccessType::Offset);
+
+			const int32 Value = *reinterpret_cast<const int32*>(Indirections[3].GetPropertyAddress());
+			AITEST_EQUAL("Value should be 42", Value, 42);
+		}
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathArrayOfStructs, "System.StateTree.PropertyPath.ArrayOfStructs");
+
+struct FStateTreeTest_PropertyPathArrayOfInstancedObjects : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FStateTreePropertyPath Path;
+		Path.FromString(TEXT("ArrayOfInstancedStructs[0].B"));
+
+		FStateTreeTest_PropertyStruct Struct;
+		Struct.B = 123;
+		
+		UStateTreeTest_PropertyObject* Object = NewObject<UStateTreeTest_PropertyObject>();
+		Object->ArrayOfInstancedStructs.Emplace(FConstStructView::Make(Struct));
+
+		const bool bUpdateResult = Path.UpdateInstanceStructsFromValue(FStateTreeDataView(Object));
+		AITEST_TRUE("Update instance types should succeeed", bUpdateResult);
+		AITEST_EQUAL("Should have 2 path segments", Path.NumSegments(), 2);
+		AITEST_TRUE("Path segment 0 instance type should be FStateTreeTest_PropertyStruct", Path.GetSegment(0).GetInstanceStruct() == FStateTreeTest_PropertyStruct::StaticStruct());
+		AITEST_TRUE("Path segment 1 instance type should be nullptr", Path.GetSegment(1).GetInstanceStruct() == nullptr);
+
+		{
+			FString ResolveErrors;
+			TArray<FStateTreePropertyPathIndirection> Indirections;
+			const bool bResolveResult = Path.ResolveIndirections(UStateTreeTest_PropertyObject::StaticClass(), Indirections, &ResolveErrors);
+
+			AITEST_TRUE("Resolve path should succeeed", bResolveResult);
+			AITEST_EQUAL("Should have no resolve errors", ResolveErrors.Len(), 0);
+			AITEST_EQUAL("Should have 3 indirections", Indirections.Num(), 3);
+			AITEST_EQUAL("Indirection 0 should be ArrayIndex type", Indirections[0].GetAccessType(), EStateTreePropertyAccessType::IndexArray);
+			AITEST_EQUAL("Indirection 1 should be StructInstance type", Indirections[1].GetAccessType(), EStateTreePropertyAccessType::StructInstance);
+			AITEST_EQUAL("Indirection 2 should be Offset type", Indirections[2].GetAccessType(), EStateTreePropertyAccessType::Offset);
+		}
+
+		{
+			FString ResolveErrors;
+			TArray<FStateTreePropertyPathIndirection> Indirections;
+			const bool bResolveResult = Path.ResolveIndirectionsWithValue(FStateTreeDataView(Object), Indirections, &ResolveErrors);
+
+			AITEST_TRUE("Resolve path should succeeed", bResolveResult);
+			AITEST_EQUAL("Should have no resolve errors", ResolveErrors.Len(), 0);
+			AITEST_EQUAL("Should have 3 indirections", Indirections.Num(), 3);
+			AITEST_EQUAL("Indirection 0 should be ArrayIndex type", Indirections[0].GetAccessType(), EStateTreePropertyAccessType::IndexArray);
+			AITEST_EQUAL("Indirection 1 should be StructInstance type", Indirections[1].GetAccessType(), EStateTreePropertyAccessType::StructInstance);
+			AITEST_EQUAL("Indirection 2 should be Offset type", Indirections[2].GetAccessType(), EStateTreePropertyAccessType::Offset);
+
+			const int32 Value = *reinterpret_cast<const int32*>(Indirections[2].GetPropertyAddress());
+			AITEST_EQUAL("Value should be 123", Value, 123);
+		}
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathArrayOfInstancedObjects, "System.StateTree.PropertyPath.ArrayOfInstancedObjects");
 
 UE_ENABLE_OPTIMIZATION_SHIP
 

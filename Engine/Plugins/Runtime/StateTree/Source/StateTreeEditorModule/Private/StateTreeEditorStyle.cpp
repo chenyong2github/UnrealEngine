@@ -128,11 +128,15 @@ void FStateTreeEditorStyle::Initialize()
 
 	StyleSet->Set("StateTree.Node.Operand", FTextBlockStyle(NormalText)
 		.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-		.SetFontSize(7));
+		.SetFontSize(8));
 
 	StyleSet->Set("StateTree.Node.Parens", FTextBlockStyle(NormalText)
 		.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		.SetFontSize(12));
+
+	StyleSet->Set("StateTree.Param.Label", FTextBlockStyle(NormalText)
+		.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+		.SetFontSize(7));
 
 	// Condition Indent combo button
 	const FButtonStyle IndentButton = FButtonStyle()
@@ -147,9 +151,9 @@ void FStateTreeEditorStyle::Initialize()
 	
 	StyleSet->Set("StateTree.Node.Indent.ComboBox", FComboButtonStyle(ComboButtonStyle).SetButtonStyle(IndentButton));
 
-	const FEditableTextBoxStyle& NormalEditableTextBox = FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
-	FEditableTextBoxStyle NameEditStyle(NormalEditableTextBox);
-	NameEditStyle.TextStyle.Font.Size = 10;
+	const FEditableTextStyle& NormalEditableText = FCoreStyle::Get().GetWidgetStyle<FEditableTextStyle>("NormalEditableText");
+	FEditableTextStyle NameEditStyle(NormalEditableText);
+	NameEditStyle.Font.Size = 10;
 	StyleSet->Set("StateTree.Node.Name", NameEditStyle);
 	
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());

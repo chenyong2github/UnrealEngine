@@ -222,10 +222,9 @@ bool UStateTree::Link()
 		}
 
 		// Update property bag structs before resolving binding.
-		const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
-		const TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
+		const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.SourceStructs;
+		const TArrayView<FStateTreePropertyCopyBatch> CopyBatches = PropertyBindings.CopyBatches;
 
-		
 		// Reconcile out of date classes.
 		for (FStateTreeBindableStructDesc& SourceStruct : SourceStructs)
 		{
@@ -237,7 +236,7 @@ bool UStateTree::Link()
 				}
 			}
 		}
-		for (FStateTreePropCopyBatch& CopyBatch : CopyBatches)
+		for (FStateTreePropertyCopyBatch& CopyBatch : CopyBatches)
 		{
 			if (const UClass* TargetClass = Cast<UClass>(CopyBatch.TargetStruct.Struct))
 			{
@@ -296,7 +295,7 @@ bool UStateTree::Link()
 
 				if (Params.BindingsBatch.IsValid())
 				{
-					FStateTreePropCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
+					FStateTreePropertyCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
 					Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
 				}
 			}

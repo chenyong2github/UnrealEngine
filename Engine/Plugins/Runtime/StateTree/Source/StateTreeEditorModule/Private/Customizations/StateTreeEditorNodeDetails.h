@@ -15,7 +15,7 @@ class UStateTree;
 class UStateTreeState;
 class UStateTreeEditorData;
 struct EVisibility;
-struct FStateTreeEditorPropertyPath;
+struct FStateTreePropertyPath;
 enum class EStateTreeConditionOperand : uint8;
 
 /**
@@ -79,7 +79,7 @@ private:
 	void OnClassPicked(const UClass* InClass) const;
 
 	void OnIdentifierChanged(const UStateTree& StateTree);
-	void OnBindingChanged(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath);
+	void OnBindingChanged(const FStateTreePropertyPath& SourcePath, const FStateTreePropertyPath& TargetPath);
 	void FindOuterObjects();
 
 	// Stores a category path segment, or a node type.

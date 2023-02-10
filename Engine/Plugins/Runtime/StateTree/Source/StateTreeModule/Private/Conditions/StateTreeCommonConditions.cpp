@@ -127,9 +127,9 @@ bool FStateTreeCompareEnumCondition::TestCondition(FStateTreeExecutionContext& C
 }
 
 #if WITH_EDITOR
-void FStateTreeCompareEnumCondition::OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup)
+void FStateTreeCompareEnumCondition::OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreePropertyPath& SourcePath, const FStateTreePropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup)
 {
-	if (!TargetPath.IsValid())
+	if (!TargetPath.GetStructID().IsValid())
 	{
 		return;
 	}
@@ -137,7 +137,8 @@ void FStateTreeCompareEnumCondition::OnBindingChanged(const FGuid& ID, FStateTre
 	FInstanceDataType& Instance = InstanceData.GetMutable<FInstanceDataType>();
 
 	// Left has changed, update enums from the leaf property.
-	if (TargetPath.Path.Last() == GET_MEMBER_NAME_STRING_CHECKED(FInstanceDataType, Left))
+	if (!TargetPath.IsPathEmpty()
+		&& TargetPath.GetSegments().Last().GetName() == GET_MEMBER_NAME_CHECKED(FInstanceDataType, Left))
 	{
 		if (const FProperty* LeafProperty = BindingLookup.GetPropertyPathLeafProperty(SourcePath))
 		{

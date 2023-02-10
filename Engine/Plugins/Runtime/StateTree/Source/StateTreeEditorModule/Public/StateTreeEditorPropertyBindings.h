@@ -7,29 +7,6 @@
 #include "StateTreeEditorPropertyBindings.generated.h"
 
 /**
- * Editor representation of a property binding in StateTree
- */
-USTRUCT()
-struct STATETREEEDITORMODULE_API FStateTreeEditorPropertyBinding
-{
-	GENERATED_BODY()
-
-	FStateTreeEditorPropertyBinding() = default;
-	FStateTreeEditorPropertyBinding(const FStateTreeEditorPropertyPath& InSourcePath, const FStateTreeEditorPropertyPath& InTargetPath) : SourcePath(InSourcePath), TargetPath(InTargetPath) {}
-
-	bool IsValid() const { return SourcePath.IsValid() && TargetPath.IsValid(); }
-
-	/** Source property path of the binding */
-	UPROPERTY()
-	FStateTreeEditorPropertyPath SourcePath;
-
-	/** Target property path of the binding */
-	UPROPERTY()
-	FStateTreeEditorPropertyPath TargetPath;
-};
-
-
-/**
  * Editor representation of a all property bindings in a StateTree
  */
 USTRUCT()
@@ -42,19 +19,19 @@ struct STATETREEEDITORMODULE_API FStateTreeEditorPropertyBindings
 	 * @param SourcePath Binding source property path.
 	 * @param TargetPath Binding target property path.
 	 */
-	void AddPropertyBinding(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath);
+	void AddPropertyBinding(const FStateTreePropertyPath& SourcePath, const FStateTreePropertyPath& TargetPath);
 	
 	/**
 	 * Removes all bindings to target path.
 	 * @param TargetPath Target property path.
 	 */ 
-	void RemovePropertyBindings(const FStateTreeEditorPropertyPath& TargetPath);
+	void RemovePropertyBindings(const FStateTreePropertyPath& TargetPath);
 	
 	/**
 	 * @param TargetPath Target property path.
 	 * @return True of the target path has any bindings.
 	 */
-	bool HasPropertyBinding(const FStateTreeEditorPropertyPath& TargetPath) const;
+	bool HasPropertyBinding(const FStateTreePropertyPath& TargetPath) const;
 
 	/**
 	 * Copies property bindings from an existing struct to another.
@@ -67,28 +44,47 @@ struct STATETREEEDITORMODULE_API FStateTreeEditorPropertyBindings
 	/**
 	 * @return Source path for given target path, or null if binding does not exists.
 	 */
-	const FStateTreeEditorPropertyPath* GetPropertyBindingSource(const FStateTreeEditorPropertyPath& TargetPath) const;
+	const FStateTreePropertyPath* GetPropertyBindingSource(const FStateTreePropertyPath& TargetPath) const;
 	
 	/**
 	 * Returns all bindings for a specified structs based in struct ID.
 	 * @param StructID ID of the struct to find bindings for.
 	 * @param OutBindings Bindings for specified struct.
 	 */
-	void GetPropertyBindingsFor(const FGuid StructID, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
+	void GetPropertyBindingsFor(const FGuid StructID, TArray<FStateTreePropertyPathBinding>& OutBindings) const;
 	
 	/**
 	 * Removes bindings which do not point to valid structs IDs.
 	 * @param ValidStructs Set of struct IDs that are currently valid.
 	 */
-	void RemoveUnusedBindings(const TMap<FGuid, const UStruct*>& ValidStructs);
+	void RemoveUnusedBindings(const TMap<FGuid, const FStateTreeDataView>& ValidStructs);
 
 	/** @return array view to all bindings. */
-	TConstArrayView<FStateTreeEditorPropertyBinding> GetBindings() const { return PropertyBindings; }
+	TConstArrayView<FStateTreePropertyPathBinding> GetBindings() const { return PropertyBindings; }
 
-protected:
+	TArrayView<FStateTreePropertyPathBinding> GetMutableBindings() { return PropertyBindings; }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "Use version with FStateTreePropertyPath instead.")
+	void AddPropertyBinding(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath);
+
+	UE_DEPRECATED(5.3, "Use version with FStateTreePropertyPath instead.")
+	void RemovePropertyBindings(const FStateTreeEditorPropertyPath& TargetPath);
+
+	UE_DEPRECATED(5.3, "Use version with FStateTreePropertyPath instead.")
+	bool HasPropertyBinding(const FStateTreeEditorPropertyPath& TargetPath) const;
+
+	UE_DEPRECATED(5.3, "Use version with FStateTreePropertyPath instead.")
+	const FStateTreeEditorPropertyPath* GetPropertyBindingSource(const FStateTreeEditorPropertyPath& TargetPath) const;
+
+	UE_DEPRECATED(5.3, "Use RemoveUnusedBindings with values instead.")
+	void RemoveUnusedBindings(const TMap<FGuid, const UStruct*>& ValidStructs);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+private:
 
 	UPROPERTY()
-	TArray<FStateTreeEditorPropertyBinding> PropertyBindings;
+	TArray<FStateTreePropertyPathBinding> PropertyBindings;
 };
 
 
@@ -129,11 +125,13 @@ struct STATETREEEDITORMODULE_API FStateTreeBindingLookup : public IStateTreeBind
 {
 	FStateTreeBindingLookup(IStateTreeEditorPropertyBindingsOwner* InBindingOwner);
 
-	virtual const FStateTreeEditorPropertyPath* GetPropertyBindingSource(const FStateTreeEditorPropertyPath& InTargetPath) const override;
-	virtual FText GetPropertyPathDisplayName(const FStateTreeEditorPropertyPath& InTargetPath) const override;
-	virtual const FProperty* GetPropertyPathLeafProperty(const FStateTreeEditorPropertyPath& InPath) const override;
-
 	IStateTreeEditorPropertyBindingsOwner* BindingOwner = nullptr;
+
+protected:
+	virtual const FStateTreePropertyPath* GetPropertyBindingSource(const FStateTreePropertyPath& InTargetPath) const override;
+	virtual FText GetPropertyPathDisplayName(const FStateTreePropertyPath& InTargetPath) const override;
+	virtual const FProperty* GetPropertyPathLeafProperty(const FStateTreePropertyPath& InPath) const override;
+
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

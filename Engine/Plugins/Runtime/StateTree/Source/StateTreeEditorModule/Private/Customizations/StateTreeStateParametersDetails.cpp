@@ -49,7 +49,7 @@ public:
 		// Pass the node ID to binding extension. Since the properties are added using AddChildStructure(), we break the hierarchy and cannot access parent.
 		ChildPropHandle->SetInstanceMetaData(UE::StateTree::PropertyBinding::StateTreeNodeIDName, LexToString(ID));
 
-		FStateTreeEditorPropertyPath Path(ID, *Property->GetFName().ToString());
+		FStateTreePropertyPath Path(ID, *Property->GetFName().ToString());
 		TSharedPtr<SWidget> NameWidget;
 		TSharedPtr<SWidget> ValueWidget;
 		FDetailWidgetRow Row;

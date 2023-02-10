@@ -39,32 +39,44 @@ public:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
-	/** Returns parent state of a struct, or nullptr if not found. */
+	/** @returns parent state of a struct, or nullptr if not found. */
 	const UStateTreeState* GetStateByStructID(const FGuid TargetStructID) const;
 
-	/** Returns state based on its ID, or nullptr if not found. */
+	/** @returns state based on its ID, or nullptr if not found. */
 	const UStateTreeState* GetStateByID(const FGuid StateID) const;
 
-	/** Gets the IDs of all bindable structs in the StateTree. */
-	void GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStructs) const;
+	/** @returns the IDs and instance values of all bindable structs in the StateTree. */
+	void GetAllStructValues(TMap<FGuid, const FStateTreeDataView>& AllValues) const;
 
 	/**
 	* Iterates over all structs that are related to binding
 	* @param InFunc function called at each node, should return true if visiting is continued or false to stop.
 	*/
-	void VisitHierarchy(TFunctionRef<EStateTreeVisitor(UStateTreeState& State, UStateTreeState* ParentState)> InFunc) const;
+	EStateTreeVisitor VisitHierarchy(TFunctionRef<EStateTreeVisitor(UStateTreeState& State, UStateTreeState* ParentState)> InFunc) const;
 
 	/**
-	 * Iterates over all structs that are related to binding
+	 * Iterates over all structs at the global level (context, tree parameters, evaluators, global tasks) that are related to binding.
 	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
 	 */
-	void VisitHierarchyNodes(TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
+	EStateTreeVisitor VisitGlobalNodes(TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)> InFunc) const;
+
+	/**
+	 * Iterates over all structs in the state hierarchy that are related to binding.
+	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
+	 */
+	EStateTreeVisitor VisitHierarchyNodes(TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)> InFunc) const;
+
+	/**
+	 * Iterates over all structs that are related to binding.
+	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
+	 */
+	EStateTreeVisitor VisitAllNodes(TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)> InFunc) const;
 
 	/**
 	 * Iterates over all nodes in a given state.
 	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
 	 */
-	EStateTreeVisitor VisitStateNodes(const UStateTreeState& State, TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
+	EStateTreeVisitor VisitStateNodes(const UStateTreeState& State, TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)> InFunc) const;
 
 	/**
 	 * Returns array of nodes along the execution path, up to the TargetStruct.
@@ -80,7 +92,16 @@ public:
 	 * @param ObjectNameHint Name to use if multiple context objects of same type are found. 
 	 */
 	FStateTreeBindableStructDesc FindContextData(const UStruct* ObjectType, const FString ObjectNameHint) const;
-	
+
+	UE_DEPRECATED(5.3, "Use VisitHierarchyNodes with State, Desc, Value instead.")
+	void VisitHierarchyNodes(TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
+
+	UE_DEPRECATED(5.3, "Use VisitStateNodes with State, Desc, Value instead.")
+	EStateTreeVisitor VisitStateNodes(const UStateTreeState& State, TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
+
+	UE_DEPRECATED(5.3, "Use GetAllStructValues with values instead.")
+	void GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStructs) const;
+
 	// StateTree Builder API
 
 	/**
@@ -144,10 +165,33 @@ public:
 	/**
 	 * Adds property binding between two structs.
 	 */
-	void AddPropertyBinding(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath)
+	void AddPropertyBinding(const FStateTreePropertyPath& SourcePath, const FStateTreePropertyPath& TargetPath)
 	{
 		EditorBindings.AddPropertyBinding(SourcePath, TargetPath);
 	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "Use version with FStateTreePropertyPath instead.")
+	void AddPropertyBinding(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/**
+	 * Adds property binding between two structs.
+	 */
+	bool AddPropertyBinding(const FStateTreeEditorNode& SourceNode, const FString SourcePathStr, const FStateTreeEditorNode& TargetNode, const FString TargetPathStr)
+	{
+		FStateTreePropertyPath SourcePath;
+		FStateTreePropertyPath TargetPath;
+		SourcePath.SetStructID(SourceNode.ID);
+		TargetPath.SetStructID(TargetNode.ID);
+		if (SourcePath.FromString(SourcePathStr) && TargetPath.FromString(TargetPathStr))
+		{
+			EditorBindings.AddPropertyBinding(SourcePath, TargetPath);
+			return true;
+		}
+		return false;
+	}
+
 	// ~StateTree Builder API
 
 	/** Schema describing which inputs, evaluators, and tasks a StateTree can contain */	

@@ -32,6 +32,8 @@ struct STATETREEMODULE_API FStateTreeCustomVersion
 		TransitionDelay,
 		// Added external transitions
 		AddedExternalTransitions,
+		// Changed how bindings are represented
+		ChangedBindingsRepresentation,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

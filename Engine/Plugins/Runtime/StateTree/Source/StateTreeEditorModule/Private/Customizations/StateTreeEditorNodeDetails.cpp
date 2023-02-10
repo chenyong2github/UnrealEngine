@@ -28,6 +28,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "EditorFontGlyphs.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -110,7 +111,7 @@ namespace UE::StateTreeEditor::Internal
 			// Pass the node ID to binding extension. Since the properties are added using AddChildStructure(), we break the hierarchy and cannot access parent.
 			ChildPropHandle->SetInstanceMetaData(UE::StateTree::PropertyBinding::StateTreeNodeIDName, LexToString(ID));
 
-			FStateTreeEditorPropertyPath Path(ID, *Property->GetFName().ToString());
+			FStateTreePropertyPath Path(ID, *Property->GetFName().ToString());
 			TSharedPtr<SWidget> NameWidget;
 			TSharedPtr<SWidget> ValueWidget;
 			FDetailWidgetRow Row;
@@ -121,8 +122,13 @@ namespace UE::StateTreeEditor::Internal
 					return EditorPropBindings->HasPropertyBinding(Path) ? EVisibility::Collapsed : EVisibility::Visible;
 				});
 
+			bool bShowChildren = true;
+			
 			if (Usage == EStateTreePropertyUsage::Input || Usage == EStateTreePropertyUsage::Output || Usage == EStateTreePropertyUsage::Context)
 			{
+				// Do not show children for input, output and context.
+				bShowChildren = false;
+				
 				FEdGraphPinType PinType;
 				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 				Schema->ConvertPropertyToPinType(Property, PinType);
@@ -181,7 +187,7 @@ namespace UE::StateTreeEditor::Internal
 				}
 				
 				ChildRow
-					.CustomWidget(/*bShowChildren*/false)
+					.CustomWidget(bShowChildren)
 					.NameContent()
 					[
 						SNew(SHorizontalBox)
@@ -204,7 +210,7 @@ namespace UE::StateTreeEditor::Internal
 							.Visibility(Label.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible)
 							[
 								SNew(STextBlock)
-								.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Node.Operand")
+								.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Param.Label")
 								.ColorAndOpacity(FStyleColors::Foreground)
 								.Text(Label)
 								.ToolTipText(LabelToolTip)
@@ -236,23 +242,6 @@ namespace UE::StateTreeEditor::Internal
 							.Font(IDetailLayoutBuilder::GetDetailFont())
 							.Text(Text)
 							.ToolTipText(ToolTip)
-						]
-					];
-			}
-			else
-			{
-				ChildRow
-					.CustomWidget(/*bShowChildren*/true)
-					.NameContent()
-					[
-						NameWidget.ToSharedRef()
-					]
-					.ValueContent()
-					[
-						SNew(SBox)
-						.Visibility(IsValueVisible)
-						[
-							ValueWidget.ToSharedRef()
 						]
 					];
 			}
@@ -292,7 +281,7 @@ TSharedRef<IPropertyTypeCustomization> FStateTreeEditorNodeDetails::MakeInstance
 
 FStateTreeEditorNodeDetails::~FStateTreeEditorNodeDetails()
 {
-	UE::StateTree::PropertyBinding::OnStateTreeBindingChanged.Remove(OnBindingChangedHandle);
+	UE::StateTree::PropertyBinding::OnStateTreePropertyBindingChanged.Remove(OnBindingChangedHandle);
 }
 
 void FStateTreeEditorNodeDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
@@ -329,7 +318,7 @@ void FStateTreeEditorNodeDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 	const FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
 
 	UE::StateTree::Delegates::OnIdentifierChanged.AddSP(this, &FStateTreeEditorNodeDetails::OnIdentifierChanged);
-	OnBindingChangedHandle = UE::StateTree::PropertyBinding::OnStateTreeBindingChanged.AddRaw(this, &FStateTreeEditorNodeDetails::OnBindingChanged);
+	OnBindingChangedHandle = UE::StateTree::PropertyBinding::OnStateTreePropertyBindingChanged.AddRaw(this, &FStateTreeEditorNodeDetails::OnBindingChanged);
 
 	FindOuterObjects();
 
@@ -403,19 +392,52 @@ void FStateTreeEditorNodeDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 					.Text(this, &FStateTreeEditorNodeDetails::GetOpenParens)
 					.Visibility(this, &FStateTreeEditorNodeDetails::IsConditionVisible)
 				]
-				// Name (Eval/Task)
+				// Name & type selection
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.Padding(FMargin(FMargin(4.0f, 0.0f, 0.0f, 0.0f)))
 				.VAlign(VAlign_Center)
 				[
-					SNew(SEditableTextBox)
-					.IsEnabled(TAttribute<bool>(this, &FStateTreeEditorNodeDetails::IsNameEnabled))
-					.Text(this, &FStateTreeEditorNodeDetails::GetName)
-					.OnTextCommitted(this, &FStateTreeEditorNodeDetails::OnNameCommitted)
-					.SelectAllTextWhenFocused(true)
-					.RevertTextOnEscape(true)
-					.Style(FStateTreeEditorStyle::Get(), "StateTree.Node.Name")
-					.Visibility(this, &FStateTreeEditorNodeDetails::IsNameVisible)
+					SAssignNew(ComboButton, SComboButton)
+					.OnGetMenuContent(this, &FStateTreeEditorNodeDetails::GeneratePicker)
+					.ToolTipText(this, &FStateTreeEditorNodeDetails::GetDisplayValueString)
+					.ContentPadding(FMargin(2, 2, 2, 2))
+					.ButtonContent()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(0, 0, 4, 0)
+						[
+							SNew(STextBlock)
+							.Text(FEditorFontGlyphs::Paper_Plane)
+							.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.DetailsIcon")
+							.Visibility_Lambda([this]()
+							{
+								// Only show on tasks
+								const UScriptStruct* ScriptStruct = nullptr;
+								if (const FStateTreeEditorNode* Node = GetCommonNode())
+								{
+									ScriptStruct = Node->Node.GetScriptStruct();
+								}
+								return ScriptStruct != nullptr && ScriptStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()) ? EVisibility::Visible : EVisibility::Collapsed;
+							})
+						]
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(0, 0, 8, 0)
+						[
+							SNew(SEditableText)
+							.IsEnabled(TAttribute<bool>(this, &FStateTreeEditorNodeDetails::IsNameEnabled))
+							.Text(this, &FStateTreeEditorNodeDetails::GetName)
+							.OnTextCommitted(this, &FStateTreeEditorNodeDetails::OnNameCommitted)
+							.SelectAllTextWhenFocused(true)
+							.RevertTextOnEscape(true)
+							.Style(FStateTreeEditorStyle::Get(), "StateTree.Node.Name")
+							.Visibility(this, &FStateTreeEditorNodeDetails::IsNameVisible)
+						]
+					]
 				]
 				// Close parens
 				+ SHorizontalBox::Slot()
@@ -427,41 +449,12 @@ void FStateTreeEditorNodeDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 					.Text(this, &FStateTreeEditorNodeDetails::GetCloseParens)
 					.Visibility(this, &FStateTreeEditorNodeDetails::IsConditionVisible)
 				]
-			]
-			// Class picker
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.Padding(FMargin(FMargin(4.0f, 0.0f, 0.0f, 0.0f)))
-			.VAlign(VAlign_Center)
-			[
-				SAssignNew(ComboButton, SComboButton)
-				.OnGetMenuContent(this, &FStateTreeEditorNodeDetails::GeneratePicker)
-				.ToolTipText(this, &FStateTreeEditorNodeDetails::GetDisplayValueString)
-				.ContentPadding(0.f)
-				.ButtonContent()
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-					[
-						SNew(SImage)
-						.Image(this, &FStateTreeEditorNodeDetails::GetDisplayValueIcon)
-					]
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(this, &FStateTreeEditorNodeDetails::GetDisplayValueString)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
+					StructPropertyHandle->CreateDefaultPropertyButtonWidgets()
 				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				StructPropertyHandle->CreateDefaultPropertyButtonWidgets()
 			]
 		]
 		.OverrideResetToDefault(ResetOverride)
@@ -611,6 +604,7 @@ void FStateTreeEditorNodeDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 	FGuid ID;
 	UE::StateTree::PropertyHelpers::GetStructValue<FGuid>(IDProperty, ID);
 
+	// Node
 	TSharedRef<FBindableNodeInstanceDetails> NodeDetails = MakeShareable(new FBindableNodeInstanceDetails(NodeProperty, FGuid(), EditorData));
 	StructBuilder.AddCustomBuilder(NodeDetails);
 
@@ -690,7 +684,7 @@ void FStateTreeEditorNodeDetails::OnIdentifierChanged(const UStateTree& InStateT
 	}
 }
 
-void FStateTreeEditorNodeDetails::OnBindingChanged(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath)
+void FStateTreeEditorNodeDetails::OnBindingChanged(const FStateTreePropertyPath& SourcePath, const FStateTreePropertyPath& TargetPath)
 {
 	check(StructProperty);
 
@@ -711,7 +705,7 @@ void FStateTreeEditorNodeDetails::OnBindingChanged(const FStateTreeEditorPropert
 		UObject* OuterObject = OuterObjects[i]; // Immediate outer, i.e StateTreeState
 		if (Node != nullptr && EditorData != nullptr && Node->Node.IsValid() && Node->Instance.IsValid())
 		{
-			if (Node->ID == TargetPath.StructID)
+			if (Node->ID == TargetPath.GetStructID())
 			{
 				if (FStateTreeConditionBase* Condition = Node->Node.GetMutablePtr<FStateTreeConditionBase>())
 				{

@@ -7,7 +7,7 @@
 
 enum class EPropertyAccessCompatibility;
 struct FStateTreeCompilerLog;
-struct FStateTreeEditorPropertyBinding;
+struct FStateTreePropertyPathBinding;
 
 /**
  * Helper class to compile editor representation of property bindings into runtime representation.
@@ -32,7 +32,7 @@ struct STATETREEEDITORMODULE_API FStateTreePropertyBindingCompiler
 	  * @param OutBatchIndex - Resulting batch index, if index is INDEX_NONE, no bindings were found and no batch was generated.
 	  * @return True on success, false on failure.
 	 */
-	[[nodiscard]] bool CompileBatch(const FStateTreeBindableStructDesc& TargetStruct, TConstArrayView<FStateTreeEditorPropertyBinding> EditorPropertyBindings, int32& OutBatchIndex);
+	[[nodiscard]] bool CompileBatch(const FStateTreeBindableStructDesc& TargetStruct, TConstArrayView<FStateTreePropertyPathBinding> PropertyBindings, int32& OutBatchIndex);
 
 	/** Finalizes compilation, should be called once all batches are compiled. */
 	void Finalize();
@@ -54,6 +54,7 @@ struct STATETREEEDITORMODULE_API FStateTreePropertyBindingCompiler
 		return SourceStructs[Index];
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	 * Resolves a string based property path in specified struct into segments of property names and access types.
 	 * If logging is required both, Log and LogContextStruct needs to be non-null.
@@ -66,6 +67,7 @@ struct STATETREEEDITORMODULE_API FStateTreePropertyBindingCompiler
 	 * @param LogContextStruct Pointer to bindable struct desc where the property path belongs to.
 	 * @return True of the property was solved successfully.
 	 */
+	UE_DEPRECATED(5.3, "Use FStateTreePropertyPath resolve indirection methods instead.")
 	[[nodiscard]] static bool ResolvePropertyPath(const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath,
 												  TArray<FStateTreePropertySegment>& OutSegments, const FProperty*& OutLeafProperty, int32& OutLeafArrayIndex,
 												  FStateTreeCompilerLog* Log = nullptr, const FStateTreeBindableStructDesc* LogContextStruct = nullptr);
@@ -76,13 +78,13 @@ struct STATETREEEDITORMODULE_API FStateTreePropertyBindingCompiler
 	 * @param ToProperty Property to copy to.
 	 * @return Incompatible if the properties cannot be copied, Compatible if they are trivially copyable, or Promotable if numeric values can be promoted to another numeric type.
 	 */
+	UE_DEPRECATED(5.3, "Use FStateTreePropertyBindings::GetPropertyCompatibility instead.")
 	static EPropertyAccessCompatibility GetPropertyCompatibility(const FProperty* FromProperty, const FProperty* ToProperty);
-	
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 protected:
 
 	void StoreSourceStructs();
-
-	EStateTreePropertyCopyType GetCopyType(const UStruct* SourceStruct, const FProperty* SourceProperty, const int32 SourceArrayIndex, const UStruct* TargetStruct, const FProperty* TargetProperty, const int32 TargetArrayIndex) const;
 
 	UPROPERTY()
 	TArray<FStateTreeBindableStructDesc> SourceStructs;

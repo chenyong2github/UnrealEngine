@@ -303,3 +303,81 @@ struct FStateTreeTestRunContext
 	int32 Count = 0;
 };
 
+
+USTRUCT()
+struct FStateTreeTest_PropertyStructB
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "")
+	int32 B = 0;
+};
+
+USTRUCT()
+struct FStateTreeTest_PropertyStruct
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "")
+	int32 A = 0;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	int32 B = 0;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	FStateTreeTest_PropertyStructB StructB;
+};
+
+UCLASS(HideDropdown)
+class UStateTreeTest_PropertyObjectInstanced : public UObject
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, Category = "")
+	int32 A = 0;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	FInstancedStruct InstancedStruct;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	TArray<FGameplayTag> ArrayOfTags;
+};
+
+UCLASS(HideDropdown)
+class UStateTreeTest_PropertyObjectInstancedWithB : public UStateTreeTest_PropertyObjectInstanced
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, Category = "")
+	int32 B = 0;
+};
+
+UCLASS(HideDropdown)
+class UStateTreeTest_PropertyObject : public UObject
+{
+	GENERATED_BODY()
+public:
+	
+	UPROPERTY(EditAnywhere, Instanced, Category = "")
+	TObjectPtr<UStateTreeTest_PropertyObjectInstanced> InstancedObject;
+
+	UPROPERTY(EditAnywhere, Instanced, Category = "")
+	TArray<TObjectPtr<UStateTreeTest_PropertyObjectInstanced>> ArrayOfInstancedObjects;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	TArray<int32> ArrayOfInts;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	FInstancedStruct InstancedStruct;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	TArray<FInstancedStruct> ArrayOfInstancedStructs;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	FStateTreeTest_PropertyStruct Struct;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	TArray<FStateTreeTest_PropertyStruct> ArrayOfStruct;
+};

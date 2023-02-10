@@ -103,7 +103,7 @@ void FStateTreeEditorDataDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 						.BorderImage(new FSlateRoundedBoxBrush(FStyleColors::Hover, 6.f))
 						[
 							SNew(STextBlock)
-							.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Node.Operand")
+							.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Param.Label")
 							.ColorAndOpacity(FStyleColors::Foreground)
 							.Text(LOCTEXT("LabelContext", "CONTEXT"))
 							.ToolTipText(LOCTEXT("ContextSourceTooltip", "This is Context Object, it passed in from where the StateTree is being used."))

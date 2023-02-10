@@ -40,6 +40,16 @@ struct STATETREEEDITORMODULE_API FStateTreeEditorNode
 		return FName();
 	}
 
+	const FStateTreeDataView GetInstance() const
+	{
+		return InstanceObject ? FStateTreeDataView(InstanceObject) : FStateTreeDataView(const_cast<FInstancedStruct&>(Instance));
+	}
+
+	FStateTreeDataView GetInstance()
+	{
+		return InstanceObject ? FStateTreeDataView(InstanceObject) : FStateTreeDataView(Instance);
+	}
+
 	UPROPERTY(EditDefaultsOnly, Category = Node)
 	FInstancedStruct Node;
 

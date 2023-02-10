@@ -2,9 +2,10 @@
 
 #include "StateTreeEditorPropertyBindings.h"
 #include "StateTreePropertyBindingCompiler.h"
+#include "Misc/EnumerateRange.h"
+#include "PropertyPathHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeEditorPropertyBindings)
-
 
 UStateTreeEditorPropertyBindingsOwner::UStateTreeEditorPropertyBindingsOwner(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -13,93 +14,155 @@ UStateTreeEditorPropertyBindingsOwner::UStateTreeEditorPropertyBindingsOwner(con
 
 //////////////////////////////////////////////////////////////////////////
 
-void FStateTreeEditorPropertyBindings::AddPropertyBinding(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath)
+void FStateTreeEditorPropertyBindings::AddPropertyBinding(const FStateTreePropertyPath& SourcePath, const FStateTreePropertyPath& TargetPath)
 {
 	RemovePropertyBindings(TargetPath);
-	PropertyBindings.Add(FStateTreeEditorPropertyBinding(SourcePath, TargetPath));
+	PropertyBindings.Add(FStateTreePropertyPathBinding(SourcePath, TargetPath));
 }
 
-void FStateTreeEditorPropertyBindings::RemovePropertyBindings(const FStateTreeEditorPropertyPath& TargetPath)
+void FStateTreeEditorPropertyBindings::RemovePropertyBindings(const FStateTreePropertyPath& TargetPath)
 {
-	PropertyBindings.RemoveAll([TargetPath](const FStateTreeEditorPropertyBinding& Binding)
+	PropertyBindings.RemoveAll([&TargetPath](const FStateTreePropertyPathBinding& Binding)
 		{
-			return Binding.TargetPath == TargetPath;
+			return Binding.GetTargetPath() == TargetPath;
 		});
 }
 
 void FStateTreeEditorPropertyBindings::CopyBindings(const FGuid FromStructID, const FGuid ToStructID)
 {
 	// Copy all bindings that target "FromStructID" and retarget them to "ToStructID".
-	TArray<FStateTreeEditorPropertyBinding> NewBindings;
-	for (const FStateTreeEditorPropertyBinding& Binding : PropertyBindings)
+	TArray<FStateTreePropertyPathBinding> NewBindings;
+	for (const FStateTreePropertyPathBinding& Binding : PropertyBindings)
 	{
-		if (Binding.TargetPath.StructID == FromStructID)
+		if (Binding.GetTargetPath().GetStructID() == FromStructID)
 		{
-			FStateTreeEditorPropertyBinding& NewBinding = NewBindings.Add_GetRef(Binding);
-			NewBinding.TargetPath.StructID = ToStructID;
+			NewBindings.Emplace(Binding.GetSourcePath(), FStateTreePropertyPath(ToStructID, Binding.GetTargetPath().GetSegments()));
 		}
 	}
 
-	for (const FStateTreeEditorPropertyBinding& NewBinding : NewBindings)
-	{
-		AddPropertyBinding(NewBinding.SourcePath, NewBinding.TargetPath);
-	}
+	PropertyBindings.Append(NewBindings);
 }
 
-bool FStateTreeEditorPropertyBindings::HasPropertyBinding(const FStateTreeEditorPropertyPath& TargetPath) const
+bool FStateTreeEditorPropertyBindings::HasPropertyBinding(const FStateTreePropertyPath& TargetPath) const
 {
-	return PropertyBindings.ContainsByPredicate([TargetPath](const FStateTreeEditorPropertyBinding& Binding)
+	return PropertyBindings.ContainsByPredicate([&TargetPath](const FStateTreePropertyPathBinding& Binding)
 		{
-			return Binding.TargetPath == TargetPath;
+			return Binding.GetTargetPath() == TargetPath;
 		});
 }
 
-const FStateTreeEditorPropertyPath* FStateTreeEditorPropertyBindings::GetPropertyBindingSource(const FStateTreeEditorPropertyPath& TargetPath) const
+const FStateTreePropertyPath* FStateTreeEditorPropertyBindings::GetPropertyBindingSource(const FStateTreePropertyPath& TargetPath) const
 {
-	const FStateTreeEditorPropertyBinding* Binding = PropertyBindings.FindByPredicate([TargetPath](const FStateTreeEditorPropertyBinding& Binding)
+	const FStateTreePropertyPathBinding* Binding = PropertyBindings.FindByPredicate([&TargetPath](const FStateTreePropertyPathBinding& Binding)
 		{
-			return Binding.TargetPath == TargetPath;
+			return Binding.GetTargetPath() == TargetPath;
 		});
-	return Binding ? &Binding->SourcePath : nullptr;
+	return Binding ? &Binding->GetSourcePath() : nullptr;
 }
 
-void FStateTreeEditorPropertyBindings::GetPropertyBindingsFor(const FGuid StructID, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
+void FStateTreeEditorPropertyBindings::GetPropertyBindingsFor(const FGuid StructID, TArray<FStateTreePropertyPathBinding>& OutBindings) const
 {
-	OutBindings = PropertyBindings.FilterByPredicate([StructID](const FStateTreeEditorPropertyBinding& Binding)
+	OutBindings = PropertyBindings.FilterByPredicate([StructID](const FStateTreePropertyPathBinding& Binding)
 		{
-			return Binding.TargetPath.StructID == StructID && Binding.IsValid();
+			return Binding.GetSourcePath().GetStructID().IsValid()
+				&& Binding.GetTargetPath().GetStructID() == StructID;
 		});
 }
 
-void FStateTreeEditorPropertyBindings::RemoveUnusedBindings(const TMap<FGuid, const UStruct*>& ValidStructs)
+void FStateTreeEditorPropertyBindings::RemoveUnusedBindings(const TMap<FGuid, const FStateTreeDataView>& ValidStructs)
 {
-	PropertyBindings.RemoveAll([ValidStructs](const FStateTreeEditorPropertyBinding& Binding)
+	PropertyBindings.RemoveAll([ValidStructs](FStateTreePropertyPathBinding& Binding)
 		{
 			// Remove binding if it's target struct has been removed
-			if (!ValidStructs.Contains(Binding.TargetPath.StructID))
+			if (!ValidStructs.Contains(Binding.GetTargetPath().GetStructID()))
+			{
+				// Remove
+				return true;
+			}
+
+			// Target path should always have at least one segment (copy bind directly on a target struct/object). 
+			if (Binding.GetTargetPath().IsPathEmpty())
 			{
 				return true;
 			}
 
-			// Remove binding if the target property cannot be resolved, likely renamed property.
+			// Remove binding if path containing instanced indirections (e.g. instance struct or object) cannot be resolved.
 			// TODO: Try to use core redirect to find new name.
-			const UStruct* Struct = ValidStructs.FindChecked(Binding.TargetPath.StructID);
-
-			FStateTreeBindableStructDesc StructDesc;
-			StructDesc.Struct = Struct;
-			StructDesc.ID = Binding.TargetPath.StructID;
-		
-			TArray<FStateTreePropertySegment> Segments;
-			const FProperty* LeafProperty = nullptr;
-			int32 LeafArrayIndex = INDEX_NONE;
-			if (!FStateTreePropertyBindingCompiler::ResolvePropertyPath(StructDesc, Binding.TargetPath, Segments, LeafProperty, LeafArrayIndex))
+			const FStateTreeDataView Value = ValidStructs.FindChecked(Binding.GetTargetPath().GetStructID());
+			FString Error;
+			TArray<FStateTreePropertyPathIndirection> Indirections;
+			if (!Binding.GetTargetPath().ResolveIndirectionsWithValue(Value, Indirections, &Error))
 			{
+				UE_LOG(LogStateTree, Verbose, TEXT("Removing binding to %s because binding target path cannot be resolved: %s"),
+					*Binding.GetSourcePath().ToString(), *Error); // Error contains the target path.
+				
+				// Remove
 				return true;
 			}
 
 			return false;
 		});
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void FStateTreeEditorPropertyBindings::AddPropertyBinding(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath)
+{
+	AddPropertyBinding(UE::StateTree::Private::ConvertEditorPath(SourcePath), UE::StateTree::Private::ConvertEditorPath(TargetPath));
+}
+
+void FStateTreeEditorPropertyBindings::RemovePropertyBindings(const FStateTreeEditorPropertyPath& TargetPath)
+{
+	RemovePropertyBindings(UE::StateTree::Private::ConvertEditorPath(TargetPath));
+}
+
+bool FStateTreeEditorPropertyBindings::HasPropertyBinding(const FStateTreeEditorPropertyPath& TargetPath) const
+{
+	return HasPropertyBinding(UE::StateTree::Private::ConvertEditorPath(TargetPath));
+}
+
+const FStateTreeEditorPropertyPath* FStateTreeEditorPropertyBindings::GetPropertyBindingSource(const FStateTreeEditorPropertyPath& TargetPath) const
+{
+	static FStateTreeEditorPropertyPath Dummy;
+	const FStateTreePropertyPath* SourcePath = GetPropertyBindingSource(UE::StateTree::Private::ConvertEditorPath(TargetPath));
+	if (SourcePath != nullptr)
+	{
+		Dummy = UE::StateTree::Private::ConvertEditorPath(*SourcePath);
+		return &Dummy;
+	}
+	return nullptr;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void FStateTreeEditorPropertyBindings::RemoveUnusedBindings(const TMap<FGuid, const UStruct*>& ValidStructs)
+{
+	PropertyBindings.RemoveAll([ValidStructs](const FStateTreePropertyPathBinding& Binding)
+		{
+			// Remove binding if it's target struct has been removed
+			if (!ValidStructs.Contains(Binding.GetTargetPath().GetStructID()))
+			{
+				return true;
+			}
+
+			// Target path should always have at least one segment (copy bind directly on a target struct/object). 
+			if (Binding.GetTargetPath().IsPathEmpty())
+			{
+				return true;
+			}
+		
+			// Remove binding if path containing instanced indirections (e.g. instance struct or object) cannot be resolved.
+			// TODO: Try to use core redirect to find new name.
+			const UStruct* Struct = ValidStructs.FindChecked(Binding.GetTargetPath().GetStructID());
+			TArray<FStateTreePropertyPathIndirection> Indirections;
+			if (!Binding.GetTargetPath().ResolveIndirections(Struct, Indirections))
+			{
+				// Remove
+				return true;
+			}
+
+			return false;
+		});
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -108,58 +171,50 @@ FStateTreeBindingLookup::FStateTreeBindingLookup(IStateTreeEditorPropertyBinding
 {
 }
 
-const FStateTreeEditorPropertyPath* FStateTreeBindingLookup::GetPropertyBindingSource(const FStateTreeEditorPropertyPath& InTargetPath) const
+const FStateTreePropertyPath* FStateTreeBindingLookup::GetPropertyBindingSource(const FStateTreePropertyPath& InTargetPath) const
 {
 	check(BindingOwner);
-	FStateTreeEditorPropertyBindings* EditorBindings = BindingOwner->GetPropertyEditorBindings();
+	const FStateTreeEditorPropertyBindings* EditorBindings = BindingOwner->GetPropertyEditorBindings();
 	check(EditorBindings);
 
 	return EditorBindings->GetPropertyBindingSource(InTargetPath);
 }
 
-FText FStateTreeBindingLookup::GetPropertyPathDisplayName(const FStateTreeEditorPropertyPath& InPath) const
+FText FStateTreeBindingLookup::GetPropertyPathDisplayName(const FStateTreePropertyPath& InPath) const
 {
 	check(BindingOwner);
-	FStateTreeEditorPropertyBindings* EditorBindings = BindingOwner->GetPropertyEditorBindings();
+	const FStateTreeEditorPropertyBindings* EditorBindings = BindingOwner->GetPropertyEditorBindings();
 	check(EditorBindings);
 
 	FString Result;
 
 	FStateTreeBindableStructDesc Struct;
-	if (BindingOwner->GetStructByID(InPath.StructID, Struct))
+	if (BindingOwner->GetStructByID(InPath.GetStructID(), Struct))
 	{
 		Result = Struct.Name.ToString();
 	}
 
-	for (const FString& Segment : InPath.Path)
-	{
-		Result += TEXT(".") + Segment;
-	}
+	Result += TEXT(".") + InPath.ToString();
 
 	return FText::FromString(Result);
 }
 
-const FProperty* FStateTreeBindingLookup::GetPropertyPathLeafProperty(const FStateTreeEditorPropertyPath& InPath) const
+const FProperty* FStateTreeBindingLookup::GetPropertyPathLeafProperty(const FStateTreePropertyPath& InPath) const
 {
 	check(BindingOwner);
-	FStateTreeEditorPropertyBindings* EditorBindings = BindingOwner->GetPropertyEditorBindings();
+	const FStateTreeEditorPropertyBindings* EditorBindings = BindingOwner->GetPropertyEditorBindings();
 	check(EditorBindings);
 
 	const FProperty* Result = nullptr;
 	FStateTreeBindableStructDesc Struct;
-	if (BindingOwner->GetStructByID(InPath.StructID, Struct))
+	if (BindingOwner->GetStructByID(InPath.GetStructID(), Struct))
 	{
-		// TODO: Could use inline allocator here, since there are usually only few segments. Needs API change in ResolvePropertyPath().
-		TArray<FStateTreePropertySegment> Segments;
-		const FProperty* LeafProperty = nullptr;
-		int32 LeafArrayIndex = INDEX_NONE;
-		if (FStateTreePropertyBindingCompiler::ResolvePropertyPath(Struct, InPath, Segments, LeafProperty, LeafArrayIndex))
+		TArray<FStateTreePropertyPathIndirection> Indirection;
+		if (InPath.ResolveIndirections(Struct.Struct, Indirection) && Indirection.Num() > 0)
 		{
-			Result = LeafProperty;
+			return Indirection.Last().GetProperty();
 		}
 	}
 
 	return Result;
 }
-
-
