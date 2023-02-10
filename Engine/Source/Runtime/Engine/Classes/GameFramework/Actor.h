@@ -934,6 +934,11 @@ public:
 	 */
 	virtual bool ShouldLevelKeepRefIfExternal() const { return false; }
 
+	/**
+	 * Whether this actor should be ignored when it is loaded from a level instance
+	 */
+	bool ShouldSkipFromLevelInstance() const;
+
 	FActorOnPackagingModeChanged OnPackagingModeChanged;
 
 	/** Returns this actor's current target runtime grid. */
@@ -1231,6 +1236,7 @@ public:
 #if WITH_EDITOR
 private:
 	virtual bool ActorTypeSupportsDataLayer() const { return true; }
+	virtual bool ActorTypeShouldSkipFromLevelInstance() const { return false; }
 public:
 	bool AddDataLayer(const UDataLayerAsset* DataLayerAsset);
 	bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);

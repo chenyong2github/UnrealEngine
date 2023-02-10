@@ -23,6 +23,7 @@
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
+#include "WorldPartition/WorldPartitionActorContainerID.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 #include "ActorReferencesUtils.h"
 
@@ -588,6 +589,11 @@ void FWorldPartitionActorDesc::CheckForErrors(IStreamingGenerationErrorHandler* 
 	{
 		ErrorHandler->OnActorNeedsResave(this);
 	}
+}
+
+bool FWorldPartitionActorDesc::IsRuntimeRelevant(const FActorContainerID& InContainerID) const
+{
+	return InContainerID.IsMainContainer() || !CastChecked<AActor>(ActorNativeClass->GetDefaultObject())->ShouldSkipFromLevelInstance();
 }
 
 bool FWorldPartitionActorDesc::IsLoaded(bool bEvenIfPendingKill) const

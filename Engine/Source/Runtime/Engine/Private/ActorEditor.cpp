@@ -1015,6 +1015,18 @@ void AActor::SetHLODLayer(class UHLODLayer* InHLODLayer)
 	HLODLayer = InHLODLayer;
 }
 
+bool AActor::ShouldSkipFromLevelInstance() const
+{
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return ActorTypeShouldSkipFromLevelInstance();
+	}
+	else
+	{
+		return CastChecked<AActor>(GetClass()->GetDefaultObject())->ShouldSkipFromLevelInstance();
+	}
+}
+
 void AActor::SetPackageExternal(bool bExternal, bool bShouldDirty)
 {
 	// @todo_ow: Call FExternalPackageHelper::SetPackagingMode and keep calling the actor specific code here (components). 

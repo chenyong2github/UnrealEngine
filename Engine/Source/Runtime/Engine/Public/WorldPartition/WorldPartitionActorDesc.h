@@ -143,7 +143,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
 	virtual bool IsResaveNeeded() const { return false; }
-	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const { return true; }
+	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const;
 	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
 	UE_DEPRECATED(5.2, "ShouldValidateRuntimeGrid is deprecated and should not be used.")

@@ -1300,13 +1300,9 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ILevelInstanceInterface* L
 			}
 
 			// Skip some actor types
-			// @todo_ow: Move this logic in a new virtual function
 			if ((Actor != Actor->GetLevel()->GetDefaultBrush()) &&
-				!Actor->IsA<ALevelBounds>() &&
 				!Actor->IsA<AWorldSettings>() &&
-				!Actor->IsA<ALevelInstanceEditorInstanceActor>() &&
-				!Actor->IsA<AWorldDataLayers>() &&
-				!Actor->IsA<AWorldPartitionMiniMap>())
+				!Actor->ShouldSkipFromLevelInstance())
 			{
 				if (CanMoveActorToLevel(Actor))
 				{

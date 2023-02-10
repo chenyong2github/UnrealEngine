@@ -63,7 +63,6 @@ protected:
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual bool IsResaveNeeded() const override { return !IsValid(); }
-	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const override;
 	//~ End FWorldPartitionActorDesc Interface.
 
 private:

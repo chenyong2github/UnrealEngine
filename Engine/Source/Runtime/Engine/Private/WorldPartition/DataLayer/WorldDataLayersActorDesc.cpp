@@ -169,12 +169,6 @@ void FWorldDataLayersActorDesc::Serialize(FArchive& Ar)
 	}
 }
 
-bool FWorldDataLayersActorDesc::IsRuntimeRelevant(const FActorContainerID& InContainerID) const
-{
-	// @todo_ow : For now we don't consider WorldDataLayers from content bundles
-	return InContainerID.IsMainContainer() && !ContentBundleGuid.IsValid();
-}
-
 const FDataLayerInstanceDesc* FWorldDataLayersActorDesc::GetDataLayerInstanceFromInstanceName(FName InDataLayerInstanceName) const
 {
 	for (const FDataLayerInstanceDesc& DataLayerInstance : DataLayerInstances)

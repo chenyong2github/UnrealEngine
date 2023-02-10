@@ -19,6 +19,7 @@ class ENGINE_API AWorldPartitionMiniMap : public AInfo
 private:
 #if WITH_EDITOR
 	virtual bool ActorTypeSupportsDataLayer() const final { return false; }
+	virtual bool ActorTypeShouldSkipFromLevelInstance() const override  { return true; }
 #endif
 
 public:

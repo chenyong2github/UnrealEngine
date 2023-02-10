@@ -32,6 +32,7 @@ public:
 	virtual AActor* GetSelectionParent() const override;
 
 private:
+	virtual bool ActorTypeShouldSkipFromLevelInstance() const override { return true; }
 	friend class ULevelInstanceComponent;
 	void UpdateWorldTransform(const FTransform& WorldTransform);
 

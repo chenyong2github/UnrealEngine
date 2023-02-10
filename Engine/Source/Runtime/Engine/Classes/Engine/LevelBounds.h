@@ -106,8 +106,8 @@ protected:
 	FDelegateHandle OnLevelActorMovedDelegateHandle;
 	FDelegateHandle OnLevelActorDeletedDelegateHandle;
 	FDelegateHandle OnLevelActorAddedDelegateHandle;
+
+private:
+	virtual bool ActorTypeShouldSkipFromLevelInstance() const override { return true; }
 #endif
 };
-
-
-
