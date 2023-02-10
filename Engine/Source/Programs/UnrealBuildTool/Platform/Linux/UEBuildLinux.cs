@@ -269,6 +269,9 @@ namespace UnrealBuildTool
 			{
 				IWYUToolChain.ValidateTarget(Target);
 			}
+
+			// Disable chaining PCHs for the moment because it is crashing clang
+			Target.bChainPCHs = false;
 		}
 
 		public override bool CanUseXGE()
