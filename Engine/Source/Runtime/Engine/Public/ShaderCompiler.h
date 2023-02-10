@@ -454,7 +454,6 @@ public:
 		uint32 CompiledDouble = 0;
 		uint32 CookedDouble = 0;
 		float CompileTime = 0.f;
-
 	};
 	using ShaderCompilerStats = TMap<FString, FShaderStats>;
 
@@ -467,6 +466,15 @@ public:
 		float TotalPreprocessTime = 0.0f;
 		int32 NumCompiled = 0;
 		float AverageCompileTime = 0.0f;	// stored explicitly as an optimization
+	};
+
+	struct FCompilerInvocations
+	{
+		int32 Dxc = 0;
+		int32 DxcPrecompileSteps = 0;
+		int32 Fxc = 0;
+		int32 Hlslcc = 0;
+		bool bWasPlatformCompilerUsed = false;
 	};
 
 	ENGINE_API void RegisterCookedShaders(uint32 NumCooked, float CompileTime, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
@@ -575,6 +583,9 @@ private:
 
 	/** Total number of DDC hits on shader maps. */
 	uint32 ShaderMapDDCHits = 0;
+
+	/** Total number of shader compiler invocations. */
+	FCompilerInvocations CompilerInvocations;
 };
 
 

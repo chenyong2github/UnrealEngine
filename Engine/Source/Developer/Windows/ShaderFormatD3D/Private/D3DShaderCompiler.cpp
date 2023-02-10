@@ -1069,13 +1069,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CompileD3DShader);
 	FString PreprocessedShaderSource;
-	const bool bIsRayTracingShader = Input.IsRayTracingShader();
-	const bool bUseDXC =
-		Language == ELanguage::SM6
-		|| bIsRayTracingShader
-		|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
-		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC)
-		|| Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing);
+	const bool bUseDXC = !Input.CanCompileWithLegacyFxc();
 	const TCHAR* ShaderProfile = GetShaderProfileName(Language, Input.Target.Frequency, bUseDXC);
 
 	if(!ShaderProfile)

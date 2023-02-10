@@ -3312,6 +3312,39 @@ static FString FormatNumber(T Number)
 	return FText::AsNumber(Number, &FormattingOptions).ToString();
 }
 
+static FString WriteShaderCompilerInvocationStats(const FShaderCompilerStats::FCompilerInvocations& Invocations)
+{
+	FString Stats;
+
+	auto AppendStat = [&Stats](const TCHAR* Text)
+	{
+		Stats += FString::Printf(TEXT("%s%s"), (Stats.IsEmpty() ? TEXT("") : TEXT(", ")), Text);
+	};
+	auto AppendInvocationStat = [&AppendStat](const TCHAR* CompilerName, int32 Invocations)
+	{
+		if (Invocations > 0)
+		{
+			AppendStat(*FString::Printf(TEXT("%s (%d)"), CompilerName, Invocations));
+		}
+	};
+	if (Invocations.Dxc > 0)
+	{
+		if (Invocations.DxcPrecompileSteps > 0)
+		{
+			AppendStat(*FString::Printf(TEXT("DXC (%d pre-compile steps / %d)"), Invocations.DxcPrecompileSteps, Invocations.Dxc));
+		}
+		else
+		{
+			AppendInvocationStat(TEXT("DXC"), Invocations.Dxc);
+		}
+	}
+	AppendInvocationStat(TEXT("Legacy FXC"), Invocations.Fxc);
+	AppendInvocationStat(TEXT("HLSLcc"), Invocations.Hlslcc);
+	AppendStat(*FString::Printf(TEXT("Platform compiler (%s)"), Invocations.bWasPlatformCompilerUsed ? TEXT("YES") : TEXT("NO")));
+
+	return Stats;
+}
+
 void FShaderCompilerStats::WriteStatSummary()
 {
 	const uint32 TotalCompiled = GetTotalShadersCompiled();
@@ -3325,6 +3358,8 @@ void FShaderCompilerStats::WriteStatSummary()
 		*FormatNumber(JobsAssigned),
 		*FormatNumber(JobsCompleted),
 		(JobsAssigned > 0.0) ? 100.0 * JobsCompleted / JobsAssigned : 0.0);
+
+	UE_LOG(LogShaderCompilers, Display, TEXT("Compiler invocations: %s"), *WriteShaderCompilerInvocationStats(CompilerInvocations));
 
 	if (TimesLocalWorkersWereIdle > 0.0)
 	{
@@ -3541,10 +3576,10 @@ void FShaderCompilerStats::RegisterFinishedJob(FShaderCommonCompileJob& Job)
 	ensure(Job.TimeAddedToPendingQueue != 0.0 && Job.TimeAddedToPendingQueue <= Job.TimeExecutionCompleted);
 	AddToInterval(JobLifeTimeIntervals, TInterval<double>(Job.TimeAddedToPendingQueue, Job.TimeExecutionCompleted));
 
-	if (const FShaderCompileJob* SingleJob = Job.GetSingleShaderJob())
+	auto RegisterStatsFromSingleJob = [this](const FShaderCompileJob& SingleJob)
 	{
 		// Register min/max/average shader code sizes for single job output
-		const int32 ShaderCodeSize = SingleJob->Output.ShaderCode.GetShaderCodeSize();
+		const int32 ShaderCodeSize = SingleJob.Output.ShaderCode.GetShaderCodeSize();
 		if (ShaderCodeSize > 0)
 		{
 			MinShaderCodeSize = (MinShaderCodeSize > 0 ? FMath::Min(MinShaderCodeSize, ShaderCodeSize) : ShaderCodeSize);
@@ -3553,13 +3588,56 @@ void FShaderCompilerStats::RegisterFinishedJob(FShaderCommonCompileJob& Job)
 			++NumAccumulatedShaderCodes;
 		}
 
-		const FString ShaderName(SingleJob->Key.ShaderType->GetName());
+		// Register shader compiler invocations
+		{
+			// Record FXC invocation if target is D3D11 (no other paltform uses FXC)
+			const EShaderPlatform InputShaderPlatform = SingleJob.Input.Target.GetPlatform();
+			const bool bIsD3DPlatform = FDataDrivenShaderPlatformInfo::GetIsLanguageD3D(InputShaderPlatform);
+			const bool bUsedFxc = bIsD3DPlatform && SingleJob.Input.CanCompileWithLegacyFxc();
+			if (bUsedFxc)
+			{
+				CompilerInvocations.Fxc++;
+			}
+
+			const bool bSupportsDxc = FDataDrivenShaderPlatformInfo::GetSupportsDxc(InputShaderPlatform);
+			const bool bSupportsDxcPrecompileStep = FDataDrivenShaderPlatformInfo::GetIsPC(InputShaderPlatform);
+			if (bSupportsDxc || bSupportsDxcPrecompileStep)
+			{
+				// Record DXC pre-compile step if FXC was used and HLSL 2021 or an explicit pre-compile step was requested
+				const bool bHlslVersion2021 = SingleJob.Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021);
+				const bool bPrecompileWithDXC = SingleJob.Input.Environment.CompilerFlags.Contains(CFLAG_PrecompileWithDXC);
+				const bool bWasPrecompiledWithDXC = bUsedFxc && (bHlslVersion2021 || bPrecompileWithDXC);
+				if (bWasPrecompiledWithDXC)
+				{
+					CompilerInvocations.DxcPrecompileSteps++;
+				}
+
+				// Record DXC invocation if it was explicitly requested or if there was a pre-compile step
+				const bool bForceDxc = SingleJob.Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
+				if (bForceDxc || bWasPrecompiledWithDXC)
+				{
+					CompilerInvocations.Dxc++;
+				}
+			}
+
+			// Record HLSLcc invocation if output is marked as such
+			if (SingleJob.Output.bUsedHLSLccCompiler)
+			{
+				CompilerInvocations.Hlslcc++;
+			}
+
+			// Assume any console target requires a platform compiler
+			const bool bIsConsole = FDataDrivenShaderPlatformInfo::GetIsConsole(InputShaderPlatform);
+			CompilerInvocations.bWasPlatformCompilerUsed = bIsConsole;
+		}
+
+		const FString ShaderName(SingleJob.Key.ShaderType->GetName());
 		if (FShaderTimings* Existing = ShaderTimings.Find(ShaderName))
 		{
-			Existing->MinCompileTime = FMath::Min(Existing->MinCompileTime, static_cast<float>(SingleJob->Output.CompileTime));
-			Existing->MaxCompileTime = FMath::Max(Existing->MaxCompileTime, static_cast<float>(SingleJob->Output.CompileTime));
-			Existing->TotalCompileTime += SingleJob->Output.CompileTime;
-			Existing->TotalPreprocessTime += SingleJob->Output.PreprocessTime;
+			Existing->MinCompileTime = FMath::Min(Existing->MinCompileTime, static_cast<float>(SingleJob.Output.CompileTime));
+			Existing->MaxCompileTime = FMath::Max(Existing->MaxCompileTime, static_cast<float>(SingleJob.Output.CompileTime));
+			Existing->TotalCompileTime += SingleJob.Output.CompileTime;
+			Existing->TotalPreprocessTime += SingleJob.Output.PreprocessTime;
 			Existing->NumCompiled++;
 			// calculate as an optimization to make sorting later faster
 			Existing->AverageCompileTime = Existing->TotalCompileTime / static_cast<float>(Existing->NumCompiled);
@@ -3567,16 +3645,17 @@ void FShaderCompilerStats::RegisterFinishedJob(FShaderCommonCompileJob& Job)
 		else
 		{
 			FShaderTimings New;
-			New.MinCompileTime = SingleJob->Output.CompileTime;
+			New.MinCompileTime = SingleJob.Output.CompileTime;
 			New.MaxCompileTime = New.MinCompileTime;
 			New.TotalCompileTime = New.MinCompileTime;
-			New.TotalPreprocessTime += SingleJob->Output.PreprocessTime;
+			New.TotalPreprocessTime += SingleJob.Output.PreprocessTime;
 			New.AverageCompileTime = New.MinCompileTime;
 			New.NumCompiled = 1;
 			ShaderTimings.Add(ShaderName, New);
 		}
-	}
+	};
 
+	Job.ForEachSingleShaderJob(RegisterStatsFromSingleJob);
 }
 
 void FShaderCompilerStats::RegisterJobBatch(int32 NumJobs, EExecutionType ExecType)

@@ -6,6 +6,7 @@
 #include "Hash/Blake3.h"
 #include "Shader.h"
 #include "VertexFactory.h"
+#include "Templates/Function.h"
 
 class FShaderCommonCompileJob;
 class FShaderCompileJob;
@@ -114,7 +115,10 @@ public:
 	const FShaderPipelineCompileJob* GetShaderPipelineJob() const;
 
 	bool Equals(const FShaderCommonCompileJob& Rhs) const;
-	
+
+	/** Calls the specified predicate for each single compile job, i.e. FShaderCompileJob and each stage of FShaderPipelineCompileJob. */
+	void ForEachSingleShaderJob(const TFunction<void(const FShaderCompileJob& SingleJob)>& Predicate) const;
+
 	/** This returns a unique id for a shader compiler job */
 	RENDERCORE_API static uint32 GetNextJobId();
 
@@ -275,5 +279,23 @@ inline void FShaderCommonCompileJob::Destroy() const
 	case EShaderCompileJobType::Single: delete static_cast<const FShaderCompileJob*>(this); break;
 	case EShaderCompileJobType::Pipeline: delete static_cast<const FShaderPipelineCompileJob*>(this); break;
 	default: checkNoEntry();
+	}
+}
+
+inline void FShaderCommonCompileJob::ForEachSingleShaderJob(const TFunction<void(const FShaderCompileJob&)>& Predicate) const
+{
+	if (const FShaderCompileJob* SingleJob = GetSingleShaderJob())
+	{
+		Predicate(*SingleJob);
+	}
+	else if (const FShaderPipelineCompileJob* PipelineJob = GetShaderPipelineJob())
+	{
+		for (const TRefCountPtr<FShaderCompileJob>& StageJob : PipelineJob->StageJobs)
+		{
+			if (const FShaderCompileJob* SingleStageJob = StageJob->GetSingleShaderJob())
+			{
+				Predicate(*SingleStageJob);
+			}
+		}
 	}
 }

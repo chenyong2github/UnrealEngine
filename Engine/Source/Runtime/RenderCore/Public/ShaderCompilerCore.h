@@ -364,6 +364,17 @@ struct FShaderCompilerInput
 	{
 		return IsRayTracingShaderFrequency(Target.GetFrequency());
 	}
+
+	/** Returns whether this shader input *can* be compiled with the legacy FXC compiler. */
+	bool CanCompileWithLegacyFxc() const
+	{
+		return !(Target.GetPlatform() == SP_PCD3D_SM6
+			|| IsRayTracingShader()
+			|| Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
+			|| Environment.CompilerFlags.Contains(CFLAG_ForceDXC)
+			|| Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing)
+			);
+	}
 };
 
 /** A shader compiler error or warning. */
