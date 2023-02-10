@@ -110,7 +110,7 @@ bool FStateTreePropertyBindings::ResolvePaths()
 
 			if (!Binding.GetCompiledSourceStructIndex().IsValid())
 			{
-				UE_LOG(LogStateTree, Error, TEXT("%hs: '%s' Invalid source struct for property binding %s."), __FUNCTION__, *Binding.GetSourcePath().ToString());
+				UE_LOG(LogStateTree, Error, TEXT("%hs: Invalid source struct for property binding %s."), __FUNCTION__, *Binding.GetSourcePath().ToString());
 				bResult = false;
 				continue;
 			}
