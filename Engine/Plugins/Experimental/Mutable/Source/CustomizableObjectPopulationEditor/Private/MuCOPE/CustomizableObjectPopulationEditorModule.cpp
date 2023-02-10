@@ -3,8 +3,6 @@
 #include "MuCOPE/CustomizableObjectPopulationEditorModule.h"
 
 #include "MuCO/CustomizableObject.h"	// For the LogMutable log category
-#include "MuCOPE/AssetTypeActions_CustomizableObjectPopulation.h"
-#include "MuCOPE/AssetTypeActions_CustomizableObjectPopulationClass.h"
 #include "MuCOPE/CustomizableObjectPopulationClassDetails.h"
 #include "MuCOPE/CustomizableObjectPopulationClassEditor.h"
 #include "MuCOPE/CustomizableObjectPopulationEditor.h"
@@ -80,15 +78,6 @@ void FCustomizableObjectPopulationEditorModule::StartupModule()
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	
 	PropertyModule.RegisterCustomClassLayout("CustomizableObjectPopulationClass", FOnGetDetailCustomizationInstance::CreateStatic(&FCustomizableObjectPopulationClassDetails::MakeInstance));
-	
-	// Asset actions
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked< FAssetToolsModule >( "AssetTools" );
-
-	TSharedPtr<FAssetTypeActions_CustomizableObjectPopulation> CustomizableObjectPopulationAssetTypeActions = MakeShareable(new FAssetTypeActions_CustomizableObjectPopulation);
-	AssetToolsModule.Get().RegisterAssetTypeActions(CustomizableObjectPopulationAssetTypeActions.ToSharedRef());
-	
-	TSharedPtr<FAssetTypeActions_CustomizableObjectPopulationClass> CustomizableObjectPopulationClassAssetTypeActions = MakeShareable(new FAssetTypeActions_CustomizableObjectPopulationClass);
-	AssetToolsModule.Get().RegisterAssetTypeActions(CustomizableObjectPopulationClassAssetTypeActions.ToSharedRef());
 
 	// Additional UI style
 	FCustomizableObjectPopulationEditorStyle::Initialize();

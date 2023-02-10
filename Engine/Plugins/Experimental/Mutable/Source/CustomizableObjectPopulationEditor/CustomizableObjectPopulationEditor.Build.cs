@@ -55,6 +55,10 @@ public class CustomizableObjectPopulationEditor : ModuleRules
 
 				"MutableRuntime",
 				"MutableTools",
+				
+				"ContentBrowser",
+				"AssetDefinition",
+				"ToolMenus"
 			}
 		);
 
@@ -64,7 +68,6 @@ public class CustomizableObjectPopulationEditor : ModuleRules
 				"MainFrame",
 				"SceneOutliner",
 				"ClassViewer",
-				"ContentBrowser",
 				"WorkspaceMenuStructure",
 			}
 		);

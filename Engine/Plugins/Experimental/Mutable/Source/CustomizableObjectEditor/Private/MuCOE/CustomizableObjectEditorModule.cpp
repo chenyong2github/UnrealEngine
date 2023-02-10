@@ -2,6 +2,7 @@
 
 #include "MuCOE/CustomizableObjectEditorModule.h"
 
+#include "AssetToolsModule.h"
 #include "GameFramework/Pawn.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
@@ -11,8 +12,6 @@
 #include "MuCO/CustomizableObjectSystem.h"		// For defines related to memory function replacements.
 #include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/CustomizableSkeletalMeshActor.h"
-#include "MuCOE/AssetTypeActions_CustomizableObject.h"
-#include "MuCOE/AssetTypeActions_CustomizableObjectInstance.h"
 #include "MuCOE/CustomizableInstanceDetails.h"
 #include "MuCOE/CustomizableObjectCustomSettings.h"
 #include "MuCOE/CustomizableObjectCustomSettingsDetails.h"
@@ -60,6 +59,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTableDetails.h"
 #include "PropertyEditorModule.h"
+#include "MuCO/CustomizableObjectInstance.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeGroupProjectorParameter.h"
 #include "UObject/UObjectIterator.h"
 
@@ -198,19 +198,6 @@ void FCustomizableObjectEditorModule::StartupModule()
 	CustomizableObjectInstanceFactory->NewActorClass = ACustomizableSkeletalMeshActor::StaticClass();
 	UEditorEngine* engine = GEditor;
 	engine->ActorFactories.Add(CustomizableObjectInstanceFactory);
-	
-	// New category
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	CustomizableObjectAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Mutable")), LOCTEXT("MutableAssetsCategory", "Mutable"));
-
-	// Asset actions
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked< FAssetToolsModule >( "AssetTools" );
-	
-	TSharedPtr<FAssetTypeActions_CustomizableObject> CustomizableObjectAssetTypeActions = MakeShareable( new FAssetTypeActions_CustomizableObject );	
-	AssetToolsModule.Get().RegisterAssetTypeActions( CustomizableObjectAssetTypeActions.ToSharedRef() );
-
-	TSharedPtr<FAssetTypeActions_CustomizableObjectInstance> CustomizableObjectInstanceAssetTypeActions = MakeShareable( new FAssetTypeActions_CustomizableObjectInstance );
-	AssetToolsModule.Get().RegisterAssetTypeActions( CustomizableObjectInstanceAssetTypeActions.ToSharedRef() );
 	
 
 	// Additional UI style

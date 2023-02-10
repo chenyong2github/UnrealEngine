@@ -73,7 +73,10 @@ public class CustomizableObjectEditor : ModuleRules
 
 				"MutableRuntime",
 				"MutableTools",
-				"GameplayTags"
+				"GameplayTags",
+				
+				"AssetDefinition",
+				"ContentBrowser",
 			}
 		);
 
@@ -83,7 +86,6 @@ public class CustomizableObjectEditor : ModuleRules
 				"MainFrame",
 				"SceneOutliner",
 				"ClassViewer",
-				"ContentBrowser",
 				"WorkspaceMenuStructure",
 				}
 			);
@@ -93,7 +95,7 @@ public class CustomizableObjectEditor : ModuleRules
 			new string[] {
 				"PropertyEditor",
 				"CustomizableObject",
-				}
+			}
 			);
 
 		PrivateIncludePaths.AddRange(new string[] {
