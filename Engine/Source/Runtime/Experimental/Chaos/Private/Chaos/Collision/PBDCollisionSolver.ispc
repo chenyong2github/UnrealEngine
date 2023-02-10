@@ -13,6 +13,22 @@
 
 export struct FSolverBody
 {
+	// Net position delta applied by all constraints (constantly changing as we iterate over constraints)
+	FVector3f DP;
+	float DPPad;
+
+	// Net rotation delta applied by all constraints (constantly changing as we iterate over constraints)
+	FVector3f DQ;
+	float DQPad;
+
+	// World-space center of mass velocity
+	FVector3f V;
+	float VPad;
+
+	// World-space center of mass angular velocity
+	FVector3f W;
+	float WPad;
+
 	// World-space inverse inertia
 	// @todo(chaos): do we need this, or should we force all systems to use the FConstraintSolverBody decorator?
 	FMatrix33f InvI;
@@ -42,12 +58,6 @@ export struct FSolverBody
 	// Inverse mass
 	float InvM;
 
-	// Net position delta applied by all constraints (constantly changing as we iterate over constraints)
-	FVector3f DP;
-
-	// Net rotation delta applied by all constraints (constantly changing as we iterate over constraints)
-	FVector3f DQ;
-
 	// Net position correction delta applied by all constraints (constantly changing as we iterate over constraints)
 	// Will translate the body without introducing linear velocity
 	FVector3f CP;
@@ -55,12 +65,6 @@ export struct FSolverBody
 	// Net rotation correction delta applied by all constraints (constantly changing as we iterate over constraints)
 	// Will rotate the body without introducing angular velocity
 	FVector3f CQ;
-
-	// World-space center of mass velocity
-	FVector3f V;
-
-	// World-space center of mass angular velocity
-	FVector3f W;
 
 	// Distance to a kinematic body (through the contact graph). Used by collision shock propagation
 	int32 Level;

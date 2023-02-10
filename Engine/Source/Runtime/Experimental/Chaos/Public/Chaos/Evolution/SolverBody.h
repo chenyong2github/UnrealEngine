@@ -429,13 +429,13 @@ namespace Chaos
 		void PrefetchPositionSolverData() const
 		{
 			// The position solver only uses DP,DQ
-			FPlatformMisc::PrefetchBlock(&State.DP, 2 * sizeof(FSolverVec3));
+			FPlatformMisc::PrefetchBlock(&State.DP, 8 * sizeof(float));
 		}
 
 		void PrefetchVelocitySolverData() const
 		{
 			// The velocity solver only uses V,W
-			FPlatformMisc::PrefetchBlock(&State.V, 2 * sizeof(FSolverVec3));
+			FPlatformMisc::PrefetchBlock(&State.V, 8 * sizeof(float));
 		}
 
 	private:
@@ -449,6 +449,10 @@ namespace Chaos
 
 			void Init()
 			{
+				DP = FSolverVec3(0);
+				DQ = FSolverVec3(0);
+				V = FSolverVec3(0);
+				W = FSolverVec3(0);
 				InvI = FSolverMatrix33(0);
 				RoM = FRotation3::FromIdentity();
 				R = FRotation3::FromIdentity();
@@ -458,14 +462,22 @@ namespace Chaos
 				P = FVec3(0);
 				InvILocal = FSolverVec3(0);
 				InvM = 0;
-				DP = FSolverVec3(0);
-				DQ = FSolverVec3(0);
-				V = FSolverVec3(0);
-				W = FSolverVec3(0);
 				CP = FSolverVec3(0);
 				CQ = FSolverVec3(0);
 				Level = 0;
 			}
+
+			// Net position delta applied by all constraints (constantly changing as we iterate over constraints)
+			alignas(16) FSolverVec3 DP;
+
+			// Net rotation delta applied by all constraints (constantly changing as we iterate over constraints)
+			alignas(16) FSolverVec3 DQ;
+
+			// World-space center of mass velocity
+			alignas(16) FSolverVec3 V;
+
+			// World-space center of mass angular velocity
+			alignas(16) FSolverVec3 W;
 
 			// World-space inverse inertia
 			// NOTE: Matrix and Rotation are alignas(16) so beware of padding
@@ -497,18 +509,6 @@ namespace Chaos
 
 			// Inverse mass
 			FSolverReal InvM;
-
-			// Net position delta applied by all constraints (constantly changing as we iterate over constraints)
-			FSolverVec3 DP;
-
-			// Net rotation delta applied by all constraints (constantly changing as we iterate over constraints)
-			FSolverVec3 DQ;
-
-			// World-space center of mass velocity
-			FSolverVec3 V;
-
-			// World-space center of mass angular velocity
-			FSolverVec3 W;
 
 			// Net position correction delta applied by all constraints (constantly changing as we iterate over constraints)
 			// Will translate the body without introducing linear velocity
