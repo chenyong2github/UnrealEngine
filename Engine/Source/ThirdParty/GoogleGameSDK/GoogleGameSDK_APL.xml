@@ -5,10 +5,11 @@
 	<init>
 		<log text="GoogleGameSDK Android init"/>
 		<setBoolFromProperty result="bIncludeMemAdvisor" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bEnableGameSDKMemAdvisor" default="false"/>
+		<setBool result="bIncludeJavaMemAdvisor" value="false"/>
 	</init>
 	
 	<gameActivityImportAdditions>
-		<if condition="bIncludeMemAdvisor">
+		<if condition="bIncludeJavaMemAdvisor">
 			<true>
 				<insert>
 import com.google.android.apps.internal.games.memoryadvice.MemoryAdvisor;
@@ -19,7 +20,7 @@ import com.google.android.apps.internal.games.memoryadvice.MemoryWatcher;
 	</gameActivityImportAdditions>
 
 	<gameActivityPostConfigRulesAdditions>
-		<if condition="bIncludeMemAdvisor">
+		<if condition="bIncludeJavaMemAdvisor">
 			<true>
 				<insert>
 					<![CDATA[
@@ -40,7 +41,7 @@ if(variables.containsKey(memAdvisorEnableVar) && variables.get(memAdvisorEnableV
 	</gameActivityPostConfigRulesAdditions>
 
 	<gameActivityClassAdditions>
-		<if condition="bIncludeMemAdvisor">
+		<if condition="bIncludeJavaMemAdvisor">
 			<true>
 				<insert>
 					<![CDATA[
@@ -99,7 +100,7 @@ allprojects
 	repositories 
 	{
 		</insert>
-		<if condition="bIncludeMemAdvisor">
+		<if condition="bIncludeJavaMemAdvisor">
 			<true>
 				<insert>
 		google()
@@ -128,7 +129,7 @@ allprojects
 	</baseBuildGradleAdditions>
 
 	<buildGradleAdditions>
-		<if condition="bIncludeMemAdvisor">
+		<if condition="bIncludeJavaMemAdvisor">
 			<true>
 				<insert>
 android
@@ -150,4 +151,13 @@ dependencies
 dependencies.implementation(name: 'aar', ext: 'aar')
 		</insert>
 	</buildGradleAdditions>
+	<resourceCopies>
+		<if condition="bIncludeMemAdvisor">
+			<true>
+				<log text="Copy Memory Advice resources"/>
+				<copyDir src="$S(PluginDir)/gamesdk/assets"
+						dst="$S(BuildDir)/assets" />
+			</true>
+		</if>
+	</resourceCopies>
 </root>

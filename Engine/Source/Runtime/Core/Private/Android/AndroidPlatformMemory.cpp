@@ -17,8 +17,66 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Async/Async.h"
 
+#if HAS_ANDROID_MEMORY_ADVICE
+#include "Containers/Ticker.h"
+#include "memory_advice/memory_advice.h"
+
+static int GAndroidUseMemoryAdvisor = 0;
+static bool GMemoryAdvisorInitialized = false;
+static MemoryAdvice_MemoryState GMemoryAdvisorState = MEMORYADVICE_STATE_OK;
+static std::atomic<MemoryAdvice_MemoryState> GMemoryAdvisorStateThreaded(MEMORYADVICE_STATE_OK);
+static FAutoConsoleVariableRef CVarAndroidUseMemoryAdvisor(
+	TEXT("android.UseMemoryAdvisor"),
+	GAndroidUseMemoryAdvisor,
+	TEXT("Enables Android Memory Advice library from AGDK when set to non zero. Disabled by default"),
+	ECVF_Default
+);
+
+static const TCHAR* MemStateToString(MemoryAdvice_MemoryState State)
+{
+	switch (State)
+	{
+	case MEMORYADVICE_STATE_OK:
+		return TEXT("OK");
+	case MEMORYADVICE_STATE_APPROACHING_LIMIT:
+		return TEXT("Approaching Limit");
+	case MEMORYADVICE_STATE_CRITICAL:
+		return TEXT("Critical");
+	default:
+	case MEMORYADVICE_STATE_UNKNOWN:
+		return TEXT("Unknown");
+	}
+}
+
+static bool MemoryAdvisorTick(float dt)
+{
+	const MemoryAdvice_MemoryState State = GMemoryAdvisorStateThreaded.load(std::memory_order_acquire);
+	if (State != GMemoryAdvisorState)
+	{
+		//SetGameData is not thread safe, so we have to set it in GT only, that's why we update the value via GMemoryAdvisorStateThreaded
+		const TCHAR* StringState = MemStateToString(State);
+		UE_LOG(LogAndroid, Log, TEXT("MemAdvice new state : %s"), StringState);
+		FGenericCrashContext::SetGameData(TEXT("UE.Android.GoogleMemAdvice"), StringState);
+		GMemoryAdvisorState = State;
+	}
+
+	if (FTaskGraphInterface::IsRunning())
+	{
+		// Run it on a worker thread as this call is pretty expensive and we don't want it to impact the game thread
+		AsyncTask(ENamedThreads::AnyThread, []()
+			{
+				const MemoryAdvice_MemoryState State = MemoryAdvice_getMemoryState();
+				GMemoryAdvisorStateThreaded.store(State, std::memory_order_release);
+			});
+	}
+
+	return true;
+}
+#endif
+
 #define JNI_CURRENT_VERSION JNI_VERSION_1_6
 extern JavaVM* GJavaVM;
+extern jobject GGameActivityThis;
 
 static int32 GAndroidAddSwapToTotalPhysical = 1;
 static FAutoConsoleVariableRef CVarAddSwapToTotalPhysical(
@@ -72,6 +130,25 @@ void FAndroidPlatformMemory::Init()
 		float((double)MemoryStats.AvailablePhysical/1024.0/1024.0),
 		float((double)MemoryConstants.PageSize/1024.0)
 		);
+
+#if HAS_ANDROID_MEMORY_ADVICE
+	if (GAndroidUseMemoryAdvisor)
+	{
+		JNIEnv* Env = NULL;
+		GJavaVM->GetEnv((void**)&Env, JNI_CURRENT_VERSION);
+		const MemoryAdvice_ErrorCode Result = MemoryAdvice_init(Env, GGameActivityThis);
+		GMemoryAdvisorInitialized = Result == MEMORYADVICE_ERROR_OK;
+		if (GMemoryAdvisorInitialized)
+		{
+			FTSTicker& Ticker = FTSTicker::GetCoreTicker();
+			Ticker.AddTicker(FTickerDelegate::CreateStatic(&MemoryAdvisorTick), 1.0f);
+		}
+		else
+		{
+			UE_LOG(LogInit, Warning, TEXT("Cannot initialize memory advice API, error code %d"), Result);
+		}
+	}
+#endif
 }
 
 extern void (*GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context);
@@ -296,6 +373,23 @@ FPlatformMemoryStats FAndroidPlatformMemory::GetStats()
 
 FGenericPlatformMemoryStats::EMemoryPressureStatus FPlatformMemoryStats::GetMemoryPressureStatus() const
 {
+#if HAS_ANDROID_MEMORY_ADVICE
+	if (GMemoryAdvisorInitialized)
+	{
+		switch (GMemoryAdvisorState)
+		{
+		case MEMORYADVICE_STATE_OK:
+			return FGenericPlatformMemoryStats::EMemoryPressureStatus::Nominal;
+		case MEMORYADVICE_STATE_APPROACHING_LIMIT:
+		case MEMORYADVICE_STATE_CRITICAL:
+			return FGenericPlatformMemoryStats::EMemoryPressureStatus::Critical;
+		default:
+		case MEMORYADVICE_STATE_UNKNOWN:
+			return FGenericPlatformMemoryStats::EMemoryPressureStatus::Unknown;
+		}
+	}
+#endif
+
 	// convert Android's TRIM status to FGenericPlatformMemoryStats::EMemoryPressureStatus.
 	auto AndroidTRIMToMemPressureStatus = [](FAndroidPlatformMemory::ETrimValues LastTrimMemoryState)
 	{
