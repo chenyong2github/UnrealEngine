@@ -16,6 +16,16 @@
 	#endif
 #endif
 
+// If this is changed, the LightGridUses16BitBuffers function from LightGridInjection.cpp should also be updated.
+#define LIGHT_GRID_USES_16BIT_BUFFERS (PLATFORM_SUPPORTS_BUFFER_LOAD_TYPE_CONVERSION && !SHADING_PATH_MOBILE)
+
+// ForwardLightData.CulledLightDataGrid could be StructuredBuffer or 16bit Buffer, make sure to access it from this MACRO
+#if LIGHT_GRID_USES_16BIT_BUFFERS
+	#define GetCulledLightDataGrid(UB, GridIndex) UB.CulledLightDataGrid16Bit[GridIndex]
+#else
+	#define GetCulledLightDataGrid(UB, GridIndex) UB.CulledLightDataGrid32Bit[GridIndex]
+#endif
+
 struct FLightGridData
 {
 	uint LightGridPixelSizeShift;
@@ -205,7 +215,7 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 	if (EyeIndex == 0)
 	{
 #endif
-		uint LocalLightIndex = ForwardLightData.CulledLightDataGrid[GridIndex];
+		uint LocalLightIndex = GetCulledLightDataGrid(ForwardLightData, GridIndex);
 		uint LocalLightBaseIndex = LocalLightIndex * LOCAL_LIGHT_DATA_STRIDE;
 
 		Out = GetLocalLightData_Internal(
@@ -223,7 +233,7 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 	}
 	else
 	{
-		uint LocalLightIndex = ForwardLightDataISR.CulledLightDataGrid[GridIndex];
+		uint LocalLightIndex = GetCulledLightDataGrid(ForwardLightDataISR, GridIndex);
 		uint LocalLightBaseIndex = LocalLightIndex * LOCAL_LIGHT_DATA_STRIDE;
 
 		Out = GetLocalLightData_Internal(

@@ -161,7 +161,7 @@ bool TMobileBasePassPSPolicyParamType<LightMapPolicyType>::ModifyCompilationEnvi
 	return true;
 }
 
-extern void SetupDummyForwardLightUniformParameters(FRDGBuilder& GraphBuilder, FForwardLightData& ForwardLightData);
+extern void SetupDummyForwardLightUniformParameters(FRDGBuilder& GraphBuilder, FForwardLightData& ForwardLightData, EShaderPlatform ShaderPlatform);
 
 void SetupMobileBasePassUniformParameters(
 	FRDGBuilder& GraphBuilder,
@@ -179,7 +179,7 @@ void SetupMobileBasePassUniformParameters(
 	}
 	else
 	{
-		SetupDummyForwardLightUniformParameters(GraphBuilder, BasePassParameters.Forward);
+		SetupDummyForwardLightUniformParameters(GraphBuilder, BasePassParameters.Forward, View.GetShaderPlatform());
 	}
 
 	const FScene* Scene = View.Family->Scene ? View.Family->Scene->GetRenderScene() : nullptr;

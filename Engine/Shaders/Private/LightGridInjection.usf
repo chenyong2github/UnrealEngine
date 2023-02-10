@@ -6,15 +6,23 @@
 #include "Definitions.usf"
 #include "LargeWorldCoordinates.ush"
 #include "ReflectionEnvironmentShared.ush"
+#include "LightGridCommon.ush"
 
-RWBuffer<uint> RWNumCulledLightsGrid;
-RWBuffer<uint> RWCulledLightDataGrid;
+RWStructuredBuffer<uint> RWNumCulledLightsGrid;
 
-RWBuffer<uint> RWNextCulledLightLink;
-RWBuffer<uint> RWStartOffsetGrid;
-RWBuffer<uint> RWCulledLightLinks;
+#if LIGHT_GRID_USES_16BIT_BUFFERS
+	RWBuffer<uint>					RWCulledLightDataGrid16Bit;
+	#define RWCulledLightDataGrid	RWCulledLightDataGrid16Bit
+#else
+	RWStructuredBuffer<uint>		RWCulledLightDataGrid32Bit;
+	#define RWCulledLightDataGrid	RWCulledLightDataGrid32Bit
+#endif
 
-Buffer<float4> ForwardLocalLightBuffer;
+RWStructuredBuffer<uint> RWNextCulledLightLink;
+RWStructuredBuffer<uint> RWStartOffsetGrid;
+RWStructuredBuffer<uint> RWCulledLightLinks;
+
+StructuredBuffer<float4> ForwardLocalLightBuffer;
 
 uint NumReflectionCaptures;
 uint NumLocalLights;
@@ -25,8 +33,8 @@ float3 LightGridZParams;
 uint LightGridPixelSizeShift;
 
 #if ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
-Buffer<float4> LightViewSpacePositionAndRadius;
-Buffer<float4> LightViewSpaceDirAndPreprocAngle;
+StructuredBuffer<float4> LightViewSpacePositionAndRadius;
+StructuredBuffer<float4> LightViewSpaceDirAndPreprocAngle;
 #endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 
 #define REFINE_SPOTLIGHT_BOUNDS 1
@@ -320,9 +328,9 @@ void LightGridInjectionCS(
 
 #if SHADER_LIGHT_GRID_COMPACT_CS
 
-RWBuffer<uint> RWNextCulledLightData;
-Buffer<uint> StartOffsetGrid;
-Buffer<uint> CulledLightLinks;
+RWStructuredBuffer<uint> RWNextCulledLightData;
+StructuredBuffer<uint> StartOffsetGrid;
+StructuredBuffer<uint> CulledLightLinks;
 
 #if USE_LOCALSTORE_FOR_ATOMICS
 groupshared uint LDSNextCulledLightData;
@@ -421,7 +429,6 @@ void LightGridCompactCS(
 #ifdef SHADER_DEBUG_LIGHT_GRID_PS
 
 #define SUPPORT_CONTACT_SHADOWS 0
-#include "LightGridCommon.ush"
 #include "/Engine/Private/ShaderPrint.ush"
 #include "ColorMap.ush"
 

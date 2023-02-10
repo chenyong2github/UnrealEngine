@@ -4,7 +4,10 @@
 	ReflectionEnvironmentComposite
 =============================================================================*/
 
+#pragma once
+
 #include "LargeWorldCoordinates.ush"
+#include "LightGridCommon.ush"
 
 float3 CompositeReflectionCapturesAndSkylightTWS(
 	float CompositeAlpha, 
@@ -45,13 +48,13 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 		{
 	#endif
 	
-			CaptureIndex = ForwardLightData.CulledLightDataGrid[CaptureDataStartIndex + TileCaptureIndex];
+			CaptureIndex = GetCulledLightDataGrid(ForwardLightData, CaptureDataStartIndex + TileCaptureIndex);
 	
 	#if INSTANCED_STEREO
 		}
 		else
 		{
-			CaptureIndex = ForwardLightDataISR.CulledLightDataGrid[CaptureDataStartIndex + TileCaptureIndex];
+			CaptureIndex = GetCulledLightDataGrid(ForwardLightDataISR, CaptureDataStartIndex + TileCaptureIndex);
 		}
 	#endif
 #endif
