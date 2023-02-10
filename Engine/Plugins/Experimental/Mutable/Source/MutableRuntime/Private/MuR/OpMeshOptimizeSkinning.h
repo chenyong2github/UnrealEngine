@@ -27,6 +27,12 @@ namespace mu
 		TArray<uint16> RemapedBoneIndices;
 
 		mu::SkeletonPtrConst Skeleton = InMesh->GetSkeleton();
+
+		if (!Skeleton)
+		{
+			return nullptr;
+		}
+
 		RemapedBoneIndices.AddZeroed(Skeleton->GetBoneCount());
 
 		int32 SkinnedBonesCount = 0;
