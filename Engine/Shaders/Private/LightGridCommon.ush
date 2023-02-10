@@ -29,6 +29,7 @@ uint GetCulledLightDataGrid(uint GridIndex)
 #endif
 }
 
+#if INSTANCED_STEREO
 uint GetCulledLightDataGridISR(uint GridIndex)
 {
 #if LIGHT_GRID_USES_16BIT_BUFFERS
@@ -37,6 +38,7 @@ uint GetCulledLightDataGridISR(uint GridIndex)
 	return ForwardLightDataISR.CulledLightDataGrid32Bit[GridIndex];
 #endif
 }
+#endif
 
 struct FLightGridData
 {
