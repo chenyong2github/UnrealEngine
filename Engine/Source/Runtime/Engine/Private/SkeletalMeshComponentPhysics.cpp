@@ -2972,7 +2972,7 @@ void USkeletalMeshComponent::CopyClothCollisionsToChildren()
 	for (USceneComponent* AttachedChild : GetAttachChildren())
 	{
 		USkeletalMeshComponent* pChild = Cast<USkeletalMeshComponent>(AttachedChild);
-		if(pChild && pChild->ClothingSimulation->ShouldSimulate())
+		if(pChild && pChild->ClothingSimulation && pChild->ClothingSimulation->ShouldSimulate())
 		{
 			ClothChildren.Add(pChild);
 		}
