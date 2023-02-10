@@ -63,6 +63,17 @@
 			__pragma (warning(pop))
 	#endif // DISABLE_DEPRECATION
 
+	#ifndef PRAGMA_DISABLE_BUFFER_OVERRUN_WARNING
+		#define PRAGMA_DISABLE_BUFFER_OVERRUN_WARNING \
+			__pragma (warning(push)) \
+			__pragma (warning(disable:4789)) /* buffer 'identifier' of size N bytes will be overrun; M bytes will be written starting at offset L */
+	#endif
+
+	#ifndef PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING
+		#define PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING \
+			__pragma (warning(pop))
+	#endif
+
 	#ifndef PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
 		#define PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS \
 			__pragma (warning(push)) \
