@@ -967,7 +967,6 @@ struct FIoStoreWriterSettings
 	int32 CompressionMinSizeToConsiderDDC = 0;
 	uint64 MemoryMappingAlignment = 0;
 	uint64 MaxPartitionSize = 0;
-	bool bEnableCsvOutput = false;
 	bool bEnableFileRegions = false;
 	bool bCompressionEnableDDC = false;
 };
@@ -1084,8 +1083,10 @@ struct FIoStoreTocChunkInfo
 	FString FileName;
 	FIoChunkHash Hash;
 	uint64 Offset;
+	uint64 OffsetOnDisk;
 	uint64 Size;
 	uint64 CompressedSize;
+	uint32 NumCompressedBlocks;
 	int32 PartitionIndex;
 	EIoChunkType ChunkType;
 	bool bHasValidFileName;
@@ -1184,7 +1185,7 @@ public:
 	CORE_API virtual void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint = MAX_uint64) = 0;
 	CORE_API virtual void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions) = 0;
 	CORE_API virtual TIoStatusOr<FIoStoreWriterResult> GetResult() = 0;
-	CORE_API virtual void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const = 0;
+	CORE_API virtual void EnumerateChunks(TFunction<bool(FIoStoreTocChunkInfo&&)>&& Callback) const = 0;
 };
 
 class FIoStoreReader
@@ -1198,7 +1199,7 @@ public:
 	CORE_API uint32 GetVersion() const;
 	CORE_API EIoContainerFlags GetContainerFlags() const;
 	CORE_API FGuid GetEncryptionKeyGuid() const;
-	CORE_API void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const;
+	CORE_API void EnumerateChunks(TFunction<bool(FIoStoreTocChunkInfo&&)>&& Callback) const;
 	CORE_API TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const FIoChunkId& Chunk) const;
 	CORE_API TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const uint32 TocEntryIndex) const;
 

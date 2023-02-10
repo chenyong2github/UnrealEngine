@@ -15,7 +15,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
-#include "Misc/PackageName.h"
 #include "Misc/Base64.h"
 #include "Misc/AES.h"
 #include "Misc/CoreDelegates.h"
@@ -77,8 +76,6 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, IoStoreUtilities);
 #define IOSTORE_CPU_SCOPE_DATA(NAME, DATA) TRACE_CPUPROFILER_EVENT_SCOPE(IoStore##NAME);
 
 TRACE_DECLARE_MEMORY_COUNTER(IoStoreUsedFileBufferMemory, TEXT("IoStore/UsedFileBufferMemory"));
-
-#define OUTPUT_CHUNKID_DIRECTORY 0
 
 static const FName DefaultCompressionMethod = NAME_Zlib;
 static const uint64 DefaultCompressionBlockSize = 64 << 10;
@@ -640,8 +637,9 @@ struct FContainerTargetFile
 class FCookedPackageStore
 {
 public:
-	FCookedPackageStore(const FString& CookedDir)
-		: PackageStoreManifest(CookedDir)
+	FCookedPackageStore(const FString& InCookedDir)
+		: PackageStoreManifest(InCookedDir)
+		, CookedDir(InCookedDir)
 	{
 	}
 
@@ -703,6 +701,7 @@ public:
 		for (const FPackageStoreManifest::FFileInfo& FileInfo : PackageStoreManifest.GetFiles())
 		{
 			FilenameToChunkIdMap.Add(FileInfo.FileName, FileInfo.ChunkId);
+			ChunkIdToFileNameMap.Add(FileInfo.ChunkId, FileInfo.FileName.RightChop(CookedDir.Len() + 1));
 			FName* FindPackageName = ChunkIdToPackageNameMap.Find(FileInfo.ChunkId);
 			if (FindPackageName)
 			{
@@ -716,7 +715,12 @@ public:
 
 	FIoChunkId GetChunkIdFromFileName(const FString& Filename) const
 	{
-		return FilenameToChunkIdMap.FindRef(Filename);
+		return FilenameToChunkIdMap.FindRef(*Filename);
+	}
+
+	FString GetFilenameFromChunkId(const FIoChunkId& ChunkId) const
+	{
+		return ChunkIdToFileNameMap.FindRef(ChunkId);
 	}
 
 	FName GetPackageNameFromChunkId(const FIoChunkId& ChunkId) const
@@ -825,9 +829,11 @@ public:
 private:
 	TUniquePtr<UE::FZenStoreHttpClient> ZenStoreClient;
 	FPackageStoreManifest PackageStoreManifest;
+	FString CookedDir;
 	TArray<FPackageStoreManifest::FPackageInfo> ManifestPackageInfos;
 	TMap<FPackageId, FPackageStoreEntryResource> PackageIdToEntry;
 	TMap<FString, FIoChunkId> FilenameToChunkIdMap;
+	TMap<FIoChunkId, FString> ChunkIdToFileNameMap;
 	TMap<FIoChunkId, FName> ChunkIdToPackageNameMap;
 	TMap<FString, FName> FilenameToPackageNameMap;
 	TMap<FName, const FPackageStoreManifest::FPackageInfo*> PackageNameToPackageInfoMap;
@@ -859,6 +865,7 @@ struct FIoStoreArguments
 	FString DLCPluginPath;
 	FString DLCName;
 	FString ReferenceChunkGlobalContainerFileName;
+	FString CsvPath;
 	FKeyChain ReferenceChunkKeys;
 	FReleasedPackages ReleasedPackages;
 	TUniquePtr<FCookedPackageStore> PackageStore;
@@ -906,43 +913,51 @@ struct FContainerTargetSpec
 using FPackageNameMap = TMap<FName, FLegacyCookedPackage*>;
 using FPackageIdMap = TMap<FPackageId, FLegacyCookedPackage*>;
 
-#if OUTPUT_CHUNKID_DIRECTORY
-class FChunkIdCsv
+class FChunkEntryCsv
 {
 public:
 
-	~FChunkIdCsv()
+	~FChunkEntryCsv()
 	{
-		if (OutputArchive)
+		if (OutputArchive.IsValid())
 		{
 			OutputArchive->Flush();
 		}
 	}
 
-	void CreateOutputFile(const FString& RootPath)
+	void CreateOutputFile(const TCHAR* OutputFilename)
 	{
-		const FString OutputFilename = RootPath / TEXT("chunkid_directory.csv");
-		OutputArchive.Reset(IFileManager::Get().CreateFileWriter(*OutputFilename));
-		if (OutputArchive)
+		OutputArchive.Reset(IFileManager::Get().CreateFileWriter(OutputFilename));
+		if (OutputArchive.IsValid())
 		{
-			const ANSICHAR* Output = "NameIndex,NameNumber,ChunkIndex,ChunkType,ChunkIdHash,DebugString\n";
-			OutputArchive->Serialize((void*)Output, FPlatformString::Strlen(Output));
+			OutputArchive->Logf(TEXT("OrderInContainer, ChunkId, PackageId, PackageName, Filename, ContainerName, Offset, OffsetOnDisk, Size, CompressedSize, Hash, ChunkType"));
 		}
 	}
 
-	void AddChunk(uint32 NameIndex, uint32 NameNumber, uint16 ChunkIndex, uint8 ChunkType, uint32 ChunkIdHash, const TCHAR* DebugString)
+	void AddChunk(const FString& ContainerName, int32 Index, const FIoStoreTocChunkInfo& Info, FPackageId PackageId, const FString& PackageName)
 	{
-		ANSICHAR Buffer[MAX_SPRINTF + 1] = { 0 };
-		int32 NumOfCharacters = FCStringAnsi::Sprintf(Buffer, "%u,%u,%u,%u,%u,%s\n", NameIndex, NameNumber, ChunkIndex, ChunkType, ChunkIdHash, TCHAR_TO_ANSI(DebugString));
-		OutputArchive->Serialize(Buffer, NumOfCharacters);
+		if (OutputArchive.IsValid())
+		{
+			OutputArchive->Logf(TEXT("%d, %s, 0x%llX, %s, %s, %s, %lld, %lld, %lld, %lld, 0x%s, %s"),
+				Index,
+				*BytesToHex(Info.Id.GetData(), Info.Id.GetSize()),
+				PackageId.ValueForDebugging(),
+				*PackageName,
+				*Info.FileName,
+				*ContainerName,
+				Info.Offset,
+				Info.OffsetOnDisk,
+				Info.Size,
+				Info.CompressedSize,
+				*Info.Hash.ToString(),
+				*LexToString(Info.ChunkType)
+			);
+		}
 	}	
 
 private:
 	TUniquePtr<FArchive> OutputArchive;
 };
-FChunkIdCsv ChunkIdCsv;
-
-#endif
 
 
 
@@ -3354,10 +3369,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	IOSTORE_CPU_SCOPE(CreateTarget);
 	TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
 
-#if OUTPUT_CHUNKID_DIRECTORY
-	ChunkIdCsv.CreateOutputFile(CookedDir);
-#endif
-
 	TSharedPtr<IIoStoreWriterReferenceChunkDatabase> ChunkDatabase;
 	if (Arguments.ReferenceChunkGlobalContainerFileName.Len())
 	{
@@ -3631,45 +3642,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				}
 			}
 
-			// Check if we need to dump the final order of the packages. Useful, to debug packing.
-			if (FParse::Param(FCommandLine::Get(), TEXT("writefinalorder")))
-			{
-				IOSTORE_CPU_SCOPE(WriteFinalOrder);
-				FString FinalContainerOrderFile = FPaths::GetPath(ContainerTarget->OutputPath) + FPaths::GetBaseFilename(ContainerTarget->OutputPath) + TEXT("-order.txt");
-				TUniquePtr<FArchive> IoOrderListArchive(IFileManager::Get().CreateFileWriter(*FinalContainerOrderFile));
-				if (IoOrderListArchive)
-				{
-					IoOrderListArchive->SetIsTextFormat(true);
-
-					// The TargetFiles list is not the order written to disk - FIoStoreWriter sorts
-					// on the IdealOrder prior to writing.
-					TArray<const FContainerTargetFile*> SortedTargetFiles;
-					SortedTargetFiles.Reserve(ContainerTarget->TargetFiles.Num());
-					for (const FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
-					{
-						SortedTargetFiles.Add(&TargetFile);
-					}
-
-					Algo::SortBy(SortedTargetFiles, [](const FContainerTargetFile* TargetFile) { return TargetFile->IdealOrder; });
-
-					for (const FContainerTargetFile* TargetFile : SortedTargetFiles)
-					{
-						TStringBuilder<256> Line;
-						Line.Append(LexToString(TargetFile->ChunkId));
-
-						if (TargetFile->Package)
-						{
-							Line.Append(TEXT(" "));
-							Line.Append(TargetFile->Package->FileName);
-						}
-
-						IoOrderListArchive->Logf(TEXT("%s"), Line.ToString());
-					}
-
-					IoOrderListArchive->Close();
-				}
-			}
-
 		}
 	}
 
@@ -3735,14 +3707,95 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 
 	TArray<FIoStoreWriterResult> IoStoreWriterResults;
-	IoStoreWriterResults.Reserve(IoStoreWriters.Num());
-	for (TSharedPtr<IIoStoreWriter> IoStoreWriter : IoStoreWriters)
 	{
-		IoStoreWriterResults.Emplace(IoStoreWriter->GetResult().ConsumeValueOrDie());
+		TRACE_CPUPROFILER_EVENT_SCOPE(GetWriterResults);
+		IoStoreWriterResults.Reserve(IoStoreWriters.Num());
+		for (TSharedPtr<IIoStoreWriter> IoStoreWriter : IoStoreWriters)
+		{
+			IoStoreWriterResults.Emplace(IoStoreWriter->GetResult().ConsumeValueOrDie());
+		}
 	}
-	IoStoreWriters.Empty();
 
-	IOSTORE_CPU_SCOPE(CalculateStats);
+	FGraphEventRef WriteCsvFileTask;
+	if (Arguments.CsvPath.Len() > 0)
+	{
+		WriteCsvFileTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&Arguments, &IoStoreWriters, &IoStoreWriterResults]()
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(WriteCsvFiles);
+
+			bool bPerContainerCsvFiles = FPaths::DirectoryExists(Arguments.CsvPath);
+			FChunkEntryCsv AllContainersOutCsvFile;
+			FChunkEntryCsv* Out = &AllContainersOutCsvFile;
+			if (!bPerContainerCsvFiles)
+			{
+				// When CsvPath is a filename append .utoc.csv to create a unique single csv for all container files,
+				// different from the unique single .pak.csv for all pak files.
+				FString CsvFilename = Arguments.CsvPath + TEXT(".utoc.csv");
+				AllContainersOutCsvFile.CreateOutputFile(*CsvFilename);
+			}
+
+			for (int32 Index = 0; Index < IoStoreWriters.Num(); ++Index)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ListContainer);
+
+				TSharedPtr<IIoStoreWriter> Writer = IoStoreWriters[Index];
+				FIoStoreWriterResult& Result = IoStoreWriterResults[Index];
+
+				TArray<FIoStoreTocChunkInfo> Chunks;
+				{
+					IOSTORE_CPU_SCOPE(EnumerateChunks);
+					Chunks.Reserve(Result.TocEntryCount);
+					Writer->EnumerateChunks([&Chunks](FIoStoreTocChunkInfo&& ChunkInfo)
+					{
+						Chunks.Add(MoveTemp(ChunkInfo));
+						return true;
+					});
+				}
+
+				{
+					IOSTORE_CPU_SCOPE(SortChunks);
+					auto SortKey = [](const FIoStoreTocChunkInfo& ChunkInfo) { return ChunkInfo.OffsetOnDisk; };
+					Algo::SortBy(Chunks, SortKey);
+				}
+
+				{
+					IOSTORE_CPU_SCOPE(WriteCsvFile);
+					FChunkEntryCsv PerContainerOutCsvFile;
+					if (bPerContainerCsvFiles)
+					{
+						// When CsvPath is a dir, then create one unique .utoc.csv per container file
+						FString PerContainerCsvPath = Arguments.CsvPath / Result.ContainerName + TEXT(".utoc.csv");
+						PerContainerOutCsvFile.CreateOutputFile(*PerContainerCsvPath);
+						Out = &PerContainerOutCsvFile;
+					}
+					for (int32 EntryIndex=0; EntryIndex < Chunks.Num(); ++EntryIndex)
+					{
+						FIoStoreTocChunkInfo& ChunkInfo = Chunks[EntryIndex];
+						FString PackageName;
+						FPackageId PackageId;
+						if (!ChunkInfo.bHasValidFileName)
+						{
+							FString FileName = Arguments.PackageStore->GetFilenameFromChunkId(ChunkInfo.Id);
+							if (FileName.Len() > 0)
+							{
+								ChunkInfo.FileName = MoveTemp(FileName);
+							}
+							FName PackageFName = Arguments.PackageStore->GetPackageNameFromChunkId(ChunkInfo.Id);
+							if (!PackageFName.IsNone())
+							{
+								PackageName = PackageFName.ToString();
+								PackageId = FPackageId::FromName(FName(*PackageName));
+							}
+						}
+
+						Out->AddChunk(Result.ContainerName, EntryIndex, ChunkInfo, PackageId, PackageName);
+					}
+				}
+			}
+		}, TStatId(), nullptr, ENamedThreads::AnyNormalThreadHiPriTask);
+	}
+
+	IOSTORE_CPU_SCOPE(OutputStats);
 
 	UE_LOG(LogIoStore, Display, TEXT("Calculating stats..."));
 	uint64 UExpSize = 0;
@@ -3831,6 +3884,14 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			UE_LOG(LogIoStore, Warning, TEXT("new output has a container that wasn't deployed before. If that doesn't sound right"));
 			UE_LOG(LogIoStore, Warning, TEXT("verify that you used reference containers from the same project."));
 		}
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	if (Arguments.CsvPath.Len() > 0)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WaitForCsvFiles);
+		UE_LOG(LogIoStore, Display, TEXT("Writing csv file(s) to: %s (*.utoc.csv)"), *Arguments.CsvPath);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(WriteCsvFileTask);
 	}
 
 	return 0;
@@ -3985,21 +4046,7 @@ int32 ListContainer(
 	const FString& ContainerPathOrWildcard,
 	const FString& CsvPath)
 {
-	struct FComputedChunkInfo
-	{
-		FIoChunkId Id;
-		FString FileName;
-		FIoChunkHash Hash;
-		EIoChunkType ChunkType;
-		uint64 Size;
-		uint64 CompressedSize;
-		uint64 Offset;
-		uint64 OffsetOnDisk;
-		int32 NumCompressedBlocks;
-		bool bIsCompressed;
-		bool bHasValidFileName;
-	};
-
+	IOSTORE_CPU_SCOPE(ListContainer);
 	TArray<FString> ContainerFilePaths;
 
 	if (IFileManager::Get().FileExists(*ContainerPathOrWildcard))
@@ -4041,17 +4088,13 @@ int32 ListContainer(
 	
 	// if CsvPath is a dir, not a file name, then write one csv per container to the dir
 	// otherwise, write all contents to one big csv
-	bool bCsvPathIsDir = IFileManager::Get().DirectoryExists(*CsvPath);
+	bool bPerContainerCsvFiles = IFileManager::Get().DirectoryExists(*CsvPath);
 
-	TUniquePtr<FOutputDeviceFile> AllContainersOutCsvFile;
-	if ( ! bCsvPathIsDir )
+	FChunkEntryCsv AllContainersOutCsvFile;
+	if (!bPerContainerCsvFiles)
 	{
-		AllContainersOutCsvFile = MakeUnique<FOutputDeviceFile>(*CsvPath, true);
-		
-		AllContainersOutCsvFile->SetSuppressEventTag(true);
+		AllContainersOutCsvFile.CreateOutputFile(*CsvPath);
 	}
-
-	bool bNeedsHeader = true;
 
 	for (const FString& ContainerFilePath : ContainerFilePaths)
 	{
@@ -4062,33 +4105,19 @@ int32 ListContainer(
 			continue;
 		}
 		
-		TUniquePtr<FOutputDeviceFile> PerContainerOutCsvFile;
-		FOutputDeviceFile * Out;
+		FChunkEntryCsv PerContainerOutCsvFile;
+		FChunkEntryCsv* Out;
 		
-		if ( AllContainersOutCsvFile != nullptr )
+		if (!bPerContainerCsvFiles)
 		{
-			Out = AllContainersOutCsvFile.Get();
+			Out = &AllContainersOutCsvFile;
 		}
 		else
 		{
-			// ContainerFilePath is a .utoc
-			//	change to .csv and put in CsvPath
-			FString PerContainerCsvPath = CsvPath / FPaths::GetCleanFilename(ContainerFilePath);
-			PerContainerCsvPath = FPaths::ChangeExtension(PerContainerCsvPath, FString(TEXT(".csv")) );
-			
-			UE_LOG(LogIoStore, Display, TEXT("PerContainerCsvPath: '%s'"), *PerContainerCsvPath);
-
-			PerContainerOutCsvFile = MakeUnique<FOutputDeviceFile>(*PerContainerCsvPath, true);
-
-			Out = PerContainerOutCsvFile.Get();
-			Out->SetSuppressEventTag(true);
-			bNeedsHeader = true;
-		}
-
-		if ( bNeedsHeader )
-		{
-			Out->Log(TEXT("OrderInContainer, ChunkId, PackageId, PackageName, Filename, ContainerName, Offset, OffsetOnDisk, Size, CompressedSize, Hash, ChunkType"));
-			bNeedsHeader = false;
+			// ContainerFilePath is a .utoc, add .csv and put in CsvPath
+			FString PerContainerCsvPath = CsvPath / FPaths::GetCleanFilename(ContainerFilePath) + TEXT(".csv");
+			PerContainerOutCsvFile.CreateOutputFile(*PerContainerCsvPath);
+			Out = &PerContainerOutCsvFile;
 		}
 
 		if (!EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Indexed))
@@ -4099,67 +4128,39 @@ int32 ListContainer(
 		UE_LOG(LogIoStore, Display, TEXT("Listing container '%s'"), *ContainerFilePath);
 
 		FString ContainerName = FPaths::GetBaseFilename(ContainerFilePath);
-		uint64 CompressionBlockSize = Reader->GetCompressionBlockSize();
-		TArray<FIoStoreTocCompressedBlockInfo> CompressedBlocks;
-		Reader->EnumerateCompressedBlocks([&CompressedBlocks](const FIoStoreTocCompressedBlockInfo& Block) {
-			CompressedBlocks.Add(Block);
-			return true;
-			});
+		TArray<FIoStoreTocChunkInfo> Chunks;
 
-
-		TArray<FComputedChunkInfo> Chunks;
-		Reader->EnumerateChunks([&Chunks, CompressionBlockSize, &CompressedBlocks](const FIoStoreTocChunkInfo& ChunkInfo) {
-
-			int32 FirstBlockIndex = int32(ChunkInfo.Offset / CompressionBlockSize);
-			int32 LastBlockIndex = int32((Align(ChunkInfo.Offset + ChunkInfo.Size, CompressionBlockSize) - 1) / CompressionBlockSize);
-			int32 NumCompressedBlocks = LastBlockIndex - FirstBlockIndex + 1;
-			uint64 OffsetOnDisk = CompressedBlocks[FirstBlockIndex].Offset;
-
-			FComputedChunkInfo ComputedInfo{
-				ChunkInfo.Id,
-				ChunkInfo.FileName,
-				ChunkInfo.Hash,
-				ChunkInfo.ChunkType,
-				ChunkInfo.Size,
-				ChunkInfo.CompressedSize,
-				ChunkInfo.Offset,
-				OffsetOnDisk,
-				NumCompressedBlocks,
-				ChunkInfo.bIsCompressed,
-				ChunkInfo.bHasValidFileName
-			};
-
-			Chunks.Add(ComputedInfo);
-			return true;
-			});
-
-		auto SortKey = [](const FComputedChunkInfo& ChunkInfo) { return ChunkInfo.OffsetOnDisk; };
-		Algo::SortBy(Chunks, SortKey);
-
-		for(int32 Index=0; Index < Chunks.Num(); ++Index)
 		{
-			const FComputedChunkInfo& ChunkInfo = Chunks[Index];
-			FString PackageName;
-			FPackageId PackageId;
-			if (ChunkInfo.bHasValidFileName && FPackageName::TryConvertFilenameToLongPackageName(ChunkInfo.FileName, PackageName, nullptr))
+			IOSTORE_CPU_SCOPE(EnumerateChunks);
+			Reader->EnumerateChunks([&Chunks](FIoStoreTocChunkInfo&& ChunkInfo)
 			{
-				PackageId = FPackageId::FromName(FName(*PackageName));
-			}
+				Chunks.Add(MoveTemp(ChunkInfo));
+				return true;
+			});
+		}
 
-			Out->Logf(TEXT("%d, %s, 0x%llX, %s, %s, %s, %lld, %lld, %lld, %lld, 0x%s, %s"),
-					Index,
-					*BytesToHex(ChunkInfo.Id.GetData(), ChunkInfo.Id.GetSize()),
-					PackageId.ValueForDebugging(),
-					*PackageName,
-					*ChunkInfo.FileName,
-					*ContainerName,
-					ChunkInfo.Offset,
-					ChunkInfo.OffsetOnDisk,
-					ChunkInfo.Size,
-					ChunkInfo.CompressedSize,
-					*ChunkInfo.Hash.ToString(),
-					*LexToString(ChunkInfo.ChunkType)
-					);
+		{
+			IOSTORE_CPU_SCOPE(EnumerateChunks);
+			auto SortKey = [](const FIoStoreTocChunkInfo& ChunkInfo) { return ChunkInfo.OffsetOnDisk; };
+			Algo::SortBy(Chunks, SortKey);
+		}
+
+		{
+			IOSTORE_CPU_SCOPE(WriteCsvFile);
+			FString PackageName;
+			for(int32 Index=0; Index < Chunks.Num(); ++Index)
+			{
+				const FIoStoreTocChunkInfo& ChunkInfo = Chunks[Index];
+
+				FPackageId PackageId;
+				PackageName.Reset();
+				if (ChunkInfo.bHasValidFileName && FPackageName::TryConvertFilenameToLongPackageName(ChunkInfo.FileName, PackageName, nullptr))
+				{
+					PackageId = FPackageId::FromName(FName(*PackageName));
+				}
+
+				Out->AddChunk(ContainerName, Index, ChunkInfo, PackageId, PackageName);
+			}
 		}
 	}
 
@@ -6453,8 +6454,6 @@ bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWri
 	WriterSettings.CompressionMethod = DefaultCompressionMethod;
 	WriterSettings.CompressionBlockSize = DefaultCompressionBlockSize;
 
-	WriterSettings.bEnableCsvOutput = FParse::Param(FCommandLine::Get(), TEXT("csvoutput"));
-
 	TArray<FName> CompressionFormats;
 	FString DesiredCompressionFormats;
 	if (FParse::Value(FCommandLine::Get(), TEXT("-compressionformats="), DesiredCompressionFormats) ||
@@ -6693,17 +6692,18 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 	}
 
+	FParse::Value(FCommandLine::Get(), TEXT("csv="), Arguments.CsvPath);
+
 	FString ArgumentValue;
 	if (FParse::Value(FCommandLine::Get(), TEXT("List="), ArgumentValue))
 	{
 		FString ContainerPathOrWildcard = MoveTemp(ArgumentValue);
-		FString CsvPath;
-		if (!FParse::Value(FCommandLine::Get(), TEXT("csv="), CsvPath))
+		if (Arguments.CsvPath.Len() == 0)
 		{
 			UE_LOG(LogIoStore, Error, TEXT("Incorrect arguments. Expected: -list=<ContainerFile> -csv=<path>"));
 		}
 
-		return ListContainer(Arguments.KeyChain, ContainerPathOrWildcard, CsvPath);
+		return ListContainer(Arguments.KeyChain, ContainerPathOrWildcard, Arguments.CsvPath);
 	}
 	else if (FParse::Value(FCommandLine::Get(), TEXT("AssetRegistryWriteback="), ArgumentValue))
 	{

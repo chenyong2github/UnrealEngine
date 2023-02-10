@@ -72,6 +72,7 @@ int64 GDDCHits = 0;
 int64 GDDCMisses = 0;
 #endif
 
+bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bIncludeDeleted, const FString& CSVFilename, bool bExtractToMountPoint, const FKeyChain& InKeyChain, bool bAppendFile);
 
 bool SignPakFile(const FString& InPakFilename, const FRSAKeyHandle InSigningKey)
 {
@@ -550,6 +551,7 @@ struct FPakCommandLineParameters
 	FString SourcePatchDiffDirectory;
 	FString InputFinalPakFilename; // This is the resulting pak file we want to end up with after we generate the pak patch.  This is used instead of passing in the raw content.
 	FString ChangedFilesOutputFilename;
+	FString CsvPath;
 	bool EncryptIndex;
 	bool UseCustomCompressor;
 	FGuid EncryptionKeyGuid;
@@ -1261,6 +1263,8 @@ void ProcessCommonCommandLine(const TCHAR* CmdLine, FPakCommandLineParameters& C
 		CmdLineParameters.SeekOptParams.Mode = ESeekOptMode::OnePass;
 	}
 	FParse::Value(CmdLine, TEXT("-patchSeekOptMode="), (int32&)CmdLineParameters.SeekOptParams.Mode);
+
+	FParse::Value(CmdLine, TEXT("csv="), CmdLineParameters.CsvPath);
 }
 
 void ProcessPakFileSpecificCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionArguments, TArray<FPakInputPair>& Entries, FPakCommandLineParameters& CmdLineParameters)
@@ -2994,6 +2998,43 @@ bool FPakWriterContext::Flush()
 	UE_LOG(LogPakFile, Display, TEXT("DDC Sync Read Time: %lf"), ((double)GDDCSyncReadTime) * FPlatformTime::GetSecondsPerCycle());
 	UE_LOG(LogPakFile, Display, TEXT("DDC Sync Write Time: %lf"), ((double)GDDCSyncWriteTime) * FPlatformTime::GetSecondsPerCycle());
 #endif
+
+	if (CmdLineParameters.CsvPath.Len() > 0)
+	{
+		int64 SizeFilter = 0;
+		bool bIncludeDeleted = true;
+		bool bExtractToMountPoint = true;
+
+		bool bPerPakCsvFiles = FPaths::DirectoryExists(CmdLineParameters.CsvPath);
+		FString CsvFilename;
+		if (!bPerPakCsvFiles)
+		{
+			// When CsvPath is a filename append .pak.csv to create a unique single csv for all pak files,
+			// different from the unique single .utoc.csv for all container files.
+			CsvFilename = CmdLineParameters.CsvPath + TEXT(".pak.csv");
+		}
+		bool bAppendFile = false;
+		for (TUniquePtr<FOutputPakFile>& OutputPakFile : OutputPakFiles)
+		{
+			if (bPerPakCsvFiles)
+			{
+				// When CsvPath is a dir, then create one unique .pak.csv per pak file
+				CsvFilename = CmdLineParameters.CsvPath / FPaths::GetCleanFilename(OutputPakFile->Filename) + TEXT(".csv");
+			}
+			ListFilesInPak(
+				*OutputPakFile->Filename,
+				SizeFilter,
+				bIncludeDeleted,
+				CsvFilename,
+				bExtractToMountPoint,
+				OutputPakFile->KeyChain,
+				bAppendFile);
+			if (!bPerPakCsvFiles)
+			{
+				bAppendFile = true;
+			}
+		}
+	}
 	return true;
 }
 
@@ -3190,8 +3231,9 @@ bool TestPakFile(const TCHAR* Filename, bool TestHashes)
 	}
 }
 
-bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bIncludeDeleted, const FString& CSVFilename, bool bExtractToMountPoint, const FKeyChain& InKeyChain)
+bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bIncludeDeleted, const FString& CSVFilename, bool bExtractToMountPoint, const FKeyChain& InKeyChain, bool bAppendFile)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ListFilesInPak);
 	IPlatformFile* LowerLevelPlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
 	TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(LowerLevelPlatformFile, InPakFilename, false);
 	FPakFile& PakFile = *PakFilePtr;
@@ -3201,7 +3243,7 @@ bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bInclude
 
 	if (PakFile.IsValid())
 	{
-		UE_LOG(LogPakFile, Display, TEXT("Mount point %s"), *PakFile.GetMountPoint());
+		UE_LOG(LogPakFile, Log, TEXT("Mount point %s"), *PakFile.GetMountPoint());
 
 		TArray<FPakFile::FPakEntryIterator> Records;
 
@@ -3236,9 +3278,19 @@ bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bInclude
 
 		if (CSVFilename.Len() > 0)
 		{
-			TArray<FString> Lines;
-			Lines.Empty(Records.Num()+2);
-			Lines.Add(TEXT("Filename, Offset, Size, Hash, Deleted, Compressed, CompressionMethod"));
+			TRACE_CPUPROFILER_EVENT_SCOPE(WriteCsv);
+			uint32 WriteFlags = bAppendFile ? FILEWRITE_Append : 0;
+			TUniquePtr<FArchive> OutputArchive(IFileManager::Get().CreateFileWriter(*CSVFilename, WriteFlags));
+			if (!OutputArchive.IsValid())
+			{
+				UE_LOG(LogPakFile, Display, TEXT("Failed to save CSV file %s"), *CSVFilename);
+				return false;
+			}
+
+			if (!bAppendFile)
+			{
+				OutputArchive->Logf(TEXT("Filename, Offset, Size, Hash, Deleted, Compressed, CompressionMethod"));
+			}
 			EntryIndex = 0;
 			for (auto It : Records)
 			{
@@ -3246,25 +3298,18 @@ bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bInclude
 				uint8* Hash = Hashes + (EntryIndex++)*sizeof(FPakEntry::Hash);
 
 				bool bWasCompressed = Entry.CompressionMethodIndex != 0;
-
-				Lines.Add( FString::Printf(
+				OutputArchive->Logf(
 					TEXT("%s%s, %lld, %lld, %s, %s, %s, %d"),
 					*MountPoint, It.TryGetFilename() ? **It.TryGetFilename() : TEXT("<FileNamesNotLoaded>"),
 					Entry.Offset, Entry.Size,
 					*BytesToHex(Hash, sizeof(FPakEntry::Hash)),
 					Entry.IsDeleteRecord() ? TEXT("true") : TEXT("false"),
 					bWasCompressed ? TEXT("true") : TEXT("false"),
-					Entry.CompressionMethodIndex) );
+					Entry.CompressionMethodIndex);
 			}
-
-			if (FFileHelper::SaveStringArrayToFile(Lines, *CSVFilename) == false)
-			{
-				UE_LOG(LogPakFile, Display, TEXT("Failed to save CSV file %s"), *CSVFilename);
-			}
-			else
-			{
-				UE_LOG(LogPakFile, Display, TEXT("Saved CSV file to %s"), *CSVFilename);
-			}
+			OutputArchive->Flush();
+			UE_LOG(LogPakFile, Display, TEXT("Saved CSV file to %s"), *CSVFilename);
+			return true;
 		}
 
 		TSet<int32> InspectChunks;
@@ -5520,8 +5565,9 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		FParse::Value(CmdLine, TEXT("csv="), CSVFilename);
 
 		bool bExtractToMountPoint = FParse::Param(CmdLine, TEXT("ExtractToMountPoint"));
+		bool bAppendFile = false;
 
-		return ListFilesInPak(*PakFilename, SizeFilter, !bExcludeDeleted, *CSVFilename, bExtractToMountPoint, KeyChain);
+		return ListFilesInPak(*PakFilename, SizeFilter, !bExcludeDeleted, *CSVFilename, bExtractToMountPoint, KeyChain, bAppendFile);
 	}
 
 	if (FParse::Param(CmdLine, TEXT("Info")))

@@ -631,6 +631,8 @@ public:
 		int32 FirstBlockIndex = int32(ChunkInfo.Offset / CompressionBlockSize);
 		int32 LastBlockIndex = int32((Align(ChunkInfo.Offset + ChunkInfo.Size, CompressionBlockSize) - 1) / CompressionBlockSize);
 
+		ChunkInfo.NumCompressedBlocks = LastBlockIndex - FirstBlockIndex + 1;
+		ChunkInfo.OffsetOnDisk = TocResource.CompressionBlocks[FirstBlockIndex].GetOffset();
 		ChunkInfo.CompressedSize = 0;
 		ChunkInfo.PartitionIndex = -1;
 		for (int32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; ++BlockIndex)
@@ -670,14 +672,14 @@ public:
 		bVerifyHashDatabase = bInVerifyHashDatabase;
 	}
 
-	void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
+	void EnumerateChunks(TFunction<bool(FIoStoreTocChunkInfo&&)>&& Callback) const
 	{
 		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
 
 		for (int32 ChunkIndex = 0; ChunkIndex < TocResource.ChunkIds.Num(); ++ChunkIndex)
 		{
 			FIoStoreTocChunkInfo ChunkInfo = Toc.GetTocChunkInfo(ChunkIndex, 0);
-			if (!Callback(ChunkInfo))
+			if (!Callback(MoveTemp(ChunkInfo)))
 			{
 				break;
 			}
@@ -694,28 +696,8 @@ public:
 		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
 		Ipf.CreateDirectoryTree(*FPaths::GetPath(TocFilePath));
 
-		FIoStatus Status = FIoStatus::Ok;
-		if (InContext.GetSettings().bEnableCsvOutput)
-		{
-			Status = EnableCsvOutput();
-		}
-
 		FPartition& Partition = Partitions.AddDefaulted_GetRef();
 		Partition.Index = 0;
-
-		return Status;
-	}
-
-	FIoStatus EnableCsvOutput()
-	{
-		FString CsvFilePath = ContainerPath + TEXT(".csv");
-		CsvArchive.Reset(IFileManager::Get().CreateFileWriter(*CsvFilePath));
-		if (!CsvArchive)
-		{
-			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore CSV file '") << *CsvFilePath << TEXT("'");
-		}
-		ANSICHAR Header[] = "Name,Offset,Size\n";
-		CsvArchive->Serialize(Header, sizeof(Header) - 1);
 
 		return FIoStatus::Ok;
 	}
@@ -2164,14 +2146,14 @@ public:
 		return Toc.GetTocResource().Header.EncryptionKeyGuid;
 	}
 
-	void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
+	void EnumerateChunks(TFunction<bool(FIoStoreTocChunkInfo&&)>&& Callback) const
 	{
 		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
 
 		for (int32 ChunkIndex = 0; ChunkIndex < TocResource.ChunkIds.Num(); ++ChunkIndex)
 		{
 			FIoStoreTocChunkInfo ChunkInfo = Toc.GetTocChunkInfo(ChunkIndex, &ChunkFileNamesMap);
-			if (!Callback(ChunkInfo))
+			if (!Callback(MoveTemp(ChunkInfo)))
 			{
 				break;
 			}
@@ -2620,7 +2602,7 @@ public:
 		return Toc.GetTocResource().CompressionMethods;
 	}
 
-	bool EnumerateCompressedBlocksForChunk(const FIoChunkId& ChunkId, TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback)
+	bool EnumerateCompressedBlocksForChunk(const FIoChunkId& ChunkId, TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback) const
 	{
 		const FIoOffsetAndLength* OffsetAndLength = Toc.GetOffsetAndLength(ChunkId);
 		if (!OffsetAndLength)
@@ -2652,7 +2634,7 @@ public:
 		return true;
 	}
 
-	void EnumerateCompressedBlocks(TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback)
+	void EnumerateCompressedBlocks(TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback) const
 	{
 		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
 
@@ -2719,7 +2701,7 @@ FGuid FIoStoreReader::GetEncryptionKeyGuid() const
 	return Impl->GetEncryptionKeyGuid();
 }
 
-void FIoStoreReader::EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
+void FIoStoreReader::EnumerateChunks(TFunction<bool(FIoStoreTocChunkInfo&&)>&& Callback) const
 {
 	Impl->EnumerateChunks(MoveTemp(Callback));
 }
