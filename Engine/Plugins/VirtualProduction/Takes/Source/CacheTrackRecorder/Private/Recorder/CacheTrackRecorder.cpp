@@ -456,10 +456,8 @@ bool UCacheTrackRecorder::Initialize(ULevelSequence* LevelSequenceBase, const TA
 	{
 		// If a start frame was specified, adjust the playback range before rewinding to the beginning of the playback range
 		UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
+		CachedViewRange = MovieScene->GetEditorData().GetViewRange();
 		MovieScene->SetPlaybackRange(TRange<FFrameNumber>(Parameters.StartFrame, MovieScene->GetPlaybackRange().GetUpperBoundValue()));
-
-		// Always start the recording at the beginning of the playback range
-		Sequencer->SetLocalTime(MovieScene->GetPlaybackRange().GetLowerBoundValue());
 
 		// Center the view range around the current time about to be captured
 		FAnimatedRange Range = Sequencer->GetViewRange();
@@ -640,7 +638,7 @@ void UCacheTrackRecorder::Tick(float DeltaTime)
 	{
 		NumberOfTicksAfterPre = 0;
 		Start();
-		InternalTick(0.0f);
+		InternalTick(DeltaTime);
 	}
 	else if (State == ECacheTrackRecorderState::Started)
 	{
@@ -697,15 +695,6 @@ void UCacheTrackRecorder::InternalTick(float DeltaTime)
 		{
 			ShouldContinue = true;
 			CacheSource.Recorder->RecordSample(RecordTime);
-			if (UMovieSceneTrack* SceneTrack = Cast<UMovieSceneTrack>(CacheSource.Track))
-			{
-				FFrameNumber EndFrame = RecordTime.Time.CeilToFrame();
-				for (UMovieSceneSection* SubSection : SceneTrack->GetAllSections())
-				{
-					// expand section range to this recording time
-					SubSection->ExpandToFrame(EndFrame);
-				}
-			}
 		}
 	}
 	if (ShouldContinue == false && DeltaTime > 0.0f)
@@ -798,24 +787,6 @@ void UCacheTrackRecorder::PreRecord()
 		};
 		OnStopCleanup.Add(RestoreEditorTick);
 	}
-}
-
-void UCacheTrackRecorder::Start()
-{
-	FTimecode Timecode = FApp::GetTimecode();
-
-	State = ECacheTrackRecorderState::Started;
-
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-
-	CurrentFrameTime = FFrameTime(0);
-	TimecodeAtStart = Timecode;
-
-	// Discard any entity tokens we have so that restore state does not take effect when we delete any sections that recording will be replacing.
-	if (Sequencer.IsValid())
-	{
-		Sequencer->PreAnimatedState.DiscardEntityTokens();
-	}
 
 	if (UMovieScene* MovieScene = SequenceAsset->GetMovieScene())
 	{
@@ -829,7 +800,7 @@ void UCacheTrackRecorder::Start()
 
 		FFrameRate FrameRate = MovieScene->GetDisplayRate();
 		FFrameRate TickResolution = MovieScene->GetTickResolution();
-		FFrameNumber PlaybackStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(Timecode.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
+		FFrameNumber PlaybackStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(FApp::GetTimecode().ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
 
 		// Transform all the sections to start the playback start frame
 		FFrameNumber DeltaFrame = PlaybackStartFrame - MovieScene->GetPlaybackRange().GetLowerBoundValue();
@@ -851,9 +822,29 @@ void UCacheTrackRecorder::Start()
 		if (Sequencer.IsValid())
 		{
 			Sequencer->SetGlobalTime(PlaybackStartFrame);
-			Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
+			Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Paused);
 		}
 	}
+}
+
+void UCacheTrackRecorder::Start()
+{
+	FTimecode Timecode = FApp::GetTimecode();
+
+	State = ECacheTrackRecorderState::Started;
+
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+
+	CurrentFrameTime = FFrameTime(0);
+	TimecodeAtStart = Timecode;
+
+	// Discard any entity tokens we have so that restore state does not take effect when we delete any sections that recording will be replacing.
+	if (Sequencer.IsValid())
+	{
+		Sequencer->PreAnimatedState.DiscardEntityTokens();
+	}
+
+	Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
 
 	FQualifiedFrameTime RecordTime = GetRecordTime();
 	FFrameNumber RecordStartFrame = RecordTime.Time.FloorToFrame();
@@ -866,8 +857,6 @@ void UCacheTrackRecorder::Start()
 		{
 			CacheSource.Recorder->SetSectionStartTimecode(CurrentTimecode, RecordTime.Time.FloorToFrame());
 
-			// Record immediately so that there's a key on the first frame of recording
-			CacheSource.Recorder->RecordSample(RecordTime);
 			if (UMovieSceneTrack* SceneTrack = Cast<UMovieSceneTrack>(CacheSource.Track))
 			{
 				for (UMovieSceneSection* SubSection : SceneTrack->GetAllSections())
@@ -996,10 +985,11 @@ void UCacheTrackRecorder::StopInternal(const bool bCancelled)
 			}
 		}
 
-		// Restore the playback range to what it was before recording.
+		// Restore the playback/view range to what it was before recording.
 		if (MovieScene)
 		{
 			MovieScene->SetPlaybackRange(CachedPlaybackRange);
+			Sequencer->SetViewRange(CachedViewRange, EViewRangeInterpolation::Immediate);
 		}
 
 		if (bRecordingFinished)

@@ -344,6 +344,8 @@ private:
 
 	/** Due a few ticks after the pre so we are set up with asset creation */
 	int32 NumberOfTicksAfterPre;
+	
+	TRange<double> CachedViewRange;
 
 	friend class FTickableCacheTrackRecorder;
 

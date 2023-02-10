@@ -782,57 +782,51 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 		{
 			float AgeDiff = FMath::Max(DesiredAge, 0.0f) - SystemInstanceController->GetAge();
 			int32 TicksToProcess = 0;
-			if (bLockDesiredAgeDeltaTimeToSeekDelta && FMath::Abs(AgeDiff) < KINDA_SMALL_NUMBER)
+
+			if (AgeDiff < 0.0f)
 			{
-				AgeDiff = 0.0f;
+				SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+				AgeDiff = DesiredAge - SystemInstanceController->GetAge();
 			}
-			else
+
+			if (FMath::Abs(AgeDiff) >= UE_KINDA_SMALL_NUMBER)
 			{
-				if (AgeDiff < 0.0f)
+				FNiagaraSystemSimulation* SystemSim = SystemInstanceController->GetSoloSystemSimulation().Get();
+				if (SystemSim)
 				{
-					SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-					AgeDiff = DesiredAge - SystemInstanceController->GetAge();
-				}
-				
-				if (AgeDiff > 0.0f)
-				{
-					FNiagaraSystemSimulation* SystemSim = SystemInstanceController->GetSoloSystemSimulation().Get();
-					if (SystemSim)
+					const bool bFixedTickDelta = Asset->HasFixedTickDelta();
+					const float TickDelta = bFixedTickDelta ? Asset->GetFixedTickDeltaTime() : SeekDelta;
+					if (bLockDesiredAgeDeltaTimeToSeekDelta || AgeDiff > TickDelta)
 					{
-						const bool bFixedTickDelta = Asset->HasFixedTickDelta();
-						const float TickDelta = bFixedTickDelta ? Asset->GetFixedTickDeltaTime() : SeekDelta;
-						if (bLockDesiredAgeDeltaTimeToSeekDelta || AgeDiff > TickDelta)
+						// If we're locking the delta time to the seek delta, or we need to seek more than a frame, tick the simulation by the seek delta.
+						const bool bUseMaxSimTime = MaxSimTime > 0.0f;
+						const double EndMaxSimTime = bUseMaxSimTime ? FPlatformTime::Seconds() + MaxSimTime : 0.0f;
+
+						TicksToProcess = FMath::FloorToInt(AgeDiff / TickDelta);
+						while ( TicksToProcess > 0 )
 						{
-							// If we're locking the delta time to the seek delta, or we need to seek more than a frame, tick the simulation by the seek delta.
-							const bool bUseMaxSimTime = MaxSimTime > 0.0f;
-							const double EndMaxSimTime = bUseMaxSimTime ? FPlatformTime::Seconds() + MaxSimTime : 0.0f;
+							// Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
+							// If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
+							SystemInstanceController->ManualTick(TickDelta, nullptr);
+							--TicksToProcess;
 
-							TicksToProcess = FMath::FloorToInt(AgeDiff / TickDelta);
-							while ( TicksToProcess > 0 )
+							// This limits the amount of time we will consume seeking forward
+							if ( bUseMaxSimTime )
 							{
-								// Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
-								// If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
-								SystemInstanceController->ManualTick(TickDelta, nullptr);
-								--TicksToProcess;
-
-								// This limits the amount of time we will consume seeking forward
-								if ( bUseMaxSimTime )
+								const double CurrentTime = FPlatformTime::Seconds();
+								if ( CurrentTime >= EndMaxSimTime )
 								{
-									const double CurrentTime = FPlatformTime::Seconds();
-									if ( CurrentTime >= EndMaxSimTime )
-									{
-										break;
-									}
+									break;
 								}
 							}
 						}
-						else
+					}
+					else
+					{
+						// Otherwise just tick by the age difference.
+						if (!bFixedTickDelta || AgeDiff >= TickDelta)
 						{
-							// Otherwise just tick by the age difference.
-							if (!bFixedTickDelta || AgeDiff >= TickDelta)
-							{
-								SystemInstanceController->ManualTick(AgeDiff, nullptr);
-							}
+							SystemInstanceController->ManualTick(AgeDiff, nullptr);
 						}
 					}
 				}

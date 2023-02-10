@@ -80,6 +80,8 @@ UMovieSceneSection* UMovieSceneNiagaraCacheTrack::CreateNewSection()
 	UMovieSceneNiagaraCacheSection* MovieSceneNiagaraCacheSection = NewObject<UMovieSceneNiagaraCacheSection>(this, NAME_None, RF_Transactional);
 	MovieSceneNiagaraCacheSection->Params.SimCache = NewObject<UNiagaraSimCache>(MovieSceneNiagaraCacheSection, NAME_None, RF_Transactional);
 	MovieSceneNiagaraCacheSection->Params.CacheParameters.AttributeCaptureMode = ENiagaraSimCacheAttributeCaptureMode::RenderingOnly;
+	MovieSceneNiagaraCacheSection->Params.CacheParameters.bAllowInterpolation = true;
+	MovieSceneNiagaraCacheSection->Params.CacheParameters.bAllowVelocityExtrapolation = true;
 	return MovieSceneNiagaraCacheSection;
 }
 

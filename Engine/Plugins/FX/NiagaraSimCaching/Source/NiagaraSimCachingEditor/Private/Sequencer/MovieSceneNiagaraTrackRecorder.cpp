@@ -8,7 +8,6 @@
 #include "TakeRecorderSettings.h"
 #include "Misc/App.h"
 #include "Misc/CoreMiscDefines.h"
-#include "Misc/CoreMiscDefines.h"
 #include "MovieScene/MovieSceneNiagaraSystemTrack.h"
 #include "Niagara/NiagaraSimCachingEditorPlugin.h"
 #include "Niagara/Sequencer/MovieSceneNiagaraCacheSection.h"
@@ -49,6 +48,7 @@ UMovieSceneTrackRecorder* FMovieSceneNiagaraTrackRecorderFactory::CreateTrackRec
 					if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(Bound))
 					{
 						TrackRecorder->SystemToRecord = NiagaraComponent;
+						NiagaraComponent->SetSimCache(nullptr);
 						break;
 					}
 				}
@@ -67,11 +67,14 @@ UMovieSceneTrackRecorder* FMovieSceneNiagaraTrackRecorderFactory::CreateTrackRec
 						{
 							for (UMovieSceneSection* Section : SystemTrack->GetAllSections())
 							{
+								TRange<FFrameNumber> SectionRange = Section->GetRange();
+								// we move the end of the section one frame out because cache interpolation needs a last frame to work correctly (otherwise the last frame could only be extrapolated)
+								SectionRange.SetUpperBoundValue(SectionRange.GetUpperBoundValue().Value + 1);
 								if (!TrackRecorder->RecordRange.IsSet())
 								{
-									TrackRecorder->RecordRange = Section->GetRange();
+									TrackRecorder->RecordRange = SectionRange;
 								}
-								TrackRecorder->RecordRange = FFrameNumberRange::Hull(*TrackRecorder->RecordRange, Section->GetRange());
+								TrackRecorder->RecordRange = FFrameNumberRange::Hull(*TrackRecorder->RecordRange, SectionRange);
 							}
 						}
 					}
@@ -200,20 +203,6 @@ void UMovieSceneNiagaraTrackRecorder::FinalizeTrackImpl()
 		// finalize the sim cache
 		NiagaraCacheSection->Params.SimCache->EndWrite();
 		
-		// Set the final range 
-		TOptional<TRange<FFrameNumber>> DefaultSectionLength = NiagaraCacheSection->GetAutoSizeRange();
-		if (DefaultSectionLength.IsSet())
-		{
-			if (RecordRange.IsSet())
-			{
-				NiagaraCacheSection->SetRange(TRange<FFrameNumber>(RecordRange->GetLowerBoundValue(), (DefaultSectionLength->GetUpperBoundValue() - DefaultSectionLength->GetLowerBoundValue()) + RecordRange->GetLowerBoundValue()));
-			}
-			else
-			{
-				NiagaraCacheSection->SetRange(DefaultSectionLength.GetValue());
-			}
-		}
-
 		// Activate the section
 		NiagaraCacheSection->SetIsActive(true);
 	}
@@ -224,17 +213,37 @@ void UMovieSceneNiagaraTrackRecorder::RecordSampleImpl(const FQualifiedFrameTime
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	const FFrameNumber CurrentFrame = CurrentFrameTime.ConvertTo(TickResolution).FloorToFrame();
 
-	if (RecordRange.IsSet() && (RecordRange->GetLowerBoundValue() > CurrentFrame || RecordRange->GetUpperBoundValue() < CurrentFrame))
+	if (RecordRange.IsSet() && (RecordRange->GetLowerBoundValue() > CurrentFrame || RecordRange->GetUpperBoundValue() <= CurrentFrame))
 	{
 		return;
 	}
 
 	if (NiagaraCacheSection.IsValid() && SystemToRecord.IsValid())
 	{
-		if ( NiagaraCacheSection->Params.SimCache->WriteFrame(SystemToRecord.Get()) )
+		FNiagaraSimCacheFeedbackContext FeedbackContext;
+		FeedbackContext.bAutoLogIssues = false;
+		if (NiagaraCacheSection->Params.SimCache->WriteFrame(SystemToRecord.Get(), FeedbackContext))
 		{
+			if (!bRecordedFirstFrame)
+			{
+				// set to the actual first recorded frame, because systems with spawn rate can tick for a few frames without having particles
+				NiagaraCacheSection->SetStartFrame(CurrentFrame);
+				bRecordedFirstFrame = true;
+			}
+			
 			// Expand the section to the new length
-			NiagaraCacheSection->SetEndFrame(CurrentFrame);
+			FFrameNumber EndFrame = CurrentFrameTime.Time.CeilToFrame();
+			NiagaraCacheSection->ExpandToFrame(EndFrame);
+		}
+		
+		for (const FString& Warning : FeedbackContext.Warnings)
+		{
+			UE_LOG(LogNiagaraSimCachingEditor, Warning, TEXT("Recording sim cache for frame %i: %s"), CurrentFrame.Value, *Warning);
+		}
+
+		for (const FString& Error : FeedbackContext.Errors)
+		{
+			UE_LOG(LogNiagaraSimCachingEditor, Warning, TEXT("Unable to record sim cache for frame %i: %s"), CurrentFrame.Value, *Error);
 		}
 	}
 }

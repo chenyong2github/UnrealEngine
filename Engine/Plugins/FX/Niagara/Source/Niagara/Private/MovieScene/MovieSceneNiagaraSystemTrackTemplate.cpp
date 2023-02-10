@@ -232,7 +232,7 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 
 			if (SystemInstanceController.IsValid() && SystemInstanceController->IsValid() && SystemInstanceController->IsComplete() == false)
 			{
-				const float DesiredAge = float(Context.GetFrameRate().AsSeconds(Context.GetTime() - SpawnSectionStartFrame));
+				const float DesiredAge = FMath::RoundToFloat(static_cast<float>(Context.GetFrameRate().AsSeconds(Context.GetTime() - SpawnSectionStartFrame)) * MinAgeResolution) / MinAgeResolution;
 				if (DesiredAge >= 0)
 				{
 					// Add a quarter of a frame offset here to push the desired age into the middle of the frame since it will be automatically rounded
@@ -252,6 +252,9 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 	ENiagaraSystemSpawnSectionEndBehavior SpawnSectionEndBehavior;
 	ENiagaraAgeUpdateMode AgeUpdateMode;
 	bool bAllowScalability;
+
+	//TODO (mga) move to global sim resolution config, update sim cache as well
+	static constexpr float MinAgeResolution = 10000.0f;
 };
 
 FMovieSceneNiagaraSystemTrackImplementation::FMovieSceneNiagaraSystemTrackImplementation(

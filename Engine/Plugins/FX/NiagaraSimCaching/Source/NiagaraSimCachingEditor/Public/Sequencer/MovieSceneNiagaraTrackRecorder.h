@@ -69,6 +69,7 @@ private:
 	FFrameNumber RecordStartFrame;
 
 	TOptional<FFrameNumberRange> RecordRange;
+	bool bRecordedFirstFrame = false;
 
 	friend FMovieSceneNiagaraTrackRecorderFactory;
 };
