@@ -23,7 +23,7 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 	ParamDataNodeColor = FLinearColor(1.0f, 0.6f, 0.0f);
 	DebugNodeColor = FLinearColor(1.0f, 0.0f, 1.0f);
 
-	DefaultPinColor = FLinearColor(1.0f, 1.0f, 1.0f);
+	DefaultPinColor = FLinearColor(0.16f, 0.16f, 0.16f);
 
 	SpatialDataPinColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	ConcreteDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
