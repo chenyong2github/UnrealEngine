@@ -302,6 +302,9 @@ bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent, FNiagaraS
 	CacheFrame.LocalToWorld = Helper.SystemInstance->GatheredInstanceParameters.ComponentTrans;
 	CacheFrame.LWCTile = Helper.SystemInstance->GetLWCTile();
 	CacheFrame.SimulationAge = FMath::RoundToFloat(Helper.SystemInstance->GetAge() * CacheAgeResolution) / CacheAgeResolution;
+#if WITH_EDITORONLY_DATA
+	CacheFrame.SimulationTickCount = Helper.SystemInstance->GetTickCount();
+#endif
 
 	CacheFrame.SystemData.LocalBounds = Helper.SystemInstance->GetLocalBounds();
 

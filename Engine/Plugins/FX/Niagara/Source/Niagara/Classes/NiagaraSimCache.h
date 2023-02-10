@@ -187,6 +187,11 @@ struct FNiagaraSimCacheFrame
 	UPROPERTY()
 	float SimulationAge = 0.0f;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	int32 SimulationTickCount = 0;
+#endif
+
 	UPROPERTY()
 	FNiagaraSimCacheSystemFrame SystemData;
 
