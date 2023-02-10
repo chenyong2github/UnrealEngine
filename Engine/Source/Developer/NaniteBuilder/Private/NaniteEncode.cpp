@@ -4305,7 +4305,6 @@ void Encode(
 		BuildMaterialRanges( Clusters );
 	}
 
-#if NANITE_USE_CONSTRAINED_CLUSTERS
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::ConstrainClusters);
 		ConstrainClusters( Groups, Clusters );
@@ -4315,7 +4314,6 @@ void Encode(
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::VerifyClusterConstraints);
 		VerifyClusterContraints( Clusters );
 	}
-#endif
 #endif
 
 	{

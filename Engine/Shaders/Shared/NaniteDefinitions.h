@@ -7,11 +7,7 @@
 #define NANITE_SUBPIXEL_MASK								(NANITE_SUBPIXEL_SAMPLES - 1)
 #define NANITE_SUBPIXEL_DILATE								0	// To correct for mismatch with HW rasterizer
 
-// Enable to constrain clusters to no more than 256 vertices and no index references outside of trailing window of NANITE_CONSTRAINED_CLUSTER_CACHE_SIZE vertices.
-#define NANITE_USE_CONSTRAINED_CLUSTERS						1
-
-// This requires contrained clusters because it reuses a small part of GroupVerts during SW rasterization. The reuse is not safe without the constraint.
-#define NANITE_LATE_VSM_PAGE_TRANSLATION					NANITE_USE_CONSTRAINED_CLUSTERS
+#define NANITE_LATE_VSM_PAGE_TRANSLATION					1
 #define NANITE_VSM_PAGE_TABLE_CACHE_DIM						8
 
 #define NANITE_USE_UNCOMPRESSED_VERTEX_DATA					0

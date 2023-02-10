@@ -80,8 +80,7 @@ const FString& FBuilderModule::GetVersionString() const
 	#else
 		const bool bBuildImposters = false;
 	#endif
-		VersionString = FString::Printf(TEXT("%s%s%s%s"), *FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER).ToString(EGuidFormats::DigitsWithHyphens),
-										NANITE_USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
+		VersionString = FString::Printf(TEXT("%s_CONSTRAINED%s%s"), *FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER).ToString(EGuidFormats::DigitsWithHyphens),
 										NANITE_USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""),
 										bBuildImposters ? TEXT("_IMPOSTERS") : TEXT(""));
 

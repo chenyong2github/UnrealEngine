@@ -35,9 +35,6 @@ ALLOW_NO_PS_EXPORT
 
 #if NANITE_VERT_REUSE_BATCH
 	#define SWRASTER_NUM_THREADS 32
-#elif NANITE_PIXEL_PROGRAMMABLE
-	// Use a larger thread group when programmable, as it seems to provide the best occupancy
-	#define SWRASTER_NUM_THREADS 128
 #else
 	#define SWRASTER_NUM_THREADS 64
 #endif
@@ -199,11 +196,9 @@ uint DeduplicateVertIndexes( FNaniteView NaniteView, FPrimitiveSceneData Primiti
 	{
 		VertIndexes = DecodeTriangleIndices(Cluster, TriIndex, bReverseWindingOrder);
 		
-	#if NANITE_USE_CONSTRAINED_CLUSTERS
 		// VertIndexes.x is always smallest
 		BaseVertIndex = WaveActiveMin( VertIndexes.x );
 		VertIndexes -= BaseVertIndex;
-	#endif
 
 		UNROLL
 		for( uint i = 0; i < 3; i++ )
@@ -236,13 +231,9 @@ uint DeduplicateVertIndexes( FNaniteView NaniteView, FPrimitiveSceneData Primiti
 
 #else
 
-#if NANITE_USE_CONSTRAINED_CLUSTERS
-	#define VERTEX_CACHE_SIZE 256
-#else
-	#define VERTEX_CACHE_SIZE 384
-#endif
+#define VERTEX_CACHE_SIZE 256
 
-groupshared float3 GroupVerts[VERTEX_CACHE_SIZE * 3];
+groupshared float3 GroupVerts[VERTEX_CACHE_SIZE];
 
 #endif
 
@@ -476,9 +467,6 @@ void MicropolyRasterize(
 
 		// Transform vertex and store in group shared memory.
 		float3 PointLocal = DecodePosition(VertIndex, Cluster);
-	#if NANITE_PIXEL_PROGRAMMABLE
-		GroupVerts[ VertIndex ] = PointLocal;
-	#else
 		float3 WorldPositionOffset = 0.0f;
 	#if NANITE_VERTEX_PROGRAMMABLE
 		BRANCH
@@ -491,8 +479,7 @@ void MicropolyRasterize(
 		const float3 PointTranslatedWorld = mul( float4( PointLocal, 1 ), InstanceDynamicData.LocalToTranslatedWorld ).xyz + WorldPositionOffset;
 		const float4 PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
 
-		GroupVerts[ VertIndex ] = CalculateSubpixelCoordinates( Raster, PointClip ).xyz;
-	#endif
+		GroupVerts[VertIndex] = CalculateSubpixelCoordinates( Raster, PointClip ).xyz;
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -512,33 +499,6 @@ void MicropolyRasterize(
 		BRANCH
 		if (ThreadIndex >= TriRange.Num)
 			break;
-
-	#if NANITE_PIXEL_PROGRAMMABLE
-		float3 PointLocal[3] =
-		{
-			Verts[0].xyz,
-			Verts[1].xyz,
-			Verts[2].xyz,
-		};
-
-		FNaniteRawAttributeData RawAttributeData[3];
-		GetRawAttributeData3(RawAttributeData, Cluster, VertIndexes, NANITE_NUM_TEXCOORDS_TO_DECODE);
-		
-		FNaniteTransformedTri TransformedTri = TransformNaniteTriangle(InstanceData, MaterialShader.VertTransforms, PointLocal, RawAttributeData, VertIndexes, bEvaluateWPO);
-
-		const float4 PointClip[3] =
-		{
-			mul( float4( TransformedTri.Verts[0].PointWorld, 1 ), NaniteView.TranslatedWorldToClip ),
-			mul( float4( TransformedTri.Verts[1].PointWorld, 1 ), NaniteView.TranslatedWorldToClip ),
-			mul( float4( TransformedTri.Verts[2].PointWorld, 1 ), NaniteView.TranslatedWorldToClip )
-		};
-		
-		Verts[0] = CalculateSubpixelCoordinates( Raster, PointClip[0] );
-		Verts[1] = CalculateSubpixelCoordinates( Raster, PointClip[1] );
-		Verts[2] = CalculateSubpixelCoordinates( Raster, PointClip[2] );
-
-		MaterialShader.TransformedTri = TransformedTri;
-	#endif
 
 		FRasterTri Tri = SetupTriangle< NANITE_SUBPIXEL_SAMPLES, !NANITE_TWO_SIDED >( Raster.ScissorRect, Verts );
 		

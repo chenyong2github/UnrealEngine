@@ -201,7 +201,7 @@ uint PackUInt2ToUInt(uint2 XY)
 	return PackUInt2ToUInt(XY.x, XY.y);
 }
 
-uint2 UnpackUIntFromUInt2(uint Packed)
+uint2 UnpackUInt2FromUInt(uint Packed)
 {
 	return uint2(Packed & 0xffff, Packed >> 16);
 }
