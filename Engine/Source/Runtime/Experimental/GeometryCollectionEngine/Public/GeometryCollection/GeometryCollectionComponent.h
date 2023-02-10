@@ -1239,6 +1239,7 @@ private:
 	void RefreshISMPoolInstances();
 
 	/** return true if the root cluster is not longer active at runtime */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	bool IsRootBroken() const;
 
 	void IncrementSleepTimer(float DeltaTime);
