@@ -48,10 +48,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow"))
 	bool bSmoothInFillAreas = true;
 
-	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow", UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow && bSmoothInFillAreas", UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "10.0"))
 	float FillAreaDistanceMultiplier = 0.25f;
 
-	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow", UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow && bSmoothInFillAreas", UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "10.0"))
 	float FillAreaSmoothMultiplier = 0.25f;
 
 
