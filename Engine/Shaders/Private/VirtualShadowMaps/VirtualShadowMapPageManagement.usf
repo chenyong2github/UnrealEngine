@@ -173,7 +173,7 @@ void PruneLightGridCS(uint GridLinearIndex : SV_DispatchThreadID)
 
 				// Copy light grid data index
 				checkStructuredBufferAccessSlow(OutPrunedLightGridData, CulledLightGridData.DataStartIndex + NumRetainedLights);
-				OutPrunedLightGridData[CulledLightGridData.DataStartIndex + NumRetainedLights++] = GetCulledLightDataGrid(ForwardLightData, CulledLightGridData.DataStartIndex + Index);
+				OutPrunedLightGridData[CulledLightGridData.DataStartIndex + NumRetainedLights++] = GetCulledLightDataGrid(CulledLightGridData.DataStartIndex + Index);
 			}
 		}
 	}

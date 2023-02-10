@@ -48,13 +48,13 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 		{
 	#endif
 	
-			CaptureIndex = GetCulledLightDataGrid(ForwardLightData, CaptureDataStartIndex + TileCaptureIndex);
+			CaptureIndex = GetCulledLightDataGrid(CaptureDataStartIndex + TileCaptureIndex);
 	
 	#if INSTANCED_STEREO
 		}
 		else
 		{
-			CaptureIndex = GetCulledLightDataGrid(ForwardLightDataISR, CaptureDataStartIndex + TileCaptureIndex);
+			CaptureIndex = GetCulledLightDataGridISR(CaptureDataStartIndex + TileCaptureIndex);
 		}
 	#endif
 #endif
