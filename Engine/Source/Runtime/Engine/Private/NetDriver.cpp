@@ -3771,11 +3771,6 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	
 	for (FObjectReplicator* Replicator : This->AllOwnedReplicators)
 	{
-		if (Replicator->GetWeakObjectPtr().IsValid())
-		{
-			Collector.AddStableReference(&Replicator->ObjectPtr);
-		}
-
 		Collector.AddStableReference(&Replicator->ObjectClass);
 	}
 
