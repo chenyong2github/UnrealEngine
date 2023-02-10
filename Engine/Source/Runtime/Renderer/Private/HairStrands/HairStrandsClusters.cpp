@@ -550,7 +550,6 @@ void ComputeHairStrandsClustersCulling(
 	TRACE_CPUPROFILER_EVENT_SCOPE(ComputeHairStrandsClustersCulling);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsClusterCulling);
 
-	const bool bClusterCulling = IsHairStrandsClusterCullingEnable();
 	for (const FViewInfo& View : Views)
 	{
 		// TODO use compute overlap (will need to split AddClusterCullingPass)
@@ -559,17 +558,14 @@ void ComputeHairStrandsClustersCulling(
 			AddClusterResetLod0(GraphBuilder, &ShaderMap, ClusterData);
 		}
 
-		if (bClusterCulling)
+		for (FHairStrandClusterData::FHairGroup& ClusterData : ClusterDatas.HairGroups)		
 		{
-			for (FHairStrandClusterData::FHairGroup& ClusterData : ClusterDatas.HairGroups)		
-			{
-				AddClusterCullingPass(
-					GraphBuilder, 
-					&ShaderMap, 
-					View, 
-					CullingParameters,
-					ClusterData);
-			}
+			AddClusterCullingPass(
+				GraphBuilder,
+				&ShaderMap,
+				View,
+				CullingParameters,
+				ClusterData);
 		}
 	}
 }

@@ -448,6 +448,11 @@ static void RunHairStrandsInterpolation_Strands(
 		ClusterData);
 }
 
+bool IsHairStrandsContinousLODEnabled()
+{
+	return GHairStrands_ContinousLOD > 0;
+}
+
 static void RunHairStrandsGatherCluster(
 	const FHairStrandsInstances& Instances,
 	FHairStrandClusterData* ClusterData)
@@ -455,11 +460,7 @@ static void RunHairStrandsGatherCluster(
 	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
 		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
-
-		if (Instance->GeometryType != EHairGeometryType::Strands)
-			continue;
-
-		if (Instance->Strands.IsValid())
+		if (Instance->GeometryType == EHairGeometryType::Strands && Instance->Strands.IsValid())
 		{
 			if (Instance->Strands.bIsCullingEnabled)
 			{
@@ -467,7 +468,7 @@ static void RunHairStrandsGatherCluster(
 			}
 			else
 			{
-				Instance->HairGroupPublicData->bCullingResultAvailable = false;
+				Instance->HairGroupPublicData->SetCullingResultAvailable(false);
 			}
 		}
 	}
@@ -885,7 +886,7 @@ static void RunHairLODSelection(
 				{
 					const bool bNeedLODing		= LODIndex > 0;
 					const bool bNeedDeformation = Instance->Strands.DeformedResource != nullptr;
-					bCullingEnable = bNeedLODing || bNeedDeformation;
+					bCullingEnable = (bNeedLODing || bNeedDeformation) && !IsHairStrandsContinousLODEnabled();
 				}
 			}
 
@@ -894,10 +895,10 @@ static void RunHairLODSelection(
 				GeometryType = EHairGeometryType::NoneGeometry;
 			}
 
-			const bool bSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
+			const bool bSimulationEnable			= Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
 			const bool bDeformationEnable			= Instance->HairGroupPublicData->bIsDeformationEnable;
-			const bool bGlobalInterpolationEnable =  Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
-			const bool bLODNeedsGuides = bSimulationEnable || bDeformationEnable || bGlobalInterpolationEnable;
+			const bool bGlobalInterpolationEnable	= Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
+			const bool bLODNeedsGuides				= bSimulationEnable || bDeformationEnable || bGlobalInterpolationEnable;
 
 			const EHairResourceLoadingType LoadingType = GetHairResourceLoadingType(GeometryType, IntLODIndex);
 			EHairResourceStatus ResourceStatus = EHairResourceStatus::None;

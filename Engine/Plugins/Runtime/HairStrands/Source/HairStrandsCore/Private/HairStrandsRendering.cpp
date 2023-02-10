@@ -76,6 +76,8 @@ int GetHairRaytracingProceduralSplits()
 	return FMath::Clamp(GHairRaytracingProceduralSplits, 1, STRANDS_PROCEDURAL_INTERSECTOR_MAX_SPLITS);
 }
 
+bool IsHairStrandsContinousLODEnabled();
+
 inline uint32 ComputeGroupSize()
 {
 	const uint32 GroupSize = IsRHIDeviceAMD() ? 64 : (IsRHIDeviceNVIDIA() ? 32 : 64);
@@ -427,7 +429,7 @@ struct FRDGHairStrandsCullingData
 FRDGHairStrandsCullingData ImportCullingData(FRDGBuilder& GraphBuilder, FHairGroupPublicData* In)
 {
 	FRDGHairStrandsCullingData Out;
-	Out.bCullingResultAvailable					= In->GetCullingResultAvailable();
+	Out.bCullingResultAvailable = In->GetCullingResultAvailable();
 
 	if (Out.bCullingResultAvailable)
 	{
@@ -2050,7 +2052,7 @@ void ComputeHairStrandsInterpolation(
 			// 3. Compute cluster AABBs (used for LODing and voxelization)
 			{
 				// Optim: If an instance does not voxelize it's data, then there is no need for having valid AABB
-				bool bNeedAABB = Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow;
+				bool bNeedGPUAABB = Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow;
 
 				FHairStrandClusterData::FHairGroup* HairGroupCluster = nullptr;
 				if (CullingData.bCullingResultAvailable)
@@ -2060,13 +2062,20 @@ void ComputeHairStrandsInterpolation(
 					HairGroupCluster = &InClusterData->HairGroups[Instance->HairGroupPublicData->ClusterDataIndex];
 					if (!HairGroupCluster->bVisible)
 					{
-						bNeedAABB = false;
+						bNeedGPUAABB = false;
 					}
+				}
+
+				// When CLOD is enabled, GPU AABB are not supported yet
+				if (IsHairStrandsContinousLODEnabled())
+				{
+					bNeedGPUAABB = false;
 				}
 				Instance->HairGroupPublicData->bClusterAABBValid = false;
 				Instance->HairGroupPublicData->bGroupAABBValid = false;
 
-				if (bNeedAABB)
+
+				if (bNeedGPUAABB)
 				{
 					FRDGImportedBuffer Strands_CulledVertexCount = Register(GraphBuilder, Instance->HairGroupPublicData->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateSRV);
 					AddHairClusterAABBPass(

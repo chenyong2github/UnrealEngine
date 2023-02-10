@@ -1097,8 +1097,6 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FDrawDebugClusterAABBCS, "/Engine/Private/HairStrands/HairStrandsClusterCulling.usf", "MainDrawDebugAABBCS", SF_Compute);
 
-bool IsHairStrandsClusterCullingEnable();
-
 static void AddDrawDebugClusterPass(
 	FRDGBuilder& GraphBuilder,
 	const FHairStrandClusterData& HairClusterData,
@@ -1106,8 +1104,7 @@ static void AddDrawDebugClusterPass(
 {
 	const EGroomViewMode ViewMode = GetGroomViewMode(View);
 	const bool bDebugEnable = ViewMode == EGroomViewMode::ClusterAABB || ViewMode == EGroomViewMode::Cluster;
-	const bool bCullingEnable = IsHairStrandsClusterCullingEnable();
-	if (!bDebugEnable || !bCullingEnable)
+	if (!bDebugEnable)
 	{
 		return;
 	}
