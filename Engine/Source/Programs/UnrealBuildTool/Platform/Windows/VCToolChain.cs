@@ -2087,6 +2087,10 @@ namespace UnrealBuildTool
 
 		public override void CreateSpecificFileAction(CppCompileEnvironment CompileEnvironment, DirectoryReference SourceDir, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
+			// This is not supported for now.. If someone wants it we can implement it
+			if (CompileEnvironment.Architectures.bIsMultiArch)
+				return;
+
 			VCCompileAction BaseCompileAction = CreateBaseCompileAction(CompileEnvironment);
 			AppendCLArguments_CPP(CompileEnvironment, BaseCompileAction.Arguments);
 			Graph.AddAction(new VcSpecificFileAction(SourceDir, OutputDir, BaseCompileAction));
