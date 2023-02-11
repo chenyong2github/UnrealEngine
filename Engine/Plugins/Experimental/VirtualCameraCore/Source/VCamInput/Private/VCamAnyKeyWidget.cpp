@@ -5,12 +5,13 @@
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 // Input processor class that forwards any relevant input to the owning widget
 // All Handle events return true to consume the input
 class FVCamPressAnyKeyInputProcessor : public IInputProcessor
 {
 public:
-	FVCamPressAnyKeyInputProcessor(UVCamPressAnyKey* InOwner) : Owner(InOwner) {};
+	FVCamPressAnyKeyInputProcessor(UDEPRECATED_VCamPressAnyKey* InOwner) : Owner(InOwner) {};
 
 	virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override {};
 
@@ -75,10 +76,11 @@ private:
 
 	
 	// Keep a reference to the widget owning this processor so we can notify on key events
-	UVCamPressAnyKey* Owner = nullptr;
+	UDEPRECATED_VCamPressAnyKey* Owner = nullptr;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-void UVCamPressAnyKey::NativeOnActivated()
+void UDEPRECATED_VCamPressAnyKey::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 
@@ -88,7 +90,7 @@ void UVCamPressAnyKey::NativeOnActivated()
 	FSlateApplication::Get().RegisterInputPreProcessor(InputProcessor, 0);
 }
 
-void UVCamPressAnyKey::NativeOnDeactivated()
+void UDEPRECATED_VCamPressAnyKey::NativeOnDeactivated()
 {
 	Super::NativeOnDeactivated();
 
@@ -98,7 +100,7 @@ void UVCamPressAnyKey::NativeOnDeactivated()
 	}
 }
 
-void UVCamPressAnyKey::HandleKeySelected(FKey InKey)
+void UDEPRECATED_VCamPressAnyKey::HandleKeySelected(FKey InKey)
 {
 	if (!bKeySelected)
 	{
@@ -110,7 +112,7 @@ void UVCamPressAnyKey::HandleKeySelected(FKey InKey)
 	}
 }
 
-void UVCamPressAnyKey::HandleKeySelectionCanceled()
+void UDEPRECATED_VCamPressAnyKey::HandleKeySelectionCanceled()
 {
 if (!bKeySelected)
 	{
@@ -122,7 +124,7 @@ if (!bKeySelected)
 	}
 }
 
-void UVCamPressAnyKey::Dismiss(TFunction<void()> PostDismissCallback)
+void UDEPRECATED_VCamPressAnyKey::Dismiss(TFunction<void()> PostDismissCallback)
 {
 	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, PostDismissCallback](float DeltaTime)
 	{

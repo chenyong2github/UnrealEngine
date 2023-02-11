@@ -10,8 +10,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnKeySelected, FKey, Key);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnKeySelectionCanceled);
 
 // Base widget class that allows you to wait for any input and then respond to the key pressed
-UCLASS(Abstract)
-class VCAMINPUT_API UVCamPressAnyKey : public UCommonActivatableWidget
+UCLASS(Abstract, Deprecated)
+class UE_DEPRECATED(5.2, "This class has been deprecated.") VCAMINPUT_API UDEPRECATED_VCamPressAnyKey : public UCommonActivatableWidget 
 {
 	GENERATED_BODY()
 public:
