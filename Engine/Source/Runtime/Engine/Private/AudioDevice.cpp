@@ -394,6 +394,30 @@ FAudioDevice::FAudioDevice()
 {
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // suppress deprecation warning in default dtor
+FAudioDevice::~FAudioDevice() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+FAudioDeviceHandle FAudioDevice::GetMainAudioDevice()
+{
+	// Try to get GEngine's main audio device
+	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+
+	// If we don't have a main audio device (maybe we're running in a non-standard mode like a commandlet)
+	if (!AudioDevice)
+	{
+		// We should have an active device for device manager
+		FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+		return DeviceManager->GetActiveAudioDevice();
+	}
+	return AudioDevice;
+}
+
+FAudioDeviceManager* FAudioDevice::GetAudioDeviceManager()
+{
+	return GEngine->GetAudioDeviceManager();
+}
+
 FAudioEffectsManager* FAudioDevice::CreateEffectsManager()
 {
 	return new FAudioEffectsManager(this);
@@ -776,6 +800,33 @@ FAudioDevice::FAudioSpatializationInterfaceInfo FAudioDevice::GetCurrentSpatiali
 bool FAudioDevice::SpatializationPluginInterfacesAvailable()
 {
 	return GetCurrentSpatializationPluginInterfaceInfo().IsValid();
+}
+
+bool FAudioDevice::IsOcclusionPluginLoaded()
+{
+	if (FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice())
+	{
+		return MainAudioDevice->bOcclusionInterfaceEnabled;
+	}
+	return false;
+}
+
+bool FAudioDevice::IsReverbPluginLoaded()
+{
+	if (FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice())
+	{
+		return MainAudioDevice->bReverbInterfaceEnabled;
+	}
+	return false;
+}
+
+bool FAudioDevice::IsSourceDataOverridePluginLoaded()
+{
+	if (FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice())
+	{
+		return MainAudioDevice->bSourceDataOverrideInterfaceEnabled;
+	}
+	return false;
 }
 
 void FAudioDevice::PrecacheStartupSounds()
@@ -6814,6 +6865,42 @@ void FAudioDevice::UnregisterSoundClass(USoundClass* InSoundClass)
 	}
 }
 
+void FAudioDevice::RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* SoundSubmix)
+{
+	UE_LOG(LogAudio, Error, TEXT("Submix buffer listener only works with the audio mixer. Please run with audio mixer enabled."));
+}
+
+void FAudioDevice::UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* SoundSubmix)
+{
+	UE_LOG(LogAudio, Error, TEXT("Submix buffer listener only works with the audio mixer. Please run with audio mixer enabled."));
+}
+
+Audio::FPatchOutputStrongPtr FAudioDevice::AddPatchForSubmix(uint32 InObjectId, float InPatchGain)
+{
+	UE_LOG(LogAudio, Error, TEXT("Submix patching only works with the audio mixer. Please run with audio mixer enabled."));
+	return nullptr;
+}
+
+Audio::FPatchOutputStrongPtr FAudioDevice::AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain)
+{
+	return nullptr;
+}
+
+Audio::FPatchOutputStrongPtr FAudioDevice::AddPatchForAudioBus_GameThread(uint32 InAudioBusId, float InPatchGain)
+{
+	return nullptr;
+}
+
+Audio::FPatchInput FAudioDevice::AddPatchInputForAudioBus(uint32 InAudioBusId, int32 InFrames, int32 InChannels, float InGain)
+{
+	return Audio::FPatchInput();
+}
+
+Audio::FPatchOutputStrongPtr FAudioDevice::AddPatchOutputForAudioBus(uint32 InAudioBusId, int32 InFrames, int32 InChannels, float InGain)
+{
+	return Audio::FPatchOutputStrongPtr();
+}
+
 FSoundClassProperties* FAudioDevice::GetSoundClassCurrentProperties(USoundClass* InSoundClass)
 {
 	if (InSoundClass)
@@ -7232,6 +7319,12 @@ void FAudioDevice::SetPlatformAudioHeadroom(const float InPlatformHeadRoom)
 	}
 
 	PlatformAudioHeadroom = InPlatformHeadRoom;
+}
+
+bool FAudioDevice::IsMainAudioDevice() const
+{
+	FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice();
+	return (!MainAudioDevice || MainAudioDevice.GetAudioDevice() == this);
 }
 
 const TArray<FWaveInstance*>& FAudioDevice::GetActiveWaveInstances() const

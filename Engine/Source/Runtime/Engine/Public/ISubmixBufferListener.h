@@ -1,10 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "HAL/Platform.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "Sound/SoundSubmix.h"
+#endif
+
+class USoundSubmix;
 
 /** Abstract interface for receiving audio data from a given submix. */
-class ENGINE_API ISubmixBufferListener
+class ISubmixBufferListener
 {
 public:
 	virtual ~ISubmixBufferListener() = default;
