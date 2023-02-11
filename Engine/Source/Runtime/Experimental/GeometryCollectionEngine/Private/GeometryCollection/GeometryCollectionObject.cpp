@@ -772,6 +772,15 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 				ArchiveGeometryCollection = CopyCollectionAndRemoveGeometry(GeometryCollection);
 			}
 		}
+		else
+		{
+			// do we need to remove the simplicial attribute ? 
+			if (false == FGeometryCollection::AreCollisionParticlesEnabled())
+			{
+				ArchiveGeometryCollection = TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>(GeometryCollection->NewCopy<FGeometryCollection>());
+				ArchiveGeometryCollection->RemoveAttribute(FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
+			}
+		}
 
 		// The dataflow asset is only needed for the editor, so we just remove it when cooking 
 		StrippedDataflowAsset = DataflowAsset;
@@ -1267,14 +1276,17 @@ TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::CopyCo
 
 	CollectionToCopy->CopyTo(GeometryCollectionToReturn.Get(), GroupsToSkip, AttributesToSkip);
 
-	// recreate the simplicial attribute since we cannot copy it and we skipped it 
-	using FSimplicialUniquePtr = TUniquePtr<FCollisionStructureManager::FSimplicial>;
-	if (const TManagedArray<FSimplicialUniquePtr>* SourceSimplicials = CollectionToCopy->FindAttribute<FSimplicialUniquePtr>(FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup))
+	if (FGeometryCollection::AreCollisionParticlesEnabled())
 	{
-		TManagedArray<FSimplicialUniquePtr>& SimplicialsToWrite = GeometryCollectionToReturn->AddAttribute<FSimplicialUniquePtr>(FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
-		for (int32 Index = SourceSimplicials->Num()-1; 0 <= Index; Index--)
+		// recreate the simplicial attribute since we cannot copy it and we skipped it 
+		using FSimplicialUniquePtr = TUniquePtr<FCollisionStructureManager::FSimplicial>;
+		if (const TManagedArray<FSimplicialUniquePtr>* SourceSimplicials = CollectionToCopy->FindAttribute<FSimplicialUniquePtr>(FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup))
 		{
-			SimplicialsToWrite[Index].Reset((*SourceSimplicials)[Index] ? (*SourceSimplicials)[Index]->NewCopy() : nullptr);
+			TManagedArray<FSimplicialUniquePtr>& SimplicialsToWrite = GeometryCollectionToReturn->AddAttribute<FSimplicialUniquePtr>(FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
+			for (int32 Index = SourceSimplicials->Num() - 1; 0 <= Index; Index--)
+			{
+				SimplicialsToWrite[Index].Reset((*SourceSimplicials)[Index] ? (*SourceSimplicials)[Index]->NewCopy() : nullptr);
+			}
 		}
 	}
 

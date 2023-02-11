@@ -122,6 +122,7 @@ public:
 
 	};
 
+	static bool AreCollisionParticlesEnabled();
 
 	/**
 	 * Create a GeometryCollection from Vertex and Indices arrays

@@ -21,6 +21,12 @@
 #include "Chaos/ChaosArchive.h"
 #include "Voronoi/Voronoi.h"
 
+bool bChaosGeometryCollectionEnableCollisionParticles = true;
+FAutoConsoleVariableRef CVarChaosGeometryCollectionEnableCollisionParticles(
+	TEXT("p.Chaos.GC.EnableCollisionParticles"),
+	bChaosGeometryCollectionEnableCollisionParticles,
+	TEXT("Enable use of collision particles for collision [def:true]"));
+
 DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionLogging, Log, All);
 
 // @todo: update names 
@@ -34,6 +40,13 @@ const FName FGeometryCollection::MaterialGroup = "Material";
 const FName FGeometryCollection::SimulatableParticlesAttribute("SimulatableParticlesAttribute");
 const FName FGeometryCollection::SimulationTypeAttribute("SimulationType");
 const FName FGeometryCollection::StatusFlagsAttribute("StatusFlags");
+
+
+bool FGeometryCollection::AreCollisionParticlesEnabled()
+{
+	return bChaosGeometryCollectionEnableCollisionParticles;
+}
+
 
 FGeometryCollection::FGeometryCollection()
 	: FTransformCollection()
