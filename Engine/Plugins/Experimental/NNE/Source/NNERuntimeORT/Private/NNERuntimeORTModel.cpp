@@ -12,7 +12,6 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #include "ID3D12DynamicRHI.h"
-#include "D3D12RHIBridge.h"
 #include "DirectML.h"
 #endif
 
