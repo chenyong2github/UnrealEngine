@@ -53,7 +53,7 @@ namespace GeometryCollection::Facades
 		void AddTriangle(const Chaos::FTriangle& InTriangle);
 
 		/** Add a surface to the rendering view.*/
-		void AddSurface(TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices);
+		void AddSurface(TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices, TArray<FVector3f>&& InNormals, TArray<FLinearColor>&& InColors);
 		
 		/** GetIndices */
 		const TManagedArray< FIntVector >& GetIndices() const { return IndicesAttribute.Get(); }
@@ -142,6 +142,8 @@ namespace GeometryCollection::Facades
 		TManagedArrayAccessor<int32> VertexToGeometryIndexAttribute;
 		TManagedArrayAccessor<int32> VertexSelectionAttribute;
 		TManagedArrayAccessor<int32> VertexHitProxyIndexAttribute;
+		TManagedArrayAccessor<FVector3f> VertexNormalAttribute;
+		TManagedArrayAccessor<FLinearColor> VertexColorAttribute;
 
 		TManagedArrayAccessor<FIntVector> IndicesAttribute;
 		TManagedArrayAccessor<int32> MaterialIDAttribute;
@@ -154,9 +156,6 @@ namespace GeometryCollection::Facades
 		TManagedArrayAccessor<int32> IndicesStartAttribute;
 		TManagedArrayAccessor<int32> IndicesCountAttribute;
 		TManagedArrayAccessor<int32> GeometrySelectionAttribute;
-		TManagedArrayAccessor<FLinearColor> VertexColorAttribute;
-
-
 	};
 
 }

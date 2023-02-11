@@ -90,20 +90,43 @@ namespace Dataflow
 							// Maybe these buffers should be shrunk, but there are unused vertices in the buffer. 
 							for (int i = 0; i < Visited.Num(); i++) if (!Visited[i]) Vertices[i] = FVector3f(0);
 
-							RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris));
-							if (const TManagedArray<FLinearColor>* VertexColor = Collection.FindAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup))
+							// Copy VertexNormals from the Collection if exists otherwise compute and set it
+							TArray<FVector3f> VertexNormals; VertexNormals.AddUninitialized(Vertex.Num());
+							if (const TManagedArray<FVector3f>* VertexNormal = Collection.FindAttribute<FVector3f>("Normal", FGeometryCollection::VerticesGroup))
 							{
-								TManagedArray<FLinearColor>& RenderCollectionVertexColor = RenderCollection.ModifyVertexColor();
-								for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
+								for (int32 VertexIdx = 0; VertexIdx < VertexNormals.Num(); ++VertexIdx)
 								{
-									RenderCollectionVertexColor[Idx] = (*VertexColor)[Idx];
+									VertexNormals[VertexIdx] = (*VertexNormal)[VertexIdx];
 								}
 							}
 							else
 							{
-								TManagedArray<FLinearColor>& RenderCollectionVertexColor = RenderCollection.ModifyVertexColor();
-								RenderCollectionVertexColor.Fill(IDataflowEnginePlugin::SurfaceColor);
+								for (int32 VertexIdx = 0; VertexIdx < VertexNormals.Num(); ++VertexIdx)
+								{
+									// TODO: Compute the normal
+									VertexNormals[VertexIdx] = FVector3f(0.f);
+								}
 							}
+
+							// Copy VertexColors from the Collection if exists otherwise set it to IDataflowEnginePlugin::SurfaceColor
+							TArray<FLinearColor> VertexColors; VertexColors.AddUninitialized(Vertex.Num());
+							if (const TManagedArray<FLinearColor>* VertexColorManagedArray = Collection.FindAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup))
+							{
+								for (int32 VertexIdx = 0; VertexIdx < VertexColors.Num(); ++VertexIdx)
+								{
+									VertexColors[VertexIdx] = (*VertexColorManagedArray)[VertexIdx];
+								}
+							}
+							else
+							{
+								for (int32 VertexIdx = 0; VertexIdx < VertexColors.Num(); ++VertexIdx)
+								{
+									VertexColors[VertexIdx] = FLinearColor(IDataflowEnginePlugin::SurfaceColor);
+								}
+							}
+
+							// Set the data on the RenderCollection
+							RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris), MoveTemp(VertexNormals), MoveTemp(VertexColors));
 						}
 					}
 				}
@@ -153,7 +176,17 @@ namespace Dataflow
 								Vertices[VertexID] = (FVector3f)DynamicMesh.GetVertex(VertexID);
 							}
 
-							RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris));
+							// Add VertexNormal and VertexColor
+							TArray<FVector3f> VertexNormals; VertexNormals.AddUninitialized(Vertices.Num());
+							TArray<FLinearColor> VertexColors; VertexColors.AddUninitialized(Vertices.Num());
+							for (int32 VertexIdx = 0; VertexIdx < VertexNormals.Num(); ++VertexIdx)
+							{
+								// TODO: Get the normal from FDynamicMesh3
+								VertexNormals[VertexIdx] = FVector3f(0.f);
+								VertexColors[VertexIdx] = FLinearColor(IDataflowEnginePlugin::SurfaceColor);
+							}
+
+							RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris), MoveTemp(VertexNormals), MoveTemp(VertexColors));
 						}
 					}
 				}
@@ -204,7 +237,18 @@ namespace Dataflow
 					Tris[8] = FIntVector(0, 3, 7); Tris[9] = FIntVector(4, 0, 7);
 					Tris[10] = FIntVector(5, 4, 7); Tris[11] = FIntVector(5, 7, 6);
 
-					RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris));
+					TArray<FVector3f> VertexNormals; VertexNormals.AddUninitialized(NumVertices);
+					// TODO: Compute vertex normals
+					
+					// Add VertexNormal and VertexColor
+					TArray<FLinearColor> VertexColors; VertexColors.AddUninitialized(Vertices.Num());
+					for (int32 VertexIdx = 0; VertexIdx < VertexNormals.Num(); ++VertexIdx)
+					{
+						VertexNormals[VertexIdx] = FVector3f(0.f);
+						VertexColors[VertexIdx] = FLinearColor(IDataflowEnginePlugin::SurfaceColor);
+					}
+
+					RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris), MoveTemp(VertexNormals), MoveTemp(VertexColors));
 				}
 			});
 

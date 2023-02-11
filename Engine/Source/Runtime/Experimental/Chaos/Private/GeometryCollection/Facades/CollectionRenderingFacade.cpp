@@ -17,6 +17,8 @@ namespace GeometryCollection::Facades
 		, VertexToGeometryIndexAttribute(InCollection, "GeometryIndex", FGeometryCollection::VerticesGroup, FGeometryCollection::GeometryGroup)
 		, VertexSelectionAttribute(InCollection, "SelectionState", FGeometryCollection::VerticesGroup)
 		, VertexHitProxyIndexAttribute(InCollection, "HitIndex", FGeometryCollection::VerticesGroup)
+		, VertexNormalAttribute(InCollection, "Normal", FGeometryCollection::VerticesGroup)
+		, VertexColorAttribute(InCollection, "Color", FGeometryCollection::VerticesGroup)
 		, IndicesAttribute(InCollection, "Indices", FGeometryCollection::FacesGroup, FGeometryCollection::VerticesGroup)
 		, MaterialIDAttribute(InCollection, "MaterialID", FGeometryCollection::FacesGroup)
 		, TriangleSectionAttribute(InCollection, "Sections", FGeometryCollection::MaterialGroup)
@@ -27,7 +29,7 @@ namespace GeometryCollection::Facades
 		, IndicesStartAttribute(InCollection, "IndicesStart", FGeometryCollection::GeometryGroup)
 		, IndicesCountAttribute(InCollection, "IndicesCount", FGeometryCollection::GeometryGroup)
 		, GeometrySelectionAttribute(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
-		, VertexColorAttribute(InCollection, "Color", FGeometryCollection::VerticesGroup)
+
 	{}
 
 	FRenderingFacade::FRenderingFacade(const FManagedArrayCollection& InCollection)
@@ -37,6 +39,8 @@ namespace GeometryCollection::Facades
 		, VertexToGeometryIndexAttribute(InCollection, "GeometryIndex", FGeometryCollection::VerticesGroup, FGeometryCollection::GeometryGroup)
 		, VertexSelectionAttribute(InCollection, "SelectionState", FGeometryCollection::VerticesGroup)
 		, VertexHitProxyIndexAttribute(InCollection, "HitIndex", FGeometryCollection::VerticesGroup)
+		, VertexNormalAttribute(InCollection, "Normal", FGeometryCollection::VerticesGroup)
+		, VertexColorAttribute(InCollection, "Color", FGeometryCollection::VerticesGroup)
 		, IndicesAttribute(InCollection, "Indices", FGeometryCollection::FacesGroup, FGeometryCollection::VerticesGroup)
 		, MaterialIDAttribute(InCollection, "MaterialID", FGeometryCollection::FacesGroup)
 		, TriangleSectionAttribute(InCollection, "Sections", FGeometryCollection::MaterialGroup)
@@ -47,7 +51,6 @@ namespace GeometryCollection::Facades
 		, IndicesStartAttribute(InCollection, "IndicesStart", FGeometryCollection::GeometryGroup, FGeometryCollection::FacesGroup)
 		, IndicesCountAttribute(InCollection, "IndicesCount", FGeometryCollection::GeometryGroup)
 		, GeometrySelectionAttribute(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
-		, VertexColorAttribute(InCollection, "Color", FGeometryCollection::VerticesGroup)
 	{}
 
 	//
@@ -61,6 +64,8 @@ namespace GeometryCollection::Facades
 		VertexSelectionAttribute.Add();
 		VertexToGeometryIndexAttribute.Add();
 		VertexHitProxyIndexAttribute.Add();
+		VertexNormalAttribute.Add();
+		VertexColorAttribute.Add();
 		IndicesAttribute.Add();
 		MaterialIDAttribute.Add();
 		TriangleSectionAttribute.Add();
@@ -71,7 +76,6 @@ namespace GeometryCollection::Facades
 		IndicesStartAttribute.Add();
 		IndicesCountAttribute.Add();
 		GeometrySelectionAttribute.Add();
-		VertexColorAttribute.Add();
 	}
 
 	bool FRenderingFacade::CanRenderSurface( ) const
@@ -88,7 +92,8 @@ namespace GeometryCollection::Facades
 			GeometryNameAttribute.IsValid() && GeometryHitProxyIndexAttribute.IsValid() &&
 			VertexStartAttribute.IsValid() && VertexCountAttribute.IsValid() &&
 			IndicesStartAttribute.IsValid() && IndicesCountAttribute.IsValid() &&
-			GeometrySelectionAttribute.IsValid() && VertexColorAttribute.IsValid();
+			GeometrySelectionAttribute.IsValid() && VertexColorAttribute.IsValid() &&
+			VertexNormalAttribute.IsValid();
 	}
 
 	int32 FRenderingFacade::NumTriangles() const
@@ -123,7 +128,7 @@ namespace GeometryCollection::Facades
 	}
 
 
-	void FRenderingFacade::AddSurface(TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices)
+	void FRenderingFacade::AddSurface(TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices, TArray<FVector3f>&& InNormals, TArray<FLinearColor>&& InColors)
 	{
 		check(!IsConst());
 		if (IsValid())
@@ -148,6 +153,18 @@ namespace GeometryCollection::Facades
 
 			const FVector3f * VerticesDest = Vertices.GetData() + VertexStart;
 			FMemory::Memmove((void*)VerticesDest, InVertices.GetData(), sizeof(FVector3f) * InVertices.Num());
+
+			// Add VertexNormals
+			TManagedArray<FVector3f>& Normals = VertexNormalAttribute.Modify();
+
+			const FVector3f* VertexNormalsDest = Normals.GetData() + VertexStart;
+			FMemory::Memmove((void*)VertexNormalsDest, InNormals.GetData(), sizeof(FVector3f) * InNormals.Num());
+
+			// Add VertexColors
+			TManagedArray<FLinearColor>& VertexColors = VertexColorAttribute.Modify();
+
+			const FLinearColor* VertexColorsDest = VertexColors.GetData() + VertexStart;
+			FMemory::Memmove((void*)VertexColorsDest, InColors.GetData(), sizeof(FLinearColor) * InColors.Num());
 		}
 	}
 
