@@ -26,13 +26,15 @@ enum class EPlayerMappableKeySettingBehaviors : uint8
 	IgnoreSettings
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
  * A struct that represents player facing mapping options for an action key mapping.
  * Use this to set a unique FName for the mapping option to save it, as well as some FText options
  * for use in UI.
  */
 USTRUCT(BlueprintType)
-struct FPlayerMappableKeyOptions
+struct UE_DEPRECATED(5.3, "FPlayerMappableKeyOptions has been deprecated. Please use UPlayerMappableKeySettings instead.") FPlayerMappableKeyOptions
 {
 	GENERATED_BODY()
 
@@ -96,6 +98,8 @@ struct ENHANCEDINPUT_API FEnhancedActionKeyMapping
 	 */
 	FName GetMappingName() const;
 
+	const FText& GetDisplayName() const;
+
 	/**
 	* Returns true if this Action Key Mapping either holds a Player Mappable Key Settings or is set bIsPlayerMappable.
 	*/
@@ -107,10 +111,17 @@ struct ENHANCEDINPUT_API FEnhancedActionKeyMapping
 	
 	bool operator==(const FEnhancedActionKeyMapping& Other) const;
 
-	/** Options for making this a player mappable keymapping */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input|PlayerMappable", meta = (editCondition = "bIsPlayerMappable", DisplayAfter = "bIsPlayerMappable"))
-	FPlayerMappableKeyOptions PlayerMappableOptions;
+#if WITH_EDITORONLY_DATA
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	/** Options for making this a player mappable keymapping */
+	UE_DEPRECATED(5.3, "PlayerMappableOptions has been deprecated, please use PlayerMappableKeySettings instead.")
+	UPROPERTY(EditAnywhere, Category = "Input|PlayerMappable", meta = (editCondition = "bIsPlayerMappable", DisplayAfter = "bIsPlayerMappable", DeprecatedProperty, DeprecationMessage="PlayerMappableOptions has been deprecated, please use the PlayerMappableKeySettings instead"))
+	FPlayerMappableKeyOptions PlayerMappableOptions;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#endif	// WITH_EDITORONLY_DATA
+	
 	/**
 	* Trigger qualifiers. If any trigger qualifiers exist the mapping will not trigger unless:
 	* If there are any Explicit triggers in this list at least one of them must be met.
@@ -142,11 +153,17 @@ struct ENHANCEDINPUT_API FEnhancedActionKeyMapping
 	 */
 	UPROPERTY(Transient)
 	uint8 bShouldBeIgnored : 1;
-	
-	/** If true then this ActionKeyMapping will be exposed as a player mappable key */
-	UPROPERTY(EditAnywhere, Category = "Input|PlayerMappable")
-	uint8 bIsPlayerMappable : 1;
 
+#if WITH_EDITORONLY_DATA
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	/** If true then this ActionKeyMapping will be exposed as a player mappable key */
+	UE_DEPRECATED(5.3, "bIsPlayerMappable has been deprecated, please use SettingBehavior instead.")
+	UPROPERTY(EditAnywhere, Category = "Input|PlayerMappable", meta=(DeprecatedProperty, DeprecationMessage="bIsPlayerMappable has been deprecated, please use the SettingBehavior instead"))
+	uint8 bIsPlayerMappable : 1;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#endif	// WITH_EDITORONLY_DATA
 
 protected:
 
@@ -171,3 +188,5 @@ public:
 	}
 
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

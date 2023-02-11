@@ -5,6 +5,7 @@
 #include "../LyraSettingsLocal.h"
 #include "Player/LyraLocalPlayer.h"
 #include "PlayerMappableInputConfig.h"
+#include "PlayerMappableKeySettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraSettingKeyboardInput)
 
@@ -16,7 +17,7 @@ void FKeyboardOption::ResetToDefault()
 {
 	if (OwningConfig)
 	{
-		InputMapping = OwningConfig->GetMappingByName(InputMapping.PlayerMappableOptions.Name);	
+		InputMapping = OwningConfig->GetMappingByName(InputMapping.GetMappingName());	
 	}
 	// If we don't have an owning config, then there is no default binding for this and it can simply be removed
 	else
@@ -37,8 +38,13 @@ ULyraSettingKeyboardInput::ULyraSettingKeyboardInput()
 
 void ULyraSettingKeyboardInput::OnInitialized()
 {
-	DynamicDetails = FGetGameSettingsDetails::CreateLambda([this](ULocalPlayer&) {
-		return FText::Format(LOCTEXT("DynamicDetails_KeyboardInputAction", "Bindings for {0}"), FirstMappableOption.InputMapping.PlayerMappableOptions.DisplayName);
+	DynamicDetails = FGetGameSettingsDetails::CreateLambda([this](ULocalPlayer&)
+	{
+		if (UPlayerMappableKeySettings* Settings = FirstMappableOption.InputMapping.GetPlayerMappableKeySettings())
+		{
+			return FText::Format(LOCTEXT("DynamicDetails_KeyboardInputAction", "Bindings for {0}"), Settings->DisplayName);
+		}
+		return FText::GetEmpty();
 	});
 
 	Super::OnInitialized();
@@ -63,11 +69,10 @@ void ULyraSettingKeyboardInput::SetInputData(FEnhancedActionKeyMapping& BaseMapp
 		ensureMsgf(false, TEXT("Invalid key bind slot provided!"));
 	}
 
-	ensure(FirstMappableOption.InputMapping.PlayerMappableOptions.Name != NAME_None && !FirstMappableOption.InputMapping.PlayerMappableOptions.DisplayName.IsEmpty());
-
-	const FString NameString = TEXT("KBM_Input_") + FirstMappableOption.InputMapping.PlayerMappableOptions.Name.ToString();
+	
+	const FString NameString = TEXT("KBM_Input_") + FirstMappableOption.InputMapping.GetMappingName().ToString();
 	SetDevName(*NameString);
-	SetDisplayName(FirstMappableOption.InputMapping.PlayerMappableOptions.DisplayName);
+	SetDisplayName(FirstMappableOption.InputMapping.GetDisplayName());
 }
 
 FText ULyraSettingKeyboardInput::GetPrimaryKeyText() const
@@ -113,18 +118,18 @@ bool ULyraSettingKeyboardInput::ChangeBinding(int32 InKeyBindSlot, FKey NewKey)
 		ULyraSettingsLocal* LocalSettings = LyraLocalPlayer->GetLocalSettings();
 		if (InKeyBindSlot == 0)
 		{
-			LocalSettings->AddOrUpdateCustomKeyboardBindings(FirstMappableOption.InputMapping.PlayerMappableOptions.Name, NewKey, LyraLocalPlayer);
+			LocalSettings->AddOrUpdateCustomKeyboardBindings(FirstMappableOption.InputMapping.GetMappingName(), NewKey, LyraLocalPlayer);
 			FirstMappableOption.InputMapping.Key = NewKey;
 		}
 		else if (InKeyBindSlot == 1)
 		{
 			// If there is no default secondary binding then we can create one based off of data from the primary binding
-			if (SecondaryMappableOption.InputMapping.PlayerMappableOptions.Name == NAME_None)
+			if (SecondaryMappableOption.InputMapping.GetMappingName() == NAME_None)
 			{
 				SecondaryMappableOption = FKeyboardOption(FirstMappableOption);
 			}
 			
-			LocalSettings->AddOrUpdateCustomKeyboardBindings(SecondaryMappableOption.InputMapping.PlayerMappableOptions.Name, NewKey, LyraLocalPlayer);
+			LocalSettings->AddOrUpdateCustomKeyboardBindings(SecondaryMappableOption.InputMapping.GetMappingName(), NewKey, LyraLocalPlayer);
 			SecondaryMappableOption.InputMapping.Key = NewKey;
 		}
 		else

@@ -4,6 +4,7 @@
 
 #include "EnhancedInputLibrary.h"
 #include "EnhancedInputModule.h"
+#include "PlayerMappableKeySettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputMappingContext)
 
@@ -20,6 +21,54 @@ EDataValidationResult UInputMappingContext::IsDataValid(TArray<FText>& Validatio
 	return Result;
 }
 #endif	// WITH_EDITOR
+
+void UInputMappingContext::PostLoad()
+{
+	Super::PostLoad();
+	
+#if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	
+	for (FEnhancedActionKeyMapping& Mapping : Mappings)
+	{
+		// If this was player mappable, then set the behavior to override the action and populate it with the same data
+		if (Mapping.bIsPlayerMappable)
+		{
+			Mapping.SettingBehavior = EPlayerMappableKeySettingBehaviors::OverrideSettings;
+
+			// If something was player mappable before then it probably didnt have a default object here
+			if (!Mapping.PlayerMappableKeySettings)
+			{
+				FString NewObjectName;
+				EObjectFlags MaskedOuterFlags = RF_Public | RF_Transactional;
+				Mapping.PlayerMappableKeySettings = NewObject<UPlayerMappableKeySettings>(this, UPlayerMappableKeySettings::StaticClass(), *NewObjectName, MaskedOuterFlags, nullptr);
+			}
+		}
+		
+		if (Mapping.PlayerMappableKeySettings)
+		{
+			Mapping.PlayerMappableKeySettings->Metadata = Mapping.PlayerMappableOptions.Metadata;
+
+			// If the name was set already, use that
+			if (Mapping.PlayerMappableKeySettings->Name.IsValid())
+			{
+				Mapping.PlayerMappableKeySettings->Name = Mapping.PlayerMappableOptions.Name;
+			}
+			// Otherwise let's generate something so that the data is valid
+			else
+			{
+				FName UniqueName = MakeUniqueObjectName(this, UInputMappingContext::StaticClass(), Mapping.Action.GetFName());
+				Mapping.PlayerMappableKeySettings->Name = UniqueName;
+			}
+			
+			Mapping.PlayerMappableKeySettings->DisplayName = Mapping.PlayerMappableOptions.DisplayName;
+			Mapping.PlayerMappableKeySettings->DisplayCategory = Mapping.PlayerMappableOptions.DisplayCategory;
+		}
+	}
+	
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif	// WITH_EDITORONLY_DATA
+}
 
 FEnhancedActionKeyMapping& UInputMappingContext::MapKey(const UInputAction* Action, FKey ToKey)
 {

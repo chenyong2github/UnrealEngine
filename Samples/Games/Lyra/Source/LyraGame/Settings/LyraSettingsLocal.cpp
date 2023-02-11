@@ -25,6 +25,7 @@
 #include "AudioModulationStatics.h"
 #include "Audio/LyraAudioSettings.h"
 #include "Audio/LyraAudioMixEffectsSubsystem.h"
+#include "EnhancedActionKeyMapping.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraSettingsLocal)
 
@@ -1343,8 +1344,8 @@ void ULyraSettingsLocal::GetAllMappingNamesFromKey(const FKey InKey, TArray<FNam
 		{
 			for (const FEnhancedActionKeyMapping& Mapping : Pair.Config->GetPlayerMappableKeys())
 			{
-				FName MappingName(Mapping.PlayerMappableOptions.DisplayName.ToString());
-				FName ActionName = Mapping.PlayerMappableOptions.Name;
+				FName MappingName(Mapping.GetDisplayName().ToString());
+				FName ActionName = Mapping.GetMappingName();
 				// make sure it isn't custom bound as well
 				if (const FKey* MappingKey = CustomKeyboardConfig.Find(ActionName))
 				{
@@ -1381,9 +1382,9 @@ void ULyraSettingsLocal::AddOrUpdateCustomKeyboardBindings(const FName MappingNa
 			{
 				// Make sure that the mapping has a valid name, its possible to have an empty name
 				// if someone has marked a mapping as "Player Mappable" but deleted the default field value
-				if (Mapping.PlayerMappableOptions.Name != NAME_None)
+				if (Mapping.GetMappingName() != NAME_None)
 				{
-					CustomKeyboardConfig.Add(Mapping.PlayerMappableOptions.Name, Mapping.Key);
+					CustomKeyboardConfig.Add(Mapping.GetMappingName(), Mapping.Key);
 				}
 			}
 		}

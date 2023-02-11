@@ -58,7 +58,7 @@ public:
 	bool ChangeBinding(int32 InKeyBindSlot, FKey NewKey);
 	void GetAllMappedActionsFromKey(int32 InKeyBindSlot, FKey Key, TArray<FName>& OutActionNames) const;
 	
-	FText GetSettingDisplayName() const { return FirstMappableOption.InputMapping.PlayerMappableOptions.DisplayName; }
+	FText GetSettingDisplayName() const { return FirstMappableOption.InputMapping.GetDisplayName(); }
 	
 protected:
 	/** ULyraSetting */

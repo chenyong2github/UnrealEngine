@@ -21,19 +21,6 @@ void ULyraInputComponent::AddInputMappings(const ULyraInputConfig* InputConfig, 
 
 	ULyraLocalPlayer* LocalPlayer = InputSubsystem->GetLocalPlayer<ULyraLocalPlayer>();
 	check(LocalPlayer);
-
-	// Add any registered input mappings from the settings!
-	if (ULyraSettingsLocal* LocalSettings = ULyraSettingsLocal::Get())
-	{	
-		// Tell enhanced input about any custom keymappings that the player may have customized
-		for (const TPair<FName, FKey>& Pair : LocalSettings->GetCustomPlayerInputConfig())
-		{
-			if (Pair.Key != NAME_None && Pair.Value.IsValid())
-			{
-				InputSubsystem->AddPlayerMappedKeyInSlot(Pair.Key, Pair.Value);
-			}
-		}
-	}
 }
 
 void ULyraInputComponent::RemoveInputMappings(const ULyraInputConfig* InputConfig, UEnhancedInputLocalPlayerSubsystem* InputSubsystem) const
@@ -51,12 +38,6 @@ void ULyraInputComponent::RemoveInputMappings(const ULyraInputConfig* InputConfi
 		for (const FLoadedMappableConfigPair& Pair : Configs)
 		{
 			InputSubsystem->RemovePlayerMappableConfig(Pair.Config);
-		}
-		
-		// Clear any player mapped keys from enhanced input
-		for (const TPair<FName, FKey>& Pair : LocalSettings->GetCustomPlayerInputConfig())
-		{
-			InputSubsystem->RemovePlayerMappedKeyInSlot(Pair.Key);
 		}
 	}
 }

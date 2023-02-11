@@ -43,6 +43,9 @@ public:
 
 public:
 
+	
+	virtual void PostLoad() override;
+
 	/**
 	* Mapping accessors.
 	* Note: Use UEnhancedInputLibrary::RequestRebuildControlMappingsForContext to invoke changes made to an FEnhancedActionKeyMapping

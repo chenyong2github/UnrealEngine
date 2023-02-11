@@ -21,6 +21,9 @@ UPlayerMappableKeySettings* FEnhancedActionKeyMapping::GetPlayerMappableKeySetti
 	return nullptr;
 }
 
+#if WITH_EDITORONLY_DATA
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FEnhancedActionKeyMapping::FEnhancedActionKeyMapping(const UInputAction* InAction /*= nullptr*/, const FKey InKey /*= EKeys::Invalid*/)
 	: PlayerMappableOptions(InAction)
 	, Action(InAction)
@@ -28,6 +31,19 @@ FEnhancedActionKeyMapping::FEnhancedActionKeyMapping(const UInputAction* InActio
 	, bShouldBeIgnored(false)
 	, bIsPlayerMappable(false)
 {}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#else
+
+FEnhancedActionKeyMapping::FEnhancedActionKeyMapping(const UInputAction* InAction /*= nullptr*/, const FKey InKey /*= EKeys::Invalid*/)
+	: Action(InAction)
+	, Key(InKey)
+	, bShouldBeIgnored(false)
+{}
+
+#endif	// WITH_EDITORONLY_DATA
+
+
 
 FName FEnhancedActionKeyMapping::GetMappingName() const
 {
@@ -37,14 +53,22 @@ FName FEnhancedActionKeyMapping::GetMappingName() const
 		{
 			return MappableKeySettings->MakeMappingName(this);
 		}
-		return PlayerMappableOptions.Name;
 	}
 	return NAME_None;
 }
 
+const FText& FEnhancedActionKeyMapping::GetDisplayName() const
+{
+	if (UPlayerMappableKeySettings* MappableKeySettings = GetPlayerMappableKeySettings())
+	{
+		return MappableKeySettings->DisplayName;
+	}
+	return FText::GetEmpty();
+}
+
 bool FEnhancedActionKeyMapping::IsPlayerMappable() const
 {
-	return GetPlayerMappableKeySettings() != nullptr || bIsPlayerMappable;
+	return GetPlayerMappableKeySettings() != nullptr;
 }
 
 #if WITH_EDITOR
@@ -57,13 +81,6 @@ EDataValidationResult FEnhancedActionKeyMapping::IsDataValid(TArray<FText>& Vali
 	{
 		Result = EDataValidationResult::Invalid;
 		ValidationErrors.Add(LOCTEXT("NullInputAction", "A mapping cannot have an empty input action!"));
-	}
-
-	//Validate Player Mappable Options Name.
-	if (bIsPlayerMappable && PlayerMappableOptions.Name == NAME_None)
-	{
-		ValidationErrors.Add(LOCTEXT("InvalidPlayerMappableName", "A player mappable key mapping must have a valid 'Name'"));
-		return EDataValidationResult::Invalid;
 	}
 
 	// Validate Settings.

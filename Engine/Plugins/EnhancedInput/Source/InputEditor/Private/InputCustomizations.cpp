@@ -139,8 +139,6 @@ void FEnhancedActionMappingCustomization::CustomizeChildren(TSharedRef<IProperty
 {
 	TSharedPtr<IPropertyHandle> TriggersHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, Triggers));
 	TSharedPtr<IPropertyHandle> ModifiersHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, Modifiers));
-	TSharedPtr<IPropertyHandle> IsPlayerMappableHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, bIsPlayerMappable));
-	TSharedPtr<IPropertyHandle> PlayerBindingOptions = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, PlayerMappableOptions));
 	TSharedPtr<IPropertyHandle> SettingBehavior = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, SettingBehavior));
 	TSharedPtr<IPropertyHandle> PlayerMappableKeySettings = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, PlayerMappableKeySettings));
 
@@ -148,8 +146,6 @@ void FEnhancedActionMappingCustomization::CustomizeChildren(TSharedRef<IProperty
 	ChildBuilder.AddProperty(TriggersHandle.ToSharedRef());
 	ChildBuilder.AddProperty(ModifiersHandle.ToSharedRef());
 	AddInputActionProperties(PropertyHandle, ChildBuilder);
-	ChildBuilder.AddProperty(IsPlayerMappableHandle.ToSharedRef());
-	ChildBuilder.AddProperty(PlayerBindingOptions.ToSharedRef());
 	ChildBuilder.AddProperty(SettingBehavior.ToSharedRef());
 	ChildBuilder.AddProperty(PlayerMappableKeySettings.ToSharedRef());
 }
