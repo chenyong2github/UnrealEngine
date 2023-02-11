@@ -320,67 +320,6 @@ namespace UE
 				return NewTexture;
 			}
 
-			// Computes and returns the hash string for the texture at the given path.
-			// Handles regular texture asset paths as well as asset paths identifying textures inside Usdz archives.
-			// Returns an empty string if the texture could not be hashed.
-			FString GetTextureHash(
-				const FString& ResolvedTexturePath,
-				bool bSRGB,
-				TextureCompressionSettings CompressionSettings,
-				TextureAddress AddressX,
-				TextureAddress AddressY
-			)
-			{
-				FMD5 MD5;
-
-				// Hash the actual texture
-				FString TextureExtension;
-				if (IsInsideUsdzArchive(ResolvedTexturePath, TextureExtension))
-				{
-					uint64 BufferSize = 0;
-					TUsdStore<std::shared_ptr<const char>> Buffer = ReadTextureBufferFromUsdzArchive(ResolvedTexturePath, BufferSize);
-					const uint8* BufferStart = reinterpret_cast<const uint8*>(Buffer.Get().get());
-
-					if (BufferSize > 0 && BufferStart != nullptr)
-					{
-						MD5.Update( BufferStart, BufferSize );
-					}
-				}
-				// Copied from FMD5Hash::HashFileFromArchive as it doesn't expose its FMD5
-				else if ( TUniquePtr<FArchive> Ar{ IFileManager::Get().CreateFileReader( *ResolvedTexturePath ) } )
-				{
-					TArray<uint8> LocalScratch;
-					LocalScratch.SetNumUninitialized( 1024 * 64 );
-
-					const int64 Size = Ar->TotalSize();
-					int64 Position = 0;
-
-					// Read in BufferSize chunks
-					while ( Position < Size )
-					{
-						const auto ReadNum = FMath::Min( Size - Position, ( int64 ) LocalScratch.Num() );
-						Ar->Serialize( LocalScratch.GetData(), ReadNum );
-						MD5.Update( LocalScratch.GetData(), ReadNum );
-
-						Position += ReadNum;
-					}
-				}
-				else
-				{
-					UE_LOG( LogUsd, Warning, TEXT( "Failed to find texture at path '%s' when trying to generate a hash for it" ), *ResolvedTexturePath );
-				}
-
-				// Hash the additional data
-				MD5.Update( reinterpret_cast< uint8* >( &bSRGB ), sizeof( bool ) );
-				MD5.Update( reinterpret_cast< uint8* >( &CompressionSettings ), sizeof( CompressionSettings ) );
-				MD5.Update( reinterpret_cast< uint8* >( &AddressX ), sizeof( AddressX ) );
-				MD5.Update( reinterpret_cast< uint8* >( &AddressY ), sizeof( AddressY ) );
-
-				FMD5Hash Hash;
-				Hash.Set( MD5 );
-				return LexToString( Hash );
-			}
-
 			// Will traverse the shade material graph backwards looking for a string/token value and return it.
 			// Returns the empty string if it didn't find anything.
 			FString RecursivelySearchForStringValue( pxr::UsdShadeInput Input )
@@ -624,7 +563,7 @@ namespace UE
 							}
 						}
 
-						const FString TextureHash = GetTextureHash( TexturePath, bSRGB, CompressionSettings, AddressX, AddressY );
+						const FString TextureHash = UsdUtils::GetTextureHash( TexturePath, bSRGB, CompressionSettings, AddressX, AddressY );
 
 						// We only actually want to retrieve the textures if we have a cache to put them in
 						if ( TexturesCache )
@@ -2502,6 +2441,66 @@ FString UsdUtils::GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetP
 	}
 
 	return ResolvedTexturePath;
+}
+
+FString UsdUtils::GetTextureHash(
+	const FString& ResolvedTexturePath,
+	bool bSRGB,
+	TextureCompressionSettings CompressionSettings,
+	TextureAddress AddressX,
+	TextureAddress AddressY
+)
+{
+	using namespace UE::UsdShadeConversion::Private;
+
+	FMD5 MD5;
+
+	// Hash the actual texture
+	FString TextureExtension;
+	if (IsInsideUsdzArchive(ResolvedTexturePath, TextureExtension))
+	{
+		uint64 BufferSize = 0;
+		TUsdStore<std::shared_ptr<const char>> Buffer = ReadTextureBufferFromUsdzArchive(ResolvedTexturePath, BufferSize);
+		const uint8* BufferStart = reinterpret_cast<const uint8*>(Buffer.Get().get());
+
+		if (BufferSize > 0 && BufferStart != nullptr)
+		{
+			MD5.Update(BufferStart, BufferSize);
+		}
+	}
+	// Copied from FMD5Hash::HashFileFromArchive as it doesn't expose its FMD5
+	else if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileReader(*ResolvedTexturePath)})
+	{
+		TArray<uint8> LocalScratch;
+		LocalScratch.SetNumUninitialized(1024 * 64);
+
+		const int64 Size = Ar->TotalSize();
+		int64 Position = 0;
+
+		// Read in BufferSize chunks
+		while (Position < Size)
+		{
+			const auto ReadNum = FMath::Min(Size - Position, (int64)LocalScratch.Num());
+			Ar->Serialize(LocalScratch.GetData(), ReadNum);
+			MD5.Update(LocalScratch.GetData(), ReadNum);
+
+			Position += ReadNum;
+		}
+	}
+	else
+	{
+		UE_LOG(LogUsd, Warning, TEXT("Failed to find texture at path '%s' when trying to generate a hash for it"), *ResolvedTexturePath);
+	}
+
+	// Hash the additional data
+	MD5.Update(reinterpret_cast<uint8*>(&bSRGB), sizeof(bool));
+	MD5.Update(reinterpret_cast<uint8*>(&CompressionSettings), sizeof(CompressionSettings));
+	MD5.Update(reinterpret_cast<uint8*>(&AddressX), sizeof(AddressX));
+	MD5.Update(reinterpret_cast<uint8*>(&AddressY), sizeof(AddressY));
+
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+	return LexToString(Hash);
 }
 
 UTexture* UsdUtils::CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup, UObject* Outer )

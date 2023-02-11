@@ -26,13 +26,15 @@ PXR_NAMESPACE_OPEN_SCOPE
 PXR_NAMESPACE_CLOSE_SCOPE
 
 class FSHAHash;
-class UUsdAssetCache2;
 class UMaterial;
 class UMaterialOptions;
 class UTexture;
 class UUsdAssetCache;
+class UUsdAssetCache2;
 enum class EFlattenMaterialProperties : uint8;
 enum EMaterialProperty : int;
+enum TextureAddress : int;
+enum TextureCompressionSettings : int;
 struct FFlattenMaterial;
 struct FPropertyEntry;
 namespace UE
@@ -158,6 +160,19 @@ namespace UsdUtils
 
 	/** Returns the resolved path from a pxr::SdfAssetPath attribute. For UDIMs path, returns the path to the 1001 tile. */
 	USDUTILITIES_API FString GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetPathAttr );
+
+	/**
+	 * Computes and returns the hash string for the texture at the given path.
+	 * Handles regular texture asset paths as well as asset paths identifying textures inside Usdz archives.
+     * Returns an empty string if the texture could not be hashed.
+	 */
+	USDUTILITIES_API FString GetTextureHash(
+		const FString& ResolvedTexturePath,
+		bool bSRGB,
+		TextureCompressionSettings CompressionSettings,
+		TextureAddress AddressX,
+		TextureAddress AddressY
+	);
 
 	/** Creates a texture from a pxr::SdfAssetPath attribute. PrimPath is optional, and should point to the source shadematerial prim path. It will be placed in its UUsdAssetImportData */
 	USDUTILITIES_API UTexture* CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath = FString(), TextureGroup LODGroup = TEXTUREGROUP_World, UObject* Outer = GetTransientPackage() );

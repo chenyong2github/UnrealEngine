@@ -318,6 +318,13 @@ TSet<UObject*> IUsdClassesModule::GetAssetDependencies(UObject* Asset)
 				Result.Add(Texture);
 			}
 		}
+
+		// We'll have a dependency on our reference material too of course (this happens for Mdl
+		// materials for example, that create new UMaterial assets every time, and also material instances).
+		if (UMaterialInterface* ReferenceMaterial = MaterialInstance->Parent.Get())
+		{
+			Result.Add(ReferenceMaterial);
+		}
 	}
 	else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset))
 	{
