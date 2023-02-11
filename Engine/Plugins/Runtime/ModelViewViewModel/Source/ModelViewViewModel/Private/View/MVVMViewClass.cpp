@@ -3,7 +3,7 @@
 #include "View/MVVMViewClass.h"
 #include "Types/MVVMFieldContext.h"
 #include "View/MVVMView.h"
-#include "View/MVVMViewModelResolver.h"
+#include "View/MVVMViewModelContextResolver.h"
 
 #include "Bindings/MVVMFieldPathHelper.h"
 #include "Blueprint/UserWidget.h"
@@ -80,7 +80,7 @@ FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeGlobalContext(FNa
 	return Result;
 }
 
-FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeResolver(FName InName, UClass* InNotifyFieldValueChangedClass, UMVVMViewModelResolver* InResolver, bool bOptional)
+FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeResolver(FName InName, UClass* InNotifyFieldValueChangedClass, UMVVMViewModelContextResolver* InResolver, bool bOptional)
 {
 	FMVVMViewClass_SourceCreator Result;
 	if (ensure(InResolver && InNotifyFieldValueChangedClass && InNotifyFieldValueChangedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))

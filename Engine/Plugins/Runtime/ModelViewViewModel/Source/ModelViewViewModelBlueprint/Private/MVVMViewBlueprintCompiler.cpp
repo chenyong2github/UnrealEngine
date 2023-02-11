@@ -12,7 +12,7 @@
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMBindingName.h"
 #include "View/MVVMViewClass.h"
-#include "View/MVVMViewModelResolver.h"
+#include "View/MVVMViewModelContextResolver.h"
 #include "UObject/LinkerLoad.h"
 
 #define LOCTEXT_NAMESPACE "MVVMViewBlueprintCompiler"
@@ -895,7 +895,7 @@ bool FMVVMViewBlueprintCompiler::CompileSourceCreators(const FCompiledBindingLib
 			}
 			else if (ViewModelContext.CreationType == EMVVMBlueprintViewModelContextCreationType::Resolver)
 			{
-				UMVVMViewModelResolver* Resolver = DuplicateObject(ViewModelContext.Resolver.Get(), ViewExtension);
+				UMVVMViewModelContextResolver* Resolver = DuplicateObject(ViewModelContext.Resolver.Get(), ViewExtension);
 				if (!Resolver)
 				{
 					AddErrorForViewModel(ViewModelContext, LOCTEXT("ViewmodelFailedResolverDuplicate", "Internal error. The resolver could not be dupliated."));

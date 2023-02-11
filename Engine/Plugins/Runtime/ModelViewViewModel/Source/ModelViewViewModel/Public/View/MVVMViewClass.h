@@ -16,7 +16,7 @@ class UMVVMUserWidgetBinding;
 class UMVVMView;
 class UMVVMViewClass;
 class UMVVMViewModelBlueprintExtension;
-class UMVVMViewModelResolver;
+class UMVVMViewModelContextResolver;
 class UUserWidget;
 
 namespace UE::MVVM::Private
@@ -39,7 +39,7 @@ public:
 	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeInstance(FName Name, UClass* NotifyFieldValueChangedClass);
 	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeFieldPath(FName Name, UClass* NotifyFieldValueChangedClass, FMVVMVCompiledFieldPath FieldPath, bool bOptional);
 	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeGlobalContext(FName Name, FMVVMViewModelContext Context, bool bOptional);
-	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeResolver(FName Name, UClass* InNotifyFieldValueChangedClass, UMVVMViewModelResolver* Source, bool bOptional);
+	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeResolver(FName Name, UClass* InNotifyFieldValueChangedClass, UMVVMViewModelContextResolver* Source, bool bOptional);
 
 	UObject* CreateInstance(const UMVVMViewClass* ViewClass, UMVVMView* View, UUserWidget* UserWidget) const;
 
@@ -60,7 +60,7 @@ private:
 
 	/** The resolver to fetch the source at runtime. */
 	UPROPERTY(Instanced)
-	TObjectPtr<UMVVMViewModelResolver> Resolver = nullptr;
+	TObjectPtr<UMVVMViewModelContextResolver> Resolver = nullptr;
 
 	/** Info to find the ViewModel instance at runtime. */
 	UPROPERTY()

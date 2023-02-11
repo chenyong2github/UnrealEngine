@@ -7,7 +7,7 @@
 
 #include "MVVMBlueprintViewModelContext.generated.h"
 
-class UMVVMViewModelResolver;
+class UMVVMViewModelContextResolver;
 
 /**
  *
@@ -119,7 +119,7 @@ public:
 	FString ViewModelPropertyPath;
 
 	UPROPERTY(EditAnywhere, Category = "Viewmodel", Instanced, AdvancedDisplay, meta = (EditInline, EditCondition = "CreationType == EMVVMBlueprintViewModelContextCreationType::Resolver", EditConditionHides))
-	TObjectPtr<UMVVMViewModelResolver> Resolver = nullptr;
+	TObjectPtr<UMVVMViewModelContextResolver> Resolver = nullptr;
 
 	/**
 	 * Generate a setter function for this viewmodel.

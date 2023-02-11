@@ -7,7 +7,7 @@
 #include "MVVMBlueprintView.h"
 #include "MVVMEditorSubsystem.h"
 #include "PropertyEditorModule.h"
-#include "View/MVVMViewModelResolver.h"
+#include "View/MVVMViewModelContextResolver.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintEditor.h"
 

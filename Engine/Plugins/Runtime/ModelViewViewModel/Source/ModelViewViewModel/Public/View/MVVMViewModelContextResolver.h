@@ -5,7 +5,7 @@
 #include "UObject/Object.h"
 #include "FieldNotification/IFieldValueChanged.h"
 
-#include "MVVMViewModelResolver.generated.h"
+#include "MVVMViewModelContextResolver.generated.h"
 
 class UMVVMView;
 class UMVVMViewClass;
@@ -15,7 +15,7 @@ class UUserWidget;
  * Shared data to find or create a ViewModel at runtime.
  */
 UCLASS(Abstract, Blueprintable, EditInlineNew, DisplayName = "Viewmode Resolver")
-class MODELVIEWVIEWMODEL_API UMVVMViewModelResolver : public UObject
+class MODELVIEWVIEWMODEL_API UMVVMViewModelContextResolver : public UObject
 {
 	GENERATED_BODY()
 
