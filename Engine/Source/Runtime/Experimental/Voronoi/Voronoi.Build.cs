@@ -14,7 +14,7 @@ namespace UnrealBuildTool.Rules
                 }
                 );
 
-			UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 
 			// Disable all static analysis checkers for this module ( third party code ) 
 			bDisableStaticAnalysis = true;

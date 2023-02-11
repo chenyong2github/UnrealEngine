@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"RenderCore",
 					"Projects",
-					"Engine",
 				});
 
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
@@ -25,7 +24,6 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("OpenExrWrapper");
 				PrivateIncludePaths.Add("ExrReaderGpu/Private");
 			}
-
 		}
 	}
 }
