@@ -261,16 +261,14 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta=(DisplayName="Find Key Mapping", AutoCreateRefTerm="OutKeyMapping"))
 	void K2_FindKeyMapping(FPlayerKeyMapping& OutKeyMapping, const FMapPlayerKeyArgs& InArgs) const;
-	
-protected:
 
-	
 	/**
 	 * Resets all the key mappings in this profile to their default value from their Input Mapping Context.
-	 *
-	 * This function will only ever be called by UEnhancedInputUserSettings
 	 */
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual void ResetToDefault();
+	
+protected:
 
 	/**
 	 * Equips the current key profile. This will always be called after the previous key profile's UnEquip function.
