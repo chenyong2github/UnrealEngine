@@ -32,6 +32,7 @@ namespace ETcpMessagingVersion
 	{
 		Initial,
 		ChangedMessageLengthToInt32,
+		ChangedMessageContext,
 
 		// -----<new versions can be added before this line>-------------------------------------------------
 		// - this needs to be the last line (see note below)
