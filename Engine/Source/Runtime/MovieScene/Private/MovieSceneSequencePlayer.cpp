@@ -875,13 +875,21 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence)
 		? FMovieSceneSequenceTickInterval::GetInheritedInterval(this)
 		: PlaybackSettings.TickInterval;
 
-	if (RegisteredTickInterval.IsSet() && RegisteredTickInterval.GetValue() != TickInterval)
+	// If we haven't registered with the tick manager yet, register directly
+	if (!RegisteredTickInterval.IsSet())
 	{
+		TickManager->RegisterTickClient(TickInterval, this);
+	}
+	// If we were already registered with a different Tick Interval we need to re-register with the new one, which involves tearing everything down and setting up a new instance
+	else if (RegisteredTickInterval.GetValue() != TickInterval)
+	{
+		RootTemplateInstance.BeginDestroy();
 		TickManager->UnregisterTickClient(this);
+
+		TickManager->RegisterTickClient(RegisteredTickInterval.GetValue(), this);
 	}
 
 	RegisteredTickInterval = TickInterval;
-	TickManager->RegisterTickClient(RegisteredTickInterval.GetValue(), this);
 
 	TSharedPtr<FMovieSceneEntitySystemRunner> RunnerToUse = TickManager->GetRunner(RegisteredTickInterval.GetValue());
 	if (EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
