@@ -6,6 +6,7 @@
 #include "InputCoreTypes.h"
 #include "Styling/SlateBrush.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
 #include "CommonUITypes.generated.h"
 
 class UUserWidget;
