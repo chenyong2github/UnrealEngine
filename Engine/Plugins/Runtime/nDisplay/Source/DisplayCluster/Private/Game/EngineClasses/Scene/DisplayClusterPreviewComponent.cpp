@@ -102,7 +102,12 @@ bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayCluster
 
 bool UDisplayClusterPreviewComponent::IsPreviewEnabled() const
 {
-	return (ViewportConfig && RootActor && RootActor->IsPreviewDrawnToScreens());
+	return ViewportConfig && RootActor && RootActor->IsPreviewEnabled();
+}
+
+bool UDisplayClusterPreviewComponent::IsPreviewDrawnToScreen() const
+{
+	return ViewportConfig && RootActor && (RootActor->IsPreviewDrawnToScreens() || OverrideTexture);
 }
 
 void UDisplayClusterPreviewComponent::RestorePreviewMeshMaterial()
@@ -117,7 +122,13 @@ void UDisplayClusterPreviewComponent::RestorePreviewMeshMaterial()
 	}
 
 	// Release RTTs
-	ReleasePreviewRenderTarget();
+	// To fix UE-176749, we only want to do this if the root actor is not rendering previews, which can happen even if the previews
+	// are not being output to the meshes (for example, if the ICVFX panel is open)
+	// TODO: We will eventually want to separate out the preview rendering and resources from the preview mesh and material management
+	if (!IsPreviewEnabled())
+	{
+		ReleasePreviewRenderTarget();
+	}
 }
 
 void UDisplayClusterPreviewComponent::SetPreviewMeshMaterial()
@@ -166,7 +177,7 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 
 	UpdatePreviewMeshReference();
 
-	if (IsPreviewEnabled() || OverrideTexture)
+	if (IsPreviewDrawnToScreen())
 	{
 		check(ViewportConfig);
 
@@ -420,6 +431,10 @@ void UDisplayClusterPreviewComponent::SetOverrideTexture(UTexture* InOverrideTex
 	if (OverrideTexture != InOverrideTexture)
 	{
 		OverrideTexture = InOverrideTexture;
+
+		// Update the entire preview mesh here, as the preview mesh may not be configured for rendering the override texture if
+		// the owning root actor has previews disabled.
+		UpdatePreviewMesh();
 		UpdatePreviewMaterial();
 	}
 }

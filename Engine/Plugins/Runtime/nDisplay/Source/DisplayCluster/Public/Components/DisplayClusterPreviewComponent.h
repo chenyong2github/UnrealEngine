@@ -90,7 +90,11 @@ public:
 	void SetOverrideTexture(UTexture* InOverrideTexture);
 
 protected:
+	/** Gets whether the root actor is requesting a preview render */
 	bool IsPreviewEnabled() const;
+
+	/** Gets whether the preview render or override texture should be output to the screen meshes */
+	bool IsPreviewDrawnToScreen() const;
 
 	class IDisplayClusterViewport* GetCurrentViewport() const;
 	bool GetPreviewTextureSettings(FIntPoint& OutSize, EPixelFormat& OutTextureFormat, float& OutGamma, bool& bOutSRGB) const;
