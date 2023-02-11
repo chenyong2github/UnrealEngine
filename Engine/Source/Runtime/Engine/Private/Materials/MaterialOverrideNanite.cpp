@@ -148,7 +148,7 @@ void FMaterialOverrideNanite::PostEditChange(UObject* OptionalOwner)
 	RefreshOverrideMaterial(OptionalOwner);
 }
 
-void FMaterialOverrideNanite::LoadOverrideForPlatform(const ITargetPlatform* TargetPlatform, UObject* OptionalOwner)
+void FMaterialOverrideNanite::LoadOverrideForPlatform(const ITargetPlatform* TargetPlatform)
 {
 	bool bCookOverrideObject = false;
 	TArray<FName> ShaderFormats;
@@ -165,18 +165,7 @@ void FMaterialOverrideNanite::LoadOverrideForPlatform(const ITargetPlatform* Tar
 
 	if (bCookOverrideObject)
 	{
-		if (bEnableOverride)
-		{
-			OverrideMaterial = OverrideMaterialRef.LoadSynchronous();
-			if (!OverrideMaterial && !OverrideMaterialRef.IsNull())
-			{
-				UE_LOG(LogMaterial, Warning, TEXT("MaterialOverrideNanite with owner '%s' has an enabled override material (%s) but it could not be loaded in LoadOverrideForPlatform."), OptionalOwner ? *OptionalOwner->GetPathName() : TEXT("UNKNOWN"), *OverrideMaterialRef.ToString());
-			}
-		}
-		else
-		{
-			OverrideMaterial = nullptr;
-		}
+		OverrideMaterial = bEnableOverride ? OverrideMaterialRef.LoadSynchronous() : nullptr;
 	}
 }
 

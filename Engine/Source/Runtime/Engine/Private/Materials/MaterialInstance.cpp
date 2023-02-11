@@ -2593,7 +2593,7 @@ void UMaterialInstance::BeginCacheForCookedPlatformData( const ITargetPlatform *
 		}
 	}
 
-	NaniteOverrideMaterial.LoadOverrideForPlatform(TargetPlatform, this);
+	NaniteOverrideMaterial.LoadOverrideForPlatform(TargetPlatform);
 }
 
 bool UMaterialInstance::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPlatform ) 
