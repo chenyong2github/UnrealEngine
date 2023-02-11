@@ -3,6 +3,7 @@
 #include "SRCPanelExposedField.h"
 
 #include "Algo/Transform.h"
+#include "Components/LocalLightComponent.h"
 #include "EditorFontGlyphs.h"
 #include "IDetailTreeNode.h"
 #include "IRCProtocolBindingList.h"
@@ -419,7 +420,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 							.VAlign(VAlign_Center)
 							.Padding(2.f, 4.f)
 							[
-								SNew(SResetToDefaultPropertyEditor, PropertyHandle)
+								ConstructResetToDefaultWidget(Object, PropertyHandle)
 							];
 					}
 
@@ -567,6 +568,48 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 	}
 
 	ChildSlot.AttachWidget(ConstructWidget());
+}
+
+TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject* InObject, TSharedPtr<IPropertyHandle> InPropertyHandle)
+{
+	TSharedPtr<SResetToDefaultPropertyEditor> ResetDefaultProperty = SNew(SResetToDefaultPropertyEditor, InPropertyHandle);
+	
+	const TAttribute<bool> CanResetToDefaultValue = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this, InObject, InPropertyHandle]()
+		{
+			IRemoteControlModule& RemoteControlModule = IRemoteControlModule::Get();
+		
+			if (RemoteControlModule.HasDefaultValueCustomization(InObject, InPropertyHandle->GetProperty()))
+			{
+				return RemoteControlModule.CanResetToDefaultValue(InObject, InPropertyHandle->GetProperty());
+			}
+
+			return InPropertyHandle->DiffersFromDefault();
+		})
+	);
+
+	const FSimpleDelegate PerformValueReset = FSimpleDelegate::CreateLambda([this, InObject, InPropertyHandle]()
+		{
+			IRemoteControlModule& RemoteControlModule = IRemoteControlModule::Get();
+
+			if (RemoteControlModule.HasDefaultValueCustomization(InObject, InPropertyHandle->GetProperty()))
+			{
+				RemoteControlModule.ResetToDefaultValue(InObject, InPropertyHandle->GetProperty());
+			
+				return;
+			}
+
+			InPropertyHandle->ResetToDefault();
+		}
+	);
+	
+	const FResetToDefaultOverride ResetValueOverride = FResetToDefaultOverride::Create(CanResetToDefaultValue, PerformValueReset);
+	
+	ResetDefaultProperty.Reset();
+	
+	ResetDefaultProperty = SNew(SResetToDefaultPropertyEditor, InPropertyHandle)
+		.CustomResetToDefault(ResetValueOverride);
+
+	return ResetDefaultProperty.ToSharedRef();
 }
 
 TSharedRef<SWidget> SRCPanelExposedField::ConstructCallFunctionButton(bool bIsEnabled)

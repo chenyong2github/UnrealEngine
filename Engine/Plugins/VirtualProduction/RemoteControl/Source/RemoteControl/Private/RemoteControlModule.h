@@ -4,6 +4,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "Factories/IRCDefaultValueFactory.h"
 #include "Factories/IRemoteControlMaskingFactory.h"
 #include "IRemoteControlInterceptionFeature.h"
 #include "IRemoteControlModule.h"
@@ -30,6 +31,9 @@ public:
 	virtual bool RegisterEmbeddedPreset(URemoteControlPreset* Preset, bool bReplaceExisting) override;
 	virtual void UnregisterEmbeddedPreset(FName Name) override;
 	virtual void UnregisterEmbeddedPreset(URemoteControlPreset* Preset) override;
+	virtual bool CanResetToDefaultValue(UObject* InObject, const FProperty* InProperty) const override;
+	virtual bool HasDefaultValueCustomization(const UObject* InObject, const FProperty* InProperty) const override;
+	virtual void ResetToDefaultValue(UObject* InObject, FProperty* InProperty) override;
 	virtual void PerformMasking(const TSharedRef<FRCMaskingOperation>& InMaskingOperation) override;
 	virtual void RegisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType, const TSharedPtr<IRemoteControlMaskingFactory>& InMaskingFactory) override;
 	virtual void UnregisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType) override;
@@ -96,7 +100,22 @@ private:
 	 * @return True if the data was successfully deserialized and modified.
 	 */
 	static bool DeserializeDeltaModificationData(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCModifyOperation Operation, TArray<uint8>& OutData);
+	
+	/**
+	 * Register a default factory to handle that default value for the supported properties.
+	 */
+	void RegisterDefaultValueFactoryForType(UClass* RemoteControlPropertyType, const FName PropertyName, const TSharedPtr<IRCDefaultValueFactory>& InDefaultValueFactory);
+	
+	/**
+	 * Unregister a previously registered default value factory.
+	 */
+	void UnregisterDefaultValueFactoryForType(UClass* RemoteControlPropertyType, const FName PropertyName);
 
+	/**
+	 * Register(s) default value factories of supported types.
+	 */
+	void RegisterDefaultValueFactories();
+	
 	/**
 	 * Register(s) masking factories of supported types.
 	 */
@@ -204,6 +223,9 @@ private:
 
 	/** Holds the set of active masking operations. */
 	TSet<TSharedPtr<FRCMaskingOperation>> ActiveMaskingOperations;
+
+	/** Map of the factories which is responsible for resetting the Remote Control property to its default value. */
+	TMap<FName, TSharedPtr<IRCDefaultValueFactory>> DefaultValueFactories;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

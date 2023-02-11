@@ -280,6 +280,27 @@ public:
 	virtual void UnregisterEmbeddedPreset(URemoteControlPreset* Preset) = 0;
 
 	/**
+	 * Returns true when the given object can be reset to its default value, false otherwise.
+	 * @param InObject Reference to the exposed object.
+	 * @param InProperty Reference to the exposed property.
+	 */
+	virtual bool CanResetToDefaultValue(UObject* InObject, const FProperty* InProperty) const = 0;
+
+	/**
+	 * Returns true when the given object and property has custom default value, false otherwise.
+	 * @param InObject Reference to the exposed object.
+	 * @param InProperty Reference to the exposed property.
+	 */
+	virtual bool HasDefaultValueCustomization(const UObject* InObject, const FProperty* InProperty) const = 0;
+
+	/**
+	 * Performs actual data reset on the given object.
+	 * @param InObject Reference to the exposed object.
+	 * @param InProperty Reference to the exposed property.
+	 */
+	virtual void ResetToDefaultValue(UObject* InObject, FProperty* InProperty) = 0;
+
+	/**
 	 * Performs the given masking operation.
 	 * @param InMaskingOperation Masking operation to be performed.
 	 */

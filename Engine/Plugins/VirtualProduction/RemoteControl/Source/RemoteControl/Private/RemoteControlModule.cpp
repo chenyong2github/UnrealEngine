@@ -7,6 +7,7 @@
 #include "Backends/CborStructSerializerBackend.h"
 #include "Components/ActorComponent.h"
 #include "Components/LightComponent.h"
+#include "Factories/RCDefaultValueFactories.h"
 #include "Factories/RemoteControlMaskingFactories.h"
 #include "Features/IModularFeatures.h"
 #include "IRemoteControlInterceptionFeature.h"
@@ -602,6 +603,9 @@ void FRemoteControlModule::StartupModule()
 	FCoreUObjectDelegates::PreLoadMap.AddRaw(this, &FRemoteControlModule::HandleMapPreLoad);
 #endif
 	
+	// Register Default Value Factories
+	RegisterDefaultValueFactories();
+
 	// Register Property Factories
 	RegisterEntityFactory(FRemoteControlInstanceMaterial::StaticStruct()->GetFName(), FRemoteControlInstanceMaterialFactory::MakeInstance());
 
@@ -632,6 +636,10 @@ void FRemoteControlModule::ShutdownModule()
 	{
 		// Unregister Property Factories
 		UnregisterEntityFactory(FRemoteControlInstanceMaterial::StaticStruct()->GetFName());
+		
+		// Unregister Default Value & Masking factories.
+		DefaultValueFactories.Empty();
+		MaskingFactories.Empty();
 	}
 }
 
@@ -738,6 +746,67 @@ void FRemoteControlModule::UnregisterEmbeddedPreset(URemoteControlPreset* Preset
 	}
 
 	EmbeddedPresets.Remove(PresetName);
+}
+
+bool FRemoteControlModule::CanResetToDefaultValue(UObject* InObject, const FProperty* InProperty) const
+{
+	if (!InObject || !InProperty)
+	{
+		return false;
+	}
+
+	// NOTE : Get the owning class to which the property actually belongs.
+	if (UClass* OwningClass = InProperty->GetOwnerClass())
+	{
+		const FString DefaultValueKey = OwningClass->GetName() + TEXT(".") + InProperty->GetName();
+		
+		if (const TSharedPtr<IRCDefaultValueFactory>* DefaultValueFactory = DefaultValueFactories.Find(*DefaultValueKey))
+		{
+			return (*DefaultValueFactory)->CanResetToDefaultValue(InObject);
+		}
+	}
+
+	return false;
+}
+
+bool FRemoteControlModule::HasDefaultValueCustomization(const UObject* InObject, const FProperty* InProperty) const
+{
+	if (!InObject || !InProperty)
+	{
+		return false;
+	}
+
+	// NOTE : Get the owning class to which the property actually belongs.
+	if (UClass* OwningClass = InProperty->GetOwnerClass())
+	{
+		const FString DefaultValueKey = OwningClass->GetName() + TEXT(".") + InProperty->GetName();
+
+		if (const TSharedPtr<IRCDefaultValueFactory>* DefaultValueFactory = DefaultValueFactories.Find(*DefaultValueKey))
+		{
+			return (*DefaultValueFactory)->SupportsClass(InObject->GetClass()) && (*DefaultValueFactory)->SupportsProperty(InProperty);
+		}
+	}
+	
+	return false;
+}
+
+void FRemoteControlModule::ResetToDefaultValue(UObject* InObject, FProperty* InProperty)
+{
+	if (!InObject || !InProperty)
+	{
+		return;
+	}
+
+	// NOTE : Get the owning class to which the property actually belongs.
+	if (UClass* OwningClass = InProperty->GetOwnerClass())
+	{
+		const FString DefaultValueKey = OwningClass->GetName() + TEXT(".") + InProperty->GetName();
+
+		if (const TSharedPtr<IRCDefaultValueFactory>* DefaultValueFactory = DefaultValueFactories.Find(*DefaultValueKey))
+		{
+			(*DefaultValueFactory)->ResetToDefaultValue(InObject, InProperty);
+		}
+	}
 }
 
 void FRemoteControlModule::PerformMasking(const TSharedRef<FRCMaskingOperation>& InMaskingOperation)
@@ -1565,15 +1634,22 @@ bool FRemoteControlModule::ResetObjectProperties(const FRCObjectReference& Objec
 			ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
 			Object->PreEditChange(PreEditChain);
 		}
-#endif
 
-		// Copy the value from the field on the CDO.
-		FRCFieldPathInfo FieldPathInfo = ObjectAccess.PropertyPathInfo;
-		void* TargetAddress = FieldPathInfo.GetResolvedData().ContainerAddress;
-		UObject* DefaultObject = Object->GetClass()->GetDefaultObject();
-		FieldPathInfo.Resolve(DefaultObject);
-		FRCFieldResolvedData DefaultObjectResolvedData = FieldPathInfo.GetResolvedData();
-		ObjectAccess.Property->CopyCompleteValue_InContainer(TargetAddress, DefaultObjectResolvedData.ContainerAddress);
+		if(HasDefaultValueCustomization(Object, ObjectAccess.Property.Get()))
+		{
+			ResetToDefaultValue(Object, ObjectAccess.Property.Get());
+		}
+		else
+#endif
+		{
+			// Copy the value from the field on the CDO.
+			FRCFieldPathInfo FieldPathInfo = ObjectAccess.PropertyPathInfo;
+			void* TargetAddress = FieldPathInfo.GetResolvedData().ContainerAddress;
+			UObject* DefaultObject = Object->GetClass()->GetDefaultObject();
+			FieldPathInfo.Resolve(DefaultObject);
+			FRCFieldResolvedData DefaultObjectResolvedData = FieldPathInfo.GetResolvedData();
+			ObjectAccess.Property->CopyCompleteValue_InContainer(TargetAddress, DefaultObjectResolvedData.ContainerAddress);
+		}
 
 		// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 		// this is to match the pre edit change call that can unregister components for example
@@ -2217,6 +2293,29 @@ bool FRemoteControlModule::DeserializeDeltaModificationData(const FRCObjectRefer
 	}
 
 	return bSuccess;
+}
+
+void FRemoteControlModule::RegisterDefaultValueFactoryForType(UClass* RemoteControlPropertyType, const FName PropertyName, const TSharedPtr<IRCDefaultValueFactory>& InDefaultValueFactory)
+{
+	const FString DefaultValueKey = RemoteControlPropertyType->GetName() + TEXT(".") + PropertyName.ToString();
+
+	if (!DefaultValueFactories.Contains(*DefaultValueKey))
+	{
+		DefaultValueFactories.Add(*DefaultValueKey, InDefaultValueFactory);
+	}
+}
+
+void FRemoteControlModule::UnregisterDefaultValueFactoryForType(UClass* RemoteControlPropertyType, const FName PropertyName)
+{
+	const FString DefaultValueKey = RemoteControlPropertyType->GetName() + TEXT(".") + PropertyName.ToString();
+
+	DefaultValueFactories.Remove(*DefaultValueKey);
+}
+
+void FRemoteControlModule::RegisterDefaultValueFactories()
+{
+	// NOTE : Use the class to which the property actually belongs.
+	RegisterDefaultValueFactoryForType(ULightComponentBase::StaticClass(), GET_MEMBER_NAME_CHECKED(ULightComponentBase, Intensity), FLightIntensityDefaultValueFactory::MakeInstance());
 }
 
 void FRemoteControlModule::RegisterMaskingFactories()

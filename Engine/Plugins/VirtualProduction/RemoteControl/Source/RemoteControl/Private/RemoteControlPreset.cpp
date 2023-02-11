@@ -663,7 +663,14 @@ void URemoteControlPreset::OnModifyController(const FPropertyChangedEvent& Prope
 {
 	if (ensure(ControllerContainer))
 	{
-		if (URCVirtualPropertyBase* ModifiedController = ControllerContainer->GetVirtualProperty(PropertyChangedEvent.MemberProperty->GetFName()))
+		URCVirtualPropertyBase* ModifiedController = ControllerContainer->GetVirtualProperty(PropertyChangedEvent.MemberProperty->GetFName());
+
+		if (!ModifiedController)
+		{
+			ModifiedController = ControllerContainer->GetVirtualProperty(PropertyChangedEvent.MemberProperty->GetFName());
+		}
+
+		if (ModifiedController)
 		{
 			ControllerContainer->OnModifyPropertyValue(PropertyChangedEvent);
 			OnControllerModified().Broadcast(this, {ModifiedController->Id});

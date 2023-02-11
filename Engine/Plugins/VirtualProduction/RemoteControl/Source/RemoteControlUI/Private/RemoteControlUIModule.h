@@ -4,7 +4,7 @@
 #include "IRemoteControlUIModule.h"
 
 #include "AssetTypeCategories.h"
-#include "CoreMinimal.h"	
+#include "CoreMinimal.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"

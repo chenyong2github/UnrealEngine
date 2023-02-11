@@ -82,6 +82,8 @@ private:
 	void ConstructPropertyWidget();
 	/** Construct this field widget as a function widget. */
 	void ConstructFunctionWidget();
+	/** Construct the ResetToDefault Widget that can have CustomReset for certain Property (Right now only Light Intensity) */
+	TSharedRef<SWidget> ConstructResetToDefaultWidget(UObject* InObject, TSharedPtr<IPropertyHandle> InPropertyHandle);
 	/**
 	 * Construct a call function button
 	 * @param bIsEnabled Whether the button should be clickable or not.
