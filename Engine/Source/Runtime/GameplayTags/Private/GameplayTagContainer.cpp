@@ -1078,7 +1078,7 @@ FGameplayTagContainer FGameplayTag::GetGameplayTagParents() const
 
 bool FGameplayTag::MatchesTag(const FGameplayTag& TagToCheck) const
 {
-	SCOPE_CYCLE_COUNTER(STAT_FGameplayTag_MatchesTag);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_FGameplayTag_MatchesTag, GEnableGameplayTagDetailedStats);
 
 	const FGameplayTagContainer* TagContainer = UGameplayTagsManager::Get().GetSingleTagContainer(*this);
 
