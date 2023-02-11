@@ -790,7 +790,7 @@ FName FOpenXRHMDModule::ResolvePathToName(XrPath Path)
 	if (Result == XR_SUCCESS)
 	{
 		// Resolve this XrPath to an FName and store it in the name map
-		FName Name(PathCount, PathChars);
+		FName Name(PathCount - 1, PathChars);
 
 		FWriteScopeLock Lock(NameMutex);
 		PathToName.Add(Path, Name);
