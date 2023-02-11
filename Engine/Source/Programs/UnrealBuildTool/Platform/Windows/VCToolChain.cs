@@ -2523,13 +2523,7 @@ namespace UnrealBuildTool
 				if (Target.WindowsPlatform.bUseFastGenProfile)
 				{
 					Arguments.Add("/FASTGENPROFILE");
-				}
-				else
-				{
-					Arguments.Add("/GENPROFILE");
-				}
 					Log.TraceInformationOnce("Enabling Fastgen Profile Guided Optimization (PGO). Linking will take a while.");
-					Arguments.Add("/FASTGENPROFILE");
 				}
 				else 
 				{
@@ -2543,7 +2537,6 @@ namespace UnrealBuildTool
 						Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
 						Arguments.Add("/GENPROFILE");
 					}	
-					
 				}
 			}
 		}
