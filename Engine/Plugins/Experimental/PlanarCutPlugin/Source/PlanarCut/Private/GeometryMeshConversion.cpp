@@ -210,8 +210,8 @@ namespace AugmentedDynamicMesh
 	bool GetInternal(const FDynamicMesh3& Mesh, int TID)
 	{
 		checkSlow(IsAugmented(Mesh));
-		TDynamicMeshScalarTriangleAttribute<bool>* Internal =
-			static_cast<TDynamicMeshScalarTriangleAttribute<bool>*>(Mesh.Attributes()->GetAttachedAttribute(InternalAttribName));
+		const TDynamicMeshScalarTriangleAttribute<bool>* Internal =
+			static_cast<const TDynamicMeshScalarTriangleAttribute<bool>*>(Mesh.Attributes()->GetAttachedAttribute(InternalAttribName));
 		return Internal->GetValue(TID);
 	}
 
