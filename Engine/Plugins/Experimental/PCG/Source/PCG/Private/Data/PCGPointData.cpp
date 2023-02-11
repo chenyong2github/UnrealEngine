@@ -15,7 +15,7 @@
 
 static TAutoConsoleVariable<bool> CVarCacheFullPointDataCrc(
 	TEXT("pcg.Cache.FullPointDataCrc"),
-	true,
+	false,
 	TEXT("Enable fine-grained CRC of point data for change tracking, rather than using data UID."));
 
 namespace PCGPointHelpers
