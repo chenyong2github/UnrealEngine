@@ -807,7 +807,7 @@ void FCookDirector::SetWorkersStalled(bool bInWorkersStalled)
 		const double CurrentTime = FPlatformTime::Seconds();
 		if (CurrentTime >= WorkersStalledWarnTimeSeconds)
 		{
-			UE_LOG(LogCook, Warning, TEXT("Cooker has been blocked with no results from remote CookWorkers for %.0f seconds."),
+			UE_LOG(LogCook, Display, TEXT("Cooker has been blocked with no results from remote CookWorkers for %.0f seconds."),
 				(float)(CurrentTime - WorkersStalledStartTimeSeconds));
 			WorkersStalledWarnTimeSeconds = CurrentTime + GCookProgressWarnBusyTime;
 		}
