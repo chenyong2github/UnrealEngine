@@ -591,6 +591,21 @@ void FWorldPartitionActorDesc::CheckForErrors(IStreamingGenerationErrorHandler* 
 	}
 }
 
+bool FWorldPartitionActorDesc::IsEditorRelevant() const
+{
+	if (GetActorIsRuntimeOnly())
+	{
+		return false;
+	}
+
+	if (CastChecked<AActor>(ActorNativeClass->GetDefaultObject())->ShouldSkipFromLevelInstance())
+	{
+		return GetContainer() && !GetContainer()->IsTemplateContainer() && GetContainer()->GetWorldPartition()->IsMainWorldPartition();
+	}
+
+	return true;
+}
+
 bool FWorldPartitionActorDesc::IsRuntimeRelevant(const FActorContainerID& InContainerID) const
 {
 	return InContainerID.IsMainContainer() || !CastChecked<AActor>(ActorNativeClass->GetDefaultObject())->ShouldSkipFromLevelInstance();

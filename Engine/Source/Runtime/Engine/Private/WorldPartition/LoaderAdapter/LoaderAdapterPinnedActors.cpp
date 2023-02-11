@@ -27,7 +27,7 @@ FText FLoaderAdapterPinnedActors::GetUnloadedReason(FWorldPartitionActorDesc* In
 
 		UActorDescContainer* ActorDescContainer = InActorDesc->GetContainer();
 		UWorldPartition* WorldPartition = ActorDescContainer != nullptr ? ActorDescContainer->GetWorldPartition() : nullptr;
-		bool bShouldBeLoaded = !InActorDesc->GetIsSpatiallyLoaded() && !InActorDesc->GetActorIsRuntimeOnly();
+		bool bShouldBeLoaded = !InActorDesc->GetIsSpatiallyLoaded() && InActorDesc->IsEditorRelevant();
 		if (WorldPartition && (bShouldBeLoaded || WorldPartition->IsActorPinned(InActorDesc->GetGuid())))
 		{
 			return LOCTEXT("UnloadedDataLayerReason", "Unloaded DataLayer");

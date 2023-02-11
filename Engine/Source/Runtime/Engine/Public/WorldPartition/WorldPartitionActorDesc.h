@@ -144,6 +144,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
 	virtual bool IsResaveNeeded() const { return false; }
 	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const;
+	virtual bool IsEditorRelevant() const;
 	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
 	UE_DEPRECATED(5.2, "ShouldValidateRuntimeGrid is deprecated and should not be used.")
@@ -228,8 +229,8 @@ public:
 	AActor* Load() const;
 	virtual void Unload();
 
-	UE_DEPRECATED(5.1, "ShouldBeLoadedByEditorCells is deprecated, GetActorIsRuntimeOnly should be used instead.")
-	bool ShouldBeLoadedByEditorCells() const { return !GetActorIsRuntimeOnly(); }
+	UE_DEPRECATED(5.1, "ShouldBeLoadedByEditorCells is deprecated, IsEditorRelevant should be used instead.")
+	bool ShouldBeLoadedByEditorCells() const { return IsEditorRelevant(); }
 
 	virtual void Init(const AActor* InActor);
 	virtual void Init(const FWorldPartitionActorDescInitData& DescData);
