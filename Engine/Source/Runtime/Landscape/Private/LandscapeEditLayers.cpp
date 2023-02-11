@@ -5412,18 +5412,21 @@ bool ALandscape::ResolveLayersTexture(
 					}
 					bChanged |= InCPUReadback->SetHash(Hash);
 
+					if (bChanged)
+					{
 						// We're about to modify the texture's source data, the texture needs to know so that it can handle properly update cached platform data (additionally, the package needs to be dirtied) :
 						if (GetDefault<ULandscapeSettings>()->LandscapeDirtyingMode == ELandscapeDirtyingMode::InLandscapeModeAndUserTriggeredChanges)
 						{
 							FLandscapeDirtyOnlyInModeScope Scope(GetLandscapeInfo(), !bUserTriggered);
-							GetLandscapeInfo()->ModifyObject(InOutputTexture);	
+							GetLandscapeInfo()->ModifyObject(InOutputTexture);
 						}
 						else
 						{
 							GetLandscapeInfo()->ModifyObject(InOutputTexture);
 						}
+					}
 				}
-							
+
 				if (bChanged)
 				{
 					if (bIsWeightmap)
