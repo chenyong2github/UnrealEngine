@@ -132,7 +132,7 @@ TArray<EMVVMBlueprintViewModelContextCreationType> GenerateAllowedList(const UCl
 		{
 			RunAllowed();
 		}
-		if (AllowedStrings.Num() == 0 && DisallowedStrings.Num() != 0)
+		else if (AllowedStrings.Num() == 0 && DisallowedStrings.Num() != 0)
 		{
 			Result = FullList;
 			RunDisallowed();
