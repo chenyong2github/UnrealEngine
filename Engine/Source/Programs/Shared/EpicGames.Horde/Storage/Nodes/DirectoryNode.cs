@@ -196,6 +196,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			: base(reader)
 		{
 			_cachedLength = (long)reader.ReadUnsignedVarInt();
+			Hash = reader.ReadIoHash();
 		}
 
 		/// <summary>
@@ -207,6 +208,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			base.Serialize(writer);
 
 			writer.WriteUnsignedVarInt((ulong)Length);
+			writer.WriteIoHash(Hash);
 		}
 
 		/// <inheritdoc/>
