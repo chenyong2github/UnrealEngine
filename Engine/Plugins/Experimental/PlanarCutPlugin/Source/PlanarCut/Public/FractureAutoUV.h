@@ -101,7 +101,6 @@ bool PLANARCUT_API UVLayout(
 	TArrayView<int32> WhichMaterials = TArrayView<int32>(),
 	bool bRecreateUVsForDegenerateIslands = true,
 	FProgressCancel* Progress = nullptr
-	TArrayView<int32> WhichMaterials = TArrayView<int32>()
 );
 
 /**
