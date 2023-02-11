@@ -1544,50 +1544,44 @@ TArray<URigVMPin*> URigVMPin::GetLinkedTargetPins(bool bRecursive) const
 TArray<URigVMLink*> URigVMPin::GetSourceLinks(bool bRecursive) const
 {
 	TArray<URigVMLink*> Results;
-	if(GetDirection() == ERigVMPinDirection::IO ||
-		GetDirection() == ERigVMPinDirection::Input)
+	for (URigVMLink* Link : Links)
 	{
-		for (URigVMLink* Link : Links)
+		if (Link->GetTargetPin() == this)
 		{
-			if (Link->GetTargetPin() == this)
-			{
-				Results.Add(Link);
-			}
-		}
-
-		if (bRecursive)
-		{
-			for (URigVMPin* SubPin : SubPins)
-			{
-				Results.Append(SubPin->GetSourceLinks(bRecursive));
-			}
+			Results.Add(Link);
 		}
 	}
+
+	if (bRecursive)
+	{
+		for (URigVMPin* SubPin : SubPins)
+		{
+			Results.Append(SubPin->GetSourceLinks(bRecursive));
+		}
+	}
+
 	return Results;
 }
 
 TArray<URigVMLink*> URigVMPin::GetTargetLinks(bool bRecursive) const
 {
 	TArray<URigVMLink*> Results;
-	if(GetDirection() == ERigVMPinDirection::IO ||
-		GetDirection() == ERigVMPinDirection::Output)
+	for (URigVMLink* Link : Links)
 	{
-		for (URigVMLink* Link : Links)
+		if (Link->GetSourcePin() == this)
 		{
-			if (Link->GetSourcePin() == this)
-			{
-				Results.Add(Link);
-			}
-		}
-
-		if (bRecursive)
-		{
-			for (URigVMPin* SubPin : SubPins)
-			{
-				Results.Append(SubPin->GetTargetLinks(bRecursive));
-			}
+			Results.Add(Link);
 		}
 	}
+
+	if (bRecursive)
+	{
+		for (URigVMPin* SubPin : SubPins)
+		{
+			Results.Append(SubPin->GetTargetLinks(bRecursive));
+		}
+	}
+
 	return Results;
 }
 
