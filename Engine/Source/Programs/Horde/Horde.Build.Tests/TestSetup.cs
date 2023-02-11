@@ -262,6 +262,8 @@ namespace Horde.Build.Tests
 			services.AddSingleton<DeviceService>();
 			services.AddSingleton<TestDataService>();
 
+			services.AddScoped<JobRpcCommon>();
+
 			services.AddSingleton<ConformTaskSource>();
 			services.AddSingleton<ICommitService, CommitService>();
 
