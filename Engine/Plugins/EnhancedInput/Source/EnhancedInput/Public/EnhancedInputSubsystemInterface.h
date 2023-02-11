@@ -88,9 +88,11 @@ protected:
 	virtual void BindUserSettingDelegates();
 	
 	/** Callback for when any Enhanced Input user settings have been changed (a new key mapping for example) */
+	UFUNCTION()
 	virtual void OnUserSettingsChanged(UEnhancedInputUserSettings* Settings);
 
 	/** A callback for when the user has applied a new mappable key profile. */
+	UFUNCTION()
 	virtual void OnUserKeyProfileChanged(const UEnhancedPlayerMappableKeyProfile* InNewProfile);
 
 public:

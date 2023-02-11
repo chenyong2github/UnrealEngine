@@ -22,6 +22,18 @@ DEFINE_LOG_CATEGORY(LogWorldSubsystemInput);
 // *
 // **************************************************************************************************
 
+void UEnhancedInputLocalPlayerSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController)
+{
+	Super::PlayerControllerChanged(NewPlayerController);
+
+	// Now that there is a valid player controller, we should have access to a valid PlayerInput pointer.
+	// That means that we can listen for changes to that player's settings!
+	if (GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
+	{
+		BindUserSettingDelegates();	
+	}
+}
+
 UEnhancedPlayerInput* UEnhancedInputLocalPlayerSubsystem::GetPlayerInput() const
 {	
 	if (APlayerController* PlayerController = GetLocalPlayer()->GetPlayerController(GetWorld()))

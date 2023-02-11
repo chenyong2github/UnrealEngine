@@ -746,24 +746,48 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 	// Reset the tracking of dependant chord actions on the player input
 	PlayerInput->DependentChordActions.Reset();
 
+	UEnhancedInputUserSettings* UserSettings = GetUserSettings();
+	UEnhancedPlayerMappableKeyProfile* PlayerKeyProfile = UserSettings ? UserSettings->GetCurrentKeyProfile() : nullptr;
+
+	// An array of keys that are mapped to a given Action.
+	// This is populated by any player mapped keys if they exist, or the default mapping from
+	// an input mapping context.
+	TArray<FKey> MappedKeysToActionName;
+	
 	for (const TPair<TObjectPtr<const UInputMappingContext>, int32>& ContextPair : OrderedInputContexts)
 	{
 		// Don't apply context specific keys immediately, allowing multiple mappings to the same key within the same context if required.
 		TArray<FKey> ContextAppliedKeys;
-
 		const UInputMappingContext* MappingContext = ContextPair.Key;
 		TArray<FEnhancedActionKeyMapping> OrderedMappings = ReorderMappings(MappingContext->GetMappings(), PlayerInput->DependentChordActions);
 
 		for (FEnhancedActionKeyMapping& Mapping : OrderedMappings)
 		{
-			TArray<FKey> PlayerMappedKeys = GetAllPlayerMappedKeys(Mapping.GetMappingName());
-			if (PlayerMappedKeys.IsEmpty())
+			// Clear out mappings from the previous iteration
+			MappedKeysToActionName.Reset();
+
+			// True if there were any player mapped keys to this mapping and we are using those instead.
+			bool bIsPlayerMapping = false;
+			
+			// See if there are any player mapped keys to this action
+			if (PlayerKeyProfile && GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
 			{
-				//If we didn't find any player mapped keys use the default key from the mapping.
-				PlayerMappedKeys.Add(Mapping.Key);
+				PlayerKeyProfile->GetKeysMappedToAction(Mapping.GetMappingName(), MappedKeysToActionName);
+				bIsPlayerMapping = !MappedKeysToActionName.IsEmpty();
+			}
+			else if (const TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(Mapping.GetMappingName()))
+			{
+				PlayerMappedKeySlots->GenerateValueArray(MappedKeysToActionName);
+				bIsPlayerMapping = !MappedKeysToActionName.IsEmpty();
 			}
 
-			for (const FKey& PlayerMappedKey : PlayerMappedKeys)
+			// If there aren't, then just use the default mapping for this action
+			if (!bIsPlayerMapping)
+			{
+				MappedKeysToActionName.Add(Mapping.Key);
+			}
+			
+			for (const FKey& PlayerMappedKey : MappedKeysToActionName)
 			{
 				Mapping.Key = PlayerMappedKey;
 

@@ -22,6 +22,10 @@ class ENHANCEDINPUT_API UEnhancedInputLocalPlayerSubsystem : public ULocalPlayer
 
 public:
 
+	// Begin ULocalPlayerSubsystem
+	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
+	// End ULocalPlayerSubsystem
+	
 	// Begin IEnhancedInputSubsystemInterface
 	virtual UEnhancedPlayerInput* GetPlayerInput() const override;
 	virtual void ControlMappingsRebuiltThisFrame() override;
