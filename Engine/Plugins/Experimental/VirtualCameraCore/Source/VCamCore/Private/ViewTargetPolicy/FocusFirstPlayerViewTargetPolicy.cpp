@@ -3,6 +3,7 @@
 #include "ViewTargetPolicy/FocusFirstPlayerViewTargetPolicy.h"
 
 #include "CineCameraComponent.h"
+#include "Engine/World.h"
 
 TArray<APlayerController*> UFocusFirstPlayerViewTargetPolicy::DeterminePlayerControllers_Implementation(const FDeterminePlayerControllersTargetPolicyParams& Params)
 {

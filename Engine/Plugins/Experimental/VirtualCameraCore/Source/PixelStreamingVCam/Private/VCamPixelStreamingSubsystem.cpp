@@ -2,6 +2,8 @@
 
 #include "VCamPixelStreamingSubsystem.h"
 
+#include "Engine/Engine.h"
+
 #include "PixelStreamingEditorModule.h"
 #include "VCamPixelStreamingLiveLink.h"
 #include "VCamPixelStreamingSession.h"

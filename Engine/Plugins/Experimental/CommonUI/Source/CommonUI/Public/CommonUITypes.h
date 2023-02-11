@@ -5,6 +5,7 @@
 #include "Engine/DataTable.h"
 #include "InputCoreTypes.h"
 #include "Styling/SlateBrush.h"
+#include "UObject/Interface.h"
 #include "CommonUITypes.generated.h"
 
 class UUserWidget;
@@ -13,6 +14,7 @@ struct FScrollBoxStyle;
 
 class UCommonInputSubsystem;
 class UInputAction;
+class ULocalPlayer;
 struct FInputActionValue;
 
 UENUM(BlueprintType)
