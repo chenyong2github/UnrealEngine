@@ -27,6 +27,9 @@
 
 #include "ModelingToolTargetUtil.h"
 
+#include "BaseGizmos/BrushStampIndicator.h"
+
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SeamSculptTool)
 
 using namespace UE::Geometry;
@@ -102,6 +105,9 @@ void USeamSculptTool::Setup()
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartSeamSculptTool", "Draw UV seams on the mesh by left click-dragging between mesh vertices."),
 		EToolMessageLevel::UserNotification);
+
+	// We don't need this to be visible for the seam editing process.
+	BrushStampIndicator->bVisible = false;
 }
 
 
