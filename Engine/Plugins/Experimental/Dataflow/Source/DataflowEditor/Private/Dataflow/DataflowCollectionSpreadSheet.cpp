@@ -74,6 +74,3 @@ FDataflowCollectionSpreadSheet::~FDataflowCollectionSpreadSheet()
 		CollectionSpreadSheet->GetOnPinnedDownChangedDelegate().Remove(OnPinnedDownChangedDelegateHandle);
 	}
 }
-
-
-#undef LOCTEXT_NAMESPACE
