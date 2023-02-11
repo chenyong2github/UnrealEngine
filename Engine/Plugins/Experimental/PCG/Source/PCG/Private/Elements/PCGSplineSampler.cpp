@@ -485,27 +485,16 @@ namespace PCGSplineSampler
 			// Initialize metadata accessors if needed
 			if (OutPointData && OutPointData->Metadata && (Params.bComputeDirectionDelta || Params.bComputeCurvature))
 			{
-				auto FindOrCreateAttribute = [](const FName& AttributeName, UPCGMetadata* Metadata)
-				{
-					FPCGMetadataAttribute<double>* Attribute = Metadata->FindOrCreateAttribute(AttributeName, 0.0, true, true);
-					if (Attribute->GetTypeId() != PCG::Private::MetadataTypes<double>::Id)
-					{
-						Metadata->DeleteAttribute(AttributeName);
-						Attribute = Metadata->CreateAttribute<double>(AttributeName, 0.0, true, true);
-					}
-
-					return Attribute;
-				};
-
+				constexpr double DefaultValue = 0.0;
 				if (Params.bComputeDirectionDelta)
 				{
-					NextDirectionDeltaAttribute = FindOrCreateAttribute(Params.NextDirectionDeltaAttribute, OutPointData->Metadata);
+					NextDirectionDeltaAttribute = OutPointData->Metadata->FindOrCreateAttribute(Params.NextDirectionDeltaAttribute, DefaultValue);
 					bSetMetadata |= (NextDirectionDeltaAttribute != nullptr);
 				}
 
 				if (Params.bComputeCurvature)
 				{
-					CurvatureAttribute = FindOrCreateAttribute(Params.CurvatureAttribute, OutPointData->Metadata);
+					CurvatureAttribute = OutPointData->Metadata->FindOrCreateAttribute(Params.CurvatureAttribute, DefaultValue);
 					bSetMetadata |= (CurvatureAttribute != nullptr);
 				}
 			}
