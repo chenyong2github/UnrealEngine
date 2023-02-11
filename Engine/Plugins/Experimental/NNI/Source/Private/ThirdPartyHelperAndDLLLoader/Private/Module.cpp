@@ -11,15 +11,6 @@
 void FThirdPartyHelperAndDLLLoaderModule::StartupModule()
 {
 #ifdef WITH_DIRECTML
-	TSharedPtr<IPlugin> NNEPlugin = IPluginManager::Get().FindPlugin(TEXT("NNE"));
-	if (NNEPlugin.IsValid() && NNEPlugin->IsEnabled())
-	{
-		UE_LOG(
-			LogNeuralNetworkInferenceThirdPartyHelperAndDLLLoader,
-			Display,
-			TEXT("Please disable NNE plugin, both NeuralNetworkInference and NNE plugins can't be used at a same time"));
-	}
-
 	const FString DirectMLRuntimeBinPath = FString(FPlatformProcess::BaseDir()) / TEXT(PREPROCESSOR_TO_STRING(DIRECTML_PATH));
 	const FString DirectMLDLLPath = DirectMLRuntimeBinPath / TEXT("DirectML.dll");
 
