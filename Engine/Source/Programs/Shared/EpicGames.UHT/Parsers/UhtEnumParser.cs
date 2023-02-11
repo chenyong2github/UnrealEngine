@@ -176,6 +176,9 @@ namespace EpicGames.UHT.Parsers
 						}
 
 						// Save the new tag with a default value.  This will be replaced later
+						//COMPATIBILITY-TODO: If a enum value has a comment and a tooltip, it will generate an error.
+						// This is the reverse of all other parsing.  This code should be modified to process the comment
+						// after the UMETA.
 						int enumIndex = enumObject.AddEnumValue(tagToken.Value.ToString(), 0);
 						topScope.AddFormattedCommentsAsTooltipMetaData(enumIndex);
 

@@ -218,7 +218,7 @@ namespace EpicGames.UHT.Parsers
 			}
 
 			++_umetaElementsParsed;
-			_specifierContext.MetaData.Add(key.Value.ToString(), _specifierContext.MetaNameIndex, builder.ToString());
+			_specifierContext.MetaData.CheckedAdd(key.Value.ToString(), _specifierContext.MetaNameIndex, builder.ToString());
 		}
 
 		private void ParseKVPValueInternal()

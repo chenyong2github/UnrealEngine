@@ -61,19 +61,7 @@ namespace EpicGames.UHT.Parsers
 			// Get the trimmed string
 			value = new StringView(value, start, end - start);
 
-			// Make sure this isn't a duplicate assignment
-			string keyAsString = key.ToString();
-			if (specifierContext.MetaData.TryGetValue(keyAsString, out string? existingValue))
-			{
-				if (StringViewComparer.OrdinalIgnoreCase.Compare(existingValue, value) != 0)
-				{
-					specifierContext.MessageSite.LogError($"Metadata key '{key}' first seen with value '{existingValue}' then '{value}'");
-				}
-			}
-			else
-			{
-				specifierContext.MetaData.Add(keyAsString, specifierContext.MetaNameIndex, value.ToString());
-			}
+			specifierContext.MetaData.CheckedAdd(key.ToString(), specifierContext.MetaNameIndex, value.ToString());
 		}
 
 		private static void SetMetaData(UhtSpecifierContext specifierContext, StringView key, bool value)

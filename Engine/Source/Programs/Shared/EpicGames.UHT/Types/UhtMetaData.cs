@@ -421,17 +421,18 @@ namespace EpicGames.UHT.Types
 		/// <param name="value">Value of the meta data</param>
 		public void Add(string name, int nameIndex, string value)
 		{
-			if (Config != null)
-			{
-				if (Config.RedirectMetaDataKey(name, out string remappedName))
-				{
-					if (MessageSite != null)
-					{
-						MessageSite.LogWarning(LineNumber, $"Remapping old metadata key '{name}' to new key '{remappedName}', please update the declaration.");
-					}
-				}
-			}
-			GetDictionary()[new UhtMetaDataKey(name, nameIndex)] = value;
+			AddInternalWithRedirect(name, nameIndex, value, false);
+		}
+
+		/// <summary>
+		/// Add new meta data
+		/// </summary>
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
+		/// <param name="value">Value of the meta data</param>
+		public void CheckedAdd(string name, int nameIndex, string value)
+		{
+			AddInternalWithRedirect(name, nameIndex, value, true);
 		}
 
 		/// <summary>
@@ -481,8 +482,55 @@ namespace EpicGames.UHT.Types
 				SortedList<UhtMetaDataKey, string> dictionary = GetDictionary();
 				foreach (KeyValuePair<UhtMetaDataKey, string> kvp in metaData.Dictionary)
 				{
-					dictionary[kvp.Key] = kvp.Value;
+					AddInternal(dictionary, kvp.Key, kvp.Value, true);
 				}
+			}
+		}
+
+		/// <summary>
+		/// Add the given meta data but test for redirection of meta data name
+		/// </summary>
+		/// <param name="name">Name of the meta data</param>
+		/// <param name="nameIndex">Index of the meta data</param>
+		/// <param name="value">Value of the meta data</param>
+		/// <param name="checkValueChange">If true, verifies that the meta data value is not changing</param>
+		private void AddInternalWithRedirect(string name, int nameIndex, string value, bool checkValueChange)
+		{
+			if (Config != null)
+			{
+				if (Config.RedirectMetaDataKey(name, out string remappedName))
+				{
+					if (MessageSite != null)
+					{
+						MessageSite.LogWarning(LineNumber, $"Remapping old metadata key '{name}' to new key '{remappedName}', please update the declaration.");
+					}
+				}
+			}
+			AddInternal(GetDictionary(), new UhtMetaDataKey(name, nameIndex), value, checkValueChange);
+		}
+
+		/// <summary>
+		/// Add the value to the meta data
+		/// </summary>
+		/// <param name="dictionary">Destination dictionary</param>
+		/// <param name="key">Key of the meta data</param>
+		/// <param name="value">Value of the meta data</param>
+		/// <param name="checkValueChange">If true, verifies that the meta data value is not changing</param>
+		private void AddInternal(SortedList<UhtMetaDataKey, string> dictionary, UhtMetaDataKey key, string value, bool checkValueChange)
+		{
+			if (checkValueChange && dictionary.TryGetValue(key, out string? oldValue))
+			{
+				if (!oldValue.Equals(value, StringComparison.OrdinalIgnoreCase))
+				{
+					if (MessageSite != null)
+					{
+						MessageSite.LogError(LineNumber, $"Metadata key '{key.Name}' first seen with value '{oldValue}' then '{value}'");
+					}
+				}
+			}
+			else
+			{
+				dictionary[key] = value;
 			}
 		}
 
