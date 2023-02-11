@@ -9,7 +9,7 @@
 #include "WorldConditionQuery.h"
 #include "WorldConditionSchema.h"
 #include "Editor.h"
-#include "PropertyEditor/Private/PropertyNode.h"
+#include "Editor/PropertyEditor/Private/PropertyNode.h"
 
 #define LOCTEXT_NAMESPACE "WorldCondition"
 
