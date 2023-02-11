@@ -563,14 +563,16 @@ void FPixelStreamingSignallingConnection::OnPlayerConnected(const FJsonObjectPtr
 	FPixelStreamingPlayerConfig PlayerConfig;
 
 	// Default to always making datachannel, unless explicitly set to false.
-	bool bMakeDataChannel = true;
-	Json->TryGetBoolField(TEXT("datachannel"), PlayerConfig.SupportsDataChannel);
+	Json->TryGetBoolField(TEXT("dataChannel"), PlayerConfig.SupportsDataChannel);
 
 	// Default peer is not an SFU, unless explictly set as SFU
-	bool bIsSFU = false;
 	Json->TryGetBoolField(TEXT("sfu"), PlayerConfig.IsSFU);
 
-	Observer->OnSignallingPlayerConnected(PlayerId, PlayerConfig);
+	// Default to always sending an offer, unless explicitly set to false
+	bool bSendOffer = true;
+	Json->TryGetBoolField(TEXT("sendOffer"), bSendOffer);
+
+	Observer->OnSignallingPlayerConnected(PlayerId, PlayerConfig, bSendOffer);
 }
 
 void FPixelStreamingSignallingConnection::OnPlayerDisconnected(const FJsonObjectPtr& Json)

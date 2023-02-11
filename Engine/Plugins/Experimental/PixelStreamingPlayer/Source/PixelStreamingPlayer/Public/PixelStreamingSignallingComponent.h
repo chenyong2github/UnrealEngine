@@ -113,7 +113,8 @@ protected:
 	class FPixelStreamingSignallingConnectionObserver : public IPixelStreamingSignallingConnectionObserver
 	{
 	public:
-		FPixelStreamingSignallingConnectionObserver(UPixelStreamingSignallingComponent* InParent) : Parent(InParent) {}
+		FPixelStreamingSignallingConnectionObserver(UPixelStreamingSignallingComponent* InParent)
+			: Parent(InParent) {}
 
 		//
 		// ISignallingServerConnectionObserver implementation.
@@ -126,12 +127,12 @@ protected:
 		virtual void OnSignallingRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override;
 		virtual void OnSignallingPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) override;
 		virtual void OnSignallingPlayerCount(uint32 Count) override;
-		virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig) override;
+		virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig, bool bSendOffer) override;
 		virtual void OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId) override;
 		virtual void OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) override;
 		virtual void OnSignallingSessionDescription(FPixelStreamingPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) override {}
 		virtual void OnSignallingRemoteIceCandidate(FPixelStreamingPlayerId PlayerId, const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override {}
-	
+
 	private:
 		TObjectPtr<UPixelStreamingSignallingComponent> Parent;
 	};

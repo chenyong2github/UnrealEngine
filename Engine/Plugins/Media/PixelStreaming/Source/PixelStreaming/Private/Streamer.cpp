@@ -488,10 +488,15 @@ namespace UE::PixelStreaming
 		}
 	}
 
-
-
 	void FStreamer::OnPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig, bool bSendOffer)
 	{
+		if (!bSendOffer)
+		{
+			// If we're not sending the offer, don't create the player session
+			// we'll wait until the offer arrives to do that
+			return;
+		}
+
 		FPlayerContext& PlayerContext = Players.GetOrAdd(PlayerId);
 		PlayerContext.Config = PlayerConfig;
 
@@ -513,19 +518,16 @@ namespace UE::PixelStreaming
 				? FPixelStreamingPeerConnection::EReceiveMediaOption::Nothing
 				: FPixelStreamingPeerConnection::EReceiveMediaOption::Audio;
 
-			if (bSendOffer)
-			{
-				PlayerContext.PeerConnection->CreateOffer(
-					ReceiveOption,
-					[this, PlayerId](const webrtc::SessionDescriptionInterface* SDP) {
-						// on success
-						SignallingServerConnection->SendOffer(PlayerId, *SDP);
-					},
-					[this, PlayerId](const FString& Error) {
-						// on error
-						DeletePlayerSession(PlayerId);
-					});
-			}
+			PlayerContext.PeerConnection->CreateOffer(
+				ReceiveOption,
+				[this, PlayerId](const webrtc::SessionDescriptionInterface* SDP) {
+					// on success
+					SignallingServerConnection->SendOffer(PlayerId, *SDP);
+				},
+				[this, PlayerId](const FString& Error) {
+					// on error
+					DeletePlayerSession(PlayerId);
+				});
 		}
 	}
 
@@ -545,25 +547,12 @@ namespace UE::PixelStreaming
 
 	void FStreamer::OnOffer(FPixelStreamingPlayerId PlayerId, const FString& Sdp)
 	{
-		FPlayerContext* PlayerContext = Players.Find(PlayerId);
+		FPlayerContext& PlayerContext = Players.GetOrAdd(PlayerId);
 
-		// For backwards compatibility with versions before 5.0 where browser/player "offer" happens first and there is no "playerConnected" we make a player right here.
-		if (PlayerContext == nullptr)
-		{
-			UE_LOG(LogPixelStreaming, Log, TEXT("Got offer before \"playerConnected\", making peer connection for this player - this should only happen when using older versions of the signalling server pre UE 5.0."));
-
-			FPixelStreamingPlayerConfig Config;
-			Config.SupportsDataChannel = true;
-			Config.IsSFU = false;
-			// Note: We do not send an offer here, as we are responding to an offer.
-			OnPlayerConnected(PlayerId, Config, false /*bSendOffer*/);
-			PlayerContext = Players.Find(PlayerId);
-		}
-
-		verifyf(PlayerContext, TEXT("Player context should not be nullptr at this point."));
-
-		// clear any existing connection
-		PlayerContext->PeerConnection = nullptr;
+		FPixelStreamingPlayerConfig Config;
+		Config.SupportsDataChannel = true;
+		Config.IsSFU = false;
+		PlayerContext.Config = Config;
 
 		if (CreateSession(PlayerId))
 		{
@@ -571,11 +560,11 @@ namespace UE::PixelStreaming
 				DeletePlayerSession(PlayerId);
 			};
 
-			PlayerContext->PeerConnection->ReceiveOffer(
+			PlayerContext.PeerConnection->ReceiveOffer(
 				Sdp,
 				[this, PlayerContext, PlayerId, OnGeneralFailure]() {
 					AddStreams(PlayerId);
-					PlayerContext->PeerConnection->CreateAnswer(
+					PlayerContext.PeerConnection->CreateAnswer(
 						FPixelStreamingPeerConnection::EReceiveMediaOption::Audio,
 						[this, PlayerId](const webrtc::SessionDescriptionInterface* LocalDescription) {
 							SignallingServerConnection->SendAnswer(PlayerId, *LocalDescription);
@@ -1062,7 +1051,7 @@ namespace UE::PixelStreaming
 			// still wrapping the base FSlateApplication after we stop streaming
 			TArray<uint8> EmptyArray;
 			TFunction<void(FMemoryReader)> MouseLeaveHandler = IPixelStreamingInputModule::Get().FindMessageHandler("MouseLeave");
-			MouseLeaveHandler(FMemoryReader(EmptyArray));
+			// MouseLeaveHandler(FMemoryReader(EmptyArray));
 		}
 	}
 } // namespace UE::PixelStreaming

@@ -36,7 +36,7 @@ namespace
 		{
 			SetIceCandidate = { SdpMid, SdpMLineIndex, Sdp, PlayerId };
 		}
-		virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId, const FPixelStreamingPlayerConfig&) override {}
+		virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId, const FPixelStreamingPlayerConfig&, bool bSendOffer) override {}
 		virtual void OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId) override {}
 		virtual void OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) override {}
 
@@ -304,15 +304,17 @@ namespace
 
 				FPixelStreamingPlayerConfig PlayerConfig;
 
-				// Default to always making datachannel, unless explicitly set to false.
-				bool bMakeDataChannel = true;
-				JsonMsg->TryGetBoolField(TEXT("datachannel"), PlayerConfig.SupportsDataChannel);
+				// Default to always making datachannel, unless explicitly set to false
+				JsonMsg->TryGetBoolField(TEXT("dataChannel"), PlayerConfig.SupportsDataChannel);
 
 				// Default peer is not an SFU, unless explictly set as SFU
-				bool bIsSFU = false;
 				JsonMsg->TryGetBoolField(TEXT("sfu"), PlayerConfig.IsSFU);
 
-				Observer.OnSignallingPlayerConnected(PlayerId, PlayerConfig);
+				// Default to always sending an offer, unless explicitly set to false
+				bool bSendOffer = true;
+				JsonMsg->TryGetBoolField(TEXT("sendOffer"), bSendOffer);
+
+				Observer.OnSignallingPlayerConnected(PlayerId, PlayerConfig, bSendOffer);
 			});
 			RegisterHandler("playerDisconnected", [this](FJsonObjectPtr JsonMsg) {
 				FPixelStreamingPlayerId PlayerId;

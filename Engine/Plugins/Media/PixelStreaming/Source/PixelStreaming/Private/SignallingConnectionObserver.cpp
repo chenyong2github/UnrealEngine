@@ -62,9 +62,9 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	void FPixelStreamingSignallingConnectionObserver::OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig)
+	void FPixelStreamingSignallingConnectionObserver::OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig, bool bSendOffer)
 	{
-		Streamer.OnPlayerConnected(PlayerId, PlayerConfig, true /*bSendOffer*/);
+		Streamer.OnPlayerConnected(PlayerId, PlayerConfig, bSendOffer);
 	}
 
 	void FPixelStreamingSignallingConnectionObserver::OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId)
