@@ -3,7 +3,10 @@
 #include "CommonActivatableWidget.h"
 #include "CommonInputSettings.h"
 #include "CommonUIPrivate.h"
+#include "CommonUITypes.h"
 #include "Engine/GameInstance.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
 #include "Input/CommonUIInputTypes.h"
 #include "Input/UIActionBinding.h"
 #include "Input/UIActionRouterTypes.h"
@@ -20,10 +23,20 @@ void UCommonActivatableWidget::NativeConstruct()
 
 	if (bIsBackHandler)
 	{
-		FBindUIActionArgs BindArgs(ICommonInputModule::GetSettings().GetDefaultBackAction(), FSimpleDelegate::CreateUObject(this, &UCommonActivatableWidget::HandleBackAction));
-		BindArgs.bDisplayInActionBar = bIsBackActionDisplayedInActionBar;
+		if (CommonUI::IsEnhancedInputSupportEnabled() && ICommonInputModule::GetSettings().GetEnhancedInputBackAction())
+		{
+			FBindUIActionArgs BindArgs(ICommonInputModule::GetSettings().GetEnhancedInputBackAction(), FSimpleDelegate::CreateUObject(this, &UCommonActivatableWidget::HandleBackAction));
+			BindArgs.bDisplayInActionBar = bIsBackActionDisplayedInActionBar;
 
-		DefaultBackActionHandle = RegisterUIActionBinding(BindArgs);
+			DefaultBackActionHandle = RegisterUIActionBinding(BindArgs);
+		}
+		else
+		{
+			FBindUIActionArgs BindArgs(ICommonInputModule::GetSettings().GetDefaultBackAction(), FSimpleDelegate::CreateUObject(this, &UCommonActivatableWidget::HandleBackAction));
+			BindArgs.bDisplayInActionBar = bIsBackActionDisplayedInActionBar;
+
+			DefaultBackActionHandle = RegisterUIActionBinding(BindArgs);
+		}
 	}
 
 	if (bAutoActivate)
@@ -220,6 +233,17 @@ void UCommonActivatableWidget::NativeOnActivated()
 			UE_LOG(LogCommonUI, Verbose, TEXT("[%s] set visibility to [%s] on activation"), *GetName(), *StaticEnum<ESlateVisibility>()->GetDisplayValueAsText(ActivatedVisibility).ToString());
 		}
 
+		if (CommonUI::IsEnhancedInputSupportEnabled() && InputMapping)
+		{
+			if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+			{
+				if (UEnhancedInputLocalPlayerSubsystem* InputSystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+				{
+					InputSystem->AddMappingContext(InputMapping, InputMappingPriority);
+				}
+			}
+		}
+
 		BP_OnActivated();
 		OnActivated().Broadcast();
 		BP_OnWidgetActivated.Broadcast();
@@ -234,6 +258,17 @@ void UCommonActivatableWidget::NativeOnDeactivated()
 		{
 			SetVisibility(DeactivatedVisibility);
 			UE_LOG(LogCommonUI, Verbose, TEXT("[%s] set visibility to [%d] on deactivation"), *GetName(), *StaticEnum<ESlateVisibility>()->GetDisplayValueAsText(DeactivatedVisibility).ToString());
+		}
+
+		if (CommonUI::IsEnhancedInputSupportEnabled() && InputMapping)
+		{
+			if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+			{
+				if (UEnhancedInputLocalPlayerSubsystem* InputSystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+				{
+					InputSystem->RemoveMappingContext(InputMapping);
+				}
+			}
 		}
 
 		// Cancel any holds that were active

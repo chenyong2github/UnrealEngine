@@ -13,6 +13,7 @@ public class CommonInput : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "InputCore",
+				"EnhancedInput",
 				"DeveloperSettings"
             }
 		);

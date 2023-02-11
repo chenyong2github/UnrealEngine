@@ -13,6 +13,7 @@ struct FUIActionKeyMapping;
 class FActionRouterBindingCollection;
 struct FBindUIActionArgs;
 struct FCommonInputActionDataBase;
+class UInputAction;
 
 enum class EProcessHoldActionResult
 {
@@ -34,7 +35,7 @@ struct COMMONUI_API FUIActionBinding
 
 	bool operator==(const FUIActionBindingHandle& OtherHandle) const { return Handle == OtherHandle; }
 
-	// @TODO: DarenC - Remove legacy.
+	// @TODO: Rename non-legacy in 5.3. We no longer have any active plans to remove data tables in CommonUI.
 	FCommonInputActionDataBase* GetLegacyInputActionData() const;
 
 	EProcessHoldActionResult ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent);
@@ -68,8 +69,10 @@ struct COMMONUI_API FUIActionBinding
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnHoldActionProgressedMulticast, float);
 	FOnHoldActionProgressedMulticast OnHoldActionProgressed;
 
-	// @TODO: DarenC - Remove legacy.
+	// @TODO: Rename non-legacy in 5.3. We no longer have any active plans to remove data tables in CommonUI.
 	FDataTableRowHandle LegacyActionTableRow;
+
+	TWeakObjectPtr<const UInputAction> InputAction;
 
 private:
 	FUIActionBinding(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs);

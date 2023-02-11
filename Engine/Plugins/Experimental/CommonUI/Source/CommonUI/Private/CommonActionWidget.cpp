@@ -189,7 +189,9 @@ bool UCommonActionWidget::IsHeldAction() const
 
 void UCommonActionWidget::SetEnhancedInputAction(UInputAction* InInputAction)
 {
+	UpdateBindingHandleInternal(FUIActionBindingHandle());
 	EnhancedInputAction = InInputAction;
+	UpdateActionWidget();
 }
 
 void UCommonActionWidget::SetInputAction(FDataTableRowHandle InputActionRow)

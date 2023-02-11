@@ -7,8 +7,10 @@
 #include "CommonInputSubsystem.h"
 #include "CommonUITypes.h"
 #include "IAnalyticsProviderET.h"
+#include "InputAction.h"
 #include "Components/Widget.h"
 #include "Engine/GameInstance.h"
+#include "EnhancedInputSubsystems.h"
 #include "Styling/StyleDefaults.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUISubsystemBase)
@@ -53,6 +55,16 @@ FSlateBrush UCommonUISubsystemBase::GetInputActionButtonIcon(const FDataTableRow
 				return SlateBrush;
 			}
 		}
+	}
+
+	return *FStyleDefaults::GetNoBrush();
+}
+
+FSlateBrush UCommonUISubsystemBase::GetEnhancedInputActionButtonIcon(const UInputAction* InputAction, const ULocalPlayer* LocalPlayer) const
+{
+	if (LocalPlayer)
+	{
+		return CommonUI::GetIconForEnhancedInputAction(UCommonInputSubsystem::Get(LocalPlayer), InputAction);
 	}
 
 	return *FStyleDefaults::GetNoBrush();

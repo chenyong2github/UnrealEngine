@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonInputSettings.h"
+
 #include "ICommonInputModule.h"
 #include "Engine/DataTable.h"
 #include "Engine/PlatformSettingsManager.h"
@@ -132,6 +133,28 @@ FDataTableRowHandle UCommonInputSettings::GetDefaultBackAction() const
 		}
 	}
 	return FDataTableRowHandle();
+}
+
+UInputAction* UCommonInputSettings::GetEnhancedInputClickAction() const
+{
+	ensureMsgf(bInputDataLoaded, TEXT("Warning, CommonUI input data not loaded."));
+
+	if (InputDataClass && IsEnhancedInputSupportEnabled())
+	{
+		return InputDataClass.GetDefaultObject()->EnhancedInputClickAction;
+	}
+	return nullptr;
+}
+
+UInputAction* UCommonInputSettings::GetEnhancedInputBackAction() const
+{
+	ensureMsgf(bInputDataLoaded, TEXT("Warning, CommonUI input data not loaded."));
+
+	if (InputDataClass && IsEnhancedInputSupportEnabled())
+	{
+		return InputDataClass.GetDefaultObject()->EnhancedInputBackAction;
+	}
+	return nullptr;
 }
 
 bool UCommonInputSettings::IsEnhancedInputSupportEnabled() 

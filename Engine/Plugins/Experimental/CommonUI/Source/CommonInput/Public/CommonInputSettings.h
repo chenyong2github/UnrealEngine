@@ -17,6 +17,8 @@
 #include "Engine/PlatformSettings.h"
 #include "CommonInputSettings.generated.h"
 
+class UInputAction;
+
 UCLASS(config = Game, defaultconfig)
 class COMMONINPUT_API UCommonInputSettings : public UDeveloperSettings
 {
@@ -37,6 +39,9 @@ public:
 
 	FDataTableRowHandle GetDefaultClickAction() const;
 	FDataTableRowHandle GetDefaultBackAction() const;
+
+	UInputAction* GetEnhancedInputClickAction() const;
+	UInputAction* GetEnhancedInputBackAction() const;
 
 	bool GetEnableInputMethodThrashingProtection() const { return bEnableInputMethodThrashingProtection; }
 

@@ -13,6 +13,7 @@ struct FSlateBrush;
 class IAnalyticsProviderET;
 class UWidget;
 class ULocalPlayer;
+class UInputAction;
 
 UCLASS(DisplayName = "CommonUI")
 class COMMONUI_API UCommonUISubsystemBase : public UGameInstanceSubsystem
@@ -31,6 +32,10 @@ public:
 	// Gets Action Button Icon for current gamepad
 	UFUNCTION(BlueprintCallable, Category = CommonUISubsystem)
 	FSlateBrush GetInputActionButtonIcon(const FDataTableRowHandle& InputActionRowHandle, ECommonInputType InputType, const FName& GamepadName) const;
+
+	// Gets Action Button Icon for given action and player, enhanced input API currently does not allow input type specification
+	UFUNCTION(BlueprintCallable, Category = CommonUISubsystem)
+	FSlateBrush GetEnhancedInputActionButtonIcon(const UInputAction* InputAction, const ULocalPlayer* LocalPlayer) const;
 
 	/** Analytic Events **/
 

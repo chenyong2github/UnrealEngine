@@ -14,12 +14,14 @@
 #include "Engine/DataTable.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Engine/PlatformSettings.h"
+#include "InputAction.h"
+
 #include "CommonInputBaseTypes.generated.h"
 
 
 class UTexture2D;
 class UMaterial;
-class UCommonInputSettings;
+class UCommonInputSettings; 
 
 struct COMMONINPUT_API FCommonInputDefaults
 {
@@ -90,6 +92,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase"))
 	FDataTableRowHandle DefaultBackAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
+	TObjectPtr<UInputAction> EnhancedInputClickAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
+	TObjectPtr<UInputAction> EnhancedInputBackAction;
 };
 
 /* Derive from this class to store the Input data. It is referenced in the Common Input Settings, found in the project settings UI. */

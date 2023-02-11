@@ -6,6 +6,7 @@
 #include "UITag.h"
 #include "CommonInputModeTypes.h"
 #include "Engine/EngineBaseTypes.h"
+#include "InputAction.h"
 
 struct COMMONUI_API FBindUIActionArgs
 {
@@ -20,15 +21,26 @@ struct COMMONUI_API FBindUIActionArgs
 		, OnExecuteAction(InOnExecuteAction)
 	{}
 
-	// @TODO: DarenC - Remove legacy.
+	// @TODO: Rename non-legacy in 5.3. We no longer have any active plans to remove data tables in CommonUI.
 	FBindUIActionArgs(const FDataTableRowHandle& InLegacyActionTableRow, const FSimpleDelegate& InOnExecuteAction)
 		: LegacyActionTableRow(InLegacyActionTableRow)
 		, OnExecuteAction(InOnExecuteAction)
 	{}
 
-	// @TODO: DarenC - Remove legacy.
+	// @TODO: Rename non-legacy in 5.3. We no longer have any active plans to remove data tables in CommonUI.
 	FBindUIActionArgs(const FDataTableRowHandle& InLegacyActionTableRow, bool bShouldDisplayInActionBar, const FSimpleDelegate& InOnExecuteAction)
 		: LegacyActionTableRow(InLegacyActionTableRow)
+		, bDisplayInActionBar(bShouldDisplayInActionBar)
+		, OnExecuteAction(InOnExecuteAction)
+	{}
+
+	FBindUIActionArgs(const UInputAction* InInputAction, const FSimpleDelegate & InOnExecuteAction)
+		: InputAction(InInputAction)
+		, OnExecuteAction(InOnExecuteAction)
+	{}
+
+	FBindUIActionArgs(const UInputAction* InInputAction, bool bShouldDisplayInActionBar, const FSimpleDelegate & InOnExecuteAction)
+		: InputAction(InInputAction)
 		, bDisplayInActionBar(bShouldDisplayInActionBar)
 		, OnExecuteAction(InOnExecuteAction)
 	{}
@@ -38,7 +50,11 @@ struct COMMONUI_API FBindUIActionArgs
 	bool ActionHasHoldMappings() const;
 
 	FUIActionTag ActionTag;
+
+	// @TODO: Rename non-legacy in 5.3. We no longer have any active plans to remove data tables in CommonUI.
 	FDataTableRowHandle LegacyActionTableRow;
+
+	TWeakObjectPtr<const UInputAction> InputAction;
 
 	ECommonInputMode InputMode = ECommonInputMode::Menu;
 	EInputEvent KeyEvent = IE_Pressed;

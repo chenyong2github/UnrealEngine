@@ -11,6 +11,7 @@ class UCommonAnimatedSwitcher;
 
 class UCommonButtonBase;
 class UCommonButtonGroupBase;
+class UInputAction;
 
 /** Information about a registered tab in the tab list */
 USTRUCT()
@@ -178,6 +179,14 @@ protected:
 	/** The input action to listen for causing the previous tab to be selected */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase"))
 	FDataTableRowHandle PreviousTabInputActionData;
+
+	/** The input action to listen for causing the next tab to be selected */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
+	TObjectPtr<UInputAction> NextTabEnhancedInputAction;
+
+	/** The input action to listen for causing the previous tab to be selected */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
+	TObjectPtr<UInputAction> PreviousTabEnhancedInputAction;
 
 	/** Whether to register to handle tab list input immediately upon construction */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (ExposeOnSpawn = "true"))

@@ -5,6 +5,8 @@
 #include "CommonAnimatedSwitcher.h"
 #include "Groups/CommonButtonGroupBase.h"
 #include "Input/CommonUIInputTypes.h"
+#include "CommonUITypes.h"
+#include "InputAction.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonTabListWidgetBase)
 
@@ -190,8 +192,24 @@ void UCommonTabListWidgetBase::UpdateBindings()
 	// New input system binding flow
 	if (bIsListeningForInput)
 	{
-		NextTabActionHandle = RegisterUIActionBinding(FBindUIActionArgs(NextTabInputActionData, false, FSimpleDelegate::CreateUObject(this, &UCommonTabListWidgetBase::HandleNextTabAction)));
-		PrevTabActionHandle = RegisterUIActionBinding(FBindUIActionArgs(PreviousTabInputActionData, false, FSimpleDelegate::CreateUObject(this, &UCommonTabListWidgetBase::HandlePreviousTabAction)));
+		bool bIsEnhancedInputSupportEnabled = CommonUI::IsEnhancedInputSupportEnabled();
+		if (bIsEnhancedInputSupportEnabled && NextTabEnhancedInputAction)
+		{
+			NextTabActionHandle = RegisterUIActionBinding(FBindUIActionArgs(NextTabEnhancedInputAction, false, FSimpleDelegate::CreateUObject(this, &UCommonTabListWidgetBase::HandleNextTabAction)));
+		}
+		else
+		{
+			NextTabActionHandle = RegisterUIActionBinding(FBindUIActionArgs(NextTabInputActionData, false, FSimpleDelegate::CreateUObject(this, &UCommonTabListWidgetBase::HandleNextTabAction)));
+		}
+
+		if (bIsEnhancedInputSupportEnabled && PreviousTabEnhancedInputAction)
+		{
+			PrevTabActionHandle = RegisterUIActionBinding(FBindUIActionArgs(PreviousTabEnhancedInputAction, false, FSimpleDelegate::CreateUObject(this, &UCommonTabListWidgetBase::HandlePreviousTabAction)));
+		}
+		else
+		{
+			PrevTabActionHandle = RegisterUIActionBinding(FBindUIActionArgs(PreviousTabInputActionData, false, FSimpleDelegate::CreateUObject(this, &UCommonTabListWidgetBase::HandlePreviousTabAction)));
+		}
 	}
 	else
 	{

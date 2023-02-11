@@ -5,6 +5,8 @@
 #include "Input/CommonUIActionRouterBase.h"
 #include "CommonActivatableWidget.h"
 #include "Input/CommonUIInputTypes.h"
+#include "InputAction.h"
+#include "InputActionValue.h"
 #include "CommonInputSettings.h"
 #include "CommonInputSubsystem.h"
 #include "ICommonInputModule.h"
@@ -112,6 +114,7 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 	, OnExecuteAction(BindArgs.OnExecuteAction)
 	, Handle(IdCounter++)
 	, LegacyActionTableRow(BindArgs.LegacyActionTableRow)
+	, InputAction(BindArgs.InputAction)
 {
 	OnHoldActionProgressed.Add(BindArgs.OnHoldActionProgressed);
 
@@ -145,6 +148,11 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 		{
 			RegisterKeyMappingFunc(KeyMapping);
 		}
+	}
+	else if (CommonUI::IsEnhancedInputSupportEnabled() && BindArgs.InputAction.IsValid())
+	{
+		// Nothing else to do if we have an enhanced input action,
+		// the input action itself will be queried against for keys later
 	}
 	else
 	{
@@ -182,7 +190,8 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 
 FUIActionBindingHandle FUIActionBinding::TryCreate(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs)
 {
-	if (BindArgs.GetActionName().IsNone())
+	bool bIsEnhancedInputSupportEnabled = CommonUI::IsEnhancedInputSupportEnabled();
+	if (BindArgs.GetActionName().IsNone() && (!bIsEnhancedInputSupportEnabled || !BindArgs.InputAction.IsValid()))
 	{
 		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot create action binding for widget [%s] - no action provided."), *InBoundWidget.GetName());
 		return FUIActionBindingHandle();
@@ -200,6 +209,11 @@ FUIActionBindingHandle FUIActionBinding::TryCreate(const UWidget& InBoundWidget,
 	else if (!BindArgs.LegacyActionTableRow.IsNull() && !BindArgs.LegacyActionTableRow.GetRow<FCommonInputActionDataBase>(TEXT("")))
 	{
 		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - provided legacy data table row does not resolve to valid data."), *InBoundWidget.GetName(), *BindArgs.GetActionName().ToString());
+		return FUIActionBindingHandle();
+	}
+	else if (bIsEnhancedInputSupportEnabled && !BindArgs.InputAction.IsValid())
+	{
+		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - provided input action is invalid."), *InBoundWidget.GetName(), *BindArgs.GetActionName().ToString());
 		return FUIActionBindingHandle();
 	}
 	
@@ -524,19 +538,67 @@ bool FActionRouterBindingCollection::ProcessNormalInput(ECommonInputMode ActiveI
 		{
 			if (ActiveInputMode == ECommonInputMode::All || ActiveInputMode == Binding->InputMode)
 			{
-				for (const FUIActionKeyMapping& KeyMapping : Binding->NormalMappings)
+				auto TryConsumeInput = [&](const FKey& InKey, const UInputAction* InInputAction)
 				{
 					// A persistent displayed action skips the normal rules for reachability, since it'll always appear in a bound action bar
 					const bool bIsDisplayedPersistentAction = Binding->bIsPersistent && Binding->bDisplayInActionBar;
-					if (KeyMapping.Key == Key && Binding->InputEvent == InputEvent && (bIsDisplayedPersistentAction || IsWidgetReachableForInput(Binding->BoundWidget.Get())))
+					if (InKey == Key && Binding->InputEvent == InputEvent && (bIsDisplayedPersistentAction || IsWidgetReachableForInput(Binding->BoundWidget.Get())))
 					{
 						// Just in case this was in the middle of a hold process with a different key, reset now
 						Binding->CancelHold();
-						Binding->OnExecuteAction.ExecuteIfBound();
+
+						// If injecting enhanced input. don't fire 'OnExecuteAction' since that can be manually done if desired in BP
+						bool bEnhancedInputInjected = false;
+						if (InInputAction)
+						{
+							if (TObjectPtr<const UCommonInputMetadata> CommonInputMetadata = CommonUI::GetEnhancedInputActionMetadata(GetActionRouter().GetLocalPlayerChecked(), InInputAction))
+							{
+								// Non generic actions should inject enhanced input so users can bind to enhanced input events
+								if (!CommonInputMetadata->bIsGenericInputAction)
+								{
+									FInputActionValue RawValue = FInputActionValue(true);
+									CommonUI::InjectEnhancedInputForAction(GetActionRouter().GetLocalPlayerChecked(), InInputAction, RawValue);
+									bEnhancedInputInjected = true;
+								}
+							}
+						}
+						
+						if (!bEnhancedInputInjected)
+						{
+							Binding->OnExecuteAction.ExecuteIfBound();
+						}
+
 						if (Binding->bConsumesInput)
 						{
 							return true;
 						}
+					}
+
+					return false;
+				};
+
+
+				if (CommonUI::IsEnhancedInputSupportEnabled() && Binding->InputAction.IsValid())
+				{
+					if (const UInputAction* InputAction = Binding->InputAction.Get())
+					{
+						TArray<FKey> InputActionKeys;
+						CommonUI::GetEnhancedInputActionKeys(GetActionRouter().GetLocalPlayerChecked(), InputAction, InputActionKeys);
+						for (const FKey& InputActionKey : InputActionKeys)
+						{
+							if (TryConsumeInput(InputActionKey, InputAction))
+							{
+								return true;
+							}
+						}
+					}
+				}
+
+				for (const FUIActionKeyMapping& KeyMapping : Binding->NormalMappings)
+				{
+					if (TryConsumeInput(KeyMapping.Key, nullptr))
+					{
+						return true;
 					}
 				}
 			}

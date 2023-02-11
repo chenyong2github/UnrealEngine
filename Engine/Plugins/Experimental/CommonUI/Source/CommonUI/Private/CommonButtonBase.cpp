@@ -10,6 +10,7 @@
 #include "Components/ButtonSlot.h"
 #include "Blueprint/WidgetTree.h"
 #include "CommonButtonTypes.h"
+#include "CommonUITypes.h"
 #include "ICommonUIModule.h"
 #include "Widgets/Layout/SBox.h"
 #include "Framework/Application/SlateApplication.h"
@@ -18,6 +19,7 @@
 #include "ICommonInputModule.h"
 #include "CommonInputSettings.h"
 #include "Input/CommonUIInputTypes.h"
+#include "InputAction.h"
 #include "Sound/SoundBase.h"
 #include "Styling/UMGCoreStyle.h"
 
@@ -502,6 +504,19 @@ void UCommonButtonBase::OnInputMethodChanged(ECommonInputType CurrentInputType)
 
 void UCommonButtonBase::BindTriggeringInputActionToClick()
 {
+	if (CommonUI::IsEnhancedInputSupportEnabled() && TriggeringEnhancedInputAction)
+	{
+		FBindUIActionArgs BindArgs(TriggeringEnhancedInputAction, false, FSimpleDelegate::CreateUObject(this, &UCommonButtonBase::HandleTriggeringActionCommited));
+		BindArgs.OnHoldActionProgressed.BindUObject(this, &UCommonButtonBase::NativeOnActionProgress);
+		BindArgs.bIsPersistent = bIsPersistentBinding;
+
+		BindArgs.InputMode = InputModeOverride;
+
+		TriggeringBindingHandle = RegisterUIActionBinding(BindArgs);
+
+		return;
+	}
+
 	if (TriggeringInputAction.IsNull() || !TriggeredInputAction.IsNull())
 	{
 		return;
@@ -521,6 +536,13 @@ void UCommonButtonBase::BindTriggeringInputActionToClick()
 
 void UCommonButtonBase::UnbindTriggeringInputActionToClick()
 {
+	if (CommonUI::IsEnhancedInputSupportEnabled() && TriggeringEnhancedInputAction)
+	{
+		TriggeringBindingHandle.Unregister();
+
+		return;
+	}
+
 	if (TriggeringInputAction.IsNull() || !TriggeredInputAction.IsNull())
 	{
 		return;
@@ -988,6 +1010,26 @@ void UCommonButtonBase::SetTriggeringInputAction(const FDataTableRowHandle & Inp
 	}
 }
 
+void UCommonButtonBase::SetTriggeringEnhancedInputAction(UInputAction* InInputAction)
+{
+	if (CommonUI::IsEnhancedInputSupportEnabled() && TriggeringEnhancedInputAction != InInputAction)
+	{
+		UnbindTriggeringInputActionToClick();
+
+		TriggeringEnhancedInputAction = InInputAction;
+
+		if (!IsDesignTime())
+		{
+			BindTriggeringInputActionToClick();
+		}
+
+		// Update the Input action widget whenever the triggering input action changes
+		UpdateInputActionWidget();
+
+		OnTriggeringEnhancedInputActionChanged(InInputAction);
+	}
+}
+
 bool UCommonButtonBase::GetInputAction(FDataTableRowHandle &InputActionRow) const
 {
 	bool bBothActionsSet = !TriggeringInputAction.IsNull() && !TriggeredInputAction.IsNull();
@@ -1010,6 +1052,11 @@ bool UCommonButtonBase::GetInputAction(FDataTableRowHandle &InputActionRow) cons
 	}
 }
 
+UInputAction* UCommonButtonBase::GetEnhancedInputAction() const
+{
+	return TriggeringEnhancedInputAction;
+}
+
 UMaterialInstanceDynamic* UCommonButtonBase::GetSingleMaterialStyleMID() const
 {
 	return SingleMaterialStyleMID;
@@ -1024,8 +1071,13 @@ void UCommonButtonBase::UpdateInputActionWidget()
 	// Update the input action state of the input action widget contextually based on the current state of the button
 	if (GetGameInstance() && InputActionWidget)
 	{
-		// Prefer visualizing the triggering input action before all else
-		if (!TriggeringInputAction.IsNull())
+		// Prefer visualizing the triggering enhanced input action before all else
+		if (CommonUI::IsEnhancedInputSupportEnabled() && TriggeringEnhancedInputAction)
+		{
+			InputActionWidget->SetEnhancedInputAction(TriggeringEnhancedInputAction);
+		}
+		// Prefer visualizing the triggering input action next
+		else if (!TriggeringInputAction.IsNull())
 		{
 			InputActionWidget->SetInputAction(TriggeringInputAction);
 		}
@@ -1038,11 +1090,28 @@ void UCommonButtonBase::UpdateInputActionWidget()
 		else if (bShouldUseFallbackDefaultInputAction && bButtonEnabled)
 		{
 			FDataTableRowHandle HoverStateHandle;
+			UInputAction* HoverEnhancedInputAction = nullptr;
+			bool bIsEnhancedInputSupportEnabled = CommonUI::IsEnhancedInputSupportEnabled();
 			if (IsHovered())
 			{
-				HoverStateHandle = ICommonInputModule::GetSettings().GetDefaultClickAction();
+				if (bIsEnhancedInputSupportEnabled)
+				{
+					HoverEnhancedInputAction = ICommonInputModule::GetSettings().GetEnhancedInputClickAction();
+				}
+				else
+				{
+					HoverStateHandle = ICommonInputModule::GetSettings().GetDefaultClickAction();
+				}
 			}
-			InputActionWidget->SetInputAction(HoverStateHandle);
+
+			if (bIsEnhancedInputSupportEnabled)
+			{
+				InputActionWidget->SetEnhancedInputAction(HoverEnhancedInputAction);
+			}
+			else
+			{
+				InputActionWidget->SetInputAction(HoverStateHandle);
+			}
 		}
 		else
 		{

@@ -8,6 +8,8 @@
 #include "UObject/Interface.h"
 #include "CommonActionHandlerInterface.generated.h"
 
+// @FIXME: This entire file is related to legacy CommonUI and should be removed in 5.3 - UE-164871
+
 enum EInputEvent : int;
 namespace ETouchType { enum Type : int; }
 struct FKey;
@@ -39,6 +41,7 @@ DECLARE_DELEGATE_OneParam(FCommonActionProgressSingleNative, float);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCommonActionProgress, float, HeldPercent);
 DECLARE_MULTICAST_DELEGATE_OneParam(FCommonActionProgressNative, float);
 
+// @FIXME: This struct is related to legacy CommonUI and should be removed in 5.3 - UE-164871
 USTRUCT(BlueprintType)
 struct COMMONUI_API FCommonInputActionHandlerData
 {
@@ -110,6 +113,8 @@ struct FCommonInputActionHandlerDelegateData
 /**
  *  Action Handler Interface is primarily used to take key input and do something with it
  *	in the implementation of the interface or another user widget.
+ * 
+ *  @FIXME: This interface is related to legacy CommonUI and should be removed in 5.3 - UE-164871
  */
 
 UINTERFACE()

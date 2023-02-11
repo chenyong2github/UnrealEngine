@@ -12,6 +12,8 @@ enum class ECommonInputType : uint8;
 struct FScrollBoxStyle;
 
 class UCommonInputSubsystem;
+class UInputAction;
+struct FInputActionValue;
 
 UENUM(BlueprintType)
 enum class EInputActionState : uint8
@@ -166,16 +168,113 @@ public:
 	}
 };
 
+/** 
+ * Metadata CommonUI will try to acquire from Enhanced Input Mapping Contexts (IMC)
+ * 
+ * You can Inherit from this class if you have any info that may need to be parsed per platform
+ * by CommonUI. IMC's can be specified per platform, so each platform may have different
+ * Common Input Metadata
+ * 
+ * Note: We intentionally do not define any context-independant metadata. Even though some
+ * metadata should be context-independant (Like NavBarPriority below). Locking it that info
+ * to a seperate metadata type prevents any chance of future overriding. Instead, we prefer
+ * info for all metadata to be set across all instances.
+ */
+UCLASS(Blueprintable, EditInlineNew, CollapseCategories)
+class COMMONUI_API UCommonInputMetadata : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Priority in nav-bar */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CommonInput")
+	int32 NavBarPriority = 0;
+
+	/** 
+	 * Generic actions like accept or face button top will be subscribed to by multiple
+	 * UI elements. These actions will not broadcast enhanced input action delegates
+	 * such as "Triggered, Ongoing, Canceled, or Completed." Since those delegates
+	 * would be fired by multiple UI elements.
+	 * 
+	 * Non-generic input actions will fire Enhanced Input events. However they will 
+	 * not fire CommonUI action bindings (Since those can be manually fired in BP).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CommonInput")
+	bool bIsGenericInputAction = true;
+};
+
+/**
+ * Interface for metadata objects specified in Enhanced Input Mapping Contexts (IMC).
+ * 
+ * We provide an interface since it's possible you may need the IMC metadata for 
+ * non-CommonUI info. In this scenario you can implement this interface and CommonUI
+ * will still be able to gather info it needs to function correctly with your 
+ * Enhanced Input Actions / IMC's.
+ * 
+ * If you don't have any metadata needs or your UI IMC's are for CommonUI only, 
+ * then you should use the provided 'UCommonMappingContextMetadata' below.
+ */
+UINTERFACE()
+class COMMONUI_API UCommonMappingContextMetadataInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class COMMONUI_API ICommonMappingContextMetadataInterface
+{
+	GENERATED_BODY()
+
+public:
+	/** 
+	 * Gets base info needed from CommonUI from this IMC metadata 
+	 * Accepts InputAction as an arg to allow for user to create one metadata with multiple
+	 * values per action, rather than having to create one metadata asset per unique value
+	 * 
+	 * @param InputAction the input action that may or may not be used to help determine correct metadata
+	 */
+	virtual const UCommonInputMetadata* GetCommonInputMetadata(const UInputAction* InInputAction) const = 0;
+};
+
+/**
+ * Base CommonUI metadata implementation for specification in IMC's.
+ * 
+ * Utilizes a map of input actions to metadata to prevent users from having to create
+ * multiple metadata assets / instances. Using this map is not mandatory.
+ */
+UCLASS(Blueprintable)
+class COMMONUI_API UCommonMappingContextMetadata : public UObject, public ICommonMappingContextMetadataInterface
+{
+	GENERATED_BODY()
+
+public:
+	/** Fallback or default metadata CommonUI relies on if no per-action meta is found below */
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly, Category = "CommonInput")
+	TObjectPtr<UCommonInputMetadata> EnhancedInputMetadata;
+
+	/** Map of action to metadata, allows creation of single metadata asset rather than one per input action type */
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly, Category = "CommonInput")
+	TMap<TObjectPtr<UInputAction>, TObjectPtr<const UCommonInputMetadata>> PerActionEnhancedInputMetadata;
+
+public:
+	virtual const UCommonInputMetadata* GetCommonInputMetadata(const UInputAction* InInputAction) const override;
+};
+
 class COMMONUI_API CommonUI
 {
 public:
 	static void SetupStyles();
 	static FScrollBoxStyle EmptyScrollBoxStyle;
+
 	static const FCommonInputActionDataBase* GetInputActionData(const FDataTableRowHandle& InputActionRowHandle);
 	static FSlateBrush GetIconForInputActions(const UCommonInputSubsystem* CommonInputSubsystem, const TArray<FDataTableRowHandle>& InputActions);
 
 	static bool IsEnhancedInputSupportEnabled();
-	static FSlateBrush GetIconForEnhancedInputAction(const UCommonInputSubsystem* CommonInputSubsystem, const TObjectPtr<class UInputAction> InputAction);
+
+	static TObjectPtr<const UCommonInputMetadata> GetEnhancedInputActionMetadata(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction);
+	static void GetEnhancedInputActionKeys(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction, TArray<FKey>& OutKeys);
+	static void InjectEnhancedInputForAction(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction, FInputActionValue RawValue);
+	static FSlateBrush GetIconForEnhancedInputAction(const UCommonInputSubsystem* CommonInputSubsystem, const UInputAction* InputAction);
 };
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnItemClicked, UUserWidget*, Widget);
