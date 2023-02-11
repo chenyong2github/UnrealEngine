@@ -2,21 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using EpicGames.BuildGraph.Expressions;
-using EpicGames.BuildGraph;
-using System.Xml.Linq;
-using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Horde.Build.Acls;
@@ -25,20 +14,11 @@ using Horde.Build.Agents.Pools;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Agents.Software;
 using Horde.Build.Jobs;
-using Horde.Build.Jobs.Artifacts;
-using Horde.Build.Jobs.Graphs;
-using Horde.Build.Jobs.Templates;
-using Horde.Build.Jobs.TestData;
-using Horde.Build.Logs;
-using Horde.Build.Streams;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
-using HordeCommon;
 using HordeCommon.Rpc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
 using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Server
@@ -50,7 +30,7 @@ namespace Horde.Build.Server
 	using RpcGetStepResponse = HordeCommon.Rpc.GetStepResponse;
 	using RpcUpdateJobRequest = HordeCommon.Rpc.UpdateJobRequest;
 	using RpcUpdateStepRequest = HordeCommon.Rpc.UpdateStepRequest;
-	
+
 	/// <summary>
 	/// Implements the Horde gRPC service for bots updating their status and dequeing work
 	/// </summary>
@@ -61,46 +41,27 @@ namespace Horde.Build.Server
 		/// Timeout before closing a long-polling request (client will retry again) 
 		/// </summary>
 		internal TimeSpan _longPollTimeout = TimeSpan.FromMinutes(9);
-		readonly AclService _aclService;
+
 		readonly AgentService _agentService;
-		readonly IStreamCollection _streamCollection;
-		readonly JobService _jobService;
 		readonly AgentSoftwareService _agentSoftwareService;
-		readonly IArtifactCollectionV1 _artifactCollection;
-		readonly ILogFileService _logFileService;
 		readonly PoolService _poolService;
 		readonly LifetimeService _lifetimeService;
-		readonly IGraphCollection _graphs;
-		readonly ITestDataCollection _testData;
-		readonly IJobStepRefCollection _jobStepRefCollection;
-		readonly ITemplateCollection _templateCollection;
 		readonly ConformTaskSource _conformTaskSource;
-		readonly HttpClient _httpClient;
-		readonly IClock _clock;
+		readonly JobRpcCommon _jobRpcCommon;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
-		readonly ILogger<RpcService> _logger;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RpcService(AclService aclService, AgentService agentService, IStreamCollection streamCollection, JobService jobService, AgentSoftwareService agentSoftwareService, IArtifactCollectionV1 artifactCollection, ILogFileService logFileService, PoolService poolService, LifetimeService lifetimeService, IGraphCollection graphs, ITestDataCollection testData, IJobStepRefCollection jobStepRefCollection, ITemplateCollection templateCollection, ConformTaskSource conformTaskSource, HttpClient httpClient, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
+		public RpcService(AgentService agentService, AgentSoftwareService agentSoftwareService, PoolService poolService, LifetimeService lifetimeService, ConformTaskSource conformTaskSource, JobRpcCommon jobRpcCommon, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
 		{
-			_aclService = aclService;
 			_agentService = agentService;
-			_streamCollection = streamCollection;
-			_jobService = jobService;
 			_agentSoftwareService = agentSoftwareService;
-			_artifactCollection = artifactCollection;
-			_logFileService = logFileService;
 			_poolService = poolService;
 			_lifetimeService = lifetimeService;
-			_graphs = graphs;
-			_testData = testData;
-			_jobStepRefCollection = jobStepRefCollection;
-			_templateCollection = templateCollection;
 			_conformTaskSource = conformTaskSource;
-			_httpClient = httpClient;
-			_clock = clock;
+			_jobRpcCommon = jobRpcCommon;
 			_globalConfig = globalConfig;
 			_logger = logger;
 		}
@@ -354,15 +315,15 @@ namespace Horde.Build.Server
 				// Get a task for moving to the next item. This will only complete once the call has closed.
 				using CancellationTokenSource cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
 				nextRequestTask = reader.MoveNext();
-				nextRequestTask = nextRequestTask.ContinueWith(task => 
-				{ 
-					cancellationSource.Cancel(); 
-					return task.Result; 
+				nextRequestTask = nextRequestTask.ContinueWith(task =>
+				{
+					cancellationSource.Cancel();
+					return task.Result;
 				}, TaskScheduler.Current);
 
 				// Get the current agent state
 				IAgent? agent = await _agentService.GetAgentAsync(new AgentId(request.AgentId));
-				if(agent != null)
+				if (agent != null)
 				{
 					// Check we're authorized to update it
 					if (!_agentService.AuthorizeSession(agent, context.GetHttpContext().User))
@@ -412,555 +373,36 @@ namespace Horde.Build.Server
 			}
 		}
 
-		/// <summary>
-		/// Gets information about a stream
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override Task<RpcGetStreamResponse> GetStream(GetStreamRequest request, ServerCallContext context)
-		{
-			StreamId streamIdValue = new StreamId(request.StreamId);
+		/// <inheritdoc/>
+		public override Task<RpcGetStreamResponse> GetStream(GetStreamRequest request, ServerCallContext context) => _jobRpcCommon.GetStream(request, context);
 
-			StreamConfig? streamConfig;
-			if (!_globalConfig.Value.TryGetStream(streamIdValue, out streamConfig))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} does not exist", request.StreamId);
-			}
-			if (!streamConfig.Authorize(AclAction.ViewStream, context.GetHttpContext().User))
-			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "Not authenticated to access stream {StreamId}", request.StreamId);
-			}
+		/// <inheritdoc/>
+		public override Task<RpcGetJobResponse> GetJob(GetJobRequest request, ServerCallContext context) => _jobRpcCommon.GetJob(request, context);
 
-			return Task.FromResult(streamConfig.ToRpcResponse());
-		}
+		/// <inheritdoc/>
+		public override Task<Empty> UpdateJob(RpcUpdateJobRequest request, ServerCallContext context) => _jobRpcCommon.UpdateJob(request, context);
 
-		/// <summary>
-		/// Gets information about a job
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<RpcGetJobResponse> GetJob(GetJobRequest request, ServerCallContext context)
-		{
-			JobId jobIdValue = new JobId(request.JobId.ToObjectId());
+		/// <inheritdoc/>
+		public override Task<BeginBatchResponse> BeginBatch(BeginBatchRequest request, ServerCallContext context) => _jobRpcCommon.BeginBatch(request, context);
 
-			IJob? job = await _jobService.GetJobAsync(jobIdValue);
-			if (job == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} does not exist", request.JobId);
-			}
-			if (!JobService.AuthorizeSession(job, context.GetHttpContext().User))
-			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "Not authenticated to access job {JobId}", request.JobId);
-			}
+		/// <inheritdoc/>
+		public override Task<Empty> FinishBatch(FinishBatchRequest request, ServerCallContext context) => _jobRpcCommon.FinishBatch(request, context);
 
-			return job.ToRpcResponse();
-		}
+		/// <inheritdoc/>
+		public override Task<BeginStepResponse> BeginStep(BeginStepRequest request, ServerCallContext context) => _jobRpcCommon.BeginStep(request, context);
 
-		/// <summary>
-		/// Updates properties on a job
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<Empty> UpdateJob(RpcUpdateJobRequest request, ServerCallContext context)
-		{
-			JobId jobIdValue = JobId.Parse(request.JobId);
+		/// <inheritdoc/>
+		public override Task<Empty> UpdateStep(RpcUpdateStepRequest request, ServerCallContext context) => _jobRpcCommon.UpdateStep(request, context);
 
-			IJob? job = await _jobService.GetJobAsync(jobIdValue);
-			if (job == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} does not exist", request.JobId);
-			}
-			if (!JobService.AuthorizeSession(job, context.GetHttpContext().User))
-			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "Not authenticated to modify job {JobId}", request.JobId);
-			}
+		/// <inheritdoc/>
+		public override Task<RpcGetStepResponse> GetStep(GetStepRequest request, ServerCallContext context) => _jobRpcCommon.GetStep(request, context);
 
-			await _jobService.UpdateJobAsync(job, name: request.Name);
-			return new Empty();
-		}
+		/// <inheritdoc/>
+		public override Task<UpdateGraphResponse> UpdateGraph(UpdateGraphRequest request, ServerCallContext context) => _jobRpcCommon.UpdateGraph(request, context);
 
-		/// <summary>
-		/// Starts executing a batch
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<BeginBatchResponse> BeginBatch(BeginBatchRequest request, ServerCallContext context)
-		{
-			SubResourceId batchId = request.BatchId.ToSubResourceId();
+		/// <inheritdoc/>
+		public override Task<Empty> CreateEvents(CreateEventsRequest request, ServerCallContext context) => _jobRpcCommon.CreateEvents(request, context);
 
-			IJob? job = await _jobService.GetJobAsync(JobId.Parse(request.JobId));
-			if (job == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
-			}
-			if(!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
-			}
-
-			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-			job = await _jobService.UpdateBatchAsync(job, batchId, streamConfig, newState: JobStepBatchState.Starting);
-
-			if (job == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Batch {JobId}:{BatchId} not found for updating", request.JobId, request.BatchId);
-			}
-
-			IGraph graph = await _jobService.GetGraphAsync(job);
-
-			BeginBatchResponse response = new BeginBatchResponse();
-			response.LogId = batch.LogId.ToString();
-			response.AgentType = graph.Groups[batch.GroupIdx].AgentType;
-			return response;
-		}
-
-		/// <summary>
-		/// Finishes executing a batch
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<Empty> FinishBatch(FinishBatchRequest request, ServerCallContext context)
-		{
-			IJob? job = await _jobService.GetJobAsync(JobId.Parse(request.JobId));
-			if (job == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
-			}
-			if (!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
-			}
-
-			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-			await _jobService.UpdateBatchAsync(job, batch.Id, streamConfig, newState: JobStepBatchState.Complete);
-			return new Empty();
-		}
-
-		/// <summary>
-		/// Starts executing a step
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<BeginStepResponse> BeginStep(BeginStepRequest request, ServerCallContext context)
-		{
-			Boxed<ILogFile?> log = new Boxed<ILogFile?>(null);
-			for (; ; )
-			{
-				BeginStepResponse? response = await TryBeginStep(request, log, context);
-				if (response != null)
-				{
-					return response;
-				}
-			}
-		}
-
-		async Task<BeginStepResponse?> TryBeginStep(BeginStepRequest request, Boxed<ILogFile?> log, ServerCallContext context)
-		{
-			// Check the job exists and we can access it
-			IJob? job = await _jobService.GetJobAsync(JobId.Parse(request.JobId));
-			if (job == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
-			}
-			if (!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
-			}
-
-			// Find the batch being executed
-			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-			if (batch.State != JobStepBatchState.Starting && batch.State != JobStepBatchState.Running)
-			{
-				return new BeginStepResponse { State = BeginStepResponse.Types.Result.Complete };
-			}
-
-			// Figure out which step to execute next
-			IJobStep? step;
-			for (int stepIdx = 0; ; stepIdx++)
-			{
-				// If there aren't any more steps, send a complete message
-				if (stepIdx == batch.Steps.Count)
-				{
-					_logger.LogDebug("Job {JobId} batch {BatchId} is complete", job.Id, batch.Id);
-					if (await _jobService.TryUpdateBatchAsync(job, batch.Id, newState: JobStepBatchState.Stopping) == null)
-					{
-						return null;
-					}
-					return new BeginStepResponse { State = BeginStepResponse.Types.Result.Complete };
-				}
-
-				// Check if this step is ready to be executed
-				step = batch.Steps[stepIdx];
-				if (step.State == JobStepState.Ready)
-				{
-					break;
-				}
-				if (step.State == JobStepState.Waiting)
-				{
-					_logger.LogDebug("Waiting for job {JobId}, batch {BatchId}, step {StepId}", job.Id, batch.Id, step.Id);
-					return new BeginStepResponse { State = BeginStepResponse.Types.Result.Waiting };
-				}
-			}
-
-			// Create a log file if necessary
-			log.Value ??= await _logFileService.CreateLogFileAsync(job.Id, batch.SessionId, LogType.Json, job.JobOptions?.UseNewLogStorage ?? false);
-
-			// Get the node for this step
-			IGraph graph = await _jobService.GetGraphAsync(job);
-			INode node = graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx];
-
-			// Figure out all the credentials for it (and check we can access them)
-			Dictionary<string, string> credentials = new Dictionary<string, string>();
-			//				if (Node.Credentials != null)
-			//				{
-			//					ClaimsPrincipal Principal = new ClaimsPrincipal(new ClaimsIdentity(Job.Claims.Select(x => new Claim(x.Type, x.Value))));
-			//					if (!await GetCredentialsForStep(Principal, Node, Credentials, Message => FailStep(Job, Batch.Id, Step.Id, Log, Message)))
-			//					{
-			//						Log = null;
-			//						continue;
-			//					}
-			//				}
-
-			// Update the step state
-			IJob? newJob = await _jobService.TryUpdateStepAsync(job, batch.Id, step.Id, streamConfig, JobStepState.Running, JobStepOutcome.Unspecified, newLogId: log.Value.Id);
-			if (newJob != null)
-			{
-				BeginStepResponse response = new BeginStepResponse();
-				response.State = BeginStepResponse.Types.Result.Ready;
-				response.LogId = log.Value.Id.ToString();
-				response.StepId = step.Id.ToString();
-				response.Name = node.Name;
-				response.Credentials.Add(credentials);
-
-				foreach(NodeOutputRef input in node.Inputs)
-				{
-					INode inputNode = graph.GetNode(input.NodeRef);
-					response.Inputs.Add($"{inputNode.Name}/{inputNode.OutputNames[input.OutputIdx]}");
-				}
-
-				response.OutputNames.Add(node.OutputNames);
-
-				foreach (INodeGroup otherGroup in graph.Groups)
-				{
-					if (otherGroup != graph.Groups[batch.GroupIdx])
-					{
-						foreach (NodeOutputRef outputRef in otherGroup.Nodes.SelectMany(x => x.Inputs))
-						{
-							if (outputRef.NodeRef.GroupIdx == batch.GroupIdx && outputRef.NodeRef.NodeIdx == step.NodeIdx && !response.PublishOutputs.Contains(outputRef.OutputIdx))
-							{
-								response.PublishOutputs.Add(outputRef.OutputIdx);
-							}
-						}
-					}
-				}
-
-				string templateName = "<unknown>";
-				if (job.TemplateHash != null)
-				{
-					ITemplate? template = await _templateCollection.GetAsync(job.TemplateHash);
-					templateName = template != null ? template.Name : templateName;
-				}
-				
-				response.EnvVars.Add("UE_HORDE_TEMPLATEID", job.TemplateId.ToString());
-				response.EnvVars.Add("UE_HORDE_TEMPLATENAME", templateName);
-				response.EnvVars.Add("UE_HORDE_STEPNAME", node.Name);
-
-				if (job.Environment != null)
-				{
-					response.EnvVars.Add(job.Environment);
-				}
-
-				IJobStepRef? lastStep = await _jobStepRefCollection.GetPrevStepForNodeAsync(job.StreamId, job.TemplateId, node.Name, job.Change);
-				if (lastStep != null)
-				{
-					response.EnvVars.Add("UE_HORDE_LAST_CL", lastStep.Change.ToString(CultureInfo.InvariantCulture));
-
-					if (lastStep.Outcome == JobStepOutcome.Success)
-					{
-						response.EnvVars.Add("UE_HORDE_LAST_SUCCESS_CL", lastStep.Change.ToString(CultureInfo.InvariantCulture));
-					}
-					else if (lastStep.LastSuccess != null)
-					{
-						response.EnvVars.Add("UE_HORDE_LAST_SUCCESS_CL", lastStep.LastSuccess.Value.ToString(CultureInfo.InvariantCulture));
-					}
-
-					if (lastStep.Outcome == JobStepOutcome.Success || lastStep.Outcome == JobStepOutcome.Warnings)
-					{
-						response.EnvVars.Add("UE_HORDE_LAST_WARNING_CL", lastStep.Change.ToString(CultureInfo.InvariantCulture));
-					}
-					else if (lastStep.LastWarning != null)
-					{
-						response.EnvVars.Add("UE_HORDE_LAST_WARNING_CL", lastStep.LastWarning.Value.ToString(CultureInfo.InvariantCulture));
-					}
-				}
-
-				List<TokenConfig> tokenConfigs = new List<TokenConfig>(streamConfig.Tokens);
-
-				INodeGroup group = graph.Groups[batch.GroupIdx];
-				if (streamConfig.AgentTypes.TryGetValue(group.AgentType, out AgentConfig? agentConfig) && agentConfig.Tokens != null)
-				{
-					tokenConfigs.AddRange(agentConfig.Tokens);
-				}
-
-				foreach (TokenConfig tokenConfig in tokenConfigs)
-				{
-					string? value = await AllocateTokenAsync(tokenConfig, context.CancellationToken);
-					if (value == null)
-					{
-						_logger.LogWarning("Unable to allocate token for job {JobId}:{BatchId}:{StepId} from {Url}", job.Id, batch.Id, step.Id, tokenConfig.Url);
-					}
-					else
-					{
-						response.Credentials.Add(tokenConfig.EnvVar, value);
-					}
-				}
-
-				if (node.Properties != null)
-				{
-					response.Properties.Add(node.Properties);
-				}
-				response.Warnings = node.Warnings;
-				return response;
-			}
-
-			return null;
-		}
-
-		class GetTokenResponse
-		{
-			[JsonPropertyName("token_type")]
-			public string TokenType { get; set; } = String.Empty;
-
-			[JsonPropertyName("access_token")]
-			public string AccessToken { get; set; } = String.Empty;
-		}
-
-		async Task<string?> AllocateTokenAsync(TokenConfig config, CancellationToken cancellationToken)
-		{
-			List<KeyValuePair<string, string>> content = new List<KeyValuePair<string, string>>();
-			content.Add(KeyValuePair.Create("grant_type", "client_credentials"));
-			content.Add(KeyValuePair.Create("scope", "cache_access"));
-			content.Add(KeyValuePair.Create("client_id", config.ClientId));
-			content.Add(KeyValuePair.Create("client_secret", config.ClientSecret));
-
-			using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, config.Url))
-			{
-				request.Content = new FormUrlEncodedContent(content);
-				using (HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken))
-				{
-					using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-					GetTokenResponse? token = await JsonSerializer.DeserializeAsync<GetTokenResponse>(stream, cancellationToken: cancellationToken);
-					return token?.AccessToken;
-				}
-			}
-		}
-
-		async Task<IJob> GetJobAsync(JobId jobId)
-		{
-			IJob? job = await _jobService.GetJobAsync(jobId);
-			if (job == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", jobId);
-			}
-			return job;
-		}
-
-		static IJobStepBatch AuthorizeBatch(IJob job, SubResourceId batchId, ServerCallContext context)
-		{
-			IJobStepBatch? batch;
-			if (!job.TryGetBatch(batchId, out batch))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Unable to find batch {JobId}:{BatchId}", job.Id, batchId);
-			}
-			if (batch.SessionId == null)
-			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "Batch {JobId}:{BatchId} has no session id", job.Id, batchId);
-			}
-
-			ClaimsPrincipal principal = context.GetHttpContext().User;
-			if (!principal.HasSessionClaim(batch.SessionId.Value))
-			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "Session id {SessionId} not valid for batch {JobId}:{BatchId}. Expected {ExpectedSessionId}.", principal.GetSessionClaim() ?? SessionId.Empty, job.Id, batchId, batch.SessionId.Value);
-			}
-
-			return batch;
-		}
-
-		/// <summary>
-		/// Updates the state of a jobstep
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<Empty> UpdateStep(RpcUpdateStepRequest request, ServerCallContext context)
-		{
-			IJob? job = await _jobService.GetJobAsync(JobId.Parse(request.JobId));
-			if (job == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
-			}
-			if (!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
-			}
-
-			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-
-			SubResourceId stepId = request.StepId.ToSubResourceId();
-			if (!batch.TryGetStep(stepId, out IJobStep? step))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Unable to find step {JobId}:{BatchId}:{StepId}", job.Id, batch.Id, stepId);
-			}
-
-			JobStepError? error = null;
-			if (step.Error == JobStepError.None && step.HasTimedOut(_clock.UtcNow))
-			{
-				error = JobStepError.TimedOut;
-			}
-
-			await _jobService.UpdateStepAsync(job, batch.Id, request.StepId.ToSubResourceId(), streamConfig, request.State, request.Outcome, error, null, null, null, null, null);
-			return new Empty();
-		}
-
-		/// <summary>
-		/// Get the state of a jobstep
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the step</returns>
-		public override async Task<RpcGetStepResponse> GetStep(GetStepRequest request, ServerCallContext context)
-		{
-			IJob job = await GetJobAsync(JobId.Parse(request.JobId));
-			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-
-			SubResourceId stepId = request.StepId.ToSubResourceId();
-			if (!batch.TryGetStep(stepId, out IJobStep? step))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Unable to find step {JobId}:{BatchId}:{StepId}", job.Id, batch.Id, stepId);
-			}
-
-			return new RpcGetStepResponse { Outcome = step.Outcome, State = step.State, AbortRequested = step.AbortRequested || step.HasTimedOut(_clock.UtcNow) };
-		}
-
-		/// <summary>
-		/// Updates the state of a jobstep
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<UpdateGraphResponse> UpdateGraph(UpdateGraphRequest request, ServerCallContext context)
-		{
-			List<NewGroup> newGroups = new List<NewGroup>();
-			foreach (CreateGroupRequest group in request.Groups)
-			{
-				List<NewNode> newNodes = new List<NewNode>();
-				foreach (CreateNodeRequest node in group.Nodes)
-				{
-					NewNode newNode = new NewNode(node.Name, node.Inputs.ToList(), node.Outputs.ToList(), node.InputDependencies.ToList(), node.OrderDependencies.ToList(), node.Priority, node.AllowRetry, node.RunEarly, node.Warnings, new Dictionary<string, string>(node.Credentials), new Dictionary<string, string>(node.Properties), new NodeAnnotations(node.Annotations));
-					newNodes.Add(newNode);
-				}
-				newGroups.Add(new NewGroup(group.AgentType, newNodes));
-			}
-
-			List<NewAggregate> newAggregates = new List<NewAggregate>();
-			foreach (CreateAggregateRequest aggregate in request.Aggregates)
-			{
-				NewAggregate newAggregate = new NewAggregate(aggregate.Name, aggregate.Nodes.ToList());
-				newAggregates.Add(newAggregate);
-			}
-
-			List<NewLabel> newLabels = new List<NewLabel>();
-			foreach (CreateLabelRequest label in request.Labels)
-			{
-				NewLabel newLabel = new NewLabel();
-				newLabel.DashboardName = String.IsNullOrEmpty(label.DashboardName) ? null : label.DashboardName;
-				newLabel.DashboardCategory = String.IsNullOrEmpty(label.DashboardCategory) ? null : label.DashboardCategory;
-				newLabel.UgsName = String.IsNullOrEmpty(label.UgsName) ? null : label.UgsName;
-				newLabel.UgsProject = String.IsNullOrEmpty(label.UgsProject) ? null : label.UgsProject;
-				newLabel.Change = label.Change;
-				newLabel.RequiredNodes = label.RequiredNodes.ToList();
-				newLabel.IncludedNodes = label.IncludedNodes.ToList();
-				newLabels.Add(newLabel);
-			}
-
-			JobId jobIdValue = JobId.Parse(request.JobId);
-			for (; ; )
-			{
-				IJob? job = await _jobService.GetJobAsync(jobIdValue);
-				if (job == null)
-				{
-					throw new StructuredRpcException(StatusCode.NotFound, "Resource not found");
-				}
-				if (!JobService.AuthorizeSession(job, context.GetHttpContext().User))
-				{
-					throw new StructuredRpcException(StatusCode.PermissionDenied, "Access denied");
-				}
-
-				IGraph graph = await _jobService.GetGraphAsync(job);
-				graph = await _graphs.AppendAsync(graph, newGroups, newAggregates, newLabels);
-
-				IJob? newJob = await _jobService.TryUpdateGraphAsync(job, graph);
-				if (newJob != null)
-				{
-					return new UpdateGraphResponse();
-				}
-			}
-		}
-
-		/// <summary>
-		/// Creates a set of events
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<Empty> CreateEvents(CreateEventsRequest request, ServerCallContext context)
-		{
-			if (!_globalConfig.Value.Authorize(AclAction.CreateEvent, context.GetHttpContext().User))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Access denied");
-			}
-
-			List<NewLogEventData> newEvents = new List<NewLogEventData>();
-			foreach (CreateEventRequest createEvent in request.Events)
-			{
-				NewLogEventData newEvent = new NewLogEventData();
-				newEvent.LogId = LogId.Parse(createEvent.LogId);
-				newEvent.Severity = createEvent.Severity;
-				newEvent.LineIndex = createEvent.LineIndex;
-				newEvent.LineCount = createEvent.LineCount;
-				newEvents.Add(newEvent);
-			}
-			await _logFileService.CreateEventsAsync(newEvents, context.CancellationToken);
-			return new Empty();
-		}
-
-		/// <summary>
-		/// Writes output to a log file
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<Empty> WriteOutput(WriteOutputRequest request, ServerCallContext context)
-		{
-			ILogFile? logFile = await _logFileService.GetCachedLogFileAsync(LogId.Parse(request.LogId), context.CancellationToken);
-			if (logFile == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Resource not found");
-			}
-			if (!LogFileService.AuthorizeForSession(logFile, context.GetHttpContext().User))
-			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access denied");
-			}
-
-			await _logFileService.WriteLogDataAsync(logFile, request.Offset, request.LineIndex, request.Data.ToArray(), request.Flush, cancellationToken: context.CancellationToken);
-			return new Empty();
-		}
 
 		/// <summary>
 		/// Uploads a new agent archive
@@ -1019,140 +461,16 @@ namespace Horde.Build.Server
 			}
 		}
 
-		/// <summary>
-		/// Uploads a new artifact
-		/// </summary>
-		/// <param name="reader">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<UploadArtifactResponse> UploadArtifact(IAsyncStreamReader<UploadArtifactRequest> reader, ServerCallContext context)
-		{
-			// Advance to the metadata object
-			if (!await reader.MoveNext())
-			{
-				throw new StructuredRpcException(StatusCode.DataLoss, "Missing request for artifact upload");
-			}
+		/// <inheritdoc/>
+		public override Task<Empty> WriteOutput(WriteOutputRequest request, ServerCallContext context) => _jobRpcCommon.WriteOutput(request, context);
 
-			// Read the request object
-			UploadArtifactMetadata? metadata = reader.Current.Metadata;
-			if (metadata == null)
-			{
-				throw new StructuredRpcException(StatusCode.DataLoss, "Expected metadata in first artifact request");
-			}
+		/// <inheritdoc/>
+		public override Task<UploadArtifactResponse> UploadArtifact(IAsyncStreamReader<UploadArtifactRequest> reader, ServerCallContext context) => _jobRpcCommon.UploadArtifact(reader, context);
 
-			// Get the job and step
-			IJob job = await GetJobAsync(JobId.Parse(metadata.JobId));
-			AuthorizeBatch(job, metadata.BatchId.ToSubResourceId(), context);
+		/// <inheritdoc/>
+		public override Task<UploadTestDataResponse> UploadTestData(IAsyncStreamReader<UploadTestDataRequest> reader, ServerCallContext context) => _jobRpcCommon.UploadTestData(reader, context);
 
-			IJobStep? step;
-			if (!job.TryGetStep(metadata.BatchId.ToSubResourceId(), metadata.StepId.ToSubResourceId(), out step))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Unable to find step {JobId}:{BatchId}:{StepId}", job.Id, metadata.BatchId, metadata.StepId);
-			}
-
-			// Upload the stream
-			using (ArtifactChunkStream inputStream = new ArtifactChunkStream(reader, metadata.Length))
-			{
-				IArtifactV1 artifact = await _artifactCollection.CreateArtifactAsync(job.Id, step.Id, metadata.Name, metadata.MimeType, inputStream);
-
-				UploadArtifactResponse response = new UploadArtifactResponse();
-				response.Id = artifact.Id.ToString();
-				return response;
-			}
-		}
-
-		/// <summary>
-		/// Uploads new test data
-		/// </summary>
-		/// <param name="reader">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<UploadTestDataResponse> UploadTestData(IAsyncStreamReader<UploadTestDataRequest> reader, ServerCallContext context)
-		{
-			IJob? job = null;
-			IJobStep? jobStep = null;
-
-			List<(string key, BsonDocument document)> data = new List<(string key, BsonDocument document)>();
-
-			while (await reader.MoveNext())
-			{
-				UploadTestDataRequest request = reader.Current;
-
-				JobId jobId = JobId.Parse(request.JobId);
-				if (job == null)
-				{					
-					job = await _jobService.GetJobAsync(jobId);
-					if (job == null)
-					{
-						throw new StructuredRpcException(StatusCode.NotFound, "Unable to find job {JobId}", jobId);
-					}
-				}
-				else if (jobId != job.Id)
-				{
-					throw new StructuredRpcException(StatusCode.InvalidArgument, "Job {JobId} does not match previous Job {JobId} in request", jobId, job.Id);
-				}
-
-
-				SubResourceId jobStepId = request.JobStepId.ToSubResourceId();
-
-				if (jobStep == null)
-				{
-					if (!job.TryGetStep(jobStepId, out jobStep))
-					{
-						throw new StructuredRpcException(StatusCode.NotFound, "Unable to find step {JobStepId} on job {JobId}", jobStepId, jobId);
-					}
-				}
-				else if (jobStep.Id != jobStepId)
-				{
-					throw new StructuredRpcException(StatusCode.InvalidArgument, "Job step {JobStepId} does not match previous Job step {JobStepId} in request", jobStepId, jobStep.Id);
-				}
-				
-				string text = Encoding.UTF8.GetString(request.Value.ToArray());
-				BsonDocument document = BsonSerializer.Deserialize<BsonDocument>(text);
-				data.Add((request.Key, document));
-			}
-
-			if (job != null && jobStep != null)
-			{
-				await _testData.AddAsync(job, jobStep, data.ToArray());
-			}			
-			else
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Unable to get job or step for test data upload" );
-			}
-
-			return new UploadTestDataResponse();
-		}
-
-		/// <summary>
-		/// Create a new report on a job or job step
-		/// </summary>
-		/// <param name="request"></param>
-		/// <param name="context"></param>
-		/// <returns></returns>
-		public override async Task<CreateReportResponse> CreateReport(CreateReportRequest request, ServerCallContext context)
-		{
-			IJob job = await GetJobAsync(JobId.Parse(request.JobId));
-			if (!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
-			}
-
-			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-
-			Report newReport = new Report { Name = request.Name, Placement = request.Placement, ArtifactId = request.ArtifactId.ToObjectId() };
-			if (request.Scope == ReportScope.Job)
-			{
-				_logger.LogDebug("Adding report to job {JobId}: {Name} -> {ArtifactId}", job.Id, request.Name, request.ArtifactId);
-				await _jobService.UpdateJobAsync(job, reports: new List<Report> { newReport });
-			}
-			else
-			{
-				_logger.LogDebug("Adding report to step {JobId}:{BatchId}:{StepId}: {Name} -> {ArtifactId}", job.Id, batch.Id, request.StepId, request.Name, request.ArtifactId);
-				await _jobService.UpdateStepAsync(job, batch.Id, request.StepId.ToSubResourceId(), streamConfig, newReports: new List<Report> { newReport });
-			}
-
-			return new CreateReportResponse();
-		}
+		/// <inheritdoc/>
+		public override Task<CreateReportResponse> CreateReport(CreateReportRequest request, ServerCallContext context) => _jobRpcCommon.CreateReport(request, context);
 	}
 }

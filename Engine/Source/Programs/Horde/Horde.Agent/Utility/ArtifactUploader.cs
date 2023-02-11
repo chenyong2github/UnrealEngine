@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Grpc.Core;
+using Horde.Common.Rpc;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Logging;
 
@@ -91,7 +92,7 @@ namespace Horde.Agent.Utility
 					return null;
 				}
 
-				string artifactId = await rpcConnection.InvokeAsync((HordeRpc.HordeRpcClient rpcClient) => DoUploadAsync(rpcClient, jobId, batchId, stepId, artifactName, artifactFile, logger, cancellationToken), cancellationToken);
+				string artifactId = await rpcConnection.InvokeAsync((JobRpc.JobRpcClient rpcClient) => DoUploadAsync(rpcClient, jobId, batchId, stepId, artifactName, artifactFile, logger, cancellationToken), cancellationToken);
 				return artifactId;
 			}
 			catch (Exception ex)
@@ -113,7 +114,7 @@ namespace Horde.Agent.Utility
 		/// <param name="logger">Logger interfact</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns></returns>
-		private static async Task<string> DoUploadAsync(HordeRpc.HordeRpcClient client, string jobId, string batchId, string stepId, string artifactName, FileReference artifactFile, ILogger logger, CancellationToken cancellationToken)
+		private static async Task<string> DoUploadAsync(JobRpc.JobRpcClient client, string jobId, string batchId, string stepId, string artifactName, FileReference artifactFile, ILogger logger, CancellationToken cancellationToken)
         {
             using (FileStream artifactStream = FileReference.Open(artifactFile, FileMode.Open, FileAccess.Read, FileShare.Read))
 			{

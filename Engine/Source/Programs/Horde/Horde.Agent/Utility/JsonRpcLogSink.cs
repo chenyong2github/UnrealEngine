@@ -46,13 +46,13 @@ namespace Horde.Agent.Utility
 		/// <inheritdoc/>
 		public async Task WriteEventsAsync(List<CreateEventRequest> events, CancellationToken cancellationToken)
 		{
-			await _rpcClient.InvokeAsync((HordeRpc.HordeRpcClient x) => x.CreateEventsAsync(new CreateEventsRequest(events)), cancellationToken);
+			await _rpcClient.InvokeAsync((JobRpc.JobRpcClient x) => x.CreateEventsAsync(new CreateEventsRequest(events)), cancellationToken);
 		}
 
 		/// <inheritdoc/>
 		public async Task WriteOutputAsync(WriteOutputRequest request, CancellationToken cancellationToken)
 		{
-			await _rpcClient.InvokeAsync((HordeRpc.HordeRpcClient x) => x.WriteOutputAsync(request), cancellationToken);
+			await _rpcClient.InvokeAsync((JobRpc.JobRpcClient x) => x.WriteOutputAsync(request), cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -63,7 +63,7 @@ namespace Horde.Agent.Utility
 			{
 				try
 				{
-					await _rpcClient.InvokeAsync((HordeRpc.HordeRpcClient x) => x.UpdateStepAsync(new UpdateStepRequest(_jobId, _jobBatchId, _jobStepId, JobStepState.Unspecified, outcome)), cancellationToken);
+					await _rpcClient.InvokeAsync((JobRpc.JobRpcClient x) => x.UpdateStepAsync(new UpdateStepRequest(_jobId, _jobBatchId, _jobStepId, JobStepState.Unspecified, outcome)), cancellationToken);
 				}
 				catch (Exception ex)
 				{

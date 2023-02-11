@@ -330,7 +330,8 @@ namespace Horde.Build
 			});
 			services.AddGrpcReflection();
 
-			services.AddHttpClient<RpcService>();
+			services.AddHttpClient<JobRpcCommon>();
+			services.AddSingleton<JobRpcCommon>();
 
 			services.AddSingleton<IAgentCollection, AgentCollection>();
 			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
