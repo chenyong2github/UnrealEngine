@@ -7,6 +7,7 @@
 #include "LocalPlayerSubsystem.generated.h"
 
 class ULocalPlayer;
+class APlayerController;
 
 /**
  * ULocalPlayerSubsystem
@@ -31,4 +32,7 @@ public:
 	{
 		return CastChecked<LocalPlayerType>(GetOuter());
 	}
+
+	/** Callback for when the player controller is changed on this subsystem's owning local player */
+	virtual void PlayerControllerChanged(APlayerController* NewPlayerController);
 };

@@ -714,6 +714,23 @@ void ULocalPlayer::GetViewPoint(FMinimalViewInfo& OutViewInfo) const
 	OutViewInfo.DesiredFOV = OutViewInfo.FOV;
 }
 
+void ULocalPlayer::ReceivedPlayerController(APlayerController* NewController)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_LocalPlayer_HandlePlayerControllerChanged);
+	
+	Super::ReceivedPlayerController(NewController);
+	
+	// Broadcast an event for anyone that may be listening
+	OnPlayerControllerChanged().Broadcast(NewController);
+
+	// Tell any local player subsystems
+	const TArray<ULocalPlayerSubsystem*>& LPSubsystems = SubsystemCollection.GetSubsystemArray<ULocalPlayerSubsystem>(ULocalPlayerSubsystem::StaticClass());
+	for (ULocalPlayerSubsystem* WorldSubsystem : LPSubsystems)
+	{
+		WorldSubsystem->PlayerControllerChanged(NewController);
+	}
+}
+
 bool ULocalPlayer::CalcSceneViewInitOptions(
 	struct FSceneViewInitOptions& ViewInitOptions,
 	FViewport* Viewport,

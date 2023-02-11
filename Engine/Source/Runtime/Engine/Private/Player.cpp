@@ -166,5 +166,10 @@ void UPlayer::SwitchController(class APlayerController* PC)
 	// Set the viewport.
 	PC->Player = this;
 	this->PlayerController = PC;
+	
+	ReceivedPlayerController(PC);
 }
 
+void UPlayer::ReceivedPlayerController(class APlayerController* NewController)
+{
+}

@@ -63,4 +63,9 @@ public:
 	 * @return The controller associated with this player in InWorld, if one exists.
 	 */
 	ENGINE_API APlayerController* GetPlayerController(const UWorld* const InWorld) const;
+
+	/**
+	 * Called when this player has had it's outer Player Controller set for remote net connections
+	 */
+	ENGINE_API virtual void ReceivedPlayerController(APlayerController* NewController);
 };

@@ -887,6 +887,11 @@ void APlayerController::ReceivedPlayer()
 			BeginSpectatingState();
 		}
 	}
+
+	if (Player)
+	{
+		Player->ReceivedPlayerController(this);
+	}
 }
 
 FVector APlayerController::GetFocalLocation() const

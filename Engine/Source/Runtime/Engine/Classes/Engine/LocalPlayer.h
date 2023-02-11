@@ -18,6 +18,7 @@
 #include "SceneTypes.h"
 #include "Engine/Player.h"
 #include "GameFramework/OnlineReplStructs.h"
+#include "GameFramework/PlayerController.h"
 
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
@@ -212,6 +213,10 @@ public:
 	DECLARE_EVENT_TwoParams(ULocalPlayer, FOnPlatformUserIdChanged, FPlatformUserId /*NewId*/, FPlatformUserId /*OldId*/);
 	FOnPlatformUserIdChanged& OnPlatformUserIdChanged() { return OnPlatformUserIdChangedEvent; }
 
+	/** Event called when this local player has had a new outer PlayerController set */
+	DECLARE_EVENT_OneParam(ULocalPlayer, FOnPlayerControllerChanged, APlayerController* /*NewPC*/);
+	FOnPlayerControllerChanged& OnPlayerControllerChanged() { return OnPlayerControllerChangedEvent; }
+	
 private:
 	TArray<FSceneViewStateReference> ViewStates;
 
@@ -227,6 +232,9 @@ private:
 	/** Event called when platform user id changes */
 	FOnPlatformUserIdChanged OnPlatformUserIdChangedEvent;
 
+	/** Event called when the outer player controller changes */
+	FOnPlayerControllerChanged OnPlayerControllerChangedEvent;
+
 	FObjectSubsystemCollection<ULocalPlayerSubsystem> SubsystemCollection;
 
 public:
@@ -235,6 +243,10 @@ public:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// End of UObject interface
 
+	// Begin UPlayer interface
+	virtual void ReceivedPlayerController(APlayerController* NewController) override;
+	// End UPlayer interface
+	
 	// FExec interface
 public:
 #if UE_ALLOW_EXEC_COMMANDS
