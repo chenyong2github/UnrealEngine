@@ -41,6 +41,11 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	RootComponent = ObjectInitializer.CreateDefaultSubobject<USceneComponent>(this, TEXT("Root"));
 	RootComponent->SetMobility(EComponentMobility::Movable);
 
+	IdentityComponent = CreateDefaultSubobject<UColorCorrectionInvisibleComponent>("IdentityComponent");
+	IdentityComponent->SetupAttachment(RootComponent);
+	IdentityComponent->CastShadow = false;
+	IdentityComponent->SetHiddenInGame(false);
+
 #if WITH_METADATA
 	if (!Cast<AColorCorrectionWindow>(this))
 	{
@@ -196,12 +201,9 @@ void AColorCorrectRegion::TransferState()
 	}
 
 	// Store component id to be used on render thread.
-	if (const UStaticMeshComponent* FirstMeshComponent = FindComponentByClass<UStaticMeshComponent>())
+	if (!(TempCCRStateRenderThread->FirstPrimitiveId == IdentityComponent->ComponentId))
 	{
-		if (!(TempCCRStateRenderThread->FirstPrimitiveId == FirstMeshComponent->ComponentId))
-		{
-			TempCCRStateRenderThread->FirstPrimitiveId = FirstMeshComponent->ComponentId;
-		}
+		TempCCRStateRenderThread->FirstPrimitiveId = IdentityComponent->ComponentId;
 	}
 
 	{

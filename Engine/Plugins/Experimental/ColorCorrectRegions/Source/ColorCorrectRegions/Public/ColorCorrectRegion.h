@@ -196,6 +196,10 @@ public:
 
 #endif
 
+	/** The main purpose of this component is to determine the visibility status of this Color Correction Actor. */
+	UPROPERTY()
+	TObjectPtr<UColorCorrectionInvisibleComponent> IdentityComponent;
+
 	/** To handle play in Editor, PIE and Standalone. These methods aggregate objects in play mode similarly to 
 	* Editor methods in FColorCorrectRegionsSubsystem
 	*/
@@ -280,4 +284,15 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual FName GetCustomIconName() const override;
 #endif
+};
+
+
+/**
+ * This component class is used to determine if Color Correction Window/Region is hidden via HiddenPrimitives/ShowOnlyPrimitivesShowOnlyPrimitives
+ */
+UCLASS(NotBlueprintable, NotPlaceable)
+class UColorCorrectionInvisibleComponent : public UPrimitiveComponent
+{
+	GENERATED_BODY()
+
 };
