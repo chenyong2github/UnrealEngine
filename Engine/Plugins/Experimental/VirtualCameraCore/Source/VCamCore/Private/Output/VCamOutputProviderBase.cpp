@@ -7,16 +7,19 @@
 #include "UI/VCamWidget.h"
 #include "Util/LevelViewportUtils.h"
 #include "VCamCoreCustomVersion.h"
+#include "Algo/RemoveIf.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Engine/Engine.h"
+#include "GameFramework/PlayerController.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Slate/SceneViewport.h"
 #include "UObject/UObjectBaseUtility.h"
-#include "Util/ConnectionUtils.h"
 #include "Util/WidgetSnapshotUtils.h"
 #include "Util/WidgetTreeUtils.h"
+#include "ViewTargetPolicy/FocusFirstPlayerViewTargetPolicy.h"
+#include "ViewTargetPolicy/GameplayViewTargetPolicy.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -47,7 +50,6 @@ UVCamOutputProviderBase::UVCamOutputProviderBase()
 void UVCamOutputProviderBase::BeginDestroy()
 {
 	Deinitialize();
-
 	Super::BeginDestroy();
 }
 
@@ -87,6 +89,8 @@ void UVCamOutputProviderBase::Deinitialize()
 
 void UVCamOutputProviderBase::Activate()
 {
+	ConditionallySetUpGameplayViewTargets();
+	
 	CreateUMG();
 	DisplayUMG();
 
@@ -100,6 +104,8 @@ void UVCamOutputProviderBase::Activate()
 
 void UVCamOutputProviderBase::Deactivate()
 {
+	CleanUpGameplayViewTargets();
+	
 	if (ShouldOverrideResolutionOnActivationEvents())
 	{
 		RestoreOverrideResolutionForViewport(TargetViewport);
@@ -299,18 +305,18 @@ void UVCamOutputProviderBase::SuspendOutput()
 {
 	if (IsActive())
 	{
-		bWasActive = true;
+		bWasOutputSuspendedWhileActive = true;
 		SetActive(false);
 	}
 }
 
 void UVCamOutputProviderBase::RestoreOutput()
 {
-	if (bWasActive && !IsActive())
+	if (bWasOutputSuspendedWhileActive && !IsActive())
 	{
 		SetActive(true);
 	}
-	bWasActive = false;
+	bWasOutputSuspendedWhileActive = false;
 }
 
 bool UVCamOutputProviderBase::NeedsForceLockToViewport() const
@@ -504,6 +510,18 @@ TSharedPtr<SLevelViewport> UVCamOutputProviderBase::GetTargetLevelViewport() con
 	return UE::VCamCore::LevelViewportUtils::Private::GetLevelViewport(TargetViewport);
 }
 
+void UVCamOutputProviderBase::InitViewTargetPolicyInSubclass()
+{
+	checkf(DisplayType != EVPWidgetDisplayType::Inactive, TEXT("Subclasses should set DisplayType in constructor before calling InitViewTargetPolicyInSubclass"));
+	
+	// Make UX easier for users by making the output provider set the first player controller's view target to our camera in game worlds automatically.
+	const bool bRequiresCameraToWork = DisplayType == EVPWidgetDisplayType::PostProcess || DisplayType == EVPWidgetDisplayType::Composure;
+	if (bRequiresCameraToWork)
+	{
+		GameplayViewTargetPolicy = CreateDefaultSubobject<UFocusFirstPlayerViewTargetPolicy>(TEXT("FocusFirstPlayerViewTargetPolicy0"));
+	}
+}
+
 void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FProperty* Property = PropertyChangedEvent.MemberProperty;
@@ -604,5 +622,50 @@ void UVCamOutputProviderBase::OnConnectionReinitialized(TWeakObjectPtr<UVCamWidg
 		}
 	}
 }
-
 #endif
+
+void UVCamOutputProviderBase::ConditionallySetUpGameplayViewTargets()
+{
+	UCineCameraComponent* CineCamera = TargetCamera.Get();
+	const bool bCannotSetupGameplayViewTargets = !GetWorld()->IsGameWorld() || !CineCamera || !GameplayViewTargetPolicy;
+	if (bCannotSetupGameplayViewTargets)
+	{
+		return;
+	}
+	
+	CleanUpGameplayViewTargets();
+
+	constexpr bool bWillBeActive = true;
+	const FDeterminePlayerControllersTargetPolicyParams DeterminePlayersParams{ this, CineCamera, bWillBeActive };
+	TArray<APlayerController*> PlayerControllers = GameplayViewTargetPolicy->DeterminePlayerControllers(DeterminePlayersParams);
+	PlayerControllers.SetNum(Algo::RemoveIf(PlayerControllers, [Owner = CineCamera->GetOwner()](const APlayerController* PC)
+	{
+		return PC == nullptr
+			// Skip this PC if an earlier output provider already set the view target to our camera 
+			|| PC->GetViewTarget() == Owner;
+	}));
+	
+	FUpdateViewTargetPolicyParams UpdateViewTargetParams {{ DeterminePlayersParams }};
+	Algo::Transform(PlayerControllers, UpdateViewTargetParams.PlayerControllers, [](APlayerController* PC){ return PC; });
+	Algo::Transform(PlayerControllers, PlayersWhoseViewTargetsWereSet, [](APlayerController* PC){ return PC; });
+	
+	GameplayViewTargetPolicy->UpdateViewTarget(UpdateViewTargetParams);
+}
+
+void UVCamOutputProviderBase::CleanUpGameplayViewTargets()
+{
+	UCineCameraComponent* CineCamera = TargetCamera.Get();
+	if (!CineCamera || !GameplayViewTargetPolicy)
+	{
+		return;
+	}
+
+	constexpr bool bWillBeActive = false;
+	FUpdateViewTargetPolicyParams Params { { this, CineCamera, bWillBeActive } };
+	Algo::TransformIf(PlayersWhoseViewTargetsWereSet, Params.PlayerControllers,
+		[](TWeakObjectPtr<APlayerController> PC){ return PC.IsValid(); },
+		[](TWeakObjectPtr<APlayerController> PC){ return PC.Get(); }
+	);
+	PlayersWhoseViewTargetsWereSet.Reset();
+	GameplayViewTargetPolicy->UpdateViewTarget(Params);
+}

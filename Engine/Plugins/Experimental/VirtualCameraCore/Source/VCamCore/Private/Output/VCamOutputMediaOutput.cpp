@@ -4,17 +4,21 @@
 
 #include "Output/VCamOutputComposure.h"
 
+UVCamOutputMediaOutput::UVCamOutputMediaOutput()
+{
+	DisplayType = EVPWidgetDisplayType::PostProcess;
+	InitViewTargetPolicyInSubclass();
+}
+
 void UVCamOutputMediaOutput::Activate()
 {
 	StartCapturing();
-
 	Super::Activate();
 }
 
 void UVCamOutputMediaOutput::Deactivate()
 {
 	StopCapturing();
-
 	Super::Deactivate();
 }
 
@@ -87,7 +91,7 @@ void UVCamOutputMediaOutput::PostEditChangeProperty(FPropertyChangedEvent& Prope
 		if ((Property->GetFName() == NAME_OutputConfig) ||
 			(Property->GetFName() == NAME_FromComposureOutputProviderIndex))
 		{
-			if (bIsActive)
+			if (IsActive())
 			{
 				SetActive(false);
 				SetActive(true);

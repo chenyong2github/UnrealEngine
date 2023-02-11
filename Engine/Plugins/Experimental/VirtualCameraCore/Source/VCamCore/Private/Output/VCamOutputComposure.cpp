@@ -2,22 +2,26 @@
 
 #include "Output/VCamOutputComposure.h"
 
-void UVCamOutputComposure::CreateUMG()
+UVCamOutputComposure::UVCamOutputComposure()
 {
 	DisplayType = EVPWidgetDisplayType::Composure;
+	InitViewTargetPolicyInSubclass();
+}
 
+void UVCamOutputComposure::CreateUMG()
+{
 	// Super must be here so that the UMGWidget is already created
 	Super::CreateUMG();
 
-	if (UMGWidget)
+	if (GetUMGWidget())
 	{
-		UMGWidget->PostProcessDisplayType.ComposureLayerTargets.Empty();
+		GetUMGWidget()->PostProcessDisplayType.ComposureLayerTargets.Empty();
 
 		for (TSoftObjectPtr<ACompositingElement> Layer : LayerTargets)
 		{
 			if (Layer.IsValid())
 			{
-				UMGWidget->PostProcessDisplayType.ComposureLayerTargets.Emplace(Layer.Get());
+				GetUMGWidget()->PostProcessDisplayType.ComposureLayerTargets.Emplace(Layer.Get());
 			}
 		}
 	}
@@ -28,6 +32,7 @@ void UVCamOutputComposure::CreateUMG()
 }
 
 #if WITH_EDITOR
+
 void UVCamOutputComposure::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FProperty* Property = PropertyChangedEvent.MemberProperty;
@@ -38,7 +43,7 @@ void UVCamOutputComposure::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 		if (Property->GetFName() == NAME_LayerTargets)
 		{
-			if (bIsActive)
+			if (IsActive())
 			{
 				SetActive(false);
 				SetActive(true);

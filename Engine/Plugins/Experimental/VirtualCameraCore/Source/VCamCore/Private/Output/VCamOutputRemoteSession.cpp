@@ -10,7 +10,6 @@
 #include "Channels/RemoteSessionInputChannel.h"
 #include "GameFramework/PlayerController.h"
 #include "Modules/ModuleManager.h"
-#include "Engine/GameEngine.h"
 #include "Slate/SceneViewport.h"
 #include "Widgets/SVirtualWindow.h"
 #include "UObject/SoftObjectPath.h"
@@ -18,6 +17,7 @@
 
 #if WITH_EDITOR
 #include "LevelEditor.h"
+#include "LevelEditorViewport.h"
 #include "SLevelViewport.h"
 #include "SceneView.h"
 #else
@@ -30,9 +30,15 @@ namespace UE::VCamOutputRemoteSession::Private
 	static const FSoftClassPath EmptyUMGSoftClassPath(TEXT("/VCamCore/Assets/VCam_EmptyVisibleUMG.VCam_EmptyVisibleUMG_C"));
 }
 
+UVCamOutputRemoteSession::UVCamOutputRemoteSession()
+{
+	DisplayType = EVPWidgetDisplayType::PostProcess;
+	InitViewTargetPolicyInSubclass();
+}
+
 void UVCamOutputRemoteSession::Initialize()
 {
-	if (!bInitialized && (MediaOutput == nullptr))
+	if (!IsInitialized() && (MediaOutput == nullptr))
 	{
 		MediaOutput = NewObject<URemoteSessionMediaOutput>(GetTransientPackage(), URemoteSessionMediaOutput::StaticClass());
 	}
@@ -75,7 +81,7 @@ void UVCamOutputRemoteSession::Deactivate()
 
 void UVCamOutputRemoteSession::Tick(const float DeltaTime)
 {
-	if (bIsActive && RemoteSessionHost.IsValid())
+	if (IsActive() && RemoteSessionHost.IsValid())
 	{
 		RemoteSessionHost->Tick(DeltaTime);
 	}
@@ -85,7 +91,7 @@ void UVCamOutputRemoteSession::Tick(const float DeltaTime)
 
 void UVCamOutputRemoteSession::CreateRemoteSession()
 {
-	if (!bInitialized)
+	if (!IsInitialized())
 	{
 		UE_LOG(LogVCamOutputProvider, Warning, TEXT("CreateRemoteSession has been called, but has not been initialized yet"));
 		return;
@@ -219,7 +225,7 @@ void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChan
 	if (InputChannel)
 	{
 		// If we have a UMG, then use it
-		if (GetUMGClass() && UMGWidget) 
+		if (GetUMGClass() && GetUMGWidget()) 
 		{
 			TSharedPtr<SVirtualWindow> InputWindow;
 
@@ -238,7 +244,7 @@ void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChan
 			}
 			else
 			{
-				InputWindow = UMGWidget->PostProcessDisplayType.GetSlateWindow();
+				InputWindow = GetUMGWidget()->PostProcessDisplayType.GetSlateWindow();
 				UE_LOG(LogVCamOutputProvider, Log, TEXT("InputChannel callback - Routing input to active viewport with UMG"));
 			}
 
@@ -371,7 +377,7 @@ void UVCamOutputRemoteSession::PostEditChangeProperty(FPropertyChangedEvent& Pro
 		if ((Property->GetFName() == NAME_PortNumber) ||
 			(Property->GetFName() == NAME_FromComposureOutputProviderIndex))
 		{
-			if (bIsActive)
+			if (IsActive())
 			{
 				SetActive(false);
 				SetActive(true);

@@ -2,43 +2,41 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "VCamOutputProviderBase.h"
 #include "ImageProviders/RemoteSessionMediaOutput.h"
 #include "IRemoteSessionRole.h"
 #include "RemoteSession.h"
-
-#if WITH_EDITOR
-#include "LevelEditorViewport.h"
-#endif
-
 #include "VCamOutputRemoteSession.generated.h"
 
 UCLASS(meta = (DisplayName = "Unreal Remote Output Provider"))
 class VCAMCORE_API UVCamOutputRemoteSession : public UVCamOutputProviderBase
 {
 	GENERATED_BODY()
-
 public:
-	virtual void Initialize() override;
-	virtual void Deinitialize() override;
-
-	virtual void Activate() override;
-	virtual void Deactivate() override;
-
-	virtual void Tick(const float DeltaTime) override;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-
-	// Network port number - change this only if connecting multiple RemoteSession devices to the same PC
+	
+	/** Network port number - change this only if connecting multiple RemoteSession devices to the same PC */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	int32 PortNumber = IRemoteSessionModule::kDefaultPort;
 
-	// If using the output from a Composure Output Provider, specify it here
+	/** If using the output from a Composure Output Provider, specify it here */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	int32 FromComposureOutputProviderIndex = INDEX_NONE;
+
+	UVCamOutputRemoteSession();
+
+	//~ Begin UVCamOutputProviderBase Interface
+	virtual void Initialize() override;
+	virtual void Deinitialize() override;
+	virtual void Activate() override;
+	virtual void Deactivate() override;
+	virtual void Tick(const float DeltaTime) override;
+	//~ End UVCamOutputProviderBase Interface
+
+#if WITH_EDITOR
+	//~ Begin UObject Interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject Interface
+#endif
 
 protected:
 
@@ -53,10 +51,9 @@ protected:
 	//~ End UVCamOutputProviderBase Interface
 
 private:
+	
 	TSharedPtr<IRemoteSessionUnmanagedRole> RemoteSessionHost;
-
 	FHitResult LastViewportTouchResult;
-
 	bool bUsingDummyUMG = false;
 
 	void CreateRemoteSession();

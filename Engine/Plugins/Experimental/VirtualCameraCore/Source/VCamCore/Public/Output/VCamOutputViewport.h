@@ -2,19 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "VCamOutputProviderBase.h"
 #include "VCamOutputViewport.generated.h"
 
+/** Adds a widget on top of the viewport locally. */
 UCLASS(meta = (DisplayName = "Viewport Output Provider"))
 class VCAMCORE_API UVCamOutputViewport : public UVCamOutputProviderBase
 {
 	GENERATED_BODY()
-
 public:
 
-protected:
-	virtual void CreateUMG() override;
-
-private:
+	UVCamOutputViewport();
 };

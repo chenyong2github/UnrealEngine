@@ -3,11 +3,13 @@
 #include "VCamPixelStreamingSession.h"
 
 #include "Output/VCamOutputComposure.h"
+#include "VCamComponent.h"
+#include "VCamPixelStreamingSubsystem.h"
+#include "VCamPixelStreamingLiveLink.h"
 
 #include "Async/Async.h"
 #include "Containers/UnrealString.h"
 #include "Editor/EditorPerformanceSettings.h"
-#include "IPixelStreamingInputHandler.h"
 #include "IPixelStreamingModule.h"
 #include "IPixelStreamingInputModule.h"
 #include "Modules/ModuleManager.h"
@@ -18,22 +20,21 @@
 #include "PixelStreamingInputMessage.h"
 #include "PixelStreamingServers.h"
 #include "Serialization/MemoryReader.h"
-#include "VCamComponent.h"
-#include "VCamPixelStreamingSubsystem.h"
-#include "VCamPixelStreamingLiveLink.h"
+#include "Slate/SceneViewport.h"
 #include "VPFullScreenUserWidget.h"
 #include "Widgets/SVirtualWindow.h"
 #include "PixelStreamingInputEnums.h"
+
 
 namespace UE::VCamPixelStreamingSession::Private
 {
 	static const FSoftClassPath EmptyUMGSoftClassPath(TEXT("/VCamCore/Assets/VCam_EmptyVisibleUMG.VCam_EmptyVisibleUMG_C"));
 } // namespace UE::VCamPixelStreamingSession::Private
 
-void UVCamPixelStreamingSession::Initialize()
+UVCamPixelStreamingSession::UVCamPixelStreamingSession()
 {
 	DisplayType = EVPWidgetDisplayType::PostProcess;
-	Super::Initialize();
+	InitViewTargetPolicyInSubclass();
 }
 
 void UVCamPixelStreamingSession::Deinitialize()
@@ -48,7 +49,7 @@ void UVCamPixelStreamingSession::Deinitialize()
 
 void UVCamPixelStreamingSession::Activate()
 {
-	if (!bInitialized)
+	if (!IsInitialized())
 	{
 		UE_LOG(LogPixelStreamingVCam, Warning, TEXT("Trying to start Pixel Streaming, but has not been initialized yet"));
 		SetActive(false);
@@ -180,8 +181,7 @@ void UVCamPixelStreamingSession::OnRemoteResolutionChanged(const FIntPoint& Remo
 
 void UVCamPixelStreamingSession::SetupCustomInputHandling()
 {
-	// If we have a UMG, then use it
-	if (UMGWidget)
+	if (GetUMGWidget())
 	{
 		TSharedPtr<SVirtualWindow> InputWindow;
 		// If we are rendering from a ComposureOutputProvider, we need to get the InputWindow from that UMG, not the one in the PixelStreamingOutputProvider
@@ -199,10 +199,10 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 		}
 		else
 		{
-			InputWindow = UMGWidget->PostProcessDisplayType.GetSlateWindow();
+			InputWindow = GetUMGWidget()->PostProcessDisplayType.GetSlateWindow();
 			UE_LOG(LogPixelStreamingVCam, Log, TEXT("InputChannel callback - Routing input to active viewport with UMG"));
 		}
-		//
+
 		MediaOutput->GetStreamer()->SetTargetWindow(InputWindow);
 		MediaOutput->GetStreamer()->SetInputHandlerType(EPixelStreamingInputType::RouteToWidget);
 	}

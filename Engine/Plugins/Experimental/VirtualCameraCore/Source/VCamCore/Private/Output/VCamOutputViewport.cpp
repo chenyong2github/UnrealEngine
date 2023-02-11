@@ -2,9 +2,8 @@
 
 #include "Output/VCamOutputViewport.h"
 
-void UVCamOutputViewport::CreateUMG()
+UVCamOutputViewport::UVCamOutputViewport()
 {
 	DisplayType = EVPWidgetDisplayType::Viewport;
-
-	Super::CreateUMG();
+	InitViewTargetPolicyInSubclass();
 }
