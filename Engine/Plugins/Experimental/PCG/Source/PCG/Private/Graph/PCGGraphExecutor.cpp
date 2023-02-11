@@ -15,6 +15,7 @@
 #include "Graph/PCGGraphCache.h"
 #include "Metadata/PCGMetadata.h"
 
+#include "Algo/AnyOf.h"
 #include "Async/Async.h"
 #include "GameFramework/Actor.h"
 
@@ -131,113 +132,179 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 			ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Inputs.Emplace(ExternalDependency, nullptr, nullptr, /*bConsumeData=*/false);
 		}
 
+		ScheduledTask.FirstTaskIndex = ScheduledTask.Tasks.Num() - 2;
+		ScheduledTask.LastTaskIndex = ScheduledTask.Tasks.Num() - 1;
+
 		ScheduleLock.Unlock();
 	}
 
 	return ScheduledId;
 }
 
-void FPCGGraphExecutor::Cancel(UPCGComponent* InComponent)
+TArray<UPCGComponent*> FPCGGraphExecutor::Cancel(UPCGComponent* InComponent)
 {
 	auto CancelIfSameComponent = [InComponent](TWeakObjectPtr<UPCGComponent> Component)
 	{
 		return Component.IsValid() && InComponent == Component;
 	};
 
-	return Cancel(CancelIfSameComponent);
+	return Cancel(CancelIfSameComponent).Array();
 }
 
 TArray<UPCGComponent*> FPCGGraphExecutor::Cancel(UPCGGraph* InGraph)
 {
-	TSet<UPCGComponent*> CancelledComponents;
-
-	auto CancelIfComponentUsesGraph = [InGraph, &CancelledComponents](TWeakObjectPtr<UPCGComponent> Component)
+	auto CancelIfComponentUsesGraph = [InGraph](TWeakObjectPtr<UPCGComponent> Component)
 	{
-		if (Component.IsValid() && Component->GetGraph() == InGraph)
-		{
-			CancelledComponents.Add(Component.Get());
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return (Component.IsValid() && Component->GetGraph() == InGraph);
 	};
 
-	Cancel(CancelIfComponentUsesGraph);
-	return CancelledComponents.Array();
+	return Cancel(CancelIfComponentUsesGraph).Array();
 }
 
 TArray<UPCGComponent*> FPCGGraphExecutor::CancelAll()
 {
-	TSet<UPCGComponent*> CancelledComponents;
-
-	auto CancelAllGeneration = [&CancelledComponents](TWeakObjectPtr<UPCGComponent> Component)
+	auto CancelAllGeneration = [](TWeakObjectPtr<UPCGComponent> Component)
 	{
-		if (Component.IsValid())
-		{
-			CancelledComponents.Add(Component.Get());
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return Component.IsValid();
 	};
 
-	Cancel(CancelAllGeneration);
-	return CancelledComponents.Array();
+	return Cancel(CancelAllGeneration).Array();
 }
 
-void FPCGGraphExecutor::Cancel(TFunctionRef<bool(TWeakObjectPtr<UPCGComponent>)> CancelFilter)
+TSet<UPCGComponent*> FPCGGraphExecutor::Cancel(TFunctionRef<bool(TWeakObjectPtr<UPCGComponent>)> CancelFilter)
 {
-	// Remove from scheduled tasks
+	TSet<UPCGComponent*> CancelledComponents;
+
+	// Visit scheduled tasks
 	ScheduleLock.Lock();
-	for (int32 ScheduledTaskIndex = ScheduledTasks.Num() - 1; ScheduledTaskIndex >= 0; --ScheduledTaskIndex)
+	for (const FPCGGraphScheduleTask& ScheduledTask : ScheduledTasks)
 	{
-		if(CancelFilter(ScheduledTasks[ScheduledTaskIndex].SourceComponent))
+		if (CancelFilter(ScheduledTask.SourceComponent))
 		{
-			ScheduledTasks.RemoveAtSwap(ScheduledTaskIndex);
+			CancelledComponents.Add(ScheduledTask.SourceComponent.Get());
 		}
 	}
 	ScheduleLock.Unlock();
 
-	// Remove from ready tasks
-	for (int32 ReadyTaskIndex = ReadyTasks.Num() - 1; ReadyTaskIndex >= 0; --ReadyTaskIndex)
+	// Visit ready tasks
+	for (const FPCGGraphTask& Task : ReadyTasks)
 	{
-		FPCGGraphTask& Task = ReadyTasks[ReadyTaskIndex];
-
-		if(CancelFilter(Task.SourceComponent))
+		if (CancelFilter(Task.SourceComponent))
 		{
-			FPCGTaskId CancelledTaskId = Task.NodeId;
-			delete Task.Context;
-			ReadyTasks.RemoveAtSwap(ReadyTaskIndex);
-			CancelNextTasks(CancelledTaskId);
+			CancelledComponents.Add(Task.SourceComponent.Get());
 		}
 	}
 
-	// Remove from active tasks
-	for (int32 ActiveTaskIndex = ActiveTasks.Num() - 1; ActiveTaskIndex >= 0; --ActiveTaskIndex)
+	// Visit active tasks
+	for (const FPCGGraphActiveTask& Task : ActiveTasks)
 	{
-		FPCGGraphActiveTask& Task = ActiveTasks[ActiveTaskIndex];
-		if(Task.Context && CancelFilter(Task.Context->SourceComponent))
+		if (Task.Context && CancelFilter(Task.Context->SourceComponent))
 		{
-			CurrentlyUsedThreads -= Task.Context->NumAvailableTasks;
-			FPCGTaskId CancelledTaskId = Task.NodeId;
-			ActiveTasks.RemoveAtSwap(ActiveTaskIndex);
-			CancelNextTasks(CancelledTaskId);
+			CancelledComponents.Add(Task.Context->SourceComponent.Get());
 		}
 	}
 
-	// Remove from sleeping tasks
-	for (int32 SleepingTaskIndex = SleepingTasks.Num() - 1; SleepingTaskIndex >= 0; --SleepingTaskIndex)
+	// Visit sleeping tasks
+	for (const FPCGGraphActiveTask& Task : SleepingTasks)
 	{
-		FPCGGraphActiveTask& Task = SleepingTasks[SleepingTaskIndex];
-		if(Task.Context && CancelFilter(Task.Context->SourceComponent))
+		if (Task.Context && CancelFilter(Task.Context->SourceComponent))
 		{
-			FPCGTaskId CancelledTaskId = Task.NodeId;
-			SleepingTasks.RemoveAtSwap(CancelledTaskId);
-			CancelNextTasks(CancelledTaskId);
+			CancelledComponents.Add(Task.Context->SourceComponent.Get());
+		}
+	}
+
+	// Early out - nothing to cancel
+	if (CancelledComponents.IsEmpty())
+	{
+		return CancelledComponents;
+	}
+
+	TArray<FPCGTaskId> CancelledScheduledTasks;
+
+	bool bStableCancellationSet = false;
+	while (!bStableCancellationSet)
+	{
+		bStableCancellationSet = true;
+
+		// Remove from scheduled tasks
+		ScheduleLock.Lock();
+		for (int32 ScheduledTaskIndex = ScheduledTasks.Num() - 1; ScheduledTaskIndex >= 0; --ScheduledTaskIndex)
+		{
+			FPCGGraphScheduleTask& ScheduledTask = ScheduledTasks[ScheduledTaskIndex];
+			if (CancelledComponents.Contains(ScheduledTask.SourceComponent.Get()))
+			{
+				CancelledScheduledTasks.Add(ScheduledTask.Tasks[ScheduledTask.LastTaskIndex].NodeId);
+				ScheduledTasks.RemoveAtSwap(ScheduledTaskIndex);
+			}
+		}
+
+		auto RemoveScheduledTasks = [this, &bStableCancellationSet, &CancelledComponents, &CancelledScheduledTasks](FPCGTaskId EndTaskId)
+		{
+
+		};
+
+		// WARNING: variable upper bound
+		for (int32 CancelledTaskIdIndex = 0; CancelledTaskIdIndex < CancelledScheduledTasks.Num(); ++CancelledTaskIdIndex)
+		{
+			const FPCGTaskId EndTaskId = CancelledScheduledTasks[CancelledTaskIdIndex];
+			for (int32 ScheduledTaskIndex = ScheduledTasks.Num() - 1; ScheduledTaskIndex >= 0; --ScheduledTaskIndex)
+			{
+				FPCGGraphScheduleTask& ScheduledTask = ScheduledTasks[ScheduledTaskIndex];
+				const bool bContainsDependency = Algo::AnyOf(ScheduledTask.Tasks[ScheduledTask.FirstTaskIndex].Inputs, [EndTaskId](const FPCGGraphTaskInput& Input) { return Input.TaskId == EndTaskId; });
+
+				if (bContainsDependency)
+				{
+					if (!CancelledComponents.Contains(ScheduledTask.SourceComponent.Get()))
+					{
+						CancelledComponents.Add(ScheduledTask.SourceComponent.Get());
+						bStableCancellationSet = false;
+					}
+
+					CancelledScheduledTasks.Add(ScheduledTask.Tasks[ScheduledTask.LastTaskIndex].NodeId);
+					ScheduledTasks.RemoveAtSwap(ScheduledTaskIndex);
+				}
+			}
+		}
+
+		CancelledScheduledTasks.Reset();
+		ScheduleLock.Unlock();
+
+		// Remove from ready tasks
+		for (int32 ReadyTaskIndex = ReadyTasks.Num() - 1; ReadyTaskIndex >= 0; --ReadyTaskIndex)
+		{
+			FPCGGraphTask& Task = ReadyTasks[ReadyTaskIndex];
+
+			if (CancelledComponents.Contains(Task.SourceComponent.Get()))
+			{
+				FPCGTaskId CancelledTaskId = Task.NodeId;
+				delete Task.Context;
+				ReadyTasks.RemoveAtSwap(ReadyTaskIndex);
+				bStableCancellationSet &= !CancelNextTasks(CancelledTaskId, CancelledComponents);
+			}
+		}
+
+		// Mark as cancelled in the active tasks - needed to make sure we're not breaking the current execution (if any)
+		for (int32 ActiveTaskIndex = ActiveTasks.Num() - 1; ActiveTaskIndex >= 0; --ActiveTaskIndex)
+		{
+			FPCGGraphActiveTask& Task = ActiveTasks[ActiveTaskIndex];
+			if(Task.Context && CancelledComponents.Contains(Task.Context->SourceComponent.Get()))
+			{
+				FPCGTaskId CancelledTaskId = Task.NodeId;
+				Task.bWasCancelled = true;
+				bStableCancellationSet &= !CancelNextTasks(CancelledTaskId, CancelledComponents);
+			}
+		}
+
+		// Remove from sleeping tasks
+		for (int32 SleepingTaskIndex = SleepingTasks.Num() - 1; SleepingTaskIndex >= 0; --SleepingTaskIndex)
+		{
+			FPCGGraphActiveTask& Task = SleepingTasks[SleepingTaskIndex];
+			if(Task.Context && CancelledComponents.Contains(Task.Context->SourceComponent.Get()))
+			{
+				FPCGTaskId CancelledTaskId = Task.NodeId;
+				SleepingTasks.RemoveAtSwap(CancelledTaskId);
+				bStableCancellationSet &= !CancelNextTasks(CancelledTaskId, CancelledComponents);
+			}
 		}
 	}
 
@@ -245,6 +312,8 @@ void FPCGGraphExecutor::Cancel(TFunctionRef<bool(TWeakObjectPtr<UPCGComponent>)>
 #if WITH_EDITOR
 	UpdateGenerationNotification();
 #endif
+
+	return CancelledComponents;
 }
 
 bool FPCGGraphExecutor::IsGraphCurrentlyExecuting(UPCGGraph* InGraph)
@@ -330,6 +399,7 @@ void FPCGGraphExecutor::Execute()
 		{
 			FPCGTaskId TaskId = Task.NodeId;
 
+			// TODO: review if it's actually possible for a task with inputs to be ready at this point - it seems very unlikely
 			bool bPushToReady = true;
 			for (const FPCGGraphTaskInput& Input : Task.Inputs)
 			{
@@ -397,18 +467,18 @@ void FPCGGraphExecutor::Execute()
 		const bool bMainThreadWasAvailable = bMainThreadAvailable;
 		const int32 TasksAlreadyLaunchedCount = ActiveTasks.Num();
 
-		if (bMainThreadAvailable || NumAvailableThreads > 0)
+		bool bHasDispatchedTasks = !ActiveTasks.IsEmpty();
+
+		auto CannotDispatchMoreTasks = [&bMainThreadAvailable, &NumAvailableThreads, &bHasDispatchedTasks, bAllowMultiDispatch]
+		{
+			return ((!bAllowMultiDispatch && bHasDispatchedTasks) || (!bMainThreadAvailable && NumAvailableThreads == 0));
+		};
+
+		if(!CannotDispatchMoreTasks())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::Execute::PrepareTasks);
 			// Sort tasks by priority (highest priority should be at the end)
 			// TODO
-			bool bHasDispatchedTasks = false;
-
-			auto CannotDispatchMoreTasks = [&bMainThreadAvailable, &NumAvailableThreads, &bHasDispatchedTasks, bAllowMultiDispatch]
-			{
-				return ((!bAllowMultiDispatch && bHasDispatchedTasks) || (!bMainThreadAvailable && NumAvailableThreads == 0));
-			};
-
 			auto TaskDispatchBookKeeping = [&bMainThreadAvailable, &NumAvailableThreads, &bHasDispatchedTasks](bool bIsMainThreadTask)
 			{
 				bHasDispatchedTasks = true;
@@ -639,7 +709,9 @@ void FPCGGraphExecutor::Execute()
 			FPCGGraphActiveTask& ActiveTask = ActiveTasks[TaskIndex];
 
 #if WITH_EDITOR
-			if (!ActiveTask.bIsBypassed)
+			if (!ActiveTask.bWasCancelled && !ActiveTask.bIsBypassed)
+#else
+			if (!ActiveTask.bWasCancelled)
 #endif
 			{
 				if (bGraphCacheDebuggingEnabled && ActiveTask.Context->SourceComponent.Get() && ActiveTask.Context->Node)
@@ -704,9 +776,9 @@ void FPCGGraphExecutor::Execute()
 				MainThreadTask.Context->OutputData.RemoveFromRootSet(DataRootSet);
 
 #if WITH_EDITOR
-				if(MainThreadTask.bIsBypassed || MainThreadTask.Element->Execute(MainThreadTask.Context.Get()))
+				if(MainThreadTask.bIsBypassed || MainThreadTask.bWasCancelled || MainThreadTask.Element->Execute(MainThreadTask.Context.Get()))
 #else
-				if(MainThreadTask.Element->Execute(MainThreadTask.Context.Get()))
+				if(MainThreadTask.bWasCancelled || MainThreadTask.Element->Execute(MainThreadTask.Context.Get()))
 #endif
 				{
 					bMainTaskDone = true;
@@ -727,7 +799,7 @@ void FPCGGraphExecutor::Execute()
 						bTaskDone = Future->Get();
 					}
 
-					if (bTaskDone)
+					if (bTaskDone || ActiveTasks[ExecutionIndex].bWasCancelled)
 					{
 						PostTaskExecute(ExecutionIndex);
 					}
@@ -857,18 +929,32 @@ void FPCGGraphExecutor::QueueNextTasks(FPCGTaskId FinishedTask)
 	}
 }
 
-void FPCGGraphExecutor::CancelNextTasks(FPCGTaskId CancelledTask)
+bool FPCGGraphExecutor::CancelNextTasks(FPCGTaskId CancelledTask, TSet<UPCGComponent*>& OutCancelledComponents)
 {
+	bool bAddedComponents = false;
+
 	if (TSet<FPCGTaskId>* Successors = TaskSuccessors.Find(CancelledTask))
 	{
 		for (FPCGTaskId Successor : *Successors)
 		{
-			Tasks.Remove(Successor);
-			CancelNextTasks(Successor);
+			if (FPCGGraphTask* Task = Tasks.Find(Successor))
+			{
+				if(!OutCancelledComponents.Contains(Task->SourceComponent.Get()))
+				{
+					OutCancelledComponents.Add(Task->SourceComponent.Get());
+					bAddedComponents = true;
+				}
+
+				Tasks.Remove(Successor);
+			}
+
+			bAddedComponents |= CancelNextTasks(Successor, OutCancelledComponents);
 		}
 
 		TaskSuccessors.Remove(CancelledTask);
 	}
+
+	return bAddedComponents;
 }
 
 void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollection& TaskInput)

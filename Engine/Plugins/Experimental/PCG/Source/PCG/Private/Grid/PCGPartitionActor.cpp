@@ -114,7 +114,7 @@ void APCGPartitionActor::PostRegisterAllComponents()
 	OriginalToLocal.Reserve(LocalToOriginal.Num());
 	for (const auto& It : LocalToOriginal)
 	{
-		OriginalToLocal.Add(It.Value, It.Key);
+		OriginalToLocal.Add(It.Value.Get(), It.Key);
 	}
 
 	// Make the Partition actor register itself to the PCG Subsystem
@@ -230,7 +230,7 @@ UPCGComponent* APCGPartitionActor::GetOriginalComponent(const UPCGComponent* Loc
 void APCGPartitionActor::CleanupDeadGraphInstances(bool bRemoveNonNullOnly)
 {
 	// First find if we have any local dead instance (= nullptr) hooked to an original component.
-	TSet<TSoftObjectPtr<UPCGComponent>> DeadOriginalInstances;
+	TSet<TObjectPtr<UPCGComponent>> DeadOriginalInstances;
 	for (const auto& OriginalToLocalItem : OriginalToLocal)
 	{
 		if (!OriginalToLocalItem.Value)
@@ -243,7 +243,7 @@ void APCGPartitionActor::CleanupDeadGraphInstances(bool bRemoveNonNullOnly)
 	{
 		Modify();
 
-		for (const TSoftObjectPtr<UPCGComponent>& DeadInstance : DeadOriginalInstances)
+		for (const TObjectPtr<UPCGComponent>& DeadInstance : DeadOriginalInstances)
 		{
 			OriginalToLocal.Remove(DeadInstance);
 		}
@@ -333,6 +333,11 @@ void APCGPartitionActor::RemapGraphInstance(const UPCGComponent* OldOriginalComp
 	LocalComponent->SetPropertiesFromOriginal(NewOriginalComponent);
 	OriginalToLocal.Emplace(NewOriginalComponent, LocalComponent);
 	LocalToOriginal.Emplace(LocalComponent, NewOriginalComponent);
+
+#if WITH_EDITOR
+	// When changing original data, it means that the data we have might point to newly stale data, hence we need to force dirty here
+	LocalComponent->DirtyGenerated(EPCGComponentDirtyFlag::Actor);
+#endif
 }
 
 bool APCGPartitionActor::RemoveGraphInstance(UPCGComponent* OriginalComponent)
@@ -433,7 +438,7 @@ TSet<TObjectPtr<UPCGComponent>> APCGPartitionActor::GetAllLocalPCGComponents() c
 TSet<TObjectPtr<UPCGComponent>> APCGPartitionActor::GetAllOriginalPCGComponents() const
 {
 	TSet<TObjectPtr<UPCGComponent>> ResultComponents;
-	for(const TPair<TSoftObjectPtr<UPCGComponent>, TObjectPtr<UPCGComponent>>& OriginalPair : OriginalToLocal)
+	for(const TPair<TObjectPtr<UPCGComponent>, TObjectPtr<UPCGComponent>>& OriginalPair : OriginalToLocal)
 	{
 		ResultComponents.Add(OriginalPair.Key.Get());
 	}

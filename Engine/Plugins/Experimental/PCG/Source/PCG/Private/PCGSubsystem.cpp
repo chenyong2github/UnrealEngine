@@ -427,8 +427,11 @@ void UPCGSubsystem::CancelGeneration(UPCGComponent* Component)
 		DispatchToRegisteredLocalComponents(Component, LocalCancel);
 	}
 
-	GraphExecutor->Cancel(Component);
-	Component->OnProcessGraphAborted(/*bQuiet=*/true);
+	TArray<UPCGComponent*> CancelledComponents = GraphExecutor->Cancel(Component);
+	for (UPCGComponent* CancelledComponent : CancelledComponents)
+	{
+		CancelledComponent->OnProcessGraphAborted(/*bQuiet=*/true);
+	}	
 }
 
 void UPCGSubsystem::CancelGeneration(UPCGGraph* Graph)
@@ -441,9 +444,9 @@ void UPCGSubsystem::CancelGeneration(UPCGGraph* Graph)
 	}
 
 	TArray<UPCGComponent*> CancelledComponents = GraphExecutor->Cancel(Graph);
-	for (UPCGComponent* Component : CancelledComponents)
+	for (UPCGComponent* CancelledComponent : CancelledComponents)
 	{
-		Component->OnProcessGraphAborted(/*bQuiet=*/true);
+		CancelledComponent->OnProcessGraphAborted(/*bQuiet=*/true);
 	}
 }
 
@@ -1143,15 +1146,18 @@ namespace PCGSubsystem
 					SetPreviousTaskIfValid(SaveTaskId);
 				}
 
-				// Unload actors from cell (or the pcg actor refered here)
-				auto UnloadActorsTask = [GraphExecutor, ActorReferences]() {
-					GraphExecutor->AddToUnusedActors(*ActorReferences);
-					return true;
-				};
+				if (bLoadCell)
+				{
+					// Unload actors from cell (or the pcg actor refered here)
+					auto UnloadActorsTask = [GraphExecutor, ActorReferences]() {
+						GraphExecutor->AddToUnusedActors(*ActorReferences);
+						return true;
+					};
 
-				// Schedule after the save (if valid), then the execute so we can queue this after the load.
-				FPCGTaskId UnloadTaskId = GraphExecutor->ScheduleGeneric(UnloadActorsTask, nullptr, PreviousTasks);
-				SetPreviousTaskIfValid(UnloadTaskId);
+					// Schedule after the save (if valid), then the execute so we can queue this after the load.
+					FPCGTaskId UnloadTaskId = GraphExecutor->ScheduleGeneric(UnloadActorsTask, nullptr, PreviousTasks);
+					SetPreviousTaskIfValid(UnloadTaskId);
+				}
 
 				// Finally, mark "last" valid task in the cell tasks.
 				CellTasks.Append(PreviousTasks);

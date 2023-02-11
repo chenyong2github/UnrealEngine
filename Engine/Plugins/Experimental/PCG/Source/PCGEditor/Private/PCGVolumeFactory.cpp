@@ -37,6 +37,12 @@ void UPCGVolumeFactory::PostSpawnActor(UObject* Asset, AActor* NewActor)
 {
 	Super::PostSpawnActor(Asset, NewActor);
 
+	// Disable auto-refreshing on preview actors until we have something more robust on the execution side.
+	if (NewActor && NewActor->bIsEditorPreviewActor)
+	{
+		return;
+	}
+
 	if (UPCGGraph* PCGGraph = Cast<UPCGGraph>(Asset))
 	{
 		const UPCGEditorSettings* PCGEditorSettings = GetDefault<UPCGEditorSettings>();

@@ -45,12 +45,12 @@ int UPCGSplineData::GetNumSegments() const
 
 FVector::FReal UPCGSplineData::GetSegmentLength(int SegmentIndex) const
 {
-	return Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex + 1) - Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex);
+	return Spline ? Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex + 1) - Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) : 0;
 }
 
 FVector UPCGSplineData::GetLocationAtDistance(int SegmentIndex, FVector::FReal Distance, bool bWorldSpace) const
 {
-	return Spline->GetLocationAtDistanceAlongSpline(Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, bWorldSpace ? ESplineCoordinateSpace::World : ESplineCoordinateSpace::Local);
+	return Spline ? Spline->GetLocationAtDistanceAlongSpline(Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, bWorldSpace ? ESplineCoordinateSpace::World : ESplineCoordinateSpace::Local) : FVector::ZeroVector;
 }
 
 FTransform UPCGSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FReal Distance, bool bWorldSpace, FBox* OutBounds) const
@@ -60,11 +60,16 @@ FTransform UPCGSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FRe
 		*OutBounds = FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector);
 	}
 
-	return Spline->GetTransformAtDistanceAlongSpline(Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, bWorldSpace ? ESplineCoordinateSpace::World : ESplineCoordinateSpace::Local, /*bUseScale=*/true);
+	return Spline ? Spline->GetTransformAtDistanceAlongSpline(Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, bWorldSpace ? ESplineCoordinateSpace::World : ESplineCoordinateSpace::Local, /*bUseScale=*/true) : FTransform::Identity;
 }
 
 FVector::FReal UPCGSplineData::GetCurvatureAtDistance(int SegmentIndex, FVector::FReal Distance) const
 {
+	if (!Spline)
+	{
+		return 0;
+	}
+
 	const float FullDistance = Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance;
 	const float Param = Spline->SplineCurves.ReparamTable.Eval(FullDistance, 0.0f);
 
@@ -95,7 +100,10 @@ const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContext* Context) const
 
 	PCGSplineSampler::SampleLineData(this, this, nullptr, SamplerParams, Data);
 
-	UE_LOG(LogPCG, Verbose, TEXT("Spline %s generated %d points"), *Spline->GetFName().ToString(), Data->GetPoints().Num());
+	if (Spline)
+	{
+		UE_LOG(LogPCG, Verbose, TEXT("Spline %s generated %d points"), *Spline->GetFName().ToString(), Data->GetPoints().Num());
+	}
 
 	return Data;
 }
@@ -107,6 +115,11 @@ FBox UPCGSplineData::GetBounds() const
 
 bool UPCGSplineData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	if (!Spline)
+	{
+		return false;
+	}
+
 	// TODO: support metadata
 	// TODO: support proper bounds
 
@@ -172,11 +185,18 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 		return Super::SamplePoint(InTransform, InBounds, OutPoint, OutMetadata);
 	}
 
+	check(GetSpline());
+	if (!GetSpline()->Spline)
+	{
+		return false;
+	}
+
 	// Find nearest point on projected spline by lifting point along projection direction to closest position on spline. This way
 	// when we sample the spline we get a similar result to if the spline had been projected onto the surface.
 
 	const FVector InPosition = InTransform.GetLocation();
 	const USplineComponent* Spline = GetSpline()->Spline.Get();
+	check(GetSurface());
 	const FVector& SurfaceNormal = GetSurface()->GetNormal();
 
 	// Project to 2D space
@@ -225,6 +245,7 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 
 FVector2D UPCGSplineProjectionData::Project(const FVector& InVector) const
 {
+	check(GetSurface());
 	const FVector& SurfaceNormal = GetSurface()->GetNormal();
 	FVector Projection = InVector - InVector.ProjectOnToNormal(SurfaceNormal);
 
@@ -260,7 +281,10 @@ void UPCGSplineProjectionData::Initialize(const UPCGSplineData* InSourceSpline, 
 {
 	Super::Initialize(InSourceSpline, InTargetSurface, InParams);
 
+	check(GetSpline());
 	const USplineComponent* Spline = GetSpline()->Spline.Get();
+
+	check(GetSurface());
 	const FVector& SurfaceNormal = GetSurface()->GetNormal();
 
 	if (Spline)

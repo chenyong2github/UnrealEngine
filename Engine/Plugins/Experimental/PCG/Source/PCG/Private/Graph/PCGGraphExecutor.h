@@ -51,6 +51,8 @@ struct FPCGGraphScheduleTask
 {
 	TArray<FPCGGraphTask> Tasks;
 	TWeakObjectPtr<UPCGComponent> SourceComponent = nullptr;
+	int32 FirstTaskIndex = 0;
+	int32 LastTaskIndex = 0;
 };
 
 struct FPCGGraphActiveTask
@@ -58,6 +60,7 @@ struct FPCGGraphActiveTask
 	FPCGElementPtr Element;
 	TUniquePtr<FPCGContext> Context;
 	FPCGTaskId NodeId = InvalidPCGTaskId;
+	bool bWasCancelled = false;
 #if WITH_EDITOR
 	bool bIsBypassed = false;
 #endif
@@ -77,7 +80,7 @@ public:
 	FPCGTaskId Schedule(UPCGGraph* Graph, UPCGComponent* InSourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& TaskDependency);
 
 	/** Cancels all tasks originating from the given component */
-	void Cancel(UPCGComponent* InComponent);
+	TArray<UPCGComponent*> Cancel(UPCGComponent* InComponent);
 	
 	/** Cancels all tasks running a given graph */
 	TArray<UPCGComponent*> Cancel(UPCGGraph* InGraph);
@@ -128,10 +131,10 @@ public:
 	bool IsGraphCacheDebuggingEnabled() const { return GraphCache.IsDebuggingEnabled(); }
 
 private:
-	void Cancel(TFunctionRef<bool(TWeakObjectPtr<UPCGComponent>)> CancelFilter);
+	TSet<UPCGComponent*> Cancel(TFunctionRef<bool(TWeakObjectPtr<UPCGComponent>)> CancelFilter);
 	void ClearAllTasks();
 	void QueueNextTasks(FPCGTaskId FinishedTask);
-	void CancelNextTasks(FPCGTaskId CancelledTask);
+	bool CancelNextTasks(FPCGTaskId CancelledTask, TSet<UPCGComponent*>& OutCancelledComponents);
 	void BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollection& TaskInput);
 	/** Combine all param data into one on the Params pin, if any.*/
 	void CombineParams(FPCGTaskId InTaskId, FPCGDataCollection& InTaskInput);

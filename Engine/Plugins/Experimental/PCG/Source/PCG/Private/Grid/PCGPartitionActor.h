@@ -88,7 +88,7 @@ private:
 	UPCGSubsystem* GetSubsystem() const;
 
 	// Note: this map is not a property and not serialized since we will rebuild it from the LocalToOriginal
-	TMap<TSoftObjectPtr<UPCGComponent>, TObjectPtr<UPCGComponent>> OriginalToLocal;
+	TMap<TObjectPtr<UPCGComponent>, TObjectPtr<UPCGComponent>> OriginalToLocal;
 
 	UPROPERTY()
 	TMap<TObjectPtr<UPCGComponent>, TSoftObjectPtr<UPCGComponent>> LocalToOriginal;

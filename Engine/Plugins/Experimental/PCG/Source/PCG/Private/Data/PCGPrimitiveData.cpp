@@ -28,7 +28,7 @@ bool UPCGPrimitiveData::SamplePoint(const FTransform& InTransform, const FBox& I
 
 	const FVector BoxCenter = InTransform.TransformPosition(InBounds.GetCenter());
 
-	if (Primitive->OverlapComponent(BoxCenter, InTransform.GetRotation(), CollisionShape))
+	if (ensure(IsValid(Primitive.Get())) && Primitive->OverlapComponent(BoxCenter, InTransform.GetRotation(), CollisionShape))
 	{
 		OutPoint.Transform = InTransform;
 		OutPoint.SetLocalBounds(InBounds);
@@ -50,7 +50,7 @@ const UPCGPointData* UPCGPrimitiveData::CreatePointData(FPCGContext* Context) co
 
 	UPCGPointData* Data = PCGVolumeSampler::SampleVolume(Context, this, SamplerSettings);
 
-	if (Data)
+	if (Data && ensure(Primitive.Get()))
 	{
 		UE_LOG(LogPCG, Verbose, TEXT("Primitive %s extracted %d points"), *Primitive->GetFName().ToString(), Data->GetPoints().Num());
 	}

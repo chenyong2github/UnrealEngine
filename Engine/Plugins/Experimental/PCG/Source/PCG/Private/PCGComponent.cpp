@@ -518,6 +518,7 @@ void UPCGComponent::OnProcessGraphAborted(bool bQuiet)
 	CurrentCleanupTask = InvalidPCGTaskId; // this is needed to support cancellation
 
 #if WITH_EDITOR
+	CurrentRefreshTask = InvalidPCGTaskId;
 	bDirtyGenerated = false;
 #endif
 }
@@ -861,6 +862,14 @@ void UPCGComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+#if WITH_EDITOR
+	// Disable auto-refreshing on preview actors until we have something more robust on the execution side.
+	if (GetOwner() && GetOwner()->bIsEditorPreviewActor)
+	{
+		return;
+	}
+#endif
+
 	// First if it is partitioned, register itself to the PCGSubsystem, to map the component to all its corresponding PartitionActors
 	if (IsPartitioned() && GetSubsystem())
 	{
@@ -1073,6 +1082,12 @@ void UPCGComponent::OnRegister()
 	Super::OnRegister();
 
 #if WITH_EDITOR
+	// Disable auto-refreshing on preview actors until we have something more robust on the execution side.
+	if (GetOwner() && GetOwner()->bIsEditorPreviewActor)
+	{
+		return;
+	}
+
 	// We can't register to the subsystem in OnRegister if we are at runtime because
 	// the landscape can be not loaded yet.
 	// It will be done in BeginPlay at runtime.
@@ -1391,6 +1406,11 @@ bool UPCGComponent::ActorIsTracked(AActor* InActor) const
 
 void UPCGComponent::OnActorAdded(AActor* InActor)
 {
+	if (!InActor || InActor->bIsEditorPreviewActor)
+	{
+		return;
+	}
+
 	const bool bIsExcluded = UpdateExcludedActor(InActor);
 	const bool bIsTracked = AddTrackedActor(InActor);
 
@@ -1403,6 +1423,11 @@ void UPCGComponent::OnActorAdded(AActor* InActor)
 
 void UPCGComponent::OnActorDeleted(AActor* InActor)
 {
+	if (!InActor || InActor->bIsEditorPreviewActor)
+	{
+		return;
+	}
+
 	const bool bWasExcluded = UpdateExcludedActor(InActor);
 	const bool bWasTracked = RemoveTrackedActor(InActor);
 
@@ -1415,6 +1440,11 @@ void UPCGComponent::OnActorDeleted(AActor* InActor)
 
 void UPCGComponent::OnActorMoved(AActor* InActor)
 {
+	if (!InActor || InActor->bIsEditorPreviewActor)
+	{
+		return;
+	}
+
 	const bool bOwnerMoved = (InActor == GetOwner());
 	const bool bLandscapeMoved = (InActor && TrackedLandscapes.Contains(InActor));
 
@@ -1680,7 +1710,7 @@ void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag, const bool 
 
 	// For partitioned graph, we must forward the call to the partition actor, if we need to
 	// TODO: Don't forward for None for now, as it could break some stuff
-	if (DirtyFlag != EPCGComponentDirtyFlag::None && bActivated && IsPartitioned() && bDispatchToLocalComponents)
+	if (bActivated && IsPartitioned() && bDispatchToLocalComponents)
 	{
 		if (GetSubsystem())
 		{
