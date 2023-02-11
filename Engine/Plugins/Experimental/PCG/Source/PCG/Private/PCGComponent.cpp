@@ -939,6 +939,12 @@ void UPCGComponent::PostLoad()
 		ExclusionTags_DEPRECATED.Reset();
 	}
 
+	// Make sure that bPartitioned is false when it can't be true.
+	if (bIsPartitioned && !CanPartition())
+	{
+		bIsPartitioned = false;
+	}
+
 	/** Deprecation code, should be removed once generated data has been updated */
 	if (bGenerated && GeneratedResources.Num() == 0)
 	{
@@ -1039,6 +1045,24 @@ void UPCGComponent::PostInitProperties()
 #if WITH_EDITOR
 		GraphInstance->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 #endif // WITH_EDITOR
+	}
+
+	// Force bIsPartitioned at False for new objects
+	// We detect new object if they are not a default object/archetype and/or they do not need load.
+	// In some cases, were the component is a default sub object (like APCGVolume), it has no loading flags
+	// even if it is loading, we need to recurse until we find an owner that is not a default sub object.
+	bool bIsNewObject = false;
+	UObject* CurrentInspectedObject = this;
+	while (CurrentInspectedObject && CurrentInspectedObject->HasAnyFlags(RF_DefaultSubObject))
+	{
+		CurrentInspectedObject = CurrentInspectedObject->GetOuter();
+	}
+
+	bIsNewObject = CurrentInspectedObject && !CurrentInspectedObject->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject | RF_NeedLoad | RF_NeedPostLoad);
+
+	if (bIsNewObject)
+	{
+		bIsPartitioned = false;
 	}
 
 	Super::PostInitProperties();

@@ -175,7 +175,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	bool bActivated = true;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties, meta = (EditCondition = "!bIsComponentLocal"))
+	// Note that default value is now "False" for new objects. True is left for backcompatibility.
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties, meta = (EditCondition = "!bIsComponentLocal", Tooltip = "In WorldPartiion map, will partition the component in a grid, according to PCGWorldActor settings, dispatching the generation to multiple local components."))
 	bool bIsPartitioned = true;
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Properties, AdvancedDisplay, meta = (EditCondition = "!bIsComponentLocal", EditConditionHides))
