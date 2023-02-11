@@ -25,6 +25,8 @@ public:
 	/** Initializes internal state so the validation can be done */
 	void Initialize(FSourceControlChangelistPtr InChangelist);
 
+	static void GatherDependencies(const FName& InPackageName, TSet<FName>& OutDependencies);
+	static FString GetPrettyPackageName(const FName& InPackageName);
 public:
 	/** Changelist to validate */
 	FSourceControlChangelistPtr Changelist;

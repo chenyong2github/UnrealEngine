@@ -6,27 +6,11 @@
 #include "FileHelpers.h"
 #include "ISourceControlModule.h"
 #include "Misc/Paths.h"
+#include "Containers/Map.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DirtyFilesChangelistValidator)
 
 #define LOCTEXT_NAMESPACE "DirtyFilesChangelistValidation"
-
-FString UDirtyFilesChangelistValidator::GetPackagePath(const UPackage* InPackage)
-{
-	if (InPackage == nullptr)
-	{
-		return TEXT("");
-	}
-
-	const FString LocalFullPath(InPackage->GetLoadedPath().GetLocalFullPath());
-
-	if (LocalFullPath.IsEmpty())
-	{
-		return TEXT("");
-	}
-
-	return FPaths::ConvertRelativePathToFull(LocalFullPath);
-}
 
 bool UDirtyFilesChangelistValidator::CanValidateAsset_Implementation(UObject* InAsset) const
 {
@@ -51,23 +35,55 @@ EDataValidationResult UDirtyFilesChangelistValidator::ValidateLoadedAsset_Implem
 	
 	// Retrieve current unsaved packages
 	TArray<UPackage*> DirtyPackages;
-	TSet<FString> DirtyPackagesPath;
+	TMap<FString, const UPackage*> DirtyPackagesPath;
 	FEditorFileUtils::GetDirtyPackages(DirtyPackages, FEditorFileUtils::FShouldIgnorePackage::Default);
 
-	Algo::Transform(DirtyPackages, DirtyPackagesPath, UDirtyFilesChangelistValidator::GetPackagePath);
+	auto Predicate = [](const UPackage* InPackage) -> bool
+	{
+		if (InPackage == nullptr)
+		{
+			return false;
+		}
+		
+		const FString LocalFullPath(InPackage->GetLoadedPath().GetLocalFullPath());
+
+		if (LocalFullPath.IsEmpty())
+		{
+			return false;
+		}
+
+		return true;
+	};
+
+	auto Transform = [](const UPackage* InPackage) -> TTuple<FString, const UPackage*>
+	{
+		check(InPackage);
+		const FString LocalFullPath(InPackage->GetLoadedPath().GetLocalFullPath());
+		check(!LocalFullPath.IsEmpty());
+		
+		return TTuple<FString, const UPackage*>(FPaths::ConvertRelativePathToFull(LocalFullPath), InPackage);
+	};
+		
+	Algo::TransformIf(DirtyPackages, DirtyPackagesPath, Predicate, Transform);
 
 	// Check if any of changelist's files is unsaved
 	for (const FSourceControlStateRef& FileState : FileStates)
 	{
-		if (DirtyPackagesPath.Contains(FileState->GetFilename()))
+		if (const UPackage** PackagePtr = DirtyPackagesPath.Find(FileState->GetFilename()))
 		{
-			AssetFails(InAsset, LOCTEXT("DirtyFilesFound", "This changelist contains unsaved modifications. Please save to proceed."), ValidationErrors);
-			return EDataValidationResult::NotValidated;
+			const UPackage* Package = *PackagePtr;
+			check(Package);
+			FText CurrentError = FText::Format(LOCTEXT("DirtyFilesFound.Changelist.Error", "This changelist contains an unsaved asset {0}. Please save to proceed."), FText::FromString(UDataValidationChangelist::GetPrettyPackageName(Package->GetFName())));
+			AssetFails(InAsset, CurrentError, ValidationErrors);
 		}
 	}
 
-	AssetPasses(InAsset);
-	return EDataValidationResult::Valid;
+	if (GetValidationResult() != EDataValidationResult::Invalid)
+	{
+		AssetPasses(InAsset);
+	}
+
+	return GetValidationResult();
 }
 
 #undef LOCTEXT_NAMESPACE

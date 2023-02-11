@@ -16,7 +16,7 @@
 
 #define LOCTEXT_NAMESPACE "DataValidationChangelist"
 
-void GatherDependencies(const FName& InPackageName, TSet<FName>& OutDependencies)
+void UDataValidationChangelist::GatherDependencies(const FName& InPackageName, TSet<FName>& OutDependencies)
 {
 	OutDependencies.Add(InPackageName);
 
@@ -34,7 +34,7 @@ void GatherDependencies(const FName& InPackageName, TSet<FName>& OutDependencies
 	}
 }
 
-FString GetPrettyPackageName(const FName& InPackageName)
+FString UDataValidationChangelist::GetPrettyPackageName(const FName& InPackageName)
 {
 	TArray<FAssetData> Assets;
 	USourceControlHelpers::GetAssetDataFromPackage(InPackageName.ToString(), Assets);

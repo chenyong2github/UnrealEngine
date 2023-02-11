@@ -18,7 +18,4 @@ class DATAVALIDATION_API UDirtyFilesChangelistValidator : public UEditorValidato
 protected:
 	virtual bool CanValidateAsset_Implementation(UObject* InAsset) const override;
 	virtual EDataValidationResult ValidateLoadedAsset_Implementation(UObject* InAsset, TArray<FText>& ValidationErrors) override;
-
-private:
-	FString static GetPackagePath(const UPackage* InPackage);
 };
