@@ -19,8 +19,8 @@
 #include "UObject/ConstructorHelpers.h"
 
 // FScreenPassTextureViewportParameters and FScreenPassTextureInput
-#include "Runtime/Renderer/Private/ScreenPass.h"
-#include "Runtime/Renderer/Private/SceneTextureParameters.h"
+#include "ScreenPass.h"
+#include "SceneTexturesConfig.h"
 
 
 
