@@ -86,8 +86,6 @@ FGeometryCollectionProximityPropertiesInterface::GetProximityProperties() const
 void
 FGeometryCollectionProximityPropertiesInterface::SetProximityProperties(const FProximityProperties& InProximityAttributes)
 {
-	FProximityProperties Property;
-
 	int32 AttributeIndex = 0;
 	const bool bHasProximityProperties = ManagedCollection->NumElements(ProximityPropertiesGroup) > 0;
 	if (!bHasProximityProperties)

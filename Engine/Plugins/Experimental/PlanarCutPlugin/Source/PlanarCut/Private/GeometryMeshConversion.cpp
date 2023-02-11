@@ -73,6 +73,7 @@ namespace AugmentedDynamicMesh
 	FName TangentUAttribName = "TangentUAttrib";
 	FName TangentVAttribName = "TangentVAttrib";
 	FName VisibleAttribName = "VisibleAttrib";
+	FName InternalAttribName = "InternalAttrib";
 	enum
 	{
 		MAX_NUM_UV_CHANNELS = 8,
@@ -139,6 +140,10 @@ namespace AugmentedDynamicMesh
 		TDynamicMeshScalarTriangleAttribute<bool>* VisAttrib = new TDynamicMeshScalarTriangleAttribute<bool>(&Mesh);
 		VisAttrib->Initialize(true);
 		Mesh.Attributes()->AttachAttribute(VisibleAttribName, VisAttrib);
+		TDynamicMeshScalarTriangleAttribute<bool>* InternalAttrib = new TDynamicMeshScalarTriangleAttribute<bool>(&Mesh);
+		InternalAttrib->Initialize(true);
+		Mesh.Attributes()->AttachAttribute(InternalAttribName, InternalAttrib);
+
 		EnableUVChannels(Mesh, NumUVChannels);
 	}
 
@@ -192,6 +197,22 @@ namespace AugmentedDynamicMesh
 		const TDynamicMeshScalarTriangleAttribute<bool>* Visible =
 			static_cast<const TDynamicMeshScalarTriangleAttribute<bool>*>(Mesh.Attributes()->GetAttachedAttribute(VisibleAttribName));
 		return Visible->GetValue(TID);
+	}
+
+	void SetInternal(FDynamicMesh3& Mesh, int TID, bool bIsInternal)
+	{
+		checkSlow(IsAugmented(Mesh));
+		TDynamicMeshScalarTriangleAttribute<bool>* Internal = 
+			static_cast<TDynamicMeshScalarTriangleAttribute<bool>*>(Mesh.Attributes()->GetAttachedAttribute(InternalAttribName));
+		Internal->SetValue(TID, bIsInternal);
+	}
+
+	bool GetInternal(const FDynamicMesh3& Mesh, int TID)
+	{
+		checkSlow(IsAugmented(Mesh));
+		TDynamicMeshScalarTriangleAttribute<bool>* Internal =
+			static_cast<TDynamicMeshScalarTriangleAttribute<bool>*>(Mesh.Attributes()->GetAttachedAttribute(InternalAttribName));
+		return Internal->GetValue(TID);
 	}
 
 	void SetUV(FDynamicMesh3& Mesh, int VID, FVector2f UV, int UVLayer)
@@ -465,7 +486,7 @@ namespace AugmentedDynamicMesh
 		}
 	}
 
-	void ComputeTangents(FDynamicMesh3& Mesh, bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials,
+	void ComputeTangents(FDynamicMesh3& Mesh, bool bOnlyInternalSurfaces, 
 		bool bRecomputeNormals, bool bMakeSharpEdges, float SharpAngleDegrees)
 	{
 		bMakeSharpEdges = bMakeSharpEdges && bRecomputeNormals; // cannot make sharp edges if normals aren't supposed to change
@@ -479,12 +500,12 @@ namespace AugmentedDynamicMesh
 		int32 NeedNumUVLayers = bMakeSharpEdges ? NumEnabledUVChannels(Mesh) : 1;
 		InitializeOverlayToPerVertexUVs(Mesh, NeedNumUVLayers, 0);
 		FDynamicMeshUVOverlay* UVs = Mesh.Attributes()->PrimaryUV();
-		FDynamicMeshMaterialAttribute* MaterialIDs = Mesh.Attributes()->GetMaterialID();
+		TDynamicMeshScalarTriangleAttribute<bool>* InternalAttrib =
+			static_cast<TDynamicMeshScalarTriangleAttribute<bool>*>(Mesh.Attributes()->GetAttachedAttribute(AugmentedDynamicMesh::InternalAttribName));
 
-		auto ShouldUpdateMID = [bOnlyOddMaterials, &WhichMaterials](int MaterialID)
+		auto ShouldUpdateInternal = [&InternalAttrib, bOnlyInternalSurfaces](int TID)
 		{
-			bool bSkipEvenMaterial = bOnlyOddMaterials && ((MaterialID % 2) == 0);
-			return !bSkipEvenMaterial && (WhichMaterials.IsEmpty() || WhichMaterials.Contains(MaterialID));
+			return !bOnlyInternalSurfaces || InternalAttrib->GetValue(TID);
 		};
 
 		// To update the normals topology, we need to weld and re-split the whole mesh
@@ -504,12 +525,12 @@ namespace AugmentedDynamicMesh
 			FMeshNormals FaceNormals(&Mesh);
 			FaceNormals.ComputeTriangleNormals();
 			Normals->CreateFromPredicate([&](int VID, int TA, int TB) {
-				int MA = MaterialIDs->GetValue(TA), MB = MaterialIDs->GetValue(TB);
-				if ((MA % 2) != (MB % 2))
+				bool IA = InternalAttrib->GetValue(TA), IB = InternalAttrib->GetValue(TB);
+				if (IA != IB)
 				{
 					return false; // always split at an internal/external face boundary
 				}
-				bool bShouldUpdateTopo = ShouldUpdateMID(MA) && ShouldUpdateMID(MB);
+				bool bShouldUpdateTopo = !bOnlyInternalSurfaces || (IA && IB);
 				if (bShouldUpdateTopo) // in the region we're updating, don't split above dot threshold
 				{
 					return FaceNormals[TA].Dot(FaceNormals[TB]) > NormalDotProdThreshold;
@@ -526,7 +547,7 @@ namespace AugmentedDynamicMesh
 			for (int TID : Mesh.TriangleIndicesItr())
 			{
 				FIndex3i OverlayTri = Normals->GetTriangle(TID);
-				if (ShouldUpdateMID(MaterialIDs->GetValue(TID)))
+				if (ShouldUpdateInternal(TID))
 				{
 					for (int SubIdx = 0; SubIdx < 3; SubIdx++)
 					{
@@ -562,7 +583,7 @@ namespace AugmentedDynamicMesh
 		const TArray<FVector3f>& TanV = Tangents.GetBitangents();
 		for (int TID : Mesh.TriangleIndicesItr())
 		{
-			if (!ShouldUpdateMID(MaterialIDs->GetValue(TID)))
+			if (!ShouldUpdateInternal(TID))
 			{
 				continue;
 			}
@@ -1158,6 +1179,7 @@ namespace AugmentedDynamicMesh
 				{
 					MaterialIDs->SetValue(TID, HoleMaterial);
 					SetVisibility(Mesh, TID, true);
+					SetInternal(Mesh, TID, true);
 				}
 			}
 		}
@@ -2558,6 +2580,7 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 			}
 			Mesh.Attributes()->GetMaterialID()->SetValue(TID, Collection->MaterialID[Idx]);
 			AugmentedDynamicMesh::SetVisibility(Mesh, TID, Collection->Visible[Idx]);
+			AugmentedDynamicMesh::SetInternal(Mesh, TID, Collection->Internal[Idx]);
 			// note: material index doesn't need to be passed through; will be rebuilt by a call to reindex materials once the cut mesh is returned back to geometry collection format
 		}
 
@@ -3264,6 +3287,8 @@ bool FDynamicMeshCollection::UpdateCollection(const FTransform& FromCollection, 
 		int32 CopyToIdx = FacesStart + TID;
 		Output.Visible[CopyToIdx] = AugmentedDynamicMesh::GetVisibility(Mesh, TID);
 		int MaterialID = Mesh.Attributes()->GetMaterialID()->GetValue(TID);
+		// negative material IDs are, by convention, indications of new (internal) geometry, positive are copied through
+		Output.Internal[CopyToIdx] = MaterialID < 0 ? true : AugmentedDynamicMesh::GetInternal(Mesh, TID);
 		Output.MaterialID[CopyToIdx] = MaterialID < 0 ? InternalMaterialID : MaterialID;
 		Output.Indices[CopyToIdx] = FIntVector(Mesh.GetTriangle(TID)) + VertexStartOffset;
 	}
@@ -3368,6 +3393,8 @@ int32 FDynamicMeshCollection::AppendToCollection(const FTransform& FromCollectio
 		int32 CopyToIdx = FacesStart + TID;
 		Output.Visible[CopyToIdx] = AugmentedDynamicMesh::GetVisibility(Mesh, TID);
 		int MaterialID = Mesh.Attributes()->GetMaterialID()->GetValue(TID);
+		// negative material IDs are, by convention, indications of new (internal) geometry, positive are copied through
+		Output.Internal[CopyToIdx] = MaterialID < 0 ? true : AugmentedDynamicMesh::GetInternal(Mesh, TID);
 		Output.MaterialID[CopyToIdx] = MaterialID < 0 ? InternalMaterialID : MaterialID;
 		Output.Indices[CopyToIdx] = FIntVector(Mesh.GetTriangle(TID)) + VertexStartOffset;
 	}

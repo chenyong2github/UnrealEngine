@@ -494,7 +494,7 @@ void UGeometryCollection::ReindexMaterialSections()
 	InvalidateCollection();
 }
 
-void UGeometryCollection::InitializeMaterials(bool bHasInternalMaterials)
+void UGeometryCollection::InitializeMaterials(bool bHasLegacyInternalMaterialsPairs)
 {
 	Modify();
 
@@ -516,7 +516,7 @@ void UGeometryCollection::InitializeMaterials(bool bHasInternalMaterials)
 	}
 
 	TArray<UMaterialInterface*> FinalMaterials;
-	if (bHasInternalMaterials)
+	if (bHasLegacyInternalMaterialsPairs)
 	{
 		// We're assuming that all materials are arranged in pairs, so first we collect these.
 		using FMaterialPair = TPair<UMaterialInterface*, UMaterialInterface*>;
@@ -611,7 +611,32 @@ void UGeometryCollection::InitializeMaterials(bool bHasInternalMaterials)
 	InvalidateCollection();
 }
 
+int32 UGeometryCollection::AddNewMaterialSlot(bool bCopyLastMaterial)
+{
+	Modify();
+	int32 NewIdx = Materials.Emplace();
+	if (NewIdx > 0 && bCopyLastMaterial)
+	{
+		Materials[NewIdx] = Materials[NewIdx - 1];
+	}
 
+	InvalidateCollection();
+
+	return NewIdx;
+}
+
+bool UGeometryCollection::RemoveLastMaterialSlot()
+{
+	if (Materials.Num() > 1)
+	{
+		Modify();
+		Materials.Pop();
+		InvalidateCollection();
+		return true;
+	}
+
+	return false;
+}
 
 /** Returns true if there is anything to render */
 bool UGeometryCollection::HasVisibleGeometry() const

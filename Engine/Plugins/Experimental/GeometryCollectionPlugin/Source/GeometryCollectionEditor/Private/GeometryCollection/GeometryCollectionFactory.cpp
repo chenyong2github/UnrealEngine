@@ -170,8 +170,8 @@ UObject* UGeometryCollectionFactory::FactoryCreateNew(UClass* Class, UObject* In
 		NewGeometryCollection->AppendGeometry(*GeometryCollectionData.Get<0>(), false, GeometryCollectionData.Get<2>());
 	}
 
-	// Add internal material and selection material
-	NewGeometryCollection->InitializeMaterials();
+	// De-duplicate materials and add selection material
+	NewGeometryCollection->InitializeMaterials(false);
 	GeometryCollectionAlgo::PrepareForSimulation(NewGeometryCollection->GetGeometryCollection().Get());
 
 	// Initial pivot : 

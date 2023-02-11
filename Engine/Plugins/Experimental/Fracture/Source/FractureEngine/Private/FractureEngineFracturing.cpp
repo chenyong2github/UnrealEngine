@@ -248,13 +248,6 @@ void FFractureEngineFracturing::VoronoiFracture(FManagedArrayCollection& InOutCo
 				
 				int ResultGeometryIndex = CutMultipleWithPlanarCells(VoronoiPlanarCells, *GeomCollection, TransformSelectionArr, InGrout, InCollisionSampleSpacing, InRandomSeed, FTransform().Identity);
 
-				{
-					// Add FacesGroup::Internal<bool> attribute to tag the newly created inside faces
-					const TManagedArray<int32>& MaterialIDs = GeomCollection->GetAttribute<int32>("MaterialID", FGeometryCollection::FacesGroup);
-
-					GeometryCollection::Facades::FCollectionMeshFacade::AddInternalAttribute(*GeomCollection, MaterialIDs.GetConstArray());
-				}
-
 				InOutCollection = (const FManagedArrayCollection&)(*GeomCollection);
 			}
 		}
@@ -321,13 +314,6 @@ void FFractureEngineFracturing::PlaneCutter(FManagedArrayCollection& InOutCollec
 		TArray<int32> TransformSelectionArr = InTransformSelection.AsArray();
 
 		int ResultGeometryIndex = CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *GeomCollection, TransformSelectionArr, GroutVal, CollisionSampleSpacingVal, InRandomSeed, FTransform().Identity);
-
-		{
-			// Add FacesGroup::Internal<bool> attribute to tag the newly created inside faces
-			const TManagedArray<int32>& MaterialIDs = GeomCollection->GetAttribute<int32>("MaterialID", FGeometryCollection::FacesGroup);
-
-			GeometryCollection::Facades::FCollectionMeshFacade::AddInternalAttribute(*GeomCollection, MaterialIDs.GetConstArray());
-		}
 
 		InOutCollection = (const FManagedArrayCollection&)(*GeomCollection);
 	}

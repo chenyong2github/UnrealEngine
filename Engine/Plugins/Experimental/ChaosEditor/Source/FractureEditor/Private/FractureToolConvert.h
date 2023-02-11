@@ -42,6 +42,22 @@ public:
 	bool bSelectNewActors = false;
 };
 
+/** Settings related to geometry collection -> static mesh conversion **/
+UCLASS(config = EditorPerProjectUserSettings)
+class UFractureReimportSettings : public UFractureToolSettings
+{
+public:
+	GENERATED_BODY()
+
+	// If checked, materials will be updated on export to ensure that odd-numbered material IDs correspond to internal faces, and this will be used on re-import to assign correct material IDs
+	UPROPERTY(EditAnywhere, Category = ReimportSettings)
+	bool bOddMaterialsAreInternal = true;
+
+	// TODO: Move the "re-import ToMesh output" path from out of the Generate/New UI an into this tool.  (Or provide alternate tooling and deprecate the need for this path.)
+	// Reimport a static mesh to the currently-selected geometry collection, or to a new geometry collection if none is selected.
+	//UFUNCTION(CallInEditor, Category = ReimportSettings, meta = (DisplayName = "Reimport to Selected"))
+	//void ReimportToSelected();
+};
 
 UCLASS(DisplayName = "Convert Tool", Category = "FractureTools")
 class UFractureToolConvert : public UFractureModalTool
@@ -83,4 +99,7 @@ public:
 protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFractureConvertSettings> ConvertSettings;
+
+	UPROPERTY(EditAnywhere, Category = Slicing)
+	TObjectPtr<UFractureReimportSettings> ReimportSettings;
 };

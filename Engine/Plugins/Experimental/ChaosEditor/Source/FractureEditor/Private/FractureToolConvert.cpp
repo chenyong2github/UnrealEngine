@@ -39,6 +39,8 @@ UFractureToolConvert::UFractureToolConvert(const FObjectInitializer& ObjInit)
 {
 	ConvertSettings = NewObject<UFractureConvertSettings>(GetTransientPackage(), UFractureConvertSettings::StaticClass());
 	ConvertSettings->OwnerTool = this;
+	ReimportSettings = NewObject<UFractureReimportSettings>(GetTransientPackage(), UFractureReimportSettings::StaticClass());
+	ReimportSettings->OwnerTool = this;
 }
 
 bool UFractureToolConvert::CanExecute() const
@@ -76,6 +78,7 @@ TArray<UObject*> UFractureToolConvert::GetSettingsObjects() const
 {
 	TArray<UObject*> Settings;
 	Settings.Add(ConvertSettings);
+	Settings.Add(ReimportSettings);
 	return Settings;
 }
 
@@ -139,7 +142,7 @@ namespace FractureToolConvertInternal
 // Create + position a single static mesh asset in the provided asset package
 void CreateMeshAsset(
 	FGeometryCollection& Collection, const TManagedArray<FTransform>& BoneTransforms, const FTransform& CollectionToWorld, const TConstArrayView<UMaterialInterface*>& Materials,
-	TConstArrayView<int32> Bones, UPackage* AssetPackage, FString UniqueAssetName, bool bCenterPivot, bool bPlaceInWorld, bool bSelectNewActors)
+	TConstArrayView<int32> Bones, UPackage* AssetPackage, FString UniqueAssetName, bool bCenterPivot, bool bPlaceInWorld, bool bSelectNewActors, bool bOddMaterialsAreInternal)
 {
 	// create new UStaticMesh object
 	EObjectFlags Flags = EObjectFlags::RF_Public | EObjectFlags::RF_Standalone;
@@ -157,9 +160,17 @@ void CreateMeshAsset(
 	NewStaticMesh->CreateBodySetup();
 	NewStaticMesh->GetBodySetup()->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
 
+	TFunction<int32(int32, bool)> RemapMaterialIDs = nullptr;
+	if (bOddMaterialsAreInternal)
+	{
+		RemapMaterialIDs = [](int32 InMatID, bool bIsInternal)
+		{
+			return InMatID * 2 + (int32)bIsInternal;
+		};
+	}
 
 	FTransform BonesToCollection;
-	ConvertToMeshDescription(*OutputMeshDescription, BonesToCollection, bCenterPivot, Collection, BoneTransforms, Bones);
+	ConvertToMeshDescription(*OutputMeshDescription, BonesToCollection, bCenterPivot, Collection, BoneTransforms, Bones, RemapMaterialIDs);
 
 	// add a material slot. Must always have one material slot.
 	int AddMaterialCount = FMath::Max(1, Materials.Num());
@@ -217,7 +228,8 @@ void CreateMeshAsset(
 bool ConvertAndSaveMeshes(
 	FGeometryCollection& Collection, const TManagedArray<FTransform>& BoneTransforms, const FTransform& CollectionToWorld,
 	const TConstArrayView<UMaterialInterface*>& Materials, TConstArrayView<int32> Bones, FString ObjectBaseName, 
-	const UObject* RelativeToAsset, bool bPromptToSave, bool bSaveCombined, bool bCenterPivots, bool bPlaceInWorld, bool bSelectNewActors)
+	const UObject* RelativeToAsset, bool bPromptToSave, bool bSaveCombined, bool bCenterPivots, bool bPlaceInWorld,
+	bool bSelectNewActors, bool bOddMaterialsAreInternal)
 {
 	check(RelativeToAsset);
 
@@ -280,7 +292,7 @@ bool ConvertAndSaveMeshes(
 		FString UniqueAssetName;
 		UPackage* AssetPackage = MakeUniquePackage(ObjectBaseName, UniqueAssetName);
 		SavePackage.Add(AssetPackage);
-		CreateMeshAsset(Collection, BoneTransforms, CollectionToWorld, Materials, Bones, AssetPackage, UniqueAssetName, bCenterPivots, bPlaceInWorld, bSelectNewActors);
+		CreateMeshAsset(Collection, BoneTransforms, CollectionToWorld, Materials, Bones, AssetPackage, UniqueAssetName, bCenterPivots, bPlaceInWorld, bSelectNewActors, bOddMaterialsAreInternal);
 	}
 	else
 	{
@@ -298,7 +310,7 @@ bool ConvertAndSaveMeshes(
 
 			TArrayView<const int32> SingleBoneView(&UseBone, 1);
 
-			CreateMeshAsset(Collection, BoneTransforms, CollectionToWorld, Materials, SingleBoneView, AssetPackage, UniqueAssetName, bCenterPivots, bPlaceInWorld, bSelectNewActors);
+			CreateMeshAsset(Collection, BoneTransforms, CollectionToWorld, Materials, SingleBoneView, AssetPackage, UniqueAssetName, bCenterPivots, bPlaceInWorld, bSelectNewActors, bOddMaterialsAreInternal);
 		}
 	}
 
@@ -357,12 +369,25 @@ int32 UFractureToolConvert::ExecuteFracture(const FFractureToolContext& Fracture
 			}
 		}
 
+		// If we need odd materials as internal, naively duplicate materials
+		// Note: We could do this in a smarter pattern based to minimize material slots, but at the cost of having a less predictable / more confusing result
+		if (ReimportSettings->bOddMaterialsAreInternal)
+		{
+			int32 RealMaterialNum = Materials.Num();
+			Materials.SetNum(RealMaterialNum * 2);
+			for (int32 MaterialIndex = RealMaterialNum - 1; MaterialIndex >= 0; --MaterialIndex)
+			{
+				Materials[MaterialIndex * 2 + 1] = Materials[MaterialIndex];
+				Materials[MaterialIndex * 2] = Materials[MaterialIndex];
+			}
+		}
+
 		// choose default mesh name based on corresponding geometry collection name
 		FString BaseName = FString::Printf(TEXT("%s_SM"), *FractureContext.GetFracturedGeometryCollection()->GetName());
 		
 		UE::FractureToolConvertInternal::ConvertAndSaveMeshes(Collection, BoneTransforms, FractureContext.GetTransform(), Materials,
 			FractureContext.GetSelection(), BaseName, FractureContext.GetFracturedGeometryCollection(), 
-			ConvertSettings->bPromptForBaseName, !ConvertSettings->bPerBone, ConvertSettings->bCenterPivots, ConvertSettings->bPlaceInWorld, ConvertSettings->bSelectNewActors);
+			ConvertSettings->bPromptForBaseName, !ConvertSettings->bPerBone, ConvertSettings->bCenterPivots, ConvertSettings->bPlaceInWorld, ConvertSettings->bSelectNewActors, ReimportSettings->bOddMaterialsAreInternal);
 	}
 
 	return INDEX_NONE;

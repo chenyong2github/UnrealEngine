@@ -265,6 +265,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Change HLODActors to RuntimeCells mapping to use a GUID instead of the cell name
 		WorldPartitionHLODActorUseSourceCellGuid,
 
+		// Add an attribute to geometry collection to track internal faces, rather than relying on material ID numbering
+		ChaosGeometryCollectionInternalFacesAttribute,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -424,7 +424,7 @@ void PLANARCUT_API MergeAllSelectedBones(
  * @param WhichMaterials	If non-empty, restrict recomputation to only the listed material IDs
  */
 void PLANARCUT_API RecomputeNormalsAndTangents(bool bOnlyTangents, bool bMakeSharpEdges, float SharpAngleDegrees, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices = TArrayView<const int32>(),
-	bool bOnlyOddMaterials = true, const TArrayView<const int32>& WhichMaterials = TArrayView<const int32>());
+	bool bOnlyInternalSurfaces = true);
 /**
  * Scatter additional vertices (w/ no associated triangle) as needed to satisfy minimum point spacing
  * 
@@ -498,6 +498,7 @@ inline int32 CutWithMesh(
  * @param bCenterPivot				Whether to center the geometry at the origin
  * @param Collection				The collection to be converted
  * @param TransformIndices			Which transform groups inside the collection to convert
+ * @param RemapMaterialIDs			Optional function to remap (MaterialID, bIsInternal) -> NewMaterialID
  */
 void PLANARCUT_API ConvertToMeshDescription(
 	FMeshDescription& OutputMesh,
@@ -505,7 +506,8 @@ void PLANARCUT_API ConvertToMeshDescription(
 	bool bCenterPivot,
 	FGeometryCollection& Collection,
 	const TManagedArray<FTransform>& BoneTransforms,
-	const TArrayView<const int32>& TransformIndices
+	const TArrayView<const int32>& TransformIndices,
+	TFunction<int32(int32, bool)> RemapMaterialIDs = nullptr
 );
 
 

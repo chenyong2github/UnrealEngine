@@ -43,11 +43,6 @@ namespace GeometryCollection::Facades
 		const TArray<int32> GetFaceIndices(int32 BoneIdx) const;
 
 		/**
-		 * Adds and sets "Internal" attribute in FGeometryCollection::FacesGroup to designate internal faces
-		 */
-		static void AddInternalAttribute(FGeometryCollection& InGeometryCollection, const TArray<int32>& InMaterialID);
-
-		/**
 		 * Returns the vertex indices of the face for the bone
 		 */
 //		const TArrayView<FIntVector> GetFaceVertexIndices(int32 BoneIdx) const;
@@ -70,6 +65,7 @@ namespace GeometryCollection::Facades
 		TManagedArrayAccessor<bool> VisibleAttribute;
 		TManagedArrayAccessor<int32> MaterialIndexAttribute;
 		TManagedArrayAccessor<int32> MaterialIDAttribute;
+		TManagedArrayAccessor<bool> InternalAttribute;
 		TManagedArrayAccessor<int32> FaceStartAttribute;
 		TManagedArrayAccessor<int32> FaceCountAttribute;
 	};

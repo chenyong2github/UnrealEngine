@@ -38,16 +38,18 @@ enum class ETextureType
 };
 
 UENUM()
-enum class ETargetMaterialIDs
+enum class ETargetFaces
 {
-	// Target faces with odd-numbered material IDs (corresponding to internal fracture faces)
-	OddIDs,
-	// Target faces with material IDs matching a custom list, as well as those with odd-numbered IDs (corresponding to internal fracture faces)
-	OddAndSelectedIDs,
+	// Target internal faces
+	InternalFaces,
+	// Target internal faces and those with material IDs matching a custom list
+	InternalFacesAndSelectedMaterialIDs,
 	// Target faces with material IDs matching a custom list
-	SelectedIDs,
+	SelectedMaterialIDs,
+	// Target external faces
+	ExternalFaces,
 	// Target all faces
-	AllIDs
+	AllFaces
 };
 
 /** Settings for UV layout and texture baking on the geometry collection **/
@@ -132,12 +134,12 @@ public:
 	UFUNCTION(CallInEditor, Category = Unwrap, meta = (DisplayName = "Box Project UVs"))
 	void BoxProjectUVs();
 
-	/** Choose whether to texture only faces with odd material IDs (corresponding to internal faces) or a custom selection */
+	/** Choose whether to target internal faces, or a custom selection */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
-	ETargetMaterialIDs TargetMaterialIDs;
+	ETargetFaces TargetFaces;
 
 	/** Custom selection of material IDs to target for texturing */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (EditCondition = "TargetMaterialIDs != ETargetMaterialIDs::OddIDs && TargetMaterialIDs != ETargetMaterialIDs::AllIDs", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (EditCondition = "TargetFaces != ETargetFaces::InternalFaces && TargetFaces != ETargetFaces::AllFaces && TargetFaces != ETargetFaces::ExternalFaces", EditConditionHides))
 	TArray<int32> MaterialIDs;
 
 	/** The pixel resolution of the generated map */

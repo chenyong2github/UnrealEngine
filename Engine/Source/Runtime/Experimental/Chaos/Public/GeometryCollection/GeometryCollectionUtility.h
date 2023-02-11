@@ -45,6 +45,7 @@ namespace GeometryCollection
 		TManagedArray<bool>& Visible = RestCollection->Visible;
 		TManagedArray<int32>& MaterialIndex = RestCollection->MaterialIndex;
 		TManagedArray<int32>& MaterialID = RestCollection->MaterialID;
+		TManagedArray<bool>& Internal = RestCollection->Internal;
 		TManagedArray<FTransform>& Transform = RestCollection->Transform;
 		TManagedArray<int32>& SimulationType = RestCollection->SimulationType;
 
@@ -73,6 +74,7 @@ namespace GeometryCollection
 			Indices[Idx] = FIntVector(Tri[0], Tri[1], Tri[2]);
 
 			Visible[Idx] = true;
+			Internal[Idx] = false;
 			MaterialIndex[Idx] = Idx;
 			MaterialID[Idx] = Idx / NumberOfEachMaterial;
 

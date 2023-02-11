@@ -88,7 +88,7 @@ public:
 	SLATE_ARGUMENT(FText, DefaultNameOverride)
 
 	SLATE_ARGUMENT(bool, bSplitIslands)
-	SLATE_ARGUMENT(bool, bAddInternalMaterials)
+	SLATE_ARGUMENT(bool, bReimportToMeshOutput)
 
 	/** Action to perform when create clicked */
 	SLATE_EVENT(FOnPathChosen, OnCreateAssetAction)
@@ -143,8 +143,8 @@ private:
 	/** Whether to split out each connected components into separate geometry */
 	bool bSplitIslands = false;
 
-	/** Whether to duplicate materials to create internal materials when creating from a static mesh */
-	bool bAddInternalMaterials = true;
+	/** Whether static mesh inputs were created by the 'ToMesh' tool in Fracture Mode */
+	bool bFromToMeshTool = false;
 
 	/** Filename textbox widget */
 	TSharedPtr<SEditableTextBox> FileNameWidget;
@@ -274,8 +274,8 @@ void SCreateGeometryCollectionFromObject::Construct(const FArguments& InArgs, TS
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("AddInternalsLabel", "Add Internal Materials"))
-						.ToolTipText(LOCTEXT("InternalMatsToolTip", "If checked, static mesh materials will be duplicated to create materials for internal surfaces. Does not apply if creating from a Geometry Collection source."))
+						.Text(LOCTEXT("ReimportToMeshLabel", "Reimport From 'ToMesh'"))
+						.ToolTipText(LOCTEXT("FromToMeshToolTip", "Only check for meshes that were created by the ToMesh tool in Fracture Mode. Does not apply if creating from a Geometry Collection source."))
 					]
 
 				+ SHorizontalBox::Slot()
@@ -284,7 +284,7 @@ void SCreateGeometryCollectionFromObject::Construct(const FArguments& InArgs, TS
 						SNew(SCheckBox)
 						.IsChecked_Lambda([this]()->ECheckBoxState
 							{
-								return bAddInternalMaterials ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+								return bFromToMeshTool ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 							})
 						.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState)
 							{
@@ -292,9 +292,9 @@ void SCreateGeometryCollectionFromObject::Construct(const FArguments& InArgs, TS
 								{
 									return;
 								}
-								bAddInternalMaterials = NewState == ECheckBoxState::Checked;
+								bFromToMeshTool = NewState == ECheckBoxState::Checked;
 							})
-						.ToolTipText(LOCTEXT("InternalMatsToolTip", "If checked, static mesh materials will be duplicated to create materials for internal surfaces. Does not apply if creating from a Geometry Collection source."))
+						.ToolTipText(LOCTEXT("FromToMeshToolTip", "Only check for meshes that were created by the ToMesh tool in Fracture Mode. Does not apply if creating from a Geometry Collection source."))
 					]
 				]
 				+ SVerticalBox::Slot()
@@ -326,7 +326,7 @@ void SCreateGeometryCollectionFromObject::Construct(const FArguments& InArgs, TS
 							}
 							bSplitIslands = NewState == ECheckBoxState::Checked;
 						})
-						.ToolTipText(LOCTEXT("SplitComponentsToolTip", "If checked, triangles that are not topologically connected will be assigned separate bones on import."))
+						.ToolTipText(LOCTEXT("SplitComponentsToolTip", "If checked, triangles that are not topologically connected will be assigned separate bones on import. Does not apply if creating from a Geometry Collection source."))
 					]
 				]
 			]
@@ -375,7 +375,7 @@ void SCreateGeometryCollectionFromObject::RequestDestroyParentWindow()
 FReply SCreateGeometryCollectionFromObject::OnCreateAssetFromActorClicked()
 {
 	RequestDestroyParentWindow();
-	OnCreateAssetAction.ExecuteIfBound(AssetPath / FileNameWidget->GetText().ToString(), bAddInternalMaterials, bSplitIslands);
+	OnCreateAssetAction.ExecuteIfBound(AssetPath / FileNameWidget->GetText().ToString(), bFromToMeshTool, bSplitIslands);
 	return FReply::Handled();
 }
 
@@ -529,7 +529,7 @@ void UFractureToolGenerateAsset::OpenGenerateAssetDialog(TArray<AActor*>& Actors
 
 }
 
-void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAssetPath, bool bAddInternalMaterials, bool bSplitComponents, TArray<AActor*> Actors)
+void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAssetPath, bool bFromToMeshTool, bool bSplitComponents, TArray<AActor*> Actors)
 {	
 	FScopedTransaction Transaction(LOCTEXT("GenerateAsset", "Generate Geometry Collection Asset"));
 
@@ -548,7 +548,7 @@ void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAsse
 
 		AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(FirstActor);
 		
-		GeometryCollectionActor = ConvertActorsToGeometryCollection(InAssetPath, bAddInternalMaterials, bSplitComponents, Actors);
+		GeometryCollectionActor = ConvertActorsToGeometryCollection(InAssetPath, false/*bAddInternalMaterials*/, bSplitComponents, Actors, bFromToMeshTool);
 
 		GeometryCollectionComponent = GeometryCollectionActor->GetGeometryCollectionComponent();
 
@@ -590,8 +590,9 @@ void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAsse
 	}
 }
 
-AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCollection(const FString& InAssetPath, bool bAddInternalMaterials, bool bSplitComponents, TArray<AActor*>& Actors)
+AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCollection(const FString& InAssetPath, bool bAddInternalMaterials, bool bSplitComponents, TArray<AActor*>& Actors, bool bFromToMeshTool)
 {
+	ensure(!bAddInternalMaterials); // we should not use the 'add internal materials' path anymore, as we move away from the odd-numbered-internal-material convention
 	ensure(Actors.Num() > 0);
 	AActor* FirstActor = Actors[0];
 	const FString& Name = FirstActor->GetActorLabel();
@@ -630,9 +631,11 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 				// Record the contributing source on the asset.
 				FSoftObjectPath SourceSoftObjectPath(ComponentStaticMesh);
 				decltype(FGeometryCollectionSource::SourceMaterial) SourceMaterials(StaticMeshComponent->GetMaterials());
-				FracturedGeometryCollection->GeometrySource.Add({ SourceSoftObjectPath, ComponentTransform, SourceMaterials, bAddInternalMaterials, bSplitComponents });
-
-				FGeometryCollectionEngineConversion::AppendStaticMesh(ComponentStaticMesh, SourceMaterials, ComponentTransform, FracturedGeometryCollection, false, bAddInternalMaterials, bSplitComponents);
+				bool bSetInternalFromMaterialIndex = bFromToMeshTool;
+				
+				FracturedGeometryCollection->GeometrySource.Emplace(SourceSoftObjectPath, ComponentTransform, SourceMaterials, bSplitComponents, bSetInternalFromMaterialIndex);
+				
+				FGeometryCollectionEngineConversion::AppendStaticMesh(ComponentStaticMesh, SourceMaterials, ComponentTransform, FracturedGeometryCollection, false/*bReindexMaterials*/, bAddInternalMaterials, bSplitComponents, bSetInternalFromMaterialIndex);
 			}
 		}
 
@@ -664,15 +667,16 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 				{
 					SourceMaterials[MaterialIndex] = GeometryCollectionComponent->GetMaterial(MaterialIndex);
 				}
-				FracturedGeometryCollection->GeometrySource.Add({ SourceSoftObjectPath, ComponentTransform, SourceMaterials });
+				constexpr bool bSplitCollectionComponents = false, bSetInternalFromMaterialIndex = false;
+				FracturedGeometryCollection->GeometrySource.Emplace(SourceSoftObjectPath, ComponentTransform, SourceMaterials, bSplitCollectionComponents, bSetInternalFromMaterialIndex);
 
-				FGeometryCollectionEngineConversion::AppendGeometryCollection(RestCollection, GeometryCollectionComponent, ComponentTransform, FracturedGeometryCollection, false);
+				FGeometryCollectionEngineConversion::AppendGeometryCollection(RestCollection, GeometryCollectionComponent, ComponentTransform, FracturedGeometryCollection, false /*bReindexMaterials*/);
 
 			}
 		}
 	}
 
-	FracturedGeometryCollection->InitializeMaterials();
+	FracturedGeometryCollection->InitializeMaterials(bAddInternalMaterials);
 
 	AddSingleRootNodeIfRequired(FracturedGeometryCollection);
 
@@ -845,7 +849,8 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 					const UObject* SourceMesh = Source.SourceGeometryObject.TryLoad();
 					if (const UStaticMesh* SourceStaticMesh = Cast<UStaticMesh>(SourceMesh))
 					{
-						FGeometryCollectionEngineConversion::AppendStaticMesh(SourceStaticMesh, Source.SourceMaterial, Source.LocalTransform, GeometryCollectionObject, false, Source.bAddInternalMaterials, Source.bSplitComponents);
+						bool bLegacyAddInternal = Source.bAddInternalMaterials;
+						FGeometryCollectionEngineConversion::AppendStaticMesh(SourceStaticMesh, Source.SourceMaterial, Source.LocalTransform, GeometryCollectionObject, false, bLegacyAddInternal, Source.bSplitComponents, Source.bSetInternalFromMaterialIndex);
 					}
 					else if (const USkeletalMesh* SourceSkeletalMesh = Cast<USkeletalMesh>(SourceMesh))
 					{
@@ -858,20 +863,17 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 					}
 				}
 
-				GeometryCollectionObject->InitializeMaterials();
+				constexpr bool bHasInternalMaterials = false;
+				GeometryCollectionObject->InitializeMaterials(bHasInternalMaterials);
 
-				if (bKeepPreviousMaterials)
+				// attempt to keep previously-set materials (as long as the source doesn't have even more materials)
+				int32 NewMatNum = GeometryCollectionObject->Materials.Num(), OldMatNum = OldMaterials.Num();
+				if (bKeepPreviousMaterials && NewMatNum <= OldMatNum)
 				{
-					int32 NewMatNum = GeometryCollectionObject->Materials.Num(), OldMatNum = OldMaterials.Num();
-					// if the source asset was changed, number of materials might have changed; only copy to the extent the two arrays match
-					int32 NumToCopy = FMath::Min(NewMatNum, OldMatNum);
-					for (int32 MatIdx = 0; MatIdx + 1 < NumToCopy; MatIdx++)
+					GeometryCollectionObject->Materials.SetNum(OldMatNum);
+					for (int32 MatIdx = 0; MatIdx < OldMatNum; MatIdx++)
 					{
 						GeometryCollectionObject->Materials[MatIdx] = OldMaterials[MatIdx];
-					}
-					if (NumToCopy > 0) // copy the selection material
-					{
-						GeometryCollectionObject->Materials[NewMatNum - 1] = OldMaterials[OldMatNum - 1];
 					}
 				}
 

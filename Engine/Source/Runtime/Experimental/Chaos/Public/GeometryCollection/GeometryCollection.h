@@ -311,6 +311,7 @@ public:
 	TManagedArray<bool>         Visible;
 	TManagedArray<int32>        MaterialIndex;
 	TManagedArray<int32>        MaterialID;
+	TManagedArray<bool>         Internal;
 
 	// Geometry Group
 	TManagedArray<int32>        TransformIndex;

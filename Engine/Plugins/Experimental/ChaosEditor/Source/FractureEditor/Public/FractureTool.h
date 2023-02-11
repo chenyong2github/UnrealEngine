@@ -79,6 +79,8 @@ public:
 
 public:
 	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection);
+	static TArray<FString> GetSelectedComponentMaterialNames(bool bIncludeDefault, bool bUseFullNamesIfPossible = true);
+
 	
 protected:
 	static bool IsStaticMeshSelected();
@@ -158,6 +160,12 @@ public:
 
 	/** Executes function that generates new geometry. Returns the first new geometry index. */
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) { return INDEX_NONE; }
+
+	// Optional processing after a successful fracture (i.e., will not be called if ExecuteFracture returns INDEX_NONE)
+	virtual void PostFractureProcess(const FFractureToolContext& FractureContext, int32 FirstNewGeometryIndex)
+	{
+
+	}
 
 	virtual void OnTick(float DeltaTime) {}
 

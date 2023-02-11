@@ -14,6 +14,7 @@
 #include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "GeometryCollection/Facades/CollectionRenderingFacade.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include <iostream>
 #include <fstream>
@@ -113,6 +114,7 @@ void FGeometryCollection::Construct()
 	AddExternalAttribute<bool>("Visible", FGeometryCollection::FacesGroup, Visible);
 	AddExternalAttribute<int32>("MaterialIndex", FGeometryCollection::FacesGroup, MaterialIndex);
 	AddExternalAttribute<int32>("MaterialID", FGeometryCollection::FacesGroup, MaterialID);
+	AddExternalAttribute<bool>("Internal", FGeometryCollection::FacesGroup, Internal);
 
 	// Geometry Group
 	AddExternalAttribute<int32>("TransformIndex", FGeometryCollection::GeometryGroup, TransformIndex, TransformDependency);
@@ -176,6 +178,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 	const TManagedArray<bool>& ElementVisible = Element.Visible;
 	const TManagedArray<int32>& ElementMaterialIndex = Element.MaterialIndex;
 	const TManagedArray<int32>& ElementMaterialID = Element.MaterialID;
+	const TManagedArray<bool>& ElementInternal = Element.Internal;
 
 	const TManagedArray<int32>& ElementTransformIndex = Element.TransformIndex;
 	const TManagedArray<FBox>& ElementBoundingBox = Element.BoundingBox;
@@ -250,6 +253,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 	{
 		Indices[IndicesIndex + tdx] = FIntVector(VerticesIndex, VerticesIndex, VerticesIndex) + ElementIndices[tdx];
 		Visible[IndicesIndex + tdx] = ElementVisible[tdx];
+		Internal[IndicesIndex + tdx] = ElementInternal[tdx];
 		MaterialIndex[IndicesIndex + tdx] = ElementMaterialIndex[tdx];
 		// MaterialIDs need to be incremented
 		MaterialID[IndicesIndex + tdx] = MaterialIDOffset + ElementMaterialID[tdx];	
@@ -996,6 +1000,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 	}
 
 	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 
@@ -1312,6 +1317,19 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			Version = 10;
 		}
 
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::ChaosGeometryCollectionInternalFacesAttribute)
+		{
+			if (!HasAttribute("Internal", FacesGroup))
+			{
+				AddExternalAttribute<bool>("Internal", FacesGroup, Internal);
+			}
+
+			for (int32 FaceIdx = 0; FaceIdx < MaterialID.Num(); ++FaceIdx)
+			{
+				Internal[FaceIdx] = bool(MaterialID[FaceIdx] & 1);
+			}
+		}
+
 		// Finally, make sure expected interfaces are initialized
 		InitializeInterfaces();
 	}
@@ -1514,6 +1532,7 @@ void FGeometryCollection::Init(FGeometryCollection* Collection, const TArray<flo
 		TManagedArray<bool>& Visible = Collection->Visible;
 		TManagedArray<int32>& MaterialID = Collection->MaterialID;
 		TManagedArray<int32>& MaterialIndex = Collection->MaterialIndex;
+		TManagedArray<bool>& Internal = Collection->Internal;
 		TManagedArray<FTransform>& Transform = Collection->Transform;
 		
 		Collection->SetNumUVLayers(1);
@@ -1558,6 +1577,7 @@ void FGeometryCollection::Init(FGeometryCollection* Collection, const TArray<flo
 
 			Indices[Idx] = FIntVector(VertexIdx1, VertexIdx2, VertexIdx3);
 			Visible[Idx] = true;
+			Internal[Idx] = false;
 			MaterialID[Idx] = 0;
 			MaterialIndex[Idx] = Idx;
 
@@ -1832,6 +1852,7 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	TManagedArray<bool>&  Visible = RestCollection->Visible;
 	TManagedArray<int32>&  MaterialID = RestCollection->MaterialID;
 	TManagedArray<int32>&  MaterialIndex = RestCollection->MaterialIndex;
+	TManagedArray<bool>& Internal = RestCollection->Internal;
 	TManagedArray<FTransform>&  Transform = RestCollection->Transform;
 	TManagedArray<int32>& Parent = RestCollection->Parent;
 	TManagedArray<TSet<int32>>& Children = RestCollection->Children;
@@ -1891,6 +1912,7 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 
 		Indices[Idx] = FIntVector(VertexIdx1, VertexIdx2, VertexIdx3);
 		Visible[Idx] = true;
+		Internal[Idx] = false;
 		MaterialID[Idx] = 0;
 		MaterialIndex[Idx] = Idx;
 

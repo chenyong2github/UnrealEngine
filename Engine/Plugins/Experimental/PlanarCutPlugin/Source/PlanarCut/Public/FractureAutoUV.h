@@ -3,6 +3,7 @@
 
 
 #include "Math/Vector4.h"
+#include "Math/MathFwd.h"
 
 class FGeometryCollection;
 namespace UE::Geometry { struct FIndex4i; }
@@ -12,6 +13,8 @@ class FProgressCancel;
 
 namespace UE { namespace PlanarCut {
 
+
+// Note: prefer ETargetFaces below
 enum class EUseMaterials
 {
 	AllMaterials,		// Include all materials
@@ -19,16 +22,48 @@ enum class EUseMaterials
 	NoDefaultMaterials	// No default materials; Only use manually selected materials
 };
 
+enum class ETargetFaces
+{
+	AllFaces,
+	InternalFaces,
+	ExternalFaces,
+	// If custom faces is chosen, then no faces are selected by default, and some other criteria (such as Material ID) must be used to select the target faces
+	CustomFaces
+};
+
+
 /**
  * Box project UVs
  *
  * @param TargetUVLayer		Which UV layer to update
  * @param Collection		The collection to be box projected
  * @param BoxDimensions		Scale of projection box
- * @param MaterialsPattern	Which pattern of material IDs to automatically consider for UV island layout
- * @param WhichMaterials	If non-empty, consider listed material IDs for UV island layout
+ * @param TargetFaces		Which faces to automatically consider for box projection
+ * @param TargetMaterials	If non-empty, additionally consider faces with listed material IDs for box projection
  */
 bool PLANARCUT_API BoxProjectUVs(
+	int32 TargetUVLayer,
+	FGeometryCollection& Collection,
+	const FVector3d& BoxDimensions,
+	ETargetFaces TargetFaces = ETargetFaces::InternalFaces,
+	TArrayView<int32> TargetMaterials = TArrayView<int32>(),
+	FVector2f OffsetUVs = FVector2f(.5f,.5f),
+	bool bOverrideBoxDimensionsWithBounds = false,
+	bool bCenterBoxAtPivot = false,
+	bool bUniformProjectionScale = false
+);
+
+/**
+ * Box project UVs
+ *
+ * @param TargetUVLayer		Which UV layer to update
+ * @param Collection		The collection to be box projected
+ * @param BoxDimensions		Scale of projection box
+ * @param MaterialsPattern	Which pattern of material IDs to automatically consider for box projection
+ * @param WhichMaterials	If non-empty, consider listed material IDs for UV box projection
+ */
+UE_DEPRECATED(5.3, "Use the BoxProjectUVs variant that takes ETargetFaces instead")
+inline bool BoxProjectUVs(
 	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	const FVector3d& BoxDimensions,
@@ -38,6 +73,35 @@ bool PLANARCUT_API BoxProjectUVs(
 	bool bOverrideBoxDimensionsWithBounds = false,
 	bool bCenterBoxAtPivot = false,
 	bool bUniformProjectionScale = false
+)
+{
+	ETargetFaces TargetFaces =
+		MaterialsPattern == EUseMaterials::AllMaterials ? ETargetFaces::AllFaces :
+		MaterialsPattern == EUseMaterials::OddMaterials ? ETargetFaces::InternalFaces : ETargetFaces::CustomFaces;
+	return BoxProjectUVs(TargetUVLayer, Collection, BoxDimensions, TargetFaces, WhichMaterials, OffsetUVs, bOverrideBoxDimensionsWithBounds, bCenterBoxAtPivot, bUniformProjectionScale);
+}
+
+/**
+ * Make a UV atlas of non-overlapping UV charts for a geometry collection
+ *
+ * @param TargetUVLayer		Which UV layer to update with new UV coordinates
+ * @param Collection		The collection to be atlas'd
+ * @param UVRes				Target resolution for the atlas
+ * @param GutterSize		Space to leave between UV islands, in pixels at the target resolution
+ * @param TargetFaces		Which faces to automatically consider for UV island layout
+ * @param TargetMaterials	If non-empty, additionally consider faces with listed material IDs for UV island layout
+ * @param bRecreateUVsForDegenerateIslands If true, detect and fix islands that don't have proper UVs (i.e. UVs all zero or otherwise collapsed to a point)
+ */
+bool PLANARCUT_API UVLayout(
+	int32 TargetUVLayer,
+	FGeometryCollection& Collection,
+	int32 UVRes = 1024,
+	float GutterSize = 1,
+	ETargetFaces MaterialsPattern = ETargetFaces::InternalFaces,
+	TArrayView<int32> WhichMaterials = TArrayView<int32>(),
+	bool bRecreateUVsForDegenerateIslands = true,
+	FProgressCancel* Progress = nullptr
+	TArrayView<int32> WhichMaterials = TArrayView<int32>()
 );
 
 /**
@@ -51,7 +115,8 @@ bool PLANARCUT_API BoxProjectUVs(
  * @param WhichMaterials	If non-empty, consider listed material IDs for UV island layout
  * @param bRecreateUVsForDegenerateIslands If true, detect and fix islands that don't have proper UVs (i.e. UVs all zero or otherwise collapsed to a point)
  */
-bool PLANARCUT_API UVLayout(
+UE_DEPRECATED(5.3, "Use the UVLayout variant that takes ETargetFaces instead")
+inline bool UVLayout(
 	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	int32 UVRes = 1024,
@@ -60,7 +125,13 @@ bool PLANARCUT_API UVLayout(
 	TArrayView<int32> WhichMaterials = TArrayView<int32>(),
 	bool bRecreateUVsForDegenerateIslands = true,
 	FProgressCancel* Progress = nullptr
-);
+)
+{
+	ETargetFaces TargetFaces =
+		MaterialsPattern == EUseMaterials::AllMaterials ? ETargetFaces::AllFaces :
+		MaterialsPattern == EUseMaterials::OddMaterials ? ETargetFaces::InternalFaces : ETargetFaces::CustomFaces;
+	return UVLayout(TargetUVLayer, Collection, UVRes, GutterSize, TargetFaces, WhichMaterials, bRecreateUVsForDegenerateIslands, Progress);
+}
 
 
 // Different attributes we can bake
@@ -99,8 +170,7 @@ struct FTextureAttributeSettings
 
 
 /**
- * Generate a texture for internal faces based on depth inside surface
- * TODO: add options to texture based on other quantities
+ * Generate a texture for specified groups of faces based on chosen BakeAttributes and AttributeSettings
  *
  * @param TargetUVLayer		Which UV layer to take UV coordinates from when creating the new texture
  * @param Collection		The collection to be create a new texture for
@@ -111,6 +181,20 @@ struct FTextureAttributeSettings
  * @param MaterialsPattern	Which pattern of material IDs to apply texture to
  * @param WhichMaterials	If non-empty, apply texture to the listed material IDs
  */
+bool PLANARCUT_API TextureSpecifiedFaces(
+	int32 TargetUVLayer,
+	FGeometryCollection& Collection,
+	int32 GutterSize,
+	UE::Geometry::FIndex4i BakeAttributes,
+	const FTextureAttributeSettings& AttributeSettings,
+	UE::Geometry::TImageBuilder<FVector4f>& TextureOut,
+	ETargetFaces MaterialsPattern = ETargetFaces::InternalFaces,
+	TArrayView<int32> WhichMaterials = TArrayView<int32>(),
+	FProgressCancel* Progress = nullptr
+);
+
+
+UE_DEPRECATED(5.3, "Use TextureSpecifiedFaces instead")
 bool PLANARCUT_API TextureInternalSurfaces(
 	int32 TargetUVLayer,
 	FGeometryCollection& Collection,

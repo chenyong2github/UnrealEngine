@@ -16,6 +16,8 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "Components/DynamicMeshComponent.h"
 
+#include "FractureEngineMaterials.h"
+
 #include "Voronoi/Voronoi.h"
 #include "PlanarCut.h"
 #include "DynamicMesh/MeshTransforms.h"
@@ -241,6 +243,20 @@ void UFractureToolCutterBase::UpdateDefaultRandomSeed()
 	DefaultRandomSeed = FMath::Rand();
 }
 
+
+void UFractureToolCutterBase::PostFractureProcess(const FFractureToolContext& FractureContext, int32 FirstNewGeometryIndex)
+{
+	Super::PostFractureProcess(FractureContext, FirstNewGeometryIndex);
+
+	// Apply Internal Material ID to new fracture geometry.
+	int32 InternalMaterialID = CutterSettings->GetInternalMaterialID();
+	if (InternalMaterialID > INDEX_NONE)
+	{
+		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
+		FFractureEngineMaterials::SetMaterialOnGeometryAfter(Collection, FirstNewGeometryIndex, FFractureEngineMaterials::ETargetFaces::InternalFaces, InternalMaterialID);
+		Collection.ReindexMaterials();
+	}
+}
 
 void FCellNoisePreviewOp::CalculateResult(FProgressCancel* Progress)
 {

@@ -38,6 +38,7 @@ namespace GeometryCollection
 		TManagedArray<bool>&  Visible = RestCollection->Visible;
 		TManagedArray<int32>&  MaterialIndex = RestCollection->MaterialIndex;
 		TManagedArray<int32>&  MaterialID = RestCollection->MaterialID;
+		TManagedArray<bool>& Internal = RestCollection->Internal;
 		TManagedArray<FTransform>&  Transform = RestCollection->Transform;
 		TManagedArray<int32>& SimType = RestCollection->SimulationType;
 
@@ -110,9 +111,10 @@ namespace GeometryCollection
 		// distribute the number of materials equally between the 12 faces
 		check(NumberOfMaterials <= 12 && (12 % NumberOfMaterials)==0); // preferably divisible into 12
 		int NumberOfEachMaterial = 12 / NumberOfMaterials;
-		for (int i = 0; i < 12;i++)
+		for (int i = 0; i < 12; i++)
 		{
 			Visible[i] = true;
+			Internal[i] = false;
 
 			MaterialIndex[i] = i;
 			MaterialID[i] = i / NumberOfEachMaterial;

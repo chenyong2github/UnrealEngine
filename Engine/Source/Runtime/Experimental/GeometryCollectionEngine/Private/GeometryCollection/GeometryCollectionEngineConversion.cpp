@@ -93,7 +93,7 @@ static FVector GetMeshBuildScale3D(const UStaticMesh& StaticMesh)
 
 void FGeometryCollectionEngineConversion::AppendMeshDescription(
 	const FMeshDescription* MeshDescription, const FString& Name, int32 MaterialStartIndex, const FTransform& StaticMeshTransform, 
-	FGeometryCollection* GeometryCollection, UBodySetup* BodySetup, bool ReindexMaterials, bool bAddInternalMaterials)
+	FGeometryCollection* GeometryCollection, UBodySetup* BodySetup, bool ReindexMaterials, bool bAddInternalMaterials, bool bSetInternalFromMaterialIndex)
 {
 #if WITH_EDITORONLY_DATA
 
@@ -207,6 +207,7 @@ void FGeometryCollectionEngineConversion::AppendMeshDescription(
 	TManagedArray<bool>& TargetVisible = GeometryCollection->Visible;
 	TManagedArray<int32>& TargetMaterialID = GeometryCollection->MaterialID;
 	TManagedArray<int32>& TargetMaterialIndex = GeometryCollection->MaterialIndex;
+	TManagedArray<bool>& TargetInternal = GeometryCollection->Internal;
 
 	const int32 IndicesCount = MeshDescription->Triangles().Num();
 	const int32 InitialNumIndices = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
@@ -224,9 +225,17 @@ void FGeometryCollectionEngineConversion::AppendMeshDescription(
 
 		TargetVisible[TargetIndex] = true;
 
-		// If adding internal materials, then materials are ganged in pairs and we want the id to associate with the first of each pair.
+		// bAddInternalMaterials and bSetInternalFromMaterialIndex support the legacy system of odd-numbered materials indicating internal surfaces
+		// bSetInternalFromMaterialIndex can be used to 'round trip' which faces are internal when using the 'ToMesh' tool to temporarily convert to/from static mesh.
 		int32 MaterialIndexScale = 1 + int32(bAddInternalMaterials);
-		TargetMaterialID[TargetIndex] = MaterialStartIndex + (MeshDescription->GetTrianglePolygonGroup(TriangleIndex) * MaterialIndexScale);
+		int32 MaterialSourceID = MeshDescription->GetTrianglePolygonGroup(TriangleIndex);
+		TargetMaterialID[TargetIndex] = MaterialStartIndex + (MaterialSourceID * MaterialIndexScale);
+		bool bIsInternal = false;
+		if (bSetInternalFromMaterialIndex && !bAddInternalMaterials)
+		{
+			bIsInternal = (MaterialSourceID % 2) == 1;
+		}
+		TargetInternal[TargetIndex] = bIsInternal;
 
 		// Is this right?
 		TargetMaterialIndex[TargetIndex] = TargetIndex;
@@ -488,7 +497,7 @@ void FGeometryCollectionEngineConversion::AppendAutoInstanceMeshIndices(UGeometr
 
 bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials,
 	const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, bool bReindexMaterials,
-	bool bAddInternalMaterials, bool bSplitComponents)
+	bool bAddInternalMaterials, bool bSplitComponents, bool bSetInternalFromMaterialIndex)
 {
 #if WITH_EDITORONLY_DATA
 
@@ -501,7 +510,7 @@ bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 
 	const int32 OriginalNumOfTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
 
-	if (AppendStaticMesh(StaticMesh, StartMaterialIndex, StaticMeshTransform, GeometryCollection, bReindexMaterials, bAddInternalMaterials, bSplitComponents))
+	if (AppendStaticMesh(StaticMesh, StartMaterialIndex, StaticMeshTransform, GeometryCollection, bReindexMaterials, bAddInternalMaterials, bSplitComponents, bSetInternalFromMaterialIndex))
 	{
 		AppendMaterials(Materials, GeometryCollectionObject, bAddInternalMaterials);
 
@@ -515,7 +524,7 @@ bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 }
 
 bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, int32 StartMaterialIndex,  const FTransform& StaticMeshTransform,
-	FGeometryCollection* GeometryCollection, bool bReindexMaterials, bool bAddInternalMaterials, bool bSplitComponents)
+	FGeometryCollection* GeometryCollection, bool bReindexMaterials, bool bAddInternalMaterials, bool bSplitComponents, bool bSetInternalFromMaterialIndex)
 {
 #if WITH_EDITORONLY_DATA
 	if (StaticMesh)
@@ -646,7 +655,7 @@ bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 
 					for (FMeshDescription& MD : Descriptions)
 					{
-						AppendMeshDescription(&MD, StaticMesh->GetName(), StartMaterialIndex, MeshTransform, GeometryCollection, StaticMesh->GetBodySetup(), false, bAddInternalMaterials);
+						AppendMeshDescription(&MD, StaticMesh->GetName(), StartMaterialIndex, MeshTransform, GeometryCollection, StaticMesh->GetBodySetup(), false, bAddInternalMaterials, bSetInternalFromMaterialIndex);
 					}
 
 					if (bReindexMaterials)
@@ -659,7 +668,7 @@ bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 				// else only one component -- fall back to just using the original mesh description
 			}
 
-			AppendMeshDescription(MeshDescription, StaticMesh->GetName(), StartMaterialIndex, MeshTransform, GeometryCollection, StaticMesh->GetBodySetup(), bReindexMaterials, bAddInternalMaterials);
+			AppendMeshDescription(MeshDescription, StaticMesh->GetName(), StartMaterialIndex, MeshTransform, GeometryCollection, StaticMesh->GetBodySetup(), bReindexMaterials, bAddInternalMaterials, bSetInternalFromMaterialIndex);
 			return true;
 		}
 	}
@@ -736,12 +745,14 @@ bool FGeometryCollectionEngineConversion::AppendGeometryCollection(const FGeomet
 	const TManagedArray<bool>& SourceVisible = SourceGeometryCollectionPtr->Visible;
 	const TManagedArray<int32>& SourceMaterialID = SourceGeometryCollectionPtr->MaterialID;
 	const TManagedArray<int32>& SourceMaterialIndex = SourceGeometryCollectionPtr->MaterialIndex;
+	const TManagedArray<bool>& SourceInternal = SourceGeometryCollectionPtr->Internal;
 
 	// target face information
 	TManagedArray<FIntVector>& TargetIndices = TargetGeometryCollection->Indices;
 	TManagedArray<bool>& TargetVisible = TargetGeometryCollection->Visible;
 	TManagedArray<int32>& TargetMaterialID = TargetGeometryCollection->MaterialID;
 	TManagedArray<int32>& TargetMaterialIndex = TargetGeometryCollection->MaterialIndex;
+	TManagedArray<bool>& TargetInternal = TargetGeometryCollection->Internal;
 
 	// append faces
 	for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
@@ -756,6 +767,7 @@ bool FGeometryCollectionEngineConversion::AppendGeometryCollection(const FGeomet
 
 		TargetMaterialID[FaceOffset] = AssetMaterialStart + SourceMaterialID[FaceIndex];
 		TargetMaterialIndex[FaceOffset] = FaceOffset;
+		TargetInternal[FaceOffset] = SourceInternal[FaceIndex];
 	}
 
 	using FCollisionType = FGeometryDynamicCollection::FSharedImplicit;
@@ -931,7 +943,7 @@ void FGeometryCollectionEngineConversion::AppendGeometryCollection(const UGeomet
 
 
 void FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, 
-	bool ReindexMaterials, bool bAddInternalMaterials, bool bSplitComponents)
+	bool ReindexMaterials, bool bAddInternalMaterials, bool bSplitComponents, bool bSetInternalFromMaterialIndex)
 {
 	if (StaticMesh == nullptr)
 	{
@@ -952,7 +964,7 @@ void FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 	GeometryCollectionObject->Materials.Remove(BoneSelectedMaterial);
 	Materials.Remove(BoneSelectedMaterial);
 	
-	AppendStaticMesh(StaticMesh, Materials, StaticMeshTransform, GeometryCollectionObject, ReindexMaterials, bAddInternalMaterials, bSplitComponents);
+	AppendStaticMesh(StaticMesh, Materials, StaticMeshTransform, GeometryCollectionObject, ReindexMaterials, bAddInternalMaterials, bSplitComponents, bSetInternalFromMaterialIndex);
 }
 
 
@@ -1345,14 +1357,16 @@ void FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(const F
 
 		if (const UStaticMesh* SourceStaticMesh = Cast<UStaticMesh>(SourceObject))
 		{
+			bool bLegacyAddInternal = GeometryCollectionSource.bAddInternalMaterials;
 			AppendStaticMesh(
 				SourceStaticMesh,
 				StartMaterialIndex,
 				GeometryCollectionSource.LocalTransform,
 				&GeometryCollectionInOut,
 				ReindexMaterials,
-				GeometryCollectionSource.bAddInternalMaterials,
-				GeometryCollectionSource.bSplitComponents
+				bLegacyAddInternal,
+				GeometryCollectionSource.bSplitComponents,
+				GeometryCollectionSource.bSetInternalFromMaterialIndex
 				);
 		}
 		else if (const USkeletalMesh* SourceSkeletalMesh = Cast<USkeletalMesh>(SourceObject))

@@ -30,6 +30,25 @@
 using namespace UE::Geometry;
 using namespace UE::Fracture;
 
+
+namespace
+{
+	UE::PlanarCut::ETargetFaces ConvertTargetFacesEnum(ETargetFaces TargetFaces)
+	{
+		return
+			TargetFaces == ETargetFaces::SelectedMaterialIDs ? UE::PlanarCut::ETargetFaces::CustomFaces :
+			TargetFaces == ETargetFaces::AllFaces ? UE::PlanarCut::ETargetFaces::AllFaces :
+			TargetFaces == ETargetFaces::ExternalFaces ? UE::PlanarCut::ETargetFaces::ExternalFaces :
+			UE::PlanarCut::ETargetFaces::InternalFaces;
+	}
+
+	bool TargetsMaterialIDs(ETargetFaces TargetFaces)
+	{
+		return TargetFaces != ETargetFaces::InternalFaces && TargetFaces != ETargetFaces::ExternalFaces && TargetFaces != ETargetFaces::AllFaces;
+	}
+}
+
+
 void UFractureAutoUVSettings::SetNumUVChannels(int32 NumUVChannels)
 {
 	NumUVChannels = FMath::Clamp<int32>(NumUVChannels, 1, GeometryCollectionUV::MAX_NUM_UV_CHANNELS);
@@ -206,9 +225,7 @@ void UFractureToolAutoUV::BoxProjectUVs()
 	int32 UVLayer = AutoUVSettings->GetSelectedChannelIndex();
 
 	TArray<int32> EmptyMaterialIDs;
-	UE::PlanarCut::EUseMaterials UseMaterialIDs =
-		AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::SelectedIDs ? UE::PlanarCut::EUseMaterials::NoDefaultMaterials :
-		(AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::AllIDs ? UE::PlanarCut::EUseMaterials::AllMaterials : UE::PlanarCut::EUseMaterials::OddMaterials);
+	UE::PlanarCut::ETargetFaces TargetFaces = ConvertTargetFacesEnum(AutoUVSettings->TargetFaces);
 
 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
 	GetSelectedGeometryCollectionComponents(GeomCompSelection);
@@ -220,9 +237,9 @@ void UFractureToolAutoUV::BoxProjectUVs()
 		UE::PlanarCut::BoxProjectUVs(UVLayer,
 			*GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection(),
 			(FVector3d)AutoUVSettings->ProjectionScale,
-			UseMaterialIDs,
-			AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs,
-			(FVector2f)AutoUVSettings->ProjectionUVOffset,
+			TargetFaces,
+			!TargetsMaterialIDs(AutoUVSettings->TargetFaces) ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs)
+			(FVector2f)AutoU			(FVector2f)AutoUVSettings->ProjectionUVOffset,
 			AutoUVSettings->bAutoFitToBounds, AutoUVSettings->bCenterAtPivot, AutoUVSettings->bUniformProjectionScale);
 
 		GeometryCollectionComponent->MarkRenderDynamicDataDirty();
@@ -399,15 +416,6 @@ bool UFractureToolAutoUV::SaveGeneratedTexture(UE::Geometry::TImageBuilder<FVect
 	return true;
 }
 
-namespace
-{
-	UE::PlanarCut::EUseMaterials GetUseMaterials(ETargetMaterialIDs TargetIDs)
-	{
-		return TargetIDs == ETargetMaterialIDs::SelectedIDs ? UE::PlanarCut::EUseMaterials::NoDefaultMaterials :
-			(TargetIDs == ETargetMaterialIDs::AllIDs ? UE::PlanarCut::EUseMaterials::AllMaterials : UE::PlanarCut::EUseMaterials::OddMaterials);
-	}
-}
-
  class FLayoutUVOp : public FGeometryCollectionOperator
  {
  public:
@@ -419,7 +427,7 @@ namespace
 	int32 UVLayer;
 	int32 OutputRes;
 	int32 GutterSize;
-	UE::PlanarCut::EUseMaterials UseMaterialIDs;
+	UE::PlanarCut::ETargetFaces TargetFaces;
 	TArray<int32> MaterialIDs;
 
  	// TGenericDataOperator interface:
@@ -427,7 +435,7 @@ namespace
  	{
 		bool bLayoutSuccess =
 			UE::PlanarCut::UVLayout(UVLayer, *CollectionCopy, OutputRes, GutterSize,
-				UseMaterialIDs, MaterialIDs, true, Progress);
+				TargetFaces, MaterialIDs, true, Progress);
 		
 		if (bLayoutSuccess)
 		{
@@ -463,12 +471,12 @@ bool UFractureToolAutoUV::LayoutUVsForComponent(UGeometryCollectionComponent* Co
 	TUniquePtr<FLayoutUVOp> LayoutOp = MakeUnique<FLayoutUVOp>(Collection);
 	LayoutOp->OutputRes = (int32)AutoUVSettings->Resolution;
 	TArray<int32> EmptyMaterialIDs;
-	LayoutOp->MaterialIDs = AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs;
+	LayoutOp->MaterialIDs = !TargetsMaterialIDs(AutoUVSettings->TargetFaces) ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs;
 
 	LayoutOp->OutputRes = (int32)AutoUVSettings->Resolution;
 	LayoutOp->UVLayer = AutoUVSettings->GetSelectedChannelIndex();
 	LayoutOp->GutterSize = AutoUVSettings->GutterSize;
-	LayoutOp->UseMaterialIDs = GetUseMaterials(AutoUVSettings->TargetMaterialIDs);
+	LayoutOp->TargetFaces = ConvertTargetFacesEnum(AutoUVSettings->TargetFaces);
 
 	int Result = RunCancellableGeometryCollectionOp<FLayoutUVOp>(Collection,
 		MoveTemp(LayoutOp), LOCTEXT("ComputingUVLayoutMessage", "Computing UV Layout"));
@@ -489,15 +497,15 @@ public:
 	FIndex4i Attributes;
 	UE::PlanarCut::FTextureAttributeSettings AttribSettings;
 	TUniquePtr<UE::Geometry::TImageBuilder<FVector4f>> ImageBuilder;
-	UE::PlanarCut::EUseMaterials UseMaterialIDs;
+	UE::PlanarCut::ETargetFaces TargetFaces;
 	TArray<int32> MaterialIDs;
 
 	// TGenericDataOperator interface:
 	virtual void CalculateResult(FProgressCancel* Progress) override
 	{
-		bool bBakeSuccess = UE::PlanarCut::TextureInternalSurfaces(
+		bool bBakeSuccess = UE::PlanarCut::TextureSpecifiedFaces(
 			UVLayer, *CollectionCopy, GutterSize, Attributes, AttribSettings, *ImageBuilder,
-			UseMaterialIDs, MaterialIDs, Progress);
+			TargetFaces, MaterialIDs, Progress);
 
 		if (!bBakeSuccess || (Progress && Progress->Cancelled()))
 		{
@@ -530,11 +538,11 @@ void UFractureToolAutoUV::BakeTextureForComponent(UGeometryCollectionComponent* 
 
 	TUniquePtr<FBakeTextureOp> BakeOp = MakeUnique<FBakeTextureOp>(Collection);
 	TArray<int32> EmptyMaterialIDs;
-	BakeOp->MaterialIDs = AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs;
+	BakeOp->MaterialIDs = !TargetsMaterialIDs(AutoUVSettings->TargetFaces) ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs;
 
 	BakeOp->UVLayer = AutoUVSettings->GetSelectedChannelIndex();
 	BakeOp->GutterSize = AutoUVSettings->GutterSize;
-	BakeOp->UseMaterialIDs = GetUseMaterials(AutoUVSettings->TargetMaterialIDs);
+	BakeOp->TargetFaces = ConvertTargetFacesEnum(AutoUVSettings->TargetFaces);
 
 	int32 OutputRes = (int32)AutoUVSettings->Resolution;
 	FImageDimensions Dimensions(OutputRes, OutputRes);

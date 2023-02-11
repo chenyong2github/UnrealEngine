@@ -26,6 +26,13 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 {
 	GENERATED_BODY()
 
+	FGeometryCollectionSource() {}
+	FGeometryCollectionSource(const FSoftObjectPath& SourceSoftObjectPath, const FTransform& ComponentTransform, const TArray<TObjectPtr<UMaterialInterface>>& SourceMaterials, bool bSplitComponents = false, bool bSetInternalFromMaterialIndex = false)
+		: SourceGeometryObject(SourceSoftObjectPath), LocalTransform(ComponentTransform), SourceMaterial(SourceMaterials), bAddInternalMaterials(false), bSplitComponents(bSplitComponents), bSetInternalFromMaterialIndex(bSetInternalFromMaterialIndex)
+	{
+
+	}
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource", meta=(AllowedClasses="/Script/Engine.StaticMesh, /Script/Engine.SkeletalMesh, /Script/GeometryCollectionEngine.GeometryCollection"))
 	FSoftObjectPath SourceGeometryObject;
 
@@ -35,13 +42,18 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	TArray<TObjectPtr<UMaterialInterface>> SourceMaterial;
 
-	/** Whether source materials should be duplicated to create slots for internal materials. Does not apply if the source is a GeometryCollection. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	//~ Note: bAddInternalMaterials defaults to true so a 'Reset' of a geometry collection that was created before this member was added will have consistent behavior. New geometry collections should always set bAddInternalMaterials to false.
+	/** (Legacy) Whether source materials will be duplicated to create new slots for internal materials, or existing odd materials will be considered internal. (For non-Geometry Collection inputs only.) */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource", DisplayName = "(Legacy) Add Internal Materials")
 	bool bAddInternalMaterials = true;
 
-	/** Whether individual source mesh components should be split into separate pieces of geometry based on mesh connectivity. If checked, triangles that are not topologically connected will be assigned separate bones. */
+	/** Whether individual source mesh components should be split into separate pieces of geometry based on mesh connectivity. If checked, triangles that are not topologically connected will be assigned separate bones. (For non-Geometry Collection inputs only.) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	bool bSplitComponents = false;
+
+	/** Whether to set the 'internal' flag for faces with odd-numbered materials slots. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	bool bSetInternalFromMaterialIndex = false;
 
 	// TODO: add primtive custom data
 };
@@ -400,7 +412,13 @@ public:
 	void ReindexMaterialSections();
 
 	/** appends the standard materials to this UObject */
-	void InitializeMaterials(bool bHasInternalMaterials = true);
+	void InitializeMaterials(bool bHasLegacyInternalMaterialsPairs = false);
+
+	/** Add a material to the materials array and update the selected bone material to be at the end of the array */
+	int32 AddNewMaterialSlot(bool bCopyLastMaterial = true);
+
+	/** Remove a material from the materials array, keeping the selected bone material at the end of the array. Returns false if materials could not be removed (e.g. because there were too few). */
+	bool RemoveLastMaterialSlot();
 
 
 	/** Returns true if there is anything to render */

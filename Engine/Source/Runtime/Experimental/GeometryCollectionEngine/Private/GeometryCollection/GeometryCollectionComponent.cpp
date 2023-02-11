@@ -2130,6 +2130,7 @@ void UGeometryCollectionComponent::InitConstantData(TUniquePtr<FGeometryCollecti
 		int32 NumIndices = 0;
 		const TManagedArray<FIntVector>& Indices = Collection->Indices;
 		const TManagedArray<int32>& MaterialID = Collection->MaterialID;
+		const TManagedArray<bool>& Internal = Collection->Internal;
 
 		const TManagedArray<bool>& Visible = GetVisibleArray();  // Use copy on write attribute. The rest collection visible array can be overriden for the convenience of debug drawing the collision volumes
 		
@@ -2259,12 +2260,12 @@ void UGeometryCollectionComponent::InitConstantData(TUniquePtr<FGeometryCollecti
 		// #note:  This is a stopgap because the original geometry array is broken
 		for (int FaceIndex = 0; FaceIndex < NumFaces; ++FaceIndex)
 		{
-			// only add visible external faces.  MaterialID that is even is an external material
+			// only add visible external faces.
 #if WITH_EDITOR
 			const bool bUseVisible = bUsingHideArray ? VisibleOverride[FaceIndex] : Visible[FaceIndex];
-			if (bUseVisible && (MaterialID[FaceIndex] % 2 == 0 || bUsingHideArray))
+			if (bUseVisible && (Internal[FaceIndex] == false || bUsingHideArray))
 #else
-			if (Visible[FaceIndex] && MaterialID[FaceIndex] % 2 == 0)
+			if (Visible[FaceIndex] && Internal[FaceIndex] == false)
 #endif
 			{
 				BaseMeshIndices.Add(Indices[FaceIndex]);

@@ -864,6 +864,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 	else if (PaletteIndex == TEXT("Utilities"))
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.AutoUV);
+		ToolbarBuilder.AddToolBarButton(Commands.Materials);
 		ToolbarBuilder.AddToolBarButton(Commands.RecomputeNormals);
 		ToolbarBuilder.AddToolBarButton(Commands.Resample);
 		ToolbarBuilder.AddToolBarButton(Commands.ConvertToMesh);

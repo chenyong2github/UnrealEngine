@@ -75,6 +75,9 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		// UV Commands
 		TSharedPtr< FUICommandInfo > AutoUV;
 		
+		// Material Commands
+		TSharedPtr< FUICommandInfo > Materials;
+
 		// Fracture Commands
 		TSharedPtr< FUICommandInfo > Uniform;
 		TSharedPtr< FUICommandInfo > Radial;

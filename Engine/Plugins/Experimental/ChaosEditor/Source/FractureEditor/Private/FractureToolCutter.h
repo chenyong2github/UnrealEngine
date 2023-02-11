@@ -43,6 +43,29 @@ public:
 
 	void TransferNoiseSettings(FNoiseSettings& NoiseSettingsOut);
 
+	/** Material to set for internal faces on fracture. 'Automatic' will use the most common 'internal' material in each geometry, or the last valid material if no internal faces are found */
+	UPROPERTY(EditAnywhere, Category = Materials, meta = (TransientToolProperty, DisplayName = "Internal Material", GetOptions = GetMaterialNamesFunc, NoResetToDefault))
+	FString InternalMaterial;
+
+	UFUNCTION()
+	const TArray<FString>& GetMaterialNamesFunc() { return ActiveMaterialNamesList; }
+
+	void UpdateActiveMaterialNames(TArray<FString> InMaterialNamesList)
+	{
+		ActiveMaterialNamesList = InMaterialNamesList;
+		if (!ActiveMaterialNamesList.Contains(InternalMaterial))
+		{
+			InternalMaterial = ActiveMaterialNamesList.IsEmpty() ? FString() : ActiveMaterialNamesList[0];
+		}
+	}
+
+	// Get the user-chosen internal material ID, or INDEX_NONE if 'Automatic' is chosen
+	int32 GetInternalMaterialID()
+	{
+		int32 NameIndex = ActiveMaterialNamesList.Find(InternalMaterial);
+		return FMath::Max((int32)INDEX_NONE, NameIndex - 1);
+	}
+
 	/** Random number generator seed for repeatability. If the value is -1, a different random seed will be used every time, otherwise the specified seed will always be used */
 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Random Seed", UIMin = "-1", UIMax = "1000", ClampMin = "-1"))
 	int32 RandomSeed;
@@ -141,6 +164,11 @@ public:
 		}
 		return MaxDisp;
 	}
+
+private:
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> ActiveMaterialNamesList;
 };
 
 /** Settings related to the collision properties of the fractured mesh pieces */
@@ -198,8 +226,22 @@ public:
 		UpdateDefaultRandomSeed();
 	}
 
+	virtual void Setup() override
+	{
+		Super::Setup();
+		CutterSettings->UpdateActiveMaterialNames(GetSelectedComponentMaterialNames(true));
+	}
+
+	virtual void SelectedBonesChanged() override
+	{
+		Super::SelectedBonesChanged();
+		CutterSettings->UpdateActiveMaterialNames(GetSelectedComponentMaterialNames(true));
+	}
+
 	FBox GetCombinedBounds(const TArray<FFractureToolContext>& Contexts) const;
 
+	// Post-processing; sets user-specified internal material on fracture (if not automatic)
+	virtual void PostFractureProcess(const FFractureToolContext& FractureContext, int32 FirstNewGeometryIndex) override;
 
 	virtual void UpdateUseGizmo(bool bUseGizmo)
 	{

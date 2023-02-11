@@ -46,44 +46,54 @@ namespace PlanarCut_Locals
 // logic from FMeshUtility::GenerateGeometryCollectionFromBlastChunk, sets material IDs based on construction pattern that external materials have even IDs and are matched to internal materials at InternalID = ExternalID+1
 int32 FInternalSurfaceMaterials::GetDefaultMaterialIDForGeometry(const FGeometryCollection& Collection, int32 GeometryIdx) const
 {
-	int32 FaceStart = 0;
-	int32 FaceEnd = Collection.Indices.Num();
+	auto FindMostCommonInternalMaterial = [](const FGeometryCollection& InCollection, int32 InFaceStart, int32 InFaceEnd) -> int32
+	{
+		// find most common internal material
+		TMap<int32, int32> MaterialIDCount;
+		int32 MaxCount = 0;
+		int32 MostCommonMaterialID = INDEX_NONE;
+		const TManagedArray<int32>& MaterialID = InCollection.MaterialID;
+		const TManagedArray<bool>& Internal = InCollection.Internal;
+		for (int i = InFaceStart; i < InFaceEnd; ++i)
+		{
+			if (!Internal[i])
+			{
+				continue;
+			}
+			int32 CurrID = MaterialID[i];
+			int32& CurrCount = MaterialIDCount.FindOrAdd(CurrID);
+			CurrCount++;
+
+			if (CurrCount > MaxCount)
+			{
+				MaxCount = CurrCount;
+				MostCommonMaterialID = CurrID;
+			}
+		}
+		return MostCommonMaterialID;
+	};
+
+	int32 MostCommonMaterialID = INDEX_NONE;
+	int32 AllFaceStart = 0;
+	int32 AllFaceEnd = Collection.Indices.Num();
 	if (GeometryIdx > -1)
 	{
-		FaceStart = Collection.FaceStart[GeometryIdx];
-		FaceEnd = Collection.FaceCount[GeometryIdx] + Collection.FaceStart[GeometryIdx];
+		int32 GeoFaceStart = Collection.FaceStart[GeometryIdx];
+		int32 GeoFaceEnd = Collection.FaceCount[GeometryIdx] + Collection.FaceStart[GeometryIdx];
+		MostCommonMaterialID = FindMostCommonInternalMaterial(Collection, GeoFaceStart, GeoFaceEnd);
 	}
-
-	// find most common non interior material
-	TMap<int32, int32> MaterialIDCount;
-	int32 MaxCount = 0;
-	int32 MostCommonMaterialID = -1;
-	const TManagedArray<int32>&  MaterialID = Collection.MaterialID;
-	for (int i = FaceStart; i < FaceEnd; ++i)
+	if (MostCommonMaterialID == INDEX_NONE)
 	{
-		int32 CurrID = MaterialID[i];
-		int32 &CurrCount = MaterialIDCount.FindOrAdd(CurrID);
-		CurrCount++;
+		MostCommonMaterialID = FindMostCommonInternalMaterial(Collection, AllFaceStart, AllFaceEnd);
 
-		if (CurrCount > MaxCount)
+		// Failed to find any internal material IDs; default to the first material
+		if (MostCommonMaterialID == INDEX_NONE)
 		{
-			MaxCount = CurrCount;
-			MostCommonMaterialID = CurrID;
+			MostCommonMaterialID = 0;
 		}
 	}
 
-	// no face case?
-	if (MostCommonMaterialID == -1)
-	{
-		MostCommonMaterialID = 0;
-	}
-
-	// We know that the internal materials are the ones that come right after the surface materials
-	// #todo(dmp): formalize the mapping between material and internal material, perhaps on the GC
-	// if the most common material is an internal material, then just use this
-	int32 InternalMaterialID = MostCommonMaterialID % 2 == 0 ? MostCommonMaterialID + 1 : MostCommonMaterialID;
-
-	return InternalMaterialID;
+	return MostCommonMaterialID;
 }
 
 void FInternalSurfaceMaterials::SetUVScaleFromCollection(const GeometryCollection::Facades::FCollectionMeshFacade& CollectionMesh, int32 GeometryIdx)
@@ -114,14 +124,17 @@ void FInternalSurfaceMaterials::SetUVScaleFromCollection(const GeometryCollectio
 		UVDistance += FVector2D::Distance(FVector2D(UV0Array[Tri.X]), FVector2D(UV0Array[Tri.Z]));
 	}
 
+	ensure(FMath::IsFinite(GlobalUVScale));
 	if (WorldDistance > 0)
 	{
 		GlobalUVScale =  static_cast<float>(UVDistance) / WorldDistance;
 	}
+	ensure(FMath::IsFinite(GlobalUVScale));
 	if (GlobalUVScale <= 0)
 	{
 		GlobalUVScale = 1;
 	}
+	ensure(FMath::IsFinite(GlobalUVScale));
 }
 
 
@@ -1810,7 +1823,7 @@ void MergeAllSelectedBones(
 
 
 void RecomputeNormalsAndTangents(bool bOnlyTangents, bool bMakeSharpEdges, float SharpAngleDegrees, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices,
-								 bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials)
+								 bool bOnlyInternalSurfaces)
 {
 	FTransform CellsToWorld = FTransform::Identity;
 
@@ -1819,7 +1832,7 @@ void RecomputeNormalsAndTangents(bool bOnlyTangents, bool bMakeSharpEdges, float
 	for (int MeshIdx = 0; MeshIdx < MeshCollection.Meshes.Num(); MeshIdx++)
 	{
 		FDynamicMesh3& Mesh = MeshCollection.Meshes[MeshIdx].AugMesh;
-		AugmentedDynamicMesh::ComputeTangents(Mesh, bOnlyOddMaterials, WhichMaterials, !bOnlyTangents, bMakeSharpEdges, SharpAngleDegrees);
+		AugmentedDynamicMesh::ComputeTangents(Mesh, bOnlyInternalSurfaces, !bOnlyTangents, bMakeSharpEdges, SharpAngleDegrees);
 	}
 
 	MeshCollection.UpdateAllCollections(Collection);
@@ -1852,7 +1865,8 @@ void ConvertToMeshDescription(
 	bool bCenterPivot,
 	FGeometryCollection& Collection,
 	const TManagedArray<FTransform>& BoneTransforms,
-	const TArrayView<const int32>& TransformIndices
+	const TArrayView<const int32>& TransformIndices,
+	TFunction<int32(int32, bool)> RemapMaterialIDs
 )
 {
 	FTransform CellsToWorld = FTransform::Identity;
@@ -1873,6 +1887,18 @@ void ConvertToMeshDescription(
 		FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);
 		AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, Collection.NumUVLayers());
 		AugmentedDynamicMesh::InitializeOverlayToPerVertexTangents(Mesh);
+
+		if (RemapMaterialIDs)
+		{
+			FDynamicMeshMaterialAttribute* MaterialIDs = Mesh.Attributes()->GetMaterialID();
+			for (int32 TID : Mesh.TriangleIndicesItr())
+			{
+				int32 MatID = MaterialIDs->GetValue(TID);
+				bool bIsInternal = AugmentedDynamicMesh::GetInternal(Mesh, TID);
+				int32 NewMatID = RemapMaterialIDs(MatID, bIsInternal);
+				MaterialIDs->SetValue(TID, NewMatID);
+			}
+		}
 
 		FMergeCoincidentMeshEdges EdgeMerge(&Mesh);
 		EdgeMerge.Apply();

@@ -684,6 +684,7 @@ public:
 	COPY_ON_WRITE_ATTRIBUTE(bool, Visible, FGeometryCollection::FacesGroup)								\
 	COPY_ON_WRITE_ATTRIBUTE(int32, MaterialIndex, FGeometryCollection::FacesGroup)						\
 	COPY_ON_WRITE_ATTRIBUTE(int32, MaterialID, FGeometryCollection::FacesGroup)							\
+	COPY_ON_WRITE_ATTRIBUTE(bool, Internal, FGeometryCollection::FacesGroup)							\
 																										\
 	/* Geometry Group */																				\
 	COPY_ON_WRITE_ATTRIBUTE(int32, TransformIndex, FGeometryCollection::GeometryGroup)					\

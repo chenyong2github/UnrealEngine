@@ -102,22 +102,24 @@ namespace UE
 } // namespace UE::UVPacking
 
 
-
 namespace UE { namespace PlanarCut {
 
 namespace {
-	inline bool IsTriActive(bool bIsVisible, int32 MaterialID, const TSet<int32>& InsideMaterials, bool bActivateInsideTriangles, EUseMaterials MaterialsPattern)
+	inline bool IsTriActive(bool bIsVisible, bool bIsInternal, int32 MaterialID, const TSet<int32>& InsideMaterials, bool bActivateInsideTriangles, ETargetFaces TargetFaces)
 	{
 		if (!bIsVisible) // never select invisible triangles
 		{
 			return false;
 		}
 
-		if (MaterialsPattern == EUseMaterials::AllMaterials && bActivateInsideTriangles)
+		if (TargetFaces == ETargetFaces::AllFaces && bActivateInsideTriangles)
 		{
 			return true;
 		}
-		if (MaterialsPattern == EUseMaterials::OddMaterials && ((MaterialID % 2) == 1) == bActivateInsideTriangles)
+		if (
+			(TargetFaces == ETargetFaces::InternalFaces && (bIsInternal == bActivateInsideTriangles)) ||
+			(TargetFaces == ETargetFaces::ExternalFaces && (bIsInternal != bActivateInsideTriangles))
+			)
 		{
 			return true;
 		}
@@ -135,7 +137,7 @@ namespace {
  * @return number of active triangles
  */
 int32 SetActiveTriangles(const FGeometryCollection* Collection, TArray<bool>& ActiveTrianglesOut,
-	bool bActivateInsideTriangles, EUseMaterials MaterialsPattern, TArrayView<int32> WhichMaterialsAreInside)
+	bool bActivateInsideTriangles, ETargetFaces TargetFaces, TArrayView<int32> WhichMaterialsAreInside)
 {
 	TSet<int32> InsideMaterials;
 	for (int32 MatID : WhichMaterialsAreInside)
@@ -147,7 +149,7 @@ int32 SetActiveTriangles(const FGeometryCollection* Collection, TArray<bool>& Ac
 	int32 NumTriangles = 0;
 	for (int TID = 0; TID < Collection->Indices.Num(); TID++)
 	{
-		bool bIsActive = IsTriActive(Collection->Visible[TID], Collection->MaterialID[TID], InsideMaterials, bActivateInsideTriangles, MaterialsPattern);
+		bool bIsActive = IsTriActive(Collection->Visible[TID], Collection->Internal[TID], Collection->MaterialID[TID], InsideMaterials, bActivateInsideTriangles, TargetFaces);
 		if (bIsActive)
 		{
 			ActiveTrianglesOut[TID] = true;
@@ -377,7 +379,7 @@ bool BoxProjectUVs(
 	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	const FVector3d& BoxDimensions,
-	EUseMaterials MaterialsPattern,
+	ETargetFaces TargetFaces,
 	TArrayView<int32> WhichMaterials,
 	FVector2f OffsetUVs,
 	bool bOverrideBoxDimensionsWithBounds,
@@ -420,8 +422,8 @@ bool BoxProjectUVs(
 		for (int TID : Mesh.TriangleIndicesItr())
 		{
 			bool bIsTextureTri = IsTriActive(
-				AugmentedDynamicMesh::GetVisibility(Mesh, TID),
-				Mesh.Attributes()->GetMaterialID()->GetValue(TID), TargetMaterials, true, MaterialsPattern);
+				AugmentedDynamicMesh::GetVisibility(Mesh, TID), AugmentedDynamicMesh::GetInternal(Mesh, TID),
+				Mesh.Attributes()->GetMaterialID()->GetValue(TID), TargetMaterials, true, TargetFaces);
 			if (bIsTextureTri)
 			{
 				TargetTris.Add(TID);
@@ -471,7 +473,7 @@ bool UVLayout(
 	FGeometryCollection& Collection,
 	int32 UVRes,
 	float GutterSize,
-	EUseMaterials MaterialsPattern,
+	ETargetFaces TargetFaces,
 	TArrayView<int32> WhichMaterials,
 	bool bRecreateUVsForDegenerateIslands,
 	FProgressCancel* Progress
@@ -480,7 +482,7 @@ bool UVLayout(
 	FProgressCancel::FProgressScope InitScope = FProgressCancel::CreateScopeTo(Progress, .2);
 
 	TArray<bool> ActiveTriangles;
-	int32 NumActive = SetActiveTriangles(&Collection, ActiveTriangles, true, MaterialsPattern, WhichMaterials);
+	int32 NumActive = SetActiveTriangles(&Collection, ActiveTriangles, true, TargetFaces, WhichMaterials);
 	FGeomMesh UVMesh(TargetUVLayer, &Collection, ActiveTriangles, NumActive);
 
 	TArray<TArray<int32>> UVIslands;
@@ -617,16 +619,36 @@ bool TextureInternalSurfaces(
 	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	int32 GutterSize,
-	FIndex4i BakeAttributes,
+	UE::Geometry::FIndex4i BakeAttributes,
 	const FTextureAttributeSettings& AttributeSettings,
-	TImageBuilder<FVector4f>& TextureOut,
+	UE::Geometry::TImageBuilder<FVector4f>& TextureOut,
 	EUseMaterials MaterialsPattern,
 	TArrayView<int32> WhichMaterials,
 	FProgressCancel* Progress
 )
 {
+	ETargetFaces TargetFaces =
+		MaterialsPattern == EUseMaterials::AllMaterials ? ETargetFaces::AllFaces :
+		MaterialsPattern == EUseMaterials::OddMaterials ? ETargetFaces::InternalFaces : ETargetFaces::CustomFaces;
+	return TextureSpecifiedFaces(TargetUVLayer, Collection, GutterSize, BakeAttributes, AttributeSettings, TextureOut, TargetFaces, WhichMaterials, Progress);
+}
+
+
+
+bool TextureSpecifiedFaces(
+	int32 TargetUVLayer,
+	FGeometryCollection& Collection,
+	int32 GutterSize,
+	FIndex4i BakeAttributes,
+	const FTextureAttributeSettings& AttributeSettings,
+	TImageBuilder<FVector4f>& TextureOut,
+	ETargetFaces TargetFaces,
+	TArrayView<int32> WhichMaterials,
+	FProgressCancel* Progress
+)
+{
 	TArray<bool> ToTextureTriangles;
-	int32 NumTextureTris = SetActiveTriangles(&Collection, ToTextureTriangles, true, MaterialsPattern, WhichMaterials);
+	int32 NumTextureTris = SetActiveTriangles(&Collection, ToTextureTriangles, true, TargetFaces, WhichMaterials);
 	FGeomFlatUVMesh UVMesh(TargetUVLayer, &Collection, ToTextureTriangles, NumTextureTris);
 
 	FImageOccupancyMap OccupancyMap;
@@ -636,9 +658,9 @@ bool TextureInternalSurfaces(
 
 	FGeomMesh ToTextureMesh(TargetUVLayer, &Collection, ToTextureTriangles, NumTextureTris);
 
-	// Outside triangles are identified by odd material ID
+	// Collect the external faces
 	TArray<bool> OutsideTriangles;
-	int32 NumOutsideTris = SetActiveTriangles(&Collection, OutsideTriangles, false, EUseMaterials::OddMaterials, {});
+	int32 NumOutsideTris = SetActiveTriangles(&Collection, OutsideTriangles, true, ETargetFaces::ExternalFaces, {});
 	FGeomMesh OutsideMesh(ToTextureMesh, OutsideTriangles, NumOutsideTris);
 	TMeshAABBTree3<FGeomMesh> OutsideSpatial(&OutsideMesh);
 
@@ -696,8 +718,8 @@ bool TextureInternalSurfaces(
 			for (int TID : Mesh.TriangleIndicesItr())
 			{
 				bool bIsTextureTri = IsTriActive(
-					AugmentedDynamicMesh::GetVisibility(Mesh, TID), 
-					Mesh.Attributes()->GetMaterialID()->GetValue(TID), TargetMaterials, true, MaterialsPattern);
+					AugmentedDynamicMesh::GetVisibility(Mesh, TID), AugmentedDynamicMesh::GetInternal(Mesh, TID),
+					Mesh.Attributes()->GetMaterialID()->GetValue(TID), TargetMaterials, true, TargetFaces);
 				if (!bIsTextureTri)
 				{
 					UV->UnsetTriangle(TID);

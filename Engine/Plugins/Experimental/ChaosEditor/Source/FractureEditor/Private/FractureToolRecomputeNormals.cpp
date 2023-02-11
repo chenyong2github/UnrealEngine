@@ -106,7 +106,7 @@ void UFractureToolRecomputeNormals::FractureContextChanged()
 				{
 					for (int FIdx = FaceStart; FIdx < FaceStart + FaceCount; FIdx++)
 					{
-						if (Collection.Visible[FIdx] && (Collection.MaterialID[FIdx] % 2) == 1)
+						if (Collection.Visible[FIdx] && Collection.Internal[FIdx])
 						{
 							FIntVector Face = Collection.Indices[FIdx];
 							ShowVerts[Face.X - VertStart] = true;

@@ -802,6 +802,8 @@ namespace GeometryCollectionAlgo
 				// just copy material from one of the faces in the group
 				GeometryCollection->MaterialIndex[NewSpaceIdx] = GeometryCollection->MaterialIndex[OldStart];
 				GeometryCollection->MaterialID[NewSpaceIdx] = GeometryCollection->MaterialID[OldStart];
+				// also copy internal status from the existing faces
+				GeometryCollection->Internal[NewSpaceIdx] = GeometryCollection->Internal[OldStart];
 				ShiftedOrder[ShiftedIdx++] = NewSpaceIdx;
 				NewSpaceIdx++;
 			}
