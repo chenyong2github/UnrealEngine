@@ -156,7 +156,8 @@ struct CORE_API FGenericPlatformMemoryStats : public FPlatformMemoryConstants
 	enum class EMemoryPressureStatus : uint8 
 	{ 
 		Unknown,
-		Nominal, 
+		Nominal,
+		Warning,
 		Critical, // high risk of OOM conditions
 	};
 	EMemoryPressureStatus GetMemoryPressureStatus() const;

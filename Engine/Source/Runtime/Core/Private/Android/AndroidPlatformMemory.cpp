@@ -381,6 +381,7 @@ FGenericPlatformMemoryStats::EMemoryPressureStatus FPlatformMemoryStats::GetMemo
 		case MEMORYADVICE_STATE_OK:
 			return FGenericPlatformMemoryStats::EMemoryPressureStatus::Nominal;
 		case MEMORYADVICE_STATE_APPROACHING_LIMIT:
+			return FGenericPlatformMemoryStats::EMemoryPressureStatus::Warning;
 		case MEMORYADVICE_STATE_CRITICAL:
 			return FGenericPlatformMemoryStats::EMemoryPressureStatus::Critical;
 		default:
@@ -400,10 +401,11 @@ FGenericPlatformMemoryStats::EMemoryPressureStatus FPlatformMemoryStats::GetMemo
 		case FAndroidPlatformMemory::ETrimValues::Unknown:
 			return FGenericPlatformMemoryStats::EMemoryPressureStatus::Unknown;
 		case FAndroidPlatformMemory::ETrimValues::Complete:
+		case FAndroidPlatformMemory::ETrimValues::Running_Low:
+			return FGenericPlatformMemoryStats::EMemoryPressureStatus::Warning;
 		case FAndroidPlatformMemory::ETrimValues::Moderate:
 		case FAndroidPlatformMemory::ETrimValues::Background:
 		case FAndroidPlatformMemory::ETrimValues::UI_Hidden:
-		case FAndroidPlatformMemory::ETrimValues::Running_Low:
 		case FAndroidPlatformMemory::ETrimValues::Running_Moderate:
 		default:
 			return FGenericPlatformMemoryStats::EMemoryPressureStatus::Nominal;
