@@ -4,6 +4,8 @@
 
 #include "LogVCamCore.h"
 
+#include "HAL/IConsoleManager.h"
+
 namespace UE::VCamCore::Private
 {
 	static FString LexInputEvent(EInputEvent InputEvent)
