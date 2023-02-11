@@ -615,7 +615,7 @@ void UMaterialParameterCollectionInstance::SetCollection(UMaterialParameterColle
 
 bool UMaterialParameterCollectionInstance::SetScalarParameterValue(FName ParameterName, float ParameterValue)
 {
-	check(World.IsValid() && Collection);
+	check(World.IsValid() && Collection.IsValid());
 
 	if (Collection->GetScalarParameterByName(ParameterName))
 	{
@@ -649,7 +649,7 @@ bool UMaterialParameterCollectionInstance::SetScalarParameterValue(FName Paramet
 
 bool UMaterialParameterCollectionInstance::SetVectorParameterValue(FName ParameterName, const FLinearColor& ParameterValue)
 {
-	check(World.IsValid() && Collection);
+	check(World.IsValid() && Collection.IsValid());
 
 	if (Collection->GetVectorParameterByName(ParameterName))
 	{
@@ -741,7 +741,7 @@ void UMaterialParameterCollectionInstance::DeferredUpdateRenderState(bool bRecre
 		// Propagate the new values to the rendering thread
 		TArray<FVector4f> ParameterData;
 		GetParameterData(ParameterData);
-		Resource->GameThread_UpdateContents(Collection ? Collection->StateId : FGuid(), ParameterData, GetFName(), bRecreateUniformBuffer);
+		Resource->GameThread_UpdateContents(Collection.IsValid() ? Collection->StateId : FGuid(), ParameterData, GetFName(), bRecreateUniformBuffer);
 	}
 
 	bNeedsRenderStateUpdate = false;
@@ -751,7 +751,7 @@ void UMaterialParameterCollectionInstance::GetParameterData(TArray<FVector4f>& P
 {
 	// The memory layout created here must match the index assignment in UMaterialParameterCollection::GetParameterIndex
 
-	if (Collection)
+	if (Collection.IsValid())
 	{
 		ParameterData.Empty(FMath::DivideAndRoundUp(Collection->ScalarParameters.Num(), 4) + Collection->VectorParameters.Num());
 

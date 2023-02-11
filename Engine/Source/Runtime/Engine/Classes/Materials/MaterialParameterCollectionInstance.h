@@ -33,6 +33,8 @@ class ENGINE_API UMaterialParameterCollectionInstance : public UObject
 	/** Initializes the instance with the collection it is based off of and the world it is owned by. */
 	void SetCollection(UMaterialParameterCollection* InCollection, UWorld* InWorld);
 
+	bool IsCollectionValid() const { return Collection.IsValid(); }
+
 	/** Sets parameter value overrides, returns false if the parameter was not found. */
 	bool SetScalarParameterValue(FName ParameterName, float ParameterValue);
 	bool SetVectorParameterValue(FName ParameterName, const FLinearColor& ParameterValue);
@@ -54,7 +56,7 @@ class ENGINE_API UMaterialParameterCollectionInstance : public UObject
 
 	const UMaterialParameterCollection* GetCollection() const
 	{
-		return Collection;
+		return Collection.Get();
 	}
 
 	using ScalarParameterUpdate = TPair<FName, float>;
@@ -82,7 +84,7 @@ protected:
 
 	/** Collection resource this instance is based off of. */
 	UPROPERTY()
-	TObjectPtr<UMaterialParameterCollection> Collection;
+	TWeakObjectPtr<UMaterialParameterCollection> Collection;
 
 	/** World that owns this instance. */
 	TWeakObjectPtr<UWorld> World;

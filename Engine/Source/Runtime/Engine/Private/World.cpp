@@ -1459,6 +1459,20 @@ UMaterialParameterCollectionInstance* UWorld::CreateParameterCollectionInstance(
 	return NewInstance;
 }
 
+
+void UWorld::OnPostGC()
+{
+	for (int32 InstanceIndex = ParameterCollectionInstances.Num()-1; InstanceIndex >= 0; InstanceIndex--)
+	{
+		if (!ParameterCollectionInstances[InstanceIndex]->IsCollectionValid())
+		{
+			ParameterCollectionInstances.RemoveAt(InstanceIndex);
+		}
+	}
+}
+
+
+
 UCanvas* UWorld::GetCanvasForRenderingToTarget()
 {
 	if (!CanvasForRenderingToTarget)
@@ -1827,6 +1841,8 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	{
 		return;
 	}
+
+	FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UWorld::OnPostGC);
 
 	InitializeSubsystems();
 
