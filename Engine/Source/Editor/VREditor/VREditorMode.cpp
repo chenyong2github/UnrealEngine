@@ -662,6 +662,28 @@ void UVREditorMode::PostTick( float DeltaTime )
 	bFirstTick = false;
 }
 
+bool UVREditorMode::GetLaserForHand(EControllerHand InHand, FVector& OutLaserStart, FVector& OutLaserEnd) const
+{
+	if (UVREditorInteractor* Interactor = GetHandInteractor(InHand))
+	{
+		AVREditorTeleporter* Teleporter = Interactor->GetTeleportActor();
+
+		const bool bHasLaser =
+			Interactor->GetControllerType() == EControllerType::AssistingLaser
+			|| Interactor->GetControllerType() == EControllerType::Laser
+			|| (Teleporter && Teleporter->IsAiming());
+
+		if (bHasLaser)
+		{
+			OutLaserStart = Interactor->GetLaserStart();
+			OutLaserEnd = Interactor->GetLaserEnd();
+			return true;
+		}
+	}
+
+	return false;
+}
+
 FTransform UVREditorMode::GetRoomTransform() const
 {
 	return WorldInteraction->GetRoomTransform();

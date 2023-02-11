@@ -303,6 +303,9 @@ private:
 	/** Handle exiting VR */
 	void OnVREditingModeExit();
 
+	/** Determine new value for VRDeviceType based on current mode */
+	void QueryVRDeviceType();
+
 	/** Holds the manager. */
 	FConcertClientPresenceManager* Manager;
 

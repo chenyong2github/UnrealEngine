@@ -95,27 +95,14 @@ FTransform FConcertClientBasePresenceMode::GetTransform()
 			NewHeadTransform = FTransform(PCRotation, PCLocation);
 		}
 	}
+	else if (UVREditorModeBase* VRMode = IVREditorModule::Get().GetVRModeBase())
+	{
+		NewHeadTransform = VRMode->GetHeadTransform();
+	}
 	else if (FLevelEditorViewportClient* PerspectiveViewport = ParentManager->GetPerspectiveViewport())
 	{
-		UViewportWorldInteraction* ViewportWorldInteraction = nullptr;
-		if (UEditorWorldExtensionManager* ExtensionManager = GEditor->GetEditorWorldExtensionsManager())
-		{
-			if (UEditorWorldExtensionCollection* Collection = ExtensionManager->GetEditorWorldExtensions(ParentManager->GetWorld()))
-			{
-				ViewportWorldInteraction = Cast<UViewportWorldInteraction>(Collection->FindExtension(UViewportWorldInteraction::StaticClass()));
-			}
-		}
-
-		// Use the head transform from the VWI if we have one, otherwise fallback to the editor viewport
-		if (ViewportWorldInteraction)
-		{
-			NewHeadTransform = ViewportWorldInteraction->GetHeadTransform();
-		}
-		else
-		{
-			// Take the position from the active viewport
-			NewHeadTransform = FTransform(PerspectiveViewport->GetViewRotation(), PerspectiveViewport->GetViewLocation());
-		}
+		// Take the position from the active viewport
+		NewHeadTransform = FTransform(PerspectiveViewport->GetViewRotation(), PerspectiveViewport->GetViewLocation());
 	}
 	else
 	{ 
@@ -131,7 +118,7 @@ void FConcertClientDesktopPresenceMode::SendEvents(IConcertClientSession& Sessio
 	FConcertClientBasePresenceMode::SendEvents(Session);
 
 	// Send desktop events if not in PIE and not in VR editor
-	if (!ParentManager->IsInPIE() && !IVREditorModule::Get().GetVRMode())
+	if (!ParentManager->IsInPIE() && !IVREditorModule::Get().GetVRModeBase())
 	{
 		FLevelEditorViewportClient* ActiveViewportClient = ParentManager->GetPerspectiveViewport();
 		if (ActiveViewportClient && ActiveViewportClient->Viewport && ActiveViewportClient->Viewport->GetSizeXY().GetMin() > 0)
@@ -223,7 +210,7 @@ void FConcertClientVRPresenceMode::SendEvents(IConcertClientSession& Session)
 	}
 
 	// Send motion controller data if in PIE and VR editor
-	if (ParentManager->IsInPIE() || IVREditorModule::Get().IsVREditorModeActive())
+	if (ParentManager->IsInPIE() || IVREditorModule::Get().GetVRModeBase())
 	{
 		const FTransform PresenceRoomTransform = GetRoomTransform();
 
@@ -266,26 +253,18 @@ void FConcertClientVRPresenceMode::SendEvents(IConcertClientSession& Session)
 		Event.RightMotionControllerPosition = RightMotionControllerTransform.GetLocation();
 
 		// Grab the laser position from VR editor too
-		if (UVREditorMode* VRMode = IVREditorModule::Get().GetVRMode())
+		if (UVREditorModeBase* VRMode = IVREditorModule::Get().GetVRModeBase())
 		{
-			auto HasLaser = [](UVREditorInteractor* Interactor) -> bool
-			{
-				if (Interactor == nullptr)
-				{
-					return false;
-				}
-				AVREditorTeleporter* Teleporter = Interactor->GetTeleportActor();
-				return Interactor->GetControllerType() == EControllerType::AssistingLaser
-					|| Interactor->GetControllerType() == EControllerType::Laser
-					|| (Teleporter && Teleporter->IsAiming());
-			};
-
 			for (int32 HandIndex = 0; HandIndex < 2; ++HandIndex)
 			{
-				UVREditorInteractor* Interactor = HandIndex == 0 ? VRMode->GetHandInteractor(EControllerHand::Left) : VRMode->GetHandInteractor(EControllerHand::Right);
-				if (HasLaser(Interactor))
+				const EControllerHand Hand = (HandIndex == 0)
+					? EControllerHand::Left
+					: EControllerHand::Right;
+
+				FVector LaserStart, LaserEnd;
+				if (VRMode->GetLaserForHand(Hand, LaserStart, LaserEnd))
 				{
-					Event.Lasers[HandIndex] = FConcertLaserData(Interactor->GetLaserStart(), Interactor->GetLaserEnd());
+					Event.Lasers[HandIndex] = FConcertLaserData(LaserStart, LaserEnd);
 				}
 			}
 		}
@@ -312,27 +291,14 @@ FTransform FConcertClientVRPresenceMode::GetRoomTransform()
 			NewRoomTransform = FTransform(PC->GetPawn()->GetActorRotation(), PC->GetPawn()->GetActorLocation());
 		}
 	}
+	else if (UVREditorModeBase* VRMode = IVREditorModule::Get().GetVRModeBase())
+	{
+		NewRoomTransform = VRMode->GetRoomTransform();
+	}
 	else if (FLevelEditorViewportClient* PerspectiveViewport = ParentManager->GetPerspectiveViewport())
 	{
-		UViewportWorldInteraction* ViewportWorldInteraction = nullptr;
-		if (UEditorWorldExtensionManager* ExtensionManager = GEditor->GetEditorWorldExtensionsManager())
-		{
-			if (UEditorWorldExtensionCollection* Collection = ExtensionManager->GetEditorWorldExtensions(ParentManager->GetWorld()))
-			{
-				ViewportWorldInteraction = Cast<UViewportWorldInteraction>(Collection->FindExtension(UViewportWorldInteraction::StaticClass()));
-			}
-		}
-
-		// Use the room transform from the VWI if we have one, otherwise fallback to the editor viewport
-		if (ViewportWorldInteraction)
-		{
-			NewRoomTransform = ViewportWorldInteraction->GetRoomTransform();
-		}
-		else
-		{
-			// Take the position from the active viewport
-			NewRoomTransform = FTransform(PerspectiveViewport->GetViewRotation(), PerspectiveViewport->GetViewLocation());
-		}
+		// Take the position from the active viewport
+		NewRoomTransform = FTransform(PerspectiveViewport->GetViewRotation(), PerspectiveViewport->GetViewLocation());
 	}
 	else
 	{

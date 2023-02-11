@@ -40,14 +40,21 @@ public:
 	/** Returns true if the user wants to exit this mode */
 	virtual bool WantsToExitMode() const { return false; }
 
+	/** Returns the transform which takes poses from XR tracking space ("room" space) to world space. */
+	virtual FTransform GetRoomTransform() const { return FTransform::Identity; }
+
+	/** Returns the user's head pose in world space. */
+	virtual FTransform GetHeadTransform() const { return FTransform::Identity; }
+
+	/** Gives start and end points in world space for an active laser, or returns false if there is no active laser for the specified hand. */
+	virtual bool GetLaserForHand(EControllerHand InHand, FVector& OutLaserStart, FVector& OutLaserEnd) const { return false; }
+
 	/** Delegate to be called when async VR mode entry has been completed. */
 	DECLARE_MULTICAST_DELEGATE(FOnVRModeEntryComplete);
 	FOnVRModeEntryComplete& OnVRModeEntryComplete() { return OnVRModeEntryCompleteEvent; }
 
-	// These are slated for deprecation in the next changelist (with accompanying cleanups in external code).
-	//UE_DEPRECATED(5.1, "Use GetVrLevelViewport instead.")
+	// TODO: Deprecate these in favor of replacements below; viewport may be null.
 	const class SLevelViewport& GetLevelViewportPossessedForVR() const;
-	//UE_DEPRECATED(5.1, "Use GetVrLevelViewport instead.")
 	class SLevelViewport& GetLevelViewportPossessedForVR();
 
 	TSharedPtr<SLevelViewport> GetVrLevelViewport() { return VREditorLevelViewportWeakPtr.Pin(); }

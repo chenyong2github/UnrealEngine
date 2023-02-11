@@ -911,8 +911,7 @@ FConcertClientDefaultPresenceModeFactory::FConcertClientDefaultPresenceModeFacto
 	IVREditorModule::Get().OnVREditingModeExit().AddRaw(this, &FConcertClientDefaultPresenceModeFactory::OnVREditingModeExit);
 
 	// Set the initial vr device if any
-	UVREditorMode* VRMode = IVREditorModule::Get().GetVRMode();
-	VRDeviceType = VRMode ? VRMode->GetHMDDeviceType() : FName();
+	QueryVRDeviceType();
 }
 
 FConcertClientDefaultPresenceModeFactory::~FConcertClientDefaultPresenceModeFactory()
@@ -946,15 +945,34 @@ void FConcertClientDefaultPresenceModeFactory::AddReferencedObjects(FReferenceCo
 
 void FConcertClientDefaultPresenceModeFactory::OnVREditingModeEnter()
 {
-	UVREditorMode* VRMode = IVREditorModule::Get().GetVRMode();
-	VRDeviceType = VRMode ? VRMode->GetHMDDeviceType() : FName();
+	QueryVRDeviceType();
 	bShouldResetPresenceMode = true;
 }
 
 void FConcertClientDefaultPresenceModeFactory::OnVREditingModeExit()
 {
-	VRDeviceType = FName();
+	VRDeviceType = NAME_None;
 	bShouldResetPresenceMode = true;
+}
+
+void FConcertClientDefaultPresenceModeFactory::QueryVRDeviceType()
+{
+	if (UVREditorModeBase* VRModeBase = IVREditorModule::Get().GetVRModeBase())
+	{
+		if (UVREditorMode* VRMode = Cast<UVREditorMode>(VRModeBase))
+		{
+			VRDeviceType = VRMode->GetHMDDeviceType();
+		}
+		else
+		{
+			static const FName Generic("Generic");
+			VRDeviceType = Generic;
+		}
+	}
+	else
+	{
+		VRDeviceType = NAME_None;
+	}
 }
 
 #else

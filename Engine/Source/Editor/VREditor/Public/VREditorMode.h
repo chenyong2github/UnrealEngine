@@ -108,9 +108,11 @@ public:
 	/** Call this to start exiting VR mode */
 	void StartExitingVRMode();
 
+	virtual bool GetLaserForHand(EControllerHand InHand, FVector& OutLaserStart, FVector& OutLaserEnd) const override;
+
 	/** Gets the world space transform of the calibrated VR room origin.  When using a seated VR device, this will feel like the
 	camera's world transform (before any HMD positional or rotation adjustments are applied.) */
-	FTransform GetRoomTransform() const;
+	virtual FTransform GetRoomTransform() const override;
 
 	/** Sets a new transform for the room, in world space.  This is basically setting the editor's camera transform for the viewport */
 	void SetRoomTransform( const FTransform& NewRoomTransform );
@@ -123,7 +125,7 @@ public:
 	 *
 	 * @return	World space space HMD transform
 	 */
-	FTransform GetHeadTransform() const;
+	virtual FTransform GetHeadTransform() const override;
 
 	/** Gets access to the world interaction system (const) */
 	const class UViewportWorldInteraction& GetWorldInteraction() const;
