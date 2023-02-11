@@ -37,6 +37,14 @@ FMultiUserVCamCameraData::FMultiUserVCamCameraData(const AActor* InOwner, const 
 	LensSettings = InCineCameraComponent->LensSettings;
 
 	FilmbackSettings = InCineCameraComponent->Filmback;
+
+	CameraISO = InCineCameraComponent->PostProcessSettings.CameraISO;
+	bOverride_CameraISO = InCineCameraComponent->PostProcessSettings.bOverride_CameraISO;
+
+	CustomNearClipPlane = InCineCameraComponent->CustomNearClippingPlane;
+	bOverride_NearClipPlane = InCineCameraComponent->bOverride_CustomNearClippingPlane;
+
+	AutoExposureBias = InCineCameraComponent->PostProcessSettings.AutoExposureBias;
 }
 
 
@@ -52,6 +60,14 @@ void FMultiUserVCamCameraData::ApplyTo(AActor* InOwner, UCineCameraComponent* In
 	InCineCameraComponent->FocusSettings = FocusSettings.ToCameraFocusSettings();
 	InCineCameraComponent->LensSettings = LensSettings;
 	InCineCameraComponent->Filmback = FilmbackSettings;
+
+	InCineCameraComponent->PostProcessSettings.bOverride_CameraISO = bOverride_CameraISO;
+	InCineCameraComponent->PostProcessSettings.CameraISO = CameraISO;
+
+	InCineCameraComponent->bOverride_CustomNearClippingPlane = bOverride_NearClipPlane;
+	InCineCameraComponent->CustomNearClippingPlane = CustomNearClipPlane;
+
+	InCineCameraComponent->PostProcessSettings.AutoExposureBias = AutoExposureBias;
 }
 
 

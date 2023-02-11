@@ -46,6 +46,11 @@ public:
 		, CameraComponentRotation(FRotator::ZeroRotator)
 		, CurrentAperture(0.f)
 		, CurrentFocalLength(0.f)
+		, bOverride_NearClipPlane(false)
+		, bOverride_CameraISO(false)
+		, CustomNearClipPlane(1.0f)
+		, CameraISO(100.0f)
+		, AutoExposureBias(1.0f)
 	{}
 	FMultiUserVCamCameraData(const AActor* InOwner, const UCineCameraComponent* InCineCameraComponent);
 
@@ -72,6 +77,18 @@ public:
 	FCameraLensSettings LensSettings;
 	UPROPERTY()
 	FCameraFilmbackSettings FilmbackSettings;
+
+	/** Post process settings */
+	UPROPERTY()
+	uint8 bOverride_NearClipPlane : 1;
+	UPROPERTY()
+	uint8 bOverride_CameraISO:1;
+	UPROPERTY()
+	float CustomNearClipPlane;
+	UPROPERTY()
+	float CameraISO;
+	UPROPERTY()
+	float AutoExposureBias;
 };
 
 
