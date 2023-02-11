@@ -6,6 +6,7 @@
 
 #include "ContentStreaming.h"
 #include "Components/PrimitiveComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "Misc/ConfigCacheIni.h"
 #include "RHI.h"

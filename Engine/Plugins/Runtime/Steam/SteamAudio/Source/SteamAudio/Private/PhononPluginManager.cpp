@@ -7,6 +7,7 @@
 #include "AudioDevice.h"
 #include "HAL/FileManager.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"
 
 namespace SteamAudio
 {

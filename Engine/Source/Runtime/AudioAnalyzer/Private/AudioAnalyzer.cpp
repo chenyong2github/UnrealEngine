@@ -9,6 +9,7 @@
 #include "AudioDeviceManager.h"
 #include "AudioAnalyzerSubsystem.h"
 #include "AudioBusSubsystem.h"
+#include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioAnalyzer)
 

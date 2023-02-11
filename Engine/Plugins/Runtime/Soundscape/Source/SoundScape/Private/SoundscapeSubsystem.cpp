@@ -4,6 +4,7 @@
 #include "SoundscapeSubsystem.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "SoundscapeColorPoint.h"
 #include "SoundscapeSettings.h"
 #include "SoundScapePalette.h"

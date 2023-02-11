@@ -2,6 +2,7 @@
 
 #include "Subsystems/SubsystemBlueprintLibrary.h"
 
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "AudioDevice.h"
 #include "Blueprint/UserWidget.h"

@@ -4,6 +4,7 @@
 #include "Sound/AudioBus.h"
 #include "AudioBusSubsystem.h"
 #include "AudioMixerDevice.h"
+#include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioBus)
 

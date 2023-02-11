@@ -7,6 +7,7 @@
 #include "AudioGameplayVolumeProxy.h"
 #include "AudioGameplayVolumeMutator.h"
 #include "AudioDevice.h"
+#include "Engine/World.h"
 #include "Misc/App.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGameplayVolumeSubsystem)

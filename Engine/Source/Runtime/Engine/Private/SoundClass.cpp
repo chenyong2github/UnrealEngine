@@ -2,6 +2,7 @@
 
 
 #include "Sound/SoundClass.h"
+#include "Engine/Engine.h"
 #include "Sound/AudioOutputTarget.h"
 #include "UObject/UObjectIterator.h"
 #include "AudioDevice.h"

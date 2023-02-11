@@ -4,7 +4,9 @@
 
 #include "AudioDevice.h"
 #include "AudioInputMixer.h"
+#include "Engine/Engine.h"
 #include "PixelStreamingPrivate.h"
+#include "SampleBuffer.h"
 #include "Settings.h"
 
 namespace UE::PixelStreaming

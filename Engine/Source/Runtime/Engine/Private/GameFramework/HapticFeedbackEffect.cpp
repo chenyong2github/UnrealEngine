@@ -2,6 +2,7 @@
 //
 
 #include "AudioDevice.h"
+#include "Engine/Engine.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "Haptics/HapticFeedbackEffect_Base.h"
 #include "Haptics/HapticFeedbackEffect_Curve.h"

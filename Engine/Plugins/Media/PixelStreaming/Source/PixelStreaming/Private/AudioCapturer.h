@@ -4,6 +4,7 @@
 
 #include "WebRTCIncludes.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/ThreadSafeBool.h"
 #include "ISubmixBufferListener.h"
 
 namespace UE::PixelStreaming 

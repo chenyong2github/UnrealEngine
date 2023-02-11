@@ -6,6 +6,7 @@
 #include "AudioDecompress.h"
 #include "AudioDerivedData.h"
 #include "AudioDevice.h"
+#include "Engine/Engine.h"
 #include "Misc/Paths.h"
 #include "Serialization/MemoryWriter.h"
 #include "Sound/SoundSourceBus.h"

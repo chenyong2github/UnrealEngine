@@ -10,6 +10,7 @@
 #include "AudioDevice.h"
 #include "AudioPluginUtilities.h"
 #include "Components/SynthComponent.h"
+#include "Engine/Engine.h"
 #include "EngineAnalytics.h"
 #include "IAnalyticsProviderET.h"
 #include "Misc/Paths.h"

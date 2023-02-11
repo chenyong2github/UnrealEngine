@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundFieldRendering.h"
+#include "Engine/Engine.h"
 #include "HAL/IConsoleManager.h"
 #include "DSP/Dsp.h"
 #include "AudioMixer.h"

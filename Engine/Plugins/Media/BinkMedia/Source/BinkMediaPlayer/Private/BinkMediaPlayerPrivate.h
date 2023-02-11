@@ -2,6 +2,7 @@
 //   Licenced under the Unreal Engine EULA 
 #pragma once
 
+#include "Engine/Engine.h"
 #include "Rendering/SlateRenderer.h"
 #include "AudioMixerDevice.h"
 

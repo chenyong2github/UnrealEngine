@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "HAL/ThreadSafeBool.h"
 #include "ISubmixBufferListener.h"
+#include "Templates/SharedPointer.h"
 
 namespace webrtc
 {

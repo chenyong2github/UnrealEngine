@@ -3,6 +3,7 @@
 #include "Slate/SlateSoundDevice.h"
 #include "Sound/SlateSound.h"
 #include "AudioDevice.h"
+#include "Engine/Engine.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSlateSoundDevice, Log, All);
 

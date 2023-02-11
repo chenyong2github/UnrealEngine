@@ -3,6 +3,7 @@
 
 #include "AudioDecompress.h"
 #include "AudioDevice.h"
+#include "Engine/Engine.h"
 #include "Interfaces/IAudioFormat.h"
 #include "ADPCMAudioInfo.h"
 #include "Misc/CoreStats.h"

@@ -3,6 +3,7 @@
 #include "Evaluation/MovieSceneAudioTemplate.h"
 
 
+#include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
 #include "Components/AudioComponent.h"
 #include "Sound/SoundCue.h"

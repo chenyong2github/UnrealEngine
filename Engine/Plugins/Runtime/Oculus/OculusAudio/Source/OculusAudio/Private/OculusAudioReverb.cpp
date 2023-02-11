@@ -6,6 +6,7 @@
 #include "OculusAudioContextManager.h"
 
 #include "Sound/SoundSubmix.h"
+#include "Engine/Engine.h"
 
 
 namespace

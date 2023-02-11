@@ -2,6 +2,7 @@
 
 #pragma once
 #include "CoreMinimal.h"
+#include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Slate/SceneViewport.h"
 #include "AudioDevice.h"

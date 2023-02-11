@@ -2,6 +2,7 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "Engine/Blueprint.h"
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"

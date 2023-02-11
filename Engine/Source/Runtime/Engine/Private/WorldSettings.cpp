@@ -8,6 +8,7 @@
 #include "GameFramework/DefaultPhysicsVolume.h"
 #include "EngineUtils.h"
 #include "Engine/AssetUserData.h"
+#include "Engine/Engine.h"
 #include "Engine/WorldComposition.h"
 #include "WorldPartition/WorldPartition.h"
 #include "Net/UnrealNetwork.h"

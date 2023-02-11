@@ -5,6 +5,7 @@
 #include "Audio/AudioDebug.h"
 #include "AudioAnalytics.h"
 #include "AudioMixerDevice.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/App.h"

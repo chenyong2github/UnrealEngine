@@ -5,6 +5,7 @@
 #include "Audio.h"
 #include "AudioMixer.h"
 #include "AudioDevice.h"
+#include "Containers/MpscQueue.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundGenerator.h"
 #include "DSP/BufferVectorOperations.h"

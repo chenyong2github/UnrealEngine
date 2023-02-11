@@ -4,6 +4,7 @@
 #include "Audio/ActorSoundParameterInterface.h"
 #include "AudioDevice.h"
 #include "Components/BillboardComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"

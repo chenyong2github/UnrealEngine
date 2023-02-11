@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "PreviewScene.h"
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/Package.h"

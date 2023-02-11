@@ -2,6 +2,7 @@
 
 #include "Quartz/QuartzSubsystem.h"
 
+#include "Engine/World.h"
 #include "Quartz/AudioMixerClockHandle.h"
 #include "Quartz/QuartzMetronome.h"
 #include "Quartz/AudioMixerClockManager.h"

@@ -2,6 +2,7 @@
 
 #include "Sound/SoundCue.h"
 #include "EdGraph/EdGraph.h"
+#include "Engine/Engine.h"
 #include "Misc/CoreDelegates.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "UObject/UObjectIterator.h"

@@ -17,6 +17,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Templates/Function.h"
 #include "Trace/Trace.h"
+#include "Engine/Engine.h"
 
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);

@@ -3,14 +3,17 @@
 #pragma once
 
 #include "DSP/BufferVectorOperations.h"
+#include "DSP/MultithreadedPatching.h"
 #include "ISubmixBufferListener.h"
 #include "Math/NumericLimits.h"
+#include "Misc/FrameRate.h"
 
 #if WITH_MEDIA_IO_AUDIO_DEBUGGING
 #include "MediaIOAudioDebug.h"
 #endif
 
 class FAudioDevice;
+
 class FAudioDeviceHandle;
 
 DECLARE_DELEGATE_TwoParams(FOnBufferReceived, uint8* Buffer, int32 BufferSize);

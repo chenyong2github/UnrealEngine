@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "AudioEffect.h"
+#include "Engine/Engine.h"
 #include "Misc/App.h"
 #include "Sound/ReverbEffect.h"
 #include "AudioDevice.h"

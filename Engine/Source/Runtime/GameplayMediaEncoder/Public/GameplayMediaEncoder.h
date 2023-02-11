@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ISubmixBufferListener.h"
 
 #include "Logging/LogMacros.h"
 #include "AudioMixerDevice.h"

@@ -7,6 +7,7 @@
 #include "AudioMixerSourceVoice.h"
 #include "AudioThread.h"
 #include "DSP/FloatArrayMath.h"
+#include "ISubmixBufferListener.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundModulationDestination.h"

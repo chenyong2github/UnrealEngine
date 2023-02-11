@@ -2,6 +2,7 @@
 
 #include "WinDualShock.h"
 #include "Containers/CircularQueue.h"
+#include "Engine/Engine.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"

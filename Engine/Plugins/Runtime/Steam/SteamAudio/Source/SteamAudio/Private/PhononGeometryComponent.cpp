@@ -3,6 +3,7 @@
 //
 
 #include "PhononGeometryComponent.h"
+#include "Engine/Engine.h"
 #include "PhononScene.h"
 #include "StaticMeshResources.h"
 #include "PhononPluginManager.h"

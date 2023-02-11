@@ -3,6 +3,7 @@
 #include "Commandlets/AudioMixerCommandlet.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Engine/Engine.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundWave.h"

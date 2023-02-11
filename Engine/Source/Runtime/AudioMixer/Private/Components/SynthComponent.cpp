@@ -4,6 +4,7 @@
 
 #include "AudioDevice.h"
 #include "AudioMixerLog.h"
+#include "Engine/World.h"
 #include "Sound/AudioSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponent)

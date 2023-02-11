@@ -4,6 +4,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/World.h"
 #include "IOculusAudioPlugin.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "OculusAudio.h"

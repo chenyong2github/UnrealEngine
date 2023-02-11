@@ -2,6 +2,8 @@
 #include "Sound/SoundSubmix.h"
 
 #include "AudioDevice.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "Sound/SampleBufferIO.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundSubmix)
