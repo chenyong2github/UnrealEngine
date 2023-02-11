@@ -70,7 +70,7 @@ namespace UE::MLDeformer
 	{
 		IDetailGroup& MorphsGroup = LiveSettingsCategory->AddGroup("Morph Targets", LOCTEXT("MorphTargetsLabel", "Morph Targets"), false, true);
 		MorphsGroup.AddPropertyRow(DetailLayoutBuilder->GetProperty(UMLDeformerMorphModelVizSettings::GetDrawMorphTargetsPropertyName(), UMLDeformerMorphModelVizSettings::StaticClass()))
-			.EditCondition(!MorphModel->GetMorphTargetDeltas().IsEmpty(), nullptr);
+			.EditCondition(!MorphModel->GetMorphTargetDeltas().IsEmpty() && MorphModel->CanDynamicallyUpdateMorphTargets(), nullptr);
 
 		MorphsGroup.AddPropertyRow(DetailLayoutBuilder->GetProperty(UMLDeformerMorphModelVizSettings::GetMorphTargetNumberPropertyName(), UMLDeformerMorphModelVizSettings::StaticClass()))
 			.EditCondition(TAttribute<bool>(this, &FMLDeformerMorphModelVizSettingsDetails::IsMorphTargetsEnabled), nullptr);

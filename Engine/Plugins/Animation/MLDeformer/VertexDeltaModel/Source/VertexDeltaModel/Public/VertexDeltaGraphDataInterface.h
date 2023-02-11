@@ -19,12 +19,6 @@ class UNeuralNetwork;
 class USkeletalMeshComponent;
 class UMLDeformerModel;
 
-#if WITH_EDITORONLY_DATA
-	#define MLDEFORMER_EDITORDATA_ONLY(Statement, ElseStatement) Statement
-#else
-	#define MLDEFORMER_EDITORDATA_ONLY(X, ElseStatement) ElseStatement
-#endif
-
 /** Compute Framework Data Interface for MLDefomer data. */
 UCLASS(Category = ComputeFramework)
 class VERTEXDELTAMODEL_API UVertexDeltaGraphDataInterface

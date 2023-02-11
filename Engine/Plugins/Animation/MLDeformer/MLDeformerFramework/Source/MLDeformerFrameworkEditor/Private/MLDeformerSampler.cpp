@@ -90,13 +90,13 @@ namespace UE::MLDeformer
 
 	void FMLDeformerSampler::UpdateBoneRotations()
 	{
-		const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
+		const UMLDeformerInputInfo* InputInfo = EditorModel->GetEditorInputInfo();
 		InputInfo->ExtractBoneRotations(SkeletalMeshComponent, BoneRotations);
 	}
 
 	void FMLDeformerSampler::UpdateCurveValues()
 	{
-		const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
+		const UMLDeformerInputInfo* InputInfo = EditorModel->GetEditorInputInfo();
 		InputInfo->ExtractCurveValues(SkeletalMeshComponent, CurveValues, NumFloatsPerCurve);
 	}
 
@@ -230,7 +230,7 @@ namespace UE::MLDeformer
 
 	int32 FMLDeformerSampler::GetNumBones() const
 	{
-		const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
+		const UMLDeformerInputInfo* InputInfo = EditorModel->GetEditorInputInfo();
 		return InputInfo->GetNumBones();
 	}
 

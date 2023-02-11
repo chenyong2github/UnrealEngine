@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VertexDeltaGraphDebugDataInterface.h"
-#include "VertexDeltaGraphDataInterface.h"
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerAsset.h"
 #include "MLDeformerComponent.h"
@@ -21,7 +20,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VertexDeltaGraphDebugDataInterface)
 
-TArray<FOptimusCDIPinDefinition> UVertexDeltaGraphDebugDataInterface::GetPinDefinitions() const
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+TArray<FOptimusCDIPinDefinition> UDEPRECATED_VertexDeltaGraphDebugDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({ "HeatMapMode", "ReadHeatMapMode" });
@@ -31,12 +32,12 @@ TArray<FOptimusCDIPinDefinition> UVertexDeltaGraphDebugDataInterface::GetPinDefi
 	return Defs;
 }
 
-TSubclassOf<UActorComponent> UVertexDeltaGraphDebugDataInterface::GetRequiredComponentClass() const
+TSubclassOf<UActorComponent> UDEPRECATED_VertexDeltaGraphDebugDataInterface::GetRequiredComponentClass() const
 {
 	return UMLDeformerComponent::StaticClass();
 }
 
-void UVertexDeltaGraphDebugDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UDEPRECATED_VertexDeltaGraphDebugDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadNumVertices"))
@@ -71,29 +72,29 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVertexDeltaGraphDebugDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<uint>, VertexMapBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
-FString UVertexDeltaGraphDebugDataInterface::GetDisplayName() const
+FString UDEPRECATED_VertexDeltaGraphDebugDataInterface::GetDisplayName() const
 {
 	return TEXT("MLD Vertex Delta Model Debug");
 }
 
-void UVertexDeltaGraphDebugDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
+void UDEPRECATED_VertexDeltaGraphDebugDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
 	InOutBuilder.AddNestedStruct<FVertexDeltaGraphDebugDataInterfaceParameters>(UID);
 }
 
-TCHAR const* UVertexDeltaGraphDebugDataInterface::TemplateFilePath = TEXT("/Plugin/VertexDeltaModel/Private/VertexDeltaModelHeatMap.ush");
+TCHAR const* UDEPRECATED_VertexDeltaGraphDebugDataInterface::TemplateFilePath = TEXT("/Plugin/VertexDeltaModel/Private/VertexDeltaModelHeatMap.ush");
 
-TCHAR const* UVertexDeltaGraphDebugDataInterface::GetShaderVirtualPath() const
+TCHAR const* UDEPRECATED_VertexDeltaGraphDebugDataInterface::GetShaderVirtualPath() const
 {
 	return TemplateFilePath;
 }
 
-void UVertexDeltaGraphDebugDataInterface::GetShaderHash(FString& InOutKey) const
+void UDEPRECATED_VertexDeltaGraphDebugDataInterface::GetShaderHash(FString& InOutKey) const
 {
 	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
-void UVertexDeltaGraphDebugDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
+void UDEPRECATED_VertexDeltaGraphDebugDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
 {
 	TMap<FString, FStringFormatArg> TemplateArgs =
 	{
@@ -105,24 +106,25 @@ void UVertexDeltaGraphDebugDataInterface::GetHLSL(FString& OutHLSL, FString cons
 	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
-UComputeDataProvider* UVertexDeltaGraphDebugDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UDEPRECATED_VertexDeltaGraphDebugDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
-	UVertexDeltaGraphDebugDataProvider* Provider = NewObject<UVertexDeltaGraphDebugDataProvider>();
+	UDEPRECATED_VertexDeltaGraphDebugDataProvider* Provider = NewObject<UDEPRECATED_VertexDeltaGraphDebugDataProvider>();
 	Provider->DeformerComponent = Cast<UMLDeformerComponent>(InBinding);
 	if (Provider->DeformerComponent)
 	{
 		Provider->DeformerAsset = Provider->DeformerComponent->GetDeformerAsset();
 	}
-	MLDEFORMER_EDITORDATA_ONLY(
+
+	#if WITH_EDITORONLY_DATA
 		if (Provider->DeformerAsset != nullptr)
 		{
 			Provider->Init();
 		}
-	,)
+	#endif
 	return Provider;
 }
 
-FComputeDataProviderRenderProxy* UVertexDeltaGraphDebugDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UDEPRECATED_VertexDeltaGraphDebugDataProvider::GetRenderProxy()
 {
 #if WITH_EDITORONLY_DATA
 	if (DeformerComponent && DeformerAsset && DeformerComponent->GetModelInstance() && DeformerComponent->GetModelInstance()->IsValidForDataProvider())
@@ -143,7 +145,7 @@ FComputeDataProviderRenderProxy* UVertexDeltaGraphDebugDataProvider::GetRenderPr
 #if WITH_EDITORONLY_DATA
 namespace UE::VertexDeltaModel
 {
-	FVertexDeltaGraphDebugDataProviderProxy::FVertexDeltaGraphDebugDataProviderProxy(UMLDeformerComponent* DeformerComponent, UMLDeformerAsset* DeformerAsset, UVertexDeltaGraphDebugDataProvider* InProvider)
+	FVertexDeltaGraphDebugDataProviderProxy::FVertexDeltaGraphDebugDataProviderProxy(UMLDeformerComponent* DeformerComponent, UMLDeformerAsset* DeformerAsset, UDEPRECATED_VertexDeltaGraphDebugDataProvider* InProvider)
 		: FComputeDataProviderRenderProxy()
 	{
 		Provider = InProvider;
@@ -223,3 +225,4 @@ namespace UE::VertexDeltaModel
 }	// namespace UE::VertexDeltaModel
 #endif // WITH_EDITORONLY_DATA
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -20,8 +20,8 @@ class USkeletalMeshComponent;
  * Compute Framework Data Interface for MLDeformer debugging data. 
  * This interfaces to editor only data, and so will only give valid results in that context.
  */
-UCLASS(Category = ComputeFramework)
-class VERTEXDELTAMODEL_API UVertexDeltaGraphDebugDataInterface
+UCLASS(Deprecated, Category = ComputeFramework, meta = (DeprecationMessage = "Please use UMLDeformerGraphDebugDataInterface instead."))
+class VERTEXDELTAMODEL_API UDEPRECATED_VertexDeltaGraphDebugDataInterface
 	: public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
@@ -48,8 +48,8 @@ private:
 };
 
 /** Compute Framework Data Provider for MLDeformer debugging data. */
-UCLASS(BlueprintType, EditInlineNew, Category = ComputeFramework)
-class VERTEXDELTAMODEL_API UVertexDeltaGraphDebugDataProvider
+UCLASS(Deprecated, BlueprintType, EditInlineNew, Category = ComputeFramework, meta = (DeprecationMessage = "Please use UMLDeformerGraphDebugDataProvider instead."))
+class VERTEXDELTAMODEL_API UDEPRECATED_VertexDeltaGraphDebugDataProvider
 	: public UComputeDataProvider
 {
 	GENERATED_BODY()
@@ -73,11 +73,11 @@ public:
 #if WITH_EDITORONLY_DATA
 namespace UE::VertexDeltaModel
 {
-	class VERTEXDELTAMODEL_API FVertexDeltaGraphDebugDataProviderProxy
+	class VERTEXDELTAMODEL_API UE_DEPRECATED(5.2, "Please use UE::MLDeformer::FMLDeformerDebugDataProviderProxy instead.") FVertexDeltaGraphDebugDataProviderProxy
 		: public FComputeDataProviderRenderProxy
 	{
 	public:
-		FVertexDeltaGraphDebugDataProviderProxy(UMLDeformerComponent* DeformerComponent, UMLDeformerAsset* DeformerAsset, UVertexDeltaGraphDebugDataProvider* InProvider);
+		FVertexDeltaGraphDebugDataProviderProxy(UMLDeformerComponent* DeformerComponent, UMLDeformerAsset* DeformerAsset, UDEPRECATED_VertexDeltaGraphDebugDataProvider* InProvider);
 
 		virtual void HandleZeroGroundTruthPositions();
 
@@ -90,7 +90,7 @@ namespace UE::VertexDeltaModel
 		TArray<FVector3f>& GetGroundTruthPositions() { return GroundTruthPositions; }
 
 	protected:
-		TObjectPtr<UVertexDeltaGraphDebugDataProvider> Provider = nullptr;
+		TObjectPtr<UDEPRECATED_VertexDeltaGraphDebugDataProvider> Provider = nullptr;
 		FSkeletalMeshObject* SkeletalMeshObject = nullptr;
 		TArray<FVector3f> GroundTruthPositions;
 		FRHIShaderResourceView* VertexMapBufferSRV = nullptr;

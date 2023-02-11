@@ -639,6 +639,16 @@ namespace UE::MLDeformer
 			ActiveModel->SetDefaultDeformerGraphIfNeeded();
 			ActiveModel->CreateActors(InPersonaPreviewScene);
 			ActiveModel->UpdateActorVisibility();
+
+			if (GetModelDetailsView())
+			{
+				GetModelDetailsView()->SetObject(nullptr, true);
+			}
+
+			if (GetVizSettingsDetailsView())
+			{
+				GetVizSettingsDetailsView()->SetObject(nullptr, true);
+			}
 			ActiveModel->TriggerInputAssetChanged(false);
 			ActiveModel->CreateHeatMapAssets();
 			ActiveModel->SetHeatMapMaterialEnabled(ActiveModel->GetModel()->GetVizSettings()->GetShowHeatMap());
