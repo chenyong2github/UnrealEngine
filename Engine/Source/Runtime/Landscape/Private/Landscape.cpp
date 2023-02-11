@@ -72,6 +72,7 @@ Landscape.cpp: Terrain rendering
 #include "RenderCaptureInterface.h"
 #include "VisualLogger/VisualLogger.h"
 #include "LandscapeSettings.h"
+#include "Misc/ArchiveMD5.h"
 
 #if WITH_EDITOR
 #include "LandscapeEdit.h"
@@ -3322,9 +3323,49 @@ bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bo
 
 #endif // WITH_EDITOR
 
+
+void FixupLandscapeGuidsIfInstanced(ALandscapeProxy* LandscapeProxy)
+{
+	// if the outer world is instanced, we need to change our landscape guid (in a deterministic way)
+	// this avoids guid collisions when you instance a world (and it's landscapes) multiple times,
+	// while maintaining the same GUID between landscape proxy objects within an instance
+	UWorld* OuterWorld = LandscapeProxy->GetTypedOuter<UWorld>();
+	UPackage* OuterPackage = OuterWorld->GetPackage();
+	if (OuterPackage->GetFName() != OuterPackage->GetLoadedPath().GetPackageFName())	// OuterWorld->IsInstanced()) is broken when PIE uses a memory built package
+	{
+		FArchiveMD5 Ar;
+		FGuid OldLandscapeGuid = LandscapeProxy->GetLandscapeGuid();
+		Ar << OldLandscapeGuid;
+
+#if WITH_EDITOR
+		// to work around PIE issues, we use the world partition to find the package
+		UWorldPartition* WorldPartition = FWorldPartitionHelpers::GetWorldPartition(LandscapeProxy);
+		if (WorldPartition)
+		{
+			OuterPackage = WorldPartition->GetPackage();
+			FName PackageName = OuterPackage->GetFName();
+			Ar << PackageName;
+		}
+		else
+#endif // WITH_EDITOR
+		{
+			FObjectKey ContainerKey(OuterPackage);
+			Ar << ContainerKey;
+		}
+
+		FMD5Hash MD5Hash;
+		Ar.GetHash(MD5Hash);
+
+		FGuid NewLandscapeGuid = MD5HashToGuid(MD5Hash);
+		LandscapeProxy->SetLandscapeGuid(NewLandscapeGuid);
+	}
+}
+
 void ALandscapeProxy::PostLoad()
 {
 	Super::PostLoad();
+
+	FixupLandscapeGuidsIfInstanced(this);
 
 	// Temporary
 	if (ComponentSizeQuads == 0 && LandscapeComponents.Num() > 0)
