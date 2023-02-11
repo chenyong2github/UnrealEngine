@@ -10,6 +10,7 @@ using Grpc.Net.Client;
 using Horde.Agent.Execution;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
+using Horde.Common.Rpc;
 using HordeCommon;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
@@ -55,13 +56,15 @@ namespace Horde.Agent.Tests
 	{
 		private readonly GrpcChannel _grpcChannel;
 		private readonly HordeRpc.HordeRpcClient _hordeRpcClient;
+		private readonly JobRpc.JobRpcClient _jobRpcClient;
 
 		public ILogger Logger => NullLogger.Instance;
 
-		public RpcConnectionStub(GrpcChannel grpcChannel, HordeRpc.HordeRpcClient hordeRpcClient)
+		public RpcConnectionStub(GrpcChannel grpcChannel, HordeRpc.HordeRpcClient hordeRpcClient, JobRpc.JobRpcClient jobRpcClient)
 		{
 			_grpcChannel = grpcChannel;
 			_hordeRpcClient = hordeRpcClient;
+			_jobRpcClient = jobRpcClient;
 		}
 
 		public IRpcClientRef<TClient>? TryGetClientRef<TClient>() where TClient : ClientBase<TClient>
@@ -71,7 +74,19 @@ namespace Horde.Agent.Tests
 
 		public Task<IRpcClientRef<TClient>> GetClientRefAsync<TClient>(CancellationToken cancellationToken) where TClient : ClientBase<TClient>
 		{
-			IRpcClientRef<TClient> rpcClientRefStub = (IRpcClientRef<TClient>)(object)new RpcClientRefStub<HordeRpc.HordeRpcClient>(_grpcChannel, _hordeRpcClient);
+			IRpcClientRef<TClient> rpcClientRefStub;
+			if (typeof(TClient) == typeof(HordeRpc.HordeRpcClient))
+			{
+				rpcClientRefStub = (IRpcClientRef<TClient>)(object)new RpcClientRefStub<HordeRpc.HordeRpcClient>(_grpcChannel, _hordeRpcClient);
+			}
+			else if (typeof(TClient) == typeof(JobRpc.JobRpcClient))
+			{
+				rpcClientRefStub = (IRpcClientRef<TClient>)(object)new RpcClientRefStub<JobRpc.JobRpcClient>(_grpcChannel, _jobRpcClient);
+			}
+			else
+			{
+				throw new NotImplementedException();
+			}
 			return Task.FromResult(rpcClientRefStub);
 		}
 
@@ -81,7 +96,7 @@ namespace Horde.Agent.Tests
 		}
 	}
 
-	class HordeRpcClientStub : HordeRpc.HordeRpcClient
+	class JobRpcClientStub : JobRpc.JobRpcClient
 	{
 		public readonly Queue<BeginStepResponse> BeginStepResponses = new Queue<BeginStepResponse>();
 		public readonly List<UpdateStepRequest> UpdateStepRequests = new List<UpdateStepRequest>();
@@ -89,7 +104,7 @@ namespace Horde.Agent.Tests
 		public Func<GetStepRequest, GetStepResponse>? _getStepFunc = null;
 		private readonly ILogger _logger;
 
-		public HordeRpcClientStub(ILogger logger)
+		public JobRpcClientStub(ILogger logger)
 		{
 			_logger = logger;
 		}

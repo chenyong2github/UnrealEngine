@@ -21,6 +21,7 @@ using Horde.Agent.Parser;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using Horde.Common;
+using Horde.Common.Rpc;
 using HordeCommon;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
@@ -147,8 +148,8 @@ namespace Horde.Agent.Tests
 			executeJobTask.AutoSdkWorkspace = new AgentWorkspace();
 			executeJobTask.Workspace = new AgentWorkspace();
 
-			HordeRpcClientStub client = new HordeRpcClientStub(NullLogger.Instance);
-			await using RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
+			JobRpcClientStub client = new JobRpcClientStub(NullLogger.Instance);
+			await using RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, null!, client);
 
 			await using ISession session = FakeServerSessionFactory.CreateSession(rpcConnection);
 
@@ -200,8 +201,8 @@ namespace Horde.Agent.Tests
 			JobHandler jobHandler = serviceProvider.GetRequiredService<JobHandler>();
 			jobHandler._stepAbortPollInterval = TimeSpan.FromMilliseconds(5);
 
-			HordeRpcClientStub client = new HordeRpcClientStub(NullLogger.Instance);
-			await using RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
+			JobRpcClientStub client = new JobRpcClientStub(NullLogger.Instance);
+			await using RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, null!, client);
 
 			int c = 0;
 			client._getStepFunc = (request) =>
@@ -295,7 +296,7 @@ namespace Horde.Agent.Tests
 		public readonly TaskCompletionSource<bool> UpdateSessionReceived = new();
 
 		private readonly RpcConnectionStub _connection;
-		private readonly FakeHordeRpcClient _client;
+		private readonly FakeJobRpcClient _client;
 
 		private class FakeHordeRpcClient : HordeRpc.HordeRpcClient
 		{
@@ -306,11 +307,26 @@ namespace Horde.Agent.Tests
 				_outer = outer;
 			}
 
+			public override AsyncDuplexStreamingCall<UpdateSessionRequest, UpdateSessionResponse> UpdateSession(Metadata headers = null!, DateTime? deadline = null, CancellationToken cancellationToken = default)
+			{
+				return _outer.GetUpdateSessionCall(CancellationToken.None);
+			}
+		}
+
+		private class FakeJobRpcClient : JobRpc.JobRpcClient
+		{
+			private readonly FakeHordeRpcServer _outer;
+
+			public FakeJobRpcClient(FakeHordeRpcServer outer)
+			{
+				_outer = outer;
+			}
+
 			public override AsyncUnaryCall<GetStreamResponse> GetStreamAsync(GetStreamRequest request, CallOptions options)
 			{
 				if (_outer._streamIdToStreamResponse.TryGetValue(request.StreamId, out GetStreamResponse? streamResponse))
 				{
-					return HordeRpcClientStub.Wrap(streamResponse);
+					return JobRpcClientStub.Wrap(streamResponse);
 				}
 
 				throw new RpcException(new Status(StatusCode.NotFound, $"Stream ID {request.StreamId} not found"));
@@ -320,15 +336,10 @@ namespace Horde.Agent.Tests
 			{
 				if (_outer._jobIdToJobResponse.TryGetValue(request.JobId, out GetJobResponse? jobResponse))
 				{
-					return HordeRpcClientStub.Wrap(jobResponse);
+					return JobRpcClientStub.Wrap(jobResponse);
 				}
 
 				throw new RpcException(new Status(StatusCode.NotFound, $"Job ID {request.JobId} not found"));
-			}
-
-			public override AsyncDuplexStreamingCall<UpdateSessionRequest, UpdateSessionResponse> UpdateSession(Metadata headers = null!, DateTime? deadline = null, CancellationToken cancellationToken = default)
-			{
-				return _outer.GetUpdateSessionCall(CancellationToken.None);
 			}
 		}
 		
@@ -337,13 +348,14 @@ namespace Horde.Agent.Tests
 			_serverName = "FakeServer";
 			_mockClient = new (MockBehavior.Strict);
 			_logger = NullLogger<FakeHordeRpcServer>.Instance;
-			_client = new FakeHordeRpcClient(this);
-			_connection = new RpcConnectionStub(null!, _client);
+			FakeHordeRpcClient hordeClient = new FakeHordeRpcClient(this);
+			_client = new FakeJobRpcClient(this);
+			_connection = new RpcConnectionStub(null!, hordeClient, _client);
 
 			_mockClientRef = new Mock<IRpcClientRef<HordeRpc.HordeRpcClient>>();
 			_mockClientRef
 				.Setup(m => m.Client)
-				.Returns(() => _client);
+				.Returns(() => hordeClient);
 
 			_mockConnection = new(MockBehavior.Strict);
 			_mockConnection
