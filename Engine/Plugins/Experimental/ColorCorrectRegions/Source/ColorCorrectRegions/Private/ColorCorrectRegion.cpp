@@ -195,7 +195,6 @@ void AColorCorrectRegion::TransferState()
 		}
 	}
 
-	// Display Cluster uses HiddenPrimitives to hide Primitive components from view. 
 	// Store component id to be used on render thread.
 	if (const UStaticMeshComponent* FirstMeshComponent = FindComponentByClass<UStaticMeshComponent>())
 	{

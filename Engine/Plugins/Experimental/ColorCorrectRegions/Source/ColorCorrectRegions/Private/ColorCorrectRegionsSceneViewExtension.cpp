@@ -348,7 +348,10 @@ namespace
 		*/
 		if (!RegionState->bIsActiveThisFrame ||
 			Region->IsActorBeingDestroyed() ||
-			RegionState->World != ViewFamily.Scene->GetWorld())
+			RegionState->World != ViewFamily.Scene->GetWorld() ||
+			View.HiddenPrimitives.Contains(RegionState->FirstPrimitiveId) ||
+			(View.ShowOnlyPrimitives.IsSet() && !View.ShowOnlyPrimitives->Contains(RegionState->FirstPrimitiveId))
+			)
 		{
 			return false;
 		}
