@@ -10,7 +10,7 @@
 UPlayerMappableInputConfig::UPlayerMappableInputConfig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ConfigName(GetFName())
-	, ConfigDisplayName(FText::FromName(ConfigName))
+	, ConfigDisplayName()
 {
 	ResetToDefault();
 }
