@@ -140,7 +140,7 @@ TArray<TSharedRef<FTokenizedMessage>> UWaterBodyCustomComponent::CheckWaterBodyS
 
 	if (!IsTemplate())
 	{
-		if (WaterMeshOverride == nullptr)
+		if (WaterMeshOverride == nullptr && GetWaterBodyActor() != nullptr)
 		{
 			StatusMessages.Add(FTokenizedMessage::Create(EMessageSeverity::Error)
 				->AddToken(FUObjectToken::Create(this))
