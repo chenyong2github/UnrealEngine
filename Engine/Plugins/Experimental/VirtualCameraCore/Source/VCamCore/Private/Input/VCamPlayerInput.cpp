@@ -82,7 +82,7 @@ bool UVCamPlayerInput::InputKey(const FInputKeyParams& Params)
 		&& Params.InputDevice.GetId() == 0;
 	const bool bCanCheckAllowList = Params.InputDevice != INPUTDEVICEID_NONE && !bIsKeyboard;
 	
-	const bool bSkipGamepad = Params.IsGamepad() && InputDeviceSettings.GamepadInputMode != EVCamGamepadInputMode::Allow;
+	const bool bSkipGamepad = Params.IsGamepad() && InputDeviceSettings.GamepadInputMode != EVCamGamepadInputMode::Allow && InputDeviceSettings.GamepadInputMode != EVCamGamepadInputMode::AllowAndConsume;
 	const bool bSkipMouse = InputDeviceSettings.MouseInputMode == EVCamInputMode::Ignore && Params.Key.IsMouseButton();
 	const bool bSkipKeyboard = InputDeviceSettings.KeyboardInputMode == EVCamInputMode::Ignore && bIsKeyboard;
 	const bool bSkipNonAllowListed = bCanCheckAllowList && !InputDeviceSettings.AllowedInputDeviceIds.Contains(Params.InputDevice.GetId());
@@ -91,10 +91,11 @@ bool UVCamPlayerInput::InputKey(const FInputKeyParams& Params)
 	UE::VCamCore::Private::LogInput(InputDeviceSettings, Params, bIsFilteredOut);
 	if (!bIsFilteredOut)
 	{
-		return Super::InputKey(Params);
+		const bool bForceConsumeGamepad = Params.IsGamepad() && InputDeviceSettings.GamepadInputMode == EVCamGamepadInputMode::AllowAndConsume;
+		return Super::InputKey(Params) || bForceConsumeGamepad;
 	}
 
-	const bool bConsumeGamepad = Params.IsGamepad() && InputDeviceSettings.GamepadInputMode == EVCamGamepadInputMode::IgnoreAndConsume;
+	const bool bConsumeGamepad = !bSkipNonAllowListed && Params.IsGamepad() && InputDeviceSettings.GamepadInputMode == EVCamGamepadInputMode::IgnoreAndConsume;
 	return bConsumeGamepad;
 }
 

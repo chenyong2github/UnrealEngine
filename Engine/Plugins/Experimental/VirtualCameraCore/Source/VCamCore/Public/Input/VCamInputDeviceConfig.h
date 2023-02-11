@@ -26,7 +26,7 @@ enum class EVCamInputLoggingMode : uint8
 UENUM()
 enum class EVCamInputMode : uint8
 {
-	/** Input is forwarded to input action but not consumed. */
+	/** Input is forwarded to input actions but not consumed. */
 	Allow,
 	/** Input is not forwarded to input actions. */
 	Ignore
@@ -35,8 +35,10 @@ enum class EVCamInputMode : uint8
 UENUM()
 enum class EVCamGamepadInputMode : uint8
 {
-	/** Input is forwarded to input action but not consumed. */
+	/** Input is forwarded to input actions but not consumed. */
 	Allow,
+	/** Input is forwarded to input actions and is ALWAYS consumed, regardless of whether an action was bound to it or not.*/
+	AllowAndConsume,
 	/** Input is not forwarded to input actions. */
 	Ignore,
 	/** Input is not forwarded to input actions and we block anybody else from receiving this input. */
@@ -92,5 +94,5 @@ struct VCAMCORE_API FVCamInputDeviceConfig
 	 * Tip: Filter the log by LogVCamInputDebug.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Input", AdvancedDisplay)
-	EVCamInputLoggingMode LoggingMode = EVCamInputLoggingMode::OnlyGamepad;
+	EVCamInputLoggingMode LoggingMode = EVCamInputLoggingMode::None;
 };
