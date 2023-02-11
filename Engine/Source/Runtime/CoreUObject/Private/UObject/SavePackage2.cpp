@@ -566,9 +566,13 @@ ESavePackageResult ValidateExports(FSaveContext& SaveContext)
 		TSet<UObject*> Exports;
 		Algo::Transform(SaveContext.GetExports(), Exports, [](const FTaggedExport& InExport) { return InExport.Obj; });
 
+		FExportsValidationContext::EFlags Flags = SaveContext.IsCooking() 
+			? FExportsValidationContext::EFlags::IsCooking
+			: FExportsValidationContext::EFlags::None;
+		FOutputDevice* OutputDevice = SaveContext.IsGenerateSaveError() ? SaveContext.GetError() : nullptr;
 		for (const TFunction<FSavePackageSettings::ExternalExportValidationFunc>& ValidateExport : SaveContext.GetExternalExportValidations())
 		{
-			SaveContext.Result = ValidateExport({ SaveContext.GetPackage(), Exports, SaveContext.IsGenerateSaveError() ? SaveContext.GetError() : nullptr });
+			SaveContext.Result = ValidateExport({ SaveContext.GetPackage(), Exports, Flags, OutputDevice});
 			if (SaveContext.Result != ESavePackageResult::Success)
 			{
 				return SaveContext.Result;

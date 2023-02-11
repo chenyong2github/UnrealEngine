@@ -11,6 +11,7 @@
 #include "Delegates/Delegate.h"
 #include "Logging/LogMacros.h"
 #include "Misc/DateTime.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/Optional.h"
 #include "Misc/OutputDeviceError.h"
 #include "ObjectMacros.h"
@@ -157,16 +158,26 @@ struct FImportsValidationContext
 /** Param struct for external export validation functions */
 struct FExportsValidationContext
 {
-	FExportsValidationContext(const UPackage* InPackage, const TSet<UObject*>& InExports, FOutputDevice* InOutputDevice)
+	enum class EFlags
+	{
+		None		= 0,
+		IsCooking	= 1 << 0,
+	};
+
+	FExportsValidationContext(const UPackage* InPackage, const TSet<UObject*>& InExports, EFlags InFlags,
+		FOutputDevice* InOutputDevice)
 		: Package(InPackage)
 		, Exports(InExports)
+		, Flags(InFlags)
 		, OutputDevice(InOutputDevice)
 	{}
 
 	const UPackage* Package;
 	const TSet<UObject*>& Exports;
+	const EFlags Flags;
 	FOutputDevice* OutputDevice;
 };
+ENUM_CLASS_FLAGS(FExportsValidationContext::EFlags)
 
 /** struct persistent settings used by all save unless overridden. @see FSavePackageContext */
 class FSavePackageSettings
