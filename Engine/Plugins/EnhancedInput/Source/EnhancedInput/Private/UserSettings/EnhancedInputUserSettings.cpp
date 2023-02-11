@@ -324,6 +324,11 @@ int32 UEnhancedPlayerMappableKeyProfile::GetActionsMappedToKey(const FKey& InKey
 	return OutMappedActionNames.Num();
 }
 
+bool FKeyMappingRow::HasAnyMappings() const
+{
+	return !Mappings.IsEmpty();
+}
+
 void UEnhancedPlayerMappableKeyProfile::Serialize(FArchive& Ar)
 {
 	// See note in header!

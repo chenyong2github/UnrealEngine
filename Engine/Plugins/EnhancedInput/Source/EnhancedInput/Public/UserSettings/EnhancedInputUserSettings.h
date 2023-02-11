@@ -178,6 +178,9 @@ struct ENHANCEDINPUT_API FKeyMappingRow
 
 	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category="Enhanced Input|User Settings")
 	TSet<FPlayerKeyMapping> Mappings;
+
+	/** Returns true if this row has any mappings in it */
+	bool HasAnyMappings() const;
 };
 
 
@@ -301,7 +304,7 @@ protected:
 
 /** Arguments that can be used when creating a new mapping profile */
 USTRUCT(BlueprintType)
-struct FPlayerMappableKeyProfileCreationArgs
+struct ENHANCEDINPUT_API FPlayerMappableKeyProfileCreationArgs
 {
 	GENERATED_BODY()
 	
