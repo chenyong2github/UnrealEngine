@@ -3025,7 +3025,7 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 					// Data interfaces are handled differently than other values types so collect them here.
 					GetDefaultDataInterfaceValueFromDefaultPin(DefaultPin, InInputValues);
 				}
-				else
+				else if (InputType.IsUObject() == false)
 				{
 					// Otherwise check for local and linked values.
 					if (DefaultPin->LinkedTo.Num() == 0)
