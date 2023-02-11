@@ -15,7 +15,6 @@ public class NiagaraEditor : ModuleRules
 			"NiagaraEditor/Private/ViewModels",
 			"NiagaraEditor/Private/TypeEditorUtilities",
 			Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
-			Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 		});
 
 		PrivateDependencyModuleNames.AddRange(
