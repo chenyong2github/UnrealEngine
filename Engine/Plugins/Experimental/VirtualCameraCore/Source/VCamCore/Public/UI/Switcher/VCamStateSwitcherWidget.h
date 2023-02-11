@@ -72,10 +72,8 @@ private:
 	UPROPERTY(BlueprintAssignable, Category = "Connections")
 	FChangeConnectionStateEvent OnPostStateChanged;
 
-	/**
-	 * The states
-	 */
-	UPROPERTY(EditAnywhere, Category = "Connections")
+	/** The states */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Connections", meta = (AllowPrivateAccess = "true"))
 	TMap<FName, FVCamWidgetConnectionState> States { { DefaultState, {} } };
 
 	UPROPERTY(EditAnywhere, BlueprintGetter = "GetCurrentState", BlueprintSetter = "K2_SetCurrentState", Category = "Connections")
