@@ -67,7 +67,7 @@ namespace PerfSummaries
 
 	class SummaryTableInfo
 	{
-		public SummaryTableInfo(XElement tableElement, Dictionary<string,string> substitutionsDict, string[] appendList)
+		public SummaryTableInfo(XElement tableElement, Dictionary<string,string> substitutionsDict, string[] appendList, string[] rowSortAppendList)
 		{
 			XAttribute rowSortAt = tableElement.Attribute("rowSort");
 			if (rowSortAt != null)
@@ -75,6 +75,11 @@ namespace PerfSummaries
 				rowSortList.AddRange(rowSortAt.Value.Split(','));
 				ApplySubstitutionsToList(rowSortList, substitutionsDict);
 			}
+			if (rowSortAppendList != null)
+			{
+				rowSortList.AddRange(rowSortAppendList);
+			}
+
 			XAttribute weightByColumnAt = tableElement.Attribute("weightByColumn");
 			if (weightByColumnAt != null)
 			{
@@ -1749,7 +1754,7 @@ namespace PerfSummaries
 					if (columnLookup.ContainsKey(s.ToLower()))
 					{
 						SummaryTableColumn column = columnLookup[s.ToLower()];
-						key += "{" + column.GetStringValue(i,false,"0.0000000000") + "}";
+						key += "{" + column.GetStringValue(i,false,"0000000000.0000000000") + "}";
 					}
 					else
 					{

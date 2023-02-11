@@ -67,9 +67,16 @@ namespace PerfReportTool
 			return false;
 		}
 
-		public ReportXML(string graphXMLFilenameIn, string reportXMLFilenameIn, string baseXMLDirectoryOverride, string additionalSummaryTableXmlFilename, string summaryTableXmlSubstStr, string summaryTableXmlAppendStr)
+		public ReportXML(
+			string graphXMLFilenameIn, 
+			string reportXMLFilenameIn, 
+			string baseXMLDirectoryOverride, 
+			string additionalSummaryTableXmlFilename, 
+			string summaryTableXmlSubstStr, 
+			string summaryTableXmlAppendStr,
+			string summaryTableXmlRowSortAppendStr )
 		{
-			
+
 			string location = System.Reflection.Assembly.GetEntryAssembly().Location.ToLower();
 			string baseDirectory = location.Replace("perfreporttool.exe", "");
 
@@ -280,11 +287,17 @@ namespace PerfReportTool
 					appendList = summaryTableXmlAppendStr.Split(',');
 				}
 
+				string[] rowSortAppendList = null;
+				if (summaryTableXmlRowSortAppendStr != null)
+				{
+					rowSortAppendList = summaryTableXmlRowSortAppendStr.Split(',');
+				}
+
 
 				summaryTables = new Dictionary<string, SummaryTableInfo>();
 				foreach (XElement summaryElement in summaryTablesElement.Elements("summaryTable"))
 				{
-					SummaryTableInfo table = new SummaryTableInfo(summaryElement, substitutionsDict, appendList);
+					SummaryTableInfo table = new SummaryTableInfo(summaryElement, substitutionsDict, appendList, rowSortAppendList);
 					summaryTables.Add(summaryElement.Attribute("name").Value.ToLower(), table);
 				}
 			}
