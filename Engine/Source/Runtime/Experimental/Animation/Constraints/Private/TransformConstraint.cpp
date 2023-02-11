@@ -243,13 +243,13 @@ UTickableConstraint* UTickableTransformConstraint::Duplicate(UObject* NewOuter) 
 
 FString UTickableTransformConstraint::GetLabel() const
 {
-	if (!ChildTRSHandle->IsValid())
+	if (!ChildTRSHandle || !ChildTRSHandle->IsValid())
 	{
 		static const FString DummyLabel;
 		return DummyLabel;
 	}
 	
-	if (ParentTRSHandle->IsValid())
+	if (ParentTRSHandle && ParentTRSHandle->IsValid())
 	{
 		return FString::Printf(TEXT("%s.%s"), *ParentTRSHandle->GetLabel(), *ChildTRSHandle->GetLabel() );		
 	}
@@ -259,7 +259,7 @@ FString UTickableTransformConstraint::GetLabel() const
 
 FString UTickableTransformConstraint::GetFullLabel() const
 {
-	if (!ChildTRSHandle->IsValid())
+	if (!ChildTRSHandle || !ChildTRSHandle->IsValid())
 	{
 		static const FString DummyLabel;
 		return DummyLabel;
@@ -429,18 +429,18 @@ void UTickableTransformConstraint::PostDuplicate(bool bDuplicateForPIE)
 
 uint32 UTickableTransformConstraint::GetTargetHash() const
 {
-	return ChildTRSHandle->IsValid() ? ChildTRSHandle->GetHash() : 0;
+	return (ChildTRSHandle && ChildTRSHandle->IsValid()) ? ChildTRSHandle->GetHash() : 0;
 }
 
 bool UTickableTransformConstraint::ReferencesObject(TWeakObjectPtr<UObject> InObject) const
 {
-	const TWeakObjectPtr<UObject> ChildTarget = ChildTRSHandle->IsValid() ? ChildTRSHandle->GetTarget() : nullptr;
+	const TWeakObjectPtr<UObject> ChildTarget = (ChildTRSHandle && ChildTRSHandle->IsValid())? ChildTRSHandle->GetTarget() : nullptr;
 	if (ChildTarget == InObject)
 	{
 		return true;
 	}
 
-	const TWeakObjectPtr<UObject> ParentTarget = ParentTRSHandle->IsValid() ? ParentTRSHandle->GetTarget() : nullptr;
+	const TWeakObjectPtr<UObject> ParentTarget = (ParentTRSHandle && ParentTRSHandle->IsValid()) ? ParentTRSHandle->GetTarget() : nullptr;
 	if (ParentTarget == InObject)
 	{
 		return true;	

@@ -345,7 +345,7 @@ FConstraintsManagerController& FConstraintsManagerController::Get(UWorld* InWorl
 	return Singleton;
 }
 
-bool FConstraintsManagerController::DoesExistInAnyWorld(UTickableConstraint* InConstraint) 
+bool FConstraintsManagerController::DoesExistInAnyWorld(UTickableConstraint* InConstraint)
 {
 	bool bFound = false;
 	if (InConstraint)

@@ -23,7 +23,9 @@
 class UTickableConstraint;
 
 
-static UTickableConstraint* CreateConstraintIfNeeded(FConstraintsManagerController& Controller, FConstraintAndActiveChannel* ConstraintAndActiveChannel,const  FConstraintComponentData& ConstraintChannel)
+
+
+static UTickableConstraint* CreateConstraintIfNeeded(FConstraintsManagerController& Controller, FConstraintAndActiveChannel* ConstraintAndActiveChannel, const  FConstraintComponentData& ConstraintChannel)
 {
 	if (ConstraintAndActiveChannel->Constraint.IsPending())
 	{
@@ -52,6 +54,7 @@ static UTickableConstraint* CreateConstraintIfNeeded(FConstraintsManagerControll
 	}
 	return Constraint;
 }
+
 
 
 namespace UE::MovieScene
