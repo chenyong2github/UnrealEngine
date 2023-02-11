@@ -167,6 +167,11 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
 			UObject* BoundObject  = BoundObjects[Index];
+			if (!BoundObject)
+			{
+				continue;
+			}
+
 			FName    PropertyPath = PropertyBindings[Index].PropertyPath;
 
 			TTuple<FObjectKey, FName> Key{ BoundObject, PropertyPath };
@@ -195,6 +200,11 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
 			UObject* BoundObject  = BoundObjects[Index];
+			if (!BoundObject)
+			{
+				continue;
+			}
+
 			FName    PropertyPath = PropertyBindings[Index].PropertyPath;
 
 			TTuple<FObjectKey, FName> Key{ BoundObject, PropertyPath };

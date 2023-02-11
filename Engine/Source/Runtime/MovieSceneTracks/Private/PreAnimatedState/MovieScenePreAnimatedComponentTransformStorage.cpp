@@ -76,6 +76,11 @@ void FPreAnimatedComponentTransformStorage::CachePreAnimatedTransforms(const FCa
 
 	for (UObject* BoundObject : BoundObjects)
 	{
+		if (!BoundObject)
+		{
+			continue;
+		}
+
 		TOptional<FResolvedProperty> Property = FPropertyRegistry::ResolveProperty(BoundObject, PropertyBinding, CustomAccessors);
 		if (!Property)
 		{

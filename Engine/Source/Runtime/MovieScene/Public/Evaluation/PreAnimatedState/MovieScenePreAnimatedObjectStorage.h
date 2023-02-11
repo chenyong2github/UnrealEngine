@@ -138,7 +138,10 @@ public:
 	{
 		for (UObject* BoundObject : BoundObjects)
 		{
-			CachePreAnimatedValue(Params, BoundObject);
+			if (BoundObject)
+			{
+				CachePreAnimatedValue(Params, BoundObject);
+			}
 		}
 	}
 
