@@ -426,6 +426,7 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 			USplineMeshComponent* SplineSegment = NewObject<USplineMeshComponent>(OwningAvatar);
 			SplineSegment->SetMobility( EComponentMobility::Movable );
 			SplineSegment->SetCollisionEnabled( ECollisionEnabled::NoCollision );
+			SplineSegment->SetbNeverNeedsCookedCollisionData( true );
 			SplineSegment->SetSplineUpDir( FVector::UpVector, false );
 
 			UStaticMesh* StaticMesh = nullptr;

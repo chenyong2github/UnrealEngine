@@ -252,6 +252,7 @@ void AConcertClientVRPresenceActor::InitPresence(const class UConcertAssetContai
 			USplineMeshComponent* SplineSegment = NewObject<USplineMeshComponent>(this);
 			SplineSegment->SetMobility(EComponentMobility::Movable);
 			SplineSegment->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			SplineSegment->SetbNeverNeedsCookedCollisionData(true);
 			SplineSegment->SetSplineUpDir(FVector::UpVector, false);
 
 			UStaticMesh* StaticMesh = nullptr;
