@@ -4,20 +4,18 @@
 
 #include "SDisplayClusterColorGradingDetailTreeRow.h"
 
+#include "DetailTreeNode.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IPropertyRowGenerator.h"
 #include "IDetailTreeNode.h"
+#include "IPropertyRowGenerator.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
-#include "PropertyEditor/Private/DetailTreeNode.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
-
-#include "PropertyEditor/Private/PropertyNode.h"
 
 void FDisplayClusterColorGradingDetailTreeItem::Initialize(const FOnFilterDetailTreeNode& NodeFilter)
 {
