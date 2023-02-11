@@ -132,6 +132,9 @@ class FWorldPartitionStreamingGenerator
 					ActorSetInstance.ContainerID = ContainerInstanceDescriptor.ID;
 					ActorSetInstance.Transform = ContainerInstanceDescriptor.Transform;
 
+					// Apply AND logic on spatially loaded flag
+					ActorSetInstance.bIsSpatiallyLoaded = ReferenceActorDescView.GetIsSpatiallyLoaded() && ContainerInstanceDescriptor.bIsSpatiallyLoaded;
+
 					// Since Content Bundles streaming generation happens in its own context, all actor set instances must have the same content bundle GUID for now, so Level Instances
 					// placed inside a Content Bundle will propagate their Content Bundle GUID to child instances.
 					ActorSetInstance.ContentBundleID = MainWorldContainer->GetContentBundleGuid();
@@ -140,15 +143,12 @@ class FWorldPartitionStreamingGenerator
 					{
 						// Main container will get inherited properties from the actor descriptors
 						ActorSetInstance.RuntimeGrid = ReferenceActorDescView.GetRuntimeGrid();
-						ActorSetInstance.bIsSpatiallyLoaded = ReferenceActorDescView.GetIsSpatiallyLoaded();
 						ActorSetInstance.DataLayers = StreamingGenerator->GetRuntimeDataLayerInstances(ReferenceActorDescView.GetRuntimeDataLayerInstanceNames());
 					}
 					else
 					{
 						// Sub containers will inherit some properties from the parent actor descriptors
 						ActorSetInstance.RuntimeGrid = ContainerInstanceDescriptor.RuntimeGrid;
-						ActorSetInstance.bIsSpatiallyLoaded = ContainerInstanceDescriptor.bIsSpatiallyLoaded;
-
 						TSet<FName> CombinedDataLayers = ContainerInstanceDescriptor.RuntimeDataLayers;
 						CombinedDataLayers.Append(ReferenceActorDescView.GetRuntimeDataLayerInstanceNames());
 						ActorSetInstance.DataLayers = StreamingGenerator->GetRuntimeDataLayerInstances(CombinedDataLayers.Array());
@@ -408,12 +408,14 @@ class FWorldPartitionStreamingGenerator
 		// Inherited parent properties logic
 		auto InheritParentContainerProperties = [](const FActorContainerID& InParentContainerID, const FWorldPartitionActorDescView& InParentActorDescView, TSet<FName>& InOutRuntimeDataLayers, FName& InOutRuntimeGrid, bool& bInOutIsSpatiallyLoaded)
 		{
-			// Runtime grid and spatially loaded flag are only inherited from the main world, since level instance don't support setting these values on actors
+			// Runtime grid is only inherited from the main world, since level instance doesn't support setting this value on actors
 			if (InParentContainerID.IsMainContainer())
 			{
 				InOutRuntimeGrid = InParentActorDescView.GetRuntimeGrid();
-				bInOutIsSpatiallyLoaded = InParentActorDescView.GetIsSpatiallyLoaded();
 			}
+
+			// Apply AND logic on spatially loaded flag
+			bInOutIsSpatiallyLoaded = bInOutIsSpatiallyLoaded && InParentActorDescView.GetIsSpatiallyLoaded();
 
 			// Data layers are accumulated down the hierarchy chain, since level instances supports data layers assignation on actors
 			InOutRuntimeDataLayers.Append(InParentActorDescView.GetRuntimeDataLayerInstanceNames());
@@ -474,7 +476,9 @@ class FWorldPartitionStreamingGenerator
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FWorldPartitionStreamingGenerator::CreateActorContainers);
 
-		CreateActorDescriptorViewsRecursive(InContainer, FTransform::Identity, NAME_None, false, TSet<FName>(), FActorContainerID(), FActorContainerID(), EContainerClusterMode::Partitioned, TEXT("MainContainer"));
+		// Since we apply AND logic on spatially loaded flag recursively, startup value must be true
+		const bool bIsSpatiallyLoaded = true;
+		CreateActorDescriptorViewsRecursive(InContainer, FTransform::Identity, NAME_None, bIsSpatiallyLoaded, TSet<FName>(), FActorContainerID(), FActorContainerID(), EContainerClusterMode::Partitioned, TEXT("MainContainer"));
 
 		// Update container instances bounds
 		for (auto& [ContainerID, ContainerInstanceDescriptor] : ContainerInstanceDescriptorsMap)
