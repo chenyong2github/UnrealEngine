@@ -79,7 +79,6 @@ static FAutoConsoleVariableRef CVarSlateVerifyWidgetLayerId(
 	GSlateVerifyWidgetLayerId,
 	TEXT("Every tick, verify that widgets have a LayerId range that fits with their siblings and their parent.")
 );
-
 namespace UE::Slate::Private
 {
 	void VerifyParentChildrenRelationship(const TSharedRef<SWindow>& WindowToDraw);
@@ -93,6 +92,15 @@ static FAutoConsoleVariableRef CVarSlateInputMotionFiresUserInteractionEvents(
 	GSlateInputMotionFiresUserInteractionEvents,
 	TEXT("If this is false, LastUserInteractionTimeUpdateEvent events won't be fired based on motion input, and LastInteractionTime won't be updated\n")
 	TEXT("Some motion devices report small tiny changes constantly without filtering, so motion input is unhelpful for determining user activity"));
+
+//////////////////////////////////////////////////////////////////////////
+
+bool GSlateEnableGamepadEditorNavigation = true;
+static FAutoConsoleVariableRef CVarSlateEnableGamepadEditorNavigation(
+	TEXT("Slate.EnableGamepadEditorNavigation"),
+	GSlateEnableGamepadEditorNavigation,
+	TEXT("True implies we allow gamepad navigation outside of the game viewport.")
+);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -3386,7 +3394,11 @@ void FSlateApplication::ProcessReply( const FWidgetPath& CurrentEventPath, const
 
 		if (NavigationSource.IsValid())
 		{
-			if (TheReply.GetNavigationDestination().IsValid())
+			if (!GSlateEnableGamepadEditorNavigation && TheReply.GetNavigationGenesis() == ENavigationGenesis::Controller && !NavigationSource.GetLastWidget()->GetPersistentState().bIsInGameLayer)
+			{
+				// Gamepad navigation while not in a game layer, do nothing as specified by GSlateEnableGamepadEditorNavigation
+			}
+			else if (TheReply.GetNavigationDestination().IsValid())
 			{
 				const bool bAlwaysHandleNavigationAttempt = false;
 				ExecuteNavigation(NavigationSource, TheReply.GetNavigationDestination(), UserIndex, bAlwaysHandleNavigationAttempt);

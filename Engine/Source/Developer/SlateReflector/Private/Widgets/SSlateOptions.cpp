@@ -61,6 +61,7 @@ void SSlateOptions::Construct( const FArguments& InArgs )
 			AddMenuEntry(MenuBuilder, Icon, LOCTEXT("EnableFastWidgetPath", "Fast Widget Path"), TEXT("Slate.EnableFastWidgetPath"), false);
 			AddMenuEntry(MenuBuilder, Icon, LOCTEXT("EnableToolTips", "Enable Tooltips"), TEXT("Slate.EnableTooltips"));
 			AddMenuEntry(MenuBuilder, Icon, LOCTEXT("GlobalInvalidation", "Global Invalidation"), TEXT("Slate.EnableGlobalInvalidation"));
+			AddMenuEntry(MenuBuilder, Icon, LOCTEXT("DisabledEffect", "Transparent Disabled Effect"), TEXT("Slate.ApplyDisabledEffectOnWidgets"));
 
 			return MenuBuilder.MakeWidget();
 		}

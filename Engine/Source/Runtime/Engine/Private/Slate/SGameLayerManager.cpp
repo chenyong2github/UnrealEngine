@@ -31,14 +31,6 @@ static void HandlePerUserHitTestingToggled(IConsoleVariable* CVar)
 	FSlateApplication::Get().InvalidateAllWidgets(false);
 }
 
-static void HandleApplyDisabledEffectOnWidgetsToggled(IConsoleVariable* CVar)
-{
-	if (FSlateApplication::IsInitialized())
-	{
-		FSlateApplication::Get().InvalidateAllWidgets(false);
-	}
-}
-
 static int32 bEnablePerUserHitTesting = true;
 
 static FAutoConsoleVariableRef CVarEnablePerUserHitTesting(
@@ -46,15 +38,6 @@ static FAutoConsoleVariableRef CVarEnablePerUserHitTesting(
 	bEnablePerUserHitTesting,
 	TEXT("Toggles between widgets mapping to a user id and requring a matching user id from an input event or allowing all users to interact with widget"),
 	FConsoleVariableDelegate::CreateStatic(&HandlePerUserHitTestingToggled)
-);
-
-static int32 bApplyDisabledEffectOnWidgets = 1;
-
-static FAutoConsoleVariableRef CVarApplyDisabledEffectOnWidgets(
-	TEXT("ApplyDisabledEffectOnWidgets"),
-	bApplyDisabledEffectOnWidgets,
-	TEXT("If true, disabled game-layer widgets will have alpha multiplied by 0.45."),
-	FConsoleVariableDelegate::CreateStatic(&HandleApplyDisabledEffectOnWidgetsToggled)
 );
 
 #if UE_SLATE_WITH_GAMELAYER_CANVAS_VISIBILITY_COMMANDS
@@ -412,8 +395,7 @@ int32 SGameLayerManager::OnPaint(const FPaintArgs& Args, const FGeometry& Allott
 	}
 #endif
 
-	// By default game layer state is used to ignore disabled effects, don't set this flag if user wants disabled draw effects in-game
-	OutDrawElements.SetIsInGameLayer(!bApplyDisabledEffectOnWidgets);
+	OutDrawElements.SetIsInGameLayer(true);
 	const int32 ResultLayer = SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 	OutDrawElements.SetIsInGameLayer(false);
 	return ResultLayer;

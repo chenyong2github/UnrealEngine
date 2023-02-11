@@ -21,6 +21,23 @@ DECLARE_CYCLE_STAT(TEXT("FSlateDrawElement::Prebatch Time"), STAT_SlateDrawEleme
 DEFINE_STAT(STAT_SlateBufferPoolMemory);
 DEFINE_STAT(STAT_SlateCachedDrawElementMemory);
 
+static bool bApplyDisabledEffectOnWidgets = true;
+
+static void HandleApplyDisabledEffectOnWidgetsToggled(IConsoleVariable* CVar)
+{
+	if (FSlateApplicationBase::IsInitialized())
+	{
+		FSlateApplicationBase::Get().InvalidateAllWidgets(false);
+	}
+}
+
+static FAutoConsoleVariableRef CVarApplyDisabledEffectOnWidgets(
+	TEXT("Slate.ApplyDisabledEffectOnWidgets"),
+	bApplyDisabledEffectOnWidgets,
+	TEXT("If true, disabled game-layer widgets will have alpha multiplied by 0.45."),
+	FConsoleVariableDelegate::CreateStatic(&HandleApplyDisabledEffectOnWidgetsToggled)
+);
+
 static bool IsResourceObjectValid(UObject*& InObject)
 {
 	if (InObject != nullptr && (!IsValidChecked(InObject) || InObject->IsUnreachable() || InObject->HasAnyFlags(RF_BeginDestroyed)))
@@ -172,7 +189,7 @@ FSlateWindowElementList::~FSlateWindowElementList()
 
 void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType InElementType, uint32 InLayer, const FPaintGeometry& PaintGeometry, ESlateDrawEffect InDrawEffects)
 {
-	if (ElementList.GetIsInGameLayer())
+	if (ElementList.GetIsInGameLayer() && !bApplyDisabledEffectOnWidgets)
 	{
 		InDrawEffects &= ~ESlateDrawEffect::DisabledEffect;
 	}
