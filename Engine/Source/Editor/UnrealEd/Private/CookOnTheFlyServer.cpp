@@ -7267,6 +7267,7 @@ void UCookOnTheFlyServer::BlockOnAssetRegistry()
 		TArray<FString> ScanPaths;
 		ScanPaths.Add(FString::Printf(TEXT("/%s/"), *CookByTheBookOptions->DlcName));
 		AssetRegistry->ScanPathsSynchronous(ScanPaths);
+		AssetRegistry->WaitForCompletion();
 	}
 	UE::Cook::FPackageDatas::OnAssetRegistryGenerated(*AssetRegistry);
 
