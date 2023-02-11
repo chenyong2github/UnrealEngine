@@ -205,6 +205,60 @@ static bool VerifyGridBasedSubColoring(const TArray<TArray<int32>>& ElementsPerC
 
 }
 
+template <typename T>
+static bool VerifyWeakConstraintsColoring(const TArray<TArray<int32>>& Indices, const TArray<TArray<int32>>& SecondIndices, const Chaos::TDynamicParticles<T, 3>& InParticles, const TArray<TArray<int32>>& ConstraintsPerColor)
+{
+	TArray<bool> ConstraintIsIncluded;
+	ConstraintIsIncluded.Init(false, Indices.Num());
+	for (int32 i = 0; i < ConstraintsPerColor.Num(); i++)
+	{
+		for (int32 j = 0; j < ConstraintsPerColor[i].Num(); j++)
+		{
+			ConstraintIsIncluded[ConstraintsPerColor[i][j]] = true;
+		}
+	}
+
+	for (int32 kk = 0; kk < Indices.Num(); kk++)
+	{
+		if (!ConstraintIsIncluded[kk])
+		{
+			return false;
+		}
+	}
+
+	for (int32 i = 0; i < ConstraintsPerColor.Num(); i++)
+	{
+		TSet<int32> CoveredParticles;
+		for (int32 j = 0; j < ConstraintsPerColor[i].Num(); j++)
+		{
+			for (int32 Node : Indices[ConstraintsPerColor[i][j]])
+			{
+				if (CoveredParticles.Contains(Node))
+				{
+					return false;
+				}
+				CoveredParticles.Emplace(Node);
+			}
+
+			if (SecondIndices.Num() > 0)
+			{
+				for (int32 Node : SecondIndices[ConstraintsPerColor[i][j]])
+				{
+					if (CoveredParticles.Contains(Node))
+					{
+						return false;
+					}
+					CoveredParticles.Emplace(Node);
+				}
+
+			}
+		}
+	}
+
+	return true;
+
+}
+
 template<typename T>
 TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring(const TArray<Chaos::TVec2<int32>>& Graph, const Chaos::TDynamicParticles<T, 3>& InParticles, const int32 GraphParticlesStart, const int32 GraphParticlesEnd)
 {
@@ -1050,7 +1104,6 @@ void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>&
 			ElementSubColors.Init(-1, ElementsPerColor[i].Num());
 			TArray<TSet<int32>*> UsedColors;
 			UsedColors.Init(nullptr, NumNodes);
-			//std::vector<std::unordered_set<int>*> UsedColors(NumNodes, nullptr);
 			for (int32 j = 0; j < ElementsPerColor[i].Num(); j++) {
 				int32 ColorToUse = 0;
 				int32 e = ElementsPerColor[i][j];
@@ -1123,6 +1176,122 @@ void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>&
 }
 
 
+template<typename T>
+void Chaos::ComputeWeakConstraintsColoring(const TArray<TArray<int32>>& Indices, const TArray<TArray<int32>>& SecondIndices, const Chaos::TDynamicParticles<T, 3>& InParticles, TArray<TArray<int32>>& ConstraintsPerColor)
+{
+	TArray<TSet<int32>*> UsedColors;
+	UsedColors.Init(nullptr, InParticles.Size());
+
+	ensure(Indices.Num() == SecondIndices.Num() || SecondIndices.Num() == 0);
+
+	TArray<int32> ConstraintColors;
+	ConstraintColors.Init(-1, Indices.Num());
+
+	if (SecondIndices.Num() == 0)
+	{
+		for (int32 ConstraintIndex = 0; ConstraintIndex < Indices.Num(); ConstraintIndex++)
+		{
+			for (int32 i = 0; i < Indices[ConstraintIndex].Num(); i++)
+			{
+				if (!UsedColors[Indices[ConstraintIndex][i]]) {
+					UsedColors[Indices[ConstraintIndex][i]] = new TSet<int32>();
+				}
+				
+			}
+			int32 ColorToUse = 0;
+			while (true)
+			{
+				bool ColorFound = false;
+				for (auto node : Indices[ConstraintIndex]) {
+					if (!UsedColors[node]) {
+						UsedColors[node] = new TSet<int32>();
+					}
+					if (UsedColors[node]->Contains(ColorToUse)) {
+						ColorFound = true;
+						break;
+					}
+				}
+				if (!ColorFound) {
+					break;
+				}
+				ColorToUse++;
+			}
+			ConstraintColors[ConstraintIndex] = ColorToUse;
+		}
+	}
+	else 
+	{
+		for (int32 ConstraintIndex = 0; ConstraintIndex < Indices.Num(); ConstraintIndex++)
+		{
+			for (int32 i = 0; i < Indices[ConstraintIndex].Num(); i++)
+			{
+				if (!UsedColors[Indices[ConstraintIndex][i]]) {
+					UsedColors[Indices[ConstraintIndex][i]] = new TSet<int32>();
+				}
+			}
+			for (int32 j = 0; j < SecondIndices[ConstraintIndex].Num(); j++)
+			{
+				if (!UsedColors[SecondIndices[ConstraintIndex][j]]) {
+					UsedColors[SecondIndices[ConstraintIndex][j]] = new TSet<int32>();
+				}
+			}
+			int32 ColorToUse = 0;
+			while (true)
+			{
+				bool ColorFound = false;
+				for (auto node : Indices[ConstraintIndex]) {
+					if (!UsedColors[node]) {
+						UsedColors[node] = new TSet<int32>();
+					}
+					if (UsedColors[node]->Contains(ColorToUse)) {
+						ColorFound = true;
+						break;
+					}
+				}
+				for (auto node : SecondIndices[ConstraintIndex]) {
+					if (!UsedColors[node]) {
+						UsedColors[node] = new TSet<int32>();
+					}
+					if (UsedColors[node]->Contains(ColorToUse)) {
+						ColorFound = true;
+						break;
+					}
+				}
+				if (!ColorFound) {
+					break;
+				}
+				ColorToUse++;
+			}
+			ConstraintColors[ConstraintIndex] = ColorToUse;
+			for (auto node : Indices[ConstraintIndex]) {
+				UsedColors[node]->Emplace(ColorToUse);
+			}
+			for (auto node : SecondIndices[ConstraintIndex]) {
+				UsedColors[node]->Emplace(ColorToUse);
+			}
+		}
+	}
+
+	for (int ii = 0; ii < UsedColors.Num(); ii++) {
+		delete (UsedColors[ii]);
+	}
+
+	int32 NumColors = FMath::Max<int32>(ConstraintColors);
+
+	//int32 num_colors = *std::max_element(ElementSubColors.begin(), ElementSubColors.end());
+	ConstraintsPerColor.Empty();
+	ConstraintsPerColor.SetNum(NumColors + 1);
+
+	for (int32 j = 0; j < Indices.Num(); j++) 
+	{
+		ConstraintsPerColor[ConstraintColors[j]].Emplace(j);
+	}
+
+	checkSlow(VerifyWeakConstraintsColoring<T>(Indices, SecondIndices, InParticles, ConstraintsPerColor));
+}
+
+
+
 template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring<Chaos::FRealSingle>(const TArray<Chaos::TVector<int32, 2>>&, const Chaos::TDynamicParticles<Chaos::FRealSingle, 3>&, const int32 GraphParticlesStart, const int32 GraphParticlesEnd);
 template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring<Chaos::FRealDouble>(const TArray<Chaos::TVector<int32, 2>>&, const Chaos::TDynamicParticles<Chaos::FRealDouble, 3>&, const int32 GraphParticlesStart, const int32 GraphParticlesEnd);
 template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring<Chaos::FRealSingle>(const TArray<Chaos::TVector<int32, 3>>&, const Chaos::TDynamicParticles<Chaos::FRealSingle, 3>&, const int32 GraphParticlesStart, const int32 GraphParticlesEnd);
@@ -1133,3 +1302,5 @@ template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColo
 template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoringAllDynamic<Chaos::FRealDouble>(const TArray<Chaos::TVector<int32, 4>>&, const Chaos::TDynamicParticles<Chaos::FRealDouble, 3>&, const int32 GraphParticlesStart, const int32 GraphParticlesEnd);
 template CHAOS_API void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>& ElementsPerColor, const TMPMGrid<Chaos::FRealSingle>& Grid, const int32 GridSize, TArray<TArray<int32>>*& PreviousColoring, const TArray<TArray<int32>>& ConstraintsNodesSet, TArray<TArray<TArray<int32>>>& ElementsPerSubColors);
 template CHAOS_API void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>& ElementsPerColor, const TMPMGrid<Chaos::FRealDouble>& Grid, const int32 GridSize, TArray<TArray<int32>>*& PreviousColoring, const TArray<TArray<int32>>& ConstraintsNodesSet, TArray<TArray<TArray<int32>>>& ElementsPerSubColors);
+template CHAOS_API void Chaos::ComputeWeakConstraintsColoring<Chaos::FRealSingle>(const TArray<TArray<int32>>& Indices, const TArray<TArray<int32>>& SecondIndices, const Chaos::TDynamicParticles<Chaos::FRealSingle, 3>& InParticles, TArray<TArray<int32>>& ConstraintsPerColor);
+template CHAOS_API void Chaos::ComputeWeakConstraintsColoring<Chaos::FRealDouble>(const TArray<TArray<int32>>& Indices, const TArray<TArray<int32>>& SecondIndices, const Chaos::TDynamicParticles<Chaos::FRealDouble, 3>& InParticles, TArray<TArray<int32>>& ConstraintsPerColor);

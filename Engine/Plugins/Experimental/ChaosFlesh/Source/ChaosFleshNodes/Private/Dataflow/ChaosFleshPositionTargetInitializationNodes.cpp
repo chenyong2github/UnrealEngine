@@ -1,0 +1,367 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Dataflow/ChaosFleshPositionTargetInitializationNodes.h"
+
+#include "ChaosFlesh/FleshCollection.h"
+#include "ChaosFlesh/FleshCollectionUtility.h"
+#include "Dataflow/DataflowEngineUtil.h"
+#include "Engine/SkeletalMesh.h"
+#include "Dataflow/DataflowInputOutput.h"
+#include "Chaos/BoundingVolumeHierarchy.h"
+#include "GeometryCollection/Facades/CollectionKinematicBindingFacade.h"
+#include "GeometryCollection/Facades/CollectionPositionTargetFacade.h"
+#include "Dataflow/DataflowNodeFactory.h"
+#include "GeometryCollection/Facades/CollectionVertexBoneWeightsFacade.h"
+#include "GeometryCollection/TransformCollection.h"
+#include "Chaos/Tetrahedron.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosFleshPositionTargetInitializationNodes)
+
+//DEFINE_LOG_CATEGORY_STATIC(FKinematicInitializationNodesLog, Log, All);
+
+namespace Dataflow
+{
+	void RegisterChaosFleshPositionTargetInitializationNodes()
+	{
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FAddKinematicParticlesDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexVertexPositionTargetBindingDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexTetrahedraPositionTargetBindingDataflowNode);
+	}
+}
+
+
+void FAddKinematicParticlesDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<DataType>(&Collection))
+	{
+		DataType InCollection = GetValue<DataType>(Context, &Collection);
+
+		if (TManagedArray<FVector3f>* Vertices = InCollection.FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup))
+		{
+			TArray<int32> TargetIndices;
+			TargetIndices.SetNum(0);
+			if (FindInput(&VertexIndicesIn) && FindInput(&VertexIndicesIn)->GetConnection())
+			{
+				TArray<int32> BoundVerts;
+				TArray<float> BoundWeights;
+
+				for (int32 SelectionIndex : GetValue<TArray<int32>>(Context, &VertexIndicesIn))
+				{
+					if (0 <= SelectionIndex && SelectionIndex < Vertices->Num())
+					{
+						BoundVerts.Add(SelectionIndex);
+					}
+				}
+				if (BoundVerts.Num())
+				{
+					BoundWeights.Init(1.0, BoundVerts.Num());
+					GeometryCollection::Facades::FKinematicBindingFacade Kinematics(InCollection);
+					Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(INDEX_NONE, BoundVerts, BoundWeights));
+				}
+			}
+			else if (TObjectPtr<USkeletalMesh> SkeletalMesh = GetValue<TObjectPtr<USkeletalMesh>>(Context, &SkeletalMeshIn))
+			{
+				int32 IndexValue = GetValue<int32>(Context, &BoneIndexIn);
+				if (IndexValue != INDEX_NONE)
+				{
+					TArray<FTransform> ComponentPose;
+					Dataflow::Animation::GlobalTransforms(SkeletalMesh->GetRefSkeleton(), ComponentPose);
+
+					TArray<int32> BranchIndices;
+					if (SkeletalSelectionMode == ESkeletalSeletionMode::Dataflow_SkeletalSelection_Branch)
+					{
+						TArray<int32> ToProcess;
+						int32 CurrentIndex = IndexValue;
+						while (SkeletalMesh->GetRefSkeleton().IsValidIndex(CurrentIndex))
+						{
+							TArray<int32> Buffer;
+							SkeletalMesh->GetRefSkeleton().GetDirectChildBones(CurrentIndex, Buffer);
+
+							if (Buffer.Num())
+							{
+								ToProcess.Append(Buffer);
+							}
+
+							BranchIndices.Add(CurrentIndex);
+
+							CurrentIndex = INDEX_NONE;
+							if (ToProcess.Num())
+							{
+								CurrentIndex = ToProcess.Pop();
+							}
+						}
+					}
+					else // ESkeletalSeletionMode::Dataflow_SkeletalSelection_Single
+					{
+						BranchIndices.Add(IndexValue);
+					}
+
+					int32 ParticleIndex = InCollection.AddElements(BranchIndices.Num(), FGeometryCollection::VerticesGroup);
+					TManagedArray<FVector3f>& CurrentVertices = InCollection.ModifyAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+
+					for (int32 Index = 0; Index < BranchIndices.Num(); Index++)
+					{
+						FVector3f BonePosition(ComponentPose[BranchIndices[Index]].GetTranslation());
+
+						CurrentVertices[ParticleIndex+Index] = BonePosition;
+
+						TArray<int32> BoundVerts;
+						TArray<float> BoundWeights;
+
+						BoundVerts.Add(ParticleIndex + Index);
+						BoundWeights.Add(1.0);
+						TargetIndices.Emplace(ParticleIndex + Index);
+
+
+						if (BoundVerts.Num())
+						{
+							GeometryCollection::Facades::FKinematicBindingFacade Kinematics(InCollection);
+							Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(Index, BoundVerts, BoundWeights));
+						}
+					}
+
+					//debugging code for tet binding:
+					//int32 ParticleIndex1 = InCollection.AddElements(1, FGeometryCollection::VerticesGroup);
+					//TManagedArray<FVector3f>& CurrentVertices1 = InCollection.ModifyAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+					//CurrentVertices1[ParticleIndex1][0] = -40.f;
+					//CurrentVertices1[ParticleIndex1][1] = -50.f;
+					//CurrentVertices1[ParticleIndex1][2] = -10.f;
+					//GeometryCollection::Facades::FKinematicBindingFacade Kinematics(InCollection);
+					//TArray<int32> BoundVerts;
+					//TArray<float> BoundWeights;
+					//BoundVerts.Add(ParticleIndex1);
+					//BoundWeights.Add(1.0);
+					//Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(BranchIndices[0], BoundVerts, BoundWeights));
+					//TargetIndices.Emplace(ParticleIndex1);
+
+					GeometryCollection::Facades::FVertexBoneWeightsFacade(InCollection).AddBoneWeightsFromKinematicBindings();
+				}
+			}
+
+			SetValue<TArray<int32>>(Context, TargetIndices, &TargetIndicesOut);
+		}
+		SetValue<DataType>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FSetVertexVertexPositionTargetBindingDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<DataType>(&Collection))
+	{
+		DataType InCollection = GetValue<DataType>(Context, &Collection);
+
+		if (TManagedArray<FVector3f>* Vertices = InCollection.FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup))
+		{
+			if (FindInput(&TargetIndicesIn) && FindInput(&TargetIndicesIn)->GetConnection())
+			{
+				Chaos::FReal SphereRadius = (Chaos::FReal)0.;
+
+				Chaos::TVec3<float> CoordMaxs(-FLT_MAX);
+				Chaos::TVec3<float> CoordMins(FLT_MAX);
+				for (int32 i = 0; i < Vertices->Num(); i++)
+				{
+					for (int32 j = 0; j < 3; j++) 
+					{
+						if ((*Vertices)[i][j] > CoordMaxs[j]) 
+						{
+							CoordMaxs[j] = (*Vertices)[i][j];
+						}
+						if ((*Vertices)[i][j] < CoordMins[j])
+						{
+							CoordMins[j] = (*Vertices)[i][j];
+						}
+					}
+				}
+
+				Chaos::TVec3<float> CoordDiff = (CoordMaxs - CoordMins) * RadiusRatio;
+
+				SphereRadius = Chaos::FReal(FGenericPlatformMath::Min(CoordDiff[0], FGenericPlatformMath::Min(CoordDiff[1], CoordDiff[2])));
+
+				TArray<Chaos::TSphere<Chaos::FReal, 3>*> VertexSpherePtrs;
+				TArray<Chaos::TSphere<Chaos::FReal, 3>> VertexSpheres;
+
+				VertexSpheres.Init(Chaos::TSphere<Chaos::FReal, 3>(Chaos::TVec3<Chaos::FReal>(0), SphereRadius), Vertices->Num());
+				VertexSpherePtrs.SetNum(Vertices->Num());
+
+				for (int32 i = 0; i < Vertices->Num(); i++)
+				{
+					Chaos::TVec3<Chaos::FReal> SphereCenter((*Vertices)[i]);
+					Chaos::TSphere<Chaos::FReal, 3> VertexSphere(SphereCenter, SphereRadius);
+					VertexSpheres[i] = Chaos::TSphere<Chaos::FReal, 3>(SphereCenter, SphereRadius);
+					VertexSpherePtrs[i] = &VertexSpheres[i];
+				}
+				Chaos::TBoundingVolumeHierarchy<
+					TArray<Chaos::TSphere<Chaos::FReal, 3>*>,
+					TArray<int32>,
+					Chaos::FReal,
+					3> VertexBVH(VertexSpherePtrs);
+
+			
+				TArray<int32> TargetIndicesLocal = GetValue<TArray<int32>>(Context, &TargetIndicesIn);
+				TSet<int32> TargetIndicesSet = TSet<int32>(TargetIndicesLocal);
+				TArray<int32> SourceIndices;
+				SourceIndices.Init(-1, TargetIndicesLocal.Num());
+				
+				for (int32 i = 0; i < TargetIndicesLocal.Num(); i++)
+				{
+					if (TargetIndicesLocal[i] > -1 && TargetIndicesLocal[i] < Vertices->Num()) 
+					{
+						FVector3f ParticlePos = (*Vertices)[TargetIndicesLocal[i]];
+						TArray<int32> VertexIntersections = VertexBVH.FindAllIntersections(ParticlePos);
+						float MinDistance = 10.f * (float)SphereRadius;
+						int32 MinIndex = -1;
+						for (int32 k = 0; k < VertexIntersections.Num(); k++)
+						{
+							if ((ParticlePos - (*Vertices)[VertexIntersections[k]]).Size() < MinDistance
+								&& VertexIntersections[k] != TargetIndicesLocal[i] && !TargetIndicesSet.Contains(VertexIntersections[k]))
+							{
+								MinIndex = VertexIntersections[k];
+								MinDistance = (ParticlePos - (*Vertices)[VertexIntersections[k]]).Size();
+							}
+						}
+						ensure(MinIndex != -1);
+						SourceIndices[i] = MinIndex;
+					}
+				}
+				GeometryCollection::Facades::FPositionTargetFacade PositionTargets(InCollection);
+				PositionTargets.DefineSchema();
+				for (int32 i = 0; i < TargetIndicesLocal.Num(); i++)
+				{
+					if (SourceIndices[i] != -1)
+					{
+						GeometryCollection::Facades::FPositionTargetsData DataPackage;
+						DataPackage.TargetIndex.Init(TargetIndicesLocal[i], 1);
+						DataPackage.TargetWeights.Init(1.f, 1);
+						DataPackage.SourceWeights.Init(1.f, 1);
+						DataPackage.SourceIndex.Init(SourceIndices[i], 1);
+						if (TManagedArray<float>* Mass = InCollection.FindAttribute<float>("Mass", FGeometryCollection::VerticesGroup))
+						{
+							if ((*Mass)[SourceIndices[i]] > 0.f)
+							{
+								DataPackage.Stiffness = PositionTargetStiffness * (*Mass)[SourceIndices[i]];
+							}
+							else
+							{
+								DataPackage.Stiffness = PositionTargetStiffness;
+							}
+						}
+						else
+						{
+							DataPackage.Stiffness = PositionTargetStiffness;
+						}
+
+						PositionTargets.AddPositionTarget(DataPackage);
+					}
+				}
+			}
+			
+		}
+		SetValue<DataType>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FSetVertexTetrahedraPositionTargetBindingDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<DataType>(&Collection))
+	{
+		DataType InCollection = GetValue<DataType>(Context, &Collection);
+		if (FindInput(&TargetIndicesIn) && FindInput(&TargetIndicesIn)->GetConnection()) 
+		{
+			if (TManagedArray<FVector3f>* Vertices = InCollection.FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup))
+			{
+				if (TManagedArray<FIntVector4>* Tetrahedron = InCollection.FindAttribute<FIntVector4>(FTetrahedralCollection::TetrahedronAttribute, FTetrahedralCollection::TetrahedralGroup))
+				{
+					TManagedArray<int32>* TetrahedronStart = InCollection.FindAttribute<int32>(FTetrahedralCollection::TetrahedronStartAttribute, FGeometryCollection::GeometryGroup);
+					TManagedArray<int32>* TetrahedronCount = InCollection.FindAttribute<int32>(FTetrahedralCollection::TetrahedronCountAttribute, FGeometryCollection::GeometryGroup);
+					if (TetrahedronStart && TetrahedronCount)
+					{
+						for (int32 TetMeshIdx = 0; TetMeshIdx < TetrahedronStart->Num(); TetMeshIdx++)
+						{
+							const int32 TetMeshStart = (*TetrahedronStart)[TetMeshIdx];
+							const int32 TetMeshCount = (*TetrahedronCount)[TetMeshIdx];
+
+							// Build Tetrahedra
+							TArray<Chaos::TTetrahedron<Chaos::FReal>> Tets;			// Index 0 == TetMeshStart
+							TArray<Chaos::TTetrahedron<Chaos::FReal>*> BVHTetPtrs;
+							Tets.SetNumUninitialized(TetMeshCount);
+							BVHTetPtrs.SetNumUninitialized(TetMeshCount);
+							for (int32 i = 0; i < TetMeshCount; i++)
+							{
+								const int32 Idx = TetMeshStart + i;
+								const FIntVector4& Tet = (*Tetrahedron)[Idx];
+								Tets[i] = Chaos::TTetrahedron<Chaos::FReal>(
+									(*Vertices)[Tet[0]],
+									(*Vertices)[Tet[1]],
+									(*Vertices)[Tet[2]],
+									(*Vertices)[Tet[3]]);
+								BVHTetPtrs[i] = &Tets[i];
+							}
+
+							Chaos::TBoundingVolumeHierarchy<
+								TArray<Chaos::TTetrahedron<Chaos::FReal>*>,
+								TArray<int32>,
+								Chaos::FReal,
+								3> TetBVH(BVHTetPtrs);
+
+							TArray<int32> TargetIndicesLocal = GetValue<TArray<int32>>(Context, &TargetIndicesIn);
+							TArray<int32> SourceIndices;
+							SourceIndices.Init(-1, TargetIndicesLocal.Num());
+
+							GeometryCollection::Facades::FPositionTargetFacade PositionTargets(InCollection);
+							PositionTargets.DefineSchema();
+
+							for (int32 i = 0; i < TargetIndicesLocal.Num(); i++)
+							{
+								if (TargetIndicesLocal[i] > -1 && TargetIndicesLocal[i] < Vertices->Num())
+								{
+									FVector3f ParticlePos = (*Vertices)[TargetIndicesLocal[i]];
+									TArray<int32> TetIntersections = TetBVH.FindAllIntersections(ParticlePos);
+									for (int32 j = 0; j < TetIntersections.Num(); j++)
+									{
+										const int32 TetIdx = TetIntersections[j];
+										if (!Tets[TetIdx].Outside(ParticlePos, 1.0e-2))
+										{
+											Chaos::TVector<Chaos::FReal, 4> WeightsD = Tets[TetIdx].GetBarycentricCoordinates(ParticlePos);
+											GeometryCollection::Facades::FPositionTargetsData DataPackage;
+											DataPackage.TargetIndex.Init(TargetIndicesLocal[i], 1);
+											DataPackage.TargetWeights.Init(1.f, 1);
+											DataPackage.SourceWeights.Init(1.f, 4);
+											DataPackage.SourceIndex.Init(-1, 4);
+											DataPackage.SourceIndex[0] = (*Tetrahedron)[TetIdx][0];
+											DataPackage.SourceIndex[1] = (*Tetrahedron)[TetIdx][1];
+											DataPackage.SourceIndex[2] = (*Tetrahedron)[TetIdx][2];
+											DataPackage.SourceIndex[3] = (*Tetrahedron)[TetIdx][3];
+											DataPackage.SourceWeights[0] = WeightsD[0];
+											DataPackage.SourceWeights[1] = WeightsD[1];
+											DataPackage.SourceWeights[2] = WeightsD[2];
+											DataPackage.SourceWeights[3] = WeightsD[3];
+											if (TManagedArray<float>* Mass = InCollection.FindAttribute<float>("Mass", FGeometryCollection::VerticesGroup))
+											{
+												DataPackage.Stiffness = 0.f;
+												for (int32 k = 0; k < 4; k++)
+												{
+													DataPackage.Stiffness += DataPackage.SourceWeights[k] * PositionTargetStiffness * (*Mass)[DataPackage.SourceIndex[0]];
+												}
+											}
+											else
+											{
+												DataPackage.Stiffness = PositionTargetStiffness;
+											}
+											PositionTargets.AddPositionTarget(DataPackage);
+											break;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		SetValue<DataType>(Context, InCollection, &Collection);
+	}
+
+
+}

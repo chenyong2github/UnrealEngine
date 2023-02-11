@@ -203,6 +203,7 @@ void UDeformableSolverComponent::Reset()
 			, Damping
 			, bEnableGravity
 			, bEnableCorotatedConstraint
+			, bEnablePositionTargets
 		}));
 
 		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : DeformableComponents)
