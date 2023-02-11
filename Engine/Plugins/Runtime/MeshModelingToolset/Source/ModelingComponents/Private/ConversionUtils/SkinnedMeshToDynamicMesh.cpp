@@ -10,7 +10,7 @@
 #include "Engine/SkinnedAssetCommon.h"
 #include "Engine/SkinnedAsset.h"
 #include "SkeletalRenderPublic.h"
-#include "MeshConversion/Public/ToDynamicMesh.h"
+#include "ToDynamicMesh.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
 
