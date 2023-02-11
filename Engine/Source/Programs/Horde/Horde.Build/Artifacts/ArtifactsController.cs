@@ -155,6 +155,59 @@ namespace Horde.Build.Artifacts
 		}
 
 		/// <summary>
+		/// Retrieves blobs for a particular artifact
+		/// </summary>
+		/// <param name="id">Identifier of the artifact to retrieve</param>
+		/// <param name="locator">The blob locator</param>
+		/// <param name="length">Length of data to return</param>
+		/// <param name="offset">Offset of the data to return</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Information about all the artifacts</returns>
+		[HttpGet]
+		[Route("/api/v2/artifacts/{id}/blobs/{*locator}")]
+		public async Task<ActionResult<object>> ReadArtifactBlobAsync(ArtifactId id, BlobLocator locator, [FromQuery] int? offset = null, [FromQuery] int? length = null, CancellationToken cancellationToken = default)
+		{
+			IArtifact? artifact = await _artifactCollection.GetAsync(id, cancellationToken);
+			if (artifact == null)
+			{
+				return NotFound(id);
+			}
+			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			{
+				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+			}
+			if (!locator.BlobId.WithinFolder(artifact.RefName.Text))
+			{
+				return BadRequest("Invalid blob id for artifact");
+			}
+
+			return StorageController.ReadBlobInternalAsync(_storageService, artifact.NamespaceId, locator, offset, length, cancellationToken);
+		}
+
+		/// <summary>
+		/// Retrieves the root blob for an artifact
+		/// </summary>
+		/// <param name="id">Identifier of the artifact to retrieve</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Information about all the artifacts</returns>
+		[HttpGet]
+		[Route("/api/v2/artifacts/{id}/ref")]
+		public async Task<ActionResult<object>> ReadArtifactRefAsync(ArtifactId id, CancellationToken cancellationToken = default)
+		{
+			IArtifact? artifact = await _artifactCollection.GetAsync(id, cancellationToken);
+			if (artifact == null)
+			{
+				return NotFound(id);
+			}
+			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			{
+				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+			}
+
+			return StorageController.ReadRefInternalAsync(_storageService, artifact.NamespaceId, artifact.RefName, cancellationToken);
+		}
+
+		/// <summary>
 		/// Gets metadata about an artifact object
 		/// </summary>
 		/// <param name="id">Identifier of the artifact to retrieve</param>

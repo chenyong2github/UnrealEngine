@@ -230,6 +230,16 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Checks whether this blob is within the given folder
+		/// </summary>
+		/// <param name="folderName">Name of the folder</param>
+		/// <returns>True if the the blob id is within the given folder</returns>
+		public bool WithinFolder(Utf8String folderName)
+		{
+			return Inner.Length > folderName.Length && Inner.StartsWith(folderName) && Inner[folderName.Length] == '/';
+		}
+
+		/// <summary>
 		/// Test if a given character is valid in a store id
 		/// </summary>
 		/// <param name="c">Character to test</param>

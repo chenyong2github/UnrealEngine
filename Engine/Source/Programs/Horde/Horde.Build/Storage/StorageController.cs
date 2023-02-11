@@ -261,12 +261,20 @@ namespace Horde.Build.Storage
 				return Forbid(AclAction.ReadBlobs, namespaceId);
 			}
 
-			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+			return await ReadBlobInternalAsync(_storageService, namespaceId, locator, offset, length, cancellationToken);
+		}
+
+		/// <summary>
+		/// Reads a blob from storage, without performing namespace access checks.
+		/// </summary>
+		internal static async Task<ActionResult> ReadBlobInternalAsync(StorageService storageService, NamespaceId namespaceId, BlobLocator locator, int? offset, int? length, CancellationToken cancellationToken)
+		{
+			IStorageClientImpl client = await storageService.GetClientAsync(namespaceId, cancellationToken);
 
 			Uri? redirectUrl = await client.GetReadRedirectAsync(locator, cancellationToken);
 			if (redirectUrl != null)
 			{
-				return Redirect(redirectUrl.ToString());
+				return new RedirectResult(redirectUrl.ToString());
 			}
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
@@ -282,9 +290,9 @@ namespace Horde.Build.Storage
 			}
 			else
 			{
-				return BadRequest("Offset and length must both be specified as query parameters for ranged reads");
+				return new BadRequestObjectResult("Offset and length must both be specified as query parameters for ranged reads");
 			}
-			return File(stream, "application/octet-stream");
+			return new FileStreamResult(stream, "application/octet-stream");
 #pragma warning restore CA2000 // Dispose objects before losing scope
 		}
 
@@ -372,12 +380,20 @@ namespace Horde.Build.Storage
 				return Forbid(AclAction.ReadRefs, namespaceId);
 			}
 
-			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+			return await ReadRefInternalAsync(_storageService, namespaceId, refName, cancellationToken);
+		}
+
+		/// <summary>
+		/// Reads a ref from storage, without performing namespace access checks.
+		/// </summary>
+		internal static async Task<ActionResult<ReadRefResponse>> ReadRefInternalAsync(StorageService storageService, NamespaceId namespaceId, RefName refName, CancellationToken cancellationToken)
+		{
+			IStorageClient client = await storageService.GetClientAsync(namespaceId, cancellationToken);
 
 			NodeHandle? target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
 			if (target == null)
 			{
-				return NotFound();
+				return new NotFoundResult();
 			}
 
 			return new ReadRefResponse(target);
