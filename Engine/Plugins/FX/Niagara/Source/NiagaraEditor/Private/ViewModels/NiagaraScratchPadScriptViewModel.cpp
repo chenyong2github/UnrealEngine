@@ -229,8 +229,10 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 		FunctionCallNodeToRefresh->MarkNodeRequiresSynchronization(TEXT("ScratchPadChangesApplied"), true);
 	}
 
+	TSharedRef<FNiagaraScriptViewModel> ViewModel = AsShared();
+	TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = StaticCastSharedRef<FNiagaraScratchPadScriptViewModel>(ViewModel);
 	OnHasUnappliedChangesChangedDelegate.Broadcast();
-	OnChangesAppliedDelegate.Broadcast();
+	OnChangesAppliedDelegate.Broadcast(ScratchPadScriptViewModel);
 }
 
 void FNiagaraScratchPadScriptViewModel::DiscardChanges()

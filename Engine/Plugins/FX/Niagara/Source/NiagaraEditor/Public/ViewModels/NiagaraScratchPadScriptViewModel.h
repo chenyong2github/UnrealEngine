@@ -16,7 +16,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnRenamed);
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnHasUnappliedChangesChanged);
-	DECLARE_MULTICAST_DELEGATE(FOnChangesApplied);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnChangesApplied, TSharedRef<FNiagaraScratchPadScriptViewModel> /* The applied view model */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPinIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGraphSubObjectSelectionChanged, const UObject*);

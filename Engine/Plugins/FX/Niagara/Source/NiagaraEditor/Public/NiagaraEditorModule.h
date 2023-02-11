@@ -132,6 +132,7 @@ class FNiagaraEditorModule : public IModuleInterface,
 public:
 	DECLARE_DELEGATE_RetVal_OneParam(UMovieSceneNiagaraParameterTrack*, FOnCreateMovieSceneTrackForParameter, FNiagaraVariable);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCheckScriptToolkitsShouldFocusGraphElement, const FNiagaraScriptIDAndGraphFocusInfo*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnScriptApplied, UNiagaraScript*, FGuid /** VersionGuid */);
 
 public:
 	FNiagaraEditorModule();
@@ -246,6 +247,10 @@ public:
 
 	void PreloadSelectablePluginAssetsByClass(UClass* InClass);
 
+	void ScriptApplied(UNiagaraScript* Script, FGuid VersionGuid = FGuid()) const;
+	
+	/** Callback whenever a script is applied/updated in the editor. */
+	FOnScriptApplied& OnScriptApplied();
 private:
 	class FDeferredDestructionContainerBase
 	{
@@ -344,6 +349,8 @@ private:
 	TMap<FNiagaraTypeDefinition, TSharedRef<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe>> TypeToEditorUtilitiesMap;
 	TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> EnumTypeUtilities;
 
+	FOnScriptApplied OnScriptAppliedDelegate;
+
 	FDelegateHandle CreateEmitterTrackEditorHandle;
 	FDelegateHandle CreateSystemTrackEditorHandle;
 
@@ -366,7 +373,7 @@ private:
 
 	FDelegateHandle OnAssetCreatedHandle;
 	FDelegateHandle OnAssetDeletedHandle;
-
+	
 	USequencerSettings* SequencerSettings;
 
 	TSharedPtr<INiagaraEditorWidgetProvider> WidgetProvider;

@@ -147,6 +147,8 @@ public:
 	TArray<UNiagaraStackFunctionInput*> GetInlineParameterInputs() const;
 
 protected:
+	void OnScriptApplied(UNiagaraScript* NiagaraScript, FGuid Guid);
+	
 	virtual void FinalizeInternal() override;
 
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;

@@ -5,6 +5,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraEditorModule.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeAssignment.h"
@@ -98,11 +99,16 @@ void UNiagaraStackFunctionInputCollection::Initialize(
 	ModuleNode = &InModuleNode;
 	InputFunctionCallNode = &InInputFunctionCallNode;
 	InputFunctionCallNode->OnInputsChanged().AddUObject(this, &UNiagaraStackFunctionInputCollection::OnFunctionInputsChanged);
+
+	FNiagaraEditorModule::Get().OnScriptApplied().AddUObject(this, &UNiagaraStackFunctionInputCollection::OnScriptApplied);
 }
 
 void UNiagaraStackFunctionInputCollection::FinalizeInternal()
 {
 	InputFunctionCallNode->OnInputsChanged().RemoveAll(this);
+	
+	FNiagaraEditorModule::Get().OnScriptApplied().RemoveAll(this);
+	
 	Super::FinalizeInternal();
 }
 
@@ -185,6 +191,14 @@ TArray<UNiagaraStackFunctionInput*> UNiagaraStackFunctionInputCollection::GetInl
 	}
 
 	return OutArray;
+}
+
+void UNiagaraStackFunctionInputCollection::OnScriptApplied(UNiagaraScript* NiagaraScript, FGuid Guid)
+{
+	if(InputFunctionCallNode->FunctionScript == NiagaraScript)
+	{
+		RefreshChildren();
+	}
 }
 
 void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

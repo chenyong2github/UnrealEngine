@@ -948,11 +948,6 @@ void FNiagaraEditorUtilities::CompileExistingEmitters(const TArray<FVersionedNia
 			}
 		}
 	}
-
-	for (TSharedPtr<FNiagaraSystemViewModel> SystemViewModel : ExistingSystemViewModels)
-	{
-		SystemViewModel->RefreshAll();
-	}
 }
 
 bool FNiagaraEditorUtilities::TryGetEventDisplayName(UNiagaraEmitter* Emitter, FGuid EventUsageId, FText& OutEventDisplayName)

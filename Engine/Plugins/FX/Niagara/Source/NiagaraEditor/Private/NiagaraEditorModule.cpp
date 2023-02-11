@@ -1975,6 +1975,11 @@ void FNiagaraEditorModule::OnAssetDeleted(UObject* DeletedObject)
 	}
 }
 
+FNiagaraEditorModule::FOnScriptApplied& FNiagaraEditorModule::OnScriptApplied()
+{
+	return OnScriptAppliedDelegate;
+}
+
 UNiagaraParameterCollection* FNiagaraEditorModule::FindCollectionForVariable(const FString& VariableName)
 {
 	auto FindCachedCollectionByPrefix = [this](const FString& Prefix)
@@ -2073,6 +2078,12 @@ void FNiagaraEditorModule::PreloadSelectablePluginAssetsByClass(UClass* InClass)
 		}
 		PluginAssetClassesPreloaded.Add(InClass);
 	}
+}
+
+void FNiagaraEditorModule::ScriptApplied(UNiagaraScript* Script, FGuid VersionGuid) const
+{
+	ensure(Script != nullptr);
+	OnScriptAppliedDelegate.Broadcast(Script, VersionGuid);
 }
 
 #endif

@@ -775,6 +775,7 @@ void FNiagaraScriptToolkit::OnApply()
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptToolkit_OnApply);
 	UE_LOG(LogNiagaraEditor, Log, TEXT("Applying Niagara Script %s"), *GetEditingObjects()[0]->GetName());
 	UpdateOriginalNiagaraScript();
+	FNiagaraEditorModule::Get().ScriptApplied(OriginalNiagaraScript.Script, OriginalNiagaraScript.Version);
 }
 
 bool FNiagaraScriptToolkit::OnApplyEnabled() const

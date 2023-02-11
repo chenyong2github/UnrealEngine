@@ -105,7 +105,7 @@ private:
 
 	void ScriptViewModelHasUnappliedChangesChanged();
 
-	void ScriptViewModelChangesApplied();
+	void ScriptViewModelChangesApplied(TSharedRef<FNiagaraScratchPadScriptViewModel> ViewModel);
 
 	void ScriptViewModelRequestDiscardChanges(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
 
@@ -140,6 +140,4 @@ private:
 	FOnScriptRenamed OnScriptRenamedDelegate;
 
 	FOnScriptDeleted OnScriptDeletedDelegate;
-
-	bool bIsBulkApplying = false;
 };

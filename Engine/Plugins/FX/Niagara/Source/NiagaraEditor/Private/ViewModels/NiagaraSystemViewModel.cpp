@@ -169,6 +169,25 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 		SetupPreviewComponentAndInstance();
 		SetupSequencer();
 	}
+
+	OnScriptAppliedDelegateHandle = FNiagaraEditorModule::Get().OnScriptApplied().AddLambda([this](UNiagaraScript* Script, FGuid VersionGuid)
+	{
+		for(UNiagaraGraph* Graph : GetAllGraphs())
+		{
+			TArray<UNiagaraNodeFunctionCall*> FunctionCallNodes;
+			Graph->GetNodesOfClass(FunctionCallNodes);
+
+			for(UNiagaraNodeFunctionCall* FunctionCall : FunctionCallNodes)
+			{
+				if(FunctionCall->FunctionScript == Script)
+				{		
+					ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
+					return;
+				}
+			}
+		}
+	});
+	
 	RefreshAll();
 	AddSystemEventHandlers();
 }
@@ -332,6 +351,8 @@ void FNiagaraSystemViewModel::Cleanup()
 	{
 		ParameterPanelViewModel.Pin()->GetOnInvalidateCachedDependencies().RemoveAll(this);
 	}
+
+	FNiagaraEditorModule::Get().OnScriptApplied().Remove(OnScriptAppliedDelegateHandle);
 
 	System = nullptr;
 }

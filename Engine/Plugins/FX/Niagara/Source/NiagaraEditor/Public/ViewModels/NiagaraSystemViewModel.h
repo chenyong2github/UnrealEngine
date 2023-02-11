@@ -8,6 +8,7 @@
 #include "ISequencerModule.h"
 #include "NiagaraCommon.h"
 #include "NiagaraEditorCommon.h"
+#include "NiagaraEditorModule.h"
 #include "NiagaraOverviewNode.h"
 #include "NiagaraSystemScalabilityViewModel.h"
 #include "NiagaraUserParameterPanelViewModel.h"
@@ -661,6 +662,8 @@ private:
 	FOnExternalRemoveParameter OnExternalRemoveDelegate;
 
 	FOnRequestFocusTab OnRequestFocusTabDelegate;
+
+	FDelegateHandle OnScriptAppliedDelegateHandle;
 
 	/** A flag for preventing reentrancy when syncrhonizing sequencer data. */
 	bool bUpdatingEmittersFromSequencerDataChange;
