@@ -217,6 +217,21 @@ namespace UnrealBuildTool
 		TargetRules Target;
 
 		/// <summary>
+		/// If specified along with -PGOProfile, then /FASTGENPROFILE will be used instead of /GENPROFILE. This usually means that the PGO data is generated faster, but the resulting data may not yield as efficient optimizations during -PGOOptimize
+		/// </summary>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-PGOFastGen")]
+		public bool bUseFastGenProfile = false;
+
+		/// <summary>
+		/// If specified along with -PGOProfile, prevent the usage of extra counters. Please note that by default /FASTGENPROFILE doesnt use extra counters
+		/// https://learn.microsoft.com/en-us/cpp/build/reference/genprofile-fastgenprofile-generate-profiling-instrumented-build?view=msvc-170
+		/// </summary>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-PGONoExtraCounters")]
+		public bool bPGONoExtraCounters = false;
+
+		/// <summary>
 		/// Version of the compiler toolchain to use on Windows platform. A value of "default" will be changed to a specific version at UBT start up.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "Compiler")]
@@ -634,6 +649,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		#region Read-only accessor properties 
 		#pragma warning disable CS1591
+
+		public bool bUseFastGenProfile 
+		{
+			get { return Inner.bUseFastGenProfile; }
+		}
+
+		public bool bPGONoExtraCounters 
+		{
+			get { return Inner.bPGONoExtraCounters; }
+		}
 
 		public WindowsCompiler Compiler
 		{

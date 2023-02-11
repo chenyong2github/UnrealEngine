@@ -2519,6 +2519,7 @@ namespace UnrealBuildTool
 				//Arguments.Add("/GENPROFILE:PGD=" + Path.Combine(LinkEnvironment.PGODirectory, LinkEnvironment.PGOFilenamePrefix + ".pgd"));
 				Arguments.Add("/LTCG");
 				//Arguments.Add("/GENPROFILE:PGD=" + LinkEnvironment.PGOFilenamePrefix + ".pgd");
+
 				if (Target.WindowsPlatform.bUseFastGenProfile)
 				{
 					Arguments.Add("/FASTGENPROFILE");
@@ -2527,7 +2528,23 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add("/GENPROFILE");
 				}
-				Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
+					Log.TraceInformationOnce("Enabling Fastgen Profile Guided Optimization (PGO). Linking will take a while.");
+					Arguments.Add("/FASTGENPROFILE");
+				}
+				else 
+				{
+					if (Target.WindowsPlatform.bPGONoExtraCounters)
+					{
+						Log.TraceInformationOnce("Enabling Profile Guided Optimization No Extra Counters(PGO). Linking will take a while.");
+						Arguments.Add("/GENPROFILE:NOTRACKEH");
+					}
+					else
+					{
+						Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
+						Arguments.Add("/GENPROFILE");
+					}	
+					
+				}
 			}
 		}
 
