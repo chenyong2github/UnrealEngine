@@ -2,9 +2,11 @@
 
 #include "Graph/MoviePipelineRenderLayerSubsystem.h"
 
+#include "Components/PrimitiveComponent.h"
 #include "EngineUtils.h"
+#include "Materials/MaterialInterface.h"
 #include "MovieRenderPipelineCoreModule.h"
-#include "Subsystems/WorldSubsystem.h"
+#include "UObject/Package.h"
 
 void UMoviePipelineMaterialModifier::ApplyModifier(const UWorld* World)
 {
