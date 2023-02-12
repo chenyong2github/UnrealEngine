@@ -50,17 +50,5 @@ namespace Horde.Build.Server
 
 			return Task.FromResult<ActionResult>(new ContentResult { ContentType = "text/plain", StatusCode = statusCode, Content = content });
 		}
-		
-		/// <summary>
-		/// Liveness check for Kubernetes
-		/// If this return a non-successful HTTP response, Kubernetes will kill the pod and restart it
-		/// </summary>
-		/// <returns>Ok if app is not stopping and all databases can be reached</returns>
-		[HttpGet]
-		[Route("/health/live")]
-		public ActionResult K8SLivenessProbe()
-		{
-			return new ContentResult { ContentType = "text/plain", StatusCode = 200, Content = "ok" };
-		}
 	}
 }

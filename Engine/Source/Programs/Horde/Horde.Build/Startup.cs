@@ -965,7 +965,10 @@ namespace Horde.Build
 
 		private static void OnAddHealthChecks(IServiceCollection services)
 		{
-			IHealthChecksBuilder healthChecks = services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "self" });
+			services.AddHealthChecks()
+				.AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "self" })
+				.AddCheck<RedisService>("redis")
+				.AddCheck<MongoService>("mongo");
 		}
 
 		// This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -1036,6 +1039,8 @@ namespace Horde.Build
 				endpoints.MapGrpcReflectionService();
 
 				endpoints.MapControllers();
+
+				endpoints.MapHealthChecks("/health/live");
 			});
 
 			if (DirectoryReference.Exists(dashboardDir)) 

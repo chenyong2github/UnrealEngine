@@ -22,6 +22,7 @@ using EpicGames.Redis.Utility;
 using Horde.Build.Secrets;
 using Horde.Build.Utilities;
 using Horde.Build.Utiltiies;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -198,7 +199,7 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// Singleton for accessing the database
 	/// </summary>
-	public sealed class MongoService : IDisposable
+	public sealed class MongoService : IHealthCheck, IDisposable
 	{
 		/// <summary>
 		/// The database instance
@@ -874,6 +875,20 @@ namespace Horde.Build.Server
 				{
 					throw;
 				}
+			}
+		}
+
+		/// <inheritdoc/>
+		public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+		{
+			try
+			{
+				await Database.RunCommandAsync((Command<BsonDocument>)"{ping:1}", cancellationToken: cancellationToken);
+				return HealthCheckResult.Healthy();
+			}
+			catch (Exception ex)
+			{
+				return HealthCheckResult.Unhealthy("Unable to ping MongoDB", ex);
 			}
 		}
 	}

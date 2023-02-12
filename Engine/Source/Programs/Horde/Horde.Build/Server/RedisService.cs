@@ -1,15 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Redis;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
@@ -19,7 +22,7 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// Manages the lifetime of a bundled Redis instance
 	/// </summary>
-	public sealed class RedisService : IDisposable
+	public sealed class RedisService : IHealthCheck, IDisposable
 	{
 		/// <summary>
 		/// Default Redis port
@@ -109,6 +112,20 @@ namespace Horde.Build.Server
 			_multiplexer = ConnectionMultiplexer.Connect(connectionString);
 			DatabaseSingleton = _multiplexer.GetDatabase(dbNum);
 			ConnectionPool = new RedisConnectionPool(20, connectionString, dbNum);
+		}
+
+		/// <inheritdoc/>
+		public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+		{
+			try
+			{
+				TimeSpan span = await GetDatabase().PingAsync();
+				return HealthCheckResult.Healthy(data: new Dictionary<string, object> { ["Latency"] = span.ToString() });
+			}
+			catch (Exception ex)
+			{
+				return HealthCheckResult.Unhealthy("Unable to ping Redis", ex);
+			}
 		}
 
 		/// <summary>
