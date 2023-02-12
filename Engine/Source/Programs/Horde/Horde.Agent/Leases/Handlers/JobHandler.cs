@@ -70,6 +70,7 @@ namespace Horde.Agent.Leases.Handlers
 					arguments.Add(Assembly.GetExecutingAssembly().Location);
 					arguments.Add("execute");
 					arguments.Add("job");
+					arguments.Add($"-Server={_settings.GetCurrentServerProfile().Name}");
 					arguments.Add($"-AgentId={session.AgentId}");
 					arguments.Add($"-SessionId={session.SessionId}");
 					arguments.Add($"-LeaseId={leaseId}");
