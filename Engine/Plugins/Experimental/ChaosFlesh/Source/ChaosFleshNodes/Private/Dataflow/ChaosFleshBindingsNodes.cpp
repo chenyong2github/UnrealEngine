@@ -23,7 +23,7 @@ namespace Dataflow
 {
 	void ChaosFleshBindingsNodes()
 	{
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateBindings);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateSurfaceBindings);
 	}
 }
 
@@ -107,7 +107,7 @@ BuildVertexToVertexAdjacencyBuffer(
 }
 
 void
-FGenerateBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+FGenerateSurfaceBindings::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<DataType>(&Collection))
 	{

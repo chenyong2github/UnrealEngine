@@ -351,7 +351,7 @@ bool FDataflowNode::ValidateConnections()
 					}
 					else if(OutputConnection->GetPassthroughRealAddress()) 
 					{
-						UE_LOG(LogChaos, Warning, TEXT("Missing DataflowPassthrough decleration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+						UE_LOG(LogChaos, Warning, TEXT("Missing DataflowPassthrough declaration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
 						bValid = false;
 					}
 				}
