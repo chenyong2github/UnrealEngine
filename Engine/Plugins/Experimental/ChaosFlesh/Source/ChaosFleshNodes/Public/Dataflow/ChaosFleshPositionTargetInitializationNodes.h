@@ -40,7 +40,7 @@ public:
 		TArray<int32> VertexIndicesIn;
 
 	UPROPERTY(meta = (DataflowInput, DisplayName = "BoneIndex"))
-		int32 BoneIndexIn = INDEX_NONE;
+		int32 BoneIndexIn = 0;
 
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "TargetIndices"))
 		TArray<int32> TargetIndicesOut;

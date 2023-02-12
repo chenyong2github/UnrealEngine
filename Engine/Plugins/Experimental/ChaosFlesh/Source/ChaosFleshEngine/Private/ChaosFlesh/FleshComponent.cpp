@@ -4,24 +4,28 @@
 
 #include "Animation/SkeletalMeshActor.h"
 #include "Animation/Skeleton.h"
+#include "ChaosStats.h"
 #include "Chaos/DebugDrawQueue.h"
+#include "Chaos/Tetrahedron.h"
 #include "ChaosFlesh/FleshCollection.h"
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
-#include "ChaosStats.h"
+#include "ChaosFlesh/ChaosDeformableTypes.h"
+#include "ChaosFlesh/FleshDynamicAsset.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Dataflow/DataflowEngineUtil.h"
 #include "Engine/SkeletalMesh.h"
 #include "GeometryCollection/Facades/CollectionTransformSourceFacade.h"
+#include "GeometryCollection/Facades/CollectionTetrahedralSkeletalBindingsFacade.h"
 #include "GeometryCollection/TransformCollection.h"
 #include "ProceduralMeshComponent.h"
-#include "ChaosFlesh/ChaosDeformableTypes.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FleshComponent)
 
 FChaosEngineDeformableCVarParams CVarParams;
 FAutoConsoleVariableRef CVarDeforambleDoDrawSimulationMesh(TEXT("p.Chaos.DebugDraw.Deformable.SimulationMesh"), CVarParams.bDoDrawSimulationMesh, TEXT("Debug draw the deformable simulation resutls on the game thread. [def: true]"));
+FAutoConsoleVariableRef CVarDeforambleDoDrawSkeletalMeshBindingPositions(TEXT("p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions"), CVarParams.bDoDrawSkeletalMeshBindingPositions, TEXT("Debug draw the deformable simulation's SkeletalMeshBindingPositions on the game thread. [def: false]"));
 
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.TickComponent"), STAT_ChaosDeformable_UFleshComponent_TickComponent, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.NewProxy"), STAT_ChaosDeformable_UFleshComponent_NewProxy, STATGROUP_Chaos);
@@ -218,12 +222,16 @@ void UFleshComponent::UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer
 			for (int i = DynamicVertex.Num() - 1; i >= 0; i--)
 			{
 				DynamicVertex[i] = UEVertf(GetComponentTransform().InverseTransformPosition(UEVertd(SimulationVertex[i])));
-				//DynamicVertex[i] = UEVertf(PrevTransform.InverseTransformPosition(UEVertd(SimulationVertex[i])));
-				//Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(UEVertd(SimulationVertex[i]), FColor::Red, false, -1.0f, 0, 5);
+			}
+
+			 //p.Chaos.DebugDraw.Enabled 1
+			 //p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions 1
+			if (CVarParams.bDoDrawSkeletalMeshBindingPositions)
+			{
+				DebugDrawSkeletalMeshBindingPositions();
 			}
 		}
 	}
-	//PrevTransform = this->GetComponentTransform();
 }
 
 void UFleshComponent::UpdateLocalBounds()
@@ -398,6 +406,79 @@ void UFleshComponent::RenderProceduralMesh()
 	{
 		ResetProceduralMesh();
 	}
+}
+
+
+void UFleshComponent::DebugDrawSkeletalMeshBindingPositions() const
+{
+#if WITH_EDITOR
+	auto UEVertd = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+
+	if (const UFleshAsset* RestAsset = GetRestCollection())
+	{
+		const USkeletalMesh* SkeletalMesh = TargetDeformationSkeleton ? TargetDeformationSkeleton : RestAsset->SkeletalMesh;
+		if (SkeletalMesh)
+		{
+			TArray<bool> Influenced;
+			TArray<FVector> PosArray = GetSkeletalMeshBindingPositionsInternal(SkeletalMesh, &Influenced);
+			for (int i=0;i<PosArray.Num();i++)
+			{
+				const FVector& Pos = PosArray[i];
+				if (Influenced[i])
+				{
+					Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(GetComponentTransform().TransformPosition(Pos), FColor::Red, true, 2.0f, SDPG_Foreground, 10);
+				}
+			}
+		}
+	}
+#endif
+}
+
+TArray<FVector> UFleshComponent::GetSkeletalMeshBindingPositions(const USkeletalMesh* InSkeletalMesh) const
+{
+	return GetSkeletalMeshBindingPositionsInternal(InSkeletalMesh);
+}
+
+TArray<FVector> UFleshComponent::GetSkeletalMeshBindingPositionsInternal(const USkeletalMesh* InSkeletalMesh, TArray<bool>* OutInfluence) const
+{
+	auto UEVert3d = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+	auto UEVert4d = [](FVector4f V) { return FVector4d(V.X, V.Y, V.Z, V.W); };
+
+	TArray<FVector> TransformPositions;
+	if (InSkeletalMesh)
+	{
+		FName SkeletalMeshName(InSkeletalMesh->GetName());
+		if (const UFleshAsset* RestAsset = GetRestCollection())
+		{
+			if (const FFleshCollection* Rest = RestAsset->GetCollection())
+			{
+				GeometryCollection::Facades::FTetrahedralSkeletalBindings TetBindings(*Rest);
+
+				const TManagedArray<int32>* TetrahedronStart = Rest->FindAttribute<int32>(FTetrahedralCollection::TetrahedronStartAttribute, FGeometryCollection::GeometryGroup);
+				const TManagedArray<FVector3f>* Verts = GetDynamicCollection() ? GetDynamicCollection()->FindPositions() : Rest->FindAttributeTyped<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+
+				if (ensure(Verts != nullptr) && TetrahedronStart)
+				{
+					TArray<FTransform> ComponentPose;
+					Dataflow::Animation::GlobalTransforms(InSkeletalMesh->GetRefSkeleton(), ComponentPose);
+
+					TransformPositions.SetNumUninitialized(ComponentPose.Num());
+					for (int32 i = 0; i < ComponentPose.Num(); i++)
+					{
+						TransformPositions[i] = ComponentPose[i].GetTranslation();
+					}
+
+					if (OutInfluence != nullptr) OutInfluence->Init(false, TransformPositions.Num());
+					for (int32 TetMeshIdx = 0; TetMeshIdx < TetrahedronStart->Num(); TetMeshIdx++)
+					{
+						FString MeshBindingsName = GeometryCollection::Facades::FTetrahedralSkeletalBindings::GenerateMeshGroupName(TetMeshIdx, SkeletalMeshName);
+						TetBindings.CalculateBindings(MeshBindingsName, Verts->GetConstArray(), TransformPositions, OutInfluence);
+					}
+				}
+			}
+		}
+	}
+	return TransformPositions;
 }
 
 

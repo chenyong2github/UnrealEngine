@@ -11,6 +11,7 @@
 #include "Dataflow/ChaosFleshRadialTetrahedronNodes.h"
 #include "Dataflow/ChaosFleshRenderInitializationNodes.h"
 #include "Dataflow/ChaosFleshPositionTargetInitializationNodes.h"
+#include "Dataflow/ChaosFleshSkeletalBindingsNode.h"
 #include "Dataflow/ChaosFleshTetrahedralNodes.h"
 #include "Modules/ModuleManager.h"
 
@@ -19,6 +20,7 @@
 
 void IChaosFleshNodesPlugin::StartupModule()
 {
+	Dataflow::ChaosFleshBindingsNodes();
 	Dataflow::RegisterChaosFleshEngineAssetNodes();
 	Dataflow::RegisterChaosFleshCoreNodes();
 	Dataflow::ChaosFleshFiberDirectionInitializationNodes();
@@ -26,7 +28,7 @@ void IChaosFleshNodesPlugin::StartupModule()
 	Dataflow::RegisterChaosFleshKinematicInitializationNodes();
 	Dataflow::RegisterChaosFleshPositionTargetInitializationNodes();
 	Dataflow::ChaosFleshTetrahedralNodes();
-	Dataflow::ChaosFleshBindingsNodes();
+	Dataflow::ChaosFleshSkeletalBindingsNode();
 	Dataflow::ChaosFleshRadialTetrahedronNodes();
 }
 

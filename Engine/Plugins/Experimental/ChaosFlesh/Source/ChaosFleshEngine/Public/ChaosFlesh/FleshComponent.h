@@ -29,6 +29,10 @@ public:
 
 	~UFleshComponent();
 
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	TArray<FVector> GetSkeletalMeshBindingPositions(const USkeletalMesh* InSkeletalMesh) const;
+
+	/** USceneComponent Interface */
 	virtual void BeginPlay() override;
 	virtual void OnRegister() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
@@ -57,6 +61,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attributes)
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
+	TObjectPtr<USkeletalMesh> TargetDeformationSkeleton;
+
+
 private:
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics")
 	TObjectPtr<const UFleshAsset> RestCollection;
@@ -84,5 +92,8 @@ private:
 	FBoxSphereBounds BoundingBox = FBoxSphereBounds(ForceInitToZero);
 
 	FTransform PrevTransform = FTransform::Identity;
+
+	TArray<FVector> GetSkeletalMeshBindingPositionsInternal(const USkeletalMesh* InSkeletalMesh, TArray<bool>* OutInfluence = nullptr) const;
+	void DebugDrawSkeletalMeshBindingPositions() const;
 };
 

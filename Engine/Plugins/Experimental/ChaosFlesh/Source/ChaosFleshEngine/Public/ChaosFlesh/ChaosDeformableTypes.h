@@ -25,4 +25,5 @@ struct FChaosEngineDeformableCVarParams
 #else
 	bool bDoDrawSimulationMesh = false;
 #endif
+	bool bDoDrawSkeletalMeshBindingPositions = false;
 };

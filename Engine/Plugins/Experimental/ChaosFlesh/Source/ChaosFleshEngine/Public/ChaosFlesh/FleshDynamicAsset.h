@@ -31,6 +31,7 @@ public:
 	void ResetAttributesFrom(const FManagedArrayCollection* InCopyFrom);
 
 	TManagedArray<FVector3f>& GetPositions();
+	const TManagedArray<FVector3f>* FindPositions() const;
 	TManagedArray<int32>& GetObjectState();
 
 	const FManagedArrayCollection* GetCollection() const { return DynamicCollection.Get(); }

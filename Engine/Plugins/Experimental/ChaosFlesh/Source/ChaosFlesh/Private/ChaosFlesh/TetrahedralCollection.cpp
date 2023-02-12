@@ -104,6 +104,28 @@ void FTetrahedralCollection::Init(
 	}
 }
 
+void FTetrahedralCollection::UpdateBoundingBox()
+{
+	if (BoundingBox.Num())
+	{
+		// Initialize BoundingBox
+		for (int32 Idx = 0; Idx < BoundingBox.Num(); ++Idx)
+		{
+			BoundingBox[Idx].Init();
+		}
+
+		// Compute BoundingBox
+		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
+		{
+			int32 TransformIndexValue = BoneMap[Idx];
+			if (TransformToGeometryIndex[TransformIndexValue] != INDEX_NONE)
+			{
+				BoundingBox[TransformToGeometryIndex[TransformIndexValue]] += FVector(Vertex[Idx]);
+			}
+		}
+	}
+}
+
 int32 FTetrahedralCollection::AppendGeometry(
 	const FTetrahedralCollection& Other, 
 	int32 MaterialIDOffset, 
