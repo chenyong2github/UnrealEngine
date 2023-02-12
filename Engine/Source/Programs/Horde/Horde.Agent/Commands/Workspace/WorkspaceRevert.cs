@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Workspace
 {
-	[Command("Workspace", "Revert", "Revert all files that are open in the current workspace. Does not replace them with valid revisions.")]
+	[Command("workspace", "revert", "Revert all files that are open in the current workspace. Does not replace them with valid revisions.")]
 	class WorkspaceRevert : WorkspaceBase
 	{
 		[CommandLine("-Client=", Required = true)]

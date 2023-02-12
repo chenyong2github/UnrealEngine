@@ -20,7 +20,7 @@ namespace Horde.Agent.Commands
 	/// <summary>
 	/// Upgrades a running service to the current application
 	/// </summary>
-	[Command("Service", "Upgrade", "Replaces a running service with the application in the current directory")]
+	[Command("service", "upgrade", "Replaces a running service with the application in the current directory")]
 	class UpgradeCommand : Command
 	{
 		/// <summary>

@@ -16,7 +16,7 @@ namespace Horde.Agent.Commands.Parse
 	/// <summary>
 	/// Installs the agent as a service
 	/// </summary>
-	[Command("Parse", "Parses a file into structured logging output")]
+	[Command("parse", "Parses a file into structured logging output")]
 	class ParseCommand : Command
 	{
 		[CommandLine("-File=", Required = true)]

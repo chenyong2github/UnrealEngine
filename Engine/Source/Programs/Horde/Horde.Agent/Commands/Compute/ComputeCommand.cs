@@ -25,7 +25,7 @@ namespace Horde.Agent.Commands
 	/// <summary>
 	/// Installs the agent as a service
 	/// </summary>
-	[Command("Compute", "Executes a command through the Horde Compute API")]
+	[Command("compute", "Executes a command through the Horde Compute API")]
 	class ComputeCommand : Command
 	{
 		class JsonRequirements

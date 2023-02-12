@@ -11,7 +11,7 @@ namespace Horde.Agent.Commands.Service
 	/// <summary>
 	/// Uninstalls the service
 	/// </summary>
-	[Command("Service", "Uninstall", "Uninstalls the service")]
+	[Command("service", "uninstall", "Uninstalls the service")]
 	class UninstallCommand : Command
 	{
 		/// <summary>

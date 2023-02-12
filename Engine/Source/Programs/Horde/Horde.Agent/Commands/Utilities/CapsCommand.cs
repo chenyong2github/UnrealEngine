@@ -11,7 +11,7 @@ namespace Horde.Agent.Commands.Utilities
 	/// <summary>
 	/// Shows capabilities of this agent
 	/// </summary>
-	[Command("Caps", "Lists detected capabilities of this agent")]
+	[Command("caps", "Lists detected capabilities of this agent")]
 	class CapsCommand : Command
 	{
 		readonly CapabilitiesService _capabilitiesService;

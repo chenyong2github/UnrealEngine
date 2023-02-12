@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Workspace
 {
-	[Command("Workspace", "PopulateCache", "Populates the cache with the head revision of the given streams")]
+	[Command("workspace", "populatecache", "Populates the cache with the head revision of the given streams")]
 	class WorkspacePopulateCache : WorkspaceBase
 	{
 		[CommandLine("-ClientAndStream=")]

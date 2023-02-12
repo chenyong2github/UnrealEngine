@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Workspace
 {
-	[Command("Workspace", "Setup", "Creates or updates a client to use a given stream")]
+	[Command("workspace", "setup", "Creates or updates a client to use a given stream")]
 	class WorkspaceSetup : WorkspaceBase
 	{
 		[CommandLine("-Client=", Required = true)]

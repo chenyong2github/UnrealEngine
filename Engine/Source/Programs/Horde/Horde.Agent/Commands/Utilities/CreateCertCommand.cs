@@ -14,7 +14,7 @@ namespace Horde.Agent.Commands.Certs
 	/// <summary>
 	/// Creates a certificate that can be used for server/agent SSL connections
 	/// </summary>
-	[Command("CreateCert", "Creates a self-signed certificate that can be used for server/agent gRPC connections")]
+	[Command("createcert", "Creates a self-signed certificate that can be used for server/agent gRPC connections")]
 	class CreateCertCommand : Command
 	{
 		[CommandLine("-Server=")]

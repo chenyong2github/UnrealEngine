@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Workspace
 {
-	[Command("Workspace", "Sizes", "Gathers stats for which streams take the most amount of space in the cache for the given configuration")]
+	[Command("workspace", "sizes", "Gathers stats for which streams take the most amount of space in the cache for the given configuration")]
 	class WorkspaceSizes : WorkspaceBase
 	{
 		[CommandLine("-TempClient=", Required = true)]

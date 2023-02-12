@@ -18,7 +18,7 @@ namespace Horde.Agent.Commands.Utilities
 	/// <summary>
 	/// Publishes the contents of this application directory to the server
 	/// </summary>
-	[Command("Publish", "Publishes this application to the server")]
+	[Command("publish", "Publishes this application to the server")]
 	class PublishCommand : Command
 	{
 		/// <summary>

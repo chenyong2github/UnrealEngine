@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Vcs
 {
-	[Command("Vcs", "Status", "Find status of local files")]
+	[Command("vcs", "status", "Find status of local files")]
 	class VcsStatus : VcsBase
 	{
 		public VcsStatus(IStorageClientFactory storageClientFactory)

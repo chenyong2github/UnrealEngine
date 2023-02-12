@@ -15,7 +15,7 @@ namespace Horde.Agent.Modes.Service
 	/// <summary>
 	/// 
 	/// </summary>
-	[Command("Service", "Run", "Runs the service in listen mode")]
+	[Command("service", "run", "Runs the service in listen mode")]
 	class RunCommand : Command
 	{
 		/// <summary>

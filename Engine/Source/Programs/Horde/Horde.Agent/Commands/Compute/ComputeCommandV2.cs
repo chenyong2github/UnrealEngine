@@ -20,7 +20,7 @@ namespace Horde.Agent.Commands
 	/// <summary>
 	/// Installs the agent as a service
 	/// </summary>
-	[Command("ComputeV2", "Executes a command through the Horde Compute API")]
+	[Command("computeV2", "Executes a command through the Horde Compute API")]
 	class ComputeCommandV2 : Command
 	{
 		[CommandLine("-Cluster=", Description = "Cluster to execute on")]

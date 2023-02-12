@@ -13,7 +13,7 @@ namespace Horde.Agent.Commands.Service
 	/// <summary>
 	/// Installs the agent as a service
 	/// </summary>
-	[Command("Service", "Install", "Installs the agent as a service")]
+	[Command("service", "install", "Installs the agent as a service")]
 	class InstallCommand : Command
 	{
 		/// <summary>
