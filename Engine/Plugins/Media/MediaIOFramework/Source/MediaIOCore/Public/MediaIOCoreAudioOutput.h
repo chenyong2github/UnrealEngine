@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AudioDeviceHandle.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/MultithreadedPatching.h"
 #include "ISubmixBufferListener.h"

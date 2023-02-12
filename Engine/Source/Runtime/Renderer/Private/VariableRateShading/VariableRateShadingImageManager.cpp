@@ -10,6 +10,7 @@
 #include "RHIDefinitions.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "RenderTargetPool.h"
+#include "SceneRendering.h"
 #include "SystemTextures.h"
 #include "SceneView.h"
 #include "IEyeTracker.h"

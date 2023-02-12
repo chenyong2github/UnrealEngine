@@ -9,6 +9,8 @@
 #include "RHIDefinitions.h"
 #include "RenderTargetPool.h"
 #include "SystemTextures.h"
+#include "SceneRendering.h"
+#include "SceneTextures.h"
 #include "SceneView.h"
 #include "IEyeTracker.h"
 #include "IHeadMountedDisplay.h"
