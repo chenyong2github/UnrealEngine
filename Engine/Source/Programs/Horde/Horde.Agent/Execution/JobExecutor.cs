@@ -758,7 +758,7 @@ namespace Horde.Agent.Execution
 		{
 			if (_jobOptions.UseNewTempStorage ?? false)
 			{
-				await CreateArtifactAsync(stepId, type, baseDir, files.Select(x => x.Item2), cancellationToken);
+				await CreateArtifactAsync(stepId, type, baseDir, files.Select(x => x.Item2), logger, cancellationToken);
 			}
 			else
 			{
@@ -766,7 +766,7 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		protected async Task CreateArtifactAsync(string stepId, JobArtifactType type, DirectoryReference baseDir, IEnumerable<FileReference> files, CancellationToken cancellationToken)
+		protected async Task CreateArtifactAsync(string stepId, JobArtifactType type, DirectoryReference baseDir, IEnumerable<FileReference> files, ILogger logger, CancellationToken cancellationToken)
 		{
 			try
 			{
@@ -779,7 +779,7 @@ namespace Horde.Agent.Execution
 				using TreeWriter writer = new TreeWriter(storage, new RefName(artifact.RefName));
 
 				DirectoryNode dir = new DirectoryNode();
-				await dir.CopyFilesAsync(baseDir, files, new ChunkingOptions(), writer, cancellationToken);
+				await dir.CopyFilesAsync(baseDir, files, new ChunkingOptions(), writer, new CopyStatsLogger(logger), cancellationToken);
 
 				await writer.WriteAsync(new RefName(artifact.RefName), dir, cancellationToken: cancellationToken);
 			}
@@ -958,7 +958,7 @@ namespace Horde.Agent.Execution
 				RefName refName = TempStorage.GetRefNameForNode(_storagePrefix, step.Name);
 
 				TreeOptions treeOptions = new TreeOptions();
-				using TreeWriter treeWriter = new TreeWriter(storage, treeOptions, refName.Text, traceLogger: logger);
+				using TreeWriter treeWriter = new TreeWriter(storage, treeOptions, refName.Text);
 
 				DirectoryNode outputNode = new DirectoryNode();
 
@@ -1400,7 +1400,7 @@ namespace Horde.Agent.Execution
 				List<FileReference> artifactFiles = DirectoryReference.EnumerateFiles(logDir, "*", SearchOption.AllDirectories).ToList();
 				if (_jobOptions.UseNewTempStorage ?? false)
 				{
-					await CreateArtifactAsync(step.StepId, JobArtifactType.Saved, workspaceDir, artifactFiles, cancellationToken);
+					await CreateArtifactAsync(step.StepId, JobArtifactType.Saved, workspaceDir, artifactFiles, jobLogger, cancellationToken);
 				}
 				else
 				{

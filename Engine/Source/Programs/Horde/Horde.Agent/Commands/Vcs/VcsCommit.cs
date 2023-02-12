@@ -75,7 +75,7 @@ namespace Horde.Agent.Commands.Vcs
 			await UpdateTreeAsync(reader, rootRef, rootDir, oldState, newState, files, directories);
 
 			using TreeWriter writer = new TreeWriter(store);
-			await DirectoryNode.CopyFromDirectoryAsync(files.ConvertAll(x => (x.Item1, x.Item2)), new ChunkingOptions(), writer, CancellationToken.None);
+			await DirectoryNode.CopyFromDirectoryAsync(files.ConvertAll(x => (x.Item1, x.Item2)), new ChunkingOptions(), writer, null, CancellationToken.None);
 
 			CommitNode newTip;
 			if (tip == null)

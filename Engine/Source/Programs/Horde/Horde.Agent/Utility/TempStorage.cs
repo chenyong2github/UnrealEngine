@@ -632,7 +632,7 @@ namespace Horde.Storage.Utility
 
 			// Create the file tree
 			DirectoryNode rootNode = new DirectoryNode();
-			await rootNode.CopyFilesAsync(workspaceDir, Enumerable.Concat(files, new[] { manifestLocation }), new ChunkingOptions(), writer, cancellationToken);
+			await rootNode.CopyFilesAsync(workspaceDir, Enumerable.Concat(files, new[] { manifestLocation }), new ChunkingOptions(), writer, new CopyStatsLogger(logger), cancellationToken);
 
 			return new DirectoryEntry(blockName, rootNode);
 		}

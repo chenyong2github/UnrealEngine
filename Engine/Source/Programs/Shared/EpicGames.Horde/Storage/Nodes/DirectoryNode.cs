@@ -4,6 +4,7 @@ using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -271,6 +272,51 @@ namespace EpicGames.Horde.Storage.Nodes
 
 		/// <inheritdoc/>
 		public override string ToString() => Name.ToString();
+	}
+
+	/// <summary>
+	/// Stats reported for copy operations
+	/// </summary>
+	public interface ICopyStats
+	{
+		/// <summary>
+		/// Number of files that have been copied
+		/// </summary>
+		int CopiedCount { get; }
+
+		/// <summary>
+		/// Total size of data to be copied
+		/// </summary>
+		long CopiedSize { get; }
+
+		/// <summary>
+		/// Total number of files to copy
+		/// </summary>
+		int TotalCount { get; }
+
+		/// <summary>
+		/// Total size of data to copy
+		/// </summary>
+		long TotalSize { get; }
+	}
+
+	/// <summary>
+	/// Progress logger for writing copy stats
+	/// </summary>
+	public class CopyStatsLogger : IProgress<ICopyStats>
+	{
+		readonly ILogger _logger;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public CopyStatsLogger(ILogger logger) => _logger = logger;
+
+		/// <inheritdoc/>
+		public void Report(ICopyStats stats)
+		{
+			_logger.LogInformation("Copied {NumFiles:n0}/{TotalFiles:n0} ({Size:n1}/{TotalSize:n1}mb, {Pct}%)", stats.CopiedCount, stats.TotalCount, stats.CopiedSize / 1024.0, stats.TotalSize / 1024.0, (int)((Math.Max(stats.CopiedCount, 1) * 100) / Math.Max(stats.TotalCount, 1)));
+		}
 	}
 
 	/// <summary>
@@ -652,14 +698,60 @@ namespace EpicGames.Horde.Storage.Nodes
 		#endregion
 
 		/// <summary>
+		/// Reports progress info back to callers
+		/// </summary>
+		class CopyStats : ICopyStats
+		{
+			readonly object _lockObject = new object();
+			readonly Stopwatch _timer = Stopwatch.StartNew();
+			readonly IProgress<ICopyStats> _progress;
+
+			public int CopiedCount { get; set; }
+			public long CopiedSize { get; set; }
+			public int TotalCount { get; }
+			public long TotalSize { get; }
+
+			public CopyStats(int totalCount, long totalSize, IProgress<ICopyStats> progress)
+			{
+				TotalCount = totalCount;
+				TotalSize = totalSize;
+				_progress = progress;
+			}
+
+			public void Update(int count, long size)
+			{
+				lock (_lockObject)
+				{
+					CopiedCount += count;
+					CopiedSize += size;
+					if (_timer.Elapsed > TimeSpan.FromSeconds(10.0))
+					{
+						_progress.Report(this);
+						_timer.Restart();
+					}
+				}
+			}
+
+			public void Flush()
+			{
+				lock (_lockObject)
+				{
+					_progress.Report(this);
+					_timer.Restart();
+				}
+			}
+		}
+
+		/// <summary>
 		/// Adds files from a flat list of paths
 		/// </summary>
 		/// <param name="baseDir">Base directory to base paths relative to</param>
 		/// <param name="files">Files to add</param>
 		/// <param name="options">Options for chunking file content</param>
 		/// <param name="writer">Writer for new node data</param>
+		/// <param name="progress">Feedback interface for progress updates</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task CopyFilesAsync(DirectoryReference baseDir, IEnumerable<FileReference> files, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+		public async Task CopyFilesAsync(DirectoryReference baseDir, IEnumerable<FileReference> files, ChunkingOptions options, TreeWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
 		{
 			Dictionary<DirectoryReference, DirectoryNode> dirToNode = new Dictionary<DirectoryReference, DirectoryNode>();
 			dirToNode.Add(baseDir, this);
@@ -675,7 +767,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				groupedFiles.Add((node, file.ToFileInfo()));
 			}
 
-			await CopyFromDirectoryAsync(groupedFiles, options, writer, cancellationToken);
+			await CopyFromDirectoryAsync(groupedFiles, options, writer, progress, cancellationToken);
 		}
 
 		static DirectoryNode? FindOrAddDirectory(DirectoryReference dir, DirectoryReference baseDir, Dictionary<DirectoryReference, DirectoryNode> dirToNode)
@@ -703,14 +795,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="directoryInfo"></param>
 		/// <param name="options">Options for chunking file content</param>
 		/// <param name="writer">Writer for new node data</param>
+		/// <param name="progress">Feedback interface for progress updates</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, TreeWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
 		{
 			// Enumerate all the files below this directory
 			List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files = new List<(DirectoryNode, FileInfo)>();
 			FindFilesToCopy(directoryInfo, files);
-			await CopyFromDirectoryAsync(files, options, writer, cancellationToken);
+			await CopyFromDirectoryAsync(files, options, writer, progress, cancellationToken);
 		}
 
 		/// <summary>
@@ -719,9 +812,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="files"></param>
 		/// <param name="options">Options for chunking file content</param>
 		/// <param name="writer">Writer for new node data</param>
+		/// <param name="progress">Progress notification object</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task CopyFromDirectoryAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+		public static async Task CopyFromDirectoryAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, ChunkingOptions options, TreeWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
 		{
 			const int MaxWriters = 32;
 			const long MinSizePerWriter = 1024 * 1024;
@@ -729,6 +823,13 @@ namespace EpicGames.Horde.Storage.Nodes
 			// Compute the total size
 			long totalSize = files.Sum(x => x.Item2.Length);
 			long chunkSize = Math.Max(MinSizePerWriter, totalSize / MaxWriters);
+
+			// Create the progress reporting object
+			CopyStats? copyStats = null;
+			if (progress != null)
+			{
+				copyStats = new CopyStats(files.Count, totalSize, progress);
+			}
 
 			List<Task> tasks = new List<Task>();
 			long currentSize = 0;
@@ -748,7 +849,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				}
 
 				int minIdxCopy = minIdx;
-				tasks.Add(Task.Run(() => CopyFilesAsync(files, minIdxCopy, maxIdx, fileEntries, options, writer, cancellationToken), cancellationToken));
+				tasks.Add(Task.Run(() => CopyFilesAsync(files, minIdxCopy, maxIdx, fileEntries, options, writer, copyStats, cancellationToken), cancellationToken));
 
 				targetSize += chunkSize;
 				minIdx = maxIdx;
@@ -762,6 +863,9 @@ namespace EpicGames.Horde.Storage.Nodes
 			{
 				files[idx].DirectoryNode.AddFile(fileEntries[idx]);
 			}
+
+			// Write the final stats
+			copyStats?.Flush();
 		}
 
 		void FindFilesToCopy(DirectoryInfo directoryInfo, List<(DirectoryNode, FileInfo)> files)
@@ -776,7 +880,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 		}
 
-		static async Task CopyFilesAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, int minIdx, int maxIdx, FileEntry[] entries, ChunkingOptions options, TreeWriter baseWriter, CancellationToken cancellationToken)
+		static async Task CopyFilesAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, int minIdx, int maxIdx, FileEntry[] entries, ChunkingOptions options, TreeWriter baseWriter, CopyStats? copyStats, CancellationToken cancellationToken)
 		{
 			using TreeWriter writer = new TreeWriter(baseWriter);
 
@@ -786,6 +890,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				FileInfo fileInfo = files[idx].FileInfo;
 				NodeHandle handle = await fileNodeWriter.CreateAsync(fileInfo, cancellationToken);
 				entries[idx] = new FileEntry(fileInfo.Name, FileEntryFlags.None, fileNodeWriter.Length, handle);
+				copyStats?.Update(1, fileNodeWriter.Length);
 			}
 			await writer.FlushAsync(cancellationToken);
 		}

@@ -40,7 +40,7 @@ namespace Horde.Agent.Commands.Bundles
 			Stopwatch timer = Stopwatch.StartNew();
 
 			ChunkingOptions options = new ChunkingOptions();
-			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), options, writer, CancellationToken.None);
+			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), options, writer, null, CancellationToken.None);
 
 			await writer.WriteAsync(RefName, node);
 
