@@ -113,7 +113,6 @@ public:
 		, ExtensionWidget( *this, 0.0f, 0.0f, HAlign_Right, VAlign_Center)
 		, WholeRowWidget( *this, 0.0f, 0.0f, HAlign_Fill, VAlign_Fill )
 		, VisibilityAttr( EVisibility::Visible )
-		, IsEnabledAttr( true )
 		, FilterTextString()
 		, CopyMenuAction()
 		, PasteMenuAction()

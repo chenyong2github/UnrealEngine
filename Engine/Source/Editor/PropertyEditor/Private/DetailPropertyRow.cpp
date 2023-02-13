@@ -18,8 +18,7 @@
 #define LOCTEXT_NAMESPACE	"DetailPropertyRow"
 
 FDetailPropertyRow::FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode, TSharedRef<FDetailCategoryImpl> InParentCategory, TSharedPtr<FComplexPropertyNode> InExternalRootNode)
-	: CustomIsEnabledAttrib( true )
-	, PropertyNode( InPropertyNode )
+	: PropertyNode( InPropertyNode )
 	, ParentCategory( InParentCategory )
 	, ExternalRootNode( InExternalRootNode )
 	, bShowPropertyButtons( true )
