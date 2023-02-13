@@ -734,7 +734,24 @@ namespace Jupiter
         public NamespaceId? FallbackNamespace { get; set; } = null;
         public bool PopulateFallbackNamespaceOnUpload { get; set; } = true;
 
-        public enum StoragePoolGCMethod  { None, LastAccess, TTL };
+        public enum StoragePoolGCMethod  {
+            /// <summary>
+            /// Never run GC on this namespace
+            /// </summary>
+            None, 
+            /// <summary>
+            /// Apply last access deletion, objects not used for a duration set in GCSettings will be removed
+            /// </summary>
+            LastAccess, 
+            /// <summary>
+            /// Objects are removed after DefaultTTL time has passed, no matter if they are used or not
+            /// </summary>
+            TTL,
+            /// <summary>
+            /// Always GC references to this namespace, used to opt in to cleaning out old data
+            /// </summary>
+            Always
+        };
 
         public StoragePoolGCMethod GcMethod { get; set; } = StoragePoolGCMethod.LastAccess;
 

@@ -46,14 +46,28 @@ namespace Jupiter.Implementation
                 return false;
             }
 
-            NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
-
-            if (policy.GcMethod == NamespacePolicy.StoragePoolGCMethod.LastAccess)
+            try
             {
-                // only run for namespaces set to use last access tracking
-                return true;
-            }
+                NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
 
+                if (policy.GcMethod == NamespacePolicy.StoragePoolGCMethod.LastAccess)
+                {
+                    // only run for namespaces set to use last access tracking
+                    return true;
+                }
+
+                if (policy.GcMethod == NamespacePolicy.StoragePoolGCMethod.Always)
+                {
+                    // this is a old namespace that should be cleaned up
+                    return true;
+                }
+            }
+            catch (NamespaceNotFoundException)
+            {
+                _logger.LogWarning("Unknown namespace {Namespace} when attempting to GC References. To opt in to deleting the old namespace add a policy for it with the GcMethod set to always", ns);
+                return false;
+            }
+            
             return false;
         }
 
