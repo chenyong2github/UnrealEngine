@@ -78,10 +78,7 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 
 		if (const auto Validation = UE::StateTree::Compiler::IsValidIndex16(SourceStructIdx); Validation.DidFail())
 		{
-			if (Log != nullptr)
-			{
-				Validation.Log(*Log, TEXT("Source Struct Index"), SourceStruct);
-			}
+			Validation.Log(*Log, TEXT("Source Struct Index"), SourceStruct);
 			return false;
 		}
 
