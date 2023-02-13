@@ -242,7 +242,7 @@ void GeneratePageFlagsFromPixels(
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 		WorldNormal = TopLayerData.WorldNormal;
-		bIsValid = IsStrataMaterial(TopLayerData);
+		bIsValid = IsStrataMaterial(StrataPixelHeader);
 		bBackfaceCull = bBackfaceCull && !HasSubsurface(StrataPixelHeader);
 #else // !STRATA_ENABLED
 		FGBufferData GBuffer = GetGBufferDataUint(PixelPos, true);
