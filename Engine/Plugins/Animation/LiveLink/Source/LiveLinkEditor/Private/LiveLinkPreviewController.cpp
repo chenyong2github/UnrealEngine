@@ -3,6 +3,7 @@
 #include "LiveLinkPreviewController.h"
 
 #include "Animation/DebugSkelMeshComponent.h"
+#include "AnimPreviewInstance.h"
 #include "CameraController.h"
 #include "ILiveLinkClient.h"
 #include "IPersonaPreviewScene.h"
@@ -93,7 +94,7 @@ void ULiveLinkPreviewController::InitializeView(UPersonaPreviewSceneDescription*
 
 void ULiveLinkPreviewController::UninitializeView(UPersonaPreviewSceneDescription* SceneDescription, IPersonaPreviewScene* PreviewScene) const
 {
-	PreviewScene->GetPreviewMeshComponent()->SetAnimInstanceClass(nullptr);
+	PreviewScene->GetPreviewMeshComponent()->SetAnimInstanceClass(UAnimPreviewInstance::StaticClass());
 	PreviewScene->SetCameraOverride(nullptr);
 }
 

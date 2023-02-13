@@ -123,6 +123,11 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 			ControllerItems.Add(MakeShared<FPersonaModeComboEntry>(ControllerClass));
 		}
 
+		ControllerItems.RemoveAll([](const TSharedPtr<FPersonaModeComboEntry>& ControllerEntry)
+			{
+				return !GetMutableDefault<UPersonaOptions>()->IsAllowedClass(ControllerEntry->Class);
+			});
+
 		IDetailCategoryBuilder& AnimCategory = DetailBuilder.EditCategory("Animation");
 		AnimCategory.AddCustomRow(PreviewControllerProperty->GetPropertyDisplayName())
 		.NameContent()

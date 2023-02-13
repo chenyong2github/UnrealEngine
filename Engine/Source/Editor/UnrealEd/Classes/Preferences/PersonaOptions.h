@@ -288,10 +288,26 @@ public:
 
 	bool bExposeClothingSceneElementMenu = true;
 
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsClassAllowed, const UClass* /*InClass*/);
+
+	/** Sets a delegate that allows external code to restrict which features can be used within the Persona editor by filtering which classes are allowed. */
+	void SetOnIsClassAllowed(const FOnIsClassAllowed& InOnIsClassAllowed)
+	{
+		OnIsClassAllowedDelegate = InOnIsClassAllowed;
+	}
+
+	/** Returns whether or not the supplied class can be used in the current editor context. */
+	bool IsAllowedClass(const UClass* InClass) const
+	{
+		return OnIsClassAllowedDelegate.IsBound() == false || OnIsClassAllowedDelegate.Execute(InClass);
+	}
+
 protected:
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 private:
 	FNamePermissionList AllowedAnimationEditorTracks;
+
+	FOnIsClassAllowed OnIsClassAllowedDelegate;
 };
