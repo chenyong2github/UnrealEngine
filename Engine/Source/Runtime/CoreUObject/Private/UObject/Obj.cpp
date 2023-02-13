@@ -97,6 +97,7 @@ static UPackage*			GObjTransientPkg								= NULL;
 
 #if WITH_EDITOR
 	UObject::FAssetRegistryTag::FOnGetObjectAssetRegistryTags UObject::FAssetRegistryTag::OnGetExtraObjectTags;
+	UObject::FAssetRegistryTag::FOnGetExtendedAssetRegistryTagsForSave UObject::FAssetRegistryTag::OnGetExtendedAssetRegistryTagsForSave;
 #endif // WITH_EDITOR
 
 UObject::UObject( EStaticConstructor, EObjectFlags InFlags )
@@ -2052,6 +2053,9 @@ void UObject::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 #if WITH_EDITOR
 void UObject::GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* TargetPlatform, TArray<FAssetRegistryTag>& OutTags) const
 {
+	// Notify external sources that we need tags for save.
+	FAssetRegistryTag::OnGetExtendedAssetRegistryTagsForSave.Broadcast(this, TargetPlatform, OutTags);
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GetExternalActorExtendedAssetRegistryTags(OutTags);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
