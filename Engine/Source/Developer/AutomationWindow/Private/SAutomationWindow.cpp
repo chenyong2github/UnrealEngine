@@ -1290,7 +1290,9 @@ TSharedRef< SWidget > SAutomationWindow::GenerateTestsOptionsMenuContent( )
 	{
 		MenuBuilder.AddWidget(NumTests, FText::GetEmpty());
 		MenuBuilder.AddWidget(SendAnalyticsWidget, FText::GetEmpty());
+		#if WITH_EDITOR
 		MenuBuilder.AddWidget(KeepPIEOpenWidget, FText::GetEmpty());
+		#endif //WITH_EDITOR
 	}
 	MenuBuilder.EndSection();
 
