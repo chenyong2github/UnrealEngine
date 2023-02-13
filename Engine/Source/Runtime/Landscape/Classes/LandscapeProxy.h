@@ -562,7 +562,7 @@ public:
 	UPROPERTY(transient, duplicatetransient)
 	TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> FoliageComponents;
 
-	UPROPERTY(NonTransactional)
+	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
 	TObjectPtr<ULandscapeNaniteComponent> NaniteComponent;
 
 	/** A transient data structure for tracking the grass */

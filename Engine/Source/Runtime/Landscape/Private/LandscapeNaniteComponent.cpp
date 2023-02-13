@@ -38,6 +38,22 @@ void ULandscapeNaniteComponent::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITOR
+	if (UStaticMesh* NaniteStaticMesh = GetStaticMesh())
+	{
+		UPackage* CurrentPackage = GetPackage();
+		check(CurrentPackage);
+		// At one point, the Nanite mesh was outered to the component, which leads the mesh to be duplicated when entering PIE. If we outer the mesh to the package instead, 
+		//  PIE duplication will simply reference that mesh, preventing the expensive copy to occur when entering PIE: 
+		if (!(CurrentPackage->GetPackageFlags() & PKG_PlayInEditor)  // No need to do it on PIE, since the outer should already have been changed in the original object 
+			&& (NaniteStaticMesh->GetOuter() != CurrentPackage))
+		{
+			// Change the outer : 
+			NaniteStaticMesh->Rename(nullptr, CurrentPackage, REN_ForceNoResetLoaders);
+		}
+	}
+#endif // WITH_EDITOR
+
 	ALandscapeProxy* LandscapeProxy = GetLandscapeProxy();
 	if (ensure(LandscapeProxy))
 	{
@@ -110,7 +126,8 @@ void ULandscapeNaniteComponent::SetEnabled(bool bValue)
 
 bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId)
 {
-	UStaticMesh* NaniteStaticMesh = NewObject<UStaticMesh>(this /* Outer */, TEXT("LandscapeNaniteMesh"), RF_Transactional);
+	// Use the package as the outer, to avoid duplicating the mesh when entering PIE and duplicating all objects : 
+	UStaticMesh* NaniteStaticMesh = NewObject<UStaticMesh>(/*Outer = */GetPackage(), TEXT("LandscapeNaniteMesh"), RF_Transactional);
 
 	FMeshDescription* MeshDescription = nullptr;
 
