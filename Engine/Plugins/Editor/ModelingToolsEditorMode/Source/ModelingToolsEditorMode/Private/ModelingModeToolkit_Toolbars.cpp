@@ -351,7 +351,7 @@ void MakeSubMenu_Selection_MeshType(FModelingToolsEditorModeToolkit* Toolkit, FM
 
 }
 
-TSharedRef<SWidget> MakeMenu_ModelingModeConfigSettings(FModelingToolsEditorModeToolkit* Toolkit)
+TSharedRef<SWidget> MakeMenu_SelectionConfigSettings(FModelingToolsEditorModeToolkit* Toolkit)
 {
 	FMenuBuilder MenuBuilder(true, TSharedPtr<FUICommandList>());
 
@@ -363,12 +363,26 @@ TSharedRef<SWidget> MakeMenu_ModelingModeConfigSettings(FModelingToolsEditorMode
 	MakeSubMenu_Selection_MeshType(Toolkit, MenuBuilder);
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("Section_Selection", LOCTEXT("Section_Selection", "Selection"));
+	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
+	return MenuWidget;
+}
+
+
+} // end namespace UELocal
+
+
+TSharedRef<SWidget> FModelingToolsEditorModeToolkit::MakeMenu_ModelingModeConfigSettings()
+{
+	using namespace UELocal;
+
+	FMenuBuilder MenuBuilder(true, TSharedPtr<FUICommandList>());
+
+	MenuBuilder.BeginSection("Section_Selection", LOCTEXT("Section_Selection", "Instances"));
 	MakeSubMenu_ModeToggles(MenuBuilder);
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("Section_Gizmo", LOCTEXT("Section_Gizmo", "Gizmo"));
-	MakeSubMenu_GizmoVisibilityMode(Toolkit, MenuBuilder);
+	MakeSubMenu_GizmoVisibilityMode(this, MenuBuilder);
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("Section_MeshObjects", LOCTEXT("Section_MeshObjects", "New Mesh Objects"));
@@ -395,9 +409,6 @@ TSharedRef<SWidget> MakeMenu_ModelingModeConfigSettings(FModelingToolsEditorMode
 	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
 	return MenuWidget;
 }
-
-} // end namespace UELocal
-
 
 void FModelingToolsEditorModeToolkit::ExtendSecondaryModeToolbar(UToolMenu *InModeToolbarMenu)
 {
@@ -492,7 +503,7 @@ void FModelingToolsEditorModeToolkit::ExtendSecondaryModeToolbar(UToolMenu *InMo
 		.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 		.OnGetMenuContent(FOnGetContent::CreateLambda([this]()
 		{
-			return UELocal::MakeMenu_ModelingModeConfigSettings(this);
+			return UELocal::MakeMenu_SelectionConfigSettings(this);
 		}))
 		.ContentPadding(FMargin(3.0f, 1.0f))
 		.ButtonContent()
