@@ -378,6 +378,7 @@ void FConcertTakeRecorderManager::OnTakeRecorderInitialized(UTakeRecorder* TakeR
 				TakeInitializedEvent.TakeName = TakeRecorder->GetName();
 				TakeInitializedEvent.TakePresetPath = TakeMetaData->GetPresetOrigin()->GetPathName();
 				TakeInitializedEvent.Settings = GetDefault<UTakeRecorderUserSettings>()->Settings;
+				TakeInitializedEvent.TakeMetaDataPath = TakeMetaData->GetPathName();
 
 				FConcertLocalIdentifierTable InLocalIdentifierTable;
 				FConcertSyncObjectWriter Writer(&InLocalIdentifierTable, TakeMetaData, TakeInitializedEvent.TakeData, true, false);
@@ -474,7 +475,8 @@ void FConcertTakeRecorderManager::OnTakeInitializedEvent(const FConcertSessionCo
 			UTakeMetaData* TakeMetadata = NewObject<UTakeMetaData>(GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient);
 
 			FConcertLocalIdentifierTable Table(InEvent.IdentifierState);
-			FConcertSyncObjectReader Reader(&Table, FConcertSyncWorldRemapper(), nullptr, TakeMetadata, InEvent.TakeData);
+			FConcertSyncWorldRemapper Remapper(InEvent.TakeMetaDataPath, TakeMetadata->GetPathName());
+			FConcertSyncObjectReader Reader(&Table, MoveTemp(Remapper), nullptr, TakeMetadata, InEvent.TakeData);
 			Reader.SerializeObject(TakeMetadata);
 
 			ULevelSequence* LevelSequence = TakePreset->GetLevelSequence();

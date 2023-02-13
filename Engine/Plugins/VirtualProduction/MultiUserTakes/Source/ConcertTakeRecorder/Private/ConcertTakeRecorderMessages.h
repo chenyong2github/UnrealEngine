@@ -101,6 +101,9 @@ struct FConcertTakeInitializedEvent
 	TArray<uint8> TakeData;
 
 	UPROPERTY()
+	FString TakeMetaDataPath;
+
+	UPROPERTY()
 	FConcertLocalIdentifierState IdentifierState;
 
 	UPROPERTY()
