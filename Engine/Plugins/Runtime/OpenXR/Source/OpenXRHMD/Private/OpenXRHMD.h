@@ -38,12 +38,7 @@ class FOpenXRHMD
 	, public IOpenXRExtensionPluginDelegates
 {
 private:
-	enum ETextureAlphaBlendState : uint8
-	{
-		NoAlpha,
-		PremultipliedAlpha,
-		UnpremultipliedAlpha,
-	};
+
 public:
 	class FDeviceSpace
 	{
@@ -239,6 +234,8 @@ public:
 
 protected:
 
+	enum ETextureCopyBlendModifier : uint8;
+
 	bool StartSession();
 	bool StopSession();
 	bool OnStereoStartup();
@@ -260,9 +257,9 @@ protected:
 	bool IsViewManagedByPlugin(int32 ViewIndex) const;
 
 	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, 
-								  bool bClearBlack, ERenderTargetActions RTAction, ERHIAccess FinalDstAccess, ETextureAlphaBlendState SrcTextureAlphaBlendState) const;
+								  bool bClearBlack, ERenderTargetActions RTAction, ERHIAccess FinalDstAccess, ETextureCopyBlendModifier SrcTextureCopyModifier) const;
 	
-	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, const FXRSwapChainPtr& DstSwapChain, FIntRect DstRect, bool bClearBlack, ETextureAlphaBlendState SrcTextureAlphaBlendState) const;
+	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, const FXRSwapChainPtr& DstSwapChain, FIntRect DstRect, bool bClearBlack, ETextureCopyBlendModifier SrcTextureCopyModifier) const;
 
 	void AllocateDepthTextureInternal(uint32 Index, uint32 SizeX, uint32 SizeY, uint32 NumSamples, uint32 ArraySize);
 
