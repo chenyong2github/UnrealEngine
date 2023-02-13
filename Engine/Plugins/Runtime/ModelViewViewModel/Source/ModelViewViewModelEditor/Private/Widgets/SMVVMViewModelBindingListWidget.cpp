@@ -4,9 +4,11 @@
 
 #include "Bindings/MVVMBindingHelper.h"
 #include "Blueprint/WidgetTree.h"
+#include "BlueprintEditorSettings.h"
 #include "MVVMBlueprintViewModelContext.h"
 #include "MVVMDeveloperProjectSettings.h"
 #include "MVVMSubsystem.h"
+#include "PropertyEditorPermissionList.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMBindingSource.h"
@@ -233,12 +235,37 @@ FFieldExpander_Bindable::FFieldExpander_Bindable()
 	SetExpandFunction(UE::PropertyViewer::FFieldExpander_Default::EFunctionExpand::FunctionProperties);
 }
 
+TOptional<const UClass*> FFieldExpander_Bindable::CanExpandObject(const FObjectPropertyBase* Property, const UObject* Instance) const
+{
+	TOptional<const UClass*> Result = UE::PropertyViewer::FFieldExpander_Default::CanExpandObject(Property, Instance);
+	if (Result.IsSet() && Result.GetValue())
+	{
+		if (GetDefault<UBlueprintEditorSettings>()->IsClassAllowedOnPin(Result.GetValue()))
+		{
+			return Result;
+		}
+	}
+	return TOptional<const UClass*>();
+}
+
+bool FFieldExpander_Bindable::CanExpandScriptStruct(const FStructProperty* StructProperty) const
+{
+	if (UE::PropertyViewer::FFieldExpander_Default::CanExpandScriptStruct(StructProperty))
+	{
+		return GetMutableDefault<UBlueprintEditorSettings>()->GetStructPermissions().PassesFilter(StructProperty->GetFullName());
+	}
+	return false;
+}
+
 TOptional<const UStruct*> FFieldExpander_Bindable::GetExpandedFunction(const UFunction* Function) const
 {
 	const FProperty* ReturnProperty = Function ? BindingHelper::GetReturnProperty(Function) : nullptr;
 	if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(ReturnProperty))
 	{
-		return ObjectProperty->PropertyClass;
+		if (GetDefault<UBlueprintEditorSettings>()->IsClassAllowedOnPin(ObjectProperty->PropertyClass))
+		{
+			return ObjectProperty->PropertyClass;
+		}
 	}
 	return TOptional<const UStruct*>();
 }

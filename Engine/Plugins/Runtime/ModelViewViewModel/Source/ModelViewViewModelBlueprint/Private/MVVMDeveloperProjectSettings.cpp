@@ -6,6 +6,9 @@
 #include "MVVMBlueprintViewModelContext.h"
 #include "Types/MVVMExecutionMode.h"
 
+#include "BlueprintEditorSettings.h"
+#include "PropertyEditorPermissionList.h"
+
 #define LOCTEXT_NAMESPACE "MVVMDeveloperProjectSettings"
 
 UMVVMDeveloperProjectSettings::UMVVMDeveloperProjectSettings()
@@ -35,6 +38,11 @@ FText UMVVMDeveloperProjectSettings::GetSectionText() const
 bool UMVVMDeveloperProjectSettings::IsPropertyAllowed(const FProperty* Property) const
 {
 	check(Property);
+	if (!FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(Property->GetOwnerStruct(), Property->GetFName()))
+	{
+		return false;
+	}
+
 	TStringBuilder<256> StringBuilder;
 	Property->GetOwnerClass()->GetPathName(nullptr, StringBuilder);
 	FSoftClassPath StructPath;
@@ -49,6 +57,11 @@ bool UMVVMDeveloperProjectSettings::IsPropertyAllowed(const FProperty* Property)
 bool UMVVMDeveloperProjectSettings::IsFunctionAllowed(const UFunction* Function) const
 {
 	check(Function);
+	if (!GetMutableDefault<UBlueprintEditorSettings>()->GetFunctionPermissions().PassesFilter(Function->GetFullName()))
+	{
+		return false;
+	}
+
 	TStringBuilder<256> StringBuilder;
 	Function->GetOwnerClass()->GetPathName(nullptr, StringBuilder);
 	FSoftClassPath StructPath;

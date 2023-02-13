@@ -57,6 +57,8 @@ namespace UE::MVVM
 	{
 	public:
 		FFieldExpander_Bindable();
+		virtual TOptional<const UClass*> CanExpandObject(const FObjectPropertyBase* Property, const UObject* Instance) const override;
+		virtual bool CanExpandScriptStruct(const FStructProperty*) const override;
 		virtual TOptional<const UStruct*> GetExpandedFunction(const UFunction* Function) const override;
 	};
 
