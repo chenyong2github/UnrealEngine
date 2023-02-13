@@ -35,6 +35,12 @@ namespace AutomationTest
 		TEXT("Automation.SkipStackWalk"),
 		bSkipStackWalk,
 		TEXT("Whether to skip stack walk while iterating for listing the tests"));
+
+	static bool bLogBPTestMetadata = false;
+	static FAutoConsoleVariableRef CVarAutomationLogBPTestMetadata(
+		TEXT("Automation.LogBPTestMetadata"),
+		bLogBPTestMetadata,
+		TEXT("Whether to output blueprint functional test metadata to the log when test is running"));
 };
 
 
@@ -269,6 +275,11 @@ bool FAutomationTestFramework::NeedSkipStackWalk()
 	return AutomationTest::bSkipStackWalk;
 }
 
+
+bool FAutomationTestFramework::NeedLogBPTestMetadata()
+{
+	return AutomationTest::bLogBPTestMetadata;
+}
 
 bool FAutomationTestFramework::RegisterAutomationTest( const FString& InTestNameToRegister, FAutomationTestBase* InTestToRegister )
 {

@@ -1024,9 +1024,14 @@ public:
 	}
 
 	/**
-	* Whether to skip stack walk while iterating for listing the tests
-	*/
+	 * Whether to skip stack walk while iterating for listing the tests
+	 */
 	static bool NeedSkipStackWalk();
+
+	/**
+	 * Whether to output blueprint functional test metadata to the log when test is running
+	 */
+	static bool NeedLogBPTestMetadata();
 
 	void NotifyScreenshotComparisonComplete(const FAutomationScreenshotCompareResults& CompareResults);
 	void NotifyTestDataRetrieved(bool bWasNew, const FString& JsonData);

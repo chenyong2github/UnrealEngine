@@ -235,11 +235,11 @@ public:
 	FString TestLabel;
 
 	/**
-	 * The author is the group or person responsible for the test.  Generally you should use a group name
-	 * like 'Editor Team' or 'Rendering Team'.  When a test fails it may not be obvious who should investigate
+	 * The owner is the group or person responsible for the test. Generally you should use a group name
+	 * like 'Editor' or 'Rendering'. When a test fails it may not be obvious who should investigate
 	 * so this provides a associate responsible groups with tests.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Functional Testing", meta = (MultiLine = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Functional Testing", meta = (MultiLine = "true", DisplayName = "Owner"))
 	FString Author;
 
 	/**
@@ -589,6 +589,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Reporting")
 	virtual void AddError(const FString& Message);
+
+	UFUNCTION(BlueprintCallable, Category = "Reporting")
+	virtual void AddInfo(const FString& Message);
 
 //protected:
 	/** TODO: break this out into a library */

@@ -295,6 +295,12 @@ void AFunctionalTest::StartTest()
 	StartFrame = GFrameNumber;
 	StartTime = (float)GetWorld()->GetTimeSeconds();
 
+	if (FAutomationTestFramework::NeedLogBPTestMetadata())
+	{
+		AddInfo(FString::Printf(TEXT("[Owner] %s"), *Author));
+		AddInfo(FString::Printf(TEXT("[Description] %s"), *Description));
+	}
+
 	ReceiveStartTest();
 	OnTestStart.Broadcast();
 }
@@ -1096,6 +1102,11 @@ void AFunctionalTest::AddWarning(const FString& Message)
 void AFunctionalTest::AddError(const FString& Message)
 {
 	LogStep(ELogVerbosity::Error, Message);
+}
+
+void AFunctionalTest::AddInfo(const FString& Message)
+{
+	LogStep(ELogVerbosity::Log, Message);
 }
 
 void AFunctionalTest::LogStep(ELogVerbosity::Type Verbosity, const FString& Message)
