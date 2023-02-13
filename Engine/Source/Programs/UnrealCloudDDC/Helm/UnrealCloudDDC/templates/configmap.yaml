@@ -141,7 +141,7 @@ S3:
   SetBucketPolicies: {{ default false $s3.SetBucketPolicies }}
 
   UseBlobIndexForExistsCheck: {{ default false $s3.UseBlobIndexForExistsCheck }}
-  StoragePoolBucketOverride: {{ default {} $s3.StoragePoolBucketOverride }}
+  StoragePoolBucketOverride: {{ default dict $s3.StoragePoolBucketOverride }}
 
 {{ end }}
 
