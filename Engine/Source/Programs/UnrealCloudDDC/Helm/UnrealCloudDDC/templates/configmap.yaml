@@ -143,7 +143,7 @@ S3:
   UseBlobIndexForExistsCheck: {{ default false $s3.UseBlobIndexForExistsCheck }}
 
   {{- if $s3.UseArnRegion }}
-  UseArnRegion: {{ $s3.UseArnRegion.UseArnRegion}}
+  UseArnRegion: {{ $s3.UseArnRegion }}
   {{- end }}
 
   {{- if $s3.StoragePoolBucketOverride }}
