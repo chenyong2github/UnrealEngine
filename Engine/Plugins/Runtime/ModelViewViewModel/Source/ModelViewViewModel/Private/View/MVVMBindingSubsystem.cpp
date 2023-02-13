@@ -1,14 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "View/MVVMViewWorldSubsystem.h"
+#include "View/MVVMBindingSubsystem.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Misc/MemStack.h"
+#include "SlateGlobals.h"
+#include "Stats/Stats2.h"
 #include "View/MVVMView.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewWorldSubsystem)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBindingSubsystem)
 
-void UMVVMViewWorldSubsystem::Tick(float DeltaTime)
+
+DECLARE_CYCLE_STAT(TEXT("MVVM Bindings"), STAT_MVVMBindingTick, STATGROUP_Slate);
+
+void UMVVMBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Super::Initialize(Collection);
+
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().OnPreTick().AddUObject(this, &UMVVMBindingSubsystem::HandlePreTick);
+	}
+}
+
+void UMVVMBindingSubsystem::Deinitialize()
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().OnPreTick().RemoveAll(this);
+	}
+	Super::Deinitialize();
+}
+
+void UMVVMBindingSubsystem::HandlePreTick(float DeltaTime)
+{
+	SCOPE_CYCLE_COUNTER(STAT_MVVMBindingTick);
+
 	if (EveryTickBindings.Num() > 0)
 	{
 		FMemMark Mark(FMemStack::Get());
@@ -76,23 +103,21 @@ void UMVVMViewWorldSubsystem::Tick(float DeltaTime)
 	}
 }
 
-TStatId UMVVMViewWorldSubsystem::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(UMVVMViewWorldSubsystem, STATGROUP_Tickables);
-}
-
-void UMVVMViewWorldSubsystem::AddViewWithEveryTickBinding(const UMVVMView* InView)
+void UMVVMBindingSubsystem::AddViewWithEveryTickBinding(const UMVVMView* InView)
 {
 	check(!EveryTickBindings.Contains(InView));
+	ensureMsgf(FSlateApplication::IsInitialized(), TEXT("The Slate Application is not initialized. This is probably because you are running a server. The Delayed and Tick binding will not execute."));
+
 	EveryTickBindings.Add(InView);
 }
 
-void UMVVMViewWorldSubsystem::RemoveViewWithEveryTickBinding(const UMVVMView* InView)
+void UMVVMBindingSubsystem::RemoveViewWithEveryTickBinding(const UMVVMView* InView)
 {
 	EveryTickBindings.RemoveSingleSwap(InView);
 }
 
-void UMVVMViewWorldSubsystem::AddDelayedBinding(const UMVVMView* View, FMVVMViewDelayedBinding InCompiledBinding)
+void UMVVMBindingSubsystem::AddDelayedBinding(const UMVVMView* View, FMVVMViewDelayedBinding InCompiledBinding)
 {
+	ensureMsgf(FSlateApplication::IsInitialized(), TEXT("The Slate Application is not initialized. This is probably because you are running a server. The Delayed and Tick binding will not execute."));
 	DelayedBindings.FindOrAdd(View).AddUnique(InCompiledBinding);
 }

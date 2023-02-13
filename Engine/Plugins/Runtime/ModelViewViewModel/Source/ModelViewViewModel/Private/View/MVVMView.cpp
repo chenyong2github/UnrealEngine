@@ -4,10 +4,11 @@
 #include "FieldNotification/FieldMulticastDelegate.h"
 #include "View/MVVMViewClass.h"
 #include "Misc/MemStack.h"
-#include "View/MVVMViewWorldSubsystem.h"
+#include "View/MVVMBindingSubsystem.h"
 
-#include "Debugging/MVVMDebugging.h"
 #include "Blueprint/UserWidget.h"
+#include "Debugging/MVVMDebugging.h"
+#include "Engine/Engine.h"
 #include "MVVMMessageLog.h"
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMFieldContext.h"
@@ -59,7 +60,7 @@ void UMVVMView::Construct()
 
 	if (bHasEveryTickBinding)
 	{
-		GetUserWidget()->GetWorld()->GetSubsystem<UMVVMViewWorldSubsystem>()->AddViewWithEveryTickBinding(this);
+		GEngine->GetEngineSubsystem<UMVVMBindingSubsystem>()->AddViewWithEveryTickBinding(this);
 	}
 }
 
@@ -88,7 +89,7 @@ void UMVVMView::Destruct()
 
 	if (bHasEveryTickBinding)
 	{
-		GetUserWidget()->GetWorld()->GetSubsystem<UMVVMViewWorldSubsystem>()->RemoveViewWithEveryTickBinding(this);
+		GEngine->GetEngineSubsystem<UMVVMBindingSubsystem>()->RemoveViewWithEveryTickBinding(this);
 	}
 	bHasEveryTickBinding = false;
 }
@@ -187,11 +188,11 @@ bool UMVVMView::SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldV
 			{
 				if (bHasEveryTickBinding)
 				{
-					GetUserWidget()->GetWorld()->GetSubsystem<UMVVMViewWorldSubsystem>()->AddViewWithEveryTickBinding(this);
+					GEngine->GetEngineSubsystem<UMVVMBindingSubsystem>()->AddViewWithEveryTickBinding(this);
 				}
 				else
 				{
-					GetUserWidget()->GetWorld()->GetSubsystem<UMVVMViewWorldSubsystem>()->RemoveViewWithEveryTickBinding(this);
+					GEngine->GetEngineSubsystem<UMVVMBindingSubsystem>()->RemoveViewWithEveryTickBinding(this);
 				}
 			}
 		}
@@ -220,7 +221,7 @@ void UMVVMView::HandledLibraryBindingValueChanged(UObject* InViewModelOrWidget, 
 		EMVVMExecutionMode ExecutionMode = Binding.GetExecuteMode();
 		if (ExecutionMode == EMVVMExecutionMode::Delayed)
 		{
-			GetUserWidget()->GetWorld()->GetSubsystem<UMVVMViewWorldSubsystem>()->AddDelayedBinding(this, InCompiledBindingIndex);
+			GEngine->GetEngineSubsystem<UMVVMBindingSubsystem>()->AddDelayedBinding(this, InCompiledBindingIndex);
 		}
 		else if (ExecutionMode != EMVVMExecutionMode::Tick)
 		{

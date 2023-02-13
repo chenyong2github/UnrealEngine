@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Subsystems/WorldSubsystem.h"
+#include "Subsystems/EngineSubsystem.h"
 
-#include "MVVMViewWorldSubsystem.generated.h"
+#include "MVVMBindingSubsystem.generated.h"
 
 class UMVVMView;
 
@@ -36,16 +36,14 @@ private:
 };
 
 /** */
-UCLASS(NotBlueprintable, DisplayName = "Viewmodel World Subsytem")
-class UMVVMViewWorldSubsystem : public UTickableWorldSubsystem
+UCLASS(NotBlueprintable, Hidden)
+class UMVVMBindingSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	//~ Begin UEngineSubsystem interface
-	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override;
-	//~ End UEngineSubsystem interface
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	void AddViewWithEveryTickBinding(const UMVVMView* View);
 	void RemoveViewWithEveryTickBinding(const UMVVMView* View);
@@ -53,6 +51,8 @@ public:
 	void AddDelayedBinding(const UMVVMView* View, FMVVMViewDelayedBinding CompiledBinding);
 
 private:
+	void HandlePreTick(float DeltaTIme);
+
 	using FDelayedBindingList = TArray<FMVVMViewDelayedBinding, TInlineAllocator<8>>;
 	using FDelayedMap = TMap<TWeakObjectPtr<const UMVVMView>, FDelayedBindingList>;
 	FDelayedMap DelayedBindings;
