@@ -56,6 +56,7 @@ public:
 
 	// VM functions
 	void VMGet(FVectorVMExternalFunctionContext& Context);
+	void VMSet(FVectorVMExternalFunctionContext& Context);
 	void VMExchange(FVectorVMExternalFunctionContext& Context);
 	void VMAdd(FVectorVMExternalFunctionContext& Context);
 	void VMIncrement(FVectorVMExternalFunctionContext& Context);

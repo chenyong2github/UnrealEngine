@@ -24,6 +24,7 @@ namespace NDISimpleCounterLocal
 	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSimpleCounterTemplate.ush");
 	static const FName NAME_GetNextValue_Deprecated(TEXT("GetNextValue"));
 	static const FName NAME_Get(TEXT("Get"));
+	static const FName NAME_Set(TEXT("Set"));
 	static const FName NAME_Exchange(TEXT("Exchange"));
 	static const FName NAME_Add(TEXT("Add"));
 	static const FName NAME_Increment(TEXT("Increment"));
@@ -287,6 +288,17 @@ void UNiagaraDataInterfaceSimpleCounter::GetFunctions(TArray<FNiagaraFunctionSig
 	}
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = NAME_Set;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bRequiresExecPin = true;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Counter")));
+		Sig.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Execute"))).SetValue(true);
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("New Value")));
+		Sig.SetDescription(LOCTEXT("SetDesc", "Sets the current value of the counter."));
+	}
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
 		Sig.Name = NAME_Exchange;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -347,6 +359,10 @@ void UNiagaraDataInterfaceSimpleCounter::GetVMExternalFunction(const FVMExternal
 	else if (BindingInfo.Name == NAME_Get)
 	{
 		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceSimpleCounter::VMGet);
+	}
+	else if (BindingInfo.Name == NAME_Set)
+	{
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceSimpleCounter::VMSet);
 	}
 	else if (BindingInfo.Name == NAME_Exchange)
 	{
@@ -459,6 +475,29 @@ void UNiagaraDataInterfaceSimpleCounter::VMGet(FVectorVMExternalFunctionContext&
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutValue.SetAndAdvance(CurrValue);
+	}
+}
+
+void UNiagaraDataInterfaceSimpleCounter::VMSet(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<FNDISimpleCounterInstanceData_GameThread> InstanceData(Context);
+	FNDIInputParam<bool> InExecute(Context);
+	FNDIInputParam<int32> InValue(Context);
+
+	for (int32 i=0; i < Context.GetNumInstances(); ++i)
+	{
+		const bool bExecute = InExecute.GetAndAdvance();
+		const int32 NewValue = InValue.GetAndAdvance();
+		if (bExecute)
+		{
+			const int32 PrevValue = InstanceData->Counter.exchange(NewValue);
+		}
+	}
+
+	if (FNiagaraUtilities::ShouldSyncCpuToGpu(GpuSyncMode))
+	{
+		InstanceData->bModified = true;
+		MarkRenderDataDirty();
 	}
 }
 

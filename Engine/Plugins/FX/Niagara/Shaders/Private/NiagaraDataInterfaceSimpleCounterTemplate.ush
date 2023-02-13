@@ -8,6 +8,15 @@ void Get_{ParameterName}(out int CurrValue)
 	CurrValue = RWInstanceCounts[{ParameterName}_CountOffset];
 }
 
+void Set_{ParameterName}_UEImpureCall(in bool bExecute, in int NewValue)
+{
+	if ( bExecute )
+	{
+		int PrevValue;
+		InterlockedExchange(RWInstanceCounts[{ParameterName}_CountOffset], NewValue, PrevValue);
+	}
+}
+
 void Exchange_{ParameterName}_UEImpureCall(in bool bExecute, in int NewValue, out int PrevValue)
 {
 	if ( bExecute )
