@@ -233,7 +233,7 @@ void UMovieSceneNiagaraTrackRecorder::RecordSampleImpl(const FQualifiedFrameTime
 			
 			// Expand the section to the new length
 			FFrameNumber EndFrame = CurrentFrameTime.Time.CeilToFrame();
-			NiagaraCacheSection->ExpandToFrame(EndFrame);
+			NiagaraCacheSection->SetEndFrame(EndFrame);
 		}
 		
 		for (const FString& Warning : FeedbackContext.Warnings)
