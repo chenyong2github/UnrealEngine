@@ -124,6 +124,8 @@ protected:
 	/** Network serialized data cache */
 	UPROPERTY(Transient)
 	TArray<uint8> ReplicationBytes;
+	
+	static bool ShouldExportTextItemAsQuotedString(const FString& NetIdStr);
 };
 
 /** Specify type trait support for various low level UPROPERTY overrides */

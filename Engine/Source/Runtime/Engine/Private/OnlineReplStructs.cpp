@@ -11,6 +11,7 @@
 #include "Dom/JsonValue.h"
 #include "EngineLogs.h"
 #include "Net/OnlineEngineInterface.h"
+#include "Misc/AsciiSet.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceNull.h"
 #include "UObject/UnrealType.h"
@@ -461,6 +462,28 @@ bool FUniqueNetIdRepl::Serialize(FArchive& Ar)
 	return true;
 }
 
+bool FUniqueNetIdRepl::ShouldExportTextItemAsQuotedString(const FString& NetIdStr)
+{
+	// Logic derived from FPropertyHelpers::ReadToken. If that would not parse the string, we need to wrap in quotes.
+
+	if (NetIdStr.IsEmpty())
+	{
+		return false;
+	}
+
+	constexpr FAsciiSet AlphaNumericChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	constexpr FAsciiSet ValidChars = AlphaNumericChars + '_' + '-' + '+';
+
+	TCHAR FirstChar = NetIdStr[0];
+	const bool bFirstCharValid = AlphaNumericChars.Test(FirstChar) || FirstChar > 255;
+	if (!bFirstCharValid)
+	{
+		return true;
+	}
+
+	return !FAsciiSet::HasOnly(*NetIdStr, ValidChars);
+}
+
 bool FUniqueNetIdRepl::ExportTextItem(FString& ValueStr, FUniqueNetIdRepl const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
 	if (IsValid())
@@ -468,13 +491,29 @@ bool FUniqueNetIdRepl::ExportTextItem(FString& ValueStr, FUniqueNetIdRepl const&
 		if (IsV1())
 		{
 			FName Type = GetType();
+			const FString NetIdStr = ToString();
 			if (Type == UOnlineEngineInterface::Get()->GetDefaultOnlineSubsystemName())
 			{
-				ValueStr += ToString();
+				if (ShouldExportTextItemAsQuotedString(NetIdStr))
+				{
+					ValueStr += FString::Printf(TEXT("\"%s\""), *NetIdStr);
+				}
+				else
+				{
+					ValueStr += NetIdStr;
+				}
 			}
 			else
 			{
-				ValueStr += FString::Printf(TEXT("%s:%s"), *Type.ToString(), *ToString());
+				if (ShouldExportTextItemAsQuotedString(NetIdStr))
+				{
+					ValueStr += FString::Printf(TEXT("%s:\"%s\""), *Type.ToString(), *NetIdStr);
+				}
+				else
+				{
+					ValueStr += FString::Printf(TEXT("%s:%s"), *Type.ToString(), *NetIdStr);
+				}
+				
 			}
 		}
 		else
