@@ -911,7 +911,8 @@ UK2Node::ERedirectType UK2Node::DoPinsMatchForReconstruction(const UEdGraphPin* 
 			}
 			else 
 			{
-				if (K2Schema->SearchForAutocastFunction(OldPin->PinType, NewPin->PinType).IsSet())
+				if (K2Schema->SearchForAutocastFunction(OldPin->PinType, NewPin->PinType).IsSet()
+					|| K2Schema->FindSpecializedConversionNode(OldPin->PinType, *NewPin, /* bCreateNode = */false).IsSet())
 				{
 					RedirectType = static_cast<ERedirectType>(static_cast<uint8>(ERedirectType_Name) | static_cast<uint8>(ERedirectType_Type));
 				}
@@ -1000,7 +1001,8 @@ UK2Node::ERedirectType UK2Node::DoPinsMatchForReconstruction(const UEdGraphPin* 
 			// A type change might've also occurred with a rename.
 			if (RedirectType == ERedirectType_Name)
 			{
-				if (K2Schema->SearchForAutocastFunction(OldPin->PinType, NewPin->PinType).IsSet())
+				if (K2Schema->SearchForAutocastFunction(OldPin->PinType, NewPin->PinType).IsSet()
+					|| K2Schema->FindSpecializedConversionNode(OldPin->PinType, *NewPin, /* bCreateNode = */false).IsSet())
 				{
 					RedirectType = static_cast<ERedirectType>(static_cast<uint8>(ERedirectType_Name) | static_cast<uint8>(ERedirectType_Type));
 				}
