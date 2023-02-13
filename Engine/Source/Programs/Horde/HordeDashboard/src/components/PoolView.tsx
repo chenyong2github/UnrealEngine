@@ -943,7 +943,7 @@ const PoolPanel: React.FC = () => {
             <Stack horizontal tokens={{ childrenGap: 118 }}>
                <Stack style={{ minWidth: 224 }}>
                   <Stack style={{ paddingBottom: 8 }}>
-                     <PrimaryButton text={pool.name} href={`/agents?search=${encodeURI(pool.id)}`} target="_blank" style={{ color: "#FFFFFF", backgroundColor: linearInterpolate(color), border: "unset", flexShrink: 1 }} />
+                     <PrimaryButton text={pool.name} href={`/agents?agent=${encodeURI(pool.id)}&exact=true`} target="_blank" style={{ color: "#FFFFFF", backgroundColor: linearInterpolate(color), border: "unset", flexShrink: 1 }} />
                   </Stack>
                   <Stack>
                      <DetailsList
