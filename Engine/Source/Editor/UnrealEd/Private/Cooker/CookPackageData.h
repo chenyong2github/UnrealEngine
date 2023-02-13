@@ -154,6 +154,19 @@ public:
 
 	FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName);
 	~FPackageData();
+	static void* operator new(size_t Size)
+	{
+		checkf(false, TEXT("PackageDatas should be allocated using FPackageDatas.Allocator"));
+		return FMemory::Malloc(Size);
+	}
+	static void* operator new(size_t Size, void* PlacementNewPtr)
+	{
+		return PlacementNewPtr;
+	}
+	static void operator delete(void* Ptr, size_t Size)
+	{
+		checkf(false, TEXT("PackageDatas should be freed using FPackageDatas.Allocator"));
+	}
 
 	/**
 	 * ClearReferences is called on every PackageData before any packageDatas are deleted,

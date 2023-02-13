@@ -2379,19 +2379,18 @@ FPackageData& FPackageDatas::CreatePackageData(FName PackageName, FName FileName
 	check(!FileName.IsNone());
 
 	FWriteScopeLock ExistenceWriteLock(ExistenceLock);
-	FPackageData* PackageData = Allocator.NewElement(*this, PackageName, FileName);
 	FPackageData*& ExistingByPackageName = PackageNameToPackageData.FindOrAdd(PackageName);
 	FPackageData*& ExistingByFileName = FileNameToPackageData.FindOrAdd(FileName);
 	if (ExistingByPackageName)
 	{
 		// The other CreatePackageData call should have added the FileName as well
 		check(ExistingByFileName == ExistingByPackageName);
-		delete PackageData;
 		return *ExistingByPackageName;
 	}
 	// If no other CreatePackageData added the PackageName, then they should not have added
 	// the FileName either
 	check(!ExistingByFileName);
+	FPackageData* PackageData = Allocator.NewElement(*this, PackageName, FileName);
 	ExistingByPackageName = PackageData;
 	ExistingByFileName = PackageData;
 	return *PackageData;
