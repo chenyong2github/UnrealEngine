@@ -918,7 +918,7 @@ void UPoseAsset::PostLoad()
 			}
 			SourceAnimation->ConditionalPostLoad();
 			
-			if (!SourceAnimationRawDataGUID.IsValid() || SourceAnimationRawDataGUID != SourceAnimation->GetDataModel()->GenerateGuid())
+			if (SourceAnimationRawDataGUID.IsValid() && SourceAnimationRawDataGUID != SourceAnimation->GetDataModel()->GenerateGuid())
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("AssetName"), FText::FromString(GetPathName()));
@@ -928,7 +928,7 @@ void UPoseAsset::PostLoad()
 				Args.Add(TEXT("Found"), FText::FromString(SourceAnimation->GetDataModel()->GenerateGuid().ToString()));
 				
 				const FText ResultText = FText::Format(LOCTEXT("PoseAssetSourceOutOfDate", "PoseAsset {AssetName} is out-of-date with its source animation {SourceAsset} {Stored} vs {Found}"), Args);
-				//UE_LOG(LogAnimation, Warning,TEXT("%s"), *ResultText.ToString());
+				UE_LOG(LogAnimation, Warning,TEXT("%s"), *ResultText.ToString());
 			}
 		}	
 	}	
@@ -1165,6 +1165,11 @@ void UPoseAsset::PostProcessData()
 	UpdateTrackBoneIndices();
 }
 
+void UPoseAsset::BreakAnimationSequenceGUIDComparison()
+{
+	SourceAnimationRawDataGUID.Invalidate();
+}
+
 bool UPoseAsset::AddOrUpdatePoseWithUniqueName(const USkeletalMeshComponent* MeshComponent, FSmartName* OutPoseName /*= nullptr*/)
 {
 	bool bSavedAdditivePose = bAdditivePose;
@@ -1248,6 +1253,8 @@ void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, const USkeletalMesh
 				}
 			}
 		}
+		
+		BreakAnimationSequenceGUIDComparison();
 
 		// Only update curves if user has requested so - or when setting up a new pose
 		const FPoseData* PoseData = PoseContainer.FindPoseData(PoseName);
@@ -1296,6 +1303,8 @@ void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, const TArray<FName>
 			// copy to the internal track index
 			PoseData->SourceLocalSpacePose[InternalTrackIndex] = LocalTransform[Index];
 		}
+				
+		BreakAnimationSequenceGUIDComparison();
 
 		if (bNewPose)
 		{
@@ -1333,7 +1342,7 @@ void UPoseAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseAsset, SourceAnimation))
 		{
-			SourceAnimationRawDataGUID.Invalidate();
+			BreakAnimationSequenceGUIDComparison();
 		}
 	}
 }
@@ -1401,7 +1410,6 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 		{
 			SetSkeleton(TargetSkeleton);
 			SourceAnimation = AnimSequence;
-			SourceAnimationRawDataGUID = AnimSequence->GetDataModel()->GenerateGuid();
 
 			// reinitialize, now we're making new pose from this animation
 			Reinitialize();
@@ -1492,6 +1500,8 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 
 				PostProcessData();
 			}
+
+			SourceAnimationRawDataGUID = AnimSequence->GetDataModel()->GenerateGuid();
 		}
 	}
 }
@@ -1586,6 +1596,11 @@ int32 UPoseAsset::DeletePoses(TArray<FName> PoseNamesToDelete)
 				}
 			}
 		}
+	}
+	
+	if (ItemsDeleted)
+	{
+		BreakAnimationSequenceGUIDComparison();
 	}
 
 	PostProcessData();

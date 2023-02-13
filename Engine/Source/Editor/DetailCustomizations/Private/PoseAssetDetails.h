@@ -95,6 +95,7 @@ private:
 	bool ShouldFilterAsset(const FAssetData& AssetData);
 	FReply OnUpdatePoseSourceAnimation();
 	bool IsUpdateSourceEnabled() const;
+	FText GetAnimationUpdateButtonText() const;
 
 	FText GetButtonText() const;
 };

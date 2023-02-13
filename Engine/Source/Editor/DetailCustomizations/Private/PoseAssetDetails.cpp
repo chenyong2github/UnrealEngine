@@ -306,7 +306,7 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		.AutoHeight()
 		[
 			SNew(SButton)
-			.Text(LOCTEXT("UpdateSource_Lable", "Update Source"))
+			.Text(this, &FPoseAssetDetails::GetAnimationUpdateButtonText)
 			.ToolTipText(LOCTEXT("UpdateSource_Tooltip", "Update Poses From Source Animation"))
 			.OnClicked(this, &FPoseAssetDetails::OnUpdatePoseSourceAnimation)
 			.IsEnabled(this, &FPoseAssetDetails::IsUpdateSourceEnabled)
@@ -700,6 +700,16 @@ bool FPoseAssetDetails::IsUpdateSourceEnabled() const
 	}
 
 	return false;
+}
+
+FText FPoseAssetDetails::GetAnimationUpdateButtonText() const
+{
+	if (PoseAsset.IsValid() && !PoseAsset->SourceAnimationRawDataGUID.IsValid())
+	{
+		return LOCTEXT("RestoreSource_Label", "Restore Source");
+	}
+
+	return LOCTEXT("UpdateSource_Label", "Update Source");
 }
 
 #undef LOCTEXT_NAMESPACE

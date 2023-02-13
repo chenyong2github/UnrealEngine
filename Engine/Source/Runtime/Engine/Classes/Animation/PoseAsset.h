@@ -336,6 +336,7 @@ private:
 	// After any update to SourceLocalPoses, this does update runtime data
 	void AddOrUpdatePose(const FSmartName& PoseName, const TArray<FName>& TrackNames, const TArray<FTransform>& LocalTransform, const TArray<float>& CurveValues);
 	void PostProcessData();
+	void BreakAnimationSequenceGUIDComparison();
 #endif // WITH_EDITOR	
 
 private:
