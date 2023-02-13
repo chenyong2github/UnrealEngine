@@ -637,7 +637,7 @@ MaterialFloat3x3 GetPreviousLocalToWorld3x3(FMaterialVertexParameters Parameters
 #if DECAL_PRIMITIVE
 	return (float3x3)DecalToWorld;
 #else
-	return LWCToFloat3x3(GetPrimitiveData(Parameters).LocalToWorld);
+	return LWCToFloat3x3(GetPrimitiveData(Parameters).PreviousLocalToWorld);
 #endif
 }
 
