@@ -211,6 +211,7 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 				FHLODCreationParams CreationParams;
 				CreationParams.WorldPartition = WorldPartition;
 				CreationParams.CellGuid = CellGuid;
+				CreationParams.CellName = CellName;
 				CreationParams.CellBounds = CellBounds;
 				CreationParams.HLODLevel = HLODLevel;
 				CreationParams.MinVisibleDistance = RuntimeGrid.LoadingRange;
