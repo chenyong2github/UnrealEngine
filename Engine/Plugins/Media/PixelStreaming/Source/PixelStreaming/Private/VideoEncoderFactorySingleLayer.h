@@ -34,19 +34,44 @@ namespace UE::PixelStreaming
 
 		void ReleaseVideoEncoder(FVideoEncoderSingleLayerHardware* Encoder);
 
-		TWeakPtr<FVideoEncoderHardware> GetHardwareEncoder() const;
-		TWeakPtr<FVideoEncoderHardware> GetOrCreateHardwareEncoder(const FVideoEncoderConfigH264& VideoConfig);
-		TWeakPtr<FVideoEncoderHardware> GetOrCreateHardwareEncoder(const FVideoEncoderConfigH265& VideoConfig);
-
 		void ForceKeyFrame();
 		bool ShouldForceKeyframe() const;
 		void UnforceKeyFrame();
-		void OnEncodedImage(const webrtc::EncodedImage& Encoded_image, const webrtc::CodecSpecificInfo* CodecSpecificInfo);
+		void OnEncodedImage(const webrtc::EncodedImage& Encoded_image, const webrtc::CodecSpecificInfo* CodecSpecificInfo, uint32 StreamId);
+
+		template <typename ConfigType>
+		TWeakPtr<TVideoEncoder<FVideoResourceRHI>> GetOrCreateHardwareEncoder(uint32 StreamId, const ConfigType& VideoConfig)
+		{
+			FScopeLock InitLock(&InitEncoderGuard);
+
+			FreeUnusedEncoders();
+
+			if (auto* ExistingEncoder = HardwareEncoders.Find(StreamId))
+			{
+				return *ExistingEncoder;
+			}
+			else
+			{
+				// Make the hardware encoder wrapper
+				TSharedPtr<FVideoEncoderHardware> HardwareEncoder = FVideoEncoder::Create<FVideoResourceRHI>(FAVDevice::GetHardwareDevice(), VideoConfig);
+
+				if (!HardwareEncoder.IsValid())
+				{
+					UE_LOG(LogPixelStreaming, Error, TEXT("Could not create encoder. Check encoder config or perhaps you used up all your HW encoders."));
+					// We could not make the encoder, so indicate the id was not set successfully.
+					return nullptr;
+				}
+
+				HardwareEncoders.Add(StreamId, HardwareEncoder);
+				return HardwareEncoder;
+			}
+		}
 
 	private:
 		static webrtc::SdpVideoFormat CreateH264Format(webrtc::H264Profile Profile, webrtc::H264Level Level);
+		void FreeUnusedEncoders();
 
-		TSharedPtr<FVideoEncoderHardware> HardwareEncoder;
+		TMap<uint32, TSharedPtr<FVideoEncoderHardware>> HardwareEncoders;
 
 		uint8 bForceNextKeyframe : 1;
 

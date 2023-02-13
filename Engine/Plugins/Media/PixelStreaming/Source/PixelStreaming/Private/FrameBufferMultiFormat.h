@@ -15,7 +15,7 @@ namespace UE::PixelStreaming
 	class FFrameBufferMultiFormatBase : public webrtc::VideoFrameBuffer
 	{
 	public:
-		FFrameBufferMultiFormatBase(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer);
+		FFrameBufferMultiFormatBase(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer, uint32 InStreamId);
 		virtual ~FFrameBufferMultiFormatBase() = default;
 
 		virtual webrtc::VideoFrameBuffer::Type type() const override { return webrtc::VideoFrameBuffer::Type::kNative; }
@@ -34,6 +34,7 @@ namespace UE::PixelStreaming
 
 	protected:
 		TSharedPtr<FPixelCaptureCapturerMultiFormat> FrameCapturer;
+		uint32 StreamId;
 	};
 
 	/**
@@ -42,7 +43,7 @@ namespace UE::PixelStreaming
 	class FFrameBufferMultiFormatLayered : public FFrameBufferMultiFormatBase
 	{
 	public:
-		FFrameBufferMultiFormatLayered(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer);
+		FFrameBufferMultiFormatLayered(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer, uint32 InStreamId);
 		virtual ~FFrameBufferMultiFormatLayered() = default;
 
 		virtual int width() const override;
@@ -58,13 +59,15 @@ namespace UE::PixelStreaming
 	class FFrameBufferMultiFormat : public FFrameBufferMultiFormatBase
 	{
 	public:
-		FFrameBufferMultiFormat(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer, int InLayerIndex);
+		FFrameBufferMultiFormat(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer, uint32 StreamId, int InLayerIndex);
 		virtual ~FFrameBufferMultiFormat() = default;
 
 		virtual int width() const override;
 		virtual int height() const override;
 
 		IPixelCaptureOutputFrame* RequestFormat(int32 Format) const;
+
+		uint32 GetSourceStreamId() const { return StreamId; }
 
 	private:
 		int32 LayerIndex;

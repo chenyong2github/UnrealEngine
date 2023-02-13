@@ -6,7 +6,10 @@
 #include "PixelCaptureBufferFormat.h"
 #include "PixelStreamingTrace.h"
 
+uint32 FPixelStreamingVideoInput::NextStreamId = 1;
+
 FPixelStreamingVideoInput::FPixelStreamingVideoInput()
+:StreamId(NextStreamId++)
 {
 	CreateFrameCapturer();
 }
@@ -36,7 +39,7 @@ void FPixelStreamingVideoInput::OnFrame(const IPixelCaptureInputFrame& InputFram
 
 rtc::scoped_refptr<webrtc::VideoFrameBuffer> FPixelStreamingVideoInput::GetFrameBuffer()
 {
-	return new rtc::RefCountedObject<UE::PixelStreaming::FFrameBufferMultiFormatLayered>(FrameCapturer);
+	return new rtc::RefCountedObject<UE::PixelStreaming::FFrameBufferMultiFormatLayered>(FrameCapturer, StreamId);
 }
 
 TSharedPtr<IPixelCaptureOutputFrame> FPixelStreamingVideoInput::RequestFormat(int32 Format, int32 LayerIndex)

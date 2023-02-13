@@ -140,7 +140,7 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	void FVideoEncoderFactorySingleLayer::OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info)
+	void FVideoEncoderFactorySingleLayer::OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, uint32 StreamId)
 	{
 		// Lock as we send encoded image to each encoder.
 		FScopeLock Lock(&ActiveEncodersGuard);
@@ -150,7 +150,7 @@ namespace UE::PixelStreaming
 			// Go through each encoder and send our encoded image to its callback
 			for (FVideoEncoderSingleLayerHardware* Encoder : ActiveEncoders)
 			{
-				Encoder->SendEncodedImage(encoded_image, codec_specific_info);
+				Encoder->SendEncodedImage(encoded_image, codec_specific_info, StreamId);
 			}
 		}
 	}
@@ -162,82 +162,35 @@ namespace UE::PixelStreaming
 		ActiveEncoders.Remove(Encoder);
 	}
 
-	TWeakPtr<TVideoEncoder<FVideoResourceRHI>> FVideoEncoderFactorySingleLayer::GetHardwareEncoder() const
+	void FVideoEncoderFactorySingleLayer::FreeUnusedEncoders()
 	{
-		return HardwareEncoder;
-	}
-
-	TWeakPtr<TVideoEncoder<FVideoResourceRHI>> FVideoEncoderFactorySingleLayer::GetOrCreateHardwareEncoder(const FVideoEncoderConfigH264& VideoConfig)
-	{
-		FScopeLock InitLock(&InitEncoderGuard);
-
-		if (HardwareEncoder.IsValid())
+		// first clear unused encoders.
+		TArray<uint32> DeleteStreamIds;
+		for (auto&& [EncoderStreamId, EncoderPtr] : HardwareEncoders)
 		{
-			return HardwareEncoder;
-		}
-		else
-		{
-			// Make the hardware encoder wrapper
-			HardwareEncoder = FVideoEncoder::Create<FVideoResourceRHI>(FAVDevice::GetHardwareDevice(), VideoConfig);
-
-			if (!HardwareEncoder.IsValid())
+			if (EncoderPtr.IsUnique())
 			{
-				UE_LOG(LogPixelStreaming, Error, TEXT("Could not create encoder. Check encoder config or perhaps you used up all your HW encoders."));
-				// We could not make the encoder, so indicate the id was not set successfully.
-				return nullptr;
+				DeleteStreamIds.Add(EncoderStreamId);
 			}
-
-			return HardwareEncoder;
 		}
-	}
-
-	TWeakPtr<TVideoEncoder<FVideoResourceRHI>> FVideoEncoderFactorySingleLayer::GetOrCreateHardwareEncoder(const FVideoEncoderConfigH265& VideoConfig)
-	{
-		FScopeLock InitLock(&InitEncoderGuard);
-
-		if (HardwareEncoder.IsValid())
+		for (uint32 DeleteStreamId : DeleteStreamIds)
 		{
-			return HardwareEncoder;
-		}
-		else
-		{
-			// Make the hardware encoder wrapper
-			HardwareEncoder = FVideoEncoder::Create<FVideoResourceRHI>(FAVDevice::GetHardwareDevice(), VideoConfig);
-
-			if (!HardwareEncoder.IsValid())
-			{
-				UE_LOG(LogPixelStreaming, Error, TEXT("Could not create encoder. Check encoder config or perhaps you used up all your HW encoders."));
-				// We could not make the encoder, so indicate the id was not set successfully.
-				return nullptr;
-			}
-
-			return HardwareEncoder;
+			HardwareEncoders.Remove(DeleteStreamId);
 		}
 	}
 
 	void FVideoEncoderFactorySingleLayer::ForceKeyFrame()
 	{
-		if (HardwareEncoder)
-		{
-			bForceNextKeyframe = true;
-		}
+		bForceNextKeyframe = true;
 	}
 
 	bool FVideoEncoderFactorySingleLayer::ShouldForceKeyframe() const
 	{
-		if (HardwareEncoder)
-		{
-			return bForceNextKeyframe;
-		}
-
-		return false;
+		return bForceNextKeyframe;
 	}
 
 	void FVideoEncoderFactorySingleLayer::UnforceKeyFrame()
 	{
-		if (HardwareEncoder)
-		{
-			bForceNextKeyframe = false;
-		}
+		bForceNextKeyframe = false;
 	}
 } // namespace UE::PixelStreaming

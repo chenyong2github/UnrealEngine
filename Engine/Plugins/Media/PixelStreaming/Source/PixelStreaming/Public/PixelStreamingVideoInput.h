@@ -45,7 +45,7 @@ public:
 	 */
 	DECLARE_MULTICAST_DELEGATE(FOnFrameCaptured);
 	FOnFrameCaptured OnFrameCaptured;
-	
+
 private:
 	int32 LastFrameWidth = -1;
 	int32 LastFrameHeight = -1;
@@ -57,4 +57,8 @@ private:
 
 	void CreateFrameCapturer();
 	void OnCaptureComplete();
+
+	// video inputs need a unique stream id so we can properly divide hardware encoders between inputs
+	uint32 StreamId = 0;
+	static uint32 NextStreamId;
 };

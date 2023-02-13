@@ -34,9 +34,10 @@ namespace UE::PixelStreaming
 		// virtual void OnLossNotification(const LossNotification& loss_notification) override;
 		// End WebRTC Interface.
 
-		void SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info);
+		void SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, uint32 StreamId);
 
 	private:
+		void LateInitHardwareEncoder(uint32 StreamId);
 		void UpdateConfig(uint32 width, uint32 height);
 		void MaybeDumpFrame(webrtc::EncodedImage const& encoded_image);
 
@@ -49,6 +50,7 @@ namespace UE::PixelStreaming
 		FVideoEncoderFactorySingleLayer& Factory;
 		EPixelStreamingCodec Codec;
 
+		TUniquePtr<FVideoEncoderConfig> InitialVideoConfig;
 		TWeakPtr<FVideoEncoderHardware> HardwareEncoder;
 
 		// We store this so we can restore back to it if the user decides to use then stop using the PixelStreaming.Encoder.TargetBitrate CVar.
@@ -59,5 +61,8 @@ namespace UE::PixelStreaming
 		// WebRTC may request a bitrate/framerate change using SetRates(), we only respect this if this encoder is actually encoding
 		// so we use this optional object to store a rate change and act upon it when this encoder does its next call to Encode().
 		TOptional<RateControlParameters> PendingRateChange;
+
+		// used to key into active hardware encoders and pull the correct encoder for the stream.
+		uint32 EncodingStreamId;
 	};
 } // namespace UE::PixelStreaming

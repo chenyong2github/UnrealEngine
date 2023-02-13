@@ -51,28 +51,26 @@ namespace UE::PixelStreaming
 		{
 			case EPixelStreamingCodec::H264:
 			{
-				FVideoEncoderConfigH264 VideoConfig;
-				SetInitialSettings(InCodecSettings, VideoConfig);
-				VideoConfig.Profile = PixelStreaming::Settings::GetH264Profile();
-				VideoConfig.RepeatSPSPPS = true;
-				VideoConfig.IntraRefreshPeriodFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshPeriodFrames.GetValueOnAnyThread();
-				VideoConfig.IntraRefreshCountFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshCountFrames.GetValueOnAnyThread();
-				VideoConfig.KeyframeInterval = PixelStreaming::Settings::CVarPixelStreamingEncoderKeyframeInterval.GetValueOnAnyThread();
-
-				HardwareEncoder = Factory.GetOrCreateHardwareEncoder(VideoConfig);
+				TUniquePtr<FVideoEncoderConfigH264> VideoConfig = MakeUnique<FVideoEncoderConfigH264>();
+				SetInitialSettings(InCodecSettings, *VideoConfig);
+				VideoConfig->Profile = PixelStreaming::Settings::GetH264Profile();
+				VideoConfig->RepeatSPSPPS = true;
+				VideoConfig->IntraRefreshPeriodFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshPeriodFrames.GetValueOnAnyThread();
+				VideoConfig->IntraRefreshCountFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshCountFrames.GetValueOnAnyThread();
+				VideoConfig->KeyframeInterval = PixelStreaming::Settings::CVarPixelStreamingEncoderKeyframeInterval.GetValueOnAnyThread();
+				InitialVideoConfig = MoveTemp(VideoConfig);
 				return WEBRTC_VIDEO_CODEC_OK;
 			}
 			case EPixelStreamingCodec::H265:
 			{
-				FVideoEncoderConfigH265 VideoConfig;
-				SetInitialSettings(InCodecSettings, VideoConfig);
-				VideoConfig.Profile = PixelStreaming::Settings::GetH265Profile();
-				VideoConfig.RepeatSPSPPS = true;
-				VideoConfig.IntraRefreshPeriodFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshPeriodFrames.GetValueOnAnyThread();
-				VideoConfig.IntraRefreshCountFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshCountFrames.GetValueOnAnyThread();
-				VideoConfig.KeyframeInterval = PixelStreaming::Settings::CVarPixelStreamingEncoderKeyframeInterval.GetValueOnAnyThread();
-
-				HardwareEncoder = Factory.GetOrCreateHardwareEncoder(VideoConfig);
+				TUniquePtr<FVideoEncoderConfigH265> VideoConfig = MakeUnique<FVideoEncoderConfigH265>();
+				SetInitialSettings(InCodecSettings, *VideoConfig);
+				VideoConfig->Profile = PixelStreaming::Settings::GetH265Profile();
+				VideoConfig->RepeatSPSPPS = true;
+				VideoConfig->IntraRefreshPeriodFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshPeriodFrames.GetValueOnAnyThread();
+				VideoConfig->IntraRefreshCountFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshCountFrames.GetValueOnAnyThread();
+				VideoConfig->KeyframeInterval = PixelStreaming::Settings::CVarPixelStreamingEncoderKeyframeInterval.GetValueOnAnyThread();
+				InitialVideoConfig = MoveTemp(VideoConfig);
 				return WEBRTC_VIDEO_CODEC_OK;
 			}
 			default:
@@ -139,12 +137,41 @@ namespace UE::PixelStreaming
 		return NewFrame;
 	}
 
+	void FVideoEncoderSingleLayerHardware::LateInitHardwareEncoder(uint32 StreamId)
+	{
+		switch (Codec)
+		{
+			case EPixelStreamingCodec::H264:
+			{
+				FVideoEncoderConfigH264& VideoConfig = *StaticCast<FVideoEncoderConfigH264*>(InitialVideoConfig.Get());
+				HardwareEncoder = Factory.GetOrCreateHardwareEncoder(StreamId, VideoConfig);
+				break;
+			}
+			case EPixelStreamingCodec::H265:
+			{
+				FVideoEncoderConfigH265& VideoConfig = *StaticCast<FVideoEncoderConfigH265*>(InitialVideoConfig.Get());
+				HardwareEncoder = Factory.GetOrCreateHardwareEncoder(StreamId, VideoConfig);
+				break;
+			}
+		}
+	}
+
 	int32 FVideoEncoderSingleLayerHardware::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
 	{
+		const FFrameBufferMultiFormat* FrameBuffer = StaticCast<FFrameBufferMultiFormat*>(frame.video_frame_buffer().get());
+
+		// We late init here so we can pull the stream ID off the incoming frames and pull the correct encoder for the stream
+		// earlier locations do not have this information.
+		if (!HardwareEncoder.IsValid())
+		{
+			EncodingStreamId = FrameBuffer->GetSourceStreamId();
+			LateInitHardwareEncoder(EncodingStreamId);
+		}
+
 		if (TSharedPtr<FVideoEncoderHardware> const& PinnedHardwareEncoder = HardwareEncoder.Pin())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming Hardware Encoding", PixelStreamingChannel);
-			const FFrameBufferMultiFormat* FrameBuffer = StaticCast<FFrameBufferMultiFormat*>(frame.video_frame_buffer().get());
+			
 			IPixelCaptureOutputFrame* AdaptedLayer = FrameBuffer->RequestFormat(PixelCaptureBufferFormat::FORMAT_RHI);
 
 			if (AdaptedLayer == nullptr)
@@ -235,7 +262,7 @@ namespace UE::PixelStreaming
 
 				UpdateFrameMetadataPrePacketization(*AdaptedLayer);
 
-				Factory.OnEncodedImage(Image, &CodecInfo);
+				Factory.OnEncodedImage(Image, &CodecInfo, EncodingStreamId);
 
 				UpdateFrameMetadataPostPacketization(*AdaptedLayer);
 			}
@@ -342,12 +369,15 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	void FVideoEncoderSingleLayerHardware::SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info)
+	void FVideoEncoderSingleLayerHardware::SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, uint32 StreamId)
 	{
-		MaybeDumpFrame(encoded_image);
-		if (OnEncodedImageCallback)
+		if (StreamId == EncodingStreamId)
 		{
-			OnEncodedImageCallback->OnEncodedImage(encoded_image, codec_specific_info);
+			MaybeDumpFrame(encoded_image);
+			if (OnEncodedImageCallback)
+			{
+				OnEncodedImageCallback->OnEncodedImage(encoded_image, codec_specific_info);
+			}
 		}
 	}
 

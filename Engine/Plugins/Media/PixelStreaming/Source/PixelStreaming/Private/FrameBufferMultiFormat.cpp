@@ -4,13 +4,14 @@
 
 namespace UE::PixelStreaming
 {
-	FFrameBufferMultiFormatBase::FFrameBufferMultiFormatBase(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer)
+	FFrameBufferMultiFormatBase::FFrameBufferMultiFormatBase(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer, uint32 InStreamId)
 		: FrameCapturer(InFrameCapturer)
+		, StreamId(InStreamId)
 	{
 	}
 
-	FFrameBufferMultiFormatLayered::FFrameBufferMultiFormatLayered(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer)
-		: FFrameBufferMultiFormatBase(InFrameCapturer)
+	FFrameBufferMultiFormatLayered::FFrameBufferMultiFormatLayered(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer, uint32 InStreamId)
+		: FFrameBufferMultiFormatBase(InFrameCapturer, InStreamId)
 	{
 	}
 
@@ -31,11 +32,11 @@ namespace UE::PixelStreaming
 
 	rtc::scoped_refptr<FFrameBufferMultiFormat> FFrameBufferMultiFormatLayered::GetLayer(int LayerIndex) const
 	{
-		return new rtc::RefCountedObject<FFrameBufferMultiFormat>(FrameCapturer, LayerIndex);
+		return new rtc::RefCountedObject<FFrameBufferMultiFormat>(FrameCapturer, StreamId, LayerIndex);
 	}
 
-	FFrameBufferMultiFormat::FFrameBufferMultiFormat(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer, int InLayerIndex)
-		: FFrameBufferMultiFormatBase(InFrameCapturer)
+	FFrameBufferMultiFormat::FFrameBufferMultiFormat(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer, uint32 InStreamId, int InLayerIndex)
+		: FFrameBufferMultiFormatBase(InFrameCapturer, InStreamId)
 		, LayerIndex(InLayerIndex)
 	{
 	}

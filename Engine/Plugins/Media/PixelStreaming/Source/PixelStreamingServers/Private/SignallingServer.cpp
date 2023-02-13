@@ -377,7 +377,7 @@ namespace UE::PixelStreamingServers
 	void FSignallingServer::OnStreamerIdMessage(uint16 ConnectionId, TSharedPtr<FJsonObject> JSONObj)
 	{
 		FString StreamerName;
-		if (JSONObj->TryGetStringField("endpointId", StreamerName))
+		if (JSONObj->TryGetStringField("id", StreamerName))
 		{
 			StreamersWS->NameConnection(ConnectionId, StreamerName);
 			StreamersWS->RemoveName(LEGACY_NAME);
