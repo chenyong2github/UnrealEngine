@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
 					"Slate",
 					"SlateCore",
+					"ColorManagement"
 				});
 
 			PrivateIncludePathModuleNames.AddRange(

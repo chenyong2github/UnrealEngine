@@ -184,6 +184,15 @@ bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, 
 	ConfigurationOwner = InOwner;
 	ContextKeyValues = InContextKeyValues;
 	
+	if (InSourceColorSpace == UOpenColorIOConfiguration::WorkingColorSpaceName)
+	{
+		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
+	}
+	else if(InDestinationColorSpace == UOpenColorIOConfiguration::WorkingColorSpaceName)
+	{
+		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
+	}
+	
 	return GenerateColorTransformData(InSourceColorSpace, InDestinationColorSpace);
 }
 
@@ -192,6 +201,18 @@ bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, 
 	check(InOwner);
 	ConfigurationOwner = InOwner;
 	ContextKeyValues = InContextKeyValues;
+
+	if (InSourceColorSpace == UOpenColorIOConfiguration::WorkingColorSpaceName)
+	{
+		if (InDirection == EOpenColorIOViewTransformDirection::Forward)
+		{
+			WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
+		}
+		else
+		{
+			WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
+		}
+	}
 
 	return GenerateColorTransformData(InSourceColorSpace, InDisplay, InView, InDirection);
 }
@@ -220,7 +241,7 @@ void UOpenColorIOColorTransform::CacheResourceShadersForCooking(EShaderPlatform 
 #else
 	FName AssetPath;
 #endif
-	NewResource->SetupResource((ERHIFeatureLevel::Type)TargetFeatureLevel, InShaderHash, InShaderCode, InRawConfigHash, GetTransformFriendlyName(), AssetPath);
+	NewResource->SetupResource((ERHIFeatureLevel::Type)TargetFeatureLevel, InShaderHash, InShaderCode, InRawConfigHash, GetTransformFriendlyName(), AssetPath, WorkingColorSpaceTransformType);
 
 	const bool bApplyCompletedShaderMap = false;
 	const bool bIsCooking = true;
@@ -411,7 +432,7 @@ void UOpenColorIOColorTransform::CacheResourceShadersForRendering(bool bRegenera
 #else
 				FName AssetPath;
 #endif
-				TransformResource->SetupResource(CacheFeatureLevel, ShaderCodeHash, ShaderCode, RawConfigHash, GetTransformFriendlyName(), AssetPath);
+				TransformResource->SetupResource(CacheFeatureLevel, ShaderCodeHash, ShaderCode, RawConfigHash, GetTransformFriendlyName(), AssetPath, WorkingColorSpaceTransformType);
 
 				const bool bApplyCompletedShaderMap = true;
 

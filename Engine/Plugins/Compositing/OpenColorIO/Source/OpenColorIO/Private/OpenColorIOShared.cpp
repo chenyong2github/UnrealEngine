@@ -199,7 +199,7 @@ void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
 	}
 }
 
-void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InRawConfigHash, const FString& InFriendlyName, const FName& InAssetPath)
+void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InRawConfigHash, const FString& InFriendlyName, const FName& InAssetPath, EOpenColorIOWorkingColorSpaceTransform InWorkingColorSpaceTransformType)
 {
 	// When this happens we assume that shader was cooked and we don't need to do anything. 
 	if (InShaderCodeHash.IsEmpty() && InRawConfigHash.IsEmpty())
@@ -207,15 +207,15 @@ void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatu
 		return;
 	}
 
-	FString FullShaderCodeHash;
-	FullShaderCodeHash.Reserve(InShaderCodeHash.Len());
-	const FString ConcatHashes = InShaderCodeHash + InRawConfigHash;
+
+	const FString ConcatHashes = InShaderCodeHash + InRawConfigHash + FString::FromInt((int32)InWorkingColorSpaceTransformType);
 	FSHAHash FullHash;
 	FSHA1::HashBuffer(TCHAR_TO_ANSI(*(ConcatHashes)), ConcatHashes.Len(), FullHash.Hash);
 
 	ShaderCodeAndConfigHash = FullHash.ToString();
 	ShaderCode = InShadercode;
 	FriendlyName = InFriendlyName.Replace(TEXT("/"), TEXT(""));
+	WorkingColorSpaceTransformType = InWorkingColorSpaceTransformType;
 #if WITH_EDITOR
 	AssetPath = InAssetPath;
 #endif // WITH_EDITOR

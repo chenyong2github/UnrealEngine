@@ -214,6 +214,9 @@ private:
 	/** Key-value string pairs used to define the processor's context. */
 	TMap<FString, FString> ContextKeyValues;
 
+	/** Enum used to indicate whether the working color space should be used as a source or destination. */
+	EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::None;
+
 	FRenderCommandFence ReleaseFence;
 
 #if WITH_EDITORONLY_DATA

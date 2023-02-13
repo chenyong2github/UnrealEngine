@@ -29,6 +29,14 @@ class FOpenColorIOShaderMap;
 class FOpenColorIOPixelShader;
 class FOpenColorIOShaderMapId;
 
+/** Enum used to indicate whether the working color space should be used as a source or destination. */
+enum class EOpenColorIOWorkingColorSpaceTransform : uint8
+{
+	None = 0,
+	Source = 1,
+	Destination = 2
+};
+
 /** Stores outputs from the color transform compile that need to be saved. */
 class FOpenColorIOCompilationOutput
 {
@@ -318,6 +326,7 @@ public:
 		, FeatureLevel(ERHIFeatureLevel::SM5)
 		, bContainsInlineShaders(false)
 		, bLoadedCookedShaderMapId(false)
+		, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
 	{}
 
 	/**
@@ -436,7 +445,15 @@ public:
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
 
-	void SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InRawConfigHash, const FString& InFriendlyName, const FName& InAssetPath);
+	void SetupResource(
+		ERHIFeatureLevel::Type InFeatureLevel,
+		const FString& InShaderCodeHash,
+		const FString& InShadercode,
+		const FString& InRawConfigHash,
+		const FString& InFriendlyName,
+		const FName& InAssetPath,
+		EOpenColorIOWorkingColorSpaceTransform InWorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::None
+	);
 
 	void SetCompileErrors(TArray<FString> &InErrors)
 	{
@@ -470,6 +487,7 @@ public:
 
 	
 	bool IsSame(const FOpenColorIOShaderMapId& InId) const;
+	EOpenColorIOWorkingColorSpaceTransform GetWorkingColorSpaceTransformType() const { return WorkingColorSpaceTransformType; }
 protected:
 #if WITH_EDITOR
 	/**
@@ -526,6 +544,7 @@ private:
 	uint32 bContainsInlineShaders : 1;
 	uint32 bLoadedCookedShaderMapId : 1;
 	FOpenColorIOShaderMapId CookedShaderMapId;
+	EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType;
 
 #if WITH_EDITOR
 	/**

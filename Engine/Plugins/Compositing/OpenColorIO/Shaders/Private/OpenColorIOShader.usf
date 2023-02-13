@@ -10,8 +10,9 @@
 =============================================================================*/
 Texture2D		InputTexture;
 SamplerState	InputTextureSampler;
-
-float Gamma;
+float4x4		WorkingColorSpaceToInterchange;
+float4x4		InterchangeToWorkingColorSpace;
+float			Gamma;
 
 /*=============================================================================
  * OCIO generated start
@@ -36,7 +37,17 @@ void MainPS(in noperspective float4 InUVAndScreenPos : TEXCOORD0,
 	out float4 OutColor : SV_Target0)
 {
 	float4 InputColor = InputTexture.Sample(InputTextureSampler, InUVAndScreenPos.xy);
+	
+#if WORKING_COLOR_SPACE_TRANSFORM_TYPE == 1 // EOpenColorIOWorkingColorSpaceTransform::Source
+	InputColor.xyz = mul((float3x3)WorkingColorSpaceToInterchange, InputColor.xyz);
+#endif
 	InputColor.xyz = max(0.0, InputColor.xyz);
 	InputColor.xyz = pow(InputColor.xyz, Gamma);
+
+	// Apply main transform
 	OutColor = float4(OCIOConvert(InputColor).xyz, InputColor.w);
+
+#if WORKING_COLOR_SPACE_TRANSFORM_TYPE == 2 // EOpenColorIOWorkingColorSpaceTransform::Destination
+	OutColor.xyz = mul((float3x3)InterchangeToWorkingColorSpace, OutColor.xyz);
+#endif
 }
