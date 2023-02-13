@@ -86,6 +86,10 @@ struct CHAOSVEHICLES_API FWheelStatus
 	UPROPERTY()
 	FVector ContactPoint;
 
+	/** Wheel contact location */
+	UPROPERTY()
+	FVector HitLocation;
+
 	/** Material that wheel is in contact with */
 	UPROPERTY()
 	TWeakObjectPtr<class UPhysicalMaterial> PhysMaterial;
@@ -162,6 +166,7 @@ struct CHAOSVEHICLES_API FWheelStatus
 		SpringForce = 0.f;
 		SkidNormal = FVector::ZeroVector;
 		ContactPoint = FVector::ZeroVector;
+		HitLocation = FVector::ZeroVector;
 		bIsValid = false;
 		bABSActivated = false;
 		DriveTorque = 0.0f;

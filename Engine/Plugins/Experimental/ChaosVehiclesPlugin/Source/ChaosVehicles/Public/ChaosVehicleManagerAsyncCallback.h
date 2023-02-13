@@ -42,6 +42,7 @@ struct CHAOSVEHICLES_API FWheelsOutput
 		, BrakeTorque(0.f)
 		, bABSActivated(false)
 		, ImpactPoint(FVector::ZeroVector)
+		, HitLocation(FVector::ZeroVector)
 		, PhysMaterial(nullptr)
 	{
 	}
@@ -73,6 +74,7 @@ struct CHAOSVEHICLES_API FWheelsOutput
 	bool bABSActivated;
 	bool bBlockingHit;
 	FVector ImpactPoint;
+	FVector HitLocation;
 	TWeakObjectPtr<UPhysicalMaterial> PhysMaterial;
 };
 

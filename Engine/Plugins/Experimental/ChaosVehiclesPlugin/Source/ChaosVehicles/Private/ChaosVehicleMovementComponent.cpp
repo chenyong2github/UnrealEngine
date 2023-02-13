@@ -1815,6 +1815,7 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 					PVehicleOutput->Wheels[WheelIdx].bABSActivated = Current.bABSActivated;
 					PVehicleOutput->Wheels[WheelIdx].bBlockingHit = Current.bBlockingHit;
 					PVehicleOutput->Wheels[WheelIdx].ImpactPoint = FMath::Lerp(Current.ImpactPoint, Next.ImpactPoint, OutputInterpAlpha);
+					PVehicleOutput->Wheels[WheelIdx].HitLocation = FMath::Lerp(Current.HitLocation, Next.HitLocation, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].PhysMaterial = Current.PhysMaterial;
 				}
 			}
@@ -1853,6 +1854,7 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 					PVehicleOutput->Wheels[WheelIdx].bABSActivated = Current.bABSActivated;
 					PVehicleOutput->Wheels[WheelIdx].bBlockingHit = Current.bBlockingHit;
 					PVehicleOutput->Wheels[WheelIdx].ImpactPoint = Current.ImpactPoint;
+					PVehicleOutput->Wheels[WheelIdx].HitLocation = Current.HitLocation;
 					PVehicleOutput->Wheels[WheelIdx].PhysMaterial = Current.PhysMaterial;
 				}
 
