@@ -61,14 +61,18 @@ void UAnimationModifiersAssetUserData::PostEditChangeOwner()
 		return;
 	}
 
-	for (UAnimationModifier* Modifier : AnimationModifierInstances)
+	// Only react to PostEditChange if not currently applying modifiers
+	if(!UE::Anim::FApplyModifiersScope::IsScopePending())
 	{
-		if (!Modifier->bReapplyPostOwnerChange || Modifier->IsCurrentlyApplyingModifier())
-		{
-			continue;
-		}
-
-		Modifier->ApplyToAnimationSequence(ModifiedAnimSequence);
+	    UE::Anim::FApplyModifiersScope Scope;
+	    for (UAnimationModifier* Modifier : AnimationModifierInstances)
+	    {
+		    if (!Modifier->bReapplyPostOwnerChange)
+		    {
+			    continue;
+		    }
+		    Modifier->ApplyToAnimationSequence(ModifiedAnimSequence);
+	    }
 	}
 }
 #endif // WITH_EDITOR

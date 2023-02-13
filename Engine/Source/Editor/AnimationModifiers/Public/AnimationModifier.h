@@ -83,6 +83,7 @@ public:
 	bool bReapplyPostOwnerChange = false;
 
 	/** Whether or not this modifier is in the process of being applied to an Animation Asset */
+	UE_DEPRECATED(5.2, "IsCurrentlyApplyingModifier has been deprecated, can check for modifiers being applied with UE::Anim::FApplyModifiersScope::IsScopePending")
 	bool IsCurrentlyApplyingModifier() const { return CurrentAnimSequence != nullptr || CurrentSkeleton != nullptr; };
 
 protected:
@@ -188,6 +189,7 @@ namespace UE
 				Close();
 			}
 
+			static bool IsScopePending() { return !ScopeModeStack.IsEmpty(); }
 protected:
 			/** Determine how to handle an Animation Modifier error, and execute accordingly */
 			static void HandleError(const UAnimationModifier* Modifier, const FText& Message, const FText* OptTitle = nullptr);
