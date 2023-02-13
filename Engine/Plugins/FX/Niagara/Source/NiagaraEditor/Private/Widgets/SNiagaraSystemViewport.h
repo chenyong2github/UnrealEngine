@@ -138,6 +138,8 @@ private:
 
 	/** True if orbit mode was active before we started a view transition. Used to restore orbit mode at the the end of the transition */
 	bool bShouldActivateOrbitAfterTransitioning = false;
+
+	FDelegateHandle OnPreviewFeatureLevelChangedHandle;
 };
 
 #if NIAGARA_PERF_BASELINES

@@ -22,6 +22,7 @@
 #include "NiagaraSystemEditorData.h"
 #include "SNiagaraSystemViewportToolBar.h"
 #include "UnrealEdGlobals.h"
+#include "Editor/EditorEngine.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/Canvas.h"
 #include "Engine/Font.h"
@@ -499,10 +500,32 @@ void SNiagaraSystemViewport::Construct(const FArguments& InArgs)
 	SEditorViewport::Construct( SEditorViewport::FArguments() );
 
 	Client->EngineShowFlags.SetGrid(Settings->IsShowGridInViewport());
+
+	// Register for preview feature level changes
+	if (UEditorEngine* EditorEngine = Cast<UEditorEngine>(GEngine))
+	{
+		OnPreviewFeatureLevelChangedHandle = EditorEngine->OnPreviewFeatureLevelChanged().AddLambda(
+			[WeakWorld=TWeakObjectPtr<UWorld>(Client->GetWorld())](ERHIFeatureLevel::Type NewFeatureLevel)
+			{
+				if (UWorld* World = WeakWorld.Get())
+				{
+					World->ChangeFeatureLevel(NewFeatureLevel);
+				}
+			}
+		);
+	}
 }
 
 SNiagaraSystemViewport::~SNiagaraSystemViewport()
 {
+	if (OnPreviewFeatureLevelChangedHandle.IsValid())
+	{
+		if (UEditorEngine* EditorEngine = Cast<UEditorEngine>(GEngine))
+		{
+			EditorEngine->OnPreviewFeatureLevelChanged().Remove(OnPreviewFeatureLevelChangedHandle);
+		}
+	}
+
 	if (SystemViewportClient.IsValid())
 	{
 		SystemViewportClient->Viewport = NULL;
