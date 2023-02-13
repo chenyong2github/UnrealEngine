@@ -21,6 +21,22 @@ namespace Horde.Build.Agents.Leases
 		/// </summary>
 		public static LeaseId GenerateNewId() => new LeaseId(ObjectId.GenerateNewId());
 
+		/// <inheritdoc cref="ObjectId.TryParse(System.String, out ObjectId)"/>
+		public static bool TryParse(string text, out LeaseId leaseId)
+		{
+			ObjectId objectId;
+			if (ObjectId.TryParse(text, out objectId))
+			{
+				leaseId = new LeaseId(objectId);
+				return true;
+			}
+			else
+			{
+				leaseId = default;
+				return false;
+			}
+		}
+
 		/// <inheritdoc cref="ObjectId.Parse(System.String)"/>
 		public static LeaseId Parse(string text) => new LeaseId(ObjectId.Parse(text));
 

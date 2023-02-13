@@ -117,6 +117,7 @@ namespace Horde.Agent.Tests
 
 			res.AgentType = "agentType1";
 			res.LogId = "logId1";
+			res.Change = 1;
 
 			return Wrap(res);
 		}

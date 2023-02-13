@@ -7,6 +7,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Agents;
+using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
@@ -97,6 +98,11 @@ namespace Horde.Build.Acls
 
     internal static class ClaimExtensions
 	{
+		public static bool HasLeaseClaim(this ClaimsPrincipal user, LeaseId leaseId)
+		{
+			return user.HasClaim(HordeClaimTypes.Lease, leaseId.ToString());
+		}
+
 		public static bool HasSessionClaim(this ClaimsPrincipal user, SessionId sessionId)
 		{
 			return user.HasClaim(HordeClaimTypes.AgentSessionId, sessionId.ToString());

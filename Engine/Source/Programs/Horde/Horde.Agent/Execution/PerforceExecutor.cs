@@ -97,20 +97,20 @@ namespace Horde.Agent.Execution
 				_workspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(_workspaceInfo, _rootDir, useHaveTable, logger, cancellationToken);
 
 				// Figure out the change to build
-				if (_job.Change == 0)
+				if (_batch.Change == 0)
 				{
-					List<ChangesRecord> changes = await _workspace.PerforceClient.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, new[] { _stream.Name + "/..." }, cancellationToken);
-					_job.Change = changes[0].Number;
+					List<ChangesRecord> changes = await _workspace.PerforceClient.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, new[] { _batch.StreamName + "/..." }, cancellationToken);
+					_batch.Change = changes[0].Number;
 
 					UpdateJobRequest updateJobRequest = new UpdateJobRequest();
 					updateJobRequest.JobId = _jobId;
-					updateJobRequest.Change = _job.Change;
+					updateJobRequest.Change = _batch.Change;
 					await RpcConnection.InvokeAsync((JobRpc.JobRpcClient x) => x.UpdateJobAsync(updateJobRequest, null, null, cancellationToken), cancellationToken);
 				}
 
 				// Sync the workspace
-				int syncPreflightChange = (_job.ClonedPreflightChange != 0) ? _job.ClonedPreflightChange : _job.PreflightChange;
-				await _workspace.SyncAsync(_job.Change, syncPreflightChange, null, cancellationToken);
+				int syncPreflightChange = (_batch.ClonedPreflightChange != 0) ? _batch.ClonedPreflightChange : _batch.PreflightChange;
+				await _workspace.SyncAsync(_batch.Change, syncPreflightChange, null, cancellationToken);
 
 				// Remove any cached BuildGraph manifests
 				DirectoryReference manifestDir = DirectoryReference.Combine(_workspace.WorkspaceDir, "Engine", "Saved", "BuildGraph");
@@ -131,10 +131,10 @@ namespace Horde.Agent.Execution
 			DeleteEngineUserSettings(logger);
 
 			// Get the temp storage directory
-			if (!String.IsNullOrEmpty(_agentType!.TempStorageDir))
+			if (!String.IsNullOrEmpty(_batch.TempStorageDir))
 			{
-				string escapedStreamName = Regex.Replace(_stream!.Name, "[^a-zA-Z0-9_-]", "+");
-				_sharedStorageDir = DirectoryReference.Combine(new DirectoryReference(_agentType!.TempStorageDir), escapedStreamName, $"CL {_job!.Change} - Job {_jobId}");
+				string escapedStreamName = Regex.Replace(_batch.StreamName, "[^a-zA-Z0-9_-]", "+");
+				_sharedStorageDir = DirectoryReference.Combine(new DirectoryReference(_batch.TempStorageDir), escapedStreamName, $"CL {_batch.Change} - Job {_jobId}");
 				CopyAutomationTool(_sharedStorageDir, _workspace.WorkspaceDir, logger);
 			}
 
@@ -144,11 +144,11 @@ namespace Horde.Agent.Execution
 			_envVars["uebp_PORT"] = _workspace.ServerAndPort;
 			_envVars["uebp_USER"] = _workspace.UserName;
 			_envVars["uebp_CLIENT"] = _workspace.ClientName;
-			_envVars["uebp_BuildRoot_P4"] = _stream!.Name;
-			_envVars["uebp_BuildRoot_Escaped"] = _stream!.Name.Replace('/', '+');
+			_envVars["uebp_BuildRoot_P4"] = _batch.StreamName;
+			_envVars["uebp_BuildRoot_Escaped"] = _batch.StreamName.Replace('/', '+');
 			_envVars["uebp_CLIENT_ROOT"] = $"//{_workspace.ClientName}";
-			_envVars["uebp_CL"] = _job!.Change.ToString();
-			_envVars["uebp_CodeCL"] = _job!.CodeChange.ToString();
+			_envVars["uebp_CL"] = _batch.Change.ToString();
+			_envVars["uebp_CodeCL"] = _batch.CodeChange.ToString();
 			_envVars["P4USER"] = _workspace.UserName;
 			_envVars["P4CLIENT"] = _workspace.ClientName;
 
@@ -203,10 +203,10 @@ namespace Horde.Agent.Execution
 		PerforceLogger CreatePerforceLogger(ILogger logger)
 		{
 			PerforceLogger perforceLogger = new PerforceLogger(logger);
-			perforceLogger.AddClientView(_workspace.WorkspaceDir, _workspace.StreamView, _job.Change);
+			perforceLogger.AddClientView(_workspace.WorkspaceDir, _workspace.StreamView, _batch.Change);
 			if (_autoSdkWorkspace != null)
 			{
-				perforceLogger.AddClientView(_autoSdkWorkspace.WorkspaceDir, _autoSdkWorkspace.StreamView, _job.Change);
+				perforceLogger.AddClientView(_autoSdkWorkspace.WorkspaceDir, _autoSdkWorkspace.StreamView, _batch.Change);
 			}
 			return perforceLogger;
 		}

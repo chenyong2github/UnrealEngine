@@ -1328,17 +1328,28 @@ namespace Horde.Build.Jobs
 		/// <returns>True if the action is authorized</returns>
 		public static bool AuthorizeSession(IJobStepBatch batch, ClaimsPrincipal user)
 		{
-			if(batch.SessionId != null)
+			if (batch.SessionId != null)
 			{
 				foreach (Claim claim in user.Claims)
 				{
-					if(claim.Type == HordeClaimTypes.AgentSessionId)
+					if (claim.Type == HordeClaimTypes.AgentSessionId)
 					{
 						SessionId sessionIdValue;
 						if (SessionId.TryParse(claim.Value, out sessionIdValue) && sessionIdValue == batch.SessionId.Value)
 						{
 							return true;
 						}
+					}
+				}
+			}
+			if (batch.LeaseId != null)
+			{
+				foreach (Claim claim in user.Claims)
+				{
+					LeaseId leaseIdValue;
+					if (LeaseId.TryParse(claim.Value, out leaseIdValue) && leaseIdValue == batch.LeaseId.Value)
+					{
+						return true;
 					}
 				}
 			}

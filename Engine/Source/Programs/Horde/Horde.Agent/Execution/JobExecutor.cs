@@ -49,19 +49,19 @@ namespace Horde.Agent.Execution
 		public IServerStorageFactory StorageFactory { get; }
 		public string JobId { get; }
 		public string BatchId { get; }
-		public string AgentType { get; }
+		public BeginBatchResponse Batch { get; }
 		public NamespaceId NamespaceId { get; }
 		public string StoragePrefix { get; }
 		public string Token { get; }
 		public JobOptions JobOptions { get; }
 
-		public JobExecutorOptions(ISession session, IServerStorageFactory storageFactory, string jobId, string batchId, string agentType, NamespaceId namespaceId, string storagePrefix, string token, JobOptions jobOptions)
+		public JobExecutorOptions(ISession session, IServerStorageFactory storageFactory, string jobId, string batchId, BeginBatchResponse batch, NamespaceId namespaceId, string storagePrefix, string token, JobOptions jobOptions)
 		{
 			Session = session;
 			StorageFactory = storageFactory;
 			JobId = jobId;
 			BatchId = batchId;
-			AgentType = agentType;
+			Batch = batch;
 			NamespaceId = namespaceId;
 			StoragePrefix = storagePrefix;
 			Token = token;
@@ -180,18 +180,14 @@ namespace Horde.Agent.Execution
 		protected string? _scriptFileName;
 		protected bool _preprocessScript;
 
-		protected string _jobId;
-		protected string _batchId;
-		protected string _agentTypeName;
-
 		/// <summary>
 		/// Logger for the local agent process (as opposed to job logger)
 		/// </summary>
 		protected readonly ILogger _logger;
 
-		protected GetJobResponse _job;
-		protected GetStreamResponse _stream;
-		protected GetAgentTypeResponse _agentType;
+		protected readonly string _jobId;
+		protected readonly string _batchId;
+		protected readonly BeginBatchResponse _batch;
 
 		protected List<string> _additionalArguments = new List<string>();
 
@@ -218,7 +214,7 @@ namespace Horde.Agent.Execution
 
 			_jobId = options.JobId;
 			_batchId = options.BatchId;
-			_agentTypeName = options.AgentType;
+			_batch = options.Batch;
 
 			_namespaceId = options.NamespaceId;
 			_storagePrefix = options.StoragePrefix;
@@ -226,33 +222,15 @@ namespace Horde.Agent.Execution
 			_jobOptions = options.JobOptions;
 
 			_logger = logger;
-
-			_job = null!;
-			_stream = null!;
-			_agentType = null!;
 		}
 
-		public virtual async Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
+		public virtual Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
-			// Get the job settings
-			_job = await RpcConnection.InvokeAsync((JobRpc.JobRpcClient x) => x.GetJobAsync(new GetJobRequest(_jobId), null, null, cancellationToken), cancellationToken);
-
-			// Get the stream settings
-			_stream = await RpcConnection.InvokeAsync((JobRpc.JobRpcClient x) => x.GetStreamAsync(new GetStreamRequest(_job.StreamId), null, null, cancellationToken), cancellationToken);
-
-			// Get the agent type to determine how to configure this machine
-			_agentType = _stream.AgentTypes.FirstOrDefault(x => x.Key == _agentTypeName).Value;
-			if (_agentType == null)
-			{
-				_agentType = new GetAgentTypeResponse();
-			}
-
-			foreach (KeyValuePair<string, string> envVar in _agentType.Environment)
+			// Setup the agent type
+			foreach (KeyValuePair<string, string> envVar in _batch.Environment)
 			{
 				_envVars[envVar.Key] = envVar.Value;
 			}
-
-			logger.LogInformation("Configured as agent type {AgentType}", _agentTypeName);
 
 			// Figure out if we're running as an admin
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -268,7 +246,7 @@ namespace Horde.Agent.Execution
 			}
 
 			// Get the BuildGraph arguments
-			foreach (string argument in _job.Arguments)
+			foreach (string argument in _batch.Arguments)
 			{
 				const string RemapAgentTypesPrefix = "-RemapAgentTypes=";
 				if (argument.StartsWith(RemapAgentTypesPrefix, StringComparison.OrdinalIgnoreCase))
@@ -299,9 +277,9 @@ namespace Horde.Agent.Execution
 					_additionalArguments.Add(argument);
 				}
 			}
-			if (_job.PreflightChange != 0)
+			if (_batch.PreflightChange != 0)
 			{
-				_additionalArguments.Add($"-set:PreflightChange={_job.PreflightChange}");
+				_additionalArguments.Add($"-set:PreflightChange={_batch.PreflightChange}");
 			}
 
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -316,6 +294,8 @@ namespace Horde.Agent.Execution
 					_logger.LogInformation("Unable to locate XGE directory. Not installed?");
 				}
 			}
+
+			return Task.CompletedTask;
 		}
 
 		public static bool IsUserAdministrator()
@@ -518,7 +498,7 @@ namespace Horde.Agent.Execution
 						thisAgentTypeName = validAgentTypeName;
 					}
 
-					if (_stream!.AgentTypes.ContainsKey(thisAgentTypeName))
+					if (_batch.ValidAgentTypes.Contains(thisAgentTypeName))
 					{
 						agentTypeName = thisAgentTypeName;
 						break;
@@ -628,17 +608,17 @@ namespace Horde.Agent.Execution
 					}
 				}
 
-				if (exportedBadge.Change == _job.Change || exportedBadge.Change == 0)
+				if (exportedBadge.Change == _batch.Change || exportedBadge.Change == 0)
 				{
 					createLabel.Change = LabelChange.Current;
 				}
-				else if (exportedBadge.Change == _job.CodeChange)
+				else if (exportedBadge.Change == _batch.CodeChange)
 				{
 					createLabel.Change = LabelChange.Code;
 				}
 				else
 				{
-					logger.LogWarning("Badge is set to display for changelist {Change}. This is neither the current changelist ({CurrentChange}) or the current code changelist ({CurrentCodeChange}).", exportedBadge.Change, _job.Change, _job.CodeChange);
+					logger.LogWarning("Badge is set to display for changelist {Change}. This is neither the current changelist ({CurrentChange}) or the current code changelist ({CurrentCodeChange}).", exportedBadge.Change, _batch.Change, _batch.CodeChange);
 				}
 
 				if (exportedBadge.Dependencies != null)

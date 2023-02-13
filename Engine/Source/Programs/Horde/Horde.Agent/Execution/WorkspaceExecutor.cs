@@ -32,7 +32,7 @@ namespace Horde.Agent.Execution
 		{
 			await base.InitializeAsync(logger, cancellationToken);
 			
-			if (_job.Change == 0)
+			if (_batch.Change == 0)
 			{
 				throw new WorkspaceMaterializationException("Jobs with an empty change number are not supported");
 			}
@@ -47,7 +47,7 @@ namespace Horde.Agent.Execution
 				autoSdkWorkspaceSettings = await _autoSdkWorkspace.InitializeAsync(cancellationToken);
 
 				// Match change for AutoSDK and actual job change
-				int autoSdkChangeNumber = _job.Change;
+				int autoSdkChangeNumber = _batch.Change;
 
 				SyncOptions syncOptions = new();
 				await _autoSdkWorkspace.SyncAsync(autoSdkChangeNumber, syncOptions, cancellationToken);
@@ -60,8 +60,8 @@ namespace Horde.Agent.Execution
 				workspaceSettings = await _workspace.InitializeAsync(cancellationToken);
 				scope.Span.SetTag(Datadog.Trace.OpenTracing.DatadogTags.ResourceName, workspaceSettings.Identifier);
 				
-				int preflightChange = (_job.ClonedPreflightChange != 0) ? _job.ClonedPreflightChange : _job.PreflightChange;
-				await _workspace.SyncAsync(_job.Change, new SyncOptions(), cancellationToken);
+				int preflightChange = (_batch.ClonedPreflightChange != 0) ? _batch.ClonedPreflightChange : _batch.PreflightChange;
+				await _workspace.SyncAsync(_batch.Change, new SyncOptions(), cancellationToken);
 				
 				// TODO: Purging of cache for ManagedWorkspace did happen here in WorkspaceInfo
 				
@@ -78,10 +78,10 @@ namespace Horde.Agent.Execution
 			PerforceExecutor.DeleteEngineUserSettings(logger);
 
 			// Get the temp storage directory
-			if (!String.IsNullOrEmpty(_agentType!.TempStorageDir))
+			if (!String.IsNullOrEmpty(_batch.TempStorageDir))
 			{
-				string escapedStreamName = Regex.Replace(_stream!.Name, "[^a-zA-Z0-9_-]", "+");
-				_sharedStorageDir = DirectoryReference.Combine(new DirectoryReference(_agentType!.TempStorageDir), escapedStreamName, $"CL {_job!.Change} - Job {_jobId}");
+				string escapedStreamName = Regex.Replace(_batch.StreamName, "[^a-zA-Z0-9_-]", "+");
+				_sharedStorageDir = DirectoryReference.Combine(new DirectoryReference(_batch.TempStorageDir), escapedStreamName, $"CL {_batch.Change} - Job {_jobId}");
 				CopyAutomationTool(_sharedStorageDir, workspaceSettings.DirectoryPath, logger);
 			}
 
@@ -90,8 +90,8 @@ namespace Horde.Agent.Execution
 			_envVars["uebp_LOCAL_ROOT"] = workspaceSettings.DirectoryPath.FullName;
 			_envVars["uebp_BuildRoot_P4"] = workspaceSettings.StreamRoot;
 			_envVars["uebp_BuildRoot_Escaped"] = workspaceSettings.StreamRoot.Replace('/', '+');
-			_envVars["uebp_CL"] = _job!.Change.ToString();
-			_envVars["uebp_CodeCL"] = _job!.CodeChange.ToString();
+			_envVars["uebp_CL"] = _batch.Change.ToString();
+			_envVars["uebp_CodeCL"] = _batch.CodeChange.ToString();
 
 			if (autoSdkWorkspaceSettings != null)
 			{

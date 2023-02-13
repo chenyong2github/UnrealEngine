@@ -127,9 +127,13 @@ namespace Horde.Build.Jobs
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Batch {JobId}:{BatchId} has no session id", job.Id, batch.Id);
 			}
+			if (batch.LeaseId == null)
+			{
+				throw new StructuredRpcException(StatusCode.PermissionDenied, "Batch {JobId}:{BatchId} has no lease id", job.Id, batch.Id);
+			}
 
 			ClaimsPrincipal principal = context.GetHttpContext().User;
-			if (!principal.HasSessionClaim(batch.SessionId.Value))
+			if (!principal.HasSessionClaim(batch.SessionId.Value) && !principal.HasLeaseClaim(batch.LeaseId.Value))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Session id {SessionId} not valid for step {JobId}:{BatchId}:{StepId}. Expected {ExpectedSessionId}.", principal.GetSessionClaim() ?? SessionId.Empty, job.Id, batch.Id, step.Id, batch.SessionId.Value);
 			}
@@ -315,10 +319,20 @@ namespace Horde.Build.Jobs
 			}
 
 			IGraph graph = await _jobService.GetGraphAsync(job);
-
+			AgentConfig agentConfig = streamConfig.AgentTypes[graph.Groups[batch.GroupIdx].AgentType];
+			
 			BeginBatchResponse response = new BeginBatchResponse();
 			response.LogId = batch.LogId.ToString();
 			response.AgentType = graph.Groups[batch.GroupIdx].AgentType;
+			response.StreamName = streamConfig.Name;
+			response.Change = job.Change;
+			response.CodeChange = job.CodeChange;
+			response.PreflightChange = job.PreflightChange;
+			response.ClonedPreflightChange = job.ClonedPreflightChange;
+			response.Arguments.AddRange(job.Arguments);
+			response.Environment.Add(agentConfig.Environment);
+			response.ValidAgentTypes.Add(streamConfig.AgentTypes.Keys);
+
 			return response;
 		}
 
@@ -586,9 +600,13 @@ namespace Horde.Build.Jobs
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Batch {JobId}:{BatchId} has no session id", job.Id, batchId);
 			}
+			if (batch.LeaseId == null)
+			{
+				throw new StructuredRpcException(StatusCode.PermissionDenied, "Batch {JobId}:{BatchId} has no lease id", job.Id, batchId);
+			}
 
 			ClaimsPrincipal principal = context.GetHttpContext().User;
-			if (!principal.HasSessionClaim(batch.SessionId.Value))
+			if (!principal.HasSessionClaim(batch.SessionId.Value) && !principal.HasLeaseClaim(batch.LeaseId.Value))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Session id {SessionId} not valid for batch {JobId}:{BatchId}. Expected {ExpectedSessionId}.", principal.GetSessionClaim() ?? SessionId.Empty, job.Id, batchId, batch.SessionId.Value);
 			}
