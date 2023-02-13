@@ -10,6 +10,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSourceData.h"
 #include "NaniteDefinitions.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeNaniteComponent)
 
