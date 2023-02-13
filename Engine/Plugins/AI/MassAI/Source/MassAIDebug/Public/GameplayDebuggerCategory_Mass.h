@@ -7,6 +7,7 @@
 
 #if WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
 
+#include "HAL/IConsoleManager.h"
 #include "GameplayDebuggerCategory.h"
 
 struct FMassEntityManager;
@@ -36,6 +37,9 @@ protected:
 	void OnToggleNearEntityAvoidance() { bShowNearEntityAvoidance = !bShowNearEntityAvoidance; }
 	void OnToggleNearEntityPath() { bShowNearEntityPath = !bShowNearEntityPath; }
 	
+	void PickEntity(const FVector& ViewLocation, const FVector& ViewDirection, const UWorld& World, FMassEntityManager& EntityManager, const bool bLimitAngle = true);
+
+	UE_DEPRECATED(5.3, "This flavor of PickEntity has been deprecated. Use the one getting ViewLocation and ViewDirection parameters instead.")
 	void PickEntity(const APlayerController& OwnerPC, const UWorld& World, FMassEntityManager& EntityManager, const bool bLimitAngle = true);
 
 protected:
@@ -62,6 +66,7 @@ protected:
 	};
 	TArray<FEntityDescription> NearEntityDescriptions;
 
+	TArray<FAutoConsoleCommand> ConsoleCommands;
 };
 
 #endif // WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
