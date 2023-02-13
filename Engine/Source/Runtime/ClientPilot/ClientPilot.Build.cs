@@ -15,7 +15,8 @@ public class ClientPilot : ModuleRules
         );
 
 		PublicIncludePathModuleNames.AddRange(new string[] {
-				"AutomationController"
+				"AutomationController",
+				"AutomationTest",
 		});
 
 		if (Target.bCompileAgainstEngine && Target.Configuration != UnrealTargetConfiguration.Shipping)

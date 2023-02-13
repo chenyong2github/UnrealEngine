@@ -41,13 +41,6 @@ namespace UnrealBuildTool.Rules
                 );
             }
 
-			PublicIncludePathModuleNames.AddRange(
-				new string[]
-				{
-					"AutomationTest"
-				}
-			);
-
 			PrivateIncludePathModuleNames.AddRange(
 				new string[]
 				{

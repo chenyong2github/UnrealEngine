@@ -9,6 +9,7 @@ public class Launch : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(new string[] {
 				"AutomationController",
+				"AutomationTest",
 				"ProfileVisualizer",
 		});
 
