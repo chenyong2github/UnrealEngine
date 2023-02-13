@@ -48,8 +48,6 @@ public:
 	virtual void RegisterExtension(IMeshMergeExtension* InExtension) override;
 	virtual void UnregisterExtension(IMeshMergeExtension* InExtension) override;	
 protected:
-	/** Determines whether or not an individual material uses model vertex data during the shading process and outputs per-material flags */
-	void DetermineMaterialVertexDataUsage(TArray<bool>& InOutMaterialUsesVertexData, const TArray<UMaterialInterface*>& UniqueMaterials, const UMaterialOptions* MaterialOptions) const;
 	/** Creates a proxy material instance at givne path and name */
 	UMaterialInterface* CreateProxyMaterial(const FString &InBasePackageName, FString MergedAssetPackageName, UMaterialInterface* InBaseMaterial, UPackage* InOuter, const FMeshMergingSettings &InSettings, FFlattenMaterial OutMaterial, TArray<UObject *>& OutAssetsToSync, FMaterialUpdateContext* InMaterialUpdateContext = nullptr) const;
 	/** Merges flattened material into atlas textures */
