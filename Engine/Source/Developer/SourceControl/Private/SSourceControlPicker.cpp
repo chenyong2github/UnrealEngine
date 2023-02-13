@@ -121,10 +121,6 @@ FText SSourceControlPicker::GetProviderText(const FName& InName) const
 	{
 		return LOCTEXT( "GitBetaProviderName", "Git  (beta version)" );
 	}
-	if(InName == "Skein")
-	{
-		return LOCTEXT("SkeinBetaProviderName", "Skein  (beta version)");
-	}
 
 	return FText::FromName(InName);
 }
