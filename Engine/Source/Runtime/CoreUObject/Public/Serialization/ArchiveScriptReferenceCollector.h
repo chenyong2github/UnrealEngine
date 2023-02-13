@@ -64,7 +64,7 @@ protected:
 	* @param Object	reference to Object reference
 	* @return reference to instance of this class
 	*/
-	FArchive& operator<<(UObject*& Object)
+	virtual FArchive& operator<<(UObject*& Object) override
 	{
 		// Avoid duplicate entries.
 		if (Object != nullptr && !ObjectArray.Contains(Object))
@@ -75,13 +75,24 @@ protected:
 		return *this;
 	}
 
+	virtual FArchive& operator<<(FObjectPtr& Object) override
+	{
+		if (Object.IsResolved())
+		{
+			UObject* Obj = Object.Get();
+			FArchive& Ar = *this << Obj;
+			return Ar;
+		}
+		return *this;
+	}
+
 	/**
 	* FField serialize operator implementation
 	*
 	* @param Field	reference to field reference
 	* @return reference to instance of this class
 	*/
-	FArchive& operator<<(FField*& Field)
+	virtual FArchive& operator<<(FField*& Field) override
 	{
 		if (Field != nullptr)
 		{

@@ -34,7 +34,7 @@ struct FBPTerminal
 	FProperty* AssociatedVarProperty;
 
 	/** Pointer to an object literal */
-	UObject* ObjectLiteral;
+	TObjectPtr<UObject> ObjectLiteral;
 
 	/** The FText literal */
 	FText TextLiteral;

@@ -348,7 +348,12 @@ inline UObject* FFrame::ReadObject()
 	// turn that uint32 into a UObject pointer
 	UObject* Result = (UObject*)(TempCode);
 	Code += sizeof(ScriptPointerType);
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	TObjectPtr<UObject> ObjPtr(Result);
+	return ObjPtr.Get();
+#else
 	return Result;
+#endif
 }
 
 inline FProperty* FFrame::ReadProperty()

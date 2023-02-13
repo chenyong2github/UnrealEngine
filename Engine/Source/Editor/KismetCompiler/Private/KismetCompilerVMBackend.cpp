@@ -92,6 +92,14 @@ public:
 		return Ar;
 	}
 
+	FArchive& operator<<(FObjectPtr& Res) override
+	{
+		ScriptPointerType D = (ScriptPointerType)Res.GetHandle().PointerOrRef;
+		FArchive& Ar = *this;
+
+		Ar << D;
+		return Ar;
+	}
 	FArchive& operator<<(FField*& Res) override
 	{
 		ScriptPointerType D = (ScriptPointerType)Res;
@@ -1051,7 +1059,7 @@ public:
 				{
 					Writer << EX_Self;
 				}
-				else if (Term->ObjectLiteral == NULL)
+				else if (!Term->ObjectLiteral)
 				{
 					Writer << EX_NoObject;
 				}

@@ -2129,7 +2129,13 @@ const UStruct* UStruct::HasMetaDataHierarchical(const FName& Key) const
 	{
 		ScriptPointerType  Temp = FPlatformMemory::ReadUnaligned<ScriptPointerType>(ScriptPtr);
 		UObject*& ExprPtrRef = (UObject*&)Temp;
-		if (ULinkerPlaceholderClass* PlaceholderObj = Cast<ULinkerPlaceholderClass>(ExprPtrRef))
+
+		TObjectPtr<UObject> ObjPtr(ExprPtrRef);
+		if (!ObjPtr.IsResolved())
+		{
+			return;
+		}
+		else if (ULinkerPlaceholderClass* PlaceholderObj = Cast<ULinkerPlaceholderClass>(ExprPtrRef))
 		{
 			PlaceholderObj->AddReferencingScriptExpr((UClass**)(&ExprPtrRef));
 		}

@@ -124,6 +124,22 @@
 	}
 #endif	//	XFERPTR
 
+#ifndef XFERTOBJPTR
+	#define XFERTOBJPTR() \
+	{ \
+		TObjectPtr<UObject> AlignedPtr; \
+		if (!Ar.IsLoading()) \
+		{ \
+			FMemory::Memcpy(&AlignedPtr, &Script[iCode], sizeof(ScriptPointerType)); \
+		} \
+			Ar << AlignedPtr; \
+		if (!Ar.IsSaving()) \
+		{ \
+			FMemory::Memcpy(&Script[iCode], &AlignedPtr, sizeof(ScriptPointerType)); \
+		} \
+		iCode += sizeof(ScriptPointerType); \
+	}
+#endif	//	XFERTOBJPTR
 
 #ifndef XFER_FUNC_POINTER
 	#define XFER_FUNC_POINTER	XFERPTR(UStruct*)
@@ -139,6 +155,10 @@
 
 #ifndef XFER_OBJECT_POINTER
 	#define XFER_OBJECT_POINTER(Type)	XFERPTR(Type)
+#endif
+
+#ifndef XFER_TOBJECT_PTR
+	#define XFER_TOBJECT_PTR	XFERTOBJPTR
 #endif
 
 #ifndef FIXUP_EXPR_OBJECT_POINTER
@@ -376,8 +396,8 @@
 		}
 		case EX_ObjectConst:
 		{
-			XFER_OBJECT_POINTER(UObject*);
-			FIXUP_EXPR_OBJECT_POINTER(UObject*);
+			XFER_TOBJECT_PTR();
+			FIXUP_EXPR_OBJECT_POINTER(TObjectPtr<UObject>);
 
 			break;
 		}

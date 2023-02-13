@@ -163,7 +163,7 @@ namespace
 						ClassContextTerm->SetContextTypeClass();
 
 						// Infer the class type from the context term
-						if(const UClass* ClassType = Cast<UClass>(ClassContextTerm->bIsLiteral ? ClassContextTerm->ObjectLiteral : ClassContextTerm->Type.PinSubCategoryObject.Get()))
+						if(const UClass* ClassType = Cast<UClass>(ClassContextTerm->bIsLiteral ? ClassContextTerm->ObjectLiteral.Get() : ClassContextTerm->Type.PinSubCategoryObject.Get()))
 						{
 							// Create a local term for each output pin (class property)
 							for(int32 PinIndex = 0; PinIndex < Node->Pins.Num(); ++PinIndex)

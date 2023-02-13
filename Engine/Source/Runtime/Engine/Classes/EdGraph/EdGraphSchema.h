@@ -820,7 +820,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 *
 	 * @return	An empty string if the new value is legal, otherwise a message describing why it is invalid.
 	 */
-	virtual FString IsPinDefaultValid(const UEdGraphPin* Pin, const FString& NewDefaultValue, UObject* NewDefaultObject, const FText& InNewDefaultText) const  { return TEXT("Not implemented by this schema"); }
+	virtual FString IsPinDefaultValid(const UEdGraphPin* Pin, const FString& NewDefaultValue, TObjectPtr<UObject> NewDefaultObject, const FText& InNewDefaultText) const  { return TEXT("Not implemented by this schema"); }
 
 	/** 
 	 *	Determine whether the current pin default values are valid
