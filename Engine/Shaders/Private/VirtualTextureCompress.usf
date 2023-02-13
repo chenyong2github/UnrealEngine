@@ -134,7 +134,7 @@ void CompressBaseColorNormalSpecularCS(
 		BlockSpecular[i].z = round(BlockSpecular[i].z);
 	}
 #if ETC_PROFILE
-	OutCompressTexture0_128bit[ThreadId.xy + DestPos0] = CompressBlock_ETC2_RGBA(BlockBaseColor, BlockNormalX);
+	OutCompressTexture0_128bit[ThreadId.xy + DestPos0] = CompressBlock_ETC2_SRGBA(BlockBaseColor, BlockNormalX);
 	OutCompressTexture1_128bit[ThreadId.xy + DestPos1] = CompressBlock_ETC2_RGBA(BlockSpecular, BlockNormalY);
 #else
 	OutCompressTexture0_128bit[ThreadId.xy + DestPos0] = CompressBC3Block_SRGB(BlockBaseColor, BlockNormalX);

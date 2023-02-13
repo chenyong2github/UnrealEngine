@@ -676,6 +676,7 @@ FName FIOSTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) const
 	const static FName NameETC2_RGB(TEXT("ETC2_RGB"));
 	const static FName NameETC2_RGBA(TEXT("ETC2_RGBA"));
 	const static FName NameAutoETC2(TEXT("AutoETC2"));
+	const static FName NameETC2_RG11(TEXT("ETC2_RG11"));
 
 	// Remap non-ETC variants to ETC
 	const static FName ETCRemap[][2] =
@@ -686,7 +687,7 @@ FName FIOSTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) const
 		{ { FName(TEXT("ASTC_RGBA_HQ")) },		{ NameETC2_RGBA } },
 //		{ { FName(TEXT("ASTC_RGB_HDR")) },		{ NameRGBA16F } }, // ?
 		{ { FName(TEXT("ASTC_NormalAG")) },		{ NameETC2_RGB } },
-		{ { FName(TEXT("ASTC_NormalRG")) },		{ NameETC2_RGB } },
+		{ { FName(TEXT("ASTC_NormalRG")) },		{ NameETC2_RG11 } },
 	};
 
 	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(ETCRemap); RemapIndex++)

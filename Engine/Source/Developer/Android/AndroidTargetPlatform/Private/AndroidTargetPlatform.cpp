@@ -67,6 +67,7 @@ namespace AndroidTexFormat
 	const static FName NameETC2_RGB(TEXT("ETC2_RGB"));
 	const static FName NameETC2_RGBA(TEXT("ETC2_RGBA"));
 	const static FName NameETC2_R11(TEXT("ETC2_R11"));
+	const static FName NameETC2_RG11(TEXT("ETC2_RG11"));
 	const static FName NameAutoETC2(TEXT("AutoETC2"));
 
 	const static FName NameAutoASTC(TEXT("ASTC_RGBAuto"));
@@ -107,7 +108,7 @@ namespace AndroidTexFormat
 		{ NameDXT1,			NameETC2_RGB	},
 		{ NameDXT5,			NameETC2_RGBA	},
 		{ NameDXT5n,		NameETC2_RGB	},
-		{ NameBC5,			NameETC2_RGB	},
+		{ NameBC5,			NameETC2_RG11	},
 		{ NameBC4,			NameETC2_R11	},
 		{ NameBC6H,			NameRGBA16F		},
 		{ NameBC7,			NameETC2_RGBA	},
@@ -536,7 +537,7 @@ FName FAndroidTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) co
 //		{ { FName(TEXT("ASTC_RGB_HDR")) },		{ NameRGBA16F } }, // ?
 		{ { FName(TEXT("ASTC_RGBAuto")) },		{ AndroidTexFormat::NameAutoETC2 } },
 		{ { FName(TEXT("ASTC_NormalAG")) },		{ AndroidTexFormat::NameETC2_RGB } },
-		{ { FName(TEXT("ASTC_NormalRG")) },		{ AndroidTexFormat::NameETC2_RGB } },
+		{ { FName(TEXT("ASTC_NormalRG")) },		{ AndroidTexFormat::NameETC2_RG11 } },
 		{ { AndroidTexFormat::NameDXT1 },		{ AndroidTexFormat::NameETC2_RGB } },
 		{ { AndroidTexFormat::NameDXT5 },		{ AndroidTexFormat::NameETC2_RGBA } },
 		{ { AndroidTexFormat::NameAutoDXT },	{ AndroidTexFormat::NameAutoETC2 } }

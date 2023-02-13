@@ -56,6 +56,7 @@ class FETC2TextureBuildFunction final : public FTextureBuildFunction
 	op(ETC2_RGB) \
 	op(ETC2_RGBA) \
 	op(ETC2_R11) \
+	op(ETC2_RG11) \
 	op(AutoETC2)
 
 #define DECL_FORMAT_NAME(FormatName) static FName GTextureFormatName##FormatName = FName(TEXT(#FormatName));
@@ -207,7 +208,7 @@ public:
 		const struct FTextureBuildSettings* BuildSettings = nullptr
 	) const override
 	{
-		return 2;
+		return 3;
 	}
 
 	virtual FName GetEncoderName(FName Format) const override
@@ -243,6 +244,10 @@ public:
 		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_R11)
 		{
 			return PF_ETC2_R11_EAC;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_RG11)
+		{
+			return PF_ETC2_RG11_EAC;
 		}
 
 		UE_LOG(LogTextureFormatETC2, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatAndroid::GetEncodedPixelFormat()"), *BuildSettings.TextureFormatName.ToString());
