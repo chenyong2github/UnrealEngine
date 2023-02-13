@@ -96,8 +96,7 @@ public:
 
 	virtual void PerformAssetDiff(UObject* OldAsset, UObject* NewAsset, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const override
 	{
-		check(OldAsset != nullptr);
-		check(NewAsset != nullptr);
+		check(OldAsset != nullptr || NewAsset != nullptr);
 
 		// Dump assets to temp text files
 		FString OldTextFilename = DumpAssetToTempFile(OldAsset);
