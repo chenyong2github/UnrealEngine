@@ -33,6 +33,10 @@ struct FViewerInfo
 	
 	FName StreamingSourceName;
 
+#if WITH_EDITOR
+	int8 EditorViewportClientIndex = INDEX_NONE;
+#endif // WITH_EDITOR
+
 	FMassViewerHandle Handle;
 	uint32 HashValue = 0;
 
@@ -48,7 +52,9 @@ struct FViewerInfo
 	bool IsLocal() const;
 };
 
+UE_DEPRECATED(5.3, "FOnViewerAdded is deprecated. Use UMassLODSubsystem::FOnViewerAdded instead.")
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnViewerAdded, FMassViewerHandle ViewerHandle, APlayerController* PlayerController, FName StreamingSourceName);
+UE_DEPRECATED(5.3, "FOnViewerRemoved is deprecated. Use UMassLODSubsystem::FOnViewerRemoved instead.")
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnViewerRemoved, FMassViewerHandle ViewerHandle, APlayerController* PlayerController, FName StreamingSourceName);
 
 /*
@@ -58,6 +64,9 @@ UCLASS()
 class MASSLOD_API UMassLODSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnViewerAdded, const FViewerInfo& ViewerInfo);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnViewerRemoved, const FViewerInfo& ViewerInfo);
 
 public:
 	/** Checks the validity of a viewer handle */
@@ -98,8 +107,19 @@ protected:
 	/** Synchronizes the viewers from the engine PlayerController list */
 	void SynchronizeViewers();
 
-	/** Adds a viewer to the list and sends notification about addition */
+	UE_DEPRECATED(5.3, "AddViewer has been deprecated. Use AddPlayerViewer or AddStreamingSourceViewer instead")
 	void AddViewer(APlayerController* PlayerController, FName StreamingSourceName = NAME_None);
+
+	/** Adds the given player as a viewer to the list and sends notification about addition */
+	void AddPlayerViewer(APlayerController& PlayerController);
+
+	/** Adds the given streaming source as a viewer to the list and sends notification about addition */
+	void AddStreamingSourceViewer(const FName StreamingSourceName);
+
+#if WITH_EDITOR
+	/** Adds the editor viewport client (identified via an index) as a viewer to the list and sends notification about addition */
+	void AddEditorViewer(const int32 HashValue, const int32 ClientIndex);
+#endif // WITH_EDITOR
 
 	/** Removes a viewer to the list and send notification about removal */
 	void RemoveViewer(const FMassViewerHandle& ViewerHandle);
@@ -127,6 +147,10 @@ private:
 
 	/** Viewer serial number counter */
 	uint32 ViewerSerialNumberCounter = 0;
+
+#if WITH_EDITOR
+	bool bUseEditorLevelViewports = false;
+#endif // WITH_EDITOR
 
 	/** Free list of indices in the sparse viewer array */
 	TArray<int32> ViewerFreeIndices;
