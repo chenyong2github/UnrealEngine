@@ -1519,6 +1519,12 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 							}
 						}
 
+						// as transient variables & output variables are only valid within their current stage, we may want to skip the current parameter handle
+						if(OutputNode != CurrentOutputNode && (AvailableHandle.IsOutputHandle() || AvailableHandle.IsTransientHandle()))
+						{
+							continue;
+						}
+
 						if (bWritten)
 						{
 							if (FNiagaraEditorUtilities::AreTypesAssignable(HistoryVariable.GetType(), InputType))
