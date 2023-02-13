@@ -331,6 +331,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// In certain cases, Blueprint pins with a PC_Object category would serialize a null PinSubCategoryObject
 		NullPinSubCategoryObjectFix,
 
+		// Allow custom event nodes to use access specifiers
+		AccessSpecifiersForCustomEvents,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

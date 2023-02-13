@@ -3979,34 +3979,6 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 					];
 			}
 
-			if (IsAccessSpecifierVisible())
-			{
-				Category.AddCustomRow( LOCTEXT( "AccessSpecifier", "Access Specifier" ) )
-				.NameContent()
-				[
-					SNew(STextBlock)
-						.Text( LOCTEXT( "AccessSpecifier", "Access Specifier" ) )
-						.Font( IDetailLayoutBuilder::GetDetailFont() )
-				]
-				.ValueContent()
-				[
-					SAssignNew(AccessSpecifierComboButton, SComboButton)
-					.ContentPadding(0.0f)
-					.ButtonContent()
-					[
-						SNew(STextBlock)
-							.Text(this, &FBlueprintGraphActionDetails::GetCurrentAccessSpecifierName)
-							.Font( IDetailLayoutBuilder::GetDetailFont() )
-					]
-					.MenuContent()
-					[
-						SNew(SListView<TSharedPtr<FAccessSpecifierLabel> >)
-							.ListItemsSource( &AccessSpecifierLabels )
-							.OnGenerateRow(this, &FBlueprintGraphActionDetails::HandleGenerateRowAccessSpecifier)
-							.OnSelectionChanged(this, &FBlueprintGraphActionDetails::OnAccessSpecifierSelected)
-					]
-				];
-			}
 			if (GetInstanceColorVisibility())
 			{
 				Category.AddCustomRow( LOCTEXT( "InstanceColor", "Instance Color" ) )
@@ -4291,7 +4263,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 			];
 		}
 
-		const bool bShowDeprecated = bIsFunctionGraph || bIsCustomEvent;
+		const bool bShowDeprecated = bIsCustomEvent || bIsFunctionGraph;
 		if (bShowDeprecated)
 		{
 			FFormatNamedArguments DeprecationTooltipFormatArgs;
@@ -4350,6 +4322,36 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				.ToolTipText(this, &FBlueprintGraphActionDetails::GetDeprecationMessageText)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
+		}
+
+		const bool bShowAccessSpecifiers = bIsCustomEvent || bIsFunctionGraph;
+		if (IsAccessSpecifierVisible())
+		{
+			Category.AddCustomRow(LOCTEXT("AccessSpecifier", "Access Specifier"))
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("AccessSpecifier", "Access Specifier"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+				.ValueContent()
+				[
+					SAssignNew(AccessSpecifierComboButton, SComboButton)
+					.ContentPadding(0.0f)
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.Text(this, &FBlueprintGraphActionDetails::GetCurrentAccessSpecifierName)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					.MenuContent()
+					[
+						SNew(SListView<TSharedPtr<FAccessSpecifierLabel> >)
+						.ListItemsSource(&AccessSpecifierLabels)
+						.OnGenerateRow(this, &FBlueprintGraphActionDetails::HandleGenerateRowAccessSpecifier)
+						.OnSelectionChanged(this, &FBlueprintGraphActionDetails::OnAccessSpecifierSelected)
+					]
+				];
 		}
 
 		IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("FunctionDetailsInputs", "Inputs"));

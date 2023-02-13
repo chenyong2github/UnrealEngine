@@ -33,6 +33,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/Script.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
 
@@ -46,28 +47,29 @@ struct FLinearColor;
  * @param  CustomEventFunc	The function you want to find an associated node for.
  * @return A pointer to the found node (NULL if a corresponding node wasn't found)
  */
-static UK2Node_CustomEvent const* FindCustomEventNodeFromFunction(UFunction* CustomEventFunc)
+static const UK2Node_CustomEvent* FindCustomEventNodeFromFunction(UFunction* CustomEventFunc)
 {
-	UK2Node_CustomEvent const* FoundEventNode = NULL;
-	if (CustomEventFunc != NULL)
+	const UK2Node_CustomEvent* FoundEventNode = nullptr;
+	if (CustomEventFunc != nullptr)
 	{
-		UObject const* const FuncOwner = CustomEventFunc->GetOuter();
-		check(FuncOwner != NULL);
+		const UObject* const FuncOwner = CustomEventFunc->GetOuter();
+		check(FuncOwner != nullptr);
 
 		// if the found function is a NOT a native function (it's user generated)
 		if (FuncOwner->IsA(UBlueprintGeneratedClass::StaticClass()))
 		{
-			UBlueprintGeneratedClass* FuncClass = Cast<UBlueprintGeneratedClass>(CustomEventFunc->GetOuter());
-			check(FuncClass != NULL);
-			UBlueprint* FuncBlueprint = Cast<UBlueprint>(FuncClass->ClassGeneratedBy);
-			check(FuncBlueprint != NULL);
+			const UBlueprintGeneratedClass* FuncClass = Cast<UBlueprintGeneratedClass>(CustomEventFunc->GetOuter());
+			check(FuncClass != nullptr);
+			const UBlueprint* FuncBlueprint = Cast<UBlueprint>(FuncClass->ClassGeneratedBy);
+			check(FuncBlueprint != nullptr);
 
 			TArray<UK2Node_CustomEvent*> BpCustomEvents;
 			FBlueprintEditorUtils::GetAllNodesOfClass<UK2Node_CustomEvent>(FuncBlueprint, BpCustomEvents);
 
 			// look to see if the function that this is overriding is a custom-event
-			for (UK2Node_CustomEvent const* const UserEvent : BpCustomEvents)
+			for (const UK2Node_CustomEvent* const UserEvent : BpCustomEvents)
 			{
+				check(UserEvent);
 				if (UserEvent->CustomFunctionName == CustomEventFunc->GetFName())
 				{
 					FoundEventNode = UserEvent;
@@ -167,15 +169,24 @@ UK2Node_CustomEvent::UK2Node_CustomEvent(const FObjectInitializer& ObjectInitial
 	bCanRenameNode = true;
 	bIsDeprecated = false;
 	bCallInEditor = false;
+
+	FunctionFlags = (FUNC_BlueprintCallable | FUNC_BlueprintEvent | FUNC_Public);
 }
 
 void UK2Node_CustomEvent::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
 	Super::Serialize(Ar);
 
 	if (Ar.IsLoading())
 	{
 		CachedNodeTitle.MarkDirty();
+
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AccessSpecifiersForCustomEvents)
+		{
+			FunctionFlags |= (FUNC_BlueprintCallable | FUNC_BlueprintEvent | FUNC_Public);
+		}
 	}
 }
 
