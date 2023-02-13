@@ -12,6 +12,7 @@
 #include "OpenColorIOShader.h"
 
 #include "Shader.h"
+#include "SceneRendering.h"
 #include "SceneView.h"
 #include "ScreenPass.h"
 #include "CommonRenderResources.h"

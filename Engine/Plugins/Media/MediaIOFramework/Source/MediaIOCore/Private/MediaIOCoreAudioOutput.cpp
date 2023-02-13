@@ -5,6 +5,7 @@
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSubmix.h"
+#include "Engine/Engine.h"
 #include "Sound/AudioSettings.h"
 
 #if WITH_EDITOR
