@@ -598,6 +598,11 @@ bool UNiagaraSimCache::Read(float TimeSeconds, FNiagaraSystemInstance* SystemIns
 		const float SimulationAgeA = CacheFrames[FrameIndex].SimulationAge;
 		const float SimulationAgeB = CacheFrames[FMath::Min(FrameIndex + 1, NumFramesMinusOne)].SimulationAge;
 		FrameFraction = (TimeSeconds - SimulationAgeA) / (SimulationAgeB - SimulationAgeA);
+		if (!CreateParameters.bAllowInterpolation && !CreateParameters.bAllowVelocityExtrapolation && FrameFraction > 0.5f)
+		{
+			FrameFraction = 0.0f;
+			FrameIndex = FrameIndex + 1;
+		}
 	}
 
 	return ReadFrame(FrameIndex, FrameFraction, SystemInstance);
