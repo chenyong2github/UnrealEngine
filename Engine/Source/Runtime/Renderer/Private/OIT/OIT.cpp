@@ -296,11 +296,6 @@ public:
 	FUnorderedAccessViewRHIRef SortedIndexUAV = nullptr;
 };
 
-static bool IsOITSupported(EShaderPlatform InShaderPlatform)
-{
-	return !IsMobilePlatform(InShaderPlatform) && !FDataDrivenShaderPlatformInfo::GetIsHlslcc(InShaderPlatform);
-}
-
 static void RemoveAllocation(FSortedIndexBuffer* InBuffer)
 {
 	InBuffer->ReleaseResource();
