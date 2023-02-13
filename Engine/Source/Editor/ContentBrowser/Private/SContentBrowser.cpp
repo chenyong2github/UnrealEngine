@@ -1406,6 +1406,13 @@ void SContentBrowser::PrepareToSyncItems(TArrayView<const FContentBrowserItem> I
 	bool bDisplayEngine = GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
 	bool bDisplayPlugins = GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
 	bool bDisplayLocalized = GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder();
+
+	// Keep track of any of the settings changing so we can let the user know
+	bool bDisplayDevChanged = false;
+	bool bDisplayEngineChanged = false;
+	bool bDisplayPluginsChanged = false;
+	bool bDisplayLocalizedChanged = false;
+
 	if ( !bDisplayDev || !bDisplayEngine || !bDisplayPlugins || !bDisplayLocalized )
 	{
 		for (const FContentBrowserItem& ItemToSync : ItemsToSync)
@@ -1413,29 +1420,33 @@ void SContentBrowser::PrepareToSyncItems(TArrayView<const FContentBrowserItem> I
 			if (!bDisplayDev && ContentBrowserUtils::IsItemDeveloperContent(ItemToSync))
 			{
 				bDisplayDev = true;
-				AssetViewPtr->OverrideShowDeveloperContent(true);
+				AssetViewPtr->OverrideShowDeveloperContent();
 				bRepopulate = true;
+				bDisplayDevChanged = true;
 			}
 
 			if (!bDisplayEngine && ContentBrowserUtils::IsItemEngineContent(ItemToSync))
 			{
 				bDisplayEngine = true;
-				AssetViewPtr->OverrideShowEngineContent(true);
+				AssetViewPtr->OverrideShowEngineContent();
 				bRepopulate = true;
+				bDisplayEngineChanged = true;
 			}
 
 			if (!bDisplayPlugins && ContentBrowserUtils::IsItemPluginContent(ItemToSync))
 			{
 				bDisplayPlugins = true;
-				AssetViewPtr->OverrideShowPluginContent(true);
+				AssetViewPtr->OverrideShowPluginContent();
 				bRepopulate = true;
+				bDisplayPluginsChanged = true;
 			}
 
 			if (!bDisplayLocalized && ContentBrowserUtils::IsItemLocalizedContent(ItemToSync))
 			{
 				bDisplayLocalized = true;
-				AssetViewPtr->OverrideShowLocalizedContent(true);
+				AssetViewPtr->OverrideShowLocalizedContent();
 				bRepopulate = true;
+				bDisplayLocalizedChanged = true;
 			}
 
 			if (bDisplayDev && bDisplayEngine && bDisplayPlugins && bDisplayLocalized)
@@ -1463,6 +1474,41 @@ void SContentBrowser::PrepareToSyncItems(TArrayView<const FContentBrowserItem> I
 	// If we have auto-enabled any flags or found a non-existant path, force a refresh
 	if (bRepopulate)
 	{
+		// let the user know if one of their settings is being changed to be able to show the sync targets
+		if (bDisplayDevChanged || bDisplayEngineChanged || bDisplayPluginsChanged || bDisplayLocalizedChanged)
+		{
+			TArray<FText> SettingsText;
+			if (bDisplayDevChanged)
+			{
+				SettingsText.Add(LOCTEXT("ShowDeveloperContent", "Show Developer Content"));
+			}
+			if (bDisplayEngineChanged)
+			{
+				SettingsText.Add(LOCTEXT("ShowEngineContent", "Show Engine Content"));
+			}
+			if (bDisplayPluginsChanged)
+			{
+				SettingsText.Add(LOCTEXT("ShowPluginContent", "Show Plugin Content"));
+			}
+			if (bDisplayLocalizedChanged)
+			{
+				SettingsText.Add(LOCTEXT("ShowLocalizedContent", "Show Localized Content"));
+			}
+			FTextBuilder NotificationBuilder;
+			const FText NotificationPrefix = FText::Format(
+				LOCTEXT("AssetRequiresFilterChanges", "To show {0}|plural(one=this asset,other=these assets), the following {1}|plural(one=setting has,other=settings have) been enabled for the active Content Browser:\n"),
+				ItemsToSync.Num(),
+				SettingsText.Num());
+			NotificationBuilder.AppendLine(NotificationPrefix);
+			NotificationBuilder.Indent();
+			for ( const FText& SettingsTextEntry : SettingsText)
+			{
+				NotificationBuilder.AppendLine(SettingsTextEntry);
+			}
+	
+			FNotificationInfo NotificationInfo(NotificationBuilder.ToText());
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		}
 		PathViewPtr->Populate();
 		FavoritePathViewPtr->Populate();
 	}

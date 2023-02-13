@@ -402,17 +402,17 @@ public:
 	 */
 	void ForceShowPluginFolder( bool bEnginePlugin );
 
-	/** Sets a non-persistent override value for the Show Engine Content setting. The user can still toggle the setting manually. */
-	void OverrideShowEngineContent( bool bShow );
+	/** Enables the Show Engine Content setting for the active Content Browser. The user can still toggle the setting manually. */
+	void OverrideShowEngineContent();
 
-	/** Sets a non-persistent override value for the Show Engine Content setting. The user can still toggle the setting manually. */
-	void OverrideShowDeveloperContent( bool bShow );
+	/** Enables the Show Developer Content setting for the active Content Browser. The user can still toggle the setting manually. */
+	void OverrideShowDeveloperContent();
 
-	/** Sets a non-persistent override value for the Show Engine Content setting. The user can still toggle the setting manually. */
-	void OverrideShowPluginContent( bool bShow );
+	/** Enables the Show Plugin Content setting for the active Content Browser. The user can still toggle the setting manually. */
+	void OverrideShowPluginContent();
 
-	/** Sets a non-persistent override value for the Show Engine Content setting. The user can still toggle the setting manually. */
-	void OverrideShowLocalizedContent( bool bShow );
+	/** Enables the Show Localized Content setting for the active Content Browser. The user can still toggle the setting manually. */
+	void OverrideShowLocalizedContent();
 
 	/** @return true when we are including class names in search criteria */
 	bool IsIncludingClassNames() const;
@@ -1096,18 +1096,6 @@ private:
 	
 	/** Whether or not to notify about newly selected items on on the next asset sync */
 	bool bShouldNotifyNextAssetSync : 1;
-
-	/** If set, this will be used instead of the global setting. Mostly used post-sync. */
-	TOptional<bool> bOverrideShowEngineContent;
-
-	/** If set, this will be used instead of the global setting. Mostly used post-sync. */
-	TOptional<bool> bOverrideShowDeveloperContent;
-
-	/** If set, this will be used instead of the global setting. Mostly used post-sync. */
-	TOptional<bool> bOverrideShowPluginContent;
-
-	/** If set, this will be used instead of the global setting. Mostly used post-sync. */
-	TOptional<bool> bOverrideShowLocalizedContent;
 
 	/** The current selection mode used by the asset view */
 	ESelectionMode::Type SelectionMode;

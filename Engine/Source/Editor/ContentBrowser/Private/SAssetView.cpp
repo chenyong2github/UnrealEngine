@@ -3053,8 +3053,6 @@ void SAssetView::ToggleShowPluginContent()
 {
 	check(IsToggleShowPluginContentAllowed());
 
-	bOverrideShowPluginContent.Reset();
-
 	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
 
 	if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
@@ -3075,11 +3073,6 @@ bool SAssetView::IsShowingPluginContent() const
 		return true;
 	}
 
-	if (bOverrideShowPluginContent.IsSet())
-	{
-		return bOverrideShowPluginContent.GetValue();
-	}
-
 	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
 	{
 		return Config->bShowPluginContent;
@@ -3091,8 +3084,6 @@ bool SAssetView::IsShowingPluginContent() const
 void SAssetView::ToggleShowEngineContent()
 {
 	check(IsToggleShowEngineContentAllowed());
-
-	bOverrideShowEngineContent.Reset();
 
 	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
 
@@ -3114,11 +3105,6 @@ bool SAssetView::IsShowingEngineContent() const
 		return true;
 	}
 
-	if (bOverrideShowEngineContent.IsSet())
-	{
-		return bOverrideShowEngineContent.GetValue();
-	}
-
 	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
 	{
 		return Config->bShowEngineContent;
@@ -3130,8 +3116,6 @@ bool SAssetView::IsShowingEngineContent() const
 void SAssetView::ToggleShowDevelopersContent()
 {
 	check(IsToggleShowDevelopersContentAllowed());
-
-	bOverrideShowDeveloperContent.Reset();
 
 	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayDevelopersFolder();
 
@@ -3168,11 +3152,6 @@ bool SAssetView::IsShowingDevelopersContent() const
 		return false;
 	}
 
-	if (bOverrideShowDeveloperContent.IsSet())
-	{
-		return bOverrideShowDeveloperContent.GetValue();
-	}
-
 	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
 	{
 		return Config->bShowDeveloperContent;
@@ -3186,8 +3165,6 @@ void SAssetView::ToggleShowLocalizedContent()
 	check(IsToggleShowLocalizedContentAllowed());
 
 	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder();
-
-	bOverrideShowLocalizedContent.Reset();
 
 	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
 	{
@@ -3210,11 +3187,6 @@ bool SAssetView::IsShowingLocalizedContent() const
 	if (!IsToggleShowLocalizedContentAllowed())
 	{
 		return false;
-	}
-
-	if (bOverrideShowLocalizedContent.IsSet())
-	{
-		return bOverrideShowLocalizedContent.GetValue();
 	}
 
 	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
@@ -4737,24 +4709,37 @@ void SAssetView::ForceShowPluginFolder(bool bEnginePlugin)
 	}
 }
 
-void SAssetView::OverrideShowEngineContent( bool bShow )
+void SAssetView::OverrideShowEngineContent()
 {
-	bOverrideShowEngineContent = bShow;
+	if (!IsShowingEngineContent())
+	{
+		ToggleShowEngineContent();
+	}
+
 }
 
-void SAssetView::OverrideShowDeveloperContent( bool bShow )
+void SAssetView::OverrideShowDeveloperContent()
 {
-	bOverrideShowDeveloperContent = bShow;
+	if (!IsShowingDevelopersContent())
+	{
+		ToggleShowDevelopersContent();
+	}
 }
 
-void SAssetView::OverrideShowPluginContent( bool bShow )
+void SAssetView::OverrideShowPluginContent()
 {
-	bOverrideShowPluginContent = bShow;
+	if (!IsShowingPluginContent())
+	{
+		ToggleShowPluginContent();
+	}
 }
 
-void SAssetView::OverrideShowLocalizedContent( bool bShow )
+void SAssetView::OverrideShowLocalizedContent()
 {
-	bOverrideShowLocalizedContent = bShow;
+	if (!IsShowingLocalizedContent())
+	{
+		ToggleShowLocalizedContent();
+	}
 }
 
 void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUpdate> InUpdatedItems)
