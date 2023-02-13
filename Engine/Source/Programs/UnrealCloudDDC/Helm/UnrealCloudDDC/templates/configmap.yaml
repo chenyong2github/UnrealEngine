@@ -141,7 +141,8 @@ S3:
   SetBucketPolicies: {{ default false $s3.SetBucketPolicies }}
 
   UseBlobIndexForExistsCheck: {{ default false $s3.UseBlobIndexForExistsCheck }}
-  StoragePoolBucketOverride: {{ default dict $s3.StoragePoolBucketOverride }}
-
+  {{- if $s3.StoragePoolBucketOverride }}
+  StoragePoolBucketOverride: {{ $s3.StoragePoolBucketOverride | toYaml | nindent 4  }}
+  {{- end }}
 {{ end }}
 
