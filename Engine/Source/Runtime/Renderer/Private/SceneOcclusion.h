@@ -65,30 +65,29 @@ public:
 
 	FOcclusionQueryVS() {}
 
-	void SetParametersWithBoundingSphere(FRHICommandList& RHICmdList, const FViewInfo& View, const FSphere& BoundingSphere)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FSphere& BoundingSphere)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
-
 		FVector4f StencilingSpherePosAndScale;
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, BoundingSphere, View.ViewMatrices.GetPreViewTranslation());
-		StencilingGeometryParameters.Set(RHICmdList, this, StencilingSpherePosAndScale);
-
-		if (ViewId.IsBound())
-		{
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, (View.StereoPass == EStereoscopicPass::eSSP_FULL) ? 0 : View.StereoViewIndex);
-		}
+		SetParametersInternal(BatchedParameters, View, StencilingSpherePosAndScale);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(),View.ViewUniformBuffer);
+		SetParametersInternal(BatchedParameters, View, FVector4f(0, 0, 0, 1));
+	}
+
+private:
+	void SetParametersInternal(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FVector4f& StencilingSpherePosAndScale)
+	{
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(BatchedParameters, View.ViewUniformBuffer);
 
 		// Don't transform if rendering frustum
-		StencilingGeometryParameters.Set(RHICmdList, this, FVector4f(0,0,0,1));
+		StencilingGeometryParameters.Set(BatchedParameters, StencilingSpherePosAndScale);
 
 		if (ViewId.IsBound())
 		{
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, (View.StereoPass == EStereoscopicPass::eSSP_FULL) ? 0 : View.StereoViewIndex);
+			SetShaderValue(BatchedParameters, ViewId, (View.StereoPass == EStereoscopicPass::eSSP_FULL) ? 0 : View.StereoViewIndex);
 		}
 	}
 

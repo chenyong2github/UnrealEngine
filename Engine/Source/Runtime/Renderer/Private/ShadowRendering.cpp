@@ -302,33 +302,31 @@ void GetOnePassPointShadowProjectionParameters(FRDGBuilder& GraphBuilder, const 
 -----------------------------------------------------------------------------*/
 
 void FShadowVolumeBoundProjectionVS::SetParameters(
-	FRHICommandList& RHICmdList,
+	FRHIBatchedShaderParameters& BatchedParameters,
 	const FSceneView& View,
 	const FProjectedShadowInfo* ShadowInfo,
 	EShadowProjectionVertexShaderFlags Flags)
 {
-	FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
-
 	if(ShadowInfo->IsWholeScenePointLightShadow())
 	{
 		// Handle stenciling sphere for point light.
-		StencilingGeometryParameters.Set(RHICmdList, this, View, ShadowInfo->LightSceneInfo);
+		StencilingGeometryParameters.Set(BatchedParameters, View, ShadowInfo->LightSceneInfo);
 	}
 	else
 	{
-		StencilingGeometryParameters.Set(RHICmdList, this, FVector4f(0,0,0,1));
+		StencilingGeometryParameters.Set(BatchedParameters, FVector4f(0,0,0,1));
 	}
 
 	if ((Flags & EShadowProjectionVertexShaderFlags::DrawingFrustum) != EShadowProjectionVertexShaderFlags::None)
 	{
 		const FVector PreShadowToPreView(View.ViewMatrices.GetPreViewTranslation() - ShadowInfo->PreShadowTranslation);
-		SetShaderValue(RHICmdList, ShaderRHI, InvReceiverInnerMatrix, ShadowInfo->InvReceiverInnerMatrix);
-		SetShaderValue(RHICmdList, ShaderRHI, PreShadowToPreViewTranslation, FVector4f((FVector3f)PreShadowToPreView, 0));
+		SetShaderValue(BatchedParameters, InvReceiverInnerMatrix, ShadowInfo->InvReceiverInnerMatrix);
+		SetShaderValue(BatchedParameters, PreShadowToPreViewTranslation, FVector4f((FVector3f)PreShadowToPreView, 0));
 	}
 	else
 	{
-		SetShaderValue(RHICmdList, ShaderRHI, InvReceiverInnerMatrix, FMatrix44f::Identity);
-		SetShaderValue(RHICmdList, ShaderRHI, PreShadowToPreViewTranslation, FVector4f(0, 0, 0, 0));
+		SetShaderValue(BatchedParameters, InvReceiverInnerMatrix, FMatrix44f::Identity);
+		SetShaderValue(BatchedParameters, PreShadowToPreViewTranslation, FVector4f(0, 0, 0, 0));
 	}
 }
 
@@ -463,21 +461,24 @@ static void BindShaderShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStat
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-	VertexShader->SetParameters(RHICmdList, View, ShadowInfo, EShadowProjectionVertexShaderFlags::DrawingFrustum);
-	PixelShader->SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, View, ShadowInfo, EShadowProjectionVertexShaderFlags::DrawingFrustum);
+
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+	PixelShader->SetParameters(BatchedParameters, ViewIndex, View, ShadowInfo);
 
 	if (Strata::IsStrataEnabled())
 	{
-		FRHIPixelShader* ShaderRHI = PixelShader.GetPixelShader();
 		TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataUniformBuffer = Strata::BindStrataGlobalUniformParameters(View);
-		PixelShader->FGlobalShader::template SetParameters<FStrataGlobalUniformParameters>(RHICmdList, ShaderRHI, StrataUniformBuffer->GetRHIRef());
+		PixelShader->FGlobalShader::template SetParameters<FStrataGlobalUniformParameters>(BatchedParameters, StrataUniformBuffer->GetRHIRef());
 	}
 
 	if (HairStrandsUniformBuffer)
 	{
-		FRHIPixelShader* ShaderRHI = PixelShader.GetPixelShader();
-		PixelShader->FGlobalShader::template SetParameters<FHairStrandsViewUniformParameters>(RHICmdList, ShaderRHI, HairStrandsUniformBuffer);
+		PixelShader->FGlobalShader::template SetParameters<FHairStrandsViewUniformParameters>(BatchedParameters, HairStrandsUniformBuffer);
 	}
+
+	RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
 }
 
 
@@ -1060,7 +1061,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		// Set the projection vertex shader parameters
-		VertexShader->SetParameters(RHICmdList, *View, this, EShadowProjectionVertexShaderFlags::DrawingFrustum);
+		SetShaderParametersLegacyVS(RHICmdList, VertexShader, *View, this, EShadowProjectionVertexShaderFlags::DrawingFrustum);
 
 		RHICmdList.SetStreamSource(0, GFrustumVertexBuffer.VertexBufferRHI, 0);
 
@@ -1104,7 +1105,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMaskForHair(FRHICommandList& RH
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = nullptr;
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-	VertexShader->SetParameters(RHICmdList, *View, this, EShadowProjectionVertexShaderFlags::DrawingFrustum);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, *View, this, EShadowProjectionVertexShaderFlags::DrawingFrustum);
 
 	RHICmdList.SetStreamSource(0, GFrustumVertexBuffer.VertexBufferRHI, 0);
 	RHICmdList.DrawIndexedPrimitive(GCubeIndexBuffer.IndexBufferRHI, 0, 0, 8, 0, 12, 1);
@@ -1480,9 +1481,9 @@ static void SetPointLightShaderTempl(FRHICommandList& RHICmdList, FGraphicsPipel
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-	
-	VertexShader->SetParameters(RHICmdList, View, ShadowInfo, EShadowProjectionVertexShaderFlags::None);
-	PixelShader->SetParameters(RHICmdList, ViewIndex, View, ShadowInfo, HairStrandsUniformBuffer);
+
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, View, ShadowInfo, EShadowProjectionVertexShaderFlags::None);
+	SetShaderParametersLegacyPS(RHICmdList, PixelShader, ViewIndex, View, ShadowInfo, HairStrandsUniformBuffer);
 }
 
 void FProjectedShadowInfo::RenderOnePassPointLightProjection(

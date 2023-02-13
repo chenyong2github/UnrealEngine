@@ -602,7 +602,8 @@ static void ExecutePointLightShadowOcclusionQuery(FRHICommandList& RHICmdList, F
 	RHICmdList.BeginRenderQuery(ShadowOcclusionQuery);
 	
 	// Draw bounding sphere
-	VertexShader->SetParametersWithBoundingSphere(RHICmdList, View, LightBounds);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, View, LightBounds);
+
 	StencilingGeometry::DrawVectorSphere(RHICmdList);
 		
 	RHICmdList.EndRenderQuery(ShadowOcclusionQuery);
@@ -1317,7 +1318,7 @@ static void BeginOcclusionTests(
 
 			{
 				SCOPED_DRAW_EVENT(RHICmdList, ShadowFrustumQueries);
-				VertexShader->SetParameters(RHICmdList, View);
+				SetShaderParametersLegacyVS(RHICmdList, VertexShader, View);
 				RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
 				BaseVertexOffset = 0;
 
@@ -1349,7 +1350,7 @@ static void BeginOcclusionTests(
 
 		if (ViewQuery.bFlushQueries)
 		{
-			VertexShader->SetParameters(RHICmdList, View);
+			SetShaderParametersLegacyVS(RHICmdList, VertexShader, View);
 
 			if (GOcclusionQueryDispatchOrder == 0)
 			{

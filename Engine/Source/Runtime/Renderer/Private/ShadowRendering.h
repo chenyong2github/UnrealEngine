@@ -977,7 +977,7 @@ public:
 		PreShadowToPreViewTranslation.Bind(ParameterMap, TEXT("PreShadowToPreViewTranslation"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View,	const FProjectedShadowInfo* ShadowInfo, EShadowProjectionVertexShaderFlags Flags);
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View,	const FProjectedShadowInfo* ShadowInfo, EShadowProjectionVertexShaderFlags Flags);
 
 private:
 	LAYOUT_FIELD(FStencilingGeometryShaderParameters, StencilingGeometryParameters);
@@ -995,7 +995,7 @@ public:
 	{
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo, EShadowProjectionVertexShaderFlags Flags) {}
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo, EShadowProjectionVertexShaderFlags Flags) {}
 };
 
 /**
@@ -1044,10 +1044,8 @@ public:
 		bCascadeUseFadePlane.Bind(ParameterMap, TEXT("bCascadeUseFadePlane"));
 	}
 
-	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo, bool bModulatedShadows, bool bUseFadePlane, bool SubPixelShadow)
+	void Set(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo, bool bModulatedShadows, bool bUseFadePlane, bool SubPixelShadow)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
 		const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
 		const FIntPoint ShadowBufferResolution = ShadowInfo->GetShadowBufferResolution();
 
@@ -1059,7 +1057,7 @@ public:
 				(ShadowInfo->BorderSize + ShadowInfo->Y) * InverseShadowBufferResolution.Y,
 				ShadowInfo->ResolutionX * InverseShadowBufferResolution.X,
 				ShadowInfo->ResolutionY * InverseShadowBufferResolution.Y);
-			SetShaderValue(RHICmdList, ShaderRHI, ShadowTileOffsetAndSizeParam, ShadowTileOffsetAndSize);
+			SetShaderValue(BatchedParameters, ShadowTileOffsetAndSizeParam, ShadowTileOffsetAndSize);
 		}
 
 		// Set the transform from screen coordinates to shadow depth texture coordinates.
@@ -1067,26 +1065,26 @@ public:
 		{
 			// UE-29083 : work around precision issues with ScreenToShadowMatrix on low end devices.
 			const FMatrix44f ScreenToShadow = FMatrix44f(ShadowInfo->GetScreenToShadowMatrix(View, 0, 0, ShadowBufferResolution.X, ShadowBufferResolution.Y));	// LWC_TODO: Precision loss
-			SetShaderValue(RHICmdList, ShaderRHI, ScreenToShadowMatrix, ScreenToShadow);
+			SetShaderValue(BatchedParameters, ScreenToShadowMatrix, ScreenToShadow);
 		}
 		else
 		{
 			const FMatrix44f ScreenToShadow = FMatrix44f(ShadowInfo->GetScreenToShadowMatrix(View));		// LWC_TODO: Precision loss
-			SetShaderValue(RHICmdList, ShaderRHI, ScreenToShadowMatrix, ScreenToShadow);
+			SetShaderValue(BatchedParameters, ScreenToShadowMatrix, ScreenToShadow);
 		}
 
 		if (SoftTransitionScale.IsBound())
 		{
 			const float TransitionSize = ShadowInfo->ComputeTransitionSize();
 
-			SetShaderValue(RHICmdList, ShaderRHI, SoftTransitionScale, FVector3f(0, 0, 1.0f / TransitionSize));
+			SetShaderValue(BatchedParameters, SoftTransitionScale, FVector3f(0, 0, 1.0f / TransitionSize));
 		}
 
 		if (ShadowBufferSize.IsBound())
 		{
 			FVector2D ShadowBufferSizeValue(ShadowBufferResolution.X, ShadowBufferResolution.Y);
 
-			SetShaderValue(RHICmdList, ShaderRHI, ShadowBufferSize,
+			SetShaderValue(BatchedParameters, ShadowBufferSize,
 				FVector4f(ShadowBufferSizeValue.X, ShadowBufferSizeValue.Y, 1.0f / ShadowBufferSizeValue.X, 1.0f / ShadowBufferSizeValue.Y));
 		}
 
@@ -1104,24 +1102,20 @@ public:
 			
 		FRHISamplerState* DepthSamplerState = TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 
-		SetTextureParameter(RHICmdList, ShaderRHI, ShadowDepthTexture, ShadowDepthTextureSampler, DepthSamplerState, ShadowDepthTextureValue);		
+		SetTextureParameter(BatchedParameters, ShadowDepthTexture, ShadowDepthTextureSampler, DepthSamplerState, ShadowDepthTextureValue);
 
 		if (ShadowDepthTextureSampler.IsBound())
 		{
-			RHICmdList.SetShaderSampler(
-				ShaderRHI, 
-				ShadowDepthTextureSampler.GetBaseIndex(),
-				DepthSamplerState
-				);
+			SetSamplerParameter(BatchedParameters, ShadowDepthTextureSampler, DepthSamplerState);
 		}
 
-		SetShaderValue(RHICmdList, ShaderRHI, ProjectionDepthBias, FVector4f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderReceiverDepthBias(), ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ));
-		SetShaderValue(RHICmdList, ShaderRHI, FadePlaneOffset, ShadowInfo->CascadeSettings.FadePlaneOffset);
+		SetShaderValue(BatchedParameters, ProjectionDepthBias, FVector4f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderReceiverDepthBias(), ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ));
+		SetShaderValue(BatchedParameters, FadePlaneOffset, ShadowInfo->CascadeSettings.FadePlaneOffset);
 
 		if(InvFadePlaneLength.IsBound() && bUseFadePlane)
 		{
 			check(ShadowInfo->CascadeSettings.FadePlaneLength > 0);
-			SetShaderValue(RHICmdList, ShaderRHI, InvFadePlaneLength, 1.0f / ShadowInfo->CascadeSettings.FadePlaneLength);
+			SetShaderValue(BatchedParameters, InvFadePlaneLength, 1.0f / ShadowInfo->CascadeSettings.FadePlaneLength);
 		}
 
 		if (LightPositionOrDirection.IsBound())
@@ -1129,7 +1123,7 @@ public:
 			const FVector LightDirection = ShadowInfo->GetLightSceneInfo().Proxy->GetDirection();
 			const FVector LightPosition = ShadowInfo->GetLightSceneInfo().Proxy->GetPosition() + PreViewTranslation;
 			const bool bIsDirectional = ShadowInfo->GetLightSceneInfo().Proxy->GetLightType() == LightType_Directional;
-			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, bIsDirectional ? FVector4f((FVector3f)LightDirection,0) : FVector4f((FVector3f)LightPosition,1));
+			SetShaderValue(BatchedParameters, LightPositionOrDirection, bIsDirectional ? FVector4f((FVector3f)LightDirection,0) : FVector4f((FVector3f)LightPosition,1));
 		}
 
 		if (SubPixelShadow)
@@ -1149,12 +1143,12 @@ public:
 			FVector2f SliceNearAndFarDepth;
 			SliceNearAndFarDepth.X = DeviceZNear;
 			SliceNearAndFarDepth.Y = DeviceZFar;
-			SetShaderValue(RHICmdList, ShaderRHI, ShadowNearAndFarDepth, SliceNearAndFarDepth);
-			SetShaderValue(RHICmdList, ShaderRHI, bCascadeUseFadePlane, bUseFadePlane ? 1 : 0);
+			SetShaderValue(BatchedParameters, ShadowNearAndFarDepth, SliceNearAndFarDepth);
+			SetShaderValue(BatchedParameters, bCascadeUseFadePlane, bUseFadePlane ? 1 : 0);
 		}
 
-		SetShaderValue(RHICmdList, ShaderRHI, PerObjectShadowFadeStart, ShadowInfo->PerObjectShadowFadeStart);
-		SetShaderValue(RHICmdList, ShaderRHI, InvPerObjectShadowFadeLength, ShadowInfo->InvPerObjectShadowFadeLength);
+		SetShaderValue(BatchedParameters, PerObjectShadowFadeStart, ShadowInfo->PerObjectShadowFadeStart);
+		SetShaderValue(BatchedParameters, InvPerObjectShadowFadeLength, ShadowInfo->InvPerObjectShadowFadeLength);
 	}
 
 private:
@@ -1231,28 +1225,26 @@ public:
 	 * @param ShadowInfo - projected shadow info for a single light
 	 */
 	void SetParameters(
-		FRHICommandList& RHICmdList, 
+		FRHIBatchedShaderParameters& BatchedParameters,
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FProjectedShadowInfo* ShadowInfo)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
 		const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
 		const bool bUseFadePlaneEnable = ShadowInfo->CascadeSettings.FadePlaneLength > 0;
 
-		ProjectionParameters.Set(RHICmdList, this, View, ShadowInfo, bModulatedShadows, bUseFadePlaneEnable, SubPixelShadow);
+		ProjectionParameters.Set(BatchedParameters, View, ShadowInfo, bModulatedShadows, bUseFadePlaneEnable, SubPixelShadow);
 		const FLightSceneProxy& LightProxy = *(ShadowInfo->GetLightSceneInfo().Proxy);
 
-		SetShaderValue(RHICmdList, ShaderRHI, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex] );
-		SetShaderValue(RHICmdList, ShaderRHI, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f );
-		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4f(FVector3f((FVector)LightProxy.GetPosition() + PreViewTranslation), 1.0f / LightProxy.GetRadius()));
+		SetShaderValue(BatchedParameters, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex] );
+		SetShaderValue(BatchedParameters, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f );
+		SetShaderValue(BatchedParameters, LightPosition, FVector4f(FVector3f((FVector)LightProxy.GetPosition() + PreViewTranslation), 1.0f / LightProxy.GetRadius()));
 
 		auto DeferredLightParameter = GetUniformBufferParameter<FDeferredLightUniformStruct>();
 
 		if (DeferredLightParameter.IsBound())
 		{
-			SetDeferredLightParameters(RHICmdList, ShaderRHI, DeferredLightParameter, &ShadowInfo->GetLightSceneInfo(), View);
+			SetDeferredLightParameters(BatchedParameters, DeferredLightParameter, &ShadowInfo->GetLightSceneInfo(), View);
 		}
 
 
@@ -1295,14 +1287,13 @@ public:
 	TModulatedShadowProjection(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
 	void SetParameters(
-		FRHICommandList& RHICmdList,
+		FRHIBatchedShaderParameters& BatchedParameters,
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FProjectedShadowInfo* ShadowInfo)
 	{
-		TShadowProjectionPS<Quality, false, true>::SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-		SetShaderValue(RHICmdList, ShaderRHI, ModulatedShadowColorParameter, ShadowInfo->GetLightSceneInfo().Proxy->GetModulatedShadowColor());
+		TShadowProjectionPS<Quality, false, true>::SetParameters(BatchedParameters, ViewIndex, View, ShadowInfo);
+		SetShaderValue(BatchedParameters, ModulatedShadowColorParameter, ShadowInfo->GetLightSceneInfo().Proxy->GetModulatedShadowColor());
 	}
 
 protected:
@@ -1363,16 +1354,16 @@ public:
 	}
 
 	void SetParameters(
-		FRHICommandList& RHICmdList, 
+		FRHIBatchedShaderParameters& BatchedParameters,
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FProjectedShadowInfo* ShadowInfo)
 	{
-		TShadowProjectionPS<Quality>::SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
+		TShadowProjectionPS<Quality>::SetParameters(BatchedParameters, ViewIndex, View, ShadowInfo);
 
 		FTranslucentSelfShadowUniformParameters TranslucentSelfShadowUniformParameters;
 		SetupTranslucentSelfShadowUniformParameters(ShadowInfo, TranslucentSelfShadowUniformParameters);
-		SetUniformBufferParameterImmediate(RHICmdList, RHICmdList.GetBoundPixelShader(), this->template GetUniformBufferParameter<FTranslucentSelfShadowUniformParameters>(), TranslucentSelfShadowUniformParameters);
+		SetUniformBufferParameterImmediate(BatchedParameters, this->template GetUniformBufferParameter<FTranslucentSelfShadowUniformParameters>(), TranslucentSelfShadowUniformParameters);
 	}
 };
 
@@ -1404,8 +1395,7 @@ public:
 		LightPositionOrDirection.Bind(ParameterMap, TEXT("LightPositionOrDirection"));
 	}
 
-	template<typename ShaderRHIParamRef>
-	void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo) const
+	inline void Set(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo) const
 	{
 		const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
 
@@ -1419,34 +1409,19 @@ public:
 			}
 		}
 
-		SetTextureParameter(
-			RHICmdList, 
-			ShaderRHI, 
-			ShadowDepthTexture, 
-			ShadowDepthTextureValue
-			);
-
-		SetTextureParameter(
-			RHICmdList,
-			ShaderRHI,
-			ShadowDepthTexture2,
-			ShadowDepthTextureValue
-		);
+		SetTextureParameter(BatchedParameters, ShadowDepthTexture, ShadowDepthTextureValue);
+		SetTextureParameter(BatchedParameters, ShadowDepthTexture2, ShadowDepthTextureValue);
 
 		if (LightPositionOrDirection.IsBound())
 		{
 			const FVector LightPosition = ShadowInfo ? FVector(ShadowInfo->GetLightSceneInfo().Proxy->GetPosition()) : FVector::ZeroVector;
-			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, FVector4f(FVector3f(LightPosition + PreViewTranslation), 1));
+			SetShaderValue(BatchedParameters, LightPositionOrDirection, FVector4f(FVector3f(LightPosition + PreViewTranslation), 1));
 		}
 		
 		if (ShadowDepthCubeComparisonSampler.IsBound())
 		{
-			RHICmdList.SetShaderSampler(
-				ShaderRHI, 
-				ShadowDepthCubeComparisonSampler.GetBaseIndex(), 
-				// Use a comparison sampler to do hardware PCF
-				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 0, 0, SCF_Less>::GetRHI()
-				);
+			// Use a comparison sampler to do hardware PCF
+			SetSamplerParameter(BatchedParameters, ShadowDepthCubeComparisonSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 0, 0, SCF_Less>::GetRHI());
 		}
 
 		const int32 NumShaderMatrices = FMath::DivideAndRoundUp<int32>(ShadowViewProjectionMatrices.GetNumBytes(), sizeof(FMatrix44f));
@@ -1464,30 +1439,28 @@ public:
 			{
 				TypeCastedMatrices.AddZeroed(NumShaderMatrices - NumUsableMatrices);
 			}
-			SetShaderValueArray<ShaderRHIParamRef, FMatrix44f>(
-				RHICmdList,
-				ShaderRHI,
+			SetShaderValueArray<FMatrix44f>(
+				BatchedParameters,
 				ShadowViewProjectionMatrices,
 				TypeCastedMatrices.GetData(),
 				NumShaderMatrices
 				);
 
-			SetShaderValue(RHICmdList, ShaderRHI,InvShadowmapResolution,1.0f / ShadowInfo->ResolutionX);
+			SetShaderValue(BatchedParameters,InvShadowmapResolution,1.0f / ShadowInfo->ResolutionX);
 		}
 		else
 		{
 			TArray<FMatrix44f, SceneRenderingAllocator> ZeroMatrices;
 			ZeroMatrices.AddZeroed(NumShaderMatrices);
 
-			SetShaderValueArray<ShaderRHIParamRef, FMatrix44f>(
-				RHICmdList, 
-				ShaderRHI,
+			SetShaderValueArray<FMatrix44f>(
+				BatchedParameters,
 				ShadowViewProjectionMatrices,
 				ZeroMatrices.GetData(),
 				NumShaderMatrices
 				);
 
-			SetShaderValue(RHICmdList, ShaderRHI,InvShadowmapResolution,0);
+			SetShaderValue(BatchedParameters,InvShadowmapResolution,0);
 		}
 	}
 
@@ -1552,38 +1525,37 @@ public:
 	}
 
 	void SetParameters(
-		FRHICommandList& RHICmdList, 
+		FRHIBatchedShaderParameters& BatchedParameters,
 		int32 ViewIndex,
 		const FViewInfo& View,
 		const FProjectedShadowInfo* ShadowInfo,
 		FRHIUniformBuffer* HairStrandsUniformBuffer)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
 
-		OnePassShadowParameters.Set(RHICmdList, ShaderRHI, View, ShadowInfo);
+		OnePassShadowParameters.Set(BatchedParameters, View, ShadowInfo);
 
 		const FLightSceneProxy& LightProxy = *(ShadowInfo->GetLightSceneInfo().Proxy);
 
-		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4f(FVector3f(FVector(LightProxy.GetPosition()) + PreViewTranslation), 1.0f / LightProxy.GetRadius()));
+		SetShaderValue(BatchedParameters, LightPosition, FVector4f(FVector3f(FVector(LightProxy.GetPosition()) + PreViewTranslation), 1.0f / LightProxy.GetRadius()));
 
-		SetShaderValue(RHICmdList, ShaderRHI, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex]);
-		SetShaderValue(RHICmdList, ShaderRHI, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f);
+		SetShaderValue(BatchedParameters, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex]);
+		SetShaderValue(BatchedParameters, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f);
 
 		FVector2d ProjectionParams = FVector2d(ShadowInfo->OnePassShadowFaceProjectionMatrix.M[2][2], ShadowInfo->OnePassShadowFaceProjectionMatrix.M[3][2]);
 		FVector2f InverseProjParams = FVector2f(1.0 / ProjectionParams.Y, ProjectionParams.X / ProjectionParams.Y);
-		SetShaderValue(RHICmdList, ShaderRHI, PointLightDepthBias, FVector3f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias()));
-		SetShaderValue(RHICmdList, ShaderRHI, PointLightProjParameters, InverseProjParams);
+		SetShaderValue(BatchedParameters, PointLightDepthBias, FVector3f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias()));
+		SetShaderValue(BatchedParameters, PointLightProjParameters, InverseProjParams);
 
 		if (HairStrandsParameters.IsBound())
 		{
-			SetUniformBufferParameter(RHICmdList, ShaderRHI, HairStrandsParameters, HairStrandsUniformBuffer);
+			SetUniformBufferParameter(BatchedParameters, HairStrandsParameters, HairStrandsUniformBuffer);
 		}
 
 		if (StrataGlobalParameters.IsBound())
 		{
 			TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataUniformBuffer = Strata::BindStrataGlobalUniformParameters(View);
-			SetUniformBufferParameter(RHICmdList, ShaderRHI, StrataGlobalParameters, StrataUniformBuffer->GetRHIRef());
+			SetUniformBufferParameter(BatchedParameters, StrataGlobalParameters, StrataUniformBuffer->GetRHIRef());
 		}
 
 		FScene* Scene = nullptr;
@@ -1593,13 +1565,13 @@ public:
 			Scene = View.Family->Scene->GetRenderScene();
 		}
 
-		SetSamplerParameter(RHICmdList, ShaderRHI, ShadowDepthTextureSampler, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+		SetSamplerParameter(BatchedParameters, ShadowDepthTextureSampler, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
 		auto DeferredLightParameter = GetUniformBufferParameter<FDeferredLightUniformStruct>();
 
 		if (DeferredLightParameter.IsBound())
 		{
-			SetDeferredLightParameters(RHICmdList, ShaderRHI, DeferredLightParameter, &ShadowInfo->GetLightSceneInfo(), View);
+			SetDeferredLightParameters(BatchedParameters, DeferredLightParameter, &ShadowInfo->GetLightSceneInfo(), View);
 		}
 	}
 
@@ -1674,14 +1646,12 @@ public:
 	}
 
 	void SetParameters(
-		FRHICommandList& RHICmdList,
+		FRHIBatchedShaderParameters& BatchedParameters,
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FProjectedShadowInfo* ShadowInfo)
 	{
-		TShadowProjectionPS<Quality, bUseFadePlane>::SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
-
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
+		TShadowProjectionPS<Quality, bUseFadePlane>::SetParameters(BatchedParameters, ViewIndex, View, ShadowInfo);
 
 		// GetLightSourceAngle returns the full angle.
 		float TanLightSourceAngle = FMath::Tan(0.5 * FMath::DegreesToRadians(ShadowInfo->GetLightSceneInfo().Proxy->GetLightSourceAngle()));
@@ -1694,7 +1664,7 @@ public:
 		float SZ = ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ;
 
 		FVector4f PCSSParameterValues = FVector4f(TanLightSourceAngle * SZ / SW, MaxKernelSize / float(ShadowInfo->ResolutionX), 0, 0);
-		SetShaderValue(RHICmdList, ShaderRHI, PCSSParameters, PCSSParameterValues);
+		SetShaderValue(BatchedParameters, PCSSParameters, PCSSParameterValues);
 	}
 
 protected:
@@ -1730,23 +1700,21 @@ public:
 	}
 
 	void SetParameters(
-		FRHICommandList& RHICmdList,
+		FRHIBatchedShaderParameters& BatchedParameters,
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FProjectedShadowInfo* ShadowInfo)
 	{
 		check(ShadowInfo->GetLightSceneInfo().Proxy->GetLightType() == LightType_Spot);
 
-		TShadowProjectionPS<Quality, bUseFadePlane>::SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
-
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
+		TShadowProjectionPS<Quality, bUseFadePlane>::SetParameters(BatchedParameters, ViewIndex, View, ShadowInfo);
 
 		static IConsoleVariable* CVarMaxSoftShadowKernelSize = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.MaxSoftKernelSize"));
 		check(CVarMaxSoftShadowKernelSize);
 		int32 MaxKernelSize = CVarMaxSoftShadowKernelSize->GetInt();
 
 		FVector4f PCSSParameterValues = FVector4f(0, MaxKernelSize / float(ShadowInfo->ResolutionX), 0, 0);
-		SetShaderValue(RHICmdList, ShaderRHI, PCSSParameters, PCSSParameterValues);
+		SetShaderValue(BatchedParameters, PCSSParameters, PCSSParameterValues);
 	}
 
 protected:

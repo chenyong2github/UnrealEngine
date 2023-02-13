@@ -320,30 +320,26 @@ void FStencilingGeometryShaderParameters::Bind(const FShaderParameterMap& Parame
 	StencilConeTransform.Bind(ParameterMap, TEXT("StencilingConeTransform"));
 }
 
-void FStencilingGeometryShaderParameters::Set(FRHICommandList& RHICmdList, FShader* Shader, const FVector4f& InStencilingGeometryPosAndScale) const
+void FStencilingGeometryShaderParameters::Set(FRHIBatchedShaderParameters& BatchedParameters, const FVector4f& InStencilingGeometryPosAndScale) const
 {
 	const FParameters P = GetParameters(InStencilingGeometryPosAndScale);
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilGeometryPosAndScale, P.StencilingGeometryPosAndScale);
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeParameters, P.StencilingConeParameters);
+	SetShaderValue(BatchedParameters, StencilGeometryPosAndScale, P.StencilingGeometryPosAndScale);
+	SetShaderValue(BatchedParameters, StencilConeParameters, P.StencilingConeParameters);
 }
 
-void FStencilingGeometryShaderParameters::Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FLightSceneInfo* LightSceneInfo) const
+void FStencilingGeometryShaderParameters::Set(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View, const FLightSceneInfo* LightSceneInfo) const
 {
 	const FParameters P = GetParameters(View, LightSceneInfo);
 	if (LightSceneInfo->Proxy->GetLightType() == LightType_Point ||
 		LightSceneInfo->Proxy->GetLightType() == LightType_Rect)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilGeometryPosAndScale, P.StencilingGeometryPosAndScale);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeParameters, P.StencilingConeParameters);
+		SetShaderValue(BatchedParameters, StencilGeometryPosAndScale, P.StencilingGeometryPosAndScale);
+		SetShaderValue(BatchedParameters, StencilConeParameters, P.StencilingConeParameters);
 	}
 	else if (LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeTransform, P.StencilingConeTransform);
-		SetShaderValue(
-			RHICmdList,
-			RHICmdList.GetBoundVertexShader(),
-			StencilConeParameters,
-			P.StencilingConeParameters);
+		SetShaderValue(BatchedParameters, StencilConeTransform, P.StencilingConeTransform);
+		SetShaderValue(BatchedParameters, StencilConeParameters, P.StencilingConeParameters);
 	}
 }
 

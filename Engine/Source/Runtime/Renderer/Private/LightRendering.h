@@ -37,15 +37,13 @@ extern float GetLightFadeFactor(const FSceneView& View, const FLightSceneProxy* 
 
 extern FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, const FLightSceneInfo& LightSceneInfo);
 
-template<typename ShaderRHIParamRef>
-void SetDeferredLightParameters(
-	FRHICommandList& RHICmdList, 
-	const ShaderRHIParamRef ShaderRHI, 
+inline void SetDeferredLightParameters(
+	FRHIBatchedShaderParameters& BatchedParameters,
 	const TShaderUniformBufferParameter<FDeferredLightUniformStruct>& DeferredLightUniformBufferParameter, 
 	const FLightSceneInfo* LightSceneInfo,
 	const FSceneView& View)
 {
-	SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, DeferredLightUniformBufferParameter, GetDeferredLightParameters(View, *LightSceneInfo));
+	SetUniformBufferParameterImmediate(BatchedParameters, DeferredLightUniformBufferParameter, GetDeferredLightParameters(View, *LightSceneInfo));
 }
 
 extern FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
@@ -53,17 +51,15 @@ extern FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 	const FSimpleLightEntry& SimpleLight,
 	const FSimpleLightPerViewEntry &SimpleLightPerViewData);
 
-template<typename ShaderRHIParamRef>
-void SetSimpleDeferredLightParameters(
-	FRHICommandList& RHICmdList, 
-	const ShaderRHIParamRef ShaderRHI, 
+inline void SetSimpleDeferredLightParameters(
+	FRHIBatchedShaderParameters& BatchedParameters,
 	const TShaderUniformBufferParameter<FDeferredLightUniformStruct>& DeferredLightUniformBufferParameter, 
 	const FSimpleLightEntry& SimpleLight,
 	const FSimpleLightPerViewEntry &SimpleLightPerViewData,
 	const FSceneView& View)
 {
 	FDeferredLightUniformStruct DeferredLightUniformsValue = GetSimpleDeferredLightParameters(View, SimpleLight, SimpleLightPerViewData);
-	SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, DeferredLightUniformBufferParameter, DeferredLightUniformsValue);
+	SetUniformBufferParameterImmediate(BatchedParameters, DeferredLightUniformBufferParameter, DeferredLightUniformsValue);
 }
 
 /** Shader parameters needed to render a light function. */
@@ -75,14 +71,9 @@ public:
 
 	static FVector4f GetLightFunctionSharedParameters(const FLightSceneInfo* LightSceneInfo, float ShadowFadeFraction);
 
-	template<typename ShaderRHIParamRef>
-	void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FLightSceneInfo* LightSceneInfo, float ShadowFadeFraction) const
+	void Set(FRHIBatchedShaderParameters& BatchedParameters, const FLightSceneInfo* LightSceneInfo, float ShadowFadeFraction) const
 	{
-		SetShaderValue( 
-			RHICmdList, 
-			ShaderRHI, 
-			LightFunctionParameters, 
-			GetLightFunctionSharedParameters(LightSceneInfo, ShadowFadeFraction));
+		SetShaderValue(BatchedParameters, LightFunctionParameters, GetLightFunctionSharedParameters(LightSceneInfo, ShadowFadeFraction));
 	}
 
 	/** Serializer. */ 
@@ -270,8 +261,8 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 	void Bind(const FShaderParameterMap& ParameterMap);
-	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FVector4f& InStencilingGeometryPosAndScale) const;
-	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FLightSceneInfo* LightSceneInfo) const;
+	void Set(FRHIBatchedShaderParameters& BatchedParameters, const FVector4f& InStencilingGeometryPosAndScale) const;
+	void Set(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View, const FLightSceneInfo* LightSceneInfo) const;
 
 	static FParameters GetParameters(const FVector4f& InStencilingGeometryPosAndScale);
 	static FParameters GetParameters(const FSceneView& View, const FLightSceneInfo* LightSceneInfo);
