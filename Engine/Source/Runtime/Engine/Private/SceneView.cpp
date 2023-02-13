@@ -2815,12 +2815,6 @@ TArray<const FSceneView*> FSceneView::GetSecondaryViews() const
 	return Views;
 }
 
-FSceneUniformBuffer& FSceneView::GetSceneUniforms() const
-{
-	check(Family);
-	return Family->GetSceneUniforms();
-}
-
 FSceneViewFamily::ConstructionValues::ConstructionValues(
 	const FRenderTarget* InRenderTarget,
 	FSceneInterface* InScene,

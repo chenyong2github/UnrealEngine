@@ -14,8 +14,8 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphResources.h"
 #include "ScenePrivate.h"
+#include "SceneRendererInterface.h"
 #include "SceneRenderTargetParameters.h"
-#include "SceneUniformBuffer.h"
 #include "MeshPassProcessor.inl"
 #include "UnrealClient.h"
 
@@ -278,7 +278,7 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 
 	FUVLightCardPassParameters* PassParameters = GraphBuilder.AllocParameters<FUVLightCardPassParameters>();
 	PassParameters->View = View->ViewUniformBuffer;
-	PassParameters->Scene = View->GetSceneUniforms().GetBuffer(GraphBuilder);
+	PassParameters->Scene = GetSceneUniformBufferRef(GraphBuilder, *View);
 	PassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 	PassParameters->RenderTargets[0] = OutputRenderTargetBinding;
 

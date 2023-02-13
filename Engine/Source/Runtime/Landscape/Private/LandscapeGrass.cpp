@@ -68,7 +68,7 @@
 #include "MaterialCachedData.h"
 #include "SceneRenderTargetParameters.h"
 #include "TextureResource.h"
-#include "SceneUniformBuffer.h"
+#include "SceneRendererInterface.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -630,7 +630,7 @@ public:
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FLandscapeGrassPassParameters>();
 		PassParameters->View = View->ViewUniformBuffer;
-		PassParameters->Scene = View->GetSceneUniforms().GetBuffer(GraphBuilder);
+		PassParameters->Scene = GetSceneUniformBufferRef(GraphBuilder, *View);
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::EClear);
 
 		AddSimpleMeshPass(GraphBuilder, PassParameters, SceneInterface->GetRenderScene(), *View, nullptr, RDG_EVENT_NAME("LandscapeGrass"), View->UnscaledViewRect,

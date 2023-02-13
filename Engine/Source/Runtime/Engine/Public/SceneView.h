@@ -16,7 +16,6 @@
 #include "RenderResource.h"
 #include "ShowFlags.h"
 #include "StereoRendering.h"
-#include "SceneRendererInterface.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
@@ -40,6 +39,7 @@ class FViewElementDrawer;
 class ISceneViewExtension;
 class FSceneViewFamily;
 class FVolumetricFogViewResources;
+class ISceneRenderer;
 class ISpatialUpscaler;
 class ITemporalUpscaler;
 
@@ -1661,8 +1661,6 @@ public:
 		return InstancedViewUniformBuffer;
 	}
 
-	FSceneUniformBuffer& GetSceneUniforms() const;
-
 protected:
 	FSceneViewStateInterface* EyeAdaptationViewState = nullptr;
 
@@ -2143,16 +2141,8 @@ public:
 	inline bool GetIsInFocus() const				{ return bIsInFocus; }
 	inline void SetIsInFocus(bool bInIsInFocus)		{ bIsInFocus = bInIsInFocus; }
 
-	FSceneUniformBuffer& GetSceneUniforms() const
-	{
-		check(SceneRenderer);
-		return SceneRenderer->GetSceneUniforms();
-	}
-
-	void SetSceneRenderer(ISceneRenderer* NewSceneRenderer)
-	{
-		SceneRenderer = NewSceneRenderer;
-	}
+	void SetSceneRenderer(ISceneRenderer* NewSceneRenderer) { SceneRenderer = NewSceneRenderer; }
+	ISceneRenderer* GetSceneRenderer() const { check(SceneRenderer); return SceneRenderer; }
 
 private:
 	/** The scene renderer that is rendering this view family. This is only initialized in the rendering thread's copies of the FSceneViewFamily. */

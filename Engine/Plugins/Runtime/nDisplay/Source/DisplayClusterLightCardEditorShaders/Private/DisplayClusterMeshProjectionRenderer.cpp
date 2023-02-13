@@ -11,7 +11,7 @@
 #include "CanvasTypes.h"
 #include "EngineModule.h"
 #include "SceneManagement.h"
-#include "SceneUniformBuffer.h"
+#include "SceneRendererInterface.h"
 #include "SceneViewExtension.h"
 #include "ScreenPass.h"
 #include "Components/PrimitiveComponent.h"
@@ -278,7 +278,7 @@ FMeshProjectionPassParameters* CreateProjectionPassParameters(FRDGBuilder& Graph
 {
 	FMeshProjectionPassParameters* PassParameters = GraphBuilder.AllocParameters<FMeshProjectionPassParameters>();
 	PassParameters->View = View->ViewUniformBuffer;
-	PassParameters->Scene = View->GetSceneUniforms().GetBuffer(GraphBuilder);
+	PassParameters->Scene = GetSceneUniformBufferRef(GraphBuilder, *View);
 	PassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 
 	return PassParameters;

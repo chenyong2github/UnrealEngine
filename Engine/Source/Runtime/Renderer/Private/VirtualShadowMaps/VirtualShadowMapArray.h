@@ -19,6 +19,7 @@ struct FScreenPassTexture;
 struct FSingleLayerWaterPrePassResult;
 class FNaniteVisibilityResults;
 class FSceneRenderer;
+class FSceneUniformBuffer;
 struct FShaderCompilerEnvironment;
 
 namespace Nanite

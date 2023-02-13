@@ -2390,7 +2390,6 @@ FViewFamilyInfo::~FViewFamilyInfo()
 FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer)
 :	Scene(CheckPointer(InViewFamily->Scene)->GetRenderScene())
 ,	ViewFamily(*CheckPointer(InViewFamily))
-,	SceneUniforms()
 ,	MeshCollector(InViewFamily->GetFeatureLevel(), Allocator)
 ,	RayTracingCollector(InViewFamily->GetFeatureLevel(), Allocator)
 ,	VirtualShadowMapArray(*CheckPointer(Scene))
@@ -4810,19 +4809,6 @@ void FRendererModule::RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBu
 	}
 }
 
-class FScenePrimitiveRenderer : public ISceneRenderer
-{
-public:
-	FScenePrimitiveRenderer()
-		: SceneUniforms()
-	{}
-
-	const FSceneUniformBuffer& GetSceneUniforms() const final override { return SceneUniforms; }
-	FSceneUniformBuffer& GetSceneUniforms() final override { return SceneUniforms; }
-private:
-	FSceneUniformBuffer SceneUniforms;
-};
-
 class FScenePrimitiveRenderingContext : public IScenePrimitiveRenderingContext
 {
 public:
@@ -4848,7 +4834,7 @@ public:
 		ViewFamily.SetSceneRenderer(nullptr);
 	}
 
-	FScenePrimitiveRenderer Renderer;
+	FSceneRendererBase Renderer;
 	FGPUScene& GPUScene;
 	FGPUSceneDynamicContext GPUSceneDynamicContext;
 	FSceneViewFamily& ViewFamily;

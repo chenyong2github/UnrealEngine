@@ -7,6 +7,7 @@
 #include "RenderGraphResources.h"
 
 class FGPUScene;
+class FSceneUniformBuffer;
 
 namespace Nanite
 {

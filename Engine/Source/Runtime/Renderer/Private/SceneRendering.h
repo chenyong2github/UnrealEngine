@@ -1831,6 +1831,8 @@ public:
 	const FSceneTextures& GetSceneTextures() const;
 	const FSceneTextures* GetSceneTexturesChecked() const;
 
+	FSceneUniformBuffer& GetSceneUniforms() const;
+
 	RENDERER_API FRDGTextureRef GetVolumetricCloudTexture(FRDGBuilder& GraphBuilder) const;
 
 	/**
@@ -2028,12 +2030,28 @@ struct FComputeLightGridOutput
 	FRDGPassRef CompactLinksPass = {};
 };
 
+class FSceneRendererBase : public ISceneRenderer
+{
+public:
+	// ISceneRenderer interface
+	const FSceneUniformBuffer& GetSceneUniforms() const final override { return SceneUniforms; }
+	FSceneUniformBuffer& GetSceneUniforms() final override { return SceneUniforms; }
+
+	TRDGUniformBufferRef<FSceneUniformParameters> GetSceneUniformBufferRef(FRDGBuilder& GraphBuilder) final
+	{
+		return GetSceneUniforms().GetBuffer(GraphBuilder);
+	}
+
+private:
+	FSceneUniformBuffer SceneUniforms;
+};
+
 /**
  * Used as the scope for scene rendering functions.
  * It is initialized in the game thread by FSceneViewFamily::BeginRender, and then passed to the rendering thread.
  * The rendering thread calls Render(), and deletes the scene renderer when it returns.
  */
-class FSceneRenderer : public ISceneRenderer
+class FSceneRenderer : public FSceneRendererBase
 {
 public:
 	/** Linear bulk allocator with a lifetime tied to the scene renderer. */
@@ -2050,12 +2068,6 @@ public:
 
 	/** Views across all view families (may contain additional views if rendering multiple families together). */
 	TArray<const FSceneView*> AllFamilyViews;
-
-private:
-	FSceneUniformBuffer SceneUniforms;
-public:
-	const FSceneUniformBuffer& GetSceneUniforms() const final override { return SceneUniforms; }
-	FSceneUniformBuffer& GetSceneUniforms() final override { return SceneUniforms; }
 
 	/** All the dynamic scaling informations */
 	DynamicRenderScaling::TMap<float> DynamicResolutionFractions;
@@ -2829,6 +2841,11 @@ inline const FSceneTextures& FViewInfo::GetSceneTextures() const
 inline const FSceneTextures* FViewInfo::GetSceneTexturesChecked() const
 {
 	return ((FViewFamilyInfo*)Family)->GetSceneTexturesChecked();
+}
+
+inline FSceneUniformBuffer& FViewInfo::GetSceneUniforms() const
+{
+	return Family->GetSceneRenderer()->GetSceneUniforms();
 }
 
 /**
