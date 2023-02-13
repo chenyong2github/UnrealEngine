@@ -1765,6 +1765,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether to support edit and continue.
 		/// </summary>
+		[CommandLine("-SupportEditAndContinue")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bSupportEditAndContinue = false;
 
