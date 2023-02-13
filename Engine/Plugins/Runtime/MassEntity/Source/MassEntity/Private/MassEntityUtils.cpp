@@ -62,8 +62,9 @@ void CreateEntityCollections(const FMassEntityManager& EntityManager, const TCon
 FMassEntityManager* GetEntityManager(const UWorld* World)
 {
 	UMassEntitySubsystem* EntityManager = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
-	check(EntityManager);
-	return &EntityManager->GetMutableEntityManager();
+	return EntityManager
+		? &EntityManager->GetMutableEntityManager()
+		: nullptr;
 }
 
 FMassEntityManager& GetEntityManagerChecked(const UWorld& World)
