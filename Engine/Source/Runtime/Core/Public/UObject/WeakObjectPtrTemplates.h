@@ -8,21 +8,9 @@
 #include "Templates/AndOrNot.h"
 #include "Templates/LosesQualifiersFromTo.h"
 #include "Containers/Map.h"
+#include "UObject/WeakObjectPtrTemplatesFwd.h"
 
 #include <type_traits>
-
-/**
- * FWeakObjectPtr is a weak pointer to a UObject. 
- * It can return nullptr later if the object is garbage collected.
- * It has no impact on if the object is garbage collected or not.
- * It can't be directly used across a network.
- *
- * Most often it is used when you explicitly do NOT want to prevent something from being garbage collected.
- */
-struct FWeakObjectPtr;
-
-template<class T=UObject, class TWeakObjectPtrBase=FWeakObjectPtr>
-struct TWeakObjectPtr;
 
 /**
  * TWeakObjectPtr is the templated version of the generic FWeakObjectPtr
@@ -319,10 +307,6 @@ FORCEINLINE TWeakObjectPtr<T> MakeWeakObjectPtr(T* Ptr)
 {
 	return TWeakObjectPtr<T>(Ptr);
 }
-
-template<class T> struct TIsPODType<TWeakObjectPtr<T> > { enum { Value = true }; };
-template<class T> struct TIsZeroConstructType<TWeakObjectPtr<T> > { enum { Value = true }; };
-template<class T> struct TIsWeakPointerType<TWeakObjectPtr<T> > { enum { Value = true }; };
 
 
 /**

@@ -11,14 +11,12 @@
 #include "Templates/UnrealTemplate.h"
 #include "UObject/ScriptDelegates.h"
 #include "UObject/UObjectArray.h"
+#include "UObject/WeakObjectPtrFwd.h"
 
 #include <type_traits>
 
 class FArchive;
 class UObject;
-template <typename T> struct TIsPODType;
-template <typename T> struct TIsWeakPointerType;
-template <typename T> struct TIsZeroConstructType;
 
 /** Invalid FWeakObjectPtr ObjectIndex values must be 0 to support zeroed initialization (this used to be INDEX_NONE, leading to subtle bugs). */
 #ifndef UE_WEAKOBJECTPTR_ZEROINIT_FIX
@@ -324,14 +322,6 @@ private:
 	int32		ObjectSerialNumber;
 #endif
 };
-
-template<> struct TIsPODType<FWeakObjectPtr> { enum { Value = true }; };
-template<> struct TIsZeroConstructType<FWeakObjectPtr> { enum { Value = true }; };
-template<> struct TIsWeakPointerType<FWeakObjectPtr> { enum { Value = true }; };
-
-// Typedef script delegates for convenience.
-typedef TScriptDelegate<> FScriptDelegate;
-typedef TMulticastScriptDelegate<> FMulticastScriptDelegate;
 
 /** Hash function. */
 FORCEINLINE uint32 GetTypeHash(const FWeakObjectPtr& WeakObjectPtr)
