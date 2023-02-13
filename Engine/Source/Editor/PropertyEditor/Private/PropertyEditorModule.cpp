@@ -432,14 +432,13 @@ TSharedRef<IPropertyChangeListener> FPropertyEditorModule::CreatePropertyChangeL
 	return MakeShareable( new FPropertyChangeListener );
 }
 
-void FPropertyEditorModule::RegisterCustomClassLayout( FName ClassName, FOnGetDetailCustomizationInstance DetailLayoutDelegate )
+void FPropertyEditorModule::RegisterCustomClassLayout( FName ClassName, FOnGetDetailCustomizationInstance DetailLayoutDelegate, FRegisterCustomClassLayoutParams Params )
 {
 	if (ClassName != NAME_None)
 	{
 		FDetailLayoutCallback Callback;
 		Callback.DetailLayoutDelegate = DetailLayoutDelegate;
-		// @todo: DetailsView: Fix me: this specifies the order in which detail layouts should be queried
-		Callback.Order = ClassNameToDetailLayoutNameMap.Num();
+		Callback.Order = Params.OptionalOrder.Get(ClassNameToDetailLayoutNameMap.Num());
 
 		ClassNameToDetailLayoutNameMap.Add(ClassName, Callback);
 	}
