@@ -1055,6 +1055,18 @@ void FHZBOcclusionTester::Submit(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 	AddEnqueueCopyPass(GraphBuilder, ResultsReadback.Get(), ResultsTextureGPU);
 }
 
+static void TrimAllOcclusionHistory(TArrayView<FViewInfo> Views)
+{
+	for (const FViewInfo& View : Views)
+	{
+		if (View.Family && View.ViewState)
+		{
+			const double RealTimeSeconds = View.Family->Time.GetRealTimeSeconds();
+			View.ViewState->TrimOcclusionHistory(RealTimeSeconds, RealTimeSeconds - GEngine->PrimitiveProbablyVisibleTime, RealTimeSeconds, View.ViewState->OcclusionFrameCounter);
+		}
+	}
+}
+
 static FViewOcclusionQueriesPerView AllocateOcclusionTests(const FScene* Scene, TArrayView<const FVisibleLightInfo> VisibleLightInfos, TArrayView<FViewInfo> Views)
 {
 	SCOPED_NAMED_EVENT(FSceneRenderer_AllocateOcclusionTestsOcclusionTests, FColor::Emerald);
@@ -1447,6 +1459,11 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 				BeginOcclusionTests(RHICmdList, Views, FeatureLevel, LocalQueriesPerView, DownsampleFactor);
 			});
 		}
+	}
+	else
+	{
+		// Make sure the views are freeing their memory if we toggled occlusion off at any point
+		TrimAllOcclusionHistory(Views);
 	}
 
 	const bool bUseHzbOcclusion = RenderHzb(GraphBuilder, SceneTextures.Depth.Resolve, BuildHZBAsyncComputeParams);
