@@ -218,4 +218,5 @@ void FPhysicsControlProfileEditorToolkit::OnFinishedChangingDetails(const FPrope
 	}
 }
 
+#undef LOCTEXT_NAMESPACE
 
