@@ -182,6 +182,7 @@ public:
 	virtual bool HasCookedFFTData() const override;
 	virtual bool HasCookedAmplitudeEnvelopeData() const override;
 	virtual TSharedPtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
+	virtual bool IsAttenuationSettingsEditable() const override { return !bOverrideAttenuation; }
 	//~ End USoundBase Interface.
 
 	/** Construct and initialize a node within this Cue */

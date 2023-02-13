@@ -188,7 +188,7 @@ public:
 	float Priority;
 
 	/** Attenuation settings package for the sound */
-	UPROPERTY(EditAnywhere, Category = Attenuation)
+	UPROPERTY(EditAnywhere, Category = Attenuation, meta = (EditCondition = "IsAttenuationSettingsEditable"))
 	TObjectPtr<USoundAttenuation> AttenuationSettings;
 
 	/** Submix to route sound output to. If unset, falls back to referenced SoundClass submix.
@@ -344,6 +344,10 @@ public:
 
 	/** Whether or not this sound allows submix sends on preview. */
 	virtual bool EnableSubmixSendsOnPreview() const { return false; }
+
+	/** Only used as an edit condition for AttenuationSettings member, as base classes may choose to provide an attenuation override implementation */
+	UFUNCTION()
+	virtual bool IsAttenuationSettingsEditable() const { return true; }
 
 #if WITH_EDITORONLY_DATA
 	void SetTimecodeOffset(const FSoundTimecodeOffset& InTimecodeOffset);
