@@ -209,6 +209,11 @@ namespace PCGGeneratedResourcesLogging
 	void LogCreateCleanupTaskResource(const UPCGManagedResource* Resource/*, TArray<UPCGManagedResource*>& GeneratedResources*/)
 	{
 #if WITH_EDITOR
+		if (!LogEnabled())
+		{
+			return;
+		}
+
 		if (Resource)
 		{
 			if (const UPCGManagedActors* ManagedActors = Cast<UPCGManagedActors>(Resource))
