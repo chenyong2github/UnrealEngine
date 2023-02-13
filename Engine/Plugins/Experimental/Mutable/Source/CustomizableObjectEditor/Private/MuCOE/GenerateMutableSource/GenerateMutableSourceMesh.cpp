@@ -3049,7 +3049,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				FMutableGraphMeshGenerationData DummyMeshData;
 				mu::NodeMeshPtr ChildNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, DummyMeshData);
 				MeshNode->SetVariationMesh(VariationIndex, ChildNode.get());
-				MeshData.Combine(DummyMeshData);
+				//MeshData.Combine(DummyMeshData);
 			}
 		}
 	}
