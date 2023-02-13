@@ -24,7 +24,9 @@ namespace Sequencer
 {
 
 class SCompoundTrackLaneView;
+class STrackAreaView;
 class FSectionModel;
+class FTrackAreaViewModel;
 struct ITrackAreaHotspot;
 
 class SSequencerSection : public SCompoundWidget, public ITrackLaneWidget, public UE::MovieScene::ISignedObjectEventHandler
@@ -85,6 +87,12 @@ private:
 	/** @return the sequencer interface */
 	FSequencer& GetSequencer() const;
 
+	/** @return the track area view that this section belongs to */
+	TSharedPtr<STrackAreaView> GetTrackAreaView() const;
+
+	/** @return the track area view-model that this section belongs to */
+	TSharedPtr<FTrackAreaViewModel> GetTrackAreaViewModel() const;
+
 	/** 
 	 * Creates geometry for a section without space for the handles
 	 */
@@ -133,6 +141,7 @@ public:
 	static bool IsSectionHighlighted(UMovieSceneSection* InSection, TSharedPtr<ITrackAreaHotspot> Hotspot);
 
 private:
+
 	TWeakPtr<FSequencer> Sequencer;
 	/** Interface to section data */
 	TSharedPtr<ISequencerSection> SectionInterface;
@@ -156,7 +165,6 @@ private:
 	TArray<FOverlappingSections> UnderlappingEasingSegments;
 
 	MovieScene::TNonIntrusiveEventHandler<MovieScene::ISignedObjectEventHandler> TrackModifiedBinding;
-
 
 	friend struct FSequencerSectionPainterImpl;
 };

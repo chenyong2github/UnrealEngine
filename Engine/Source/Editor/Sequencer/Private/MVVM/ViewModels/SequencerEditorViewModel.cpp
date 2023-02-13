@@ -43,7 +43,22 @@ TSharedPtr<FTrackAreaViewModel> FSequencerEditorViewModel::CreateTrackAreaImpl()
 {
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	check(Sequencer.IsValid());
-	return MakeShared<FSequencerTrackAreaViewModel>(Sequencer.ToSharedRef());
+
+	TSharedRef<FSequencerTrackAreaViewModel> NewTrackArea = MakeShared<FSequencerTrackAreaViewModel>(Sequencer.ToSharedRef());
+	NewTrackArea->GetOnHotspotChangedDelegate().AddSP(SharedThis(this), &FSequencerEditorViewModel::OnTrackAreaHotspotChanged);
+	return NewTrackArea;
+}
+
+void FSequencerEditorViewModel::InitializeEditorImpl()
+{
+	PinnedTrackArea = CreateTrackAreaImpl();
+	PinnedTrackArea->GetOnHotspotChangedDelegate().AddSP(SharedThis(this), &FSequencerEditorViewModel::OnTrackAreaHotspotChanged);
+	GetEditorPanels().AddChild(PinnedTrackArea);
+}
+
+TSharedPtr<FTrackAreaViewModel> FSequencerEditorViewModel::GetPinnedTrackArea() const
+{
+	return PinnedTrackArea;
 }
 
 TSharedPtr<ISequencer> FSequencerEditorViewModel::GetSequencer() const
@@ -67,6 +82,16 @@ bool FSequencerEditorViewModel::IsReadOnly() const
 {
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	return !Sequencer || Sequencer->IsReadOnly();
+}
+
+TSharedPtr<ITrackAreaHotspot> FSequencerEditorViewModel::GetHotspot() const
+{
+	return CurrentHotspot;
+}
+
+void FSequencerEditorViewModel::OnTrackAreaHotspotChanged(TSharedPtr<ITrackAreaHotspot> NewHotspot)
+{
+	CurrentHotspot = NewHotspot;
 }
 
 } // namespace Sequencer

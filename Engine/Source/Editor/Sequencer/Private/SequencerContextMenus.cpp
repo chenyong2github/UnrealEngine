@@ -158,7 +158,8 @@ void FKeyContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtend
 
 	MenuBuilder.BeginSection("SequencerKeyEdit", LOCTEXT("EditMenu", "Edit"));
 	{
-		if (HotspotCast<FKeyHotspot>(SequencerPtr->GetViewModel()->GetTrackArea()->GetHotspot()))
+		TSharedPtr<FSequencerEditorViewModel> SequencerViewModel = SequencerPtr->GetViewModel()->CastThisShared<FSequencerEditorViewModel>();
+		if (HotspotCast<FKeyHotspot>(SequencerViewModel->GetHotspot()))
 		{
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);

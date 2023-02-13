@@ -10,6 +10,14 @@
 
 class SSequencer;
 
+namespace UE
+{
+namespace Sequencer
+{
+	class STrackAreaView;
+}
+}
+
 class FSequencerEditTool_Movement
 	: public FSequencerEditTool
 {
@@ -19,7 +27,7 @@ public:
 	static const FName Identifier;
 
 	/** Create and initialize a new instance. */
-	FSequencerEditTool_Movement(FSequencer& InSequencer);
+	FSequencerEditTool_Movement(FSequencer& InSequencer, UE::Sequencer::STrackAreaView& InTrackArea);
 
 public:
 
@@ -58,6 +66,9 @@ private:
 
 	/** The hotspot's time before dragging started. */
 	FFrameTime OriginalHotspotTime;
+
+	/** TrackArea this object belongs to */
+	UE::Sequencer::STrackAreaView& TrackArea;
 
 	/** Software cursor decorator brush */
 	const FSlateBrush* CursorDecorator;

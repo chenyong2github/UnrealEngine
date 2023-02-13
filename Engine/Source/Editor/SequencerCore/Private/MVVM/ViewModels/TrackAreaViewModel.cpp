@@ -72,6 +72,8 @@ void FTrackAreaViewModel::SetHotspot(TSharedPtr<ITrackAreaHotspot> NewHotspot)
 			// Simulate an update-on-hover for the new hotspot to ensure that any hover behavior doesn't have to wait until the next frame
 			NewHotspot->UpdateOnHover(*this);
 		}
+
+		OnHotspotChangedDelegate.Broadcast(NewHotspot);
 	}
 }
 
@@ -113,6 +115,11 @@ void FTrackAreaViewModel::ClearHotspots()
 void FTrackAreaViewModel::LockHotspot(bool bIsLocked)
 {
 	bHotspotLocked = bIsLocked;
+}
+
+FOnTrackAreaHotspotChanged& FTrackAreaViewModel::GetOnHotspotChangedDelegate()
+{
+	return OnHotspotChangedDelegate;
 }
 
 bool FTrackAreaViewModel::CanActivateEditTool(FName Identifier) const

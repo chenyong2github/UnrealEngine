@@ -14,6 +14,8 @@ namespace UE
 namespace Sequencer
 {
 
+class STrackAreaView;
+
 class FSequencerTrackAreaViewModel
 	: public FTrackAreaViewModel
 {
@@ -22,6 +24,8 @@ public:
 	UE_SEQUENCER_DECLARE_CASTABLE(FSequencerTrackAreaViewModel, FTrackAreaViewModel);
 
 	FSequencerTrackAreaViewModel(TSharedRef<ISequencer> InSequencer);
+
+	void InitializeDefaultEditTools(UE::Sequencer::STrackAreaView& InTrackArea);
 
 	virtual FFrameRate GetTickResolution() const override;
 	virtual TRange<double> GetViewRange() const override;

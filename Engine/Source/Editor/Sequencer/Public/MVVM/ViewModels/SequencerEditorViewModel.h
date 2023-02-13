@@ -17,6 +17,8 @@ namespace Sequencer
 {
 
 class FSequenceModel;
+class STrackAreaView;
+struct ITrackAreaHotspot;
 
 /**
  * Main view-model for the Sequencer editor.
@@ -37,18 +39,31 @@ public:
 	// @todo_sequencer_mvvm move this to the root view-model
 	void SetSequence(UMovieSceneSequence* InRootSequence);
 
+	/** Gets the pinned track area view-model. */
+	TSharedPtr<FTrackAreaViewModel> GetPinnedTrackArea() const;
+
+	/** Gets the current hotspots across any of our track areas */
+	TSharedPtr<ITrackAreaHotspot> GetHotspot() const;
+
 protected:
 
 	virtual void PreInitializeEditorImpl() override;
+	virtual void InitializeEditorImpl() override;
 	virtual TSharedPtr<FViewModel> CreateRootModelImpl() override;
 	virtual TSharedPtr<FOutlinerViewModel> CreateOutlinerImpl() override;
 	virtual TSharedPtr<FTrackAreaViewModel> CreateTrackAreaImpl() override;
 	virtual bool IsReadOnly() const override;
 
+	void OnTrackAreaHotspotChanged(TSharedPtr<ITrackAreaHotspot> NewHotspot);
+
 protected:
 
 	TWeakPtr<ISequencer> WeakSequencer;
+	TSharedPtr<FTrackAreaViewModel> PinnedTrackArea;
 	bool bSupportsCurveEditor;
+
+	/** The current hotspot, from any of our track areas */
+	TSharedPtr<ITrackAreaHotspot> CurrentHotspot;
 };
 
 } // namespace Sequencer

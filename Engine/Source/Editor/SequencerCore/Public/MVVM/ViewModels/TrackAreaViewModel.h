@@ -25,6 +25,8 @@ class FEditorViewModel;
 class ISequencerEditTool;
 struct ITrackAreaHotspot;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTrackAreaHotspotChanged, TSharedPtr<ITrackAreaHotspot>);
+
 class SEQUENCERCORE_API FTrackAreaViewModel
 	: public FViewModel
 {
@@ -60,6 +62,9 @@ public:
 	/** Set whether the hotspot is locked and cannot be changed (ie when a menu is open) */
 	void LockHotspot(bool bIsLocked);
 
+	/** Get the callback that is fired when the current hotspot changes */
+	FOnTrackAreaHotspotChanged& GetOnHotspotChangedDelegate();
+
 	void AddEditTool(TSharedPtr<ISequencerEditTool> InNewTool);
 
 	/** Access the currently active track area edit tool */
@@ -77,6 +82,9 @@ protected:
 
 	/** The current hotspot that can be set from anywhere to initiate drags */
 	TArray<TSharedPtr<ITrackAreaHotspot>> HotspotStack;
+
+	/** The delegate that is fired when the current hotspot changes */
+	FOnTrackAreaHotspotChanged OnHotspotChangedDelegate;
 
 	/** The currently active edit tools on this track area */
 	TArray<TSharedPtr<ISequencerEditTool>> EditTools;

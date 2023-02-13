@@ -5,6 +5,7 @@
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "Editor.h"
 #include "Fonts/FontMeasure.h"
+#include "MVVM/Views/STrackAreaView.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/AppStyle.h"
 #include "SequencerCommonHelpers.h"
@@ -24,8 +25,9 @@
 const FName FSequencerEditTool_Movement::Identifier = "Movement";
 
 
-FSequencerEditTool_Movement::FSequencerEditTool_Movement(FSequencer& InSequencer)
+FSequencerEditTool_Movement::FSequencerEditTool_Movement(FSequencer& InSequencer, UE::Sequencer::STrackAreaView& InTrackArea)
 	: FSequencerEditTool(InSequencer)
+	, TrackArea(InTrackArea)
 	, CursorDecorator(nullptr)
 { }
 
@@ -36,13 +38,14 @@ FReply FSequencerEditTool_Movement::OnMouseButtonDown(SWidget& OwnerWidget, cons
 
 	TSharedRef<SSequencer> SequencerWidget = StaticCastSharedRef<SSequencer>(Sequencer.GetSequencerWidget());
 
-	TSharedPtr<ITrackAreaHotspot> Hotspot = Sequencer.GetViewModel()->GetTrackArea()->GetHotspot();
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = TrackArea.GetViewModel();
+	TSharedPtr<ITrackAreaHotspot> Hotspot = TrackAreaViewModel->GetHotspot();
 
 	DelayedDrag.Reset();
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton || MouseEvent.GetEffectingButton() == EKeys::MiddleMouseButton)
 	{
-		const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea();
+		const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea(&TrackArea);
 
 		DelayedDrag = FDelayedDrag_Hotspot(VirtualTrackArea.CachedTrackAreaGeometry().AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()), MouseEvent.GetEffectingButton(), Hotspot);
 
@@ -75,7 +78,7 @@ FReply FSequencerEditTool_Movement::OnMouseMove(SWidget& OwnerWidget, const FGeo
 	if (DelayedDrag.IsSet())
 	{
 		TSharedRef<SSequencer> SequencerWidget = StaticCastSharedRef<SSequencer>(Sequencer.GetSequencerWidget());
-		const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea();
+		const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea(&TrackArea);
 
 		FReply Reply = FReply::Handled();
 
@@ -286,13 +289,13 @@ FReply FSequencerEditTool_Movement::OnMouseButtonUp(SWidget& OwnerWidget, const 
 
 	DelayedDrag.Reset();
 
-	TSharedPtr<FTrackAreaViewModel> TrackArea = Sequencer.GetViewModel()->GetTrackArea();
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = TrackArea.GetViewModel();
 
 	if (DragOperation.IsValid())
 	{
 		TSharedRef<SSequencer> SequencerWidget = StaticCastSharedRef<SSequencer>(Sequencer.GetSequencerWidget());
 
-		DragOperation->OnEndDrag(MouseEvent, MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()), SequencerWidget->GetVirtualTrackArea());
+		DragOperation->OnEndDrag(MouseEvent, MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()), SequencerWidget->GetVirtualTrackArea(&TrackArea));
 		DragOperation = nullptr;
 
 		if (MouseEvent.GetEffectingButton() == EKeys::MiddleMouseButton)
@@ -324,18 +327,18 @@ FReply FSequencerEditTool_Movement::OnMouseButtonUp(SWidget& OwnerWidget, const 
 				);
 
 			// Lock the hotspot while the menu is open
-			TrackArea->LockHotspot(true);
+			TrackAreaViewModel->LockHotspot(true);
 
 			// Unlock and reset the hotspot when the menu closes
 			{
-				TSharedPtr<ITrackAreaHotspot> ExistingHotspot = TrackArea->GetHotspot();
+				TSharedPtr<ITrackAreaHotspot> ExistingHotspot = TrackAreaViewModel->GetHotspot();
 				Menu->GetOnMenuDismissed().AddLambda(
-					[TrackArea, ExistingHotspot](TSharedRef<IMenu>)
+					[TrackAreaViewModel, ExistingHotspot](TSharedRef<IMenu>)
 					{
-						TrackArea->LockHotspot(false);
-						if (TrackArea->GetHotspot() == ExistingHotspot)
+						TrackAreaViewModel->LockHotspot(false);
+						if (TrackAreaViewModel->GetHotspot() == ExistingHotspot)
 						{
-							TrackArea->SetHotspot(nullptr);
+							TrackAreaViewModel->SetHotspot(nullptr);
 						}
 					}
 				);
@@ -398,7 +401,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 				const float MousePadding = 20.0f;
 
 				// calculate draw position
-				const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea();
+				const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea(&TrackArea);
 				const float HorizontalDelta = DragPosition.X - DelayedDrag->GetInitialPosition().X;
 				const float InitialY = DelayedDrag->GetInitialPosition().Y;
 
@@ -494,10 +497,10 @@ void FSequencerEditTool_Movement::UpdateCursorDecorator(const FGeometry& MyGeome
 	using namespace UE::Sequencer;
 
 	DragPosition = MyGeometry.AbsoluteToLocal(CursorEvent.GetScreenSpacePosition());
-	TSharedPtr<FTrackAreaViewModel> TrackArea = Sequencer.GetViewModel()->GetTrackArea();
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = TrackArea.GetViewModel();
 	TSharedPtr<ITrackAreaHotspot> Hotspot = DelayedDrag.IsSet()
 		? DelayedDrag->Hotspot
-		: TrackArea->GetHotspot();
+		: TrackAreaViewModel->GetHotspot();
 
 	if (Hotspot.IsValid())
 	{

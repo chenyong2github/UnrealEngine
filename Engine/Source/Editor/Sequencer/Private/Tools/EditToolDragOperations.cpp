@@ -619,7 +619,8 @@ FMoveKeysAndSections::FMoveKeysAndSections(FSequencer& InSequencer, ESequencerMo
 {
 	using namespace UE::Sequencer;
 
-	bAllowVerticalMovement = HotspotCast<FSectionHotspotBase>(InSequencer.GetViewModel()->GetTrackArea()->GetHotspot()) != nullptr;
+	TSharedPtr<FSequencerEditorViewModel> SequencerViewModel = InSequencer.GetViewModel()->CastThisShared<FSequencerEditorViewModel>();
+	bAllowVerticalMovement = HotspotCast<FSectionHotspotBase>(SequencerViewModel->GetHotspot()) != nullptr;
 
 	if (EnumHasAnyFlags(MoveType, ESequencerMoveOperationType::MoveKeys))
 	{

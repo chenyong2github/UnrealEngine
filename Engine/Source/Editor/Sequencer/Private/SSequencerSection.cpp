@@ -73,20 +73,21 @@ FTimeToPixel ConstructTimeConverterForSection(const FGeometry& InSectionGeometry
 
 struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 {
-	FSequencerSectionPainterImpl(FSequencer& InSequencer, TSharedPtr<FSectionModel> InSection, FSlateWindowElementList& _OutDrawElements, const FGeometry& InSectionGeometry, const SSequencerSection& InSectionWidget)
+	FSequencerSectionPainterImpl(FSequencer& InSequencer, TSharedPtr<FTrackAreaViewModel> InTrackAreaViewModel, TSharedPtr<FSectionModel> InSection, FSlateWindowElementList& _OutDrawElements, const FGeometry& InSectionGeometry, const SSequencerSection& InSectionWidget)
 		: FSequencerSectionPainter(_OutDrawElements, InSectionGeometry, InSection)
 		, Sequencer(InSequencer)
 		, SectionWidget(InSectionWidget)
 		, TimeToPixelConverter(ConstructTimeConverterForSection(SectionGeometry, *InSection->GetSection(), Sequencer))
+		, TrackAreaViewModel(InTrackAreaViewModel)
 		, bClipRectEnabled(false)
 	{
 		CalculateSelectionColor();
 
-		const ISequencerEditTool* EditTool = InSequencer.GetViewModel()->GetTrackArea()->GetEditTool();
+		const ISequencerEditTool* EditTool = TrackAreaViewModel->GetEditTool();
 		Hotspot = EditTool ? EditTool->GetDragHotspot() : nullptr;
 		if (!Hotspot)
 		{
-			Hotspot = InSequencer.GetViewModel()->GetTrackArea()->GetHotspot();
+			Hotspot = TrackAreaViewModel->GetHotspot();
 		}
 	}
 
@@ -823,6 +824,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 	FSequencer& Sequencer;
 	const SSequencerSection& SectionWidget;
 	FTimeToPixel TimeToPixelConverter;
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel;
 	TSharedPtr<ITrackAreaHotspot> Hotspot;
 
 	/** The clipping rectangle of the parent widget */
@@ -884,9 +886,10 @@ void SSequencerSection::Construct( const FArguments& InArgs, TSharedPtr<FSequenc
 
 SSequencerSection::~SSequencerSection()
 {
-	if (Sequencer.IsValid() && GetSequencer().GetViewModel() && GetSequencer().GetViewModel()->GetTrackArea())
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = GetTrackAreaViewModel();
+	if (TrackAreaViewModel.IsValid())
 	{
-		GetSequencer().GetViewModel()->GetTrackArea()->SetHotspot(nullptr);
+		TrackAreaViewModel->SetHotspot(nullptr);
 	}
 }
 
@@ -1097,6 +1100,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 		}
 	}
 
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = GetTrackAreaViewModel();
 	for (const TSharedPtr<FSectionModel>& SectionModel : AllUnderlappingSections)
 	{
 		UMovieSceneSection* EasingSectionObj = SectionModel->GetSection();
@@ -1108,7 +1112,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 
 			if (FMath::IsNearlyEqual(MouseTime, HandlePositionIn, HalfHandleSizeX))
 			{
-				GetSequencer().GetViewModel()->GetTrackArea()->SetHotspot(MakeShared<FSectionEasingHandleHotspot>(ESequencerEasingType::In, SectionModel, Sequencer));
+				TrackAreaViewModel->SetHotspot(MakeShared<FSectionEasingHandleHotspot>(ESequencerEasingType::In, SectionModel, Sequencer));
 				return true;
 			}
 		}
@@ -1120,7 +1124,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 
 			if (FMath::IsNearlyEqual(MouseTime, HandlePositionOut, HalfHandleSizeX))
 			{
-				GetSequencer().GetViewModel()->GetTrackArea()->SetHotspot(MakeShared<FSectionEasingHandleHotspot>(ESequencerEasingType::Out, SectionModel, Sequencer));
+				TrackAreaViewModel->SetHotspot(MakeShared<FSectionEasingHandleHotspot>(ESequencerEasingType::Out, SectionModel, Sequencer));
 				return true;
 			}
 		}
@@ -1138,11 +1142,12 @@ bool SSequencerSection::CheckForEdgeInteraction( const FPointerEvent& MouseEvent
 		return false;
 	}
 
-	const ISequencerEditTool* EditTool = GetSequencer().GetViewModel()->GetTrackArea()->GetEditTool();
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = GetTrackAreaViewModel();
+	const ISequencerEditTool* EditTool = TrackAreaViewModel->GetEditTool();
 	TSharedPtr<ITrackAreaHotspot> Hotspot = EditTool ? EditTool->GetDragHotspot() : nullptr;
 	if (!Hotspot)
 	{
-		Hotspot = GetSequencer().GetViewModel()->GetTrackArea()->GetHotspot();
+		Hotspot = TrackAreaViewModel->GetHotspot();
 	}
 
 	if (Hotspot && !Hotspot->IsA<FSectionHotspotBase>())
@@ -1185,7 +1190,7 @@ bool SSequencerSection::CheckForEdgeInteraction( const FPointerEvent& MouseEvent
 
 			if( SectionRectLeft.IsUnderLocation( MouseEvent.GetScreenSpacePosition() ) )
 			{
-				GetSequencer().GetViewModel()->GetTrackArea()->SetHotspot(MakeShareable( new FSectionResizeHotspot(FSectionResizeHotspot::Left, UnderlappingSection, Sequencer)) );
+				TrackAreaViewModel->SetHotspot(MakeShareable( new FSectionResizeHotspot(FSectionResizeHotspot::Left, UnderlappingSection, Sequencer)) );
 				return true;
 			}
 		}
@@ -1199,7 +1204,7 @@ bool SSequencerSection::CheckForEdgeInteraction( const FPointerEvent& MouseEvent
 
 			if( SectionRectRight.IsUnderLocation( MouseEvent.GetScreenSpacePosition() ) )
 			{
-				GetSequencer().GetViewModel()->GetTrackArea()->SetHotspot(MakeShareable( new FSectionResizeHotspot(FSectionResizeHotspot::Right, UnderlappingSection, Sequencer)) );
+				TrackAreaViewModel->SetHotspot(MakeShareable( new FSectionResizeHotspot(FSectionResizeHotspot::Right, UnderlappingSection, Sequencer)) );
 				return true;
 			}
 		}
@@ -1230,6 +1235,7 @@ bool SSequencerSection::CheckForEasingAreaInteraction( const FPointerEvent& Mous
 	const FFrameNumber MouseTime = TimeToPixelConverter.PixelToFrame(LocalMousePos.X).FrameNumber;
 
 	// First off, set the hotspot to an easing area if necessary
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = GetTrackAreaViewModel();
 	for (const FOverlappingSections& Segment : UnderlappingEasingSegments)
 	{
 		if (!Segment.Range.Contains(MouseTime))
@@ -1253,7 +1259,7 @@ bool SSequencerSection::CheckForEasingAreaInteraction( const FPointerEvent& Mous
 
 		if (EasingAreas.Num())
 		{
-			GetSequencer().GetViewModel()->GetTrackArea()->SetHotspot(MakeShared<FSectionEasingAreaHotspot>(EasingAreas, WeakSectionModel, Sequencer));
+			TrackAreaViewModel->SetHotspot(MakeShared<FSectionEasingAreaHotspot>(EasingAreas, WeakSectionModel, Sequencer));
 			return true;
 		}
 	}
@@ -1265,6 +1271,24 @@ FSequencer& SSequencerSection::GetSequencer() const
 	return *Sequencer.Pin().Get();
 }
 
+TSharedPtr<STrackAreaView> SSequencerSection::GetTrackAreaView() const
+{
+	if (TSharedPtr<STrackLane> OwningTrackLane = WeakOwningTrackLane.Pin())
+	{
+		return OwningTrackLane->GetTrackAreaView();
+	}
+	return nullptr;
+}
+
+TSharedPtr<FTrackAreaViewModel> SSequencerSection::GetTrackAreaViewModel() const
+{
+	if (TSharedPtr<STrackAreaView> TrackAreaView = GetTrackAreaView())
+	{
+		return TrackAreaView->GetViewModel();
+	}
+	return nullptr;
+}
+
 int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
 {
 	TSharedPtr<FSectionModel> SectionModel = WeakSectionModel.Pin();
@@ -1274,11 +1298,12 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 		return LayerId;
 	}
 
-	const ISequencerEditTool* EditTool = GetSequencer().GetViewModel()->GetTrackArea()->GetEditTool();
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = GetTrackAreaViewModel();
+	const ISequencerEditTool* EditTool = TrackAreaViewModel->GetEditTool();
 	TSharedPtr<ITrackAreaHotspot> Hotspot = EditTool ? EditTool->GetDragHotspot() : nullptr;
 	if (!Hotspot)
 	{
-		Hotspot = GetSequencer().GetViewModel()->GetTrackArea()->GetHotspot();
+		Hotspot = TrackAreaViewModel->GetHotspot();
 	}
 
 	UMovieSceneTrack* Track = SectionObject->GetTypedOuter<UMovieSceneTrack>();
@@ -1289,7 +1314,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 
 	FGeometry SectionGeometry = MakeSectionGeometryWithoutHandles( AllottedGeometry, SectionInterface );
 
-	FSequencerSectionPainterImpl Painter(GetSequencer(), SectionModel, OutDrawElements, SectionGeometry, *this);
+	FSequencerSectionPainterImpl Painter(GetSequencer(), TrackAreaViewModel, SectionModel, OutDrawElements, SectionGeometry, *this);
 
 	FGeometry PaintSpaceParentGeometry = ParentGeometry;
 	PaintSpaceParentGeometry.AppendTransform(FSlateLayoutTransform(Inverse(Args.GetWindowToDesktopTransform())));
@@ -1787,7 +1812,8 @@ FReply SSequencerSection::OnMouseMove( const FGeometry& MyGeometry, const FPoint
 		!CheckForEasingAreaInteraction(MouseEvent, MyGeometry))
 	{
 		// If nothing was hit, we just hit the section
-		GetSequencer().GetViewModel()->GetTrackArea()->SetHotspot( MakeShareable( new FSectionHotspot(WeakSectionModel, Sequencer)) );
+		TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = GetTrackAreaViewModel();
+		TrackAreaViewModel->SetHotspot( MakeShareable( new FSectionHotspot(WeakSectionModel, Sequencer)) );
 	}
 
 	return FReply::Unhandled();
@@ -1802,7 +1828,8 @@ void SSequencerSection::OnMouseLeave( const FPointerEvent& MouseEvent )
 {
 	SCompoundWidget::OnMouseLeave( MouseEvent );
 
-	GetSequencer().GetViewModel()->GetTrackArea()->SetHotspot(nullptr);
+	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = GetTrackAreaViewModel();
+	TrackAreaViewModel->SetHotspot(nullptr);
 }
 
 static float SectionThrobDurationSeconds = 1.f;

@@ -26,6 +26,7 @@ class FLayerBarModel;
 class FSequencerEditorViewModel;
 class FViewModel;
 class ILayerBarExtension;
+class STrackAreaView;
 
 class SSequencerLayerBar
 	: public SCompoundWidget
@@ -35,7 +36,7 @@ public:
 	SLATE_BEGIN_ARGS(SSequencerLayerBar) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TWeakPtr<FSequencerEditorViewModel> InWeakEditor, TWeakPtr<FLayerBarModel> InWeakLayerBar);
+	void Construct(const FArguments& InArgs, TWeakPtr<STrackAreaView> InWeakTrackArea, TWeakPtr<FSequencerEditorViewModel> InWeakEditor, TWeakPtr<FLayerBarModel> InWeakLayerBar);
 
 	TSharedPtr<FLayerBarModel> GetLayerBarModel() const;
 	TSharedPtr<FSequencer> GetSequencer() const;
@@ -61,6 +62,7 @@ private:
 
 	TWeakPtr<FLayerBarModel> WeakLayerBar;
 	TWeakPtr<FSequencerEditorViewModel> WeakEditor;
+	TWeakPtr<STrackAreaView> WeakTrackArea;
 };
 
 } // namespace Sequencer

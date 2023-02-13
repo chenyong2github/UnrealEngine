@@ -209,7 +209,8 @@ void SequencerHelpers::PerformDefaultSelection(FSequencer& Sequencer, const FPoi
 
 	// @todo: selection in transactions
 	FHotspotSelectionManager SelectionManager(&MouseEvent, &Sequencer);
-	TSharedPtr<ITrackAreaHotspot> Hotspot = Sequencer.GetViewModel()->GetTrackArea()->GetHotspot();
+	TSharedPtr<FSequencerEditorViewModel> SequencerViewModel = Sequencer.GetViewModel()->CastThisShared<FSequencerEditorViewModel>();
+	TSharedPtr<ITrackAreaHotspot> Hotspot = SequencerViewModel->GetHotspot();
 	if (TSharedPtr<IMouseHandlerHotspot> MouseHandler = HotspotCast<IMouseHandlerHotspot>(Hotspot))
 	{
 		MouseHandler->HandleMouseSelection(SelectionManager);
@@ -243,7 +244,8 @@ TSharedPtr<SWidget> SequencerHelpers::SummonContextMenu(FSequencer& Sequencer, c
 
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, Sequencer.GetCommandBindings(), MenuExtender, false, &FCoreStyle::Get(), true, NAME_None, bInRecursivelySearchable);
 
-	TSharedPtr<ITrackAreaHotspot> Hotspot = Sequencer.GetViewModel()->GetTrackArea()->GetHotspot();
+	TSharedPtr<FSequencerEditorViewModel> SequencerViewModel = Sequencer.GetViewModel()->CastThisShared<FSequencerEditorViewModel>();
+	TSharedPtr<ITrackAreaHotspot> Hotspot = SequencerViewModel->GetHotspot();
 
 	if (Hotspot.IsValid() && Hotspot->PopulateContextMenu(MenuBuilder, MenuExtender, PasteAtTime))
 	{

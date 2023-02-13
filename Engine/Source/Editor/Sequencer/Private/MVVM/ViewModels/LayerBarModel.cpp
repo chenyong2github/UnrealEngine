@@ -9,6 +9,7 @@
 #include "MVVM/ViewModels/EditorViewModel.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/Views/STrackLane.h"
 #include "Math/RangeBound.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/FrameNumber.h"
@@ -77,7 +78,7 @@ void FLayerBarModel::OnExtensionsDirtied()
 
 TSharedPtr<ITrackLaneWidget> FLayerBarModel::CreateTrackLaneView(const FCreateTrackLaneViewParams& InParams)
 {
-	return SNew(SSequencerLayerBar, InParams.Editor->CastThisSharedChecked<FSequencerEditorViewModel>(), SharedThis(this));
+	return SNew(SSequencerLayerBar, InParams.OwningTrackLane->GetTrackAreaView(), InParams.Editor->CastThisSharedChecked<FSequencerEditorViewModel>(), SharedThis(this));
 }
 
 FTrackLaneVirtualAlignment FLayerBarModel::ArrangeVirtualTrackLaneView() const
