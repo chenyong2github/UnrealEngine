@@ -569,6 +569,13 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GSupportsSeparateRenderTargetBlendState = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
 
 	GRHISupportsPipelineFileCache = true;
+	
+	// Appears to be no queryable value for max texture_buffer size and its not specified in the docs.  However,
+	// current testing across Apple Silicon macs, AMD and iPhone all quote a max value of 268435456 (1 << 28)
+	// from the Metal validation layer.  For certain pixel formats this appears to be larger than max buffer
+	// size on some devices.  Due to the way we are using texture_buffers allocated from a backing buffer,
+	// keep this safe by using a step down.  This is the current default value anyway but set here too in case that changes.
+	GMaxBufferDimensions = 1 << 27;
 
 #if PLATFORM_MAC
 	check(Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v1));

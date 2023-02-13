@@ -156,7 +156,7 @@ FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMeta
 	
 	if (InSize)
 	{
-		checkf(InSize <= 1024 * 1024 * 1024, TEXT("Metal doesn't support buffers > 1GB"));
+		checkf(InSize <= [GetMetalDeviceContext().GetDevice().GetPtr() maxBufferLength], TEXT("Requested buffer size larger than supported by device."));
 		
 		// Temporary buffers less than the buffer page size - currently 4Kb - is better off going through the set*Bytes API if available.
 		// These can't be used for shader resources or UAVs if we want to use the 'Linear Texture' code path
