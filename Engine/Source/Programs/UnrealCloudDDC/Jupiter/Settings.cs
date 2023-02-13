@@ -177,6 +177,8 @@ namespace Jupiter
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Modified by settings")]
         // ReSharper disable once CollectionNeverUpdated.Global
         public Dictionary<string, string> StoragePoolBucketOverride { get; set; } = new Dictionary<string, string>();
+
+        public bool? UseArnRegion { get; set; } = null;
     }
 
     public class GCSettings

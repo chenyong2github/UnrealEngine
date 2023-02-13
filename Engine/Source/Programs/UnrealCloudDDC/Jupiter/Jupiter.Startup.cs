@@ -473,6 +473,11 @@ namespace Jupiter
                     {
                         c.ForcePathStyle = true;
                     }
+
+                    if (s3Settings.UseArnRegion.HasValue)
+                    {
+                        c.UseArnRegion = s3Settings.UseArnRegion.Value;
+                    }
                 }
                 else
                 {
