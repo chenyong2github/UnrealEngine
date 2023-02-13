@@ -83,8 +83,5 @@ bool FPCGIntersectionElement::ExecuteInternal(FPCGContext* Context) const
 		IntersectionTaggedData.Tags.Append(Input.Tags);
 	}
 
-	// Pass-through settings & exclusions
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	return true;
 }

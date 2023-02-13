@@ -33,9 +33,6 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	const float SettingsRemapMin = Settings->RemapMin;
 	const float SettingsRemapMax = Settings->RemapMax;
 	const bool bMultiplyDensity = Settings->bMultiplyDensity;

@@ -85,8 +85,5 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 		}
 	}
 
-	// Pass-through settings
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	return true;
 }

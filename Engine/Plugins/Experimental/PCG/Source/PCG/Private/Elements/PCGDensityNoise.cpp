@@ -86,8 +86,5 @@ bool FPCGDensityNoiseElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	});
 
-	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	return true;
 }

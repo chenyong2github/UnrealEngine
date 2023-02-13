@@ -40,9 +40,6 @@ bool FPCGWorldVolumetricQueryElement::ExecuteInternal(FPCGContext* Context) cons
 	FPCGTaggedData& Output = Context->OutputData.TaggedData.Emplace_GetRef();
 	Output.Data = Data;
 
-	// Pass-through settings & exclusions
-	Context->OutputData.TaggedData.Append(Context->InputData.GetAllSettings());
-
 	return true;
 }
 
@@ -106,9 +103,6 @@ bool FPCGWorldRayHitQueryElement::ExecuteInternal(FPCGContext* Context) const
 
 	FPCGTaggedData& Output = Context->OutputData.TaggedData.Emplace_GetRef();
 	Output.Data = Data;
-
-	// Pass-through settings & exclusions
-	Context->OutputData.TaggedData.Append(Context->InputData.GetAllSettings());
 
 	return true;
 }

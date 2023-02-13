@@ -85,8 +85,5 @@ bool FPCGUnionElement::ExecuteInternal(FPCGContext* Context) const
 		UnionTaggedData.Data = UnionData;
 	}
 
-	// Finally, pass-through settings
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	return true;
 }

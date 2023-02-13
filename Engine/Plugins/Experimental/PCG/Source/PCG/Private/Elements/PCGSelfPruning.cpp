@@ -237,9 +237,6 @@ namespace PCGSelfPruningElement
 				PCGE_LOG_C(Verbose, Context, "Generated %d points from %d source points", OutputPoints.Num(), Points.Num());
 			}
 		}
-
-		// Finally, forward any settings
-		Outputs.Append(Context->InputData.GetAllSettings());
 	}
 }
 

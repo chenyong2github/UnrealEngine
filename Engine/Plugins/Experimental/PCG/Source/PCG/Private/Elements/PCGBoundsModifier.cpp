@@ -121,8 +121,6 @@ bool FPCGBoundsModifier::ExecuteInternal(FPCGContext* Context) const
 		break;
 	}
 
-	Outputs.Append(Context->InputData.GetAllSettings());
-	
 	return true;
 }
 

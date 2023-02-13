@@ -31,9 +31,6 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	// Forward any non-input data, excluding params
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	const float Ratio = Settings->Ratio;
 #if WITH_EDITOR
 	const bool bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;

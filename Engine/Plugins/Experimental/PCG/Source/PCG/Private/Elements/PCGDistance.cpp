@@ -189,8 +189,5 @@ bool FPCGDistanceElement::ExecuteInternal(FPCGContext* Context) const
 		);		
 	}
 
-	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetAllSettings());
 	return true;
-
 }

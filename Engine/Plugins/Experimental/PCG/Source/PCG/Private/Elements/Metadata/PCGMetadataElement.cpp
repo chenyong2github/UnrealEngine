@@ -74,9 +74,6 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	for (const FPCGTaggedData& Input : Inputs)
 	{
 		FPCGTaggedData& Output = Outputs.Add_GetRef(Input);

@@ -205,7 +205,4 @@ void FPCGDifferenceElement::LabellessProcessing(FPCGContext* Context) const
 
 		AddToDifference(SpatialData);
 	}
-
-	// Finally, pass-through settings
-	Outputs.Append(Context->InputData.GetAllSettings());
 }

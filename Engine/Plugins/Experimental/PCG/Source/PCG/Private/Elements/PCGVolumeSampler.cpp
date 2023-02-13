@@ -228,9 +228,6 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		}
 	}
 
-	// Finally, forward any settings
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	return true;
 }
 

@@ -407,9 +407,6 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		Outputs[GenerationIndex].Data = PCGSurfaceSampler::SampleSurface(Context, GeneratingShape, BoundingShapeSpatialInput, LoopData);
 	}
 
-	// Finally, forward any exclusions/settings
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	return true;
 }
 

@@ -53,9 +53,6 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 #if WITH_EDITOR
 	// In editor, we always want to generate this data for inspection & to prevent caching issues
 	const bool bGenerateOutput = true;

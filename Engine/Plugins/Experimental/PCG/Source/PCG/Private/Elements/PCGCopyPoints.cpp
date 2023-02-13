@@ -215,9 +215,5 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 	OutPointData->Metadata->AddDelayedEntries(AllMetadataEntries);
 
-	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	return true;
 }
-

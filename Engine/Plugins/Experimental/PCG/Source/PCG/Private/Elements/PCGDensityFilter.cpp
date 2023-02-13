@@ -25,9 +25,6 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	const bool bInvertFilter = Settings->bInvertFilter;
 	const float LowerBound = Settings->LowerBound;
 	const float UpperBound = Settings->UpperBound;

@@ -95,9 +95,6 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 		ProjectionTaggedData.Tags.Append(Targets[0].Tags);
 	}
 
-	// Pass-through exclusions/settings
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	return true;
 }
 

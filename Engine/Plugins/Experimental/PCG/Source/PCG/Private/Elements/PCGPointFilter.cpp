@@ -198,9 +198,6 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 	TArray<FPCGTaggedData> FilterData = Context->InputData.GetInputsByPin(PCGPointFilterConstants::FilterLabel);
 
-	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	const EPCGPointFilterOperator Operator = Settings->Operator;
 	const bool bUseConstantThreshold = Settings->bUseConstantThreshold;
 	// If the filter is a param data, disable bUseSpatialQuery. Therefore make it non-const, to be modified below.

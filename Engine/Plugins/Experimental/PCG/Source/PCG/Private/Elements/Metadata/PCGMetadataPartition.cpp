@@ -25,9 +25,6 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetAllSettings());
-
 	const FName PartitionAttribute = Settings->PartitionAttribute;
 
 	for (const FPCGTaggedData& Input : Inputs)
