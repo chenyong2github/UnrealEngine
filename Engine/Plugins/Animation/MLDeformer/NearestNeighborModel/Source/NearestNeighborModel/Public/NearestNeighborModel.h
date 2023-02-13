@@ -239,6 +239,7 @@ public:
 	virtual int32 GetNumFloatsPerCurve() const override { return NearestNeighborNumFloatsPerCurve; }
 
 	bool DoesUseOptimizedNetwork() const;
+	bool DoesMeetOptimizedNetworkPrerequisites() const;
 	UNearestNeighborOptimizedNetwork* GetOptimizedNetwork() const { return OptimizedNetwork.Get(); }
 	int32 GetOptimizedNetworkNumOutputs() const;
 	void SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InOptimizedNetwork);
@@ -273,6 +274,8 @@ public:
 	bool IsClothPartDataValid() const { return bClothPartDataValid; }
 	bool IsNearestNeighborDataValid() const { return bNearestNeighborDataValid; }
 	bool IsMorphTargetDataValid() const { return bMorphTargetDataValid; }
+	bool DoesEditorSupportOptimizedNetwork() const;
+	void SetUseOptimizedNetwork(bool bInUseOptimizedNetwork);
 #endif
 
 #if WITH_EDITOR
@@ -430,4 +433,10 @@ public:
 	/** The NNI neural network. */
 	UPROPERTY()
 	TObjectPtr<UNeuralNetwork> NNINetwork;
+
+	UPROPERTY()
+	bool bDoesMeetOptimizedNetworkPrerequisites = false;
+
+	UPROPERTY()
+	bool bUseOptimizedNetwork = true;
 };

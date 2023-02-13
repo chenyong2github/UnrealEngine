@@ -47,6 +47,7 @@ UNearestNeighborModel::UNearestNeighborModel(const FObjectInitializer& ObjectIni
 {
 #if WITH_EDITORONLY_DATA
 	SetVizSettings(ObjectInitializer.CreateEditorOnlyDefaultSubobject<UNearestNeighborModelVizSettings>(this, TEXT("VizSettings")));
+	bDoesMeetOptimizedNetworkPrerequisites = DoesMeetOptimizedNetworkPrerequisites();
 #endif
 }
 
@@ -447,6 +448,20 @@ FString UNearestNeighborModel::GetModelDir() const
 		return FPaths::ProjectIntermediateDir() + TEXT("NearestNeighborModel/");
 	}
 }
+
+bool UNearestNeighborModel::DoesEditorSupportOptimizedNetwork() const
+{
+#if NEARESTNEIGHBORMODEL_USE_ISPC
+	return bDoesMeetOptimizedNetworkPrerequisites && UE::NearestNeighborModel::bNearestNeighborModelUseOptimizedNetwork;
+#else
+	return false;
+#endif
+}
+
+void UNearestNeighborModel::SetUseOptimizedNetwork(bool bInUseOptimizedNetwork)
+{
+	bUseOptimizedNetwork = bInUseOptimizedNetwork;
+}
 #endif
 
 void UNearestNeighborModel::InitInputInfo()
@@ -470,13 +485,10 @@ void UNearestNeighborModel::SetOptimizedNetwork(UNearestNeighborOptimizedNetwork
 	OptimizedNetwork = InOptimizedNetwork;
 }
 
+
 bool UNearestNeighborModel::DoesUseOptimizedNetwork() const
 {
-#if NEARESTNEIGHBORMODEL_USE_ISPC
-	return UE::NearestNeighborModel::bNearestNeighborModelUseOptimizedNetwork;
-#else
-	return false;
-#endif
+	return bUseOptimizedNetwork;
 }
 
 /**
@@ -529,6 +541,16 @@ bool UNearestNeighborModel::LoadOptimizedNetwork(const FString& OnnxPath)
 int32 UNearestNeighborModel::GetOptimizedNetworkNumOutputs() const
 {
 	return OptimizedNetwork ? OptimizedNetwork->GetNumOutputs() : 0;
+}
+
+bool UNearestNeighborModel::DoesMeetOptimizedNetworkPrerequisites() const
+{
+	UNearestNeighborOptimizedNetworkLoader* Loader = GetDerivedCDO<UNearestNeighborOptimizedNetworkLoader>();
+	if (Loader != nullptr)
+	{
+		return Loader->DoesMeetPrerequisites();
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

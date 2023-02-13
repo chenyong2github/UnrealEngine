@@ -130,9 +130,11 @@ namespace UE::NearestNeighborModel
 			UNeuralNetwork* Network = LoadNeuralNetworkFromOnnx(OnnxFile);
 			if (Network)
 			{
-				if (NearestNeighborModel->DoesUseOptimizedNetwork())
+				if (NearestNeighborModel->DoesEditorSupportOptimizedNetwork())
 				{
+					// We still need NNINetwork for serialization in nearest neighbor update and kmeans update.
 					NearestNeighborModel->SetNNINetwork(Network);
+
 					const bool bSuccess = NearestNeighborModel->LoadOptimizedNetwork(OnnxFile);
 					if (bSuccess)
 					{
@@ -143,10 +145,12 @@ namespace UE::NearestNeighborModel
 							return true;
 						}
 					}
+					NearestNeighborModel->SetUseOptimizedNetwork(true);
 				}
 				else
 				{
 					NearestNeighborModel->SetNNINetwork(Network);
+					NearestNeighborModel->SetUseOptimizedNetwork(false);
 					return true;
 				}
 			}
@@ -274,8 +278,8 @@ namespace UE::NearestNeighborModel
 	void FNearestNeighborEditorModel::InitInputInfo(UMLDeformerInputInfo* InputInfo)
 	{
 		FMLDeformerEditorModel::InitInputInfo(InputInfo);
-		UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
-		NearestNeighborModel->InitInputInfo();
+		UNearestNeighborModelInputInfo* NearestNeighborInputInfo = static_cast<UNearestNeighborModelInputInfo*>(InputInfo);
+		NearestNeighborInputInfo->InitRefBoneRotations(Model->GetSkeletalMesh());
 	}
 
 	ETrainingResult FNearestNeighborEditorModel::Train()
@@ -718,9 +722,9 @@ namespace UE::NearestNeighborModel
 		MorphTargetUpdateResult = EUpdateResult::SUCCESS;
 
 		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
-		// Convert NNI network to  optimized network
+		// Automatic converting NNI network to optimized network
 		const UNeuralNetwork* NeuralNetwork = NearestNeighborModel->GetNNINetwork();
-		if (NearestNeighborModel->DoesUseOptimizedNetwork() && NeuralNetwork != nullptr && NearestNeighborModel->GetOptimizedNetwork() == nullptr)
+		if (NearestNeighborModel->DoesEditorSupportOptimizedNetwork() && NeuralNetwork != nullptr && NearestNeighborModel->GetOptimizedNetwork() == nullptr)
 		{
 			const FString SavePath = GetTrainedNetworkOnnxFile();
 			UE_LOG(LogNearestNeighborModel, Display, TEXT("Saving to %s"), *SavePath);
@@ -903,6 +907,12 @@ namespace UE::NearestNeighborModel
 
 		if (NearestNeighborModel->DoesUseOptimizedNetwork())
 		{
+			if (NearestNeighborModel->GetOptimizedNetwork() == nullptr)
+			{
+				UE_LOG(LogNearestNeighborModel, Warning, TEXT("Optimized network is not set. Model needs to be re-trained."));
+				return EUpdateResult::WARNING;
+			}
+
 			const int32 NumNetworkWeights = NearestNeighborModel->GetOptimizedNetworkNumOutputs();
 			const int32 NumPCACoeffs = NearestNeighborModel->GetTotalNumPCACoeffs();
 			if (NumNetworkWeights != NumPCACoeffs)

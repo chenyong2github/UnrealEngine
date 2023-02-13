@@ -20,6 +20,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Nearest Neighbor Model")
 	bool LoadOptimizedNetwork(const FString& OnnxPath);
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Nearest Neighbor Model")
+	bool DoesMeetPrerequisites() const;
+
 	void SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InNetwork);
 
 	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
