@@ -89,7 +89,9 @@ namespace UE::ProxyTableEditor
 		void MoveRow(int SourceRowIndex, int TargetIndex);
 	private:
 
-		FReply SelectRootProperties();
+		void SelectRootProperties();
+		void RegisterToolbar();
+		void BindCommands();
 	
 		/** Create the properties tab and its content */
 		TSharedRef<SDockTab> SpawnPropertiesTab( const FSpawnTabArgs& Args );

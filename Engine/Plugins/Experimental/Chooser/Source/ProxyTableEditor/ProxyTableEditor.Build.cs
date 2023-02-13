@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 					"EditorWidgets",
 					"ToolWidgets",
+					"ToolMenus",
 					"SlateCore",
 					"Slate",
 					"PropertyEditor",

@@ -34,6 +34,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "ChooserTableEditorCommands.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditor"
 
@@ -43,7 +44,7 @@ namespace UE::ChooserEditor
 const FName FChooserTableEditor::ToolkitFName( TEXT( "ChooserTableEditor" ) );
 const FName FChooserTableEditor::PropertiesTabId( TEXT( "ChooserEditor_Properties" ) );
 const FName FChooserTableEditor::TableTabId( TEXT( "ChooserEditor_Table" ) );
-
+	
 void FChooserTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_ChooserTableEditor", "Chooser Table Editor"));
@@ -77,7 +78,43 @@ FChooserTableEditor::~FChooserTableEditor()
 	
 	DetailsView.Reset();
 }
+	
+void FChooserTableEditor::RegisterToolbar()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* ToolBar;
+	FName ParentName;
+	const FName MenuName = GetToolMenuToolbarName(ParentName);
+	if (ToolMenus->IsMenuRegistered(MenuName))
+	{
+		ToolBar = ToolMenus->ExtendMenu(MenuName);
+	}
+	else
+	{
+		ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, ParentName, EMultiBoxType::ToolBar);
+	}
 
+	const FChooserTableEditorCommands& Commands = FChooserTableEditorCommands::Get();
+	FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
+	{
+		FToolMenuSection& Section = ToolBar->AddSection("Chooser", TAttribute<FText>(), InsertAfterAssetSection);
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+			Commands.EditChooserSettings,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon("EditorStyle", "FullBlueprintEditor.EditGlobalOptions")));
+	}
+
+}
+
+void FChooserTableEditor::BindCommands()
+{
+	const FChooserTableEditorCommands& Commands = FChooserTableEditorCommands::Get();
+
+	ToolkitCommands->MapAction(
+		Commands.EditChooserSettings,
+		FExecuteAction::CreateSP(this, &FChooserTableEditor::SelectRootProperties));
+}
 
 void FChooserTableEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, const TArray<UObject*>& ObjectsToEdit, FGetDetailsViewObjects GetDetailsViewObjects )
 {
@@ -115,7 +152,9 @@ void FChooserTableEditor::InitEditor( const EToolkitMode::Type Mode, const TShar
 	const bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, FChooserTableEditor::ChooserEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit );
 
+	BindCommands();
 	RegenerateMenusAndToolbars();
+	RegisterToolbar();
 
 	SelectRootProperties();
 }
@@ -519,15 +558,13 @@ TSharedRef<ITableRow> FChooserTableEditor::GenerateTableRow(TSharedPtr<FChooserT
 		.Entry(InItem).Chooser(Chooser).Editor(this);
 }
 
-FReply FChooserTableEditor::SelectRootProperties()
+void FChooserTableEditor::SelectRootProperties()
 {
 	if( DetailsView.IsValid() )
 	{
 		// Make sure details window is pointing to our object
 		DetailsView->SetObjects( EditingObjects );
 	}
-
-	return FReply::Handled();
 }
 
 void FChooserTableEditor::MoveRow(int SourceRowIndex, int TargetRowIndex)
@@ -563,11 +600,8 @@ void FChooserTableEditor::UpdateTableColumns()
 	HeaderRow->ClearColumns();
 	
 	HeaderRow->AddColumn(SHeaderRow::Column("Handles")
-					.ManualWidth(30)
-					.HeaderContent()
-					[					
-						SNew(SButton).OnClicked_Raw(this, &FChooserTableEditor::SelectRootProperties)
-					]);
+					.DefaultLabel(FText())
+					.ManualWidth(30));
 	
 	HeaderRow->AddColumn(SHeaderRow::Column("Result")
 					.DefaultLabel(LOCTEXT("ResultColumnName", "Result"))
@@ -1186,11 +1220,9 @@ void FChooserColumnDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder
 
 void FChooserTableEditor::RegisterWidgets()
 {
-	// todo: fallback widget
 	FObjectChooserWidgetFactories::RegisterWidgetCreator(FAssetChooser::StaticStruct(), CreateAssetWidget);
 	FObjectChooserWidgetFactories::RegisterWidgetCreator(FClassChooser::StaticStruct(), CreateClassWidget);
 	FObjectChooserWidgetFactories::RegisterWidgetCreator(FEvaluateChooser::StaticStruct(), CreateEvaluateChooserWidget);
-	
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	

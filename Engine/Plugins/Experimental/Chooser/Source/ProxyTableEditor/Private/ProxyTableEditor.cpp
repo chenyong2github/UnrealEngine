@@ -31,6 +31,7 @@
 #include "ContextPropertyWidget.h"
 #include "IObjectChooser.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "ProxyTableEditorCommands.h"
 
 #define LOCTEXT_NAMESPACE "ProxyTableEditor"
 
@@ -76,6 +77,42 @@ FProxyTableEditor::~FProxyTableEditor()
 	DetailsView.Reset();
 }
 
+void FProxyTableEditor::RegisterToolbar()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* ToolBar;
+	FName ParentName;
+	const FName MenuName = GetToolMenuToolbarName(ParentName);
+	if (ToolMenus->IsMenuRegistered(MenuName))
+	{
+		ToolBar = ToolMenus->ExtendMenu(MenuName);
+	}
+	else
+	{
+		ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, ParentName, EMultiBoxType::ToolBar);
+	}
+
+	const FProxyTableEditorCommands& Commands = FProxyTableEditorCommands::Get();
+	FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
+	{
+		FToolMenuSection& Section = ToolBar->AddSection("Proxy Table", TAttribute<FText>(), InsertAfterAssetSection);
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+			Commands.EditTableSettings,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon("EditorStyle", "FullBlueprintEditor.EditGlobalOptions")));
+	}
+
+}
+
+void FProxyTableEditor::BindCommands()
+{
+	const FProxyTableEditorCommands& Commands = FProxyTableEditorCommands::Get();
+
+	ToolkitCommands->MapAction(
+		Commands.EditTableSettings,
+		FExecuteAction::CreateSP(this, &FProxyTableEditor::SelectRootProperties));
+}
 
 void FProxyTableEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, const TArray<UObject*>& ObjectsToEdit, FGetDetailsViewObjects GetDetailsViewObjects )
 {
@@ -113,7 +150,9 @@ void FProxyTableEditor::InitEditor( const EToolkitMode::Type Mode, const TShared
 	const bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, FProxyTableEditor::ProxyEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit );
 
+	BindCommands();
 	RegenerateMenusAndToolbars();
+	RegisterToolbar();
 
 	SelectRootProperties();
 }
@@ -507,15 +546,13 @@ TSharedRef<ITableRow> FProxyTableEditor::GenerateTableRow(TSharedPtr<FProxyTable
 		.Entry(InItem).ProxyTable(ProxyTable).Editor(this);
 }
 
-FReply FProxyTableEditor::SelectRootProperties()
+void FProxyTableEditor::SelectRootProperties()
 {
 	if( DetailsView.IsValid() )
 	{
 		// Make sure details window is pointing to our object
 		DetailsView->SetObjects( EditingObjects );
 	}
-
-	return FReply::Handled();
 }
 
 void FProxyTableEditor::MoveRow(int SourceRowIndex, int TargetRowIndex)
@@ -542,11 +579,8 @@ void FProxyTableEditor::UpdateTableColumns()
 {
 	HeaderRow->ClearColumns();
 	HeaderRow->AddColumn(SHeaderRow::Column("Handles")
-					.ManualWidth(30)
-					.HeaderContent()
-					[					
-						SNew(SButton).OnClicked_Raw(this, &FProxyTableEditor::SelectRootProperties)
-					]);
+					.DefaultLabel(FText())
+					.ManualWidth(30));
 	
 	HeaderRow->AddColumn(SHeaderRow::Column("Key")
 					.DefaultLabel(LOCTEXT("KeyColumnName", "Key"))

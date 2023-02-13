@@ -7,6 +7,7 @@
 #include "EnumColumnEditor.h"
 #include "FloatRangeColumnEditor.h"
 #include "GameplayTagColumnEditor.h"
+#include "ChooserTableEditorCommands.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditorModule"
 
@@ -20,10 +21,14 @@ void FModule::StartupModule()
 	RegisterFloatRangeWidgets();
 	RegisterBoolWidgets();
 	RegisterEnumWidgets();
+	
+	FChooserTableEditorCommands::Register();
+
 }
 
 void FModule::ShutdownModule()
 {
+	FChooserTableEditorCommands::Unregister();
 }
 
 }
