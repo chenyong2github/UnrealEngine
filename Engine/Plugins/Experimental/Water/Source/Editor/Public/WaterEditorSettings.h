@@ -51,6 +51,9 @@ struct WATEREDITOR_API FWaterZoneActorDefaults
 	UPROPERTY(EditAnywhere, config, Category = Mesh)
 	float NewWaterZoneScale = 1.0f;
 
+	UPROPERTY(EditAnywhere, config, Category = Texture)
+	FIntPoint RenderTargetResolution = FIntPoint(1024, 1024);
+
 protected:
 	UPROPERTY(EditAnywhere, Config, Category = Mesh)
 	TSoftObjectPtr<UMaterialInterface> FarDistanceMaterial;

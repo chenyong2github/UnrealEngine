@@ -23,9 +23,11 @@ void UWaterZoneActorFactory::PostSpawnActor(UObject* Asset, AActor* NewActor)
 	
 	AWaterZone* WaterZoneActor = CastChecked<AWaterZone>(NewActor);
 
-	const FWaterZoneActorDefaults& WaterMeshActorDefaults = GetDefault<UWaterEditorSettings>()->WaterZoneActorDefaults;
-	WaterZoneActor->GetWaterMeshComponent()->FarDistanceMaterial = WaterMeshActorDefaults.GetFarDistanceMaterial();
-	WaterZoneActor->GetWaterMeshComponent()->FarDistanceMeshExtent = WaterMeshActorDefaults.FarDistanceMeshExtent;
+	const FWaterZoneActorDefaults& WaterZoneActorDefaults = GetDefault<UWaterEditorSettings>()->WaterZoneActorDefaults;
+	WaterZoneActor->GetWaterMeshComponent()->FarDistanceMaterial = WaterZoneActorDefaults.GetFarDistanceMaterial();
+	WaterZoneActor->GetWaterMeshComponent()->FarDistanceMeshExtent = WaterZoneActorDefaults.FarDistanceMeshExtent;
+
+	WaterZoneActor->SetRenderTargetResolution(WaterZoneActorDefaults.RenderTargetResolution);
 }
 
 #undef LOCTEXT_NAMESPACE
