@@ -211,6 +211,18 @@ bool FUnrealInsightsLauncher::TryOpenTraceFromDestination(const FString& Destina
 
 bool FUnrealInsightsLauncher::OpenTraceFile(const FString& FilePath)
 {
+	if (!FilePath.StartsWith(TEXT("\"")) && !FilePath.EndsWith(TEXT("\"")))
+	{
+		TStringBuilder<1024> StringBuilder;
+
+		StringBuilder.AppendChar(TEXT('"'));
+		StringBuilder.Append(FilePath);
+		StringBuilder.AppendChar(TEXT('"'));
+
+		StartUnrealInsights(GetInsightsApplicationPath(), StringBuilder.ToString());
+		return true;
+	}
+
 	StartUnrealInsights(GetInsightsApplicationPath(), FilePath);
 	return true;
 }
