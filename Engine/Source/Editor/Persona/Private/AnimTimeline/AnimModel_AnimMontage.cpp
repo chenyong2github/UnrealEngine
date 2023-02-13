@@ -12,7 +12,6 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
-#include "AnimTimeline/AnimTimelineTrack_MontageSections.h"
 #include "AnimTimeline/AnimTimelineTrack_Montage.h"
 #include "SAnimMontagePanel.h"
 #include "IEditableSkeleton.h"
