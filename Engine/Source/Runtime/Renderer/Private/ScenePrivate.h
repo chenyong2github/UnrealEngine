@@ -3370,6 +3370,15 @@ public:
 		VelocityData.StartFrame(this);
 	}
 
+	virtual void EndFrame(FRHICommandListImmediate& RHICmdList) override
+	{
+		// Performs a final update of any queued scene primitives in the case where the scene wasn't rendered to avoid a build-up of queued data that is never flushed.
+		if (LastUpdateFrameCounter != GFrameCounterRenderThread)
+		{
+			UpdateAllPrimitiveSceneInfos(RHICmdList);
+		}
+	}
+
 	/**
 	 * Returns the current "FrameNumber" where frame corresponds to how many times FRendererModule::BeginRenderingViewFamilies has been called.
 	 * Thread safe, and returns a different copy for game/render thread. GetFrameNumberRenderThread can only be called from the render thread. 
@@ -3450,7 +3459,18 @@ public:
 	void WaitForCacheMeshDrawCommandsTask()
 	{
 		CacheMeshDrawCommandsTask.Wait();
+
+#if RHI_RAYTRACING
+		CacheRayTracingPrimitivesTask.Wait();
+#endif
 	}
+
+#if RHI_RAYTRACING
+	void WaitForCacheRayTracingPrimitivesTask()
+	{
+		CacheRayTracingPrimitivesTask.Wait();
+	}
+#endif
 
 	void LumenAddPrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void LumenUpdatePrimitive(FPrimitiveSceneInfo* InPrimitive);
@@ -3569,20 +3589,6 @@ private:
 	 */
 	void ApplyWorldOffset_RenderThread(const FVector& InOffset);
 
-	/**
-	 * Notification from game thread that level was added to a world
-	 *
-	 * @param	InLevelName		Level name
-	 */
-	void OnLevelAddedToWorld_RenderThread(const FName& InLevelName);
-
-	/**
-	 * Notification from game thread that level was removed from a world
-	 *
-	 * @param	InLevelName		Level name
-	 */
-	void OnLevelRemovedFromWorld_RenderThread(const FName& InLevelName);
-
 	void ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSceneInfo);
 	void ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo);
 
@@ -3616,6 +3622,18 @@ private:
 		FBoxSphereBounds StaticMeshBounds;
 	};
 
+	struct FLevelCommand
+	{
+		enum class EOp
+		{
+			Add,
+			Remove
+		};
+
+		FName Name;
+		EOp Op;
+	};
+
 	Experimental::TRobinHoodHashMap<FPrimitiveSceneInfo*, FPrimitiveComponentId> UpdatedAttachmentRoots;
 	Experimental::TRobinHoodHashMap<FPrimitiveSceneProxy*, FCustomPrimitiveData> UpdatedCustomPrimitiveParams;
 	Experimental::TRobinHoodHashMap<FPrimitiveSceneProxy*, FUpdateTransformCommand> UpdatedTransforms;
@@ -3625,9 +3643,13 @@ private:
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> DistanceFieldSceneDataUpdates;
+	TArray<FLevelCommand> LevelCommands;
 
 	UE::Tasks::FTask CreateLightPrimitiveInteractionsTask;
 	UE::Tasks::FTask CacheMeshDrawCommandsTask;
+#if RHI_RAYTRACING
+	UE::Tasks::FTask CacheRayTracingPrimitivesTask;
+#endif
 
 	FSceneLightInfoUpdates *SceneLightInfoUpdates;
 
@@ -3646,6 +3668,8 @@ private:
 	/** Frame number incremented per-family (except if there are multiple view families in one render call) viewing this scene. */
 	uint32 SceneFrameNumber;
 	uint32 SceneFrameNumberRenderThread;
+
+	uint32 LastUpdateFrameCounter = UINT32_MAX;
 
 	/** Whether world settings has bForceNoPrecomputedLighting set */
 	bool bForceNoPrecomputedLighting;

@@ -5648,38 +5648,18 @@ void FEngineLoop::Tick()
 			GEngine->SetSimulationLatencyMarkerStart(CurrentFrameCounter);
 		}
 
-		for (const FWorldContext& Context : GEngine->GetWorldContexts())
-		{
-			UWorld* CurrentWorld = Context.World();
-			if (CurrentWorld)
-			{
-				FSceneInterface* Scene = CurrentWorld->Scene;
-				ENQUEUE_RENDER_COMMAND(UpdateScenePrimitives)(
-					[Scene](FRHICommandListImmediate& RHICmdList)
-				{
-					Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
-				});
-			}
-		}
-
 		// beginning of RHI frame
 		ENQUEUE_RENDER_COMMAND(BeginFrame)([CurrentFrameCounter](FRHICommandListImmediate& RHICmdList)
 		{
 			BeginFrameRenderThread(RHICmdList, CurrentFrameCounter);
 		});
 
-		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		for (FSceneInterface* Scene : GetRendererModule().GetAllocatedScenes())
 		{
-			UWorld* CurrentWorld = Context.World();
-			if (CurrentWorld)
+			ENQUEUE_RENDER_COMMAND(FScene_StartFrame)([Scene](FRHICommandListImmediate& RHICmdList)
 			{
-				FSceneInterface* Scene = CurrentWorld->Scene;
-
-				ENQUEUE_RENDER_COMMAND(SceneStartFrame)([Scene](FRHICommandListImmediate& RHICmdList)
-				{
-					Scene->StartFrame();
-				});
-			}
+				Scene->StartFrame();
+			});
 		}
 
 #if !UE_SERVER && WITH_ENGINE
@@ -6003,6 +5983,14 @@ void FEngineLoop::Tick()
 			}
 		}
 #endif
+
+		for (FSceneInterface* Scene : GetRendererModule().GetAllocatedScenes())
+		{
+			ENQUEUE_RENDER_COMMAND(FScene_EndFrame)([Scene](FRHICommandListImmediate& RHICmdList)
+			{
+				Scene->EndFrame(RHICmdList);
+			});
+		}
 
 		// tick render hardware interface
 		{			

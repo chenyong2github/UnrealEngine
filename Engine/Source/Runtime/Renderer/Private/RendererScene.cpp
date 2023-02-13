@@ -4944,39 +4944,11 @@ void FScene::OnLevelAddedToWorld(const FName& InLevelAddedName, UWorld* InWorld,
 	ENQUEUE_RENDER_COMMAND(FLevelAddedToWorld)(
 		[Scene, LevelAddedName](FRHICommandListImmediate& RHICmdList)
 		{
-			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
-			Scene->OnLevelAddedToWorld_RenderThread(LevelAddedName);
+			FLevelCommand Cmd;
+			Cmd.Name = LevelAddedName;
+			Cmd.Op = FLevelCommand::EOp::Add;
+			Scene->LevelCommands.Add(Cmd);
 		});
-}
-
-void FScene::OnLevelAddedToWorld_RenderThread(const FName& InLevelName)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FScene::OnLevelAddedToWorld_RenderThread);
-
-	// Mark level primitives
-	TArray<FPrimitiveSceneInfo*> PrimitivesToAdd;
-
-	if (const TArray<FPrimitiveSceneInfo*>* LevelPrimitives = PrimitivesNeedingLevelUpdateNotification.Find(InLevelName))
-	{
-		for (FPrimitiveSceneInfo* Primitive : *LevelPrimitives)
-		{
-			// If the primitive proxy returns true, it needs it's static meshes added to the scene
-			if (Primitive->Proxy->OnLevelAddedToWorld_RenderThread())
-			{
-				// Remove static meshes and cached commands for any primitives that need to be added
-				Primitive->RemoveStaticMeshes();
-				PrimitivesToAdd.Add(Primitive);
-			}
-			// Invalidate primitive proxy entry in GPU Scene. 
-			// This is necessary for Nanite::FSceneProxy to be uploaded to GPU scene (see GetPrimitiveID in GPUScene.cpp)
-			if (Primitive->Proxy->IsNaniteMesh())
-			{
-				Primitive->RequestGPUSceneUpdate();
-			}
-		}
-	}
-
-	FPrimitiveSceneInfo::AddStaticMeshes(this, PrimitivesToAdd);
 }
 
 void FScene::OnLevelRemovedFromWorld(const FName& InLevelRemovedName, UWorld* InWorld, bool bIsLightingScenario)
@@ -4991,31 +4963,12 @@ void FScene::OnLevelRemovedFromWorld(const FName& InLevelRemovedName, UWorld* In
 	ENQUEUE_RENDER_COMMAND(FLevelRemovedFromWorld)(
 		[Scene, LevelRemovedName](FRHICommandListImmediate& RHICmdList)
 		{
-			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
-			Scene->OnLevelRemovedFromWorld_RenderThread(LevelRemovedName);
+			FLevelCommand Cmd;
+			Cmd.Name = LevelRemovedName;
+			Cmd.Op = FLevelCommand::EOp::Remove;
+			Scene->LevelCommands.Add(Cmd);
 		});
 }
-
-
-void FScene::OnLevelRemovedFromWorld_RenderThread(const FName& InLevelName)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FScene::OnLevelRemovedFromWorld_RenderThread);
-
-	if (TArray<FPrimitiveSceneInfo*>* LevelPrimitives = PrimitivesNeedingLevelUpdateNotification.Find(InLevelName))
-	{
-		for (FPrimitiveSceneInfo* Primitive : *LevelPrimitives)
-		{
-			Primitive->Proxy->OnLevelRemovedFromWorld_RenderThread();
-			// Invalidate primitive proxy entry in GPU Scene.
-			// This is necessary for Nanite::FSceneProxy to be uploaded to GPU scene (see GetPrimitiveID in GPUScene.cpp)
-			if (Primitive->Proxy->IsNaniteMesh())
-			{
-				Primitive->RequestGPUSceneUpdate();
-			}
-		}
-	}
-}
-
 
 void FScene::ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo)
 {
@@ -5237,6 +5190,7 @@ static inline bool IsPrimitiveRelevantToPathTracing(FPrimitiveSceneInfo* Primiti
 
 FLightSceneChangeSet FScene::UpdateAllLightSceneInfos(FRDGBuilder& GraphBuilder)
 {
+	SCOPED_NAMED_EVENT(FScene_UpdateAllLightSceneInfos, FColor::Orange);
 	struct FFLightSceneChangeSetAllocation
 	{
 		TArray<int32, SceneRenderingAllocator> RemovedLightIds;
@@ -5384,30 +5338,35 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 	RemovedLocalPrimitiveSceneInfos.Sort(FPrimitiveArraySortKey());
 
 	TArray<FVirtualShadowMapArrayCacheManager*, SceneRenderingAllocator> VirtualShadowCacheManagers;
-	GetAllVirtualShadowMapCacheManagers(VirtualShadowCacheManagers);
 
-	for (FVirtualShadowMapArrayCacheManager* CacheManager : VirtualShadowCacheManagers)
 	{
-		FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector InvalidatingPrimitiveCollector(CacheManager);
+		SCOPED_NAMED_EVENT(FScene_VirtualShadowCacheUpdate, FColor::Orange);
+		GetAllVirtualShadowMapCacheManagers(VirtualShadowCacheManagers);
 
-		// All removed primitives must invalidate their footprints in the VSM before leaving
-		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedLocalPrimitiveSceneInfos)
+		for (FVirtualShadowMapArrayCacheManager* CacheManager : VirtualShadowCacheManagers)
 		{
-			InvalidatingPrimitiveCollector.Removed(PrimitiveSceneInfo);
-		}
-		// All updated instances must also before moving or re-allocating (TODO: filter out only those actually updated)
-		for (const auto& Instance : UpdatedInstances)
-		{
-			InvalidatingPrimitiveCollector.UpdatedInstances(Instance.Key->GetPrimitiveSceneInfo());
-		}
-		// As must all primitive updates, 
-		for (const auto& Transform : UpdatedTransforms)
-		{
-			InvalidatingPrimitiveCollector.UpdatedTransform(Transform.Key->GetPrimitiveSceneInfo());
-		}
+			FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector InvalidatingPrimitiveCollector(CacheManager);
 
-		CacheManager->ProcessRemovedOrUpdatedPrimitives(GraphBuilder, GPUScene, InvalidatingPrimitiveCollector);
+			// All removed primitives must invalidate their footprints in the VSM before leaving
+			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedLocalPrimitiveSceneInfos)
+			{
+				InvalidatingPrimitiveCollector.Removed(PrimitiveSceneInfo);
+			}
+			// All updated instances must also before moving or re-allocating (TODO: filter out only those actually updated)
+			for (const auto& Instance : UpdatedInstances)
+			{
+				InvalidatingPrimitiveCollector.UpdatedInstances(Instance.Key->GetPrimitiveSceneInfo());
+			}
+			// As must all primitive updates, 
+			for (const auto& Transform : UpdatedTransforms)
+			{
+				InvalidatingPrimitiveCollector.UpdatedTransform(Transform.Key->GetPrimitiveSceneInfo());
+			}
+
+			CacheManager->ProcessRemovedOrUpdatedPrimitives(GraphBuilder, GPUScene, InvalidatingPrimitiveCollector);
+		}
 	}
+
 	TArray<FPrimitiveSceneInfo*> AddedLocalPrimitiveSceneInfos;
 	AddedLocalPrimitiveSceneInfos.Reserve(AddedPrimitiveSceneInfos.Num());
 	for (FPrimitiveSceneInfo* SceneInfo : AddedPrimitiveSceneInfos)
@@ -5690,20 +5649,44 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 
 	const int32 SceneInfosContainerReservedSize = AddedPrimitiveSceneInfos.Num() + UpdatedTransforms.Num() + UpdatedInstances.Num();
 
-	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> SceneInfosToFlushVirtualTexture;
+	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator>& SceneInfosWithAddToScene = *GraphBuilder.AllocObject<TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator>>();
+	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> SceneInfosWithFlushVirtualTexture;
 	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator>& SceneInfosWithStaticDrawListUpdate = *GraphBuilder.AllocObject<TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator>>();
-	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> SceneInfosWithoutStaticDrawListUpdate;
-	SceneInfosToFlushVirtualTexture.Reserve(SceneInfosContainerReservedSize);
+	SceneInfosWithAddToScene.Reserve(SceneInfosContainerReservedSize);
+	SceneInfosWithFlushVirtualTexture.Reserve(SceneInfosContainerReservedSize);
 	SceneInfosWithStaticDrawListUpdate.Reserve(SceneInfosContainerReservedSize);
-	SceneInfosWithoutStaticDrawListUpdate.Reserve(SceneInfosContainerReservedSize);
 
-	const auto QueueSceneInfoToFlushVirtualTexture = [&](FPrimitiveSceneInfo* SceneInfo)
+	const auto QueueFlushVirtualTexture = [&](FPrimitiveSceneInfo* SceneInfo) -> bool
 	{
 		if (!SceneInfo->bPendingFlushVirtualTexture)
 		{
 			SceneInfo->bPendingFlushVirtualTexture = true;
-			SceneInfosToFlushVirtualTexture.Push(SceneInfo);
+			SceneInfosWithFlushVirtualTexture.Push(SceneInfo);
+			return true;
 		}
+		return false;
+	};
+
+	const auto QueueAddToScene = [&](FPrimitiveSceneInfo* SceneInfo) -> bool
+	{
+		if (!SceneInfo->bPendingAddToScene)
+		{
+			SceneInfo->bPendingAddToScene = true;
+			SceneInfosWithAddToScene.Push(SceneInfo);
+			return true;
+		}
+		return false;
+	};
+
+	const auto QueueAddStaticMeshes = [&](FPrimitiveSceneInfo* SceneInfo)
+	{
+		if (!SceneInfo->bPendingAddStaticMeshes)
+		{
+			SceneInfo->bPendingAddStaticMeshes = 1;
+			SceneInfosWithStaticDrawListUpdate.Push(SceneInfo);
+			return true;
+		}
+		return false;
 	};
 
 	{
@@ -5718,6 +5701,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 
 		if (AddedLocalPrimitiveSceneInfos.Num())
 		{
+			SCOPED_NAMED_EVENT(FScene_AddPrimitiveSceneInfos_ReserveMemory, FColor::Green);
 			Primitives.Reserve(Primitives.Num() + AddedLocalPrimitiveSceneInfos.Num());
 			PrimitiveTransforms.Reserve(PrimitiveTransforms.Num() + AddedLocalPrimitiveSceneInfos.Num());
 			PrimitiveSceneProxies.Reserve(PrimitiveSceneProxies.Num() + AddedLocalPrimitiveSceneInfos.Num());
@@ -5762,57 +5746,61 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 				StartIndex--;
 			}
 
-			for (int32 AddIndex = StartIndex; AddIndex < AddedLocalPrimitiveSceneInfos.Num(); AddIndex++)
 			{
-				FPrimitiveSceneInfo* PrimitiveSceneInfo = AddedLocalPrimitiveSceneInfos[AddIndex];
-				Primitives.Add(PrimitiveSceneInfo);
-				const FMatrix LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
-				PrimitiveTransforms.Add(LocalToWorld);
-				PrimitiveSceneProxies.Add(PrimitiveSceneInfo->Proxy);
-				PrimitiveBounds.AddUninitialized();
-				PrimitiveFlagsCompact.AddUninitialized();
-				PrimitiveVisibilityIds.AddUninitialized();
-				PrimitiveOctreeIndex.Add(0);
-				PrimitiveOcclusionFlags.AddUninitialized();
-				PrimitiveComponentIds.AddUninitialized();
-				PrimitiveVirtualTextureFlags.AddUninitialized();
-				PrimitiveVirtualTextureLod.AddUninitialized();
-				PrimitiveOcclusionBounds.AddUninitialized();
-			#if WITH_EDITOR
-				PrimitivesSelected.Add(PrimitiveSceneInfo->Proxy->IsSelected());
-			#endif
-			#if RHI_RAYTRACING
-				PrimitiveRayTracingFlags.AddZeroed();
-				PrimitiveRayTracingGroupIds.Add(Experimental::FHashElementId());
-			#endif
-				PrimitivesNeedingStaticMeshUpdate.Add(false);
+				SCOPED_NAMED_EVENT(FScene_AddPrimitiveSceneInfos, FColor::Turquoise);
 
-				for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
+				for (int32 AddIndex = StartIndex; AddIndex < AddedLocalPrimitiveSceneInfos.Num(); AddIndex++)
 				{
-					TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
+					FPrimitiveSceneInfo* PrimitiveSceneInfo = AddedLocalPrimitiveSceneInfos[AddIndex];
+					Primitives.Add(PrimitiveSceneInfo);
+					const FMatrix LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+					PrimitiveTransforms.Add(LocalToWorld);
+					PrimitiveSceneProxies.Add(PrimitiveSceneInfo->Proxy);
+					PrimitiveBounds.AddUninitialized();
+					PrimitiveFlagsCompact.AddUninitialized();
+					PrimitiveVisibilityIds.AddUninitialized();
+					PrimitiveOctreeIndex.Add(0);
+					PrimitiveOcclusionFlags.AddUninitialized();
+					PrimitiveComponentIds.AddUninitialized();
+					PrimitiveVirtualTextureFlags.AddUninitialized();
+					PrimitiveVirtualTextureLod.AddUninitialized();
+					PrimitiveOcclusionBounds.AddUninitialized();
+#if WITH_EDITOR
+					PrimitivesSelected.Add(PrimitiveSceneInfo->Proxy->IsSelected());
+#endif
+#if RHI_RAYTRACING
+					PrimitiveRayTracingFlags.AddZeroed();
+					PrimitiveRayTracingGroupIds.Add(Experimental::FHashElementId());
+#endif
+					PrimitivesNeedingStaticMeshUpdate.Add(false);
 
-					for (auto& ShadowMapData : ShadowMapDatas)
+					for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
 					{
-						if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
+						TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
+
+						for (auto& ShadowMapData : ShadowMapDatas)
 						{
-							ShadowMapData.StaticShadowSubjectMap.Add(false);
+							if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
+							{
+								ShadowMapData.StaticShadowSubjectMap.Add(false);
+							}
 						}
 					}
-				}
 
-				const int32 SourceIndex = PrimitiveSceneProxies.Num() - 1;
-				PrimitiveSceneInfo->PackedIndex = SourceIndex;
-				checkSlow(PrimitiveSceneInfo->PersistentIndex.Index == INDEX_NONE);
-				FPersistentPrimitiveIndex PersistentPrimitiveIndex{ PersistentPrimitiveIdAllocator.Allocate() };
-				PrimitiveSceneInfo->PersistentIndex = PersistentPrimitiveIndex;
-				// Ensure map is large enough
-				if (PersistentPrimitiveIndex.Index >= PersistentPrimitiveIdToIndexMap.Num())
-				{
-					PersistentPrimitiveIdToIndexMap.SetNumUninitialized(PersistentPrimitiveIndex.Index + 1);
-				}
-				PersistentPrimitiveIdToIndexMap[PersistentPrimitiveIndex.Index] = SourceIndex;
+					const int32 SourceIndex = PrimitiveSceneProxies.Num() - 1;
+					PrimitiveSceneInfo->PackedIndex = SourceIndex;
+					checkSlow(PrimitiveSceneInfo->PersistentIndex.Index == INDEX_NONE);
+					FPersistentPrimitiveIndex PersistentPrimitiveIndex{ PersistentPrimitiveIdAllocator.Allocate() };
+					PrimitiveSceneInfo->PersistentIndex = PersistentPrimitiveIndex;
+					// Ensure map is large enough
+					if (PersistentPrimitiveIndex.Index >= PersistentPrimitiveIdToIndexMap.Num())
+					{
+						PersistentPrimitiveIdToIndexMap.SetNumUninitialized(PersistentPrimitiveIndex.Index + 1);
+					}
+					PersistentPrimitiveIdToIndexMap[PersistentPrimitiveIndex.Index] = SourceIndex;
 
-				GPUScene.AddPrimitiveToUpdate(SourceIndex, EPrimitiveDirtyState::AddedMask);
+					GPUScene.AddPrimitiveToUpdate(SourceIndex, EPrimitiveDirtyState::AddedMask);
+				}
 			}
 
 			bool EntryFound = false;
@@ -5954,9 +5942,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 				int32 PrimitiveIndex = PrimitiveSceneInfo->PackedIndex;
 				FPrimitiveSceneProxy* SceneProxy = PrimitiveSceneInfo->Proxy;
 
-				SceneInfosWithStaticDrawListUpdate.Push(PrimitiveSceneInfo);
-				PrimitiveSceneInfo->bPendingAddToScene = true;
-
 				if (ShouldPrimitiveOutputVelocity(SceneProxy, GetShaderPlatform()))
 				{
 					PrimitiveSceneInfo->bRegisteredWithVelocityData = true;
@@ -5975,8 +5960,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 				}
 #endif
 
-				// Flush virtual textures touched by primitive
-				QueueSceneInfoToFlushVirtualTexture(PrimitiveSceneInfo);
+				QueueFlushVirtualTexture(PrimitiveSceneInfo);
+				QueueAddToScene(PrimitiveSceneInfo);
+				QueueAddStaticMeshes(PrimitiveSceneInfo);
 
 				bNeedPathTracedInvalidation = bNeedPathTracedInvalidation || IsPrimitiveRelevantToPathTracing(PrimitiveSceneInfo);
 			}
@@ -6006,25 +5992,19 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 			const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer();
 
-			if (!PrimitiveSceneInfo->bPendingAddToScene)
+			if (QueueAddToScene(PrimitiveSceneInfo))
 			{
-				PrimitiveSceneInfo->bPendingAddToScene = true;
-
-				if (bUpdateStaticDrawLists)
-				{
-					SceneInfosWithStaticDrawListUpdate.Push(PrimitiveSceneInfo);
-				}
-				else
-				{
-					SceneInfosWithoutStaticDrawListUpdate.Push(PrimitiveSceneInfo);
-				}
-
 				// Remove the primitive from the scene at its old location
 				// (note that the octree update relies on the bounds not being modified yet).
 				PrimitiveSceneInfo->RemoveFromScene(bUpdateStaticDrawLists);
+
+				if (bUpdateStaticDrawLists)
+				{
+					QueueAddStaticMeshes(PrimitiveSceneInfo);
+				}
 			}
 
-			QueueSceneInfoToFlushVirtualTexture(PrimitiveSceneInfo);
+			QueueFlushVirtualTexture(PrimitiveSceneInfo);
 
 			if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy, GetShaderPlatform()))
 			{
@@ -6099,7 +6079,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 			FScopeCycleCounter Context(PrimitiveSceneProxy->GetStatId());
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 			
-			QueueSceneInfoToFlushVirtualTexture(PrimitiveSceneInfo);
+			QueueFlushVirtualTexture(PrimitiveSceneInfo);
 
 			// If we recorded no adds or removes the instance count has stayed the same.  Therefore the cached mesh draw commands do not
 			// need to be updated.  In situations where the instance count changes the mesh draw command stores the instance count which
@@ -6108,13 +6088,13 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 
 			const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer() || bInstanceCountChanged;
 
-			if (!PrimitiveSceneInfo->bPendingAddToScene)
+			if (QueueAddToScene(PrimitiveSceneInfo))
 			{
-				PrimitiveSceneInfo->bPendingAddToScene = true;
+				PrimitiveSceneInfo->RemoveFromScene(bUpdateStaticDrawLists);
 
 				if (bUpdateStaticDrawLists)
 				{
-					SceneInfosWithStaticDrawListUpdate.Push(PrimitiveSceneInfo);
+					QueueAddStaticMeshes(PrimitiveSceneInfo);
 				}
 				else
 				{
@@ -6122,10 +6102,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 					RayTracingPrimitivesToUpdate.Add(PrimitiveSceneInfo);
 					bUpdateCachedRayTracingInstances = true;
 #endif
-					SceneInfosWithoutStaticDrawListUpdate.Push(PrimitiveSceneInfo);
 				}
-
-				PrimitiveSceneInfo->RemoveFromScene(bUpdateStaticDrawLists);
 			}
 
 			// Update the Proxy's data.
@@ -6166,71 +6143,103 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 #endif
 	}
 
-	if (SceneInfosWithoutStaticDrawListUpdate.Num() > 0)
+	if (SceneInfosWithAddToScene.Num() > 0)
 	{
-		const EPrimitiveAddToSceneOps AddToSceneOps = EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions)
-			? EPrimitiveAddToSceneOps::None
-			: EPrimitiveAddToSceneOps::CreateLightPrimitiveInteractions;
-
-		FPrimitiveSceneInfo::AddToScene(this, SceneInfosWithoutStaticDrawListUpdate, AddToSceneOps);
+		FPrimitiveSceneInfo::AddToScene(this, SceneInfosWithAddToScene);
+	}
 
 #if RHI_RAYTRACING
-		if (bUpdateCachedRayTracingInstances)
+	if (bUpdateCachedRayTracingInstances)
+	{
+		FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(this, RayTracingPrimitivesToUpdate);
+	}
+#endif
+
+	for (const FLevelCommand& Command : LevelCommands)
+	{
+		const auto InvalidateNaniteGPUScene = [](FPrimitiveSceneInfo* Primitive)
 		{
-			FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(this, RayTracingPrimitivesToUpdate);
+			// Invalidate primitive proxy entry in GPU Scene. This is necessary for Nanite::FSceneProxy to be uploaded to GPU scene (see GetPrimitiveID in GPUScene.cpp)
+			if (Primitive->Proxy->IsNaniteMesh())
+			{
+				Primitive->RequestGPUSceneUpdate();
+			}
+		};
+
+		if (Command.Op == FLevelCommand::EOp::Add)
+		{
+			if (const TArray<FPrimitiveSceneInfo*>* LevelPrimitives = PrimitivesNeedingLevelUpdateNotification.Find(Command.Name))
+			{
+				for (FPrimitiveSceneInfo* Primitive : *LevelPrimitives)
+				{
+					// If the primitive proxy returns true, it needs it's static meshes added to the scene
+					if (Primitive->Proxy->OnLevelAddedToWorld_RenderThread() && QueueAddStaticMeshes(Primitive))
+					{
+						Primitive->RemoveStaticMeshes();
+					}
+
+					InvalidateNaniteGPUScene(Primitive);
+				}
+			}
 		}
+		else
+		{
+			if (TArray<FPrimitiveSceneInfo*>* LevelPrimitives = PrimitivesNeedingLevelUpdateNotification.Find(Command.Name))
+			{
+				for (FPrimitiveSceneInfo* Primitive : *LevelPrimitives)
+				{
+					Primitive->Proxy->OnLevelRemovedFromWorld_RenderThread();
+					InvalidateNaniteGPUScene(Primitive);
+				}
+			}
+		}
+	}
+
+	if (SceneInfosWithStaticDrawListUpdate.Num() > 0)
+	{
+		FPrimitiveSceneInfo::AddStaticMeshes(this, SceneInfosWithStaticDrawListUpdate, false);
+	}
+
+	FPrimitiveSceneInfo::UpdateVirtualTextures(this, SceneInfosWithAddToScene);
+
+	if (SceneInfosWithStaticDrawListUpdate.Num() > 0)
+	{
+		const bool bLaunchAsyncTask = EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands);
+
+		CacheMeshDrawCommandsTask = LaunchSceneRenderTask(TEXT("CacheMeshDrawCommandsTask"), [this, &SceneInfosWithStaticDrawListUpdate, bLaunchAsyncTask]()
+		{
+			SCOPED_NAMED_EVENT(CacheMeshDrawCommands, FColor::Emerald);
+
+			UE::Tasks::AddNested(LaunchSceneRenderTask(TEXT("CacheMeshDrawCommandsTask"), [this, &SceneInfosWithStaticDrawListUpdate, bLaunchAsyncTask]()
+			{
+				FPrimitiveSceneInfo::CacheMeshDrawCommands(this, SceneInfosWithStaticDrawListUpdate);
+			}, bLaunchAsyncTask));
+
+			UE::Tasks::AddNested(LaunchSceneRenderTask(TEXT("CacheNaniteDrawCommands"), [this, &SceneInfosWithStaticDrawListUpdate, bLaunchAsyncTask]()
+			{
+				FPrimitiveSceneInfo::CacheNaniteDrawCommands(this, SceneInfosWithStaticDrawListUpdate);
+			}, bLaunchAsyncTask));
+
+		}, bLaunchAsyncTask);
+
+#if RHI_RAYTRACING
+		CacheRayTracingPrimitivesTask = LaunchSceneRenderTask(TEXT("CacheRayTracingPrimitivesTask"), [this, &SceneInfosWithStaticDrawListUpdate]()
+		{
+			FPrimitiveSceneInfo::CacheRayTracingPrimitives(this, SceneInfosWithStaticDrawListUpdate);
+		}, bLaunchAsyncTask);
 #endif
 	}
 
-	// Re-add the primitive to the scene with the new transform.
-	if (SceneInfosWithStaticDrawListUpdate.Num() > 0)
+	CreateLightPrimitiveInteractionsTask = LaunchSceneRenderTask(TEXT("CreateLightPrimitiveInteractionsTask"), [this, &SceneInfosWithAddToScene]
 	{
-		EPrimitiveAddToSceneOps AddToSceneOps = EPrimitiveAddToSceneOps::All;
+		SCOPED_NAMED_EVENT(CreateLightPrimitiveInteractions, FColor::Emerald);
 
-		if (EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions))
+		for (FPrimitiveSceneInfo* SceneInfo : SceneInfosWithAddToScene)
 		{
-			EnumRemoveFlags(AddToSceneOps, EPrimitiveAddToSceneOps::CreateLightPrimitiveInteractions);
+			CreateLightPrimitiveInteractionsForPrimitive(SceneInfo);
 		}
 
-		if (EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands))
-		{
-			EnumRemoveFlags(AddToSceneOps, EPrimitiveAddToSceneOps::CacheMeshDrawCommands);
-		}
-
-		FPrimitiveSceneInfo::AddToScene(this, SceneInfosWithStaticDrawListUpdate, AddToSceneOps);
-
-		if (EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands))
-		{
-			CacheMeshDrawCommandsTask = GraphBuilder.AddSetupTask([this, &SceneInfosWithStaticDrawListUpdate] () mutable
-			{
-				SCOPED_NAMED_EVENT(AsyncCacheMeshDrawCommands, FColor::Emerald);
-				FPrimitiveSceneInfo::CacheMeshDrawCommands(this, SceneInfosWithStaticDrawListUpdate);
-				FPrimitiveSceneInfo::CacheNaniteDrawCommands(this, SceneInfosWithStaticDrawListUpdate);
-			#if RHI_RAYTRACING
-				FPrimitiveSceneInfo::CacheRayTracingPrimitives(this, SceneInfosWithStaticDrawListUpdate);
-			#endif
-			});
-		}
-	}
-
-	if (EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions))
-	{
-		CreateLightPrimitiveInteractionsTask = GraphBuilder.AddSetupTask(
-			[this, &SceneInfosWithStaticDrawListUpdate, SceneInfosWithoutStaticDrawListUpdate = MoveTemp(SceneInfosWithoutStaticDrawListUpdate)]
-		{
-			SCOPED_NAMED_EVENT(AsyncCreateLightPrimitiveInteractions, FColor::Emerald);
-
-			for (FPrimitiveSceneInfo* SceneInfo : SceneInfosWithStaticDrawListUpdate)
-			{
-				CreateLightPrimitiveInteractionsForPrimitive(SceneInfo);
-			}
-
-			for (FPrimitiveSceneInfo* SceneInfo : SceneInfosWithoutStaticDrawListUpdate)
-			{
-				CreateLightPrimitiveInteractionsForPrimitive(SceneInfo);
-			}
-		});
-	}
+	}, EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions));
 
 	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : AddedPrimitiveSceneInfos)
 	{
@@ -6241,7 +6250,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		SceneLODHierarchy.UpdateNodeSceneInfo(PrimitiveSceneInfo->PrimitiveComponentId, PrimitiveSceneInfo);
 	}
 
-	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : SceneInfosToFlushVirtualTexture)
+	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : SceneInfosWithFlushVirtualTexture)
 	{
 		PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
 		PrimitiveSceneInfo->bPendingFlushVirtualTexture = false;
@@ -6341,6 +6350,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 	UpdatedOcclusionBoundsSlacks.Empty();
 	DistanceFieldSceneDataUpdates.Empty();
 	AddedPrimitiveSceneInfos.Empty();
+	LevelCommands.Empty();
+
+	LastUpdateFrameCounter = GFrameCounterRenderThread;
 
 #if DO_GUARD_SLOW
 	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : Primitives)

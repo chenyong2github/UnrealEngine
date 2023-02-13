@@ -917,7 +917,7 @@ static void PrimitiveCullTask(FThreadSafeCounter& NumCulledPrimitives, const FSc
 	STAT(NumCulledPrimitives.Add(NumPrimitivesCulledForTask));
 }
 
-static int32 PrimitiveCull(const FScene* RESTRICT Scene, FViewInfo& View, bool bShouldVisibilityCull)
+static int32 PrimitiveCull(FScene* RESTRICT Scene, FViewInfo& View, bool bShouldVisibilityCull)
 {
 	FPrimitiveCullingFlags Flags;
 	Flags.bShouldVisibilityCull = bShouldVisibilityCull;
@@ -931,6 +931,9 @@ static int32 PrimitiveCull(const FScene* RESTRICT Scene, FViewInfo& View, bool b
 
 #if RHI_RAYTRACING
 	View.RayTracingCullingParameters.Init(View);
+
+	// Sync cached raytracing tasks ShouldCullForRayTracing.
+	Scene->WaitForCacheRayTracingPrimitivesTask();
 #endif
 
 	SCOPE_CYCLE_COUNTER(STAT_PrimitiveCull);
@@ -4793,14 +4796,6 @@ void FSceneRenderer::ComputeViewVisibility(
 
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer_Cull);
-#if RHI_RAYTRACING
-				if (bAnyRayTracingPassEnabled)
-				{
-					// The logic inside PrimitiveCull makes use of ShouldCullForRayTracing to decide if the primitive should be considered for raytracing
-					// Therefore we must be sure we are done with caching the mesh draw commands (which include raytracing caches) before it runs if raytracing is being used.
-					Scene->WaitForCacheMeshDrawCommandsTask();
-				}
-#endif
 				int32 NumCulledPrimitivesForView = PrimitiveCull(Scene, View, bNeedsFrustumCulling);
 				STAT(NumCulledPrimitives += NumCulledPrimitivesForView);
 			}

@@ -269,16 +269,6 @@ struct FPersistentPrimitiveIndex
 	int32 Index;
 };
 
-enum class EPrimitiveAddToSceneOps
-{
-	None = 0,
-	AddStaticMeshes = 1 << 0,
-	CacheMeshDrawCommands = 1 << 1,
-	CreateLightPrimitiveInteractions = 1 << 2,
-	All = AddStaticMeshes | CacheMeshDrawCommands | CreateLightPrimitiveInteractions
-};
-ENUM_CLASS_FLAGS(EPrimitiveAddToSceneOps);
-
 /**
  * The renderer's internal state for a single UPrimitiveComponent.  This has a one to one mapping with FPrimitiveSceneProxy, which is in the engine module.
  */
@@ -438,7 +428,7 @@ public:
 	~FPrimitiveSceneInfo();
 
 	/** Adds the primitive to the scene. */
-	static void AddToScene(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, EPrimitiveAddToSceneOps Ops = EPrimitiveAddToSceneOps::All);
+	static void AddToScene(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos);
 
 	/** Removes the primitive from the scene. */
 	void RemoveFromScene(bool bUpdateStaticDrawLists);
@@ -686,7 +676,10 @@ private:
 
 	/** True if the primitive is queued for add. */
 	bool bPendingAddToScene : 1;
-	
+
+	/** True if the primitive is queued to have static meshes built. */
+	bool bPendingAddStaticMeshes : 1;
+
 	/** True if the primitive is queued to have its virtual texture flushed. */
 	bool bPendingFlushVirtualTexture : 1;
 
@@ -720,6 +713,9 @@ private:
 
 	/** Creates cached mesh draw commands for all meshes. */
 	static void CacheMeshDrawCommands(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos);
+
+	/** Updates virtual texture state on the scene primitives. */
+	static void UpdateVirtualTextures(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos);
 
 	/** Removes cached mesh draw commands for all meshes. */
 	void RemoveCachedMeshDrawCommands();

@@ -200,6 +200,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent, FScen
 	bCacheShadowAsStatic(InComponent->Mobility != EComponentMobility::Movable),
 	bNaniteRasterBinsRenderCustomDepth(false),
 	bPendingAddToScene(false),
+	bPendingAddStaticMeshes(false),
 	bPendingFlushVirtualTexture(false),
 	LevelUpdateNotificationIndex(INDEX_NONE),
 	InstanceSceneDataOffset(INDEX_NONE),
@@ -451,7 +452,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FScene* Scene, TArrayView<FPrimi
 				FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 				DoWorkLambda(DrawListContexts[Index], Index);
 			},
-			EParallelForFlags::PumpRenderingThread | EParallelForFlags::Unbalanced
+			EParallelForFlags::Unbalanced
 		);
 
 		if (NumBatches > 0)
@@ -797,6 +798,7 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(FScene* Scene, const T
 {
 	if (IsRayTracingEnabled())
 	{
+		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_UpdateCachedRayTracingInstances, FColor::Turquoise);
 		checkf(GRHISupportsMultithreadedShaderCreation, TEXT("Raytracing code needs the ability to create shaders from task threads."));
 
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
@@ -1130,6 +1132,7 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FScene* Scene, TArrayView<FPrimitiveSc
 			SceneInfo->Proxy->DrawStaticElements(&BatchingSPDI);
 			SceneInfo->StaticMeshes.Shrink();
 			SceneInfo->StaticMeshRelevances.Shrink();
+			SceneInfo->bPendingAddStaticMeshes = false;
 
 			check(SceneInfo->StaticMeshRelevances.Num() == SceneInfo->StaticMeshes.Num());
 		});
@@ -1362,9 +1365,10 @@ void FPrimitiveSceneInfo::FreeGPUSceneInstances()
 	}
 }
 
-void FPrimitiveSceneInfo::AddToScene(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, EPrimitiveAddToSceneOps Ops)
+void FPrimitiveSceneInfo::AddToScene(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos)
 {
 	check(IsInRenderingThread());
+	SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene, FColor::Turquoise);
 
 	{
 		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene_IndirectLightingCacheUniformBuffer, FColor::Turquoise);
@@ -1452,14 +1456,6 @@ void FPrimitiveSceneInfo::AddToScene(FScene* Scene, TArrayView<FPrimitiveSceneIn
 			{
 				SceneInfo->CacheReflectionCaptures();
 			}
-		}
-	}
-
-	{
-		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene_AddStaticMeshes, FColor::Magenta);
-		if (EnumHasAnyFlags(Ops, EPrimitiveAddToSceneOps::AddStaticMeshes))
-		{
-			AddStaticMeshes(Scene, SceneInfos, EnumHasAnyFlags(Ops, EPrimitiveAddToSceneOps::CacheMeshDrawCommands));
 		}
 	}
 
@@ -1559,40 +1555,6 @@ void FPrimitiveSceneInfo::AddToScene(FScene* Scene, TArrayView<FPrimitiveSceneIn
 	}
 
 	{
-		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene_UpdateVirtualTexture, FColor::Emerald);
-		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
-		{
-			FPrimitiveSceneProxy* Proxy = SceneInfo->Proxy;
-			// Store the runtime virtual texture flags.
-			SceneInfo->UpdateRuntimeVirtualTextureFlags();
-			Scene->PrimitiveVirtualTextureFlags[SceneInfo->PackedIndex] = SceneInfo->RuntimeVirtualTextureFlags;
-
-			// Store the runtime virtual texture Lod info.
-			if (SceneInfo->RuntimeVirtualTextureFlags.bRenderToVirtualTexture)
-			{
-				int8 MinLod, MaxLod;
-				GetRuntimeVirtualTextureLODRange(SceneInfo->StaticMeshRelevances, MinLod, MaxLod);
-
-				FPrimitiveVirtualTextureLodInfo& LodInfo = Scene->PrimitiveVirtualTextureLod[SceneInfo->PackedIndex];
-				LodInfo.MinLod = FMath::Clamp((int32)MinLod, 0, 15);
-				LodInfo.MaxLod = FMath::Clamp((int32)MaxLod, 0, 15);
-				LodInfo.LodBias = FMath::Clamp(Proxy->GetVirtualTextureLodBias() + FPrimitiveVirtualTextureLodInfo::LodBiasOffset, 0, 15);
-				LodInfo.CullMethod = Proxy->GetVirtualTextureMinCoverage() == 0 ? 0 : 1;
-				LodInfo.CullValue = LodInfo.CullMethod == 0 ? Proxy->GetVirtualTextureCullMips() : Proxy->GetVirtualTextureMinCoverage();
-			}
-		}
-	}
-
-	// Find lights that affect the primitive in the light octree.
-	if (EnumHasAnyFlags(Ops, EPrimitiveAddToSceneOps::CreateLightPrimitiveInteractions))
-	{
-		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
-		{
-			Scene->CreateLightPrimitiveInteractionsForPrimitive(SceneInfo);
-		}
-	}
-
-	{
 		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene_LevelNotifyPrimitives, FColor::Blue);
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
@@ -1602,6 +1564,32 @@ void FPrimitiveSceneInfo::AddToScene(FScene* Scene, TArrayView<FPrimitiveSceneIn
 				SceneInfo->LevelUpdateNotificationIndex = LevelNotifyPrimitives.Num();
 				LevelNotifyPrimitives.Add(SceneInfo);
 			}
+		}
+	}
+}
+
+void FPrimitiveSceneInfo::UpdateVirtualTextures(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos)
+{
+	SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene_UpdateVirtualTexture, FColor::Emerald);
+	for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
+	{
+		FPrimitiveSceneProxy* Proxy = SceneInfo->Proxy;
+		// Store the runtime virtual texture flags.
+		SceneInfo->UpdateRuntimeVirtualTextureFlags();
+		Scene->PrimitiveVirtualTextureFlags[SceneInfo->PackedIndex] = SceneInfo->RuntimeVirtualTextureFlags;
+
+		// Store the runtime virtual texture Lod info.
+		if (SceneInfo->RuntimeVirtualTextureFlags.bRenderToVirtualTexture)
+		{
+			int8 MinLod, MaxLod;
+			GetRuntimeVirtualTextureLODRange(SceneInfo->StaticMeshRelevances, MinLod, MaxLod);
+
+			FPrimitiveVirtualTextureLodInfo& LodInfo = Scene->PrimitiveVirtualTextureLod[SceneInfo->PackedIndex];
+			LodInfo.MinLod = FMath::Clamp((int32)MinLod, 0, 15);
+			LodInfo.MaxLod = FMath::Clamp((int32)MaxLod, 0, 15);
+			LodInfo.LodBias = FMath::Clamp(Proxy->GetVirtualTextureLodBias() + FPrimitiveVirtualTextureLodInfo::LodBiasOffset, 0, 15);
+			LodInfo.CullMethod = Proxy->GetVirtualTextureMinCoverage() == 0 ? 0 : 1;
+			LodInfo.CullValue = LodInfo.CullMethod == 0 ? Proxy->GetVirtualTextureCullMips() : Proxy->GetVirtualTextureMinCoverage();
 		}
 	}
 }

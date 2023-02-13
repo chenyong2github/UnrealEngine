@@ -600,7 +600,7 @@ FRHIShader* FShaderMapResource_InlineCode::CreateRHIShaderOrCrash(int32 ShaderIn
 	double TimeFunctionEntered = FPlatformTime::Seconds();
 	ON_SCOPE_EXIT
 	{
-		if (IsInRenderingThread())
+		if (IsInParallelRenderingThread())
 		{
 			double ShaderCreationTime = FPlatformTime::Seconds() - TimeFunctionEntered;
 			INC_FLOAT_STAT_BY(STAT_Shaders_TotalRTShaderInitForRenderingTime, ShaderCreationTime);

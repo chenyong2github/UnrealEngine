@@ -626,6 +626,7 @@ public:
 	virtual TConstArrayView<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const = 0;
 
 	virtual void StartFrame() {}
+	virtual void EndFrame(FRHICommandListImmediate& RHICmdList) {}
 	virtual uint32 GetFrameNumber() const { return 0; }
 	virtual void IncrementFrameNumber() {}
 
