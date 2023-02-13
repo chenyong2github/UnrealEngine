@@ -373,8 +373,12 @@ void MainCS(
 	const uint2 TileCoord = TileDataBuffer[LinearIndex];
 	uint2 PixelCoord = TileCoord * TileSize + GroupThreadId.xy;
 
-	if (PixelCoord.x >= uint(OutputResolution.x) || PixelCoord.y >= uint(OutputResolution.y))
+	const bool bIsValid = all(PixelCoord < View.ViewRectMinAndSize.zw);
+	if (!bIsValid)
+	{
 		PixelCoord = uint2(0, 0);
+	}
+	PixelCoord += View.ViewRectMinAndSize.xy;
 
 	FSampleSetDesc SampleDesc;
 

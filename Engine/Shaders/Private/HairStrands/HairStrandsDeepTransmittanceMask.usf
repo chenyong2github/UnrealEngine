@@ -366,8 +366,12 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const float SceneDepth		= ConvertFromDeviceZ(Sample.Depth);
 	const uint2 PixelCoord		= HairStrands.HairSampleCoords[SampleIndex];
 	const float2 UV				= (PixelCoord.xy + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
-	const float3 TranslatedWorldPosition = GetTranslatedWorldPosition(UV, SceneDepth);
 	const float PixelRadius		= SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
+	float3 TranslatedWorldPosition = GetTranslatedWorldPosition(UV, SceneDepth);
+	if (View.StereoPassIndex == 1)
+	{
+		TranslatedWorldPosition += VirtualVoxel.TranslatedWorldOffsetStereoCorrection;
+	}
 
 	const uint4 PackedShadowMask = ~ShadowMaskBitsTexture[PixelCoord];
 	const float3 Random = GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
@@ -464,7 +468,11 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		}
 
 		const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
-		const float3 TranslatedWorldPosition = GetTranslatedWorldPosition(UV, SceneDepth);
+		float3 TranslatedWorldPosition = GetTranslatedWorldPosition(UV, SceneDepth);
+		if (View.StereoPassIndex == 1)
+		{
+			TranslatedWorldPosition += VirtualVoxel.TranslatedWorldOffsetStereoCorrection;
+		}
 
 		const uint MacroGroupIndex = clamp(Sample.MacroGroupId, 0, MAX_HAIR_MACROGROUP_COUNT - 1);
 

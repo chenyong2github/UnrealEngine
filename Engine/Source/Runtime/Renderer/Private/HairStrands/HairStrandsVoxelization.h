@@ -20,4 +20,5 @@ void VoxelizeHairStrands(
 	FRDGBuilder& GraphBuilder,
 	const class FScene* Scene,
 	FViewInfo& View,
-	FInstanceCullingManager& InstanceCullingManager);
+	FInstanceCullingManager& InstanceCullingManager, 
+	const FVector& PreViewStereoCorrection);

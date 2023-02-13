@@ -449,6 +449,10 @@ void MainPS(
 	const bool bIsValidOpaquePixel = HairPixelCoverage < CoverageThreshold;
 	
 	float3 TranslatedWorldPosition = GetTranslatedWorldPosition(UV, SceneDepth);
+	if (View.StereoPassIndex == 1)
+	{
+		TranslatedWorldPosition += VirtualVoxel.TranslatedWorldOffsetStereoCorrection;
+	}
 
 	// PCF or simple point sampler
 	float Visibility = 1;

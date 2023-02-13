@@ -215,6 +215,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, )
 	SHADER_PARAMETER(float, Raytracing_SkyOcclusionThreshold)
 
 	SHADER_PARAMETER(FVector3f, TranslatedWorldOffset) // For debug purpose
+	SHADER_PARAMETER(FVector3f, TranslatedWorldOffsetStereoCorrection) // PreViewTranslation correction between View0 & View1 when rendering stereo
 
 	SHADER_PARAMETER(uint32, AllocationFeedbackEnable)
 

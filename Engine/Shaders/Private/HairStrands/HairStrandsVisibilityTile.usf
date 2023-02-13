@@ -31,11 +31,12 @@ groupshared uint2 s_pMask[GROUP_THREAD_COUNT];
 [numthreads(HAIR_TILE_SIZE, HAIR_TILE_SIZE, 1)]
 void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 {
-	const uint2 PixelCoord = DispatchThreadId;
+	const uint2 PixelCoord = DispatchThreadId + View.ViewRectMin.xy;
+	const bool bIsValid    = all(DispatchThreadId < uint2(View.ViewRectMinAndSize.zw));
 
 	bool fHair = false;
 	bool pHair = false;
-	if (all(PixelCoord < uint2(BufferResolution)))
+	if (bIsValid)
 	{
 		if (bForceOutputAllTiles)
 		{
@@ -337,7 +338,7 @@ void MainVS(
 	uint2 TileVertex = TileCoord * HAIR_TILE_SIZE;
 	TileVertex.x += InVertexId == 1 || InVertexId == 2 || InVertexId == 4 ? HAIR_TILE_SIZE : 0;
 	TileVertex.y += InVertexId == 2 || InVertexId == 4 || InVertexId == 5 ? HAIR_TILE_SIZE : 0;
-	Out.UV = float2(TileVertex - ViewMin) * ViewInvSize;
+	Out.UV = float2(TileVertex) * ViewInvSize; // No need to take ViewMin into account, as the viewport rect is center on the actual view (i.e., xy:ViewMin)
 	Out.Position = float4(Out.UV * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.5f, 1.0f);
 }
 

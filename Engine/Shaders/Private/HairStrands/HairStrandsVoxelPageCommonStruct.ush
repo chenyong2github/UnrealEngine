@@ -5,7 +5,7 @@
 struct FPackedVirtualVoxelNodeDesc  
 {
 	float3	TranslatedWorldMinAABB;
-	uint	PackedPageIndexResolution; // 8bits encoding   
+	uint	PackedPageIndexResolution; // 8bits encoding  
 	float3	TranslatedWorldMaxAABB;
 	uint	PageIndexOffset_VoxelWorldSize;
 };
