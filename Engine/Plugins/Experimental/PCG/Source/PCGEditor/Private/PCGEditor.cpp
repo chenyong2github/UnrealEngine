@@ -436,6 +436,14 @@ void FPCGEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnToggleDebug),
 		FCanExecuteAction(),
 		FGetActionCheckState::CreateSP(this, &FPCGEditor::GetDebugCheckState));
+
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.DebugOnlySelected,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnDebugOnlySelected));
+
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.DisableDebugOnAllNodes,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnDisableDebugOnAllNodes));
 }
 
 void FPCGEditor::OnFind()
@@ -1403,6 +1411,79 @@ void FPCGEditor::OnToggleDebug()
 				PCGSettingsInterface->bDebug = bNewCheckState;
 				PCGNode->OnNodeChangedDelegate.Broadcast(PCGNode, EPCGChangeType::Settings);
 			}
+		}
+	}
+}
+
+void FPCGEditor::OnDebugOnlySelected()
+{
+	if (GraphEditorWidget.IsValid() && PCGEditorGraph)
+	{
+		bool bChanged = false;
+
+		const FGraphPanelSelectionSet& SelectedNodes = GraphEditorWidget->GetSelectedNodes();
+
+		FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorDebugOnlySelectedTransactionMessage", "PCG Editor: Debug only selected nodes"), nullptr);
+
+		for (UEdGraphNode* Node : PCGEditorGraph->Nodes)
+		{
+			UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<UPCGEditorGraphNodeBase>(Node);
+			UPCGNode* PCGNode = PCGEditorGraphNode ? PCGEditorGraphNode->GetPCGNode() : nullptr;
+			UPCGSettingsInterface* PCGSettingsInterface = PCGNode ? PCGNode->GetSettingsInterface() : nullptr;
+
+			if (!PCGEditorGraphNode || !PCGNode || !PCGSettingsInterface)
+			{
+				continue;
+			}
+
+			const bool bShouldBeDebug = SelectedNodes.Contains(PCGEditorGraphNode);
+
+			if (PCGSettingsInterface->bDebug != bShouldBeDebug)
+			{
+				PCGSettingsInterface->Modify();
+				PCGSettingsInterface->bDebug = bShouldBeDebug;
+				PCGNode->OnNodeChangedDelegate.Broadcast(PCGNode, EPCGChangeType::Settings);
+				bChanged = true;
+			}
+		}
+
+		if (!bChanged)
+		{
+			Transaction.Cancel();
+		}
+	}
+}
+
+void FPCGEditor::OnDisableDebugOnAllNodes()
+{
+	if (GraphEditorWidget.IsValid() && PCGEditorGraph)
+	{
+		bool bChanged = false;
+		FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorDisableDebugAllNodesTransactionMessage", "PCG Editor: Disable debug on all nodes"), nullptr);
+
+		for (UEdGraphNode* Node : PCGEditorGraph->Nodes)
+		{
+			UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<UPCGEditorGraphNodeBase>(Node);
+			UPCGNode* PCGNode = PCGEditorGraphNode ? PCGEditorGraphNode->GetPCGNode() : nullptr;
+			UPCGSettingsInterface* PCGSettingsInterface = PCGNode ? PCGNode->GetSettingsInterface() : nullptr;
+
+			if (!PCGEditorGraphNode || !PCGNode || !PCGSettingsInterface)
+			{
+				continue;
+			}
+
+			if (PCGSettingsInterface->bDebug)
+			{
+				PCGSettingsInterface->Modify();
+				PCGSettingsInterface->bDebug = false;
+				PCGNode->OnNodeChangedDelegate.Broadcast(PCGNode, EPCGChangeType::Settings);
+				bChanged = true;
+			}
+		}
+
+		if (!bChanged)
+		{
+			Transaction.Cancel();
 		}
 	}
 }

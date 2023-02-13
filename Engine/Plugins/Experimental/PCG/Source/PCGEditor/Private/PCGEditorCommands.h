@@ -25,5 +25,7 @@ public:
 	TSharedPtr<FUICommandInfo> CancelExecution;
 	TSharedPtr<FUICommandInfo> ToggleEnabled;
 	TSharedPtr<FUICommandInfo> ToggleDebug;
+	TSharedPtr<FUICommandInfo> DebugOnlySelected;
+	TSharedPtr<FUICommandInfo> DisableDebugOnAllNodes;
 	TSharedPtr<FUICommandInfo> ToggleInspect;
 };

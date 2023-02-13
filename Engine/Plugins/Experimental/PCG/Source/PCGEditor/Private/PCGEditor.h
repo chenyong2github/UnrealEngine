@@ -124,6 +124,12 @@ private:
 	/** Whether selected nodes are being debugged or not */
 	ECheckBoxState GetDebugCheckState() const;
 
+	/** Enable node debug state for selected nodes and disable for others */
+	void OnDebugOnlySelected();
+
+	/** Disable node debug state for all nodes */
+	void OnDisableDebugOnAllNodes();
+
 	/** Cancels the current execution of the selected graph */
 	void OnCancelExecution_Clicked();
 
