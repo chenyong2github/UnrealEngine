@@ -35,6 +35,10 @@ bool relocations::WouldPatchRelocation(const ImmutableString& dstSymbolName)
 	{
 		return false;
 	}
+	else if (string::Contains(dstSymbolName.c_str(), "$__resumable"))
+	{
+		return false;
+	}
 
 	return true;
 }
@@ -190,6 +194,12 @@ relocations::Record relocations::PatchRelocation
 		{
 			// ignore compiler-generated symbol for accessing thread-local storage, because
 			// that address is fixed relative to a segment register anyway.
+			LC_LOG_DEV("Ignoring relocation to %s", dstSymbolName.c_str());
+			return record;
+		}
+
+		if (string::Contains(dstSymbolName.c_str(), "$__resumable"))
+		{
 			LC_LOG_DEV("Ignoring relocation to %s", dstSymbolName.c_str());
 			return record;
 		}

@@ -125,6 +125,10 @@ void symbols::ReconstructFromExecutableCoff
 					// are being relocated to, but store absolute values encoded in their offset in the PDB.
 					LC_LOG_DEV("Compiler- or linker-generated symbol %s without an RVA", symbolName.c_str());
 				}
+				else if (string::Contains(symbolName.c_str(), "$__resumable"))
+				{
+					LC_LOG_DEV("Coroutine symbol %s", symbolName.c_str());
+				}
 				else
 				{
 					LC_LOG_DEV("Unknown unresolved symbol %s", symbolName.c_str());
@@ -251,6 +255,11 @@ walkOpenSymbols:
 			else if (symbols::IsSectionSymbol(dstSymbolName))
 			{
 				LC_LOG_DEV("Ignoring section symbol \"%s\"", dstSymbolName.c_str());
+				continue;
+			}
+			else if (string::Contains(dstSymbolName.c_str(), "$__resumable"))
+			{
+				LC_LOG_DEV("Ignoring Coroutine symbol %s", dstSymbolName.c_str());
 				continue;
 			}
 
