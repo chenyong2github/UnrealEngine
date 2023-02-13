@@ -113,7 +113,7 @@ private:
 	};
 
 	TArray<FRootClassContainer> RootClasses;
-	TMap<FString, int32> RootClassNameToIndex;
+	TMap<FString, int32> ClassNameToRootIndex;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
