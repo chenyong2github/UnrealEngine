@@ -8,6 +8,8 @@
 #include "Video/Encoders/Configs/VideoEncoderConfigH265.h"
 #include "Video/Resources/VideoResourceRHI.h"
 
+#include "PixelStreamingPrivate.h"
+
 namespace UE::PixelStreaming
 {
 	using FVideoEncoderHardware = TVideoEncoder<FVideoResourceRHI>;
