@@ -27,8 +27,7 @@
 
 
 #define LOCTEXT_NAMESPACE "FDMXEditorUtils"
-// In blueprints name verification, it is said that '.' is known for causing problems
-#define DMX_INVALID_NAME_CHARACTERS TEXT(".")
+
 
 // Text object factory for pasting DMX Entities
 struct FDMXEntityObjectTextFactory : public FCustomizableTextObjectFactory
@@ -249,16 +248,6 @@ bool FDMXEditorUtils::ValidateEntityName(const FString& NewEntityName, const UDM
 	{
 		OutReason = LOCTEXT("NameEmpty", "The name can't be blank!");
 		return false;
-	}
-
-	for (const TCHAR& Character : DMX_INVALID_NAME_CHARACTERS)
-	{
-		if (NewEntityName.Contains(&Character))
-		{
-			OutReason = FText::Format(LOCTEXT("NameWithInvalidCharacters", "Name can not contain: {0}"),
-				FText::FromString(&Character));
-			return false;
-		}
 	}
 
 	// Check against existing names for the current entity type
