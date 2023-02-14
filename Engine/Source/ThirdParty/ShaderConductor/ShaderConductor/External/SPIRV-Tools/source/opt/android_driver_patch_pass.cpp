@@ -46,7 +46,8 @@ Pass::Status AndroidDriverPatchPass::Process() {
 	    modified |= FixupOpPhiMatrix4x3(inst, entryPoint);
 	    modified |= FixupOpVectorShuffle(inst);
         modified |= FixupOpVariableFunctionPrecision(inst);
-        modified |= FixupMixedPrecisionFMA(inst);
+        modified |= StripFMA(inst);
+        modified |= FixupNMinMax(inst);
 	  }
     });
   }
@@ -340,7 +341,7 @@ bool AndroidDriverPatchPass::FixupOpTypeImage(Instruction* inst) {
   return true;
 }
 
-bool AndroidDriverPatchPass::FixupMixedPrecisionFMA(Instruction* inst) {
+bool AndroidDriverPatchPass::StripFMA(Instruction* inst) {
   if (inst->opcode() != spv::Op::OpExtInst) {
     return false;
   }
@@ -349,18 +350,12 @@ bool AndroidDriverPatchPass::FixupMixedPrecisionFMA(Instruction* inst) {
   if (extInstType != GLSLstd450Fma) 
 	return false;
 
+  InstructionBuilder builder(context(), inst, IRContext::kAnalysisDefUse | IRContext::kAnalysisInstrToBlockMapping);
+
   Instruction* inputInstructions[3];
-  uint32_t relaxedPrecisionFlags = 0;
   for (uint32_t idx = 0; idx < 3; ++idx) {
     inputInstructions[idx] = context()->get_def_use_mgr()->GetDef(inst->GetOperand(4 + idx).words[0]);
-    relaxedPrecisionFlags |= HasRelaxedPrecision(inputInstructions[idx]->result_id()) ? 1 << idx : 0;
   }
-
-  // If none/all inputs are relaxed precision then we can exit
-  if (relaxedPrecisionFlags == 0 || relaxedPrecisionFlags == 0x7)
-	return false;
-
-  InstructionBuilder builder(context(), inst, IRContext::kAnalysisDefUse | IRContext::kAnalysisInstrToBlockMapping);
 
   // Add new multiply and add instructions
   Instruction* mul = builder.AddBinaryOp(inst->GetOperand(0).words[0], spv::Op::OpFMul, inputInstructions[0]->result_id(), inputInstructions[1]->result_id());
@@ -372,6 +367,24 @@ bool AndroidDriverPatchPass::FixupMixedPrecisionFMA(Instruction* inst) {
   inst->RemoveFromList();
 
   return true;
+}
+
+bool AndroidDriverPatchPass::FixupNMinMax(Instruction* inst) {
+  if (inst->opcode() != spv::Op::OpExtInst) {
+    return false;
+  }
+  spvtools::opt::Operand& Op = inst->GetOperand(3);
+  uint32_t extInstType = Op.words[0];
+
+  if (extInstType == GLSLstd450NMin) {
+    Op.words[0] = GLSLstd450FMin;
+    return true;
+  } else {
+    Op.words[0] = GLSLstd450FMax;
+    return true;
+  }
+
+  return false;
 }
 
 bool AndroidDriverPatchPass::HasRelaxedPrecision(uint32_t operand_id) {

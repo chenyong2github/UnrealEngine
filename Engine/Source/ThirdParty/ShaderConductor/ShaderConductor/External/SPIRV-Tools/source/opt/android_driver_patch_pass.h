@@ -51,8 +51,11 @@ class AndroidDriverPatchPass : public Pass {
   // Depth=2 on OpTypeImage results in a crash
   bool FixupOpTypeImage(Instruction* inst);
 
-  // Workaround for bug on Adreno where using mixed precision inputs on FMA instructions causes incorrect results
-  bool FixupMixedPrecisionFMA(Instruction* inst);
+  // Workaround for bug on Adreno where FMA is broken on older devices and drivers
+  bool StripFMA(Instruction* inst);
+
+  // Remove NMin and NMax functions
+  bool FixupNMinMax(Instruction* inst);
 
  private:
   bool HasRelaxedPrecision(uint32_t operand_id);
