@@ -24,6 +24,8 @@
 #include "GameFeaturesProjectPolicies.h"
 #include "UObject/ObjectRename.h"
 #include "UObject/UObjectAllocator.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/NoExportTypes.h"
 #include "Misc/PathViews.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeaturePluginStateMachine)
