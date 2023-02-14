@@ -31,6 +31,12 @@ namespace BuildPatchServices
 	{
 	public:
 		virtual ~ICloudChunkSource() {}
+
+		/**
+		 * Should be called from the desired thread if bRunOwnThread is false.
+		 * It will block until until aborted by the owning system.
+		 */
+		virtual void ThreadRun() = 0;
 	};
 
 	/**
@@ -60,6 +66,8 @@ namespace BuildPatchServices
 		bool bBeginDownloadsOnFirstGet;
 		// The minimum time to allow a http download before assessing it as affected by TCP zero window issue.
 		float TcpZeroWindowMinimumSeconds;
+		// Whether cloud source should run its own thread.
+		bool bRunOwnThread;
 
 		/**
 		 * Constructor which sets usual defaults, and takes params for values that cannot use a default.
@@ -73,6 +81,7 @@ namespace BuildPatchServices
 			, DisconnectedDelay(5.0f)
 			, bBeginDownloadsOnFirstGet(true)
 			, TcpZeroWindowMinimumSeconds(20.0f)
+			, bRunOwnThread(true)
 		{
 			const float RetryFloats[] = {0.5f, 1.0f, 1.0f, 3.0f, 3.0f, 10.0f, 10.0f, 20.0f, 20.0f, 30.0f};
 			RetryDelayTimes.Empty(UE_ARRAY_COUNT(RetryFloats));

@@ -145,13 +145,16 @@ namespace BuildPatchServices
 		virtual void SetUnavailableChunksCallback(TFunction<void(TSet<FGuid>)> Callback) override;
 		// IChunkSource interface end.
 
+		// ICloudChunkSource interface begin.
+		virtual void ThreadRun() override;
+		// ICloudChunkSource interface end.
+
 	private:
 		void EnsureAquiring(const FGuid& DataId);
 		const FString& GetCloudRoot(int32 RetryNum) const;
 		float GetRetryDelay(int32 RetryNum);
 		EBuildPatchDownloadHealth GetDownloadHealth(bool bIsDisconnected, float ChunkSuccessRate);
 		FGuid GetNextTask(const TMap<FGuid, FTaskInfo>& TaskInfos, const TMap<int32, FGuid>& InFlightDownloads, const TSet<FGuid>& TotalRequiredChunks, const TSet<FGuid>& PriorityRequests, const TSet<FGuid>& FailedDownloads, const TSet<FGuid>& Stored, TArray<FGuid>& DownloadQueue, EBuildPatchDownloadHealth DownloadHealth);
-		void ThreadRun();
 		void OnDownloadProgress(int32 RequestId, int32 BytesSoFar);
 		void OnDownloadComplete(int32 RequestId, const FDownloadRef& Download);
 
@@ -168,6 +171,7 @@ namespace BuildPatchServices
 		ICloudChunkSourceStat* CloudChunkSourceStat;
 		IBuildManifestSet* ManifestSet;
 		const TSet<FGuid> InitialDownloadSet;
+		TPromise<void> Promise;
 		TFuture<void> Future;
 		FDownloadProgressDelegate OnDownloadProgressDelegate;
 		FDownloadCompleteDelegate OnDownloadCompleteDelegate;
@@ -234,6 +238,7 @@ namespace BuildPatchServices
 		, CloudChunkSourceStat(InCloudChunkSourceStat)
 		, ManifestSet(InManifestSet)
 		, InitialDownloadSet(MoveTemp(InInitialDownloadSet))
+		, Promise()
 		, Future()
 		, OnDownloadProgressDelegate(FDownloadProgressDelegate::CreateThreadSafeSP(DownloadDelegates, &FDownloadDelegates::OnDownloadProgress))
 		, OnDownloadCompleteDelegate(FDownloadCompleteDelegate::CreateThreadSafeSP(DownloadDelegates, &FDownloadDelegates::OnDownloadComplete))
@@ -246,8 +251,15 @@ namespace BuildPatchServices
 		, RequestedDownloads()
 		, DownloadCount(InDownloadConnectionCount)
 	{
-		TFunction<void()> Task = [this]() { return ThreadRun(); };
-		Future = Async(EAsyncExecution::ThreadIfForkSafe, MoveTemp(Task));
+		if (Configuration.bRunOwnThread)
+		{
+			TFunction<void()> Task = [this]() { return ThreadRun(); };
+			Future = Async(EAsyncExecution::ThreadIfForkSafe, MoveTemp(Task));
+		}
+		else
+		{
+			Future = Promise.GetFuture();
+		}
 	}
 
 	FCloudChunkSource::~FCloudChunkSource()
@@ -718,6 +730,9 @@ namespace BuildPatchServices
 		CloudChunkSourceStat->OnDownloadHealthUpdated(TrackedDownloadHealth);
 		CloudChunkSourceStat->OnSuccessRateUpdated(ChunkSuccessRate.GetOverall());
 		CloudChunkSourceStat->OnActiveRequestCountUpdated(0);
+
+		// The promise should always be set, even if not needed as destruction of an unset promise will assert.
+		Promise.SetValue();
 	}
 
 	void FCloudChunkSource::OnDownloadProgress(int32 RequestId, int32 BytesSoFar)

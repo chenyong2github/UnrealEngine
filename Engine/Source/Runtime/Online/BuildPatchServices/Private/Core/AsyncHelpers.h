@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Async/Async.h"
+#include "Containers/Queue.h"
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/ThreadSafeCounter64.h"
-#include "Async/Async.h"
 
 namespace BuildPatchServices
 {
@@ -56,6 +57,22 @@ namespace BuildPatchServices
 			if (!IsInGameThread())
 			{
 				AsyncTask(ENamedThreads::GameThread, MoveTemp(PromiseKeeper));
+			}
+			else
+			{
+				PromiseKeeper();
+			}
+			return Promise->GetFuture();
+		}
+
+		template<typename ResultType>
+		static TFuture<ResultType> ExecuteOnCustomThread(const TFunction<ResultType()>& Function, TQueue<TFunction<void()>, EQueueMode::Spsc>& CustomThreadQueue)
+		{
+			TSharedRef<TPromise<ResultType>, ESPMode::ThreadSafe> Promise = MakeShareable(new TPromise<ResultType>());
+			TFunction<void()> PromiseKeeper = MakePromiseKeeper(Promise, Function);
+			if (!IsInGameThread())
+			{
+				CustomThreadQueue.Enqueue(MoveTemp(PromiseKeeper));
 			}
 			else
 			{

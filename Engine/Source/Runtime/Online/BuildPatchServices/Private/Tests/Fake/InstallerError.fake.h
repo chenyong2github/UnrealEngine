@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Installer/InstallerError.h"
+#include "Interfaces/IBuildInstaller.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -58,6 +59,17 @@ namespace BuildPatchServices
 		virtual void UnregisterForErrors(int32 Handle) override
 		{
 			Delegates.Remove(Handle);
+		}
+
+		virtual void Reset() override
+		{
+			bHasError = false;
+			bIsCancelled = false;
+			bCanRetry = true;
+			ErrorType = EBuildPatchInstallError::NoError;
+			ErrorCode = TEXT("");
+			ErrorText = FText::GetEmpty();
+			// To mimic real imp, delegates are kept.
 		}
 
 	public:

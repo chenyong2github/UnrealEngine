@@ -113,6 +113,14 @@ void FBuildPatchServicesModule::ShutdownModule()
 	GLog->Log(ELogVerbosity::VeryVerbose, TEXT( "BuildPatchServicesModule: Finished shutting down" ) );
 }
 
+IBuildInstallStreamerRef FBuildPatchServicesModule::CreateBuildInstallStreamer(BuildPatchServices::FBuildInstallStreamerConfiguration Configuration)
+{
+	FBuildInstallStreamerRef Streamer = MakeShareable(FBuildInstallStreamerFactory::Create(MoveTemp(Configuration)));
+	FBuildInstallStreamerWeakPtr WeakStreamer = Streamer;
+	AsyncHelpers::ExecuteOnGameThread<void>([this, WeakStreamer = MoveTemp(WeakStreamer)] { WeakBuildInstallStreamers.Add(WeakStreamer); });
+	return Streamer;
+}
+
 IBuildInstallerRef FBuildPatchServicesModule::CreateBuildInstaller(BuildPatchServices::FBuildInstallerConfiguration Configuration, FBuildPatchInstallerDelegate CompleteDelegate) const
 {
 	// Override prereq install using the config/commandline value to force skip them.
@@ -211,6 +219,16 @@ bool FBuildPatchServicesModule::Tick(float Delta)
 		for (const FBuildPatchInstallerRef& Installer : BuildPatchInstallers)
 		{
 			BuildPatchInstallerInterfaces.Add(Installer);
+		}
+	}
+
+	// Tick running streamers.
+	for (auto StreamerIter = WeakBuildInstallStreamers.CreateIterator(); StreamerIter; ++StreamerIter)
+	{
+		const FBuildInstallStreamerPtr& Streamer = StreamerIter->Pin();
+		if (!Streamer.IsValid() || !Streamer->Tick())
+		{
+			StreamerIter.RemoveCurrent();
 		}
 	}
 
@@ -378,6 +396,15 @@ void FBuildPatchServicesModule::PreExit()
 	{
 		const FBuildPatchInstallerRef& Installer = *InstallerIter;
 		Installer->PreExit();
+	}
+	// Inform streamers
+	for (auto StreamerIter = WeakBuildInstallStreamers.CreateIterator(); StreamerIter; ++StreamerIter)
+	{
+		const FBuildInstallStreamerPtr& Streamer = StreamerIter->Pin();
+		if (Streamer.IsValid())
+		{
+			Streamer->PreExit();
+		}
 	}
 
 	// Release our ptr to analytics

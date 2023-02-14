@@ -116,6 +116,7 @@ public:
 	virtual int64 GetFileSize(const FString& Filename) const override;
 	virtual int64 GetFileSize(const TArray<FString>& Filenames) const override;
 	virtual int64 GetFileSize(const TSet  <FString>& Filenames) const override;
+	virtual bool GetFileHash(const FString& Filename, FSHAHash& OutHash) const override;
 	virtual TSet<FString> GetFileTagList() const override;
 	virtual void GetFileTagList(TSet<FString>& Tags) const override;
 	virtual void GetOutdatedFiles(const IBuildManifestRef& OldManifest, TSet<FString>& OutdatedFiles) const override;
@@ -278,14 +279,6 @@ public:
 	 * @return	true if we had the hash for this file
 	 */
 	virtual bool GetFileHash(const FGuid& FileGuid, FSHAHash& OutHash) const; // DEPRECATE ME
-
-	/**
-	 * Gets the file hash for a given file
-	 * @param Filename		IN		The filename in the build
-	 * @param OutHash		OUT		Receives the hash value if found
-	 * @return	true if we had the hash for this file
-	 */
-	virtual bool GetFileHash(const FString& Filename, FSHAHash& OutHash) const;
 
 	/**
 	 * Gets the file hash for given file data. Valid for non-chunked manifest

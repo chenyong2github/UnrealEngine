@@ -11,7 +11,7 @@ namespace BuildPatchServices
 	 * We template the dependency for cycles so that the class can be nicely tested.
 	 * Under normal circumstances, use FProcessTimer, which is a typedef below.
 	 */
-	template<typename FCyclesProvider>
+	template<typename FCyclesProvider, bool bThreadSafe = true>
 	class TProcessTimer
 	{
 	public:
@@ -33,11 +33,18 @@ namespace BuildPatchServices
 		 */
 		double GetSeconds()
 		{
-			FScopeLock ScopeLock(&ThreadLock);
+			if (bThreadSafe)
+			{
+				ThreadLock.Lock();
+			}
 			double Seconds = FCyclesProvider::CyclesToSeconds(Cycles);
 			if (bIsRunning && !bIsPaused)
 			{
 				Seconds += FCyclesProvider::CyclesToSeconds(FCyclesProvider::GetCycles() - StartCycles);
+			}
+			if (bThreadSafe)
+			{
+				ThreadLock.Unlock();
 			}
 			return Seconds;
 		}
@@ -47,7 +54,10 @@ namespace BuildPatchServices
 		 */
 		void Start()
 		{
-			FScopeLock ScopeLock(&ThreadLock);
+			if (bThreadSafe)
+			{
+				ThreadLock.Lock();
+			}
 			if (!bIsRunning)
 			{
 				bIsRunning = true;
@@ -56,6 +66,10 @@ namespace BuildPatchServices
 					StartCycles = FCyclesProvider::GetCycles();
 				}
 			}
+			if (bThreadSafe)
+			{
+				ThreadLock.Unlock();
+			}
 		}
 
 		/**
@@ -63,7 +77,10 @@ namespace BuildPatchServices
 		 */
 		void Stop()
 		{
-			FScopeLock ScopeLock(&ThreadLock);
+			if (bThreadSafe)
+			{
+				ThreadLock.Lock();
+			}
 			if (bIsRunning)
 			{
 				bIsRunning = false;
@@ -71,6 +88,10 @@ namespace BuildPatchServices
 				{
 					Cycles += FCyclesProvider::GetCycles() - StartCycles;
 				}
+			}
+			if (bThreadSafe)
+			{
+				ThreadLock.Unlock();
 			}
 		}
 
@@ -80,7 +101,10 @@ namespace BuildPatchServices
 		 */
 		void SetPause(bool bPause)
 		{
-			FScopeLock ScopeLock(&ThreadLock);
+			if (bThreadSafe)
+			{
+				ThreadLock.Lock();
+			}
 			if (bIsPaused != bPause)
 			{
 				bIsPaused = bPause;
@@ -99,6 +123,26 @@ namespace BuildPatchServices
 						StartCycles = FCyclesProvider::GetCycles();
 					}
 				}
+			}
+			if (bThreadSafe)
+			{
+				ThreadLock.Unlock();
+			}
+		}
+
+		void Reset()
+		{
+			if (bThreadSafe)
+			{
+				ThreadLock.Lock();
+			}
+			StartCycles = 0;
+			Cycles = 0;
+			bIsRunning = false;
+			bIsPaused = false;
+			if (bThreadSafe)
+			{
+				ThreadLock.Unlock();
 			}
 		}
 

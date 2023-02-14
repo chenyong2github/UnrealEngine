@@ -5,6 +5,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Interfaces/IBuildInstaller.h"
 #include "Interfaces/IBuildStatistics.h"
+#include "Interfaces/IBuildInstallStreamer.h"
 #include "Interfaces/IPatchDataEnumeration.h"
 #include "BuildPatchSettings.h"
 
@@ -36,6 +37,13 @@ public:
 	 * Virtual destructor.
 	 */
 	virtual ~IBuildPatchServicesModule() { }
+
+	/**
+	 * Factory providing construction of a build streamer class.
+	 * @param Configuration     The configuration for the installer.
+	 * @return an instance of an IBuildInstallStreamer implementation.
+	 */
+	virtual IBuildInstallStreamerRef CreateBuildInstallStreamer(BuildPatchServices::FBuildInstallStreamerConfiguration Configuration) = 0;
 
 	/**
 	 * Factory providing construction of a build installer class.

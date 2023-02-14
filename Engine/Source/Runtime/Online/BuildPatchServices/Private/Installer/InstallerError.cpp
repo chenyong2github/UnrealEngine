@@ -79,6 +79,7 @@ namespace BuildPatchServices
 		virtual void SetError(EBuildPatchInstallError InErrorType, const TCHAR* InErrorSubType, uint32 InErrorCode, FText InErrorText) override;
 		virtual int32 RegisterForErrors(FOnErrorDelegate Delegate) override;
 		virtual void UnregisterForErrors(int32 Handle) override;
+		virtual void Reset() override;
 		// IInstallerError interface end.
 
 	private:
@@ -183,6 +184,14 @@ namespace BuildPatchServices
 	{
 		FScopeLock ScopeLock(&ThreadLockCs);
 		RegisteredDelegates.Remove(Handle);
+	}
+
+	void FInstallerError::Reset()
+	{
+		FScopeLock ScopeLock(&ThreadLockCs);
+		ErrorType = EBuildPatchInstallError::NoError;
+		ErrorCode = InstallErrorPrefixes::ErrorTypeStrings[static_cast<int32>(ErrorType)];
+		ErrorText = GetStandardErrorText(ErrorType);
 	}
 
 	IInstallerError* FInstallerErrorFactory::Create()

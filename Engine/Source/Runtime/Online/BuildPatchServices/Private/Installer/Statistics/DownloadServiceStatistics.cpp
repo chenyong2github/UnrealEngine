@@ -35,6 +35,7 @@ namespace BuildPatchServices
 		virtual int32 GetNumCurrentDownloads() const override;
 		virtual TArray<FDownload> GetCurrentDownloads() const override;
 		virtual TPair<double, uint32> GetImmediateAverageSpeedPerRequest(uint32 MinCount) override;
+		virtual void Reset() override;
 		// IDownloadServiceStatistics interface end.
 
 	private:
@@ -157,6 +158,21 @@ namespace BuildPatchServices
 		}
 		return TPair<double, uint32>(Result, Count);
 	}
+
+	void FDownloadServiceStatistics::Reset()
+	{
+		checkSlow(IsInGameThread());
+
+		TotalBytesReceived = 0;
+		NumSuccessfulDownloads.Set(0);
+		NumFailedDownloads.Set(0);
+		Downloads.Empty();
+
+		FScopeLock Lock(&AverageSpeedCriticalSection);
+		AccumulatedRequestSpeed = 0;
+		AverageSpeedSampleCount = 0;
+	}
+
 	IDownloadServiceStatistics* FDownloadServiceStatisticsFactory::Create(ISpeedRecorder* SpeedRecorder, IDataSizeProvider* DataSizeProvider, IInstallerAnalytics* InstallerAnalytics)
 	{
 		check(SpeedRecorder != nullptr);

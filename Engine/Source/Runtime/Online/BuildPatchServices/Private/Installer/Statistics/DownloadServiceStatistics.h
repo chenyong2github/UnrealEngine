@@ -53,6 +53,11 @@ namespace BuildPatchServices
 		 *         and the count of requests completed since the last call.
 		 */
 		virtual TPair<double, uint32> GetImmediateAverageSpeedPerRequest(uint32 MinCount) = 0;
+
+		/**
+		 * Resets all internal statistics.
+		 */
+		virtual void Reset() = 0;
 	};
 
 	/**

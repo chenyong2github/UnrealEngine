@@ -269,6 +269,23 @@ namespace BuildPatchServices
 	};
 
 	/**
+	 * Defines a list of all the options of a build streamer class.
+	 */
+	struct BUILDPATCHSERVICES_API FBuildInstallStreamerConfiguration
+	{
+	public:
+		IBuildManifestPtr Manifest;
+		// The list of chunk database filenames that will be used to pull patch data from.
+		TArray<FString> ChunkDatabaseFiles;
+		// The list of cloud directory roots that will be used to pull patch data from. Empty array will use module's global setting..
+		TArray<FString> CloudDirectories;
+		// Whether the streamer should batch all requests into each cycle.
+		bool bShouldBatch = true;
+		// Whether completion delegates should be called on main thread, or the streamer's thread,
+		bool bMainThreadDelegates = true;
+	};
+
+	/**
 	 * Defines a list of all options for the build chunking task.
 	 */
 	struct BUILDPATCHSERVICES_API FChunkBuildConfiguration
