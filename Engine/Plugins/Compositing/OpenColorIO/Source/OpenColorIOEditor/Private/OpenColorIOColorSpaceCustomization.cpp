@@ -7,7 +7,7 @@
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
 #include "OpenColorIOConfiguration.h"
-#include "OpenColorIO/Private/OpenColorIONativeConfiguration.h"
+#include "OpenColorIONativeConfiguration.h"
 #include "OpenColorIO/OpenColorIO.h"
 #include "Widgets/Input/SComboButton.h"
 
