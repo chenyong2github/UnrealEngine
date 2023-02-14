@@ -73,7 +73,7 @@ namespace Jupiter
                     context.Succeed(requirement);
                 }
             }
-            catch (UnknownNamespaceException)
+            catch (NamespaceNotFoundException)
             {
                 // if the namespace doesn't have a policy setup, e.g. we do not know which claims to require then we can just exit here as the auth will fail
             }

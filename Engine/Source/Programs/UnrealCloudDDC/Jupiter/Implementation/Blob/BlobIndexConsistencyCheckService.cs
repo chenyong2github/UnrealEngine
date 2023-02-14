@@ -167,7 +167,7 @@ namespace Jupiter.Implementation
                             }
                         }
                     }
-                    catch (UnknownNamespaceException)
+                    catch (NamespaceNotFoundException)
                     {
                         if (_settings.CurrentValue.AllowDeletesInBlobIndex)
                         {

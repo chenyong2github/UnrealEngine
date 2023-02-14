@@ -65,14 +65,22 @@ namespace Jupiter.Common
                 return _internalNamespacePolicy;
             }
 
-            throw new UnknownNamespaceException($"Unable to find a valid policy for namespace {ns}");
+            throw new NamespaceNotFoundException(ns, $"Unable to find a valid policy for namespace {ns}");
         }
     }
 
-    public class UnknownNamespaceException : Exception
+    public class NamespaceNotFoundException : Exception
     {
-        public UnknownNamespaceException(string message) : base(message)
+        public NamespaceId Namespace { get; }
+
+        public NamespaceNotFoundException(NamespaceId @namespace) : base($"Could not find namespace {@namespace}")
         {
+            Namespace = @namespace;
+        }
+
+        public NamespaceNotFoundException(NamespaceId @namespace, string message) : base(message)
+        {
+            Namespace = @namespace;
         }
     }
 }

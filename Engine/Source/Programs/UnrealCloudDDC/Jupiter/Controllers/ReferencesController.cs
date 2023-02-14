@@ -19,6 +19,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Jupiter.Implementation;
 using JetBrains.Annotations;
+using Jupiter.Common;
 using Jupiter.Common.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
@@ -773,6 +774,10 @@ namespace Jupiter.Controllers
             catch (ObjectHashMismatchException e)
             {
                 return BadRequest(e.Message);
+            }
+            catch (ObjectNotFoundException e)
+            {
+                return NotFound(e.Message);
             }
         }
 

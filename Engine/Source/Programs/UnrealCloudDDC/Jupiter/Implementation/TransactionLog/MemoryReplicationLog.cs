@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Cassandra;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using Jupiter.Common;
 
 namespace Jupiter.Implementation
 {

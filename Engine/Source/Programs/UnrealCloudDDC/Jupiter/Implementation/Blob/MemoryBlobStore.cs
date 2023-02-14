@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
+using Jupiter.Common;
 using Jupiter.Utils;
 
 namespace Jupiter.Implementation

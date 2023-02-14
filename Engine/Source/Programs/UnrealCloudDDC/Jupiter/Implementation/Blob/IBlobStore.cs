@@ -67,16 +67,6 @@ namespace Jupiter.Implementation
         }
     }
 
-    public class NamespaceNotFoundException : Exception
-    {
-        public NamespaceId Namespace { get; }
-
-        public NamespaceNotFoundException(NamespaceId @namespace) : base($"Could not find namespace {@namespace}")
-        {
-            Namespace = @namespace;
-        }
-    }
-
     public class BlobToLargeException : Exception
     {
         public BlobIdentifier Blob { get; }
