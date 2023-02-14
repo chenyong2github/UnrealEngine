@@ -403,6 +403,14 @@ FText FUIActionBindingHandle::GetDisplayName() const
 	{
 		if (const UCommonInputSubsystem* CommonInputSubsystem = Binding->BoundWidget.IsValid() ? UCommonInputSubsystem::Get(Binding->BoundWidget->GetOwningLocalPlayer()) : nullptr)
 		{
+			if (CommonUI::IsEnhancedInputSupportEnabled())
+			{
+				if (const TObjectPtr<const UInputAction> InputAction = Binding->InputAction.Get())
+				{
+					return InputAction->ActionDescription;
+				}
+			}
+
 			const ECommonInputType CurrentInputType = CommonInputSubsystem->GetCurrentInputType();
 
 			for (const FUIActionKeyMapping& HoldMapping : Binding->HoldMappings)
@@ -551,7 +559,7 @@ bool FActionRouterBindingCollection::ProcessNormalInput(ECommonInputMode ActiveI
 						bool bEnhancedInputInjected = false;
 						if (InInputAction)
 						{
-							if (TObjectPtr<const UCommonInputMetadata> CommonInputMetadata = CommonUI::GetEnhancedInputActionMetadata(GetActionRouter().GetLocalPlayerChecked(), InInputAction))
+							if (TObjectPtr<const UCommonInputMetadata> CommonInputMetadata = CommonUI::GetEnhancedInputActionMetadata(InInputAction))
 							{
 								// Non generic actions should inject enhanced input so users can bind to enhanced input events
 								if (!CommonInputMetadata->bIsGenericInputAction)

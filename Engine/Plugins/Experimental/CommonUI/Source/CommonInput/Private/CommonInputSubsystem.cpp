@@ -9,6 +9,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/PlatformSettingsManager.h"
 #include "Engine/World.h"
+#include "EnhancedInputSubsystems.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/SlateUser.h"
@@ -354,6 +355,18 @@ void UCommonInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	CVarInputKeysVisible->SetOnChangedCallback(FConsoleVariableDelegate::CreateUObject(this, &UCommonInputSubsystem::ShouldShowInputKeysChanged));
 
+	if (ICommonInputModule::Get().GetSettings().GetEnableEnhancedInputSupport())
+	{
+		if (ULocalPlayer* LocalPlayer = GetLocalPlayerChecked())
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+			{
+				BroadcastInputMethodChangedEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UCommonInputSubsystem, BroadcastInputMethodChanged));
+				EnhancedInputLocalPlayerSubsystem->ControlMappingsRebuiltDelegate.AddUnique(BroadcastInputMethodChangedEvent);
+			}
+		}
+	}
+
 	SetActionDomainTable(FCommonInputBase::GetInputSettings()->GetActionDomainTable());
 }
 
@@ -365,6 +378,18 @@ void UCommonInputSubsystem::Deinitialize()
 		FSlateApplication::Get().UnregisterInputPreProcessor(CommonInputPreprocessor);
 	}
 	CommonInputPreprocessor.Reset();
+
+	if (ICommonInputModule::Get().GetSettings().GetEnableEnhancedInputSupport())
+	{
+		if (ULocalPlayer* LocalPlayer = GetLocalPlayerChecked())
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+			{
+				EnhancedInputLocalPlayerSubsystem->ControlMappingsRebuiltDelegate.Remove(BroadcastInputMethodChangedEvent);
+				BroadcastInputMethodChangedEvent.Unbind();
+			}
+		}
+	}
 
 	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 }

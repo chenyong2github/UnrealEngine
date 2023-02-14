@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/DataTable.h"
+#include "Engine/DataAsset.h"
 #include "InputCoreTypes.h"
 #include "Styling/SlateBrush.h"
 #include "UObject/Interface.h"
@@ -245,8 +246,8 @@ public:
  * Utilizes a map of input actions to metadata to prevent users from having to create
  * multiple metadata assets / instances. Using this map is not mandatory.
  */
-UCLASS(Blueprintable)
-class COMMONUI_API UCommonMappingContextMetadata : public UObject, public ICommonMappingContextMetadataInterface
+UCLASS(BlueprintType)
+class COMMONUI_API UCommonMappingContextMetadata : public UDataAsset, public ICommonMappingContextMetadataInterface
 {
 	GENERATED_BODY()
 
@@ -274,10 +275,12 @@ public:
 
 	static bool IsEnhancedInputSupportEnabled();
 
-	static TObjectPtr<const UCommonInputMetadata> GetEnhancedInputActionMetadata(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction);
+	static TObjectPtr<const UCommonInputMetadata> GetEnhancedInputActionMetadata(const UInputAction* InputAction);
 	static void GetEnhancedInputActionKeys(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction, TArray<FKey>& OutKeys);
 	static void InjectEnhancedInputForAction(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction, FInputActionValue RawValue);
 	static FSlateBrush GetIconForEnhancedInputAction(const UCommonInputSubsystem* CommonInputSubsystem, const UInputAction* InputAction);
+	static bool ActionValidForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction);
+	static FKey GetFirstKeyForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction);
 };
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnItemClicked, UUserWidget*, Widget);

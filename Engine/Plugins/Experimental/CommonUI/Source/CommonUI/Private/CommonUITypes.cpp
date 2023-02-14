@@ -249,19 +249,16 @@ bool CommonUI::IsEnhancedInputSupportEnabled()
 	return bEnabled;
 }
 
-TObjectPtr<const UCommonInputMetadata> CommonUI::GetEnhancedInputActionMetadata(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction)
+TObjectPtr<const UCommonInputMetadata> CommonUI::GetEnhancedInputActionMetadata(const UInputAction* InputAction)
 {
 	if (!InputAction->GetPlayerMappableKeySettings())
 	{
 		return nullptr;
 	}
 
-	if (UBlueprint* MetadataBP = Cast<UBlueprint>(InputAction->GetPlayerMappableKeySettings()->Metadata))
+	if (ICommonMappingContextMetadataInterface* MappingContextMetadata = Cast<ICommonMappingContextMetadataInterface>(InputAction->GetPlayerMappableKeySettings()->Metadata))
 	{
-		if (ICommonMappingContextMetadataInterface* MappingContextMetadata = Cast<ICommonMappingContextMetadataInterface>(MetadataBP->GeneratedClass->GetDefaultObject()))
-		{
-			return MappingContextMetadata->GetCommonInputMetadata(InputAction);
-		}
+		return MappingContextMetadata->GetCommonInputMetadata(InputAction);
 	}
 
 	return nullptr;
@@ -291,20 +288,83 @@ void CommonUI::InjectEnhancedInputForAction(const ULocalPlayer* LocalPlayer, con
 
 FSlateBrush CommonUI::GetIconForEnhancedInputAction(const UCommonInputSubsystem* CommonInputSubsystem, const UInputAction* InputAction)
 {
-	TArray<FKey> Keys;
-	if (ULocalPlayer* LocalPlayer = CommonInputSubsystem->GetLocalPlayer())
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-		{
-			Keys = EnhancedInputLocalPlayerSubsystem->QueryKeysMappedToAction(InputAction);
-		}
-	}
+	FKey FirstKeyForCurrentInput = GetFirstKeyForInputType(CommonInputSubsystem->GetLocalPlayer(), CommonInputSubsystem->GetCurrentInputType(), InputAction);
 
 	FSlateBrush SlateBrush;
-	if (Keys.Num() && UCommonInputPlatformSettings::Get()->TryGetInputBrush(SlateBrush, Keys[0], CommonInputSubsystem->GetCurrentInputType(), CommonInputSubsystem->GetCurrentGamepadName()))
+	if (FirstKeyForCurrentInput.IsValid() && UCommonInputPlatformSettings::Get()->TryGetInputBrush(SlateBrush, FirstKeyForCurrentInput, CommonInputSubsystem->GetCurrentInputType(), CommonInputSubsystem->GetCurrentGamepadName()))
 	{
 		return SlateBrush;
 	}
 
 	return *FStyleDefaults::GetNoBrush();
+}
+
+bool CommonUI::ActionValidForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction)
+{
+	if (!LocalPlayer)
+	{
+		return false;
+	}
+
+	TArray<FKey> Keys;
+	if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+	{
+		Keys = EnhancedInputLocalPlayerSubsystem->QueryKeysMappedToAction(InputAction);
+	}
+
+	for (const FKey& Key : Keys)
+	{
+		if (!Key.IsValid())
+		{
+			continue;
+		}
+
+		bool bIsValidTouch = Key.IsTouch() && InputType == ECommonInputType::Touch;
+		bool bIsValidGamepad = Key.IsGamepadKey() && InputType == ECommonInputType::Gamepad;
+		bool bIsValidMouseAndKeyboard = !Key.IsTouch() && !Key.IsGamepadKey() && InputType == ECommonInputType::MouseAndKeyboard;
+
+		if (bIsValidTouch || bIsValidGamepad || bIsValidMouseAndKeyboard)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FKey CommonUI::GetFirstKeyForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction)
+{
+	if (!LocalPlayer)
+	{
+		return FKey();
+	}
+
+	TArray<FKey> Keys;
+	if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+	{
+		Keys = EnhancedInputLocalPlayerSubsystem->QueryKeysMappedToAction(InputAction);
+	}
+
+	for (const FKey& Key : Keys)
+	{
+		if (!Key.IsValid())
+		{
+			continue;
+		}
+
+		if (Key.IsTouch() && InputType == ECommonInputType::Touch)
+		{
+			return Key;
+		}
+		else if (Key.IsGamepadKey() && InputType == ECommonInputType::Gamepad)
+		{
+			return Key;
+		}
+		else if (!Key.IsTouch() && !Key.IsGamepadKey() && InputType == ECommonInputType::MouseAndKeyboard)
+		{
+			return Key;
+		}
+	}
+
+	return FKey();
 }

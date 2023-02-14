@@ -210,6 +210,14 @@ void UCommonActionWidget::SetInputActionBinding(FUIActionBindingHandle BindingHa
 	UpdateBindingHandleInternal(BindingHandle);
 	if (TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(BindingHandle))
 	{
+		if (CommonUI::IsEnhancedInputSupportEnabled())
+		{
+			if (const UInputAction* InputAction = Binding->InputAction.Get())
+			{
+				EnhancedInputAction = const_cast<UInputAction*>(InputAction);
+			}
+		}
+
 		InputActions.Reset();
 		InputActions.Add(Binding->LegacyActionTableRow);
 

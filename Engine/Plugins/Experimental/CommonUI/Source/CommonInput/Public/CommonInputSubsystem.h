@@ -108,6 +108,7 @@ public:
 protected:
 	ECommonInputType LockInput(ECommonInputType InputToLock) const;
 
+	UFUNCTION()
 	void BroadcastInputMethodChanged();
 
 private:
@@ -172,4 +173,7 @@ private:
 	* Note : Calling order is not guaranteed. Also, keep in mind that you might need to honor the previous callee's request to not support the input type being tested.
 	*/
 	static FPlatformInputSupportOverrideDelegate OnPlatformInputSupportOverride;
+
+	/** Used to broadcast when input method should be considered changed based on external systems, such as on enhanced input mapping context application*/
+	FScriptDelegate BroadcastInputMethodChangedEvent;
 };
