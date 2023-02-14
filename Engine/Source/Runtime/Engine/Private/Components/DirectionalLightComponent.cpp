@@ -1016,7 +1016,6 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	CastTranslucentShadows = true;
 	bUseInsetShadowsForMovableObjects = true;
 	bCastVolumetricShadow = true;
-	bAffectDynamicIndirectLighting = true;
 
 	ModulatedShadowColor = FColor(128, 128, 128);
 	ShadowAmount = 1.0f;

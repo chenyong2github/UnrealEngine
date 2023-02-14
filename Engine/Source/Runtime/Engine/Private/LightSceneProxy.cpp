@@ -49,7 +49,6 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bAffectGlobalIllumination(InLightComponent->bAffectGlobalIllumination)
 	, bAffectTranslucentLighting(InLightComponent->bAffectTranslucentLighting)
 	, bUsedAsAtmosphereSunLight(InLightComponent->IsUsedAsAtmosphereSunLight())
-	, bAffectDynamicIndirectLighting(InLightComponent->bAffectDynamicIndirectLighting)
 	, bUseRayTracedDistanceFieldShadows(InLightComponent->bUseRayTracedDistanceFieldShadows)
 	, bUseVirtualShadowMaps(false)	// See below
 	, bCastModulatedShadows(false)

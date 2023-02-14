@@ -225,7 +225,6 @@ public:
 	inline int32 GetShadowMapChannel() const { return ShadowMapChannel; }
 	inline int32 GetPreviewShadowMapChannel() const { return PreviewShadowMapChannel; }
 
-	inline bool AffectsDynamicIndirectLighting() const { return bAffectDynamicIndirectLighting; }
 	inline const class FStaticShadowDepthMap* GetStaticShadowDepthMap() const { return StaticShadowDepthMap; }
 
 	inline bool GetForceCachedShadowsForMovablePrimitives() const { return bForceCachedShadowsForMovablePrimitives; }
@@ -411,9 +410,6 @@ protected:
 
 	/** Whether to consider light as a sunlight for atmospheric scattering and exponential height fog. */
 	const uint8 bUsedAsAtmosphereSunLight : 1;
-
-	/** Does the light have dynamic GI? */
-	const uint8 bAffectDynamicIndirectLighting : 1;
 
 	/** Whether to use ray traced distance field area shadows. */
 	const uint8 bUseRayTracedDistanceFieldShadows : 1;

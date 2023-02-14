@@ -140,12 +140,6 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	uint32 bCastShadowsFromCinematicObjectsOnly:1;
 
 	/**
-	 * Whether the light should be injected into the Light Propagation Volume
-	 **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, AdvancedDisplay, meta=(DisplayName = "Dynamic Indirect Lighting"))
-	uint32 bAffectDynamicIndirectLighting : 1;
-
-	/**
 	* Enables cached shadows for movable primitives for this light even if r.shadow.cachedshadowscastfrommovableprimitives is 0
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay)
@@ -278,9 +272,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
 	void SetLightFunctionDisabledBrightness(float NewValue);
-
-	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
-	void SetAffectDynamicIndirectLighting(bool bNewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
 	void SetAffectTranslucentLighting(bool bNewValue);

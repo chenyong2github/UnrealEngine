@@ -1015,16 +1015,6 @@ void ULightComponent::SetLightFunctionDisabledBrightness(float NewValue)
 	}
 }
 
-void ULightComponent::SetAffectDynamicIndirectLighting(bool bNewValue)
-{
-	if (AreDynamicDataChangesAllowed()
-		&& bAffectDynamicIndirectLighting != bNewValue)
-	{
-		bAffectDynamicIndirectLighting = bNewValue;
-		MarkRenderStateDirty();
-	}
-}
-
 void ULightComponent::SetAffectTranslucentLighting(bool bNewValue)
 {
 	if (AreDynamicDataChangesAllowed()
