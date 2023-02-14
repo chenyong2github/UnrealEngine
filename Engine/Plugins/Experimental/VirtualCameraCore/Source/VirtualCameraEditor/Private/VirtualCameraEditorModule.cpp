@@ -4,6 +4,8 @@
 
 #include "ActorFactories/ActorFactoryBlueprint.h"
 #include "Filters/CustomClassFilterData.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
+#include "Interfaces/IPluginManager.h"
 #include "IPlacementModeModule.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
@@ -57,6 +59,14 @@ public:
 
 	void RegisterPlacementModeItems()
 	{
+		// Some platforms, such as Mac in 5.2, may not support Pixel Streaming but the Blueprint references pixel streaming.
+		// The below would attempt to load the class and cause load warnings.
+		const TSharedPtr<IPlugin> VCamPlugin = IPluginManager::Get().FindPlugin(TEXT("VirtualCamera"));
+		if (!VCamPlugin || !VCamPlugin->GetDescriptor().SupportsTargetPlatform(FGenericPlatformMisc::GetUBTPlatform()))
+		{
+			return;
+		}
+		
 		if (const FPlacementCategoryInfo* Info = IVPUtilitiesEditorModule::Get().GetVirtualProductionPlacementCategoryInfo()
 			; Info && GEditor)
 		{

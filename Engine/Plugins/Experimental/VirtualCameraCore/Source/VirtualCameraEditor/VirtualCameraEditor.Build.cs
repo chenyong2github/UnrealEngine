@@ -13,16 +13,17 @@ public class VirtualCameraEditor : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"CinematicCamera",
+				"EditorWidgets",
 				"Engine",
 				"UnrealEd",
 				"Settings",
 				"PlacementMode",
+				"Projects",
 				"VPUtilities",
 				"VPUtilitiesEditor",
 				"VCamCore",
 				"VirtualCamera",
-				"EditorWidgets",
-				"CinematicCamera"
 			}
 		);
 			
