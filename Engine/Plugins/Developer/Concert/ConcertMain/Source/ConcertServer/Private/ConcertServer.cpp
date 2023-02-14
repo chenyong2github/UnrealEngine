@@ -14,15 +14,14 @@
 #include "Algo/AnyOf.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
+#include "Backends/JsonStructDeserializerBackend.h"
+#include "Backends/JsonStructSerializerBackend.h"
+#include "HAL/FileManager.h"
+#include "StructDeserializer.h"
+#include "StructSerializer.h"
+#include "Templates/NonNullPointer.h"
 
 #include "Runtime/Launch/Resources/Version.h"
-#include "StructSerializer.h"
-#include "StructDeserializer.h"
-#include "Backends/JsonStructSerializerBackend.h"
-#include "Backends/JsonStructDeserializerBackend.h"
-#include "HAL/FileManager.h"
-
-#include "Templates/NonNullPointer.h"
 
 #define LOCTEXT_NAMESPACE "ConcertServer"
 

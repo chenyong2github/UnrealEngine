@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Concert/Public/IConcertSession.h"
+#include "IConcertSession.h"
 #include "CoreMinimal.h"
 #include "Async/Future.h"
 #include "IConcertSession.h"

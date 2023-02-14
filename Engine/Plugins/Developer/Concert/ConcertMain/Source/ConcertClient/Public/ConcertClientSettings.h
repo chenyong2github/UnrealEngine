@@ -9,7 +9,7 @@
 #include "Misc/EngineVersion.h"
 #include "ConcertTransportSettings.h"
 #include "ConcertVersion.h"
-#include "GameplayTags/Classes/GameplayTagContainer.h"
+#include "GameplayTagContainer.h"
 
 #include "ConcertClientSettings.generated.h"
 

@@ -20,7 +20,9 @@ namespace UnrealBuildTool.Rules
 			PublicIncludePathModuleNames.AddRange(
 				new string[]
 				{
-					"ConcertTransport"
+					"ConcertTransport",
+					"Concert",
+					"GameplayTags",
 				}
 			);
 			PrivateDependencyModuleNames.AddRange(

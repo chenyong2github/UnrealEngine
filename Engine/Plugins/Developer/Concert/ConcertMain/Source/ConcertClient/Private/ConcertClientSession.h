@@ -6,7 +6,7 @@
 #include "ConcertSession.h"
 #include "ConcertMessages.h"
 #include "Containers/Ticker.h"
-#include "GameplayTags/Classes/GameplayTagContainer.h"
+#include "GameplayTagContainer.h"
 
 class IConcertLocalEndpoint;
 struct FConcertClientSettings;
