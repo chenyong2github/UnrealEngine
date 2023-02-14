@@ -12,7 +12,7 @@ namespace UE::Mass::Utils
 {
 EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
 {
-	if (World.IsEditorWorld())
+	if (World.IsEditorWorld() && !World.IsGameWorld())
 	{
 		return EProcessorExecutionFlags::Editor;
 	}
