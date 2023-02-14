@@ -45,7 +45,11 @@ float ComplexityToFloat(uint Complexity)
 	return (float)Complexity / (float)QO_FRACTIONNAL_COMPLEXITY;
 }
 
+#if SHADING_PATH_MOBILE
+#define RWQuadBuffer MobileBasePass.QuadOverdraw
+#else
 #define RWQuadBuffer DebugViewModePass.QuadOverdraw
+#endif
 
 #if OUTPUT_QUAD_OVERDRAW
 

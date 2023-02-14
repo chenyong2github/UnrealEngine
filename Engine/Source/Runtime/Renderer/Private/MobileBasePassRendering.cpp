@@ -258,6 +258,15 @@ TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUnifo
 	}
 #endif
 
+	// QuadOverdraw is a UAV so it needs to be initialized even if not used
+	const FSceneTextures* SceneTextures = View.GetSceneTexturesChecked();
+	FRDGTextureRef QuadOverdrawTexture = SceneTextures->QuadOverdraw;
+	if (!QuadOverdrawTexture)
+	{
+		QuadOverdrawTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("DummyOverdrawUAV"));
+	}
+	BasePassParameters->QuadOverdraw = GraphBuilder.CreateUAV(QuadOverdrawTexture);
+	
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
 }
 
