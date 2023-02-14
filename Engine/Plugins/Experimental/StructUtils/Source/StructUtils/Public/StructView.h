@@ -112,7 +112,7 @@ public:
 	template <typename OtherType>
 	bool operator==(const OtherType& Other) const
 	{
-		return ((ScriptStruct != Other.GetScriptStruct()) && (StructMemory != Other.GetMemory()));
+		return ((ScriptStruct == Other.GetScriptStruct()) && (StructMemory == Other.GetMemory()));
 	}
 
 	template <typename OtherType>
@@ -236,7 +236,7 @@ public:
 	template <typename OtherType>
 	bool operator==(const OtherType& Other) const
 	{
-		return ((ScriptStruct != Other.GetScriptStruct()) && (StructMemory != Other.GetMemory()));
+		return ((ScriptStruct == Other.GetScriptStruct()) && (StructMemory == Other.GetMemory()));
 	}
 
 	template <typename OtherType>
