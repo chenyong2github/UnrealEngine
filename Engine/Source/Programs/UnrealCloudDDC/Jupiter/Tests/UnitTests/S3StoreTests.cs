@@ -10,6 +10,7 @@ using Jupiter.Implementation;
 using Jupiter.Implementation.Blob;
 using Jupiter.Common;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -34,7 +35,7 @@ namespace Jupiter.UnitTests
                                                       StoragePool = ""
                                                   });
 
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, Mock.Of<Logger<AmazonS3Store>>());
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
             byte[] content = Encoding.ASCII.GetBytes("test content");
             BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(content);
             Task task = store.PutObject(Namespace, content.AsMemory(), blobIdentifier);
@@ -62,7 +63,7 @@ namespace Jupiter.UnitTests
                     StoragePool = "storagepool"
                 });
 
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, Mock.Of<Logger<AmazonS3Store>>());
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
             byte[] content = Encoding.ASCII.GetBytes("test content");
             BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(content);
             Task task = store.PutObject(Namespace, content.AsMemory(), blobIdentifier);
@@ -93,7 +94,7 @@ namespace Jupiter.UnitTests
                     StoragePool = ""
                 });
             s3Mock.Setup(s3 => s3.PutObjectAsync(It.IsAny<PutObjectRequest>(), default)).Throws<Exception>();
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, Mock.Of<Logger<AmazonS3Store>>());
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
             Task task = store.PutObject(Namespace, content, blob);
             await task;
 
@@ -119,7 +120,7 @@ namespace Jupiter.UnitTests
                 {
                     StoragePool = ""
                 });
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, Mock.Of<Logger<AmazonS3Store>>());
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
             await using BlobContents blobContents = await store.GetObject(Namespace, blob);
 
             s3Mock.Verify(s3 => s3.GetObjectAsync("tests-foo", blob.AsS3Key(), default));
@@ -140,7 +141,7 @@ namespace Jupiter.UnitTests
                     StoragePool = ""
                 });
 
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, Mock.Of<Logger<AmazonS3Store>>());
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
             Task task = store.DeleteObject(Namespace, blob);
             await task;
 

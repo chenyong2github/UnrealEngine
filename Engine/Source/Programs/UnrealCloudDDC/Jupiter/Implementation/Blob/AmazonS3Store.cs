@@ -24,11 +24,11 @@ namespace Jupiter.Implementation
         private readonly IAmazonS3 _amazonS3;
         private readonly IBlobIndex _blobIndex;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
-        private readonly Logger<AmazonS3Store> _logger;
+        private readonly ILogger<AmazonS3Store> _logger;
         private readonly S3Settings _settings;
         private readonly ConcurrentDictionary<NamespaceId, AmazonStorageBackend> _backends = new ConcurrentDictionary<NamespaceId, AmazonStorageBackend>();
 
-        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings, IBlobIndex blobIndex, INamespacePolicyResolver namespacePolicyResolver, Logger<AmazonS3Store> logger)
+        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings, IBlobIndex blobIndex, INamespacePolicyResolver namespacePolicyResolver, ILogger<AmazonS3Store> logger)
         {
             _amazonS3 = amazonS3;
             _blobIndex = blobIndex;
