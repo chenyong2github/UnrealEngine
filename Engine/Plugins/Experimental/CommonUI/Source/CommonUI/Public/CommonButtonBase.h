@@ -5,6 +5,7 @@
 #include "CommonUserWidget.h"
 #include "Components/Button.h"
 #include "Engine/DataTable.h"
+#include "FieldNotification/WidgetEventField.h"
 #include "Types/ISlateMetaData.h"
 #include "CommonInputModeTypes.h"
 #include "CommonButtonBase.generated.h"
@@ -472,6 +473,9 @@ public:
 	FCommonButtonEvent& OnFocusLost() const { return OnFocusLostEvent; }
 	FCommonButtonEvent& OnLockClicked() const { return OnLockClickedEvent; }
 	FCommonButtonEvent& OnLockDoubleClicked() const { return OnLockDoubleClickedEvent; }
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category= "Common Button")
+	FWidgetEventField ClickEvent;
 
 	DECLARE_EVENT_OneParam(UCommonButtonBase, FOnIsSelectedChanged, bool);
 	FOnIsSelectedChanged& OnIsSelectedChanged() const { return OnIsSelectedChangedEvent; }

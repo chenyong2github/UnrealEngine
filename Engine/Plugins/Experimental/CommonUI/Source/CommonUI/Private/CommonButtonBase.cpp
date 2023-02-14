@@ -1271,6 +1271,7 @@ void UCommonButtonBase::NativeOnClicked()
 	{
 		BP_OnClicked();
 		OnClicked().Broadcast();
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::ClickEvent);
 		if (OnButtonBaseClicked.IsBound())
 		{
 			OnButtonBaseClicked.Broadcast(this);
