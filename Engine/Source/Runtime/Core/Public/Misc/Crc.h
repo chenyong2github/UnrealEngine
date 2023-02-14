@@ -9,6 +9,11 @@
 #include "Misc/Char.h"
 #include "Templates/EnableIf.h"
 
+#if PLATFORM_ANDROID_ARM64 || PLATFORM_LINUXARM64
+#	define DETECT_HW_CRC32_SUPPORT_IN_RUNTIME 1
+#else
+#	define DETECT_HW_CRC32_SUPPORT_IN_RUNTIME 0
+#endif
 
 /** 
  * CRC hash generation for different types of input data
@@ -23,7 +28,16 @@ struct CORE_API FCrc
 	static void Init();
 
 	/** generates CRC hash of the memory area */
+#if !DETECT_HW_CRC32_SUPPORT_IN_RUNTIME
 	static uint32 MemCrc32( const void* Data, int32 Length, uint32 CRC=0 );
+#else
+	typedef uint32 (*MemCrc32Functor)( const void* Data, int32 Length, uint32 CRC );
+	static MemCrc32Functor MemCrc32Func;
+	static FORCEINLINE uint32 MemCrc32(const void* Data, int32 Length, uint32 CRC = 0)
+	{
+		return MemCrc32Func(Data, Length, CRC);
+	}
+#endif
 
 	/** generates CRC hash of the element */
 	template <typename T>
