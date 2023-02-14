@@ -67,6 +67,13 @@ public:
 	bool bImportMaterials;
 
 	/**
+	 * If this is checked, only materials actively used by the stage and import settings will be parsed.
+	 * If this is unchecked, all materials present on the stage will be parsed.
+	 */
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", AdvancedDisplay, meta = (EditCondition = bImportMaterials))
+	bool bImportOnlyUsedMaterials;
+
+	/**
 	 * List of paths of prims to import (e.g. ["/Root/MyBox", "/Root/OtherPrim"]).
 	 * Importing a prim will import its entire subtree.
 	 * If this list contains the root prim path the entire stage will be imported (default value).

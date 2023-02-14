@@ -223,6 +223,15 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		return;
 	}
 
+	if (Context->bTranslateOnlyUsedMaterials && Context->InfoCache)
+	{
+		if (!Context->InfoCache->IsMaterialUsed(PrimPath))
+		{
+			UE_LOG(LogUsd, Verbose, TEXT("Skipping creating assets for material prim '%s' as it is not currently bound by any prim."), *PrimPath.GetString());
+			return;
+		}
+	}
+
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdShadeMaterialTranslator::CreateAssets );
 
 	const pxr::TfToken RenderContextToken =
@@ -433,6 +442,20 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		if (Context->InfoCache)
 		{
 			Context->InfoCache->LinkAssetToPrim(PrimPath, ConvertedMaterial);
+
+			// Also link the textures to the same material prim.
+			// This is important because it lets the stage actor drop its references to old unused textures in the
+			// asset cache if they aren't being used by any other material
+			if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(ConvertedMaterial))
+			{
+				for (const FTextureParameterValue& TextureValue : MaterialInstance->TextureParameterValues)
+				{
+					if (UTexture* Texture = TextureValue.ParameterValue)
+					{
+						Context->InfoCache->LinkAssetToPrim(PrimPath, Texture);
+					}
+				}
+			}
 		}
 
 		if (Context->AssetCache)

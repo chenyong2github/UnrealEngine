@@ -50,6 +50,9 @@ public:
 	UE::FSdfPath UnwindToNonCollapsedPath(const UE::FSdfPath& Path, ECollapsingType CollapsingType) const;
 
 public:
+	bool IsMaterialUsed(const UE::FSdfPath& Path) const;
+
+public:
 	// Provides the total vertex or material slots counts for each prim *and* its subtree.
 	// This is built inside RebuildCacheForSubtree, so it will factor in the used Context's bMergeIdenticalMaterialSlots.
 	// Note that these aren't affected by actual collapsing: A prim that doesn't collapse its children will still

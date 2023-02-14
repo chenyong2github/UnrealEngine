@@ -17,12 +17,13 @@ UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectI
 	bImportSkeletalAnimations = true;
 	bImportLevelSequences = true;
 	bImportMaterials = true;
+	bImportOnlyUsedMaterials = false;
 
 	PurposesToImport = (int32) (EUsdPurpose::Default | EUsdPurpose::Proxy | EUsdPurpose::Render | EUsdPurpose::Guide);
 	NaniteTriangleThreshold = INT32_MAX;
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 	RenderContextToImport = UsdSchemasModule.GetRenderContextRegistry().GetUnrealRenderContext();
-	MaterialPurpose = *UnrealIdentifiers::MaterialAllPurpose;
+	MaterialPurpose = *UnrealIdentifiers::MaterialPreviewPurpose;
 	bOverrideStageOptions = false;
 	StageOptions.MetersPerUnit = 0.01f;
 	StageOptions.UpAxis = EUsdUpAxis::ZAxis;
@@ -81,6 +82,7 @@ void UsdUtils::AddAnalyticsAttributes(
 	InOutAttributes.Emplace( TEXT( "ImportSkeletalAnimations" ), LexToString( Options.bImportSkeletalAnimations ) );
 	InOutAttributes.Emplace( TEXT( "ImportLevelSequences" ), LexToString( Options.bImportLevelSequences ) );
 	InOutAttributes.Emplace( TEXT( "ImportMaterials" ), LexToString( Options.bImportMaterials ) );
+	InOutAttributes.Emplace( TEXT( "ImportOnlyUsedMaterials" ), LexToString( Options.bImportOnlyUsedMaterials) );
 	if ( Options.PrimsToImport != TArray<FString>{ TEXT( "/" ) } )
 	{
 		InOutAttributes.Emplace( TEXT( "NumPrimsToImport" ), LexToString( Options.PrimsToImport.Num() ) );

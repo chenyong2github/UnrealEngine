@@ -19,6 +19,7 @@
 	#include "pxr/usd/sdf/path.h"
 	#include "pxr/usd/usd/prim.h"
 	#include "pxr/usd/usdGeom/mesh.h"
+	#include "pxr/usd/usdShade/materialBindingAPI.h"
 	#include "pxr/usd/usdGeom/pointInstancer.h"
 	#include "pxr/usd/usdGeom/subset.h"
 #include "USDIncludesEnd.h"
@@ -54,6 +55,11 @@ struct FUsdInfoCache::FUsdInfoCacheImpl
 	// Information we may have about a subset of prims
 	TMap<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>> PrimPathToAssets;
 	mutable FRWLock PrimPathToAssetsLock;
+
+	// Paths to material prims that are actually used by mesh prims in the scene, given the current settings for
+	// render context, material purpose, variant selections, etc.
+	TSet<UE::FSdfPath> UsedMaterialPaths;
+	mutable FRWLock UsedMaterialPathsLock;
 };
 
 FUsdInfoCache::FUsdInfoCache()
@@ -76,6 +82,10 @@ bool FUsdInfoCache::Serialize( FArchive& Ar )
 		{
 			FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
 			Ar << ImplPtr->PrimPathToAssets;
+		}
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
+			Ar << ImplPtr->UsedMaterialPaths;
 		}
 	}
 
@@ -169,6 +179,18 @@ UE::FSdfPath FUsdInfoCache::UnwindToNonCollapsedPath( const UE::FSdfPath& Path, 
 	}
 
 	return Path;
+}
+
+bool FUsdInfoCache::IsMaterialUsed(const UE::FSdfPath& Path) const
+{
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FReadScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
+
+		return ImplPtr->UsedMaterialPaths.Contains(Path);
+	}
+
+	return false;
 }
 
 namespace UE::USDInfoCacheImpl::Private
@@ -268,6 +290,7 @@ namespace UE::USDInfoCacheImpl::Private
 	void RecursiveRebuildCache(
 		const pxr::UsdPrim& UsdPrim,
 		FUsdSchemaTranslationContext& Context,
+		const pxr::TfToken& MaterialPurposeToken,
 		FUsdInfoCache::FUsdInfoCacheImpl& Impl,
 		FUsdSchemaTranslatorRegistry& Registry,
 		TMap< UE::FSdfPath, TArray<UsdUtils::FUsdPrimMaterialSlot>>& InOutSubtreeToMaterialSlots,
@@ -312,6 +335,16 @@ namespace UE::USDInfoCacheImpl::Private
 			}
 		}
 
+		pxr::UsdShadeMaterialBindingAPI BindingAPI{UsdPrim};
+		if (BindingAPI)
+		{
+			if (pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial(MaterialPurposeToken))
+			{
+				FWriteScopeLock ScopeLock(Impl.UsedMaterialPathsLock);
+				Impl.UsedMaterialPaths.Add(UE::FSdfPath{ShadeMaterial.GetPrim().GetPath()});
+			}
+		}
+
 		pxr::UsdPrimSiblingRange PrimChildren = UsdPrim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies( pxr::UsdPrimAllPrimsPredicate ) );
 
 		TArray<pxr::UsdPrim> Prims;
@@ -336,6 +369,7 @@ namespace UE::USDInfoCacheImpl::Private
 				RecursiveRebuildCache(
 					Prims[ Index ],
 					Context,
+					MaterialPurposeToken,
 					Impl,
 					Registry,
 					InOutSubtreeToMaterialSlots,
@@ -700,7 +734,16 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 			return;
 		}
 
-		Clear();
+		// Don't call Clear() here as we don't want to get rid of PrimPathToAssets because we're rebuilding the cache,
+		// as that info is also linked to the asset cache
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->InfoMapLock);
+			ImplPtr->InfoMap.Empty();
+		}
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
+			ImplPtr->UsedMaterialPaths.Empty();
+		}
 
 		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT( "USDSchemas" ) );
 		FUsdSchemaTranslatorRegistry& Registry = UsdSchemasModule.GetTranslatorRegistry();
@@ -708,11 +751,18 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 		TMap< UE::FSdfPath, TArray<UsdUtils::FUsdPrimMaterialSlot>> TempSubtreeSlots;
 		TArray< FString > PointInstancerPaths;
 
+		pxr::TfToken MaterialPurposeToken = pxr::UsdShadeTokens->allPurpose;
+		if (!Context.MaterialPurpose.IsNone())
+		{
+			MaterialPurposeToken = UnrealToUsd::ConvertToken(*Context.MaterialPurpose.ToString()).Get();
+		}
+
 		uint64 SubtreeVertexCount = 0;
 		TArray<UsdUtils::FUsdPrimMaterialSlot> SubtreeSlots;
 		UE::USDInfoCacheImpl::Private::RecursiveRebuildCache(
 			UsdPrim,
 			Context,
+			MaterialPurposeToken,
 			*ImplPtr,
 			Registry,
 			TempSubtreeSlots,
@@ -742,8 +792,18 @@ void FUsdInfoCache::Clear()
 {
 	if ( FUsdInfoCacheImpl* ImplPtr = Impl.Get() )
 	{
-		FWriteScopeLock ScopeLock(ImplPtr->InfoMapLock);
-		ImplPtr->InfoMap.Empty();
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->InfoMapLock);
+			ImplPtr->InfoMap.Empty();
+		}
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
+			ImplPtr->PrimPathToAssets.Empty();
+		}
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
+			ImplPtr->UsedMaterialPaths.Empty();
+		}
 	}
 }
 

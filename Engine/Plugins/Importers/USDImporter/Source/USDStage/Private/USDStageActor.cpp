@@ -121,6 +121,7 @@ struct FUsdStageActorImpl
 		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
 		TranslationContext->BlendShapesByPath = &StageActor->BlendShapesByPath;
 		TranslationContext->InfoCache = StageActor->InfoCache;
+		TranslationContext->bTranslateOnlyUsedMaterials = true;  // There is no point in turning this off when just opening a stage
 
 		// Its more convenient to toggle between variants using the USDStage window, as opposed to parsing LODs
 		TranslationContext->bAllowInterpretingLODs = false;
@@ -630,7 +631,7 @@ AUsdStageActor::AUsdStageActor()
 	, bMergeIdenticalMaterialSlots(true)
 	, PurposesToLoad((int32)EUsdPurpose::Proxy)
 	, NaniteTriangleThreshold((uint64)1000000)
-	, MaterialPurpose(*UnrealIdentifiers::MaterialAllPurpose)
+	, MaterialPurpose(*UnrealIdentifiers::MaterialPreviewPurpose)
 	, RootMotionHandling(EUsdRootMotionHandling::NoAdditionalRootMotion)
 	, Time(0.0f)
 	, bIsTransitioningIntoPIE(false)
@@ -2075,13 +2076,14 @@ void AUsdStageActor::LoadUsdStage()
 	// the tracks
 	PrimsToAnimate.Reset();
 
-	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext(this, RootTwin->PrimPath);
-
-	SlowTask.EnterProgressFrame(0.1f);
 	if (!InfoCache.IsValid())
 	{
 		InfoCache = MakeShared<FUsdInfoCache>();
 	}
+
+	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext(this, RootTwin->PrimPath);
+
+	SlowTask.EnterProgressFrame(0.1f);
 	InfoCache->RebuildCacheForSubtree(StageToLoad.GetPseudoRoot(), TranslationContext.Get());
 
 	SlowTask.EnterProgressFrame(0.7f);

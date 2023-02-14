@@ -9,6 +9,7 @@
 #include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
+#include "USDLog.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
 
@@ -81,6 +82,15 @@ void FMdlUsdShadeMaterialTranslator::CreateAssets()
 	{
 		Super::CreateAssets();
 		return;
+	}
+
+	if (Context->bTranslateOnlyUsedMaterials && Context->InfoCache)
+	{
+		if (!Context->InfoCache->IsMaterialUsed(PrimPath))
+		{
+			UE_LOG(LogUsd, Verbose, TEXT("Skipping creating assets for material prim '%s' as it is not currently bound by any prim."), *PrimPath.GetString());
+			return;
+		}
 	}
 
 	FScopedUsdAllocs UsdAllocs;
