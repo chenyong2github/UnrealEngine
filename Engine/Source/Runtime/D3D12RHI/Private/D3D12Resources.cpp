@@ -17,6 +17,13 @@ D3D12Resources.cpp: D3D RHI utility implementation.
 	THIRD_PARTY_INCLUDES_END
 #endif
 
+static TAutoConsoleVariable<int32> CVarD3D12ReservedResourceHeapSizeMB(
+	TEXT("d3d12.ReservedResourceHeapSizeMB"),
+	16,
+	TEXT("Size of the backing heaps for reserved resources in megabytes (default 16MB)."),
+	ECVF_ReadOnly
+);
+
 /////////////////////////////////////////////////////////////////////
 //	ID3D12ResourceAllocator
 /////////////////////////////////////////////////////////////////////
@@ -99,6 +106,12 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 		GFSDK_Aftermath_DX12_RegisterResource(InResource, &AftermathHandle);
 	}
 #endif
+
+	if (Desc.bReservedResource)
+	{
+		checkf(Heap == nullptr, TEXT("Reserved resources are not expected to have a heap"));
+		ReservedResourceData = MakeUnique<FD3D12ReservedResourceData>();
+	}
 }
 
 FD3D12Resource::~FD3D12Resource()
@@ -121,6 +134,119 @@ FD3D12Resource::~FD3D12Resource()
 		FScopeLock Lock(&FD3D12Viewport::DXGIBackBufferLock);
 		bBackBuffer = false;
 		Resource.SafeRelease();
+	}
+}
+
+void FD3D12Resource::CommitReservedResource()
+{
+	check(Desc.bReservedResource);
+	check(ReservedResourceData.IsValid());
+	checkf(ReservedResourceData->BackingHeaps.IsEmpty(), TEXT("Reserved resource is already committed"));
+	checkf(Desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D, TEXT("CommitReservedResource is currently only implemented for 2D textures"));
+	checkf(Desc.MipLevels == 1, TEXT("CommitReservedResource is currently only implemented for textures without mips"));
+
+	uint32 NumTiles = 0;
+	D3D12_PACKED_MIP_INFO PackedMipDesc = {};
+	D3D12_TILE_SHAPE TileShape = {};
+	const uint32 FirstSubresource = 0;
+
+	// We assume that all subresources in a 2D texture array are identical, so only query the tiling config for the first
+	uint32 NumSubresourceTilings = 1;
+	D3D12_SUBRESOURCE_TILING SubresourceTiling = {}; 
+
+	ID3D12Device* D3DDevice = GetParentDevice()->GetDevice();
+	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+
+	D3DDevice->GetResourceTiling(GetResource(), &NumTiles, &PackedMipDesc, &TileShape, &NumSubresourceTilings, FirstSubresource, &SubresourceTiling);
+
+	const uint64 TileSizeInBytes = 65536; // reserved resource tiles are always 64KB
+	const uint64 TotalSize = NumTiles * TileSizeInBytes;
+	const uint64 MaxHeapSize = uint64(CVarD3D12ReservedResourceHeapSizeMB.GetValueOnAnyThread()) * 1024 * 1024;
+	const uint64 NumHeaps = FMath::DivideAndRoundUp(TotalSize, MaxHeapSize);
+
+	TArray<TRefCountPtr<ID3D12Heap>>& Heaps = ReservedResourceData->BackingHeaps;
+	Heaps.Reserve(NumHeaps);
+
+	const uint32 NumTilesPerHeap = uint32(MaxHeapSize / TileSizeInBytes);
+
+	// NOTE: Accessing the queue from this thread is OK, as D3D12 runtime acquires a lock around all command queue APIs.
+	// https://microsoft.github.io/DirectX-Specs/d3d/CPUEfficiency.html#threading
+	FD3D12Queue& Queue = GetParentDevice()->GetQueue(ED3D12QueueType::Direct);
+	ID3D12CommandQueue* D3DCommandQueue = Queue.D3DCommandQueue.GetReference();
+
+	const D3D12_TILE_MAPPING_FLAGS MappingFlags = D3D12_TILE_MAPPING_FLAG_NONE;
+
+	// Set high residency priority based on the same heuristics as D3D12 committed resources,
+	// i.e. normal priority unless it's a UAV/RT/DS texture.
+	const bool bHighPriorityResource = EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	const uint32 GPUIndex = GetParentDevice()->GetGPUIndex();
+
+	D3D12_HEAP_PROPERTIES BackingHeapProps = {};
+	BackingHeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+	BackingHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	BackingHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	BackingHeapProps.CreationNodeMask = GetGPUMask().GetNative();
+	BackingHeapProps.VisibleNodeMask = GetVisibilityMask().GetNative();
+
+	const uint32 NumTilesX = SubresourceTiling.WidthInTiles;
+	const uint32 NumTilesY = SubresourceTiling.HeightInTiles;
+
+	check(SubresourceTiling.DepthInTiles == 1);
+
+	const uint32 NumTilesPerSubresource = NumTilesX * NumTilesY;
+	const uint32 NumTotalTiles = NumTilesPerSubresource * SubresourceCount;
+
+	uint32 NumMappedTiles = 0;
+
+	while (NumMappedTiles < NumTotalTiles)
+	{
+		const uint32 NumRemainingTiles = NumTotalTiles - NumMappedTiles;
+
+		D3D12_TILE_REGION_SIZE RegionSize = {};
+		RegionSize.UseBox = false;
+		RegionSize.NumTiles = FMath::Min(NumTilesPerHeap, NumRemainingTiles);
+
+		const uint32 ThisHeapSize = RegionSize.NumTiles * TileSizeInBytes;
+		D3D12_HEAP_DESC NewHeapDesc = {};
+		NewHeapDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+		NewHeapDesc.Flags = D3D12_HEAP_FLAG_NONE;
+		NewHeapDesc.SizeInBytes = ThisHeapSize;
+		NewHeapDesc.Properties = BackingHeapProps;
+		TRefCountPtr<ID3D12Heap> NewHeap;
+		VERIFYD3D12RESULT(D3DDevice->CreateHeap(&NewHeapDesc, IID_PPV_ARGS(NewHeap.GetInitReference())));
+
+		if (bHighPriorityResource)
+		{
+			Adapter->SetResidencyPriority(NewHeap, D3D12_RESIDENCY_PRIORITY_HIGH, GPUIndex);
+		}
+
+		D3D12_TILED_RESOURCE_COORDINATE ResourceCoordinate = {}; // Coordinates are in tiles, not pixels
+		const uint32 TileIndexInSubresource = NumMappedTiles % NumTilesPerSubresource;
+		ResourceCoordinate.Subresource = NumMappedTiles / NumTilesPerSubresource;
+		ResourceCoordinate.X = TileIndexInSubresource % NumTilesX;
+		ResourceCoordinate.Y = (TileIndexInSubresource / NumTilesX) % NumTilesY;
+		ResourceCoordinate.Z = 0; // Only simple 2D / Array2D textures are implemented
+
+		const D3D12_TILE_RANGE_FLAGS RangeFlags = D3D12_TILE_RANGE_FLAG_NONE;
+		const uint32 HeapRangeStartOffsetInTiles = 0;
+		const uint32 RangeTileCount = RegionSize.NumTiles;
+
+		D3DCommandQueue->UpdateTileMappings(GetResource(), 1,
+			&ResourceCoordinate, &RegionSize, NewHeap.GetReference(),
+			1,
+			&RangeFlags,
+			&HeapRangeStartOffsetInTiles,
+			&RangeTileCount,
+			MappingFlags);
+
+	#if NAME_OBJECTS
+		const int32 HeapIndex = Heaps.Num();
+		FString HeapName = FString::Printf(TEXT("%s.Heap[%d]"), DebugName.IsValid() ? *DebugName.ToString() : TEXT("UNKNOWN"), HeapIndex);
+		::SetName(NewHeap, *HeapName);
+	#endif // NAME_OBJECTS
+
+		NumMappedTiles += RegionSize.NumTiles;
+		Heaps.Add(MoveTemp(NewHeap));
 	}
 }
 
@@ -329,6 +455,58 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const FD3D12ResourceDesc& InDesc,
 	{
 		UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 CreateCommittedResource failed with params:\n\tHeap Type: %d\n\tHeap Flags: %d\n\tResource Dimension: %d\n\tResource Width: %d\n\tResource Height: %d\n\tFormat: %d\n\tResource Flags: %d"),
 			HeapProps.Type, HeapFlags, LocalDesc.Dimension, LocalDesc.Width, LocalDesc.Height, LocalDesc.PixelFormat, LocalDesc.Flags);
+
+		if (bVerifyHResult)
+		{
+			VERIFYD3D12RESULT_EX(hr, RootDevice);
+		}
+	}
+
+	return hr;
+}
+
+HRESULT FD3D12Adapter::CreateReservedResource(const FD3D12ResourceDesc& InDesc, FRHIGPUMask CreationNode, D3D12_RESOURCE_STATES InInitialState,
+	ED3D12ResourceStateMode InResourceStateMode, D3D12_RESOURCE_STATES InDefaultState, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name, bool bVerifyHResult)
+{
+	if (!ppOutResource)
+	{
+		return E_POINTER;
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreateReservedResource);
+
+	LLM_PLATFORM_SCOPE(ELLMTag::GraphicsPlatform);
+
+	TRefCountPtr<ID3D12Resource> pResource;
+
+	FD3D12ResourceDesc LocalDesc = InDesc;
+	LocalDesc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
+	LocalDesc.bReservedResource = true;
+
+#if D3D12_RHI_RAYTRACING
+	if (InDefaultState == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+	{
+		LocalDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	}
+#endif // D3D12_RHI_RAYTRACING
+
+	HRESULT hr = RootDevice->CreateReservedResource(&LocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+
+	if (SUCCEEDED(hr))
+	{
+		// Set the output pointer
+		*ppOutResource = new FD3D12Resource(GetDevice(CreationNode.ToIndex()), CreationNode, pResource, InInitialState, InResourceStateMode, InDefaultState, LocalDesc, nullptr /*Heap*/, D3D12_HEAP_TYPE_DEFAULT);
+		(*ppOutResource)->AddRef();
+
+		// Set a default name (can override later).
+		SetName(*ppOutResource, Name);
+		
+		// NOTE: reserved resource residency is not tracked/managed by the engine, so we don't need to call StartTrackingForResidency().
+	}
+	else
+	{
+		UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 CreateReservedResource failed with params:\n\tResource Dimension: %d\n\tResource Width: %d\n\tResource Height: %d\n\tFormat: %d\n\tResource Flags: %d"),
+			LocalDesc.Dimension, LocalDesc.Width, LocalDesc.Height, LocalDesc.PixelFormat, LocalDesc.Flags);
 
 		if (bVerifyHResult)
 		{

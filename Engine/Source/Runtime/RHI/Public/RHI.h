@@ -669,6 +669,9 @@ extern RHI_API ERHIBindlessSupport GRHIBindlessSupport;
 UE_DEPRECATED(5.2, "You must use GRHIBindlessSupport instead.")
 extern RHI_API bool GRHISupportsBindless;
 
+/** True if the RHI supports reserved (AKA tiled, virtual or sparse) resources and operations related to them*/
+extern RHI_API bool GRHISupportsReservedResources;
+
 // Calculate the index of the sample in GRHIDefaultMSAASampleOffsets
 extern RHI_API int32 CalculateMSAASampleArrayIndex(int32 NumSamples, int32 SampleIndex);
 

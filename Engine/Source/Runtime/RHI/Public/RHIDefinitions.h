@@ -962,6 +962,10 @@ enum class ETextureCreateFlags : uint64
 	External                		  = 1ull << 34,
 	/** Don't automatically transfer across GPUs in multi-GPU scenarios.  For example, if you are transferring it yourself manually. */
 	MultiGPUGraphIgnore				  = 1ull << 35,
+	/** EXPERIMENTAL: Allow the texture to be created as a reserved (AKA tiled/sparse/virtual) resource internally, without physical memory backing. */
+	ReservedResource                  = 1ull << 37,
+	/** EXPERIMENTAL: Used with ReservedResource flag to immediately allocate and commit memory on creation. May use N small physical memory allocations instead of a single large one. */
+	ImmediateCommit                   = 1ull << 38,
 };
 ENUM_CLASS_FLAGS(ETextureCreateFlags);
 
@@ -1002,6 +1006,8 @@ ENUM_CLASS_FLAGS(ETextureCreateFlags);
 #define TexCreate_AtomicCompatible               ETextureCreateFlags::AtomicCompatible
 #define TexCreate_External               		 ETextureCreateFlags::External
 #define TexCreate_MultiGPUGraphIgnore            ETextureCreateFlags::MultiGPUGraphIgnore
+#define TexCreate_ReservedResource               ETextureCreateFlags::ReservedResource
+#define TexCreate_ImmediateCommit                ETextureCreateFlags::ImmediateCommit
 
 enum EAsyncComputePriority
 {

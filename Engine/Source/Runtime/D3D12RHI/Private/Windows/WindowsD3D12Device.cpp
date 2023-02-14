@@ -1628,6 +1628,16 @@ void FD3D12DynamicRHI::Init()
 		UE_LOG(LogD3D12RHI, Log, TEXT("RHI does not have support for 64 bit atomics"));
 	}
 
+	// Detect reserved resource support
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS Options = {};
+		if (SUCCEEDED(GetAdapter().GetD3DDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &Options, sizeof(Options))))
+		{
+			// Tier 2 is guaranteed for all adapters with feature level 12_0.
+			GRHISupportsReservedResources = Options.TiledResourcesTier >= D3D12_TILED_RESOURCES_TIER_2;
+		}
+	}
+
 	D3D12_FEATURE_DATA_D3D12_OPTIONS6 options = {};
 	HRESULT Options6HR = GetAdapter().GetD3DDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &options, sizeof(options));
 

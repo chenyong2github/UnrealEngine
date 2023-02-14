@@ -14,6 +14,7 @@
 #include "D3D12State.h"
 #include "D3D12DirectCommandListManager.h"
 #include "RHIPoolAllocator.h"
+#include "Templates/UniquePtr.h"
 
 constexpr D3D12_RESOURCE_STATES BackBufferBarrierWriteTransitionTargets = D3D12_RESOURCE_STATES(
 	uint32(D3D12_RESOURCE_STATE_RENDER_TARGET) |
@@ -121,6 +122,8 @@ struct FD3D12ResourceDesc : public D3D12_RESOURCE_DESC
 	bool bRequires64BitAtomicSupport{ false };
 #endif
 
+	bool bReservedResource { false };
+
 	// Used primarily to help treat this resource description as writable.
 	inline bool NeedsUAVAliasWorkarounds() const { return UAVAliasPixelFormat != PF_Unknown; }
 };
@@ -168,6 +171,12 @@ private:
 	static int64 TotalResourceCount;
 	static int64 NoStateTrackingResourceCount;
 #endif
+
+	struct FD3D12ReservedResourceData
+	{
+		TArray<TRefCountPtr<ID3D12Heap>> BackingHeaps;
+	};
+	TUniquePtr<FD3D12ReservedResourceData> ReservedResourceData;
 
 public:
 	FD3D12Resource() = delete;
@@ -361,6 +370,8 @@ public:
 		const uint32 bBuffer : 1;
 		const uint32 bReadBackResource : 1;
 	};
+
+	void CommitReservedResource();
 
 private:
 	void InitalizeResourceState(D3D12_RESOURCE_STATES InInitialState, ED3D12ResourceStateMode InResourceStateMode, D3D12_RESOURCE_STATES InDefaultState)

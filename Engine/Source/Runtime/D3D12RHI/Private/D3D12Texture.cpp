@@ -754,6 +754,15 @@ bool FD3D12DynamicRHI::RHIGetTextureMemoryVisualizeData(FColor* /*TextureData*/,
 	return false;
 }
 
+static bool ShouldCreateReservedTexture(const FD3D12ResourceDesc& TextureDesc, ETextureCreateFlags Flags)
+{
+	// Only 2D textures without mips are implemented/supported, to avoid the complexity associated with packed mips
+	return GRHISupportsReservedResources
+		&& EnumHasAllFlags(Flags, TexCreate_ReservedResource)
+		&& TextureDesc.MipLevels == 1
+		&& TextureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+}
+
 /**
  * Creates a 2D texture optionally guarded by a structured exception handler.
  */
@@ -792,7 +801,27 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 
 		case D3D12_HEAP_TYPE_DEFAULT:
 		{
-			VERIFYD3D12CREATETEXTURERESULT(pDevice->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValue, Format, *OutTexture2D, InitialState, Name), TextureDesc, pDevice->GetDevice());
+			if (ShouldCreateReservedTexture(TextureDesc, Flags))
+			{
+				FD3D12Resource* Resource = nullptr;
+				VERIFYD3D12CREATETEXTURERESULT(
+					Adapter->CreateReservedResource(TextureDesc, pDevice->GetGPUMask(), InitialState, ED3D12ResourceStateMode::MultiState, InitialState, ClearValue, &Resource, Name, false),
+					TextureDesc, pDevice->GetDevice());
+
+				D3D12_RESOURCE_ALLOCATION_INFO AllocInfo = pDevice->GetResourceAllocationInfo(TextureDesc);
+
+				OutTexture2D->AsStandAlone(Resource, AllocInfo.SizeInBytes);
+
+				if (EnumHasAllFlags(Flags, TexCreate_ImmediateCommit))
+				{
+					Resource->CommitReservedResource();
+				}
+			}
+			else
+			{
+				VERIFYD3D12CREATETEXTURERESULT(pDevice->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValue, Format, *OutTexture2D, InitialState, Name), TextureDesc, pDevice->GetDevice());
+			}
+
 			OutTexture2D->SetOwner(Owner);
 			break;
 		}
