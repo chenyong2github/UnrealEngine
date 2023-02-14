@@ -86,7 +86,11 @@ public:
 		{
 			DoCompileVulkanShader(Input, Output, WorkingDirectory, EVulkanShaderVersion::ES3_1_ANDROID);
 		}
-		else if (Format == NAME_VULKAN_SM5 || Format == NAME_VULKAN_SM5_ANDROID)
+		else if (Format == NAME_VULKAN_SM5_ANDROID)
+		{
+			DoCompileVulkanShader(Input, Output, WorkingDirectory, EVulkanShaderVersion::SM5_ANDROID);
+		}
+		else if (Format == NAME_VULKAN_SM5)
 		{
 			DoCompileVulkanShader(Input, Output, WorkingDirectory, EVulkanShaderVersion::SM5);
 		}
