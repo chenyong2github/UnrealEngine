@@ -556,7 +556,7 @@ uint32_t getFieldIndexInStruct(const StructType *spirvStructType,
       getNumBaseClasses(astStructType) + fieldDecl->getFieldIndex();
 
   const auto &fields = spirvStructType->getFields();
-  assert(indexAST <= fields.size());
+  assert(indexAST < fields.size());
   return fields[indexAST].fieldIndex;
 }
 
@@ -1166,6 +1166,9 @@ SpirvInstruction *SpirvEmitter::doExpr(const Expr *expr,
       result = curThis;
   } else if (const auto *unaryExpr = dyn_cast<UnaryExprOrTypeTraitExpr>(expr)) {
     result = doUnaryExprOrTypeTraitExpr(unaryExpr);
+  } else if (const auto *tmplParamExpr =
+                 dyn_cast<SubstNonTypeTemplateParmExpr>(expr)) {
+    result = doExpr(tmplParamExpr->getReplacement());
   } else {
     emitError("expression class '%0' unimplemented", expr->getExprLoc())
         << expr->getStmtClassName() << expr->getSourceRange();

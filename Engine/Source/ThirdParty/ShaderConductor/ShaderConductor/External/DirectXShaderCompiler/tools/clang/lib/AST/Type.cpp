@@ -364,6 +364,11 @@ bool Type::isStructureType() const {
     return RT->getDecl()->isStruct();
   return false;
 }
+bool Type::isEmptyStructureType() const {
+  if (const RecordType *RT = getAs<RecordType>())
+    return RT->getDecl()->isStruct() && RT->getDecl()->field_empty();
+  return false;
+}
 bool Type::isObjCBoxableRecordType() const {
   if (const RecordType *RT = getAs<RecordType>())
     return RT->getDecl()->hasAttr<ObjCBoxableAttr>();

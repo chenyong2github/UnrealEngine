@@ -385,6 +385,8 @@ InitListHandler::createInitForStructType(QualType type, SourceLocation srcLoc,
   llvm::SmallVector<SpirvInstruction *, 4> fields;
   const RecordDecl *structDecl = type->getAsStructureType()->getDecl();
   for (const auto *field : structDecl->fields()) {
+    if (field->getType()->isEmptyStructureType())
+      continue;
     fields.push_back(
         createInitForType(field->getType(), field->getLocation(), range));
     if (!fields.back())

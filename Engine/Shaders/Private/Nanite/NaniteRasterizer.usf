@@ -443,13 +443,23 @@ void MicropolyRasterize(
 	#if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
 		if (!Raster.bSinglePage)
 		{
-			TNaniteWritePixel< FMaterialShader, FCachedPageTable > NaniteWritePixel = { Raster, MaterialShader, PixelValue, VisualizeValues };
+			// @lh-todo: Explicitly initialize structs with empty struct fields until DXC/SPIR-V can handle it properly
+			TNaniteWritePixel< FMaterialShader, FCachedPageTable > NaniteWritePixel;
+			NaniteWritePixel.Raster = Raster;
+			NaniteWritePixel.Shader = MaterialShader;
+			NaniteWritePixel.PixelValue = PixelValue;
+			NaniteWritePixel.VisualizeValues = VisualizeValues;
 			RasterizeTri_Adaptive( Tri, NaniteWritePixel );
 		}
 		else
 	#endif
 		{
-			TNaniteWritePixel< FMaterialShader > NaniteWritePixel = { Raster, MaterialShader, PixelValue, VisualizeValues };
+			// @lh-todo: Explicitly initialize structs with empty struct fields until DXC/SPIR-V can handle it properly
+			TNaniteWritePixel< FMaterialShader > NaniteWritePixel;
+			NaniteWritePixel.Raster = Raster;
+			NaniteWritePixel.Shader = MaterialShader;
+			NaniteWritePixel.PixelValue = PixelValue;
+			NaniteWritePixel.VisualizeValues = VisualizeValues;
 			RasterizeTri_Adaptive( Tri, NaniteWritePixel );
 		}
 	}
@@ -512,13 +522,23 @@ void MicropolyRasterize(
 		#if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
 			if (!Raster.bSinglePage)
 			{
-				TNaniteWritePixel< FMaterialShader, FCachedPageTable > NaniteWritePixel = { Raster, MaterialShader, PixelValue, VisualizeValues };
+				// @lh-todo: Explicitly initialize structs with empty struct fields until DXC/SPIR-V can handle it properly
+				TNaniteWritePixel< FMaterialShader, FCachedPageTable > NaniteWritePixel;
+				NaniteWritePixel.Raster = Raster;
+				NaniteWritePixel.Shader = MaterialShader;
+				NaniteWritePixel.PixelValue = PixelValue;
+				NaniteWritePixel.VisualizeValues = VisualizeValues;
 				RasterizeTri_Adaptive( Tri, NaniteWritePixel );
 			}
 			else
 		#endif
 			{
-				TNaniteWritePixel< FMaterialShader > NaniteWritePixel = { Raster, MaterialShader, PixelValue, VisualizeValues };
+				// @lh-todo: Explicitly initialize structs with empty struct fields until DXC/SPIR-V can handle it properly
+				TNaniteWritePixel< FMaterialShader > NaniteWritePixel;
+				NaniteWritePixel.Raster = Raster;
+				NaniteWritePixel.Shader = MaterialShader;
+				NaniteWritePixel.PixelValue = PixelValue;
+				NaniteWritePixel.VisualizeValues = VisualizeValues;
 				RasterizeTri_Adaptive( Tri, NaniteWritePixel );
 			}
 		}

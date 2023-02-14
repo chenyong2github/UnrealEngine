@@ -395,6 +395,8 @@ bool LiteralTypeVisitor::updateTypeForCompositeMembers(
         // from this bitfield are not guaranteed, and we shouldn't touch them.
         if (field->isBitField())
           break;
+        if (field->getType()->isEmptyStructureType())
+          continue;
         tryToUpdateInstLitType(constituents[i], field->getType());
         ++i;
       }
