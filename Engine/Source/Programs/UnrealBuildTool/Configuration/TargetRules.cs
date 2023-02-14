@@ -2559,9 +2559,13 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			foreach (UnrealArch Arch in Architectures.Architectures)
+			foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
 			{
-				yield return Arch;
+				UEBuildPlatform? BuildPlatform;
+				if (UEBuildPlatform.TryGetBuildPlatform(Platform, out BuildPlatform))
+				{
+					yield return BuildPlatform.ArchitectureConfig;
+				}
 			}
 		}
 

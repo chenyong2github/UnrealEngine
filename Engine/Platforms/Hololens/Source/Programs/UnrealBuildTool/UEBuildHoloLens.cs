@@ -208,9 +208,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Duplicating the commandline param so that we can apply the cmdline to this object in BuildMode and GenProjFilesMode
 		/// </summary>
-		[CommandLine("-2019", Value = nameof(WindowsCompiler.VisualStudio2019))]
-		[CommandLine("-2022", Value = nameof(WindowsCompiler.VisualStudio2022))]
-		[CommandLine("-Compiler=")]
+		[CommandLine("-2019", Value = nameof(WindowsCompiler.VisualStudio2019), MarkUsed = false)]
+		[CommandLine("-2022", Value = nameof(WindowsCompiler.VisualStudio2022), MarkUsed = false)]
+		[CommandLine("-Compiler=", MarkUsed = false)]
 		private WindowsCompiler CommandLineCompiler = WindowsCompiler.Default;
 
 		private WindowsCompiler GetCompiler(FileReference? ProjectFile, UnrealArch Architecture)
@@ -255,8 +255,8 @@ namespace UnrealBuildTool
 			bool bHasArmToolchain = MicrosoftPlatformSDK.HasValidCompiler(GetCompiler(ProjectFile, UnrealArch.Arm64), UnrealArch.Arm64, Logger);
 			bool bHasX64Toolchain = MicrosoftPlatformSDK.HasValidCompiler(GetCompiler(ProjectFile, UnrealArch.X64), UnrealArch.X64, Logger);
 
-			Log.TraceLog($"HoloLens Arm: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.Arm64)}, Valid: {bHasArmToolchain}");
-			Log.TraceLog($"HoloLens X64: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.X64)}, Valid: {bHasX64Toolchain}");
+			Log.TraceLogOnce($"HoloLens Arm: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.Arm64)}, Valid: {bHasArmToolchain}");
+			Log.TraceLogOnce($"HoloLens X64: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.X64)}, Valid: {bHasX64Toolchain}");
 
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.HoloLens);
 			if (Ini.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildForEmulation", out bBuildForEmulation) && bBuildForEmulation)

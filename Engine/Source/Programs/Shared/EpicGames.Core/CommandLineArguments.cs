@@ -789,7 +789,10 @@ namespace EpicGames.Core
 							}
 
 							// Mark this argument as used
-							_usedArguments.Set(index, true);
+							if (attribute.MarkUsed)
+							{
+								_usedArguments.Set(index, true);
+							}
 						}
 					}
 

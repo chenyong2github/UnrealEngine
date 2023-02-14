@@ -28,6 +28,11 @@ namespace EpicGames.Core
 		public bool Required { get; set; }
 
 		/// <summary>
+		/// Whether this argument is required
+		/// </summary>
+		public bool MarkUsed { get; set; } = true;
+
+		/// <summary>
 		/// For collection types, specifies the separator character between multiple arguments
 		/// </summary>
 		public char ListSeparator { get; set; } = '\0';
