@@ -125,7 +125,7 @@ public:
 	 * @param DefaultValue - The default normalized value of the parameter (range 0-1).
 	 * @return Capture this in a Blueprint variable to prevent it from being garbage collected.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation", DisplayName = "Create Modulation Parameter", meta = (
+	UFUNCTION(Category = "Audio|Modulation", DisplayName = "Create Modulation Parameter", meta = (
 		WorldContext = "WorldContextObject",
 		Keywords = "make modulator")
 	)
