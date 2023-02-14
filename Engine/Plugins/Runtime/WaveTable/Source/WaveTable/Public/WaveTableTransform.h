@@ -42,9 +42,6 @@ struct WAVETABLE_API FWaveTableTransform
 	UPROPERTY()
 	TArray<float> WaveTable;
 
-	UPROPERTY()
-	float FinalValue = WaveTable::InvalidWaveTableValue;
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = WaveTable)
 	FWaveTableSettings WaveTableSettings;
@@ -72,14 +69,19 @@ struct WAVETABLE_API FWaveTableTransform
 	  */
 	void CacheCurve();
 
+	// Returns the final value of the WaveTable
+	float GetFinalValue() const;
+
+	// Set the final value of the WaveTable
+	void SetFinalValue(float InValue);
+
 private:
+	UPROPERTY()
+	float FinalValue = WaveTable::InvalidWaveTableValue;
+
 	/** Clamps & applies transform to provided values as bipolar signal*/
 	void SampleCurveBipolar(TArrayView<float> InOutValues, float& OutFinalValue) const;
 
 	/** Clamps & applies transform to provided values as unipolar signal */
 	void SampleCurveUnipolar(TArrayView<float> InOutValues, float& OutFinalValue) const;
 };
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Curves/CurveFloat.h"
-#endif

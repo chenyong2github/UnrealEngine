@@ -335,6 +335,26 @@ void FWaveTableTransform::CacheCurve()
 	CurveShared = nullptr;
 }
 
+float FWaveTableTransform::GetFinalValue() const
+{
+	if (FMath::IsNearlyEqual(FinalValue, WaveTable::InvalidWaveTableValue))
+	{
+		if (WaveTable.IsEmpty())
+		{
+			return 0.f;
+		}
+
+		return WaveTable.Last();
+	}
+
+	return FinalValue;
+}
+
+void FWaveTableTransform::SetFinalValue(float InValue)
+{
+	FinalValue = InValue;
+}
+
 #if WITH_EDITOR
 void FWaveTableTransform::CopyToWaveTable(TArrayView<float> InOutTable, float& OutFinalValue, bool bInBipolar) const
 {

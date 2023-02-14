@@ -52,8 +52,6 @@ public:
 	/* IAudioProxyDataFactory Implementation */
 	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 
-	virtual void Serialize(FArchive& Ar) override;
-
 #if WITH_EDITOR
 	void RefreshWaveTables();
 
@@ -77,7 +75,7 @@ public:
 	{
 		Algo::Transform(InWaveTableBank.Entries, WaveTables, [](const FWaveTableBankEntry& Entry)
 		{
-			return WaveTable::FWaveTable(Entry.Transform.WaveTable, Entry.Transform.FinalValue);
+			return WaveTable::FWaveTable(Entry.Transform.WaveTable, Entry.Transform.GetFinalValue());
 		});
 	}
 
