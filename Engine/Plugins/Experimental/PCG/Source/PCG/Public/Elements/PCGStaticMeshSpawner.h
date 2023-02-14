@@ -113,6 +113,8 @@ struct FPCGStaticMeshSpawnerContext : public FPCGContext
 	};
 
 	TArray<FPackedInstanceListData> MeshInstancesData;
+	// Index of MeshInstances/PackedCustomData in last MeshInstancesData element
+	int32 CurrentDataIndex = 0;
 };
 
 class FPCGStaticMeshSpawnerElement : public IPCGElement

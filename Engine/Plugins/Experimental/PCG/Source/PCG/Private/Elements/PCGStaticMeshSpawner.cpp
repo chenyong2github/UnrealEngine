@@ -137,15 +137,27 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* InContext) const
 		const FPCGStaticMeshSpawnerContext::FPackedInstanceListData& InstanceList = Context->MeshInstancesData.Last();
 		check(InstanceList.MeshInstances.Num() == InstanceList.PackedCustomData.Num());
 
-		if (InstanceList.SpatialData->TargetActor.IsValid())
+		const bool bTargetActorValid = InstanceList.SpatialData->TargetActor.IsValid();
+
+		if (bTargetActorValid)
 		{
-			for (int32 DataIndex = 0; DataIndex < InstanceList.MeshInstances.Num(); ++DataIndex)
+			while (Context->CurrentDataIndex < InstanceList.MeshInstances.Num())
 			{
-				SpawnStaticMeshInstances(Context, InstanceList.MeshInstances[DataIndex], InstanceList.SpatialData->TargetActor.Get(), InstanceList.PackedCustomData[DataIndex]);
+				SpawnStaticMeshInstances(Context, InstanceList.MeshInstances[Context->CurrentDataIndex], InstanceList.SpatialData->TargetActor.Get(), InstanceList.PackedCustomData[Context->CurrentDataIndex]);
+				++Context->CurrentDataIndex;
+
+				if (Context->ShouldStop())
+				{
+					break;
+				}
 			}
 		}
 
-		Context->MeshInstancesData.RemoveAtSwap(Context->MeshInstancesData.Num() - 1);
+		if (!bTargetActorValid || Context->CurrentDataIndex == InstanceList.MeshInstances.Num())
+		{
+			Context->MeshInstancesData.RemoveAtSwap(Context->MeshInstancesData.Num() - 1);
+			Context->CurrentDataIndex = 0;
+		}
 
 		if (Context->ShouldStop())
 		{

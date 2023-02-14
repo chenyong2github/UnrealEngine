@@ -156,7 +156,7 @@ namespace PCGHelpers
 	bool IsRuntimeOrPIE()
 	{
 #if WITH_EDITOR
-		return (GEditor && GEditor->PlayWorld) || GIsPlayInEditorWorld;
+		return (GEditor && GEditor->PlayWorld) || GIsPlayInEditorWorld || IsRunningGame();
 #else
 		return true;
 #endif // WITH_EDITOR

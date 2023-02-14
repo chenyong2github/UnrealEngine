@@ -268,6 +268,8 @@ void UPCGPointData::AddToCrc(FArchiveCrc32& Ar) const
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGPointData::AddToCrc);
+
 	uint32 ThisType = static_cast<uint32>(GetDataType());
 	Ar << ThisType;
 
