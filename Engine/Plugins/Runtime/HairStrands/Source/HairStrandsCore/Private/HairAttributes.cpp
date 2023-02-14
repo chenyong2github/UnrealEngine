@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairAttributes.h"
+#include "HairStrandsDefinitions.h"
 
 namespace HairAttribute
 {
@@ -62,4 +63,18 @@ const TCHAR* GetHairAttributeText(EHairAttribute In)
 	case EHairAttribute::AO:						return TEXT("AO");
 	}
 	return TEXT("UNKNOWN");
+}
+
+uint32 GetHairAttributeIndex(EHairAttribute In)
+{
+	switch (In)
+	{
+	case EHairAttribute::RootUV:					return HAIR_ATTRIBUTE_ROOTUV;
+	case EHairAttribute::ClumpID:					return HAIR_ATTRIBUTE_CLUMPID;
+	case EHairAttribute::PrecomputedGuideWeights:	return HAIR_ATTRIBUTE_COUNT; // We don't store this information
+	case EHairAttribute::Color:						return HAIR_ATTRIBUTE_BASECOLOR;
+	case EHairAttribute::Roughness:					return HAIR_ATTRIBUTE_ROUGHNESS;
+	case EHairAttribute::AO:						return HAIR_ATTRIBUTE_AO;
+	}
+	return HAIR_ATTRIBUTE_COUNT;
 }

@@ -16,6 +16,7 @@
 #include "CanvasTypes.h"
 #include "ShaderCompilerCore.h"
 #include "GroomVisualizationData.h"
+#include "GroomCacheData.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -851,6 +852,8 @@ struct FHairDebugNameInfo
 };
 
 const TCHAR* GetHairAttributeText(EHairAttribute In);
+uint32 GetHairAttributeIndex(EHairAttribute In);
+EGroomCacheType GetHairInstanceCacheType(const FHairGroupInstance* Instance);
 
 static void AddHairDebugPrintInstancePass(
 	FRDGBuilder& GraphBuilder, 
@@ -911,6 +914,7 @@ static void AddHairDebugPrintInstancePass(
 		const float LODIndex = Instance->HairGroupPublicData->LODIndex;
 		const uint32 IntLODIndex = Instance->HairGroupPublicData->LODIndex;
 		const uint32 LODCount = Instance->HairGroupPublicData->GetLODScreenSizes().Num();
+		const EGroomCacheType ActiveGroomCacheType = GetHairInstanceCacheType(Instance);
 
 		FUintVector4 Data0 = { 0,0,0,0 };
 		FUintVector4 Data1 = { 0,0,0,0 };
@@ -953,6 +957,8 @@ static void AddHairDebugPrintInstancePass(
 					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.bUseRaytracingGeometry      ? 0x8u  : 0u;
 					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.bUseStableRasterization     ? 0x10u : 0u;
 					Data2.X |= Instance->HairGroupPublicData->bSupportVoxelization                        ? 0x20u : 0u;
+					Data2.X |= ActiveGroomCacheType == EGroomCacheType::Guides                            ? 0x40u : 0u;
+					Data2.X |= ActiveGroomCacheType == EGroomCacheType::Strands                           ? 0x80u : 0u;
 					Data2.X |= uint32(FFloat16(Instance->HairGroupPublicData->ContinuousLODScreenSize).Encoded) << 16u;
 
 					Data2.Y = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
@@ -962,7 +968,12 @@ static void AddHairDebugPrintInstancePass(
 					{
 						for (uint32 AttributeIt=0; AttributeIt<uint32(EHairAttribute::Count); ++AttributeIt)
 						{
-							Data2.W |= Instance->Strands.Data->HasAttributes((EHairAttribute)AttributeIt) ? (1u<<AttributeIt) : 0u;
+							const EHairAttribute Attribute = (EHairAttribute)AttributeIt;
+							const uint32 Index = GetHairAttributeIndex(Attribute);
+							if (Index < HAIR_ATTRIBUTE_COUNT)
+							{
+								Data2.W |= Instance->Strands.Data->AttributeOffsets[Index] != 0xFFFFFFFF ? (1u<<Index) : 0u;
+							}
 						}
 					}
 				}
@@ -1021,14 +1032,20 @@ static void AddHairDebugPrintInstancePass(
 	AttributeNames.Reserve(uint32(EHairAttribute::Count) * 30u);
 	for (uint32 AttributeIt = 0; AttributeIt < uint32(EHairAttribute::Count); ++AttributeIt)
 	{
-		const FString Name = GetHairAttributeText((EHairAttribute)AttributeIt);
-		FHairDebugNameInfo& NameInfo = AttributeNameInfos.AddDefaulted_GetRef();
-		NameInfo.PrimitiveID = ~0;
-		NameInfo.Length = Name.Len();
-		NameInfo.Offset = AttributeNames.Num();	
-		for (TCHAR C : Name)
+		// Only add valid optional attribute 
+		// HAIR_ATTRIBUTE_XXX and EHairAttribute don't have a 1:1 mapping
+		const EHairAttribute Attribute = (EHairAttribute)AttributeIt;
+		if (GetHairAttributeIndex(Attribute) < HAIR_ATTRIBUTE_COUNT)
 		{
-			AttributeNames.Add(uint8(C));
+			const FString Name = GetHairAttributeText(Attribute);
+			FHairDebugNameInfo& NameInfo = AttributeNameInfos.AddDefaulted_GetRef();
+			NameInfo.PrimitiveID = ~0;
+			NameInfo.Length = Name.Len();
+			NameInfo.Offset = AttributeNames.Num();	
+			for (TCHAR C : Name)
+			{
+				AttributeNames.Add(uint8(C));
+			}
 		}
 	}
 

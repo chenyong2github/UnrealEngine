@@ -1194,6 +1194,8 @@ struct FInstanceInfo
 	bool Scatter;
 	bool RTGeometry;
 	bool StableRaster;
+	bool CacheRen;
+	bool CacheSim;
 
 	// Binding
 	uint UniqueTriangle;
@@ -1260,6 +1262,8 @@ FInstanceInfo ReadInstanceInfo(uint Index)
 	Out.RTGeometry				= Data2.x & 0x8;
 	Out.StableRaster			= Data2.x & 0x10;
 	Out.Voxel					= Data2.x & 0x20;
+	Out.CacheSim				= Data2.x & 0x40;
+	Out.CacheRen				= Data2.x & 0x80;
 	Out.ScreenSize				= f16tof32((Data2.x>>16) & 0xFFFF);
 	Out.ActivePointCount		= Data2.y;
 	Out.ActiveCurveCount		= Data2.z;
@@ -1406,7 +1410,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Newline(Context);
 
 	// Draw instance details
-	Print(Context, TEXT("   Group  LOD     Geometry Binding Sim RBF Clip Screen Strands            Points             Bind.Tri/Sect Vis. Shad. Name"));
+	Print(Context, TEXT("   Group  LOD     Geometry Binding Cache Sim RBF Clip Screen Strands            Points             Bind.Tri/Sect Vis. Shad. Name"));
 	Newline(Context);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -1440,6 +1444,11 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		else if (Info.BindingType == 1)	{ Print(Context, TEXT("Rigid   "), FontTurquoise); }
 		else if (Info.BindingType == 2)	{ Print(Context, TEXT("None    "), FontTurquoise); }
 
+		// Cache
+		if (Info.CacheRen)      { Print(Context, TEXT("Ren  "), FontOrange); }
+		else if (Info.CacheSim) { Print(Context, TEXT("Sim  "), FontOrange); }
+		else                    { Print(Context, TEXT("None "), FontSilver); }
+		Print(Context, TEXT(" "));
 		// Sim
 		PrintBool(Context, Info.bHasSim);
 

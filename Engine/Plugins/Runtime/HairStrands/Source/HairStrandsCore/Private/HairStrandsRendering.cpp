@@ -1708,6 +1708,12 @@ FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(cons
 
 void CreateHairStrandsDebugAttributeBuffer(FRDGBuilder& GraphBuilder, FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount, const FName& OwnerName);
 
+EGroomCacheType GetHairInstanceCacheType(const FHairGroupInstance* Instance)
+{
+	const bool bHasValidGroomCacheBuffers = Instance->Debug.GroomCacheBuffers.IsValid() && Instance->Debug.GroomCacheBuffers->GetInterpolatedFrameBuffer().GroupsData.IsValidIndex(Instance->Debug.GroupIndex);
+	return bHasValidGroomCacheBuffers ? Instance->Debug.GroomCacheType : EGroomCacheType::None;
+}
+
 void ComputeHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -1739,7 +1745,7 @@ void ComputeHairStrandsInterpolation(
 		RDG_EVENT_SCOPE(GraphBuilder, "HairInterpolation(Strands)");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsInterpolation);
 
-		const bool bHasValidGroomCacheBuffers = Instance->Debug.GroomCacheBuffers.IsValid() && Instance->Debug.GroomCacheBuffers->GetInterpolatedFrameBuffer().GroupsData.IsValidIndex(Instance->Debug.GroupIndex);
+		const EGroomCacheType ActiveGroomCacheType = GetHairInstanceCacheType(Instance);
 
 		// Debug mode:
 		// * None	: Display hair normally
@@ -1751,7 +1757,7 @@ void ComputeHairStrandsInterpolation(
 			Instance->HairGroupPublicData->SetCullingResultAvailable(false);
 
 			// If groom guide cache, is enabled, used the deform position for debug visualization
-			if (bHasValidGroomCacheBuffers && Instance->Debug.GroomCacheType == EGroomCacheType::Guides)
+			if (ActiveGroomCacheType == EGroomCacheType::Guides)
 			{
 				FScopeLock Lock(Instance->Debug.GroomCacheBuffers->GetCriticalSection());
 				const FGroomCacheGroupData& GroomCacheGroupData = Instance->Debug.GroomCacheBuffers->GetInterpolatedFrameBuffer().GroupsData[Instance->Debug.GroupIndex];
@@ -1827,7 +1833,7 @@ void ComputeHairStrandsInterpolation(
 				Strands_PositionOffsetSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current));
 				Strands_TangentSRV = Strands_DeformedTangent.SRV;
 
-				if (bHasValidGroomCacheBuffers && Instance->Debug.GroomCacheType == EGroomCacheType::Guides)
+				if (ActiveGroomCacheType == EGroomCacheType::Guides)
 				{
 					FScopeLock Lock(Instance->Debug.GroomCacheBuffers->GetCriticalSection());
 					const FGroomCacheGroupData& GroomCacheGroupData = Instance->Debug.GroomCacheBuffers->GetInterpolatedFrameBuffer().GroupsData[Instance->Debug.GroupIndex];
@@ -1896,7 +1902,7 @@ void ComputeHairStrandsInterpolation(
 				}
 
 				// 2.1 Compute deformation position based on simulation/skinning/RBF
-				if (Instance->Debug.GroomCacheType != EGroomCacheType::Strands)
+				if (ActiveGroomCacheType != EGroomCacheType::Strands)
 				{
 					// 2.1.1 Current Position
 					AddHairStrandsInterpolationPass(
@@ -1983,7 +1989,7 @@ void ComputeHairStrandsInterpolation(
 							FHairStrandsDeformedRootResource::FLOD::Previous);
 					}
 				}
-				else if (bHasValidGroomCacheBuffers)
+				else if (ActiveGroomCacheType == EGroomCacheType::Strands)
 				{
 					FScopeLock Lock(Instance->Debug.GroomCacheBuffers->GetCriticalSection());
 					const FGroomCacheGroupData& GroomCacheGroupData = Instance->Debug.GroomCacheBuffers->GetInterpolatedFrameBuffer().GroupsData[Instance->Debug.GroupIndex];
