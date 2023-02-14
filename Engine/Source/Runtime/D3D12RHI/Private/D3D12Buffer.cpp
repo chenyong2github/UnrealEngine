@@ -594,12 +594,21 @@ void* FD3D12DynamicRHI::LockBuffer(FRHICommandListBase& RHICmdList, FD3D12Buffer
 			{
 				FRHICommandRenameUploadBuffer* Command = ALLOC_COMMAND_CL(RHICmdList, FRHICommandRenameUploadBuffer)(Buffer, Device);
 				Data = Adapter.GetUploadHeapAllocator(Device->GetGPUIndex()).AllocUploadResource(BufferSize, Buffer->BufferAlignment, Command->NewLocation);
+#if UE_MEMORY_TRACE_ENABLED
+				MemoryTrace_ReallocFree(Buffer->ResourceLocation.GetGPUVirtualAddress(), EMemoryTraceRootHeap::VideoMemory);
+				MemoryTrace_ReallocAlloc(Command->NewLocation.GetGPUVirtualAddress(), BufferSize, Buffer->BufferAlignment, EMemoryTraceRootHeap::VideoMemory);
+#endif
+
 				RHICmdList.RHIThreadFence(true);
 			}
 			else
 			{
 				FRHICommandRenameUploadBuffer Command(Buffer, Device);
 				Data = Adapter.GetUploadHeapAllocator(Device->GetGPUIndex()).AllocUploadResource(BufferSize, Buffer->BufferAlignment, Command.NewLocation);
+#if UE_MEMORY_TRACE_ENABLED
+				MemoryTrace_ReallocFree(Buffer->ResourceLocation.GetGPUVirtualAddress(), EMemoryTraceRootHeap::VideoMemory);
+				MemoryTrace_ReallocAlloc(Command.NewLocation.GetGPUVirtualAddress(), BufferSize, Buffer->BufferAlignment, EMemoryTraceRootHeap::VideoMemory);
+#endif
 				Command.Execute(RHICmdList);
 			}
 		}

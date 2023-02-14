@@ -299,6 +299,7 @@ static FName GetD3D12BufferStat(EBufferUsageFlags InUsageFlags)
 
 void UpdateBufferStats(FD3D12Buffer* Buffer, bool bAllocating)
 {
+	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress = Buffer->ResourceLocation.GetGPUVirtualAddress();
 	int64 BufferSize = Buffer->ResourceLocation.GetSize();
 	int64 RequestedSize = bAllocating ? BufferSize : -BufferSize;
 	EBufferUsageFlags UsageFlags = Buffer->GetUsage();
@@ -307,14 +308,16 @@ void UpdateBufferStats(FD3D12Buffer* Buffer, bool bAllocating)
 	INC_MEMORY_STAT_BY_FName(GetD3D12BufferStat(UsageFlags), RequestedSize);
 	INC_MEMORY_STAT_BY(STAT_D3D12MemoryCurrentTotal, RequestedSize);
 
+#if UE_MEMORY_TRACE_ENABLED
 	if (bAllocating)
 	{
-		MemoryTrace_Alloc((uint64)Buffer->GetResource(), BufferSize, 0, EMemoryTraceRootHeap::VideoMemory);
+		MemoryTrace_Alloc(GPUAddress, BufferSize, Buffer->BufferAlignment, EMemoryTraceRootHeap::VideoMemory);
 	}
 	else
 	{
-		MemoryTrace_Free((uint64)Buffer->GetResource(), EMemoryTraceRootHeap::VideoMemory);
+		MemoryTrace_Free(GPUAddress, EMemoryTraceRootHeap::VideoMemory);
 	}
+#endif
 }
 
 #if NV_AFTERMATH
