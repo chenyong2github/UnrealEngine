@@ -26,6 +26,7 @@ void UVCamBlueprintModifier::Deinitialize()
 {
 	if (GetWorld()
 		&& !HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed)
+		&& !IsUnreachable()
 		// Executing BP code during this phase is not allowed - you hit this when saving the world.
 		&& !FUObjectThreadContext::Get().IsRoutingPostLoad)
 	{
