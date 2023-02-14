@@ -77,6 +77,7 @@ FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) 
 
 #if RHI_RAYTRACING
 	bDynamicRayTracingGeometry = true;
+	bNeedsDynamicRayTracingGeometries = true;
 #endif
 
 	// make sure all the materials are okay to be rendered as a spline mesh
@@ -184,6 +185,8 @@ void FSplineMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTracingMate
 	{
 		return;
 	}
+
+	checkf(!DynamicRayTracingGeometries.IsEmpty(), TEXT("DynamicRayTracingGeometries has not been initialized correctly"));
 
 	ESceneDepthPriorityGroup PrimitiveDPG = GetStaticDepthPriorityGroup();
 	const int32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
