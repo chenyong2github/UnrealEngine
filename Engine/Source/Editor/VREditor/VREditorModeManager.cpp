@@ -149,7 +149,7 @@ bool FVREditorModeManager::IsVREditorAvailable() const
 		return false;
 	}
 
-	return GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDEnabled();
+	return GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDConnected();
 }
 
 bool FVREditorModeManager::IsVREditorButtonActive() const

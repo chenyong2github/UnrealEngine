@@ -242,7 +242,7 @@ void FVREditorModule::ExtendToolbarMenu()
 		{
 			const bool bHasHMDDevice = GEngine->XRSystem
 				&& GEngine->XRSystem->GetHMDDevice()
-				&& GEngine->XRSystem->GetHMDDevice()->IsHMDEnabled();
+				&& GEngine->XRSystem->GetHMDDevice()->IsHMDConnected();
 
 			const FText HmdAvailableText = LOCTEXT("ToggleVrOptions_Status_HmdAvailable", "Headset available ({XrVersionString})");
 			const FText HmdNotAvailableText = LOCTEXT("ToggleVrOptions_Status_HmdNotAvailable", "No headset available");
