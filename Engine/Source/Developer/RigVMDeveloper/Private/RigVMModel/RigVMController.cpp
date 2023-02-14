@@ -16650,6 +16650,16 @@ void URigVMController::PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefau
 			OutDefaultValue.Reset();
 		}
 	}
+	if (Pin->IsStruct() || Pin->IsArray())
+	{
+		if (!OutDefaultValue.IsEmpty())
+		{
+			if (OutDefaultValue[0] != TCHAR('(') || OutDefaultValue[OutDefaultValue.Len()-1] != TCHAR(')'))
+			{
+				OutDefaultValue.Reset();
+			}
+		}
+	}
 
 	if (Pin->IsArray() && OutDefaultValue.IsEmpty())
 	{

@@ -696,11 +696,22 @@ FString URigVMPin::GetDefaultValue(const URigVMPin::FPinOverride& InOverride) co
 
 	if (IsArray())
 	{
+		FRigVMRegistry& Registry = FRigVMRegistry::Get();
+		const TRigVMTypeIndex ArrayType = GetTypeIndex();
+		if (!Registry.IsArrayType(ArrayType))
+		{
+			return TEXT("()");
+		}
 		if (SubPins.Num() > 0)
 		{
+			const TRigVMTypeIndex ElementType = Registry.GetBaseTypeFromArrayTypeIndex(ArrayType);
 			TArray<FString> ElementDefaultValues;
 			for (URigVMPin* SubPin : SubPins)
 			{
+				if (SubPin->GetTypeIndex() != ElementType)
+				{
+					return TEXT("()");
+				}
 				FString ElementDefaultValue = SubPin->GetDefaultValue(InOverride);
 				if (SubPin->IsStringType())
 				{
