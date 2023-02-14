@@ -191,6 +191,9 @@ void UInterchangeGenericMeshPipeline::SetReimportSourceIndex(UClass* ReimportObj
 #if WITH_EDITOR
 bool UInterchangeGenericMeshPipeline::DoClassesIncludeAllEditableStructProperties(const TArray<const UClass*>& Classes, const UStruct* Struct)
 {
+	check(IsInGameThread());
+
+	bool bResult = true;
 	const FName CategoryKey("Category");
 	for (const FProperty* Property = Struct->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
@@ -224,10 +227,11 @@ bool UInterchangeGenericMeshPipeline::DoClassesIncludeAllEditableStructPropertie
 			//Ensure to notify
 			if (!bFindProperty)
 			{
-				return false;
+				UE_LOG(LogInterchangePipeline, Log, TEXT("Interchange mesh pipeline do not include build property %s"), *PropertyName.ToString());
+				bResult = false;
 			}
 		}
 	}
-	return true;
+	return bResult;
 }
 #endif

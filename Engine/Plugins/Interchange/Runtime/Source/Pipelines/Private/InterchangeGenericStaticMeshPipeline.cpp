@@ -140,15 +140,21 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineStaticMesh()
 
 #if WITH_EDITOR
 	//Make sure the generic pipeline will cover all staticmesh build settings when we import
-	{
-		TArray<const UClass*> Classes;
-		Classes.Add(UInterchangeGenericCommonMeshesProperties::StaticClass());
-		Classes.Add(UInterchangeGenericMeshPipeline::StaticClass());
-		if (!ensure(DoClassesIncludeAllEditableStructProperties(Classes, FMeshBuildSettings::StaticStruct())))
+	Async(EAsyncExecution::TaskGraphMainThread, []()
 		{
-			UE_LOG(LogInterchangePipeline, Log, TEXT("UInterchangeGenericMeshPipeline: The generic pipeline does not cover all static mesh build options."));
-		}
-	}
+			static bool bVerifyBuildProperties = false;
+			if (!bVerifyBuildProperties)
+			{
+				bVerifyBuildProperties = true;
+				TArray<const UClass*> Classes;
+				Classes.Add(UInterchangeGenericCommonMeshesProperties::StaticClass());
+				Classes.Add(UInterchangeGenericMeshPipeline::StaticClass());
+				if (!DoClassesIncludeAllEditableStructProperties(Classes, FMeshBuildSettings::StaticStruct()))
+				{
+					UE_LOG(LogInterchangePipeline, Log, TEXT("UInterchangeGenericMeshPipeline: The generic pipeline does not cover all static mesh build options."));
+				}
+			}
+		});
 #endif
 
 	if (bImportStaticMeshes && (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_None || CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_StaticMesh))

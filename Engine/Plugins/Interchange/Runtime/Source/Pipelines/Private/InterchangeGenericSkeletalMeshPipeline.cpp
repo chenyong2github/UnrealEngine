@@ -87,15 +87,21 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 
 #if WITH_EDITOR
 	//Make sure the generic pipeline we cover all skeletalmesh build settings by asserting when we import
-	{
-		TArray<const UClass*> Classes;
-		Classes.Add(UInterchangeGenericCommonMeshesProperties::StaticClass());
-		Classes.Add(UInterchangeGenericMeshPipeline::StaticClass());
-		if (!ensure(DoClassesIncludeAllEditableStructProperties(Classes, FSkeletalMeshBuildSettings::StaticStruct())))
+	Async(EAsyncExecution::TaskGraphMainThread, []()
 		{
-			UE_LOG(LogInterchangePipeline, Log, TEXT("UInterchangeGenericMeshPipeline: The generic pipeline does not cover all skeletal mesh build options."));
-		}
-	}
+			static bool bVerifyBuildProperties = false;
+			if (!bVerifyBuildProperties)
+			{
+				bVerifyBuildProperties = true;
+				TArray<const UClass*> Classes;
+				Classes.Add(UInterchangeGenericCommonMeshesProperties::StaticClass());
+				Classes.Add(UInterchangeGenericMeshPipeline::StaticClass());
+				if (!DoClassesIncludeAllEditableStructProperties(Classes, FSkeletalMeshBuildSettings::StaticStruct()))
+				{
+					UE_LOG(LogInterchangePipeline, Log, TEXT("UInterchangeGenericMeshPipeline: The generic pipeline does not cover all skeletal mesh build options."));
+				}
+			}
+		});
 #endif
 
 	const bool bConvertStaticMeshToSkeletalMesh = (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_SkeletalMesh);
