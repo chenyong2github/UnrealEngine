@@ -269,7 +269,6 @@ void FWaveformEditorTransportCoordinator::UpdateZoomRatioAndDisplayRange(const f
 void FWaveformEditorTransportCoordinator::Stop()
 {
 	ReceivePlayBackRatio(0.f);
-	UpdateDisplayRange(0.f, ZoomRatio);
 }
 
 void FWaveformEditorTransportCoordinator::UpdateDisplayRange(const float MinValue, const float MaxValue)
