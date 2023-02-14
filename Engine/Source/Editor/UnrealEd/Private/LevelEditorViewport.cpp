@@ -1801,6 +1801,18 @@ void FTrackingTransaction::Cancel()
 	{
 		ScopedTransaction->Cancel();
 	}
+
+	// If the transaction is cancelled, reset the package dirty states to reflect their original state
+	for (const TTuple<UPackage*, bool>& InitialPackageDirtyState : InitialPackageDirtyStates)
+	{
+		UPackage* Package = InitialPackageDirtyState.Key;
+		const bool bInitialDirtyState = InitialPackageDirtyState.Value;
+		if (!bInitialDirtyState && Package->IsDirty())
+		{
+			Package->SetDirtyFlag(false);
+		}
+	}
+
 	End();
 }
 
@@ -2167,6 +2179,7 @@ void FLevelEditorViewportClient::BeginCameraMovement(bool bHasMovement)
 					FCoreUObjectDelegates::OnPreObjectPropertyChanged.Broadcast(ActorLock, PropertyChain);
 				}
 			}
+			TrackingTransaction.Cancel();
 			bIsCameraMoving = true;
 		}
 	}
