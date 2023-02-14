@@ -1420,9 +1420,14 @@ namespace UnrealBuildTool
 		public UnrealArchitectures Architectures;
 
 		/// <summary>
-		/// Relative path for platform-specific intermediates (eg. Intermediate/Build/Win64)
+		/// Relative path for platform-specific intermediates (eg. Intermediate/Build/Win64/x64)
 		/// </summary>
 		public string PlatformIntermediateFolder;
+
+		/// <summary>
+		/// Relative path for platform-specific intermediates that explicitly do not need an architeecture (eg. Intermediate/Build/Win64)
+		/// </summary>
+		public string PlatformIntermediateFolderNoArch;
 
 		/// <summary>
 		/// Root directory for the active project. Typically contains the .uproject file, or the engine root.
@@ -1433,6 +1438,11 @@ namespace UnrealBuildTool
 		/// Default directory for intermediate files. Typically underneath ProjectDirectory.
 		/// </summary>
 		public DirectoryReference ProjectIntermediateDirectory;
+
+		/// <summary>
+		/// Default directory for intermediate files. Typically underneath ProjectDirectory.
+		/// </summary>
+		public DirectoryReference ProjectIntermediateDirectoryNoArch;
 
 		/// <summary>
 		/// Directory for engine intermediates. For an agnostic editor/game executable, this will be under the engine directory. For monolithic executables this will be the same as the project intermediate directory.
@@ -1541,6 +1551,7 @@ namespace UnrealBuildTool
 
 			// now that we have the platform, we can set the intermediate path to include the platform/architecture name
 			PlatformIntermediateFolder = GetPlatformIntermediateFolder(Platform, Architectures, false);
+			PlatformIntermediateFolderNoArch = GetPlatformIntermediateFolder(Platform, null, false);
 
 			TargetRulesFile = InRules.File;
 
@@ -1582,6 +1593,7 @@ namespace UnrealBuildTool
 
 			// Build the project intermediate directory
 			ProjectIntermediateDirectory = DirectoryReference.Combine(OutputRootDirectory, PlatformIntermediateFolder, TargetName, Configuration.ToString());
+			ProjectIntermediateDirectoryNoArch = DirectoryReference.Combine(OutputRootDirectory, PlatformIntermediateFolderNoArch, TargetName, Configuration.ToString());
 
 			// Build the engine intermediate directory. If we're building agnostic engine binaries, we can use the engine intermediates folder. Otherwise we need to use the project intermediates directory.
 			if (!bUseSharedBuildEnvironment)
@@ -1614,10 +1626,15 @@ namespace UnrealBuildTool
 		/// <param name="Architectures">Architectures to get the folder for</param>
 		/// <param name="External">Insert External after Intermediate - for out-of-tree plugins</param>
 		/// <returns>The output directory for intermediates</returns>
-		public static string GetPlatformIntermediateFolder(UnrealTargetPlatform Platform, UnrealArchitectures Architectures, bool External)
+		public static string GetPlatformIntermediateFolder(UnrealTargetPlatform Platform, UnrealArchitectures? Architectures, bool External)
 		{
 			// now that we have the platform, we can set the intermediate path to include the platform/architecture name
-			return Path.Combine("Intermediate", External ? "External" : String.Empty, "Build", Platform.ToString(), UnrealArchitectureConfig.ForPlatform(Platform).GetFolderNameForArchitectures(Architectures));
+			string FolderPath = Path.Combine("Intermediate", External ? "External" : String.Empty, "Build", Platform.ToString());
+			if (Architectures != null)
+			{
+				FolderPath = Path.Combine(FolderPath, UnrealArchitectureConfig.ForPlatform(Platform).GetFolderNameForArchitectures(Architectures));
+			}
+			return FolderPath;
 		}
 
 		/// <summary>
@@ -2250,7 +2267,8 @@ namespace UnrealBuildTool
 
 			// Create the makefile
 			string ExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
-			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, ProjectIntermediateDirectory, TargetType, 
+			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, 
+				ProjectIntermediateDirectory, ProjectIntermediateDirectoryNoArch, TargetType, 
 				Rules.ConfigValueTracker, bDeployAfterCompile, UbtPlugins?.ToArray(), EnabledUbtPlugins?.ToArray(), 
 				EnabledUhtPlugins?.ToArray());
 			Makefile.IsTestTarget = Rules.IsTestTarget;
@@ -4903,8 +4921,8 @@ namespace UnrealBuildTool
 						GeneratedCodeDirectory = ProjectDirectory;
 					}
 
-					// Get the subfolder containing generated code
-					GeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory, PlatformIntermediateFolder, AppName, "Inc");
+					// Get the subfolder containing generated code - we don't need architeceture information since these are shared between all arches for a platform
+					GeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory, PlatformIntermediateFolderNoArch, AppName, "Inc");
 
 					// Append the binaries subfolder, if present. We rely on this to ensure that build products can be filtered correctly.
 					if (RulesObject.BinariesSubFolder != null)

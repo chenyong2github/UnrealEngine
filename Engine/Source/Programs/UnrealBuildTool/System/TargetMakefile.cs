@@ -210,6 +210,11 @@ namespace UnrealBuildTool
 		public DirectoryReference ProjectIntermediateDirectory;
 
 		/// <summary>
+		/// The project intermediate directory without architecture info
+		/// </summary>
+		public DirectoryReference ProjectIntermediateDirectoryNoArch;
+
+		/// <summary>
 		/// Type of the target
 		/// </summary>
 		public TargetType TargetType;
@@ -359,13 +364,15 @@ namespace UnrealBuildTool
 		/// <param name="ExecutableFile">Path to the executable or primary output binary for this target</param>
 		/// <param name="ReceiptFile">Path to the receipt file</param>
 		/// <param name="ProjectIntermediateDirectory">Path to the project intermediate directory</param>
+		/// <param name="ProjectIntermediateDirectoryNoArch">Path to the project intermediate directory</param>
 		/// <param name="TargetType">The type of target</param>
 		/// <param name="ConfigValueTracker">Set of dependencies on config files</param>
 		/// <param name="bDeployAfterCompile">Whether to deploy the target after compiling</param>
 		/// <param name="UbtPlugins">Collection of UBT plugins</param>
 		/// <param name="EnabledUbtPlugins">Collection of UBT plugins</param>
 		/// <param name="EnabledUhtPlugins">Collection of UBT plugins for UHT</param>
-		public TargetMakefile(string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, 
+		public TargetMakefile(string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, 
+			DirectoryReference ProjectIntermediateDirectory, DirectoryReference ProjectIntermediateDirectoryNoArch,
 			TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, 
 			FileReference[]? UbtPlugins, FileReference[]? EnabledUbtPlugins, FileReference[]? EnabledUhtPlugins)
 		{
@@ -376,6 +383,7 @@ namespace UnrealBuildTool
 			this.ExecutableFile = ExecutableFile;
 			this.ReceiptFile = ReceiptFile;
 			this.ProjectIntermediateDirectory = ProjectIntermediateDirectory;
+			this.ProjectIntermediateDirectoryNoArch = ProjectIntermediateDirectoryNoArch;
 			this.TargetType = TargetType;
 			this.ConfigValueTracker = ConfigValueTracker;
 			this.bDeployAfterCompile = bDeployAfterCompile;
@@ -414,6 +422,7 @@ namespace UnrealBuildTool
 			ExecutableFile = Reader.ReadFileReference();
 			ReceiptFile = Reader.ReadFileReference();
 			ProjectIntermediateDirectory = Reader.ReadDirectoryReferenceNotNull();
+			ProjectIntermediateDirectoryNoArch = Reader.ReadDirectoryReferenceNotNull();
 			TargetType = (TargetType)Reader.ReadInt();
 			IsTestTarget = Reader.ReadBool();
 			ConfigValueTracker = new ConfigValueTracker(Reader);
@@ -457,6 +466,7 @@ namespace UnrealBuildTool
 			Writer.WriteFileReference(ExecutableFile);
 			Writer.WriteFileReference(ReceiptFile);
 			Writer.WriteDirectoryReference(ProjectIntermediateDirectory);
+			Writer.WriteDirectoryReference(ProjectIntermediateDirectoryNoArch);
 			Writer.WriteInt((int)TargetType);
 			Writer.WriteBool(IsTestTarget);
 			ConfigValueTracker.Write(Writer);
