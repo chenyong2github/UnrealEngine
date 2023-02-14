@@ -274,7 +274,7 @@ void FControlFlowTask_Branch::Execute()
 
 void FControlFlowTask_Branch::Cancel()
 {
-	if (ensureAlways(SelectedBranchFlow.IsValid()) && SelectedBranchFlow->IsRunning())
+	if (SelectedBranchFlow.IsValid() && ensureAlways(SelectedBranchFlow->IsRunning()))
 	{
 		SelectedBranchFlow->CancelFlow();
 	}
