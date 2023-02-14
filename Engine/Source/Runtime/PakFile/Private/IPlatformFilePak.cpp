@@ -324,6 +324,49 @@ void FPakPlatformFile::GetFilenamesFromIostoreContainer(const FString& InContain
 	}
 }
 
+void FPakPlatformFile::ForeachPackageInIostoreWhile(TFunctionRef<bool(FName)> Predicate)
+{
+	FPakPlatformFile* PakPlatformFile = static_cast<FPakPlatformFile*>(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
+	if (!PakPlatformFile || !PakPlatformFile->IoDispatcherFileBackend.IsValid())
+	{
+		return;
+	}
+	FScopeLock ScopedLock(&PakPlatformFile->PakListCritical);
+	for (const FPakListEntry& PakListEntry : PakPlatformFile->PakFiles)
+	{
+		TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
+		FIoStatus Status = IoStoreReader->Initialize(*FPaths::ChangeExtension(PakListEntry.PakFile->PakFilename, TEXT("")), GetRegisteredEncryptionKeys().GetKeys());
+		if (Status.IsOk())
+		{
+			const FIoDirectoryIndexReader& DirectoryIndex = IoStoreReader->GetDirectoryIndexReader();
+
+			const bool Result = DirectoryIndex.IterateDirectoryIndex(
+				FIoDirectoryIndexHandle::RootDirectory(),
+				TEXT(""),
+				[Predicate](FString Filename, uint32) -> bool
+				{
+					const FString Ext = FPaths::GetExtension(Filename);
+					if (Ext != TEXT("umap") && Ext != TEXT("uasset"))
+					{
+						return true; // ignore non package files
+					}
+
+					FString PackageName;
+					if (FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))
+					{
+						return Invoke(Predicate, FName(*PackageName));
+					}
+
+					return true; // ignore not mapped packages
+				});
+			if (!Result)
+			{
+				return;
+			}
+		}
+	}
+}
+
 #if !defined(PLATFORM_BYPASS_PAK_PRECACHE)
 	#error "PLATFORM_BYPASS_PAK_PRECACHE must be defined."
 #endif

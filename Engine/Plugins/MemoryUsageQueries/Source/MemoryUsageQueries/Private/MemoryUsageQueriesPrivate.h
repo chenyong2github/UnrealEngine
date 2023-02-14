@@ -3,7 +3,6 @@
 
 #include "UObject/FastReferenceCollector.h"
 
-class FAssetRegistryModule;
 class IMemoryUsageInfoProvider;
 enum class EGCTokenType : uint32;
 
@@ -42,9 +41,9 @@ public:
 
 typedef UE::GC::TDefaultCollector<FMemoryUsageReferenceProcessor> FMemoryUsageReferenceCollector;
 
-bool GetLongName(const FString& ShortPackageName, FName& OutLongPackageName, FOutputDevice* ErrorOutput = GLog);
+bool GetLongName(FStringView ShortPackageName, FName& OutLongPackageName, FOutputDevice* ErrorOutput = GLog);
 bool GetLongNames(const TArray<FString>& PackageNames, TSet<FName>& OutLongPackageNames, FOutputDevice* ErrorOutput = GLog);
-bool GetLongNameAndDependencies(const FString& PackageName, FName& OutLongPackageName, TSet<FName>& OutDependencies, FOutputDevice* ErrorOutput = GLog);
+bool GetLongNameAndDependencies(FStringView PackageName, FName& OutLongPackageName, TSet<FName>& OutDependencies, FOutputDevice* ErrorOutput = GLog);
 
 bool GetDependenciesCombined(const TArray<FString>& PackageNames, TSet<FName>& OutDependencies, FOutputDevice* ErrorOutput = GLog);
 bool GetDependenciesShared(const TArray<FString>& PackageNames, TSet<FName>& OutDependencies, FOutputDevice* ErrorOutput = GLog);
@@ -57,8 +56,7 @@ bool GetRemovablePackages(const TArray<FString>& PackagesToUnload, TSet<FName>& 
 // Get Packages that would not be GC'd if PackagesToUnload were unloaded
 bool GetUnremovablePackages(const TArray<FString>& PackagesToUnload, TSet<FName>& OutUnremovablePackages, FOutputDevice* ErrorOutput = GLog);
 
-FAssetRegistryModule& GetAssetRegistryModule();
-void GetTransitiveDependencies(FName PackageName, FAssetRegistryModule& AssetRegistryModule, TSet<FName>& OutDependencies);
+void GetTransitiveDependencies(FName PackageName, TSet<FName>& OutDependencies);
 
 void SortPackagesBySize(const IMemoryUsageInfoProvider* MemoryUsageInfoProvider, const TSet<FName>& Packages, TMap<FName, uint64>& OutPackagesWithSize, FOutputDevice* ErrorOutput = GLog);
 void GetPackagesSize(const IMemoryUsageInfoProvider* MemoryUsageInfoProvider, const TSet<FName>& Packages, TMap<FName, uint64>& OutPackagesWithSize, FOutputDevice* ErrorOutput = GLog);

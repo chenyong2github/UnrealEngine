@@ -235,6 +235,8 @@ public:
 
 	CORE_API FPackageStoreBackendContext::FPendingEntriesAddedEvent& OnPendingEntriesAdded();
 
+	CORE_API bool HasAnyBackendsMounted() const;
+
 private:
 	FPackageStore();
 

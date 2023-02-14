@@ -208,3 +208,7 @@ FPackageStoreBackendContext::FPendingEntriesAddedEvent& FPackageStore::OnPending
 	return BackendContext->PendingEntriesAdded;
 }
 
+bool FPackageStore::HasAnyBackendsMounted() const
+{
+	return !Backends.IsEmpty();
+}

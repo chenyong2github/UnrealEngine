@@ -3114,6 +3114,9 @@ public:
 
 	/** Returns the RelativePathFromMount Filename for every Filename found in the Iostore Container that relates to the provided block indexes */
 	static void GetFilenamesFromIostoreByBlockIndex(const FString& InContainerName, const TArray<int32>& InBlockIndex, TArray<FString>& OutFileList);
+	
+	/** Iterates Iostore Container while Predicate returns true */
+	static void ForeachPackageInIostoreWhile(TFunctionRef<bool(FName)> Predicate);
 
 	void ReleaseOldReaders();
 
