@@ -9,7 +9,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
 #pragma warning disable CA1710 // Identifiers should have correct suffix
@@ -967,7 +966,33 @@ namespace EpicGames.Core
 		/// <returns>Array of arguments</returns>
 		public static string[] Split(string commandLine)
 		{
-			return CommandLineParser.SplitCommandLineIntoArguments(commandLine, true).ToArray();
+			StringBuilder argument = new StringBuilder();
+
+			List<string> arguments = new List<string>();
+			for(int idx = 0; idx < commandLine.Length; idx++)
+			{
+				if(!Char.IsWhiteSpace(commandLine[idx]))
+				{
+					argument.Clear();
+					for(bool bInQuotes = false; idx < commandLine.Length; idx++)
+					{
+						if(commandLine[idx] == '\"')
+						{
+							bInQuotes ^= true;
+						}
+						else if(!bInQuotes && Char.IsWhiteSpace(commandLine[idx]))
+						{
+							break;
+						}
+						else
+						{
+							argument.Append(commandLine[idx]);
+						}
+					}
+					arguments.Add(argument.ToString());
+				}
+			}
+			return arguments.ToArray();
 		}
 
 		/// <summary>
