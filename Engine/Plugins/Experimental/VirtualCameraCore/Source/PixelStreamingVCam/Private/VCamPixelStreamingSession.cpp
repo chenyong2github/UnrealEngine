@@ -24,7 +24,7 @@
 #include "VPFullScreenUserWidget.h"
 #include "Widgets/SVirtualWindow.h"
 #include "PixelStreamingInputEnums.h"
-
+#include "SLevelViewport.h"
 
 namespace UE::VCamPixelStreamingSession::Private
 {
@@ -163,13 +163,13 @@ void UVCamPixelStreamingSession::OnCaptureStateChanged()
 void UVCamPixelStreamingSession::OnRemoteResolutionChanged(const FIntPoint& RemoteResolution)
 {
 	// Early out if match remote resolution is not enabled.
-	if(!bMatchRemoteResolution)
+	if (!bMatchRemoteResolution)
 	{
 		return;
 	}
 
 	// Ensure override resolution is being used
-	if(!bUseOverrideResolution)
+	if (!bUseOverrideResolution)
 	{
 		bUseOverrideResolution = true;
 	}
@@ -184,12 +184,15 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 	if (GetUMGWidget())
 	{
 		TSharedPtr<SVirtualWindow> InputWindow;
+		TWeakPtr<SViewport> InputViewport;
+
 		// If we are rendering from a ComposureOutputProvider, we need to get the InputWindow from that UMG, not the one in the PixelStreamingOutputProvider
 		if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(GetOtherOutputProviderByIndex(FromComposureOutputProviderIndex)))
 		{
 			if (UVPFullScreenUserWidget* ComposureUMGWidget = ComposureProvider->GetUMGWidget())
 			{
 				InputWindow = ComposureUMGWidget->PostProcessDisplayType.GetSlateWindow();
+				InputViewport = ComposureUMGWidget->PostProcessDisplayType.EditorTargetViewport.Pin()->GetViewportWidget();
 				UE_LOG(LogPixelStreamingVCam, Log, TEXT("InputChannel callback - Routing input to active viewport with Composure UMG"));
 			}
 			else
@@ -200,10 +203,15 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 		else
 		{
 			InputWindow = GetUMGWidget()->PostProcessDisplayType.GetSlateWindow();
+			InputViewport = GetUMGWidget()->PostProcessDisplayType.EditorTargetViewport.Pin()->GetViewportWidget();
 			UE_LOG(LogPixelStreamingVCam, Log, TEXT("InputChannel callback - Routing input to active viewport with UMG"));
 		}
 
 		MediaOutput->GetStreamer()->SetTargetWindow(InputWindow);
+		if (TSharedPtr<SViewport> Viewport = InputViewport.Pin())
+		{
+			MediaOutput->GetStreamer()->SetTargetViewport(Viewport);
+		}
 		MediaOutput->GetStreamer()->SetInputHandlerType(EPixelStreamingInputType::RouteToWidget);
 	}
 	else

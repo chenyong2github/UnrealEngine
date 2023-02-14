@@ -44,6 +44,7 @@ namespace UnrealBuildTool.Rules
 			if (Target.bBuildEditor)
 			{
 				PrivateDependencyModuleNames.Add("UnrealEd");
+				PrivateDependencyModuleNames.Add("LevelEditor");
 			}
 
 		}
