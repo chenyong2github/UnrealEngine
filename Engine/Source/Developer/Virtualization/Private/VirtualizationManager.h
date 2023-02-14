@@ -60,8 +60,6 @@ struct FAnalyticsEventAttribute;
  * 
  * [Core.ContentVirtualization]
  * FilterMode=OptIn/OptOut					When 'OptIn' payloads will be virtualized by default, when 'OptOut' they will not be virtualized by default
- * FilterEngineContent=True/False			When true any payload from a package under Engine/Content/.. will be excluded from virtualization
- * FilterEnginePluginContent=True/False		When true any payload from a package under Engine/Plugins/../Content/.. will be excluded from virtualization
  * FilterMapContent=True/False				When true any payload stored in a .umap or _BuildData.uasset file will be excluded from virtualization
  * LazyInitConnections=True/False			When true the backends will not try to make their connections until first used.
  * 
@@ -230,12 +228,6 @@ private:
 
 	/** The default filtering mode to apply if a payload is not matched with an option in UVirtualizationFilterSettings */
 	EPackageFilterMode FilteringMode;
-
-	/** Should payloads in engine content packages be filtered out and never virtualized */
-	bool bFilterEngineContent;
-	
-	/** Should payloads in engine plugin content packages be filtered out and never virtualized */
-	bool bFilterEnginePluginContent;
 
 	/** Should payloads in .umap files (or associated _BuildData files) be filtered out and never virtualized */
 	bool bFilterMapContent;

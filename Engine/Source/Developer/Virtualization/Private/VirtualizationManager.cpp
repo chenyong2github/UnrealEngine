@@ -471,8 +471,6 @@ FVirtualizationManager::FVirtualizationManager()
 	, BackendGraphName(TEXT("ContentVirtualizationBackendGraph_None"))
 	, VirtualizationProcessTag(TEXT("#virtualized"))
 	, FilteringMode(EPackageFilterMode::OptOut)
-	, bFilterEngineContent(true)
-	, bFilterEnginePluginContent(true)
 	, bFilterMapContent(true)
 	, bAllowSubmitIfVirtualizationFailed(false)
 	, bLazyInitConnections(false)
@@ -1083,28 +1081,20 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule]FilterMode from config file!"));
 	}
 
-	bool bFilterEngineContentFromIni = true;
-	if (ConfigFile.GetBool(LegacyConfigSection, TEXT("FilterEngineContent"), bFilterEngineContentFromIni) ||
-		ConfigFile.GetBool(ConfigSection, TEXT("FilterEngineContent"), bFilterEngineContentFromIni))
+	// Deprecated
 	{
-		bFilterEngineContent = bFilterEngineContentFromIni;
-		UE_LOG(LogVirtualization, Display, TEXT("\tFilterEngineContent : %s"), bFilterEngineContent ? TEXT("true") : TEXT("false"));
-	}
-	else
-	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].FilterEngineContent from config file!"));
-	}
-	
-	bool bFilterEnginePluginContentFromIni = true;
-	if (ConfigFile.GetBool(LegacyConfigSection, TEXT("FilterEnginePluginContent"), bFilterEnginePluginContentFromIni) ||
-		ConfigFile.GetBool(ConfigSection, TEXT("FilterEnginePluginContent"), bFilterEnginePluginContentFromIni))
-	{
-		bFilterEnginePluginContent = bFilterEnginePluginContentFromIni;
-		UE_LOG(LogVirtualization, Display, TEXT("\tFilterEnginePluginContent : %s"), bFilterEnginePluginContent ? TEXT("true") : TEXT("false"));
-	}
-	else
-	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].FilterEnginePluginContent from config file!"));
+		bool bDummyValue = true;
+		if (ConfigFile.GetBool(LegacyConfigSection, TEXT("FilterEngineContent"), bDummyValue) ||
+			ConfigFile.GetBool(ConfigSection, TEXT("FilterEngineContent"), bDummyValue))
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("\tFilterEngineContent is now deprecated (engine content is never virtualized)"));
+		}
+
+		if (ConfigFile.GetBool(LegacyConfigSection, TEXT("FilterEnginePluginContent"), bDummyValue) ||
+			ConfigFile.GetBool(ConfigSection, TEXT("FilterEnginePluginContent"), bDummyValue))
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("\tFilterEnginePluginContent is now deprecated (engine content is never virtualized)"));
+		}
 	}
 
 	// Optional
@@ -1947,22 +1937,10 @@ bool FVirtualizationManager::ShouldVirtualizePackage(const FPackagePath& Package
 		return true;
 	}
 
-	if (bFilterEngineContent)
+	// Do not virtualize engine content
+	if (MountPointName.ToView() == TEXT("/Engine/") || FPaths::IsUnderDirectory(MountPointPath.ToString(), FPaths::EnginePluginsDir()))
 	{
-		// Do not virtualize engine content
-		if (MountPointName.ToView() == TEXT("/Engine/"))
-		{
-			return false;
-		}
-	}
-
-	if (bFilterEnginePluginContent)
-	{
-		// Do not virtualize engine plugin content
-		if (FPaths::IsUnderDirectory(MountPointPath.ToString(), FPaths::EnginePluginsDir()))
-		{
-			return false;
-		}
+		return false;
 	}
 
 	const UVirtualizationFilterSettings* Settings = GetDefault<UVirtualizationFilterSettings>();
