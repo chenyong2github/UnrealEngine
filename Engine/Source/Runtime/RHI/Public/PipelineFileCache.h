@@ -224,8 +224,6 @@ struct RHI_API FPipelineCacheFileFormatPSO
 	GraphicsDescriptor GraphicsDesc;
 	FPipelineFileCacheRayTracingDesc RayTracingDesc;
 
-	mutable volatile uint32 Hash;
-	
 #if PSO_COOKONLY_DATA
 	uint64 UsageMask;
 	int64 BindCount;

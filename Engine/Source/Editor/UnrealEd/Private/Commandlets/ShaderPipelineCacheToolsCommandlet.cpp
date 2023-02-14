@@ -378,7 +378,6 @@ static void PrintShaders(const TMap<FSHAHash, TArray<FString>>& InverseMap, cons
 bool CheckPSOStringInveribility(const FPipelineCacheFileFormatPSO& Item)
 {
 	FPipelineCacheFileFormatPSO TempItem(Item);
-	TempItem.Hash = 0;
 
 	FString StringRep;
 	switch (Item.Type)
@@ -2166,7 +2165,6 @@ void AddComputePSOs(TSet<FPipelineCacheFileFormatPSO>& OutPSOs, const TMultiMap<
 			FPipelineCacheFileFormatPSO NewPso;
 			NewPso.Type = FPipelineCacheFileFormatPSO::DescriptorType::Compute;
 			NewPso.ComputeDesc.ComputeShader = Iter.Value();
-			NewPso.Hash = 0;
 			NewPso.UsageMask = uint64(-1);
 			NewPso.BindCount = 0;
 			OutPSOs.Add(NewPso);
