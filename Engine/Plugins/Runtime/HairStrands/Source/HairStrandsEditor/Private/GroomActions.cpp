@@ -34,79 +34,33 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 
+#include "AssetToolsModule.h"
+#include "ContentBrowserMenuContexts.h"
+#include "ToolMenus.h"
+
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Actions
-
-FGroomActions::FGroomActions()
-{}
-
-bool FGroomActions::CanFilter()
+FLinearColor UAssetDefinition_GroomAsset::GetAssetColor() const
 {
-	return true;
+	return FColor::White;
 }
 
-void FGroomActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
+EAssetCommandResult UAssetDefinition_GroomAsset::OpenAssets(const FAssetOpenArgs& OpenArgs) const
 {
-	TArray<TWeakObjectPtr<UGroomAsset>> GroomAssets = GetTypedWeakObjectPtrs<UGroomAsset>(InObjects);
+	// #ueent_todo: Will need a custom editor at some point, for now just use the Properties editor
+	for (UGroomAsset* GroomAsset : OpenArgs.LoadObjects<UGroomAsset>())
+	{
+		if (GroomAsset != nullptr)
+		{
+			TSharedRef<FGroomCustomAssetEditorToolkit> NewCustomAssetEditor(new FGroomCustomAssetEditorToolkit());
+			NewCustomAssetEditor->InitCustomAssetEditor(OpenArgs.GetToolkitMode(), OpenArgs.ToolkitHost, GroomAsset);
+		}
+	}
 
-	Section.AddMenuEntry(
-		"RebuildGroom",
-		LOCTEXT("RebuildGroom", "Rebuild"),
-		LOCTEXT("RebuildGroomTooltip", "Rebuild the groom with new build settings"),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteRebuild, GroomAssets),
-			FCanExecuteAction::CreateSP(this, &FGroomActions::CanRebuild, GroomAssets)
-		)
-	);
-
-	Section.AddMenuEntry(
-		"CreateBindingAsset",
-		LOCTEXT("CreateBindingAsset", "Create Binding"),
-		LOCTEXT("CreateBindingAssetTooltip", "Create a binding asset between a skeletal mesh and a groom asset"),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateBindingAsset, GroomAssets),
-			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateBindingAsset, GroomAssets)
-		)
-	);
-
-	Section.AddMenuEntry(
-		"CreateFollicleTexture",
-		LOCTEXT("CreateFollicleTexture", "Create Follicle Texture"),
-		LOCTEXT("CreateFollicleTextureTooltip", "Create a follicle texture for the selected groom assets"),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateFollicleTexture, GroomAssets),
-			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateFollicleTexture, GroomAssets)
-			)
-		);
-
-	Section.AddMenuEntry(
-		"CreateStrandsTextures",
-		LOCTEXT("CreateStrandsTextures", "Create Strands Textures"),
-		LOCTEXT("CreateStrandsTexturesTooltip", "Create projected strands textures onto meshes"),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateStrandsTextures, GroomAssets),
-			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateStrandsTextures, GroomAssets)
-		)
-	);
+	return EAssetCommandResult::Handled;
 }
 
-uint32 FGroomActions::GetCategories()
-{
-	return EAssetTypeCategories::Misc;
-}
-
-FText FGroomActions::GetName() const
-{
-	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_Groom", "Groom");
-}
-
-void FGroomActions::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const
+void UAssetDefinition_GroomAsset::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const
 {
 	for (UObject* Asset : TypeAssets)
 	{
@@ -118,41 +72,17 @@ void FGroomActions::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAsset
 	}
 }
 
-UClass* FGroomActions::GetSupportedClass() const
+namespace MenuExtension_GroomAsset
 {
-	return UGroomAsset::StaticClass();
-}
-
-FColor FGroomActions::GetTypeColor() const
-{
-	return FColor::White;
-}
-
-void FGroomActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
-{
-	// #ueent_todo: Will need a custom editor at some point, for now just use the Properties editor
-	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
-	{
-		auto GroomAsset = Cast<UGroomAsset>(*ObjIt);
-		if (GroomAsset != nullptr)
-		{
-			// Make sure the groom asset has a document 
-			//FHairLabDataIO::GetDocumentForAsset(GroomAsset);
-
-			TSharedRef<FGroomCustomAssetEditorToolkit> NewCustomAssetEditor(new FGroomCustomAssetEditorToolkit());
-			NewCustomAssetEditor->InitCustomAssetEditor(EToolkitMode::Standalone, EditWithinLevelEditor, GroomAsset);
-		}
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Groom build/rebuild
 
-bool FGroomActions::CanRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+bool CanRebuild(const FToolMenuContext& InContext)
 {
-	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+	for (UGroomAsset* GroomAsset : CBContext->LoadSelectedObjects<UGroomAsset>())
 	{
-		if (GroomAsset.IsValid() && GroomAsset->CanRebuildFromDescription())
+		if (GroomAsset && GroomAsset->IsValid() && GroomAsset->CanRebuildFromDescription())
 		{
 			return true;
 		}
@@ -160,11 +90,12 @@ bool FGroomActions::CanRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) cons
 	return false;
 }
 
-void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+void ExecuteRebuild(const FToolMenuContext& InContext)
 {
-	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+	for (UGroomAsset* GroomAsset : CBContext->LoadSelectedObjects<UGroomAsset>())
 	{
-		if (GroomAsset.IsValid() && GroomAsset->CanRebuildFromDescription() && GroomAsset->AssetImportData)
+		if (GroomAsset && GroomAsset->IsValid() && GroomAsset->CanRebuildFromDescription() && GroomAsset->AssetImportData)
 		{
 			UGroomAssetImportData* GroomAssetImportData = Cast<UGroomAssetImportData>(GroomAsset->AssetImportData);
 			if (GroomAssetImportData && GroomAssetImportData->ImportOptions)
@@ -215,7 +146,7 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 				{
 					if(bEnableRigging)
 					{
-						GroomAsset->RiggedSkeletalMesh = FGroomDeformerBuilder::CreateSkeletalMesh(GroomAsset.Get());
+						GroomAsset->RiggedSkeletalMesh = FGroomDeformerBuilder::CreateSkeletalMesh(GroomAsset);
 					}
 					// Move the transient ImportOptions to the asset package and set it on the GroomAssetImportData for serialization
 					CurrentOptions->Rename(nullptr, GroomAssetImportData);
@@ -234,11 +165,12 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Binding
 
-bool FGroomActions::CanCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+bool CanCreateBindingAsset(const FToolMenuContext& InContext)
 {
-	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+	for (const FAssetData& SelectedAsset : CBContext->SelectedAssets)
 	{
-		if (GroomAsset.IsValid())
+		if (SelectedAsset.IsValid())
 		{
 			return true;
 		}
@@ -246,11 +178,12 @@ bool FGroomActions::CanCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Ob
 	return false;
 }
 
-void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+void ExecuteCreateBindingAsset(const FToolMenuContext& InContext)
 {
-	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+	for (UGroomAsset* GroomAsset : CBContext->LoadSelectedObjects<UGroomAsset>())
 	{
-		if (GroomAsset.IsValid())
+		if (GroomAsset && GroomAsset->IsValid())
 		{
 			// Duplicate the options to prevent dirtying the asset when they are modified but the rebuild is cancelled
 			UGroomCreateBindingOptions* CurrentOptions = NewObject<UGroomCreateBindingOptions>();
@@ -264,7 +197,7 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 			{
 				continue;
 			}
-			else if (GroomAsset.Get() && CurrentOptions && 
+			else if (CurrentOptions && 
 				    ((CurrentOptions->GroomBindingType == EGroomBindingMeshType::SkeletalMesh && CurrentOptions->TargetSkeletalMesh) ||
 					(CurrentOptions->GroomBindingType == EGroomBindingMeshType::GeometryCache && CurrentOptions->TargetGeometryCache)))
 			{
@@ -278,7 +211,7 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 					{
 						CurrentOptions->SourceSkeletalMesh->ConditionalPostLoad();
 					}
-					BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(CurrentOptions->GroomBindingType, GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints, CurrentOptions->MatchingSection);
+					BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(CurrentOptions->GroomBindingType, GroomAsset, CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints, CurrentOptions->MatchingSection);
 				}
 				else
 				{
@@ -287,7 +220,7 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 					{
 						CurrentOptions->SourceGeometryCache->ConditionalPostLoad();
 					}
-					BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(CurrentOptions->GroomBindingType, GroomAsset.Get(), CurrentOptions->SourceGeometryCache, CurrentOptions->TargetGeometryCache, CurrentOptions->NumInterpolationPoints, CurrentOptions->MatchingSection);
+					BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(CurrentOptions->GroomBindingType, GroomAsset, CurrentOptions->SourceGeometryCache, CurrentOptions->TargetGeometryCache, CurrentOptions->NumInterpolationPoints, CurrentOptions->MatchingSection);
 				}
 
 				if (BindingAsset)
@@ -300,9 +233,9 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 
 						FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 						ContentBrowserModule.Get().SyncBrowserToAssets(CreatedObjects);
-#if WITH_EDITOR
+					#if WITH_EDITOR
 						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(CreatedObjects);
-#endif
+					#endif
 					}
 					else
 					{
@@ -324,11 +257,12 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Follicle
 
-bool FGroomActions::CanCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+bool CanCreateFollicleTexture(const FToolMenuContext& InContext)
 {
-	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+	for (const FAssetData& SelectedAsset : CBContext->SelectedAssets)
 	{
-		if (GroomAsset.IsValid())
+		if (SelectedAsset.IsValid())
 		{
 			return true;
 		}
@@ -336,9 +270,11 @@ bool FGroomActions::CanCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAsset>>
 	return false;
 }
 
-void FGroomActions::ExecuteCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+void ExecuteCreateFollicleTexture(const FToolMenuContext& InContext)
 {
-	if (Objects.Num() == 0)
+	const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+	TArray<UGroomAsset*> GroomAssets = CBContext->LoadSelectedObjects<UGroomAsset>();
+	if (GroomAssets.Num() == 0)
 	{
 		return;
 	}
@@ -350,12 +286,12 @@ void FGroomActions::ExecuteCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAss
 		return;
 	}
 
-	for (TWeakObjectPtr<UGroomAsset>& GroomAsset : Objects)
+	for (UGroomAsset* GroomAsset : GroomAssets)
 	{
-		if (GroomAsset.IsValid())
+		if (GroomAsset && GroomAsset->IsValid())
 		{
 			FFollicleMaskOptions& Items = CurrentOptions->Grooms.AddDefaulted_GetRef();;
-			Items.Groom   = GroomAsset.Get();
+			Items.Groom   = GroomAsset;
 			Items.Channel = EFollicleMaskChannel::R;
 		}
 	}
@@ -399,11 +335,12 @@ void FGroomActions::ExecuteCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAss
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Strands Textures
 
-bool FGroomActions::CanCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+bool CanCreateStrandsTextures(const FToolMenuContext& InContext)
 {
-	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+	for (const FAssetData& SelectedAsset : CBContext->SelectedAssets)
 	{
-		if (GroomAsset.IsValid())
+		if (SelectedAsset.IsValid())
 		{
 			return true;
 		}
@@ -411,18 +348,20 @@ bool FGroomActions::CanCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAsset>>
 	return false;
 }
 
-void FGroomActions::ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+void ExecuteCreateStrandsTextures(const FToolMenuContext& InContext)
 {
-	if (Objects.Num() == 0)
+	const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+	TArray<UGroomAsset*> GroomAssets = CBContext->LoadSelectedObjects<UGroomAsset>();
+	if (GroomAssets.Num() == 0)
 	{
 		return;
 	}
 
 	// Duplicate the options to prevent dirtying the asset when they are modified but the rebuild is cancelled
 	UGroomCreateStrandsTexturesOptions* CurrentOptions = NewObject<UGroomCreateStrandsTexturesOptions>();
-	for (TWeakObjectPtr<UGroomAsset>& GroomAsset : Objects)
+	for (UGroomAsset* GroomAsset : GroomAssets)
 	{
-		if (GroomAsset.IsValid() && CurrentOptions)
+		if (GroomAsset && GroomAsset->IsValid() && CurrentOptions)
 		{
 			TSharedPtr<SGroomCreateStrandsTexturesOptionsWindow> GroomOptionWindow = SGroomCreateStrandsTexturesOptionsWindow::DisplayCreateStrandsTexturesOptions(CurrentOptions);
 			if (!GroomOptionWindow->ShouldCreate())
@@ -461,7 +400,7 @@ void FGroomActions::ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAss
 				}
 				
 				FStrandsTexturesInfo Info;
-				Info.GroomAsset   = GroomAsset.Get();
+				Info.GroomAsset   = GroomAsset;
 				Info.TracingDirection = SignDirection;
 				Info.MaxTracingDistance = MaxDistance;
 				Info.Resolution = FMath::RoundUpToPowerOfTwo(FMath::Max(256, CurrentOptions->Resolution));
@@ -481,7 +420,7 @@ void FGroomActions::ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAss
 						Info.GroupIndices.Add(GroupIndex);
 					}
 				}
-				FStrandsTexturesOutput Output = FGroomTextureBuilder::CreateGroomStrandsTexturesTexture(GroomAsset.Get(), Info.Resolution);
+				FStrandsTexturesOutput Output = FGroomTextureBuilder::CreateGroomStrandsTexturesTexture(GroomAsset, Info.Resolution);
 				if (Output.IsValid())
 				{
 					FGroomTextureBuilder::BuildStrandsTextures(Info, Output);
@@ -489,8 +428,67 @@ void FGroomActions::ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAss
 			}
 		}
 	}
-
 }
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Actions registration
+
+static FDelayedAutoRegisterHelper DelayedAutoRegister(EDelayedRegisterRunPhase::EndOfEngineInit, []{ 
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateLambda([]()
+	{
+		FToolMenuOwnerScoped OwnerScoped(UE_MODULE_NAME);
+		UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UGroomAsset::StaticClass());
+		
+		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+		Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			{
+				const TAttribute<FText> Label = LOCTEXT("RebuildGroom", "Rebuild");
+				const TAttribute<FText> ToolTip = LOCTEXT("RebuildGroomTooltip", "Rebuild the groom with new build settings");
+				const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions");
+
+				FToolUIAction UIAction;
+				UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteRebuild);
+				UIAction.CanExecuteAction = FToolMenuCanExecuteAction::CreateStatic(&CanRebuild);
+				InSection.AddMenuEntry("GroomAsset_RebuildGroom", Label, ToolTip, Icon, UIAction);					
+			}
+
+			{
+				const TAttribute<FText> Label = LOCTEXT("CreateBindingAsset", "Create Binding");
+				const TAttribute<FText> ToolTip = LOCTEXT("CreateBindingAssetTooltip", "Create a binding asset between a skeletal mesh and a groom asset");
+				const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions");
+
+				FToolUIAction UIAction;
+				UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreateBindingAsset);
+				UIAction.CanExecuteAction = FToolMenuCanExecuteAction::CreateStatic(&CanCreateBindingAsset);
+				InSection.AddMenuEntry("GroomAsset_CreateBindingAsset", Label, ToolTip, Icon, UIAction);
+			}
+
+			{
+				const TAttribute<FText> Label = LOCTEXT("CreateFollicleTexture", "Create Follicle Texture");
+				const TAttribute<FText> ToolTip = LOCTEXT("CreateFollicleTextureTooltip", "Create a follicle texture for the selected groom assets");
+				const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions");
+
+				FToolUIAction UIAction;
+				UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreateFollicleTexture);
+				UIAction.CanExecuteAction = FToolMenuCanExecuteAction::CreateStatic(&CanCreateFollicleTexture);
+				InSection.AddMenuEntry("GroomAsset_CreateFollicleTexture", Label, ToolTip, Icon, UIAction);
+			}
+
+			{
+				const TAttribute<FText> Label = LOCTEXT("CreateStrandsTextures", "Create Strands Textures");
+				const TAttribute<FText> ToolTip = LOCTEXT("CreateStrandsTexturesTooltip", "Create projected strands textures onto meshes");
+				const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions");
+
+				FToolUIAction UIAction;
+				UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreateStrandsTextures);
+				UIAction.CanExecuteAction = FToolMenuCanExecuteAction::CreateStatic(&CanCreateStrandsTextures);
+				InSection.AddMenuEntry("GroomAsset_CreateStrandsTextures", Label, ToolTip, Icon, UIAction);
+			}
+		}));
+	}));
+});
+
+} // namespace MenuExtension_GroomAsset
 #undef LOCTEXT_NAMESPACE

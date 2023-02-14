@@ -2,19 +2,28 @@
 
 #pragma once
 
-#include "AssetTypeActions_Base.h"
+#include "CoreMinimal.h"
+#include "GroomCache.h"
+#include "AssetDefinitionDefault.h"
 
-class FGroomCacheActions : public FAssetTypeActions_Base
+#include "GroomCacheActions.generated.h"
+
+UCLASS()
+class UAssetDefinition_GroomCacheAsset : public UAssetDefinitionDefault
 {
+	GENERATED_BODY()
+
 public:
+	// UAssetDefinition Begin
+	virtual FText GetAssetDisplayName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_GroomCache", "Groom Cache"); }
+	virtual FLinearColor GetAssetColor() const override;
+	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UGroomCache::StaticClass(); }
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override
+	{
+		static const auto Categories = { EAssetCategoryPaths::Misc };
+		return Categories;
+	}
+	// UAssetDefinition End	
 
-	//~ IAssetTypeActions Interface
-	virtual FText GetName() const override;
-	virtual UClass* GetSupportedClass() const override;
-	virtual FColor GetTypeColor() const override;
-	virtual uint32 GetCategories() override;
-
-	//~ FAssetTypeActions_Base overrides
-	virtual bool IsImportedAsset() const override { return true; }
-	virtual void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const override;
+	void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const;
 };

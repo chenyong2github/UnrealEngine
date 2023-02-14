@@ -51,9 +51,6 @@ public:
 private:
 	void RegisterMenus();
 
-	/** The collection of registered asset type actions. */
-	TArray<TSharedRef<class IAssetTypeActions>> RegisteredAssetTypeActions;
-
 	TArray<TFunction<TSharedPtr<IGroomTranslator>()>> TranslatorSpawners;
 
 	TSharedPtr<FSlateStyleSet> StyleSet;

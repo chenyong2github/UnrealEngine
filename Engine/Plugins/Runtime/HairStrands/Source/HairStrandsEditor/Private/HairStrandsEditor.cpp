@@ -76,15 +76,6 @@ void FGroomEditor::StartupModule()
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FGroomEditor::RegisterMenus));
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	TSharedRef<IAssetTypeActions> GroomAssetActions = MakeShared<FGroomActions>();
-	TSharedRef<IAssetTypeActions> BindingAssetActions = MakeShared<FGroomBindingActions>();
-	TSharedRef<IAssetTypeActions> GroomCacheActions = MakeShared<FGroomCacheActions>();
-
-	AssetTools.RegisterAssetTypeActions(GroomAssetActions);
-	AssetTools.RegisterAssetTypeActions(BindingAssetActions);
-	AssetTools.RegisterAssetTypeActions(GroomCacheActions);
-	RegisteredAssetTypeActions.Add(GroomAssetActions);
-	RegisteredAssetTypeActions.Add(BindingAssetActions);
 
 	// Only register once
 	if (!StyleSet.IsValid())
@@ -180,19 +171,6 @@ void FGroomEditor::ShutdownModule()
 		}
 	}
 
-	// #ueent_todo: Unregister the translators
-	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
-
-	if (AssetToolsModule != nullptr)
-	{
-		IAssetTools& AssetTools = AssetToolsModule->Get();
-
-		for (auto Action : RegisteredAssetTypeActions)
-		{
-			AssetTools.UnregisterAssetTypeActions(Action);
-		}
-	}
-
 	if (StyleSet.IsValid())
 	{
 		FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet.Get());
@@ -203,7 +181,7 @@ void FGroomEditor::ShutdownModule()
 
 void FGroomEditor::RegisterMenus()
 {
-	FGroomBindingActions::RegisterMenus();
+
 }
 
 TArray<TSharedPtr<IGroomTranslator>> FGroomEditor::GetHairTranslators()

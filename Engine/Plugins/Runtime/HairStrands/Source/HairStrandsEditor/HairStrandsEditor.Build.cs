@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
 					"ContentBrowser",
 					"UnrealEd",
+					"AssetDefinition",
 					"AssetTools",
 					"EditorInteractiveToolsFramework",
 					"AdvancedPreviewScene",

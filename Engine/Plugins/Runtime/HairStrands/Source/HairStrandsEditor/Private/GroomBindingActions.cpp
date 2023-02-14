@@ -4,6 +4,7 @@
 
 #include "ContentBrowserMenuContexts.h"
 #include "GroomAsset.h"
+#include "GroomCustomAssetEditorToolkit.h"
 
 #include "GeometryCache.h"
 #include "Toolkits/SimpleAssetEditor.h"
@@ -13,52 +14,17 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-uint32 FGroomBindingActions::GetCategories()
-{
-	return EAssetTypeCategories::Misc;
-}
-
-FText FGroomBindingActions::GetName() const
-{
-	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_GroomBinding", "GroomBinding");
-}
-
-UClass* FGroomBindingActions::GetSupportedClass() const
-{
-	return UGroomBindingAsset::StaticClass();
-}
-
-FColor FGroomBindingActions::GetTypeColor() const
+FLinearColor UAssetDefinition_GroomBindingAsset::GetAssetColor() const
 {
 	return FColor::White;
 }
 
-void FGroomBindingActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
+namespace MenuExtension_GroomBindingAsset
 {
-	// #ueent_todo: Will need a custom editor at some point, for now just use the Properties editor
-	FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, InObjects);
-}
 
-void FGroomBindingActions::RegisterMenus()
+void ExecuteRebuildBindingAsset(const FToolMenuContext& InContext)
 {
-	FToolMenuOwnerScoped MenuOwner(UE_MODULE_NAME);
-	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.GroomBinding");
-	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-
-	Section.AddDynamicEntry("GroomBinding", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-	{
-		const TAttribute<FText> Label = LOCTEXT("RebuildGroomBinding", "Rebuild");
-		const TAttribute<FText> ToolTip = LOCTEXT("RebuildGroomBindingTooltip", "Rebuild the groom binding");
-		const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions");
-		const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&FGroomBindingActions::ExecuteRebuildBindingAsset);
-
-		InSection.AddMenuEntry("GroomBinding_Rebuild", Label, ToolTip, Icon, UIAction);
-	}));
-}
-
-void FGroomBindingActions::ExecuteRebuildBindingAsset(const FToolMenuContext& MenuContext)
-{
-	if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(MenuContext))
+	if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext))
 	{
 		for (UGroomBindingAsset* BindingAsset : Context->LoadSelectedObjects<UGroomBindingAsset>())
 		{
@@ -87,5 +53,35 @@ void FGroomBindingActions::ExecuteRebuildBindingAsset(const FToolMenuContext& Me
 		}
 	}
 }
+
+void GroomBindingRebuildAction(FToolMenuSection& InSection)
+{
+	const TAttribute<FText> Label = LOCTEXT("RebuildGroomBinding", "Rebuild");
+	const TAttribute<FText> ToolTip = LOCTEXT("RebuildGroomBindingTooltip", "Rebuild the groom binding");
+	const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions");
+
+	FToolUIAction UIAction;
+	UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteRebuildBindingAsset);
+	InSection.AddMenuEntry("GroomBinding_Rebuild", Label, ToolTip, Icon, UIAction);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Actions registration
+
+static FDelayedAutoRegisterHelper DelayedAutoRegister(EDelayedRegisterRunPhase::EndOfEngineInit, []{ 
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateLambda([]()
+	{
+		FToolMenuOwnerScoped OwnerScoped(UE_MODULE_NAME);
+		UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UGroomBindingAsset::StaticClass());
+		
+		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+		Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			GroomBindingRebuildAction(InSection);
+		}));
+	}));
+});
+
+} // namespace MenuExtension_GroomBindingAsset
 
 #undef LOCTEXT_NAMESPACE
