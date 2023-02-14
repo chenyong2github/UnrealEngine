@@ -57,8 +57,8 @@ namespace Horde.Agent.Execution
 			{
 				using IScope _ = GlobalTracer.Instance.BuildSpan("Workspace").WithResourceName("AutoSDK").StartActive();
 				
-				bool useHaveTable = ShouldUseHaveTable(_autoSdkWorkspaceInfo.Method);
-				_autoSdkWorkspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(_autoSdkWorkspaceInfo, _rootDir, useHaveTable, logger, cancellationToken);
+				bool useHaveTable = WorkspaceInfo.ShouldUseHaveTable(_autoSdkWorkspaceInfo.Method);
+				_autoSdkWorkspace = await WorkspaceInfo.SetupWorkspaceAsync(_autoSdkWorkspaceInfo, _rootDir, useHaveTable, logger, cancellationToken);
 
 				DirectoryReference legacyDir = DirectoryReference.Combine(_autoSdkWorkspace.MetadataDir, "HostWin64");
 				if (DirectoryReference.Exists(legacyDir))
@@ -93,8 +93,8 @@ namespace Horde.Agent.Execution
 			using (IScope scope = GlobalTracer.Instance.BuildSpan("Workspace").WithResourceName(_workspaceInfo.Identifier).StartActive())
 			{
 				// Sync the regular workspace
-				bool useHaveTable = ShouldUseHaveTable(_workspaceInfo.Method);
-				_workspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(_workspaceInfo, _rootDir, useHaveTable, logger, cancellationToken);
+				bool useHaveTable = WorkspaceInfo.ShouldUseHaveTable(_workspaceInfo.Method);
+				_workspace = await WorkspaceInfo.SetupWorkspaceAsync(_workspaceInfo, _rootDir, useHaveTable, logger, cancellationToken);
 
 				// Figure out the change to build
 				if (_batch.Change == 0)
@@ -245,8 +245,8 @@ namespace Horde.Agent.Execution
 			List<WorkspaceInfo> workspaces = new List<WorkspaceInfo>();
 			foreach (AgentWorkspace pendingWorkspace in pendingWorkspaces)
 			{
-				bool useHaveTable = ShouldUseHaveTable(pendingWorkspace.Method);
-				WorkspaceInfo workspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(pendingWorkspace, rootDir, useHaveTable, logger, cancellationToken);
+				bool useHaveTable = WorkspaceInfo.ShouldUseHaveTable(pendingWorkspace.Method);
+				WorkspaceInfo workspace = await WorkspaceInfo.SetupWorkspaceAsync(pendingWorkspace, rootDir, useHaveTable, logger, cancellationToken);
 				workspaces.Add(workspace);
 			}
 
@@ -401,37 +401,6 @@ namespace Horde.Agent.Execution
 					perforceConnection.Dispose();
 				}
 			}
-		}
-
-		/// <summary>
-		/// Parse a text string as a query string to determine use of have table
-		/// </summary>
-		/// <param name="method">Method text string from workspace config</param>
-		/// <returns>True if have table should be enabled</returns>
-		public static bool ShouldUseHaveTable(string? method)
-		{
-			const string NameKey = "name";
-			const string ManagedWorkspaceValue = "managedWorkspace";
-			const string UseHaveTableKey = "useHaveTable";
-			
-			if (String.IsNullOrEmpty(method))
-			{
-				return true;
-			}
-
-			NameValueCollection nameValues = HttpUtility.ParseQueryString(method);
-			string? name = nameValues[NameKey];
-			string? useHaveTable = nameValues[UseHaveTableKey];
-			
-			if (name != null && name.Equals(ManagedWorkspaceValue, StringComparison.OrdinalIgnoreCase))
-			{
-				if (useHaveTable != null && useHaveTable.Equals("false", StringComparison.OrdinalIgnoreCase))
-				{
-					return false;
-				}
-			}
-
-			return true;
 		}
 	}
 

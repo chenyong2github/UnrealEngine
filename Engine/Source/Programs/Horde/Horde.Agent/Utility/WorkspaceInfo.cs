@@ -2,10 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using EpicGames.Core;
 using EpicGames.Perforce;
 using EpicGames.Perforce.Managed;
@@ -233,6 +235,37 @@ namespace Horde.Agent.Utility
 		}
 
 		/// <summary>
+		/// Parse a text string as a query string to determine use of have table
+		/// </summary>
+		/// <param name="method">Method text string from workspace config</param>
+		/// <returns>True if have table should be enabled</returns>
+		public static bool ShouldUseHaveTable(string? method)
+		{
+			const string NameKey = "name";
+			const string ManagedWorkspaceValue = "managedWorkspace";
+			const string UseHaveTableKey = "useHaveTable";
+			
+			if (String.IsNullOrEmpty(method))
+			{
+				return true;
+			}
+
+			NameValueCollection nameValues = HttpUtility.ParseQueryString(method);
+			string? name = nameValues[NameKey];
+			string? useHaveTable = nameValues[UseHaveTableKey];
+			
+			if (name != null && name.Equals(ManagedWorkspaceValue, StringComparison.OrdinalIgnoreCase))
+			{
+				if (useHaveTable != null && useHaveTable.Equals("false", StringComparison.OrdinalIgnoreCase))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+		
+		/// <summary>
 		/// Gets the latest change in the stream
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token</param>
@@ -314,10 +347,20 @@ namespace Horde.Agent.Utility
 				await Repository.PurgeAsync(0, cancellationToken);
 			}
 
-			// if we're running a preflight
-			if (preflightChange > 0)
+			await UnshelveAsync(preflightChange, cancellationToken);
+		}
+
+		/// <summary>
+		/// Unshelves a changelist
+		/// Assumes base changelist already has been synced.
+		/// </summary>
+		/// <param name="change">Change number to unshelve</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		public async Task UnshelveAsync(int change, CancellationToken cancellationToken)
+		{
+			if (change > 0)
 			{
-				await Repository.UnshelveAsync(PerforceClient, preflightChange, cancellationToken);
+				await Repository.UnshelveAsync(PerforceClient, change, cancellationToken);
 			}
 		}
 

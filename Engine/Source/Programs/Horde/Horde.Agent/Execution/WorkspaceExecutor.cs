@@ -129,15 +129,31 @@ namespace Horde.Agent.Execution
 
 	class WorkspaceExecutorFactory : IJobExecutorFactory
 	{
+		private readonly ILoggerFactory _loggerFactory;
+		
 		public string Name => WorkspaceExecutor.Name;
 
-		public WorkspaceExecutorFactory()
+		public WorkspaceExecutorFactory(ILoggerFactory loggerFactory)
 		{
+			_loggerFactory = loggerFactory;
 		}
 
 		public IJobExecutor CreateExecutor(AgentWorkspace workspaceInfo, AgentWorkspace? autoSdkWorkspaceInfo, JobExecutorOptions options)
 		{
-			throw new NotImplementedException("WorkspaceExecutor cannot be instantiated as there are no IWorkspaceMaterializer implementations yet");
+			IWorkspaceMaterializer workspaceMaterializer;
+			IWorkspaceMaterializer? autoSdkMaterializer = null;
+
+			// Default to ManagedWorkspaceMaterializer for now. Different types of materializer can later be set via AgentWorkspace or JobOptions.
+			workspaceMaterializer = new ManagedWorkspaceMaterializer(
+				workspaceInfo, options.Session.WorkingDir, false, false, _loggerFactory.CreateLogger<ManagedWorkspaceMaterializer>());
+			
+			if (autoSdkWorkspaceInfo != null)
+			{
+				autoSdkMaterializer = new ManagedWorkspaceMaterializer(
+					autoSdkWorkspaceInfo, options.Session.WorkingDir, true, true, _loggerFactory.CreateLogger<ManagedWorkspaceMaterializer>());
+			}
+			
+			return new WorkspaceExecutor(options, autoSdkMaterializer, workspaceMaterializer, _loggerFactory.CreateLogger<WorkspaceExecutor>());
 		}
 	}
 }
