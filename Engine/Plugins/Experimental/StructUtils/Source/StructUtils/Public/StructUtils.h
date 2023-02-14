@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Templates/UnrealTypeTraits.h"
+#include "UObject/Class.h"
 
 namespace UE::StructUtils
 {
