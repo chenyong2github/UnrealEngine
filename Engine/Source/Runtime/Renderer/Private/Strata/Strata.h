@@ -9,6 +9,7 @@
 #include "RHIUtilities.h"
 #include "StrataDefinitions.h"
 #include "GBufferInfo.h"
+#include "RendererUtils.h"
 #include "ShaderParameterStruct.h"
 
 // Forward declarations.
