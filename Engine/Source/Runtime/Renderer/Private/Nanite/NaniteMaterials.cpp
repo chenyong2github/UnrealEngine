@@ -62,7 +62,7 @@ static FAutoConsoleVariableRef CVarNaniteMaterialVisibility(
 	TEXT("r.Nanite.MaterialVisibility"),
 	GNaniteMaterialVisibility,
 	TEXT("Whether to enable Nanite material visibility tests"),
-	ECVF_RenderThreadSafe
+	ECVF_ReadOnly
 );
 
 static int32 GNaniteMaterialVisibilityAsync = 1;
@@ -3364,15 +3364,20 @@ void FNaniteVisibility::FinishVisibilityQuery(FNaniteVisibilityQuery* Query, FNa
 	}
 }
 
-FNaniteVisibility::FPrimitiveReferences& FNaniteVisibility::FindOrAddPrimitiveReferences(const FPrimitiveSceneInfo* SceneInfo)
+FNaniteVisibility::FPrimitiveReferences* FNaniteVisibility::FindOrAddPrimitiveReferences(const FPrimitiveSceneInfo* SceneInfo)
 {
-	FNaniteVisibility::FPrimitiveReferences& References = PrimitiveReferences.FindOrAdd(SceneInfo);
+	if (!GNaniteMaterialVisibility)
+	{
+		return nullptr;
+	}
+
+	FNaniteVisibility::FPrimitiveReferences* References = PrimitiveReferences.FindOrAdd(SceneInfo, FNaniteVisibility::FPrimitiveReferences{});
 
 	// If we perform visibility query for either raster bins or shading, we can piggy back the testing to further cull Nanite
 	// custom depth instances on the view
 	if (SceneInfo->Proxy && SceneInfo->Proxy->ShouldRenderCustomDepth())
 	{
-		References.bWritesCustomDepthStencil = true;
+		References->bWritesCustomDepthStencil = true;
 	}
 
 	return References;
@@ -3391,26 +3396,41 @@ void FNaniteVisibility::WaitForTasks()
 	}
 }
 
-FNaniteVisibility::PrimitiveBinsType& FNaniteVisibility::GetRasterBinReferences(const FPrimitiveSceneInfo* SceneInfo)
+FNaniteVisibility::PrimitiveBinsType* FNaniteVisibility::GetRasterBinReferences(const FPrimitiveSceneInfo* SceneInfo)
 {
+	if (!GNaniteMaterialVisibility)
+	{
+		return nullptr;
+	}
+
 	WaitForTasks();
 
-	FNaniteVisibility::FPrimitiveReferences& References = FindOrAddPrimitiveReferences(SceneInfo);
-	References.SceneInfo = SceneInfo;
-	return References.RasterBins;
+	FNaniteVisibility::FPrimitiveReferences* References = FindOrAddPrimitiveReferences(SceneInfo);
+	References->SceneInfo = SceneInfo;
+	return &References->RasterBins;
 }
 
-FNaniteVisibility::PrimitiveDrawType& FNaniteVisibility::GetShadingDrawReferences(const FPrimitiveSceneInfo* SceneInfo)
+FNaniteVisibility::PrimitiveDrawType* FNaniteVisibility::GetShadingDrawReferences(const FPrimitiveSceneInfo* SceneInfo)
 {
+	if (!GNaniteMaterialVisibility)
+	{
+		return nullptr;
+	}
+
 	WaitForTasks();
 
-	FNaniteVisibility::FPrimitiveReferences& References = FindOrAddPrimitiveReferences(SceneInfo);
-	References.SceneInfo = SceneInfo;
-	return References.ShadingDraws;
+	FNaniteVisibility::FPrimitiveReferences* References = FindOrAddPrimitiveReferences(SceneInfo);
+	References->SceneInfo = SceneInfo;
+	return &References->ShadingDraws;
 }
 
 void FNaniteVisibility::RemoveReferences(const FPrimitiveSceneInfo* SceneInfo)
 {
+	if (!GNaniteMaterialVisibility)
+	{
+		return;
+	}
+
 	WaitForTasks();
 
 	PrimitiveReferences.Remove(SceneInfo);

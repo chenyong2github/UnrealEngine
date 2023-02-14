@@ -867,8 +867,8 @@ public:
 		uint16 Secondary = 0xFFFFu;
 	};
 
-	typedef TArray<FPrimitiveBins, TInlineAllocator<1>> PrimitiveBinsType;
-	typedef TArray<uint32, TInlineAllocator<1>> PrimitiveDrawType;
+	using PrimitiveBinsType = TArray<FPrimitiveBins, TInlineAllocator<1>>;
+	using PrimitiveDrawType = TArray<uint32, TInlineAllocator<1>>;
 
 	struct FPrimitiveReferences
 	{
@@ -878,7 +878,7 @@ public:
 		bool bWritesCustomDepthStencil = false;
 	};
 
-	typedef TMap<const FPrimitiveSceneInfo*, FPrimitiveReferences> PrimitiveMapType;
+	using PrimitiveMapType = Experimental::TRobinHoodHashMap<const FPrimitiveSceneInfo*, FPrimitiveReferences>;
 
 public:
 	FNaniteVisibility();
@@ -894,12 +894,12 @@ public:
 
 	void FinishVisibilityQuery(FNaniteVisibilityQuery* Query, FNaniteVisibilityResults& OutResults);
 
-	PrimitiveBinsType& GetRasterBinReferences(const FPrimitiveSceneInfo* SceneInfo);
-	PrimitiveDrawType& GetShadingDrawReferences(const FPrimitiveSceneInfo* SceneInfo);
+	PrimitiveBinsType* GetRasterBinReferences(const FPrimitiveSceneInfo* SceneInfo);
+	PrimitiveDrawType* GetShadingDrawReferences(const FPrimitiveSceneInfo* SceneInfo);
 	void RemoveReferences(const FPrimitiveSceneInfo* SceneInfo);
 
 private:
-	FPrimitiveReferences& FindOrAddPrimitiveReferences(const FPrimitiveSceneInfo* SceneInfo);
+	FPrimitiveReferences* FindOrAddPrimitiveReferences(const FPrimitiveSceneInfo* SceneInfo);
 	void WaitForTasks();
 
 	// Translator should remain valid between Begin/FinishVisibilityFrame. That is, no adding or removing raster bins

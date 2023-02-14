@@ -224,14 +224,16 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 			FNaniteCommandInfo CommandInfo = ShadingCommands.Register(Command.MeshDrawCommand, Command.CommandHash, InstructionCount, Command.bWPOEnabled);
 			AddShadingCommand(*PrimitiveSceneInfo, CommandInfo, ENaniteMeshPass::Type(MeshPass), Command.SectionIndex);
 
-			FNaniteVisibility::PrimitiveDrawType& ShadingDraws = Visibility.GetShadingDrawReferences(PrimitiveSceneInfo);
-			ShadingDraws.Add(Command.CommandHash.AsUInt());
+			if (FNaniteVisibility::PrimitiveDrawType* ShadingDraws = Visibility.GetShadingDrawReferences(PrimitiveSceneInfo))
+			{
+				ShadingDraws->Add(Command.CommandHash.AsUInt());
+			}
 		}
 
 		for (const FDeferredPipelines& PipelinesCommand : DeferredPipelines[MeshPass])
 		{
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = PipelinesCommand.PrimitiveSceneInfo;
-			FNaniteVisibility::PrimitiveBinsType& RasterBins = Visibility.GetRasterBinReferences(PrimitiveSceneInfo);
+			FNaniteVisibility::PrimitiveBinsType* RasterBins = Visibility.GetRasterBinReferences(PrimitiveSceneInfo);
 
 			check(!bAllowComputeMaterials || (PipelinesCommand.RasterPipelines.Num() == PipelinesCommand.ShadingPipelines.Num()));
 			const int32 MaterialSectionCount = PipelinesCommand.RasterPipelines.Num();
@@ -251,7 +253,11 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 					}
 
 					AddRasterBin(*PrimitiveSceneInfo, PrimaryRasterBin, SecondaryRasterBin, ENaniteMeshPass::Type(MeshPass), uint8(MaterialSectionIndex));
-					RasterBins.Add(FNaniteVisibility::FPrimitiveBins{ PrimaryRasterBin.BinIndex, SecondaryRasterBin.BinIndex });
+
+					if (RasterBins)
+					{
+						RasterBins->Add(FNaniteVisibility::FPrimitiveBins{ PrimaryRasterBin.BinIndex, SecondaryRasterBin.BinIndex });
+					}
 				}
 
 				// Register shading bin
