@@ -14,7 +14,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPCGEditor, Log, All);
 class FMenuBuilder;
 class FPCGEditorGraphNodeFactory;
 
-class FPCGEditorModule : public IModuleInterface, public IHasMenuExtensibility, public IHasToolBarExtensibility
+class FPCGEditorModule : public IModuleInterface
 {
 public:
 	// ~IModuleInterface implementation
@@ -22,14 +22,6 @@ public:
 	virtual void ShutdownModule() override;
 	virtual bool SupportsDynamicReloading() override;
 	// ~End IModuleInterface implementation
-
-	//~ IHasMenuExtensibility interface
-	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
-	//~ End IHasMenuExtensibility interface
-
-	//~ IHasToolBarExtensibility interface
-	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
-	//~ End IHasToolBarExtensibility interface
 
 	static EAssetTypeCategories::Type GetAssetCategory() { return PCGAssetCategory; }
 
@@ -40,7 +32,6 @@ protected:
 	void UnregisterAssetTypeActions();
 	void RegisterMenuExtensions();
 	void UnregisterMenuExtensions();
-	void AddMenuEntry(FMenuBuilder& MenuBuilder);
 	void PopulateMenuActions(FMenuBuilder& MenuBuilder);
 	void RegisterSettings();
 	void UnregisterSettings();
