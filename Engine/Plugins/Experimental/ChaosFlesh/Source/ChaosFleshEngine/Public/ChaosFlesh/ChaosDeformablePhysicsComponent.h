@@ -16,7 +16,7 @@ class UDeformableSolverComponent;
 *	UDeformablePhysicsComponent
 */
 UCLASS(meta = (BlueprintSpawnableComponent))
-class CHAOSFLESHENGINE_API UDeformablePhysicsComponent : public UMeshComponent
+class CHAOSFLESHENGINE_API UDeformablePhysicsComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 

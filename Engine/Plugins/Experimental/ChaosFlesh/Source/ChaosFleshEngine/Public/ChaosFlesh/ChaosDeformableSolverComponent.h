@@ -13,6 +13,7 @@
 #include "ChaosDeformableSolverComponent.generated.h"
 
 class UDeformablePhysicsComponent;
+class UDeformableCollisionsComponent;
 
 /**
 *	UDeformableSolverComponent
@@ -54,6 +55,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Chaos Deformable")
 	TArray< TObjectPtr<UDeformablePhysicsComponent> > DeformableComponents;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Chaos Deformable")
+	TObjectPtr<UDeformableCollisionsComponent> CollisionComponent;
 
 	/** ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly , Category = "Chaos Deformable")

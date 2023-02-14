@@ -4,6 +4,7 @@
 
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
+#include "Chaos/Deformable/ChaosDeformableCollisionsProxy.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "CoreMinimal.h"
 

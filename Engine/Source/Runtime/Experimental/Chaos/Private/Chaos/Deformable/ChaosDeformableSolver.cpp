@@ -3,6 +3,7 @@
 #include "Chaos/Deformable/ChaosDeformableSolver.h"
 #include "Chaos/Deformable/ChaosDeformableSolverTypes.h"
 #include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
+#include "Chaos/Deformable/ChaosDeformableCollisionsProxy.h"
 
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/TriangleMesh.h"
@@ -139,6 +140,17 @@ namespace Chaos::Softs
 		Frame = 0;
 		Time = 0.f;
 		Iteration = 0;
+
+		// Add a default floor the first time through
+		if (Property.bUseFloor)
+		{
+			Chaos::FVec3 Position(0.f);
+			Chaos::FVec3 EulerRot(0.f);
+			int32 CollisionParticleOffset = Evolution->AddCollisionParticleRange(1, INDEX_NONE, true);
+			Evolution->CollisionParticles().X(0) = Position;
+			Evolution->CollisionParticles().R(0) = Chaos::TRotation<Chaos::FReal, 3>::MakeFromEuler(EulerRot);
+			Evolution->CollisionParticles().SetDynamicGeometry(0, MakeUnique<Chaos::TPlane<Chaos::FReal, 3>>(Chaos::FVec3(0.f, 0.f, 0.f), Chaos::FVec3(0.f, 0.f, 1.f)));
+		}
 	}
 
 	void FDeformableSolver::Simulate(FSolverReal DeltaTime)
@@ -186,8 +198,22 @@ namespace Chaos::Softs
 				UninitializedProxys_Internal.SetNum(0, true);
 			}
 		}
+	}
 
-		InitializeCollisionBodies();
+	void FDeformableSolver::UpdateSimulationObjects(FSolverReal DeltaTime)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeSimulationObjects);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeSimulationObjects);
+
+		typedef TPair< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> > FType;
+		for (const FType& Entry : Proxies)
+		{
+			FThreadingProxy& Proxy = *Entry.Value.Get();
+			if (FCollisionManagerProxy* CollisionManagerProxy = Proxy.As< FCollisionManagerProxy>())
+			{
+				UpdateCollisionBodies(Entry.Key, DeltaTime);
+			}
+		}
 	}
 
 	void FDeformableSolver::InitializeSimulationObject(FThreadingProxy& InProxy)
@@ -202,6 +228,11 @@ namespace Chaos::Softs
 			InitializeWeakConstraint(*Proxy);
 			InitializeTetrahedralConstraint(*Proxy);
 			InitializeGidBasedConstraints(*Proxy);
+
+		}
+		if (FCollisionManagerProxy* CollisionManagerProxy = InProxy.As< FCollisionManagerProxy>())
+		{
+			InitializeCollisionBodies(*CollisionManagerProxy);
 		}
 	}
 
@@ -394,6 +425,42 @@ namespace Chaos::Softs
 
 		}
 	}
+
+
+	void FDeformableSolver::InitializeCollisionBodies(FCollisionManagerProxy& Proxy)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeCollisionBodies);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeCollisionBodies);
+	}
+
+	void FDeformableSolver::UpdateCollisionBodies(FThreadingProxy::FKey Owner, FSolverReal DeltaTime)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeCollisionBodies);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeCollisionBodies);
+
+		FCollisionManagerProxy::FCollisionsInputBuffer* CollisionsInputBuffer = nullptr;
+		if (this->CurrentInputPackage->ObjectMap.Contains(Owner))
+		{
+			CollisionsInputBuffer = this->CurrentInputPackage->ObjectMap[Owner]->As<FCollisionManagerProxy::FCollisionsInputBuffer>();
+			if (CollisionsInputBuffer)
+			{
+				for (auto& AddBody : CollisionsInputBuffer->Added)
+				{
+					if (AddBody.Shapes)
+					{
+						typedef TPlane<Chaos::Softs::FSolverReal, 3> GeomType;
+						int32 Index = Evolution->AddCollisionParticleRange(1, INDEX_NONE, true);
+						Evolution->CollisionParticles().X(Index) = AddBody.Transform.GetTranslation();
+						Evolution->CollisionParticles().R(Index) = AddBody.Transform.GetRotation();
+						TUniquePtr<FImplicitObject> UniquePtr(AddBody.Shapes); AddBody.Shapes = nullptr;
+						Evolution->CollisionParticles().SetDynamicGeometry(Index, MoveTemp(UniquePtr));
+					}
+				}
+			}
+		}
+
+	}
+
 
 
 	void FDeformableSolver::DebugDrawTetrahedralParticles(FFleshThreadingProxy& Proxy)
@@ -701,23 +768,6 @@ namespace Chaos::Softs
 		Evolution->SetKinematicUpdateFunction(MKineticUpdate);
 	}
 
-	void FDeformableSolver::InitializeCollisionBodies()
-	{
-		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeCollisionBodies);
-		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeCollisionBodies);
-
-		if (Property.bUseFloor && Evolution->CollisionParticles().Size() == 0)
-		{
-			Chaos::FVec3 Position(0.f);
-			Chaos::FVec3 EulerRot(0.f);
-			int32 CollisionParticleOffset = Evolution->AddCollisionParticleRange(1, INDEX_NONE, true);
-			Evolution->CollisionParticles().X(0) = Position;
-			Evolution->CollisionParticles().R(0) = Chaos::TRotation<Chaos::FReal, 3>::MakeFromEuler(EulerRot);
-			Evolution->CollisionParticles().SetDynamicGeometry(0, MakeUnique<Chaos::TPlane<Chaos::FReal, 3>>(Chaos::FVec3(0.f, 0.f, 0.f), Chaos::FVec3(0.f, 0.f, 1.f)));
-
-		}
-	}
-
 	void FDeformableSolver::InitializeSelfCollisionVariables()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeSelfCollisionVariables);
@@ -964,6 +1014,7 @@ namespace Chaos::Softs
 
 		if (!Proxies.Num()) return;
 
+		UpdateSimulationObjects(DeltaTime);
 
 		if (!Property.FixTimeStep)
 		{
@@ -1125,4 +1176,5 @@ namespace Chaos::Softs
 		FFileHelper::SaveStringToFile(FString(TEXT("endExtra\n")), *file, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), EFileWrite::FILEWRITE_Append);
 
 	}
+
 }; // Namespace Chaos::Softs

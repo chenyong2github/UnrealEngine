@@ -16,6 +16,7 @@
 #include "Chaos/XPBDGridBasedCorotatedConstraints.h"
 #include "Chaos/Deformable/ChaosDeformableSolverTypes.h"
 #include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
+#include "Chaos/Deformable/ChaosDeformableCollisionsProxy.h"
 #include "CoreMinimal.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "Templates/UniquePtr.h"
@@ -52,7 +53,7 @@ namespace Chaos::Softs
 			/* Iteration Advance */
 			void InitializeSimulationObjects();
 			void InitializeSimulationObject(FThreadingProxy&);
-			void InitializeCollisionBodies();
+			void InitializeCollisionBodies(FCollisionManagerProxy&);
 			void InitializeKinematicConstraint();
 			void InitializeSelfCollisionVariables();
 			void RemoveSimulationObjects();
@@ -109,6 +110,7 @@ namespace Chaos::Softs
 		void AdvanceDt(FSolverReal DeltaTime);
 		void Reset(const FDeformableSolverProperties&);
 		void Update(FSolverReal DeltaTime);
+		void UpdateSimulationObjects(FSolverReal DeltaTime);
 		void UpdateOutputState(FThreadingProxy&);
 		void PushOutputPackage(int32 Frame, FDeformableDataMap&& Package);
 		TUniquePtr<FDeformablePackage> PullInputPackage( );
@@ -122,9 +124,10 @@ namespace Chaos::Softs
 		void InitializeGidBasedConstraints(FFleshThreadingProxy&);
 		void InitializeWeakConstraint(FFleshThreadingProxy&);
 		void InitializeKinematicConstraint();
-		void InitializeCollisionBodies();
+		void InitializeCollisionBodies(FCollisionManagerProxy&);
 		void InitializeSelfCollisionVariables();
 		void InitializeGridBasedConstraintVariables();
+		void UpdateCollisionBodies(FThreadingProxy::FKey, FSolverReal DeltaTime);
 		void RemoveSimulationObjects();
 		TArray<Chaos::TVec3<FSolverReal>> ComputeParticleTargets(const TArray<TArray<int32>>& ParticleIndices);
 

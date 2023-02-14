@@ -2,6 +2,7 @@
 
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
 
+#include "ChaosFlesh/ChaosDeformableCollisionsComponent.h"
 #include "ChaosFlesh/ChaosDeformablePhysicsComponent.h"
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
 #include "Engine/World.h"
@@ -95,7 +96,7 @@ bool UDeformableSolverComponent::IsSimulating(UDeformablePhysicsComponent* InCom
 	if (InComponent)
 	{
 		const UDeformableSolverComponent* ComponentSolver = InComponent->PrimarySolverComponent.Get();
-		return ComponentSolver ==this;
+		return (void*)ComponentSolver == (void*)this;
 	}
 	return false;
 }

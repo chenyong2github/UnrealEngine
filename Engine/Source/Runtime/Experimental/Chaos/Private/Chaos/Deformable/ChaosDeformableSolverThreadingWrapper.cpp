@@ -63,10 +63,10 @@ namespace Chaos::Softs
 			Solver->InitializeSimulationObject(InProxy);
 	}
 
-	void FDeformableSolver::FPhysicsThreadAccess::InitializeCollisionBodies()
+	void FDeformableSolver::FPhysicsThreadAccess::InitializeCollisionBodies(FCollisionManagerProxy& Proxy)
 	{
 		if (Solver)
-			Solver->InitializeCollisionBodies();
+			Solver->InitializeCollisionBodies(Proxy);
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::InitializeKinematicConstraint()
