@@ -352,13 +352,32 @@ public:
 	{
 		FIoStoreWriterContext::FProgress Progress;
 		Progress.HashDbChunksCount = HashDbChunksCount.Load();
+		for (uint8 i=0; i<(uint8)EIoChunkType::MAX; i++)
+		{
+			Progress.HashDbChunksByType[i] = HashDbChunksByType[i].Load();
+		}
+
 		Progress.TotalChunksCount = TotalChunksCount.Load();
 		Progress.HashedChunksCount = HashedChunksCount.Load();
 		Progress.CompressedChunksCount = CompressedChunksCount.Load();
+		for (uint8 i = 0; i < (uint8)EIoChunkType::MAX; i++)
+		{
+			Progress.CompressedChunksByType[i] = CompressedChunksByType[i].Load();
+		}
+		for (uint8 i = 0; i < (uint8)EIoChunkType::MAX; i++)
+		{
+			Progress.BeginCompressChunksByType[i] = BeginCompressChunksByType[i].Load();
+		}
 		Progress.SerializedChunksCount = SerializedChunksCount.Load();
 		Progress.ScheduledCompressionTasksCount = ScheduledCompressionTasksCount.Load();
 		Progress.CompressionDDCHitCount = CompressionDDCHitCount.Load();
 		Progress.CompressionDDCMissCount = CompressionDDCMissCount.Load();
+		Progress.RefDbChunksCount = RefDbChunksCount.Load();
+		for (uint8 i = 0; i < (uint8)EIoChunkType::MAX; i++)
+		{
+			Progress.RefDbChunksByType[i] = RefDbChunksByType[i].Load();
+		}
+
 		return Progress;
 	}
 
@@ -443,8 +462,15 @@ private:
 	TAtomic<uint64> TotalChunksCount{ 0 };
 	TAtomic<uint64> HashedChunksCount{ 0 };
 	TAtomic<uint64> HashDbChunksCount{ 0 };
+	TAtomic<uint64> HashDbChunksByType[(int8)EIoChunkType::MAX] = {0};
+	TAtomic<uint64> RefDbChunksCount{ 0 };
+	TAtomic<uint64> RefDbChunksByType[(int8)EIoChunkType::MAX] = { 0 };
 	TAtomic<uint64> CompressedChunksCount{ 0 };
+	TAtomic<uint64> CompressedChunksByType[(int8)EIoChunkType::MAX] = { 0 };
+	TAtomic<uint64> BeginCompressChunksByType[(int8)EIoChunkType::MAX] = { 0 };
 	TAtomic<uint64> SerializedChunksCount{ 0 };
+	TAtomic<uint64> WriteCycleCount{ 0 };
+	TAtomic<uint64> WriteByteCount{ 0 };
 	TAtomic<uint64> ScheduledCompressionTasksCount{ 0 };
 	TAtomic<uint64> CompressionDDCHitCount{ 0 };
 	TAtomic<uint64> CompressionDDCMissCount{ 0 };
@@ -791,6 +817,7 @@ public:
 			{
 				// If we aren't validating then we just use it and bail.
 				WriterContext->HashDbChunksCount.IncrementExchange();
+				WriterContext->HashDbChunksByType[(int8)Entry->ChunkId.GetChunkType()].IncrementExchange();
 				WriterContext->HashedChunksCount.IncrementExchange();
 				return;
 			}
@@ -1439,6 +1466,8 @@ private:
 
 	void BeginCompress(FIoStoreWriteQueueEntry* Entry)
 	{
+		WriterContext->BeginCompressChunksByType[(int8)Entry->ChunkId.GetChunkType()].IncrementExchange();
+
 		FName CompressionMethod = NAME_None;
 		const FIoStoreWriterSettings& WriterSettings = WriterContext->WriterSettings;
 		if (ContainerSettings.IsCompressed() && !Entry->Options.bForceUncompressed && !Entry->Options.bIsMemoryMapped)
@@ -1519,6 +1548,8 @@ private:
 
 			if (GotChunk)
 			{
+				WriterContext->RefDbChunksCount.IncrementExchange();
+				WriterContext->RefDbChunksByType[(int8)Entry->ChunkId.GetChunkType()].IncrementExchange();
 				// Lambda handles dispatch subsequents
 				return;
 			}
@@ -1581,6 +1612,7 @@ private:
 				int32 CompressedBlocksCount = Entry->CompressedBlocksCount.IncrementExchange();
 				if (CompressedBlocksCount + 1 == Entry->ChunkBlocks.Num())
 				{
+					WriterContext->CompressedChunksByType[(int8)Entry->ChunkId.GetChunkType()].IncrementExchange();
 					WriterContext->CompressedChunksCount.IncrementExchange();
 					Entry->FinishCompressionBarrier->DispatchSubsequents();
 				}
@@ -1766,7 +1798,8 @@ private:
 		}
 		delete Entry->Request;
 		Entry->Request = nullptr;
-
+		uint64 WriteStartCycles = FPlatformTime::Cycles64();
+		uint64 WriteBytes = 0;
 		if (Entry->Padding > 0)
 		{
 			if (PaddingBuffer.Num() < Entry->Padding)
@@ -1776,6 +1809,7 @@ private:
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(WritePaddingToContainer);
 				TargetPartition->ContainerFileHandle->Serialize(PaddingBuffer.GetData(), Entry->Padding);
+				WriteBytes += Entry->Padding;
 			}
 		}
 		check(Entry->Offset == TargetPartition->ContainerFileHandle->Tell());
@@ -1784,10 +1818,14 @@ private:
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(WriteBlockToContainer);
 				TargetPartition->ContainerFileHandle->Serialize(ChunkBlock.IoBuffer->Data(), ChunkBlock.Size);
+				WriteBytes += ChunkBlock.Size;
 			}
 			WriterContext->FreeCompressionBuffer(ChunkBlock.IoBuffer, Entry->ChunkBlocks.Num());
 			ChunkBlock.IoBuffer = nullptr;
 		}
+		uint64 WriteEndCycles = FPlatformTime::Cycles64();
+		WriterContext->WriteCycleCount.AddExchange(WriteEndCycles - WriteStartCycles);
+		WriterContext->WriteByteCount.AddExchange(WriteBytes);
 		WriterContext->SerializedChunksCount.IncrementExchange();
 	}
 
@@ -1861,6 +1899,8 @@ void FIoStoreWriterContextImpl::Flush()
 		AllEntries.Append(IoStoreWriter->Entries);
 	}
 
+	double WritesStart = FPlatformTime::Seconds();
+
 	for (FIoStoreWriteQueueEntry* Entry : AllEntries)
 	{
 		ScheduleCompression(Entry);
@@ -1874,6 +1914,15 @@ void FIoStoreWriterContextImpl::Flush()
 		}
 	}
 
+	double WritesEnd = FPlatformTime::Seconds();
+	double WritesSeconds = FPlatformTime::ToSeconds64(WriteCycleCount.Load());
+	UE_LOG(LogIoStore, Display, TEXT("Writing and compressing took %.2f seconds, writes to disk took %.2f seconds for %s bytes @ %s bytes per second."), 
+		WritesEnd - WritesStart,
+		WritesSeconds,
+		*FText::AsNumber(WriteByteCount.Load()).ToString(),
+		*FText::AsNumber((int64)((double)WriteByteCount.Load() / WritesSeconds)).ToString()
+		);
+
 	AllEntries.Empty();
 
 	// Classically there were so few writers that this didn't need to be multi threaded, but it
@@ -1884,7 +1933,21 @@ void FIoStoreWriterContextImpl::Flush()
 		IoStoreWriters[Index]->Finalize(); 
 	});
 	double FinalizeEnd = FPlatformTime::Seconds();
-	UE_LOG(LogIoStore, Display, TEXT("Finalize took %.1f seconds for %d writers"), FinalizeEnd - FinalizeStart, IoStoreWriters.Num());
+	int64 TotalTocSize = 0;
+	for (TSharedPtr<IIoStoreWriter> Writer : IoStoreWriters)
+	{
+		if (Writer->GetResult().IsOk())
+		{
+			TotalTocSize += Writer->GetResult().ValueOrDie().TocSize;
+		}
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Finalize took %.1f seconds for %d writers to write %s bytes, %s bytes per second"), 
+		FinalizeEnd - FinalizeStart, 
+		IoStoreWriters.Num(), 
+		*FText::AsNumber(TotalTocSize).ToString(), 
+		*FText::AsNumber((int64)((double)TotalTocSize / (FinalizeEnd - FinalizeStart))).ToString()
+		);
 }
 
 void FIoStoreWriterContextImpl::BeginCompressionThreadFunc()

@@ -77,6 +77,9 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, IoStoreUtilities);
 
 TRACE_DECLARE_MEMORY_COUNTER(IoStoreUsedFileBufferMemory, TEXT("IoStore/UsedFileBufferMemory"));
 
+// Helper to format numbers with comma separators to help readability: 1,234 vs 1234.
+static FString NumberString(uint64 N) { return FText::AsNumber(N).ToString(); }
+
 static const FName DefaultCompressionMethod = NAME_Zlib;
 static const uint64 DefaultCompressionBlockSize = 64 << 10;
 static const uint64 DefaultCompressionBlockAlignment = 64 << 10;
@@ -100,6 +103,7 @@ public:
 	int32 FulfillCount = 0;
 	int32 ContainerNotFound = 0;
 	int64 FulfillBytes = 0;
+	int64 FulfillBytesPerChunk[(int8)EIoChunkType::MAX] = {};
 	
 
 	bool Init(const FString& InGlobalContainerFileName, const FKeyChain& InDecryptionKeychain)
@@ -194,6 +198,7 @@ public:
 			return false;
 		}
 
+		FulfillBytesPerChunk[(int8)ChunkId->GetChunkType()] += TotalCompressedSize;
 		FulfillBytes += TotalCompressedSize;
 		FulfillCount++;
 
@@ -1523,13 +1528,17 @@ static void ParsePackageAssetsFromFiles(TArray<FLegacyCookedPackage*>& Packages,
 			OptionalSegmentUAssetMemoryPtr += Packages[Index]->OptionalSegmentUAssetSize;
 		}
 
+		double StartTime = FPlatformTime::Seconds();
+
+		TAtomic<uint64> TotalReadCount{ 0 };
 		TAtomic<uint64> CurrentFileIndex{ 0 };
-		ParallelFor(TotalPackageCount, [&ReadCount, &PackageAssetBuffers, &OptionalSegmentPackageAssetBuffers, &Packages, &CurrentFileIndex](int32 Index)
+		ParallelFor(TEXT("ReadingPackageAssets.PF"), TotalPackageCount, 1, [&ReadCount, &PackageAssetBuffers, &OptionalSegmentPackageAssetBuffers, &Packages, &CurrentFileIndex, &TotalReadCount](int32 Index)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ReadUAssetFile);
 			FLegacyCookedPackage* Package = Packages[Index];
 			if (Package->UAssetSize)
 			{
+				TotalReadCount.IncrementExchange();
 				uint8* Buffer = PackageAssetBuffers[Index];
 				TUniquePtr<IFileHandle> FileHandle(FPlatformFileManager::Get().GetPlatformFile().OpenRead(*Package->FileName));
 				if (FileHandle)
@@ -1544,6 +1553,7 @@ static void ParsePackageAssetsFromFiles(TArray<FLegacyCookedPackage*>& Packages,
 			}
 			if (Package->OptionalSegmentUAssetSize)
 			{
+				TotalReadCount.IncrementExchange();
 				uint8* Buffer = OptionalSegmentPackageAssetBuffers[Index];
 				TUniquePtr<IFileHandle> FileHandle(FPlatformFileManager::Get().GetPlatformFile().OpenRead(*Package->OptionalSegmentFileName));
 				if (FileHandle)
@@ -1560,6 +1570,13 @@ static void ParsePackageAssetsFromFiles(TArray<FLegacyCookedPackage*>& Packages,
 			uint64 LocalFileIndex = CurrentFileIndex.IncrementExchange() + 1;
 			UE_CLOG(LocalFileIndex % 1000 == 0, LogIoStore, Display, TEXT("Reading %d/%d: '%s'"), LocalFileIndex, Packages.Num(), *Package->FileName);
 		}, EParallelForFlags::Unbalanced);
+
+		double EndTime = FPlatformTime::Seconds();
+		UE_LOG(LogIoStore, Display, TEXT("Packages read %s files in %.2f seconds, %s total bytes, %s bytes per second"), 
+			*NumberString(TotalReadCount.Load()), 
+			EndTime - StartTime, 
+			*NumberString(TotalOptionalSegmentUAssetSize + TotalUAssetSize),
+			*NumberString((int64)((TotalOptionalSegmentUAssetSize + TotalUAssetSize) / FMath::Max(.001f, EndTime - StartTime))));
 	}
 
 	{
@@ -1941,6 +1958,8 @@ static void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FC
 {
 	IOSTORE_CPU_SCOPE(ProcessShaderLibraries);
 
+	double LibraryStart = FPlatformTime::Seconds();
+
 	TMap<FIoChunkId, FShaderInfo*> ChunkIdToShaderInfoMap;
 	TMap<FSHAHash, TArray<FIoChunkId>> ShaderChunkIdsByShaderMapHash;
 	TMap<FName, TSet<FSHAHash>> PackageNameToShaderMaps;
@@ -2125,6 +2144,9 @@ static void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FC
 			}
 		}
 	}
+
+	double LibraryEnd = FPlatformTime::Seconds();
+	UE_LOG(LogIoStore, Display, TEXT("Shaders processed in %.2f seconds"), LibraryEnd - LibraryStart);
 }
 
 void InitializeContainerTargetsAndPackages(
@@ -2755,7 +2777,9 @@ private:
 
 		virtual void LoadSourceBufferAsync() override
 		{
+			Manager.MemorySourceReads[(int8)TargetFile.ChunkId.GetChunkType()].IncrementExchange();
 			SourceBuffer = TargetFile.SourceBuffer.GetValue();
+			Manager.MemorySourceBytes[(int8)TargetFile.ChunkId.GetChunkType()] += SourceBuffer.DataSize();
 			OnSourceBufferLoaded();
 		}
 	};
@@ -2770,6 +2794,7 @@ private:
 
 		virtual void LoadSourceBufferAsync() override
 		{
+			Manager.LooseFileSourceReads[(int8)TargetFile.ChunkId.GetChunkType()].IncrementExchange();
 			SourceBuffer = FIoBuffer(GetSourceBufferSize());
 
 			QueueEntry->FileHandle.Reset(
@@ -2778,6 +2803,8 @@ private:
 			QueueEntry->AddRef(); // Must keep it around until we've assigned the ReadRequest pointer
 			FAsyncFileCallBack Callback = [this](bool, IAsyncReadRequest* ReadRequest)
 			{
+				Manager.LooseFileSourceBytes[(int8)TargetFile.ChunkId.GetChunkType()] += SourceBuffer.DataSize();
+
 				if (TargetFile.ChunkType == EContainerChunkType::PackageData)
 				{
 					SourceBuffer = Manager.PackageStoreOptimizer.CreatePackageBuffer(TargetFile.Package->OptimizedPackage, SourceBuffer, bHasUpdatedExportBundleRegions ? nullptr : &FileRegions);
@@ -2807,11 +2834,13 @@ private:
 
 		virtual void LoadSourceBufferAsync() override
 		{
+			Manager.ZenSourceReads[(int8)TargetFile.ChunkId.GetChunkType()].IncrementExchange();
 			Manager.PackageStore->ReadChunkAsync(
 				TargetFile.ChunkId,
 				[this](TIoStatusOr<FIoBuffer> Status)
 				{
 					SourceBuffer = Status.ConsumeValueOrDie();
+					Manager.ZenSourceBytes[(int8)TargetFile.ChunkId.GetChunkType()] += SourceBuffer.DataSize();
 					if (TargetFile.ChunkType == EContainerChunkType::PackageData)
 					{
 						check(TargetFile.Package->UAssetSize > 0);
@@ -3015,6 +3044,14 @@ private:
 	FQueue RetirerQueue;
 	TAtomic<uint64> UsedBufferMemory { 0 };
 	FEvent* MemoryAvailableEvent;
+
+public:
+	TAtomic<uint64> ZenSourceReads[(int8)EIoChunkType::MAX] { 0 };
+	TAtomic<uint64> ZenSourceBytes[(int8)EIoChunkType::MAX]{ 0 };
+	TAtomic<uint64> MemorySourceReads[(int8)EIoChunkType::MAX]{ 0 };
+	TAtomic<uint64> MemorySourceBytes[(int8)EIoChunkType::MAX]{ 0 };
+	TAtomic<uint64> LooseFileSourceReads[(int8)EIoChunkType::MAX]{ 0 };
+	TAtomic<uint64> LooseFileSourceBytes[(int8)EIoChunkType::MAX]{ 0 };
 
 	static constexpr uint64 BufferMemoryLimit = 2ull << 30;
 };
@@ -3471,7 +3508,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					if (!ContainerTarget->OptionalSegmentOutputPath.IsEmpty())
 					{
 						ContainerTarget->OptionalSegmentIoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OptionalSegmentOutputPath, ContainerSettings);
-						ContainerTarget->OptionalSegmentIoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
+					    ContainerTarget->OptionalSegmentIoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
 						IoStoreWriters.Add(ContainerTarget->OptionalSegmentIoStoreWriter);
 					}
 				}
@@ -3689,10 +3726,95 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			}
 			else
 			{
-				UE_LOG(LogIoStore, Display, TEXT("Hashing chunks (%llu/%llu) %llu from hash database..."), Progress.HashedChunksCount, Progress.TotalChunksCount, Progress.HashDbChunksCount);
+			UE_LOG(LogIoStore, Display, TEXT("Hashing chunks (%llu/%llu)..."), Progress.HashedChunksCount, Progress.TotalChunksCount);
 			}
 		}
 	}
+
+	{
+		FIoStoreWriterContext::FProgress Progress = IoStoreWriterContext->GetProgress();
+		if (Progress.HashDbChunksCount)
+		{
+			UE_LOG(LogIoStore, Display, TEXT("%s / %s hashes were loaded from the hash database, by type:"), *NumberString(Progress.HashDbChunksCount), *NumberString(Progress.TotalChunksCount));
+		
+			for (uint8 i = 0; i < (uint8)EIoChunkType::MAX; i++)
+			{
+				if (Progress.HashDbChunksByType[i])
+				{
+					UE_LOG(LogIoStore, Display, TEXT("    %-26s %s"), *LexToString((EIoChunkType)i), *NumberString(Progress.HashDbChunksByType[i]));
+				}
+			}
+		}
+		if (Progress.RefDbChunksCount)
+		{
+			FIoStoreChunkDatabase& TypedChunkDatabase = ((FIoStoreChunkDatabase&)*ChunkDatabase);
+			UE_LOG(LogIoStore, Display, TEXT("%s / %s chunks for %s bytes were loaded from the reference chunk database, by type:"), *NumberString(Progress.RefDbChunksCount), *NumberString(Progress.TotalChunksCount), *NumberString(TypedChunkDatabase.FulfillBytes));
+
+			for (uint8 i = 0; i < (uint8)EIoChunkType::MAX; i++)
+			{
+				if (Progress.RefDbChunksByType[i])
+				{
+					UE_LOG(LogIoStore, Display, TEXT("    %-26s: %s for %s bytes"), *LexToString((EIoChunkType)i), *NumberString(Progress.RefDbChunksByType[i]), *NumberString(TypedChunkDatabase.FulfillBytesPerChunk[i]));
+				}
+			}
+		}
+		if (Progress.CompressedChunksCount)
+		{
+			UE_LOG(LogIoStore, Display, TEXT("%s / %s chunks attempted to compress, by type:"), *NumberString(Progress.CompressedChunksCount), *NumberString(Progress.TotalChunksCount));
+
+			for (uint8 i = 0; i < (uint8)EIoChunkType::MAX; i++)
+			{
+				if (Progress.CompressedChunksByType[i] || Progress.BeginCompressChunksByType[i])
+				{
+					UE_LOG(LogIoStore, Display, TEXT("    %-26s %s / %s"), *LexToString((EIoChunkType)i), *NumberString(Progress.CompressedChunksByType[i]), *NumberString(Progress.BeginCompressChunksByType[i]));
+				}
+			}
+		}
+		UE_LOG(LogIoStore, Display, TEXT("Source bytes read:"));
+		uint64 ZenTotalBytes = 0;
+		for (uint64 b : WriteRequestManager.ZenSourceBytes)
+		{
+			ZenTotalBytes += b;
+		}
+
+		UE_LOG(LogIoStore, Display, TEXT("    Zen: %34s"), *NumberString(ZenTotalBytes));
+		for (uint8 i = 0; i < (uint8)EIoChunkType::MAX; i++)
+		{
+			if (WriteRequestManager.ZenSourceReads[i])
+			{
+				UE_LOG(LogIoStore, Display, TEXT("        %-22s %12s bytes over %s reads"), *LexToString((EIoChunkType)i), *NumberString(WriteRequestManager.ZenSourceBytes[i].Load()), *NumberString(WriteRequestManager.ZenSourceReads[i].Load()));
+			}
+		}
+
+		uint64 LooseTotalBytes = 0;
+		for (uint64 b : WriteRequestManager.LooseFileSourceBytes)
+		{
+			LooseTotalBytes += b;
+		}
+		UE_LOG(LogIoStore, Display, TEXT("    Loose File: %27s"), *NumberString(LooseTotalBytes));
+		for (uint8 i = 0; i < (uint8)EIoChunkType::MAX; i++)
+		{
+			if (WriteRequestManager.LooseFileSourceReads[i])
+			{
+				UE_LOG(LogIoStore, Display, TEXT("        %-22s %12s bytes over %s reads"), *LexToString((EIoChunkType)i), *NumberString(WriteRequestManager.LooseFileSourceBytes[i].Load()), *NumberString(WriteRequestManager.LooseFileSourceReads[i].Load()));
+			}
+		}
+
+		uint64 MemoryTotalBytes = 0;
+		for (uint64 b : WriteRequestManager.MemorySourceBytes)
+		{
+			MemoryTotalBytes += b;
+		}
+		UE_LOG(LogIoStore, Display, TEXT("    Memory: %31s"), *NumberString(MemoryTotalBytes));
+		for (uint8 i = 0; i < (uint8)EIoChunkType::MAX; i++)
+		{
+			if (WriteRequestManager.MemorySourceReads[i])
+			{
+				UE_LOG(LogIoStore, Display, TEXT("        %-22s %12s bytes over %s reads"), *LexToString((EIoChunkType)i), *NumberString(WriteRequestManager.MemorySourceBytes[i].Load()), *NumberString(WriteRequestManager.MemorySourceReads[i].Load()));
+			}
+		}
+	}
+
 	if (GeneralIoWriterSettings.bCompressionEnableDDC)
 	{
 		FIoStoreWriterContext::FProgress Progress = IoStoreWriterContext->GetProgress();

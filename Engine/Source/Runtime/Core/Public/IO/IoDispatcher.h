@@ -1044,13 +1044,23 @@ public:
 	{
 		uint64 TotalChunksCount = 0;
 		uint64 HashedChunksCount = 0;
-		// Number of chunks where we avoided reading and hashing, and instead used the result from the hashdb
+		// Number of chunks where we avoided reading and hashing, and instead used the result from the hashdb, and their types
 		uint64 HashDbChunksCount = 0;
+		uint64 HashDbChunksByType[(int8)EIoChunkType::MAX] = { 0 };
+		// Number of chunks that were passed to the compressor (i.e. passed the various opt-outs), and their types
 		uint64 CompressedChunksCount = 0;
+		uint64 CompressedChunksByType[(int8)EIoChunkType::MAX] = { 0 };
 		uint64 SerializedChunksCount = 0;
 		uint64 ScheduledCompressionTasksCount = 0;
 		uint64 CompressionDDCHitCount = 0;
 		uint64 CompressionDDCMissCount = 0;
+
+		// The number of chunk retrieved from the reference cache database, and their types.
+		uint64 RefDbChunksCount{ 0 };
+		uint64 RefDbChunksByType[(int8)EIoChunkType::MAX] = { 0 };
+		
+		// The type of chunk that landed in BeginCompress before any opt-outs.
+		uint64 BeginCompressChunksByType[(int8)EIoChunkType::MAX] = { 0 };
 	};
 
 	CORE_API FIoStoreWriterContext();
