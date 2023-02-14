@@ -70,6 +70,7 @@ class FRayTracingGeometry;
 struct FViewMatrices;
 struct FEngineShowFlags;
 class FViewport;
+class FLandscapeRayTracingStateList;
 
 namespace UE { namespace Color { class FColorSpace; } }
 
@@ -285,6 +286,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	* returns the path tracer sample count
 	*/
 	virtual uint32 GetPathTracingSampleCount() const = 0;
+
+	virtual void SetLandscapeRayTracingStates(TPimplPtr<FLandscapeRayTracingStateList>&& InLandscapeRayTracingStates) = 0;
+	virtual FLandscapeRayTracingStateList* GetLandscapeRayTracingStates() const = 0;
 #endif
 
 	/**

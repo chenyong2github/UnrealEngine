@@ -84,7 +84,6 @@ class FDistanceFieldObjectBuffers;
 struct FHairStrandsInstance;
 struct FPathTracingState;
 class FSparseVolumeTextureViewerSceneProxy;
-class FLandscapeRayTracingStateList;
 class FExponentialHeightFogSceneInfo;
 class FStaticMeshBatch;
 class FShadowScene;
@@ -1013,6 +1012,9 @@ public:
 
 	// List of landscape ray tracing state associated with this view, so it can be cleaned up if the view gets deleted.
 	TPimplPtr<FLandscapeRayTracingStateList> LandscapeRayTracingStates;
+
+	virtual void SetLandscapeRayTracingStates(TPimplPtr<FLandscapeRayTracingStateList>&& InLandscapeRayTracingStates) final { LandscapeRayTracingStates = MoveTemp(InLandscapeRayTracingStates); }
+	virtual FLandscapeRayTracingStateList* GetLandscapeRayTracingStates() const final { return LandscapeRayTracingStates.Get(); }
 #endif
 
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
