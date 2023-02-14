@@ -55,8 +55,7 @@ struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 
 	// Configures an array of render targets for the GBuffer pass.
 	uint32 GetGBufferRenderTargets(
-		TStaticArray<FTextureRenderTargetBinding,
-		MaxSimultaneousRenderTargets>& RenderTargets,
+		TArrayView<FTextureRenderTargetBinding> RenderTargets,
 		EGBufferLayout Layout = GBL_Default) const;
 	uint32 GetGBufferRenderTargets(
 		ERenderTargetLoadAction LoadAction,

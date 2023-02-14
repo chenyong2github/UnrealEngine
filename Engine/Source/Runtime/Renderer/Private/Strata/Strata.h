@@ -2,24 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ShaderParameterMacros.h"
 #include "RenderGraphResources.h"
 #include "MeshPassProcessor.h"
 #include "UnifiedBuffer.h"
 #include "RHIUtilities.h"
 #include "StrataDefinitions.h"
-#include "RenderGraphUtils.h"
 #include "GBufferInfo.h"
-#include "RendererUtils.h"
+#include "ShaderParameterStruct.h"
 
 // Forward declarations.
 class FScene;
 class FSceneRenderer;
 class FRDGBuilder;
+struct FDBufferTextures;
 struct FMinimalSceneTextures;
 struct FScreenPassTexture;
-struct FDBufferTextures;
+struct FTextureRenderTargetBinding;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
@@ -172,7 +171,7 @@ void BindStrataForwardPasslUniformParameters(FRDGBuilder& GraphBuilder, const FV
 void BindStrataMobileForwardPasslUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FStrataMobileForwardPassUniformParameters& OutStrataUniformParameters);
 TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(const FViewInfo& View);
 
-void AppendStrataMRTs(const FSceneRenderer& SceneRenderer, uint32& BasePassTextureCount, TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets>& BasePassTextures);
+void AppendStrataMRTs(const FSceneRenderer& SceneRenderer, uint32& BasePassTextureCount, TArrayView<FTextureRenderTargetBinding> BasePassTextures);
 void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, FShaderCompilerEnvironment& OutEnvironment, EGBufferLayout GBufferLayout);
 
 TRDGUniformBufferRef<FStrataPublicGlobalUniformParameters> CreatePublicGlobalUniformBuffer(FRDGBuilder& GraphBuilder, FStrataSceneData* StrataScene);

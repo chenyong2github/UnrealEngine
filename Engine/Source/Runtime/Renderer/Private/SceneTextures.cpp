@@ -630,8 +630,7 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 }
 
 uint32 FSceneTextures::GetGBufferRenderTargets(
-	TStaticArray<FTextureRenderTargetBinding,
-	MaxSimultaneousRenderTargets>& RenderTargets,
+	TArrayView<FTextureRenderTargetBinding> RenderTargets,
 	EGBufferLayout Layout) const
 {
 	uint32 RenderTargetCount = 0;
