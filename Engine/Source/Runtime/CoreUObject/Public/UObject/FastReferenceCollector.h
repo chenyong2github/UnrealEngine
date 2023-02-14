@@ -216,6 +216,33 @@ struct FSlowARO
 
 //////////////////////////////////////////////////////////////////////////
 
+struct FProcessorStats
+{
+#if UE_BUILD_SHIPPING
+	static constexpr uint32 NumObjects = 0;
+	static constexpr uint32 NumReferences = 0;
+	static constexpr bool bFoundGarbageRef = false;
+	FORCEINLINE constexpr void AddObjects(uint32) {}
+	FORCEINLINE constexpr void AddReferences(uint32) {}
+	FORCEINLINE constexpr void TrackPotentialGarbageReference(bool) {}
+#else
+	uint32 NumObjects = 0;
+	uint32 NumReferences = 0;
+	bool bFoundGarbageRef = false;
+	FORCEINLINE void AddObjects(uint32 Num) { NumObjects += Num; }
+	FORCEINLINE void AddReferences(uint32 Num) { NumReferences += Num; }
+	FORCEINLINE void TrackPotentialGarbageReference(bool bDetectedGarbage) { bFoundGarbageRef |= bDetectedGarbage; }
+
+#endif
+
+	void AddStats(FProcessorStats Stats)
+	{
+		AddObjects(Stats.NumObjects);
+		AddReferences(Stats.NumReferences);
+		TrackPotentialGarbageReference(Stats.bFoundGarbageRef);
+	}
+};
+
 /** Thread-local context containing initial objects and references to collect */
 struct alignas(PLATFORM_CACHE_LINE_SIZE) FWorkerContext
 {
@@ -236,9 +263,10 @@ public:
 	TConstArrayView<UObject**> InitialNativeReferences;
 	FWorkCoordinator* Coordinator = nullptr;
 	TArray<UObject**> WeakReferences;
+	FProcessorStats Stats;
+
 #if !UE_BUILD_SHIPPING
 	TArray<FGarbageReferenceInfo> GarbageReferences;
-	bool bDetectedGarbageReference = false;
 #endif
 #if ENABLE_GC_HISTORY
 	TMap<const UObject*, TArray<FGCDirectReference>*> History;
@@ -421,11 +449,11 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 /** Forwards references directly to ProcessorType::HandleTokenStreamObjectReference(), unlike TBatchDispatcher */
-template<class ProcessorType, class ContextType>
+template<class ProcessorType>
 struct TDirectDispatcher
 {
 	ProcessorType& Processor;
-	ContextType& Context;
+	FWorkerContext& Context;
 
 	FORCEINLINE void HandleReferenceDirectly(UObject* ReferencingObject, UObject*& Object, FTokenId TokenId, EGCTokenType TokenType, bool bAllowReferenceElimination) const
 	{
@@ -433,6 +461,7 @@ struct TDirectDispatcher
 		{
 			Processor.HandleTokenStreamObjectReference(Context, ReferencingObject, Object, TokenId, TokenType, bAllowReferenceElimination);
 		}
+		Context.Stats.AddReferences(1);
 	}
 	
 	FORCEINLINE void HandleKillableReference(UObject*& Object, FTokenId TokenId, EGCTokenType TokenType) const
@@ -471,8 +500,8 @@ struct TDirectDispatcher
 };
 
 // Default implementation is to create new direct dispatcher
-template<class CollectorType, class ProcessorType, class ContextType>
-TDirectDispatcher<ProcessorType, ContextType> GetDispatcher(CollectorType&, ProcessorType& Processor, ContextType& Context)
+template<class CollectorType, class ProcessorType>
+TDirectDispatcher<ProcessorType> GetDispatcher(CollectorType&, ProcessorType& Processor, FWorkerContext& Context)
 {
 	return { Processor, Context };
 }
@@ -547,6 +576,7 @@ StoleContext:
 		TConstArrayView<UObject*> CurrentObjects = Context.InitialObjects;
 		while (true)
 		{
+			Context.Stats.AddObjects(CurrentObjects.Num());
 			for (FPrefetchingObjectIterator It(CurrentObjects); It.HasMore(); It.Advance())
 			{
 				UObject* CurrentObject = It.GetCurrentObject();
