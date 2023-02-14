@@ -24,7 +24,7 @@ struct VCAMCORE_API FDeterminePlayerControllersTargetPolicyParams
 	
 	/** Whether the output provider will be made active or inactive. */
 	UPROPERTY(BlueprintReadWrite, Category = "VirtualCamera")
-	bool bNewIsActive;
+	bool bNewIsActive {};
 };
 
 USTRUCT(BlueprintType)
