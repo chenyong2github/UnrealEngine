@@ -165,7 +165,8 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 				[
 					SNew(SHyperlink)
 					.Text(this, &SSearchBrowser::GetUnindexedAssetsText)
-					.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowMissingAssets ? EVisibility::Visible : EVisibility::Collapsed; })
+					.ToolTipText(LOCTEXT("AssetsNeedIndexingTooltip", "Click this to open and index the assets that are don't have any index data or their index data was found to be out of date."))
+					.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowAssetsNeedingIndexing ? EVisibility::Visible : EVisibility::Collapsed; })
 					.OnNavigate(this, &SSearchBrowser::HandleForceIndexOfAssetsMissingIndex)
 				]
 
@@ -290,7 +291,7 @@ FText SSearchBrowser::GetUnindexedAssetsText() const
 
 	if (SearchStats.AssetsMissingIndex > 0)
 	{
-		return FText::Format(LOCTEXT("UnindexedAssetsLinkFormat", "{0} Missing"), SearchStats.AssetsMissingIndex);
+		return FText::Format(LOCTEXT("UnindexedAssetsLinkFormat", "{0} Need Indexing"), SearchStats.AssetsMissingIndex);
 	}
 
 	return FText::GetEmpty();

@@ -7,6 +7,16 @@
 
 struct FDirectoryPath;
 
+UENUM()
+enum class ESearchIntermediateStorage : uint8
+{
+	// Stores the json snippets of indexable data in the DDC so that they can be downloaded as needed.
+	DerivedDataCache,
+	// Stores the json snippets and the json hash in the tag data for the asset.  This increases the size of all 
+	// assets that are indexed, but can be a great benefit to teams that don't have a large shared DDC.
+	AssetTagData
+};
+
 UCLASS(config = Editor, defaultconfig, meta=(DisplayName="Search"))
 class USearchProjectSettings : public UDeveloperSettings
 {
@@ -14,6 +24,9 @@ class USearchProjectSettings : public UDeveloperSettings
 
 public:
 	USearchProjectSettings();
+
+	UPROPERTY(config, EditAnywhere, Category=General, Meta = (ConfigRestartRequired = true))
+	ESearchIntermediateStorage IntermediateStorage = ESearchIntermediateStorage::DerivedDataCache;
 
 	UPROPERTY(config, EditAnywhere, Category=General)
 	TArray<FDirectoryPath> IgnoredPaths;

@@ -18,9 +18,13 @@ class FObjectPostSaveContext;
 class FRunnableThread;
 class UClass;
 class ISearchProvider;
+enum class ESearchIntermediateStorage : uint8;
 
 class FAssetSearchManager : public FRunnable
 {
+	static const FName AssetSearchIndexKeyTag;
+	static const FName AssetSearchIndexDataTag;
+
 public:
 	FAssetSearchManager();
 	virtual ~FAssetSearchManager();
@@ -52,19 +56,31 @@ private:
 	void OnAssetRemoved(const FAssetData& InAssetData);
 	void OnAssetScanFinished();
 
+	void HandleGetExtendedAssetRegistryTagsForSave(const UObject* Object, const ITargetPlatform* TargetPlatform, TArray<UObject::FAssetRegistryTag>& OutTags);
 	void HandlePackageSaved(const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext);
 	void OnAssetLoaded(UObject* InObject);
 
 	void AddOrUpdateAsset(const FAssetData& InAsset, const FString& IndexedJson, const FString& DerivedDataKey);
 
-	bool RequestIndexAsset(UObject* InAsset);
-	bool IsAssetIndexable(UObject* InAsset);
+	bool RequestIndexAsset_DDC(const UObject* InAsset);
+	bool IsAssetIndexable(const UObject* InAsset) const;
+	
 	bool TryLoadIndexForAsset(const FAssetData& InAsset);
+	bool TryLoadIndexForAsset_Tags(const FAssetData& InAssetData);
+	bool TryLoadIndexForAsset_DDC(const FAssetData& InAssetData);
+
 	void AsyncRequestDownload(const FAssetData& InAssetData, const FString& InDDCKey);
 	bool AsyncGetDerivedDataKey(const FAssetData& UnindexedAsset, TFunction<void(bool, FString)> DDCKeyCallback);
 	bool HasIndexerForClass(const UClass* InAssetClass) const;
+
+	FString GetBaseIndexKey(const UClass* InAssetClass) const;
 	FString GetIndexerVersion(const UClass* InAssetClass) const;
-	void StoreIndexForAsset(UObject* InAsset);
+	bool IndexAsset(const FAssetData& InAssetData, const UObject* InAsset, FString& OutIndexedJson) const;
+	
+	void StoreIndexForAsset(const UObject* InAsset);
+	void StoreIndexForAsset_Tags(const UObject* InAsset);
+	void StoreIndexForAsset_DDC(const UObject* InAsset);
+
 	void LoadDDCContentIntoDatabase(const FAssetData& InAsset, const TArray<uint8>& Content, const FString& DerivedDataKey);
 
 	void AsyncMainThreadTask(TFunction<void()> Task);
@@ -110,7 +126,7 @@ private:
 	TQueue<FAssetDDCRequest, EQueueMode::Mpsc> DownloadQueue;
 	TQueue<FAssetDDCRequest, EQueueMode::Mpsc> ProcessDDCQueue;
 
-	TArray<FAssetDDCRequest> FailedDDCRequests;
+	TArray<FAssetData> AssetNeedingReindexing;
 
 	FTSTicker::FDelegateHandle TickerHandle;
 
@@ -119,6 +135,8 @@ private:
 private:
 	volatile bool bDatabaseOpen = false;
 	volatile double LastConnectionAttempt = 0;
+
+	ESearchIntermediateStorage IntermediateStorage;
 
 	TAtomic<bool> RunThread;
 	FRunnableThread* DatabaseThread = nullptr;

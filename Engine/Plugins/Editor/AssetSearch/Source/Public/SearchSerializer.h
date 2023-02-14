@@ -18,7 +18,7 @@ public:
 
 	static int32 GetVersion();
 
-	bool IndexAsset(UObject* InAsset, const TMap<FName, TUniquePtr<IAssetIndexer>>& Indexers);
+	bool IndexAsset(const UObject* InAsset, const TMap<FName, TUniquePtr<IAssetIndexer>>& Indexers);
 
 	void BeginIndexer(const IAssetIndexer* InIndexer);
 

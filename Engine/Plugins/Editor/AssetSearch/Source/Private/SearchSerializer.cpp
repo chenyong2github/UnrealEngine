@@ -67,7 +67,7 @@ int32 FSearchSerializer::GetVersion()
 	return (int32)ESearchIndexVersion::LatestVersion;
 }
 
-bool FSearchSerializer::IndexAsset(UObject* InAsset, const TMap<FName, TUniquePtr<IAssetIndexer>>& Indexers)
+bool FSearchSerializer::IndexAsset(const UObject* InAsset, const TMap<FName, TUniquePtr<IAssetIndexer>>& Indexers)
 {
 	if (InAsset == nullptr)
 	{

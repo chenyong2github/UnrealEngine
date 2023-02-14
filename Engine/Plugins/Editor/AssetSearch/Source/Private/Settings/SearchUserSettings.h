@@ -39,7 +39,7 @@ public:
 	TArray<FDirectoryPath> IgnoredPaths;
 
 	UPROPERTY(config, EditAnywhere, Category=General)
-	bool bShowMissingAssets = true;
+	bool bShowAssetsNeedingIndexing = true;
 
 	UPROPERTY(config, EditAnywhere, Category = General)
 	bool bAutoExpandAssets = true;
