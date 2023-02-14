@@ -2,6 +2,7 @@
 
 #include "XRCreativeVREditorMode.h"
 #include "Editor.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IVREditorModule.h"
 #include "IXRTrackingSystem.h"

@@ -1,8 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SelectionInteraction.h"
+#include "CollisionQueryParams.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Engine/HitResult.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
+
+#if WITH_EDITOR
+#	include "Editor.h"
+#endif
 
 
 void UXRCreativeSelectionInteraction::Initialize(UTypedElementSelectionSet* InSelectionSet, TUniqueFunction<bool()> InCanChangeSelectionCallback)

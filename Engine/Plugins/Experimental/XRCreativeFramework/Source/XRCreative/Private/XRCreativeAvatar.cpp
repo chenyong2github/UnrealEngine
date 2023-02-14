@@ -13,6 +13,7 @@
 #include "Engine/InputDelegateBinding.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/InputSettings.h"
 #include "GameFramework/PlayerController.h"
 #include "Haptics/HapticFeedbackEffect_Base.h"

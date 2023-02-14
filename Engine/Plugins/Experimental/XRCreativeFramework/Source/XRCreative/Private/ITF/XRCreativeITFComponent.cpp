@@ -29,6 +29,7 @@
 #	include "Editor/UnrealEdEngine.h"
 #	include "IVREditorModule.h"
 #	include "LevelEditorSubsystem.h"
+#	include "ScopedTransaction.h"
 #	include "SLevelViewport.h"
 #	include "UnrealEdGlobals.h"
 #	include "VREditorModeBase.h"

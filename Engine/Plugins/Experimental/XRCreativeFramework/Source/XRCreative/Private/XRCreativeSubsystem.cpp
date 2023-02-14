@@ -3,6 +3,7 @@
 #include "XRCreativeSubsystem.h"
 #include "XRCreativeSettings.h"
 #include "Misc/CoreDelegates.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #	include "IVREditorModule.h"

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "XRCreativeTeleporter.h"
-
 #include "MotionControllerComponent.h"
+#include "Components/StaticMeshComponent.h"
 
 
 // Sets default values
