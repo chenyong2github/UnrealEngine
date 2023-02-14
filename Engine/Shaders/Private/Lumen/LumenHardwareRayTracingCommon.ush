@@ -74,20 +74,6 @@ void name##_INTERNAL(uint3 DispatchThreadIndex, uint3 DispatchGroupId, uint Disp
 #define EVALUATE_MATERIAL_AND_DIRECT_LIGHTING 2
 #define EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING 3
 
-uint GetAtlasId(int Mode)
-{
-	uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
-	if (Mode == EVALUATE_MATERIAL)
-	{
-		AtlasId = IRRADIANCE_ATLAS_ID;
-	}
-	else if (Mode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
-	{
-		AtlasId = INDIRECT_IRRADIANCE_ATLAS_ID;
-	}
-	return AtlasId;
-}
-
 float CalcDitheredDistance(uint2 TraceCoord, float StartDistance, float EndDistance)
 {
 	const float Dither = InterleavedGradientNoise(TraceCoord, View.StateFrameIndexMod8);
@@ -253,7 +239,7 @@ FRayTracedLightingResult CreateRayTracedLightingResult(
 		Result.MaterialShaderIndex = MinimalRayResult.MaterialShaderIndex;
 		Result.Bookmark = MinimalRayResult.Bookmark;
 		Result.bIsRadianceCompleted = SurfaceCacheSample.bValid;
-		Result.Radiance = SurfaceCacheSample.Lighting;
+		Result.Radiance = SurfaceCacheSample.Radiance;
 	}
 
 	if (MinimalRayResult.bHit && Context.bCalculateHitVelocity)
@@ -382,40 +368,29 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 }
 
 FSurfaceCacheSample CalculateSurfaceCacheLighting(
-	in FRayDesc Ray,
-	in FRayTracedLightingContext Context,
+	FRayDesc Ray,
+	FRayTracedLightingContext Context,
 	float3 RayHitTranslatedWorldPosition,
 	float3 RayHitWorldNormal,
 	float HitDistance,
-	uint SceneInstanceIndex,
-	float3 DiffuseColor,
-	int LightingMode
+	uint SceneInstanceIndex
 )
 {
 	float InterpolateRadius = tan(Context.RayCone.SpreadAngle) * HitDistance;
-	// Mode and AtlasId enums are coupled
-	uint AtlasId = GetAtlasId(LightingMode);
 	// FarField proxies are less accurate
 	float SurfaceCacheBias = (Context.InstanceMask == RAY_TRACING_MASK_FAR_FIELD) ? 1000.0f : 20.0f;
 
 	const uint MeshCardsIndex = GetMeshCardsIndexFromSceneInstanceIndex(SceneInstanceIndex);
 
-	FSurfaceCacheSample SurfaceCacheSample = SampleLumenMeshCards(
+	FSurfaceCacheSample SurfaceCacheSample = EvaluateRayHitFromSurfaceCache(
 		Context.TraceCoord,
 		MeshCardsIndex,
 		RayHitTranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation), // LUMEN_LWC_TODO
 		RayHitWorldNormal,
 		InterpolateRadius,
 		SurfaceCacheBias,
-		Context.bHiResSurface,
-		AtlasId
+		Context.bHiResSurface
 	);
-
-	// Apply shading when evaluating the material
-	if (LightingMode != LIGHTING_FROM_SURFACE_CACHE)
-	{
-		SurfaceCacheSample.Lighting *= Diffuse_Lambert(DiffuseColor);
-	}
 
 	return SurfaceCacheSample;
 }
@@ -427,16 +402,14 @@ FSurfaceCacheSample SampleLumenMinimalRayHit(
 {
 	float3 RayHitWorldNormal = MinimalRayResult.HitNormal;
 	float3 RayHitTranslatedWorldPosition = Ray.Origin + Ray.Direction * MinimalRayResult.HitT;
-	float3 DiffuseColor = 0;
+
 	FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(
 		Ray,
 		Context,
 		RayHitTranslatedWorldPosition,
 		RayHitWorldNormal,
 		MinimalRayResult.HitT,
-		MinimalRayResult.SceneInstanceIndex,
-		DiffuseColor,
-		LIGHTING_FROM_SURFACE_CACHE);
+		MinimalRayResult.SceneInstanceIndex);
 
 	// The Surface Cache lighting was computed using the front face, don't leak to the backface
 	if (dot(Ray.Direction, MinimalRayResult.HitNormal) > 0 && !MinimalRayResult.bTwoSided)
@@ -444,11 +417,11 @@ FSurfaceCacheSample SampleLumenMinimalRayHit(
 		if (SurfaceCacheSample.bHeightfield)
 		{
 			// Reuse alpha from the other side of the heightfield, so that Landscape opacity works correctly when viewed from the other side
-			SurfaceCacheSample.Lighting = 0.0f;
+			SurfaceCacheSample.Radiance = 0.0f;
 		}
 		else
 		{
-			SurfaceCacheSample.Lighting = 0.0f;
+			SurfaceCacheSample.Radiance = 0.0f;
 			SurfaceCacheSample.Opacity = 1.0f;
 			SurfaceCacheSample.bValid = false;
 		}
@@ -583,12 +556,25 @@ float3 CalculateRayTracedLighting(
 	}
 	else
 	{
-		FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(Ray, Context, RayHitTranslatedWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, ApproxFullyRoughDiffuseColor, LightingMode);
-
 		// The Surface Cache lighting was computed using the front face, don't leak to the backface
 		if (dot(Ray.Direction, RayHitWorldNormal) <= 0 || (Payload.GetFlags() | RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED))
 		{
-			Radiance += SurfaceCacheSample.Lighting;
+			FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(
+				Ray,
+				Context,
+				RayHitTranslatedWorldPosition,
+				RayHitWorldNormal,
+				HitDistance,
+				SceneInstanceIndex);
+
+			if (LightingMode == EVALUATE_MATERIAL)
+			{
+				Radiance += Diffuse_Lambert(ApproxFullyRoughDiffuseColor) * (SurfaceCacheSample.DirectLighting + SurfaceCacheSample.IndirectLighting);
+			}
+			else
+			{
+				Radiance += Diffuse_Lambert(ApproxFullyRoughDiffuseColor) * SurfaceCacheSample.IndirectLighting;	
+			}
 		}
 	}
 	return Radiance;
