@@ -97,7 +97,7 @@ UE_NET_TEST(NetworkAutomationTest, TestExpectEQ)
 	UE_NET_EXPECT_EQ(751216, 751216);
 	UE_NET_EXPECT_EQ(UINT_MAX, UINT_MAX);
 
-#if !EXPLICIT_TESTS_TARGET
+#if !UE_NET_WITH_LOW_LEVEL_TESTS
 	SetSuppressWarningsFromSummary(true);
 	UE_NET_EXPECT_EQ_MSG(UINT_MAX, ~UINT_MAX, ExpectedExpectFailureMessage);
 #endif
@@ -108,7 +108,7 @@ UE_NET_TEST(NetworkAutomationTest, TestExpectNE)
 	UE_NET_EXPECT_NE(true, false);
 	UE_NET_EXPECT_NE(false, true);
 
-#if !EXPLICIT_TESTS_TARGET
+#if !UE_NET_WITH_LOW_LEVEL_TESTS
 	SetSuppressWarningsFromSummary(true);
 	UE_NET_EXPECT_NE_MSG(false, false, ExpectedExpectFailureMessage);
 #endif
@@ -120,7 +120,7 @@ UE_NET_TEST(NetworkAutomationTest, TestExpectLT)
 	UE_NET_EXPECT_LT(0x80000000U, ~0U);
 	UE_NET_EXPECT_LT(-1.0f, 2.0f);
 
-#if !EXPLICIT_TESTS_TARGET
+#if !UE_NET_WITH_LOW_LEVEL_TESTS
 	SetSuppressWarningsFromSummary(true);
 	UE_NET_EXPECT_LT_MSG(-1.0f, -2.0f, ExpectedExpectFailureMessage);
 #endif
@@ -136,7 +136,7 @@ UE_NET_TEST(NetworkAutomationTest, TestExpectLE)
 	UE_NET_EXPECT_LE(~0U, ~0U);
 	UE_NET_EXPECT_LE(2.0f, 2.0f);
 
-#if !EXPLICIT_TESTS_TARGET
+#if !UE_NET_WITH_LOW_LEVEL_TESTS
 	SetSuppressWarningsFromSummary(true);
 	UE_NET_EXPECT_LE_MSG(2.0f, 1.0f, ExpectedExpectFailureMessage);
 #endif
@@ -148,7 +148,7 @@ UE_NET_TEST(NetworkAutomationTest, TestExpectGT)
 	UE_NET_EXPECT_GT(~0U, 0x80000000U);
 	UE_NET_EXPECT_GT(2.0f, -1.0f);
 
-#if !EXPLICIT_TESTS_TARGET
+#if !UE_NET_WITH_LOW_LEVEL_TESTS
 	SetSuppressWarningsFromSummary(true);
 	UE_NET_EXPECT_GT_MSG(2.0f, 3.0f, ExpectedExpectFailureMessage);
 #endif
@@ -164,7 +164,7 @@ UE_NET_TEST(NetworkAutomationTest, TestExpectGE)
 	UE_NET_EXPECT_GE(~0U, ~0U);
 	UE_NET_EXPECT_GE(2.0f, 2.0f);
 
-#if !EXPLICIT_TESTS_TARGET
+#if !UE_NET_WITH_LOW_LEVEL_TESTS
 	SetSuppressWarningsFromSummary(true);
 	UE_NET_EXPECT_GE_MSG(2.0f, 3.0f, ExpectedExpectFailureMessage);
 #endif
@@ -174,7 +174,7 @@ UE_NET_TEST(NetworkAutomationTest, TestExpectTrue)
 {
 	UE_NET_EXPECT_TRUE(true);
 
-#if !EXPLICIT_TESTS_TARGET
+#if !UE_NET_WITH_LOW_LEVEL_TESTS
 	SetSuppressWarningsFromSummary(true);
 	UE_NET_EXPECT_TRUE_MSG(false, ExpectedExpectFailureMessage);
 #endif
@@ -184,7 +184,7 @@ UE_NET_TEST(NetworkAutomationTest, TestExpectFalse)
 {
 	UE_NET_EXPECT_FALSE(false);
 
-#if !EXPLICIT_TESTS_TARGET
+#if !UE_NET_WITH_LOW_LEVEL_TESTS
 	SetSuppressWarningsFromSummary(true);
 	UE_NET_EXPECT_FALSE_MSG(true, ExpectedExpectFailureMessage);
 #endif

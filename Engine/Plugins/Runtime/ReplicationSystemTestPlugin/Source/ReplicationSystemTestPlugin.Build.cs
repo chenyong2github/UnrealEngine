@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.IO;
 
 namespace UnrealBuildTool.Rules
@@ -53,6 +54,8 @@ namespace UnrealBuildTool.Rules
 					}
 					);
 			}
+
+			PrivateDefinitions.Add(String.Format("UE_NET_WITH_LOW_LEVEL_TESTS={0}", Target.ExplicitTestsTarget ? "1" : "0"));
 
 			SetupIrisSupport(Target);
 		}

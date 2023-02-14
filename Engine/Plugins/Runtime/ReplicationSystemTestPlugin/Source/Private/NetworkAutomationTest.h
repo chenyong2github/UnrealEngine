@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/AutomationTest.h"
 
-#if EXPLICIT_TESTS_TARGET
+#if UE_NET_WITH_LOW_LEVEL_TESTS
 #include "TestHarness.h"
 #endif
 
@@ -88,7 +88,7 @@ private:
 
 }
 
-#if EXPLICIT_TESTS_TARGET
+#if UE_NET_WITH_LOW_LEVEL_TESTS
 
 namespace UE::Net
 {

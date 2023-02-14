@@ -7,7 +7,7 @@
 #include "TestMessage.h"
 #include "Logging/LogVerbosity.h"
 
-#if EXPLICIT_TESTS_TARGET
+#if UE_NET_WITH_LOW_LEVEL_TESTS
 #include <catch2/catch_test_macros.hpp>
 #endif
 
@@ -112,7 +112,7 @@ Name(const T& Value, U ExpectedValue, const char* ValueText, const char* Expecte
 	} \
 }
 
-#if EXPLICIT_TESTS_TARGET
+#if UE_NET_WITH_LOW_LEVEL_TESTS
 
 #define UE_NET_TEST_MSG_INTERNAL(Message) \
 	UE::Net::FTestMessage PREPROCESSOR_JOIN(TestMessage, __LINE__); \
