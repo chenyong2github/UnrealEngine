@@ -9,6 +9,7 @@
 #include "RenderGraphResources.h"
 #include "Serialization/BulkData.h"
 #include "HairStrandsDefinitions.h"
+#include "HairAttributes.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHairStrands, Log, All);
 
@@ -464,6 +465,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	float  GetMaxRadius() const { return MaxRadius; }
 	FVector GetPositionOffset() const { return BoundingBox.GetCenter(); }
 	const FBox& GetBounds() const { return BoundingBox; }
+	bool HasAttributes(EHairAttribute In) const { return AttributeOffsets[uint32(In)] != 0xFFFFFFFF; }
 
 	uint32 CurveCount = 0;
 	uint32 PointCount = 0;

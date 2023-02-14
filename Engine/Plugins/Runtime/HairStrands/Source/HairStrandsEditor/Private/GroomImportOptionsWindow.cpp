@@ -211,7 +211,7 @@ static void AddAttribute(SVerticalBox::FScopedWidgetSlotArguments& Slot, FText A
 	];
 }
 
-FText GetHairAttributeText(EHairAttribute In)
+static FText GetHairAttributeLocText(EHairAttribute In)
 {
 	// If a new optional attribute is added, please add its UI/text description here
 	static_assert(uint32(EHairAttribute::Count) == 6);
@@ -412,7 +412,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		if (HasHairAttribute(Attributes, AttributeType))
 		{
 			SVerticalBox::FScopedWidgetSlotArguments SlotArg = VerticalSlot->InsertSlot(AttributeSlotIndex++);
-			AddAttribute(SlotArg, GetHairAttributeText(AttributeType));
+			AddAttribute(SlotArg, GetHairAttributeLocText(AttributeType));
 		}
 	}
 

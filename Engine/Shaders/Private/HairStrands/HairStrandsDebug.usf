@@ -62,15 +62,20 @@ void PrintLargeNumber(inout FShaderPrintContext Context, uint Value, FFontColor 
 
 void PrintPercentage(inout FShaderPrintContext Context, float Value, FFontColor InColor)
 {
-	const float fValue = clamp(Value * 100.f, 0.f, 99.9f);
-	if (fValue < 10.f)
+	const uint iValue = ceil(clamp(Value * 100.f, 0.f, 100.f));
+	if (iValue < 10)
+	{
+		Print(Context, TEXT("  "), InColor);
+		Print(Context, iValue, InColor, 1);
+	}
+	else if (iValue < 100)
 	{
 		Print(Context, TEXT(" "), InColor);
-		Print(Context, fValue, InColor, 3, 1);
+		Print(Context, iValue, InColor, 2);
 	}
 	else
 	{
-		Print(Context, fValue, InColor, 4, 1);
+		Print(Context, iValue, InColor, 3);
 	}
 	Print(Context, TEXT("% "), InColor);
 }
@@ -1147,13 +1152,18 @@ uint					InstanceCount_CardsOrMeshesShadowView;
 
 Buffer<uint>			Infos;
 
-uint					NameInfoCount;
-uint					NameCharacterCount;
-StructuredBuffer<uint2> NameInfos;
-Buffer<uint>			Names;
+uint					InstanceNameInfoCount;
+uint					InstanceNameCharacterCount;
+StructuredBuffer<uint2> InstanceNameInfos;
+Buffer<uint>			InstanceNames;
 Buffer<int>				InstanceAABB;
 
 float4					InstanceScreenSphereBound;
+
+uint					AttributeNameInfoCount;
+uint					AttributeNameCharacterCount;
+StructuredBuffer<uint2> AttributeNameInfos;
+Buffer<uint>			AttributeNames;
 
 struct FInstanceInfo
 {
@@ -1173,6 +1183,17 @@ struct FInstanceInfo
 	float ScreenSize;
 	uint ActivePointCount;
 	uint ActiveCurveCount;
+	uint Attributes;
+	float Radius;
+	float Density;
+	float TipScale;
+	float RootScale;
+	float Length;
+	float LengthScale;
+	bool Voxel;
+	bool Scatter;
+	bool RTGeometry;
+	bool StableRaster;
 
 	// Binding
 	uint UniqueTriangle;
@@ -1186,25 +1207,31 @@ struct FInstanceInfo
 
 FInstanceInfo ReadInstanceInfo(uint Index)
 {
-	const uint Index12 = Index * 12;
+	const uint Index16 = Index * 16;
 
 	uint4 Data0 = 0;
-	Data0.x = Infos[Index12 + 0];
-	Data0.y = Infos[Index12 + 1];
-	Data0.z = Infos[Index12 + 2];
-	Data0.w = Infos[Index12 + 3];
+	Data0.x = Infos[Index16 + 0];
+	Data0.y = Infos[Index16 + 1];
+	Data0.z = Infos[Index16 + 2];
+	Data0.w = Infos[Index16 + 3];
 
 	uint4 Data1 = 0;
-	Data1.x = Infos[Index12 + 4];
-	Data1.y = Infos[Index12 + 5];
-	Data1.z = Infos[Index12 + 6];
-	Data1.w = Infos[Index12 + 7];
+	Data1.x = Infos[Index16 + 4];
+	Data1.y = Infos[Index16 + 5];
+	Data1.z = Infos[Index16 + 6];
+	Data1.w = Infos[Index16 + 7];
 
 	uint4 Data2 = 0;
-	Data2.x = Infos[Index12 + 8];
-	Data2.y = Infos[Index12 + 9];
-	Data2.z = Infos[Index12 + 10];
-	Data2.w = Infos[Index12 + 11];
+	Data2.x = Infos[Index16 + 8];
+	Data2.y = Infos[Index16 + 9];
+	Data2.z = Infos[Index16 + 10];
+	Data2.w = Infos[Index16 + 11];
+
+	uint4 Data3 = 0;
+	Data3.x = Infos[Index16 + 12];
+	Data3.y = Infos[Index16 + 13];
+	Data3.z = Infos[Index16 + 14];
+	Data3.w = Infos[Index16 + 15];
 
 	FInstanceInfo Out = (FInstanceInfo)0;
 	Out.GroupIndex = (Data0.x >> 0) & 0xFF;
@@ -1229,11 +1256,28 @@ FInstanceInfo ReadInstanceInfo(uint Index)
 
 	Out.bIsVisibleInPrimaryView = Data2.x & 0x1;
 	Out.bIsVisibleInShadowView	= Data2.x & 0x2;
+	Out.Scatter					= Data2.x & 0x4;
+	Out.RTGeometry				= Data2.x & 0x8;
+	Out.StableRaster			= Data2.x & 0x10;
+	Out.Voxel					= Data2.x & 0x20;
 	Out.ScreenSize				= f16tof32((Data2.x>>16) & 0xFFFF);
 	Out.ActivePointCount		= Data2.y;
 	Out.ActiveCurveCount		= Data2.z;
+	Out.Attributes				= Data2.w;
+
+	Out.Radius					= f16tof32(Data3.x & 0xFFFF);
+	Out.Density					= f16tof32(Data3.x >> 16u);
+	Out.RootScale				= f16tof32(Data3.y & 0xFFFF);
+	Out.TipScale				= f16tof32(Data3.y >> 16u);
+	Out.Length					= f16tof32(Data3.z & 0xFFFF);
+	Out.LengthScale				= f16tof32(Data3.z >> 16u);
 
 	return Out;
+}
+
+bool HasAttribute(FInstanceInfo In, uint InAttributeIt)
+{
+	return (In.Attributes & (1u<< InAttributeIt)) != 0;
 }
 
 struct FNameInfo
@@ -1259,11 +1303,11 @@ FNameInfo FindNameInfo(uint PrimitiveID)
 {
 	FNameInfo Out = (FNameInfo)0;
 	Out.PrimitiveID = ~0;
-	for (uint It = 0; It < NameInfoCount; ++It)
+	for (uint It = 0; It < InstanceNameInfoCount; ++It)
 	{
-		if (NameInfos[It].x == PrimitiveID)
+		if (InstanceNameInfos[It].x == PrimitiveID)
 		{
-			return UnpackDebugNameInfo(NameInfos[It]);
+			return UnpackDebugNameInfo(InstanceNameInfos[It]);
 		}
 	}
 	return Out;
@@ -1272,11 +1316,29 @@ FNameInfo FindNameInfo(uint PrimitiveID)
 void PrintInstanceName(inout FShaderPrintContext Context, uint PrimitiveID, FFontColor InColor)
 {
 	const FNameInfo Info = FindNameInfo(PrimitiveID);
-	if (Info.PrimitiveID != ~0 && (Info.Length + Info.Offset) <= NameCharacterCount)
+	if (Info.PrimitiveID != ~0 && (Info.Length + Info.Offset) <= InstanceNameCharacterCount)
 	{
 		for (uint It = 0; It < Info.Length; ++It)
 		{
-			const uint Char = Names[It + Info.Offset];
+			const uint Char = InstanceNames[It + Info.Offset];
+			PrintSymbol(Context, Char, InColor);
+		}
+	}
+}
+
+void PrintAttributeName(inout FShaderPrintContext Context, uint AttributeIt, FFontColor InColor)
+{
+	if (AttributeIt >= AttributeNameInfoCount)
+	{
+		return;
+	}
+
+	const FNameInfo Info = UnpackDebugNameInfo(AttributeNameInfos[AttributeIt]);
+	if ((Info.Length + Info.Offset) <= AttributeNameCharacterCount)
+	{
+		for (uint It = 0; It < Info.Length; ++It)
+		{
+			const uint Char = AttributeNames[It + Info.Offset];
 			PrintSymbol(Context, Char, InColor);
 		}
 	}
@@ -1293,7 +1355,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	}
 
 	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 100));
-	// Draw legend
+	bool bShowAdvancedStrandsData = false;
 
 	// Draw totals
 	const uint TotalGroup = InstanceCount;
@@ -1317,7 +1379,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		PrintLargeNumber(Context,TotalStrandsCount, FontOrange);
 		Newline(Context);
 
-		Print(Context, TEXT("Total Strand Vertex : "), FontWhite);
+		Print(Context, TEXT("Total Strand Points : "), FontWhite);
 		PrintLargeNumber(Context,TotalVertexCount, FontSilver);
 		Newline(Context);
 	}
@@ -1337,11 +1399,14 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Print(Context, TEXT("| Shadow:"), FontSilver);
 		Print(Context, InstanceCount_CardsOrMeshesShadowView, FontYellow, 4);
 		Newline(Context);
+
+		bShowAdvancedStrandsData = AddCheckbox(Context, TEXT("Advanced"), false, FontSilver);
+		Newline(Context);
 	}
 	Newline(Context);
 
 	// Draw instance details
-	Print(Context, TEXT("   Group  LOD     Geometry Binding Sim RBF Clip Screen Strands             Vertex              Bind.Tri/Sect Vis. Shad. Name"));
+	Print(Context, TEXT("   Group  LOD     Geometry Binding Sim RBF Clip Screen Strands            Points             Bind.Tri/Sect Vis. Shad. Name"));
 	Newline(Context);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -1425,6 +1490,70 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		PrintInstanceName(Context, InstanceIndex, FontWhite);
 
 		Newline(Context);
+	}
+	Newline(Context);
+
+	// Optional advanced debugging
+	if (bShowAdvancedStrandsData)
+	{
+		// Attribute
+		Print(Context, TEXT("   Group  "), FontWhite);
+		Print(Context, TEXT("Voxel "), FontWhite);
+		Print(Context, TEXT("RT  "), FontWhite);
+		Print(Context, TEXT("Scatter "), FontWhite);
+		Print(Context, TEXT("Radius "), FontWhite);
+		Print(Context, TEXT("Root  "), FontWhite);
+		Print(Context, TEXT("Tip   "), FontWhite);
+		for (uint AttributeIt=0; AttributeIt < AttributeNameInfoCount; ++AttributeIt)
+		{
+			PrintAttributeName(Context, AttributeIt, FontWhite);
+			Print(Context, TEXT(" "));
+		}
+		Newline(Context);
+
+		for (uint StrandInstanceIndex = 0; StrandInstanceIndex < InstanceCount; ++StrandInstanceIndex)
+		{
+			const FInstanceInfo Info = ReadInstanceInfo(StrandInstanceIndex);
+			if (Info.GeometryType > 0)
+			{
+				continue;
+			}
+
+			// Index
+			Print(Context, StrandInstanceIndex, FontSilver, 2);
+			Print(Context, TEXT(" "));
+
+			// Group
+			Print(Context, Info.GroupIndex, FontYellow, 1);
+			Print(Context, TEXT("/"));
+			Print(Context, Info.GroupCount, FontYellow, 1);
+			Print(Context, TEXT("    "));
+
+			PrintBool(Context, Info.Voxel); Print(Context, TEXT("  "));
+			PrintBool(Context, Info.RTGeometry); 
+			PrintBool(Context, Info.Scatter); Print(Context, TEXT("    "));
+			Print(Context, Info.Radius, FontYellow, 5, 3); Print(Context, TEXT("  "));
+			Print(Context, Info.RootScale, FontYellow, 5, 3); Print(Context, TEXT(" "));
+			Print(Context, Info.TipScale, FontYellow, 5, 3); Print(Context, TEXT(" "));
+
+			for (uint AttributeIt = 0; AttributeIt < AttributeNameInfoCount; ++AttributeIt)
+			{
+				PrintBool(Context, HasAttribute(Info, AttributeIt));
+				const FNameInfo Info = UnpackDebugNameInfo(AttributeNameInfos[AttributeIt]);
+				if (Info.Length > 3)
+				{
+					const uint SpaceCount = Info.Length - 3u;
+					for (uint SpaceIt = 0; SpaceIt < SpaceCount; ++SpaceIt)
+					{
+						Print(Context, TEXT(" "));
+					}
+				}
+			}
+
+			PrintInstanceName(Context, StrandInstanceIndex, FontWhite);
+
+			Newline(Context);
+		}
 	}
 }
 #else  // PERMUTATION_OUTPUT_TYPE

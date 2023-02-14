@@ -807,15 +807,23 @@ class FHairDebugPrintInstanceCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, InstanceCount)
-		SHADER_PARAMETER(uint32, NameInfoCount)
-		SHADER_PARAMETER(uint32, NameCharacterCount)
+
 		SHADER_PARAMETER(uint32, InstanceCount_StrandsPrimaryView)
 		SHADER_PARAMETER(uint32, InstanceCount_StrandsShadowView)
 		SHADER_PARAMETER(uint32, InstanceCount_CardsOrMeshesPrimaryView)
 		SHADER_PARAMETER(uint32, InstanceCount_CardsOrMeshesShadowView)
 		SHADER_PARAMETER(FVector4f, InstanceScreenSphereBound)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, NameInfos)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint8>, Names)
+		// Instance names
+		SHADER_PARAMETER(uint32, InstanceNameInfoCount)
+		SHADER_PARAMETER(uint32, InstanceNameCharacterCount)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, InstanceNameInfos)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint8>, InstanceNames)
+		// Attribute names
+		SHADER_PARAMETER(uint32, AttributeNameInfoCount)
+		SHADER_PARAMETER(uint32, AttributeNameCharacterCount)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, AttributeNameInfos)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint8>, AttributeNames)
+
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, Infos)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, InstanceAABB)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
@@ -842,6 +850,8 @@ struct FHairDebugNameInfo
 	uint8  Pad0;
 };
 
+const TCHAR* GetHairAttributeText(EHairAttribute In);
+
 static void AddHairDebugPrintInstancePass(
 	FRDGBuilder& GraphBuilder, 
 	FGlobalShaderMap* ShaderMap,
@@ -863,15 +873,16 @@ static void AddHairDebugPrintInstancePass(
 	const uint32 MaxPrimitiveNameCount = 128u;
 	check(sizeof(FHairDebugNameInfo) == 8);
 
-	TArray<FHairDebugNameInfo> NameInfos;
-	TArray<uint8> Names;
-	Names.Reserve(MaxPrimitiveNameCount * 30u);
+	TArray<FHairDebugNameInfo> InstanceNameInfos;
+	TArray<uint8> InstanceNames;
+	InstanceNames.Reserve(MaxPrimitiveNameCount * 30u);
 
 	struct FInstanceInfos
 	{
 		FUintVector4 Data0;
 		FUintVector4 Data1;
 		FUintVector4 Data2;
+		FUintVector4 Data3;
 	};
 	TArray<FInstanceInfos> Infos;
 	Infos.Reserve(InstanceCount);
@@ -880,18 +891,18 @@ static void AddHairDebugPrintInstancePass(
 		const FHairStrandsInstance* AbstractInstance = Instances[InstanceIndex];
 		const FHairGroupInstance* Instance = static_cast<const FHairGroupInstance*>(AbstractInstance);
 
-		// Collect Names
+		// Collect InstanceNames
 		if (InstanceIndex < MaxPrimitiveNameCount)
 		{
 			const FString Name = *Instance->Debug.GroomAssetName;
-			const uint32 NameOffset = Names.Num();
+			const uint32 NameOffset = InstanceNames.Num();
 			const uint32 NameLength = Name.Len();
 			for (TCHAR C : Name)
 			{
-				Names.Add(uint8(C));
+				InstanceNames.Add(uint8(C));
 			}
 
-			FHairDebugNameInfo& NameInfo = NameInfos.AddDefaulted_GetRef();
+			FHairDebugNameInfo& NameInfo = InstanceNameInfos.AddDefaulted_GetRef();
 			NameInfo.PrimitiveID = InstanceIndex;
 			NameInfo.Length = NameLength;
 			NameInfo.Offset = NameOffset;
@@ -904,6 +915,7 @@ static void AddHairDebugPrintInstancePass(
 		FUintVector4 Data0 = { 0,0,0,0 };
 		FUintVector4 Data1 = { 0,0,0,0 };
 		FUintVector4 Data2 = { 0,0,0,0 };
+		FUintVector4 Data3 = { 0,0,0,0 };
 		Data0.X =
 			((Instance->Debug.GroupIndex & 0xFF)) |
 			((Instance->Debug.GroupCount & 0xFF) << 8) |
@@ -935,12 +947,35 @@ static void AddHairDebugPrintInstancePass(
 
 				{
 					Data2 = FUintVector4(0);
-					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsPrimaryView] ? 0x1u : 0u;
-					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsShadowView]  ? 0x2u : 0u;
+					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsPrimaryView] ? 0x1u  : 0u;
+					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsShadowView]  ? 0x2u  : 0u;
+					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.bScatterSceneLighting       ? 0x4u  : 0u;
+					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.bUseRaytracingGeometry      ? 0x8u  : 0u;
+					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.bUseStableRasterization     ? 0x10u : 0u;
+					Data2.X |= Instance->HairGroupPublicData->bSupportVoxelization                        ? 0x20u : 0u;
 					Data2.X |= uint32(FFloat16(Instance->HairGroupPublicData->ContinuousLODScreenSize).Encoded) << 16u;
+
 					Data2.Y = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
 					Data2.Z = Instance->HairGroupPublicData->GetActiveStrandsCurveCount();
+
+					if (Instance->Strands.Data)
+					{
+						for (uint32 AttributeIt=0; AttributeIt<uint32(EHairAttribute::Count); ++AttributeIt)
+						{
+							Data2.W |= Instance->Strands.Data->HasAttributes((EHairAttribute)AttributeIt) ? (1u<<AttributeIt) : 0u;
+						}
+					}
 				}
+				
+				Data3 = FUintVector4(0);
+				Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairRadius).Encoded;
+				Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairDensity).Encoded << 16u;
+
+				Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairRootScale).Encoded;
+				Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairTipScale).Encoded << 16u;
+
+				Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairLength).Encoded;
+				Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairLengthScale).Encoded << 16u;
 			}
 			break;
 		case EHairGeometryType::Cards:
@@ -966,26 +1001,48 @@ static void AddHairDebugPrintInstancePass(
 			}
 			break;
 		}
-		Infos.Add({Data0, Data1, Data2 });
+		Infos.Add({Data0, Data1, Data2, Data3 });
 	}
 
-	if (NameInfos.IsEmpty())
+	if (InstanceNameInfos.IsEmpty())
 	{
-		FHairDebugNameInfo& NameInfo = NameInfos.AddDefaulted_GetRef();
+		FHairDebugNameInfo& NameInfo = InstanceNameInfos.AddDefaulted_GetRef();
 		NameInfo.PrimitiveID = ~0;
 		NameInfo.Length = 4;
 		NameInfo.Offset = 0;
-		Names.Add(uint8('N'));
-		Names.Add(uint8('o'));
-		Names.Add(uint8('n'));
-		Names.Add(uint8('e'));
+		InstanceNames.Add(uint8('N'));
+		InstanceNames.Add(uint8('o'));
+		InstanceNames.Add(uint8('n'));
+		InstanceNames.Add(uint8('e'));
 	}	
+
+	TArray<FHairDebugNameInfo> AttributeNameInfos;
+	TArray<uint8> AttributeNames;
+	AttributeNames.Reserve(uint32(EHairAttribute::Count) * 30u);
+	for (uint32 AttributeIt = 0; AttributeIt < uint32(EHairAttribute::Count); ++AttributeIt)
+	{
+		const FString Name = GetHairAttributeText((EHairAttribute)AttributeIt);
+		FHairDebugNameInfo& NameInfo = AttributeNameInfos.AddDefaulted_GetRef();
+		NameInfo.PrimitiveID = ~0;
+		NameInfo.Length = Name.Len();
+		NameInfo.Offset = AttributeNames.Num();	
+		for (TCHAR C : Name)
+		{
+			AttributeNames.Add(uint8(C));
+		}
+	}
 
 	const uint32 InfoInBytes  = sizeof(FInstanceInfos);
 	const uint32 InfoIn4Bytes = sizeof(FInstanceInfos) / sizeof(uint8);
-	FRDGBufferRef NameBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceNames"), FRDGBufferDesc::CreateBufferDesc(1, Names.Num()), Names.GetData(), Names.Num());
-	FRDGBufferRef NameInfoBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceNameInfos"), NameInfos);	
 	FRDGBufferRef InfoBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceInfos"), FRDGBufferDesc::CreateBufferDesc(4, InfoIn4Bytes * Infos.Num()), Infos.GetData(), InfoInBytes * Infos.Num());
+
+	// Resource for instance names
+	FRDGBufferRef InstanceNameBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceNames"), FRDGBufferDesc::CreateBufferDesc(1, InstanceNames.Num()), InstanceNames.GetData(), InstanceNames.Num());
+	FRDGBufferRef InstanceNameInfoBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceNameInfos"), InstanceNameInfos);
+
+	// Resource for attribute names
+	FRDGBufferRef AttributeNameBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.AttributeNames"), FRDGBufferDesc::CreateBufferDesc(1, AttributeNames.Num()), AttributeNames.GetData(), AttributeNames.Num());
+	FRDGBufferRef AttributeNameInfoBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Hair.Debug.AttributeNameInfos"), AttributeNameInfos);
 
 	// Draw general information for all instances (one pass for all instances)
 	{
@@ -995,10 +1052,19 @@ static void AddHairDebugPrintInstancePass(
 		Parameters->InstanceCount_StrandsShadowView = InstanceCountPerType[HairInstanceCount_StrandsShadowView];
 		Parameters->InstanceCount_CardsOrMeshesPrimaryView = InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView];
 		Parameters->InstanceCount_CardsOrMeshesShadowView = InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView];
-		Parameters->NameInfoCount = NameInfos.Num();
-		Parameters->NameCharacterCount = Names.Num();
-		Parameters->Names = GraphBuilder.CreateSRV(NameBuffer, PF_R8_UINT);
-		Parameters->NameInfos = GraphBuilder.CreateSRV(NameInfoBuffer);
+
+		// Instance name
+		Parameters->InstanceNameInfoCount = InstanceNameInfos.Num();
+		Parameters->InstanceNameCharacterCount = InstanceNames.Num();
+		Parameters->InstanceNames = GraphBuilder.CreateSRV(InstanceNameBuffer, PF_R8_UINT);
+		Parameters->InstanceNameInfos = GraphBuilder.CreateSRV(InstanceNameInfoBuffer);
+
+		// Attribute name
+		Parameters->AttributeNameInfoCount = AttributeNameInfos.Num();
+		Parameters->AttributeNameCharacterCount = AttributeNames.Num();
+		Parameters->AttributeNames = GraphBuilder.CreateSRV(AttributeNameBuffer, PF_R8_UINT);
+		Parameters->AttributeNameInfos = GraphBuilder.CreateSRV(AttributeNameInfoBuffer);
+
 		Parameters->Infos = GraphBuilder.CreateSRV(InfoBuffer, PF_R32_UINT);
 		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
 		FHairDebugPrintInstanceCS::FPermutationDomain PermutationVector;

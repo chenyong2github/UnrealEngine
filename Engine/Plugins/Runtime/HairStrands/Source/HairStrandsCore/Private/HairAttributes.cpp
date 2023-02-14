@@ -46,3 +46,20 @@ void SetHairAttribute(uint32& Out, EHairAttribute InAttribute)
 { 
 	Out |= (1u << uint32(InAttribute)); 
 }
+
+const TCHAR* GetHairAttributeText(EHairAttribute In)
+{
+	// If a new optional attribute is added, please add its UI/text description here
+	static_assert(uint32(EHairAttribute::Count) == 6);
+
+	switch (In)
+	{
+	case EHairAttribute::RootUV:					return TEXT("RootUV");
+	case EHairAttribute::ClumpID:					return TEXT("ClumpID");
+	case EHairAttribute::PrecomputedGuideWeights:	return TEXT("ImportedGuideWeights");
+	case EHairAttribute::Color:						return TEXT("Color");
+	case EHairAttribute::Roughness:					return TEXT("Roughness");
+	case EHairAttribute::AO:						return TEXT("AO");
+	}
+	return TEXT("UNKNOWN");
+}
