@@ -228,7 +228,7 @@ public:
 };
 
 UENUM()
-enum ETestEnumAsByte
+enum ETestEnumAsByte : int32
 {
 	ETestEnumAsByte_Value,
 	ETestEnumAsByte_AnotherValue = 5,
