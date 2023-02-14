@@ -262,7 +262,7 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 	ViewInitOptions.BackgroundColor = FLinearColor::Black;
 
 	GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &ViewInitOptions);
-	FViewInfo* View = (FViewInfo*)ViewFamily.Views[0];
+	FSceneView* View = (FSceneView*)ViewFamily.Views[0];
 
 	if (!bRenderFinalColor)
 	{

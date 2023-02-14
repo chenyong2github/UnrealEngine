@@ -102,7 +102,7 @@ void FPixelStreamingHMD::DrawDistortionMesh_RenderThread(struct FHeadMountedDisp
 	float ClipSpaceQuadZ = 0.0f;
 	FMatrix QuadTexTransform = FMatrix::Identity;
 	FMatrix QuadPosTransform = FMatrix::Identity;
-	const FViewInfo& View = Context.View;
+	const FSceneView& View = Context.View;
 	const FIntRect SrcRect = View.UnscaledViewRect;
 
 	FRHICommandListImmediate& RHICmdList = Context.RHICmdList;
