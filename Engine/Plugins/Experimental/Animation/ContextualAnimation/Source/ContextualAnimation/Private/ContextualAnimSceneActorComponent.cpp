@@ -3,6 +3,7 @@
 #include "ContextualAnimSceneActorComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ContextualAnimSelectionCriterion.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -18,6 +19,9 @@
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveViewRelevance.h"
 #include "SceneManagement.h"
+#include "MotionWarpingComponent.h"
+#include "AnimNotifyState_MotionWarping.h"
+#include "RootMotionModifier.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimSceneActorComponent)
 
@@ -25,6 +29,13 @@
 TAutoConsoleVariable<int32> CVarContextualAnimIKDebug(TEXT("a.ContextualAnim.IK.Debug"), 0, TEXT("Draw Debug IK Targets"));
 TAutoConsoleVariable<float> CVarContextualAnimIKDrawDebugLifetime(TEXT("a.ContextualAnim.IK.DrawDebugLifetime"), 0, TEXT("Draw Debug Duration"));
 #endif
+
+void FContextualAnimRepData::IncrementRepCounter()
+{
+	static uint8 Counter = 0;
+	Counter = Counter < UINT8_MAX ? Counter + 1 : 0;
+	RepCounter = Counter;
+}
 
 UContextualAnimSceneActorComponent::UContextualAnimSceneActorComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -43,6 +54,9 @@ void UContextualAnimSceneActorComponent::GetLifetimeReplicatedProps(TArray< FLif
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
 	DOREPLIFETIME_WITH_PARAMS_FAST(UContextualAnimSceneActorComponent, RepBindings, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UContextualAnimSceneActorComponent, RepLateJoinData, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UContextualAnimSceneActorComponent, RepPlayAnimData, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UContextualAnimSceneActorComponent, RepTransitionData, Params);
 }
 
 bool UContextualAnimSceneActorComponent::IsOwnerLocallyControlled() const
@@ -53,6 +67,307 @@ bool UContextualAnimSceneActorComponent::IsOwnerLocallyControlled() const
 	}
 
 	return false;
+}
+
+void UContextualAnimSceneActorComponent::PlayAnimation_Internal(UAnimSequenceBase* Animation, float StartTime, bool bSyncPlaybackTime)
+{
+	TGuardValue<bool> UpdateGuard(bGuardAnimEvents, true);
+
+	if (UAnimInstance* AnimInstance = UContextualAnimUtilities::TryGetAnimInstance(GetOwner()))
+	{
+		UE_LOG(LogContextualAnim, VeryVerbose, TEXT("%-21s \t\tUContextualAnimSceneActorComponent::PlayAnimation_Internal Playing Animation. Actor: %s Anim: %s StartTime: %f bSyncPlaybackTime: %d"),
+			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *GetNameSafe(Animation), StartTime, bSyncPlaybackTime);
+
+		//@TODO: Add support for dynamic montage
+		UAnimMontage* AnimMontage = Cast<UAnimMontage>(Animation);
+		AnimInstance->Montage_Play(AnimMontage, 1.f, EMontagePlayReturnType::MontageLength, StartTime);
+
+		AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneActorComponent::OnMontageBlendingOut);
+
+		if (bSyncPlaybackTime)
+		{
+			if (FAnimMontageInstance* MontageInstance = AnimInstance->GetActiveMontageInstance())
+			{
+				if (const FContextualAnimSceneBinding* SyncLeader = Bindings.GetSyncLeader())
+				{
+					if (SyncLeader->GetActor() != GetOwner())
+					{
+						FAnimMontageInstance* LeaderMontageInstance = SyncLeader->GetAnimMontageInstance();
+						if (LeaderMontageInstance && LeaderMontageInstance->Montage == Bindings.GetAnimTrackFromBinding(*SyncLeader).Animation && MontageInstance->GetMontageSyncLeader() == nullptr)
+						{
+							UE_LOG(LogContextualAnim, VeryVerbose, TEXT("%-21s \t\tUContextualAnimSceneActorComponent::PlayAnimation_Internal Syncing Animation. Actor: %s Anim: %s StartTime: %f bSyncPlaybackTime: %d"),
+								*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *GetNameSafe(Animation), StartTime, bSyncPlaybackTime);
+
+							MontageInstance->MontageSync_Follow(LeaderMontageInstance);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetOwner());
+	if (SkelMeshComp && !SkelMeshComp->OnTickPose.IsBoundToObject(this))
+	{
+		SkelMeshComp->OnTickPose.AddUObject(this, &UContextualAnimSceneActorComponent::OnTickPose);
+	}
+}
+
+void UContextualAnimSceneActorComponent::AddOrUpdateWarpTargets(int32 SectionIdx, int32 AnimSetIdx)
+{
+	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByActor(GetOwner()))
+	{
+		const UContextualAnimSceneAsset* Asset = Bindings.GetSceneAsset();
+		check(Asset);
+
+		const TArray<FContextualAnimSetPivotDefinition>& PivotDefs = Asset->GetAnimSetPivotDefinitionsInSection(SectionIdx);
+		if (PivotDefs.Num() > 0)
+		{
+			const FContextualAnimTrack* AnimTrack = Asset->GetAnimTrack(SectionIdx, AnimSetIdx, Bindings.GetRoleFromBinding(*Binding));
+			check(AnimTrack);
+
+			for (const FContextualAnimSetPivotDefinition& PivotDef : PivotDefs)
+			{
+				FContextualAnimSetPivot ScenePivot;
+				if (Bindings.CalculateAnimSetPivot(PivotDef, ScenePivot))
+				{
+					if (UMotionWarpingComponent* MotionWarpComp = GetOwner()->FindComponentByClass<UMotionWarpingComponent>())
+					{
+						const float Time = AnimTrack->GetSyncTimeForWarpSection(PivotDef.Name);
+						const FTransform TransformRelativeToScenePivot = Asset->GetAlignmentTransform(SectionIdx, AnimSetIdx, AnimTrack->AnimTrackIdx, PivotDef.Name, Time);
+						const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivot.Transform);
+						MotionWarpComp->AddOrUpdateWarpTargetFromTransform(PivotDef.Name, WarpTarget);
+					}
+				}
+			}
+		}
+	}
+}
+
+bool UContextualAnimSceneActorComponent::LateJoinContextualAnimScene(AActor* Actor, FName Role)
+{
+	if (!Bindings.IsValid())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("%-21s UContextualAnimSceneActorComponent::LateJoinContextualAnimScene Invalid Bindings"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()));
+		return false;
+	}
+
+	// Redirect the request to the leader if needed. Technically this is not necessary but the idea here is that the leader of the interaction handles all the events for that interaction
+	// E.g the leader tells other actors to play the animation.
+	if (const FContextualAnimSceneBinding* Leader = Bindings.GetSyncLeader())
+	{
+		if (Leader->GetActor() != GetOwner())
+		{
+			if (UContextualAnimSceneActorComponent* Comp = Leader->GetSceneActorComponent())
+			{
+				return Comp->LateJoinContextualAnimScene(Actor, Role);
+			}
+		}
+	}
+
+	UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::LateJoinContextualAnimScene Owner: %s Bindings Id: %d Section: %d Asset: %s. Requester: %s Role: %s"),
+		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), Bindings.GetID(), Bindings.GetSectionIdx(), *GetNameSafe(Bindings.GetSceneAsset()), *GetNameSafe(Actor), *Role.ToString());
+
+	// Play animation and set state on this new actor that is joining us and update bindings for everyone else
+	if (HandleLateJoin(Actor, Role))
+	{
+		// Replicate late join event. See OnRep_LateJoinData
+		if (GetOwner()->HasAuthority())
+		{
+			RepLateJoinData.Actor = Actor;
+			RepLateJoinData.Role = Role;
+			RepLateJoinData.IncrementRepCounter();
+			MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepLateJoinData, this);
+			GetOwner()->ForceNetUpdate();
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UContextualAnimSceneActorComponent::HandleLateJoin(AActor* Actor, FName Role)
+{
+	if (!Bindings.BindActorToRole(*Actor, Role))
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("%-21s UContextualAnimSceneActorComponent::HandleLateJoin Failed. Reason: Adding %s to the bindings for role: %s failed!"),
+			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(Actor), *Role.ToString());
+
+		return false;
+	}
+
+	// Update the bindings on all the other actors too
+	for (const FContextualAnimSceneBinding& OtherBinding : Bindings)
+	{
+		if (OtherBinding.GetActor() != GetOwner() && OtherBinding.GetActor() != Actor)
+		{
+			if (UContextualAnimSceneActorComponent* Comp = OtherBinding.GetSceneActorComponent())
+			{
+				Comp->Bindings.BindActorToRole(*Actor, Role);
+			}
+		}
+	}
+
+	// Play animation and set state on this new actor that is joining us
+	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByActor(Actor))
+	{
+		if (UContextualAnimSceneActorComponent* Comp = Binding->GetSceneActorComponent())
+		{
+			Comp->LateJoinScene(Bindings);
+		}
+	}
+	
+
+	return true;
+}
+
+void UContextualAnimSceneActorComponent::LateJoinScene(const FContextualAnimSceneBindings& InBindings)
+{
+	if (Bindings.IsValid())
+	{
+		UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::LateJoinScene Actor: %s Bindings Id: %d Section: %d Asset: %s. Leaving current scene"),
+			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), Bindings.GetID(), Bindings.GetSectionIdx(), *GetNameSafe(Bindings.GetSceneAsset()));
+
+		LeaveScene();
+	}
+
+	if (const FContextualAnimSceneBinding* Binding = InBindings.FindBindingByActor(GetOwner()))
+	{
+		UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::LateJoinScene Actor: %s Role: %s Bindings Id: %d Section: %d Asset: %s"),
+			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *InBindings.GetRoleFromBinding(*Binding).ToString(), InBindings.GetID(), InBindings.GetSectionIdx(), *GetNameSafe(InBindings.GetSceneAsset()));
+
+		Bindings = InBindings;
+
+		// For now when late joining an scene always play animation from first section
+		const int32 SectionIdx = 0;
+		const int32 AnimSetIdx = 0;
+		const FContextualAnimTrack* AnimTrack = Bindings.GetSceneAsset()->GetAnimTrack(SectionIdx, AnimSetIdx, Bindings.GetRoleFromBinding(*Binding));
+		check(AnimTrack);
+
+		PlayAnimation_Internal(AnimTrack->Animation, 0.f, false);
+
+		AddOrUpdateWarpTargets(SectionIdx, AnimSetIdx);
+
+		SetIgnoreCollisionWithOtherActors(true);
+
+		SetMovementState(AnimTrack->bRequireFlyingMode);
+	}
+}
+
+void UContextualAnimSceneActorComponent::OnRep_LateJoinData()
+{
+	// This is received by the leader of the interaction on every remote client
+
+	if (!Bindings.IsValid())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("%-21s UContextualAnimSceneActorComponent::OnRep_LateJoinData Invalid Bindings"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()));
+		return;
+	}
+
+	UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::OnRep_LateJoinData Owner: %s Bindings Id: %d Section: %d Asset: %s. Requester: %s Role: %s"),
+		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), Bindings.GetID(), Bindings.GetSectionIdx(), *GetNameSafe(Bindings.GetSceneAsset()), *GetNameSafe(RepLateJoinData.Actor), *RepLateJoinData.Role.ToString());
+
+	// Play animation and set state on this new actor that is joining us and update bindings for everyone else
+	HandleLateJoin(RepLateJoinData.Actor, RepLateJoinData.Role);
+}
+
+bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName SectionName)
+{
+	if (!GetOwner()->HasAuthority())
+	{
+		return false;
+	}
+
+	// Redirect the request to the leader if needed. Technically this is not necessary but the idea here is that the leader of the interaction handles all the events for that interaction
+	// E.g the leader tells other actors to play the animation.
+	if (const FContextualAnimSceneBinding* Leader = Bindings.GetSyncLeader())
+	{
+		if (Leader->GetActor() != GetOwner())
+		{
+			if (UContextualAnimSceneActorComponent* Comp = Leader->GetSceneActorComponent())
+			{
+				return Comp->TransitionContextualAnimScene(SectionName);
+			}
+		}
+	}
+
+	if (const FContextualAnimSceneBinding* OwnerBinding = Bindings.FindBindingByActor(GetOwner()))
+	{
+		const int32 SectionIdx = Bindings.GetSceneAsset()->GetSectionIndex(SectionName);
+		if (SectionIdx != INDEX_NONE)
+		{
+			UE_LOG(LogContextualAnim, Log, TEXT("%-21s UContextualAnimSceneActorComponent::TransitionTo Actor: %s SectionName: %s"),
+				*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *SectionName.ToString());
+
+			HandleTransitionEveryone(SectionIdx, 0);
+
+			RepTransitionData.SectionIdx = SectionIdx;
+			RepTransitionData.AnimSetIdx = 0;
+			RepTransitionData.IncrementRepCounter();
+			MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepTransitionData, this);
+			GetOwner()->ForceNetUpdate();
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UContextualAnimSceneActorComponent::HandleTransitionEveryone(int32 NewSectionIdx, int32 NewAnimSetIdx)
+{
+	// Update Bindings internal data and play new animation for the leader first
+	// Note that for now we always transition to the first set in the section. We could run selection criteria here too but keeping it simple for now
+	HandleTransitionSelf(NewSectionIdx, NewAnimSetIdx);
+
+	// And now the same for everyone else
+	for (const FContextualAnimSceneBinding& Binding : Bindings)
+	{
+		if (Binding.GetActor() != GetOwner())
+		{
+			if(UContextualAnimSceneActorComponent* Comp = Binding.GetSceneActorComponent())
+			{
+				Comp->HandleTransitionSelf(NewSectionIdx, NewAnimSetIdx);
+			}
+		}
+	}
+}
+
+void UContextualAnimSceneActorComponent::HandleTransitionSelf(int32 NewSectionIdx, int32 NewAnimSetIdx)
+{
+	// Update bindings internal data so it points to the new section and new anim set
+	Bindings.TransitionTo(NewSectionIdx, NewAnimSetIdx);
+
+	// Play animation
+	//@TODO: Add support for dynamic montage
+	const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(*Bindings.FindBindingByActor(GetOwner()));
+	PlayAnimation_Internal(AnimTrack.Animation, 0.f, true);
+
+	AddOrUpdateWarpTargets(NewSectionIdx, NewAnimSetIdx);
+}
+
+void UContextualAnimSceneActorComponent::PlayExternalAnimation(UAnimSequenceBase* Animation)
+{
+	if (!GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	PlayAnimation_Internal(Animation, 0.f, false);
+
+	RepPlayAnimData.Animation = Animation;
+	RepPlayAnimData.IncrementRepCounter();
+	MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepPlayAnimData, this);
+	GetOwner()->ForceNetUpdate();
+}
+
+void UContextualAnimSceneActorComponent::OnRep_PlayAnimData()
+{
+	UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::OnRep_PlayAnimData Owner: %s AnimToPlay: %s"),
+		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *GetNameSafe(RepPlayAnimData.Animation));
+
+	PlayAnimation_Internal(RepPlayAnimData.Animation, 0.f, false);
 }
 
 bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings)
@@ -78,9 +393,6 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 				}
 			}
 
-			//@TODO: Temp until we move the scene pivots to the bindings
-			UContextualAnimUtilities::BP_SceneBindings_AddOrUpdateWarpTargetsForBindings(InBindings);
-
 			RepBindings = InBindings;
 			MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepBindings, this);
 			GetOwner()->ForceNetUpdate();
@@ -90,9 +402,6 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 		else if (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
 		{
 			JoinScene(InBindings);
-
-			//@TODO: Temp until we move the scene pivots to the bindings
-			UContextualAnimUtilities::BP_SceneBindings_AddOrUpdateWarpTargetsForBindings(InBindings);
 
 			ServerStartContextualAnimScene(InBindings);
 
@@ -158,6 +467,14 @@ void UContextualAnimSceneActorComponent::ServerEarlyOutContextualAnimScene_Imple
 bool UContextualAnimSceneActorComponent::ServerEarlyOutContextualAnimScene_Validate()
 {
 	return true;
+}
+
+void UContextualAnimSceneActorComponent::OnRep_TransitionData()
+{
+	UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::OnRep_TransitionData Actor: %s"),
+		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()));
+
+	HandleTransitionEveryone(RepTransitionData.SectionIdx, RepTransitionData.AnimSetIdx);
 }
 
 void UContextualAnimSceneActorComponent::OnRep_Bindings()
@@ -340,47 +657,14 @@ void UContextualAnimSceneActorComponent::JoinScene(const FContextualAnimSceneBin
 		Bindings = InBindings;
 
 		const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(*Binding);
+		PlayAnimation_Internal(AnimTrack.Animation, 0.f, true);
 
-		if (UAnimInstance* AnimInstance = Binding->GetAnimInstance())
-		{
-			//@TODO: Add support for dynamic montage
-			UAnimMontage* AnimMontage = Cast<UAnimMontage>(AnimTrack.Animation);
-			AnimInstance->Montage_Play(AnimMontage, 1.f);
-
-			AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneActorComponent::OnMontageBlendingOut);
-		}
-
-		USkeletalMeshComponent* SkelMeshComp = Binding->GetSkeletalMeshComponent();
-		if (SkelMeshComp && !SkelMeshComp->OnTickPose.IsBoundToObject(this))
-		{
-			SkelMeshComp->OnTickPose.AddUObject(this, &UContextualAnimSceneActorComponent::OnTickPose);
-		}
+		AddOrUpdateWarpTargets(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx);
 
 		// Disable collision between actors so they can align perfectly
 		SetIgnoreCollisionWithOtherActors(true);
 
-		if (UCharacterMovementComponent* MovementComp = GetOwner()->FindComponentByClass<UCharacterMovementComponent>())
-		{
-			// Save movement state before the interaction starts so we can restore it when it ends
-			CharacterPropertiesBackup.bIgnoreClientMovementErrorChecksAndCorrection = MovementComp->bIgnoreClientMovementErrorChecksAndCorrection;
-			CharacterPropertiesBackup.bAllowPhysicsRotationDuringAnimRootMotion = MovementComp->bAllowPhysicsRotationDuringAnimRootMotion;
-			CharacterPropertiesBackup.bUseControllerDesiredRotation = MovementComp->bUseControllerDesiredRotation;
-			CharacterPropertiesBackup.bOrientRotationToMovement = MovementComp->bOrientRotationToMovement;
-
-			// Disable movement correction.
-			MovementComp->bIgnoreClientMovementErrorChecksAndCorrection = true;
-
-			// Prevent physics rotation. During the interaction we want to be fully root motion driven
-			MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = false;
-			MovementComp->bUseControllerDesiredRotation = false;
-			MovementComp->bOrientRotationToMovement = false;
-
-			//@TODO: Temp solution that assumes these interactions are not locally predicted and that is ok to be in flying mode during the entire animation
-			if (AnimTrack.bRequireFlyingMode && MovementComp->MovementMode != MOVE_Flying)
-			{
-				MovementComp->SetMovementMode(MOVE_Flying);
-			}
-		}
+		SetMovementState(AnimTrack.bRequireFlyingMode);
 
 		OnJoinedSceneDelegate.Broadcast(this);
 	}
@@ -421,20 +705,7 @@ void UContextualAnimSceneActorComponent::LeaveScene()
 		// We might want to add a more robust mechanism to avoid overriding a request to disable collision that may have been set by another system
 		SetIgnoreCollisionWithOtherActors(false);
 
-		if (UCharacterMovementComponent* MovementComp = GetOwner()->FindComponentByClass<UCharacterMovementComponent>())
-		{
-			// Restore movement state
-			MovementComp->bIgnoreClientMovementErrorChecksAndCorrection = CharacterPropertiesBackup.bIgnoreClientMovementErrorChecksAndCorrection;
-			MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = CharacterPropertiesBackup.bAllowPhysicsRotationDuringAnimRootMotion;
-			MovementComp->bUseControllerDesiredRotation = CharacterPropertiesBackup.bUseControllerDesiredRotation;
-			MovementComp->bOrientRotationToMovement = CharacterPropertiesBackup.bOrientRotationToMovement;
-
-			//@TODO: Temp solution that assumes these interactions are not locally predicted and that is ok to be in flying mode during the entire animation
-			if (AnimTrack.bRequireFlyingMode && MovementComp->MovementMode == MOVE_Flying)
-			{
-				MovementComp->SetMovementMode(MOVE_Walking);
-			}
-		}
+		RestoreMovementState(AnimTrack.bRequireFlyingMode);
 
 		OnLeftSceneDelegate.Broadcast(this);
 
@@ -442,27 +713,73 @@ void UContextualAnimSceneActorComponent::LeaveScene()
 	}
 }
 
+void UContextualAnimSceneActorComponent::SetMovementState(bool bRequireFlyingMode)
+{
+	if (UCharacterMovementComponent* MovementComp = GetOwner()->FindComponentByClass<UCharacterMovementComponent>())
+	{
+		// Save movement state before the interaction starts so we can restore it when it ends
+		CharacterPropertiesBackup.bIgnoreClientMovementErrorChecksAndCorrection = MovementComp->bIgnoreClientMovementErrorChecksAndCorrection;
+		CharacterPropertiesBackup.bAllowPhysicsRotationDuringAnimRootMotion = MovementComp->bAllowPhysicsRotationDuringAnimRootMotion;
+		CharacterPropertiesBackup.bUseControllerDesiredRotation = MovementComp->bUseControllerDesiredRotation;
+		CharacterPropertiesBackup.bOrientRotationToMovement = MovementComp->bOrientRotationToMovement;
+
+		// Disable movement correction.
+		MovementComp->bIgnoreClientMovementErrorChecksAndCorrection = true;
+
+		// Prevent physics rotation. During the interaction we want to be fully root motion driven
+		MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = false;
+		MovementComp->bUseControllerDesiredRotation = false;
+		MovementComp->bOrientRotationToMovement = false;
+
+		//@TODO: Temp solution that assumes these interactions are not locally predicted and that is ok to be in flying mode during the entire animation
+		if (bRequireFlyingMode && MovementComp->MovementMode != MOVE_Flying)
+		{
+			MovementComp->SetMovementMode(MOVE_Flying);
+		}
+	}
+}
+
+void UContextualAnimSceneActorComponent::RestoreMovementState(bool bRequireFlyingMode)
+{
+	if (UCharacterMovementComponent* MovementComp = GetOwner()->FindComponentByClass<UCharacterMovementComponent>())
+	{
+		// Restore movement state
+		MovementComp->bIgnoreClientMovementErrorChecksAndCorrection = CharacterPropertiesBackup.bIgnoreClientMovementErrorChecksAndCorrection;
+		MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = CharacterPropertiesBackup.bAllowPhysicsRotationDuringAnimRootMotion;
+		MovementComp->bUseControllerDesiredRotation = CharacterPropertiesBackup.bUseControllerDesiredRotation;
+		MovementComp->bOrientRotationToMovement = CharacterPropertiesBackup.bOrientRotationToMovement;
+
+		//@TODO: Temp solution that assumes these interactions are not locally predicted and that is ok to be in flying mode during the entire animation
+		if (bRequireFlyingMode && MovementComp->MovementMode == MOVE_Flying)
+		{
+			MovementComp->SetMovementMode(MOVE_Walking);
+		}
+	}
+}
+
 void UContextualAnimSceneActorComponent::OnMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted)
 {
+	if (bGuardAnimEvents)
+	{
+		return;
+	}
+
 	UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::OnMontageBlendingOut Actor: %s Montage: %s bInterrupted: %d"),
 		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *GetNameSafe(Montage), bInterrupted);
 
 	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByActor(GetOwner()))
 	{
-		if (Bindings.GetAnimTrackFromBinding(*Binding).Animation == Montage)
+		LeaveScene();
+
+		if (GetOwner()->HasAuthority())
 		{
-			LeaveScene();
-
-			if (GetOwner()->HasAuthority())
+			// Rep empty bindings if we were the initiator of this interaction.
+			if (RepBindings.IsValid())
 			{
-				// Rep empty bindings if we were the initiator of this interaction.
-				if(RepBindings.IsValid())
-				{
-					RepBindings.Clear();
-					MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepBindings, this);
+				RepBindings.Clear();
+				MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepBindings, this);
 
-					GetOwner()->ForceNetUpdate();
-				}
+				GetOwner()->ForceNetUpdate();
 			}
 		}
 	}
@@ -470,31 +787,8 @@ void UContextualAnimSceneActorComponent::OnMontageBlendingOut(UAnimMontage* Mont
 
 void UContextualAnimSceneActorComponent::OnTickPose(class USkinnedMeshComponent* SkinnedMeshComponent, float DeltaTime, bool bNeedsValidRootMotion)
 {
-	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByActor(GetOwner()))
-	{
-		// Synchronize playback time with the leader
-		FAnimMontageInstance* MontageInstance = Binding->GetAnimMontageInstance();
-		if (MontageInstance && MontageInstance->GetMontageSyncLeader() == nullptr)
-		{
-			if (const FContextualAnimSceneBinding* SyncLeader = Bindings.GetSyncLeader())
-			{
-				if (SyncLeader->GetActor() != GetOwner())
-				{
-					if (FAnimMontageInstance* LeaderMontageInstance = SyncLeader->GetAnimMontageInstance())
-					{
-						if (LeaderMontageInstance->Montage == Bindings.GetAnimTrackFromBinding(*SyncLeader).Animation &&
-							MontageInstance->Montage == Bindings.GetAnimTrackFromBinding(*Binding).Animation)
-						{
-							MontageInstance->MontageSync_Follow(LeaderMontageInstance);
-						}
-					}
-				}
-			}
-		}
-
-		//@TODO: Check for LOD to prevent this update if the actor is too far away
-		UpdateIKTargets();
-	}
+	//@TODO: Check for LOD to prevent this update if the actor is too far away
+	UpdateIKTargets();
 }
 
 void UContextualAnimSceneActorComponent::UpdateIKTargets()

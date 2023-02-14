@@ -421,6 +421,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 	FTransform GetIKTargetTransformFromBinding(const FContextualAnimSceneBinding& Binding, const FName& TrackName, float Time) const;
 
 	const FContextualAnimSceneBinding* GetSyncLeader() const;
+	const FContextualAnimSceneBinding* GetPrimaryBinding() const;
 
 	bool IsValid() const;
 
@@ -429,6 +430,8 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 	void Clear();
 
 	void GenerateUniqueId();
+
+	void TransitionTo(int32 NewSectionIdx, int32 NewAnimSetIdx);
 
 private:
 

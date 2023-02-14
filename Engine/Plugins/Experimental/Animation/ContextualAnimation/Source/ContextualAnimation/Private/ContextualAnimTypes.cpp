@@ -387,7 +387,12 @@ void FContextualAnimSceneBindings::Clear()
 const FContextualAnimSceneBinding* FContextualAnimSceneBindings::GetSyncLeader() const
 {
 	//@TODO: Return first secondary binding as sync leader for now. This may have to be explicitly defined, either in the SceneAsset or when creating the bindings.
-	return Data.FindByPredicate([this](const FContextualAnimSceneBinding& Item) { return GetRoleFromBinding(Item) != SceneAsset->GetPrimaryRole(); });
+	return IsValid() ? Data.FindByPredicate([this](const FContextualAnimSceneBinding& Item) { return GetRoleFromBinding(Item) != SceneAsset->GetPrimaryRole(); }) : nullptr;
+}
+
+const FContextualAnimSceneBinding* FContextualAnimSceneBindings::GetPrimaryBinding() const
+{
+	return IsValid() ? Data.FindByPredicate([this](const FContextualAnimSceneBinding& Item) { return GetRoleFromBinding(Item) == SceneAsset->GetPrimaryRole(); }) : nullptr;
 }
 
 bool FContextualAnimSceneBindings::BindActorToRole(AActor& ActorRef, FName Role)
@@ -695,4 +700,23 @@ bool FContextualAnimSceneBindings::CalculateAnimSetPivot(const FContextualAnimSe
 	}
 
 	return false;
+}
+
+void FContextualAnimSceneBindings::TransitionTo(int32 NewSectionIdx, int32 NewAnimSetIdx)
+{
+	check(IsValid());
+
+	if (const FContextualAnimSet* AnimSet = SceneAsset->GetAnimSet(NewSectionIdx, NewAnimSetIdx))
+	{
+		SectionIdx = NewSectionIdx;
+		AnimSetIdx = NewAnimSetIdx;
+
+		for (FContextualAnimSceneBinding& Binding : Data)
+		{
+			if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SectionIdx, AnimSetIdx, GetRoleFromBinding(Binding)))
+			{
+				Binding.AnimTrackIdx = AnimTrack->AnimTrackIdx;
+			}
+		}
+	}
 }
