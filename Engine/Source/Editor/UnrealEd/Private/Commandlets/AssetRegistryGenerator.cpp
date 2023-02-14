@@ -4,6 +4,7 @@
 
 #include "Algo/Sort.h"
 #include "Algo/StableSort.h"
+#include "Algo/Unique.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/CookTagList.h"
 #include "CollectionManagerModule.h"
@@ -34,6 +35,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
+#include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -950,23 +952,32 @@ void FAssetRegistryGenerator::SetPreviousAssetRegistry(TUniquePtr<FAssetRegistry
 		for (const TPair<FName, const FAssetPackageData*>& Pair : PreviousPackageDataMap)
 		{
 			FName PackageName = Pair.Key;
-			if (!State.GetAssetPackageData(PackageName))
+			if (FPackageName::IsScriptPackage(WriteToString<256>(PackageName)))
 			{
 				continue;
 			}
+			FIterativelySkippedPackageUpdateData& UpdateData = PreviousPackagesToUpdate.FindOrAdd(PackageName);
+			bool bGenerated = false;
+
 			TArrayView<FAssetData const * const> PreviousAssetDatas = InPreviousState->GetAssetsByPackageName(PackageName);
-			TPair<TArray<FAssetData>, FAssetPackageData>& UpdateData = PreviousPackagesToUpdate.FindOrAdd(PackageName);
 			if (PreviousAssetDatas.Num() > 0)
 			{
-				TArray<FAssetData>& UpdateAssetDatas = UpdateData.Get<0>();
-				UpdateAssetDatas.Reserve(PreviousAssetDatas.Num());
+				UpdateData.AssetDatas.Reserve(PreviousAssetDatas.Num());
 				for (const FAssetData* AssetData : PreviousAssetDatas)
 				{
-					UpdateAssetDatas.Add(FAssetData(*AssetData));
+					bGenerated |= (AssetData->PackageFlags & PKG_CookGenerated) != 0;
+					UpdateData.AssetDatas.Emplace(*AssetData);
 				}
 			}
-			const FAssetPackageData& PreviousPackageData = *Pair.Value;
-			UpdateData.Get<1>() = PreviousPackageData;
+			UpdateData.PackageData = *Pair.Value;
+
+			// Keep the dependencies and referencers of generated packages
+			if (bGenerated)
+			{
+				FAssetIdentifier PackageIdentifier(PackageName);
+				InPreviousState->GetDependencies(PackageIdentifier, UpdateData.PackageDependencies, UE::AssetRegistry::EDependencyCategory::Package);
+				InPreviousState->GetReferencers(PackageIdentifier, UpdateData.PackageReferencers, UE::AssetRegistry::EDependencyCategory::Package);
+			}
 		}
 	}
 }
@@ -1095,16 +1106,22 @@ FAssetPackageData* FAssetRegistryGenerator::GetAssetPackageData(const FName& Pac
 
 void FAssetRegistryGenerator::UpdateKeptPackages()
 {
-	for (TPair<FName, TPair<TArray<FAssetData>, FAssetPackageData>>& Pair : PreviousPackagesToUpdate)
+	for (TPair<FName, FIterativelySkippedPackageUpdateData>& Pair : PreviousPackagesToUpdate)
 	{
-		for (const FAssetData& PreviousAssetData : Pair.Value.Get<0>())
+		for (const FAssetData& PreviousAssetData : Pair.Value.AssetDatas)
 		{
 			State.UpdateAssetData(PreviousAssetData);
 		}
-		FAssetPackageData& PackageData = *State.CreateOrGetAssetPackageData(Pair.Key);
-		FAssetPackageData& PreviousPackageData = Pair.Value.Get<1>();
-		PackageData.CookedHash = PreviousPackageData.CookedHash;
-		PackageData.DiskSize = PreviousPackageData.DiskSize;
+		*State.CreateOrGetAssetPackageData(Pair.Key) = Pair.Value.PackageData;
+
+		if (!Pair.Value.PackageDependencies.IsEmpty())
+		{
+			State.AddDependencies(FAssetIdentifier(Pair.Key), Pair.Value.PackageDependencies);
+		}
+		if (!Pair.Value.PackageReferencers.IsEmpty())
+		{
+			State.AddReferencers(FAssetIdentifier(Pair.Key), Pair.Value.PackageReferencers);
+		}
 	}
 }
 
@@ -1247,7 +1264,8 @@ void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages,
 	FGameDelegates::Get().GetAssignLayerChunkDelegate() = FAssignLayerChunkDelegate::CreateStatic(AssignLayerChunkDelegate);
 }
 
-void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifferenceOptions& Options, const FAssetRegistryState& PreviousState, FAssetRegistryDifference& OutDifference)
+void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifferenceOptions& Options,
+	const FAssetRegistryState& PreviousState, FAssetRegistryDifference& OutDifference)
 {
 	TArray<FName> ModifiedScriptPackages;
 	const TMap<FName, const FAssetPackageData*>& PreviousAssetPackageDataMap = PreviousState.GetAssetPackageDataMap();
@@ -1273,12 +1291,16 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 			}
 			else
 			{
-				OutDifference.IdenticalCookedPackages.Add(PackageName);
+				// Do not record identical script packages since we do not cook them
+				if (!FPackageName::IsScriptPackage(WriteToString<256>(PackageName)))
+				{
+					OutDifference.IdenticalCookedPackages.Add(PackageName);
+				}
 			}
 		}
 		else
 		{
-			if (FPackageName::IsScriptPackage(PackageName.ToString()))
+			if (FPackageName::IsScriptPackage(WriteToString<256>(PackageName)))
 			{
 				ModifiedScriptPackages.Add(PackageName);
 			}
@@ -1295,7 +1317,85 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 		const FAssetPackageData* CurrentPackageData = State.GetAssetPackageData(PackageName);
 		if (!CurrentPackageData)
 		{
-			OutDifference.RemovedPackages.Add(PackageName);
+			// If it's a generated package, never mark it as removed (that can only be handled by the generator)
+			// Mark it as modified if any of its dependencies are modified.
+			TConstArrayView<const FAssetData*> PreviousAssets = PreviousState.GetAssetsByPackageName(PackageName);
+			bool bGenerated = !PreviousAssets.IsEmpty() && (PreviousAssets[0]->PackageFlags & PKG_CookGenerated) != 0;
+			if (bGenerated)
+			{
+				bool bModified = true;
+
+				TArray<FAssetIdentifier> Dependencies;
+				TArray<FAssetIdentifier> Referencers;
+				PreviousState.GetDependencies(FAssetIdentifier(PackageName), Dependencies, UE::AssetRegistry::EDependencyCategory::Package);
+				PreviousState.GetReferencers(FAssetIdentifier(PackageName), Referencers, UE::AssetRegistry::EDependencyCategory::Package);
+				FName GeneratorName = Referencers.Num() == 1 ? Referencers[0].PackageName : NAME_None;
+				const FAssetPackageData* GeneratorData = !GeneratorName.IsNone() ? State.GetAssetPackageData(GeneratorName) : nullptr;
+				if (!GeneratorData)
+				{
+					UE_LOG(LogAssetRegistryGenerator, Error,
+						TEXT("Generator could not be found for package %s. This package will be missing from iterative cook results. Recook with a full cook."),
+						*PackageName.ToString());
+				}
+				else
+				{
+					FGeneratorPackageInfo& Info = OutDifference.PreviousGeneratorPackages.FindOrAdd(GeneratorName);
+					Info.Generated.Add(PackageName);
+
+					bModified = false;
+					for (const FAssetIdentifier& Dependency : Dependencies)
+					{
+						const FAssetPackageData* PreviousDependencyData = PreviousState.GetAssetPackageData(Dependency.PackageName);
+						const FAssetPackageData* CurrentDependencyData = State.GetAssetPackageData(Dependency.PackageName);
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
+						if (!PreviousDependencyData || !CurrentDependencyData ||
+							PreviousDependencyData->PackageGuid != CurrentDependencyData->PackageGuid)
+						{
+							bModified = true;
+							break;
+						}
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
+					}
+
+					Info.bGeneratedModified |= bModified;
+				}
+				if (bModified)
+				{
+					OutDifference.ModifiedPackages.Add(PackageName);
+				}
+				else
+				{
+					OutDifference.IdenticalCookedPackages.Add(PackageName);
+				}
+			}
+			else
+			{
+				OutDifference.RemovedPackages.Add(PackageName);
+			}
+		}
+	}
+
+	for (TPair<FName, FGeneratorPackageInfo>& Pair : OutDifference.PreviousGeneratorPackages)
+	{
+		FName GeneratorName = Pair.Key;
+		FGeneratorPackageInfo& Info = Pair.Value;
+		if (OutDifference.RemovedPackages.Contains(GeneratorName))
+		{
+			// If a Generator package has been removed, remove all generated
+			for (FName Generated : Info.Generated)
+			{
+				OutDifference.ModifiedPackages.Remove(Generated);
+				OutDifference.IdenticalCookedPackages.Remove(Generated);
+				OutDifference.RemovedPackages.Add(Generated);
+			}
+		}
+		else if (Info.bGeneratedModified)
+		{
+			// Even if not recursing modifications, if a GeneratedPackage has been modified, we need to recook the
+			// generator package, because the generator may change generation depending on modifications to generated.
+			OutDifference.IdenticalCookedPackages.Remove(GeneratorName);
+			OutDifference.IdenticalUncookedPackages.Remove(GeneratorName);
+			OutDifference.ModifiedPackages.Add(GeneratorName);
 		}
 	}
 
@@ -1313,12 +1413,20 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 		{
 			FName ModifiedPackage = ModifiedPackagesToRecurse[RecurseIndex];
 			TArray<FAssetIdentifier> Referencers;
-			State.GetReferencers(ModifiedPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
+			// Read referencers from the previous state (to find referencers of generated packages) and of the current state
+			// (to find referencers of editoronly packages)
+			PreviousState.GetReferencers(ModifiedPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package,
+				UE::AssetRegistry::EDependencyQuery::Hard);
+			State.GetReferencers(ModifiedPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package,
+				UE::AssetRegistry::EDependencyQuery::Hard);
+			Algo::Sort(Referencers, [](FAssetIdentifier& A, FAssetIdentifier& B) { return A.FastLess(B); });
+			Referencers.SetNum(Algo::Unique(Referencers));
 
 			for (const FAssetIdentifier& Referencer : Referencers)
 			{
 				FName ReferencerPackage = Referencer.PackageName;
-				if (!OutDifference.ModifiedPackages.Contains(ReferencerPackage) && (OutDifference.IdenticalCookedPackages.Contains(ReferencerPackage) || OutDifference.IdenticalUncookedPackages.Contains(ReferencerPackage)))
+				if (!OutDifference.ModifiedPackages.Contains(ReferencerPackage) &&
+					(OutDifference.IdenticalCookedPackages.Contains(ReferencerPackage) || OutDifference.IdenticalUncookedPackages.Contains(ReferencerPackage)))
 				{
 					// Remove from identical list
 					OutDifference.IdenticalCookedPackages.Remove(ReferencerPackage);
@@ -1332,17 +1440,61 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 	}
 }
 
-void FAssetRegistryGenerator::ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& RemovedPackages)
+void FAssetRegistryGenerator::ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& RemovedPackages,
+	TMap<FName, FGeneratorPackageInfo>& PreviousGeneratorPackages)
 {
+	PreviousGeneratorPackages.Reset();
+	TSet<FName> RemovedPackageSet;
+
 	for (const TPair<FName, const FAssetPackageData*>& PackagePair : PreviousState.GetAssetPackageDataMap())
 	{
 		FName PackageName = PackagePair.Key;
 		const FAssetPackageData* CurrentPackageData = State.GetAssetPackageData(PackageName);
 		if (!CurrentPackageData)
 		{
-			RemovedPackages.Add(PackageName);
+			// If it's a generated package, never mark it as removed (that can only be handled by the generator)
+			// Mark it as modified if its generator or any of its dependencies are modified.
+			TConstArrayView<const FAssetData*> PreviousAssets = PreviousState.GetAssetsByPackageName(PackageName);
+			bool bGenerated = !PreviousAssets.IsEmpty() && (PreviousAssets[0]->PackageFlags & PKG_CookGenerated);
+			if (bGenerated)
+			{
+				TArray<FAssetIdentifier> Referencers;
+				PreviousState.GetReferencers(FAssetIdentifier(PackageName), Referencers, UE::AssetRegistry::EDependencyCategory::Package);
+				FName GeneratorName = Referencers.Num() == 1 ? Referencers[0].PackageName : NAME_None;
+				const FAssetPackageData* GeneratorData = !GeneratorName.IsNone() ? State.GetAssetPackageData(GeneratorName) : nullptr;
+				if (!GeneratorData)
+				{
+					UE_LOG(LogAssetRegistryGenerator, Error,
+						TEXT("Generator could not be found for package %s. This package will be missing from iterative cook results. Recook with a full cook."),
+						*PackageName.ToString());
+				}
+				else
+				{
+					PreviousGeneratorPackages.FindOrAdd(GeneratorName).Generated.Add(PackageName);
+				}
+			}
+			else
+			{
+				RemovedPackageSet.Add(PackageName);
+			}
 		}
 	}
+
+	for (TMap<FName, FGeneratorPackageInfo>::TIterator Iter(PreviousGeneratorPackages); Iter; ++Iter)
+	{
+		// If a Generator package has been removed, remove all generated
+		FName GeneratorName = Iter->Key;
+		if (RemovedPackageSet.Contains(GeneratorName))
+		{
+			for (FName Generated : Iter->Value.Generated)
+			{
+				RemovedPackageSet.Add(Generated);
+			}
+			Iter.RemoveCurrent();
+		}
+	}
+
+	RemovedPackages = RemovedPackageSet.Array();
 }
 
 void FAssetRegistryGenerator::FinalizeChunkIDs(const TSet<FName>& InCookedPackages,
@@ -2533,10 +2685,8 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 }
 
 void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
-	FSavePackageResultStruct& SavePackageResult,
-	FCookTagList&& InArchiveCookTagList,
-	bool bIncludeOnlyDiskAssets
-	)
+	FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList, bool bIncludeOnlyDiskAssets,
+	TOptional<FAssetPackageData>&& OverrideAssetPackageData, TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies)
 {
 	LLM_SCOPE_BYTAG(Cooker_GeneratedAssetRegistry);
 	const FName PackageName = Package.GetFName();
@@ -2557,6 +2707,16 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 	}
 	// Create a record for assets that were created during PostLoad or cooking and are not in the global assetregistry
 	CreateOrFindAssetDatas(Package);
+
+	// Set Overrides for generated packages
+	if (OverrideAssetPackageData)
+	{
+		*AssetPackageData = MoveTemp(*OverrideAssetPackageData);
+	}
+	if (OverridePackageDependencies)
+	{
+		SetOverridePackageDependencies(PackageName, *OverridePackageDependencies);
+	}
 
 	if (bSaveSucceeded)
 	{
@@ -2585,6 +2745,19 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 		TEXT("Trying to update asset package flags in package '%s' that does not exist"), *PackageName.ToString());
 }
 
+void FAssetRegistryGenerator::SetOverridePackageDependencies(FName PackageName, TConstArrayView<FAssetDependency> OverridePackageDependencies)
+{
+	TArray<FAssetDependency, TInlineAllocator<10>> DependencyStructs;
+	DependencyStructs.Reserve(OverridePackageDependencies.Num());
+#if DO_CHECK
+	for (FAssetDependency Dependency : OverridePackageDependencies)
+	{
+		check(Dependency.Category == UE::AssetRegistry::EDependencyCategory::Package);
+	}
+#endif
+	State.SetDependencies(FAssetIdentifier(PackageName), OverridePackageDependencies, UE::AssetRegistry::EDependencyCategory::Package);
+}
+
 void FAssetRegistryGenerator::UpdateAssetRegistryData(UE::Cook::FMPCollectorServerMessageContext& Context,
 	UE::Cook::FAssetRegistryPackageMessage&& Message)
 {
@@ -2599,7 +2772,16 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(UE::Cook::FMPCollectorServ
 		State.UpdateAssetData(MoveTemp(AssetData), true /* bCreateIfNotExists */);
 	}
 	FAssetPackageData* AssetPackageData = GetAssetPackageData(PackageName);
+	if (Message.OverrideAssetPackageData)
+	{
+		*AssetPackageData = MoveTemp(*Message.OverrideAssetPackageData);
+	}
 	AssetPackageData->DiskSize = Message.DiskSize;
+
+	if (Message.OverridePackageDependencies)
+	{
+		SetOverridePackageDependencies(PackageName, *Message.OverridePackageDependencies);
+	}
 
 	CookTagsToAdd.Append(MoveTemp(Message.CookTags));
 }
@@ -2614,7 +2796,8 @@ FAssetRegistryReporterRemote::FAssetRegistryReporterRemote(FCookWorkerClient& In
 }
 
 void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
-	FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList, bool bIncludeOnlyDiskAssets)
+	FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList, bool bIncludeOnlyDiskAssets,
+	TOptional<FAssetPackageData>&& OverrideAssetPackageData, TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies)
 {
 	uint32 NewPackageFlags = 0;
 	int64 DiskSize = -1;
@@ -2638,6 +2821,8 @@ void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FPackageData& Package
 	Message.TargetPlatform = TargetPlatform;
 	Message.PackageFlags = NewPackageFlags;
 	Message.DiskSize = DiskSize;
+	Message.OverrideAssetPackageData = MoveTemp(OverrideAssetPackageData);
+	Message.OverridePackageDependencies = MoveTemp(OverridePackageDependencies);
 
 	// Add to the message all the AssetDatas in the package from the global AssetRegistry
 	IAssetRegistry::Get()->GetAssetsByPackageName(PackageName, Message.AssetDatas,
@@ -2685,6 +2870,22 @@ void FAssetRegistryPackageMessage::Write(FCbWriter& Writer) const
 
 	}
 	Writer.EndArray();
+	if (OverrideAssetPackageData)
+	{
+		Writer.BeginObject("P");
+		{
+			// Currently we only replicate Guid and ImportedClasses, since these are the only fields set by generated pacakges
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+			Writer << "G" << OverrideAssetPackageData->PackageGuid;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+			Writer << "C" << OverrideAssetPackageData->ImportedClasses;
+		}
+		Writer.EndObject();
+	}
+	if (OverridePackageDependencies)
+	{
+		Writer << "D" << *OverridePackageDependencies;
+	}
 	// We cast TMap<FSoftObjectPath,                     ValueType>
 	//      to TMap<FSoftObjectPathSerializationWrapper, ValueType>
 	// to workaround FSoftObjectPath's implicit constructor. See comment in CompactBinaryTCP.h
@@ -2710,6 +2911,34 @@ bool FAssetRegistryPackageMessage::TryRead(FCbObjectView Object)
 	{
 		FAssetData& AssetData = AssetDatas.Emplace_GetRef();
 		if (!AssetData.TryNetworkRead(ElementField, false /* bReadPackageName */, PackageName))
+		{
+			return false;
+		}
+	}
+	OverrideAssetPackageData.Reset();
+	FCbFieldView OverrideAssetPackageDataField = Object["P"];
+	if (OverrideAssetPackageDataField.HasValue())
+	{
+		OverrideAssetPackageData.Emplace();
+		// Currently we only replicate Guid and ImportedClasses, since these are the only fields set by generated pacakges
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+		if (!LoadFromCompactBinary(OverrideAssetPackageDataField["G"], OverrideAssetPackageData->PackageGuid))
+		{
+			return false;
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+		if (!LoadFromCompactBinary(OverrideAssetPackageDataField["C"], OverrideAssetPackageData->ImportedClasses))
+		{
+			return false;
+		}
+	}
+
+	OverridePackageDependencies.Reset();
+	FCbFieldView OverridePackageDependenciesField = Object["D"];
+	if (OverridePackageDependenciesField.HasValue())
+	{
+		OverridePackageDependencies.Emplace();
+		if (!LoadFromCompactBinary(OverridePackageDependenciesField, *OverridePackageDependencies))
 		{
 			return false;
 		}

@@ -27,6 +27,15 @@ template <typename FuncType> class TFunctionRef;
 class ICookPackageSplitter
 {
 public:
+	// Static API functions - these static functions are referenced by REGISTER_COOKPACKAGE_SPLITTER
+	// before creating an instance of the class.
+	/** Return whether the CookPackageSplitter subclass should handle the given SplitDataClass instance. */
+	static bool ShouldSplit(UObject* SplitData) { return false; }
+	/** Return DebugName for this SplitterClass in cook log messages. */
+	static FString GetSplitterDebugName() { return TEXT("<NoNameSpecified>"); }
+
+
+	// Virtual API functions - functions called from the cooker after creating the splitter.
 	virtual ~ICookPackageSplitter() {}
 
 	enum class ETeardown
@@ -36,6 +45,12 @@ public:
 	};
 	/** Do teardown actions after all packages have saved, or when the cook is cancelled. Always called before destruction. */
 	virtual void Teardown(ETeardown Status) {}
+
+	/**
+	 * If true, this splitter forces the Generator package objects it needs to remain referenced, and the cooker
+	 * should expect them to still be in memory after a garbage collect so long as the splitter is alive.
+	 */
+	virtual bool UseInternalReferenceToAvoidGarbageCollect() { return false; }
 
 	/** Data sent to the cooker to describe each desired generated package */
 	struct FGeneratedPackage
@@ -49,18 +64,6 @@ public:
 	private:
 		TOptional<bool> bCreateAsMap;
 	};
-	
-	/** 
-	 * Return whether the CookPackageSplitter subclass should handle the given SplitDataClass instance. 
-	 * Note that this is a static function referenced by macros, not part of the virtual api.
-	 */
-	static bool ShouldSplit(UObject* SplitData) { return false; }
-	
-	/**
-	 * If true, this splitter forces the Generator package objects it needs to remain referenced, and the cooker
-	 * should expect them to still be in memory after a garbage collect so long as the splitter is alive.
-	 */
-	virtual bool UseInternalReferenceToAvoidGarbageCollect() { return false; }
 
 	/** Return the list of packages to generate. */
 	virtual TArray<FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) = 0;
@@ -216,6 +219,7 @@ public:
 	virtual UClass* GetSplitDataClass() const = 0;
 	virtual bool ShouldSplitPackage(UObject* Object) const = 0;
 	virtual ICookPackageSplitter* CreateInstance(UObject* Object) const = 0;
+	virtual FString GetSplitterDebugName() const = 0;
 
 	static void ForEach(TFunctionRef<void(FRegisteredCookPackageSplitter*)> Func);
 
@@ -243,6 +247,7 @@ class PREPROCESSOR_JOIN(PREPROCESSOR_JOIN(SplitterClass, SplitDataClass), _Regis
 	virtual UClass* GetSplitDataClass() const override { return SplitDataClass::StaticClass(); } \
 	virtual bool ShouldSplitPackage(UObject* Object) const override { return SplitterClass::ShouldSplit(Object); } \
 	virtual ICookPackageSplitter* CreateInstance(UObject* SplitData) const override { return new SplitterClass(); } \
+	virtual FString GetSplitterDebugName() const override { return SplitterClass::GetSplitterDebugName(); } \
 }; \
 namespace PREPROCESSOR_JOIN(SplitterClass, SplitDataClass) \
 { \

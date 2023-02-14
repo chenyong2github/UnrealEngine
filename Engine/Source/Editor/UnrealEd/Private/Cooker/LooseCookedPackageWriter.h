@@ -71,6 +71,10 @@ public:
 	virtual FPackageWriterRecords::FPackage* ConstructRecord() override;
 
 	static EPackageExtension BulkDataTypeToExtension(FBulkDataInfo::EType BulkDataType);
+	static bool TryConvertUncookedFilenameToCookedRemappedPluginFilename(
+		FStringView FileName, TConstArrayView<TSharedRef<IPlugin>> InPluginsToRemap,
+		FStringView SandboxDirectory, FString& OutCookedFileName);
+
 private:
 
 	/** Version of the superclass's per-package record that includes our class-specific data. */
@@ -114,11 +118,17 @@ private:
 	void DeleteSandboxDirectory();
 	/** Searches the disk for all the cooked files in the sandbox. Stores results in PackageNameToCookedFiles. */
 	void GetAllCookedFiles();
+	void FindAndDeleteCookedFilesForPackages(TConstArrayView<FName> PackageNames);
 
 	FName ConvertCookedPathToPackageName(
 		const FString& SandboxRootDir, const FString& RelativeRootDir,
 		const FString& SandboxProjectDir, const FString& RelativeProjectDir,
 		const FString& CookedPath, FString& ScratchFileName, FString& ScratchPackageName) const;
+	FString ConvertPackageNameToCookedPath(
+		const FString& SandboxRootDir, const FString& RelativeRootDir,
+		const FString& SandboxProjectDir, const FString& RelativeProjectDir,
+		FStringView PackageName) const;
+
 	void RemoveCookedPackagesByPackageName(TArrayView<const FName> PackageNamesToRemove, bool bRemoveRecords);
 	void AsyncSave(FRecord& Record, const FCommitPackageInfo& Info);
 

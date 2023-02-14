@@ -4,6 +4,9 @@
 
 #include "UObject/PrimaryAssetId.h"
 
+class FCbFieldView;
+class FCbWriter;
+
 /** A structure defining a thing that can be reference by something else in the asset registry. Represents either a package of a primary asset id */
 struct FAssetIdentifier
 {
@@ -203,5 +206,33 @@ struct FAssetIdentifier
 		}
 		return ValueName.LexicalLess(Other.ValueName);
 	}
+
+	bool FastLess(const FAssetIdentifier& Other) const
+	{
+		if (PrimaryAssetType != Other.PrimaryAssetType)
+		{
+			return PrimaryAssetType.FastLess(Other.PrimaryAssetType);
+		}
+		if (PackageName != Other.PackageName)
+		{
+			return PackageName.FastLess(Other.PackageName);
+		}
+		if (ObjectName != Other.ObjectName)
+		{
+			return ObjectName.FastLess(Other.ObjectName);
+		}
+		return ValueName.FastLess(Other.ValueName);
+	}
+
+	COREUOBJECT_API void WriteCompactBinary(FCbWriter& Writer) const;
+private:
+	friend FCbWriter& operator<<(FCbWriter& Writer, const FAssetIdentifier& Identifier)
+	{
+		// Hidden friend function needs to be inline, but call a subfunction to hide the implementation
+		Identifier.WriteCompactBinary(Writer);
+		return Writer;
+	}
+	// Load Cannot be inline because we need to hide implementation and copy-by-value is invalid without definition
+	COREUOBJECT_API friend bool LoadFromCompactBinary(FCbFieldView Field, FAssetIdentifier& Identifier);
 };
 

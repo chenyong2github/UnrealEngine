@@ -328,7 +328,7 @@ void FPackageData::SetPlatformCooked(const ITargetPlatform* TargetPlatform, bool
 	}
 	if (bModified && !bHasAnyOthers)
 	{
-		PackageDatas.GetMonitor().OnFirstCookedPlatformAdded(*this);
+		PackageDatas.GetMonitor().OnFirstCookedPlatformAdded(*this, bSucceeded);
 	}
 }
 
@@ -1337,20 +1337,33 @@ void FPackageData::SetGeneratedOwner(FGeneratorPackage* InGeneratedOwner)
 	GeneratedOwner = InGeneratedOwner;
 }
 
-UE::Cook::FGeneratorPackage* FPackageData::CreateGeneratorPackage(const UObject* InSplitDataObject,
+UE::Cook::FGeneratorPackage* FPackageData::GetGeneratorPackage() const
+{
+	UE::Cook::FGeneratorPackage* Result = GeneratorPackage.Get();
+	if (Result && Result->IsInitialized())
+	{
+		return Result;
+	}
+	return nullptr;
+}
+
+UE::Cook::FGeneratorPackage& FPackageData::CreateGeneratorPackage(const UObject* InSplitDataObject,
 	ICookPackageSplitter* InCookPackageSplitterInstance)
 {
-	if (!GetGeneratorPackage())
+	if (!GeneratorPackage)
 	{
 		GeneratorPackage.Reset(new UE::Cook::FGeneratorPackage(*this, InSplitDataObject,
 			InCookPackageSplitterInstance));
 	}
 	else
 	{
+		GeneratorPackage->InitializeSave(InSplitDataObject, InCookPackageSplitterInstance);
 		// The earlier exit from SaveState should have reset the progress back to StartGeneratorSave or earlier
-		check(GetGeneratorPackage()->GetOwnerInfo().GetSaveState() <= FCookGenerationInfo::ESaveState::StartPopulate);
+		check(GeneratorPackage->GetOwnerInfo().GetSaveState() <= FCookGenerationInfo::ESaveState::StartPopulate);
 	}
-	return GetGeneratorPackage();
+	FGeneratorPackage* Result = GeneratorPackage.Get();
+	check(Result);
+	return *Result;
 }
 
 FConstructPackageData FPackageData::CreateConstructData()
@@ -1388,17 +1401,53 @@ namespace UE::Cook
 FGeneratorPackage::FGeneratorPackage(UE::Cook::FPackageData& InOwner, const UObject* InSplitDataObject,
 	ICookPackageSplitter* InCookPackageSplitterInstance)
 : OwnerInfo(InOwner, true /* bInGenerated */)
-, SplitDataObjectName(*InSplitDataObject->GetFullName())
 {
-	check(InCookPackageSplitterInstance);
-	CookPackageSplitterInstance.Reset(InCookPackageSplitterInstance);
-	SetOwnerPackage(InOwner.GetPackage());
+	InitializeSave(InSplitDataObject, InCookPackageSplitterInstance);
+}
+
+void FGeneratorPackage::InitializeSave(const UObject* InSplitDataObject,
+	ICookPackageSplitter* InCookPackageSplitterInstance)
+{
+	if (InCookPackageSplitterInstance)
+	{
+		if (IsInitialized())
+		{
+			check(CookPackageSplitterInstance.Get() == InCookPackageSplitterInstance);
+			check(SplitDataObjectName == FName(*InSplitDataObject->GetFullName()));
+		}
+		else
+		{
+			CookPackageSplitterInstance.Reset(InCookPackageSplitterInstance);
+			SplitDataObjectName = *InSplitDataObject->GetFullName();
+			SetOwnerPackage(GetOwner().GetPackage());
+		}
+	}
 }
 
 FGeneratorPackage::~FGeneratorPackage()
 {
+	if (!IsInitialized())
+	{
+		return;
+	}
+
 	ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown::Canceled);
 	ClearGeneratedPackages();
+	if (!PreviousGeneratedPackages.IsEmpty())
+	{
+		FPackageData& PackageData = GetOwner();
+		UCookOnTheFlyServer& COTFS =PackageData.GetPackageDatas().GetCookOnTheFlyServer();
+		TArray<const ITargetPlatform*, TInlineAllocator<1>> RequestedPlatforms;
+		PackageData.GetRequestedPlatforms(RequestedPlatforms);
+		for (FName PreviousPackageName : PreviousGeneratedPackages)
+		{
+			for (const ITargetPlatform* Platform : RequestedPlatforms)
+			{
+				COTFS.DeleteOutputForPackage(PreviousPackageName, Platform);
+			}
+		}
+		PreviousGeneratedPackages.Empty();
+	}
 }
 
 void FGeneratorPackage::ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown Status)
@@ -1412,6 +1461,7 @@ void FGeneratorPackage::ConditionalNotifyCompletion(ICookPackageSplitter::ETeard
 
 void FGeneratorPackage::ClearGeneratedPackages()
 {
+	check(IsInitialized());
 	for (FCookGenerationInfo& Info: PackagesToGenerate)
 	{
 		if (Info.PackageData)
@@ -1425,12 +1475,19 @@ void FGeneratorPackage::ClearGeneratedPackages()
 
 bool FGeneratorPackage::TryGenerateList(UObject* OwnerObject, FPackageDatas& PackageDatas)
 {
+	check(IsInitialized());
+
 	FPackageData& OwnerPackageData = GetOwner();
 	UPackage* LocalOwnerPackage = OwnerPackageData.GetPackage();
 	check(LocalOwnerPackage);
 	TArray<ICookPackageSplitter::FGeneratedPackage> GeneratorDatas =
 		CookPackageSplitterInstance->GetGenerateList(LocalOwnerPackage, OwnerObject);
 	PackagesToGenerate.Reset(GeneratorDatas.Num());
+	TArray<const ITargetPlatform*, TInlineAllocator<1>> RequestedPlatforms;
+	OwnerPackageData.GetRequestedPlatforms(RequestedPlatforms);
+	UCookOnTheFlyServer& COTFS = GetOwner().GetPackageDatas().GetCookOnTheFlyServer();
+	bool bHybridIterativeEnabled = COTFS.bHybridIterativeEnabled;
+
 	for (ICookPackageSplitter::FGeneratedPackage& SplitterData : GeneratorDatas)
 	{
 		if (!SplitterData.GetCreateAsMap().IsSet())
@@ -1470,9 +1527,39 @@ bool FGeneratorPackage::TryGenerateList(UObject* OwnerObject, FPackageDatas& Pac
 		GeneratedInfo.RelativePath = MoveTemp(SplitterData.RelativePath);
 		GeneratedInfo.GeneratedRootPath = MoveTemp(SplitterData.GeneratedRootPath);
 		GeneratedInfo.Dependencies = MoveTemp(SplitterData.Dependencies);
+		Algo::Sort(GeneratedInfo.Dependencies, FNameLexicalLess());
+		GeneratedInfo.Dependencies.SetNum(Algo::Unique(GeneratedInfo.Dependencies));
 		GeneratedInfo.SetIsCreateAsMap(bCreateAsMap);
 		PackageData->SetGeneratedOwner(this);
 		PackageData->SetWorkerAssignmentConstraint(FWorkerId::Local());
+
+		// Create the Guid from the GenerationHash and Dependencies
+		GeneratedInfo.CreateGuid();
+
+		if (!bHybridIterativeEnabled)
+		{
+			GeneratedInfo.IterativeCookValidateOrClear(*this, RequestedPlatforms);
+		}
+	}
+	if (!PreviousGeneratedPackages.IsEmpty())
+	{
+		TSet<FName> CurrentGeneratedPackageNames;
+		CurrentGeneratedPackageNames.Reserve(PackagesToGenerate.Num());
+		for (const FCookGenerationInfo& Info : PackagesToGenerate)
+		{
+			CurrentGeneratedPackageNames.Add(Info.PackageData->GetPackageName());
+		}
+		for (FName PreviousPackageName : PreviousGeneratedPackages)
+		{
+			if (!CurrentGeneratedPackageNames.Contains(PreviousPackageName))
+			{
+				for (const ITargetPlatform* TargetPlatform : RequestedPlatforms)
+				{
+					COTFS.DeleteOutputForPackage(PreviousPackageName, TargetPlatform);
+				}
+			}
+		}
+		PreviousGeneratedPackages.Empty();
 	}
 	RemainingToPopulate = GeneratorDatas.Num() + 1; // GeneratedPackaged plus one for the Generator
 	return true;
@@ -1480,6 +1567,8 @@ bool FGeneratorPackage::TryGenerateList(UObject* OwnerObject, FPackageDatas& Pac
 
 FCookGenerationInfo* FGeneratorPackage::FindInfo(const FPackageData& PackageData)
 {
+	check(IsInitialized());
+
 	if (&PackageData == &GetOwner())
 	{
 		return &OwnerInfo;
@@ -1500,6 +1589,7 @@ const FCookGenerationInfo* FGeneratorPackage::FindInfo(const FPackageData& Packa
 
 UObject* FGeneratorPackage::FindSplitDataObject() const
 {
+	check(IsInitialized());
 	FString ObjectPath = GetSplitDataObjectName().ToString();
 
 	// SplitDataObjectName is a FullObjectPath; strip off the leading <ClassName> in
@@ -1515,6 +1605,11 @@ UObject* FGeneratorPackage::FindSplitDataObject() const
 void FGeneratorPackage::PreGarbageCollect(FCookGenerationInfo& Info, TArray<UObject*>& GCKeepObjects,
 	TArray<UPackage*>& GCKeepPackages, TArray<FPackageData*>& GCKeepPackageDatas, bool& bOutShouldDemote)
 {
+	if (!IsInitialized())
+	{
+		return;
+	}
+
 	bOutShouldDemote = false;
 	check(Info.PackageData); // Caller validates this is non-null
 	if (Info.GetSaveState() > FCookGenerationInfo::ESaveState::CallPopulate)
@@ -1561,6 +1656,11 @@ void FGeneratorPackage::PreGarbageCollect(FCookGenerationInfo& Info, TArray<UObj
 
 void FGeneratorPackage::PostGarbageCollect()
 {
+	if (!IsInitialized())
+	{
+		return;
+	}
+
 	FPackageData& Owner = GetOwner();
 	if (Owner.GetState() == EPackageState::Save)
 	{
@@ -1618,10 +1718,11 @@ void FGeneratorPackage::PostGarbageCollect()
 UPackage* FGeneratorPackage::CreateGeneratedUPackage(FCookGenerationInfo& GeneratedInfo,
 	const UPackage* InOwnerPackage, const TCHAR* GeneratedPackageName)
 {
+	check(IsInitialized());
 	UPackage* GeneratedPackage = CreatePackage(GeneratedPackageName);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	GeneratedPackage->SetGuid(InOwnerPackage->GetGuid());
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	GeneratedPackage->SetGuid(GeneratedInfo.Guid);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	GeneratedPackage->SetPersistentGuid(InOwnerPackage->GetPersistentGuid());
 	GeneratedPackage->SetPackageFlags(PKG_CookGenerated);
 	GeneratedInfo.SetHasCreatedPackage(true);
@@ -1629,11 +1730,13 @@ UPackage* FGeneratorPackage::CreateGeneratedUPackage(FCookGenerationInfo& Genera
 	{
 		GeneratedPackage->SetLoadedByEditorPropertiesOnly(false);
 	}
+
 	return GeneratedPackage;
 }
 
 void FGeneratorPackage::SetPackageSaved(FCookGenerationInfo& Info, FPackageData& PackageData)
 {
+	check(IsInitialized());
 	if (Info.HasSaved())
 	{
 		return;
@@ -1649,11 +1752,13 @@ void FGeneratorPackage::SetPackageSaved(FCookGenerationInfo& Info, FPackageData&
 
 bool FGeneratorPackage::IsComplete() const
 {
+	check(IsInitialized());
 	return RemainingToPopulate == 0;
 }
 
 void FGeneratorPackage::ResetSaveState(FCookGenerationInfo& Info, UPackage* Package, EReleaseSaveReason ReleaseSaveReason)
 {
+	check(IsInitialized());
 	if (Info.GetSaveState() > FCookGenerationInfo::ESaveState::CallPopulate)
 	{
 		UObject* SplitObject = FindSplitDataObject();
@@ -1727,6 +1832,10 @@ void FGeneratorPackage::ResetSaveState(FCookGenerationInfo& Info, UPackage* Pack
 
 void FGeneratorPackage::UpdateSaveAfterGarbageCollect(const FPackageData& PackageData, bool& bInOutDemote)
 {
+	if (!IsInitialized())
+	{
+		return;
+	}
 	FCookGenerationInfo* Info = FindInfo(PackageData);
 	if (!Info)
 	{
@@ -1938,6 +2047,46 @@ void FBeginCacheObjects::EndRound(int32 NumPlatforms)
 	}
 }
 
+void FCookGenerationInfo::CreateGuid()
+{
+	// COOKPACKAGESPLITTERTODO: Add GenerationHash
+	FBlake3 Blake3;
+	IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
+	for (FName DependencyName : Dependencies)
+	{
+		TOptional<FAssetPackageData> DependencyData = AssetRegistry.GetAssetPackageDataCopy(DependencyName);
+		if (DependencyData)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+			Blake3.Update(&DependencyData->PackageGuid, sizeof(DependencyData->PackageGuid));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+		}
+	}
+	FBlake3Hash GeneratedHash = Blake3.Finalize();
+	const uint32* HashInts = reinterpret_cast<const uint32*>(GeneratedHash.GetBytes());
+	Guid = FGuid(HashInts[0], HashInts[1], HashInts[2], HashInts[3]);
+}
+
+void FCookGenerationInfo::IterativeCookValidateOrClear(FGeneratorPackage& Generator,
+	TConstArrayView<const ITargetPlatform*> RequestedPlatforms)
+{
+	// COOKPACKAGESPLITTERTODO: Test whether the Hash from the generator has changed
+	constexpr bool bInvalidated = false;
+	if (bInvalidated)
+	{
+		for (const ITargetPlatform* TargetPlatform : RequestedPlatforms)
+		{
+			FPackageData::FPlatformData* PlatformData = PackageData->FindPlatformData(TargetPlatform);
+			if (PlatformData && PlatformData->bCookAttempted)
+			{
+				PackageData->ClearCookProgress(TargetPlatform);
+				UCookOnTheFlyServer& COTFS = Generator.GetOwner().GetPackageDatas().GetCookOnTheFlyServer();
+				COTFS.DeleteOutputForPackage(PackageData->GetPackageName(), TargetPlatform);
+			}
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FPendingCookedPlatformData
 
@@ -2091,9 +2240,14 @@ int32 FPackageDataMonitor::GetNumInProgress() const
 	return NumInProgress;
 }
 
-int32 FPackageDataMonitor::GetNumCooked() const
+int32 FPackageDataMonitor::GetNumFailedCooked() const
 {
-	return NumCooked;
+	return NumFailedCooked;
+}
+
+int32 FPackageDataMonitor::GetNumSuccessfulCooked() const
+{
+	return NumSuccessfulCooked;
 }
 
 void FPackageDataMonitor::OnInProgressChanged(FPackageData& PackageData, bool bInProgress)
@@ -2108,12 +2262,14 @@ void FPackageDataMonitor::OnPreloadAllocatedChanged(FPackageData& PackageData, b
 	check(NumPreloadAllocated >= 0);
 }
 
-void FPackageDataMonitor::OnFirstCookedPlatformAdded(FPackageData& PackageData)
+void FPackageDataMonitor::OnFirstCookedPlatformAdded(FPackageData& PackageData, bool bSuccessful)
 {
 	if (!PackageData.GetMonitorIsCooked())
 	{
-		++NumCooked;
 		PackageData.SetMonitorIsCooked(true);
+		PackageData.SetMonitorIsSuccessfulCooked(bSuccessful);
+		int32& Stat = (bSuccessful ? NumSuccessfulCooked : NumFailedCooked);
+		++Stat;
 	}
 }
 
@@ -2121,8 +2277,10 @@ void FPackageDataMonitor::OnLastCookedPlatformRemoved(FPackageData& PackageData)
 {
 	if (PackageData.GetMonitorIsCooked())
 	{
-		--NumCooked;
+		int32& Stat = (PackageData.GetMonitorIsSuccessfulCooked() ? NumSuccessfulCooked : NumFailedCooked);
+		--Stat;
 		PackageData.SetMonitorIsCooked(false);
+		PackageData.SetMonitorIsSuccessfulCooked(false);
 	}
 }
 
@@ -2618,7 +2776,17 @@ FPackageData* FPackageDatas::UpdateFileName(FName PackageName)
 
 int32 FPackageDatas::GetNumCooked()
 {
-	return Monitor.GetNumCooked();
+	return Monitor.GetNumSuccessfulCooked() + Monitor.GetNumFailedCooked();
+}
+
+int32 FPackageDatas::GetNumSuccessfulCooked()
+{
+	return Monitor.GetNumSuccessfulCooked();
+}
+
+int32 FPackageDatas::GetNumFailedCooked()
+{
+	return Monitor.GetNumFailedCooked();
 }
 
 void FPackageDatas::GetCookedPackagesForPlatform(const ITargetPlatform* Platform, TArray<FPackageData*>& CookedPackages,

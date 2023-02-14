@@ -280,7 +280,7 @@ public:
 	UE_DEPRECATED(4.26, "Use GetDependencies that takes a UE::AssetRegistry::EDependencyCategory instead")
 	bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const;
 	/**
-	 * Gets a list of packages and searchable names that are referenced by the supplied package or name. (On disk references ONLY)
+	 * Appends a list of packages and searchable names that are referenced by the supplied package or name. (On disk references ONLY)
 	 *
 	 * @param AssetIdentifier	the name of the package/name for which to gather dependencies
 	 * @param OutDependencies	a list of things that are referenced by AssetIdentifier
@@ -293,7 +293,7 @@ public:
 	UE_DEPRECATED(4.26, "Use GetReferencers that takes a UE::AssetRegistry::EDependencyCategory instead")
 	bool GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType = EAssetRegistryDependencyType::All) const;
 	/**
-	 * Gets a list of packages and searchable names that reference the supplied package or name. (On disk references ONLY)
+	 * Appends a list of packages and searchable names that reference the supplied package or name. (On disk references ONLY)
 	 *
 	 * @param AssetIdentifier	the name of the package/name for which to gather dependencies
 	 * @param OutReferencers	a list of things that reference AssetIdentifier
@@ -459,6 +459,39 @@ public:
 
 	/** Removes the asset data from the lookup maps */
 	void RemoveAssetData(FAssetData* AssetData, bool bRemoveDependencyData, bool& bOutRemovedAssetData, bool& bOutRemovedPackageData);
+
+	/**
+	 * Clear all dependencies of the given category from the given AssetIdentifier (e.g. package).
+	 * Also clears the referencer link from each of the dependencies.
+	 */
+	void ClearDependencies(const FAssetIdentifier& AssetIdentifier, UE::AssetRegistry::EDependencyCategory Category);
+	/**
+	 * Add the given dependencies to the given AssetIdentifier (e.g. package).
+	 * Also adds a referencer link on each of the dependencies.
+	 */
+	void AddDependencies(const FAssetIdentifier& AssetIdentifier, TConstArrayView<FAssetDependency> Dependencies);
+	/**
+	 * Clears existing dependencies of the given Category(s) and assigns the input Dependencies. Gives an error if 
+	 * any elements of Dependencies are outside of the Category(s).
+	 */
+	void SetDependencies(const FAssetIdentifier& AssetIdentifier, TConstArrayView<FAssetDependency> Dependencies,
+		UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All);
+	/**
+	 * Clear all referencers of the given category from the given AssetIdentifier (e.g. package).
+	 * Also clears the dependency link from each of the referencers.
+	 */
+	void ClearReferencers(const FAssetIdentifier& AssetIdentifier, UE::AssetRegistry::EDependencyCategory Category);
+	/**
+	 * Add a dependency on the given AssetIdentifier (e.g. package) from each of the Referencers.
+	 * Also adds a referencer link to each referencer on the AssetIdentifer's node.
+	 */
+	void AddReferencers(const FAssetIdentifier& AssetIdentifier, TConstArrayView<FAssetDependency> Referencers);
+	/**
+	 * Clears existing referencers of the given Category(s) and assigns the input Referencers. Gives an error if
+	 * any elements of Referencers are outside of the Category(s).
+	 */
+	void SetReferencers(const FAssetIdentifier& AssetIdentifier, TConstArrayView<FAssetDependency> Referencers,
+		UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All);
 
 	/** Resets to default state */
 	void Reset();

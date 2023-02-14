@@ -14,6 +14,7 @@ class FWorldPartitionCookPackageSplitter : public FGCObject, public ICookPackage
 public:
 	//~ Begin of ICookPackageSplitter
 	static bool ShouldSplit(UObject* SplitData);
+	static FString GetSplitterDebugName() { return TEXT("FWorldPartitionCookPackageSplitter"); }
 
 	FWorldPartitionCookPackageSplitter();
 	virtual ~FWorldPartitionCookPackageSplitter();

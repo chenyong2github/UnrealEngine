@@ -87,6 +87,11 @@ struct FPrimaryAssetType
 		return Name.LexicalLess(Other.Name);
 	}
 
+	bool FastLess(const FPrimaryAssetType& Other) const
+	{
+		return Name.FastLess(Other.Name);
+	}
+
 private:
 	friend struct Z_Construct_UScriptStruct_FPrimaryAssetType_Statics;
 

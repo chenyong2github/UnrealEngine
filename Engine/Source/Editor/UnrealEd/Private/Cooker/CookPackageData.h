@@ -179,6 +179,8 @@ public:
 	FPackageData& operator=(const FPackageData& other) = delete;
 	FPackageData& operator=(FPackageData&& other) = delete;
 
+	FPackageDatas& GetPackageDatas() const { return PackageDatas; }
+
 	/** Return a copy of Package->GetName(). It is derived from the FileName if necessary, and is never modified. */
 	const FName& GetPackageName() const;
 	/**
@@ -459,6 +461,8 @@ public:
 	/** Get/Set the PackageDataMonitor flag that counts whether this PackageData has finished cooking. */
 	bool GetMonitorIsCooked() const { return static_cast<bool>(bMonitorIsCooked); }
 	void SetMonitorIsCooked(bool Value) { bMonitorIsCooked = Value != 0; }
+	bool GetMonitorIsSuccessfulCooked() const { return static_cast<bool>(bMonitorIsSuccessfulCooked); }
+	void SetMonitorIsSuccessfulCooked(bool Value) { bMonitorIsSuccessfulCooked = Value != 0; }
 
 	/** Remove all request data about the given platform from all fields in this PackageData. */
 	void OnRemoveSessionPlatform(const ITargetPlatform* Platform);
@@ -470,12 +474,12 @@ public:
 	void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
 	/** Create and return a GeneratorPackage helper object for a given CookPackageSplitter. */
-	FGeneratorPackage* CreateGeneratorPackage(const UObject* InSplitDataObject,
+	FGeneratorPackage& CreateGeneratorPackage(const UObject* InSplitDataObject,
 		ICookPackageSplitter* InCookPackageSplitterInstance);
 	/** Destroy GeneratorPackage helper object. */
 	void DestroyGeneratorPackage() { GeneratorPackage.Reset(); }
 	/** Get GeneratorPackage helper object. */
-	FGeneratorPackage* GetGeneratorPackage() const { return GeneratorPackage.Get(); }
+	FGeneratorPackage* GetGeneratorPackage() const;
 	/** Get whether the PackageData has done any necessary Generator steps and is ready for BeginCache calls. */
 	bool HasCompletedGeneration() const { return static_cast<bool>(bCompletedGeneration); }
 	/** Set whether the PackageData has done any necessary Generator steps and is ready for BeginCache calls. */
@@ -639,6 +643,7 @@ private:
 	uint32 bCookedPlatformDataCalled : 1;
 	uint32 bCookedPlatformDataComplete : 1;
 	uint32 bMonitorIsCooked : 1;
+	uint32 bMonitorIsSuccessfulCooked : 1;
 	uint32 bInitializedGeneratorSave : 1;
 	uint32 bCompletedGeneration : 1;
 	uint32 bGenerated : 1;
@@ -738,8 +743,19 @@ public:
 		KeepReferencedPackages.Append(InKeepReferencedPackages);
 	}
 
+	/** Create the Guid for this generated package, based on dependencies and GenerationHash. */
+	void CreateGuid();
+
+	/**
+	 * If the package has iterative results from a previous cook that were not invalidated by dependency changes,
+	 * test whether they need to be invalidated now and clear the results if so. Only called in legacy iterative;
+	 * incremental cooks handle invalidation by querying the TargetDomainDigest during the RequestCluster.
+	 */
+	void IterativeCookValidateOrClear(FGeneratorPackage& Generator, TConstArrayView<const ITargetPlatform*> RequestedPlatforms);
+
 public:
 	FBeginCacheObjects BeginCacheObjects;
+	FGuid Guid;
 	FString RelativePath;
 	FString GeneratedRootPath;
 	TArray<FName> Dependencies;
@@ -766,6 +782,8 @@ public:
 	FGeneratorPackage(UE::Cook::FPackageData& InOwner, const UObject* InSplitDataObject,
 		ICookPackageSplitter* InCookPackageSplitterInstance);
 	~FGeneratorPackage();
+	void InitializeSave(const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance);
+	bool IsInitialized() const { return CookPackageSplitterInstance.IsValid(); }
 	/** Clear references to owned generated packages, and mark those packages as orphaned */
 	void ClearGeneratedPackages();
 
@@ -773,9 +791,9 @@ public:
 	bool TryGenerateList(UObject* OwnerObject, FPackageDatas& PackageDatas);
 
 	/** Accessor for the packages to generate */
-	TArrayView<UE::Cook::FCookGenerationInfo> GetPackagesToGenerate() { return PackagesToGenerate; }
+	TArrayView<UE::Cook::FCookGenerationInfo> GetPackagesToGenerate() { check(IsInitialized()); return PackagesToGenerate; }
 	/** Return the GenerationInfo used to save the Generator's UPackage */
-	UE::Cook::FCookGenerationInfo& GetOwnerInfo() { return OwnerInfo; }
+	UE::Cook::FCookGenerationInfo& GetOwnerInfo() { check(IsInitialized()); return OwnerInfo; }
 	/** Return owner FPackageData. */
 	UE::Cook::FPackageData& GetOwner() { return *OwnerInfo.PackageData; }
 	/** Return the GenerationInfo for the given PackageData, or null if not found. */
@@ -785,7 +803,7 @@ public:
 	/** Return CookPackageSplitter. */
 	ICookPackageSplitter* GetCookPackageSplitterInstance() const { return CookPackageSplitterInstance.Get(); }
 	/** Return the SplitDataObject's FullObjectPath. */
-	const FName GetSplitDataObjectName() const { return SplitDataObjectName; }
+	const FName GetSplitDataObjectName() const { check(IsInitialized()); return SplitDataObjectName; }
 	/**
 	 * Find again the split object from its name, or return null if no longer in memory.
 	 * It may have been GC'd and reloaded since the last time we used it.
@@ -794,7 +812,7 @@ public:
 
 	void ResetSaveState(FCookGenerationInfo& Info, UPackage* Package, UE::Cook::EReleaseSaveReason ReleaseSaveReason);
 
-	int32& GetNextPopulateIndex() { return NextPopulateIndex; }
+	int32& GetNextPopulateIndex() { check(IsInitialized()); return NextPopulateIndex; }
 
 	/** Callbacks during garbage collection */
 	void PreGarbageCollect(FCookGenerationInfo& Info, TArray<UObject*>& GCKeepObjects,
@@ -813,6 +831,7 @@ public:
 
 	UPackage* GetOwnerPackage() const { return OwnerPackage.Get(); };
 	void SetOwnerPackage(UPackage* InPackage) { OwnerPackage = InPackage; }
+	void SetPreviousGeneratedPackages(TConstArrayView<FName> Packages) { PreviousGeneratedPackages = Packages; }
 
 private:
 	void ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown Status);
@@ -826,6 +845,7 @@ private:
 	/** Recorded list of packages to generate from the splitter, and data we need about them */
 	TArray<FCookGenerationInfo> PackagesToGenerate;
 	TWeakObjectPtr<UPackage> OwnerPackage;
+	TArray<FName> PreviousGeneratedPackages;
 
 	int32 NextPopulateIndex = 0;
 	int32 RemainingToPopulate = 0;
@@ -924,7 +944,8 @@ public:
 	int32 GetNumInProgress() const;
 	int32 GetNumPreloadAllocated() const;
 	/** Report the number of packages that have cooked any platform. Used by CookCommandlet progress reporting. */
-	int32 GetNumCooked() const;
+	int32 GetNumSuccessfulCooked() const;
+	int32 GetNumFailedCooked() const;
 	/**
 	 * Report the number of FPackageData that are currently marked as urgent.
 	 * Used to check if a Pump function needs to exit to handle urgent PackageData in other states.
@@ -941,7 +962,7 @@ public:
 	void OnInProgressChanged(FPackageData& PackageData, bool bInProgress);
 	void OnPreloadAllocatedChanged(FPackageData& PackageData, bool bPreloadAllocated);
 	/** Callback called from FPackageData when it has set a platform to CookAttempted=true and it does not have any others cooked. */
-	void OnFirstCookedPlatformAdded(FPackageData& PackageData);
+	void OnFirstCookedPlatformAdded(FPackageData& PackageData, bool bSuccessful);
 	/** Callback called from FPackageData when it has set a platform to CookAttempted=false and it does not have any others cooked. */
 	void OnLastCookedPlatformRemoved(FPackageData& PackageData);
 	/** Callback called from FPackageData when it has changed its urgency. */
@@ -954,7 +975,8 @@ private:
 	void TrackUrgentRequests(EPackageState State, int32 Delta);
 
 	int32 NumInProgress = 0;
-	int32 NumCooked = 0;
+	int32 NumFailedCooked = 0;
+	int32 NumSuccessfulCooked = 0;
 	int32 NumPreloadAllocated = 0;
 	int32 NumUrgentInState[static_cast<uint32>(EPackageState::Count)];
 };
@@ -1193,6 +1215,8 @@ public:
 
 	/** Report the number of packages that have cooked any platform. Used by cook commandlet progress reporting. */
 	int32 GetNumCooked();
+	int32 GetNumSuccessfulCooked();
+	int32 GetNumFailedCooked();
 	/**
 	 * Append to CookedPackages all packages that have cooked any platform, either successfully if
 	 * bGetSuccessfulCookedPackages is true and/or unsuccessfully if bGetFailedCookedPackages is true.

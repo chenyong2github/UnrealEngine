@@ -31,6 +31,8 @@
 #include "Misc/TrackedActivity.h"
 #include "PackageReader.h"
 #include "Serialization/ArrayReader.h"
+#include "Serialization/CompactBinarySerialization.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/CoreRedirects.h"
@@ -6712,6 +6714,53 @@ bool FAssetRegistryDependencyOptions::GetManageQuery(UE::AssetRegistry::FDepende
 		return true;
 	}
 	return false;
+}
+
+void FAssetDependency::WriteCompactBinary(FCbWriter& Writer) const
+{
+	Writer.BeginArray();
+	Writer << AssetId;
+	static_assert(sizeof(uint8) >= sizeof(Category));
+	Writer.AddInteger((uint8)Category);
+	static_assert(sizeof(uint8) >= sizeof(Properties));
+	Writer.AddInteger((uint8)Properties);
+	Writer.EndArray();
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FAssetDependency& Dependency)
+{
+	FCbArrayView ArrayField = Field.AsArrayView();
+	if (ArrayField.Num() < 3)
+	{
+		Dependency = FAssetDependency();
+		return false;
+	}
+	FCbFieldViewIterator Iter = ArrayField.CreateViewIterator();
+	if (!LoadFromCompactBinary(Iter++, Dependency.AssetId))
+	{
+		Dependency = FAssetDependency();
+		return false;
+	}
+	uint8 Value;
+	if (LoadFromCompactBinary(Iter++, Value))
+	{
+		Dependency.Category = (UE::AssetRegistry::EDependencyCategory)Value;
+	}
+	else
+	{
+		Dependency = FAssetDependency();
+		return false;
+	}
+	if (LoadFromCompactBinary(Iter++, Value))
+	{
+		Dependency.Properties = (UE::AssetRegistry::EDependencyProperty)Value;
+	}
+	else
+	{
+		Dependency = FAssetDependency();
+		return false;
+	}
+	return true;
 }
 
 namespace UE::AssetRegistry

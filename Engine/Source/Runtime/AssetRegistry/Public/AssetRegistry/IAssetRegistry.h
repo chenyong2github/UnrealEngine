@@ -24,6 +24,8 @@
 
 class FArchive;
 class FAssetRegistryState;
+class FCbFieldView;
+class FCbWriter;
 class FDependsNode;
 struct FARFilter;
 struct FARCompiledFilter;
@@ -97,6 +99,17 @@ struct FAssetDependency
 	{
 		return AssetId == Other.AssetId && Category == Other.Category && Properties == Other.Properties;
 	}
+
+	ASSETREGISTRY_API void WriteCompactBinary(FCbWriter& Writer) const;
+private:
+	friend FCbWriter& operator<<(FCbWriter& Writer, const FAssetDependency& Dependency)
+	{
+		// Hidden friend function needs to be inline, but call a subfunction to hide the implementation
+		Dependency.WriteCompactBinary(Writer);
+		return Writer;
+	}
+	// Load Cannot be inline because we need to hide implementation and copy-by-value is invalid without definition
+	ASSETREGISTRY_API friend bool LoadFromCompactBinary(FCbFieldView Field, FAssetDependency& Dependency);
 };
 
 UINTERFACE(MinimalApi, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))

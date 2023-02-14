@@ -452,7 +452,7 @@ void FAssetRegistryState::InitializeFromExisting(const FAssetDataMap& AssetDataM
 					TargetNode->SetIsDependencyListSorted(InCategory, false);
 					TargetNode->AddDependency(TargetDependency, InCategory, InFlags);
 					TargetDependency->SetIsReferencersSorted(false);
-					TargetDependency->AddReferencer(TargetDependency);
+					TargetDependency->AddReferencer(TargetNode);
 				}
 			});
 			TargetNode->SetIsDependenciesInitialized(true);
@@ -505,7 +505,9 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 			bRemoveAssetData = true;
 		}
 		else if (Options.bFilterAssetDataWithNoTags && AssetData->TagsAndValues.Num() == 0 &&
-			!FPackageName::IsLocalizedPackage(WriteToString<256>(AssetData->PackageName)))
+			!FPackageName::IsLocalizedPackage(WriteToString<256>(AssetData->PackageName)) &&
+			// TODO: Add a package flag for PKG_CookGenerator and check that here as well.
+			!(AssetData->PackageFlags & PKG_CookGenerated))
 		{
 			bRemoveAssetData = true;
 			bRemoveDependencyData = Options.bFilterDependenciesWithNoTags;
@@ -997,7 +999,7 @@ bool FAssetRegistryState::GetReferencers(const FAssetIdentifier& AssetIdentifier
 		TArray<FDependsNode*> DependencyNodes;
 		Node->GetReferencers(DependencyNodes, Category, Flags);
 
-		OutReferencers.Reserve(DependencyNodes.Num());
+		OutReferencers.Reserve(OutReferencers.Num() + DependencyNodes.Num());
 		for (FDependsNode* DependencyNode : DependencyNodes)
 		{
 			OutReferencers.Add(DependencyNode->GetIdentifier());
@@ -1032,6 +1034,107 @@ bool FAssetRegistryState::GetReferencers(const FAssetIdentifier& AssetIdentifier
 	{
 		return false;
 	}
+}
+
+void FAssetRegistryState::ClearDependencies(const FAssetIdentifier& AssetIdentifier,
+	UE::AssetRegistry::EDependencyCategory Category)
+{
+	FDependsNode* ReferencerNode = FindDependsNode(AssetIdentifier);
+	if (!ReferencerNode)
+	{
+		return;
+	}
+
+	TArray<FDependsNode*> OldDependencies;
+	ReferencerNode->GetDependencies(OldDependencies);
+	ReferencerNode->ClearDependencies(Category);
+
+	for (FDependsNode* DependencyNode : OldDependencies)
+	{
+		if (!ReferencerNode->ContainsDependency(DependencyNode))
+		{
+			DependencyNode->RemoveReferencer(ReferencerNode);
+		}
+	}
+}
+
+void FAssetRegistryState::AddDependencies(const FAssetIdentifier& AssetIdentifier,
+	TConstArrayView<FAssetDependency> Dependencies)
+{
+	if (Dependencies.IsEmpty())
+	{
+		return;
+	}
+	FDependsNode* ReferencerNode = CreateOrFindDependsNode(AssetIdentifier);
+	for (const FAssetDependency& Dependency : Dependencies)
+	{
+		FDependsNode* DependencyNode = CreateOrFindDependsNode(Dependency.AssetId);
+		ReferencerNode->AddDependency(DependencyNode, Dependency.Category, Dependency.Properties);
+		DependencyNode->AddReferencer(ReferencerNode);
+	}
+}
+
+void FAssetRegistryState::SetDependencies(const FAssetIdentifier& AssetIdentifier,
+	TConstArrayView<FAssetDependency> Dependencies, UE::AssetRegistry::EDependencyCategory Category)
+{
+	for (const FAssetDependency& Dependency : Dependencies)
+	{
+		checkf(!(Dependency.Category & ~Category), TEXT("Input dependency has category %d which is outside of the requested categories %d."),
+			(int32)Dependency.Category, (int32)Category);
+	}
+
+	ClearDependencies(AssetIdentifier, Category);
+	AddDependencies(AssetIdentifier, Dependencies);
+}
+
+void FAssetRegistryState::ClearReferencers(const FAssetIdentifier& AssetIdentifier,
+	UE::AssetRegistry::EDependencyCategory Category)
+{
+	FDependsNode* DependencyNode = FindDependsNode(AssetIdentifier);
+	if (!DependencyNode)
+	{
+		return;
+	}
+
+	TArray<FDependsNode*> OldExisting;
+	DependencyNode->GetReferencers(OldExisting, Category);
+	for (FDependsNode* ReferencerNode : OldExisting)
+	{
+		ReferencerNode->RemoveDependency(DependencyNode, Category);
+		if (!ReferencerNode->ContainsDependency(DependencyNode))
+		{
+			DependencyNode->RemoveReferencer(ReferencerNode);
+		}
+	}
+}
+
+void FAssetRegistryState::AddReferencers(const FAssetIdentifier& AssetIdentifier,
+	TConstArrayView<FAssetDependency> Referencers)
+{
+	if (Referencers.IsEmpty())
+	{
+		return;
+	}
+	FDependsNode* DependencyNode = CreateOrFindDependsNode(AssetIdentifier);
+	for (const FAssetDependency& Referencer : Referencers)
+	{
+		FDependsNode* ReferencerNode = CreateOrFindDependsNode(Referencer.AssetId);
+		ReferencerNode->AddDependency(DependencyNode, Referencer.Category, Referencer.Properties);
+		DependencyNode->AddReferencer(ReferencerNode);
+	}
+}
+
+void FAssetRegistryState::SetReferencers(const FAssetIdentifier& AssetIdentifier,
+	TConstArrayView<FAssetDependency> Referencers, UE::AssetRegistry::EDependencyCategory Category)
+{
+	for (const FAssetDependency& Referencer : Referencers)
+	{
+		checkf(!(Referencer.Category & ~Category), TEXT("Input referencer has category %d which is outside of the requested categories %d."),
+			(int32)Referencer.Category, (int32)Category);
+	}
+
+	ClearReferencers(AssetIdentifier, Category);
+	AddReferencers(AssetIdentifier, Referencers);
 }
 
 bool FAssetRegistryState::Serialize(FArchive& Ar, const FAssetRegistrySerializationOptions& Options)

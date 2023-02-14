@@ -28,6 +28,53 @@ UE_IMPLEMENT_STRUCT("/Script/CoreUObject", AssetData);
 const FGuid FAssetRegistryVersion::GUID(0x717F9EE7, 0xE9B0493A, 0x88B39132, 0x1B388107);
 FCustomVersionRegistration GRegisterAssetRegistryVersion(FAssetRegistryVersion::GUID, FAssetRegistryVersion::LatestVersion, TEXT("AssetRegistry"));
 
+void FAssetIdentifier::WriteCompactBinary(FCbWriter& Writer) const
+{
+	Writer.BeginArray();
+	FName PrimaryAssetTypeName = (FName)PrimaryAssetType;
+	Writer << PrimaryAssetTypeName;
+	Writer << PackageName;
+	if (!ObjectName.IsNone())
+	{
+		Writer << ObjectName;
+	}
+	Writer.EndArray();
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FAssetIdentifier& Identifier)
+{
+	FCbArrayView ArrayView = Field.AsArrayView();
+	if (ArrayView.Num() < 2)
+	{
+		Identifier = FAssetIdentifier();
+		return false;
+	}
+	FCbFieldViewIterator Iter = ArrayView.CreateViewIterator();
+	FName PrimaryAssetTypeName;
+	if (LoadFromCompactBinary(Iter++, PrimaryAssetTypeName))
+	{
+		Identifier.PrimaryAssetType = PrimaryAssetTypeName;
+	}
+	else
+	{
+		Identifier = FAssetIdentifier();
+		return false;
+	}
+	if (!LoadFromCompactBinary(Iter++, Identifier.PackageName))
+	{
+		return false;
+	}
+	if (ArrayView.Num() >= 3)
+	{
+		if (!LoadFromCompactBinary(Iter++, Identifier.ObjectName))
+		{
+			Identifier = FAssetIdentifier();
+			return false;
+		}
+	}
+	return true;
+}
+
 namespace UE::AssetRegistry::Private
 {
 	FAssetPathParts SplitIntoOuterPathAndAssetName(FStringView InObjectPath)

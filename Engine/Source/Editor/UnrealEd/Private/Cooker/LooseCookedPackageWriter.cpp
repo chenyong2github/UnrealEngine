@@ -46,6 +46,7 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryWriter.h"
+#include "String/Find.h"
 #include "Tasks/Task.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UnrealTemplate.h"
@@ -662,8 +663,10 @@ void FLooseCookedPackageWriter::RemoveCookedPackages(TArrayView<const FName> Pac
 {
 	if (PackageNameToCookedFiles.IsEmpty())
 	{
+		FindAndDeleteCookedFilesForPackages(PackageNamesToRemove);
 		return;
 	}
+
 	// if we are going to clear the cooked packages it is conceivable that we will recook the packages which we just cooked 
 	// that means it's also conceivable that we will recook the same package which currently has an outstanding async write request
 	UPackage::WaitForAsyncFileWrites();
@@ -856,6 +859,57 @@ void FLooseCookedPackageWriter::GetAllCookedFiles()
 	}
 }
 
+void FLooseCookedPackageWriter::FindAndDeleteCookedFilesForPackages(TConstArrayView<FName> PackageNames)
+{
+	const FString& SandboxRootDir = OutputPath;
+	const FString SandboxProjectDir = FPaths::Combine(OutputPath, FApp::GetProjectName()) + TEXT("/");
+	const FString RelativeRootDir = FPaths::GetRelativePathToRoot();
+	const FString RelativeProjectDir = FPaths::ProjectDir();
+
+	for (FName PackageName : PackageNames)
+	{
+		FString CookedFileName = ConvertPackageNameToCookedPath(
+			SandboxRootDir, RelativeRootDir,
+			SandboxProjectDir, RelativeProjectDir,
+			WriteToString<256>(PackageName));
+		if (CookedFileName.IsEmpty())
+		{
+			continue;
+		}
+		FStringView ParentDir;
+		FStringView BaseName;
+		FStringView Extension;
+		FPathViews::Split(CookedFileName, ParentDir, BaseName, Extension);
+
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		TArray<FString, TInlineAllocator<3>> FilesToRemove;
+		PlatformFile.IterateDirectory(*WriteToString<1024>(ParentDir),
+			[BaseName, ParentDir, &FilesToRemove](const TCHAR* FoundFullPath, bool bDirectory)
+			{
+				FStringView FoundParentDir;
+				FStringView FoundBaseName;
+				FStringView FoundExtension;
+				FPathViews::Split(FoundFullPath, FoundParentDir, FoundBaseName, FoundExtension);
+				if (FoundBaseName == BaseName)
+				{
+					if (FoundParentDir.IsEmpty())
+					{
+						FilesToRemove.Add(FPaths::ConvertRelativePathToFull(FString(ParentDir), FString(FoundFullPath)));
+					}
+					else
+					{
+						FilesToRemove.Add(FString(FoundFullPath));
+					}
+				}
+				return true;
+			});
+		for (const FString& FileName : FilesToRemove)
+		{
+			PlatformFile.DeleteFile(*FileName);
+		}
+	}
+}
+
 FName FLooseCookedPackageWriter::ConvertCookedPathToPackageName(
 	const FString& SandboxRootDir, const FString& RelativeRootDir,
 	const FString& SandboxProjectDir, const FString& RelativeProjectDir,
@@ -926,6 +980,79 @@ FName FLooseCookedPackageWriter::ConvertCookedPathToPackageName(
 	}
 
 	return FName(*ScratchPackageName);
+}
+
+bool FLooseCookedPackageWriter::TryConvertUncookedFilenameToCookedRemappedPluginFilename(
+	FStringView FileName, TConstArrayView<TSharedRef<IPlugin>> InPluginsToRemap, FStringView SandboxDirectory,
+	FString& OutCookedFileName)
+{
+	// Ideally this would be in the Sandbox File but it can't access the project or plugin
+	if (InPluginsToRemap.IsEmpty())
+	{
+		return false;
+	}
+
+	for (const TSharedRef<IPlugin>& Plugin : InPluginsToRemap)
+	{
+		// If these match, then this content is part of plugin that gets remapped when packaged/staged
+		if (FileName.StartsWith(Plugin->GetContentDir()))
+		{
+			FString SearchFor;
+			SearchFor /= Plugin->GetName() / TEXT("Content");
+			int32 FoundAt = UE::String::FindLast(FileName, SearchFor, ESearchCase::IgnoreCase);
+			check(FoundAt != INDEX_NONE);
+			// Strip off everything but <PluginName/Content/<remaing path to file>
+			FStringView SnippedOffPath = FileName.RightChop(FoundAt);
+			// Put this is in <sandbox path>/RemappedPlugins/<PluginName>/Content/<remaing path to file>
+			constexpr FStringView RemappedPluginsDirName(REMAPPED_PLUGINS);
+			OutCookedFileName.Reserve(SandboxDirectory.Len() + RemappedPluginsDirName.Len() + SnippedOffPath.Len() + 2);
+			OutCookedFileName = SandboxDirectory;
+			OutCookedFileName /= REMAPPED_PLUGINS;
+			OutCookedFileName /= SnippedOffPath;
+			return true;
+		}
+	}
+	return false;
+}
+
+FString FLooseCookedPackageWriter::ConvertPackageNameToCookedPath(
+	const FString& SandboxRootDir, const FString& RelativeRootDir,
+	const FString& SandboxProjectDir, const FString& RelativeProjectDir,
+	FStringView PackageName) const
+{
+	FString UncookedFileName;
+	if (!FPackageName::TryConvertLongPackageNameToFilename(FString(PackageName), UncookedFileName))
+	{
+		return TEXT("");
+	}
+
+	FString CookedFileName;
+	if (TryConvertUncookedFilenameToCookedRemappedPluginFilename(UncookedFileName, PluginsToRemap,
+		SandboxRootDir, CookedFileName))
+	{
+		return CookedFileName;
+	}
+
+	auto BuildCookedPath =
+		[&CookedFileName](const FString& UncookedPath, const FString& CookedRoot, const FString& UncookedRoot)
+	{
+		CookedFileName.AppendChars(*CookedRoot, CookedRoot.Len());
+		CookedFileName.AppendChars(*UncookedPath + UncookedRoot.Len(), UncookedPath.Len() - UncookedRoot.Len());
+	};
+
+	if (UncookedFileName.StartsWith(RelativeProjectDir))
+	{
+		BuildCookedPath(UncookedFileName, SandboxProjectDir, RelativeProjectDir);
+	}
+	else if (UncookedFileName.StartsWith(RelativeRootDir))
+	{
+		BuildCookedPath(UncookedFileName, SandboxRootDir, RelativeRootDir);
+	}
+	else
+	{
+		CookedFileName.Empty();
+	}
+	return CookedFileName;
 }
 
 EPackageExtension FLooseCookedPackageWriter::BulkDataTypeToExtension(FBulkDataInfo::EType BulkDataType)

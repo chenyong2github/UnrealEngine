@@ -1334,7 +1334,11 @@ private:
 	const UE::Cook::FCookSavePackageContext* FindSaveContext(const ITargetPlatform* TargetPlatform) const;
 	/** Allocate a new FCookSavePackageContext and ICookedPackageWriter for the given platform. */
 	UE::Cook::FCookSavePackageContext* CreateSaveContext(const ITargetPlatform* TargetPlatform);
-
+	/**
+	 * Delete files that exist for the package in the PackageWriter from a previous cook. Used when packages are
+	 * detected as invalidated for iterative cook after cook startup (e.g. generated packages).
+	 */
+	void DeleteOutputForPackage(FName PackageName, const ITargetPlatform* TargetPlatform);
 
 	static UCookOnTheFlyServer* ActiveCOTFS;
 	uint32		StatLoadedPackageCount = 0;
@@ -1429,6 +1433,7 @@ private:
 	friend UE::Cook::FAssetRegistryMPCollector;
 	friend UE::Cook::FBeginCookConfigSettings;
 	friend UE::Cook::FCookDirector;
+	friend UE::Cook::FCookGenerationInfo;
 	friend UE::Cook::FCookWorkerClient;
 	friend UE::Cook::FCookWorkerServer;
 	friend UE::Cook::FGeneratorPackage;

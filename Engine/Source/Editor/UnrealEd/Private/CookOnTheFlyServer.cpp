@@ -2935,14 +2935,15 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::ConditionalCreateGeneratorPackage(UE:
 		return EPollStatus::Error;
 	}
 
-	UE_LOG(LogCook, Display, TEXT("Splitting Package %s with class %s acting on object %s."),
-		*PackageData.GetPackageName().ToString(), *Splitter->GetSplitDataClass()->GetName(), *SplitDataObject->GetFullName());
+	UE_LOG(LogCook, Display, TEXT("Splitting Package %s with splitter %s acting on object %s."),
+		*PackageData.GetPackageName().ToString(), *Splitter->GetSplitterDebugName(), *SplitDataObject->GetFullName());
 
 	// Create instance of CookPackageSplitter class
 	ICookPackageSplitter* SplitterInstance = Splitter->CreateInstance(SplitDataObject);
 	if (!SplitterInstance)
 	{
-		UE_LOG(LogCook, Error, TEXT("Error instantiating Cook Package Splitter for object %s."), *SplitDataObject->GetFullName());
+		UE_LOG(LogCook, Error, TEXT("Error instantiating Cook Package Splitter %s for object %s."),
+			*Splitter->GetSplitterDebugName(), *SplitDataObject->GetFullName());
 		return EPollStatus::Error;
 	}
 
@@ -3009,7 +3010,6 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::QueueGeneratedPackages(UE::Cook::FGen
 		for (const FCookGenerationInfo& ChildInfo: Generator.GetPackagesToGenerate())
 		{
 			FPackageData* ChildPackageData = ChildInfo.PackageData;
-			ChildPackageData->ClearCookedPlatformData();
 			QueueDiscoveredPackageData(*ChildPackageData, FInstigator(EInstigator::GeneratedPackage, OwnerName));
 		}
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::QueueGeneratedPackages);
@@ -5634,10 +5634,86 @@ void FSaveCookedPackageContext::FinishPlatform()
 		// For most types, our contract is that we use the data in the asset registry that was updated on load and is in
 		// the disk asset storage of the global asset registry. Most types do not take significant action during cooking
 		// so we do not need to allow them to update their tags after they finish loading.
-		// But generator packages do a lot of work during generation and may need to update their tags, so read the
-		// latest tags off of their asset by setting bIncludeOnlyDiskAssets=true.
-		const bool bIncludeOnlyDiskAssets = PackageData.GetGeneratorPackage() == nullptr;
-		Reporter.UpdateAssetRegistryData(PackageData, *Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()), bIncludeOnlyDiskAssets);
+		bool bIncludeOnlyDiskAssets = true;
+		TOptional<TArray<FAssetDependency>> OverridePackageDependencies;
+		TOptional<FAssetPackageData> OverrideAssetPackageData;
+		FGeneratorPackage* GeneratorPackage;
+		if (GeneratorPackage = PackageData.GetGeneratorPackage(); GeneratorPackage)
+		{
+			// Generator packages do a lot of work during generation and may need to update their tags, so read the
+			// latest tags off of their asset by setting bIncludeOnlyDiskAssets=true.
+			bIncludeOnlyDiskAssets = false;
+			OverridePackageDependencies.Emplace();
+
+			// Set override dependencies equal to the global AssetRegistry dependencies plus a dependency on
+			// each generated package.
+			COTFS.AssetRegistry->GetDependencies(Package->GetFName(), *OverridePackageDependencies,
+				UE::AssetRegistry::EDependencyCategory::Package);
+			OverridePackageDependencies->Reserve(GeneratorPackage->GetPackagesToGenerate().Num());
+			for (FCookGenerationInfo& GeneratedInfo : GeneratorPackage->GetPackagesToGenerate())
+			{
+				FAssetDependency& Dependency = OverridePackageDependencies->Emplace_GetRef();
+				Dependency.AssetId = FAssetIdentifier(GeneratedInfo.PackageData->GetPackageName());
+				Dependency.Category = UE::AssetRegistry::EDependencyCategory::Package;
+				Dependency.Properties = UE::AssetRegistry::EDependencyProperty::Game;
+			}
+		}
+		else if (GeneratorPackage = PackageData.GetGeneratedOwner(); GeneratorPackage)
+		{
+			FCookGenerationInfo* GeneratedInfo = GeneratorPackage->FindInfo(PackageData);
+			if (!GeneratedInfo)
+			{
+				UE_LOG(LogCook, Error, TEXT("GeneratedInfo missing for package %s."), *PackageData.GetPackageName().ToString());
+			}
+			else
+			{
+				// Generated packages do not exist on disk, so read their assetdata from the in-memory package
+				bIncludeOnlyDiskAssets = false;
+				OverridePackageDependencies.Emplace();
+				OverridePackageDependencies->Reserve(GeneratedInfo->Dependencies.Num());
+
+				// There should be no package dependencies present for the package from the global assetregistry
+				// because it is newly created. Add on the dependencies declared for it from the CookPackageSplitter.
+				for (FName PackageDependency : GeneratedInfo->Dependencies)
+				{
+					FAssetDependency& Dependency = OverridePackageDependencies->Emplace_GetRef();
+					Dependency.AssetId = FAssetIdentifier(PackageDependency);
+					Dependency.Category = UE::AssetRegistry::EDependencyCategory::Package;
+					// COOKPACKAGESPLITTERTODO: CookPackageSplitter needs to specify the DependencyProperties
+					Dependency.Properties = UE::AssetRegistry::EDependencyProperty::Hard | UE::AssetRegistry::EDependencyProperty::Game;
+				}
+
+				// Update the AssetPackageData for each requested platform with Guid and ImportedClasses
+				TSet<UClass*> PackageClasses;
+				ForEachObjectWithPackage(Package, [&PackageClasses, this](UObject* Object)
+					{
+						UClass* Class = Object->GetClass();
+						if (!Class->IsInPackage(Package)) // Imported classes list does not include classes in the package
+						{
+							PackageClasses.Add(Object->GetClass());
+						}
+						return true;
+					});
+				TArray<FName> ImportedClasses;
+				ImportedClasses.Reserve(PackageClasses.Num());
+				for (UClass* Class : PackageClasses)
+				{
+					TStringBuilder<256> ClassPath;
+					Class->GetPathName(nullptr, ClassPath);
+					ImportedClasses.Add(FName(ClassPath));
+				}
+				ImportedClasses.Sort(FNameLexicalLess());
+
+				OverrideAssetPackageData.Emplace();
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+				OverrideAssetPackageData->PackageGuid = GeneratedInfo->Guid;
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+				OverrideAssetPackageData->ImportedClasses = ImportedClasses;
+			}
+		}
+		Reporter.UpdateAssetRegistryData(PackageData, *Package, SavePackageResult,
+			MoveTemp(*ArchiveCookContext.GetCookTagList()), bIncludeOnlyDiskAssets,
+			MoveTemp(OverrideAssetPackageData), MoveTemp(OverridePackageDependencies));
 	}
 
 	// If not retrying, mark the package as cooked, either successfully or with failure
@@ -7086,12 +7162,13 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 
 		TUniquePtr<FAssetRegistryState> PreviousAssetRegistry(PackageWriter.LoadPreviousAssetRegistry());
 		int32 NumPreviousPackages = PreviousAssetRegistry ? PreviousAssetRegistry->GetNumPackages() : 0;
-		UE_LOG(LogCook, Display, TEXT("Found '%d' cooked package(s) in package store"), NumPreviousPackages);
 		if (NumPreviousPackages == 0)
 		{
+			UE_LOG(LogCook, Display, TEXT("Found %d cooked package(s) in package store."), NumPreviousPackages);
 			continue;
 		}
 
+		TMap<FName, FAssetRegistryGenerator::FGeneratorPackageInfo> PreviousGeneratorPackages;
 		if (bHybridIterativeEnabled)
 		{
 			// HybridIterative does the equivalent operation of bRecurseModifications=true and bRecurseScriptModifications=true,
@@ -7102,8 +7179,10 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 			// check this for all packages in the previous cook rather than just the currently referenced
 			// set because when packages are removed the references to them are usually also removed.
 			TArray<FName> TombstonePackages;
-			PlatformAssetRegistry.ComputePackageRemovals(*PreviousAssetRegistry, TombstonePackages);
+			PlatformAssetRegistry.ComputePackageRemovals(*PreviousAssetRegistry, TombstonePackages,
+				PreviousGeneratorPackages);
 			PackageWriter.RemoveCookedPackages(TombstonePackages);
+			UE_LOG(LogCook, Display, TEXT("Found %d cooked package(s) in package store."), NumPreviousPackages);
 		}
 		else
 		{
@@ -7117,6 +7196,13 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 			Options.bRecurseScriptModifications = !IsCookFlagSet(ECookInitializationFlags::IgnoreScriptPackagesOutOfDate);
 			FAssetRegistryGenerator::FAssetRegistryDifference Difference;
 			PlatformAssetRegistry.ComputePackageDifferences(Options, *PreviousAssetRegistry, Difference);
+			PreviousGeneratorPackages = MoveTemp(Difference.PreviousGeneratorPackages);
+
+			TSet<FName> GeneratedPackages;
+			for (TPair<FName, FAssetRegistryGenerator::FGeneratorPackageInfo>& Pair : PreviousGeneratorPackages)
+			{
+				GeneratedPackages.Append(Pair.Value.Generated);
+			}
 
 			TArray<FName> PackagesToRemove;
 			PackagesToRemove.Reserve(Difference.ModifiedPackages.Num() + Difference.RemovedPackages.Num() + Difference.IdenticalUncookedPackages.Num());
@@ -7132,8 +7218,11 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 			{
 				PackagesToRemove.Add(PackageToRemove);
 			}
-
-			UE_LOG(LogCook, Display, TEXT("Keeping '%d' and removing '%d' cooked package(s)"), Difference.IdenticalCookedPackages.Num(), PackagesToRemove.Num());
+			int32 NumUncooked = Difference.IdenticalUncookedPackages.Num();
+			int32 NumCooked = FMath::Max(0, NumPreviousPackages - NumUncooked);
+			UE_LOG(LogCook, Display, TEXT("Found %d cooked package(s) in package store."), NumCooked);
+			UE_LOG(LogCook, Display, TEXT("Keeping %d and removing %d cooked package(s)."),
+				Difference.IdenticalCookedPackages.Num(), PackagesToRemove.Num() - NumUncooked);
 
 			PackageWriter.RemoveCookedPackages(PackagesToRemove);
 
@@ -7145,7 +7234,8 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 			for (const FName& IdenticalPackage : Difference.IdenticalCookedPackages)
 			{
 				// Mark this package as cooked so that we don't unnecessarily try to cook it again
-				FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(IdenticalPackage);
+				bool bRequireExists = !GeneratedPackages.Contains(IdenticalPackage);
+				FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(IdenticalPackage, bRequireExists);
 				if (PackageData)
 				{
 					PackageData->SetPlatformCooked(TargetPlatform, true /* bSucceeded */);
@@ -7179,6 +7269,19 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 					}
 				}
 			}
+		}
+
+		for (TPair<FName, FAssetRegistryGenerator::FGeneratorPackageInfo> Pair : PreviousGeneratorPackages)
+		{
+			FPackageData* Generator = PackageDatas->TryAddPackageDataByPackageName(Pair.Key);
+			if (!Generator)
+			{
+				UE_LOG(LogCook, Warning,
+					TEXT("Previous cook results returned a record for generator package %s, but that package can no longer be found; its generated packages will not be removed from cook results. Run a full cook to remove them."),
+					*Pair.Key.ToString());
+				continue;
+			}
+			Generator->CreateGeneratorPackage(nullptr, nullptr).SetPreviousGeneratedPackages(MoveTemp(Pair.Value.Generated));
 		}
 
 		PlatformAssetRegistry.SetPreviousAssetRegistry(MoveTemp(PreviousAssetRegistry));
@@ -7883,28 +7986,10 @@ FString UCookOnTheFlyServer::ConvertToFullSandboxPath( const FString &FileName, 
 	FString Result;
 	if (bForWrite)
 	{
-		// Ideally this would be in the Sandbox File but it can't access the project or plugin
-		if (PluginsToRemap.Num() > 0)
+		if (FLooseCookedPackageWriter::TryConvertUncookedFilenameToCookedRemappedPluginFilename(
+			FileName, PluginsToRemap, SandboxFile->GetSandboxDirectory(), Result))
 		{
-			// Handle remapping of plugins
-			for (TSharedRef<IPlugin> Plugin : PluginsToRemap)
-			{
-				// If these match, then this content is part of plugin that gets remapped when packaged/staged
-				if (FileName.StartsWith(Plugin->GetContentDir()))
-				{
-					FString SearchFor;
-					SearchFor /= Plugin->GetName() / TEXT("Content");
-					int32 FoundAt = FileName.Find(SearchFor, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-					check(FoundAt != -1);
-					// Strip off everything but <PluginName/Content/<remaing path to file>
-					FString SnippedOffPath = FileName.RightChop(FoundAt);
-					// Put this is in <sandbox path>/RemappedPlugins/<PluginName>/Content/<remaing path to file>
-					FString RemappedPath = SandboxFile->GetSandboxDirectory();
-					RemappedPath /= REMAPPED_PLUGINS;
-					Result = RemappedPath / SnippedOffPath;
-					return Result;
-				}
-			}
+			return Result;
 		}
 		Result = SandboxFile->ConvertToAbsolutePathForExternalAppForWrite(*FileName);
 	}
@@ -8643,8 +8728,9 @@ void UCookOnTheFlyServer::PrintFinishStats()
 	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
 	UE_LOG(LogCook, Display, TEXT("Peak Used virtual %u MiB Peak Used physical %u MiB"), MemStats.PeakUsedVirtual / 1024 / 1024, MemStats.PeakUsedPhysical / 1024 / 1024);
 
-	COOK_STAT(UE_LOG(LogCook, Display, TEXT("Packages Cooked: %d, Packages Iteratively Skipped: %d, Total Packages: %d"),
-		DetailedCookStats::NumPackagesSavedForCook, DetailedCookStats::NumPackagesIterativelySkipped, PackageDatas->GetNumCooked()));
+	COOK_STAT(UE_LOG(LogCook, Display, TEXT("Packages Cooked: %d, Packages Iteratively Skipped: %d, Packages Skipped by Platform: %d, Total Packages: %d"),
+		DetailedCookStats::NumPackagesSavedForCook, DetailedCookStats::NumPackagesIterativelySkipped, PackageDatas->GetNumFailedCooked(),
+		PackageDatas->GetNumCooked()));
 }
 
 void UCookOnTheFlyServer::PrintDetailedCookStats()
@@ -9113,7 +9199,7 @@ void UCookOnTheFlyServer::LoadBeginCookIterativeFlagsLocal(FBeginCookContext& Be
 			}
 			else if (!ArePreviousCookSettingsCompatible(PlatformContext.CurrentCookSettings, TargetPlatform))
 			{
-				UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s because cook DLC settings have changed, clearing all cooked content"), *TargetPlatform->PlatformName());
+				UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s because cook DLC settings have changed, clearing all cooked content."), *TargetPlatform->PlatformName());
 				bIterativeAllowed = false;
 			}
 			else
@@ -9123,18 +9209,18 @@ void UCookOnTheFlyServer::LoadBeginCookIterativeFlagsLocal(FBeginCookContext& Be
 				{
 					if (!IsCookFlagSet(ECookInitializationFlags::IgnoreIniSettingsOutOfDate))
 					{
-						UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s ini settings don't match from last cook, clearing all cooked content"), *TargetPlatform->PlatformName());
+						UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s because ini settings have changed, clearing all cooked content."), *TargetPlatform->PlatformName());
 						bIterativeAllowed = false;
 					}
 					else
 					{
-						UE_LOG(LogCook, Display, TEXT("Inisettings were out of date for platform %s but we are going with it anyway because IgnoreIniSettingsOutOfDate is set"), *TargetPlatform->PlatformName());
+						UE_LOG(LogCook, Display, TEXT("Inisettings were out of date for platform %s but we are going with it anyway because IgnoreIniSettingsOutOfDate is set."), *TargetPlatform->PlatformName());
 						bIterativeAllowed = true;
 					}
 				}
 				else
 				{
-					UE_LOG(LogCook, Display, TEXT("Keeping cooked content for platform %s and cooking iteratively"), *TargetPlatform->PlatformName());
+					UE_LOG(LogCook, Display, TEXT("Keeping cooked content for platform %s and cooking iteratively."), *TargetPlatform->PlatformName());
 					bIterativeAllowed = true;
 				}
 			}
@@ -9330,6 +9416,11 @@ UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const 
 	FCookSavePackageContext* Context = new FCookSavePackageContext(TargetPlatform, PackageWriter, WriterDebugName, MoveTemp(SavePackageSettings));
 	return Context;
 
+}
+
+void UCookOnTheFlyServer::DeleteOutputForPackage(FName PackageName, const ITargetPlatform* TargetPlatform)
+{
+	FindOrCreatePackageWriter(TargetPlatform).RemoveCookedPackages(TArrayView<FName>(&PackageName, 1));
 }
 
 void UCookOnTheFlyServer::FinalizePackageStore()
@@ -11039,7 +11130,9 @@ uint32 UCookOnTheFlyServer::CookFullLoadAndSave()
 						FAssetPackageData* AssetPackageData = nullptr;
 						{
 							FScopeLock AssetGeneratorScopeLock(&AssetGeneratorLock);
-							Generator.UpdateAssetRegistryData(*Package, SaveResult, MoveTemp(*CookContext.GetCookTagList()));
+							Generator.UpdateAssetRegistryData(*Package, SaveResult, MoveTemp(*CookContext.GetCookTagList()),
+								false /* bIncludeDiskOnlyAssets */, TOptional<FAssetPackageData>(),
+								TOptional<TArray<FAssetDependency>>());
 							AssetPackageData = Generator.GetAssetPackageData(Package->GetFName());
 						}
 						check(AssetPackageData);
