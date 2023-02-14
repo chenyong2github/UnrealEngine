@@ -15,7 +15,7 @@
 #include "Templates/IsSigned.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1 
-#include "AudioMixerCore/Public/AudioDefines.h"
+#include "Runtime/AudioMixerCore/Public/AudioDefines.h"
 #include "CoreMinimal.h"
 #endif
 
