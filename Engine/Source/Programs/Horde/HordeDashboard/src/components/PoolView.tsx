@@ -1108,7 +1108,7 @@ export const PoolView: React.FC = observer(() => {
                      </ScrollablePane>
                   </Stack>
                </Stack>}
-               {!pool && <Spinner size={SpinnerSize.large} />}
+               {!pool && !!poolId && <Spinner size={SpinnerSize.large} />}
             </Stack>
          </Stack>
       </Stack>
