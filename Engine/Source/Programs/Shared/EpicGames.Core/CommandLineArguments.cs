@@ -1002,7 +1002,7 @@ namespace EpicGames.Core
 				{
 					continue;
 				}
-				arguments[idx] = arg.Replace("\"", "");
+				arguments[idx] = arg.Replace("\"", "", StringComparison.OrdinalIgnoreCase);
 			}
 			return arguments.ToArray();
 		}
