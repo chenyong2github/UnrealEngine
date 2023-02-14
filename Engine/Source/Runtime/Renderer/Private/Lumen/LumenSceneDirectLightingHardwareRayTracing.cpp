@@ -26,13 +26,6 @@ static TAutoConsoleVariable<int32> CVarLumenSceneDirectLightingHardwareRayTracin
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenSceneDirectLightingHardwareRayTracingIndirect(
-	TEXT("r.LumenScene.DirectLighting.HardwareRayTracing.Indirect"),
-	1,
-	TEXT("Enables indirect dispatch for hardware ray tracing (Default = 1)"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int> CVarLumenSceneDirectLightingHardwareRayTracingGroupCount(
 	TEXT("r.LumenScene.DirectLighting.HardwareRayTracing.GroupCount"),
 	8192,
@@ -148,11 +141,6 @@ class FLumenDirectLightingHardwareRayTracingIndirectArgsCS : public FGlobalShade
 
 IMPLEMENT_GLOBAL_SHADER(FLumenDirectLightingHardwareRayTracingIndirectArgsCS, "/Engine/Private/Lumen/LumenSceneDirectLightingHardwareRayTracing.usf", "LumenDirectLightingHardwareRayTracingIndirectArgsCS", SF_Compute);
 
-bool IsHardwareRayTracedDirectLightingIndirectDispatch()
-{
-	return GRHISupportsRayTracingDispatchIndirect && (CVarLumenSceneDirectLightingHardwareRayTracingIndirect.GetValueOnRenderThread() == 1);
-}
-
 float GetHeightfieldProjectionBiasSearchRadius()
 {
 	return FMath::Max(CVarLumenSceneDirectLightingHardwareRayTracingHeightfieldProjectionBiasSearchRadius.GetValueOnRenderThread(), 0);
@@ -165,7 +153,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingDirectLighting
 		FLumenDirectLightingHardwareRayTracingBatchedRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableHeightfieldProjectionBias>(CVarLumenSceneDirectLightingHardwareRayTracingHeightfieldProjectionBias.GetValueOnRenderThread() != 0);
-		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FIndirectDispatchDim>(IsHardwareRayTracedDirectLightingIndirectDispatch());
+		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FIndirectDispatchDim>(Lumen::UseHardwareIndirectRayTracing());
 		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>(PermutationVector);
 		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 	}
@@ -234,7 +222,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 #if RHI_RAYTRACING
 	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family);
 	const bool bUseMinimalPayload = true;
-	const bool bIndirectDispatch = IsHardwareRayTracedDirectLightingIndirectDispatch() || bInlineRayTracing;
+	const bool bIndirectDispatch = Lumen::UseHardwareIndirectRayTracing() || bInlineRayTracing;
 
 	checkf(ComputePassFlags != ERDGPassFlags::AsyncCompute || bInlineRayTracing, TEXT("Async Lumen HWRT is only supported for inline ray tracing"));
 
@@ -305,7 +293,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	else
 	{
 		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>(PermutationVector);
-		if (IsHardwareRayTracedDirectLightingIndirectDispatch())
+		if (Lumen::UseHardwareIndirectRayTracing())
 		{
 			AddLumenRayTraceDispatchIndirectPass(
 				GraphBuilder,

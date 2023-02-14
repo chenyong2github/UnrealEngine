@@ -39,7 +39,14 @@ static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracingInline(
 	TEXT("r.Lumen.HardwareRayTracing.Inline"),
 	1,
 	TEXT("Uses Hardware Inline Ray Tracing for selected Lumen passes, when available.\n"),
-	ECVF_RenderThreadSafe
+	ECVF_RenderThreadSafe | ECVF_Scalability
+);
+
+static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracingIndirect(
+	TEXT("r.Lumen.HardwareRayTracing.Indirect"),
+	1,
+	TEXT("Enables indirect dispatch for hardware ray tracing (Default = 1)"),
+	ECVF_RenderThreadSafe | ECVF_Scalability
 );
 
 static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingPullbackBias(
@@ -135,6 +142,15 @@ bool Lumen::UseHardwareInlineRayTracing(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
 	return (Lumen::UseHardwareRayTracing(ViewFamily) && CVarLumenUseHardwareRayTracingInline.GetValueOnRenderThread() != 0 && GRHISupportsInlineRayTracing);
+#else
+	return false;
+#endif
+}
+
+bool Lumen::UseHardwareIndirectRayTracing()
+{
+#if RHI_RAYTRACING
+	return GRHISupportsRayTracingDispatchIndirect && CVarLumenUseHardwareRayTracingIndirect.GetValueOnRenderThread() != 0;
 #else
 	return false;
 #endif
