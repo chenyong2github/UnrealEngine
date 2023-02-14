@@ -530,10 +530,6 @@ struct FMeshMergingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialSettings, meta=(EditCondition="LODSelectionType == EMeshLODSelectionType::LowestDetailLOD"))
 	uint8 bMergeMaterials:1;
 
-	/** Create a flat material from all source materials, along with a new set of UVs. This material won't be applied to any section by default. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = MaterialSettings, meta=(EditCondition="LODSelectionType == EMeshLODSelectionType::LowestDetailLOD"))
-	uint8 bCreateMergedMaterial : 1;
-
 	/** Whether or not vertex data such as vertex colours should be baked into the resulting mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings)
 	uint8 bBakeVertexDataToMesh:1;
@@ -594,6 +590,9 @@ struct FMeshMergingSettings
 	uint8 bExportSpecularMap_DEPRECATED:1;
 
 	UPROPERTY()
+	uint8 bCreateMergedMaterial_DEPRECATED : 1;
+
+	UPROPERTY()
 	int32 MergedMaterialAtlasResolution_DEPRECATED;
 
 	UPROPERTY()
@@ -603,7 +602,7 @@ struct FMeshMergingSettings
 	uint8 bGenerateNaniteEnabledMesh_DEPRECATED : 1;
 
 	UPROPERTY()
-	float NaniteFallbackTrianglePercent_DEPRECATED;
+	float NaniteFallbackTrianglePercent_DEPRECATED;	
 #endif
 
 	EMeshMergeType MergeType;
@@ -620,7 +619,6 @@ struct FMeshMergingSettings
 		, bMergePhysicsData(false)
 		, bMergeMeshSockets(false)
 		, bMergeMaterials(false)
-		, bCreateMergedMaterial(false)
 		, bBakeVertexDataToMesh(false)
 		, bUseVertexDataForBakingMaterial(true)
 		, bUseTextureBinning(false)
@@ -637,6 +635,7 @@ struct FMeshMergingSettings
 		, bExportMetallicMap_DEPRECATED(false)
 		, bExportRoughnessMap_DEPRECATED(false)
 		, bExportSpecularMap_DEPRECATED(false)
+		, bCreateMergedMaterial_DEPRECATED(false)
 		, MergedMaterialAtlasResolution_DEPRECATED(1024)
 		, ExportSpecificLOD_DEPRECATED(0)
 		, bGenerateNaniteEnabledMesh_DEPRECATED(false)

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Algo/AnyOf.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "SceneTypes.h"
@@ -68,6 +69,11 @@ struct FFlattenMaterial
 		{
 			Size = FIntPoint(ForceInitToZero);
 		}
+	}
+
+	bool HasData() const
+	{
+		return Algo::AnyOf(PropertySamples, [](const TArray<FColor>& Samples) { return !Samples.IsEmpty(); });
 	}
 
 	/** Release all the sample data */
