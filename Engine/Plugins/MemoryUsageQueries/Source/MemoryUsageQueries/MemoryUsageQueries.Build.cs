@@ -28,7 +28,8 @@ namespace UnrealBuildTool.Rules
 				{
 					"AssetRegistry",
 					"Engine",
-					"EngineSettings"
+					"EngineSettings",
+					"PakFile"
 				}
 			);
 		}
