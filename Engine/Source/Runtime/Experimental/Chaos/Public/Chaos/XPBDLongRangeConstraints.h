@@ -3,7 +3,7 @@
 
 #include "Chaos/PBDLongRangeConstraintsBase.h"
 #include "Chaos/PBDParticles.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Long Range Constraint"), STAT_XPBD_LongRange, STATGROUP_Chaos);
@@ -32,7 +32,7 @@ public:
 		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection)
+		const FCollectionPropertyConstFacade& PropertyCollection)
 	    : FPBDLongRangeConstraintsBase(
 			Particles,
 			InParticleOffset,
@@ -82,7 +82,7 @@ public:
 
 	virtual ~FXPBDLongRangeConstraints() override {}
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection, FSolverReal MeshScale)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection, FSolverReal MeshScale)
 	{
 		if (IsXPBDTetherStiffnessMutable(PropertyCollection))
 		{

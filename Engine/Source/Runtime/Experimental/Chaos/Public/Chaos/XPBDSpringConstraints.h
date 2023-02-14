@@ -4,7 +4,7 @@
 #include "Chaos/PBDSpringConstraintsBase.h"
 #include "ChaosStats.h"
 #include "PBDWeightMap.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 
 namespace Chaos::Softs
 {
@@ -158,7 +158,7 @@ private:
 class CHAOS_API FXPBDEdgeSpringConstraints final : public FXPBDSpringConstraints
 {
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsXPBDEdgeSpringStiffnessEnabled(PropertyCollection, false);
 	}
@@ -170,7 +170,7 @@ public:
 		const TArray<TVec3<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& DampingMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
 		: FXPBDSpringConstraints(
 			Particles,
@@ -186,7 +186,7 @@ public:
 
 	virtual ~FXPBDEdgeSpringConstraints() override = default;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		if (IsXPBDEdgeSpringStiffnessMutable(PropertyCollection))
 		{
@@ -209,7 +209,7 @@ private:
 class CHAOS_API FXPBDBendingSpringConstraints : public FXPBDSpringConstraints
 {
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsXPBDBendingSpringStiffnessEnabled(PropertyCollection, false);
 	}
@@ -221,7 +221,7 @@ public:
 		const TArray<TVec2<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& DampingMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
 		: FXPBDSpringConstraints(
 			Particles,
@@ -237,7 +237,7 @@ public:
 
 	virtual ~FXPBDBendingSpringConstraints() override = default;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		if (IsXPBDBendingSpringStiffnessMutable(PropertyCollection))
 		{

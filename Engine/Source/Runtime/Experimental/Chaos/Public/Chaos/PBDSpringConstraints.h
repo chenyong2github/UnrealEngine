@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/PBDSpringConstraintsBase.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 
 namespace Chaos::Softs
 {
@@ -47,7 +47,7 @@ private:
 class CHAOS_API FPBDEdgeSpringConstraints final : public FPBDSpringConstraints
 {
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsEdgeSpringStiffnessEnabled(PropertyCollection, false);
 	}
@@ -58,7 +58,7 @@ public:
 		int32 ParticleCount,
 		const TArray<TVec3<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
 		: FPBDSpringConstraints(
 			Particles,
@@ -72,7 +72,7 @@ public:
 
 	virtual ~FPBDEdgeSpringConstraints() override = default;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		if (IsEdgeSpringStiffnessMutable(PropertyCollection))
 		{
@@ -87,7 +87,7 @@ private:
 class CHAOS_API FPBDBendingSpringConstraints final : public FPBDSpringConstraints
 {
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsBendingSpringStiffnessEnabled(PropertyCollection, false);
 	}
@@ -98,7 +98,7 @@ public:
 		int32 ParticleCount,
 		const TArray<TVec2<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
 		: FPBDSpringConstraints(
 			Particles,
@@ -112,7 +112,7 @@ public:
 
 	virtual ~FPBDBendingSpringConstraints() override = default;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		if (IsBendingSpringStiffnessMutable(PropertyCollection))
 		{

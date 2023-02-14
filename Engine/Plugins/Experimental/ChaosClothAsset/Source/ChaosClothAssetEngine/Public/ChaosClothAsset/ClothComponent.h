@@ -11,7 +11,7 @@ struct FManagedArrayCollection;
 
 namespace Chaos::Softs
 {
-	class FPropertyCollectionAdapter;
+	class FCollectionPropertyFacade;
 }
 
 namespace UE::Chaos::ClothAsset
@@ -159,7 +159,7 @@ private:
 	float BlendWeight = 1.f;
 
 	TSharedPtr<FManagedArrayCollection> PropertyCollection;
-	TUniquePtr<::Chaos::Softs::FPropertyCollectionAdapter> PropertyCollectionAdapter;
+	TUniquePtr<::Chaos::Softs::FCollectionPropertyFacade> CollectionPropertyFacade;
 
 	TUniquePtr<UE::Chaos::ClothAsset::FClothSimulationProxy> ClothSimulationProxy;
 };

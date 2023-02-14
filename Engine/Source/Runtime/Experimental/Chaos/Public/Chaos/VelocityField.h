@@ -4,7 +4,7 @@
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDSoftsSolverParticles.h"
 #include "Chaos/TriangleMesh.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 
 namespace Chaos::Softs
 {
@@ -19,7 +19,7 @@ public:
 	static constexpr FSolverReal MinCoefficient = (FSolverReal)0.;   // Applies to both drag and lift
 	static constexpr FSolverReal MaxCoefficient = (FSolverReal)10.;  //
 
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return
 			IsDragEnabled(PropertyCollection, false) ||
@@ -27,7 +27,7 @@ public:
 			IsPressureEnabled(PropertyCollection, false);
 	}
 
-	explicit FVelocityAndPressureField(const FPropertyCollectionConstAdapter& PropertyCollection)
+	explicit FVelocityAndPressureField(const FCollectionPropertyConstFacade& PropertyCollection)
 		: Offset(INDEX_NONE)
 		, NumParticles(0)
 	{
@@ -61,7 +61,7 @@ public:
 		}
 	}
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection, FSolverReal WorldScale)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection, FSolverReal WorldScale)
 	{
 		if (IsFluidDensityMutable(PropertyCollection))
 		{

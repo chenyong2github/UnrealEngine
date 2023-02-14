@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/PBDAxialSpringConstraintsBase.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Axial Spring Constraint"), STAT_XPBD_AxialSpring, STATGROUP_Chaos);
@@ -168,7 +168,7 @@ private:
 class FXPBDAreaSpringConstraints final : public FXPBDAxialSpringConstraints
 {
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsXPBDAreaSpringStiffnessEnabled(PropertyCollection, false);
 	}
@@ -179,7 +179,7 @@ public:
 		int32 ParticleCount,
 		const TArray<TVec3<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints)
 		: FXPBDAxialSpringConstraints(
 			Particles,
@@ -193,7 +193,7 @@ public:
 
 	virtual ~FXPBDAreaSpringConstraints() override = default;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		if (IsXPBDAreaSpringStiffnessMutable(PropertyCollection))
 		{

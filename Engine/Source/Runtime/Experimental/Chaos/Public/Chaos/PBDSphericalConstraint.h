@@ -3,7 +3,7 @@
 
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDSoftsSolverParticles.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 #include "ChaosStats.h"
 #include "Containers/ArrayView.h"
 #include "Containers/ContainersFwd.h"
@@ -29,7 +29,7 @@ namespace Chaos::Softs
 class CHAOS_API FPBDSphericalConstraint final
 {
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsMaxDistanceEnabled(PropertyCollection, false);
 	}
@@ -39,7 +39,7 @@ public:
 		const uint32 InParticleCount,
 		const TArray<FSolverVec3>& InAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
 		const TConstArrayView<FRealSingle>& InSphereRadii,  // Use local indexation
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		FSolverReal MeshScale
 	)
 		: AnimationPositions(InAnimationPositions)
@@ -65,7 +65,7 @@ public:
 	}
 	~FPBDSphericalConstraint() {}
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection, FSolverReal MeshScale)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection, FSolverReal MeshScale)
 	{
 		SetScale((FSolverReal)1., MeshScale);
 		// TODO: MaxDistance
@@ -146,7 +146,7 @@ private:
 class CHAOS_API FPBDSphericalBackstopConstraint final
 {
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsBackstopDistanceEnabled(PropertyCollection, false) ||
 			IsBackstopDistanceAnimatable(PropertyCollection, false);  // Backstop can be re-enabled if animated
@@ -159,7 +159,7 @@ public:
 		const TArray<FSolverVec3>& InAnimationNormals,  // Use global indexation (will need adding ParticleOffset)
 		const TConstArrayView<FRealSingle>& InSphereRadii,  // Use local indexation
 		const TConstArrayView<FRealSingle>& InSphereOffsetDistances,  // Use local indexation
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		FSolverReal MeshScale
 	)
 		: AnimationPositions(InAnimationPositions)
@@ -198,7 +198,7 @@ public:
 	}
 	~FPBDSphericalBackstopConstraint() {}
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection, FSolverReal MeshScale)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection, FSolverReal MeshScale)
 	{
 		SetScale((FSolverReal)1., MeshScale);
 		// TODO: BackstopDistance and BackstopRadius

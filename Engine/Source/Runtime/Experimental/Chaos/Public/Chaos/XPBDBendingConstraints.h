@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/PBDBendingConstraintsBase.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 #include "ChaosStats.h"
 
 namespace Chaos::Softs
@@ -25,7 +25,7 @@ public:
 	static constexpr FSolverReal MinDamping = (FSolverReal)0.;
 	static constexpr FSolverReal MaxDamping = (FSolverReal)1000.;
 
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsXPBDBendingElementStiffnessEnabled(PropertyCollection, false);
 	}
@@ -37,7 +37,7 @@ public:
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& DampingMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
 		: Base(
 			InParticles,
@@ -135,7 +135,7 @@ public:
 		FPBDBendingConstraintsBase::Init(InParticles);
 	}
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		if (IsXPBDBendingElementStiffnessMutable(PropertyCollection))
 		{

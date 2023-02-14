@@ -440,7 +440,7 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 
 		UChaosClothAsset* ClothAsset = nullptr;
 
-		// TODO: Use PropertyCollectionAdapter instead, see \Engine\Source\Runtime\Experimental\Chaos\Public\Chaos\PropertyCollectionAdapter.h
+		// TODO: Use FCollectionPropertyFacade instead, see \Engine\Source\Runtime\Experimental\Chaos\Public\Chaos\CollectionPropertyFacade.h
 		//TArray<UObject*> ClothPresetAssets;
 
 		//for (const FDatasmithClothPresetPropertySet& PropertySet : DsCloth.PropertySets)
@@ -554,7 +554,7 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 
 		ImportContext.ImportedClothes.Add(ClothElement, ClothAsset);
 
-		// TODO: Use PropertyCollectionAdapter instead, see \Engine\Source\Runtime\Experimental\Chaos\Public\Chaos\PropertyCollectionAdapter.h
+		// TODO: Use FCollectionPropertyFacade instead, see \Engine\Source\Runtime\Experimental\Chaos\Public\Chaos\CollectionPropertyFacade.h
 		//for (UObject* ClothPresetAsset : ClothPresetAssets)
 		//{
 		//	ImportContext.ImportedClothPresets.Add(ClothPresetAsset);

@@ -4,7 +4,7 @@
 // HEADER_UNIT_SKIP - Internal
 
 #include "Chaos/PBDAxialSpringConstraintsBase.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 
 namespace Chaos::Softs
 {
@@ -46,7 +46,7 @@ private:
 class CHAOS_API FPBDAreaSpringConstraints final : public FPBDAxialSpringConstraints
 {
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsAreaSpringStiffnessEnabled(PropertyCollection, false);
 	}
@@ -57,7 +57,7 @@ public:
 		int32 ParticleCount,
 		const TArray<TVec3<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints)
 		: FPBDAxialSpringConstraints(
 			Particles,
@@ -71,7 +71,7 @@ public:
 
 	virtual ~FPBDAreaSpringConstraints() override = default;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		if (IsAreaSpringStiffnessMutable(PropertyCollection))
 		{

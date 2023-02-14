@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChaosCloth/ChaosClothingSimulationConfig.h"
 #include "ChaosCloth/ChaosClothConfig.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 #include "Chaos/PBDLongRangeConstraints.h"  // For Tether modes
 #include "GeometryCollection/ManagedArrayCollection.h"
 
@@ -9,13 +9,13 @@ namespace Chaos
 {
 	FClothingSimulationConfig::FClothingSimulationConfig()
 		: PropertyCollection(MakeShared<FManagedArrayCollection>())
-		, Properties(MakeUnique<Softs::FPropertyCollectionMutableAdapter>(PropertyCollection))
+		, Properties(MakeUnique<Softs::FCollectionPropertyMutableFacade>(PropertyCollection))
 	{
 	}
 
 	FClothingSimulationConfig::FClothingSimulationConfig(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection)
 		: PropertyCollection(MakeShared<FManagedArrayCollection>())
-		, Properties(MakeUnique<Softs::FPropertyCollectionMutableAdapter>(PropertyCollection))
+		, Properties(MakeUnique<Softs::FCollectionPropertyMutableFacade>(PropertyCollection))
 	{
 		Initialize(InPropertyCollection);
 	}
@@ -26,7 +26,8 @@ namespace Chaos
 		constexpr bool bAnimatable = true;
 
 		// Clear all properties
-		Properties->Reset();
+		PropertyCollection->Reset();
+		Properties->DefineSchema();
 
 		// Solver properties
 		if (ClothSharedConfig)
@@ -205,15 +206,15 @@ namespace Chaos
 
 	void FClothingSimulationConfig::Initialize(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection)
 	{
-		Properties->Copy(InPropertyCollection);
+		Properties->Copy(*InPropertyCollection);
 	}
 
-	const Softs::FPropertyCollectionConstAdapter& FClothingSimulationConfig::GetProperties() const
+	const Softs::FCollectionPropertyConstFacade& FClothingSimulationConfig::GetProperties() const
 	{
 		return *Properties;
 	}
 
-	Softs::FPropertyCollectionAdapter& FClothingSimulationConfig::GetProperties()
+	Softs::FCollectionPropertyFacade& FClothingSimulationConfig::GetProperties()
 	{
 		return *Properties;
 	}

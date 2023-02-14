@@ -6,7 +6,7 @@
 #include "ChaosClothAsset/ClothCollection.h"
 #include "ChaosClothAsset/ClothSimulationModel.h"
 #include "ChaosClothAsset/ClothSimulationProxy.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 #include "HAL/IConsoleManager.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
@@ -128,19 +128,21 @@ void UChaosClothComponent::ResetConfigProperties()
 	using namespace UE::Chaos::ClothAsset;
 	using namespace ::Chaos::Softs;
 
-	PropertyCollectionAdapter.Reset();
+	// Create a mutable facade for our component's property collection, and use it to copy the properties from the cloth collection
+	FCollectionPropertyMutableFacade CollectionPropertyMutableFacade(PropertyCollection);
 
-	if (GetClothAsset())
+	if (GetClothAsset() && GetClothAsset()->GetClothCollection())
 	{
-		if (TSharedPtr<const FClothCollection> ClothCollection = GetClothAsset()->GetClothCollection())
-		{
-			// Create a mutable adapter for our component's property collection, and use it to copy the properties from the cloth collection
-			FPropertyCollectionMutableAdapter(PropertyCollection).Copy(TSharedPtr<const FManagedArrayCollection>(ClothCollection));
-
-			// The Adapter used to access the properties shouldn't be mutable, since adding/removing properties would cause issues
-			PropertyCollectionAdapter = MakeUnique<FPropertyCollectionAdapter>(PropertyCollection);
-		}
+		CollectionPropertyMutableFacade.Copy(*GetClothAsset()->GetClothCollection());
 	}
+	else
+	{
+		PropertyCollection->Reset();
+		CollectionPropertyMutableFacade.DefineSchema();
+	}
+
+	// The facade used to access the properties shouldn't be mutable, since adding/removing properties would cause issues
+	CollectionPropertyFacade = MakeUnique<FCollectionPropertyFacade>(PropertyCollection);
 }
 
 void UChaosClothComponent::OnUnregister()

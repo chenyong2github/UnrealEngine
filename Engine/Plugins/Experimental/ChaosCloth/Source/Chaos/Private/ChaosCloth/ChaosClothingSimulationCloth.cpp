@@ -6,7 +6,7 @@
 #include "ChaosCloth/ChaosClothingSimulationConfig.h"
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 #include "Containers/ArrayView.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "HAL/IConsoleManager.h"
@@ -149,7 +149,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		};
 
 	check(Cloth->Config);
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties = Cloth->Config->GetProperties();
+	const Softs::FCollectionPropertyFacade& ConfigProperties = Cloth->Config->GetProperties();
 
 	const int32 MassMode = ConfigProperties.GetValue<int32>(TEXT("MassMode"), ClothingSimulationClothDefault::MassMode);
 	const FRealSingle MassValue = (FRealSingle)ConfigProperties.GetValue<float>(TEXT("MassValue"), ClothingSimulationClothDefault::MassValue);
@@ -334,7 +334,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 {
 	// Turn parameters into a config
 	PropertyCollection = MakeShared<FManagedArrayCollection>();
-	Softs::FPropertyCollectionMutableAdapter Properties(PropertyCollection);
+	Softs::FCollectionPropertyMutableFacade Properties(PropertyCollection);
+	Properties.DefineSchema();
 
 	constexpr bool bEnable = true;
 	constexpr bool bAnimatable = true;
@@ -697,7 +698,7 @@ TVec3<FRealSingle> FClothingSimulationCloth::GetGravity(const FClothingSimulatio
 {
 	check(Solver);
 	check(Config);
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties = Config->GetProperties();
+	const Softs::FCollectionPropertyFacade& ConfigProperties = Config->GetProperties();
 
 	const bool bUseGravityOverride = ConfigProperties.GetValue<bool>(TEXT("UseGravityOverride"));
 	const TVec3<FRealSingle> GravityOverride = (TVec3<FRealSingle>)ConfigProperties.GetValue<FVector3f>(TEXT("GravityOverride"), FVector3f(0.f, 0.f, ClothingSimulationClothDefault::GravityZOverride));
@@ -868,7 +869,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (LODIndex != INDEX_NONE)
 	{
 		check(Config);
-		const Softs::FPropertyCollectionConstAdapter& ConfigProperties = Config->GetProperties();
+		const Softs::FCollectionPropertyFacade& ConfigProperties = Config->GetProperties();
 
 		// Update Cloth group parameters  TODO: Cloth groups should exist as their own node object so that they can be used by several cloth objects
 		LODData[LODIndex]->Update(Solver, this);

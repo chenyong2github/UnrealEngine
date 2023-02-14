@@ -5,7 +5,7 @@
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/HierarchicalSpatialHash.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 
 // This does initialization for PBDCollisionSpringConstraints and PBDTriangleMeshIntersections, 
 // including intersection detection and global intersection analysis
@@ -95,7 +95,7 @@ public:
 		Count
 	};
 
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return PropertyCollection.IsEnabled(FName(TEXT("SelfCollisionStiffness")).ToString(), false);  // Don't use UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME here, SelfCollisionStiffness is only needed for activation
 	}
@@ -104,7 +104,7 @@ public:
 		const int32 InOffset,
 		const int32 InNumParticles,
 		const FTriangleMesh& InTriangleMesh,
-		const FPropertyCollectionConstAdapter& PropertyCollection
+		const FCollectionPropertyConstFacade& PropertyCollection
 	)
 		:TriangleMesh(InTriangleMesh)
 		, Offset(InOffset)
@@ -129,7 +129,7 @@ public:
 
 	virtual ~FPBDTriangleMeshCollisions() = default;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		bool bUseSelfIntersections = false;
 		if (IsUseSelfIntersectionsMutable(PropertyCollection))

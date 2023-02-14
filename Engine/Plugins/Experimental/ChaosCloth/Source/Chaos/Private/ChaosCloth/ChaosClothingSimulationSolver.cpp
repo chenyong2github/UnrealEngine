@@ -1118,7 +1118,7 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 			int32 ConfigNumSubsteps;
 			if (Config)
 			{
-				const Softs::FPropertyCollectionConstAdapter& Properties = Config->GetProperties();
+				const Softs::FCollectionPropertyFacade& Properties = Config->GetProperties();
 
 				ConfigMaxNumIterations = FMath::Max(
 					Properties.GetValue<int32>(TEXT("MaxNumIterations"), ClothingSimulationSolverDefault::MaxNumIterations),

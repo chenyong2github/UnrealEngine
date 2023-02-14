@@ -3,7 +3,7 @@
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 #include "Chaos/PBDCollisionSpringConstraintsBase.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 
 namespace Chaos::Softs
 {
@@ -18,7 +18,7 @@ public:
 	static constexpr FSolverReal MinFrictionCoefficient = (FSolverReal)0.;
 	static constexpr FSolverReal MaxFrictionCoefficient = (FSolverReal)10.;
 
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsSelfCollisionStiffnessEnabled(PropertyCollection, false);
 	}
@@ -29,7 +29,7 @@ public:
 		const FTriangleMesh& InTriangleMesh,
 		const TArray<FSolverVec3>* InRestPositions,
 		TSet<TVec2<int32>>&& InDisabledCollisionElements,
-		const FPropertyCollectionConstAdapter& PropertyCollection)
+		const FCollectionPropertyConstFacade& PropertyCollection)
 		: Base(
 			InOffset,
 			InNumParticles,
@@ -65,7 +65,7 @@ public:
 
 	using Base::Init;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		if (IsSelfCollisionThicknessMutable(PropertyCollection))
 		{

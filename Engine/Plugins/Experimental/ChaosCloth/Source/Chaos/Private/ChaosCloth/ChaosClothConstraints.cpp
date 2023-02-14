@@ -16,7 +16,7 @@
 #include "Chaos/PBDTriangleMeshCollisions.h"
 #include "Chaos/PBDTriangleMeshIntersections.h"
 #include "Chaos/PBDEvolution.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 
 namespace Chaos {
 
@@ -96,7 +96,7 @@ void FClothConstraints::Enable(bool bEnable)
 }
 
 void FClothConstraints::AddRules(
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const FTriangleMesh& TriangleMesh,
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
@@ -136,7 +136,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Enable(bEnabled);
 }
 
-void FClothConstraints::CreateSelfCollisionConstraints(const Softs::FPropertyCollectionConstAdapter& ConfigProperties, const FTriangleMesh& TriangleMesh)
+void FClothConstraints::CreateSelfCollisionConstraints(const Softs::FCollectionPropertyConstFacade& ConfigProperties, const FTriangleMesh& TriangleMesh)
 {
 	const bool bUseSelfCollisions = ConfigProperties.GetValue<bool>(TEXT("UseSelfCollisions"));
 
@@ -185,7 +185,7 @@ void FClothConstraints::CreateSelfCollisionConstraints(const Softs::FPropertyCol
 }
 
 void FClothConstraints::CreateEdgeConstraints(
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 	const FTriangleMesh& TriangleMesh)
 {
@@ -226,7 +226,7 @@ void FClothConstraints::CreateEdgeConstraints(
 }
 
 void FClothConstraints::CreateBendingConstraints(
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 	const FTriangleMesh& TriangleMesh)
 {
@@ -314,7 +314,7 @@ void FClothConstraints::CreateBendingConstraints(
 }
 
 void FClothConstraints::CreateAreaConstraints(
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 	const FTriangleMesh& TriangleMesh)
 {
@@ -353,7 +353,7 @@ void FClothConstraints::CreateAreaConstraints(
 }
 
 void FClothConstraints::CreateLongRangeConstraints(
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 	Softs::FSolverReal MeshScale)
@@ -379,7 +379,7 @@ void FClothConstraints::CreateLongRangeConstraints(
 }
 
 void FClothConstraints::CreateMaxDistanceConstraints(
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 	Softs::FSolverReal MeshScale)
 {
@@ -399,7 +399,7 @@ void FClothConstraints::CreateMaxDistanceConstraints(
 }
 
 void FClothConstraints::CreateBackstopConstraints(
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 	Softs::FSolverReal MeshScale)
 {
@@ -425,7 +425,7 @@ void FClothConstraints::CreateBackstopConstraints(
 	}
 }
 
-void FClothConstraints::CreateAnimDriveConstraints(const Softs::FPropertyCollectionConstAdapter& ConfigProperties, const TArray<TConstArrayView<FRealSingle>>& WeightMaps)
+void FClothConstraints::CreateAnimDriveConstraints(const Softs::FCollectionPropertyConstFacade& ConfigProperties, const TArray<TConstArrayView<FRealSingle>>& WeightMaps)
 {
 	if (Softs::FPBDAnimDriveConstraint::IsEnabled(ConfigProperties))
 	{
@@ -1113,7 +1113,7 @@ void FClothConstraints::SetSelfCollisionConstraints(const FTriangleMesh& Triangl
 }
 
 void FClothConstraints::Update(
-	const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	Softs::FSolverReal MeshScale,
 	Softs::FSolverReal MaxDistancesScale)
 {

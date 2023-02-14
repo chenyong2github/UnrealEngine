@@ -39,7 +39,7 @@ namespace Chaos
 
 		// ---- Cloth interface ----
 		void AddRules(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const FTriangleMesh& TriangleMesh,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
@@ -47,7 +47,7 @@ namespace Chaos
 			bool bEnabled);
 
 		void Update(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			Softs::FSolverReal MeshScale,
 			Softs::FSolverReal MaxDistancesScale = (Softs::FSolverReal)1.);
 
@@ -172,35 +172,35 @@ namespace Chaos
 
 	private:
 		void CreateSelfCollisionConstraints(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const FTriangleMesh& TriangleMesh);
 		void CreateEdgeConstraints(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 			const FTriangleMesh& TriangleMesh);
 		void CreateBendingConstraints(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 			const FTriangleMesh& TriangleMesh);
 		void CreateAreaConstraints(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 			const FTriangleMesh& TriangleMesh);
 		void CreateLongRangeConstraints(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 			Softs::FSolverReal MeshScale);
 		void CreateMaxDistanceConstraints(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 			Softs::FSolverReal MeshScale);
 		void CreateBackstopConstraints(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 			Softs::FSolverReal MeshScale);
 		void CreateAnimDriveConstraints(
-			const Softs::FPropertyCollectionConstAdapter& ConfigProperties,
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps);
 
 		//~ Begin deprecated constraints

@@ -12,9 +12,9 @@ namespace Chaos
 {
 	namespace Softs
 	{
-		class FPropertyCollectionConstAdapter;
-		class FPropertyCollectionAdapter;
-		class FPropertyCollectionMutableAdapter;
+		class FCollectionPropertyConstFacade;
+		class FCollectionPropertyFacade;
+		class FCollectionPropertyMutableFacade;
 	}
 
 	// Cloth simulation properties
@@ -37,17 +37,17 @@ namespace Chaos
 		/** Initialize config from a property collection. */
 		void Initialize(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection);
 
-		/** Return a property collection adapter for reading properties from this configuration. */
-		const Softs::FPropertyCollectionConstAdapter& GetProperties() const;
+		/** Return a property collection facade for reading properties from this configuration. */
+		const Softs::FCollectionPropertyConstFacade& GetProperties() const;
 
-		/** Return a property collection adapter for setting properties for this configuration. */
-		Softs::FPropertyCollectionAdapter& GetProperties();
+		/** Return a property collection facade for setting properties for this configuration. */
+		Softs::FCollectionPropertyFacade& GetProperties();
 
 		/** Return this configuration's internal property collection. */
 		TSharedPtr<const FManagedArrayCollection> GetPropertyCollection() const { return TSharedPtr<const FManagedArrayCollection>(PropertyCollection); }
 
 	private:
 		TSharedPtr<FManagedArrayCollection> PropertyCollection;
-		TUniquePtr<Softs::FPropertyCollectionMutableAdapter> Properties;
+		TUniquePtr<Softs::FCollectionPropertyMutableFacade> Properties;
 	};
 } // namespace Chaos

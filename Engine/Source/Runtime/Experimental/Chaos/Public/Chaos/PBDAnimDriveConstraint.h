@@ -6,7 +6,7 @@
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDStiffness.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Anim Drive Constraint"), STAT_PBD_AnimDriveConstraint, STATGROUP_Chaos);
@@ -17,7 +17,7 @@ namespace Chaos::Softs
 	class FPBDAnimDriveConstraint final
 	{
 	public:
-		static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+		static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 		{
 			return IsAnimDriveStiffnessEnabled(PropertyCollection, false);
 		}
@@ -49,7 +49,7 @@ namespace Chaos::Softs
 			const TArray<FSolverVec3>& InAnimationVelocities,  // Use global indexation (will need adding ParticleOffset)
 			const TConstArrayView<FRealSingle>& StiffnessMultipliers,  // Use local indexation
 			const TConstArrayView<FRealSingle>& DampingMultipliers,  // Use local indexation
-			const FPropertyCollectionConstAdapter& PropertyCollection
+			const FCollectionPropertyConstFacade& PropertyCollection
 		)
 			: AnimationPositions(InAnimationPositions)
 			, OldAnimationPositions_deprecated(InAnimationVelocities) // Unused when not using apply
@@ -96,7 +96,7 @@ namespace Chaos::Softs
 		// Return the damping input values used by the constraint
 		FSolverVec2 GetDamping() const { return Damping.GetWeightedValue(); }
 
-		void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+		void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 		{
 			if (IsAnimDriveStiffnessMutable(PropertyCollection))
 			{

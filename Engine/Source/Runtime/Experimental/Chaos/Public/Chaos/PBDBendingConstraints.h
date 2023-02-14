@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/PBDBendingConstraintsBase.h"
-#include "Chaos/PropertyCollectionAdapter.h"
+#include "Chaos/CollectionPropertyFacade.h"
 
 namespace Chaos::Softs
 {
@@ -12,7 +12,7 @@ class CHAOS_API FPBDBendingConstraints : public FPBDBendingConstraintsBase
 	typedef FPBDBendingConstraintsBase Base;
 
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		return IsBendingElementStiffnessEnabled(PropertyCollection, false);
 	}
@@ -23,7 +23,7 @@ public:
 		TArray<TVec4<int32>>&& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection,
+		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints = false)
 		: Base(
 			InParticles,
@@ -78,7 +78,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	using Base::SetProperties;
 
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
 		if (IsBendingElementStiffnessMutable(PropertyCollection))
 		{
