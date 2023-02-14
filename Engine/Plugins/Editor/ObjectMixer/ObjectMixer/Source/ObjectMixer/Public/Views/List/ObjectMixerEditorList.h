@@ -188,7 +188,8 @@ protected:
 	TArray<TObjectPtr<UObjectMixerObjectFilter>> ObjectFilterInstances;
 
 	/**
-	 * The classes used to generate property edit columns
+	 * The classes used to generate property edit columns.
+	 * Using an array rather than a set because the first class is considered the 'Main' class which determines some filter behaviours.
 	 */
 	TArray<TSubclassOf<UObjectMixerObjectFilter>> ObjectFilterClasses;
 

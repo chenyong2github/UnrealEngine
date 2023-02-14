@@ -117,7 +117,7 @@ void FObjectMixerEditorList::AddObjectFilterClass(UClass* InObjectFilterClass, c
 {
 	if (ensureAlwaysMsgf(InObjectFilterClass->IsChildOf(UObjectMixerObjectFilter::StaticClass()), TEXT("%hs: Class '%s' is not a child of UObjectMixerObjectFilter."), __FUNCTION__, *InObjectFilterClass->GetName()))
 	{
-		ObjectFilterClasses.Add(InObjectFilterClass);
+		ObjectFilterClasses.AddUnique(InObjectFilterClass);
 
 		CacheObjectFilterInstances();
 
