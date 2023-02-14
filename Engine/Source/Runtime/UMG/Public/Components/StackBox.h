@@ -26,7 +26,7 @@ class UMG_API UStackBox : public UPanelWidget
 
 private:
 	/** The orientation of the stack box. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, Getter, Category = "Layout", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, Getter, Category = "Behavior", meta = (AllowPrivateAccess = "true"))
 	TEnumAsByte<EOrientation> Orientation;
 
 public:
