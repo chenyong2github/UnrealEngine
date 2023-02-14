@@ -1903,6 +1903,7 @@ void FGroomBuilder::BuildData(
 		OutGroupInfo.MaxImportedWidth = InHairDescriptionGroup.Info.MaxImportedWidth;
 
 		// Rendering data
+		if (InHairDescriptionGroup.Strands.IsValid())
 		{
 			OutRen = InHairDescriptionGroup.Strands;
 
@@ -1926,6 +1927,7 @@ void FGroomBuilder::BuildData(
 		}
 
 		// Simulation data
+		if (InHairDescriptionGroup.Guides.IsValid())
 		{
 			OutSim = InHairDescriptionGroup.Guides;
 			if (InHairDescriptionGroup.Info.NumGuides > 0 && !InSettings.InterpolationSettings.bOverrideGuides)
