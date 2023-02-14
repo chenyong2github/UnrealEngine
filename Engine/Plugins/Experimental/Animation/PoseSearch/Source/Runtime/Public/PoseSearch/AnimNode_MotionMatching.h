@@ -65,7 +65,7 @@ public:
 
 private:
 
-	FAnimNode_BlendStack BlendStackNode;
+	FAnimNode_BlendStack_Standalone BlendStackNode;
 
 	// Encapsulated motion matching algorithm and internal state
 	FMotionMatchingState MotionMatchingState;
