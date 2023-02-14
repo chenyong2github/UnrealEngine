@@ -36,10 +36,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Luminance")
 	FDMXAttributeName LuminanceAttribute;
 
-	/** Scale Factor for Luminance, e.g. when 0.5, a Luminance of 1 will be output as 0.5. */
-	UPROPERTY(EditAnywhere, Category = "Luminance", Meta = (ClampMin = 0.0, ClampMax = 1.0, SliderMin = 0.0, SliderMax = 1.0, EditConditionHides, EditCondition = "LuminanceType == EDMXPixelMappingLuminanceType_RGBCMY::Constant"))
-	float LuminanceScale = 1.f;
-
 	/** Min Luminance */
 	UPROPERTY(EditAnywhere, Category = "Luminance", Meta = (ClampMin = 0.0, ClampMax = 1.0, SliderMin = 0.0, SliderMax = 1.0, EditConditionHides, EditCondition = "LuminanceType == EDMXPixelMappingLuminanceType_RGBCMY::FromWhite || LuminanceType == EDMXPixelMappingLuminanceType_RGBCMY::FromAlpha"))
 	float MinLuminance = 0.f;

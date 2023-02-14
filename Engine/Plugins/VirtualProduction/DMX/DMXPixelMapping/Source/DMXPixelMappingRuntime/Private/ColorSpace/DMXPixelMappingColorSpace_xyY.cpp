@@ -38,7 +38,7 @@ void UDMXPixelMappingColorSpace_xyY::SetRGBA(const FLinearColor& InColor)
 
 	if (LuminanceAttribute.IsValid())
 	{
-		const float Luminance = FMath::Clamp(XYZW.Y * LuminanceScale, MinLuminance, MaxLuminance);
+		const float Luminance = FMath::Clamp(XYZW.Y, MinLuminance, MaxLuminance);
 		SetAttributeValue(LuminanceAttribute, Luminance);
 	}
 }
@@ -55,6 +55,22 @@ void UDMXPixelMappingColorSpace_xyY::PostEditChangeProperty(FPropertyChangedEven
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_xyY, LuminanceAttribute))
 	{
 		ClearCachedAttributeValues();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_xyY, MinLuminance))
+	{
+		if (MaxLuminance < MinLuminance)
+		{
+			Modify();
+			MaxLuminance = MinLuminance;
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_xyY, MaxLuminance))
+	{
+		if (MinLuminance > MaxLuminance)
+		{
+			Modify();
+			MinLuminance = MaxLuminance;
+		}
 	}
 }
 #endif // WITH_EDITOR

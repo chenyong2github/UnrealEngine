@@ -31,6 +31,7 @@ DECLARE_CYCLE_STAT(TEXT("Send Fixture Group Item"), STAT_DMXPixelMaping_FixtureG
 UDMXPixelMappingFixtureGroupItemComponent::UDMXPixelMappingFixtureGroupItemComponent()
 	: DownsamplePixelIndex(0)
 {
+	ColorSpaceClass = UDMXPixelMappingColorSpace_RGBCMY::StaticClass();
 	ColorSpace = CreateDefaultSubobject<UDMXPixelMappingColorSpace_RGBCMY>("ColorSpace");
 
 	SetSize(FVector2D(32.f, 32.f));
@@ -56,11 +57,14 @@ void UDMXPixelMappingFixtureGroupItemComponent::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FDMXPixelMappingMainStreamObjectVersion::GUID);
 	if (Ar.IsLoading())
 	{
-		// Upgrade to the DMXPixelMappingColorSpace default subobject
 		if (Ar.CustomVer(FDMXPixelMappingMainStreamObjectVersion::GUID) < FDMXPixelMappingMainStreamObjectVersion::UseDMXPixelMappingColorSpace)
 		{
+			// Upgrade to the DMXPixelMappingColorSpace default subobject
+			if (!ensureMsgf(ColorSpace, TEXT("Missing default Subobject ColorSpace")))
+			{
+				ColorSpace = NewObject<UDMXPixelMappingColorSpace_RGBCMY>(this, "ColorSpace");
+			}
 			UDMXPixelMappingColorSpace_RGBCMY* ColorSpace_RGBCMY = Cast<UDMXPixelMappingColorSpace_RGBCMY>(ColorSpace);
-			checkf(ColorSpace_RGBCMY, TEXT("Missing default Subobject ColorSpace"));
 
 			if (ColorMode_DEPRECATED == EDMXColorMode::CM_Monochrome)
 			{

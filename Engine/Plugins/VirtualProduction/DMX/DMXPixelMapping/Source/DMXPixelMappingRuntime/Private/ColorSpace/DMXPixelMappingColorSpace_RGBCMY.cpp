@@ -43,15 +43,15 @@ void UDMXPixelMappingColorSpace_RGBCMY::SetRGBA(const FLinearColor& InColor)
 		if (LuminanceType == EDMXPixelMappingLuminanceType_RGBCMY::FromColor)
 		{
 			const float LuminanceFromColor = OutputColorSpace.GetLuminance(CalibratedColor);
-			SetAttributeValue(LuminanceAttribute, LuminanceFromColor);
+			SetAttributeValue(LuminanceAttribute, FMath::Clamp(LuminanceFromColor, MinLuminance, MaxLuminance));
 		}
 		else if (LuminanceType == EDMXPixelMappingLuminanceType_RGBCMY::Constant)
 		{
-			SetAttributeValue(LuminanceAttribute, Luminance);
+			SetAttributeValue(LuminanceAttribute, FMath::Clamp(Luminance, MinLuminance, MaxLuminance));
 		}
 		else if (LuminanceType == EDMXPixelMappingLuminanceType_RGBCMY::FromAlpha)
 		{
-			SetAttributeValue(LuminanceAttribute, InColor.A);
+			SetAttributeValue(LuminanceAttribute, FMath::Clamp(InColor.A, MinLuminance, MaxLuminance));
 		}
 	}
 }
@@ -74,10 +74,26 @@ void UDMXPixelMappingColorSpace_RGBCMY::PostEditChangeChainProperty(FPropertyCha
 	{
 		ClearCachedAttributeValues();
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_RGBCMY, OutputColorSpace) ||
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_RGBCMY, PixelMappingOutputColorSpace) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace, bUseWorkingColorSpaceForInput))
 	{
 		UpdateColorSpaceAndTransform();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_RGBCMY, MinLuminance))
+	{
+		if (MaxLuminance < MinLuminance)
+		{
+			Modify();
+			MaxLuminance = MinLuminance;
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_RGBCMY, MaxLuminance))
+	{
+		if (MinLuminance > MaxLuminance)
+		{
+			Modify();
+			MinLuminance = MaxLuminance;
+		}
 	}
 }
 #endif // WITH_EDITOR

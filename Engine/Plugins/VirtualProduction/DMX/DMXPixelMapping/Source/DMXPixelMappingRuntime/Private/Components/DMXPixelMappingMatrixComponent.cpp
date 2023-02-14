@@ -25,9 +25,18 @@
 
 UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 {
+	ColorSpaceClass = UDMXPixelMappingColorSpace_RGBCMY::StaticClass();
 	ColorSpace = CreateDefaultSubobject<UDMXPixelMappingColorSpace_RGBCMY>("ColorSpace");
 
 	SetSize(FVector2D(32.f, 32.f));
+
+#if WITH_EDITORONLY_DATA
+	// Even tho deprecated, default values on deprecated properties need be set so they don't load their type's default value.
+	ColorMode_DEPRECATED = EDMXColorMode::CM_RGB;
+	AttributeR_DEPRECATED.SetFromName("Red");
+	AttributeG_DEPRECATED.SetFromName("Green");
+	AttributeB_DEPRECATED.SetFromName("Blue");
+#endif // WITH_EDITORONLY_DATA
 }
 
 void UDMXPixelMappingMatrixComponent::Serialize(FArchive& Ar)
@@ -53,9 +62,12 @@ void UDMXPixelMappingMatrixComponent::Serialize(FArchive& Ar)
 			}
 			UDMXPixelMappingColorSpace_RGBCMY* ColorSpace_RGBCMY = Cast<UDMXPixelMappingColorSpace_RGBCMY>(ColorSpace);
 
-			if (bMonochromeExpose_DEPRECATED)
+			if (ColorMode_DEPRECATED == EDMXColorMode::CM_Monochrome)
 			{
 				ColorSpace_RGBCMY->LuminanceAttribute = MonochromeIntensity_DEPRECATED;
+				ColorSpace_RGBCMY->RedAttribute = FDMXAttributeName(NAME_None);
+				ColorSpace_RGBCMY->GreenAttribute = FDMXAttributeName(NAME_None);
+				ColorSpace_RGBCMY->BlueAttribute = FDMXAttributeName(NAME_None);
 			}
 			else
 			{
@@ -65,6 +77,8 @@ void UDMXPixelMappingMatrixComponent::Serialize(FArchive& Ar)
 				ColorSpace_RGBCMY->RedAttribute = AttributeR_DEPRECATED;
 				ColorSpace_RGBCMY->GreenAttribute = AttributeG_DEPRECATED;
 				ColorSpace_RGBCMY->BlueAttribute = AttributeB_DEPRECATED;
+				ColorSpace_RGBCMY->LuminanceType = EDMXPixelMappingLuminanceType_RGBCMY::None;
+				ColorSpace_RGBCMY->LuminanceAttribute = FDMXAttributeName(NAME_None);
 			}
 		}
 	}

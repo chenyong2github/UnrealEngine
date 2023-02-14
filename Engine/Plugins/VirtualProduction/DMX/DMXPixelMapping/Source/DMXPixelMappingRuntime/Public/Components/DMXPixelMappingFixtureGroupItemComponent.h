@@ -85,7 +85,7 @@ public:
 	TObjectPtr<UDMXPixelMappingColorSpace> ColorSpace;
 
 	/** Modulators applied to the output before sending DMX */
-	UPROPERTY(Transient, EditAnywhere, BlueprintReadOnly, Transient, Category = "Output Settings", meta = (DisplayName = "Output Modulators"))
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadOnly, Category = "Output Settings", Meta = (DisplayName = "Output Modulators"))
 	TArray<TSubclassOf<UDMXModulator>> ModulatorClasses;
 
 	/** Modulator instances applied to this component */
