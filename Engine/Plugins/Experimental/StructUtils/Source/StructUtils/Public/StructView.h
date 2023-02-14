@@ -4,6 +4,7 @@
 
 #include "InstancedStruct.h"
 #include "SharedStruct.h"
+#include "StructUtils.h"
 
 ///////////////////////////////////////////////////////////////// FStructView /////////////////////////////////////////////////////////////////
 
@@ -85,6 +86,13 @@ public:
 	uint8* GetMemory() const
 	{
 		return StructMemory;
+	}
+
+	/** Returns a mutable pointer to struct memory. */
+	UE_DEPRECATED(5.3, "Use GetMemory() instead")
+	uint8* GetMutableMemory()
+	{
+		return GetMemory();
 	}
 
 	/** Reset to empty. */
