@@ -1008,7 +1008,7 @@ public:
 	virtual bool CompressImage(FImage& InImage, const FTextureBuildSettings& InBuildSettings, const FIntVector3& InMip0Dimensions,
 		int32 InMip0NumSlicesNoDepth, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_CompressImage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(TFOodle_CompressImage);
 
 		check(InImage.SizeX > 0);
 		check(InImage.SizeY > 0);
@@ -1456,7 +1456,7 @@ public:
 				}
 
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN);
+					TRACE_CPUPROFILER_EVENT_SCOPE(TFOodle_EncodeBCN);
 
 					// if RDOLambda == 0, does non-RDO encode :
 					OodleTex_Err OodleErr = (VTable->fp_OodleTex_EncodeBCN_RDO_Ex)(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
@@ -1519,20 +1519,15 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 {
 	using namespace UE::Tasks;
 
-	// Don't trace both RunJob and the EncodeBCN_Task by default; that's a lot of event
-	// spam. The RunJob portion is a bit of setup work, just elide that unless there's
-	// reason to suspect something fishy here.
-	//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN_RunJob);
-
 	// DebugInfo to inspect:
 	const FOodleJobDebugInfo * DebugInfo = (FOodleJobDebugInfo *)UserPtr;
 
 	FTask* Task = new FTask;
 	Task->Launch(
-		TEXT("Oodle_EncodeBCN_Task"),
+		TEXT("TFOodle_EncodeBCN_Task"),
 		[JobFunction, JobData]
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN_Task);
+			TRACE_CPUPROFILER_EVENT_SCOPE(TFOodle_EncodeBCN_Task);
 			JobFunction(JobData);
 		},
 		TArrayView<FTask*>{ reinterpret_cast<FTask**>(Dependencies), NumDependencies },
@@ -1551,7 +1546,7 @@ static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
 	// DebugInfo to inspect:
 	const FOodleJobDebugInfo * DebugInfo = (FOodleJobDebugInfo *)UserPtr;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_WaitJob);
+	TRACE_CPUPROFILER_EVENT_SCOPE(TFOodle_WaitJob);
 
 	FTask* Task = reinterpret_cast<FTask*>(JobHandle);
 	Task->Wait();
