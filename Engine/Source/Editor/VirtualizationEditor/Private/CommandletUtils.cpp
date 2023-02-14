@@ -15,10 +15,7 @@ TArray<FString> FindAllPackages()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FindAllPackages);
 
-	// TODO: In theory we could check the VA settings and skip engine content if they are 
-	// excluded from virtualization. Not convinced it saves enough time to be worth the 
-	// effort.
-	const EPackageNormalizationFlags PackageFilter = NORMALIZE_DefaultFlags;
+	const uint8 PackageFilter = NORMALIZE_DefaultFlags | NORMALIZE_ExcludeEnginePackages;
 
 	const FString AssetSearch = TEXT("*") + FPackageName::GetAssetPackageExtension();
 	const FString MapSearch = TEXT("*") + FPackageName::GetMapPackageExtension();
