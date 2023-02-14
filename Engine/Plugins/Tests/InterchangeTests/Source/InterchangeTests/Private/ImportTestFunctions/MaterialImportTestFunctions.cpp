@@ -121,9 +121,43 @@ FInterchangeTestFunctionResult UMaterialImportTestFunctions::CheckOpacityMaskCli
 	FInterchangeTestFunctionResult Result;
 	const float ImportedOpacityMaskClipValue = MaterialInterface->GetOpacityMaskClipValue();
 
-	if (!FMath::IsNearlyEqual(ImportedOpacityMaskClipValue, ExpectedOpacityMaskClipValue))
+	if (!FMath::IsNearlyEqual(ImportedOpacityMaskClipValue, ExpectedOpacityMaskClipValue, UE_KINDA_SMALL_NUMBER))
 	{
 		Result.AddError(FString::Printf(TEXT("Expected opacity mask clip value %.2f, imported %.2f."), ExpectedOpacityMaskClipValue, ImportedOpacityMaskClipValue));
+	}
+
+	return Result;
+}
+
+FInterchangeTestFunctionResult UMaterialImportTestFunctions::CheckScalarParameter(const UMaterialInterface* MaterialInterface, const FString& ParameterName, float ExpectedParameterValue)
+{
+	FInterchangeTestFunctionResult Result;
+	float ImportedParameterValue;
+
+	if (!MaterialInterface->GetScalarParameterValue(*ParameterName, ImportedParameterValue))
+	{
+		Result.AddError(FString::Printf(TEXT("The imported material doesn't contain scalar parameter '%s'."), *ParameterName));
+	}
+	else if (!FMath::IsNearlyEqual(ImportedParameterValue, ExpectedParameterValue, UE_KINDA_SMALL_NUMBER))
+	{
+		Result.AddError(FString::Printf(TEXT("For scalar parameter '%s', expected value %f, imported %f."), *ParameterName, ExpectedParameterValue, ImportedParameterValue));
+	}
+
+	return Result;
+}
+
+FInterchangeTestFunctionResult UMaterialImportTestFunctions::CheckVectorParameter(const UMaterialInterface* MaterialInterface, const FString& ParameterName, FLinearColor ExpectedParameterValue)
+{
+	FInterchangeTestFunctionResult Result;
+	FLinearColor ImportedParameterValue;
+
+	if (!MaterialInterface->GetVectorParameterValue(*ParameterName, ImportedParameterValue))
+	{
+		Result.AddError(FString::Printf(TEXT("The imported material doesn't contain vector parameter '%s'."), *ParameterName));
+	}
+	else if (!ImportedParameterValue.Equals(ExpectedParameterValue, UE_KINDA_SMALL_NUMBER))
+	{
+		Result.AddError(FString::Printf(TEXT("For scalar parameter '%s', expected value %s, imported %s."), *ParameterName, *ExpectedParameterValue.ToString(), *ImportedParameterValue.ToString()));
 	}
 
 	return Result;

@@ -239,6 +239,64 @@ FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckRenderVertex
 	return Result;
 }
 
+FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckRenderVertexIndexColor(UStaticMesh* Mesh, int32 LodIndex, int32 VertexIndex, const FColor& ExpectedVertexColor)
+{
+	FInterchangeTestFunctionResult Result;
+
+	if (LodIndex < 0 || LodIndex >= Mesh->GetNumLODs())
+	{
+		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d."), LodIndex));
+	}
+	else if (Mesh->GetRenderData() && Mesh->GetRenderData()->LODResources.IsValidIndex(LodIndex))
+	{
+		const int32 NumVertices = Mesh->GetRenderData()->LODResources[LodIndex].VertexBuffers.ColorVertexBuffer.GetNumVertices();
+		if (VertexIndex >= NumVertices)
+		{
+			Result.AddError(FString::Printf(TEXT("The imported LOD render color buffer doesn't contain vertex index %d."), VertexIndex));
+		}
+		else
+		{
+			const FColor& ImportedVertexColor = Mesh->GetRenderData()->LODResources[LodIndex].VertexBuffers.ColorVertexBuffer.VertexColor(VertexIndex);
+			if (ImportedVertexColor != ExpectedVertexColor)
+			{
+				Result.AddError(FString::Printf(TEXT("For LOD %d, vertex index %d, expected vertex color %s, imported %s."), LodIndex, VertexIndex, *ExpectedVertexColor.ToString(), *ImportedVertexColor.ToString()));
+			}
+		}
+	}
+	else
+	{
+		Result.AddError(FString::Printf(TEXT("No valid render data For LOD %d."), LodIndex));
+	}
+
+	return Result;
+}
+
+FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckRenderHasVertexColors(UStaticMesh* Mesh, int32 LodIndex, bool bExpectedHasVertexColors)
+{
+	FInterchangeTestFunctionResult Result;
+
+	if (LodIndex < 0 || LodIndex >= Mesh->GetNumLODs())
+	{
+		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d."), LodIndex));
+	}
+	else if (Mesh->GetRenderData() && Mesh->GetRenderData()->LODResources.IsValidIndex(LodIndex))
+	{
+		const bool bImportedHasVertexColors = Mesh->GetRenderData()->LODResources[LodIndex].VertexBuffers.ColorVertexBuffer.GetNumVertices() != 0;
+		if (bImportedHasVertexColors != bExpectedHasVertexColors)
+		{
+			const TCHAR* ImportedDisplayValue = bImportedHasVertexColors ? TEXT("True") : TEXT("False");
+			const TCHAR* ExpectedDisplayValue = bExpectedHasVertexColors ? TEXT("True") : TEXT("False");
+			Result.AddError(FString::Printf(TEXT("For LOD %d, expected vertex colors %s, imported %s."), LodIndex, ExpectedDisplayValue, ImportedDisplayValue));
+		}
+	}
+	else
+	{
+		Result.AddError(FString::Printf(TEXT("No valid render data For LOD %d."), LodIndex));
+	}
+
+	return Result;
+}
+
 FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckTriangleCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedTotalNumberOfTriangles)
 {
 	FInterchangeTestFunctionResult Result;

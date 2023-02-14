@@ -92,6 +92,14 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckRenderVertexIndexNormal(UStaticMesh* Mesh, int32 LodIndex, int32 VertexIndex, const FVector4f& ExpectedVertexNormal);
 
+	/** Check whether the render data vertex index of the given LOD has the expected vertex color */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckRenderVertexIndexColor(UStaticMesh* Mesh, int32 LodIndex, int32 VertexIndex, const FColor& ExpectedVertexColor);
+
+	/** Check whether the render data contains any vertex colors of the given LOD */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckRenderHasVertexColors(UStaticMesh* Mesh, int32 LodIndex, bool bExpectedHasVertexColors);
+
 	/** Check whether the mesh description has the expected number of triangles for the given LOD */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckTriangleCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedTotalNumberOfTriangles);

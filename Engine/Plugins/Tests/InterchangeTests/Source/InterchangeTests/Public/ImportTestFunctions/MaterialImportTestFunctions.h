@@ -44,6 +44,14 @@ public:
 	/** Check whether the imported material has the expected opacity mask clip value */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckOpacityMaskClipValue(const UMaterialInterface* MaterialInterface, float ExpectedOpacityMaskClipValue);
+
+	/** Check whether the imported material has the expected scalar parameter value */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckScalarParameter(const UMaterialInterface* MaterialInterface, const FString& ParameterName, float ExpectedParameterValue);
+
+	/** Check whether the imported material has the expected vector parameter value */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckVectorParameter(const UMaterialInterface* MaterialInterface, const FString& ParameterName, FLinearColor ExpectedParameterValue);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
