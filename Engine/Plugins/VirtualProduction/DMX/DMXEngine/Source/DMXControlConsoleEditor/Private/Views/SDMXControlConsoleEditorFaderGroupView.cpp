@@ -135,6 +135,16 @@ void SDMXControlConsoleEditorFaderGroupView::ApplyGlobalFilter(const FString& In
 
 	const EVisibility NewVisibility = bHasVisibleChildren ? EVisibility::Visible : EVisibility::Collapsed;
 	SetVisibility(NewVisibility);
+
+	// If not visible, remove from selection
+	if (NewVisibility == EVisibility::Collapsed)
+	{
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		if (SelectionHandler->IsSelected(FaderGroup.Get()))
+		{
+			SelectionHandler->RemoveFromSelection(FaderGroup.Get());
+		}
+	}
 }
 
 void SDMXControlConsoleEditorFaderGroupView::ShowAllElements()

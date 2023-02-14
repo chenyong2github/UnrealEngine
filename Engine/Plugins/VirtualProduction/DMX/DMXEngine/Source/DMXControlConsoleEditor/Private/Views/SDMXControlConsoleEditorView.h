@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "Engine/EngineTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SDMXControlConsoleEditorFaderGroupRowView;
@@ -45,8 +46,11 @@ private:
 	/** Generates the toolbar for this DMX Control Console View */
 	TSharedRef<SWidget> GenerateToolbar();
 
-	/** Updates Details View's object arrays */
-	void UpdateDetailsViews();
+	/** Requests to update the Details Views on the next tick */
+	void RequestUpdateDetailsViews();
+
+	/** Updates the Details Views */
+	void ForceUpdateDetailsViews();
 
 	/** Updates FixturePatchVerticalBox widget */
 	void UpdateFixturePatchRows();
@@ -101,4 +105,7 @@ private:
 
 	/** Delegate handle bound to the FGlobalTabmanager::OnActiveTabChanged delegate */
 	FDelegateHandle OnActiveTabChangedDelegateHandle;
+
+	/** Timer handle in use while updating details views is requested but not carried out yet */
+	FTimerHandle UpdateDetailsViewTimerHandle;
 };

@@ -160,7 +160,7 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 	];
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	SelectionHandler->GetOnFaderSelectionChanged().AddSP(this, &SDMXControlConsoleEditorFader::OnSelectionChanged);
+	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorFader::OnSelectionChanged);
 }
 
 void SDMXControlConsoleEditorFader::SetValueByPercentage(float InNewPercentage)
@@ -260,6 +260,13 @@ void SDMXControlConsoleEditorFader::ApplyGlobalFilter(const FString& InSearchStr
 	}
 
 	SetVisibility(EVisibility::Collapsed);
+
+	// If not visible, remove from selection
+	if (IsSelected())
+	{
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		SelectionHandler->RemoveFromSelection(Fader.Get());
+	}
 }
 
 FReply SDMXControlConsoleEditorFader::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -321,27 +328,26 @@ FReply SDMXControlConsoleEditorFader::OnMouseButtonDown(const FGeometry& MyGeome
 		}
 
 		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-		const bool bWasInitallySelected = IsSelected();
 
-		if (!MouseEvent.IsLeftShiftDown())
+		if (MouseEvent.IsLeftShiftDown())
 		{
-			if (!MouseEvent.IsControlDown())
+			SelectionHandler->Multiselect(Fader.Get());
+		}
+		else if (MouseEvent.IsControlDown())
+		{
+			if (IsSelected())
 			{
-				SelectionHandler->ClearSelection();
-			}
-
-			if (!bWasInitallySelected)
-			{
-				SelectionHandler->AddToSelection(Fader.Get());
+				SelectionHandler->RemoveFromSelection(Fader.Get());
 			}
 			else
 			{
-				SelectionHandler->RemoveFromSelection(Fader.Get());
+				SelectionHandler->AddToSelection(Fader.Get());
 			}
 		}
 		else
 		{
-			SelectionHandler->Multiselect(Fader.Get());
+			SelectionHandler->ClearSelection();
+			SelectionHandler->AddToSelection(Fader.Get());
 		}
 
 		return FReply::Handled();
@@ -478,19 +484,23 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 	}
 }
 
-void SDMXControlConsoleEditorFader::OnSelectionChanged(UDMXControlConsoleFaderBase* InFader)
+void SDMXControlConsoleEditorFader::OnSelectionChanged()
 {
-	if (!InFader)
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	
+	// Remove from selection if not visible. Avoids selecting this when filtering
+	const bool bMultiSelecting = SelectionHandler->GetSelectedFaders().Num() + SelectionHandler->GetSelectedFaderGroups().Num() > 1;
+	if (bMultiSelecting && GetVisibility() == EVisibility::Collapsed)
 	{
+		SelectionHandler->RemoveFromSelection(Fader.Get());
 		return;
 	}
 
-	if (InFader!= Fader || !IsSelected())
+	// Set keyboard focus
+	if (IsSelected())
 	{
-		return;
+		FSlateApplication::Get().SetKeyboardFocus(AsShared());
 	}
-
-	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
 FReply SDMXControlConsoleEditorFader::OnDeleteClicked()

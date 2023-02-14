@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FDMXControlConsoleEditorManager;
 class UDMXControlConsoleFaderBase;
@@ -13,8 +14,7 @@ class FDMXControlConsoleEditorSelection
 	: public TSharedFromThis<FDMXControlConsoleEditorSelection>
 {
 public:
-	DECLARE_EVENT_OneParam(FDMXControlConsoleEditorSelection, FDMXFaderSelectionEvent, UDMXControlConsoleFaderBase*)
-	DECLARE_EVENT_OneParam(FDMXControlConsoleEditorSelection, FDMXFaderGroupSelectionEvent, UDMXControlConsoleFaderGroup*)
+	DECLARE_EVENT(FDMXControlConsoleEditorSelection, FDMXControlConsoleSelectionEvent)
 
 	/** Constructor */
 	FDMXControlConsoleEditorSelection(const TSharedRef<FDMXControlConsoleEditorManager>& InControlConsoleManager);
@@ -31,11 +31,8 @@ public:
 	/** Removes the given Fader from selection */
 	void RemoveFromSelection(UDMXControlConsoleFaderBase* Fader);
 
-	/** Handles Fader Groups multiselection */
-	void Multiselect(UDMXControlConsoleFaderGroup* FaderGroup);
-
-	/** Handles Faders multiselection */
-	void Multiselect(UDMXControlConsoleFaderBase* Fader);
+	/** Multiselects the Fader or Fader Group and the current selection */
+	void Multiselect(UObject* FaderOrFaderGroupObject);
 
 	/** Replaces the given selected Fader Group with the next available one */
 	void ReplaceInSelection(UDMXControlConsoleFaderGroup* FaderGroup);
@@ -48,12 +45,6 @@ public:
 
 	/** Gets wheter the given Fader is selected or not */
 	bool IsSelected(UDMXControlConsoleFaderBase* Fader) const;
-
-	/** Sets multiselection state */
-	void SetAllowMultiselect(bool bAllow);
-
-	/** Clears from selection alla Faders */
-	void ClearFadersSelection();
 
 	/** Clears from selection alla Faders owned by the given FaderGroup */
 	void ClearFadersSelection(UDMXControlConsoleFaderGroup* FaderGroup);
@@ -76,22 +67,13 @@ public:
 	/** Gets all selected Faders from the fiven Fader Group */
 	TArray<UDMXControlConsoleFaderBase*> GetSelectedFadersFromFaderGroup(UDMXControlConsoleFaderGroup* FaderGroup) const;
 
-	/** Gets a reference to OnSelectionChanged delegate */
-	FSimpleMulticastDelegate& GetOnSelectionChanged() { return OnSelectionChanged; }
-
-	/** Gets a reference to OnFaderGroupSelectionChanged delegate */
-	FDMXFaderGroupSelectionEvent& GetOnFaderGroupSelectionChanged() { return OnFaderGroupSelectionChanged; }
-
-	/** Gets a reference to OnClearFaderGroupSelection delegate */
-	FSimpleMulticastDelegate& GetOnClearFaderGroupSelection() { return OnClearFaderGroupSelection; }
-
-	/** Gets a reference to OnFaderSelectionChanged delegate */
-	FDMXFaderSelectionEvent& GetOnFaderSelectionChanged() { return OnFaderSelectionChanged; }
-
-	/** Gets a reference to OnClearFaderSelection delegate */
-	FSimpleMulticastDelegate& GetOnClearFaderSelection() { return OnClearFaderSelection; }
+	/** Returns an event raised when the Selection changed */
+	FDMXControlConsoleSelectionEvent& GetOnSelectionChanged() { return OnSelectionChanged; }
 
 private:
+	/** Updates the multi select anchor */
+	void UpdateMultiSelectAnchor(UClass* PreferedClass);
+
 	/** Weak reference to DMX DMX Control Console */
 	TWeakPtr<FDMXControlConsoleEditorManager> WeakControlConsoleManager;
 
@@ -101,18 +83,9 @@ private:
 	/** Array of current selected Faders */
 	TArray<TWeakObjectPtr<UObject>> SelectedFaders;
 
+	/** Anchor while multi selecting */
+	TWeakObjectPtr<UObject> MultiSelectAnchor;
+
 	/** Called whenever current selection changes */
-	FSimpleMulticastDelegate OnSelectionChanged;
-
-	/** Called when Fader Group selection changes */
-	FDMXFaderGroupSelectionEvent OnFaderGroupSelectionChanged;
-
-	/** Called on Fader Group selection clearing */
-	FSimpleMulticastDelegate OnClearFaderGroupSelection;
-
-	/** Called when Fader selection changes */
-	FDMXFaderSelectionEvent OnFaderSelectionChanged;
-
-	/** Called on Fader selection clearing */
-	FSimpleMulticastDelegate OnClearFaderSelection;
+	FDMXControlConsoleSelectionEvent OnSelectionChanged;
 };

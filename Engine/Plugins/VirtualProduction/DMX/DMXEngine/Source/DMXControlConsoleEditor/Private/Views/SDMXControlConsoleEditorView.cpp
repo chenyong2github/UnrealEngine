@@ -21,6 +21,7 @@
 #include "LevelEditor.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
+#include "TimerManager.h"
 #include "Application/ThrottleManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
@@ -48,14 +49,12 @@ SDMXControlConsoleEditorView::~SDMXControlConsoleEditorView()
 void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 {
 	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
-	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::UpdateDetailsViews);
+	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
 	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowRemoved);
 	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowAdded);
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = ControlConsoleManager.GetSelectionHandler();
-	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateDetailsViews);
-	SelectionHandler->GetOnClearFaderGroupSelection().AddSP(this, &SDMXControlConsoleEditorView::UpdateDetailsViews);
-	SelectionHandler->GetOnClearFaderSelection().AddSP(this, &SDMXControlConsoleEditorView::UpdateDetailsViews);
+	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
 
 	OnActiveTabChangedDelegateHandle = FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXControlConsoleEditorView::OnActiveTabChanged));
 
@@ -228,7 +227,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 			]
 		];
 	
-	UpdateDetailsViews();
+	ForceUpdateDetailsViews();
 }
 
 UDMXControlConsole* SDMXControlConsoleEditorView::GetControlConsole() const
@@ -314,8 +313,18 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	return ToolbarBuilder.MakeWidget();
 }
 
-void SDMXControlConsoleEditorView::UpdateDetailsViews()
+void SDMXControlConsoleEditorView::RequestUpdateDetailsViews()
 {
+	if(!UpdateDetailsViewTimerHandle.IsValid())
+	{
+		UpdateDetailsViewTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXControlConsoleEditorView::ForceUpdateDetailsViews));
+	}
+}
+
+void SDMXControlConsoleEditorView::ForceUpdateDetailsViews()
+{
+	UpdateDetailsViewTimerHandle.Invalidate();
+
 	UDMXControlConsole* ControlConsole = GetControlConsole();
 	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't update details view correctly.")))
 	{

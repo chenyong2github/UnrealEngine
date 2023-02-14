@@ -55,7 +55,7 @@ private:
 	bool IsSelected() const;
 
 	/** Called when fader group selection changes */
-	void OnSelectionChanged(UDMXControlConsoleFaderGroup* InFaderGroup);
+	void OnSelectionChanged();
 
 	/** Gets current FaderGroupName */
 	FText OnGetFaderGroupNameText() const;

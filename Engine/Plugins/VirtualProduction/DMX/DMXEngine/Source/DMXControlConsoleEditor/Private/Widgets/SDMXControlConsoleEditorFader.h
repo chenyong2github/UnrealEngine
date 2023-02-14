@@ -75,7 +75,7 @@ private:
 	void HandleValueChanged(uint32 NewValue);
 
 	/** Called when fader selection changes */
-	void OnSelectionChanged(UDMXControlConsoleFaderBase* InFader);
+	void OnSelectionChanged();
 
 	/** Called when the delete button was clicked */
 	FReply OnDeleteClicked();

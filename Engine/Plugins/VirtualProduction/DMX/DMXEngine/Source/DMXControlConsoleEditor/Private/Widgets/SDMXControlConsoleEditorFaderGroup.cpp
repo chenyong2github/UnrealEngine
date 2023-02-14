@@ -119,7 +119,7 @@ void SDMXControlConsoleEditorFaderGroup::Construct(const FArguments& InArgs, con
 	];
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	SelectionHandler->GetOnFaderGroupSelectionChanged().AddSP(this, &SDMXControlConsoleEditorFaderGroup::OnSelectionChanged);
+	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorFaderGroup::OnSelectionChanged);
 }
 
 FReply SDMXControlConsoleEditorFaderGroup::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -147,7 +147,6 @@ FReply SDMXControlConsoleEditorFaderGroup::OnKeyDown(const FGeometry& MyGeometry
 
 				SelectedFaderGroup->PostEditChange();
 
-				SelectionHandler->ClearFadersSelection(SelectedFaderGroup);
 				SelectionHandler->RemoveFromSelection(SelectedFaderGroup);
 			}
 		}
@@ -179,33 +178,26 @@ FReply SDMXControlConsoleEditorFaderGroup::OnMouseButtonDown(const FGeometry& My
 		if (FaderGroup)
 		{
 			const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-			const bool bWasInitiallySelected = IsSelected();
 
-			if (!MouseEvent.IsLeftShiftDown())
-			{
-				if (!MouseEvent.IsControlDown())
-				{
-					SelectionHandler->ClearSelection();
-				}
-
-				if (!bWasInitiallySelected)
-				{
-					SelectionHandler->AddToSelection(FaderGroup);
-				}
-				else
-				{
-					SelectionHandler->RemoveFromSelection(FaderGroup);
-				}
-			}
-			else 
+			if (MouseEvent.IsLeftShiftDown())
 			{
 				SelectionHandler->Multiselect(FaderGroup);
 			}
-
-			// Expand/Collapse ExpandArrowButton according to Fader Group selection state
-			if (ExpandArrowButton.IsValid())
+			else if (MouseEvent.IsControlDown())
 			{
-				ExpandArrowButton->SetExpandArrow(!bWasInitiallySelected);
+				if (IsSelected())
+				{
+					SelectionHandler->RemoveFromSelection(FaderGroup);
+				}
+				else
+				{
+					SelectionHandler->AddToSelection(FaderGroup);
+				}
+			}
+			else
+			{
+				SelectionHandler->ClearSelection();
+				SelectionHandler->AddToSelection(FaderGroup);
 			}
 		}
 	}
@@ -230,23 +222,25 @@ bool SDMXControlConsoleEditorFaderGroup::IsSelected() const
 	return SelectionHandler->IsSelected(FaderGroup);
 }
 
-void SDMXControlConsoleEditorFaderGroup::OnSelectionChanged(UDMXControlConsoleFaderGroup* InFaderGroup)
+void SDMXControlConsoleEditorFaderGroup::OnSelectionChanged()
 {
-	if (!InFaderGroup)
+	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
 	{
-		return;
-	}
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 
-	const UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
-	if (InFaderGroup != FaderGroup || !IsSelected())
-	{
-		return;
-	}
+		// Remove from selection if not visible. Avoids selecting this when filtering
+		const bool bMultiSelecting = SelectionHandler->GetSelectedFaders().Num() + SelectionHandler->GetSelectedFaderGroups().Num() > 1;
+		if (bMultiSelecting && GetVisibility() == EVisibility::Collapsed)
+		{
+			SelectionHandler->RemoveFromSelection(FaderGroup);
+			return;
+		}
 
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	if (SelectionHandler->GetSelectedFadersFromFaderGroup(InFaderGroup).IsEmpty())
-	{
-		FSlateApplication::Get().SetKeyboardFocus(AsShared());
+		// Set keyboard focus
+		if (IsSelected() && SelectionHandler->GetSelectedFadersFromFaderGroup(FaderGroup).IsEmpty())
+		{
+			FSlateApplication::Get().SetKeyboardFocus(AsShared());
+		}
 	}
 }
 
