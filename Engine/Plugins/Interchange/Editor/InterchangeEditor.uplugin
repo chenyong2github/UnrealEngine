@@ -39,15 +39,6 @@
 			]
 		},
 		{
-			"Name": "InterchangeResultsBrowser",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"TargetAllowList": [
-				"Editor",
-				"Program"
-			]
-		},
-		{
 			"Name": "InterchangeEditorUtilities",
 			"Type": "Editor",
 			"LoadingPhase": "Default",

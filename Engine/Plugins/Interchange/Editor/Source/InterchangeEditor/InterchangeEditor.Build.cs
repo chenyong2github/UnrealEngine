@@ -12,14 +12,17 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
                     "Core",
-					"CoreUObject"
+					"CoreUObject",
+					"Engine",
 				}
 			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"InterchangeCore"
+					"InterchangeCore",
+					"InterchangeEngine",
+					"MessageLog",
 				}
 			);
 		}
