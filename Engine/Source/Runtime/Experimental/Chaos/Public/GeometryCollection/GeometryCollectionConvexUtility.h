@@ -144,5 +144,6 @@ private:
 		const FTransform& Transform,
 		TArray<FTransformedConvex>& InOutConvex);
 
+	static void CreateConvexHullAttributesIfNeeded(FManagedArrayCollection& GeometryCollection);
 };
 
