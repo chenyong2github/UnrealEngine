@@ -106,6 +106,7 @@ class PCG_API UPCGSettings : public UPCGSettingsInterface
 {
 	GENERATED_BODY()
 
+	friend class FPCGSettingsObjectCrc32;
 	friend class UPCGSettingsInterface;
 
 public:
