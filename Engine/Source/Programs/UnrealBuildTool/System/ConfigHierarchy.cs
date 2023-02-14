@@ -29,6 +29,11 @@ namespace UnrealBuildTool
 		Engine,
 
 		/// <summary>
+		/// BaseEditor.ini, DefaultEditor.ini, etc...
+		/// </summary>
+		Editor,
+
+		/// <summary>
 		/// BaseEditorPerProjectUserSettings.ini, DefaultEditorPerProjectUserSettings.ini, etc..
 		/// </summary>
 		EditorPerProjectUserSettings,
