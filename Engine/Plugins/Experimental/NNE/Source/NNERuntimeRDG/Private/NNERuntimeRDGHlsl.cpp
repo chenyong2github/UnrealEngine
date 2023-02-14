@@ -8,7 +8,7 @@
 #include "NNERuntimeRDGHlslHelper.h"
 #include "NNERuntimeRDGModelHlsl.h"
 #include "NNEUtilsModelOptimizer.h"
-#include "Hlsl/NNERuntimeRDGConv.h"
+#include "Hlsl/NNERuntimeRDGCast.h"
 #include "Hlsl/NNERuntimeRDGConv.h"
 #include "Hlsl/NNERuntimeRDGConcat.h"
 #include "Hlsl/NNERuntimeRDGConvTranspose.h"
@@ -48,6 +48,7 @@ bool UNNERuntimeRDGHlslImpl::Init()
 	RegisterSliceOperator(*registry);
 	RegisterConcatOperator(*registry);
 	RegisterUnsqueezeOperator(*registry);
+	RegisterCastOperator(*registry);
 
 	return true;
 }

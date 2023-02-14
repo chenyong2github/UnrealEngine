@@ -34,16 +34,32 @@ void FShapeInferenceHelperUnitTestBase::GetTests(TArray<FString>& OutBeautifiedN
 
 bool FShapeInferenceHelperUnitTestBase::RunTest(const FString& Parameter) { return false; }
 
-FTensor FShapeInferenceHelperUnitTestBase::MakeTensor(FString Name, TConstArrayView<uint32> Shape)
+FTensor FShapeInferenceHelperUnitTestBase::MakeTensor(FString Name, TConstArrayView<uint32> Shape, ENNETensorDataType DataType)
 {
 	FTensorShape TensorShape = FTensorShape::Make(Shape);
-	FTensor Tensor = FTensor::Make(Name, TensorShape, ENNETensorDataType::Float);
+	FTensor Tensor = FTensor::Make(Name, TensorShape, DataType);
 	return Tensor;
 }
 
 FTensor FShapeInferenceHelperUnitTestBase::MakeConstTensor(FString Name, TConstArrayView<uint32> Shape, TConstArrayView<float> Data)
 {
-	FTensor Tensor = MakeTensor(Name, Shape);
+	FTensor Tensor = MakeTensor(Name, Shape, ENNETensorDataType::Float);
+	check(Data.Num() == Tensor.GetVolume());
+	Tensor.SetPreparedData(Data);
+	return Tensor;
+}
+
+FTensor FShapeInferenceHelperUnitTestBase::MakeConstTensorInt32(FString Name, TConstArrayView<uint32> Shape, TConstArrayView<int32> Data)
+{
+	FTensor Tensor = MakeTensor(Name, Shape, ENNETensorDataType::Int32);
+	check(Data.Num() == Tensor.GetVolume());
+	Tensor.SetPreparedData(Data);
+	return Tensor;
+}
+
+FTensor FShapeInferenceHelperUnitTestBase::MakeConstTensorInt64(FString Name, TConstArrayView<uint32> Shape, TConstArrayView<int64> Data)
+{
+	FTensor Tensor = MakeTensor(Name, Shape, ENNETensorDataType::Int64);
 	check(Data.Num() == Tensor.GetVolume());
 	Tensor.SetPreparedData(Data);
 	return Tensor;

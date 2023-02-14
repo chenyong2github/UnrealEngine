@@ -34,11 +34,12 @@ namespace UE::NNEQA::Private::NNERuntimeRDG
 		virtual bool RunTest(const FString& Parameter) override;
 
 		//Shape inference unit test helpers
-		static FTensor MakeTensor(FString Name, TConstArrayView<uint32> Shape);
+		static FTensor MakeTensor(FString Name, TConstArrayView<uint32> Shape, ENNETensorDataType DataType = ENNETensorDataType::Float);
 		static FTensor MakeConstTensor(FString Name, TConstArrayView<uint32> Shape, TConstArrayView<float> Data);
+		static FTensor MakeConstTensorInt32(FString Name, TConstArrayView<uint32> Shape, TConstArrayView<int32> Data);
+		static FTensor MakeConstTensorInt64(FString Name, TConstArrayView<uint32> Shape, TConstArrayView<int64> Data);
 		bool TestUnaryOutputIsOnlyComputedWhenItShould(EElementWiseUnaryOperatorType OpType);
 		bool TestBinaryOutputIsOnlyComputedWhenItShould(EElementWiseBinaryOperatorType OpType);
-		
 	};
 
 	#define IMPLEMENT_NNE_SHAPEINFERENCEHELPER_UNIT_AUTOMATION_TEST( TClass, PrettyName ) \
