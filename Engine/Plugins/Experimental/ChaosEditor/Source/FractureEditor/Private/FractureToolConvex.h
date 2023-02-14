@@ -148,8 +148,8 @@ protected:
 		EdgesMappings.Empty();
 	}
 
-	/* return true if the convex is a union of the children */
-	void AddHullVisualizationData(FGeometryCollection& Collection, const FTransform& OuterTransform, int32 TransformIdx, bool bIsUnionOfHulls = false);
+	void AddConvexHullVizualizationData(const Chaos::FConvex& ConvexHull, const FTransform& WorldSpaceTransform, bool bIsCustom, bool bIsUnionOfHulls);
+	void AddVisualizationData(FGeometryCollection& Collection, const FTransform& OuterTransform, int32 TransformIdx, bool bUseExternalCollision, bool bIsUnionOfHulls = false);
 
 	struct FEdgeVisInfo
 	{

@@ -225,40 +225,58 @@ TArray<UObject*> UFractureToolConvex::GetSettingsObjects() const
 	return Settings;
 }
 
-void UFractureToolConvex::AddHullVisualizationData(FGeometryCollection& Collection, const FTransform& OuterTransform, int32 TransformIdx, bool bIsUnionOfHulls)
+void UFractureToolConvex::AddConvexHullVizualizationData(const Chaos::FConvex& ConvexHull, const FTransform& WorldSpaceTransform, bool bIsCustom, bool bIsUnionOfHulls)
 {
+	int32 HullPtsStart = HullPoints.Num();
+	for (Chaos::FVec3 Pt : ConvexHull.GetVertices())
+	{
+		HullPoints.Add(WorldSpaceTransform.TransformPosition(Pt));
+	}
+	int32 NumPlanes = ConvexHull.NumPlanes();
+	const Chaos::FConvexStructureData& HullData = ConvexHull.GetStructureData();
+	for (int PlaneIdx = 0; PlaneIdx < NumPlanes; PlaneIdx++)
+	{
+		int32 NumPlaneVerts = HullData.NumPlaneVertices(PlaneIdx);
+		for (int32 PlaneVertexIdx = 0; PlaneVertexIdx < NumPlaneVerts; PlaneVertexIdx++)
+		{
+			int32 V0 = HullPtsStart + HullData.GetPlaneVertex(PlaneIdx, PlaneVertexIdx);
+			int32 V1 = HullPtsStart + HullData.GetPlaneVertex(PlaneIdx, (PlaneVertexIdx + 1) % NumPlaneVerts);
+			HullEdges.Add({ V0, V1, bIsCustom, bIsUnionOfHulls });
+		}
+	}
+}
+
+void UFractureToolConvex::AddVisualizationData(FGeometryCollection& Collection, const FTransform& OuterTransform, int32 TransformIdx, bool bUseExternalCollision, bool bIsUnionOfHulls)
+{
+	using FImplicitGeom = TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>;
+
 	const TManagedArray<int32>* HasCustomConvex = FGeometryCollectionConvexUtility::GetCustomConvexFlags(&Collection, false);
-	const TManagedArray<TSet<int32>>& TransformToConvexIndices = Collection.GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
-	const TManagedArray<TUniquePtr<Chaos::FConvex>>& ConvexHull = Collection.GetAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
+	const TManagedArray<TSet<int32>>* TransformToConvexIndices = Collection.FindAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
+	const TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexHull = Collection.FindAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
+	const TManagedArray<FImplicitGeom>* ExternalCollisions = Collection.FindAttribute<FImplicitGeom>("ExternalCollisions", FGeometryCollection::TransformGroup);
 
 	const FTransform ComponentSpaceTransform = GeometryCollectionAlgo::GlobalMatrix(Collection.Transform, Collection.Parent, TransformIdx);
 	const FTransform WorldSpaceTransform = ComponentSpaceTransform * OuterTransform;
 
-	const TSet<int32>& ConvexIndices = TransformToConvexIndices[TransformIdx];
-	const bool bHasAnyConvex = (ConvexIndices.Num() > 0);
+	const bool bHasAnyConvex = TransformToConvexIndices && ConvexHull && ((*TransformToConvexIndices)[TransformIdx].Num() > 0);
 	const bool bIsCustom = bHasAnyConvex && (HasCustomConvex ? bool((*HasCustomConvex)[TransformIdx]) : false);
+	const bool bHasExternalCollision = ExternalCollisions && ((*ExternalCollisions)[TransformIdx].IsValid());
 
-	if (bHasAnyConvex)
+	// order of priority : external collision / generated convex / union of children shapes
+	if (bHasExternalCollision && bUseExternalCollision)
 	{
-		for (int32 ConvexIdx : TransformToConvexIndices[TransformIdx])
+		TArray<FGeometryCollectionConvexUtility::FTransformedConvex> ExternalHulls;
+		FGeometryCollectionConvexUtility::ConvertImplicitToConvexArray(*(*ExternalCollisions)[TransformIdx], WorldSpaceTransform, ExternalHulls);
+		for (const FGeometryCollectionConvexUtility::FTransformedConvex& ExternalHull : ExternalHulls)
 		{
-			int32 HullPtsStart = HullPoints.Num();
-			for (Chaos::FVec3 Pt : ConvexHull[ConvexIdx]->GetVertices())
-			{
-				HullPoints.Add(WorldSpaceTransform.TransformPosition(Pt));
-			}
-			int32 NumPlanes = ConvexHull[ConvexIdx]->NumPlanes();
-			const Chaos::FConvexStructureData& HullData = ConvexHull[ConvexIdx]->GetStructureData();
-			for (int PlaneIdx = 0; PlaneIdx < NumPlanes; PlaneIdx++)
-			{
-				int32 NumPlaneVerts = HullData.NumPlaneVertices(PlaneIdx);
-				for (int32 PlaneVertexIdx = 0; PlaneVertexIdx < NumPlaneVerts; PlaneVertexIdx++)
-				{
-					int32 V0 = HullPtsStart + HullData.GetPlaneVertex(PlaneIdx, PlaneVertexIdx);
-					int32 V1 = HullPtsStart + HullData.GetPlaneVertex(PlaneIdx, (PlaneVertexIdx + 1) % NumPlaneVerts);
-					HullEdges.Add({ V0, V1, bIsCustom, bIsUnionOfHulls });
-				}
-			}
+			AddConvexHullVizualizationData(*ExternalHull.Convex, ExternalHull.Transform, bIsCustom, bIsUnionOfHulls);
+		}
+	}
+	else if (bHasAnyConvex)
+	{
+		for (int32 ConvexIdx : (*TransformToConvexIndices)[TransformIdx])
+		{
+			AddConvexHullVizualizationData(*(*ConvexHull)[ConvexIdx], WorldSpaceTransform, bIsCustom, bIsUnionOfHulls);
 		}
 	}
 	else
@@ -266,7 +284,7 @@ void UFractureToolConvex::AddHullVisualizationData(FGeometryCollection& Collecti
 		// no convex generated, we are using a union of the children convexes
 		for (int32 ChildTransformIndex : Collection.Children[TransformIdx])
 		{
-			AddHullVisualizationData(Collection, OuterTransform, ChildTransformIndex, /* bIsUnionOfHulls */ true);
+			AddVisualizationData(Collection, OuterTransform, ChildTransformIndex, bUseExternalCollision, /* bIsUnionOfHulls */ true);
 		}
 	}
 }
@@ -279,26 +297,21 @@ void UFractureToolConvex::FractureContextChanged()
 
 	for (const FFractureToolContext& FractureContext : FractureContexts)
 	{
-		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
-
-		if (!Collection.HasAttribute("ConvexHull", "Convex") ||
-			!Collection.HasAttribute("TransformToConvexIndices", FGeometryCollection::TransformGroup))
+		if (UGeometryCollection* RestCollection = FractureContext.GetFracturedGeometryCollection())
 		{
-			continue;
-		}
+			FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
 
-		TManagedArray<int32>* HasCustomConvex = FGeometryCollectionConvexUtility::GetCustomConvexFlags(&Collection, false);
-		const TManagedArray<TSet<int32>>& TransformToConvexIndices = Collection.GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
-		const TManagedArray<TUniquePtr<Chaos::FConvex>>& ConvexHull = Collection.GetAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
+			const int32 CollectionIdx = VisualizedCollections.Add(FractureContext.GetGeometryCollectionComponent());
 
-		int32 CollectionIdx = VisualizedCollections.Add(FractureContext.GetGeometryCollectionComponent());
+			//FTransform OuterTransform = FractureContext.GetTransform();
+			const FTransform OuterTransform = FractureContext.GetGeometryCollectionComponent()->GetComponentTransform();
 
-		FTransform OuterTransform = FractureContext.GetTransform();
-		for (int32 TransformIdx : FractureContext.GetSelection())
-		{
-			EdgesMappings.AddMapping(CollectionIdx, TransformIdx, HullEdges.Num());
+			for (int32 TransformIdx : FractureContext.GetSelection())
+			{
+				EdgesMappings.AddMapping(CollectionIdx, TransformIdx, HullEdges.Num());
 
-			AddHullVisualizationData(Collection, OuterTransform, TransformIdx);
+				AddVisualizationData(Collection, OuterTransform, TransformIdx, RestCollection->bImportCollisionFromSource);
+			}
 		}
 	}
 }

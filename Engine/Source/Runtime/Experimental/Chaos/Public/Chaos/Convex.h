@@ -159,6 +159,11 @@ namespace Chaos
 			return *this;
 		}
 
+		TUniquePtr<FConvex> CopyAsConvex() const
+		{
+			return TUniquePtr<FConvex>(new FConvex(*this));
+		}
+
 		virtual TUniquePtr<FImplicitObject> Copy() const
 		{
 			return TUniquePtr<FImplicitObject>(new FConvex(*this));

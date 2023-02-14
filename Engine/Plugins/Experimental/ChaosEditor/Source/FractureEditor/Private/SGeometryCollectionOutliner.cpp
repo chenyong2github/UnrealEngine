@@ -543,6 +543,12 @@ void SGeometryCollectionOutliner::SetBoneSelection(UGeometryCollectionComponent*
 
 void SGeometryCollectionOutliner::OnSelectionChanged(FGeometryCollectionTreeItemPtr Item, ESelectInfo::Type SelectInfo)
 {
+	// object may just being deleted, we need to bail if that's the case to avoid a crash accessing teh component
+	if (!Item || !IsValid(Item->GetComponent()))
+	{
+		return;
+	}
+
 	if(!bPerformingSelection && BoneSelectionChangedDelegate.IsBound())
 	{
 		TMap<UGeometryCollectionComponent*, TArray<int32>> ComponentToBoneSelectionMap;

@@ -121,5 +121,28 @@ public:
 	// @param GlobalTransformArray		GeometryCollection's transforms to global space, as computed by GeometryCollectionAlgo::GlobalMatrices
 	static UE::GeometryCollectionConvexUtility::FConvexHulls ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold = 0.0, double OverlapRemovalShrinkPercent = 0.0);
 
+	struct FTransformedConvex
+	{
+		TSharedPtr<Chaos::FConvex> Convex;
+		FTransform Transform;
+	};
+
+	// generate a list of convex out of a hierarchy of implciit shapes
+	// suported shapes are scaled / transformed implicits as well as Boxes, convexes, spheres and capsules
+	// levelset, tapered capsule, cylinder, heightfields and trimesh are not supported
+	// array will not be erased and convex will be added if any already exists
+	static void ConvertImplicitToConvexArray(const Chaos::FImplicitObject& InImplicit, const FTransform& Transform, TArray<FTransformedConvex>& InOutConvex);
+
+private:
+	static void ConvertScaledImplicitToConvexArray(
+		const Chaos::FImplicitObject& Implicit,
+		const FTransform& WorldSpaceTransform, bool bInstanced,
+		TArray<FTransformedConvex>& InOutConvex);
+
+	static void ConvertInstancedImplicitToConvexArray(
+		const Chaos::FImplicitObject& Implicit,
+		const FTransform& Transform,
+		TArray<FTransformedConvex>& InOutConvex);
+
 };
 
