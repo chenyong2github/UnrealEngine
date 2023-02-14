@@ -570,6 +570,30 @@ void UDebugSkelMeshComponent::SetAnimClass(class UClass* NewClass)
 	UE_LOG(LogAnimation, Warning, TEXT("Attempting to destroy an animation preview actor, skipping."));
 }
 
+void UDebugSkelMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bReinitPose)
+{
+	Super::SetSkeletalMesh(InSkelMesh, bReinitPose);
+
+	// Clear any transitive references to the skeleton if we are clearing the skeletal mesh
+	if(GetSkinnedAsset() == nullptr)
+	{
+		if(AnimScriptInstance)
+		{
+			AnimScriptInstance->CurrentSkeleton = nullptr;
+		}
+
+		if(PreviewInstance)
+		{
+			PreviewInstance->CurrentSkeleton = nullptr;
+		}
+
+		if(SavedAnimScriptInstance)
+		{
+			SavedAnimScriptInstance->CurrentSkeleton = nullptr;
+		}
+	}
+}
+
 void UDebugSkelMeshComponent::EnablePreview(bool bEnable, UAnimationAsset* PreviewAsset)
 {
 	if (PreviewInstance)
@@ -604,6 +628,7 @@ void UDebugSkelMeshComponent::EnablePreview(bool bEnable, UAnimationAsset* Previ
 			{
 				// now recover to saved AnimScriptInstance;
 				AnimScriptInstance = SavedAnimScriptInstance;
+				SavedAnimScriptInstance = nullptr;
 				PreviewInstance->SetAnimationAsset(nullptr);
 			}
 		}

@@ -459,6 +459,10 @@ void FSkeletalMeshThumbnailScene::SetSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 		PreviewActor->SetActorLocation( -PreviewActor->GetSkeletalMeshComponent()->Bounds.Origin + FVector(0, 0, BoundsZOffset), false );
 		PreviewActor->GetSkeletalMeshComponent()->RecreateRenderState_Concurrent();
 	}
+	else
+	{
+		PreviewActor->GetSkeletalMeshComponent()->ClearAnimScriptInstance();
+	}
 }
 
 void FSkeletalMeshThumbnailScene::SetDrawDebugSkeleton(bool bInDrawDebugSkeleton, const FLinearColor& InSkeletonColor)
@@ -1012,6 +1016,11 @@ void FPhysicsAssetThumbnailScene::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset)
 			PreviewActor->SetActorLocation( -PreviewActor->GetSkeletalMeshComponent()->Bounds.Origin + FVector(0, 0, BoundsZOffset), false );
 			PreviewActor->GetSkeletalMeshComponent()->RecreateRenderState_Concurrent();
 		}
+	}
+	else
+	{
+		PreviewActor->GetSkeletalMeshComponent()->SetSkeletalMesh(nullptr);
+		PreviewActor->GetSkeletalMeshComponent()->ClearAnimScriptInstance();
 	}
 }
 
