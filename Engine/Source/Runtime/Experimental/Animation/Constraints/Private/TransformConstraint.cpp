@@ -265,7 +265,7 @@ FString UTickableTransformConstraint::GetFullLabel() const
 		return DummyLabel;
 	}
 	
-	if (ParentTRSHandle->IsValid())
+	if (ParentTRSHandle && ParentTRSHandle->IsValid())
 	{
 		return FString::Printf(TEXT("%s.%s"), *ParentTRSHandle->GetFullLabel(), *ChildTRSHandle->GetFullLabel() );		
 	}
@@ -335,7 +335,7 @@ void UTickableTransformConstraint::RegisterDelegates()
 
 void UTickableTransformConstraint::Setup()
 {
-	if (!ParentTRSHandle->IsValid() || !ChildTRSHandle->IsValid())
+	if (!ParentTRSHandle || !ChildTRSHandle || !ParentTRSHandle->IsValid() || !ChildTRSHandle->IsValid())
 	{
 		// handle error
 		return;
