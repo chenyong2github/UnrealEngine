@@ -112,7 +112,10 @@ TSharedRef<SWidget> UEditorUtilityWidgetBlueprint::CreateUtilityWidget()
 				if (Widget->IsA(UEditorUtilityWidget::StaticClass()))
 				{
 					Widget->SetFlags(RF_Transient);
-					Widget->Slot->SetFlags(RF_Transient);
+					if (UPanelSlot* Slot = Widget->Slot)
+					{
+						Slot->SetFlags(RF_Transient);
+					}
 				}
 			}
 		}
