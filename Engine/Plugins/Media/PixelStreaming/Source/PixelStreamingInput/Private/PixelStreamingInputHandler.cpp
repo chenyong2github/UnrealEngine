@@ -62,11 +62,11 @@ namespace UE::PixelStreamingInput
 
 		RegisterMessageHandler("MouseEnter", [this](FMemoryReader Ar) { HandleOnMouseEnter(Ar); });
 		RegisterMessageHandler("MouseLeave", [this](FMemoryReader Ar) { HandleOnMouseLeave(Ar); });
-		RegisterMessageHandler("MouseUp", [this](FMemoryReader Ar) { HandleOnMouseEnter(Ar); HandleOnMouseUp(Ar); });
-		RegisterMessageHandler("MouseDown", [this](FMemoryReader Ar) { HandleOnMouseEnter(Ar); HandleOnMouseDown(Ar); });
-		RegisterMessageHandler("MouseMove", [this](FMemoryReader Ar) { HandleOnMouseEnter(Ar); HandleOnMouseMove(Ar); });
-		RegisterMessageHandler("MouseWheel", [this](FMemoryReader Ar) { HandleOnMouseEnter(Ar); HandleOnMouseWheel(Ar); });
-		RegisterMessageHandler("MouseDouble", [this](FMemoryReader Ar) { HandleOnMouseEnter(Ar); HandleOnMouseDoubleClick(Ar); });
+		RegisterMessageHandler("MouseUp", [this](FMemoryReader Ar) { HandleOnMouseUp(Ar); });
+		RegisterMessageHandler("MouseDown", [this](FMemoryReader Ar) { HandleOnMouseDown(Ar); });
+		RegisterMessageHandler("MouseMove", [this](FMemoryReader Ar) { HandleOnMouseMove(Ar); });
+		RegisterMessageHandler("MouseWheel", [this](FMemoryReader Ar) { HandleOnMouseWheel(Ar); });
+		RegisterMessageHandler("MouseDouble", [this](FMemoryReader Ar) { HandleOnMouseDoubleClick(Ar); });
 
 		RegisterMessageHandler("XRHMDTransform", [this](FMemoryReader Ar) { HandleOnXRHMDTransform(Ar); });
 		RegisterMessageHandler("XRControllerTransform", [this](FMemoryReader Ar) { HandleOnXRControllerTransform(Ar); });
@@ -375,13 +375,6 @@ namespace UE::PixelStreamingInput
 
 	void FPixelStreamingInputHandler::HandleOnTouchStarted(FMemoryReader Ar)
 	{
-		if (NumActiveTouches == 0 && !bIsMouseActive)
-		{
-			// Make sure the application is active.
-			FSlateApplication::Get().ProcessApplicationActivationEvent(true);
-			FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper);
-		}
-
 		TPayloadOneParam<uint8> Payload(Ar);
 
 		uint8 NumTouches = Payload.Param1;
@@ -393,34 +386,48 @@ namespace UE::PixelStreamingInput
 			if (Touch.Param5 != 0)
 			{
 				//                                                                           convert range from 0,65536 -> 0,1
-				FVector2D ViewportLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX), (InputType != EPixelStreamingInputType::RouteToWidget));
-				FVector2D ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX));
-				FSlateApplication::Get().SetCursorPos(ScreenLocation);
+				FVector2D TouchLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX));
 				const int32 TouchIndex = Touch.Param3;
 				const float TouchForce = Touch.Param4 / 255.0f;
+				UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("TOUCH_START: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), TouchIndex, Touch.Param1, Touch.Param2, static_cast<int>(TouchLocation.X), static_cast<int>(TouchLocation.Y), TouchForce);
 
 				if (InputType == EPixelStreamingInputType::RouteToWidget)
 				{
-					FWidgetPath WidgetPath = FindRoutingMessageWidget(ViewportLocation);
+					// TouchLocation = TouchLocation - TargetViewport.Pin()->GetCachedGeometry().GetAbsolutePosition();
+					FWidgetPath WidgetPath = FindRoutingMessageWidget(TouchLocation);
 
 					if (WidgetPath.IsValid())
 					{
 						FScopedSwitchWorldHack SwitchWorld(WidgetPath);
-						FPointerEvent PointerEvent(0, TouchIndex, ViewportLocation, ViewportLocation, TouchForce, true);
+						FPointerEvent PointerEvent(0, TouchIndex, TouchLocation, TouchLocation, TouchForce, true);
 						FSlateApplication::Get().RoutePointerDownEvent(WidgetPath, PointerEvent);
 					}
 				}
 				else if (InputType == EPixelStreamingInputType::RouteToWindow)
 				{
+					if (NumActiveTouches == 0 && !bIsMouseActive)
+					{
+						FSlateApplication::Get().OnCursorSet();
+						// Make sure the application is active.
+						FSlateApplication::Get().ProcessApplicationActivationEvent(true);
+
+						FVector2D OldCursorLocation = PixelStreamerApplicationWrapper->WrappedApplication->Cursor->GetPosition();
+						PixelStreamerApplicationWrapper->Cursor->SetPosition(OldCursorLocation.X, OldCursorLocation.Y);
+						FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper);
+					}
 
 					// We must update the user cursor position explicitly before updating the application cursor position
 					// as if there's a delta between them, when the touch event is started it will trigger a move
 					// resulting in a large 'drag' across the screen
-					MessageHandler->OnTouchStarted(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), ViewportLocation, TouchForce, TouchIndex, 0); // TODO: ControllerId?
-				}
-				NumActiveTouches++;
+					TSharedPtr<FSlateUser> User = FSlateApplication::Get().GetCursorUser();
+					User->SetCursorPosition(TouchLocation);
+					PixelStreamerApplicationWrapper->Cursor->SetPosition(TouchLocation.X, TouchLocation.Y);
+					PixelStreamerApplicationWrapper->WrappedApplication->Cursor->SetPosition(TouchLocation.X, TouchLocation.Y);
 
-				UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("TOUCH_START: TouchIndex = %d; Screen Pos = (%s); Viewport Pos = (%s); Force = %.3f"), TouchIndex, *ScreenLocation.ToString(), *ViewportLocation.ToString(), TouchForce);
+					MessageHandler->OnTouchStarted(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), TouchLocation, TouchForce, TouchIndex, 0); // TODO: ControllerId?
+				}
+
+				NumActiveTouches++;
 			}
 		}
 
@@ -440,36 +447,36 @@ namespace UE::PixelStreamingInput
 			if (Touch.Param5 != 0)
 			{
 				//                                                                           convert range from 0,65536 -> 0,1
-				FVector2D ViewportLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX), (InputType != EPixelStreamingInputType::RouteToWidget));
-				FVector2D ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX));
-				FSlateApplication::Get().SetCursorPos(ScreenLocation);
+				FVector2D TouchLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX));
 				const int32 TouchIndex = Touch.Param3;
 				const float TouchForce = Touch.Param4 / 255.0f;
+				UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("TOUCH_MOVE: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), TouchIndex, Touch.Param1, Touch.Param2, static_cast<int>(TouchLocation.X), static_cast<int>(TouchLocation.Y), TouchForce);
 
 				FCachedTouchEvent& TouchEvent = CachedTouchEvents.FindOrAdd(TouchIndex);
 				TouchEvent.Force = TouchForce;
 				TouchEvent.ControllerIndex = 0;
-				TouchEvent.Location = ViewportLocation;
 
 				if (InputType == EPixelStreamingInputType::RouteToWidget)
 				{
-					FWidgetPath WidgetPath = FindRoutingMessageWidget(TouchEvent.Location);
+					// TouchLocation = TouchLocation - TargetViewport.Pin()->GetCachedGeometry().GetAbsolutePosition();
+					TouchEvent.Location = TouchLocation;
+					FWidgetPath WidgetPath = FindRoutingMessageWidget(TouchLocation);
 
 					if (WidgetPath.IsValid())
 					{
 						FScopedSwitchWorldHack SwitchWorld(WidgetPath);
-						FPointerEvent PointerEvent(0, TouchIndex, TouchEvent.Location, LastTouchLocation, TouchEvent.Force, true);
+						FPointerEvent PointerEvent(0, TouchIndex, TouchLocation, LastTouchLocation, TouchForce, true);
 						FSlateApplication::Get().RoutePointerMoveEvent(WidgetPath, PointerEvent, false);
 					}
-					LastTouchLocation = TouchEvent.Location;
+
+					LastTouchLocation = TouchLocation;
 				}
 				else if (InputType == EPixelStreamingInputType::RouteToWindow)
 				{
-
+					TouchEvent.Location = TouchLocation;
 					MessageHandler->OnTouchMoved(TouchEvent.Location, TouchEvent.Force, TouchIndex, TouchEvent.ControllerIndex); // TODO: ControllerId?
 				}
 				TouchIndicesProcessedThisFrame.Add(TouchIndex);
-				UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("TOUCH_MOVE: TouchIndex = %d; Screen Pos = (%s); Viewport Pos = (%s); Force = %.3f"), TouchIndex, *ScreenLocation.ToString(), *ViewportLocation.ToString(), TouchForce);
 			}
 		}
 	}
@@ -487,38 +494,41 @@ namespace UE::PixelStreamingInput
 			// if(Touch.Param5 != 0)
 			{
 				//                                                                           convert range from 0,65536 -> 0,1
-				FVector2D ViewportLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX), (InputType != EPixelStreamingInputType::RouteToWidget));
-				FVector2D ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX));
-				FSlateApplication::Get().SetCursorPos(ScreenLocation);
+				FVector2D TouchLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX));
 				const int32 TouchIndex = Touch.Param3;
+				UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("TOUCH_END: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Touch.Param3, Touch.Param1, Touch.Param2, static_cast<int>(TouchLocation.X), static_cast<int>(TouchLocation.Y));
 
 				if (InputType == EPixelStreamingInputType::RouteToWidget)
 				{
-					FWidgetPath WidgetPath = FindRoutingMessageWidget(ViewportLocation);
+					// TouchLocation = TouchLocation - TargetViewport.Pin()->GetCachedGeometry().GetAbsolutePosition();
+					FWidgetPath WidgetPath = FindRoutingMessageWidget(TouchLocation);
 
 					if (WidgetPath.IsValid())
 					{
 						FScopedSwitchWorldHack SwitchWorld(WidgetPath);
 						float TouchForce = 0.0f;
-						FPointerEvent PointerEvent(0, TouchIndex, ViewportLocation, ViewportLocation, TouchForce, true);
+						FPointerEvent PointerEvent(0, TouchIndex, TouchLocation, TouchLocation, TouchForce, true);
 						FSlateApplication::Get().RoutePointerUpEvent(WidgetPath, PointerEvent);
 					}
 				}
 				else if (InputType == EPixelStreamingInputType::RouteToWindow)
 				{
-					MessageHandler->OnTouchEnded(ViewportLocation, TouchIndex, 0); // TODO: ControllerId?
+					MessageHandler->OnTouchEnded(TouchLocation, TouchIndex, 0); // TODO: ControllerId?
 				}
+
 				CachedTouchEvents.Remove(TouchIndex);
-				NumActiveTouches--;
-				UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("TOUCH_END: TouchIndex = %d; Screen Pos = (%s); Viewport Pos = (%s);"), TouchIndex, *ScreenLocation.ToString(), *ViewportLocation.ToString());
+				NumActiveTouches = (NumActiveTouches > 0) ? NumActiveTouches - 1 : NumActiveTouches;
 			}
 		}
+
 		// If there's no remaining touches, and there is also no mouse over the player window
 		// then set the platform application back to its default. We need to set it back to default
 		// so that people using the editor (if editor streaming) can click on buttons outside the target window
 		// and also have the correct cursor (pixel streaming forces default cursor)
-		if (NumActiveTouches == 0 && !bIsMouseActive)
+		if (NumActiveTouches == 0 && !bIsMouseActive && InputType == EPixelStreamingInputType::RouteToWindow)
 		{
+			FVector2D OldCursorLocation = PixelStreamerApplicationWrapper->Cursor->GetPosition();
+			PixelStreamerApplicationWrapper->WrappedApplication->Cursor->SetPosition(OldCursorLocation.X, OldCursorLocation.Y);
 			FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper->WrappedApplication);
 		}
 	}
@@ -580,12 +590,14 @@ namespace UE::PixelStreamingInput
 	{
 		if (NumActiveTouches == 0 && !bIsMouseActive)
 		{
+			FSlateApplication::Get().OnCursorSet();
+			FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper);
 			// Make sure the application is active.
 			FSlateApplication::Get().ProcessApplicationActivationEvent(true);
-			FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper);
-			bIsMouseActive = true;
-			UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_ENTER"));
 		}
+
+		bIsMouseActive = true;
+		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_ENTER"));
 	}
 
 	void FPixelStreamingInputHandler::HandleOnMouseLeave(FMemoryReader Ar)
@@ -601,29 +613,37 @@ namespace UE::PixelStreamingInput
 
 	void FPixelStreamingInputHandler::HandleOnMouseUp(FMemoryReader Ar)
 	{
+		// Ensure we have wrapped the slate application at this point
+		if (!bIsMouseActive)
+		{
+			HandleOnMouseEnter(Ar);
+		}
+
 		TPayloadThreeParam<uint8, uint16, uint16> Payload(Ar);
-		FIntPoint ViewportLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX), (InputType != EPixelStreamingInputType::RouteToWidget));
-		FIntPoint ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX));
+
 		EMouseButtons::Type Button = static_cast<EMouseButtons::Type>(Payload.Param1);
-		FSlateApplication::Get().SetCursorPos(ScreenLocation);
+		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_UP: Button = %d"), Button);
+
 		if (InputType == EPixelStreamingInputType::RouteToWidget)
 		{
-			FWidgetPath WidgetPath = FindRoutingMessageWidget(ViewportLocation);
+			FSlateApplication& SlateApplication = FSlateApplication::Get();
+			FWidgetPath WidgetPath = FindRoutingMessageWidget(SlateApplication.GetCursorPos());
 
 			if (WidgetPath.IsValid())
 			{
-				FSlateApplication& SlateApplication = FSlateApplication::Get();
 				FScopedSwitchWorldHack SwitchWorld(WidgetPath);
 				FKey Key = TranslateMouseButtonToKey(Button);
+
 				FPointerEvent MouseEvent(
 					SlateApplication.GetUserIndexForMouse(),
 					FSlateApplicationBase::CursorPointerIndex,
-					ViewportLocation,
+					SlateApplication.GetCursorPos(),
 					SlateApplication.GetLastCursorPos(),
 					SlateApplication.GetPressedMouseButtons(),
 					Key,
 					0,
 					SlateApplication.GetPlatformApplication()->GetModifierKeys());
+
 				SlateApplication.RoutePointerUpEvent(WidgetPath, MouseEvent);
 			}
 		}
@@ -634,66 +654,76 @@ namespace UE::PixelStreamingInput
 				MessageHandler->OnMouseUp(Button);
 			}
 		}
-		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_UP: Screen Pos = (%s); Viewport Pos = (%s); Button = %d"), *ScreenLocation.ToString(), *ViewportLocation.ToString(), Button);
 	}
 
 	void FPixelStreamingInputHandler::HandleOnMouseDown(FMemoryReader Ar)
 	{
+		// Ensure we have wrapped the slate application at this point
+		if (!bIsMouseActive)
+		{
+			HandleOnMouseEnter(Ar);
+		}
+
 		TPayloadThreeParam<uint8, uint16, uint16> Payload(Ar);
 		//                                                                           convert range from 0,65536 -> 0,1
-		FVector2D ViewportLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX), (InputType != EPixelStreamingInputType::RouteToWidget));
 		FVector2D ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX));
 		EMouseButtons::Type Button = static_cast<EMouseButtons::Type>(Payload.Param1);
-		FSlateApplication::Get().SetCursorPos(ScreenLocation);
+		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_DOWN: Button = %d; Pos = (%.4f, %.4f)"), Button, ScreenLocation.X, ScreenLocation.Y);
+		// Set cursor pos on mouse down - we may not have moved if this is the very first click
+		FSlateApplication& SlateApplication = FSlateApplication::Get();
+		SlateApplication.OnCursorSet();
+		// Force window focus
+		SlateApplication.ProcessApplicationActivationEvent(true);
 
 		if (InputType == EPixelStreamingInputType::RouteToWidget)
 		{
-			FWidgetPath WidgetPath = FindRoutingMessageWidget(ViewportLocation);
+			FWidgetPath WidgetPath = FindRoutingMessageWidget(ScreenLocation);
 
 			if (WidgetPath.IsValid())
 			{
-				FSlateApplication& SlateApplication = FSlateApplication::Get();
 				FScopedSwitchWorldHack SwitchWorld(WidgetPath);
 
 				FKey Key = TranslateMouseButtonToKey(Button);
+
 				FPointerEvent MouseEvent(
 					SlateApplication.GetUserIndexForMouse(),
 					FSlateApplicationBase::CursorPointerIndex,
-					ViewportLocation,
+					ScreenLocation,
 					SlateApplication.GetLastCursorPos(),
 					SlateApplication.GetPressedMouseButtons(),
 					Key,
 					0,
 					SlateApplication.GetPlatformApplication()->GetModifierKeys());
+
 				SlateApplication.RoutePointerDownEvent(WidgetPath, MouseEvent);
 			}
 		}
 		else if (InputType == EPixelStreamingInputType::RouteToWindow)
 		{
-			MessageHandler->OnMouseDown(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), Button, ViewportLocation);
+			MessageHandler->OnMouseDown(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), Button, ScreenLocation);
 		}
-
-		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_DOWN: Screen Pos = (%s); Viewport Pos = (%s); Button = %d"), *ScreenLocation.ToString(), *ViewportLocation.ToString(), Button);
 	}
 
 	void FPixelStreamingInputHandler::HandleOnMouseMove(FMemoryReader Ar)
 	{
 		TPayloadFourParam<uint16, uint16, int16, int16> Payload(Ar);
 		//                                                                           convert range from 0,65536 -> 0,1
-		FIntPoint ViewportLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param1 / uint16_MAX, Payload.Param2 / uint16_MAX), (InputType != EPixelStreamingInputType::RouteToWidget));
 		FIntPoint ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param1 / uint16_MAX, Payload.Param2 / uint16_MAX));
 		//                                                                 convert range from -32,768 to 32,767 -> -1,1
 		FIntPoint Delta = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param3 / int16_MAX, Payload.Param4 / int16_MAX), false);
-		FSlateApplication::Get().SetCursorPos(ScreenLocation);
+		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_MOVE: Pos = (%d, %d); Delta = (%d, %d)"), ScreenLocation.X, ScreenLocation.Y, Delta.X, Delta.Y);
+		FSlateApplication& SlateApplication = FSlateApplication::Get();
+		SlateApplication.OnCursorSet();
+		PixelStreamerApplicationWrapper->Cursor->SetPosition(ScreenLocation.X, ScreenLocation.Y);
 
 		if (InputType == EPixelStreamingInputType::RouteToWidget)
 		{
-			FWidgetPath WidgetPath = FindRoutingMessageWidget(ViewportLocation);
+			FWidgetPath WidgetPath = FindRoutingMessageWidget(ScreenLocation);
 
 			if (WidgetPath.IsValid())
 			{
-				FSlateApplication& SlateApplication = FSlateApplication::Get();
 				FScopedSwitchWorldHack SwitchWorld(WidgetPath);
+
 				FPointerEvent MouseEvent(
 					SlateApplication.GetUserIndexForMouse(),
 					FSlateApplicationBase::CursorPointerIndex,
@@ -702,6 +732,7 @@ namespace UE::PixelStreamingInput
 					FVector2D(Delta.X, Delta.Y),
 					SlateApplication.GetPressedMouseButtons(),
 					SlateApplication.GetPlatformApplication()->GetModifierKeys());
+
 				SlateApplication.RoutePointerMoveEvent(WidgetPath, MouseEvent, false);
 			}
 		}
@@ -709,27 +740,26 @@ namespace UE::PixelStreamingInput
 		{
 			MessageHandler->OnRawMouseMove(Delta.X, Delta.Y);
 		}
-
-		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_MOVE: Screen Pos = (%s); Viewport Pos = (%s); Delta = (%s)"), *ScreenLocation.ToString(), *ViewportLocation.ToString(), *Delta.ToString());
 	}
 
 	void FPixelStreamingInputHandler::HandleOnMouseWheel(FMemoryReader Ar)
 	{
 		TPayloadThreeParam<int16, uint16, uint16> Payload(Ar);
 		//                                                                           convert range from 0,65536 -> 0,1
-		FIntPoint ViewportLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX), (InputType != EPixelStreamingInputType::RouteToWidget));
 		FIntPoint ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX));
-		FSlateApplication::Get().SetCursorPos(ScreenLocation);
 		const float SpinFactor = 1 / 120.0f;
+		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_WHEEL: Delta = %d; Pos = (%d, %d)"), Payload.Param1, ScreenLocation.X, ScreenLocation.Y);
 
 		if (InputType == EPixelStreamingInputType::RouteToWidget)
 		{
-			FWidgetPath WidgetPath = FindRoutingMessageWidget(ViewportLocation);
+			FWidgetPath WidgetPath = FindRoutingMessageWidget(ScreenLocation);
 
 			if (WidgetPath.IsValid())
 			{
 				FScopedSwitchWorldHack SwitchWorld(WidgetPath);
+
 				FSlateApplication& SlateApplication = FSlateApplication::Get();
+
 				FPointerEvent MouseEvent(
 					SlateApplication.GetUserIndexForMouse(),
 					FSlateApplicationBase::CursorPointerIndex,
@@ -739,35 +769,36 @@ namespace UE::PixelStreamingInput
 					EKeys::Invalid,
 					Payload.Param1 * SpinFactor,
 					SlateApplication.GetPlatformApplication()->GetModifierKeys());
+
 				SlateApplication.RouteMouseWheelOrGestureEvent(WidgetPath, MouseEvent, nullptr);
 			}
 		}
 		else if (InputType == EPixelStreamingInputType::RouteToWindow)
 		{
-			MessageHandler->OnMouseWheel(Payload.Param1 * SpinFactor, ViewportLocation);
+			MessageHandler->OnMouseWheel(Payload.Param1 * SpinFactor, ScreenLocation);
 		}
-
-		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_WHEEL: Screen Pos = (%s); Viewport Pos = (%s); Delta = %d"), *ScreenLocation.ToString(), *ViewportLocation.ToString(), Payload.Param1);
 	}
 
 	void FPixelStreamingInputHandler::HandleOnMouseDoubleClick(FMemoryReader Ar)
 	{
 		TPayloadThreeParam<uint8, uint16, uint16> Payload(Ar);
 		//                                                                           convert range from 0,65536 -> 0,1
-		FIntPoint ViewportLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX), (InputType != EPixelStreamingInputType::RouteToWidget));
-		FIntPoint ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX));
+		FVector2D ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX));
 		EMouseButtons::Type Button = static_cast<EMouseButtons::Type>(Payload.Param1);
-		FSlateApplication::Get().SetCursorPos(ScreenLocation);
+		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_DOWN: Button = %d; Pos = (%.4f, %.4f)"), Button, ScreenLocation.X, ScreenLocation.Y);
+		// Force window focus
+		FSlateApplication& SlateApplication = FSlateApplication::Get();
+		SlateApplication.ProcessApplicationActivationEvent(true);
 
 		if (InputType == EPixelStreamingInputType::RouteToWidget)
 		{
-			FWidgetPath WidgetPath = FindRoutingMessageWidget(ViewportLocation);
+			FWidgetPath WidgetPath = FindRoutingMessageWidget(ScreenLocation);
 
 			if (WidgetPath.IsValid())
 			{
-				FSlateApplication& SlateApplication = FSlateApplication::Get();
 				FScopedSwitchWorldHack SwitchWorld(WidgetPath);
 				FKey Key = TranslateMouseButtonToKey(Button);
+
 				FPointerEvent MouseEvent(
 					SlateApplication.GetUserIndexForMouse(),
 					FSlateApplicationBase::CursorPointerIndex,
@@ -777,15 +808,14 @@ namespace UE::PixelStreamingInput
 					Key,
 					0,
 					SlateApplication.GetPlatformApplication()->GetModifierKeys());
+
 				SlateApplication.RoutePointerDoubleClickEvent(WidgetPath, MouseEvent);
 			}
 		}
 		else if (InputType == EPixelStreamingInputType::RouteToWindow)
 		{
-			MessageHandler->OnMouseDoubleClick(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), Button, ViewportLocation);
+			MessageHandler->OnMouseDoubleClick(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), Button, ScreenLocation);
 		}
-
-		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_DOUBLE: Screen Pos = (%s); Viewport Pos = (%s); Button = %d"), *ScreenLocation.ToString(), *ViewportLocation.ToString(), Button);
 	}
 
 	/**
@@ -1100,21 +1130,17 @@ namespace UE::PixelStreamingInput
 				JustWindow.AddWidget(FArrangedWidget(ApplicationWindow.ToSharedRef(), InnerWindowGeometry));
 
 				FWidgetPath PathToWidget(ApplicationWindow.ToSharedRef(), JustWindow);
-				FVector2D WindowClientOffset, WindowClientSize;
 				if (PathToWidget.ExtendPathTo(FWidgetMatcher(ViewportWidget.ToSharedRef()), EVisibility::Visible))
 				{
 					FArrangedWidget ArrangedWidget = PathToWidget.FindArrangedWidget(ViewportWidget.ToSharedRef()).Get(FArrangedWidget::GetNullWidget());
-					WindowClientOffset = ArrangedWidget.Geometry.GetAbsolutePosition();
-					WindowClientSize = ArrangedWidget.Geometry.GetAbsoluteSize();
+
+					FVector2D WindowClientOffset = ArrangedWidget.Geometry.GetAbsolutePosition();
+					FVector2D WindowClientSize = ArrangedWidget.Geometry.GetAbsoluteSize();
+
+					FVector2D OutTemp = bIncludeOffset ? WindowOrigin + WindowClientOffset + (ScreenLocation * WindowClientSize) : (ScreenLocation * WindowClientSize);
+					UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("%.4f, %.4f"), ScreenLocation.X, ScreenLocation.Y);
+					OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
 				}
-				else if (TSharedPtr<ISlateViewport> ViewportInterface = ViewportWidget->GetViewportInterface().Pin())
-				{
-					FSceneViewport* SceneViewport = static_cast<FSceneViewport*>(ViewportInterface.Get());
-					WindowClientOffset = SceneViewport->GetCachedGeometry().GetAbsolutePosition();
-					WindowClientSize = SceneViewport->GetCachedGeometry().GetAbsoluteSize();
-				}
-				FVector2D OutTemp = bIncludeOffset ? WindowOrigin + WindowClientOffset + (ScreenLocation * WindowClientSize) : (ScreenLocation * WindowClientSize);
-				OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
 			}
 			else
 			{
