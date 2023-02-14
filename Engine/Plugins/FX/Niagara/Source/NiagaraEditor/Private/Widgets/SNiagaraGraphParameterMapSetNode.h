@@ -10,7 +10,7 @@ public:
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UEdGraphNode* InGraphNode);
-	virtual TSharedRef<SWidget> CreateNodeContentArea();
+	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 
 protected:
 	FReply OnDroppedOnTarget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);

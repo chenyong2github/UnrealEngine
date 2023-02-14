@@ -3,7 +3,6 @@
 #include "NiagaraNodeParameterMapGet.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
-#include "SNiagaraGraphNodeConvert.h"
 #include "NiagaraGraph.h"
 #include "NiagaraHlslTranslator.h"
 #include "ScopedTransaction.h"
@@ -13,13 +12,9 @@
 #include "Modules/ModuleManager.h"
 #include "Templates/SharedPointer.h"
 #include "NiagaraConstants.h"
-#include "ToolMenus.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraph/EdGraphNode.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraScriptVariable.h"
-#include "NiagaraConstants.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapGet)
 
@@ -49,14 +44,7 @@ bool UNiagaraNodeParameterMapGet::IsPinNameEditable(const UEdGraphPin* GraphPinO
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 	FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(GraphPinObj);
-	if (TypeDef.IsValid() && GraphPinObj && GraphPinObj->Direction == EGPD_Output && CanRenamePin(GraphPinObj))
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	return TypeDef.IsValid() && GraphPinObj && GraphPinObj->Direction == EGPD_Output && CanRenamePin(GraphPinObj);
 }
 
 bool UNiagaraNodeParameterMapGet::IsPinNameEditableUponCreation(const UEdGraphPin* GraphPinObj) const
@@ -681,12 +669,6 @@ void UNiagaraNodeParameterMapGet::GetPinHoverText(const UEdGraphPin& Pin, FStrin
 			}
 		}
 	}
-}
-
-void UNiagaraNodeParameterMapGet::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
-{
-	Super::GetNodeContextMenuActions(Menu, Context);
-
 }
 
 #undef LOCTEXT_NAMESPACE

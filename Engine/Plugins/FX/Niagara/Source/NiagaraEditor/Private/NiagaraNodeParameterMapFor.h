@@ -20,6 +20,11 @@ public:
 	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
 
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual bool IncludeParentNodeContextMenu() const override { return false; }
+	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
+	
+protected:
+	virtual bool SkipPinCompilation(UEdGraphPin* Pin) const override;
 };
 
 UCLASS()
@@ -33,6 +38,11 @@ public:
 	virtual void AllocateDefaultPins() override;
 	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual bool IncludeParentNodeContextMenu() const override { return false; }
+	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
+	
+protected:
+	virtual bool SkipPinCompilation(UEdGraphPin* Pin) const override;
 };
 
 UCLASS()

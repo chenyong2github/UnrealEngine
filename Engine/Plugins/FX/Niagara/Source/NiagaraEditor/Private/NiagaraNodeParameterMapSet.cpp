@@ -11,12 +11,8 @@
 #include "NiagaraGraph.h"
 #include "NiagaraScriptVariable.h"
 #include "ScopedTransaction.h"
-#include "SNiagaraGraphNodeConvert.h"
 #include "SNiagaraGraphParameterMapSetNode.h"
 #include "Templates/SharedPointer.h"
-#include "ToolMenus.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Layout/SBox.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapSet)
 
@@ -45,33 +41,12 @@ bool UNiagaraNodeParameterMapSet::IsPinNameEditable(const UEdGraphPin* GraphPinO
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 	FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(GraphPinObj);
-	if (TypeDef.IsValid() && GraphPinObj && GraphPinObj->Direction == EGPD_Input && CanRenamePin(GraphPinObj))
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	return TypeDef.IsValid() && GraphPinObj && GraphPinObj->Direction == EGPD_Input && CanRenamePin(GraphPinObj);
 }
 
 bool UNiagaraNodeParameterMapSet::IsPinNameEditableUponCreation(const UEdGraphPin* GraphPinObj) const
 {
-	if (GraphPinObj == PinPendingRename)
-	{
-
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-void UNiagaraNodeParameterMapSet::RemoveDynamicPin(UEdGraphPin* Pin)
-{
-	// Call NiagaraNodeWithDynamicPins::RemoveDynamicPin() instead of base class to fixup the associated pin variable's metadata.
-	Super::RemoveDynamicPin(Pin);
+	return GraphPinObj == PinPendingRename;
 }
 
 bool UNiagaraNodeParameterMapSet::VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const
@@ -254,7 +229,7 @@ void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translat
 	CompileInputs.Reserve(InputPins.Num());
 	for (UEdGraphPin* InputPin : InputPins)
 	{
-		if (IsAddPin(InputPin) || Translator->IsFunctionVariableCulledFromCompilation(InputPin->PinName))
+		if (IsAddPin(InputPin) || SkipPinCompilation(InputPin) || Translator->IsFunctionVariableCulledFromCompilation(InputPin->PinName))
 		{
 			continue;
 		}
@@ -344,13 +319,6 @@ void UNiagaraNodeParameterMapSet::BuildParameterMapHistory(FNiagaraParameterMapH
 	}
 
 	OutHistory.RegisterParameterMapPin(ParamMapIdx, GetOutputPin(0));
-}
-
-void UNiagaraNodeParameterMapSet::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
-{
-	Super::GetNodeContextMenuActions(Menu, Context);
-
-
 }
 
 void UNiagaraNodeParameterMapSet::PostLoad()

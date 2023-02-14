@@ -12,7 +12,7 @@ public:
 	void Construct(const FArguments& InArgs, UEdGraphNode* InGraphNode);
 
 	virtual void AddPin(const TSharedRef<SGraphPin>& PinToAdd) override;
-	virtual TSharedRef<SWidget> CreateNodeContentArea();
+	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	virtual void CreatePinWidgets() override;
 
 protected:

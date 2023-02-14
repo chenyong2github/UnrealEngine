@@ -2,15 +2,10 @@
 
 #include "SNiagaraGraphParameterMapSetNode.h"
 #include "NiagaraNodeParameterMapSet.h"
-#include "Widgets/Input/SButton.h"
 #include "GraphEditorSettings.h"
-#include "Rendering/DrawElements.h"
-#include "Widgets/SBoxPanel.h"
 #include "SGraphPin.h"
 #include "EdGraphSchema_Niagara.h"
-#include "NiagaraScriptVariable.h"
 #include "SDropTarget.h"
-#include "NiagaraEditorStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SNiagaraGraphParameterMapSetNode"

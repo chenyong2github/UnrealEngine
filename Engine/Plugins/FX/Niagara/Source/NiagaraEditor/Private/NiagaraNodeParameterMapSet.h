@@ -23,26 +23,25 @@ public:
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 	virtual bool IsPinNameEditable(const UEdGraphPin* GraphPinObj) const override;
 	virtual bool IsPinNameEditableUponCreation(const UEdGraphPin* GraphPinObj) const override;
-	virtual void RemoveDynamicPin(UEdGraphPin* Pin) override;
 	virtual bool VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const override;
 	virtual bool CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents = false)  override;
 	virtual bool CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) override;
 
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
-	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs);
+	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
 
-	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const;
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 
-	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
-	virtual bool IncludeParentNodeContextMenu() const { return true; }
+	virtual bool IncludeParentNodeContextMenu() const override { return false; }
 	virtual void PostLoad() override;
-	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_LOCAL_MODULE_STR; }
+	virtual FName GetNewPinDefaultNamespace() const override { return PARAM_MAP_LOCAL_MODULE_STR; }
 
 	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
-	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_Input; };
+	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() override { return EEdGraphPinDirection::EGPD_Input; };
 
 protected:
-	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin); 
+	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override; 
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
+	virtual bool SkipPinCompilation(UEdGraphPin* Pin) const { return false; };
 };

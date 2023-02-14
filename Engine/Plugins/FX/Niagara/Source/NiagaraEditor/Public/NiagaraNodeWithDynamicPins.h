@@ -23,7 +23,7 @@ public:
 	//~ UEdGraphNode interface
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
-	virtual bool IncludeParentNodeContextMenu() const { return true; }
+	virtual bool IncludeParentNodeContextMenu() const override { return true; }
 
 	/** Requests a new pin be added to the node with the specified direction, type, and name. */
 	UEdGraphPin* RequestNewTypedPin(EEdGraphPinDirection Direction, const FNiagaraTypeDefinition& Type, FName InName);
@@ -63,7 +63,7 @@ protected:
 	
 	/** Called in subclasses to restrict renaming.*/
 	/** Verify that the potential rename has produced acceptable results for a pin.*/
-	virtual bool VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const { OutErrorMessage = FText::GetEmpty(); return true; }
+	virtual bool VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const override { OutErrorMessage = FText::GetEmpty(); return true; }
 
 	/** Called when a pin is renamed. */
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldPinName) { }
@@ -90,7 +90,7 @@ protected:
 
 	virtual bool OnVerifyTextChanged(const FText& NewText, FText& OutMessage) { return true; };
 
-	bool IsValidPinToCompile(UEdGraphPin* Pin) const override;
+	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const override;
 
 private:
 

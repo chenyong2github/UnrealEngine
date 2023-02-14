@@ -12,7 +12,6 @@
 #include "NiagaraConstants.h"
 #include "ToolMenus.h"
 #include "NiagaraScriptVariable.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapBase)
 
