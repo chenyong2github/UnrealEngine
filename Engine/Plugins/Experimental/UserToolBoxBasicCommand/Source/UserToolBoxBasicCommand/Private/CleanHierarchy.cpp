@@ -2,11 +2,11 @@
 
 
  #include "CleanHierarchy.h"
+#include "Components/MeshComponent.h"
 #include "DatasmithContentBlueprintLibrary.h"
-#include "EngineUtils.h"
-#include "Engine/Selection.h"
 #include "Editor.h"
-#include "Engine/Classes/Components/MeshComponent.h"
+#include "Engine/Selection.h"
+#include "EngineUtils.h"
 
 int GetAttachedChildCount(AActor* Actor)
 {

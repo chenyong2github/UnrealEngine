@@ -2,14 +2,14 @@
 
 
 #include "BaseCompositeCommandCustomization.h"
-#include "IDetailChildrenBuilder.h"
+#include "BaseCompositeCommand.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "BaseCompositeCommand.h"
-#include "PropertyCustomizationHelpers.h"
-#include "EditorWidgets/Public/SDropTarget.h"
 #include "Editor/UTBTabEditor.h"
+#include "IDetailChildrenBuilder.h"
+#include "PropertyCustomizationHelpers.h"
+#include "SDropTarget.h"
 #include "Widgets/Text/STextBlock.h"
 
 void FBaseCompositeCommandCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)

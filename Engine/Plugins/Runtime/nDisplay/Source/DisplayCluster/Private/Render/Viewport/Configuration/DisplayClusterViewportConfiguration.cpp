@@ -22,7 +22,7 @@
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
 
-#include "Engine/Classes/Engine/RendererSettings.h"
+#include "Engine/RendererSettings.h"
 
 
 ///////////////////////////////////////////////////////////////////

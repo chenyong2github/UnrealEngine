@@ -4,11 +4,11 @@
  #include "IsolateSelection.h"
 
 #include "ActorEditorUtils.h"
-#include "EngineUtils.h"
-#include "Engine/Selection.h"
+#include "Components/MeshComponent.h"
 #include "Editor.h"
+#include "Engine/Selection.h"
 #include "Engine/StaticMeshActor.h"
-#include "Engine/Classes/Components/MeshComponent.h"
+#include "EngineUtils.h"
 
 UIsolateSelection::UIsolateSelection()
 {

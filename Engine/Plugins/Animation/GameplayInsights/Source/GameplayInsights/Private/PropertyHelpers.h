@@ -3,7 +3,7 @@
 
 #pragma once
 #include "IGameplayProvider.h"
-#include "SlateCore/Public/Textures/SlateIcon.h"
+#include "Textures/SlateIcon.h"
 
 struct FVariantTreeNode;
 

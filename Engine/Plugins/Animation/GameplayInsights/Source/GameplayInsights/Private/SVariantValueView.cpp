@@ -20,13 +20,13 @@
 #include "Misc/StringBuilder.h"
 
 #if WITH_EDITOR
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "SourceCodeNavigation.h"
+#include "AnimPreviewInstance.h"
+#include "Animation/DebugSkelMeshComponent.h"
 #include "Editor.h"
 #include "IAnimationEditor.h"
 #include "IPersonaToolkit.h"
-#include "Animation/DebugSkelMeshComponent.h"
-#include "AnimGraph/Public/AnimPreviewInstance.h"
+#include "SourceCodeNavigation.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SVariantValueView"
