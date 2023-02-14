@@ -140,15 +140,11 @@ public:
 	virtual bool NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading = true) override;
 	virtual bool ShouldDoAsyncEndOfFrameTasks() const override;
 
-	// FExec interface
 public:
-#if UE_ALLOW_EXEC_COMMANDS
+
+	// FExec interface
+
 	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog ) override;
-#endif
-protected:
-	virtual bool Exec_Runtime( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
-	virtual bool Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
-	virtual bool Exec_Editor( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
 
 public:
 
