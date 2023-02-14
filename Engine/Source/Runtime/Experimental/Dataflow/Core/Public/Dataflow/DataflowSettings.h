@@ -10,6 +10,7 @@
 static const FLinearColor CManagedArrayCollectionPinTypeColor = FLinearColor(0.353393f, 0.454175f, 1.0f, 1.0f);
 static const FLinearColor CArrayPinTypeColor = FLinearColor(1.0f, 0.172585f, 0.0f, 1.0f);
 static const FLinearColor CBoxPinTypeColor = FLinearColor(0.013575f, 0.770000f, 0.429609f, 1.0f);
+static const FLinearColor CSpherePinTypeColor = FLinearColor(0.2f, 0.6f, 1.f, 1.0f);
 
 typedef TMap<FName, FNodeColors> FNodeColorsMap;
 
@@ -41,6 +42,10 @@ class DATAFLOWCORE_API UDataflowSettings : public UDeveloperSettings
 	/** FBox pin type color. The other pin colors are defined in the general editor settings. */
 	UPROPERTY(config, EditAnywhere, Category = PinColors)
 	FLinearColor BoxPinTypeColor;
+
+	/** FSphere pin type color. The other pin colors are defined in the general editor settings. */
+	UPROPERTY(config, EditAnywhere, Category = PinColors)
+	FLinearColor SpherePinTypeColor;
 
 	UPROPERTY(config, EditAnywhere, Category = NodeColors)
 	TMap<FName, FNodeColors> NodeColorsMap;

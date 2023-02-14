@@ -10,6 +10,7 @@ UDataflowSettings::UDataflowSettings(const FObjectInitializer& ObjectInitlaizer)
 	ManagedArrayCollectionPinTypeColor = CManagedArrayCollectionPinTypeColor;
 	ArrayPinTypeColor = CArrayPinTypeColor;
 	BoxPinTypeColor = CBoxPinTypeColor;
+	SpherePinTypeColor = CSpherePinTypeColor;
 }
 
 FName UDataflowSettings::GetCategoryName() const

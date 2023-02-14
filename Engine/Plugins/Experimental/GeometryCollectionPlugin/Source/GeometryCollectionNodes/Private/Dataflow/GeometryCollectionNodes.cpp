@@ -97,8 +97,12 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetCollectionAttributeDataTypedDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoolArrayToFaceSelectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatArrayToVertexSelectionDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexColorInCollectionDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexColorInCollectionFromVertexSelectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeTransformDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexColorInCollectionFromFloatArrayDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatArrayNormalizeDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FVectorArrayNormalizeDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeQuaternionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMultiplyTransformDataflowNode);
 		
 
@@ -115,7 +119,7 @@ namespace Dataflow
 		// Math
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Math", FLinearColor(0.f, 0.4f, 0.8f), CDefaultNodeBodyTintColor);
 		// Generators
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Generators", FLinearColor(.6f, 0.1f, 1.f), CDefaultNodeBodyTintColor);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Generators", FLinearColor(.4f, 0.8f, 0.f), CDefaultNodeBodyTintColor);
 	}
 }
 
@@ -1024,6 +1028,14 @@ static FName GetGroupName(const EStandardGroupNameEnum& InGroupName)
 	return GroupNameToUse;
 }
 
+
+template<typename T>
+static void AddAndFillAttribute(FManagedArrayCollection& InCollection, FName AttributeName, FName GroupName, const T& DefaultValue)
+{
+	TManagedArrayAccessor<T> CustomAttribute(InCollection, AttributeName, GroupName);
+	CustomAttribute.AddAndFill(DefaultValue);
+}
+
 void FAddCustomCollectionAttributeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
@@ -1043,57 +1055,93 @@ void FAddCustomCollectionAttributeDataflowNode::Evaluate(Dataflow::FContext& Con
 
 		if (GroupNameToUse.GetStringLength() > 0 && AttrName.Len() > 0)
 		{
-			if (CustomAttributeType == ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Bool)
+			// If the group already exists don't change the number of elements
+			if (!InCollection.HasGroup(GroupNameToUse))
 			{
-				TManagedArrayAccessor<bool> CustomAttribute(InCollection, FName(*AttrName), GroupNameToUse);
-
-				// If the group already exists don't change the number of elements
-				if (!InCollection.HasGroup(GroupNameToUse))
-				{
-					CustomAttribute.AddElements(InNumElements);
-				}
-
-				CustomAttribute.AddAndFill(false);
+				InCollection.AddGroup(GroupNameToUse);
+				InCollection.AddElements(InNumElements, GroupNameToUse);
 			}
-			else if (CustomAttributeType == ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Float)
+
+			FName AttributeNameToUse = FName(*AttrName);
+
+			switch (CustomAttributeType)
 			{
-				TManagedArrayAccessor<float> CustomAttribute(InCollection, FName(*AttrName), GroupNameToUse);
-
-				// If the group already exists don't change the number of elements
-				if (!InCollection.HasGroup(GroupNameToUse))
-				{
-					CustomAttribute.AddElements(InNumElements);
-				}
-
-				CustomAttribute.AddAndFill(0.f);
-			}
-			else if (CustomAttributeType == ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Int)
-			{
-				TManagedArrayAccessor<int32> CustomAttribute(InCollection, FName(*AttrName), GroupNameToUse);
-
-				// If the group already exists don't change the number of elements
-				if (!InCollection.HasGroup(GroupNameToUse))
-				{
-					CustomAttribute.AddElements(InNumElements);
-				}
-
-				CustomAttribute.AddAndFill(0);
-			}
-			else if (CustomAttributeType == ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Vector)
-			{
-				TManagedArrayAccessor<FVector> CustomAttribute(InCollection, FName(*AttrName), GroupNameToUse);
-
-				// If the group already exists don't change the number of elements
-				if (!InCollection.HasGroup(GroupNameToUse))
-				{
-					CustomAttribute.AddElements(InNumElements);
-				}
-
-				CustomAttribute.AddAndFill(FVector(EForceInit::ForceInitToZero));
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_UInt8:
+				AddAndFillAttribute<uint8>(InCollection, AttributeNameToUse, GroupNameToUse, uint8(0));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Int32:
+				AddAndFillAttribute<int32>(InCollection, AttributeNameToUse, GroupNameToUse, 0);
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Float:
+				AddAndFillAttribute<float>(InCollection, AttributeNameToUse, GroupNameToUse, float(0.0));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Double:
+				AddAndFillAttribute<double>(InCollection, AttributeNameToUse, GroupNameToUse, double(0.0));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Bool:
+				AddAndFillAttribute<bool>(InCollection, AttributeNameToUse, GroupNameToUse, false);
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_String:
+				AddAndFillAttribute<FString>(InCollection, AttributeNameToUse, GroupNameToUse, FString());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Vector2f:
+				AddAndFillAttribute<FVector2f>(InCollection, AttributeNameToUse, GroupNameToUse, FVector2f(EForceInit::ForceInitToZero));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Vector3f:
+				AddAndFillAttribute<FVector3f>(InCollection, AttributeNameToUse, GroupNameToUse, FVector3f(EForceInit::ForceInitToZero));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Vector3d:
+				AddAndFillAttribute<FVector3d>(InCollection, AttributeNameToUse, GroupNameToUse, FVector3d(EForceInit::ForceInitToZero));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Vector4f:
+				AddAndFillAttribute<FVector4f>(InCollection, AttributeNameToUse, GroupNameToUse, FVector4f(EForceInit::ForceInitToZero));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_LinearColor:
+				AddAndFillAttribute<FLinearColor>(InCollection, AttributeNameToUse, GroupNameToUse, FLinearColor(0.f, 0.f, 0.f, 1.f));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Transform:
+				AddAndFillAttribute<FTransform>(InCollection, AttributeNameToUse, GroupNameToUse, FTransform(FTransform::Identity));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Quat4f:
+				AddAndFillAttribute<FQuat4f>(InCollection, AttributeNameToUse, GroupNameToUse, FQuat4f(ForceInitToZero));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Box:
+				AddAndFillAttribute<FBox>(InCollection, AttributeNameToUse, GroupNameToUse, FBox(ForceInit));
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Guid:
+				AddAndFillAttribute<FGuid>(InCollection, AttributeNameToUse, GroupNameToUse, FGuid());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Int32Set:
+				AddAndFillAttribute<TSet<int32>>(InCollection, AttributeNameToUse, GroupNameToUse, TSet<int32>());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Int32Array:
+				AddAndFillAttribute<TArray<int32>>(InCollection, AttributeNameToUse, GroupNameToUse, TArray<int32>());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_IntVector:
+				AddAndFillAttribute<FIntVector>(InCollection, AttributeNameToUse, GroupNameToUse, FIntVector());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_IntVector2:
+				AddAndFillAttribute<FIntVector2>(InCollection, AttributeNameToUse, GroupNameToUse, FIntVector2());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_IntVector4:
+				AddAndFillAttribute<FIntVector4>(InCollection, AttributeNameToUse, GroupNameToUse, FIntVector4());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_IntVector2Array:
+				AddAndFillAttribute<TArray<FIntVector2>>(InCollection, AttributeNameToUse, GroupNameToUse, TArray<FIntVector2>());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_FloatArray:
+				AddAndFillAttribute<TArray<float>>(InCollection, AttributeNameToUse, GroupNameToUse, TArray<float>());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Vector2fArray:
+				AddAndFillAttribute<TArray<FVector2f>>(InCollection, AttributeNameToUse, GroupNameToUse, TArray<FVector2f>());
+				break;
+			case ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_FVector3fArray:
+				AddAndFillAttribute<TArray<FVector3f>>(InCollection, AttributeNameToUse, GroupNameToUse, TArray<FVector3f>());
+				break;
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -1133,8 +1181,11 @@ void FGetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 {
 	if (Out->IsA<TArray<bool>>(&BoolAttributeData) ||
 		Out->IsA<TArray<float>>(&FloatAttributeData) ||
-		Out->IsA<TArray<int32>>(&IntAttributeData) ||
-		Out->IsA<TArray<FVector3f>>(&VectorAttributeData))
+		Out->IsA<TArray<double>>(&DoubleAttributeData) ||
+		Out->IsA<TArray<int32>>(&Int32AttributeData) ||
+		Out->IsA<TArray<FString>>(&StringAttributeData) ||
+		Out->IsA<TArray<FVector3f>>(&Vector3fAttributeData) ||
+		Out->IsA<TArray<FVector3d>>(&Vector3dAttributeData))
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
@@ -1148,6 +1199,14 @@ void FGetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 			GroupNameToUse = FName(*CustomGroupName);
 		}
 
+		SetValue<TArray<bool>>(Context, TArray<bool>(), &BoolAttributeData);
+		SetValue<TArray<float>>(Context, TArray<float>(), &FloatAttributeData);
+		SetValue<TArray<double>>(Context, TArray<double>(), &DoubleAttributeData);
+		SetValue<TArray<int32>>(Context, TArray<int32>(), &Int32AttributeData);
+		SetValue<TArray<FString>>(Context, TArray<FString>(), &StringAttributeData);
+		SetValue<TArray<FVector3f>>(Context, TArray<FVector3f>(), &Vector3fAttributeData);
+		SetValue<TArray<FVector3d>>(Context, TArray<FVector3d>(), &Vector3dAttributeData);
+
 		if (GroupNameToUse.GetStringLength() > 0 && AttrName.Len() > 0)
 		{
 			if (InCollection.HasGroup(GroupNameToUse))
@@ -1156,57 +1215,40 @@ void FGetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 				{
 					FString TypeStr = GetArrayTypeString(InCollection.GetAttributeType(FName(*AttrName), GroupNameToUse)).ToString();
 
-					if (Out->IsA<TArray<bool>>(&BoolAttributeData))
+					if (TypeStr == FString("Bool"))
 					{
-						if (TypeStr == FString("bool"))
-						{
-							const TManagedArray<bool>& BoolAttributeArr = InCollection.GetAttribute<bool>(FName(*AttrName), GroupNameToUse);
-
-							SetValue<TArray<bool>>(Context, BoolAttributeArr.GetConstArray(), &BoolAttributeData);
-						}
-						else
-						{
-							SetValue<TArray<bool>>(Context, TArray<bool>(), &BoolAttributeData);
-						}
+						const TManagedArray<bool>& AttributeArr = InCollection.GetAttribute<bool>(FName(*AttrName), GroupNameToUse);
+						SetValue<TArray<bool>>(Context, AttributeArr.GetConstArray(), &BoolAttributeData);
 					}
-					else if (Out->IsA<TArray<float>>(&FloatAttributeData))
+					else if (TypeStr == FString("Float"))
 					{
-						if (TypeStr == FString("float"))
-						{
-							const TManagedArray<float>& FloatAttributeArr = InCollection.GetAttribute<float>(FName(*AttrName), GroupNameToUse);
-
-							SetValue<TArray<float>>(Context, FloatAttributeArr.GetConstArray(), &FloatAttributeData);
-						}
-						else
-						{
-							SetValue<TArray<float>>(Context, TArray<float>(), &FloatAttributeData);
-						}
+						const TManagedArray<float>& AttributeArr = InCollection.GetAttribute<float>(FName(*AttrName), GroupNameToUse);
+						SetValue<TArray<float>>(Context, AttributeArr.GetConstArray(), &FloatAttributeData);
 					}
-					else if (Out->IsA<TArray<int32>>(&IntAttributeData))
+					else if (TypeStr == FString("Double"))
 					{
-						if (TypeStr == FString("int32"))
-						{
-							const TManagedArray<int32>& IntAttributeArr = InCollection.GetAttribute<int32>(FName(*AttrName), GroupNameToUse);
-
-							SetValue<TArray<int32>>(Context, IntAttributeArr.GetConstArray(), &IntAttributeData);
-						}
-						else
-						{
-							SetValue<TArray<int32>>(Context, TArray<int32>(), &IntAttributeData);
-						}
+						const TManagedArray<double>& AttributeArr = InCollection.GetAttribute<double>(FName(*AttrName), GroupNameToUse);
+						SetValue<TArray<double>>(Context, AttributeArr.GetConstArray(), &DoubleAttributeData);
 					}
-					else if (Out->IsA<TArray<FVector3f>>(&VectorAttributeData))
+					else if (TypeStr == FString("Int32"))
 					{
-						if (TypeStr == FString("Vector"))
-						{
-							const TManagedArray<FVector3f>& VectorAttributeArr = InCollection.GetAttribute<FVector3f>(FName(*AttrName), GroupNameToUse);
-
-							SetValue<TArray<FVector3f>>(Context, VectorAttributeArr.GetConstArray(), &VectorAttributeData);
-						}
-						else
-						{
-							SetValue<TArray<FVector3f>>(Context, TArray<FVector3f>(), &VectorAttributeData);
-						}
+						const TManagedArray<int32>& AttributeArr = InCollection.GetAttribute<int32>(FName(*AttrName), GroupNameToUse);
+						SetValue<TArray<int32>>(Context, AttributeArr.GetConstArray(), &Int32AttributeData);
+					}
+					else if (TypeStr == FString("String"))
+					{
+						const TManagedArray<FString>& AttributeArr = InCollection.GetAttribute<FString>(FName(*AttrName), GroupNameToUse);
+						SetValue<TArray<FString>>(Context, AttributeArr.GetConstArray(), &StringAttributeData);
+					}
+					else if (TypeStr == FString("Vector"))
+					{
+						const TManagedArray<FVector3f>& AttributeArr = InCollection.GetAttribute<FVector3f>(FName(*AttrName), GroupNameToUse);
+						SetValue<TArray<FVector3f>>(Context, AttributeArr.GetConstArray(), &Vector3fAttributeData);
+					}
+					else if (TypeStr == FString("Vector3d"))
+					{
+						const TManagedArray<FVector3d>& AttributeArr = InCollection.GetAttribute<FVector3d>(FName(*AttrName), GroupNameToUse);
+						SetValue<TArray<FVector3d>>(Context, AttributeArr.GetConstArray(), &Vector3dAttributeData);
 					}
 				}
 			}
@@ -1214,6 +1256,23 @@ void FGetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 	}
 }
 
+template<typename T>
+static void SetAttributeData(const FDataflowNode* DataflowNode, Dataflow::FContext& Context, FManagedArrayCollection& InCollection, const TArray<T>& Property, FName AttributeName, FName GroupName)
+{
+	if (DataflowNode && DataflowNode->IsConnected<TArray<T>>(&Property))
+	{
+		TArray<T> AttributeData = DataflowNode->GetValue<TArray<T>>(Context, &Property);
+		TManagedArray<T>& AttributeArray = InCollection.ModifyAttribute<T>(AttributeName, GroupName);
+
+		if (AttributeData.Num() == AttributeArray.Num())
+		{
+			for (int32 Idx = 0; Idx < AttributeArray.Num(); ++Idx)
+			{
+				AttributeArray[Idx] = AttributeData[Idx];
+			}
+		}
+	}
+}
 
 void FSetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -1237,89 +1296,42 @@ void FSetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 			{
 				if (InCollection.HasAttribute(FName(*AttrName), GroupNameToUse))
 				{
-					FString TypeStr = GetArrayTypeString(InCollection.GetAttributeType(FName(*AttrName), GroupNameToUse)).ToString();
-
-					if (TypeStr == FString("bool"))
+					FName AttributeName = FName(*AttrName);
+					FString TypeStr = GetArrayTypeString(InCollection.GetAttributeType(AttributeName, GroupNameToUse)).ToString();
+					
+					if (TypeStr == FString("Bool"))
 					{
-						if (IsConnected<TArray<bool>>(&BoolAttributeData))
-						{
-							TArray<bool> InBoolAttributeData = GetValue<TArray<bool>>(Context, &BoolAttributeData);
-
-							TManagedArray<bool>& BoolAttributeArr = InCollection.ModifyAttribute<bool>(FName(*AttrName), GroupNameToUse);
-
-							if (InBoolAttributeData.Num() == BoolAttributeArr.Num())
-							{
-								for (int32 Idx = 0; Idx < BoolAttributeArr.Num(); ++Idx)
-								{
-									BoolAttributeArr[Idx] = InBoolAttributeData[Idx];
-								}
-							}
-
-							SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
-						}
+						SetAttributeData<bool>(this, Context, InCollection, BoolAttributeData, AttributeName, GroupNameToUse);
 					}
-					else if (TypeStr == FString("float"))
+					else if (TypeStr == FString("Float"))
 					{
-						if (IsConnected<TArray<float>>(&FloatAttributeData))
-						{
-							TArray<float> InFloatAttributeData = GetValue<TArray<float>>(Context, &FloatAttributeData);
-
-							TManagedArray<float>& FloatAttributeArr = InCollection.ModifyAttribute<float>(FName(*AttrName), GroupNameToUse);
-
-							if (InFloatAttributeData.Num() == FloatAttributeArr.Num())
-							{
-								for (int32 Idx = 0; Idx < FloatAttributeArr.Num(); ++Idx)
-								{
-									FloatAttributeArr[Idx] = InFloatAttributeData[Idx];
-								}
-							}
-
-							SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
-						}
+						SetAttributeData<float>(this, Context, InCollection, FloatAttributeData, AttributeName, GroupNameToUse);
 					}
-					else if (TypeStr == FString("int32"))
+					else if (TypeStr == FString("Double"))
 					{
-						if (IsConnected<TArray<int32>>(&IntAttributeData))
-						{
-							TArray<int32> InIntAttributeData = GetValue<TArray<int32>>(Context, &IntAttributeData);
-
-							TManagedArray<int32>& IntAttributeArr = InCollection.ModifyAttribute<int32>(FName(*AttrName), GroupNameToUse);
-
-							if (InIntAttributeData.Num() == IntAttributeArr.Num())
-							{
-								for (int32 Idx = 0; Idx < IntAttributeArr.Num(); ++Idx)
-								{
-									IntAttributeArr[Idx] = InIntAttributeData[Idx];
-								}
-							}
-
-							SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
-						}
+						SetAttributeData<double>(this, Context, InCollection, DoubleAttributeData, AttributeName, GroupNameToUse);
+					}
+					else if (TypeStr == FString("Int32"))
+					{
+						SetAttributeData<int32>(this, Context, InCollection, Int32AttributeData, AttributeName, GroupNameToUse);
+					}
+					else if (TypeStr == FString("String"))
+					{
+						SetAttributeData<FString>(this, Context, InCollection, StringAttributeData, AttributeName, GroupNameToUse);
+					}
+					else if (TypeStr == FString("Vector"))
+					{
+						SetAttributeData<FVector3f>(this, Context, InCollection, Vector3fAttributeData, AttributeName, GroupNameToUse);
 					}
 					else if (TypeStr == FString("Vector3d"))
 					{
-						if (IsConnected<TArray<FVector>>(&VectorAttributeData))
-						{
-							TArray<FVector> InVectorAttributeData = GetValue<TArray<FVector>>(Context, &VectorAttributeData);
-
-							TManagedArray<FVector>& VectorAttributeArr = InCollection.ModifyAttribute<FVector>(FName(*AttrName), GroupNameToUse);
-
-							if (InVectorAttributeData.Num() == VectorAttributeArr.Num())
-							{
-								for (int32 Idx = 0; Idx < VectorAttributeArr.Num(); ++Idx)
-								{
-									VectorAttributeArr[Idx] = InVectorAttributeData[Idx];
-								}
-							}
-
-							SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
-						}
+						SetAttributeData<FVector3d>(this, Context, InCollection, Vector3dAttributeData, AttributeName, GroupNameToUse);
 					}
 				}
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -1392,7 +1404,7 @@ void FFloatArrayToVertexSelectionDataflowNode::Evaluate(Dataflow::FContext& Cont
 }
 
 
-void FSetVertexColorInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+void FSetVertexColorInCollectionFromVertexSelectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
@@ -1418,9 +1430,9 @@ void FSetVertexColorInCollectionDataflowNode::Evaluate(Dataflow::FContext& Conte
 					}
 				}
 			}
-
-			SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
 		}
+
+		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -1429,11 +1441,188 @@ void FMakeTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 {
 	if (Out->IsA<FTransform>(&OutTransform))
 	{
-		SetValue<FTransform>(Context, 
-							 FTransform(FQuat::MakeFromEuler(GetValue<FVector>(Context, &InRotation))
-							 , GetValue<FVector>(Context, &InTranslation)
-							 , GetValue<FVector>(Context, &InScale))
-							 ,&OutTransform);
+		SetValue<FTransform>(Context,
+			FTransform(FQuat::MakeFromEuler(GetValue<FVector>(Context, &InRotation))
+			, GetValue<FVector>(Context, &InTranslation)
+			, GetValue<FVector>(Context, &InScale))
+			, &OutTransform);
+	}
+}
+
+
+void FSetVertexColorInCollectionFromFloatArrayDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const TArray<float>& InFloatArray = GetValue<TArray<float>>(Context, &FloatArray);
+
+		const int32 NumVertices = InCollection.NumElements(FGeometryCollection::VerticesGroup);
+
+		if (InFloatArray.Num() == NumVertices)
+		{
+			if (TManagedArray<FLinearColor>* VertexColors = InCollection.FindAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup))
+			{
+				for (int32 Idx = 0; Idx < NumVertices; ++Idx)
+				{
+					(*VertexColors)[Idx] = FLinearColor(Scale * InFloatArray[Idx], Scale * InFloatArray[Idx], Scale * InFloatArray[Idx]);
+				}
+			}
+		}
+
+		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+	}
+}
+
+
+void FFloatArrayNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<TArray<float>>(&OutFloatArray))
+	{
+		const TArray<float>& InInFloatArray = GetValue<TArray<float>>(Context, &InFloatArray);
+		const FDataflowVertexSelection& InSelection = GetValue<FDataflowVertexSelection>(Context, &Selection);
+		const float InMinRange = GetValue<float>(Context, &MinRange);
+		const float InMaxRange = GetValue<float>(Context, &MaxRange);
+
+		const int32 NumElems = InFloatArray.Num();
+
+		TArray<float> NewFloatArray;
+		NewFloatArray.Init(false, NumElems);
+
+		if (IsConnected<FDataflowVertexSelection>(&Selection))
+		{
+			if (InInFloatArray.Num() == InSelection.Num())
+			{
+				// Compute Min/Max
+				float MinValue = 1e9, MaxValue = 1e-9;
+
+				for (int32 Idx = 0; Idx < NumElems; ++Idx)
+				{
+					if (InSelection.IsSelected(Idx))
+					{
+						if (InInFloatArray[Idx] < MinValue)
+						{
+							MinValue = InInFloatArray[Idx];
+						}
+
+						if (InInFloatArray[Idx] > MaxValue)
+						{
+							MaxValue = InInFloatArray[Idx];
+						}
+					}
+				}
+
+				for (int32 Idx = 0; Idx < NumElems; ++Idx)
+				{
+					if (InSelection.IsSelected(Idx))
+					{
+						// Normalize it
+						NewFloatArray[Idx] = (NewFloatArray[Idx] - MinValue) / (MaxValue - MinValue);
+
+						// Transform it into (MinRange, MaxRange)
+						NewFloatArray[Idx] = InMinRange + NewFloatArray[Idx] * (InMaxRange - InMinRange);
+					}
+				}
+
+				SetValue<TArray<float>>(Context, NewFloatArray, &OutFloatArray);
+				return;
+			}
+		}
+		else
+		{
+			// Compute Min/Max
+			float MinValue = 1e9, MaxValue = 1e-9;
+
+			for (int32 Idx = 0; Idx < NumElems; ++Idx)
+			{
+				if (InInFloatArray[Idx] < MinValue)
+				{
+					MinValue = InInFloatArray[Idx];
+				}
+
+				if (InInFloatArray[Idx] > MaxValue)
+				{
+					MaxValue = InInFloatArray[Idx];
+				}
+			}
+
+			for (int32 Idx = 0; Idx < NumElems; ++Idx)
+			{
+				// Normalize it
+				NewFloatArray[Idx] = (NewFloatArray[Idx] - MinValue) / (MaxValue - MinValue);
+
+				// Transform it into (MinRange, MaxRange)
+				NewFloatArray[Idx] = InMinRange + NewFloatArray[Idx] * (InMaxRange - InMinRange);
+			}
+
+			SetValue<TArray<float>>(Context, NewFloatArray, &OutFloatArray);
+			return;
+		}
+
+		SetValue<TArray<float>>(Context, TArray<float>(), &OutFloatArray);
+	}
+}
+
+
+void FVectorArrayNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<TArray<FVector>>(&OutVectorArray))
+	{
+		const TArray<FVector>& InInVectorArray = GetValue<TArray<FVector>>(Context, &InVectorArray);
+		const FDataflowVertexSelection& InSelection = GetValue<FDataflowVertexSelection>(Context, &Selection);
+		const float InMagnitude = GetValue<float>(Context, &Magnitude);
+
+		const int32 NumElems = InInVectorArray.Num();
+
+		TArray<FVector> NewVectorArray;
+		NewVectorArray.Init(FVector(0.f), NumElems);
+
+		if (IsConnected<FDataflowVertexSelection>(&Selection))
+		{
+			if (InInVectorArray.Num() == InSelection.Num())
+			{
+				for (int32 Idx = 0; Idx < NumElems; ++Idx)
+				{
+					FVector Vector = InInVectorArray[Idx];
+
+					if (InSelection.IsSelected(Idx))
+					{
+						Vector.Normalize();
+						Vector *= InMagnitude;
+						NewVectorArray[Idx] = Vector;
+					}
+				}
+
+				SetValue<TArray<FVector>>(Context, NewVectorArray, &OutVectorArray);
+				return;
+			}
+		}
+		else
+		{
+			for (int32 Idx = 0; Idx < NumElems; ++Idx)
+			{
+				FVector Vector = InInVectorArray[Idx];
+
+				Vector.Normalize();
+				Vector *= InMagnitude;
+				NewVectorArray[Idx] = Vector;
+			}
+
+			SetValue<TArray<FVector>>(Context, NewVectorArray, &OutVectorArray);
+			return;
+		}
+
+		SetValue<TArray<FVector>>(Context, TArray<FVector>(), &OutVectorArray);
+	}
+}
+
+
+void FMakeQuaternionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FQuat>(&Quaternion))
+	{
+		FQuat Value(GetValue<float>(Context, &X, X), GetValue<float>(Context, &Y, Y), GetValue<float>(Context, &Z, Z), GetValue<float>(Context, &W, W));
+		SetValue<FQuat>(Context, Value, &Quaternion);
 	}
 }
 
@@ -1447,7 +1636,6 @@ void FMultiplyTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const
 			, &OutTransform);
 	}
 }
-
 
 
 

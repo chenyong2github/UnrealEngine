@@ -178,6 +178,10 @@ FLinearColor UDataflowSchema::GetTypeColor(const FName& Type)
 	{
 		return DataflowSettings->BoxPinTypeColor;
 	}
+	else if (Type == FName("FSphere"))
+	{
+		return DataflowSettings->SpherePinTypeColor;
+	}
 
 	return Settings->DefaultPinTypeColor;
 }

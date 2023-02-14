@@ -64,6 +64,8 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionFaceSelectionCustomDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionSelectionConvertDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionFaceSelectionInvertDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionVertexSelectionByPercentageDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionVertexSelectionSetOperationDataflowNode);
 
 		// GeometryCollection|Selection
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("GeometryCollection|Selection", FLinearColor(1.f, 1.f, 0.05f), CDefaultNodeBodyTintColor);
@@ -996,6 +998,61 @@ void FCollectionFaceSelectionInvertDataflowNode::Evaluate(Dataflow::FContext& Co
 		InFaceSelection.Invert();
 
 		SetValue<FDataflowFaceSelection>(Context, MoveTemp(InFaceSelection), &FaceSelection);
+	}
+}
+
+
+void FCollectionVertexSelectionByPercentageDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowVertexSelection>(&VertexSelection))
+	{
+		FDataflowVertexSelection InVertexSelection = GetValue<FDataflowVertexSelection>(Context, &VertexSelection);
+
+		int32 InPercentage = GetValue<int32>(Context, &Percentage);
+		float InRandomSeed = GetValue<float>(Context, &RandomSeed);
+
+		TArray<int32> SelectionArr = InVertexSelection.AsArray();
+
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade::SelectByPercentage(SelectionArr, InPercentage, bDeterministic, InRandomSeed);
+
+		InVertexSelection.SetFromArray(SelectionArr);
+		SetValue<FDataflowVertexSelection>(Context, InVertexSelection, &VertexSelection);
+	}
+}
+
+
+void FCollectionVertexSelectionSetOperationDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowVertexSelection>(&VertexSelection))
+	{
+		const FDataflowVertexSelection& InVertexSelectionA = GetValue<FDataflowVertexSelection>(Context, &VertexSelectionA);
+		const FDataflowVertexSelection& InVertexSelectionB = GetValue<FDataflowVertexSelection>(Context, &VertexSelectionB);
+
+		FDataflowVertexSelection NewVertexSelection;
+
+		if (InVertexSelectionA.Num() == InVertexSelectionB.Num())
+		{
+			if (Operation == ESetOperationEnum::Dataflow_SetOperation_AND)
+			{
+				InVertexSelectionA.AND(InVertexSelectionB, NewVertexSelection);
+			}
+			else if (Operation == ESetOperationEnum::Dataflow_SetOperation_OR)
+			{
+				InVertexSelectionA.OR(InVertexSelectionB, NewVertexSelection);
+			}
+			else if (Operation == ESetOperationEnum::Dataflow_SetOperation_XOR)
+			{
+				InVertexSelectionA.XOR(InVertexSelectionB, NewVertexSelection);
+			}
+		}
+		else
+		{
+			// ERROR: INPUT TRANSFORMSELECTIONS HAVE DIFFERENT NUMBER OF ELEMENTS
+			FString ErrorStr = "Input VertexSelections have different number of elements.";
+			UE_LOG(LogTemp, Error, TEXT("[Dataflow ERROR] %s"), *ErrorStr);
+		}
+
+		SetValue<FDataflowVertexSelection>(Context, NewVertexSelection, &VertexSelection);
 	}
 }
 

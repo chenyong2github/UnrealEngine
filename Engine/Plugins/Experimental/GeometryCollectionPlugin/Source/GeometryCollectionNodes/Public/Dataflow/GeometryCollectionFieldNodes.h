@@ -29,6 +29,7 @@ enum class EDataflowFieldFalloffType : uint8
 	Dataflow_Max                UMETA(Hidden)
 };
 
+
 /**
  *
  * RadialFalloff Field Dataflow node
@@ -42,11 +43,11 @@ struct FRadialFalloffFieldDataflowNode : public FDataflowNode
 
 public:
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
 
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
@@ -55,6 +56,91 @@ public:
 	/**  */
 	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	FVector Translation = FVector(0.f);
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	float Magnitude = 1.f;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	float MinRange = 0.f;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	float MaxRange = 1.f;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	float Default = 0.f;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field")
+	EDataflowFieldFalloffType FalloffType = EDataflowFieldFalloffType::Dataflow_FieldFalloffType_Linear;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<float> FieldFloatResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	FDataflowVertexSelection FieldSelectionMask;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
+
+	FRadialFalloffFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
+		RegisterInputConnection(&Sphere);
+		RegisterInputConnection(&Translation);
+		RegisterInputConnection(&Magnitude);
+		RegisterInputConnection(&MinRange);
+		RegisterInputConnection(&MaxRange);
+		RegisterInputConnection(&Default);
+		RegisterOutputConnection(&FieldFloatResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&FieldSelectionMask);
+		RegisterOutputConnection(&NumSamplePositions);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * BoxFalloff Field Dataflow node
+ *
+ */
+USTRUCT()
+struct FBoxFalloffFieldDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FBoxFalloffFieldDataflowNode, "BoxFalloffField", "Fields", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	TArray<FVector3f> SamplePositions;
+
+	/**  */
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
+
+	/**  */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FBox Box = FBox(ForceInit);
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	FTransform Transform = FTransform::Identity;
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category = "Field")
@@ -74,20 +160,39 @@ public:
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category = "Field")
-		EDataflowFieldFalloffType FalloffType = EDataflowFieldFalloffType::Dataflow_FieldFalloffType_Linear;
+	EDataflowFieldFalloffType FalloffType = EDataflowFieldFalloffType::Dataflow_FieldFalloffType_Linear;
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<float> WeightArray;
+	TArray<float> FieldFloatResult;
 
-	FRadialFalloffFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	FDataflowVertexSelection FieldSelectionMask;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
+
+	FBoxFalloffFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
-		RegisterInputConnection(&Sphere);
-		RegisterInputConnection(&Translation);
-		RegisterOutputConnection(&WeightArray);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
+		RegisterInputConnection(&Box);
+		RegisterInputConnection(&Transform);
+		RegisterInputConnection(&Magnitude);
+		RegisterInputConnection(&MinRange);
+		RegisterInputConnection(&MaxRange);
+		RegisterInputConnection(&Default);
+		RegisterOutputConnection(&FieldFloatResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&FieldSelectionMask);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -109,42 +214,42 @@ struct FPlaneFalloffFieldDataflowNode : public FDataflowNode
 public:
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	FVector Position = FVector(0.f);
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	FVector Normal = FVector(0.f, 0.f, 1.f);
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	float Distance = 0.f;
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	FVector Translation = FVector(0.f);
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float Magnitude = 1.f;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float MinRange = 0.f;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float MaxRange = 1.f;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
-	float Distance = 0.f;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
-	FVector Position = FVector(0.f);
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
-	FVector Normal = FVector(0.f, 0.f, 1.f);
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float Default = 0.f;
 
 	/**  */
@@ -153,17 +258,37 @@ public:
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<float> WeightArray;
+	TArray<float> FieldFloatResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	FDataflowVertexSelection FieldSelectionMask;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
 
 	FPlaneFalloffFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
 		RegisterInputConnection(&Position);
 		RegisterInputConnection(&Normal);
+		RegisterInputConnection(&Distance);
 		RegisterInputConnection(&Translation);
-		RegisterOutputConnection(&WeightArray);
+		RegisterInputConnection(&Magnitude);
+		RegisterInputConnection(&MinRange);
+		RegisterInputConnection(&MaxRange);
+		RegisterInputConnection(&Default);
+		RegisterOutputConnection(&FieldFloatResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&FieldSelectionMask);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -201,11 +326,11 @@ struct FRadialIntMaskFieldDataflowNode : public FDataflowNode
 public:
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
 
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
@@ -216,29 +341,41 @@ public:
 	FVector Translation = FVector(0.f);
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	int32 InteriorValue = 1;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	int32 ExteriorValue = 0;
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category = "Field")
-	EDataflowSetMaskConditionType SetMaskCondition = EDataflowSetMaskConditionType::Dataflow_SetMaskConditionType_Always;
+	EDataflowSetMaskConditionType SetMaskConditionType = EDataflowSetMaskConditionType::Dataflow_SetMaskConditionType_Always;
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<int32> MaskArray;
+	TArray<int32> FieldIntResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
 
 	FRadialIntMaskFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
 		RegisterInputConnection(&Sphere);
 		RegisterInputConnection(&Translation);
-		RegisterOutputConnection(&MaskArray);
+		RegisterInputConnection(&InteriorValue);
+		RegisterInputConnection(&ExteriorValue);
+		RegisterOutputConnection(&FieldIntResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -260,26 +397,37 @@ struct FUniformScalarFieldDataflowNode : public FDataflowNode
 public:
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float Magnitude = 1.f;
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<float> WeightArray;
+	TArray<float> FieldFloatResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
 
 	FUniformScalarFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
-		RegisterOutputConnection(&WeightArray);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
+		RegisterInputConnection(&Magnitude);
+		RegisterOutputConnection(&FieldFloatResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -301,30 +449,42 @@ struct FUniformVectorFieldDataflowNode : public FDataflowNode
 public:
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float Magnitude = 1.f;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
-	FVector Direction = FVector(0.f);
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	FVector Direction = FVector(1.f, 0.f, 0.f);
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<FVector> VectorArray;
+	TArray<FVector> FieldVectorResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
 
 	FUniformVectorFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
-		RegisterOutputConnection(&VectorArray);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
+		RegisterInputConnection(&Magnitude);
+		RegisterInputConnection(&Direction);
+		RegisterOutputConnection(&FieldVectorResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -346,30 +506,42 @@ struct FRadialVectorFieldDataflowNode : public FDataflowNode
 public:
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float Magnitude = 1.f;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	FVector Position = FVector(0.f);
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<FVector> VectorArray;
+	TArray<FVector> FieldVectorResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
 
 	FRadialVectorFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
-		RegisterOutputConnection(&VectorArray);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
+		RegisterInputConnection(&Magnitude);
+		RegisterInputConnection(&Position);
+		RegisterOutputConnection(&FieldVectorResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -391,26 +563,37 @@ struct FRandomVectorFieldDataflowNode : public FDataflowNode
 public:
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float Magnitude = 1.f;
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<FVector> VectorArray;
+	TArray<FVector> FieldVectorResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
 
 	FRandomVectorFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
-		RegisterOutputConnection(&VectorArray);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
+		RegisterInputConnection(&Magnitude);
+		RegisterOutputConnection(&FieldVectorResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -432,18 +615,18 @@ struct FNoiseFieldDataflowNode : public FDataflowNode
 public:
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float MinRange = 0.f;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float MaxRange = 1.f;
 
 	/**  */
@@ -452,15 +635,27 @@ public:
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<float> WeightArray;
+	TArray<float> FieldFloatResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
 
 	FNoiseFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
+		RegisterInputConnection(&MinRange);
+		RegisterInputConnection(&MaxRange);
 		RegisterInputConnection(&Transform);
-		RegisterOutputConnection(&WeightArray);
+		RegisterOutputConnection(&FieldFloatResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -482,26 +677,37 @@ struct FUniformIntegerFieldDataflowNode : public FDataflowNode
 public:
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	int32 Magnitude = 0;
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<int32> MaskArray;
+	TArray<int32> FieldIntResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
 
 	FUniformIntegerFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
-		RegisterOutputConnection(&MaskArray);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
+		RegisterInputConnection(&Magnitude);
+		RegisterOutputConnection(&FieldIntResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -540,18 +746,18 @@ struct FWaveScalarFieldDataflowNode : public FDataflowNode
 public:
 	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<FVector3f> SamplePositions;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection SampleIndices;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float Magnitude = 1.f;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	UPROPERTY(meta = (DataflowInput))
 	FVector Position = FVector(0.f);
 
 	/**  */
@@ -559,11 +765,11 @@ public:
 	FVector Translation = FVector(0.f);
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float Wavelength = 1000.f;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
 	float Period = 1.f;
 
 	/**  */
@@ -576,15 +782,29 @@ public:
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<float> WeightArray;
+	TArray<float> FieldFloatResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	int32 NumSamplePositions;
 
 	FWaveScalarFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
+		RegisterInputConnection(&SamplePositions);
+		RegisterInputConnection(&SampleIndices);
+		RegisterInputConnection(&Magnitude);
+		RegisterInputConnection(&Position);
 		RegisterInputConnection(&Translation);
-		RegisterOutputConnection(&WeightArray);
+		RegisterInputConnection(&Wavelength);
+		RegisterInputConnection(&Period);
+		RegisterOutputConnection(&FieldFloatResult);
+		RegisterOutputConnection(&FieldRemap);
+		RegisterOutputConnection(&NumSamplePositions);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -594,30 +814,49 @@ public:
 
 /**
  *
- * BoxFalloff Field Dataflow node
+ *
+ *
+ */
+UENUM(BlueprintType)
+enum class EDataflowFloatFieldOperationType : uint8
+{
+	Dataflow_FloatFieldOperationType_Multiply	UMETA(DisplayName = "Multiply", ToolTip = "Multiply the fields output values : Output = Left * Right"),
+	Dataflow_FloatFieldFalloffType_Divide		UMETA(DisplayName = "Divide", ToolTip = "Divide the fields output values : Output = Left / Right"),
+	Dataflow_FloatFieldFalloffType_Add			UMETA(DisplayName = "Add", ToolTip = "Add the fields output values : Output = Left + Right"),
+	Dataflow_FloatFieldFalloffType_Substract	UMETA(DisplayName = "Subtract", ToolTip = "Subtract the fields output : Output = Left - Right"),
+	Dataflow_FloatFieldFalloffType_Min			UMETA(DisplayName = "Min", ToolTip = "Min of the fields output values: Output = Min(Left, Right)"),
+	Dataflow_FloatFieldFalloffType_Max			UMETA(DisplayName = "Max", ToolTip = "Max of the fields output values: Output = Max(Left, Right)"),
+	//~~~
+	//256th entry
+	Dataflow_Max                UMETA(Hidden)
+};
+
+
+/**
+ *
+ *
  *
  */
 USTRUCT()
-struct FBoxFalloffFieldDataflowNode : public FDataflowNode
+struct FSumScalarFieldDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FBoxFalloffFieldDataflowNode, "BoxFalloffField", "Fields", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSumScalarFieldDataflowNode, "SumScalarField", "Fields", "")
 
 public:
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	TArray<FVector3f> VertexArray;
+	TArray<float> FieldFloatLeft;
 
 	/**  */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection"))
-	FDataflowVertexSelection VertexSelection;
+	UPROPERTY(meta = (DataflowInput))
+	TArray<int32> FieldRemapLeft;
 
-	/**  */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
-	FBox Box = FBox(ForceInit);
+	TArray<float> FieldFloatRight;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
-	FTransform Transform = FTransform::Identity;
+	UPROPERTY(meta = (DataflowInput))
+	TArray<int32> FieldRemapRight;
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category = "Field")
@@ -625,32 +864,29 @@ public:
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category = "Field")
-	float MinRange = 0.f;
+	EDataflowFloatFieldOperationType Operation = EDataflowFloatFieldOperationType::Dataflow_FloatFieldFalloffType_Add;
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category = "Field")
-	float MaxRange = 1.f;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
-	float Default = 0.f;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category = "Field")
-	EDataflowFieldFalloffType FalloffType = EDataflowFieldFalloffType::Dataflow_FieldFalloffType_Linear;
+	bool bSwapInputs = false;
 
 	/**  */
 	UPROPERTY(meta = (DataflowOutput))
-	TArray<float> WeightArray;
+	TArray<float> FieldFloatResult;
 
-	FBoxFalloffFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	FSumScalarFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&VertexArray);
-		RegisterInputConnection(&VertexSelection);
-		RegisterInputConnection(&Box);
-		RegisterInputConnection(&Transform);
-		RegisterOutputConnection(&WeightArray);
+		RegisterInputConnection(&FieldFloatLeft);
+		RegisterInputConnection(&FieldRemapLeft);
+		RegisterInputConnection(&FieldFloatRight);
+		RegisterInputConnection(&FieldRemapRight);
+		RegisterOutputConnection(&FieldFloatResult);
+		RegisterOutputConnection(&FieldRemap);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -658,7 +894,141 @@ public:
 };
 
 
+/**
+ *
+ *
+ *
+ */
+UENUM(BlueprintType)
+enum class EDataflowVectorFieldOperationType : uint8
+{
+	Dataflow_VectorFieldOperationType_Multiply		UMETA(DisplayName = "Multiply", ToolTip = "Multiply the fields output values : Output = Left * Right"),
+	Dataflow_VectorFieldFalloffType_Divide			UMETA(DisplayName = "Divide", ToolTip = "Divide the fields output values : Output = Left / Right"),
+	Dataflow_VectorFieldFalloffType_Add				UMETA(DisplayName = "Add", ToolTip = "Add the fields output values : Output = Left + Right"),
+	Dataflow_VectorFieldFalloffType_Substract		UMETA(DisplayName = "Subtract", ToolTip = "Subtract the fields output : Output = Left - Right"),
+	Dataflow_VectorFieldFalloffType_CrossProduct	UMETA(DisplayName = "Cross product", ToolTip = "Cross product of the fields output values: Output = Left x Right"),
+	//~~~
+	//256th entry
+	Dataflow_Max                UMETA(Hidden)
+};
 
+/**
+ *
+ *
+ *
+ */
+USTRUCT()
+struct FSumVectorFieldDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSumVectorFieldDataflowNode, "SumVectorField", "Fields", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput))
+	TArray<float> FieldFloat;
+
+	/**  */
+	UPROPERTY(meta = (DataflowInput))
+	TArray<int32> FieldFloatRemap;
+
+	UPROPERTY(meta = (DataflowInput))
+	TArray<FVector> FieldVectorLeft;
+
+	/**  */
+	UPROPERTY(meta = (DataflowInput))
+	TArray<int32> FieldRemapLeft;
+
+	UPROPERTY(meta = (DataflowInput))
+	TArray<FVector> FieldVectorRight;
+
+	/**  */
+	UPROPERTY(meta = (DataflowInput))
+	TArray<int32> FieldRemapRight;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	float Magnitude = 1.f;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field")
+	EDataflowVectorFieldOperationType Operation = EDataflowVectorFieldOperationType::Dataflow_VectorFieldFalloffType_Add;
+
+	UPROPERTY(EditAnywhere, Category = "Field")
+	bool bSwapVectorInputs = false;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<FVector> FieldVectorResult;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> FieldRemap;
+
+	FSumVectorFieldDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&FieldFloat);
+		RegisterInputConnection(&FieldFloatRemap);
+		RegisterInputConnection(&FieldVectorLeft);
+		RegisterInputConnection(&FieldRemapLeft);
+		RegisterInputConnection(&FieldVectorRight);
+		RegisterInputConnection(&FieldRemapRight);
+		RegisterInputConnection(&Magnitude);
+		RegisterOutputConnection(&FieldVectorResult);
+		RegisterOutputConnection(&FieldRemap);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Converts a sparse FloatArray (a selected subset of the whole incoming array) into a dense FloatArray
+ * (same number of elements as the incoming array using NumSamplePositions) using the Remap input
+ * NumSamplePositions controls the size of the output array, only indices smaller than l to than NumSamplePositions
+ * will be processed
+ *
+ */
+USTRUCT()
+struct FFieldMakeDenseFloatArrayDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FFieldMakeDenseFloatArrayDataflowNode, "FieldMakeDenseFloatArray", "Fields", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	TArray<float> FieldFloatInput;
+
+	/**  */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	TArray<int32> FieldRemap;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput, DisplayName = "Number of Sample Positions"))
+	int32 NumSamplePositions = 0;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field")
+	float Default = 0.f;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<float> FieldFloatResult;
+
+	FFieldMakeDenseFloatArrayDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&FieldFloatInput);
+		RegisterInputConnection(&FieldRemap);
+		RegisterInputConnection(&NumSamplePositions);
+		RegisterOutputConnection(&FieldFloatResult);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
 
 namespace Dataflow
 {

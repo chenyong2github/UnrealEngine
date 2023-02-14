@@ -1103,6 +1103,89 @@ public:
 };
 
 
+/**
+ *
+ * Outputs the specified percentage of the selected vertices
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionVertexSelectionByPercentageDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionVertexSelectionByPercentageDataflowNode, "CollectionVertexSelectByPercentage", "GeometryCollection|Selection|Vertex", "")
+
+public:
+	/** Array of the selected bone indicies */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "VertexSelection", DataflowPassthrough = "VertexSelection", DataflowIntrinsic))
+	FDataflowVertexSelection VertexSelection;
+
+	/** Percentage to keep from the original selection */
+	UPROPERTY(EditAnywhere, Category = "Selection", meta = (UIMin = 0, UIMax = 100))
+	int32 Percentage = 100;
+
+	/** Sets the random generation to deterministic */
+	UPROPERTY(EditAnywhere, Category = "Random")
+	bool bDeterministic = false;
+
+	/** Seed value for the random generation */
+	UPROPERTY(EditAnywhere, Category = "Random", meta = (DataflowInput, EditCondition = "bDeterministic"))
+	float RandomSeed = 0.f;
+
+	FCollectionVertexSelectionByPercentageDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RandomSeed = FMath::RandRange(-100000, 100000);
+		RegisterInputConnection(&VertexSelection);
+		RegisterInputConnection(&Percentage);
+		RegisterInputConnection(&RandomSeed);
+		RegisterOutputConnection(&VertexSelection, &VertexSelection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Runs boolean operation on VertexSelections
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionVertexSelectionSetOperationDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionVertexSelectionSetOperationDataflowNode, "CollectionVertexSelectionSetOperation", "GeometryCollection|Selection|Vertex", "")
+
+public:
+	/** Boolean operation */
+	UPROPERTY(EditAnywhere, Category = "Compare");
+	ESetOperationEnum Operation = ESetOperationEnum::Dataflow_SetOperation_AND;
+
+	/** Array of the selected vertex indicies */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelectionA", DataflowIntrinsic))
+	FDataflowVertexSelection VertexSelectionA;
+
+	/** Array of the selected vertex indicies */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelectionB", DataflowIntrinsic))
+	FDataflowVertexSelection VertexSelectionB;
+
+	/** Array of the selected vertex indicies after operation */
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "VertexSelection", DataflowPassthrough = "VertexSelectionA"))
+	FDataflowVertexSelection VertexSelection;
+
+	FCollectionVertexSelectionSetOperationDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&VertexSelectionA);
+		RegisterInputConnection(&VertexSelectionB);
+		RegisterOutputConnection(&VertexSelection, &VertexSelectionA);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
 namespace Dataflow
 {
 	void GeometryCollectionSelectionNodes();

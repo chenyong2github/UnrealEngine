@@ -524,7 +524,7 @@ public:
 
 /**
  *
- * Converts an integer to a float
+ * 
  *
  */
 USTRUCT()
@@ -1741,20 +1741,13 @@ public:
 UENUM(BlueprintType)
 enum class EStandardGroupNameEnum : uint8
 {
-	/** Transform group */
-	Dataflow_EStandardGroupNameEnum_Transform UMETA(DisplayName = "Transform"),
-	/** Geometry group */
-	Dataflow_EStandardGroupNameEnum_Geometry UMETA(DisplayName = "Geometry"),
-	/** Faces group */
-	Dataflow_EStandardGroupNameEnum_Faces UMETA(DisplayName = "Faces"),
-	/** Vertices group */
-	Dataflow_EStandardGroupNameEnum_Vertices UMETA(DisplayName = "Vertices"),
-	/** Material group */
-	Dataflow_EStandardGroupNameEnum_Material UMETA(DisplayName = "Material"),
-	/** Breaking group */
-	Dataflow_EStandardGroupNameEnum_Breaking UMETA(DisplayName = "Breaking"),
-	/** User specified group */
-	Dataflow_EStandardGroupNameEnum_Custom UMETA(DisplayName = "Custom"),
+	Dataflow_EStandardGroupNameEnum_Transform	UMETA(DisplayName = "Transform", ToolTip = ""),
+	Dataflow_EStandardGroupNameEnum_Geometry	UMETA(DisplayName = "Geometry", ToolTip = ""),
+	Dataflow_EStandardGroupNameEnum_Faces		UMETA(DisplayName = "Faces", ToolTip = ""),
+	Dataflow_EStandardGroupNameEnum_Vertices	UMETA(DisplayName = "Vertices", ToolTip = ""),
+	Dataflow_EStandardGroupNameEnum_Material	UMETA(DisplayName = "Material", ToolTip = ""),
+	Dataflow_EStandardGroupNameEnum_Breaking	UMETA(DisplayName = "Breaking", ToolTip = ""),
+	Dataflow_EStandardGroupNameEnum_Custom		UMETA(DisplayName = "Custom", ToolTip = ""),
 	//~~~
 	//256th entry
 	Dataflow_Max                UMETA(Hidden)
@@ -1763,14 +1756,31 @@ enum class EStandardGroupNameEnum : uint8
 UENUM(BlueprintType)
 enum class ECustomAttributeTypeEnum : uint8
 {
-	/** Int custom attribute type */
-	Dataflow_CustomAttributeType_Int UMETA(DisplayName = "Int"),
-	/** Float custom attribute type */
-	Dataflow_CustomAttributeType_Float UMETA(DisplayName = "Float"),
-	/** Bool custom attribute type */
-	Dataflow_CustomAttributeType_Bool UMETA(DisplayName = "Bool"),
-	/** Vector custom attribute type */
-	Dataflow_CustomAttributeType_Vector UMETA(DisplayName = "Vector"),
+	Dataflow_CustomAttributeType_UInt8				UMETA(DisplayName = "UInt8", ToolTip = "Data type: UInt8"),
+	Dataflow_CustomAttributeType_Int32				UMETA(DisplayName = "Int32", ToolTip = "Data type: Int32"),
+	Dataflow_CustomAttributeType_Float				UMETA(DisplayName = "Float", ToolTip = "Data type: Float"),
+	Dataflow_CustomAttributeType_Double				UMETA(DisplayName = "Double", ToolTip = "Data type: Double"),
+	Dataflow_CustomAttributeType_Bool				UMETA(DisplayName = "Bool", ToolTip = "Data type: Bool"),
+	Dataflow_CustomAttributeType_String				UMETA(DisplayName = "String", ToolTip = "Data type: FString"),
+	Dataflow_CustomAttributeType_Vector2f			UMETA(DisplayName = "Vector2D", ToolTip = "Data type: FVector2f"),
+	Dataflow_CustomAttributeType_Vector3f			UMETA(DisplayName = "Vector", ToolTip = "Data type: FVector3f"),
+	Dataflow_CustomAttributeType_Vector3d			UMETA(DisplayName = "Vector3d", ToolTip = "Data type: FVector3d"),
+	Dataflow_CustomAttributeType_Vector4f			UMETA(DisplayName = "Vector4f", ToolTip = "Data type: FVector4f"),
+	Dataflow_CustomAttributeType_LinearColor		UMETA(DisplayName = "LinearColor", ToolTip = "Data type: FLinearColor"),
+	Dataflow_CustomAttributeType_Transform			UMETA(DisplayName = "Transform", ToolTip = "Data type: FTransform"),
+	Dataflow_CustomAttributeType_Quat4f				UMETA(DisplayName = "Quat", ToolTip = "Data type: FQuat4f"),
+	Dataflow_CustomAttributeType_Box				UMETA(DisplayName = "Box", ToolTip = "Data type: FBox"),
+	Dataflow_CustomAttributeType_Guid				UMETA(DisplayName = "Guid", ToolTip = "Data type: FGuid"),
+	Dataflow_CustomAttributeType_Int32Set			UMETA(DisplayName = "IntArray", ToolTip = "Data type: TSet<int32>"),
+	Dataflow_CustomAttributeType_Int32Array			UMETA(DisplayName = "Int32Array", ToolTip = "Data type: TArray<int32>"),
+	Dataflow_CustomAttributeType_IntVector			UMETA(DisplayName = "IntVector", ToolTip = "Data type: FIntVector"),
+	Dataflow_CustomAttributeType_IntVector2			UMETA(DisplayName = "IntVector2", ToolTip = "Data type: FIntVector2"),
+	Dataflow_CustomAttributeType_IntVector4			UMETA(DisplayName = "IntVector4", ToolTip = "Data type: FIntVector4"),
+	Dataflow_CustomAttributeType_IntVector2Array	UMETA(DisplayName = "IntVector2Array", ToolTip = "Data type: TArray<FIntVector2>"),
+	Dataflow_CustomAttributeType_FloatArray			UMETA(DisplayName = "FloatArray", ToolTip = "Data type: TArray<float>"),
+	Dataflow_CustomAttributeType_Vector2fArray		UMETA(DisplayName = "Vector2DArray", ToolTip = "Data type: TArray<FVector2f>"),
+	Dataflow_CustomAttributeType_FVector3fArray		UMETA(DisplayName = "FVectorArray", ToolTip = "Data type: TArray<FVector3f>"),
+
 	//~~~
 	//256th entry
 	Dataflow_Max                UMETA(Hidden)
@@ -1901,13 +1911,25 @@ public:
 	UPROPERTY(meta = (DataflowOutput));
 	TArray<float> FloatAttributeData;
 
+	/** Float type attribute data */
+	UPROPERTY(meta = (DataflowOutput));
+	TArray<double> DoubleAttributeData;
+
 	/** Int type attribute data */
 	UPROPERTY(meta = (DataflowOutput));
-	TArray<int32> IntAttributeData;
+	TArray<int32> Int32AttributeData;
 
-	/** Vector type attribute data */
+	/** Int type attribute data */
 	UPROPERTY(meta = (DataflowOutput));
-	TArray<FVector3f> VectorAttributeData;
+	TArray<FString> StringAttributeData;
+
+	/** Vector3f type attribute data */
+	UPROPERTY(meta = (DataflowOutput));
+	TArray<FVector3f> Vector3fAttributeData;
+
+	/** Vector3d type attribute data */
+	UPROPERTY(meta = (DataflowOutput));
+	TArray<FVector3d> Vector3dAttributeData;
 
 	FGetCollectionAttributeDataTypedDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
@@ -1915,8 +1937,11 @@ public:
 		RegisterInputConnection(&Collection);
 		RegisterOutputConnection(&BoolAttributeData);
 		RegisterOutputConnection(&FloatAttributeData);
-		RegisterOutputConnection(&IntAttributeData);
-		RegisterOutputConnection(&VectorAttributeData);
+		RegisterOutputConnection(&DoubleAttributeData);
+		RegisterOutputConnection(&Int32AttributeData);
+		RegisterOutputConnection(&StringAttributeData);
+		RegisterOutputConnection(&Vector3fAttributeData);
+		RegisterOutputConnection(&Vector3dAttributeData);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -1960,13 +1985,25 @@ public:
 	UPROPERTY(meta = (DataflowInput));
 	TArray<float> FloatAttributeData;
 
+	/** Float type attribute data */
+	UPROPERTY(meta = (DataflowInput));
+	TArray<double> DoubleAttributeData;
+
 	/** Int type attribute data */
 	UPROPERTY(meta = (DataflowInput));
-	TArray<int32> IntAttributeData;
+	TArray<int32> Int32AttributeData;
 
-	/** Vector type attribute data */
+	/** Int type attribute data */
 	UPROPERTY(meta = (DataflowInput));
-	TArray<FVector> VectorAttributeData;
+	TArray<FString> StringAttributeData;
+
+	/** Vector3f type attribute data */
+	UPROPERTY(meta = (DataflowInput));
+	TArray<FVector3f> Vector3fAttributeData;
+
+	/** Vector3d type attribute data */
+	UPROPERTY(meta = (DataflowInput));
+	TArray<FVector3d> Vector3dAttributeData;
 
 	FSetCollectionAttributeDataTypedDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
@@ -1974,8 +2011,11 @@ public:
 		RegisterInputConnection(&Collection);
 		RegisterInputConnection(&BoolAttributeData);
 		RegisterInputConnection(&FloatAttributeData);
-		RegisterInputConnection(&IntAttributeData);
-		RegisterInputConnection(&VectorAttributeData);
+		RegisterInputConnection(&DoubleAttributeData);
+		RegisterInputConnection(&Int32AttributeData);
+		RegisterInputConnection(&StringAttributeData);
+		RegisterInputConnection(&Vector3fAttributeData);
+		RegisterInputConnection(&Vector3dAttributeData);
 		RegisterOutputConnection(&Collection, &Collection);
 	}
 
@@ -2060,10 +2100,10 @@ public:
  *
  */
 USTRUCT()
-struct FSetVertexColorInCollectionDataflowNode : public FDataflowNode
+struct FSetVertexColorInCollectionFromVertexSelectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FSetVertexColorInCollectionDataflowNode, "SetVertexColorInCollection", "Collection|Utilities", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSetVertexColorInCollectionFromVertexSelectionDataflowNode, "SetVertexColorInCollectionFromVertexSelection", "Collection|Utilities", "")
 
 public:
 	/** Collection */
@@ -2082,7 +2122,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Color", meta = (DisplayName = "NonSelected Color"))
 	FLinearColor NonSelectedColor = FLinearColor(FColor::Blue);
 
-	FSetVertexColorInCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	FSetVertexColorInCollectionFromVertexSelectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Collection);
@@ -2109,13 +2149,13 @@ struct FMakeTransformDataflowNode : public FDataflowNode
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DataflowInput, DisplayName = "Translation"));
-	FVector InTranslation = FVector(0,0,0);
+	FVector InTranslation = FVector(0, 0, 0);
 
 	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DataflowInput, DisplayName = "Rotation"));
 	FVector InRotation = FVector(0, 0, 0);
 
 	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DataflowInput, DisplayName = "Scale"));
-	FVector InScale = FVector(1,1,1);
+	FVector InScale = FVector(1, 1, 1);
 
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "Transform"));
 	FTransform OutTransform = FTransform::Identity;
@@ -2127,6 +2167,132 @@ public:
 		RegisterInputConnection(&InRotation);
 		RegisterInputConnection(&InScale);
 		RegisterOutputConnection(&OutTransform);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ *
+ *
+ */
+USTRUCT()
+struct FSetVertexColorInCollectionFromFloatArrayDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSetVertexColorInCollectionFromFloatArrayDataflowNode, "SetVertexColorInCollectionFromFloatArray", "Collection|Utilities", "")
+
+public:
+	/** Collection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/**  */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	TArray<float> FloatArray;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Color")
+	float Scale = 1.f;
+
+	FSetVertexColorInCollectionFromFloatArrayDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&FloatArray);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Normalize the selected float data in a FloatArray
+ *
+ */
+USTRUCT()
+struct FFloatArrayNormalizeDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FFloatArrayNormalizeDataflowNode, "FloatArrayNormalize", "Math|Float", "")
+
+public:
+	/** Input VectorArray */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	TArray<float> InFloatArray;
+
+	/** Selection for the operation */
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection Selection;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	float MinRange = 0.f;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	float MaxRange = 1.f;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<float> OutFloatArray;
+
+	FFloatArrayNormalizeDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&InFloatArray);
+		RegisterInputConnection(&Selection);
+		RegisterInputConnection(&MinRange);
+		RegisterInputConnection(&MaxRange);
+		RegisterOutputConnection(&OutFloatArray);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Normalize all the selected vectors in a VectorArray
+ *
+ */
+USTRUCT()
+struct FVectorArrayNormalizeDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FVectorArrayNormalizeDataflowNode, "VectorArrayNormalize", "Math|Vector", "")
+
+public:
+	/** Input VectorArray */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	TArray<FVector> InVectorArray;
+
+	/** Selection for the operation */
+	UPROPERTY(meta = (DataflowInput))
+	FDataflowVertexSelection Selection;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (DataflowInput))
+	float Magnitude = 1.f;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<FVector> OutVectorArray;
+
+	FVectorArrayNormalizeDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&InVectorArray);
+		RegisterInputConnection(&Selection);
+		RegisterInputConnection(&Magnitude);
+		RegisterOutputConnection(&OutVectorArray);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -2160,6 +2326,47 @@ public:
 		RegisterInputConnection(&InLeftTransform);
 		RegisterInputConnection(&InRightTransform);
 		RegisterOutputConnection(&OutTransform);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+/**
+ *
+ *
+ *
+ */
+USTRUCT()
+struct FMakeQuaternionDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeQuaternionDataflowNode, "MakeQuaternion", "Math|Vector", "")
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Quaternion ", meta = (DataflowInput));
+	float X = float(0.0);
+
+	UPROPERTY(EditAnywhere, Category = "Quaternion", meta = (DataflowInput));
+	float Y = float(0.0);
+
+	UPROPERTY(EditAnywhere, Category = "Quaternion", meta = (DataflowInput));
+	float Z = float(0.0);
+
+	UPROPERTY(EditAnywhere, Category = "Quaternion", meta = (DataflowInput));
+	float W = float(0.0);
+
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "Quaternion"))
+	FQuat Quaternion = FQuat(ForceInitToZero);
+
+	FMakeQuaternionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&X);
+		RegisterInputConnection(&Y);
+		RegisterInputConnection(&Z);
+		RegisterInputConnection(&W);
+		RegisterOutputConnection(&Quaternion);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
