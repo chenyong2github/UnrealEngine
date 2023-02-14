@@ -3,11 +3,10 @@
 #include "MVVMDeveloperProjectSettings.h"
 #include "Engine/Blueprint.h"
 
-#include "MVVMBlueprintViewModelContext.h"
-#include "Types/MVVMExecutionMode.h"
-
 #include "BlueprintEditorSettings.h"
+#include "MVVMBlueprintViewModelContext.h"
 #include "PropertyEditorPermissionList.h"
+#include "Types/MVVMExecutionMode.h"
 
 #define LOCTEXT_NAMESPACE "MVVMDeveloperProjectSettings"
 
@@ -43,7 +42,7 @@ bool UMVVMDeveloperProjectSettings::IsPropertyAllowed(const FProperty* Property)
 		return false;
 	}
 
-	TStringBuilder<256> StringBuilder;
+	TStringBuilder<512> StringBuilder;
 	Property->GetOwnerClass()->GetPathName(nullptr, StringBuilder);
 	FSoftClassPath StructPath;
 	StructPath.SetPath(StringBuilder);
@@ -57,12 +56,15 @@ bool UMVVMDeveloperProjectSettings::IsPropertyAllowed(const FProperty* Property)
 bool UMVVMDeveloperProjectSettings::IsFunctionAllowed(const UFunction* Function) const
 {
 	check(Function);
-	if (!GetMutableDefault<UBlueprintEditorSettings>()->GetFunctionPermissions().PassesFilter(Function->GetFullName()))
+
+	TStringBuilder<512> StringBuilder;
+	Function->GetPathName(nullptr, StringBuilder);
+	if (!GetMutableDefault<UBlueprintEditorSettings>()->GetFunctionPermissions().PassesFilter(StringBuilder.ToView()))
 	{
 		return false;
 	}
 
-	TStringBuilder<256> StringBuilder;
+	StringBuilder.Reset();
 	Function->GetOwnerClass()->GetPathName(nullptr, StringBuilder);
 	FSoftClassPath StructPath;
 	StructPath.SetPath(StringBuilder);
@@ -71,6 +73,30 @@ bool UMVVMDeveloperProjectSettings::IsFunctionAllowed(const UFunction* Function)
 		return !Settings->DisallowedFieldNames.Find(Function->GetFName());
 	}
 	return true;
+}
+
+bool UMVVMDeveloperProjectSettings::IsConversionFunctionAllowed(const UFunction* Function) const
+{
+	if (ConversionFunctionFilter == EMVVMDeveloperConversionFunctionFilterType::AllowedList)
+	{
+		return IsFunctionAllowed(Function);
+	}
+	else
+	{
+		TStringBuilder<512> FunctionClassPath;
+		Function->GetOwnerClass()->GetPathName(nullptr, FunctionClassPath);
+		TStringBuilder<512> AllowedClassPath;
+		for (const FSoftClassPath& SoftClass : AllowedClassForConversionFunctions)
+		{
+			SoftClass.ToString(AllowedClassPath);
+			if (AllowedClassPath.ToView() == FunctionClassPath.ToView())
+			{
+				return true;
+			}
+			AllowedClassPath.Reset();
+		}
+		return false;
+	}
 }
 
 TArray<const UClass*> UMVVMDeveloperProjectSettings::GetAllowedConversionFunctionClasses() const

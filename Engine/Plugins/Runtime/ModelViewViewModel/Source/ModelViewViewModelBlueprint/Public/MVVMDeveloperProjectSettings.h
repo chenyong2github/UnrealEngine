@@ -53,6 +53,7 @@ public:
 
 	bool IsPropertyAllowed(const FProperty* Property) const;
 	bool IsFunctionAllowed(const UFunction* Function) const;
+	bool IsConversionFunctionAllowed(const UFunction* Function) const;
 
 	bool IsExecutionModeAllowed(EMVVMExecutionMode ExecutionMode) const
 	{
