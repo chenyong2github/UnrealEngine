@@ -132,7 +132,7 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		}
 
 		// Look if the slot has an active user; if so and it's an actor then display a segment between it and the slot.
-		if (const FSmartObjectActorUserData* ActorUser = SlotState.GetUserData().GetPtr<FSmartObjectActorUserData>())
+		if (const FSmartObjectActorUserData* ActorUser = SlotState.GetUserData().GetPtr<const FSmartObjectActorUserData>())
 		{
 			if (const AActor* Actor = ActorUser->UserActor.Get())
 			{

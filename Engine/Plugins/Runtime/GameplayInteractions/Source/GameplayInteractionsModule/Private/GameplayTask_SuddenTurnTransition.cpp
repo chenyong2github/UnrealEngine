@@ -18,8 +18,8 @@ UGameplayTask* FGameplayTransitionDesc_SuddenTurn::MakeTransitionTask(const FMak
 {
 	check(Context.MovementComponent);
 	
-	const FGameplayActuationState_Moving* CurrentState = Context.CurrentActuationState.GetPtr<FGameplayActuationState_Moving>();
-	const FGameplayActuationState_Moving* NextState = Context.NextActuationState.GetPtr<FGameplayActuationState_Moving>();
+	const FGameplayActuationState_Moving* CurrentState = Context.CurrentActuationState.GetPtr<const FGameplayActuationState_Moving>();
+	const FGameplayActuationState_Moving* NextState = Context.NextActuationState.GetPtr<const FGameplayActuationState_Moving>();
 
 	if (CurrentState == nullptr || NextState == nullptr)
 	{

@@ -43,7 +43,7 @@ uint8* URCVirtualPropertyBase::GetContainerPtr()
 {
 	if (const FInstancedPropertyBag* InstancedPropertyBag = GetPropertyBagInstance())
 	{
-		return const_cast<FInstancedPropertyBag*>(InstancedPropertyBag)->GetMutableValue().GetMutableMemory();
+		return const_cast<FInstancedPropertyBag*>(InstancedPropertyBag)->GetMutableValue().GetMemory();
 	}
 	
 	return nullptr;
@@ -770,5 +770,5 @@ const FInstancedPropertyBag* URCVirtualPropertySelfContainer::GetPropertyBagInst
 
 TSharedPtr<FStructOnScope> URCVirtualPropertySelfContainer::CreateStructOnScope()
 {
-	return MakeShared<FStructOnScope>(Bag.GetPropertyBagStruct(), Bag.GetMutableValue().GetMutableMemory());
+	return MakeShared<FStructOnScope>(Bag.GetPropertyBagStruct(), Bag.GetMutableValue().GetMemory());
 }

@@ -925,14 +925,14 @@ struct STATETREEMODULE_API FStateTreeStructRef
 	template <typename T>
     T& GetMutable()
 	{
-		return Data.template GetMutable<T>();
+		return Data.template Get<T>();
 	}
 
 	/** Returns mutable pointer to the struct, or nullptr if cast is not valid. */
 	template <typename T>
     T* GetMutablePtr()
 	{
-		return Data.template GetMutablePtr<T>();
+		return Data.template GetPtr<T>();
 	}
 
 	/** @return Struct describing the data type. */
@@ -969,7 +969,7 @@ struct STATETREEMODULE_API FStateTreeDataView
 	}
 
 	// USTRUCT() from a StructView.
-	FStateTreeDataView(FStructView StructView) : Struct(StructView.GetScriptStruct()), Memory(StructView.GetMutableMemory())
+	FStateTreeDataView(FStructView StructView) : Struct(StructView.GetScriptStruct()), Memory(StructView.GetMemory())
 	{
 		// Must have type with valid pointer.
 		check(!Memory || (Memory && Struct));

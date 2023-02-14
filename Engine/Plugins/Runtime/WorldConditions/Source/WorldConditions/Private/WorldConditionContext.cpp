@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditionContext.h"
 
@@ -21,7 +21,7 @@ bool FWorldConditionContext::Activate() const
 	
 	for (int32 Index = 0; Index < Conditions.Num(); Index++)
 	{
-		const FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
+		const FWorldConditionBase& Condition = Conditions[Index].Get<const FWorldConditionBase>();
 		FWorldConditionItem& Item = QueryState.GetItem(Index);
 		Item.Operator = Condition.GetOperator();
 		Item.NextExpressionDepth = Condition.GetNextExpressionDepth();
@@ -30,7 +30,7 @@ bool FWorldConditionContext::Activate() const
 	bool bSuccess = true;
 	for (int32 Index = 0; Index < Conditions.Num(); Index++)
 	{
-		const FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
+		const FWorldConditionBase& Condition = Conditions[Index].Get<const FWorldConditionBase>();
 		bSuccess &= Condition.Activate(*this);
 	}
 
@@ -82,7 +82,7 @@ bool FWorldConditionContext::IsTrue() const
 		{
 			const FInstancedStructContainer& Conditions = SharedDefinition->GetConditions();
 			check(Conditions.Num() == QueryState.GetNumConditions());
-			const FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
+			const FWorldConditionBase& Condition = Conditions[Index].Get<const FWorldConditionBase>();
 			FWorldConditionResult ConditionResult = Condition.IsTrue(*this);
 			CurrResult = UE::WorldCondition::Invert(ConditionResult.Value, Condition.ShouldInvertResult()); 
 
@@ -123,7 +123,7 @@ void FWorldConditionContext::Deactivate() const
 		const FInstancedStructContainer& Conditions = SharedDefinition->GetConditions();
 		for (int32 Index = 0; Index < Conditions.Num(); Index++)
 		{
-			const FWorldConditionBase& ConditionDef = Conditions[Index].Get<FWorldConditionBase>();
+			const FWorldConditionBase& ConditionDef = Conditions[Index].Get<const FWorldConditionBase>();
 			ConditionDef.Deactivate(*this);
 		}
 	}

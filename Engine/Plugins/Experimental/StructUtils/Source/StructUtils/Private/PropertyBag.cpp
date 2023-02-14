@@ -934,7 +934,7 @@ namespace UE::StructUtils::Private
 			}
 
 			const FPropertyBagPropertyDesc& TargetDesc = *PotentialTargetDesc;
-			void* TargetAddress = Target.GetMutableMemory() + TargetDesc.CachedProperty->GetOffset_ForInternal();
+			void* TargetAddress = Target.GetMemory() + TargetDesc.CachedProperty->GetOffset_ForInternal();
 			const void* SourceAddress = Source.GetMemory() + SourceDesc.CachedProperty->GetOffset_ForInternal();
 			
 			if (TargetDesc.CompatibleType(SourceDesc))

@@ -182,7 +182,7 @@ AActor* UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(FConstStructView Spa
 {
 	if (UE::MassActors::bUseActorPooling != 0 && bActorPoolingEnabled)
 	{
-		const FMassActorSpawnRequest& SpawnRequest = SpawnRequestView.Get<FMassActorSpawnRequest>();
+		const FMassActorSpawnRequest& SpawnRequest = SpawnRequestView.Get<const FMassActorSpawnRequest>();
 		TArray<AActor*>* Pool = PooledActors.Find(SpawnRequest.Template);
 
 		if (Pool && Pool->Num() > 0)
@@ -215,7 +215,7 @@ AActor* UMassActorSpawnerSubsystem::SpawnActor(FConstStructView SpawnRequestView
 	UWorld* World = GetWorld();
 	check(World);
 
-	const FMassActorSpawnRequest& SpawnRequest = SpawnRequestView.Get<FMassActorSpawnRequest>();
+	const FMassActorSpawnRequest& SpawnRequest = SpawnRequestView.Get<const FMassActorSpawnRequest>();
 	if (AActor* SpawnedActor = World->SpawnActorDeferred<AActor>(SpawnRequest.Template, SpawnRequest.Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn))
 	{
 		// Add code here before construction script
@@ -260,7 +260,7 @@ void UMassActorSpawnerSubsystem::ProcessPendingSpawningRequest(const double MaxT
 		}
 
 		FStructView SpawnRequestView = SpawnRequests[SpawnRequestHandle.GetIndex()];
-		FMassActorSpawnRequest& SpawnRequest = SpawnRequestView.GetMutable<FMassActorSpawnRequest>();
+		FMassActorSpawnRequest& SpawnRequest = SpawnRequestView.Get<FMassActorSpawnRequest>();
 
 		if (!ensureMsgf(SpawnRequest.SpawnStatus == ESpawnRequestStatus::Pending ||
 						SpawnRequest.SpawnStatus == ESpawnRequestStatus::RetryPending, TEXT("GetNextRequestToSpawn returned a request that was already processed, need to return only request with pending status.")))

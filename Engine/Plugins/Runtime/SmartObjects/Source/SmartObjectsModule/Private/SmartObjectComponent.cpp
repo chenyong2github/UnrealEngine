@@ -237,7 +237,7 @@ void FSmartObjectComponentInstanceData::ApplyToComponent(UActorComponent* Compon
 void USmartObjectComponent::OnRuntimeEventReceived(const FSmartObjectEventData& Event)
 {
 	const AActor* Interactor = nullptr;
-	if (const FSmartObjectActorUserData* ActorUser = Event.EventPayload.GetPtr<FSmartObjectActorUserData>())
+	if (const FSmartObjectActorUserData* ActorUser = Event.EventPayload.GetPtr<const FSmartObjectActorUserData>())
 	{
 		Interactor = ActorUser->UserActor.Get();
 	}

@@ -262,7 +262,7 @@ struct TStateTreeInstanceDataStructRef
 		check(IsValid());
 		FStructView Struct = Storage.GetMutableStruct(StructIndex);
 		check(Struct.GetScriptStruct() == TBaseStructure<T>::Get());
-		return *reinterpret_cast<T*>(Struct.GetMutableMemory());
+		return *reinterpret_cast<T*>(Struct.GetMemory());
 	}
 
 protected:

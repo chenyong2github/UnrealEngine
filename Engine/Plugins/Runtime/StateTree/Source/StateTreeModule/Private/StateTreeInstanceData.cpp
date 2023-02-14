@@ -110,7 +110,7 @@ const FStateTreeExecutionState* FStateTreeInstanceData::GetExecutionState() cons
 		return nullptr;
 	}
 	const FConstStructView ExecView = GetStruct(0); // Execution state is fixed at index 0. 
-	return ExecView.GetPtr<FStateTreeExecutionState>();
+	return ExecView.GetPtr<const FStateTreeExecutionState>();
 }
 
 TArray<FStateTreeEvent>& FStateTreeInstanceData::GetEvents() const

@@ -170,25 +170,14 @@ public:
 	template<typename T>
 	const T& Get() const
 	{
-		const uint8* Memory = GetMemory();
-		const UScriptStruct* Struct = GetScriptStruct();
-		check(Memory != nullptr);
-		check(Struct != nullptr);
-		check(Struct->IsChildOf(TBaseStructure<T>::Get()));
-		return *((T*)Memory);
+		return UE::StructUtils::GetStructRef<T>(ScriptStruct, StructMemory);
 	}
 
 	/** Returns const pointer to the struct, or nullptr if cast is not valid. */
 	template<typename T>
 	const T* GetPtr() const
 	{
-		const uint8* Memory = GetMemory();
-		const UScriptStruct* Struct = GetScriptStruct();
-		if (Memory != nullptr && Struct && Struct->IsChildOf(TBaseStructure<T>::Get()))
-		{
-			return ((T*)Memory);
-		}
-		return nullptr;
+		return UE::StructUtils::GetStructPtr<T>(ScriptStruct, StructMemory);
 	}
 
 	/** Returns a mutable pointer to struct memory. */

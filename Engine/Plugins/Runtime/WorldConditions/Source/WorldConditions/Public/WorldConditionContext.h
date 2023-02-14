@@ -219,7 +219,7 @@ struct WORLDCONDITIONS_API FWorldConditionContext
 	typename T::FStateType& GetState(const T& Condition) const
 	{
 		static_assert(TIsDerivedFrom<T, FWorldConditionBase>::IsDerived, "Expecting Conditions to derive from FWorldConditionBase.");
-		return QueryState.GetStateStruct(Condition).template GetMutable<typename T::FStateType>();
+		return QueryState.GetStateStruct(Condition).template Get<typename T::FStateType>();
 	}
 
 	/** @return Object State data of the specific world condition. */

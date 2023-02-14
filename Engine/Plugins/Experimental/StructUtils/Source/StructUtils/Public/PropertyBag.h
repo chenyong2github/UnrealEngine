@@ -355,7 +355,7 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 		{
 			return MakeError(Result.GetError());
 		}
-		if (T* ValuePtr = Result.GetValue().GetMutablePtr<T>())
+		if (T* ValuePtr = Result.GetValue().GetPtr<T>())
 		{
 			return MakeValue(ValuePtr);
 		}
@@ -564,7 +564,7 @@ public:
 		{
 			return MakeError(Result.GetError());
 		}
-		if (T* ValuePtr = Result.GetValue().GetMutablePtr<T>())
+		if (T* ValuePtr = Result.GetValue().GetPtr<T>())
 		{
 			return MakeValue(ValuePtr);
 		}

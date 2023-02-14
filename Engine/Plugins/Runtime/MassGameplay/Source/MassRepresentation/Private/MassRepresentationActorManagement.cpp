@@ -53,7 +53,7 @@ void UMassRepresentationActorManagement::OnPreActorSpawn(const FMassActorSpawnRe
 {
 	check(EntityManager);
 
-	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<FMassActorSpawnRequest>();
+	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<const FMassActorSpawnRequest>();
 	const FMassEntityView EntityView(*EntityManager, MassActorSpawnRequest.MassAgent);
 	FMassActorFragment& ActorInfo = EntityView.GetFragmentData<FMassActorFragment>();
 	FMassRepresentationFragment& Representation = EntityView.GetFragmentData<FMassRepresentationFragment>();
@@ -84,7 +84,7 @@ EMassActorSpawnRequestAction UMassRepresentationActorManagement::OnPostActorSpaw
 {
 	check(EntityManager);
 
-	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<FMassActorSpawnRequest>();
+	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<const FMassActorSpawnRequest>();
 	checkf(MassActorSpawnRequest.SpawnedActor, TEXT("Expecting valid spawned actor"));
 
 	// Might be already done if the actor has a MassAgentComponent via the callback OnMassAgentComponentEntityAssociated on the MassRepresentationSubsystem

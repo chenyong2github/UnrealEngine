@@ -15,7 +15,7 @@ FInstancedStruct USmartObjectHashGrid::Add(const FSmartObjectHandle Handle, cons
 
 void USmartObjectHashGrid::Remove(const FSmartObjectHandle Handle, FStructView EntryData)
 {
-	FSmartObjectHashGridEntryData& GridEntryData = EntryData.GetMutable<FSmartObjectHashGridEntryData>();
+	FSmartObjectHashGridEntryData& GridEntryData = EntryData.Get<FSmartObjectHashGridEntryData>();
 	HashGrid.Remove(Handle, GridEntryData.CellLoc);
 	GridEntryData.CellLoc = {};
 }

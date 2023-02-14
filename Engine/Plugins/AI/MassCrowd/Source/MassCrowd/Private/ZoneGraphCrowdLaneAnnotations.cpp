@@ -36,7 +36,7 @@ void UZoneGraphCrowdLaneAnnotations::HandleEvents(const FInstancedStructContaine
 {
 	for (FConstStructView Event : Events)
 	{
-		if (const FZoneGraphCrowdLaneStateChangeEvent* const StateChangeEvent = Event.GetPtr<FZoneGraphCrowdLaneStateChangeEvent>())
+		if (const FZoneGraphCrowdLaneStateChangeEvent* const StateChangeEvent = Event.GetPtr<const FZoneGraphCrowdLaneStateChangeEvent>())
 		{
 			StateChangeEvents.Add(*StateChangeEvent);
 		}

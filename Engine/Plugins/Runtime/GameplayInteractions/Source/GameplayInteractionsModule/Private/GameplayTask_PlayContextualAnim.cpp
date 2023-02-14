@@ -20,7 +20,7 @@
 //-----------------------------------------------------
 void FGameplayActuationState_ContextualAnim::OnStateDeactivated(const FConstStructView NextState)
 {
-	const FGameplayActuationState_ContextualAnim* State = NextState.GetPtr<FGameplayActuationState_ContextualAnim>();
+	const FGameplayActuationState_ContextualAnim* State = NextState.GetPtr<const FGameplayActuationState_ContextualAnim>();
 
 	if (State == nullptr || State->SceneInstance != SceneInstance)
 	{
@@ -39,7 +39,7 @@ void FGameplayActuationState_ContextualAnim::OnStateDeactivated(const FConstStru
 //-----------------------------------------------------
 UGameplayTask* FGameplayTransitionDesc_EnterContextualAnim::MakeTransitionTask(const FMakeGameplayTransitionTaskContext& Context) const
 {
-	const FGameplayActuationState_ContextualAnim* NextState = Context.NextActuationState.GetPtr<FGameplayActuationState_ContextualAnim>();
+	const FGameplayActuationState_ContextualAnim* NextState = Context.NextActuationState.GetPtr<const FGameplayActuationState_ContextualAnim>();
 
 	if (NextState == nullptr)
 	{
@@ -64,8 +64,8 @@ UGameplayTask* FGameplayTransitionDesc_EnterContextualAnim::MakeTransitionTask(c
 //-----------------------------------------------------
 UGameplayTask* FGameplayTransitionDesc_ExitContextualAnim::MakeTransitionTask(const FMakeGameplayTransitionTaskContext& Context) const
 {
-	const FGameplayActuationState_ContextualAnim* CurrentState = Context.CurrentActuationState.GetPtr<FGameplayActuationState_ContextualAnim>();
-	const FGameplayActuationState_ContextualAnim* NextStateAsContextualAnim = Context.NextActuationState.GetPtr<FGameplayActuationState_ContextualAnim>();
+	const FGameplayActuationState_ContextualAnim* CurrentState = Context.CurrentActuationState.GetPtr<const FGameplayActuationState_ContextualAnim>();
+	const FGameplayActuationState_ContextualAnim* NextStateAsContextualAnim = Context.NextActuationState.GetPtr<const FGameplayActuationState_ContextualAnim>();
 
 	const bool bIsNextContextualAnim = NextStateAsContextualAnim != nullptr;
 
@@ -384,7 +384,7 @@ void UGameplayTask_PlayContextualAnim::SharedInitAndApply()
 	{
 		// Carry scene from previous state if possible.
 		UContextualAnimSceneInstance* ExistingSceneInstance = nullptr;
-		CurrentState = ActuationComponent->GetActuationState().GetPtr<FGameplayActuationState_ContextualAnim>();
+		CurrentState = ActuationComponent->GetActuationState().GetPtr<const FGameplayActuationState_ContextualAnim>();
 		if (CurrentState != nullptr
 			&& CurrentState->SceneAsset == SceneAsset
 			&& CurrentState->InteractableObject == InteractableObject)

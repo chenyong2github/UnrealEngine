@@ -266,7 +266,7 @@ bool UStateTree::Link()
 				// Subtree is a bind source, update bag struct.
 				if (State.ParameterDataViewIndex.IsValid())
 				{
-					const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
+					const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
 					FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex.Get()];
 					Desc.Struct = Params.Parameters.GetPropertyBagStruct();
 				}
@@ -282,10 +282,10 @@ bool UStateTree::Link()
 					return false;
 				}
 
-				const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
+				const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
 
 				// Check that the bag in linked state matches.
-				const FCompactStateTreeParameters& LinkedStateParams = DefaultInstanceData.GetMutableStruct(LinkedState.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
+				const FCompactStateTreeParameters& LinkedStateParams = DefaultInstanceData.GetMutableStruct(LinkedState.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
 
 				if (LinkedStateParams.Parameters.GetPropertyBagStruct() != Params.Parameters.GetPropertyBagStruct())
 				{
@@ -315,7 +315,7 @@ bool UStateTree::Link()
 	for (int32 Index = 0; Index < Nodes.Num(); Index++)
 	{
 		FStructView Node = Nodes[Index];
-		if (FStateTreeNodeBase* NodePtr = Node.GetMutablePtr<FStateTreeNodeBase>())
+		if (FStateTreeNodeBase* NodePtr = Node.GetPtr<FStateTreeNodeBase>())
 		{
 			Linker.SetCurrentInstanceDataType(NodePtr->GetInstanceDataType(), NodePtr->DataViewIndex.Get());
 			const bool bLinkSucceeded = NodePtr->Link(Linker);
@@ -424,7 +424,7 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 		
 		for (int32 TaskIndex = CompactState.TasksBegin; TaskIndex < (CompactState.TasksBegin + CompactState.TasksNum); TaskIndex++)
 		{
-			const FStateTreeTaskBase& Task = Nodes[TaskIndex].Get<FStateTreeTaskBase>();
+			const FStateTreeTaskBase& Task = Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
 			if (Task.bInstanceIsObject == false)
 			{
 				MemUsage.NodeCount++;
@@ -480,7 +480,7 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 	FStateTreeMemoryUsage& EvalMemUsage = MemoryUsages[EvalMemUsageIndex];
 	for (int32 EvalIndex = EvaluatorsBegin; EvalIndex < (EvaluatorsBegin + EvaluatorsNum); EvalIndex++)
 	{
-		const FStateTreeEvaluatorBase& Eval = Nodes[EvalIndex].Get<FStateTreeEvaluatorBase>();
+		const FStateTreeEvaluatorBase& Eval = Nodes[EvalIndex].Get<const FStateTreeEvaluatorBase>();
 		if (Eval.bInstanceIsObject == false)
 		{
 			EvalMemUsage.AddUsage(DefaultInstanceData.GetStruct(Eval.InstanceIndex.Get()));
@@ -496,7 +496,7 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 	FStateTreeMemoryUsage& GlobalTaskMemUsage = MemoryUsages[GlobalTaskMemUsageIndex];
 	for (int32 TaskIndex = GlobalTasksBegin; TaskIndex < (GlobalTasksBegin + GlobalTasksNum); TaskIndex++)
 	{
-		const FStateTreeTaskBase& Task = Nodes[TaskIndex].Get<FStateTreeTaskBase>();
+		const FStateTreeTaskBase& Task = Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
 		if (Task.bInstanceIsObject == false)
 		{
 			GlobalTaskMemUsage.AddUsage(DefaultInstanceData.GetStruct(Task.InstanceIndex.Get()));

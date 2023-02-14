@@ -572,7 +572,7 @@ void UZoneGraphDisturbanceAnnotation::HandleEvents(const FInstancedStructContain
 {
 	for (FConstStructView Event : Events)
 	{
-		if (const FZoneGraphDisturbanceArea* Danger = Event.GetPtr<FZoneGraphDisturbanceArea>())
+		if (const FZoneGraphDisturbanceArea* Danger = Event.GetPtr<const FZoneGraphDisturbanceArea>())
 		{
 			FZoneGraphDisturbanceArea* ExistingDanger = Dangers.FindByPredicate([Danger](const FZoneGraphDisturbanceArea& Area) { return Area.InstigatorID == Danger->InstigatorID; });
 			if (ExistingDanger)
@@ -585,7 +585,7 @@ void UZoneGraphDisturbanceAnnotation::HandleEvents(const FInstancedStructContain
 			}
 			bDisturbancesChanged = true;
 		}
-		else if (const FZoneGraphObstacleDisturbanceArea* Obstacle = Event.GetPtr<FZoneGraphObstacleDisturbanceArea>())
+		else if (const FZoneGraphObstacleDisturbanceArea* Obstacle = Event.GetPtr<const FZoneGraphObstacleDisturbanceArea>())
 		{
 			if (Obstacle->Action == EZoneGraphObstacleDisturbanceAreaAction::Add)
 			{

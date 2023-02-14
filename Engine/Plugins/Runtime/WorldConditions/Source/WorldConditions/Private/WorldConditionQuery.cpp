@@ -126,7 +126,7 @@ void FWorldConditionQueryState::InitializeInternal(const UObject* InOwner, const
 	// Initialize state
 	for (int32 Index = 0; Index < static_cast<int32>(NumConditions); Index++)
 	{
-		const FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
+		const FWorldConditionBase& Condition = Conditions[Index].Get<const FWorldConditionBase>();
 		if (Condition.GetStateDataOffset() == 0)
 		{
 			continue;
@@ -167,7 +167,7 @@ void FWorldConditionQueryState::Free()
 	const FInstancedStructContainer& Conditions = SharedDefinition->GetConditions();
 	for (int32 Index = 0; Index < static_cast<int32>(NumConditions); Index++)
 	{
-		const FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
+		const FWorldConditionBase& Condition = Conditions[Index].Get<const FWorldConditionBase>();
 		if (Condition.GetStateDataOffset() == 0)
 		{
 			continue;
@@ -213,7 +213,7 @@ void FWorldConditionQueryState::AddStructReferencedObjects(class FReferenceColle
 
 	for (int32 Index = 0, Num = Conditions.Num(); Index < Num; Index++)
 	{
-		const FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
+		const FWorldConditionBase& Condition = Conditions[Index].Get<const FWorldConditionBase>();
 		if (Condition.GetStateDataOffset() == 0)
 		{
 			continue;
@@ -309,7 +309,7 @@ bool FWorldConditionQuerySharedDefinition::Link()
 	// Reserve space for all runtime data.
 	for (int32 Index = 0; Index < Conditions.Num(); Index++)
 	{
-		FWorldConditionBase& Condition = Conditions[Index].GetMutable<FWorldConditionBase>();
+		FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
 		if (const UStruct* StateStruct = Condition.GetRuntimeStateType())
 		{
 			int32 StructMinAlignment = 0;
@@ -347,7 +347,7 @@ bool FWorldConditionQuerySharedDefinition::Link()
 	
 	for (int32 Index = 0; Index < Conditions.Num(); Index++)
 	{
-		FWorldConditionBase& Condition = Conditions[Index].GetMutable<FWorldConditionBase>();
+		FWorldConditionBase& Condition = Conditions[Index].Get<FWorldConditionBase>();
 		bResult &= Condition.Initialize(*Schema);
 	}
 
@@ -430,7 +430,7 @@ bool FWorldConditionQueryDefinition::Initialize(UObject& Outer)
 	// Prepare the conditions for evaluation.
 	if (ValidConditions.Num() > 0)
 	{
-		FWorldConditionBase& Condition = ValidConditions[0].GetMutable<FWorldConditionBase>();
+		FWorldConditionBase& Condition = ValidConditions[0].Get<FWorldConditionBase>();
 		Condition.Operator = EWorldConditionOperator::Copy;
 	}
 
@@ -439,11 +439,11 @@ bool FWorldConditionQueryDefinition::Initialize(UObject& Outer)
 		uint8 NextExpressionDepth = 0;
 		if ((Index + 1) < ValidConditions.Num())
 		{
-			const FWorldConditionBase& NextCondition = ValidConditions[Index + 1].GetMutable<FWorldConditionBase>();
+			const FWorldConditionBase& NextCondition = ValidConditions[Index + 1].Get<FWorldConditionBase>();
 			NextExpressionDepth = NextCondition.NextExpressionDepth;
 		}
 		
-		FWorldConditionBase& Condition = ValidConditions[Index].GetMutable<FWorldConditionBase>();
+		FWorldConditionBase& Condition = ValidConditions[Index].Get<FWorldConditionBase>();
 		Condition.NextExpressionDepth = NextExpressionDepth;
 
 		Condition.ConditionIndex = Index;

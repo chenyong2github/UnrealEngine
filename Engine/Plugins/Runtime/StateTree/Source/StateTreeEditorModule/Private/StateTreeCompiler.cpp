@@ -849,7 +849,7 @@ bool FStateTreeCompiler::CompileAndValidateNode(const UStateTreeState* SourceSta
 		return false;
 	}
 	
-	FStateTreeNodeBase& Node = NodeView.GetMutable<FStateTreeNodeBase>();
+	FStateTreeNodeBase& Node = NodeView.Get<FStateTreeNodeBase>();
 	check(InstanceData.IsValid());
 
 	auto ValidateStateLinks = [this, SourceState](TPropertyValueIterator<FStructProperty> It)
@@ -875,7 +875,7 @@ bool FStateTreeCompiler::CompileAndValidateNode(const UStateTreeState* SourceSta
 	{
 		return false;
 	}
-	if (!ValidateStateLinks(TPropertyValueIterator<FStructProperty>(NodeView.GetScriptStruct(), NodeView.GetMutableMemory())))
+	if (!ValidateStateLinks(TPropertyValueIterator<FStructProperty>(NodeView.GetScriptStruct(), NodeView.GetMemory())))
 	{
 		return false;
 	}

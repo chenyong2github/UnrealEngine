@@ -19,8 +19,8 @@ UGameplayTask* FGameplayTransitionDesc_MoveToStand::MakeTransitionTask(const FMa
 {
 	check(Context.MovementComponent);
 	
-	const FGameplayActuationState_Moving* CurrentState = Context.CurrentActuationState.GetPtr<FGameplayActuationState_Moving>();
-	const FGameplayActuationState_Standing* NextState = Context.NextActuationState.GetPtr<FGameplayActuationState_Standing>();
+	const FGameplayActuationState_Moving* CurrentState = Context.CurrentActuationState.GetPtr<const FGameplayActuationState_Moving>();
+	const FGameplayActuationState_Standing* NextState = Context.NextActuationState.GetPtr<const FGameplayActuationState_Standing>();
 
 	if (CurrentState == nullptr || NextState == nullptr)
 	{
@@ -68,8 +68,8 @@ UGameplayTask_MoveToStandTransition::UGameplayTask_MoveToStandTransition(const F
 
 bool UGameplayTask_MoveToStandTransition::ShouldActivate(const FMakeGameplayTransitionTaskContext& Context) const
 {
-	const FGameplayActuationState_Moving* CurrentState = Context.CurrentActuationState.GetPtr<FGameplayActuationState_Moving>();
-	const FGameplayActuationState_Standing* NextState = Context.NextActuationState.GetPtr<FGameplayActuationState_Standing>();
+	const FGameplayActuationState_Moving* CurrentState = Context.CurrentActuationState.GetPtr<const FGameplayActuationState_Moving>();
+	const FGameplayActuationState_Standing* NextState = Context.NextActuationState.GetPtr<const FGameplayActuationState_Standing>();
 
 	if (CurrentState == nullptr || NextState == nullptr)
 	{

@@ -19,7 +19,7 @@ UGameplayTask* FGameplayTransitionDesc_StandToMove::MakeTransitionTask(const FMa
 	check(Context.MovementComponent);
 	
 	//	const FGameplayActuationStateBase& CurrentState = Context.CurrentMovementState.Get<FGameplayActuationStateBase>();
-	const FGameplayActuationState_Moving* NextState = Context.NextActuationState.GetPtr<FGameplayActuationState_Moving>();
+	const FGameplayActuationState_Moving* NextState = Context.NextActuationState.GetPtr<const FGameplayActuationState_Moving>();
 
 	if (NextState == nullptr)
 	{

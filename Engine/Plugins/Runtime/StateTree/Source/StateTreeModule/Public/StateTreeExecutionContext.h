@@ -366,13 +366,13 @@ protected:
 	/** @return StateTree execution state from the instance storage. */
 	FStateTreeExecutionState& GetExecState()
 	{
-		return InstanceData.GetMutableStruct(0).GetMutable<FStateTreeExecutionState>();
+		return InstanceData.GetMutableStruct(0).Get<FStateTreeExecutionState>();
 	}
 
 	/** @return const StateTree execution state from the instance storage. */
 	const FStateTreeExecutionState& GetExecState() const
 	{
-		return InstanceData.GetStruct(0).Get<FStateTreeExecutionState>();
+		return InstanceData.GetStruct(0).Get<const FStateTreeExecutionState>();
 	}
 
 	/** Sets up parameter data view for a linked state and copies bound properties. */
