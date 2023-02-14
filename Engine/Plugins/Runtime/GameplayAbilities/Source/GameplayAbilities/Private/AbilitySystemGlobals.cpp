@@ -264,6 +264,7 @@ UFunction* UAbilitySystemGlobals::GetGameplayCueFunction(const FGameplayTag& Chi
 void UAbilitySystemGlobals::InitTargetDataScriptStructCache()
 {
 	TargetDataStructCache.InitForType(FGameplayAbilityTargetData::StaticStruct());
+	EffectContextStructCache.InitForType(FGameplayEffectContext::StaticStruct());
 #if UE_WITH_IRIS
 	InitGameplayAbilityTargetDataHandleNetSerializerTypeCache();
 	InitGameplayEffectContextHandleNetSerializerTypeCache();
@@ -689,7 +690,7 @@ bool FNetSerializeScriptStructCache::NetSerialize(FArchive& Ar, UScriptStruct*& 
 			return true;
 		}
 
-		ABILITY_LOG(Error, TEXT("Could not script struct at idx %d"), b);
+		ABILITY_LOG(Error, TEXT("Could not find script struct at idx %d"), b);
 		return false;
 	}
 }

@@ -358,6 +358,18 @@ void FGameplayEffectContext::GetOwnedGameplayTags(OUT FGameplayTagContainer& Act
 	}
 }
 
+struct FGameplayEffectContextDeleter
+{
+	FORCEINLINE void operator()(FGameplayEffectContext* Object) const
+	{
+		check(Object);
+		UScriptStruct* ScriptStruct = Object->GetScriptStruct();
+		check(ScriptStruct);
+		ScriptStruct->DestroyStruct(Object);
+		FMemory::Free(Object);
+	}
+};
+
 bool FGameplayEffectContextHandle::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
 	bool ValidData = Data.IsValid();
@@ -365,32 +377,50 @@ bool FGameplayEffectContextHandle::NetSerialize(FArchive& Ar, class UPackageMap*
 
 	if (ValidData)
 	{
-		if (Ar.IsLoading())
+		TCheckedObjPtr<UScriptStruct> ScriptStruct = Data.IsValid() ? Data->GetScriptStruct() : nullptr;
+		
+		UAbilitySystemGlobals::Get().EffectContextStructCache.NetSerialize(Ar, ScriptStruct.Get());
+
+		if (ScriptStruct.IsValid())
 		{
-			// For now, just always reset/reallocate the data when loading.
-			// Longer term if we want to generalize this and use it for property replication, we should support
-			// only reallocating when necessary
-			
-			if (Data.IsValid() == false)
+			if (Ar.IsLoading())
 			{
-				Data = TSharedPtr<FGameplayEffectContext>(UAbilitySystemGlobals::Get().AllocGameplayEffectContext());
+				// If data is invalid, or a different type, allocate
+				if (!Data.IsValid() || (Data->GetScriptStruct() != ScriptStruct.Get()))
+				{
+					FGameplayEffectContext* NewData = (FGameplayEffectContext*)FMemory::Malloc(ScriptStruct->GetStructureSize());
+					ScriptStruct->InitializeStruct(NewData);
+
+					Data = TSharedPtr<FGameplayEffectContext>(NewData, FGameplayEffectContextDeleter());
+				}
+			}
+
+			check(Data.IsValid());
+			if (ScriptStruct->StructFlags & STRUCT_NetSerializeNative)
+			{
+				ScriptStruct->GetCppStructOps()->NetSerialize(Ar, Map, bOutSuccess, Data.Get());
+			}
+			else
+			{
+				// This won't work since FStructProperty::NetSerializeItem is deprecrated.
+				//	1) we have to manually crawl through the topmost struct's fields since we don't have a FStructProperty for it (just the UScriptProperty)
+				//	2) if there are any UStructProperties in the topmost struct's fields, we will assert in FStructProperty::NetSerializeItem.
+
+				ABILITY_LOG(Fatal, TEXT("FGameplayEffectContextHandle::NetSerialize called on data struct %s without a native NetSerialize"), *ScriptStruct->GetName());
 			}
 		}
-
-		UScriptStruct* ScriptStruct = Data->GetScriptStruct();
-
-		if (ScriptStruct->StructFlags & STRUCT_NetSerializeNative)
+		else if (ScriptStruct.IsError())
 		{
-			ScriptStruct->GetCppStructOps()->NetSerialize(Ar, Map, bOutSuccess, Data.Get());
+			ABILITY_LOG(Error, TEXT("FGameplayEffectContextHandle::NetSerialize: Bad ScriptStruct serialized, can't recover."));
+			Ar.SetError();
+			Data.Reset();
+			bOutSuccess = false;
+			return false;
 		}
-		else
-		{
-			// This won't work since FStructProperty::NetSerializeItem is deprecrated.
-			//	1) we have to manually crawl through the topmost struct's fields since we don't have a FStructProperty for it (just the UScriptProperty)
-			//	2) if there are any UStructProperties in the topmost struct's fields, we will assert in FStructProperty::NetSerializeItem.
-
-			ABILITY_LOG(Fatal, TEXT("FGameplayEffectContextHandle::NetSerialize called on data struct %s without a native NetSerialize"), *ScriptStruct->GetName());
-		}
+	}
+	else
+	{
+		Data.Reset();
 	}
 
 	bOutSuccess = true;

@@ -308,6 +308,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	UPROPERTY()
 	FNetSerializeScriptStructCache	TargetDataStructCache;
 
+	UPROPERTY()
+	FNetSerializeScriptStructCache	EffectContextStructCache;
+
 	void AddAttributeDefaultTables(const TArray<FSoftObjectPath>& AttribDefaultTableNames);
 
 protected:
