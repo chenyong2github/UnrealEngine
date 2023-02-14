@@ -48,7 +48,7 @@ FAutoConsoleVariableRef CVar_EnableKinematicDeferralStartPhysicsCondition(TEXT("
 bool GKinematicDeferralCheckValidBodies = true;
 FAutoConsoleVariableRef CVar_KinematicDeferralCheckValidBodies(TEXT("p.KinematicDeferralCheckValidBodies"), GKinematicDeferralCheckValidBodies, TEXT("If true, don't attempt to update deferred kinematic skeletal mesh bodies which are pending delete."));
 
-bool GKinematicDeferralUpdateExternalAccelerationStructure = false;
+bool GKinematicDeferralUpdateExternalAccelerationStructure = true;
 FAutoConsoleVariableRef CVar_KinematicDeferralUpdateExternalAccelerationStructure(TEXT("p.KinematicDeferralUpdateExternalAccelerationStructure"), GKinematicDeferralUpdateExternalAccelerationStructure, TEXT("If true, process any operations in PendingSpatialOperations_External before doing deferred kinematic updates."));
 bool GKinematicDeferralLogInvalidBodies = true;
 FAutoConsoleVariableRef CVar_KinematicDeferralLogInvalidBodies(TEXT("p.KinematicDeferralLogInvalidBodies"), GKinematicDeferralLogInvalidBodies, TEXT("If true and p.KinematicDeferralCheckValidBodies is true, log when an invalid body is found on kinematic update."));
@@ -1649,6 +1649,7 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 	// If the deleted particle has had its memory cleared or overwritten, then it
 	// may have invalid object bounds, so when the tree attempts to update the bounds
 	// of the parent node, NaNs or other invalid numbers may appear in the tree
+	// (aka, FORT-564602)
 	if (GKinematicDeferralUpdateExternalAccelerationStructure)
 	{
 		CopySolverAccelerationStructure();
