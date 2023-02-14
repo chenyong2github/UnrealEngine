@@ -4,6 +4,8 @@
 
 #include "IO/IoHash.h"
 #include "Misc/StringBuilder.h"
+#include "UObject/PackageFileSummary.h"
+#include "UObject/PackageResourceManager.h"
 
 namespace UE::Virtualization::Utils
 {
@@ -49,6 +51,31 @@ void GetFormattedSystemError(FStringBuilderBase& SystemErrorMessage)
 	{
 		SystemErrorMessage << TEXT("'unknown reason' (0)");
 	}
+}
+
+ETrailerFailedReason FindTrailerFailedReason(const FPackagePath& PackagePath)
+{
+	TUniquePtr<FArchive> Ar = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
+
+	if (!Ar)
+	{
+		return ETrailerFailedReason::NotFound;
+	}
+
+	FPackageFileSummary Summary;
+	*Ar << Summary;
+
+	if (Ar->IsError() || Summary.Tag != PACKAGE_FILE_TAG)
+	{
+		return ETrailerFailedReason::InvalidSummary;
+	}
+
+	if (Summary.GetFileVersionUE() < EUnrealEngineObjectUE5Version::PAYLOAD_TOC)
+	{
+		return ETrailerFailedReason::OutOfDate;
+	}
+
+	return ETrailerFailedReason::Unknown;
 }
 
 } // namespace UE::Virtualization::Utils

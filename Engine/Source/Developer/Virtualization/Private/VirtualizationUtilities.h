@@ -5,6 +5,8 @@
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 
+class FPackagePath;
+
 struct FIoHash;
 
 namespace UE::Virtualization::Utils
@@ -46,5 +48,26 @@ FString PayloadIdToPath(const FIoHash& Id);
  * operation was a success.
  */
 void GetFormattedSystemError(FStringBuilderBase& SystemErrorMessage);
+
+
+enum class ETrailerFailedReason : uint8
+{
+	/** Could not open the package for reading */
+	NotFound,
+	/** The header of the package (summary) could not be read or was otherwise corrupted */
+	InvalidSummary,
+	/** The package predates package version 1002 in which the package trailer was introduced */
+	OutOfDate,
+	/** The reason for the missing package trailer could not be determined */
+	Unknown
+};
+
+/** 
+ * Utility that returns the reason why a given package does not have a package trailer.
+ * Note that it does not actually try to load the trailer or validate that the trailer
+ * is in fact missing and assumes that the caller previously attempted to a call to
+ * load a trailer from the package but it failed.
+ */
+ETrailerFailedReason FindTrailerFailedReason(const FPackagePath& PackagePath);
 
 } // namespace UE::Virtualization::Utils

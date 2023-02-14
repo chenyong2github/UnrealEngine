@@ -20,6 +20,7 @@
 #include "Virtualization/VirtualizationSystem.h"
 #include "VirtualizationManager.h"
 #include "VirtualizationSourceControlUtilities.h"
+#include "VirtualizationUtilities.h"
 
 #define LOCTEXT_NAMESPACE "Virtualization"
 
@@ -193,9 +194,11 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOp
 
 	// From the list of files to submit we need to find all of the valid packages that contain
 	// local payloads that need to be virtualized.
-	int64 TotalPackagesFound = 0;
+	int64 TotalPackagesFound = 0; 
+	int64 TotalOutOfDatePackages = 0;
 	int64 TotalPackageTrailersFound = 0;
 	int64 TotalPayloadsToVirtualize = 0;
+
 	for (const FString& AbsoluteFilePath : PackagePaths)
 	{
 		FPackagePath PackagePath = FPackagePath::FromLocalPath(AbsoluteFilePath);
@@ -233,10 +236,16 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOp
 					Packages.Emplace(MoveTemp(PkgInfo));
 				}
 			}
+			else if(Utils::FindTrailerFailedReason(PackagePath) == Utils::ETrailerFailedReason::OutOfDate)
+			{
+				
+				TotalOutOfDatePackages++;
+			}
 		}
 	}
 
 	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " package(s), %" INT64_FMT " of which had payload trailers"), TotalPackagesFound, TotalPackageTrailersFound);
+	UE_CLOG(TotalOutOfDatePackages > 0, LogVirtualization, Warning, TEXT("Found %" INT64_FMT " package(s) that are out of date and need resaving"), TotalOutOfDatePackages);
 
 	// TODO: Currently not all of the filtering is done as package save time, so some of the local payloads may not get virtualized.
 	// When/if we move all filtering to package save we can change this log message to state that the local payloads *will* be virtualized.
