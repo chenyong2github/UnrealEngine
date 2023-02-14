@@ -564,7 +564,7 @@ namespace Horde.Build.Notifications.Sinks
 						autoSubmitMessage = $"\n\n```{job.AutoSubmitMessage}```";
 					}
 
-					attachment.AddSection($"Files in CL *{job.PreflightChange}* were *not submitted*. Please resolve the following issues and submit manually.{autoSubmitMessage}");
+					attachment.AddSection($"Files in CL *{job.PreflightChange}* were *not submitted*. Please resolve the aforementioned issues and submit manually.{autoSubmitMessage}");
 				}
 			}
 
