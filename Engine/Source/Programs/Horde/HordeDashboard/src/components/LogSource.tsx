@@ -618,11 +618,11 @@ class LeaseLogSource extends LogSource {
          },
          {
             text: `${this.agent?.name}`,
-            link: `/agents/${this.agent?.id}`
+            link: `/agents?agentId=${this.agent?.id}`
          },
          {
             text: `${this.lease?.name ?? this.leaseId}`,
-            link: `/agents/${this.agent?.id}`
+            link: `/agents?agentId=${this.agent?.id}`
          }
 
       ];

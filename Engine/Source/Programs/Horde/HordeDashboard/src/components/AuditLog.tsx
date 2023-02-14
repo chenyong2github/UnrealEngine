@@ -399,7 +399,7 @@ export const AuditLogPanel: React.FC<{ agentId?: string, issueId?: string }> = o
          },
          {
             text: `Agent Audit - ${agentId}`,
-            link: `/agents/${encodeURIComponent(agentId)}`
+            link: `/agents?agentId=${encodeURIComponent(agentId)}`
          }
       ];
 

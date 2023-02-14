@@ -245,9 +245,7 @@ export const StepsPanelInner: React.FC<{ jobDetails: JobDetailsV2, depStepId?: s
                   return <Stack horizontal disableShrink={true} horizontalAlign="start">
                      {(error || warning) && <Icon styles={{ root: { paddingTop: 3, paddingRight: 8 } }} className={style!.className} iconName="Square" />}
                      <Link to={`/agents?agent=${encodeURI(item.agentPool)}&exact=true`} ><Text nowrap={true}>{batchText}</Text></Link>
-                  </Stack>
-                     ;
-
+                  </Stack>                     
                }
                return <Stack horizontal disableShrink={true} horizontalAlign="start">
                   {(error || warning) && <Icon styles={{ root: { paddingTop: 3, paddingRight: 8 } }} className={style!.className} iconName="Square" />}

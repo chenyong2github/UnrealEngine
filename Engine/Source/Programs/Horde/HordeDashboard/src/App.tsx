@@ -133,7 +133,7 @@ const Main: React.FC = () => {
                { path: "log/:logId", element: <LogView /> },
                { path: "testreport/:testdataId", element: <TestReportView /> },
                { path: "stream/:streamId", element: <StreamView /> },
-               { path: "agents/:agentId?", element: <AgentView /> },
+               { path: "agents", element: <AgentView/> },
                { path: "admin/token", element: <AdminToken /> },
                { path: "reports/utilization", element: <UtilizationReportView /> },
                { path: "preflight", element: <PreflightRedirector /> },
