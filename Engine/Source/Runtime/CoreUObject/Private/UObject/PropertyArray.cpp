@@ -729,7 +729,7 @@ void FArrayProperty::CopyValuesInternal( void* Dest, void const* Src, int32 Coun
 	}
 	if (Num)
 	{
-		int32 Size = Inner->ElementSize;
+		size_t Size = Inner->ElementSize;
 		uint8* SrcData = (uint8*)SrcArrayHelper.GetRawPtr();
 		uint8* DestData = (uint8*)DestArrayHelper.GetRawPtr();
 		if( !(Inner->PropertyFlags & CPF_IsPlainOldData) )
