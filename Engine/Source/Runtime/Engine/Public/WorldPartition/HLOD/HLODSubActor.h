@@ -79,7 +79,12 @@ struct FHLODSubActor
 #if WITH_EDITORONLY_DATA
 	friend bool operator==(const FHLODSubActor& Lhs, const FHLODSubActor& Rhs)
 	{
-		return Lhs.ActorGuid == Rhs.ActorGuid && Lhs.ContainerID == Rhs.ContainerID;
+		return Lhs.ActorGuid == Rhs.ActorGuid 
+			&& Lhs.ActorPackage == Rhs.ActorPackage
+			&& Lhs.ActorPath == Rhs.ActorPath
+			&& Lhs.ContainerID == Rhs.ContainerID
+			&& Lhs.ContainerPackage == Rhs.ContainerPackage
+			&& Lhs.ContainerTransform.Equals(Rhs.ContainerTransform);
 	}
 
 	friend bool operator!=(const FHLODSubActor& Lhs, const FHLODSubActor& Rhs)
