@@ -42,7 +42,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/FileManager.h"
 #include "ToolMenus.h"
-#include "UnsavedAssetsTracker/Source/Public/UnsavedAssetsTrackerModule.h"
+#include "UnsavedAssetsTrackerModule.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 #include "SSourceControlSubmit.h"

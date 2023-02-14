@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "AnimNextInterfaceExecuteContext.h"
 #include "IAnimNextInterface.h"
 #include "Units/RigUnit.h"
-#include "AnimNextInterfaceGraph/Internal/AnimNextInterfaceExecuteContext.h"
 #include "RigUnit_AnimNextInterfaceParameter.generated.h"
 
 struct FAnimNextInterfaceUnitContext;

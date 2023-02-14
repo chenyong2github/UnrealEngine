@@ -4,8 +4,8 @@
 
 
 #include "CoreMinimal.h"
+#include "EulerTransform.h"
 #include "RigVMFunctions/RigVMFunctionDefines.h"
-#include "AnimationCore/Public/EulerTransform.h"
 #include "RigVMMathLibrary.generated.h"
 
 UENUM()

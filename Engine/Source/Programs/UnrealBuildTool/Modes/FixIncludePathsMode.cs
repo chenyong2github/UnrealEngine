@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace UnrealBuildTool
 {
@@ -180,6 +181,8 @@ namespace UnrealBuildTool
 											continue;
 										}
 
+										//Debugger.Launch();
+
 										string? PreferredInclude = null;
 										if (!PreferredPathCache.TryGetValue(Include, out PreferredInclude))
 										{
@@ -204,7 +207,7 @@ namespace UnrealBuildTool
 
 											if (FoundIncludeFile != null && !IncludeFileList.Contains(FoundIncludeFile))
 											{
-												Logger.LogDebug("{FileName}({LineNumber}): Skipping '{Include}' because it is filtered out.", InputFile.FullName, LineNumber, Include);
+												Logger.LogInformation("{FileName}({LineNumber}): Skipping '{Include}' because it is filtered out.", InputFile.FullName, LineNumber, Include);
 												PreferredInclude = Include;
 												PreferredPathCache[Include] = PreferredInclude;
 												continue;
@@ -215,7 +218,7 @@ namespace UnrealBuildTool
 												string FullPath = FoundIncludeFile.FullName.Replace('\\', '/');
 												if (FullPath.Contains("ThirdParty"))
 												{
-													Logger.LogDebug("{FileName}({LineNumber}): Skipping '{Include}' because it is a third party header.", InputFile.FullName, LineNumber, Include);
+													Logger.LogInformation("{FileName}({LineNumber}): Skipping '{Include}' because it is a third party header.", InputFile.FullName, LineNumber, Include);
 													PreferredInclude = Include;
 													PreferredPathCache[Include] = PreferredInclude;
 													continue;
@@ -225,14 +228,14 @@ namespace UnrealBuildTool
 												if (string.Equals(System.IO.Directory.GetParent(FullPath)?.FullName, System.IO.Directory.GetParent(InputFile.FullName)?.FullName, StringComparison.CurrentCultureIgnoreCase) &&
 													string.Equals(Include, System.IO.Path.GetFileName(FullPath), StringComparison.CurrentCultureIgnoreCase))
 												{
-													Logger.LogDebug("{FileName}({LineNumber}): Using '{Include}' because it is in the same directory.", InputFile.FullName, LineNumber, Include);
+													Logger.LogInformation("{FileName}({LineNumber}): Using '{Include}' because it is in the same directory.", InputFile.FullName, LineNumber, Include);
 													PreferredInclude = Include;
 												}
 												else
 												{
 													if (!FullPath.Contains(UnrealRootDirectory))
 													{
-														Logger.LogDebug("{FileName}({LineNumber}): Skipping '{Include}' because it isn't under the Unreal root directory.", InputFile.FullName, LineNumber, Include);
+														Logger.LogInformation("{FileName}({LineNumber}): Skipping '{Include}' because it isn't under the Unreal root directory.", InputFile.FullName, LineNumber, Include);
 													}
 													else
 													{
@@ -245,7 +248,7 @@ namespace UnrealBuildTool
 															// Is the current include a shortened version of the preferred include path?
 															if (PreferredInclude != Include && PreferredInclude.Contains(Include))
 															{
-																Logger.LogDebug("{FileName}({LineNumber}): Using '{Include}' because it is shorter than '{PreferredInclude}'.", InputFile.FullName, LineNumber, Include, PreferredInclude);
+																Logger.LogInformation("{FileName}({LineNumber}): Using '{Include}' because it is shorter than '{PreferredInclude}'.", InputFile.FullName, LineNumber, Include, PreferredInclude);
 																PreferredInclude = Include;
 															}
 														}
@@ -282,7 +285,7 @@ namespace UnrealBuildTool
 												
 											if (PreferredInclude == null)
 											{
-												Logger.LogDebug("{FileName}({LineNumber}): Could not find path to '{IncludePath}'", InputFile.FullName, LineNumber, Include);
+												Logger.LogInformation("{FileName}({LineNumber}): Could not find path to '{IncludePath}'", InputFile.FullName, LineNumber, Include);
 											}
 										}
 

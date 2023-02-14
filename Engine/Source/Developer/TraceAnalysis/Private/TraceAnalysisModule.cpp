@@ -2,7 +2,7 @@
 
 #include "TraceAnalysisModule.h"
 
-#include "MessageLog/Public/MessageLogModule.h"
+#include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////
