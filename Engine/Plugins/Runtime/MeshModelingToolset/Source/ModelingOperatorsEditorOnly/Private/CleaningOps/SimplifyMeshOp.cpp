@@ -32,7 +32,7 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 					 EEdgeRefineFlags MeshBoundaryConstraint,
 					 EEdgeRefineFlags GroupBoundaryConstraint,
 					 EEdgeRefineFlags MaterialBoundaryConstraint,
-					 bool bPreserveSharpEdges, bool bAllowSeamCollapse,
+					 bool bPreserveSharpEdges, bool bAllowSeamCollapse, bool bPreventNormalFlips, bool bPreventTinyTriangles,
 					 const ESimplifyTargetType TargetMode,
 					 const float TargetPercentage, const int TargetCount, const float TargetEdgeLength,
 					 const float AngleThreshold,
@@ -121,6 +121,11 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 	{
 		Reducer.SimplifyToMinimalPlanar(AngleThreshold);
 	}
+
+	if (!bPreventNormalFlips)
+	{
+		Reducer.SetEdgeFlipTolerance(-1.1);
+	}
 }
 
 
@@ -150,7 +155,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 											MeshBoundaryConstraint,
 											GroupBoundaryConstraint,
 											MaterialBoundaryConstraint,
-											bPreserveSharpEdges, bAllowSeamCollapse,
+											bPreserveSharpEdges, bAllowSeamCollapse, bPreventNormalFlips, bPreventTinyTriangles,
 											TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
 											FQEMSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory, 
 											UseGeometricTolerance);
@@ -167,7 +172,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 													MeshBoundaryConstraint,
 													GroupBoundaryConstraint,
 													MaterialBoundaryConstraint,
-													bPreserveSharpEdges, bAllowSeamCollapse,
+													bPreserveSharpEdges, bAllowSeamCollapse, bPreventNormalFlips, bPreventTinyTriangles,
 													TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
 													FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory,
 													UseGeometricTolerance);
@@ -184,7 +189,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 			MeshBoundaryConstraint,
 			GroupBoundaryConstraint,
 			MaterialBoundaryConstraint,
-			bPreserveSharpEdges, bAllowSeamCollapse,
+			bPreserveSharpEdges, bAllowSeamCollapse, bPreventNormalFlips, bPreventTinyTriangles,
 			ESimplifyTargetType::MinimalPlanar, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
 			FQEMSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory,
 			UseGeometricTolerance);
@@ -197,7 +202,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 			MeshBoundaryConstraint,
 			GroupBoundaryConstraint,
 			MaterialBoundaryConstraint,
-			bPreserveSharpEdges, bAllowSeamCollapse,
+			bPreserveSharpEdges, bAllowSeamCollapse, bPreventNormalFlips, bPreventTinyTriangles,
 			TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh, 
 			FQEMSimplification::ESimplificationCollapseModes::MinimalExistingVertexError, bUseQuadricMemory,
 			UseGeometricTolerance);

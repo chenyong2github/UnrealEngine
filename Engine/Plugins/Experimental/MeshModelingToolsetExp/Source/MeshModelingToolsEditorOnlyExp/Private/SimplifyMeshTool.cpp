@@ -198,6 +198,7 @@ TUniquePtr<FDynamicMeshOperator> USimplifyMeshTool::MakeNewOperator()
 	Op->bPreventNormalFlips = SimplifyProperties->bPreventNormalFlips;
 	Op->bPreserveSharpEdges = SimplifyProperties->bPreserveSharpEdges;
 	Op->bAllowSeamCollapse = !SimplifyProperties->bPreserveSharpEdges;
+	Op->bPreventTinyTriangles = SimplifyProperties->bPreventTinyTriangles;
 	Op->bReproject = SimplifyProperties->bReproject;
 	Op->SimplifierType = SimplifyProperties->SimplifierType;
 	Op->TargetCount = ( SimplifyProperties->TargetMode == ESimplifyTargetType::VertexCount) ?  SimplifyProperties->TargetVertexCount : SimplifyProperties->TargetTriangleCount;

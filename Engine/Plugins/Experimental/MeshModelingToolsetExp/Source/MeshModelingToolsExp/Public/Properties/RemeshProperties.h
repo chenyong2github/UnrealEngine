@@ -60,12 +60,20 @@ public:
 	EMaterialBoundaryConstraint MaterialBoundaryConstraint = EMaterialBoundaryConstraint::Free;
 
 	/** Prevent normal flips */
-	UPROPERTY(EditAnywhere, Category = "Remeshing|Edge Constraints")
+	UPROPERTY(EditAnywhere, Category = "Remeshing|Edge Constraints", meta=(EditCondition = "IsPreventNormalFlipsEnabled") )
 	bool bPreventNormalFlips = false;
 
 	/** Prevent introduction of tiny triangles or slivers */
-	UPROPERTY(EditAnywhere, Category = "Remeshing|Edge Constraints")
+	UPROPERTY(EditAnywhere, Category = "Remeshing|Edge Constraints", meta=(EditCondition = "IsPreventTinyTrianglesEnabled") )
 	bool bPreventTinyTriangles = false;
+
+protected:
+
+	UFUNCTION()
+	virtual bool IsPreventNormalFlipsEnabled() const { return true; }
+
+	UFUNCTION()
+	virtual bool IsPreventTinyTrianglesEnabled() const { return true; }
 };
 
 UCLASS()

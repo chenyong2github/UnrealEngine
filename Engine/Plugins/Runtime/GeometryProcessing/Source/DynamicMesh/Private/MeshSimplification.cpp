@@ -1382,6 +1382,12 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 		return ESimplificationResult::Ignored_CreatesFlip;
 	}
 
+	if (bPreventTinyTriangles && (CheckIfCollapseCreatesTinyTriangle(a, b, vNewPos, t0, t1) || CheckIfCollapseCreatesTinyTriangle(b, a, vNewPos, t0, t1)))
+	{
+		ProfileEndCollapse();
+		return ESimplificationResult::Ignored_CreatesTinyTriangle;
+	}
+
 	// lots of cases where we cannot collapse, but we should just let
 	// Mesh sort that out, right?
 	COUNT_COLLAPSES++;

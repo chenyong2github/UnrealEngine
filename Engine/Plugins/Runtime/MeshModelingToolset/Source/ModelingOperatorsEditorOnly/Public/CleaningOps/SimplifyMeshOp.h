@@ -74,7 +74,7 @@ public:
 	ESimplifyType SimplifierType;
 	int TargetPercentage, TargetCount;
 	float TargetEdgeLength;
-	bool bDiscardAttributes, bReproject, bPreventNormalFlips, bPreserveSharpEdges, bAllowSeamCollapse;
+	bool bDiscardAttributes, bReproject, bPreventNormalFlips, bPreserveSharpEdges, bAllowSeamCollapse, bPreventTinyTriangles;
 	// When true, result will have attributes object regardless of whether attributes 
 	// were discarded or present initially.
 	bool bResultMustHaveAttributesEnabled = false;

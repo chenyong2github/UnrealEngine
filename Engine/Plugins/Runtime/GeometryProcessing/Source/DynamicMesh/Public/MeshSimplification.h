@@ -27,7 +27,8 @@ enum class ESimplificationResult
 	Failed_OpNotSuccessful = 6,
 	Failed_NotAnEdge = 7,
 	Failed_IsolatedTriangle = 8,
-	Failed_GeometricDeviation = 9
+	Failed_GeometricDeviation = 9,
+	Ignored_CreatesTinyTriangle = 10
 };
 
 /**
@@ -75,6 +76,11 @@ public:
 
 	/** if true, we allow UV and Normal seams to collapse during simplification.*/
 	bool bAllowSeamCollapse = true;
+
+	/** Controls whether we disallow creation of triangles with small areas inside edge operations.
+	 * This is moderately expensive and in some cases can result in lower-quality meshes. Disabled by default.
+	 */
+	bool bPreventTinyTriangles = false;
 
 	/** When using the constraint system, these options will apply to the appropriate boundaries. */
 	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;

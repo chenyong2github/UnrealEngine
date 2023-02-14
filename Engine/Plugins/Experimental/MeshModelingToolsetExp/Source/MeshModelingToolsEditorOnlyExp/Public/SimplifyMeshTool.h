@@ -96,6 +96,25 @@ public:
 	/** Enable projection back to input mesh */
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bReproject;
+
+protected:
+	
+	virtual bool IsPreventNormalFlipsEnabled() const override
+	{ 
+		return SimplifierType == ESimplifyType::QEM ||
+		       SimplifierType == ESimplifyType::MinimalExistingVertex || 
+		       SimplifierType == ESimplifyType::Attribute || 
+		       SimplifierType == ESimplifyType::MinimalPlanar;
+	}
+
+	virtual bool IsPreventTinyTrianglesEnabled() const override
+	{
+		return SimplifierType == ESimplifyType::QEM ||
+			   SimplifierType == ESimplifyType::MinimalExistingVertex ||
+			   SimplifierType == ESimplifyType::Attribute ||
+			   SimplifierType == ESimplifyType::MinimalPlanar;
+	}
+
 };
 
 
