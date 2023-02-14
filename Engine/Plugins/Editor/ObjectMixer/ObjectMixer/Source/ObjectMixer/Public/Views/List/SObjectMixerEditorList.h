@@ -84,8 +84,6 @@ public:
 
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 
-	void OnAddDynamicContextMenuSection(UToolMenu* InMenu);
-
 	/**
 	 * Determines the style of the tree (flat list or hierarchy)
 	 */

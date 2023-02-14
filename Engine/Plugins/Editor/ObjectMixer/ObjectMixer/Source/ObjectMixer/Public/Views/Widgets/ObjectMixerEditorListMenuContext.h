@@ -25,15 +25,10 @@ public:
 		TWeakPtr<class FObjectMixerEditorList> ListModelPtr;
 	};
 
-	static TSharedPtr<SWidget> CreateContextMenu(FObjectMixerEditorListMenuContextData InData);
-	static TSharedPtr<SWidget> BuildContextMenu(const FObjectMixerEditorListMenuContextData InData);
 	static void RegisterFoldersOnlyContextMenu();
-	static void RegisterObjectMixerActorContextMenuExtension();
-	static void RegisterObjectMixerElementContextMenuExtension(const FName& MenuName);
+	static void RegisterObjectMixerDynamicCollectionsContextMenuExtension(const FName& MenuName);
 
 	FObjectMixerEditorListMenuContextData Data;
-	
-	static FName DefaultContextBaseMenuName;
 
 private:
 
@@ -41,14 +36,7 @@ private:
 	static void AddCollectionWidget(const FName& Key, const FObjectMixerEditorListMenuContextData& ContextData, UToolMenu* Menu);
 	static void CreateSelectCollectionsSubMenu(UToolMenu* Menu, FObjectMixerEditorListMenuContextData ContextData);
 	static void AddCollectionsMenuItem(UToolMenu* InMenu, const FObjectMixerEditorListMenuContextData& ContextData);
-	static void GenerateMoveToMenu(UToolMenu* InMenu, const FToolMenuInsert& InsertArgs, const FObjectMixerEditorListMenuContextData& ContextData);
-	static void OnFoldersMenuFolderSelected(TSharedRef<ISceneOutlinerTreeItem> Item, FObjectMixerEditorListMenuContextData ContextData);
-	static TSharedRef<TSet<FFolder>> GatherInvalidMoveToDestinations(const FObjectMixerEditorListMenuContextData& ContextData);
-	static void FillFoldersSubMenu(UToolMenu* InMenu, FObjectMixerEditorListMenuContextData ContextData);
-	static void FillSelectionSubMenu(UToolMenu* Menu, const FObjectMixerEditorListMenuContextData& ContextData);
 	static void OnTextCommitted(const FText& InText, ETextCommit::Type InCommitType, const FObjectMixerEditorListMenuContextData ContextData);
-
-	static void SelectDescendentsOfSelectedFolders(FObjectMixerEditorListMenuContextData ContextData, const bool bRecursive);
 	
 	static void OnCollectionMenuEntryCheckStateChanged(const FName Key, const FObjectMixerEditorListMenuContextData ContextData);
 	static void AddObjectsToCollection(const FName Key, const FObjectMixerEditorListMenuContextData ContextData);

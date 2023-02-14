@@ -9,6 +9,7 @@
 #include "Views/List/Modes/ObjectMixerOutlinerHierarchy.h"
 #include "Views/List/Modes/SFilterClassMenuItem.h"
 #include "Views/List/ObjectMixerUtils.h"
+#include "Views/Widgets/ObjectMixerEditorListMenuContext.h"
 
 #include "ActorDescTreeItem.h"
 #include "ActorEditorUtils.h"
@@ -27,6 +28,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ISourceControlModule.h"
 #include "LevelEditor.h"
+#include "LevelEditorContextMenu.h"
 #include "LevelTreeItem.h"
 #include "SceneOutlinerDelegates.h"
 #include "SceneOutlinerMenuContext.h"
@@ -1516,8 +1518,29 @@ TSharedPtr<SWidget> FObjectMixerOutlinerMode::BuildContextMenu()
 
 	FToolMenuContext Context(ContextObject);
 
-	FName MenuName = DefaultContextMenuName;
-	SceneOutliner->GetSharedData().ModifyContextMenu.ExecuteIfBound(MenuName, Context);
+	UObjectMixerEditorListMenuContext* ObjectMixerContextObject = NewObject<UObjectMixerEditorListMenuContext>();
+	ObjectMixerContextObject->Data = {ListModelPtr.Pin()->GetSelectedTreeViewItems(), ListModelPtr.Pin()};
+
+	Context.AddObject(ObjectMixerContextObject, [](UObject* InContext)
+	{
+		UObjectMixerEditorListMenuContext* CastContext = CastChecked<UObjectMixerEditorListMenuContext>(InContext);
+		CastContext->Data.SelectedItems.Empty();
+		CastContext->Data.ListModelPtr.Reset();
+	});
+
+	UObjectMixerEditorListMenuContext::RegisterObjectMixerDynamicCollectionsContextMenuExtension("LevelEditor.ActorContextMenu");
+	UObjectMixerEditorListMenuContext::RegisterObjectMixerDynamicCollectionsContextMenuExtension("LevelEditor.ComponentContextMenu");
+	UObjectMixerEditorListMenuContext::RegisterObjectMixerDynamicCollectionsContextMenuExtension("LevelEditor.ElementContextMenu");
+
+	const FName MenuName = "LevelEditor.LevelEditorSceneOutliner.ContextMenu";
+	
+	const FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	const TSharedPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule.GetLevelEditorInstance().Pin();
+	
+	if (LevelEditorPtr.IsValid())
+	{
+		FLevelEditorContextMenu::InitMenuContext(Context, LevelEditorPtr, ELevelEditorMenuContext::SceneOutliner);
+	}
 
 	// Build up the menu for a selection
 	UToolMenus* ToolMenus = UToolMenus::Get();

@@ -21,8 +21,6 @@
 #include "Editor.h"
 #include "EditorActorFolders.h"
 #include "IPlacementModeModule.h"
-#include "LevelEditor.h"
-#include "LevelEditorContextMenu.h"
 #include "SceneOutlinerModule.h"
 #include "SceneOutlinerTextInfoColumn.h"
 #include "SPositiveActionButton.h"
@@ -59,33 +57,6 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 	InitOptions.bShowCreateNewFolder = true;
 	InitOptions.bShowParentTree = true;
 	InitOptions.OutlinerIdentifier = ListModel->GetModuleName();
-	
-	// Context Menu
-	{
-		UToolMenus* ToolMenus = UToolMenus::Get();
-		static const FName MenuName = "LevelEditor.LevelEditorSceneOutliner.ContextMenu";
-		if (!ToolMenus->IsMenuRegistered(MenuName))
-		{
-			UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName, "SceneOutliner.DefaultContextMenuBase");
-			FToolMenuSection& Section = Menu->AddDynamicSection("LevelEditorContextMenu",
-				FNewToolMenuDelegate::CreateRaw(this, &SObjectMixerEditorList::OnAddDynamicContextMenuSection)
-			);
-			Section.InsertPosition = FToolMenuInsert("MainSection", EToolMenuInsertType::Before);
-		}
-
-		InitOptions.ModifyContextMenu.BindLambda([=](FName& OutMenuName, FToolMenuContext& MenuContext)
-			{
-				OutMenuName = MenuName;
-
-				const FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-				const TSharedPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule.GetLevelEditorInstance().Pin();
-
-				if (LevelEditorPtr.IsValid())
-				{
-					FLevelEditorContextMenu::InitMenuContext(MenuContext, LevelEditorPtr, ELevelEditorMenuContext::SceneOutliner);
-				}
-			});
-	}
 	
 	// Mode
 	InitOptions.ModeFactory = FCreateSceneOutlinerMode::CreateLambda([this](SSceneOutliner* InOutliner)
@@ -137,33 +108,6 @@ FReply SObjectMixerEditorList::OnKeyDown(const FGeometry& MyGeometry, const FKey
 bool SObjectMixerEditorList::CanCreateFolder() const
 {
 	return GetSelectedTreeViewItemCount() > 0;
-}
-
-void SObjectMixerEditorList::OnAddDynamicContextMenuSection(UToolMenu* InMenu)
-{
-	FName LevelContextMenuName = "LevelEditor.ActorContextMenu";
-
-	const FSceneOutlinerItemSelection Selection = GetSelection();
-	
-	if (Selection.Has<FComponentTreeItem>())
-	{
-		LevelContextMenuName = "LevelEditor.ComponentContextMenu";
-	}
-	else if (Selection.Has<FActorTreeItem>())
-	{
-		LevelContextMenuName = "LevelEditor.ActorContextMenu";
-	}
-	else if (Selection.Num() > 0)
-	{
-		LevelContextMenuName = "LevelEditor.ElementContextMenu";
-	}
-				
-	if (LevelContextMenuName != NAME_None)
-	{
-		// Extend the menu even if no actors selected, as Edit menu should always exist for scene outliner
-		UToolMenu* OtherMenu = UToolMenus::Get()->GenerateMenu(LevelContextMenuName, InMenu->Context);
-		InMenu->Sections.Append(OtherMenu->Sections);
-	}
 }
 
 TSharedRef<SWidget> SObjectMixerEditorList::OnGenerateAddObjectButtonMenu() const

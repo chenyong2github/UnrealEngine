@@ -4,23 +4,14 @@
 
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/List/ObjectMixerUtils.h"
-#include "Views/List/RowTypes/ObjectMixerEditorListRowFolder.h"
 
-#include "ActorFolderPickingMode.h"
-#include "FolderTreeItem.h"
-#include "LevelEditor.h"
-#include "LevelEditorContextMenu.h"
-#include "LevelEditorMenuContext.h"
-#include "ObjectMixerEditorModule.h"
-#include "Selection.h"
-#include "SSceneOutliner.h"
+#include "Algo/Find.h"
 #include "ToolMenu.h"
 #include "ToolMenuContext.h"
 #include "ToolMenuDelegates.h"
 #include "ToolMenuEntry.h"
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
-#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
@@ -29,18 +20,6 @@
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"
-
-FName UObjectMixerEditorListMenuContext::DefaultContextBaseMenuName("ObjectMixer.ContextMenuBase");
-
-TSharedPtr<SWidget> UObjectMixerEditorListMenuContext::CreateContextMenu(FObjectMixerEditorListMenuContextData InData)
-{
-	if (InData.SelectedItems.Num() == 0)
-	{
-		return nullptr;
-	}
-
-	return BuildContextMenu(MoveTemp(InData));
-}
 
 bool UObjectMixerEditorListMenuContext::DoesSelectionHaveType(const FObjectMixerEditorListMenuContextData& InData, UClass* Type)
 {
@@ -56,125 +35,6 @@ bool UObjectMixerEditorListMenuContext::DoesSelectionHaveType(const FObjectMixer
 	}
 
 	return false;
-}
-
-void PerformLevelEditorRegistrations(FToolMenuContext& Context)
-{
-	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	TSharedPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule.GetLevelEditorInstance().Pin();
-	check(LevelEditorPtr);
-
-	TSharedPtr<FUICommandList> LevelEditorActionsList = LevelEditorPtr->GetLevelEditorActions();
-	Context.AppendCommandList(LevelEditorActionsList);
-
-	ULevelEditorContextMenuContext* LevelEditorContextObject = NewObject<ULevelEditorContextMenuContext>();
-	LevelEditorContextObject->LevelEditor = LevelEditorPtr;
-	LevelEditorContextObject->ContextType = ELevelEditorMenuContext::SceneOutliner;
-	LevelEditorContextObject->CurrentSelection = LevelEditorPtr->GetElementSelectionSet();
-
-	for (FSelectedEditableComponentIterator It(GEditor->GetSelectedEditableComponentIterator()); It; ++It)
-	{
-		LevelEditorContextObject->SelectedComponents.Add(CastChecked<UActorComponent>(*It));
-	}
-
-	Context.AddObject(LevelEditorContextObject, [](UObject* InContext)
-	{
-		ULevelEditorContextMenuContext* CastContext = CastChecked<ULevelEditorContextMenuContext>(InContext);
-		CastContext->CurrentSelection = nullptr;
-		CastContext->HitProxyElement.Release();
-	});
-
-	if (LevelEditorPtr->GetElementSelectionSet()->GetSelectedObjects<UActorComponent>().Num() == 0 &&
-		LevelEditorPtr->GetElementSelectionSet()->GetSelectedObjects<AActor>().Num() > 0)
-	{
-		const TArray<AActor*> SelectedActors = LevelEditorPtr->GetElementSelectionSet()->GetSelectedObjects<AActor>();
-
-		// Get all menu extenders for this context menu from the level editor module
-		TArray<FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors> MenuExtenderDelegates =
-			LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
-		TArray<TSharedPtr<FExtender>> Extenders;
-		for (int32 i = 0; i < MenuExtenderDelegates.Num(); ++i)
-		{
-			if (MenuExtenderDelegates[i].IsBound())
-			{
-				Extenders.Add(MenuExtenderDelegates[i].Execute(LevelEditorActionsList.ToSharedRef(), SelectedActors));
-			}
-		}
-
-		if (Extenders.Num() > 0)
-		{
-			Context.AddExtender(FExtender::Combine(Extenders));
-		}
-	}
-}
-
-TSharedPtr<SWidget> UObjectMixerEditorListMenuContext::BuildContextMenu(const FObjectMixerEditorListMenuContextData InData)
-{	
-	FToolMenuContext Context;
-
-	UObjectMixerEditorListMenuContext* ObjectMixerContextObject = NewObject<UObjectMixerEditorListMenuContext>();
-	ObjectMixerContextObject->Data = InData;
-
-	Context.AddObject(ObjectMixerContextObject, [](UObject* InContext)
-	{
-		UObjectMixerEditorListMenuContext* CastContext = CastChecked<UObjectMixerEditorListMenuContext>(InContext);
-		CastContext->Data.SelectedItems.Empty();
-		CastContext->Data.ListModelPtr.Reset();
-	});
-
-	if (DoesSelectionHaveType(InData, AActor::StaticClass()))
-	{
-		FLevelEditorContextMenu::RegisterActorContextMenu();
-		FLevelEditorContextMenu::RegisterElementContextMenu();
-		RegisterObjectMixerActorContextMenuExtension();
-
-		PerformLevelEditorRegistrations(Context);
-	
-		return UToolMenus::Get()->GenerateWidget("LevelEditor.ActorContextMenu", Context);
-	}
-	
-	if (DoesSelectionHaveType(InData, UActorComponent::StaticClass()))
-	{
-		FLevelEditorContextMenu::RegisterComponentContextMenu();
-		FLevelEditorContextMenu::RegisterElementContextMenu();
-		RegisterObjectMixerElementContextMenuExtension("LevelEditor.ComponentContextMenu");
-
-		PerformLevelEditorRegistrations(Context);
-
-		return UToolMenus::Get()->GenerateWidget("LevelEditor.ComponentContextMenu", Context);
-	}
-
-	if (DoesSelectionHaveType(InData, UObject::StaticClass()))
-	{
-		FLevelEditorContextMenu::RegisterElementContextMenu();
-		RegisterObjectMixerElementContextMenuExtension("LevelEditor.ElementContextMenu");
-
-		PerformLevelEditorRegistrations(Context);
-
-		return UToolMenus::Get()->GenerateWidget("LevelEditor.ElementContextMenu", Context);
-	}
-
-	// Folders only
-	RegisterFoldersOnlyContextMenu();
-
-	return UToolMenus::Get()->GenerateWidget("ObjectMixer.FoldersOnlyContextMenu", Context);
-}
-
-void UObjectMixerEditorListMenuContext::FillSelectionSubMenu(UToolMenu* Menu, const FObjectMixerEditorListMenuContextData& ContextData)
-{
-	FToolMenuSection& Section = Menu->AddSection("Section");
-	Section.AddMenuEntry(
-		"AddChildrenToSelection",
-		LOCTEXT( "AddChildrenToSelection", "Immediate Children" ),
-		LOCTEXT( "AddChildrenToSelection_ToolTip", "Select all immediate children of the selected folders" ),
-		FSlateIcon(),
-		FExecuteAction::CreateStatic(&UObjectMixerEditorListMenuContext::SelectDescendentsOfSelectedFolders, ContextData, false));
-	Section.AddMenuEntry(
-		"AddDescendantsToSelection",
-		LOCTEXT( "AddDescendantsToSelection", "All Descendants" ),
-		LOCTEXT( "AddDescendantsToSelection_ToolTip", "Select all descendants of the selected folders" ),
-		FSlateIcon(),
-		FExecuteAction::CreateStatic(&UObjectMixerEditorListMenuContext::SelectDescendentsOfSelectedFolders, ContextData, true));
 }
 
 void UObjectMixerEditorListMenuContext::RegisterFoldersOnlyContextMenu()
@@ -197,21 +57,6 @@ void UObjectMixerEditorListMenuContext::RegisterFoldersOnlyContextMenu()
 
 		const FObjectMixerEditorListMenuContextData& ContextData = Context->Data;
 
-		{
-			FToolMenuSection& Section = InMenu->AddSection("Hierarchy", LOCTEXT("HierarchyMenuHeader", "Hierarchy"));
-
-			Section.AddSubMenu(
-				"SelectSubMenu",
-				LOCTEXT("SelectSubMenu", "Select"),
-				FText::GetEmpty(),
-				FNewToolMenuDelegate::CreateLambda(
-					[ContextData](UToolMenu* InMenu)
-				{
-					FillSelectionSubMenu(InMenu, ContextData);
-				})
-			);
-		}
-
 		// For future CL
 		// {
 		// 	FToolMenuSection& Section = InMenu->AddSection("ElementEditActions");
@@ -227,8 +72,6 @@ void UObjectMixerEditorListMenuContext::RegisterFoldersOnlyContextMenu()
 		// 		false, // default value
 		// 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Edit"));
 		// }
-
-		GenerateMoveToMenu(InMenu, FToolMenuInsert("Hierarchy", EToolMenuInsertType::After), ContextData);
 	}));
 }
 
@@ -245,38 +88,11 @@ void UObjectMixerEditorListMenuContext::AddCollectionsMenuItem(UToolMenu* InMenu
 	);
 }
 
-void UObjectMixerEditorListMenuContext::RegisterObjectMixerActorContextMenuExtension()
-{
-	if (UToolMenu* ActorContextMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu"))
-	{		
-		ActorContextMenu->AddDynamicSection("DynamicActorSection", FNewToolMenuDelegate::CreateLambda(
-			[](UToolMenu* InMenu)
-			{
-				// Ensure proper context
-				UObjectMixerEditorListMenuContext* Context = InMenu->FindContext<UObjectMixerEditorListMenuContext>();
-				if (!Context || Context->Data.SelectedItems.Num() == 0)
-				{
-					return;
-				}
-
-				const FObjectMixerEditorListMenuContextData& ContextData = Context->Data;
-
-				ReplaceEditSubMenu(ContextData);
-
-				AddCollectionsMenuItem(InMenu, ContextData);
-
-				GenerateMoveToMenu(InMenu, FToolMenuInsert("ActorTypeTools", EToolMenuInsertType::After), ContextData);
-			}),
-			FToolMenuInsert(NAME_None,EToolMenuInsertType::First)
-		);
-	}
-}
-
-void UObjectMixerEditorListMenuContext::RegisterObjectMixerElementContextMenuExtension(const FName& MenuName)
+void UObjectMixerEditorListMenuContext::RegisterObjectMixerDynamicCollectionsContextMenuExtension(const FName& MenuName)
 {
 	if (UToolMenu* ActorContextMenu = UToolMenus::Get()->ExtendMenu(MenuName))
 	{		
-		ActorContextMenu->AddDynamicSection("DynamicSubobjectSection", FNewToolMenuDelegate::CreateLambda(
+		ActorContextMenu->AddDynamicSection("DynamicCollectionsSection", FNewToolMenuDelegate::CreateLambda(
 			[](UToolMenu* InMenu)
 			{
 				// Ensure proper context
@@ -365,179 +181,11 @@ void UObjectMixerEditorListMenuContext::CreateSelectCollectionsSubMenu(UToolMenu
 	}
 }
 
-void UObjectMixerEditorListMenuContext::GenerateMoveToMenu(
-	UToolMenu* InMenu, const FToolMenuInsert& InsertArgs, const FObjectMixerEditorListMenuContextData& ContextData)
-{
-	FToolMenuSection& Section =
-		InMenu->AddSection("MainSection",
-			LOCTEXT("OutlinerSectionName", "Outliner"), InsertArgs);
-					
-	Section.AddSubMenu(
-			"MoveActorsTo",
-			LOCTEXT("MoveActorsTo", "Move To"),
-			LOCTEXT("MoveActorsTo_Tooltip", "Move selection to another folder"),
-			FNewToolMenuDelegate::CreateStatic(&UObjectMixerEditorListMenuContext::FillFoldersSubMenu, ContextData));
-}
-
-void UObjectMixerEditorListMenuContext::OnFoldersMenuFolderSelected(
-	TSharedRef<ISceneOutlinerTreeItem> Item,
-	FObjectMixerEditorListMenuContextData ContextData)
-{
-	if (const FFolderTreeItem* FolderTreeItem = Item->CastTo<FFolderTreeItem>())
-	{
-		for (const TSharedPtr<ISceneOutlinerTreeItem>& SelectedItem : ContextData.SelectedItems)
-		{
-			if (AActor* AsActor = Cast<AActor>(FObjectMixerUtils::GetRowObject(SelectedItem)))
-			{
-				AsActor->SetFolderPath_Recursively(FolderTreeItem->GetFolder().GetPath());
-			}
-			else if (FObjectMixerEditorListRowFolder* AsFolder = FObjectMixerUtils::AsFolderRow(SelectedItem))
-			{
-				if (TSharedPtr<FObjectMixerEditorList> PinnedList = ContextData.ListModelPtr.Pin())
-				{
-					//	PinnedList->OnRequestMoveFolder(AsFolder->GetFolder(), FolderTreeItem->GetFolder());
-				}
-			}
-		}
-	}
-
-	FSlateApplication::Get().DismissAllMenus();
-}
-
-TSharedRef<TSet<FFolder>> UObjectMixerEditorListMenuContext::GatherInvalidMoveToDestinations(
-	const FObjectMixerEditorListMenuContextData& ContextData)
-{
-	// We use a pointer here to save copying the whole array for every invocation of the filter delegate
-	TSharedRef<TSet<FFolder>> Exclusions(new TSet<FFolder>());
-
-	for (const TSharedPtr<ISceneOutlinerTreeItem>& SelectedItem : ContextData.SelectedItems)
-	{
-		if (FObjectMixerEditorListRowFolder* AsFolder = FObjectMixerUtils::AsFolderRow(SelectedItem))
-		{
-			Exclusions->Add(AsFolder->GetFolder());
-
-			if (const TSharedPtr<ISceneOutlinerTreeItem>& ParentRow = SelectedItem->GetParent())
-			{
-				auto FolderHasOtherSubFolders = [&SelectedItem](const TSharedPtr<ISceneOutlinerTreeItem>& InItem)
-				{
-					if (InItem != SelectedItem && FObjectMixerUtils::AsFolderRow(InItem))
-					{
-						return true;
-					}
-					return false;
-				};
-
-				// Exclude this items direct parent if it is a folder and has no other subfolders we can move to
-				bool bFolderHasOtherSubFolders = false;
-				for (const TWeakPtr<ISceneOutlinerTreeItem>& ChildRow : ParentRow->GetChildren())
-				{
-					if (ChildRow.IsValid() && FolderHasOtherSubFolders(ChildRow.Pin()))
-					{
-						bFolderHasOtherSubFolders = true;
-						break;
-					}
-				}
-	
-				if (!bFolderHasOtherSubFolders)
-				{
-					Exclusions->Add(AsFolder->GetFolder());
-				}
-			}
-		}
-	}
-
-	return Exclusions;
-}
-
-void UObjectMixerEditorListMenuContext::FillFoldersSubMenu(UToolMenu* InMenu, FObjectMixerEditorListMenuContextData ContextData)
-{
-	FToolMenuSection& Section = InMenu->AddSection("Section");
-	Section.AddMenuEntry(
-		"CreateNew",
-		LOCTEXT( "CreateNew", "Create New Folder" ),
-		LOCTEXT( "CreateNew_ToolTip", "Move to a new folder" ),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.NewFolderIcon"),
-		FExecuteAction::CreateLambda([ContextData]()
-		{
-			if (const TSharedPtr<FObjectMixerEditorList> PinnedList = ContextData.ListModelPtr.Pin())
-			{
-				//PinnedList->OnRequestNewFolder();
-			}
-		})
-	);
-	
-	FSceneOutlinerInitializationOptions MiniSceneOutlinerInitOptions;
-	MiniSceneOutlinerInitOptions.bShowHeaderRow = false;
-	MiniSceneOutlinerInitOptions.bFocusSearchBoxWhenOpened = true;
-
-	MiniSceneOutlinerInitOptions.ModeFactory = FCreateSceneOutlinerMode::CreateLambda(
-		[ContextData](SSceneOutliner* Outliner)
-			{
-				FOnSceneOutlinerItemPicked OnSceneOutlinerItemPicked =
-					FOnSceneOutlinerItemPicked::CreateStatic(
-						&UObjectMixerEditorListMenuContext::OnFoldersMenuFolderSelected, ContextData
-				);
-
-				UWorld* World = FObjectMixerEditorModule::Get().GetWorld();
-			
-				return new FActorFolderPickingMode(Outliner, OnSceneOutlinerItemPicked, World);
-			}
-	);
-
-	TSharedRef<TSet<FFolder>> Exclusions = GatherInvalidMoveToDestinations(ContextData);
-	MiniSceneOutlinerInitOptions.Filters->AddFilterPredicate<FFolderTreeItem>(
-		FFolderTreeItem::FFilterPredicate::CreateLambda(
-			[&Exclusions](const FFolder& Folder)
-			{
-				for (const FFolder& Parent : *Exclusions)
-				{
-					if (Folder == Parent || Folder.IsChildOf(Parent))
-					{
-						return false;
-					}
-				}
-				return true;
-			}), FSceneOutlinerFilter::EDefaultBehaviour::Pass);
-
-	TSharedRef< SWidget > MiniSceneOutliner =
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.MaxHeight(400.0f)
-		[
-			SNew(SSceneOutliner, MiniSceneOutlinerInitOptions)
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-		];
-
-	FToolMenuSection& MoveToSection = InMenu->AddSection(FName(), LOCTEXT("ExistingFolders", "Existing:"));
-	
-	MoveToSection.AddEntry(FToolMenuEntry::InitWidget(
-		"MiniSceneOutliner",
-		MiniSceneOutliner,
-		FText::GetEmpty(),
-		false)
-	);
-}
-
 void UObjectMixerEditorListMenuContext::OnTextCommitted(const FText& InText, ETextCommit::Type InCommitType, const FObjectMixerEditorListMenuContextData ContextData)
 {
 	if (InCommitType == ETextCommit::OnEnter)
 	{
 		AddObjectsToCollection(*InText.ToString(), ContextData);
-	}
-}
-
-void UObjectMixerEditorListMenuContext::SelectDescendentsOfSelectedFolders(
-	FObjectMixerEditorListMenuContextData ContextData, const bool bRecursive)
-{
-	for (const TSharedPtr<ISceneOutlinerTreeItem>& SelectedRow : ContextData.SelectedItems)
-	{
-		if (FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(SelectedRow))
-		{
-			if (FObjectMixerUtils::AsFolderRow(SelectedRow))
-			{
-				// RowData->SetChildRowsSelected(true, bRecursive);
-			}
-		}
 	}
 }
 
