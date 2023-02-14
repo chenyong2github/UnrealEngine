@@ -73,6 +73,12 @@ public:
 	 */
 	virtual bool Init(uint32 Port, FWebSocketClientConnectedCallBack ClientConnectedCallback) = 0;
 
+	/**
+	 * Set a filter callback, used to reject connections based on the origin header.
+	 * @param FilterConnectionCallback handler called to filter the connection.
+	 */
+	virtual void SetFilterConnectionCallback(FWebSocketFilterConnectionCallback InFilterConnectionCallback) = 0;
+
 	/** Tick the server. */
 	virtual void Tick() = 0;
 

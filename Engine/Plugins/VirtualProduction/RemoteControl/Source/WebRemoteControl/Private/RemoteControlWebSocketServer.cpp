@@ -6,7 +6,9 @@
 #include "IPAddress.h"
 #include "IRemoteControlModule.h"
 #include "IWebSocketNetworkingModule.h"
+#include "Misc/WildcardString.h"
 #include "RemoteControlRequest.h"
+#include "RemoteControlSettings.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
 #include "WebRemoteControlInternalUtils.h"
@@ -129,6 +131,10 @@ bool FRCWebSocketServer::Start(uint32 Port, TSharedPtr<FWebsocketMessageRouter> 
 		return false;
 	}
 
+	FWebSocketFilterConnectionCallback FilterCallback;
+	FilterCallback.BindRaw(this, &FRCWebSocketServer::FilterConnection);
+	Server->SetFilterConnectionCallback(MoveTemp(FilterCallback));
+	
 	Router = MoveTemp(InRouter);
 	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FRCWebSocketServer::Tick));
 
@@ -250,6 +256,44 @@ void FRCWebSocketServer::OnSocketClose(INetworkingWebSocket* Socket)
 	}
 }
 
+EWebsocketConnectionFilterResult FRCWebSocketServer::FilterConnection(FString OriginHeader, FString ClientIP) const
+{
+	OriginHeader.RemoveSpacesInline();
+	OriginHeader.TrimStartAndEndInline();
+	
+	auto SimplifyAddress = [] (FString Address)
+	{
+		Address.RemoveFromStart(TEXT("https://www."));
+		Address.RemoveFromStart(TEXT("http://www."));
+		Address.RemoveFromStart(TEXT("https://"));
+		Address.RemoveFromStart(TEXT("http://"));
+		Address.RemoveFromEnd(TEXT("/"));
+		return Address;
+	};
+
+	const FString SimplifiedOrigin = SimplifyAddress(OriginHeader);
+	const FWildcardString SimplifiedAllowedOrigin = SimplifyAddress(GetDefault<URemoteControlSettings>()->AllowedOrigin);
+	if (GetDefault<URemoteControlSettings>()->AllowedOrigin != TEXT("*"))
+	{
+		if (!SimplifiedAllowedOrigin.IsMatch(SimplifiedOrigin))
+		{
+			return EWebsocketConnectionFilterResult::ConnectionRefused;
+		}
+	}
+
+	const FWildcardString WildcardAllowedIP = SimplifyAddress(GetDefault<URemoteControlSettings>()->AllowedIP);
+
+	// Allow requests from localhost
+	if (ClientIP != TEXT("localhost") && ClientIP != TEXT("127.0.0.1"))
+	{
+		if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
+		{
+			return EWebsocketConnectionFilterResult::ConnectionRefused;
+		}
+	}
+
+	return EWebsocketConnectionFilterResult::ConnectionAccepted;
+}
 
 #undef LOCTEXT_NAMESPACE /* FRCWebSocketServer */
 

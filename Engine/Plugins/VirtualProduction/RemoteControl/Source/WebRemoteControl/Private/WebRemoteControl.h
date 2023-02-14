@@ -68,7 +68,7 @@ public:
 	 * @param Route The route to unregister.
 	 */
 	void UnregisterRoute(const FRemoteControlRoute& Route);
-
+	
 	/**
 	 * Start the web control server
 	 */
@@ -141,6 +141,13 @@ private:
 
 	void InvokeWrappedRequest(const struct FRCRequestWrapper& Wrapper, FMemoryWriter& OutUTF8PayloadWriter, const FHttpServerRequest* TemplateRequest = nullptr);
 
+	/** Register the default request preprocessors used by Web RC in the HttpRouter. */
+	void RegisterDefaultPreprocessors();
+	void UnregisterAllPreprocessors();
+
+	/** Register the external request preprocessors that were added using RegisterRequestPreprocessor in the HttpRouter.   */
+	void RegisterExternalPreprocesors();
+
 #if WITH_EDITOR
 	//~ Settings
 	void RegisterSettings();
@@ -197,6 +204,11 @@ private:
 	 * Mappings of preprocessors delegate handles generated from the WebRC module to the ones generated from the Http Module.
 	 */
 	TMap<FDelegateHandle, FDelegateHandle> PreprocessorsHandleMappings;
+
+	/**
+	 * List of all registered preprocessor handlers. Used to unregister them on shutdown.
+	 */
+	TArray<FDelegateHandle> AllRegisteredPreprocessorHandlers;
 
 	/** An external web socket logger*/
 	TUniquePtr<class FWebRemoteControlExternalLogger> ExternalLogger;

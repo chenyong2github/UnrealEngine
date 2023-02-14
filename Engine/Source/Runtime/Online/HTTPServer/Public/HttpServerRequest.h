@@ -5,6 +5,8 @@
 #include "HttpPath.h"
 #include "HttpServerHttpVersion.h"
 
+class FInternetAddr;
+
 enum class EHttpServerRequestVerbs : uint16
 {
 	VERB_NONE   = 0,
@@ -25,14 +27,17 @@ public:
 	/** Constructor */
 	FHttpServerRequest() { };
 
+	/** The IP address of the peer that initiated the request. */
+	TSharedPtr<FInternetAddr> PeerAddress;
+
 	/** The handler-route-relative HTTP path */
 	FHttpPath RelativePath;
 
 	/** The HTTP-compliant verb  */
-	EHttpServerRequestVerbs Verb;
+	EHttpServerRequestVerbs Verb = EHttpServerRequestVerbs::VERB_NONE;
 
 	/** The request HTTP protocol version */
-	HttpVersion::EHttpServerHttpVersion HttpVersion;
+	HttpVersion::EHttpServerHttpVersion HttpVersion = HttpVersion::EHttpServerHttpVersion::HTTP_VERSION_1_1;
 
 	/** The HTTP headers */
 	TMap<FString, TArray<FString>> Headers;

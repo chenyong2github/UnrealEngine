@@ -121,6 +121,9 @@ private:
 	void ReceivedRawPacket(void* Data, int32 Size, FGuid ClientId);
 
 	void OnSocketClose(INetworkingWebSocket* Socket);
+	
+	/** Handle rejecting the websocket connection if it doesn't respect the user's CORS policy. */
+	EWebsocketConnectionFilterResult FilterConnection(FString OriginHeader, FString ClientIP) const;
 
 	/** Returns whether the port is available. */
 	bool IsPortAvailable(uint32 Port) const;

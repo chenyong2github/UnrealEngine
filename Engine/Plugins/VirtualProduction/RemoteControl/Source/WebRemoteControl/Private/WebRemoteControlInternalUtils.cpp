@@ -559,7 +559,15 @@ bool WebRemoteControlInternalUtils::IsWrappedRequest(const FHttpServerRequest& R
 void WebRemoteControlInternalUtils::AddCORSHeaders(FHttpServerResponse* InOutResponse)
 {
 	check(InOutResponse != nullptr);
-	InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Origin"), { TEXT("*") });
+	if (GetDefault<URemoteControlSettings>()->bRestrictServerAccess)
+	{
+		InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Origin"), { GetDefault<URemoteControlSettings>()->AllowedOrigin });
+	}
+	else
+	{
+		InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Origin"), { TEXT("*") });
+	}
+	
 	InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Methods"), { TEXT("PUT, POST, GET, OPTIONS") });
 	InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Headers"), { TEXT("Origin, X-Requested-With, Content-Type, Accept") });
 	InOutResponse->Headers.Add(TEXT("Access-Control-Max-Age"), { TEXT("600") });

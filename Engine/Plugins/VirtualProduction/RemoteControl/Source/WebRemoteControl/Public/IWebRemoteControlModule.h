@@ -24,6 +24,8 @@ public:
 	 * Useful for cases where you want to drop or handle incoming requests before they are handled the the web remote control module.
 	 * @param RequestPreprocessor The function called to process the incoming request.
 	 * @return FDelegateHandle The handle to the delegate, used for unregistering preprocessors. 
+	 * @note The request preprocessor should return false if the request should pass through, and true if the request has been handled by the preprocessor.
+	 *		 If the request is handled by the preprocessor, you must call the OnComplete callback.
 	 */
 	virtual FDelegateHandle RegisterRequestPreprocessor(FHttpRequestHandler RequestPreprocessor) = 0;
 

@@ -16,6 +16,7 @@ public:
 	virtual ~FWebSocketServer() override;
 	virtual void EnableHTTPServer(TArray<FWebSocketHttpMount> DirectoriesToServe) override;
 	virtual bool Init(uint32 Port, FWebSocketClientConnectedCallBack) override;
+	virtual void SetFilterConnectionCallback(FWebSocketFilterConnectionCallback InFilterConnectionCallback) override;
 	virtual void Tick() override;
 	virtual FString Info() override;
 	//~ End IWebSocketServer interface
@@ -27,6 +28,9 @@ public:
 
 	/** Callback for a new websocket connection to the server */
 	FWebSocketClientConnectedCallBack  ConnectedCallBack;
+	
+	/** Handler called to filter incoming websocket connections. */
+    FWebSocketFilterConnectionCallback FilterConnectionCallback;
 
 	/** Internal libwebsocket context */
 	WebSocketInternalContext* Context;

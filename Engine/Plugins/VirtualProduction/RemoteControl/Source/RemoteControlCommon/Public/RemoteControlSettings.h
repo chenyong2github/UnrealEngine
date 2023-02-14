@@ -136,6 +136,31 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security")
 	bool bEnableRemotePythonExecution = false;
 
+	/** Whether to restrict access to a list of hostname/IPs in the AllowedOrigins setting. */
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security")
+	bool bRestrictServerAccess = false;
+	
+	/** 
+	 * Origin that can make requests to the remote control server. Should contain the hostname or IP of the server making requests to remote control. ie. "http://yourdomain.com", or "*" to allow all origins. 
+	 * @Note: This is used to block requests coming from a browser (ie. Coming from a script running on a website), ideally you should use both this setting and AllowedIPs, as a request coming from a websocket client can have an empty Origin.
+	 * @Note Supports wildcards (ie. *.yourdomain.com)
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security", meta=(EditCondition = bRestrictServerAccess))
+	FString AllowedOrigin = TEXT("*");
+	
+	/** 
+	 * What IP is allowed to make request to the RemoteControl and RemoteControl Websocket servers.
+	 * @Note If empty or *.*.*.*,  all IP addresses will be able to make requests to your servers if they are on your network, so consider limiting this to a range of IPs that you own.
+	 * @Note Using this setting without AllowedOrigin can potentially open you up to malicous requests coming from a website, as the request would come from localhost.
+	 * @Note Supports wildcards (ie. 202.120.*.*)
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security", meta = (EditCondition = bRestrictServerAccess))
+	FString AllowedIP = TEXT("127.0.0.1");
+	
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security", DisplayName = "Remote Control Passphrase")
 	TArray<FRCPassphrase> Passphrases = {};
+
+private:
+	UPROPERTY(config)
+    bool bSecuritySettingsReviewed = false;
 };

@@ -5,7 +5,9 @@
 #include "HttpServerConstantsPrivate.h"
 #include "HttpServerRequest.h"
 #include "HttpConnectionContext.h"
+#include "IPAddress.h"
 #include "Sockets.h"
+#include "SocketSubsystem.h"
 
 FHttpConnectionRequestReadContext::FHttpConnectionRequestReadContext(FSocket* InSocket)
 	: Socket(InSocket)
@@ -197,6 +199,11 @@ bool FHttpConnectionRequestReadContext::ParseContentLength(const FHttpServerRequ
 
 TSharedPtr<FHttpServerRequest> FHttpConnectionRequestReadContext::BuildRequest(const FString& RequestHeader)
 {
+	if (IsEngineExitRequested())
+	{
+		return nullptr;
+	}
+	
 	TArray<FString> ParsedHeader;
 	RequestHeader.ParseIntoArrayLines(ParsedHeader);
 
@@ -217,6 +224,18 @@ TSharedPtr<FHttpServerRequest> FHttpConnectionRequestReadContext::BuildRequest(c
 	}
 
 	Request = MakeShared<FHttpServerRequest>();
+
+	if (Socket)
+	{
+		if (ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM))
+		{
+			TSharedRef<FInternetAddr> RemoteAddress = SocketSubsystem->CreateInternetAddr();
+			if (Socket->GetPeerAddress(*RemoteAddress))
+			{
+				Request->PeerAddress = MoveTemp(RemoteAddress);
+			}
+		}
+	}
 
 	auto RequestVerb = HttpMethodTokens[0];
 	if (0 == RequestVerb.Compare(TEXT("GET"),

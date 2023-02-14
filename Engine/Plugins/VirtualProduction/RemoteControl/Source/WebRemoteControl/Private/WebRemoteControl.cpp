@@ -58,6 +58,7 @@
 // Miscelleanous
 #include "Blueprint/BlueprintSupport.h"
 #include "Misc/App.h"
+#include "Misc/WildcardString.h"
 #include "UObject/UnrealType.h"
 #include "Templates/UnrealTemplate.h"
 
@@ -452,45 +453,9 @@ void FWebRemoteControlModule::StartHttpServer()
 			StartRoute(Route);
 		}
 
-		const FHttpRequestHandler ValidationRequestHandler = FHttpRequestHandler([this](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
-		{
-			TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
-
-			TArray<FString> ValueArray = {};
-			if (Request.Headers.Find(WebRemoteControlInternalUtils::PassphraseHeader))
-			{
-				ValueArray = Request.Headers[WebRemoteControlInternalUtils::PassphraseHeader];
-			}
-			
-			const FString Passphrase = !ValueArray.IsEmpty() ? ValueArray.Last() : "";
-
-			if (!CheckPassphrase(Passphrase))
-			{
-				WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Given Passphrase is not correct!")), Response->Body);
-				Response->Code = EHttpServerResponseCodes::Denied;
-				OnComplete(MoveTemp(Response));
-				return true;
-			}
-
-			return false;
-		});
-
-		HttpRouter->RegisterRequestPreprocessor(ValidationRequestHandler);
+		RegisterDefaultPreprocessors();
+		RegisterExternalPreprocesors();
 		
-		// Go through externally registered request pre-processors and register them with the http router.
-		for (const TPair<FDelegateHandle, FHttpRequestHandler>& Handler : PreprocessorsToRegister)
-		{
-			// Find the pre-processors HTTP-handle from the one we generated.
-			FDelegateHandle& Handle = PreprocessorsHandleMappings.FindChecked(Handler.Key);
-			if (Handle.IsValid())
-			{
-				HttpRouter->UnregisterRequestPreprocessor(Handle);
-			}
-
-			// Update the preprocessor handle mapping.
-			Handle = HttpRouter->RegisterRequestPreprocessor(Handler.Value);
-		}
-
 		FHttpServerModule::Get().StartAllListeners();
 
 		bIsHttpServerRunning = true;
@@ -517,6 +482,8 @@ void FWebRemoteControlModule::StopHttpServer()
 
 		ActiveRouteHandles.Reset();
 	}
+
+	UnregisterAllPreprocessors();
 
 	HttpRouter.Reset();
 	bIsHttpServerRunning = false;
@@ -2367,6 +2334,125 @@ void FWebRemoteControlModule::InvokeWrappedRequest(const FRCRequestWrapper& Wrap
 		TUniquePtr<FHttpServerResponse> InnerRouteResponse = WebRemoteControlInternalUtils::CreateHttpResponse(EHttpServerResponseCodes::NotFound);
 		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Route %s could not be found."), *Wrapper.URL), InnerRouteResponse->Body);
 		ResponseLambda(MoveTemp(InnerRouteResponse));
+	}
+}
+
+void FWebRemoteControlModule::RegisterDefaultPreprocessors()
+{
+	const FHttpRequestHandler PassphraseRequestHandler = FHttpRequestHandler([this](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+		{
+			TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+			TArray<FString> ValueArray = {};
+			if (Request.Headers.Find(WebRemoteControlInternalUtils::PassphraseHeader))
+			{
+				ValueArray = Request.Headers[WebRemoteControlInternalUtils::PassphraseHeader];
+			}
+			
+			const FString Passphrase = !ValueArray.IsEmpty() ? ValueArray.Last() : "";
+
+			if (!CheckPassphrase(Passphrase))
+			{
+				WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Given Passphrase is not correct!")), Response->Body);
+				Response->Code = EHttpServerResponseCodes::Denied;
+				OnComplete(MoveTemp(Response));
+				return true;
+			}
+
+			return false;
+		});
+
+	const FHttpRequestHandler IPValidationRequestHandler = FHttpRequestHandler([this](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+	{
+		TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+		FString OriginHeader;
+		if (const TArray<FString>* OriginHeaders = Request.Headers.Find(WebRemoteControlInternalUtils::OriginHeader))
+		{
+			if (OriginHeaders->Num())
+			{
+				OriginHeader = (*OriginHeaders)[0];
+			}
+		}
+
+		OriginHeader.RemoveSpacesInline();
+		OriginHeader.TrimStartAndEndInline();
+		
+		auto SimplifyAddress = [] (FString Address)
+		{
+			Address.RemoveFromStart(TEXT("https://www."));
+			Address.RemoveFromStart(TEXT("http://www."));
+			Address.RemoveFromStart(TEXT("https://"));
+			Address.RemoveFromStart(TEXT("http://"));
+			Address.RemoveFromEnd(TEXT("/"));
+			return Address;
+		};
+
+		const FString SimplifiedOrigin = SimplifyAddress(OriginHeader);
+		const FWildcardString SimplifiedAllowedOrigin = SimplifyAddress(GetDefault<URemoteControlSettings>()->AllowedOrigin);
+		if (GetDefault<URemoteControlSettings>()->AllowedOrigin != TEXT("*"))
+		{
+			if (!SimplifiedAllowedOrigin.IsMatch(SimplifiedOrigin))
+			{
+				WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Client origin %s does not respect the allowed origin set in Remote Control Settings."), *OriginHeader), Response->Body);
+				Response->Code = EHttpServerResponseCodes::Denied;
+				OnComplete(MoveTemp(Response));
+				return true;
+			}
+		}
+
+		if (Request.PeerAddress)
+		{
+			constexpr bool bAppendPort = false;
+			FString ClientIP = Request.PeerAddress->ToString(bAppendPort);
+			const FWildcardString WildcardAllowedIP = SimplifyAddress(GetDefault<URemoteControlSettings>()->AllowedIP);
+				
+			// Allow requests from localhost
+			if (ClientIP != TEXT("localhost") && ClientIP != TEXT("127.0.0.1"))
+			{
+				if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
+				{
+					WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Client IP %s does not respect the allowed IP set in Remote Control Settings."), *ClientIP), Response->Body);
+					Response->Code = EHttpServerResponseCodes::Denied;
+					OnComplete(MoveTemp(Response));
+					return true;
+				}
+			}
+		}
+
+		return false;
+	});
+
+	AllRegisteredPreprocessorHandlers.Add(HttpRouter->RegisterRequestPreprocessor(PassphraseRequestHandler));
+	AllRegisteredPreprocessorHandlers.Add(HttpRouter->RegisterRequestPreprocessor(IPValidationRequestHandler));
+}
+
+void FWebRemoteControlModule::UnregisterAllPreprocessors()
+{
+	if (HttpRouter)
+	{
+		for (const FDelegateHandle& Handle : AllRegisteredPreprocessorHandlers)
+		{
+			HttpRouter->UnregisterRequestPreprocessor(Handle);
+		}
+	}
+}
+
+void FWebRemoteControlModule::RegisterExternalPreprocesors()
+{
+	for (const TPair<FDelegateHandle, FHttpRequestHandler>& Handler : PreprocessorsToRegister)
+	{
+		// Find the pre-processors HTTP-handle from the one we generated.
+		FDelegateHandle& Handle = PreprocessorsHandleMappings.FindChecked(Handler.Key);
+		if (Handle.IsValid())
+		{
+			HttpRouter->UnregisterRequestPreprocessor(Handle);
+			AllRegisteredPreprocessorHandlers.RemoveAtSwap(AllRegisteredPreprocessorHandlers.IndexOfByKey(Handle));
+		}
+
+		// Update the preprocessor handle mapping.
+		Handle = HttpRouter->RegisterRequestPreprocessor(Handler.Value);
+		AllRegisteredPreprocessorHandlers.Add(Handle);
 	}
 }
 

@@ -164,6 +164,11 @@ bool FWebSocketServer::Init(uint32 Port, FWebSocketClientConnectedCallBack CallB
 	return true;
 }
 
+void FWebSocketServer::SetFilterConnectionCallback(FWebSocketFilterConnectionCallback InFilterConnectionCallback)
+{
+	FilterConnectionCallback = MoveTemp(InFilterConnectionCallback);
+}
+
 void FWebSocketServer::Tick()
 {
 #if USE_LIBWEBSOCKET
@@ -214,6 +219,7 @@ static int unreal_networking_server
 	struct lws_context* Context = lws_get_context(Wsi);
 	PerSessionDataServer* BufferInfo = (PerSessionDataServer*)User;
 	FWebSocketServer* Server = (FWebSocketServer*)lws_context_user(Context);
+	bool bRejectConnection = false;
 
 	switch (Reason)
 	{
@@ -296,6 +302,45 @@ static int unreal_networking_server
 			break;
 		case LWS_CALLBACK_PROTOCOL_DESTROY:
 			break;
+		case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
+			{
+				if (Server && Server->FilterConnectionCallback.IsBound())
+            	{
+					const int32 OriginHeaderLength = lws_hdr_total_length(Wsi, WSI_TOKEN_ORIGIN);
+
+					FString OriginHeader;
+					FString ClientIP;
+
+					if (OriginHeaderLength != 0)
+					{
+						constexpr uint32 MaximumHeaderLength = 1024;
+						if (OriginHeaderLength < MaximumHeaderLength)
+						{
+							char Origin[MaximumHeaderLength + 1];
+							memset(Origin, 0, MaximumHeaderLength + 1);
+
+							lws_hdr_copy(Wsi, Origin, OriginHeaderLength + 1, WSI_TOKEN_ORIGIN);
+							OriginHeader = UTF8_TO_TCHAR(Origin);
+						}
+					}
+
+					char IPAddress[16];
+					int32 IPAddressLength = 0;
+					lws_get_peer_simple(Wsi, IPAddress, IPAddressLength);
+
+					if (IPAddressLength != 0)
+					{
+						ClientIP = UTF8_TO_TCHAR(IPAddress);
+					}
+				
+					if (Server->FilterConnectionCallback.Execute(OriginHeader, ClientIP) == EWebsocketConnectionFilterResult::ConnectionRefused)
+					{
+						bRejectConnection = true;
+					}
+				}
+
+				break;
+			}
 	}
 
 	// Check if http should be enabled or not, if so, use the in-built `lws_callback_http_dummy` which handles basic http requests
@@ -303,6 +348,7 @@ static int unreal_networking_server
 	{
 		return lws_callback_http_dummy(Wsi, Reason, User, In, Len);
 	}
-	return 0;
+
+	return bRejectConnection ? 1 : 0;
 }
 #endif
