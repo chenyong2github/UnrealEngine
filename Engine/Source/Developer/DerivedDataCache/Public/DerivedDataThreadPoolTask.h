@@ -33,9 +33,11 @@ namespace UE::DerivedData
  */
 UE_API void LaunchTaskInThreadPool(
 	uint64 MemoryEstimate,
+	const TCHAR * DebugName,
 	IRequestOwner& Owner,
 	FQueuedThreadPool* ThreadPool,
 	TUniqueFunction<void ()>&& TaskBody);
+
 UE_API void LaunchTaskInThreadPool(
 	IRequestOwner& Owner,
 	FQueuedThreadPool* ThreadPool,

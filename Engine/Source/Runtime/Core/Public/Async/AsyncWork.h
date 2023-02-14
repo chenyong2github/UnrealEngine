@@ -219,6 +219,8 @@ class FAsyncTaskBase
 	EQueuedWorkFlags Flags = EQueuedWorkFlags::None;
 	/** Approximation of the peak memory (in bytes) this task could require during it's execution. */
 	int64 RequiredMemory = -1;
+	/** Text to identify the Task; used for debug/log purposes only. */
+	const TCHAR * DebugName = nullptr;
 	/** StatId used for FScopeCycleCounter */
 	TStatId StatId;
 
@@ -238,13 +240,15 @@ class FAsyncTaskBase
 	/* Generic start function, not called directly
 		* @param bForceSynchronous if true, this job will be started synchronously, now, on this thread
 	**/
-	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool, EQueuedWorkPriority InQueuedWorkPriority, EQueuedWorkFlags InQueuedWorkFlags, int64 InRequiredMemory)
+	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool, EQueuedWorkPriority InQueuedWorkPriority, EQueuedWorkFlags InQueuedWorkFlags, int64 InRequiredMemory, const TCHAR * InDebugName)
 	{
 		CaptureInheritedContext();
 
 		FScopeCycleCounter Scope(StatId, true);
 		DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FAsyncTask::Start" ), STAT_FAsyncTask_Start, STATGROUP_ThreadPoolAsyncTasks );
+		// default arg has InRequiredMemory == -1
 		RequiredMemory = InRequiredMemory;
+		DebugName = InDebugName;
 
 		FPlatformMisc::MemoryBarrier();
 		CheckIdle();  // can't start a job twice without it being completed first
@@ -392,22 +396,27 @@ public:
 	{
 		return RequiredMemory;
 	}
+	
+	const TCHAR * GetDebugName() const final
+	{
+		return DebugName;
+	}
 
 	/** 
 	* Run this task on this thread
 	* @param bDoNow if true then do the job now instead of at EnsureCompletion
 	**/
-	void StartSynchronousTask(EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal, EQueuedWorkFlags InQueuedWorkFlags = EQueuedWorkFlags::None, int64 InRequiredMemory = -1)
+	void StartSynchronousTask(EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal, EQueuedWorkFlags InQueuedWorkFlags = EQueuedWorkFlags::None, int64 InRequiredMemory = -1, const TCHAR * InDebugName = nullptr)
 	{
-		Start(true, GThreadPool, InQueuedWorkPriority, InQueuedWorkFlags, InRequiredMemory);
+		Start(true, GThreadPool, InQueuedWorkPriority, InQueuedWorkFlags, InRequiredMemory, InDebugName);
 	}
 
 	/** 
 	* Queue this task for processing by the background thread pool
 	**/
-	void StartBackgroundTask(FQueuedThreadPool* InQueuedPool = GThreadPool, EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal, EQueuedWorkFlags InQueuedWorkFlags = EQueuedWorkFlags::None, int64 InRequiredMemory = -1)
+	void StartBackgroundTask(FQueuedThreadPool* InQueuedPool = GThreadPool, EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal, EQueuedWorkFlags InQueuedWorkFlags = EQueuedWorkFlags::None, int64 InRequiredMemory = -1, const TCHAR * InDebugName = nullptr)
 	{
-		Start(false, InQueuedPool, InQueuedWorkPriority, InQueuedWorkFlags, InRequiredMemory);
+		Start(false, InQueuedPool, InQueuedWorkPriority, InQueuedWorkFlags, InRequiredMemory, InDebugName);
 	}
 
 	/** 

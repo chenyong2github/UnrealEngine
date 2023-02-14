@@ -98,7 +98,7 @@ namespace AssetCompilingManagerImpl
 	{
 		void Reserve(uint64 Memory, IRequestOwner& Owner, TUniqueFunction<void ()>&& OnComplete) final
 		{
-			LaunchTaskInThreadPool(Memory, Owner, FAssetCompilingManager::Get().GetThreadPool(), MoveTemp(OnComplete));
+			LaunchTaskInThreadPool(Memory,TEXT("FAssetCompilingManagerMemoryQueue"), Owner, FAssetCompilingManager::Get().GetThreadPool(), MoveTemp(OnComplete));
 		}
 	};
 
@@ -200,9 +200,16 @@ public:
 	{
 		FMemoryBoundScheduledWork* Work = (FMemoryBoundScheduledWork*)InWork;
 		Work->RequiredMemory = GetRequiredMemory(InWork);
-		TotalEstimatedMemory += Work->RequiredMemory;
+		TotalEstimatedMemory += Work->RequiredMemory; // atomic
+		
+		const TCHAR * DebugName = Work->GetDebugName();
+		if ( DebugName == nullptr )
+		{
+			DebugName = TEXT("No DebugName");
+		}
 
-		UE_LOG(LogAsyncCompilation, Verbose, TEXT("OnScheduled Work->RequiredMemory = %.3f MB TotalEstimatedMemory = %.3f MB"),
+		UE_LOG(LogAsyncCompilation, Verbose, TEXT("OnScheduled [%s] Work->RequiredMemory = %.3f MB TotalEstimatedMemory = %.3f MB"),
+				DebugName,
 				Work->RequiredMemory/(1024*1024.f),
 				TotalEstimatedMemory/(1024*1024.f));
 
@@ -212,9 +219,10 @@ public:
 	void OnUnscheduled(const IQueuedWork* InWork) override
 	{
 		FMemoryBoundScheduledWork* Work = (FMemoryBoundScheduledWork*)InWork;
-		TotalEstimatedMemory -= Work->RequiredMemory;
+		TotalEstimatedMemory -= Work->RequiredMemory; // atomic
 		check(TotalEstimatedMemory >= 0);
 		
+		// don't call Work->GetDebugName , it's gone now
 		UE_LOG(LogAsyncCompilation, Verbose, TEXT("OnUnscheduled Work->RequiredMemory = %.3f MB TotalEstimatedMemory = %.3f MB"),
 				Work->RequiredMemory/(1024*1024.f),
 				TotalEstimatedMemory/(1024*1024.f));
@@ -249,6 +257,7 @@ public:
 		}
 
 		// TotalEstimatedMemory is the sum of all "RequiredMemory" for currently scheduled tasks
+		//	note TotalEstimatedMemory is atomic and can be changing as we act
 		int64 TotalRequiredMemory = TotalEstimatedMemory.load() + NewRequiredMemory;
 
 		int32 DynamicMaxConcurrency = GetAdjustedMaxConcurrency(Priority);
@@ -270,19 +279,50 @@ public:
 
 			if ( TotalRequiredMemory >= MemoryLimit )
 			{
-				DynamicMaxConcurrency = Concurrency; // Limit concurrency to what we already allowed
-				// this will cause CanSchedule() to return false
-								
-				UE_LOG(LogAsyncCompilation, Verbose, TEXT("CONCURRENCY LIMITED; RequiredMemory = %.3f MB + %.3f MB MemoryLimit = %.3f MB "),
+				UE_LOG(LogAsyncCompilation, Verbose, TEXT("CONCURRENCY LIMITED to %d/%d; RequiredMemory = %.3f MB + %.3f MB MemoryLimit = %.3f MB "),
+					Concurrency,DynamicMaxConcurrency,
 					NewRequiredMemory/(1024*1024.f),
 					TotalEstimatedMemory/(1024*1024.f),
 					MemoryLimit/(1024*1024.f));
+					
+				DynamicMaxConcurrency = Concurrency; // Limit concurrency to what we already allowed
+				// this will cause CanSchedule() to return false
 			}
 		}
 
 		TRACE_COUNTER_SET(AsyncCompilationMaxConcurrency, DynamicMaxConcurrency);
 
 		return DynamicMaxConcurrency;
+	}
+	
+	void AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority) override
+	{
+		// this is when the work is added to our queue
+
+		int64 RequiredMemory = InQueuedWork->GetRequiredMemory();
+		const TCHAR * DebugName = InQueuedWork->GetDebugName();
+		
+		//these conditions should in fact both be true :
+		//check( DebugName != nullptr );
+		//check( RequiredMemory != 0 );
+
+		if ( DebugName == nullptr )
+		{
+			DebugName = TEXT("No DebugName");
+		}
+
+		if ( RequiredMemory < 0 )
+		{
+			// log the types that are failing to set required memory
+			// @todo RequiredMemory : make this a Warning when possible
+			UE_LOG(LogAsyncCompilation, Verbose, TEXT("AddQueuedWork [%s] RequiredMemory unknown; fix me!"),DebugName);
+		}
+		else
+		{
+			UE_LOG(LogAsyncCompilation, Verbose, TEXT("AddQueuedWork [%s] RequiredMemory = %lld"),DebugName,RequiredMemory);
+		}
+
+		FQueuedThreadPoolWrapper::AddQueuedWork(InQueuedWork,InPriority);
 	}
 
 private:

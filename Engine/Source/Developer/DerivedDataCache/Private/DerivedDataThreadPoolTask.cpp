@@ -19,6 +19,7 @@ class FThreadPoolTaskRequest final : public FRequestBase, private FInheritedCont
 public:
 	FThreadPoolTaskRequest(
 		uint64 MemoryEstimate,
+		const TCHAR * DebugName,
 		IRequestOwner& Owner,
 		FQueuedThreadPool& ThreadPool,
 		TUniqueFunction<void ()>&& TaskBody);
@@ -34,7 +35,15 @@ private:
 
 	void DoThreadedWork() final { Execute(); }
 	void Abandon() final { Execute(); }
-	int64 GetRequiredMemory() const final { return int64(MemoryEstimate); }
+	int64 GetRequiredMemory() const final
+	{
+		return int64(MemoryEstimate);
+	}
+	
+	const TCHAR * GetDebugName() const final
+	{
+		return DebugName;
+	}
 
 	TStatId GetStatId() const
 	{
@@ -43,6 +52,7 @@ private:
 
 private:
 	uint64 MemoryEstimate;
+	const TCHAR * DebugName = nullptr;
 	IRequestOwner& Owner;
 	FQueuedThreadPool& ThreadPool;
 	TUniqueFunction<void ()> TaskBody;
@@ -52,10 +62,12 @@ private:
 
 FThreadPoolTaskRequest::FThreadPoolTaskRequest(
 	const uint64 InMemoryEstimate,
+	const TCHAR * InDebugName,
 	IRequestOwner& InOwner,
 	FQueuedThreadPool& InThreadPool,
 	TUniqueFunction<void ()>&& InTaskBody)
 	: MemoryEstimate(InMemoryEstimate)
+	, DebugName(InDebugName)
 	, Owner(InOwner)
 	, ThreadPool(InThreadPool)
 	, TaskBody(MoveTemp(InTaskBody))
@@ -116,6 +128,7 @@ void FThreadPoolTaskRequest::Wait()
 
 void LaunchTaskInThreadPool(
 	uint64 MemoryEstimate,
+	const TCHAR * DebugName,
 	IRequestOwner& Owner,
 	FQueuedThreadPool* ThreadPool,
 	TUniqueFunction<void ()>&& TaskBody)
@@ -123,7 +136,7 @@ void LaunchTaskInThreadPool(
 	if (ThreadPool)
 	{
 		// The request is reference-counted and will be deleted when complete.
-		new FThreadPoolTaskRequest(MemoryEstimate, Owner, *ThreadPool, MoveTemp(TaskBody));
+		new FThreadPoolTaskRequest(MemoryEstimate, DebugName, Owner, *ThreadPool, MoveTemp(TaskBody));
 	}
 	else
 	{
@@ -136,7 +149,7 @@ void LaunchTaskInThreadPool(
 	FQueuedThreadPool* ThreadPool,
 	TUniqueFunction<void ()>&& TaskBody)
 {
-	LaunchTaskInThreadPool(0, Owner, ThreadPool, MoveTemp(TaskBody));
+	LaunchTaskInThreadPool(0,TEXT("LaunchTaskInThreadPool"), Owner, ThreadPool, MoveTemp(TaskBody));
 }
 
 } // UE::DerivedData

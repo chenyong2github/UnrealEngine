@@ -387,7 +387,9 @@ void FCardRepresentationAsyncQueue::StartBackgroundTask(FAsyncCardRepresentation
 {
 	check(Task->AsyncTask == nullptr);
 	Task->AsyncTask = MakeUnique<FAsyncTask<FAsyncCardRepresentationTaskWorker>>(*Task);
-	Task->AsyncTask->StartBackgroundTask(ThreadPool.Get(), EQueuedWorkPriority::Lowest);
+	int64 RequiredMemory = -1; // @todo RequiredMemory
+	// @todo: EQueuedWorkFlags::DoNotRunInsideBusyWait
+	Task->AsyncTask->StartBackgroundTask(ThreadPool.Get(), EQueuedWorkPriority::Lowest, EQueuedWorkFlags::None, RequiredMemory, TEXT("Card"));
 }
 
 void FCardRepresentationAsyncQueue::ProcessPendingTasks()

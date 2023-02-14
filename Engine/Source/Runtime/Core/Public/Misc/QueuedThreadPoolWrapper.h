@@ -81,6 +81,19 @@ protected:
 		FScheduledWork& operator=(const FScheduledWork&&) = delete;
 
 		~FScheduledWork() override;
+		
+		const TCHAR * GetDebugName() const final
+		{
+			// return DebugName of innerwork, if any
+			if ( Work )
+			{
+				return Work->GetDebugName();
+			}
+			else
+			{
+				return TEXT("FScheduledWork");
+			}
+		}
 
 	private:
 		uint32 AddRef() const override

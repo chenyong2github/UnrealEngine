@@ -1428,7 +1428,7 @@ void FTexturePlatformData::Cache(
 			OutResultMetadataPerLayerFetchOrBuild,
 			Flags);
 		AsyncTask = LocalTask;
-		LocalTask->StartBackgroundTask(TextureThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, LocalTask->GetTask().GetRequiredMemoryEstimate());
+		LocalTask->StartBackgroundTask(TextureThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, LocalTask->GetTask().GetRequiredMemoryEstimate(), TEXT("TextureDerivedData"));
 	}
 	else
 	{

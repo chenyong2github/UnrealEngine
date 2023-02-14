@@ -76,7 +76,8 @@ void USkinnedAsset::PostLoad()
 		EQueuedWorkPriority BasePriority = FSkinnedAssetCompilingManager::Get().GetBasePriority(this);
 
 		AsyncTask = MakeUnique<FSkinnedAssetAsyncBuildTask>(this, MoveTemp(Context));
-		AsyncTask->StartBackgroundTask(ThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait);
+		int64 RequiredMemory = -1; // @todo RequiredMemory
+		AsyncTask->StartBackgroundTask(ThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, RequiredMemory, TEXT("SkinnedAsset"));
 		FSkinnedAssetCompilingManager::Get().AddSkinnedAssets({ this });
 	}
 	else

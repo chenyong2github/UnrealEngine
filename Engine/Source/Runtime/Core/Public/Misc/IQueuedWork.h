@@ -83,7 +83,19 @@ public:
 	/**
 	 * Returns an approximation of the peak memory (in bytes) this task could require during it's execution.
 	 */
-	virtual int64 GetRequiredMemory() const { return -1 /* Negative value means unknown */; }
+	virtual int64 GetRequiredMemory() const
+	{
+		return -1 /* Negative value means unknown */;
+	}
+
+	/**
+	 * Returns text to identify the Work, for debug/log purposes only
+	 */
+	virtual const TCHAR * GetDebugName() const
+	{
+		return nullptr;
+	}
+
 public:
 
 	/**

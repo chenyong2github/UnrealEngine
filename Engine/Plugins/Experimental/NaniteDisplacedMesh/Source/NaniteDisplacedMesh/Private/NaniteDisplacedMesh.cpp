@@ -181,11 +181,11 @@ void FNaniteBuildAsyncCacheTask::BeginCache(const FIoHash& KeyHash)
 		EQueuedWorkPriority BasePriority = FNaniteDisplacedMeshCompilingManager::Get().GetBasePriority(DisplacedMesh);
 
 		// TODO DC Use the default for now but provide a better estimate for memory usage of displacement build.
-		int64 RequiredMemory = -1;
+		int64 RequiredMemory = -1; // @todo RequiredMemory
 
 		check(BuildTask == nullptr);
 		BuildTask = MakeUnique<FNaniteDisplacedMeshAsyncBuildTask>(this, KeyHash);
-		BuildTask->StartBackgroundTask(ThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, RequiredMemory);
+		BuildTask->StartBackgroundTask(ThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, RequiredMemory, TEXT("NaniteDisplacedMesh"));
 	}
 }
 
