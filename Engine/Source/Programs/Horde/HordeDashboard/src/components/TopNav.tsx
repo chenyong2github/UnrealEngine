@@ -363,6 +363,12 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
       });
 
       resourceItems.push({
+         key: "admin_pools",
+         text: "Pools",
+         link: `/pools`
+      });
+
+      resourceItems.push({
          key: "admin_perforce_servers",
          text: "Perforce Servers",
          link: `/perforce/servers`

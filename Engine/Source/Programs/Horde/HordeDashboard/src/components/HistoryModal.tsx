@@ -475,7 +475,7 @@ export const HistoryModal: React.FC<{ agentId: string | undefined, onDismiss: (.
          poolItems.push({
             key: `pools_${poolId}`,
             text: pool.name,
-            href: `/pool/${pool.id}`,
+            href: `/pools?pool=${pool.id}`,
             target: "_blank"
          })
       }

@@ -128,7 +128,7 @@ const Main: React.FC = () => {
             path: "/", element: <Root />, errorElement: <RouteError />, children: [
                { path: "index", element: <UserHomeView /> },
                { path: "project/:projectId", element: <ProjectHome /> },
-               { path: "pool/:poolId", element: <PoolView /> },
+               { path: "pools", element: <PoolView /> },
                { path: "job/:jobId", element: <JobDetailViewV2 /> },
                { path: "log/:logId", element: <LogView /> },
                { path: "testreport/:testdataId", element: <TestReportView /> },

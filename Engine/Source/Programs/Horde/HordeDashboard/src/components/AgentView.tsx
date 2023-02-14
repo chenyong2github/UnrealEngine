@@ -1583,7 +1583,7 @@ export const PoolEditorModal: React.FC = observer(() => {
                <Stack styles={{ root: { paddingTop: 10 } }}>
                   <Stack horizontal>
                      <Stack style={{ paddingLeft: 12 }}>
-                        <DefaultButton href={`/pool/${editPoolsModalState.lastSelectedPool?.pool?.id}`} target="_blank">Details</DefaultButton>
+                        <DefaultButton href={`/pools?pool=${editPoolsModalState.lastSelectedPool?.pool?.id}`} target="_blank">Details</DefaultButton>
                      </Stack>
                      <Stack grow />
                      <PrimaryButton disabled={!editPoolsModalState.isPoolValueValid} onClick={() => { editPoolsModalState.isDirectEdit ? editPoolsModalState.saveChanges() : editPoolsModalState.setEditorOpen(false, false); }} styles={{ root: { marginRight: "10px" } }}>
@@ -2296,7 +2296,7 @@ export const AgentView: React.FC = observer(() => {
                            key: 'agent_pool_view',
                            text: 'View Pool',
                            onClick: (ev) => {
-                              window.open(`/pool/${poolObjs[idx]?.id}`, '_blank')
+                              window.open(`/pools?pool=${poolObjs[idx]?.id}`, '_blank')
                            }
                         },
                         {
