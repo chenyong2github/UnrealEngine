@@ -339,7 +339,7 @@ public:
 	void EditAddTagSpec(TagIdType Tag, TagIdType ParentTag, const TCHAR* Display) { EditAccessCheck(); TagTracker.AddTagSpec(Tag, ParentTag, Display); }
 	void EditPushTag(uint32 ThreadId, uint8 Tracker, TagIdType Tag);
 	void EditPopTag(uint32 ThreadId, uint8 Tracker);
-	void EditPushTagFromPtr(uint32 ThreadId, uint8 Tracker, uint64 Ptr);
+	void EditPushTagFromPtr(uint32 ThreadId, uint8 Tracker, uint64 Ptr, HeapId RootHeapId);
 	void EditPopTagFromPtr(uint32 ThreadId, uint8 Tracker);
 
 	void EditOnAnalysisCompleted(double Time);

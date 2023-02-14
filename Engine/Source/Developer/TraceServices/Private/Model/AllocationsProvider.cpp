@@ -1852,12 +1852,12 @@ void FAllocationsProvider::EditUnmarkAllocationAsHeap(double Time, uint32 Callst
 		// We cannot just unmark the allocation as heap, there is no timestamp support, instead fake a "free"
 		// event and an "alloc" event. Make sure the new allocation retains the tag from the original.
 		CurrentTracker = 1;
-		EditPushTagFromPtr(CurrentSystemThreadId, CurrentTracker, Address);
+		TagTracker.PushTagFromPtr(CurrentSystemThreadId, CurrentTracker, Alloc->Tag);
 		INSIGHTS_WATCH_INDIRECT_API_LOGF(TEXT("Free"), Address, Time);
 		EditFree(Time, CallstackId, Address, RootHeap);
 		INSIGHTS_WATCH_INDIRECT_API_LOGF(TEXT("Alloc"), Address, Time);
 		EditAlloc(Time, AllocCallstackId, Address, Size, Alignment, RootHeap);
-		EditPopTagFromPtr(CurrentSystemThreadId, CurrentTracker);
+		TagTracker.PopTagFromPtr(CurrentSystemThreadId, CurrentTracker);
 		CurrentTracker = 0;
 	}
 	else
@@ -1988,12 +1988,11 @@ void FAllocationsProvider::EditPopTag(uint32 ThreadId, uint8 Tracker)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditPushTagFromPtr(uint32 ThreadId, uint8 Tracker, uint64 Ptr)
+void FAllocationsProvider::EditPushTagFromPtr(uint32 ThreadId, uint8 Tracker, uint64 Ptr, HeapId RootHeapId)
 {
 	EditAccessCheck();
 
-	// Currently only system root heap is affected by reallocs, so limit search.
-	FLiveAllocCollection* Allocs = LiveAllocs[EMemoryTraceRootHeap::SystemMemory];
+	FLiveAllocCollection* Allocs = LiveAllocs[RootHeapId];
 	FAllocationItem* Alloc = Allocs ? Allocs->FindRef(Ptr) : nullptr;
 	const TagIdType Tag = Alloc ? Alloc->Tag : 0; // If ptr is not found use "Untagged"
 	TagTracker.PushTagFromPtr(ThreadId, Tracker, Tag);
@@ -2003,7 +2002,7 @@ void FAllocationsProvider::EditPushTagFromPtr(uint32 ThreadId, uint8 Tracker, ui
 		++MiscErrors;
 		if (MiscErrors <= MaxLogMessagesPerErrorType)
 		{
-			UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] Invalid Ptr for MemoryScopePtr event (Ptr=0x%llX)!"), Ptr);
+			UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] Invalid Ptr (0x%llX) for MemoryScopePtr or ReallocFree event!"), Ptr);
 		}
 	}
 }

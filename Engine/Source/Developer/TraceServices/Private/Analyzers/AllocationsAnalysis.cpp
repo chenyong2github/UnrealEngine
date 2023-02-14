@@ -100,7 +100,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	LLM_SCOPE_BYNAME(TEXT("Insights/FAllocationsAnalyzer"));
 
 	const auto& EventData = Context.EventData;
-	HeapId RootHeap = 0;
+	HeapId RootHeap = EMemoryTraceRootHeap::SystemMemory;
 
 	switch (RouteId)
 	{
@@ -213,7 +213,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			if (RouteId == RouteId_ReallocFree || RouteId == RouteId_ReallocFreeSystem)
 			{
 				const uint8 Tracker = 0; // We only care about the default tracker for now.
-				AllocationsProvider.EditPushTagFromPtr(SystemThreadId, Tracker, Address);
+				AllocationsProvider.EditPushTagFromPtr(SystemThreadId, Tracker, Address, RootHeap);
 			}
 			AllocationsProvider.EditFree(Time, CallstackId, Address, RootHeap);
 			break;
@@ -298,63 +298,78 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			break;
 		}
 
-		case RouteId_MemScopeTag:
-		case RouteId_MemScopePtr:
+		case RouteId_MemScopeTag: // "MemoryScope", see UE_MEMSCOPE
 		{
 			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
 			const uint8 Tracker = 0; // We only care about the default tracker for now.
 
 			if (Style == EStyle::EnterScope)
 			{
-				if (RouteId == RouteId_MemScopeTag) // "MemoryScope"
+				const TagIdType Tag = Context.EventData.GetValue<TagIdType>("Tag");
 				{
-					const TagIdType Tag = Context.EventData.GetValue<TagIdType>("Tag");
-					{
-						FProviderEditScopeLock _(AllocationsProvider);
-						AllocationsProvider.EditPushTag(ThreadId, Tracker, Tag);
-					}
-#if INSIGHTS_MEM_TRACE_METADATA_TEST
-					{
-						FMetadataProvider::FEditScopeLock _(MetadataProvider);
-						MetadataProvider.PushScopedMetadata(ThreadId, TagIdMetadataType, (void*)&Tag, sizeof(TagIdType));
-					}
-#endif
+					FProviderEditScopeLock _(AllocationsProvider);
+					AllocationsProvider.EditPushTag(ThreadId, Tracker, Tag);
 				}
-				else if (ensure(RouteId == RouteId_MemScopePtr)) // "MemoryScopePtr"
+#if INSIGHTS_MEM_TRACE_METADATA_TEST
 				{
-					const uint64 Ptr = Context.EventData.GetValue<uint64>("Ptr");
-					{
-						FProviderEditScopeLock _(AllocationsProvider);
-						AllocationsProvider.EditPushTagFromPtr(ThreadId, Tracker, Ptr);
-					}
-#if INSIGHTS_MEM_TRACE_METADATA_TEST
-					{
-						FMetadataProvider::FEditScopeLock _(MetadataProvider);
-						TagIdType Tag = 0; //TODO: AllocationsProvider.GetTagFromPtr(ThreadId, Tracker, Ptr);
-						MetadataProvider.PushScopedMetadata(ThreadId, TagIdMetadataType, (void*)&Tag, sizeof(TagIdType));
-					}
-#endif
+					FMetadataProvider::FEditScopeLock _(MetadataProvider);
+					MetadataProvider.PushScopedMetadata(ThreadId, TagIdMetadataType, (void*)&Tag, sizeof(TagIdType));
 				}
+#endif
 			}
 			else if (ensure(Style == EStyle::LeaveScope))
 			{
-				if (RouteId == RouteId_MemScopeTag) // "MemoryScope"
-				{
-					FProviderEditScopeLock _(AllocationsProvider);
-					AllocationsProvider.EditPopTag(ThreadId, Tracker);
-				}
-				else if (ensure(RouteId == RouteId_MemScopePtr)) // "MemoryScopePtr"
-				{
-					FProviderEditScopeLock _(AllocationsProvider);
-					//check(AllocationsProvider.HasTagFromPtrScope(ThreadId, Tracker));
-					AllocationsProvider.EditPopTagFromPtr(ThreadId, Tracker);
-				}
 #if INSIGHTS_MEM_TRACE_METADATA_TEST
 				{
 					FMetadataProvider::FEditScopeLock _(MetadataProvider);
 					MetadataProvider.PopScopedMetadata(ThreadId, TagIdMetadataType);
 				}
 #endif
+				{
+					FProviderEditScopeLock _(AllocationsProvider);
+					AllocationsProvider.EditPopTag(ThreadId, Tracker);
+				}
+			}
+			break;
+		}
+
+		case RouteId_MemScopePtr: // "MemoryScopePtr", see UE_MEMSCOPE_PTR
+		{
+			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
+			const uint8 Tracker = 0; // We only care about the default tracker for now.
+
+			if (Style == EStyle::EnterScope)
+			{
+				const uint64 Ptr = Context.EventData.GetValue<uint64>("Ptr");
+
+				// RootHeap defaults to EMemoryTraceRootHeap::SystemMemory
+				//RootHeap = EventData.GetValue<uint8>("RootHeap", static_cast<uint8>(RootHeap)); // TODO: UE_MEMSCOPE_PTR(InPtr, InRootHeap)
+
+				{
+					FProviderEditScopeLock _(AllocationsProvider);
+					AllocationsProvider.EditPushTagFromPtr(ThreadId, Tracker, Ptr, RootHeap);
+				}
+#if INSIGHTS_MEM_TRACE_METADATA_TEST
+				{
+					FMetadataProvider::FEditScopeLock _(MetadataProvider);
+					TagIdType Tag = 0; //TODO: AllocationsProvider.GetTagFromPtr(ThreadId, Tracker, Ptr, RootHeapId);
+					MetadataProvider.PushScopedMetadata(ThreadId, TagIdMetadataType, (void*)&Tag, sizeof(TagIdType));
+				}
+#endif
+			}
+			else if (ensure(Style == EStyle::LeaveScope))
+			{
+#if INSIGHTS_MEM_TRACE_METADATA_TEST
+				{
+					FMetadataProvider::FEditScopeLock _(MetadataProvider);
+					MetadataProvider.PopScopedMetadata(ThreadId, TagIdMetadataType);
+				}
+#endif
+				{
+					FProviderEditScopeLock _(AllocationsProvider);
+					//check(AllocationsProvider.HasTagFromPtrScope(ThreadId, Tracker));
+					AllocationsProvider.EditPopTagFromPtr(ThreadId, Tracker);
+				}
 			}
 			break;
 		}
