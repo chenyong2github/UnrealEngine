@@ -814,6 +814,16 @@ void FDetailCustomizationsModule::RegisterSectionMappings()
 			Section->AddCategory("ChaosPhysics");
 		}
 	}
+
+	// Post Process Volume
+	{
+		{
+			TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("PostProcessVolume", "General", LOCTEXT("General", "General"));
+			Section->AddCategory("PostProcessVolumeSettings");
+			Section->AddCategory("Rendering Features");
+			Section->RemoveCategory("Brush Settings");
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
