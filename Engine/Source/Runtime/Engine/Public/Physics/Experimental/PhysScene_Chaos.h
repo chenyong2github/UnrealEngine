@@ -339,7 +339,7 @@ private:
 	};
 
 	/** Map of SkeletalMeshComponents that need their bone transforms sent to the physics engine before simulation. */
-	TArray<TPair<USkeletalMeshComponent*,FDeferredKinematicUpdateInfo>>	DeferredKinematicUpdateSkelMeshes;
+	TArray<TPair<TWeakObjectPtr<USkeletalMeshComponent>, FDeferredKinematicUpdateInfo>> DeferredKinematicUpdateSkelMeshes;
 
 	TSet<UPrimitiveComponent*> DeferredCreatePhysicsStateComponents;
 	//Body Instances
