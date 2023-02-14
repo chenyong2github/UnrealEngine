@@ -687,6 +687,12 @@ float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 	const float3 SampleWorldNormal = ComputeGlobalDistanceFieldNormal(SampleTranslatedWorldPosition, SDFTraceResult.HitClipmapIndex, -TraceInput.ConeDirection);
 	const float ClipmapVoxelExtent = GlobalVolumeTranslatedCenterAndExtent[SDFTraceResult.HitClipmapIndex].w * GlobalVolumeTexelSize;
 
+	// Offset card grid cell from surface in order to minimize leaking
+	float3 GridSampleTranslatedWorldPosition = SampleTranslatedWorldPosition + SampleWorldNormal * ClipmapVoxelExtent;
+
+	// Move card hit point closer to the surface, as all hit points are biased by SDFTraceResult.ExpandSurfaceAmount in order to escape uncertain SDF region
+	float3 CardSampleWorldPosition = SampleWorldPosition + TraceInput.ConeDirection * 0.5f * SDFTraceResult.ExpandSurfaceAmount;
+
 	float RadianceFactor = 1.0f;
 	if (TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance)
 	{
@@ -702,14 +708,13 @@ float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 	float3 LightingSum = 0.0f;
 	float SampleWeightSum = 0.0f;
 
-	float3 ClipmapVolumeUV = ComputeGlobalUV(SampleTranslatedWorldPosition, SDFTraceResult.HitClipmapIndex);
+	float3 ClipmapVolumeUV = ComputeGlobalUV(GridSampleTranslatedWorldPosition, SDFTraceResult.HitClipmapIndex);
 	FGlobalDistanceFieldPage Page = GetGlobalDistanceFieldPage(ClipmapVolumeUV, SDFTraceResult.HitClipmapIndex);
 	if (RadianceFactor > 0.0f && Page.bValid)
 	{
 		float3 PageTableCoord = saturate(ClipmapVolumeUV) * GlobalDistanceFieldClipmapSizeInPages;
 		uint3 CellCoordInPage = frac(frac(PageTableCoord)) * DISTANCE_FIELD_OBJECT_GRID_PAGE_RESOLUTION;
 		uint CellOffsetInPage = ZOrder3DEncode(CellCoordInPage, log2(DISTANCE_FIELD_OBJECT_GRID_PAGE_RESOLUTION));
-
 		uint4 DistanceFieldObjectGridCell = GlobalDistanceFieldPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * Page.PageIndex + CellOffsetInPage];
 
 		for (uint ObjectIndexInList = 0; ObjectIndexInList < DISTANCE_FIELD_OBJECT_GRID_CELL_SIZE; ++ObjectIndexInList)
@@ -727,7 +732,7 @@ float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 					FSurfaceCacheSample SurfaceCacheSample = SampleLumenMeshCards(
 						ScreenCoord,
 						MeshCardsIndex,
-						SampleWorldPosition,
+						CardSampleWorldPosition,
 						SampleWorldNormal,
 						SampleRadius,
 						SurfaceCacheBias,
