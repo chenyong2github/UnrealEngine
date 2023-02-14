@@ -363,7 +363,7 @@ UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationSta
 	for (SIZE_T MemberIt = 0, MemberEndIt = Descriptor->MemberCount; MemberIt != MemberEndIt; ++MemberIt)
 	{
 		// Init state doesn't have changemasks
-		UE_NET_ASSERT_TRUE(ReplicationStateB.IsDirty(MemberIt)) << "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt;
+		UE_NET_ASSERT_TRUE_MSG(ReplicationStateB.IsDirty(MemberIt), "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt);
 	}
 }
 
@@ -395,11 +395,11 @@ UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationSta
 	{
 		if (MemberIt == FullyReplicatedArrayElementIndex || (MemberIt == NotFullyReplicatedArrayElementIndex))
 		{
-			UE_NET_ASSERT_TRUE(ReplicationStateB.IsDirty(MemberIt)) << "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt;
+			UE_NET_ASSERT_TRUE_MSG(ReplicationStateB.IsDirty(MemberIt), "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt);
 		}
 		else
 		{
-			UE_NET_ASSERT_FALSE(ReplicationStateB.IsDirty(MemberIt)) << "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt;
+			UE_NET_ASSERT_FALSE_MSG(ReplicationStateB.IsDirty(MemberIt), "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt);
 		}
 	}
 }
@@ -430,7 +430,7 @@ UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationSta
 	ReplicationStateB.Set(ReplicationState);
 	for (SIZE_T MemberIt = 0, MemberEndIt = Descriptor->MemberCount; MemberIt != MemberEndIt; ++MemberIt)
 	{
-		UE_NET_ASSERT_FALSE(ReplicationStateB.IsDirty(MemberIt)) << "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt;
+		UE_NET_ASSERT_FALSE_MSG(ReplicationStateB.IsDirty(MemberIt), "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt);
 	}
 }
 
@@ -468,11 +468,11 @@ UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationSta
 	{
 		if (MemberIt == FullyReplicatedArrayElementIndex || (MemberIt == NotFullyReplicatedArrayElementIndex))
 		{
-			UE_NET_ASSERT_TRUE(ReplicationStateB.IsDirty(MemberIt)) << "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt;
+			UE_NET_ASSERT_TRUE_MSG(ReplicationStateB.IsDirty(MemberIt), "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt);
 		}
 		else
 		{
-			UE_NET_ASSERT_FALSE(ReplicationStateB.IsDirty(MemberIt)) << "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt;
+			UE_NET_ASSERT_FALSE_MSG(ReplicationStateB.IsDirty(MemberIt), "Member '" << Descriptor->MemberProperties[MemberIt]->GetName() << "' index " << MemberIt);
 		}
 	}
 }

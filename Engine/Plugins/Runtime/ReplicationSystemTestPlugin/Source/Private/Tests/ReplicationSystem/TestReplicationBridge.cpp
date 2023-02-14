@@ -117,7 +117,7 @@ UE_NET_TEST_FIXTURE(FReplicationBridgeTestFixture, CreateObjectWithDynamicStateC
 	UE_NET_ASSERT_NE(Protocol, nullptr);
 	UE_NET_ASSERT_NE(Protocol->ProtocolIdentifier, FReplicationProtocolIdentifier(0));
 	UE_NET_ASSERT_EQ(Protocol->ReplicationStateCount, 1U + DynamicStateComponentCount);
-	UE_NET_ASSERT_EQ(Protocol->ProtocolTraits, EReplicationProtocolTraits::HasDynamicState | EReplicationProtocolTraits::SupportsDeltaCompression);
+	UE_NET_ASSERT_EQ(Protocol->ProtocolTraits, (EReplicationProtocolTraits::HasDynamicState | EReplicationProtocolTraits::SupportsDeltaCompression));
 
 	// Destroy the handle
 	ReplicationBridge->EndReplication(TestObject);

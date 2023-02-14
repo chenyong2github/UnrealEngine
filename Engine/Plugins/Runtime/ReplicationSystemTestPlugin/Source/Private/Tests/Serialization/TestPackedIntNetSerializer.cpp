@@ -38,7 +38,7 @@ public:
 
 UE_NET_TEST_FIXTURE(FTestPackedInt32NetSerializer, HasTestValues)
 {
-	UE_NET_ASSERT_GT(ValueCount, SIZE_T(0)) << "No test values found";
+	UE_NET_ASSERT_GT_MSG(ValueCount, SIZE_T(0), "No test values found");
 }
 
 UE_NET_TEST_FIXTURE(FTestPackedInt32NetSerializer, TestIsEqual)
@@ -130,14 +130,14 @@ void TTestPackedIntNetSerializer<SourceType>::TestSmallValuesArePacked()
 	constexpr SourceType LargeValue = TNumericLimits<SourceType>::Max();
 
 	const bool bSerializedSmallValue = this->Serialize(Config, NetSerializerValuePointer(&SmallValue));
-	UE_NET_ASSERT_TRUE(bSerializedSmallValue) << "Failed serializing " << SmallValue;
+	UE_NET_ASSERT_TRUE_MSG(bSerializedSmallValue, "Failed serializing " << SmallValue);
 	const uint32 SmallValueBits = this->Writer.GetPosBits();
 
 	const bool bSerializedLargeValue = this->Serialize(Config, NetSerializerValuePointer(&LargeValue));
-	UE_NET_ASSERT_TRUE(bSerializedLargeValue) << "Failed serializing " << LargeValue;
+	UE_NET_ASSERT_TRUE_MSG(bSerializedLargeValue, "Failed serializing " << LargeValue);
 	const uint32 LargeValueBits = this->Writer.GetPosBits();
 
-	UE_NET_ASSERT_LT(SmallValueBits, LargeValueBits) << "Bits serialized for small value (" << SmallValue << ") should've been less than for large value (" << LargeValue << ")";
+	UE_NET_ASSERT_LT_MSG(SmallValueBits, LargeValueBits, "Bits serialized for small value (" << SmallValue << ") should've been less than for large value (" << LargeValue << ")");
 }
 
 }

@@ -10,12 +10,6 @@ namespace UE::Net
 //
 bool FNetworkAutomationTestConfig::bVerboseLogging = false;
 
-struct FNetworkAutomationTestStats
-{
-	SIZE_T FailureCount;
-	SIZE_T WarningCount;
-};
-
 class FNetworkAutomationTestStatsSummary
 {
 public:
@@ -36,8 +30,7 @@ static FNetworkAutomationTestStatsSummary NetworkAutomationTestStatsSummary;
 
 // 
 FNetworkAutomationTestSuiteFixture::FNetworkAutomationTestSuiteFixture()
-: Stats(nullptr)
-, bSuppressWarningsFromSummary(false)
+: bSuppressWarningsFromSummary(false)
 {
 }
 
@@ -53,22 +46,29 @@ void FNetworkAutomationTestSuiteFixture::TearDown()
 {
 }
 
-void FNetworkAutomationTestSuiteFixture::RunTest()
+void FNetworkAutomationTestSuiteFixture::PreSetUp()
 {
 	if (FNetworkAutomationTestConfig::GetVerboseLogging())
 	{
 		UE_LOG(LogNetworkAutomationTest, Display, TEXT("Running TestCase %ls"), GetName());
 	}
 
-	FNetworkAutomationTestStats TempStats = {};
-	Stats = &TempStats;
+	Stats = FNetworkAutomationTestStats();
+}
 
+void FNetworkAutomationTestSuiteFixture::RunTest()
+{
+	PreSetUp();
 	SetUp();
 	RunTestImpl();
 	TearDown();
+	PostTearDown();
+}
 
-	NetworkAutomationTestStatsSummary.AddTestResult(GetName(), *Stats);
-	Stats = nullptr;
+void FNetworkAutomationTestSuiteFixture::PostTearDown()
+{
+	NetworkAutomationTestStatsSummary.AddTestResult(GetName(), Stats);
+	Stats = FNetworkAutomationTestStats();
 }
 
 void FNetworkAutomationTestSuiteFixture::SetSuppressWarningsFromSummary(bool bSuppress)
@@ -78,12 +78,12 @@ void FNetworkAutomationTestSuiteFixture::SetSuppressWarningsFromSummary(bool bSu
 
 void FNetworkAutomationTestSuiteFixture::AddTestFailure()
 {
-	++Stats->FailureCount;
+	++Stats.FailureCount;
 }
 
 void FNetworkAutomationTestSuiteFixture::AddTestWarning()
 {
-	Stats->WarningCount += !bSuppressWarningsFromSummary;
+	Stats.WarningCount += !bSuppressWarningsFromSummary;
 }
 
 #if WITH_AUTOMATION_WORKER

@@ -40,7 +40,7 @@ public: \
 \
 UE_NET_TEST_FIXTURE(TestClassName, HasTestValues) \
 { \
-	UE_NET_ASSERT_GT(ValueCount, SIZE_T(0)) << "No test values found"; \
+	UE_NET_ASSERT_GT_MSG(ValueCount, SIZE_T(0), "No test values found"); \
 } \
 \
 UE_NET_TEST_FIXTURE(TestClassName, TestIsEqual) \
@@ -137,7 +137,7 @@ void FTestIntNetSerializer<SourceType>::TestValidate()
 			ExpectedResults[ValueIt] = (FMath::Clamp(Value, MinValueForBitCount, MaxValueForBitCount) == Value);
 			if (BitCount == sizeof(SourceType)*8)
 			{
-				UE_NET_ASSERT_TRUE(ExpectedResults[ValueIt]) << "Clamping of value with full bit precision resulted in value being clamped. This is unexpected. Make sure no undefined behavior is used in code.";
+				UE_NET_ASSERT_TRUE_MSG(ExpectedResults[ValueIt], "Clamping of value with full bit precision resulted in value being clamped. This is unexpected. Make sure no undefined behavior is used in code.");
 			}
 		}
 

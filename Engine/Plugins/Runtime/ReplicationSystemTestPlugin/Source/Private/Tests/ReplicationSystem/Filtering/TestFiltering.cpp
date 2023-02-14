@@ -14,6 +14,7 @@ namespace UE::Net::Private
 
 class FTestFilteringFixture : public FReplicationSystemServerClientTestFixture
 {
+protected:
 	virtual void SetUp() override
 	{
 		InitNetObjectFilterDefinitions();
@@ -27,6 +28,7 @@ class FTestFilteringFixture : public FReplicationSystemServerClientTestFixture
 		RestoreNetObjectPrioritizerDefinitions();
 	}
 
+private:
 	void InitNetObjectFilterDefinitions()
 	{
 		const UClass* NetObjectFilterDefinitionsClass = UNetObjectFilterDefinitions::StaticClass();

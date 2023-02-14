@@ -40,15 +40,15 @@ UE_NET_TEST_FIXTURE(FTestStringNetSerializerUtils, TestEnc32Dec32)
 	uint8* EncodingBuffer = static_cast<uint8*>(FMemory_Alloca(EncodedBufferLen));
 	uint32 OutEncodedLen = 0;
 	FStringNetSerializerUtils::TStringCodec<char32_t>::Encode(EncodingBuffer, EncodedBufferLen, TestStringUTF32, TestStringUTF32Len, OutEncodedLen);
-	UE_NET_ASSERT_GT(OutEncodedLen, 0U) << FString::Printf(TEXT("Test encoding of UTF-32 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
+	UE_NET_ASSERT_GT_MSG(OutEncodedLen, 0U, FString::Printf(TEXT("Test encoding of UTF-32 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
 
 	// Decode
 	uint32 DecodedBufferLen = FStringNetSerializerUtils::TStringCodec<char32_t>::GetSafeDecodedBufferLength(OutEncodedLen);
 	char32_t* DecodingBuffer = static_cast<char32_t*>(FMemory_Alloca(DecodedBufferLen * sizeof(char32_t)));
 	uint32 OutDecodedLen = 0;
 	FStringNetSerializerUtils::TStringCodec<char32_t>::Decode(DecodingBuffer, DecodedBufferLen, EncodingBuffer, OutEncodedLen, OutDecodedLen);
-	UE_NET_ASSERT_EQ(OutDecodedLen, static_cast<uint32>(TestStringUTF32Len)) << FString::Printf(TEXT("Test UTF-32 decoding of '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
-	UE_NET_ASSERT_EQ(FMemory::Memcmp(DecodingBuffer, TestStringUTF32, TestStringUTF32Len), 0) << FString::Printf(TEXT("Test UTF-32 decoding of '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
+	UE_NET_ASSERT_EQ_MSG(OutDecodedLen, static_cast<uint32>(TestStringUTF32Len), FString::Printf(TEXT("Test UTF-32 decoding of '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
+	UE_NET_ASSERT_EQ_MSG(FMemory::Memcmp(DecodingBuffer, TestStringUTF32, TestStringUTF32Len), 0, FString::Printf(TEXT("Test UTF-32 decoding of '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
 }
 
 UE_NET_TEST_FIXTURE(FTestStringNetSerializerUtils, TestEnc16Dec16)
@@ -58,15 +58,15 @@ UE_NET_TEST_FIXTURE(FTestStringNetSerializerUtils, TestEnc16Dec16)
 	uint8* EncodingBuffer = static_cast<uint8*>(FMemory_Alloca(EncodedBufferLen));
 	uint32 OutEncodedLen = 0;
 	FStringNetSerializerUtils::TStringCodec<char16_t>::Encode(EncodingBuffer, EncodedBufferLen, TestStringUTF16, TestStringUTF16Len, OutEncodedLen);
-	UE_NET_ASSERT_GT(OutEncodedLen, 0U) << FString::Printf(TEXT("Test encoding of UTF-16 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
+	UE_NET_ASSERT_GT_MSG(OutEncodedLen, 0U, FString::Printf(TEXT("Test encoding of UTF-16 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
 
 	// Decode
 	uint32 DecodedBufferLen = FStringNetSerializerUtils::TStringCodec<char16_t>::GetSafeDecodedBufferLength(OutEncodedLen * sizeof(char16_t));
 	char16_t* DecodingBuffer = static_cast<char16_t*>(FMemory_Alloca(DecodedBufferLen));
 	uint32 OutDecodedLen = 0;
 	FStringNetSerializerUtils::TStringCodec<char16_t>::Decode(DecodingBuffer, DecodedBufferLen, EncodingBuffer, OutEncodedLen, OutDecodedLen);
-	UE_NET_ASSERT_EQ(OutDecodedLen, static_cast<uint32>(TestStringUTF16Len)) << FString::Printf(TEXT("Test UTF-16 decoding of '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
-	UE_NET_ASSERT_EQ(FMemory::Memcmp(DecodingBuffer, TestStringUTF16, TestStringUTF16Len), 0) << FString::Printf(TEXT("Test UTF-16 decoding of '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
+	UE_NET_ASSERT_EQ_MSG(OutDecodedLen, static_cast<uint32>(TestStringUTF16Len), FString::Printf(TEXT("Test UTF-16 decoding of '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
+	UE_NET_ASSERT_EQ_MSG(FMemory::Memcmp(DecodingBuffer, TestStringUTF16, TestStringUTF16Len), 0, FString::Printf(TEXT("Test UTF-16 decoding of '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
 }
 
 UE_NET_TEST_FIXTURE(FTestStringNetSerializerUtils, TestEnc16Dec32)
@@ -82,8 +82,8 @@ UE_NET_TEST_FIXTURE(FTestStringNetSerializerUtils, TestEnc16Dec32)
 	char32_t* DecodingBuffer = static_cast<char32_t*>(FMemory_Alloca(DecodedBufferLen * sizeof(char32_t)));
 	uint32 OutDecodedLen = 0;
 	FStringNetSerializerUtils::TStringCodec<char32_t>::Decode(DecodingBuffer, DecodedBufferLen, EncodingBuffer, OutEncodedLen, OutDecodedLen);
-	UE_NET_ASSERT_EQ(OutDecodedLen, static_cast<uint32>(TestStringUTF32Len)) << FString::Printf(TEXT("Test UTF-32 decoding of UTF-16 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
-	UE_NET_ASSERT_EQ(FMemory::Memcmp(DecodingBuffer, TestStringUTF32, TestStringUTF32Len), 0) << FString::Printf(TEXT("Test UTF-32 decoding of UTF-16 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
+	UE_NET_ASSERT_EQ_MSG(OutDecodedLen, static_cast<uint32>(TestStringUTF32Len), FString::Printf(TEXT("Test UTF-32 decoding of UTF-16 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
+	UE_NET_ASSERT_EQ_MSG(FMemory::Memcmp(DecodingBuffer, TestStringUTF32, TestStringUTF32Len), 0, FString::Printf(TEXT("Test UTF-32 decoding of UTF-16 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
 }
 
 UE_NET_TEST_FIXTURE(FTestStringNetSerializerUtils, TestEnc32Dec16)
@@ -99,8 +99,8 @@ UE_NET_TEST_FIXTURE(FTestStringNetSerializerUtils, TestEnc32Dec16)
 	char16_t* DecodingBuffer = static_cast<char16_t*>(FMemory_Alloca(DecodedBufferLen * sizeof(char16_t)));
 	uint32 OutDecodedLen = 0;
 	FStringNetSerializerUtils::TStringCodec<char16_t>::Decode(DecodingBuffer, DecodedBufferLen, EncodingBuffer, OutEncodedLen, OutDecodedLen);
-	UE_NET_ASSERT_EQ(OutDecodedLen, static_cast<uint32>(TestStringUTF16Len)) << FString::Printf(TEXT("Test UTF-16 decoding of UTF-32 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
-	UE_NET_ASSERT_EQ(FMemory::Memcmp(DecodingBuffer, TestStringUTF16, TestStringUTF16Len), 0) << FString::Printf(TEXT("Test UTF-16 decoding of UTF-32 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get());
+	UE_NET_ASSERT_EQ_MSG(OutDecodedLen, static_cast<uint32>(TestStringUTF16Len), FString::Printf(TEXT("Test UTF-16 decoding of UTF-32 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
+	UE_NET_ASSERT_EQ_MSG(FMemory::Memcmp(DecodingBuffer, TestStringUTF16, TestStringUTF16Len), 0, FString::Printf(TEXT("Test UTF-16 decoding of UTF-32 '%s'."), FUTF8ToTCHAR(TestStringUTF8).Get()));
 }
 
 }

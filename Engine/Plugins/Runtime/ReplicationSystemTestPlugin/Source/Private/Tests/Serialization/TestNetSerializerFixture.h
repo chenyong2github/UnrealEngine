@@ -61,9 +61,9 @@ protected:
 		BufferSize = 1024,
 	};
 
-	alignas(16) uint8 BitStreamBuffer[BitStreamBufferSize];
-	alignas(16) uint8 QuantizedBuffer[2][BufferSize];
-	alignas(16) uint8 SourceBuffer[2][BufferSize];
+	alignas(16) uint8 BitStreamBuffer[BitStreamBufferSize] = {};
+	alignas(16) uint8 QuantizedBuffer[2][BufferSize] = {};
+	alignas(16) uint8 SourceBuffer[2][BufferSize] = {};
 
 	bool bTaintBuffersBeforeTest = false;
 };
@@ -113,7 +113,7 @@ bool TTestNetSerializerFixture<ConfigPrinter, SourceType>::TestQuantize(const So
 		{
 			FTestMessage ConfigMessage;
 			bOutTestCaseSuccess = FTestNetSerializerFixture::TestQuantize(Config, NetSerializerValuePointer(Value));
-			UE_NET_ASSERT_TRUE(bOutTestCaseSuccess) << "Quantization failed with Value: '" << *Value << "' " << ConfigPrinter(ConfigMessage, Config);
+			UE_NET_ASSERT_TRUE_MSG(bOutTestCaseSuccess, "Quantization failed with Value: '" << *Value << "' " << ConfigPrinter(ConfigMessage, Config));
 		};
 
 		bool bOutTestCaseSuccess = false;
@@ -140,7 +140,7 @@ bool TTestNetSerializerFixture<ConfigPrinter, SourceType>::TestSerialize(const S
 		{
 			FTestMessage ConfigMessage;
 			bOutTestCaseSuccess = FTestNetSerializerFixture::TestSerialize(Config, NetSerializerValuePointer(Value), NetSerializerValuePointer(ExpectedValue), bQuantizedCompare, CompareFunc);
-			UE_NET_ASSERT_TRUE(bOutTestCaseSuccess) << "Serialization failed with Value: '" << *Value << "' and ExpectedValue: '" << *ExpectedValue << "' " << ConfigPrinter(ConfigMessage, Config);
+			UE_NET_ASSERT_TRUE_MSG(bOutTestCaseSuccess, "Serialization failed with Value: '" << *Value << "' and ExpectedValue: '" << *ExpectedValue << "' " << ConfigPrinter(ConfigMessage, Config));
 		};
 
 		bool bOutTestCaseSuccess = false;
@@ -170,7 +170,7 @@ bool TTestNetSerializerFixture<ConfigPrinter, SourceType>::TestSerializeDelta(co
 			{
 				FTestMessage ConfigMessage;
 				bOutTestCaseSuccess = FTestNetSerializerFixture::TestSerializeDelta(Config, NetSerializerValuePointer(Value), NetSerializerValuePointer(PrevValue));
-				UE_NET_ASSERT_TRUE(bOutTestCaseSuccess) << "Delta serialization failed with Value: '" << *Value << "' and PrevValue: '" << *PrevValue << "' " << ConfigPrinter(ConfigMessage, Config);
+				UE_NET_ASSERT_TRUE_MSG(bOutTestCaseSuccess, "Delta serialization failed with Value: '" << *Value << "' and PrevValue: '" << *PrevValue << "' " << ConfigPrinter(ConfigMessage, Config));
 			};
 
 			bool bOutTestCaseSuccess = false;
@@ -195,7 +195,7 @@ bool TTestNetSerializerFixture<ConfigPrinter, SourceType>::TestIsEqual(const Sou
 		{
 			FTestMessage ConfigMessage;
 			bOutTestCaseSuccess = FTestNetSerializerFixture::TestIsEqual(Config, NetSerializerValuePointer(Value0), NetSerializerValuePointer(Value1), bExpectedResult, bQuantizedCompare);
-			UE_NET_ASSERT_TRUE(bOutTestCaseSuccess) << "IsEqual failed. Value0: '" << *Value0 << "' Value1: '" << *Value1 << "' " << ConfigPrinter(ConfigMessage, Config) << ". Expected IsEqual to return " << bExpectedResult;
+			UE_NET_ASSERT_TRUE_MSG(bOutTestCaseSuccess, "IsEqual failed. Value0: '" << *Value0 << "' Value1: '" << *Value1 << "' " << ConfigPrinter(ConfigMessage, Config) << ". Expected IsEqual to return " << bExpectedResult);
 		};
 
 		const SourceType* Value0 = Values0 + ValueIt;
@@ -222,7 +222,7 @@ bool TTestNetSerializerFixture<ConfigPrinter, SourceType>::TestValidate(const So
 		{
 			FTestMessage ConfigMessage;
 			bOutTestCaseSuccess = FTestNetSerializerFixture::TestValidate(Config, NetSerializerValuePointer(Value), bExpectedResult);
-			UE_NET_ASSERT_TRUE(bOutTestCaseSuccess) << "Validate failed. Value: '" << *Value << "' " << ConfigPrinter(ConfigMessage, Config) << ". Expected Validate to return " << bExpectedResult;
+			UE_NET_ASSERT_TRUE_MSG(bOutTestCaseSuccess, "Validate failed. Value: '" << *Value << "' " << ConfigPrinter(ConfigMessage, Config) << ". Expected Validate to return " << bExpectedResult);
 		};
 
 		const SourceType* Value = Values + ValueIt;
@@ -250,7 +250,7 @@ bool TTestNetSerializerFixture<ConfigPrinter, SourceType>::TestCloneDynamicState
 		{
 			FTestMessage ConfigMessage;
 			bOutTestCaseSuccess = FTestNetSerializerFixture::TestCloneDynamicState(Config, NetSerializerValuePointer(Value));
-			UE_NET_ASSERT_TRUE(bOutTestCaseSuccess) << "CloneDynamicState failed with Value: '" << *Value << "' " << ConfigPrinter(ConfigMessage, Config);
+			UE_NET_ASSERT_TRUE_MSG(bOutTestCaseSuccess, "CloneDynamicState failed with Value: '" << *Value << "' " << ConfigPrinter(ConfigMessage, Config));
 		};
 
 		bool bOutTestCaseSuccess = false;

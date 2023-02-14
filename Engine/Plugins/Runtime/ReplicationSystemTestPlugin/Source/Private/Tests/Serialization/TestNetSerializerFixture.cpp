@@ -104,7 +104,7 @@ bool FTestNetSerializerFixture::TestQuantize(const FNetSerializerConfig& Config,
 	FreeScope.AddBuffer(QuantizeArgs.Target);
 	if (Context.HasError())
 	{
-		UE_NET_EXPECT_FALSE(Context.HasError()) << "Quantize() of value reported an error.";
+		UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Quantize() of value reported an error.");
 		return false;
 	}
 
@@ -117,7 +117,7 @@ bool FTestNetSerializerFixture::TestQuantize(const FNetSerializerConfig& Config,
 	const bool bIsEqual = Serializer.IsEqual(Context, QuantizedIsEqualArgs);
 	if (!bIsEqual)
 	{
-		UE_NET_EXPECT_TRUE(bIsEqual) << "IsEqual() on quantized value compared to itself returned false.";
+		UE_NET_EXPECT_TRUE_MSG(bIsEqual, "IsEqual() on quantized value compared to itself returned false.");
 		return false;
 	}
 
@@ -129,7 +129,7 @@ bool FTestNetSerializerFixture::TestQuantize(const FNetSerializerConfig& Config,
 	Serializer.Dequantize(Context, DequantizeArgs);
 	if (Context.HasError())
 	{
-		UE_NET_EXPECT_FALSE(Context.HasError()) << "Dequantize() of quantized value reported an error.";
+		UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Dequantize() of quantized value reported an error.");
 		return false;
 	}
 
@@ -142,7 +142,7 @@ bool FTestNetSerializerFixture::TestQuantize(const FNetSerializerConfig& Config,
 	const bool bIsDequantizedEqual = Serializer.IsEqual(Context, DequantizedIsEqualArgs);
 	if (!bIsDequantizedEqual)
 	{
-		UE_NET_EXPECT_TRUE(bIsDequantizedEqual) << "IsEqual() on dequantized value compared to source value returned false.";
+		UE_NET_EXPECT_TRUE_MSG(bIsDequantizedEqual, "IsEqual() on dequantized value compared to source value returned false.");
 		return false;
 	}
 
@@ -161,7 +161,7 @@ bool FTestNetSerializerFixture::TestQuantize(const FNetSerializerConfig& Config,
 		const bool bIsQuantizedEqual = !FPlatformMemory::Memcmp(QuantizedBuffer[0], QuantizedBuffer[1], Serializer.QuantizedTypeSize);
 		if (!bIsQuantizedEqual)
 		{
-			UE_NET_EXPECT_TRUE(bIsQuantizedEqual) << "Memcmp() on quantized values with tainted buffers failed.";
+			UE_NET_EXPECT_TRUE_MSG(bIsQuantizedEqual, "Memcmp() on quantized values with tainted buffers failed.");
 			return false;
 		}
 	}
@@ -191,7 +191,7 @@ bool FTestNetSerializerFixture::TestSerialize(const FNetSerializerConfig& Config
 	FreeScope.AddBuffer(QuantizeArgs.Target);
 	if (Context.HasError())
 	{
-		UE_NET_EXPECT_FALSE(Context.HasError()) << "Quantize() of value reported an error.";
+		UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Quantize() of value reported an error.");
 		return false;
 	}
 
@@ -204,8 +204,8 @@ bool FTestNetSerializerFixture::TestSerialize(const FNetSerializerConfig& Config
 	Writer.CommitWrites();
 	if (Writer.IsOverflown() || Context.HasError())
 	{
-		UE_NET_EXPECT_FALSE(Writer.IsOverflown()) << "FNetBitStreamWriter overflowed.";
-		UE_NET_EXPECT_FALSE(Context.HasError()) << "Serialize() reported an error.";
+		UE_NET_EXPECT_FALSE_MSG(Writer.IsOverflown(), "FNetBitStreamWriter overflowed.");
+		UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Serialize() reported an error.");
 		return false;
 	}
 
@@ -218,8 +218,8 @@ bool FTestNetSerializerFixture::TestSerialize(const FNetSerializerConfig& Config
 	FreeScope.AddBuffer(DeserializeArgs.Target);
 	if (Reader.IsOverflown() || Context.HasError())
 	{
-		UE_NET_EXPECT_FALSE(Reader.IsOverflown()) << "FNetBitStreamReader overflowed.";
-		UE_NET_EXPECT_FALSE(Context.HasError()) << "Deserialize() reported an error.";
+		UE_NET_EXPECT_FALSE_MSG(Reader.IsOverflown(), "FNetBitStreamReader overflowed.");
+		UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Deserialize() reported an error.");
 		return false;
 	}
 
@@ -234,7 +234,7 @@ bool FTestNetSerializerFixture::TestSerialize(const FNetSerializerConfig& Config
 		Serializer.Dequantize(Context, DequantizeArgs);
 		if (Context.HasError())
 		{
-			UE_NET_EXPECT_FALSE(Context.HasError()) << "Dequantize() of deserialized value reported an error.";
+			UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Dequantize() of deserialized value reported an error.");
 			return false;
 		}
 
@@ -250,7 +250,7 @@ bool FTestNetSerializerFixture::TestSerialize(const FNetSerializerConfig& Config
 			const bool bIsEqual = (*CompareFunc)(IsEqualArgs.Source0, IsEqualArgs.Source1);
 			if (!bIsEqual)
 			{
-				UE_NET_EXPECT_TRUE(bIsEqual) << "Custom compare on dequantized values returned false";
+				UE_NET_EXPECT_TRUE_MSG(bIsEqual, "Custom compare on dequantized values returned false");
 				return false;
 			}
 		}
@@ -259,7 +259,7 @@ bool FTestNetSerializerFixture::TestSerialize(const FNetSerializerConfig& Config
 			const bool bIsEqual = Serializer.IsEqual(Context, IsEqualArgs);
 			if (!bIsEqual)
 			{
-				UE_NET_EXPECT_TRUE(bIsEqual) << "IsEqual() on dequantized values returned false";
+				UE_NET_EXPECT_TRUE_MSG(bIsEqual, "IsEqual() on dequantized values returned false");
 				return false;
 			}
 		}
@@ -275,7 +275,7 @@ bool FTestNetSerializerFixture::TestSerialize(const FNetSerializerConfig& Config
 			Serializer.Quantize(Context, QuantizeArgs);
 			if (Context.HasError())
 			{
-				UE_NET_EXPECT_FALSE(Context.HasError()) << "Quantize() of expected value reported an error.";
+				UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Quantize() of expected value reported an error.");
 				return false;
 			}
 		}
@@ -314,7 +314,7 @@ bool FTestNetSerializerFixture::TestSerializeDelta(const FNetSerializerConfig& C
 			FreeScope.AddBuffer(QuantizeValueArgs.Target);
 			if (Context.HasError())
 			{
-				UE_NET_EXPECT_FALSE(Context.HasError()) << "Quantize() of value reported an error.";
+				UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Quantize() of value reported an error.");
 				return false;
 			}
 		}
@@ -328,7 +328,7 @@ bool FTestNetSerializerFixture::TestSerializeDelta(const FNetSerializerConfig& C
 			FreeScope.AddBuffer(QuantizePrevValueArgs.Target);
 			if (Context.HasError())
 			{
-				UE_NET_EXPECT_FALSE(Context.HasError()) << "Quantize() of value reported an error.";
+				UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Quantize() of value reported an error.");
 				return false;
 			}
 		}
@@ -346,8 +346,8 @@ bool FTestNetSerializerFixture::TestSerializeDelta(const FNetSerializerConfig& C
 		Writer.CommitWrites();
 		if (Writer.IsOverflown() || Context.HasError())
 		{
-			UE_NET_EXPECT_FALSE(Writer.IsOverflown()) << "FNetBitStreamWriter overflowed.";
-			UE_NET_EXPECT_FALSE(Context.HasError()) << "SerializeDelta() reported an error.";
+			UE_NET_EXPECT_FALSE_MSG(Writer.IsOverflown(), "FNetBitStreamWriter overflowed.");
+			UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "SerializeDelta() reported an error.");
 			return false;
 		}
 	}
@@ -364,8 +364,8 @@ bool FTestNetSerializerFixture::TestSerializeDelta(const FNetSerializerConfig& C
 		FreeScope.AddBuffer(DeserializeDeltaArgs.Target);
 		if (Reader.IsOverflown() || Context.HasError())
 		{
-			UE_NET_EXPECT_FALSE(Reader.IsOverflown()) << "FNetBitStreamReader overflowed.";
-			UE_NET_EXPECT_FALSE(Context.HasError()) << "DeserializeDelta() reported an error.";
+			UE_NET_EXPECT_FALSE_MSG(Reader.IsOverflown(), "FNetBitStreamReader overflowed.");
+			UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "DeserializeDelta() reported an error.");
 			return false;
 		}
 	}
@@ -426,7 +426,7 @@ bool FTestNetSerializerFixture::TestIsEqual(const FNetSerializerConfig& Config, 
 	const bool bResult2 = Serializer.IsEqual(Context, IsEqualArgs);
 	if (bResult2 != bExpectedResult)
 	{
-		UE_NET_EXPECT_EQ(bResult1, bResult2) << "IsEqual did not return the same result when source values were swapped.";
+		UE_NET_EXPECT_EQ_MSG(bResult1, bResult2, "IsEqual did not return the same result when source values were swapped.");
 		return false;
 	}
 
@@ -464,7 +464,7 @@ bool FTestNetSerializerFixture::TestCloneDynamicState(const FNetSerializerConfig
 	FreeScope.AddBuffer(QuantizeArgs.Target);
 	if (Context.HasError())
 	{
-		UE_NET_EXPECT_FALSE(Context.HasError()) << "Quantize() of value reported an error.";
+		UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Quantize() of value reported an error.");
 		return false;
 	}
 
@@ -477,7 +477,7 @@ bool FTestNetSerializerFixture::TestCloneDynamicState(const FNetSerializerConfig
 	Serializer.CloneDynamicState(Context, CloneArgs);
 	if (Context.HasError())
 	{
-		UE_NET_EXPECT_FALSE(Context.HasError()) << "CloneDynamicState() reported an error.";
+		UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "CloneDynamicState() reported an error.");
 		return false;
 	}
 
@@ -490,7 +490,7 @@ bool FTestNetSerializerFixture::TestCloneDynamicState(const FNetSerializerConfig
 		Serializer.FreeDynamicState(Context, FreeArgs);
 		if (Context.HasError())
 		{
-			UE_NET_EXPECT_FALSE(Context.HasError()) << "FreeDynamicState() reported an error.";
+			UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "FreeDynamicState() reported an error.");
 			return false;
 		}
 	}
@@ -505,7 +505,7 @@ bool FTestNetSerializerFixture::TestCloneDynamicState(const FNetSerializerConfig
 		Serializer.Dequantize(Context, DequantizeArgs);
 		if (Context.HasError())
 		{
-			UE_NET_EXPECT_FALSE(Context.HasError()) << "Dequantize() of quantized value reported an error.";
+			UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Dequantize() of quantized value reported an error.");
 			return false;
 		}
 
@@ -518,7 +518,7 @@ bool FTestNetSerializerFixture::TestCloneDynamicState(const FNetSerializerConfig
 		const bool bIsDequantizedEqual = Serializer.IsEqual(Context, DequantizedIsEqualArgs);
 		if (!bIsDequantizedEqual)
 		{
-			UE_NET_EXPECT_TRUE(bIsDequantizedEqual) << "IsEqual() on dequantized value compared to source value returned false.";
+			UE_NET_EXPECT_TRUE_MSG(bIsDequantizedEqual, "IsEqual() on dequantized value compared to source value returned false.");
 			return false;
 		}
 	}
@@ -542,7 +542,7 @@ bool FTestNetSerializerFixture::Serialize(const FNetSerializerConfig& Config, Ne
 	FreeScope.AddBuffer(QuantizeArgs.Target);
 	if (Context.HasError())
 	{
-		UE_NET_EXPECT_FALSE(Context.HasError()) << "Quantize() of value reported an error.";
+		UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Quantize() of value reported an error.");
 		return false;
 	}
 
@@ -555,8 +555,8 @@ bool FTestNetSerializerFixture::Serialize(const FNetSerializerConfig& Config, Ne
 	Writer.CommitWrites();
 	if (Writer.IsOverflown() || Context.HasError())
 	{
-		UE_NET_EXPECT_FALSE(Writer.IsOverflown()) << "FNetBitStreamWriter overflowed.";
-		UE_NET_EXPECT_FALSE(Context.HasError()) << "Serialize() reported an error.";
+		UE_NET_EXPECT_FALSE_MSG(Writer.IsOverflown(), "FNetBitStreamWriter overflowed.");
+		UE_NET_EXPECT_FALSE_MSG(Context.HasError(), "Serialize() reported an error.");
 		return false;
 	}
 

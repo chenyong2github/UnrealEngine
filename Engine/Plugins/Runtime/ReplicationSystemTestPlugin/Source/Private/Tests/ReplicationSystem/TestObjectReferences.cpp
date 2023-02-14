@@ -762,7 +762,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestInlinedSubObj
 
 	// Verify subobject
 	UE_NET_ASSERT_TRUE(Object->CreatedSubObjectRef != nullptr);
-	UE_NET_ASSERT_TRUE(Object->CreatedSubObjectRef->HasAnyFlags(RF_DefaultSubObject) || Object->IsDefaultSubobject());
+	UE_NET_ASSERT_TRUE((Object->CreatedSubObjectRef->HasAnyFlags(RF_DefaultSubObject) || Object->IsDefaultSubobject()));
 
 	// Replicate object
 	Server->PreSendUpdate();
@@ -774,7 +774,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestInlinedSubObj
 
 	// Verify that default subobject is created
 	UE_NET_ASSERT_TRUE(ClientObject->CreatedSubObjectRef != nullptr);
-	UE_NET_ASSERT_TRUE(ClientObject->CreatedSubObjectRef->HasAnyFlags(RF_DefaultSubObject) || ClientObject->IsDefaultSubobject());
+	UE_NET_ASSERT_TRUE((ClientObject->CreatedSubObjectRef->HasAnyFlags(RF_DefaultSubObject) || ClientObject->IsDefaultSubobject()));
 	
 	// Set a reference to subobject
 	Object->ObjectRef = Object->CreatedSubObjectRef;
@@ -800,7 +800,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestExternalSubOb
 
 	// Verify internal subobject
 	UE_NET_ASSERT_TRUE(Object->CreatedSubObjectRef != nullptr);
-	UE_NET_ASSERT_TRUE(Object->CreatedSubObjectRef->HasAnyFlags(RF_DefaultSubObject) || Object->IsDefaultSubobject());
+	UE_NET_ASSERT_TRUE((Object->CreatedSubObjectRef->HasAnyFlags(RF_DefaultSubObject) || Object->IsDefaultSubobject()));
 
 	// Create external subobject
 	UTestObjectReferences_TestClassWithDefaultSubObject* ExternalSubObject = Server->CreateSubObject<UTestObjectReferences_TestClassWithDefaultSubObject>(Object->NetRefHandle);
@@ -817,7 +817,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestExternalSubOb
 	// Verify that default subobject is created
 	UE_NET_ASSERT_TRUE(ClientObject->CreatedSubObjectRef != nullptr);
 	UE_NET_ASSERT_TRUE(ClientExternalSubObject != nullptr);
-	UE_NET_ASSERT_TRUE(ClientObject->CreatedSubObjectRef->HasAnyFlags(RF_DefaultSubObject) || ClientObject->IsDefaultSubobject());
+	UE_NET_ASSERT_TRUE((ClientObject->CreatedSubObjectRef->HasAnyFlags(RF_DefaultSubObject) || ClientObject->IsDefaultSubobject()));
 		
 	// Set a reference to external subobject
 	Object->ObjectRef = ExternalSubObject;

@@ -144,14 +144,14 @@ void TTestBitPacking<SourceType, BitCount>::TestSerialize()
 
 			InitWriter();
 			SerializeDelta(Value, PrevValue);
-			UE_NET_ASSERT_FALSE(Writer.IsOverflown()) << "Serialize delta between " << Value << " and " << PrevValue << " caused bit stream overflow";
+			UE_NET_ASSERT_FALSE_MSG(Writer.IsOverflown(), "Serialize delta between " << Value << " and " << PrevValue << " caused bit stream overflow");
 
 			InitReaderFromWriter();
 			SourceType DeserializedValue;
 			DeserializeDelta(DeserializedValue, PrevValue);
-			UE_NET_ASSERT_FALSE(Reader.IsOverflown()) << "Deserialize delta between " << Value << " and " << PrevValue << " caused bit stream overflow";
+			UE_NET_ASSERT_FALSE_MSG(Reader.IsOverflown(), "Deserialize delta between " << Value << " and " << PrevValue << " caused bit stream overflow");
 
-			UE_NET_ASSERT_EQ(DeserializedValue, Value) << "Failed serializing value " << Value << " with previous value " << PrevValue << " using " << (TIsSigned<SourceType>::Value ? "signed " : "unsigned ") << BitCount << "-bit integer";
+			UE_NET_ASSERT_EQ_MSG(DeserializedValue, Value, "Failed serializing value " << Value << " with previous value " << PrevValue << " using " << (TIsSigned<SourceType>::Value ? "signed " : "unsigned ") << BitCount << "-bit integer");
 		}
 	}
 }

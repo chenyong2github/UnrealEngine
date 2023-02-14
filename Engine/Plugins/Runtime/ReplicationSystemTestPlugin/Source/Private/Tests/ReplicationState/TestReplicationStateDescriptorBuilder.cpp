@@ -774,8 +774,8 @@ UE_NET_TEST_FIXTURE(FTestReplicationStateDescriptorBuilderFixture, UTestReplicat
 	UE_NET_ASSERT_NE(SecondRoleConfig->RelativeInternalOffsetToOtherRole, 0);
 	UE_NET_ASSERT_NE(SecondRoleConfig->RelativeExternalOffsetToOtherRole, 0);
 
-	UE_NET_ASSERT_EQ(FirstRoleConfig->RelativeInternalOffsetToOtherRole, -SecondRoleConfig->RelativeInternalOffsetToOtherRole) << "Roles aren't referring to each other";
-	UE_NET_ASSERT_EQ(FirstRoleConfig->RelativeExternalOffsetToOtherRole, -SecondRoleConfig->RelativeExternalOffsetToOtherRole) << "Roles aren't referring to each other";
+	UE_NET_ASSERT_EQ_MSG(FirstRoleConfig->RelativeInternalOffsetToOtherRole, -SecondRoleConfig->RelativeInternalOffsetToOtherRole, "Roles aren't referring to each other");
+	UE_NET_ASSERT_EQ_MSG(FirstRoleConfig->RelativeExternalOffsetToOtherRole, -SecondRoleConfig->RelativeExternalOffsetToOtherRole, "Roles aren't referring to each other");
 }
 
 UE_NET_TEST_FIXTURE(FTestReplicationStateDescriptorBuilderFixture, UTestReplicationStateDescriptor_TestClassWithManyRoles)
@@ -1066,7 +1066,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationStateDescriptorBuilderFixture, UTestReplicat
 	for (const FReplicationStateMemberLifetimeConditionDescriptor& ConditionDesc : MakeArrayView(LifetimeConditionalsDesc->MemberLifetimeConditionDescriptors, LifetimeConditionalsDesc->MemberCount))
 	{
 		const SIZE_T MemberIndex = &ConditionDesc - LifetimeConditionalsDesc->MemberLifetimeConditionDescriptors;
-		UE_NET_ASSERT_NE(ConditionDesc.Condition, int8(COND_None)) << "Unexpected lifetime condition for property " << LifetimeConditionalsDesc->MemberProperties[MemberIndex]->GetName();
+		UE_NET_ASSERT_NE_MSG(ConditionDesc.Condition, int8(COND_None), "Unexpected lifetime condition for property " << LifetimeConditionalsDesc->MemberProperties[MemberIndex]->GetName());
 	}
 }
 

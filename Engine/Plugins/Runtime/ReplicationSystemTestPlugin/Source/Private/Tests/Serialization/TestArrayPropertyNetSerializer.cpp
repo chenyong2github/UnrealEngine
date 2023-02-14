@@ -290,10 +290,10 @@ void FTestSimpleArrayPropertyNetSerializer::SetUp()
 	FTestArrayPropertyNetSerializerBase::SetUp();
 
 	ReplicationStateDescriptor = FReplicationStateDescriptorBuilder::CreateDescriptorForStruct(StaticStruct<FStructWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest>());
-	UE_NET_ASSERT_EQ(ReplicationStateDescriptor->MemberCount, uint16(1)) << "Expected FStructWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest to only contain a single array";
+	UE_NET_ASSERT_EQ_MSG(ReplicationStateDescriptor->MemberCount, uint16(1), "Expected FStructWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest to only contain a single array");
 
 	ArrayPropertyNetSerializerConfig = const_cast<FArrayPropertyNetSerializerConfig*>(static_cast<const FArrayPropertyNetSerializerConfig*>(ReplicationStateDescriptor->MemberSerializerDescriptors[0].SerializerConfig));
-	UE_NET_ASSERT_EQ(ArrayPropertyNetSerializerConfig->StateDescriptor->MemberCount, uint16(1)) << "Expected array element descriptor to only contain a single member";
+	UE_NET_ASSERT_EQ_MSG(ArrayPropertyNetSerializerConfig->StateDescriptor->MemberCount, uint16(1), "Expected array element descriptor to only contain a single member");
 
 	OriginalMemberSerializerDescriptor = ArrayPropertyNetSerializerConfig->StateDescriptor->MemberSerializerDescriptors[0];
 
@@ -880,10 +880,10 @@ void FTestComplexArrayPropertyNetSerializer::SetUp()
 	FTestArrayPropertyNetSerializerBase::SetUp();
 
 	ReplicationStateDescriptor = FReplicationStateDescriptorBuilder::CreateDescriptorForStruct(StaticStruct<FStructWithDynamicArrayOfComplexTypeForArrayPropertyNetSerializerTest>());
-	UE_NET_ASSERT_EQ(ReplicationStateDescriptor->MemberCount, uint16(1)) << "Expected FStructWithDynamicArrayOfComplexTypeForArrayPropertyNetSerializerTest to only contain a single array";
+	UE_NET_ASSERT_EQ_MSG(ReplicationStateDescriptor->MemberCount, uint16(1), "Expected FStructWithDynamicArrayOfComplexTypeForArrayPropertyNetSerializerTest to only contain a single array");
 
 	ArrayPropertyNetSerializerConfig = const_cast<FArrayPropertyNetSerializerConfig*>(static_cast<const FArrayPropertyNetSerializerConfig*>(ReplicationStateDescriptor->MemberSerializerDescriptors[0].SerializerConfig));
-	UE_NET_ASSERT_EQ(ArrayPropertyNetSerializerConfig->StateDescriptor->MemberCount, uint16(1)) << "Expected array element descriptor to only contain a single member";
+	UE_NET_ASSERT_EQ_MSG(ArrayPropertyNetSerializerConfig->StateDescriptor->MemberCount, uint16(1), "Expected array element descriptor to only contain a single member");
 	UE_NET_ASSERT_TRUE(IsUsingStructNetSerializer(ArrayPropertyNetSerializerConfig->StateDescriptor->MemberSerializerDescriptors[0]));
 	UE_NET_ASSERT_TRUE(IsUsingArrayPropertyNetSerializer(static_cast<const FStructNetSerializerConfig*>(ArrayPropertyNetSerializerConfig->StateDescriptor->MemberSerializerDescriptors[0].SerializerConfig)->StateDescriptor->MemberSerializerDescriptors[0]));
 

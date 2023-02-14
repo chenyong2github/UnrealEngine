@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkAutomationTestMacros.h"
+#include "ReplicationSystemTestPlugin/NetworkAutomationTest.h"
 #include "NetworkAutomationTest.h"
 
 DEFINE_LOG_CATEGORY(LogNetworkAutomationTest);

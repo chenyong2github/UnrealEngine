@@ -18,7 +18,7 @@ class FTestNetPrioritizerFixture : public FReplicationSystemTestFixture
 public:
 	FTestNetPrioritizerFixture() : MockNetObjectPrioritizer(nullptr) {}
 
-private:
+protected:
 	virtual void SetUp() override
 	{
 		InitNetObjectPrioritizerDefinitions();
@@ -36,6 +36,7 @@ private:
 		NetRefHandleManager = nullptr;
 	}
 
+private:
 	void InitNetObjectPrioritizerDefinitions()
 	{
 		const UClass* NetObjectPrioritizerDefinitionsClass = UNetObjectPrioritizerDefinitions::StaticClass();

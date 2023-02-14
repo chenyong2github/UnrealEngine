@@ -5,8 +5,18 @@
 #include "CoreTypes.h"
 #include "Misc/AutomationTest.h"
 
+#if EXPLICIT_TESTS_TARGET
+#include "TestHarness.h"
+#endif
+
 namespace UE::Net
 {
+
+struct FNetworkAutomationTestStats
+{
+	SIZE_T FailureCount;
+	SIZE_T WarningCount;
+};
 
 struct FNetworkAutomationTestConfig
 {
@@ -44,7 +54,13 @@ protected:
 	void AddTestWarning();
 
 private:
-	struct FNetworkAutomationTestStats* Stats;
+	void PreSetUp();
+	void PostTearDown();
+
+	template<class Fixture, const TCHAR* Name>
+	friend class TCatchFixtureWrapper;
+
+	FNetworkAutomationTestStats Stats = {};
 	bool bSuppressWarningsFromSummary;
 };
 
@@ -72,7 +88,44 @@ private:
 
 }
 
-#if WITH_AUTOMATION_WORKER
+#if EXPLICIT_TESTS_TARGET
+
+namespace UE::Net
+{
+
+template<class Fixture, const TCHAR* Name>
+class TCatchFixtureWrapper : public Fixture
+{
+public:
+	TCatchFixtureWrapper() : Fixture()
+	{
+		this->PreSetUp();
+		Fixture::SetUp();
+	}
+
+	~TCatchFixtureWrapper()
+	{
+		Fixture::TearDown();
+		this->PostTearDown();
+	}
+
+	virtual const TCHAR* GetName() const override { return Name; }
+	virtual void RunTestImpl() override {} // Unused in Catch-based tests
+};
+
+}
+
+#define UE_NET_TEST_CATCH_INTERNAL(TestSuite, TestCase, BaseClass) \
+	constexpr TCHAR TestSuite ## _ ## TestCase ## Name[] = TEXT("Net." #TestSuite "." #TestCase); \
+	TEST_CASE_METHOD((TCatchFixtureWrapper<BaseClass, TestSuite ## _ ## TestCase ## Name>), #TestSuite ## "_" ## #TestCase)
+
+#define UE_NET_TEST_FIXTURE(TestFixture, TestCase) UE_NET_TEST_CATCH_INTERNAL(TestFixture, TestCase, TestFixture)
+#define UE_NET_TEST(TestSuite, TestCase) UE_NET_TEST_CATCH_INTERNAL(TestSuite, TestCase, UE::Net::FNetworkAutomationTestSuiteFixture)
+
+
+
+
+#elif WITH_AUTOMATION_WORKER
 
 #define UE_NET_TEST_INTERNAL(TestSuite, TestCase, BaseClass) \
 class TestSuite ## _ ## TestCase : public BaseClass \

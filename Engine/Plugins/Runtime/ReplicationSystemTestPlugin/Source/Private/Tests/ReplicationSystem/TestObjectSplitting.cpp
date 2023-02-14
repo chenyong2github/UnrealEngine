@@ -685,7 +685,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TearOffWhileHugeObjectStateIsSendin
 
 	// Verify we have the previous state
 	const UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
-	UE_NET_ASSERT_EQ(ClientObjectThatWillBeTornOff->IntA ^ 1, ServerObject->IntA);
+	UE_NET_ASSERT_EQ((ClientObjectThatWillBeTornOff->IntA ^ 1), ServerObject->IntA);
 
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, true);

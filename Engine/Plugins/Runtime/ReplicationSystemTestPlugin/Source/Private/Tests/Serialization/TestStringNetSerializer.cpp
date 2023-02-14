@@ -278,7 +278,7 @@ void FTestStringNetSerializer::TestIllFormedStringSerialize()
 			QuantizeArgs.Source = NetSerializerValuePointer(&SourceString);
 			QuantizeArgs.Target = NetSerializerValuePointer(QuantizedStateBuffer[0]);
 			Serializer.Quantize(Context, QuantizeArgs);
-			UE_NET_ASSERT_FALSE(Context.HasError()) << "Quantize failed.";
+			UE_NET_ASSERT_FALSE_MSG(Context.HasError(), "Quantize failed.");
 		}
 
 		// Serialize
@@ -290,8 +290,8 @@ void FTestStringNetSerializer::TestIllFormedStringSerialize()
 			SerializeArgs.Source = NetSerializerValuePointer(QuantizedStateBuffer[0]);
 			Serializer.Serialize(Context, SerializeArgs);
 			Writer.CommitWrites();
-			UE_NET_ASSERT_FALSE(Context.HasError()) << "Serialize() reported an error.";
-			UE_NET_ASSERT_FALSE(Writer.IsOverflown()) << "FNetBitStreamWriter overflowed.";
+			UE_NET_ASSERT_FALSE_MSG(Context.HasError(), "Serialize() reported an error.");
+			UE_NET_ASSERT_FALSE_MSG(Writer.IsOverflown(), "FNetBitStreamWriter overflowed.");
 		}
 
 		// Deserialize
@@ -303,8 +303,8 @@ void FTestStringNetSerializer::TestIllFormedStringSerialize()
 			DeserializeArgs.Target = NetSerializerValuePointer(QuantizedStateBuffer[1]);
 			Serializer.Deserialize(Context, DeserializeArgs);
 			Writer.CommitWrites();
-			UE_NET_ASSERT_FALSE(Context.HasError()) << "Deserialize() reported an error.";
-			UE_NET_ASSERT_FALSE(Reader.IsOverflown()) << "FNetBitStreamRead overflowed.";
+			UE_NET_ASSERT_FALSE_MSG(Context.HasError(), "Deserialize() reported an error.");
+			UE_NET_ASSERT_FALSE_MSG(Reader.IsOverflown(), "FNetBitStreamRead overflowed.");
 		}
 
 		// Dequantize
@@ -316,7 +316,7 @@ void FTestStringNetSerializer::TestIllFormedStringSerialize()
 			DequantizeArgs.Target = NetSerializerValuePointer(&TargetString);
 			Serializer.Dequantize(Context, DequantizeArgs);
 			// Depending on the size of wchar_t an error may be generated or not on certain ill-formed strings.
-			//UE_NET_ASSERT_FALSE(Context.HasError()) << "Dequantize() reported an error for string '" << SourceString << '\'';
+			//UE_NET_ASSERT_FALSE_MSG(Context.HasError(), "Dequantize() reported an error for string '" << SourceString << '\'');
 		}
 
 		// Free memory

@@ -15,7 +15,7 @@ class FTestRepTagFixture : public FReplicationSystemTestFixture
 public:
 	FTestRepTagFixture() : ReplicationProtocol(nullptr), StateDescriptorWithTag(~0U) {}
 
-private:
+protected:
 	virtual void SetUp() override
 	{
 		FReplicationSystemTestFixture::SetUp();

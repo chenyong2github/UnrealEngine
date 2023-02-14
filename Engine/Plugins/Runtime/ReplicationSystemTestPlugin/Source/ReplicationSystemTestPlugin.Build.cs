@@ -44,12 +44,15 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-			DynamicallyLoadedModuleNames.AddRange(
-				new string[]
-				{
-					// ... add any modules that your module loads dynamically here ...
-				}
-				);
+			if (Target.IsTestTarget)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"LowLevelTestsRunner",
+					}
+					);
+			}
 
 			SetupIrisSupport(Target);
 		}

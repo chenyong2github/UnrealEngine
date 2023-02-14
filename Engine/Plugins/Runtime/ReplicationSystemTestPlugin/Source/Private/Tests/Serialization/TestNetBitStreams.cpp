@@ -188,8 +188,8 @@ UE_NET_TEST_FIXTURE(FNetBitStreamReaderWriterTest, WriteBitsAtOffset0)
 
 		const uint32 ExpectedValue = uint32((uint64(1) << BitCount) - uint64(1));
 
-		UE_NET_ASSERT_EQ(ReadValue, ExpectedValue) << FString::Printf(TEXT("Failed testing with %u bits"), BitCount);
-		UE_NET_ASSERT_EQ(ReadSentinel, Sentinel) << FString::Printf(TEXT("Failed testing with %u bits"), BitCount);
+		UE_NET_ASSERT_EQ_MSG(ReadValue, ExpectedValue, FString::Printf(TEXT("Failed testing with %u bits"), BitCount));
+		UE_NET_ASSERT_EQ_MSG(ReadSentinel, Sentinel, FString::Printf(TEXT("Failed testing with %u bits"), BitCount));
 	}
 }
 
@@ -214,8 +214,8 @@ UE_NET_TEST_FIXTURE(FNetBitStreamReaderWriterTest, WriteBitsAtArbitraryOffsets)
 
 			const uint32 ExpectedValue = uint32((uint64(1) << BitCount) - uint64(1));
 
-			UE_NET_ASSERT_EQ(ReadValue, ExpectedValue) << FString::Printf(TEXT("Failed testing with %u bits at offset %u"), BitCount, BitOffset);
-			UE_NET_ASSERT_EQ(ReadSentinel, Sentinel) << FString::Printf(TEXT("Failed testing with %u bits at offset %u"), BitCount, BitOffset);
+			UE_NET_ASSERT_EQ_MSG(ReadValue, ExpectedValue, FString::Printf(TEXT("Failed testing with %u bits at offset %u"), BitCount, BitOffset));
+			UE_NET_ASSERT_EQ_MSG(ReadSentinel, Sentinel, FString::Printf(TEXT("Failed testing with %u bits at offset %u"), BitCount, BitOffset));
 		}
 	}
 }
@@ -266,10 +266,10 @@ UE_NET_TEST_FIXTURE(FNetBitStreamReaderWriterTest, WriteStreamWithBitsWrittenAtA
 				const uint32 BitCount = ValuesAndBitCount[ValueIt][1];
 
 				const uint32 ReadValue = Reader.ReadBits(BitCount);
-				UE_NET_ASSERT_EQ(ReadValue, ExpectedValue) << FString::Printf(TEXT("Write stream with bits written at offset %u to stream at offset %u"), BitOffset0, BitOffset1);
+				UE_NET_ASSERT_EQ_MSG(ReadValue, ExpectedValue, FString::Printf(TEXT("Write stream with bits written at offset %u to stream at offset %u"), BitOffset0, BitOffset1));
 			}
 			const uint32 ReadSentinel = Reader.ReadBits(sizeof(Sentinel)*8U);
-			UE_NET_ASSERT_EQ(ReadSentinel, Sentinel) << FString::Printf(TEXT("Write stream with bits written at offset %u to stream at offset %u"), BitOffset0, BitOffset1);
+			UE_NET_ASSERT_EQ_MSG(ReadSentinel, Sentinel, FString::Printf(TEXT("Write stream with bits written at offset %u to stream at offset %u"), BitOffset0, BitOffset1));
 		}
 	}
 }
@@ -325,7 +325,7 @@ UE_NET_TEST_FIXTURE(FNetBitStreamReaderWriterTest, ReadStreamWithBitsWrittenAtAr
 			Reader.ReadBitStream(ResultBuffer, TotalBitCount);
 
 			const uint32 ReadSentinel = Reader.ReadBits(sizeof(Sentinel)*8U);
-			UE_NET_ASSERT_EQ(ReadSentinel, Sentinel) << FString::Printf(TEXT("Write stream with bits written at offset %u to stream at offset %u"), BitOffset0, BitOffset1);
+			UE_NET_ASSERT_EQ_MSG(ReadSentinel, Sentinel, FString::Printf(TEXT("Write stream with bits written at offset %u to stream at offset %u"), BitOffset0, BitOffset1));
 
 			Reader.InitBits(ResultBuffer, TotalBitCount);
 			for (size_t ValueIt = 0, ValueEndIt = sizeof(ValuesAndBitCount)/sizeof(ValuesAndBitCount[0]); ValueIt != ValueEndIt; ++ValueIt)
@@ -334,7 +334,7 @@ UE_NET_TEST_FIXTURE(FNetBitStreamReaderWriterTest, ReadStreamWithBitsWrittenAtAr
 				const uint32 BitCount = ValuesAndBitCount[ValueIt][1];
 
 				const uint32 ReadValue = Reader.ReadBits(BitCount);
-				UE_NET_ASSERT_EQ(ReadValue, ExpectedValue) << FString::Printf(TEXT("Write stream with bits written at offset %u to stream at offset %u"), BitOffset0, BitOffset1);
+				UE_NET_ASSERT_EQ_MSG(ReadValue, ExpectedValue, FString::Printf(TEXT("Write stream with bits written at offset %u to stream at offset %u"), BitOffset0, BitOffset1));
 			}
 		}
 	}
@@ -502,7 +502,7 @@ UE_NET_TEST_FIXTURE(FNetBitStreamSubstreamTest, CanReadDataCommittedFromSubstrea
 		Reader.Seek(SeekCount1);
 		const uint32 ReadWord = Reader.ReadBits(WriteCount2);
 		const uint32 WordMask = ~0U >> (32 - WriteCount2);
-		UE_NET_ASSERT_EQ(ReadWord & WordMask, WriteWord & WordMask);
+		UE_NET_ASSERT_EQ((ReadWord & WordMask), (WriteWord & WordMask));
 	}
 }
 

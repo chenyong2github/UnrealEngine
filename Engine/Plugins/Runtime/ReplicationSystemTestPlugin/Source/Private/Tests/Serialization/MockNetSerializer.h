@@ -6,17 +6,17 @@
 
 struct FMockNetSerializerCallCounter
 {
-	uint32 Serialize;
-	uint32 Deserialize;
-	uint32 SerializeDelta;
-	uint32 DeserializeDelta;
-	uint32 Quantize;
-	uint32 Dequantize;
-	uint32 IsEqual;
-	uint32 Validate;
-	uint32 CloneDynamicState;
-	uint32 FreeDynamicState;
-	uint32 CollectNetReferences;
+	uint32 Serialize{};
+	uint32 Deserialize{};
+	uint32 SerializeDelta{};
+	uint32 DeserializeDelta{};
+	uint32 Quantize{};
+	uint32 Dequantize{};
+	uint32 IsEqual{};
+	uint32 Validate{};
+	uint32 CloneDynamicState{};
+	uint32 FreeDynamicState{};
+	uint32 CollectNetReferences{};
 
 	void Reset() { *this = FMockNetSerializerCallCounter() = {}; }
 };

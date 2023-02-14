@@ -194,7 +194,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanQuantizeAndDequantize)
 	// check if we did get the expected values
 	UE_NET_ASSERT_EQ(1, TestObjectB->IntA);
 	UE_NET_ASSERT_EQ((int8)2, TestObjectB->IntC);
-	UE_NET_ASSERT_EQ(0, TestObjectB->StructD.NotReplicatedIntA) << "Property that isn't replicated has been overwritten";
+	UE_NET_ASSERT_EQ_MSG(0, TestObjectB->StructD.NotReplicatedIntA, "Property that isn't replicated has been overwritten");
 	UE_NET_ASSERT_EQ(int32('B'), TestObjectB->StructD.IntB);
 	UE_NET_ASSERT_EQ(3, TestObjectB->Components[0]->IntA);
 	UE_NET_ASSERT_EQ(4, TestObjectB->Components[11]->IntA);

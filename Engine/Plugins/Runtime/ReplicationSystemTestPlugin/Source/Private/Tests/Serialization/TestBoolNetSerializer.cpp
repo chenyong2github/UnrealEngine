@@ -30,7 +30,7 @@ protected:
 
 UE_NET_TEST_FIXTURE(FTestBoolNetSerializer, HasTestValues)
 {
-	UE_NET_ASSERT_GT(ValueCount, SIZE_T(0)) << "No test values found";
+	UE_NET_ASSERT_GT_MSG(ValueCount, SIZE_T(0), "No test values found");
 }
 
 UE_NET_TEST_FIXTURE(FTestBoolNetSerializer, TestValuesAreAsExpected)

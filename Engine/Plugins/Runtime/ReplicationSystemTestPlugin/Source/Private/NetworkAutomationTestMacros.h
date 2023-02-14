@@ -3,8 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "TestMessage.h"
 #include "Logging/LogVerbosity.h"
+
+#if EXPLICIT_TESTS_TARGET
+#include <catch2/catch_test_macros.hpp>
+#endif
 
 namespace UE::Net
 {
@@ -42,6 +47,15 @@ class FTestMessageLog
 {
 public:
 	FTestMessageLog(FNetworkAutomationTestSuiteFixture& Test, ELogVerbosity::Type LogVerbosity);
+
+	template<typename T>
+	FTestMessageLog(FNetworkAutomationTestSuiteFixture& InTest, ELogVerbosity::Type InLogVerbosity, const T& InMessage)
+		: Test(InTest)
+		, LogVerbosity(InLogVerbosity)
+	{
+		Message << InMessage;
+	}
+
 	~FTestMessageLog();
 
 	void operator=(const FTestMessage&);
@@ -98,6 +112,51 @@ Name(const T& Value, U ExpectedValue, const char* ValueText, const char* Expecte
 	} \
 }
 
+#if EXPLICIT_TESTS_TARGET
+
+#define UE_NET_TEST_MSG_INTERNAL(Message) \
+	UE::Net::FTestMessage PREPROCESSOR_JOIN(TestMessage, __LINE__); \
+	PREPROCESSOR_JOIN(TestMessage, __LINE__) << Message; \
+	UNSCOPED_INFO(PREPROCESSOR_JOIN(TestMessage, __LINE__).C_Str())
+
+#define UE_NET_ASSERT_EQ(V1, V2) REQUIRE(V1 == V2)
+#define UE_NET_ASSERT_NE(V1, V2) REQUIRE(V1 != V2)
+#define UE_NET_ASSERT_LT(V1, V2) REQUIRE(V1 < V2)
+#define UE_NET_ASSERT_LE(V1, V2) REQUIRE(V1 <= V2)
+#define UE_NET_ASSERT_GT(V1, V2) REQUIRE(V1 > V2)
+#define UE_NET_ASSERT_GE(V1, V2) REQUIRE(V1 >= V2)
+#define UE_NET_ASSERT_TRUE(V) REQUIRE(V)
+#define UE_NET_ASSERT_FALSE(V) REQUIRE_FALSE(V)
+
+#define UE_NET_ASSERT_EQ_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); REQUIRE(V1 == V2)
+#define UE_NET_ASSERT_NE_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); REQUIRE(V1 != V2)
+#define UE_NET_ASSERT_LT_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); REQUIRE(V1 < V2)
+#define UE_NET_ASSERT_LE_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); REQUIRE(V1 <= V2)
+#define UE_NET_ASSERT_GT_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); REQUIRE(V1 > V2)
+#define UE_NET_ASSERT_GE_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); REQUIRE(V1 >= V2)
+#define UE_NET_ASSERT_TRUE_MSG(V, Message) UE_NET_TEST_MSG_INTERNAL(Message); REQUIRE(V)
+#define UE_NET_ASSERT_FALSE_MSG(V, Message) UE_NET_TEST_MSG_INTERNAL(Message); REQUIRE_FALSE(V)
+
+#define UE_NET_EXPECT_EQ(V1, V2) CHECK(V1 == V2)
+#define UE_NET_EXPECT_NE(V1, V2) CHECK(V1 != V2)
+#define UE_NET_EXPECT_LT(V1, V2) CHECK(V1 < V2)
+#define UE_NET_EXPECT_LE(V1, V2) CHECK(V1 <= V2)
+#define UE_NET_EXPECT_GT(V1, V2) CHECK(V1 > V2)
+#define UE_NET_EXPECT_GE(V1, V2) CHECK(V1 >= V2)
+#define UE_NET_EXPECT_TRUE(V) CHECK(V)
+#define UE_NET_EXPECT_FALSE(V) CHECK_FALSE(V)
+
+#define UE_NET_EXPECT_EQ_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK(V1 == V2)
+#define UE_NET_EXPECT_NE_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK(V1 != V2)
+#define UE_NET_EXPECT_LT_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK(V1 < V2)
+#define UE_NET_EXPECT_LE_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK(V1 <= V2)
+#define UE_NET_EXPECT_GT_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK(V1 > V2)
+#define UE_NET_EXPECT_GE_MSG(V1, V2, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK(V1 >= V2)
+#define UE_NET_EXPECT_TRUE_MSG(V, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK(V)
+#define UE_NET_EXPECT_FALSE_MSG(V, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK_FALSE(V)
+
+#else
+
 UE_NET_COMPARE_RETURN_TESTRESULT(TCmpEqual, ==)
 UE_NET_COMPARE_RETURN_TESTRESULT(TCmpNotEqual, !=)
 UE_NET_COMPARE_RETURN_TESTRESULT(TCmpLess, <)
@@ -105,14 +164,23 @@ UE_NET_COMPARE_RETURN_TESTRESULT(TCmpLessOrEqual, <=)
 UE_NET_COMPARE_RETURN_TESTRESULT(TCmpGreater, >)
 UE_NET_COMPARE_RETURN_TESTRESULT(TCmpGreaterOrEqual, >=)
 
-#define UE_NET_FAIL(Message) return this->AddTestFailure(), UE::Net::FTestMessageLog(*this, ELogVerbosity::Error) = UE::Net::FTestMessage() << Message
-#define UE_NET_WARN(Message) this->AddTestWarning(), UE::Net::FTestMessageLog(*this, ELogVerbosity::Warning) = UE::Net::FTestMessage() << Message
+#define UE_NET_FAIL_MSG(Message) return this->AddTestFailure(), UE::Net::FTestMessageLog(*this, ELogVerbosity::Error) = UE::Net::FTestMessage() << Message
+#define UE_NET_WARN_MSG(Message) this->AddTestWarning(), UE::Net::FTestMessageLog(*this, ELogVerbosity::Warning) = UE::Net::FTestMessage() << Message
+
+#define UE_NET_FAIL(Message) return this->AddTestFailure(), void(UE::Net::FTestMessageLog(*this, ELogVerbosity::Error, Message))
+#define UE_NET_WARN(Message) this->AddTestWarning(), void(UE::Net::FTestMessageLog(*this, ELogVerbosity::Warning, Message))
 
 #define UE_NET_TEST_(CompareWithTestResult, V1, V2, FailFunction) if (UE::Net::FTestResult Result_ = CompareWithTestResult(V1, V2, #V1, #V2)) {} else FailFunction(Result_.GetMessage())
+#define UE_NET_ASSERT_INTERNAL_MSG(CompareWithTestResult, V1, V2) UE_NET_TEST_(CompareWithTestResult, V1, V2, UE_NET_FAIL_MSG)
+#define UE_NET_EXPECT_INTERNAL_MSG(CompareWithTestResult, V1, V2) UE_NET_TEST_(CompareWithTestResult, V1, V2, UE_NET_WARN_MSG)
+
 #define UE_NET_ASSERT_INTERNAL(CompareWithTestResult, V1, V2) UE_NET_TEST_(CompareWithTestResult, V1, V2, UE_NET_FAIL)
 #define UE_NET_EXPECT_INTERNAL(CompareWithTestResult, V1, V2) UE_NET_TEST_(CompareWithTestResult, V1, V2, UE_NET_WARN)
 
 #define UE_NET_TEST_BOOL_(V1, V2, FailFunction) if (UE::Net::FTestResult Result_ = UE::Net::BooleanTestResult(V1, V2, #V1)) {} else FailFunction(Result_.GetMessage())
+#define UE_NET_ASSERT_BOOL_INTERNAL_MSG(V1, V2) UE_NET_TEST_BOOL_(V1, V2, UE_NET_FAIL_MSG)
+#define UE_NET_EXPECT_BOOL_INTERNAL_MSG(V1, V2) UE_NET_TEST_BOOL_(V1, V2, UE_NET_WARN_MSG)
+
 #define UE_NET_ASSERT_BOOL_INTERNAL(V1, V2) UE_NET_TEST_BOOL_(V1, V2, UE_NET_FAIL)
 #define UE_NET_EXPECT_BOOL_INTERNAL(V1, V2) UE_NET_TEST_BOOL_(V1, V2, UE_NET_WARN)
 
@@ -125,6 +193,15 @@ UE_NET_COMPARE_RETURN_TESTRESULT(TCmpGreaterOrEqual, >=)
 #define UE_NET_ASSERT_TRUE(V) UE_NET_ASSERT_BOOL_INTERNAL(V, true)
 #define UE_NET_ASSERT_FALSE(V) UE_NET_ASSERT_BOOL_INTERNAL(V, false)
 
+#define UE_NET_ASSERT_EQ_MSG(V1, V2, Message) UE_NET_ASSERT_INTERNAL_MSG(TCmpEqual, V1, V2) << Message
+#define UE_NET_ASSERT_NE_MSG(V1, V2, Message) UE_NET_ASSERT_INTERNAL_MSG(TCmpNotEqual, V1, V2) << Message
+#define UE_NET_ASSERT_LT_MSG(V1, V2, Message) UE_NET_ASSERT_INTERNAL_MSG(TCmpLess, V1, V2) << Message
+#define UE_NET_ASSERT_LE_MSG(V1, V2, Message) UE_NET_ASSERT_INTERNAL_MSG(TCmpLessOrEqual, V1, V2) << Message
+#define UE_NET_ASSERT_GT_MSG(V1, V2, Message) UE_NET_ASSERT_INTERNAL_MSG(TCmpGreater, V1, V2) << Message
+#define UE_NET_ASSERT_GE_MSG(V1, V2, Message) UE_NET_ASSERT_INTERNAL_MSG(TCmpGreaterOrEqual, V1, V2) << Message
+#define UE_NET_ASSERT_TRUE_MSG(V, Message) UE_NET_ASSERT_BOOL_INTERNAL_MSG(V, true) << Message
+#define UE_NET_ASSERT_FALSE_MSG(V, Message) UE_NET_ASSERT_BOOL_INTERNAL_MSG(V, false) << Message
+
 #define UE_NET_EXPECT_EQ(V1, V2) UE_NET_EXPECT_INTERNAL(TCmpEqual, V1, V2)
 #define UE_NET_EXPECT_NE(V1, V2) UE_NET_EXPECT_INTERNAL(TCmpNotEqual, V1, V2)
 #define UE_NET_EXPECT_LT(V1, V2) UE_NET_EXPECT_INTERNAL(TCmpLess, V1, V2)
@@ -133,6 +210,17 @@ UE_NET_COMPARE_RETURN_TESTRESULT(TCmpGreaterOrEqual, >=)
 #define UE_NET_EXPECT_GE(V1, V2) UE_NET_EXPECT_INTERNAL(TCmpGreaterOrEqual, V1, V2)
 #define UE_NET_EXPECT_TRUE(V) UE_NET_EXPECT_BOOL_INTERNAL(V, true)
 #define UE_NET_EXPECT_FALSE(V) UE_NET_EXPECT_BOOL_INTERNAL(V, false)
+
+#define UE_NET_EXPECT_EQ_MSG(V1, V2, Message) UE_NET_EXPECT_INTERNAL_MSG(TCmpEqual, V1, V2) << Message
+#define UE_NET_EXPECT_NE_MSG(V1, V2, Message) UE_NET_EXPECT_INTERNAL_MSG(TCmpNotEqual, V1, V2) << Message
+#define UE_NET_EXPECT_LT_MSG(V1, V2, Message) UE_NET_EXPECT_INTERNAL_MSG(TCmpLess, V1, V2) << Message
+#define UE_NET_EXPECT_LE_MSG(V1, V2, Message) UE_NET_EXPECT_INTERNAL_MSG(TCmpLessOrEqual, V1, V2) << Message
+#define UE_NET_EXPECT_GT_MSG(V1, V2, Message) UE_NET_EXPECT_INTERNAL_MSG(TCmpGreater, V1, V2) << Message
+#define UE_NET_EXPECT_GE_MSG(V1, V2, Message) UE_NET_EXPECT_INTERNAL_MSG(TCmpGreaterOrEqual, V1, V2) << Message
+#define UE_NET_EXPECT_TRUE_MSG(V, Message) UE_NET_EXPECT_BOOL_INTERNAL_MSG(V, true) << Message
+#define UE_NET_EXPECT_FALSE_MSG(V, Message) UE_NET_EXPECT_BOOL_INTERNAL_MSG(V, false) << Message
+
+#endif
 
 #define UE_NET_LOG(Message) FTestMessageLog(*this, ELogVerbosity::Display) = FTestMessage() << Message
 

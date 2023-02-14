@@ -94,7 +94,7 @@ void FTestLastResortPropertyNetSerializer::SetUp()
 	Super::SetUp();
 
 	ReplicationStateDescriptor = FReplicationStateDescriptorBuilder::CreateDescriptorForStruct(StaticStruct<FStructForLastResortPropertyNetSerializerTest>());
-	UE_NET_ASSERT_EQ(ReplicationStateDescriptor->MemberCount, uint16(1)) << "Expected FStructForLastResortPropertyNetSerializerTest to contain exactly one member";
+	UE_NET_ASSERT_EQ_MSG(ReplicationStateDescriptor->MemberCount, uint16(1), "Expected FStructForLastResortPropertyNetSerializerTest to contain exactly one member");
 
 
 	SerializerConfig = const_cast<FLastResortPropertyNetSerializerConfig*>(static_cast<const FLastResortPropertyNetSerializerConfig*>(ReplicationStateDescriptor->MemberSerializerDescriptors[0].SerializerConfig));

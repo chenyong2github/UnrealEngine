@@ -542,7 +542,8 @@ void FTestPolymorphicArrayStructNetSerializerFixture::Deserialize()
 void FTestPolymorphicArrayStructNetSerializerFixture::SerializeDelta()
 {
 	// Check pre-conditions
-	UE_NET_ASSERT_TRUE(bHasQuantizedState && QuantizedStateCount == 2U);
+	UE_NET_ASSERT_TRUE(bHasQuantizedState);
+	UE_NET_ASSERT_EQ(QuantizedStateCount, 2U);
 	
 	// Serialize data
 	{
@@ -673,9 +674,17 @@ bool FTestPolymorphicArrayStructNetSerializerFixture::IsEqual(bool bQuantized)
 {
 	if (bQuantized)
 	{
-		// Trick to return false if assertion fails.
-		UE_NET_ASSERT_TRUE(bHasQuantizedState), false;
-		UE_NET_ASSERT_TRUE(bHasClonedQuantizedState), false;
+		UE_NET_EXPECT_TRUE(bHasQuantizedState);
+		if (!bHasQuantizedState)
+		{
+			return false;
+		}
+
+		UE_NET_EXPECT_TRUE(bHasClonedQuantizedState);
+		if (!bHasClonedQuantizedState)
+		{
+			return false;
+		}
 	}
 
 	FNetSerializationContext Context;

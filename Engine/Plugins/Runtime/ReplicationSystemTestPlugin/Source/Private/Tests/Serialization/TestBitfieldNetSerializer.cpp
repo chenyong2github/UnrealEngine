@@ -87,7 +87,7 @@ void FTestBitfieldNetSerializer<StructType, SourceType>::SetUp()
 
 		FBitfieldNetSerializerConfig Config;
 		const bool bIsValidBitfield = InitBitfieldNetSerializerConfigFromProperty(Config, BoolProperty);
-		UE_NET_ASSERT_TRUE(bIsValidBitfield) << "Unable to initialize bitfield from " << Struct->GetFName() << "::" << BoolProperty->GetNameCPP();
+		UE_NET_ASSERT_TRUE_MSG(bIsValidBitfield, "Unable to initialize bitfield from " << Struct->GetFName() << "::" << BoolProperty->GetNameCPP());
 		Configs.Add(Config);
 	}
 
@@ -106,19 +106,19 @@ void FTestBitfieldNetSerializer<StructType, SourceType>::TestIsEqual()
 
 		bIsQuantized = false;
 		const bool bIsDequantizedEqual = FTestNetSerializerFixture::TestIsEqual(Config, NetSerializerValuePointer(&Bit), NetSerializerValuePointer(&Bit), true, bIsQuantized);
-		UE_NET_ASSERT_TRUE(bIsDequantizedEqual) << "Set bit dequantized equality test failed with config " << Config;
+		UE_NET_ASSERT_TRUE_MSG(bIsDequantizedEqual, "Set bit dequantized equality test failed with config " << Config);
 
 		bIsQuantized = true;
 		const bool bIsQuantizedEqual = FTestNetSerializerFixture::TestIsEqual(Config, NetSerializerValuePointer(&Bit), NetSerializerValuePointer(&Bit), true, bIsQuantized);
-		UE_NET_ASSERT_TRUE(bIsQuantizedEqual) << "Set bit quantized equality test failed with config " << Config;
+		UE_NET_ASSERT_TRUE_MSG(bIsQuantizedEqual, "Set bit quantized equality test failed with config " << Config);
 
 		bIsQuantized = false;
 		const bool bZeroIsNotDequantizedEqualToOne = FTestNetSerializerFixture::TestIsEqual(Config, NetSerializerValuePointer(&Bit), NetSerializerValuePointer(&Zero), false, bIsQuantized);
-		UE_NET_ASSERT_TRUE(bZeroIsNotDequantizedEqualToOne) << "Set bit was dequantized equal to zero with config " << Config;
+		UE_NET_ASSERT_TRUE_MSG(bZeroIsNotDequantizedEqualToOne, "Set bit was dequantized equal to zero with config " << Config);
 
 		bIsQuantized = true;
 		const bool bZeroIsNotQuantizedEqualToOne = FTestNetSerializerFixture::TestIsEqual(Config, NetSerializerValuePointer(&Bit), NetSerializerValuePointer(&Zero), false, bIsQuantized);
-		UE_NET_ASSERT_TRUE(bZeroIsNotQuantizedEqualToOne) << "Set bit was quantized equal to zero with config " << Config;
+		UE_NET_ASSERT_TRUE_MSG(bZeroIsNotQuantizedEqualToOne, "Set bit was quantized equal to zero with config " << Config);
 	}
 }
 
@@ -133,10 +133,10 @@ void FTestBitfieldNetSerializer<StructType, SourceType>::TestValidate()
 	{
 		bool bIsValid;
 		bIsValid = FTestNetSerializerFixture::TestValidate(Config, NetSerializerValuePointer(&Zero), bExpectedResult);
-		UE_NET_ASSERT_TRUE(bIsValid) << "Unset bit was determined invalid with config " << Config;
+		UE_NET_ASSERT_TRUE_MSG(bIsValid, "Unset bit was determined invalid with config " << Config);
 
 		bIsValid = FTestNetSerializerFixture::TestValidate(Config, NetSerializerValuePointer(&One), bExpectedResult);
-		UE_NET_ASSERT_TRUE(bIsValid) << "Set bit was determined invalid with config " << Config;
+		UE_NET_ASSERT_TRUE_MSG(bIsValid, "Set bit was determined invalid with config " << Config);
 	}
 }
 
@@ -150,10 +150,10 @@ void FTestBitfieldNetSerializer<StructType, SourceType>::TestQuantize()
 	for (const FBitfieldNetSerializerConfig& Config : Configs)
 	{
 		bool bQuantize0Works = FTestNetSerializerFixture::TestQuantize(Config, NetSerializerValuePointer(&Zero));
-		UE_NET_ASSERT_TRUE(bQuantize0Works) << "0 bit could not be quantized with config " << Config;
+		UE_NET_ASSERT_TRUE_MSG(bQuantize0Works, "0 bit could not be quantized with config " << Config);
 
 		bool bQuantize1Works = FTestNetSerializerFixture::TestQuantize(Config, NetSerializerValuePointer(&One));
-		UE_NET_ASSERT_TRUE(bQuantize1Works) << " 1 bit could not be quantized with config " << Config;
+		UE_NET_ASSERT_TRUE_MSG(bQuantize1Works, " 1 bit could not be quantized with config " << Config);
 	}
 }
 
@@ -171,7 +171,7 @@ void FTestBitfieldNetSerializer<StructType, SourceType>::TestSerialize()
 		{
 			const SourceType Value = Values[ValueIt];
 			const bool bSerializeWorks = FTestNetSerializerFixture::TestSerialize(Config, NetSerializerValuePointer(&Value), NetSerializerValuePointer(&Value), bQuantizedCompare);
-			UE_NET_ASSERT_TRUE(bSerializeWorks) << Value << " could not be serialized with config " << Config;
+			UE_NET_ASSERT_TRUE_MSG(bSerializeWorks, Value << " could not be serialized with config " << Config);
 		}
 	}
 }
@@ -193,7 +193,7 @@ void FTestBitfieldNetSerializer<StructType, SourceType>::TestDequantize()
 		QuantizeArgs.Source = NetSerializerValuePointer(&Value);
 		QuantizeArgs.Target = NetSerializerValuePointer(QuantizedBuffer[0]);
 		Serializer.Quantize(Context, QuantizeArgs);
-		UE_NET_ASSERT_FALSE(Context.HasError()) << "Quantize() of value reported an error. Config " << Config;
+		UE_NET_ASSERT_FALSE_MSG(Context.HasError(), "Quantize() of value reported an error. Config " << Config);
 
 		Writer.InitBytes(BitStreamBuffer, sizeof(BitStreamBuffer));
 		FNetSerializeArgs SerializeArgs;
@@ -202,8 +202,8 @@ void FTestBitfieldNetSerializer<StructType, SourceType>::TestDequantize()
 		SerializeArgs.Source = QuantizeArgs.Target;
 		Serializer.Serialize(Context, SerializeArgs);
 		Writer.CommitWrites();
-		UE_NET_ASSERT_FALSE(Writer.IsOverflown()) << "FNetBitStreamWriter overflowed. Config " << Config;
-		UE_NET_ASSERT_FALSE(Context.HasError()) << "Serialize() reported an error. Config " << Config;
+		UE_NET_ASSERT_FALSE_MSG(Writer.IsOverflown(), "FNetBitStreamWriter overflowed. Config " << Config);
+		UE_NET_ASSERT_FALSE_MSG(Context.HasError(), "Serialize() reported an error. Config " << Config);
 
 		Reader.InitBits(BitStreamBuffer, Writer.GetPosBits());
 		FNetDeserializeArgs DeserializeArgs;
@@ -211,8 +211,8 @@ void FTestBitfieldNetSerializer<StructType, SourceType>::TestDequantize()
 		DeserializeArgs.NetSerializerConfig = &Config;
 		DeserializeArgs.Target = NetSerializerValuePointer(QuantizedBuffer[1]);
 		Serializer.Deserialize(Context, DeserializeArgs);
-		UE_NET_ASSERT_FALSE(Reader.IsOverflown()) << "FNetBitStreamReader overflowed. Config " << Config;
-		UE_NET_ASSERT_FALSE(Context.HasError()) << "Deserialize() reported an error. Config " << Config;
+		UE_NET_ASSERT_FALSE_MSG(Reader.IsOverflown(), "FNetBitStreamReader overflowed. Config " << Config);
+		UE_NET_ASSERT_FALSE_MSG(Context.HasError(), "Deserialize() reported an error. Config " << Config);
 
 		// Need to dequantize the deserialized value
 		FNetDequantizeArgs DequantizeArgs;
@@ -221,9 +221,9 @@ void FTestBitfieldNetSerializer<StructType, SourceType>::TestDequantize()
 		DequantizeArgs.Source = DeserializeArgs.Target;
 		DequantizeArgs.Target = NetSerializerValuePointer(&Target);
 		Serializer.Dequantize(Context, DequantizeArgs);
-		UE_NET_ASSERT_FALSE(Context.HasError()) << "Dequantize() of deserialized value reported an error. Config " << Config;
+		UE_NET_ASSERT_FALSE_MSG(Context.HasError(), "Dequantize() of deserialized value reported an error. Config " << Config);
 
-		UE_NET_ASSERT_EQ(OriginalTarget, *reinterpret_cast<const SourceType*>(DequantizeArgs.Target)) << "Dequantize touched bits that should not have been modified. Config " << Config;
+		UE_NET_ASSERT_EQ_MSG(OriginalTarget, *reinterpret_cast<const SourceType*>(DequantizeArgs.Target), "Dequantize touched bits that should not have been modified. Config " << Config);
 	}
 }
 

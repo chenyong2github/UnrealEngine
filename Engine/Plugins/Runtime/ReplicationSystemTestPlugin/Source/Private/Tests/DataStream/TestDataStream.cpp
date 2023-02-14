@@ -184,7 +184,8 @@ UE_NET_TEST_FIXTURE(FTestDataStream, DataStreamGetsReadDataCall)
 
 // FTestDataStream implementation
 FTestDataStream::FTestDataStream()
-: DataStreamManager(nullptr)
+: FNetworkAutomationTestSuiteFixture()
+, DataStreamManager(nullptr)
 , DataStreamDefinitions(nullptr)
 , CurrentDataStreamDefinitions(nullptr)
 , DataStreamContext(&BitStreamReader, &BitStreamWriter)

@@ -35,10 +35,9 @@ public:
 	void TestSerialize();
 	void TestSerializeDelta();
 
-private:
+protected:
 	virtual void SetUp() override;
 
-protected:
 	static TArray<SourceType> Values;
 	static TArray<SourceType> InvalidValues;
 	static SerializerConfig Config;
@@ -239,7 +238,7 @@ void FTestEnumIntNetSerializer<SerializerConfig, SourceType, EnumType>::TestVali
 
 	// Check invalid values
 	{
-		UE_NET_EXPECT_GT(InvalidValues.Num(), 0) << "Unable to test EnumIntSerializer Validate with invalid values.";
+		UE_NET_EXPECT_GT_MSG(InvalidValues.Num(), 0, "Unable to test EnumIntSerializer Validate with invalid values.");
 
 		TArray<bool> ExpectedResults;
 		ExpectedResults.SetNumZeroed(InvalidValues.Num());
