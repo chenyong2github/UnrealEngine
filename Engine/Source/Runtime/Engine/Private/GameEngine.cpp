@@ -1408,7 +1408,19 @@ bool UGameEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			GDisallowNetworkTravel = true;
 		}
 #endif // UE_BUILD_SHIPPING
-		if (UEngine::Exec(InWorld, Cmd, Ar))
+#if UE_ALLOW_EXEC_EDITOR
+		if (UEngine::Exec_Editor(InWorld, Cmd, Ar))
+		{
+			return true;
+		}
+#endif
+#if UE_ALLOW_EXEC_DEV
+		if (UEngine::Exec_Dev(InWorld, Cmd, Ar))
+		{
+			return true;
+		}
+#endif
+		if (UEngine::Exec_Runtime(InWorld, Cmd, Ar))
 		{
 			return true;
 		}
