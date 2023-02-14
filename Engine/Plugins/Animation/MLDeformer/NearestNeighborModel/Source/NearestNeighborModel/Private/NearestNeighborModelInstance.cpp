@@ -11,6 +11,7 @@
 #include "Components/SkeletalMeshComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NearestNeighborModelInstance)
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(MLDEFORMERFRAMEWORK_API, MLDeformer);
 
 using namespace UE::MLDeformer;
 using namespace UE::NearestNeighborModel;
@@ -119,6 +120,7 @@ void UNearestNeighborModelInstance::InitOptimizedNetworkInstance()
 
 void UNearestNeighborModelInstance::Execute(float ModelWeight)
 {
+	CSV_SCOPED_TIMING_STAT(MLDeformer, NearestNeighborExecute);
 	const UNearestNeighborModel* NearestNeighborModel = Cast<UNearestNeighborModel>(Model);
 	check(NearestNeighborModel);
 	if (NearestNeighborModel->DoesUseOptimizedNetwork())

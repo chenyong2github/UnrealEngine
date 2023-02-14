@@ -10,6 +10,8 @@
 #include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(MLDEFORMERFRAMEWORK_API, MLDeformer);
+
 void UNeuralMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 {
 	Super::Init(SkelMeshComponent);
@@ -218,6 +220,7 @@ bool UNeuralMorphModelInstance::SetupInputs()
 void UNeuralMorphModelInstance::Execute(float ModelWeight)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::Execute)
+	CSV_SCOPED_TIMING_STAT(MLDeformer, NeuralMorphExecute);
 
 	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
 	UNeuralMorphNetwork* MorphNetwork = MorphModel->GetNeuralMorphNetwork();

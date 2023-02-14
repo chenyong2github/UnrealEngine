@@ -6,6 +6,7 @@
 #include "MLDeformerModule.h"
 #include "UObject/ObjectPtr.h"
 #include "RenderCommandFence.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "MLDeformerModelInstance.generated.h"
 
 class UMLDeformerModel;

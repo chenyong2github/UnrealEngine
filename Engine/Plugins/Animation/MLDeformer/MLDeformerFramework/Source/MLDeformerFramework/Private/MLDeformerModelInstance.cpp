@@ -14,6 +14,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerModelInstance)
 
+CSV_DEFINE_CATEGORY_MODULE(MLDEFORMERFRAMEWORK_API, MLDeformer, false);
+
 void UMLDeformerModelInstance::BeginDestroy()
 {
 	Release();
