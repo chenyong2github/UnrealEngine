@@ -6,7 +6,7 @@
 
 #include "PCGPropertyToParamDataElementTest.generated.h"
 
-UENUM()
+UENUM(meta = (Hidden))
 enum class EPCGUnitTestDummyEnum : int64
 {
 	One,
@@ -14,7 +14,7 @@ enum class EPCGUnitTestDummyEnum : int64
 	Three
 };
 
-UCLASS(MinimalAPI, NotBlueprintable, NotPlaceable, NotBlueprintType, Transient, HideDropdown)
+UCLASS(MinimalAPI, NotBlueprintable, NotPlaceable, NotBlueprintType, Transient, HideDropdown, meta = (Hidden))
 class APCGUnitTestDummyActor : public AActor
 {
 	GENERATED_BODY()
@@ -78,7 +78,7 @@ public:
 	FColor ColorProperty;
 };
 
-UCLASS(MinimalAPI, NotBlueprintable, NotPlaceable, NotBlueprintType, Transient, HideDropdown)
+UCLASS(MinimalAPI, NotBlueprintable, NotPlaceable, NotBlueprintType, Transient, HideDropdown, meta = (Hidden))
 class UPCGUnitTestDummyComponent : public UActorComponent
 {
 	GENERATED_BODY()

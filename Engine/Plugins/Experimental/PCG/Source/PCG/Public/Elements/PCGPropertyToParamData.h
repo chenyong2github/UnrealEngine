@@ -10,6 +10,9 @@
 
 class UActorComponent;
 
+/**
+* Extract a property value from an actor/component into a ParamData.
+*/
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGPropertyToParamDataSettings : public UPCGSettings
 {
@@ -37,18 +40,27 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties))
 	FPCGActorSelectorSettings ActorSelector;
 
+	/** Allow to look for an actor component instead of an actor. It will need to be attached to the found actor. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bSelectComponent = false;
 
+	/** If we are looking for an actor component, the class can be specified here. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bSelectComponent", EditConditionHides))
 	TSubclassOf<UActorComponent> ComponentClass;
 
+	/** Property name to extract. Can only extract properties that are compatible with metadata types. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName PropertyName = NAME_None;
 
+	/** If the property is a struct/object unsupported by metadata, this option can be toggled to extract all (compatible) properties contained in this property. For now, only supports direct child properties (and not deeper). */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bExtractObjectAndStruct = false;
+
+	/** By default, attribute name will be the property name, but it can be overridden by this name. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bExtractObjectAndStruct", EditConditionHides))
 	FName OutputAttributeName = NAME_None;
 
+	/** If this is true, we will never put this element in cache, and will always try to re-query the actors and read the latest properties from them. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bAlwaysRequeryActors = true;
 

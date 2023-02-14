@@ -7,6 +7,8 @@
 #include "PCGComponent.h"
 #include "PCGParamData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
+#include "Helpers/PCGSettingsHelpers.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPropertyToParamData)
@@ -108,21 +110,89 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
+	using ExtractablePropertyTuple = TTuple<FName, const void*, const FProperty*>;
+	TArray<ExtractablePropertyTuple> ExtractableProperties;
+
+	// Special case where the property is a struct/object, that is not supported by our metadata, we will try to break it down to multiple attributes in the resulting param data, if asked.
+	if (!PCGAttributeAccessorHelpers::IsPropertyAccessorSupported(Property) && (Property->IsA<FStructProperty>() || Property->IsA<FObjectProperty>()) && Settings->bExtractObjectAndStruct)
+	{
+		UScriptStruct* UnderlyingStruct = nullptr;
+		UClass* UnderlyingClass = nullptr;
+		const void* ObjectAddress = nullptr;
+
+		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			UnderlyingStruct = StructProperty->Struct;
+			ObjectAddress = StructProperty->ContainerPtrToValuePtr<void>(ObjectToInspect);
+		}
+		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+		{
+			UnderlyingClass = ObjectProperty->PropertyClass;
+			ObjectAddress = ObjectProperty->GetObjectPropertyValue_InContainer(ObjectToInspect);
+		}
+		
+		check(UnderlyingStruct || UnderlyingClass);
+		check(ObjectAddress);
+
+		// Re-use code from overridable params
+		// Limit ourselves to not recurse into more structs.
+		PCGSettingsHelpers::FPCGGetAllOverridableParamsConfig Config;
+		Config.bUseSeed = true;
+		Config.bExcludeSuperProperties = true;
+		Config.MaxStructDepth = 0;
+		TArray<FPCGSettingsOverridableParam> AllChildProperties = UnderlyingStruct ? PCGSettingsHelpers::GetAllOverridableParams(UnderlyingStruct, Config) : PCGSettingsHelpers::GetAllOverridableParams(UnderlyingClass, Config);
+
+		for (const FPCGSettingsOverridableParam& Param : AllChildProperties)
+		{
+			if (ensure(!Param.PropertiesNames.IsEmpty()))
+			{
+				const FName ChildPropertyName = Param.PropertiesNames[0];
+				if (const FProperty* ChildProperty = (UnderlyingStruct ? UnderlyingStruct->FindPropertyByName(ChildPropertyName) : UnderlyingClass->FindPropertyByName(ChildPropertyName)))
+				{
+					ExtractableProperties.Emplace(ChildPropertyName, ObjectAddress, ChildProperty);
+				}
+			}
+		}
+	}
+	else
+	{
+		ExtractableProperties.Emplace(Settings->OutputAttributeName, ObjectToInspect, Property);
+	}
+
+	if (ExtractableProperties.IsEmpty())
+	{
+		PCGE_LOG(Error, "Found no properties to be extractable.");
+		return true;
+	}
+
 	// From there, we should be able to create the data.
 	UPCGParamData* ParamData = NewObject<UPCGParamData>();
 	UPCGMetadata* Metadata = ParamData->MutableMetadata();
 	check(Metadata);
 	PCGMetadataEntryKey EntryKey = Metadata->AddEntry();
+	bool bValidOperation = false;
 
-	if (!Metadata->SetAttributeFromProperty(Settings->OutputAttributeName, EntryKey, ObjectToInspect, Property, /*bCreate=*/ true))
+	for (ExtractablePropertyTuple& ExtractableProperty : ExtractableProperties)
 	{
-		PCGE_LOG(Error, "Error while creating an attribute. Either the property type is not supported by PCG or attribute creation failed.");
-		return true;
+		const FName AttributeName = ExtractableProperty.Get<0>();
+		const void* ContainerPtr = ExtractableProperty.Get<1>();
+		const FProperty* FinalProperty = ExtractableProperty.Get<2>();
+
+		if (!Metadata->SetAttributeFromDataProperty(AttributeName, EntryKey, ContainerPtr, FinalProperty, /*bCreate=*/ true))
+		{
+			PCGE_LOG(Error, "Error while creating an attribute for property %s. Either the property type is not supported by PCG or attribute creation failed.", *FinalProperty->GetName());
+			continue;
+		}
+
+		bValidOperation = true;
 	}
 
-	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-	FPCGTaggedData& Output = Outputs.Emplace_GetRef();
-	Output.Data = ParamData;
+	if (bValidOperation)
+	{
+		TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+		FPCGTaggedData& Output = Outputs.Emplace_GetRef();
+		Output.Data = ParamData;
+	}
 
 	return true;
 }

@@ -272,7 +272,6 @@ namespace PCGSettingsHelpers
 		}
 	}
 
-#if WITH_EDITOR
 	template <typename ClassType>
 	TArray<FPCGSettingsOverridableParam> GetAllOverridableParamsImpl(const ClassType* InClass, const FPCGGetAllOverridableParamsConfig& InConfig)
 	{
@@ -287,7 +286,11 @@ namespace PCGSettingsHelpers
 
 		TArray<FPCGSettingsOverridableParam> Res;
 
+		// Can't check metadata in non-editor build
+#if WITH_EDITOR
 		const bool bCheckMetadata = !InConfig.MetadataValues.IsEmpty();
+#endif // WITH_EDITOR
+
 		const bool bCheckExcludePropertyFlags = (InConfig.ExcludePropertyFlags != 0);
 		const EFieldIteratorFlags::SuperClassFlags SuperFlag = InConfig.bExcludeSuperProperties ? EFieldIteratorFlags::ExcludeSuper : EFieldIteratorFlags::IncludeSuper;
 
@@ -303,6 +306,7 @@ namespace PCGSettingsHelpers
 
 			bool bValid = true;
 
+#if WITH_EDITOR
 			if (bCheckMetadata)
 			{
 				bool bFoundAny = false;
@@ -317,6 +321,7 @@ namespace PCGSettingsHelpers
 
 				bValid &= bFoundAny;
 			}
+#endif // WITH_EDITOR
 
 			if (bCheckExcludePropertyFlags)
 			{
@@ -337,14 +342,18 @@ namespace PCGSettingsHelpers
 			// Validate that the property can be overriden by params
 			if (PCGAttributeAccessorHelpers::IsPropertyAccessorSupported(Property))
 			{
-				FName Label = *Property->GetDisplayNameText().ToString();
+				FName Label = NAME_None;
+#if WITH_EDITOR
+				// GetDisplayNameText is not available in non-editor build.
+				Label = *Property->GetDisplayNameText().ToString();
 				if (LabelCache.Contains(Label))
 				{
-					UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored (ie. will not be overridable)"), *Label.ToString());
+					UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored."), *Label.ToString());
 					continue;
 				}
 
 				LabelCache.Add(Label);
+#endif // WITH_EDITOR
 
 				FPCGSettingsOverridableParam& Param = Res.Emplace_GetRef();
 				Param.Label = Label;
@@ -353,22 +362,37 @@ namespace PCGSettingsHelpers
 			}
 			else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 			{
-				FString PropertyName = Property->GetDisplayNameText().ToString();
+				// Reached max depth
+				if (InConfig.MaxStructDepth == 0)
+				{
+					continue;
+				}
+
 				// Use the seed, and don't check metadata.
 				FPCGGetAllOverridableParamsConfig RecurseConfig = InConfig;
 				RecurseConfig.bUseSeed = true;
+#if WITH_EDITOR
 				RecurseConfig.MetadataValues.Empty();
+#endif // WITH_EDITOR
+
+				if (RecurseConfig.MaxStructDepth > 0)
+				{
+					RecurseConfig.MaxStructDepth--;
+				}
 
 				for (const FPCGSettingsOverridableParam& ChildParam : GetAllOverridableParams(StructProperty->Struct, RecurseConfig))
 				{
 					FName Label = ChildParam.Label;
+#if WITH_EDITOR
+					// Don't check for label clash, as they would all be equal to None in non-editor build
 					if (LabelCache.Contains(Label))
 					{
-						UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored (ie. will not be overridable)"), *Label.ToString());
+						UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored."), *Label.ToString());
 						continue;
 					}
 
 					LabelCache.Add(Label);
+#endif // WITH_EDITOR
 
 					FPCGSettingsOverridableParam& Param = Res.Emplace_GetRef();
 					Param.Label = Label;
@@ -391,5 +415,4 @@ namespace PCGSettingsHelpers
 	{
 		return GetAllOverridableParamsImpl(InStruct, InConfig);
 	}
-#endif // WITH_EDITOR
 }

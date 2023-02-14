@@ -202,7 +202,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		});
 	}
 
-#if WITH_EDITOR
 	struct FPCGGetAllOverridableParamsConfig
 	{
 		// If we don't use the seed, don't add it as override.
@@ -211,16 +210,20 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// Don't look for properties from parents
 		bool bExcludeSuperProperties = false;
 
-		// List of metadata values to find in property metadata
+#if WITH_EDITOR
+		// List of metadata values to find in property metadata. Only works in editor builds as metadata on property is not available elsewise.
 		TArray<FName> MetadataValues{};
+#endif // WITH_EDITOR
 
 		// Flags to exclude in property flags
 		uint64 ExcludePropertyFlags = 0;
+
+		// Max depth for structs of structs. -1 = no limit
+		int32 MaxStructDepth = -1;
 	};
 
 	TArray<FPCGSettingsOverridableParam> GetAllOverridableParams(const UClass* InClass, const FPCGGetAllOverridableParamsConfig& InConfig);
 	TArray<FPCGSettingsOverridableParam> GetAllOverridableParams(const UScriptStruct* InStruct, const FPCGGetAllOverridableParamsConfig& InConfig);
-#endif
 }
 
 // Deprecated macro, not necessary anymore. Cf. GetValue
