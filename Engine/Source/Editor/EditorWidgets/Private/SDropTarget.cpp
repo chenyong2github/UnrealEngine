@@ -28,6 +28,7 @@ void SDropTarget::Construct(const FArguments& InArgs)
 	OnDragEnterEvent = InArgs._OnDragEnter;
 	OnDragLeaveEvent = InArgs._OnDragLeave;
 	bOnlyRecognizeOnDragEnter = InArgs._bOnlyRecognizeOnDragEnter;
+	bUseAllowDropCache = InArgs._bUseAllowDropCache;
 	
 	bIsDragEventRecognized = false;
 	bAllowDrop = false;
@@ -39,6 +40,9 @@ void SDropTarget::Construct(const FArguments& InArgs)
 	VerticalImage = InArgs._VerticalImage;
 	HorizontalImage = InArgs._HorizontalImage;
 
+	// if we want to use the cache, we need to detect whether to clear the cache on tick
+	SetCanTick(bUseAllowDropCache);
+	
 	ChildSlot
 	[
 		SNew(SOverlay)
@@ -94,7 +98,19 @@ FReply SDropTarget::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent
 
 bool SDropTarget::AllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation) const
 {
-	bAllowDrop = OnAllowDrop(DragDropOperation);
+	if(bUseAllowDropCache && AllowDropCache.IsSet())
+	{
+		bAllowDrop = AllowDropCache.GetValue();
+	}
+	else
+	{
+		bAllowDrop = OnAllowDrop(DragDropOperation);
+
+		if(bUseAllowDropCache)
+		{
+			AllowDropCache = bAllowDrop;
+		}
+	}
 	bIsDragEventRecognized = OnIsRecognized(DragDropOperation) || bAllowDrop;
 	return bAllowDrop;
 }
@@ -117,6 +133,20 @@ bool SDropTarget::OnIsRecognized(TSharedPtr<FDragDropOperation> DragDropOperatio
 	}
 
 	return false;
+}
+
+void SDropTarget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if(bUseAllowDropCache)
+	{
+		bWasDragDroppingLastFrame = bIsDragDropping;
+		bIsDragDropping = FSlateApplication::Get().IsDragDropping();
+
+		if(bIsDragDropping && !bWasDragDroppingLastFrame)
+		{
+			ClearAllowDropCache();
+		}
+	}
 }
 
 FReply SDropTarget::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
