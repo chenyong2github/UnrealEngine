@@ -322,7 +322,10 @@ UE::NearestNeighborModel::EUpdateResult UNearestNeighborModel::UpdateClothPartDa
 	for(int32 PartId = 0; PartId < GetNumParts(); PartId++)
 	{
 		ClothPartData[PartId].PCACoeffNum = ClothPartEditorData[PartId].PCACoeffNum;
-		ReturnCode |= UpdateVertexMap(PartId, ClothPartEditorData[PartId].VertexMapPath, SkelMeshInfos[ClothPartEditorData[PartId].MeshIndex]);
+		int32& MeshIndex = ClothPartEditorData[PartId].MeshIndex;
+		// Set to 0 if MeshIndex is invalid. This could happen if the skeletal mesh is changed.
+		MeshIndex = MeshIndex < SkelMeshInfos.Num() ? MeshIndex : 0;
+		ReturnCode |= UpdateVertexMap(PartId, ClothPartEditorData[PartId].VertexMapPath, SkelMeshInfos[MeshIndex]);
 		ClothPartData[PartId].NumVertices = ClothPartData[PartId].VertexMap.Num();
 
 		if (!CheckPCAData(PartId))
@@ -461,6 +464,16 @@ bool UNearestNeighborModel::DoesEditorSupportOptimizedNetwork() const
 void UNearestNeighborModel::SetUseOptimizedNetwork(bool bInUseOptimizedNetwork)
 {
 	bUseOptimizedNetwork = bInUseOptimizedNetwork;
+}
+
+int32 UNearestNeighborModel::GetMaxPartMeshIndex() const
+{
+	int32 MaxIndex = -1;
+	for (const FClothPartEditorData& PartData : ClothPartEditorData)
+	{
+		MaxIndex = FMath::Max(MaxIndex, PartData.MeshIndex);
+	}
+	return MaxIndex;
 }
 #endif
 

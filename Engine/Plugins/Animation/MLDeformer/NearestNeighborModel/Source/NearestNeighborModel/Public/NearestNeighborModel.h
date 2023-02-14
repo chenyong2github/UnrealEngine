@@ -331,6 +331,7 @@ public:
 
 	int32 GetPartMeshIndex(int32 PartId) const { return ClothPartEditorData[PartId].MeshIndex; }
 	void SetPartMeshIndex(int32 PartId, int32 MeshIndex) { ClothPartEditorData[PartId].MeshIndex = MeshIndex; }
+	int32 GetMaxPartMeshIndex() const;
 #endif
 
 

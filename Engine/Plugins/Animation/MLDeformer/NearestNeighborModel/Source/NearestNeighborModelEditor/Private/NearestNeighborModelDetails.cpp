@@ -78,7 +78,8 @@ namespace UE::NearestNeighborModel
 
 		typename STextComboBox::FOnTextSelectionChanged SubMeshComboOnSelectionChangedDelegate;
 		SubMeshComboOnSelectionChangedDelegate.BindRaw(this, &FNearestNeighborModelDetails::SubMeshComboSelectionChanged, ArrayIndex);
-		const int32 InitMeshIndex = NearestNeighborModel ? NearestNeighborModel->GetPartMeshIndex(ArrayIndex) : 0;
+		int32 InitMeshIndex = NearestNeighborModel ? NearestNeighborModel->GetPartMeshIndex(ArrayIndex) : 0;
+		InitMeshIndex = InitMeshIndex >= SubMeshNames.Num() ? 0 : InitMeshIndex;
 
 		ChildrenBuilder.AddCustomRow(FText::GetEmpty())
 		[
@@ -191,7 +192,20 @@ namespace UE::NearestNeighborModel
 		Group->AddPropertyRow(DetailBuilder.GetProperty(UNearestNeighborModel::GetRecomputeDeltasPropertyName()));
 		Group->AddPropertyRow(DetailBuilder.GetProperty(UNearestNeighborModel::GetRecomputePCAPropertyName()));
 
+		if (NearestNeighborModel == nullptr)
+		{
+			return;
+		}
+
 		BuildSubMeshNames();
+		const int32 MaxPartMeshIndex = NearestNeighborModel->GetMaxPartMeshIndex();
+		if (MaxPartMeshIndex >= SubMeshNames.Num())
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("Nearest neighbor model was previously created with %d submeshes, but the current skeletal mesh has %d submeshes. Please use the original skeletal mesh or click update to overwrite existing data."), MaxPartMeshIndex, SubMeshNames.Num());
+
+			NearestNeighborModel->InvalidateClothPartData();
+			AddActionResultText(ClothPartCategoryBuilder, EUpdateResult::ERROR, TEXT("Loading"));
+		}
 		TSharedRef<IPropertyHandle> ClothPartDataPropertyHandle = DetailBuilder.GetProperty(UNearestNeighborModel::GetClothPartEditorDataPropertyName());
 		if (ClothPartDataPropertyHandle->AsArray().IsValid() && !SubMeshNames.IsEmpty())
 		{
