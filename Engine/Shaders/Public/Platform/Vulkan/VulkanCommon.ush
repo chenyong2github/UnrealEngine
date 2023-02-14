@@ -5,7 +5,7 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Vulkan only shaders
-// GUID = 0FC2A3D5-7689-4CE9-B92B-F3E972576240
+// GUID = 93BF8713-DDDD-46C1-A972-1C3534563925
 
 #pragma once
 

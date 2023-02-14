@@ -379,7 +379,7 @@ bool AndroidDriverPatchPass::FixupNMinMax(Instruction* inst) {
   if (extInstType == GLSLstd450NMin) {
     Op.words[0] = GLSLstd450FMin;
     return true;
-  } else {
+  } else if (extInstType == GLSLstd450NMax) {
     Op.words[0] = GLSLstd450FMax;
     return true;
   }
