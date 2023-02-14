@@ -11,7 +11,7 @@
 #ifdef VISUAL_ASSIST_HACK
 	EExprToken SerializeExpr( int32&, FArchive& );
 	int32 iCode=0;
-	FArchive Ar;
+	FNullArchive Ar;
 	TArray<uint8> Script;
 	EExprToken Expr = (EExprToken)0;
 #endif

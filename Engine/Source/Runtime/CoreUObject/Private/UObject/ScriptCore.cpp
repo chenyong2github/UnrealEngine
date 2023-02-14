@@ -21,6 +21,7 @@
 #include "UObject/CoreNative.h"
 #include "UObject/Class.h"
 #include "Templates/Casts.h"
+#include "Serialization/NullArchive.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
@@ -1661,7 +1662,7 @@ static void OutputMostFrequentlyCalledFunctions(FOutputDevice& OutputAr, int32 N
 
 			int32 iCode = 0;
 			const int32 ScriptSizeBytes = Script.Num();
-			FArchive DummyArchive;
+			FNullArchive DummyArchive;
 
 			while (iCode < ScriptSizeBytes)
 			{
@@ -1794,7 +1795,7 @@ static void OutputMostFrequentlyUsedInstructions(FOutputDevice& OutputAr, int32 
 
 			int32 iCode = 0;
 			const int32 ScriptSizeBytes = Script.Num();
-			FArchive DummyArchive;
+			FNullArchive DummyArchive;
 
 			while (iCode < ScriptSizeBytes)
 			{

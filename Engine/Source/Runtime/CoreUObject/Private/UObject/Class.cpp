@@ -39,6 +39,7 @@
 #include "Internationalization/PolyglotTextData.h"
 #include "Serialization/ArchiveScriptReferenceCollector.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "Serialization/NullArchive.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/GarbageCollection.h"
 #include "UObject/UObjectThreadContext.h"
@@ -680,7 +681,7 @@ void UStruct::AddCppProperty(FProperty* Property)
 
 void UStruct::StaticLink(bool bRelinkExistingProperties)
 {
-	FArchive ArDummy;
+	FNullArchive ArDummy;
 	Link(ArDummy, bRelinkExistingProperties);
 }
 

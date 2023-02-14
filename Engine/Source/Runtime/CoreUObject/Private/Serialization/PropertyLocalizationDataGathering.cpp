@@ -12,6 +12,7 @@
 #include "HAL/UnrealMemory.h"
 #include "Internationalization/TextNamespaceUtil.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
+#include "Serialization/NullArchive.h"
 
 FPropertyLocalizationDataGatherer::FPropertyLocalizationDataGatherer(TArray<FGatherableTextData>& InOutGatherableTextDataArray, const UPackage* const InPackage, EPropertyLocalizationGathererResultFlags& OutResultFlags)
 	: GatherableTextDataArray(InOutGatherableTextDataArray)
@@ -765,7 +766,7 @@ private:
 	FPropertyLocalizationDataGatherer& PropertyLocalizationDataGatherer;
 	bool bTreatAsEditorOnlyData;
 
-	FArchive DummyArchive;
+	FNullArchive DummyArchive;
 	bool bIsParsingText;
 	FString LastParsedString;
 };
