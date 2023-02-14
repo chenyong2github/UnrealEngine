@@ -83,24 +83,24 @@ namespace  mu
 
         Ptr<RangeIndex> BuildCurrentOpRangeIndex( const FScheduledOp&, const Parameters*, const Model*, int32 ParameterIndex );
 
-        void RunCode( FScheduledOp&, const Parameters*, const Model*, uint32 LodMask);
+        void RunCode( const FScheduledOp&, const Parameters*, const Model*, uint32 LodMask);
 
-        void RunCode_Conditional( FScheduledOp&, const Model* );
-        void RunCode_Switch( FScheduledOp&, const Model* );
-        void RunCode_Instance( FScheduledOp&, const Model*, uint32 LodMask );
-        void RunCode_InstanceAddResource( FScheduledOp&, const Model*, const Parameters* );
-        void RunCode_ConstantResource( FScheduledOp&, const Model* );
-        void RunCode_Mesh( FScheduledOp&, const Model* );
-        void RunCode_Image( FScheduledOp&, const Parameters*, const Model* );
-        void RunCode_Layout( FScheduledOp&, const Model* );
-        void RunCode_Bool( FScheduledOp&, const Parameters*, const Model* );
-        void RunCode_Int( FScheduledOp&, const Parameters*, const Model* );
-        void RunCode_Scalar( FScheduledOp&, const Parameters*, const Model* );        
-        void RunCode_String( FScheduledOp&, const Parameters*, const Model* );
-        void RunCode_Colour( FScheduledOp&, const Parameters*, const Model* );
-        void RunCode_Projector( FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Conditional(const FScheduledOp&, const Model* );
+        void RunCode_Switch(const FScheduledOp&, const Model* );
+        void RunCode_Instance(const FScheduledOp&, const Model*, uint32 LodMask );
+        void RunCode_InstanceAddResource(const FScheduledOp&, const Model*, const Parameters* );
+        void RunCode_ConstantResource(const FScheduledOp&, const Model* );
+        void RunCode_Mesh(const FScheduledOp&, const Model* );
+        void RunCode_Image(const FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Layout(const FScheduledOp&, const Model* );
+        void RunCode_Bool(const FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Int(const FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Scalar(const FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_String(const FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Colour(const FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Projector(const FScheduledOp&, const Parameters*, const Model* );
 
-		void RunCodeImageDesc(FScheduledOp&, const Parameters*, const Model*, uint32 LodMask);
+		void RunCodeImageDesc(const FScheduledOp&, const Parameters*, const Model*, uint32 LodMask);
 
     public:
 
@@ -150,7 +150,7 @@ namespace  mu
 		class FIssuedTask
 		{
 		public:
-			FScheduledOp Op;
+			const FScheduledOp Op;
 
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
 			UE::Tasks::FTask Event = {};
@@ -158,6 +158,7 @@ namespace  mu
 			FGraphEventRef Event = nullptr;
 #endif
 
+			FIssuedTask(const FScheduledOp& InOp) : Op(InOp) {}
 			virtual ~FIssuedTask() {}
 			virtual bool Prepare(CodeRunner*, const TSharedPtr<const Model>&, bool& bOutFailed) { bOutFailed = false; return true; }
 			virtual void DoWork() {}
@@ -176,9 +177,9 @@ namespace  mu
 		class FLoadMeshRomTask : public CodeRunner::FIssuedTask
 		{
 		public:
-			FLoadMeshRomTask(FScheduledOp InOp, int32 InRomIndex)
+			FLoadMeshRomTask( const FScheduledOp& InOp, int32 InRomIndex)
+				: FIssuedTask(InOp)
 			{
-				Op = InOp;
 				RomIndex = InRomIndex;
 			}
 
@@ -194,9 +195,9 @@ namespace  mu
 		class FLoadImageRomsTask : public CodeRunner::FIssuedTask
 		{
 		public:
-			FLoadImageRomsTask(FScheduledOp InOp, int32 InLODIndexIndex, int32 InLODIndexCount )
+			FLoadImageRomsTask(const FScheduledOp& InOp, int32 InLODIndexIndex, int32 InLODIndexCount )
+				: FIssuedTask(InOp)
 			{
-				Op = InOp;
 				LODIndexIndex = InLODIndexIndex;
 				LODIndexCount = InLODIndexCount;
 			}

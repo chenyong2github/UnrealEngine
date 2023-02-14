@@ -411,7 +411,7 @@ namespace mu
 	class FImageLayerTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageLayerTask(FScheduledOp, FProgramCache&, const OP::ImageLayerArgs&, int imageCompressionQuality );
+		FImageLayerTask(const FScheduledOp&, FProgramCache&, const OP::ImageLayerArgs&, int imageCompressionQuality );
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -428,9 +428,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageLayerTask::FImageLayerTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageLayerArgs& InArgs, int imageCompressionQuality)
+	FImageLayerTask::FImageLayerTask(const FScheduledOp& InOp, FProgramCache& Memory, const OP::ImageLayerArgs& InArgs, int imageCompressionQuality)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
 		m_base = Memory.GetImage({ Args.base, InOp.ExecutionIndex, InOp.ExecutionOptions });
@@ -673,7 +673,7 @@ namespace mu
 	class FImageLayerColourTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageLayerColourTask(FScheduledOp, FProgramCache&, const OP::ImageLayerColourArgs&, int imageCompressionQuality);
+		FImageLayerColourTask(const FScheduledOp&, FProgramCache&, const OP::ImageLayerColourArgs&, int imageCompressionQuality);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -690,9 +690,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageLayerColourTask::FImageLayerColourTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageLayerColourArgs& InArgs, int imageCompressionQuality)
+	FImageLayerColourTask::FImageLayerColourTask(const FScheduledOp& InOp, FProgramCache& Memory, const OP::ImageLayerColourArgs& InArgs, int imageCompressionQuality)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
 		m_base = Memory.GetImage({ Args.base, InOp.ExecutionIndex, InOp.ExecutionOptions });
@@ -885,7 +885,7 @@ namespace mu
 	class FImagePixelFormatTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImagePixelFormatTask(FScheduledOp, FProgramCache&, const OP::ImagePixelFormatArgs&, int imageCompressionQuality);
+		FImagePixelFormatTask(const FScheduledOp&, FProgramCache&, const OP::ImagePixelFormatArgs&, int imageCompressionQuality);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -900,9 +900,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImagePixelFormatTask::FImagePixelFormatTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImagePixelFormatArgs& InArgs, int imageCompressionQuality)
+	FImagePixelFormatTask::FImagePixelFormatTask(const FScheduledOp& InOp, FProgramCache& Memory, const OP::ImagePixelFormatArgs& InArgs, int imageCompressionQuality)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
 		m_base = Memory.GetImage({ Args.source, InOp.ExecutionIndex, InOp.ExecutionOptions });
@@ -963,7 +963,7 @@ namespace mu
 	class FImageMipmapTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageMipmapTask(FScheduledOp, FProgramCache&, const OP::ImageMipmapArgs&, int imageCompressionQuality);
+		FImageMipmapTask(const FScheduledOp&, FProgramCache&, const OP::ImageMipmapArgs&, int imageCompressionQuality);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -978,9 +978,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageMipmapTask::FImageMipmapTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageMipmapArgs& InArgs, int imageCompressionQuality)
+	FImageMipmapTask::FImageMipmapTask(const FScheduledOp& InOp, FProgramCache& Memory, const OP::ImageMipmapArgs& InArgs, int imageCompressionQuality)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
 		m_base = Memory.GetImage({ Args.source, InOp.ExecutionIndex, InOp.ExecutionOptions });
@@ -1044,7 +1044,7 @@ namespace mu
 	class FImageSwizzleTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageSwizzleTask(FScheduledOp, FProgramCache&, const OP::ImageSwizzleArgs&);
+		FImageSwizzleTask(const FScheduledOp&, FProgramCache&, const OP::ImageSwizzleArgs&);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -1058,9 +1058,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageSwizzleTask::FImageSwizzleTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageSwizzleArgs& InArgs)
+	FImageSwizzleTask::FImageSwizzleTask(const FScheduledOp& InOp, FProgramCache& Memory, const OP::ImageSwizzleArgs& InArgs)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		Args = InArgs;
 		for (int i = 0; i < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++i)
 		{
@@ -1113,7 +1113,7 @@ namespace mu
 	class FImageSaturateTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageSaturateTask(FScheduledOp, FProgramCache&, const OP::ImageSaturateArgs&);
+		FImageSaturateTask(const FScheduledOp&, FProgramCache&, const OP::ImageSaturateArgs&);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -1127,9 +1127,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageSaturateTask::FImageSaturateTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageSaturateArgs& InArgs)
+	FImageSaturateTask::FImageSaturateTask(const FScheduledOp& InOp, FProgramCache& Memory, const OP::ImageSaturateArgs& InArgs)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		Source = Memory.GetImage(FCacheAddress(InArgs.base, InOp));
 		Factor = Memory.GetScalar(FScheduledOp::FromOpAndOptions(InArgs.factor, InOp, 0));
 	}
@@ -1181,7 +1181,7 @@ namespace mu
 	class FImageResizeTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageResizeTask(FScheduledOp InOp, FProgramCache& Memory, const Ptr<const Image>& InBase, uint16 InSizeX, uint16 InSizeY, int32 InImageCompressionQuality);
+		FImageResizeTask(const FScheduledOp& InOp, FProgramCache& Memory, const Ptr<const Image>& InBase, uint16 InSizeX, uint16 InSizeY, int32 InImageCompressionQuality);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -1196,9 +1196,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageResizeTask::FImageResizeTask(FScheduledOp InOp, FProgramCache& Memory, const Ptr<const Image>& InBase, uint16 InSizeX, uint16 InSizeY, int32 InImageCompressionQuality)
+	FImageResizeTask::FImageResizeTask(const FScheduledOp& InOp, FProgramCache& Memory, const Ptr<const Image>& InBase, uint16 InSizeX, uint16 InSizeY, int32 InImageCompressionQuality)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		SizeX = InSizeX;
 		SizeY = InSizeY;
 		pBase = InBase;
@@ -1276,7 +1276,7 @@ namespace mu
 	class FImageResizeRelTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageResizeRelTask(FScheduledOp, FProgramCache&, const OP::ImageResizeRelArgs&, int32 ImageCompressionQuality);
+		FImageResizeRelTask(const FScheduledOp&, FProgramCache&, const OP::ImageResizeRelArgs&, int32 ImageCompressionQuality);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -1291,9 +1291,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageResizeRelTask::FImageResizeRelTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageResizeRelArgs& InArgs, int32 InImageCompressionQuality)
+	FImageResizeRelTask::FImageResizeRelTask(const FScheduledOp& InOp, FProgramCache& Memory, const OP::ImageResizeRelArgs& InArgs, int32 InImageCompressionQuality)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		Args = InArgs;
 		pBase = Memory.GetImage(FCacheAddress(InArgs.source, InOp));
 		ImageCompressionQuality = InImageCompressionQuality;
@@ -1360,7 +1360,7 @@ namespace mu
 	class FImageInvertTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageInvertTask(FScheduledOp, FProgramCache&, const OP::ImageInvertArgs&);
+		FImageInvertTask(const FScheduledOp&, FProgramCache&, const OP::ImageInvertArgs&);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -1373,9 +1373,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageInvertTask::FImageInvertTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageInvertArgs& InArgs)
+	FImageInvertTask::FImageInvertTask(const FScheduledOp& InOp, FProgramCache& Memory, const OP::ImageInvertArgs& InArgs)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		Source = Memory.GetImage(FCacheAddress(InArgs.base, InOp));
 	}
 
@@ -1412,7 +1412,7 @@ namespace mu
 	class FImageComposeTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageComposeTask(FScheduledOp, FProgramCache&, const OP::ImageComposeArgs&, int imageCompressionQuality, const Ptr<const Layout>& );
+		FImageComposeTask(const FScheduledOp&, FProgramCache&, const OP::ImageComposeArgs&, int imageCompressionQuality, const Ptr<const Layout>& );
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -1430,9 +1430,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageComposeTask::FImageComposeTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageComposeArgs& InArgs, int imageCompressionQuality, const Ptr<const Layout>& InLayout)
+	FImageComposeTask::FImageComposeTask(const FScheduledOp& InOp, FProgramCache& Memory, const OP::ImageComposeArgs& InArgs, int imageCompressionQuality, const Ptr<const Layout>& InLayout)
+		: FIssuedTask(InOp)
 	{
-		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
 		m_layout = InLayout;
@@ -1819,7 +1819,7 @@ namespace mu
 	class FImageExternalLoadTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageExternalLoadTask(FScheduledOp InItem, uint8 InMipmapsToSkip, EXTERNAL_IMAGE_ID InId);
+		FImageExternalLoadTask(const FScheduledOp& InItem, uint8 InMipmapsToSkip, EXTERNAL_IMAGE_ID InId);
 
 		// FIssuedTask interface
 		virtual bool Prepare(CodeRunner*, const TSharedPtr<const Model>&, bool& bOutFailed) override;
@@ -1836,9 +1836,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageExternalLoadTask::FImageExternalLoadTask(FScheduledOp InItem,  uint8 InMipmapsToSkip, EXTERNAL_IMAGE_ID InId)
+	FImageExternalLoadTask::FImageExternalLoadTask(const FScheduledOp& InOp,  uint8 InMipmapsToSkip, EXTERNAL_IMAGE_ID InId)
+		: FIssuedTask(InOp)
 	{
-		Op = InItem;
 		MipmapsToSkip = InMipmapsToSkip;
 		Id = InId;
 	}

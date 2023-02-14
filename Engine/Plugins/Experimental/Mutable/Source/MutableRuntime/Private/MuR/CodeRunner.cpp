@@ -172,9 +172,7 @@ namespace mu
 
 	
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Conditional( FScheduledOp& item,
-                                          const Model* pModel
-                                          )
+    void CodeRunner::RunCode_Conditional( const FScheduledOp& item, const Model* pModel )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Conditional);
 
@@ -245,9 +243,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeRunner::RunCode_Switch(FScheduledOp& item,
-		const Model* pModel
-	)
+	void CodeRunner::RunCode_Switch(const FScheduledOp& item, const Model* pModel )
 	{
 		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
 
@@ -360,10 +356,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Instance( FScheduledOp& item,
-                                  const Model* pModel,
-                                  uint32 lodMask
-                                  )
+    void CodeRunner::RunCode_Instance(const FScheduledOp& item, const Model* pModel, uint32 lodMask )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Instance);
 
@@ -713,10 +706,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_InstanceAddResource( FScheduledOp& item,
-                                  const Model* pModel,
-                                  const Parameters* pParams
-                                  )
+    void CodeRunner::RunCode_InstanceAddResource(const FScheduledOp& item, const Model* pModel, const Parameters* pParams )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_InstanceAddResource);
 
@@ -823,7 +813,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_ConstantResource( FScheduledOp& item, const Model* pModel )
+    void CodeRunner::RunCode_ConstantResource(const FScheduledOp& item, const Model* pModel )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Constant);
 
@@ -896,7 +886,7 @@ namespace mu
     }
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Mesh( FScheduledOp& item, const Model* pModel )
+    void CodeRunner::RunCode_Mesh(const FScheduledOp& item, const Model* pModel )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Mesh);
 
@@ -2503,10 +2493,7 @@ namespace mu
     }
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Image( FScheduledOp& item,
-                                    const Parameters* pParams,
-                                    const Model* pModel
-                                    )
+    void CodeRunner::RunCode_Image(const FScheduledOp& item, const Parameters* pParams, const Model* pModel )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Image);
 
@@ -4219,10 +4206,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Bool( FScheduledOp& item,
-                                   const Parameters* pParams,
-                                   const Model* pModel
-                                   )
+    void CodeRunner::RunCode_Bool(const FScheduledOp& item, const Parameters* pParams, const Model* pModel )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Bool);
 
@@ -4463,10 +4447,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Int( FScheduledOp& item,
-                                  const Parameters* pParams,
-                                  const Model* pModel
-                              )
+    void CodeRunner::RunCode_Int(const FScheduledOp& item, const Parameters* pParams, const Model* pModel )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Int);
 
@@ -4520,10 +4501,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Scalar( FScheduledOp& item,
-                                     const Parameters* pParams,
-                                     const Model* pModel
-                                     )
+    void CodeRunner::RunCode_Scalar(const FScheduledOp& item, const Parameters* pParams, const Model* pModel )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Scalar);
 
@@ -4638,7 +4616,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_String( FScheduledOp& item, const Parameters* pParams, const Model* pModel )
+    void CodeRunner::RunCode_String(const FScheduledOp& item, const Parameters* pParams, const Model* pModel )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_String );
 
@@ -4674,10 +4652,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Colour( FScheduledOp& item,
-                                     const Parameters* pParams,
-                                     const Model* pModel
-                                     )
+    void CodeRunner::RunCode_Colour(const FScheduledOp& item, const Parameters* pParams, const Model* pModel )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Colour);
 
@@ -4990,10 +4965,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Projector( FScheduledOp& item,
-                                const Parameters* pParams,
-                                const Model* pModel
-                              )
+    void CodeRunner::RunCode_Projector(const FScheduledOp& item, const Parameters* pParams, const Model* pModel )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Projector);
 
@@ -5034,9 +5006,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Layout( FScheduledOp& item,
-                                     const Model* pModel
-                                     )
+    void CodeRunner::RunCode_Layout(const FScheduledOp& item, const Model* pModel )
     {
         //MUTABLE_CPUPROFILER_SCOPE(RunCode_Layout);
 
@@ -5213,10 +5183,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode( FScheduledOp& item,
-                              const Parameters* pParams,
-                              const Model* pModel,
-                              uint32 lodMask)
+    void CodeRunner::RunCode( const FScheduledOp& item, const Parameters* pParams, const Model* pModel, uint32 lodMask)
     {
 		//UE_LOG( LogMutableCore, Log, TEXT("Running :%5d , %d "), item.At, item.Stage );
 		check( item.Type == FScheduledOp::EType::Full );
@@ -5315,11 +5282,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeRunner::RunCodeImageDesc(FScheduledOp& item,
-		const Parameters* pParams,
-		const Model* pModel, 
-		uint32 lodMask
-	)
+	void CodeRunner::RunCodeImageDesc(const FScheduledOp& item, const Parameters* pParams, const Model* pModel,  uint32 lodMask )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(RunCodeImageDesc);
 
