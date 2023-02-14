@@ -293,6 +293,11 @@ void FGameplayAttribute::PostSerialize(const FArchive& Ar)
 			}
 		}
 	}
+	if (Ar.IsSaving() && IsValid())
+	{
+		// This marks the attribute "address" for later searching
+		Ar.MarkSearchableName(FGameplayAttribute::StaticStruct(), FName(FString::Printf(TEXT("%s.%s"), *GetUProperty()->GetOwnerVariant().GetName(), *GetUProperty()->GetName())));
+	}
 }
 #endif
 
