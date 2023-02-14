@@ -7,8 +7,7 @@
 
 #include "SteamVRHMD.h"
 
-#include "RendererPrivate.h"
-#include "PostProcess/PostProcessHMD.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "DefaultSpectatorScreenController.h"

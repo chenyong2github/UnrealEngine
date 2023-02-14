@@ -13,7 +13,8 @@
 #include "PrimitiveSceneProxy.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphResources.h"
-#include "ScenePrivate.h"
+//#include "ScenePrivate.h"
+#include "SceneInterface.h"
 #include "SceneRendererInterface.h"
 #include "SceneRenderTargetParameters.h"
 #include "MeshPassProcessor.inl"
@@ -177,7 +178,7 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 {
 	check(IsInRenderingThread());
 
-	if (InRenderTarget == nullptr || InScene->GetRenderScene()->PrimitiveSceneProxies.IsEmpty())
+	if (InRenderTarget == nullptr || InScene->GetPrimitiveSceneProxies().IsEmpty())
 	{
 		return false;
 	}
@@ -293,7 +294,7 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 			DrawDynamicMeshPass(*View, RHICmdList, [View, InScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
 				TArray<FPrimitiveSceneProxy*> SceneProxies;
-				for (FPrimitiveSceneProxy* SceneProxy : InScene->GetRenderScene()->PrimitiveSceneProxies)
+				for (FPrimitiveSceneProxy* SceneProxy : InScene->GetPrimitiveSceneProxies())
 				{
 					SceneProxies.Add(SceneProxy);
 				}

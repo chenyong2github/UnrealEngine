@@ -15,23 +15,20 @@ struct FPostProcessSettings;
 struct FWorldContext;
 class UTexture;
 class FSceneViewFamily;
-class FViewInfo;
+class FSceneView;
 class FRHICommandListImmediate;
 class FTexture;
 
 struct FHeadMountedDisplayPassContext
 {
-	FHeadMountedDisplayPassContext(FRHICommandListImmediate& InRHICmdList, const FViewInfo& InView)
+	FHeadMountedDisplayPassContext(FRHICommandListImmediate& InRHICmdList, const FSceneView& InView)
 		: RHICmdList(InRHICmdList)
 		, View(InView)
 	{}
 
 	FRHICommandListImmediate& RHICmdList;
-	const FViewInfo& View;
+	const FSceneView& View;
 };
-
-UE_DEPRECATED(5.0, "FRenderingCompositePassContext has been refactored to FHeadMountedDisplayPassContext.")
-typedef FHeadMountedDisplayPassContext FRenderingCompositePassContext;
 
 /**
  * HMD device interface
@@ -151,7 +148,7 @@ public:
 	/**
 	* When implemented, creates a new post process node to provide platform-specific HMD distortion.
 	*/
-	virtual void CreateHMDPostProcessPass_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FHMDDistortionInputs& Inputs, struct FScreenPassTexture& OutPass) const {}
+	virtual void CreateHMDPostProcessPass_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const struct FHMDDistortionInputs& Inputs, struct FScreenPassTexture& OutPass) const {}
 
 public:
 

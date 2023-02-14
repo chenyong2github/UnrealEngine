@@ -10,7 +10,7 @@ class FRDGBuilder;
 struct FScreenPassRenderTarget;
 struct FScreenPassTexture;
 class FTextureResource;
-class FViewInfo;
+class FSceneView;
 class UTexture;
 class UTextureRenderTarget2D;
 class UWorld;
@@ -50,7 +50,7 @@ public:
 	 */
 	static void AddPass_RenderThread(
 		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
+		const FSceneView& View,
 		const FScreenPassTexture& Input,
 		const FScreenPassRenderTarget& Output,
 		const FOpenColorIORenderPassResources& InPassInfo,

@@ -16,7 +16,6 @@
 #include "LevelEditorViewport.h"
 #include "LocationVolume.h"
 #include "Modules/ModuleManager.h"
-#include "RendererModule.h"
 #include "Rendering/SlateRenderer.h"
 #include "SWorldPartitionViewportWidget.h"
 #include "TextureResource.h"

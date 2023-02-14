@@ -16,11 +16,9 @@
 #include "SceneView.h"
 #include "ScreenPass.h"
 #include "CommonRenderResources.h"
-#include "PostProcess/PostProcessing.h"
 #include "Containers/DynamicRHIResourceArray.h"
 // for FPostProcessMaterialInputs
-#include "PostProcess/PostProcessMaterial.h"
-
+#include "PostProcess/PostProcessMaterialInputs.h"
 
 float FOpenColorIODisplayExtension::DefaultDisplayGamma = 2.2f;
 
@@ -112,14 +110,13 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 {
 	const FScreenPassTexture& SceneColor = InOutInputs.GetInput(EPostProcessMaterialInput::SceneColor);
 	check(SceneColor.IsValid());
-	checkSlow(View.bIsViewInfo);
-	const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
+
 	FScreenPassRenderTarget Output = InOutInputs.OverrideOutput;
 
 	// If the override output is provided, it means that this is the last pass in post processing.
 	if (!Output.IsValid())
 	{
-		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, SceneColor, ViewInfo.GetOverwriteLoadAction(), TEXT("OCIORenderTarget"));
+		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, SceneColor, View.GetOverwriteLoadAction(), TEXT("OCIORenderTarget"));
 	}
 
 	const float EngineDisplayGamma = View.Family->RenderTarget->GetDisplayGamma();
@@ -129,7 +126,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 
 	FOpenColorIORendering::AddPass_RenderThread(
 		GraphBuilder,
-		ViewInfo,
+		View,
 		SceneColor,
 		Output,
 		CachedResourcesRenderThread,

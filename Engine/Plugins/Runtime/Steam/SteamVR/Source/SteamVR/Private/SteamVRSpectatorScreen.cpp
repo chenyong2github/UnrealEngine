@@ -7,11 +7,11 @@
 
 #include "SteamVRHMD.h"
 
-#include "RendererPrivate.h"
-#include "PostProcess/PostProcessHMD.h"
-#include "PipelineStateCache.h"
 #include "ClearQuad.h"
+#include "CommonRenderResources.h"
 #include "DefaultSpectatorScreenController.h"
+#include "PipelineStateCache.h"
+#include "RHIStaticStates.h"
 
 #if PLATFORM_LINUX
 #include "IVulkanDynamicRHI.h"

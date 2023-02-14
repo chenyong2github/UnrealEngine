@@ -34,7 +34,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					// Relative to Engine\Plugins\Runtime\Oculus\OculusVR\Source
 					"OculusHMD/Private",
-					System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 					"../../../../../Source/Runtime/Engine/Classes/Components",
 				});
 

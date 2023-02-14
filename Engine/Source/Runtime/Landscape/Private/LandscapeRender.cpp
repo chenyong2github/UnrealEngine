@@ -39,7 +39,6 @@ LandscapeRender.cpp: New terrain rendering
 #include "RHIStaticStates.h"
 #include "PrimitiveSceneInfo.h"
 #include "SceneView.h"
-#include "SceneCore.h"
 #include "ScenePrivate.h"
 #include "LandscapeProxy.h"
 #include "HAL/LowLevelMemTracker.h"

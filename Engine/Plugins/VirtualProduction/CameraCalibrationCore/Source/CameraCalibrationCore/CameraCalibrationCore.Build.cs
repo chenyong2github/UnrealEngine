@@ -39,8 +39,6 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(
 				new string[] 
 				{
-            		//required for ScreenPass
-					System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 				}
 			);
 		}

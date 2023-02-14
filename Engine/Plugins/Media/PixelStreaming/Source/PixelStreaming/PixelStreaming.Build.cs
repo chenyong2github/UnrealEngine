@@ -73,7 +73,6 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(new string[]
 			{
 				Path.Combine(GetModuleDirectory("AudioMixer"), "Private"),
-				Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 			});
 
 			PrivateDependencyModuleNames.AddRange(new string[]

@@ -7,7 +7,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/EngineVersion.h"
 #include "HardwareInfo.h"
-#include "RendererPrivate.h"
+//#include "RendererPrivate.h"
 #include "Slate/SceneViewport.h"
 #include "PostProcess/PostProcessHMD.h"
 #include "SteamVRFunctionLibrary.h"
@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
 #include "IHeadMountedDisplayVulkanExtensions.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"

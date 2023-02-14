@@ -8,7 +8,7 @@
 #include "AnalyticsEventAttribute.h"
 #include "Slate/SceneViewport.h"
 #include "PostProcess/PostProcessHMD.h"
-#include "PostProcess/SceneRenderTargets.h"
+//#include "PostProcess/SceneRenderTargets.h"
 #include "ScreenRendering.h"
 #include "GameFramework/PlayerController.h"
 #include "Math/UnrealMathUtility.h"

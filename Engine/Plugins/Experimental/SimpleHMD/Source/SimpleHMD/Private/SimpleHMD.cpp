@@ -6,7 +6,8 @@
 #include "ISimpleHMDPlugin.h"
 #include "PostProcess/PostProcessHMD.h"
 #include "GameFramework/WorldSettings.h"
-#include "ScenePrivate.h"
+//#include "ScenePrivate.h"
+#include "SceneView.h"
 
 //---------------------------------------------------
 // SimpleHMD Plugin Implementation
@@ -171,7 +172,7 @@ void FSimpleHMD::DrawDistortionMesh_RenderThread(struct FHeadMountedDisplayPassC
 	float ClipSpaceQuadZ = 0.0f;
 	FMatrix QuadTexTransform = FMatrix::Identity;
 	FMatrix QuadPosTransform = FMatrix::Identity;
-	const FViewInfo& View = Context.View;
+	const FSceneView& View = Context.View;
 	const FIntRect SrcRect = View.UnscaledViewRect;
 
 	FRHICommandListImmediate& RHICmdList = Context.RHICmdList;

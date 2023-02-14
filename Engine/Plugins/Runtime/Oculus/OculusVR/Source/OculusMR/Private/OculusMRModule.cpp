@@ -9,7 +9,7 @@
 #include "SceneCaptureComponent2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
+//#include "PostProcess/SceneRenderTargets.h"
 #include "Kismet/GameplayStatics.h"
 #include "OculusHMDModule.h"
 #include "OculusHMD.h"

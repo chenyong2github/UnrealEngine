@@ -10,7 +10,6 @@
 #include "RHIStaticStates.h"
 #include "WaterBodySceneProxy.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "ScenePrivate.h"
 #include "SceneCaptureRendering.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "Math/OrthoMatrix.h"
@@ -21,6 +20,10 @@
 #include "LandscapeModule.h"
 #include "TextureResource.h"
 #include "WaterBodyComponent.h"
+#include "Containers/StridedView.h"
+
+#include "ScenePrivate.h"
+#include "SceneRendering.h"
 
 static int32 RenderCaptureNextWaterInfoDraws = 0;
 static FAutoConsoleVariableRef CVarRenderCaptureNextWaterInfoDraws(
@@ -466,14 +469,12 @@ static void UpdateWaterInfoRendering_RenderThread(
 		
 		if (DepthRenderer->Scene->GetShadingPath() == EShadingPath::Mobile)
 		{
-			const FMinimalSceneTextures& SceneTextures = View.GetSceneTextures();
 			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
 			CopySceneCaptureComponentToTarget(
 				GraphBuilder,
-				SceneTextures,
 				DepthTexture,
 				DepthRenderer->ViewFamily,
-				DepthRenderer->Views);
+				MakeStridedViewOfBase<const FSceneView>(MakeArrayView(DepthRenderer->Views)));
 		}
 		else
 		{
@@ -530,10 +531,9 @@ static void UpdateWaterInfoRendering_RenderThread(
 			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
 			CopySceneCaptureComponentToTarget(
 				GraphBuilder,
-				SceneTextures,
 				ColorTexture,
 				ColorRenderer->ViewFamily,
-				ColorRenderer->Views);
+				MakeStridedViewOfBase<const FSceneView>(MakeArrayView(ColorRenderer->Views)));
 		}
 
 		// We currently can't have multiple scene renderers run within the same RDGBuilder. Therefore, we must
@@ -587,10 +587,9 @@ static void UpdateWaterInfoRendering_RenderThread(
 			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
 			CopySceneCaptureComponentToTarget(
 				GraphBuilder,
-				SceneTextures,
 				DilationTexture,
 				DilationRenderer->ViewFamily,
-				DilationRenderer->Views);
+				MakeStridedViewOfBase<const FSceneView>(MakeArrayView(DilationRenderer->Views)));
 		}
 		else
 		{

@@ -20,7 +20,6 @@
 #include "SceneInterface.h"
 #include "ScreenPass.h"
 #include "TextureResource.h"
-#include "ScenePrivate.h"
 
 
 namespace {
@@ -43,7 +42,7 @@ namespace {
 // static
 void FOpenColorIORendering::AddPass_RenderThread(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
+	const FSceneView& View,
 	const FScreenPassTexture& Input,
 	const FScreenPassRenderTarget& Output,
 	const FOpenColorIORenderPassResources& InPassResource,

@@ -165,47 +165,47 @@ public:
 private:
 	/** Constructs the necessary render passes for the default output of the rendered primitives */
 	void RenderColorOutput(FRDGBuilder& GraphBuilder,
-		const FViewInfo* View,
+		const FSceneView* View,
 		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding);
 
 	/** Constructs the necessary render passes for the hit proxy output of the rendered primitives */
 	void RenderHitProxyOutput(FRDGBuilder& GraphBuilder,
-		const FViewInfo* View,
+		const FSceneView* View,
 		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FHitProxyConsumer* HitProxyConsumer);
 
 	/** Constructs the necessary render passes for the normals/depth output of the rendered primitives */
 	void RenderNormalsOutput(FRDGBuilder& GraphBuilder,
-		const FViewInfo* View,
+		const FSceneView* View,
 		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding);
 
 	/** Adds a pass to perform the base render for the mesh projection. */
 	void AddBaseRenderPass(FRDGBuilder& GraphBuilder, 
-		const FViewInfo* View,
+		const FSceneView* View,
 		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
 	/** Adds a pass to perform the translucency render for the mesh projection. */
 	void AddTranslucencyRenderPass(FRDGBuilder& GraphBuilder, 
-		const FViewInfo* View,
+		const FSceneView* View,
 		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
 	/** Adds a pass to perform the hit proxy render for the mesh projection */
 	void AddHitProxyRenderPass(FRDGBuilder& GraphBuilder, 
-		const FViewInfo* View,
+		const FSceneView* View,
 		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
 	/** Adds a pass to perform a render of the primitives' normals for the mesh projection */
 	void AddNormalsRenderPass(FRDGBuilder& GraphBuilder,
-		const FViewInfo* View,
+		const FSceneView* View,
 		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
@@ -213,7 +213,7 @@ private:
 	/** Adds a pass to filter the output normal map for the mesh projection, dilating and blurring it
 	 * to obtain a continuous normal map from primitives into empty space */
 	void AddNormalsFilterPass(FRDGBuilder& GraphBuilder,
-		const FViewInfo* View,
+		const FSceneView* View,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FRDGTexture* SceneColor,
 		FRDGTexture* SceneDepth,
@@ -222,13 +222,13 @@ private:
 #if WITH_EDITOR
 	/** Adds a pass to perform the depth render for any selected primitives for the mesh projection */
 	void AddSelectionDepthRenderPass(FRDGBuilder& GraphBuilder, 
-		const FViewInfo* View,
+		const FSceneView* View,
 		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
 	/** Adds a pass to perform the post process selection outline for the mesh projection */
 	void AddSelectionOutlineScreenPass(FRDGBuilder& GraphBuilder,
-		const FViewInfo* View,
+		const FSceneView* View,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FRDGTexture* SceneColor,
 		FRDGTexture* SceneDepth,
@@ -237,7 +237,7 @@ private:
 
 	/** Adds a pass that renders any elements added to the PDI through the renderer's RenderSimpleElements callback */
 	void AddSimpleElementPass(FRDGBuilder& GraphBuilder,
-		const FViewInfo* View,
+		const FSceneView* View,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FSimpleElementCollector& ElementCollector);
 

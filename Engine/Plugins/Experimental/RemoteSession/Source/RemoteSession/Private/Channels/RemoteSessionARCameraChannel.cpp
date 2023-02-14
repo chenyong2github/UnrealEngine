@@ -23,7 +23,12 @@
 #include "IImageWrapperModule.h"
 #include "UObject/Package.h"
 #include "PostProcess/SceneFilterRendering.h"
-#include "ScenePrivate.h"
+
+#include "MaterialShader.h"
+#include "Containers/DynamicRHIResourceArray.h"
+#include "CommonRenderResources.h"
+#include "ScreenPass.h"
+#include "SceneRenderTargetParameters.h"
 
 #define CAMERA_MESSAGE_ADDRESS TEXT("/ARCamera")
 
@@ -254,7 +259,7 @@ void FARCameraSceneViewExtension::RenderARCamera_RenderThread(FRDGBuilder& Graph
 	auto* PassParameters = GraphBuilder.AllocParameters<FRenderARCameraPassParameters>();
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(ViewFamilyTexture, ERenderTargetLoadAction::ELoad);
 	check(InView.bIsViewInfo);
-	PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, ((const FViewInfo&)InView).GetSceneTexturesChecked(), InView.FeatureLevel, ESceneTextureSetupMode::None);
+	PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, InView, ESceneTextureSetupMode::None);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("ARCameraOverlay"),

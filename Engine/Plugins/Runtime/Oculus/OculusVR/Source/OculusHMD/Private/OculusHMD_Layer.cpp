@@ -15,7 +15,7 @@
 #include "OculusHMD.h"
 #include "OculusHMDModule.h"
 #include "OculusHMDPrivate.h"
-#include "PostProcess/SceneRenderTargets.h"
+//#include "PostProcess/SceneRenderTargets.h"
 #include "SceneUtils.h"
 #include "UObject/ConstructorHelpers.h"
 #include "XRThreadUtils.h"
