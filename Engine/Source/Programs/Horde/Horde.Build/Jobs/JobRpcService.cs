@@ -427,7 +427,7 @@ namespace Horde.Build.Jobs
 			}
 
 			// Create a log file if necessary
-			log.Value ??= await _logFileService.CreateLogFileAsync(job.Id, batch.SessionId, LogType.Json, job.JobOptions?.UseNewLogStorage ?? false);
+			log.Value ??= await _logFileService.CreateLogFileAsync(job.Id, batch.LeaseId, batch.SessionId, LogType.Json, job.JobOptions?.UseNewLogStorage ?? false);
 
 			// Get the node for this step
 			IGraph graph = await _jobService.GetGraphAsync(job);

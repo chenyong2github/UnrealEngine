@@ -6,6 +6,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
+using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs;
 using Horde.Build.Server;
@@ -57,7 +58,12 @@ namespace Horde.Build.Logs
 			[BsonRequired]
 			public JobId JobId { get; set; }
 
+			[BsonIgnoreIfNull]
+			public LeaseId? LeaseId { get; set; }
+
+			[BsonIgnoreIfNull]
 			public SessionId? SessionId { get; set; }
+
 			public LogType Type { get; set; }
 			public bool UseNewStorageBackend { get; set; }
 
@@ -85,10 +91,11 @@ namespace Horde.Build.Logs
 			{
 			}
 
-			public LogFileDocument(JobId jobId, SessionId? sessionId, LogType type, bool newStorageBackend, LogId? logId)
+			public LogFileDocument(JobId jobId, LeaseId? leaseId, SessionId? sessionId, LogType type, bool newStorageBackend, LogId? logId)
 			{
 				Id = logId ?? LogId.GenerateNewId();
 				JobId = jobId;
+				LeaseId = leaseId;
 				SessionId = sessionId;
 				Type = type;
 				UseNewStorageBackend = newStorageBackend;
@@ -125,9 +132,9 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, bool newStorageBackend, LogId? logId, CancellationToken cancellationToken)
+		public async Task<ILogFile> CreateLogFileAsync(JobId jobId, LeaseId? leaseId, SessionId? sessionId, LogType type, bool newStorageBackend, LogId? logId, CancellationToken cancellationToken)
 		{
-			LogFileDocument newLogFile = new (jobId, sessionId, type, newStorageBackend, logId);
+			LogFileDocument newLogFile = new (jobId, leaseId, sessionId, type, newStorageBackend, logId);
 			await _logFiles.InsertOneAsync(newLogFile, null, cancellationToken);
 			return newLogFile;
 		}

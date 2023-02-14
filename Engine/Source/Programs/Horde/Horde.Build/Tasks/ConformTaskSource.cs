@@ -176,7 +176,7 @@ namespace Horde.Build.Tasks
 					LeaseId leaseId = LeaseId.GenerateNewId();
 					if (await AllocateConformLeaseAsync(agent.Id, task.Workspaces, leaseId))
 					{
-						ILogFile log = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json, useNewStorageBackend: false, cancellationToken: cancellationToken);
+						ILogFile log = await _logService.CreateLogFileAsync(JobId.Empty, leaseId, agent.SessionId, LogType.Json, useNewStorageBackend: false, cancellationToken: cancellationToken);
 						task.LogId = log.Id.ToString();
 						task.RemoveUntrackedFiles = agent.RequestFullConform;
 

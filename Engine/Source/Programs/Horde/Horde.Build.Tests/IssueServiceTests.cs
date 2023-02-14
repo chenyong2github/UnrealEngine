@@ -214,7 +214,7 @@ namespace Horde.Build.Tests
 				{
 					SubResourceId stepId = new SubResourceId((ushort)((groupIdx * 100) + nodeIdx));
 
-					ILogFile logFile = LogFileService.CreateLogFileAsync(jobId, null, LogType.Json, false).Result;
+					ILogFile logFile = LogFileService.CreateLogFileAsync(jobId, null, null, LogType.Json, false).Result;
 
 					Mock<IJobStep> step = new Mock<IJobStep>(MockBehavior.Strict);
 					step.SetupGet(x => x.Id).Returns(stepId);

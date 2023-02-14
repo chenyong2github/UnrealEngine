@@ -368,6 +368,10 @@ namespace Horde.Build.Logs
 		async Task<bool> AuthorizeAsync(ILogFile logFile, AclAction action, ClaimsPrincipal user)
 		{
 			GlobalConfig globalConfig = _globalConfig.Value;
+			if (logFile.LeaseId != null && user.HasLeaseClaim(logFile.LeaseId.Value))
+			{
+				return true;
+			}
 			if (logFile.SessionId != null && LogFileService.AuthorizeForSession(logFile, user))
 			{
 				return true;

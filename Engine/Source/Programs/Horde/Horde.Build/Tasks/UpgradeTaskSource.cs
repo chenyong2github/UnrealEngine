@@ -58,7 +58,8 @@ namespace Horde.Build.Tasks
 				return await DrainAsync(cancellationToken);
 			}
 
-			ILogFile logFile = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json, useNewStorageBackend: false, cancellationToken: cancellationToken);
+			LeaseId leaseId = LeaseId.GenerateNewId();
+			ILogFile logFile = await _logService.CreateLogFileAsync(JobId.Empty, leaseId, agent.SessionId, LogType.Json, useNewStorageBackend: false, cancellationToken: cancellationToken);
 
 			UpgradeTask task = new UpgradeTask();
 			task.SoftwareId = requiredVersion.ToString();
@@ -77,7 +78,7 @@ namespace Horde.Build.Tasks
 				payload = Any.Pack(task).ToByteArray();
 			}
 
-			return Lease(new AgentLease(LeaseId.GenerateNewId(), $"Upgrade to {requiredVersion}", null, null, logFile.Id, LeaseState.Pending, null, true, payload));
+			return Lease(new AgentLease(leaseId, $"Upgrade to {requiredVersion}", null, null, logFile.Id, LeaseState.Pending, null, true, payload));
 		}
 
 		/// <summary>

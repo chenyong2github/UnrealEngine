@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Logs;
 using EpicGames.Horde.Storage;
+using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs;
 using Horde.Build.Logs.Data;
@@ -58,13 +59,14 @@ namespace Horde.Build.Logs
 		/// Creates a new log
 		/// </summary>
 		/// <param name="jobId">Unique id of the job that owns this log file</param>
+		/// <param name="leaseId">Lease allowed to update the log</param>
 		/// <param name="sessionId">Agent session allowed to update the log</param>
 		/// <param name="type">Type of events to be stored in the log</param>
 		/// <param name="useNewStorageBackend">Whether to use the new storage backend for log data</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <param name="logId">ID of the log file (optional)</param>
 		/// <returns>The new log file document</returns>
-		Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, bool useNewStorageBackend, LogId? logId = null, CancellationToken cancellationToken = default);
+		Task<ILogFile> CreateLogFileAsync(JobId jobId, LeaseId? leaseId, SessionId? sessionId, LogType type, bool useNewStorageBackend, LogId? logId = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets a logfile by ID
@@ -597,9 +599,9 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, bool useNewStorageBackend, LogId? logId, CancellationToken cancellationToken)
+		public Task<ILogFile> CreateLogFileAsync(JobId jobId, LeaseId? leaseId, SessionId? sessionId, LogType type, bool useNewStorageBackend, LogId? logId, CancellationToken cancellationToken)
 		{
-			return _logFiles.CreateLogFileAsync(jobId, sessionId, type, useNewStorageBackend, logId, cancellationToken);
+			return _logFiles.CreateLogFileAsync(jobId, leaseId, sessionId, type, useNewStorageBackend, logId, cancellationToken);
 		}
 
 		/// <inheritdoc/>

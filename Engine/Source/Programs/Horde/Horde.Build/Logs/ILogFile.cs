@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs;
 using Horde.Build.Storage;
@@ -51,6 +52,11 @@ namespace Horde.Build.Logs
 		/// Unique id of the job containing this log
 		/// </summary>
 		public JobId JobId { get; }
+
+		/// <summary>
+		/// The lease allowed to write to this log
+		/// </summary>
+		public LeaseId? LeaseId { get; }
 
 		/// <summary>
 		/// The session allowed to write to this log

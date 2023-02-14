@@ -39,14 +39,15 @@ namespace Horde.Build.Tasks
 				return await DrainAsync(cancellationToken);
 			}
 
-			ILogFile log = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json, useNewStorageBackend: false, cancellationToken: cancellationToken);
+			LeaseId leaseId = LeaseId.GenerateNewId();
+			ILogFile log = await _logService.CreateLogFileAsync(JobId.Empty, leaseId, agent.SessionId, LogType.Json, useNewStorageBackend: false, cancellationToken: cancellationToken);
 
 			ShutdownTask task = new ShutdownTask();
 			task.LogId = log.Id.ToString();
 
 			byte[] payload = Any.Pack(task).ToByteArray();
 
-			return Lease(new AgentLease(LeaseId.GenerateNewId(), "Shutdown", null, null, log.Id, LeaseState.Pending, null, true, payload));
+			return Lease(new AgentLease(leaseId, "Shutdown", null, null, log.Id, LeaseState.Pending, null, true, payload));
 		}
 	}
 }
