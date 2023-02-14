@@ -37,6 +37,6 @@ struct IVirtualFileCache
 	virtual double CurrentFragmentation() const = 0;
 	virtual void Defragment() = 0;
 
-	static VIRTUALFILECACHE_API TSharedRef<IVirtualFileCache> CreateVirtualFileCache();
+	static VIRTUALFILECACHE_API TSharedRef<IVirtualFileCache, ESPMode::ThreadSafe> CreateVirtualFileCache();
 };
 

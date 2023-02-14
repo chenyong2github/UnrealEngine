@@ -283,6 +283,7 @@ FIoStatus FFileTable::WriteData(VFCKey Id, const uint8* Data, uint64 DataSize)
 {
 	if (DoesChunkExist(Id))
 	{
+		UE_LOG(LogVFC, Verbose, TEXT("Overwriting hash %s of %llu bytes"), *Id.ToString(), DataSize);
 		EraseData(Id);
 	}
 
@@ -336,8 +337,6 @@ FIoStatus FFileTable::WriteData(VFCKey Id, const uint8* Data, uint64 DataSize)
 			//Handle->Flush();
 		}
 
-		UE_LOG(LogVFC, Verbose, TEXT("Wrote %llu bytes\n"), DataSize);
-
 		DataRef.TotalSize = DataSize;
 		DataRef.Touch();
 		FileMap.Add(Id, DataRef);
@@ -347,6 +346,8 @@ FIoStatus FFileTable::WriteData(VFCKey Id, const uint8* Data, uint64 DataSize)
 	{
 		UsedSize += TotalAllocatedSize;
 		WriteTableFile();
+
+		UE_LOG(LogVFC, Verbose, TEXT("Wrote hash %s of %llu bytes, total size is %lld out of %lld"), *Id.ToString(), DataSize, UsedSize, TotalSize);
 
 		INC_DWORD_STAT(STAT_FilesAdded);
 		INC_DWORD_STAT_BY(STAT_BytesAdded, DataSize);
@@ -534,7 +535,6 @@ int64 FFileTable::EvictOne()
 	{
 		if (MapValue.LastReferencedUnixTime >= 0 && MapValue.LastReferencedUnixTime < LeastRecentTime)
 		{
-			UE_LOG(LogVFC, Verbose, TEXT("Evicting Data %u with size of %u\n"), GetTypeHash(MapKey), MapValue.TotalSize);
 			LeastRecentlyUsed = MapKey;
 			LeastRecentTime = MapValue.LastReferencedUnixTime;
 		}
@@ -543,6 +543,8 @@ int64 FFileTable::EvictOne()
 	FDataReference* ToRemove = FileMap.Find(LeastRecentlyUsed);
 	if (ToRemove)
 	{
+		UE_LOG(LogVFC, Verbose, TEXT("Evicting Data %s with size of %u"), *LeastRecentlyUsed.ToString(), ToRemove->TotalSize);
+
 		RemovedSize = AllocationSize(ToRemove);
 		Parent->OnDataEvicted.Broadcast(LeastRecentlyUsed);
 		EraseData(LeastRecentlyUsed);
@@ -1328,14 +1330,24 @@ FLruCacheNode* FLruCache::Find(VFCKey Key)
 	return nullptr;
 }
 
+const FLruCacheNode* FLruCache::Find(VFCKey Key) const
+{
+	const TUniquePtr<FLruCacheNode>* NodePtr = NodeMap.Find(Key);
+	if (NodePtr)
+	{
+		return NodePtr->Get();
+	}
+	return nullptr;
+}
+
 // Note that this function does not move the data to the front of the LRU, only writing data does that. This prevents
 // taking a write lock during read operations which would be required to modify the lru linked list.
-TSharedPtr<TArray<uint8>> FLruCache::ReadLockAndFindData(VFCKey Key)
+TSharedPtr<TArray<uint8>> FLruCache::ReadLockAndFindData(VFCKey Key) const
 {
 	if (IsEnabled())
 	{
 		FRWScopeLock ScopeLock(Lock, SLT_ReadOnly);
-		FLruCacheNode* Node = Find(Key);
+		const FLruCacheNode* Node = Find(Key);
 		if (Node)
 		{
 			return Node->Data;
@@ -1369,9 +1381,10 @@ bool FLruCache::FreeSpaceFor(int64 SizeToAdd)
 
 void FLruCache::EvictOne()
 {
-	FLruCacheNode* Node = LruList.GetHead();
+	FLruCacheNode* Node = LruList.GetTail();
 	if (Node)
 	{
+		UE_LOG(LogVFC, Verbose, TEXT("Evicting from MemCache hash %s"), *Node->Key.ToString());
 		CurrentSize -= Node->RecordedSize;
 		LruList.Remove(Node);
 		int32 NumRemoved = NodeMap.Remove(Node->Key);
@@ -1390,6 +1403,7 @@ void FLruCache::Insert(VFCKey Key, TSharedPtr<TArray<uint8>> Data)
 	FLruCacheNode* Existing = Find(Key);
 	if (Existing)
 	{
+		UE_LOG(LogVFC, Verbose, TEXT("Advancing to head of MemCache hash %s"), *Key.ToString());
 		CurrentSize -= Existing->Data->Num();
 		Existing->Data = MoveTemp(Data);
 		CurrentSize += Existing->Data->Num();
@@ -1398,6 +1412,7 @@ void FLruCache::Insert(VFCKey Key, TSharedPtr<TArray<uint8>> Data)
 	}
 	else if (FreeSpaceFor(Data->Num()))
 	{
+		UE_LOG(LogVFC, Verbose, TEXT("Inserting into MemCache hash %s"), *Key.ToString());
 		TUniquePtr<FLruCacheNode> NewNode = MakeUnique<FLruCacheNode>();
 		NewNode->Key = Key;
 		NewNode->Data = MoveTemp(Data);
@@ -1424,7 +1439,7 @@ void FLruCache::Remove(VFCKey Key)
 	}
 }
 
-bool FLruCache::IsEnabled()
+bool FLruCache::IsEnabled() const
 {
 	return MaxSize > 0;
 }

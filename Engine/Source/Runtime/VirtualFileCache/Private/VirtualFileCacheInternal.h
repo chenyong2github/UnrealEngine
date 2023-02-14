@@ -251,14 +251,15 @@ public:
 		LruList.Reset();
 	}
 	FLruCacheNode* Find(VFCKey Key);
-	TSharedPtr<TArray<uint8>> ReadLockAndFindData(VFCKey Key);
+	const FLruCacheNode* Find(VFCKey Key) const;
+	TSharedPtr<TArray<uint8>> ReadLockAndFindData(VFCKey Key) const;
 	void Insert(VFCKey Key, TSharedPtr<TArray<uint8>> Data);
 	void Remove(VFCKey Key);
-	bool IsEnabled();
+	bool IsEnabled() const;
 	void SetMaxSize(int64 NewMaxSize);
 
 public:
-	FRWLock Lock;
+	mutable FRWLock Lock;
 
 private:
 	TMap<VFCKey, TUniquePtr<FLruCacheNode>> NodeMap;
