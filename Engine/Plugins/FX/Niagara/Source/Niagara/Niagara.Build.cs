@@ -67,7 +67,6 @@ public class Niagara : ModuleRules
 
         PrivateIncludePaths.AddRange(
             new string[] {
-				System.IO.Path.Combine(GetModuleDirectory("Engine"), "Private"),
 			});
 
         if (Target.bBuildEditor == true)
