@@ -155,5 +155,12 @@ namespace Chaos::Softs
 		}
 	};
 
+	struct CHAOS_API FDeformableXPBDCorotatedParams
+	{
+		int32 XPBDCorotatedBatchSize = 5;
+		int32 XPBDCorotatedBatchThreshold = 5;
+
+	};
+
 
 }; // namesapce Chaos::Softs

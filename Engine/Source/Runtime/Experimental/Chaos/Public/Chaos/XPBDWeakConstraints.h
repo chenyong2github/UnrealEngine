@@ -124,8 +124,13 @@ namespace Chaos::Softs
 			Chaos::ComputeWeakConstraintsColoring(Indices, SecondIndices, Particles, ConstraintsPerColor);
 		}
 
-		void ApplySingleConstraintWithoutSelfTarget(ParticleType& Particles, const T Dt, const int32 ConstraintIndex) const
+		void ApplySingleConstraintWithoutSelfTarget(ParticleType& Particles, const T Dt, const int32 ConstraintIndex, const T Tol = UE_KINDA_SMALL_NUMBER) const
 		{
+			if (Stiffness[ConstraintIndex] < Tol)
+			{
+				return;
+			}
+
 			T AlphaTilde = T(2) / (Stiffness[ConstraintIndex] * Dt * Dt);
 
 			if (Stiffness[ConstraintIndex] > 1e14)
@@ -161,8 +166,13 @@ namespace Chaos::Softs
 			}
 		}
 
-		void ApplySingleConstraintWithSelfTarget(ParticleType& Particles, const T Dt, const int32 ConstraintIndex) const
+		void ApplySingleConstraintWithSelfTarget(ParticleType& Particles, const T Dt, const int32 ConstraintIndex, const T Tol = UE_KINDA_SMALL_NUMBER) const
 		{
+			if (Stiffness[ConstraintIndex] < Tol)
+			{
+				return;
+			}
+
 			ensure(SecondIndices.Num() > 0);
 
 			T AlphaTilde = T(2) / (Stiffness[ConstraintIndex] * Dt * Dt);

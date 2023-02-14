@@ -69,6 +69,9 @@ namespace Chaos::Softs
 	FAutoConsoleVariableRef CVarDeformableDebugParamsDrawTetrahedralParticles(TEXT("p.Chaos.DebugDraw.Deformable.TetrahedralParticle"), GDeformableDebugParams.bDoDrawTetrahedralParticles, TEXT("Debug draw the deformable solvers tetrahedron. [def: false]"));
 	FAutoConsoleVariableRef CVarDeformableDebugParamsDrawKinematicParticles(TEXT("p.Chaos.DebugDraw.Deformable.KinematicParticle"), GDeformableDebugParams.bDoDrawKinematicParticles, TEXT("Debug draw the deformables kinematic particles. [def: false]"));
 
+	FDeformableXPBDCorotatedParams GDeformableXPBDCorotatedParams;
+	FAutoConsoleVariableRef CVarDeformableXPBDCorotatedBatchSize(TEXT("p.Chaos.Deformable.XPBDBatchSize"), GDeformableXPBDCorotatedParams.XPBDCorotatedBatchSize, TEXT("Batch size for physics parallel for. [def: 5]"));
+	FAutoConsoleVariableRef CVarDeformableXPBDCorotatedBatchThreshold(TEXT("p.Chaos.Deformable.XPBDBatchThreshold"), GDeformableXPBDCorotatedParams.XPBDCorotatedBatchThreshold, TEXT("Batch threshold for physics parallel for. [def: 5]"));
 
 	FCriticalSection FDeformableSolver::InitializationMutex;
 	FCriticalSection FDeformableSolver::RemovalMutex;
@@ -516,7 +519,7 @@ namespace Chaos::Softs
 					{
 						FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
 							new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
-								Evolution->Particles(), Elements, TetStiffness);
+								Evolution->Particles(), Elements, TetStiffness, GDeformableXPBDCorotatedParams);
 
 						Evolution->ConstraintInits()[InitIndex] =
 							[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
