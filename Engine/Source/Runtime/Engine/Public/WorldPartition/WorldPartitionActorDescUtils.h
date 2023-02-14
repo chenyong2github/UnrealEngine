@@ -72,5 +72,12 @@ struct ENGINE_API FWorldPartitionActorDescUtils
 	 * @param InActorDesc	Actor descriptor that will get its actor pointer updated.
 	 */
 	static void ReplaceActorDescriptorPointerFromActor(const AActor* InOldActor, AActor* InNewActor, FWorldPartitionActorDesc* InActorDesc);
+
+	/** 
+	 * Validate if the actor descriptor's class exists without loading anything by going through the asset registry, walking the redirector chain if needed.
+	 * @param InActorDesc		The actor descriptor to resolve the class from.
+	 * @return					Whether the actor descriptor's class is valid or not.
+	 */
+	static bool ValidateActorDescClass(FWorldPartitionActorDesc* InActorDesc);
 };
 #endif
