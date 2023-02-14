@@ -49,7 +49,6 @@ struct FInstanceUpdateCmdBuffer
 	void SetLightMapData(int32 RenderIndex, const FVector2D& LightmapUVBias);
 	void SetShadowMapData(int32 RenderIndex, const FVector2D& ShadowmapUVBias);
 	void SetCustomData(int32 RenderIndex, TConstArrayView<float> CustomDataFloats);
-	void ResetInlineCommands();
 	int32 NumInlineCommands() const { return Cmds.Num(); }
 
 	// Command that can't be in-lined and should cause full buffer rebuild
