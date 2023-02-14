@@ -3479,6 +3479,11 @@ namespace AutomationScripts
 						{
 							InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".sig"), Path.ChangeExtension(RawDataPakPath, ".sig"), true);
 						}
+						if (bShouldCreateIoStoreContainerFiles)
+						{
+							InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".utoc"), Path.ChangeExtension(RawDataPakPath, ".utoc"), true);
+							InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".ucas"), Path.ChangeExtension(RawDataPakPath, ".ucas"), true);
+						}
 						InternalUtils.SafeDeleteFile(OutputLocation.FullName, true);
 
 						if (Params.IsGeneratingPatch)
@@ -3494,6 +3499,11 @@ namespace AutomationScripts
 							if (bPakFilesAreSigned)
 							{
 								InternalUtils.SafeCopyFile(PatchSourceContentPath, Path.ChangeExtension(SourceRawDataPakPath, ".sig"), true);
+							}
+							if (bShouldCreateIoStoreContainerFiles)
+							{
+								InternalUtils.SafeCopyFile(PatchSourceContentPath, Path.ChangeExtension(SourceRawDataPakPath, ".utoc"), true);
+								InternalUtils.SafeCopyFile(PatchSourceContentPath, Path.ChangeExtension(SourceRawDataPakPath, ".ucas"), true);
 							}
 						}
 
