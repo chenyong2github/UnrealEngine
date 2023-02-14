@@ -142,6 +142,7 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	virtual void BeginDestroy() {};
+	virtual void PendingDelete() override;
 
 	FRigElementKey GetElementKey() const;
 	FText GetName() const;
@@ -248,7 +249,7 @@ protected:
 	void CustomizeMetadata(IDetailLayoutBuilder& DetailBuilder);
 
 	TArray<FPerElementInfo> PerElementInfos;
-	TArray<TStrongObjectPtr<UDetailsViewWrapperObject>> MetadataWrappers;
+	FDelegateHandle MetadataHandle;
 	
 	TSharedPtr<SButton> SelectParentElementButton;
 };
