@@ -2056,7 +2056,6 @@ namespace AutomationScripts
 			// Whether this rule is defined for content-on-demand
 			public bool bOnDemand;
 
-
 			public static bool IsMatch(PakFileRules PakRules, KeyValuePair<string, string> StagingFile)
 			{
 				bool bMatched = !PakRules.bDisabled &&
@@ -2275,43 +2274,6 @@ namespace AutomationScripts
 				foreach (PakFileRules Rule in RulesList.Where(Rule => Rule.bOnDemand))
 				{
 					if (PakFileRules.IsMatch(Rule, StagingFile))
-					{
-						ModifyPakList.Clear();
-
-						string ChunkName = Rule.Name;
-						if (Rule.OverridePaks != null && Rule.OverridePaks.Count > 0)
-						{
-							string OverrideChunkName = Rule.OverridePaks[0];
-							if (ChunkNameToDefinition.ContainsKey(OverrideChunkName))
-							{
-								ChunkName = OverrideChunkName;
-							}
-							else
-							{
-								LogWarning("Undefined PAK override '{0}' in PAK rule '{1}'", OverrideChunkName, Rule.Name);
-							}
-						}
-
-						ChunkDefinition Chunk = null;
-						if (ChunkNameToDefinition.TryGetValue(ChunkName, out Chunk))
-						{
-							ModifyPakList.Add(Chunk);
-						}
-						else
-						{
-							LogWarning("Undefined chunk name '{0}' in PAK rule '{1}'", ChunkName, Rule.Name);
-						}
-						
-						return;
-					}
-				}
-			}
-
-			// Search in order, return on first match
-			foreach (var PakRules in RulesList)
-			{
-				if (PakFileRules.IsMatch(PakRules, StagingFile))
-				{
 					{
 						ModifyPakList.Clear();
 
