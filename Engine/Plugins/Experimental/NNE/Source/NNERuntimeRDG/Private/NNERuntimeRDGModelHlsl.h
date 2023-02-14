@@ -27,11 +27,13 @@ protected:
 	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
 
 	bool PrepareWeights();
+	bool PrepareConstants();
 
 private:
 
 	TArray<FOperatorHlsl*>	Operators;
 	TArray<TRefCountPtr<FRDGPooledBuffer>> WeightsExternalRDGResources;
+	TArray<TRefCountPtr<FRDGPooledBuffer>> ConstantsExternalRDGResources;
 };
 
 } // namespace UE::NNERuntimeRDG::Private::Hlsl

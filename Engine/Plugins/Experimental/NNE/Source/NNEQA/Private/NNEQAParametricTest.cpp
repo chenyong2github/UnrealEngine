@@ -83,6 +83,14 @@ private:
 			}
 			else
 			{
+				if (Runtime.SkipStatic)
+				{
+					TestSetup.SkipStaticTestForRuntime.Add(Runtime.Name);
+				}
+				if (Runtime.SkipVariadic)
+				{
+					TestSetup.SkipStaticTestForRuntime.Add(Runtime.Name);
+				}
 				if (Runtime.AbsoluteTolerance != Json::JSON_TOLERANCE_NOTSET)
 				{
 					TestSetup.AbsoluteToleranceForRuntime.Emplace(Runtime.Name, Runtime.AbsoluteTolerance);

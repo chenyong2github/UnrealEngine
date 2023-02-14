@@ -37,6 +37,8 @@ namespace UE::NNEQA::Private
 			bool IsModelTest;
 			TMap<FString, float> AbsoluteToleranceForRuntime;
 			TMap<FString, float> RelativeToleranceForRuntime;
+			TSet<FString> SkipStaticTestForRuntime;
+			TSet<FString> SkipVariadicTestForRuntime;
 			TArray<NNECore::Internal::FTensor> Inputs;
 			TArray<NNECore::Internal::FTensor> Weights;
 			TArray<NNECore::Internal::FTensor> Outputs;

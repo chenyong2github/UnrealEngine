@@ -87,8 +87,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InputTensors, TConstArrayView<FTensorRDGRef> OutputTensors) override
 		{
-			//Need to upload the data to gpu tensor or have the hlsl model understand that this operator result will only be needed on CPU.
-			//Current behavior will be faulty if the model rely on this operator result on GPU.
+			UE_LOG(LogNNE, Warning, TEXT("Concat: Output should be constant and already uploaded to GPU memory. Dispatch should not need to be called."));
 		}
 	};
 

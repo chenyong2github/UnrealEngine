@@ -65,6 +65,14 @@
 					"type": "boolean",
 					"description": "true to skip the test for this runtime, false by default"
 				},
+				"skip_variadic_test": {
+					"type": "boolean",
+					"description": "true to skip variadic input shape tests"
+				},
+				"skip_static_test": {
+					"type": "boolean",
+					"description": "true to skip static intput shape tests"
+				},
 				"absolute_tolerance": {
 					"type": "number",
 					"minimum": 0,

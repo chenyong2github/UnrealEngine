@@ -86,7 +86,13 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			
 			Internal::CPUHelper::Slice::Apply(*InputTensors[0], *OutputTensors[0], Start);
 
-			return -1;
+			if (!OutputTensors[0]->HasPreparedData())
+			{
+				UE_LOG(LogNNE, Warning, TEXT("Slice: Output could not be computed as a constant tensor, however Slice is not implemented on GPU at the moment."));
+				return -1;
+			}
+
+			return 0;
 		};
 
 		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
@@ -117,8 +123,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InputTensors, TConstArrayView<FTensorRDGRef> OutputTensors) override
 		{
-			//Need to upload the data to gpu tensor or have the hlsl model understand that this operator result will only be needed on CPU.
-			//Current behavior will be faulty if the model rely on this operator result on GPU.
+			UE_LOG(LogNNE, Warning, TEXT("Slice: Output should be constant and already uploaded to GPU memory. Dispatch should not need to be called."));
 		}
 	};
 

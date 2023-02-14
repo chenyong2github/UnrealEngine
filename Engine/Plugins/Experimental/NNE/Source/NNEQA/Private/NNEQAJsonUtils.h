@@ -41,13 +41,17 @@ namespace Json
 	struct FTestConfigRuntime : FJsonSerializable
 	{
 		FString Name;
-		bool Skip;
 		float AbsoluteTolerance = JSON_TOLERANCE_NOTSET;
 		float RelativeTolerance = JSON_TOLERANCE_NOTSET;
+		bool Skip;
+		bool SkipStatic;
+		bool SkipVariadic;
 
 		BEGIN_JSON_SERIALIZER
 			JSON_SERIALIZE("name", Name);
 			JSON_SERIALIZE("skip", Skip);
+			JSON_SERIALIZE("skip_static_test", SkipStatic);
+			JSON_SERIALIZE("skip_variadic_test", SkipVariadic);
 			JSON_SERIALIZE("absolute_tolerance", AbsoluteTolerance);
 			JSON_SERIALIZE("relative_tolerance", RelativeTolerance);
 		END_JSON_SERIALIZER

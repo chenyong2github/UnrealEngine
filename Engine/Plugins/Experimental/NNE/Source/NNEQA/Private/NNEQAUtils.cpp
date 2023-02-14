@@ -365,6 +365,10 @@ namespace UE::NNEQA::Private
 		{
 			return CompareTensorData<int32>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteTolerance, RelativeTolerance);
 		}
+		else if (RefTensor.GetDataType() == ENNETensorDataType::Int64)
+		{
+			return CompareTensorData<int64>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteTolerance, RelativeTolerance);
+		}
 		else if (RefTensor.GetDataType() == ENNETensorDataType::UInt32)
 		{
 			return CompareTensorData<uint32>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteTolerance, RelativeTolerance);
@@ -551,30 +555,39 @@ namespace UE::NNEQA::Private
 			}
 			FString TestResult;
 			if (TestSetup.AutomationExcludedRuntime.Contains(RuntimeName) ||
-				TestSetup.AutomationExcludedPlatformRuntimeCombination.Contains(TPair<FString, FString>(CurrentPlatform, RuntimeName)))
+				TestSetup.AutomationExcludedPlatformRuntimeCombination.Contains(TPair<FString, FString>(CurrentPlatform, RuntimeName)) ||
+				(TestSetup.SkipStaticTestForRuntime.Contains(RuntimeName) && TestSetup.SkipVariadicTestForRuntime.Contains(RuntimeName)))
 			{
 				TestResult = TEXT("skipped (by config)");
 			}
 			else
 			{
-				bool bShouldRunVariadicTest = (ONNXModelVariadic.Format != ENNEInferenceFormat::Invalid);
+				bool bTestSuceeded = true;
+				bool bShouldRunStaticTest = !TestSetup.SkipStaticTestForRuntime.Contains(RuntimeName);
+				bool bShouldRunVariadicTest = !TestSetup.SkipVariadicTestForRuntime.Contains(RuntimeName);
+
+				bShouldRunVariadicTest &= (ONNXModelVariadic.Format != ENNEInferenceFormat::Invalid);
 				bShouldRunVariadicTest &= !(RuntimeName == "NNERuntimeRDGDml");
 				
-				bool bTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime->GetRuntimeName(), ONNXModel, RefOutputMemBuffers, RefOutputTensors);
-
-				if (bShouldRunVariadicTest)
+				if (bShouldRunStaticTest)
 				{
-					if (!bTestSuceeded)
+					bool bTestResult = RunTestInferenceAndCompareToRef(TestSetup, Runtime->GetRuntimeName(), ONNXModel, RefOutputMemBuffers, RefOutputTensors);
+					if (!bTestResult)
 					{
 						UE_LOG(LogNNE, Error, TEXT("Failed running static test."));
-					}
-					bool bVariadicTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime->GetRuntimeName(), ONNXModelVariadic, RefOutputMemBuffers, RefOutputTensors);
-					if (!bVariadicTestSuceeded)
-					{
 						bTestSuceeded = false;
-						UE_LOG(LogNNE, Error, TEXT("Failed running variadic test."));
 					}
 				}
+				if (bShouldRunVariadicTest)
+				{
+					bool bTestResult = RunTestInferenceAndCompareToRef(TestSetup, Runtime->GetRuntimeName(), ONNXModelVariadic, RefOutputMemBuffers, RefOutputTensors);
+					if (!bTestResult)
+					{
+						UE_LOG(LogNNE, Error, TEXT("Failed running variadic test."));
+						bTestSuceeded = false;
+					}
+				}
+				
 				TestResult = bTestSuceeded ? TEXT("SUCCESS") : TEXT("FAILED");
 				bAllTestsSucceeded &= bTestSuceeded;
 			}

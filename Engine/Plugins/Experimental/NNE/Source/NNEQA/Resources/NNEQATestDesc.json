@@ -338,6 +338,16 @@
 			"targets": [
 				{ "target": "Transpose" }
 			]
+		},
+		{
+			"category": "ShapeOp",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGDml", "skip": true },
+				{ "name": "NNERuntimeRDGHlsl", "skip_static_test": true  }
+			],
+			"targets": [
+				{ "target": "Shape" }
+			]
 		}
 	],
 
@@ -804,6 +814,14 @@
 			"name": "TransposeOp.Default",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 5, 7, 8 ] } ], "outputs": [ { "shape": [ 8, 7, 5 ] } ] }
+			]
+		},
+		{
+			"name": "ShapeOp",
+			"datasets": [
+				{ "inputs":  [ { "shape": [ 3 ] } ], "outputs": [ { "shape": [ 1 ], "type": "int64" } ] },
+				{ "inputs":  [ { "shape": [ 1, 128, 50, 55 ] } ], "outputs": [ { "shape": [ 4 ], "type": "int64"} ] },
+				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ],  "outputs": [ { "shape": [ 5 ], "type": "int64"} ] }
 			]
 		}
 	],

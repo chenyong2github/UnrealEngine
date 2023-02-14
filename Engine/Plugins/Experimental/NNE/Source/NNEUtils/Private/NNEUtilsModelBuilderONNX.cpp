@@ -350,10 +350,11 @@ NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 	
 	int64 IrVersion = OnnxIrVersion;
 	int64 OpsetVersion = OnnxOpsetVersion;
-	if (OperatorName == TEXT("Upsample") ||	// Upsample is deprecated starting opset 10
-		OperatorName == TEXT("Pad") ||		// Pad current implementation is opset 2 (next version is 11)
-		OperatorName == TEXT("Slice") ||	// Slice current implementation is opset 1 (next version is 10)
-		OperatorName == TEXT("Unsqueeze"))	// Pad current implementation is opset 1 (next version is 11)
+	if (OperatorName == TEXT("Upsample") ||	// deprecated starting opset 10
+		OperatorName == TEXT("Pad") ||		// current implementation is opset 2 (next version is 11)
+		OperatorName == TEXT("Slice") ||	// current implementation is opset 1 (next version is 10)
+		OperatorName == TEXT("Shape") ||	// current implementation is opset 1 (next version is 13)
+		OperatorName == TEXT("Unsqueeze"))	// current implementation is opset 1 (next version is 11)
 	{
 		OpsetVersion = 9;
 	}
