@@ -53,9 +53,12 @@ float3 ComposeOverlayColor(float4 InColor, float4 InOverlayColor)
 	return InOverlayColor.xyz + InColor.xyz * InOverlayColor.w;
 }
 
-float4 AddOverlayColor(float4 InColor, float4 InOverlayColor)
+// Additive render pass with 2 overlays
+// a = in\out, b,c = ordered overlays (a + b + c)
+// c.xyz + (b.xyz + a.xyz * b.w)*c.w = a.xyz * (b.w *c.w) + b.xyz*c.w + c.xyz
+float4 ComposeRenderPassTwoOverlays(float4 InOverlay1, float4 InOverlay2)
 {
-	return float4(ComposeOverlayColor(InColor, InOverlayColor), min(InColor.w, InOverlayColor.w));
+	return float4(ComposeOverlayColor(InOverlay1, InOverlay2), InOverlay1.w * InOverlay2.w);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -200,6 +203,20 @@ OutputPS IcvfxWarpPS(OutputVS IN)
 	float4 OverlayUVW = mul(WarpedUV, OverlayProjectionMatrix);
 	float2 OverlayUV = OverlayUVW.xy / OverlayUVW.w;
 
+	#if LIGHTCARD_OVER || UVLIGHTCARD_OVER || LIGHTCARD_UNDER || UVLIGHTCARD_UNDER
+		#if (LIGHTCARD_OVER && UVLIGHTCARD_OVER) || (LIGHTCARD_UNDER && UVLIGHTCARD_UNDER)
+			float4 LightCardColor = ComposeRenderPassTwoOverlays(GetLightCardTextureColor(OverlayUV), GetUVLightCardTextureColor(IN.UV_Chromakey.xy));
+		#else
+			// Render overlays in separate render-pass
+			#if LIGHTCARD_UNDER || LIGHTCARD_OVER
+				float4 LightCardColor = GetLightCardTextureColor(OverlayUV);
+			#endif
+			#if UVLIGHTCARD_UNDER || UVLIGHTCARD_OVER
+				float4 LightCardColor = GetUVLightCardTextureColor(IN.UV_Chromakey.xy);
+			#endif
+		#endif
+	#endif
+
 	// Compose all:
 #if VIEWPORT_INPUT
 
@@ -211,11 +228,8 @@ OutputPS IcvfxWarpPS(OutputVS IN)
 		float4 OutColor = float4(InputTexture.Sample(InputSampler, ViewportUV).rgb, 1.0f);
 	#endif
 
-	#if LIGHTCARD_UNDER
-		OutColor.xyz = ComposeOverlayColor(OutColor, GetLightCardTextureColor(OverlayUV));
-	#endif
-	#if UVLIGHTCARD_UNDER
-		OutColor.xyz = ComposeOverlayColor(OutColor, GetUVLightCardTextureColor(IN.UV_Chromakey.xy));
+	#if LIGHTCARD_UNDER || UVLIGHTCARD_UNDER
+		OutColor.xyz = ComposeOverlayColor(OutColor, LightCardColor);
 	#endif
 	
 	#if INNER_CAMERA
@@ -223,11 +237,8 @@ OutputPS IcvfxWarpPS(OutputVS IN)
 		OutColor.xyz = lerp(OutColor.xyz, CameraColor.xyz, CameraColor.w);
 	#endif
 
-	#if LIGHTCARD_OVER
-		OutColor.xyz = ComposeOverlayColor(OutColor, GetLightCardTextureColor(OverlayUV));
-	#endif
-	#if UVLIGHTCARD_OVER
-		OutColor.xyz = ComposeOverlayColor(OutColor, GetUVLightCardTextureColor(IN.UV_Chromakey.xy));
+	#if LIGHTCARD_OVER || UVLIGHTCARD_OVER
+		OutColor.xyz = ComposeOverlayColor(OutColor, LightCardColor);
 	#endif
 
 #else 
@@ -235,16 +246,13 @@ OutputPS IcvfxWarpPS(OutputVS IN)
 	#if INNER_CAMERA
 		float4 OutColor = GetInnerCameraColor(WarpedUV, IN);
 	#else
-		float4 OutColor = float4(0, 0, 0, 1);
-
-		#if LIGHTCARD_OVER
-			OutColor = AddOverlayColor(OutColor, GetLightCardTextureColor(OverlayUV));
+		#if LIGHTCARD_OVER || UVLIGHTCARD_OVER
+			float4 OutColor = LightCardColor;
+		#else
+			float4 OutColor = float4(0,0,0,0);
 		#endif
-		#if UVLIGHTCARD_OVER
-			OutColor = AddOverlayColor(OutColor, GetUVLightCardTextureColor(IN.UV_Chromakey.xy));
-		#endif
-
 	#endif
+
 #endif
 
 	//@todo: add LUT here

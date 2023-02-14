@@ -128,6 +128,12 @@ namespace IcvfxShaderPermutation
 			return false;
 		}
 
+		// LightCard can be only 'over' or 'under'
+		if ((PermutationVector.Get<FIcvfxShaderLightCardUnder>() || PermutationVector.Get<FIcvfxShaderUVLightCardUnder>()) && (PermutationVector.Get<FIcvfxShaderUVLightCardOver>() || PermutationVector.Get<FIcvfxShaderLightCardOver>()))
+		{
+			return false;
+		}
+
 		if (!PermutationVector.Get<FIcvfxShaderViewportInput>())
 		{
 			if (PermutationVector.Get<FIcvfxShaderLightCardUnder>() || PermutationVector.Get<FIcvfxShaderUVLightCardUnder>())
@@ -901,15 +907,16 @@ public:
 			}
 			else
 			{
+				// Extra render pass: don't change target alpha channel
 				if (RenderPassData.PSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderInnerCamera>())
 				{
-					// Render additive camera frame
-					GraphicsPSOInit.BlendState = TStaticBlendState <CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_InverseDestAlpha, BF_One>::GetRHI();
+					// Multicam rendering
+					GraphicsPSOInit.BlendState = TStaticBlendState <CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
 				}
 				else
 				{
-					// Render additive overlay frame
-					GraphicsPSOInit.BlendState = TStaticBlendState <CW_RGBA, BO_Add, BF_InverseSourceAlpha, BF_SourceAlpha, BO_Add, BF_InverseDestAlpha, BF_One>::GetRHI();
+					// [optional] Final render pass for LC overlays
+					GraphicsPSOInit.BlendState = TStaticBlendState <CW_RGBA, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
 				}
 			}
 
@@ -962,6 +969,11 @@ public:
 
 		case EVarIcvfxMPCDIShaderType::Disable:
 			return false;
+			break;
+
+		case EVarIcvfxMPCDIShaderType::Default:
+		default:
+			// Use default icvfx render
 			break;
 		};
 

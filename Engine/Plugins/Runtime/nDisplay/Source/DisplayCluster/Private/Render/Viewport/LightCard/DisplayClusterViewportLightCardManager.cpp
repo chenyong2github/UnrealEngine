@@ -57,14 +57,12 @@ void FDisplayClusterViewportLightCardManager::Release()
 ///////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterViewportLightCardManager::UpdateConfiguration()
 {
-	UpdateUVLightCardData();
+
 }
 
 void FDisplayClusterViewportLightCardManager::HandleStartScene()
 {
 	InitializePreviewWorld();
-
-	UpdateUVLightCardData();
 }
 
 void FDisplayClusterViewportLightCardManager::HandleEndScene()
@@ -76,6 +74,7 @@ void FDisplayClusterViewportLightCardManager::HandleEndScene()
 
 void FDisplayClusterViewportLightCardManager::RenderFrame()
 {
+	UpdateUVLightCardData();
 	RenderUVLightCard();
 }
 
