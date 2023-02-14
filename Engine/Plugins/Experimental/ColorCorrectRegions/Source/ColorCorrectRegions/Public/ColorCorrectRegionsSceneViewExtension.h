@@ -19,7 +19,9 @@ public:
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {};
 	virtual void PrePostProcessPass_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessingInputs& Inputs) override;
 	//~ End FSceneViewExtensionBase Interface
-
+public:
+	// Called when owning subsystem needs to release this extension.
+	void Invalidate();
 private:
 	UColorCorrectRegionsSubsystem* WorldSubsystem;
 };

@@ -122,8 +122,40 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 		PostProcessSceneViewExtension->IsActiveThisFrameFunctions.Add(IsActiveFunctor);
 	}
 
-	PostProcessSceneViewExtension.Reset();
-	PostProcessSceneViewExtension = nullptr;
+
+	ENQUEUE_RENDER_COMMAND(ReleaseSVE)([this](FRHICommandListImmediate& RHICmdList)
+	{
+		for (AColorCorrectRegion* Region : RegionsPriorityBased)
+		{
+			Region->Cleanup();
+		}
+		RegionsPriorityBased.Reset();
+
+		for (AColorCorrectRegion* Region : RegionsDistanceBased)
+		{
+			Region->Cleanup();
+		}
+		RegionsDistanceBased.Reset();
+
+		// Prevent this SVE from being gathered, in case it is kept alive by a strong reference somewhere else.
+		{
+			PostProcessSceneViewExtension->IsActiveThisFrameFunctions.Empty();
+
+			FSceneViewExtensionIsActiveFunctor IsActiveFunctor;
+
+			IsActiveFunctor.IsActiveFunction = [](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)
+			{
+				return TOptional<bool>(false);
+			};
+
+			PostProcessSceneViewExtension->IsActiveThisFrameFunctions.Add(IsActiveFunctor);
+		}
+
+		PostProcessSceneViewExtension->Invalidate();
+		PostProcessSceneViewExtension.Reset();
+		PostProcessSceneViewExtension = nullptr;
+	});
+	FlushRenderingCommands();
 }
 
 void UColorCorrectRegionsSubsystem::OnActorSpawned(AActor* InActor)

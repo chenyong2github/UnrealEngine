@@ -667,14 +667,19 @@ FColorCorrectRegionsSceneViewExtension::FColorCorrectRegionsSceneViewExtension(c
 
 void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessingInputs& Inputs)
 {
-	// Necessary for when an actor is added or removed from the scene. Also when priority is changed.
+	if (IsValid(WorldSubsystem))
 	{
 		FScopeLock RegionScopeLock(&WorldSubsystem->RegionAccessCriticalSection);
 
+		// Necessary for when an actor is added or removed from the scene. Also when priority is changed.
 		if ((WorldSubsystem->RegionsPriorityBased.Num() == 0 && WorldSubsystem->RegionsDistanceBased.Num() == 0) || !ViewSupportsRegions(View))
 		{
 			return;
 		}
+	}
+	else
+	{
+		return;
 	}
 
 	Inputs.Validate();
@@ -773,4 +778,9 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 			}
 		}
 	}
+}
+
+void FColorCorrectRegionsSceneViewExtension::Invalidate()
+{
+	WorldSubsystem = nullptr;
 }
