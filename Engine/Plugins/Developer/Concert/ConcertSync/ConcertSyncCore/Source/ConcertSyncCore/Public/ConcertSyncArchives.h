@@ -125,9 +125,13 @@ public:
 	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override;
 	virtual FArchive& operator<<(FObjectPtr& Obj) override;
 	virtual FArchive& operator<<(FSoftObjectPtr& AssetPtr) override;
+	virtual FArchive& operator<<(FSoftObjectPath& AssetPtr) override;
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override;
 	virtual FString GetArchiveName() const override;
 	//~ End FArchive Interface
+
+protected:
+	virtual void OnObjectSerialized(FSoftObjectPath& Obj) {}
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

@@ -22,6 +22,9 @@ public:
 	virtual FString GetArchiveName() const override;
 	//~ End FArchive Interface
 
+protected:
+	FConcertLocalIdentifierTable* GetLocalIdentifierTable() const { return LocalIdentifierTable; }
+
 private:
 	FConcertLocalIdentifierTable* LocalIdentifierTable;
 };
@@ -39,6 +42,9 @@ public:
 	FArchive& operator<<(FSoftObjectPath& AssetPtr) override;
 	virtual FString GetArchiveName() const override;
 	//~ End FArchive Interface
+
+protected:
+	const FConcertLocalIdentifierTable* GetLocalIdentifierTable() const { return LocalIdentifierTable; }
 
 private:
 	const FConcertLocalIdentifierTable* LocalIdentifierTable;
@@ -59,6 +65,36 @@ public:
 	virtual void Serialize(void* Data, int64 Num) override final;
 	virtual FString GetArchiveName() const override;
 	//~ End FArchive Interface
+
+protected:
+	const FConcertLocalIdentifierTable* GetLocalIdentifierTable() const { return LocalIdentifierTable; }
+	FConcertLocalIdentifierTable* GetRewriteIdentifierTable() const { return RewriteIdentifierTable; }
+
+	template <typename T>
+	void RewriteData(const int64 OldDataOffset, const int64 OldDataSize, T& NewData)
+	{
+		// Write the name to the scratch buffer using the rewrite identifier table
+		{
+			ScratchBytes.Reset();
+			FConcertIdentifierWriter ScratchWriter(RewriteIdentifierTable, ScratchBytes, IsPersistent());
+			checkf(ScratchBytes.Num() == 0, TEXT("FConcertIdentifierWriter wrote extra data!"));
+			ScratchWriter << NewData;
+		}
+
+		// Patch the scratch buffer into the real buffer
+		// The data must be the same size to avoid serialization issues with tagged data
+		{
+			const int64 NewDataSize = ScratchBytes.Num();
+			if (ensureAlwaysMsgf(OldDataSize == NewDataSize, TEXT("FConcertIdentifierRewriter: Rewritten data must be the same size to avoid issues with tagged property serialization! (old: %d, new: %d)"), OldDataSize, NewDataSize))
+			{
+				FMemory::Memcpy(Bytes.GetData() + OldDataOffset, ScratchBytes.GetData(), NewDataSize);
+			}
+			else
+			{
+				SetError();
+			}
+		}
+	}
 
 private:
 	const FConcertLocalIdentifierTable* LocalIdentifierTable = nullptr;

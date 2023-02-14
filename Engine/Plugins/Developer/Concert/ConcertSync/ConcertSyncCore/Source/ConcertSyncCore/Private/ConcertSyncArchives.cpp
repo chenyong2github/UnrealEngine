@@ -551,7 +551,9 @@ void FConcertSyncObjectRewriter::RewriteProperty(const FProperty* InProp)
 FArchive& FConcertSyncObjectRewriter::operator<<(UObject*& Obj)
 {
 	FSoftObjectPath ObjPath;
+	const int64 OffsetBeforeObjectRead = Offset;
 	ObjPath.SerializePath(*this);
+	const int64 OffsetAfterObjectRead = Offset;
 
 	if (ObjPath.IsNull())
 	{
@@ -559,6 +561,8 @@ FArchive& FConcertSyncObjectRewriter::operator<<(UObject*& Obj)
 	}
 	else if (ObjPath != SkipAssetsMarker)
 	{
+		OnObjectSerialized(ObjPath);
+		RewriteData(OffsetBeforeObjectRead, OffsetAfterObjectRead - OffsetBeforeObjectRead, ObjPath);
 		Obj = StaticFindObject(UObject::StaticClass(), nullptr, *ObjPath.ToString());
 	}
 
@@ -595,6 +599,23 @@ FArchive& FConcertSyncObjectRewriter::operator<<(FSoftObjectPtr& AssetPtr)
 	FSoftObjectPath Obj;
 	*this << Obj;
 	AssetPtr = Obj;
+	return *this;
+}
+
+FArchive& FConcertSyncObjectRewriter::operator<<(FSoftObjectPath& AssetPtr)
+{
+	FSoftObjectPath ObjPath;
+	const int64 OffsetBeforeObjectRead = Offset;
+	ObjPath.SerializePath(*this);
+	const int64 OffsetAfterObjectRead = Offset;
+
+	if (ObjPath != SkipAssetsMarker)
+	{
+		OnObjectSerialized(ObjPath);
+		RewriteData(OffsetBeforeObjectRead, OffsetAfterObjectRead - OffsetBeforeObjectRead, ObjPath);
+		AssetPtr = ObjPath;
+	}
+
 	return *this;
 }
 

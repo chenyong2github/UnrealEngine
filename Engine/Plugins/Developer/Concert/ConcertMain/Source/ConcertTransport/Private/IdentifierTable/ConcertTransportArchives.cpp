@@ -205,33 +205,18 @@ FArchive& FConcertIdentifierRewriter::operator<<(FName& Name)
 		return *this;
 	}
 
-	const int32 OffsetBeforeNameRead = Offset;
+	const int64 OffsetBeforeNameRead = Offset;
 	UE::Concert::Private::ConcertIdentifierArchiveUtil::ReadName(*this, Name, LocalIdentifierTable);
-	const int32 OffsetAfterNameRead = Offset;
+	const int64 OffsetAfterNameRead = Offset;
 
-	// Write the name to the scratch buffer using the rewrite identifier table
+	if (!LocalIdentifierTable->HasMappings())
 	{
-		ScratchBytes.Reset();
-		FMemoryWriter ScratchWriter(ScratchBytes, IsPersistent());
-		UE::Concert::Private::ConcertIdentifierArchiveUtil::WriteName(ScratchWriter, Name, RewriteIdentifierTable);
+		// No mappings means nothing to rewrite
+		return *this;
 	}
 
-	// Patch the scratch buffer into the real buffer
-	// The data must be the same size to avoid serialization issues with tagged data
-	{
-		const int64 OldSerializedSize = OffsetAfterNameRead - OffsetBeforeNameRead;
-		const int64 NewSerializedSize = ScratchBytes.Num();
-		if (ensureAlwaysMsgf(OldSerializedSize == NewSerializedSize, TEXT("FConcertIdentifierRewriter: Rewritten data must be the same size to avoid issues with tagged property serialization! (old: %d, new: %d)"), OldSerializedSize, NewSerializedSize))
-		{
-			FMemory::Memcpy(Bytes.GetData() + OffsetBeforeNameRead, ScratchBytes.GetData(), NewSerializedSize);
-		}
-		else
-		{
-			SetError();
-			return *this;
-		}
-	}
-
+	// Rewrite the data via the scratch buffer
+	RewriteData(OffsetBeforeNameRead, OffsetAfterNameRead - OffsetBeforeNameRead, Name);
 	return *this;
 }
 
