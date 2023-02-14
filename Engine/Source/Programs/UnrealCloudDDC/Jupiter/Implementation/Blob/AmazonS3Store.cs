@@ -15,6 +15,7 @@ using KeyNotFoundException = System.Collections.Generic.KeyNotFoundException;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Implementation
 {
@@ -23,14 +24,16 @@ namespace Jupiter.Implementation
         private readonly IAmazonS3 _amazonS3;
         private readonly IBlobIndex _blobIndex;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
+        private readonly Logger<AmazonS3Store> _logger;
         private readonly S3Settings _settings;
         private readonly ConcurrentDictionary<NamespaceId, AmazonStorageBackend> _backends = new ConcurrentDictionary<NamespaceId, AmazonStorageBackend>();
 
-        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings, IBlobIndex blobIndex, INamespacePolicyResolver namespacePolicyResolver)
+        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings, IBlobIndex blobIndex, INamespacePolicyResolver namespacePolicyResolver, Logger<AmazonS3Store> logger)
         {
             _amazonS3 = amazonS3;
             _blobIndex = blobIndex;
             _namespacePolicyResolver = namespacePolicyResolver;
+            _logger = logger;
             _settings = settings.CurrentValue;
         }
 
@@ -81,12 +84,26 @@ namespace Jupiter.Implementation
 
         public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking)
         {
-            BlobContents? contents = await GetBackend(ns).TryReadAsync(blob.AsS3Key(), flags);
-            if (contents == null)
+            try
             {
-                throw new BlobNotFoundException(ns, blob);
+                BlobContents? contents = await GetBackend(ns).TryReadAsync(blob.AsS3Key(), flags);
+                if (contents == null)
+                {
+                    throw new BlobNotFoundException(ns, blob);
+                }
+                return contents;
             }
-            return contents;
+            catch (AmazonS3Exception e)
+            {
+                // log information about the failed request except for 404 as its valid to not find objects in S3
+                if (e.StatusCode != HttpStatusCode.NotFound)
+                {
+                    _logger.LogWarning("Exception raised from S3 {Exception}. {RequestId} {Id}", e, e.RequestId, e.AmazonId2);
+                }
+
+                // rethrow the exception, we just wanted to log more information about the failed request for further debugging
+                throw;
+            }
         }
 
         public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier, bool forceCheck)
