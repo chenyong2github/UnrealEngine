@@ -6593,7 +6593,12 @@ public:
 
 	virtual bool HasAnyLights() const override { return false; }
 
-	virtual TConstArrayView<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const override
+	virtual TConstArrayView<FPrimitiveSceneProxy*> GetPrimitiveSceneProxies() const override
+	{
+		return TConstArrayView<FPrimitiveSceneProxy*>();
+	}
+
+	virtual TConstArrayView<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const final
 	{
 		return TConstArrayView<FPrimitiveComponentId>();
 	}

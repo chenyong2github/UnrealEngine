@@ -871,6 +871,19 @@ TRDGUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBu
 	return GraphBuilder.CreateUniformBuffer(SceneTexturesParameters);
 }
 
+TRDGUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	const FSceneView& View,
+	ESceneTextureSetupMode SetupMode)
+{
+	if (View.bIsViewInfo)
+	{
+		return CreateSceneTextureUniformBuffer(GraphBuilder, ((const FViewInfo&)View).GetSceneTexturesChecked(), View.GetFeatureLevel(), SetupMode);
+	}
+
+	return nullptr;
+}
+
 EMobileSceneTextureSetupMode Translate(ESceneTextureSetupMode InSetupMode)
 {
 	EMobileSceneTextureSetupMode OutSetupMode = EMobileSceneTextureSetupMode::None;
@@ -989,6 +1002,16 @@ TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneText
 	return GraphBuilder.CreateUniformBuffer(SceneTexturesParameters);
 }
 
+TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(FRDGBuilder& GraphBuilder, const FSceneView& View, EMobileSceneTextureSetupMode SetupMode)
+{
+	if (View.bIsViewInfo)
+	{
+		return CreateMobileSceneTextureUniformBuffer(GraphBuilder, ((const FViewInfo&)View).GetSceneTexturesChecked(), SetupMode);
+	}
+
+	return nullptr;
+}
+
 FSceneTextureShaderParameters CreateSceneTextureShaderParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures* SceneTextures,
@@ -1003,6 +1026,20 @@ FSceneTextureShaderParameters CreateSceneTextureShaderParameters(
 	else if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
 	{
 		Parameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures, Translate(SetupMode));
+	}
+	return Parameters;
+}
+
+FSceneTextureShaderParameters CreateSceneTextureShaderParameters(FRDGBuilder& GraphBuilder, const FSceneView& View, ESceneTextureSetupMode SetupMode)
+{
+	FSceneTextureShaderParameters Parameters;
+	if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Deferred)
+	{
+		Parameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, View, SetupMode);
+	}
+	else if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile)
+	{
+		Parameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, View, Translate(SetupMode));
 	}
 	return Parameters;
 }

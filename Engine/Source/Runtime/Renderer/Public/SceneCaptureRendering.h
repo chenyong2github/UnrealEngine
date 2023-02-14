@@ -6,13 +6,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RenderGraphDefinitions.h"
-#include "SceneTextures.h"
+#include "Containers/ContainersFwd.h"
+#include "RenderGraphFwd.h"
+
+class FSceneView;
+class FSceneViewFamily;
+class FViewInfo;
+struct FMinimalSceneTextures;
 
 RENDERER_API void CopySceneCaptureComponentToTarget(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ViewFamilyTexture,
 	const FSceneViewFamily& ViewFamily,
-	const TArray<FViewInfo>& Views);
+	TConstArrayView<FViewInfo> Views);
+
+RENDERER_API void CopySceneCaptureComponentToTarget(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef ViewFamilyTexture,
+	const FSceneViewFamily& ViewFamily,
+	TConstStridedView<FSceneView> Views);

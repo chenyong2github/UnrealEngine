@@ -3348,7 +3348,12 @@ public:
 
 	bool ShouldRenderSkylightInBasePass(bool bIsTranslucent) const;
 
-	virtual TConstArrayView<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const override
+	virtual TConstArrayView<FPrimitiveSceneProxy*> GetPrimitiveSceneProxies() const final
+	{
+		return PrimitiveSceneProxies;
+	}
+
+	virtual TConstArrayView<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const final
 	{
 		return PrimitiveComponentIds;
 	}

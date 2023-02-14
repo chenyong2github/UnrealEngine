@@ -179,7 +179,7 @@ void CopySceneCaptureComponentToTarget(
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ViewFamilyTexture,
 	const FSceneViewFamily& ViewFamily,
-	const TArray<FViewInfo>& Views)
+	TConstArrayView<FViewInfo> Views)
 {
 	ESceneCaptureSource SceneCaptureSource = ViewFamily.SceneCaptureSource;
 
@@ -257,6 +257,22 @@ void CopySceneCaptureComponentToTarget(
 			});
 		}
 	}
+}
+
+void CopySceneCaptureComponentToTarget(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef ViewFamilyTexture,
+	const FSceneViewFamily& ViewFamily,
+	TConstStridedView<FSceneView> Views)
+{
+	const FSceneView& View = Views[0];
+
+	check(View.bIsViewInfo);
+	const FMinimalSceneTextures& SceneTextures = static_cast<const FViewInfo&>(View).GetSceneTextures();
+
+	TConstArrayView<FViewInfo> ViewInfos = MakeArrayView(static_cast<const FViewInfo*>(&Views[0]), Views.Num());
+
+	CopySceneCaptureComponentToTarget(GraphBuilder, SceneTextures, ViewFamilyTexture, ViewFamily, ViewInfos);
 }
 
 static void UpdateSceneCaptureContentDeferred_RenderThread(

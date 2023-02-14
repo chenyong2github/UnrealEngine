@@ -8,6 +8,7 @@
 #include "SceneUtils.h"
 
 class FSceneViewFamily;
+struct FMinimalSceneTextures;
 
 /** A uniform buffer containing common scene textures used by materials or global shaders. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, ENGINE_API)

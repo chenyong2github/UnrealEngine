@@ -620,6 +620,8 @@ public:
 	}
 #endif //WITH_EDITOR
 
+	virtual TConstArrayView<FPrimitiveSceneProxy*> GetPrimitiveSceneProxies() const = 0;
+
 	/**
 	 * Returns the FPrimitiveComponentId for all primitives in the scene
 	 */

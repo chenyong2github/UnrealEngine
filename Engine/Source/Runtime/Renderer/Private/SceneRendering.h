@@ -1750,9 +1750,6 @@ public:
 	/** Enqueue a pass to readback current exposure */
 	void EnqueueEyeAdaptationExposureBufferReadback(FRDGBuilder& GraphBuilder) const;
 	
-	/** Returns the load action to use when overwriting all pixels of a target that you intend to read from. Takes into account the HMD hidden area mesh. */
-	RENDERER_API ERenderTargetLoadAction GetOverwriteLoadAction() const;
-
 	/** Informs sceneinfo that tonemapping LUT has queued commands to compute it at least once */
 	void SetValidTonemappingLUT() const;
 

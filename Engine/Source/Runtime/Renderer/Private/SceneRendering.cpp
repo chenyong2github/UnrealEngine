@@ -2249,11 +2249,6 @@ float FViewInfo::GetLastAverageSceneLuminance() const
 	return 0.0f; // Invalid scene luminance
 }
 
-ERenderTargetLoadAction FViewInfo::GetOverwriteLoadAction() const
-{
-	return bHMDHiddenAreaMaskActive ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
-}
-
 void FViewInfo::SetValidTonemappingLUT() const
 {
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())

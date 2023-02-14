@@ -45,6 +45,12 @@ extern RENDERER_API TRDGUniformBufferRef<FSceneTextureUniformParameters> CreateS
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
 
+/** Returns RDG scene texture uniform buffer for a specified View. */
+extern RENDERER_API TRDGUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	const FSceneView& View,
+	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
+
 enum class EMobileSceneTextureSetupMode : uint32
 {
 	None			= 0,
@@ -75,11 +81,23 @@ extern RENDERER_API TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> C
 	const FSceneTextures* SceneTextures,
 	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::All);
 
+/** Creates the RDG mobile scene texture uniform buffer. */
+extern RENDERER_API TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	const FSceneView& View,
+	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::All);
+
 /** Returns scene texture shader parameters containing the RDG uniform buffer for either mobile or deferred shading. */
 extern RENDERER_API FSceneTextureShaderParameters CreateSceneTextureShaderParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures* SceneTextures,
 	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
+
+/** Returns scene texture shader parameters containing the RDG uniform buffer for either mobile or deferred shading. */
+extern RENDERER_API FSceneTextureShaderParameters CreateSceneTextureShaderParameters(
+	FRDGBuilder& GraphBuilder,
+	const FSceneView& View,
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
 
 /** Struct containing references to extracted RHI resources after RDG execution. All textures are

@@ -1661,6 +1661,12 @@ public:
 		return InstancedViewUniformBuffer;
 	}
 
+	/** Returns the load action to use when overwriting all pixels of a target that you intend to read from. Takes into account the HMD hidden area mesh. */
+	inline ERenderTargetLoadAction GetOverwriteLoadAction() const
+	{
+		return bHMDHiddenAreaMaskActive ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
+	}
+
 protected:
 	FSceneViewStateInterface* EyeAdaptationViewState = nullptr;
 
