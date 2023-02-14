@@ -389,31 +389,22 @@ public:
 	// Making it clear for now and setting explicitly a USparseVolumeTexture as object.
 
 	/**
-	 * Register a sparse volume texture sub-texture to be sampled.
+	 * Register a sparse volume texture to be sampled.
 	 * @param Texture The sparse volume texture to sample.
-	 * @param SubTextureId The sub-texture we want to fetch from (page table, density, etc).
-	 * @param TextureReferenceIndex Output the index of the texture in the referenced textures for that shaders.
+	 * @param TextureReferenceIndex Output the index of the texture in the referenced textures of the material.
 	 * @param SamplerType The sampler type
 	 * @return The code chunk index of the texture.
 	 */
-	virtual int32 SparseVolumeTexture(USparseVolumeTexture* Texture, int32 SubTextureId, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) = 0;
+	virtual int32 SparseVolumeTexture(USparseVolumeTexture* Texture, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) = 0;
 	/**
-	 * Register a parameterized sparse volume texture sub-texture to be sampled.
+	 * Register a parameterized sparse volume texture to be sampled.
 	 * @param ParameterName The sparse volume texture parameter name.
 	 * @param InDefaultTexture The default static sparse volume texture to sample.
-	 * @param SubTextureId The sub-texture we want to fetch from (page table, density, etc).
-	 * @param TextureReferenceIndex Output the index of the texture in the referenced textures for that shaders.
+	 * @param TextureReferenceIndex Output the index of the texture in the referenced textures of the material.
 	 * @param SamplerType The sampler type
 	 * @return The code chunk index of the texture parameter.
 	 */
-	virtual int32 SparseVolumeTextureParameter(FName ParameterName, USparseVolumeTexture* InDefaultTexture, int32 SubTextureId, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) = 0;
-	/**
-	 * Sample a sparse volume sub-texture.
-	 * @param Texture The code chunk index of the texture.
-	 * @param Coordinate The coordinate at which to sample the texture.
-	 * @return The code chunk index of result of the texture sample.
-	 */
-	virtual int32 SparseVolumeTextureSample(int32 Texture, int32 Coordinate) = 0;
+	virtual int32 SparseVolumeTextureParameter(FName ParameterName, USparseVolumeTexture* InDefaultTexture, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) = 0;
 	/**
 	 * Register a uniform parameter required to be able to sample a sparse volume texture.
 	 * @param TextureIndex The TextureReferenceIndex.
@@ -432,13 +423,20 @@ public:
 	 */
 	virtual int32 SparseVolumeTextureUniformParameter(FName ParameterName, int32 TextureIndex, int32 VectorIndex, UE::Shader::EValueType Type) = 0;
 	/**
-	 * @param PackedPhysicalTileCoord: the packed coordinate fetched form the page table.
-	 * @param TileSize: the size of a tile.
-	 * @param CoordPageTable: The tile lower voxel coordinate in the physical tile volume.
-	 * @param CoordVolume: the float UV according the entire volume.
-	 * @return The code chunk index of the voxel coord within the tile volume texture.
+	 * Sample a sparse volume texture page table.
+	 * @param SparseVolumeTextureIndex The code chunk index of the texture.
+	 * @param UVWIndex The UVW coordinate at which to sample the texture.
+	 * @return The code chunk index of the result of the texture sample.
 	 */
-	virtual int32 SparseVolumeTextureGetVoxelCoord(int32 PackedPhysicalTileCoord, int32 TileSize, int32 CoordPageTable, int32 CoordVolume) = 0;
+	virtual int32 SparseVolumeTextureSamplePageTable(int32 SparseVolumeTextureIndex, int32 UVWIndex) = 0;
+	/**
+	 * Sample a sparse volume texture physical tile data texture.
+	 * @param SparseVolumeTextureIndex The code chunk index of the texture.
+	 * @param VoxelCoordIndex The coordinate at which to sample the texture.
+	 * @param PhysicalTileDataIdxIndex The code chunk of the index (0 or 1) of the physical tile data texture to sample.
+	 * @return The code chunk index of the result of the texture sample.
+	 */
+	virtual int32 SparseVolumeTextureSamplePhysicalTileData(int32 SparseVolumeTextureIndex, int32 VoxelCoordIndex, int32 PhysicalTileDataIdxIndex) = 0;
 
 	virtual UObject* GetReferencedTexture(int32 Index) { return nullptr; }
 
@@ -448,10 +446,10 @@ public:
 		return Texture(InTexture, TextureReferenceIndex, SamplerType, SamplerSource);
 	}
 
-	int32 SparseVolumeTexture(USparseVolumeTexture* Texture, int32 SubTextureId, EMaterialSamplerType SamplerType)
+	int32 SparseVolumeTexture(USparseVolumeTexture* Texture, EMaterialSamplerType SamplerType)
 	{
 		int32 TextureReferenceIndex = INDEX_NONE;
-		return SparseVolumeTexture(Texture, SubTextureId, TextureReferenceIndex, SamplerType);
+		return SparseVolumeTexture(Texture, TextureReferenceIndex, SamplerType);
 	}
 
 	int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 TextureLayerIndex, int32 PageTableLayerIndex, EMaterialSamplerType SamplerType)
@@ -920,12 +918,12 @@ public:
 	virtual int32 ExternalTextureCoordinateOffset(int32 TextureReferenceIndex, TOptional<FName> ParameterName) override { return Compiler->ExternalTextureCoordinateOffset(TextureReferenceIndex, ParameterName); }
 	virtual int32 ExternalTextureCoordinateOffset(const FGuid& ExternalTextureGuid) override { return Compiler->ExternalTextureCoordinateOffset(ExternalTextureGuid); }
 
-	virtual int32 SparseVolumeTexture(USparseVolumeTexture* Texture, int32 SubTextureId, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override											{ return Compiler->SparseVolumeTexture(Texture, SubTextureId, TextureReferenceIndex, SamplerType); }
-	virtual int32 SparseVolumeTextureParameter(FName ParameterName, USparseVolumeTexture* InDefaultTexture, int32 SubTextureId, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override	{ return Compiler->SparseVolumeTextureParameter(ParameterName, InDefaultTexture, SubTextureId, TextureReferenceIndex, SamplerType); }
-	virtual int32 SparseVolumeTextureSample(int32 Texture, int32 Coordinate) override																														{ return Compiler->SparseVolumeTextureSample(Texture, Coordinate); }
+	virtual int32 SparseVolumeTexture(USparseVolumeTexture* Texture, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType)																		{ return Compiler->SparseVolumeTexture(Texture, TextureReferenceIndex, SamplerType); }
+	virtual int32 SparseVolumeTextureParameter(FName ParameterName, USparseVolumeTexture* InDefaultTexture, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType)									{ return Compiler->SparseVolumeTextureParameter(ParameterName, InDefaultTexture, TextureReferenceIndex, SamplerType); }
 	virtual int32 SparseVolumeTextureUniform(int32 TextureIndex, int32 VectorIndex, UE::Shader::EValueType Type) override																					{ return Compiler->SparseVolumeTextureUniform(TextureIndex, VectorIndex, Type); }
 	virtual int32 SparseVolumeTextureUniformParameter(FName ParameterName, int32 TextureIndex, int32 VectorIndex, UE::Shader::EValueType Type) override														{ return Compiler->SparseVolumeTextureUniformParameter(ParameterName, TextureIndex, VectorIndex, Type); }
-	virtual int32 SparseVolumeTextureGetVoxelCoord(int32 PackedPhysicalTileCoord, int32 TileSize, int32 CoordPageTable, int32 CoordVolume) override															{ return Compiler->SparseVolumeTextureGetVoxelCoord(PackedPhysicalTileCoord, TileSize, CoordPageTable, CoordVolume); }
+	virtual int32 SparseVolumeTextureSamplePageTable(int32 SparseVolumeTextureIndex, int32 UVWIndex) override																								{ return Compiler->SparseVolumeTextureSamplePageTable(SparseVolumeTextureIndex, UVWIndex); }
+	virtual int32 SparseVolumeTextureSamplePhysicalTileData(int32 SparseVolumeTextureIndex, int32 VoxelCoordIndex, int32 PhysicalTileDataIdxIndex) override													{ return Compiler->SparseVolumeTextureSamplePhysicalTileData(SparseVolumeTextureIndex, VoxelCoordIndex, PhysicalTileDataIdxIndex); }
 
 	virtual UObject* GetReferencedTexture(int32 Index) override { return Compiler->GetReferencedTexture(Index); }
 

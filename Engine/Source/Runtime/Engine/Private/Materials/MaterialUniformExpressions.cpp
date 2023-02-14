@@ -19,10 +19,6 @@
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "TextureResource.h"
-static bool IsASparseVolumeTexture(const FMaterialTextureParameterInfo& Parameter)
-{
-	return Parameter.VirtualTextureLayerIndex != 255; // See FMaterialUniformExpressionTexture::GetTextureParameterInfo and constructor
-}
 
 void WriteMaterialUniformAccess(UE::Shader::EValueComponentType ComponentType, uint32 NumComponents, uint32 UniformOffset, FStringBuilderBase& OutResult)
 {
@@ -328,7 +324,7 @@ bool FUniformExpressionSet::operator==(const FUniformExpressionSet& ReferenceSet
 
 FString FUniformExpressionSet::GetSummaryString() const
 {
-	return FString::Printf(TEXT("(%u preshaders, %u 2d tex, %u cube tex, %u 2darray tex, %u cubearray tex, %u 3d tex, %u virtual tex, %u external tex, %u VT stacks, %u collections)"),
+	return FString::Printf(TEXT("(%u preshaders, %u 2d tex, %u cube tex, %u 2darray tex, %u cubearray tex, %u 3d tex, %u virtual tex, %u sparse volume tex, %u external tex, %u VT stacks, %u collections)"),
 		UniformPreshaders.Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Standard2D].Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Cube].Num(),
@@ -336,6 +332,7 @@ FString FUniformExpressionSet::GetSummaryString() const
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::ArrayCube].Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Volume].Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Virtual].Num(),
+		UniformTextureParameters[(uint32)EMaterialTextureParameterType::SparseVolume].Num(),
 		UniformExternalTextureParameters.Num(),
 		VTStacks.Num(),
 		ParameterCollections.Num()
@@ -373,6 +370,14 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 		NextMemberOffset += NumVirtualTextures * sizeof(FUintVector4);
 	}
 
+	const int32 NumSparseVolumeTextures = UniformTextureParameters[(uint32)EMaterialTextureParameterType::SparseVolume].Num();
+	if (NumSparseVolumeTextures > 0)
+	{
+		// 2x uint4 per SVT
+		new(Members) FShaderParametersMetadata::FMember(TEXT("SVTPackedUniform"), TEXT(""), __LINE__, NextMemberOffset, UBMT_UINT32, EShaderPrecisionModifier::Float, 1, 4, NumSparseVolumeTextures * 2, NULL);
+		NextMemberOffset += NumSparseVolumeTextures * sizeof(FUintVector4) * 2;
+	}
+
 	if (UniformPreshaderBufferSize > 0u)
 	{
 		new(Members) FShaderParametersMetadata::FMember(TEXT("PreshaderBuffer"),TEXT(""),__LINE__,NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Float,1,4, UniformPreshaderBufferSize,NULL);
@@ -398,6 +403,10 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 	static FString VirtualTexturePageTableIndirectionNames[128];
 	static FString VirtualTexturePhysicalNames[128];
 	static FString VirtualTexturePhysicalSamplerNames[128];
+	static FString SparseVolumeTexturePageTableNames[128];
+	static FString SparseVolumeTexturePhysicalANames[128];
+	static FString SparseVolumeTexturePhysicalBNames[128];
+	static FString SparseVolumeTexturePhysicalSamplerNames[128];
 	static bool bInitializedTextureNames = false;
 	if (!bInitializedTextureNames)
 	{
@@ -421,6 +430,10 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 			VirtualTexturePageTableIndirectionNames[i] = FString::Printf(TEXT("VirtualTexturePageTableIndirection_%d"), i);
 			VirtualTexturePhysicalNames[i] = FString::Printf(TEXT("VirtualTexturePhysical_%d"), i);
 			VirtualTexturePhysicalSamplerNames[i] = FString::Printf(TEXT("VirtualTexturePhysical_%dSampler"), i);
+			SparseVolumeTexturePageTableNames[i] = FString::Printf(TEXT("SparseVolumeTexturePageTable_%d"), i);
+			SparseVolumeTexturePhysicalANames[i] = FString::Printf(TEXT("SparseVolumeTexturePhysicalA_%d"), i);
+			SparseVolumeTexturePhysicalBNames[i] = FString::Printf(TEXT("SparseVolumeTexturePhysicalB_%d"), i);
+			SparseVolumeTexturePhysicalSamplerNames[i] = FString::Printf(TEXT("SparseVolumeTexturePhysical_%dSampler"), i);
 		}
 	}
 
@@ -469,44 +482,37 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 	for (int32 i = 0; i < UniformTextureParameters[(uint32)EMaterialTextureParameterType::Volume].Num(); ++i)
 	{
 		const FMaterialTextureParameterInfo& Parameter = UniformTextureParameters[(uint32)EMaterialTextureParameterType::Volume][i];
-		if (!IsASparseVolumeTexture(Parameter))
-		{
-			check((NextMemberOffset % SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
-			new(Members) FShaderParametersMetadata::FMember(*VolumeTextureNames[i], TEXT("Texture3D"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
-			NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
-			new(Members) FShaderParametersMetadata::FMember(*VolumeTextureSamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
-			NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
-		}
-		else
-		{
-			// Sparse volume texture bindings
-			if (Parameter.VirtualTextureLayerIndex == 0)
-			{
-				check((NextMemberOffset % SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
-				new(Members) FShaderParametersMetadata::FMember(*VolumeTextureNames[i], TEXT("Texture3D<uint>"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
-				NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
-				new(Members) FShaderParametersMetadata::FMember(*VolumeTextureSamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
-				NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
-			}
-			else if (Parameter.VirtualTextureLayerIndex == 1)
-			{
-				check((NextMemberOffset % SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
-				new(Members) FShaderParametersMetadata::FMember(*VolumeTextureNames[i], TEXT("Texture3D"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
-				NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
-				new(Members) FShaderParametersMetadata::FMember(*VolumeTextureSamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
-				NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
-			}
-			else if (Parameter.VirtualTextureLayerIndex == 2)
-			{
-				check((NextMemberOffset % SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
-				new(Members) FShaderParametersMetadata::FMember(*VolumeTextureNames[i], TEXT("Texture3D"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
-				NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
-				new(Members) FShaderParametersMetadata::FMember(*VolumeTextureSamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
-				NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
-			}
-		}
+		
+		check((NextMemberOffset % SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
+		new(Members) FShaderParametersMetadata::FMember(*VolumeTextureNames[i], TEXT("Texture3D"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+		new(Members) FShaderParametersMetadata::FMember(*VolumeTextureSamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+	}
 
+	for (int32 i = 0; i < UniformTextureParameters[(uint32)EMaterialTextureParameterType::SparseVolume].Num(); ++i)
+	{
+		const FMaterialTextureParameterInfo& Parameter = UniformTextureParameters[(uint32)EMaterialTextureParameterType::SparseVolume][i];
 
+		// Page Table
+		check((NextMemberOffset % SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
+		new(Members) FShaderParametersMetadata::FMember(*SparseVolumeTexturePageTableNames[i], TEXT("Texture3D<uint>"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+		
+		// Physical A
+		check((NextMemberOffset% SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
+		new(Members) FShaderParametersMetadata::FMember(*SparseVolumeTexturePhysicalANames[i], TEXT("Texture3D"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+
+		// Physical B
+		check((NextMemberOffset% SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
+		new(Members) FShaderParametersMetadata::FMember(*SparseVolumeTexturePhysicalBNames[i], TEXT("Texture3D"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+
+		// Sampler
+		check((NextMemberOffset% SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
+		new(Members) FShaderParametersMetadata::FMember(*SparseVolumeTexturePhysicalSamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
 	}
 
 	for (int32 i = 0; i < UniformExternalTextureParameters.Num(); ++i)
@@ -717,10 +723,10 @@ void FUniformExpressionSet::GetTextureValue(int32 Index, const FMaterialRenderCo
 void FUniformExpressionSet::GetTextureValue(int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const USparseVolumeTexture*& OutValue) const
 {
 	check(IsInParallelRenderingThread());
-	const int32 VolumeTexturesNum = GetNumTextures(EMaterialTextureParameterType::Volume);
+	const int32 VolumeTexturesNum = GetNumTextures(EMaterialTextureParameterType::SparseVolume);
 	if (ensure(Index < VolumeTexturesNum))
 	{
-		const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(EMaterialTextureParameterType::Volume, Index);
+		const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(EMaterialTextureParameterType::SparseVolume, Index);
 		Context.GetTextureParameterValue(Parameter.ParameterInfo, Parameter.TextureIndex, OutValue);
 	}
 	else
@@ -805,6 +811,27 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 						AllocatedVT->GetPackedUniform(VTPackedUniform, Parameter.VirtualTextureLayerIndex);
 					}
 				}
+			}
+		}
+
+		// Dump per SparseVolumeTexture uniform data
+		for (int32 ExpressionIndex = 0; ExpressionIndex < GetNumTextures(EMaterialTextureParameterType::SparseVolume); ++ExpressionIndex)
+		{
+			const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(EMaterialTextureParameterType::SparseVolume, ExpressionIndex);
+
+			FUintVector4* SVTPackedUniform = (FUintVector4*)BufferCursor;
+			BufferCursor = SVTPackedUniform + 2;
+
+			const USparseVolumeTexture* SVTexture = nullptr;
+			GetTextureValue(ExpressionIndex, MaterialRenderContext, MaterialRenderContext.Material, SVTexture);
+			if (SVTexture != nullptr)
+			{
+				SVTexture->GetPackedUniforms(SVTPackedUniform[0], SVTPackedUniform[1]);
+			}
+			else
+			{
+				SVTPackedUniform[0] = FUintVector4();
+				SVTPackedUniform[1] = FUintVector4();
 			}
 		}
 
@@ -959,6 +986,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Array2D].Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::ArrayCube].Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Volume].Num() * 2
+				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::SparseVolume].Num() * 4
 				+ UniformExternalTextureParameters.Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Virtual].Num() * 2
 				+ NumPageTableTextures
@@ -1192,83 +1220,75 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
 			check(BufferCursor <= TempBuffer + TempBufferSize);
 
-			if (IsASparseVolumeTexture(Parameter))
+			const UTexture* Value = nullptr;
+			GetTextureValue(EMaterialTextureParameterType::Volume, ExpressionIndex, MaterialRenderContext, MaterialRenderContext.Material, Value);
+
+			if (Value && Value->GetResource() && Value->TextureReference.TextureReferenceRHI && (Value->GetMaterialType() & MCT_VolumeTexture) != 0u)
 			{
-				const USparseVolumeTexture* SVTexture = nullptr;
-				GetTextureValue(ExpressionIndex, MaterialRenderContext, MaterialRenderContext.Material, SVTexture);
-				if (SVTexture != nullptr)
+				*ResourceTableTexturePtr = Value->TextureReference.TextureReferenceRHI;
+				const FSamplerStateRHIRef* SamplerSource = &Value->GetResource()->SamplerStateRHI;
+
+				const ESamplerSourceMode SourceMode = Parameter.SamplerSource;
+				if (SourceMode == SSM_Wrap_WorldGroupSettings)
 				{
-					const int32 LayerIndex = Parameter.VirtualTextureLayerIndex;
-					// 0 is page table
-					// 1 is tile data A
-					// 2 is tile data B
-
-					const FSparseVolumeTextureSceneProxy* SVTextureProxy = SVTexture->GetSparseVolumeTextureSceneProxy();
-					if (SVTextureProxy)
-					{
-						if (LayerIndex == 0)
-						{
-							check(SVTextureProxy->GetPageTableTextureRHI());
-							*ResourceTableTexturePtr = SVTextureProxy->GetPageTableTextureRHI();
-						}
-						else if(LayerIndex == 1)
-						{
-							FTextureRHIRef TileDataATexture = SVTextureProxy->GetPhysicalTileDataATextureRHI();
-							*ResourceTableTexturePtr = TileDataATexture ? TileDataATexture : GBlackVolumeTexture->TextureRHI;
-						}
-						else if (LayerIndex == 2)
-						{
-							FTextureRHIRef TileDataBTexture = SVTextureProxy->GetPhysicalTileDataBTextureRHI();
-							*ResourceTableTexturePtr = TileDataBTexture ? TileDataBTexture : GBlackVolumeTexture->TextureRHI;
-						}
-						else
-						{
-							check(false);
-						}
-
-						*ResourceTableSamplerPtr = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp, 0, 8>::GetRHI();
-					}
-					else
-					{
-						check(GBlackVolumeTexture->TextureRHI);
-						*ResourceTableTexturePtr = GBlackVolumeTexture->TextureRHI;
-						check(GBlackVolumeTexture->SamplerStateRHI);
-						*ResourceTableSamplerPtr = GBlackVolumeTexture->SamplerStateRHI;
-					}
+					SamplerSource = &Wrap_WorldGroupSettings->SamplerStateRHI;
 				}
+				else if (SourceMode == SSM_Clamp_WorldGroupSettings)
+				{
+					SamplerSource = &Clamp_WorldGroupSettings->SamplerStateRHI;
+				}
+
+				check(*SamplerSource);
+				*ResourceTableSamplerPtr = *SamplerSource;
 			}
 			else
 			{
-				const UTexture* Value = nullptr;
-				GetTextureValue(EMaterialTextureParameterType::Volume, ExpressionIndex, MaterialRenderContext, MaterialRenderContext.Material, Value);
-
-				if (Value && Value->GetResource() && Value->TextureReference.TextureReferenceRHI && (Value->GetMaterialType() & MCT_VolumeTexture) != 0u)
-				{
-					*ResourceTableTexturePtr = Value->TextureReference.TextureReferenceRHI;
-					const FSamplerStateRHIRef* SamplerSource = &Value->GetResource()->SamplerStateRHI;
-
-					const ESamplerSourceMode SourceMode = Parameter.SamplerSource;
-					if (SourceMode == SSM_Wrap_WorldGroupSettings)
-					{
-						SamplerSource = &Wrap_WorldGroupSettings->SamplerStateRHI;
-					}
-					else if (SourceMode == SSM_Clamp_WorldGroupSettings)
-					{
-						SamplerSource = &Clamp_WorldGroupSettings->SamplerStateRHI;
-					}
-
-					check(*SamplerSource);
-					*ResourceTableSamplerPtr = *SamplerSource;
-				}
-				else
-				{
-					check(GBlackVolumeTexture->TextureRHI);
-					*ResourceTableTexturePtr = GBlackVolumeTexture->TextureRHI;
-					check(GBlackVolumeTexture->SamplerStateRHI);
-					*ResourceTableSamplerPtr = GBlackVolumeTexture->SamplerStateRHI;
-				}
+				check(GBlackVolumeTexture->TextureRHI);
+				*ResourceTableTexturePtr = GBlackVolumeTexture->TextureRHI;
+				check(GBlackVolumeTexture->SamplerStateRHI);
+				*ResourceTableSamplerPtr = GBlackVolumeTexture->SamplerStateRHI;
 			}
 
+		}
+
+		// Cache sparse volume texture uniform expressions.
+		for (int32 ExpressionIndex = 0; ExpressionIndex < GetNumTextures(EMaterialTextureParameterType::SparseVolume); ExpressionIndex++)
+		{
+			const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(EMaterialTextureParameterType::SparseVolume, ExpressionIndex);
+
+			void** ResourceTableTexturePageTablePtr = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
+			void** ResourceTableTexturePhysicalAPtr = (void**)((uint8*)BufferCursor + 1 * SHADER_PARAMETER_POINTER_ALIGNMENT);
+			void** ResourceTableTexturePhysicalBPtr = (void**)((uint8*)BufferCursor + 2 * SHADER_PARAMETER_POINTER_ALIGNMENT);
+			void** ResourceTablePhysicalSamplerPtr = (void**)((uint8*)BufferCursor + 3 * SHADER_PARAMETER_POINTER_ALIGNMENT);
+			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 4);
+			check(BufferCursor <= TempBuffer + TempBufferSize);
+
+			check(GBlackVolumeTexture->TextureRHI);
+			*ResourceTableTexturePageTablePtr = GBlackVolumeTexture->TextureRHI;
+			*ResourceTableTexturePhysicalAPtr = GBlackVolumeTexture->TextureRHI;
+			*ResourceTableTexturePhysicalBPtr = GBlackVolumeTexture->TextureRHI;
+			check(GBlackVolumeTexture->SamplerStateRHI);
+			*ResourceTablePhysicalSamplerPtr = GBlackVolumeTexture->SamplerStateRHI;
+			
+			const USparseVolumeTexture* SVTexture = nullptr;
+			GetTextureValue(ExpressionIndex, MaterialRenderContext, MaterialRenderContext.Material, SVTexture);
+			if (SVTexture != nullptr)
+			{
+				const FSparseVolumeTextureSceneProxy* SVTextureProxy = SVTexture->GetSparseVolumeTextureSceneProxy();
+				if (SVTextureProxy)
+				{
+					check(SVTextureProxy->GetPageTableTextureRHI());
+					*ResourceTableTexturePageTablePtr = SVTextureProxy->GetPageTableTextureRHI();
+
+					FTextureRHIRef TileDataATexture = SVTextureProxy->GetPhysicalTileDataATextureRHI();
+					*ResourceTableTexturePhysicalAPtr = TileDataATexture ? TileDataATexture : GBlackVolumeTexture->TextureRHI;
+
+					FTextureRHIRef TileDataBTexture = SVTextureProxy->GetPhysicalTileDataBTextureRHI();
+					*ResourceTableTexturePhysicalBPtr = TileDataBTexture ? TileDataBTexture : GBlackVolumeTexture->TextureRHI;
+
+					*ResourceTablePhysicalSamplerPtr = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp, 0, 8>::GetRHI();
+				}
+			}
 		}
 
 		// Cache external texture uniform expressions.
@@ -1509,10 +1529,10 @@ FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture(int32 InTex
 }
 
 // This constructor is called for setting up SparseVolumeTextures
-FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture(int32 InTextureIndex, int16 InSubTextureIndex, EMaterialSamplerType InSamplerType)
+FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture(int32 InTextureIndex, EMaterialSamplerType InSamplerType)
 	: TextureIndex(InTextureIndex)
-	, TextureLayerIndex(InSubTextureIndex)
-	, PageTableLayerIndex(INDEX_NONE)		// Sparse Volume Textures are using PageTableLayerIndex as a sub texture index (for page table and attributes).
+	, TextureLayerIndex(INDEX_NONE)
+	, PageTableLayerIndex(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
 	, SamplerType(InSamplerType)
 #endif
@@ -1604,6 +1624,14 @@ void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInt
 	if (ParameterInfo.Name.IsNone() || !MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue))
 	{
 		OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);
+	}
+}
+
+void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, USparseVolumeTexture*& OutValue) const
+{
+	if (ParameterInfo.Name.IsNone() || !MaterialInterface->GetSparseVolumeTextureParameterValue(ParameterInfo, OutValue))
+	{
+		OutValue = GetIndexedTexture<USparseVolumeTexture>(Material, TextureIndex);
 	}
 }
 

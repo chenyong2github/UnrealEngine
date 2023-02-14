@@ -469,6 +469,7 @@ enum class EMaterialTextureParameterType : uint32
 	ArrayCube,
 	Volume,
 	Virtual,
+	SparseVolume,
 
 	Count,
 };
@@ -490,6 +491,7 @@ public:
 	inline FName GetParameterName() const { return ScriptNameToName(ParameterInfo.Name); }
 
 	void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue) const;
+	void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, USparseVolumeTexture*& OutValue) const;
 
 	LAYOUT_FIELD(FHashedMaterialParameterInfo, ParameterInfo);
 	LAYOUT_FIELD_INITIALIZED(int32, TextureIndex, INDEX_NONE);
@@ -2026,6 +2028,7 @@ public:
 	inline TArrayView<const FMaterialTextureParameterInfo> GetUniform2DArrayTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Array2D); }
 	inline TArrayView<const FMaterialTextureParameterInfo> GetUniformVolumeTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Volume); }
 	inline TArrayView<const FMaterialTextureParameterInfo> GetUniformVirtualTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Virtual); }
+	inline TArrayView<const FMaterialTextureParameterInfo> GetUniformSparseVolumeTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::SparseVolume); }
 
 #if WITH_EDITOR
 	const TArray<FString>& GetCompileErrors() const { return CompileErrors; }

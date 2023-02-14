@@ -214,9 +214,13 @@ void USparseVolumeTextureViewerComponent::TickComponent(float DeltaTime, enum EL
 		}
 
 		SparseVolumeTextureFrame = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexturePreview, FrameIndex);
-
-		MarkRenderStateDirty();
 	}
+	else
+	{
+		SparseVolumeTextureFrame = nullptr;
+	}
+
+	MarkRenderStateDirty();
 }
 
 /*=============================================================================

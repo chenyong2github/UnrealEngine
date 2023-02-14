@@ -83,7 +83,7 @@ public:
 	FMaterialUniformExpressionTexture();
 	FMaterialUniformExpressionTexture(int32 InTextureIndex, EMaterialSamplerType InSamplerType, ESamplerSourceMode InSamplerSource, bool InVirtualTexture);
 	FMaterialUniformExpressionTexture(int32 InTextureIndex, int16 InTextureLayerIndex, int16 InPageTableLayerIndex, EMaterialSamplerType InSamplerType);
-	FMaterialUniformExpressionTexture(int32 InTextureIndex, int16 InSubTextureIndex, EMaterialSamplerType InSamplerType);
+	FMaterialUniformExpressionTexture(int32 InTextureIndex, EMaterialSamplerType InSamplerType);
 
 	//~ Begin FMaterialUniformExpression Interface.
 	virtual class FMaterialUniformExpressionTexture* GetTextureUniformExpression() { return this; }
@@ -409,8 +409,8 @@ public:
 		, ParameterInfo(InParameterInfo)
 	{}
 
-	FMaterialUniformExpressionTextureParameter(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int16 InSubTextureIndex, EMaterialSamplerType InSamplerType)
-		: Super(InTextureIndex, InSubTextureIndex, InSamplerType)
+	FMaterialUniformExpressionTextureParameter(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, EMaterialSamplerType InSamplerType)
+		: Super(InTextureIndex, InSamplerType)
 		, ParameterInfo(InParameterInfo)
 	{}
 

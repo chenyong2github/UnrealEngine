@@ -1,0 +1,90 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+struct FSparseVolumeTexture
+{
+	Texture3D<uint>	PageTable;
+	Texture3D		PhysicalTileDataA;
+	Texture3D		PhysicalTileDataB;
+	float3			PageTableSize;
+	float3			UVScale;
+	float3			UVBias;
+	float			TileSize;
+};
+
+FSparseVolumeTexture SparseVolumeTextureCreateStruct(
+	Texture3D<uint> PageTable, 
+	Texture3D PhysicalTileDataA, 
+	Texture3D PhysicalTileDataB, 
+	float TileSize,
+	float3 PageTableSize,
+	float3 UVScale,
+	float3 UVBias)
+{
+	FSparseVolumeTexture Result;
+	Result.PageTable = PageTable;
+	Result.PhysicalTileDataA = PhysicalTileDataA;
+	Result.PhysicalTileDataB = PhysicalTileDataB;
+	Result.PageTableSize = PageTableSize;
+	Result.UVScale = UVScale;
+	Result.UVBias = UVBias;
+	Result.TileSize = TileSize;
+	return Result;
+}
+
+FSparseVolumeTexture SparseVolumeTextureCreateStruct(
+	Texture3D<uint> PageTable,
+	Texture3D PhysicalTileDataA,
+	Texture3D PhysicalTileDataB,
+	uint4 Packed0,
+	uint4 Packed1)
+{
+	FSparseVolumeTexture Result;
+	Result.PageTable = PageTable;
+	Result.PhysicalTileDataA = PhysicalTileDataA;
+	Result.PhysicalTileDataB = PhysicalTileDataB;
+	Result.UVScale = asfloat(Packed0.xyz);
+	Result.UVBias = asfloat(Packed1.xyz);
+	Result.TileSize = asfloat(Packed1.w);
+
+	// Packed as 11|11|10. Since this limits us to 2047x2047x1023, we add an implicit +1 during unpacking.
+	Result.PageTableSize = float3(
+		(Packed0.w & 0x7FF) + 1,
+		((Packed0.w >> 11) & 0x7FF) + 1,
+		((Packed0.w >> 22) & 0x3FF) + 1);
+
+	return Result;
+}
+
+float3 SparseVolumeTextureGetVoxelCoord(uint PackedPhysicalTileCoord, float TileSize, float3 PageTableCoord)
+{
+	const int3 PhysicalTileCoord = int3(
+		PackedPhysicalTileCoord & 0x7FF,
+		(PackedPhysicalTileCoord >> 11) & 0x7FF,
+		(PackedPhysicalTileCoord >> 22) & 0x3FF);
+
+	const float3 VoxelCoord = (float3(PhysicalTileCoord) + frac(PageTableCoord)) * TileSize;
+	return VoxelCoord;
+}
+
+float3 SparseVolumeTextureSamplePageTable(FSparseVolumeTexture SparseVolumeTexture, float3 UVW)
+{
+	const float3 UVWScaledBiased = UVW * SparseVolumeTexture.UVScale + SparseVolumeTexture.UVBias;
+	const float3 PageTableCoord = (UVWScaledBiased * SparseVolumeTexture.PageTableSize);
+	
+	const uint PackedPhysicalTileCoord = SparseVolumeTexture.PageTable.Load(int4(int3(PageTableCoord), 0)).x;
+	
+	const float3 VoxelCoord = SparseVolumeTextureGetVoxelCoord(PackedPhysicalTileCoord, SparseVolumeTexture.TileSize, PageTableCoord);
+	return VoxelCoord;
+}
+
+float4 SparseVolumeTextureSamplePhysicalTileData(FSparseVolumeTexture SparseVolumeTexture, float3 VoxelCoord, int PhysicalTileDataIndex)
+{
+	switch (PhysicalTileDataIndex)
+	{
+	case 0: return SparseVolumeTexture.PhysicalTileDataA.Load(int4(int3(VoxelCoord), 0));
+	case 1: return SparseVolumeTexture.PhysicalTileDataB.Load(int4(int3(VoxelCoord), 0));
+	default: return 0.0f;
+	}
+} 

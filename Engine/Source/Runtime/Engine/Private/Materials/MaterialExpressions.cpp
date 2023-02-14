@@ -269,6 +269,8 @@
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionBinaryOp.h"
 #include "Materials/MaterialExpressionGenericConstant.h"
+#include "Materials/MaterialExpressionSparseVolumeTextureBase.h"
+#include "Materials/MaterialExpressionSparseVolumeTextureObject.h"
 #include "Materials/MaterialExpressionSparseVolumeTextureSample.h"
 #include "EditorSupportDelegates.h"
 #if WITH_EDITOR
@@ -4019,7 +4021,7 @@ void UMaterialExpressionTextureProperty::GetCaption(TArray<FString>& OutCaptions
 uint32 UMaterialExpressionTextureProperty::GetInputType(int32 InputIndex)
 {
 	// TextureObject
-	IF_INPUT_RETURN(MCT_Texture);
+	IF_INPUT_RETURN(MCT_Texture | MCT_SparseVolumeTexture);
 	return MCT_Unknown;
 }
 #undef IF_INPUT_RETURN
@@ -25831,6 +25833,145 @@ void UMaterialExpressionSkyLightEnvMapSample::GetCaption(TArray<FString>& OutCap
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSparseVolumeTextureBase
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionSparseVolumeTextureBase::UMaterialExpressionSparseVolumeTextureBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+
+}
+
+UObject* UMaterialExpressionSparseVolumeTextureBase::GetReferencedTexture() const
+{
+	return SparseVolumeTexture;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSparseVolumeTextureObject
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionSparseVolumeTextureObject::UMaterialExpressionSparseVolumeTextureObject(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Texture;
+		FText NAME_Functions;
+		FConstructorStatics()
+			: NAME_Texture(LOCTEXT("Texture", "Texture"))
+			, NAME_Functions(LOCTEXT("Functions", "Functions"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Texture);
+	MenuCategories.Add(ConstructorStatics.NAME_Functions);
+
+	Outputs.Empty();
+	Outputs.Add(FExpressionOutput(TEXT("")));
+
+	bCollapsed = true;
+	bHidePreviewWindow = true;
+#endif // WITH_EDITORONLY_DATA
+}
+
+#if WITH_EDITOR
+
+void UMaterialExpressionSparseVolumeTextureObject::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Update what needs to be when the texture is changed
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetName() == TEXT("SparseVirtualTexture"))
+	{
+		if (SparseVolumeTexture != nullptr)
+		{
+			FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(this);
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+int32 UMaterialExpressionSparseVolumeTextureObject::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!SparseVolumeTexture)
+	{
+		return CompilerError(Compiler, TEXT("Requires valid SparseVolumeTexture"));
+	}
+
+	int32 TextureReferenceIndex = INDEX_NONE;
+	return Compiler->SparseVolumeTexture(SparseVolumeTexture, TextureReferenceIndex, SAMPLERTYPE_LinearColor);
+}
+
+void UMaterialExpressionSparseVolumeTextureObject::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("SparseVolumeTexture Object"));
+}
+
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSparseVolumeTextureTextureObjectParameter
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionSparseVolumeTextureTextureObjectParameter::UMaterialExpressionSparseVolumeTextureTextureObjectParameter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Texture;
+		FText NAME_Parameters;
+		FConstructorStatics()
+			: NAME_Texture(LOCTEXT("Texture", "Texture"))
+			, NAME_Parameters(LOCTEXT("Parameters", "Parameters"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Empty();
+	MenuCategories.Add(ConstructorStatics.NAME_Texture);
+	MenuCategories.Add(ConstructorStatics.NAME_Parameters);
+
+	Outputs.Empty();
+	Outputs.Add(FExpressionOutput(TEXT("")));
+#endif // WITH_EDITORONLY_DATA
+}
+
+#if WITH_EDITOR
+
+void UMaterialExpressionSparseVolumeTextureTextureObjectParameter::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Param Tex Object"));
+	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
+}
+
+int32 UMaterialExpressionSparseVolumeTextureTextureObjectParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!SparseVolumeTexture)
+	{
+		return INDEX_NONE;
+	}
+
+	int32 TextureReferenceIndex = INDEX_NONE;
+	return Compiler->SparseVolumeTextureParameter(ParameterName, SparseVolumeTexture, TextureReferenceIndex, SAMPLERTYPE_LinearColor);
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionSparseVolumeTextureTextureObjectParameter::GetInputs()
+{
+	// Hide the texture coordinate input
+	return TArray<FExpressionInput*>();
+}
+
+#endif // WITH_EDITOR
+
+
+///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionSparseVolumeTextureSample
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -25840,16 +25981,16 @@ UMaterialExpressionSparseVolumeTextureSample::UMaterialExpressionSparseVolumeTex
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-		FText NAME_VirtualTexture;
+		FText NAME_Texture;
 		FConstructorStatics()
-			: NAME_VirtualTexture(LOCTEXT("Texture", "Texture"))
+			: NAME_Texture(LOCTEXT("Texture", "Texture"))
 		{
 		}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_VirtualTexture);
+	MenuCategories.Add(ConstructorStatics.NAME_Texture);
 #endif
 
 #if WITH_EDITOR
@@ -25859,11 +26000,6 @@ UMaterialExpressionSparseVolumeTextureSample::UMaterialExpressionSparseVolumeTex
 	bShowOutputNameOnPin = true;
 	bShowMaskColorsOnPin = false;
 #endif
-}
-
-UObject* UMaterialExpressionSparseVolumeTextureSample::GetReferencedTexture() const
-{
-	return SparseVolumeTexture;
 }
 
 #if WITH_EDITOR
@@ -25907,6 +26043,8 @@ uint32 UMaterialExpressionSparseVolumeTextureSample::GetInputType(int32 InputInd
 	{
 	case 0:
 		return MCT_Float3;
+	case 1:
+		return MCT_SparseVolumeTexture;
 		break;
 	}
 
@@ -25916,67 +26054,41 @@ uint32 UMaterialExpressionSparseVolumeTextureSample::GetInputType(int32 InputInd
 
 int32 UMaterialExpressionSparseVolumeTextureSample::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (SparseVolumeTexture != nullptr)
+	UMaterialExpression* InputExpression = TextureObject.GetTracedInput().Expression;
+
+	if (SparseVolumeTexture || InputExpression)
 	{
 		const bool bIsParameter = HasAParameterName() && GetParameterName().IsValid() && !GetParameterName().IsNone();
 
-		int32 PageTableTextureReferenceIndex = INDEX_NONE;
-		int32 PageTableSubTextureIndex = 0;
-		int32 PageTableTextureParamCodeChunkIndex = INDEX_NONE;
-		if (bIsParameter)
+		int32 SparseVolumeTextureIndex = INDEX_NONE;
+		if (InputExpression)
 		{
-			PageTableTextureParamCodeChunkIndex = Compiler->SparseVolumeTextureParameter(GetParameterName(), SparseVolumeTexture, PageTableSubTextureIndex, PageTableTextureReferenceIndex, SAMPLERTYPE_LinearColor);
+			SparseVolumeTextureIndex = TextureObject.Compile(Compiler);
 		}
 		else
 		{
-			PageTableTextureParamCodeChunkIndex = Compiler->SparseVolumeTexture(SparseVolumeTexture, PageTableSubTextureIndex, PageTableTextureReferenceIndex, SAMPLERTYPE_LinearColor);
-		}
-
-		int32 PhysicalTileTextureReferenceIndex = INDEX_NONE;
-		int32 PhysicalTileSubTextureIndex = 1 + OutputIndex; // index 0 is used by the page table texture, so we start at 1
-		int32 PhysicalTileTextureParamCodeChunkIndex = INDEX_NONE;
-		if (bIsParameter)
-		{
-			PhysicalTileTextureParamCodeChunkIndex = Compiler->SparseVolumeTextureParameter(GetParameterName(), SparseVolumeTexture, PhysicalTileSubTextureIndex, PhysicalTileTextureReferenceIndex, SAMPLERTYPE_LinearColor);
-		}
-		else
-		{
-			PhysicalTileTextureParamCodeChunkIndex = Compiler->SparseVolumeTexture(SparseVolumeTexture, PhysicalTileSubTextureIndex, PhysicalTileTextureReferenceIndex, SAMPLERTYPE_LinearColor);
-		}
-
-		// Now register the uniform we need for sampling the sparse volume texture
-		int32 UniformCodeChunkIndex[ESparseVolumeTexture_Count];
-		for (int32 UniformIndex = 0; UniformIndex < ESparseVolumeTexture_Count; ++UniformIndex)
-		{
-			const UE::Shader::EValueType Type = USparseVolumeTexture::GetUniformParameterType(UniformIndex);
+			int32 TextureReferenceIndex = INDEX_NONE;
 			if (bIsParameter)
 			{
-				UniformCodeChunkIndex[UniformIndex] = Compiler->SparseVolumeTextureUniformParameter(GetParameterName(), PageTableTextureReferenceIndex, UniformIndex, Type);
+				SparseVolumeTextureIndex = Compiler->SparseVolumeTextureParameter(GetParameterName(), SparseVolumeTexture, TextureReferenceIndex, SAMPLERTYPE_LinearColor);
 			}
 			else
 			{
-				UniformCodeChunkIndex[UniformIndex] = Compiler->SparseVolumeTextureUniform(PageTableTextureReferenceIndex, UniformIndex, Type);
+				SparseVolumeTextureIndex = Compiler->SparseVolumeTexture(SparseVolumeTexture, TextureReferenceIndex, SAMPLERTYPE_LinearColor);
 			}
 		}
 
-		// SVT_TODO Send parameters and do all the following math in shared functions (one to sample the page table and one to sample the attribute from the page table sample output)
+		if (SparseVolumeTextureIndex == INDEX_NONE)
+		{
+			// Can't continue without a texture to sample
+			return INDEX_NONE;
+		}
 
-		int32 UVW = CompileWithDefaultFloat3(Compiler, Coordinates, 0.0f, 0.0f, 0.0f);
-		int32 UVWScaled = Compiler->Mul(UVW, UniformCodeChunkIndex[ESparseVolumeTexture_UVScale]);
-		int32 UVWPageTable = Compiler->Add(UVWScaled, UniformCodeChunkIndex[ESparseVolumeTexture_UVBias]);
-		int32 CoordPageTable = Compiler->Mul(UVWPageTable, UniformCodeChunkIndex[ESparseVolumeTexture_PageTableSize]);
+		int32 UVWIndex = CompileWithDefaultFloat3(Compiler, Coordinates, 0.0f, 0.0f, 0.0f);
+		int32 VoxelCoordIndex = Compiler->SparseVolumeTextureSamplePageTable(SparseVolumeTextureIndex, UVWIndex);
+		int32 PhysicalTileDataIdxIndex = Compiler->Constant(OutputIndex);
 
-		// Code chunks have the same ID when they map to the same string of code. PackedPhysicalTileCoord will automatically end up being the same code chunk used
-		// when calling Compile() for Output 0 (Attributes A) and Output 1 (Attributes B). This is perfect for this use case: 
-		// PackedPhysicalTileCoord will end up being evaluated only once for both outputs, so they both share a single page table lookup.
-		int32 PackedPhysicalTileCoord = Compiler->SparseVolumeTextureSample(PageTableTextureParamCodeChunkIndex, CoordPageTable);
-
-		int32 CoordVolume = Compiler->Mul(CoordPageTable, UniformCodeChunkIndex[ESparseVolumeTexture_TileSize]);
-		int32 CoordPageTableFloor = Compiler->Floor(CoordPageTable);
-
-		int32 CoordPhysicalTileVoxel = Compiler->SparseVolumeTextureGetVoxelCoord(PackedPhysicalTileCoord, UniformCodeChunkIndex[ESparseVolumeTexture_TileSize], CoordPageTableFloor, CoordVolume);
-
-		return Compiler->SparseVolumeTextureSample(PhysicalTileTextureParamCodeChunkIndex, CoordPhysicalTileVoxel);
+		return Compiler->SparseVolumeTextureSamplePhysicalTileData(SparseVolumeTextureIndex, VoxelCoordIndex, PhysicalTileDataIdxIndex);
 	}
 
 	return INDEX_NONE;
@@ -25987,37 +26099,10 @@ void UMaterialExpressionSparseVolumeTextureSample::GetCaption(TArray<FString>& O
 	OutCaptions.Add(FString(TEXT("Sparse Volume Texture Sample")));
 }
 
-bool UMaterialExpressionSparseVolumeTextureSampleParameter::GetParameterValue(FMaterialParameterMetadata& OutMeta) const
-{
-	OutMeta.Value = SparseVolumeTexture;
-	OutMeta.Description = Desc;
-	OutMeta.ExpressionGuid = ExpressionGUID;
-	OutMeta.Group = Group;
-	OutMeta.SortPriority = SortPriority;
-	OutMeta.AssetPath = GetAssetPathName();
-	return true;
-}
-bool UMaterialExpressionSparseVolumeTextureSampleParameter::SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags)
-{
-	if (Meta.Value.Type == EMaterialParameterType::SparseVolumeTexture)
-	{
-		if (SetParameterValue(Name, Meta.Value.SparseVolumeTexture, Flags))
-		{
-			if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::AssignGroupAndSortPriority))
-			{
-				Group = Meta.Group;
-				SortPriority = Meta.SortPriority;
-			}
-			return true;
-		}
-	}
-	return false;
-}
-
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
-// UMaterialExpressionSparseVolumeTextureSample
+// UMaterialExpressionSparseVolumeTextureSampleParameter
 ///////////////////////////////////////////////////////////////////////////////
 
 UMaterialExpressionSparseVolumeTextureSampleParameter::UMaterialExpressionSparseVolumeTextureSampleParameter(const FObjectInitializer& ObjectInitializer)
@@ -26077,6 +26162,35 @@ bool UMaterialExpressionSparseVolumeTextureSampleParameter::MatchesSearchQuery(c
 	}
 	return Super::MatchesSearchQuery(SearchQuery);
 }
+
+bool UMaterialExpressionSparseVolumeTextureSampleParameter::GetParameterValue(FMaterialParameterMetadata& OutMeta) const
+{
+	OutMeta.Value = SparseVolumeTexture;
+	OutMeta.Description = Desc;
+	OutMeta.ExpressionGuid = ExpressionGUID;
+	OutMeta.Group = Group;
+	OutMeta.SortPriority = SortPriority;
+	OutMeta.AssetPath = GetAssetPathName();
+	return true;
+}
+
+bool UMaterialExpressionSparseVolumeTextureSampleParameter::SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags)
+{
+	if (Meta.Value.Type == EMaterialParameterType::SparseVolumeTexture)
+	{
+		if (SetParameterValue(Name, Meta.Value.SparseVolumeTexture, Flags))
+		{
+			if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::AssignGroupAndSortPriority))
+			{
+				Group = Meta.Group;
+				SortPriority = Meta.SortPriority;
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////

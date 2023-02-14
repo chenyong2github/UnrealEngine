@@ -717,24 +717,38 @@ static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataConte
 	}
 }
 
-static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data)
+static void GetTextureParameter(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data, const UTexture*& OutTexture, const USparseVolumeTexture*& OutSparseVolumeTexture)
 {
 	const FHashedMaterialParameterInfo ParameterInfo = ReadPreshaderValue<FHashedMaterialParameterInfo>(Data);
 	const int32 TextureIndex = ReadPreshaderValue<int32>(Data);
 
-	const UTexture* Texture = nullptr;
-	Context.GetTextureParameterValue(ParameterInfo, TextureIndex, Texture);
-	return Texture;
+	OutTexture = nullptr;
+	OutSparseVolumeTexture = nullptr;
+
+	Context.GetTextureParameterValue(ParameterInfo, TextureIndex, OutTexture);
+	if (!OutTexture)
+	{
+		Context.GetTextureParameterValue(ParameterInfo, TextureIndex, OutSparseVolumeTexture);
+	}
 }
 
 static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
-	const UTexture* Texture = GetTextureParameter(Context, Data);
+	const UTexture* Texture = nullptr;
+	const USparseVolumeTexture* SparseVolumeTexture = nullptr;
+	GetTextureParameter(Context, Data, Texture, SparseVolumeTexture);
 	if (Texture && Texture->GetResource())
 	{
 		const uint32 SizeX = Texture->GetResource()->GetSizeX();
 		const uint32 SizeY = Texture->GetResource()->GetSizeY();
 		const uint32 SizeZ = Texture->GetResource()->GetSizeZ();
+		Stack.PushValue(FValue((float)SizeX, (float)SizeY, (float)SizeZ));
+	}
+	else if (SparseVolumeTexture)
+	{
+		const uint32 SizeX = SparseVolumeTexture->GetSizeX();
+		const uint32 SizeY = SparseVolumeTexture->GetSizeY();
+		const uint32 SizeZ = SparseVolumeTexture->GetSizeZ();
 		Stack.PushValue(FValue((float)SizeX, (float)SizeY, (float)SizeZ));
 	}
 	else
@@ -745,13 +759,22 @@ static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshade
 
 static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
-	const UTexture* Texture = GetTextureParameter(Context, Data);
+	const UTexture* Texture = nullptr;
+	const USparseVolumeTexture* SparseVolumeTexture = nullptr;
+	GetTextureParameter(Context, Data, Texture, SparseVolumeTexture);
 	if (Texture && Texture->GetResource())
 	{
 		const uint32 SizeX = Texture->GetResource()->GetSizeX();
 		const uint32 SizeY = Texture->GetResource()->GetSizeY();
 		const uint32 SizeZ = Texture->GetResource()->GetSizeZ();
 		Stack.PushValue(FValue(1.0f / (float)SizeX, 1.0f / (float)SizeY, (SizeZ > 0 ? 1.0f / (float)SizeZ : 0.0f)));
+	}
+	else if (SparseVolumeTexture)
+	{
+		const uint32 SizeX = SparseVolumeTexture->GetSizeX();
+		const uint32 SizeY = SparseVolumeTexture->GetSizeY();
+		const uint32 SizeZ = SparseVolumeTexture->GetSizeZ();
+		Stack.PushValue(FValue(1.0f / (float)SizeX, 1.0f / (float)SizeY, 1.0f / (float)SizeZ));
 	}
 	else
 	{

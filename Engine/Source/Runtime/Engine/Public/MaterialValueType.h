@@ -36,34 +36,36 @@ enum EMaterialValueType
 	MCT_MaterialAttributes	  = 1 << 11,
 	MCT_TextureExternal       = 1 << 12,
 	MCT_TextureVirtual        = 1 << 13,
+	MCT_SparseVolumeTexture   = 1 << 14,
+	/** MCT_SparseVolumeTexture is intentionally not (yet) included here because it differs a lot from the other texture types and may not be supported/appropriate for all MCT_Texture use cases. */
 	MCT_Texture               = MCT_Texture2D | MCT_TextureCube | MCT_Texture2DArray | MCT_TextureCubeArray | MCT_VolumeTexture | MCT_TextureExternal | MCT_TextureVirtual,
 
 	/** Used internally when sampling from virtual textures */
-	MCT_VTPageTableResult     = 1 << 14,
+	MCT_VTPageTableResult     = 1 << 15,
 	
-	MCT_ShadingModel		  = 1 << 15,
+	MCT_ShadingModel		  = 1 << 16,
 
-	MCT_Strata				  = 1 << 16,
+	MCT_Strata				  = 1 << 17,
 
-	MCT_LWCScalar			  = 1 << 17,
-	MCT_LWCVector2			  = 1 << 18,
-	MCT_LWCVector3			  = 1 << 19,
-	MCT_LWCVector4			  = 1 << 20,
+	MCT_LWCScalar			  = 1 << 18,
+	MCT_LWCVector2			  = 1 << 19,
+	MCT_LWCVector3			  = 1 << 20,
+	MCT_LWCVector4			  = 1 << 21,
 	MCT_LWCType				  = MCT_LWCScalar | MCT_LWCVector2 | MCT_LWCVector3 | MCT_LWCVector4,
 
-	MCT_Execution             = 1 << 21,
+	MCT_Execution             = 1 << 22,
 
 	/** Used for code chunks that are statements with no value, rather than expressions */
-	MCT_VoidStatement         = 1 << 22,
+	MCT_VoidStatement         = 1 << 23,
 
 	/** Non-static bool, only used in new HLSL translator */
-	MCT_Bool				 = 1 << 23,
+	MCT_Bool				 = 1 << 24,
 
 	/** Unsigned int types */
-	MCT_UInt1				 = 1 << 24,
-	MCT_UInt2				 = 1 << 25,
-	MCT_UInt3				 = 1 << 26,
-	MCT_UInt4				 = 1 << 27,
+	MCT_UInt1				 = 1 << 25,
+	MCT_UInt2				 = 1 << 26,
+	MCT_UInt3				 = 1 << 27,
+	MCT_UInt4				 = 1 << 28,
 	MCT_UInt				 = MCT_UInt1 | MCT_UInt2 | MCT_UInt3 | MCT_UInt4,
 
 	MCT_Numeric = MCT_Float | MCT_LWCType | MCT_Bool,

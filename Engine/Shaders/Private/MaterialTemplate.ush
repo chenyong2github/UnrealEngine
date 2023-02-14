@@ -23,6 +23,7 @@
 #include "/Engine/Private/HairStrands/HairCardsAttributeCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
+#include "/Engine/Private/SparseVolumeTexture/SparseVolumeTextureCommon.ush"
 
 // Reduce latency of Nanite material base pass pixel shaders caused by register pressure due to the calculation of WPO
 #if PIXELSHADER && IS_NANITE_SHADING_PASS && IS_BASE_PASS
@@ -808,17 +809,6 @@ float2 GetViewportUV(FMaterialVertexParameters Parameters)
 float2 GetPixelPosition(FMaterialVertexParameters Parameters)
 {
 	return GetViewportUV(Parameters) * View.ViewSizeAndInvSize.xy;
-}
-
-uint3 SparseVolumeTextureGetVoxelCoord(uint PackedPhysicalTileCoord, uint PhysicalTileSize, uint3 PageTableCoord, uint3 VolumeCoord)
-{
-	const int3 PhysicalTileCoord = int3(
-		PackedPhysicalTileCoord & 0x7FF,
-		(PackedPhysicalTileCoord >> 11) & 0x7FF,
-		(PackedPhysicalTileCoord >> 22) & 0x3FF);
-
-	int3 VoxelCoord = PhysicalTileCoord * PhysicalTileSize + int3(VolumeCoord - PageTableCoord * PhysicalTileSize);
-	return VoxelCoord;
 }
 
 #if POST_PROCESS_MATERIAL

@@ -366,6 +366,30 @@ FVector4 USparseVolumeTexture::GetUniformParameter(int32 Index) const
 	return FVector4(ForceInitToZero);
 }
 
+void USparseVolumeTexture::GetPackedUniforms(FUintVector4& OutPacked0, FUintVector4& OutPacked1) const
+{
+	const FVector4 TileSize = GetUniformParameter(ESparseVolumeTexture_TileSize);
+	const FVector4 PageTableSize = GetUniformParameter(ESparseVolumeTexture_PageTableSize);
+	const FVector4 UVScale = GetUniformParameter(ESparseVolumeTexture_UVScale);
+	const FVector4 UVBias = GetUniformParameter(ESparseVolumeTexture_UVBias);
+	const FUintVector4 PageTableSizeUIMinusOne = FUintVector4(PageTableSize.X - 1, PageTableSize.Y - 1, PageTableSize.Z - 1, 0);
+
+	auto AsUint = [](float X)
+	{
+		union { float F; uint32 U; } FU = { X };
+		return FU.U;
+	};
+
+	OutPacked0.X = AsUint((float)UVScale.X);
+	OutPacked0.Y = AsUint((float)UVScale.Y);
+	OutPacked0.Z = AsUint((float)UVScale.Z);
+	OutPacked0.W = (PageTableSizeUIMinusOne.X & 0x7FF) | ((PageTableSizeUIMinusOne.Y & 0x7FF) << 11) | ((PageTableSizeUIMinusOne.Z & 0x3FF) << 22);
+	OutPacked1.X = AsUint((float)UVBias.X);
+	OutPacked1.Y = AsUint((float)UVBias.Y);
+	OutPacked1.Z = AsUint((float)UVBias.Z);
+	OutPacked1.W = AsUint((float)TileSize.X);
+}
+
 void USparseVolumeTexture::GetFrameUVScaleBias(FVector* OutScale, FVector* OutBias) const
 {
 	*OutScale = FVector::One();

@@ -184,13 +184,24 @@ public:
 	USparseVolumeTexture();
 	virtual ~USparseVolumeTexture() = default;
 
-	UFUNCTION(BlueprintCallable, Category = "Animation")
+	UFUNCTION(BlueprintCallable, Category = "Texture")
+	virtual int32 GetSizeX() const { return FMath::CeilToInt32(GetVolumeBounds().GetSize().X); }
+
+	UFUNCTION(BlueprintCallable, Category = "Texture")
+	virtual int32 GetSizeY() const { return FMath::CeilToInt32(GetVolumeBounds().GetSize().Y); }
+
+	UFUNCTION(BlueprintCallable, Category = "Texture")
+	virtual int32 GetSizeZ() const { return FMath::CeilToInt32(GetVolumeBounds().GetSize().Z); }
+
+	UFUNCTION(BlueprintCallable, Category = "Texture")
 	virtual int32 GetFrameCount() const { return 0; }
 	virtual FBox GetVolumeBounds() const { return FBox(); }
 	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return nullptr; }
 
 	/** Getter for the shader uniform parameters with index as ESparseVolumeTextureShaderUniform. */
 	FVector4 GetUniformParameter(int32 Index) const;
+
+	void GetPackedUniforms(FUintVector4& OutPacked0, FUintVector4& OutPacked1) const;
 
 	/** In order to keep the contents of an animated SVT sequence stable in world space, we need to account for the fact that
 		different frames of the sequence have different AABBs. We solve this by scaling and biasing UVs that are relative to

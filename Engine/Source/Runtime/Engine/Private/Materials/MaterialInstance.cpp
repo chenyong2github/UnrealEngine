@@ -1258,8 +1258,17 @@ void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatur
 		for (const FMaterialTextureParameterInfo& TextureInfo : CurrentResource->GetUniformTextureExpressions(ParameterType))
 		{
 			UTexture* Texture = nullptr;
-			TextureInfo.GetGameThreadTextureValue(this, *CurrentResource, Texture);
-			if (Texture)
+			USparseVolumeTexture* SVTexture = nullptr;
+			if (ParameterType != EMaterialTextureParameterType::SparseVolume)
+			{
+				TextureInfo.GetGameThreadTextureValue(this, *CurrentResource, Texture);
+			}
+			else
+			{
+				TextureInfo.GetGameThreadTextureValue(this, *CurrentResource, SVTexture);
+			}
+			
+			if (Texture || SVTexture)
 			{
 				const EMaterialValueType TextureType = Texture->GetMaterialType();
 				switch (ParameterType)
@@ -1306,6 +1315,12 @@ void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatur
 					else if (bShouldValidateVTUsage && !(TextureType & MCT_TextureVirtual))
 					{
 						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" requires virtual texture"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
+					}
+					break;
+				case EMaterialTextureParameterType::SparseVolume:
+					if (!(TextureType & MCT_SparseVolumeTexture))
+					{
+						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required sparse volume texture"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *SVTexture->GetName());
 					}
 					break;
 				default:

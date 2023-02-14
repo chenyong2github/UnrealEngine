@@ -6,6 +6,7 @@
 #include "Materials/MaterialExpression.h"
 #include "UObject/ObjectMacros.h"
 #include "MaterialTypes.h"
+#include "Materials/MaterialExpressionSparseVolumeTextureBase.h"
 
 #include "MaterialExpressionSparseVolumeTextureSample.generated.h"
 
@@ -14,7 +15,7 @@ struct FMaterialParameterMetadata;
 
 /** Material expression for sampling from a runtime virtual texture. */
 UCLASS(collapsecategories, hidecategories=Object)
-class ENGINE_API UMaterialExpressionSparseVolumeTextureSample : public UMaterialExpression
+class ENGINE_API UMaterialExpressionSparseVolumeTextureSample : public UMaterialExpressionSparseVolumeTextureBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -22,15 +23,10 @@ class ENGINE_API UMaterialExpressionSparseVolumeTextureSample : public UMaterial
 	UPROPERTY(meta = (RequiredInput = "false"))
 	FExpressionInput Coordinates;
 
-	/** The Sparse Virtual Texture to sample. */
-	UPROPERTY(EditAnywhere, Category = SparseVolumeTexture)
-	TObjectPtr<class USparseVolumeTexture> SparseVolumeTexture;
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Defaults to 'SparseVolumeTexture' if not specified"))
+	FExpressionInput TextureObject;
 
 protected:
-
-	//~ Begin UMaterialExpression Interface
-	virtual UObject* GetReferencedTexture() const override;
-	virtual bool CanReferenceTexture() const { return true; }
 
 #if WITH_EDITOR
 	virtual void PostLoad() override;
