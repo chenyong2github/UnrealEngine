@@ -1927,7 +1927,6 @@ void FGroomBuilder::BuildData(
 		}
 
 		// Simulation data
-		if (InHairDescriptionGroup.Guides.IsValid())
 		{
 			OutSim = InHairDescriptionGroup.Guides;
 			if (InHairDescriptionGroup.Info.NumGuides > 0 && !InSettings.InterpolationSettings.bOverrideGuides)
