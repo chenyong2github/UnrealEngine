@@ -57,7 +57,7 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 		}
 
 		// Set reference skeleton
-		const FString SkeletonPathName = ClothCollection.SkeletonAssetPathName.Num() && !ClothCollection.SkeletonAssetPathName[0].IsEmpty() ?
+		const FString SkeletonPathName = (ClothCollection.SkeletonAssetPathName.Num() && !ClothCollection.SkeletonAssetPathName[0].IsEmpty()) ?
 			ClothCollection.SkeletonAssetPathName[0] :
 			DataflowNodes::DefaultSkeletonPathName;
 
