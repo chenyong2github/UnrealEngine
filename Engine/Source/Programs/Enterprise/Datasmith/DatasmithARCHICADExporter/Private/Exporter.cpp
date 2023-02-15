@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Utils/APIEnvir.h"
+
 #include <stddef.h>
-
-#include "Utils/WarningsDisabler.h"
-
-DISABLE_SDK_WARNINGS_START
 
 #include "DatasmithSceneExporter.h"
 #include "DatasmithSceneXmlWriter.h"
-
-DISABLE_SDK_WARNINGS_END
 
 #include "Exporter.h"
 #include "ResourcesIDs.h"
@@ -19,15 +15,11 @@ DISABLE_SDK_WARNINGS_END
 	#undef TicksPerSecond
 #endif
 
-DISABLE_SDK_WARNINGS_START
-
 #include "FileManager.h"
 #include "Paths.h"
 
 #include "FileSystem.hpp"
 #include "DGFileDialog.hpp"
-
-DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
 

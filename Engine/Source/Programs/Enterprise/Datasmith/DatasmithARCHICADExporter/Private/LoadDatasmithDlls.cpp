@@ -3,13 +3,9 @@
 #include "LoadDatasmithDlls.h"
 
 #include <stddef.h>
-#include "Utils/WarningsDisabler.h"
-
-DISABLE_SDK_WARNINGS_START
+#include "Utils/APIEnvir.h"
 
 #include "IDatasmithSceneElements.h"
-
-DISABLE_SDK_WARNINGS_END
 
 #include "DatasmithSceneFactory.h"
 #include "DatasmithExporterManager.h"
@@ -29,14 +25,6 @@ DISABLE_SDK_WARNINGS_END
 #if PLATFORM_WINDOWS
 	#pragma warning(pop)
 #endif
-
-#include "Utils/APIEnvir.h"
-
-DISABLE_SDK_WARNINGS_START
-#include "ACAPinc.h"
-#include "Md5.hpp"
-#include "Lock.hpp"
-DISABLE_SDK_WARNINGS_END
 
 #include "Utils/LocalizeTools.h"
 #include "Utils/AddonTools.h"

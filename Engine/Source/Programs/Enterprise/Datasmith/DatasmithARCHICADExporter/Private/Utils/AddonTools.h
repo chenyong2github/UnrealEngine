@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "WarningsDisabler.h"
+#include "APIEnvir.h"
 
 #if PLATFORM_WINDOWS
 	#pragma warning(push)
@@ -16,12 +16,6 @@
 #if PLATFORM_WINDOWS
 	#pragma warning(pop)
 #endif
-
-DISABLE_SDK_WARNINGS_START
-#include "APIEnvir.h"
-#include "ACAPinc.h"
-#include "Md5.hpp"
-DISABLE_SDK_WARNINGS_END
 
 #include "LocalizeTools.h"
 #include "DebugTools.h"

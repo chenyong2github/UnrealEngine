@@ -17,8 +17,6 @@
 
 #undef TicksPerSecond
 
-DISABLE_SDK_WARNINGS_START
-
 #include "DatasmithUtils.h"
 #include "IDirectLinkUI.h"
 #include "IDatasmithExporterUIModule.h"
@@ -27,8 +25,6 @@ DISABLE_SDK_WARNINGS_START
 #if PLATFORM_MAC
 	#include "Misc/ConfigCacheIni.h"
 #endif
-
-DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
 

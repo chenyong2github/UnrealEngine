@@ -18,13 +18,9 @@
 	#undef TicksPerSecond
 #endif
 
-DISABLE_SDK_WARNINGS_START
-
 #include "FileManager.h"
 #include "Paths.h"
 #include "Version.h"
-
-DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
 

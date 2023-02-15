@@ -4,24 +4,14 @@
 
 #include <stddef.h>
 
-#include "Utils/WarningsDisabler.h"
+#include "Utils/APIEnvir.h"
 #include "Utils/TaskMgr.h"
 #include "Utils/TaskCalledFromEventLoop.h"
-
-DISABLE_SDK_WARNINGS_START
 
 #include "IDatasmithSceneElements.h"
 #include "DatasmithSceneFactory.h"
 
 #undef PI
-
-#include "Sight.hpp"
-#if AC_VERSION < 26
-#include "AttributeReader.hpp"
-#endif
-#include "Model.hpp"
-
-DISABLE_SDK_WARNINGS_END
 
 #include "Utils/DebugTools.h"
 #include "LoadDatasmithDlls.h"

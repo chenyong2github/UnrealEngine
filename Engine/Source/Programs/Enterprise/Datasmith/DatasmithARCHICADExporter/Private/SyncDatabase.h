@@ -8,10 +8,8 @@
 #include "Lock.hpp"
 #include "ModelElement.hpp"
 
-DISABLE_SDK_WARNINGS_START
 #include "Map.h"
 #include "List.h"
-DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
 

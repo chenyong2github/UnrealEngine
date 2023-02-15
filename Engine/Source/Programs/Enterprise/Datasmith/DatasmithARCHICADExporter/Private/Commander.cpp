@@ -23,17 +23,6 @@
 
 #include "exp.h"
 
-DISABLE_SDK_WARNINGS_START
-#include "Sight.hpp"
-DISABLE_SDK_WARNINGS_END
-
-#if AC_VERSION < 26
-#include "AttributeReader.hpp"
-#else
-#include "IAttributeReader.hpp"
-#endif
-#include "Model.hpp"
-
 BEGIN_NAMESPACE_UE_AC
 
 void FCommander::DoSnapshot()

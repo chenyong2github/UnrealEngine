@@ -19,7 +19,7 @@ void ThrowWinError(DWORD InWinErr, const utf8_t* InFile, int InLineNo)
 	}
 
 	char FormattedMessage[1024];
-	snprintf(FormattedMessage, sizeof(FormattedMessage), "Error %d=\"%s\" at \"%s:%d\"", InWinErr,
+	snprintf(FormattedMessage, sizeof(FormattedMessage), "Error %ld=\"%s\" at \"%s:%d\"", InWinErr,
 			 Utf16ToUtf8(WinMsg).c_str(), InFile, InLineNo);
 
 	throw std::runtime_error(FormattedMessage);

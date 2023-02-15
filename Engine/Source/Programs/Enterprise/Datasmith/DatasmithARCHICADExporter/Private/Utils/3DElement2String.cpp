@@ -1,21 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "APIEnvir.h"
+
 #include "3DElement2String.h"
 #include "ElementTools.h"
 #include "Element2String.h"
 #include "TAssValueName.h"
-
-DISABLE_SDK_WARNINGS_START
-
-#include "ModelElement.hpp"
-#include "ModelMeshBody.hpp"
-#include "ConvexPolygon.hpp"
-
-#include "Transformation.hpp"
-#include "Parameter.hpp"
-#include "Light.hpp"
-
-DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
 

@@ -2,16 +2,13 @@
 
 #include "Palette.h"
 #include "Synchronizer.h"
+#include "Utils/APIEnvir.h"
 #include "Utils/TAssValueName.h"
 #include "ResourcesIDs.h"
 #include "Utils/Error.h"
 //#include "CSynchronizer.hpp"
 #include "Commander.h"
 #include "Menus.h"
-
-DISABLE_SDK_WARNINGS_START
-#include "DGModule.hpp"
-DISABLE_SDK_WARNINGS_END
 
 #define PALETTE_4_ALL_VIEW 1
 #define TRACE_PALETTE 0

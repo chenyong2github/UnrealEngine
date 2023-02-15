@@ -4,22 +4,84 @@
 
 #include <stddef.h>
 
-#include "WarningsDisabler.h"
-
-DISABLE_SDK_WARNINGS_START
-
 #include "IDatasmithSceneElements.h"
 #include "DatasmithSceneFactory.h"
 
 #undef PI
 
+// clang-format off
+
+THIRD_PARTY_INCLUDES_START
+
+#ifdef __clang__
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcomma"
+#pragma clang diagnostic ignored "-Wdefaulted-function-deleted"
+
+#if (__clang_major__ > 12) || (__clang_major__ == 12 && __clang_minor__ == 0 && __clang_patchlevel__ > 4)
+#pragma clang diagnostic ignored "-Wnon-c-typedef-for-linkage"
+#endif
+
+#elif PLATFORM_WINDOWS
+
+__pragma(warning(push))
+__pragma(warning(disable: 4005)) // 'TEXT': macro redefinition
+__pragma(warning(disable: 5040)) // Support\Modules\GSRoot\vaarray.hpp: dynamic exception specifications are valid only in C++14 and earlier
+
+#else
+
+_Pragma("clang diagnostic ignored \"-Wcomma\"")
+_Pragma("clang diagnostic ignored \"-Wdefaulted-function-deleted\"")
+
+#endif
+
+// clang-format on
+
+#include "ACAPinc.h"
+#include "Md5.hpp"
+
 #include "Sight.hpp"
 #if AC_VERSION < 26
 #include "AttributeReader.hpp"
+#else
+#include "IAttributeReader.hpp"
 #endif
 #include "Model.hpp"
 
-DISABLE_SDK_WARNINGS_END
+#include "ModelElement.hpp"
+#include "ModelMeshBody.hpp"
+#include "ConvexPolygon.hpp"
+
+#include "Transformation.hpp"
+#include "Parameter.hpp"
+#include "Light.hpp"
+
+#include "exp.h"
+#include "FileSystem.hpp"
+
+#include "Lock.hpp"
+
+#include "DGModule.hpp"
+
+#include "DGDialog.hpp"
+
+#include "Transformation.hpp"
+#include "Line3D.hpp"
+
+#include "DGFileDlg.hpp"
+
+// clang-format off
+#ifdef __clang__
+#pragma clang diagnostic pop
+#elif PLATFORM_WINDOWS
+__pragma(warning(pop))
+#else
+_Pragma("clang diagnostic pop")
+#endif
+// clang-format on
+
+THIRD_PARTY_INCLUDES_END
 
 #if defined(_MSC_VER)
 	#if !defined(WINDOWS)

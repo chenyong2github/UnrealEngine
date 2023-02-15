@@ -9,11 +9,6 @@
 #include "Utils/Error.h"
 #include "Utils/TaskCalledFromEventLoop.h"
 
-DISABLE_SDK_WARNINGS_START
-#include "DGDialog.hpp"
-#include "DGModule.hpp"
-DISABLE_SDK_WARNINGS_END
-
 BEGIN_NAMESPACE_UE_AC
 
 class FReportDialog : public DG::Palette,

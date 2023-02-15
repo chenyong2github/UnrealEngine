@@ -14,11 +14,6 @@
 #include "TexturesCache.h"
 #include "Utils/TaskMgr.h"
 
-DISABLE_SDK_WARNINGS_START
-#include "Transformation.hpp"
-#include "Line3D.hpp"
-DISABLE_SDK_WARNINGS_END
-
 #include <stdexcept>
 
 BEGIN_NAMESPACE_UE_AC
@@ -188,8 +183,6 @@ bool FSyncData::CheckAllCutOut()
 {
 	return true;
 }
-
-#pragma mark -
 
 // Guid given to the scene element.
 const GS::Guid FSyncData::FScene::SceneGUID("CBDEFBEF-0D4E-4162-8C4C-64AC34CEB4E6");
@@ -375,8 +368,6 @@ void FSyncData::FScene::RemoveChildActor(const TSharedPtr< IDatasmithActorElemen
 	SceneElement->RemoveActor(InActor, EDatasmithActorRemovalRule::RemoveChildren);
 }
 
-#pragma mark -
-
 FSyncData::FActor::FActor(const GS::Guid& InGuid)
 	: FSyncData(InGuid)
 {
@@ -473,8 +464,6 @@ void FSyncData::FActor::ReplaceMetaData(IDatasmithScene&							   IOScene,
 	IOScene.AddMetaData(MetaData);
 }
 
-#pragma mark -
-
 // Guid used to synthetize layer guid
 const GS::Guid FSyncData::FLayer::LayerGUID("97D32F90-A33E-0000-8305-D1A7D3FCED66");
 
@@ -545,8 +534,6 @@ void FSyncData::FLayer::Process(FProcessInfo* /* IOProcessInfo */)
 		SetActorElement(NewActor);
 	}
 }
-
-#pragma mark -
 
 inline Geometry::Transformation3D Convert(const ModelerAPI::Transformation& InMatrix)
 {
@@ -1053,8 +1040,6 @@ bool FSyncData::FElement::UpdateMetaData(IDatasmithScene* IOScene)
 	return MetaDataExporter.SetOrUpdate(&MetaData, IOScene);
 }
 
-#pragma mark -
-
 void FSyncData::FCameraSet::Process(FProcessInfo* /* IOProcessInfo */)
 {
 	if (!ActorElement.IsValid())
@@ -1076,8 +1061,6 @@ void FSyncData::FCameraSet::Process(FProcessInfo* /* IOProcessInfo */)
 		}
 	}
 }
-
-#pragma mark -
 
 // Guid given to the current view.
 const GS::Guid FSyncData::FCamera::CurrentViewGUID("B2BD9C50-60EB-4E64-902B-D1574FADEC45");
@@ -1176,8 +1159,6 @@ void FSyncData::FCamera::InitWithCameraElement()
 	CameraElement.SetFocalLength(
 		FGeometryUtil::GetCameraFocalLength(CameraElement.GetSensorWidth(), camPars.viewCone * RADDEG));
 }
-
-#pragma mark -
 
 void FSyncData::FLight::Process(FProcessInfo* IOProcessInfo)
 {
@@ -1449,8 +1430,6 @@ bool FSyncData::FLight::FLightData::operator!=(const FLightData& InOther) const
 		   Rotation != InOther.Rotation;
 }
 
-#pragma mark -
-
 const GS::Guid FSyncData::FHotLinksRoot::HotLinksRootGUID("C4BFD876-FDE9-4CCF-8899-12023968DC0D");
 
 void FSyncData::FHotLinksRoot::Process(FProcessInfo* /* IOProcessInfo */)
@@ -1628,8 +1607,6 @@ void FSyncData::FHotLinkInstance::Process(FProcessInfo* IOProcessInfo)
 	}
 }
 
-#pragma mark -
-
 // Start the process with this root observer
 void FSyncData::FInterator::Start(FSyncData* Root)
 {
@@ -1701,8 +1678,6 @@ FSyncData::FChildsArray::SizeType FSyncData::FInterator::GetCurrentIndex()
 	return Stack.Num() > 1 ? Stack[Stack.Num() - 2].ChildIndex : 0;
 }
 
-#pragma mark -
-
 // Start the process with this root observer
 void FSyncData::FProcessMetadata::Start(FSyncData* Root)
 {
@@ -1727,8 +1702,6 @@ FSyncData::FInterator::EProcessControl FSyncData::FProcessMetadata::Process(FSyn
 
 	return FInterator::kContinue;
 }
-
-#pragma mark -
 
 // Constructor
 FSyncData::FAttachObservers::FAttachObservers() {}

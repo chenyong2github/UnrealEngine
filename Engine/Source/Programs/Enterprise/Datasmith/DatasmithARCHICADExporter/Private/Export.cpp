@@ -6,17 +6,6 @@
 #include "Utils/AutoChangeDatabase.h"
 #include "Exporter.h"
 
-#include "exp.h"
-#include "Sight.hpp"
-DISABLE_SDK_WARNINGS_START
-#if AC_VERSION < 26
-#include "AttributeReader.hpp"
-#else
-#include "IAttributeReader.hpp"
-#endif
-DISABLE_SDK_WARNINGS_END
-#include "FileSystem.hpp"
-
 BEGIN_NAMESPACE_UE_AC
 
 enum : GSType

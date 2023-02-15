@@ -159,7 +159,7 @@ class FSearchAndCopyFile
 	}
 
 	// Search in the folder tree starting at parent folder.
-	bool DoSearchIn(const IO::Folder& Parent) { return Parent.Enumerate(EnumCallBack, this); }
+	bool DoSearchIn(const IO::Folder& Parent) { return Parent.Enumerate(EnumCallBack, this) == NoError; }
 
 	// Callback function called for each element of the parent specified
 	bool EnumCallBack(const IO::Folder& Parent, const IO::Name& EntryName, bool bIsFolder);
