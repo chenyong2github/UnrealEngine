@@ -29,9 +29,9 @@ namespace TextFilterExpressionParser
 	const TCHAR* FGreater::Monikers[]					= { TEXT(">") };
 	const TCHAR* FGreaterOrEqual::Monikers[]			= { TEXT(">="), TEXT(">:") };
 
-	const TCHAR* FOr::Monikers[]						= { TEXT("OR"), TEXT("||"), TEXT("|") };
-	const TCHAR* FAnd::Monikers[]						= { TEXT("AND"), TEXT("&&"), TEXT("&") };
-	const TCHAR* FNot::Monikers[]						= { TEXT("NOT"), TEXT("!") };
+	const TCHAR* FOr::Monikers[]						= { TEXT("OR "), TEXT("OR("), TEXT("||"), TEXT("|") };
+	const TCHAR* FAnd::Monikers[]						= { TEXT("AND "), TEXT("AND("), TEXT("&&"), TEXT("&") };
+	const TCHAR* FNot::Monikers[]						= { TEXT("NOT "), TEXT("NOT("), TEXT("!") };
 
 	/** Consume an operator from the specified consumer's stream, if one exists at the current read position */
 	template<typename TSymbol>
