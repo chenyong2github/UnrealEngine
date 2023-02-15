@@ -1805,12 +1805,29 @@ UMaterialInterface* UMaterialInstance::GetNaniteOverride(TMicRecursionGuard Recu
 {
 	if (NaniteOverrideMaterial.bEnableOverride)
 	{
-		return NaniteOverrideMaterial.GetOverrideMaterial(this);
+		return NaniteOverrideMaterial.GetOverrideMaterial();
 	}
 	else if (Parent && !RecursionGuard.Contains(this))
 	{
 		RecursionGuard.Set(this);
 		return Parent->GetNaniteOverride(RecursionGuard);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+TSoftObjectPtr<UMaterialInterface> UMaterialInstance::GetNaniteOverrideRef(TMicRecursionGuard RecursionGuard) const
+{
+	if (NaniteOverrideMaterial.bEnableOverride)
+	{
+		return NaniteOverrideMaterial.OverrideMaterialRef;
+	}
+	else if (Parent && !RecursionGuard.Contains(this))
+	{
+		RecursionGuard.Set(this);
+		return Parent->GetNaniteOverrideRef(RecursionGuard);
 	}
 	else
 	{
@@ -3852,7 +3869,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	if (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterial, NaniteOverrideMaterial))
 	{
-		NaniteOverrideMaterial.PostEditChange(this);
+		NaniteOverrideMaterial.PostEditChange();
 
 		// Update primitives that might depend on the nanite override material.
 		FGlobalComponentRecreateRenderStateContext RecreateComponentsRenderState;
@@ -3898,7 +3915,7 @@ void UMaterialInstance::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	NaniteOverrideMaterial.PostEditChange(this);
+	NaniteOverrideMaterial.PostEditChange();
 }
 
 #endif // WITH_EDITOR
@@ -4452,19 +4469,6 @@ void UMaterialInstance::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid
 #endif
 }
 
-#if WITH_EDITOR
-uint32 UMaterialInstance::ComputeAllStateCRC() const
-{
-	uint32 CRC = Super::ComputeAllStateCRC();
-	if (Parent)
-	{
-		uint32 ParentCRC = Parent->ComputeAllStateCRC();
-		CRC = FCrc::TypeCrc32(ParentCRC, CRC);
-	}
-	return CRC;
-}
-#endif
-
 void UMaterialInstance::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
@@ -4536,6 +4540,65 @@ bool UMaterialInstance::Equivalent(const UMaterialInstance* CompareTo) const
 
 	const FStaticParameterSet LocalStaticParameters = GetStaticParameters();
 	if (!LocalStaticParameters.Equivalent(CompareTo->GetStaticParameters()))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UMaterialInstance::IsRedundant() const
+{
+	if (NaniteOverrideMaterial.bEnableOverride)
+	{
+		// Check if we resolve to a different material to our parent 
+		TSoftObjectPtr<UMaterialInterface> MyOverride = GetNaniteOverrideRef();
+		TSoftObjectPtr<UMaterialInterface> ParentOverride = Parent->GetNaniteOverrideRef();
+		// Possible refinement: Could check if they are equivalent MIDs, or a redundant MID and its parent, but that would require loading them. 
+		if (MyOverride != ParentOverride)
+		{
+			return false;
+		}
+	}
+
+	if (HasStaticParameters())
+	{
+		return false;
+	}
+	if (GetPhysicalMaterial() != Parent->GetPhysicalMaterial())
+	{
+		return false;
+	}
+	for (int32 i = 0; i < EPhysicalMaterialMaskColor::MAX; ++i)
+	{
+		if (GetPhysicalMaterialFromMap(i) != Parent->GetPhysicalMaterialFromMap(i))
+		{
+			return false;
+		}
+	}
+	if (GetSubsurfaceProfile_Internal() != Parent->GetSubsurfaceProfile_Internal())
+	{
+		return false;
+	}
+	// Assume that if any properties are overridden they are different to their parent
+	if (
+	   BasePropertyOverrides.bOverride_OpacityMaskClipValue 
+	|| BasePropertyOverrides.bOverride_BlendMode
+	|| BasePropertyOverrides.bOverride_ShadingModel
+	|| BasePropertyOverrides.bOverride_DitheredLODTransition 
+	|| BasePropertyOverrides.bOverride_CastDynamicShadowAsMasked
+	|| BasePropertyOverrides.bOverride_TwoSided 
+	|| BasePropertyOverrides.bOutputTranslucentVelocity)
+	{
+		return false;
+	}
+	if (
+		!TextureParameterValues.IsEmpty()
+		|| !ScalarParameterValues.IsEmpty()
+		|| !VectorParameterValues.IsEmpty()
+		|| !DoubleVectorParameterValues.IsEmpty()
+		|| !RuntimeVirtualTextureParameterValues.IsEmpty()
+		|| !FontParameterValues.IsEmpty())
 	{
 		return false;
 	}

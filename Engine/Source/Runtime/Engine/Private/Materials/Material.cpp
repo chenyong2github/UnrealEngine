@@ -2135,6 +2135,11 @@ UMaterialInterface* UMaterial::GetNaniteOverride(TMicRecursionGuard RecursionGua
 	return NaniteOverrideMaterial.GetOverrideMaterial(this);
 }
 
+TSoftObjectPtr<UMaterialInterface> UMaterial::GetNaniteOverrideRef(TMicRecursionGuard RecursionGuard) const
+{
+	return NaniteOverrideMaterial.OverrideMaterialRef;
+}
+
 /** Helper functions for text output of properties... */
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);

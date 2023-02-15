@@ -670,6 +670,10 @@ public:
 
 	ENGINE_API bool Equivalent(const UMaterialInstance* CompareTo) const;
 
+	// Returns true if using this material instance would be equivalent to using its parent. 
+	// i.e. no parameters/etc of any kind have been set.
+	ENGINE_API virtual bool IsRedundant() const;
+
 private:
 
 	/** Static parameter values that are overridden in this instance. */
@@ -743,6 +747,7 @@ public:
 	virtual ENGINE_API UPhysicalMaterialMask* GetPhysicalMaterialMask() const override;
 	virtual ENGINE_API UPhysicalMaterial* GetPhysicalMaterialFromMap(int32 Index) const override;
 	virtual ENGINE_API UMaterialInterface* GetNaniteOverride(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) override;
+	virtual ENGINE_API TSoftObjectPtr<UMaterialInterface> GetNaniteOverrideRef(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const override; 
 	virtual ENGINE_API bool UpdateLightmassTextureTracking() override;
 	virtual ENGINE_API bool GetCastShadowAsMasked() const override;
 	virtual ENGINE_API float GetEmissiveBoost() const override;
@@ -907,10 +912,6 @@ public:
 	 *	@param	OutGuids			The list of all resource guids affecting the precomputed lighting system and texture streamer.
 	 */
 	ENGINE_API virtual void GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGuids) const override;
-
-#if WITH_EDITOR
-	ENGINE_API virtual uint32 ComputeAllStateCRC() const override;
-#endif // WITH_EDITOR
 
 	ENGINE_API virtual void DumpDebugInfo(FOutputDevice& OutputDevice) const override;
 	void SaveShaderStableKeys(const class ITargetPlatform* TP);
