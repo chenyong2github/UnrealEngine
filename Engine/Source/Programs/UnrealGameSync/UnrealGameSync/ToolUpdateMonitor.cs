@@ -410,13 +410,12 @@ namespace UnrealGameSync
 				ArchiveUtils.ExtractFiles(zipFile, nextToolDir, null, new ProgressValue(), logger);
 			}
 
-			SetToolChange(toolName, null);
-
 			DirectoryReference currentToolDir = DirectoryReference.Combine(toolDir, "Current");
 			if (DirectoryReference.Exists(currentToolDir))
 			{
 				DirectoryReference prevDirectoryName = DirectoryReference.Combine(toolDir, String.Format("Prev-{0:X16}", Stopwatch.GetTimestamp()));
 				Directory.Move(currentToolDir.FullName, prevDirectoryName.FullName);
+				SetToolChange(toolName, null);
 				TryDeleteDirectory(prevDirectoryName, logger);
 			}
 
