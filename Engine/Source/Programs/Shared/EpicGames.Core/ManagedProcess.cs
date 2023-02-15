@@ -296,6 +296,11 @@ namespace EpicGames.Core
 		static extern bool IsProcessInJob(IntPtr hProcess, IntPtr hJob, out bool result);
 
 		[DllImport("kernel32.dll", SetLastError = true)]
+		static extern bool GenerateConsoleCtrlEvent(UInt32 dwCtrlEvent, UInt32 dwProcessGroupId);
+
+		public const UInt32 CTRL_C_EVENT = 0;
+
+		[DllImport("kernel32.dll", SetLastError = true)]
 		static extern int TerminateProcess(SafeHandleZeroOrMinusOneIsInvalid hProcess, uint uExitCode);
 
 		const UInt32 INFINITE = 0xFFFFFFFF;
@@ -934,7 +939,9 @@ namespace EpicGames.Core
 		{
 			if(_processHandle != null)
 			{
-				_ = TerminateProcess(_processHandle, 0);
+				_ = GenerateConsoleCtrlEvent(CTRL_C_EVENT, (uint)Id);
+				_ = WaitForSingleObject(_processHandle, 1000);
+				//_ = TerminateProcess(_processHandle, 0);
 				_ = WaitForSingleObject(_processHandle, INFINITE);
 
 				_processHandle.Dispose();
