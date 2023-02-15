@@ -17,6 +17,7 @@
 #include "Strata/Strata.h"
 #include "ScreenRendering.h"
 #include "PostProcess/TemporalAA.h"
+#include "ShaderPlatformCachedIniValue.h"
 
 DECLARE_GPU_DRAWCALL_STAT(Distortion);
 
@@ -62,6 +63,12 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDistortionPassUniformParameters, RENDERER_
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDistortionPassUniformParameters, "DistortionPass", SceneTextures);
+
+uint32 GetRefractionOffsetQuality(EShaderPlatform InPlatform)
+{
+	static FShaderPlatformCachedIniValue<int32> CVarRefractionOffsetQualityPlatform(TEXT("r.Refraction.OffsetQuality"));
+	return CVarRefractionOffsetQualityPlatform.Get(InPlatform);
+}
 
 int32 FSceneRenderer::GetRefractionQuality(const FSceneViewFamily& ViewFamily)
 {
@@ -686,7 +693,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(
 		DistortionTexture = GraphBuilder.CreateTexture(
 			FRDGTextureDesc::Create2D(
 				SceneDepthTexture->Desc.Extent,
-				CVarRefractionOffsetQuality.GetValueOnRenderThread() > 0 ? PF_FloatRGBA : PF_B8G8R8A8,
+				GetRefractionOffsetQuality(ShaderPlatform) > 0 ? PF_FloatRGBA : PF_B8G8R8A8,
 				FClearValueBinding::Transparent,
 				GFastVRamConfig.Distortion | TexCreate_RenderTargetable | TexCreate_ShaderResource,
 				1,
@@ -982,7 +989,7 @@ void FDistortionMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig
 		
 	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
 	RenderTargetsInfo.NumSamples = 1;
-	AddRenderTargetInfo(CVarRefractionOffsetQuality.GetValueOnAnyThread() > 0 ? PF_FloatRGBA : PF_B8G8R8A8, GFastVRamConfig.Distortion | TexCreate_RenderTargetable | TexCreate_ShaderResource, RenderTargetsInfo);
+	AddRenderTargetInfo(GetRefractionOffsetQuality(SceneTexturesConfig.ShaderPlatform) > 0 ? PF_FloatRGBA : PF_B8G8R8A8, GFastVRamConfig.Distortion | TexCreate_RenderTargetable | TexCreate_ShaderResource, RenderTargetsInfo);
 	if (GetUseRoughRefraction())
 	{
 		AddRenderTargetInfo(PF_R16F, GFastVRamConfig.Distortion | TexCreate_RenderTargetable | TexCreate_ShaderResource, RenderTargetsInfo);
