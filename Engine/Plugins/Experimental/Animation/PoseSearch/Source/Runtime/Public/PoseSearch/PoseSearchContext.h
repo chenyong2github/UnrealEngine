@@ -14,7 +14,7 @@ class UPoseSearchSchema;
 namespace UE::PoseSearch
 {
 
-class FPoseHistory;
+struct FPoseHistory;
 struct FPoseIndicesHistory;
 
 enum class EDebugDrawFlags : uint32
@@ -150,7 +150,7 @@ struct POSESEARCH_API FSearchContext
 {
 	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
 	UE::PoseSearch::FDebugDrawParams DebugDrawParams;
-	UE::PoseSearch::FPoseHistory* History = nullptr;
+	const UE::PoseSearch::FPoseHistory* History = nullptr;
 	const FTrajectorySampleRange* Trajectory = nullptr;
 	TObjectPtr<const USkeletalMeshComponent> OwningComponent = nullptr;
 	UE::PoseSearch::FSearchResult CurrentResult;

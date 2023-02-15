@@ -19,86 +19,77 @@ namespace UE::PoseSearch::Private
 class FPoseHistoryProvider : public IPoseHistoryProvider
 {
 public:
-	FPoseHistoryProvider(FAnimNode_PoseSearchHistoryCollector* InNode)
-		: Node(*InNode)
-	{}
+	FPoseHistoryProvider(const FPoseHistory& InPoseHistory)
+		: PoseHistory(InPoseHistory)
+	{
+	}
 
 	// IPoseHistoryProvider interface
 	virtual const FPoseHistory& GetPoseHistory() const override
 	{
-		return Node.GetPoseHistory();
+		return PoseHistory;
 	}
 
-	virtual FPoseHistory& GetPoseHistory() override
-	{
-		return Node.GetPoseHistory();
-	}
-
-	// Node we wrap
-	FAnimNode_PoseSearchHistoryCollector& Node;
+private:
+	const FPoseHistory& PoseHistory;
 };
 
 } // namespace UE::PoseSearch::Private
 
 
 /////////////////////////////////////////////////////
-// FAnimNode_PoseSearchHistoryCollector
+// FAnimNode_PoseSearchHistoryCollector_Base
 
-void FAnimNode_PoseSearchHistoryCollector::Initialize_AnyThread(const FAnimationInitializeContext& Context)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread);
-
-	Super::Initialize_AnyThread(Context);
-
-	// @@ need to do this once based on descendant node's (or input param?) search schema, not every node init
-	PoseHistory.Init(PoseCount, PoseDuration);
-
-	UE::Anim::TScopedGraphMessage<UE::PoseSearch::Private::FPoseHistoryProvider> ScopedMessage(Context, this);
-
-	Source.Initialize(Context);
-}
-
-void FAnimNode_PoseSearchHistoryCollector::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
-
-	Source.CacheBones(Context);
-}
-
-void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Output)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
-
-	Source.Evaluate(Output);
-	PoseHistory.Update(Output.AnimInstanceProxy->GetDeltaSeconds(), Output, Output.AnimInstanceProxy->GetComponentTransform());
-
-#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
-	bWasEvaluated = true;
-#endif
-}
-
-void FAnimNode_PoseSearchHistoryCollector::Update_AnyThread(const FAnimationUpdateContext& Context)
+void FAnimNode_PoseSearchHistoryCollector_Base::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread);
+	check(Context.AnimInstanceProxy);
 
-	UE::Anim::TScopedGraphMessage<UE::PoseSearch::Private::FPoseHistoryProvider> ScopedMessage(Context, this);
+	Super::CacheBones_AnyThread(Context);
 
-	Source.Update(Context);
+	TArray<FBoneIndexType> RequiredBones;
+	if (!CollectedBones.IsEmpty())
+	{
+		if (const USkeletalMeshComponent* SkeletalMeshComponent = Context.AnimInstanceProxy->GetSkelMeshComponent())
+		{
+			if (const USkinnedAsset* SkinnedAsset = SkeletalMeshComponent->GetSkinnedAsset())
+			{
+				if (const USkeleton* Skeleton = SkinnedAsset->GetSkeleton())
+				{
+					RequiredBones.Reserve(CollectedBones.Num());
+					for (FBoneReference& BoneReference : CollectedBones)
+					{
+						if (BoneReference.Initialize(Skeleton))
+						{
+							RequiredBones.AddUnique(BoneReference.BoneIndex);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	PoseHistory.Init(PoseCount, PoseDuration, RequiredBones);
 }
 
-void FAnimNode_PoseSearchHistoryCollector::GatherDebugData(FNodeDebugData& DebugData)
+void FAnimNode_PoseSearchHistoryCollector_Base::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
-	Source.GatherDebugData(DebugData);
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread);
+	UE::Anim::TScopedGraphMessage<UE::PoseSearch::Private::FPoseHistoryProvider> ScopedMessage(Context, PoseHistory);
+	Super::Update_AnyThread(Context);
 }
 
-bool FAnimNode_PoseSearchHistoryCollector::HasPreUpdate() const
+bool FAnimNode_PoseSearchHistoryCollector_Base::HasPreUpdate() const
 {
 	return WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG;
 }
 
-void FAnimNode_PoseSearchHistoryCollector::PreUpdate(const UAnimInstance* InAnimInstance)
+void FAnimNode_PoseSearchHistoryCollector_Base::PreUpdate(const UAnimInstance* InAnimInstance)
 {
+	Super::PreUpdate(InAnimInstance);
+
 #if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
+	check(InAnimInstance);
 	if (bWasEvaluated && CVarAnimPoseHistoryDebugDraw.GetValueOnAnyThread())
 	{
 		if (const USkeletalMeshComponent* SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent())
@@ -117,6 +108,100 @@ void FAnimNode_PoseSearchHistoryCollector::PreUpdate(const UAnimInstance* InAnim
 
 	bWasEvaluated = false;
 #endif // WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
+}
+
+
+/////////////////////////////////////////////////////
+// FAnimNode_PoseSearchHistoryCollector
+
+void FAnimNode_PoseSearchHistoryCollector::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread);
+	Super::Initialize_AnyThread(Context);
+	Source.Initialize(Context);
+}
+
+void FAnimNode_PoseSearchHistoryCollector::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
+	Super::CacheBones_AnyThread(Context);
+	Source.CacheBones(Context);
+}
+
+void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Output)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
+	check(Output.AnimInstanceProxy);
+
+	Super::Evaluate_AnyThread(Output);
+	Source.Evaluate(Output);
+
+	FCSPose<FCompactPose> ComponentSpacePose;
+	ComponentSpacePose.InitPose(Output.Pose);
+	PoseHistory.Update(Output.AnimInstanceProxy->GetDeltaSeconds(), ComponentSpacePose, Output.AnimInstanceProxy->GetComponentTransform());
+
+#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
+	bWasEvaluated = true;
+#endif
+}
+
+void FAnimNode_PoseSearchHistoryCollector::Update_AnyThread(const FAnimationUpdateContext& Context)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread);
+	Super::Update_AnyThread(Context);
+	Source.Update(Context);
+}
+
+void FAnimNode_PoseSearchHistoryCollector::GatherDebugData(FNodeDebugData& DebugData)
+{
+	Super::GatherDebugData(DebugData);
+	Source.GatherDebugData(DebugData);
+}
+
+
+/////////////////////////////////////////////////////
+// FAnimNode_PoseSearchComponentSpaceHistoryCollector
+
+void FAnimNode_PoseSearchComponentSpaceHistoryCollector::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread);
+	Super::Initialize_AnyThread(Context);
+	Source.Initialize(Context);
+}
+
+void FAnimNode_PoseSearchComponentSpaceHistoryCollector::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
+	Super::CacheBones_AnyThread(Context);
+	Source.CacheBones(Context);
+}
+
+void FAnimNode_PoseSearchComponentSpaceHistoryCollector::EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateComponentSpace_AnyThread);
+	check(Output.AnimInstanceProxy);
+
+	Super::EvaluateComponentSpace_AnyThread(Output);
+	Source.EvaluateComponentSpace(Output);
+
+	PoseHistory.Update(Output.AnimInstanceProxy->GetDeltaSeconds(), Output.Pose, Output.AnimInstanceProxy->GetComponentTransform());
+
+#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
+	bWasEvaluated = true;
+#endif
+}
+
+void FAnimNode_PoseSearchComponentSpaceHistoryCollector::Update_AnyThread(const FAnimationUpdateContext& Context)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread);
+	Super::Update_AnyThread(Context);
+	Source.Update(Context);
+}
+
+void FAnimNode_PoseSearchComponentSpaceHistoryCollector::GatherDebugData(FNodeDebugData& DebugData)
+{
+	Super::GatherDebugData(DebugData);
+	Source.GatherDebugData(DebugData);
 }
 
 #undef LOCTEXT_NAMESPACE

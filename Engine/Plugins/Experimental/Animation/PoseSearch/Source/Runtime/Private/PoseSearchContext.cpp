@@ -188,19 +188,20 @@ FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UP
 	
 		// collecting the local bone transforms from the FPoseHistory
 		check(History);
-		TArray<FTransform> SampledLocalPose;
-		History->GetLocalPoseAtTime(SampleTime, Schema->BoneIndicesWithParents, SampledLocalPose);
-		
-		TArray<FTransform> SampledComponentPose;
-		FAnimationRuntime::FillUpComponentSpaceTransforms(Schema->Skeleton->GetReferenceSkeleton(), SampledLocalPose, SampledComponentPose);
-
-		// adding bunch of entries, without caring about adding eventual duplicates
-		for (const FBoneIndexType NewEntryBoneIndexType : Schema->BoneIndicesWithParents)
+		FTransform BoneComponentSpaceTransform;
+		if (!History->GetComponentSpaceTransformAtTime(SampleTime, BoneIndexType, BoneComponentSpaceTransform))
 		{
-			CachedTransforms.Add(SampleTime, NewEntryBoneIndexType, SampledComponentPose[NewEntryBoneIndexType]);
+			FName BoneName;
+			if (const USkeleton* Skeleton = Schema->Skeleton)
+			{
+				BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(BoneIndexType);
+			}
+
+			UE_LOG(LogPoseSearch, Warning, TEXT("FSearchContext::GetComponentSpaceTransform - Couldn't find BoneIndexType %d (%s) requested by %s"), BoneIndexType, *BoneName.ToString(), *Schema->GetName());
 		}
 
-		return SampledComponentPose[BoneIndexType];
+		CachedTransforms.Add(SampleTime, BoneIndexType, BoneComponentSpaceTransform);
+		return BoneComponentSpaceTransform;
 	}
 
 	return FTransform::Identity;

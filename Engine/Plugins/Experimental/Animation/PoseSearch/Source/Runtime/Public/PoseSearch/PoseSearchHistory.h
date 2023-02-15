@@ -3,11 +3,10 @@
 #pragma once
 
 #include "Animation/AnimNodeMessages.h"
-#include "BoneIndices.h"
+#include "BonePose.h"
 #include "Containers/RingBuffer.h"
 #include "UObject/ObjectKey.h"
 
-struct FPoseContext;
 class USkeleton;
 class UWorld;
 
@@ -16,33 +15,29 @@ namespace UE::PoseSearch
 
 struct FSearchResult;
 
-/**
-* Records poses over time in a ring buffer.
-* FFeatureVectorBuilder uses this to sample from the present or past poses according to the search schema.
-*/
-class POSESEARCH_API FPoseHistory
+struct POSESEARCH_API FPoseHistory
 {
-public:
-
-	void Init(int32 InNumPoses, float InTimeHorizon);
-	void Init(const FPoseHistory& History);
-	void Update(float SecondsElapsed, const FPoseContext& PoseContext, FTransform ComponentTransform);
+	void Init(int32 InNumPoses, float InTimeHorizon, const TArray<FBoneIndexType>& RequiredBones);
+	void Update(float SecondsElapsed, FCSPose<FCompactPose>& ComponentSpacePose, FTransform ComponentTransform);
 	float GetSampleTimeInterval() const;
 	float GetTimeHorizon() const { return TimeHorizon; }
-	void GetLocalPoseAtTime(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose) const;
-	void GetRootTransformAtTime(float Time, FTransform& RootTransform) const;
+	bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const;
+	void GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate = true) const;
 	void DebugDraw(const UWorld* World, const USkeleton* Skeleton) const;
 
 private:
 
-	struct FPose
+	struct FEntry
 	{
-		FTransform RootTransform; // @todo: remove RootTransform: this should be unnecessary, since FTrajectorySampleRange already contains the past as well as the prediction for the RootTransform
-		TArray<FTransform> LocalTransforms;
-		float Time = 0.0f;
+		FTransform RootTransform;
+		TArray<FTransform> ComponentSpaceTransforms;
+		float Time = 0.f;
 	};
-	TRingBuffer<FPose> Poses;
-	float TimeHorizon = 0.0f;
+
+	typedef uint16 FComponentSpaceTransformIndex;
+	TMap<FBoneIndexType, FComponentSpaceTransformIndex> BoneToTransformMap;
+	TRingBuffer<FEntry> Entries;
+	float TimeHorizon = 0.f;
 };
 
 class IPoseHistoryProvider : public UE::Anim::IGraphMessage
@@ -50,7 +45,6 @@ class IPoseHistoryProvider : public UE::Anim::IGraphMessage
 	DECLARE_ANIMGRAPH_MESSAGE(IPoseHistoryProvider);
 public:
 	virtual const FPoseHistory& GetPoseHistory() const = 0;
-	virtual FPoseHistory& GetPoseHistory() = 0;
 };
 
 struct FHistoricalPoseIndex
