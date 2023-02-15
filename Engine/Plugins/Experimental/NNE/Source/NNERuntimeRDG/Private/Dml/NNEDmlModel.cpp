@@ -323,6 +323,7 @@ public:
 		TConstArrayView<int32>		InputIndices;
 		TConstArrayView<int32>		OutputIndices;
 		TConstArrayView<int32>		WeightIndices;
+		TConstArrayView<int32>		ConstantCPUIndices;
 		TConstArrayView<int32>		IntermediateIndices;
 		TConstArrayView<FTensorRDG>	WeightTensors;
 		TConstArrayView<FOpDesc>	Operators;
@@ -546,11 +547,11 @@ private:
 
 		for (int32 Idx = 0; Idx < InGraph.WeightIndices.Num(); ++Idx)
 		{
-			const int32 TensorIdx = InGraph.WeightIndices[Idx];
-			AddInput(TensorIdx);
+			if (InGraph.ConstantCPUIndices.Find(InGraph.WeightIndices[Idx]) == -1)
+			{
+				AddInput(InGraph.WeightIndices[Idx]);
+			}
 		}
-
-		//const int32 OutputIndexStart = InGraph.InputIndices.Num() + InGraph.WeightIndices.Num() + InGraph.IntermediateIndices.Num();
 
 		for (int32 Idx = 0; Idx < InGraph.OutputIndices.Num(); ++Idx)
 		{
@@ -740,6 +741,8 @@ FModel::~FModel()
 //
 bool FModel::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx)
 {
+	ConstantCPUTensorIndices.Reset();
+
 	check(ModelData.Num() > 0);
 	FNNERuntimeFormat	Format;
 	int32 GuidSize = FModelInfo::Get()->GetGuidSize();
@@ -770,16 +773,6 @@ bool FModel::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx)
 		Tensors.Emplace(NNECore::Internal::FTensor::MakeFromSymbolicDesc(TensorDesc));
 	}
 
-	FGraphBuilder				DmlGraphBuilder;
-	FGraphBuilder::FGraphDesc	DmlGraphDesc;
-
-	DmlGraphDesc.AllTensors = Tensors;
-	DmlGraphDesc.InputIndices = InputTensorIndices;
-	DmlGraphDesc.OutputIndices = OutputTensorIndices;
-	DmlGraphDesc.WeightIndices = WeightTensorIndices;
-	DmlGraphDesc.IntermediateIndices = IntermediateTensorIndices;
-	DmlGraphDesc.WeightTensors = WeightTensorRDGs;
-	
 	TArray<FGraphBuilder::FOpDesc>	DmlGraphOperators;
 	TArray<int32>					OpInputIndices;
 	TArray<int32>					OpOutputIndices;
@@ -790,10 +783,10 @@ bool FModel::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx)
 	{
 		const FString TypeName = Format.Operators[Idx].TypeName;
 
-		FGraphBuilder::FOpDesc		OpDesc;
-		TArray<NNECore::Internal::FTensor>				OpInputTensors;
-		TArray<NNECore::Internal::FTensor>				OpOutputTensors;
-		NNECore::FAttributeMap	AttributeMap;
+		FGraphBuilder::FOpDesc					OpDesc;
+		TArray<NNECore::Internal::FTensor>		OpInputTensors;
+		TArray<NNECore::Internal::FTensor>		OpOutputTensors;
+		NNECore::FAttributeMap					AttributeMap;
 
 		OpDesc.InputStart = OpInputIndices.Num();
 		OpDesc.OutputStart = OpOutputIndices.Num();
@@ -839,6 +832,20 @@ bool FModel::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx)
 			return false;
 		}
 
+		// Filter out the constant CPU inputs from the graph node inputs
+		TConstArrayView<int32> OpConstantCPUInputs = OpDesc.Op->GetConstantCPUInputs();
+
+		for (int32 InputIdx = OpConstantCPUInputs.Num() - 1; InputIdx >= 0; --InputIdx)
+		{
+			const int32 ConstIdx = OpConstantCPUInputs[InputIdx];
+			const int32 TensorIdx = OpInputIndices[OpDesc.InputStart + ConstIdx];
+
+			OpInputTensors.RemoveAt(ConstIdx);
+			OpInputIndices.RemoveAt(OpDesc.InputStart + ConstIdx);
+
+			ConstantCPUTensorIndices.Emplace(TensorIdx);
+		}
+
 		OpDesc.InputCount = OpInputTensors.Num();
 		OpDesc.OutputCount = OpOutputTensors.Num();
 		OpDesc.DbgName = TypeName;
@@ -846,6 +853,16 @@ bool FModel::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx)
 		DmlGraphOperators.Emplace(OpDesc);
 	}
 
+	FGraphBuilder				DmlGraphBuilder;
+	FGraphBuilder::FGraphDesc	DmlGraphDesc;
+
+	DmlGraphDesc.AllTensors = Tensors;
+	DmlGraphDesc.InputIndices = InputTensorIndices;
+	DmlGraphDesc.OutputIndices = OutputTensorIndices;
+	DmlGraphDesc.WeightIndices = WeightTensorIndices;
+	DmlGraphDesc.ConstantCPUIndices = ConstantCPUTensorIndices;
+	DmlGraphDesc.IntermediateIndices = IntermediateTensorIndices;
+	DmlGraphDesc.WeightTensors = WeightTensorRDGs;
 	DmlGraphDesc.Operators = DmlGraphOperators;
 	DmlGraphDesc.OpInputIndices = OpInputIndices;
 	DmlGraphDesc.OpOutputIndices = OpOutputIndices;
@@ -929,7 +946,10 @@ bool FModel::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 Tensor
 
 			for (int32 InputIdx : InputTensorIndices)
 			{
-				Inputs.Emplace(nullptr);
+				if (ConstantCPUTensorIndices.Find(InputIdx) == -1)
+				{
+					Inputs.Emplace(nullptr);
+				}
 			}
 
 			TArray<CD3DX12_RESOURCE_BARRIER, TInlineAllocator<MaxNumInputs>>	Barriers;
@@ -943,8 +963,14 @@ bool FModel::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 Tensor
 				uint8*			UploadBuffPtr = static_cast<uint8*>(RHICmdList.LockBuffer(UploadBuff, 0, TensorDataSize, RLM_WriteOnly_NoOverwrite));
 				uint64			UploadOffset = 0;
 
-				for (const FTensorRDG& Tensor : WeightTensorRDGs)
+				for (int32 WeightIdx : WeightTensorIndices)
 				{
+					if (ConstantCPUTensorIndices.Find(WeightIdx) != -1)
+					{
+						continue;
+					}
+
+					const FTensorRDG&		Tensor = WeightTensorRDGs[WeightIdx];
 					TConstArrayView<uint8>	TensorData = Tensor.GetPreparedData<uint8>();
 
 					FBufferRHIRef WeightBuff;
@@ -1051,8 +1077,10 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
 	const ERDGPassFlags TransitionBuffFlags = ERDGPassFlags::Compute | ERDGPassFlags::NeverCull;
 
-	InputBuffers.SetNumUninitialized(InputTensorIndices.Num() + WeightTensorIndices.Num());
-	OutputBuffers.SetNumUninitialized(OutputTensorIndices.Num());
+	InputBuffers.Reset();
+	OutputBuffers.Reset();
+	InputBuffers.Reserve(InputTensorIndices.Num() + WeightTensorIndices.Num());
+	OutputBuffers.Reserve(OutputTensorIndices.Num());
 
 	for (int32 Idx = 0; Idx < InputTensorIndices.Num(); ++Idx)
 	{
@@ -1063,16 +1091,19 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 			RDG_EVENT_NAME("FModel_Dispatch_GetInputBuffer"),
 			Params,
 			TransitionBuffFlags,
-			[this, Idx, Params](FRHICommandListImmediate& RHICmdList)
+			[this, Params](FRHICommandListImmediate& RHICmdList)
 			{
-				InputBuffers[Idx] = Params->Buffer->GetRHI();
+				InputBuffers.Emplace(Params->Buffer->GetRHI());
 			}
 		);
 	}
 
 	for (int32 Idx = 0; Idx < WeightTensorIndices.Num(); ++Idx)
 	{
-		InputBuffers[Idx + InputTensorIndices.Num()] = nullptr;
+		if (ConstantCPUTensorIndices.Find(WeightTensorIndices[Idx]) == -1)
+		{
+			InputBuffers.Emplace(nullptr);
+		}
 	}
 
 	for (int32 Idx = 0; Idx < OutputTensorIndices.Num(); ++Idx)
@@ -1084,9 +1115,9 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 			RDG_EVENT_NAME("FModel_Dispatch_GetOutputBuffer"),
 			Params,
 			TransitionBuffFlags,
-			[this, Idx, Params](FRHICommandListImmediate& RHICmdList)
+			[this, Params](FRHICommandListImmediate& RHICmdList)
 			{
-				OutputBuffers[Idx] = Params->Buffer->GetRHI();
+				OutputBuffers.Emplace(Params->Buffer->GetRHI());
 			}
 		);
 	}

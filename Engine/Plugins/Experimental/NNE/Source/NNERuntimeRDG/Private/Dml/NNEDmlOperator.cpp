@@ -336,6 +336,12 @@ namespace DmlUtil
 //
 // DirectML operator base class
 //
+
+TConstArrayView<int32> FOperatorDml::GetConstantCPUInputs() const
+{
+	return ConstantCPUInputs;
+}
+
 IDMLOperator* FOperatorDml::GetOperator()
 {
 	return DmlOp;

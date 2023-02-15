@@ -84,6 +84,8 @@ private:
 	uint32								DescCount;
 	uint32								DescSize;
 
+	TArray<int32>						ConstantCPUTensorIndices;
+
 	FRHIBufferInputArray				InputBuffers;
 	FRHIBufferOutputArray				OutputBuffers;
 #ifdef NNE_USE_D3D12_RESOURCES

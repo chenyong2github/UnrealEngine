@@ -93,6 +93,8 @@ public:
 
 	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) = 0;
 
+	virtual TConstArrayView<int32> GetConstantCPUInputs() const;
+
 	IDMLOperator* GetOperator();
 
 protected:
@@ -103,6 +105,7 @@ protected:
 	bool CreateOperator(IDMLDevice* Device, const DML_OPERATOR_DESC& DmlOpDesc);
 
 	TComPtr<IDMLOperator>		DmlOp;
+	DmlUtil::FSmallIntArray		ConstantCPUInputs;
 };
 
 /**
