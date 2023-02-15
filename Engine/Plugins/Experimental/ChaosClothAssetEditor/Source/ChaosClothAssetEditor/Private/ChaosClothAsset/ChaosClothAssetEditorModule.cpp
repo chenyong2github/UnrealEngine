@@ -4,7 +4,7 @@
 #include "ChaosClothAsset/ClothEditorMode.h"
 #include "ChaosClothAsset/ClothEditorCommands.h"
 #include "ChaosClothAsset/ClothEditorStyle.h"
-#include "ChaosClothAsset/ClothDataflowNodes.h"
+#include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
 #include "ContentBrowserMenuContexts.h"
 #include "EditorModeRegistry.h"
 #include "Selection.h"
@@ -15,10 +15,10 @@
 
 #define LOCTEXT_NAMESPACE "FChaosClothAssetEditorModule"
 
-using namespace UE::Chaos::ClothAsset;
-
 void FChaosClothAssetEditorModule::StartupModule()
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	FChaosClothAssetEditorStyle::Get(); // Causes the constructor to be called
 
 	FChaosClothAssetEditorCommands::Register();
@@ -27,7 +27,7 @@ void FChaosClothAssetEditorModule::StartupModule()
 	FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
 	IAssetTools& AssetTools = AssetToolsModule.Get();
 
-	Dataflow::RegisterClothDataflowNodes();
+	DataflowNodes::Register();
 
 	// TODO: Register details view customizations
 }

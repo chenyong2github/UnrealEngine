@@ -62,6 +62,9 @@ namespace UE::Chaos::ClothAsset
 		static const FName TethersGroup;  // Tethers information
 		static const FName TetherBatchesGroup;  // Tethers parallel batch processing information
 		static const FName LodsGroup;  // Lod split information
+		static const FName MaterialsGroup;  // Material information
+		static const FName CollisionsGroup;  // Collision information
+		static const FName SkeletonsGroup;  // Skeleton information
 
 		// Sim Vertices Group
 		TManagedArray<FVector2f> SimPosition;
@@ -125,6 +128,15 @@ namespace UE::Chaos::ClothAsset
 		TManagedArray<int32> TetherBatchStart;
 		TManagedArray<int32> TetherBatchEnd;
 		TManagedArray<int32> LodBiasDepth;  // The number of LODs covered by each Sim LOD (for the wrap deformer)
+
+		// Materials Group
+		TManagedArray<FString> MaterialPathName;
+
+		// Collisions Group
+		TManagedArray<FString> PhysicsAssetPathName;
+
+		// Skeletons Group
+		TManagedArray<FString> SkeletonAssetPathName;
 
 	protected:
 		void Construct();

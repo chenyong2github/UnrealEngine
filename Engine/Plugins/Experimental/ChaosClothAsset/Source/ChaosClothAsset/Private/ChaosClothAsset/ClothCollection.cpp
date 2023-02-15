@@ -14,6 +14,9 @@ namespace UE::Chaos::ClothAsset
 	const FName UE::Chaos::ClothAsset::FClothCollection::TethersGroup("Tethers");
 	const FName UE::Chaos::ClothAsset::FClothCollection::TetherBatchesGroup("TetherBatches");
 	const FName UE::Chaos::ClothAsset::FClothCollection::LodsGroup("Lods");
+	const FName UE::Chaos::ClothAsset::FClothCollection::MaterialsGroup("Materials");
+	const FName UE::Chaos::ClothAsset::FClothCollection::CollisionsGroup("CollisionsGroup");
+	const FName UE::Chaos::ClothAsset::FClothCollection::SkeletonsGroup("SkeletonsGroup");
 
 	FClothCollection::FClothCollection()
 	{
@@ -103,6 +106,15 @@ namespace UE::Chaos::ClothAsset
 		AddExternalAttribute<int32>("TetherBatchStart", LodsGroup, TetherBatchStart, TetherBatchesDependency);
 		AddExternalAttribute<int32>("TetherBatchEnd", LodsGroup, TetherBatchEnd, TetherBatchesDependency);
 		AddExternalAttribute<int32>("LodBiasDepth", LodsGroup, LodBiasDepth);
+
+		// Materials Group
+		AddExternalAttribute<FString>("MaterialPathName", MaterialsGroup, MaterialPathName);
+
+		// Collisions Group
+		AddExternalAttribute<FString>("PhysicsAssetPathName", CollisionsGroup, PhysicsAssetPathName);
+		
+		// Skeletons Group
+		AddExternalAttribute<FString>("SkeletonAssetPathName", SkeletonsGroup, SkeletonAssetPathName);
 	}
 
 	int32 FClothCollection::SetNumElements(int32 InNumElements, const FName& GroupName, TManagedArray<int32>& StartArray, TManagedArray<int32>& EndArray, int32 StartEndIndex)

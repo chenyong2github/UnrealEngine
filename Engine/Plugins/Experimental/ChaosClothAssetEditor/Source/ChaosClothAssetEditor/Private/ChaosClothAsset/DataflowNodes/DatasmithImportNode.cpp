@@ -1,76 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosClothAsset/ClothDataflowNodes.h"
-#include "Logging/LogMacros.h"
-#include "GeometryCollection/ManagedArrayCollection.h"
-#include "SourceUri.h"
-#include "ExternalSource.h"
-#include "ExternalSourceModule.h"
+#include "ChaosClothAsset/DataflowNodes/DatasmithImportNode.h"
+#include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
+#include "ChaosClothAsset/ClothCollection.h"
+#include "ChaosClothAsset/ClothAsset.h"
 #include "DatasmithImportContext.h"
 #include "DatasmithImportFactory.h"
-#include "ChaosClothAsset/ClothAsset.h"
-#include "ChaosClothAsset/ClothCollection.h"
+#include "ExternalSource.h"
+#include "ExternalSourceModule.h"
+#include "SourceUri.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothDataflowNodes)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DatasmithImportNode)
 
-#define LOCTEXT_NAMESPACE "ClothDataflowNodes"
+#define LOCTEXT_NAMESPACE "ChaosClothAssetDatasmithImportNode"
 
-namespace Dataflow
-{
-	void RegisterClothDataflowNodes()
-	{
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FClothAssetTerminalDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FClothAssetDatasmithImportNode);
-	}
-}
-
-FClothAssetTerminalDataflowNode::FClothAssetTerminalDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid) :
-	FDataflowTerminalNode(InParam, InGuid)
-{
-	RegisterInputConnection(&Collection);
-	RegisterOutputConnection(&Collection, &Collection);
-}
-
-
-void FClothAssetTerminalDataflowNode::SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const
-{
-	if (UChaosClothAsset* const ClothAsset = Cast<UChaosClothAsset>(Asset.Get()))
-	{
-		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		if (InCollection.HasGroup(UE::Chaos::ClothAsset::FClothCollection::LodsGroup))  // TODO: SkeletalMeshRenderData crashes with empty collection
-		{
-			ClothAsset->GetClothCollection()->Reset();
-			
-			InCollection.CopyTo(ClothAsset->GetClothCollection().Get());
-
-			// Set the render mesh to duplicate the sim mesh
-			constexpr int32 MaterialId = 0;	
-			
-			ClothAsset->CopySimMeshToRenderMesh(MaterialId);  // TODO: Make this a node (needs to make cloth collection an adapter)
-
-			// Rebuild the asset static data
-			ClothAsset->Build();
-		}
-	}
-}
-
-void FClothAssetTerminalDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-	SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
-}
-
-FClothAssetDatasmithImportNode::FClothAssetDatasmithImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
-	: FDataflowNode(InParam, InGuid),
-	DestPackageName("/Game/ClothAsset")
+FChaosClothAssetDatasmithImportNode::FChaosClothAssetDatasmithImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FDataflowNode(InParam, InGuid)
+	, DestPackageName("/Game/ClothAsset")
 {
 	RegisterInputConnection(&DatasmithFile);
 	RegisterInputConnection(&DestPackageName);
 	RegisterOutputConnection(&Collection);
 }
 
-
-bool FClothAssetDatasmithImportNode::EvaluateImpl(Dataflow::FContext& Context, FManagedArrayCollection& OutCollection) const
+bool FChaosClothAssetDatasmithImportNode::EvaluateImpl(Dataflow::FContext& Context, FManagedArrayCollection& OutCollection) const
 {
 	using namespace UE::DatasmithImporter;
 
@@ -135,7 +88,7 @@ bool FClothAssetDatasmithImportNode::EvaluateImpl(Dataflow::FContext& Context, F
 	return false;
 }
 
-void FClothAssetDatasmithImportNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+void FChaosClothAssetDatasmithImportNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	FManagedArrayCollection OutCollection;
 	const bool bSuccess = EvaluateImpl(Context, OutCollection);

@@ -50,6 +50,7 @@ public class ChaosClothAssetEditor : ModuleRules
 				"ClothingSystemEditorInterface",
 				"ClothingSystemRuntimeInterface",
 				"Chaos",
+				"ChaosCloth",
 				"ChaosClothAsset",
 				"ChaosClothAssetEngine",
 				"ClothingSystemEditor",

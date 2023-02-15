@@ -11,7 +11,17 @@ namespace UE::Chaos::ClothAsset
 	 */
 	struct CHAOSCLOTHASSET_API FClothGeometryTools
 	{
+		/** Delete the render mesh data. */
+		static void DeleteRenderMesh(const TSharedPtr<FClothCollection>& ClothCollection);
+
 		/** Turn the sim mesh portion of this ClothCollection into a render mesh. */
 		static void CopySimMeshToRenderMesh(const TSharedPtr<FClothCollection>& ClothCollection, int32 MaterialIndex);
+
+		/** Reverse the mesh normals. Will reverse all normals if pattern selection is empty. */
+		static void ReverseNormals(
+			const TSharedPtr<FClothCollection>& ClothCollection,
+			bool bReverseSimMeshNormals,
+			bool bReverseRenderMeshNormals,
+			const TArray<int32>& PatternSelection);
 	};
 }  // End namespace UE::Chaos::ClothAsset

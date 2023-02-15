@@ -6,6 +6,25 @@
 
 namespace UE::Chaos::ClothAsset
 {
+	void FClothGeometryTools::DeleteRenderMesh(const TSharedPtr<FClothCollection>& ClothCollection)
+	{
+		FClothAdapter ClothAdapter(ClothCollection);
+
+		for (int32 LodIndex = 0; LodIndex < ClothAdapter.GetNumLods(); ++LodIndex)
+		{
+			FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
+
+			for (int32 PatternIndex = ClothLodAdapter.GetNumPatterns() - 1; PatternIndex >= 0 ; --PatternIndex)  // Use a reverse order to avoid having to move previous elements
+			{
+				FClothPatternAdapter ClothPatternAdapter = ClothLodAdapter.GetPattern(PatternIndex);
+				ClothPatternAdapter.SetNumRenderVertices(0);
+				ClothPatternAdapter.SetNumRenderFaces(0);
+			}
+		}
+		// TODO: Add Materials functions to cloth adapter
+		ClothCollection->EmptyGroup(FClothCollection::MaterialsGroup);
+	}
+
 	void FClothGeometryTools::CopySimMeshToRenderMesh(const TSharedPtr<FClothCollection>& ClothCollection, int32 MaterialIndex)
 	{
 		FClothAdapter ClothAdapter(ClothCollection);
@@ -100,11 +119,73 @@ namespace UE::Chaos::ClothAsset
 				for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 				{
 					RenderPosition[VertexIndex] = SimRestPosition[VertexIndex];
-					RenderNormal[VertexIndex] = SimRestNormal[VertexIndex];
+					RenderNormal[VertexIndex] = -SimRestNormal[VertexIndex];  // Simulation normals use reverse normals
 					RenderUVs[VertexIndex] = { SimPosition[VertexIndex] * UVInvScale };
 					RenderColor[VertexIndex] = FLinearColor::White;
 					RenderTangentU[VertexIndex].Normalize();
 					RenderTangentV[VertexIndex].Normalize();
+				}
+			}
+		}
+	}
+
+	void FClothGeometryTools::ReverseNormals(
+		const TSharedPtr<FClothCollection>& ClothCollection,
+		bool bReverseSimMeshNormals,
+		bool bReverseRenderMeshNormals,
+		const TArray<int32>& PatternSelection)
+	{
+		auto ReverseSimNormals = [](const TArrayView<FVector3f>& SimRestNormal)
+			{
+				for (int32 VertexIndex = 0; VertexIndex < SimRestNormal.Num(); ++VertexIndex)
+				{
+					SimRestNormal[VertexIndex] = -SimRestNormal[VertexIndex];
+				}
+			};
+		auto ReverseRenderNormals = [](const TArrayView<FVector3f>& RenderNormal, const TArrayView<FVector3f>& RenderTangentU)
+		{
+			check(RenderNormal.Num() == RenderTangentU.Num())
+			for (int32 VertexIndex = 0; VertexIndex < RenderNormal.Num(); ++VertexIndex)
+			{
+				RenderNormal[VertexIndex] = -RenderNormal[VertexIndex];      // Equivalent of rotating the normal basis
+				RenderTangentU[VertexIndex] = -RenderTangentU[VertexIndex];  // around tangent V
+			}
+		};
+
+		FClothAdapter ClothAdapter(ClothCollection);
+
+		for (int32 LodIndex = 0; LodIndex < ClothAdapter.GetNumLods(); ++LodIndex)
+		{
+			FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
+
+			if (PatternSelection.IsEmpty())
+			{
+				if (bReverseSimMeshNormals)
+				{
+					ReverseSimNormals(ClothLodAdapter.GetPatternsSimRestNormal());
+				}
+				if (bReverseRenderMeshNormals)
+				{
+					ReverseRenderNormals(ClothLodAdapter.GetPatternsRenderNormal(), ClothLodAdapter.GetPatternsRenderTangentU());
+				}
+			}
+			else
+			{
+				for (int32 PatternIndex = 0; PatternIndex < ClothLodAdapter.GetNumPatterns(); ++PatternIndex)
+				{
+					if (PatternSelection.Find(PatternIndex) != INDEX_NONE)
+					{
+						FClothPatternAdapter ClothPatternAdapter = ClothLodAdapter.GetPattern(PatternIndex);
+
+						if (bReverseSimMeshNormals)
+						{
+							ReverseSimNormals(ClothPatternAdapter.GetSimRestNormal());
+						}
+						if (bReverseRenderMeshNormals)
+						{
+							ReverseRenderNormals(ClothPatternAdapter.GetRenderNormal(), ClothPatternAdapter.GetRenderTangentU());
+						}
+					}
 				}
 			}
 		}
