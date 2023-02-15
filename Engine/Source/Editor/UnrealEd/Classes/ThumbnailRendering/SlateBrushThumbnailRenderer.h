@@ -14,6 +14,7 @@
 
 class FCanvas;
 class FRenderTarget;
+struct FSlateBrush;
 
 UCLASS(config=Editor,MinimalAPI)
 class USlateBrushThumbnailRenderer : public UDefaultSizedThumbnailRenderer
