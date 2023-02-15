@@ -23,7 +23,7 @@ class UMaterialExpressionSparseVolumeTextureObject : public UMaterialExpressionS
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override { return MCT_SparseVolumeTexture; }
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	//~ End UMaterialExpression Interface
 #endif // WITH_EDITOR
 };
@@ -37,7 +37,7 @@ class UMaterialExpressionSparseVolumeTextureTextureObjectParameter : public UMat
 #if WITH_EDITOR
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override { return MCT_SparseVolumeTexture; }
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual const TArray<FExpressionInput*> GetInputs() override;
 #endif
 	//~ End UMaterialExpression Interface

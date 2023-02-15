@@ -25911,6 +25911,11 @@ void UMaterialExpressionSparseVolumeTextureObject::GetCaption(TArray<FString>& O
 	OutCaptions.Add(TEXT("SparseVolumeTexture Object"));
 }
 
+uint32 UMaterialExpressionSparseVolumeTextureObject::GetOutputType(int32 OutputIndex)
+{
+	return MCT_SparseVolumeTexture;
+}
+
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -25960,6 +25965,11 @@ int32 UMaterialExpressionSparseVolumeTextureTextureObjectParameter::Compile(clas
 
 	int32 TextureReferenceIndex = INDEX_NONE;
 	return Compiler->SparseVolumeTextureParameter(ParameterName, SparseVolumeTexture, TextureReferenceIndex, SAMPLERTYPE_LinearColor);
+}
+
+uint32 UMaterialExpressionSparseVolumeTextureTextureObjectParameter::GetOutputType(int32 OutputIndex)
+{
+	return MCT_SparseVolumeTexture;
 }
 
 const TArray<FExpressionInput*> UMaterialExpressionSparseVolumeTextureTextureObjectParameter::GetInputs()
