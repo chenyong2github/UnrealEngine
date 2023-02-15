@@ -146,6 +146,11 @@ set(LIBNAME SDL2)
 if(NOT LIBTYPE)
   set(LIBTYPE SHARED)
 endif()
+# EG BEGIN
+message(STATUS "*** UE_LOG CMAKE_SIZEOF_VOID_P: ${CMAKE_SIZEOF_VOID_P}")
+message(STATUS "*** UE_LOG PROCESSOR_ARCH: ${PROCESSOR_ARCH}")
+message(STATUS "*** UE_LOG LIBTYPE: ${LIBTYPE}")
+# EG END
 
 # Get the platform
 if(WIN32)
@@ -196,6 +201,12 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "BeOS.*")
 elseif(CMAKE_SYSTEM_NAME MATCHES "Haiku.*")
   set(HAIKU TRUE)
 endif()
+# EG BEGIN
+message(STATUS "*** UE_LOG WINDOWS: ${WINDOWS}")
+message(STATUS "*** UE_LOG LINUX: ${LINUX}")
+message(STATUS "*** UE_LOG UNIX: ${UNIX}")
+message(STATUS "*** UE_LOG CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
+# EG END
 
 # Don't mistake osx for unix
 if(UNIX AND NOT ANDROID AND NOT APPLE AND NOT RISCOS)
@@ -222,6 +233,11 @@ if (UNIX_OR_MAC_SYS AND NOT EMSCRIPTEN)
 else()
   set(SDL_PTHREADS_ENABLED_BY_DEFAULT OFF)
 endif()
+# EG BEGIN
+message(STATUS "*** UE_LOG UNIX_SYS: ${UNIX_SYS}")
+message(STATUS "*** UE_LOG UNIX_OR_MAC_SYS: ${UNIX_OR_MAC_SYS}")
+message(STATUS "*** UE_LOG PROCESSOR_ARCH: ${PROCESSOR_ARCH}")
+# EG END
 
 if(UNIX_SYS OR ANDROID)
   set(SDL_CLOCK_GETTIME_ENABLED_BY_DEFAULT ON)
@@ -279,6 +295,10 @@ endif()
 if(UNIX OR MINGW OR MSYS OR (USE_CLANG AND NOT WINDOWS) OR VITA OR PSP OR PS2)
   set(OPT_DEF_LIBC ON)
 endif()
+# EG BEGIN
+message(STATUS "*** UE_LOG OPT_DEF_LIBC: ${OPT_DEF_LIBC}")
+message(STATUS "*** UE_LOG OPT_DEF_SSEMATH: ${OPT_DEF_SSEMATH}")
+# EG END
 
 if(NOT ("$ENV{CFLAGS}" STREQUAL ""))
   if(CMAKE_VERSION VERSION_LESS 3.11.0)
@@ -504,6 +524,10 @@ dep_option(SDL_HIDAPI_LIBUSB       "Use libusb for low level joystick drivers" O
 dep_option(SDL_HIDAPI_JOYSTICK     "Use HIDAPI for low level joystick drivers" ON SDL_HIDAPI OFF)
 dep_option(SDL_VIRTUAL_JOYSTICK    "Enable the virtual-joystick driver" ON SDL_HIDAPI OFF)
 set_option(SDL_ASAN                "Use AddressSanitizer to detect memory errors" OFF)
+
+# EG BEGIN
+set_option(EPIC_EXTENSIONS         "Enable Epic extensions for Unreal Engine" ON)
+# EG END
 
 set(SDL_SHARED ${SDL_SHARED_ENABLED_BY_DEFAULT} CACHE BOOL "Build a shared version of the library")
 set(SDL_STATIC ${SDL_STATIC_ENABLED_BY_DEFAULT} CACHE BOOL "Build a static version of the library")
@@ -2669,6 +2693,11 @@ elseif(OS2)
     CheckHIDAPI()
   endif()
 endif()
+
+# EG BEGIN
+# conditionally enable extensions for Unreal Engine
+EnableEpicExtensions()
+# EG END
 
 if(HAVE_VULKAN AND NOT SDL_LOADSO)
   message(STATUS "Vulkan support is available, but disabled because there's no loadso.")
