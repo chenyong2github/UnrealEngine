@@ -58,10 +58,9 @@ struct FAnalyticsEventAttribute;
  * 
  * Basic Setup:
  * 
- * [Core.ContentVirtualization]
+ * [Core.VirtualizationModule]
  * FilterMode=OptIn/OptOut					When 'OptIn' payloads will be virtualized by default, when 'OptOut' they will not be virtualized by default
  * FilterMapContent=True/False				When true any payload stored in a .umap or _BuildData.uasset file will be excluded from virtualization
- * LazyInitConnections=True/False			When true the backends will not try to make their connections until first used.
  * 
  * PackagePath Setup:
  * 
@@ -77,6 +76,36 @@ struct FAnalyticsEventAttribute;
  * +ExcludePackagePaths="/MountPoint/PathTo/ThePackageToExclude"	Excludes the specific package '/MountPoint/PathTo/ThePackageToExclude' from the virtualization process
  * +IncludePackagePaths="/MountPoint/PathToInclude/"				Includes any package found under '/MountPoint/PathToInclude/' in the virtualization process
  * +IncludePackagePaths="/MountPoint/PathTo/ThePackageToInclude"	Includes the specific package '/MountPoint/PathTo/ThePackageToInclude' in the virtualization process
+ */
+
+/*
+ * FVirtualizationManager
+ * 
+ * Ini file setup:
+ * 
+ * EnablePayloadVirtualization [bool]:			When true the virtualization process will be enabled (usually when a package is submitted
+												to revision control. [Default=true]
+ * EnableCacheOnPull [bool]:					When true payloads will be pushed to cached storage after being pulled from persistent
+ *												storage. [Default=true]
+ * EnableCacheOnPush [bool]:					When true payloads will be pushed to cached storage right before being pushed to persistent
+ *												storage. [Default=true]
+ * MinPayloadLength  [int64]:					The minimum length (in bytes) that a payload must reach before it can be considered for
+ *												virtualization. Use this to strike a balance between disk space and the number of smaller
+												payloads in your project being virtualized. [Default=0]
+ * BackendGraph [string]:						The name of the backend graph to use. The default graph has no backends and effectively
+												disables the system. It is expected that a project will define the graph that it wants
+												and then set this option [Default=ContentVirtualizationBackendGraph_None]
+ * VirtualizationProcessTag [string]:			The tag to be applied to any set of packages that have had  the virtualization process run
+ *												on them. Typically this means appending the tag to the description of a changelist of 
+ *												packages. This value can be set to an empty string. [Default="#virtualized"]
+ * AllowSubmitIfVirtualizationFailed [bool]:	Revision control submits that trigger the virtualization system can either allow or block
+ *												the submit if the virtualization process fails based on this value. True will allow a
+ *												submit with an error to continue and false will block the submit. Note that by error we mean
+ *												that the packages were not virtualized, not that bad data was produced. [Default=false]
+ * LazyInitConnections [bool]:					When true, backends will not attempt to connect to their services until actually required.
+ *												This can remove lengthy connection steps from the process init phase and then only connect
+ *												if we actually need that service. Note that if this is true then the connection can come from
+ *												any thread, so custom backend code will need to take that into account. [Default=false]
  */
 
 namespace UE::Virtualization
@@ -214,8 +243,22 @@ private:
 	/** Are packages allowed to be virtualized when submitted to source control. Defaults to true. */
 	bool bAllowPackageVirtualization;
 
-	/** Should payloads be cached locally after being pulled from persistent storage? Defaults to true. */
-	bool bEnableCacheAfterPull;
+	enum ECachingPolicy
+	{
+		/** Never push payloads to cached storage */
+		None = 0,
+		/** Cache payloads after they have been pulled from persistent storage */
+		CacheOnPull = 1 << 0,
+		/** Cache payloads right before they are pushed to persistent storage */
+		CacheOnPush = 1 << 1,
+
+		AlwaysCache = CacheOnPull | CacheOnPush
+	};
+
+	FRIEND_ENUM_CLASS_FLAGS(ECachingPolicy);
+
+	/** A bitfield describing when we push payloads to cached storage. */
+	ECachingPolicy CachingPolicy;
 
 	/** The minimum length for a payload to be considered for virtualization. Defaults to 0 bytes. */
 	int64 MinPayloadLength;

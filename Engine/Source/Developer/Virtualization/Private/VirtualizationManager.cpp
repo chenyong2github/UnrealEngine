@@ -22,9 +22,12 @@
 
 #define LOCTEXT_NAMESPACE "Virtualization"
 
+
 namespace UE::Virtualization
 {
 UE_REGISTER_VIRTUALIZATION_SYSTEM(UE::Virtualization::FVirtualizationManager, Default);
+
+ENUM_CLASS_FLAGS(FVirtualizationManager::ECachingPolicy);
 
 // Can be defined as 1 by programs target.cs files force the backend connections
 // to lazy initialize on first use rather than when the system is initialized.
@@ -466,7 +469,7 @@ namespace Profiling
 
 FVirtualizationManager::FVirtualizationManager()
 	: bAllowPackageVirtualization(true)
-	, bEnableCacheAfterPull(true)
+	, CachingPolicy(ECachingPolicy::AlwaysCache)
 	, MinPayloadLength(0)
 	, BackendGraphName(TEXT("ContentVirtualizationBackendGraph_None"))
 	, VirtualizationProcessTag(TEXT("#virtualized"))
@@ -555,7 +558,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		case EStorageType::Local:
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		case EStorageType::Cache:
-			return !CacheStorageBackends.IsEmpty();
+			return !CacheStorageBackends.IsEmpty() && EnumHasAllFlags(CachingPolicy, ECachingPolicy::CacheOnPush);
 			break;
 
 		case EStorageType::Persistent:
@@ -1016,16 +1019,50 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		}
 	}
 
-	bool bEnableCacheAfterPullFromIni = false;
-	if (ConfigFile.GetBool(LegacyConfigSection, TEXT("EnableCacheAfterPull"), bEnableCacheAfterPullFromIni) ||
-		ConfigFile.GetBool(ConfigSection, TEXT("EnableCacheAfterPull"), bEnableCacheAfterPullFromIni))
 	{
-		bEnableCacheAfterPull = bEnableCacheAfterPullFromIni;
-		UE_LOG(LogVirtualization, Display, TEXT("\tCachePulledPayloads : %s"), bEnableCacheAfterPull ? TEXT("true") : TEXT("false"));
+		bool bEnableCacheAfterPullFromIni = false;
+		if (ConfigFile.GetBool(LegacyConfigSection, TEXT("EnableCacheAfterPull"), bEnableCacheAfterPullFromIni) ||
+			ConfigFile.GetBool(ConfigSection, TEXT("EnableCacheAfterPull"), bEnableCacheAfterPullFromIni))
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("\tEnableCacheAfterPull is now deprecated replace with 'EnableCacheOnPull=True|False'"));
+			if (!bEnableCacheAfterPullFromIni)
+			{
+				EnumRemoveFlags(CachingPolicy, ECachingPolicy::CacheOnPull);
+			}
+		}
+
+		bool bCacheOnPullFromIni = true;
+		if (ConfigFile.GetBool(ConfigSection, TEXT("EnableCacheOnPull"), bCacheOnPullFromIni))
+		{
+			if (!bCacheOnPullFromIni)
+			{
+				EnumRemoveFlags(CachingPolicy, ECachingPolicy::CacheOnPull);
+			}
+
+			UE_LOG(LogVirtualization, Display, TEXT("\tEnableCacheOnPull : %s"),
+				EnumHasAllFlags(CachingPolicy, ECachingPolicy::CacheOnPull) ? TEXT("true") : TEXT("false"));
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].EnableCacheOnPull from config file!"));
+		}
 	}
-	else
+
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].EnableCacheAfterPull from config file!"));
+		bool bCacheOnPushFromIni = true;
+		if (ConfigFile.GetBool(ConfigSection, TEXT("EnableCacheOnPush"), bCacheOnPushFromIni))
+		{
+			if (!bCacheOnPushFromIni)
+			{
+				EnumRemoveFlags(CachingPolicy, ECachingPolicy::CacheOnPush);
+			}
+			UE_LOG(LogVirtualization, Display, TEXT("\tEnableCacheOnPush : %s"), 
+				EnumHasAllFlags(CachingPolicy, ECachingPolicy::CacheOnPush) ? TEXT("true") : TEXT("false"));
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].EnableCacheOnPush from config file!"));
+		}
 	}
 
 	int64 MinPayloadLengthFromIni = 0;
@@ -1097,7 +1134,6 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		}
 	}
 
-	// Optional
 	bool bFilterMapContentFromIni = false;
 	if (ConfigFile.GetBool(ConfigSection, TEXT("FilterMapContent"), bFilterMapContentFromIni))
 	{
@@ -1123,7 +1159,6 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		}	
 	}
 
-	// Optional
 	bool bAllowSubmitIfVirtualizationFailedFromIni = true;
 	if (ConfigFile.GetBool(ConfigSection, TEXT("AllowSubmitIfVirtualizationFailed"), bAllowSubmitIfVirtualizationFailedFromIni))
 	{
@@ -1135,7 +1170,6 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].AllowSubmitIfVirtualizationFailed from config file!"));
 	}
 
-	// Optional
 #if UE_VIRTUALIZATION_CONNECTION_LAZY_INIT == 0
 	bool bLazyInitConnectionsFromIni = true;
 	if (ConfigFile.GetBool(ConfigSection, TEXT("LazyInitConnections"), bLazyInitConnectionsFromIni))
@@ -1860,7 +1894,9 @@ void FVirtualizationManager::PullDataFromAllBackends(TArrayView<FPullRequest> Re
 
 		PullDataFromBackend(*Backend, RequestsCollection.GetRequests());
 
-		TArray<FPushRequest> PayloadsToCache = RequestsCollection.OnPullCompleted(*Backend, bEnableCacheAfterPull);
+		const bool bShouldCache = EnumHasAllFlags(CachingPolicy, ECachingPolicy::CacheOnPull);
+
+		TArray<FPushRequest> PayloadsToCache = RequestsCollection.OnPullCompleted(*Backend, bShouldCache);
 		if (!PayloadsToCache.IsEmpty())
 		{
 			CachePayloads(PayloadsToCache, Backend);
