@@ -2219,6 +2219,7 @@ bool FNaniteVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPe
 void FNaniteVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
 	OutEnvironment.SetDefine(TEXT("IS_NANITE_SHADING_PASS"), 1);
 	OutEnvironment.SetDefine(TEXT("IS_NANITE_PASS"), 1);
 	OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 1);
@@ -2227,9 +2228,7 @@ void FNaniteVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShad
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
 	OutEnvironment.SetDefine(TEXT("NANITE_COMPUTE_SHADE"), 1);
 
-	// Get data from GPUSceneParameters rather than View.
-	// TODO: Profile this vs view uniform buffer path
-	//OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+	OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 }
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FNaniteVertexFactory, "/Engine/Private/Nanite/NaniteVertexFactory.ush",
