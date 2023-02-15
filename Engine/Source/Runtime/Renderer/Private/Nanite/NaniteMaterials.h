@@ -483,6 +483,7 @@ struct FShadeBinning
 	FRDGBufferRef ShadingBinMeta  = nullptr;
 	FRDGBufferRef ShadingBinArgs  = nullptr;
 	FRDGBufferRef ShadingBinQuads = nullptr;
+	FRDGBufferRef ShadingBinStats = nullptr;
 };
 
 void EmitDepthTargets(

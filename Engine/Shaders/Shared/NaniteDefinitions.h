@@ -248,6 +248,9 @@ struct FNaniteStats
 	UINT_TYPE NumEmptyRasterBins;
 	UINT_TYPE NumTotalShadingBins;
 	UINT_TYPE NumEmptyShadingBins;
+	UINT_TYPE NumShadedQuads;
+	UINT_TYPE NumShadedPixels;
+	UINT_TYPE NumHelperLanes;
 };
 
 struct FNanitePickingFeedback

@@ -20,7 +20,6 @@ uint ShadingBinCount;
 #endif
 
 #define GATHER4_OPTIMIZATION 0
-#define STATS_SAMPLE_COUNT 0
 
 #if SHADING_BIN_SCATTER && VARIABLE_SHADING_RATE
 uint ShadingRateTileSize;
@@ -143,14 +142,14 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 			const uint BinQuadCount = WaveActiveCountBits(Coverage != 0u);
 
 	#if SHADING_BIN_COUNT
-		#if STATS_SAMPLE_COUNT
+		#if GATHER_STATS
 			const uint SampleCount  = countbits(Coverage);
 			const uint BinSampleCount = WaveActiveSum(SampleCount);
 		#endif
 			if (WaveIsFirstLane())
 			{
 				InterlockedAdd(OutShadingBinMeta[CurrentBin].x, BinQuadCount);
-			#if STATS_SAMPLE_COUNT
+			#if GATHER_STATS
 				InterlockedAdd(OutShadingBinMeta[CurrentBin].y, BinSampleCount);
 			#endif
 			}
@@ -175,6 +174,14 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 
 #elif SHADING_BIN_RESERVE
 
+#if GATHER_STATS
+// .x = total quad count
+// .y = total pixel count
+// .z = total helper count
+// .w = unused
+RWStructuredBuffer<uint4> OutShadingBinStats;
+#endif
+
 [numthreads(64, 1, 1)]
 void ShadingBinReserveCS(uint ShadingBin : SV_DispatchThreadID)
 {
@@ -194,6 +201,20 @@ void ShadingBinReserveCS(uint ShadingBin : SV_DispatchThreadID)
 
 		// Includes helper lanes
 		const uint BinPixelCount = BinQuadCount * 4u;
+
+	#if GATHER_STATS
+		const uint BinSampleCount		= OutShadingBinMeta[ShadingBin].y;
+		const uint BinHelperCount		= BinPixelCount - BinSampleCount;
+		const uint WaveBinQuadCount		= WaveActiveSum(BinQuadCount);
+		const uint WaveBinPixelCount	= WaveActiveSum(BinPixelCount);
+		const uint WaveBinHelperCount	= WaveActiveSum(BinHelperCount);
+		if (WaveIsFirstLane())
+		{
+			InterlockedAdd(OutShadingBinStats[0].x, WaveBinQuadCount);
+			InterlockedAdd(OutShadingBinStats[0].y, WaveBinPixelCount);
+			InterlockedAdd(OutShadingBinStats[0].z, WaveBinHelperCount);
+		}
+	#endif
 
 		OutShadingBinArgs[ArgsOffset + 0] = (BinPixelCount + 63u) / 64u;	// ThreadGroupCountX
 		OutShadingBinArgs[ArgsOffset + 1] = 1;								// ThreadGroupCountY

@@ -138,6 +138,8 @@ extern int32 GNaniteIsolateInvalidCoarseMesh;
 
 extern int32 GNaniteShowDrawEvents;
 
+extern int32 GNaniteShowStats;
+
 #if WANTS_DRAW_MESH_EVENTS
 static FORCEINLINE const TCHAR* GetShadingMaterialName(const FMaterialRenderProxy* InShadingMaterial)
 {
@@ -476,11 +478,23 @@ class FShadingBinBuildCS : public FNaniteGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FShadingBinBuildCS, FNaniteGlobalShader);
 
 	class FBuildPassDim : SHADER_PERMUTATION_SPARSE_INT("SHADING_BIN_PASS", NANITE_SHADING_BIN_COUNT, NANITE_SHADING_BIN_SCATTER);
-	using FPermutationDomain = TShaderPermutationDomain<FBuildPassDim>;
+	class FGatherStatsDim : SHADER_PERMUTATION_BOOL("GATHER_STATS");
+	using FPermutationDomain = TShaderPermutationDomain<FBuildPassDim, FGatherStatsDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
+		if (!DoesPlatformSupportNanite(Parameters.Platform))
+		{
+			return false;
+		}
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FGatherStatsDim>() && PermutationVector.Get<FBuildPassDim>() != NANITE_SHADING_BIN_COUNT)
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -508,6 +522,9 @@ class FShadingBinReserveCS : public FNaniteGlobalShader
 	DECLARE_GLOBAL_SHADER(FShadingBinReserveCS);
 	SHADER_USE_PARAMETER_STRUCT(FShadingBinReserveCS, FNaniteGlobalShader);
 
+	class FGatherStatsDim : SHADER_PERMUTATION_BOOL("GATHER_STATS");
+	using FPermutationDomain = TShaderPermutationDomain<FGatherStatsDim>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportNanite(Parameters.Platform);
@@ -521,6 +538,7 @@ class FShadingBinReserveCS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, ShadingBinCount)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FUintVector4>, OutShadingBinStats)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FUintVector4>, OutShadingBinMeta)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutShadingBinAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutShadingBinArgs)
@@ -2935,6 +2953,8 @@ FShadeBinning ShadeBinning(
 		return Binning;
 	}
 
+	const bool bGatherStats = GNaniteShowStats != 0;
+
 	const FUintVector4 ViewRect = FUintVector4(uint32(View.ViewRect.Min.X), uint32(View.ViewRect.Min.Y), uint32(View.ViewRect.Max.X), uint32(View.ViewRect.Max.Y));
 
 	const uint32 PixelCount = View.ViewRect.Width() * View.ViewRect.Height();
@@ -2945,16 +2965,21 @@ FShadeBinning ShadeBinning(
 	const FIntVector QuadDispatchDim = FComputeShaderUtils::GetGroupCount(FIntPoint(QuadWidth, QuadHeight), FIntPoint(8u, 8u));
 	const FIntVector  BinDispatchDim = FComputeShaderUtils::GetGroupCount(ShadingBinCount, 64u);
 
-	Binning.ShadingBinMeta  = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FUint32Vector4), FMath::RoundUpToPowerOfTwo(ShadingBinCount)), TEXT("Nanite.ShadingBinMeta"));
-	Binning.ShadingBinArgs  = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(0xFFFFu * 4u /* XYZ and Padding */), TEXT("Nanite.ShadingBinArgs"));
-	Binning.ShadingBinQuads = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PixelCount), TEXT("Nanite.ShadingBinQuads"));
+	Binning.ShadingBinMeta   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FUint32Vector4), FMath::RoundUpToPowerOfTwo(ShadingBinCount)), TEXT("Nanite.ShadingBinMeta"));
+	Binning.ShadingBinArgs   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(0xFFFFu * 4u /* XYZ and Padding */), TEXT("Nanite.ShadingBinArgs"));
+	Binning.ShadingBinQuads  = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PixelCount), TEXT("Nanite.ShadingBinQuads"));
+	Binning.ShadingBinStats  = bGatherStats ? GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FUint32Vector4), 1u), TEXT("Nanite.ShadingBinStats")) : nullptr;
 
-	FRDGBufferUAVRef ShadingBinMetaUAV = GraphBuilder.CreateUAV(Binning.ShadingBinMeta);
-	FRDGBufferUAVRef ShadingBinArgsUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Binning.ShadingBinArgs, PF_R32_UINT));
+	FRDGBufferUAVRef ShadingBinMetaUAV  = GraphBuilder.CreateUAV(Binning.ShadingBinMeta);
+	FRDGBufferUAVRef ShadingBinArgsUAV  = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Binning.ShadingBinArgs, PF_R32_UINT));
 	FRDGBufferUAVRef ShadingBinQuadsUAV = GraphBuilder.CreateUAV(Binning.ShadingBinQuads);
+	FRDGBufferUAVRef ShadingBinStatsUAV = bGatherStats ? GraphBuilder.CreateUAV(Binning.ShadingBinStats) : nullptr;
 
 	AddClearUAVPass(GraphBuilder, ShadingBinMetaUAV, 0);
-	//AddClearUAVPass(GraphBuilder, ShadingBinArgsUAV, 0);
+	if (bGatherStats)
+	{
+		AddClearUAVPass(GraphBuilder, ShadingBinStatsUAV, 0);
+	}
 
 	// Shading Bin Count
 	{
@@ -2971,6 +2996,7 @@ FShadeBinning ShadeBinning(
 
 		FShadingBinBuildCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FShadingBinBuildCS::FBuildPassDim>(NANITE_SHADING_BIN_COUNT);
+		PermutationVector.Set<FShadingBinBuildCS::FGatherStatsDim>(bGatherStats);
 		auto ComputeShader = View.ShaderMap->GetShader<FShadingBinBuildCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -2993,8 +3019,11 @@ FShadeBinning ShadeBinning(
 		PassParameters->OutShadingBinMeta = ShadingBinMetaUAV;
 		PassParameters->OutShadingBinAllocator = ShadingBinAllocatorUAV;
 		PassParameters->OutShadingBinArgs = ShadingBinArgsUAV;
+		PassParameters->OutShadingBinStats = ShadingBinStatsUAV;
 
-		auto ComputeShader = View.ShaderMap->GetShader<FShadingBinReserveCS>();
+		FShadingBinReserveCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FShadingBinReserveCS::FGatherStatsDim>(bGatherStats);
+		auto ComputeShader = View.ShaderMap->GetShader<FShadingBinReserveCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -3022,6 +3051,7 @@ FShadeBinning ShadeBinning(
 
 		FShadingBinBuildCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FShadingBinBuildCS::FBuildPassDim>(NANITE_SHADING_BIN_SCATTER);
+		PermutationVector.Set<FShadingBinBuildCS::FGatherStatsDim>(false);
 		auto ComputeShader = View.ShaderMap->GetShader<FShadingBinBuildCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
