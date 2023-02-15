@@ -2612,7 +2612,12 @@ namespace UnrealGameSync
 			foundLatestChangeTypes.Add(LatestChangeType.LatestGoodChange());
 			foundLatestChangeTypes.Add(LatestChangeType.LatestStarredChange());
 
-			string[] latestChangeTypeDefinitions = _perforceMonitor.LatestProjectConfigFile.GetValues("Sync.LatestChangeType", new string[0]);
+			ConfigFile configFile = _perforceMonitor.LatestProjectConfigFile;
+
+			List<string> latestChangeTypeDefinitions = new List<string>();
+			latestChangeTypeDefinitions.AddRange(configFile.GetValues("Sync.LatestChangeType", Array.Empty<string>()));
+			ConfigUtils.GetProjectSettings(configFile, SelectedProjectIdentifier, "LatestChangeType", latestChangeTypeDefinitions);
+
 			foreach (string latestChangeDefinition in latestChangeTypeDefinitions.Distinct())
 			{
 				LatestChangeType? newType;

@@ -517,6 +517,33 @@ namespace UnrealGameSync
 			return false;
 		}
 
+		public static void GetProjectSettings(ConfigFile projectConfigFile, string selectedProjectIdentifier, string name, List<string> values)
+		{
+			string path = selectedProjectIdentifier;
+			for (; ; )
+			{
+				ConfigSection? projectSection = projectConfigFile.FindSection(path);
+				if (projectSection != null)
+				{
+					values.AddRange(projectSection.GetValues(name, Array.Empty<string>()));
+				}
+
+				int lastSlash = path.LastIndexOf('/');
+				if (lastSlash < 2)
+				{
+					break;
+				}
+
+				path = path.Substring(0, lastSlash);
+			}
+
+			ConfigSection? defaultSection = projectConfigFile.FindSection("Default");
+			if (defaultSection != null)
+			{
+				values.AddRange(defaultSection.GetValues(name, Array.Empty<string>()));
+			}
+		}
+
 		public static Dictionary<Guid, WorkspaceSyncCategory> GetSyncCategories(ConfigFile projectConfigFile)
 		{
 			Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToCategory = new Dictionary<Guid, WorkspaceSyncCategory>();
