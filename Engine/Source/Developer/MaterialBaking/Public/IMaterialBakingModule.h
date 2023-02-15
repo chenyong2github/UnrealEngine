@@ -30,6 +30,12 @@ public:
 	/** Bakes out material properties according to extended MaterialSettings using MeshSettings and stores the output in Output */
 	virtual void BakeMaterials(const TArray<FMaterialDataEx*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutputEx>& Output) = 0;
 
+	/** Bakes out material properties according to MaterialSettings using MeshSettings and stores the output in Output */
+	virtual void BakeMaterials(const TArray<FMaterialData*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, FBakeOutput& Output) = 0;
+
+	/** Bakes out material properties according to extended MaterialSettings using MeshSettings and stores the output in Output */
+	virtual void BakeMaterials(const TArray<FMaterialDataEx*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, FBakeOutputEx& Output) = 0;
+
 	/** Promps a slate window to allow the user to populate specific material baking settings used while baking out materials */
 	virtual  bool SetupMaterialBakeSettings(TArray<TWeakObjectPtr<UObject>>& OptionObjects, int32 NumLODs) = 0;
 

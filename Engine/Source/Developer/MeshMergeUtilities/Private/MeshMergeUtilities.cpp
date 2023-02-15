@@ -850,17 +850,8 @@ FIntPoint FMeshMergeUtilities::ConditionalImageResize(const FIntPoint& SrcSize, 
 
 void FMeshMergeUtilities::MergeFlattenedMaterials(TArray<struct FFlattenMaterial>& InMaterialList, int32 InGutter, FFlattenMaterial& OutMergedMaterial, TArray<FUVOffsetScalePair>& OutUVTransforms) const
 {
-	OutUVTransforms.Reserve(InMaterialList.Num());
-
 	// Fill output UV transforms with invalid values
-	for (auto& Material : InMaterialList)
-	{
-		// Invalid UV transform
-		FUVOffsetScalePair UVTransform;
-		UVTransform.Key = FVector2D::ZeroVector;
-		UVTransform.Value = FVector2D::ZeroVector;
-		OutUVTransforms.Add(UVTransform);
-	}
+	OutUVTransforms.SetNumZeroed(InMaterialList.Num());
 
 	const int32 AtlasGridSize = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(InMaterialList.Num())));
 	OutMergedMaterial.EmissiveScale = FlattenEmissivescale(InMaterialList);
@@ -979,7 +970,9 @@ void FMeshMergeUtilities::MergeFlattenedMaterials(TArray<struct FFlattenMaterial
 
 void FMeshMergeUtilities::FlattenBinnedMaterials(TArray<struct FFlattenMaterial>& InMaterialList, const TArray<FBox2D>& InMaterialBoxes, int32 InGutter, bool bCopyOnlyMaskedPixels, FFlattenMaterial& OutMergedMaterial, TArray<FUVOffsetScalePair>& OutUVTransforms) const
 {
-	OutUVTransforms.AddZeroed(InMaterialList.Num());
+	// Fill output UV transforms with invalid values
+	OutUVTransforms.SetNumZeroed(InMaterialList.Num());
+
 	// Flatten emissive scale across all incoming materials
 	OutMergedMaterial.EmissiveScale = FlattenEmissivescale(InMaterialList);
 
@@ -2962,7 +2955,18 @@ void FMeshMergeUtilities::CreateMergedMaterial(FMeshMergeDataTracker& InDataTrac
 	{
 		TArray<FBakeOutput> BakeOutputs;
 		IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("MaterialBaking");
-		Module.BakeMaterials(MaterialSettingPtrs, MeshSettingPtrs, BakeOutputs);
+
+		// If we're working with a new set of UVs, we can bake all materials directly to the same bake output
+		// as our remapped UVs for each mesh don't overlap.
+		if (bGloballyRemapUVs)
+		{
+			FBakeOutput& BakeOutput = BakeOutputs.Emplace_GetRef();
+			Module.BakeMaterials(MaterialSettingPtrs, MeshSettingPtrs, BakeOutput);
+		}
+		else
+		{
+			Module.BakeMaterials(MaterialSettingPtrs, MeshSettingPtrs, BakeOutputs);
+		}
 
 		// Append constant properties ?
 		TArray<FColor> ConstantData;
@@ -3018,6 +3022,9 @@ void FMeshMergeUtilities::CreateMergedMaterial(FMeshMergeDataTracker& InDataTrac
 		}
 
 		FlattenBinnedMaterials(FlattenedMaterials, MaterialBoxes, 0, true, OutFlattenMaterial, UVTransforms);
+
+		static const FUVOffsetScalePair NoUVTransform = { FVector2D::Zero(), FVector2D::One() };
+		UVTransforms.Init(NoUVTransform, GlobalMaterialSettings.Num());
 	}
 	else
 	{
