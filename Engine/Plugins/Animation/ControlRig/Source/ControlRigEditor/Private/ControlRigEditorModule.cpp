@@ -766,8 +766,6 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 					WeakSequencer.Pin()->SelectSection(ParamSection);
 					WeakSequencer.Pin()->ThrobSectionSelection();
 					WeakSequencer.Pin()->ObjectImplicitlyAdded(ControlRig);
-					FText Name = LOCTEXT("SequenceTrackFilter_ControlRigControls", "Control Rig Controls");
-					WeakSequencer.Pin()->SetTrackFilterEnabled(Name, true);
 					WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 					FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 					if (!ControlRigEditMode)
