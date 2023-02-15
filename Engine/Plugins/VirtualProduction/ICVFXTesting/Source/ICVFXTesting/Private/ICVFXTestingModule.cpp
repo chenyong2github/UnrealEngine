@@ -3,4 +3,4 @@
 #include "Modules/ModuleManager.h"
 #include "ICVFXTestControllerAutoTest.h"
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, ICVFXTestingModule);
+IMPLEMENT_MODULE(FDefaultModuleImpl, ICVFXTesting);
