@@ -4796,13 +4796,11 @@ int32 ALandscape::PerformLayersHeightmapsGlobalMerge(const FUpdateLayersContentC
 	// Calculate Top Left Lambda
 	auto GetUniqueHeightmaps = [&](const TArray<ULandscapeComponent*>& InLandscapeComponents, TArray<FHeightmapCopyInfo>& OutHeightmaps, const FIntPoint& LandscapeBaseQuads, const FGuid& InLayerGuid = FGuid())
 	{
-		FScopedSetLandscapeEditingLayer Scope(this, InLayerGuid);
-
 		const int32 ComponentSizeQuad = SubsectionSizeQuads * NumSubsections;
 		const int32 ComponentSizeVerts = (SubsectionSizeQuads + 1) * NumSubsections;
 		for (ULandscapeComponent* Component : InLandscapeComponents)
 		{
-			UTexture2D* ComponentHeightmap = Component->GetHeightmap(true);
+			UTexture2D* ComponentHeightmap = Component->GetHeightmap(InLayerGuid);
 
 			int32 Index = OutHeightmaps.IndexOfByPredicate([=](const FHeightmapCopyInfo& LayerHeightmap) { return LayerHeightmap.Texture == ComponentHeightmap; });
 
@@ -9342,7 +9340,7 @@ bool ALandscape::IsEditingLayerReservedForSplines() const
 	if (CanHaveLayersContent())
 	{
 		const FLandscapeLayer* SplinesReservedLayer = GetLandscapeSplinesReservedLayer();
-		return SplinesReservedLayer && SplinesReservedLayer->Guid == EditingLayer;
+		return SplinesReservedLayer && SplinesReservedLayer->Guid == GetEditingLayer();
 	}
 	return false;
 }

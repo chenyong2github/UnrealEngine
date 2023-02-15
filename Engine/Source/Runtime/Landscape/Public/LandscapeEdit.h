@@ -160,8 +160,17 @@ private:
 
 struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataInterface
 {
-	// tor
+	// this constructor will build an interface that works in the current edit layer (uses the ALandscape PrivateEditingLayer state)
 	FLandscapeEditDataInterface(ULandscapeInfo* InLandscape, bool bInUploadTextureChangesToGPU = true);
+
+	// this constructor will build an interface that works in the specified edit layer : InEditLayerGUID
+	FLandscapeEditDataInterface(ULandscapeInfo* InLandscape, const FGuid& InEditLayerGUID, bool bInUploadTextureChangesToGPU = true);
+
+	// switch the layer this interface works in
+	void SetEditLayer(const FGuid& InEditLayerGUID);
+
+	// returns the current layer this interface is working in
+	FGuid GetEditLayer() const;
 
 	// Misc
 	bool GetComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2, TSet<ULandscapeComponent*>* OutComponents = NULL);
@@ -230,7 +239,8 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 	void FillLayer(ULandscapeLayerInfoObject* LayerInfo);
 	// Fill all empty layers and re-normalize layers
 	void FillEmptyLayers(ULandscapeLayerInfoObject* LayerInfo);
-	// Replace/merge a layer
+	
+	// Replace/merge a layer (across all edit layers and the main runtime layer)
 	void ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo);
 
 	template<typename TStoreData>
@@ -296,6 +306,10 @@ private:
 	FVector DrawScale;
 
 	ULandscapeInfo* LandscapeInfo;
+	
+	// if true, we use the LandscapeActor->PrivateEditingLayer, otherwise we use the LocalEditLayerGUID specified below
+	bool bUseSharedLandscapeEditLayer;
+	FGuid LocalEditLayerGUID;
 
 	void FillLayer(ULandscapeLayerInfoObject* LayerInfo, bool bEmptyLayersOnly);
 
@@ -387,6 +401,16 @@ struct FHeightmapAccessor
 	{
 		LandscapeInfo = InLandscapeInfo;
 		LandscapeEdit = new FLandscapeEditDataInterface(InLandscapeInfo);
+	}
+
+	void SetEditLayer(const FGuid& InEditLayerGUID)
+	{
+		LandscapeEdit->SetEditLayer(InEditLayerGUID);
+	}
+
+	FGuid GetEditLayer() const
+	{
+		return LandscapeEdit->GetEditLayer();
 	}
 
 	// accessors
@@ -604,6 +628,16 @@ struct FAlphamapAccessor
 	void Flush()
 	{
 		LandscapeEdit.Flush();
+	}
+
+	void SetEditLayer(const FGuid& InEditLayerGUID)
+	{
+		LandscapeEdit.SetEditLayer(InEditLayerGUID);
+	}
+	
+	FGuid GetEditLayer() const
+	{
+		return LandscapeEdit.GetEditLayer();
 	}
 
 private:

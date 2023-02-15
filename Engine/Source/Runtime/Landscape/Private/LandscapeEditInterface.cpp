@@ -32,6 +32,8 @@ extern const size_t ChannelOffsets[4] = {STRUCT_OFFSET(FColor,R), STRUCT_OFFSET(
 //
 FLandscapeEditDataInterface::FLandscapeEditDataInterface(ULandscapeInfo* InLandscapeInfo, bool bInUploadTextureChangesToGPU)
 	: FLandscapeTextureDataInterface(bInUploadTextureChangesToGPU)
+	, bUseSharedLandscapeEditLayer(true)
+	, LocalEditLayerGUID()
 {
 	if (InLandscapeInfo)
 	{
@@ -41,6 +43,43 @@ FLandscapeEditDataInterface::FLandscapeEditDataInterface(ULandscapeInfo* InLands
 		ComponentNumSubsections = InLandscapeInfo->ComponentNumSubsections;
 		DrawScale				= InLandscapeInfo->DrawScale;
 	}
+}
+
+
+FLandscapeEditDataInterface::FLandscapeEditDataInterface(ULandscapeInfo* InLandscapeInfo, const FGuid& InEditLayerGUID, bool bInUploadTextureChangesToGPU)
+	: FLandscapeTextureDataInterface(bInUploadTextureChangesToGPU),
+	bUseSharedLandscapeEditLayer(false),
+	LocalEditLayerGUID(InEditLayerGUID)
+
+{
+	if (InLandscapeInfo)
+	{
+		LandscapeInfo = InLandscapeInfo;
+		ComponentSizeQuads = InLandscapeInfo->ComponentSizeQuads;
+		SubsectionSizeQuads = InLandscapeInfo->SubsectionSizeQuads;
+		ComponentNumSubsections = InLandscapeInfo->ComponentNumSubsections;
+		DrawScale = InLandscapeInfo->DrawScale;
+	}
+}
+
+void FLandscapeEditDataInterface::SetEditLayer(const FGuid& InEditLayerGUID)
+{
+	bUseSharedLandscapeEditLayer = false;
+	LocalEditLayerGUID = InEditLayerGUID;
+}
+
+FGuid FLandscapeEditDataInterface::GetEditLayer() const
+{
+	if (bUseSharedLandscapeEditLayer)
+	{
+		FGuid LandscapeEditLayerGuid;
+		if ((LandscapeInfo != nullptr) && LandscapeInfo->LandscapeActor.IsValid())
+		{
+			LandscapeEditLayerGuid = LandscapeInfo->LandscapeActor->GetEditingLayer();
+		}
+		return LandscapeEditLayerGuid;
+	}
+	return LocalEditLayerGUID;
 }
 
 FLandscapeTextureDataInterface::FLandscapeTextureDataInterface(bool bInUploadTextureChangesToGPU)
@@ -295,7 +334,7 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 				}
 			}
 
-			UTexture2D* Heightmap = InHeightmap != nullptr ? InHeightmap : Component->GetHeightmap(true);
+			UTexture2D* Heightmap = InHeightmap != nullptr ? InHeightmap : Component->GetHeightmap(GetEditLayer());
 			UTexture2D* XYOffsetmapTexture = InXYOffsetmapTexture != nullptr ? InXYOffsetmapTexture : ToRawPtr(Component->XYOffsetmapTexture);
 
 			Component->Modify(GetShouldDirtyPackage());
@@ -487,6 +526,11 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 void FLandscapeEditDataInterface::RecalculateNormals()
 {
 	if (!LandscapeInfo) return;
+
+	// we should only ever be calculating normals on the final runtime layer.
+	// if this gets hit, then we are wasting time calculating them on edit layers.
+	ensure(!GetEditLayer().IsValid());
+
 	// Recalculate normals for each component in turn
 	for( auto It = LandscapeInfo->XYtoComponentMap.CreateIterator(); It; ++It )
 	{
@@ -533,12 +577,13 @@ void FLandscapeEditDataInterface::RecalculateNormals()
 		}
 
 		// Find the texture data corresponding to this vertex
-		int32 SizeU = Component->GetHeightmap(true)->Source.GetSizeX();
-		int32 SizeV = Component->GetHeightmap(true)->Source.GetSizeY();
+		UTexture2D* EditHeightmap = Component->GetHeightmap(GetEditLayer());
+		int32 SizeU = EditHeightmap->Source.GetSizeX();
+		int32 SizeV = EditHeightmap->Source.GetSizeY();
 		int32 HeightmapOffsetX = static_cast<int32>(Component->HeightmapScaleBias.Z * SizeU);
 		int32 HeightmapOffsetY = static_cast<int32>(Component->HeightmapScaleBias.W * SizeV);
 
-		FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(Component->GetHeightmap(true));
+		FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(EditHeightmap);
 		FColor* HeightmapTextureData = (FColor*)TexDataInfo->GetMipData(0);
 
 		// Apply vertex normals to the component
@@ -615,7 +660,7 @@ void FLandscapeEditDataInterface::GetHeightDataTemplFast(const int32 X1, const i
 				continue;
 			}
 
-			UTexture2D* Heightmap = InHeightmap != nullptr ? InHeightmap : Component->GetHeightmap(true);
+			UTexture2D* Heightmap = InHeightmap != nullptr ? InHeightmap : Component->GetHeightmap(GetEditLayer());
 
 			FLandscapeTextureDataInfo* TexDataInfo = NULL;
 			FColor* HeightmapTextureData = NULL;
@@ -959,19 +1004,21 @@ void FLandscapeEditDataInterface::CalcMissingValues(const int32& X1, const int32
 
 FColor& FLandscapeEditDataInterface::GetHeightMapColor(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData)
 {
+	UTexture2D* Heightmap = Component->GetHeightmap(GetEditLayer());
 	check(Component);
 	if (!TextureData)
 	{
-		FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(Component->GetHeightmap(true));
+		FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(Heightmap);
 		TextureData = (FColor*)TexDataInfo->GetMipData(0);	
 	}
 
 	// All Heightmaps of component have the same texture size
-	const FTextureSource& HeightmapTextureSource = Component->GetHeightmap()->Source;
+	const FTextureSource& HeightmapTextureSource = Heightmap->Source;
 	const int32 SizeU = HeightmapTextureSource.GetSizeX();
 	const int32 SizeV = HeightmapTextureSource.GetSizeY();
 	const int32 HeightmapOffsetX = static_cast<int32>(Component->HeightmapScaleBias.Z * SizeU);
 	const int32 HeightmapOffsetY = static_cast<int32>(Component->HeightmapScaleBias.W * SizeV);
+
 
 	const int32 TexX = HeightmapOffsetX + TexU;
 	const int32 TexY = HeightmapOffsetY + TexV;
@@ -1049,7 +1096,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 
 			if( Component )
 			{
-				TexDataInfo = GetTextureDataInfo(Component->GetHeightmap(true));
+				TexDataInfo = GetTextureDataInfo(Component->GetHeightmap(GetEditLayer()));
 				HeightmapTextureData = (FColor*)TexDataInfo->GetMipData(0);
 				ComponentDataExist[ComponentIndexXY] = true;
 				// Update valid region
@@ -1086,7 +1133,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 						if (BorderComponent[0])
 						{
 							NoBorderX1 = false;
-							NeighborTexDataInfo[0] = GetTextureDataInfo(BorderComponent[0]->GetHeightmap(true));
+							NeighborTexDataInfo[0] = GetTextureDataInfo(BorderComponent[0]->GetHeightmap(GetEditLayer()));
 							NeighborHeightmapTextureData[0] = (FColor*)NeighborTexDataInfo[0]->GetMipData(0);
 							break;
 						}
@@ -1102,7 +1149,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 						if (BorderComponent[1])
 						{
 							NoBorderX2 = false;
-							NeighborTexDataInfo[1] = GetTextureDataInfo(BorderComponent[1]->GetHeightmap(true));
+							NeighborTexDataInfo[1] = GetTextureDataInfo(BorderComponent[1]->GetHeightmap(GetEditLayer()));
 							NeighborHeightmapTextureData[1] = (FColor*)NeighborTexDataInfo[1]->GetMipData(0);
 							break;
 						}
@@ -1118,7 +1165,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 						if (BorderComponent[2])
 						{
 							NoBorderY1[ComponentIndexXX] = false;
-							NeighborTexDataInfo[2] = GetTextureDataInfo(BorderComponent[2]->GetHeightmap(true));
+							NeighborTexDataInfo[2] = GetTextureDataInfo(BorderComponent[2]->GetHeightmap(GetEditLayer()));
 							NeighborHeightmapTextureData[2] = (FColor*)NeighborTexDataInfo[2]->GetMipData(0);
 							break;
 						}
@@ -1129,7 +1176,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 					BorderComponent[2] = BorderComponentY1[ComponentIndexXX];
 					if (BorderComponent[2])
 					{
-						NeighborTexDataInfo[2] = GetTextureDataInfo(BorderComponent[2]->GetHeightmap(true));
+						NeighborTexDataInfo[2] = GetTextureDataInfo(BorderComponent[2]->GetHeightmap(GetEditLayer()));
 						NeighborHeightmapTextureData[2] = (FColor*)NeighborTexDataInfo[2]->GetMipData(0);
 					}
 				}
@@ -1143,7 +1190,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 						if (BorderComponent[3])
 						{
 							NoBorderY2[ComponentIndexXX] = false;
-							NeighborTexDataInfo[3] = GetTextureDataInfo(BorderComponent[3]->GetHeightmap(true));
+							NeighborTexDataInfo[3] = GetTextureDataInfo(BorderComponent[3]->GetHeightmap(GetEditLayer()));
 							NeighborHeightmapTextureData[3] = (FColor*)NeighborTexDataInfo[3]->GetMipData(0);
 							break;
 						}
@@ -1154,7 +1201,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 					BorderComponent[3] = BorderComponentY2[ComponentIndexXX];
 					if (BorderComponent[3])
 					{
-						NeighborTexDataInfo[3] = GetTextureDataInfo(BorderComponent[3]->GetHeightmap(true));
+						NeighborTexDataInfo[3] = GetTextureDataInfo(BorderComponent[3]->GetHeightmap(GetEditLayer()));
 						NeighborHeightmapTextureData[3] = (FColor*)NeighborTexDataInfo[3]->GetMipData(0);
 					}
 				}
@@ -1587,15 +1634,15 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	DeleteLayerInternal(LayerInfo, LandscapeEdit, EditLayerGuid);
 }
 
-void ULandscapeComponent::DeleteLayerInternal(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit, const FGuid &EditLayerGuid)
+void ULandscapeComponent::DeleteLayerInternal(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit, const FGuid& InEditLayerGuid)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeComponent_DeleteLayer);
 
 	ULandscapeComponent* Component = this;
 	
 	// This can be called during WeightmapFixup, so skip checking for updated weightmap allocations
-	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(EditLayerGuid);
-	const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(EditLayerGuid);
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(InEditLayerGuid);
+	const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(InEditLayerGuid);
 
 	// Delete the first LayerAllocation with a matching LayerInfo
 	const int32 DeleteAllocIdx = ComponentWeightmapLayerAllocations.IndexOfByPredicate(
@@ -1606,7 +1653,7 @@ void ULandscapeComponent::DeleteLayerInternal(ULandscapeLayerInfoObject* LayerIn
 		return;
 	}
 
-	Component->DeleteLayerAllocation(EditLayerGuid, DeleteAllocIdx, LandscapeEdit.GetShouldDirtyPackage());
+	Component->DeleteLayerAllocation(InEditLayerGuid, DeleteAllocIdx, LandscapeEdit.GetShouldDirtyPackage());
 
 	// See if the deleted layer is a NoWeightBlend layer - if not, we don't have to worry about normalization
 	// If the layer doesn't exist, assume it is a blended layer (so renormalization will run whether needed or not)
@@ -1761,7 +1808,7 @@ void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerIn
 	for (auto& XYComponentPair : LandscapeInfo->XYtoComponentMap)
 	{
 		ULandscapeComponent* Component = XYComponentPair.Value;
-		Component->DeleteLayer(LayerInfo, *this);
+		Component->DeleteLayerInternal(LayerInfo, *this, GetEditLayer());
 	}
 
 	if (LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor->HasLayersContent())
@@ -1782,6 +1829,8 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 
 	ULandscapeComponent* Component = this;
 
+	FGuid EditLayerGuid = LandscapeEdit.GetEditLayer();
+
 	ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
 	Component->Modify(LandscapeEdit.GetShouldDirtyPackage());
 	Proxy->Modify(LandscapeEdit.GetShouldDirtyPackage());
@@ -1789,9 +1838,9 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	const bool bFillLayerIsNoWeightBlend = LayerInfo->bNoWeightBlend;
 	bool bClearOtherWeightBlendLayers = !bFillLayerIsNoWeightBlend;
 
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
-	TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
-	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = Component->GetWeightmapTexturesUsage(true);
+	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(EditLayerGuid);
+	TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(EditLayerGuid);
+	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = Component->GetWeightmapTexturesUsage(EditLayerGuid);
 
 	// Find the index for this layer in this component.
 	int32 FillLayerIdx = ComponentWeightmapLayerAllocations.IndexOfByPredicate(
@@ -1819,7 +1868,7 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	{
 		FillLayerIdx = ComponentWeightmapLayerAllocations.Num();
 		ComponentWeightmapLayerAllocations.Add(FWeightmapLayerAllocationInfo(LayerInfo));
-		Component->ReallocateWeightmaps(&LandscapeEdit);
+		Component->ReallocateWeightmapsInternal(&LandscapeEdit, EditLayerGuid);
 	}
 
 	check(FillLayerIdx != INDEX_NONE);
@@ -1988,7 +2037,7 @@ void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo
 	for (auto& XYComponentPair : LandscapeInfo->XYtoComponentMap)
 	{
 		ULandscapeComponent* Component = XYComponentPair.Value;
-		const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
+		const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(GetEditLayer());
 
 		bool LayerNeedFilling = true;
 
@@ -2024,15 +2073,20 @@ void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo
 
 void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo, FLandscapeEditDataInterface& LandscapeEdit)
 {
+	ReplaceLayerInternal(FromLayerInfo, ToLayerInfo, LandscapeEdit, GetEditingLayerGUID());
+}
+
+void ULandscapeComponent::ReplaceLayerInternal(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo, FLandscapeEditDataInterface& LandscapeEdit, const FGuid& InEditLayerGUID)
+{
 	check(FromLayerInfo && ToLayerInfo);
 	if (FromLayerInfo == ToLayerInfo)
 	{
 		return;
 	}
 
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(true);
-	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(true);
-	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(true);
+	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InEditLayerGUID);
+	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InEditLayerGUID);
+	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InEditLayerGUID);
 
 	// Find the index for this layer in this component.
 	int32 FromLayerIdx = INDEX_NONE;
@@ -2249,12 +2303,12 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 {
 	if (!LandscapeInfo) return;
 
-	auto DoReplace = [&]()
+	auto DoReplace = [&](const FGuid& EditLayerGuid)
 	{
 		for (auto It = LandscapeInfo->XYtoComponentMap.CreateIterator(); It; ++It)
 		{
 			ULandscapeComponent* Component = It.Value();
-			Component->ReplaceLayer(FromLayerInfo, ToLayerInfo, *this);
+			Component->ReplaceLayerInternal(FromLayerInfo, ToLayerInfo, *this, EditLayerGuid);
 		}
 	};
 
@@ -2268,14 +2322,15 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 			{
 				CurrentLayer.WeightmapLayerAllocationBlend.Add(ToLayerInfo, OutValue);
 			}
-			FScopedSetLandscapeEditingLayer Scope(LandscapeInfo->LandscapeActor.Get(), CurrentLayer.Guid);
-			DoReplace();
+
+			DoReplace(CurrentLayer.Guid);
 		});
 		LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Weightmap_All);
 	}
 	else
 	{
-		DoReplace();
+		FGuid BaseLayerGuid;
+		DoReplace(BaseLayerGuid);
 	}
 }
 
@@ -2424,7 +2479,7 @@ namespace
 	}
 };
 
-bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* const TexDataPtr, int32 TexSize, int32 LayerIdx, bool bShouldDirtyPackage)
+bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const FGuid& InEditLayerGuid, const uint8* const TexDataPtr, int32 TexSize, int32 LayerIdx, bool bShouldDirtyPackage)
 {
 	// Check the data for the entire component and to see if it's all zero
 	for (int32 TexY = 0; TexY < TexSize; TexY++)
@@ -2442,7 +2497,7 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 		}
 	}
 
-	Component->DeleteLayerAllocation(Component->GetEditingLayerGUID(), LayerIdx, bShouldDirtyPackage);
+	Component->DeleteLayerAllocation(InEditLayerGuid, LayerIdx, bShouldDirtyPackage);
 
 	return true;
 }
@@ -2530,8 +2585,8 @@ inline TMap<const ULandscapeLayerInfoObject*, uint32> FLandscapeEditDataInterfac
 	TMap<const ULandscapeLayerInfoObject*, uint32> LayerInfluenceMap;
 
 	ULandscapeComponent* Component = LandscapeInfo->XYtoComponentMap.FindChecked(FIntPoint(ComponentIndexX,ComponentIndexY));
-	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
-	const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(GetEditLayer());
+	const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(GetEditLayer());
 
 	// used if InOptionalLayerDataPtrs is null
 	TArray<FLandscapeTextureDataInfo*, TInlineAllocator<2>> InternalTexDataInfos;
@@ -2733,7 +2788,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 
 			Component->Modify(GetShouldDirtyPackage());
 
-			TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
+			TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(GetEditLayer());
 			int32 UpdateLayerIdx = ComponentWeightmapLayerAllocations.IndexOfByPredicate([LayerInfo](const FWeightmapLayerAllocationInfo& Allocation){ return Allocation.LayerInfo == LayerInfo; });
 
 			// Need allocation for weightmap
@@ -2804,7 +2859,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 
 				UpdateLayerIdx = ComponentWeightmapLayerAllocations.Num();
 				new (ComponentWeightmapLayerAllocations) FWeightmapLayerAllocationInfo(LayerInfo);
-				Component->ReallocateWeightmaps(this);
+				Component->ReallocateWeightmapsInternal(this, GetEditLayer());
 
 				if (!Component->GetLandscapeProxy()->HasLayersContent())
 				{
@@ -2819,7 +2874,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 
 			// Lock data for all the weightmaps
 			TexDataInfos.Reset();
-			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
+			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(GetEditLayer());
 			TexDataInfos.AddUninitialized(ComponentWeightmapTextures.Num());
 
 			for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); ++WeightmapIdx)
@@ -3133,7 +3188,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 			{
 				if (LayerEditDataAllZero[LayerIdx])
 				{
-					bool bLayerDeleted = DeleteLayerIfAllZero(Component, LayerDataPtrs[LayerIdx], TexSize, LayerIdx, GetShouldDirtyPackage());
+					bool bLayerDeleted = DeleteLayerIfAllZero(Component, GetEditLayer(), LayerDataPtrs[LayerIdx], TexSize, LayerIdx, GetShouldDirtyPackage());
 
 					if (bLayerDeleted)
 					{
@@ -3222,7 +3277,7 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 
 			NeedAllocationInfos.Reset();
 
-			TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
+			TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(GetEditLayer());
 
 			for (ULandscapeLayerInfoObject* LayerInfo : DirtyLayerInfos)
 			{
@@ -3258,7 +3313,7 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 						}
 						ComponentWeightmapLayerAllocations.Emplace(LayerInfoNeedingAllocation);
 					}
-					Component->ReallocateWeightmaps(this);
+					Component->ReallocateWeightmapsInternal(this, GetEditLayer());
 					
 					if (!Component->GetLandscapeProxy()->HasLayersContent())
 					{
@@ -3272,7 +3327,7 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 
 			// Lock data for all the weightmaps
 			TexDataInfos.Reset();
-			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
+			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(GetEditLayer());
 			TexDataInfos.AddUninitialized(ComponentWeightmapTextures.Num());
 
 			for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); ++WeightmapIdx)
@@ -3422,7 +3477,7 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 			{
 				if (LayerEditDataAllZero[LayerIdx])
 				{
-					bool bLayerDeleted = DeleteLayerIfAllZero(Component, LayerDataInfos[LayerIdx].TexDataPtr, TexSize, LayerIdx, GetShouldDirtyPackage());
+					bool bLayerDeleted = DeleteLayerIfAllZero(Component, GetEditLayer(), LayerDataInfos[LayerIdx].TexDataPtr, TexSize, LayerIdx, GetShouldDirtyPackage());
 
 					if (bLayerDeleted)
 					{
@@ -3474,8 +3529,8 @@ void FLandscapeEditDataInterface::GetWeightDataTemplFast(ULandscapeLayerInfoObje
 			uint8 WeightmapChannelOffset = 0;
 			TArray<FLandscapeTextureDataInfo*> TexDataInfos; // added for whole weight case...
 
-			const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
-			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
+			const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(GetEditLayer());
+			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(GetEditLayer());
 
 			if (LayerInfo != NULL)
 			{
@@ -3600,8 +3655,8 @@ uint8 FLandscapeEditDataInterface::GetWeightMapData(const ULandscapeComponent* C
 	{
 		if (LayerInfo != NULL)
 		{
-			const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
-			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
+			const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(GetEditLayer());
+			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(GetEditLayer());
 
 			for( int32 LayerIdx=0;LayerIdx<ComponentWeightmapLayerAllocations.Num();LayerIdx++ )
 			{
@@ -3688,11 +3743,11 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 		
 			if( Component )
 			{
-				const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
+				const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(GetEditLayer());
 
 				if (LayerInfo != NULL)
 				{
-					const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
+					const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(GetEditLayer());
 
 					for( int32 LayerIdx=0;LayerIdx<ComponentWeightmapLayerAllocations.Num();LayerIdx++ )
 					{
@@ -3759,8 +3814,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 							NoBorderX1 = false;
 							if (LayerInfo != NULL)
 							{
-								const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[0]->GetWeightmapLayerAllocations(true);
-								const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[0]->GetWeightmapTextures(true);
+								const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[0]->GetWeightmapLayerAllocations(GetEditLayer());
+								const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[0]->GetWeightmapTextures(GetEditLayer());
 
 								for( int32 LayerIdx=0;LayerIdx<BorderWeightmapLayerAllocations.Num();LayerIdx++ )
 								{
@@ -3790,8 +3845,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 							NoBorderX2 = false;
 							if (LayerInfo != NULL)
 							{
-								const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[1]->GetWeightmapLayerAllocations(true);
-								const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[1]->GetWeightmapTextures(true);
+								const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[1]->GetWeightmapLayerAllocations(GetEditLayer());
+								const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[1]->GetWeightmapTextures(GetEditLayer());
 
 								for( int32 LayerIdx=0;LayerIdx<BorderWeightmapLayerAllocations.Num();LayerIdx++ )
 								{
@@ -3820,8 +3875,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 							NoBorderY1[ComponentIndexXX] = false;
 							if (LayerInfo != NULL)
 							{
-								const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[2]->GetWeightmapLayerAllocations(true);
-								const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[2]->GetWeightmapTextures(true);
+								const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[2]->GetWeightmapLayerAllocations(GetEditLayer());
+								const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[2]->GetWeightmapTextures(GetEditLayer());
 
 								for( int32 LayerIdx=0;LayerIdx<BorderWeightmapLayerAllocations.Num();LayerIdx++ )
 								{
@@ -3845,8 +3900,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 					{
 						if (LayerInfo != NULL)
 						{
-							const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[2]->GetWeightmapLayerAllocations(true);
-							const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[2]->GetWeightmapTextures(true);
+							const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[2]->GetWeightmapLayerAllocations(GetEditLayer());
+							const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[2]->GetWeightmapTextures(GetEditLayer());
 
 							for( int32 LayerIdx=0;LayerIdx<BorderWeightmapLayerAllocations.Num();LayerIdx++ )
 							{
@@ -3874,8 +3929,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 							NoBorderY2[ComponentIndexXX] = false;
 							if (LayerInfo != NULL)
 							{
-								const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[3]->GetWeightmapLayerAllocations(true);
-								const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[3]->GetWeightmapTextures(true);
+								const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[3]->GetWeightmapLayerAllocations(GetEditLayer());
+								const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[3]->GetWeightmapTextures(GetEditLayer());
 
 								for( int32 LayerIdx=0;LayerIdx<BorderWeightmapLayerAllocations.Num();LayerIdx++ )
 								{
@@ -3900,8 +3955,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 					{
 						if (LayerInfo != NULL)
 						{
-							const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[3]->GetWeightmapLayerAllocations(true);
-							const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[3]->GetWeightmapTextures(true);
+							const TArray<FWeightmapLayerAllocationInfo>& BorderWeightmapLayerAllocations = BorderComponent[3]->GetWeightmapLayerAllocations(GetEditLayer());
+							const TArray<UTexture2D*>& BorderWeightmapTextures = BorderComponent[3]->GetWeightmapTextures(GetEditLayer());
 
 							for( int32 LayerIdx=0;LayerIdx<BorderWeightmapLayerAllocations.Num();LayerIdx++ )
 							{
@@ -4173,8 +4228,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 							{
 								StoreData.PreInit(LandscapeInfo->Layers.Num());
 
-								const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
-								const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
+								const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(GetEditLayer());
+								const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(GetEditLayer());
 
 								for( int32 LayerIdx=0;LayerIdx<ComponentWeightmapLayerAllocations.Num();LayerIdx++ )
 								{

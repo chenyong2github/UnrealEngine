@@ -1948,13 +1948,13 @@ TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAll
 
 FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer()
 {
-	const FGuid& EditingLayerGuid = GetLandscapeActor()->EditingLayer;
+	const FGuid& EditingLayerGuid = GetLandscapeActor()->GetEditingLayer();
 	return EditingLayerGuid.IsValid() ? LayersData.Find(EditingLayerGuid) : nullptr;
 }
 
 const FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer() const
 {
-	const FGuid& EditingLayerGuid = GetLandscapeActor()->EditingLayer;
+	const FGuid& EditingLayerGuid = GetLandscapeActor()->GetEditingLayer();
 	return EditingLayerGuid.IsValid() ? LayersData.Find(EditingLayerGuid) : nullptr;
 }
 
@@ -2141,6 +2141,27 @@ void ULandscapeComponent::SetWeightmapTextures(const TArray<UTexture2D*>& InNewW
 	}
 }
 
+// Note that there is a slight difference in behavior with the Internal function:
+// unlike SetWeightmapTextures, this function will never set the runtime WeightmapTextures when you intended to set an edit layer's WeightmapData.Textures
+void ULandscapeComponent::SetWeightmapTexturesInternal(const TArray<UTexture2D*>& InNewWeightmapTextures, const FGuid& InEditLayerGuid)
+{
+	if (InEditLayerGuid.IsValid())
+	{
+#if WITH_EDITOR
+		FLandscapeLayerComponentData* EditingLayer = GetLayerData(InEditLayerGuid);
+		if (ensure(EditingLayer))
+		{
+			EditingLayer->WeightmapData.Textures.Reset(InNewWeightmapTextures.Num());
+			EditingLayer->WeightmapData.Textures.Append(InNewWeightmapTextures);
+		}
+#endif // WITH_EDITOR
+	}
+	else
+	{
+		WeightmapTextures = InNewWeightmapTextures;
+	}
+}
+
 
 #if WITH_EDITOR
 void ULandscapeComponent::SetWeightmapLayerAllocations(const TArray<FWeightmapLayerAllocationInfo>& InNewWeightmapLayerAllocations)
@@ -2208,6 +2229,25 @@ void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeigh
 	{
 		EditingLayer->WeightmapData.TextureUsages.Reset(InNewWeightmapTexturesUsage.Num());
 		EditingLayer->WeightmapData.TextureUsages.Append(InNewWeightmapTexturesUsage);
+	}
+	else
+	{
+		WeightmapTexturesUsage = InNewWeightmapTexturesUsage;
+	}
+}
+
+void ULandscapeComponent::SetWeightmapTexturesUsageInternal(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, const FGuid& InEditLayerGuid)
+{
+	if (InEditLayerGuid.IsValid())
+	{
+#if WITH_EDITOR
+		FLandscapeLayerComponentData* EditingLayer = GetLayerData(InEditLayerGuid);
+		if (ensure(EditingLayer))
+		{
+			EditingLayer->WeightmapData.TextureUsages.Reset(InNewWeightmapTexturesUsage.Num());
+			EditingLayer->WeightmapData.TextureUsages.Append(InNewWeightmapTexturesUsage);
+		}
+#endif // WITH_EDITOR
 	}
 	else
 	{
@@ -5517,6 +5557,6 @@ void FLandscapeProxyComponentDataChangedParams::ForEachComponent(TFunctionRef<vo
 		Func(Component);
 	}
 }
-#endif
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
