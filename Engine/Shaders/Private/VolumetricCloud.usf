@@ -181,53 +181,6 @@ void ConvertCloudPixelMaterialInputsToWorkingColorSpace(inout FPixelMaterialInpu
 
 
 ////////////////////////////////////////////////////////////
-// When we get HZB.hlsl from Reverb, remove that and use common code. 
-// Keeping duplicated code for now to avoid merge pain.
-////////////////////////////////////////////////////////////
-
-// Adapted from HZBOcclusion.usf.
-// Rect contains screen coordinates as {minx, miny, maxx, maxy}. Those coordinates are not clamped to screen edges so they mnight be outside the [0,1]^2.
-bool ViewHierarchicalZBufferMinDepth(float4 ScreenUVMinMax, const float MaxZDepth)
-{
-	float4 Rect = saturate(ScreenUVMinMax);
-	float4 RectPixels = Rect * RenderVolumetricCloudParameters.HZBSize.xyxy;
-
-	float2 RectSize = (RectPixels.zw - RectPixels.xy);
-	float Level = max(ceil(log2(max(RectSize.x, RectSize.y))), RenderVolumetricCloudParameters.HZBUvFactor.z);
-
-	// Check if we can drop one level lower
-	float LevelLower = max(Level - 1, 0);
-	float4 LowerRect = RectPixels * exp2(-LevelLower);
-	float2 LowerRectSize = ceil(LowerRect.zw) - floor(LowerRect.xy);
-	if (all(LowerRectSize <= 4))
-	{
-		Level = LevelLower;
-	}
-
-	// 4x4 samples
-	float2 Scale = RenderVolumetricCloudParameters.HZBUvFactor.xy * (Rect.zw - Rect.xy) / 3;
-	float2 Bias = RenderVolumetricCloudParameters.HZBUvFactor.xy * Rect.xy;
-
-	float4 MinDepth = 1;
-	/*UNROLL*/ for (int i = 0; i < 4; i++)
-	{
-		// TODO could vectorize this
-		float4 Depth;
-		Depth.x = RenderVolumetricCloudParameters.HZBTexture.SampleLevel(RenderVolumetricCloudParameters.HZBSampler, float2(i, 0) * Scale + Bias, Level).r;
-		Depth.y = RenderVolumetricCloudParameters.HZBTexture.SampleLevel(RenderVolumetricCloudParameters.HZBSampler, float2(i, 1) * Scale + Bias, Level).r;
-		Depth.z = RenderVolumetricCloudParameters.HZBTexture.SampleLevel(RenderVolumetricCloudParameters.HZBSampler, float2(i, 2) * Scale + Bias, Level).r;
-		Depth.w = RenderVolumetricCloudParameters.HZBTexture.SampleLevel(RenderVolumetricCloudParameters.HZBSampler, float2(i, 3) * Scale + Bias, Level).r;
-		MinDepth = min(MinDepth, Depth);
-	}
-	MinDepth.x = min(min(MinDepth.x, MinDepth.y), min(MinDepth.z, MinDepth.w));
-
-	// Inverted Z buffer
-	//return RectMax.z >= MinDepth.x ? true : false;
-	return MaxZDepth >= MinDepth.x ? true : false;
-}
-
-
-////////////////////////////////////////////////////////////
 // Single full screen triangle vertex shader
 ////////////////////////////////////////////////////////////
 
