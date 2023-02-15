@@ -23,6 +23,7 @@
 #include "ClearQuad.h"
 #include "Engine/Texture2D.h"
 #include "UObject/Package.h"
+#include "EngineModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KismetRenderingLibrary)
 
@@ -215,6 +216,12 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 
 			//UpdateResourceImmediate must be called here to ensure mips are generated.
 			TextureRenderTarget->UpdateResourceImmediate(false);
+
+			ENQUEUE_RENDER_COMMAND(ResetSceneTextureExtentHistory)(
+				[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
+				{
+					RenderTargetResource->ResetSceneTextureExtentsHistory();
+				});
 		}
 	}
 }

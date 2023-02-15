@@ -289,6 +289,7 @@ public:
 		return bNeedsUpdate;
 	}
 
+	ENGINE_API void ResetSceneTextureExtentsHistory();
 protected:
 
 	/**

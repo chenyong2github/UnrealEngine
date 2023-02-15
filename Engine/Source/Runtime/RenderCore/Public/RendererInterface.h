@@ -835,5 +835,10 @@ public:
 
 	/** Experimental:  Render multiple view families in a single scene render call.  All families must reference the same FScene.  Scene Capture not yet supported. */
 	virtual void BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSceneViewFamily*> ViewFamilies) = 0;
+
+	/** Resets the scene texture extent history. Call this method after rendering with very large render
+	 *  targets. The next scene render will create them at the requested size.
+	 */
+	virtual void ResetSceneTextureExtentHistory() = 0;
 };
 

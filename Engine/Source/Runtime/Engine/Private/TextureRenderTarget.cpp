@@ -7,6 +7,8 @@
 #include "Engine/TextureRenderTarget.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "TextureResource.h"
+#include "SceneRenderTargetParameters.h"
+#include "EngineModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTarget)
 
@@ -195,3 +197,7 @@ void FDeferredUpdateResource::RemoveFromDeferredUpdateList()
 	UpdateListLink.Unlink();
 }
 
+void FDeferredUpdateResource::ResetSceneTextureExtentsHistory()
+{
+	GetRendererModule().ResetSceneTextureExtentHistory();
+}
