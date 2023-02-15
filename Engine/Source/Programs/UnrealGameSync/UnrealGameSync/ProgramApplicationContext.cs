@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using EpicGames.OIDC;
 using UnrealGameSync.Forms;
+using Microsoft.Extensions.Logging.Abstractions;
 
 #nullable enable
 
@@ -55,9 +56,6 @@ namespace UnrealGameSync
 		readonly Task _startupTask;
 		ModalTaskWindow? _startupWindow;
 		MainWindow? _mainWindowInstance;
-
-		ITokenStore? _tokenStore;
-		OidcTokenManager? _oidcTokenManager;
 
 		public ProgramApplicationContext(IPerforceSettings defaultPerforceSettings, UpdateMonitor updateMonitor, string? apiUrl, DirectoryReference dataFolder, EventWaitHandle activateEvent, bool restoreState, string? updateSpawn, string? projectFileName, bool preview, IServiceProvider serviceProvider, string? uri)
 		{
@@ -189,7 +187,8 @@ namespace UnrealGameSync
 			foreach (UserSelectedProjectSettings projectSettings in _settings.OpenProjects)
 			{
 				ILogger<OpenProjectInfo> logger = serviceProvider.GetRequiredService<ILogger<OpenProjectInfo>>();
-				Task<OpenProjectInfo> startupTask = Task.Run(() => OpenProjectInfo.CreateAsync(defaultPerforceSettings, projectSettings, _settings, logger, _startupCancellationSource.Token), _startupCancellationSource.Token);
+				OidcTokenManager oidcTokenManager = serviceProvider.GetRequiredService<OidcTokenManager>();
+				Task<OpenProjectInfo> startupTask = Task.Run(() => OpenProjectInfo.CreateAsync(defaultPerforceSettings, projectSettings, _settings, oidcTokenManager, logger, _startupCancellationSource.Token), _startupCancellationSource.Token);
 				startupTasks.Add((projectSettings, new ModalTask<OpenProjectInfo>(startupTask)));
 			}
 			_startupTask = Task.Run(() => WaitForStartupTasks(startupTasks));
@@ -257,57 +256,6 @@ namespace UnrealGameSync
 			// Clear out the cache folder
 			Utility.ClearPrintCache(_cacheFolder);
 
-			_tokenStore = TokenStoreFactory.CreateTokenStore();
-			List<(DirectoryInfo, DirectoryInfo?)> configurationLocations = new List<(DirectoryInfo, DirectoryInfo?)>();
-			List<string> allowedProviders = new List<string>();
-			foreach ((UserSelectedProjectSettings, ModalTask<OpenProjectInfo>) startupTask in startupTasks)
-			{
-				try
-				{
-
-					ConfigFile configFile = startupTask.Item2.Result.LatestProjectConfigFile;
-					if (configFile == null)
-					{
-						continue;
-					}
-
-					ConfigSection? providerSection = configFile.FindSection("OIDCProvider");
-					if (providerSection == null)
-					{
-						continue;
-					}
-
-					string[] oidcAllowedProviders = providerSection.GetValues("OidcProviderAllowList", Array.Empty<string>());
-					if (oidcAllowedProviders.Length == 0)
-					{
-						continue;
-					}
-
-					allowedProviders.AddRange(oidcAllowedProviders);
-					
-					ProjectInfo projectInfo = startupTask.Item2.Result.ProjectInfo;
-					configurationLocations.Add((projectInfo.EngineDir.ToDirectoryInfo(), projectInfo.ProjectDir?.ToDirectoryInfo()));
-				}
-				catch (Exception)
-				{
-					// ignore any projects that failed to load
-				}
-			}
-
-			_oidcTokenManager = OidcTokenManager.CreateTokenManager(
-				ProviderConfigurationFactory.MergeConfiguration(configurationLocations), 
-				_tokenStore,
-				allowedProviders
-			);
-			// Verify that none of the projects we are opening needs a OIDC login, if they do prompt for the login
-			if (_oidcTokenManager?.HasUnfinishedLogin() ?? false)
-			{
-				OidcLoginWindow loginDialog = new OidcLoginWindow(_oidcTokenManager);
-				loginDialog.ShowDialog();
-
-				_tokenStore.Save();
-			}
-
 			// Get the application path
 			string originalExe = Assembly.GetExecutingAssembly().Location;
 			if (Path.GetExtension(originalExe).Equals(".dll", StringComparison.OrdinalIgnoreCase))
@@ -320,7 +268,7 @@ namespace UnrealGameSync
 			}
 
 			// Create the main window 
-			_mainWindowInstance = new MainWindow(_updateMonitor, _apiUrl, _dataFolder, _updateSpawn ?? originalExe, _preview, startupTasks, _defaultPerforceSettings, _serviceProvider, _settings, _uri, _oidcTokenManager);
+			_mainWindowInstance = new MainWindow(_updateMonitor, _apiUrl, _dataFolder, _updateSpawn ?? originalExe, _preview, startupTasks, _defaultPerforceSettings, _serviceProvider, _settings, _uri);
 			if(visible)
 			{
 				_mainWindowInstance.Show();

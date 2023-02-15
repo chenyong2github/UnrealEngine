@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.OIDC;
 using EpicGames.Perforce;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -168,6 +169,8 @@ namespace UnrealGameSync
 				ServiceCollection services = new ServiceCollection();
 				services.AddLogging(builder => builder.AddProvider(loggerProvider));
 				services.AddSingleton<IAsyncDisposer, AsyncDisposer>();
+				services.AddSingleton(sp => TokenStoreFactory.CreateTokenStore());
+				services.AddSingleton<OidcTokenManager>();
 
 				await using (ServiceProvider serviceProvider = services.BuildServiceProvider())
 				{

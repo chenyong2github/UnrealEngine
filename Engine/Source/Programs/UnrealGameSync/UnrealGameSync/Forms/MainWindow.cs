@@ -103,7 +103,7 @@ namespace UnrealGameSync
 
 		bool _allowClose = false;
 
-		readonly OidcTokenManager? _oidcTokenManager;
+		readonly OidcTokenManager _oidcTokenManager;
 
 		System.Threading.Timer? _scheduleTimer;
 		System.Threading.Timer? _scheduleSettledTimer;
@@ -122,26 +122,26 @@ namespace UnrealGameSync
 
 		public ToolUpdateMonitor ToolUpdateMonitor { get; private set; }
 
-		public MainWindow(UpdateMonitor inUpdateMonitor, string? inApiUrl, DirectoryReference inDataFolder, string inOriginalExecutableFileName, bool inPreview, List<(UserSelectedProjectSettings, ModalTask<OpenProjectInfo>)> startupTasks, IPerforceSettings inDefaultPerforceSettings, IServiceProvider inServiceProvider, UserSettings inSettings, string? inUri, OidcTokenManager? inOidcTokenManager)
+		public MainWindow(UpdateMonitor inUpdateMonitor, string? apiUrl, DirectoryReference dataFolder, string originalExecutableFileName, bool preview, List<(UserSelectedProjectSettings, ModalTask<OpenProjectInfo>)> startupTasks, IPerforceSettings defaultPerforceSettings, IServiceProvider serviceProvider, UserSettings settings, string? uri)
 		{
-			_serviceProvider = inServiceProvider;
+			_serviceProvider = serviceProvider;
 			_logger = _serviceProvider.GetRequiredService<ILogger<MainWindow>>();
 
-			_logger.LogInformation("Opening Main Window for {NumProject} projects. Last Project {LastProject}", startupTasks.Count, inSettings.LastProject);
+			_logger.LogInformation("Opening Main Window for {NumProject} projects. Last Project {LastProject}", startupTasks.Count, settings.LastProject);
 
 			InitializeComponent();
 
 			_updateMonitor = inUpdateMonitor;
 			_mainThreadSynchronizationContext = SynchronizationContext.Current!;
-			_apiUrl = inApiUrl;
-			_dataFolder = inDataFolder;
-			_originalExecutableFileName = inOriginalExecutableFileName;
-			_preview = inPreview;
-			_defaultPerforceSettings = inDefaultPerforceSettings;
-			ToolUpdateMonitor = new ToolUpdateMonitor(_defaultPerforceSettings, _dataFolder, inSettings, _serviceProvider);
+			_apiUrl = apiUrl;
+			_dataFolder = dataFolder;
+			_originalExecutableFileName = originalExecutableFileName;
+			_preview = preview;
+			_defaultPerforceSettings = defaultPerforceSettings;
+			ToolUpdateMonitor = new ToolUpdateMonitor(_defaultPerforceSettings, _dataFolder, settings, _serviceProvider);
 
-			_settings = inSettings;
-			_oidcTokenManager = inOidcTokenManager;
+			_settings = settings;
+			_oidcTokenManager = _serviceProvider.GetRequiredService<OidcTokenManager>();
 
 			// While creating tab controls during startup, we need to prevent layout calls resulting in the window handle being created too early. Disable layout calls here.
 			SuspendLayout();
@@ -194,7 +194,7 @@ namespace UnrealGameSync
 			}
 
 			ILogger<AutomationServer> automationLogger = _serviceProvider.GetRequiredService<ILogger<AutomationServer>>();
-			_automationServer = new AutomationServer(request => { _mainThreadSynchronizationContext.Post(obj => PostAutomationRequest(request), null); }, inUri, automationLogger);
+			_automationServer = new AutomationServer(request => { _mainThreadSynchronizationContext.Post(obj => PostAutomationRequest(request), null); }, uri, automationLogger);
 
 			// Allow creating controls from now on
 			TabPanel.ResumeLayout(false);
@@ -202,7 +202,7 @@ namespace UnrealGameSync
 
 			foreach (string defaultIssueApiUrl in DeploymentSettings.DefaultIssueApiUrls)
 			{
-				_defaultIssueMonitors.Add(CreateIssueMonitor(defaultIssueApiUrl, inDefaultPerforceSettings.UserName));
+				_defaultIssueMonitors.Add(CreateIssueMonitor(defaultIssueApiUrl, defaultPerforceSettings.UserName));
 			}
 
 			_allowCreatingHandle = true;
@@ -1222,7 +1222,7 @@ namespace UnrealGameSync
 
 			PerforceSettings perforceSettings = Utility.OverridePerforceSettings(_defaultPerforceSettings, project.ServerAndPort, project.UserName);
 
-			ModalTask<OpenProjectInfo>? settingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", perforceSettings, (p, c) => OpenProjectWindow.DetectSettingsAsync(p, project, _settings, projectLogger, c), projectLogger, taskFlags);
+			ModalTask<OpenProjectInfo>? settingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", perforceSettings, (p, c) => OpenProjectWindow.DetectSettingsAsync(p, project, _settings, _oidcTokenManager, projectLogger, c), projectLogger, taskFlags);
 			if (settingsTask == null || settingsTask.Failed)
 			{
 				if (settingsTask != null)
@@ -1289,7 +1289,7 @@ namespace UnrealGameSync
 			}
 
 			// Now that we have the project settings, we can construct the tab
-			WorkspaceControl newWorkspace = new WorkspaceControl(this, _dataFolder, _apiUrl, openProjectInfo, _serviceProvider, _settings, _oidcTokenManager);
+			WorkspaceControl newWorkspace = new WorkspaceControl(this, _dataFolder, _apiUrl, openProjectInfo, _serviceProvider, _settings);
 			
 			newWorkspace.Parent = TabPanel;
 			newWorkspace.Dock = DockStyle.Fill;

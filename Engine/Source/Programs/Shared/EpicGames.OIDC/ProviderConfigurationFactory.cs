@@ -3,15 +3,25 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net;
 using Microsoft.Extensions.Configuration;
 
 namespace EpicGames.OIDC
 {
 	public class ProviderConfigurationFactory
 	{
+		const string ConfigFileName = "oidc-configuration.json";
+
+		public static IReadOnlyList<string> ConfigPaths { get; } = new string[]
+		{
+			$"/Programs/OidcToken/{ConfigFileName}",
+			$"/Restricted/NoRedist/Programs/OidcToken/{ConfigFileName}",
+			$"/Restricted/NotForLicensees/Programs/OidcToken/{ConfigFileName}"
+		};
+
 		public static IConfiguration ReadConfiguration(DirectoryInfo engineDir, DirectoryInfo? gameDir)
 		{
-			string configFileName = "oidc-configuration.json";
 
 			if (!engineDir.Exists)
 			{
@@ -20,15 +30,15 @@ namespace EpicGames.OIDC
 
 			ConfigurationBuilder configBuilder = new ConfigurationBuilder();
 			configBuilder
-				.AddJsonFile($"{engineDir}/Programs/OidcToken/{configFileName}", true, false)
-				.AddJsonFile($"{engineDir}/Restricted/NoRedist/Programs/OidcToken/{configFileName}", true, false)
-				.AddJsonFile($"{engineDir}/Restricted/NotForLicensees/Programs/OidcToken/{configFileName}", true, false);
+				.AddJsonFile($"{engineDir}/Programs/OidcToken/{ConfigFileName}", true, false)
+				.AddJsonFile($"{engineDir}/Restricted/NoRedist/Programs/OidcToken/{ConfigFileName}", true, false)
+				.AddJsonFile($"{engineDir}/Restricted/NotForLicensees/Programs/OidcToken/{ConfigFileName}", true, false);
 
 			if (gameDir?.Exists ?? false)
 			{
-				configBuilder.AddJsonFile($"{gameDir}/Programs/OidcToken/{configFileName}", true, false)
-					.AddJsonFile($"{gameDir}/Restricted/NoRedist/Programs/OidcToken/{configFileName}", true, false)
-					.AddJsonFile($"{gameDir}/Restricted/NotForLicensees/Programs/OidcToken/{configFileName}", true, false);
+				configBuilder.AddJsonFile($"{gameDir}/Programs/OidcToken/{ConfigFileName}", true, false)
+					.AddJsonFile($"{gameDir}/Restricted/NoRedist/Programs/OidcToken/{ConfigFileName}", true, false)
+					.AddJsonFile($"{gameDir}/Restricted/NotForLicensees/Programs/OidcToken/{ConfigFileName}", true, false);
 			}
 
 			IConfiguration config = configBuilder.Build();

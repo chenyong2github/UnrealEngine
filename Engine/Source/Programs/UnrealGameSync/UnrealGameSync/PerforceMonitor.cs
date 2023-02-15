@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.OIDC;
 using EpicGames.Perforce;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -9,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -49,6 +51,8 @@ namespace UnrealGameSync
 		readonly DirectoryReference _cacheFolder;
 		readonly List<KeyValuePair<FileReference, DateTime>> _localConfigFiles;
 		readonly IAsyncDisposer _asyncDisposeTasks;
+		readonly OidcTokenManager _oidcTokenManager;
+
 		string[] prevCodeRules = Array.Empty<string>();
 
 		readonly SynchronizationContext _synchronizationContext;
@@ -63,25 +67,27 @@ namespace UnrealGameSync
 			private set;
 		}
 
-		public PerforceMonitor(IPerforceSettings inPerforceSettings, ProjectInfo projectInfo, ConfigFile inProjectConfigFile, DirectoryReference inCacheFolder, List<KeyValuePair<FileReference, DateTime>> inLocalConfigFiles, IServiceProvider inServiceProvider)
+		public PerforceMonitor(IPerforceSettings perforceSettings, ProjectInfo projectInfo, ConfigFile projectConfigFile, DirectoryReference cacheFolder, List<KeyValuePair<FileReference, DateTime>> localConfigFiles, OidcTokenClient? oidcTokenClient, IServiceProvider serviceProvider)
 		{
-			_perforceSettings = inPerforceSettings;
+			_perforceSettings = perforceSettings;
 			_branchClientPath = projectInfo.ClientRootPath;
 			_selectedClientFileName = projectInfo.ClientFileName;
 			_selectedProjectIdentifier = projectInfo.ProjectIdentifier;
 			_pendingMaxChangesValue = InitialMaxChangesValue;
 			LastChangeByCurrentUser = -1;
 			LastCodeChangeByCurrentUser = -1;
-			_logger = inServiceProvider.GetRequiredService<ILogger<PerforceMonitor>>();
+			_logger = serviceProvider.GetRequiredService<ILogger<PerforceMonitor>>();
 			_isEnterpriseProject = projectInfo.IsEnterpriseProject;
-			LatestProjectConfigFile = inProjectConfigFile;
-			_cacheFolder = inCacheFolder;
-			_localConfigFiles = inLocalConfigFiles;
-			_asyncDisposeTasks = inServiceProvider.GetRequiredService<IAsyncDisposer>();
+			LatestProjectConfigFile = projectConfigFile;
+			_cacheFolder = cacheFolder;
+			_localConfigFiles = localConfigFiles;
+			_asyncDisposeTasks = serviceProvider.GetRequiredService<IAsyncDisposer>();
 			_synchronizationContext = SynchronizationContext.Current!;
 			_cancellationSource = new CancellationTokenSource();
+			_oidcTokenManager = serviceProvider.GetRequiredService<OidcTokenManager>();
 
 			AvailableArchives = (new List<IArchiveInfo>()).AsReadOnly();
+			LatestOidcTokenClient = oidcTokenClient;
 		}
 
 		public void Start()
@@ -525,6 +531,7 @@ namespace UnrealGameSync
 			if(_localConfigFiles.Any(x => FileReference.GetLastWriteTimeUtc(x.Key) != x.Value))
 			{
 				await UpdateProjectConfigFileAsync(perforce, cancellationToken);
+				// TODO: Also check OIDC config
 				_synchronizationContext.Post(_ => OnUpdateMetadata?.Invoke(), null);
 			}
 
@@ -554,6 +561,7 @@ namespace UnrealGameSync
 		{
 			_localConfigFiles.Clear();
 			LatestProjectConfigFile = await ConfigUtils.ReadProjectConfigFileAsync(perforce, _branchClientPath, _selectedClientFileName, _cacheFolder, _localConfigFiles, _logger, cancellationToken);
+			LatestOidcTokenClient = await ConfigUtils.CreateOidcTokenClientAsync(_oidcTokenManager, LatestProjectConfigFile, _selectedProjectIdentifier, perforce, _branchClientPath, _selectedClientFileName, _localConfigFiles, _cacheFolder, _logger, cancellationToken);
 		}
 
 		public List<ChangesRecord> GetChanges()
@@ -598,6 +606,12 @@ namespace UnrealGameSync
 		}
 
 		public ConfigFile LatestProjectConfigFile
+		{
+			get;
+			private set;
+		}
+
+		public OidcTokenClient? LatestOidcTokenClient
 		{
 			get;
 			private set;

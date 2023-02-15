@@ -224,7 +224,7 @@ namespace UnrealGameSync
 		readonly SynchronizationContext _mainThreadSynchronizationContext;
 		bool _isDisposing;
 
-		JupiterMonitor _jupiterMonitor;
+//		JupiterMonitor _jupiterMonitor;
 		PerforceMonitor _perforceMonitor;
 		Workspace _workspace;
 		IssueMonitor _issueMonitor;
@@ -288,23 +288,23 @@ namespace UnrealGameSync
 		// Placeholder text that is in the control and cleared when the user starts editing.
 		const string AuthorFilterPlaceholderText = "<username>";
 
-		public WorkspaceControl(IWorkspaceControlOwner inOwner, DirectoryReference inAppDataFolder, string? inApiUrl, OpenProjectInfo openProjectInfo, IServiceProvider inServiceProvider, UserSettings inSettings, OidcTokenManager? inOidcTokenManager)
+		public WorkspaceControl(IWorkspaceControlOwner owner, DirectoryReference appDataFolder, string? apiUrl, OpenProjectInfo openProjectInfo, IServiceProvider serviceProvider, UserSettings settings)
 		{
 			InitializeComponent();
 
 			_mainThreadSynchronizationContext = SynchronizationContext.Current!;
 
-			_owner = inOwner;
-			_appDataFolder = inAppDataFolder;
-			_apiUrl = inApiUrl;
+			_owner = owner;
+			_appDataFolder = appDataFolder;
+			_apiUrl = apiUrl;
 			_workspaceDataFolder = openProjectInfo.ProjectInfo.DataFolder;
-			_serviceProvider = inServiceProvider;
-			_logger = inServiceProvider.GetRequiredService<ILogger<WorkspaceControl>>();
+			_serviceProvider = serviceProvider;
+			_logger = serviceProvider.GetRequiredService<ILogger<WorkspaceControl>>();
 			_perforceSettings = openProjectInfo.PerforceSettings;
 			ProjectInfo = openProjectInfo.ProjectInfo;
-			_settings = inSettings;
+			_settings = settings;
 			_workspaceSettings = openProjectInfo.WorkspaceSettings;
-			_projectSettings = inSettings.FindOrAddProjectSettings(openProjectInfo.ProjectInfo, openProjectInfo.WorkspaceSettings, _logger);
+			_projectSettings = settings.FindOrAddProjectSettings(openProjectInfo.ProjectInfo, openProjectInfo.WorkspaceSettings, _logger);
 
 			DesiredTaskbarState = Tuple.Create(TaskbarState.NoProgress, 0.0f);
 
@@ -368,7 +368,7 @@ namespace UnrealGameSync
 			FileReference projectLogBaseName = FileReference.Combine(_workspaceDataFolder, "sync.log");
 
 			ILogger perforceLogger = _serviceProvider.GetRequiredService<ILogger<PerforceMonitor>>();
-			_perforceMonitor = new PerforceMonitor(perforceClientSettings, openProjectInfo.ProjectInfo, openProjectInfo.LatestProjectConfigFile, openProjectInfo.ProjectInfo.CacheFolder, openProjectInfo.LocalConfigFiles, _serviceProvider);
+			_perforceMonitor = new PerforceMonitor(perforceClientSettings, openProjectInfo.ProjectInfo, openProjectInfo.LatestProjectConfigFile, openProjectInfo.ProjectInfo.CacheFolder, openProjectInfo.LocalConfigFiles, openProjectInfo.OidcTokenClient, _serviceProvider);
 			_perforceMonitor.OnUpdate += UpdateBuildListCallback;
 			_perforceMonitor.OnUpdateMetadata += UpdateBuildMetadataCallback;
 			_perforceMonitor.OnStreamChange += StreamChanged;
@@ -378,8 +378,8 @@ namespace UnrealGameSync
 			_eventMonitor = new EventMonitor(_apiUrl, PerforceUtils.GetClientOrDepotDirectoryName(SelectedProjectIdentifier), openProjectInfo.PerforceSettings.UserName, _serviceProvider);
 			_eventMonitor.OnUpdatesReady += UpdateReviewsCallback;
 
-			ILogger<JupiterMonitor> jupiterLogger = _serviceProvider.GetRequiredService<ILogger<JupiterMonitor>>();
-			_jupiterMonitor = JupiterMonitor.CreateFromConfigFile(inOidcTokenManager, jupiterLogger, openProjectInfo.LatestProjectConfigFile, SelectedProjectIdentifier);
+//			ILogger<JupiterMonitor> jupiterLogger = _serviceProvider.GetRequiredService<ILogger<JupiterMonitor>>();
+//			_jupiterMonitor = JupiterMonitor.CreateFromConfigFile(inOidcTokenManager, jupiterLogger, openProjectInfo.LatestProjectConfigFile, SelectedProjectIdentifier);
 
 			UpdateColumnSettings(true);
 
@@ -407,7 +407,7 @@ namespace UnrealGameSync
 			_startupCallbacks = new List<WorkspaceStartupCallback>();
 
 			string? issuesApiUrl = GetIssuesApiUrl();
-			_issueMonitor = inOwner.CreateIssueMonitor(issuesApiUrl, openProjectInfo.PerforceSettings.UserName);
+			_issueMonitor = owner.CreateIssueMonitor(issuesApiUrl, openProjectInfo.PerforceSettings.UserName);
 			_issueMonitor.OnIssuesChanged += IssueMonitor_OnIssuesChangedAsync;
 
 			if (SelectedFileName.HasExtension(".uproject"))
@@ -758,11 +758,11 @@ namespace UnrealGameSync
 				_badgeFont.Dispose();
 				_badgeFont = null!;
 			}
-			if (_jupiterMonitor != null)
-			{
-				_jupiterMonitor.Dispose();
-				_jupiterMonitor = null!;
-			}
+//			if (_jupiterMonitor != null)
+//			{
+//				_jupiterMonitor.Dispose();
+//				_jupiterMonitor = null!;
+//			}
 
 			base.Dispose(disposing);
 		}
@@ -3342,6 +3342,23 @@ namespace UnrealGameSync
 				StatusLine projectLine = new StatusLine();
 				projectLine.AddText(String.Format("Opened "));
 				projectLine.AddLink(SelectedFileName.FullName + " \u25BE", FontStyle.Regular, (p, r) => { SelectRecentProject(r); });
+
+				OidcTokenClient? oidcClient = _perforceMonitor.LatestOidcTokenClient;
+				if (oidcClient != null)
+				{
+				projectLine.AddText("  |  ");
+
+					StatusLine hordeLine = new StatusLine();
+					if (oidcClient.GetStatus() == OidcStatus.Connected)
+					{
+						projectLine.AddText("Connected to Horde.");
+					}
+					else
+					{
+						projectLine.AddLink("Connect to Horde", FontStyle.Bold | FontStyle.Underline, (p, r) => DoOidcLogin());
+					}
+				}
+
 				projectLine.AddText("  |  ");
 				projectLine.AddLink("Settings...", FontStyle.Regular, (p, r) => { _owner.EditSelectedProject(this); });
 				lines.Add(projectLine);
@@ -3614,6 +3631,26 @@ namespace UnrealGameSync
 			}
 
 			StatusPanel.Set(lines, caption, alert, tintColor);
+		}
+
+		private void DoOidcLogin()
+		{
+			OidcTokenClient? oidcClient = _perforceMonitor.LatestOidcTokenClient;
+			if (oidcClient != null)
+			{
+				ModalTask.Execute(this, "OIDC Login", "Opening OIDC login page (check your browser).", async cancellationToken =>
+				{
+					try
+					{
+						await oidcClient.LoginAsync(cancellationToken);
+					}
+					catch when (cancellationToken.IsCancellationRequested)
+					{
+						// nop
+					}
+				});
+				UpdateStatusPanel();
+			}
 		}
 
 		private void ShowBuildHealthMenu(Rectangle bounds)
@@ -4482,11 +4519,11 @@ namespace UnrealGameSync
 
 		private IReadOnlyList<IArchiveInfo> GetArchives()
 		{
-			IReadOnlyList<IArchiveInfo>? availableArchives = _jupiterMonitor?.AvailableArchives;
-			if (availableArchives != null && availableArchives.Count != 0)
-			{
-				return availableArchives;
-			}
+//			IReadOnlyList<IArchiveInfo>? availableArchives = _jupiterMonitor?.AvailableArchives;
+//			if (availableArchives != null && availableArchives.Count != 0)
+//			{
+//				return availableArchives;
+//			}
 
 			// if jupiter had no archives we fallback to the perforce monitor
 			if (_perforceMonitor != null)

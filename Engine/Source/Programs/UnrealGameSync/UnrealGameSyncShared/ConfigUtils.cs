@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.OIDC;
 using EpicGames.Perforce;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -9,6 +11,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -140,6 +143,101 @@ namespace UnrealGameSync
 				}
 			}
 			return projectConfig;
+		}
+
+		public static async Task<List<string[]>> ReadConfigFiles(IPerforceConnection perforce, IEnumerable<string> depotPaths, List<KeyValuePair<FileReference, DateTime>> localFiles, DirectoryReference cacheFolder, ILogger logger, CancellationToken cancellationToken)
+		{
+			List<string[]> contents = new List<string[]>();
+
+			List<PerforceResponse<FStatRecord>> responses = await perforce.TryFStatAsync(FStatOptions.IncludeFileSizes, depotPaths.ToArray(), cancellationToken).ToListAsync(cancellationToken);
+			foreach (PerforceResponse<FStatRecord> response in responses)
+			{
+				if (response.Succeeded)
+				{
+					string[]? lines = null;
+
+					// Skip file records which are still in the workspace, but were synced from a different branch. For these files, the action seems to be empty, so filter against that.
+					FStatRecord fileRecord = response.Data;
+					if (fileRecord.HeadAction == FileAction.None)
+					{
+						continue;
+					}
+
+					// If this file is open for edit, read the local version
+					string? localFileName = fileRecord.ClientFile;
+					if (localFileName != null && File.Exists(localFileName) && (File.GetAttributes(localFileName) & FileAttributes.ReadOnly) == 0)
+					{
+						try
+						{
+							DateTime lastModifiedTime = File.GetLastWriteTimeUtc(localFileName);
+							localFiles.Add(new KeyValuePair<FileReference, DateTime>(new FileReference(localFileName), lastModifiedTime));
+							lines = await File.ReadAllLinesAsync(localFileName, cancellationToken);
+						}
+						catch (Exception ex)
+						{
+							logger.LogInformation(ex, "Failed to read local config file for {Path}", localFileName);
+						}
+					}
+
+					// Otherwise try to get it from perforce
+					if (lines == null && fileRecord.DepotFile != null)
+					{
+						lines = await Utility.TryPrintFileUsingCacheAsync(perforce, fileRecord.DepotFile, cacheFolder, fileRecord.Digest, logger, cancellationToken);
+					}
+
+					// Merge the text with the config file
+					if (lines != null)
+					{
+						contents.Add(lines);
+					}
+				}
+			}
+
+			return contents;
+		}
+
+		public static async Task<OidcTokenClient?> CreateOidcTokenClientAsync(OidcTokenManager oidcTokenManager, ConfigFile projectConfigFile, string projectIdentifier, IPerforceConnection perforce, string clientRoot, string? clientProjectFile, List<KeyValuePair<FileReference, DateTime>> localFiles, DirectoryReference cacheFolder, ILogger logger, CancellationToken cancellationToken)
+		{
+			OidcTokenClient? oidcTokenClient = null;
+
+			string? oidcProvider;
+			if (TryGetProjectSetting(projectConfigFile, projectIdentifier, "OidcProvider", out oidcProvider))
+			{
+				List<string> configFiles = new List<string>();
+				configFiles.AddRange(ProviderConfigurationFactory.ConfigPaths.Select(x => $"{clientRoot}/Engine/{x}"));
+
+				if (clientProjectFile != null && clientProjectFile.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
+				{
+					string clientProjectPath = clientProjectFile.Substring(0, clientProjectFile.LastIndexOf('/'));
+					configFiles.AddRange(ProviderConfigurationFactory.ConfigPaths.Select(x => $"{clientProjectPath}/{x}"));
+				}
+
+				List<string[]> latestOidcConfigFiles = await ConfigUtils.ReadConfigFiles(perforce, configFiles, localFiles, cacheFolder, logger, cancellationToken);
+
+				ConfigurationBuilder configBuilder = new ConfigurationBuilder();
+				foreach (string[] configFile in latestOidcConfigFiles)
+				{
+					MemoryStream configStream = new MemoryStream(Encoding.UTF8.GetBytes(String.Join("\n", configFile)));
+					configBuilder.AddJsonStream(configStream);
+				}
+
+				IConfigurationRoot config = configBuilder.Build();
+				OidcTokenOptions oidcOptions = OidcTokenOptions.Bind(config);
+
+				if (oidcOptions.Providers.TryGetValue(oidcProvider, out ProviderInfo? providerInfo))
+				{
+					oidcTokenClient = oidcTokenManager.FindOrAddClient(oidcProvider, providerInfo);
+
+					// Trigger an update of the access token if necessary, just to make sure we have the most current state
+					try
+					{
+						await oidcTokenClient.GetAccessTokenAsync(cancellationToken);
+					}
+					catch { }
+				}
+			}
+
+			return oidcTokenClient;
 		}
 
 		public static FileReference GetEditorTargetFile(ProjectInfo projectInfo, ConfigFile projectConfig)
