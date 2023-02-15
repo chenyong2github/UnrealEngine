@@ -573,6 +573,15 @@ void UTargetingSubsystem::ProcessTargetingRequestTasks(FTargetingRequestHandle& 
 							}
 						}
 					}
+					else
+					{
+						TARGETING_LOG(Warning, TEXT("UTargetingSubsystem::ProcessTargetingRequestTasks - Encountered an empty Task, skipping."));
+						++CurrentTaskIndex;
+						if (CurrentTaskIndex >= NumTasks)
+						{
+							bRequestComplete = true;
+						}
+					}
 				}
 
 				if (bRequestComplete)
