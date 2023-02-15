@@ -113,6 +113,24 @@
 					]
 				}
 			]
+		},
+		{
+			"category": "SingleOp",
+			"is_model_test": true,
+			"targets": [
+				{
+					"target": "Slice",
+					"runtimes": [
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not implemented" }
+					]
+				},
+				{
+					"target": "SliceNoSteps",
+					"runtimes": [
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not implemented" }
+					]
+				}
+			]
 		}
 	],
 
