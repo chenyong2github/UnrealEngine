@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "SceneTexturesConfig.h"
 #include "ScreenPass.h"
 
 struct FSceneWithoutWaterTextures;

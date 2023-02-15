@@ -27,7 +27,7 @@ public:
 	FOnlineServicesCommon(const FString& InConfigName, FName InInstanceName);
 	FOnlineServicesCommon(const FOnlineServicesCommon&) = delete;
 	FOnlineServicesCommon(FOnlineServicesCommon&&) = delete;
-	virtual ~FOnlineServicesCommon() {}
+	virtual ~FOnlineServicesCommon();
 
 	// IOnlineServices
 	virtual void Init() override;

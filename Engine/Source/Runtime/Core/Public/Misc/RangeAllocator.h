@@ -6,6 +6,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/ScopeLock.h"
+
 /*
  * This allocator has a list of chunks (fixed size committed memory regions) and each
  * chunk keeps a list of free ranges. Allocations are served by finding a large enough

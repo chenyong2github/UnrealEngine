@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "ProxyTableEditorCommands"
 	

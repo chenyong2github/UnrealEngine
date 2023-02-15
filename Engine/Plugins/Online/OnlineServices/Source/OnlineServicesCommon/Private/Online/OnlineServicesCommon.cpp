@@ -22,6 +22,8 @@ FOnlineServicesCommon::FOnlineServicesCommon(const FString& InConfigName, FName 
 {
 }
 
+FOnlineServicesCommon::~FOnlineServicesCommon() = default;
+
 void FOnlineServicesCommon::Init()
 {
 	OpCache.SetLoadConfigFn(

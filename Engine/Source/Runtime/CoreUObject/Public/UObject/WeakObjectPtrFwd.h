@@ -18,6 +18,9 @@ template<> struct TIsPODType<FWeakObjectPtr> { enum { Value = true }; };
 template<> struct TIsZeroConstructType<FWeakObjectPtr> { enum { Value = true }; };
 template<> struct TIsWeakPointerType<FWeakObjectPtr> { enum { Value = true }; };
 
+template <typename T> class TScriptDelegate;
+template <typename T> class TMulticastScriptDelegate;
+
 // Typedef script delegates for convenience.
-typedef TScriptDelegate<> FScriptDelegate;
-typedef TMulticastScriptDelegate<> FMulticastScriptDelegate;
+typedef TScriptDelegate<FWeakObjectPtr> FScriptDelegate;
+typedef TMulticastScriptDelegate<FWeakObjectPtr> FMulticastScriptDelegate;
