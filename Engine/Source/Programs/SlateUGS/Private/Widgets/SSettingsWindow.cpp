@@ -3,7 +3,7 @@
 #include "SSettingsWindow.h"
 #include "UGSTab.h"
 
-#include "UGSCore/UserSettings.h"
+#include "UserSettings.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SCheckBox.h"
