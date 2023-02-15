@@ -4825,6 +4825,7 @@ int32 FHlslNiagaraTranslator::GetConstantDirect(int InConstantValue)
 bool FHlslNiagaraTranslator::GenerateStructInitializer(TStringBuilder<128>& InitializerString, UStruct* UserDefinedStruct, const void* StructData, int32 ByteOffset)
 {
 	//-TODO: Alignment Issues
+	//-TODO: Also adjust automation test NiagaraTest_CustomLWCStructHlsl when this is fixed 
 	//const bool bHasAlignmentDummy = CompileOptions.TargetUsage != ENiagaraScriptUsage::ParticleGPUComputeScript;
 
 	//auto CheckAlignment =
