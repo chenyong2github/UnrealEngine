@@ -6,6 +6,8 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 
+#include "ChaosDeformableSolverProxy.generated.h"
+
 /**
 * Supported simulation spaces for the ChaosDeformable solver.
 */
