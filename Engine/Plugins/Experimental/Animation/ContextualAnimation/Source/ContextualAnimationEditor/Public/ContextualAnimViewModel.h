@@ -129,6 +129,8 @@ public:
 	
 	bool CanMakeEdits() const;
 
+	void CacheWarpPoints();
+
 private:
 
 	struct FContextualAnimEdSelectionInfo

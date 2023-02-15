@@ -66,7 +66,53 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 				{
 					for (const FTransform& ScenePivot : AnimSet->ScenePivots)
 					{
-						DrawCoordinateSystem(PDI, ScenePivot.GetLocation(), ScenePivot.Rotator(), 50.f, SDPG_Foreground);
+						DrawCoordinateSystem(PDI, ScenePivot.GetLocation(), ScenePivot.Rotator(), 10.f, SDPG_Foreground, 0.5f);
+					}
+				}
+
+				// Draw warp points
+				for (const FContextualAnimWarpPointData& WarpPointData : SceneAsset->GetWarpPoints())
+				{
+					const FTransform* WarpPointTransform = SceneAsset->GetWarpPointTransform(WarpPointData.SocketName);
+					if (WarpPointTransform == nullptr)
+					{
+						continue;
+					}
+
+					const FTransform OriginalWarpPointTransform = *WarpPointTransform * PrimaryBinding->GetTransform();
+
+					// Draw original warp point in red.
+					const float Thickness = 0.f;
+					DrawCoordinateSystem(PDI, OriginalWarpPointTransform.GetLocation(), OriginalWarpPointTransform.Rotator(), 5.f, SDPG_Foreground, Thickness);
+					DrawWireDiamond(PDI, OriginalWarpPointTransform.ToMatrixNoScale(), 3.f, FLinearColor::Red, 0, Thickness);
+
+					// Draw actual warp point in green.
+					FTransform FinalWarpPointTransform = OriginalWarpPointTransform;
+					if (UMeshComponent* Component = UContextualAnimUtilities::TryGetMeshComponentWithSocket(PrimaryBinding->GetActor(), WarpPointData.SocketName))
+					{
+						const FTransform SocketTransform = Component->GetSocketTransform(WarpPointData.SocketName, ERelativeTransformSpace::RTS_Actor);
+						FinalWarpPointTransform = SocketTransform * PrimaryBinding->GetTransform();
+
+						DrawCoordinateSystem(PDI, FinalWarpPointTransform.GetLocation(), FinalWarpPointTransform.Rotator(), 5.f, SDPG_Foreground, Thickness);
+						DrawWireDiamond(PDI, FinalWarpPointTransform.ToMatrixNoScale(), 3.f, FLinearColor::Green, 0, Thickness);
+						PDI->DrawLine(OriginalWarpPointTransform.GetLocation(), FinalWarpPointTransform.GetLocation(), FLinearColor::Green, 0, 0.f);
+					}
+
+					// Draw warp target transforms for each actor using this warp point in Blue. This is where the root should end up at the end of the warping window.
+					for (const FContextualAnimSceneBinding& Binding : Bindings)
+					{
+						const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(Binding);
+						const FAnimNotifyEvent* NotifyEvent = (AnimTrack.Animation) ? UContextualAnimUtilities::FindFirstWarpingWindowForWarpTarget(AnimTrack.Animation, WarpPointData.WarpTargetName) : nullptr;
+
+						if (NotifyEvent)
+						{
+							const FTransform Offset = FinalWarpPointTransform * OriginalWarpPointTransform.Inverse();
+							FTransform AlignmentTransform = AnimTrack.GetRootTransformAtTime(NotifyEvent->GetEndTriggerTime());
+							AlignmentTransform = (AlignmentTransform * Offset) * PrimaryBinding->GetTransform();
+
+							DrawCoordinateSystem(PDI, AlignmentTransform.GetLocation(), AlignmentTransform.Rotator(), 5.f, SDPG_Foreground, Thickness);
+							DrawWireDiamond(PDI, AlignmentTransform.ToMatrixNoScale(), 3.f, FLinearColor::Blue, 0, Thickness);
+						}
 					}
 				}
 

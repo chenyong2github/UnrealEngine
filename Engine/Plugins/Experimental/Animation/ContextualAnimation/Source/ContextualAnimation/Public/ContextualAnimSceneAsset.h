@@ -55,6 +55,20 @@ struct CONTEXTUALANIMATION_API FContextualAnimSet
 	int32 GetNumMandatoryRoles() const;
 };
 
+USTRUCT(BlueprintType)
+struct CONTEXTUALANIMATION_API FContextualAnimWarpPointData
+{
+	GENERATED_BODY()
+
+	/** Name of the socket in the primary actor acting as warping point (reference point for alignment) */
+	UPROPERTY(EditAnywhere, Category = "Defaults")
+	FName SocketName = NAME_None;
+
+	/** Name of the warp target in the warping window this warp point is for */
+	UPROPERTY(EditAnywhere, Category = "Defaults")
+	FName WarpTargetName = NAME_None;
+};
+
 /** Named container with one or more ContextualAnimSet */
 USTRUCT(BlueprintType)
 struct CONTEXTUALANIMATION_API FContextualAnimSceneSection
@@ -207,6 +221,8 @@ public:
 	FORCEINLINE const TSubclassOf<UContextualAnimSceneInstance>& GetSceneInstanceClass() const { return SceneInstanceClass; }
 	FORCEINLINE int32 GetSampleRate() const { return SampleRate; }
 	FORCEINLINE float GetRadius() const { return Radius; }
+	FORCEINLINE const TArray<FContextualAnimWarpPointData>& GetWarpPoints() const { return WarpPoints; }
+	FORCEINLINE const FTransform* GetWarpPointTransform(FName SocketName) const { return WarpPointTransformCache.Find(SocketName); }
 
 	bool HasValidData() const { return RolesAsset != nullptr && Sections.Num() > 0 && Sections[0].AnimSets.Num() > 0; }
 
@@ -291,6 +307,21 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (TitleProperty = "Role"))
 	TArray<FContextualAnimActorPreviewData> OverridePreviewData;
+
+	/**
+	 * List of warp points defined with sockets by the the primary actor.
+	 * When this list is non empty the system uses these sockets as warp points.
+	 * Commonly used when re-using the same animations to interact with objects with different proportions
+	*/
+	UPROPERTY(EditAnywhere, Category = "Warping", meta = (TitleProperty = "WarpTargetName"))
+	TArray<FContextualAnimWarpPointData> WarpPoints;
+
+	/** 
+	 * Transforms of the sockets used as warp points in actor space. Updated in the editor via 'Update Warp Points button' 
+	 * We are caching this transforms here at least for now so we don't have to include a reference to the primary actor 
+	 */
+	UPROPERTY()
+	TMap<FName, FTransform> WarpPointTransformCache;
 
 	UPROPERTY(EditAnywhere, Category = "Defaults")
 	TArray<FContextualAnimSceneSection> Sections;

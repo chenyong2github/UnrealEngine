@@ -33,6 +33,32 @@ void FContextualAnimSceneAssetDetailCustom::CustomizeDetails(IDetailLayoutBuilde
 	const UContextualAnimSceneAsset* SceneAsset = Cast<const UContextualAnimSceneAsset>(ObjectList[0].Get());
 	check(SceneAsset);
 
+	IDetailCategoryBuilder& SettingsCategory = DetailBuilder.EditCategory(TEXT("Settings"));
+	SettingsCategory.SetSortOrder(0);
+
+	IDetailCategoryBuilder& WarpingCategory = DetailBuilder.EditCategory(TEXT("Warping"));
+	WarpingCategory.SetSortOrder(1);
+
+	// Add a custom button to extract the warp points from the primary actor and cache them in the SceneAsset.
+	// @TODO: This is probably temp to get the feature in. It may be better to just add a reference to the original actor in the asset. Workflow will be much better that way. 
+	WarpingCategory.AddCustomRow(FText::GetEmpty())
+		.ValueContent()
+		.VAlign(VAlign_Center)
+		.MaxDesiredWidth(250)
+		[
+			SNew(SButton).Text(LOCTEXT("UpdateWarpPointsLabel", "Update Warp Points"))
+			.OnClicked_Lambda([ViewModel]()
+				{
+					const FText DialogMsg = LOCTEXT("RefreshWarpPointsDialog", "Warp Points should be updated while previewing the scene with the meshes the animations where originally authored for. Are you sure you want to continue?");
+					if (FMessageDialog::Open(EAppMsgType::YesNo, DialogMsg) == EAppReturnType::Yes)
+					{
+						ViewModel->CacheWarpPoints();
+					}
+
+					return FReply::Handled();
+				})
+		];
+
 	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TEXT("Defaults"));
 	Category.SetCategoryVisibility(false);
 

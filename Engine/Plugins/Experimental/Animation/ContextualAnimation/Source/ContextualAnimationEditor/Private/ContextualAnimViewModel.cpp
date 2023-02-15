@@ -1227,6 +1227,23 @@ void FContextualAnimViewModel::DiscardChangeToActorTransformInScene()
 	ModifyingTransformInSceneCachedActor.Reset();
 }
 
+void FContextualAnimViewModel::CacheWarpPoints()
+{
+	SceneAsset->WarpPointTransformCache.Reset();
+
+	for (const FContextualAnimWarpPointData& WarpPointData : SceneAsset->WarpPoints)
+	{
+		if (const FContextualAnimSceneBinding* Primary = SceneBindings.GetPrimaryBinding())
+		{
+			if (UMeshComponent* MeshComp = UContextualAnimUtilities::TryGetMeshComponentWithSocket(Primary->GetActor(), WarpPointData.SocketName))
+			{
+				const FTransform WarpPointTransform = MeshComp->GetSocketTransform(WarpPointData.SocketName, ERelativeTransformSpace::RTS_Actor);
+				SceneAsset->WarpPointTransformCache.Add(WarpPointData.SocketName, WarpPointTransform);
+			}
+		}
+	}
+}
+
 void FContextualAnimViewModel::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;

@@ -11,8 +11,11 @@
 #include "GameFramework/Character.h"
 #include "ContextualAnimActorInterface.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "SceneManagement.h"
 #include "MotionWarpingComponent.h"
+#include "AnimNotifyState_MotionWarping.h"
+#include "RootMotionModifier.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimUtilities)
 
@@ -175,6 +178,47 @@ void UContextualAnimUtilities::DrawDebugAnimSet(const UWorld* World, const UCont
 			}
 		}
 	}
+}
+
+const FAnimNotifyEvent* UContextualAnimUtilities::FindFirstWarpingWindowForWarpTarget(const UAnimSequenceBase* Animation, FName WarpTargetName)
+{
+	if(Animation)
+	{
+		return Animation->Notifies.FindByPredicate([WarpTargetName](const FAnimNotifyEvent& NotifyEvent)
+		{
+			if (const UAnimNotifyState_MotionWarping* Notify = Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass))
+			{
+				if (const URootMotionModifier_Warp* Modifier = Cast<URootMotionModifier_Warp>(Notify->RootMotionModifier))
+				{
+					if (Modifier->WarpTargetName == WarpTargetName)
+					{
+						return true;
+					}
+				}
+			}
+
+			return false;
+		});
+	}
+
+	return nullptr;
+}
+
+UMeshComponent* UContextualAnimUtilities::TryGetMeshComponentWithSocket(const AActor* Actor, FName SocketName)
+{
+	if (Actor)
+	{
+		TInlineComponentArray<UMeshComponent*> Components(Actor);
+		for (UMeshComponent* Component : Components)
+		{
+			if (Component && Component->DoesSocketExist(SocketName))
+			{
+				return Component;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 USkeletalMeshComponent* UContextualAnimUtilities::TryGetSkeletalMeshComponent(const AActor* Actor)

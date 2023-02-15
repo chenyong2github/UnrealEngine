@@ -115,23 +115,82 @@ void UContextualAnimSceneActorComponent::PlayAnimation_Internal(UAnimSequenceBas
 
 void UContextualAnimSceneActorComponent::AddOrUpdateWarpTargets(int32 SectionIdx, int32 AnimSetIdx)
 {
+	// This is relevant only for character with motion warping comp
+	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
+	UMotionWarpingComponent* MotionWarpComp = CharacterOwner ? CharacterOwner->GetComponentByClass<UMotionWarpingComponent>() : nullptr;
+	if (MotionWarpComp == nullptr)
+	{
+		return;
+	}
+
 	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByActor(GetOwner()))
 	{
 		const UContextualAnimSceneAsset* Asset = Bindings.GetSceneAsset();
 		check(Asset);
 
-		const TArray<FContextualAnimSetPivotDefinition>& PivotDefs = Asset->GetAnimSetPivotDefinitionsInSection(SectionIdx);
-		if (PivotDefs.Num() > 0)
+		// If WarpPoints array is not empty means that its the primary actor who will provide the transforms for alignment
+		if(Asset->GetWarpPoints().Num() > 0)
 		{
-			const FContextualAnimTrack* AnimTrack = Asset->GetAnimTrack(SectionIdx, AnimSetIdx, Bindings.GetRoleFromBinding(*Binding));
-			check(AnimTrack);
-
-			for (const FContextualAnimSetPivotDefinition& PivotDef : PivotDefs)
+			const FContextualAnimSceneBinding* PrimaryBinding = Bindings.GetPrimaryBinding();
+			if(PrimaryBinding == nullptr)
 			{
-				FContextualAnimSetPivot ScenePivot;
-				if (Bindings.CalculateAnimSetPivot(PivotDef, ScenePivot))
+				return;
+			}
+
+			for (const FContextualAnimWarpPointData& WarpPointData : Asset->GetWarpPoints())
+			{
+				// Get original warp point cached in the SceneAsset
+				const FTransform* WarpPointTransform = Asset->GetWarpPointTransform(WarpPointData.SocketName);
+				if (WarpPointTransform == nullptr)
 				{
-					if (UMotionWarpingComponent* MotionWarpComp = GetOwner()->FindComponentByClass<UMotionWarpingComponent>())
+					continue;
+				}
+
+				// Put original warp point in world space
+				const FTransform OriginalWarpPointTransform = *WarpPointTransform * PrimaryBinding->GetTransform();
+
+				// Now pull the warp point transform from the actual actor. This transform could be different if interacting with actors with different proportions
+				FTransform FinalWarpPointTransform = OriginalWarpPointTransform;
+				if (UMeshComponent* Component = UContextualAnimUtilities::TryGetMeshComponentWithSocket(PrimaryBinding->GetActor(), WarpPointData.SocketName))
+				{
+					const FTransform SocketTransform = Component->GetSocketTransform(WarpPointData.SocketName, ERelativeTransformSpace::RTS_Actor);
+					FinalWarpPointTransform = SocketTransform * PrimaryBinding->GetTransform();
+				}
+
+				// Get the NotifyEvent from the warping window for the corresponding warp target
+				const FContextualAnimTrack* AnimTrack = Asset->GetAnimTrack(SectionIdx, AnimSetIdx, Bindings.GetRoleFromBinding(*Binding));
+				const FAnimNotifyEvent* NotifyEvent = (AnimTrack && AnimTrack->Animation) ? UContextualAnimUtilities::FindFirstWarpingWindowForWarpTarget(AnimTrack->Animation, WarpPointData.WarpTargetName) : nullptr;
+				if (NotifyEvent)
+				{
+					// Calculate offset between the original warp point and the actual warp point
+					const FTransform Offset = FinalWarpPointTransform * OriginalWarpPointTransform.Inverse();
+
+					// Get where the actor ends in the animation at the end of this warping window, apply the offset and put it in world space
+					// This assumes the primary actor is at the origin of the scene
+					FTransform WarpTargetTransform = AnimTrack->GetRootTransformAtTime(NotifyEvent->GetEndTriggerTime());
+					WarpTargetTransform = (WarpTargetTransform * Offset) * PrimaryBinding->GetTransform();
+
+					// Account for mesh offset in character blueprint
+					WarpTargetTransform = FTransform(CharacterOwner->GetBaseRotationOffset().Inverse()) * WarpTargetTransform;
+
+					// Add warp target transform
+					MotionWarpComp->AddOrUpdateWarpTargetFromTransform(WarpPointData.WarpTargetName, WarpTargetTransform);
+				}
+			}
+		}
+		// When warp points are not explicitly defined by the primary actor we generate them on the fly based on AnimSetPivotDefinitions
+		else 
+		{
+			const TArray<FContextualAnimSetPivotDefinition>& PivotDefs = Asset->GetAnimSetPivotDefinitionsInSection(SectionIdx);
+			if (PivotDefs.Num() > 0)
+			{
+				const FContextualAnimTrack* AnimTrack = Asset->GetAnimTrack(SectionIdx, AnimSetIdx, Bindings.GetRoleFromBinding(*Binding));
+				check(AnimTrack);
+
+				for (const FContextualAnimSetPivotDefinition& PivotDef : PivotDefs)
+				{
+					FContextualAnimSetPivot ScenePivot;
+					if (Bindings.CalculateAnimSetPivot(PivotDef, ScenePivot))
 					{
 						const float Time = AnimTrack->GetSyncTimeForWarpSection(PivotDef.Name);
 						const FTransform TransformRelativeToScenePivot = Asset->GetAlignmentTransform(SectionIdx, AnimSetIdx, AnimTrack->AnimTrackIdx, PivotDef.Name, Time);

@@ -6,13 +6,16 @@
 #include "ContextualAnimUtilities.generated.h"
 
 class UContextualAnimSceneAsset;
+class UMeshComponent;
 class USkeletalMeshComponent;
+class UStaticMeshComponent;
 class UAnimInstance;
 class AActor;
 class FPrimitiveDrawInterface;
 struct FAnimMontageInstance;
 struct FCompactPose;
 struct FContextualAnimSet;
+struct FAnimNotifyEvent;
 template<class PoseType> struct FCSPose;
 
 UCLASS()
@@ -51,6 +54,10 @@ public:
 	static void DrawPose(const UAnimSequenceBase* Animation, float Time, FTransform LocalToWorldTransform, FLinearColor Color, float LifeTime, float Thickness, FDrawLineFunction DrawFunction);
 	
 	static void DrawDebugAnimSet(const UWorld* World, const UContextualAnimSceneAsset& SceneAsset, const FContextualAnimSet& AnimSet, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness);
+
+	static const FAnimNotifyEvent* FindFirstWarpingWindowForWarpTarget(const UAnimSequenceBase* Animation, FName WarpTargetName);
+
+	static UMeshComponent* TryGetMeshComponentWithSocket(const AActor* Actor, FName SocketName);
 
 	static USkeletalMeshComponent* TryGetSkeletalMeshComponent(const AActor* Actor);
 
