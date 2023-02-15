@@ -65,6 +65,7 @@ namespace ICVFXTest
 		var CsvsPaths = new[]
 			{
 				Path.Combine(ArtifactPath, "EditorGame", "Profiling", "FPSChartStats"),
+				Path.Combine(ArtifactPath, "EditorGame", "Settings", $"{GetConfiguration().ProjectName}", "Saved", "Profiling", "FPSChartStats"),
 				Path.Combine(TempDir, "DeviceCache", Platform.ToString(), TestInstance.ClientApps[0].Device.ToString(), "UserDir")
 			};
 

@@ -11,6 +11,12 @@ namespace ICVFXTest
 	public class ICVFXTestConfig : UnrealTestConfiguration
 	{
 		/// <summary>
+		/// Name of the project.
+		/// </summary>
+		[AutoParamWithNames("ICVFXTest.ProjectName")]
+		public string ProjectName;
+
+		/// <summary>
 		/// Name of the test.
 		/// </summary>
 		[AutoParamWithNames("ICVFXTest.TestName")]

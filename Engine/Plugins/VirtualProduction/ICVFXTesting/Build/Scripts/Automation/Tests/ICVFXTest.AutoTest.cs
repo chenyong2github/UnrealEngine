@@ -49,7 +49,7 @@ namespace ICVFXTest
 			Config.MaxDuration = Context.TestParams.ParseValue("MaxDuration", 60 * 60);  // 1 hour max
 
 			UnrealTestRole ClientRole = Config.RequireRole(UnrealTargetRole.Client);
-            ClientRole.Controllers.Add("AutoTest");
+            ClientRole.Controllers.Add("ICVFXTestControllerAutoTest");
 
 			ClientRole.CommandLineParams.AddOrAppendParamValue("execcmds", "ICVFXTest.MaxRunCount " + Config.MaxRunCount);
 
