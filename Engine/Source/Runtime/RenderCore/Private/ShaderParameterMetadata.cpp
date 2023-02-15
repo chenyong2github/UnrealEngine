@@ -10,6 +10,8 @@
 #include "ShaderParameters.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "ShaderParameterMacros.h"
+#include "Interfaces/IPluginManager.h"
+#include "Misc/CommandLine.h"
 
 bool SupportShaderPrecisionModifier(EShaderPlatform Platform)
 {
@@ -119,6 +121,22 @@ FShaderParametersMetadata* FindUniformBufferStructByFName(FName StructName)
 FShaderParametersMetadata* FindUniformBufferStructByLayoutHash(uint32 Hash)
 {
 	return GetLayoutHashStructMap().FindRef(Hash);
+}
+
+TArray<const FShaderParametersMetadataRegistration*> FShaderParametersMetadataRegistration::Instances;
+void FShaderParametersMetadataRegistration::CommitAll()
+{
+	for (const auto* Instance : Instances)
+	{
+		Instance->LazyShaderParametersMetadataAccessor();
+	}
+	Instances.Empty();
+}
+
+bool FShaderParametersMetadataRegistration::IsReadyForRegistration()
+{
+	return FCommandLine::IsInitialized() /* If cmd is not ready yet, then it's too early for the plugin manager */ 
+		&& IPluginManager::Get().GetLastCompletedLoadingPhase() >= ELoadingPhase::PostConfigInit;
 }
 
 const TCHAR* const kShaderParameterMacroNames[] = {

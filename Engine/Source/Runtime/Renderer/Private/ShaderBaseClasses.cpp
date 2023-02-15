@@ -30,8 +30,8 @@ FAutoConsoleVariableRef FMaterialShader::CVarAllowCachedUniformExpressions(
 
 void FMeshMaterialShaderElementData::InitializeMeshMaterialData(const FSceneView* SceneView, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, bool bDitheredLODTransition, bool bAllowStencilDither)
 {
-	FadeUniformBuffer = GDistanceCullFadedInUniformBuffer.GetUniformBufferRHI();
-	DitherUniformBuffer = GDitherFadedInUniformBuffer.GetUniformBufferRHI();
+	FadeUniformBuffer = GGetDistanceCullFadedInUniformBuffer();
+	DitherUniformBuffer = GGetDitherFadedInUniformBuffer();
 
 	if (SceneView)
 	{

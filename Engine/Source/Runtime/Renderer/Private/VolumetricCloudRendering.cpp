@@ -772,7 +772,7 @@ public:
 	FRenderVolumetricCloudRenderViewPs(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
 	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FRenderVolumetricCloudGlobalParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(Initializer.ParameterMap, FRenderVolumetricCloudGlobalParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName());
 	}
 
 	FRenderVolumetricCloudRenderViewPs() {}
@@ -2391,8 +2391,8 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 					FMeshPassProcessorRenderState DrawRenderState;
 
 					FMeshMaterialShaderElementData ShaderElementData;
-					ShaderElementData.FadeUniformBuffer = GDistanceCullFadedInUniformBuffer.GetUniformBufferRHI();
-					ShaderElementData.DitherUniformBuffer = GDitherFadedInUniformBuffer.GetUniformBufferRHI();
+					ShaderElementData.FadeUniformBuffer = GGetDistanceCullFadedInUniformBuffer();
+					ShaderElementData.DitherUniformBuffer = GGetDitherFadedInUniformBuffer();
 
 					FMeshProcessorShaders PassShaders;
 					PassShaders.ComputeShader = ComputeShader;
@@ -2489,8 +2489,8 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 				FMeshPassProcessorRenderState DrawRenderState;
 
 				FMeshMaterialShaderElementData ShaderElementData;
-				ShaderElementData.FadeUniformBuffer = GDistanceCullFadedInUniformBuffer.GetUniformBufferRHI();
-				ShaderElementData.DitherUniformBuffer = GDitherFadedInUniformBuffer.GetUniformBufferRHI();
+				ShaderElementData.FadeUniformBuffer = GGetDistanceCullFadedInUniformBuffer();
+				ShaderElementData.DitherUniformBuffer = GGetDitherFadedInUniformBuffer();
 
 				FMeshProcessorShaders PassShaders;
 				PassShaders.ComputeShader = ComputeShader;

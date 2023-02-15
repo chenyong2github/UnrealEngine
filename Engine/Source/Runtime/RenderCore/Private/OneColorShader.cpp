@@ -5,7 +5,7 @@
 
 // #define avoids a lot of code duplication
 #define IMPLEMENT_ONECOLORVS(A,B) typedef TOneColorVS<A,B> TOneColorVS##A##B; \
-	IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<> RENDERCORE_API, TOneColorVS##A##B, SF_Vertex);
+	IMPLEMENT_SHADER_TYPE4_WITH_TEMPLATE_PREFIX(template<>, RENDERCORE_API, TOneColorVS##A##B, SF_Vertex);
 
 IMPLEMENT_ONECOLORVS(false,false)
 IMPLEMENT_ONECOLORVS(false,true)

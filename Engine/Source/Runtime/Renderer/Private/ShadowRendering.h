@@ -1500,8 +1500,8 @@ public:
 	TOnePassPointShadowProjectionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 		FGlobalShader(Initializer)
 	{
-		HairStrandsParameters.Bind(Initializer.ParameterMap, FHairStrandsViewUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		StrataGlobalParameters.Bind(Initializer.ParameterMap, FStrataGlobalUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		HairStrandsParameters.Bind(Initializer.ParameterMap, FHairStrandsViewUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName());
+		StrataGlobalParameters.Bind(Initializer.ParameterMap, FStrataGlobalUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName());
 		OnePassShadowParameters.Bind(Initializer.ParameterMap);
 		ShadowDepthTextureSampler.Bind(Initializer.ParameterMap,TEXT("ShadowDepthTextureSampler"));
 		LightPosition.Bind(Initializer.ParameterMap,TEXT("LightPositionAndInvRadius"));

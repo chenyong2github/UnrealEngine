@@ -74,6 +74,9 @@ void FRendererModule::StartupModule()
 			FSceneRenderer::CleanUp(RHICmdList);
 		});
 	}));
+
+	// Needs to run on startup, after static init. Ideally at some point replaced with static accessor similar to GGetDitherFadedInUniformBuffer().
+	GIdentityPrimitiveUniformBuffer.InitContents();
 }
 
 void FRendererModule::ShutdownModule()
