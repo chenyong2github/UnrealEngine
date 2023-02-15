@@ -1137,11 +1137,15 @@ void UVCamComponent::Initialize()
 				; IsValid(Modifier) && ModifierStackEntry.bEnabled && !Modifier->IsInitialized())
 			{
 				Modifier->Initialize(ModifierContext, InputComponent);
+				AddInputMappingContext(Modifier);
 			}
 		}
 	}
 
-	// 3. Output providers
+	// 3. Safe to override input actions with custom player mappings now that all modifiers have been registered.
+	ApplyInputProfile();
+
+	// 4. Output providers
 	const bool bInitOutputProviders = bInitModifiers && ShouldUpdateOutputProviders();
 	if (bInitOutputProviders)
 	{
@@ -1207,13 +1211,10 @@ void UVCamComponent::TickModifierStack(const float DeltaTime)
 
 				Modifier->Apply(ModifierContext, CameraComponent, DeltaTime);
 			}
-			else
+			else if (Modifier->IsInitialized())
 			{
 				// If the modifier is initialized but not enabled then we deinitialize it
-				if (!Modifier->IsInitialized())
-				{
-					Modifier->Deinitialize();
-				}
+				Modifier->Deinitialize();
 			}
 		}
 	}
