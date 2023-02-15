@@ -27,7 +27,7 @@ class IDetailChildrenBuilder;
 
 enum class ECheckBoxState : uint8;
 
-template <typename KeyType, typename ValueType, typename ArrayAllocator, typename SortPredicate> class TSortedMap;
+template <typename InKeyType, typename InValueType, typename ArrayAllocator, typename SortPredicate> class TSortedMap;
 
 enum class EAutoCreatePayload : uint8
 {
