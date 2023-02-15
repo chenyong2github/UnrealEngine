@@ -348,6 +348,15 @@
 			"targets": [
 				{ "target": "Shape" }
 			]
+		},
+		{
+			"category": "Concat",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true }
+			],
+			"targets": [
+				{ "target": "Concat" }
+			]
 		}
 	],
 
@@ -823,6 +832,18 @@
 				{ "inputs":  [ { "shape": [ 1, 128, 50, 55 ] } ], "outputs": [ { "shape": [ 4 ], "type": "int64"} ] },
 				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ],  "outputs": [ { "shape": [ 5 ], "type": "int64"} ] }
 			]
+		},
+		{ 
+			"name": "Concat.Concat1",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3 ] }, { "shape": [ 2, 4 ] } ], "outputs": [ { "shape": [ 2, 7 ] } ] }
+			]
+		},
+		{ 
+			"name": "Concat.Concat2",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 4, 2, 4 ] }, { "shape": [ 6, 2, 4 ] }, { "shape": [ 1, 2, 4 ] } ], "outputs": [ { "shape": [ 11, 2, 4 ] } ] }
+			]
 		}
 	],
 
@@ -1194,6 +1215,22 @@
 			"name": "TransposeOp.Default",
 			"attribute_maps": [
 				{ "attributes": [] }
+			]
+		},
+		{
+			"name": "Concat.Concat1",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "axis", "value": 1, "type": "Int32" }
+				] }
+			]
+		},
+		{
+			"name": "Concat.Concat2",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "axis", "value": -3, "type": "Int32" }
+				] }
 			]
 		}
 	]
