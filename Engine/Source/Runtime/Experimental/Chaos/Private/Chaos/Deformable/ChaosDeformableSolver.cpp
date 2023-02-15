@@ -231,10 +231,13 @@ namespace Chaos::Softs
 		typedef TPair< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> > FType;
 		for (const FType& Entry : Proxies)
 		{
-			FThreadingProxy& Proxy = *Entry.Value.Get();
-			if (FCollisionManagerProxy* CollisionManagerProxy = Proxy.As< FCollisionManagerProxy>())
+			if (Entry.Value)
 			{
-				UpdateCollisionBodies(Entry.Key, DeltaTime);
+				FThreadingProxy& Proxy = *Entry.Value.Get();
+				if (FCollisionManagerProxy* CollisionManagerProxy = Proxy.As< FCollisionManagerProxy>())
+				{
+					UpdateCollisionBodies(*CollisionManagerProxy, Entry.Key, DeltaTime);
+				}
 			}
 		}
 	}
@@ -482,27 +485,42 @@ namespace Chaos::Softs
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeCollisionBodies);
 	}
 
-	void FDeformableSolver::UpdateCollisionBodies(FThreadingProxy::FKey Owner, FSolverReal DeltaTime)
+	void FDeformableSolver::UpdateCollisionBodies(FCollisionManagerProxy& Proxy, FThreadingProxy::FKey Owner, FSolverReal DeltaTime)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosDeformableSolver_InitializeCollisionBodies);
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_InitializeCollisionBodies);
 
 		FCollisionManagerProxy::FCollisionsInputBuffer* CollisionsInputBuffer = nullptr;
-		if (this->CurrentInputPackage->ObjectMap.Contains(Owner))
+		if (this->CurrentInputPackage && this->CurrentInputPackage->ObjectMap.Contains(Owner))
 		{
-			CollisionsInputBuffer = this->CurrentInputPackage->ObjectMap[Owner]->As<FCollisionManagerProxy::FCollisionsInputBuffer>();
-			if (CollisionsInputBuffer)
+			if (this->CurrentInputPackage->ObjectMap[Owner] != nullptr)
 			{
-				for (auto& AddBody : CollisionsInputBuffer->Added)
+				CollisionsInputBuffer = this->CurrentInputPackage->ObjectMap[Owner]->As<FCollisionManagerProxy::FCollisionsInputBuffer>();
+				if (CollisionsInputBuffer)
 				{
-					if (AddBody.Shapes)
+					for (auto& AddBody : CollisionsInputBuffer->Added)
 					{
-						typedef TPlane<Chaos::Softs::FSolverReal, 3> GeomType;
-						int32 Index = Evolution->AddCollisionParticleRange(1, INDEX_NONE, true);
-						Evolution->CollisionParticles().X(Index) = AddBody.Transform.GetTranslation();
-						Evolution->CollisionParticles().R(Index) = AddBody.Transform.GetRotation();
-						TUniquePtr<FImplicitObject> UniquePtr(AddBody.Shapes); AddBody.Shapes = nullptr;
-						Evolution->CollisionParticles().SetDynamicGeometry(Index, MoveTemp(UniquePtr));
+						if (AddBody.Shapes)
+						{
+							typedef TPlane<Chaos::Softs::FSolverReal, 3> GeomType;
+							int32 Index = Evolution->AddCollisionParticle(INDEX_NONE, true);
+							int32 ViewIndex = Evolution->CollisionParticlesActiveView().GetRanges().Num()-1;
+							Evolution->CollisionParticles().X(Index) = AddBody.Transform.GetTranslation();
+							Evolution->CollisionParticles().R(Index) = AddBody.Transform.GetRotation();
+							TUniquePtr<FImplicitObject> UniquePtr(AddBody.Shapes); AddBody.Shapes = nullptr;
+							Evolution->CollisionParticles().SetDynamicGeometry(Index, MoveTemp(UniquePtr));
+							Proxy.CollisionBodies.Add(AddBody.BodyId, FCollisionObjectParticleHandel( Index,ViewIndex,AddBody.Transform ));
+						}
+					}
+					for (auto& RemovedBody : CollisionsInputBuffer->Removed)
+					{
+						if (Proxy.CollisionBodies.Contains(RemovedBody.BodyId))
+						{
+							int32 ParticleIndex = Proxy.CollisionBodies[RemovedBody.BodyId].ParticleIndex;
+							int32 ViewIndex = Proxy.CollisionBodies[RemovedBody.BodyId].ActiveViewIndex;
+							Evolution->RemoveCollisionParticle(ParticleIndex, ViewIndex);
+							Proxy.CollisionBodies.Remove(RemovedBody.BodyId);
+						}
 					}
 				}
 			}

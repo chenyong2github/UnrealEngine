@@ -36,6 +36,20 @@ namespace Chaos::Softs
 		FTransform Transform = FTransform::Identity;
 	};
 
+	struct CHAOS_API FCollisionObjectParticleHandel
+	{
+		FCollisionObjectParticleHandel(int32 InParticleIndex = INDEX_NONE,
+									   int32 InActiveViewIndex = INDEX_NONE,
+									   FTransform InTransform = FTransform::Identity)
+			: ParticleIndex(InParticleIndex)
+			, ActiveViewIndex(InActiveViewIndex)
+			, Transform(InTransform) {}
+
+		int32 ParticleIndex = INDEX_NONE;
+		int32 ActiveViewIndex = INDEX_NONE;
+		FTransform Transform = FTransform::Identity;
+	};
+
 
 	class CHAOS_API FCollisionManagerProxy : public FThreadingProxy
 	{
@@ -73,7 +87,7 @@ namespace Chaos::Softs
 
 		TArray<FCollisionObjectAddedBodies> CollisionObjectsToAdd;
 		TArray< FCollisionObjectRemovedBodies > CollisionObjectsToRemove;
-		TMap< UObject*, FTransform > CollisionBodies;
+		TMap<const UObject*, FCollisionObjectParticleHandel > CollisionBodies;
 	};
 
 }// namespace Chaos::Softs

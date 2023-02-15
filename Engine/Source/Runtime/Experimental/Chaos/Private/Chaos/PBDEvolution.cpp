@@ -186,6 +186,54 @@ int32 FPBDEvolution::AddCollisionParticleRange(int32 NumParticles, uint32 GroupI
 	return INDEX_NONE;
 }
 
+int32 FPBDEvolution::AddCollisionParticle(uint32 GroupId, bool bActivate)
+{
+	FParticleVievToken Token = { INDEX_NONE,INDEX_NONE };
+	if (!RemovedCollisionIndices.Num())
+	{
+		Token = { (int32)MCollisionParticles.Size(),INDEX_NONE };
+
+		MCollisionParticles.AddParticles(1);
+	}
+	else
+	{
+		Token = RemovedCollisionIndices.Pop(); 
+	}
+
+	if (0 <= Token.ParticleIndex && Token.ParticleIndex < (int32)MCollisionParticles.Size())
+	{
+		MCollisionParticleGroupIds[Token.ParticleIndex] = GroupId;
+
+		if (Token.ViewIndex == INDEX_NONE)
+		{
+			// Add range
+			MCollisionParticlesActiveView.AddRange(1, bActivate);
+		}
+		else
+		{
+			// Update Range
+			MCollisionParticlesActiveView.ActivateRange(Token.ViewIndex, bActivate);
+		}
+	}
+
+	return Token.ParticleIndex;
+}
+
+void FPBDEvolution::RemoveCollisionParticle(int32 CollisionParticleIndex, int32 CollisionParticleViewIndex)
+{
+	if (0 <= CollisionParticleIndex && CollisionParticleIndex < (int32)MCollisionParticles.Size())
+	{
+		CollisionParticleGroupIds()[CollisionParticleIndex] = CollisionParticleIndex;
+		MCollisionParticlesActiveView.ActivateRange(CollisionParticleViewIndex, false);
+		RemovedCollisionIndices.Add({ CollisionParticleIndex ,CollisionParticleViewIndex });
+	}
+	else
+	{
+		ensure(false);
+	}
+}
+
+
 int32 FPBDEvolution::AddConstraintInitRange(int32 NumConstraints, bool bActivate)
 {
 	// Add new constraint init functions

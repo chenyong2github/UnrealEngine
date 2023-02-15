@@ -125,7 +125,13 @@ UDeformableCollisionsComponent::NewDeformableData()
 	}
 
 
-	for (auto& RemovedBody : RemovedBodies) { RemovedBodiesData.Add({RemovedBody}); }
+	for (auto& RemovedBody : RemovedBodies) 
+	{
+		if (RemovedBody)
+		{
+			RemovedBodiesData.Add({ RemovedBody });
+		}
+	}
 	AddedBodies.Empty();
 	RemovedBodies.Empty();
 

@@ -69,6 +69,12 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	// Use INDEX_NONE as GroupId for collision particles that affect all particle groups.
 	int32 AddCollisionParticleRange(int32 NumParticles, uint32 GroupId, bool bActivate);
 
+	// Add a single collision body particle to the solver. 
+	int32 AddCollisionParticle(uint32 GroupId, bool bActivate);
+
+	// Remove a collision body from the active view list, and save its particle in the remvoed collision particle list
+	void RemoveCollisionParticle(int32 CollisionParticleIndex, int32 CollisionParticleViewIndex);
+
 	// Set a block of collision particles active or inactive, using the index of the first added particle to identify the block.
 	void ActivateCollisionParticleRange(int32 Offset, bool bActivate) { MCollisionParticlesActiveView.ActivateRange(Offset, bActivate); }
 
@@ -78,8 +84,10 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	// Collision particles accessors
 	const FSolverRigidParticles& CollisionParticles() const { return MCollisionParticles; }
 	FSolverRigidParticles& CollisionParticles() { return MCollisionParticles; }
+	TArray<uint32>& CollisionParticleGroupIds() { return MCollisionParticleGroupIds; }
 	const TArray<uint32>& CollisionParticleGroupIds() const { return MCollisionParticleGroupIds; }
-	const TPBDActiveView<FSolverRigidParticles>& CollisionParticlesActiveView() { return MCollisionParticlesActiveView; }
+	TPBDActiveView<FSolverRigidParticles>& CollisionParticlesActiveView() { return MCollisionParticlesActiveView; }
+	const TPBDActiveView<FSolverRigidParticles>& CollisionParticlesActiveView() const { return MCollisionParticlesActiveView; }
 
 	// Reset all constraint init and rule functions.
 	void ResetConstraintRules() 
@@ -185,11 +193,14 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	template<bool bForceRule, bool bVelocityField, bool bDampVelocityRule>
 	void PreIterationUpdate(const FSolverReal Dt, const int32 Offset, const int32 Range, const int32 MinParallelBatchSize);
 
+	struct FParticleVievToken { int32 ParticleIndex = INDEX_NONE; int32 ViewIndex = INDEX_NONE; };
+
 private:
 	FSolverParticles MParticles;
 	TPBDActiveView<FSolverParticles> MParticlesActiveView;
 	FSolverRigidParticles MCollisionParticles;
 	TPBDActiveView<FSolverRigidParticles> MCollisionParticlesActiveView;
+	TArray<FParticleVievToken> RemovedCollisionIndices;
 
 	TArrayCollectionArray<FSolverRigidTransform3> MCollisionTransforms;  // Used for CCD to store the initial state before the kinematic update
 	TArrayCollectionArray<bool> MCollided;

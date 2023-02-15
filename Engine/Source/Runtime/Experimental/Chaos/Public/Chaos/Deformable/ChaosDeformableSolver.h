@@ -128,7 +128,7 @@ namespace Chaos::Softs
 		void InitializeCollisionBodies(FCollisionManagerProxy&);
 		void InitializeSelfCollisionVariables();
 		void InitializeGridBasedConstraintVariables();
-		void UpdateCollisionBodies(FThreadingProxy::FKey, FSolverReal DeltaTime);
+		void UpdateCollisionBodies(FCollisionManagerProxy&, FThreadingProxy::FKey, FSolverReal DeltaTime);
 		void RemoveSimulationObjects();
 		TArray<Chaos::TVec3<FSolverReal>> ComputeParticleTargets(const TArray<TArray<int32>>& ParticleIndices);
 
