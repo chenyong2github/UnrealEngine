@@ -1699,11 +1699,20 @@ namespace UnrealBuildTool
 
 			if (Result.OptimizationLevel != Rules.OptimizationLevel)
 			{
-				if ( Rules.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs && Rules.PrivatePCHHeaderFile == null )
+				Logger.LogInformation("Module {0} - Optimization level changed for module due to override. Old: {1} New: {2}", Name, Result.OptimizationLevel, Rules.OptimizationLevel);
+				if (Rules.PrivatePCHHeaderFile == null)
 				{
-					throw new BuildException("Module {0} - Overriding OptimizationLevel requires a private PCH", Name );
+					if (Rules.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs)
+					{
+						Logger.LogInformation("  Overriding OptimizationLevel requires a private PCH. Disabling PCH usage for {0}", Name);
+						Rules.PCHUsage = ModuleRules.PCHUsageMode.NoPCHs;
+					}
 				}
-				Logger.LogInformation("Optimization level changed for module {0} due to override. Old: {1} New: {2}", Name, Result.OptimizationLevel, Rules.OptimizationLevel);
+				else if (Rules.PCHUsage == ModuleRules.PCHUsageMode.UseSharedPCHs)
+				{
+					Logger.LogInformation("  Overriding OptimizationLevel requires a private PCH. A private PCH exists but UseSharedPCHs was specified. Overriding to NoSharedPCHs for {0}", Name);
+					Rules.PCHUsage = ModuleRules.PCHUsageMode.NoSharedPCHs;
+				}
 				Result.OptimizationLevel = Rules.OptimizationLevel;
 			}
 

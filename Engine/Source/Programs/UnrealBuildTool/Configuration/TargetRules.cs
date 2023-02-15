@@ -2211,6 +2211,20 @@ namespace UnrealBuildTool
 		public string[]? DisableOptimizeCodeForModules = null;
 
 		/// <summary>
+		///  List of modules to optimize for size. This allows the target to override module optimization level
+		///  Note that this may disable PCH usage if a private PCH is not provided
+		/// </summary>
+		[XmlConfigFile(Category = "ModuleConfiguration", Name = "OptimizeForSize")]
+		public string[]? OptimizeForSizeModules = null;
+
+		/// <summary>
+		///  List of modules to optimize for size and speed. This allows the target to override module optimization level
+		///  Note that this may disable PCH usage if a private PCH is not provided
+		/// </summary>
+		[XmlConfigFile(Category = "ModuleConfiguration", Name = "OptimizeForSizeAndSpeed")]
+		public string[]? OptimizeForSizeAndSpeedModules = null;
+
+		/// <summary>
 		/// When generating project files, specifies the name of the project file to use when there are multiple targets of the same type.
 		/// </summary>
 		public string? GeneratedProjectName;
@@ -3840,6 +3854,16 @@ namespace UnrealBuildTool
 		public IReadOnlyList<string>? DisableOptimizeCodeForModules
 		{
 			get { return Inner.DisableOptimizeCodeForModules; }
+		}
+
+		public IReadOnlyList<string>? OptimizeForSizeModules
+		{
+			get { return Inner.OptimizeForSizeModules; }
+		}
+
+		public IReadOnlyList<string>? OptimizeForSizeAndSpeedModules
+		{
+			get { return Inner.OptimizeForSizeAndSpeedModules; }
 		}
 
 		public IReadOnlyList<UnrealTargetPlatform>? OptedInModulePlatforms

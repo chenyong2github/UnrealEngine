@@ -642,6 +642,14 @@ namespace UnrealBuildTool
 		{
 			get
 			{
+				if (Target.OptimizeForSizeModules?.Contains(Name) ?? false)
+				{
+					return OptimizationMode.Size;
+				}
+				if (Target.OptimizeForSizeAndSpeedModules?.Contains(Name) ?? false)
+				{
+					return OptimizationMode.SizeAndSpeed;
+				}
 				if (OptimizationLevelOverride.HasValue)
 				{
 					return OptimizationLevelOverride.Value;
