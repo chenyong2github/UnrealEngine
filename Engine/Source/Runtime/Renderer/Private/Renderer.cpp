@@ -118,6 +118,7 @@ void FRendererModule::InitializeSystemTextures(FRHICommandListImmediate& RHICmdL
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDrawTileMeshPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDebugViewModePassUniformParameters, DebugViewMode)
@@ -126,6 +127,80 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDrawTileMeshPassParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileBasePassUniformParameters, MobileBasePass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
+
+FSceneUniformBuffer* FRendererModule::CreateSinglePrimitiveSceneUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& SceneView, FMeshBatch& Mesh)
+{
+	const auto FeatureLevel = SceneView.GetFeatureLevel();
+	
+	FSceneUniformBuffer& SceneUniforms = *GraphBuilder.AllocObject<FSceneUniformBuffer>();
+
+	if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, EVertexInputStreamType::PositionOnly) >= 0)
+	{
+		FMeshBatchElement& MeshElement = Mesh.Elements[0];
+
+		checkf(Mesh.Elements.Num() == 1, TEXT("Only 1 batch element currently supported by CreateSinglePrimitiveSceneUniformBuffer"));
+		checkf(MeshElement.PrimitiveUniformBuffer == nullptr, TEXT("CreateSinglePrimitiveSceneUniformBuffer does not currently support an explicit primitive uniform buffer on vertex factories which manually fetch primitive data.  Use PrimitiveUniformBufferResource instead."));
+
+		if (MeshElement.PrimitiveUniformBufferResource)
+		{
+			checkf(MeshElement.NumInstances == 1, TEXT("CreateSinglePrimitiveSceneUniformBuffer does not currently support instancing"));
+			// Force PrimitiveId to be 0 in the shader
+			MeshElement.PrimitiveIdMode = PrimID_ForceZero;
+
+			// Set the LightmapID to 0, since that's where our light map data resides for this primitive
+			FPrimitiveUniformShaderParameters PrimitiveParams = *(const FPrimitiveUniformShaderParameters*)MeshElement.PrimitiveUniformBufferResource->GetContents();
+			PrimitiveParams.LightmapDataIndex = 0;
+			PrimitiveParams.LightmapUVIndex = 0;
+
+			// Set up reference to the single-instance 
+			PrimitiveParams.InstanceSceneDataOffset = 0;
+			PrimitiveParams.NumInstanceSceneDataEntries = 1;
+			PrimitiveParams.InstancePayloadDataOffset = INDEX_NONE;
+			PrimitiveParams.InstancePayloadDataStride = 0;
+			
+			// Now we just need to fill out the first entry of primitive data in a buffer and bind it
+			FPrimitiveSceneShaderData PrimitiveSceneData(PrimitiveParams);
+
+			// Also fill out correct single-primitive instance data, derived from the primitive.
+			FInstanceSceneShaderData InstanceSceneData{};
+			InstanceSceneData.BuildInternal
+			(
+				0 /* Primitive Id */,
+				0 /* Relative Instance Id */,
+				0 /* Payload Data Flags */,
+				INVALID_LAST_UPDATE_FRAME,
+				0 /* Custom Data Count */,
+				0.0f /* Random ID */,
+				PrimitiveParams.LocalToRelativeWorld
+			);
+
+			// Set up the parameters for the LightmapSceneData from the given LCI data 
+			FPrecomputedLightingUniformParameters LightmapParams;
+			GetPrecomputedLightingParameters(FeatureLevel, LightmapParams, Mesh.LCI);
+			FLightmapSceneShaderData LightmapSceneData(LightmapParams);
+
+			FRDGBufferRef PrimitiveSceneDataBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("PrimitiveSceneDataBuffer"), TConstArrayView<FVector4f>(PrimitiveSceneData.Data));
+			FRDGBufferRef LightmapSceneDataBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("LightmapSceneDataBuffer"), TConstArrayView<FVector4f>(LightmapSceneData.Data));
+			FRDGBufferRef InstanceSceneDataBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceSceneDataBuffer"), TConstArrayView<FVector4f>(InstanceSceneData.Data));
+			FRDGBufferRef InstancePayloadDataBuffer = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f));
+			FRDGBufferRef DummyBufferLight = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FLightSceneData));
+
+			FGPUSceneResourceParameters ShaderParameters;
+			ShaderParameters.GPUScenePrimitiveSceneData = GraphBuilder.CreateSRV(PrimitiveSceneDataBuffer);
+			ShaderParameters.GPUSceneInstanceSceneData = GraphBuilder.CreateSRV(InstanceSceneDataBuffer);
+			ShaderParameters.GPUSceneInstancePayloadData = GraphBuilder.CreateSRV(InstancePayloadDataBuffer);
+			ShaderParameters.GPUSceneLightmapData = GraphBuilder.CreateSRV(LightmapSceneDataBuffer);
+			ShaderParameters.GPUSceneLightData = GraphBuilder.CreateSRV(DummyBufferLight);
+			ShaderParameters.InstanceDataSOAStride = 1;
+			ShaderParameters.NumInstances = 1;
+			ShaderParameters.NumScenePrimitives = 1;
+			
+			SceneUniforms.Set(ShaderParameters);
+		}
+	}
+
+	return &SceneUniforms;
+}
 
 void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& SceneView, FMeshBatch& Mesh, bool bIsHitTesting, const FHitProxyId& HitProxyId, bool bUse128bitRT)
 {
@@ -148,7 +223,6 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 		const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(FeatureLevel);
 
 		FScene* Scene = nullptr;
-
 		if (ViewFamily->Scene)
 		{
 			Scene = ViewFamily->Scene->GetRenderScene();
@@ -157,65 +231,10 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 		Mesh.MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(FeatureLevel);
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
-		FSinglePrimitiveStructured& SinglePrimitiveStructured = GTilePrimitiveBuffer;
-
-		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, EVertexInputStreamType::PositionOnly) >= 0)
-		{
-			FMeshBatchElement& MeshElement = Mesh.Elements[0];
-
-			checkf(Mesh.Elements.Num() == 1, TEXT("Only 1 batch element currently supported by DrawTileMesh"));
-			checkf(MeshElement.PrimitiveUniformBuffer == nullptr, TEXT("DrawTileMesh does not currently support an explicit primitive uniform buffer on vertex factories which manually fetch primitive data.  Use PrimitiveUniformBufferResource instead."));
-
-			if (MeshElement.PrimitiveUniformBufferResource)
-			{
-				checkf(MeshElement.NumInstances == 1, TEXT("DrawTileMesh does not currently support instancing"));
-				// Force PrimitiveId to be 0 in the shader
-				MeshElement.PrimitiveIdMode = PrimID_ForceZero;
-				
-				// Set the LightmapID to 0, since that's where our light map data resides for this primitive
-				FPrimitiveUniformShaderParameters PrimitiveParams = *(const FPrimitiveUniformShaderParameters*)MeshElement.PrimitiveUniformBufferResource->GetContents();
-				PrimitiveParams.LightmapDataIndex = 0;
-				PrimitiveParams.LightmapUVIndex = 0;
-
-				// Set up reference to the single-instance 
-				PrimitiveParams.InstanceSceneDataOffset = 0;
-				PrimitiveParams.NumInstanceSceneDataEntries = 1;
-				PrimitiveParams.InstancePayloadDataOffset = INDEX_NONE;
-				PrimitiveParams.InstancePayloadDataStride = 0;
-
-				// Now we just need to fill out the first entry of primitive data in a buffer and bind it
-				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
-				SinglePrimitiveStructured.ShaderPlatform = View.GetShaderPlatform();
-
-				// Also fill out correct single-primitive instance data, derived from the primitive.
-				SinglePrimitiveStructured.InstanceSceneData.BuildInternal
-				(
-					0 /* Primitive Id */,
-					0 /* Relative Instance Id */,
-					0 /* Payload Data Flags */,
-					INVALID_LAST_UPDATE_FRAME,
-					0 /* Custom Data Count */,
-					0.0f /* Random ID */,
-					PrimitiveParams.LocalToRelativeWorld
-				);
-
-				// TODO: Payload dummy?
-
-				// Set up the parameters for the LightmapSceneData from the given LCI data 
-				FPrecomputedLightingUniformParameters LightmapParams;
-				GetPrecomputedLightingParameters(FeatureLevel, LightmapParams, Mesh.LCI);
-				SinglePrimitiveStructured.LightmapSceneData = FLightmapSceneShaderData(LightmapParams);
-
-				SinglePrimitiveStructured.UploadToGPU();
-
-				View.PrimitiveSceneDataOverrideSRV = SinglePrimitiveStructured.PrimitiveSceneDataBufferSRV;
-				View.InstanceSceneDataOverrideSRV  = SinglePrimitiveStructured.InstanceSceneDataBufferSRV;
-				View.InstancePayloadDataOverrideSRV = SinglePrimitiveStructured.InstancePayloadDataBufferSRV;
-				View.LightmapSceneDataOverrideSRV = SinglePrimitiveStructured.LightmapSceneDataBufferSRV;
-			}
-		}
 
 		FRDGBuilder& GraphBuilder = RenderContext.GraphBuilder;
+		
+		FSceneUniformBuffer& SceneUniforms = *CreateSinglePrimitiveSceneUniformBuffer(GraphBuilder, View, Mesh);
 
 		if (!FRDGSystemTextures::IsValid(GraphBuilder))
 		{
@@ -235,7 +254,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 		}
 
 		View.InitRHIResources();
-		View.ForwardLightingResources.SetUniformBuffer(CreateDummyForwardLightUniformBuffer(GraphBuilder));
+		View.ForwardLightingResources.SetUniformBuffer(CreateDummyForwardLightUniformBuffer(GraphBuilder, View.GetShaderPlatform()));
 
 		TUniformBufferRef<FReflectionCaptureShaderData> EmptyReflectionCaptureUniformBuffer;
 
@@ -249,6 +268,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 		auto* PassParameters = GraphBuilder.AllocParameters<FDrawTileMeshPassParameters>();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(RenderContext.GetRenderTarget(), ERenderTargetLoadAction::ELoad);
 		PassParameters->View = View.GetShaderParameters();
+		PassParameters->Scene = SceneUniforms.GetBuffer(GraphBuilder);
 		PassParameters->ReflectionCapture = EmptyReflectionCaptureUniformBuffer;
 		PassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 
@@ -487,6 +507,11 @@ void FRendererModule::GPUBenchmark(FSynthBenchmarkResults& InOut, float WorkScal
 			RendererGPUBenchmark(RHICmdList, *InOutPtr, DummyView, WorkScale);
 		});
 	FlushRenderingCommands();
+}
+
+void FRendererModule::ResetSceneTextureExtentHistory()
+{
+	::ResetSceneTextureExtentHistory();
 }
 
 static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
