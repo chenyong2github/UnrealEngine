@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGGather.h"
+#include "NNERuntimeRDGHelperGather.h"
 #include "NNERuntimeRDGHlslHelper.h"
 #include "NNEHlslShadersGatherCS.h"
 #include "NNECoreAttributeMap.h"
@@ -33,7 +34,44 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			check(InputTensors.Num() == 2)
 			check(OutputTensors.Num() == 1)
 			UE_LOG(LogNNE, Warning, TEXT("Gather shape inference is not implemented at the moment"));
-			return -1;
+
+			const NNECore::Internal::FTensor& Data = *InputTensors[0];
+			const NNECore::Internal::FTensor& Indices = *InputTensors[1];
+			const NNECore::FTensorShape& DataShape = Data.GetShape();
+			const NNECore::FTensorShape& IndicesShape = Indices.GetShape();
+
+			const int32 OutputRank = IndicesShape.Rank() + DataShape.Rank() - 1;
+			TArray<uint32> OutputShapeData;
+			int32 DataRankIdx = 0;
+
+			OutputShapeData.Reserve(OutputRank);
+			for (;DataRankIdx < Axis; ++DataRankIdx)
+			{
+				OutputShapeData.Add(DataShape.GetData()[DataRankIdx]);
+			}
+
+			OutputShapeData.Append(IndicesShape.GetData());
+			++DataRankIdx;
+
+			for (; DataRankIdx < DataShape.Rank(); ++DataRankIdx)
+			{
+				OutputShapeData.Add(DataShape.GetData()[DataRankIdx]);
+			}
+
+			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
+
+			check(OutputShape.Rank() == OutputRank);
+			OutputTensors[0]->SetShape(OutputShape);
+
+			Internal::CPUHelper::Gather::Apply(Data, Indices, Axis, *OutputTensors[0]);
+
+			if (!OutputTensors[0]->HasPreparedData())
+			{
+				UE_LOG(LogNNE, Warning, TEXT("Gather: Output could not be computed as a constant tensor, however Gather is not implemented on GPU at the moment."));
+				return -1;
+			}
+
+			return 0;
 		};
 		
 		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
@@ -86,6 +124,8 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InputTensors, TConstArrayView<FTensorRDGRef> OutputTensors) override
 		{
+			UE_LOG(LogNNE, Warning, TEXT("Gather: Output should be constant and already uploaded to GPU memory. Dispatch should not need to be called."));
+			/*
 			using namespace UE::NNEHlslShaders::Internal;
 
 			check(InputTensors.Num() == 2)
@@ -125,6 +165,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 				ComputeShader,
 				Parameters,
 				ThreadGroupCount);
+			*/
 		}
 	};
 
@@ -132,14 +173,21 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	{
 		bool bIsValid = true;
 
+		//This match version 13 of the Gather operator
+		//https://github.com/onnx/onnx/blob/main/docs/Operators.md#Gather
 		FAttributeValidator AttributeValidator;
 		AttributeValidator.AddOptional(TEXT("axis"), ENNEAttributeDataType::Int32);
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		FInputValidator InputValidator;
-		InputValidator.AddSupportedType(ENNETensorDataType::Float);
-		InputValidator.AddRequired();
-		InputValidator.AddRequired();//Indices should be int32 or int64
+		InputValidator.SetTemplateCount(2);
+	
+		InputValidator.AddSupportedType(ENNETensorDataType::Float, 0);
+		InputValidator.AddRequired(0);
+
+		InputValidator.AddSupportedType(ENNETensorDataType::Int32, 1);
+		InputValidator.AddSupportedType(ENNETensorDataType::Int64, 1);
+		InputValidator.AddRequired(1);
 		bIsValid &= InputValidator.Validate(InputTypes);
 
 		return bIsValid;

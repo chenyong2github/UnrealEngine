@@ -15,6 +15,7 @@
 #include "Hlsl/NNERuntimeRDGElementWiseBinary.h"
 #include "Hlsl/NNERuntimeRDGElementWiseUnary.h"
 #include "Hlsl/NNERuntimeRDGElementWiseVariadic.h"
+#include "Hlsl/NNERuntimeRDGGather.h"
 #include "Hlsl/NNERuntimeRDGGemm.h"
 #include "Hlsl/NNERuntimeRDGInstanceNormalization.h"
 #include "Hlsl/NNERuntimeRDGPad.h"
@@ -49,6 +50,7 @@ bool UNNERuntimeRDGHlslImpl::Init()
 	RegisterConcatOperator(*registry);
 	RegisterUnsqueezeOperator(*registry);
 	RegisterCastOperator(*registry);
+	RegisterGatherOperator(*registry);
 
 	return true;
 }
