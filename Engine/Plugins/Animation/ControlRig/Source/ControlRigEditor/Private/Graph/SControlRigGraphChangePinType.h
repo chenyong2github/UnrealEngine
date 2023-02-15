@@ -10,17 +10,21 @@
 #include "IPropertyAccessEditor.h"
 #include "ControlRigBlueprint.h"
 
+DECLARE_DELEGATE_OneParam(FOnTypeSelected, TRigVMTypeIndex);
+
 class SControlRigChangePinType : public SCompoundWidget
 {
 public:
 
 	SLATE_BEGIN_ARGS(SControlRigChangePinType)
-	: _ModelPins()
+	: _Types()
     , _Blueprint(nullptr)
+	, _OnTypeSelected(nullptr)
 	{}
 
-		SLATE_ARGUMENT(TArray<URigVMPin*>, ModelPins)
+		SLATE_ARGUMENT(TArray<TRigVMTypeIndex>, Types)
 		SLATE_ARGUMENT(UControlRigBlueprint*, Blueprint)
+		SLATE_EVENT(FOnTypeSelected, OnTypeSelected)
 
 	SLATE_END_ARGS()
 
@@ -39,30 +43,8 @@ protected:
 	void FillPinTypeMenu( FMenuBuilder& MenuBuilder );
 	void HandlePinTypeChanged(FRigVMTemplateArgumentType InType);
 
-	TArray<URigVMPin*> ModelPins;
+	TArray<TRigVMTypeIndex> Types;
 	UControlRigBlueprint* Blueprint;
+	FOnTypeSelected OnTypeSelected;
 	FPropertyBindingWidgetArgs BindingArgs;
-};
-
-class SControlRigGraphChangePinType : public SGraphPin
-{
-public:
-
-	SLATE_BEGIN_ARGS(SControlRigGraphChangePinType){}
-
-		SLATE_ARGUMENT(TArray<URigVMPin*>, ModelPins)
-		SLATE_ARGUMENT(UControlRigBlueprint*, Blueprint)
-
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj);
-
-protected:
-
-	//~ Begin SGraphPin Interface
-	virtual TSharedRef<SWidget>	GetDefaultValueWidget() override;
-	//~ End SGraphPin Interface
-
-	TArray<URigVMPin*> ModelPins;
-	UControlRigBlueprint* Blueprint;
 };

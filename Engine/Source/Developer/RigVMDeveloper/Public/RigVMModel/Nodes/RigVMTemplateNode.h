@@ -106,11 +106,14 @@ public:
 	// returns true if a pin supports a given type
 	bool SupportsType(const URigVMPin* InPin, TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex = nullptr);
 
-	// returns true if a pin supports a given type after filtering
-	bool FilteredSupportsType(const URigVMPin* InPin, TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex = nullptr, bool bAllowFloatingPointCasts = true);
-
 	// returns the resolved functions for the template
 	TArray<const FRigVMFunction*> GetResolvedPermutations() const;
+
+	// returns the resolved permutation indices for the template
+	TArray<int32> GetResolvedPermutationIndices(bool bAllowFloatingPointCasts) const;
+
+	// Returns a map of the resolved pin types
+	FRigVMTemplateTypeMap GetTemplatePinTypeMap(bool bIncludeHiddenPins = false, bool bIncludeExecutePins = false) const;
 
 	// returns the template used for this node
 	virtual const FRigVMTemplate* GetTemplate() const;
@@ -132,48 +135,15 @@ public:
 	// returns the display name for a pin
 	FName GetDisplayNameForPin(const FName& InRootPinName, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
-	// returns the indeces of the filtered permutations
-	const TArray<int32>& GetFilteredPermutationsIndices() const;
-
-	// returns the filtered types of this pin
-	TArray<TRigVMTypeIndex> GetFilteredTypesForPin(URigVMPin* InPin) const;
-
 	// Tries to reduce the input types to a single type, if all are compatible
 	// Will prioritize the InPreferredType if available
 	TRigVMTypeIndex TryReduceTypesToSingle(const TArray<TRigVMTypeIndex>& InTypes, const TRigVMTypeIndex PreferredType = TRigVMTypeIndex()) const;
-
-	// returns true if updating pin filters with InTypes would result in different filters 
-	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices);
-	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, URigVMPin* LinkedPin);
-
-	// updates the filtered permutations given a link or the types for a pin
-	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices);
-	bool UpdateFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
-
-	// initializes the filtered permutations to all possible permutations
-	void InitializeFilteredPermutations();
-
-	// Initializes the filtered permutations and preferred permutation from the types of the pins
-	void InitializeFilteredPermutationsFromTypes(bool bAllowCasting);
-
-	// Converts the preferred types per pin from index to string
-	void ConvertPreferredTypesToString();
-
-	// Converts the preferred types per pin from string to indices
-	void ConvertPreferredTypesToTypeIndex();
-
-	// Returns the preferred type, or an invalid type if non was found
-	TRigVMTypeIndex GetPreferredType(const FName& ArgumentName) const;
 
 protected:
 
 	virtual void InvalidateCache() override;
 	
-	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
-	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices);
-
 	TArray<int32> FindPermutationsForTypes(const TArray<FRigVMTemplatePreferredType>& ArgumentTypes, bool bAllowCasting = false) const;
-	TArray<FRigVMTemplatePreferredType> GetPreferredTypesForPermutation(const int32 InPermutationIndex) const;
 	FRigVMTemplateTypeMap GetTypesForPermutation(const int32 InPermutationIndex) const;
 
 	UPROPERTY()
@@ -190,9 +160,7 @@ protected:
 #endif
 
 	UPROPERTY()
-	TArray<FRigVMTemplatePreferredType> PreferredPermutationPairs;
-
-	TArray<int32> FilteredPermutations;
+	TArray<FRigVMTemplatePreferredType> PreferredPermutationPairs_DEPRECATED;
 
 	mutable const FRigVMTemplate* CachedTemplate;
 	mutable const FRigVMFunction* CachedFunction;

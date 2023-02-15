@@ -5,24 +5,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunctionEntryNode)
 
-const FRigVMTemplate* URigVMFunctionEntryNode::GetTemplate() const
-{
-	if (URigVMLibraryNode* LibraryNode = GetTypedOuter<URigVMLibraryNode>())
-	{
-		return LibraryNode->GetTemplate();
-	}
-	return nullptr;
-}
-
-FName URigVMFunctionEntryNode::GetNotation() const
-{
-	if (URigVMLibraryNode* LibraryNode = GetTypedOuter<URigVMLibraryNode>())
-	{
-		return LibraryNode->GetNotation();
-	}
-	return NAME_None;
-}
-
 FLinearColor URigVMFunctionEntryNode::GetNodeColor() const
 {
 	if(URigVMGraph* RootGraph = GetRootGraph())
@@ -48,7 +30,7 @@ FString URigVMFunctionEntryNode::GetNodeTitle() const
 
 FText URigVMFunctionEntryNode::GetToolTipText() const
 {
-	return FText::FromName(GetTemplate()->GetNotation());
+	return FText::FromName(GetGraph()->GetOuter()->GetFName());
 }
 
 FText URigVMFunctionEntryNode::GetToolTipTextForPin(const URigVMPin* InPin) const

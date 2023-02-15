@@ -232,7 +232,7 @@ bool FRigVMTemplateArgument::SupportsTypeIndex(TRigVMTypeIndex InTypeIndex, TRig
 		{
 			(*OutTypeIndex) = TypeIndices[(*Permutations)[0]];
 		}
-		return true;		
+		return true;
 	}
 
 	// Try to find compatible type
@@ -245,11 +245,11 @@ bool FRigVMTemplateArgument::SupportsTypeIndex(TRigVMTypeIndex InTypeIndex, TRig
 			{
 				(*OutTypeIndex) = TypeIndices[(*Permutations)[0]];
 			}
-			return true;		
+			return true;
 		}
 	}
 
-	return false;	
+	return false;
 }
 
 bool FRigVMTemplateArgument::IsSingleton(const TArray<int32>& InPermutationIndices) const
@@ -808,24 +808,11 @@ FText FRigVMTemplate::GetTooltipText(const TArray<int32>& InPermutationIndices) 
 		return true;
 	};
 
-	if(InPermutationIndices.IsEmpty())
+	for(int32 PermutationIndex = 0; PermutationIndex < Permutations.Num(); PermutationIndex++)
 	{
-		for(int32 PermutationIndex = 0; PermutationIndex < Permutations.Num(); PermutationIndex++)
+		if(!VisitPermutation(PermutationIndex))
 		{
-			if(!VisitPermutation(PermutationIndex))
-			{
-				break;
-			}
-		}
-	}
-	else
-	{
-		for(const int32 PermutationIndex : InPermutationIndices)
-		{
-			if(!VisitPermutation(PermutationIndex))
-			{
-				break;
-			}
+			break;
 		}
 	}
 
@@ -1139,7 +1126,7 @@ bool FRigVMTemplate::ArgumentSupportsTypeIndex(const FName& InArgumentName, TRig
 {
 	if (const FRigVMTemplateArgument* Argument = FindArgument(InArgumentName))
 	{
-		return Argument->SupportsTypeIndex(InTypeIndex, OutTypeIndex);		
+		return Argument->SupportsTypeIndex(InTypeIndex, OutTypeIndex);
 	}
 	return false;
 }
@@ -1317,23 +1304,6 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 			{
 				InOutTypes.Add(Argument.Name,MatchedType);
 
-				// if we found a perfect match - remove all permutations which don't match this one
-				if(bFoundPerfectMatch)
-				{
-					const TArray<int32> BeforePermutationIndices = OutPermutationIndices;
-					OutPermutationIndices.RemoveAll([Argument, MatchedType](int32 PermutationIndex) -> bool
-					{
-						return Argument.TypeIndices[PermutationIndex] != MatchedType;
-					});
-					if (OutPermutationIndices.IsEmpty() && bAllowFloatingPointCasts)
-					{
-						OutPermutationIndices = BeforePermutationIndices;
-						OutPermutationIndices.RemoveAll([Argument, MatchedType, InputType, &Registry](int32 PermutationIndex) -> bool
-						{
-							return !Registry.CanMatchTypes(Argument.TypeIndices[PermutationIndex], *InputType, true);
-						});
-					}
-				}
 				continue;
 			}
 		}

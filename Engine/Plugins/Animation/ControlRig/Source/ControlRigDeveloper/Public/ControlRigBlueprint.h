@@ -43,6 +43,7 @@ DECLARE_EVENT_ThreeParams(UControlRigBlueprint, FOnLocalizeFunctionDialogRequest
 DECLARE_EVENT_ThreeParams(UControlRigBlueprint, FOnReportCompilerMessage, EMessageSeverity::Type, UObject*, const FString&);
 DECLARE_DELEGATE_RetVal_FourParams(FRigVMController_BulkEditResult, FControlRigOnBulkEditDialogRequestedDelegate, UControlRigBlueprint*, URigVMController*, URigVMLibraryNode*, ERigVMControllerBulkEditType);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FControlRigOnBreakLinksDialogRequestedDelegate, TArray<URigVMLink*>);
+DECLARE_DELEGATE_RetVal_OneParam(TRigVMTypeIndex, FControlRigOnPinTypeSelectionRequestedDelegate, const TArray<TRigVMTypeIndex>&);
 DECLARE_EVENT(UControlRigBlueprint, FOnBreakpointAdded);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnRequestInspectObject, const TArray<UObject*>& );
 
@@ -611,7 +612,6 @@ private:
 	void PatchVariableNodesWithIncorrectType();
 	void PatchPropagateToChildren();
 	void PatchParameterNodesOnLoad();
-	void PatchTemplateNodesWithPreferredPermutation();
 	void PatchLinksWithCast();
 	void PatchFunctionsOnLoad();
 
@@ -705,6 +705,8 @@ public:
 
 	FControlRigOnBreakLinksDialogRequestedDelegate& OnRequestBreakLinksDialog() { return RequestBreakLinksDialog; }
 
+	FControlRigOnPinTypeSelectionRequestedDelegate& OnRequestPinTypeSelectionDialog() { return RequestPinTypeSelectionDialog; }
+
 	FRigVMController_RequestJumpToHyperlinkDelegate& OnRequestJumpToHyperlink() { return RequestJumpToHyperlink; };
 
 	FOnReportCompilerMessage& OnReportCompilerMessage() { return ReportCompilerMessageEvent; }
@@ -723,6 +725,7 @@ private:
 	FOnReportCompilerMessage ReportCompilerMessageEvent;
 	FControlRigOnBulkEditDialogRequestedDelegate RequestBulkEditDialog;
 	FControlRigOnBreakLinksDialogRequestedDelegate RequestBreakLinksDialog;
+	FControlRigOnPinTypeSelectionRequestedDelegate RequestPinTypeSelectionDialog;
 	FRigVMController_RequestJumpToHyperlinkDelegate RequestJumpToHyperlink;
 
 #endif

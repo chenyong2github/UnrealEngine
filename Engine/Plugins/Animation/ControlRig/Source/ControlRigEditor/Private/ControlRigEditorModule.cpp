@@ -1470,7 +1470,14 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 											TSharedRef<SControlRigChangePinType> ChangePinTypeWidget =
 											SNew(SControlRigChangePinType)
 											.Blueprint(RigBlueprint)
-											.ModelPins({ModelPin});
+											.Types(Argument->GetTypeIndices())
+											.OnTypeSelected_Lambda([RigBlueprint, ModelPin](const TRigVMTypeIndex& TypeSelected)
+											{
+												if (URigVMController* Controller = RigBlueprint->GetController(ModelPin->GetGraph()))
+												{
+													Controller->ResolveWildCardPin(ModelPin, TypeSelected, true, true);
+												}
+											});
 
 											TemplatesSection.AddEntry(FToolMenuEntry::InitWidget("ChangePinTypeWidget", ChangePinTypeWidget, FText(), true));
 										}

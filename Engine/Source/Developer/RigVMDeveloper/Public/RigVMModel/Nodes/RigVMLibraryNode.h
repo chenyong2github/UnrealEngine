@@ -24,7 +24,6 @@ class RIGVMDEVELOPER_API URigVMLibraryNode : public URigVMTemplateNode
 	GENERATED_BODY()
 
 public:
-	URigVMLibraryNode();
 
 	// Override node functions
 	virtual bool IsDefinedAsConstant() const override;
@@ -33,8 +32,8 @@ public:
 	
 	// Override template node functions
 	virtual UScriptStruct* GetScriptStruct() const override { return nullptr; }
-	virtual const FRigVMTemplate* GetTemplate() const override;
-	virtual FName GetNotation() const override;
+	virtual const FRigVMTemplate* GetTemplate() const override { return nullptr; }
+	virtual FName GetNotation() const override { return NAME_None; }
 
 	// URigVMNode interface
 	virtual  FText GetToolTipText() const override;
@@ -63,8 +62,6 @@ public:
 
 protected:
 
-	FRigVMTemplate Template;
-	
 	virtual TArray<int32> GetInstructionsForVMImpl(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const override; 
 	const static TArray<URigVMNode*> EmptyNodes;
 	const static TArray<URigVMLink*> EmptyLinks;

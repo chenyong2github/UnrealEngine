@@ -548,6 +548,19 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 		return false;
 	});
 
+	InControllerToConfigure->RequestPinTypeSelectionDelegate.BindLambda([WeakThis](const TArray<TRigVMTypeIndex>& InTypes) -> TRigVMTypeIndex 
+	{
+		if(WeakThis.IsValid())
+		{
+			UControlRigBlueprint* StrongThis = WeakThis.Get();
+			if(StrongThis->OnRequestPinTypeSelectionDialog().IsBound())
+			{
+				return StrongThis->OnRequestPinTypeSelectionDialog().Execute(InTypes);
+			}
+		}
+		return INDEX_NONE;
+	});
+
 	InControllerToConfigure->RequestNewExternalVariableDelegate.BindLambda([WeakThis](FRigVMGraphVariableDescription InVariable, bool bInIsPublic, bool bInIsReadOnly) -> FName
 	{
 		if (WeakThis.IsValid())
@@ -903,7 +916,7 @@ void UControlRigBlueprint::PostLoad()
 			{
 				URigVMController* Controller = GetOrCreateController(GraphToValidate);
 				FRigVMControllerNotifGuard NotifGuard(Controller, true);
-				Controller->RemoveUnusedOrphanedPins(Node);				
+				Controller->RemoveUnusedOrphanedPins(Node);
 			}
 				
 			for(URigVMNode* Node : GraphToValidate->GetNodes())
@@ -1339,11 +1352,6 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, true, true);
 	}
 
-	if(bIsPostLoad)
-	{
-		PatchTemplateNodesWithPreferredPermutation();
-	}
-	
 	TArray<URigVMGraph*> GraphsToClean = GetAllModels();
 
 	// Sort from leaf graphs to root
@@ -1367,7 +1375,7 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 					if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(LibraryNode))
 					{
 						if (FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.GetLongPackageName() != GetPackage()->GetPathName())
-						{							
+						{
 							continue;
 						}
 						if (URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->LoadReferencedNode())
@@ -1380,7 +1388,7 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 					if (URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
 					{
 						ContainedGraphs.Add(ContainedGraph);
-					}					
+					}
 				}
 			}
 			
@@ -1406,7 +1414,6 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 	{
 		URigVMGraph* GraphToClean = SortedGraphsToClean[GraphIndex];
 		URigVMController* Controller = GetOrCreateController(GraphToClean);
-		TGuardValue<bool> RecomputeGuard(Controller->bSuspendRecomputingOuterTemplateFilters, true);
 		TGuardValue<bool> GuardEditGraph(GraphToClean->bEditable, true);
 		FRigVMControllerNotifGuard NotifGuard(Controller, true);
 		
@@ -1423,70 +1430,7 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 				{
 					TemplateNode->InvalidateCache();
 					TemplateNode->PostLoad();
-
-					// Fix preferred type of execute context which are not the base class
-					{
-						const FRigVMRegistry& Registry = FRigVMRegistry::Get();
-						for (FRigVMTemplatePreferredType& PreferredType : TemplateNode->PreferredPermutationPairs)
-						{
-							if (!Registry.IsExecuteType(PreferredType.TypeIndex))
-							{
-								continue;
-							}
-							
-							if (URigVMPin* Pin = TemplateNode->FindPin(PreferredType.GetArgument().ToString()))
-							{
-								if (Pin->GetTypeIndex() == PreferredType.GetTypeIndex())
-								{
-									continue;
-								}
-
-								bDirtyDuringLoad = true;
-#if UE_RIGVM_DEBUG_TYPEINDEX
-								// Create a TRigVMTypeIndex from the int32 index so that it can be modified if needed
-								// and then converted back to int32
-								TRigVMTypeIndex PreferredTypeIndex = PreferredType.TypeIndex;
-								Registry.ConvertExecuteContextToBaseType(PreferredTypeIndex);
-								PreferredType.TypeIndex = PreferredTypeIndex;
-#else
-								Registry.ConvertExecuteContextToBaseType(PreferredType.TypeIndex);
-#endif
-							}
-						}
-					}
-
-					// Remove preferred types that do not match the pin type
-					{
-						int32 NumRemoved = TemplateNode->PreferredPermutationPairs.RemoveAll([TemplateNode](const FRigVMTemplatePreferredType& PreferredType)
-						{
-							if (URigVMPin* Pin = TemplateNode->FindPin(PreferredType.GetArgument().ToString()))
-							{
-								if (Pin->GetTypeIndex() == PreferredType.GetTypeIndex())
-								{
-									return false;
-								}
-							}
-							return true;
-						});
-
-						if (NumRemoved > 0)
-						{
-							bDirtyDuringLoad = true;
-						}
-					}
-
-					if(!TemplateNode->HasWildCardPin() &&
-						!TemplateNode->IsSingleton() &&
-						TemplateNode->PreferredPermutationPairs.IsEmpty())
-					{
-						TemplateNode->InitializeFilteredPermutationsFromTypes(false);
-					}
 				}
-			}
-
-			if (URigVMLibraryNode* LibraryNode = GraphToClean->GetTypedOuter<URigVMLibraryNode>())
-			{
-				Controller->UpdateLibraryTemplate(LibraryNode, false);
 			}
 		}
 
@@ -1494,54 +1438,56 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 
 		if(bIsPostLoad)
 		{
-			if (Controller->RecomputeAllTemplateFilteredPermutations(false))
-			{
-				ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
-				// if you hit this ensure consider to uncomment the code
-				// in URigVMController::ReportPinTypeChange for debugging
-			}
-
 			for(URigVMNode* ModelNode : GraphToClean->GetNodes())
 			{
+				if (ModelNode->HasWildCardPin())
+				{
+					continue;
+				}
 				if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
 				{
-					if (!UnitNode->HasWildCardPin())
+					UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct(); 
+					if(ScriptStruct == nullptr)
 					{
-						UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct(); 
-						if(ScriptStruct == nullptr)
-						{
-							Controller->FullyResolveTemplateNode(UnitNode, INDEX_NONE, false);
-						}
+						Controller->FullyResolveTemplateNode(UnitNode, INDEX_NONE, false);
+					}
 
-						// Try to find a deprecated template
-						if (UnitNode->GetScriptStruct() == nullptr && !UnitNode->TemplateNotation.IsNone())
+					// Try to find a deprecated template
+					if (UnitNode->GetScriptStruct() == nullptr && !UnitNode->TemplateNotation.IsNone())
+					{
+						const FRigVMTemplate* Template = FRigVMRegistry::Get().FindTemplate(UnitNode->TemplateNotation, true);
+						FRigVMTemplate::FTypeMap TypeMap = UnitNode->GetTemplatePinTypeMap(true);
+						int32 Permutation;
+						if (Template->FullyResolve(TypeMap, Permutation))
 						{
-							const FRigVMTemplate* Template = FRigVMRegistry::Get().FindTemplate(UnitNode->TemplateNotation, true);
-							FRigVMTemplate::FTypeMap TypeMap;
-							for (URigVMPin* Pin : UnitNode->GetPins())
-							{
-								check(!Pin->IsWildCard());
-								TypeMap.Add(Pin->GetFName(), Pin->GetTypeIndex());
-							}
-
-							int32 Permutation;
-							if (Template->FullyResolve(TypeMap, Permutation))
-							{
-								const FRigVMFunction* Function = Template->GetPermutation(Permutation);
-								UnitNode->ResolvedFunctionName = Function->GetName();
-							}
+							const FRigVMFunction* Function = Template->GetPermutation(Permutation);
+							UnitNode->ResolvedFunctionName = Function->GetName();
 						}
+					}
 
-						if (UnitNode->GetScriptStruct() == nullptr)
-						{
-							static const TCHAR UnresolvedUnitNodeMessage[] = TEXT("Node %s could not be resolved.");
-							Controller->ReportErrorf(UnresolvedUnitNodeMessage, *ModelNode->GetNodePath(true));
-						}
+					if (UnitNode->GetScriptStruct() == nullptr)
+					{
+						static const TCHAR UnresolvedUnitNodeMessage[] = TEXT("Node %s could not be resolved.");
+						Controller->ReportErrorf(UnresolvedUnitNodeMessage, *ModelNode->GetNodePath(true));
 					}
 				}
 				if (URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(ModelNode))
 				{
-					if (DispatchNode->GetFactory() == nullptr)
+					if (const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
+					{
+						FRigVMTemplate::FTypeMap TypeMap = DispatchNode->GetTemplatePinTypeMap(true);
+						const FString ResolvedPermutationName = Factory->GetPermutationName(TypeMap);
+						if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*ResolvedPermutationName))
+						{
+							DispatchNode->ResolvedFunctionName = Function->GetName();
+						}
+						else
+						{
+							static const TCHAR UnresolvedDispatchPermutationMessage[] = TEXT("Dispatch factory %s could not find permutation..");
+							Controller->ReportErrorf(UnresolvedDispatchPermutationMessage, *Factory->GetFactoryName().ToString());
+						}
+					}
+					else
 					{
 						static const TCHAR UnresolvedDispatchNodeMessage[] = TEXT("Dispatch node %s has no factory..");
 						Controller->ReportErrorf(UnresolvedDispatchNodeMessage, *ModelNode->GetNodePath(true));
@@ -4512,29 +4458,6 @@ void UControlRigBlueprint::PatchParameterNodesOnLoad()
 #endif	
 }
 
-void UControlRigBlueprint::PatchTemplateNodesWithPreferredPermutation()
-{
-#if WITH_EDITOR
-
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::TemplatesPreferredPermutatation)
-	{
-		for (URigVMGraph* Graph : GetAllModels())
-		{
-			for(URigVMNode* ModelNode : Graph->GetNodes())
-			{
-				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
-				{
-					TemplateNode->InvalidateCache();
-					TemplateNode->PostLoad();
-				}
-			}
-			
-			GetController(Graph)->InitializeFilteredPermutationsFromTemplateTypes();
-		}
-	}
-#endif
-}
-
 void UControlRigBlueprint::PatchLinksWithCast()
 {
 #if WITH_EDITOR
@@ -4583,7 +4506,6 @@ void UControlRigBlueprint::PatchLinksWithCast()
 				}
 			}
 
-			TGuardValue<bool> DisableRecomputeTemplates(Controller->bSuspendRecomputingTemplateFilters, true);
 			Controller->BreakLink(Tuple.Get<2>(), Tuple.Get<3>(), false);
 
 			// notify the user that the link has been broken.

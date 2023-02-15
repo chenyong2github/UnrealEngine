@@ -13,10 +13,6 @@
 const TArray<URigVMNode*> URigVMLibraryNode::EmptyNodes;
 const TArray<URigVMLink*> URigVMLibraryNode::EmptyLinks;
 
-URigVMLibraryNode::URigVMLibraryNode()
-{
-	Template.Notation = *FString::Printf(TEXT("%s()"), *GetName());
-}
 
 bool URigVMLibraryNode::IsDefinedAsConstant() const
 {
@@ -39,19 +35,9 @@ bool URigVMLibraryNode::IsDefinedAsVarying() const
 	return false;
 }
 
-const FRigVMTemplate* URigVMLibraryNode::GetTemplate() const
-{
-	return &Template;
-}
-
-FName URigVMLibraryNode::GetNotation() const
-{
-	return Template.GetNotation();
-}
-
 FText URigVMLibraryNode::GetToolTipText() const
 {
-	return FText::FromName(Template.GetNotation());
+	return FText::FromName(GetFunctionIdentifier().HostObject.GetLongPackageFName());
 }
 
 TArray<int32> URigVMLibraryNode::GetInstructionsForVMImpl(URigVM* InVM, const FRigVMASTProxy& InProxy) const

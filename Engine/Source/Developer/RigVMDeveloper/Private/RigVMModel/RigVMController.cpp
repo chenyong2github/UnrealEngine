@@ -82,7 +82,6 @@ void FRigVMClientPatchResult::Merge(const FRigVMClientPatchResult& InOther)
 
 URigVMController::URigVMController()
 	: bValidatePinDefaults(true)
-	, bSuspendRecomputingOuterTemplateFilters(false)
 	, bSuspendNotifications(false)
 	, bReportWarningsAndErrors(true)
 	, bIgnoreRerouteCompactnessChanges(false)
@@ -91,7 +90,6 @@ URigVMController::URigVMController()
 	, bIsTransacting(false)
 	, bIsRunningUnitTest(false)
 	, bIsFullyResolvingTemplateNode(false)
-	, bSuspendRecomputingTemplateFilters(false)
 	, bSuspendTemplateComputation(false)
 #if WITH_EDITOR
 	, bRegisterTemplateNodeUsage(true)
@@ -102,7 +100,6 @@ URigVMController::URigVMController()
 URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bValidatePinDefaults(true)
-	, bSuspendRecomputingOuterTemplateFilters(false)
 	, bSuspendNotifications(false)
 	, bReportWarningsAndErrors(true)
 	, bIgnoreRerouteCompactnessChanges(false)
@@ -111,7 +108,6 @@ URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 	, bIsTransacting(false)
 	, bIsRunningUnitTest(false)
 	, bIsFullyResolvingTemplateNode(false)
-	, bSuspendRecomputingTemplateFilters(false)
 	, bSuspendTemplateComputation(false)
 #if WITH_EDITOR
 	, bRegisterTemplateNodeUsage(true)
@@ -1253,18 +1249,22 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 			return nullptr;
 		}
 
-		TArray<int32> OldPermutations = TemplateNode->FilteredPermutations;
 		int32 PermutationIndex = Template->FindPermutation(Function);
-		TemplateNode->FilteredPermutations = {PermutationIndex};
-		const TArray<FRigVMTemplatePreferredType> NewPreferredPermutationTypes = TemplateNode->GetPreferredTypesForPermutation(PermutationIndex);
-		if (bSetupUndoRedo)
+		FRigVMTemplateTypeMap Types = Template->GetTypesForPermutation(PermutationIndex);
+		for (TPair<FName, TRigVMTypeIndex>& Pair : Types)
 		{
-			FRigVMSetTemplateFilteredPermutationsAction Action(TemplateNode, OldPermutations);
-			ActionStack->AddAction(Action);
-			ActionStack->AddAction(FRigVMSetPreferredTemplatePermutationsAction(TemplateNode, NewPreferredPermutationTypes));
-		}		
-		TemplateNode->PreferredPermutationPairs = NewPreferredPermutationTypes;
-		UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
+			if (URigVMPin* Pin = TemplateNode->FindPin(Pair.Key.ToString()))
+			{
+				if (Pin->IsWildCard())
+				{
+					ResolveWildCardPin(Pin, Pair.Value, bSetupUndoRedo);
+				}
+			}
+			if (!TemplateNode->HasWildCardPin())
+			{
+				break;
+			}
+		}
 
 		if (UnitNodeCreatedContext.IsValid())
 		{
@@ -2211,7 +2211,7 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<FName>& InNodeNames, 
 	{
 		if (URigVMNode* Node = GetGraph()->FindNodeByName(NodeName))
 		{
-			Nodes.Add(Node);			
+			Nodes.Add(Node);
 		}
 	}
 
@@ -2240,13 +2240,12 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<FName>& InNodeNames, 
 	return false;
 }
 
-bool URigVMController::UnresolveTemplateNodes(const TArray<URigVMNode*>& InNodes, bool bSetupUndoRedo, bool bBreakLinks)
+bool URigVMController::UnresolveTemplateNodes(const TArray<URigVMNode*>& InNodes, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph() || InNodes.IsEmpty())
 	{
 		return false;
 	}
-
 
 	if (!bIsTransacting && !IsGraphEditable())
 	{
@@ -2275,68 +2274,80 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<URigVMNode*>& InNodes
 	}
 
 	{
-		TGuardValue<bool> GuardRecompute(bSuspendRecomputingTemplateFilters, true);
+		const FRigVMRegistry& Registry = FRigVMRegistry::Get();
 		for (URigVMNode* Node : InNodes)
 		{
 			EjectAllInjectedNodes(Node, bSetupUndoRedo);
-
-			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
+			TArray<URigVMLink*> Links = Node->GetLinks();
+			for (int32 i=0; i<Links.Num(); ++i)
 			{
-				if (!TemplateNode->PreferredPermutationPairs.IsEmpty())
+				URigVMLink* Link = Links[i];
+				URigVMPin* SourcePin = Link->GetSourcePin();
+				URigVMPin* TargetPin = Link->GetTargetPin();
+
+				URigVMNode* OtherNode = SourcePin->GetNode() == Node ? TargetPin->GetNode() : SourcePin->GetNode();
+				if (!InNodes.Contains(OtherNode))
 				{
-					if (bSetupUndoRedo)
+					const URigVMPin* PinOnNode = SourcePin->GetNode() == Node ? SourcePin : TargetPin;
+					if(PinOnNode->IsExecuteContext())
 					{
-						ActionStack->AddAction(FRigVMSetPreferredTemplatePermutationsAction(TemplateNode, {}));
+						continue;
 					}
-					TemplateNode->PreferredPermutationPairs = {};
-				}	
-			}
-
-			if (bBreakLinks)
-			{
-				TArray<URigVMLink*> Links = Node->GetLinks();
-				for (int32 i=0; i<Links.Num(); ++i)
-				{
-					URigVMLink* Link = Links[i];
-					URigVMPin* SourcePin = Link->GetSourcePin();
-					URigVMPin* TargetPin = Link->GetTargetPin();
-			
-					URigVMNode* OtherNode = SourcePin->GetNode() == Node ? TargetPin->GetNode() : SourcePin->GetNode();
-					if (!InNodes.Contains(OtherNode))
+					
+					if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
 					{
-						const URigVMPin* PinOnNode = SourcePin->GetNode() == Node ? SourcePin : TargetPin;
-						if(PinOnNode->IsExecuteContext())
+						if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
 						{
-							continue;
-						}
-						
-						if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
-						{
-							if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+							const URigVMPin* RootPin = PinOnNode->GetRootPin();
+							if(const FRigVMTemplateArgument* Argument = Template->FindArgument(RootPin->GetFName()))
 							{
-								const URigVMPin* RootPin = PinOnNode->GetRootPin();
-								if(const FRigVMTemplateArgument* Argument = Template->FindArgument(RootPin->GetFName()))
+								if(Argument->IsSingleton())
 								{
-									if(Argument->IsSingleton())
-									{
-										continue;
-									}
+									continue;
 								}
 							}
 						}
-						
-						BreakLink(SourcePin, TargetPin, bSetupUndoRedo);
-					}			
+					}
+					
+					BreakLink(SourcePin, TargetPin, bSetupUndoRedo);
+				}
+			}
+
+			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
+			{
+				TemplateNode->InvalidateCache();
+				TemplateNode->ResolvedFunctionName.Reset();
+				TemplateNode->ResolvedPermutation = INDEX_NONE;
+
+				if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+				{
+					for (int32 i=0; i<Template->NumArguments(); ++i)
+					{
+						const FRigVMTemplateArgument* Argument = Template->GetArgument(i);
+						if (!Argument->IsSingleton())
+						{
+							if (URigVMPin* Pin = TemplateNode->FindPin(Argument->Name.ToString()))
+							{
+								TRigVMTypeIndex OldTypeIndex = Pin->GetTypeIndex();
+								TRigVMTypeIndex NewTypeIndex = RigVMTypeUtils::TypeIndex::WildCard;
+								while (Registry.IsArrayType(OldTypeIndex))
+								{
+									OldTypeIndex = Registry.GetBaseTypeFromArrayTypeIndex(OldTypeIndex);
+									NewTypeIndex = Registry.GetArrayTypeFromBaseTypeIndex(NewTypeIndex);
+								}
+								ChangePinType(Pin, NewTypeIndex, bSetupUndoRedo, false, true, false);
+							}
+						}
+					}
+					UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
 				}
 			}
 		}
 	}
-	
-	RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
 
 	if(bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);		
+		ActionStack->EndAction(Action);
 	}
 
 	return true;
@@ -2892,7 +2903,6 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
 
-	Node->InitializeFilteredPermutations();
 	if (bAsInput)
 	{
 		AddLink(ValuePin, PinForLink, bSetupUndoRedo);
@@ -3673,13 +3683,6 @@ FString URigVMController::ExportNodesToText(const TArray<FName>& InNodeNames)
 					AllNodeNames.AddUnique(Injection->Node->GetFName());
 				}
 			}
-
-			if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
-			{
-				// make sure the preferred types are saved
-				// as strings - not just as indices
-				TemplateNode->ConvertPreferredTypesToString();
-			}
 		}
 	}
 
@@ -3935,14 +3938,6 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 
 		for(int32 SubNodeIndex=0; SubNodeIndex < SubNodes.Num(); SubNodeIndex++)
 		{
-			if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(SubNodes[SubNodeIndex]))
-			{
-				// make sure the update preferred type pairs
-				// from string to index - since indices may
-				// have changed between sessions
-				TemplateNode->ConvertPreferredTypesToTypeIndex();
-			}
-		
 			if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(SubNodes[SubNodeIndex]))
 			{
 				{
@@ -3958,7 +3953,6 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 
 		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(CreatedNode))
 		{
-			TGuardValue<bool> GuardRecompute(bSuspendRecomputingOuterTemplateFilters, true);			
 			TFunction<void(URigVMLibraryNode*)> Recompute = [&](URigVMLibraryNode* OuterNode)
 			{
 				for (URigVMNode* Node : OuterNode->GetContainedNodes())
@@ -3974,16 +3968,6 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 				{
 					return;
 				}
-				
-				{
-					FRigVMControllerGraphGuard GraphGuard(this, OuterNode->GetGraph(), false);
-					UpdateLibraryTemplate(OuterNode, false);
-				}
-				{
-					FRigVMControllerGraphGuard GraphGuard(this, OuterNode->GetContainedGraph(), false);
-					RecomputeAllTemplateFilteredPermutations(false);
-				}
-				
 			};
 			Recompute(LibraryNode);
 		}
@@ -4001,15 +3985,6 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 						FRigVMStruct* StructInstance = (FRigVMStruct*)StructScope->GetStructMemory();
 						StructInstance->OnUnitNodeCreated(UnitNodeCreatedContext);
 					}
-				}
-			}
-
-			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(SubNode))
-			{
-				if (!TemplateNode->IsSingleton())
-				{
-					TemplateNode->InitializeFilteredPermutations();
-					UpdateTemplateNodePinTypes(TemplateNode, false, false);					
 				}
 			}
 
@@ -4093,13 +4068,10 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 									FString NewSourceRootPinPath = URigVMPin::JoinPinPath(NewSourceNodeName->ToString(), OldRootPin->GetName());
 									if (URigVMPin* NewRootPin = Graph->FindPin(NewSourceRootPinPath))
 									{
-										if (PrepareTemplatePinForType(NewRootPin, {OldRootPin->GetTypeIndex()}, bSetupUndoRedo))
-										{
-											SourcePin = CreatedLink->GetSourcePin();
-										}										
+										SourcePin = CreatedLink->GetSourcePin();
 									}
 								}
-							}							
+							}
 						}
 					}
 					if (TargetPin == nullptr)
@@ -4116,13 +4088,10 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 									FString NewTargetRootPinPath = URigVMPin::JoinPinPath(NewTargetNodeName->ToString(), OldRootPin->GetName());
 									if (URigVMPin* NewRootPin = Graph->FindPin(NewTargetRootPinPath))
 									{
-										if (PrepareTemplatePinForType(NewRootPin, {OldRootPin->GetTypeIndex()}, bSetupUndoRedo))
-										{
-											TargetPin = CreatedLink->GetTargetPin();
-										}
+										TargetPin = CreatedLink->GetTargetPin();
 									}
 								}
-							}							
+							}
 						}
 					}
 					
@@ -4729,7 +4698,6 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 		return AllLinks.Find(A) < AllLinks.Find(B);
 	});
 
-	TGuardValue<bool> RecomputeOuterTemplateFilter(bSuspendRecomputingOuterTemplateFilters, true);
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	FRigVMCollapseNodesAction CollapseAction;
 
@@ -4879,22 +4847,6 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 			}
 
 			Notify(ERigVMGraphNotifType::NodeAdded, ReturnNode);
-		}
-
-		for (int32 i=0; i<2; ++i)
-		{
-			URigVMTemplateNode* InterfaceNode = (i==0) ? (URigVMTemplateNode*) EntryNode : (URigVMTemplateNode*) ReturnNode;
-			if (InterfaceNode)
-			{
-				for (URigVMPin* Pin : InterfaceNode->GetPins())
-				{
-					if (!Pin->IsWildCard())
-					{
-						AddPreferredType(InterfaceNode, Pin->GetFName(), Pin->GetTypeIndex(), false);
-						AddArgumentForPin(Pin, nullptr, false);
-					}
-				}
-			}
 		}
 	}
 
@@ -5135,8 +5087,6 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 		}
 	}
 
-	RecomputeAllTemplateFilteredPermutations(bSuspendNotifications);
-	
 	if (bSetupUndoRedo)
 	{
 		ActionStack->EndAction(CollapseAction);
@@ -5952,7 +5902,6 @@ URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionRefe
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	URigVMFunctionReferenceNode* FunctionRefNode = nullptr;
-	TGuardValue<bool> GuardRecomputeOuter(bSuspendRecomputingOuterTemplateFilters, true);
 
 	// Create Function
 	URigVMLibraryNode* FunctionDefinition = nullptr;
@@ -6036,7 +5985,6 @@ URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionRefe
 	// Remove collapse node, add function reference, and add external links
 	if (FunctionDefinition)
 	{
-		TGuardValue<bool> GuardRecomputeInner(bSuspendRecomputingTemplateFilters, true);
  		FString NodeName = InCollapseNode->GetName();
 		FVector2D NodePosition = InCollapseNode->GetPosition();
 		TMap<FString, FPinState> PinStates = GetPinStates(InCollapseNode);
@@ -6168,19 +6116,6 @@ URigVMCollapseNode* URigVMController::PromoteFunctionReferenceNodeToCollapseNode
 	URigVMCollapseNode* CollapseNode = DuplicateObject<URigVMCollapseNode>(FunctionDefinition, Graph, *NodeName);
 	if(CollapseNode)
 	{
-		// Copy the library template
-		{
-			FRigVMByteArray ArchiveBytes;
-			FMemoryWriter ArchiveWriter(ArchiveBytes);
-			FRigVMTemplate Template = FunctionDefinition->Template;
-			Template.Serialize(ArchiveWriter);
-
-			FMemoryReader ArchiveReader(ArchiveBytes);
-			CollapseNode->Template.Serialize(ArchiveReader);
-
-			CollapseNode->InitializeFilteredPermutations();
-		}
-	
 		{
 			FRigVMControllerGraphGuard Guard(this, CollapseNode->GetContainedGraph(), false);
 			TGuardValue<bool> SuspendNotifications(bSuspendNotifications, true);
@@ -6632,13 +6567,6 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 	{
 		Action = FRigVMRenameNodeAction(InNode->GetFName(), ValidNewName);
 		ActionStack->BeginAction(Action);
-	}
-
-	if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode))
-	{
-		const FString& OldNotation = CollapseNode->Template.Notation.ToString();
-		const FString NewNotation = ValidNewName.ToString() + OldNotation.RightChop(OldNotation.Find(TEXT("(")));
-		CollapseNode->Template.Notation = *NewNotation;
 	}
 
 	// loop over all links and remove them
@@ -8201,7 +8129,7 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 			{
 				ActionStack->CancelAction(Action, this);
 			}
-			return FString();	
+			return FString();
 		}
 
 		if (!Arg1 || !Arg2 || !ArgOpposite)
@@ -8229,6 +8157,41 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 
 		TArray<TPair<FString, FString>> LinkedPaths = GetLinkedPinPaths(InNode);
 		if(!BreakLinkedPaths(LinkedPaths, bSetupUndoRedo))
+		{
+			if(bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action, this);
+			}
+			return FString();
+		}
+
+		// We must resolve the type before we continue
+		if (Arg1->IsWildCard())
+		{
+			TRigVMTypeIndex AnswerType = INDEX_NONE;
+			if (RequestPinTypeSelectionDelegate.IsBound())
+			{
+				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InNode))
+				{
+					if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+					{
+						if (const FRigVMTemplateArgument* Argument = Template->FindArgument(Arg1->GetFName()))
+						{
+							const TArray<TRigVMTypeIndex>& Types = Argument->GetTypeIndices();
+							AnswerType = RequestPinTypeSelectionDelegate.Execute(Types);
+						}
+					}
+				}
+			}
+
+			if (AnswerType != INDEX_NONE)
+			{
+				ResolveWildCardPin(Arg1, AnswerType, bSetupUndoRedo);
+			}
+
+		}
+
+		if (Arg1->IsWildCard() || Arg2->IsWildCard() || ArgOpposite->IsWildCard())
 		{
 			if(bSetupUndoRedo)
 			{
@@ -8322,7 +8285,6 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 	{
 		FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
 		TGuardValue<bool> GuardEditGraph(GetGraph()->bEditable, true);
-		TGuardValue<bool> GuardOuterTemplateRecompute(bSuspendRecomputingOuterTemplateFilters, true);
 
 		URigVMNode* InnerNode = (AggregateNode == nullptr) ? InNode : AggregateNode->GetFirstInnerNode();
 
@@ -8435,9 +8397,6 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 		return FString();
 	}
 
-	RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
-	UpdateTemplateNodePinTypes(AggregateNode, bSetupUndoRedo);
-
 	if (bSetupUndoRedo)
 	{
 		ActionStack->EndAction(Action);
@@ -8540,7 +8499,6 @@ bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo,
 							AggregateNode->InvalidateCache();
 						}
 
-						TGuardValue<bool> GuardOuterTemplateRecompute(bSuspendRecomputingOuterTemplateFilters, true);
 						const FString FirstAggregatePin = AggregateNode->GetFirstAggregatePin()->GetName();
 						const FString SecondAggregatePin = AggregateNode->GetSecondAggregatePin()->GetName();
 						FString OtherArg = TargetPin->GetName() == FirstAggregatePin ? SecondAggregatePin : FirstAggregatePin;
@@ -8548,7 +8506,7 @@ bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo,
 						RewireLinks(NodeToRemove->FindPin(OtherArg), NextNodePin, true, bSetupUndoRedo);
 						RemoveNode(NodeToRemove, bSetupUndoRedo);
 						RemoveExposedPin(*InPin->GetName(), bSetupUndoRedo);
-						bSuccess = true;						
+						bSuccess = true;
 					}
 				}
 			}
@@ -8576,7 +8534,6 @@ bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo,
 							AggregateNode->InvalidateCache();
 						}
 
-						TGuardValue<bool> GuardOuterTemplateRecompute(bSuspendRecomputingOuterTemplateFilters, true);
 						const FString FirstAggregatePin = AggregateNode->GetFirstAggregatePin()->GetName();
 						const FString SecondAggregatePin = AggregateNode->GetSecondAggregatePin()->GetName();
 						FString OtherArg = SourcePin->GetName() == FirstAggregatePin ? SecondAggregatePin : FirstAggregatePin;
@@ -8584,7 +8541,7 @@ bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo,
 						RewireLinks(NodeToRemove->FindPin(OtherArg), NextNodePin, false, bSetupUndoRedo);
 						RemoveNode(NodeToRemove, bSetupUndoRedo);
 						RemoveExposedPin(*InPin->GetName(), bSetupUndoRedo);
-						bSuccess = true;	
+						bSuccess = true;
 					}
 				}
 			}			
@@ -9728,81 +9685,6 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	{
 		if(!FRigVMRegistry::Get().CanMatchTypes(OutputPin->GetTypeIndex(), InputPin->GetTypeIndex(), true))
 		{
-			// returns true if this template node can resolve to the type without breaking any links
-			auto CanTemplateResolveToType = [](const TRigVMTypeIndex& InTypeIndex, URigVMPin* InPin) -> bool
-			{
-				if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
-				{
-					if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
-					{
-						if(!InPin->IsRootPin())
-						{
-							return false;
-						}
-						
-						if(const FRigVMTemplateArgument* Argument = Template->FindArgument(InPin->GetFName()))
-						{
-							if(!Argument->SupportsTypeIndex(InTypeIndex))
-							{
-								return false;
-							}
-						}
-						
-						// we only rely on the cast if the number of links on non-singleton arguments is > 0
-						const TArray<URigVMLink*> Links = InPin->GetNode()->GetLinks();
-						int32 NumLinksRemaining = Links.Num();
-						for(const URigVMLink* Link : Links)
-						{
-							const URigVMPin* SourcePin = Link->GetSourcePin();
-							const URigVMPin* TargetPin = Link->GetTargetPin();
-
-							if(SourcePin && TargetPin)
-							{
-								if(SourcePin->IsExecuteContext())
-								{
-									NumLinksRemaining--;
-									continue;
-								}
-								
-								const URigVMPin* PinOnTemplateNode = SourcePin->GetNode() == TemplateNode ? SourcePin : TargetPin;
-								if(PinOnTemplateNode->IsRootPin() && PinOnTemplateNode != InPin)
-								{
-									const FName ArgumentName = PinOnTemplateNode->GetFName();
-									if(const FRigVMTemplateArgument* Argument = Template->FindArgument(ArgumentName))
-									{
-										if(Argument->IsSingleton())
-										{
-											NumLinksRemaining--;
-										}
-									}
-								}
-								else
-								{
-									NumLinksRemaining--;
-								}
-							}
-						}
-						
-						return NumLinksRemaining == 0;
-					}
-				}
-				
-				return false;
-			};
-
-			if(bCreateCastNode)
-			{
-				// todo: this should take into account links which have been detached
-				// during load we don't filter out the links and assume the template node can cast
-				// correctly to each type. we need to look at the links and their map rather then
-				// URigVMPin::GetLinks
-				if(CanTemplateResolveToType(InputPin->GetTypeIndex(), OutputPin) || 
-					CanTemplateResolveToType(OutputPin->GetTypeIndex(), InputPin))
-				{
-					bCreateCastNode = false;
-				}
-			}
-			
 			if(bCreateCastNode)
 			{
 				const FRigVMFunction* CastFunction = RigVMTypeUtils::GetCastForTypeIndices(OutputPin->GetTypeIndex(), InputPin->GetTypeIndex());
@@ -9905,41 +9787,6 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		BreakAllLinks(OutputPin, false, bSetupUndoRedo);
 	}
 
-	bool bAddedTemporaryOutputPreferredType = false, bAddedTemporaryInputPreferredType = false;
-	for (int32 i=0; i<2; ++i)
-	{
-		URigVMPin* EdgePin = (i==0) ? OutputPin : InputPin;
-		bool& bAddedTemporaryPreferredType = (i==0) ? bAddedTemporaryOutputPreferredType : bAddedTemporaryInputPreferredType;
-		if (EdgePin->IsStructMember())
-		{
-			// We need to make sure the pin is not removed if any links are broken
-			// We temporarily add a preferred type to make sure that doesn't happen
-			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(EdgePin->GetNode()))
-			{
-				if (TemplateNode->IsSingleton())
-				{
-					continue;
-				}
-				
-				bAddedTemporaryPreferredType = true;
-				URigVMPin* RootPin = EdgePin->GetRootPin();
-				for (FRigVMTemplatePreferredType& Preferred : TemplateNode->PreferredPermutationPairs)
-				{
-					if (Preferred.GetArgument() == RootPin->GetFName())
-					{
-						bAddedTemporaryPreferredType = false;
-						break;
-					}
-				}
-
-				if (bAddedTemporaryPreferredType)
-				{
-					AddPreferredType(TemplateNode, RootPin->GetFName(), RootPin->GetTypeIndex(), bSetupUndoRedo);					
-				}
-			}
-		}
-	}
-
 	BreakAllLinks(InputPin, true, bSetupUndoRedo);
 	if (bSetupUndoRedo)
 	{
@@ -10019,54 +9866,6 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		Graph->MarkPackageDirty();
 	}
 	Notify(ERigVMGraphNotifType::LinkAdded, Link);
-
-	// Remove any temporary preferred type that was added
-	for (int32 i=0; i<2; ++i)
-	{
-		URigVMPin* EdgePin = (i==0) ? OutputPin : InputPin;
-		bool& bAddedTemporaryPreferredType = (i==0) ? bAddedTemporaryOutputPreferredType : bAddedTemporaryInputPreferredType;
-		if (bAddedTemporaryPreferredType)
-		{
-			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(EdgePin->GetNode()))
-			{
-				URigVMPin* RootPin = EdgePin->GetRootPin();
-				RemovePreferredType(TemplateNode, RootPin->GetFName(), bSetupUndoRedo);				
-			}
-		}
-	}
-
-	// Find any library pin that doesn't own an argument, but should
-	if (!bSuspendTemplateComputation)
-	{
-		if (URigVMLibraryNode* LibraryNode = Graph->GetTypedOuter<URigVMLibraryNode>())
-		{
-			for (URigVMPin* Pin : LibraryNode->GetPins())
-			{
-				if (const FRigVMTemplate* Template = LibraryNode->GetTemplate())
-				{
-					if (!Template->FindArgument(Pin->GetFName()))
-					{
-						if (ShouldPinOwnArgument(Pin))
-						{
-							URigVMPin* InterfacePin = nullptr;
-							if (URigVMFunctionEntryNode* EntryNode = LibraryNode->GetEntryNode())
-							{
-								InterfacePin = EntryNode->FindPin(Pin->GetName());
-							}
-							if (!InterfacePin)
-							{
-								if (URigVMFunctionReturnNode* ReturnNode = LibraryNode->GetReturnNode())
-								{
-									InterfacePin = ReturnNode->FindPin(Pin->GetName());
-								}
-							}
-							AddArgumentForPin(InterfacePin, nullptr, bSetupUndoRedo);
-						}
-					}
-				}
-			}
-		}
-	}
 
 	if (bSetupUndoRedo)
 	{
@@ -10295,11 +10094,6 @@ bool URigVMController::BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool
 			RemoveUnusedOrphanedPins(OutputPin->GetNode());
 			RemoveUnusedOrphanedPins(InputPin->GetNode());
 			
-			if (!bIsTransacting && !bSuspendRecomputingTemplateFilters)
-			{
-				RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
-			}
-			
 			if (!bSuspendNotifications)
 			{
 				Graph->MarkPackageDirty();
@@ -10390,7 +10184,6 @@ bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bSetupU
 
 	int32 LinksBroken = 0;
 	{
-		TGuardValue<bool> GuardSuspendTemplateRecompute(bSuspendRecomputingTemplateFilters, true);
 		if (Pin->IsBoundToVariable() && bAsInput && bSetupUndoRedo)
 		{
 			UnbindPinFromVariable(Pin, bSetupUndoRedo);
@@ -10412,11 +10205,6 @@ bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bSetupU
 		}
 	}
 
-	if (LinksBroken > 0 && !bSuspendRecomputingTemplateFilters)
-	{
-		RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
-	}
-
 	if (bSetupUndoRedo)
 	{
 		if (LinksBroken > 0)
@@ -10436,7 +10224,6 @@ bool URigVMController::BreakAllLinksRecursive(URigVMPin* Pin, bool bAsInput, boo
 {
 	bool bBrokenLinks = false;
 	{
-		TGuardValue<bool> GuardSuspendRecomputeTemplates(bSuspendRecomputingTemplateFilters, true);
 		if (bTowardsParent)
 		{
 			URigVMPin* ParentPin = Pin->GetParentPin();
@@ -10456,11 +10243,6 @@ bool URigVMController::BreakAllLinksRecursive(URigVMPin* Pin, bool bAsInput, boo
 		}
 	}
 
-	if (bBrokenLinks && !bSuspendRecomputingTemplateFilters)
-	{
-		RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
-	}
-	
 	return bBrokenLinks;
 }
 
@@ -10507,19 +10289,13 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 		}
 	}
 
-	// For now we only allow wildcards for collapsed nodes
+	// For now we do not allow wildcards for library nodes
 	if (CPPTypeObject)
 	{
 		if(CPPTypeObject == RigVMTypeUtils::GetWildCardCPPTypeObject())
 		{
-			if(const URigVMNode* CollapseNode = Cast<URigVMNode>(GetGraph()->GetOuter()))
-			{
-				if(CollapseNode->GetOuter()->IsA<URigVMFunctionLibrary>())
-				{
-					ReportError(TEXT("Cannot expose pins of wildcard type in functions."));
-					return NAME_None;
-				}
-			}
+			ReportError(TEXT("Cannot expose pins of wildcard type in functions."));
+			return NAME_None;
 		}
 	}
 	
@@ -10613,7 +10389,6 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 			TGuardValue<bool> SuspendNotifications(bSuspendNotifications, true);
 			RefreshFunctionPins(EntryNode);
 		}
-		EntryNode->InitializeFilteredPermutations();
 
 		Notify(ERigVMGraphNotifType::NodeAdded, EntryNode);
 	}
@@ -10627,7 +10402,6 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 			TGuardValue<bool> SuspendNotifications(bSuspendNotifications, true);
 			RefreshFunctionPins(ReturnNode);
 		}
-		ReturnNode->InitializeFilteredPermutations();
 
 		Notify(ERigVMGraphNotifType::NodeAdded, ReturnNode);
 	}
@@ -10635,39 +10409,6 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 	RefreshFunctionPins(EntryNode);
 	RefreshFunctionPins(ReturnNode);
 
-	// If the type is not a wildcard, add pin as template argument
-	if (InCPPType != RigVMTypeUtils::GetWildCardCPPType() && InCPPType != RigVMTypeUtils::GetWildCardArrayCPPType())
-	{
-		URigVMPin* InterfacePin = nullptr;
-		if (EntryNode)
-		{
-			InterfacePin = EntryNode->FindPin(Pin->GetName());
-		}
-		if (!InterfacePin)
-		{
-			if (ReturnNode)
-			{
-				InterfacePin = ReturnNode->FindPin(Pin->GetName());
-			}
-		}
-
-		// Add preferred type
-		{
-			URigVMTemplateNode* InterfaceNode = Cast<URigVMTemplateNode>(InterfacePin->GetNode());
-			TArray<FRigVMTemplatePreferredType> NewPreferredTypes = InterfaceNode->PreferredPermutationPairs;
-
-			NewPreferredTypes.Add(FRigVMTemplatePreferredType(*InterfacePin->GetName(), FRigVMRegistry::Get().GetTypeIndexFromCPPType(InCPPType)));
-
-			if (bSetupUndoRedo)
-			{
-				ActionStack->AddAction(FRigVMSetPreferredTemplatePermutationsAction(InterfaceNode, NewPreferredTypes));
-			}
-			InterfaceNode->PreferredPermutationPairs = NewPreferredTypes;
-		}	
-		
-		AddArgumentForPin(InterfacePin, nullptr, bSetupUndoRedo);
-	}
-	
 	RefreshFunctionReferences(LibraryNode, bSetupUndoRedo);
 
 	if (bSetupUndoRedo)
@@ -10693,368 +10434,6 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 	}
 	
 	return PinName;
-}
-
-bool URigVMController::AddArgumentForPin(URigVMPin* InPin, URigVMPin* InToLinkPin, bool bSetupUndoRedo, bool bPrintPythonCommand)
-{
-	if (!IsValidGraph())
-	{
-		return false;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return false;
-	}
-
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-	
-	if (Graph != InPin->GetGraph())
-	{
-		return false;
-	}
-
-	URigVMLibraryNode* LibraryNode = Graph->GetTypedOuter<URigVMLibraryNode>();
-	if (!LibraryNode)
-	{
-		return false;
-	}
-
-	if (!InPin->GetNode()->IsA<URigVMFunctionEntryNode>() && !InPin->GetNode()->IsA<URigVMFunctionReturnNode>())
-	{
-		return false;
-	}
-
-	FRigVMBaseAction Action;
-	if (bSetupUndoRedo)
-	{
-		Action.Title = TEXT("Add exposed pin from inner pin");
-		ActionStack->BeginAction(Action);
-	}
-
-	const FRigVMTemplate& CurTemplate = LibraryNode->Template;
-	FRigVMTemplate NewTemplate;
-	{
-		// Find all pins connected to the interface pin
-		TArray<URigVMPin*> ConnectedPins = InPin->GetLinkedSourcePins();
-		ConnectedPins.Append(InPin->GetLinkedTargetPins());
-		TArray<URigVMLink*> ConnectedLinks;
-
-		for (URigVMPin* ConnectedPin : ConnectedPins)
-		{
-			ConnectedLinks.Append(ConnectedPin->GetLinks().FilterByPredicate([&](URigVMLink* Link)
-			{
-				return Link->GetSourcePin() == InPin || Link->GetTargetPin() == InPin;
-			}));
-		}
-		for (URigVMNode* Node : Graph->GetNodes())
-		{
-			if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
-			{
-				if (VariableNode->GetVariableName() == *InPin->GetName())
-				{
-					URigVMPin* ValuePin = VariableNode->GetValuePin();
-					ConnectedPins.Append(ValuePin->GetLinkedSourcePins());
-					ConnectedPins.Append(ValuePin->GetLinkedTargetPins());
-
-					ConnectedLinks.Append(ValuePin->GetLinks());
-				}
-			}
-		}
-	
-		URigVMPin* PinToLink = InToLinkPin;
-		FRigVMRegistry& Registry = FRigVMRegistry::Get();
-
-		// Find the types shared by all the connected pins
-		TArray<TRigVMTypeIndex> TypeIndices;
-		{
-			// If no linked pin provided, find one of the connected pins that has a reduced number of filtered types
-			if (PinToLink == nullptr)
-			{
-				for (URigVMPin* Pin : ConnectedPins)
-				{
-					if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Pin->GetNode()))
-					{
-						if (TemplateNode->GetFilteredPermutationsIndices().Num() < 10)
-						{
-							PinToLink = Pin;
-							break;
-						}
-					}
-				}
-			}
-		
-			// Initialize types to the pin to link
-			if (PinToLink)
-			{
-				if (URigVMTemplateNode* ToLinkTemplateNode = Cast<URigVMTemplateNode>(PinToLink->GetNode()))
-				{
-					TypeIndices = ToLinkTemplateNode->GetFilteredTypesForPin(PinToLink);
-
-					// Avoid adding arguments with too many filtered types due to connections with unfiltered if, select, reroute or array nodes
-					if (TypeIndices.Num() > 10)
-					{
-						if (bSetupUndoRedo)
-						{
-							ActionStack->CancelAction(Action, this);
-						}
-						return false;
-					}
-				}
-				else
-				{
-					TypeIndices.Add(Registry.GetTypeIndexFromCPPType(PinToLink->GetCPPType()));
-				}
-			}
-			else
-			{
-				// If we couldn't find a pin to link (even through the connections) try to find a preferred type in interface nodes
-				TRigVMTypeIndex TypeIndex = INDEX_NONE;
-				for (int32 EntryReturn=0; EntryReturn<2 && TypeIndex == INDEX_NONE; ++EntryReturn)
-				{
-					URigVMTemplateNode* Node = (EntryReturn == 0) ? (URigVMTemplateNode*)Graph->GetEntryNode() : (URigVMTemplateNode*)Graph->GetReturnNode();
-					if (Node)
-					{
-						for (int32 i=0; i<Node->PreferredPermutationPairs.Num(); ++i)
-						{
-							FString ArgName;
-							if (Node->PreferredPermutationPairs[i].GetArgument() == InPin->GetFName())
-							{
-								TypeIndex = Node->PreferredPermutationPairs[i].GetTypeIndex();
-								break;
-							}
-						}
-					}
-				}
-
-				if (TypeIndex != INDEX_NONE)
-				{
-					TypeIndices.Add(TypeIndex);
-				}
-				else
-				{
-					if (bSetupUndoRedo)
-					{
-						ActionStack->CancelAction(Action, this);
-					}
-					return false;
-				}				
-			}
-
-			// Reduce types to the ones supported by all connections
-			for (int32 i=0; i<ConnectedPins.Num(); ++i)
-			{
-				URigVMPin* ConnectedPin = ConnectedPins[i];
-				if (ConnectedPin != PinToLink)
-				{
-					if (URigVMTemplateNode* ConnectedTemplateNode = Cast<URigVMTemplateNode>(ConnectedPin->GetNode()))
-					{
-						TypeIndices = TypeIndices.FilterByPredicate([&](int32 Type)
-						{
-							return ConnectedTemplateNode->FilteredSupportsType(ConnectedPin, Type);
-						});		
-					}
-					else
-					{
-						// This is a weird situation. If the pin was connected, but was not an argument it usually means
-						// it was connected to an if, select, array or reroute that has not been type-filtered
-						check(false);
-					}
-				}
-			}
-		}
-		if (PinToLink)
-		{
-			ConnectedPins.AddUnique(PinToLink);
-		}
-
-		ensure(!TypeIndices.IsEmpty());
-
-		// Temporarily disconnect connected links
-		if (CurTemplate.NumArguments() > 0)
-		{
-			TGuardValue<bool> SuspendNotifications(bSuspendNotifications, true);
-			DetachLinksFromPinObjects(&ConnectedLinks);
-		}
-	
-		// Resolve ConnectedPins to each possible filtered type and see how that affects other exposed pins	
-		TArray<TArray<TArray<TRigVMTypeIndex>>> TypeToPermutations; // #types_to_resolve x #resolved_permutations x #arguments
-		ensure(TypeIndices.Num() < 10);
-		for (TRigVMTypeIndex& TypeIndex : TypeIndices)
-		{
-			TArray<TArray<TRigVMTypeIndex>> PermutationTypes;
-			if (CurTemplate.Arguments.Num() > 0)
-			{
-				TGuardValue<bool> GuardNotifications(bSuspendNotifications, true);
-				TGuardValue<bool> GuardOuterRecomputing(bSuspendRecomputingOuterTemplateFilters, true);
-				OpenUndoBracket(TEXT("Resolving to type"));
-
-				for (URigVMPin* ConnectedPin : ConnectedPins)
-				{
-					if (ConnectedPin->IsWildCard())
-					{
-						ResolveWildCardPin(ConnectedPin, TypeIndex, true);
-					}					
-				}
-
-				for (int32 i=0; i<CurTemplate.NumPermutations(); ++i)
-				{
-					TArray<TRigVMTypeIndex> ArgTypes;					
-					for (const FRigVMTemplateArgument& Arg : CurTemplate.Arguments)
-					{
-						ArgTypes.Add(Arg.TypeIndices[i]);
-					}
-					PermutationTypes.Emplace(ArgTypes);
-				}
-
-				verify(CancelUndoBracket());
-			}
-			TypeToPermutations.Emplace(PermutationTypes);
-		}
-
-		// Reconnect  links
-		if (CurTemplate.NumArguments() > 0)
-		{
-			TGuardValue<bool> SuspendNotifications(bSuspendNotifications, true);
-			ReattachLinksToPinObjects(false, &ConnectedLinks);
-		}
-		
-		FRigVMTemplateArgument NewArgument;
-		NewArgument.Index = CurTemplate.Arguments.Num();
-		NewArgument.Name = InPin->GetFName();
-		NewArgument.Direction = LibraryNode->FindPin(InPin->GetName())->GetDirection();
-	
-		// Add the arguments
-		for (int32 i=0; i<CurTemplate.Arguments.Num(); ++i)
-		{
-			FRigVMTemplateArgument Arg;
-			Arg.Index = i;
-			Arg.Name = CurTemplate.Arguments[i].Name;
-			Arg.Direction = CurTemplate.Arguments[i].Direction;
-			NewTemplate.Arguments.Add(Arg);
-		}
-		NewTemplate.Arguments.Add(NewArgument);
-
-		// Types
-		for (int32 NewArgTypeIndex=0; NewArgTypeIndex<TypeIndices.Num(); NewArgTypeIndex++)
-		{
-			TRigVMTypeIndex& NewArgType = TypeIndices[NewArgTypeIndex];			
-
-			if (CurTemplate.NumArguments() > 0)
-			{
-				for (int32 PermutationIndex=0; PermutationIndex<TypeToPermutations[NewArgTypeIndex].Num(); ++PermutationIndex)
-				{
-					int32 GlobalPermutationIndex = NewTemplate.Permutations.Num();
-					NewTemplate.Permutations.Add(INDEX_NONE);
-					for (int32 ArgIndex=0; ArgIndex<NewTemplate.NumArguments()-1; ++ArgIndex)
-					{
-						TRigVMTypeIndex ArgType = TypeToPermutations[NewArgTypeIndex][PermutationIndex][ArgIndex];
-						NewTemplate.Arguments[ArgIndex].TypeIndices.Add(ArgType);
-						if (TArray<int32>* PermArray = NewTemplate.Arguments[ArgIndex].TypeToPermutations.Find(ArgType))
-						{
-							PermArray->Add(GlobalPermutationIndex);
-						}
-						else
-						{
-							NewTemplate.Arguments[ArgIndex].TypeToPermutations.Add(ArgType, {GlobalPermutationIndex});
-						}
-					}
-					NewTemplate.Arguments.Last().TypeIndices.Add(NewArgType);
-					if (TArray<int32>* PermArray = NewTemplate.Arguments.Last().TypeToPermutations.Find(NewArgType))
-					{
-						PermArray->Add(GlobalPermutationIndex);
-					}
-					else
-					{
-						NewTemplate.Arguments.Last().TypeToPermutations.Add(NewArgType, {GlobalPermutationIndex});
-					}				
-				}
-			}
-			else
-			{
-				int32 GlobalPermutationIndex = NewTemplate.Permutations.Num();
-				NewTemplate.Permutations.Add(INDEX_NONE);
-				NewTemplate.Arguments.Last().TypeIndices.Add(NewArgType);
-				if (TArray<int32>* PermArray = NewTemplate.Arguments.Last().TypeToPermutations.Find(NewArgType))
-				{
-					PermArray->Add(GlobalPermutationIndex);
-				}
-				else
-				{
-					NewTemplate.Arguments.Last().TypeToPermutations.Add(NewArgType, {GlobalPermutationIndex});
-				}
-			}
-		}
-	}
-	
-	NewTemplate.ComputeNotationFromArguments(LibraryNode->GetName());
-	
-	if (bSetupUndoRedo)
-	{
-		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), bSetupUndoRedo);
-		ActionStack->AddAction(FRigVMSetLibraryTemplateAction(LibraryNode, NewTemplate));
-	}
-	
-	LibraryNode->Template = NewTemplate;
-	{
-		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), false);
-		Notify(ERigVMGraphNotifType::LibraryTemplateChanged, LibraryNode);
-	}
-	
-	// Update Entry and Return filtered permutations to all permutations
-	URigVMTemplateNode* EntryNode = Graph->GetEntryNode();
-	URigVMTemplateNode* ReturnNode = Graph->GetReturnNode();	
-	for (int32 EntryReturn=0; EntryReturn<2; ++EntryReturn)
-	{
-		URigVMTemplateNode* Node = (EntryReturn == 0) ? EntryNode : ReturnNode;
-		if (Node)
-		{
-			TArray<int32> OldPermutations = Node->FilteredPermutations;
-
-			Node->FilteredPermutations.SetNumUninitialized(NewTemplate.NumPermutations());
-			for (int32 i=0; i<Node->FilteredPermutations.Num(); ++i)
-			{
-				Node->FilteredPermutations[i] = i;
-			}
-
-			if (bSetupUndoRedo)
-			{
-				ActionStack->AddAction(FRigVMSetTemplateFilteredPermutationsAction(Node, OldPermutations));
-			}
-		}
-	}
-	{
-		bool bUpdatedTypes = false;
-		for (int32 EntryReturn=0; EntryReturn<2; ++EntryReturn)
-		{
-			URigVMTemplateNode* Node = (EntryReturn == 0) ? EntryNode : ReturnNode;
-			if (Node)
-			{
-				// Update template node pin types of an interface node will update both entry and return types.
-				if (!bUpdatedTypes)
-				{
-					UpdateTemplateNodePinTypes(Node, bSetupUndoRedo);
-					bUpdatedTypes = true;
-				}
-				Notify(ERigVMGraphNotifType::NodeDescriptionChanged, Node);
-			}
-		}
-	}
-
-	if (!bIsTransacting && !bSuspendRecomputingOuterTemplateFilters)
-	{
-		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), bSetupUndoRedo);
-		RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
-		Notify(ERigVMGraphNotifType::NodeDescriptionChanged, LibraryNode);		
-	}
-
-	if (bSetupUndoRedo)
-	{
-		ActionStack->EndAction(Action);
-	}
-	
-	return true;
 }
 
 bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoRedo, bool bPrintPythonCommand)
@@ -11115,8 +10494,6 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 
 	bool bSuccessfullyRemovedPin = false;
 	{
-		TGuardValue<bool> GuardRecomputeFilters(bSuspendRecomputingTemplateFilters, true);
-		TGuardValue<bool> GuardRecomputeOuterFilters(bSuspendRecomputingOuterTemplateFilters, true);
 		{
 			FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), bSetupUndoRedo);
 			bSuccessfullyRemovedPin = RemovePin(Pin, bSetupUndoRedo);
@@ -11142,34 +10519,6 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 		RefreshFunctionPins(Graph->GetReturnNode());
 		RefreshFunctionReferences(LibraryNode, false);
 	}
-
-	TArray<URigVMTemplateNode*> InterfaceNodes = {Graph->GetEntryNode(), Graph->GetReturnNode()};
-	// Remove preferred types in interface nodes
-	{
-		for (URigVMTemplateNode* InterfaceNode : InterfaceNodes)
-		{
-			RemovePreferredType(InterfaceNode, InPinName, bSetupUndoRedo);						
-		}
-	}
-
-	// Remove preferred type of library node (and references to it)
-	{
-		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), bSetupUndoRedo);
-		RemovePreferredType(LibraryNode, InPinName, bSetupUndoRedo);
-
-		// If the library node is a function, remove preferred type from all references
-		if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
-		{
-			FunctionLibrary->ForEachReference(LibraryNode->GetFName(), [this, InPinName, bSetupUndoRedo](URigVMFunctionReferenceNode* ReferenceNode)
-			{
-				FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), bSetupUndoRedo);
-				RemovePreferredType(ReferenceNode, InPinName, bSetupUndoRedo);
-			});
-		}
-	}
-
-	// Recompute filtered types and library template
-	RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
 
 	if (bSetupUndoRedo)
 	{
@@ -11324,49 +10673,8 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 		{
 			if (URigVMPin* InterfacePin = InterfaceNode->FindPin(InOldPinName.ToString()))
 			{
-				TArray<FRigVMTemplatePreferredType> NewPreferredPermutationsTypes = InterfaceNode->PreferredPermutationPairs;
-				for (FRigVMTemplatePreferredType& PreferredType : NewPreferredPermutationsTypes)
-				{
-					if (PreferredType.GetArgument() == InOldPinName)
-					{
-						PreferredType.Argument = PinName;
-						break;
-					}
-				}
-
-				if (bSetupUndoRedo)
-				{
-					ActionStack->AddAction(FRigVMSetPreferredTemplatePermutationsAction(InterfaceNode, NewPreferredPermutationsTypes));
-				}
-
-				InterfaceNode->PreferredPermutationPairs = NewPreferredPermutationsTypes;
-				
 				Local::RenamePin(this, InterfacePin, PinName);
 			}
-		}
-	}
-
-	// Find Argument and rename if it exists
-	{
-		FRigVMTemplate NewTemplate = LibraryNode->Template;
-		for (FRigVMTemplateArgument& Argument : NewTemplate.Arguments)
-		{
-			if (Argument.Name == InOldPinName)
-			{
-				Argument.Name = PinName;
-				break;
-			}
-		}
-		NewTemplate.ComputeNotationFromArguments(LibraryNode->GetName());
-		if (bSetupUndoRedo)
-		{
-			FRigVMControllerGraphGuard Guard(this, LibraryNode->GetGraph(), bSetupUndoRedo);
-			ActionStack->AddAction(FRigVMSetLibraryTemplateAction(LibraryNode, NewTemplate));
-		}
-		LibraryNode->Template = NewTemplate;
-		{
-			FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), false);
-			Notify(ERigVMGraphNotifType::LibraryTemplateChanged, LibraryNode);
 		}
 	}
 
@@ -11526,86 +10834,47 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 
 	// If the pin does not support the type, first break all links in the contained graph to this pin (and subpins)
 	TArray<URigVMTemplateNode*> InterfaceNodes = {Graph->GetEntryNode(), Graph->GetReturnNode()};
-	if (!LibraryNode->SupportsType(Pin, Registry.GetTypeIndexFromCPPType(InCPPType)))
-	{
-		{
-			TGuardValue<bool> GuardRecompute (bSuspendRecomputingTemplateFilters, true);
-			TGuardValue<bool> GuardRecomputeOuter (bSuspendRecomputingOuterTemplateFilters, true);
 
-			// Remove preferred types for this pin
-			for (URigVMTemplateNode* InterfaceNode : InterfaceNodes)
+	// Break all links to this pin
+	{
+		TArray<URigVMLink*> InterfacePinLinks;
+		TArray<URigVMPin*> ExtendedInterfacePins;
+		for (URigVMNode* Node : Graph->GetNodes())
+		{
+			if (Node->IsA<URigVMFunctionEntryNode>() || Node->IsA<URigVMFunctionReturnNode>())
 			{
-				if (InterfaceNode)
+				if (URigVMPin* InterfacePin = Node->FindPin(Pin->GetName()))
 				{
-					if (URigVMPin* InterfacePin = InterfaceNode->FindPin(Pin->GetName()))
-					{
-						RemovePreferredType(InterfaceNode, InPinName, bSetupUndoRedo);
-					}										
+					ExtendedInterfacePins.Add(InterfacePin);
 				}
 			}
-		
-			// Break all links to this pin
+			else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
 			{
-				TArray<URigVMLink*> InterfacePinLinks;	
-				TArray<URigVMPin*> ExtendedInterfacePins;
-				for (URigVMNode* Node : Graph->GetNodes())
+				if (VariableNode->GetVariableName() == InPinName)
 				{
-					if (Node->IsA<URigVMFunctionEntryNode>() || Node->IsA<URigVMFunctionReturnNode>())
-					{
-						if (URigVMPin* InterfacePin = Node->FindPin(Pin->GetName()))
-						{
-							ExtendedInterfacePins.Add(InterfacePin);
-						}
-					}
-					else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
-					{
-						if (VariableNode->GetVariableName() == InPinName)
-						{
-							ExtendedInterfacePins.Add(VariableNode->GetValuePin());
-						}
-					}
-				}
-		
-				for (URigVMPin* InterfacePin : ExtendedInterfacePins)
-				{
-					TArray<URigVMPin*> PinsToProcess;
-					PinsToProcess.Add(InterfacePin);
-					for (int32 i=0; i<PinsToProcess.Num(); ++i)
-					{
-						InterfacePinLinks.Append(PinsToProcess[i]->GetLinks());
-						PinsToProcess.Append(PinsToProcess[i]->GetSubPins());
-					}
-				}		
-				for (int32 i=0; i<InterfacePinLinks.Num(); ++i)
-				{
-					BreakLink(InterfacePinLinks[i]->GetSourcePin(), InterfacePinLinks[i]->GetTargetPin(), bSetupUndoRedo);
+					ExtendedInterfacePins.Add(VariableNode->GetValuePin());
 				}
 			}
 		}
 
-		RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
-	}
-
-	// Resolve interface pins to the input type
-	for (URigVMTemplateNode* InterfaceNode : InterfaceNodes)
-	{
-		if (InterfaceNode)
+		for (URigVMPin* InterfacePin : ExtendedInterfacePins)
 		{
-			if (URigVMPin* InterfacePin = InterfaceNode->FindPin(Pin->GetName()))
+			TArray<URigVMPin*> PinsToProcess;
+			PinsToProcess.Add(InterfacePin);
+			for (int32 i=0; i<PinsToProcess.Num(); ++i)
 			{
-				if (!ResolveWildCardPin(InterfacePin, FRigVMTemplateArgumentType(*InCPPType, CPPTypeObject), bSetupUndoRedo))
-				{
-					if (bSetupUndoRedo)
-					{
-						ActionStack->CancelAction(Action, this);
-					}
-					return false;
-				}
+				InterfacePinLinks.Append(PinsToProcess[i]->GetLinks());
+				PinsToProcess.Append(PinsToProcess[i]->GetSubPins());
 			}
 		}
-	}
-	
 		
+		for (int32 i=0; i<InterfacePinLinks.Num(); ++i)
+		{
+			BreakLink(InterfacePinLinks[i]->GetSourcePin(), InterfacePinLinks[i]->GetTargetPin(), bSetupUndoRedo);
+		}
+	}
+
+	// Change pin type of the library node in the function library
 	{
 		bool bSuccessChangingType;
 		{
@@ -11627,6 +10896,7 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 		}
 	}
 
+	// Repopulate pin on interface nodes
 	for (URigVMTemplateNode* InterfaceNode : InterfaceNodes)
 	{
 		if (InterfaceNode)
@@ -11636,6 +10906,7 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 		}
 	}
 
+	// Change pin type on function references
 	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
 	{
 		FunctionLibrary->ForEachReference(LibraryNode->GetFName(), [this, &Pin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPins](URigVMFunctionReferenceNode* ReferenceNode)
@@ -11649,6 +10920,7 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
         });
 	}
 
+	// Change pin types on input variable nodes
 	for (URigVMNode* Node : Graph->GetNodes())
 	{
 		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
@@ -11818,12 +11090,10 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNodeFromDescr
 	FunctionRefNode->Position = InNodePosition;
 	FunctionRefNode->ReferencedFunctionHeader = InFunctionDefinition;
 	Graph->Nodes.Add(FunctionRefNode);
-	FunctionRefNode->InitializeFilteredPermutations();
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	
 	RepopulatePinsOnNode(FunctionRefNode, false, false, false);
-	UpdateTemplateNodePinTypes(FunctionRefNode, false);
 
 	Notify(ERigVMGraphNotifType::NodeAdded, FunctionRefNode);
 
@@ -13234,22 +12504,6 @@ URigVMRerouteNode* URigVMController::AddFreeRerouteNode(bool bShowAsFullNode, co
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
 
-	Node->InitializeFilteredPermutations();
-	if (InCPPType != RigVMTypeUtils::GetWildCardCPPType() && InCPPType != RigVMTypeUtils::GetWildCardArrayCPPType())
-	{
-		PrepareTemplatePinForType(ValuePin, {ValuePin->GetTypeIndex()}, bSetupUndoRedo);
-		TArray<int32> FilterPermutations = Node->GetFilteredPermutationsIndices();
-		if (FilterPermutations.Num() == 1)
-		{
-			const TArray<FRigVMTemplatePreferredType> NewPreferredPermutationTypes = Node->GetPreferredTypesForPermutation(FilterPermutations[0]);
-			if (bSetupUndoRedo)
-			{
-				ActionStack->AddAction(FRigVMSetPreferredTemplatePermutationsAction(Node, NewPreferredPermutationTypes));
-			}
-			Node->PreferredPermutationPairs = NewPreferredPermutationTypes;
-		}
-	}
-
 	if (bSetupUndoRedo)
 	{
 		ActionStack->EndAction(Action);
@@ -13464,7 +12718,6 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 	int32 PermutationIndex = INDEX_NONE;
 	FRigVMTemplate::FTypeMap Types;
 	Template->FullyResolve(Types, PermutationIndex);
-	Node->InitializeFilteredPermutations();
 
 	FRigVMRegistry& Registry = FRigVMRegistry::Get();
 	AddPinsForTemplate(Template, Types, Node);
@@ -13735,7 +12988,7 @@ URigVMNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FString&
 				TypeMap.Add(ArgumentNameToResolve, TypeIndex);
 
 				TArray<int32> Permutations;
-				Template->Resolve(TypeMap, Permutations, true);
+				Template->Resolve(TypeMap, Permutations, false);
 				check(Permutations.Num() == 1);
 
 				for(const FRigVMTemplate::FTypePair& Pair : TypeMap)
@@ -13745,7 +12998,6 @@ URigVMNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FString&
 						if(URigVMPin* Pin = Node->FindPin(Pair.Key.ToString()))
 						{
 							ChangePinType(Pin, Pair.Value, false, false);
-							Node->UpdateFilteredPermutations(Pin, {Pair.Value});
 						}
 					}
 				}
@@ -16708,8 +15960,7 @@ void URigVMController::ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode, b
 #if WITH_EDITOR
 	check(InNode);
 	
-	const TArray<int32> FilteredPermutationIndices = InNode->GetFilteredPermutationsIndices();
-
+	TArray<int32> FilteredPermutationIndices = InNode->GetResolvedPermutationIndices(false);
 	if(InNode->IsA<URigVMUnitNode>())
 	{
 		const FLinearColor PreviousColor = InNode->NodeColor;
@@ -16769,28 +16020,21 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 	const FRigVMTemplate* Template = InNode->GetTemplate();
 	const FRigVMDispatchFactory* Factory = Template->GetDispatchFactory();
 	
-	int32 InputPermutation = InPermutationIndex;
+	InNode->ResolvedPermutation = InPermutationIndex;
 	
 	// Figure out the permutation index from the pin types
 	if (InPermutationIndex == INDEX_NONE)
 	{
-		FRigVMTemplate::FTypeMap TypeMap;
-		for (URigVMPin* Pin : InNode->GetPins())
-		{
-			check(!Pin->IsWildCard());
-			TypeMap.Add(Pin->GetFName(), Pin->GetTypeIndex());
-		}
-
-		TArray<int32> Permutations;
-		Template->Resolve(TypeMap, Permutations, true);
+		TArray<int32> Permutations = InNode->GetResolvedPermutationIndices(false);
 		check(!Permutations.IsEmpty());
-		InputPermutation = Permutations[0];
+		InNode->ResolvedPermutation = Permutations[0];
 
 		// make sure the permutation exists
 		if(Factory)
 		{
+			FRigVMTemplateTypeMap TypeMap = InNode->GetTemplate()->GetTypesForPermutation(InNode->ResolvedPermutation);
 			const FRigVMFunctionPtr DispatchFunction = Factory->GetDispatchFunction(TypeMap);
-			const FRigVMFunction* ResolvedFunction = Template->GetPermutation(InputPermutation);
+			const FRigVMFunction* ResolvedFunction = Template->GetPermutation(InNode->ResolvedPermutation);
 			check(DispatchFunction);
 			check(ResolvedFunction);
 			check(ResolvedFunction->FunctionPtr == DispatchFunction);
@@ -16798,8 +16042,8 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 	}
 	
 
-	const FRigVMFunction* ResolvedFunction = Template->GetPermutation(InputPermutation);
-	const TArray<int32> PermutationIndices = {InputPermutation};
+	const FRigVMFunction* ResolvedFunction = Template->GetPermutation(InNode->ResolvedPermutation);
+	const TArray<int32> PermutationIndices = {InNode->ResolvedPermutation};
 
 	// find all existing pins that we may need to change
 	TArray<FRigVMTemplateArgument> MissingPins;
@@ -16834,7 +16078,7 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 			const TArray<FRigVMTemplateArgument>& Arguments = Template->Arguments;
 			for(const FRigVMTemplateArgument& Argument : Arguments)
 			{
-				const TRigVMTypeIndex ExpectedTypeIndex = Argument.TypeIndices[InputPermutation];
+				const TRigVMTypeIndex ExpectedTypeIndex = Argument.TypeIndices[InNode->ResolvedPermutation];
 				if(URigVMPin* Pin = InNode->FindPin(Argument.GetName().ToString()))
 				{
 					if(Pin->GetTypeIndex() != ExpectedTypeIndex && ExpectedTypeIndex != RigVMTypeUtils::TypeIndex::Execute)
@@ -16923,25 +16167,6 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 	// exit out early if there's nothing to do
 	if(PinTypesToChange.IsEmpty() && MissingPins.IsEmpty() && PinsToRemove.IsEmpty())
 	{
-		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode))
-		{
-			{
-				FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph());
-				TGuardValue<bool> GuardEditable(CollapseNode->GetContainedGraph()->bEditable, true);
-				TGuardValue<bool> GuardRecomputeOuter(bSuspendRecomputingOuterTemplateFilters, true);
-				TArray<URigVMTemplateNode*> InterfaceNodes = {CollapseNode->GetEntryNode(), CollapseNode->GetReturnNode()};
-				for (URigVMTemplateNode* InterfaceNode : InterfaceNodes)
-				{
-					if (InterfaceNode)
-					{
-						UpdateFilteredPermutations(InterfaceNode, {CollapseNode->FilteredPermutations}, bSetupUndoRedo);
-						break;
-					}
-				}
-				RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
-			}
-			UpdateFilteredPermutations(CollapseNode, {0}, bSetupUndoRedo);
-		}
 		ResolveTemplateNodeMetaData(InNode, bSetupUndoRedo);
 		return true;
 	}
@@ -16952,7 +16177,6 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 	}
 
 	// update the incorrectly typed pins
-	bool bNeedsTemplateUpdate = false;
 	for(const TPair<URigVMPin*, TRigVMTypeIndex>& Pair : PinTypesToChange)
 	{
 		URigVMPin* Pin = Pair.Key;
@@ -16962,9 +16186,19 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 		{
 			if(Pin->GetTypeIndex() != ExpectedTypeIndex)
 			{
-				bNeedsTemplateUpdate = true;
-				const int32 WildCardIndex = Pin->IsArray() ? RigVMTypeUtils::TypeIndex::WildCardArray : RigVMTypeUtils::TypeIndex::WildCard;
-				if(!ChangePinType(Pin, WildCardIndex, bSetupUndoRedo, false, true, true))
+				if (Pin->GetDirection() != ERigVMPinDirection::Hidden)
+				{
+					const int32 WildCardIndex = Pin->IsArray() ? RigVMTypeUtils::TypeIndex::WildCardArray : RigVMTypeUtils::TypeIndex::WildCard;
+					if(!ChangePinType(Pin, WildCardIndex, bSetupUndoRedo, false, true, true))
+					{
+						if(bSetupUndoRedo)
+						{
+							CancelUndoBracket();
+						}
+						return false;
+					}
+				}
+				if(!ChangePinType(Pin, ExpectedTypeIndex, bSetupUndoRedo, false, true, true))
 				{
 					if(bSetupUndoRedo)
 					{
@@ -16972,20 +16206,6 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 					}
 					return false;
 				}
-			}
-		}
-		
-		if(Pin->IsWildCard())
-		{
-			bNeedsTemplateUpdate = true;
-			
-			if (!UpdateFilteredPermutations(Pin, {ExpectedTypeIndex}, bSetupUndoRedo))
-			{
-				if(bSetupUndoRedo)
-				{
-					CancelUndoBracket();
-				}
-				return false;
 			}
 		}
 	}
@@ -17007,7 +16227,7 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 				
 				URigVMPin* Pin = NewObject<URigVMPin>(Cast<UObject>(InNode), MissingPin.GetName());
 
-				const TRigVMTypeIndex TypeIndex = MissingPin.TypeIndices[InputPermutation];
+				const TRigVMTypeIndex TypeIndex = MissingPin.TypeIndices[InNode->ResolvedPermutation];
 				const FRigVMTemplateArgumentType& Type = FRigVMRegistry::Get().GetType(TypeIndex); 
 				
 				Pin->Direction = MissingPin.GetDirection();
@@ -17051,11 +16271,6 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 		}
 	}
 
-	if (bNeedsTemplateUpdate)
-	{
-		UpdateTemplateNodePinTypes(InNode, bSetupUndoRedo);
-	}
-	
 	if(bSetupUndoRedo)
 	{
 #if WITH_EDITOR
@@ -17065,391 +16280,6 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 	}
 
 	return true;
-}
-
-bool URigVMController::PrepareTemplatePinForType(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices, bool bSetupUndoRedo)
-{
-	if (!IsValidGraph())
-	{
-		return false;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return false;
-	}
-
-	URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode());
-	if (!TemplateNode)
-	{
-		return false;
-	}
-
-	if (TemplateNode->IsSingleton())
-	{
-		return false;
-	}
-
-	if (InTypeIndices.IsEmpty())
-	{
-		return false;
-	}
-
-	FRigVMRegistry& Registry = FRigVMRegistry::Get();
-
-	/*
-	if (InTypeIndices.Num() == 1)
-	{
-		if(Registry.CanMatchTypes(InPin->GetTypeIndex(), InTypeIndices[0], true))
-		{
-			return true;
-		}
-	}
-	*/
-
-	// It might be a subpin of a struct, in that case we just want to make sure
-	// the type required matches the one in the pin
-	if (InPin->IsStructMember() || InPin->IsOrphanPin())
-	{
-		TRigVMTypeIndex PinTypeIndex = InPin->GetTypeIndex();
-		
-		// Check if any of the types allows the connection
-		for (const TRigVMTypeIndex& Type : InTypeIndices)
-		{
-			if (Registry.CanMatchTypes(Type, PinTypeIndex, true))
-			{
-				return true;
-			}
-		}
-		
-		return false;		
-	}
-
-	FRigVMBaseAction Action;
-	Action.Title = TEXT("Prepare template pin for type");
-	if (bSetupUndoRedo)
-	{
-		ActionStack->BeginAction(Action);		
-	}
-
-	// If the pin is an element of an array, get the array pin and convert the types
-	URigVMPin* RootPin = InPin;
-	TArray<TRigVMTypeIndex> Types = InTypeIndices;
-	if (InPin->IsArrayElement())
-	{
-		RootPin = InPin->GetParentPin();
-		for (TRigVMTypeIndex& Type : Types)
-		{
-			Type = FRigVMRegistry::Get().GetArrayTypeFromBaseTypeIndex(Type);
-		}
-	}
-
-	bool bFilteredSupportsType = false;
-	for (const TRigVMTypeIndex& Type : Types)
-	{
-		if (TemplateNode->FilteredSupportsType(RootPin, Type))
-		{
-			bFilteredSupportsType = true;
-			break;
-		}
-	}
-
-	bool bSupportsType = false;
-	TArray<FRigVMTemplatePreferredType> OldPreferredTypes;
-	if (!bFilteredSupportsType)
-	{
-		if (!TemplateNode->PreferredPermutationPairs.IsEmpty())
-		{
-			if (bSetupUndoRedo)
-			{
-				ActionStack->AddAction(FRigVMSetPreferredTemplatePermutationsAction(TemplateNode, {}));
-			}
-			OldPreferredTypes = TemplateNode->PreferredPermutationPairs;
-			TemplateNode->PreferredPermutationPairs = {};
-		}
-		
-		for (const TRigVMTypeIndex& Type : Types)
-		{
-			if (TemplateNode->SupportsType(RootPin, Type))
-			{
-				bSupportsType = true;
-				break;
-			}
-		}	
-	}
-
-	if (!bFilteredSupportsType && !bSupportsType)
-	{
-		if (bSetupUndoRedo)
-		{
-			ActionStack->CancelAction(Action, this);
-		}
-		return false;
-	}
-
-	if (bFilteredSupportsType)
-	{
-		{
-			TGuardValue<FRigVMController_RequestBreakLinksDialogDelegate> GuardDelegate(RequestBreakLinksDialogDelegate, nullptr);
-			OpenUndoBracket(FString::Printf(TEXT("Resolve wildcard pin %s"), *InPin->GetPinPath()));
-			if (TemplateNode->PinNeedsFilteredTypesUpdate(RootPin, Types))
-			{
-				if (UpdateFilteredPermutations(RootPin, Types, bSetupUndoRedo))
-				{
-					UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
-					PropagateTemplateFilteredTypes(TemplateNode, bSetupUndoRedo);
-				}
-			}
-		}
-
-		// Even if the filter supports type, we might find we break links in parent graphs
-		// Find break link actions
-		TArray<URigVMLink*> LinksToBreak;
-		TArray<TPair<FString, FString>> InconsistentLinks;
-		TArray<FSoftObjectPath> InconsistentLinksGraph;
-		{
-			TArray<FRigVMActionKey> Actions = ActionStack->BracketActions.Last()->SubActions;
-			for (int32 i=0; i<Actions.Num(); ++i)
-			{
-				const FRigVMActionKey& ActionKey = Actions[i];
-				FRigVMActionWrapper Wrapper(ActionKey);
-				if (Wrapper.GetAction()->GetScriptStruct() == FRigVMBreakLinkAction::StaticStruct())
-				{
-					const FRigVMBreakLinkAction* BreakLinkAction = (const FRigVMBreakLinkAction*)Wrapper.GetAction();
-					InconsistentLinks.Add(TPair<FString,FString>(BreakLinkAction->OutputPinPath, BreakLinkAction->InputPinPath));
-					InconsistentLinksGraph.Add(BreakLinkAction->GraphPath);
-				}
-
-				Actions.Append(Wrapper.GetAction()->SubActions);
-			}
-		}
-
-		if (InconsistentLinks.IsEmpty())
-		{
-			CloseUndoBracket();
-			if (bSetupUndoRedo)
-			{
-				ActionStack->EndAction(Action);
-			}
-			return true;
-		}
-
-		verify(CancelUndoBracket());
-		for (int32 i=0; i<InconsistentLinks.Num(); ++i)
-		{
-			TSoftObjectPtr<URigVMGraph> GraphPtr(InconsistentLinksGraph[i]);
-			LinksToBreak.AddUnique(GraphPtr.Get()->FindLink(URigVMLink::GetPinPathRepresentation(InconsistentLinks[i].Key, InconsistentLinks[i].Value)));
-		}
-		
-		// Warn the user the links that would be broken
-		bool bBreakLinks = true;
-		bool bConsultedBreak = false;
-		if(!bIsTransacting && RequestBreakLinksDialogDelegate.IsBound())
-		{
-			bBreakLinks = RequestBreakLinksDialogDelegate.Execute(LinksToBreak);
-			bConsultedBreak = true;
-		}
-
-		if (bBreakLinks)
-		{
-			// Break links
-			for (URigVMLink* Link : LinksToBreak)
-			{
-				FRigVMControllerGraphGuard GraphGuard(this, Link->GetGraph(), bSetupUndoRedo);
-				if (!bConsultedBreak && !bIsTransacting && !bSuspendNotifications)
-				{
-					ReportWarningf(TEXT("The link between %s was broken due to inconsistent types"), *Link->GetPinPathRepresentation());
-				}
-				BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
-			}
-
-			ensure(LinksToBreak.Num() > 0);
-			PrepareTemplatePinForType(InPin, InTypeIndices, bSetupUndoRedo);
-
-			if (bSetupUndoRedo)
-			{
-				ActionStack->EndAction(Action);
-			}
-			return true;
-		}
-
-		if (bSetupUndoRedo)
-		{
-			ActionStack->CancelAction(Action, this);
-		}
-		return false;
-	}
-	else
-	{
-		// Figure out what links we would need to break to allow this
-		TArray<URigVMLink*> LinksToBreak;
-		{
-			TGuardValue<FRigVMController_RequestBreakLinksDialogDelegate> GuardDelegate(RequestBreakLinksDialogDelegate, nullptr);
-			TGuardValue<bool> GuardNotifications(bSuspendNotifications, true);
-			TGuardValue<bool> SuspendRecomputeTemplates(bSuspendRecomputingTemplateFilters, true);
-			TGuardValue<bool> DisableCasting(bEnableTypeCasting, false);
-			OpenUndoBracket(FString::Printf(TEXT("Resolve wildcard pin %s"), *InPin->GetPinPath()));
-
-			bool bBrokenLinks = false;
-			do
-			{
-				bBrokenLinks = false;
-				
-				// Initialize all template nodes in the graph
-				InitializeAllTemplateFiltersInGraph(true, false);
-
-				// Update our node with the requested type
-				UpdateFilteredPermutations(InPin, InTypeIndices, true);
-				
-				// Update types in case some pins on this node disappear, and should no longer propagate
-				UpdateTemplateNodePinTypes(TemplateNode, true);
-
-				// Propagate the filtered types and collect break link actions 
-				bBrokenLinks = !PropagateTemplateFilteredTypes(TemplateNode, true);
-			}
-			while (bBrokenLinks);
-
-			// Find break link actions
-			TArray<TPair<FString, FString>> InconsistentLinks;
-			TArray<FRigVMActionKey> Actions = ActionStack->BracketActions.Last()->SubActions;
-			for (int32 i=0; i<Actions.Num(); ++i)
-			{
-				const FRigVMActionKey& ActionKey = Actions[i];
-				FRigVMActionWrapper Wrapper(ActionKey);
-				if (Wrapper.GetAction()->GetScriptStruct() == FRigVMBreakLinkAction::StaticStruct())
-				{
-					const FRigVMBreakLinkAction* BreakLinkAction = (const FRigVMBreakLinkAction*)Wrapper.GetAction();
-					InconsistentLinks.AddUnique(TPair<FString,FString>(BreakLinkAction->OutputPinPath, BreakLinkAction->InputPinPath));
-				}
-
-				Actions.Append(Wrapper.GetAction()->SubActions);
-			}
-			verify(CancelUndoBracket());
-
-			for (TPair<FString, FString>& Pair : InconsistentLinks)
-			{
-				LinksToBreak.AddUnique(GetGraph()->FindLink(URigVMLink::GetPinPathRepresentation(Pair.Key, Pair.Value)));
-			}
-		}
-
-		// We might be in this situation just because we are resolving to a different type than previosly resolved
-		// so no links to break
-		if (LinksToBreak.IsEmpty())
-		{
-			if (!TemplateNode->PreferredPermutationPairs.IsEmpty())
-			{
-				ensure(false);
-				if (bSetupUndoRedo)
-				{
-					ActionStack->CancelAction(Action, this);
-				}
-				return false;
-			}
-			
-			UnresolveTemplateNodes({TemplateNode}, bSetupUndoRedo, false);
-			PrepareTemplatePinForType(InPin, InTypeIndices, bSetupUndoRedo);
-
-			// Reapply the valid preferred types
-			for (int32 i=0; i<OldPreferredTypes.Num(); ++i)
-			{
-				if (URigVMPin* Pin = TemplateNode->FindPin(OldPreferredTypes[i].Argument.ToString()))
-				{
-					if (Pin->IsWildCard())
-					{
-						if (!TemplateNode->FilteredSupportsType(Pin, OldPreferredTypes[i].GetTypeIndex()))
-						{
-							continue;
-						}
-					}
-				
-					if (Pin->IsWildCard() || Pin->GetTypeIndex() == OldPreferredTypes[i].GetTypeIndex())
-					{
-						ResolveWildCardPin(Pin, OldPreferredTypes[i].GetTypeIndex(), bSetupUndoRedo);
-					}
-				}
-			}
-			if (bSetupUndoRedo)
-			{
-				ActionStack->EndAction(Action);
-			}
-			return true;
-		}
-
-		// Warn the user the links that would be broken
-		bool bBreakLinks = true;
-		bool bConsultedBreak = false;
-		if(!bIsTransacting && RequestBreakLinksDialogDelegate.IsBound())
-		{
-			bBreakLinks = RequestBreakLinksDialogDelegate.Execute(LinksToBreak);
-			bConsultedBreak = true;
-		}
-
-		if (bBreakLinks)
-		{
-			// Break links
-			for (URigVMLink* Link : LinksToBreak)
-			{
-				if (!bConsultedBreak && !bIsTransacting && !bSuspendNotifications)
-				{
-					ReportWarningf(TEXT("The link between %s was broken due to inconsistent types"), *Link->GetPinPathRepresentation());
-				}
-				BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
-			}
-
-			ensure(LinksToBreak.Num() > 0);
-			PrepareTemplatePinForType(InPin, InTypeIndices, bSetupUndoRedo);
-
-			// Reapply the valid preferred types
-			for (int32 i=0; i<OldPreferredTypes.Num(); ++i)
-			{
-				if (URigVMPin* Pin = TemplateNode->FindPin(OldPreferredTypes[i].Argument.ToString()))
-				{
-					if (Pin->IsWildCard())
-					{
-						if (!TemplateNode->FilteredSupportsType(Pin, OldPreferredTypes[i].GetTypeIndex()))
-						{
-							continue;
-						}
-					}
-				
-					if (Pin->IsWildCard() || Pin->GetTypeIndex() == OldPreferredTypes[i].GetTypeIndex())
-					{
-						ResolveWildCardPin(Pin, OldPreferredTypes[i].GetTypeIndex(), bSetupUndoRedo);
-					}
-				}
-			}
-			if (bSetupUndoRedo)
-			{
-				ActionStack->EndAction(Action);
-			}
-			return true;
-		}
-	}
-
-	if (bSetupUndoRedo)
-	{
-		ActionStack->CancelAction(Action, this);
-	}
-	return false;
-}
-
-TArray<TRigVMTypeIndex> URigVMController::GetFilteredTypes(URigVMPin* InPin)
-{
-	if (!InPin->IsStructMember() && !InPin->IsOrphanPin())
-	{
-		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
-		{
-			if (!TemplateNode->IsSingleton())
-			{
-				return TemplateNode->GetFilteredTypesForPin(InPin);
-			}
-		}
-	}
-	if (InPin->IsWildCard())
-	{
-		return TArray<TRigVMTypeIndex>();
-	}
-	return {InPin->GetTypeIndex()};
 }
 
 bool URigVMController::ResolveWildCardPin(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bPrintPythonCommand)
@@ -17542,8 +16372,7 @@ bool URigVMController::ResolveWildCardPin(const FString& InPinPath, TRigVMTypeIn
 	return false;
 }
 
-bool URigVMController::ResolveWildCardPin(URigVMPin* InPin, TRigVMTypeIndex InTypeIndex, bool bSetupUndoRedo,
-	bool bPrintPythonCommand)
+bool URigVMController::ResolveWildCardPin(URigVMPin* InPin, TRigVMTypeIndex InTypeIndex, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (InPin->IsStructMember())
 	{
@@ -17551,6 +16380,11 @@ bool URigVMController::ResolveWildCardPin(URigVMPin* InPin, TRigVMTypeIndex InTy
 	}
 
 	if(FRigVMRegistry::Get().IsWildCardType(InTypeIndex))
+	{
+		return false;
+	}
+
+	if (InPin->GetTypeIndex() == InTypeIndex)
 	{
 		return false;
 	}
@@ -17563,239 +16397,67 @@ bool URigVMController::ResolveWildCardPin(URigVMPin* InPin, TRigVMTypeIndex InTy
 		Type = FRigVMRegistry::Get().GetArrayTypeFromBaseTypeIndex(Type);
 	}
 	
-	if(RootPin->IsWildCard())
-	{
-		ensure(RootPin->GetNode()->IsA<URigVMTemplateNode>());
-		URigVMTemplateNode* TemplateNode = CastChecked<URigVMTemplateNode>(RootPin->GetNode());
-		if (!TemplateNode->SupportsType(RootPin, Type, &Type))
-		{
-			return false;
-		}
-		
-		FRigVMBaseAction Action;
-		if (bSetupUndoRedo)
-		{
-			Action.Title = TEXT("Resolve Wildcard Pin");
-			ActionStack->BeginAction(Action);
-		}
-		
-		// Add preferred type
-		AddPreferredType(TemplateNode, RootPin->GetFName(), Type, bSetupUndoRedo);
+	ensure(RootPin->GetNode()->IsA<URigVMTemplateNode>());
+	URigVMTemplateNode* TemplateNode = CastChecked<URigVMTemplateNode>(RootPin->GetNode());
 
-		if (TemplateNode->IsA<URigVMFunctionEntryNode>() || TemplateNode->IsA<URigVMFunctionReturnNode>())
-		{
-			if (TemplateNode->GetTemplate()->FindArgument(RootPin->GetFName()) == nullptr)
-			{
-				if (!AddArgumentForPin(RootPin, nullptr, bSetupUndoRedo))
-				{
-					if (bSetupUndoRedo)
-					{
-						ActionStack->CancelAction(Action, this);
-					}
-					return false;
-				}
-			}
-		}
-		
-		if (!PrepareTemplatePinForType(InPin, {InTypeIndex}, bSetupUndoRedo))
-		{
-			if (bSetupUndoRedo)
-			{
-				ActionStack->CancelAction(Action, this);
-			}
-			return false;
-		}
-				
-		
-
-		URigVMGraph* Graph = GetGraph();
-		if (URigVMGraph* ParentGraph = Graph->GetParentGraph())
-		{
-			FRigVMControllerGraphGuard GraphGuard(this, ParentGraph, bSetupUndoRedo);
-			UpdateLibraryTemplate(Graph->GetTypedOuter<URigVMLibraryNode>(), bSetupUndoRedo);
-		}
-		
-		if (bSetupUndoRedo)
-		{
-			ActionStack->EndAction(Action);
-		}
-		
-		return true;		
-	}
-	else if (FRigVMRegistry::Get().CanMatchTypes(RootPin->GetTypeIndex(), Type, true))
+	TRigVMTypeIndex NewType = INDEX_NONE;
+	TemplateNode->SupportsType(RootPin, Type, &NewType);
+	if (NewType != INDEX_NONE)
 	{
-		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(RootPin->GetNode()))
+		// We support the new type, and its different than the pin type
+		if (NewType == Type && InPin->GetTypeIndex() != NewType)
 		{
-			TRigVMTypeIndex TypeIndex = TemplateNode->GetPreferredType(RootPin->GetFName());
-			if (TypeIndex == Type && RootPin->GetTypeIndex() == Type)
+			 
+		}
+		// We support the new type, but its different than the one provided
+		else if (NewType != Type)
+		{
+			// if its the same as the pin, we are done
+			if (InPin->GetTypeIndex() == NewType)
 			{
-				return true;
+				return false;
 			}
-			
-			if (TypeIndex != Type && TypeIndex != INDEX_NONE)
-			{
-				RemovePreferredType(TemplateNode, RootPin->GetFName(), bSetupUndoRedo);
-				TypeIndex = INDEX_NONE;
-			}
-			if (TypeIndex == INDEX_NONE)
-			{
-				AddPreferredType(TemplateNode, RootPin->GetFName(), Type, bSetupUndoRedo);
-			}
-	
-			if (RootPin->GetTypeIndex() != Type)
-			{
-				UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo, false);
-			}
+			Type = NewType;
 		}
 	}
 	else
 	{
-		OpenUndoBracket(TEXT("Resolving wildcard pin"));
-		URigVMTemplateNode* Node = Cast<URigVMTemplateNode>(InPin->GetNode());
-		TArray<URigVMLink*> Links = Node->GetLinks();
-		UnresolveTemplateNodes({*Node->GetName()}, bSetupUndoRedo);
-		if (ResolveWildCardPin(InPin, InTypeIndex, bSetupUndoRedo, bPrintPythonCommand))
-		{
-			// Try to reattach old links
-			for (URigVMLink* Link : Links)
-			{
-				URigVMPin* SourcePin = Link->GetSourcePin();
-				URigVMPin* TargetPin = Link->GetTargetPin();
-				URigVMPin* LocalPin = (SourcePin->GetNode() == Node) ? SourcePin : TargetPin;
-				URigVMPin* RemotePin = (LocalPin == TargetPin) ? SourcePin : TargetPin;
-				{
-					TArray<TRigVMTypeIndex> FilteredTypes = GetFilteredTypes(RemotePin);
-					bool bSupportsLink = false;
-					for (const TRigVMTypeIndex& FilteredType : FilteredTypes)
-					{
-						if (Node->FilteredSupportsType(LocalPin, FilteredType))
-						{
-							bSupportsLink = true;
-							break;
-						}
-					}
-					if (bSupportsLink)
-					{
-						AddLink(SourcePin, TargetPin, bSetupUndoRedo);
-					}
-				}
-			}
-			
-			CloseUndoBracket();
-			return true;
-		}
-		CancelUndoBracket();
-	}
-
-	return false;
-}
-
-bool URigVMController::UpdateFilteredPermutations(URigVMPin* InPin, URigVMPin* InLinkedPin, bool bSetupUndoRedo)
-{
-	URigVMTemplateNode* Node = Cast<URigVMTemplateNode>(InPin->GetNode());
-	if (!Node)
-	{
 		return false;
 	}
 	
-	TArray<int32> OldPermutations;
+	FRigVMBaseAction Action;
 	if (bSetupUndoRedo)
 	{
-		OldPermutations = Node->GetFilteredPermutationsIndices();
-	}
-
-	if (Node->UpdateFilteredPermutations(InPin, InLinkedPin))
-	{
-		if (bSetupUndoRedo)
-		{
-			FRigVMSetTemplateFilteredPermutationsAction Action(Node, OldPermutations);
-			ActionStack->BeginAction(Action);
-			ActionStack->AddAction(Action);
-			ActionStack->EndAction(Action);
-		}
-
-		// If updating the filtered permutations of entry or return nodes, update the library template
-		if (Node->IsA<URigVMFunctionEntryNode>() || Node->IsA<URigVMFunctionReturnNode>())
-		{
-			if (URigVMLibraryNode* LibraryNode = Node->GetTypedOuter<URigVMLibraryNode>())
-			{
-				UpdateLibraryTemplate(LibraryNode, bSetupUndoRedo);
-			}
-		}
-
-		return true;
-	}
-
-	return false;
-}
-
-bool URigVMController::UpdateFilteredPermutations(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices, bool bSetupUndoRedo)
-{
-	URigVMTemplateNode* Node = Cast<URigVMTemplateNode>(InPin->GetNode());
-	if (!Node)
-	{
-		return false;
-	}
-	
-	TArray<int32> OldPermutations;
-	if (bSetupUndoRedo)
-	{
-		OldPermutations = Node->GetFilteredPermutationsIndices();
-	}
-
-	if (Node->UpdateFilteredPermutations(InPin, InTypeIndices))
-	{
-		if (bSetupUndoRedo)
-		{
-			FRigVMSetTemplateFilteredPermutationsAction Action(Node, OldPermutations);
-			ActionStack->BeginAction(Action);
-			ActionStack->AddAction(Action);
-			ActionStack->EndAction(Action);
-		}
-		
-		// If updating the filtered permutations of entry or return nodes, update the library template
-        if (Node->IsA<URigVMFunctionEntryNode>() || Node->IsA<URigVMFunctionReturnNode>())
-        {
-        	if (URigVMLibraryNode* LibraryNode = Node->GetTypedOuter<URigVMLibraryNode>())
-        	{
-        		UpdateLibraryTemplate(LibraryNode, bSetupUndoRedo);
-        	}
-        }
-
-		return true;
-	}
-
-	return false;
-}
-
-bool URigVMController::UpdateFilteredPermutations(URigVMTemplateNode* InNode, const TArray<int32>& InPermutations, bool bSetupUndoRedo)
-{
-	TArray<int32> OldPermutations;
-	if (bSetupUndoRedo)
-	{
-		OldPermutations = InNode->GetFilteredPermutationsIndices();
-	}
-
-	InNode->FilteredPermutations = InPermutations;
-
-	if (bSetupUndoRedo)
-	{
-		FRigVMSetTemplateFilteredPermutationsAction Action(InNode, OldPermutations);
+		Action.Title = TEXT("Resolve Wildcard Pin");
 		ActionStack->BeginAction(Action);
-		ActionStack->AddAction(Action);
+	}
+
+	if (!InPin->IsWildCard())
+	{
+		if (!UnresolveTemplateNodes({TemplateNode}, bSetupUndoRedo))
+		{
+			return false;
+		}
+	}
+	
+	if (!ChangePinType(RootPin, Type, bSetupUndoRedo, true, true, false))
+	{
+		if (bSetupUndoRedo)
+		{
+			ActionStack->CancelAction(Action, this);
+		}
+		return false;
+	}
+
+	UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
+
+	if (bSetupUndoRedo)
+	{
 		ActionStack->EndAction(Action);
 	}
-
-	// If updating the filtered permutations of entry or return nodes, update the library template
-	if (InNode->IsA<URigVMFunctionEntryNode>() || InNode->IsA<URigVMFunctionReturnNode>())
-	{
-		if (URigVMLibraryNode* LibraryNode = InNode->GetTypedOuter<URigVMLibraryNode>())
-		{
-			UpdateLibraryTemplate(LibraryNode, bSetupUndoRedo);
-		}
-	}
-
+	
 	return true;
+
 }
 
 bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo, bool bInitializeDefaultValue)
@@ -17810,76 +16472,15 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 		return false;
 	}
 
-	// Because interface nodes reference the same template, they need to be resolved at the same time (otherwise we
-	// might end up in a situation where they resolve to different permutations).
-	const bool bIsInterfaceNode = InNode->IsA<URigVMFunctionEntryNode>() || InNode->IsA<URigVMFunctionReturnNode>();
-	URigVMTemplateNode* EntryNode = nullptr;
-	URigVMTemplateNode* ReturnNode = nullptr;
-	if (bIsInterfaceNode)
+	if (InNode->IsA<URigVMFunctionEntryNode>() || InNode->IsA<URigVMFunctionReturnNode>())
 	{
-		EntryNode = Graph->GetEntryNode();
-		ReturnNode = Graph->GetReturnNode();
+		return false;
 	}
-	
-	TArray<int32> ResolvedPermutations;
-	TArray<int32> PreferredPermutations;
-	TArray<FRigVMTemplatePreferredType> PreferredPermutationPairs = InNode->PreferredPermutationPairs;
-	if (!bIsInterfaceNode)
-	{
-		ResolvedPermutations = InNode->GetFilteredPermutationsIndices();
-		
-		// Try to pick permutations that respects the preferred types
-		PreferredPermutations = InNode->FindPermutationsForTypes(InNode->PreferredPermutationPairs, true);
-		ResolvedPermutations = ResolvedPermutations.FilterByPredicate([&](const int32& OtherPermutation) { return PreferredPermutations.Contains(OtherPermutation); });
-		InNode->ResolvedPermutation = ResolvedPermutations.Num() == 1 ? ResolvedPermutations[0] : INDEX_NONE;		
-	}
-	else
-	{
-		if (EntryNode)
-		{
-			ResolvedPermutations = EntryNode->FilteredPermutations;
-			PreferredPermutationPairs = EntryNode->PreferredPermutationPairs;
-		}
-		if (ReturnNode)
-		{
-			ResolvedPermutations = ResolvedPermutations.FilterByPredicate([ReturnNode](const int32& Index)
-			{
-				return ReturnNode->FilteredPermutations.Contains(Index);
-			});
 
-			for (const FRigVMTemplatePreferredType& Preferred : ReturnNode->PreferredPermutationPairs)
-			{
-				PreferredPermutationPairs.AddUnique(Preferred);				
-			}
-		}
-	
-		// Try to pick permutations that respects the preferred types
-		PreferredPermutations = InNode->FindPermutationsForTypes(PreferredPermutationPairs, true);
-		ResolvedPermutations = ResolvedPermutations.FilterByPredicate([&](const int32& OtherPermutation) { return PreferredPermutations.Contains(OtherPermutation); });
-
-		if (EntryNode)
-		{
-			EntryNode->ResolvedPermutation = ResolvedPermutations.Num() == 1 ? ResolvedPermutations[0] : INDEX_NONE;
-		}
-		if (ReturnNode)
-		{
-			ReturnNode->ResolvedPermutation = ResolvedPermutations.Num() == 1 ? ResolvedPermutations[0] : INDEX_NONE;
-		}
-	}
+	TArray<int32> ResolvedPermutations = InNode->GetResolvedPermutationIndices(true);
+	InNode->ResolvedPermutation = ResolvedPermutations.Num() == 1 ? ResolvedPermutations[0] : INDEX_NONE;
 
 	TArray<URigVMPin*> Pins = InNode->GetPins();
-	if (bIsInterfaceNode)
-	{
-		if (EntryNode)
-		{
-			Pins = EntryNode->GetPins();
-		}
-		if (ReturnNode)
-		{
-			Pins.Append(ReturnNode->GetPins());
-		}
-	}
-
 	TArray<const FRigVMTemplateArgument*> Arguments;
 	Arguments.SetNumUninitialized(Pins.Num());
 	for(int32 PinIndex=0; PinIndex < Pins.Num(); ++PinIndex)
@@ -17921,23 +16522,10 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 				Types.Add(Argument->TypeIndices[ResolvedPermutation]);
 				bAddedType = true;
 			}
-			else
-			{
-				// We might be in the case where the pin doesn't own an argument yet, but the node has a preferred type
-				for (int32 i=0; i<PreferredPermutationPairs.Num(); ++i)
-				{
-					if (Pin->GetFName() == PreferredPermutationPairs[i].Argument)
-					{
-						Types.Add(PreferredPermutationPairs[i].GetTypeIndex());
-						bAddedType = true;
-						break;
-					}
-				}
-			}
 			
 			if (!bAddedType)
 			{
-				// This is a pin with no argument or preferred type
+				// This is a pin with no argument
 				// Its marked as invalid, and will show wildcard type
 				Types.Add(INDEX_NONE);
 			}
@@ -17947,7 +16535,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 	// Some pins can benefit from reducing types to a single option
 	// Even if some pins reduce to a single type (maybe represented by a single permutation), the rest should still display a wildcard pin
 	// If reduction happens for multiple pins, we need to make sure that they reduce to the same permutation
-	// If possible, we want to respect the preferred type if it exists, or the current pin type if its not wildcard
+	// If possible, we want to respect the current pin type if its not wildcard
 	TArray<bool> WasReduced;
 	WasReduced.SetNumZeroed(Pins.Num());
 
@@ -17955,48 +16543,9 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 	TArray<TRigVMTypeIndex> FinalPinTypes;
 	FinalPinTypes.SetNumUninitialized(Pins.Num());
 	
-	// Reduce to preferred types (no casting)
-	if (ReducedTypes.Num() > 1)
-	{
-		for (FRigVMTemplatePreferredType& Preferred : PreferredPermutationPairs)
-		{
-			// Finding all pins related to this argument (in the case of interface nodes, there might be more than one)
-			TArray<URigVMPin*> ArgumentPins = Pins.FilterByPredicate([Preferred](URigVMPin* Pin)
-			{
-				return Pin->GetFName() == Preferred.Argument;
-			});
-
-			for (URigVMPin* ArgumentPin : ArgumentPins)
-			{
-				int32 PinIndex = Pins.Find(ArgumentPin);
-				WasReduced[PinIndex] = true;
-				FinalPinTypes[PinIndex] = Preferred.TypeIndex;
-
-				// If the argument is hidden, the available PinTypes will all be INDEX_NONE
-				if (ArgumentPin->Direction != ERigVMPinDirection::Hidden)
-				{					
-					ReducedTypes = ReducedTypes.FilterByPredicate([Preferred, PinIndex](const TPair<int32, TArray<TRigVMTypeIndex>>& Permutation)
-					{
-						return Permutation.Value[PinIndex] == Preferred.TypeIndex;
-					});
-				}
-			}
-		}
-	}
-
-	if (PinTypes.Num() > ReducedTypes.Num())
-	{
-		ensureMsgf(!ReducedTypes.IsEmpty(), TEXT("Found incompatible preferred types"));
-	}
-	
 	// Reduce compatible types, try to find the permutation in the reduced types
 	for(int32 PinIndex=0; PinIndex < Pins.Num(); ++PinIndex)
 	{
-		if (WasReduced[PinIndex])
-		{
-			continue;
-		}
-		
 		URigVMPin* Pin = Pins[PinIndex];
 		if (Pin->GetDirection() == ERigVMPinDirection::Hidden)
 		{
@@ -18015,7 +16564,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 				if (PreferredType == INDEX_NONE)
 				{
 					PreferredType = PinTypes.FindChecked(ResolvedPermutation)[PinIndex];
-				}				
+				}
 			}
 		}
 
@@ -18027,6 +16576,20 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 		if (FinalPinTypes[PinIndex] != INDEX_NONE)
 		{
 			WasReduced[PinIndex] =  true;
+		}
+
+		// Remove reduced types which do not match this type
+		TArray<int32> PermutationToRemove;
+		for (TPair<int32, TArray<TRigVMTypeIndex>>& Pair : ReducedTypes)
+		{
+			if (Pair.Value[PinIndex] != FinalPinTypes[PinIndex])
+			{
+				PermutationToRemove.Add(Pair.Key);
+			}
+		}
+		for (int32& ToRemove : PermutationToRemove)
+		{
+			ReducedTypes.Remove(ToRemove);
 		}
 	}
 	
@@ -18080,7 +16643,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 					CPPType = RigVMTypeUtils::GetWildCardArrayCPPType();
 				}
 				else if(ArrayType == FRigVMTemplateArgument::EArrayType_Mixed)
-				{				
+				{
 					CPPType = Pin->IsArray() ? RigVMTypeUtils::GetWildCardArrayCPPType() : RigVMTypeUtils::GetWildCardCPPType();
 				}
 
@@ -18090,7 +16653,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 					CPPType = Pin->GetCPPType();
 					CPPObjectType = Pin->GetCPPTypeObject();
 				}
-			
+
 				if (Pin->GetCPPType() != CPPType || Pin->GetCPPTypeObject() != CPPObjectType)
 				{
 					bAnyTypeChanged = !Pin->IsExecuteContext();
@@ -18114,91 +16677,22 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 					}
 					ChangePinType(Pin, FinalPinTypes[PinIndex], bSetupUndoRedo, false, false, false, bInitializeDefaultValue);
 				}
-
-				// Once an pin is resolved, add it as a preferred type
-				URigVMTemplateNode* TemplateNode = CastChecked<URigVMTemplateNode>(Pin->GetNode());
-				TRigVMTypeIndex TypeIndex = TemplateNode->GetPreferredType(Pin->GetFName());
-				if (TypeIndex != FinalPinTypes[PinIndex] && TypeIndex != INDEX_NONE)
-				{
-					RemovePreferredType(TemplateNode, Pin->GetFName(), bSetupUndoRedo);
-					TypeIndex = INDEX_NONE;
-				}
-				if (TypeIndex == INDEX_NONE)
-				{
-					AddPreferredType(TemplateNode, Pin->GetFName(), FinalPinTypes[PinIndex], bSetupUndoRedo);
-				}
 			}
 		}
 	}
 
-	bool bHasWildcard=false;
-	if (bIsInterfaceNode)
+	bool bHasWildcard = InNode->HasWildCardPin();
+	
+	if (bHasWildcard)
 	{
-		if (EntryNode)
-		{
-			bHasWildcard = EntryNode->HasWildCardPin();
-		}
-		if (ReturnNode)
-		{
-			bHasWildcard |= ReturnNode->HasWildCardPin();
-		}
+		InNode->ResolvedPermutation = INDEX_NONE;
 	}
 	else
 	{
-		bHasWildcard = InNode->HasWildCardPin();
-	}
-	if (bHasWildcard)
-	{
-		if (bIsInterfaceNode)
-		{
-			if (EntryNode)
-			{
-				EntryNode->ResolvedPermutation = INDEX_NONE;
-			}
-			if (ReturnNode)
-			{
-				ReturnNode->ResolvedPermutation = INDEX_NONE;
-			}
-		}
-		else
-		{
-			InNode->ResolvedPermutation = INDEX_NONE;
-		}
-	}
-	else if (!InNode->PreferredPermutationPairs.IsEmpty())
-	{
-		if (bIsInterfaceNode)
-		{
-			PreferredPermutationPairs.Reset();
-			if (EntryNode)
-			{
-				PreferredPermutationPairs = EntryNode->PreferredPermutationPairs;
-			}
-			if (ReturnNode)
-			{
-				for (const FRigVMTemplatePreferredType& Preferred : ReturnNode->PreferredPermutationPairs)
-				{
-					PreferredPermutationPairs.AddUnique(Preferred);				
-				}
-			}
-			
-			PreferredPermutations = InNode->FindPermutationsForTypes(PreferredPermutationPairs, false);
-			ensureMsgf(PreferredPermutations.Num() == 1, TEXT("Number of preferred permutations is not 1 in %s"), *GetPackage()->GetPathName());
-			if (EntryNode)
-			{
-				EntryNode->ResolvedPermutation = PreferredPermutations[0];
-			}
-			if (ReturnNode)
-			{
-				EntryNode->ResolvedPermutation = PreferredPermutations[0];
-			}
-		}
-		else
-		{
-			PreferredPermutations = InNode->FindPermutationsForTypes(InNode->PreferredPermutationPairs, false);
-			ensureMsgf(PreferredPermutations.Num() == 1, TEXT("Number of preferred permutations is not 1 in %s"), *GetPackage()->GetPathName());
-			InNode->ResolvedPermutation = PreferredPermutations[0];
-		}			
+		// If we got into a resolved permutation through reducing types, we need to set the result in the node
+		ResolvedPermutations = InNode->GetResolvedPermutationIndices(false);
+		check(ResolvedPermutations.Num() == 1);
+		InNode->ResolvedPermutation = ResolvedPermutations[0];
 	}
 	
 	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
@@ -18212,1112 +16706,109 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 	return bAnyTypeChanged;
 }
 
-bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo) 
+bool URigVMController::PrepareToLink(URigVMPin* FirstToResolve, URigVMPin* SecondToResolve, bool bSetupUndoRedo)
 {
-	auto UpdateAndPropagate = [&](URigVMPin* Pin)
+	FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	
+	// Check if there is anything to do
+	if (!FirstToResolve->IsWildCard() &&
+		!SecondToResolve->IsWildCard() &&
+		Registry.CanMatchTypes(FirstToResolve->GetTypeIndex(), SecondToResolve->GetTypeIndex(), true))
 	{
-		const TArray<URigVMLink*>& Links = Pin->GetLinks();
-		for (URigVMLink* Link : Links)
+		return true;
+	}
+	
+	// Find out the matching supported types
+	TArray<TRigVMTypeIndex> MatchingTypes;
+	{
+		auto GetPinSupportedTypes = [&Registry](URigVMPin* Pin) -> TArray<TRigVMTypeIndex>
 		{
-			URigVMPin* OtherPin = Link->GetSourcePin() == Pin ? Link->GetTargetPin() : Link->GetSourcePin();
-			bool bPropagate = false;
-			bool bIsTemplate = false;
-			if (URigVMTemplateNode* OtherTemplate = Cast<URigVMTemplateNode>(OtherPin->GetNode()))
+			URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Pin->GetNode());
+			if (!TemplateNode || TemplateNode->IsSingleton() || !Pin->IsWildCard())
 			{
-				if (OtherTemplate->IsA<URigVMFunctionEntryNode>() || OtherTemplate->IsA<URigVMFunctionReturnNode>())
+				return {Pin->GetTypeIndex()};
+			}
+			else
+			{
+				if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
 				{
-					const URigVMPin* OtherPinRoot = OtherPin->GetRootPin();
-					if (!OtherTemplate->GetTemplate()->FindArgument(OtherPinRoot->GetFName()))
+					URigVMPin* RootPin = Pin;
+					uint8 ArrayLevels = 0;
+					while (RootPin->GetParentPin() != nullptr)
 					{
-						if (!AddArgumentForPin(OtherPin, Pin, bSetupUndoRedo))
-						{
-							continue;
-						}
+						ArrayLevels++;
+						RootPin = RootPin->GetParentPin();
 					}
-				}				
-				
-				if (!OtherTemplate->IsSingleton())
-				{
-					bIsTemplate = true;
-					if (OtherTemplate->PinNeedsFilteredTypesUpdate(OtherPin, Pin))
+					if (const FRigVMTemplateArgument* Argument = Template->FindArgument(RootPin->GetFName()))
 					{
-						if (UpdateFilteredPermutations(OtherPin, Pin, bSetupUndoRedo))
+						TArray<int32> ResolvedPermutations = TemplateNode->GetResolvedPermutationIndices(true);
+						TArray<TRigVMTypeIndex> Types = Argument->GetSupportedTypeIndices(ResolvedPermutations);
+						for (int32 i=0; i<ArrayLevels; ++i)
 						{
-							UpdateTemplateNodePinTypes(OtherTemplate, bSetupUndoRedo);
-							if (!PropagateTemplateFilteredTypes(OtherTemplate, bSetupUndoRedo))
+							for (TRigVMTypeIndex& Type : Types)
 							{
-								return false;
+								Type = Registry.GetBaseTypeFromArrayTypeIndex(Type);
 							}
 						}
-						else
-						{
-							ensureMsgf(!ActionStack->BracketActions.IsEmpty(), TEXT("Unexpected link broken %s in package %s"), *Link->GetPinPathRepresentation(), *GetPackage()->GetPathName());
-							BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
-							return false;
-						}
+						return Types;
 					}
-				}								
-			}
-
-			if (!bIsTemplate)
-			{
-				if (!InNode->FilteredSupportsType(Pin, OtherPin->GetTypeIndex()))
-				{
-					ensureMsgf(!ActionStack->BracketActions.IsEmpty(), TEXT("Unexpected link broken %s in package %s"), *Link->GetPinPathRepresentation(), *GetPackage()->GetPathName());
-					BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
-					return false;
 				}
 			}
-		}
-		return true;
-	};
-	
-	for(URigVMPin* Pin : InNode->GetPins())
-	{
-		if (!InNode->GetTemplate()->FindArgument(Pin->GetFName()))
+			return {};
+		};
+		MatchingTypes = GetPinSupportedTypes(FirstToResolve);
+		TArray<TRigVMTypeIndex> SecondTypes = GetPinSupportedTypes(SecondToResolve);
+		MatchingTypes.RemoveAll([&Registry, SecondTypes](const TRigVMTypeIndex& FirstType)
 		{
-			continue;
+			return !SecondTypes.ContainsByPredicate([&Registry, FirstType](const TRigVMTypeIndex& SecondType)
+			{
+				return Registry.CanMatchTypes(FirstType, SecondType, true);
+			});
+		});
+	}
+
+	if (MatchingTypes.IsEmpty())
+	{
+		return false;
+	}
+
+	TRigVMTypeIndex FinalType = INDEX_NONE;
+	if (MatchingTypes.Num() > 1)
+	{
+		// Query the user for the type to resolve the pin (from the list of MatchingTypes)
+		if (RequestPinTypeSelectionDelegate.IsBound())
+		{
+			FinalType = RequestPinTypeSelectionDelegate.Execute(MatchingTypes);
 		}
-		
-		if (!UpdateAndPropagate(Pin))
+		else
 		{
 			return false;
 		}
-
-		if (Pin->IsArray())
-		{
-			if (Pin->GetSubPins().Num() > 0)
-			{
-				for (URigVMPin* SubPin : Pin->GetSubPins())
-				{
-					if (!UpdateAndPropagate(SubPin))
-					{
-						return false;
-					}
-				}
-			}
-		}
 	}
-	return true;
-}
-
-bool URigVMController::AddPreferredType(URigVMTemplateNode* InNode, const FName& InPinName, const TRigVMTypeIndex& InPreferredTypeIndex, bool bSetupUndoRedo)
-{
-	check(InNode->FindPin(InPinName.ToString()));
-	check(!InNode->IsSingleton());
-
-	FRigVMTemplatePreferredType* PreferredType = InNode->PreferredPermutationPairs.FindByPredicate([&](const FRigVMTemplatePreferredType& Other)
+	else
 	{
-		return Other.Argument == InPinName;
-	});
-
-	if (PreferredType)
-	{
-		return PreferredType->TypeIndex == InPreferredTypeIndex;		
-	}
-
-	// We need to remove or modify the existing preferred types that are not compatible with the new preferred type
-	// For example, a template which has 2 pins (A, B), and both can be float, double or FVector (always A type == B type)
-	// If a preferred type exists in which B is double, and we are adding A as float
-	// we need to change the B preferred type to float
-	// If the old preferred type is not compatible, we need to remove the B preferred type
-	const FRigVMTemplate* Template = InNode->GetTemplate();
-	TArray<int32> Permutations;
-	FRigVMTemplate::FTypeMap TypeMap;
-	TypeMap.Add(InPinName, InPreferredTypeIndex);
-	Template->Resolve(TypeMap, Permutations, false);
-
-	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
-	
-	TArray<FRigVMTemplatePreferredType> NewPreferredTypes = InNode->PreferredPermutationPairs;
-	TArray<int32> ToRemove;
-	for (int32 PreferredIndex=0; PreferredIndex<InNode->PreferredPermutationPairs.Num(); ++PreferredIndex)
-	{
-		FRigVMTemplatePreferredType& Preferred = InNode->PreferredPermutationPairs[PreferredIndex];
-		TArray<TRigVMTypeIndex> PinTypes;
-		if (const FRigVMTemplateArgument* Argument = Template->FindArgument(Preferred.Argument))
-		{
-			bool bFoundMatch = Permutations.ContainsByPredicate([Argument, Preferred](const int32& Permutation)
-			{
-				if (Argument->TypeIndices[Permutation] == Preferred.TypeIndex)
-				{
-					return true;
-				}
-				return false;
-			});
-			if (!bFoundMatch)
-			{
-				for (const int32& Permutation : Permutations)
-				{
-					if (Registry.CanMatchTypes(Argument->TypeIndices[Permutation], Preferred.TypeIndex, true))
-					{
-						NewPreferredTypes[PreferredIndex].TypeIndex = Argument->TypeIndices[Permutation];
-#if UE_RIGVM_DEBUG_TYPEINDEX
-						NewPreferredTypes[PreferredIndex].UpdateStringFromIndex();
-#endif
-						bFoundMatch = true;
-						break;
-					}
-				}
-			}
-			if (!bFoundMatch)
-			{
-				ToRemove.Add(PreferredIndex);
-			}
-		}
-	}
-	for (int32 i=ToRemove.Num()-1; i>=0; --i)
-	{
-		NewPreferredTypes.RemoveAt(ToRemove[i]);
-	}
-
-	
-	NewPreferredTypes.Add(FRigVMTemplatePreferredType(InPinName, InPreferredTypeIndex));
-	if (bSetupUndoRedo)
-	{
-		ActionStack->AddAction(FRigVMSetPreferredTemplatePermutationsAction(InNode, NewPreferredTypes));
-	}
-	InNode->PreferredPermutationPairs = NewPreferredTypes;
-	return true;
-}
-
-bool URigVMController::RemovePreferredType(URigVMTemplateNode* InNode, const FName& InPinName, bool bSetupUndoRedo)
-{
-	int32 FoundIndex = INDEX_NONE;
-	for (int32 i=0; i<InNode->PreferredPermutationPairs.Num(); ++i)
-	{
-		if (InNode->PreferredPermutationPairs[i].Argument == InPinName)
-		{
-			FoundIndex = i;
-			break;
-		}
+		FinalType = MatchingTypes[0];
 	}
 	
-	if (FoundIndex == INDEX_NONE)
+	// If only one match, resolve both pins to that
+	bool bSuccess = true;
+	if (FinalType != INDEX_NONE)
+	{
+		if (FirstToResolve->IsWildCard())
+		{
+			bSuccess &= ResolveWildCardPin(FirstToResolve, FinalType, bSetupUndoRedo);
+		}
+		if (SecondToResolve->IsWildCard())
+		{
+			bSuccess &= ResolveWildCardPin(SecondToResolve, FinalType, bSetupUndoRedo);
+		}
+	}
+	else
 	{
 		return false;
 	}
 
-	TArray<FRigVMTemplatePreferredType> NewPreferredTypes = InNode->PreferredPermutationPairs;
-	NewPreferredTypes.RemoveAt(FoundIndex);	
-	
-	if (bSetupUndoRedo)
-	{
-		ActionStack->AddAction(FRigVMSetPreferredTemplatePermutationsAction(InNode, NewPreferredTypes));
-	}
-	InNode->PreferredPermutationPairs = NewPreferredTypes;
-	return true;
-}
-
-bool URigVMController::ShouldPinOwnArgument(URigVMPin* InPin)
-{
-	if (!IsValidGraph())
-	{
-		return false;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return false;
-	}
-
-	URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InPin->GetNode());
-	if (LibraryNode == nullptr)
-	{
-		return false;
-	}
-
-	URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph();
-	check(ContainedGraph);
-
-	if (ContainedGraph->IsRootGraph())
-	{
-		return false;
-	}
-
-	URigVMFunctionEntryNode* EntryNode = ContainedGraph->GetEntryNode();
-	URigVMFunctionReturnNode* ReturnNode = ContainedGraph->GetReturnNode();
-
-	auto IsPinUsingArgument = [](URigVMPin* TestPin)
-	{
-		// If any subpins that are struct members are connected, then it should own an argument
-		TArray<URigVMPin*> ToProcessPins = TestPin->GetSubPins();
-		for (int32 i=0; i<ToProcessPins.Num(); ++i)
-		{
-			URigVMPin* CurPin = ToProcessPins[i];
-			if (CurPin->IsStructMember() && CurPin->IsLinked())
-			{
-				return true;
-			}
-			ToProcessPins.Append(CurPin->GetSubPins());
-		}
-		
-		for (int32 i=0; i<2; ++i)
-		{
-			TArray<URigVMPin*> ConnectedPins = (i==0) ? TestPin->GetLinkedSourcePins() : TestPin->GetLinkedTargetPins();
-			for (URigVMPin* ConnectedPin : ConnectedPins)
-			{
-				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ConnectedPin->GetNode()))
-				{
-					if (TemplateNode->GetFilteredPermutationsIndices().Num() < 10)
-					{
-						return true;
-					}
-				}
-				else
-				{					
-					return true;
-				}
-			}								
-		}
-		return false;
-	};
-
-	bool bIsInputPin = false;
-	for (int32 i=0; i<2; ++i)
-	{
-		if (URigVMTemplateNode* InterfaceNode = (i == 0) ? (URigVMTemplateNode*)EntryNode : (URigVMTemplateNode*)ReturnNode)
-		{
-			if (URigVMPin* InterfacePin = InterfaceNode->FindPin(InPin->GetName()))
-			{
-				for (const FRigVMTemplatePreferredType& PreferredType : InterfaceNode->PreferredPermutationPairs)
-				{
-					if (PreferredType.Argument == InPin->GetFName())
-					{
-						return true;
-					}
-				}
-				if (IsPinUsingArgument(InterfacePin))
-				{
-					return true;
-				}
-				if (i == 0)
-				{
-					bIsInputPin = true;
-				}
-			}
-		}
-	}
-
-	// Find input variable nodes
-	for (URigVMNode* Node : ContainedGraph->GetNodes())
-	{
-		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
-		{
-			if (VariableNode->GetVariableName() == InPin->GetFName())
-			{
-				if (IsPinUsingArgument(VariableNode->GetValuePin()))
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
-bool URigVMController::UpdateLibraryTemplate(URigVMLibraryNode* LibraryNode, bool bSetupUndoRedo)
-{
-	if (!IsValidGraph())
-	{
-		return false;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return false;
-	}
-
-	if (!LibraryNode)
-	{
-		return false;
-	}
-
-	URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph();
-	check(ContainedGraph);
-
-	if (ContainedGraph->IsRootGraph())
-	{
-		return false;
-	}
-
-	URigVMTemplateNode* EntryNode = ContainedGraph->GetEntryNode();
-	URigVMTemplateNode* ReturnNode = ContainedGraph->GetReturnNode();
-	const TArray<URigVMTemplateNode*> InterfaceNodes = {EntryNode, ReturnNode};
-	const FRigVMTemplate* CurTemplate = LibraryNode->GetTemplate();
-
-	// Remove unused arguments from template
-	TArray<FName> ArgumentsToRemove;
-	{
-		for (const FRigVMTemplateArgument& CurArgument : CurTemplate->Arguments)
-		{
-			URigVMPin* LibraryPin = LibraryNode->FindPin(CurArgument.Name.ToString());
-			if (!LibraryPin || !ShouldPinOwnArgument(LibraryPin))
-			{
-				ArgumentsToRemove.Add(CurArgument.Name);
-			}
-		}
-	}
-
-	// If interface node contains a preferred type that differs from the type in the template, keep the interface type
-	TMap<FName, TRigVMTypeIndex> ArgPreferredType;
-	for (URigVMTemplateNode* InterfaceNode : InterfaceNodes)
-	{
-		if (InterfaceNode)
-		{
-			for (int32 i=0; i<InterfaceNode->PreferredPermutationPairs.Num(); ++i)
-			{
-				const FRigVMTemplatePreferredType& PreferredType = InterfaceNode->PreferredPermutationPairs[i];
-				if (!ArgumentsToRemove.Contains(PreferredType.Argument) && !ArgPreferredType.Contains(PreferredType.Argument))
-				{
-					ArgPreferredType.Add(PreferredType.Argument, PreferredType.GetTypeIndex());
-				}			
-			}
-		}
-	}
-
-	FRigVMTemplate NewTemplate;
-	NewTemplate.Index = CurTemplate->Index;
-	
-	NewTemplate.Arguments.Reserve(CurTemplate->Arguments.Num());
-	int32 ArgIndex = 0;
-	for (const FRigVMTemplateArgument& CurArgument : CurTemplate->Arguments)
-	{
-		if (ArgumentsToRemove.Contains(CurArgument.Name))
-		{
-			continue;
-		}
-		
-		FRigVMTemplateArgument NewArgument;
-		NewArgument.Index = ArgIndex++;
-		NewArgument.Name = CurArgument.Name;
-		NewArgument.Direction = CurArgument.Direction;
-		NewTemplate.Arguments.Add(NewArgument);
-	}
-
-	// The filtered permutations of the entry and return nodes reference the library template permutations
-	// so they can be combined
-	TArray<int32> CombinedFilteredPermutations;
-	{
-		if (EntryNode)
-		{
-			CombinedFilteredPermutations = EntryNode->FilteredPermutations;
-		}
-		if (ReturnNode)
-		{
-			CombinedFilteredPermutations = CombinedFilteredPermutations.FilterByPredicate([&](int32 Index)
-			{
-				return ReturnNode->FilteredPermutations.Contains(Index);
-			});			
-		}
-	}
-
-	TArray<FString> AllPermutationTypes;
-	for (int32 PermutationIndex=0; PermutationIndex<CombinedFilteredPermutations.Num(); ++PermutationIndex)
-	{
-		int32 OldIndex = CombinedFilteredPermutations[PermutationIndex];
-
-		// For each permutation, create a string that identifies all arguments with their types
-		FString PermutationTypesStr;
-		TMap<const FName, TRigVMTypeIndex> TypesToAdd;
-		for (const FRigVMTemplateArgument& CurArgument : CurTemplate->Arguments)
-		{
-			if (ArgumentsToRemove.Contains(CurArgument.Name))
-			{
-				continue;
-			}
-
-			if (TRigVMTypeIndex* TypeIndex = ArgPreferredType.Find(CurArgument.Name))
-			{
-				TypesToAdd.Add(CurArgument.Name, *TypeIndex);
-				const int32 TypeInt = *TypeIndex;				
-				PermutationTypesStr += FString::Printf(TEXT("%s:%d;"), *CurArgument.Name.ToString(), TypeInt);	
-			}
-			else
-			{
-				TypesToAdd.Add(CurArgument.Name, CurArgument.TypeIndices[OldIndex]);
-				const int32 TypeInt = CurArgument.TypeIndices[OldIndex];
-				PermutationTypesStr += FString::Printf(TEXT("%s:%d;"), *CurArgument.Name.ToString(), TypeInt);
-			}
-		}
-		if (AllPermutationTypes.Contains(PermutationTypesStr))
-		{
-			continue;
-		}
-
-		AllPermutationTypes.Add(PermutationTypesStr);
-
-		// If this is a new permutation, add it to the template 
-		int32 NewArgumentIndex=0;
-		for (TPair<const FName, TRigVMTypeIndex> TypePair : TypesToAdd)
-		{
-			FRigVMTemplateArgument& NewArgument = NewTemplate.Arguments[NewArgumentIndex++];
-			const TRigVMTypeIndex& TypeIndex = TypePair.Value; 
-			NewArgument.TypeIndices.Add(TypeIndex);
-			if (TArray<int32>* Permutations = NewArgument.TypeToPermutations.Find(TypeIndex))
-			{
-				Permutations->Add(PermutationIndex);
-			}
-			else
-			{
-				NewArgument.TypeToPermutations.Add(TypeIndex, {PermutationIndex});
-			}
-		}
-		NewTemplate.Permutations.Add(INDEX_NONE);
-	}
-
-	// Add a permutation if non was created but we are about to add arguments
-	if (NewTemplate.Permutations.IsEmpty() && !ArgPreferredType.IsEmpty())
-	{
-		NewTemplate.Permutations.Add(INDEX_NONE);
-	}
-
-	// Add any arguments with preferred types that are missing
-	for (TPair<FName, TRigVMTypeIndex>& ArgPair : ArgPreferredType)
-	{
-		bool bMissing = true;
-		for (FRigVMTemplateArgument& Argument : NewTemplate.Arguments)
-		{
-			if (Argument.Name == ArgPair.Key)
-			{
-				bMissing = false;
-				break;
-			}
-		}
-
-		if (bMissing)
-		{
-			FRigVMTemplateArgument NewArgument;
-			NewArgument.Index = NewTemplate.Arguments.Num();
-			NewArgument.Name = ArgPair.Key;
-			NewArgument.Direction = LibraryNode->FindPin(ArgPair.Key.ToString())->GetDirection();
-
-			TArray<int32> Permutations;
-			NewArgument.TypeIndices.Reserve(NewTemplate.NumPermutations());
-			Permutations.Reserve(NewTemplate.NumPermutations());
-			for (int32 i=0; i<NewTemplate.NumPermutations(); ++i)
-			{
-				NewArgument.TypeIndices.Add(ArgPair.Value);
-				Permutations.Add(i);
-			}
-			NewArgument.TypeToPermutations.Add(ArgPair.Value, Permutations);
-			NewTemplate.Arguments.Add(NewArgument);			
-		}
-	}
-
-	NewTemplate.ComputeNotationFromArguments(LibraryNode->GetName());
-
-	// Set the new template
-	// The filtered permutations of the collapsed node are not valid anymore, lets reset them
-	{
-		TArray<int32> OldPermutations = LibraryNode->FilteredPermutations;
-		LibraryNode->FilteredPermutations.Reset();
-		if (bSetupUndoRedo)
-		{
-			FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), bSetupUndoRedo);
-			ActionStack->AddAction(FRigVMSetTemplateFilteredPermutationsAction(LibraryNode, OldPermutations));
-			ActionStack->AddAction(FRigVMSetLibraryTemplateAction(LibraryNode, NewTemplate));		
-		}
-
-		bool bTemplateChanged = false;
-		if(!bTemplateChanged)
-		{
-			bTemplateChanged = CurTemplate->GetNotation() != NewTemplate.GetNotation();
-		}
-		if(!bTemplateChanged)
-		{
-			check(CurTemplate->NumArguments() == NewTemplate.NumArguments());
-			for(int32 ArgumentIndex = 0; (ArgumentIndex < NewTemplate.NumArguments()) && (!bTemplateChanged); ArgumentIndex++)
-			{
-				const FRigVMTemplateArgument* ArgA = CurTemplate->GetArgument(ArgumentIndex);
-				const FRigVMTemplateArgument* ArgB = NewTemplate.GetArgument(ArgumentIndex);
-
-				const TArray<TRigVMTypeIndex>& TypesA = ArgA->GetTypeIndices();
-				const TArray<TRigVMTypeIndex>& TypesB = ArgB->GetTypeIndices();
-				bTemplateChanged = TypesA.Num() != TypesB.Num();
-				if(!bTemplateChanged)
-				{
-					for(int32 TypeIndex=0; (TypeIndex<TypesA.Num()) && (!bTemplateChanged);TypeIndex++)
-					{
-						bTemplateChanged = TypesA[TypeIndex] != TypesB[TypeIndex];
-					}
-				}
-			}
-		}
-		
-		LibraryNode->Template = NewTemplate;
-		Notify(ERigVMGraphNotifType::NodeDescriptionChanged, LibraryNode);
-
-		if(bTemplateChanged)
-		{
-			FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), false);
-			Notify(ERigVMGraphNotifType::LibraryTemplateChanged, LibraryNode);
-		}
-	}
-
-	// Update Entry and Return filtered permutations to all permutations
-	{
-		FRigVMControllerGraphGuard GraphGuard(this, ContainedGraph, bSetupUndoRedo);
-		for (int32 EntryReturn=0; EntryReturn<2; ++EntryReturn)
-		{
-			URigVMTemplateNode* Node = (EntryReturn == 0) ? EntryNode : ReturnNode;
-			if (Node)
-			{
-				TArray<int32> OldPermutations = Node->FilteredPermutations;
-				Node->FilteredPermutations.SetNumUninitialized(NewTemplate.NumPermutations());
-				for (int32 i=0; i<Node->FilteredPermutations.Num(); ++i)
-				{
-					Node->FilteredPermutations[i] = i;
-				}
-
-				if (bSetupUndoRedo)
-				{
-					ActionStack->AddAction(FRigVMSetTemplateFilteredPermutationsAction(Node, OldPermutations));
-				}
-			}
-		}
-		{
-			bool bUpdatedTypes = false;
-			for (int32 EntryReturn=0; EntryReturn<2; ++EntryReturn)
-			{
-				URigVMTemplateNode* Node = (EntryReturn == 0) ? EntryNode : ReturnNode;
-				if (Node)
-				{
-					// Update template node pin types of an interface node will update both entry and return types.
-					if (!bUpdatedTypes)
-					{
-						UpdateTemplateNodePinTypes(Node, bSetupUndoRedo);
-						bUpdatedTypes = true;
-					}
-					Notify(ERigVMGraphNotifType::NodeDescriptionChanged, Node);
-				}
-			}
-		}
-	}
-
-	// Update outer graphs
-	if (!bIsTransacting && !bSuspendRecomputingOuterTemplateFilters)
-	{
-		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), bSetupUndoRedo);
-		RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
-	}
-
-	return true;
-}
-
-bool URigVMController::RecomputeAllTemplateFilteredPermutations(bool bSetupUndoRedo)
-{
-	if (!IsValidGraph())
-	{
-		return false;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return false;
-	}
-
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-
-	// Save all template pin types, in case we need them after initializing
-	TMap<URigVMPin*, TRigVMTypeIndex> TypesBeforeRecomputing;
-	for (URigVMNode* Node : Graph->GetNodes())
-	{
-		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
-		{
-			if (TemplateNode->IsSingleton())
-			{
-				continue;
-			}
-
-			if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
-			{
-				for (int32 i=0; i<Template->NumArguments(); ++i)
-				{
-					const FRigVMTemplateArgument* Argument = Template->GetArgument(i);
-					URigVMPin* Pin = TemplateNode->FindPin(Argument->GetName().ToString());
-					if (!Pin || Pin->IsWildCard())
-					{
-						continue;
-					}
-
-					TypesBeforeRecomputing.Add(Pin, Pin->GetTypeIndex());
-				}
-			}
-		}
-	}
-
-	bool bAnyTypeChanged = false;
-	bool bAnyLinkBroken = false;
-	{
-		TGuardValue<bool> GuardSuspendRecomputeOuterFilters(bSuspendRecomputingOuterTemplateFilters, true);
-		
-		// Initialize all filtered permutations to unresolved (except for preferred permutation)
-		// This will also remove all arguments from library templates
-		InitializeAllTemplateFiltersInGraph(bSetupUndoRedo, false);	
-
-		// Apply all links to update filtered permutations
-		TArray<URigVMLink*> SortedLinks = Graph->GetLinks().FilterByPredicate([this](URigVMLink* Link)
-		{
-			// Filter out detached links
-			if(!Link->GetSourcePin()->IsLinkedTo(Link->GetTargetPin()))
-			{
-				return false;
-			}
-
-			// Filter out links on execute pins
-			if(Link->GetSourcePin()->IsExecuteContext() || Link->GetTargetPin()->IsExecuteContext())
-			{
-				return false;
-			}
-			
-			return true;
-		});
-
-		// Solve for unit nodes first, other templates are more expensive to solve. This way we are avoiding solving
-		// links like (reroute-reroute) before their filtered permutations are reduced
-		Algo::Sort(SortedLinks, [](const URigVMLink* A, const URigVMLink* B)
-		{
-			const URigVMPin* APinSource = A->GetSourcePin();
-			const URigVMPin* APinTarget = A->GetTargetPin();
-			const URigVMPin* BPinSource = B->GetSourcePin();
-			const URigVMPin* BPinTarget = B->GetTargetPin();
-			if (!IsValid(APinSource) || !IsValid(APinTarget) || !IsValid(BPinSource) || !IsValid(BPinTarget))
-			{
-				return false;
-			}
-	
-			const bool bASourceIsUnitNode = APinSource->GetNode()->IsA<URigVMUnitNode>();
-			const bool bATargetIsUnitNode = APinTarget->GetNode()->IsA<URigVMUnitNode>();
-			const bool bBSourceIsUnitNode = BPinSource->GetNode()->IsA<URigVMUnitNode>();
-			const bool bBTargetIsUnitNode = BPinTarget->GetNode()->IsA<URigVMUnitNode>();
-		
-			if (bASourceIsUnitNode && bATargetIsUnitNode && (!bBSourceIsUnitNode || !bBTargetIsUnitNode))
-			{
-				return true;
-			}
-
-			if ((bASourceIsUnitNode || bATargetIsUnitNode) && (!bBSourceIsUnitNode && !bBTargetIsUnitNode))
-			{
-				return true;
-			}
-
-			return false;		
-		});
-
-		// Keep a list of removed links so that we can only notify adding links when necessary
-		TArray<TPair<FString, FString>> LinksRemoved;
-		FDelegateHandle Delegate = OnModified().AddLambda([&LinksRemoved](ERigVMGraphNotifType NotifType, URigVMGraph* Graph, UObject* Subject) {
-			if (NotifType == ERigVMGraphNotifType::LinkAdded)
-			{
-				if (URigVMLink* Link = Cast<URigVMLink>(Subject))
-				{
-					LinksRemoved.Remove(TPair<FString, FString>(Link->GetSourcePin()->GetPinPath(), Link->GetTargetPin()->GetPinPath()));
-				}
-			}
-			else if (NotifType == ERigVMGraphNotifType::LinkRemoved)
-			{
-				if (URigVMLink* Link = Cast<URigVMLink>(Subject))
-				{
-					LinksRemoved.Add(TPair<FString, FString>(Link->GetSourcePin()->GetPinPath(), Link->GetTargetPin()->GetPinPath()));
-				}
-			}
-		});
-			
-		{
-			TGuardValue<bool> SuspendNotifications(bSuspendNotifications, true);
-			DetachLinksFromPinObjects(&SortedLinks);
-		}
-		TArray<URigVMLink*> LinksToRemove;
-		for (int32 i=0; i<SortedLinks.Num(); ++i)
-		{
-			URigVMLink* Link = SortedLinks[i];
-		
-			URigVMPin* OutputPin = Link->GetSourcePin();
-			URigVMPin* InputPin = Link->GetTargetPin();
-
-			if (!IsValid(OutputPin) || !IsValid(InputPin))
-			{
-				continue;
-			}
-
-			{
-				ActionStack->OpenUndoBracket(TEXT("Prepare template for type"));
-				bool bLinkRemoved = false;
-				for (int32 EdgeI=0; EdgeI<2 && !bLinkRemoved; ++EdgeI)
-				{
-					URigVMPin* EdgePin = (EdgeI==0) ? OutputPin : InputPin;
-					if (EdgePin->IsStructMember())
-					{
-						if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(EdgePin->GetNode()))
-						{
-							URigVMPin* RootPin = EdgePin->GetRootPin();
-							if (TRigVMTypeIndex* TypeIndex = TypesBeforeRecomputing.Find(RootPin))
-							{
-								if (TemplateNode->FilteredSupportsType(RootPin, *TypeIndex))
-								{
-									PrepareTemplatePinForType(RootPin, {*TypeIndex}, bSetupUndoRedo);
-								}
-								else
-								{
-									LinksToRemove.Add(Link);
-									bLinkRemoved = true;
-									break;
-								}
-							}
-						}			
-					}
-				}
-				if (bLinkRemoved)
-				{
-					ActionStack->CancelUndoBracket(this);
-					break;
-				}
-				else
-				{
-					ActionStack->CloseUndoBracket(this);
-				}
-			}
-
-			// Propagate filtered permutations
-			if (PrepareToLink(OutputPin, InputPin, bSetupUndoRedo))
-			{
-				OutputPin->Links.Add(Link);
-				InputPin->Links.Add(Link);
-
-				if (LinksRemoved.Contains(TPair<FString, FString>(Link->GetSourcePin()->GetPinPath(), Link->GetTargetPin()->GetPinPath())))
-				{
-					Notify(ERigVMGraphNotifType::LinkAdded, Link);
-				}
-			}
-			else
-			{
-				LinksToRemove.Add(Link);
-			}
-		}
-
-		OnModified().Remove(Delegate);
-
-		bAnyLinkBroken = !LinksToRemove.IsEmpty();
-		{
-			TGuardValue<bool> RecomputeGuard(bSuspendRecomputingTemplateFilters, true);
-			for (URigVMLink* Link : LinksToRemove)
-			{
-				Link->SourcePin->Links.Add(Link);
-				Link->TargetPin->Links.Add(Link);
-
-				BreakLink(Link->SourcePin, Link->TargetPin, bSetupUndoRedo);
-			}
-		}
-	
-		// Now update all template nodes pin types
-		for (URigVMNode* Node : Graph->GetNodes())
-		{
-			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
-			{
-				if (TemplateNode->IsSingleton())
-				{
-					continue;
-				}
-
-				if(UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo))
-				{
-					bAnyTypeChanged = true;
-				}
-			}
-		}
-	}
-
-	if (URigVMGraph* ParentGraph = Graph->GetParentGraph())
-	{
-		FRigVMControllerGraphGuard GraphGuard(this, ParentGraph, bSetupUndoRedo);
-		UpdateLibraryTemplate(Graph->GetTypedOuter<URigVMLibraryNode>(), bSetupUndoRedo);
-	}
-
-	
-	return bAnyTypeChanged || bAnyLinkBroken;
-}
-
-bool URigVMController::PrepareToLink(URigVMPin* FirstToResolve, URigVMPin* SecondToResolve, bool bSetupUndoRedo)
-{
-	
-	if (URigVMTemplateNode* FirstTemplateNode = Cast<URigVMTemplateNode>(FirstToResolve->GetNode()))
-	{
-		bool bShouldPrepare = true;
-		if (FirstTemplateNode->IsA<URigVMFunctionEntryNode>() || FirstTemplateNode->IsA<URigVMFunctionReturnNode>())
-		{
-			URigVMPin* RootPin = FirstToResolve->GetRootPin();
-			if (!RootPin->IsOrphanPin())
-			{
-				if (!FirstTemplateNode->GetTemplate()->FindArgument(RootPin->GetFName()))
-				{
-					ensure(RootPin == FirstToResolve);
-					bShouldPrepare = AddArgumentForPin(FirstToResolve, SecondToResolve, bSetupUndoRedo);
-				}
-			}
-		}
-		if (!FirstTemplateNode->IsSingleton() && bShouldPrepare)
-		{
-			TArray<TRigVMTypeIndex> InputTypes = GetFilteredTypes(SecondToResolve);
-			if (InputTypes.Num() > 0)
-			{
-				if (!PrepareTemplatePinForType(FirstToResolve, InputTypes, bSetupUndoRedo))
-				{
-					return false;
-				}
-			}
-		}
-	}
-	if (URigVMTemplateNode* SecondTemplateNode = Cast<URigVMTemplateNode>(SecondToResolve->GetNode()))
-	{
-		bool bShouldPrepare = true;
-		if (SecondTemplateNode->IsA<URigVMFunctionEntryNode>() || SecondTemplateNode->IsA<URigVMFunctionReturnNode>())
-		{
-			URigVMPin* RootPin = SecondToResolve->GetRootPin();
-			if (!RootPin->IsOrphanPin())
-			{
-				if (!SecondTemplateNode->GetTemplate()->FindArgument(RootPin->GetFName()))
-				{
-					ensure(RootPin == SecondToResolve);
-					bShouldPrepare = AddArgumentForPin(SecondToResolve, FirstToResolve, bSetupUndoRedo);
-				}
-			}
-		}
-		if (!SecondTemplateNode->IsSingleton() && bShouldPrepare)
-		{
-			TArray<TRigVMTypeIndex> OutTypes = GetFilteredTypes(FirstToResolve);
-			if (OutTypes.Num() > 0)
-			{
-				if (!PrepareTemplatePinForType(SecondToResolve, OutTypes, bSetupUndoRedo))
-				{
-					return false;
-				}
-			}
-		}
-	}
-
-	return true;
-}
-
-void URigVMController::InitializeFilteredPermutationsFromTemplateTypes()
-{
-	if (!IsValidGraph())
-	{
-		return;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return;
-	}
-
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-
-	for (URigVMNode* Node : Graph->GetNodes())
-	{
-		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
-		{
-			bool bTemplateChanged = false;
-			FRigVMTemplate NewTemplate;
-			NewTemplate.Permutations.Add(INDEX_NONE);
-			
-			TArray<URigVMTemplateNode*> InterfaceNodes = {LibraryNode->GetEntryNode(), LibraryNode->GetReturnNode()};
-			for (URigVMTemplateNode* InterfaceNode : InterfaceNodes)
-			{
-				if (InterfaceNode)
-				{
-					InterfaceNode->PreferredPermutationPairs.Reset();
-					for (URigVMPin* Pin : InterfaceNode->GetPins())
-					{
-						if (!Pin->IsWildCard())
-						{
-							InterfaceNode->PreferredPermutationPairs.Add(FRigVMTemplatePreferredType(Pin->GetFName(), Pin->GetTypeIndex()));
-
-							if (!NewTemplate.FindArgument(Pin->GetFName()))
-							{
-								FRigVMTemplateArgument NewArgument;
-								NewArgument.Name = Pin->GetFName();
-								NewArgument.Index = NewTemplate.NumArguments();
-								NewArgument.Direction = LibraryNode->FindPin(Pin->GetName())->GetDirection();
-								NewArgument.TypeIndices.Add(Pin->GetTypeIndex());
-								NewArgument.TypeToPermutations.Add(Pin->GetTypeIndex(), {0});
-								NewTemplate.Arguments.Add(NewArgument);
-							}
-							
-							bTemplateChanged = true;
-						}
-					}
-					InterfaceNode->FilteredPermutations = {0};
-				}
-			}
-
-			if (bTemplateChanged)
-			{
-				NewTemplate.ComputeNotationFromArguments(LibraryNode->GetName());				
-				LibraryNode->Template = NewTemplate;
-				{
-					FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), false);
-					Notify(ERigVMGraphNotifType::LibraryTemplateChanged, LibraryNode);
-				}
-			}
-		}
-		
-		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
-		{
-			TemplateNode->InitializeFilteredPermutationsFromTypes(false);
-		}
-	}
-}
-
-void URigVMController::InitializeAllTemplateFiltersInGraph(bool bSetupUndoRedo, bool bChangePinTypes)
-{
-	if (!IsValidGraph())
-	{
-		return;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return;
-	}
-
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-
-	// Remove all arguments (that do not have a preferred type) from the template
-	if (URigVMLibraryNode* LibraryNode = Graph->GetTypedOuter<URigVMLibraryNode>())
-	{
-		if (const FRigVMTemplate* Template = LibraryNode->GetTemplate())
-		{
-			FRigVMTemplate NewTemplate;
-			NewTemplate.Permutations.Add(INDEX_NONE);
-
-			TArray<URigVMTemplateNode*> InterfaceNodes = {LibraryNode->GetEntryNode(), LibraryNode->GetReturnNode()};
-			for (const FRigVMTemplateArgument& Argument : Template->Arguments)
-			{
-				// Find out if this argument has a preferred type
-				bool bHasPreferredType = false;
-				TRigVMTypeIndex PreferredTypeIndex;
-				for (URigVMTemplateNode* InterfaceNode : InterfaceNodes)
-				{
-					if (InterfaceNode)
-					{
-						for (int32 i=0; i<InterfaceNode->PreferredPermutationPairs.Num(); ++i)
-						{
-							FRigVMTemplatePreferredType& PreferredType = InterfaceNode->PreferredPermutationPairs[i];
-							if (PreferredType.Argument == Argument.Name)
-							{
-								PreferredTypeIndex = PreferredType.GetTypeIndex();
-								bHasPreferredType = true;
-								break;
-							}
-						}
-						if (bHasPreferredType)
-						{
-							break;
-						}
-					}
-				}
-
-				if (bHasPreferredType)
-				{
-					FRigVMTemplateArgument NewArgument;
-					NewArgument.Name = Argument.Name;
-					NewArgument.Index = NewTemplate.NumArguments();
-					NewArgument.Direction = Argument.Direction;
-					NewArgument.TypeIndices.Add(PreferredTypeIndex);
-					NewArgument.TypeToPermutations.Add(PreferredTypeIndex, {0});
-					NewTemplate.Arguments.Add(NewArgument);
-				}
-			}
-
-			NewTemplate.ComputeNotationFromArguments(LibraryNode->GetName());
-			
-			if (bSetupUndoRedo)
-			{
-				FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), bSetupUndoRedo);
-				ActionStack->AddAction(FRigVMSetLibraryTemplateAction(LibraryNode, NewTemplate));
-			}
-			LibraryNode->Template = NewTemplate;
-			Notify(ERigVMGraphNotifType::NodeDescriptionChanged, LibraryNode);
-
-			// Update Entry and Return filtered permutations to all permutations
-			for (URigVMTemplateNode* InterfaceNode : InterfaceNodes)
-			{
-				if (InterfaceNode)
-				{
-					TArray<int32> OldPermutations = InterfaceNode->FilteredPermutations;
-					InterfaceNode->FilteredPermutations.Init(INDEX_NONE, NewTemplate.NumPermutations());
-					
-					if (bSetupUndoRedo)
-					{
-						ActionStack->AddAction(FRigVMSetTemplateFilteredPermutationsAction(InterfaceNode, OldPermutations));
-					}
-
-					if (bChangePinTypes)
-					{
-						UpdateTemplateNodePinTypes(InterfaceNode, bSetupUndoRedo);
-					}
-
-					Notify(ERigVMGraphNotifType::NodeDescriptionChanged, InterfaceNode);
-				}
-			}
-
-			// Update outer graphs
-			if (!bIsTransacting && !bSuspendRecomputingOuterTemplateFilters)
-			{
-				FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), bSetupUndoRedo);
-				RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
-			}
-		}
-	}
-
-	for (URigVMNode* Node : Graph->GetNodes())
-	{
-		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
-		{
-			if (!TemplateNode->IsSingleton())
-			{
-				// If the preferred permutation does not fit to the available types in the template, remove them
-				TArray<FRigVMTemplatePreferredType> NewPreferredTypes;
-				for (int32 i=0; i<TemplateNode->PreferredPermutationPairs.Num(); ++i)
-				{
-					const FRigVMTemplatePreferredType& PreferredType = TemplateNode->PreferredPermutationPairs[i];
-					
-					if (TemplateNode->GetTemplate()->FindArgument(PreferredType.Argument) && TemplateNode->GetTemplate()->ArgumentSupportsTypeIndex(PreferredType.Argument, PreferredType.GetTypeIndex()))
-					{
-						NewPreferredTypes.Add(PreferredType);
-					}
-				}
-
-				if (TemplateNode->PreferredPermutationPairs.Num() != NewPreferredTypes.Num())
-				{
-					if (bSetupUndoRedo)
-					{
-						FRigVMSetPreferredTemplatePermutationsAction PreferredTypesAction(TemplateNode, NewPreferredTypes);
-						ActionStack->AddAction(PreferredTypesAction);
-					}
-
-					TemplateNode->PreferredPermutationPairs = NewPreferredTypes;
-				}
-				
-				TArray<int32> OldPermutations = TemplateNode->FilteredPermutations;
-				TemplateNode->InitializeFilteredPermutations();
-				if (bChangePinTypes)
-				{
-					UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
-				}
-				if (bSetupUndoRedo)
-				{
-					FRigVMSetTemplateFilteredPermutationsAction FilteringAction(TemplateNode, OldPermutations);
-					ActionStack->AddAction(FilteringAction);
-				}
-			}
-		}
-	}
+	return bSuccess;
 }
 
 bool URigVMController::ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins, bool bBreakLinks, bool bRemoveSubPins, bool bInitializeDefaultValue)
@@ -19424,12 +16915,15 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, TRigVMTypeIndex InTypeInd
 	{
 		if (!bIsTransacting)
 		{
-			if (TemplateNode->IsA<URigVMUnitNode>() || TemplateNode->IsA<URigVMDispatchNode>())
+			if (InPin->GetDirection() != ERigVMPinDirection::Hidden)
 			{
-				if(!TemplateNode->SupportsType(InPin, InTypeIndex))
+				if (TemplateNode->IsA<URigVMUnitNode>() || TemplateNode->IsA<URigVMDispatchNode>())
 				{
-					ReportErrorf(TEXT("ChangePinType: %s doesn't support type '%s'."), *InPin->GetPinPath(), *FRigVMRegistry::Get().GetType(InTypeIndex).CPPType.ToString());
-					return false;
+					if(!TemplateNode->SupportsType(InPin, InTypeIndex))
+					{
+						ReportErrorf(TEXT("ChangePinType: %s doesn't support type '%s'."), *InPin->GetPinPath(), *FRigVMRegistry::Get().GetType(InTypeIndex).CPPType.ToString());
+						return false;
+					}
 				}
 			}
 		}
@@ -19476,21 +16970,24 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, TRigVMTypeIndex InTypeInd
 	{
 		Links.Append(InPin->GetSourceLinks(true));
 		Links.Append(InPin->GetTargetLinks(true));
-		DetachLinksFromPinObjects(&Links);
-
-		const FString OrphanedName = FString::Printf(TEXT("%s%s"), *URigVMPin::OrphanPinPrefix, *InPin->GetName());
-		if(InPin->GetNode()->FindPin(OrphanedName) == nullptr)
+		if (Links.Num() > 0)
 		{
-			URigVMPin* OrphanedPin = NewObject<URigVMPin>(InPin->GetNode(), *OrphanedName);
-			ConfigurePinFromPin(OrphanedPin, InPin);
-			OrphanedPin->DisplayName = InPin->GetFName();
+			DetachLinksFromPinObjects(&Links);
 
-			if(OrphanedPin->IsStruct())
+			const FString OrphanedName = FString::Printf(TEXT("%s%s"), *URigVMPin::OrphanPinPrefix, *InPin->GetName());
+			if(InPin->GetNode()->FindPin(OrphanedName) == nullptr)
 			{
-				AddPinsForStruct(OrphanedPin->GetScriptStruct(), OrphanedPin->GetNode(), OrphanedPin, OrphanedPin->Direction, OrphanedPin->GetDefaultValue(), false);
-			}
+				URigVMPin* OrphanedPin = NewObject<URigVMPin>(InPin->GetNode(), *OrphanedName);
+				ConfigurePinFromPin(OrphanedPin, InPin);
+				OrphanedPin->DisplayName = InPin->GetFName();
+
+				if(OrphanedPin->IsStruct())
+				{
+					AddPinsForStruct(OrphanedPin->GetScriptStruct(), OrphanedPin->GetNode(), OrphanedPin, OrphanedPin->Direction, OrphanedPin->GetDefaultValue(), false);
+				}
 				
-			InPin->GetNode()->OrphanedPins.Add(OrphanedPin);
+				InPin->GetNode()->OrphanedPins.Add(OrphanedPin);
+			}
 		}
 	}
 
@@ -20296,7 +17793,6 @@ FRigVMClientPatchResult URigVMController::PatchUnitNodesOnLoad()
 						if(!FRigVMRegistry::Get().IsWildCardType(*ResolvedTypeIndex))
 						{
 							ChangePinType(Pin, *ResolvedTypeIndex, false, false);
-							NewNode->UpdateFilteredPermutations(Pin, {*ResolvedTypeIndex});
 						}
 					}
 				}
@@ -20455,12 +17951,11 @@ FRigVMClientPatchResult URigVMController::PatchIfSelectNodesOnLoad()
 						{
 							if(!FRigVMRegistry::Get().IsWildCardType(*ResolvedTypeIndex))
 							{
-								NewNode->UpdateFilteredPermutations(Pin, {*ResolvedTypeIndex});
+								ResolveWildCardPin(Pin, *ResolvedTypeIndex, false);
 							}
 						}
 					}
 				}
-				UpdateTemplateNodePinTypes(NewNode, false, false);
 			}
 
 			ApplyPinStates(NewNode, PinStates, {}, false);
@@ -20504,6 +17999,71 @@ FRigVMClientPatchResult URigVMController::PatchArrayNodesOnLoad()
 
 			ApplyPinStates(NewNode, PinStates, {}, false);
 			RestoreLinkedPaths(LinkedPaths, {}, {}, false);
+		}
+	}
+
+	return Result;
+}
+
+FRigVMClientPatchResult URigVMController::PatchInvalidLinksOnWildcards()
+{
+	FRigVMClientPatchResult Result;
+	
+	if (const URigVMGraph* Graph = GetGraph())
+	{
+		// Remove links between wildcard pins
+		TArray<URigVMLink*> LinksToRemove;
+		for (URigVMLink* Link : Graph->GetLinks())
+		{
+			bool bRemove = false;
+			if (URigVMPin* SourcePin = Link->GetSourcePin())
+			{
+				if (SourcePin->IsWildCard())
+				{
+					bRemove = true;
+				}
+			}
+			if (URigVMPin* TargetPin = Link->GetTargetPin())
+			{
+				if (TargetPin->IsWildCard())
+				{
+					bRemove = true;
+				}
+			}
+			if (bRemove)
+			{
+				LinksToRemove.Add(Link);
+			}
+		}
+		if (!LinksToRemove.IsEmpty())
+		{
+			Result.bChangedContent = true;
+		}
+		for (URigVMLink* Link : LinksToRemove)
+		{
+			if (!BreakLink(Link->GetSourcePin(), Link->GetTargetPin()))
+			{
+				Result.ErrorMessages.Add(FString::Printf(TEXT("Error breaking link %s in PatchInvalidLinksOnWildcards"), *Link->GetPinPathRepresentation()));
+				Result.bSucceeded = false;
+			}
+		}
+
+		// Remove exposed pins of type wildcard
+		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Graph->GetOuter()))
+		{
+			TArray<URigVMPin*> ExposedPins = CollapseNode->GetPins();
+			for (URigVMPin* ExposedPin : ExposedPins)
+			{
+				if (ExposedPin->IsWildCard())
+				{
+					FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph());
+					if (!RemoveExposedPin(ExposedPin->GetFName(), false))
+					{
+						Result.ErrorMessages.Add(FString::Printf(TEXT("Error removing exposed pin %s PatchInvalidLinksOnWildcards"), *ExposedPin->GetPinPath(true)));
+						Result.bSucceeded = false;
+					}
+				}
+			}
 		}
 	}
 

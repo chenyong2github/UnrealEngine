@@ -678,6 +678,7 @@ FRigVMClientPatchResult FRigVMClient::PatchModelsOnLoad()
 		Result.Merge(Controller->PatchBranchNodesOnLoad());
 		Result.Merge(Controller->PatchIfSelectNodesOnLoad());
 		Result.Merge(Controller->PatchArrayNodesOnLoad());
+		Result.Merge(Controller->PatchInvalidLinksOnWildcards());
 	}
 
 	return Result;

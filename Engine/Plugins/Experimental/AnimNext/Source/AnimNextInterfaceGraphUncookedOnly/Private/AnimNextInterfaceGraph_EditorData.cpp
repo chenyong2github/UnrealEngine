@@ -229,21 +229,12 @@ void UAnimNextInterfaceGraph_EditorData::RefreshAllModels(EAnimNextInterfaceGrap
 	{
 		URigVMGraph* GraphToClean = SortedGraphsToClean[GraphIndex];
 		URigVMController* Controller = RigVMClient.GetOrCreateController(GraphToClean);
-		TGuardValue<bool> RecomputeGuard(Controller->bSuspendRecomputingOuterTemplateFilters, true);
 		//TGuardValue<bool> GuardEditGraph(GraphToClean->bEditable, true);
 		FRigVMControllerNotifGuard NotifGuard(Controller, true);
 
 		for (URigVMNode* ModelNode : GraphToClean->GetNodes())
 		{
 			Controller->RemoveUnusedOrphanedPins(ModelNode);
-		}
-
-		if (bIsPostLoad)
-		{
-			if (URigVMLibraryNode* LibraryNode = GraphToClean->GetTypedOuter<URigVMLibraryNode>())
-			{
-				Controller->UpdateLibraryTemplate(LibraryNode, false);
-			}
 		}
 	}
 }

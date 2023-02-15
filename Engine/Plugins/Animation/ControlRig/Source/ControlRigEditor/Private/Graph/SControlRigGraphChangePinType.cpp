@@ -15,12 +15,13 @@
 
 #define LOCTEXT_NAMESPACE "SControlRigGraphChangePinType"
 
-static const FText ControlRigChangePinTypeMultipleValues = LOCTEXT("MultipleValues", "Multiple Values");
+static const FText ControlRigChangePinTypeMultipleValues = LOCTEXT("MultipleValues", " - ");
 
 void SControlRigChangePinType::Construct(const FArguments& InArgs)
 {
-	this->ModelPins = InArgs._ModelPins;
+	this->Types = InArgs._Types;
 	this->Blueprint = InArgs._Blueprint;
+	this->OnTypeSelected = InArgs._OnTypeSelected;
 
 	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 
@@ -103,34 +104,16 @@ FText SControlRigChangePinType::GetBindingText(const FRigVMTemplateArgumentType&
 	return FText();
 }
 
-FText SControlRigChangePinType::GetBindingText(URigVMPin* ModelPin) const
-{
-	if (ModelPin)
-	{
-		FRigVMTemplateArgumentType ArgumentType = ModelPin->GetRootPin()->GetTemplateArgumentType();
-		if(ModelPin->IsArrayElement())
-		{
-			const FRigVMRegistry& Registry = FRigVMRegistry::Get();
-			const TRigVMTypeIndex ArrayTypeIndex = Registry.GetTypeIndex(ArgumentType);
-			const TRigVMTypeIndex ElementTypeIndex = Registry.GetBaseTypeFromArrayTypeIndex(ArrayTypeIndex);
-			ArgumentType = Registry.GetType(ElementTypeIndex);
-		}
-		if(ArgumentType.IsValid())
-		{
-			return GetBindingText(ArgumentType);
-		}
-	}
-	return FText();
-}
-
 FText SControlRigChangePinType::GetBindingText() const
 {
-	if (ModelPins.Num() > 0)
+	if(Types.Num() > 0)
 	{
-		const FText FirstText = GetBindingText(ModelPins[0]);
-		for(int32 Index = 1; Index < ModelPins.Num(); Index++)
+		const FRigVMTemplateArgumentType FirstType = FRigVMRegistry::Get().GetType(Types[0]);
+		const FText FirstText = GetBindingText(FirstType);
+		for(int32 Index = 1; Index < Types.Num(); Index++)
 		{
-			if(!GetBindingText(ModelPins[Index]).EqualTo(FirstText))
+			const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(Types[Index]);
+			if(!GetBindingText(Type).EqualTo(FirstText))
 			{
 				return ControlRigChangePinTypeMultipleValues;
 			}
@@ -145,9 +128,10 @@ const FSlateBrush* SControlRigChangePinType::GetBindingImage() const
 	static FName TypeIcon(TEXT("Kismet.VariableList.TypeIcon"));
 	static FName ArrayTypeIcon(TEXT("Kismet.VariableList.ArrayTypeIcon"));
 
-	if (ModelPins.Num() > 0)
+	if(Types.Num() > 0)
 	{
-		if(ModelPins[0]->IsArray())
+		const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(Types[0]);
+		if(Type.IsArray())
 		{
 			return FAppStyle::GetBrush(ArrayTypeIcon);
 		}
@@ -157,9 +141,9 @@ const FSlateBrush* SControlRigChangePinType::GetBindingImage() const
 
 FLinearColor SControlRigChangePinType::GetBindingColor() const
 {
-	if(ModelPins.Num() > 0)
+	if(Types.Num() > 0)
 	{
-		const FRigVMTemplateArgumentType Type = ModelPins[0]->GetTemplateArgumentType();
+		const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(Types[0]);
 		const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(Type.CPPType, Type.CPPTypeObject);
 		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
 		return Schema->GetPinTypeColor(PinType);
@@ -169,119 +153,58 @@ FLinearColor SControlRigChangePinType::GetBindingColor() const
 
 void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 {
-	if(ModelPins.Num() == 0)
-	{
-		return;
-	}
-
-	URigVMGraph* Model = ModelPins[0]->GetGraph();
-	if(Model == nullptr)
+	if(Types.Num() == 0)
 	{
 		return;
 	}
 
 	struct FArgumentInfo
 	{
-		static FArgumentInfo Make(const FProperty* InProperty, const bool bInIsFilteredOut)
+		static FArgumentInfo Make(const FProperty* InProperty)
 		{
 			FArgumentInfo Info;
 			Info.Property = InProperty;
-			Info.bIsFilteredOut = bInIsFilteredOut;
 			return Info;
 		}
 
-		static FArgumentInfo Make(const FRigVMTemplateArgumentType& InType, const bool bInIsFilteredOut)
+		static FArgumentInfo Make(const FRigVMTemplateArgumentType& InType)
 		{
 			FArgumentInfo Info;
 			Info.Property = nullptr;
 			Info.Type = InType;
-			Info.bIsFilteredOut = bInIsFilteredOut;
 			return Info;
 		}
 
 		const FProperty* Property;
-		bool bIsFilteredOut;
 		FRigVMTemplateArgumentType Type;
 	};
 
 	typedef TPair<TRigVMTypeIndex, FArgumentInfo> FTypePair;
-	TMap<TRigVMTypeIndex, FArgumentInfo> Types;
-	for(URigVMPin* ModelPin : ModelPins)
+	TMap<TRigVMTypeIndex, FArgumentInfo> TypesToInfo;
+	for(TRigVMTypeIndex& TypeIndex : Types)
 	{
-		const bool bIsArrayElement = ModelPin->IsArrayElement();
-		if(bIsArrayElement)
+		if (TypeIndex == INDEX_NONE)
 		{
-			ModelPin = ModelPin->GetParentPin();
+			// skip invalid permutations
+			continue;
 		}
 
-		if(!ModelPin->IsRootPin())
+		if(TypeIndex == RigVMTypeUtils::TypeIndex::Float)
+		{
+			TypeIndex = RigVMTypeUtils::TypeIndex::Double;
+		}
+		else if(TypeIndex == RigVMTypeUtils::TypeIndex::FloatArray)
+		{
+			TypeIndex = RigVMTypeUtils::TypeIndex::DoubleArray;
+		}
+		
+		if(TypesToInfo.Contains(TypeIndex))
 		{
 			continue;
 		}
 
-		if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelPin->GetNode()))
-		{
-			if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
-			{
-				const FName ArgumentName = ModelPin->GetFName();
-				if(const FRigVMTemplateArgument* Argument = Template->FindArgument(ArgumentName))
-				{
-					const TArray<TRigVMTypeIndex>& AllArgumentTypes = Argument->GetTypeIndices();
-					const TArray<TRigVMTypeIndex>& FilteredArgumentTypes = Argument->GetSupportedTypeIndices(TemplateNode->GetFilteredPermutationsIndices());
-					
-					for(int32 PermutationIndex = 0; PermutationIndex < Template->NumPermutations(); PermutationIndex++)
-					{
-						TRigVMTypeIndex ArgumentTypeIndex = AllArgumentTypes[PermutationIndex];
-
-						if (ArgumentTypeIndex == INDEX_NONE)
-						{
-							// skip invalid permutations
-							continue;
-						}
-
-						bool bIsFilteredOut = false;
-						if(!FilteredArgumentTypes.Contains(ArgumentTypeIndex))
-						{
-							bIsFilteredOut = true;
-						}
-
-						if(ArgumentTypeIndex == RigVMTypeUtils::TypeIndex::Float)
-						{
-							ArgumentTypeIndex = RigVMTypeUtils::TypeIndex::Double;
-						}
-						else if(ArgumentTypeIndex == RigVMTypeUtils::TypeIndex::FloatArray)
-						{
-							ArgumentTypeIndex = RigVMTypeUtils::TypeIndex::DoubleArray;
-						}
-						
-						if(Types.Contains(ArgumentTypeIndex))
-						{
-							continue;
-						}
-
-						if(const FRigVMFunction* Permutation = Template->GetPermutation(PermutationIndex))
-						{
-							if(UScriptStruct* FunctionStruct = Permutation->Struct)
-							{
-								if(const FProperty* Property = FunctionStruct->FindPropertyByName(ArgumentName))
-								{
-									Types.Add(ArgumentTypeIndex, FArgumentInfo::Make(Property, bIsFilteredOut));
-									continue;
-								}
-							}
-						}
-
-						if(bIsArrayElement)
-						{
-							ArgumentTypeIndex = FRigVMRegistry::Get().GetBaseTypeFromArrayTypeIndex(ArgumentTypeIndex);
-						}
-						
-						const FRigVMTemplateArgumentType ArgumentType = FRigVMRegistry::Get().GetType(ArgumentTypeIndex);
-						Types.Add(ArgumentTypeIndex, FArgumentInfo::Make(ArgumentType, bIsFilteredOut));
-					}
-				}
-			}
-		}
+		const FRigVMTemplateArgumentType ArgumentType = FRigVMRegistry::Get().GetType(TypeIndex);
+		TypesToInfo.Add(TypeIndex, FArgumentInfo::Make(ArgumentType));
 	}
 
 	// sort the types and put them into an array
@@ -300,7 +223,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 		TEXT("FMatrix")
 	};
 	TArray<FTypePair> SortedTypes;
-	for(const FTypePair& Pair : Types)
+	for(const FTypePair& Pair : TypesToInfo)
 	{
 		SortedTypes.Add(Pair);
 	}
@@ -338,7 +261,6 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 		{
 			const TRigVMTypeIndex& TypeIndex = SortedTypes[SortedIndex].Key;
 			const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(TypeIndex);
-			const bool bIsFilteredOut = SortedTypes[SortedIndex].Value.bIsFilteredOut;
 			if (Type.CPPTypeObject != nullptr && !IsValid(Type.CPPTypeObject))
 			{
 				continue;
@@ -389,7 +311,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 					[
 						SNew(SImage)
 						.Image(FBlueprintEditorUtils::GetIconFromPin(PinType, true))
-						.ColorAndOpacity(Schema->GetPinTypeColor(PinType) * (bIsFilteredOut ? 0.5f : 1.f))
+						.ColorAndOpacity(Schema->GetPinTypeColor(PinType))
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -398,9 +320,8 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 					[
 						SNew(STextBlock)
 						.Text(GetBindingText(Type))
-						.ColorAndOpacity(FLinearColor::White * (bIsFilteredOut ? 0.5f : 1.f))
-						.ToolTipText(bIsFilteredOut ? LOCTEXT("WildcardAvailableTypeTooltip","Will break connections if resolved to this type.") :
-							LOCTEXT("WildcardAvailableFilterTypeTooltip", "Available filtered type"))
+						.ColorAndOpacity(FLinearColor::White)
+						.ToolTipText(LOCTEXT("WildcardAvailableFilterTypeTooltip", "Available filtered type"))
 					]);
 		}
 	}
@@ -409,56 +330,12 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 
 void SControlRigChangePinType::HandlePinTypeChanged(FRigVMTemplateArgumentType InType)
 {
-	if(ModelPins.IsEmpty() || (Blueprint == nullptr))
+	if (OnTypeSelected.IsBound())
 	{
+		OnTypeSelected.Execute(FRigVMRegistry::Get().GetTypeIndex(InType));
 		return;
 	}
-
-	for(URigVMPin* ModelPin : ModelPins)
-	{
-		URigVMGraph* Model = ModelPin->GetGraph();
-		if(Model == nullptr)
-		{
-			continue;
-		}
-
-		URigVMController* Controller = Blueprint->GetOrCreateController(Model);
-		if(Controller == nullptr)
-		{
-			continue;
-		}
-
-		TRigVMTypeIndex TypeIndex = FRigVMRegistry::Get().GetTypeIndex(InType);
-		if(ModelPin->IsArrayElement())
-		{
-			TypeIndex = FRigVMRegistry::Get().GetArrayTypeFromBaseTypeIndex(TypeIndex);
-			ModelPin = ModelPin->GetParentPin();
-		}
-
-		if(!ModelPin->IsRootPin())
-		{
-			continue;
-		}
-		
-		Controller->ResolveWildCardPin(ModelPin->GetRootPin()->GetPinPath(), TypeIndex, true, true);
-	}
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SControlRigGraphChangePinType::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
-{
-	this->ModelPins = InArgs._ModelPins;
-	this->Blueprint = InArgs._Blueprint;
-
-	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
-}
-
-TSharedRef<SWidget>	SControlRigGraphChangePinType::GetDefaultValueWidget()
-{
-	return SNew(SControlRigChangePinType)
-		.Blueprint(Blueprint)
-		.ModelPins(ModelPins);
-}
 
 #undef LOCTEXT_NAMESPACE

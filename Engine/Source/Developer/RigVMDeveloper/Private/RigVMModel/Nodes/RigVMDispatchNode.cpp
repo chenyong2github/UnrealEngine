@@ -9,7 +9,7 @@ FString URigVMDispatchNode::GetNodeTitle() const
 {
 	if (const FRigVMDispatchFactory* Factory = GetFactory())
 	{
-		return Factory->GetNodeTitle(GetFilteredTypes());
+		return Factory->GetNodeTitle(GetTemplatePinTypeMap());
 	}
 	return Super::GetNodeTitle();
 }
@@ -18,7 +18,7 @@ FText URigVMDispatchNode::GetToolTipText() const
 {
 	if (const FRigVMDispatchFactory* Factory = GetFactory())
 	{
-		return Factory->GetNodeTooltip(GetFilteredTypes());
+		return Factory->GetNodeTooltip(GetTemplatePinTypeMap());
 	}
 	return URigVMNode::GetToolTipText();
 }
@@ -200,20 +200,6 @@ const UScriptStruct* URigVMDispatchNode::GetFactoryStruct() const
 	return nullptr;
 }
 
-const FRigVMTemplateTypeMap& URigVMDispatchNode::GetFilteredTypes() const
-{
-	const TArray<int32> PermutationIndices = GetFilteredPermutationsIndices();
-	if(PermutationIndices.Num() == 1)
-	{
-		TypesFromPins = GetTypesForPermutation(PermutationIndices[0]);
-	}
-	else
-	{
-		TypesFromPins.Reset();
-	}
-	return TypesFromPins;
-}
-
 void URigVMDispatchNode::InvalidateCache()
 {
 	Super::InvalidateCache();
@@ -263,7 +249,7 @@ FRigVMStructUpgradeInfo URigVMDispatchNode::GetUpgradeInfo() const
 {
 	if(const FRigVMDispatchFactory* Factory = GetFactory())
 	{
-		return Factory->GetUpgradeInfo(GetFilteredTypes(), GetDispatchContext());
+		return Factory->GetUpgradeInfo(GetTemplatePinTypeMap(), GetDispatchContext());
 	}
 	return FRigVMStructUpgradeInfo();
 }

@@ -18,8 +18,8 @@ public:
 
 	// Override template node functions
 	virtual UScriptStruct* GetScriptStruct() const override { return nullptr; }
-	virtual const FRigVMTemplate* GetTemplate() const override;
-	virtual FName GetNotation() const override;
+	virtual const FRigVMTemplate* GetTemplate() const override { return nullptr; }
+	virtual FName GetNotation() const override { return NAME_None; }
 
 	// Override node functions
 	virtual FLinearColor GetNodeColor() const override;

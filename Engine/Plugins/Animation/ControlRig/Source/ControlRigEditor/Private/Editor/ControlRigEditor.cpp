@@ -8,6 +8,7 @@
 #include "Editor/ControlRigEditorMode.h"
 #include "SKismetInspector.h"
 #include "SEnumCombo.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Editor.h"
 #include "Editor/Transactor.h"
@@ -87,6 +88,7 @@
 #include "Editor/SControlRigFunctionLocalizationWidget.h"
 #include "Editor/SControlRigFunctionBulkEditWidget.h"
 #include "Editor/SControlRigBreakLinksWidget.h"
+#include "Graph/SControlRigGraphChangePinType.h"
 #include "SGraphPanel.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -265,6 +267,7 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->OnRequestLocalizeFunctionDialog().RemoveAll(this);
 		RigBlueprint->OnRequestBulkEditDialog().Unbind();
 		RigBlueprint->OnRequestBreakLinksDialog().Unbind();
+		RigBlueprint->OnRequestPinTypeSelectionDialog().Unbind();
 		RigBlueprint->OnRequestJumpToHyperlink().Unbind();
 		RigBlueprint->OnReportCompilerMessage().RemoveAll(this);
 
@@ -537,6 +540,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		InControlRigBlueprint->OnRequestLocalizeFunctionDialog().AddSP(this, &FControlRigEditor::OnRequestLocalizeFunctionDialog);
 		InControlRigBlueprint->OnRequestBulkEditDialog().BindSP(this, &FControlRigEditor::OnRequestBulkEditDialog);
 		InControlRigBlueprint->OnRequestBreakLinksDialog().BindSP(this, &FControlRigEditor::OnRequestBreakLinksDialog);
+		InControlRigBlueprint->OnRequestPinTypeSelectionDialog().BindSP(this, &FControlRigEditor::OnRequestPinTypeSelectionDialog);
 		InControlRigBlueprint->OnRequestJumpToHyperlink().BindSP(this, &FControlRigEditor::HandleJumpToHyperlink);
 	}
 
@@ -5122,6 +5126,56 @@ bool FControlRigEditor::OnRequestBreakLinksDialog(TArray<URigVMLink*> InLinks)
 	}));
 
 	return BreakLinksDialog->ShowModal() == EAppReturnType::Ok; 
+}
+
+TRigVMTypeIndex FControlRigEditor::OnRequestPinTypeSelectionDialog(const TArray<TRigVMTypeIndex>& InTypes)
+{
+	if(InTypes.Num() == 0)
+	{
+		return true;
+	}
+
+	TRigVMTypeIndex Answer = INDEX_NONE;
+
+	TSharedPtr< SWindow > Window = SNew(SWindow)
+		.Title(LOCTEXT("SelectPinType", "Select Pin Type"))
+		.SizingRule(ESizingRule::Autosized)
+		.SupportsMaximize(false)
+		.SupportsMinimize(false)
+		[
+			SNew( SBorder )
+			.Padding( 4.f )
+			.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+			[
+				SNew(SBox)
+				.MaxDesiredHeight(static_cast<float>(300))
+				[
+					SNew(SVerticalBox)
+					+SVerticalBox::Slot()
+					[
+						SNew(SBox)
+						.MaxDesiredHeight(static_cast<float>(300))
+						[
+							SNew(SScrollBox)
+							+SScrollBox::Slot()
+							[
+								SNew(SControlRigChangePinType)
+									.Blueprint(GetControlRigBlueprint())
+									.Types(InTypes)
+									.OnTypeSelected_Lambda([&Answer](const TRigVMTypeIndex& TypeSelected)
+									{
+										Answer = TypeSelected;
+										FSlateApplication::Get().GetActiveModalWindow()->RequestDestroyWindow();
+									})
+							]
+						]
+					]
+				]
+			]
+		];
+
+	GEditor->EditorAddModalWindow(Window.ToSharedRef());
+	return Answer;
 }
 
 void FControlRigEditor::HandleJumpToHyperlink(const UObject* InSubject)

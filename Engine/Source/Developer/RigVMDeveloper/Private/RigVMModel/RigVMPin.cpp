@@ -632,6 +632,11 @@ bool URigVMPin::IsWildCard() const
 			return true;
 		}
 	}
+	if (CPPType.IsEmpty())
+	{
+		// Unknown type
+		return true;
+	}
 	return false;
 }
 
@@ -1736,41 +1741,69 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 						}
 					}
 					return true;
-
 				};
 
-				auto IsPinValidForTypeChange = [](URigVMPin* InPin, bool bIsInput, ERigVMPinDirection InDirection) -> bool
-				{
-					if(InPin->IsWildCard())
-					{
-						return true;
-					}
-
-					if(!InPin->GetNode()->IsA<URigVMTemplateNode>() || InDirection == ERigVMPinDirection::Invalid)
-					{
-						return false;
-					}
-
-					if((bIsInput && (InDirection != ERigVMPinDirection::Input)) ||
-						(!bIsInput && (InDirection != ERigVMPinDirection::Output)))
-					{
-						if(InPin->IsRootPin() ||
-							(InPin->GetParentPin()->IsRootPin() && InPin->IsArrayElement()))
-						{
-							return true;
-						}
-					}
-					
-					return false;
-				};
-				
-				if(IsPinValidForTypeChange(InSourcePin, false, InUserLinkDirection))
+				if(InSourcePin->IsWildCard() && !InTargetPin->IsWildCard())
 				{
 					bCPPTypesDiffer = !TemplateNodeSupportsType(InSourcePin, InTargetPin->GetTypeIndex(), OutFailureReason);
 				}
-				else if(IsPinValidForTypeChange(InTargetPin, true, InUserLinkDirection))
+				else if(InTargetPin->IsWildCard() && !InSourcePin->IsWildCard())
 				{
 					bCPPTypesDiffer = !TemplateNodeSupportsType(InTargetPin, InSourcePin->GetTypeIndex(), OutFailureReason);
+				}
+				else if(InSourcePin->IsWildCard() && InTargetPin->IsWildCard())
+				{
+					// Find out if these pins have any type in common
+					uint8 SourceLevels = 0;
+					uint8 TargetLevels = 0;
+					URigVMPin* RootSourcePin = InSourcePin;
+					URigVMPin* RootTargetPin = InTargetPin;
+					while (RootSourcePin->IsArrayElement())
+					{
+						SourceLevels++;
+						RootSourcePin = RootSourcePin->GetParentPin();
+					}
+					while (RootTargetPin->IsArrayElement())
+					{
+						TargetLevels++;
+						RootTargetPin = RootTargetPin->GetParentPin();
+					}
+
+					URigVMTemplateNode* SourceTemplateNode = Cast<URigVMTemplateNode>(RootSourcePin->GetNode());
+					URigVMTemplateNode* TargetTemplateNode = Cast<URigVMTemplateNode>(RootTargetPin->GetNode());
+					TArray<int32> SourcePermutations = SourceTemplateNode->GetResolvedPermutationIndices(true);
+					TArray<int32> TargetPermutations = TargetTemplateNode->GetResolvedPermutationIndices(true);
+					const FRigVMTemplate* SourceTemplate = SourceTemplateNode->GetTemplate();
+					const FRigVMTemplate* TargetTemplate = TargetTemplateNode->GetTemplate();
+					const FRigVMTemplateArgument* SourceRootArgument = SourceTemplate->FindArgument(RootSourcePin->GetFName());
+					const FRigVMTemplateArgument* TargetRootArgument = TargetTemplate->FindArgument(RootTargetPin->GetFName());
+
+					TArray<TRigVMTypeIndex> SourceTypes;
+					FRigVMRegistry& Registry = FRigVMRegistry::Get();
+					for (int32 Permutation : SourcePermutations)
+					{
+						TRigVMTypeIndex Type = SourceRootArgument->GetTypeIndices()[Permutation];
+						for (int32 i=0; i<SourceLevels; ++i)
+						{
+							check(Registry.IsArrayType(Type));
+							Type = Registry.GetBaseTypeFromArrayTypeIndex(Type);
+						}
+						SourceTypes.Add(Type);
+					}
+					for (int32 Permutation : TargetPermutations)
+					{
+						TRigVMTypeIndex Type = TargetRootArgument->GetTypeIndices()[Permutation];
+						for (int32 i=0; i<TargetLevels; ++i)
+						{
+							check(Registry.IsArrayType(Type));
+							Type = Registry.GetBaseTypeFromArrayTypeIndex(Type);
+						}
+						if (SourceTypes.Contains(Type))
+						{
+							bCPPTypesDiffer = false;
+							break;
+						}
+					}
 				}
 			}
 		}
