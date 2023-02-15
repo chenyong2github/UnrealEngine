@@ -120,7 +120,39 @@ void FStoreBrowser::UpdateTraces()
 
 	FStopwatch StopwatchTotal;
 	StopwatchTotal.Start();
+	
+	// Check if connection to store is still active We want to do this without locking the critical
+	// section, in case the UI needs to read values. The output is an atomic anyway.
+	{
+		bool bIsValid = StoreClient->IsValid();
+		while (!bIsValid && bRunning) // TODO: Perhaps a max reconnection attempts is needed?
+		{
+			constexpr EConnectionStatus ReconnectionFrequency = static_cast<EConnectionStatus>(5);
+			uint32 SecondsToSleep = static_cast<uint32>(ReconnectionFrequency);
+			do
+			{
+				FPlatformProcess::Sleep(1.0);
+				ConnectionStatus.store(static_cast<EConnectionStatus>(--SecondsToSleep));			
+			} while (SecondsToSleep);
 
+			// At this point ConnectionStatus is zero (EConnectionStatus::Connecting)
+			bIsValid = FInsightsManager::Get()->ReconnectToStore();
+			
+			if (bIsValid)
+			{
+				// If we gave just reconnected we need to reset known traces and change serials
+				Refresh();
+			}
+		}
+		ConnectionStatus.store(bIsValid ? EConnectionStatus::Connected : EConnectionStatus::Connecting);
+
+		if (!bIsValid)
+		{
+			// If there is no connection, no point in checking for sessions
+			return;
+		}
+	}
+	
 	FScopeLock StoreClientLock(&GetStoreClientCriticalSection());
 
 	// Check if the list of trace sessions has changed.

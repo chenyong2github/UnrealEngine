@@ -268,6 +268,8 @@ private:
 	TSharedRef<SWidget> ConstructFiltersToolbar();
 	TSharedRef<SWidget> ConstructSessionsPanel();
 	TSharedRef<SWidget> ConstructLoadPanel();
+	FText GetConnectionStatusTooltip() const;
+	const FSlateBrush* GetConnectionStatusIcon() const;
 	TSharedRef<SWidget> ConstructTraceStoreDirectoryPanel();
 	TSharedRef<SWidget> ConstructAutoStartPanel();
 

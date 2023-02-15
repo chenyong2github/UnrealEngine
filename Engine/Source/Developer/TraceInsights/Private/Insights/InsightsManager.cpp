@@ -448,6 +448,9 @@ bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 	{
 		return false;
 	}
+	
+	LastStoreHost = Host;
+	LastStorePort = Port;
 
 	const FStoreClient::FStatus* Status = StoreClient->GetStatus();
 	FString RemoteStoreDir(Status->GetStoreDir());
@@ -457,6 +460,13 @@ bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 	}
 
 	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FInsightsManager::ReconnectToStore() const
+{
+	return StoreClient->Reconnect(*LastStoreHost, LastStorePort);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

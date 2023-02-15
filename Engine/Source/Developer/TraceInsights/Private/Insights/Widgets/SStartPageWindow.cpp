@@ -1319,6 +1319,16 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
+		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			 SNew(SImage)
+			 .Image_Raw(this, &STraceStoreWindow::GetConnectionStatusIcon)
+			 .ToolTip(SNew(SToolTip).Text_Raw(this, &STraceStoreWindow::GetConnectionStatusTooltip))
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		.Padding(0.0f, 0.0f)
 		.VAlign(VAlign_Center)
 		[
@@ -1419,6 +1429,46 @@ TSharedRef<ITableRow> STraceStoreWindow::TraceList_OnGenerateRow(TSharedPtr<FTra
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STraceStoreWindow::GetConnectionStatusTooltip() const
+{
+	using Insights::FStoreBrowser;
+	
+	static FText Connected = LOCTEXT("Connected", "Connected to the trace server");
+	static FText NotConnected = LOCTEXT("NoConnection", "Unable to connect trace server."); 
+	static FText Connecting = LOCTEXT("Connecting", "Trying to connect to trace server.");
+	static FText Disconnected = LOCTEXT("Disconnected", "Connection to trace server has been lost. Attempting to reconnect in {0} seconds.");
+	
+	const FStoreBrowser::EConnectionStatus Status = StoreBrowser->GetConnectionStatus();
+	switch(Status)
+	{
+	case FStoreBrowser::EConnectionStatus::Connected:
+		return Connected;
+	case FStoreBrowser::EConnectionStatus::NoConnection:
+		return NotConnected;
+	case FStoreBrowser::EConnectionStatus::Connecting:
+		return Connecting;
+	default:
+		{
+			return FText::Format(Disconnected, FText::AsNumber(static_cast<uint32>(Status)));
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FSlateBrush* STraceStoreWindow::GetConnectionStatusIcon() const
+{
+	using Insights::FStoreBrowser;
+	const FStoreBrowser::EConnectionStatus Status = StoreBrowser->GetConnectionStatus();
+	if (Status == FStoreBrowser::EConnectionStatus::Connected)
+	{
+		return FInsightsStyle::Get().GetBrush("Icons.Online");
+	}
+	return FInsightsStyle::Get().GetBrush("Icons.Offline");
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

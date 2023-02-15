@@ -78,6 +78,22 @@ public:
 
 	//////////////////////////////////////////////////
 
+	enum class EConnectionStatus : uint8
+	{
+		// Attempting connection
+		Connecting = 0,
+		// Values between (start,end) is interpreted as
+		// number of seconds until next reconnection attemp
+		SecondsToReconnectStart,
+		SecondsToReconnectEnd = 0xfd,
+		// No connection could be made, no more reconnection
+		// attempts are made.
+		NoConnection = 0xfe,
+		// Connection is active
+		Connected = 0xff
+	};
+
+	EConnectionStatus GetConnectionStatus() const { return ConnectionStatus; }
 	bool IsRunning() const { return bRunning; }
 
 	bool IsLocked() const { return bTracesLocked; }
@@ -107,6 +123,7 @@ private:
 
 	mutable FCriticalSection TracesCriticalSection;
 	FThreadSafeBool bTracesLocked; // for debugging, to ensure GetLocked*() methods are only called between Lock() - Unlock() calls.
+	std::atomic<EConnectionStatus> ConnectionStatus;
 	uint32 StoreChangeSerial;
 	uint64 TracesChangeSerial;
 	TArray<TSharedPtr<FStoreBrowserTraceInfo>> Traces;

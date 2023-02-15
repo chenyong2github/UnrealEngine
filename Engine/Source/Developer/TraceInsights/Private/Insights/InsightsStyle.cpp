@@ -151,6 +151,8 @@ void FInsightsStyle::FStyle::Initialize()
 
 	Set("Icons.TraceStore", new IMAGE_BRUSH_SVG("TraceStore", Icon16x16));
 	Set("Icons.Connection", new IMAGE_BRUSH_SVG("Connection", Icon16x16));
+	Set("Icons.Online", new CORE_IMAGE_BRUSH_SVG("Starship/Common/check-circle", Icon16x16, FStyleColors::AccentGreen));
+	Set("Icons.Offline", new CORE_IMAGE_BRUSH_SVG("Starship/Common/alert-triangle", Icon16x16, FStyleColors::Warning));
 	Set("Icons.Launcher", new TODO_IMAGE_BRUSH(Icon16x16));
 
 	//////////////////////////////////////////////////

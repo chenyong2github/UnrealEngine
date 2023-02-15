@@ -118,6 +118,13 @@ public:
 	const FString& GetStoreDir() const { return StoreDir; }
 
 	bool ConnectToStore(const TCHAR* Host, uint32 Port=0);
+
+	/**
+	 * Attempt to reconnect to the store if the connection was severed, without recreating the store client.
+	 * @return True on success, false on failure
+	 */
+	bool ReconnectToStore() const;
+	
 	UE::Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
 	FCriticalSection& GetStoreClientCriticalSection() const { return StoreClientCriticalSection; }
 
@@ -479,4 +486,7 @@ private:
 
 	/** A shared pointer to the global instance of the main manager. */
 	static TSharedPtr<FInsightsManager> Instance;
+
+	FString LastStoreHost;
+	uint32 LastStorePort = 0;
 };
