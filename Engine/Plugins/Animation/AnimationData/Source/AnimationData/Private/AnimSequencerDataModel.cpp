@@ -20,9 +20,10 @@
 
 #include "AnimSequencerHelpers.h"
 #include "Animation/AnimationSettings.h"
-#include "MovieScene/Private/Channels/MovieSceneCurveChannelImpl.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "UObject/UObjectThreadContext.h"
+
+#include "Runtime/MovieScene/Private/Channels/MovieSceneCurveChannelImpl.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequencerDataModel"
 

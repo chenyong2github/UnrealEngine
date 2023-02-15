@@ -9,9 +9,10 @@
 #include "IDetailGroup.h"
 #include "MoviePipelineConsoleVariableSetting.h"
 #include "PropertyCustomizationHelpers.h"
-#include "PropertyEditor/Private/PropertyNode.h"
 #include "PropertyHandle.h"
 #include "Sections/MovieSceneConsoleVariableTrackInterface.h"
+
+#include "Editor/PropertyEditor/Private/PropertyNode.h"
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineEditor"
 

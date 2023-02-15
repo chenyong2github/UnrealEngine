@@ -18,7 +18,7 @@
 #include "EditorModeManager.h"
 #include "ScopedTransaction.h"
 
-#include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
+#include "Units/Execution/RigUnit_InverseExecution.h"
 
 
 #define LOCTEXT_NAMESPACE "PoseCorrectivesEditorController"

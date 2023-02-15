@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "ControlRigEditor/Private/EditMode/ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 
 class FPoseCorrectivesEditorController;
 
