@@ -4,15 +4,13 @@
 #include "Templates/AlignmentTemplates.h"
 #include "Templates/UnrealTemplate.h"
 #include "Misc/ByteSwap.h"
-#if DETECT_HW_CRC32_SUPPORT_IN_RUNTIME
-#	include <signal.h>
-#	include <setjmp.h>
-#	if PLATFORM_ANDROID_ARM64
-#		include <cpu-features.h>
-#	elif PLATFORM_LINUXARM64
-#		include <sys/auxv.h>
-#		include <asm/hwcap.h>
-#	endif
+#include <signal.h>
+#include <setjmp.h>
+#if PLATFORM_ANDROID_ARM64
+#	include <cpu-features.h>
+#elif PLATFORM_LINUXARM64
+#	include <sys/auxv.h>
+#	include <asm/hwcap.h>
 #endif
 
 /** CRC 32 polynomial */
@@ -495,7 +493,7 @@ static uint32 MemCrc32ArmHW(const void* InData, int32 Length, uint32 CRC/*=0 */)
 
 			Length -= 64;
 		}
-
+		
 		for (uint32 Repeat = Length / 8; Repeat; --Repeat)
 		{
 			CRC = __builtin_arm_crc32d(CRC, *Data8++);
