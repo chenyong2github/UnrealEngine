@@ -33,6 +33,9 @@
 #include "PhysicsEngine/BodySetup.h"
 #endif
 
+#include "Engine/World.h"
+#include "GameFramework/WorldSettings.h"
+
 DEFINE_GPU_STAT(NaniteStreaming);
 DEFINE_GPU_STAT(NaniteReadback);
 
@@ -2070,14 +2073,21 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 			const UMaterial* Material = Entry.Material->GetMaterial_Concurrent();
 			check(Material != nullptr); // Should always be valid here
 
+			const EBlendMode BlendMode = Entry.Material->GetBlendMode();
+
 			const FMaterialCachedExpressionData& CachedMaterialData = Material->GetCachedExpressionData();
 			Entry.bHasVertexInterpolator	= CachedMaterialData.bHasVertexInterpolator;
 			Entry.bHasPerInstanceRandomID	= CachedMaterialData.bHasPerInstanceRandom;
 			Entry.bHasPerInstanceCustomData	= CachedMaterialData.bHasPerInstanceCustomData;
 			Entry.bHasPixelDepthOffset		= Material->HasPixelDepthOffsetConnected();
 			Entry.bHasWorldPositionOffset	= Material->HasVertexPositionOffsetConnected();
-			Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(*Entry.Material);
+			Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(BlendMode);
 			Entry.bHasInvalidUsage			= !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
+
+			if (BlendMode == BLEND_Masked)
+			{
+				Audit.bHasMasked = true;
+			}
 
 			Entry.bHasAnyError =
 				Entry.bHasUnsupportedBlendMode |
@@ -2123,6 +2133,21 @@ bool IsSupportedBlendMode(const UMaterialInterface& In)			{ return IsSupportedBl
 bool IsSupportedMaterialDomain(EMaterialDomain Domain)
 {
 	return Domain == EMaterialDomain::MD_Surface;
+}
+
+bool IsMaskingAllowedForWorld(UWorld* World)
+{
+	bool bAllowed = true;
+
+	if (World)
+	{
+		if (AWorldSettings* WorldSettings = World->GetWorldSettings())
+		{
+			bAllowed = WorldSettings->NaniteSettings.bAllowMaskedMaterials;
+		}
+	}
+	
+	return bAllowed;
 }
 
 void FVertexFactoryResource::InitRHI()

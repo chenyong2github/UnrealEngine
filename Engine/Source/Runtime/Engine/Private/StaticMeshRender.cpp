@@ -2513,7 +2513,8 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		Nanite::AuditMaterials(this, NaniteMaterials);
 	}
 
-	if (bUseNanite && NaniteMaterials.IsValid())
+	const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;;
+	if (bUseNanite && NaniteMaterials.IsValid(bIsMaskingAllowed))
 	{
 		LLM_SCOPE(ELLMTag::StaticMesh);
 
@@ -2521,7 +2522,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return ::new Nanite::FSceneProxy(NaniteMaterials, this);
 	}
 	// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
-	else if (HasValidNaniteData() && NaniteMaterials.IsValid())
+	else if (HasValidNaniteData() && NaniteMaterials.IsValid(bIsMaskingAllowed))
 	{
 		const bool bAllowProxyRender = GNaniteProxyRenderMode == 0
 	#if WITH_EDITORONLY_DATA

@@ -862,6 +862,12 @@ public:
 #endif
 	}
 
+	/**
+	 * Returns true if this SM should always have Nanite data built.
+	 * This forces the SM to be Nanite even if the flag in the editor is set to false.
+	 */
+	ENGINE_API bool IsNaniteForceEnabled() const;
+
 private:
 	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(BlueprintGetter = GetStaticMaterials, BlueprintSetter = SetStaticMaterials, Category = StaticMesh)

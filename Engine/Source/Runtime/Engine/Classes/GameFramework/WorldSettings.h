@@ -399,6 +399,20 @@ public:
 #endif // WITH_EDITOR
 };
 
+USTRUCT()
+struct FNaniteSettings
+{
+	GENERATED_BODY();
+
+	FNaniteSettings()
+	: bAllowMaskedMaterials(true)
+	{
+	}
+
+	UPROPERTY(EditAnywhere, Category = Nanite)
+	bool bAllowMaskedMaterials;
+};
+
 /** Settings pertaining to which PhysX broadphase to use, and settings for MBP if that is the chosen broadphase type */
 USTRUCT()
 struct FBroadphaseSettings
@@ -713,6 +727,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Lightmass)
 	struct FLightmassWorldInfoSettings LightmassSettings;
 #endif
+
+	/************************************/
+	/** NANITE SETTINGS **/
+	UPROPERTY(EditAnywhere, config, Category = Nanite)
+	FNaniteSettings NaniteSettings;
 
 	/************************************/
 	/** AUDIO SETTINGS **/

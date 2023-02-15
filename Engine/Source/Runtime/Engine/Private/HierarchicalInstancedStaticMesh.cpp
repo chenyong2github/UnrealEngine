@@ -3185,7 +3185,8 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 			Nanite::AuditMaterials(this, NaniteMaterials);
 		}
 
-		if (bUseNanite && NaniteMaterials.IsValid())
+		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;
+		if (bUseNanite && NaniteMaterials.IsValid(bIsMaskingAllowed))
 		{
 			return ::new Nanite::FSceneProxy(NaniteMaterials, this);
 		}

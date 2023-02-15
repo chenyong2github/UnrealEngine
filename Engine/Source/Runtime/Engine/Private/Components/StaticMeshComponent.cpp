@@ -197,6 +197,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bOverrideNavigationExport = false;
 	bForceNavigationObstacle = true;
 	bDisallowMeshPaintPerInstance = false;
+	bForceNaniteForMasked = false;
 	bDisallowNanite = false;
 	bForceDisableNanite = false;
 	bEvaluateWorldPositionOffset = true;

@@ -11,6 +11,7 @@
 
 struct FPerInstanceRenderData;
 class UStaticMeshComponent;
+class UWorld;
 enum ECollisionTraceFlag : int;
 enum EMaterialDomain : int;
 struct FStaticMeshVertexFactories;
@@ -43,10 +44,11 @@ struct FMaterialAudit
 	TArray<FMaterialAuditEntry, TInlineAllocator<4>> Entries;
 	UMaterialInterface* FallbackMaterial = nullptr;
 	uint8 bHasAnyError : 1;
+	uint8 bHasMasked : 1;
 
-	FORCEINLINE bool IsValid() const
+	FORCEINLINE bool IsValid(bool bAllowMasked) const
 	{
-		return !bHasAnyError;
+		return !bHasAnyError && (bAllowMasked || !bHasMasked);
 	}
 
 	FORCEINLINE UMaterialInterface* GetMaterial(int32 MaterialIndex) const
@@ -97,6 +99,8 @@ ENGINE_API bool IsSupportedBlendMode(const FMaterial& In);
 ENGINE_API bool IsSupportedBlendMode(const FMaterialShaderParameters& In);
 ENGINE_API bool IsSupportedBlendMode(const UMaterialInterface& In);
 ENGINE_API bool IsSupportedMaterialDomain(EMaterialDomain Domain);
+
+ENGINE_API bool IsMaskingAllowedForWorld(UWorld* World);
 
 struct FResourceMeshInfo
 {

@@ -145,6 +145,12 @@ static FAutoConsoleVariableRef CVarStaticMeshMinLodQualityLevel(
 	FConsoleVariableDelegate::CreateStatic(&UStaticMesh::OnLodStrippingQualityLevelChanged),
 	ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarForceEnableNaniteMeshes(
+	TEXT("r.Nanite.ForceEnableMeshes"),
+	0,
+	TEXT("Force enables all meshes to also build Nanite data, regardless of the enabled flag on the asset."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 #if ENABLE_COOK_STATS
 namespace StaticMeshCookStats
 {
@@ -2510,10 +2516,12 @@ void UStaticMesh::PostDuplicate(bool bDuplicateForPIE)
 	}
 }
 
-static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& NaniteSettings)
+static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& NaniteSettings, bool bIsNaniteForceEnabled)
 {
+	bool bIsEnabled = NaniteSettings.bEnabled || bIsNaniteForceEnabled;
+
 	// Note: this serializer is only used to build the mesh DDC key, no versioning is required
-	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bEnabled);
+	FArchive_Serialize_BitfieldBool(Ar, bIsEnabled);
 	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bPreserveArea);
 	Ar << NaniteSettings.PositionPrecision;
 	Ar << NaniteSettings.NormalPrecision;
@@ -2667,7 +2675,7 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 	{
 		TempBytes.Reset();
 		FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
-		SerializeNaniteSettingsForDDC(Ar, Mesh->NaniteSettings);
+		SerializeNaniteSettingsForDDC(Ar, Mesh->NaniteSettings, Mesh->IsNaniteForceEnabled());
 
 		const uint8* SettingsAsBytes = TempBytes.GetData();
 		KeySuffix.Reserve(KeySuffix.Len() + TempBytes.Num() + 1);
@@ -8257,6 +8265,13 @@ void UStaticMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable){
 	}
 #endif
 }
+
+bool UStaticMesh::IsNaniteForceEnabled() const
+{
+	static const bool bForceEnabled = !!CVarForceEnableNaniteMeshes.GetValueOnAnyThread();
+	return bForceEnabled;
+}
+
 /*-----------------------------------------------------------------------------
 UStaticMeshSocket
 -----------------------------------------------------------------------------*/
