@@ -900,6 +900,14 @@ void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCom
 #endif
 
 	Job.bSucceeded = Job.Output.bSucceeded;
+
+	if (Job.bSucceeded && Job.Input.DumpDebugInfoPath.Len() > 0)
+	{
+		// write down the output hash as a file
+		FString HashFileName = FPaths::Combine(Job.Input.DumpDebugInfoPath, TEXT("OutputHash.txt"));
+		FFileHelper::SaveStringToFile(Job.Output.OutputHash.ToString(), *HashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
+	}
+
 }
 
 void CompileShaderPipeline(const TArray<const IShaderFormat*>& ShaderFormats, FShaderPipelineCompileJob* PipelineJob, const FString& Dir, int32* CompileCount)
