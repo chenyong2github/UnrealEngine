@@ -14,6 +14,7 @@
 
 class FCanvas;
 class FRenderTarget;
+class UTexture2D;
 struct FSlateBrush;
 
 UCLASS(config=Editor,MinimalAPI)
