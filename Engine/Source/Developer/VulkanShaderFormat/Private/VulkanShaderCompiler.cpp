@@ -2422,15 +2422,19 @@ static bool CompileWithShaderConductor(
 class FVulkanShaderParameterParser : public FShaderParameterParser
 {
 public:
-	FVulkanShaderParameterParser(bool bHasBindlessResources)
-		: bEnabled(bHasBindlessResources)
+	FVulkanShaderParameterParser(bool bHasBindlessSamplers, bool bHasBindlessResources)
+		: bEnabled(bHasBindlessSamplers || bHasBindlessResources)
 	{}
 
 protected:
 	FString GenerateBindlessParameterDeclaration(const FParsedShaderParameter& ParsedParameter) const override
 	{
-		if (bEnabled && (ParsedParameter.BindlessConversionType == EBindlessConversionType::Resource))
+		if (bEnabled)
 		{
+			const bool IsSampler = (ParsedParameter.BindlessConversionType == EBindlessConversionType::Sampler);
+			const TCHAR* IndexPrefix = IsSampler ? TEXT("BindlessSampler_") : TEXT("BindlessResource_");
+			const TCHAR* HeapPrefix = IsSampler ? VulkanBindless::kBindlessSamplerArrayPrefix : VulkanBindless::kBindlessResourceArrayPrefix;
+
 			const TCHAR* StorageClass = ParsedParameter.bGloballyCoherent ? TEXT("globallycoherent ") : TEXT("");
 
 			const FStringView Name = ParsedParameter.ParsedName;
@@ -2444,7 +2448,7 @@ protected:
 			if (ParsedParameter.ConstantBufferParameterType == EShaderParameterType::Num)
 			{
 				// e.g. `uint BindlessResource_##Name;`
-				Result << TEXT("uint BindlessResource_") << Name << TEXT("; ");
+				Result << TEXT("uint ") << IndexPrefix << Name << TEXT("; ");
 			}
 
 			// Add the typedef
@@ -2452,15 +2456,19 @@ protected:
 
 			// Declare a heap for the RewriteType
 			// e.g. `SafeType##Name ResourceDescriptorHeap_SafeType##Name[];`
-			Result << RewriteType << TEXT(" ") << VulkanBindless::kBindlessResourceArrayPrefix << RewriteType << TEXT("[]; ");
+			Result << RewriteType << TEXT(" ") << HeapPrefix << RewriteType << TEXT("[]; ");
 			// :todo-jn: specify the descripor set and binding directly in source instead of patching SPIRV
 
 			// e.g. `static const Type Name = GetBindlessResource##Name()`
-			Result << TEXT("static const ") << StorageClass << RewriteType << TEXT(" ") << Name << TEXT(" = ") << VulkanBindless::kBindlessResourceArrayPrefix << RewriteType << TEXT("[BindlessResource_") << Name << TEXT("];");
+			Result << TEXT("static const ") << StorageClass << RewriteType << TEXT(" ") << Name << TEXT(" = ") << HeapPrefix << RewriteType << TEXT("[") << IndexPrefix << Name << TEXT("];");
 
 			return Result.ToString();
 		}
-		return FShaderParameterParser::GenerateBindlessParameterDeclaration(ParsedParameter);
+		else
+		{
+			// use original code path
+			return FShaderParameterParser::GenerateBindlessParameterDeclaration(ParsedParameter);
+		}
 	}
 
 private:
@@ -2577,8 +2585,9 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		}
 	}
 
+	const bool bHasBindlessSamplers = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
 	const bool bHasBindlessResources = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources);
-	FVulkanShaderParameterParser ShaderParameterParser(bHasBindlessResources);
+	FVulkanShaderParameterParser ShaderParameterParser(bHasBindlessSamplers, bHasBindlessResources);
 	if (!ShaderParameterParser.ParseAndModify(Input, Output, PreprocessedShaderSource))
 	{
 		// The FShaderParameterParser will add any relevant errors.

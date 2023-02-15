@@ -66,7 +66,9 @@
 	#define AUTO_BINDLESS_SAMPLER_INDEX(Name)          uint BindlessSampler_##Name
 	#define AUTO_BINDLESS_SAMPLER_VARIABLE(Type, Name) Type GetBindlessSampler##Name() { return GetSamplerFromHeap(Type, BindlessSampler_##Name); }; static const Type Name = GetBindlessSampler##Name()
 
-	#define UB_RESOURCE_MEMBER_SAMPLER(Type, Name) AUTO_BINDLESS_SAMPLER_VARIABLE(Type, Name)
+	#ifndef UB_RESOURCE_MEMBER_SAMPLER  // allow platforms to override ub member sampler decl
+		#define UB_RESOURCE_MEMBER_SAMPLER(Type, Name) AUTO_BINDLESS_SAMPLER_VARIABLE(Type, Name)
+	#endif
 #else
 	#define DEFINE_SAMPLER_VARIABLE(Type, Name)  Type Name
 	#define DEFINE_SAMPLER(Type, Name)           Type Name
