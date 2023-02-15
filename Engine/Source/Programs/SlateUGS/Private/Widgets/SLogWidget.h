@@ -6,7 +6,7 @@
 #include "Framework/Text/BaseTextLayoutMarshaller.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
-#include "OutputAdapters.h"
+#include "UGSCore/OutputAdapters.h"
 
 class FLogWidgetTextLayoutMarshaller : public FBaseTextLayoutMarshaller
 {

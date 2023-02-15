@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "EventMonitor.h"
-#include "PerforceMonitor.h"
+#include "UGSCore/EventMonitor.h"
+#include "UGSCore/PerforceMonitor.h"
 
 struct FChangeInfo
 {

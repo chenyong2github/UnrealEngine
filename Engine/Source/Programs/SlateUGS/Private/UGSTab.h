@@ -7,8 +7,8 @@
 #include "Widgets/SGameSyncTab.h"
 #include "Widgets/Docking/SDockTab.h"
 
-#include "Workspace.h"
-#include "UserSettings.h"
+#include "UGSCore/Workspace.h"
+#include "UGSCore/UserSettings.h"
 
 namespace UGSCore
 {

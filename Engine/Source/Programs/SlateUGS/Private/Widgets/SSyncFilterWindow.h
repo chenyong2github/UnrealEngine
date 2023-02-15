@@ -5,7 +5,7 @@
 #include "Widgets/SWindow.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
-#include "Workspace.h"
+#include "UGSCore/Workspace.h"
 
 #include "SCheckBoxList.h"
 

@@ -5,7 +5,7 @@
 #include "UGSLog.h"
 #include "HAL/FileManager.h"
 
-#include "UserSettings.h"
+#include "UGSCore/UserSettings.h"
 
 UGSTabManager::UGSTabManager()
 {
