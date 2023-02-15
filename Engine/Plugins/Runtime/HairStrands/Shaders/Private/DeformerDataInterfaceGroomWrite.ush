@@ -6,6 +6,7 @@
 uint {DataInterfaceName}_NumControlPoints;
 uint {DataInterfaceName}_NumCurves;
 uint {DataInterfaceName}_OutputStreamStart;
+Buffer<float4>	{DataInterfaceName}_PositionOffsetBufferSRV;
 Buffer<uint4>   {DataInterfaceName}_PositionBufferSRV;
 RWBuffer<uint4> {DataInterfaceName}_PositionBufferUAV;
 
@@ -25,7 +26,7 @@ void WritePosition_{DataInterfaceName}(uint ControlPointIndex, float3 Position)
 	if (WriteIndex < {DataInterfaceName}_NumControlPoints)
 	{
 		const uint4 PackedCP = {DataInterfaceName}_PositionBufferSRV[WriteIndex];
-		const uint4 NewPackedCP = PackHairControlPointPosition(PackedCP, Position, 0 /*InVF_PositionOffset*/);
+		const uint4 NewPackedCP = PackHairControlPointPosition(PackedCP, Position, {DataInterfaceName}_PositionOffsetBufferSRV[0]);
 		{DataInterfaceName}_PositionBufferUAV[WriteIndex] = NewPackedCP;
 	}
 }

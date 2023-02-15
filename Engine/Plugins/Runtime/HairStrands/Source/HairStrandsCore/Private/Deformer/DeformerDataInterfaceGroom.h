@@ -69,6 +69,7 @@ private:
 	UGroomComponent* GroomComponent = nullptr; // Should it be HairInstance instead?
 	struct FResources
 	{
+		FRDGBufferSRVRef PositionOffsetSRV = nullptr;
 		FRDGBufferSRVRef PositionSRV = nullptr;
 		FRDGBufferSRVRef AttributeSRV = nullptr;
 		FRDGBufferSRVRef VertexToCurveSRV = nullptr;

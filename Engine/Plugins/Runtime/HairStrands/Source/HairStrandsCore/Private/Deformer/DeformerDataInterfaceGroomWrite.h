@@ -78,6 +78,7 @@ private:
 
 	struct FResources
 	{
+		FRDGBufferSRV* PositionOffsetBufferSRV = nullptr;
 		FRDGBufferSRV* PositionBufferSRV = nullptr;
 		FRDGBufferUAV* PositionBufferUAV = nullptr;
 		FRDGBufferSRV* PositionBufferSRV_fallback = nullptr;

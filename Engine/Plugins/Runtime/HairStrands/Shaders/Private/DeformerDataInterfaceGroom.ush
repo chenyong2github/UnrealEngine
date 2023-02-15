@@ -14,6 +14,7 @@ float				{DataInterfaceName}_VF_RootScale;
 float				{DataInterfaceName}_VF_TipScale;
 uint				{DataInterfaceName}_VF_GroupIndex;
 uint4				{DataInterfaceName}_VF_AttributeOffsets[HAIR_ATTRIBUTE_OFFSET_COUNT];
+Buffer<float4>		{DataInterfaceName}_PositionOffsetBuffer;
 Buffer<uint4>		{DataInterfaceName}_PositionBuffer;
 ByteAddressBuffer	{DataInterfaceName}_AttributeBuffer;
 Buffer<uint>		{DataInterfaceName}_VertexToCurveBuffer;
@@ -33,7 +34,7 @@ FHairControlPoint ReadControlPointData(uint VertexIndex)
 	// Hair deformer work in local space so no need for position offset
 	return UnpackHairControlPoint(
 		{DataInterfaceName}_PositionBuffer[VertexIndex], 
-		float3(0, 0, 0) /*InVF_PositionOffset*/,
+		{DataInterfaceName}_PositionOffsetBuffer[0],
 		{DataInterfaceName}_VF_HairRadius, 
 		1.0f /*RootScale*/, 
 		1.0f /*TipScale*/);

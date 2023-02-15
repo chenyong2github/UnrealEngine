@@ -99,6 +99,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGroomDataInterfaceParameters, )
 	SHADER_PARAMETER(float, VF_TipScale)
 	SHADER_PARAMETER(uint32, VF_GroupIndex)
 	SHADER_PARAMETER_ARRAY(FUintVector4, VF_AttributeOffsets, [HAIR_ATTRIBUTE_OFFSET_COUNT])
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>,    PositionOffsetBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>,     PositionBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, AttributeBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>,      VertexToCurveBuffer)
@@ -180,6 +181,7 @@ void FOptimusGroomDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder
 		if (FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(Index))
 		{
 			FResources& R = Resources.AddDefaulted_GetRef();
+			R.PositionOffsetSRV = Register(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
 			R.PositionSRV		= Register(GraphBuilder, Instance->Strands.RestResource->PositionBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
 			R.AttributeSRV		= Register(GraphBuilder, Instance->Strands.RestResource->AttributeBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
 			R.VertexToCurveSRV	= Register(GraphBuilder, Instance->Strands.RestResource->PointToCurveBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
@@ -219,6 +221,7 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchData const& InD
 
 			if (bIsSRVValid)
 			{
+				Parameters.PositionOffsetBuffer = Resources[InvocationIndex].PositionOffsetSRV;
 				Parameters.PositionBuffer		= Resources[InvocationIndex].PositionSRV;
 				Parameters.AttributeBuffer		= Resources[InvocationIndex].AttributeSRV;
 				Parameters.VertexToCurveBuffer	= Resources[InvocationIndex].VertexToCurveSRV;
@@ -226,6 +229,7 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchData const& InD
 			}
 			else
 			{
+				Parameters.PositionOffsetBuffer = Resources[InvocationIndex].FallbackSRV;
 				Parameters.PositionBuffer		= Resources[InvocationIndex].FallbackSRV;
 				Parameters.AttributeBuffer		= Resources[InvocationIndex].FallbackSRV;
 				Parameters.VertexToCurveBuffer	= Resources[InvocationIndex].FallbackSRV;
