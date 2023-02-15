@@ -1073,11 +1073,12 @@ namespace UnrealBuildTool
 				GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
 			}
 
-			FileItem DummyFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, "SingleFile.cpp"));
+			string DummyName = "SingleFile.cpp";
+			FileItem DummyFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, DummyName));
 			CPPOutput Result = new();
 			ClangSpecificFileActionGraphBuilder GraphBuilder = new(Logger);
 			Action Action = CompileCPPFile(CompileEnvironment, DummyFile, OutputDir, "<Unknown>", GraphBuilder, GlobalArguments, Result);
-			Action.PrerequisiteItems.Clear();
+			Action.PrerequisiteItems.RemoveWhere(File => File.Name.Contains(DummyName));
 
 			Graph.AddAction(new ClangSpecificFileAction(SourceDir, OutputDir, Action, GraphBuilder.ContentLines));
 		}
