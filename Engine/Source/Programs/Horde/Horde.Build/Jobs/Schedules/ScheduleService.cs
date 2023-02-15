@@ -351,7 +351,7 @@ namespace Horde.Build.Jobs.Schedules
 
 			// Cache the Perforce history as we're iterating through changes to improve query performance
 			ICommitCollection commits = _commitService.GetCollection(stream.Config);
-			IAsyncEnumerable<ICommit> commitEnumerable = commits.FindAsync(minChangeNumber, null, null, schedule.Config.Commits, cancellationToken);
+			IAsyncEnumerable<ICommit> commitEnumerable = commits.FindAsync(minChangeNumber, null, null, schedule.Config.GetAllCommitTags(), cancellationToken);
 			await using IAsyncEnumerator<ICommit> commitEnumerator = commitEnumerable.GetAsyncEnumerator(cancellationToken);
 
 			// Start as many jobs as possible
@@ -395,7 +395,7 @@ namespace Horde.Build.Jobs.Schedules
 				}
 
 				// Adjust the changelist for the desired filter
-				if (commit == null || await ShouldBuildChangeAsync(commit, schedule.Config.Commits, fileFilter, cancellationToken))
+				if (commit == null || await ShouldBuildChangeAsync(commit, schedule.Config.GetAllCommitTags(), fileFilter, cancellationToken))
 				{
 					int codeChange = change;
 

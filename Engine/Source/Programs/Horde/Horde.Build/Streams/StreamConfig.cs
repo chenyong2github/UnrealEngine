@@ -917,35 +917,31 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// The types of changes to run for
 		/// </summary>
-		[Obsolete("Use Tags instead")]
-		public List<ChangeContentFlags> Filter
+		[Obsolete("Use Commits instead")]
+		public List<ChangeContentFlags>? Filter { get; set; }
+
+		/// <summary>
+		/// Merges the list of commit tags with the legacy filter field
+		/// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
+		internal List<CommitTag> GetAllCommitTags()
 		{
-			get
+			List<CommitTag> commits = Commits;
+			if (Filter != null && Filter.Count > 0)
 			{
-				List<ChangeContentFlags> flags = new List<ChangeContentFlags>();
-				if (Commits.Contains(CommitTag.Code))
+				commits = new List<CommitTag>(commits);
+				if (Filter.Contains(ChangeContentFlags.ContainsCode))
 				{
-					flags.Add(ChangeContentFlags.ContainsCode);
+					commits.Add(CommitTag.Code);
 				}
-				if (Commits.Contains(CommitTag.Content))
+				if (Filter.Contains(ChangeContentFlags.ContainsContent))
 				{
-					flags.Add(ChangeContentFlags.ContainsContent);
-				}
-				return flags;
-			}
-			set
-			{
-				Commits.Clear();
-				if (value.Contains(ChangeContentFlags.ContainsCode))
-				{
-					Commits.Add(CommitTag.Code);
-				}
-				if (value.Contains(ChangeContentFlags.ContainsContent))
-				{
-					Commits.Add(CommitTag.Content);
+					commits.Add(CommitTag.Content);
 				}
 			}
+			return commits;
 		}
+#pragma warning restore CS0618 // Type or member is obsolete
 
 		/// <summary>
 		/// Files that should cause the job to trigger
