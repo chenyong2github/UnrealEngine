@@ -35,7 +35,7 @@ namespace AutomationTool
 			// Write InstalledBuild.txt to indicate Engine is installed
 			string InstalledBuildFile = CommandUtils.CombinePaths(OutputDir, "Engine/Build/InstalledBuild.txt");
 			CommandUtils.CreateDirectory(CommandUtils.GetDirectoryName(InstalledBuildFile));
-			CommandUtils.WriteAllText(InstalledBuildFile, "");
+			CommandUtils.WriteAllText(InstalledBuildFile, Guid.NewGuid().ToString().ToUpper());
 
 			// Write InstalledBuild.txt to indicate Engine is installed
 			string Project = ParseParamValue("Project");

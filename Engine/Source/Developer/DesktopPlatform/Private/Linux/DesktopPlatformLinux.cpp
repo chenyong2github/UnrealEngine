@@ -135,7 +135,27 @@ bool FDesktopPlatformLinux::RegisterEngineInstallation(const FString &RootDir, F
 		ConfigFile.Read(ConfigPath);
 
 		FConfigSection &Section = ConfigFile.FindOrAdd(TEXT("Installations"));
-		OutIdentifier = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
+
+		// If this is an installed build, use that Guid instead of generating a new one
+		FString InstallationIdPath = FString(RootDir / "Engine" / "Build" / "InstalledBuild.txt");
+		FArchive* File = IFileManager::Get().CreateFileReader(*InstallationIdPath, FILEREAD_NoFail);
+		if(File)
+		{
+			FFileHelper::LoadFileToString(OutIdentifier, *File);
+			FGuid GuidCheck(OutIdentifier);
+			if(!GuidCheck.IsValid())
+			{
+				OutIdentifier = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
+			}
+
+			File->Close();
+			delete File;
+		}
+		else
+		{
+			OutIdentifier = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
+		}
+
 		Section.AddUnique(*OutIdentifier, RootDir);
 
 		ConfigFile.Dirty = true;
