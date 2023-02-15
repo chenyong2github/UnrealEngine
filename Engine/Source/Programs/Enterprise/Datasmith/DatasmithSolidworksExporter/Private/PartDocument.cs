@@ -114,8 +114,6 @@ namespace DatasmithSolidworks
 
 			SetExportStatus($"{PartName} Materials");
 
-			Exporter.ExportMaterials(ExportedMaterialsMap);
-
 			SetExportStatus($"{PartName} Meshes");
 
 			ConfigurationManager ConfigManager = (SwPartDoc as ModelDoc2).ConfigurationManager;
@@ -154,6 +152,8 @@ namespace DatasmithSolidworks
 					};
 
 					Exporter.ExportMeshes(MeshExportInfos, out List<FMeshExportInfo> OutCreatedMeshes);
+					ExportMaterials();
+					Exporter.AssignMaterialsToDatasmithMeshes(OutCreatedMeshes);
 					bool bHasMesh = OutCreatedMeshes.Count > 0;
 
 					FDatasmithActorExportInfo ExportInfo = new FDatasmithActorExportInfo();
@@ -195,6 +195,8 @@ namespace DatasmithSolidworks
 					};
 
 					Exporter.ExportMeshes(MeshExportInfos, out List<FMeshExportInfo> OutCreatedMeshes);
+					ExportMaterials();
+					Exporter.AssignMaterialsToDatasmithMeshes(OutCreatedMeshes);
 					bHasMesh = OutCreatedMeshes.Count > 0;
 				}
 
@@ -206,6 +208,8 @@ namespace DatasmithSolidworks
 				ExportInfo.Type = bHasMesh ? EActorType.MeshActor : EActorType.SimpleActor;
 				Exporter.ExportOrUpdateActor(ExportInfo);
 			}
+
+			
 		}
 
 		public override bool HasMaterialUpdates()

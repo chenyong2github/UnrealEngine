@@ -199,11 +199,11 @@ namespace DatasmithSolidworks
 				}
 			}
 
-			Exporter.ExportMaterials(ExportedMaterialsMap);
-
 			// Export meshes
 			SetExportStatus($"Component Meshes");
-			ProcessConfigurationMeshes(MeshesConfiguration, null);
+			List<FDatasmithExporter.FMeshExportInfo> CreatedMeshes = ProcessConfigurationMeshes(MeshesConfiguration, null);
+			ExportMaterials();
+			AssignMaterialsToDatasmithMeshes(CreatedMeshes);
 
 			SyncState.DirtyComponents.Clear();
 

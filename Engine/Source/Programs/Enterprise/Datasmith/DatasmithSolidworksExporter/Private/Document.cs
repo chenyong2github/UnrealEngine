@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DatasmithSolidworks.Names;
 using static DatasmithSolidworks.FAssemblyDocumentTracker;
+using System.Windows.Forms;
 
 namespace DatasmithSolidworks
 {
@@ -30,10 +31,11 @@ namespace DatasmithSolidworks
 		{
 			DocumentTracker = InDocumentTracker;
 
-			MaterialCheckerThread = new Thread(CheckForMaterialUpdatesProc);
 			MaterialCheckerEvent = new ManualResetEvent(false);
-			MaterialCheckerThread.Start();
 			MaterialCheckerEvent.Set();
+
+			MaterialCheckerThread = new Thread(CheckForMaterialUpdatesProc);
+			MaterialCheckerThread.Start();
 		}
 
 		public void Destroy()
@@ -165,12 +167,32 @@ namespace DatasmithSolidworks
 				}
 			}
 
-			Exporter.ExportMaterials(ExportedMaterialsMap);
+			Dictionary<FDatasmithFacadeActorBinding, int> MaterialBindings = null;
 
 			if (Configs != null)
 			{
-				Exporter.ExportLevelVariantSets(Configs);
+				MaterialBindings = new Dictionary<FDatasmithFacadeActorBinding, int>();
+				Exporter.ExportLevelVariantSets(Configs, MaterialBindings);
 			}
+
+			ExportMaterials();
+
+			// Assign exported datasmith material instances to bindings
+			foreach (KeyValuePair<FDatasmithFacadeActorBinding, int> KVP in MaterialBindings)
+			{
+				FDatasmithFacadeActorBinding Binding = KVP.Key;
+				int MaterialId = KVP.Value;
+
+				if (Exporter.GetDatasmithMaterial(MaterialId, out FDatasmithFacadeMaterialInstance DatasmithMaterial))
+				{
+					Binding.AddMaterialCapture(DatasmithMaterial);
+				}					
+			}
+		}
+
+		public void ExportMaterials()
+		{
+			Exporter.ExportMaterials(ExportedMaterialsMap);
 		}
 
 		private void ExportLights()
@@ -277,7 +299,7 @@ namespace DatasmithSolidworks
 		// Extracts, exports meshes used for the assembly configuration, assigns them to actors
 		// todo: separate just Datasmith Mesh export to its own thread, all other code should be in single thread
 		// Datasmith actor assignment doesn't need threading(and not supposed to be thread-safe?) and Solidworks multithreading is supposed to be slower(SW does all the work in main thread)
-		public void ProcessConfigurationMeshes(FMeshes.FConfiguration MeshesConfiguration, string MeshSuffix)
+		public List<FDatasmithExporter.FMeshExportInfo> ProcessConfigurationMeshes(FMeshes.FConfiguration MeshesConfiguration, string MeshSuffix)
 		{
 			
 			List<FDatasmithExporter.FMeshExportInfo> MeshExportInfos = new List<FDatasmithExporter.FMeshExportInfo>();
@@ -311,6 +333,13 @@ namespace DatasmithSolidworks
 			{
 				AddMeshForComponent(Info.ComponentName, Info.MeshName);  // Register that this mesh was used for the component
 			}
+
+			return CreatedMeshes;
+		}
+
+		public void AssignMaterialsToDatasmithMeshes(List<FDatasmithExporter.FMeshExportInfo> CreatedMeshes)
+		{
+			Exporter.AssignMaterialsToDatasmithMeshes(CreatedMeshes);
 		}
 	};
 

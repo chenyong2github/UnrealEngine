@@ -354,15 +354,13 @@ namespace DatasmithSolidworks
 					}
 				}
 				
-				// Export materials before exporting meshes(currently mesh export code is tied to FDatasmithExporter.ExportedMaterialsMap
-				// todo: separate material export and mesh export(see comment above)?
-				InDoc.Exporter.ExportMaterials(InDoc.ExportedMaterialsMap);
-
 				// Export meshes
 				InDoc.SetExportStatus($"Component Meshes");
 
 				string MeshSuffix = bIsActiveConfiguration ? null : CfgName; // Suffix for main configuration is absent(so in default or single configuration export we don't have unnecessary long names)
-				InDoc.ProcessConfigurationMeshes(MeshesConfiguration, MeshSuffix);
+				List<FDatasmithExporter.FMeshExportInfo> CreatedMeshes = InDoc.ProcessConfigurationMeshes(MeshesConfiguration, MeshSuffix);
+				InDoc.ExportMaterials();
+				InDoc.AssignMaterialsToDatasmithMeshes(CreatedMeshes);
 
 				// Combine separate scene trees into the single one with configuration-specific data
 				FConfigurationTree.Merge(CombinedTree, ConfigNode, CfgName, bIsActiveConfiguration);
