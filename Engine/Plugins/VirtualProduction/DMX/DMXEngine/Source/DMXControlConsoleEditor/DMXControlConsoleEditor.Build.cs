@@ -26,6 +26,7 @@ public class DMXControlConsoleEditor : ModuleRules
 			{              
 				"AssetTools",
 				"AssetRegistry",
+				"ContentBrowser",
 				"CoreUObject",
 				"DMXControlConsole",
 				"DMXEditor",
@@ -36,6 +37,7 @@ public class DMXControlConsoleEditor : ModuleRules
 				"InputCore",
 				"LevelEditor",
 				"Projects",
+				"PropertyEditor",
 				"Slate",
 				"SlateCore",
 				"ToolMenus",

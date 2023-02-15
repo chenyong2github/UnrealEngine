@@ -18,6 +18,9 @@ public:
 
 	TSharedPtr<FUICommandInfo> OpenControlConsole;
 
+	TSharedPtr<FUICommandInfo> Save;
+	TSharedPtr<FUICommandInfo> SaveAs;
+	TSharedPtr<FUICommandInfo> Load;
 	TSharedPtr<FUICommandInfo> SendDMX;
 	TSharedPtr<FUICommandInfo> StopDMX;
 	TSharedPtr<FUICommandInfo> ClearAll;

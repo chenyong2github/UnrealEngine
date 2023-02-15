@@ -7,7 +7,7 @@
 
 #define LOCTEXT_NAMESPACE "DMXControlConsolePreset"
 
-void UDMXControlConsolePreset::SetControlConsole(UDMXControlConsole* InControlConsole)
+void UDMXControlConsolePreset::CopyControlConsole(UDMXControlConsole* InControlConsole)
 {
 	if (!InControlConsole)
 	{

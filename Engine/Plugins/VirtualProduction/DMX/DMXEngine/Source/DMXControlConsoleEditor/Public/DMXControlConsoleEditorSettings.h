@@ -16,7 +16,7 @@ class UDMXControlConsoleEditorSettings
 	GENERATED_BODY()
 
 public:
-	/** Reference to Control Console Preset configuration asset */
+	/** Path to the current control console preset */
 	UPROPERTY(Config)
-	FSoftObjectPath DefaultControlConsoleAssetPath;
+	FSoftObjectPath ControlConsolePreset;
 };

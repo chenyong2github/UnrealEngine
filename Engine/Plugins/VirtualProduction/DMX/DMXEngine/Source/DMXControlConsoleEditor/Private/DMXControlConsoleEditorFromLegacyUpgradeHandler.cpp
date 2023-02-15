@@ -10,6 +10,8 @@
 #include "DMXControlConsoleRawFader.h"
 #include "DMXEditorSettings.h"
 
+#include "AssetToolsModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
 #include "UObject/Package.h"
@@ -47,7 +49,7 @@ void FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy(
 	const FString AssetPath = TEXT("/Game");
 	const FString AssetName = TEXT("DefaultControlConsolePreset");
 
-	UpgradePathControlConsolePreset = FDMXControlConsoleEditorManager::Get().CreateNewPreset(AssetPath, AssetName, ControlConsole);
+	UpgradePathControlConsolePreset = FDMXControlConsoleEditorManager::Get().CreateNewPresetAsset(AssetPath / AssetName, ControlConsole);
 	if (UpgradePathControlConsolePreset.IsValid())
 	{
 		UpgradePathControlConsolePreset->GetOnControlConsolePresetSaved().AddStatic(&FDMXControlConsoleEditorFromLegacyUpgradeHandler::OnUpgradePathControlConsolePresetSaved);

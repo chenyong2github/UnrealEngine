@@ -56,6 +56,24 @@ void FDMXControlConsoleEditorModule::RegisterControlConsoleActions()
 
 	CommandList->MapAction
 	(
+		FDMXControlConsoleEditorCommands::Get().Save,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::Save)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().SaveAs,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::SaveAs)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().Load,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::Load)
+	);
+
+	CommandList->MapAction
+	(
 		FDMXControlConsoleEditorCommands::Get().SendDMX,
 		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::SendDMX),
 		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanSendDMX),

@@ -46,6 +46,9 @@ private:
 	/** Generates the toolbar for this DMX Control Console View */
 	TSharedRef<SWidget> GenerateToolbar();
 
+	/** Generates a widget that displays the currently loaded widget */
+	TSharedRef<SWidget> GenerateLoadedPresetWidget();
+
 	/** Requests to update the Details Views on the next tick */
 	void RequestUpdateDetailsViews();
 
@@ -73,6 +76,12 @@ private:
 	/** Called to add first first Fader Group */
 	FReply OnAddFirstFaderGroup();
 
+	/** Called when the browse to preset button was clicked */
+	void OnBrowseToPresetClicked();
+
+	/** Returns true if any preset was loaded to the console */
+	bool IsAnyPresetLoaded() const;
+
 	/** Called when the active tab in the editor changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
 
@@ -87,9 +96,6 @@ private:
 
 	/** Reference to FixturePatchRows widgets container */
 	TSharedPtr<SDMXControlConsoleEditorFixturePatchVerticalBox> FixturePatchVerticalBox;
-
-	/** Widget to handle saving/loading of Control Console's data */
-	TSharedPtr<SDMXControlConsoleEditorPresetWidget> ControlConsolePresetWidget;
 
 	/** Shows DMX Control Console's details */
 	TSharedPtr<IDetailsView> ControlConsoleDetailsView;

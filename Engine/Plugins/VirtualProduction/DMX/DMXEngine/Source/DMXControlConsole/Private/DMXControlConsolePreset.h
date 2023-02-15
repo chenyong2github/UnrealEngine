@@ -23,10 +23,10 @@ public:
 #endif // WITH_EDITOR
 
 	/** Gets the Preset's Control Console reference */
-	UDMXControlConsole* GetControlConsole() const { return ControlConsole.IsValid() ? ControlConsole.Get() : nullptr; }
+	UDMXControlConsole* GetControlConsole() const { return ControlConsole; }
 
-	/** Sets the Preset's Control Console reference */
-	void SetControlConsole(UDMXControlConsole* InControlConsole);
+	/** Copies the Control Console into this preset */
+	void CopyControlConsole(UDMXControlConsole* InControlConsole);
 
 	/** Gets a reference to OnControlConsolePresetSaved delegate */
 #if WITH_EDITOR
@@ -41,7 +41,7 @@ protected:
 private:
 	/** Control Console reference */
 	UPROPERTY(VisibleAnywhere, Category = "DMX Control Console Preset")
-	TWeakObjectPtr<UDMXControlConsole> ControlConsole;
+	TObjectPtr<UDMXControlConsole> ControlConsole;
 
 	/** Called when the preset asset is saved */
 #if WITH_EDITOR

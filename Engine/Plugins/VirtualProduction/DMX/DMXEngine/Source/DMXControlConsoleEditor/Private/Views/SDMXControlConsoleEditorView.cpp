@@ -7,6 +7,8 @@
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
+#include "DMXControlConsolePreset.h"
+#include "DMXEditorStyle.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
 #include "Customizations/DMXControlConsoleDetails.h"
 #include "Customizations/DMXControlConsoleFaderGroupDetails.h"
@@ -15,10 +17,10 @@
 #include "Views/SDMXControlConsoleEditorFaderGroupRowView.h"
 #include "Widgets/SDMXControlConsoleEditorAddButton.h"
 #include "Widgets/SDMXControlConsoleEditorFixturePatchVerticalBox.h"
-#include "Widgets/SDMXControlConsoleEditorPresetWidget.h"
 
 #include "IDetailsView.h"
 #include "LevelEditor.h"
+#include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "TimerManager.h"
@@ -266,16 +268,37 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	const TSharedPtr<FUICommandList> CommandList = LevelEditorModule.GetGlobalLevelEditorActions();
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder = FSlimHorizontalToolBarBuilder(CommandList, FMultiBoxCustomization::None);
-	
-	ToolbarBuilder.BeginSection("Saving");
-	{
-		SAssignNew(ControlConsolePresetWidget, SDMXControlConsoleEditorPresetWidget);
 
-		ToolbarBuilder.AddWidget(ControlConsolePresetWidget.ToSharedRef());
+	ToolbarBuilder.BeginSection("Save");
+	{
+		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().Save,
+			NAME_None,
+			FText::GetEmpty(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.SaveAsset"));
+
+		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().SaveAs,
+			NAME_None,
+			FText::GetEmpty(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.SaveAssetAs"));
 	}
 	ToolbarBuilder.EndSection();
 
-	ToolbarBuilder.BeginSection("Clearing");
+	ToolbarBuilder.BeginSection("Load");
+	{
+		ToolbarBuilder.AddWidget(GenerateLoadedPresetWidget());
+
+		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().Load,
+			NAME_None,
+			FText::GetEmpty(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"));
+
+	}
+	ToolbarBuilder.EndSection();
+
+	ToolbarBuilder.BeginSection("Clear");
 	{
 		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().ClearAll,
 			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
@@ -284,7 +307,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	}
 	ToolbarBuilder.EndSection();
 
-	ToolbarBuilder.BeginSection("SendingDMX");
+	ToolbarBuilder.BeginSection("SendDMX");
 	{
 		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().SendDMX,
 			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
@@ -311,6 +334,46 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	ToolbarBuilder.EndSection();
 
 	return ToolbarBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateLoadedPresetWidget()
+{
+	const TSharedRef<SWidget> BrowseToPresetButton = PropertyCustomizationHelpers::MakeBrowseButton(
+		FSimpleDelegate::CreateSP(this, &SDMXControlConsoleEditorView::OnBrowseToPresetClicked),
+		LOCTEXT("BrowseToPresetTooltip", "Browses to the loaded Preset"),
+		TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SDMXControlConsoleEditorView::IsAnyPresetLoaded)));
+
+	const TSharedRef<SWidget> LoadedPresetWidget = 
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(4.f)
+		[
+			SNew(SBorder)
+			.BorderImage(FDMXEditorStyle::Get().GetBrush("DMXEditor.RoundedPropertyBorder"))
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(4.f, 2.f, 14.f, 2.f))
+				.Text_Lambda([]()
+					{
+						UDMXControlConsolePreset* LastLoadedPreset = FDMXControlConsoleEditorManager::Get().GetPreset();
+						return LastLoadedPreset ? FText::FromString(LastLoadedPreset->GetName()) : LOCTEXT("NoPresetLoadedText", "No Preset Loaded");
+					})
+			]
+		]
+
+	+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(4.f)
+		[
+			BrowseToPresetButton
+		];
+
+	return LoadedPresetWidget;
 }
 
 void SDMXControlConsoleEditorView::RequestUpdateDetailsViews()
@@ -483,6 +546,20 @@ FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()
 
 	ControlConsole->PostEditChange();
 	return FReply::Handled();
+}
+
+void SDMXControlConsoleEditorView::OnBrowseToPresetClicked()
+{
+	if (UDMXControlConsolePreset* Preset = FDMXControlConsoleEditorManager::Get().GetPreset())
+	{
+		TArray<UObject*> BrowseToObjects{ Preset };
+		GEditor->SyncBrowserToObjects(BrowseToObjects);
+	}
+}
+
+bool SDMXControlConsoleEditorView::IsAnyPresetLoaded() const
+{
+	return FDMXControlConsoleEditorManager::Get().GetPreset() != nullptr;
 }
 
 void SDMXControlConsoleEditorView::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)

@@ -38,20 +38,23 @@ public:
 	/** Gets a reference to the Selection Handler*/
 	TSharedRef<FDMXControlConsoleEditorSelection> GetSelectionHandler();
 
-	/** Gets the default Control Console Preset from configuration settings */
-	UDMXControlConsolePreset* GetDefaultControlConsolePreset() const;
-
-	/** Sets the default Control Console Preset in configuration settings */
-	void SetDefaultControlConsolePreset(const FSoftObjectPath& PresetAssetPath);
+	/** Gets the Control Console Preset. Returns nullptr if no preset is loaded. */
+	UDMXControlConsolePreset* GetPreset() const;
 
 	/** Creates a new Control Console in the Transient Package */
 	UDMXControlConsole* CreateNewTransientConsole();
 
-	/** Creates a new Control Console Preset asset at the given path. With no Control Console provided, it uses the current Control Console */
-	UDMXControlConsolePreset* CreateNewPreset(const FString& InAssetPath, const FString& InAssetName, UDMXControlConsole* InControlConsole = nullptr);
+	/** Creates a new Control Console Preset asset at the given path. If no Control Console is provided, it uses the current Control Console */
+	UDMXControlConsolePreset* CreateNewPresetAsset(FString DesiredPackageName, UDMXControlConsole* SourceControlConsole = nullptr);
 
-	/** Loads Control Console's data from the given Preset */
-	void LoadFromPreset(const UDMXControlConsolePreset* Preset);
+	/** Saves the current Control Console Preset to the current preset. */
+	void Save();
+
+	/** Saves the current Control Console as a Preset asset via a save dialog. */
+	void SaveAs();
+
+	/** Loads a Control Console Preset via a load dialog. */
+	void Load();
 
 	/** Sends DMX on the Control Console */
 	void SendDMX();
@@ -77,9 +80,30 @@ public:
 private:
 	/** Private constructor. Use FDMXControlConsoleManager::Get() instead. */
 	FDMXControlConsoleEditorManager();
+	
+	/** Called when enter pressed a preset in the Load Dialog */
+	void OnLoadDialogEnterPressedPreset(const TArray<FAssetData>& PresetAssets);
 
-	/** Destroys the manager instance */
-	void Destroy();
+	/** Called when the load dialog selected a preset */
+	void OnLoadDialogSelectedPreset(const FAssetData& PresetAsset);
+
+	/** Opens a Save Dialog, returns true if the user's dialog interaction results in a valid OutPackageName. */
+	bool OpenSaveDialog(const FString& InDefaultPath, const FString& InNewNameSuggestion, FString& OutPackageName) const;
+
+	/** Gets a preset package name to save to. Returns true if a valid package name was acquired. */
+	bool GetSavePresetPackageName(FString& OutPackageName) const;
+
+	/** Saves the configuration of this manager */
+	void SaveConfig();
+
+	/** Loads the configuration of this manager */
+	void LoadConfig();
+
+	/** Called at the very end of engine initialization, right before the engine starts ticking. */
+	void OnFEngineLoopInitComplete();
+
+	/** Called before the engine is shut down */
+	void OnEnginePreExit();
 
 	/** Called when the Control Console is restored by a preset */
 	FSimpleMulticastDelegate OnControlConsoleLoaded;
