@@ -9,6 +9,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Components/WidgetInteractionComponent.h"
+#include "Engine/Level.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/InputDelegateBinding.h"
 #include "EnhancedInputComponent.h"
