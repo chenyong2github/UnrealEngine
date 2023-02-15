@@ -19,8 +19,8 @@ class UEdGraphPin;
 class UObject;
 struct FLinearColor;
 
-UCLASS(MinimalAPI)
-class UK2Node_MakeMap : public UK2Node_MakeContainer
+UCLASS()
+class BLUEPRINTGRAPH_API UK2Node_MakeMap : public UK2Node_MakeContainer
 {
 	GENERATED_UCLASS_BODY()
 
@@ -47,6 +47,6 @@ public:
 	// UK2Node_MakeContainer interface
 
 	// IK2Node_AddPinInterface interface
-	BLUEPRINTGRAPH_API virtual void AddInputPin() override;
+	virtual void AddInputPin() override;
 	// End of IK2Node_AddPinInterface interface
 };

@@ -43,8 +43,8 @@ protected:
 };
 
 
-UCLASS(MinimalAPI, abstract)
-class UK2Node_MakeContainer : public UK2Node, public IK2Node_AddPinInterface
+UCLASS(abstract)
+class BLUEPRINTGRAPH_API UK2Node_MakeContainer : public UK2Node, public IK2Node_AddPinInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -53,9 +53,9 @@ class UK2Node_MakeContainer : public UK2Node, public IK2Node_AddPinInterface
 	int32 NumInputs;
 
 public:
-	BLUEPRINTGRAPH_API void RemoveInputPin(UEdGraphPin* Pin);
+	void RemoveInputPin(UEdGraphPin* Pin);
 
-	BLUEPRINTGRAPH_API UEdGraphPin* GetOutputPin() const;
+	UEdGraphPin* GetOutputPin() const;
 
 	/** returns a reference to the output array pin of this node, which is responsible for defining the type */
 	virtual FName GetOutputPinName() const PURE_VIRTUAL(UK2Node_MakeContainer::GetOutputPinName, return NAME_None;);
@@ -79,7 +79,7 @@ public:
 	// End of UK2Node interface
 
 	// IK2Node_AddPinInterface interface
-	BLUEPRINTGRAPH_API virtual void AddInputPin() override;
+	virtual void AddInputPin() override;
 	// End of IK2Node_AddPinInterface interface
 
 protected:
