@@ -8,8 +8,15 @@
 
 float UTimeManagementBlueprintLibrary::Conv_FrameRateToSeconds(const FFrameRate& InFrameRate)
 {
+	// @note: this has been deprecated as it returns FPS, not "SPF" as the description indicates it should - see Conv_FrameRateToInterval below
 	// Accept the loss of precision from conversion when in use with Blueprints.
 	return (float)InFrameRate.AsDecimal();
+}
+
+float UTimeManagementBlueprintLibrary::Conv_FrameRateToInterval(const FFrameRate InFrameRate)
+{
+	// Accept the loss of precision from conversion when in use with Blueprints.
+	return (float)InFrameRate.AsInterval();
 }
 
 float UTimeManagementBlueprintLibrary::Conv_QualifiedFrameTimeToSeconds(const FQualifiedFrameTime& InFrameTime)

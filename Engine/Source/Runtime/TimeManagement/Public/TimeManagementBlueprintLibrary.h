@@ -30,8 +30,13 @@ class TIMEMANAGEMENT_API UTimeManagementBlueprintLibrary : public UBlueprintFunc
 
 public:
 	/** Converts an FrameRate to a float ie: 1/30 returns 0.0333333 */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "FrameRate To Seconds", BlueprintAutocast), Category = "Utilities|Time Management")
+	UE_DEPRECATED(5.3, "Conv_FrameRateToSeconds has been deprecated, use Conv_FrameRateToInterval instead")
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "FrameRate To Seconds", BlueprintAutocast, DeprecatedFunction, DeprecationMessage = "FrameRateToInterval replaces this function, which returns the expected result of seconds per frame, rather than (incorrectly) frames per second."), Category = "Utilities|Time Management")
 	static float Conv_FrameRateToSeconds(const FFrameRate& InFrameRate);
+
+	/** Converts a FrameRate to an interval float representing the frame time in seconds ie: 1/30 returns 0.0333333 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "FrameRate To Interval", BlueprintAutocast), Category = "Utilities|Time Management")
+	static float Conv_FrameRateToInterval(const FFrameRate InFrameRate);
 
 	/** Converts an QualifiedFrameTime to seconds. */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "QualifiedFrameTime To Seconds", BlueprintAutocast), Category = "Utilities|Time Management")
