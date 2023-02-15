@@ -5095,6 +5095,12 @@ namespace UnrealGameSync
 
 		bool FindChangeToSync(LatestChangeType changeType, out int changeNumber)
 		{
+			if (changeType.Number != -1)
+			{
+				changeNumber = changeType.Number;
+				return true;
+			}
+
 			for (int idx = 0; idx < BuildList.Items.Count; idx++)
 			{
 				ChangesRecord change = (ChangesRecord)BuildList.Items[idx].Tag;
