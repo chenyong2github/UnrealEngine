@@ -342,6 +342,7 @@ namespace Horde.Build.Agents
 					newAgent = await Agents.TryStartSessionAsync(agent, newSession.Id, sessionExpiresAt, status, properties, resources, pools, dynamicPools, version);
 					if(newAgent != null)
 					{
+						LogPropertyChanges(agentLogger, agent.Properties, newAgent.Properties);
 						agent = newAgent;
 						agentLogger.LogInformation("Session {SessionId} started", newSession.Id);
 						break;
@@ -377,6 +378,23 @@ namespace Horde.Build.Agents
 				return false;
 			}
 			return true;
+		}
+
+		/// <summary>
+		/// Compare properties and write changes to audit log
+		/// </summary>
+		private static void LogPropertyChanges(IAuditLogChannel<AgentId> agentLogger, IReadOnlyList<string> before, IReadOnlyList<string> after)
+		{
+			const string AwsInstanceTypeKey = KnownPropertyNames.AwsInstanceType + "=";
+			string beforeProp = before.FirstOrDefault(x => x.StartsWith(AwsInstanceTypeKey, StringComparison.Ordinal), String.Empty);
+			string afterProp = after.FirstOrDefault(x => x.StartsWith(AwsInstanceTypeKey, StringComparison.Ordinal), String.Empty);
+
+			if (!String.IsNullOrEmpty(beforeProp) && !String.IsNullOrEmpty(afterProp) && beforeProp != afterProp)
+			{
+				string oldInstanceType = beforeProp.Replace(AwsInstanceTypeKey, "", StringComparison.Ordinal);
+				string newInstanceType = afterProp.Replace(AwsInstanceTypeKey, "", StringComparison.Ordinal);
+				agentLogger.LogInformation("AWS EC2 instance type changed from {OldInstanceType} to {NewInstanceType}", oldInstanceType, newInstanceType);
+			}
 		}
 
 		/// <summary>

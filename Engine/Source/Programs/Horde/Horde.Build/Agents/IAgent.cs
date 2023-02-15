@@ -352,6 +352,11 @@ namespace Horde.Build.Agents
 		/// Amount of RAM, in GB
 		/// </summary>
 		public const string Ram = "RAM";
+		
+		/// <summary>
+		/// AWS: Instance type
+		/// </summary>
+		public const string AwsInstanceType = "aws-instance-type";
 	}
 
 	/// <summary>

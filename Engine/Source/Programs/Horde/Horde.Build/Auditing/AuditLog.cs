@@ -189,19 +189,28 @@ namespace Horde.Build.Auditing
 			DisposeAsync().AsTask().Wait();
 		}
 
+		/// <summary>
+		/// Flush any pending messages to database
+		/// Exposed as internal for use in tests
+		/// </summary>
+		internal async Task FlushMessagesInternalAsync()
+		{
+			List<AuditLogMessage> newMessages = new ();
+			while (_messageChannel.Reader.TryRead(out AuditLogMessage? newMessage))
+			{
+				newMessages.Add(newMessage);
+			}
+			if (newMessages.Count > 0)
+			{
+				await _messages.InsertManyAsync(newMessages);
+			}
+		}
+		
 		async Task WriteMessagesAsync()
 		{
 			while (await _messageChannel.Reader.WaitToReadAsync())
 			{
-				List<AuditLogMessage> newMessages = new List<AuditLogMessage>();
-				while (_messageChannel.Reader.TryRead(out AuditLogMessage? newMessage))
-				{
-					newMessages.Add(newMessage);
-				}
-				if (newMessages.Count > 0)
-				{
-					await _messages.InsertManyAsync(newMessages);
-				}
+				await FlushMessagesInternalAsync();
 			}
 		}
 

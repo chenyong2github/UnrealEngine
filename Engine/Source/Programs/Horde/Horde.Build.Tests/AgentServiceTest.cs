@@ -7,11 +7,13 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Agents;
+using Horde.Build.Auditing;
 using Horde.Build.Jobs;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests;
@@ -53,6 +55,34 @@ public class AgentServiceTest : TestSetup
 		Assert.IsTrue(AgentService.AuthorizeSession(agent, GetUser(agent)));
 		await Clock.AdvanceAsync(TimeSpan.FromMinutes(20));
 		Assert.IsFalse(AgentService.AuthorizeSession(agent, GetUser(agent)));
+	}
+	
+	[TestMethod]
+	public async Task AuditLogAwsInstanceTypeChanges()
+	{
+		Fixture fixture = await CreateFixtureAsync();
+		IAuditLogChannel<AgentId> agentLogger = AgentCollection.GetLogger(fixture.Agent1.Id);
+
+		async Task<bool> AuditLogContains(string text)
+		{
+			await FlushAuditLogsAsync();
+			return await agentLogger.FindAsync().AnyAsync(x => x.Data.Contains(text, StringComparison.Ordinal));
+		}
+		
+		List<string> props = new () { $"{KnownPropertyNames.AwsInstanceType}=m5.large" };
+		IAgent agent = await AgentService.CreateSessionAsync(fixture.Agent1, AgentStatus.Ok, props, new Dictionary<string, int>(), "test");
+		Assert.IsFalse(await AuditLogContains("AWS EC2 instance type changed"));
+		
+		props = new () { $"{KnownPropertyNames.AwsInstanceType}=c6.xlarge" };
+		agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, props, new Dictionary<string, int>(), "test");
+		Assert.IsTrue(await AuditLogContains("AWS EC2 instance type changed"));
+	}
+
+	private Task FlushAuditLogsAsync()
+	{
+		IAuditLog<AgentId> auditLog = ServiceProvider.GetRequiredService<IAuditLog<AgentId>>();
+		AuditLog<AgentId> log = (AuditLog<AgentId>)auditLog;
+		return log.FlushMessagesInternalAsync();
 	}
 	
 	[TestMethod]
