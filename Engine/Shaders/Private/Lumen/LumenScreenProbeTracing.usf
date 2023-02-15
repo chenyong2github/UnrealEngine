@@ -94,16 +94,29 @@ void ScreenProbeTraceScreenTexturesCS(
 				TraceDistance,
 				ConeHalfAngle);
 
+			bool bBackfaceRay;
+			float3 ScreenProbeNormal = GetScreenProbeNormalForBiasing(ScreenProbeAtlasCoord, RayWorldDirection, bBackfaceRay);
+			
 			// Skip screen traces for backfacing rays for two-sided foliage, as they immediately self-intersect and cause a feedback loop
-			if (GetScreenProbeIsTwoSidedFoliage(ScreenProbeAtlasCoord))
+			if (bBackfaceRay && GetScreenProbeIsTwoSidedFoliage(ScreenProbeAtlasCoord))
 			{
-				bool bBackfaceRay = dot(GetScreenProbeNormal(ScreenProbeAtlasCoord), RayWorldDirection) < 0.0f;
-
-				if (bBackfaceRay)
-				{
-					return;
-				}
+				return;
 			}
+
+			float NormalBias = 0;
+
+			// Bias along the normal to avoid self-intersecting camera facing scene depth texels
+			// HZB traversal uses point filtering, so scene depth texels stick out from the plane they are representing
+			{
+				float2 CornerScreenUV = ScreenUV + .5f * View.BufferSizeAndInvSize.zw;
+				float2 CornerScreenPosition = (CornerScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+				float3 CornerTranslatedWorldPosition = mul(float4(CornerScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+
+				// Project texel corner onto normal
+				NormalBias = abs(dot(CornerTranslatedWorldPosition - TranslatedWorldPosition, ScreenProbeNormal)) * 2;
+			}
+
+			float3 TranslatedRayOrigin = TranslatedWorldPosition + NormalBias * ScreenProbeNormal;
 
 			//@todo - this should be applied with the hit UV, not the origin, but still works for self-shadowing
 			float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
@@ -129,7 +142,7 @@ void ScreenProbeTraceScreenTexturesCS(
 				float Unused;
 
 				TraceScreen(
-					TranslatedWorldPosition,
+					TranslatedRayOrigin,
 					RayWorldDirection,
 					TraceDistance,
 					HZBUvFactorAndInvFactor,
@@ -263,7 +276,7 @@ void ScreenProbeTraceScreenTexturesCS(
 				bHit = bHit && !bUncertain;
 
 				bool bFastMoving = false;
-				float HitDistance = min(sqrt(ComputeRayHitSqrDistance(TranslatedWorldPosition, HitUVz)), MaxTraceDistance);
+				float HitDistance = min(sqrt(ComputeRayHitSqrDistance(TranslatedRayOrigin, HitUVz)), MaxTraceDistance);
 
 				if (bHit)
 				{
@@ -823,26 +836,107 @@ void ScreenProbeSetupVisualizeTraces(
 		}
 	}
 
+	float2 ProbeScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
+	float ProbeSceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
+
+	float3 ProbeWorldPosition = 0;
+	float3 ProbeTranslatedWorldPosition = 0;
+
+	if (ProbeSceneDepth > 0.0f)
+	{
+		ProbeWorldPosition = GetWorldPositionFromScreenUV(ProbeScreenUV, ProbeSceneDepth);
+		ProbeTranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ProbeScreenUV, ProbeSceneDepth);
+	}
+
+	float3 PreViewTranslation = LWCToFloat(MakeLWCVector3(View.ViewTilePosition, View.RelativePreViewTranslation));
+
+	{
+		float2 CursorSceneBufferUV = SvPositionToBufferUV(float4(floor((View.CursorPosition) * View.ViewResolutionFraction) + .5f, 0, 0)).xy;
+		float2 CursorScreenPosition = (CursorSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+		float CursorSceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, CursorSceneBufferUV, 0).r);
+		float3 CursorTranslatedWorldPosition = mul(float4(CursorScreenPosition * CursorSceneDepth, CursorSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		float3 CursorWorldPosition = CursorTranslatedWorldPosition - PreViewTranslation;
+	}
+
 	uint2 TraceTexelCoord = DispatchThreadId.xy;
 
+#define VISUALIZE_SCENE_DEPTH_TEXEL 0
+#if VISUALIZE_SCENE_DEPTH_TEXEL
+
+	float3 Corner00WorldPosition;
+	{
+		float2 CornerSceneBufferUV = ProbeScreenUV - .5f * View.BufferSizeAndInvSize.zw;
+		float2 CornerScreenPosition = (CornerSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+		Corner00WorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
+	}
+
+	float3 Corner01WorldPosition;
+	{
+		float2 CornerSceneBufferUV = ProbeScreenUV + float2(-.5f, .5f) * View.BufferSizeAndInvSize.zw;
+		float2 CornerScreenPosition = (CornerSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+		Corner01WorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
+	}
+
+	float3 Corner10WorldPosition;
+	{
+		float2 CornerSceneBufferUV = ProbeScreenUV + float2(.5f, -.5f) * View.BufferSizeAndInvSize.zw;
+		float2 CornerScreenPosition = (CornerSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+		Corner10WorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
+	}
+
+	float3 Corner11WorldPosition;
+	{
+		float2 CornerSceneBufferUV = ProbeScreenUV + float2(.5f, .5f) * View.BufferSizeAndInvSize.zw;
+		float2 CornerScreenPosition = (CornerSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+		Corner11WorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
+	}
+
+	if (DispatchThreadId.x == 0 && DispatchThreadId.y == 0)
+	{
+		WriteTraceForVisualization(0, Corner00WorldPosition, (Corner10WorldPosition - Corner00WorldPosition), 1, float3(1, 0, 0));
+		WriteTraceForVisualization(1, Corner10WorldPosition, (Corner11WorldPosition - Corner10WorldPosition), 1, float3(1, 0, 0));
+		WriteTraceForVisualization(2, Corner11WorldPosition, (Corner01WorldPosition - Corner11WorldPosition), 1, float3(1, 0, 0));
+		WriteTraceForVisualization(3, Corner01WorldPosition, (Corner00WorldPosition - Corner01WorldPosition), 1, float3(1, 0, 0));
+	}
+
+	float2 CornerScreenUV = ProbeScreenUV + .5f * View.BufferSizeAndInvSize.zw;
+	float2 CornerScreenPosition = (CornerScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float3 CornerTranslatedWorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+
+	float3 ScreenProbeNormal = GetScreenProbeNormalForBiasing(ScreenProbeAtlasCoord, CornerTranslatedWorldPosition - ProbeTranslatedWorldPosition);
+	float NormalBias = abs(dot(CornerTranslatedWorldPosition - ProbeTranslatedWorldPosition, ScreenProbeNormal));
+
+	if (DispatchThreadId.x == 0 && DispatchThreadId.y == 0)
+	{
+		// Diagonal that will be projected to measure texel size
+		WriteTraceForVisualization(4, ProbeWorldPosition, (CornerTranslatedWorldPosition - ProbeTranslatedWorldPosition), 0, float3(1, 0, 1));
+		// Probe normal from GBuffer
+		WriteTraceForVisualization(5, ProbeWorldPosition, 1 * ScreenProbeNormal, 0, float3(0, 0, 1));
+		// Calculated bias along probe normal needed to avoid screen trace self-intersection
+		WriteTraceForVisualization(6, ProbeWorldPosition, NormalBias * ScreenProbeNormal, 1, float3(1, 1, 0));
+	}
+
+	uint TraceIndex = TraceTexelCoord.y * ScreenProbeTracingOctahedronResolution + TraceTexelCoord.x + 7;
+
+	if (TraceIndex < ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution)
+	{
+		WriteTraceForVisualization(TraceIndex, 0, 0, 0, float3(1, 0, 0));
+	}
+
+#else
 	if (all(TraceTexelCoord < ScreenProbeTracingOctahedronResolution))
 	{
 		uint2 TraceBufferCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
-		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
-		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
-
+		
 		bool bHit;
 		bool bMoving;
 		float TraceHitDistance = DecodeProbeRayDistance(TraceHit[TraceBufferCoord].x, bHit, bMoving);
 
-		float3 WorldPosition = 0;
 		float3 RayWorldDirection = 0;
 		float RefinementRay = 0;
 
-		if (SceneDepth > 0.0f)
+		if (ProbeSceneDepth > 0.0f)
 		{
-			WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-
 			float2 ProbeUV;
 			float ConeHalfAngle;
 			GetProbeTracingUV(TraceBufferCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
@@ -856,7 +950,17 @@ void ScreenProbeSetupVisualizeTraces(
 
 		uint TraceIndex = TraceTexelCoord.y * ScreenProbeTracingOctahedronResolution + TraceTexelCoord.x;
 
+		float3 Radiance = TraceRadiance[TraceBufferCoord].xyz;
+
+		// Visualize incorrect self-intersections
+		if (bHit && TraceHitDistance < 1)
+		{
+			TraceHitDistance = 5;
+			Radiance = float3(1, 0, 0);
+		}
+
 		bool bVisualizeRefinementRays = false;
-		WriteTraceForVisualization(TraceIndex, WorldPosition, RayWorldDirection, TraceHitDistance, select(bVisualizeRefinementRays, RefinementRay.xxx, TraceRadiance[TraceBufferCoord].xyz));
+		WriteTraceForVisualization(TraceIndex, ProbeWorldPosition, RayWorldDirection, TraceHitDistance, select(bVisualizeRefinementRays, RefinementRay.xxx, Radiance));
 	}
+#endif
 }
