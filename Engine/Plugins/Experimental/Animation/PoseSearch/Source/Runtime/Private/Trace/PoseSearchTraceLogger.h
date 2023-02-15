@@ -86,7 +86,7 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	int32 CurrentPoseEntryIdx = INDEX_NONE;
 
 	/** Output the current state info to the logger */
-	void Output(const FAnimationBaseContext& InContext);
+	void Output(const UObject* AnimInstance, int32 NodeId);
 
 	const UPoseSearchDatabase* GetCurrentDatabase() const;
 	int32 GetCurrentDatabasePoseIndex() const;

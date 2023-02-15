@@ -64,32 +64,6 @@ const FPoseSearchIndexAsset* FPoseSearchIndexBase::GetAssetForPoseSafe(int32 Pos
 	return nullptr;
 }
 
-float FPoseSearchIndexBase::GetAssetTime(int32 PoseIdx, float SamplingInterval) const
-{
-	const FPoseSearchIndexAsset& Asset = GetAssetForPose(PoseIdx);
-
-	if (Asset.Type == ESearchIndexAssetType::Sequence || Asset.Type == ESearchIndexAssetType::AnimComposite)
-	{
-		const FFloatInterval SamplingRange = Asset.SamplingInterval;
-
-		float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max);
-		return AssetTime;
-	}
-
-	if (Asset.Type == ESearchIndexAssetType::BlendSpace)
-	{
-		const FFloatInterval SamplingRange = Asset.SamplingInterval;
-
-		// For BlendSpaces the AssetTime is in the range [0, 1] while the Sampling Range
-		// is in real time (seconds)
-		float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max) / (Asset.NumPoses * SamplingInterval);
-		return AssetTime;
-	}
-	
-	checkNoEntry();
-	return -1.0f;
-}
-
 bool FPoseSearchIndexBase::IsEmpty() const
 {
 	const bool bEmpty = Assets.Num() == 0 || NumPoses == 0;

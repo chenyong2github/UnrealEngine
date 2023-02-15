@@ -85,7 +85,10 @@ struct FPoseIdx : ITextColumn
 {
 	using ITextColumn::ITextColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelPoseIndex", "Index"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelPoseIndex", "Index");
+	}
 
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -102,7 +105,10 @@ struct FDatabaseName : IColumn
 {
 	using IColumn::IColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelDatabaseName", "Database"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelDatabaseName", "Database");
+	}
 
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -166,7 +172,10 @@ struct FAssetName : IColumn
 {
 	using IColumn::IColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelAssetName", "Asset"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelAssetName", "Asset");
+	}
 		
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -232,7 +241,10 @@ struct FFrame : ITextColumn
 {
 	using ITextColumn::ITextColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelFrame", "Frame"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelFrame", "Frame");
+	}
 		
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -241,42 +253,21 @@ struct FFrame : ITextColumn
 
 	virtual FText GetRowText(const FRowDataRef& Row) const override
 	{
-		FNumberFormattingOptions TimeFormattingOptions = FNumberFormattingOptions()
-			.SetUseGrouping(false)
-			.SetMaximumFractionalDigits(2);
-
-		FNumberFormattingOptions PercentageFormattingOptions = FNumberFormattingOptions()
-			.SetMaximumFractionalDigits(2);
-
-		if (Row->AssetType == ESearchIndexAssetType::Sequence ||
-			Row->AssetType == ESearchIndexAssetType::AnimComposite)
+		FNumberFormattingOptions TimeFormattingOptions = FNumberFormattingOptions().SetUseGrouping(false).SetMaximumFractionalDigits(2);
+		FNumberFormattingOptions PercentageFormattingOptions = FNumberFormattingOptions().SetMaximumFractionalDigits(2);
+		
+		if (GetDefault<UPersonaOptions>()->bTimelineDisplayPercentage)
 		{
-			if (GetDefault<UPersonaOptions>()->bTimelineDisplayPercentage)
-			{
-				return FText::Format(
-					FText::FromString("{0} ({1}) ({2})"),
-					FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping()),
-					FText::AsNumber(Row->AssetTime, &TimeFormattingOptions),
-					FText::AsPercent(Row->AnimPercentage, &PercentageFormattingOptions));
-			}
-			else
-			{
-				return FText::Format(
-					FText::FromString("{0} ({1})"),
-					FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping()),
-					FText::AsNumber(Row->AssetTime, &TimeFormattingOptions));
-			}
-		}
-		else if (Row->AssetType == ESearchIndexAssetType::BlendSpace)
-		{
-			// There is no frame index associated with a blendspace
-			return FText::Format(
-				FText::FromString("({0})"),
-				FText::AsNumber(Row->AssetTime, &TimeFormattingOptions));
+			return FText::Format(FText::FromString("{0} ({1}) ({2})"),
+				FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping()),
+				FText::AsNumber(Row->AssetTime, &TimeFormattingOptions),
+				FText::AsPercent(Row->AnimPercentage, &PercentageFormattingOptions));
 		}
 		else
 		{
-			return FText::FromString(TEXT("-"));
+			return FText::Format(FText::FromString("{0} ({1})"),
+				FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping()),
+				FText::AsNumber(Row->AssetTime, &TimeFormattingOptions));
 		}
 	}
 };
@@ -285,7 +276,10 @@ struct FCost : ITextColumn
 {
 	using ITextColumn::ITextColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelCost", "Cost"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelCost", "Cost");
+	}
 		
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -319,7 +313,10 @@ struct FChannelBreakdownCostColumn : ITextColumn
 	{
 	}
 
-	virtual FText GetLabel() const override { return Label; }
+	virtual FText GetLabel() const override
+	{
+		return Label;
+	}
 
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -353,7 +350,10 @@ struct FCostModifier : ITextColumn
 {
 	using ITextColumn::ITextColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelCostModifier", "Bias"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelCostModifier", "Bias");
+	}
 
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -371,7 +371,10 @@ struct FMirrored : ITextColumn
 {
 	using ITextColumn::ITextColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelMirrored", "Mirror"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelMirrored", "Mirror");
+	}
 
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -388,7 +391,10 @@ struct FLooping : ITextColumn
 {
 	using ITextColumn::ITextColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelLooping", "Loop"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelLooping", "Loop");
+	}
 
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -405,7 +411,10 @@ struct FBlendParameters : ITextColumn
 {
 	using ITextColumn::ITextColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelBlendParams", "Blend Params"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelBlendParams", "Blend Params");
+	}
 
 	virtual FSortPredicate GetSortPredicate() const override
 	{
@@ -419,17 +428,7 @@ struct FBlendParameters : ITextColumn
 
 	virtual FText GetRowText(const FRowDataRef& Row) const override
 	{
-		if (Row->AssetType == ESearchIndexAssetType::BlendSpace)
-		{
-			return FText::Format(
-				LOCTEXT("Blend Parameters", "({0}, {1})"),
-				FText::AsNumber(Row->BlendParameters[0]),
-				FText::AsNumber(Row->BlendParameters[1]));
-		}
-		else
-		{
-			return FText::FromString(TEXT("-"));
-		}
+		return FText::Format(LOCTEXT("Blend Parameters", "{0}, {1}"), FText::AsNumber(Row->BlendParameters[0]), FText::AsNumber(Row->BlendParameters[1]));
 	}
 };
 
@@ -437,7 +436,10 @@ struct FPoseCandidateFlags : ITextColumn
 {
 	using ITextColumn::ITextColumn;
 
-	virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelPoseCandidateFlags", "Flags"); }
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelPoseCandidateFlags", "Flags");
+	}
 
 	virtual FSortPredicate GetSortPredicate() const override
 	{

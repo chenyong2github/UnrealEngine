@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 #include "InstancedStruct.h"
@@ -23,7 +24,7 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 	FBoneContainer BoneContainer;
 	BoneContainer.InitializeTo(Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *Schema->Skeleton);
 
-	TMap<const UAnimSequenceBase*, int32> SequenceSamplerMap;
+	TMap<const UAnimationAsset*, int32> SamplerMap;
 	TMap<TPair<const UBlendSpace*, FVector>, int32> BlendSpaceSamplerMap;
 
 	SamplingContext.Init(Schema->MirrorDataTable, BoneContainer);
@@ -33,15 +34,16 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 	{
 		auto AddSequenceBaseSampler = [&](const UAnimSequenceBase* Sequence)
 		{
-			if (Sequence && !SequenceSamplerMap.Contains(Sequence))
+			if (Sequence && !SamplerMap.Contains(Sequence))
 			{
-				int32 SequenceSamplerIdx = SequenceSamplers.AddDefaulted();
-				SequenceSamplerMap.Add(Sequence, SequenceSamplerIdx);
-
 				FSequenceBaseSampler::FInput Input;
 				Input.ExtrapolationParameters = Database->ExtrapolationParameters;
 				Input.SequenceBase = Sequence;
-				SequenceSamplers[SequenceSamplerIdx].Init(Input);
+
+				SamplerMap.Add(Sequence, Samplers.Num());
+				FSequenceBaseSampler* Sampler = Samplers.Add_GetRef(FInstancedStruct::Make(FSequenceBaseSampler())).GetMutablePtr<FSequenceBaseSampler>();
+				check(Sampler);
+				Sampler->Init(Input);
 			}
 		};
 
@@ -68,50 +70,49 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 
 						if (!BlendSpaceSamplerMap.Contains({ DatabaseBlendSpace->BlendSpace, BlendParameters }))
 						{
-							int32 BlendSpaceSamplerIdx = BlendSpaceSamplers.AddDefaulted();
-							BlendSpaceSamplerMap.Add({ DatabaseBlendSpace->BlendSpace, BlendParameters }, BlendSpaceSamplerIdx);
-
 							FBlendSpaceSampler::FInput Input;
 							Input.BoneContainer = BoneContainer;
 							Input.ExtrapolationParameters = Database->ExtrapolationParameters;
 							Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
 							Input.BlendParameters = BlendParameters;
 
-							BlendSpaceSamplers[BlendSpaceSamplerIdx].Init(Input);
+							BlendSpaceSamplerMap.Add({ DatabaseBlendSpace->BlendSpace, BlendParameters }, Samplers.Num());
+							FBlendSpaceSampler* Sampler = Samplers.Add_GetRef(FInstancedStruct::Make(FBlendSpaceSampler())).GetMutablePtr<FBlendSpaceSampler>();
+							check(Sampler);
+							Sampler->Init(Input);
 						}
 					}
 				}
 			}
 		}
+		else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimMontage>())
+		{
+			if (DatabaseAnimMontage->AnimMontage && !SamplerMap.Contains(DatabaseAnimMontage->AnimMontage))
+			{
+				FAnimMontageSampler::FInput Input;
+				Input.ExtrapolationParameters = Database->ExtrapolationParameters;
+				Input.AnimMontage = DatabaseAnimMontage->AnimMontage;
+
+				SamplerMap.Add(DatabaseAnimMontage->AnimMontage, Samplers.Num());
+				FAnimMontageSampler* Sampler = Samplers.Add_GetRef(FInstancedStruct::Make(FAnimMontageSampler())).GetMutablePtr<FAnimMontageSampler>();
+				check(Sampler);
+				Sampler->Init(Input);
+			}
+		}
+		else
+		{
+			checkNoEntry();
+		}
 	}
 
-	TArray<IAssetSampler*, TInlineAllocator<512>> AssetSampler;
-	AssetSampler.SetNumUninitialized(SequenceSamplers.Num() + BlendSpaceSamplers.Num());
-
-	for (int i = 0; i < SequenceSamplers.Num(); ++i)
-	{
-		AssetSampler[i] = &SequenceSamplers[i];
-	}
-	for (int i = 0; i < BlendSpaceSamplers.Num(); ++i)
-	{
-		AssetSampler[i + SequenceSamplers.Num()] = &BlendSpaceSamplers[i];
-	}
-
-	ParallelFor(AssetSampler.Num(), [AssetSampler](int32 SamplerIdx) { AssetSampler[SamplerIdx]->Process(); }, ParallelForFlags);
+	ParallelFor(Samplers.Num(), [this](int32 SamplerIdx)
+		{
+			FAssetSamplerBase* AssetSamplerBase = Samplers[SamplerIdx].GetMutablePtr<FAssetSamplerBase>();
+			check(AssetSamplerBase);
+			AssetSamplerBase->Process();
+		}, ParallelForFlags);
 
 	// prepare indexers
-	Indexers.Reserve(SearchIndexBase->Assets.Num());
-
-	auto GetSequenceBaseSampler = [&](const UAnimSequenceBase* Sequence) -> const FSequenceBaseSampler*
-	{
-		return Sequence ? &SequenceSamplers[SequenceSamplerMap[Sequence]] : nullptr;
-	};
-
-	auto GetBlendSpaceSampler = [&](const UBlendSpace* BlendSpace, const FVector BlendParameters) -> const FBlendSpaceSampler*
-	{
-		return BlendSpace ? &BlendSpaceSamplers[BlendSpaceSamplerMap[{BlendSpace, BlendParameters}]] : nullptr;
-	};
-
 	Indexers.Reserve(SearchIndexBase->Assets.Num());
 
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase->Assets.Num(); ++AssetIdx)
@@ -127,16 +128,36 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 		const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
 		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
 		{
-			const float SequenceLength = DatabaseSequence->Sequence->GetPlayLength();
-			IndexerContext.AssetSampler = GetSequenceBaseSampler(DatabaseSequence->Sequence);
+			if (DatabaseSequence->Sequence)
+			{
+				const float SequenceLength = DatabaseSequence->Sequence->GetPlayLength();
+				IndexerContext.AssetSampler = Samplers[SamplerMap[DatabaseSequence->Sequence]].GetPtr<FAssetSamplerBase>();
+			}
 		}
 		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
-			IndexerContext.AssetSampler = GetSequenceBaseSampler(DatabaseAnimComposite->AnimComposite);
+			if (DatabaseAnimComposite->AnimComposite)
+			{
+				IndexerContext.AssetSampler = Samplers[SamplerMap[DatabaseAnimComposite->AnimComposite]].GetPtr<FAssetSamplerBase>();
+			}
 		}
 		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
 		{
-			IndexerContext.AssetSampler = GetBlendSpaceSampler(DatabaseBlendSpace->BlendSpace, SearchIndexAsset.BlendParameters);
+			if (DatabaseBlendSpace->BlendSpace)
+			{
+				IndexerContext.AssetSampler = Samplers[BlendSpaceSamplerMap[{DatabaseBlendSpace->BlendSpace, SearchIndexAsset.BlendParameters}]].GetPtr<FAssetSamplerBase>();
+			}
+		}
+		else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimMontage>())
+		{
+			if (DatabaseAnimMontage->AnimMontage)
+			{
+				IndexerContext.AssetSampler = Samplers[SamplerMap[DatabaseAnimMontage->AnimMontage]].GetPtr<FAssetSamplerBase>();
+			}
+		}
+		else
+		{
+			checkNoEntry();
 		}
 
 		FAssetIndexer& Indexer = Indexers.AddDefaulted_GetRef();

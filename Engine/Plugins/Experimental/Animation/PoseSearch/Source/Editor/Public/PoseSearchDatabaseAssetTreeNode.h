@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 
 enum class EPoseSearchMirrorOption;
-enum class ESearchIndexAssetType;
 class FUICommandList;
 class ITableRow;
 class STableViewBase;
@@ -19,23 +18,13 @@ namespace UE::PoseSearch
 	{
 
 	public:
-		FDatabaseAssetTreeNode(
-			int32 InSourceAssetIdx,
-			ESearchIndexAssetType InSourceAssetType,
-			const TSharedRef<FDatabaseViewModel>& InEditorViewModel);
-
-		TSharedRef<ITableRow> MakeTreeRowWidget(
-			const TSharedRef<STableViewBase>& InOwnerTable,
-			TSharedRef<FDatabaseAssetTreeNode> InDatabaseAssetNode,
-			TSharedRef<FUICommandList> InCommandList,
-			TSharedPtr<SDatabaseAssetTree> InHierarchy);
-
+		FDatabaseAssetTreeNode(int32 InSourceAssetIdx, const TSharedRef<FDatabaseViewModel>& InEditorViewModel);
+		TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FDatabaseAssetTreeNode> InDatabaseAssetNode, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SDatabaseAssetTree> InHierarchy);
 		bool IsRootMotionEnabled() const;
 		bool IsLooping() const;
 		EPoseSearchMirrorOption GetMirrorOption() const;
 		
-		int32 SourceAssetIdx;
-		ESearchIndexAssetType SourceAssetType;
+		int32 SourceAssetIdx = INDEX_NONE;
 		TSharedPtr<FDatabaseAssetTreeNode> Parent;
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> Children;
 		TWeakPtr<FDatabaseViewModel> EditorViewModel;

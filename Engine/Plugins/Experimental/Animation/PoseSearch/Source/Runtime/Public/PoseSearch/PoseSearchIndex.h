@@ -21,15 +21,6 @@ ENUM_CLASS_FLAGS(EPoseComparisonFlags);
 } // namespace UE::PoseSearch
 
 UENUM()
-enum class ESearchIndexAssetType : int32
-{
-	Invalid,
-	Sequence,
-	BlendSpace,
-	AnimComposite,
-};
-
-UENUM()
 enum class EPoseSearchBooleanRequest : uint8
 {
 	FalseValue,
@@ -86,21 +77,14 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	FPoseSearchIndexAsset() {}
 
 	FPoseSearchIndexAsset(
-		ESearchIndexAssetType InType,
 		int32 InSourceAssetIdx, 
 		bool bInMirrored, 
 		const FFloatInterval& InSamplingInterval,
 		FVector InBlendParameters = FVector::Zero())
-		: Type(InType)
-		, SourceAssetIdx(InSourceAssetIdx)
+		: SourceAssetIdx(InSourceAssetIdx)
 		, bMirrored(bInMirrored)
 		, BlendParameters(InBlendParameters)
 		, SamplingInterval(InSamplingInterval) {}
-
-	// Default to Sequence for now for backward compatibility but
-	// at some point we might want to change this to Invalid.
-	UPROPERTY(meta = (NeverInHash))
-	ESearchIndexAssetType Type = ESearchIndexAssetType::Sequence;
 
 	// Index of the source asset in search index's container (i.e. UPoseSearchDatabase)
 	UPROPERTY(meta = (NeverInHash))
@@ -180,8 +164,6 @@ struct POSESEARCH_API FPoseSearchIndexBase
 
 	const FPoseSearchIndexAsset& GetAssetForPose(int32 PoseIdx) const;
 	const FPoseSearchIndexAsset* GetAssetForPoseSafe(int32 PoseIdx) const;
-
-	float GetAssetTime(int32 PoseIdx, float SamplingInterval) const;
 
 	void Reset();
 	

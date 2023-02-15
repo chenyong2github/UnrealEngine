@@ -109,7 +109,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	UpdateCounter.SynchronizeWith(Context.AnimInstanceProxy->GetUpdateCounter());
 
 	// Execute core motion matching algorithm
-	UpdateMotionMatchingState(
+	UPoseSearchLibrary::UpdateMotionMatchingState(
 		Context,
 		Searchable,
 		&ActiveTagsContainer,

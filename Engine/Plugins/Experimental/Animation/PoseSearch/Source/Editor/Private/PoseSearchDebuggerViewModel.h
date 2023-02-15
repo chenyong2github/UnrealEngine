@@ -102,9 +102,6 @@ private:
 		/** Derived skeletal mesh for setting the skeleton in the scene */
 		TWeakObjectPtr<UPoseSearchMeshComponent> Component = nullptr;
 
-		/** Type of the asset being played */
-		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
-
 		/** Source database for this skeleton  */
 		TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
 

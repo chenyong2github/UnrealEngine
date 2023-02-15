@@ -84,18 +84,12 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State)
 	return Ar;
 }
 
-void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext)
+void FTraceMotionMatchingState::Output(const UObject* AnimInstance, int32 NodeId)
 {
 #if OBJECT_TRACE_ENABLED
-	if (!IsTracing(InContext))
-	{
-		return;
-	}
-
 	TArray<uint8> ArchiveData;
 	FMemoryWriter Archive(ArchiveData);
 
-	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
 	UObject* SkeletalMeshComponent = AnimInstance->GetOuter();
 
@@ -103,14 +97,13 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext)
 	TraceMessage.Cycle = FPlatformTime::Cycles64();
 	TraceMessage.AnimInstanceId = FObjectTrace::GetObjectId(AnimInstance);
 	TraceMessage.SkeletalMeshComponentId = FObjectTrace::GetObjectId(SkeletalMeshComponent);
-	TraceMessage.NodeId = InContext.GetCurrentNodeId();
+	TraceMessage.NodeId = NodeId;
 	TraceMessage.FrameCounter = FObjectTrace::GetObjectWorldTickCounter(AnimInstance);
 
 	Archive << TraceMessage;
 	Archive << *this;
 
-	UE_TRACE_LOG(PoseSearch, MotionMatchingState, PoseSearchChannel)
-		<< MotionMatchingState.Data(ArchiveData.GetData(), ArchiveData.Num());
+	UE_TRACE_LOG(PoseSearch, MotionMatchingState, PoseSearchChannel) << MotionMatchingState.Data(ArchiveData.GetData(), ArchiveData.Num());
 #endif
 }
 

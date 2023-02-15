@@ -11,6 +11,7 @@
 #include "Modules/ModuleManager.h"
 #include "AnimPreviewInstance.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/MirrorDataTable.h"
@@ -35,55 +36,21 @@ namespace UE::PoseSearch
 
 	void FDatabasePreviewActor::Process()
 	{
-		switch (Type)
-		{
-		case ESearchIndexAssetType::Sequence:
-		{
-			SequenceSampler.Process();
-			break;
-		}
-		case ESearchIndexAssetType::BlendSpace:
-		{
-			BlendSpaceSampler.Process();
-			break;
-		}
-		case ESearchIndexAssetType::AnimComposite:
-		{
-			SequenceSampler.Process();
-			break;
-		}
-		default:
-		{
-			checkNoEntry();
-			break;
-		}
-		}
+		FAssetSamplerBase* SamplerInterface = Sampler.GetMutablePtr<FAssetSamplerBase>();
+		check(SamplerInterface);
+		SamplerInterface->Process();
 	}
 
-	const IAssetSampler* FDatabasePreviewActor::GetSampler() const
+	const FAssetSamplerBase* FDatabasePreviewActor::GetSampler() const
 	{
-		switch (Type)
-		{
-		case ESearchIndexAssetType::Sequence:
-			return &SequenceSampler;
-		case ESearchIndexAssetType::BlendSpace:
-			return &BlendSpaceSampler;
-		case ESearchIndexAssetType::AnimComposite:
-			return &SequenceSampler;
-		}
-
-		checkNoEntry();
-		return nullptr;
+		const FAssetSamplerBase* SamplerInterface = Sampler.GetPtr<FAssetSamplerBase>();
+		check(SamplerInterface);
+		return SamplerInterface;
 	}
 
 	float FDatabasePreviewActor::GetScaledTime(float Time) const
 	{
-		float ScaledTime = Time;
-		if (Type == ESearchIndexAssetType::BlendSpace)
-		{
-			ScaledTime = BlendSpaceSampler.GetPlayLength() > UE_KINDA_SMALL_NUMBER ? Time / BlendSpaceSampler.GetPlayLength() : 0.f;
-		}
-		return ScaledTime;
+		return GetSampler()->GetScaledTime(Time);
 	}
 
 	UDebugSkelMeshComponent* FDatabasePreviewActor::GetDebugSkelMeshComponent()
@@ -249,7 +216,10 @@ namespace UE::PoseSearch
 			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
 			Input.SequenceBase = DatabaseSequence->Sequence;
 
-			PreviewActor.SequenceSampler.Init(Input);
+			PreviewActor.Sampler = FInstancedStruct::Make(FSequenceBaseSampler());
+			FSequenceBaseSampler* Sampler = PreviewActor.Sampler.GetMutablePtr<FSequenceBaseSampler>();
+			check(Sampler);
+			Sampler->Init(Input);
 		}
 		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
@@ -257,7 +227,10 @@ namespace UE::PoseSearch
 			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
 			Input.SequenceBase = DatabaseAnimComposite->AnimComposite;
 
-			PreviewActor.SequenceSampler.Init(Input);
+			PreviewActor.Sampler = FInstancedStruct::Make(FSequenceBaseSampler());
+			FSequenceBaseSampler* Sampler = PreviewActor.Sampler.GetMutablePtr<FSequenceBaseSampler>();
+			check(Sampler);
+			Sampler->Init(Input);
 		}
 		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
 		{
@@ -267,14 +240,27 @@ namespace UE::PoseSearch
 			Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
 			Input.BlendParameters = IndexAsset.BlendParameters;
 
-			PreviewActor.BlendSpaceSampler.Init(Input);
+			PreviewActor.Sampler = FInstancedStruct::Make(FBlendSpaceSampler());
+			FBlendSpaceSampler* Sampler = PreviewActor.Sampler.GetMutablePtr<FBlendSpaceSampler>();
+			check(Sampler);
+			Sampler->Init(Input);
+		}
+		else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimMontage>())
+		{
+			FAnimMontageSampler::FInput Input;
+			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
+			Input.AnimMontage = DatabaseAnimMontage->AnimMontage;
+
+			PreviewActor.Sampler = FInstancedStruct::Make(FAnimMontageSampler());
+			FAnimMontageSampler* Sampler = PreviewActor.Sampler.GetMutablePtr<FAnimMontageSampler>();
+			check(Sampler);
+			Sampler->Init(Input);
 		}
 		else
 		{
 			checkNoEntry();
 		}
 
-		PreviewActor.Type = IndexAsset.Type;
 		PreviewActor.IndexAssetIndex = IndexAssetIndex;
 		PreviewActor.CurrentPoseIndex = INDEX_NONE;
 
@@ -356,7 +342,7 @@ namespace UE::PoseSearch
 			}
 
 			const UAnimationAsset* PreviewAsset = AnimInstance->GetAnimationAsset();
-			const IAssetSampler* Sampler = PreviewActor.GetSampler();
+			const FAssetSamplerBase* Sampler = PreviewActor.GetSampler();
 			if (!PreviewAsset || !Sampler)
 			{
 				continue;
@@ -459,6 +445,13 @@ namespace UE::PoseSearch
 	{
 		FPoseSearchDatabaseAnimComposite NewAsset;
 		NewAsset.AnimComposite = AnimComposite;
+		PoseSearchDatabase->AnimationAssets.Add(FInstancedStruct::Make(NewAsset));
+	}
+
+	void FDatabaseViewModel::AddAnimMontageToDatabase(UAnimMontage* AnimMontage)
+	{
+		FPoseSearchDatabaseAnimMontage NewAsset;
+		NewAsset.AnimMontage = AnimMontage;
 		PoseSearchDatabase->AnimationAssets.Add(FInstancedStruct::Make(NewAsset));
 	}
 

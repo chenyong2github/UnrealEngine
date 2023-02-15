@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/GCObject.h"
+#include "InstancedStruct.h"
 #include "MovieSceneFwd.h"
 #include "PoseSearch/PoseSearchAssetSampler.h"
 #include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearchDatabasePreviewScene.h"
+#include "UObject/GCObject.h"
 
 class UWorld;
 class UPoseSearchDatabase;
@@ -46,13 +47,11 @@ namespace UE::PoseSearch
 		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
 
-		FSequenceBaseSampler SequenceSampler;
-		FBlendSpaceSampler BlendSpaceSampler;
-		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
+		FInstancedStruct Sampler;
 
 		bool IsValid() const;
 		void Process();
-		const IAssetSampler* GetSampler() const;
+		const FAssetSamplerBase* GetSampler() const;
 		float GetScaledTime(float Time) const;
 		UDebugSkelMeshComponent* GetDebugSkelMeshComponent();
 		UAnimPreviewInstance* GetAnimPreviewInstance();
@@ -104,6 +103,7 @@ namespace UE::PoseSearch
 		void AddSequenceToDatabase(UAnimSequence* AnimSequence);
 		void AddBlendSpaceToDatabase(UBlendSpace* BlendSpace);
 		void AddAnimCompositeToDatabase(UAnimComposite* AnimComposite);
+		void AddAnimMontageToDatabase(UAnimMontage* AnimMontage);
 		void DeleteFromDatabase(int32 AnimationAssetIndex);
 
 		void SetIsEnabled(int32 AnimationAssetIndex, bool bEnabled);

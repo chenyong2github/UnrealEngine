@@ -38,7 +38,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 		Result.ContinuingPoseCost = Result.PoseCost;
 		ContinuingCost = Result.PoseCost;
 
-		Result.AssetTime = SearchIndex.GetAssetTime(Result.PoseIdx, Database->Schema->GetSamplingInterval());
+		Result.AssetTime = Database->GetAssetTime(Result.PoseIdx, Database->Schema->GetSamplingInterval());
 		Result.Database = Database;
 
 		if (Database->GetSkipSearchIfPossible())

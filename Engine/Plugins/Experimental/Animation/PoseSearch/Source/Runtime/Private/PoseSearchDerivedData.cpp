@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 #include "AssetRegistry/ARFilter.h"
@@ -324,12 +325,12 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, UPoseSearch
 				{
 					if (bAddUnmirrored)
 					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::Sequence, AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
 					}
 
 					if (bAddMirrored)
 					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::Sequence, AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
 					}
 				}
 			}
@@ -341,12 +342,12 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, UPoseSearch
 				{
 					if (bAddUnmirrored)
 					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::AnimComposite, AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
 					}
 
 					if (bAddMirrored)
 					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::AnimComposite, AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
 					}
 				}
 			}
@@ -370,13 +371,30 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, UPoseSearch
 
 						if (bAddUnmirrored)
 						{
-							SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::BlendSpace, AnimationAssetIndex, false, FFloatInterval(0.0f, PlayLength), BlendParameters));
+							SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, false, FFloatInterval(0.0f, PlayLength), BlendParameters));
 						}
 
 						if (bAddMirrored)
 						{
-							SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::BlendSpace, AnimationAssetIndex, true, FFloatInterval(0.0f, PlayLength), BlendParameters));
+							SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, true, FFloatInterval(0.0f, PlayLength), BlendParameters));
 						}
+					}
+				}
+			}
+			else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimMontage>())
+			{
+				ValidRanges.Reset();
+				FindValidSequenceIntervals(DatabaseAnimMontage->AnimMontage, DatabaseAnimMontage->SamplingRange, DatabaseAnimMontage->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
+				for (const FFloatRange& Range : ValidRanges)
+				{
+					if (bAddUnmirrored)
+					{
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+					}
+
+					if (bAddMirrored)
+					{
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
 					}
 				}
 			}
@@ -644,11 +662,10 @@ private:
 	void SetState(EState State) { ThreadSafeState.Set(int32(State)); }
 
 	TWeakObjectPtr<UPoseSearchDatabase> Database;
-	// @todo: this is not relevant when the async task is completed, so to save memory we should move it as pointer perhaps
 	FPoseSearchIndex SearchIndex;
 	UE::DerivedData::FRequestOwner Owner;
 	FIoHash DerivedDataKey = FIoHash::Zero;
-	TSet<TWeakObjectPtr<const UObject>> DatabaseDependencies; // @todo: make this const
+	TSet<TWeakObjectPtr<const UObject>> DatabaseDependencies;
 		
 	FThreadSafeCounter ThreadSafeState = int32(EState::Notstarted);
 	bool bBroadcastOnDerivedDataRebuild = false;

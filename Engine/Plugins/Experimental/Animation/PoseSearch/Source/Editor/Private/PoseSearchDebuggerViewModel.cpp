@@ -74,8 +74,7 @@ void FDebuggerViewModel::ShowSelectedSkeleton(const UPoseSearchDatabase* Databas
 	
 	Component->ResetToStart(); 
 	bSelecting = true;
-	
-	Skeletons[SelectedPose].Type = IndexAsset.Type;
+
 	Skeletons[SelectedPose].Time = Time;
 	Skeletons[SelectedPose].bMirrored = IndexAsset.bMirrored;
 	Skeletons[SelectedPose].SourceDatabase = Database;
@@ -161,7 +160,6 @@ void FDebuggerViewModel::OnUpdateNodeSelection(int32 InNodeId)
 			int32 CurrentPoseIdx = ActiveMotionMatchingState->GetCurrentDatabasePoseIndex();
 			if (const FPoseSearchIndexAsset* IndexAsset = CurrentSearchIndex.GetAssetForPoseSafe(CurrentPoseIdx))
 			{
-				Skeletons[Asset].Type = IndexAsset->Type;
 				Skeletons[Asset].bMirrored = IndexAsset->bMirrored;
 				Skeletons[Asset].SourceDatabase = CurrentDatabase;
 				Skeletons[Asset].AssetIdx = IndexAsset->SourceAssetIdx;
@@ -186,7 +184,6 @@ void FDebuggerViewModel::UpdatePoseSearchContext(UPoseSearchMeshComponent::FUpda
 		const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = DatabaseAssetStruct->GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
 		if (DatabaseAsset)
 		{
-			InOutContext.Type = DatabaseAsset->GetSearchIndexType();
 			InOutContext.StartTime = Skeletons[SelectedPose].Time;
 			InOutContext.Time = Skeletons[SelectedPose].Time;
 			InOutContext.bMirrored = Skeletons[SelectedPose].bMirrored;
@@ -255,7 +252,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 		{
 			UpdatePoseSearchContext(UpdateContext, Skeletons[SelectedPose]);
 
-			if (UpdateContext.Type != ESearchIndexAssetType::Invalid)
+			if (UpdateContext.SequenceBase || UpdateContext.BlendSpace)
 			{
 				Component->UpdatePose(UpdateContext);
 			}
@@ -272,7 +269,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 
 			UpdatePoseSearchContext(UpdateContext, Skeletons[SelectedPose]);
 
-			if (UpdateContext.Type != ESearchIndexAssetType::Invalid)
+			if (UpdateContext.SequenceBase || UpdateContext.BlendSpace)
 			{
 				Component->UpdatePose(UpdateContext);
 			}
@@ -503,7 +500,6 @@ void FDebuggerViewModel::PlaySelection(int32 PoseIdx, float Time)
 	const FPoseSearchIndexAsset& IndexAsset = Database->GetSearchIndex().GetAssetForPose(PoseIdx);
 	Component->ResetToStart();
 	
-	Skeletons[Asset].Type = IndexAsset.Type;
 	Skeletons[Asset].AssetIdx = IndexAsset.SourceAssetIdx;
 	Skeletons[Asset].Time = Time;
 	Skeletons[Asset].bMirrored = IndexAsset.bMirrored;

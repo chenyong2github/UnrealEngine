@@ -22,7 +22,6 @@ void UPoseSearchDatabaseReflectionBase::SetSourceLink(
 void UPoseSearchDatabaseSequenceReflection::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	check(WeakAssetTreeNode.Pin()->SourceAssetType == ESearchIndexAssetType::Sequence);
 
 	if (const TSharedPtr<UE::PoseSearch::FDatabaseViewModel> ViewModel = WeakAssetTreeNode.Pin()->EditorViewModel.Pin())
 	{
@@ -44,7 +43,6 @@ void UPoseSearchDatabaseSequenceReflection::PostEditChangeProperty(struct FPrope
 void UPoseSearchDatabaseBlendSpaceReflection::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	check(WeakAssetTreeNode.Pin()->SourceAssetType == ESearchIndexAssetType::BlendSpace);
 
 	if (const TSharedPtr<UE::PoseSearch::FDatabaseViewModel> ViewModel = WeakAssetTreeNode.Pin()->EditorViewModel.Pin())
 	{
@@ -66,7 +64,6 @@ void UPoseSearchDatabaseBlendSpaceReflection::PostEditChangeProperty(struct FPro
 void UPoseSearchDatabaseAnimCompositeReflection::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	check(WeakAssetTreeNode.Pin()->SourceAssetType == ESearchIndexAssetType::AnimComposite);
 
 	if (const TSharedPtr<UE::PoseSearch::FDatabaseViewModel> ViewModel = WeakAssetTreeNode.Pin()->EditorViewModel.Pin())
 	{
@@ -77,6 +74,27 @@ void UPoseSearchDatabaseAnimCompositeReflection::PostEditChangeProperty(struct F
 			if (FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetMutablePtr<FPoseSearchDatabaseAnimComposite>())
 			{
 				*DatabaseAnimComposite = AnimComposite;
+				Database->MarkPackageDirty();
+
+				AssetTreeWidget->FinalizeTreeChanges(true);
+			}
+		}
+	}
+}
+
+void UPoseSearchDatabaseAnimMontageReflection::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (const TSharedPtr<UE::PoseSearch::FDatabaseViewModel> ViewModel = WeakAssetTreeNode.Pin()->EditorViewModel.Pin())
+	{
+		UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
+		if (IsValid(Database))
+		{
+			FInstancedStruct& DatabaseAsset = Database->GetMutableAnimationAssetStruct(WeakAssetTreeNode.Pin()->SourceAssetIdx);
+			if (FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAsset.GetMutablePtr<FPoseSearchDatabaseAnimMontage>())
+			{
+				*DatabaseAnimMontage = AnimMontage;
 				Database->MarkPackageDirty();
 
 				AssetTreeWidget->FinalizeTreeChanges(true);

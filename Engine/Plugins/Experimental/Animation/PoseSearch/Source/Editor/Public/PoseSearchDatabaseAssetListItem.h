@@ -36,6 +36,7 @@ namespace UE::PoseSearch
 		void OnAddSequence();
 		void OnAddBlendSpace();
 		void OnAddAnimComposite();
+		void OnAddAnimMontage();
 
 		EVisibility GetSelectedActorIconVisbility() const;
 

@@ -17,7 +17,6 @@ public:
 
 	struct FUpdateContext
 	{
-		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
 		const UAnimSequenceBase* SequenceBase = nullptr;
 		const UBlendSpace* BlendSpace = nullptr;
 		float StartTime = 0.0f;

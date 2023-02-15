@@ -3,6 +3,7 @@
 #include "PoseSearchDebuggerDatabaseView.h"
 #include "Algo/AllOf.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "InstancedStruct.h"
 #include "Internationalization/Regex.h"
@@ -182,7 +183,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 				{
 					TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
 
-					const float Time = SearchIndex.GetAssetTime(PoseEntry.DbPoseIdx, Database->Schema->GetSamplingInterval());
+					const float Time = Database->GetAssetTime(PoseEntry.DbPoseIdx, Database->Schema->GetSamplingInterval());
 
 					Row->PoseIdx = PoseEntry.DbPoseIdx;
 					Row->SourceDatabase = Database;
@@ -207,7 +208,6 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 					{
 						Row->AssetName = DatabaseAsset->GetName();
 						Row->AssetPath = DatabaseAsset->GetAnimationAsset() ? DatabaseAsset->GetAnimationAsset()->GetPathName() : "";
-						Row->AssetType = DatabaseAsset->GetSearchIndexType();
 						Row->bLooping = DatabaseAsset->IsLooping();
 						Row->BlendParameters = FVector::Zero();
 						Row->AnimFrame = 0;
@@ -226,6 +226,11 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 						else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
 						{
 							Row->BlendParameters = SearchIndexAsset->BlendParameters;
+						}
+						else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimMontage>())
+						{
+							Row->AnimFrame = DatabaseAnimMontage->AnimMontage->GetFrameAtTime(Time);
+							Row->AnimPercentage = Time / DatabaseAnimMontage->AnimMontage->GetPlayLength();
 						}
 						else
 						{

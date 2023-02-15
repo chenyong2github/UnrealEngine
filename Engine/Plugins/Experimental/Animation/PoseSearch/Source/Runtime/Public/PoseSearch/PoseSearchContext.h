@@ -149,15 +149,12 @@ POSESEARCH_API void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseId
 struct POSESEARCH_API FSearchContext
 {
 	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
-	UE::PoseSearch::FDebugDrawParams DebugDrawParams;
-	const UE::PoseSearch::FPoseHistory* History = nullptr;
+	FDebugDrawParams DebugDrawParams;
+	const FPoseHistory* History = nullptr;
 	const FTrajectorySampleRange* Trajectory = nullptr;
-	TObjectPtr<const USkeletalMeshComponent> OwningComponent = nullptr;
-	UE::PoseSearch::FSearchResult CurrentResult;
-	const FBoneContainer* BoneContainer = nullptr;
+	FSearchResult CurrentResult;
 	const FGameplayTagContainer* ActiveTagsContainer = nullptr;
 	float PoseJumpThresholdTime = 0.f;
-	bool bIsTracing = false;
 	bool bForceInterrupt = false;
 	// can the continuing pose advance? (if not we skip evaluating it)
 	bool bCanAdvance = true;

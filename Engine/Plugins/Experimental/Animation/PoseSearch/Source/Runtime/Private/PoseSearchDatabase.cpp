@@ -2,6 +2,7 @@
 
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"
@@ -242,6 +243,7 @@ UClass* FPoseSearchDatabaseSequence::GetAnimationAssetStaticClass() const
 
 bool FPoseSearchDatabaseSequence::IsLooping() const
 {
+	// @todo: we should check if against the sample range (look for GetEffectiveSamplingRange()...)
 	return Sequence ? Sequence->bLoop : false;
 }
 
@@ -370,6 +372,33 @@ const FString FPoseSearchDatabaseAnimComposite::GetName() const
 bool FPoseSearchDatabaseAnimComposite::IsRootMotionEnabled() const
 {
 	return AnimComposite ? AnimComposite->HasRootMotion() : false;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchDatabaseAnimMontage
+UAnimationAsset* FPoseSearchDatabaseAnimMontage::GetAnimationAsset() const
+{
+	return AnimMontage;
+}
+
+UClass* FPoseSearchDatabaseAnimMontage::GetAnimationAssetStaticClass() const
+{
+	return UAnimMontage::StaticClass();
+}
+
+bool FPoseSearchDatabaseAnimMontage::IsLooping() const
+{
+	return AnimMontage ? AnimMontage->bLoop : false;
+}
+
+const FString FPoseSearchDatabaseAnimMontage::GetName() const
+{
+	return AnimMontage ? AnimMontage->GetName() : FString();
+}
+
+bool FPoseSearchDatabaseAnimMontage::IsRootMotionEnabled() const
+{
+	return AnimMontage ? AnimMontage->HasRootMotion() : false;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -625,6 +654,25 @@ void UPoseSearchDatabase::Serialize(FArchive& Ar)
 	}
 }
 
+float UPoseSearchDatabase::GetAssetTime(int32 PoseIdx, float SamplingInterval) const
+{
+	const FPoseSearchIndexAsset& Asset = GetSearchIndex().GetAssetForPose(PoseIdx);
+	const bool bIsBlendSpace = AnimationAssets[Asset.SourceAssetIdx].GetPtr<FPoseSearchDatabaseBlendSpace>() != nullptr;
+	const FFloatInterval& SamplingRange = Asset.SamplingInterval;
+
+	if (bIsBlendSpace)
+	{
+		// For BlendSpaces the AssetTime is in the range [0, 1] while the Sampling Range
+		// is in real time (seconds)
+		const float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max) / (Asset.NumPoses * SamplingInterval);
+		return AssetTime;
+	}
+
+	// sequences or anim composites
+	const float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max);
+	return AssetTime;
+}
+
 UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(UE::PoseSearch::FSearchContext& SearchContext) const
 {
 	using namespace UE::PoseSearch;
@@ -801,7 +849,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	// finalizing Result properties
 	if (Result.PoseIdx != INDEX_NONE)
 	{
-		Result.AssetTime = SearchIndex.GetAssetTime(Result.PoseIdx, Schema->GetSamplingInterval());
+		Result.AssetTime = GetAssetTime(Result.PoseIdx, Schema->GetSamplingInterval());
 		Result.Database = this;
 	}
 
@@ -889,7 +937,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	// finalizing Result properties
 	if (Result.PoseIdx != INDEX_NONE)
 	{
-		Result.AssetTime = SearchIndex.GetAssetTime(Result.PoseIdx, Schema->GetSamplingInterval());
+		Result.AssetTime = GetAssetTime(Result.PoseIdx, Schema->GetSamplingInterval());
 		Result.Database = this;
 	}
 

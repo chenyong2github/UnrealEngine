@@ -26,28 +26,15 @@
 
 namespace UE::PoseSearch
 {
-	FDatabaseAssetTreeNode::FDatabaseAssetTreeNode(
-		int32 InSourceAssetIdx,
-		ESearchIndexAssetType InSourceAssetType,
-		const TSharedRef<FDatabaseViewModel>& InEditorViewModel) 
+	FDatabaseAssetTreeNode::FDatabaseAssetTreeNode(int32 InSourceAssetIdx, const TSharedRef<FDatabaseViewModel>& InEditorViewModel) 
 		: SourceAssetIdx(InSourceAssetIdx)
-		, SourceAssetType(InSourceAssetType)
 		, EditorViewModel(InEditorViewModel)
-	{ }
-
-	TSharedRef<ITableRow> FDatabaseAssetTreeNode::MakeTreeRowWidget(
-		const TSharedRef<STableViewBase>& InOwnerTable,
-		TSharedRef<FDatabaseAssetTreeNode> InDatabaseAssetNode,
-		TSharedRef<FUICommandList> InCommandList,
-		TSharedPtr<SDatabaseAssetTree> InHierarchy)
 	{
-		return SNew(
-			SDatabaseAssetListItem, 
-			EditorViewModel.Pin().ToSharedRef(), 
-			InOwnerTable, 
-			InDatabaseAssetNode, 
-			InCommandList, 
-			InHierarchy);
+	}
+
+	TSharedRef<ITableRow> FDatabaseAssetTreeNode::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FDatabaseAssetTreeNode> InDatabaseAssetNode, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SDatabaseAssetTree> InHierarchy)
+	{
+		return SNew(SDatabaseAssetListItem, EditorViewModel.Pin().ToSharedRef(), InOwnerTable, InDatabaseAssetNode, InCommandList, InHierarchy);
 	}
 
 	bool FDatabaseAssetTreeNode::IsRootMotionEnabled() const

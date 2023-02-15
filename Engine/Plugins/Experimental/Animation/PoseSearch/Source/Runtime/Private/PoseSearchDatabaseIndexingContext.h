@@ -4,6 +4,7 @@
 
 #if WITH_EDITOR
 
+#include "InstancedStruct.h"
 #include "PoseSearch/PoseSearchAssetSampler.h"
 #include "PoseSearchAssetIndexer.h"
 
@@ -16,11 +17,8 @@ namespace UE::PoseSearch
 struct FDatabaseIndexingContext
 {
 	FPoseSearchIndexBase* SearchIndexBase = nullptr;
-
 	FAssetSamplingContext SamplingContext;
-	TArray<FSequenceBaseSampler> SequenceSamplers; // Composite and sequence samplers
-	TArray<FBlendSpaceSampler> BlendSpaceSamplers;
-
+	TArray<FInstancedStruct> Samplers;
 	TArray<FAssetIndexer> Indexers;
 
 	void Prepare(const UPoseSearchDatabase* Database);

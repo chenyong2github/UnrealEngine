@@ -45,7 +45,7 @@ namespace UE::PoseSearch
 		EditorViewModel = InEditorViewModel;
 		SkeletonView = InHierarchy;
 
-		if (InAssetTreeNode->SourceAssetType == ESearchIndexAssetType::Invalid)
+		if (InAssetTreeNode->SourceAssetIdx == INDEX_NONE)
 		{
 			ConstructGroupItem(OwnerTable);
 		}
@@ -104,6 +104,12 @@ namespace UE::PoseSearch
 		SkeletonView.Pin()->RefreshTreeView(false);
 	}
 
+	void SDatabaseAssetListItem::OnAddAnimMontage()
+	{
+		EditorViewModel.Pin()->AddAnimMontageToDatabase(nullptr);
+		SkeletonView.Pin()->RefreshTreeView(false);
+	}
+
 	FText SDatabaseAssetListItem::GetName() const
 	{
 		TSharedPtr<FDatabaseAssetTreeNode> Node = WeakAssetTreeNode.Pin();
@@ -131,7 +137,7 @@ namespace UE::PoseSearch
 		TSharedPtr<SWidget> ItemWidget;
 		const FDetailColumnSizeData& ColumnSizeData = SkeletonView.Pin()->GetColumnSizeData();
 		
-		if (Node->SourceAssetType == ESearchIndexAssetType::Invalid)
+		if (Node->SourceAssetIdx == INDEX_NONE)
 		{
 			// it's a group
 			SAssignNew(ItemWidget, SBorder)
@@ -334,6 +340,14 @@ namespace UE::PoseSearch
 			NAME_None,
 			EUserInterfaceActionType::Button);
 
+		AddOptions.AddMenuEntry(
+			LOCTEXT("AnimMontageOption", "Add Anim Montage"),
+			LOCTEXT("AddAnimMontageToDefaultGroupTooltip", "Add new anim montage to this group"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetListItem::OnAddAnimMontage)),
+			NAME_None,
+			EUserInterfaceActionType::Button);
+
 		TSharedPtr<SComboButton> AddButton;
 		SAssignNew(AddButton, SComboButton)
 		.ContentPadding(0)
@@ -372,8 +386,7 @@ namespace UE::PoseSearch
 		TSharedPtr<FDatabaseAssetTreeNode> TreeNodePtr = WeakAssetTreeNode.Pin();
 		if (const FPoseSearchIndexAsset* SelectedIndexAsset = ViewModelPtr->GetSelectedActorIndexAsset())
 		{
-			if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::Sequence &&
-				TreeNodePtr->SourceAssetIdx == SelectedIndexAsset->SourceAssetIdx)
+			if (TreeNodePtr->SourceAssetIdx == SelectedIndexAsset->SourceAssetIdx)
 			{
 				return EVisibility::Visible;
 			}

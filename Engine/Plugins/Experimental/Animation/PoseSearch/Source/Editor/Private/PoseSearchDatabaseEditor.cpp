@@ -551,6 +551,16 @@ namespace UE::PoseSearch
 					
 					SelectionWidget.SelectedReflections.Add(NewSelectionReflection);
 				}
+				else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimMontage>())
+				{
+					UPoseSearchDatabaseAnimMontageReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseAnimMontageReflection>();
+					NewSelectionReflection->AddToRoot();
+					NewSelectionReflection->AnimMontage = *DatabaseAnimMontage;
+					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
+					NewSelectionReflection->SetFlags(RF_Transactional);
+
+					SelectionWidget.SelectedReflections.Add(NewSelectionReflection);
+				}
 				else
 				{
 					checkNoEntry();

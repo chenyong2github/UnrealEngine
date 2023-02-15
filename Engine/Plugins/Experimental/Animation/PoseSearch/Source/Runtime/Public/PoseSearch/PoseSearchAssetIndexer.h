@@ -6,11 +6,11 @@
 #include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
+struct FAssetSamplerBase;
+
 namespace UE::PoseSearch
 {
-	
 struct FAssetSamplingContext;
-class IAssetSampler;
 
 /**
  * Inputs for asset indexing
@@ -19,7 +19,7 @@ struct FAssetIndexingContext
 {
 	const FAssetSamplingContext* SamplingContext = nullptr;
 	const UPoseSearchSchema* Schema = nullptr;
-	const IAssetSampler* AssetSampler = nullptr;
+	const FAssetSamplerBase* AssetSampler = nullptr;
 	bool bMirrored = false;
 	FFloatInterval RequestedSamplingRange = FFloatInterval(0.0f, 0.0f);
 	
@@ -39,7 +39,7 @@ class POSESEARCH_API IAssetIndexer
 public:
 	struct FSampleInfo
 	{
-		const IAssetSampler* Clip = nullptr;
+		const FAssetSamplerBase* Clip = nullptr;
 		FTransform RootTransform;
 		float ClipTime = 0.0f;
 		bool bClamped = false;

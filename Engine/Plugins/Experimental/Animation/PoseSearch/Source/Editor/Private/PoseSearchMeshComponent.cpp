@@ -59,8 +59,7 @@ void UPoseSearchMeshComponent::UpdatePose(const FUpdateContext& UpdateContext)
 	UE::Anim::FStackAttributeContainer Attributes;
 	FAnimationPoseData PoseData(CompactPose, Curve, Attributes);
 
-	if (UpdateContext.Type == ESearchIndexAssetType::Sequence ||
-		UpdateContext.Type == ESearchIndexAssetType::AnimComposite)
+	if (UpdateContext.SequenceBase)
 	{
 		float AdvancedTime = UpdateContext.StartTime;
 
@@ -75,7 +74,7 @@ void UPoseSearchMeshComponent::UpdatePose(const FUpdateContext& UpdateContext)
 
 		UpdateContext.SequenceBase->GetAnimationPose(PoseData, ExtractionCtx);
 	}
-	else if (UpdateContext.Type == ESearchIndexAssetType::BlendSpace)
+	else if (UpdateContext.BlendSpace)
 	{
 		TArray<FBlendSampleData> BlendSamples;
 		int32 TriangulationIndex = 0;

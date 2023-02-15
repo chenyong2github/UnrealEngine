@@ -19,6 +19,7 @@ namespace UE::PoseSearch
 	struct FSearchContext;
 } // namespace UE::PoseSearch
 
+struct FAnimationUpdateContext;
 struct FGameplayTagContainer;
 struct FTrajectorySampleRange;
 class UPoseSearchSearchableAsset;
@@ -117,22 +118,70 @@ struct POSESEARCH_API FMotionMatchingState
 	UE::PoseSearch::FPoseIndicesHistory PoseIndicesHistory;
 };
 
-/**
-* Implementation of the core motion matching algorithm
-*
-* @param UpdateContext				Input animation update context providing access to the proxy and delta time
-* @param Database					Input collection of animations for motion matching
-* @param Trajectory					Input motion trajectory samples for pose search queries
-* @param Settings					Input motion matching algorithm configuration settings
-* @param InOutMotionMatchingState	Input/Output encapsulated motion matching algorithm and state
-*/
-POSESEARCH_API void UpdateMotionMatchingState(
-	const FAnimationUpdateContext& Context,
-	const UPoseSearchSearchableAsset* Searchable,
-	const FGameplayTagContainer* ActiveTagsContainer,
-	const FTrajectorySampleRange& Trajectory,
-	const FMotionMatchingSettings& Settings,
-	FMotionMatchingState& InOutMotionMatchingState,
-	bool bForceInterrupt
-);
+UCLASS()
+class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+	static void TraceMotionMatchingState(
+		const UPoseSearchSearchableAsset* Searchable,
+		UE::PoseSearch::FSearchContext& SearchContext,
+		const UE::PoseSearch::FSearchResult& CurrentResult,
+		const UE::PoseSearch::FSearchResult& LastResult,
+		float ElapsedPoseSearchTime,
+		const FTransform& RootMotionTransformDelta,
+		const UObject* AnimInstance,
+		int32 NodeId,
+		float DeltaTime,
+		bool bSearch);
+
+public:
+	/**
+	* Implementation of the core motion matching algorithm
+	*
+	* @param Context						Input animation update context providing access to the proxy and delta time
+	* @param Searchable						Input collection of animations for motion matching
+	* @param ActiveTagsContainer			Input gameplay tag container
+	* @param Trajectory						Input motion trajectory samples for pose search queries
+	* @param Settings						Input motion matching algorithm configuration settings
+	* @param InOutMotionMatchingState		Input/Output encapsulated motion matching algorithm and state
+	* @param bForceInterrupt				Input force interrupt request (if true the continuing pose will be invalidated)
+	*/
+	static void UpdateMotionMatchingState(
+		const FAnimationUpdateContext& Context,
+		const UPoseSearchSearchableAsset* Searchable,
+		const FGameplayTagContainer* ActiveTagsContainer,
+		const FTrajectorySampleRange& Trajectory,
+		const FMotionMatchingSettings& Settings,
+		FMotionMatchingState& InOutMotionMatchingState,
+		bool bForceInterrupt);
+
+	/**
+	* Implementation of the core motion matching algorithm
+	*
+	* @param AnimInstance					Input animation instance
+	* @param Searchable						Input searchable asset
+	* @param ActiveTagsContainer			Input gameplay tag container
+	* @param Trajectory						Input motion trajectory samples for pose search queries
+	* @param PoseHistoryName				Input tag of the associated PoseSearchHistoryCollector node in the anim graph
+	* @param SelectedAnimation				Output selected animation from the searchable asset
+	* @param SelectedTime					Output selected animation time
+	* @param bLoop							Output selected animation looping state
+	* @param bIsMirrored					Output selected animation mirror state
+	* @param BlendParameters				Output selected animation blend space parameters (if SelectedAnimation is a blend space)
+	* @param DebugSessionUniqueIdentifier	Input unique identifier used to identify TraceMotionMatchingState (rewind debugger / pose search debugger) session. Similarly the MM node uses Context.GetCurrentNodeId()
+	*/
+	UFUNCTION(BlueprintPure, Category = "Animation|Pose Search", meta = (BlueprintThreadSafe, Keywords = "PoseMatch"))
+	static void MotionMatch(
+		const UAnimInstance* AnimInstance,
+		const UPoseSearchSearchableAsset* Searchable,
+		const FGameplayTagContainer ActiveTagsContainer,
+		const FTrajectorySampleRange Trajectory,
+		const FName PoseHistoryName,
+		UAnimationAsset*& SelectedAnimation,
+		float& SelectedTime,
+		bool& bLoop,
+		bool& bIsMirrored,
+		FVector& BlendParameters,
+		const int DebugSessionUniqueIdentifier = 6174);
+};
 

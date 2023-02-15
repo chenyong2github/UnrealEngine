@@ -14,7 +14,6 @@ class FDebuggerDatabaseRowData : public TSharedFromThis<FDebuggerDatabaseRowData
 public:
 	FDebuggerDatabaseRowData() = default;
 	
-	ESearchIndexAssetType AssetType = ESearchIndexAssetType::Invalid;
 	int32 PoseIdx = 0;
 	TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
 	EPoseCandidateFlags PoseCandidateFlags = EPoseCandidateFlags::None;

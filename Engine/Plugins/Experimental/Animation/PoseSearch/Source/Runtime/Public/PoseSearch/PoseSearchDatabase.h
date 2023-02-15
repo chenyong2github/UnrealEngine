@@ -62,10 +62,9 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimationAssetBase
 	virtual void SetIsEnabled(bool bInIsEnabled) {}
 	virtual bool IsRootMotionEnabled() const { return false; }
 	virtual EPoseSearchMirrorOption GetMirrorOption() const { return EPoseSearchMirrorOption::Invalid; }
-	virtual ESearchIndexAssetType GetSearchIndexType() const { return ESearchIndexAssetType::Invalid; }
 };
 
-/** An entry in a UPoseSearchDatabase. */
+/** A sequence entry in a UPoseSearchDatabase. */
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
 struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAnimationAssetBase
 {
@@ -92,7 +91,6 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
 	bool IsRootMotionEnabled() const override;
 	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
-	ESearchIndexAssetType GetSearchIndexType() const override { return ESearchIndexAssetType::Sequence; }
 };
 
 /** An blend space entry in a UPoseSearchDatabase. */
@@ -130,7 +128,6 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
 	bool IsRootMotionEnabled() const override;
 	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
-	ESearchIndexAssetType GetSearchIndexType() const override { return ESearchIndexAssetType::BlendSpace; }
 
 	void GetBlendSpaceParameterSampleRanges(int32& HorizontalBlendNum, int32& VerticalBlendNum) const;
 	FVector BlendParameterForSampleRanges(int32 HorizontalBlendIndex, int32 VerticalBlendIndex) const;
@@ -163,8 +160,37 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimComposite : public FPoseSearchDatab
 	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
 	bool IsRootMotionEnabled() const override;
 	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
-	ESearchIndexAssetType GetSearchIndexType() const override { return ESearchIndexAssetType::AnimComposite; }
 };
+
+/** An anim montage entry in a UPoseSearchDatabase. */
+USTRUCT(BlueprintType, Category = "Animation|Pose Search")
+struct POSESEARCH_API FPoseSearchDatabaseAnimMontage : public FPoseSearchDatabaseAnimationAssetBase
+{
+	GENERATED_BODY()
+	virtual ~FPoseSearchDatabaseAnimMontage() = default;
+
+	UPROPERTY(EditAnywhere, Category="AnimMontage")
+	TObjectPtr<UAnimMontage> AnimMontage;
+
+	UPROPERTY(EditAnywhere, Category = "AnimMontage")
+	bool bEnabled = true;
+
+	UPROPERTY(EditAnywhere, Category="AnimMontage")
+	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, Category = "AnimMontage")
+	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
+
+	UAnimationAsset* GetAnimationAsset() const override;
+	UClass* GetAnimationAssetStaticClass() const override;
+	bool IsLooping() const override;
+	const FString GetName() const override;
+	bool IsEnabled() const override { return bEnabled; }
+	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
+	bool IsRootMotionEnabled() const override;
+	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
+};
+
 
 /** A data asset for indexing a collection of animation sequences. */
 UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental, meta = (DisplayName = "Normalization Set"))
@@ -250,6 +276,7 @@ public:
 	const bool IsSourceAssetLooping(const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	const FString GetSourceAssetName(const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	int32 GetNumberOfPrincipalComponents() const;
+	float GetAssetTime(int32 PoseIdx, float SamplingInterval) const;
 
 	// Begin UObject
 	virtual void PostLoad() override;
