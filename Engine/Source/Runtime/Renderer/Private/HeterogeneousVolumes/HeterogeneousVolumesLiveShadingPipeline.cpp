@@ -286,8 +286,8 @@ void AddComputePass(
 			FMeshPassProcessorRenderState DrawRenderState;
 
 			FMeshMaterialShaderElementData ShaderElementData;
-			ShaderElementData.FadeUniformBuffer = GGetDistanceCullFadedInUniformBuffer();
-			ShaderElementData.DitherUniformBuffer = GGetDitherFadedInUniformBuffer();
+			ShaderElementData.FadeUniformBuffer = GDistanceCullFadedInUniformBuffer.GetUniformBufferRHI();
+			ShaderElementData.DitherUniformBuffer = GDitherFadedInUniformBuffer.GetUniformBufferRHI();
 
 			FMeshProcessorShaders PassShaders;
 			PassShaders.ComputeShader = ComputeShader;

@@ -219,7 +219,7 @@ struct FMaterialShaderTypes
 	template<typename ShaderType>
 	inline const FShaderType* AddShaderType(int32 InPermutationId = 0)
 	{
-		return AddShaderType(&ShaderType::GetStaticType(), InPermutationId);
+		return AddShaderType(&ShaderType::StaticType, InPermutationId);
 	}
 };
 

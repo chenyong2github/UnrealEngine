@@ -907,7 +907,7 @@ public:
 	template<typename UniformBufferStructType>
 	FORCEINLINE_DEBUGGABLE const TShaderUniformBufferParameter<UniformBufferStructType>& GetUniformBufferParameter() const
 	{
-		const FShaderUniformBufferParameter& FoundParameter = GetUniformBufferParameter(UniformBufferStructType::FTypeInfo::GetStructMetadata());
+		const FShaderUniformBufferParameter& FoundParameter = GetUniformBufferParameter(&UniformBufferStructType::StaticStructMetadata);
 		return static_cast<const TShaderUniformBufferParameter<UniformBufferStructType>&>(FoundParameter);
 	}
 
@@ -1493,31 +1493,6 @@ protected:
 #endif // WITH_EDITOR
 };
 
-/**
- * Registers a shader type in various systems. Should be created as a static field/global.
- * 
- * Each shader type is collected here, not as an instance but as an accessor, so the actual construction can be deferred.
- * The collection happens during static init, the actual construction happens later during launch.
- * The purpose of collecting the types is the CommitAll function, called in LaunchEngineLoop, to ensure all type instances are constructed and registered before other systems start iterating them.
- */
-class RENDERCORE_API FShaderTypeRegistration
-{
-public:
-	FShaderTypeRegistration(TFunctionRef<FShaderType& ()> LazyShaderTypeAccessor)
-		: LazyShaderTypeAccessor(LazyShaderTypeAccessor)
-	{
-		Instances.Add(this);
-	}
-
-	// Actually register all the types and clear the array
-	static void CommitAll();
-
-private:
-	static TArray<const FShaderTypeRegistration*> Instances;
-
-	TFunctionRef<FShaderType& ()> LazyShaderTypeAccessor;
-};
-
 struct FShaderCompiledShaderInitializerType
 {
 	const FShaderType* Type;
@@ -1571,10 +1546,7 @@ struct FShaderCompiledShaderInitializerType
 	using ShaderMetaType = F##ShaderMetaTypeShortcut##ShaderType; \
 	using ShaderMapType = F##ShaderMetaTypeShortcut##ShaderMap; \
 	\
-	static RequiredAPI ShaderMetaType& GetStaticType(); \
-	private: \
-	static FShaderTypeRegistration ShaderTypeRegistration; \
-	public: \
+	static RequiredAPI ShaderMetaType StaticType; \
 	\
 	SHADER_DECLARE_VTABLE(ShaderClass)
 
@@ -1617,64 +1589,49 @@ struct FShaderCompiledShaderInitializerType
 #define IMPLEMENT_SHADER_TYPE(TemplatePrefix,ShaderClass,SourceFilename,FunctionName,Frequency) \
 	IMPLEMENT_UNREGISTERED_TEMPLATE_TYPE_LAYOUT(TemplatePrefix, ShaderClass); \
 	TemplatePrefix \
-	ShaderClass::ShaderMetaType& ShaderClass::GetStaticType() \
-	{ \
-		static ShaderClass::ShaderMetaType StaticType( \
-			ShaderClass::StaticGetTypeLayout(), \
-			TEXT(#ShaderClass), \
-			SourceFilename, \
-			FunctionName, \
-			Frequency, \
-			ShaderClass::FPermutationDomain::PermutationCount, \
-			SHADER_TYPE_VTABLE(ShaderClass), \
-			sizeof(ShaderClass), \
-			ShaderClass::GetRootParametersMetadata() \
-		); \
-		return StaticType; \
-	} \
-	TemplatePrefix FShaderTypeRegistration ShaderClass::ShaderTypeRegistration{TFunctionRef<::FShaderType&()>{ShaderClass::GetStaticType}};
+	ShaderClass::ShaderMetaType ShaderClass::StaticType( \
+		ShaderClass::StaticGetTypeLayout(), \
+		TEXT(#ShaderClass), \
+		SourceFilename, \
+		FunctionName, \
+		Frequency, \
+		ShaderClass::FPermutationDomain::PermutationCount, \
+		SHADER_TYPE_VTABLE(ShaderClass), \
+		sizeof(ShaderClass), \
+		ShaderClass::GetRootParametersMetadata() \
+		);
 
 /** A macro to implement a shader type. Shader name is got from GetDebugName(), which is helpful for templated shaders. */
 #define IMPLEMENT_SHADER_TYPE_WITH_DEBUG_NAME(TemplatePrefix,ShaderClass,SourceFilename,FunctionName,Frequency) \
 	IMPLEMENT_UNREGISTERED_TEMPLATE_TYPE_LAYOUT(TemplatePrefix, ShaderClass); \
 	TemplatePrefix \
-	typename ShaderClass::ShaderMetaType& ShaderClass::GetStaticType() \
-	{ \
-		static typename ShaderClass::ShaderMetaType StaticType( \
-			ShaderClass::StaticGetTypeLayout(), \
-			ShaderClass::GetDebugName(), \
-			SourceFilename, \
-			FunctionName, \
-			Frequency, \
-			ShaderClass::FPermutationDomain::PermutationCount, \
-			SHADER_TYPE_VTABLE(ShaderClass), \
-			sizeof(ShaderClass), \
-			ShaderClass::GetRootParametersMetadata() \
-		); \
-		return StaticType; \
-	} \
-	TemplatePrefix FShaderTypeRegistration ShaderClass::ShaderTypeRegistration{TFunctionRef<::FShaderType&()>{ShaderClass::GetStaticType}};
+	typename ShaderClass::ShaderMetaType ShaderClass::StaticType( \
+		ShaderClass::StaticGetTypeLayout(), \
+		ShaderClass::GetDebugName(), \
+		SourceFilename, \
+		FunctionName, \
+		Frequency, \
+		ShaderClass::FPermutationDomain::PermutationCount, \
+		SHADER_TYPE_VTABLE(ShaderClass), \
+		sizeof(ShaderClass), \
+		ShaderClass::GetRootParametersMetadata() \
+		);
 
 /** A macro to implement a templated shader type, the function name and the source filename comes from the class. */
 #define IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(TemplatePrefix,ShaderClass,Frequency) \
 	IMPLEMENT_UNREGISTERED_TEMPLATE_TYPE_LAYOUT(TemplatePrefix, ShaderClass); \
 	TemplatePrefix \
-	ShaderClass::ShaderMetaType& ShaderClass::GetStaticType() \
-	{ \
-		static ShaderClass::ShaderMetaType StaticType( \
-			ShaderClass::StaticGetTypeLayout(), \
-			TEXT(#ShaderClass), \
-			ShaderClass::GetSourceFilename(), \
-			ShaderClass::GetFunctionName(), \
-			Frequency, \
-			ShaderClass::FPermutationDomain::PermutationCount, \
-			SHADER_TYPE_VTABLE(ShaderClass), \
-			sizeof(ShaderClass), \
-			ShaderClass::GetRootParametersMetadata() \
-		); \
-		return StaticType; \
-	} \
-	TemplatePrefix FShaderTypeRegistration ShaderClass::ShaderTypeRegistration{TFunctionRef<::FShaderType&()>{ShaderClass::GetStaticType}};
+	ShaderClass::ShaderMetaType ShaderClass::StaticType( \
+	ShaderClass::StaticGetTypeLayout(), \
+	TEXT(#ShaderClass), \
+	ShaderClass::GetSourceFilename(), \
+	ShaderClass::GetFunctionName(), \
+	Frequency, \
+	ShaderClass::FPermutationDomain::PermutationCount, \
+	SHADER_TYPE_VTABLE(ShaderClass), \
+	sizeof(ShaderClass), \
+	ShaderClass::GetRootParametersMetadata() \
+	);
 
 #define IMPLEMENT_SHADER_TYPE2(ShaderClass,Frequency) \
 	IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<>, ShaderClass, Frequency)
@@ -1682,43 +1639,33 @@ struct FShaderCompiledShaderInitializerType
 /** todo: this should replace IMPLEMENT_SHADER_TYPE */
 #define IMPLEMENT_SHADER_TYPE3(ShaderClass,Frequency) \
 	IMPLEMENT_UNREGISTERED_TEMPLATE_TYPE_LAYOUT(,ShaderClass); \
-	ShaderClass::ShaderMetaType& ShaderClass::GetStaticType() \
-	{ \
-		static ShaderClass::ShaderMetaType StaticType( \
-			ShaderClass::StaticGetTypeLayout(), \
-			TEXT(#ShaderClass), \
-			ShaderClass::GetSourceFilename(), \
-			ShaderClass::GetFunctionName(), \
-			Frequency, \
-			ShaderClass::FPermutationDomain::PermutationCount, \
-			SHADER_TYPE_VTABLE(ShaderClass), \
-			sizeof(ShaderClass), \
-			ShaderClass::GetRootParametersMetadata() \
-		); \
-		return StaticType; \
-	} \
-	FShaderTypeRegistration ShaderClass::ShaderTypeRegistration{TFunctionRef<::FShaderType&()>{ShaderClass::GetStaticType}};
+	ShaderClass::ShaderMetaType ShaderClass::StaticType( \
+	ShaderClass::StaticGetTypeLayout(), \
+	TEXT(#ShaderClass), \
+	ShaderClass::GetSourceFilename(), \
+	ShaderClass::GetFunctionName(), \
+	Frequency, \
+	ShaderClass::FPermutationDomain::PermutationCount, \
+	SHADER_TYPE_VTABLE(ShaderClass), \
+	sizeof(ShaderClass), \
+	ShaderClass::GetRootParametersMetadata() \
+	);
 #endif // !UE_BUILD_DOCS
 
 #define IMPLEMENT_SHADER_TYPE4_WITH_TEMPLATE_PREFIX(TemplatePrefix,RequiredAPI,ShaderClass,Frequency) \
 	IMPLEMENT_UNREGISTERED_TEMPLATE_TYPE_LAYOUT(TemplatePrefix, ShaderClass); \
 	TemplatePrefix RequiredAPI \
-	ShaderClass::ShaderMetaType& ShaderClass::GetStaticType() \
-	{ \
-		static ShaderClass::ShaderMetaType StaticType( \
-			ShaderClass::StaticGetTypeLayout(), \
-			TEXT(#ShaderClass), \
-			ShaderClass::GetSourceFilename(), \
-			ShaderClass::GetFunctionName(), \
-			Frequency, \
-			ShaderClass::FPermutationDomain::PermutationCount, \
-			SHADER_TYPE_VTABLE(ShaderClass), \
-			sizeof(ShaderClass), \
-			ShaderClass::GetRootParametersMetadata() \
-		); \
-		return StaticType; \
-	} \
-	TemplatePrefix FShaderTypeRegistration ShaderClass::ShaderTypeRegistration{TFunctionRef<::FShaderType&()>{ShaderClass::GetStaticType}};
+	ShaderClass::ShaderMetaType ShaderClass::StaticType( \
+	ShaderClass::StaticGetTypeLayout(), \
+	TEXT(#ShaderClass), \
+	ShaderClass::GetSourceFilename(), \
+	ShaderClass::GetFunctionName(), \
+	Frequency, \
+	ShaderClass::FPermutationDomain::PermutationCount, \
+	SHADER_TYPE_VTABLE(ShaderClass), \
+	sizeof(ShaderClass), \
+	ShaderClass::GetRootParametersMetadata() \
+	);
 
 // Binding of a set of shader stages in a single pipeline
 class RENDERCORE_API FShaderPipelineType
@@ -1808,23 +1755,23 @@ protected:
 #if !UE_BUILD_DOCS
 // Vertex+Pixel
 #define IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(PipelineName, VertexShaderType, PixelShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::GetStaticType(), nullptr, &PixelShaderType::GetStaticType(), false, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, nullptr, &PixelShaderType::StaticType, false, bRemoveUnused);
 // Only VS
 #define IMPLEMENT_SHADERPIPELINE_TYPE_VS(PipelineName, VertexShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::GetStaticType(), nullptr, nullptr, false, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, nullptr, nullptr, false, bRemoveUnused);
 // Vertex+Geometry+Pixel
 #define IMPLEMENT_SHADERPIPELINE_TYPE_VSGSPS(PipelineName, VertexShaderType, GeometryShaderType, PixelShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::GetStaticType(), &GeometryShaderType::GetStaticType(), &PixelShaderType::GetStaticType(), false, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, &GeometryShaderType::StaticType, &PixelShaderType::StaticType, false, bRemoveUnused);
 // Vertex+Geometry
 #define IMPLEMENT_SHADERPIPELINE_TYPE_VSGS(PipelineName, VertexShaderType, GeometryShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::GetStaticType(), &GeometryShaderType::GetStaticType(), nullptr, false, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, &GeometryShaderType::StaticType, nullptr, false, bRemoveUnused);
 
 // Mesh+Pixel
 #define IMPLEMENT_SHADERPIPELINE_TYPE_MSPS(PipelineName, MeshShaderType, PixelShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &MeshShaderType::GetStaticType(), nullptr, &PixelShaderType::GetStaticType(), true, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &MeshShaderType::StaticType, nullptr, &PixelShaderType::StaticType, true, bRemoveUnused);
 // Mesh+Amplification+Pixel
 #define IMPLEMENT_SHADERPIPELINE_TYPE_MSASPS(PipelineName, MeshShaderType, AmplificationShaderType, PixelShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &MeshShaderType::GetStaticType(), &AmplificationShaderType::GetStaticType(), &PixelShaderType::GetStaticType(), true, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &MeshShaderType::StaticType, &AmplificationShaderType::StaticType, &PixelShaderType::StaticType, true, bRemoveUnused);
 #endif
 
 /** Encapsulates a dependency on a shader type and saved state from that shader type. */
@@ -1998,7 +1945,7 @@ public:
 	template<typename ShaderType>
 	ShaderType* GetShader(const FShaderMapPointerTable& InPtrTable)
 	{
-		const FShaderType& Type = ShaderType::GetStaticType();
+		const FShaderType& Type = ShaderType::StaticType;
 		const EShaderFrequency Frequency = Type.GetFrequency();
 		if (Frequency < SF_NumGraphicsFrequencies && Shaders[Frequency].IsValid())
 		{
@@ -2122,8 +2069,8 @@ public:
 	template<typename ShaderType>
 	ShaderType* GetShader(int32 PermutationId = 0) const
 	{
-		FShader* Shader = GetShader(&ShaderType::GetStaticType(), PermutationId);
-		checkf(Shader != nullptr, TEXT("Failed to find shader type %s in Platform %s"), ShaderType::GetStaticType().GetName(), *LegacyShaderPlatformToShaderFormat(GetShaderPlatform()).ToString());
+		FShader* Shader = GetShader(&ShaderType::StaticType, PermutationId);
+		checkf(Shader != nullptr, TEXT("Failed to find shader type %s in Platform %s"), ShaderType::StaticType.GetName(), *LegacyShaderPlatformToShaderFormat(GetShaderPlatform()).ToString());
 		return static_cast<ShaderType*>(Shader);
 	}
 
@@ -2417,7 +2364,7 @@ class TOptionalShaderMapRef : public TShaderRef<ShaderType>
 {
 public:
 	TOptionalShaderMapRef(const typename ShaderType::ShaderMapType* ShaderIndex):
-		TShaderRef<ShaderType>(TShaderRef<ShaderType>::Cast(ShaderIndex->GetShader(&ShaderType::GetStaticType()))) // gcc3 needs the template quantifier so it knows the < is not a less-than
+		TShaderRef<ShaderType>(TShaderRef<ShaderType>::Cast(ShaderIndex->GetShader(&ShaderType::StaticType))) // gcc3 needs the template quantifier so it knows the < is not a less-than
 	{}
 };
 

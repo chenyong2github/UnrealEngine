@@ -519,7 +519,7 @@ void FNiagaraShaderScript::UpdateCachedData_PostCompile(bool bCalledFromSerializ
 	{
 		for (int32 iPermutation = 0; iPermutation < CachedData.NumPermutations; ++iPermutation)
 		{
-			TNiagaraShaderRef<FShader> Shader = GameThreadShaderMap->GetShader(&FNiagaraShader::GetStaticType(), iPermutation);
+			TNiagaraShaderRef<FShader> Shader = GameThreadShaderMap->GetShader(&FNiagaraShader::StaticType, iPermutation);
 			if (!Shader.IsValid())
 			{
 				CachedData.bIsComplete = 0;

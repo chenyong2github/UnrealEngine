@@ -33,8 +33,6 @@ void InitAsyncQueues()
 
 void InitRendering()
 {
-	FShaderParametersMetadataRegistration::CommitAll();
-	FShaderTypeRegistration::CommitAll();
 	FShaderParametersMetadata::InitializeAllUniformBufferStructs();
 
 	{

@@ -341,7 +341,7 @@ TModulatedShadowProjection<T>::TModulatedShadowProjection(const ShaderMetaType::
 TShadowProjectionPS<T, false, true>(Initializer)
 {
 	ModulatedShadowColorParameter.Bind(Initializer.ParameterMap, TEXT("ModulatedShadowColor"));
-	MobileBasePassUniformBuffer.Bind(Initializer.ParameterMap, FMobileBasePassUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName());
+	MobileBasePassUniformBuffer.Bind(Initializer.ParameterMap, FMobileBasePassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 } 
 
 /**

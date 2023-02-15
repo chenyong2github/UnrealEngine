@@ -3189,16 +3189,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif	// USE_LOCALIZED_PACKAGE_CACHE
 
 	{
-		SCOPED_BOOT_TIMING("FShaderParametersMetadataRegistration::CommitAll()");
-		FShaderParametersMetadataRegistration::CommitAll();
-	}
-	
-	{
-		SCOPED_BOOT_TIMING("FShaderTypeRegistration::CommitAll()");
-		FShaderTypeRegistration::CommitAll();
-	}
-
-	{
 		SCOPED_BOOT_TIMING("FUniformBufferStruct::InitializeStructs()");
 		FShaderParametersMetadata::InitializeAllUniformBufferStructs();
 	}

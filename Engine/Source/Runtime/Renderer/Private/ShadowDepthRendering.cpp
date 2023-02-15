@@ -398,12 +398,12 @@ public:
 
 		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
 		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FShadowDepthPassUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName());
+			PassUniformBuffer.Bind(Initializer.ParameterMap, FShadowDepthPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		}
 
 		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
 		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileShadowDepthPassUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName());
+			PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileShadowDepthPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		}
 	}
 

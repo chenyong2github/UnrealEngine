@@ -175,7 +175,7 @@ public:
 
 	static bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)
 	{
-		if (ParameterMap.ContainsParameterAllocation(FSceneTextureUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName()))
+		if (ParameterMap.ContainsParameterAllocation(FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName()))
 		{
 			OutError.Add(TEXT("Ray tracing callable shaders cannot read from the SceneTexturesStruct."));
 			return false;
@@ -280,7 +280,7 @@ public:
 
 	static bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)
 	{
-		if (ParameterMap.ContainsParameterAllocation(FSceneTextureUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName()))
+		if (ParameterMap.ContainsParameterAllocation(FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName()))
 		{
 			OutError.Add(TEXT("Ray tracing closest hit shaders cannot read from the SceneTexturesStruct."));
 			return false;
@@ -316,11 +316,11 @@ FShaderType* GetRayTracingDecalMaterialShaderType(EBlendMode BlendMode)
 {
 	if (NeedsAnyHitShader(BlendMode))
 	{
-		return &FRayTracingDecalMaterialCHS_AHS::GetStaticType();
+		return &FRayTracingDecalMaterialCHS_AHS::StaticType; 
 	}
 	else
 	{
-		return &FRayTracingDecalMaterialCHS::GetStaticType();
+		return &FRayTracingDecalMaterialCHS::StaticType;
 	}
 }
 

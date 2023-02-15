@@ -215,7 +215,7 @@ inline void SetUniformBufferParameterImmediate(FRHIBatchedShaderParameters& Batc
 	checkSlow(Parameter.IsInitialized());
 	if (Parameter.IsBound())
 	{
-		FUniformBufferRHIRef UniformBufferRef = RHICreateUniformBuffer(&UniformBufferValue, &TBufferStruct::FTypeInfo::GetStructMetadata()->GetLayout(), UniformBuffer_SingleDraw);
+		FUniformBufferRHIRef UniformBufferRef = RHICreateUniformBuffer(&UniformBufferValue, &TBufferStruct::StaticStructMetadata.GetLayout(), UniformBuffer_SingleDraw);
 		SetUniformBufferParameter(BatchedParameters, Parameter, UniformBufferRef.GetReference());
 	}
 }
@@ -820,7 +820,7 @@ inline void SetUniformBufferParameterImmediate(
 		RHICmdList.SetShaderUniformBuffer(
 			Shader,
 			Parameter.GetBaseIndex(),
-			RHICreateUniformBuffer(&UniformBufferValue, &TBufferStruct::FTypeInfo::GetStructMetadata()->GetLayout(), UniformBuffer_SingleDraw)
+			RHICreateUniformBuffer(&UniformBufferValue, &TBufferStruct::StaticStructMetadata.GetLayout(), UniformBuffer_SingleDraw)
 		);
 	}
 }
@@ -841,7 +841,7 @@ inline void SetUniformBufferParameterImmediate(
 		RHICmdList.SetShaderUniformBuffer(
 			Shader,
 			Parameter.GetBaseIndex(),
-			RHICreateUniformBuffer(&UniformBufferValue, &TBufferStruct::FTypeInfo::GetStructMetadata()->GetLayout(), UniformBuffer_SingleDraw)
+			RHICreateUniformBuffer(&UniformBufferValue, &TBufferStruct::StaticStructMetadata.GetLayout(), UniformBuffer_SingleDraw)
 		);
 	}
 }
