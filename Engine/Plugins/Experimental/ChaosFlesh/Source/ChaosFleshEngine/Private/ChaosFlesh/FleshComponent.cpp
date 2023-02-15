@@ -19,6 +19,7 @@
 #include "GeometryCollection/Facades/CollectionTetrahedralSkeletalBindingsFacade.h"
 #include "GeometryCollection/TransformCollection.h"
 #include "ProceduralMeshComponent.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FleshComponent)
@@ -124,6 +125,7 @@ UDeformablePhysicsComponent::FThreadingProxy* UFleshComponent::NewProxy()
 	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UFleshComponent_NewProxy);
 	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UFleshComponent_NewProxy);
 
+	UpdateSimSpaceTransformIndex();
 	if (const UFleshAsset* RestAsset = GetRestCollection())
 	{
 		if (const FFleshCollection* Rest = RestAsset->GetCollection())
@@ -136,7 +138,17 @@ UDeformablePhysicsComponent::FThreadingProxy* UFleshComponent::NewProxy()
 			GetDynamicCollection()->Reset(Rest);
 			if (const FManagedArrayCollection* Dynamic = GetDynamicCollection()->GetCollection())
 			{
-				return new FFleshThreadingProxy(this, GetComponentTransform(), *Rest, *Dynamic);
+				// Mesh points are in component space, such that the exterior hull aligns with the
+                // surface of the skeletal mesh, which is subject to the transform hierarchy.
+				const FTransform& ComponentToWorldXf = GetComponentTransform();
+				const FTransform ComponentToSimXf = GetSimSpaceRestTransform();
+				return new FFleshThreadingProxy(
+					this,
+					ComponentToWorldXf, 
+					ComponentToSimXf, 
+					SimSpace,
+					*Rest, 
+					*Dynamic);
 			}
 		}
 	}
@@ -166,6 +178,7 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 						TArray<FTransform> AnimationTransforms = RestTransforms->GetConstArray();
 						TArray<FTransform> ComponentPose = RestTransforms->GetConstArray();
 
+						// Extract animated transforms from all skeletal meshes.
 						for (const USkeletalMeshComponent* SkeletalMeshComponent : SkeletalMeshComponents)
 						{
 							if (const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset())
@@ -186,28 +199,133 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 												// @todo(flesh) : Can we just use one array?
 												AnimationTransforms[Adx] = ComponentTransforms[Cdx];
 												ComponentPose[Adx] = ComponentLocalPose[Cdx]; 
+
+												if (SimSpaceTransformGlobalIndex == INDEX_NONE &&
+													SimSpaceTransformIndex == Cdx &&
+													SkeletalMesh == SimSpaceSkeletalMesh)
+												{
+													SimSpaceTransformGlobalIndex = Adx;
+												}
 											}
+
+
 										}
 									}
 								}
 							}
 						}
-						return FDataMapValue(new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(this->GetComponentTransform(), AnimationTransforms, ComponentPose, bTempEnableGravity, StiffnessMultiplier, DampingMultiplier, MassMultiplier, this));
+
+						FTransform BoneSpaceXf;
+						if (AnimationTransforms.IsValidIndex(SimSpaceTransformGlobalIndex))
+						{
+							BoneSpaceXf = AnimationTransforms[SimSpaceTransformGlobalIndex];
+						}
+						else
+						{
+							BoneSpaceXf = FTransform::Identity;
+						}
+
+						return FDataMapValue(
+							new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(
+								this->GetComponentTransform(), 
+								BoneSpaceXf, 
+								SimSpaceTransformGlobalIndex,
+								AnimationTransforms, 
+								ComponentPose, 
+								bTempEnableGravity, 
+								StiffnessMultiplier, 
+								DampingMultiplier, 
+								MassMultiplier, 
+								this));
 					}
 				}
 			}
 		}
 	}
-	return FDataMapValue(new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(this->GetComponentTransform(), bTempEnableGravity, StiffnessMultiplier, DampingMultiplier, MassMultiplier, this));
+	return FDataMapValue(
+		new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(
+			this->GetComponentTransform(), 
+			GetSimSpaceRestTransform(),
+			SimSpaceTransformGlobalIndex,
+			bTempEnableGravity,
+			StiffnessMultiplier, 
+			DampingMultiplier, 
+			MassMultiplier, 
+			this));
 }
 
+TArray<FString> UFleshComponent::GetSimSpaceBoneNameOptions() const
+{
+	TArray<FString> Names;
+	if (RestCollection)
+	{
+		if (RestCollection->SkeletalMesh)
+		{
+			const FReferenceSkeleton& RefSkeleton = RestCollection->SkeletalMesh->GetSkeleton()->GetReferenceSkeleton();
+			Names.SetNum(RefSkeleton.GetNum());
+			for (int32 i = 0; i < RefSkeleton.GetNum(); i++)
+			{
+				Names[i] = RefSkeleton.GetBoneName(i).ToString();
+			}
+		}
+	}
+	return Names;
+}
+
+bool UFleshComponent::UpdateSimSpaceTransformIndex()
+{
+	SimSpaceTransformIndex = INDEX_NONE;
+	SimSpaceSkeletalMesh = nullptr;
+
+	if (SimSpace != ChaosDeformableSimSpace::Bone)
+	{
+		return false;
+	}
+
+	if (RestCollection && RestCollection->SkeletalMesh)
+	{
+		const FReferenceSkeleton& RefSkeleton = RestCollection->SkeletalMesh->GetSkeleton()->GetReferenceSkeleton();
+		for (int32 i = 0; i < RefSkeleton.GetNum(); i++)
+		{
+			if (RefSkeleton.GetBoneName(i).ToString() == SimSpaceBoneName.ToString())
+			{
+				SimSpaceSkeletalMesh = RestCollection->SkeletalMesh;
+				SimSpaceTransformIndex = i;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+FTransform UFleshComponent::GetSimSpaceRestTransform() const
+{
+	if (SimSpaceSkeletalMesh == nullptr)
+	{
+		return FTransform::Identity;
+	}
+	
+	TArray<FTransform> ComponentTransforms;
+	ComponentTransforms.SetNum(SimSpaceSkeletalMesh->GetRefSkeleton().GetNum());
+
+	SimSpaceSkeletalMesh->FillComponentSpaceTransforms(
+		SimSpaceSkeletalMesh->GetRefSkeleton().GetRefBonePose(),
+		SimSpaceSkeletalMesh->GetResourceForRendering()->LODRenderData[0].RequiredBones,
+		ComponentTransforms);
+
+	if (!ComponentTransforms.IsValidIndex(SimSpaceTransformIndex))
+	{
+		return FTransform::Identity;
+	}
+	const FTransform& ComponentToBone = ComponentTransforms[SimSpaceTransformIndex];
+	return ComponentToBone;
+}
 
 void UFleshComponent::UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UFleshComponent_UpdateFromSimualtion);
 	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UFleshComponent_UpdateFromSimualtion);
 
-	FTransform CurrTransform = GetComponentTransform();
 	if (const FFleshThreadingProxy::FFleshOutputBuffer* FleshBuffer = (*SimualtionBuffer)->As<FFleshThreadingProxy::FFleshOutputBuffer>())
 	{
 		if (GetDynamicCollection())
@@ -219,13 +337,14 @@ void UFleshComponent::UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer
 			TManagedArray<FVector3f>& DynamicVertex = GetDynamicCollection()->GetPositions();
 			const TManagedArray<FVector3f>& SimulationVertex = FleshBuffer->Dynamic.GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
 
+			// Simulator produces results in component space.
 			for (int i = DynamicVertex.Num() - 1; i >= 0; i--)
 			{
-				DynamicVertex[i] = UEVertf(GetComponentTransform().InverseTransformPosition(UEVertd(SimulationVertex[i])));
+				DynamicVertex[i] = SimulationVertex[i];
 			}
-
-			 //p.Chaos.DebugDraw.Enabled 1
-			 //p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions 1
+			
+			//p.Chaos.DebugDraw.Enabled 1
+			//p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions 1
 			if (CVarParams.bDoDrawSkeletalMeshBindingPositions)
 			{
 				DebugDrawSkeletalMeshBindingPositions();

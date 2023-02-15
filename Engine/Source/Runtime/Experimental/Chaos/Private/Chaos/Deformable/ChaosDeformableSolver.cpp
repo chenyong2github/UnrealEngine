@@ -163,7 +163,30 @@ namespace Chaos::Softs
 			RemoveSimulationObjects();
 			UpdateProxyInputPackages();
 			InitializeSimulationObjects();
+			InitializeSimulationSpace();
 			AdvanceDt(DeltaTime);
+		}
+	}
+
+	void FDeformableSolver::InitializeSimulationSpace()
+	{
+		for (int32 Index = 0; Index < this->MObjects.Num(); Index++)
+		{
+			if (const UObject* Owner = this->MObjects[Index])
+			{
+				if (FFleshThreadingProxy* Proxy = Proxies[Owner]->As<FFleshThreadingProxy>())
+				{
+					if (this->CurrentInputPackage->ObjectMap.Contains(Owner))
+					{
+						FFleshThreadingProxy::FFleshInputBuffer* FleshInputBuffer =
+							this->CurrentInputPackage->ObjectMap[Owner]->As<FFleshThreadingProxy::FFleshInputBuffer>();
+						if (FleshInputBuffer)
+						{
+							Proxy->UpdateSimSpace(FleshInputBuffer->WorldToComponentXf, FleshInputBuffer->ComponentToBoneXf);
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -292,23 +315,41 @@ namespace Chaos::Softs
 
 		Evolution->SetDamping(DampingMultiplier, GroupOffset - 1);
 
-		const FTransform& InitialTransform = Proxy.GetInitialTransform();
+		// Tet mesh points are in component space.  That means that if our sim space is:
+		//    World:     We need to multiply by the ComponentToWorldXf.
+		//	  Component: We do nothing.
+		//    Bone:      The points have the (component relative) bone transform baked in,
+		//               and we need to remove it.  Muliply by the BoneToComponentXf.
 
-
-		for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
+		const FTransform& InitialPointsXf = Proxy.GetInitialPointsTransform();
+		if (!InitialPointsXf.Equals(FTransform::Identity))
 		{
-			int32 SolverParticleIndex = ParticleStart + vdx;
-			Evolution->Particles().X(SolverParticleIndex) = ChaosVert(InitialTransform.TransformPosition(DoubleVert(DynamicVertex[vdx])));
-			Evolution->Particles().V(SolverParticleIndex) = Chaos::FVec3(0.f, 0.f, 0.f);
-			Evolution->Particles().M(SolverParticleIndex) = MassWithMultiplier[vdx];
-			Evolution->Particles().InvM(SolverParticleIndex) = ChaosInvM(Evolution->Particles().M(SolverParticleIndex));
-			Evolution->Particles().PAndInvM(SolverParticleIndex).InvM = Evolution->Particles().InvM(SolverParticleIndex);
+			for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
+			{
+				int32 SolverParticleIndex = ParticleStart + vdx;
+				Evolution->Particles().X(SolverParticleIndex) = ChaosVert(InitialPointsXf.TransformPosition(DoubleVert(DynamicVertex[vdx])));
+				Evolution->Particles().V(SolverParticleIndex) = Chaos::FVec3(0.f, 0.f, 0.f);
+				Evolution->Particles().M(SolverParticleIndex) = MassWithMultiplier[vdx];
+				Evolution->Particles().InvM(SolverParticleIndex) = ChaosInvM(Evolution->Particles().M(SolverParticleIndex));
+				Evolution->Particles().PAndInvM(SolverParticleIndex).InvM = Evolution->Particles().InvM(SolverParticleIndex);
+			}
+		}
+		else
+		{
+			for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
+			{
+				int32 SolverParticleIndex = ParticleStart + vdx;
+				Evolution->Particles().X(SolverParticleIndex) = DynamicVertex[vdx];
+				Evolution->Particles().V(SolverParticleIndex) = Chaos::FVec3(0.f, 0.f, 0.f);
+				Evolution->Particles().M(SolverParticleIndex) = MassWithMultiplier[vdx];
+				Evolution->Particles().InvM(SolverParticleIndex) = ChaosInvM(Evolution->Particles().M(SolverParticleIndex));
+				Evolution->Particles().PAndInvM(SolverParticleIndex).InvM = Evolution->Particles().InvM(SolverParticleIndex);
+			}
 		}
 
 		bool ObjectEnableGravity = false;
-
-		//int32 SolverParticleIndex = ParticleStart;
-		if (const UObject* Owner = this->MObjects[ParticleStart]) {
+		if (const UObject* Owner = this->MObjects[ParticleStart]) 
+		{
 			FFleshThreadingProxy::FFleshInputBuffer* FleshInputBuffer = nullptr;
 			if (this->CurrentInputPackage->ObjectMap.Contains(Owner))
 			{
@@ -324,6 +365,14 @@ namespace Chaos::Softs
 		{
 			FSolverVec3 ZeroGravity(0.f);
 			Evolution->SetGravity(ZeroGravity, GroupOffset - 1);
+		}
+		else
+		{
+			// Gravity points "down" in world space, but we need to orient it to
+			// whatever our sim space is.
+			FSolverVec3 GravityDir = Evolution->GetGravity();
+			FSolverVec3 SimSpaceGravityDir = Proxy.RotateWorldSpaceVector(GravityDir);
+			Evolution->SetGravity(SimSpaceGravityDir, GroupOffset - 1);
 		}
 
 		Proxy.SetSolverParticleRange(ParticleStart, NumParticles);
@@ -649,7 +698,7 @@ namespace Chaos::Softs
 				{
 					if (const FFleshThreadingProxy* Proxy = Proxies[Owner]->As<FFleshThreadingProxy>())
 					{
-						FTransform GlobalTransform = Proxy->GetInitialTransform();
+						FTransform GlobalTransform = Proxy->GetCurrentPointsTransform();
 						const FIntVector2& Range = Proxy->GetSolverParticleRange();
 						const FManagedArrayCollection& Rest = Proxy->GetRestCollection();
 
@@ -665,10 +714,6 @@ namespace Chaos::Softs
 							if (this->CurrentInputPackage->ObjectMap.Contains(Owner))
 							{
 								FleshInputBuffer = this->CurrentInputPackage->ObjectMap[Owner]->As<FFleshThreadingProxy::FFleshInputBuffer>();
-								if (FleshInputBuffer)
-								{
-									GlobalTransform = FleshInputBuffer->GlobalTransform;
-								}
 							}
 
 							typedef GeometryCollection::Facades::FVertexBoneWeightsFacade FWeightsFacade;
@@ -704,19 +749,47 @@ namespace Chaos::Softs
 											{
 												if (BoneIndices[i] > -1 && BoneIndices[i] < RestNum && BoneIndices[i] < TransformNum)
 												{
+													// We're lerp'ing between the previous skinned position and the current skinned 
+													// position, based on the substep.  If our SimSpace is a bone, we need to transform
+													// those points by the inverse bone transform at each of those points in time.
+													const FVector3f& Pt = Vertex[Index - Range[0]];
 
 													// @todo(flesh) : Add the pre-cached component space rest transforms to the rest collection. 
 													// see  UFleshComponent::NewDeformableData for how its pulled from the SkeletalMesh
-													FVec3 LocalPoint = FleshInputBuffer->RestTransforms[BoneIndices[i]].InverseTransformPosition(ChaosVert(Vertex[Index - Range[0]]));
-													FVec3 ComponentPointAtT = FleshInputBuffer->Transforms[BoneIndices[i]].TransformPosition(LocalPoint);
+													const FTransform& BoneRestTransform = FleshInputBuffer->RestTransforms[BoneIndices[i]];
+													FVec3 LocalPoint = BoneRestTransform.InverseTransformPosition(ChaosVert(Pt));
+													const FTransform& BoneCurrentTransform = FleshInputBuffer->Transforms[BoneIndices[i]];
+													FVec3 ComponentPointAtT = BoneCurrentTransform.TransformPosition(LocalPoint);
 
 													if (PreviousFleshBuffer)
 													{
-														FTransform BonePreviousTransform = PreviousFleshBuffer->Transforms[BoneIndices[i]];
-														ComponentPointAtT = ComponentPointAtT * CurrentRatio + BonePreviousTransform.TransformPosition(LocalPoint) * ((FSolverReal)1. - CurrentRatio);
+														const FTransform& BonePreviousTransform = PreviousFleshBuffer->Transforms[BoneIndices[i]];
+														FVec3 PreviousComponentPointAtT = BonePreviousTransform.TransformPosition(LocalPoint);
+
+														if (Proxy->IsBoneSpace())
+														{
+															// Current position gets current bone xf
+															ComponentPointAtT = GlobalTransform.TransformPosition(ComponentPointAtT);
+															// Previous position gets previous bone xf
+															const FTransform& PrevGlobalTransform = Proxy->GetPreviousPointsTransform();
+															PreviousComponentPointAtT = PrevGlobalTransform.TransformPosition(PreviousComponentPointAtT);
+														}
+														ComponentPointAtT = 
+															ComponentPointAtT * CurrentRatio + PreviousComponentPointAtT * ((FSolverReal)1. - CurrentRatio);
+													}
+													else if (Proxy->IsBoneSpace())
+													{
+														ComponentPointAtT = GlobalTransform.TransformPosition(ComponentPointAtT);
 													}
 
-													MParticles.X(Index) = GlobalTransform.TransformPosition(ComponentPointAtT);
+													if (!Proxy->IsBoneSpace())
+													{
+														MParticles.X(Index) = GlobalTransform.TransformPosition(ComponentPointAtT);
+													}
+													else
+													{
+														MParticles.X(Index) = ComponentPointAtT;
+													}
 
 													bParticleTouched = true;
 
@@ -1101,7 +1174,6 @@ namespace Chaos::Softs
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformableSolver_UpdateOutputState);
 		if (FFleshThreadingProxy* Proxy = InProxy.As<FFleshThreadingProxy>())
 		{
-
 			const FIntVector2& Range = Proxy->GetSolverParticleRange();
 			if (0 <= Range[0])
 			{
@@ -1110,9 +1182,25 @@ namespace Chaos::Softs
 				auto UEVertf = [](FVector3d V) { return FVector3f((float)V.X, (float)V.Y, (float)V.Z); };
 
 				TManagedArray<FVector3f>& Position = Proxy->GetDynamicCollection().ModifyAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-				for (int32 vdx = 0; vdx < Position.Num(); vdx++)
+
+				// The final transform gets us from whatever the simulation space is,
+				// to component space.
+				const FTransform FinalXf = Proxy->GetFinalTransform();
+				if (!FinalXf.Equals(FTransform::Identity))
 				{
-					Position[vdx] = UEVertf(UEVertd(Evolution->Particles().X(vdx + Range[0])));
+					for (int32 vdx = 0; vdx < Position.Num(); vdx++)
+					{
+						const Chaos::FVec3f& Pos = Evolution->Particles().X(vdx + Range[0]);
+						FVector PosD = UEVertd(Pos);
+						Position[vdx] = UEVertf(FinalXf.TransformPosition(PosD));
+					}
+				}
+				else
+				{
+					for (int32 vdx = 0; vdx < Position.Num(); vdx++)
+					{
+						Position[vdx] = UEVertf(UEVertd(Evolution->Particles().X(vdx + Range[0])));
+					}
 				}
 			}
 		}

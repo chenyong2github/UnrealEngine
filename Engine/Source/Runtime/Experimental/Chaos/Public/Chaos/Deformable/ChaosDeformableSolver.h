@@ -116,6 +116,7 @@ namespace Chaos::Softs
 		TUniquePtr<FDeformablePackage> PullInputPackage( );
 
 		/* Iteration Advance */
+		void InitializeSimulationSpace();
 		void InitializeSimulationObjects();
 		void InitializeSimulationObject(FThreadingProxy&);
 		void InitializeDeformableParticles(FFleshThreadingProxy&);
