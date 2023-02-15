@@ -151,7 +151,7 @@ namespace UnrealGameSync
 			string statusMessage;
 			WorkspaceUpdateResult result = WorkspaceUpdateResult.FailedToSync;
 
-			if (!Lock.TryAcquire())
+			if (!await Lock.TryAcquireAsync())
 			{
 				statusMessage = "Command line sync already in progress";
 				_logger.LogError("Another process is already syncing this workspace.");
@@ -178,7 +178,7 @@ namespace UnrealGameSync
 				}
 				finally
 				{
-					Lock.Release();
+					await Lock.ReleaseAsync();
 				}
 			}
 

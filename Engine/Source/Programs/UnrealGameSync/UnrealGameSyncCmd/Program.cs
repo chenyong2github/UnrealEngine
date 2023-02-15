@@ -658,7 +658,7 @@ namespace UnrealGameSyncCmd
 				string[] syncFilter = ReadSyncFilter(settings, context.UserSettings, projectConfig);
 
 				using WorkspaceLock workspaceLock = new WorkspaceLock(settings.RootDir);
-				if (!workspaceLock.TryAcquire())
+				if (!await workspaceLock.TryAcquireAsync())
 				{
 					logger.LogError("Another process is already syncing this workspace.");
 					return;
