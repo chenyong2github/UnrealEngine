@@ -4032,8 +4032,28 @@ FGuid UNiagaraScript::GetBaseChangeID(const FGuid& VersionGuid) const
 
 ENiagaraScriptCompileStatus UNiagaraScript::GetLastCompileStatus() const
 {
+	bool bHasWarnings = false;
+	if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
+	{
+		const TArray<FString>& Errors = ScriptResource->GetCompileErrors();
+		if (Errors.Num() > 0)
+		{
+			for (const FString& ErrorStr : Errors)
+			{
+				if (ErrorStr.Contains(TEXT("err0r")))
+				{
+					return ENiagaraScriptCompileStatus::NCS_Error;
+				}
+			}
+			bHasWarnings = true;
+		}	
+	}
 	if (CachedScriptVM.IsValid())
 	{
+		if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_UpToDate && bHasWarnings)
+		{
+			return ENiagaraScriptCompileStatus::NCS_ComputeUpToDateWithWarnings;
+		}
 		return CachedScriptVM.LastCompileStatus;
 	}
 	return ENiagaraScriptCompileStatus::NCS_Unknown;
