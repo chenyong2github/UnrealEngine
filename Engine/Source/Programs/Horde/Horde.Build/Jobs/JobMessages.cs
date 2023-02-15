@@ -801,6 +801,11 @@ namespace Horde.Build.Jobs
 		public DateTimeOffset? FinishTime { get; set; }
 
 		/// <summary>
+		/// Time at which the group became ready (UTC).
+		/// </summary>
+		public DateTimeOffset? ReadyTime { get; set; }
+
+		/// <summary>
 		/// Converts this batch into a public response object
 		/// </summary>
 		/// <param name="batch">The batch to construct from</param>
@@ -822,6 +827,7 @@ namespace Horde.Build.Jobs
 			WeightedPriority = batch.SchedulePriority;
 			StartTime = batch.StartTimeUtc;
 			FinishTime = batch.FinishTimeUtc;
+			ReadyTime = batch.ReadyTimeUtc;
 		}
 	}
 

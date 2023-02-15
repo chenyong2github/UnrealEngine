@@ -1269,6 +1269,9 @@ export type GetBatchResponse = {
 	/**The priority of this batch */
 	weightedPriority: number;
 
+	/**Time at which the group became ready (UTC) */
+	readyTime?: Date | string;
+
 	/**Time at which the group started (UTC). */
 	startTime?: Date | string;
 
