@@ -16,6 +16,7 @@ public class MovieRenderPipelineSettings : ModuleRules
 				"Slate",
 				"RenderCore",
 				"RHI",
+				"ApplicationCore"
 			}
 		);
 

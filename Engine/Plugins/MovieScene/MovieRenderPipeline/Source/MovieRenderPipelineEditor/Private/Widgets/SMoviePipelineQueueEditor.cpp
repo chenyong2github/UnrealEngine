@@ -13,6 +13,7 @@
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "MoviePipelineCommands.h"
 #include "MoviePipelineEditorBlueprintLibrary.h"
+#include "Graph/MovieGraphConfig.h"
 
 // Slate Includes
 #include "Widgets/Input/SComboButton.h"
@@ -203,6 +204,11 @@ public:
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
+			if (Job->IsUsingGraphConfiguration())
+			{
+				return LOCTEXT("QueueEditorDefaultJobGraph_Text", "Default Graph");
+			}
+			
 			// If the job has a preset origin (ie, its config is based off a preset w/o any modifications), use its
 			// display name. If the config has a preset origin (ie, it's based off a preset, but has modifications), use
 			// that display name. Otherwise, fall back to the config's display name.
@@ -234,7 +240,14 @@ public:
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
-			Job->SetPresetOrigin(CastChecked<UMoviePipelinePrimaryConfig>(AssetData.GetAsset()));
+			if (Job->IsUsingGraphConfiguration())
+			{
+				Job->SetGraphPreset(CastChecked<UMovieGraphConfig>(AssetData.GetAsset()));
+			}
+			else
+			{
+				Job->SetPresetOrigin(CastChecked<UMoviePipelinePrimaryConfig>(AssetData.GetAsset()));
+			}
 		}
 
 		OnChosePresetCallback.ExecuteIfBound(WeakJob, nullptr);
@@ -248,12 +261,32 @@ public:
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
-			// Copy from the CDO's version of the job to pick up the right name.
-			Job->SetConfiguration(GetMutableDefault<UMoviePipelineExecutorJob>()->GetConfiguration());
-			UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(Job);
+			if (Job->IsUsingGraphConfiguration())
+			{
+				Job->SetGraphPreset(GetMutableDefault<UMoviePipelineExecutorJob>()->GetGraphPreset());
+			}
+			else
+			{
+				// Copy from the CDO's version of the job to pick up the right name.
+				Job->SetConfiguration(GetMutableDefault<UMoviePipelineExecutorJob>()->GetConfiguration());
+				UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(Job);
+			}
 		}
 
 		OnChosePresetCallback.ExecuteIfBound(WeakJob, nullptr);
+	}
+
+	void OnReplaceWithRenderGraph()
+	{
+		UMoviePipelineExecutorJob* Job = WeakJob.Get();
+		if (!Job)
+		{
+			return;
+		}
+
+		// Note: Setting the graph preset will transition the job to use a graph-based configuration
+		UMovieGraphConfig* NewGraph = NewObject<UMovieGraphConfig>(Job);
+		Job->SetGraphPreset(NewGraph);
 	}
 
 	EVisibility GetPrimaryConfigModifiedVisibility() const
@@ -347,19 +380,31 @@ public:
 
 	TSharedRef<SWidget> OnGenerateConfigPresetPickerMenu()
 	{
-		return OnGenerateConfigPresetPickerMenuFromClass(UMoviePipelinePrimaryConfig::StaticClass(),
+		UMoviePipelineExecutorJob* Job = WeakJob.Get();
+
+		UClass* ConfigType = Job->IsUsingGraphConfiguration() ? UMovieGraphConfig::StaticClass() : UMoviePipelinePrimaryConfig::StaticClass();
+		
+		return OnGenerateConfigPresetPickerMenuFromClass(
+			ConfigType,
+			WeakJob,
 			FOnAssetSelected::CreateRaw(this, &FMoviePipelineQueueJobTreeItem::OnPickPresetFromAsset),
-			FExecuteAction::CreateRaw(this, &FMoviePipelineQueueJobTreeItem::OnPickNewPreset)
+			FExecuteAction::CreateRaw(this, &FMoviePipelineQueueJobTreeItem::OnPickNewPreset),
+			FExecuteAction::CreateRaw(this, &FMoviePipelineQueueJobTreeItem::OnReplaceWithRenderGraph)
 			);
 	}
 
-	static TSharedRef<SWidget> OnGenerateConfigPresetPickerMenuFromClass(TSubclassOf<UMoviePipelineConfigBase> InClass, FOnAssetSelected InOnAssetSelected, FExecuteAction InNewConfig)
+	static TSharedRef<SWidget> OnGenerateConfigPresetPickerMenuFromClass(UClass* InClass,
+		TWeakObjectPtr<UMoviePipelineExecutorJob> TargetJob, FOnAssetSelected InOnAssetSelected, FExecuteAction InNewConfig, FExecuteAction InNewRenderGraph)
 	{
 		FMenuBuilder MenuBuilder(true, nullptr);
 		IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
 
 		FAssetPickerConfig AssetPickerConfig;
 		{
+			const FText NoAssetsFoundWarning = InClass->IsChildOf(UMoviePipelinePrimaryConfig::StaticClass())
+				? LOCTEXT("NoConfigs_Warning", "No Primary Configurations Found")
+				: LOCTEXT("NoGraphs_Warning", "No Render Graphs Found");
+			
 			AssetPickerConfig.SelectionMode = ESelectionMode::Single;
 			AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 			AssetPickerConfig.bFocusSearchBoxWhenOpened = true;
@@ -374,7 +419,7 @@ public:
 			AssetPickerConfig.ThumbnailScale = 0.1f;
 			AssetPickerConfig.SaveSettingsName = TEXT("MoviePipelineConfigAsset");
 
-			AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoConfigs_Warning", "No Primary Configurations Found");
+			AssetPickerConfig.AssetShowWarningText = NoAssetsFoundWarning;
 			AssetPickerConfig.Filter.ClassPaths.Add(InClass->GetClassPathName());
 			AssetPickerConfig.OnAssetSelected = InOnAssetSelected;
 		}
@@ -389,6 +434,19 @@ public:
 				NAME_None,
 				EUserInterfaceActionType::Button
 			);
+
+			const bool bIsGraphFeatureEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("MoviePipeline.EnableRenderGraph"))->GetBool();
+			if (bIsGraphFeatureEnabled && !TargetJob->IsUsingGraphConfiguration())
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("ReplaceWithGraph_Label", "Replace with Graph"),
+					LOCTEXT("ReplaceWithGraph_Tooltip", "Replaces the current configuration with a new graph representation."),
+					FSlateIcon(),
+					FUIAction(InNewRenderGraph),
+					NAME_None,
+					EUserInterfaceActionType::Button
+				);
+			}
 		}
 
 		MenuBuilder.BeginSection(NAME_None, LOCTEXT("ImportConfig_MenuSection", "Import Configuration"));
@@ -802,6 +860,11 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
 		if (Shot)
 		{
+			if (Shot->IsUsingGraphConfiguration())
+			{
+				return LOCTEXT("QueueEditorDefaultShotGraph_Text", "Default Graph");
+			}
+			
 			// If the shot has a preset origin (ie, its config is based off a preset w/o any modifications), use its
 			// display name. If the config has a preset origin (ie, it's based off a preset, but has modifications), use
 			// that display name. Otherwise, fall back to the config's display name.
@@ -853,6 +916,19 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 		OnChosePresetCallback.ExecuteIfBound(WeakJob, WeakShot);
 	}
 
+	void OnReplaceWithRenderGraph()
+	{
+		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
+		if (!Shot)
+		{
+			return;
+		}
+
+		// Note: Setting the graph preset will transition the job to use a graph-based configuration
+		UMovieGraphConfig* NewGraph = NewObject<UMovieGraphConfig>(Shot);
+		Shot->SetGraphPreset(NewGraph);
+	}
+
 	EVisibility GetShotConfigModifiedVisibility() const
 	{
 		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
@@ -871,9 +947,12 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 
 	TSharedRef<SWidget> OnGenerateShotConfigPresetPickerMenu()
 	{
-		return FMoviePipelineQueueJobTreeItem::OnGenerateConfigPresetPickerMenuFromClass(UMoviePipelineShotConfig::StaticClass(),
+		return FMoviePipelineQueueJobTreeItem::OnGenerateConfigPresetPickerMenuFromClass(
+			UMoviePipelineShotConfig::StaticClass(),
+			WeakJob,
 			FOnAssetSelected::CreateRaw(this, &FMoviePipelineShotItem::OnPickShotPresetFromAsset),
-			FExecuteAction::CreateRaw(this, &FMoviePipelineShotItem::OnPickNewShotPreset)
+			FExecuteAction::CreateRaw(this, &FMoviePipelineShotItem::OnPickNewShotPreset),
+			FExecuteAction::CreateRaw(this, &FMoviePipelineShotItem::OnReplaceWithRenderGraph)
 			);
 	}
 };

@@ -8,6 +8,7 @@
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineConfigBase.h"
 #include "MovieSceneSequenceID.h"
+#include "Graph/MovieGraphConfig.h"
 
 #include "MoviePipelineQueue.generated.h"
 
@@ -131,6 +132,57 @@ public:
 		return ShotOverridePresetOrigin.Get();
 	}
 
+	/**
+	 * Returns true if this job is using graph-style configuration, else false.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	bool IsUsingGraphConfiguration() const
+	{
+		return GraphPreset.IsValid() || GraphConfig != nullptr;
+	}
+
+	/**
+	 * Gets the graph-style preset that this job is using. If the job is not using a graph-style preset, returns nullptr.
+	 * @see GetGraphConfig()
+	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	UMovieGraphConfig* GetGraphPreset() const
+	{
+		return GraphPreset.LoadSynchronous();
+	}
+
+	/**
+	 * Gets the graph-style config that this job is using. If the job is not using a graph-style config, returns nullptr.
+	 * @see GetGraphPreset()
+	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	UMovieGraphConfig* GetGraphConfig() const
+	{
+		return GraphConfig;
+	}
+
+	/**
+	 * Sets the graph-style preset that this job will use. Note that this will cause the graph to switch over to using
+	 * graph-style configuration if it is not already using it.
+	 * @see SetGraphConfig()
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetGraphPreset(const UMovieGraphConfig* InGraphPreset)
+	{
+		GraphPreset = InGraphPreset;
+	}
+
+	/**
+	 * Sets the graph-style config that this job will use. Note that this will cause the graph to switch over to using
+	 * graph-style configuration if it is not already using it.
+	 * @see SetGraphPreset()
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetGraphConfig(UMovieGraphConfig* InGraphConfig)
+	{
+		GraphConfig = InGraphConfig;
+	}
+
 	/** Returns whether this should should be rendered */
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	bool ShouldRender() const
@@ -188,6 +240,14 @@ private:
 
 	UPROPERTY()
 	TSoftObjectPtr<UMoviePipelineShotConfig> ShotOverridePresetOrigin;
+
+	/** The graph-based configuration that this shot is using; Can be nullptr. */
+	UPROPERTY()
+	TObjectPtr<UMovieGraphConfig> GraphConfig;
+
+	/** The graph-based configuration preset that this shot is using. Can be nullptr. */
+	UPROPERTY()
+	TSoftObjectPtr<UMovieGraphConfig> GraphPreset;
 };
 
 /**
@@ -364,6 +424,57 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetConfiguration(UMoviePipelinePrimaryConfig* InPreset);
 
+	/**
+	 * Returns true if this job is using graph-style configuration, else false.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	bool IsUsingGraphConfiguration() const
+	{
+		return GraphPreset.IsValid() || GraphConfig != nullptr;
+	}
+
+	/**
+	 * Gets the graph-style preset that this job is using. If the job is not using a graph-style preset, returns nullptr.
+	 * @see GetPresetOrigin()
+	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	UMovieGraphConfig* GetGraphPreset() const
+	{
+		return GraphPreset.LoadSynchronous();
+	}
+
+	/**
+	 * Gets the graph-style config that this job is using. If the job is not using a graph-style config, returns nullptr.
+	 * @see GetGraphPreset()
+	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	UMovieGraphConfig* GetGraphConfig() const
+	{
+		return GraphConfig;
+	}
+
+	/**
+	 * Sets the graph-style preset that this job will use. Note that this will cause the graph to switch over to using
+	 * graph-style configuration if it is not already using it.
+	 * @see SetGraphConfig()
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetGraphPreset(const UMovieGraphConfig* InGraphPreset)
+	{
+		GraphPreset = InGraphPreset;
+	}
+
+	/**
+	 * Sets the graph-style config that this job will use. Note that this will cause the graph to switch over to using
+	 * graph-style configuration if it is not already using it.
+	 * @see SetGraphPreset()
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetGraphConfig(UMovieGraphConfig* InGraphConfig)
+	{
+		GraphConfig = InGraphConfig;
+	}
+
 	UFUNCTION(BlueprintSetter, Category = "Movie Render Pipeline")
 	void SetSequence(FSoftObjectPath InSequence);
 
@@ -446,6 +557,14 @@ private:
 	/** Whether this job is enabled and should be rendered. */
 	UPROPERTY()
 	bool bEnabled;
+
+	/** The graph-based configuration that this job is using; this graph has not been saved as an asset. Can be nullptr.  */
+	UPROPERTY()
+	TObjectPtr<UMovieGraphConfig> GraphConfig;
+
+	/** The graph-based configuration preset that this job is using. Can be nullptr. */
+	UPROPERTY()
+	TSoftObjectPtr<UMovieGraphConfig> GraphPreset;
 };
 
 /**
