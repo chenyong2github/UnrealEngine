@@ -185,6 +185,7 @@ void UAddPivotActorTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransfor
 {
 	TransformProperties->Position = Transform.GetTranslation();
 	TransformProperties->Rotation = Transform.GetRotation();
+	NotifyOfPropertyChangeByTool(TransformProperties);
 	GizmoPositionWatcher.SilentUpdate();
 	GizmoRotationWatcher.SilentUpdate();
 }
