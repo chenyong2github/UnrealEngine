@@ -316,13 +316,21 @@ struct FNiagaraSimCacheDataBuffersLayout
 	UPROPERTY()
 	uint16 ComponentVelocity = INDEX_NONE;
 
-	// Transient value used to map particles between frames for interpolation
-	uint16 ComponentUniqueID = INDEX_NONE;
+	struct FCacheBufferWriteInfo
+	{
+		uint16			ComponentUniqueID = INDEX_NONE;		// Used during building for interpolation to track particles
+		TArray<uint16>	ComponentMappingsFromDataBuffer;	// Used to map individual components from a Niagara Data Buffer -> Cache Buffer
+	};
+	FCacheBufferWriteInfo CacheBufferWriteInfo;
 
-	TArray<uint16> ComponentMappingsToDataBuffer;
-	TArray<FVariableCopyMapping> VariableCopyMappingsToDataBuffer;
-
-	TArray<uint16>	ComponentMappingsFromDataBuffer;
+	struct FCacheBufferReadInfo
+	{
+		TArray<uint16>					ComponentMappingsToDataBuffer;		// Used to map individual components from Cache Buffer -> Niagara Data Buffer
+		TArray<FVariableCopyMapping>	VariableCopyMappingsToDataBuffer;	// Used for more complex operations when we need to rebase / interpolate / etc
+	};
+	FCacheBufferReadInfo CacheBufferReadInfo;
+	mutable bool bNeedsCacheBufferReadInfoUpdateForRT = false;
+	mutable FCacheBufferReadInfo CacheBufferReadInfo_RT;
 
 	int32 IndexOfCacheVariable(const FNiagaraVariableBase& InVariable) const;
 	const FNiagaraSimCacheVariable* FindCacheVariable(const FNiagaraVariableBase& InVariable) const;
