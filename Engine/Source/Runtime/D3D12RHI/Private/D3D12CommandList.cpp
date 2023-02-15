@@ -381,10 +381,18 @@ void FD3D12ContextCommon::TransitionResource(FD3D12DepthStencilView* View)
 	{
 		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_WRITE, View->GetDepthOnlyViewSubresourceSubset());
 	}
+	else if (bHasDepth)
+	{
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_READ, View->GetDepthOnlyViewSubresourceSubset());
+	}
 
 	if (bStencilIsWritable)
 	{
 		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_WRITE, View->GetStencilOnlyViewSubresourceSubset());
+	}
+	else if (bHasStencil)
+	{
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_READ, View->GetStencilOnlyViewSubresourceSubset());
 	}
 }
 
@@ -613,6 +621,7 @@ static inline bool IsTransitionNeeded(D3D12_RESOURCE_STATES Before, D3D12_RESOUR
 	// Depth write is actually a suitable for read operations as a "normal" depth buffer.
 	if (Before == D3D12_RESOURCE_STATE_DEPTH_WRITE && After == D3D12_RESOURCE_STATE_DEPTH_READ)
 	{
+		After = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 		return false;
 	}
 
