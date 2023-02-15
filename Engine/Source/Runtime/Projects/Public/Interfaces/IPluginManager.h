@@ -313,6 +313,13 @@ public:
 
 	virtual PROJECTS_API TSharedPtr<IPlugin> FindPluginFromPath(const FString& PluginPath) = 0;
 
+	/** 
+	 * Finds all plugin descriptors underneath a given directory (recursively)
+	 * @param Directory Search folder
+	 * @param OutPluginFilePaths Receives found plugin descriptor file paths
+	 */
+	virtual void FindPluginsUnderDirectory(const FString& Directory, TArray<FString>& OutPluginFilePaths) = 0;
+
 	/**
 	 * Gets an array of all the enabled plugins.
 	 *

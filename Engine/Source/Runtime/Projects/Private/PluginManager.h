@@ -145,14 +145,17 @@ public:
 	virtual bool CheckModuleCompatibility(TArray<FString>& OutIncompatibleModules, TArray<FString>& OutIncompatibleEngineModules) override;
 #endif
 	virtual TSharedPtr<IPlugin> FindPlugin(const FStringView Name) override;
-
 	virtual TSharedPtr<IPlugin> FindPlugin(const ANSICHAR* Name) override
 	{
 		FString NameString(Name);
 		return FindPlugin(FStringView(NameString));
 	}
-
 	virtual TSharedPtr<IPlugin> FindPluginFromPath(const FString& PluginPath) override;
+
+	virtual void FindPluginsUnderDirectory(const FString& Directory, TArray<FString>& OutPluginFilePaths) override
+	{
+		return FindPluginsInDirectory(Directory, OutPluginFilePaths);
+	}
 
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPlugins() override;
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContent() const override;
