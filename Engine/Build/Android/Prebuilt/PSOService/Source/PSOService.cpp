@@ -204,6 +204,8 @@ public:
 
 	void ShutDownDevice()
 	{
+		bInitialized = false;
+
 		if (Device == VK_NULL_HANDLE)
 		{
 			return;
