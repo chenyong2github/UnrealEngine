@@ -1268,8 +1268,6 @@ void BlockRendering()
 
 	UE_LOG(LogAndroid, Log, TEXT("Blocking renderer on invalid window."));
 	
-	// Wait for GC to complete and prevent further GCs
-	FGCScopeGuard GCGuard;
 	TSharedPtr<FEvent, ESPMode::ThreadSafe> BlockedTrigger = MakeShareable(FPlatformProcess::GetSynchEventFromPool(), [](FEvent* EventToDelete)
 	{
 		FPlatformProcess::ReturnSynchEventToPool(EventToDelete);
@@ -1283,6 +1281,9 @@ void BlockRendering()
 
 	UE_LOG(LogAndroid, Log, TEXT("Waiting for game thread to release EGL context/surface."));
 	BlockedTrigger->Wait();
+
+	// Wait for GC to complete and prevent further GCs
+	FGCScopeGuard GCGuard;
 
 	FGraphEventRef RTBlockTask = FFunctionGraphTask::CreateAndDispatchWhenReady([BlockedTrigger]()
 	{
