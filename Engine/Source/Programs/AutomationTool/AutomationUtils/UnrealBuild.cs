@@ -356,7 +356,7 @@ namespace AutomationTool
 
 					if (File.Exists(BuildVersionFile.FullName))
 					{
-						VersionFileUpdater.MakeFileWriteable(BuildVersionFile.FullName);
+						VersionFileUpdater.MakeFileWriteable(BuildVersionFile.FullName, true);
 					}
 
 					Version.Write(BuildVersionFile);
