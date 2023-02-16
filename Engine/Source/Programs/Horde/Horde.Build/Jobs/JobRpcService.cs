@@ -330,8 +330,14 @@ namespace Horde.Build.Jobs
 			response.PreflightChange = job.PreflightChange;
 			response.ClonedPreflightChange = job.ClonedPreflightChange;
 			response.Arguments.AddRange(job.Arguments);
-			response.TempStorageDir = agentConfig.TempStorageDir;
-			response.Environment.Add(agentConfig.Environment ?? new Dictionary<string, string>());
+			if (agentConfig.TempStorageDir != null)
+			{
+				response.TempStorageDir = agentConfig.TempStorageDir;
+			}
+			if (agentConfig.Environment != null)
+			{
+				response.Environment.Add(agentConfig.Environment);
+			}
 			response.ValidAgentTypes.Add(streamConfig.AgentTypes.Keys);
 
 			return response;
