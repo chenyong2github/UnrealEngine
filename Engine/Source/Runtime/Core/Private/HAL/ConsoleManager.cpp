@@ -2628,6 +2628,13 @@ static TAutoConsoleVariable<int32> CVarMobileShadingPath(
 		 "1: Deferred shading"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarMobileAllowDeferredShadingOpenGL(
+	TEXT("r.Mobile.AllowDeferredShadingOpenGL"),
+	0,
+	TEXT("0: Do not Allow Deferred Shading on OpenGL (default)"
+		"1: Allow Deferred Shading on OpenGL"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 static TAutoConsoleVariable<int32> CVarMobileEnableStaticAndCSMShadowReceivers(
 	TEXT("r.Mobile.EnableStaticAndCSMShadowReceivers"),
 	1,

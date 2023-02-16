@@ -295,6 +295,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	TEnumAsByte<EMobileShadingPath::Type> MobileShadingPath;
 
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
+		ConsoleVariable = "r.Mobile.AllowDeferredShadingOpenGL", DisplayName = "Allow Deferred Shading on OpenGL",
+		ToolTip = "Whether to allow Deferred Shading on OpenGL, requires the DXC shader compiler and Mobile Shading set to deferred",
+		ConfigRestartRequired = true))
+	uint32 bMobileSupportDeferredOnOpenGL : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
 		ConsoleVariable = "r.Mobile.SupportGPUScene", DisplayName = "Enable GPUScene on Mobile",
 		ToolTip = "Whether to enable GPUScene on mobile. GPUScene is required for mesh auto-instancing. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))

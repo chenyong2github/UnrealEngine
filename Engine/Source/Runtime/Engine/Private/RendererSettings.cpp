@@ -251,6 +251,14 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			}
 		}
 
+		if ((PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, MobileShadingPath)))
+		{
+			if (MobileShadingPath.GetValue() == 0)
+			{
+				bMobileSupportDeferredOnOpenGL = 0;
+			}
+		}
+
 		if ((PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bEnableStrata)))
 		{
 			if (bEnableStrata)
@@ -345,6 +353,11 @@ bool URendererSettings::CanEditChange(const FProperty* InProperty) const
 		|| InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ShadowMapMethod))
 	{
 		return !bForwardShading;
+	}
+
+	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileSupportDeferredOnOpenGL)))
+	{
+		return MobileShadingPath.GetValue() > 0;
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
