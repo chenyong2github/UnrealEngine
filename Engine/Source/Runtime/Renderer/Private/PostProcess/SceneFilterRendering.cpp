@@ -343,6 +343,30 @@ namespace UE::Renderer::PostProcess
 		::DrawRectangle(RHICmdList, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize, VertexShader, Flags, InstanceCount);
 	}
 
+	void DrawRectangle(
+		FRHICommandList& RHICmdList,
+		const TShaderRef<FShader>& VertexShader,
+		const FSceneView& InView,
+		EDrawRectangleFlags Flags,
+		uint32 InstanceCount
+	)
+	{
+		if (ensure(InView.bIsViewInfo))
+		{
+			const FViewInfo& View = static_cast<const FViewInfo&>(InView);
+			DrawRectangle(
+				RHICmdList,
+				VertexShader,
+				View.ViewRect.Min.X, View.ViewRect.Min.Y,
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.ViewRect.Min.X, View.ViewRect.Min.Y,
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.UnconstrainedViewRect.Size(),
+				View.UnconstrainedViewRect.Size(),
+				Flags);
+		}
+	}
+
 	void DrawPostProcessPass(
 		FRHICommandList& RHICmdList,
 		const TShaderRef<FShader>& VertexShader,

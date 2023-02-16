@@ -100,6 +100,8 @@ extern RENDERER_API FSceneTextureShaderParameters CreateSceneTextureShaderParame
 	const FSceneView& View,
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
 
+extern RENDERER_API FSceneTextureShaderParameters GetSceneTextureShaderParameters(const FSceneView& View);
+
 /** Struct containing references to extracted RHI resources after RDG execution. All textures are
  *  left in an SRV read state, so they can safely be used for read without being re-imported into
  *  RDG. Likewise, the uniform buffer is non-RDG and can be used as is.

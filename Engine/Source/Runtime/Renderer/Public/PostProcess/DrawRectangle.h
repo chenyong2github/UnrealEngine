@@ -65,6 +65,14 @@ namespace UE::Renderer::PostProcess
 		uint32 InstanceCount = 1
 	);
 
+	RENDERER_API void DrawRectangle(
+		FRHICommandList& RHICmdList,
+		const TShaderRef<FShader>& VertexShader,
+		const FSceneView& View,
+		EDrawRectangleFlags Flags = EDRF_Default,
+		uint32 InstanceCount = 1
+	);
+
 	// NOTE: Assumes previously set PSO has PrimitiveType = PT_TriangleList
 	RENDERER_API void DrawPostProcessPass(
 		FRHICommandList& RHICmdList,

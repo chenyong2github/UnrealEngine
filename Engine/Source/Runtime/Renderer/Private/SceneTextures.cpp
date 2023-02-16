@@ -1044,6 +1044,13 @@ FSceneTextureShaderParameters CreateSceneTextureShaderParameters(FRDGBuilder& Gr
 	return Parameters;
 }
 
+FSceneTextureShaderParameters GetSceneTextureShaderParameters(const FSceneView& View)
+{
+	check(View.bIsViewInfo);
+	const FMinimalSceneTextures& SceneTextures = static_cast<const FViewInfo&>(View).GetSceneTextures();
+	return SceneTextures.GetSceneTextureShaderParameters(View.GetFeatureLevel());
+}
+
 TRDGUniformBufferRef<FSceneTextureUniformParameters> GetSceneTextureUnformBuffer(const FSceneView& View)
 {
 	if (const FSceneTextures* SceneTextures = static_cast<const FViewFamilyInfo*>(View.Family)->GetSceneTexturesChecked())
