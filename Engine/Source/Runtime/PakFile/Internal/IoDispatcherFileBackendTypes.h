@@ -796,13 +796,15 @@ public:
 		FIoRequestImpl& InDispatcherRequest,
 		FFileIoStoreContainerFile* InContainerFile,
 		uint64 InResolvedOffset,
-		uint64 InResolvedSize)
+		uint64 InResolvedSize,
+		int32 InPriority)
 	{
 		return ResolvedRequestAllocator.Construct(
 			InDispatcherRequest,
 			InContainerFile,
 			InResolvedOffset,
-			InResolvedSize);
+			InResolvedSize,
+			InPriority);
 	}
 
 	void Free(FFileIoStoreResolvedRequest* ResolvedRequest)
@@ -862,7 +864,8 @@ public:
 		FIoRequestImpl& InDispatcherRequest,
 		FFileIoStoreContainerFile* InContainerFile,
 		uint64 InResolvedOffset,
-		uint64 InResolvedSize);
+		uint64 InResolvedSize,
+		int32 InPriority);
 
 	const FFileIoStoreContainerFile* GetContainerFile() const
 	{
@@ -886,8 +889,7 @@ public:
 
 	int32 GetPriority() const
 	{
-		check(DispatcherRequest);
-		return DispatcherRequest->Priority;
+		return Priority;
 	}
 
 	bool HasBuffer() const
@@ -917,6 +919,7 @@ private:
 	FFileIoStoreReadRequestLink* ReadRequestsTail = nullptr;
 	const uint64 ResolvedOffset;
 	const uint64 ResolvedSize;
+	int32 Priority = 0;
 	uint32 UnfinishedReadsCount = 0;
 	bool bFailed = false;
 	bool bCancelled = false;

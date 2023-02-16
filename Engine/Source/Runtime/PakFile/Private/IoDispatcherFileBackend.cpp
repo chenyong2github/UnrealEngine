@@ -958,11 +958,13 @@ FFileIoStoreResolvedRequest::FFileIoStoreResolvedRequest(
 	FIoRequestImpl& InDispatcherRequest,
 	FFileIoStoreContainerFile* InContainerFile,
 	uint64 InResolvedOffset,
-	uint64 InResolvedSize)
+	uint64 InResolvedSize,
+	int32 InPriority)
 	: DispatcherRequest(&InDispatcherRequest)
 	, ContainerFile(InContainerFile)
 	, ResolvedOffset(InResolvedOffset)
 	, ResolvedSize(InResolvedSize)
+	, Priority(InPriority)
 {
 
 }
@@ -1385,7 +1387,8 @@ bool FFileIoStore::Resolve(FIoRequestImpl* Request)
 				*Request,
 				Reader->GetContainerFile(),
 				ResolvedOffset,
-				ResolvedSize);
+				ResolvedSize,
+				Request->Priority);
 			Request->BackendData = ResolvedRequest;
 
 			if (ResolvedSize > 0)
@@ -1444,6 +1447,7 @@ void FFileIoStore::UpdatePriorityForIoRequest(FIoRequestImpl* Request)
 	if (Request->BackendData)
 	{
 		FFileIoStoreResolvedRequest* ResolvedRequest = static_cast<FFileIoStoreResolvedRequest*>(Request->BackendData);
+		ResolvedRequest->Priority = Request->Priority;
 		RequestTracker.UpdatePriorityForIoRequest(*ResolvedRequest);
 	}
 }
