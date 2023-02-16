@@ -561,7 +561,12 @@ FGuid UAnimDataModel::GenerateGuid() const
 	for (const FAnimatedBoneAttribute& Attribute : AnimatedBoneAttributes)
 	{
 		UpdateWithData(Attribute.Identifier);
-		UpdateSHAWithArray(Attribute.Curve.GetConstRefOfKeys());
+		const uint32 StructSize = Attribute.Identifier.GetType()->GetStructureSize();
+		for (const FAttributeKey& Key : Attribute.Curve.GetConstRefOfKeys())
+		{
+			UpdateWithData(Key.Time);
+			Sha.Update(Key.GetValuePtr<uint8>(), StructSize);
+		}
 	}
 
 	Sha.Final();
