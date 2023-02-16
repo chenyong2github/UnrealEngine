@@ -3,8 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Net;
 using Microsoft.Extensions.Configuration;
 
 namespace EpicGames.OIDC
@@ -15,9 +13,9 @@ namespace EpicGames.OIDC
 
 		public static IReadOnlyList<string> ConfigPaths { get; } = new string[]
 		{
-			$"/Programs/OidcToken/{ConfigFileName}",
-			$"/Restricted/NoRedist/Programs/OidcToken/{ConfigFileName}",
-			$"/Restricted/NotForLicensees/Programs/OidcToken/{ConfigFileName}"
+			$"Programs/OidcToken/{ConfigFileName}",
+			$"Restricted/NoRedist/Programs/OidcToken/{ConfigFileName}",
+			$"Restricted/NotForLicensees/Programs/OidcToken/{ConfigFileName}"
 		};
 
 		public static IConfiguration ReadConfiguration(DirectoryInfo engineDir, DirectoryInfo? gameDir)

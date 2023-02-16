@@ -204,12 +204,12 @@ namespace UnrealGameSync
 			if (TryGetProjectSetting(projectConfigFile, projectIdentifier, "OidcProvider", out oidcProvider))
 			{
 				List<string> configFiles = new List<string>();
-				configFiles.AddRange(ProviderConfigurationFactory.ConfigPaths.Select(x => $"{clientRoot}/Engine/{x}"));
+				configFiles.AddRange(ProviderConfigurationFactory.ConfigPaths.Select(x => $"{clientRoot.TrimEnd('/')}/Engine/{x}"));
 
 				if (clientProjectFile != null && clientProjectFile.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
 				{
 					string clientProjectPath = clientProjectFile.Substring(0, clientProjectFile.LastIndexOf('/'));
-					configFiles.AddRange(ProviderConfigurationFactory.ConfigPaths.Select(x => $"{clientProjectPath}/{x}"));
+					configFiles.AddRange(ProviderConfigurationFactory.ConfigPaths.Select(x => $"{clientProjectPath.TrimEnd('/')}/{x}"));
 				}
 
 				List<string[]> latestOidcConfigFiles = await ConfigUtils.ReadConfigFiles(perforce, configFiles, localFiles, cacheFolder, logger, cancellationToken);
