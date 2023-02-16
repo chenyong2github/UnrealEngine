@@ -140,7 +140,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	
 
 
-	/** Scales the luminance of pixels representing the sky, i.e. not belonging to any surface. */
+	/** Scales the luminance of pixels representing the sky. This will impact the captured sky light. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", meta = (HideAlphaChannel))
 	FLinearColor SkyLuminanceFactor;
 

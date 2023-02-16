@@ -640,7 +640,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		const float StepCount = float(IStepCount);
 		const float StepT = (TMax - TMin) / StepCount; // StepT is step distance in centimeters
 		const float dtMeters = StepT * CENTIMETER_TO_METER;
-		// TODO adaptive sample count based on distance
 
 		// This is the scattered sky light luminance assuming a uniform phase function.
 		// TODO Approximate some form of occlusion
