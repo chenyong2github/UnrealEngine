@@ -316,7 +316,7 @@
 		},
 		{
 			"category": "MatMul",
-			"runtimes": [ { "name": "NNERuntimeRDGDml", "skip": true } ],
+			"runtimes": [ { "name": "NNERuntimeRDGDml" } ],
 			"targets": [
 				{ "target": "MatMul" }
 			]
@@ -633,8 +633,8 @@
 				{ "name": "NNERuntimeRDGHlsl"}
 			],
 			"datasets": [
-				{ "inputs": [ { "shape": [ 2, 2, 3, 5, 4 ] }, { "shape": [ 2, 1, 3, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 2, 3, 5, 3 ] } ]},
-				{ "inputs": [ { "shape": [ 2, 1, 2, 5, 4 ] }, { "shape": [ 1, 3, 2, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 3, 2, 5, 3 ] } ]},
+				{ "inputs": [ { "shape": [ 2, 2, 3, 5, 4 ] }, { "shape": [ 2, 1, 3, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 2, 3, 5, 3 ] } ], "runtimes": [ {"name": "NNERuntimeRDGDml", "skip": true, "comment": "Not Supported"} ]},
+				{ "inputs": [ { "shape": [ 2, 1, 2, 5, 4 ] }, { "shape": [ 1, 3, 2, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 3, 2, 5, 3 ] } ], "runtimes": [ {"name": "NNERuntimeRDGDml", "skip": true, "comment": "Not Supported"} ]},
 				{ "inputs": [ { "shape": [ 1, 1, 2, 5, 4 ] }, { "shape": [ 2, 3, 2, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 3, 2, 5, 3 ] } ]},
 				{ "inputs": [ { "shape": [ 1, 2, 5, 4 ] }, { "shape": [ 2, 3, 2, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 3, 2, 5, 3 ] } ]},
 				{ "inputs": [ { "shape": [ 5, 4 ] }, { "shape": [ 2, 1, 3, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 1, 3, 5, 3 ] } ]},

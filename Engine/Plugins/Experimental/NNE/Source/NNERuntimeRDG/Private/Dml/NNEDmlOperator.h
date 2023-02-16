@@ -57,7 +57,7 @@ namespace DmlUtil
 		FSmallUIntArray			Strides;
 		uint64					ElemSizeInBytes;
 
-		bool InitFromTensor(const NNECore::Internal::FTensor& InputDesc, int32 MinTensorRank, TConstArrayView<uint32> Broadcast = MakeArrayView((uint32*) nullptr, 0));
+		bool InitFromTensor(const NNECore::Internal::FTensor& InputDesc, int32 MinTensorRank, TConstArrayView<uint32> Broadcast = MakeArrayView((uint32*) nullptr, 0), TConstArrayView<uint32> CustomShape = MakeArrayView((uint32*) nullptr, 0));
 		bool InitFromTensor1D(const NNECore::Internal::FTensor& InputDesc, int32 Rank);
 
 		void SetStridesFromFTensor(const NNECore::Internal::FTensor& InputDesc);

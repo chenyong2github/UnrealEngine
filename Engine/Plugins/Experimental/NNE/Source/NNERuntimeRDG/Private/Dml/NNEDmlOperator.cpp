@@ -33,7 +33,7 @@ namespace DmlUtil
 		}
 	}
 
-	bool FTensorDesc::InitFromTensor(const NNECore::Internal::FTensor& Tensor, int32 MinTensorRank, TConstArrayView<uint32> BroadcastShape)
+	bool FTensorDesc::InitFromTensor(const NNECore::Internal::FTensor& Tensor, int32 MinTensorRank, TConstArrayView<uint32> BroadcastShape, TConstArrayView<uint32> CustomShape)
 	{
 		Reset();
 
@@ -44,7 +44,7 @@ namespace DmlUtil
 			return false;
 		}
 
-		TConstArrayView<uint32> InShape = Tensor.GetShape().GetData();
+		TConstArrayView<uint32> InShape = CustomShape.IsEmpty() ? Tensor.GetShape().GetData() : CustomShape;
 
 		ElemSizeInBytes = Tensor.GetElemByteSize();
 
