@@ -370,7 +370,7 @@ protected:
 	/**
 	 * @return the latest Version number used in serialization
 	 */
-	int32 GetLatestVersionNumber() const
+	constexpr int32 GetLatestVersionNumber() const
 	{
 		return 10;
 	}
