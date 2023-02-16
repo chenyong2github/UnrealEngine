@@ -23,7 +23,7 @@ public:
 			// If bReturnFocusToSelection is true find the last selected object and focus on that.
 			if (this->HasValidItemsSource() && this->TreeItemsSource->Num() > 0)
 			{
-				typename TListTypeTraits<ItemType>::NullableType ItemNavigatedTo(nullptr);
+				typename TListTypeTraits<ItemType>::NullableType ItemNavigatedTo = TListTypeTraits<ItemType>::MakeNullPtr();
 				if (this->GetNumItemsSelected() == 0)
 				{
 					ItemNavigatedTo = (*this->TreeItemsSource)[0];
