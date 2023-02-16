@@ -6,6 +6,7 @@
 
 #if WITH_EDITOR
 #include "UObject/GCObject.h"
+#include "UObject/ObjectPtr.h"
 #endif  // #if WITH_EDITOR
 
 class FCanvas;
