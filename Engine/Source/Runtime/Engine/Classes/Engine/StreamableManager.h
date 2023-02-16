@@ -534,6 +534,9 @@ struct ENGINE_API FStreamableManager : public FGCObject
 	 */
 	bool GetActiveHandles(const FSoftObjectPath& Target, TArray<TSharedRef<FStreamableHandle>>& HandleList, bool bOnlyManagedHandles = false) const;
 
+	/** Returns true if all pending async loads have finished for all targets */
+	bool AreAllAsyncLoadsComplete() const;
+
 	/** Returns true if all pending async loads have finished for this target */
 	bool IsAsyncLoadComplete(const FSoftObjectPath& Target) const;
 

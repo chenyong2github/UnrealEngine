@@ -1667,6 +1667,20 @@ void FStreamableManager::RemoveReferencedAsset(const FSoftObjectPath& Target, TS
 	}
 }
 
+bool FStreamableManager::AreAllAsyncLoadsComplete() const
+{
+	check(IsInGameThread());
+	for (const TPair<FSoftObjectPath, FStreamable*>& Item : StreamableItems)
+	{
+		const FStreamable* Streamable = Item.Value;
+		if (Streamable && Streamable->bAsyncLoadRequestOutstanding)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 bool FStreamableManager::IsAsyncLoadComplete(const FSoftObjectPath& Target) const
 {
 	// Failed loads count as success
