@@ -56,7 +56,6 @@ class FOutputDevice;
 class IAsyncReadFileHandle;
 class IMappedFileHandle;
 struct FIoContainerHeader;
-class IStreamingFileSystem;
 
 PAKFILE_API DECLARE_LOG_CATEGORY_EXTERN(LogPakFile, Log, All);
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Total pak file read time"), STAT_PakFile_Read, STATGROUP_PakFile, PAKFILE_API);
@@ -2038,10 +2037,7 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	FString IniFileExtension;
 	/** The filename for the gameusersettings ini file, used for excluding ini files, but not gameusersettings */
 	FString GameUserSettingsIniFilename;
-	
-	TSharedPtr<FFileIoStore>			IoDispatcherFileBackend;
-	TSharedPtr<IStreamingFileSystem>	IoDispatcherSFSBackend;
-
+	TSharedPtr<FFileIoStore> IoDispatcherFileBackend;
 	TSharedPtr<FFilePackageStoreBackend> PackageStoreBackend;
 
 	FTSTicker::FDelegateHandle RetireReadersHandle;

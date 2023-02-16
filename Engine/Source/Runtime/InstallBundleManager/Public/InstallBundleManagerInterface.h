@@ -22,7 +22,6 @@
 #include "UObject/UnrealNames.h"
 
 class IAnalyticsProviderET;
-class IInstallBundleSource;
 
 struct FInstallBundleProgress
 {
@@ -102,9 +101,6 @@ public:
 	virtual void Initialize() {}
 
 	virtual bool HasBundleSource(EInstallBundleSourceType SourceType) const = 0;
-
-	virtual const TSharedPtr<IInstallBundleSource> GetBundleSource(EInstallBundleSourceType SourceType) const;
-
 
 	virtual FDelegateHandle PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) = 0;
 	virtual void PopInitErrorCallback() = 0;

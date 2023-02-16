@@ -10,7 +10,7 @@ public class InstallBundleManager : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				//"Engine",
+				"Engine",
 				"InputCore",
 				"Projects",
 				"ApplicationCore",
