@@ -3,7 +3,7 @@
 #include "Widgets/SCompElementPreviewPane.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/Input/SButton.h"
-#include "MaterialInterface.h"
+#include "Materials/MaterialInterface.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateMaterialBrush.h"

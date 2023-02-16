@@ -10,7 +10,7 @@
 #include "Customizations/ColorStructCustomization.h"
 #include "ICompElementManager.h"
 #include "Widgets/Input/SButton.h"
-#include "MaterialInterface.h"
+#include "Materials/MaterialInterface.h"
 #include "Widgets/SToolTip.h"
 #include "ComposureEditorStyle.h"
 #include "Widgets/SCompElementPickerWindow.h"

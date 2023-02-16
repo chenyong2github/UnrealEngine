@@ -8,7 +8,7 @@
 //includes for asset creation
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
-#include "MaterialInstanceBasePropertyOverrides.h"
+#include "Materials/MaterialInstanceBasePropertyOverrides.h"
 #include "PackageTools.h"
 #include "Editor.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
@@ -16,7 +16,7 @@
 
 //Material and texture includes
 #include "Engine/TextureRenderTarget2D.h"
-#include "MaterialInterface.h"
+#include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialShared.h"
 #include "ImageCoreUtils.h"
