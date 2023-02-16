@@ -120,6 +120,9 @@ public:
 	/** FMultiBlock interface */
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
 	virtual bool HasIcon() const override;
+	
+	/** the override for the checkbox style */
+	void SetCheckBoxStyle(FName InCheckBoxStyle);
 
 	/** Returns whether this menu entry block opens a sub-menu. */
 	bool IsSubMenu() const { return bIsSubMenu; }
@@ -186,6 +189,9 @@ private:
 
 	/** Whether to invert the label text's color on hover */
 	bool bInvertLabelOnHover;
+
+	/** override of the checkbox style */
+	FName CheckBoxStyle = NAME_None;
 };
 
 

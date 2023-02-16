@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// #include "ToolkitStyle.h"
 #include "WidgetRegistrationModule.h"
+#include "ToolkitStyle.h"
 
-
-// @TODO: ~enable ToolkitStyle set 
 
 void FWidgetRegistrationModule::StartupModule()
 {
+	FToolkitStyle::Initialize();
 }
 	
 void FWidgetRegistrationModule::ShutdownModule()
 {
+	FToolkitStyle::Shutdown();
 }
 
 

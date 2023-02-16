@@ -28,11 +28,18 @@ FMultiBoxBuilder::FMultiBoxBuilder( const EMultiBoxType InType, FMultiBoxCustomi
 	, CommandListStack()
 	, TutorialHighlightName(InTutorialHighlightName)
 	, MenuName(InMenuName)
+    , CheckBoxStyle(NAME_None)
 	, bExtendersEnabled(true)
 {
 	CommandListStack.Push( InCommandList );
 	ExtenderStack.Push(InExtender);
 }
+
+void FMultiBoxBuilder::SetCheckBoxStyle(FName InCheckBoxStyle)
+{
+	this->CheckBoxStyle = InCheckBoxStyle;
+}
+
 
 void FMultiBoxBuilder::AddEditableText( const FText& InLabel, const FText& InToolTip, const FSlateIcon& InIcon, const TAttribute< FText >& InTextAttribute, const FOnTextCommitted& InOnTextCommitted, const FOnTextChanged& InOnTextChanged, bool bInReadOnly )
 {
@@ -149,6 +156,7 @@ void FBaseMenuBuilder::AddMenuEntry( const TSharedPtr< const FUICommandInfo > In
 	check( InCommand.IsValid() );
 	TSharedRef< FMenuEntryBlock > NewMenuEntryBlock = MakeShared<FMenuEntryBlock>( InExtensionHook, InCommand, CommandListStack.Last(), InLabelOverride, InToolTipOverride, InIconOverride, bCloseSelfOnly );
 	NewMenuEntryBlock->SetTutorialHighlightName(GenerateTutorialIdentfierName(TutorialHighlightName, InTutorialHighlightName, InCommand, MultiBox->GetBlocks().Num()));
+	NewMenuEntryBlock->SetCheckBoxStyle(CheckBoxStyle);
 	MultiBox->AddMultiBlock( NewMenuEntryBlock );
 
 	ApplyHook(InExtensionHook, EExtensionHook::After);
@@ -274,7 +282,8 @@ void FMenuBuilder::AddSubMenu( const TAttribute<FText>& InMenuLabel, const TAttr
 	const bool bIsSubMenu = true;
 	TSharedRef< FMenuEntryBlock > NewMenuEntryBlock = MakeShared<FMenuEntryBlock>( InExtensionHook, InMenuLabel, InToolTip, InSubMenu, ExtenderStack.Top(), bIsSubMenu, bInOpenSubMenuOnClick, CommandListStack.Last(), bCloseSelfOnly, InIcon, bInShouldCloseWindowAfterMenuSelection );
 	NewMenuEntryBlock->SetRecursivelySearchable(bRecursivelySearchable);
-
+	NewMenuEntryBlock->SetCheckBoxStyle(CheckBoxStyle);
+	
 	MultiBox->AddMultiBlock( NewMenuEntryBlock );
 }
 

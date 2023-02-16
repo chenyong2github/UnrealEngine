@@ -1682,39 +1682,47 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		FTextBlockStyle SlimPaletteToolbarLabelStyle = FTextBlockStyle(GetParentStyle()->GetWidgetStyle<FTextBlockStyle>("NormalText"));
 		SlimPaletteToolbarLabelStyle.SetOverflowPolicy(ETextOverflowPolicy::Ellipsis);
 		SlimPaletteToolBarStyle.SetLabelStyle(SlimPaletteToolbarLabelStyle);
-		SlimPaletteToolBarStyle.SetBackground(FSlateColorBrush(FStyleColors::Recessed));
+		SlimPaletteToolBarStyle.SetBackgroundPadding(FMargin(2.0f, 4.0f, 6.0f, 8.0f));
+		SlimPaletteToolBarStyle.SetBackground(FSlateColorBrush(FStyleColors::Panel));
 		SlimPaletteToolBarStyle.SetLabelPadding(FMargin(0.0f, 0.0f, 0.0f, 0.0f));
 		SlimPaletteToolBarStyle.SetIconSize(Icon20x20);
 
-		SlimPaletteToolBarStyle.SetButtonPadding(       FMargin(0.0f, 4.0f, 0.0f, 0.0f));
-		SlimPaletteToolBarStyle.SetCheckBoxPadding(     FMargin(0.0f, 0.0f));
-		// SlimPaletteToolBarStyle.SetIconPadding( FMargin(8.f, 4.f, 8.f, 4.f) ); @TODO: ~ enable with styling changesS
+		SlimPaletteToolBarStyle.SetButtonPadding(       FMargin(4.0f, 4.0f, 0.0f, 0.0f));
+		SlimPaletteToolBarStyle.SetCheckBoxPadding(     FMargin(4.0f, 4.0f, 0.0f, 0.0f));
+		SlimPaletteToolBarStyle.SetIconPadding( FMargin(8.f, 4.f, 8.f, 4.f) );
 		SlimPaletteToolBarStyle.SetComboButtonPadding(  FMargin(0.0f, 0.0f));
 		SlimPaletteToolBarStyle.SetIndentedBlockPadding(FMargin(0.0f, 0.0f));
 		SlimPaletteToolBarStyle.SetBlockPadding(        FMargin(0.0f, 0.0f));
-		SlimPaletteToolBarStyle.ToggleButton.SetPadding(FMargin(0.0f, 1.0f));
-		SlimPaletteToolBarStyle.ButtonStyle.SetNormalPadding(FMargin(2.0f, 1.0f));
-		SlimPaletteToolBarStyle.ButtonStyle.SetPressedPadding(FMargin(2.0f, 1.0f));
+		SlimPaletteToolBarStyle.ToggleButton.SetPadding(FMargin(0.0f, 0.0f));
+		SlimPaletteToolBarStyle.ButtonStyle.SetNormalPadding(FMargin(0.0f, 0.0f));
+		SlimPaletteToolBarStyle.ButtonStyle.SetPressedPadding(FMargin(0.0f, 0.0f));
 
+		SlimPaletteToolBarStyle.ButtonStyle.Normal = FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.f, FLinearColor(0, 0, 0, .8), 0.5);
+		SlimPaletteToolBarStyle.ButtonStyle.Hovered = FSlateRoundedBoxBrush(FStyleColors::Hover, 4.f, FLinearColor(0, 0, 0, .8), 0.5);
+		SlimPaletteToolBarStyle.ButtonStyle.Pressed = FSlateRoundedBoxBrush(FStyleColors::Hover, 4.f, FLinearColor(0, 0, 0, .8), 0.5);
+		SlimPaletteToolBarStyle.ButtonStyle.HoveredForeground = FStyleColors::ForegroundHover;
+		SlimPaletteToolBarStyle.ButtonStyle.PressedForeground = FStyleColors::ForegroundHover;
+		SlimPaletteToolBarStyle.SetUniformBlockHeight(33.f);
+		SlimPaletteToolBarStyle.SetUniformBlockWidth(150.f);
+		SlimPaletteToolBarStyle.SetNumColumns(2);
+		
 		FCheckBoxStyle CheckBoxStyle = FCheckBoxStyle(SlimPaletteToolBarStyle.ToggleButton)
 			.SetCheckedImage(FSlateRoundedBoxBrush(FStyleColors::Primary, 4.f, FLinearColor(0, 0, 0, .8), 0.5))
 			.SetCheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::PrimaryHover, 4.f, FLinearColor(0, 0, 0, .8), 0.5))
-			.SetCheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::PrimaryPress, 4.f, FLinearColor(0, 0, 0, .8), 0.5))
+			.SetCheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::PrimaryHover, 4.f, FLinearColor(0, 0, 0, .8), 0.5))
 			.SetUncheckedImage(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.f, FLinearColor(0, 0, 0, .8), 0.5))
 			.SetForegroundColor(FStyleColors::Foreground)
 			.SetPressedForegroundColor(FStyleColors::ForegroundHover)
 			.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
-			.SetCheckedForegroundColor(FStyleColors::Foreground)
+			.SetCheckedForegroundColor(FStyleColors::ForegroundHover)
 			.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
 			.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
 			.SetPadding(FMargin(0.f, 0.f, 0.f, 0.f));
 
 		Set("SlimPaletteToolBarStyle.ToggleButton", CheckBoxStyle);
-		Set("SlimPaletteToolBarStyle.TitleBar.Padding", FMargin(4.f, 4.f));
 		SlimPaletteToolBarStyle.SetToggleButtonStyle(CheckBoxStyle);
 		Set("SlimPaletteToolBar", SlimPaletteToolBarStyle);
-		Set("ToolAreaBackground",  new FSlateRoundedBoxBrush(FStyleColors::AccentGreen, 4.0f, FLinearColor(0, 0, 0, .8), 0.5));
-		Set( "SlimPaletteToolBar.PaletteButtonBorderBrush", new FSlateRoundedBoxBrush(FStyleColors::AccentGreen, 4.0f, FLinearColor(0, 0, 0, .8), 0.5) );
+		
 	}
 
 {
@@ -1724,17 +1732,18 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		FVerticalToolBarLabelStyle.SetOverflowPolicy(ETextOverflowPolicy::Ellipsis);
 		
 		FVerticalToolBarStyle.SetLabelStyle(FVerticalToolBarLabelStyle);
-		FVerticalToolBarStyle.SetLabelPadding(FMargin(0.0f, 1.0f, 0.0f, 0.0f));
+		FVerticalToolBarStyle.SetLabelPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
 
-		FVerticalToolBarStyle.SetButtonPadding(       FMargin(0.0f, 0.0f));
+		FVerticalToolBarStyle.SetButtonPadding(       FMargin(0.0f, 0.0f, 0.0f, 0.0f));
+		//not this
 		FVerticalToolBarStyle.SetCheckBoxPadding(     FMargin(0.0f, 0.0f));
 		FVerticalToolBarStyle.SetComboButtonPadding(  FMargin(0.0f, 0.0f));
-		FVerticalToolBarStyle.SetIndentedBlockPadding(FMargin(0.0f, 0.0f));
-		FVerticalToolBarStyle.SetBlockPadding(        FMargin(0.0f, 0.0f));
-		FVerticalToolBarStyle.SetBackgroundPadding(   FMargin(4.0f, 2.0f));
-		FVerticalToolBarStyle.ButtonStyle.SetNormalPadding(FMargin(2.0f, 6.0f));
-		FVerticalToolBarStyle.ButtonStyle.SetPressedPadding(FMargin(2.0f, 6.0f));
+		FVerticalToolBarStyle.SetIndentedBlockPadding(FMargin(0.0f, 0.0f));	
+		FVerticalToolBarStyle.SetBackgroundPadding(   FMargin(6.0f, 4.0f));
+		FVerticalToolBarStyle.ButtonStyle.SetNormalPadding(FMargin(12.0f, 6.0f));
+		FVerticalToolBarStyle.ButtonStyle.SetPressedPadding(FMargin(12.0f, 6.0f));
 		FVerticalToolBarStyle.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon8x8));
+		FVerticalToolBarStyle.SetIconPadding(FMargin(8.0f, 8.0f));
  
 		FCheckBoxStyle CheckBoxStyle = FCheckBoxStyle(FVerticalToolBarStyle.ToggleButton)
 			.SetCheckedImage(FSlateRoundedBoxBrush(FStyleColors::Primary, 4.f, FLinearColor(0, 0, 0, .8), 0.5))
@@ -1743,17 +1752,15 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetForegroundColor(FStyleColors::Foreground)
 			.SetPressedForegroundColor(FStyleColors::ForegroundHover)
 			.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
-			.SetCheckedForegroundColor(FStyleColors::Foreground)
+			.SetCheckedForegroundColor(FStyleColors::ForegroundHover)
 			.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
 			.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
-			.SetPadding(FMargin(6.0f, 4.0f, 6.0f, 4.0f));
+			.SetPadding(0.f);
 
 		Set("FVerticalToolBar.ToggleButton", CheckBoxStyle);
+
+		FVerticalToolBarStyle.SetButtonPadding(FMargin(0.0f, 4.0f, 0.0f, 0.f));
 		FVerticalToolBarStyle.SetToggleButtonStyle(CheckBoxStyle);
-
-		Set("FVerticalToolBar.MaxUniformToolbarSize", 48.f);
-		Set("FVerticalToolBar.MinUniformToolbarSize", 48.f);
-
 		Set("FVerticalToolBar", FVerticalToolBarStyle);
 	}
 	

@@ -817,7 +817,6 @@ void SMultiBoxWidget::AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHoriz
 			{
 				VerticalBox->AddSlot()
 				.AutoHeight()
-				.Padding(0.0f, 1.0f, 0.0f, 1.0f)
 				[
 					FinalWidgetWithHook
 				];
@@ -955,7 +954,7 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	TSharedPtr<SHorizontalBox> ButtonRow;
 
 	TSharedPtr< STileView< TSharedPtr<SWidget> > > TileView;
-
+	const FToolBarStyle& Style = StyleSet->GetWidgetStyle<FToolBarStyle>(MultiBox->GetStyleName());
 
 	switch (MultiBox->GetType())
 	{
@@ -1005,17 +1004,17 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 			MainWidget = VerticalBox = SNew (SVerticalBox)
 
 			+SVerticalBox::Slot()
-			.Padding(FMargin(0.f, 2.f))
+			.Padding(0.f)
 			.AutoHeight()
 			[
 				SAssignNew(UniformToolbarPanel, SUniformWrapPanel)
 				.HAlign(HAlign_Fill)
-				.MinDesiredSlotWidth(150.f)
-				.MinDesiredSlotHeight(32.f)
-				.MaxDesiredSlotWidth(150.f)
-				.MaxDesiredSlotHeight(32.f)
-				.NumColumnsOverride(2)
-				.SlotPadding(FMargin(2.f, 1.f))
+				.MinDesiredSlotWidth(Style.UniformBlockWidth)
+				.MinDesiredSlotHeight(Style.UniformBlockHeight)
+				.MaxDesiredSlotWidth(Style.UniformBlockWidth)
+				.MaxDesiredSlotHeight(Style.UniformBlockHeight)
+				.NumColumnsOverride(Style.NumColumns)
+				.SlotPadding(0.f)	
 			];
 		}
 		break;
@@ -1264,7 +1263,11 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 TSharedRef<SWidget> SMultiBoxWidget::OnWrapButtonClicked()
 {
 	FMenuBuilder MenuBuilder(true, MultiBox->GetLastCommandList(), TSharedPtr<FExtender>(), false, GetStyleSet());
-	{ 
+	{
+		if (ClippedVerticalBox)
+		{
+			MenuBuilder.SetCheckBoxStyle("ClippingVerticalBox.Check");
+		}
 		const TArray< TSharedRef< const FMultiBlock > >& Blocks = MultiBox->GetBlocks();
 
 		int32 BlockIdx = ClippedHorizontalBox ? ClippedHorizontalBox->GetClippedIndex() : ClippedVerticalBox->GetClippedIndex();

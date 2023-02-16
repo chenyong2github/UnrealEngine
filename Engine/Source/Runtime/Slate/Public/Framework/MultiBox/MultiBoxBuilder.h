@@ -127,6 +127,9 @@ public:
 	/** @return The style name used by the multibox widgets */
 	const FName& GetStyleName() const;
 
+	/** the override for the checkbox style */
+	void SetCheckBoxStyle(FName InCheckBoxStyle);
+
 	/** Sets the style to use on the multibox widgets */
 	void SetStyle( const ISlateStyle* InStyleSet, const FName& InStyleName );
 
@@ -163,6 +166,9 @@ protected:
 
 	/** Name of the menu */
 	FName MenuName;
+
+	/** the override for the checkbox style for this menu */
+	FName CheckBoxStyle;
 
 	/** If extenders are enabled */
 	bool bExtendersEnabled;

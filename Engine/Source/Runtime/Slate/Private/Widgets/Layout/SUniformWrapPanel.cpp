@@ -221,7 +221,7 @@ void SUniformWrapPanel::SetMaxDesiredSlotWidth(TAttribute<float> InMaxDesiredSlo
 	MaxDesiredSlotWidth.Assign(*this, MoveTemp(InMaxDesiredSlotWidth));
 }
 
-void SUniformWrapPanel::SetNumColumnsOverride(TAttribute<uint32> InNumColumnsOverride)
+void SUniformWrapPanel::SetNumColumnsOverride(TAttribute<int32> InNumColumnsOverride)
 {
 	NumColumnsOverride.Assign(*this, MoveTemp(InNumColumnsOverride));
 }

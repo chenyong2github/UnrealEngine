@@ -1211,6 +1211,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 		}
 
 		FModuleManager::Get().LoadModule(TEXT("LogVisualizer"));
+		FModuleManager::Get().LoadModule(TEXT("WidgetRegistration"));
 		FModuleManager::Get().LoadModule(TEXT("HotReload"));
 
 		FModuleManager::Get().LoadModuleChecked(TEXT("ClothPainter"));

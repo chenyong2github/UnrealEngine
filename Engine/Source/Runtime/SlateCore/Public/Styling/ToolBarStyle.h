@@ -78,6 +78,22 @@ struct SLATECORE_API FToolBarStyle : public FSlateWidgetStyle
 	FToolBarStyle& SetLabelPadding(const FMargin& InLabelPadding) { LabelPadding = InLabelPadding; return *this; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float UniformBlockWidth;
+	FToolBarStyle& SetUniformBlockWidth(const float InUniformBlockWidth) { UniformBlockWidth = InUniformBlockWidth; return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float UniformBlockHeight;
+	FToolBarStyle& SetUniformBlockHeight(const float InUniformBlockHeight) { UniformBlockHeight = InUniformBlockHeight; return *this; }
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	int32 NumColumns;
+	FToolBarStyle& SetNumColumns(const int32 InNumColumns) { NumColumns = InNumColumns; return *this; }
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FMargin IconPadding;
+	FToolBarStyle& SetIconPadding(const FMargin& InIconPadding) { IconPadding = InIconPadding; return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	FMargin SeparatorPadding;
 	FToolBarStyle& SetSeparatorPadding(const FMargin& InSeparatorPadding) { SeparatorPadding = InSeparatorPadding; return *this; }
 

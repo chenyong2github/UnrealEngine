@@ -449,6 +449,11 @@ private:
 	EResponseToMouseUp ResponseToMouseUp;
 };
 
+void FMenuEntryBlock::SetCheckBoxStyle(FName InCheckBoxStyle)
+{
+	this->CheckBoxStyle = InCheckBoxStyle;
+}
+
 TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBuildParams& InBuildParams )
 {
 	const TAttribute<FText>& Label = InBuildParams.Label;
@@ -538,7 +543,12 @@ TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBui
 
 	TAttribute<FSlateColor> CheckBoxForegroundColor = FSlateColor::UseStyle();
 	FName CheckBoxStyle = ISlateStyle::Join( StyleName, ".CheckBox" );
-	if (UserInterfaceType == EUserInterfaceActionType::Check)
+
+	if (MenuEntryBlock->CheckBoxStyle != NAME_None)
+	{
+		CheckBoxStyle = MenuEntryBlock->CheckBoxStyle;
+	}
+	else if (UserInterfaceType == EUserInterfaceActionType::Check)
 	{
 		CheckBoxStyle = ISlateStyle::Join( StyleName, ".Check" );
 	}

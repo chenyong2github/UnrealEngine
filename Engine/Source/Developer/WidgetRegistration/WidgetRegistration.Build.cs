@@ -13,7 +13,8 @@ public class WidgetRegistration : ModuleRules
 				"Core",
 				"Slate",
 				"Engine",
-				"ToolMenus"
+				"ToolMenus",
+				"CoreUObject"
 			});
 		
 

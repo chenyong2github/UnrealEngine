@@ -2,10 +2,12 @@
 
 #include "ToolkitBuilder.h"
 
+#include "IDetailsView.h"
 #include "Widgets/SBoxPanel.h"
 #include "SPrimaryButton.h"
 #include "ToolbarRegistrationArgs.h"
 #include "ToolElementRegistry.h"
+#include "ToolkitStyle.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Styling/StyleColors.h"
 
@@ -31,10 +33,12 @@ FEditablePalette::FEditablePalette(TSharedPtr<FUICommandInfo> InLoadToolPaletteA
 
 FToolkitBuilder::FToolkitBuilder(
 	FName InToolbarCustomizationName,
-	TSharedPtr<FUICommandList> InToolkitCommandList) :
+	TSharedPtr<FUICommandList> InToolkitCommandList,
+	TSharedPtr<FToolkitSections> InToolkitSections) :
 	FToolElementRegistrationArgs(EToolElement::Toolkit),
 	ToolbarCustomizationName(InToolbarCustomizationName),
-	ToolkitCommandList(InToolkitCommandList)
+	ToolkitCommandList(InToolkitCommandList),
+	ToolkitSections(InToolkitSections)
 {
 	ResetWidget();
 }
@@ -55,13 +59,13 @@ void FToolkitBuilder::AddPalette(TSharedPtr<FEditablePalette> Palette)
 	AddPalette(StaticCastSharedRef<FToolPalette>(Palette.ToSharedRef()) );
 }
 
-
 void FToolkitBuilder::AddPalette(TSharedPtr<FToolPalette> Palette)
 {
 	for (TSharedRef<FButtonArgs> Button : Palette->PaletteActions)
 	{
 		PaletteCommandNameToButtonArgsMap.Add(Button->Command->GetCommandName().ToString(), Button);
 	}
+	LoadCommandNameToToolPaletteMap.Add(Palette->LoadToolPaletteAction->GetCommandName().ToString(), Palette);
 
 	LoadToolPaletteCommandList->MapAction(
 				Palette->LoadToolPaletteAction,
@@ -139,10 +143,12 @@ void FToolkitBuilder::TogglePalette(TSharedPtr<FToolPalette> Palette)
 	
 	if (ActivePalette && ActivePalette->LoadToolPaletteAction->GetCommandName() == CommandName)
 	{
-		ActivePalette = nullptr;
-		ResetToolPaletteWidget();
-	    OnToolEnded.ExecuteIfBound();
 		return;
+/*
+ *		@TODO: ~ enable this code for hiding category select on toggle		
+ *		ActivePalette = nullptr;
+		ResetToolPaletteWidget();
+		return; */
 	}
 	
 	CreatePalette(Palette);
@@ -150,6 +156,11 @@ void FToolkitBuilder::TogglePalette(TSharedPtr<FToolPalette> Palette)
 
 void FToolkitBuilder::CreatePalette(TSharedPtr<FToolPalette> Palette)
 {
+	if (!Palette)
+	{
+		return;
+	}
+	
 	const FName CommandName = Palette->LoadToolPaletteAction->GetCommandName();
 	ActivePalette = Palette;
 	ResetToolPaletteWidget();
@@ -179,13 +190,19 @@ void FToolkitBuilder::CreatePalette(TSharedPtr<FToolPalette> Palette)
 	for (TSharedRef<FButtonArgs> PaletteButton : Palette->PaletteActions)
 	{
 		PaletteButton->CommandList = ToolkitCommandList;
-		PaletteButton->UserInterfaceActionType = EUserInterfaceActionType::ToggleButton;
+		PaletteButton->UserInterfaceActionType = (PaletteButton->UserInterfaceActionType != EUserInterfaceActionType::None) ?
+														PaletteButton->UserInterfaceActionType :
+														EUserInterfaceActionType::ToggleButton;
 		PaletteButton->OnGetMenuContent.BindSP(SharedThis(this),
 			&FToolkitBuilder::GetContextMenuContent,
 			PaletteButton->Command->GetCommandName());
 		PaletteToolbarBuilder->AddToolBarButton(PaletteButton.Get());
 	}
+	CreatePaletteWidget(*Palette.Get(), *Element.Get());
+}
 
+void FToolkitBuilder::CreatePaletteWidget(FToolPalette& Palette, FToolElement& Element)
+{
 	ToolPaletteWidget->AddSlot()
 		.HAlign(HAlign_Fill)
 		.Padding(0.f)
@@ -193,28 +210,27 @@ void FToolkitBuilder::CreatePalette(TSharedPtr<FToolPalette> Palette)
 		[
 
 		SNew(SBorder)
-		.Padding(FAppStyle::GetMargin("SlimPaletteToolBarStyle.TitleBar.Padding"))
+		.Padding(Style.TitlePadding)
 		.VAlign(VAlign_Center)
-		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(&Style.TitleBackgroundBrush)
 		.HAlign(HAlign_Left)
 		[
 
 			SNew(STextBlock)
 					.Justification(ETextJustify::Left)
-					.AutoWrapText(true)
-					.Text(Palette->LoadToolPaletteAction->GetLabel())
-					.ColorAndOpacity(FStyleColors::Foreground)
+					.Font(Style.TitleFont)
+					.Text(Palette.LoadToolPaletteAction->GetLabel())
+					.ColorAndOpacity(Style.TitleForegroundColor)
 		]];
 	
 	ToolPaletteWidget->AddSlot()
 		.HAlign(HAlign_Fill)
 		.AutoHeight()
 		[
-			Element->GenerateWidget()
+			Element.GenerateWidget()
 		];
-
-	OnToolEnded.ExecuteIfBound();
 }
+
 
 TSharedRef<SWidget> FToolkitBuilder::GetToolPaletteWidget() const
 {
@@ -245,6 +261,7 @@ TSharedRef<SWidget> FToolkitBuilder::GetContextMenuContent(const FName CommandNa
 
 void FToolkitBuilder::ResetWidget()
 {
+	Style = FToolkitStyle::Get().GetWidgetStyle<FToolkitWidgetStyle>("FToolkitWidgetStyle");
 	LoadToolPaletteCommandList = MakeShareable(new FUICommandList);
 	LoadPaletteToolBarBuilder = MakeShared<FVerticalToolBarBuilder>(LoadToolPaletteCommandList, FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
 	ToolPaletteWidget = SNew(SVerticalBox);
@@ -265,7 +282,7 @@ void FToolkitBuilder::ResetWidget()
 		ToolRegistry.RegisterElement(VerticalToolbarElement.ToSharedRef());
 	}
 
-	VerticalToolbarElement->SetRegistrationArgs(VerticalToolbarRegistrationArgs);	
+	VerticalToolbarElement->SetRegistrationArgs(VerticalToolbarRegistrationArgs);
 }
 
 void FToolkitBuilder::ResetToolPaletteWidget()
@@ -276,6 +293,146 @@ void FToolkitBuilder::ResetToolPaletteWidget()
 		return;
 	}
 	ToolPaletteWidget = SNew(SVerticalBox);
+}
+
+bool FToolkitBuilder::HasSelectedToolSet() const
+{
+	return HasActivePalette();
+}
+
+void FToolkitBuilder::SetActivePaletteOnLoad(const FUICommandInfo* Command)
+{
+	if (const TSharedPtr<FToolPalette>* LoadPalette = LoadCommandNameToToolPaletteMap.Find(Command->GetCommandName().ToString()))
+	{
+		CreatePalette(*LoadPalette);
+	}
+}
+
+TSharedPtr<SWidget> FToolkitBuilder::GenerateWidget()
+{
+	if (!ToolkitWidgetHBox)
+	{
+		DefineWidget();
+	}
+	return ToolkitWidgetHBox.ToSharedRef();
+}
+
+void FToolkitBuilder::SetActiveToolDisplayName(FText InActiveToolDisplayName)
+{
+	ActiveToolDisplayName = InActiveToolDisplayName;
+}
+
+FText FToolkitBuilder::GetActiveToolDisplayName() const
+{
+	return ActiveToolDisplayName;
+}
+
+EVisibility FToolkitBuilder::GetActiveToolTitleVisibility() const
+{
+	return ActiveToolDisplayName.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+void FToolkitBuilder::DefineWidget()
+{
+	ToolkitWidgetVBox = SNew(SVerticalBox);
+	ToolkitWidgetHBox = 
+		SNew(SSplitter)
+		+ SSplitter::Slot()
+		.Resizable(false)
+		.SizeRule(SSplitter::SizeToContent)
+			[
+				CreateToolbarWidget()
+			]
+
+		+ SSplitter::Slot()
+		.SizeRule(SSplitter::FractionOfParent)
+			[
+				ToolkitWidgetVBox->AsShared()
+			];
+
+	if (ToolkitSections->ModeWarningArea)
+	{
+		ToolkitWidgetVBox->AddSlot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		.Padding(5)
+		[
+			ToolkitSections->ModeWarningArea->AsShared()
+		];
+	}
+	
+	ToolkitWidgetVBox->AddSlot()
+	.AutoHeight()
+	.HAlign(HAlign_Fill)
+	.Padding(0)
+		[
+			GetToolPaletteWidget()
+		];
+
+	ToolkitWidgetVBox->AddSlot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		.Padding(0)
+		[
+			SNew(SBorder)
+			.HAlign(HAlign_Fill)
+			.Padding(Style.ActiveToolTitleBorderPadding)
+			.BorderImage(&Style.ToolDetailsBackgroundBrush)
+			[
+			SNew(SBorder)
+			.Visibility(SharedThis(this), &FToolkitBuilder::GetActiveToolTitleVisibility)
+			.BorderImage(&Style.TitleBackgroundBrush)
+			.Padding(Style.ToolContextTextBlockPadding)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Top)
+			[
+
+				SNew(STextBlock)
+						.Justification(ETextJustify::Left)
+						.Font(Style.TitleFont)
+						.Text(TAttribute<FText>(SharedThis(this), &FToolkitBuilder::GetActiveToolDisplayName))
+						.ColorAndOpacity(Style.TitleForegroundColor)
+			]
+		]
+	];
+	
+	if (ToolkitSections->ToolWarningArea)
+	{
+		ToolkitWidgetVBox->AddSlot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		.Padding(5)
+		[
+			ToolkitSections->ToolWarningArea->AsShared()
+		];
+	}
+
+	if (ToolkitSections->DetailsView)
+	{
+		ToolkitWidgetVBox->AddSlot()
+		.HAlign(HAlign_Fill)
+		.FillHeight(1.f)
+			[
+			SNew(SBorder)
+			.BorderImage(&Style.ToolDetailsBackgroundBrush)
+			.Padding(8.f, 2.f, 0.f, 2.f)
+				[
+					ToolkitSections->DetailsView->AsShared()
+				]
+		
+			];
+	}
+	if (ToolkitSections->Footer)
+	{
+		ToolkitWidgetVBox->AddSlot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Bottom)
+			.Padding(0)
+		[
+			ToolkitSections->Footer->AsShared()
+		];
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

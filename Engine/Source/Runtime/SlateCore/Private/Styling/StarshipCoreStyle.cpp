@@ -2348,6 +2348,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		/* ...and add the new style */
 		Style->Set("Menu.CheckBox", MenuCheckBox);
 		Style->Set("Menu.Check", MenuCheckIndicator);
+		Style->Set("ClippingVerticalBox.Check", MenuCheckIndicator);
 
 		/* This radio button is actually just a check box with different images */
 		/* Set images for various Menu radio button (SCheckBox) states... */

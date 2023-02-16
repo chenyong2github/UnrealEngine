@@ -270,4 +270,7 @@ protected:
 
 	/** returns whether or not this FModeToolkit has a ToolkitBuilder defined */
 	bool HasToolkitBuilder() const;
+
+	/** The sections of the toolkit, defined for the ToolkitBuilder (if present) */
+	TSharedPtr<FToolkitSections> ToolkitSections;
 };

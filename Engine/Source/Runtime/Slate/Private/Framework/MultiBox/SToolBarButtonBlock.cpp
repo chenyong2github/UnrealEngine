@@ -234,7 +234,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 			.AddMetaData<FTagMetaData>(FTagMetaData(TutorialHighlightName))
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-		//    .Padding(ToolBarStyle.IconPadding) @TODO: ~enable with styling changes
+		    .Padding(ToolBarStyle.IconPadding)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
 			[
@@ -265,6 +265,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 				// Icon image
 				+ SVerticalBox::Slot()
 				.AutoHeight()
+				.Padding(ToolBarStyle.IconPadding)
 				.HAlign(HAlign_Center)	// Center the icon horizontally, so that large labels don't stretch out the artwork
 				[
 					IconWidget

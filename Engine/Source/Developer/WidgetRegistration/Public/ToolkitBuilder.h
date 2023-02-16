@@ -2,16 +2,27 @@
 
 #pragma once
 
+#include "FToolkitWidgetStyle.h"
+#include "IDetailsView.h"
 #include "Framework/MultiBox/SToolBarButtonBlock.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "InteractiveToolManager.h"
 #include "ToolElementRegistry.h"
 #include "ToolMenus.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Layout/SSplitter.h"
 
 
 class SWidget;
 class FToolElement;
+
+struct WIDGETREGISTRATION_API FToolkitSections
+{
+	TSharedPtr<STextBlock> ModeWarningArea = nullptr;
+	TSharedPtr<STextBlock> ToolWarningArea = nullptr;
+	TSharedPtr<IDetailsView> DetailsView = nullptr;
+	TSharedPtr<SWidget> Footer = nullptr;
+};
 
 /** A struct that provides the data for a single tool Palette*/
 struct WIDGETREGISTRATION_API FToolPalette : TSharedFromThis<FToolPalette>
@@ -72,11 +83,8 @@ class WIDGETREGISTRATION_API FToolkitBuilder : public FToolElementRegistrationAr
 public:
 	FToolkitBuilder(
 		FName InToolbarCustomizationName,
-		TSharedPtr<FUICommandList> InToolkitCommandList);
-
-	/** A delegate for any clean up that may be needed when the load tool palette FUICommandAction ends/unloads */
-	DECLARE_DELEGATE(FOnToolEnded);
-	FOnToolEnded OnToolEnded;
+		TSharedPtr<FUICommandList> InToolkitCommandList,
+		TSharedPtr<FToolkitSections> InToolkitSections);
 
 	/**
 	 * Adds the FToolPalette Palette to this FToolkitBuilder
@@ -99,6 +107,12 @@ public:
 	 * will be regenerated to reflect it.  */
 	virtual void UpdateWidget() override;
 
+	/** Implements the generation of the TSharedPtr<SWidget> */
+	virtual TSharedPtr<SWidget> GenerateWidget() override;
+
+	/* Returns true if the Toolkit builder has some tools that are currently active/selected */
+	bool HasSelectedToolSet() const;
+
 	/** Creates the Toolbar for the widget with the FUICommandInfos that load the Palettes */
 	TSharedRef<SWidget> CreateToolbarWidget() const;
 
@@ -114,6 +128,13 @@ public:
 	/** returns true is there is an active palette selected, else it returns false */
 	bool HasActivePalette() const;
 
+	/*
+	 * Loads the palette for the FUICommandInfo Command on first visit to the mode.
+	 *
+	 *  @param Command the FUICommandInfo which defines the palette that will be loaded on first visit to the mode.
+	 */
+	void SetActivePaletteOnLoad(const FUICommandInfo* Command);
+	
 	/**
 	 * Returns true if the FUICommandInfo with the name CommandName is the active tool palette,
 	 * else it returns false
@@ -121,15 +142,28 @@ public:
 	 * @param CommandName the name of the FUICommandInfo we are checking to see if it is the active tool palette
 	 */
 	ECheckBoxState IsActiveToolPalette(FName CommandName) const;
+
+	void SetActiveToolDisplayName(FText InActiveToolDisplayName);
+
+	FText GetActiveToolDisplayName() const;
+
 	
 private:
 
 	/** the tool element registry this class will use to register UI tool elements */
 	static FToolElementRegistry ToolRegistry;
+
+	/* The SWidget that is the whole Toolkit */
+	TSharedPtr<SWidget> ToolkitWidget;
 	
 	/** Name of the toolbar this mode uses and can be used by external systems to customize that mode toolbar */
 	FName ToolbarCustomizationName;
+
+	/** The map of the command name to the ButtonArgs for it  */
 	TMap<FString, TSharedPtr<FButtonArgs>> PaletteCommandNameToButtonArgsMap;
+
+	/** The map of the command name to the ButtonArgs for it  */
+	TMap<FString, TSharedPtr<FToolPalette>> LoadCommandNameToToolPaletteMap;
 
 	/** A TSharedPointer to the FUICommandList for the FUICommandInfos which load a tool palette */
 	TSharedPtr<FUICommandList> LoadToolPaletteCommandList;
@@ -189,4 +223,31 @@ private:
 	 * @return the TSharedRef<SWidget> which contains the context menu for the FUICommandInfo with the name CommandName 
 	 */
 	TSharedRef<SWidget> GetContextMenuContent(const FName CommandName);
+
+	/**
+	 * Gets the EVisibility of the active tool title. This should only be visible if a tool is currently chosen in the palette.
+	 *
+	 * @return the EVisibility of the active tool title
+	 */
+	EVisibility GetActiveToolTitleVisibility() const;
+
+	void CreatePaletteWidget(FToolPalette& Palette, FToolElement& Element);
+
+	void DefineWidget();
+
+	/** The SVerticalBox which holds all but the vertical toolbar in a Toolkit */
+	TSharedPtr<SVerticalBox> ToolkitWidgetVBox;
+
+	/** The SSplitter which holds the entire Toolkit */
+	TSharedPtr<SSplitter> ToolkitWidgetHBox;
+
+	/** The FToolkitSections which holds the sections defined for this Toolkit */
+	TSharedPtr<FToolkitSections> ToolkitSections;
+
+	/** The display name of the currently active tool */
+	FText ActiveToolDisplayName = FText::GetEmpty();
+
+	/** The current FToolkitWidgetStyle */
+	FToolkitWidgetStyle Style;
+
 };
