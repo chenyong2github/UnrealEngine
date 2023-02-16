@@ -1125,8 +1125,9 @@ namespace UnrealBuildTool
 			if (Modules == null)
 			{
 				Modules = new List<UEBuildModule>();
-				foreach (string ModuleName in ModuleNames)
+				for (int i = 0; i < ModuleNames.Count; i++)
 				{
+					string ModuleName = ModuleNames[i];
 					UEBuildModule Module = CreateModule(ModuleName, ReferenceChain);
 					if (!Modules.Contains(Module))
 					{
