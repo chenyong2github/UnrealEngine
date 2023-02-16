@@ -30,6 +30,50 @@
 
 namespace Metasound
 {
+	template<typename ElementType, int32 NumInlineElements>
+	class TParamPackFixedArray
+	{
+	public:
+		TParamPackFixedArray(const TArray<ElementType>& Other)
+		{
+			*this = Other;
+		}
+
+		TParamPackFixedArray<ElementType, NumInlineElements>& operator=(const TArray<ElementType>& Other)
+		{
+			int32 NumToCopy = FMath::Min(Other.Num(), NumInlineElements);
+			for (int32 i = 0; i < NumToCopy; ++i)
+			{
+				GetData()[i] = Other[i];
+			}
+			NumValidElements = NumToCopy;
+			return *this;
+		}
+
+		void CopyToArray(TArray<ElementType>& Dest) const
+		{
+			Dest.Empty();
+			for (int32 i = 0; i < NumValidElements; ++i)
+			{
+				Dest.Add(GetData()[i]);
+			}
+		}
+
+		FORCEINLINE const ElementType* GetData() const
+		{
+			return (ElementType*)InlineData;
+		}
+
+		FORCEINLINE ElementType* GetData()
+		{
+			return (ElementType*)InlineData;
+		}
+
+	private:
+		int32 NumValidElements = 0;
+		TTypeCompatibleBytes<ElementType> InlineData[NumInlineElements];
+	};
+
 	namespace MetasoundDataTypeRegistrationPrivate
 	{
 		template<typename DataType>
@@ -327,7 +371,23 @@ namespace Metasound
 					}
 					else if constexpr (std::is_copy_assignable_v<TDataType>)
 					{
-						RawAssignmentFunction = [](const void* src, void* dest) { *(reinterpret_cast<TDataType*>(dest)) = *(reinterpret_cast<const TDataType*>(src)); };
+						if constexpr (!TIsArrayType<TDataType>::Value)
+						{
+							RawAssignmentFunction = [](const void* Src, void* Dest) 
+								{
+									*(reinterpret_cast<TDataType*>(Dest)) = *(reinterpret_cast<const TDataType*>(Src)); 
+								};
+						}
+						else
+						{
+							RawAssignmentFunction = [](const void* Src, void* Dest) 
+								{
+									TDataType& DestinationArray = *(reinterpret_cast<TDataType*>(Dest));
+									const TParamPackFixedArray<typename TDataType::ElementType, 1>& SourceArray = 
+										*(reinterpret_cast<const TParamPackFixedArray<typename TDataType::ElementType, 1>*>(Src));
+									SourceArray.CopyToArray(DestinationArray);
+								};
+						}
 					}
 
 					// Create class info using prototype node
