@@ -78,6 +78,7 @@
 #include "Internationalization/PackageLocalizationManager.h"
 #include "IPAddress.h"
 #include "LocalizationChunkDataGenerator.h"
+#include "LockFile.h"
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"
 #include "Materials/Material.h"
@@ -121,6 +122,7 @@
 #include "PipelineCacheChunkDataGenerator.h"
 #include "String/Find.h"
 #include "String/ParseLines.h"
+#include "String/ParseTokens.h"
 #include "TargetDomain/TargetDomainUtils.h"
 #include "UnrealEdGlobals.h"
 #include "UObject/ArchiveCookContext.h"
@@ -258,6 +260,8 @@ const FString& GetAssetRegistryFilename()
 	static const FString AssetRegistryFilename = FString(TEXT("AssetRegistry.bin"));
 	return AssetRegistryFilename;
 }
+
+static void ConditionalWaitOnCommandFile(FStringView GateName, TFunctionRef<void (FStringView)> CommandHandler = [](FStringView){});
 
 /**
  * Uses the FMessageLog to log a message
@@ -9512,6 +9516,18 @@ void UCookOnTheFlyServer::DiscoverPlatformSpecificNeverCookPackages(
 
 void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions& CookByTheBookStartupOptions )
 {
+	TOptional<FCookByTheBookStartupOptions> ModifiedStartupOptions;
+	bool bAbort = false;
+
+	const FCookByTheBookStartupOptions& EffectiveStartupOptions = BlockOnPrebootCookGate(bAbort,
+		CookByTheBookStartupOptions,
+		ModifiedStartupOptions);
+
+	if (bAbort)
+	{
+		return;
+	}
+
 	UE_SCOPED_COOKTIMER(StartCookByTheBook);
 	LLM_SCOPE_BYTAG(Cooker);
 	check(IsInGameThread());
@@ -9519,7 +9535,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	// Initialize systems and settings that the rest of StartCookByTheBook depends on
 	// Functions in this section are ordered and can depend on the functions before them
-	FBeginCookContext BeginContext = CreateBeginCookByTheBookContext(CookByTheBookStartupOptions);
+	FBeginCookContext BeginContext = CreateBeginCookByTheBookContext(EffectiveStartupOptions);
 	BlockOnAssetRegistry();
 	CreateSandboxFile(BeginContext);
 	LoadBeginCookConfigSettings(BeginContext);
@@ -9553,6 +9569,63 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	InitializePollables();
 	RecordDLCPackagesFromBaseGame(BeginContext);
 	RegisterCookByTheBookDelegates();
+}
+
+const UCookOnTheFlyServer::FCookByTheBookStartupOptions& UCookOnTheFlyServer::BlockOnPrebootCookGate(bool& bOutAbortCook,
+	const FCookByTheBookStartupOptions& CookByTheBookStartupOptions,
+	TOptional<FCookByTheBookStartupOptions>& ModifiedStartupOptions)
+{
+	const FCookByTheBookStartupOptions* EffectiveStartupOptions = &CookByTheBookStartupOptions;
+	bOutAbortCook = false;
+	
+	if (IsCookByTheBookMode() && !IsCookingInEditor())
+	{
+		ConditionalWaitOnCommandFile(TEXTVIEW("Cook"),
+			[this, &CookByTheBookStartupOptions, &ModifiedStartupOptions, &EffectiveStartupOptions, &bOutAbortCook] (FStringView CommandContents)
+		{
+			UE::String::ParseTokensMultiple(CommandContents, { ' ', '\t', '\r', '\n' },
+				[this, &CookByTheBookStartupOptions, &ModifiedStartupOptions, &EffectiveStartupOptions, &bOutAbortCook] (FStringView Token)
+				{
+					const FStringView PackageToken(TEXT("-Package="));
+
+					if (Token == TEXT("-CookAbort"))
+					{
+						UE_LOG(LogCook, Display, TEXT("Received CookAbort token in cook command file, exiting cook."));
+						bOutAbortCook = true;
+					}
+					else if (Token == TEXT("-FastExit"))
+					{
+						FCommandLine::Append(TEXT(" -FastExit"));
+					}
+					else if (Token.StartsWith(PackageToken))
+					{
+						if (!ModifiedStartupOptions.IsSet())
+						{
+							ModifiedStartupOptions.Emplace(CookByTheBookStartupOptions);
+							EffectiveStartupOptions = &ModifiedStartupOptions.GetValue();
+						}
+
+						UE::String::ParseTokens(Token.RightChop(PackageToken.Len()), TEXT('+'),
+							[&ModifiedStartupOptions](FStringView PackageToken)
+							{
+								ModifiedStartupOptions->CookMaps.Add(FString(PackageToken));
+
+								UE_LOG(LogCook, Display, TEXT("Received Package token in cook command file, adding package '%.*s' to cook workload."), PackageToken.Len(), PackageToken.GetData());
+							}, UE::String::EParseTokensOptions::SkipEmpty);
+					}
+					else if (UAssetManager::IsValid() && UAssetManager::Get().HandleCookCommand(Token))
+					{
+						// Do nothing - handled by the asset manager
+					}
+					else
+					{
+						UE_LOG(LogCook, Warning, TEXT("Ignoring unknown/unsupported token in cook command file: %.*s"), Token.Len(), Token.GetData());
+					}
+				}, UE::String::EParseTokensOptions::SkipEmpty);
+		});
+	}
+
+	return *EffectiveStartupOptions;
 }
 
 FBeginCookContext UCookOnTheFlyServer::CreateBeginCookByTheBookContext(const FCookByTheBookStartupOptions& StartupOptions)
@@ -11374,6 +11447,40 @@ void UCookOnTheFlyServer::RegisterLocalizationChunkDataGenerator()
 			RegistryGenerator.RegisterChunkDataGenerator(MoveTemp(LocalizationGenerator));
 		}
 	}
+}
+
+static
+void ConditionalWaitOnCommandFile(FStringView GateName, TFunctionRef<void (FStringView)> CommandHandler)
+{
+	WriteToString<128> ArgPrefix(TEXTVIEW("-"), GateName, TEXTVIEW("WaitOnCommandFile="));
+
+	FString WaitOnCommandFile;
+	if (!FParse::Value(FCommandLine::Get(), *ArgPrefix, WaitOnCommandFile))
+	{
+		return;
+	}
+
+	uint64 WaitStartTime = FPlatformTime::Cycles64();
+	uint64 LastMessageTime = WaitStartTime;
+	FString CommandContents;
+	if (!FLockFile::TryReadAndClear(*WaitOnCommandFile, CommandContents))
+	{
+		UE_LOG(LogCook, Display, TEXT("Waiting for %.*s command file at %s..."), GateName.Len(), GateName.GetData(), *WaitOnCommandFile);
+
+		while (!FLockFile::TryReadAndClear(*WaitOnCommandFile, CommandContents))
+		{
+			uint64 LoopTime = FPlatformTime::Cycles64();
+			if (FPlatformTime::ToSeconds64(LoopTime - LastMessageTime) > 60.f)
+			{
+				double TimeSinceWaitStartTime = FPlatformTime::ToSeconds64(LoopTime - WaitStartTime);
+				UE_LOG(LogCook, Display, TEXT("Waited %.1fs for %.*s command file at %s..."), TimeSinceWaitStartTime, GateName.Len(), GateName.GetData(), *WaitOnCommandFile);
+				LastMessageTime = LoopTime;
+			}
+			FPlatformProcess::Sleep(20.f/1000.f);
+		}
+	}
+
+	CommandHandler(CommandContents);
 }
 
 #undef LOCTEXT_NAMESPACE

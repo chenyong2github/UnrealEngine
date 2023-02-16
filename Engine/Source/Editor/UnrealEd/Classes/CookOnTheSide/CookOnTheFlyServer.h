@@ -11,6 +11,7 @@
 #include "INetworkFileSystemModule.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/Optional.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -899,6 +900,9 @@ private:
 
 	//////////////////////////////////////////////////////////////////////////
 	// cook by the book specific functions
+	const FCookByTheBookStartupOptions& BlockOnPrebootCookGate(bool& bOutAbortCook,
+		const FCookByTheBookStartupOptions& CookByTheBookStartupOptions,
+		TOptional<FCookByTheBookStartupOptions>& ModifiedStartupOptions);
 	/** Construct the on-stack data for StartCook functions, based on the arguments to StartCookByTheBook */
 	FBeginCookContext CreateBeginCookByTheBookContext(const FCookByTheBookStartupOptions& StartupOptions);
 	/** Set the PlatformManager's session platforms and finish filling out the BeginContext for StartCookByTheBook */

@@ -625,6 +625,17 @@ public:
 	  * Gathers information about which assets the game wishes to encrypt into named groups
 	  */
 	virtual void GetContentEncryptionConfig(FContentEncryptionConfig& OutContentEncryptionConfig) {}
+
+	/** 
+	  * Processes a command token as part of cooking.
+	 *
+	 * @param Token - The token to process.
+	 * @return True if the token was processed, false otherwise.
+	 */
+	virtual bool HandleCookCommand(FStringView Token)
+	{
+		return false;
+	}
 #endif
 
 protected:
