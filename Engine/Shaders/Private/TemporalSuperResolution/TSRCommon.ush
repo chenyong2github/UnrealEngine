@@ -1203,3 +1203,36 @@ tsr_half2 RejectionFactorToBlendFactor(tsr_half2 RejectionFactor)
 {
 	return tsr_half(1.0) - RejectionFactor;
 }
+
+/** Payload of a subpixel depth information in the history */
+struct FTSRSubpixelDepth
+{
+	/** Depth of the pixel. */
+	float DeviceZ;
+	
+	/** Offset of the depth from the center of pixel. */
+	float2 Offset;
+	
+	/** Depth of the pixel in number of frames. */
+	uint Age;
+};
+
+uint CompressSubpixelDepth(FTSRSubpixelDepth SubpixelDepth)
+{
+	uint CompressedSubpixelDepth = 0u;
+	CompressedSubpixelDepth |= f32tof16(SubpixelDepth.DeviceZ) << 17u;
+	CompressedSubpixelDepth |= uint(clamp(int(round(SubpixelDepth.Offset.x * 16.00 + 16.0)), 0, 31)) << 12u;
+	CompressedSubpixelDepth |= uint(clamp(int(round(SubpixelDepth.Offset.y * 16.00 + 16.0)), 0, 31)) <<  7u;
+	CompressedSubpixelDepth |= (SubpixelDepth.Age) << 0u;
+	return CompressedSubpixelDepth;
+}
+
+FTSRSubpixelDepth UncompressSubpixelDepth(uint CompressedSubpixelDepth)
+{
+	FTSRSubpixelDepth SubpixelDepth;
+	SubpixelDepth.DeviceZ  = f16tof32(CompressedSubpixelDepth >> 17u);
+	SubpixelDepth.Offset.x = float((CompressedSubpixelDepth >> 12u) & 0x1Fu) * rcp(16.0) - 1.0;
+	SubpixelDepth.Offset.y = float((CompressedSubpixelDepth >>  7u) & 0x1Fu) * rcp(16.0) - 1.0;
+	SubpixelDepth.Age      = CompressedSubpixelDepth & 0x7Fu;
+	return SubpixelDepth;
+}

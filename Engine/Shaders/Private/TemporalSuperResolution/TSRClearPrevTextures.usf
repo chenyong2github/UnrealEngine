@@ -14,6 +14,7 @@
 
 RWTexture2D<uint> PrevUseCountOutput;
 RWTexture2D<uint> PrevClosestDepthOutput;
+RWTexture2D<uint> SubpixelDepthOutput;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -34,11 +35,20 @@ void MainCS(
 		{
 			uint2 PixelOffset = uint2(x, y) * TILE_SIZE;
 			uint2 InputPixelPos = OutputPixelOrigin + PixelOffset;
-			
+			uint2 PrevUseCountPixelPos = InputPixelPos;
+
 			InputPixelPos.x = select(all(InputPixelPos < InputInfo_ViewportMax), InputPixelPos.x, uint(~0));
 
-			PrevUseCountOutput[InputPixelPos] = 0;
+			#if COMPRESS_PREV_USE_COUNT
+				const uint2 PrevUseCountMaxPixelPos = InputInfo_ViewportMin + uint2(InputInfo_ViewportMax - InputInfo_ViewportMin + 1) / 2 + 8;
+			#else
+				const uint2 PrevUseCountMaxPixelPos = InputInfo_ViewportMax;
+			#endif
+			PrevUseCountPixelPos.x = select(all(PrevUseCountPixelPos < PrevUseCountMaxPixelPos), PrevUseCountPixelPos.x, uint(~0));
+
+			PrevUseCountOutput[PrevUseCountPixelPos] = 0;
 			PrevClosestDepthOutput[InputPixelPos] = 0;
+			SubpixelDepthOutput[InputPixelPos] = 0;
 		}
 	}
 }

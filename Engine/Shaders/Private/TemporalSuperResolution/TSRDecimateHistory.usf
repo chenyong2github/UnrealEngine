@@ -31,6 +31,8 @@
 /** Whether to compile the moire reprojection. */
 #define CONFIG_MOIRE_REPROJECTION (DIM_MOIRE_REPROJECTION)
 
+#define CONFIG_SUBPIXEL_PARALLAX_FACTOR (DIM_SUBPIXEL_PARALLAX_FACTOR)
+
 
 //------------------------------------------------------- PARAMETERS
 
@@ -41,9 +43,11 @@ Texture2D<float2> DilatedVelocityTexture;
 Texture2D<float> ClosestDepthTexture;
 Texture2D<uint> PrevUseCountTexture;
 Texture2D<uint> PrevClosestDepthTexture;
-Texture2D<tsr_subpixel_payload> ParallaxFactorTexture;
 
+#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
+Texture2D<tsr_subpixel_payload> ParallaxFactorTexture;
 Texture2D<tsr_subpixel_details> PrevHistorySubpixelDetails;
+#endif
 
 Texture2D<tsr_halfC> PrevHistoryGuide;
 Texture2D<tsr_half4> PrevHistoryMoire;
@@ -68,7 +72,9 @@ RWTexture2D<float2> HoleFilledVelocityOutput;
 RWTexture2D<float2> GrandHoleFilledVelocityOutput;
 RWTexture2D<tsr_half2> HoleFilledVelocityMaskOutput;
 RWTexture2D<tsr_half> ParallaxRejectionMaskOutput;
-RWTexture2D<tsr_subpixel_payload> HistorySubpixelDetailsOutput;
+#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
+	RWTexture2D<tsr_subpixel_payload> HistorySubpixelDetailsOutput;
+#endif
 
 
 //------------------------------------------------------- LDS
@@ -91,8 +97,10 @@ void MainCS(
 	// Sample current frame informations.
 	float2 EncodedScreenVelocity;
 	float DeviceZ;
-	tsr_subpixel_payload ParallaxFactorBits;
-	tsr_half ParallaxFactor;
+	#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
+		tsr_subpixel_payload ParallaxFactorBits;
+		tsr_half ParallaxFactor;
+	#endif
 	tsr_half RejectHighFrequency = tsr_half(0.0);
 	ISOLATE
 	{
@@ -107,11 +115,16 @@ void MainCS(
 		// Issue texture fetechs
 		ISOLATE
 		{
-			tsr_subpixel_payload RawParallaxFactor = ParallaxFactorTexture[InputPixelPos];
+			#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
+				tsr_subpixel_payload RawParallaxFactor = ParallaxFactorTexture[InputPixelPos];
+			#endif
 
 			DeviceZ = ClosestDepthTexture[InputPixelPos];
-			ParallaxFactor = UncompressParallaxFactor(RawParallaxFactor & tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK));
-			ParallaxFactorBits = RawParallaxFactor & tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK);
+
+			#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
+				ParallaxFactor = UncompressParallaxFactor(RawParallaxFactor & tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK));
+				ParallaxFactorBits = RawParallaxFactor & tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK);
+			#endif
 
 			#if CONFIG_VELOCITY_SAMPLES == 1
 				EncodedScreenVelocity = DilatedVelocityTexture[InputPixelPos];
@@ -275,7 +288,9 @@ void MainCS(
 	#if CONFIG_MOIRE_REPROJECTION
 		tsr_half4 ReprojectedHistoryMoireColor;
 	#endif
-	FSubpixelNeighborhood SubpixelNeigborhood;
+	#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
+		FSubpixelNeighborhood SubpixelNeigborhood;
+	#endif
 	bool bIsOffScreen;
 
 	// Issues all the history texture fetches
@@ -361,6 +376,7 @@ void MainCS(
 			#endif
 		}
 
+		#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
 		{
 			// Pixel coordinate of the input pixel in the predictor viewport.
 			float2 InputPPCk = float2(InputPixelPos - InputInfo_ViewportMin) + 0.5f - InputJitter;
@@ -387,13 +403,16 @@ void MainCS(
 
 			SubpixelNeigborhood = GatherPrevSubpixelNeighborhood(PrevHistorySubpixelDetails, SubpixelBufferUV);
 		}
+		#endif
 	}
 	
 
 	// Process the history samples
 	tsr_half ParallaxRejectionMask = 0.0;
 	
-	tsr_subpixel_details FinalSubpixelDetails;
+	#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
+		tsr_subpixel_details FinalSubpixelDetails;
+	#endif
 
 	ISOLATE
 	{
@@ -413,6 +432,7 @@ void MainCS(
 		float2 ScreenVelocity = DecodeVelocityFromTexture(float4(EncodedScreenVelocity, 0.0, 0.0)).xy;
 		float2 PrevScreenPos = ScreenPos - ScreenVelocity;
 	
+		#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
 		// Compute HistoryMaxRejectionFactor
 		tsr_half HistoryMaxRejectionFactor;
 		tsr_subpixel_details PrevSubpixelDetails;
@@ -434,6 +454,7 @@ void MainCS(
 
 			HistoryMaxRejectionFactor = UncompressParallaxFactor(EncodedHistoryMaxRejectionFactor);
 		}
+		#endif
 		
 		// Compute the parralax rejection mask
 		bool bIsValidHoleFillingPixelVelocity = false;
@@ -489,6 +510,7 @@ void MainCS(
 		}
 
 		// Reject subpixel details that might be in history but not input just based on their parrallax
+		#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
 		{
 			tsr_half HistorySubdetailRejectionFactor = max(HistoryMaxRejectionFactor / ParallaxFactor, tsr_half(1.0));
 
@@ -509,6 +531,7 @@ void MainCS(
 
 			ParallaxRejectionMask = min(ParallaxRejectionMask, HistoryParallaxRejectionMask);
 		}
+		#endif
 
 		// Finish off the ParallaxRejectionMask
 		ParallaxRejectionMask = select(bIsOffScreen, tsr_half(0.0), ParallaxRejectionMask);
@@ -540,6 +563,7 @@ void MainCS(
 		}
 		
 		// Update subpixel detail
+		#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
 		{
 			FinalSubpixelDetails = PrevSubpixelDetails;
 
@@ -567,6 +591,7 @@ void MainCS(
 
 			FinalSubpixelDetails = UpdatedFinalSubpixelDetails;
 		}
+		#endif
 	}
 	
 	#if CONFIG_GRAND_REPROJECTION
@@ -642,7 +667,9 @@ void MainCS(
 		#endif
 		HoleFilledVelocityMaskOutput[InputPixelPos] = tsr_half2(0.0, RejectHighFrequency);
 		ParallaxRejectionMaskOutput[OutputPixelPos] = ParallaxRejectionMask;
-		HistorySubpixelDetailsOutput[OutputPixelPos] = FinalSubpixelDetails;
+		#if CONFIG_SUBPIXEL_PARALLAX_FACTOR
+			HistorySubpixelDetailsOutput[OutputPixelPos] = FinalSubpixelDetails;
+		#endif
 
 		#if DEBUG_OUTPUT
 		{
