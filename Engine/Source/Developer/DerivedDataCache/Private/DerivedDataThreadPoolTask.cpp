@@ -145,6 +145,15 @@ void LaunchTaskInThreadPool(
 }
 
 void LaunchTaskInThreadPool(
+	uint64 MemoryEstimate,
+	IRequestOwner& Owner,
+	FQueuedThreadPool* ThreadPool,
+	TUniqueFunction<void ()>&& TaskBody)
+{
+	LaunchTaskInThreadPool(MemoryEstimate,TEXT("LaunchTaskInThreadPool"), Owner, ThreadPool, MoveTemp(TaskBody));
+}
+
+void LaunchTaskInThreadPool(
 	IRequestOwner& Owner,
 	FQueuedThreadPool* ThreadPool,
 	TUniqueFunction<void ()>&& TaskBody)
