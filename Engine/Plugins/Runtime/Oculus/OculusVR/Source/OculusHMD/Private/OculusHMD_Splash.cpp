@@ -8,7 +8,7 @@
 #include "RenderingThread.h"
 #include "Misc/ScopeLock.h"
 #include "OculusHMDRuntimeSettings.h"
-#include "StereoLayerFunctionLibrary.h"
+#include "Kismet/StereoLayerFunctionLibrary.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidJNI.h"
 #include "Android/AndroidApplication.h"

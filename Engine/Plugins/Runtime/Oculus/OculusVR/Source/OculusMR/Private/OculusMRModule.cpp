@@ -6,7 +6,7 @@
 #include "IXRTrackingSystem.h"
 #include "StereoRendering.h"
 #include "StereoRenderTargetManager.h"
-#include "SceneCaptureComponent2D.h"
+#include "Components/SceneCaptureComponent2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineUtils.h"
 //#include "PostProcess/SceneRenderTargets.h"
