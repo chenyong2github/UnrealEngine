@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
+using System.Runtime.InteropServices;
 
 namespace UnrealBuildTool
 {
@@ -130,6 +131,19 @@ namespace UnrealBuildTool
 			{
 				PerArchPrecompiledHeaderFiles[Architecture] = Other.PrecompiledHeaderFile;
 			}
+		}
+
+		public FileItem? GetPrecompiledHeaderFile(UnrealArch Architecture)
+		{
+			if (PerArchPrecompiledHeaderFiles != null)
+			{
+				PerArchPrecompiledHeaderFiles.TryGetValue(Architecture, out FileItem? PerArchPrecompiledHeaderFile);
+				if (PerArchPrecompiledHeaderFile != null)
+				{
+					return PerArchPrecompiledHeaderFile;
+				}
+			}
+			return this.PrecompiledHeaderFile;
 		}
 	}
 
@@ -493,11 +507,6 @@ namespace UnrealBuildTool
 		public List<UEBuildFramework> AdditionalFrameworks = new List<UEBuildFramework>();
 
 		/// <summary>
-		/// The file containing the precompiled header data.
-		/// </summary>
-		public FileItem? PrecompiledHeaderFile => PCHInstance?.Output.PrecompiledHeaderFile;
-
-		/// <summary>
 		/// A dictionary of PCH files for multiple architectures
 		/// </summary>
 		public Dictionary<UnrealArch, FileItem>? PerArchPrecompiledHeaderFiles => PCHInstance?.Output.PerArchPrecompiledHeaderFiles;
@@ -508,9 +517,31 @@ namespace UnrealBuildTool
 		public PrecompiledHeaderInstance? PCHInstance = null;
 
 		/// <summary>
+		/// The file containing the precompiled header data.
+		/// </summary>
+		public FileItem? PrecompiledHeaderFile
+		{
+			get
+			{
+				return GetPrecompiledHeaderFile(PCHInstance);
+			}
+		}
+
+		/// <summary>
 		/// The parent PCH instance used when creating this PCH.
 		/// </summary>
 		public PrecompiledHeaderInstance? ParentPCHInstance = null;
+
+		/// <summary>
+		/// The parent's PCH header file.
+		/// </summary>
+		public FileItem? ParentPrecompiledHeaderFile
+		{
+			get
+			{
+				return GetPrecompiledHeaderFile(ParentPCHInstance);
+			}
+		}
 
 		/// <summary>
 		/// True if a single PRecompiledHeader exists, or at least one PerArchPrecompiledHeaderFile exists
@@ -666,20 +697,11 @@ namespace UnrealBuildTool
 			: this(Other)
 		{
 			Architectures = new UnrealArchitectures(OverrideArchitecture);
+		}
 
-			FileItem? PrecompiledHeaderFile;
-			if (Other.PerArchPrecompiledHeaderFiles != null)
-			{
-				Other.PerArchPrecompiledHeaderFiles.TryGetValue(OverrideArchitecture, out PrecompiledHeaderFile);
-			}
-			else
-			{
-				PrecompiledHeaderFile = null;
-			}
-			if (PrecompiledHeaderFile == null && PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				Console.WriteLine("badness");
-			}
+		private FileItem? GetPrecompiledHeaderFile(PrecompiledHeaderInstance? Instance)
+		{
+			return Instance?.Output.GetPrecompiledHeaderFile(Architectures.SingleArchitecture);
 		}
 	}
 }

@@ -487,7 +487,7 @@ namespace UnrealBuildTool
 			}
 			else if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create && CompileEnvironment.ParentPCHInstance != null)
 			{
-				Arguments.Add(GetIncludePCHFileArgument(CompileEnvironment.ParentPCHInstance.Output.PrecompiledHeaderFile!));
+				Arguments.Add(GetIncludePCHFileArgument(CompileEnvironment.ParentPrecompiledHeaderFile!));
 			}
 
 			Arguments.AddRange(CompileEnvironment.ForceIncludeFiles.Select(ForceIncludeFile => GetForceIncludeFileArgument(ForceIncludeFile)));
@@ -943,7 +943,7 @@ namespace UnrealBuildTool
 				PrecompiledHeaderInstance? PCHInstance = CompileEnvironment.PCHInstance;
 				while (PCHInstance != null)
 				{
-					CompileAction.PrerequisiteItems.Add(PCHInstance.Output.PrecompiledHeaderFile!);
+					CompileAction.PrerequisiteItems.Add(PCHInstance.Output.GetPrecompiledHeaderFile(CompileEnvironment.Architecture)!);
 					PCHInstance = PCHInstance.ParentPCHInstance;
 				}
 			}
@@ -964,7 +964,7 @@ namespace UnrealBuildTool
 				PrecompiledHeaderInstance? ParentPCHInstance = CompileEnvironment.ParentPCHInstance;
 				while (ParentPCHInstance != null)
 				{
-					CompileAction.PrerequisiteItems.Add(ParentPCHInstance.Output.PrecompiledHeaderFile!);
+					CompileAction.PrerequisiteItems.Add(ParentPCHInstance.Output.GetPrecompiledHeaderFile(CompileEnvironment.Architecture)!);
 					ParentPCHInstance = ParentPCHInstance.ParentPCHInstance;
 				}
 			}
