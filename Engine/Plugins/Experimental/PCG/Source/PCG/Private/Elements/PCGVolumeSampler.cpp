@@ -102,6 +102,10 @@ namespace PCGVolumeSampler
 			const FBox VoxelBox(VoxelSize * -0.5, VoxelSize * 0.5);
 
 			const FTransform SampleTransform = FTransform(SampleLocation);
+
+			// The OutPoint has not been initialized, so do it now
+			OutPoint = FPCGPoint();
+
 			if (InVolume->SamplePoint(SampleTransform, VoxelBox, OutPoint, nullptr))
 			{
 				if (InBoundingShape)

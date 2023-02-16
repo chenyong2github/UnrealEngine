@@ -26,7 +26,7 @@ namespace FPCGAsync
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::AllocatingArray);
 			// Pre-reserve the out points array
-			OutPoints.SetNum(NumIterations);
+			OutPoints.SetNumUninitialized(NumIterations);
 		}
 
 		// Setup [current, last, nb points] data per dispatch
@@ -186,8 +186,8 @@ namespace FPCGAsync
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::AllocatingArray);
 			// Pre-reserve the out points array
-			InFilterPoints.SetNum(NumIterations);
-			OutFilterPoints.SetNum(NumIterations);
+			InFilterPoints.SetNumUninitialized(NumIterations);
+			OutFilterPoints.SetNumUninitialized(NumIterations);
 		}
 
 		auto IterationInnerLoop = [&PointFunc, &InFilterPoints, &OutFilterPoints](int32 StartIndex, int32 EndIndex) -> TPair<int32, int32>

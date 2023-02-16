@@ -178,6 +178,9 @@ namespace PCGSurfaceSampler
 			const FVector TentativeLocation = FVector(CurrentX + RandX * InnerCellSize.X, CurrentY + RandY * InnerCellSize.Y, SampleZ);
 			const FBox LocalBound(-LoopData.PointExtents, LoopData.PointExtents);
 
+			// The output at this point is not initialized
+			OutPoint = FPCGPoint();
+
 			// Firstly project onto elected generating shape to move to final position.
 			if (!InSurface->ProjectPoint(FTransform(TentativeLocation), LocalBound, ProjectionParams, OutPoint, SampledData->Metadata))
 			{
