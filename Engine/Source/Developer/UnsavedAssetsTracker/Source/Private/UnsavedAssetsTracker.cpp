@@ -507,7 +507,7 @@ void FUnsavedAssetsTracker::OnSourceControlFileStatusUpdate(const FString& AbsFi
 	}
 }
 
-void FUnsavedAssetsTracker::PrompToSavePackages()
+bool FUnsavedAssetsTracker::PromptToSavePackages()
 {
 	if (GetUnsavedAssetNum() > 0)
 	{
@@ -526,8 +526,10 @@ void FUnsavedAssetsTracker::PrompToSavePackages()
 
 			// Stay in sync with what the package the engine thinks is dirty.
 			SyncWithDirtyPackageList();
+			return true;
 		}
 	}
+	return false;
 }
 
 bool FUnsavedAssetsTracker::IsAssetUnsaved(const FString& FileAbsPathname) const

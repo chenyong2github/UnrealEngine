@@ -58,6 +58,9 @@ public:
 	/** Construct the widget for the Editor status bar.*/
 	TSharedRef<SWidget> MakeUnsavedAssetsStatusBarWidget();
 
+	/** Displays a dialog prompting the user to save unsaved packages. */
+	bool PromptToSavePackages();
+
 	/** Invoked when a file is added to the unsaved list. */
 	FOnUnsavedAssetAdded OnUnsavedAssetAdded;
 

@@ -161,6 +161,23 @@ void FSourceControlCommands::RevertAllModifiedFiles_Clicked()
 	FText Title = LOCTEXT("RevertAllModifiedFiles_Title", "Revert all local changes");
 	if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, Message, &Title) == EAppReturnType::Yes)
 	{
+		// Get a list of all the unsaved packages
+		TArray<FString> UnsavedFileNames = FUnsavedAssetsTrackerModule::Get().GetUnsavedAssets();
+		TArray<UPackage*> UnsavedPackages;
+		UnsavedPackages.Reserve(UnsavedFileNames.Num());
+
+		for (FString& FileName : UnsavedFileNames)
+		{
+			FString PackageName = UPackageTools::FilenameToPackageName(FileName);
+			UPackage* Package = FindPackage(nullptr, *PackageName);
+			if (Package != nullptr)
+			{
+				UnsavedPackages.Add(Package);
+			}
+		}
+
+		UEditorLoadingAndSavingUtils::SavePackages(UnsavedPackages, /*bOnlyDirty=*/true);
+		
 		FBookmarkScoped BookmarkScoped;
 		FSourceControlWindows::RevertAllChangesAndReloadWorld();
 	}
@@ -404,12 +421,17 @@ FReply FSourceControlMenuHelpers::OnSourceControlSyncClicked()
 int FSourceControlMenuHelpers::GetNumLocalChanges()
 {
 	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	if (SourceControlModule.IsEnabled() && SourceControlModule.GetProvider().IsAvailable() 
+	if (SourceControlModule.IsEnabled() && SourceControlModule.GetProvider().IsAvailable()
 		&& SourceControlModule.GetProvider().GetNumLocalChanges().IsSet())
 	{
 		return SourceControlModule.GetProvider().GetNumLocalChanges().GetValue();
 	}
 	return 0;
+}
+
+bool FSourceControlMenuHelpers::HasLocalChanges()
+{
+	return GetNumLocalChanges() > 0 || FUnsavedAssetsTrackerModule::Get().GetUnsavedAssetNum() > 0;
 }
 
 EVisibility FSourceControlMenuHelpers::GetSourceControlCheckInStatusVisibility()
@@ -427,7 +449,7 @@ EVisibility FSourceControlMenuHelpers::GetSourceControlCheckInStatusVisibility()
 
 FText FSourceControlMenuHelpers::GetSourceControlCheckInStatusText()
 {
-	if (GetNumLocalChanges() > 0)
+	if (HasLocalChanges())
 	{
 		return LOCTEXT("CheckInButtonChangesText", "Check-in Changes");
 	}
@@ -437,9 +459,10 @@ FText FSourceControlMenuHelpers::GetSourceControlCheckInStatusText()
 
 FText FSourceControlMenuHelpers::GetSourceControlCheckInStatusTooltipText()
 {
-	if (GetNumLocalChanges() > 0)
+	if (HasLocalChanges())
 	{
-		return FText::Format(LOCTEXT("CheckInButtonChangesTooltipText", "Check-in {0} change(s) to this project"), GetNumLocalChanges());
+		return FText::Format(LOCTEXT("CheckInButtonChangesTooltipText", "Check-in {0} change(s) to this project"), 
+			GetNumLocalChanges() > 0 ? GetNumLocalChanges() : FUnsavedAssetsTrackerModule::Get().GetUnsavedAssetNum());
 	}
 	return LOCTEXT("CheckInButtonNoChangesTooltipText", "No Changes to check in for this project");
 }
@@ -449,7 +472,7 @@ const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlCheckInStatusIcon(
 	static const FSlateBrush* NoLocalChangesBrush = FRevisionControlStyleManager::Get().GetBrush("RevisionControl.StatusBar.NoLocalChanges");
 	static const FSlateBrush* HasLocalChangesBrush = FRevisionControlStyleManager::Get().GetBrush("RevisionControl.StatusBar.HasLocalChanges");
 
-	if (GetNumLocalChanges() > 0)
+	if (HasLocalChanges())
 	{
 		return HasLocalChangesBrush;
 	}
@@ -458,7 +481,7 @@ const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlCheckInStatusIcon(
 
 FReply FSourceControlMenuHelpers::OnSourceControlCheckInChangesClicked()
 {
-	if (FSourceControlWindows::CanChoosePackagesToCheckIn())
+	if (FUnsavedAssetsTrackerModule::Get().PromptToSavePackages() || HasLocalChanges())
 	{
 		FSourceControlWindows::ChoosePackagesToCheckIn();
 	}
@@ -495,7 +518,7 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
 			.ToolTipText_Static(&FSourceControlMenuHelpers::GetSourceControlCheckInStatusTooltipText)
 			.Visibility_Static(&FSourceControlMenuHelpers::GetSourceControlCheckInStatusVisibility)
-			.IsEnabled_Lambda([]() { return GetNumLocalChanges() > 0; })
+			.IsEnabled_Lambda([]() { return HasLocalChanges(); })
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()

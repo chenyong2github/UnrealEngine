@@ -41,7 +41,7 @@ public:
 	void SetWarningNotificationEnabled(bool bEnabled) { bWarningNotificationEnabled = bEnabled; }
 
 	/** Displays a dialog prompting the user to save the packages. */
-	void PrompToSavePackages();
+	bool PromptToSavePackages();
 
 	/** Check if the input asset is unsaved. */
 	bool IsAssetUnsaved(const FString& FileAbsPathname) const;

@@ -64,10 +64,20 @@ TSharedRef<SWidget> FUnsavedAssetsTrackerModule::MakeUnsavedAssetsStatusBarWidge
 		{
 			if (TSharedPtr<FUnsavedAssetsTracker> Tracker = WeakUnsavedAssetTracker.Pin())
 			{
-				Tracker->PrompToSavePackages();
+				Tracker->PromptToSavePackages();
 			}
 			return FReply::Handled();
 		});
+}
+
+bool FUnsavedAssetsTrackerModule::PromptToSavePackages()
+{
+	if (!UnsavedAssetTracker)
+	{
+		return false;
+	}
+
+	return UnsavedAssetTracker->PromptToSavePackages();
 }
 
 IMPLEMENT_MODULE(FUnsavedAssetsTrackerModule, UnsavedAssetsTracker)

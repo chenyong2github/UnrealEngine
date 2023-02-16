@@ -1132,6 +1132,43 @@ bool USourceControlHelpers::ListRevertablePackages(TArray<FString>& OutRevertabl
 	TMap<FString, FSourceControlStatePtr> PackageStates;
 	FEditorFileUtils::FindAllSubmittablePackageFiles(PackageStates, true);
 
+	TArray<FString> PackageNames;
+	PackageStates.GetKeys(PackageNames);
+	TMap<FString, FString> FileNamesToPackageNames;
+
+	// Get a list of files pending delete
+	TArray<FSourceControlStateRef> PendingDeleteItems = SourceControlProvider.GetCachedStateByPredicate(
+		[&PackageNames, &FileNamesToPackageNames](const FSourceControlStateRef& State)
+		{
+			const FString& Filename = State->GetFilename();
+
+			FString PackageName;
+			FString FailureReason;
+			if (!FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName, &FailureReason))
+			{
+				UE_LOG(LogSourceControl, Warning, TEXT("%s"), *FailureReason);
+				return false;
+			}
+
+			if (State->IsDeleted() && !PackageNames.Contains(PackageName))
+			{
+				FileNamesToPackageNames.Add(Filename, PackageName);
+				return true;
+			}
+			return false;
+		}
+	);
+
+	// And append them to the list
+	for (FSourceControlStateRef& Item : PendingDeleteItems)
+	{
+		const FString* PackageName = FileNamesToPackageNames.Find(Item->GetFilename());
+		if (PackageName)
+		{
+			PackageStates.Add(*PackageName, Item);
+		}
+	}
+
 	for (auto& PackageState : PackageStates)
 	{
 		const FString PackageName = PackageState.Key;
