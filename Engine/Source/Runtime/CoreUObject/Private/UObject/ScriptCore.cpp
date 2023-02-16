@@ -921,7 +921,10 @@ void ProcessScriptFunction(UObject* Context, UFunction* Function, FFrame& Stack,
 	if (!bUsePersistentFrame)
 	{
 		FrameMemory = (uint8*)UE_VSTACK_ALLOC_ALIGNED(NewStack.CachedThreadVirtualStackAllocator, Function->PropertiesSize, Function->GetMinAlignment());
-		FMemory::Memzero(FrameMemory, Function->PropertiesSize);
+		if (Function->PropertiesSize)
+		{
+			FMemory::Memzero(FrameMemory, Function->PropertiesSize);
+		}
 	}
 
 	/* 
@@ -2054,11 +2057,18 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 		{
 			Frame = (uint8*)UE_VSTACK_ALLOC_ALIGNED(VirtualStackAllocator, Function->PropertiesSize, Function->GetMinAlignment());
 			// zero the local property memory
-			FMemory::Memzero(Frame + Function->ParmsSize, Function->PropertiesSize - Function->ParmsSize);
+			const int32 NonParmsPropertiesSize = Function->PropertiesSize - Function->ParmsSize;
+			if (NonParmsPropertiesSize)
+			{
+				FMemory::Memzero(Frame + Function->ParmsSize, NonParmsPropertiesSize);
+			}
 		}
 
 		// initialize the parameter properties
-		FMemory::Memcpy(Frame, Parms, Function->ParmsSize);
+		if (Function->ParmsSize)
+		{
+			FMemory::Memcpy(Frame, Parms, Function->ParmsSize);
+		}
 
 		// Create a new local execution stack.
 		FFrame NewStack(this, Function, Frame, NULL, Function->ChildProperties);

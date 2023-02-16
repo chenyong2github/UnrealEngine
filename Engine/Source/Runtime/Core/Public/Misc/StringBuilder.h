@@ -157,7 +157,10 @@ public:
 	{
 		int32 ConvertedLength = FPlatformString::ConvertedLength<CharType>(String, Length);
 		EnsureAdditionalCapacity(ConvertedLength);
-		CurPos = FPlatformString::Convert(CurPos, ConvertedLength, String, Length);
+		if (Length)
+		{
+			CurPos = FPlatformString::Convert(CurPos, ConvertedLength, String, Length);
+		}
 		return *this;
 	}
 
@@ -233,7 +236,10 @@ public:
 			}
 		}
 		
-		FMemory::Memcpy(Base + Pos, Str.GetData(), Str.Len() * sizeof(CharType));
+		if (Str.Len())
+		{
+			FMemory::Memcpy(Base + Pos, Str.GetData(), Str.Len() * sizeof(CharType));
+		}
 	}
 
 	/** Insert substring at given position */

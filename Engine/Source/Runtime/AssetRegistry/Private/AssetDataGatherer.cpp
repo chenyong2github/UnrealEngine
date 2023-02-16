@@ -2597,7 +2597,10 @@ public:
 	void Load(FMutableMemoryView Out)
 	{
 		FMemoryView In = Load(Out.GetSize());
-		FMemory::Memcpy(Out.GetData(), In.GetData(), In.GetSize());
+		if (In.GetSize())
+		{
+			FMemory::Memcpy(Out.GetData(), In.GetData(), In.GetSize());
+		}
 	}
 
 	template<typename T>
@@ -2689,14 +2692,20 @@ class FChecksumArchiveBase : public FArchiveProxy
 		void Write(FMemoryView In)
 		{
 			check(GetRemainingSize() >= In.GetSize());
-			FMemory::Memcpy(Cursor, In.GetData(), In.GetSize());
+			if (In.GetSize())
+			{
+				FMemory::Memcpy(Cursor, In.GetData(), In.GetSize());
+			}
 			Cursor += In.GetSize();	
 		}
 
 		void Read(FMutableMemoryView Out)
 		{
 			check(GetRemainingSize() >= Out.GetSize());
-			FMemory::Memcpy(Out.GetData(), Cursor, Out.GetSize());
+			if (Out.GetSize())
+			{
+				FMemory::Memcpy(Out.GetData(), Cursor, Out.GetSize());
+			}
 			Cursor += Out.GetSize();	
 		}
 	};

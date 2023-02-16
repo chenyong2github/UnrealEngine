@@ -794,8 +794,11 @@ public:
 			}
 			else
 			{
-				// Use the much faster path for types that allow it
-				FMemory::Memcpy(DestData, SrcData, sizeof(FElementOrFreeListLink) * SrcMax);
+				if (SrcMax)
+				{
+					// Use the much faster path for types that allow it
+					FMemory::Memcpy(DestData, SrcData, sizeof(FElementOrFreeListLink) * SrcMax);
+				}
 			}
 		}
 		return *this;

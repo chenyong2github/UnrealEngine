@@ -5452,14 +5452,20 @@ void FTokenStreamBuilder::Merge(FTokenStreamView& Out, const FTokenStreamBuilder
 		FTokenStreamHeader* Header = new (FMemory::Malloc(NumBytes)) FTokenStreamHeader;
 		uint32* Tokens = reinterpret_cast<uint32*>(Header + 1);
 
-		FMemory::Memcpy(Tokens,						Super.Tokens,					sizeof(uint32) * Super.Num);
-		FMemory::Memcpy(Tokens + Super.Num,			Class.Tokens.GetData(),			sizeof(uint32) * Class.Num());
+		if (Super.Num)
+		{
+			FMemory::Memcpy(Tokens,             Super.Tokens,           sizeof(uint32) * Super.Num  );
+		}
+		if (Class.Num())
+		{
+			FMemory::Memcpy(Tokens + Super.Num, Class.Tokens.GetData(), sizeof(uint32) * Class.Num());
+		}
 
 	#if ENABLE_GC_TOKEN_DEBUG_INFO
 		check(Class.DebugNames.Num() == Class.Tokens.Num());
 		FName* DebugNames = reinterpret_cast<FName*>(Tokens + Num);
-		FMemory::Memcpy(DebugNames,					Super.GetDebugNames(),			sizeof(FName) * Super.Num);
-		FMemory::Memcpy(DebugNames + Super.Num,		Class.DebugNames.GetData(),		sizeof(FName) * Class.Num());
+		if (Super.Num)   { FMemory::Memcpy(DebugNames,             Super.GetDebugNames(),      sizeof(FName) * Super.Num); }
+		if (Class.Num()) { FMemory::Memcpy(DebugNames + Super.Num, Class.DebugNames.GetData(), sizeof(FName) * Class.Num()); }
 	#endif
 
 		UpdateGlobalTokenCount(int32(Num));

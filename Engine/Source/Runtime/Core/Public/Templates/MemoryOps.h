@@ -110,7 +110,10 @@ FORCEINLINE void ConstructItems(void* Dest, const SourceElementType* Source, Siz
 {
 	if constexpr (TIsBitwiseConstructible<DestinationElementType, SourceElementType>::Value)
 	{
-		FMemory::Memcpy(Dest, Source, sizeof(SourceElementType) * Count);
+		if (Count)
+		{
+			FMemory::Memcpy(Dest, Source, sizeof(SourceElementType) * Count);
+		}
 	}
 	else
 	{

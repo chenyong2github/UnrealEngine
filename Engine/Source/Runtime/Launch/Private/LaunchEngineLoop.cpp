@@ -2989,6 +2989,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FEmbeddedCommunication::ForceTick(2);
 
+	PreInitContext.SlowTaskPtr = new FScopedSlowTask(100, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing", "Initializing..."));
+	FScopedSlowTask& SlowTask = *PreInitContext.SlowTaskPtr;
+
 #if WITH_ENGINE
 	// allow for game explorer processing (including parental controls) and firewalls installation
 	if (!FPlatformMisc::CommandLineCommands())
@@ -3175,9 +3178,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FEmbeddedCommunication::ForceTick(3);
-
-	PreInitContext.SlowTaskPtr = new FScopedSlowTask(100, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing", "Initializing..."));
-	FScopedSlowTask& SlowTask = *PreInitContext.SlowTaskPtr;
 
 	SlowTask.EnterProgressFrame(10);
 
@@ -3492,6 +3492,8 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 #if UE_EDITOR || WITH_ENGINE
 	const TCHAR* CommandletCommandLine = *PreInitContext.CommandletCommandLine;
 #endif // UE_EDITOR || WITH_ENGINE
+
+	check(PreInitContext.SlowTaskPtr);
 	FScopedSlowTask& SlowTask = *PreInitContext.SlowTaskPtr;
 
 #if WITH_ENGINE
