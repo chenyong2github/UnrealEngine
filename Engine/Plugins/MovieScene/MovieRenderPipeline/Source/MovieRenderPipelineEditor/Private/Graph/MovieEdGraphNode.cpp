@@ -3,6 +3,7 @@
 #include "Graph/MovieEdGraphNode.h"
 #include "Graph/MovieGraphPin.h"
 #include "Graph/MovieGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 
 void UMoviePipelineEdGraphNodeBase::Construct(UMovieGraphNode* InRuntimeNode)
 {

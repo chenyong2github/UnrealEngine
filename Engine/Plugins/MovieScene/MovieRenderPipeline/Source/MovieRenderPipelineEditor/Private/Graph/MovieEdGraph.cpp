@@ -8,6 +8,7 @@
 #include "MovieEdGraphOutputNode.h"
 #include "MovieEdGraphInputNode.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "EdGraph/EdGraphPin.h"
 
 UMovieGraphConfig* UMoviePipelineEdGraph::GetPipelineGraph() const
 {
