@@ -119,7 +119,8 @@ bool ULyraTeamSubsystem::UnregisterTeamInfo(ALyraTeamInfoBase* TeamInfo)
 	{
 		FLyraTeamTrackingInfo* Entry = TeamMap.Find(TeamId);
 
-		if (ensure(Entry))
+		// If it couldn't find the entry, this is probably a leftover actor from a previous world, ignore it
+		if (Entry)
 		{
 			Entry->RemoveTeamInfo(TeamInfo);
 
