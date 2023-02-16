@@ -283,7 +283,9 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 
 	DetailBuilder.HideProperty(SourceAnimationPropertyHandle);
 
-	SourceCategory.AddCustomRow(SourceAnimationPropertyHandle->GetPropertyDisplayName())
+	TSharedPtr<IPropertyHandle> SourceAnimationProperty = DetailBuilder.GetProperty(TEXT("SourceAnimation"));
+	IDetailPropertyRow& SourceAnimationRow = SourceCategory.AddProperty(SourceAnimationProperty);
+	SourceAnimationRow.CustomWidget()
 	.NameContent()
 	[
 		SourceAnimationPropertyHandle->CreatePropertyNameWidget()
