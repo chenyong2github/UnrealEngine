@@ -24,6 +24,7 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
 #include "MuCO/CustomizableObjectInstance.h"
+#include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableObjectMipDataProvider.h"
 #include "MuCO/UnrealBakeHelpers.h"
 #include "MuCOE/CustomizableObjectBakeHelpers.h"
@@ -2236,6 +2237,12 @@ void RemoveRestrictedChars(FString& String)
 //-------------------------------------------------------------------------------------------------
 void FCustomizableObjectEditorViewportClient::BakeInstance()
 {
+	BakeInstance(nullptr);
+}
+
+//-------------------------------------------------------------------------------------------------
+void FCustomizableObjectEditorViewportClient::BakeInstance(UCustomizableObjectInstance* InInstance)
+{
 	if (!AssetRegistryLoaded)
 	{
 		FNotificationInfo Info(NSLOCTEXT("CustomizableObjectEditor", "CustomizableObjectCompileTryLater", "Please wait until asset registry loads all assets"));
@@ -2247,11 +2254,14 @@ void FCustomizableObjectEditorViewportClient::BakeInstance()
 		return;
 	}
 
+	UCustomizableObjectInstance* Instance = InInstance ? InInstance : CustomizableObjectEditorPtr.Pin()->GetPreviewInstance();
+
 	bool bHasSkeletalMesh = false;
-	int32 NumComponents = SkeletalMeshComponents.Num();
+	int32 NumComponents = Instance->SkeletalMeshes.Num();
+
 	for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
 	{
-		if (SkeletalMeshComponents[ComponentIndex].IsValid() && SkeletalMeshComponents[ComponentIndex]->GetSkinnedAsset())
+		if (Instance->SkeletalMeshes.IsValidIndex(ComponentIndex) && Instance->SkeletalMeshes[ComponentIndex])
 		{
 			bHasSkeletalMesh = true;
 		}
@@ -2262,7 +2272,25 @@ void FCustomizableObjectEditorViewportClient::BakeInstance()
 		return;
 	}
 
-	UCustomizableObjectInstance* Instance = CustomizableObjectEditorPtr.Pin()->GetPreviewInstance();
+	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+	check(System);
+
+	if (System->IsProgressiveMipStreamingEnabled())
+	{
+		// The instance in the editor viewport does not have high quality mips in the platform data because streaming is enabled.
+		// Disable streaming and retry with a newly generated temp instance.
+		System->SetProgressiveMipStreamingEnabled(false);
+		// Disable requested LOD generation as it will prevent the new instance from having all the LODs
+		System->SetOnlyGenerateRequestedLODsEnabled(false);
+
+		BakeTempInstance = Instance->Clone();
+		BakeTempInstance->SkeletalMeshes.Empty();
+		BakeTempInstance->UpdatedNativeDelegate.AddSP(this, &FCustomizableObjectEditorViewportClient::BakeInstance);
+		BakeTempInstance->UpdateSkeletalMeshAsync(true, true);
+
+		return;
+	}
+
 	FString ObjectName = Instance->GetCustomizableObject()->GetName();
 	FText DefaultFileName = FText::Format(LOCTEXT("DefaultFileNameForBakeInstance", "{0}"), FText::AsCultureInvariant(ObjectName));
 	bool bExportAllResources = false;
@@ -2320,8 +2348,8 @@ void FCustomizableObjectEditorViewportClient::BakeInstance()
 
 			for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
 			{
-				USkeletalMesh* Mesh = SkeletalMeshComponents.Num() && SkeletalMeshComponents[ComponentIndex].IsValid() ?
-					Cast<USkeletalMesh>(SkeletalMeshComponents[ComponentIndex]->GetSkinnedAsset()) : nullptr;
+				USkeletalMesh* Mesh = Instance->SkeletalMeshes.IsValidIndex(ComponentIndex) && Instance->SkeletalMeshes[ComponentIndex] ?
+					Cast<USkeletalMesh>(Instance->SkeletalMeshes[ComponentIndex]) : nullptr;
 				
 				if (!Mesh)
 				{
@@ -2664,7 +2692,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance()
 					}
 				}
 
-				// Make sure source data is present in the mesh before we duplciate:
+				// Make sure source data is present in the mesh before we duplicate:
 				FUnrealBakeHelpers::BakeHelper_RegenerateImportedModel(Mesh);
 
 				// Skeletal Mesh
@@ -2703,6 +2731,14 @@ void FCustomizableObjectEditorViewportClient::BakeInstance()
 				FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, false, true);
 			}
 		}
+	}
+
+	if (InInstance)
+	{
+		// Reenable Mutable texture streaming and requested LOD generation as they had been disabled to bake the textures
+		System->SetProgressiveMipStreamingEnabled(true);
+		System->SetOnlyGenerateRequestedLODsEnabled(true);
+		BakeTempInstance = nullptr;
 	}
 }
 
@@ -3008,6 +3044,11 @@ void FCustomizableObjectEditorViewportClient::AddReferencedObjects(FReferenceCol
 	Collector.AddReferencedObject(ClipMorphMaterial);
 	Collector.AddReferencedObject(TransparentPlaneMaterialXY);
 	Collector.AddReferencedObject(AnimationBeingPlayed);
+
+	if (BakeTempInstance)
+	{
+		Collector.AddReferencedObject(BakeTempInstance);
+	}
 }
 
 

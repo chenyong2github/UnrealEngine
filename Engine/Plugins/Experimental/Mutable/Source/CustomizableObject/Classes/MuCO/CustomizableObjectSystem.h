@@ -258,8 +258,10 @@ public:
 	bool IsSupport16BitBoneIndexEnabled() const;
 
 	bool IsProgressiveMipStreamingEnabled() const;
+	void SetProgressiveMipStreamingEnabled(bool bIsEnabled);
 
 	bool IsOnlyGenerateRequestedLODsEnabled() const;
+	void SetOnlyGenerateRequestedLODsEnabled(bool bIsEnabled);
 
 	void AddPendingReleaseSkeletalMesh( USkeletalMesh* SkeletalMesh );
 

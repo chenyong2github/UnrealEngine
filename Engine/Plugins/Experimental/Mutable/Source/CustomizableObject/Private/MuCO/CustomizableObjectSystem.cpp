@@ -2753,10 +2753,24 @@ bool UCustomizableObjectSystem::IsProgressiveMipStreamingEnabled() const
 }
 
 
+void UCustomizableObjectSystem::SetProgressiveMipStreamingEnabled(bool bIsEnabled)
+{
+	check(Private != nullptr);
+	Private->EnableMutableProgressiveMipStreaming = bIsEnabled ? 1 : 0;
+}
+
+
 bool UCustomizableObjectSystem::IsOnlyGenerateRequestedLODsEnabled() const
 {
 	check(Private != nullptr);
 	return Private->EnableOnlyGenerateRequestedLODs != 0;
+}
+
+
+void UCustomizableObjectSystem::SetOnlyGenerateRequestedLODsEnabled(bool bIsEnabled)
+{
+	check(Private != nullptr);
+	Private->EnableOnlyGenerateRequestedLODs = bIsEnabled ? 1 : 0;
 }
 
 

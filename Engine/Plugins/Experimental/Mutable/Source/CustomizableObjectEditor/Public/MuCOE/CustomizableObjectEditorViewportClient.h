@@ -148,7 +148,7 @@ public:
 
 
 /** Viewport Client for the preview viewport */
-class FCustomizableObjectEditorViewportClient : public FEditorViewportClient
+class FCustomizableObjectEditorViewportClient : public FEditorViewportClient, public TSharedFromThis<FCustomizableObjectEditorViewportClient>
 {
 public:
 	FCustomizableObjectEditorViewportClient(TWeakPtr<class ICustomizableObjectInstanceEditor> InCustomizableObjectEditor, FPreviewScene* InPreviewScene);
@@ -196,8 +196,9 @@ public:
 	 */
 	void DrawUVs(FViewport* InViewport, FCanvas* InCanvas, int32 InTextYPos, const FString& MaterialName);
 
-	// Callback for baking the current instance.
+	// Callback for baking the current instance. If nullptr is passed, the instance in the editor will be taken.
 	void BakeInstance();
+	void BakeInstance(class UCustomizableObjectInstance* Instance);
 	
 	// Returns false if the resource has already been duplicated, otherwise, returns true and an unique ResourceName.
 	bool GetUniqueResourceName(UObject* InResource, FString& InOutResourceName, TArray<UObject*>& InCachedObjects, TArray<FString>& InCachedObjectNames);
@@ -515,6 +516,10 @@ private:
 
 	/** Flag to control the bones visibility in the viewport */
 	bool bShowBones;
+
+	// Temp Instance used in the bake process if a new instance is needed because mutable texture streaming is enabled so the viewport 
+	// instance does not have the high quality mips in the texture's platform data
+	UCustomizableObjectInstance* BakeTempInstance = nullptr;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
