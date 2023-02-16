@@ -43,7 +43,7 @@ FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(F
 	Gizmo = GizmoManager->Create3AxisTransformGizmo(this, GizmoIdentifier);
 
 	Gizmo->SetActiveTarget(TransformProxy);
-	Gizmo->SetVisibility(true);
+	Gizmo->SetVisibility(false);
 	Gizmo->bUseContextGizmoMode = false;
 	Gizmo->bUseContextCoordinateSystem = false;
 	Gizmo->ActiveGizmoMode = EToolContextTransformGizmoMode::Combined;
@@ -52,11 +52,15 @@ FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(F
 	SetAdvancedShowFlagsForScene(UAssetViewerSettings::Get()->Profiles[GetMutableDefault<UEditorPerProjectUserSettings>()->AssetViewerProfileIndex].bPostProcessingEnabled);
 }
 
-void FChaosClothAssetEditor3DViewportClient::RegisterSettingsChangedDelegate()
+void FChaosClothAssetEditor3DViewportClient::RegisterDelegates()
 {
 	// Remove any existing delegate in case this function is called twice
 	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().RemoveAll(this);
 	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().AddSP(this, &FChaosClothAssetEditor3DViewportClient::OnAssetViewerSettingsChanged);
+
+	USelection* const SelectedComponents = ModeTools->GetSelectedComponents();
+	SelectedComponents->SelectionChangedEvent.RemoveAll(this);
+	SelectedComponents->SelectionChangedEvent.AddSP(this, &FChaosClothAssetEditor3DViewportClient::ComponentSelectionChanged);
 }
 
 FChaosClothAssetEditor3DViewportClient::~FChaosClothAssetEditor3DViewportClient()
@@ -64,6 +68,10 @@ FChaosClothAssetEditor3DViewportClient::~FChaosClothAssetEditor3DViewportClient(
 	DeleteViewportGizmo();
 
 	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().RemoveAll(this);
+	if (USelection* const SelectedComponents = ModeTools->GetSelectedComponents())
+	{
+		SelectedComponents->SelectionChangedEvent.RemoveAll(this);
+	}
 }
 
 void FChaosClothAssetEditor3DViewportClient::DeleteViewportGizmo()
@@ -148,13 +156,8 @@ void FChaosClothAssetEditor3DViewportClient::EnableRenderMeshWireframe(bool bEna
 
 void FChaosClothAssetEditor3DViewportClient::SetClothComponent(TObjectPtr<UChaosClothComponent> InClothComponent)
 {
+	ClearSelectedComponents();
 	ClothComponent = InClothComponent;
-
-	if (ClothComponent)
-	{
-		TransformProxy->AddComponent(ClothComponent);
-		TransformProxy->SetTransform(ClothComponent->GetComponentToWorld());
-	}
 }
 
 void FChaosClothAssetEditor3DViewportClient::SetClothEdMode(TObjectPtr<UChaosClothAssetEditorMode> InClothEdMode)
@@ -237,6 +240,7 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 	SelectedComponents->GetSelectedObjects<UPrimitiveComponent>(PreviouslySelectedComponents);
 
 	SelectedComponents->Modify();
+	SelectedComponents->BeginBatchSelectOperation();
 
 	if (!bIsShiftKeyDown && !bIsCtrlKeyDown)
 	{
@@ -285,10 +289,32 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 		}
 	}
 
+	SelectedComponents->EndBatchSelectOperation();
+
 	for (UPrimitiveComponent* const Component : PreviouslySelectedComponents)
 	{
 		Component->PushSelectionToProxy();
 	}
+}
+
+
+void FChaosClothAssetEditor3DViewportClient::ClearSelectedComponents()
+{
+	USelection* const SelectedComponents = ModeTools->GetSelectedComponents();
+	TArray<UPrimitiveComponent*> PreviouslySelectedComponents;
+	SelectedComponents->GetSelectedObjects<UPrimitiveComponent>(PreviouslySelectedComponents);
+
+	for (UPrimitiveComponent* const Component : PreviouslySelectedComponents)
+	{
+		Component->PushSelectionToProxy();
+	}
+
+	SelectedComponents->DeselectAll();
+}
+
+void FChaosClothAssetEditor3DViewportClient::ComponentSelectionChanged(UObject* NewSelection)
+{
+	USelection* const SelectedComponents = ModeTools->GetSelectedComponents();
 
 	// Update TransformProxy
 
@@ -301,18 +327,19 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 	}
 
 	// Update gizmo
-
-	if (Components.Num() > 0)
+	if (Gizmo)
 	{
-		Gizmo->SetActiveTarget(TransformProxy);
-		Gizmo->SetVisibility(true);
+		if (Components.Num() > 0)
+		{
+			Gizmo->SetActiveTarget(TransformProxy);
+			Gizmo->SetVisibility(true);
+		}
+		else
+		{
+			Gizmo->ClearActiveTarget();
+			Gizmo->SetVisibility(false);
+		}
 	}
-	else
-	{
-		Gizmo->ClearActiveTarget();
-		Gizmo->SetVisibility(false);
-	}
-
 }
 
 

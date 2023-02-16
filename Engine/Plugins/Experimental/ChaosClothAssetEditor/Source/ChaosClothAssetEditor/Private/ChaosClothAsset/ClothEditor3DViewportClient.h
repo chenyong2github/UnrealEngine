@@ -25,12 +25,14 @@ public:
 		const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
 
 	// Call this after construction to initialize callbacks when settings change
-	void RegisterSettingsChangedDelegate();
+	void RegisterDelegates();
 
 	virtual ~FChaosClothAssetEditor3DViewportClient();
 
 	// Delete the viewport gizmo and transform proxy
 	void DeleteViewportGizmo();
+
+	void ClearSelectedComponents();
 
 	void EnableSimMeshWireframe(bool bEnable ) { bSimMeshWireframe = bEnable; }
 	bool SimMeshWireframeEnabled() const { return bSimMeshWireframe; }
@@ -65,6 +67,8 @@ private:
 
 	void OnAssetViewerSettingsChanged(const FName& InPropertyName);
 	void SetAdvancedShowFlagsForScene(const bool bAdvancedShowFlags);
+
+	void ComponentSelectionChanged(UObject* NewSelection);
 
 	TWeakPtr<FChaosClothPreviewScene> ClothPreviewScene;
 

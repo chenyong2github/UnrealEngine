@@ -179,7 +179,7 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 	//ClothPreviewInputRouter = ClothPreviewEditorModeManager->GetInteractiveToolsContext()->InputRouter;
 	ClothPreviewTabContent = MakeShareable(new FEditorViewportTabContent());
 	ClothPreviewViewportClient = MakeShared<FChaosClothAssetEditor3DViewportClient>(ClothPreviewEditorModeManager.Get(), ClothPreviewScene);
-	ClothPreviewViewportClient->RegisterSettingsChangedDelegate();
+	ClothPreviewViewportClient->RegisterDelegates();
 
 	ClothPreviewViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
 	{
@@ -231,7 +231,14 @@ void FChaosClothAssetEditorToolkit::Tick(float DeltaTime)
 			LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
 		}
 		DataflowTerminalPath = ClothEditorToolkitHelpers::GetDataflowTerminalFrom(ClothAsset);
+
+		Dataflow::FTimestamp OldTimestamp = LastDataflowNodeTimestamp;
 		FDataflowEditorCommands::EvaluateTerminalNode(*DataflowContext.Get(), LastDataflowNodeTimestamp, Dataflow, nullptr, nullptr, ClothAsset, DataflowTerminalPath);
+
+		if (OldTimestamp.Value < LastDataflowNodeTimestamp.Value)
+		{
+			OnClothAssetChanged();
+		}
 	}
 }
 
@@ -759,9 +766,13 @@ void FChaosClothAssetEditorToolkit::EvaluateNode(FDataflowNode* Node, FDataflowO
 		}
 		LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
 
+		Dataflow::FTimestamp OldTimestamp = LastDataflowNodeTimestamp;
 		FDataflowEditorCommands::EvaluateTerminalNode(*DataflowContext.Get(), LastDataflowNodeTimestamp, Dataflow, Node, nullptr, Asset, DataflowTerminalPath);
 
-		OnClothAssetChanged();
+		if (OldTimestamp.Value < LastDataflowNodeTimestamp.Value)
+		{
+			OnClothAssetChanged();
+		}
 	}
 };
 
@@ -910,10 +921,15 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 
 void FChaosClothAssetEditorToolkit::OnClothAssetChanged()
 {
+	ClothPreviewViewportClient->ClearSelectedComponents();
+
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
 	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
 
 	UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
+
+	const bool bWasSimulationSuspended = ClothMode->IsSimulationSuspended();
+
 	ClothMode->InitializeTargets(ObjectsToEdit);
 
 	if (UChaosClothAsset* const ClothAsset = Cast<UChaosClothAsset>(ObjectsToEdit[0]))
@@ -923,7 +939,19 @@ void FChaosClothAssetEditorToolkit::OnClothAssetChanged()
 		ensure(ClothAsset->HasAnyFlags(RF_Transactional));		// Ensure all objects are transactable for undo/redo in the details panel
 		SetEditingObject(ClothAsset);
 
+		ClothPreviewViewportClient->FocusViewportOnBox(ClothMode->PreviewBoundingBox());
+		ClothMode->RefocusRestSpaceViewportClient();
+
 		PopulateOutliner();
+	}
+
+	if (bWasSimulationSuspended)
+	{
+		ClothMode->SuspendSimulation();
+	}
+	else
+	{
+		ClothMode->ResumeSimulation();
 	}
 }
 
