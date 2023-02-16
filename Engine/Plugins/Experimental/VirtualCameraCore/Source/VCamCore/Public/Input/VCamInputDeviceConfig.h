@@ -50,6 +50,14 @@ USTRUCT(BlueprintType)
 struct VCAMCORE_API FVCamInputDeviceConfig
 {
 	GENERATED_BODY()
+
+	/**
+	 * Determines how input devices are filtered:
+	 * True: Every device is allowed.
+	 * False: Only input from devices with the IDs in AllowedInputDeviceIds is allowed.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	bool bAllowAllInputDevices = true;
 	
 	/**
 	 * List of input devices from which input can trigger input actions.
@@ -67,7 +75,7 @@ struct VCAMCORE_API FVCamInputDeviceConfig
 	 * Note: Keyboards always have ID = 0, mice ID = -1.
 	 * Note: The first gamepad will have ID = 0 even though keyboards will also have ID 0.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Input")
+	UPROPERTY(EditAnywhere, Category = "Input", meta = (EditCondition = "!bAllowAllInputDevices", EditConditionHides))
 	TArray<int32> AllowedInputDeviceIds;
 	
 	/**
