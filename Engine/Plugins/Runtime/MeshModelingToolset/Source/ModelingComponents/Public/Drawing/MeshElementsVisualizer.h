@@ -39,6 +39,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, meta = (EditCondition = "bVisible"))
 	bool bShowNormalSeams = true;
 
+	/** Should mesh tangent seam edges be shown */
+	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, meta = (EditCondition = "bVisible"))
+	bool bShowTangentSeams = true;
+
 	/** Should mesh color seam edges be shown */
 	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, meta = (EditCondition = "bVisible"))
 	bool bShowColorSeams = true;
@@ -62,6 +66,10 @@ public:
 	/** Color of mesh normal seam edges */
 	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, AdvancedDisplay, meta = (EditCondition = "bVisible"))
 	FColor NormalSeamColor = FColor(128, 128, 240);
+
+	/** Color of mesh tangent seam edges */
+	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, AdvancedDisplay, meta = (EditCondition = "bVisible"))
+	FColor TangentSeamColor = FColor(64, 240, 240);
 
 	/** Color of mesh color seam edges */
 	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, AdvancedDisplay, meta = (EditCondition = "bVisible"))

@@ -58,6 +58,7 @@ public:
 		const bool bEnableBoundaryEdges = Component->bEnableBoundaryEdges;
 		const bool bEnableUVSeams = Component->bEnableUVSeams;
 		const bool bEnableNormalSeams = Component->bEnableNormalSeams;
+		const bool bEnableTangentSeams = Component->bEnableTangentSeams;
 		const bool bEnableColorSeams = Component->bEnableColorSeams;
 
 		// Setup edge batches to process in parallel.
@@ -94,6 +95,7 @@ public:
 					(bEnableBoundaryEdges && (static_cast<int>(EdgeType) & static_cast<int>(IMeshWireframeSource::EMeshEdgeType::MeshBoundary)) != 0) ||
 					(bEnableUVSeams       && (static_cast<int>(EdgeType) & static_cast<int>(IMeshWireframeSource::EMeshEdgeType::UVSeam      )) != 0) ||
 					(bEnableNormalSeams   && (static_cast<int>(EdgeType) & static_cast<int>(IMeshWireframeSource::EMeshEdgeType::NormalSeam  )) != 0) ||
+					(bEnableTangentSeams  && (static_cast<int>(EdgeType) & static_cast<int>(IMeshWireframeSource::EMeshEdgeType::TangentSeam )) != 0) ||
 					(bEnableColorSeams    && (static_cast<int>(EdgeType) & static_cast<int>(IMeshWireframeSource::EMeshEdgeType::ColorSeam   )) != 0))
 				{
 					VisibleEdgeBatch.Add(UE::Geometry::FIndex3i(VertIndexA, VertIndexB, static_cast<int>(EdgeType)));
@@ -144,6 +146,8 @@ public:
 		const float UVSeamThickness = Component->ThicknessScale * Component->UVSeamThickness;
 		const FColor NormalSeamColor = FLinearColor::FromSRGBColor(Component->NormalSeamColor).ToFColor(false);
 		const float NormalSeamThickness = Component->ThicknessScale * Component->NormalSeamThickness;
+		const FColor TangentSeamColor = FLinearColor::FromSRGBColor(Component->TangentSeamColor).ToFColor(false);
+		const float TangentSeamThickness = Component->ThicknessScale * Component->TangentSeamThickness;
 		const FColor ColorSeamColor = FLinearColor::FromSRGBColor(Component->ColorSeamColor).ToFColor(false);
 		const float ColorSeamThickness = Component->ThicknessScale * Component->ColorSeamThickness;
 
@@ -186,6 +190,11 @@ public:
 					{
 						UseThickness = (bIsBoundaryEdge) ? BoundaryEdgeThickness : NormalSeamThickness;
 						UseColor = NormalSeamColor;
+					}
+					else if (bEnableTangentSeams && (static_cast<int>(EdgeType) & static_cast<int>(IMeshWireframeSource::EMeshEdgeType::TangentSeam)) != 0)
+					{
+						UseThickness = (bIsBoundaryEdge) ? BoundaryEdgeThickness : TangentSeamThickness;
+						UseColor = TangentSeamColor;
 					}
 					else if (bEnableColorSeams && (static_cast<int>(EdgeType) & static_cast<int>(IMeshWireframeSource::EMeshEdgeType::ColorSeam)) != 0)
 					{

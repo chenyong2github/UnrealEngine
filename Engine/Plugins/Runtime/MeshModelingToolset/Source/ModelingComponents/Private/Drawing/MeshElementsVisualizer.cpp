@@ -69,8 +69,8 @@ public:
 		}
 		if (Mesh.HasAttributes())
 		{
-			bool bIsUVSeam = false, bIsNormalSeam = false, bIsColorSeam = false;
-			if (Mesh.Attributes()->IsSeamEdge(EdgeIndex, bIsUVSeam, bIsNormalSeam, bIsColorSeam))
+			bool bIsUVSeam = false, bIsNormalSeam = false, bIsColorSeam = false, bIsTangentSeam = false;
+			if (Mesh.Attributes()->IsSeamEdge(EdgeIndex, bIsUVSeam, bIsNormalSeam, bIsColorSeam, bIsTangentSeam))
 			{
 				if (bIsUVSeam)
 				{
@@ -79,6 +79,10 @@ public:
 				if (bIsNormalSeam)
 				{
 					EdgeType |= (int32)EMeshEdgeType::NormalSeam;
+				}
+				if (bIsTangentSeam)
+				{
+					EdgeType |= (int32)EMeshEdgeType::TangentSeam;
 				}
 				if (bIsColorSeam)
 				{
@@ -122,6 +126,7 @@ void UMeshElementsVisualizer::OnCreated()
 	Settings->WatchProperty(Settings->bShowBorders, [this](bool) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->bShowUVSeams, [this](bool) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->bShowNormalSeams, [this](bool) { bSettingsModified = true; });
+	Settings->WatchProperty(Settings->bShowTangentSeams, [this](bool) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->bShowColorSeams, [this](bool){ bSettingsModified = true; });
 	Settings->WatchProperty(Settings->ThicknessScale, [this](float) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->DepthBias, [this](float) { bSettingsModified = true; });
@@ -132,6 +137,7 @@ void UMeshElementsVisualizer::OnCreated()
 	Settings->WatchProperty(Settings->BoundaryEdgeColor, [this](FColor) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->UVSeamColor, [this](FColor) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->NormalSeamColor, [this](FColor) { bSettingsModified = true; });
+	Settings->WatchProperty(Settings->TangentSeamColor, [this](FColor) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->ColorSeamColor, [this](FColor) { bSettingsModified = true; });
 	bSettingsModified = false;
 
@@ -195,12 +201,14 @@ void UMeshElementsVisualizer::UpdateVisibility()
 	WireframeComponent->bEnableBoundaryEdges = Settings->bShowBorders;
 	WireframeComponent->bEnableUVSeams = Settings->bShowUVSeams;
 	WireframeComponent->bEnableNormalSeams = Settings->bShowNormalSeams;
+	WireframeComponent->bEnableTangentSeams = Settings->bShowTangentSeams;
 	WireframeComponent->bEnableColorSeams = Settings->bShowColorSeams;
 
 	WireframeComponent->WireframeColor = Settings->WireframeColor;
 	WireframeComponent->BoundaryEdgeColor = Settings->BoundaryEdgeColor;
 	WireframeComponent->UVSeamColor = Settings->UVSeamColor;
 	WireframeComponent->NormalSeamColor = Settings->NormalSeamColor;
+	WireframeComponent->TangentSeamColor = Settings->TangentSeamColor;
 	WireframeComponent->ColorSeamColor = Settings->ColorSeamColor;
 
 	WireframeComponent->UpdateWireframe();

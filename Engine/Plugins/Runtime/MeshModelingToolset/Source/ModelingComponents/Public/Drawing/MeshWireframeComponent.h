@@ -29,7 +29,8 @@ public:
 		UVSeam = 1 << 3,
 		NormalSeam = 1 << 4,
 		GroupBoundary = 1 << 5,
-		ColorSeam = 1 << 6
+		ColorSeam = 1 << 6,
+		TangentSeam = 1 << 7
 	};
 
 public:
@@ -171,6 +172,18 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = MeshWireframe)
 	float NormalSeamThickness = 2.0f;
+
+
+	// tangent seam properties
+
+	UPROPERTY(EditAnywhere, Category = MeshWireframe)
+	bool bEnableTangentSeams = true;
+
+	UPROPERTY(EditAnywhere, Category = MeshWireframe)
+	FColor TangentSeamColor = FColor(64, 240, 240);
+
+	UPROPERTY(EditAnywhere, Category = MeshWireframe)
+	float TangentSeamThickness = 2.0f;
 
 
 	// color seam properties

@@ -131,8 +131,12 @@ public:
 	/** @return true if the given edge is the termination of a seam in any overlay*/
 	virtual bool IsSeamEndEdge(int EdgeID) const;
 
-	/** @return true if the given edge is a seam edge in any overlay */
+	/** @return true if the given edge is a seam edge in any overlay. This version considers tangent seams as a type of normal seam; to consider tangent seams separately, call the 4-argument IsSeamEdge instead.  */
+	UE_DEPRECATED(5.3, "Please instead call the 4 argument version of IsSeamEdge, which distinguishes between tangent and normal seam edges.")
 	virtual bool IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut) const;
+
+	/** @return true if the given edge is a seam edge in any overlay */
+	virtual bool IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut, bool& bIsTangentSeamOut) const;
 
 	/** @return true if the given vertex is a seam vertex in any overlay */
 	virtual bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;

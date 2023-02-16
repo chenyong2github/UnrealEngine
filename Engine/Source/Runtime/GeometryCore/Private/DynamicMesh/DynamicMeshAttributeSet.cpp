@@ -695,6 +695,14 @@ bool FDynamicMeshAttributeSet::IsSeamEndEdge(int eid) const
 
 bool FDynamicMeshAttributeSet::IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut) const
 {
+	bool bIsTangentSeam;
+	bool IsSeam = IsSeamEdge(EdgeID, bIsUVSeamOut, bIsNormalSeamOut, bIsColorSeamOut, bIsTangentSeam);
+	bIsNormalSeamOut = bIsNormalSeamOut || bIsTangentSeam;
+	return IsSeam;
+}
+
+bool FDynamicMeshAttributeSet::IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut, bool& bIsTangentSeamOut) const
+{
 	bIsUVSeamOut = false;
 	for (const FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{
@@ -704,12 +712,14 @@ bool FDynamicMeshAttributeSet::IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& 
 		}
 	}
 
-	bIsNormalSeamOut = false;
-	for (const FDynamicMeshNormalOverlay& NormalLayer : NormalLayers)
+	bIsNormalSeamOut = !NormalLayers.IsEmpty() && NormalLayers[0].IsSeamEdge(EdgeID);
+	bIsTangentSeamOut = false;
+	for (int32 LayerIdx = 1; LayerIdx < NormalLayers.Num(); ++LayerIdx)
 	{
+		const FDynamicMeshNormalOverlay& NormalLayer = NormalLayers[LayerIdx];
 		if (NormalLayer.IsSeamEdge(EdgeID))
 		{
-			bIsNormalSeamOut = true;
+			bIsTangentSeamOut = true;
 		}
 	}
 
@@ -718,7 +728,7 @@ bool FDynamicMeshAttributeSet::IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& 
 	{
 		bIsColorSeamOut = true;
 	}
-	return (bIsUVSeamOut || bIsNormalSeamOut || bIsColorSeamOut);
+	return (bIsUVSeamOut || bIsNormalSeamOut || bIsColorSeamOut || bIsTangentSeamOut);
 }
 
 
