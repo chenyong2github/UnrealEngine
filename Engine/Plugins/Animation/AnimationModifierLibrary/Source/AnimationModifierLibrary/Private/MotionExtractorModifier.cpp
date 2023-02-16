@@ -61,9 +61,6 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 
 	TGuardValue<bool> ForceRootLockGuard(Animation->bForceRootLock, false);
 
-	const FName FinalCurveName = GetCurveName();
-	UAnimationBlueprintLibrary::AddCurve(Animation, FinalCurveName, ERawCurveTrackTypes::RCT_Float, false);
-
 	TArray<FBoneIndexType> RequiredBones;
 	RequiredBones.Add(BoneIndex);
 	Skeleton->GetReferenceSkeleton().EnsureParentsExistAndSort(RequiredBones);
@@ -109,6 +106,9 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 	LastBoneTransform = FTransform::Identity;
 	Time = 0.f;
 	SampleIndex = 0;
+
+	TArray<FRichCurveKey> CurveKeys;
+	
 	while (Time < AnimLength)
 	{
 		Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, AnimLength);
@@ -127,10 +127,19 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 			const float Value = GetDesiredValue(BoneTransform, LastBoneTransform, SampleInterval);
 			const float FinalValue = (bNormalize && MaxValue != 0.f) ? FMath::Abs(Value) / MaxValue : Value;
 
-			UAnimationBlueprintLibrary::AddFloatCurveKey(Animation, FinalCurveName, Time, FinalValue);
+			FRichCurveKey& Key = CurveKeys.AddDefaulted_GetRef();
+			Key.Time = Time;
+			Key.Value = FinalValue;
 		}
 
 		LastBoneTransform = BoneTransform;
+	}
+
+	IAnimationDataController& Controller = Animation->GetController();
+	const FAnimationCurveIdentifier CurveId = UAnimationCurveIdentifierExtensions::GetCurveIdentifier(Animation->GetSkeleton(), GetCurveName(), ERawCurveTrackTypes::RCT_Float);
+	if(CurveKeys.Num() && Controller.AddCurve(CurveId))
+	{
+		Controller.SetCurveKeys(CurveId, CurveKeys);
 	}
 }
 
