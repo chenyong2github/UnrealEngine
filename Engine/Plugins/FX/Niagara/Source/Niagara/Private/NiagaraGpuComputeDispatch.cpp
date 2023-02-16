@@ -1634,7 +1634,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 
 				FNiagaraGpuProfileScope GpuProfileDispatchScope(RHICmdList, this, FNiagaraGpuProfileEvent(*InstanceDataPtr, *SimStageDataPtr, InstanceDataPtr == &TickPtr->GetInstances()[0]));
 
-				FComputeShaderUtils::ValidateIndirectArgsBuffer(SimStageDataPtr->DispatchArgs.IndirectBuffer->GetSize(), SimStageDataPtr->DispatchArgs.IndirectOffset, SimStageDataPtr->DispatchArgs.IndirectBuffer->GetStride());
+				FComputeShaderUtils::ValidateIndirectArgsBuffer(SimStageDataPtr->DispatchArgs.IndirectBuffer->GetSize(), SimStageDataPtr->DispatchArgs.IndirectOffset);
 				SetShaderParameters<FRHICommandList, FNiagaraShader>(RHICmdList, ComputeShader, RHIComputeShader, ShaderParametersMetadata, *DispatchParameters);
 				RHICmdList.DispatchIndirectComputeShader(SimStageDataPtr->DispatchArgs.IndirectBuffer->GetIndirectRHICallBuffer(), SimStageDataPtr->DispatchArgs.IndirectOffset);
 				UnsetShaderUAVs<FRHICommandList, FNiagaraShader>(RHICmdList, ComputeShader, RHIComputeShader);

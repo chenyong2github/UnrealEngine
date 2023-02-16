@@ -453,7 +453,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		FRHIBuffer* IndirectArgsBuffer,
 		uint32 IndirectArgOffset)
 	{
-		ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectArgOffset, IndirectArgsBuffer->GetStride());
+		ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectArgOffset);
 		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
 		SetComputePipelineState(RHICmdList, ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
@@ -632,23 +632,24 @@ struct RENDERCORE_API FComputeShaderUtils
 		ensure(GroupCount.Z <= GRHIMaxDispatchThreadGroupsPerDimension.Z);
 	}
 
-	static inline void ValidateIndirectArgsBuffer(uint32 IndirectArgsBufferSize, uint32 IndirectArgOffset, uint32 IndirectArgsStride)
+	static inline void ValidateIndirectArgsBuffer(uint32 IndirectArgsBufferSize, uint32 IndirectArgOffset)
 	{
+		constexpr uint32 IndirectArgsSize = sizeof(FRHIDispatchIndirectParametersNoPadding);
 		checkf((IndirectArgOffset % 4) == 0, TEXT("IndirectArgOffset for compute shader indirect dispatch needs to be a multiple of 4."));
 		checkf(
-			(IndirectArgOffset + IndirectArgsStride) <= IndirectArgsBufferSize,
+			(IndirectArgOffset + IndirectArgsSize) <= IndirectArgsBufferSize,
 			TEXT("Indirect parameters buffer for compute shader indirect dispatch at byte offset %d doesn't have enough room for one element."),
 			IndirectArgOffset);
 #if PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE != 0
-			checkf(IndirectArgOffset / PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE == (IndirectArgOffset + IndirectArgsStride - 1) / PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE, TEXT("Compute indirect dispatch arguments cannot cross %d byte boundary."), PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE);
+			checkf(IndirectArgOffset / PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE == (IndirectArgOffset + IndirectArgsSize - 1) / PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE, TEXT("Compute indirect dispatch arguments cannot cross %d byte boundary."), PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE);
 #endif // #if PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE != 0
 	}
 
-	static inline void ValidateIndirectArgsBuffer(FRDGBufferRef IndirectArgsBuffer, uint32 IndirectArgOffset)
+	static inline void ValidateIndirectArgsBuffer(const FRDGBufferRef IndirectArgsBuffer, uint32 IndirectArgOffset)
 	{
 		checkf(EnumHasAnyFlags(IndirectArgsBuffer->Desc.Usage, EBufferUsageFlags::VertexBuffer), TEXT("The buffer %s needs to be a vertex buffer to be used as an indirect dispatch parameters"), IndirectArgsBuffer->Name);
 		checkf(EnumHasAnyFlags(IndirectArgsBuffer->Desc.Usage, EBufferUsageFlags::DrawIndirect), TEXT("The buffer %s for indirect dispatch parameters was not flagged with BUF_DrawIndirect"), IndirectArgsBuffer->Name);
-		ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectArgOffset, IndirectArgsBuffer->Desc.BytesPerElement);
+		ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectArgOffset);
 	}
 
 	/**
