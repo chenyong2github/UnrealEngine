@@ -124,6 +124,10 @@ public:
 	// Returns all tag infos
 	TConstArrayView<FZoneGraphTagInfo> GetTagInfos() const;
 
+#if WITH_EDITOR
+	virtual bool IsTickableInEditor() const override { return true; }
+#endif /* WITH_EDITOR */
+
 protected:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void PostInitialize() override;

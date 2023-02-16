@@ -574,7 +574,12 @@ void UZoneShapeComponent::ClearPerPointLaneProfiles()
 uint32 UZoneShapeComponent::GetShapeHash() const
 {
 	FZoneGraphObjectCRC32 Archive;
-	return Archive.Crc32(const_cast<UObject*>((const UObject*)this), 0);
+	const uint32 ShapeHash = Archive.Crc32(const_cast<UObject*>((const UObject*)this), 0);
+
+	const FTransform Transform = GetComponentTransform();
+	const uint32 TransformHash = GetTypeHash(Transform);
+
+	return HashCombine(ShapeHash, TransformHash);
 }
 #endif
 

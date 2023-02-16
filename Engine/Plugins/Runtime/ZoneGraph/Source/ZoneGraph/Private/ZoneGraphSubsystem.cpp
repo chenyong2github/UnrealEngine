@@ -22,6 +22,8 @@ UZoneGraphSubsystem::UZoneGraphSubsystem()
 
 void UZoneGraphSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Super::Initialize(Collection);
+
 #if WITH_EDITOR
 	OnActorMovedHandle = GEngine->OnActorMoved().AddUObject(this, &UZoneGraphSubsystem::OnActorMoved);
 	OnRequestRebuildHandle = UE::ZoneGraphDelegates::OnZoneGraphRequestRebuild.AddUObject(this, &UZoneGraphSubsystem::OnRequestRebuild);
