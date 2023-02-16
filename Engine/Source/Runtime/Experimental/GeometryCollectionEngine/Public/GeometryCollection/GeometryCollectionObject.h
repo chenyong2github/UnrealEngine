@@ -330,6 +330,14 @@ private:
 	bool bIsInitialized = false;
 };
 
+USTRUCT(BlueprintType)
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionProxyMeshData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (AllowedClasses = "/Script/Engine.StaticMesh"))
+	TArray<TObjectPtr<UStaticMesh>> ProxyMeshes;
+};
 
 /**
 * UGeometryCollectionObject (UObject)
@@ -539,8 +547,8 @@ public:
 	TArray<FGeometryCollectionAutoInstanceMesh> AutoInstanceMeshes;
 
 	/** static mesh to use as a proxy for rendering until the geometry collection is broken */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Rendering", meta = (AllowedClasses = "/Script/Engine.StaticMesh"))
-	FSoftObjectPath RootProxy;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Rendering")
+	FGeometryCollectionProxyMeshData RootProxyData;
 
 	/**
 	 * Strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.
@@ -599,6 +607,10 @@ public:
 	*/
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
 	float CollisionObjectReductionPercentage_DEPRECATED;
+
+	/** static mesh to use as a proxy for rendering until the geometry collection is broken */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use RootProxyData instead."))
+	FSoftObjectPath RootProxy_DEPRECATED;
 #endif
 	
 	/**
