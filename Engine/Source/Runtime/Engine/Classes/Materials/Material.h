@@ -1208,8 +1208,11 @@ public:
 	/** Useful to customize rendering if that case (e.g. hide the object) */
 	ENGINE_API bool IsCompilingOrHadCompileError(ERHIFeatureLevel::Type InFeatureLevel);
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	ENGINE_API TConstArrayView<TObjectPtr<UMaterialExpression>> GetExpressions() const;
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
 	ENGINE_API TConstArrayView<TObjectPtr<UMaterialExpressionComment>> GetEditorComments() const;
 	ENGINE_API UMaterialExpressionExecBegin* GetExpressionExecBegin() const;
 	ENGINE_API UMaterialExpressionExecEnd* GetExpressionExecEnd() const;

@@ -13870,7 +13870,7 @@ const UMaterialFunctionInterface* UMaterialFunctionInterface::GetBaseFunctionInt
 	return GetBaseFunction();
 }
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 
 TConstArrayView<TObjectPtr<UMaterialExpression>> UMaterialFunctionInterface::GetExpressions() const
 {
@@ -13881,6 +13881,10 @@ TConstArrayView<TObjectPtr<UMaterialExpression>> UMaterialFunctionInterface::Get
 	}
 	return TConstArrayView<TObjectPtr<UMaterialExpression>>();
 }
+
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
 
 const FString& UMaterialFunctionInterface::GetDescription() const
 {

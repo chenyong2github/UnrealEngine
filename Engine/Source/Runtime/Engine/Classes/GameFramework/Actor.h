@@ -999,7 +999,7 @@ private:
 	FString ActorLabel;
 #endif
 
-#if !WITH_EDITOR && ACTOR_HAS_LABELS
+#if !WITH_EDITORONLY_DATA && ACTOR_HAS_LABELS
 	FString ActorLabel;
 #endif
 

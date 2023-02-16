@@ -58,7 +58,7 @@ public:
 
 protected:
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 

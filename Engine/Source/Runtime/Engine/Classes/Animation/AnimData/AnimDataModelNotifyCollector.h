@@ -11,7 +11,7 @@ enum class EAnimDataModelNotifyType : uint8;
 namespace UE {
 namespace Anim {
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 
 /** Helper structure for keeping track of which notifies of type EAnimDataModelNotifyType are broadcasted
 between top-level EAnimDataModelNotifyType::BracketOpened and EAnimDataModelNotifyType::BracketClosed notifies */
@@ -79,7 +79,7 @@ protected:
 	bool bDataModified;
 };
 
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 
 } // namespace Anim	
 

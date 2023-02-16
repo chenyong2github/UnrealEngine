@@ -96,7 +96,10 @@ public:
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category=ImportSettings)
 	TObjectPtr<class UAssetImportData> AssetImportData;

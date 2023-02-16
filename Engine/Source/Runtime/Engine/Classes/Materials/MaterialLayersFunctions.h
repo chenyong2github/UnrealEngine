@@ -85,7 +85,7 @@ struct FMaterialLayersFunctionsEditorOnlyData
 	UPROPERTY(EditAnywhere, Category = MaterialLayers)
 	TArray<FGuid> DeletedParentLayerGuids;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	FORCEINLINE bool operator==(const FMaterialLayersFunctionsEditorOnlyData& Other) const
 	{
 		if (LayerStates != Other.LayerStates ||
@@ -101,7 +101,9 @@ struct FMaterialLayersFunctionsEditorOnlyData
 	{
 		return !operator==(Other);
 	}
+#endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
 	void Empty()
 	{
 		LayerStates.Empty();

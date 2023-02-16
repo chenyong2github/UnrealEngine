@@ -1386,12 +1386,14 @@ bool UMaterial::IsCompilingOrHadCompileError(ERHIFeatureLevel::Type InFeatureLev
 	return Res == nullptr || Res->GetGameThreadShaderMap() == nullptr;
 }
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 TConstArrayView<TObjectPtr<UMaterialExpression>> UMaterial::GetExpressions() const
 {
 	return GetEditorOnlyData()->ExpressionCollection.Expressions;
 }
+#endif
 
+#if WITH_EDITOR
 TConstArrayView<TObjectPtr<UMaterialExpressionComment>> UMaterial::GetEditorComments() const
 {
 	return GetEditorOnlyData()->ExpressionCollection.EditorComments;

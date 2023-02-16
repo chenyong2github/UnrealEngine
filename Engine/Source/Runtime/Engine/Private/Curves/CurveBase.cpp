@@ -262,6 +262,9 @@ void UCurveBase::PostLoad()
 		AssetImportData->SourceData = MoveTemp(Info);
 	}
 }
+#endif //WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
 
 void UCurveBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -269,5 +272,5 @@ void UCurveBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 	OnUpdateCurve.Broadcast(this, PropertyChangedEvent.ChangeType);
 }
-#endif //WITH_EDITORONLY_DATA
 
+#endif // WITH_EDITOR

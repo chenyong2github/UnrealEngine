@@ -183,12 +183,14 @@ public:
 	ENGINE_API UMaterialFunctionInterface* GetBaseFunctionInterface();
 	ENGINE_API const UMaterialFunctionInterface* GetBaseFunctionInterface() const;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	ENGINE_API TConstArrayView<TObjectPtr<UMaterialExpression>> GetExpressions() const;
 
 	UE_DEPRECATED(5.1, "Use GetExpressions()")
 	inline TConstArrayView<TObjectPtr<UMaterialExpression>> GetFunctionExpressions() const { return GetExpressions(); }
+#endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
 	ENGINE_API const FString& GetDescription() const;
 	ENGINE_API bool GetReentrantFlag() const;
 	ENGINE_API void SetReentrantFlag(bool bIsReentrant);

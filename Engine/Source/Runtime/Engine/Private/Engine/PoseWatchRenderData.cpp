@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_EDITOR
-
 #include "Engine/PoseWatchRenderData.h"
+
+#if WITH_EDITORONLY_DATA
+
 #include "Animation/BlendProfile.h"
 #include "Engine/PoseWatch.h"
 
@@ -93,4 +94,4 @@ const TArray<int32>& FAnimNodePoseWatch::GetParentIndices() const
 	return ParentIndices; 
 }
 
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA

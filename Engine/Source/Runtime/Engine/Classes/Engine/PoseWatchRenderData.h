@@ -2,9 +2,10 @@
 
 #pragma once
 
-#if WITH_EDITOR
-
 #include "CoreMinimal.h"
+
+#if WITH_EDITORONLY_DATA
+
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "BoneIndices.h"

@@ -1847,7 +1847,7 @@ private:
 	static uint32 CleanupWorldGlobalTag;
 
 public:
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	/** List of DDC async requests we need to wait on before we register components. Game thread only. */
 	TArray<TSharedPtr<FAsyncPreRegisterDDCRequest>> AsyncPreRegisterDDCRequests;
 #endif
