@@ -7,6 +7,7 @@
 #include "SoundCueGraph/SoundCueGraphSchema.h"
 
 #include "AssetRegistry/AssetData.h"
+#include "ClassViewerFilter.h"
 #include "Containers/EnumAsByte.h"
 #include "Containers/Set.h"
 #include "Delegates/Delegate.h"
@@ -18,7 +19,6 @@
 #include "Editor/EditorEngine.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
-#include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"
 #include "Layout/SlateRect.h"
 #include "Misc/AssertionMacros.h"
@@ -32,6 +32,7 @@
 #include "Sound/SoundNodeWavePlayer.h"
 #include "Sound/SoundWave.h"
 #include "SoundCueEditorUtilities.h"
+#include "SSoundCuePalette.h"
 #include "SoundCueGraph/SoundCueGraph.h"
 #include "SoundCueGraph/SoundCueGraphNode.h"
 #include "SoundCueGraph/SoundCueGraphNode_Root.h"
@@ -39,16 +40,10 @@
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
 #include "UObject/Class.h"
-#include "UObject/UObjectIterator.h"
-
-#include <utility>
 
 class FString;
 
 #define LOCTEXT_NAMESPACE "SoundCueSchema"
-
-TArray<UClass*> USoundCueGraphSchema::SoundNodeClasses;
-bool USoundCueGraphSchema::bSoundNodeClassesInitialized = false;
 
 /////////////////////////////////////////////////////
 // FSoundCueGraphSchemaAction_NewNode
@@ -229,6 +224,27 @@ UEdGraphNode* FSoundCueGraphSchemaAction_Paste::PerformAction(class UEdGraph* Pa
 USoundCueGraphSchema::USoundCueGraphSchema(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+void USoundCueGraphSchema::UpdateSoundNodeList(const SSoundCuePalette::FSoundNodeFilterData& FilterData)
+{
+	check(FilterData.InitOptions.IsValid());
+	check(FilterData.ClassFilter.IsValid());
+	check(FilterData.FilterFuncs.IsValid());
+	
+	AllowedSoundNodes.Empty();
+	TArray<UClass*> SoundNodeClasses;
+	GetDerivedClasses(USoundNode::StaticClass(), SoundNodeClasses, true);
+	SoundNodeClasses.Sort();
+	
+	for(TSubclassOf<USoundNode> SoundNodeClass : SoundNodeClasses)
+	{		
+		if(!SoundNodeClass->HasAnyClassFlags(CLASS_Abstract) &&
+		FilterData.ClassFilter->IsClassAllowed(*FilterData.InitOptions, SoundNodeClass, FilterData.FilterFuncs.ToSharedRef()))
+		{
+			AllowedSoundNodes.Add(SoundNodeClass);
+		}
+	}
 }
 
 bool USoundCueGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const
@@ -584,8 +600,6 @@ void USoundCueGraphSchema::DroppedAssetsOnNode(const TArray<FAssetData>& Assets,
 
 void USoundCueGraphSchema::GetAllSoundNodeActions(FGraphActionMenuBuilder& ActionMenuBuilder, bool bShowSelectedActions) const
 {
-	InitSoundNodeClasses();
-
 	FText SelectedItemText;
 	bool IsSoundWaveSelected = false;
 	bool IsDialogueWaveSelected = false;
@@ -640,10 +654,10 @@ void USoundCueGraphSchema::GetAllSoundNodeActions(FGraphActionMenuBuilder& Actio
 
 		bShowSelectedActions = !SelectedItemText.IsEmpty();
 	}
-
-	for (UClass* SoundNodeClass : SoundNodeClasses)
+	
+	for (TSubclassOf<USoundNode> SoundNodeClass : AllowedSoundNodes)
 	{
-		USoundNode* SoundNode = SoundNodeClass->GetDefaultObject<USoundNode>();
+		const USoundNode* SoundNode = SoundNodeClass->GetDefaultObject<USoundNode>();
 
 		// when dragging from an output pin you can create anything but a wave player
 		if (!ActionMenuBuilder.FromPin || ActionMenuBuilder.FromPin->Direction == EGPD_Input || SoundNode->GetMaxChildNodes() > 0)
@@ -691,29 +705,6 @@ void USoundCueGraphSchema::GetCommentAction(FGraphActionMenuBuilder& ActionMenuB
 		ActionMenuBuilder.AddAction( NewAction );
 	}
 }
-
-void USoundCueGraphSchema::InitSoundNodeClasses()
-{
-	if(bSoundNodeClassesInitialized)
-	{
-		return;
-	}
-
-	// Construct list of non-abstract sound node classes.
-	for(TObjectIterator<UClass> It; It; ++It)
-	{
-		if(It->IsChildOf(USoundNode::StaticClass()) 
-			&& !It->HasAnyClassFlags(CLASS_Abstract))
-		{
-			SoundNodeClasses.Add(*It);
-		}
-	}
-
-	SoundNodeClasses.Sort();
-
-	bSoundNodeClassesInitialized = true;
-}
-
 int32 USoundCueGraphSchema::GetNodeSelectionCount(const UEdGraph* Graph) const
 {
 	return FSoundCueEditorUtilities::GetNumberOfSelectedNodes(Graph);
