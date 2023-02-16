@@ -528,6 +528,63 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 		}
 	}
 
+	auto WriteVoxelComponent = [&](const FIntVector3& DstCoord, uint32 AttributesIdx, uint32 CompIdx, float Value)
+	{
+		const size_t DstVoxelIndex = DstCoord.Z * Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y 
+			+ DstCoord.Y * Header.TileDataVolumeResolution.X 
+			+ DstCoord.X;
+
+		const float VoxelValue = Value;
+		const float VoxelValueNormalized = FMath::Clamp(VoxelValue * NormalizeScale[AttributesIdx][CompIdx] + NormalizeBias[AttributesIdx][CompIdx], 0.0f, 1.0f);
+
+		const size_t DstIdx = DstVoxelIndex * FormatSize[AttributesIdx] + CompIdx * SingleComponentFormatSize[AttributesIdx];
+
+		switch (Attributes[AttributesIdx].Format)
+		{
+		case ESparseVolumeAttributesFormat::Unorm8:
+		{
+			PhysicalTileDataPtrs[AttributesIdx][DstIdx] = uint8(VoxelValueNormalized * 255.0f);
+			break;
+		}
+		case ESparseVolumeAttributesFormat::Float16:
+		{
+			const uint16 VoxelValue16FEncoded = FFloat16(VoxelValue).Encoded;
+			*((uint16*)(&PhysicalTileDataPtrs[AttributesIdx][DstIdx])) = VoxelValue16FEncoded;
+			break;
+		}
+		case ESparseVolumeAttributesFormat::Float32:
+		{
+			*((float*)(&PhysicalTileDataPtrs[AttributesIdx][DstIdx])) = VoxelValue;
+			break;
+		}
+		default:
+			checkNoEntry();
+			break;
+		}
+	};
+
+	// Fill null tile with fallback/background value
+	if (bAnyEmptyPageExists)
+	{
+		for (uint32 AttributesIdx = 0; AttributesIdx < NumAttributesDescs; ++AttributesIdx)
+		{
+			for (uint32 Z = 0; Z < SPARSE_VOLUME_TILE_RES; ++Z)
+			{
+				for (uint32 Y = 0; Y < SPARSE_VOLUME_TILE_RES; ++Y)
+				{
+					for (uint32 X = 0; X < SPARSE_VOLUME_TILE_RES; ++X)
+					{
+						for (uint32 CompIdx = 0; CompIdx < NumActualComponents[AttributesIdx]; ++CompIdx)
+						{
+							WriteVoxelComponent(FIntVector3(X, Y, Z), AttributesIdx, CompIdx, GridBackgroundValues[AttributesIdx][CompIdx]);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Write physical tile data
 	for (uint32 GridIdx = 0; GridIdx < NumSourceGrids; ++GridIdx)
 	{
 		if (!UniqueGridAdapters[GridIdx])
@@ -556,47 +613,19 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 				const FIntVector3 TileLocalCoord = GridCoord % SPARSE_VOLUME_TILE_RES;
 
 				// Check all output components and splat VoxelValue if they map to this source grid/component
-				for (uint32 AttributesIdx = 0; AttributesIdx < NumAttributesDescs; ++AttributesIdx)
+				for (uint32 SrcCompIdx = 0; SrcCompIdx < NumComponents; ++SrcCompIdx)
 				{
-					for (uint32 DstCompIdx = 0; DstCompIdx < NumActualComponents[AttributesIdx]; ++DstCompIdx)
+					for (uint32 AttributesIdx = 0; AttributesIdx < NumAttributesDescs; ++AttributesIdx)
 					{
-						for (uint32 SrcCompIdx = 0; SrcCompIdx < NumComponents; ++SrcCompIdx)
+						for (uint32 DstCompIdx = 0; DstCompIdx < NumActualComponents[AttributesIdx]; ++DstCompIdx)
 						{
 							if ((Attributes[AttributesIdx].Mappings[DstCompIdx].SourceGridIndex != GridIdx) || (Attributes[AttributesIdx].Mappings[DstCompIdx].SourceComponentIndex != SrcCompIdx))
 							{
 								continue;
 							}
 
-							const float VoxelValueNormalized = FMath::Clamp(VoxelValues[SrcCompIdx] * NormalizeScale[AttributesIdx][DstCompIdx] + NormalizeBias[AttributesIdx][DstCompIdx], 0.0f, 1.0f);
-
-							const size_t DstVoxelIndex =
-								(DstTileCoord.Z * SPARSE_VOLUME_TILE_RES + TileLocalCoord.Z) * Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y +
-								(DstTileCoord.Y * SPARSE_VOLUME_TILE_RES + TileLocalCoord.Y) * Header.TileDataVolumeResolution.X +
-								(DstTileCoord.X * SPARSE_VOLUME_TILE_RES + TileLocalCoord.X);
-							const size_t DstCoord = DstVoxelIndex * FormatSize[AttributesIdx] + DstCompIdx * SingleComponentFormatSize[AttributesIdx];
-
-							switch (Attributes[AttributesIdx].Format)
-							{
-							case ESparseVolumeAttributesFormat::Unorm8:
-							{
-								PhysicalTileDataPtrs[AttributesIdx][DstCoord] = uint8(VoxelValueNormalized * 255.0f);
-								break;
-							}
-							case ESparseVolumeAttributesFormat::Float16:
-							{
-								const uint16 VoxelValue16FEncoded = FFloat16(VoxelValues[SrcCompIdx]).Encoded;
-								*((uint16*)(&PhysicalTileDataPtrs[AttributesIdx][DstCoord])) = VoxelValue16FEncoded;
-								break;
-							}
-							case ESparseVolumeAttributesFormat::Float32:
-							{
-								*((float*)(&PhysicalTileDataPtrs[AttributesIdx][DstCoord])) = VoxelValues[SrcCompIdx];
-								break;
-							}
-							default:
-								checkNoEntry();
-								break;
-							}
+							const FIntVector3 DstCoord = DstTileCoord * SPARSE_VOLUME_TILE_RES + TileLocalCoord;
+							WriteVoxelComponent(DstCoord, AttributesIdx, DstCompIdx, VoxelValues[SrcCompIdx]);
 						}
 					}
 				}
