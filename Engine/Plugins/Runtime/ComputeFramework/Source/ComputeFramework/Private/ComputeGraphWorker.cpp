@@ -41,6 +41,10 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 			FComputeGraphRenderProxy const* GraphRenderProxy = GraphInvocation.GraphRenderProxy;
 
 			TArray<TShaderRef<FComputeKernelShader>> Shaders;
+			TArray<int32> ShaderStartPerKernel;
+			ShaderStartPerKernel.Reserve(GraphRenderProxy->KernelInvocations.Num());
+			TArray<bool> UnifiedDispatchPerKernel;
+			UnifiedDispatchPerKernel.SetNumZeroed(GraphRenderProxy->KernelInvocations.Num());
 
 			// Validation phase.
 			// Check if all DataInterfaces are valid.
@@ -82,12 +86,29 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 				}
 
 				// Get shader. This can fail if compilation is pending.
+				ShaderStartPerKernel.Add(Shaders.Num());
 				Shaders.Reserve(Shaders.Num() + NumSubInvocations);
 				for (int32 SubInvocationIndex = 0; bIsValid && SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
 				{
 					TShaderRef<FComputeKernelShader> Shader = KernelInvocation.KernelResource->GetShader(PermutationData.PermutationIds[SubInvocationIndex]);
 					bIsValid &= Shader.IsValid();
 					Shaders.Add(Shader);
+				}
+
+				// Check if we can do unified dispatch and apply that if we can.
+				if (bIsValid && KernelInvocation.bSupportsUnifiedDispatch && NumSubInvocations > 1)
+				{
+					bool bSupportsUnifiedDispatch = true;
+					for (int32 SubInvocationIndex = 1; bSupportsUnifiedDispatch && SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
+					{
+						bSupportsUnifiedDispatch &= Shaders[ShaderStartPerKernel[KernelIndex] + SubInvocationIndex] == Shaders[ShaderStartPerKernel[KernelIndex]];
+					}
+
+					if (bSupportsUnifiedDispatch)
+					{
+						UnifiedDispatchPerKernel[KernelIndex] = true;
+						Shaders.SetNum(Shaders.Num() - NumSubInvocations + 1);
+					}
 				}
 			}
 
@@ -119,10 +140,21 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 				RDG_EVENT_SCOPE(GraphBuilder, "%s", *KernelInvocation.KernelName);
 
 				TArray<FIntVector> ThreadCounts;
-				const int32 NumSubInvocations = GraphInvocation.DataProviderRenderProxies[KernelInvocation.ExecutionProviderIndex]->GetDispatchThreadCount(ThreadCounts);
+				int32 NumSubInvocations = GraphInvocation.DataProviderRenderProxies[KernelInvocation.ExecutionProviderIndex]->GetDispatchThreadCount(ThreadCounts);
+				
+				bool bIsUnifiedDispatch = UnifiedDispatchPerKernel[KernelIndex];
+				if (bIsUnifiedDispatch)
+				{
+					for (int32 SubInvocationIndex = 1; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
+					{
+						ThreadCounts[0] += ThreadCounts[SubInvocationIndex];
+					}
+					ThreadCounts.SetNum(1);
+					NumSubInvocations = 1;
+				}
 
 				TStridedView<FComputeKernelShader::FParameters> ParameterArray = GraphBuilder.AllocParameters<FComputeKernelShader::FParameters>(KernelInvocation.ShaderParameterMetadata, NumSubInvocations);
-				FComputeDataProviderRenderProxy::FDispatchData DispatchData{ NumSubInvocations, 0, 0, ParameterArray.GetStride(), reinterpret_cast<uint8*>(&ParameterArray[0]) };
+				FComputeDataProviderRenderProxy::FDispatchData DispatchData{ NumSubInvocations, bIsUnifiedDispatch, 0, 0, ParameterArray.GetStride(), reinterpret_cast<uint8*>(&ParameterArray[0]) };
 
 				// Iterate shader parameter members to fill the dispatch data structures.
 				// We assume that the members were filled out with a single data interface per member, and that the
@@ -147,7 +179,7 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 				// Dispatch work to the render graph.
 				for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
 				{
-					TShaderRef<FComputeKernelShader> Shader = Shaders[KernelIndex * NumSubInvocations + SubInvocationIndex];
+					TShaderRef<FComputeKernelShader> Shader = Shaders[ShaderStartPerKernel[KernelIndex] + SubInvocationIndex];
 					const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ThreadCounts[SubInvocationIndex], KernelInvocation.KernelGroupSize);
 
 					FComputeShaderUtils::AddPass(

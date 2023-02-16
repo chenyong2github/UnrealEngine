@@ -32,6 +32,8 @@ public:
 		TArray<int32> BoundProviderIndices;
 		/** The index of the special execution data provider in the full graph data provider array. */
 		int32 ExecutionProviderIndex = -1;
+		/** Whether the kernel can combine multiple supports combinined sub-invocations. */
+		bool bSupportsUnifiedDispatch = false;
 	};
 
 	/** Friendly name for the owner graph. */

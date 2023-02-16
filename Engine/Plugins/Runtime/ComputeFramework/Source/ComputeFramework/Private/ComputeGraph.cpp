@@ -313,6 +313,7 @@ FComputeGraphRenderProxy* UComputeGraph::CreateRenderProxy() const
 			Invocation.KernelGroupSize = Kernel->KernelSource->GroupSize;
 			Invocation.KernelResource = KernelResource;
 			Invocation.ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *Proxy->ShaderParameterMetadataAllocations);
+			Invocation.bSupportsUnifiedDispatch = true;
 
 			for (FComputeGraphEdge const& GraphEdge : GraphEdges)
 			{
@@ -327,6 +328,8 @@ FComputeGraphRenderProxy* UComputeGraph::CreateRenderProxy() const
 						{
 							Invocation.ExecutionProviderIndex = GraphEdge.DataInterfaceIndex;
 						}
+						
+						Invocation.bSupportsUnifiedDispatch &= DataInterface->CanSupportUnifiedDispatch();
 					}
 				}
 			}

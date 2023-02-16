@@ -27,6 +27,8 @@ public:
 	virtual TCHAR const* GetClassName() const PURE_VIRTUAL(UComputeDataInterface::GetClassName, return nullptr;)
 	/** Does the associated UComputeDataProvider provide invocations and thread counts. One and only one data interface per kernel should return true. */
 	virtual bool IsExecutionInterface() const { return false; }
+	/** Return true if the associated UComputeDataProvider holds data that can be combined into a single dispatch invocation. */
+	virtual bool CanSupportUnifiedDispatch() const { return false; }
 	/** Gather compile definitions from the data interface. Any connected kernel will compile with these. */
 	virtual void GetDefines(FComputeKernelDefinitionSet& OutDefinitionSet) const {}
 	/** Gather permutations from the data interface. Any connected kernel will include these in its total compiled permutations. */

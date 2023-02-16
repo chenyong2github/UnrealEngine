@@ -81,6 +81,7 @@ public:
 	struct FDispatchData
 	{
 		int32 NumInvocations;
+		bool bUnifiedDispatch;
 		int32 ParameterStructSize;
 		int32 ParameterBufferOffset;
 		int32 ParameterBufferStride;
