@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/ClusterUnionManager.h"
 #include "Chaos/PBDRigidClusteredParticles.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/Transform.h"
@@ -94,6 +95,16 @@ public:
 		FPBDRigidClusteredParticleHandle* Parent,
 		const FRigidTransform3& ClusterWorldTM, 
 		const FClusterCreationParameters& Parameters/* = FClusterCreationParameters()*/);
+
+	/**
+	 * Manually add a set of particles to a cluster after the cluster has already been created.
+	 *	ChildToParentMap: A map that may contain a pointer to one of the child particles as a key, and a pointer to its old parent particle (prior to be being released for example).
+	 *					  If a child particle exists in this map, its parent (or whatever is specified as the value) will be used to determine the correct proxy to add to the parent cluster.
+	 */
+	void AddParticlesToCluster(
+		FPBDRigidClusteredParticleHandle* Cluster,
+		const TArray<FPBDRigidParticleHandle*>& InChildren,
+		const TMap<FPBDRigidParticleHandle*, FPBDRigidParticleHandle*>& ChildToParentMap);
 
 	/**
 	 *  UnionClusterGroups
@@ -266,6 +277,7 @@ public:
 	*/
 	const TArray<FBreakingData>& GetAllClusterBreakings() const { return MAllClusterBreakings; }
 	void SetGenerateClusterBreaking(bool DoGenerate) { DoGenerateBreakingData = DoGenerate; }
+	bool GetDoGenerateBreakingData() const { return DoGenerateBreakingData; }
 	void ResetAllClusterBreakings() { MAllClusterBreakings.Reset(); }
 
 	/*
@@ -334,6 +346,7 @@ public:
 	*/
 	void SetClusterConnectionFactor(FReal ClusterConnectionFactorIn) { MClusterConnectionFactor = ClusterConnectionFactorIn; }
 	void SetClusterUnionConnectionType(FClusterCreationParameters::EConnectionMethod ClusterConnectionType) { MClusterUnionConnectionType = ClusterConnectionType; }
+	FClusterCreationParameters::EConnectionMethod GetClusterUnionConnectionType() const { return MClusterUnionConnectionType; }
 
 	void GenerateConnectionGraph(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
@@ -348,6 +361,10 @@ public:
 	void SetInternalStrain(FPBDRigidClusteredParticleHandle* Particle, FReal Strain);
 	void SetExternalStrain(FPBDRigidClusteredParticleHandle* Particle, FReal Strain);
 
+	static bool ShouldUnionsHaveCollisionParticles();
+
+	FClusterUnionManager& GetClusterUnionManager() { return ClusterUnionManager; }
+	const FClusterUnionManager& GetClusterUnionManager() const { return ClusterUnionManager; }
  protected:
 
 	void ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule);
@@ -397,8 +414,13 @@ private:
 
 	// Cluster data
 	FClusterMap MChildren;
-	TMap<int32, TArray<FPBDRigidClusteredParticleHandle*> > ClusterUnionMap;
 
+	/**
+	 * The old cluster union map has been replaced by the cluster union manager to allow for more
+	 * dynamic behavior of adding and removing particles from a cluster instead of being just restricted
+	 * to unioning particles together at construction.
+	 */
+	FClusterUnionManager ClusterUnionManager;
 
 	// Collision Impulses
 	bool MCollisionImpulseArrayDirty;

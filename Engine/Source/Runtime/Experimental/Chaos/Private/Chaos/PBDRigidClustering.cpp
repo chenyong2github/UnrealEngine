@@ -90,6 +90,7 @@ namespace Chaos
 	FRigidClustering::FRigidClustering(FPBDRigidsEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles)
 		: MEvolution(InEvolution)
 		, MParticles(InParticles)
+		, ClusterUnionManager(*this, InEvolution)
 		, MCollisionImpulseArrayDirty(true)
 		, DoGenerateBreakingData(false)
 		, MClusterConnectionFactor(1.0)
@@ -174,8 +175,6 @@ namespace Chaos
 			UpdateTopLevelParticle(NewParticle);
 		}
 
-		ensureMsgf(!ProxyGeometry || ForceMassOrientation, TEXT("If ProxyGeometry is passed, we must override the mass orientation as they are tied"));
-
 		// TODO: This needs to be rotated to diagonal, used to update I()/InvI() from diagonal, and update transform with rotation.
 		FMatrix33 ClusterInertia(0);
 		UpdateClusterMassProperties(NewParticle, ChildrenSet, ClusterInertia, ForceMassOrientation);
@@ -185,19 +184,14 @@ namespace Chaos
 
 		NewParticle->SetSleeping(bClusterIsAsleep);
 
-		auto AddToClusterUnion = [&](int32 ClusterID, FPBDRigidClusteredParticleHandle* Handle)
+		auto AddToClusterUnion = [this](int32 ClusterID, FPBDRigidClusteredParticleHandle* Handle)
 		{
 			if (ClusterID <= 0)
 			{
 				return;
 			}
 
-			if (!ClusterUnionMap.Contains(ClusterID))
-			{
-				ClusterUnionMap.Add(ClusterID, TArray<FPBDRigidClusteredParticleHandle*>());
-			}
-
-			ClusterUnionMap[ClusterID].Add(Handle);
+			ClusterUnionManager.AddPendingExplicitIndexOperation(ClusterID, EClusterUnionOperation::AddReleased, { Handle });
 		};
 
 		if(ClusterGroupIndex)
@@ -208,8 +202,73 @@ namespace Chaos
 		return NewParticle;
 	}
 
+	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::AddParticlesToCluster"), STAT_AddParticlesToCluster, STATGROUP_Chaos);
+	void
+	FRigidClustering::AddParticlesToCluster(
+		FPBDRigidClusteredParticleHandle* Cluster,
+		const TArray<FPBDRigidParticleHandle*>& InChildren,
+		const TMap<FPBDRigidParticleHandle*, FPBDRigidParticleHandle*>& ChildToParentMap)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_AddParticlesToCluster);
+		if (!Cluster || InChildren.IsEmpty())
+		{
+			return;
+		}
+
+		FRigidHandleArray& Children = MChildren.FindOrAdd(Cluster);
+		const int32 OldNumChildren = Children.Num();
+		Children.Append(InChildren);
+
+		// Disable all the input children since they no longer need to be simulated.
+		TSet<FPBDRigidParticleHandle*> InChildrenSet(InChildren);
+		MEvolution.DisableParticles(reinterpret_cast<TSet<FGeometryParticleHandle*>&>(InChildrenSet));
+
+		// Note that we want to compute the internal strain on the cluster the same if we build it up incrementally as well as if we
+		// build it all at the same time. The parent cluster's internal strain should be the average of all the child strains.
+		// The easy way to compute the new average is the multiply the old average by the number of old elements, add in the new strains,
+		// and then divide by the new total number of elements.
+		Cluster->SetInternalStrains(Cluster->GetInternalStrains() * OldNumChildren);
+		Cluster->ClusterIds().NumChildren = Children.Num();
+
+		// An initial pass through the children to transfer some of their cluster properties to their new parent.
+		for (FPBDRigidParticleHandle* Child : InChildrenSet)
+		{
+			if (FPBDRigidClusteredParticleHandle* ClusteredChild = Child->CastToClustered())
+			{
+				TopLevelClusterParents.Remove(ClusteredChild);
+				TopLevelClusterParentsStrained.Remove(ClusteredChild);
+
+				// Cluster group id 0 means "don't union with other things"
+				// TODO: Use INDEX_NONE instead of 0?
+				ClusteredChild->SetClusterGroupIndex(0);
+				ClusteredChild->ClusterIds().Id = Cluster;
+				Cluster->SetInternalStrains(Cluster->GetInternalStrains() + ClusteredChild->GetInternalStrains());
+				Cluster->SetCollisionImpulses(FMath::Max(Cluster->CollisionImpulses(), ClusteredChild->CollisionImpulses()));
+
+				const int32 NewCG = Cluster->CollisionGroup();
+				const int32 ChildCG = ClusteredChild->CollisionGroup();
+				Cluster->SetCollisionGroup(NewCG < ChildCG ? NewCG : ChildCG);
+			}
+
+			FPBDRigidParticleHandle* const* OldParent = ChildToParentMap.Find(Child);
+			FPBDRigidParticleHandle* ProxyParticle = (OldParent != nullptr) ? *OldParent : Child;
+			MEvolution.DoInternalParticleInitilization(ProxyParticle, Cluster);
+		}
+
+		if (!Children.IsEmpty())
+		{
+			Cluster->SetInternalStrains(Cluster->GetInternalStrains() / static_cast<FReal>(Children.Num()));
+		}
+	}
+
 	int32 UnionsHaveCollisionParticles = 0;
 	FAutoConsoleVariableRef CVarUnionsHaveCollisionParticles(TEXT("p.UnionsHaveCollisionParticles"), UnionsHaveCollisionParticles, TEXT(""));
+
+	bool
+	FRigidClustering::ShouldUnionsHaveCollisionParticles()
+	{
+		return !!UnionsHaveCollisionParticles;
+	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::CreateClusterParticleFromClusterChildren"), STAT_CreateClusterParticleFromClusterChildren, STATGROUP_Chaos);
 	Chaos::FPBDRigidClusteredParticleHandle* 
@@ -298,93 +357,8 @@ namespace Chaos
 	FRigidClustering::UnionClusterGroups()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UnionClusterGroups);
-
-		if(ClusterUnionMap.Num())
-		{
-			struct FClusterGroup {
-				TArray<FPBDRigidParticleHandle*> Bodies = TArray < FPBDRigidParticleHandle*>();
-				bool bIsSleeping = true;
-			};
-
-
-			TMap<FPBDRigidParticleHandle*, FPBDRigidParticleHandle*> ChildToParentMap;
-			TMap<int32, FClusterGroup> NewClusterGroups;
-
-			// Walk the list of registered cluster groups
-			for(TTuple<int32, TArray<FPBDRigidClusteredParticleHandle* >>& Group : ClusterUnionMap)
-			{
-				int32 ClusterGroupID = Group.Key;
-				TArray<FPBDRigidClusteredParticleHandle*> Handles = Group.Value;
-
-				if(Handles.Num() > 1)
-				{
-					// First see if this is a new group
-					if(!NewClusterGroups.Contains(ClusterGroupID))
-					{
-						NewClusterGroups.Add(ClusterGroupID, FClusterGroup());
-					}
-
-					bool bIsSleeping = true;
-					TArray<FPBDRigidParticleHandle*> ClusterBodies;
-					for(FPBDRigidClusteredParticleHandle* ActiveCluster : Handles)
-					{
-						if(ActiveCluster && !ActiveCluster->Disabled())
-						{
-							// If this is an external cluster (from the rest collection) we release its children and append them to the current group
-							TSet<FPBDRigidParticleHandle*> Children;
-							
-							// let sleeping clusters stay asleep
-							bIsSleeping &= ActiveCluster->ObjectState() == EObjectStateType::Sleeping;
-
-							{
-								// First disable breaking data generation - this is not a break we're just reclustering under a dynamic parent.
-								TGuardValue<bool> BreakFlagGuard(DoGenerateBreakingData, false);
-								Children = ReleaseClusterParticles(ActiveCluster, true);
-							}
-
-							NewClusterGroups[ClusterGroupID].Bodies.Append(Children.Array());
-							
-							for(FPBDRigidParticleHandle* Child : Children)
-							{
-								ChildToParentMap.Add(Child, ActiveCluster);
-							}
-						}
-					}
-					NewClusterGroups[ClusterGroupID].bIsSleeping = bIsSleeping;
-				}
-			}
-
-			// For new cluster groups, create an internal cluster parent.
-			for(TTuple<int32, FClusterGroup>& Group : NewClusterGroups)
-			{
-				int32 ClusterGroupID = FMath::Abs(Group.Key);
-
-				TArray<FPBDRigidParticleHandle*> ActiveCluster = Group.Value.Bodies;
-
-				FClusterCreationParameters Parameters(0.3f, 100, false, !!UnionsHaveCollisionParticles);
-				Parameters.ConnectionMethod = MClusterUnionConnectionType;
-				TPBDRigidClusteredParticleHandleImp<FReal, 3, true>* Handle = 
-					CreateClusterParticle(-ClusterGroupID, MoveTemp(Group.Value.Bodies), Parameters, 
-						TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>());
-				Handle->SetInternalCluster(true);
-
-				if (Group.Value.bIsSleeping)
-				{
-					MEvolution.SetParticleObjectState(Handle, Chaos::EObjectStateType::Sleeping);
-				}
-
-				MEvolution.SetPhysicsMaterial(Handle, MEvolution.GetPhysicsMaterial(ActiveCluster[0]));
-
-				for(FPBDRigidParticleHandle* Constituent : ActiveCluster)
-				{
-					MEvolution.DoInternalParticleInitilization(ChildToParentMap[Constituent], Handle);
-				}
-			}
-
-			ClusterUnionMap.Empty();
-		}
+		ClusterUnionManager.FlushPendingOperations();
 	}
-
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::DeactivateClusterParticle"), STAT_DeactivateClusterParticle, STATGROUP_Chaos);
 	TSet<FPBDRigidParticleHandle*> 

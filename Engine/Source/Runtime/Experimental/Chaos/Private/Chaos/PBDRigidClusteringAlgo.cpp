@@ -43,7 +43,6 @@ namespace Chaos
 		const FRigidTransform3* ForceMassOrientation)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterMassProperties);
-		check(Children.Num());
 
 		Parent->SetX(FVec3(0));
 		Parent->SetR(FRotation3(FQuat::MakeFromEuler(FVec3(0))));
@@ -81,7 +80,7 @@ namespace Chaos
 			Parent->V() += OriginalChild->V() * ChildMass; // Use orig child for vel because we don't sim the proxy
 			Parent->W() += OriginalChild->W() * ChildMass;
 		}
-		if (!ensure(bHasProxyChild))
+		if (!bHasProxyChild)
 		{
 			for (FPBDRigidParticleHandle* OriginalChild : Children)
 			{
@@ -113,7 +112,7 @@ namespace Chaos
 			}
 		}
 
-		if (!ensure(bHasChild) || !ensure(Parent->M() > UE_SMALL_NUMBER))
+		if (!bHasChild || !(Parent->M() > UE_SMALL_NUMBER))
 		{
 			Parent->M() = 1.0;
 			Parent->X() = FVec3(0);
@@ -309,10 +308,6 @@ namespace Chaos
 		TArray<TUniquePtr<FImplicitObject>> Objects2; //todo: find a better way to reuse this
 		Objects.Reserve(Children.Num());
 		Objects2.Reserve(Children.Num());
-
-		//we should never update existing geometry since this is used by SQ threads.
-		ensure(!Parent->Geometry());
-		ensure(!Parent->DynamicGeometry());
 
 		const FRigidTransform3 ClusterWorldTM(Parent->X(), Parent->R());
 
