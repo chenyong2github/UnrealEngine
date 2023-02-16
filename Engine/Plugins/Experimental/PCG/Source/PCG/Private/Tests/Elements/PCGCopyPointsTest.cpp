@@ -134,19 +134,19 @@ bool FPCGCopyPointsTest::RunTest(const FString& Parameters)
 		EPCGCopyPointsMetadataInheritanceMode RootMode;
 		EPCGCopyPointsMetadataInheritanceMode NonRootMode;
 
-		if (Settings->AttributeInheritance == EPCGCopyPointsMetadataInheritanceMode::Source)
+		if (Settings->AttributeInheritance == EPCGCopyPointsMetadataInheritanceMode::SourceFirst)
 		{
 			RootMetadata = SourcePointData->Metadata;
 			NonRootMetadata = TargetPointData->Metadata;
-			RootMode = EPCGCopyPointsMetadataInheritanceMode::Source;
-			NonRootMode = EPCGCopyPointsMetadataInheritanceMode::Target;
+			RootMode = EPCGCopyPointsMetadataInheritanceMode::SourceFirst;
+			NonRootMode = EPCGCopyPointsMetadataInheritanceMode::TargetFirst;
 		}
-		else // if (Settings->AttributeInheritance == EPCGCopyPointsMetadataInheritanceMode::Target)
+		else // if (Settings->AttributeInheritance == EPCGCopyPointsMetadataInheritanceMode::TargetFirst)
 		{
 			RootMetadata = TargetPointData->Metadata;
 			NonRootMetadata = SourcePointData->Metadata;
-			RootMode = EPCGCopyPointsMetadataInheritanceMode::Target;
-			NonRootMode = EPCGCopyPointsMetadataInheritanceMode::Source;
+			RootMode = EPCGCopyPointsMetadataInheritanceMode::TargetFirst;
+			NonRootMode = EPCGCopyPointsMetadataInheritanceMode::SourceFirst;
 		}
 
 		if (!TestTrue("Valid input metadata", RootMetadata && NonRootMetadata))
@@ -295,7 +295,7 @@ bool FPCGCopyPointsTest::RunTest(const FString& Parameters)
 				const FPCGMetadataAttribute<float>* OutAttribute = OutAttributes[AttributeIndex];
 				check(InheritedAttribute && OutAttribute);
 
-				const PCGMetadataEntryKey EntryKey = (InheritedAttributeModes[AttributeIndex] == EPCGCopyPointsMetadataInheritanceMode::Source) ? SourcePoint.MetadataEntry : TargetPoint.MetadataEntry;
+				const PCGMetadataEntryKey EntryKey = (InheritedAttributeModes[AttributeIndex] == EPCGCopyPointsMetadataInheritanceMode::SourceFirst) ? SourcePoint.MetadataEntry : TargetPoint.MetadataEntry;
 				bTestPassed &= TestEqual("Valid metadata value", InheritedAttribute->GetValueKey(EntryKey), OutAttribute->GetValueKey(OutPoint.MetadataEntry));
 			}
 		}
@@ -317,7 +317,7 @@ bool FPCGCopyPointsTest::RunTest(const FString& Parameters)
 	Settings->ScaleInheritance = EPCGCopyPointsInheritanceMode::Source;
 	Settings->ColorInheritance = EPCGCopyPointsInheritanceMode::Source;
 	Settings->SeedInheritance = EPCGCopyPointsInheritanceMode::Source;
-	Settings->AttributeInheritance = EPCGCopyPointsMetadataInheritanceMode::Source;
+	Settings->AttributeInheritance = EPCGCopyPointsMetadataInheritanceMode::SourceFirst;
 	bTestPassed &= ValidateCopyPointsPoints();
 
 	// Test 3 - inherit from target points
@@ -325,7 +325,7 @@ bool FPCGCopyPointsTest::RunTest(const FString& Parameters)
 	Settings->ScaleInheritance = EPCGCopyPointsInheritanceMode::Target;
 	Settings->ColorInheritance = EPCGCopyPointsInheritanceMode::Target;
 	Settings->SeedInheritance = EPCGCopyPointsInheritanceMode::Target;
-	Settings->AttributeInheritance = EPCGCopyPointsMetadataInheritanceMode::Target;
+	Settings->AttributeInheritance = EPCGCopyPointsMetadataInheritanceMode::TargetFirst;
 	bTestPassed &= ValidateCopyPointsPoints();
 
 	// Test 4 - empty source data

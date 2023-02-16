@@ -24,8 +24,11 @@ enum class EPCGCopyPointsInheritanceMode : uint8
 UENUM()
 enum class EPCGCopyPointsMetadataInheritanceMode : uint8
 {
-	Source,
-	Target
+	SourceFirst UMETA(Tooltip = "Points will inherit from source metadata and apply only unique attributes from target."),
+	TargetFirst UMETA(Tooltip = "Points will inherit from target metadata and apply only unique attributes from source."),
+	SourceOnly  UMETA(Tooltip = "Points will inherit metadata only from the source."),
+	TargetOnly  UMETA(Tooltip = "Points will inherit metadata only from the target."),
+	None        UMETA(Tooltip = "Points will have no metadata.")
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -37,6 +40,7 @@ public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Copy Points")); }
+	virtual FText GetNodeTooltipText() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
 #endif
 
@@ -66,7 +70,7 @@ public:
 
 	/** The method used to determine output data attributes */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
-	EPCGCopyPointsMetadataInheritanceMode AttributeInheritance = EPCGCopyPointsMetadataInheritanceMode::Source;
+	EPCGCopyPointsMetadataInheritanceMode AttributeInheritance = EPCGCopyPointsMetadataInheritanceMode::SourceFirst;
 };
 
 class FPCGCopyPointsElement : public FSimplePCGElement

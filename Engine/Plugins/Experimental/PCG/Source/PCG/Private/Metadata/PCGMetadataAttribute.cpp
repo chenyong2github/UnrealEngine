@@ -41,6 +41,31 @@ void FPCGMetadataAttributeBase::SetValueFromValueKey(PCGMetadataEntryKey EntryKe
 	EntryToValueKeyMap.FindOrAdd(EntryKey) = ValueKey;
 }
 
+void FPCGMetadataAttributeBase::SetValuesFromValueKeys(const TArray<TTuple<PCGMetadataEntryKey, PCGMetadataValueKey>>& EntryValuePairs, bool bResetValueOnDefaultValueKey)
+{
+	if (EntryValuePairs.IsEmpty())
+	{
+		return;
+	}
+
+	FWriteScopeLock ScopeLock(EntryMapLock);
+	for (const TTuple<PCGMetadataEntryKey, PCGMetadataValueKey>& EntryValuePair : EntryValuePairs)
+	{
+		check(EntryValuePair.Key != PCGInvalidEntryKey);
+		if (EntryValuePair.Value == PCGDefaultValueKey)
+		{
+			if (bResetValueOnDefaultValueKey)
+			{
+				EntryToValueKeyMap.Remove(EntryValuePair.Key);
+			}
+		}
+		else
+		{
+			EntryToValueKeyMap.FindOrAdd(EntryValuePair.Key, EntryValuePair.Value);
+		}
+	}
+}
+
 PCGMetadataValueKey FPCGMetadataAttributeBase::GetValueKey(PCGMetadataEntryKey EntryKey) const
 {
 	if (EntryKey == PCGInvalidEntryKey)
