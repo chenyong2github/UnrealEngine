@@ -2,18 +2,17 @@
 
 using UnrealBuildTool;
 
-public class InstallBundleManager : ModuleRules
+public class StreamingFileSystem : ModuleRules
 {
-	public InstallBundleManager(ReadOnlyTargetRules Target) : base(Target)
+	public StreamingFileSystem(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"CoreUObject",
-				//"Engine",
-				"InputCore",
-				"Projects",
-				"ApplicationCore",
+				"BuildPatchServices",
+				"InstallBundleManager",
+				"VirtualFileCache",
 				"Json"
 			}
 		);

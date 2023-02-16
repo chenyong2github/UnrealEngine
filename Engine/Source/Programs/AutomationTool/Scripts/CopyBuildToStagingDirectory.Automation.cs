@@ -276,7 +276,6 @@ namespace AutomationScripts
 			string ContainerName,
 			FileReference PakOutputLocation,
 			DirectoryReference OptionalOutputLocation,
-			DirectoryReference OnDemandOutputLocation,
 			bool bCompressed,
 			EncryptionAndSigning.CryptoSettings CryptoSettings,
 			string EncryptionKeyGuid,
@@ -285,17 +284,7 @@ namespace AutomationScripts
 			bool bIsDLC)
 		{
 			StringBuilder CmdLine = new StringBuilder();
-
-			if (OnDemandOutputLocation != null)
-			{
-				CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".tocmanifest")));
-				CmdLine.AppendFormat(" -OnDemandOutput={0}", MakePathSafeToUseWithCommandLine(OnDemandOutputLocation.FullName));
-			}
-			else
-			{
-				CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".utoc")));
-			}
-
+			CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".utoc")));
 			if (OptionalOutputLocation != null)
 			{
 				CmdLine.AppendFormat(" -OptionalOutput={0}", MakePathSafeToUseWithCommandLine(OptionalOutputLocation.FullName));
@@ -2053,17 +2042,7 @@ namespace AutomationScripts
 			// List of pak files to use instead of manifest
 			public List<string> OverridePaks;
 
-			// Whether this rule is defined for content-on-demand
-			public bool bOnDemand;
-
-			public static bool IsMatch(PakFileRules PakRules, KeyValuePair<string, string> StagingFile)
-			{
-				bool bMatched = !PakRules.bDisabled &&
-					((!PakRules.bUseExactFilePathMatch && PakRules.Filter != null && PakRules.Filter.Matches(StagingFile.Key)) ||
-					(PakRules.bUseExactFilePathMatch && PakRules.ExactFileMatches != null && PakRules.ExactFileMatches.Contains(StagingFile.Value)));
-				
-				return bMatched;
-			}
+			public bool bStageLoose;
 		};
 
 		/// <summary>
@@ -2194,9 +2173,9 @@ namespace AutomationScripts
 				PakRules.Name = SectionName;
 				PakRulesConfig.TryGetValue(SectionName, "bUseExactFilePathMatch", out PakRules.bUseExactFilePathMatch);
 				PakRulesConfig.TryGetValue(SectionName, "bExcludeFromPaks", out PakRules.bExcludeFromPaks);
+				PakRulesConfig.TryGetValue(SectionName, "bStageLoose", out PakRules.bStageLoose);
 				PakRulesConfig.TryGetValue(SectionName, "bOverrideChunkManifest", out PakRules.bOverrideChunkManifest);
 				PakRulesConfig.TryGetValue(SectionName, "bDisabled", out PakRules.bDisabled);
-				PakRulesConfig.TryGetValue(SectionName, "bOnDemand", out PakRules.bOnDemand);
 				string PakString;
 				PakRulesConfig.TryGetValue(SectionName, "OverridePaks", out PakString);
 
@@ -2209,20 +2188,12 @@ namespace AutomationScripts
 					PakRules.OverridePaks = null;
 				}
 
-				if (PakRules.bExcludeFromPaks)
+				if (PakRules.bExcludeFromPaks && PakRules.OverridePaks != null)
 				{
-					if (PakRules.OverridePaks != null)
-					{
-						LogWarning("Error in PakFileRules {0}, set to exclude but also sets override!", PakRules.Name);
-						continue;
-					}
-					if (PakRules.bOnDemand)
-					{
-						LogWarning("Error in PakFileRules {0}, set to exclude but also sets to ondemand!", PakRules.Name);
-						continue;
-					}
+					LogWarning("Error in PakFileRules {0}, set to exclude but also sets override!", PakRules.Name);
+					continue;
 				}
-				else if (PakRules.OverridePaks == null && !PakRules.bOnDemand)
+				else if (!PakRules.bExcludeFromPaks && PakRules.OverridePaks == null)
 				{
 					LogWarning("Error in PakFileRules {0}, set to include but did not specify paks!", PakRules.Name);
 					continue;
@@ -2259,58 +2230,31 @@ namespace AutomationScripts
 		/// </summary>
 		/// <param name="Params"></param>
 		/// <param name="SC"></param>
-		private static void ApplyPakFileRules(List<PakFileRules> RulesList, KeyValuePair<string, string> StagingFile, HashSet<ChunkDefinition> ModifyPakList, ConcurrentDictionary<string, ChunkDefinition> ChunkNameToDefinition, out bool bExcludeFromPaks)
+		private static void ApplyPakFileRules(List<PakFileRules> RulesList, KeyValuePair<string, string> StagingFile, HashSet<ChunkDefinition> ModifyPakList, ConcurrentDictionary<string, ChunkDefinition> ChunkNameToDefinition, out bool bExcludeFromPaks, out bool bStageLoose)
 		{
 			bExcludeFromPaks = false;
+			bStageLoose = false;
 
 			if (RulesList == null)
 			{
 				return;
 			}
 
-			// Process content-on-demand rules first
-			if (ModifyPakList != null)
-			{
-				foreach (PakFileRules Rule in RulesList.Where(Rule => Rule.bOnDemand))
-				{
-					if (PakFileRules.IsMatch(Rule, StagingFile))
-					{
-						ModifyPakList.Clear();
-
-						string ChunkName = Rule.Name;
-						if (Rule.OverridePaks != null && Rule.OverridePaks.Count > 0)
-						{
-							string OverrideChunkName = Rule.OverridePaks[0];
-							if (ChunkNameToDefinition.ContainsKey(OverrideChunkName))
-							{
-								ChunkName = OverrideChunkName;
-							}
-							else
-							{
-								LogWarning("Undefined PAK override '{0}' in PAK rule '{1}'", OverrideChunkName, Rule.Name);
-							}
-						}
-
-						ChunkDefinition Chunk = null;
-						if (ChunkNameToDefinition.TryGetValue(ChunkName, out Chunk))
-						{
-							ModifyPakList.Add(Chunk);
-						}
-						else
-						{
-							LogWarning("Undefined chunk name '{0}' in PAK rule '{1}'", ChunkName, Rule.Name);
-						}
-						
-						return;
-					}
-				}
-			}
-
 			// Search in order, return on first match
 			foreach (var PakRules in RulesList)
 			{
-				if (PakFileRules.IsMatch(PakRules, StagingFile))
+				bool bMatched = !PakRules.bDisabled &&
+					((!PakRules.bUseExactFilePathMatch && PakRules.Filter != null && PakRules.Filter.Matches(StagingFile.Key)) ||
+					(PakRules.bUseExactFilePathMatch && PakRules.ExactFileMatches != null && PakRules.ExactFileMatches.Contains(StagingFile.Value)));
+
+				if (bMatched)
 				{
+					if (PakRules.bStageLoose)
+					{
+						bStageLoose = true;
+						return;
+					}
+
 					bool bOverrideChunkAssignment = false;
 					if (ModifyPakList != null && ModifyPakList.Count > 0)
 					{
@@ -2363,6 +2307,7 @@ namespace AutomationScripts
 			}
 		}
 
+
 		/// <summary>
 		/// Creates a pak file using staging context (single manifest)
 		/// </summary>
@@ -2384,7 +2329,8 @@ namespace AutomationScripts
 			foreach (var StagingFile in UnrealPakResponseFile)
 			{
 				bool bExcludeFromPaks = false;
-				ApplyPakFileRules(PakRulesList, StagingFile, null, null, out bExcludeFromPaks);
+				bool bStageLoose = false;
+				ApplyPakFileRules(PakRulesList, StagingFile, null, null, out bExcludeFromPaks, out bStageLoose);
 
 				if (bExcludeFromPaks)
 				{
@@ -2541,11 +2487,6 @@ namespace AutomationScripts
 			/// Whether to rehydrate the assets when creating the pak file or not
 			/// </summary>
 			public bool bRehydrateAssets;
-			
-			/// <summary>
-			// Whether this pak file is for content-on-demand content delivery or not
-			/// </summary>
-			public bool bOnDemand;
 
 			/// <summary>
 			/// GUID of the encryption key for this pak file
@@ -2558,14 +2499,13 @@ namespace AutomationScripts
 			/// <param name="PakName">Path to the base output file for this pak file</param>
 			/// <param name="UnrealPakResponseFile">Map of files within the pak file to their source file on disk</param>
 			/// <param name="bCompressed">Whether to enable compression</param>
-			public CreatePakParams(string PakName, Dictionary<string, string> UnrealPakResponseFile, bool bCompressed, bool RehydrateAssets, string EncryptionKeyGuid, bool bOnDemand = false)
+			public CreatePakParams(string PakName, Dictionary<string, string> UnrealPakResponseFile, bool bCompressed, bool RehydrateAssets, string EncryptionKeyGuid)
 			{
 				this.PakName = PakName;
 				this.UnrealPakResponseFile = UnrealPakResponseFile;
 				this.bCompressed = bCompressed;
 				this.bRehydrateAssets = RehydrateAssets;
 				this.EncryptionKeyGuid = EncryptionKeyGuid;
-				this.bOnDemand = bOnDemand;
 			}
 		}
 
@@ -3073,13 +3013,11 @@ namespace AutomationScripts
 				OutputFilename = OutputFilename + PostFix;
 
 				StagedFileReference OutputRelativeLocation;
-				StagedDirectoryReference OnDemandOutputRelativeLocation;
 				if (Params.HasDLCName)
 				{
 					if (Params.DLCOverrideStagedSubDir != null)
 					{
 						OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, Params.DLCOverrideStagedSubDir, "Content", "Paks", Params.DLCFile.GetFileNameWithoutExtension() + OutputFilename + ".pak");
-						OnDemandOutputRelativeLocation = StagedDirectoryReference.Combine(SC.RelativeProjectRootForStage, Params.DLCOverrideStagedSubDir, "ContentOnDemand", "Paks", Params.DLCFile.GetFileNameWithoutExtension() + OutputFilename);
 					}
 					else
 					{
@@ -3094,29 +3032,23 @@ namespace AutomationScripts
 							PluginSubdirectory = Params.DLCFile.GetFileNameWithoutAnyExtensions();
 						}
 						OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, PluginSubdirectory, "Content", "Paks", SC.FinalCookPlatform, Params.DLCFile.GetFileNameWithoutExtension() + OutputFilename + ".pak");
-						OnDemandOutputRelativeLocation = StagedDirectoryReference.Combine(SC.RelativeProjectRootForStage, PluginSubdirectory, "ContentOnDemand", "Paks", SC.FinalCookPlatform, Params.DLCFile.GetFileNameWithoutExtension() + OutputFilename);
 					}
 				}
 				else
 				{
 					OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Content", "Paks", OutputFilename + OutputFilenameExtension);
-					OnDemandOutputRelativeLocation = StagedDirectoryReference.Combine(SC.RelativeProjectRootForStage, "ContentOnDemand", "Paks", OutputFilename);
 				}
 				if (SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.UFS))
 				{
 					OutputRelativeLocation = OutputRelativeLocation.ToLowerInvariant();
 				}
 				OutputRelativeLocation = SC.StageTargetPlatform.Remap(OutputRelativeLocation);
-				
-				//TODO: Do we need to remap the ondemand output location?
-				//OnDemandOutputRelativeLocation = SC.StageTargetPlatform.Remap(OnDemandOutputRelativeLocation);
 
 				FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, OutputRelativeLocation.Name);
-				DirectoryReference OnDemandOutputLocation = DirectoryReference.Combine(SC.RuntimeRootDir, OnDemandOutputRelativeLocation.Name);
 
 				bool bCopiedExistingPak = false;
 
-				if (!PakParams.bOnDemand && SC.StageTargetPlatform != SC.CookSourcePlatform && !Params.IgnorePaksFromDifferentCookSource)
+				if (SC.StageTargetPlatform != SC.CookSourcePlatform && !Params.IgnorePaksFromDifferentCookSource)
 				{
 					// Check to see if we have an existing pak file we can use
 
@@ -3253,7 +3185,6 @@ namespace AutomationScripts
 								OutputLocation.GetFileNameWithoutAnyExtensions(),
 								OutputLocation,
 								SC.OptionalFileStageDirectory,
-								PakParams.bOnDemand ? OnDemandOutputLocation : null,
 								bCompressContainers,
 								CryptoSettings,
 								PakParams.EncryptionKeyGuid,
@@ -3784,7 +3715,6 @@ namespace AutomationScripts
 				ResponseFile = new ConcurrentDictionary<string, string>();
 				Manifest = null;
 				bCompressed = false;
-				bOnDemand = false;
 			}
 
 			// Name of pak file without extension, ie pakchunk0
@@ -3800,9 +3730,6 @@ namespace AutomationScripts
 			public bool bCompressed;
 			public string EncryptionKeyGuid;
 			public string RequestedEncryptionKeyGuid;
-
-			// Whether the chunk is used for content-on-demand content delivery or not
-			public bool bOnDemand;
 		}
 
 		/// <summary>
@@ -3902,41 +3829,19 @@ namespace AutomationScripts
 					}
 				}
 
-				// Add ondemand chunk definitions
-				if (PakRulesList != null)
-				{
-					foreach (PakFileRules Rule in PakRulesList.Where(R => R.bOnDemand))
-					{
-						string ChunkName = Rule.Name;
-						if (Rule.OverridePaks != null && Rule.OverridePaks.Count > 0)
-						{
-							ChunkName = Rule.OverridePaks[0];
-						}
-
-						if (ChunkDefinitions.Any(D => D.ChunkName == ChunkName))
-						{
-							continue;
-						}
-
-						Log.TraceInformation("Creating content-on-demand chunk definition '{0}' for PAK rule '{1}'", ChunkName, Rule.Name);
-
-						//TODO: Add encryption/compression settings
-						ChunkDefinition Chunk = new ChunkDefinition(ChunkName);
-						Chunk.bOnDemand = true;
-						ChunkDefinitions.Add(Chunk);
-					}
-				}
-
 				ConcurrentDictionary<string, ChunkDefinition> ChunkNameToDefinition = new ConcurrentDictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
 				foreach (ChunkDefinition Chunk in ChunkDefinitions)
 				{
 					ChunkNameToDefinition.TryAdd(Chunk.ChunkName, Chunk);
 				}
 
+				ConcurrentDictionary<StagedFileReference, FileReference> LooseFiles = new ConcurrentDictionary<StagedFileReference, FileReference>();
+
 				Parallel.ForEach(StagingManifestResponseFile, StagingFile =>
 				{
 					bool bAddedToChunk = false;
 					bool bExcludeFromPaks = false;
+					bool bStageLoose = false;
 					HashSet<ChunkDefinition> PakList = new HashSet<ChunkDefinition>();
 
 					string OriginalFilename = StagingFile.Key;
@@ -3970,7 +3875,18 @@ namespace AutomationScripts
 					}
 
 					// Now run through the pak rules which may override things
-					ApplyPakFileRules(PakRulesList, StagingFile, PakList, ChunkNameToDefinition, out bExcludeFromPaks);
+					ApplyPakFileRules(PakRulesList, StagingFile, PakList, ChunkNameToDefinition, out bExcludeFromPaks, out bStageLoose);
+
+					if (bStageLoose)
+					{
+						string StagingFileValue = StagingFile.Value;
+						if (StagingFileValue.StartsWith(SC.PakFileInternalRoot))
+						{
+							StagingFileValue = StagingFileValue.Substring(SC.PakFileInternalRoot.Length);
+						}
+						LooseFiles.TryAdd(new StagedFileReference(StagingFileValue), new FileReference(StagingFile.Key));
+						return;
+					}
 
 					if (bExcludeFromPaks)
 					{
@@ -3982,23 +3898,19 @@ namespace AutomationScripts
 					{
 						ChunkDefinition TargetChunk = Chunk;
 
-						// Don't separate out any bulk data for ondemand chunks
-						if (Chunk.bOnDemand == false)
+						string OrigExt = Path.GetExtension(OriginalFilename);
+						if (OrigExt.Equals(OptionalBulkDataFileExtension))
 						{
-							string OrigExt = Path.GetExtension(OriginalFilename);
-							if (OrigExt.Equals(OptionalBulkDataFileExtension))
+							// any optional files encountered we want to put in a separate pak file
+							string OptionalChunkName = Chunk.ChunkName + "optional";
+							if (!OptionalChunks.ContainsKey(OptionalChunkName))
 							{
-								// any optional files encountered we want to put in a separate pak file
-								string OptionalChunkName = Chunk.ChunkName + "optional";
-								if (!OptionalChunks.ContainsKey(OptionalChunkName))
-								{
-									ChunkDefinition OptionalChunk = new ChunkDefinition(OptionalChunkName);
-									OptionalChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
-									OptionalChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
-									OptionalChunks.TryAdd(OptionalChunkName, OptionalChunk);
-								}
-								TargetChunk = OptionalChunks[OptionalChunkName];
+								ChunkDefinition OptionalChunk = new ChunkDefinition(OptionalChunkName);
+								OptionalChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
+								OptionalChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
+								OptionalChunks.TryAdd(OptionalChunkName, OptionalChunk);
 							}
+							TargetChunk = OptionalChunks[OptionalChunkName];
 						}
 
 						TargetChunk.ResponseFile.TryAdd(StagingFile.Key, StagingFile.Value);
@@ -4021,6 +3933,11 @@ namespace AutomationScripts
 				foreach (var OptionalChunkIt in OptionalChunks)
 				{
 					ChunkDefinitions.Add(OptionalChunkIt.Value);
+				}
+
+				foreach (var LooseFile in LooseFiles)
+				{
+					SC.FilesToStage.LooseFiles.Add(LooseFile.Key, LooseFile.Value);
 				}
 			}
 
@@ -4099,7 +4016,7 @@ namespace AutomationScripts
 					string EncryptionKeyToUse = Params.SkipEncryption ? "" : Chunk.EncryptionKeyGuid;
 					PakInputs.Add(new CreatePakParams(Chunk.ChunkName,
 						Chunk.ResponseFile.ToDictionary(entry => entry.Key, entry => entry.Value),
-						Params.Compressed || Chunk.bCompressed, Params.RehydrateAssets, EncryptionKeyToUse, Chunk.bOnDemand));
+						Params.Compressed || Chunk.bCompressed, Params.RehydrateAssets, EncryptionKeyToUse));
 				}
 			}
 
@@ -4272,7 +4189,15 @@ namespace AutomationScripts
 
 			foreach (System.IO.FileInfo File in StagingDirectory.EnumerateFiles())
 			{
-				try { File.Delete(); } catch { }
+				if (File.Extension != ".uptnl")
+				{
+					try { File.Delete(); } catch { }
+					LogInformation("Deleted {0}", File.FullName);
+				}
+				else
+				{
+					LogInformation("Didn't delete {0}", File.FullName);
+				}
 			}
 		}
 
@@ -4368,6 +4293,7 @@ namespace AutomationScripts
 
 			if (!SC.Stage || Params.SkipStage)
 			{
+				CopyManifestFilesToStageDir(SC, SC.FilesToStage.LooseFiles, "LooseFiles");
 				return;
 			}
 
