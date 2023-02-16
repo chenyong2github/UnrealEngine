@@ -919,9 +919,6 @@ private:
 
 	TMap<FName, const FSlateBrush*> CachedIcons;
 
-	/** Maintain a count of the number of folders active in the outliner */
-	uint32 FolderCount = 0;
-
 	SceneOutliner::FTreeItemPtrEvent OnDoubleClickOnTreeEvent;
 
 	SceneOutliner::FOnItemSelectionChanged OnItemSelectionChanged;
