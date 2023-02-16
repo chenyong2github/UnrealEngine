@@ -304,7 +304,7 @@ static void RecordStrataAnalytics(EShaderPlatform InPlatform)
 
 static EPixelFormat GetTopLayerTextureFormat()
 {
-	const bool bStrataHighQualityNormal = GetNormalQuality() > 1;
+	const bool bStrataHighQualityNormal = GetNormalQuality() > 0;
 
 	// High quality normal is not supported on platforms that do not support R32G32 UAV load.
 	// This is dues to the way Strata account for decals. See FStrataDBufferPassCS, updating TopLayerTexture this way.

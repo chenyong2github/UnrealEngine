@@ -145,6 +145,13 @@ FStrataBSDFContext StrataCreateBSDFContext(float3x3 TangentBasis, FStrataBSDF BS
 	BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
 	BSDFContext.SatNoV = saturate(BSDFContext.Context.NoV);
 
+#if STRATA_NORMAL_QUALITY==1
+	// It looks like when we use the high quality normals, NoH can become 1.
+	// This can cause D_GGX to be infinite du to a division by 0 when roughness is also 0.
+	// So to avoid fireflies, we clamp NoH to a value a little bit below 1.
+	BSDFContext.Context.NoH = clamp(BSDFContext.Context.NoH, 0.0f, 0.9999f);
+#endif
+
 	return BSDFContext;
 }
 
