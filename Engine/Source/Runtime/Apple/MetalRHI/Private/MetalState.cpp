@@ -223,9 +223,11 @@ private:
 };
 
 static FMetalStateObjectCache<FSamplerStateInitializerRHI, FMetalSampler> Samplers;
+static FCriticalSection SamplersCS;
 
 static FMetalSampler FindOrCreateSamplerState(mtlpp::Device Device, const FSamplerStateInitializerRHI& Initializer)
 {
+	FScopeLock Lock(&SamplersCS);
 	FMetalSampler State = Samplers.Find(Initializer);
 	if (!State.GetPtr())
 	{
