@@ -161,8 +161,6 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 		EntityManager.SetDebugName(GetName() + TEXT("[Entity Manager]"));
 		EntityManager.SetComponentRegistry(&GComponentRegistry);
 
-		FWorldDelegates::OnWorldCleanup.AddUObject(this, &UMovieSceneEntitySystemLinker::OnWorldCleanup);
-
 		InstanceRegistry.Reset(new FInstanceRegistry(this));
 
 #if WITH_EDITOR
@@ -185,7 +183,6 @@ void UMovieSceneEntitySystemLinker::Reset()
 	Events.CleanTaggedGarbage.Clear();
 	Events.AddReferencedObjects.Clear();
 	Events.AbandonLinker.Clear();
-	Events.CleanUpWorld.Clear();
 
 	SystemGraph.Shutdown();
 	EntitySystemsByGlobalGraphID.Reset();
@@ -254,7 +251,6 @@ void UMovieSceneEntitySystemLinker::SystemUnlinked(UMovieSceneEntitySystem* InSy
 	Events.CleanTaggedGarbage.RemoveAll(InSystem);
 	Events.AddReferencedObjects.RemoveAll(InSystem);
 	Events.AbandonLinker.RemoveAll(InSystem);
-	Events.CleanUpWorld.RemoveAll(InSystem);
 
 	// Add the system to the recycling pool.
 	ensure(EntitySystemsRecyclingPool.Contains(InSystem->GetClass()) == false);
@@ -468,14 +464,6 @@ void UMovieSceneEntitySystemLinker::OnObjectsReplaced(const TMap<UObject*, UObje
 		}
 	});
 #endif
-}
-
-void UMovieSceneEntitySystemLinker::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
-{
-	Events.CleanUpWorld.Broadcast(this, InWorld);
-	InstanceRegistry->WorldCleanup(InWorld);
-
-	HandlePostGarbageCollection();
 }
 
 void UMovieSceneEntitySystemLinker::AddReferencedObjects(UObject* Object, FReferenceCollector& Collector)

@@ -110,22 +110,6 @@ void FInstanceRegistry::TagGarbage()
 	}
 }
 
-void FInstanceRegistry::WorldCleanup(UWorld* World)
-{
-	auto Iter = [World](FMovieSceneEntityID EntityID, UObject*& BoundObject)
-	{
-		if (BoundObject && BoundObject->IsIn(World))
-		{
-			BoundObject = nullptr;
-		}
-	};
-
-	FEntityTaskBuilder()
-	.ReadEntityIDs()
-	.Write(FBuiltInComponentTypes::Get()->BoundObject)
-	.Iterate_PerEntity(&Linker->EntityManager, Iter);
-}
-
 void FInstanceRegistry::CleanupLinkerEntities(const TSet<FMovieSceneEntityID>& ExpiredBoundObjects)
 {
 	if (ExpiredBoundObjects.Num() != 0)

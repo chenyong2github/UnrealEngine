@@ -109,8 +109,6 @@ struct FInstanceRegistry
 
 	void TagGarbage();
 
-	void WorldCleanup(UWorld* World);
-
 private:
 
 	UMovieSceneEntitySystemLinker* Linker;
