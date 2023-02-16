@@ -5,7 +5,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SThrobber.h"
-#include "UGSCore/ModalTask.h"
+#include "ModalTask.h"
 
 SModalTaskWindow::SModalTaskWindow()
 {

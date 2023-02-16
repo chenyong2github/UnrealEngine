@@ -8,12 +8,12 @@
 #include "FindStreamsTask.h"
 #include "UGSTabManager.h"
 
-#include "UGSCore/Utility.h"
-#include "UGSCore/BuildStep.h"
-#include "UGSCore/DetectProjectSettingsTask.h"
-#include "UGSCore/FindStreamsTask.h"
-#include "UGSCore/PerforceMonitor.h"
-#include "UGSCore/EventMonitor.h"
+#include "Utility.h"
+#include "BuildStep.h"
+#include "DetectProjectSettingsTask.h"
+#include "FindStreamsTask.h"
+#include "PerforceMonitor.h"
+#include "EventMonitor.h"
 
 #include "Widgets/SModalTaskWindow.h"
 #include "Widgets/SLogWidget.h"

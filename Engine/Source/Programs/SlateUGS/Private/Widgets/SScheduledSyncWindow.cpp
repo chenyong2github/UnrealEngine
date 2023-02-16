@@ -14,7 +14,7 @@
 #include "SSimpleButton.h"
 #include "SPopupTextWindow.h"
 
-#include "UGSCore/UserSettings.h"
+#include "UserSettings.h"
 
 #define LOCTEXT_NAMESPACE "SScheduledSyncWindow"
 
