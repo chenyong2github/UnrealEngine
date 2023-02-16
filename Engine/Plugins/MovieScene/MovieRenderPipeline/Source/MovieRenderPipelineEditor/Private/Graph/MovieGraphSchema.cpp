@@ -5,6 +5,10 @@
 #include "Graph/MovieGraphNode.h"
 #include "Graph/MovieEdGraph.h"
 #include "Graph/MovieEdGraphNode.h"
+#include "UObject/Class.h"
+#include "UObject/UObjectIterator.h"
+#include "ScopedTransaction.h"
+#include "GraphEditor.h"
 
 TArray<UClass*> UMovieGraphSchema::MoviePipelineNodeClasses;
 

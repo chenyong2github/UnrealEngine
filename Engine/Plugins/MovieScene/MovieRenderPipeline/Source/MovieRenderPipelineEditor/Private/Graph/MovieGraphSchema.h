@@ -3,6 +3,7 @@
 #pragma once
 #include "CoreTypes.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "Templates/SubclassOf.h"
 #include "MovieGraphSchema.generated.h"
 
 class UMovieGraphNode;

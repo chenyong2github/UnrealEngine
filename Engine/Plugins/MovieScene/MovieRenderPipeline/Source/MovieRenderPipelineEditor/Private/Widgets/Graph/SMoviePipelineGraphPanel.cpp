@@ -53,6 +53,7 @@
 #include "Graph/MovieEdGraph.h"
 #include "Graph/MovieGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "GraphEditor.h"
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineGraphPanel"
 
