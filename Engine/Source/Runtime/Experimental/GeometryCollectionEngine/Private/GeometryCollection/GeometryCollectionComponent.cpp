@@ -925,22 +925,28 @@ bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeo
 
 	if (bUseRootProxyForNavigation)
 	{
-		if (const UStaticMesh* ProxyMesh = Cast<UStaticMesh>(RestCollection->RootProxy.TryLoad()))
+		bool bHasData = false;
+		for (int32 MeshIndex = 0; MeshIndex < RestCollection->RootProxyData.ProxyMeshes.Num(); MeshIndex++)
 		{
-			const FTransform& CompToWorld = GetComponentToWorld();
-			const FVector Scale3D = CompToWorld.GetScale3D();
-			if (!Scale3D.IsZero())
+			const TObjectPtr<UStaticMesh>& ProxyMesh = RestCollection->RootProxyData.ProxyMeshes[MeshIndex];
+			if (ProxyMesh != nullptr)
 			{
-				if (const UNavCollisionBase* NavCollision = ProxyMesh->GetNavCollision())
+				const FTransform& CompToWorld = GetComponentToWorld();
+				const FVector Scale3D = CompToWorld.GetScale3D();
+				if (!Scale3D.IsZero())
 				{
-					const bool bHasData = NavCollision->ExportGeometry(CompToWorld, GeomExport);
-					if (bHasData)
+					if (const UNavCollisionBase* NavCollision = ProxyMesh->GetNavCollision())
 					{
-						// skip default export
-						return false;
+						bHasData = NavCollision->ExportGeometry(CompToWorld, GeomExport) || bHasData;
 					}
 				}
 			}
+		}
+
+		if (bHasData)
+		{
+			// skip default export
+			return false;
 		}
 
 		return true;
@@ -4288,16 +4294,17 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 
 				// root proxy if available 
 				// TODO : if ISM pool is not available : uses a standard static mesh component
-				if (UObject* RootMeshProxyObject = RestCollection->RootProxy.TryLoad())
+				for (int32 MeshIndex = 0; MeshIndex < RestCollection->RootProxyData.ProxyMeshes.Num(); MeshIndex++)
 				{
-					if (UStaticMesh* RootMeshProxy = Cast<UStaticMesh>(RootMeshProxyObject))
+					const TObjectPtr<UStaticMesh>& Mesh = RestCollection->RootProxyData.ProxyMeshes[MeshIndex];
+					if (Mesh != nullptr)
 					{
 						// if we use a mesh proxy hide the component for rendering 
 						bCanRenderComponent = false;
 
 						FGeometryCollectionStaticMeshInstance StaticMeshInstance;
-						StaticMeshInstance.StaticMesh = RootMeshProxy;
-						ISMPoolRootProxyMeshId = ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, 1, bChaos_GC_UseHierarchicalISMForProxyMesh);
+						StaticMeshInstance.StaticMesh = Mesh;
+						ISMPoolRootProxyMeshIds.Add(ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, 1, bChaos_GC_UseHierarchicalISMForProxyMesh));
 					}
 				}
 			}
@@ -4317,7 +4324,7 @@ void UGeometryCollectionComponent::UnregisterFromISMPool()
 		{
 			ISMPoolComp->DestroyMeshGroup(ISMPoolMeshGroupIndex);
 			ISMPoolMeshGroupIndex = INDEX_NONE;
-			ISMPoolRootProxyMeshId = INDEX_NONE;
+			ISMPoolRootProxyMeshIds.Empty();
 		}
 		SetVisibility(true);
 	}
@@ -4355,14 +4362,17 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 							const int32 RootIndex = GetRootIndex();
 							//const bool bIsBroken = DynamicCollection ? (DynamicCollection->Children[RootIndex].Num() != Children[RootIndex].Num()) : false;
 							const bool bIsBroken = DynamicCollection ? !DynamicCollection->Active[RootIndex] : false;
-							const bool bHasRootProxyMesh = (ISMPoolRootProxyMeshId != INDEX_NONE);
+							const bool bHasRootProxyMesh = !ISMPoolRootProxyMeshIds.IsEmpty();
 
 							if (bHasRootProxyMesh && !bIsBroken)
 							{
 								if (GlobalMatrices.IsValidIndex(RootIndex))
 								{
 									FTransform RootTransform = FTransform(GlobalMatrices[RootIndex]) * ComponentTransform;
-									ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, ISMPoolRootProxyMeshId, 0, { RootTransform }, bWorlSpace, bMarkRenderStateDirty, bTeleport);
+									for (const int32 ISMPoolRootProxyMeshId : ISMPoolRootProxyMeshIds)
+									{
+										ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, ISMPoolRootProxyMeshId, 0, { RootTransform }, bWorlSpace, bMarkRenderStateDirty, bTeleport);
+									}
 								}
 							}
 							else if (bChaos_GC_UseISMPoolForNonFracturedParts)
@@ -4373,7 +4383,10 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 								{
 									FTransform RootTransformZeroScale;
 									RootTransformZeroScale.SetIdentityZeroScale();
-									ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, ISMPoolRootProxyMeshId, 0, { RootTransformZeroScale }, bWorlSpace, bMarkRenderStateDirty, bTeleport);
+									for (const int32 ISMPoolRootProxyMeshId : ISMPoolRootProxyMeshIds)
+									{
+										ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, ISMPoolRootProxyMeshId, 0, { RootTransformZeroScale }, bWorlSpace, bMarkRenderStateDirty, bTeleport);
+									}
 								}
 
 								TArray<FTransform> InstanceTransforms;

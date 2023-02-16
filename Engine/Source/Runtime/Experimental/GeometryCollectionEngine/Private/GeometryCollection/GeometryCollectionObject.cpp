@@ -1465,6 +1465,17 @@ void UGeometryCollection::PostLoad()
 	{
 		InitResources();
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (!RootProxy_DEPRECATED.IsNull())
+	{
+		if (UStaticMesh* ProxyMesh = Cast<UStaticMesh>(RootProxy_DEPRECATED.TryLoad()))
+		{
+			RootProxyData.ProxyMeshes.Add(TObjectPtr<UStaticMesh>(ProxyMesh));
+		}
+		RootProxy_DEPRECATED = nullptr;
+	}
+#endif
 }
 
 void UGeometryCollection::BeginDestroy()
