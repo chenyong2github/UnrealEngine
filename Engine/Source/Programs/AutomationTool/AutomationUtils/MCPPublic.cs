@@ -693,6 +693,7 @@ namespace EpicGames.MCP.Automation
 			{
 				DataAgeThreshold = DEFAULT_DATA_AGE_THRESHOLD;
 				ChunkWindowSize = 1048576;
+				ResaveKnownChunks = false;
 			}
 
 			/// <summary>
@@ -773,6 +774,10 @@ namespace EpicGames.MCP.Automation
 			/// Specifies the desired output FeatureLevel of BuildPatchTool, if this is not provided BPT will warn and default to LatestJson so that project scripts can be updated.
 			/// </summary>
 			public string FeatureLevel;
+			/// <summary>
+			/// Output includes all known chunks, not just new chunks generated
+			/// </summary>
+			public bool ResaveKnownChunks;
 			/// <summary>
 			/// Contains a list of custom string arguments to be embedded in the generated manifest file.
 			/// </summary>
