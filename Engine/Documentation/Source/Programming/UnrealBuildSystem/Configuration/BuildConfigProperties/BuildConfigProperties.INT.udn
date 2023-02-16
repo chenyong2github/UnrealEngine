@@ -286,6 +286,10 @@ $ EnableOptimizeCode : List of modules to enable optimizations for
 
 $ DisableOptimizeCode : List of modules to disable optimizations for
 
+$ OptimizeForSize : List of modules to optimize for size. This allows the target to override module optimization level Note that this may disable PCH usage if a private PCH is not provided
+
+$ OptimizeForSizeAndSpeed : List of modules to optimize for size and speed. This allows the target to override module optimization level Note that this may disable PCH usage if a private PCH is not provided
+
 ### TestTargetRules
 
 $ bDisableInliningGenCpps : Disable supports for inlining gen.cpps
