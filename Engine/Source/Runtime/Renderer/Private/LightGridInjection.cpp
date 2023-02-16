@@ -897,6 +897,7 @@ FComputeLightGridOutput FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuild
 
 FComputeLightGridOutput FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder& GraphBuilder, bool bNeedLightGrid, FSortedLightSetSceneInfo& SortedLightSet)
 {
+	SCOPED_NAMED_EVENT(GatherLightsAndComputeLightGrid, FColor::Emerald);
 	FComputeLightGridOutput Result = {};
 
 	bool bShadowedLightsInClustered = ShouldUseClusteredDeferredShading()

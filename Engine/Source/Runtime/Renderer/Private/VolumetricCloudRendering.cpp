@@ -1526,6 +1526,7 @@ void CleanUpCloudDataFunction(TArray<FViewInfo>& Views)
 
 void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, bool bShouldRenderVolumetricCloud, FInstanceCullingManager& InstanceCullingManager)
 {
+	SCOPED_NAMED_EVENT(InitVolumetricCloudsForViews, FColor::Emerald);
 
 	auto CleanUpCloudDataPass = [&Views = Views](FRDGBuilder& GraphBuilder)
 	{

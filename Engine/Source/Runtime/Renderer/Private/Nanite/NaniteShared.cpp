@@ -177,6 +177,7 @@ FPackedView CreatePackedViewFromViewInfo
 	const FIntRect* InHZBTestViewRect
 )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreatePackedViewFromViewInfo);
 	FPackedViewParams Params;
 	Params.ViewMatrices = View.ViewMatrices;
 	Params.PrevViewMatrices = View.PrevViewInfo.ViewMatrices;

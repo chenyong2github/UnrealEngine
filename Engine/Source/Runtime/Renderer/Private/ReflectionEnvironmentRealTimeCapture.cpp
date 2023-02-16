@@ -328,6 +328,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	// Record that we are handling the GPU in the MainView
 	Capture.GpusHandledThisFrame |= MainView.GPUMask.GetNative();
 
+	SCOPED_NAMED_EVENT(AllocateAndCaptureFrameSkyEnvMap, FColor::Emerald);
 	RDG_EVENT_SCOPE(GraphBuilder, "CaptureConvolveSkyEnvMap");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, CaptureConvolveSkyEnvMap);
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, SkyAtmosphere);
