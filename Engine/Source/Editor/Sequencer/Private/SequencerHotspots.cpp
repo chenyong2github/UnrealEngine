@@ -481,12 +481,7 @@ void FSectionHotspotBase::UpdateOnHover(FTrackAreaViewModel& InTrackArea) const
 			}
 		}
 
-		// Activate selection mode if the section is infinite, otherwise just move it
-		if (ThisSection->GetRange() == TRange<FFrameNumber>::All())
-		{
-			InTrackArea.AttemptToActivateTool(FSequencerEditTool_Selection::Identifier);
-		}
-		else
+		if (ThisSection->GetRange() != TRange<FFrameNumber>::All())
 		{
 			InTrackArea.AttemptToActivateTool(FSequencerEditTool_Movement::Identifier);
 		}

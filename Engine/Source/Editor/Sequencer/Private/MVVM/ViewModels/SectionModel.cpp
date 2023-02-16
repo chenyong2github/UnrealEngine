@@ -189,8 +189,8 @@ ESelectionIntent FSectionModel::IsSelectable() const
 {
 	if (GetRange() == TRange<FFrameNumber>::All())
 	{
-		// Infinite sections also now selectable in all contexts
-		return ESelectionIntent::Any;
+		// Infinite sections are only selectable through the context menu
+		return ESelectionIntent::ContextMenu;
 	}
 	return ESelectionIntent::Any;
 }
