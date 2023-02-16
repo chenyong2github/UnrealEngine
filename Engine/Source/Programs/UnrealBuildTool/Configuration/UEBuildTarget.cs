@@ -2369,10 +2369,13 @@ namespace UnrealBuildTool
 					FileMetadataPrefetch.QueueDirectoryTree(Module.GeneratedCodeDirectoryUHT);
 			}
 
-			// Find all the shared PCHs.
 			if (Rules.bUseSharedPCHs)
 			{
+				// Find all the shared PCHs.
 				FindSharedPCHs(OriginalBinaries, GlobalCompileEnvironment, Logger);
+
+				// Create all the shared PCH instances before processing the modules
+				CreateSharedPCHInstances(Rules, TargetToolChain, OriginalBinaries, GlobalCompileEnvironment, MakefileBuilder, Logger);
 			}
 
 			// Can probably be moved further down?
@@ -3389,6 +3392,87 @@ namespace UnrealBuildTool
 				foreach (PrecompiledHeaderTemplate SharedPCHModule in OrderedSharedPCHModules)
 				{
 					Logger.LogDebug("	{ModuleName}", SharedPCHModule.Module.Name);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Creates all the shared PCH instances before processing the modules
+		/// </summary>
+		/// <param name="Target">The target being built</param>
+		/// <param name="ToolChain">The toolchain to build with</param>
+		/// <param name="OriginalBinaries">The list of binaries</param>
+		/// <param name="GlobalCompileEnvironment">The compile environment. The shared PCHs will be added to the SharedPCHs list in this.</param>
+		/// <param name="Logger">Logger for output</param>
+		/// <param name="Graph">List of build actions</param>
+		void CreateSharedPCHInstances(ReadOnlyTargetRules Target, UEToolChain ToolChain, List<UEBuildBinary> OriginalBinaries, CppCompileEnvironment GlobalCompileEnvironment, IActionGraphBuilder Graph, ILogger Logger)
+		{
+			if (!Target.bUsePCHFiles || GlobalCompileEnvironment.SharedPCHs.Count == 0)
+			{
+				return;
+			}
+
+			List<UEBuildModuleCPP> Modules = new List<UEBuildModuleCPP>();
+			Dictionary<UEBuildBinary, CppCompileEnvironment> BinaryCompileEnvironments = new Dictionary<UEBuildBinary, CppCompileEnvironment>();
+			foreach (UEBuildBinary Binary in OriginalBinaries)
+			{
+				BinaryCompileEnvironments.Add(Binary, Binary.CreateBinaryCompileEnvironment(GlobalCompileEnvironment));
+				Modules.AddRange(Binary.Modules.OfType<UEBuildModuleCPP>());
+			}
+
+			// Find which instances are needed
+			Dictionary<UEBuildModuleCPP, CppCompileEnvironment> ModuleCompileEnvironments = new Dictionary<UEBuildModuleCPP, CppCompileEnvironment>();
+			Dictionary<PrecompiledHeaderTemplate, List<UEBuildModuleCPP>> PCHsAndModulesDict = new Dictionary<PrecompiledHeaderTemplate, List<UEBuildModuleCPP>>();
+			foreach (UEBuildModuleCPP Module in Modules)
+			{
+				CppCompileEnvironment BinaryCompileEnvironment = BinaryCompileEnvironments[Module.Binary];
+				CppCompileEnvironment ModuleCompileEnvironment = Module.CreateModuleCompileEnvironment(Target, BinaryCompileEnvironment, Logger);
+
+				// Is it using a private PCH?
+				if (Module.Rules.PrivatePCHHeaderFile != null && (Module.Rules.PCHUsage == ModuleRules.PCHUsageMode.NoSharedPCHs || Module.Rules.PCHUsage == ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs))
+				{
+					continue;
+				}
+
+				// Is it using a shared PCH?
+				if (Module.Rules.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs)
+				{
+					if (!ModuleCompileEnvironment.bIsBuildingLibrary && Module.Rules.PCHUsage != ModuleRules.PCHUsageMode.NoSharedPCHs)
+					{
+						// Find all the dependencies of this module
+						HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
+						Module.GetAllDependencyModules(new List<UEBuildModule>(), ReferencedModules, bIncludeDynamicallyLoaded: false, bForceCircular: false, bOnlyDirectDependencies: true);
+
+						// Find the first shared PCH module we can use
+						PrecompiledHeaderTemplate? Template = ModuleCompileEnvironment.SharedPCHs.FirstOrDefault(x => ReferencedModules.Contains(x.Module));
+						if (Template != null && Template.IsValidFor(ModuleCompileEnvironment))
+						{
+							ModuleCompileEnvironments[Module] = ModuleCompileEnvironment;
+
+							if (PCHsAndModulesDict.TryGetValue(Template, out List<UEBuildModuleCPP>? ModulesUsingSharedPCHs))
+							{
+								ModulesUsingSharedPCHs.Add(Module);
+							}
+							else
+							{
+								PCHsAndModulesDict[Template] = new List<UEBuildModuleCPP>() { Module };
+							}
+						}
+					}
+				}
+			}
+
+			// Create the PCH instances
+			List<PrecompiledHeaderTemplate> SharedPCHs = new List<PrecompiledHeaderTemplate>(GlobalCompileEnvironment.SharedPCHs);
+			SharedPCHs.Reverse();
+			foreach (var SharedPCH in SharedPCHs)
+			{
+				if (PCHsAndModulesDict.TryGetValue(SharedPCH, out List<UEBuildModuleCPP>? ModulesUsingSharedPCHs))
+				{
+					foreach (var Module in ModulesUsingSharedPCHs)
+					{
+						Module.FindOrCreateSharedPCH(ToolChain, SharedPCH, ModuleCompileEnvironments[Module], Graph);
+					}
 				}
 			}
 		}

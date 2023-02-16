@@ -37,7 +37,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of modules using this instance
 		/// </summary>
-		public List<UEBuildModuleCPP> Modules = new List<UEBuildModuleCPP>();
+		public HashSet<UEBuildModuleCPP> Modules = new HashSet<UEBuildModuleCPP>();
 
 		/// <summary>
 		/// These are definitions that are immutable and should never be #undef. There are a few exceptions and we make sure those are not ending up in this list
