@@ -151,12 +151,6 @@ struct AIMODULE_API FActorPerceptionInfo
 		return LastSensedStimuli.IsValidIndex(Sense) && (LastSensedStimuli[Sense].IsValid() && (LastSensedStimuli[Sense].IsExpired() == false)) ? LastSensedStimuli[Sense].ReceiverLocation : FAISystem::InvalidLocation;
 	}
 
-	UE_DEPRECATED(4.23, "This method is identical to IsSenseActive and will be removed in future versions. Please use IsSenseActive to check for a currently active stimuli or HasKnownStimulusOfSense for an active or remembered stimuli.")
-	FORCEINLINE bool IsSenseRegistered(FAISenseID Sense) const
-	{
-		return LastSensedStimuli.IsValidIndex(Sense) && LastSensedStimuli[Sense].IsActive();
-	}
-
 	/** Indicates a currently active or "remembered" stimuli for a given sense
 	* @param Sense	The AISenseID of the sense
 	*
@@ -360,11 +354,7 @@ public:
 	/** If SenseToUse is none all actors ever perceived in any way (and not forgotten yet) will get fetched */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
 	void GetKnownPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const;
-	
-	UE_DEPRECATED(4.13, "GetPerceivedActors is deprecated. Use GetCurrentlyPerceivedActors or GetKnownPerceivedActors")
-	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	void GetPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const;
-	
+
 	/** Retrieves whatever has been sensed about given actor */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
 	bool GetActorsPerception(AActor* Actor, FActorPerceptionBlueprintInfo& Info);

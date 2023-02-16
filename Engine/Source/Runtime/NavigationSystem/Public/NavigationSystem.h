@@ -966,10 +966,6 @@ public:
 	virtual void OnNavigationBoundsAdded(ANavMeshBoundsVolume* NavVolume);
 	virtual void OnNavigationBoundsRemoved(ANavMeshBoundsVolume* NavVolume);
 
-	/** determines whether any generator is performing navigation building actions at the moment */
-	UE_DEPRECATED(4.26, "This function is deprecated.  Please use IsNavigationBuildInProgress")
-	bool IsNavigationBuildInProgress(bool bCheckDirtyToo);
-
 	/** determines whether any generator is performing navigation building actions at the moment, dirty areas are also checked */
 	bool IsNavigationBuildInProgress();
 	
@@ -1317,12 +1313,10 @@ public:
 	//----------------------------------------------------------------------//
 public:
 	// Note that this function was only deprecated for blueprint in 5.1
-	UE_DEPRECATED(4.22, "This version is deprecated.  Please use GetRandomLocationInNavigableRadius instead")
+	// Note2: originally deprecated as 4.22, bumped up to 5.1 as per comment above.
+	UE_DEPRECATED(5.1, "This version is deprecated.  Please use GetRandomLocationInNavigableRadius instead")
 	UFUNCTION(BlueprintPure, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject", DisplayName = "GetRandomPointInNavigableRadius", ScriptName = "GetRandomPointInNavigableRadius", DeprecatedFunction, DeprecationMessage = "GetRandomPointInNavigableRadius is deprecated. Use GetRandomLocationInNavigableRadius instead"))
 	static bool K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData = NULL, TSubclassOf<UNavigationQueryFilter> FilterClass = NULL);
-	
-	UE_DEPRECATED(4.26, "This version of RemoveNavigationBuildLock is deprecated. Please use the new version")
-	void RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebuildInEditor) { RemoveNavigationBuildLock(Flags, bSkipRebuildInEditor ? ELockRemovalRebuildAction::RebuildIfNotInEditor : ELockRemovalRebuildAction::Rebuild);}
 };
 
 //----------------------------------------------------------------------//

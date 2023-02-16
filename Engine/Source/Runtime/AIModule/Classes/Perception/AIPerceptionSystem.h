@@ -53,11 +53,6 @@ protected:
 	// not a UPROPERTY on purpose so that we have a control over when stuff gets removed from the map
 	TMap<const AActor*, FPerceptionStimuliSource> RegisteredStimuliSources;
 
-#if WITH_EDITORONLY_DATA
-	UE_DEPRECATED(4.25, "This property will be removed in future versions. UnregisterSource is called by AActor.OnEndPlay delegate and will perform the cleanup.")
-	uint32 bStimuliSourcesRefreshRequired : 1;
-#endif
-
 	uint32 bHandlePawnNotification : 1;
 
 	struct FDelayedStimulus
@@ -197,9 +192,6 @@ protected:
 	/** Returns true if aging resulted in tagging any of the listeners to process 
 	 *	its stimuli (@see MarkForStimulusProcessing)*/
 	bool AgeStimuli(const float Amount);
-
-	UE_DEPRECATED(4.26, "Parameterless AgeStimuli has been deprecated, please use the other AgeStimuli flavor. To get behavior identical to the old one calls AgeStimuli(PerceptionAgingRate).")
-	void AgeStimuli();
 
 	friend class UAISense;
 	FORCEINLINE AIPerception::FListenerMap& GetListenersMap() { return ListenerContainer; }

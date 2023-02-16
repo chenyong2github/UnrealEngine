@@ -80,15 +80,10 @@ public:
 
 	/** Supported queries */
 
-	// @TODONAV
-	/** Generates path from the given query. Synchronous. */
-	UE_DEPRECATED(4.25, "Please use FindPath with the added CostLimit and bRequireNavigableEndLocation parameters (TNumericLimits<FVector::FReal>::Max() and true can be used as default respectively).")
-	ENavigationQueryResult::Type FindPath(const FVector& StartLoc, const FVector& EndLoc, FNavMeshPath& Path, const FNavigationQueryFilter& Filter, const UObject* Owner) const;
-
 	/** Generates path from the given query. Synchronous. */
 	UE_DEPRECATED(5.2, "Please use FindPath with the added bRequireNavigableEndLocation parameter (true can be used as default).")
 	ENavigationQueryResult::Type FindPath(const FVector& StartLoc, const FVector& EndLoc, const FVector::FReal CostLimit, FNavMeshPath& Path, const FNavigationQueryFilter& Filter, const UObject* Owner) const;
-
+																																									  
 	/** Generates path from the given query. Synchronous. */
 	ENavigationQueryResult::Type FindPath(const FVector& StartLoc, const FVector& EndLoc, const FVector::FReal CostLimit, const bool bRequireNavigableEndLocation, FNavMeshPath& Path, const FNavigationQueryFilter& Filter, const UObject* Owner) const;
 

@@ -888,12 +888,3 @@ void UAIPerceptionComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) con
 
 }
 #endif // ENABLE_VISUAL_LOG
-
-//----------------------------------------------------------------------//
-// deprecated
-//----------------------------------------------------------------------//
-void UAIPerceptionComponent::GetPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const
-{
-	GetCurrentlyPerceivedActors(SenseToUse, OutActors);
-}
-

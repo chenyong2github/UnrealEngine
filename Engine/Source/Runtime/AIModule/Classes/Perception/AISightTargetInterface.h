@@ -70,13 +70,5 @@ class AIMODULE_API IAISightTargetInterface
 		OutSightStrength = 0;
 		return false; 
 	}
-
-	UE_DEPRECATED(4.27, "This function is deprecated. Use the new CanBeSeenFrom method signature")
-	virtual bool CanBeSeenFrom(const FVector& ObserverLocation, FVector& OutSeenLocation, int32& NumberOfLoSChecksPerformed, float& OutSightStrength, const AActor* IgnoreActor = nullptr) const final
-	{
-		NumberOfLoSChecksPerformed = 0;
-		OutSightStrength = 0;
-		return false;
-	}
 };
 

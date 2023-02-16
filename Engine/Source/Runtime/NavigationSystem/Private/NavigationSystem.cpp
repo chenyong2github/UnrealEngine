@@ -3946,10 +3946,6 @@ bool UNavigationSystemV1::IsNavigationBuildInProgress()
 }
 
 //deprecated
-bool UNavigationSystemV1::IsNavigationBuildInProgress(bool bCheckDirtyToo)
-{
-	return IsNavigationBuildInProgress();
-}
 
 void UNavigationSystemV1::OnNavigationGenerationFinished(ANavigationData& NavData)
 {

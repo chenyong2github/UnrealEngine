@@ -161,10 +161,6 @@ namespace FNavigationSystem
 	/**	Retrieves the transform the Navigation System is using to convert coords
 	 *	from FromCoordType to ToCoordType */
 	ENGINE_API const FTransform& GetCoordTransform(const ENavigationCoordSystem::Type FromCoordType, const ENavigationCoordSystem::Type ToCoordType);
-	UE_DEPRECATED(4.22, "FNavigationSystem::GetCoordTransformTo is deprecated. Use FNavigationSystem::GetCoordTransform instead")
-	ENGINE_API const FTransform& GetCoordTransformTo(const ENavigationCoordSystem::Type CoordType);
-	UE_DEPRECATED(4.22, "FNavigationSystem::GetCoordTransformFrom is deprecated. Use FNavigationSystem::GetCoordTransform instead")
-	ENGINE_API const FTransform& GetCoordTransformFrom(const ENavigationCoordSystem::Type CoordType);
 
 	ENGINE_API bool WantsComponentChangeNotifies();
 
@@ -249,9 +245,6 @@ public:
 	 */
 	virtual INavigationDataInterface* GetMainNavData() const { return nullptr; }
 
-	UE_DEPRECATED(4.20, "GetMainNavData is deprecated. Use FNavigationSystem::GetCurrent<UNavigationSystemV1>()->GetDefaultNavDataInstance instead")
-	INavigationDataInterface* GetMainNavData(int) { return nullptr; }
-
 	virtual void SetBuildBounds(const FBox& Bounds) PURE_VIRTUAL(UNavigationSystemBase::SetBuildBounds, );
 
 	virtual FBox GetNavigableWorldBounds() const PURE_VIRTUAL(UNavigationSystemBase::GetNavigableWorldBounds, return FBox(ForceInit););
@@ -276,10 +269,6 @@ protected:
 	 *	@param bAddInverse if true (default) will also set coord transform in 
 	 *		the reverse order using Transform.Inverse() */
 	static void SetCoordTransform(const ENavigationCoordSystem::Type FromCoordType, const ENavigationCoordSystem::Type ToCoordType, const FTransform& Transform, bool bAddInverse = true);
-	UE_DEPRECATED(4.22, "FNavigationSystem::SetCoordTransformTo is deprecated. Use FNavigationSystem::SetCoordTransform instead")
-	static void SetCoordTransformTo(const ENavigationCoordSystem::Type CoordType, const FTransform& Transform);
-	UE_DEPRECATED(4.22, "FNavigationSystem::SetCoordTransformFrom is deprecated. Use FNavigationSystem::SetCoordTransform instead")
-	static void SetCoordTransformFrom(const ENavigationCoordSystem::Type CoordType, const FTransform& Transform);
 	static void SetWantsComponentChangeNotifies(const bool bEnable);
 	static void SetDefaultWalkableArea(TSubclassOf<UNavAreaBase> InAreaClass);
 	static void SetDefaultObstacleArea(TSubclassOf<UNavAreaBase> InAreaClass);

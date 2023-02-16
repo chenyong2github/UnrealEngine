@@ -634,13 +634,6 @@ void FBlackboardKeySelector::AddNameFilter(UObject* Owner, FName PropertyName)
 	AllowedTypes.Add(NewObject<UBlackboardKeyType_Name>(Owner, *FilterName));
 }
 
-// deprecated
-void FBlackboardKeySelector::AddClassFilter(UObject* Owner, FName PropertyName, TSubclassOf<UClass> AllowedClass)
-{
-	TSubclassOf<UObject> AllowedObjectClass = AllowedClass;
-	AddClassFilter(Owner, PropertyName, AllowedObjectClass);
-}
-
 //----------------------------------------------------------------------//
 // UBehaviorTreeTypes
 //----------------------------------------------------------------------//

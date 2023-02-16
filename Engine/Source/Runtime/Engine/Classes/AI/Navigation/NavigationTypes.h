@@ -408,17 +408,6 @@ struct ENGINE_API FNavDataConfig : public FNavAgentProperties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Querying)
 	FVector DefaultQueryExtent;
 
-	UE_DEPRECATED(4.24, "FNavDataConfig.NavigationDataClass is deprecated and setting it directly has no effect. Please use setter and getter functions instead.")
-	UPROPERTY(Transient)
-	mutable TSubclassOf<AActor> NavigationDataClass;
-
-#if WITH_EDITOR
-	// used to be a UPROPERTY, but had to remove it so that it doesn't interfere
-	// with property redirects
-	UE_DEPRECATED(4.24, "FNavDataConfig.NavigationDataClassName is deprecated. Please use setter and getter functions instead.")
-	FSoftClassPath NavigationDataClassName;
-#endif // WITH_EDITOR
-
 protected:
 	/** Class to use when spawning navigation data instance */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (MetaClass = "/Script/NavigationSystem.NavigationData"))

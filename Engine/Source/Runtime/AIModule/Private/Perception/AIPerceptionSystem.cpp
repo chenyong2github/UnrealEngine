@@ -40,12 +40,6 @@ UAIPerceptionSystem::UAIPerceptionSystem(const FObjectInitializer& ObjectInitial
 	, NextStimuliAgingTick(0.)
 	, CurrentTime(0.)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-#if WITH_EDITORONLY_DATA
-	bStimuliSourcesRefreshRequired = false;
-#endif
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	StimuliSourceEndPlayDelegate.BindDynamic(this, &UAIPerceptionSystem::OnPerceptionStimuliSourceEndPlay);
 }
 
@@ -696,12 +690,4 @@ void UAIPerceptionSystem::ReportPerceptionEvent(UObject* WorldContextObject, UAI
 	{
 		PerceptionSys->ReportEvent(PerceptionEvent);
 	}
-}
-
-//----------------------------------------------------------------------//
-// Deprecated
-//----------------------------------------------------------------------//
-void UAIPerceptionSystem::AgeStimuli()
-{
-	AgeStimuli(PerceptionAgingRate);
 }

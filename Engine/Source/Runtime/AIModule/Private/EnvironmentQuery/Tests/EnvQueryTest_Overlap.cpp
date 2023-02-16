@@ -113,20 +113,6 @@ FText UEnvQueryTest_Overlap::GetDescriptionDetails() const
 	return FText::FromString(FString::Printf(TEXT("Using a %s where %s in channel: %s"), *ShapeDesc, *SizeDesc, *ChannelDesc));
 }
 
-bool UEnvQueryTest_Overlap::RunOverlap(const FVector& ItemPos, const FCollisionShape& CollisionShape, AActor* ItemActor, UWorld* World, enum ECollisionChannel Channel, const FCollisionQueryParams& Params)
-{
-	TArray<AActor*> Actors;
-	Actors.Add(ItemActor);
-	return const_cast<UEnvQueryTest_Overlap*>(this)->RunOverlap(ItemPos, CollisionShape, Actors, World, Channel, Params);
-}
-
-bool UEnvQueryTest_Overlap::RunOverlapBlocking(const FVector& ItemPos, const FCollisionShape& CollisionShape, AActor* ItemActor, UWorld* World, enum ECollisionChannel Channel, const FCollisionQueryParams& Params)
-{
-	TArray<AActor*> Actors;
-	Actors.Add(ItemActor);
-	return const_cast<UEnvQueryTest_Overlap*>(this)->RunOverlapBlocking(ItemPos, CollisionShape, Actors, World, Channel, Params);
-}
-
 bool UEnvQueryTest_Overlap::RunOverlap(const FVector& ItemPos, const FCollisionShape& CollisionShape, const TArray<AActor*>& IgnoredActors, UWorld* World, enum ECollisionChannel Channel, const FCollisionQueryParams& Params) const
 {
 	FCollisionQueryParams OverlapParams(Params);

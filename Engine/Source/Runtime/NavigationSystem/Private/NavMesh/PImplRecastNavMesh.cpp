@@ -1125,14 +1125,6 @@ void FPImplRecastNavMesh::Raycast(const FVector& StartLoc, const FVector& EndLoc
 }
 
 // DEPRECATED
-ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartLoc, const FVector& EndLoc, FNavMeshPath& Path, const FNavigationQueryFilter& Filter, const UObject* Owner) const
-{
-	constexpr FVector::FReal CostLimit = TNumericLimits<FVector::FReal>::Max();
-	constexpr bool bRequireNavigableEndLocation = true; 
-	return FindPath(StartLoc, EndLoc, CostLimit, bRequireNavigableEndLocation, Path, Filter, Owner);
-}
-
-// DEPRECATED
 ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartLoc, const FVector& EndLoc, const FVector::FReal CostLimit, FNavMeshPath& Path, const FNavigationQueryFilter& InQueryFilter, const UObject* Owner) const
 {
 	constexpr bool bRequireNavigableEndLocation = true; 

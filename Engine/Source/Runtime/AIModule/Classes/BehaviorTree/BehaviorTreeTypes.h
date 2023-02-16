@@ -650,9 +650,6 @@ public:
 	FORCEINLINE void InvalidateResolvedKey() { SelectedKeyID = FBlackboard::InvalidKey; }
 
 	friend FBlackboardDecoratorDetails;
-
-	UE_DEPRECATED(4.24, "This version of AddClassFilter is deprecated. Please provide AllowedClass as TSubclassOf<UObject>")
-	void AddClassFilter(UObject* Owner, FName PropertyName, TSubclassOf<UClass> AllowedClass);
 };
 
 UCLASS(Abstract)
