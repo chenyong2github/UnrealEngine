@@ -1615,7 +1615,7 @@ void UPCGComponent::OnActorChanged(AActor* Actor, UObject* InObject, bool bActor
 		DirtyGenerated(EPCGComponentDirtyFlag::Actor);
 		Refresh();
 	}
-	else if(Actor)
+	else if(Actor && !Actor->bIsEditorPreviewActor)
 	{
 		bool bDirtyAndRefresh = false;
 
