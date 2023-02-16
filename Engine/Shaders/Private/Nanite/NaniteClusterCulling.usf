@@ -290,7 +290,7 @@ struct FNaniteTraversalClusterCullCallback
 		{
 			float4 LODBounds = HierarchyNodeSlice.LODBounds;
 
-			const float3 LocalWPOExtent = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO != 0u) ?
+			const float3 LocalWPOExtent = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u ?
 				abs(GetPrimitiveData(InstanceData.PrimitiveId).MaxWPODistance * InstanceData.InvNonUniformScale) : (float3)0;
 			const float3 NodeBoxBoundsCenter = HierarchyNodeSlice.BoxBoundsCenter;
 			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent + LocalWPOExtent;
