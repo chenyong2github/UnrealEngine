@@ -13,6 +13,7 @@
 #include "PixelShaderUtils.h"
 #include "CommonRenderResources.h"
 #include "PostProcess/DrawRectangle.h"
+#include "ScenePrivate.h"
 
 IMPLEMENT_TYPE_LAYOUT(FGammaShaderParameters);
 
