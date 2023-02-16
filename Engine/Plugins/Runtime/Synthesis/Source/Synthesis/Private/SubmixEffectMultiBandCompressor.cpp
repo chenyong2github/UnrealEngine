@@ -239,10 +239,6 @@ bool FSubmixEffectMultibandCompressor::UpdateKeySourcePatch()
 
 						return true;
 					}
-					else if (KeySource.ShouldReportInactive())
-					{
-						KeySource.SetReportInactive(false);
-					}
 				}
 			}
 		}
@@ -275,10 +271,6 @@ bool FSubmixEffectMultibandCompressor::UpdateKeySourcePatch()
 
 							return true;
 						}
-					}
-					else if (KeySource.ShouldReportInactive())
-					{
-						KeySource.SetReportInactive(false);
 					}
 				}
 			}

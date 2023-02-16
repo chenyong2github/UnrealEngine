@@ -202,18 +202,10 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 					UAudioBusSubsystem* AudioBusSubsystem = MixerDevice->GetSubsystem<UAudioBusSubsystem>();
 					if (AudioBusSubsystem)
 					{
-						KeySource.Patch = AudioBusSubsystem->AddPatchOutputForAudioBus(Audio::FAudioBusKey(ObjectId), MixerDevice->GetNumOutputFrames(), KeySource.GetNumChannels());
-					}
-
-					if (KeySource.Patch.IsValid())
-					{
-						DynamicsProcessor.SetKeyNumChannels(KeySource.GetNumChannels());
-						return true;
-					}
-					else if (KeySource.ShouldReportInactive())
-					{
-						KeySource.SetReportInactive(false);
-						UE_LOG(LogAudioMixer, Warning, TEXT("DynamicsProcessor failed to add patch output to inactive AudioBus (ID: '%d')"), ObjectId);
+						const int32 NumChannels = KeySource.GetNumChannels();
+						AudioBusSubsystem->StartAudioBus(Audio::FAudioBusKey(ObjectId), NumChannels, /*bInIsAutomatic=*/false);
+						KeySource.Patch = AudioBusSubsystem->AddPatchOutputForAudioBus(Audio::FAudioBusKey(ObjectId), MixerDevice->GetNumOutputFrames(), NumChannels);
+						DynamicsProcessor.SetKeyNumChannels(NumChannels);
 					}
 				}
 			}
@@ -242,11 +234,6 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 							DynamicsProcessor.SetKeyNumChannels(SubmixNumChannels);
 							return true;
 						}
-					}
-					else if (KeySource.ShouldReportInactive())
-					{
-						KeySource.SetReportInactive(false);
-						UE_LOG(LogAudioMixer, Warning, TEXT("DynamicsProcessor failed to add patch output to inactive Submix (ID: '%d')"), ObjectId);
 					}
 				}	
 			}
