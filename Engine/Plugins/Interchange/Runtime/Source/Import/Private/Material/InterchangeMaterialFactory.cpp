@@ -1348,9 +1348,7 @@ void UInterchangeMaterialFunctionFactory::SetupMaterial(UMaterialFunction* Mater
 void FInterchangeImportMaterialAsyncHelper::UpdateFromFunctionResource(UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall)
 {
 	FScopeLock Lock(&UpdatedMaterialFunctionCallsLock);
-	if(UpdatedMaterialFunctionCalls.Find(MaterialFunctionCall) == nullptr)
 	{
-		UpdatedMaterialFunctionCalls.Add(MaterialFunctionCall);
 		MaterialFunctionCall->UpdateFromFunctionResource();
 	}
 }
@@ -1358,9 +1356,7 @@ void FInterchangeImportMaterialAsyncHelper::UpdateFromFunctionResource(UMaterial
 void FInterchangeImportMaterialAsyncHelper::UpdateFromFunctionResource(UMaterialFunctionInterface* MaterialFunction)
 {
 	FScopeLock Lock(&UpdatedMaterialFunctionsLock);
-	if(UpdatedMaterialFunctions.Find(MaterialFunction) == nullptr)
 	{
-		UpdatedMaterialFunctions.Add(MaterialFunction);
 		MaterialFunction->UpdateFromFunctionResource();
 	}
 }
@@ -1370,12 +1366,6 @@ FInterchangeImportMaterialAsyncHelper& FInterchangeImportMaterialAsyncHelper::Ge
 {
 	static FInterchangeImportMaterialAsyncHelper Instance;
 	return Instance;
-}
-
-void FInterchangeImportMaterialAsyncHelper::CleanUp()
-{
-	UpdatedMaterialFunctionCalls.Empty();
-	UpdatedMaterialFunctions.Empty();
 }
 
 #undef LOCTEXT_NAMESPACE

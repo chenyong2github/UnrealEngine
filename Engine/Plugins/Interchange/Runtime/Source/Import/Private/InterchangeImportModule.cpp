@@ -101,10 +101,7 @@ void FInterchangeImportModule::StartupModule()
 
 
 void FInterchangeImportModule::ShutdownModule()
-{
-	FInterchangeImportMaterialAsyncHelper& InterchangeMaterialAsyncHelper = FInterchangeImportMaterialAsyncHelper::GetInstance();
-	InterchangeMaterialAsyncHelper.CleanUp();
-}
+{}
 
 
 

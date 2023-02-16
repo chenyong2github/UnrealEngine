@@ -45,8 +45,7 @@ int32 UMaterialExpressionRgbToHsv::Compile(FMaterialCompiler* Compiler, int32 Ou
     float e = 1.0e-10;
     return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);)");
 		
-	TArray<int32> Inputs{ Input.Compile(Compiler) };
-	return Compiler->CustomExpression(MaterialExpressionCustom, 0, Inputs);
+	return MaterialExpressionCustom->Compile(Compiler, OutputIndex);
 }
 
 void UMaterialExpressionRgbToHsv::GetCaption(TArray<FString>& OutCaptions) const

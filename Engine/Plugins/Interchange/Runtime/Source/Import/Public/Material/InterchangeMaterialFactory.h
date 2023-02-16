@@ -84,8 +84,6 @@ public:
 
 	static FInterchangeImportMaterialAsyncHelper& GetInstance();
 
-	void CleanUp();
-
 #if WITH_EDITOR
 	void UpdateFromFunctionResource(UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall);
 
@@ -95,8 +93,5 @@ public:
 private:
 
 	FCriticalSection UpdatedMaterialFunctionCallsLock;
-	TSet<UMaterialExpressionMaterialFunctionCall*> UpdatedMaterialFunctionCalls;
-
 	FCriticalSection UpdatedMaterialFunctionsLock;
-	TSet<UMaterialFunctionInterface*> UpdatedMaterialFunctions;
 };
