@@ -1243,7 +1243,7 @@ namespace UnrealBuildTool
 					throw new BuildException($"Monolithic editors now require VC Toolchain 14.29.30133 (the toolchain for Visual Studio 16.11) ({EnvVars.CompilerVersion} < {VersionNumber.Parse("14.29.30133")})");
 				}
 				Arguments.Add("/PDBPAGESIZE:16384");
-				Arguments.Add("/PDBCompress");
+				//Arguments.Add("/PDBCompress"); // Do not turn this on, it makes link times almost 2x slower. This is _only_ to save local disk space. Will _not_ make actual file smaller for network transfer
 			}
 
 			//
