@@ -79,5 +79,12 @@ struct ENGINE_API FWorldPartitionActorDescUtils
 	 * @return					Whether the actor descriptor's class is valid or not.
 	 */
 	static bool ValidateActorDescClass(FWorldPartitionActorDesc* InActorDesc);
+
+	/**
+	 * Resolves the provided asset path using asset redirectors.
+	 * @param	InOutAssetPath	Asset path to resolve [In/Out].
+	 * @return					False if an error occured while trying to resolve, else true.
+	 */
+	static bool FixupRedirectedAssetPath(FName& InOutAssetPath);
 };
 #endif

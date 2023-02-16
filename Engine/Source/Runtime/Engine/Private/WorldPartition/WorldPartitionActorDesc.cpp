@@ -4,6 +4,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "Misc/Paths.h"
 #include "WorldPartition/WorldPartitionActorDescArchive.h"
+#include "WorldPartition/WorldPartitionActorDescUtils.h"
 
 #include "UObject/MetaData.h"
 #include "AssetRegistry/AssetData.h"
@@ -531,6 +532,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				UE_LOG(LogWorldPartition, Log, TEXT("ActorDesc ContentBundleGuid was fixed up: %s"), *GetActorName().ToString());
 				ContentBundleGuid = FixupContentBundleGuid;
 			}
+		}
+	}
+
+	// Fixup redirected data layer asset paths
+	if (Ar.IsLoading() && bIsUsingDataLayerAsset)
+	{
+		for (FName& DataLayer : DataLayers)
+		{
+			FWorldPartitionActorDescUtils::FixupRedirectedAssetPath(DataLayer);
 		}
 	}
 }
