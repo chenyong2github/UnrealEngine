@@ -935,13 +935,13 @@ void UPCGComponent::PostLoad()
 		ExclusionTags_DEPRECATED.Reset();
 	}
 
-	// If we have both default value (bIsComponentPartitioned = false and bIsPartitioned_DEPRECATED = true)
-	// we will follow the value of bIsPartitioned_DEPRECATED.
-	// bIsPartitioned_DEPRECATED will be set to false to new objects
-	if (!bIsComponentPartitioned && bIsPartitioned_DEPRECATED)
+	// If we have both default value (bIsComponentPartitioned = false and bIsPartitioned = true)
+	// we will follow the value of bIsPartitioned.
+	// bIsPartitioned will be set to false to new objects
+	if (!bIsComponentPartitioned && bIsPartitioned)
 	{
-		bIsComponentPartitioned = bIsPartitioned_DEPRECATED;
-		bIsPartitioned_DEPRECATED = false;
+		bIsComponentPartitioned = bIsPartitioned;
+		bIsPartitioned = false;
 	}
 
 	/** Deprecation code, should be removed once generated data has been updated */
@@ -1048,10 +1048,10 @@ void UPCGComponent::PostInitProperties()
 	const bool bIsNewObject = CurrentInspectedObject && !CurrentInspectedObject->HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad);
 
 #if WITH_EDITOR
-	// Force bIsPartitioned_DEPRECATED at False for new objects
+	// Force bIsPartitioned at false for new objects
 	if (bIsNewObject)
 	{
-		bIsPartitioned_DEPRECATED = false;
+		bIsPartitioned = false;
 	}
 #endif // WITH_EDITOR
 

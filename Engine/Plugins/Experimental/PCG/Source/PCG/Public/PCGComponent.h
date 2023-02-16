@@ -172,10 +172,6 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FName> ExclusionTags_DEPRECATED;
-
-	// Note for upgrade: can be safely replaced by bIsComponentPartitioned. Needed a new variable to change the default value.
-	UPROPERTY()
-	bool bIsPartitioned_DEPRECATED = true;
 #endif
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
@@ -271,6 +267,11 @@ protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TObjectPtr<UPCGGraph> Graph_DEPRECATED;
+
+private:
+	// Note for upgrade: can be safely replaced by bIsComponentPartitioned. Needed a new variable to change the default value. Kept to allow proper value change, cannot be deprecated. Do not use.
+	UPROPERTY()
+	bool bIsPartitioned = true;
 #endif // WITH_EDITORONLY_DATA
 
 private:
