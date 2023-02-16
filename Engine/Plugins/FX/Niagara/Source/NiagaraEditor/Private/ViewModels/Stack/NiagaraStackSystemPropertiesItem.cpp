@@ -2,6 +2,7 @@
 
 #include "ViewModels/Stack/NiagaraStackSystemPropertiesItem.h"
 #include "NiagaraEmitter.h"
+#include "NiagaraSettings.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemDetailsCustomization.h"
@@ -131,6 +132,34 @@ void UNiagaraStackSystemPropertiesItem::RefreshChildrenInternal(const TArray<UNi
 
 				NewIssues.Add(WarmupDeltaTimeExceedsEmitterDeltaTimeWarning);
 			}
+		}
+	}
+
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	if (System.IsValid() && Settings->GetRequiredEffectType() != nullptr)
+	{
+		UNiagaraEffectType* RequiredEffectType = Settings->GetRequiredEffectType();
+		if (System->GetEffectType() != RequiredEffectType)
+		{
+			TWeakObjectPtr<UNiagaraSystem> SystemWeak = System;
+			TWeakObjectPtr<UNiagaraEffectType> RequiredEffectTypeWeak = RequiredEffectType;
+			NewIssues.Add(FStackIssue(
+				EStackIssueSeverity::Error,
+				LOCTEXT("SystemNotUsingRequiredEffectTypeIssue", "Incorrect Effect Type In Use"),
+				LOCTEXT("SystemNotUsingRequiredEffectTypeIssueLong", "This project has a required effect type specified and this system is not currently using it."),
+				GetStackEditorDataKey(),
+				false,
+				{
+					FStackIssueFix(
+						LOCTEXT("SwitchToRequiredEffectType", "Switch to the required effect type for this project."),
+						FStackIssueFixDelegate::CreateLambda([SystemWeak, RequiredEffectTypeWeak]() 
+						{ 
+							if (SystemWeak.IsValid() && RequiredEffectTypeWeak.IsValid())
+							{
+								SystemWeak->SetEffectType(RequiredEffectTypeWeak.Get()); 
+							}
+						}))
+				}));
 		}
 	}
 

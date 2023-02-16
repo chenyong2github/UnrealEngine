@@ -210,7 +210,20 @@ void UNiagaraSystemFactoryNew::InitializeSystem(UNiagaraSystem* System, bool bCr
 
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 	check(Settings);
-	System->SetEffectType(Settings->GetDefaultEffectType());
+
+	UNiagaraEffectType* RequiredEffectType = Settings->GetRequiredEffectType();
+	if (RequiredEffectType != nullptr)
+	{
+		System->SetEffectType(RequiredEffectType);
+	}
+	else
+	{
+		UNiagaraEffectType* DefaultEffectType = Settings->GetDefaultEffectType();
+		if (DefaultEffectType != nullptr)
+		{
+			System->SetEffectType(DefaultEffectType);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
