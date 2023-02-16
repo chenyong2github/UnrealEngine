@@ -17366,6 +17366,11 @@ bool URigVMController::EnsurePinValidity(URigVMPin* InPin, bool bRecursive)
 			InPin->CPPType = RigVMTypeUtils::PostProcessCPPType(InPin->CPPType, InPin->GetCPPTypeObject());
 		}
 	}
+
+	if (InPin->GetCPPType().IsEmpty() || InPin->GetCPPType() == FName().ToString())
+	{
+		return false;
+	}
 	
 	if(bRecursive)
 	{
