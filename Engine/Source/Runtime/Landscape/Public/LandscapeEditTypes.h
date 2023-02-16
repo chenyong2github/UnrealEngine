@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "LandscapeEditTypes.generated.h"
+
 UENUM()
 enum class ELandscapeToolTargetType : uint8
 {
