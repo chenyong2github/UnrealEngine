@@ -39,18 +39,21 @@ protected:
 	void RestorePoseContext(FPoseContext& PoseContext) const;
 	void UpdateSourceLinkNode();
 
-	// Embedded sequence player node for playing animations from the motion matching database
+	// Embedded standalone player to play sequence
 	FAnimNode_SequencePlayer_Standalone SequencePlayerNode;
 
-	// Embedded blendspace player node for playing blendspaces from the motion matching database
+	// Embedded standalone player to play blend spaces
 	FAnimNode_BlendSpacePlayer_Standalone BlendSpacePlayerNode;
 
 	// Embedded mirror node to handle mirroring if the pose search results in a mirrored sequence
 	FAnimNode_Mirror_Standalone MirrorNode;
 
-	// @todo: use FCompactHeapPose
-	// if SequencePlayerNode.GetSequence() and BlendSpacePlayerNode.GetBlendSpace() are nullptr, instead of using SequencePlayerNode or BlendSpacePlayerNode (wrapped in MirrorNode), the pose output will be from StoredPose
-	TArray<FTransform> StoredPose;
+	// if SequencePlayerNode.GetSequence() and BlendSpacePlayerNode.GetBlendSpace() are nullptr, 
+	// instead of using SequencePlayerNode or BlendSpacePlayerNode (wrapped in MirrorNode),
+	// the output FPoseContext will be from StoredPose, StoredCurve, StoredAttributes
+	FCompactHeapPose StoredPose;
+	FBlendedHeapCurve StoredCurve;
+	UE::Anim::FHeapAttributeContainer StoredAttributes;
 
 	EAlphaBlendOption BlendOption = EAlphaBlendOption::Linear;
 

@@ -69,7 +69,6 @@ void FSearchResult::Update(float NewAssetTime)
 		}
 		else
 		{
-			checkNoEntry();
 			Reset();
 		}
 	}
