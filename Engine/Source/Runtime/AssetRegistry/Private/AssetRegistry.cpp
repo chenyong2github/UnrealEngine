@@ -4800,14 +4800,20 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 			// If this ensure fires then we've somehow processed the same result more than once, and that should never happen
 			if (ensure(ExistingAssetData != BackgroundResult.Get()))
 			{
-				// If the current AssetData came from a loaded asset, don't overwrite it with the new one from disk; loaded asset is more authoritative because it has run the postload steps
 #if WITH_EDITOR
-				if (!AssetDataObjectPathsUpdatedOnLoad.Contains(BackgroundResult->GetSoftObjectPath()))
+				PostLoadAssetRegistryTags(BackgroundResult.Get());
+				if (AssetDataObjectPathsUpdatedOnLoad.Contains(BackgroundResult->GetSoftObjectPath()))
+				{
+					// If the current AssetData came from a loaded asset, don't overwrite it with the new one from disk
+					// The loaded asset is more authoritative because it has run the postload steps.
+					// However, the loaded asset is missing the extended tags. Our contract for extended tags is to keep any 
+					// that do not exist in the non-extended tags. So add on any tags from the BackgroundResult that
+					// are not already on the existing asset.
+					AddNonOverlappingTags(EventContext, *ExistingAssetData, *BackgroundResult);
+				}
+				else
 #endif
 				{
-#if WITH_EDITOR
-					PostLoadAssetRegistryTags(BackgroundResult.Get());
-#endif
 					// The asset exists in the cache from disk and has not yet been loaded into memory, update it with the new background data
 					UpdateAssetData(EventContext, ExistingAssetData, MoveTemp(*BackgroundResult), false /* bKeepDeletedTags */);
 				}
@@ -5221,6 +5227,38 @@ void FAssetRegistryImpl::UpdateAssetData(Impl::FEventContext& EventContext, FAss
 	if (bModified && !ShouldSkipAsset(AssetData->AssetClassPath, AssetData->PackageFlags))
 	{
 		EventContext.AssetEvents.Emplace(*AssetData, Impl::FEventContext::EEvent::Updated);
+	}
+}
+
+void FAssetRegistryImpl::AddNonOverlappingTags(Impl::FEventContext& EventContext, FAssetData& ExistingAssetData,
+	const FAssetData& NewAssetData)
+{
+	TOptional<FAssetDataTagMap> ModifiedTags;
+	NewAssetData.TagsAndValues.ForEach([&ExistingAssetData, &ModifiedTags](const TPair<FName, FAssetTagValueRef>& TagPair)
+		{
+			if (ModifiedTags)
+			{
+				if (!ModifiedTags->Contains(TagPair.Key))
+				{
+					ModifiedTags->Add(TagPair.Key, TagPair.Value.GetStorageString());
+				}
+			}
+			else
+			{
+				if (!ExistingAssetData.TagsAndValues.Contains(TagPair.Key))
+				{
+					ModifiedTags.Emplace(ExistingAssetData.TagsAndValues.CopyMap());
+					ModifiedTags->Add(TagPair.Key, TagPair.Value.GetStorageString());
+				}
+			}
+		});
+	if (ModifiedTags)
+	{
+		State.SetTagsOnExistingAsset(&ExistingAssetData, MoveTemp(*ModifiedTags));
+		if (!ShouldSkipAsset(ExistingAssetData.AssetClassPath, ExistingAssetData.PackageFlags))
+		{
+			EventContext.AssetEvents.Emplace(ExistingAssetData, Impl::FEventContext::EEvent::Updated);
+		}
 	}
 }
 

@@ -309,6 +309,10 @@ private:
 	/** Updates an existing asset data with the new value and updates lookup maps */
 	void UpdateAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData, FAssetData&& NewAssetData, bool bKeepDeletedTags);
 
+	/** Updates the tags on an existing asset data by adding the tags from NewAssetData that do not already exist. */
+	void AddNonOverlappingTags(Impl::FEventContext& EventContext, FAssetData& ExistingAssetData,
+		const FAssetData& NewAssetData);
+
 	/** Removes the asset data from the lookup maps */
 	bool RemoveAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData);
 
