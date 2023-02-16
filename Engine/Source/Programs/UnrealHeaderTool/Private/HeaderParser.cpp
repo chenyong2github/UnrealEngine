@@ -3160,25 +3160,28 @@ void FHeaderParser::GetVarType(
 		}
 	}
 
-	uint32 CurrentCompilerDirective = GetCurrentCompilerDirective();
-	if ((CurrentCompilerDirective & ECompilerDirective::WithEditorOnlyData) != 0)
+	if (VariableCategory == EVariableCategory::Member)
 	{
-		Flags |= CPF_EditorOnly;
-	}
-	else if ((CurrentCompilerDirective & ECompilerDirective::WithEditor) != 0)
-	{
-		// Checking for this error is a bit tricky given legacy code.  
-		// 1) If already wrapped in WITH_EDITORONLY_DATA (see above), then we ignore the error via the else 
-		// 2) Ignore any module that is an editor module
-		const FManifestModule& Module = Scope->GetFileScope()->GetSourceFile()->GetPackageDef().GetModule();
-		const bool bIsEditorModule =
-			Module.ModuleType == EBuildModuleType::EngineEditor ||
-			Module.ModuleType == EBuildModuleType::GameEditor || 
-			Module.ModuleType == EBuildModuleType::EngineUncooked || 
-			Module.ModuleType == EBuildModuleType::GameUncooked;
-		if (VariableCategory == EVariableCategory::Member && !bIsEditorModule)
+		uint32 CurrentCompilerDirective = GetCurrentCompilerDirective();
+		if ((CurrentCompilerDirective & ECompilerDirective::WithEditorOnlyData) != 0)
 		{
-			LogError(TEXT("UProperties should not be wrapped by WITH_EDITOR, use WITH_EDITORONLY_DATA instead."));
+			Flags |= CPF_EditorOnly;
+		}
+		else if ((CurrentCompilerDirective & ECompilerDirective::WithEditor) != 0)
+		{
+			// Checking for this error is a bit tricky given legacy code.  
+			// 1) If already wrapped in WITH_EDITORONLY_DATA (see above), then we ignore the error via the else 
+			// 2) Ignore any module that is an editor module
+			const FManifestModule& Module = Scope->GetFileScope()->GetSourceFile()->GetPackageDef().GetModule();
+			const bool bIsEditorModule =
+				Module.ModuleType == EBuildModuleType::EngineEditor ||
+				Module.ModuleType == EBuildModuleType::GameEditor ||
+				Module.ModuleType == EBuildModuleType::EngineUncooked ||
+				Module.ModuleType == EBuildModuleType::GameUncooked;
+			if (!bIsEditorModule)
+			{
+				LogError(TEXT("UProperties should not be wrapped by WITH_EDITOR, use WITH_EDITORONLY_DATA instead."));
+			}
 		}
 	}
 

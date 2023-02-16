@@ -791,26 +791,29 @@ namespace EpicGames.UHT.Parsers
 
 			propertySettings.LineNumber = tokenReader.InputLine;
 
-			UhtCompilerDirective compilerDirective = topScope.HeaderParser.GetCurrentCompositeCompilerDirective();
-			if (compilerDirective.HasAnyFlags(UhtCompilerDirective.WithEditorOnlyData))
+			if (propertySettings.PropertyCategory == UhtPropertyCategory.Member)
 			{
-				propertySettings.PropertyFlags |= EPropertyFlags.EditorOnly;
-			}
-			else if (compilerDirective.HasAnyFlags(UhtCompilerDirective.WithEditor))
-			{
-				// Checking for this error is a bit tricky given legacy code.  
-				// 1) If already wrapped in WITH_EDITORONLY_DATA (see above), then we ignore the error via the else 
-				// 2) Ignore any module that is an editor module
-				UhtPackage package = topScope.ScopeType.HeaderFile.Package;
-				UHTManifest.Module module = package.Module;
-				bool isEditorModule =
-					module.ModuleType == UHTModuleType.EngineEditor ||
-					module.ModuleType == UHTModuleType.GameEditor ||
-					module.ModuleType == UHTModuleType.EngineUncooked ||
-					module.ModuleType == UHTModuleType.GameUncooked;
-				if (propertySettings.PropertyCategory == UhtPropertyCategory.Member && !isEditorModule)
+				UhtCompilerDirective compilerDirective = topScope.HeaderParser.GetCurrentCompositeCompilerDirective();
+				if (compilerDirective.HasAnyFlags(UhtCompilerDirective.WithEditorOnlyData))
 				{
-					tokenReader.LogError("UProperties should not be wrapped by WITH_EDITOR, use WITH_EDITORONLY_DATA instead.");
+					propertySettings.PropertyFlags |= EPropertyFlags.EditorOnly;
+				}
+				else if (compilerDirective.HasAnyFlags(UhtCompilerDirective.WithEditor))
+				{
+					// Checking for this error is a bit tricky given legacy code.  
+					// 1) If already wrapped in WITH_EDITORONLY_DATA (see above), then we ignore the error via the else 
+					// 2) Ignore any module that is an editor module
+					UhtPackage package = topScope.ScopeType.HeaderFile.Package;
+					UHTManifest.Module module = package.Module;
+					bool isEditorModule =
+						module.ModuleType == UHTModuleType.EngineEditor ||
+						module.ModuleType == UHTModuleType.GameEditor ||
+						module.ModuleType == UHTModuleType.EngineUncooked ||
+						module.ModuleType == UHTModuleType.GameUncooked;
+					if (!isEditorModule)
+					{
+						tokenReader.LogError("UProperties should not be wrapped by WITH_EDITOR, use WITH_EDITORONLY_DATA instead.");
+					}
 				}
 			}
 
@@ -877,7 +880,8 @@ namespace EpicGames.UHT.Parsers
 			// Check for any disallowed flags
 			if (propertySettings.PropertyFlags.HasAnyFlags(propertySettings.DisallowPropertyFlags))
 			{
-				tokenReader.LogError("Specified type modifiers not allowed here");
+				EPropertyFlags extraFlags = propertySettings.PropertyFlags & propertySettings.DisallowPropertyFlags;
+				tokenReader.LogError($"Specified type modifiers not allowed here '{String.Join(" | ", extraFlags.ToStringList())}'");
 			}
 
 			if (_options.HasAnyFlags(UhtPropertyParseOptions.AddModuleRelativePath))
