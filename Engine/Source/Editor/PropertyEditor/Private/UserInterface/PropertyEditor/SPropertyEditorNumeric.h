@@ -320,7 +320,7 @@ public:
 				}
 			}
 
-			const bool bAllowSpin = !PropertyHandle->GetBoolMetaData("NoSpinbox");
+			const bool bAllowSpin = (!ObjectPropertyNode || (1 == ObjectPropertyNode->GetNumObjects())) && !PropertyHandle->GetBoolMetaData("NoSpinbox");
 
 			ChildSlot
 			[
