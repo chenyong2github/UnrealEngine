@@ -644,29 +644,31 @@ UMediaSource* UMediaPlateComponent::ProxyGetMediaSourceFromIndex(int32 Index) co
 UMediaTexture* UMediaPlateComponent::ProxyGetMediaTexture(int32 LayerIndex, int32 TextureIndex)
 {
 	UMediaTexture* MediaTexture = GetMediaTexture(TextureIndex);
-
-	if (TextureLayers.Num() < LayerIndex + 1)
+	if (MediaTexture != nullptr)
 	{
-		TextureLayers.SetNum(LayerIndex + 1);
-	}
-
-	// Fill up an empty slot if there is one.
-	bool bIsTextureSet = false;
-	for (int32 Index = 0; Index < TextureLayers[LayerIndex].Num(); ++Index)
-	{
-		if (TextureLayers[LayerIndex][Index] < 0)
+		if (TextureLayers.Num() < LayerIndex + 1)
 		{
-			TextureLayers[LayerIndex][Index] = TextureIndex;
-			bIsTextureSet = true;
-			break;
+			TextureLayers.SetNum(LayerIndex + 1);
 		}
-	}
-	if (bIsTextureSet == false)
-	{
-		TextureLayers[LayerIndex].Add(TextureIndex);
-	}
 
-	UpdateTextureLayers();
+		// Fill up an empty slot if there is one.
+		bool bIsTextureSet = false;
+		for (int32 Index = 0; Index < TextureLayers[LayerIndex].Num(); ++Index)
+		{
+			if (TextureLayers[LayerIndex][Index] < 0)
+			{
+				TextureLayers[LayerIndex][Index] = TextureIndex;
+				bIsTextureSet = true;
+				break;
+			}
+		}
+		if (bIsTextureSet == false)
+		{
+			TextureLayers[LayerIndex].Add(TextureIndex);
+		}
+
+		UpdateTextureLayers();
+	}
 
 	return MediaTexture;
 }
