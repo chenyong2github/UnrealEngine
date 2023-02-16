@@ -124,6 +124,11 @@ bool URCBehaviourBind::CanHaveActionForField(URCController* Controller, TSharedR
 	const FProperty* RemoteControlProperty = RemoteControlEntityAsProperty->GetProperty();
 	const FStructProperty* RemoteControlEntityAsStructProperty = CastField<FStructProperty>(RemoteControlProperty);
 
+	if (!ControllerAsProperty || !RemoteControlProperty)
+	{
+		return false; // Unbound Property
+	}
+
 	// Indirect Binding (related types)
 	//
 	const static TMap<FFieldClass*, TArray<FFieldClass*>> SupportedIndirectBindsMap =

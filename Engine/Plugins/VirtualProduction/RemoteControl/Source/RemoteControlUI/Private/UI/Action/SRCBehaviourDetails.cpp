@@ -36,12 +36,15 @@ void SRCBehaviourDetails::Construct(const FArguments& InArgs, TSharedRef<SRCActi
 
 	const FSlateFontInfo& FontBehaviorDesc = FRemoteControlPanelStyle::Get()->GetFontStyle("RemoteControlPanel.Behaviours.BehaviorDescription");
 
-	FLinearColor TypeColor;
-	FString TypeDisplayName;
+	FLinearColor TypeColor = FLinearColor::White;
+	FString TypeDisplayName = (LOCTEXT("NoneDisplayName", "None")).ToString();
 	if (URCController* Controller = Behaviour->ControllerWeakPtr.Get())
 	{
-		TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(Behaviour->ControllerWeakPtr->GetProperty());
-		TypeDisplayName = FName::NameToDisplayString(UE::RCUIHelpers::GetFieldClassDisplayName(Behaviour->ControllerWeakPtr->GetProperty()).ToString(), false);
+		if (FProperty* Property = Behaviour->ControllerWeakPtr->GetProperty())
+		{
+			TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(Property);
+			TypeDisplayName = FName::NameToDisplayString(UE::RCUIHelpers::GetFieldClassDisplayName(Property).ToString(), false);
+		}
 	}
 
 	BehaviourDetailsWidget = InBehaviourItem->GetBehaviourDetailsWidget();

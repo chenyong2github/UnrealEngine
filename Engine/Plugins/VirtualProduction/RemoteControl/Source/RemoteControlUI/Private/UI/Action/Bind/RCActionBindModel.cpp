@@ -125,7 +125,10 @@ FLinearColor FRCPropertyActionBindModel::GetActionTypeColor() const
 	{
 		if (TSharedPtr<FRemoteControlProperty> RemoteControlProperty = PropertyAction->GetRemoteControlProperty())
 		{
-			return UE::RCUIHelpers::GetFieldClassTypeColor(RemoteControlProperty->GetProperty());
+			if (RemoteControlProperty->IsBound())
+			{
+				return UE::RCUIHelpers::GetFieldClassTypeColor(RemoteControlProperty->GetProperty());
+			}
 		}
 	}
 

@@ -252,14 +252,20 @@ TSharedRef<SWidget> FRCPropertyActionType::GetPropertyWidget() const
 
 FLinearColor FRCPropertyActionType::GetPropertyTypeColor() const
 {
+	FLinearColor TypeColor = FLinearColor::White;
+
 	if (!ensure(PropertyActionWeakPtr.IsValid()))
 	{
-		return FLinearColor::White;
+		return TypeColor;
 	}
 
-	const URCPropertyAction* PropertyAction = PropertyActionWeakPtr.Get();
-
-	const FLinearColor TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(PropertyAction->PropertySelfContainer->GetProperty());
+	if (const URCPropertyAction* PropertyAction = PropertyActionWeakPtr.Get())
+	{
+		if (const FProperty* Property = PropertyAction->PropertySelfContainer->GetProperty())
+		{
+			TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(Property);
+		}
+	}
 
 	return TypeColor;
 }
