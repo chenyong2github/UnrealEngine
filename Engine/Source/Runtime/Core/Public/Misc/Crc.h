@@ -9,7 +9,6 @@
 #include "Misc/Char.h"
 #include "Templates/EnableIf.h"
 
-
 /** 
  * CRC hash generation for different types of input data
  **/
@@ -23,7 +22,12 @@ struct CORE_API FCrc
 	static void Init();
 
 	/** generates CRC hash of the memory area */
-	static uint32 MemCrc32( const void* Data, int32 Length, uint32 CRC=0 );
+	typedef uint32 (*MemCrc32Functor)( const void* Data, int32 Length, uint32 CRC );
+	static MemCrc32Functor MemCrc32Func;
+	static FORCEINLINE uint32 MemCrc32(const void* Data, int32 Length, uint32 CRC = 0)
+	{
+		return MemCrc32Func(Data, Length, CRC);
+	}
 
 	/** generates CRC hash of the element */
 	template <typename T>

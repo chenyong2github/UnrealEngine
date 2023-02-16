@@ -1682,6 +1682,39 @@ void FIOSPlatformMisc::MetalAssert()
     *(int32 *)7 = 123;
 }
 
+bool FIOSPlatformMisc::CPUHasHwCrcSupport()
+{
+	const EIOSDevice Device = GetIOSDeviceType();
+	if (Device >= IOS_IPhone6 && Device <= IOS_IPhone6SPlus)
+	{
+		//Apple A8 and A9 iPhones
+		return false;
+	}
+	else if (Device == IOS_IPadMini4 || Device == IOS_IPodTouch6 || Device == IOS_AppleTV)
+	{
+		//Apple A8
+		return false;
+	}
+	else if (Device == IOS_IPadAir2)
+	{
+		//Apple A8x
+		return false;
+	}
+	else if (Device == IOS_IPhoneSE || Device == IOS_IPad5)
+	{
+		//Apple A9
+		return false;
+	}
+	else if (Device == IOS_IPadPro_97 || Device == IOS_IPadPro_129)
+	{
+		//Apple A9x
+		return false;
+	}
+
+	//We assume that we are running on a supported device that's at least A10 or newer and they support hw CRC
+	return true;
+}
+
 static FCriticalSection EnsureLock;
 static bool bReentranceGuard = false;
 
