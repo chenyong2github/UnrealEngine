@@ -748,7 +748,7 @@ void URemoteControlPreset::OnModifyController(const FPropertyChangedEvent& Prope
 
 		if (!ModifiedController)
 		{
-			ModifiedController = ControllerContainer->GetVirtualProperty(PropertyChangedEvent.MemberProperty->GetFName());
+			ModifiedController = ControllerContainer->GetVirtualProperty(PropertyChangedEvent.Property->GetFName());
 		}
 
 		if (ModifiedController)
