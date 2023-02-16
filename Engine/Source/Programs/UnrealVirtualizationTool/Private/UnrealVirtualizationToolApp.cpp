@@ -303,11 +303,11 @@ void FUnrealVirtualizationToolApp::PrintCmdLineHelp() const
 {
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Usage:"));
 
+	UE_LOG(LogVirtualizationTool, Display, TEXT("Commands:"));
 	// TODO: If the commands were registered in some way we could automate this
 	FVirtualizeCommand::PrintCmdLineHelp(); 
 	FRehydrateCommand::PrintCmdLineHelp();
 
-	UE_LOG(LogVirtualizationTool, Display, TEXT(""));
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Legacy Commands:"));
 	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Changelist -ClientSpecName=<name> [optional] -Changelist=<number> -nosubmit [optional]"));
 	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=PackageList -Path=<string>"));

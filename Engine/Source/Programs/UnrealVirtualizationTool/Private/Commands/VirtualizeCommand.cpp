@@ -57,9 +57,9 @@ FVirtualizeCommand::FVirtualizeCommand(FStringView CommandName)
 
 void FVirtualizeCommand::PrintCmdLineHelp()
 {
+	UE_LOG(LogVirtualizationTool, Display, TEXT("<ProjectFilePath> -Mode=Virtualize -Changelist=<number> -Submit [optional]"));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("<ProjectFilePath> -Mode=Virtualize -Path=<string>"));
 	UE_LOG(LogVirtualizationTool, Display, TEXT(""));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Virtualize -Changelist=<number> -Submit [optional]"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Virtualize -Path=<string>"));
 }
 
 bool FVirtualizeCommand::Initialize(const TCHAR* CmdLine)

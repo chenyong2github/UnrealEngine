@@ -22,10 +22,10 @@ FRehydrateCommand::FRehydrateCommand(FStringView CommandName)
 
 void FRehydrateCommand::PrintCmdLineHelp()
 {
+	UE_LOG(LogVirtualizationTool, Display, TEXT("<ProjectFilePath> -Mode=Rehydrate -Package=<string>"));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("<ProjectFilePath> -Mode=Rehydrate -PackageDir=<string>"));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("<ProjectFilePath> -Mode=Rehydrate -Changelist=<number>"));
 	UE_LOG(LogVirtualizationTool, Display, TEXT(""));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Rehydrate -Package=<string>"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Rehydrate -PackageDir=<string>"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Rehydrate -Changelist=<number>"));
 }
 
 bool FRehydrateCommand::Initialize(const TCHAR* CmdLine)
