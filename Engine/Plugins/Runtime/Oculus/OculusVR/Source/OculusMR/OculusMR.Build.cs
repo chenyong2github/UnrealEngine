@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
 	public class OculusMR : ModuleRules
@@ -35,11 +37,9 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					// Relative to Engine\Plugins\Runtime\Oculus\OculusVR\Source
-					"OculusHMD/Private",
-                    "OculusInput/Private",
-					"../../../../../Source/Runtime/Engine/Classes/Components",
-					System.IO.Path.Combine(GetModuleDirectory("MediaAssets"), "Private"),
+					Path.Combine(GetModuleDirectory("OculusHMD"), "Private"),
+					Path.Combine(GetModuleDirectory("OculusInput"), "Private"),
+					Path.Combine(GetModuleDirectory("MediaAssets"), "Private"),
                 });
 
             if (Target.Platform == UnrealTargetPlatform.Win64)

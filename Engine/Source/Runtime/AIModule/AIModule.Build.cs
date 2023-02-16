@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
     public class AIModule : ModuleRules
@@ -15,7 +17,7 @@ namespace UnrealBuildTool.Rules
 
             PrivateIncludePaths.AddRange(
                 new string[] {
-                    "Runtime/Engine/Private",
+					Path.Combine(GetModuleDirectory("Engine"), "Private"),
                 }
                 );
 

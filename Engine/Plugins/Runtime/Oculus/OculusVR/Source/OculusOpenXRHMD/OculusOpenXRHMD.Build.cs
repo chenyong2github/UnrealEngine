@@ -11,10 +11,7 @@ namespace UnrealBuildTool.Rules
         {
             PrivateIncludePaths.AddRange(
                 new string[] {
-                    // Relative to Engine\Plugins\Runtime\Oculus\OculusOpenXR\Source
-                    "../../../OpenXR/Source/OpenXRHMD/Private",
-					"../../../../../Source/Runtime/Engine/Classes/Components",
-                    "../../../../../Source/Runtime/Engine/Classes/Kismet",
+					Path.Combine(GetModuleDirectory("OpenXRHMD"), "Private"),
                 });
 
             PublicIncludePathModuleNames.AddRange(

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
 	public class OculusInput : ModuleRules
@@ -32,9 +34,7 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					// Relative to Engine\Plugins\Runtime\Oculus\OculusVR\Source
-					"OculusHMD/Private",
-					"../../../../../Source/Runtime/Engine/Classes/Components",
+					Path.Combine(GetModuleDirectory("OculusHMD"), "Private"),
 				});
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)

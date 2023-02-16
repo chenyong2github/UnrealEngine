@@ -8,11 +8,11 @@ public class AndroidLocalNotification : ModuleRules
 	{
 		BinariesSubFolder = "Android";
 
-        PublicIncludePaths.AddRange(new string[]
-        {
-            "Runtime/Android/AndroidLocalNotification/Public",
-            "Runtime/Engine/Public",
-        });
+		PublicIncludePathModuleNames.AddRange(new string[]
+		{
+			"AndroidLocalNotification",
+			"Engine",
+		});
 
         PrivateDependencyModuleNames.AddRange(new string[]
 		{

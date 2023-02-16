@@ -27,8 +27,7 @@ namespace UnrealBuildTool.Rules
 			}
 			
 			// Used for including the private Chaos headers
-			string EnginePath = Path.GetFullPath(Target.RelativeEnginePath);
-			PrivateIncludePaths.Add(Path.Combine(EnginePath, "Source/Runtime/Engine/Private"));
+			PrivateIncludePaths.Add(Path.Combine(GetModuleDirectory("Engine"), "Private"));
 
 			PrivateIncludePathModuleNames.Add("DerivedDataCache");
 		}

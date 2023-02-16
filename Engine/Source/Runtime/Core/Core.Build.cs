@@ -32,20 +32,15 @@ public class Core : ModuleRules
 		PublicDependencyModuleNames.Add("TraceLog");
 		PublicIncludePaths.Add("Runtime/TraceLog/Public");
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/SynthBenchmark/Public",
-				"Runtime/Engine/Public",
-			}
-			);
-
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"TargetPlatform",
-				"DerivedDataCache",
-				"InputDevice",
 				"Analytics",
-				"RHI"
+				"DerivedDataCache",
+				"Engine",
+				"InputDevice",
+				"RHI",
+				"SynthBenchmark",
+				"TargetPlatform",
 			}
 			);
 

@@ -9,13 +9,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public OculusHMD(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					// Relative to Engine\Plugins\Runtime\Oculus\OculusVR\Source
-					"../../../../../Source/Runtime/Engine/Classes/Components",
-					"../../../../../Source/Runtime/Engine/Classes/Kismet",
-				});
-
 			PublicIncludePathModuleNames.AddRange(
 				new string[] {
 					"Launch",

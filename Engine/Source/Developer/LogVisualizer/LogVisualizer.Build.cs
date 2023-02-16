@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class LogVisualizer : ModuleRules
@@ -14,12 +15,7 @@ public class LogVisualizer : ModuleRules
 			}
 		);
 
-		PublicIncludePaths.AddRange(
-			new string[] {
-				"Runtime/Engine/Classes",
-				"Editor/WorkspaceMenuStructure/Public"
-			}
-		);
+		PublicIncludePathModuleNames.Add("WorkspaceMenuStructure");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

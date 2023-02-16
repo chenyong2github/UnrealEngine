@@ -1,21 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
     public class NavigationSystem : ModuleRules
     {
         public NavigationSystem(ReadOnlyTargetRules Target) : base(Target)
         {
-            PublicIncludePaths.AddRange(
-                new string[] {
-                    "Runtime/NavigationSystem/Public",
-                }
-                );
+			PublicIncludePathModuleNames.Add("NavigationSystem");
 
             PrivateIncludePaths.AddRange(
                 new string[] {
-                    "Runtime/NavigationSystem/Private",
-                    "Runtime/Engine/Private",
+					Path.Combine(GetModuleDirectory("NavigationSystem"), "Private"),
+					Path.Combine(GetModuleDirectory("Engine"), "Private"),
                 }
                 );
 
