@@ -5,6 +5,67 @@
 #include "UObject/SoftObjectPath.h"
 
 /**
+ * Helper class to map between an original package and an instance of it (including world partition cells).
+ */
+class COREUOBJECT_API FLinkerInstancedPackageMap
+{
+public:
+	enum class EInstanceMappingDirection : uint8
+	{
+		OriginalToInstanced,
+		InstancedToOriginal,
+	};
+
+	FLinkerInstancedPackageMap() = default;
+
+	explicit FLinkerInstancedPackageMap(EInstanceMappingDirection MappingDirection)
+		: InstanceMappingDirection(MappingDirection)
+	{
+	}
+
+	bool IsInstanced() const
+	{
+		return InstancedPackageMapping.Num() > 0;
+	}
+
+	/** Remap the package name from the import table to its instanced counterpart, otherwise return the name unmodified. */
+	FName RemapPackage(const FName& PackageName) const
+	{
+		if (const FName* RemappedName = InstancedPackageMapping.Find(PackageName))
+		{
+			return *RemappedName;
+		}
+		return PackageName;
+	}
+
+	/** Add a mapping from a package name to a new package name. There should be no separators (. or :) in these strings. */
+	void AddPackageMapping(FName Original, FName Instanced);
+
+	void BuildPackageMapping(FName Original, FName Instanced, const bool bBuildWorldPartitionCellMapping = true);
+
+	bool FixupSoftObjectPath(FSoftObjectPath& InOutSoftObjectPath) const;
+
+private:
+	friend class FLinkerInstancingContext;
+
+	/**
+	 * Map between the original package name and its instance counterpart.
+	 * Key=Original and Value=Instanced when InstanceMappingDirection==OriginalToInstanced
+	 * Key=Instanced and Value=Original when InstanceMappingDirection==InstancedToOriginal
+	 */
+	TMap<FName, FName> InstancedPackageMapping;
+
+	/**
+	 * In which direction has this mapping been built?
+	 */
+	EInstanceMappingDirection InstanceMappingDirection = EInstanceMappingDirection::OriginalToInstanced;
+
+	/** Data needed to re-map world partition cells */
+	FString GeneratedPackagesFolder;
+	FString InstancedPackageSuffix;
+};
+
+/**
  * Helper class to remap package imports during loading.
  * This is usually when objects in a package are outer-ed to object in another package or vice versa.
  * Instancing such a package without a instance remapping would resolve imports to the original package which is not desirable in an instancing context (i.e. loading a level instance)
@@ -25,17 +86,13 @@ public:
 
 	bool IsInstanced() const
 	{
-		return PackageMapping.Num() > 0 || PathMapping.Num() > 0;
+		return InstancedPackageMap.IsInstanced() || PathMapping.Num() > 0;
 	}
 
 	/** Remap the package name from the import table to its instanced counterpart, otherwise return the name unmodified. */
 	FName RemapPackage(const FName& PackageName) const
 	{
-		if (const FName* RemappedName = PackageMapping.Find(PackageName))
-		{
-			return *RemappedName;
-		}
-		return PackageName;
+		return InstancedPackageMap.RemapPackage(PackageName);
 	}
 
 	/**
@@ -54,7 +111,7 @@ public:
 	/** Add a mapping from a package name to a new package name. There should be no separators (. or :) in these strings. */
 	void AddPackageMapping(FName Original, FName Instanced)
 	{
-		PackageMapping.Add(Original, Instanced);
+		InstancedPackageMap.AddPackageMapping(Original, Instanced);
 	}
 
 	/** Add a mapping from a top level asset path (/Path/To/Package.AssetName) to another. */
@@ -108,7 +165,15 @@ public:
 	void FixupSoftObjectPath(FSoftObjectPath& InOutSoftObjectPath) const;
 
 private:
-	void BuildPackageMapping(FName Original, FName Instanced);
+	void BuildPackageMapping(FName Original, FName Instanced)
+	{
+		InstancedPackageMap.BuildPackageMapping(Original, Instanced, GetSoftObjectPathRemappingEnabled());
+	}
+
+	FName& FindOrAddPackageMapping(FName Original)
+	{
+		return InstancedPackageMap.InstancedPackageMapping.FindOrAdd(Original);
+	}
 
 	/** Used internally by the linker to try to fix references on relocated packages. */
 	FName RelocatePackage(const FName& PackageName) const
@@ -124,7 +189,7 @@ private:
 	friend struct FAsyncPackage2;
 
 	/** Map of original package name to their instance counterpart. */
-	TMap<FName, FName> PackageMapping;
+	FLinkerInstancedPackageMap InstancedPackageMap;
 	/** Map of original top level asset path to their instance counterpart. */
 	TMap<FTopLevelAssetPath, FTopLevelAssetPath> PathMapping;
 	/** Map of original package name to their potential relocated counterpart. */
@@ -134,7 +199,4 @@ private:
 	TSet<FName> Tags;
 	/** Remap soft object paths */
 	bool bSoftObjectPathRemappingEnabled = true;
-
-	FString GeneratedPackagesFolder;
-	FString InstancedPackageSuffix;
 };

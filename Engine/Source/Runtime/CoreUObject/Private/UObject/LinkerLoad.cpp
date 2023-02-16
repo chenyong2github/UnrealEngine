@@ -2075,7 +2075,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateInstancingContext()
 			// add remapping for all the packages that should be instantiated along with this one
 			for (const FName& InstancingName : InstancingPackageName)
 			{
-				FName& InstancedName = InstancingContext.PackageMapping.FindOrAdd(InstancingName);
+				FName& InstancedName = InstancingContext.FindOrAddPackageMapping(InstancingName);
 				// if there's isn't already a remapping for that package, create one
 				if (InstancedName.IsNone())
 				{

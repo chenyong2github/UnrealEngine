@@ -17,45 +17,34 @@ void FLinkerInstancingContext::FixupSoftObjectPath(FSoftObjectPath& InOutSoftObj
 		{
 			InOutSoftObjectPath = RemappedAssetPath;
 		}
-		else if (FName LongPackageName = InOutSoftObjectPath.GetLongPackageFName(), RemappedPackage = RemapPackage(LongPackageName); RemappedPackage != LongPackageName)
+		else
 		{
-			InOutSoftObjectPath = FSoftObjectPath(RemappedPackage, InOutSoftObjectPath.GetAssetFName(), InOutSoftObjectPath.GetSubPathString());
+			InstancedPackageMap.FixupSoftObjectPath(InOutSoftObjectPath);
 		}
-#if !WITH_EDITOR
-		else if (!GeneratedPackagesFolder.IsEmpty())
-		{
-			check(!InstancedPackageSuffix.IsEmpty());
-
-			FNameBuilder TmpSoftObjectPathBuilder;
-			InOutSoftObjectPath.ToString(TmpSoftObjectPathBuilder);
-
-			// Does this package path start with the generated folder path?
-			FStringView TmpSoftObjectPathView = TmpSoftObjectPathBuilder.ToView();
-			if (TmpSoftObjectPathView.StartsWith(GeneratedPackagesFolder))
-			{
-				// ... and is that generated folder path immediately preceding the package name?
-				if (const int32 ExtraSlashIndex = TmpSoftObjectPathView.Find(TEXTVIEW("/"), GeneratedPackagesFolder.Len()); ExtraSlashIndex == INDEX_NONE)
-				{
-					FNameBuilder PackageNameBuilder;
-					PackageNameBuilder.Append(InOutSoftObjectPath.GetLongPackageName());
-					PackageNameBuilder.Append(InstancedPackageSuffix);
-					FTopLevelAssetPath SuffixTopLevelAsset(FName(PackageNameBuilder.ToString()), InOutSoftObjectPath.GetAssetFName());
-					InOutSoftObjectPath = FSoftObjectPath(SuffixTopLevelAsset, InOutSoftObjectPath.GetSubPathString());
-				}
-			}
-		}
-#endif
 	}
 }
 
-void FLinkerInstancingContext::BuildPackageMapping(FName Original, FName Instanced)
+void FLinkerInstancedPackageMap::AddPackageMapping(FName Original, FName Instanced)
+{
+	if (InstanceMappingDirection == EInstanceMappingDirection::OriginalToInstanced)
+	{
+		InstancedPackageMapping.Add(Original, Instanced);
+	}
+	else
+	{
+		check(InstanceMappingDirection == EInstanceMappingDirection::InstancedToOriginal);
+		InstancedPackageMapping.Add(Instanced, Original);
+	}
+}
+
+void FLinkerInstancedPackageMap::BuildPackageMapping(FName Original, FName Instanced, const bool bBuildWorldPartitionCellMapping)
 {
 	check(GeneratedPackagesFolder.IsEmpty() && InstancedPackageSuffix.IsEmpty());
 
 	AddPackageMapping(Original, Instanced);
 
 #if !WITH_EDITOR
-	if (bSoftObjectPathRemappingEnabled)
+	if (bBuildWorldPartitionCellMapping)
 	{
 		FNameBuilder TmpOriginal(Original);
 		FNameBuilder TmpInstanced(Instanced);
@@ -82,12 +71,13 @@ void FLinkerInstancingContext::BuildPackageMapping(FName Original, FName Instanc
 				{
 					GeneratedPackagesFolder = OriginalView.Left(GeneratedFolderEndIndex);
 
-					FNameBuilder PackageNameBuilder(FName(OriginalView.Left(GeneratedFolderStartIndex)));
+					FNameBuilder PackageNameBuilder;
+					PackageNameBuilder.Append(OriginalView.Left(GeneratedFolderStartIndex));
 					FName PersistentPackageName(PackageNameBuilder);
 					PackageNameBuilder.Append(InstancedPackageSuffix);
 					FName PersistentPackageInstanceName(PackageNameBuilder);
 										
-					PackageMapping.Add(MakeTuple(PersistentPackageName, PersistentPackageInstanceName));
+					AddPackageMapping(PersistentPackageName, PersistentPackageInstanceName);
 				}
 			}
 
@@ -101,3 +91,54 @@ void FLinkerInstancingContext::BuildPackageMapping(FName Original, FName Instanc
 #endif
 }
 
+bool FLinkerInstancedPackageMap::FixupSoftObjectPath(FSoftObjectPath& InOutSoftObjectPath) const
+{
+	if (IsInstanced())
+	{
+		if (FName LongPackageName = InOutSoftObjectPath.GetLongPackageFName(), RemappedPackage = RemapPackage(LongPackageName); RemappedPackage != LongPackageName)
+		{
+			InOutSoftObjectPath = FSoftObjectPath(RemappedPackage, InOutSoftObjectPath.GetAssetFName(), InOutSoftObjectPath.GetSubPathString());
+			return true;
+		}
+#if !WITH_EDITOR
+		else if (!GeneratedPackagesFolder.IsEmpty())
+		{
+			check(!InstancedPackageSuffix.IsEmpty());
+
+			FNameBuilder TmpSoftObjectPathBuilder;
+			InOutSoftObjectPath.ToString(TmpSoftObjectPathBuilder);
+
+			// Does this package path start with the generated folder path?
+			FStringView TmpSoftObjectPathView = TmpSoftObjectPathBuilder.ToView();
+			if (TmpSoftObjectPathView.StartsWith(GeneratedPackagesFolder))
+			{
+				// ... and is that generated folder path immediately preceding the package name?
+				if (const int32 ExtraSlashIndex = TmpSoftObjectPathView.Find(TEXTVIEW("/"), GeneratedPackagesFolder.Len()); ExtraSlashIndex == INDEX_NONE)
+				{
+					FNameBuilder PackageNameBuilder;
+					PackageNameBuilder.Append(InOutSoftObjectPath.GetLongPackageName());
+					if (InstanceMappingDirection == EInstanceMappingDirection::OriginalToInstanced)
+					{
+						if (!PackageNameBuilder.ToView().EndsWith(InstancedPackageSuffix))
+						{
+							PackageNameBuilder.Append(InstancedPackageSuffix);
+						}
+					}
+					else
+					{
+						check(InstanceMappingDirection == EInstanceMappingDirection::InstancedToOriginal);
+						if (PackageNameBuilder.ToView().EndsWith(InstancedPackageSuffix))
+						{
+							PackageNameBuilder.RemoveSuffix(InstancedPackageSuffix.Len());
+						}
+					}
+					FTopLevelAssetPath SuffixTopLevelAsset(FName(PackageNameBuilder), InOutSoftObjectPath.GetAssetFName());
+					InOutSoftObjectPath = FSoftObjectPath(SuffixTopLevelAsset, InOutSoftObjectPath.GetSubPathString());
+					return true;
+				}
+			}
+		}
+#endif
+	}
+	return false;
+}
