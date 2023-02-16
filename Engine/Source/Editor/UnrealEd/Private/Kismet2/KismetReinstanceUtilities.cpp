@@ -2301,9 +2301,9 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 				{
 					UObject* OldObject = ObjectsToReplace[OldObjIndex];
 
-					// Skipping any object that outer is going to be replaced
+					// Skipping any default sub object that outer is going to be replaced
 					// This isn't needed for the actor loop as the only outer for actor is a level
-					if (InOldToNewClassMap.Contains(OldObject->GetOuter()->GetClass()))
+					if ((OldObject->IsDefaultSubobject() || OldObject->HasAnyFlags(RF_DefaultSubObject)) && InOldToNewClassMap.Contains(OldObject->GetOuter()->GetClass()))
 					{
 						continue;
 					}
