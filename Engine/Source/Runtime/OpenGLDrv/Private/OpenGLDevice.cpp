@@ -1004,11 +1004,7 @@ static void InitRHICapabilitiesForGL()
 	const GLint MinorVersion = FOpenGL::GetMinorVersion();
  
 	// Enable the OGL rhi thread if explicitly requested.
-	GRHISupportsRHIThread = (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && CVarAllowRGLHIThread.GetValueOnAnyThread())
-#if WITH_EDITOR
-		&& !IsPCPlatform(GMaxRHIShaderPlatform)
-#endif
-		;
+	GRHISupportsRHIThread = (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && CVarAllowRGLHIThread.GetValueOnAnyThread());
 
 	GRHISupportsMultithreadedResources = GRHISupportsRHIThread;
 
@@ -1309,6 +1305,15 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 			{
 				CVar->Set(false);
 			}
+		}
+	}
+	
+	// Disable SingleRHIThreadStall for GL occlusion queiresn, which should be set for D3D11 only. Enabling it causes RT->RHIT deadlock
+	{
+		auto* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Occlusion.SingleRHIThreadStall"));
+		if (CVar)
+		{
+			CVar->Set(0);
 		}
 	}
 
