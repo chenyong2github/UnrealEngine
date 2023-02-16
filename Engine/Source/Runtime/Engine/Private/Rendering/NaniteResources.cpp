@@ -2089,6 +2089,12 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 				Audit.bHasMasked = true;
 			}
 
+			if (Material->bIsSky)
+			{
+				// Sky material is a special case we want to skip
+				Audit.bHasSky = true;
+			}
+
 			Entry.bHasAnyError =
 				Entry.bHasUnsupportedBlendMode |
 				Entry.bHasInvalidUsage;

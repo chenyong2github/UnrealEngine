@@ -45,10 +45,11 @@ struct FMaterialAudit
 	UMaterialInterface* FallbackMaterial = nullptr;
 	uint8 bHasAnyError : 1;
 	uint8 bHasMasked : 1;
+	uint8 bHasSky : 1;
 
 	FORCEINLINE bool IsValid(bool bAllowMasked) const
 	{
-		return !bHasAnyError && (bAllowMasked || !bHasMasked);
+		return !bHasAnyError && !bHasSky && (bAllowMasked || !bHasMasked);
 	}
 
 	FORCEINLINE UMaterialInterface* GetMaterial(int32 MaterialIndex) const
