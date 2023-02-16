@@ -210,7 +210,7 @@ public:
 private:
 	TSharedRef<SWidget> GetAddParameterMenu();
 	void AddParameter(FNiagaraVariable NewParameter) const;
-	bool CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType) const;
+	bool OnAllowMakeType(const FNiagaraTypeDefinition& InType) const;
 	
 	void ParameterValueChanged();
 

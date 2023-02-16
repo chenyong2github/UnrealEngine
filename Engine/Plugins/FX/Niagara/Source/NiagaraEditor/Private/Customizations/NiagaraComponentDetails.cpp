@@ -1122,7 +1122,7 @@ TSharedRef<SWidget> FNiagaraSystemUserParameterBuilder::GetAddParameterMenu()
 	AddParameterMenu = SNew(SNiagaraAddParameterFromPanelMenu)
 		.Graphs(SystemViewModel.Pin()->GetParameterPanelViewModel()->GetEditableGraphsConst())
 		.OnNewParameterRequested(this, &FNiagaraSystemUserParameterBuilder::AddParameter)
-		.OnAllowMakeType(this, &FNiagaraSystemUserParameterBuilder::CanMakeNewParameterOfType)
+		.OnAllowMakeType(this, &FNiagaraSystemUserParameterBuilder::OnAllowMakeType)
 		.NamespaceId(UserCategory.NamespaceMetaData.GetGuid())
 		.ShowNamespaceCategory(false)
 		.ShowGraphParameters(false)
@@ -1138,9 +1138,11 @@ void FNiagaraSystemUserParameterBuilder::AddParameter(FNiagaraVariable NewParame
 	SystemViewModel.Pin()->GetUserParameterPanelViewModel()->OnParameterAdded().Execute(NewParameter);
 }
 
-bool FNiagaraSystemUserParameterBuilder::CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType) const
+bool FNiagaraSystemUserParameterBuilder::OnAllowMakeType(const FNiagaraTypeDefinition& InType) const
 {
-	return SystemViewModel.Pin()->GetParameterPanelViewModel()->CanMakeNewParameterOfType(InType);
+	FNiagaraNamespaceMetadata UserNameSpaceMetaData = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({FNiagaraConstants::UserNamespace});
+	FNiagaraParameterPanelCategory Category(UserNameSpaceMetaData);
+	return SystemViewModel.Pin()->GetParameterPanelViewModel()->CanAddType(InType, Category);
 }
 
 void FNiagaraSystemUserParameterBuilder::ParameterValueChanged()
