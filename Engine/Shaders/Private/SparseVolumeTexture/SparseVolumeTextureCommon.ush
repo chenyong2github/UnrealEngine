@@ -2,30 +2,17 @@
 
 #pragma once
 
-struct FSparseVolumeTexture
+struct FSparseVolumeTextureUniforms
 {
-	Texture3D<uint>	PageTable;
-	Texture3D		PhysicalTileDataA;
-	Texture3D		PhysicalTileDataB;
 	float3			PageTableSize;
 	float3			UVScale;
 	float3			UVBias;
 	float			TileSize;
 };
 
-FSparseVolumeTexture SparseVolumeTextureCreateStruct(
-	Texture3D<uint> PageTable, 
-	Texture3D PhysicalTileDataA, 
-	Texture3D PhysicalTileDataB, 
-	float TileSize,
-	float3 PageTableSize,
-	float3 UVScale,
-	float3 UVBias)
+FSparseVolumeTextureUniforms SparseVolumeTextureCreateUniforms(float TileSize, float3 PageTableSize, float3 UVScale, float3 UVBias)
 {
-	FSparseVolumeTexture Result;
-	Result.PageTable = PageTable;
-	Result.PhysicalTileDataA = PhysicalTileDataA;
-	Result.PhysicalTileDataB = PhysicalTileDataB;
+	FSparseVolumeTextureUniforms Result;
 	Result.PageTableSize = PageTableSize;
 	Result.UVScale = UVScale;
 	Result.UVBias = UVBias;
@@ -33,17 +20,9 @@ FSparseVolumeTexture SparseVolumeTextureCreateStruct(
 	return Result;
 }
 
-FSparseVolumeTexture SparseVolumeTextureCreateStruct(
-	Texture3D<uint> PageTable,
-	Texture3D PhysicalTileDataA,
-	Texture3D PhysicalTileDataB,
-	uint4 Packed0,
-	uint4 Packed1)
+FSparseVolumeTextureUniforms SparseVolumeTextureUnpackUniforms(uint4 Packed0, uint4 Packed1)
 {
-	FSparseVolumeTexture Result;
-	Result.PageTable = PageTable;
-	Result.PhysicalTileDataA = PhysicalTileDataA;
-	Result.PhysicalTileDataB = PhysicalTileDataB;
+	FSparseVolumeTextureUniforms Result;
 	Result.UVScale = asfloat(Packed0.xyz);
 	Result.UVBias = asfloat(Packed1.xyz);
 	Result.TileSize = asfloat(Packed1.w);
@@ -68,23 +47,23 @@ float3 SparseVolumeTextureGetVoxelCoord(uint PackedPhysicalTileCoord, float Tile
 	return VoxelCoord;
 }
 
-float3 SparseVolumeTextureSamplePageTable(FSparseVolumeTexture SparseVolumeTexture, float3 UVW)
+float3 SparseVolumeTextureSamplePageTable(Texture3D<uint> PageTable, FSparseVolumeTextureUniforms Uniforms, float3 UVW)
 {
-	const float3 UVWScaledBiased = UVW * SparseVolumeTexture.UVScale + SparseVolumeTexture.UVBias;
-	const float3 PageTableCoord = (UVWScaledBiased * SparseVolumeTexture.PageTableSize);
+	const float3 UVWScaledBiased = UVW * Uniforms.UVScale + Uniforms.UVBias;
+	const float3 PageTableCoord = (UVWScaledBiased * Uniforms.PageTableSize);
 	
-	const uint PackedPhysicalTileCoord = SparseVolumeTexture.PageTable.Load(int4(int3(PageTableCoord), 0)).x;
+	const uint PackedPhysicalTileCoord = PageTable.Load(int4(int3(PageTableCoord), 0)).x;
 	
-	const float3 VoxelCoord = SparseVolumeTextureGetVoxelCoord(PackedPhysicalTileCoord, SparseVolumeTexture.TileSize, PageTableCoord);
+	const float3 VoxelCoord = SparseVolumeTextureGetVoxelCoord(PackedPhysicalTileCoord, Uniforms.TileSize, PageTableCoord);
 	return VoxelCoord;
 }
 
-float4 SparseVolumeTextureSamplePhysicalTileData(FSparseVolumeTexture SparseVolumeTexture, float3 VoxelCoord, int PhysicalTileDataIndex)
+float4 SparseVolumeTextureSamplePhysicalTileData(Texture3D PhysicalTileDataA, Texture3D PhysicalTileDataB, float3 VoxelCoord, int PhysicalTileDataIndex)
 {
 	switch (PhysicalTileDataIndex)
 	{
-	case 0: return SparseVolumeTexture.PhysicalTileDataA.Load(int4(int3(VoxelCoord), 0));
-	case 1: return SparseVolumeTexture.PhysicalTileDataB.Load(int4(int3(VoxelCoord), 0));
+	case 0: return PhysicalTileDataA.Load(int4(int3(VoxelCoord), 0));
+	case 1: return PhysicalTileDataB.Load(int4(int3(VoxelCoord), 0));
 	default: return 0.0f;
 	}
 } 

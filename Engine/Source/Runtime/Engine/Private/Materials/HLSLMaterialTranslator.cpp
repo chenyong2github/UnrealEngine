@@ -2941,7 +2941,7 @@ const TCHAR* FHLSLMaterialTranslator::HLSLTypeStringDeriv(EMaterialValueType Typ
 	case MCT_MaterialAttributes:	return TEXT("FMaterialAttributes");
 	case MCT_TextureExternal:		return TEXT("TextureExternal");
 	case MCT_TextureVirtual:		return TEXT("TextureVirtual");
-	case MCT_SparseVolumeTexture:	return TEXT("FSparseVolumeTexture");
+	case MCT_SparseVolumeTexture:	return TEXT("FSparseVolumeTextureUniforms");
 	case MCT_VTPageTableResult:		return TEXT("VTPageTableResult");
 	case MCT_ShadingModel:			return TEXT("uint");
 	case MCT_UInt:					return TEXT("uint");
@@ -3517,14 +3517,7 @@ int32 FHLSLMaterialTranslator::AccessUniformExpression(int32 Index)
 	else if (CodeChunk.Type == MCT_SparseVolumeTexture)
 	{
 		int32 TextureInputIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::SparseVolume].AddUnique(TextureUniformExpression);
-		FormattedCode.Appendf(
-			TEXT("SparseVolumeTextureCreateStruct("
-				"Material.SparseVolumeTexturePageTable_%d,"
-				"Material.SparseVolumeTexturePhysicalA_%d,"
-				"Material.SparseVolumeTexturePhysicalB_%d,"
-				"Material.SVTPackedUniform[%d*2],"
-				"Material.SVTPackedUniform[%d*2+1])"),
-			TextureInputIndex, TextureInputIndex, TextureInputIndex, TextureInputIndex, TextureInputIndex);
+		FormattedCode.Appendf(TEXT("SparseVolumeTextureUnpackUniforms(Material.SVTPackedUniform[%d*2], Material.SVTPackedUniform[%d*2+1])"), TextureInputIndex, TextureInputIndex);
 	}
 	else
 	{
@@ -12612,9 +12605,26 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable(int32 SparseVo
 		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable expects MCT_Float3 as UVW input but was passed %s ERROR."), DescribeType(UVWType));
 	}
 
+	FMaterialUniformExpression* UniformExpression = GetParameterUniformExpression(SparseVolumeTextureIndex);
+	if (UniformExpression == nullptr)
+	{
+		return Errorf(TEXT("Unable to find SVT uniform expression."));
+	}
+	FMaterialUniformExpressionTexture* TextureUniformExpression = UniformExpression->GetTextureUniformExpression();
+	if (TextureUniformExpression == nullptr)
+	{
+		return Errorf(TEXT("The provided uniform expression is not a texture"));
+	}
+
+	// Make sure the SVT has been added to UniformTextureExpressions
+	AccessUniformExpression(SparseVolumeTextureIndex);
+
+	int32 SVTReferenceIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::SparseVolume].Find(TextureUniformExpression);
+	check(UniformTextureExpressions[(uint32)EMaterialTextureParameterType::SparseVolume].IsValidIndex(SVTReferenceIndex));
+
 	AddEstimatedTextureSample();
-	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePageTable(%s, %s)"),
-		*GetParameterCode(SparseVolumeTextureIndex), *GetParameterCode(UVWIndex));
+	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePageTable(Material.SparseVolumeTexturePageTable_%d, %s, %s)"),
+		SVTReferenceIndex , *GetParameterCode(SparseVolumeTextureIndex), *GetParameterCode(UVWIndex));
 	return AddCodeChunk(MCT_Float3, *SampleCode);
 }
 
@@ -12643,9 +12653,26 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePhysicalTileData(int32 S
 		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSamplePhysicalTileData expects MCT_Float1 or MCT_UInt1 as PhysicalTileDataIndex input but was passed %s ERROR."), DescribeType(IndexType));
 	}
 
+	FMaterialUniformExpression* UniformExpression = GetParameterUniformExpression(SparseVolumeTextureIndex);
+	if (UniformExpression == nullptr)
+	{
+		return Errorf(TEXT("Unable to find SVT uniform expression."));
+	}
+	FMaterialUniformExpressionTexture* TextureUniformExpression = UniformExpression->GetTextureUniformExpression();
+	if (TextureUniformExpression == nullptr)
+	{
+		return Errorf(TEXT("The provided uniform expression is not a texture"));
+	}
+
+	// Make sure the SVT has been added to UniformTextureExpressions
+	AccessUniformExpression(SparseVolumeTextureIndex);
+
+	int32 SVTReferenceIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::SparseVolume].Find(TextureUniformExpression);
+	check(UniformTextureExpressions[(uint32)EMaterialTextureParameterType::SparseVolume].IsValidIndex(SVTReferenceIndex));
+
 	AddEstimatedTextureSample();
-	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePhysicalTileData(%s, %s, %s)"),
-		*GetParameterCode(SparseVolumeTextureIndex), *GetParameterCode(VoxelCoordIndex), *GetParameterCode(PhysicalTileDataIdxIndex));
+	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePhysicalTileData(Material.SparseVolumeTexturePhysicalA_%d, Material.SparseVolumeTexturePhysicalB_%d, %s, %s)"),
+		SVTReferenceIndex, SVTReferenceIndex, *GetParameterCode(VoxelCoordIndex), *GetParameterCode(PhysicalTileDataIdxIndex));
 	return AddCodeChunk(MCT_Float4, *SampleCode);
 }
 
