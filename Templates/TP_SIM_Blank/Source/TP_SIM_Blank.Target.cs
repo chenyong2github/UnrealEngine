@@ -8,7 +8,8 @@ public class TP_SIM_BlankTarget : TargetRules
 	public TP_SIM_BlankTarget( TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
-		DefaultBuildSettings = BuildSettingsVersion.V2;
+		DefaultBuildSettings = BuildSettingsVersion.V3;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_3;
 		ExtraModuleNames.AddRange( new string[] { "TP_SIM_Blank" } );
 	}
 }

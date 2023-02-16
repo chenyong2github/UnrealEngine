@@ -8,8 +8,8 @@ public class TP_BlankTarget : TargetRules
 	public TP_BlankTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
-		DefaultBuildSettings = BuildSettingsVersion.Latest;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_1;
+		DefaultBuildSettings = BuildSettingsVersion.V3;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_3;
 		ExtraModuleNames.Add("TP_Blank");
 	}
 }
