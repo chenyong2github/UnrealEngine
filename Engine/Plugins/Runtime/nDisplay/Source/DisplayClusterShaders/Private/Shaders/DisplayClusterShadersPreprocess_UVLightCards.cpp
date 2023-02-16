@@ -13,7 +13,6 @@
 #include "PrimitiveSceneProxy.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphResources.h"
-//#include "ScenePrivate.h"
 #include "SceneInterface.h"
 #include "SceneRendererInterface.h"
 #include "SceneRenderTargetParameters.h"

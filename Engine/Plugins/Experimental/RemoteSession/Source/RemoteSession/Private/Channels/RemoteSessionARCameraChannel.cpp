@@ -13,7 +13,6 @@
 #include "Materials/MaterialRenderProxy.h"
 #include "MaterialDomain.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#include "PostProcess/PostProcessMaterial.h"
 
 #include "ARTextures.h"
 #include "ARBlueprintLibrary.h"
@@ -22,13 +21,17 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "UObject/Package.h"
-#include "PostProcess/SceneFilterRendering.h"
 
 #include "MaterialShader.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "CommonRenderResources.h"
 #include "ScreenPass.h"
 #include "SceneRenderTargetParameters.h"
+
+#include "PostProcess/DrawRectangle.h"
+
+//#include "PostProcess/PostProcessMaterial.h"
+//#include "PostProcess/SceneFilterRendering.h"
 
 #define CAMERA_MESSAGE_ADDRESS TEXT("/ARCamera")
 
@@ -53,8 +56,11 @@ TAutoConsoleVariable<int32> CVarJPEGGpu(
 class FPostProcessMaterialShader : public FMaterialShader
 {
 public:
-	using FParameters = FPostProcessMaterialParameters;
-	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FPostProcessMaterialShader, FMaterialShader);
+	FPostProcessMaterialShader() = default;
+	FPostProcessMaterialShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FMaterialShader(Initializer)
+	{
+	}
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
@@ -289,15 +295,8 @@ void FARCameraSceneViewExtension::RenderARCamera_RenderThread(FRDGBuilder& Graph
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-		const FIntPoint ViewSize = InView.UnconstrainedViewRect.Size();
-		FDrawRectangleParameters Parameters;
-		Parameters.PosScaleBias = FVector4f(ViewSize.X, ViewSize.Y, 0, 0);
-		Parameters.UVScaleBias = FVector4f(1.0f, 1.0f, 0.0f, 0.0f);
-		Parameters.InvTargetSizeAndTextureSize = FVector4f(
-			1.0f / ViewSize.X, 1.0f / ViewSize.Y,
-			1.0f, 1.0f);
+		UE::Renderer::PostProcess::SetDrawRectangleParameters(RHICmdList, VertexShader, InView);
 
-		SetUniformBufferParameterImmediate(RHICmdList, VertexShader.GetVertexShader(), VertexShader->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
 		VertexShader->SetParameters(RHICmdList, InView);
 		PixelShader->SetParameters(RHICmdList, InView, MaterialProxy);
 

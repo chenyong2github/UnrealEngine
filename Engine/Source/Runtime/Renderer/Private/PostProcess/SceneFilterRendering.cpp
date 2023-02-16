@@ -12,6 +12,7 @@
 #include "IXRTrackingSystem.h"
 #include "PixelShaderUtils.h"
 #include "CommonRenderResources.h"
+#include "PostProcess/DrawRectangle.h"
 
 IMPLEMENT_TYPE_LAYOUT(FGammaShaderParameters);
 
@@ -67,9 +68,6 @@ static TGlobalResource<FTesselatedScreenRectangleIndexBuffer> GTesselatedScreenR
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDrawRectangleParameters, "DrawRectangleParameters");
 
-typedef TUniformBufferRef<FDrawRectangleParameters> FDrawRectangleBufferRef;
-
-
 static TAutoConsoleVariable<int32> CVarDrawRectangleOptimization(
 	TEXT("r.DrawRectangleOptimization"),
 	1,
@@ -93,9 +91,58 @@ static void DoDrawRectangleFlagOverride(EDrawRectangleFlags& Flags)
 #endif
 }
 
-template <typename TRHICommandList>
-static inline void InternalDrawRectangle(
-	TRHICommandList& RHICmdList,
+namespace UE::Renderer::PostProcess
+{
+	void SetDrawRectangleParameters(
+		FRHICommandList& RHICmdList,
+		const TShaderRef<FShader>& VertexShader,
+		float X,
+		float Y,
+		float SizeX,
+		float SizeY,
+		float U,
+		float V,
+		float SizeU,
+		float SizeV,
+		FIntPoint TargetSize,
+		FIntPoint TextureSize)
+	{
+		// Set up vertex uniform parameters for scaling and biasing the rectangle.
+		// Note: Use DrawRectangle in the vertex shader to calculate the correct vertex position and uv.
+
+		FDrawRectangleParameters Parameters;
+		Parameters.PosScaleBias = FVector4f(SizeX, SizeY, X, Y);
+		Parameters.UVScaleBias = FVector4f(SizeU, SizeV, U, V);
+
+		Parameters.InvTargetSizeAndTextureSize = FVector4f(
+			1.0f / TargetSize.X, 1.0f / TargetSize.Y,
+			1.0f / TextureSize.X, 1.0f / TextureSize.Y);
+
+		SetUniformBufferParameterImmediate(RHICmdList, VertexShader.GetVertexShader(), VertexShader->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
+	}
+
+	void SetDrawRectangleParameters(FRHICommandList& RHICmdList, const TShaderRef<FShader>& VertexShader, const FIntPoint& ViewSize)
+	{
+		SetDrawRectangleParameters(
+			RHICmdList,
+			VertexShader,
+			0.0f, 0.0f,
+			ViewSize.X, ViewSize.Y,
+			0.0f, 0.0f,
+			1.0f, 1.0f,
+			ViewSize,
+			FIntPoint(1.0f, 1.0f)
+		);
+	}
+
+	void SetDrawRectangleParameters(FRHICommandList& RHICmdList, const TShaderRef<FShader>& VertexShader, const FSceneView& View)
+	{
+		SetDrawRectangleParameters(RHICmdList, VertexShader, View.UnconstrainedViewRect.Size());
+	}
+}
+
+inline void InternalDrawRectangle(
+	FRHICommandList& RHICmdList,
 	float X,
 	float Y,
 	float SizeX,
@@ -111,8 +158,6 @@ static inline void InternalDrawRectangle(
 	uint32 InstanceCount
 	)
 {
-	float ClipSpaceQuadZ = 0.0f;
-
 	DoDrawRectangleFlagOverride(Flags);
 
 	// triangle if extending to left and top of the given rectangle, if it's not left top of the viewport it can cause artifacts
@@ -122,18 +167,7 @@ static inline void InternalDrawRectangle(
 		Flags = EDRF_Default;
 	}
 
-	// Set up vertex uniform parameters for scaling and biasing the rectangle.
-	// Note: Use DrawRectangle in the vertex shader to calculate the correct vertex position and uv.
-
-	FDrawRectangleParameters Parameters;
-	Parameters.PosScaleBias = FVector4f(SizeX, SizeY, X, Y);
-	Parameters.UVScaleBias = FVector4f(SizeU, SizeV, U, V);
-
-	Parameters.InvTargetSizeAndTextureSize = FVector4f(
-		1.0f / TargetSize.X, 1.0f / TargetSize.Y,
-		1.0f / TextureSize.X, 1.0f / TextureSize.Y);
-
-	SetUniformBufferParameterImmediate(RHICmdList, VertexShader.GetVertexShader(), VertexShader->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
+	UE::Renderer::PostProcess::SetDrawRectangleParameters(RHICmdList, VertexShader, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize);
 
 	if(Flags == EDRF_UseTesselatedIndexBuffer)
 	{
@@ -150,16 +184,13 @@ static inline void InternalDrawRectangle(
 			/*NumInstances=*/ InstanceCount
 			);
 	}
+	else if (Flags == EDRF_UseTriangleOptimization)
+	{
+		FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList, InstanceCount);
+	}
 	else
 	{
-		if (Flags == EDRF_UseTriangleOptimization)
-		{
-			FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList, InstanceCount);
-		}
-		else
-		{
-			FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, InstanceCount);
-		}
+		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, InstanceCount);
 	}
 }
 
@@ -251,15 +282,11 @@ void DrawHmdMesh(
 	const TShaderRef<FShader>& VertexShader
 	)
 {
-	FDrawRectangleParameters Parameters;
-	Parameters.PosScaleBias = FVector4f(SizeX, SizeY, X, Y);
-	Parameters.UVScaleBias = FVector4f(SizeU, SizeV, U, V);
-
-	Parameters.InvTargetSizeAndTextureSize = FVector4f(
-		1.0f / TargetSize.X, 1.0f / TargetSize.Y,
-		1.0f / TextureSize.X, 1.0f / TextureSize.Y);
-
-	SetUniformBufferParameterImmediate(RHICmdList, VertexShader.GetVertexShader(), VertexShader->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
+	UE::Renderer::PostProcess::SetDrawRectangleParameters(
+		RHICmdList, VertexShader,
+		X, Y, SizeX, SizeY, U, V, SizeU, SizeV,
+		TargetSize, TextureSize
+	);
 
 	if (GEngine->XRSystem->GetHMDDevice())
 	{
@@ -291,5 +318,49 @@ void DrawPostProcessPass(
 	else
 	{
 		DrawRectangle(RHICmdList, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize, VertexShader, Flags);
+	}
+}
+
+namespace UE::Renderer::PostProcess
+{
+	void DrawRectangle(
+		FRHICommandList& RHICmdList,
+		const TShaderRef<FShader>& VertexShader,
+		float X,
+		float Y,
+		float SizeX,
+		float SizeY,
+		float U,
+		float V,
+		float SizeU,
+		float SizeV,
+		FIntPoint TargetSize,
+		FIntPoint TextureSize,
+		EDrawRectangleFlags Flags,
+		uint32 InstanceCount
+	)
+	{
+		::DrawRectangle(RHICmdList, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize, VertexShader, Flags, InstanceCount);
+	}
+
+	void DrawPostProcessPass(
+		FRHICommandList& RHICmdList,
+		const TShaderRef<FShader>& VertexShader,
+		float X,
+		float Y,
+		float SizeX,
+		float SizeY,
+		float U,
+		float V,
+		float SizeU,
+		float SizeV,
+		FIntPoint TargetSize,
+		FIntPoint TextureSize,
+		int32 StereoViewIndex,
+		bool bHasCustomMesh,
+		EDrawRectangleFlags Flags
+	)
+	{
+		::DrawPostProcessPass(RHICmdList, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize, VertexShader, StereoViewIndex, bHasCustomMesh, Flags);
 	}
 }

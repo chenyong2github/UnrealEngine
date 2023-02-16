@@ -12,8 +12,6 @@
 #include "Engine/Engine.h"
 #include "SceneUtils.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "PostProcess/PostProcessMaterial.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "MaterialDomain.h"
 #include "MaterialShader.h"
@@ -101,8 +99,11 @@ void FGoogleARCorePassthroughCameraRenderer::InitializeRenderer_RenderThread(FSc
 class FPostProcessMaterialShader : public FMaterialShader
 {
 public:
-	using FParameters = FPostProcessMaterialParameters;
-	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FPostProcessMaterialShader, FMaterialShader);
+	FPostProcessMaterialShader() = default;
+	FPostProcessMaterialShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FMaterialShader(Initializer)
+	{
+	}
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
@@ -229,17 +230,7 @@ void FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlayWithMaterial(FRHI
 		VertexShader->SetParameters(RHICmdList, InView);
 		PixelShader->SetParameters(RHICmdList, InView, MaterialProxy, CameraMaterial);
 
-		FIntPoint ViewSize = InView.UnscaledViewRect.Size();
-
-		FDrawRectangleParameters Parameters;
-		Parameters.PosScaleBias = FVector4f(ViewSize.X, ViewSize.Y, 0, 0);
-		Parameters.UVScaleBias = FVector4f(1.0f, 1.0f, 0.0f, 0.0f);
-
-		Parameters.InvTargetSizeAndTextureSize = FVector4f(
-			1.0f / ViewSize.X, 1.0f / ViewSize.Y,
-			1.0f, 1.0f);
-
-		SetUniformBufferParameterImmediate(RHICmdList, VertexShader.GetVertexShader(), VertexShader->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
+		UE::Renderer::PostProcess::SetDrawRectangleParameters(RHICmdList, VertexShader, InView);
 
 		if (OverlayVertexBufferRHI.IsValid() && OverlayIndexBufferRHI.IsValid())
 		{

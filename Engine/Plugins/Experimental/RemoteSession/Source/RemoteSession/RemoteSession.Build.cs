@@ -10,7 +10,6 @@ public class RemoteSession : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 			}
 		);
 			

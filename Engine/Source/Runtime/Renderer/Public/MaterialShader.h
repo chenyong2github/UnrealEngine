@@ -10,6 +10,7 @@
 #include "MaterialShared.h"
 #include "SceneView.h"
 #include "Shader.h"
+#include "ShaderParameterUtils.h"
 #include "RHIFwd.h"
 #include "Serialization/MemoryLayout.h"
 

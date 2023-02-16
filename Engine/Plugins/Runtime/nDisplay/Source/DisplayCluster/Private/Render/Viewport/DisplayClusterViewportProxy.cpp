@@ -47,6 +47,7 @@
 #include "SceneRendering.h"
 #include "RenderGraphUtils.h"
 #include "RenderGraphResources.h"
+#include "PostProcess/DrawRectangle.h"
 
 #include "ScreenPass.h"
 #include "PostProcess/PostProcessing.h"
@@ -825,16 +826,15 @@ void ResampleCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, 
 
 		// Set up vertex uniform parameters for scaling and biasing the rectangle.
 		// Note: Use DrawRectangle in the vertex shader to calculate the correct vertex position and uv.
-		FDrawRectangleParameters Parameters;
-		{
-			Parameters.PosScaleBias = FVector4f(DstRect.Size().X, DstRect.Size().Y, DstRect.Min.X, DstRect.Min.Y);
-			Parameters.UVScaleBias = FVector4f(SrcRect.Size().X, SrcRect.Size().Y, SrcRect.Min.X, SrcRect.Min.Y);
-			Parameters.InvTargetSizeAndTextureSize = FVector4f(1.0f / DstSize.X, 1.0f / DstSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
 
-			SetUniformBufferParameterImmediate(RHICmdList, VertexShader.GetVertexShader(), VertexShader->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
-		}
-
-		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
+		UE::Renderer::PostProcess::DrawRectangle(
+			RHICmdList, VertexShader,
+			DstRect.Min.X, DstRect.Min.Y,
+			DstRect.Size().X, DstRect.Size().Y,
+			SrcRect.Min.X, SrcRect.Min.Y,
+			SrcRect.Size().X, SrcRect.Size().Y,
+			DstSize, SrcSize
+			);
 	}
 	RHICmdList.EndRenderPass();
 	RHICmdList.Transition(FRHITransitionInfo(DstTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
