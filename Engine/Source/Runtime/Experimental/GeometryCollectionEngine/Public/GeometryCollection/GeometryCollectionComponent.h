@@ -1063,7 +1063,7 @@ protected:
 
 	TObjectPtr<AGeometryCollectionISMPoolActor> AssignedISMPool = nullptr;
 	int32 ISMPoolMeshGroupIndex = INDEX_NONE;
-	TArray<int32> ISMPoolRootProxyMeshIds;
+	int32 ISMPoolRootProxyMeshId = INDEX_NONE;
 
 	/** Populate the static geometry structures for the render thread. */
 	void InitConstantData(TUniquePtr<FGeometryCollectionConstantData>& ConstantData) const;
