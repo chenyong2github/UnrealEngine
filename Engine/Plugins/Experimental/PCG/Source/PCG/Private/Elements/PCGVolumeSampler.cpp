@@ -57,17 +57,40 @@ namespace PCGVolumeSampler
 		const int32 MinZ = FMath::CeilToInt(InBounds.Min.Z / VoxelSize.Z);
 		const int32 MaxZ = FMath::FloorToInt(InBounds.Max.Z / VoxelSize.Z);
 
-		if (MinX > MaxX || MinY > MaxY || MinZ > MaxZ)
+		// Set uninitialized, then carefully initialize step by step with overflow checks
+		int32 NumIterations = -1;
+
 		{
-			if (InContext)
+			const int64 NumX = MaxX - MinX;
+			const int64 NumY = MaxY - MinY;
+			const int64 NumZ = MaxZ - MinZ;
+			const int64 NumIterationsXY64 = NumX * NumY;
+			const int64 NumIterations64 = NumIterationsXY64 * NumZ;
+
+			if (NumX <= 0 || NumY <= 0 || NumZ <= 0)
 			{
-				PCGE_LOG_C(Verbose, InContext, "Skipped - invalid cell bounds");
+				if (InContext)
+				{
+					PCGE_LOG_C(Verbose, InContext, "Skipped - invalid cell bounds (%lld x %lld x %lld)", NumX, NumY, NumZ);
+				}
+
+				return;
 			}
 
-			return;
-		}
+			if (NumIterationsXY64 > 0 && NumIterationsXY64 < MAX_int32 && NumIterations64 > 0 && NumIterations64 < MAX_int32)
+			{
+				NumIterations = static_cast<int32>(NumIterations64);
+			}
+			else
+			{
+				if (InContext)
+				{
+					PCGE_LOG_C(Error, InContext, "Skipped - tried to generate too many points (%lld x %lld x %lld)", NumX, NumY, NumZ);
+				}
 
-		const int32 NumIterations = (MaxX - MinX) * (MaxY - MinY) * (MaxZ - MinZ);
+				return;
+			}
+		}
 
 		FPCGAsync::AsyncPointProcessing(InContext, NumIterations, Points, [InVolume, InBoundingShape, VoxelSize, MinX, MaxX, MinY, MaxY, MinZ, MaxZ](int32 Index, FPCGPoint& OutPoint)
 		{

@@ -64,17 +64,33 @@ namespace PCGSurfaceSampler
 		CellMinY = FMath::CeilToInt((InputBounds.Min.Y) / CellSize.Y);
 		CellMaxY = FMath::FloorToInt((InputBounds.Max.Y) / CellSize.Y);
 
-		if (CellMinX > CellMaxX || CellMinY > CellMaxY)
 		{
-			if (Context)
+			const int64 CellCountX = 1 + CellMaxX - CellMinX;
+			const int64 CellCountY = 1 + CellMaxY - CellMinY;
+			if (CellCountX <= 0 || CellCountY <= 0)
 			{
-				PCGE_LOG_C(Verbose, Context, "Skipped - invalid cell bounds");
+				if (Context)
+				{
+					PCGE_LOG_C(Verbose, Context, "Skipped - invalid cell bounds (%lld x %lld)", CellCountX, CellCountY);
+				}
+
+				return false;
 			}
-			
-			return false;
+
+			const int64 CellCount64 = CellCountX * CellCountY;
+			if (CellCount64 <= 0 || CellCount64 >= MAX_int32)
+			{
+				if (Context)
+				{
+					PCGE_LOG_C(Error, Context, "Skipped - tried to generate too many points (%lld)", CellCount64);
+				}
+
+				return false;
+			}
+
+			CellCount = static_cast<int32>(CellCount64);
 		}
 
-		CellCount = (1 + CellMaxX - CellMinX) * (1 + CellMaxY - CellMinY);
 		check(CellCount > 0);
 
 		const FVector::FReal InvSquaredMeterUnits = 1.0 / (100.0 * 100.0);
@@ -287,6 +303,15 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGSurfaceSamplerSettings* Settings = Context->GetInputSettings<UPCGSurfaceSamplerSettings>();
 	check(Settings);
 	
+	// Early out on invalid settings
+	// TODO: we could compute an approximate radius based on the points per squared meters if that's useful
+	const FVector& PointExtents = Settings->PointExtents;
+	if (PointExtents.X <= 0 || PointExtents.Y <= 0)
+	{
+		PCGE_LOG(Warning, "Skipped - Invalid point extents");
+		return true;
+	}
+
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
 	// Grab the Bounding Shape input if there is one.
@@ -366,15 +391,6 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		PCGE_LOG(Warning, "No Surface input was provided, and no surface could be found in the Bounding Shape input for sampling. Connect the surface to be sampled to the Surface input.");
 	}
 
-	// Early out on invalid settings
-	// TODO: we could compute an approximate radius based on the points per squared meters if that's useful
-	const FVector& PointExtents = Settings->PointExtents;
-	if(PointExtents.X <= 0 || PointExtents.Y <= 0)
-	{
-		PCGE_LOG(Warning, "Skipped - Invalid point extents");
-		return true;
-	}
-	
 	// TODO: embarassingly parallel loop
 	for (int GenerationIndex = 0; GenerationIndex < GeneratingShapes.Num(); ++GenerationIndex)
 	{
