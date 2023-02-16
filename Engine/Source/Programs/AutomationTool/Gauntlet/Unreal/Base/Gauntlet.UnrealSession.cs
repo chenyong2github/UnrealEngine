@@ -198,6 +198,11 @@ namespace Gauntlet
 				{
 					RequiredBuildFlags |= BuildFlags.Loose;
 				}
+
+				if (Globals.Params.ParseParam("asan"))
+				{
+					RequiredBuildFlags |= BuildFlags.ASan;
+				}
 			}
 
 			InstallOnly = false;
