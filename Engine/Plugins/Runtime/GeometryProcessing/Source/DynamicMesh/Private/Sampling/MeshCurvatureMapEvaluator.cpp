@@ -25,6 +25,7 @@ void FMeshCurvatureMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 	Context.Evaluate = &EvaluateSample;
 	Context.EvaluateDefault = &EvaluateDefault;
 	Context.EvaluateColor = &EvaluateColor;
+	Context.EvaluateChannel = &EvaluateChannel;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = DataLayout();
@@ -101,6 +102,22 @@ void FMeshCurvatureMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FV
 	FVector3f CurvatureColor = (Sign < 0) ?
 		Lerp(Eval->ZeroColor, Eval->NegativeColor, T) : Lerp(Eval->ZeroColor, Eval->PositiveColor, T);
 	Out = FVector4f(CurvatureColor[0], CurvatureColor[1], CurvatureColor[2], 1.0f);
+	In += 1;
+}
+
+
+void FMeshCurvatureMapEvaluator::EvaluateChannel(const int DataIdx, float*& In, float& Out, void* EvalData)
+{
+	const FMeshCurvatureMapEvaluator* Eval = static_cast<FMeshCurvatureMapEvaluator*>(EvalData);
+	const float Curvature = In[0];
+	const float Sign = FMathf::Sign(Curvature);
+	const float T = (float)Eval->ClampRange.GetT(FMathf::Abs(Curvature));
+	
+	constexpr float ZeroValue = 0.5f;
+	constexpr float NegativeValue = 0.0f;
+	constexpr float PositiveValue = 1.0f;
+	Out = (Sign < 0) ? FMath::Lerp(ZeroValue, NegativeValue, T) : FMath::Lerp(ZeroValue, PositiveValue, T);
+
 	In += 1;
 }
 

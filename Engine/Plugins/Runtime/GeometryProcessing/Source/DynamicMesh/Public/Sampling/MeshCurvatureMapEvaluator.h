@@ -68,6 +68,8 @@ public:
 
 	static void EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
 
+	static void EvaluateChannel(const int DataIdx, float*& In, float& Out, void* EvalData);
+
 	/** Populate Curvatures member if valid data has not been provided */
 	void CacheDetailCurvatures();
 

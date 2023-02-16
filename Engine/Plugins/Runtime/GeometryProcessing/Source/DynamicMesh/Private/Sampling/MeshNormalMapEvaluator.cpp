@@ -34,6 +34,7 @@ void FMeshNormalMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCont
 	Context.Evaluate = bHasDetailNormalTextures ? &EvaluateSample<true> : &EvaluateSample<false>;
 	Context.EvaluateDefault = &EvaluateDefault;
 	Context.EvaluateColor = &EvaluateColor;
+	Context.EvaluateChannel = &EvaluateChannel;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = DataLayout();
@@ -66,6 +67,14 @@ void FMeshNormalMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVect
 	const FVector3f Color = (Normal + FVector3f::One()) * 0.5f;
 	Out = FVector4f(Color.X, Color.Y, Color.Z, 1.0f);
 	In += 3;
+}
+
+void FMeshNormalMapEvaluator::EvaluateChannel(const int DataIdx, float*& In, float& Out, void* EvalData)
+{
+	// Per-channel should not be an option for NormalMap evaluator
+	ensure(false);
+	Out = 0.0f;
+	In += 1;
 }
 
 template <bool bUseDetailNormalMap>

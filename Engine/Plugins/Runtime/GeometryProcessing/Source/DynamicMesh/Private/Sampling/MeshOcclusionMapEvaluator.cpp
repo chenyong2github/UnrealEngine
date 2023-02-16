@@ -32,12 +32,14 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 			Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::All, ESpace::Tangent>;
 			Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::All, ESpace::Tangent>;
 			Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::All, ESpace::Tangent>;
+			Context.EvaluateChannel = &EvaluateChannel<EMeshOcclusionMapType::All, ESpace::Tangent>;
 		}
 		else // NormalSpace == ESpace::Object
 		{
 			Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::All, ESpace::Object>;
 			Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::All, ESpace::Object>;
 			Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::All, ESpace::Object>;
+			Context.EvaluateChannel = &EvaluateChannel<EMeshOcclusionMapType::All, ESpace::Object>;
 		}
 		Context.EvalData = this;
 		Context.AccumulateMode = EAccumulateMode::Add;
@@ -47,6 +49,7 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 		Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::AmbientOcclusion, ESpace::Tangent>;
 		Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::AmbientOcclusion, ESpace::Tangent>;
 		Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::AmbientOcclusion, ESpace::Tangent>;
+		Context.EvaluateChannel = &EvaluateChannel<EMeshOcclusionMapType::AmbientOcclusion, ESpace::Tangent>;
 		Context.EvalData = this;
 		Context.AccumulateMode = EAccumulateMode::Add;
 	}
@@ -57,12 +60,14 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 			Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::BentNormal, ESpace::Tangent>;
 			Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::BentNormal, ESpace::Tangent>;
 			Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::BentNormal, ESpace::Tangent>;
+			Context.EvaluateChannel = &EvaluateChannel<EMeshOcclusionMapType::BentNormal, ESpace::Tangent>;
 		}
 		else // NormalSpace == ESpace::Object
 		{
 			Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::BentNormal, ESpace::Object>;
 			Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::BentNormal, ESpace::Object>;
 			Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::BentNormal, ESpace::Object>;
+			Context.EvaluateChannel = &EvaluateChannel<EMeshOcclusionMapType::BentNormal, ESpace::Object>;
 		}
 		Context.EvalData = this;
 		Context.AccumulateMode = EAccumulateMode::Add;
@@ -211,6 +216,37 @@ void FMeshOcclusionMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FV
 		EvalNormal();
 	}
 }
+
+template <EMeshOcclusionMapType ComputeType, FMeshOcclusionMapEvaluator::ESpace ComputeSpace>
+void FMeshOcclusionMapEvaluator::EvaluateChannel(const int DataIdx, float*& In, float& Out, void* EvalData)
+{
+	auto EvalOcclusion = [&In, &Out]()
+	{
+		Out = In[0];
+		In += 1;
+	};
+
+	auto EvalNormal = [&In, &Out]()
+	{
+		ensure(false);	// Should not be able to do per-channel baking for normals
+		Out = 0.0f;
+		In += 1;
+	};
+
+	if constexpr (WANT_AMBIENT_OCCLUSION(ComputeType) && WANT_BENT_NORMAL(ComputeType))
+	{
+		DataIdx == 0 ? EvalOcclusion() : EvalNormal();
+	}
+	else if constexpr (WANT_AMBIENT_OCCLUSION(ComputeType))
+	{
+		EvalOcclusion();
+	}
+	else if constexpr (WANT_BENT_NORMAL(ComputeType))
+	{
+		EvalNormal();
+	}
+}
+
 
 template <EMeshOcclusionMapType ComputeType, FMeshOcclusionMapEvaluator::ESpace ComputeSpace>
 FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData, const FVector3d& DefaultNormal)

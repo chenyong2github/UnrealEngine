@@ -227,14 +227,19 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 				Baker->BakeContexts[BakerIdx].Evaluate(BufferPtr, Sample, Baker->BakeContexts[BakerIdx].EvalData);
 			}
 
-			// For color bakes, ask our evaluators to convert the float data to color.
-			if constexpr(ComputeMode == EBakeMode::RGBA)
+			// TODO: Use a separate buffer rather than R/W from the same pixel.
+			BufferPtr = &Pixel[0];
+			for (int32 BakerIdx = 0; BakerIdx < NumBakers; ++BakerIdx)
 			{
-				// TODO: Use a separate buffer rather than R/W from the same pixel.
-				BufferPtr = &Pixel[0];
-				for (int32 BakerIdx = 0; BakerIdx < NumBakers; ++BakerIdx)
+				if constexpr (ComputeMode == EBakeMode::RGBA)
 				{
 					Baker->BakeContexts[BakerIdx].EvaluateColor(0, BufferPtr, Pixel, Baker->BakeContexts[BakerIdx].EvalData);
+				}
+				else if constexpr (ComputeMode == EBakeMode::PerChannel)
+				{
+					// TODO: Are we guaranteed to have the same NumBakers as number of Pixel channels?
+					ensure(NumBakers == 4);
+					Baker->BakeContexts[BakerIdx].EvaluateChannel(0, BufferPtr, Pixel[BakerIdx], Baker->BakeContexts[BakerIdx].EvalData);
 				}
 			}
 		}

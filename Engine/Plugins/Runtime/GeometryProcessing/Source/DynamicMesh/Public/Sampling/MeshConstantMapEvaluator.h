@@ -33,6 +33,7 @@ public:
 	static void EvaluateDefault(float*& Out, void* EvalData);
 
 	static void EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
+	static void EvaluateChannel(const int DataIdx, float*& In, float& Out, void* EvalData);
 
 public:
 	float Value = 0.0f;

@@ -73,6 +73,9 @@ public:
 	template <EMeshOcclusionMapType OcclusionType, ESpace NormalSpace>
 	static void EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
 
+	template <EMeshOcclusionMapType OcclusionType, ESpace NormalSpace>
+	static void EvaluateChannel(const int DataIdx, float*& In, float& Out, void* EvalData);
+
 protected:
 	// Cached data
 	const IMeshBakerDetailSampler* DetailSampler = nullptr;

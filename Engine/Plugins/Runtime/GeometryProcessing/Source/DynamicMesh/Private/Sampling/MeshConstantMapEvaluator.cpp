@@ -16,6 +16,7 @@ void FMeshConstantMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 	Context.Evaluate = &EvaluateSample;
 	Context.EvaluateDefault = &EvaluateDefault;
 	Context.EvaluateColor = &EvaluateColor;
+	Context.EvaluateChannel = &EvaluateChannel;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Overwrite;
 	Context.DataLayout = DataLayout();
@@ -45,4 +46,9 @@ void FMeshConstantMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVe
 	In += 1;
 }
 
+void FMeshConstantMapEvaluator::EvaluateChannel(const int DataIdx, float*& In, float& Out, void* EvalData)
+{
+	Out = *In;
+	In += 1;
+}
 

@@ -46,6 +46,12 @@ void FMeshResampleImageEvaluator::EvaluateColor(const int DataIdx, float*& In, F
 	In += 4;
 }
 
+void FMeshResampleImageEvaluator::EvaluateChannel(const int DataIdx, float*& In, float& Out, void* EvalData)
+{
+	Out = In[0];
+	In += 1;
+}
+
 FVector4f FMeshResampleImageEvaluator::ImageSampleFunction(const FCorrespondenceSample& SampleData) const
 {
 	const void* DetailMesh = SampleData.DetailMesh;
@@ -77,6 +83,7 @@ void FMeshMultiResampleImageEvaluator::Setup(const FMeshBaseBaker& Baker, FEvalu
 	Context.Evaluate = &EvaluateSampleMulti;
 	Context.EvaluateDefault = &EvaluateDefault;
 	Context.EvaluateColor = &EvaluateColor;
+	Context.EvaluateChannel = &EvaluateChannel;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = DataLayout();

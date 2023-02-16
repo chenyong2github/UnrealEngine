@@ -119,6 +119,27 @@ public:
 		using EvaluateColorFn = void(*)(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
 		EvaluateColorFn EvaluateColor = nullptr;
 
+		/**
+		 * Function pointer to evaluate the single channel representation of
+		 * an evaluated sample result.
+		 *
+		 * This function will be invoked once per pixel channel after the
+		 * evaluated samples have been accumulated. This function
+		 * should:
+		 *
+		 * - assume that the size of the buffer is correct.
+		 * - advance the [In] buffer pointer by the DataLayout stride.
+		 *
+		 * @param DataIdx the index into the DataLayout being processed.
+		 * @param In the buffer containing the accumulated sample result.
+		 * @param Out the output float channel to populate
+		 * @param EvalData custom data pointer provided by the evaluation context.
+		 */
+		using EvaluateChannelFn = void(*)(const int DataIdx, float*& In, float& Out, void* EvalData);
+		EvaluateChannelFn EvaluateChannel = nullptr;
+
+
+
 		/** Define custom data to be passed to the evaluation function. */
 		void* EvalData = nullptr;
 

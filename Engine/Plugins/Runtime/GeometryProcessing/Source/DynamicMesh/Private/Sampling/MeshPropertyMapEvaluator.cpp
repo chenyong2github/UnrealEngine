@@ -32,6 +32,7 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 	Context.Evaluate = bHasDetailNormalTextures ? &EvaluateSample<true> : &EvaluateSample<false>;
 	Context.EvaluateDefault = &EvaluateDefault;
 	Context.EvaluateColor = &EvaluateColor;
+	Context.EvaluateChannel = &EvaluateChannel;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = DataLayout();
@@ -95,6 +96,13 @@ void FMeshPropertyMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVe
 	// TODO: Move property color space transformation from EvaluateSample/Default to here.
 	Out = FVector4f(In[0], In[1], In[2], 1.0f);
 	In += 3;
+}
+
+void FMeshPropertyMapEvaluator::EvaluateChannel(const int DataIdx, float*& In, float& Out, void* EvalData)
+{
+	ensure(false);		// Should not be able to select per-channel evaluation for multi-dimensional properties
+	Out = In[0];
+	In += 1;
 }
 
 template <bool bUseDetailNormalMap>
