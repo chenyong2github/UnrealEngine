@@ -8,19 +8,6 @@ namespace UnrealBuildTool.Rules
     {
         public AIModule(ReadOnlyTargetRules Target) : base(Target)
         {
-            PublicIncludePaths.AddRange(
-                new string[] {
-                    "Runtime/NavigationSystem/Public",
-                    "Runtime/AIModule/Public",
-                }
-                );
-
-            PrivateIncludePaths.AddRange(
-                new string[] {
-					Path.Combine(GetModuleDirectory("Engine"), "Private"),
-                }
-                );
-
             PublicDependencyModuleNames.AddRange(
                 new string[] {
                     "Core",
@@ -37,12 +24,6 @@ namespace UnrealBuildTool.Rules
                     "RHI",
                     "RenderCore",
                 }
-                );
-
-            DynamicallyLoadedModuleNames.AddRange(
-                new string[] {
-					// ... add any modules that your module loads dynamically here ...
-				}
                 );
 
             if (Target.bBuildEditor == true)

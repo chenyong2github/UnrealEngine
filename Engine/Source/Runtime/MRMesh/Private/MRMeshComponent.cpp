@@ -27,18 +27,9 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
-#include "PhysicsEngine/Experimental/ChaosDerivedData.h"
 #include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MRMeshComponent)
-
-// See ISpatialAcceleration.h, the header is not included to avoid having a dependency on Chaos
-#ifndef CHAOS_SERIALIZE_OUT
-#define CHAOS_SERIALIZE_OUT WITH_EDITOR
-#endif
-
-// When using the Chaos code path, we're using a private class FChaosDerivedDataCooker which is not exported
-#define SUPPORTS_PHYSICS_COOKING (CHAOS_SERIALIZE_OUT && IS_MONOLITHIC)
 
 DECLARE_CYCLE_STAT(TEXT("MrMesh SetCollisionProfileName"), STAT_MrMesh_SetCollisionProfileName, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Update Collision"), STAT_UpdateCollision, STATGROUP_MRMESH);

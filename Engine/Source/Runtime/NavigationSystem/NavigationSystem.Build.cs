@@ -8,15 +8,6 @@ namespace UnrealBuildTool.Rules
     {
         public NavigationSystem(ReadOnlyTargetRules Target) : base(Target)
         {
-			PublicIncludePathModuleNames.Add("NavigationSystem");
-
-            PrivateIncludePaths.AddRange(
-                new string[] {
-					Path.Combine(GetModuleDirectory("NavigationSystem"), "Private"),
-					Path.Combine(GetModuleDirectory("Engine"), "Private"),
-                }
-                );
-
             PublicDependencyModuleNames.AddRange(
                 new string[] {
                     "Core",

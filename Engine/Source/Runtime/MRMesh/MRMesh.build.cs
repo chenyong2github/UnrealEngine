@@ -26,9 +26,6 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("UnrealEd");
 			}
 			
-			// Used for including the private Chaos headers
-			PrivateIncludePaths.Add(Path.Combine(GetModuleDirectory("Engine"), "Private"));
-
 			PrivateIncludePathModuleNames.Add("DerivedDataCache");
 		}
 	}
