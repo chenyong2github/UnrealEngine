@@ -214,13 +214,13 @@ namespace Horde.Agent.Execution
 		protected override async Task<bool> SetupAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
 			PerforceLogger perforceLogger = CreatePerforceLogger(logger);
-			return await SetupAsync(step, _workspace.WorkspaceDir, _sharedStorageDir, perforceLogger, cancellationToken);
+			return await SetupAsync(step, _workspace.WorkspaceDir, _sharedStorageDir, null, perforceLogger, cancellationToken);
 		}
 
 		protected override async Task<bool> ExecuteAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
 			PerforceLogger perforceLogger = CreatePerforceLogger(logger);
-			return await ExecuteAsync(step, _workspace.WorkspaceDir, _sharedStorageDir, perforceLogger, cancellationToken);
+			return await ExecuteAsync(step, _workspace.WorkspaceDir, _sharedStorageDir, null, perforceLogger, cancellationToken);
 		}
 
 		public override async Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)

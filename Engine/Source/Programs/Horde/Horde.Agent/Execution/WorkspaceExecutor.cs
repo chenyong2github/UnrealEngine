@@ -18,14 +18,14 @@ namespace Horde.Agent.Execution
 		public const string Name = "Workspace";
 
 		private DirectoryReference? _sharedStorageDir;
-		private readonly IWorkspaceMaterializer? _autoSdkWorkspace;
 		private readonly IWorkspaceMaterializer _workspace;
+		private readonly IWorkspaceMaterializer? _autoSdkWorkspace;
 
-		public WorkspaceExecutor(JobExecutorOptions options, IWorkspaceMaterializer? autoSdkWorkspace, IWorkspaceMaterializer workspace, ILogger logger)
+		public WorkspaceExecutor(JobExecutorOptions options, IWorkspaceMaterializer workspace, IWorkspaceMaterializer? autoSdkWorkspace, ILogger logger)
 			: base(options, logger)
 		{
-			_autoSdkWorkspace = autoSdkWorkspace;
 			_workspace = workspace;
+			_autoSdkWorkspace = autoSdkWorkspace;
 		}
 
 		public override async Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
@@ -104,7 +104,7 @@ namespace Horde.Agent.Execution
 		{
 			// Loop back to JobExecutor's SetupAsync again, but with workspace and shared storage dir set
 			DirectoryReference workspaceDir = (await _workspace.GetSettingsAsync(cancellationToken)).DirectoryPath;
-			return await SetupAsync(step, workspaceDir, _sharedStorageDir, logger, cancellationToken);
+			return await SetupAsync(step, workspaceDir, _sharedStorageDir, false, logger, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -112,7 +112,7 @@ namespace Horde.Agent.Execution
 		{
 			// Loop back to JobExecutor's ExecuteAsync again, but with workspace and shared storage dir set
 			DirectoryReference workspaceDir = (await _workspace.GetSettingsAsync(cancellationToken)).DirectoryPath;
-			return await ExecuteAsync(step, workspaceDir, _sharedStorageDir, logger, cancellationToken);
+			return await ExecuteAsync(step, workspaceDir, _sharedStorageDir, false, logger, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -153,7 +153,7 @@ namespace Horde.Agent.Execution
 					autoSdkWorkspaceInfo, options.Session.WorkingDir, true, true, _loggerFactory.CreateLogger<ManagedWorkspaceMaterializer>());
 			}
 			
-			return new WorkspaceExecutor(options, autoSdkMaterializer, workspaceMaterializer, _loggerFactory.CreateLogger<WorkspaceExecutor>());
+			return new WorkspaceExecutor(options, workspaceMaterializer, autoSdkMaterializer, _loggerFactory.CreateLogger<WorkspaceExecutor>());
 		}
 	}
 }
