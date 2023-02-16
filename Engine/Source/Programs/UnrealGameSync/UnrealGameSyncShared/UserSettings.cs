@@ -66,7 +66,9 @@ namespace UnrealGameSync
 		public bool Starred = false;
 		public bool FindNewestGoodContent = false;
 		public List<string> RequiredBadges = new List<string>();
-		public int Number = -1;
+
+		// Depot path to read for the latest change number
+		public string? ReadFrom = "";
 
 		public static bool TryParseConfigEntry(string text, [NotNullWhen(true)] out LatestChangeType? changeType)
 		{
@@ -84,7 +86,8 @@ namespace UnrealGameSync
 				changeType.Starred = definitionObject.GetValue("bStarred", false);
 				changeType.FindNewestGoodContent = definitionObject.GetValue("bFindNewestGoodContent", false);
 				changeType.RequiredBadges = new List<string>(definitionObject.GetValue("RequiredBadges", "").Split(new char[] { ',',' '}, StringSplitOptions.RemoveEmptyEntries));
-				changeType.Number = definitionObject.GetValue("Number", -1);
+
+				changeType.ReadFrom = definitionObject.GetValue("ReadFrom", null);
 				return true;
 			}
 			else

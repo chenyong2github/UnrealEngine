@@ -5137,10 +5137,28 @@ namespace UnrealGameSync
 
 		bool FindChangeToSync(LatestChangeType changeType, out int changeNumber)
 		{
-			if (changeType.Number != -1)
+			if (!String.IsNullOrEmpty(changeType.ReadFrom))
 			{
-				changeNumber = changeType.Number;
-				return true;
+				async Task<int> ReadChangeToSync(IPerforceConnection perforceConnection, CancellationToken cancellationToken)
+				{
+					PerforceResponse<PrintRecord<byte[]>> record = await perforceConnection.TryPrintDataAsync(changeType.ReadFrom, cancellationToken);
+					record.EnsureSuccess();
+
+					string contents = Encoding.UTF8.GetString(record.Data.Contents ?? Array.Empty<byte>());
+					return Int32.Parse(contents.Trim());
+				}
+
+				ModalTask<int>? task = PerforceModalTask.Execute(this, "Reading change", "Reading latest change...", _perforceSettings, ReadChangeToSync, _logger);
+				if (task == null || !task.Succeeded || task.Result <= 0)
+				{
+					changeNumber = 0;
+					return false;
+				}
+				else
+				{
+					changeNumber = task.Result;
+					return true;
+				}
 			}
 
 			for (int idx = 0; idx < BuildList.Items.Count; idx++)
