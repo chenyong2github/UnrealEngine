@@ -37,10 +37,9 @@ namespace UnrealGameSync.Forms
             // 
             this.label1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label1.Location = new System.Drawing.Point(27, 26);
-            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label1.Location = new System.Drawing.Point(18, 17);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(794, 57);
+            this.label1.Size = new System.Drawing.Size(531, 38);
             this.label1.TabIndex = 0;
             this.label1.Text = "A newer version of the UnrealGameSync Launcher is available. Installation will ta" +
     "ke less than a minute. Would you like to update now?";
@@ -49,10 +48,9 @@ namespace UnrealGameSync.Forms
             // 
             this.UpdateNowBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.UpdateNowBtn.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.UpdateNowBtn.Location = new System.Drawing.Point(483, 99);
-            this.UpdateNowBtn.Margin = new System.Windows.Forms.Padding(4);
+            this.UpdateNowBtn.Location = new System.Drawing.Point(324, 66);
             this.UpdateNowBtn.Name = "UpdateNowBtn";
-            this.UpdateNowBtn.Size = new System.Drawing.Size(165, 44);
+            this.UpdateNowBtn.Size = new System.Drawing.Size(110, 29);
             this.UpdateNowBtn.TabIndex = 1;
             this.UpdateNowBtn.Text = "Update Now";
             this.UpdateNowBtn.UseVisualStyleBackColor = true;
@@ -61,10 +59,9 @@ namespace UnrealGameSync.Forms
             // 
             this.LaterBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.LaterBtn.DialogResult = System.Windows.Forms.DialogResult.Ignore;
-            this.LaterBtn.Location = new System.Drawing.Point(656, 99);
-            this.LaterBtn.Margin = new System.Windows.Forms.Padding(4);
+            this.LaterBtn.Location = new System.Drawing.Point(439, 66);
             this.LaterBtn.Name = "LaterBtn";
-            this.LaterBtn.Size = new System.Drawing.Size(165, 44);
+            this.LaterBtn.Size = new System.Drawing.Size(110, 29);
             this.LaterBtn.TabIndex = 2;
             this.LaterBtn.Text = "Later";
             this.LaterBtn.UseVisualStyleBackColor = true;
@@ -72,17 +69,16 @@ namespace UnrealGameSync.Forms
             // LauncherUpdateWindow
             // 
             this.AcceptButton = this.UpdateNowBtn;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(144F, 144F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.CancelButton = this.LaterBtn;
-            this.ClientSize = new System.Drawing.Size(838, 156);
+            this.ClientSize = new System.Drawing.Size(561, 104);
             this.ControlBox = false;
             this.Controls.Add(this.LaterBtn);
             this.Controls.Add(this.UpdateNowBtn);
             this.Controls.Add(this.label1);
             this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            this.Margin = new System.Windows.Forms.Padding(4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "LauncherUpdateWindow";
