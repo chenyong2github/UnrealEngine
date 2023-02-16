@@ -515,14 +515,14 @@ void ReflectionResolveCS(
 
 					if (bUseCenterSample)
 					{
-						float3 TonemappedSampleRadiance = TonemapLighting(TraceRadiance[ReflectionScreenCoord_Flatten]);
-						ReflectionLighting = TonemappedSampleRadiance;
+						float3 SampleRadiance = TraceRadiance[ReflectionScreenCoord_Flatten];
+						ReflectionLighting = TonemapLighting(SampleRadiance);
 						float Weight = 1.0f;
 						TotalWeight += Weight;
 
 						#if USE_BILATERAL_FILTER
 							//https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Weighted_incremental_algorithm
-							float LumaSampleRadiance = Luma(TonemappedSampleRadiance);
+							float LumaSampleRadiance = Luma(SampleRadiance);
 							float OldMean = Mean;
 							Mean += Weight / TotalWeight * (LumaSampleRadiance - OldMean);
 							S += Weight * (LumaSampleRadiance - OldMean) * (LumaSampleRadiance - Mean);
@@ -616,13 +616,13 @@ void ReflectionResolveCS(
 
 							float Weight = NewPDF / RayData.PDF;
 							float ClampedWeight = max(1e-6, Weight);
-							float3 TonemappedSampleRadiance = TonemapLighting(TraceRadiance[NeighborTracingCoord_Flatten]);
-							ReflectionLighting += TonemappedSampleRadiance * ClampedWeight;
+							float3 SampleRadiance = TraceRadiance[NeighborTracingCoord_Flatten];
+							ReflectionLighting += TonemapLighting(SampleRadiance) * ClampedWeight;
 
 							TotalWeight += ClampedWeight;
 
 							#if USE_BILATERAL_FILTER
-								float LumaSampleRadiance = Luma(TonemappedSampleRadiance);
+								float LumaSampleRadiance = Luma(SampleRadiance);
 								float OldMean = Mean;
 								Mean += ClampedWeight / TotalWeight * (LumaSampleRadiance - OldMean);
 								S += ClampedWeight * (LumaSampleRadiance - OldMean) * (LumaSampleRadiance - Mean);
