@@ -195,9 +195,13 @@ void RehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOption
 	//       Running this over a large project would be much faster if we could batch. An easy way
 	//       to do this might be to gather all of the payloads needed and do a prefetch first?
 
+	double Time = FPlatformTime::Seconds();
+
 	// Attempt to rehydrate the packages
-	for (const FString& FilePath : PackagePaths)
+	for(int32 Index = 0; Index < PackagePaths.Num(); ++Index)
 	{
+		const FString& FilePath = PackagePaths[Index];
+
 		FPackageTrailer Trailer;
 		FPackageTrailerBuilder Builder;
 
@@ -214,6 +218,14 @@ void RehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOption
 				// Error?
 				return;
 			}
+		}
+
+		if (FPlatformTime::Seconds() - Time > 10.0)
+		{
+			const float ProgressPercent = ((float)Index / (float)PackagePaths.Num()) * 100.0f;
+			UE_LOG(LogVirtualization, Display, TEXT("%d/%d - %.1f%%"), Index, PackagePaths.Num(), ProgressPercent);
+
+			Time = FPlatformTime::Seconds();
 		}
 	}
 
