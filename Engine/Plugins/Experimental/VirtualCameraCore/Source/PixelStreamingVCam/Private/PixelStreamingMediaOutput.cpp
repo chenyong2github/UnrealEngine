@@ -11,6 +11,15 @@
 #include "PixelStreamingVideoInputRHI.h"
 #include "PixelStreamingUtils.h"
 
+UPixelStreamingMediaOutput* UPixelStreamingMediaOutput::Create(UObject* Outer, const FString& StreamerId)
+{
+	IPixelStreamingModule& Module = FModuleManager::LoadModuleChecked<IPixelStreamingModule>("PixelStreaming");
+	UPixelStreamingMediaOutput* MediaOutput = NewObject<UPixelStreamingMediaOutput>(Outer, UPixelStreamingMediaOutput::StaticClass());
+	MediaOutput->Streamer = Module.CreateStreamer(StreamerId);
+	MediaOutput->RegisterRemoteResolutionCommandHandler();
+	return MediaOutput;
+}
+
 void UPixelStreamingMediaOutput::BeginDestroy()
 {
 	StopStreaming();
@@ -20,35 +29,9 @@ void UPixelStreamingMediaOutput::BeginDestroy()
 
 UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 {
-	if (!Streamer.IsValid())
-	{
-		IPixelStreamingModule& Module = FModuleManager::LoadModuleChecked<IPixelStreamingModule>("PixelStreaming");
-		FString Sid = StreamerId;
-		if (Sid.IsEmpty())
-		{
-			Sid = Module.GetDefaultStreamerID();
-		}
-		Streamer = Module.CreateStreamer(Sid);
-		if (Streamer->GetSignallingServerURL().IsEmpty())
-		{
-			if (SignallingServerURL.IsEmpty())
-			{
-				Streamer->SetSignallingServerURL("ws://127.0.0.1:8888");
-			}
-			else
-			{
-				Streamer->SetSignallingServerURL(SignallingServerURL);
-			}
-		}
-		RegisterRemoteResolutionCommandHandler();
-	}
-
 	Capture = nullptr;
-	if (Streamer.IsValid())
-	{
-		Capture = NewObject<UPixelStreamingMediaCapture>();
-		Capture->SetMediaOutput(this);
-	}
+	Capture = NewObject<UPixelStreamingMediaCapture>();
+	Capture->SetMediaOutput(this);
 
 	if (!VideoInput)
 	{
@@ -62,26 +45,27 @@ UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 
 void UPixelStreamingMediaOutput::RegisterRemoteResolutionCommandHandler()
 {
-	// Override resolution command as we this to set the output provider override resolution
-	TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
-	if(InputHandler)
+	if (Streamer)
 	{
-		InputHandler->SetCommandHandler(TEXT("Resolution.Width"), [this](FString Descriptor, FString WidthString){
-			bool bSuccess = false;
-			FString HeightString;
-			UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
-			if (bSuccess)
-			{
-				int Width = FCString::Atoi(*WidthString);
-				int Height = FCString::Atoi(*HeightString);
-				if (Width < 1 || Height < 1)
+		// Override resolution command as we this to set the output provider override resolution
+		TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
+		if (InputHandler)
+		{
+			InputHandler->SetCommandHandler(TEXT("Resolution.Width"), [this](FString Descriptor, FString WidthString){
+				bool bSuccess = false;
+				FString HeightString;
+				UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
+				if (bSuccess)
 				{
-					return;
+					const int Width = FCString::Atoi(*WidthString);
+					const int Height = FCString::Atoi(*HeightString);
+					if (Width > 0 && Height > 0)
+					{
+						RemoteResolutionChangedEvent.Broadcast(FIntPoint(Width, Height));
+					}
 				}
-
-				RemoteResolutionChangedEvent.Broadcast(FIntPoint(Width, Height));
-			}
-		});
+			});
+		}
 	}
 }
 
@@ -90,9 +74,14 @@ void UPixelStreamingMediaOutput::StartStreaming()
 	if (Streamer)
 	{
 		FPixelStreamingEditorModule::GetModule()->SetStreamType(UE::EditorPixelStreaming::EStreamTypes::VCam);
-		
+
+		const FString SignallingDomain = FPixelStreamingEditorModule::GetModule()->GetSignallingDomain();
+		const int32 StreamerPort = FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
+		const FString SignallingServerURL = FString::Printf(TEXT("%s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort));
+		Streamer->SetSignallingServerURL(SignallingServerURL);
+
 		// Only update streamer's video input if we don't have one or it is different than the one we already have.
-		if(VideoInput.IsValid())
+		if (VideoInput.IsValid())
 		{
 			TSharedPtr<FPixelStreamingVideoInput> StreamerVideoInput = Streamer->GetVideoInput().Pin();
 			if(!StreamerVideoInput.IsValid() || StreamerVideoInput != VideoInput)
@@ -115,14 +104,4 @@ void UPixelStreamingMediaOutput::StopStreaming()
 		Streamer->StopStreaming();
 		Streamer->SetTargetWindow(nullptr);
 	}
-}
-
-void UPixelStreamingMediaOutput::SetSignallingServerURL(FString InURL)
-{
-	SignallingServerURL = InURL;
-}
-
-void UPixelStreamingMediaOutput::SetSignallingStreamID(FString InStreamID)
-{
-	StreamID = InStreamID;
 }

@@ -25,6 +25,7 @@
 #include "Widgets/SVirtualWindow.h"
 #include "PixelStreamingInputEnums.h"
 
+int UVCamPixelStreamingSession::NextDefaultStreamerId = 1;
 
 namespace UE::VCamPixelStreamingSession::Private
 {
@@ -56,6 +57,11 @@ void UVCamPixelStreamingSession::Activate()
 		return;
 	}
 
+	if (StreamerId.IsEmpty())
+	{
+		StreamerId = FString::Printf(TEXT("VCam%d"), NextDefaultStreamerId++);
+	}
+
 	// Setup livelink source
 	UVCamPixelStreamingSubsystem::Get()->TryGetLiveLinkSource(this);
 
@@ -76,13 +82,12 @@ void UVCamPixelStreamingSession::Activate()
 		SetUMGClass(UE::VCamPixelStreamingSession::Private::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>());
 	}
 
-	if (MediaOutput == nullptr)
+	// create a new media output if we dont already have one, or its not valid, or if the id has changed
+	if (MediaOutput == nullptr || !MediaOutput->IsValid() || MediaOutput->GetStreamer()->GetId() != StreamerId)
 	{
-		MediaOutput = NewObject<UPixelStreamingMediaOutput>(GetTransientPackage(), UPixelStreamingMediaOutput::StaticClass());
+		MediaOutput = UPixelStreamingMediaOutput::Create(GetTransientPackage(), StreamerId);
 		MediaOutput->OnRemoteResolutionChanged().AddUObject(this, &UVCamPixelStreamingSession::OnRemoteResolutionChanged);
 	}
-
-	MediaOutput->StreamerId = StreamerId;
 
 	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
 	bOldThrottleCPUWhenNotForeground = Settings->bThrottleCPUWhenNotForeground;
@@ -104,11 +109,10 @@ void UVCamPixelStreamingSession::Activate()
 	// We need signalling server to be up before we can start streaming
 	SetupSignallingServer();
 
-	// Pass signalling server info to media output, aka the streamer
-	FString SignallingDomain = FPixelStreamingEditorModule::GetModule()->GetSignallingDomain();
-	int32 StreamerPort = FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
-	MediaOutput->SetSignallingServerURL(FString::Printf(TEXT("%s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort)));
-	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Activating PixelStreaming VCam Session. Endpoint: %s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort));
+	if (MediaOutput->IsValid())
+	{
+		UE_LOG(LogPixelStreamingVCam, Log, TEXT("Activating PixelStreaming VCam Session. Endpoint: %s"), *MediaOutput->GetStreamer()->GetSignallingServerURL());
+	}
 }
 
 void UVCamPixelStreamingSession::SetupCapture()
@@ -128,7 +132,7 @@ void UVCamPixelStreamingSession::SetupCapture()
 
 void UVCamPixelStreamingSession::OnCaptureStateChanged()
 {
-	if (!MediaCapture || !MediaOutput)
+	if (!MediaCapture || !MediaOutput || !MediaOutput->IsValid())
 	{
 		return;
 	}
@@ -329,7 +333,7 @@ void UVCamPixelStreamingSession::Deactivate()
 	if (MediaCapture)
 	{
 
-		if (MediaOutput && MediaOutput->GetStreamer())
+		if (MediaOutput && MediaOutput->IsValid())
 		{
 			// Shutting streamer down before closing signalling server prevents an ugly websocket disconnect showing in the log
 			MediaOutput->GetStreamer()->StopStreaming();

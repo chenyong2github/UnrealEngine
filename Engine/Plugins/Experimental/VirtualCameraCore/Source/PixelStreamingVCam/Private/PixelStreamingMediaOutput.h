@@ -28,16 +28,16 @@ protected:
 	//~ End UMediaOutput interface
 
 public:
+	static UPixelStreamingMediaOutput* Create(UObject* Outer, const FString& StreamerId);
+
+	bool IsValid() const { return Streamer != nullptr; }
 	TSharedPtr<IPixelStreamingStreamer> GetStreamer() const { return Streamer; }
-	void SetSignallingServerURL(FString InURL);
-	void SetSignallingStreamID(FString InStreamID);
+
 	void StartStreaming();
 	void StopStreaming();
 
 	DECLARE_EVENT_OneParam(UPixelStreamingMediaOutput, FRemoteResolutionChangedEvent, const FIntPoint&)
 	FRemoteResolutionChangedEvent& OnRemoteResolutionChanged() { return RemoteResolutionChangedEvent; }
-
-	FString StreamerId;
 	
 private:
 	UPixelStreamingMediaCapture* Capture = nullptr;
@@ -46,9 +46,6 @@ private:
 
 	/** Broadcasts whenever the layer changes */
 	FRemoteResolutionChangedEvent RemoteResolutionChangedEvent;
-
-	FString SignallingServerURL;
-	FString StreamID = TEXT("VCam");
 
 	void OnCaptureStateChanged();
 	void OnCaptureViewportInitialized();

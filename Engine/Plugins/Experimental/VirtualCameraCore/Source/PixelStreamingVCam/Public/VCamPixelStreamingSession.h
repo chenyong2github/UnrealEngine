@@ -77,5 +77,6 @@ private:
 private:
 	FHitResult 	LastViewportTouchResult;
 	bool 		bUsingDummyUMG = false;
-	bool 		bOldThrottleCPUWhenNotForeground;	
+	bool 		bOldThrottleCPUWhenNotForeground;
+	static int  NextDefaultStreamerId;
 };
