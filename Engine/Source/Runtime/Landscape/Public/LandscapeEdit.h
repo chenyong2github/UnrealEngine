@@ -14,6 +14,7 @@ LandscapeEdit.h: Classes for the editor to access to Landscape data
 #include "Components/ActorComponent.h"
 #include "LandscapeInfo.h"
 #include "LandscapeComponent.h"
+#include "LandscapeEditTypes.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "InstancedFoliageActor.h"
 #include "LandscapeLayerInfoObject.h"
@@ -32,23 +33,13 @@ class ULandscapeLayerInfoObject;
 
 #if WITH_EDITOR
 
-namespace ELandscapeToolTargetType
-{
-	enum Type : int8
-	{
-		Heightmap = 0,
-		Weightmap = 1,
-		Visibility = 2,
-		Invalid = -1, // only valid for LandscapeEdMode->CurrentToolTarget.TargetType
-	};
-}
 
 /** Landscape EdMode Interface (used by ALandscape in Editor mode to access EdMode properties) */
 class ILandscapeEdModeInterface
 {
 public:
 	virtual void PostUpdateLayerContent() = 0;
-	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
+	virtual ELandscapeToolTargetType GetLandscapeToolTargetType() const = 0;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const = 0;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const = 0;
 	virtual void OnCanHaveLayersContentChanged() = 0;

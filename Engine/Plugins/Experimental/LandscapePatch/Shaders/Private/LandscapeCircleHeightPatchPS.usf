@@ -8,7 +8,9 @@
 float3 InCenter;
 float InRadius;
 float InFalloff;
-Texture2D<float4> InSourceHeightmap;
+Texture2D<float4> InSourceTexture;
+
+#if CIRCLE_HEIGHT_PATCH
 
 void ApplyLandscapeCircleHeightPatch(in float4 SVPos : SV_POSITION, out float2 OutColor : SV_Target0)
 {
@@ -16,7 +18,7 @@ void ApplyLandscapeCircleHeightPatch(in float4 SVPos : SV_POSITION, out float2 O
 	const float ClampedFalloff = max(InFalloff, KINDA_SMALL_NUMBER);
 	
 	int2 TextureCoordinates = floor(SVPos.xy);
-	float4 CurrentPackedHeight = InSourceHeightmap.Load(int3(TextureCoordinates, 0));
+	float4 CurrentPackedHeight = InSourceTexture.Load(int3(TextureCoordinates, 0));
 	float CurrentHeight = UnpackHeight(CurrentPackedHeight.xy);
 	
 	float PatchHeight = InCenter.z;
@@ -33,3 +35,26 @@ void ApplyLandscapeCircleHeightPatch(in float4 SVPos : SV_POSITION, out float2 O
 	
 	OutColor = PackHeight(NewHeight);
 }
+
+#endif // CIRCLE_HEIGHT_PATCH
+
+#if CIRCLE_VISIBILITY_PATCH
+
+void ApplyLandscapeCircleVisibilityPatch(in float4 SVPos : SV_POSITION, out float OutColor : SV_Target0)
+{
+	int2 TextureCoordinates = floor(SVPos.xy);
+	float Distance = distance(TextureCoordinates, InCenter.xy);
+	
+	float4 CurrentWeight = InSourceTexture.Load(int3(TextureCoordinates, 0)).x;
+
+	if (Distance <= InRadius)
+	{
+		OutColor = 255.f;
+	}
+	else
+	{
+		OutColor = CurrentWeight.x;
+	}
+}
+
+#endif // CIRCLE_VISIBILITY_PATCH

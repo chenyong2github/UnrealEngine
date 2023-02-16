@@ -5,10 +5,39 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
+#include "LandscapeEditTypes.h"
 
 #include "LandscapeBlueprintBrushBase.generated.h"
 
 class UTextureRenderTarget2D;
+
+USTRUCT(BlueprintType)
+struct LANDSCAPE_API FLandscapeBrushParameters
+{
+	GENERATED_BODY()
+
+	FLandscapeBrushParameters()
+		: LayerType(ELandscapeToolTargetType::Invalid)
+		, CombinedResult(nullptr)
+		, WeightmapLayerName()
+	{}
+
+	FLandscapeBrushParameters(const ELandscapeToolTargetType& InLayerType, TObjectPtr<UTextureRenderTarget2D> InCombinedResult, const FName& InWeightmapLayerName = FName())
+		: LayerType(InLayerType)
+		, CombinedResult(InCombinedResult)
+		, WeightmapLayerName(InWeightmapLayerName)
+	{}
+
+	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
+	ELandscapeToolTargetType LayerType;
+
+	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UTextureRenderTarget2D> CombinedResult;
+
+	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
+	FName WeightmapLayerName;
+};
+
 
 UCLASS(Abstract, NotBlueprintable)
 class LANDSCAPE_API ALandscapeBlueprintBrushBase : public AActor
@@ -30,6 +59,9 @@ protected:
 	bool AffectWeightmap;
 
 	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
+	bool AffectVisibilityLayer;
+
+	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
 	TArray<FName> AffectedWeightmapLayers;
 
 	UPROPERTY(Transient)
@@ -39,11 +71,18 @@ protected:
 #endif
 
 public:
+
+	UE_DEPRECATED(5.3, "Please use RenderLayer_Native instead.")
 	virtual UTextureRenderTarget2D* Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, const FName& InWeightmapLayerName) {return nullptr;}
 	virtual void Initialize_Native(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize) {}
 
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintNativeEvent, meta = (DeprecatedFunction, DeprecationMessage = "Please use RenderLayer instead."))
 	UTextureRenderTarget2D* Render(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, const FName& InWeightmapLayerName);
+
+	UFUNCTION(BlueprintNativeEvent)
+	UTextureRenderTarget2D* RenderLayer(const FLandscapeBrushParameters& InParameters);
+
+	virtual UTextureRenderTarget2D* RenderLayer_Native(const FLandscapeBrushParameters& InParameters);
 
 	UFUNCTION(BlueprintNativeEvent)
 	void Initialize(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize);
@@ -64,6 +103,7 @@ public:
 
 	bool IsAffectingHeightmap() const { return AffectHeightmap; }
 	bool IsAffectingWeightmap() const { return AffectWeightmap; }
+	bool IsAffectingVisibilityLayer() const { return AffectVisibilityLayer; }
 	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
 	bool IsVisible() const { return bIsVisible; }
 	bool IsLayerUpdatePending() const;
@@ -71,6 +111,7 @@ public:
 	void SetIsVisible(bool bInIsVisible);
 	void SetAffectsHeightmap(bool bInAffectsHeightmap);
 	void SetAffectsWeightmap(bool bInAffectsWeightmap);
+	void SetAffectsVisibilityLayer(bool bInAffectsVisibilityLayer);
 
 	virtual bool ShouldTickIfViewportsOnly() const override;
 	virtual void Tick(float DeltaSeconds) override;

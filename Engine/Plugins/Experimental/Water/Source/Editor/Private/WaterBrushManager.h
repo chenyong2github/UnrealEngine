@@ -205,7 +205,7 @@ public:
 	virtual void BlueprintOnRenderTargetTexturesUpdated_Native(UTexture2D* VelocityTexture) override;
 	virtual void BlueprintWaterBodyChanged_Native(AActor* Actor) override;
 	virtual void Initialize_Native(FTransform const& InLandscapeTransform, FIntPoint const& InLandscapeSize, FIntPoint const& InLandscapeRenderTargetSize) override;
-	virtual UTextureRenderTarget2D*  Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, FName const& InWeightmapLayerName) override;
+	virtual UTextureRenderTarget2D*  RenderLayer_Native(const FLandscapeBrushParameters& InParameters) override;
 		
 	virtual void GetRenderDependencies(TSet<UObject*>& OutDependencies) override;
 

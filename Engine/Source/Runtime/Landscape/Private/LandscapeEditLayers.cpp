@@ -15,6 +15,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "LandscapePrivate.h"
 #include "LandscapeEditReadback.h"
 #include "LandscapeEditResources.h"
+#include "LandscapeEditTypes.h"
 #include "LandscapeUtils.h"
 #include "LandscapeSubsystem.h"
 
@@ -4890,7 +4891,9 @@ int32 ALandscape::PerformLayersHeightmapsGlobalMerge(const FUpdateLayersContentC
 				// TODO: handle conversion/handling of RT not same size as internal size
 
 				FLandscapeLayerBrush& Brush = Layer.Brushes[i];
-				UTextureRenderTarget2D* BrushOutputNonAtlasRT = Brush.Render(true, LandscapeExtent, CombinedHeightmapNonAtlasRT);
+				FLandscapeBrushParameters BrushParameters(ELandscapeToolTargetType::Heightmap, CombinedHeightmapNonAtlasRT);
+
+				UTextureRenderTarget2D* BrushOutputNonAtlasRT = Brush.RenderLayer(LandscapeExtent, BrushParameters);
 				if ((BrushOutputNonAtlasRT == nullptr) 
 					|| (BrushOutputNonAtlasRT->SizeX != CombinedHeightmapNonAtlasRT->SizeX)
 					|| (BrushOutputNonAtlasRT->SizeY != CombinedHeightmapNonAtlasRT->SizeY))
@@ -6891,9 +6894,20 @@ int32 ALandscape::PerformLayersWeightmapsGlobalMerge(FUpdateLayersContentContext
 						for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
 						{
 							FLandscapeLayerBrush& Brush = Layer.Brushes[i];
+							TOptional<int32> LayerInfoSettingsAllocatedIndex;
+
 							if (Brush.IsAffectingWeightmapLayer(InfoLayerSettings.GetLayerName()) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
 							{
-								LayerInfoObjects.Add(InfoLayerSettings.LayerInfoObj, LayerInfoSettingsIndex + 1); // due to visibility layer that is at 0
+								LayerInfoSettingsAllocatedIndex = LayerInfoSettingsIndex + 1; // due to visibility layer that is at 0
+							}
+							else if (Brush.IsAffectingVisibilityLayer() && UE::Landscape::IsVisibilityLayer(InfoLayerSettings.LayerInfoObj) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
+							{
+								LayerInfoSettingsAllocatedIndex = GetVisibilityLayerAllocationIndex();
+							}
+
+							if (LayerInfoSettingsAllocatedIndex.IsSet())
+							{
+								LayerInfoObjects.Add(InfoLayerSettings.LayerInfoObj, LayerInfoSettingsAllocatedIndex.GetValue());
 								bHasWeightmapData = true;
 							}
 						}
@@ -7041,13 +7055,17 @@ int32 ALandscape::PerformLayersWeightmapsGlobalMerge(FUpdateLayersContentContext
 					// Handle brush blending
 					if (Layer.bVisible && !InMergeParams.bSkipBrush)
 					{
+						const ELandscapeToolTargetType LayerType = UE::Landscape::IsVisibilityLayer(LayerInfoObj) ? ELandscapeToolTargetType::Visibility : ELandscapeToolTargetType::Weightmap;
+
 						// Draw each brushes				
 						for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
 						{
 							// TODO: handle conversion/handling of RT not same size as internal size
 
 							FLandscapeLayerBrush& Brush = Layer.Brushes[i];
-							UTextureRenderTarget2D* BrushOutputRT = Brush.Render(false, LandscapeExtent, LandscapeScratchRT3, LayerInfoObj->LayerName);
+							FLandscapeBrushParameters BrushParameters(LayerType, LandscapeScratchRT3, LayerInfoObj->LayerName);
+
+							UTextureRenderTarget2D* BrushOutputRT = Brush.RenderLayer( LandscapeExtent, BrushParameters);
 							if (BrushOutputRT == nullptr || BrushOutputRT->SizeX != LandscapeScratchRT3->SizeX || BrushOutputRT->SizeY != LandscapeScratchRT3->SizeY)
 							{
 								continue;
@@ -7860,7 +7878,7 @@ void ALandscape::MonitorLandscapeEdModeChanges()
 		bRequiredEditingClientFullUpdate = true;
 	}
 
-	ELandscapeToolTargetType::Type NewValue = LandscapeEdMode ? LandscapeEdMode->GetLandscapeToolTargetType() : ELandscapeToolTargetType::Invalid;
+	ELandscapeToolTargetType NewValue = LandscapeEdMode ? LandscapeEdMode->GetLandscapeToolTargetType() : ELandscapeToolTargetType::Invalid;
 	if (LandscapeEdModeInfo.ToolTarget != NewValue)
 	{
 		LandscapeEdModeInfo.ToolTarget = NewValue;
@@ -9744,22 +9762,58 @@ bool FLandscapeLayerBrush::IsAffectingWeightmapLayer(const FName& InWeightmapLay
 #endif
 }
 
+bool FLandscapeLayerBrush::IsAffectingVisibilityLayer() const
+{
+#if WITH_EDITORONLY_DATA
+	return BlueprintBrush && BlueprintBrush->IsVisible() && BlueprintBrush->IsAffectingVisibilityLayer();
+#else
+	return false;
+#endif
+}
+
 UTextureRenderTarget2D* FLandscapeLayerBrush::Render(bool InIsHeightmap, const FIntRect& InLandscapeExtent, UTextureRenderTarget2D* InLandscapeRenderTarget, const FName& InWeightmapLayerName)
+{
+	const ELandscapeToolTargetType LayerType = InIsHeightmap ? ELandscapeToolTargetType::Heightmap : ELandscapeToolTargetType::Weightmap;
+	FLandscapeBrushParameters BrushParameters(LayerType, InLandscapeRenderTarget, InWeightmapLayerName);
+
+	return RenderLayer(InLandscapeExtent, BrushParameters);
+}
+
+UTextureRenderTarget2D* FLandscapeLayerBrush::RenderLayer(const FIntRect& InLandscapeSize, const FLandscapeBrushParameters& InParameters)
 {
 #if WITH_EDITORONLY_DATA
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_LayerBrushRender);
-	if ((InIsHeightmap && !IsAffectingHeightmap()) ||
-		(!InIsHeightmap && !IsAffectingWeightmapLayer(InWeightmapLayerName)))
+	if (((InParameters.LayerType == ELandscapeToolTargetType::Heightmap) && !IsAffectingHeightmap()) ||
+		((InParameters.LayerType == ELandscapeToolTargetType::Weightmap) && !IsAffectingWeightmapLayer(InParameters.WeightmapLayerName)) ||
+		((InParameters.LayerType == ELandscapeToolTargetType::Visibility) && !IsAffectingVisibilityLayer()))
 	{
 		return nullptr;
 	}
-	if (Initialize(InLandscapeExtent, InLandscapeRenderTarget))
+
+	if (Initialize(InLandscapeSize, InParameters.CombinedResult))
 	{
-		FString ProfilingEventName = FString::Format(TEXT("LandscapeLayers_RenderLayerBrush {0}: {1}"), { InIsHeightmap ? TEXT("LS Height") : TEXT("LS Weight"), BlueprintBrush->GetName() });
+		const TCHAR* LayerName = TEXT("");
+		
+		switch (InParameters.LayerType)
+		{
+		case ELandscapeToolTargetType::Heightmap:
+			LayerName = TEXT("LS Height");
+			break;
+		case ELandscapeToolTargetType::Weightmap:
+			LayerName = TEXT("LS Weight");
+			break;
+		case ELandscapeToolTargetType::Visibility:
+			LayerName = TEXT("LS VisibilityLayer");
+			break;
+		default:
+			check(false);
+		}
+
+		FString ProfilingEventName = FString::Format(TEXT("LandscapeLayers_RenderLayerBrush {0}: {1}"), { LayerName , BlueprintBrush->GetName() });
 		SCOPED_DRAW_EVENTF_GAMETHREAD(LandscapeLayers, *ProfilingEventName);
 
 		TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
-		UTextureRenderTarget2D* Result = BlueprintBrush->Render(InIsHeightmap, InLandscapeRenderTarget, InWeightmapLayerName);
+		UTextureRenderTarget2D* Result = BlueprintBrush->RenderLayer(InParameters);
 
 		return Result;
 	}

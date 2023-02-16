@@ -4,6 +4,7 @@
 
 
 #include "LandscapePatchComponent.h"
+#include "LandscapeEditTypes.h"
 
 #include "LandscapeCircleHeightPatch.generated.h"
 
@@ -24,9 +25,8 @@ public:
 	virtual void Initialize_Native(const FTransform& InLandscapeTransform, 
 		const FIntPoint& InLandscapeSize, 
 		const FIntPoint& InLandscapeRenderTargetSize) override;
-	virtual UTextureRenderTarget2D* Render_Native(bool InIsHeightmap,
-		UTextureRenderTarget2D* InCombinedResult,
-		const FName& InWeightmapLayerName) override;
+
+	virtual UTextureRenderTarget2D* RenderLayer_Native(const FLandscapeBrushParameters& InParameters) override;
 
 	// UActorComponent
 	virtual void OnComponentCreated() override;
@@ -39,6 +39,10 @@ protected:
 	/** Distance across which the alpha will go from 1 down to 0 outside of circle. */
 	UPROPERTY(EditAnywhere, Category = Settings)
 	float Falloff = 500;
+
+	/** Specifies if this patch edits the visibility layer. */
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bEditVisibility = false;
 
 	/** When true, only the vertices in the circle have alpha 1. If false, the radius is expanded slightly so that neighboring 
 	  vertices are also included and the whole circle is able to lie flat. */

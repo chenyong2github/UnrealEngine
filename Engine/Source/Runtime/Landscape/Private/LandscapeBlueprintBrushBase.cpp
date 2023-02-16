@@ -4,7 +4,9 @@
 #include "CoreMinimal.h"
 #include "LandscapeProxy.h"
 #include "Landscape.h"
+#include "LandscapeEditTypes.h"
 #include "LandscapeInfo.h"
+#include "LandscapeLayerInfoObject.h"
 #include "LandscapePrivate.h"
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
@@ -30,6 +32,7 @@ ALandscapeBlueprintBrushBase::ALandscapeBlueprintBrushBase(const FObjectInitiali
 	, UpdateOnPropertyChange(true)
 	, AffectHeightmap(false)
 	, AffectWeightmap(false)
+	, AffectVisibilityLayer(false)
 	, bIsVisible(true)
 	, LastRequestLayersContentUpdateFrameNumber(InvalidLastRequestLayersContentUpdateFrameNumber)
 #endif
@@ -50,10 +53,27 @@ ALandscapeBlueprintBrushBase::ALandscapeBlueprintBrushBase(const FObjectInitiali
 #endif
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UTextureRenderTarget2D* ALandscapeBlueprintBrushBase::Render_Implementation(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, const FName& InWeightmapLayerName)
 {
 	return Render_Native(InIsHeightmap, InCombinedResult, InWeightmapLayerName);
 }
+
+UTextureRenderTarget2D* ALandscapeBlueprintBrushBase::RenderLayer_Implementation(const FLandscapeBrushParameters& InParameters)
+{
+	return RenderLayer_Native(InParameters);
+}
+
+UTextureRenderTarget2D* ALandscapeBlueprintBrushBase::RenderLayer_Native(const FLandscapeBrushParameters& InParameters)
+{
+	const bool bIsHeightmap = InParameters.LayerType == ELandscapeToolTargetType::Heightmap;
+
+	// Without any implementation, we call the former Render method so content created before the deprecation will still work as expected.
+	return Render(bIsHeightmap, InParameters.CombinedResult, InParameters.WeightmapLayerName);
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void ALandscapeBlueprintBrushBase::Initialize_Implementation(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize)
 {
@@ -71,7 +91,7 @@ void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate(bool bInUserTriggered)
 		{
 			ModeMask |= ELandscapeLayerUpdateMode::Update_Heightmap_Editing_NoCollision;
 		}
-		if (AffectWeightmap)
+		if (AffectWeightmap || AffectVisibilityLayer)
 		{
 			ModeMask |= ELandscapeLayerUpdateMode::Update_Weightmap_Editing_NoCollision;
 		}
@@ -100,7 +120,7 @@ void ALandscapeBlueprintBrushBase::PushDeferredLayersContentUpdate()
 		{
 			ModeMask |= ELandscapeLayerUpdateMode::Update_Heightmap_All;
 		}
-		if (AffectWeightmap)
+		if (AffectWeightmap || AffectVisibilityLayer)
 		{
 			ModeMask |= ELandscapeLayerUpdateMode::Update_Weightmap_All;
 		}
@@ -164,6 +184,18 @@ void ALandscapeBlueprintBrushBase::SetAffectsWeightmap(bool bInAffectsWeightmap)
 #if WITH_EDITORONLY_DATA
 	Modify();
 	AffectWeightmap = bInAffectsWeightmap;
+	if (OwningLandscape)
+	{
+		OwningLandscape->OnBlueprintBrushChanged();
+	}
+#endif
+}
+
+void ALandscapeBlueprintBrushBase::SetAffectsVisibilityLayer(bool bInAffectsVisibilityLayer)
+{
+#if WITH_EDITORONLY_DATA
+	Modify();
+	AffectVisibilityLayer = bInAffectsVisibilityLayer;
 	if (OwningLandscape)
 	{
 		OwningLandscape->OnBlueprintBrushChanged();

@@ -95,6 +95,9 @@ LANDSCAPE_API FString GetSharedAssetsPath(const ULevel* InLevel);
 */
 LANDSCAPE_API FString GetLayerInfoObjectPackageName(const ULevel* InLevel, const FName& InLayerName, FName& OutLayerObjectName);
 
+/** Returns true if the provided layer info object is the current visibility layer. */
+LANDSCAPE_API bool IsVisibilityLayer(const ULandscapeLayerInfoObject* InLayerInfoObject);
+
 #endif //!WITH_EDITOR
 
 } // end namespace UE::Landscape

@@ -75,23 +75,24 @@ namespace LandscapeTexturePatchLocals
 }
 
 #if WITH_EDITOR
-UTextureRenderTarget2D* ULandscapeTexturePatch::Render_Native(bool bIsHeightmap,
-	UTextureRenderTarget2D* InCombinedResult,
-	const FName& InWeightmapLayerName)
+UTextureRenderTarget2D* ULandscapeTexturePatch::RenderLayer_Native(const FLandscapeBrushParameters& InParameters)
 {
 	using namespace UE::Landscape;
+	const bool bIsHeightmapTarget = InParameters.LayerType == ELandscapeToolTargetType::Heightmap;
+	const bool bIsWeightmapTarget = InParameters.LayerType == ELandscapeToolTargetType::Weightmap;
+	const bool bIsVisibilityLayerTarget = InParameters.LayerType == ELandscapeToolTargetType::Visibility;
 
-	if (bIsHeightmap)
+	if (bIsHeightmapTarget)
 	{
 		if (bReinitializeHeightOnNextRender)
 		{
 			bReinitializeHeightOnNextRender = false;
-			ReinitializeHeight(InCombinedResult);
-			return InCombinedResult;
+			ReinitializeHeight(InParameters.CombinedResult);
+			return InParameters.CombinedResult;
 		}
 		else
 		{
-			return ApplyToHeightmap(InCombinedResult);
+			return ApplyToHeightmap(InParameters.CombinedResult);
 		}
 	}
 	else
@@ -101,7 +102,8 @@ UTextureRenderTarget2D* ULandscapeTexturePatch::Render_Native(bool bIsHeightmap,
 
 		for (TObjectPtr<ULandscapeWeightPatchTextureInfo> WeightPatchEntry : WeightPatches)
 		{
-			if (WeightPatchEntry->WeightmapLayerName == InWeightmapLayerName)
+			if ((bIsWeightmapTarget && (WeightPatchEntry->WeightmapLayerName == InParameters.WeightmapLayerName)) ||
+				(bIsVisibilityLayerTarget && WeightPatchEntry->bEditVisibilityLayer))
 			{
 				WeightPatchInfo = WeightPatchEntry;
 				break;
@@ -110,18 +112,18 @@ UTextureRenderTarget2D* ULandscapeTexturePatch::Render_Native(bool bIsHeightmap,
 
 		if (!WeightPatchInfo)
 		{
-			return InCombinedResult;
+			return InParameters.CombinedResult;
 		}
 
 		if (WeightPatchInfo->bReinitializeOnNextRender)
 		{
 			WeightPatchInfo->bReinitializeOnNextRender = false;
-			ReinitializeWeightPatch(WeightPatchInfo, InCombinedResult);
-			return InCombinedResult;
+			ReinitializeWeightPatch(WeightPatchInfo, InParameters.CombinedResult);
+			return InParameters.CombinedResult;
 		}
 		else
 		{
-			return ApplyToWeightmap(WeightPatchInfo, InCombinedResult);
+			return ApplyToWeightmap(WeightPatchInfo, InParameters.CombinedResult);
 		}
 	}
 }

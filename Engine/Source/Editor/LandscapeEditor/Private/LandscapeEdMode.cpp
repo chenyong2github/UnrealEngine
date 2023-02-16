@@ -24,6 +24,7 @@
 #include "EditorSupportDelegates.h"
 #include "ScopedTransaction.h"
 #include "LandscapeEdit.h"
+#include "LandscapeEditTypes.h"
 #include "LandscapeEditorUtils.h"
 #include "LandscapeRender.h"
 #include "LandscapeDataAccess.h"
@@ -333,7 +334,7 @@ void FEdModeLandscape::PostUpdateLayerContent()
 	}
 }
 
-ELandscapeToolTargetType::Type FEdModeLandscape::GetLandscapeToolTargetType() const
+ELandscapeToolTargetType FEdModeLandscape::GetLandscapeToolTargetType() const
 {
 	if (CurrentToolMode)
 	{

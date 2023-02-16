@@ -4,6 +4,8 @@
 
 
 #include "Components/SceneComponent.h"
+#include "LandscapeBlueprintBrushBase.h"
+#include "LandscapeEditTypes.h"
 
 #include "LandscapePatchComponent.generated.h"
 
@@ -31,9 +33,8 @@ public:
 	virtual void Initialize_Native(const FTransform& InLandscapeTransform,
 		const FIntPoint& InLandscapeSize,
 		const FIntPoint& InLandscapeRenderTargetSize) {}
-	virtual UTextureRenderTarget2D* Render_Native(bool InIsHeightmap,
-		UTextureRenderTarget2D* InCombinedResult,
-		const FName& InWeightmapLayerName) { return InCombinedResult; }
+
+	virtual UTextureRenderTarget2D* RenderLayer_Native(const FLandscapeBrushParameters& InParameters) { return InParameters.CombinedResult; }
 
 	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const { return false; }
 

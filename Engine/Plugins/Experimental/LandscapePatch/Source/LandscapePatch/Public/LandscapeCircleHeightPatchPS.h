@@ -16,7 +16,7 @@ class LANDSCAPEPATCH_API FLandscapeCircleHeightPatchPS : public FGlobalShader
 
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InSourceHeightmap) // Our input texture
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InSourceTexture) // Our input texture
 		SHADER_PARAMETER(FVector3f, InCenter)
 		SHADER_PARAMETER(float, InRadius)
 		SHADER_PARAMETER(float, InFalloff)
@@ -27,6 +27,23 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
+	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters);
+};
+
+/**
+ * Shader that applies a circle patch to a landscape visibility layer.
+ */
+class LANDSCAPEPATCH_API FLandscapeCircleVisibilityPatchPS : public FLandscapeCircleHeightPatchPS
+{
+	DECLARE_GLOBAL_SHADER(FLandscapeCircleVisibilityPatchPS);
+
+public:
+	FLandscapeCircleVisibilityPatchPS() = default;
+	FLandscapeCircleVisibilityPatchPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FLandscapeCircleHeightPatchPS(Initializer)
+	{}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters);
 };
 

@@ -7,6 +7,7 @@
 #include "LandscapeProxy.h"
 #include "LandscapeToolInterface.h"
 #include "LandscapeEdMode.h"
+#include "LandscapeEditTypes.h"
 #include "EditorViewportClient.h"
 #include "LandscapeEdit.h"
 #include "LandscapeComponent.h"
@@ -1315,7 +1316,7 @@ struct FLandscapeDataCache : public TLandscapeEditCache<FDatamapAccessor<false>,
 struct FHeightmapToolTarget
 {
 	typedef FLandscapeHeightCache CacheClass;
-	static const ELandscapeToolTargetType::Type TargetType = ELandscapeToolTargetType::Heightmap;
+	static const ELandscapeToolTargetType TargetType = ELandscapeToolTargetType::Heightmap;
 
 	static float StrengthMultiplier(ULandscapeInfo* LandscapeInfo, float BrushRadius)
 	{
@@ -1346,7 +1347,7 @@ struct FHeightmapToolTarget
 struct FWeightmapToolTarget
 {
 	typedef FLandscapeAlphaCache CacheClass;
-	static const ELandscapeToolTargetType::Type TargetType = ELandscapeToolTargetType::Weightmap;
+	static const ELandscapeToolTargetType TargetType = ELandscapeToolTargetType::Weightmap;
 
 	static float StrengthMultiplier(ULandscapeInfo* LandscapeInfo, float BrushRadius)
 	{
@@ -1421,7 +1422,7 @@ public:
 
 	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const
 	{
-		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap; 
+		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap; 
 		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Update_Heightmap_Editing : ELandscapeLayerUpdateMode::Update_Weightmap_Editing;
 	}
 
@@ -1432,7 +1433,7 @@ public:
 
 	virtual ELandscapeLayerUpdateMode GetEndToolContentUpdateFlag() const
 	{
-		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
+		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap;
 		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Update_Heightmap_All : ELandscapeLayerUpdateMode::Update_Weightmap_All;
 	}
 

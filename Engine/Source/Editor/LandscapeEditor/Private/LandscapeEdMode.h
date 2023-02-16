@@ -13,6 +13,7 @@
 #include "LandscapeLayerInfoObject.h"
 #include "LandscapeGizmoActiveActor.h"
 #include "LandscapeEdit.h"
+#include "LandscapeEditTypes.h"
 #include "Containers/Set.h"
 #include "LandscapeImportHelper.h"
 
@@ -63,7 +64,7 @@ struct FLandscapeToolMode
 struct FLandscapeTargetListInfo
 {
 	FText TargetName;
-	ELandscapeToolTargetType::Type TargetType;
+	ELandscapeToolTargetType TargetType;
 	TWeakObjectPtr<ULandscapeInfo> LandscapeInfo;
 
 	//Values cloned from FLandscapeLayerStruct LayerStruct;			// ignored for heightmap
@@ -75,7 +76,7 @@ struct FLandscapeTargetListInfo
 	uint32 bValid : 1;												// ignored for heightmap
 	int32 LayerIndex;
 
-	FLandscapeTargetListInfo(FText InTargetName, ELandscapeToolTargetType::Type InTargetType, const FLandscapeInfoLayerSettings& InLayerSettings, int32 InLayerIndex)
+	FLandscapeTargetListInfo(FText InTargetName, ELandscapeToolTargetType InTargetType, const FLandscapeInfoLayerSettings& InLayerSettings, int32 InLayerIndex)
 		: TargetName(InTargetName)
 		, TargetType(InTargetType)
 		, LandscapeInfo(InLayerSettings.Owner->GetLandscapeInfo())
@@ -89,7 +90,7 @@ struct FLandscapeTargetListInfo
 	{
 	}
 
-	FLandscapeTargetListInfo(FText InTargetName, ELandscapeToolTargetType::Type InTargetType, ULandscapeInfo* InLandscapeInfo, int32 InLayerIndex)
+	FLandscapeTargetListInfo(FText InTargetName, ELandscapeToolTargetType InTargetType, ULandscapeInfo* InLandscapeInfo, int32 InLayerIndex)
 		: TargetName(InTargetName)
 		, TargetType(InTargetType)
 		, LandscapeInfo(InLandscapeInfo)
@@ -355,7 +356,7 @@ public:
 
 	/** ILandscapeEdModeInterface */
 	virtual void PostUpdateLayerContent() override;
-	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const override;
+	virtual ELandscapeToolTargetType GetLandscapeToolTargetType() const override;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const override;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const override;
 	virtual void OnCanHaveLayersContentChanged() override;

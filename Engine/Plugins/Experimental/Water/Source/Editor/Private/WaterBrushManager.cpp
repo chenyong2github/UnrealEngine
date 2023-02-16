@@ -1349,15 +1349,15 @@ void AWaterBrushManager::SetupDefaultMaterials()
 	FindEdgesMaterial = WaterEditorSettings->GetDefaultFindEdgesMaterial();
 }
 
-UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, FName const& InWeightmapLayerName)
+UTextureRenderTarget2D* AWaterBrushManager::RenderLayer_Native(const FLandscapeBrushParameters& InParameters)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(AWaterBrushManager::Render_Native);
+	TRACE_CPUPROFILER_EVENT_SCOPE(AWaterBrushManager::RenderLayer_Native);
 
-	LandscapeRTRef = InCombinedResult;
+	LandscapeRTRef = InParameters.CombinedResult;
 
 	FBrushRenderContext BrushRenderContext;
-	BrushRenderContext.bHeightmapRender = InIsHeightmap;
-	BrushRenderContext.WeightmapLayerName = InWeightmapLayerName;
+	BrushRenderContext.bHeightmapRender = InParameters.LayerType == ELandscapeToolTargetType::Heightmap;
+	BrushRenderContext.WeightmapLayerName = InParameters.WeightmapLayerName;
 
 	if (!BrushRenderSetup())
 	{
@@ -1407,7 +1407,7 @@ UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UT
 	}
 
 	// Render Completed
-	UTextureRenderTarget2D* ReturnRT = InIsHeightmap ? HeightPingPongRead(BrushRenderContext) : WeightPingPongRead(BrushRenderContext);
+	UTextureRenderTarget2D* ReturnRT = (InParameters.LayerType == ELandscapeToolTargetType::Heightmap) ? HeightPingPongRead(BrushRenderContext) : WeightPingPongRead(BrushRenderContext);
 
 	bKillCache = false;
 

@@ -15,8 +15,7 @@ bool FLandscapeCircleHeightPatchPS::ShouldCompilePermutation(const FGlobalShader
 
 void FLandscapeCircleHeightPatchPS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	// If we end up using an ifdef
-	//OutEnvironment.SetDefine(TEXT("CIRCLE_HEIGHT_PATCH"), 1);
+	OutEnvironment.SetDefine(TEXT("CIRCLE_HEIGHT_PATCH"), 1);
 }
 
 void FLandscapeCircleHeightPatchPS::AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters)
@@ -24,7 +23,7 @@ void FLandscapeCircleHeightPatchPS::AddToRenderGraph(FRDGBuilder& GraphBuilder, 
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	TShaderMapRef<FLandscapeCircleHeightPatchPS> PixelShader(ShaderMap);
 
-	FIntVector TextureSize = InParameters->InSourceHeightmap->Desc.Texture->Desc.GetSize();
+	FIntVector TextureSize = InParameters->InSourceTexture->Desc.Texture->Desc.GetSize();
 
 	FPixelShaderUtils::AddFullscreenPass(
 		GraphBuilder,
@@ -35,4 +34,26 @@ void FLandscapeCircleHeightPatchPS::AddToRenderGraph(FRDGBuilder& GraphBuilder, 
 		FIntRect(0, 0, TextureSize.X, TextureSize.Y));
 }
 
+void FLandscapeCircleVisibilityPatchPS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	OutEnvironment.SetDefine(TEXT("CIRCLE_VISIBILITY_PATCH"), 1);
+}
+
+void FLandscapeCircleVisibilityPatchPS::AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters)
+{
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	TShaderMapRef<FLandscapeCircleVisibilityPatchPS> PixelShader(ShaderMap);
+
+	FIntVector TextureSize = InParameters->InSourceTexture->Desc.Texture->Desc.GetSize();
+
+	FPixelShaderUtils::AddFullscreenPass(
+		GraphBuilder,
+		ShaderMap,
+		RDG_EVENT_NAME("LandmassCircleVisibilityPatch"),
+		PixelShader,
+		InParameters,
+		FIntRect(0, 0, TextureSize.X, TextureSize.Y));
+}
+
 IMPLEMENT_GLOBAL_SHADER(FLandscapeCircleHeightPatchPS, "/Plugin/LandscapePatch/Private/LandscapeCircleHeightPatchPS.usf", "ApplyLandscapeCircleHeightPatch", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FLandscapeCircleVisibilityPatchPS, "/Plugin/LandscapePatch/Private/LandscapeCircleHeightPatchPS.usf", "ApplyLandscapeCircleVisibilityPatch", SF_Pixel);

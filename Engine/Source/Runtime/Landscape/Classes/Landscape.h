@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "LandscapeProxy.h"
 #include "LandscapeBlueprintBrushBase.h"
+#include "LandscapeEditTypes.h"
 #include "Delegates/DelegateCombinations.h"
 
 #include "Landscape.generated.h"
@@ -23,11 +24,6 @@ struct FTextureToComponentHelper;
 struct FUpdateLayersContentContext;
 struct FEditLayersHeightmapMergeParams;
 struct FEditLayersWeightmapMergeParams;
-
-namespace ELandscapeToolTargetType
-{
-	enum Type : int8;
-};
 
 namespace EditLayersHeightmapLocalMerge_RenderThread
 {
@@ -131,9 +127,13 @@ struct FLandscapeLayerBrush
 
 #if WITH_EDITOR
 	UTextureRenderTarget2D* Render(bool InIsHeightmap, const FIntRect& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget, const FName& InWeightmapLayerName = NAME_None);
+	
+	UTextureRenderTarget2D* RenderLayer(const FIntRect& InLandscapeSize, const FLandscapeBrushParameters& InParameters);
+
 	LANDSCAPE_API ALandscapeBlueprintBrushBase* GetBrush() const;
 	bool IsAffectingHeightmap() const;
 	bool IsAffectingWeightmapLayer(const FName& InWeightmapLayerName) const;
+	bool IsAffectingVisibilityLayer() const;
 	void SetOwner(ALandscape* InOwner);
 #endif
 
@@ -360,6 +360,8 @@ public:
 	LANDSCAPE_API bool GetUseGeneratedLandscapeSplineMeshesActors() const;
 	LANDSCAPE_API bool PrepareTextureResources(bool bInWaitForStreaming);
 
+	LANDSCAPE_API bool GetVisibilityLayerAllocationIndex() const { return 0; }
+
 protected:
 	FName GenerateUniqueLayerName(FName InName = NAME_None) const;
 
@@ -525,7 +527,7 @@ private:
 		int32 ViewMode;
 		FGuid SelectedLayer;
 		TWeakObjectPtr<ULandscapeLayerInfoObject> SelectedLayerInfoObject;
-		ELandscapeToolTargetType::Type ToolTarget;
+		ELandscapeToolTargetType ToolTarget;
 	};
 
 	FLandscapeEdModeInfo LandscapeEdModeInfo;

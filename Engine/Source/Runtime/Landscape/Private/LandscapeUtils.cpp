@@ -4,12 +4,13 @@
 
 #include "Engine/Level.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "LandscapeLayerInfoObject.h"
+#include "LandscapeProxy.h"
 
 #if WITH_EDITOR
 #include "EditorDirectories.h"
 #include "Engine/Texture2D.h"
 #include "LandscapeComponent.h"
-#include "LandscapeLayerInfoObject.h"
 #include "ObjectTools.h"
 #endif
 
@@ -68,6 +69,11 @@ FString GetLayerInfoObjectPackageName(const ULevel* InLevel, const FName& InLaye
 	}
 
 	return PackageName;
+}
+
+bool IsVisibilityLayer(const ULandscapeLayerInfoObject* InLayerInfoObject)
+{
+	return (ALandscapeProxy::VisibilityLayer != nullptr) && (ALandscapeProxy::VisibilityLayer == InLayerInfoObject);
 }
 
 uint32 GetTypeHash(const FTextureCopyRequest& InKey)

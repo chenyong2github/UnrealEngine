@@ -3320,6 +3320,17 @@ bool ULandscapeInfo::UpdateLayerInfoMapInternal(ALandscapeProxy* Proxy, bool bIn
 						Proxy->EditorLayerSettings.RemoveAt(i--);
 					}
 				}
+
+				// Add Visibility Layer info if not initialized
+				if (ALandscapeProxy::VisibilityLayer != nullptr)
+				{
+					int32 LayerInfoIndex = GetLayerInfoIndex(ALandscapeProxy::VisibilityLayer->LayerName);
+
+					if ((LayerInfoIndex != INDEX_NONE) && (Layers[LayerInfoIndex].LayerInfoObj == nullptr))
+					{
+						Layers[LayerInfoIndex].LayerInfoObj = ALandscapeProxy::VisibilityLayer;
+					}
+				}
 			}
 		}
 		else // !Proxy

@@ -161,6 +161,10 @@ public:
 protected:
 	UPROPERTY(EditAnywhere, Category = WeightPatch)
 	FName WeightmapLayerName;
+
+	/** Specifies if this patch edits the visibility layer. */
+	UPROPERTY(EditAnywhere, Category = WeightPatch)
+	bool bEditVisibilityLayer = false;
 	
 	/** Texture to use when source mode is set to texture asset. */
 	UPROPERTY(EditAnywhere, Category = WeightPatch, meta = (EditConditionHides,
@@ -216,9 +220,7 @@ class LANDSCAPEPATCH_API ULandscapeTexturePatch : public ULandscapePatchComponen
 public:
 
 #if WITH_EDITOR
-	virtual UTextureRenderTarget2D* Render_Native(bool InIsHeightmap,
-		UTextureRenderTarget2D* InCombinedResult,
-		const FName& InWeightmapLayerName) override;
+	UTextureRenderTarget2D* RenderLayer_Native(const FLandscapeBrushParameters& InParameters);
 
 	// ULandscapePatchComponent
 	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const override;

@@ -8,6 +8,7 @@
 #include "UnrealWidgetFwd.h"
 #include "EdMode.h"
 #include "LandscapeEdit.h"
+#include "LandscapeEditTypes.h"
 
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
@@ -146,28 +147,28 @@ namespace ELandscapeToolTargetTypeMask
 {
 	enum Type : uint8
 	{
-		Heightmap  = 1 << ELandscapeToolTargetType::Heightmap,
-		Weightmap  = 1 << ELandscapeToolTargetType::Weightmap,
-		Visibility = 1 << ELandscapeToolTargetType::Visibility,
+		Heightmap  = 1 << static_cast<uint8>(ELandscapeToolTargetType::Heightmap),
+		Weightmap  = 1 << static_cast<uint8>(ELandscapeToolTargetType::Weightmap),
+		Visibility = 1 << static_cast<uint8>(ELandscapeToolTargetType::Visibility),
 
 		NA = 0,
 		All = 0xFF,
 	};
 
-	inline ELandscapeToolTargetTypeMask::Type FromType(ELandscapeToolTargetType::Type TargetType)
+	inline ELandscapeToolTargetTypeMask::Type FromType(ELandscapeToolTargetType TargetType)
 	{
 		if (TargetType == ELandscapeToolTargetType::Invalid)
 		{
 			return ELandscapeToolTargetTypeMask::NA;
 		}
-		return (ELandscapeToolTargetTypeMask::Type)(1 << TargetType);
+		return (ELandscapeToolTargetTypeMask::Type)(1 << static_cast<uint8>(TargetType));
 	}
 }
 
 struct FLandscapeToolTarget
 {
 	TWeakObjectPtr<ULandscapeInfo> LandscapeInfo;
-	ELandscapeToolTargetType::Type TargetType;
+	ELandscapeToolTargetType TargetType;
 	TWeakObjectPtr<ULandscapeLayerInfoObject> LayerInfo;
 	FName LayerName;
 	
