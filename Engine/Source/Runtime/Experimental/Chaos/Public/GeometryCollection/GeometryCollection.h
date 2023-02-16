@@ -367,6 +367,14 @@ protected:
 	*/
 	void ReorderTransformElements(const TArray<int32>& NewOrder);
 
+	/**
+	 * @return the latest Version number used in serialization
+	 */
+	int32 GetLatestVersionNumber() const
+	{
+		return 10;
+	}
+
 
 public:
 	/* Backwards compatibility */

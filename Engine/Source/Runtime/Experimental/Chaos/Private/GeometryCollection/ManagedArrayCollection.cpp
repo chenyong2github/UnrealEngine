@@ -613,7 +613,6 @@ void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
-	if (Ar.IsSaving()) Version = 9;
 	Ar << Version;
 
 	if (Ar.IsLoading())
