@@ -9,11 +9,13 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LightWeightInstanceManager)
 
 UActorInstanceHandleInterface::UActorInstanceHandleInterface(const FObjectInitializer& ObjectInitializer)
+	:Super(ObjectInitializer)
 {
 	// do nothing
 }
 
 ALightWeightInstanceManager::ALightWeightInstanceManager(const FObjectInitializer& ObjectInitializer)
+	:Super(ObjectInitializer)
 {
 	bReplicates = true;
 	AcceptedClass = AActor::StaticClass();
@@ -61,7 +63,9 @@ AActor* ALightWeightInstanceManager::FetchActorFromHandle(const FActorInstanceHa
 		}
 	}
 
-	ensure(Handle.Actor.IsValid());
+	// Unless we are on the server or the actor has been spawned, this ensure will fail.
+	// Commented out until there is more robust replication.
+	// ensure(Handle.Actor.IsValid());
 	return Handle.Actor.Get();
 }
 
@@ -78,16 +82,20 @@ AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstance
 		return nullptr;
 	}
 
-	FActorSpawnParameters SpawnParams;
-	SetSpawnParameters(SpawnParams);
+	AActor* NewActor = nullptr;
+	// Only spawn actors on the server so they are replicated to the clients. Otherwise we'll end up with multiples.
+	if (HasAuthority())
+	{
+		FActorSpawnParameters SpawnParams;
+		SetSpawnParameters(SpawnParams);
+		NewActor = GetLevel()->GetWorld()->SpawnActor<AActor>(GetActorClassToSpawn(Handle), GetTransform(Handle), SpawnParams);
+		check(NewActor);
 
-	AActor* NewActor = GetLevel()->GetWorld()->SpawnActor<AActor>(GetActorClassToSpawn(Handle), InstanceTransforms[Handle.GetInstanceIndex()], SpawnParams);
-	check(NewActor);
+		Handle.Actor = NewActor;
+		Actors.Add(Handle.GetInstanceIndex(), NewActor);
 
-	Handle.Actor = NewActor;
-	Actors.Add(Handle.GetInstanceIndex(), NewActor);
-
-	PostActorSpawn(Handle);
+		PostActorSpawn(Handle);
+	}
 
 	return NewActor;
 }
@@ -222,32 +230,12 @@ bool ALightWeightInstanceManager::FindActorForHandle(const FActorInstanceHandle&
 
 FVector ALightWeightInstanceManager::GetLocation(const FActorInstanceHandle& Handle) const
 {
-	if (FindActorForHandle(Handle))
-	{
-		return Handle.Actor->GetActorLocation();
-	}
-
-	if (ensure(IsIndexValid(Handle.GetInstanceIndex())))
-	{
-		return InstanceTransforms[Handle.GetInstanceIndex()].GetTranslation();
-	}
-
-	return FVector();
+	return GetTransform(Handle).GetTranslation();
 }
 
 FRotator ALightWeightInstanceManager::GetRotation(const FActorInstanceHandle& Handle) const
 {
-	if (FindActorForHandle(Handle))
-	{
-		return Handle.Actor->GetActorRotation();
-	}
-
-	if (ensure(IsIndexValid(Handle.GetInstanceIndex())))
-	{
-		return InstanceTransforms[Handle.GetInstanceIndex()].Rotator();
-	}
-
-	return FRotator();
+	return GetTransform(Handle).Rotator();
 }
 
 FTransform ALightWeightInstanceManager::GetTransform(const FActorInstanceHandle& Handle) const
@@ -259,7 +247,8 @@ FTransform ALightWeightInstanceManager::GetTransform(const FActorInstanceHandle&
 
 	if (ensure(IsIndexValid(Handle.GetInstanceIndex())))
 	{
-		return InstanceTransforms[Handle.GetInstanceIndex()];
+		// Return in world space.
+		return InstanceTransforms[Handle.GetInstanceIndex()] * GetActorTransform();
 	}
 
 	return FTransform();
@@ -335,7 +324,8 @@ void ALightWeightInstanceManager::GrowDataArrays()
 
 void ALightWeightInstanceManager::UpdateDataAtIndex(FLWIData* InData, int32 Index)
 {
-	InstanceTransforms[Index] = InData->Transform;
+	// Convert to local space.
+	InstanceTransforms[Index] = InData->Transform * GetActorTransform().Inverse();
 }
 
 void ALightWeightInstanceManager::RemoveInstance(const int32 Index)

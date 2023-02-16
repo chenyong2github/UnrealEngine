@@ -10,6 +10,16 @@ DEFINE_LOG_CATEGORY(LogLightWeightInstance);
 TSharedPtr<FLightWeightInstanceSubsystem> FLightWeightInstanceSubsystem::LWISubsystem;
 FCriticalSection FLightWeightInstanceSubsystem::GetFunctionCS;
 
+// CVar variable that is the size of the grid managers are placed into.
+int32 FLightWeightInstanceSubsystem::LWIGridSize = -1;
+FAutoConsoleVariableRef FLightWeightInstanceSubsystem::CVarLWIGridSize
+(
+TEXT("LWI.Editor.GridSize"),
+FLightWeightInstanceSubsystem::LWIGridSize,
+TEXT("Sets the size of a grid that LWI managers will be generated with."),
+ECVF_Cheat
+);
+
 FLightWeightInstanceSubsystem::FLightWeightInstanceSubsystem()
 {
 #if WITH_EDITOR
@@ -62,6 +72,21 @@ const ALightWeightInstanceManager* FLightWeightInstanceSubsystem::GetManagerAt(i
 	return LWInstanceManagers.IsValidIndex(Index) ? LWInstanceManagers[Index] : nullptr;
 }
 
+FInt32Vector3 FLightWeightInstanceSubsystem::ConvertPositionToCoord(const FVector & InPosition)
+{
+	const int32 GridSize = LWIGridSize;
+	if (GridSize > 0)
+	{
+		return FInt32Vector3(
+			FMath::FloorToInt(InPosition.X / (float)GridSize),
+			FMath::FloorToInt(InPosition.Y / (float)GridSize),
+			FMath::FloorToInt(InPosition.Z / (float)GridSize)
+			);
+	}
+
+	return FInt32Vector3::ZeroValue;
+}
+
 ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(const FActorInstanceHandle& Handle) const
 {
 	if (Handle.Manager.IsValid())
@@ -71,9 +96,13 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 
 	if (Handle.Actor.IsValid())
 	{
+		const FInt32Vector3 GridCoord = ConvertPositionToCoord(Handle.GetLocation());
+		
+		// see if we already have a match
 		for (ALightWeightInstanceManager* LWInstance : LWInstanceManagers)
 		{
-			if (Handle.Actor->GetClass() == LWInstance->GetRepresentedClass())
+			const FInt32Vector3 ManagerGridCoord = ConvertPositionToCoord(LWInstance->GetActorLocation());
+			if (Handle.Actor->GetClass() == LWInstance->GetRepresentedClass() && ManagerGridCoord == GridCoord)
 			{
 #if WITH_EDITOR
 				// make sure the data layers match
@@ -95,41 +124,29 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 	return nullptr;
 }
 
-ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* Layer) const
+ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* DataLayer, UWorld* World) const
 {
-	if (ActorClass == nullptr)
-	{
-		return nullptr;
-	}
-
-	// see if we already have a match
-	for (ALightWeightInstanceManager* Instance : LWInstanceManagers)
-	{
-		if (Instance->GetRepresentedClass() == ActorClass)
-		{
-#if WITH_EDITOR
-			if (!Layer || (Instance->SupportsDataLayer() && Instance->ContainsDataLayer(Layer)))
-#endif // WITH_EDITOR
-			{
-				return Instance;
-			}
-		}
-	}
-
-	return nullptr;
+	check(World);
+	return FindLightWeightInstanceManager(*ActorClass, *World, FVector::ZeroVector, DataLayer);
 }
+
 
 ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* DataLayer, UWorld* World)
 {
-	if (ActorClass == nullptr || World == nullptr)
-	{
-		return nullptr;
-	}
-	
-	// see if we already have a match
+	check(World);
+	return FindOrAddLightWeightInstanceManager(*ActorClass, *World, FVector::ZeroVector, DataLayer);
+}
+
+
+ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(UClass& ActorClass, UWorld& World, const FVector& InPos, const UDataLayerInstance* DataLayer) const
+{
+	const FInt32Vector3 GridCoord = ConvertPositionToCoord(InPos);
+
 	for (ALightWeightInstanceManager* InstanceManager : LWInstanceManagers)
 	{
-		if (InstanceManager->GetRepresentedClass() == ActorClass)
+		const FInt32Vector3 ManagerGridCoord = ConvertPositionToCoord(InstanceManager->GetActorLocation());
+		
+		if (InstanceManager->GetRepresentedClass() == &ActorClass && ManagerGridCoord == GridCoord)
 		{
 #if WITH_EDITOR
 			if (!DataLayer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(DataLayer)))
@@ -140,10 +157,19 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 		}
 	}
 
-	// we didn't find a match so we should add one.
+	return nullptr;
+}
 
+ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeightInstanceManager(UClass& ActorClass, UWorld& World, const FVector& InPos, const UDataLayerInstance* DataLayer)
+{
+	if (ALightWeightInstanceManager* FoundManager = FindLightWeightInstanceManager(ActorClass, World, InPos, DataLayer))
+	{
+		return FoundManager;
+	}
+	
+	// we didn't find a match so we should add one.
 	// Find the best base class to start from
-	UClass* BestMatchingClass = FindBestInstanceManagerClass(ActorClass);
+	UClass* BestMatchingClass = FindBestInstanceManagerClass(&ActorClass);
 	if (BestMatchingClass == nullptr)
 	{
 		return nullptr;
@@ -153,22 +179,36 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.ObjectFlags = RF_Transactional;
 
-	ALightWeightInstanceManager* NewInstanceManager = World->SpawnActor<ALightWeightInstanceManager>(BestMatchingClass, FTransform::Identity, SpawnParams);
-	NewInstanceManager->SetRepresentedClass(ActorClass);
+	FTransform ManagerTransform(FTransform::Identity);
+	if (LWIGridSize > 0)
+	{
+		FVector ManagerLocation(ConvertPositionToCoord(InPos));
+		ManagerLocation *= LWIGridSize;
+		ManagerLocation += FVector((float)LWIGridSize * 0.5f);
+		ManagerTransform.SetLocation(ManagerLocation);
+	}
+
+	if (ALightWeightInstanceManager* NewInstanceManager = World.SpawnActor<ALightWeightInstanceManager>(BestMatchingClass, ManagerTransform, SpawnParams))
+	{
+		NewInstanceManager->SetRepresentedClass(&ActorClass);
 
 #if WITH_EDITOR
-	// Add the new manager to the DataLayer
-	if (DataLayer)
-	{
-		ensure(NewInstanceManager->SupportsDataLayer());
-
-		NewInstanceManager->AddDataLayer(DataLayer);
-	}
+		// Add the new manager to the DataLayer
+		if (DataLayer)
+		{
+			ensure(NewInstanceManager->SupportsDataLayer());
+			NewInstanceManager->AddDataLayer(DataLayer);
+		}
 #endif // WITH_EDITOR
 
-	check(LWInstanceManagers.Find(NewInstanceManager) != INDEX_NONE);
+		check(LWInstanceManagers.Find(NewInstanceManager) != INDEX_NONE);
 
-	return NewInstanceManager;
+		return NewInstanceManager;
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 UClass* FLightWeightInstanceSubsystem::FindBestInstanceManagerClass(const UClass* InActorClass)
@@ -332,12 +372,15 @@ bool FLightWeightInstanceSubsystem::IsInLevel(const FActorInstanceHandle& Handle
 FActorInstanceHandle FLightWeightInstanceSubsystem::CreateNewLightWeightInstance(UClass* InActorClass, FLWIData* InitData, UDataLayerInstance* InLayer, UWorld* World)
 {
 	// Get or create a light weight instance for this class and data layer
-	if (ALightWeightInstanceManager* LWIManager = FindOrAddLightWeightInstanceManager(InActorClass, InLayer, World))
+	if (InitData)
 	{
-		// create an instance with the given data
-		int32 InstanceIdx = LWIManager->AddNewInstance(InitData);
-		InstanceIdx = LWIManager->ConvertInternalIndexToHandleIndex(InstanceIdx);
-		return FActorInstanceHandle(LWIManager, InstanceIdx);
+		if (ALightWeightInstanceManager* LWIManager = FindOrAddLightWeightInstanceManager(*InActorClass, *World, InitData->Transform.GetLocation(), InLayer))
+		{
+			// create an instance with the given data
+			int32 InstanceIdx = LWIManager->AddNewInstance(InitData);
+			InstanceIdx = LWIManager->ConvertInternalIndexToHandleIndex(InstanceIdx);
+			return FActorInstanceHandle(LWIManager, InstanceIdx);
+		}
 	}
 
 	return FActorInstanceHandle();

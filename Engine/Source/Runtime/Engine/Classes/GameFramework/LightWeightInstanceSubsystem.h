@@ -2,22 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "UObject/UObjectBaseUtility.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
-#include "Engine/EngineBaseTypes.h"
 #include "GameFramework/LightWeightInstanceManager.h"
 #include "Templates/SharedPointer.h"
 
 #include "Actor.h"
 
-//#include "LightWeightInstanceSubsystem.generated.h"
-
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogLightWeightInstance, Log, Warning);
 
-//DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(FActorInstanceHandle, FOnActorReady, FActorInstanceHandle, InHandle);
+class FAutoConsoleVariableRef;
 
 struct ENGINE_API FLightWeightInstanceSubsystem
 {
@@ -46,11 +39,20 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 	ALightWeightInstanceManager* FindLightWeightInstanceManager(const FActorInstanceHandle& Handle) const;
 
 	// Returns the instance manager that handles actors of type ActorClass in level Level
-	ALightWeightInstanceManager* FindLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* Layer) const;
+	UE_DEPRECATED(5.3, "Use the version that takes in a position.")
+	ALightWeightInstanceManager* FindLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* Layer, UWorld* World) const;
+
+	// Returns the instance manager that handles instances of type Class that live in Level
+	UE_DEPRECATED(5.3, "Use the version that takes in a position.")
+	UFUNCTION(Server, Unreliable)
+	ALightWeightInstanceManager* FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* DataLayer, UWorld* World);
+
+	// Returns the instance manager that handles actors of type ActorClass in level Level
+	ALightWeightInstanceManager* FindLightWeightInstanceManager(UClass& ActorClass, UWorld& World, const FVector& InPos, const UDataLayerInstance* DataLayer = nullptr) const;
 
 	// Returns the instance manager that handles instances of type Class that live in Level
 	UFUNCTION(Server, Unreliable)
-	ALightWeightInstanceManager* FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* Layer, UWorld* World);
+	ALightWeightInstanceManager* FindOrAddLightWeightInstanceManager(UClass& ActorClass, UWorld& World, const FVector& InPos, const UDataLayerInstance* DataLayer = nullptr);
 
 	// Returns the actor specified by Handle. This may require loading and creating the actor object.
 	AActor* FetchActor(const FActorInstanceHandle& Handle);
@@ -100,6 +102,9 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 		return nullptr;
 	}
 
+	// Helper that converts a position (world space) into a coordinate for the LWI grid.
+	static FInt32Vector3 ConvertPositionToCoord(const FVector & InPosition);
+
 protected:
 	// Returns the class of the instance manager best suited to support instances of type ActorClass
 	UClass* FindBestInstanceManagerClass(const UClass* ActorClass);
@@ -117,6 +122,10 @@ private:
 	// TODO: preallocate the size of this based on a config variable
 	UPROPERTY()
 	TArray<ALightWeightInstanceManager*> LWInstanceManagers;
+
+	// CVar variable that is the size of the grid managers are placed into.
+	static int32 LWIGridSize;
+	static FAutoConsoleVariableRef CVarLWIGridSize;
 
 #ifdef WITH_EDITOR
 private:
