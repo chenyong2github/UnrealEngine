@@ -963,6 +963,13 @@ public:
 public:
 
 	/**
+	 * Clean up before this object is destroyed. Normally you would not need to call this,
+	 * but if you want to clean up resources before garbage collection (e.g. you are in the editor)
+	 * then this could be helpful.
+	 */
+	void CleanUpBeforeDestroy();
+
+	/**
 	 * Get the Guid associated with this media player
 	 *
 	 * @return The Guid.

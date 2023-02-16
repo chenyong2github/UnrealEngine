@@ -143,6 +143,23 @@ void UMediaPlayer::Close()
 	PlayOnNext = false;
 }
 
+static const FName MediaModuleName("Media");
+void UMediaPlayer::CleanUpBeforeDestroy()
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>(MediaModuleName);
+
+		if (MediaModule != nullptr)
+		{
+			UnregisterWithMediaModule();
+			MediaModule->GetTicker().RemoveTickable(PlayerFacade.ToSharedRef());
+		}
+
+		PlayerFacade->Close();
+	}
+}
+
 
 int32 UMediaPlayer::GetAudioTrackChannels(int32 TrackIndex, int32 FormatIndex) const
 {
@@ -800,21 +817,9 @@ void UMediaPlayer::ResumePIE()
 /* UObject overrides
  *****************************************************************************/
 
-static const FName MediaModuleName("Media");
 void UMediaPlayer::BeginDestroy()
 {
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>(MediaModuleName);
-
-		if (MediaModule != nullptr)
-		{
-			UnregisterWithMediaModule();
-			MediaModule->GetTicker().RemoveTickable(PlayerFacade.ToSharedRef());
-		}
-
-		PlayerFacade->Close();
-	}
+	CleanUpBeforeDestroy();
 
 	Super::BeginDestroy();
 }
