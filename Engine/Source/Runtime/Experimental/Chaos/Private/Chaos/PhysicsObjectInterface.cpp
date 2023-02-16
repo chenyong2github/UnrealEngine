@@ -209,11 +209,11 @@ namespace Chaos
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlapWithTransform);
 		TArray<FPerShapeData*> ShapesA = GetAllShapes({ &ObjectA, 1 });
-		const FTransform TransformA = InTransformA * FTransform{ GetR(ObjectA), GetX(ObjectA) };
+		const FTransform TransformA = FTransform{ GetR(ObjectA), GetX(ObjectA) } * InTransformA;
 		const FBox BoxA = GetWorldBounds({ &ObjectA, 1 }).TransformBy(InTransformA);
 
 		TArray<FPerShapeData*> ShapesB = GetAllShapes({ &ObjectB, 1 });
-		const FTransform TransformB = InTransformB * FTransform{ GetR(ObjectB), GetX(ObjectB) };
+		const FTransform TransformB = FTransform{ GetR(ObjectB), GetX(ObjectB) } * InTransformB;
 		const FBox BoxB = GetWorldBounds({ &ObjectB, 1 }).TransformBy(InTransformB);
 
 		if (!BoxA.Intersect(BoxB))
