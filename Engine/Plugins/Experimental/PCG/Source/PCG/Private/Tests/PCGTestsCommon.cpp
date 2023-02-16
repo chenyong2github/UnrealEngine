@@ -40,7 +40,7 @@ namespace PCGTestsCommon
 		TestPCGComponent = NewObject<UPCGComponent>(TestActor, FName(TEXT("Test PCG Component")), RF_Transient);
 		check(TestPCGComponent);
 		// By default PCG components for tests will be non-partitioned
-		TestPCGComponent->bIsPartitioned = false;
+		TestPCGComponent->SetIsPartitioned(false);
 		TestActor->AddInstanceComponent(TestPCGComponent);
 		TestPCGComponent->RegisterComponent();
 

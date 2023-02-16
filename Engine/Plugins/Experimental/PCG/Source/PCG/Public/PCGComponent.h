@@ -63,6 +63,8 @@ ENUM_CLASS_FLAGS(EPCGComponentDirtyFlag);
 UCLASS(BlueprintType, ClassGroup = (Procedural), meta = (BlueprintSpawnableComponent))
 class PCG_API UPCGComponent : public UActorComponent
 {
+	UPCGComponent(const FObjectInitializer& InObjectInitializer);
+
 	GENERATED_BODY()
 
 	friend class UPCGSubsystem;
@@ -170,14 +172,18 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FName> ExclusionTags_DEPRECATED;
+
+	// Note for upgrade: can be safely replaced by bIsComponentPartitioned. Needed a new variable to change the default value.
+	UPROPERTY()
+	bool bIsPartitioned_DEPRECATED = true;
 #endif
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	bool bActivated = true;
 
-	// Note that default value is now "False" for new objects. True is left for backcompatibility.
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties, meta = (EditCondition = "!bIsComponentLocal", Tooltip = "In WorldPartiion map, will partition the component in a grid, according to PCGWorldActor settings, dispatching the generation to multiple local components."))
-	bool bIsPartitioned = true;
+	/* In World Partition map, will partition the component in a grid, according to PCGWorldActor settings, dispatching the generation to multiple local components.*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties, meta = (EditCondition = "!bIsComponentLocal", DisplayName = "Is Partitioned"))
+	bool bIsComponentPartitioned = false;
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Properties, AdvancedDisplay, meta = (EditCondition = "!bIsComponentLocal", EditConditionHides))
 	EPCGComponentGenerationTrigger GenerationTrigger = EPCGComponentGenerationTrigger::GenerateOnLoad;
@@ -233,7 +239,7 @@ public:
 	const FPCGDataCollection* GetInspectionData(const UPCGNode* InNode) const;
 #endif
 
-	/** Utility function (mostly for tests) to properly set the value of bIsPartitioned.
+	/** Utility function (mostly for tests) to properly set the value of bIsComponentPartitioned.
 	*   Will do an immediate cleanup first and then register/unregister the component to the subsystem.
 	*   It's your responsibility after to regenerate the graph if you want to.
 	*/
@@ -427,9 +433,6 @@ private:
 private:
 	/** Will set the given graph interface into our owned graph instance. Must not be used on local components.*/
 	void SetGraphInterfaceLocal(UPCGGraphInterface* InGraphInterface);
-
-	/** Replace the graph instance by this one. Must only be used with local components.*/
-	void SetGraphInstanceFromParent(UPCGGraphInstance* InParentGraphInstance);
 
 #if WITH_EDITOR
 public:
