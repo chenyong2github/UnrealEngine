@@ -14,6 +14,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/StringBuilder.h"
+#include "UObject/CoreNet.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectHash.h"
@@ -4852,7 +4853,7 @@ void UClass::Serialize( FArchive& Ar )
 	//@TODO: UCREMOVAL: Should we just regenerate the FuncMap post load, instead of serializing it?
 	{
 		FWriteScopeLock ScopeLock(FuncMapLock);
-		Ar << FuncMap;
+	Ar << FuncMap;
 	}
 
 	// Class flags first.
@@ -5273,7 +5274,7 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 
 	{
 		FWriteScopeLock ScopeLock(FuncMapLock);
-		FuncMap.Empty();
+	FuncMap.Empty();
 	}
 	ClearFunctionMapsCaches();
 	PropertyLink = nullptr;

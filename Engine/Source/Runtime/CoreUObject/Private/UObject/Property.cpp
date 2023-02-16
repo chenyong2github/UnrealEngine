@@ -24,6 +24,7 @@
 #include "Math/Ray.h"
 #include "Math/Sphere.h"
 #include "Math/InterpCurvePoint.h"
+#include "UObject/Package.h"
 #include "UObject/ReleaseObjectVersion.h"
 
 DEFINE_LOG_CATEGORY(LogProperty);
