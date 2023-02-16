@@ -6,6 +6,45 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayPrediction)
 
+FReplicatedPredictionKeyItem::FReplicatedPredictionKeyItem()
+{
+};
+
+FReplicatedPredictionKeyItem::FReplicatedPredictionKeyItem(const FReplicatedPredictionKeyItem& Other)
+{
+	*this = Other;
+}
+
+FReplicatedPredictionKeyItem& FReplicatedPredictionKeyItem::operator=(const FReplicatedPredictionKeyItem& Other)
+{
+	if (&Other != this)
+	{
+		ReplicationID = Other.ReplicationID;
+		ReplicationKey = Other.ReplicationKey;
+		MostRecentArrayReplicationKey = Other.MostRecentArrayReplicationKey;
+		PredictionKey = Other.PredictionKey;
+	}
+	return *this;
+}
+
+FReplicatedPredictionKeyItem::FReplicatedPredictionKeyItem(FReplicatedPredictionKeyItem&& Other)
+: PredictionKey(MoveTemp(Other.PredictionKey))
+{
+	ReplicationID = Other.ReplicationID;
+	ReplicationKey = Other.ReplicationKey;
+	MostRecentArrayReplicationKey = Other.MostRecentArrayReplicationKey;
+}
+
+FReplicatedPredictionKeyItem& FReplicatedPredictionKeyItem::operator=(FReplicatedPredictionKeyItem&& Other)
+{
+	ReplicationID = Other.ReplicationID;
+	ReplicationKey = Other.ReplicationKey;
+	MostRecentArrayReplicationKey = Other.MostRecentArrayReplicationKey;
+	PredictionKey = MoveTemp(Other.PredictionKey);
+
+	return *this;
+}
+
 /** The key to understanding this function is that when a key is received by the server, we note which connection gave it to us. We only serialize the key back to that client.  */
 bool FPredictionKey::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
@@ -355,6 +394,10 @@ const int32 FReplicatedPredictionKeyMap::KeyRingBufferSize = 32;
 FReplicatedPredictionKeyMap::FReplicatedPredictionKeyMap()
 {
 	PredictionKeys.SetNum(KeyRingBufferSize);
+	for (FReplicatedPredictionKeyItem& Item : PredictionKeys)
+	{
+		MarkItemDirty(Item);
+	}
 }
 
 bool FReplicatedPredictionKeyMap::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)

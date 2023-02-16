@@ -531,10 +531,12 @@ struct FReplicatedPredictionKeyItem : public FFastArraySerializerItem
 {
 	GENERATED_USTRUCT_BODY()
 
-	FReplicatedPredictionKeyItem()	
-	{
-		
-	}
+	// As we know that FReplicatedPredictionKeyItem is well behaved and does not leak outside of FReplicatedPredictionKeyMap we allow ReplicationID and ReplicationKey to be copied around to avoid issues when instantiating from archetype or CDO
+	FReplicatedPredictionKeyItem();
+	FReplicatedPredictionKeyItem(const FReplicatedPredictionKeyItem& Other);
+	FReplicatedPredictionKeyItem(FReplicatedPredictionKeyItem&& Other);
+	FReplicatedPredictionKeyItem& operator=(FReplicatedPredictionKeyItem&& other);
+	FReplicatedPredictionKeyItem& operator=(const FReplicatedPredictionKeyItem& other);
 
 	UPROPERTY()
 	FPredictionKey PredictionKey;

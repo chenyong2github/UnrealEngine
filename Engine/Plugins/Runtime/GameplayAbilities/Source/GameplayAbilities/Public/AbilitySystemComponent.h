@@ -1898,7 +1898,7 @@ public:
 	void CacheIsNetSimulated();
 
 	/** PredictionKeys, see more info in GameplayPrediction.h. This has to come *last* in all replicated properties on the AbilitySystemComponent to ensure OnRep/callback order. */
-	UPROPERTY(Replicated)
+	UPROPERTY(Replicated, Transient)
 	FReplicatedPredictionKeyMap ReplicatedPredictionKeyMap;
 
 protected:
