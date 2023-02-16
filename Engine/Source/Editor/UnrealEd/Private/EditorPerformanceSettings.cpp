@@ -42,6 +42,11 @@ void UEditorPerformanceSettings::PostInitProperties()
 	CVarEditorViewportHighDPI->Set(bDisplayHighDPIViewports != 0, ECVF_SetByProjectSetting);
 	CVarEditorViewportOverrideGameScreenPercentage->Set(bOverridePIEScreenPercentage != 0, ECVF_SetByProjectSetting);
 
+	if (FProperty* EnableVSyncProperty = GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bEnableVSync)))
+	{
+		ExportValuesToConsoleVariables(EnableVSyncProperty);
+	}
+
 	UEditorPerformanceProjectSettings::ExportResolutionValuesToConsoleVariables();
 }
 

@@ -57,6 +57,10 @@ class UEditorPerformanceSettings : public UDeveloperSettings
 	UPROPERTY(EditAnywhere, config, Category = EditorPerformance, meta = (DisplayName = "Enable Scalability Warning Indicator"))
 	uint32 bEnableScalabilityWarningIndicator : 1;
 	
+	/** Should VSync be enabled in editor? */
+	UPROPERTY(EditAnywhere, config, Category=EditorPerformance, meta=(DisplayName="Enable VSync", ConsoleVariable="r.VSyncEditor"))
+	uint32 bEnableVSync : 1;
+
 	/** 
 	 * By default the editor will adjust scene scaling (quality) for high DPI in order to ensure consistent performance with very large render targets.
 	 * Enabling this will disable automatic adjusting and render at the full resolution of the viewport
