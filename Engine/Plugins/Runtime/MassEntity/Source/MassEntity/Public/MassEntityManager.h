@@ -493,3 +493,7 @@ private:
 
 	bool bInitialized = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MassExecutionContext.h"
+#endif
