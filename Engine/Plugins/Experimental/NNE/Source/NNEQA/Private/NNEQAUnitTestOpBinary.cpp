@@ -130,6 +130,80 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::BinaryOp
 		return true;
 	};
 
+	IMPLEMENT_NNE_SHAPEINFERENCEHELPER_UNIT_AUTOMATION_TEST(FElementWiseBinaryCPUHelperMulInt32, "System.Engine.MachineLearning.NNE.UnitTest.BinaryHelper.MulInt32");
+	bool FElementWiseBinaryCPUHelperMulInt32::RunTest(const FString& Parameter)
+	{
+		FTensor XC1 = MakeConstTensorInt32(TEXT("XC1"), { 1 }, { 1 });
+		FTensor XC1x2 = MakeConstTensorInt32(TEXT("XC1x2"), { 1,2 }, { 1, 2 });
+		FTensor XC2x1 = MakeConstTensorInt32(TEXT("XC2x1"), { 2,1 }, { 3, 4 });
+
+		if (!TestBinaryOutputIsOnlyComputedWhenItShould(EElementWiseBinaryOperatorType::Mul))
+		{
+			return false;
+		}
+
+		//Test output tensor math is correct when both inputs are constant including broadcasting
+		FTensor Y = MakeTensor(TEXT("Y"), { 1 }, ENNETensorDataType::Int32);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1, XC1, Y);
+		UTEST_EQUAL(TEXT("XC1*XC1"), Y.GetPreparedData<int32>()[0], 1 * 1);
+
+		Y = MakeTensor(TEXT("Y"), { 1,2 }, ENNETensorDataType::Int32);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC1, Y);
+		UTEST_EQUAL(TEXT("XC1x2*XC1[0]"), Y.GetPreparedData<int32>()[0], 1 * 1);
+		UTEST_EQUAL(TEXT("XC1x2*XC1[1]"), Y.GetPreparedData<int32>()[1], 2 * 1);
+
+		Y = MakeTensor(TEXT("Y"), { 1,2 }, ENNETensorDataType::Int32);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC1x2, Y);
+		UTEST_EQUAL(TEXT("XC1x2*XC1x2[0]"), Y.GetPreparedData<int32>()[0], 1 * 1);
+		UTEST_EQUAL(TEXT("XC1x2*XC1x2[1]"), Y.GetPreparedData<int32>()[1], 2 * 2);
+
+		Y = MakeTensor(TEXT("Y"), { 2,2 }, ENNETensorDataType::Int32);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC2x1, Y);
+		UTEST_EQUAL(TEXT("XC1x2*XC2x1[0]"), Y.GetPreparedData<int32>()[0], 1 * 3);
+		UTEST_EQUAL(TEXT("XC1x2*XC2x1[1]"), Y.GetPreparedData<int32>()[1], 2 * 3);
+		UTEST_EQUAL(TEXT("XC1x2*XC2x1[2]"), Y.GetPreparedData<int32>()[2], 1 * 4);
+		UTEST_EQUAL(TEXT("XC1x2*XC2x1[3]"), Y.GetPreparedData<int32>()[3], 2 * 4);
+
+		return true;
+	};
+
+	IMPLEMENT_NNE_SHAPEINFERENCEHELPER_UNIT_AUTOMATION_TEST(FElementWiseBinaryCPUHelperMulInt64, "System.Engine.MachineLearning.NNE.UnitTest.BinaryHelper.MulInt64");
+	bool FElementWiseBinaryCPUHelperMulInt64::RunTest(const FString& Parameter)
+	{
+		FTensor XC1 = MakeConstTensorInt64(TEXT("XC1"), { 1 }, { 1 });
+		FTensor XC1x2 = MakeConstTensorInt64(TEXT("XC1x2"), { 1,2 }, { 1, 2 });
+		FTensor XC2x1 = MakeConstTensorInt64(TEXT("XC2x1"), { 2,1 }, { 3, 4 });
+
+		if (!TestBinaryOutputIsOnlyComputedWhenItShould(EElementWiseBinaryOperatorType::Mul))
+		{
+			return false;
+		}
+
+		//Test output tensor math is correct when both inputs are constant including broadcasting
+		FTensor Y = MakeTensor(TEXT("Y"), { 1 }, ENNETensorDataType::Int64);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1, XC1, Y);
+		UTEST_EQUAL(TEXT("XC1*XC1"), Y.GetPreparedData<int64>()[0], (int64)1 * 1);
+
+		Y = MakeTensor(TEXT("Y"), { 1,2 }, ENNETensorDataType::Int64);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC1, Y);
+		UTEST_EQUAL(TEXT("XC1x2*XC1[0]"), Y.GetPreparedData<int64>()[0], (int64)1 * 1);
+		UTEST_EQUAL(TEXT("XC1x2*XC1[1]"), Y.GetPreparedData<int64>()[1], (int64)2 * 1);
+
+		Y = MakeTensor(TEXT("Y"), { 1,2 }, ENNETensorDataType::Int64);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC1x2, Y);
+		UTEST_EQUAL(TEXT("XC1x2*XC1x2[0]"), Y.GetPreparedData<int64>()[0], (int64)1 * 1);
+		UTEST_EQUAL(TEXT("XC1x2*XC1x2[1]"), Y.GetPreparedData<int64>()[1], (int64)2 * 2);
+
+		Y = MakeTensor(TEXT("Y"), { 2,2 }, ENNETensorDataType::Int64);
+		CPUHelper::ElementWiseBinary::Apply(EElementWiseBinaryOperatorType::Mul, XC1x2, XC2x1, Y);
+		UTEST_EQUAL(TEXT("XC1x2*XC2x1[0]"), Y.GetPreparedData<int64>()[0], (int64)1 * 3);
+		UTEST_EQUAL(TEXT("XC1x2*XC2x1[1]"), Y.GetPreparedData<int64>()[1], (int64)2 * 3);
+		UTEST_EQUAL(TEXT("XC1x2*XC2x1[2]"), Y.GetPreparedData<int64>()[2], (int64)1 * 4);
+		UTEST_EQUAL(TEXT("XC1x2*XC2x1[3]"), Y.GetPreparedData<int64>()[3], (int64)2 * 4);
+
+		return true;
+	};
+
 	IMPLEMENT_NNE_SHAPEINFERENCEHELPER_UNIT_AUTOMATION_TEST(FElementWiseBinaryCPUHelperSub, "System.Engine.MachineLearning.NNE.UnitTest.BinaryHelper.Sub");
 	bool FElementWiseBinaryCPUHelperSub::RunTest(const FString& Parameter)
 	{
