@@ -2171,12 +2171,8 @@ bool FSequencerUtilities::PasteBindings(const FString& TextToImport, TSharedRef<
 							}
 
 							ActorsToRebind.Add(Actor);
-							CopyableBinding->BoundObjectNames.Remove(Actor->GetName());
+							CopyableBinding->BoundObjectNames.Remove(Actor->GetPathName());
 						}
-
-						ActorsToRebind.Add(Actor);
-						CopyableBinding->BoundObjectNames.Remove(Actor->GetPathName());
-
 					}
 				}
 
