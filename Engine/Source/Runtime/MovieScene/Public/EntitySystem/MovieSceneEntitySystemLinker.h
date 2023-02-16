@@ -373,6 +373,8 @@ public:
 		FMovieSceneEntitySystemLinkerEvent          CleanTaggedGarbage;
 		FMovieSceneEntitySystemLinkerAROEvent       AddReferencedObjects;
 		FMovieSceneEntitySystemLinkerEvent          AbandonLinker;
+
+		UE_DEPRECATED(5.3, "Please use FWorldDelegates::OnWorldCleanup directly")
 		FMovieSceneEntitySystemLinkerWorldEvent     CleanUpWorld;
 	} Events;
 
