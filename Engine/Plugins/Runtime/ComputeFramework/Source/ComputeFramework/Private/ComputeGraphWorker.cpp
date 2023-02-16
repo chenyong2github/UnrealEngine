@@ -147,7 +147,7 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 				{
 					for (int32 SubInvocationIndex = 1; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
 					{
-						ThreadCounts[0] += ThreadCounts[SubInvocationIndex];
+						ThreadCounts[0].X += ThreadCounts[SubInvocationIndex].X;
 					}
 					ThreadCounts.SetNum(1);
 					NumSubInvocations = 1;
