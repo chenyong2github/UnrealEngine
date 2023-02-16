@@ -546,7 +546,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// True if a single PRecompiledHeader exists, or at least one PerArchPrecompiledHeaderFile exists
 		/// </summary>
-		public bool bHasPrecompiledHeader => PrecompiledHeaderFile != null || (PerArchPrecompiledHeaderFiles != null && PerArchPrecompiledHeaderFiles.Count > 0);
+		public bool bHasPrecompiledHeader => (PerArchPrecompiledHeaderFiles != null && PerArchPrecompiledHeaderFiles.Count > 0) || PrecompiledHeaderFile != null;
 
 		/// <summary>
 		/// Whether or not UHT is being built
