@@ -31,8 +31,8 @@ namespace ImmediatePhysics_Chaos
 		const FReal Mass = 1.0f;
 		const FReal Radius = 1.0f * Scale.GetMax();
 
-		auto ImplicitSphere = MakeUnique<Chaos::TSphere<FReal, 3>>(FVec3(0), Radius);
-		auto NewShape = Chaos::FPerShapeData::CreatePerShapeData(OutShapes.Num(), MakeSerializable(ImplicitSphere));
+		TUniquePtr<Chaos::FImplicitSphere3> ImplicitSphere = MakeUnique<Chaos::FImplicitSphere3>(FVec3(0), Radius);
+		TUniquePtr<FPerShapeData> NewShape = Chaos::FPerShapeData::CreatePerShapeDataInternal(OutShapes.Num(), MakeSerializable(ImplicitSphere));
 		NewShape->UpdateShapeBounds(FTransform::Identity);
 		NewShape->SetUserData(nullptr);
 		NewShape->SetQueryEnabled(false);
@@ -182,7 +182,7 @@ namespace ImmediatePhysics_Chaos
 			OutGeom = MakeUnique<FImplicitObjectUnion>(MoveTemp(Geoms));
 		}
 
-		for (auto& Shape : Shapes)
+		for (TUniquePtr<FPerShapeData>& Shape : Shapes)
 		{
 			OutShapes.Emplace(MoveTemp(Shape));
 		}
@@ -242,7 +242,7 @@ namespace ImmediatePhysics_Chaos
 				CollisionData.SimData.Word1 = 0xFFFFF;
 				CollisionData.SimData.Word3 = 0xFFFFF;
 				CollisionData.bSimCollision = 1;
-				for (const auto& Shape : ParticleHandle->ShapesArray())
+				for (const TUniquePtr<FPerShapeData>& Shape : ParticleHandle->ShapesArray())
 				{
 					Shape->SetCollisionData(CollisionData);
 				}
@@ -254,13 +254,13 @@ namespace ImmediatePhysics_Chaos
 					ParticleHandle->UpdateWorldSpaceState(FRigidTransform3(ParticleHandle->X(), ParticleHandle->R()), FVec3(0));
 				}
 
-				if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())
+				if (FKinematicGeometryParticleHandle* Kinematic = ParticleHandle->CastToKinematicParticle())
 				{
 					Kinematic->SetV(FVector3f::ZeroVector);
 					Kinematic->SetW(FVector3f::ZeroVector);
 				}
 
-				auto* Dynamic = ParticleHandle->CastToRigidParticle();
+				FPBDRigidParticleHandle* Dynamic = ParticleHandle->CastToRigidParticle();
 				if (Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
 				{
 					FReal MassInv = (Mass > 0.0f) ? 1.0f / Mass : 0.0f;
@@ -331,7 +331,7 @@ namespace ImmediatePhysics_Chaos
 
 		SetWorldTransform(WorldTM);
 
-		if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())
+		if (FKinematicGeometryParticleHandle* Kinematic = ParticleHandle->CastToKinematicParticle())
 		{
 			Kinematic->V() = FVec3(0);
 			Kinematic->W() = FVec3(0);
@@ -346,7 +346,7 @@ namespace ImmediatePhysics_Chaos
 		ParticleHandle->X() = WorldTM.GetTranslation();
 		ParticleHandle->R() = WorldTM.GetRotation();
 
-		auto* Dynamic = ParticleHandle->CastToRigidParticle();
+		FPBDRigidParticleHandle* Dynamic = ParticleHandle->CastToRigidParticle();
 		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
 		{
 			Dynamic->P() = Dynamic->X();

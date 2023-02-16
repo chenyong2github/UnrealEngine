@@ -27,6 +27,7 @@ namespace Chaos
 {
 	class FConstraintHandle;
 	class FParticleCollisions;
+	class FPerShapeDataCachedLeafInfo;
 
 	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
 	using FConstraintHandleArray = TArray<FConstraintHandle*>;
@@ -37,15 +38,48 @@ namespace Chaos
 		CHAOS_API extern bool bCCDAxisThresholdUsesProbeShapes;
 	}
 
-	/** Data that is associated with geometry. If a union is used an entry is created per internal geometry */
+	/**
+	 * Per-particle data associated with a geometry used by collision detection,
+	 * and queries. This contains data like the collision/query filters, material
+	 * properties etc.
+	 *
+	 * Every particle holds one FPerShapeData objects for each geometry they use.
+	 * If the particle has a Union of geometries the shapes array will be a flattened
+	 * list of those geometries. (Except ClusteredUnions - these are not flattened
+	 * because they contain their own query acceleration structure.)
+	 * 
+	 * NOTE: Both the game thread and physics thread have FPerShapeData objects for
+	 * each shape. This class is used for both.
+	 * 
+	 * NOTE: It is extremely important to keep this class as small as possible
+	 * because there is one shape instance in the world. This can easily be in
+	 * the millions.
+	 * 
+	 * @todo(chaos): split FPerShapeData into GT and PT versions. The PT version does 
+	 * not need the interop data. The GT version does not need the extended data flag.
+	 * Also try to remove the GT Proxy pointer - this could easily be passed into the
+	 * relevant functions instead.
+	 * 
+	 * @todo(chaos): For the PT version (maybe the GT version) reduce the cost of
+	 * MaterialData for shapes with one material and no masks etc.
+	 * 
+	 */
 	class CHAOS_API FPerShapeData
 	{
 	public:
 
 		static constexpr bool AlwaysSerializable = true;
+
+		UE_DEPRECATED(5.3, "Not used")
+		static bool RequiresCachedLeafInfo(const FImplicitObject* Geometry) { return false; }
+
+		// Game Thread PerShapeData factory/update
 		static TUniquePtr<FPerShapeData> CreatePerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry);
 		static void UpdateGeometry(TUniquePtr<FPerShapeData>& ShapePtr, TSerializablePtr<FImplicitObject> InGeometry);
-		static bool RequiresCachedLeafInfo(const FRigidTransformRealSingle3& RelativeTransform, const FImplicitObject* LeafGeometry, const FImplicitObject* Geometry);
+
+		// Physics Thread PerShapeData factory/update - Do not use the Ext versions from the game thread because the extended data will not be maintained
+		static TUniquePtr<FPerShapeData> CreatePerShapeDataInternal(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry);
+		static void UpdateGeometryInternal(TUniquePtr<FPerShapeData>& ShapePtr, TSerializablePtr<FImplicitObject> InGeometry);
 
 		virtual ~FPerShapeData();
 		
@@ -88,7 +122,7 @@ namespace Chaos
 		const FImplicitObject* GetLeafGeometry() const;
 
 		// The actor-relative transform of the leaf geometry.
-		FRigidTransformRealSingle3 GetLeafRelativeTransform() const;
+		FRigidTransform3 GetLeafRelativeTransform() const;
 
 		// The world-space transform of the leaf geometry.
 		// If we have non-identity leaf relative transform, is cached from the last call to UpdateWorldSpaceState.
@@ -254,16 +288,14 @@ namespace Chaos
 			ShapeIdx = NewShapeIndex;
 		}
 
-	private:
-
-		void SetLeafRelativeTransform(const FRigidTransformRealSingle3& RelativeTransform);
-		void SetLeafGeometry(const FImplicitObject* LeafGeometry);
-
 	protected:
 		// use CreatePerShapeData
-		FPerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry, bool bInHasCachedLeafInfo = false);
+		FPerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry);
 
 		explicit FPerShapeData(FPerShapeData&& Other);
+
+		FPerShapeDataCachedLeafInfo* AsCachedLeafInfo();
+		const FPerShapeDataCachedLeafInfo* AsCachedLeafInfo() const;
 
 		// Can we be downcasted to FPerShapeDataCachedLeafInfo?
 		uint8 bHasCachedLeafInfo : 1;
@@ -288,26 +320,32 @@ namespace Chaos
 		friend class FPerShapeData;
 
 	private:
-		FPerShapeDataCachedLeafInfo(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry, const FImplicitObject* InLeafGeometry, const FRigidTransformRealSingle3& RelativeTransform)
-			: FPerShapeData(InShapeIdx, InGeometry, /*bHasCachedLeafInfo=*/true)
-			, LeafRelativeTransform(RelativeTransform)
-			, LeafWorldTransform()
-			, LeafGeometry(InLeafGeometry)
-		{}
-
-		// Move old shape into shape with cached leaf info
-		FPerShapeDataCachedLeafInfo(FPerShapeData&& PerShapeData, const FImplicitObject* InLeafGeometry, const FRigidTransformRealSingle3& RelativeTransform)
-			: FPerShapeData(MoveTemp(PerShapeData))
-			, LeafRelativeTransform(RelativeTransform)
-			, LeafWorldTransform()
-			, LeafGeometry(InLeafGeometry)
+		FPerShapeDataCachedLeafInfo(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
+			: FPerShapeData(InShapeIdx, InGeometry)
 		{
 			bHasCachedLeafInfo = true;
 		}
 
-		FRigidTransformRealSingle3 LeafRelativeTransform;
-		FRigidTransform3 LeafWorldTransform;
-		const FImplicitObject* LeafGeometry;
+		// Move old shape into shape with cached leaf info
+		FPerShapeDataCachedLeafInfo(FPerShapeData&& PerShapeData)
+			: FPerShapeData(MoveTemp(PerShapeData))
+		{
+			bHasCachedLeafInfo = true;
+		}
+
+		FRigidTransform3 GetWorldTransform() const
+		{
+			return FRigidTransform3(WorldPosition, WorldRotation);
+		}
+
+		void SetWorldTransform(const FRigidTransform3& LeafWorldTransform)
+		{
+			WorldPosition = LeafWorldTransform.GetTranslation();
+			WorldRotation = LeafWorldTransform.GetRotation();
+		}
+
+		FVec3 WorldPosition;
+		FRotation3 WorldRotation;
 	};
 
 	/**
@@ -370,6 +408,7 @@ namespace Chaos
 		return Ar;
 	}
 
+	UE_DEPRECATED(5.3, "Not for external use")
 	void CHAOS_API UpdateShapesArrayFromGeometry(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy);
 
 	FORCEINLINE uint32 GetTypeHash(const FParticleID& Unique)
@@ -969,10 +1008,7 @@ public:
 		TArrayCollectionArray<bool> MEnabledDuringResim;
 		TArrayCollectionArray<bool> MLightWeightDisabled;
 
-		void UpdateShapesArray(const int32 Index)
-		{
-			UpdateShapesArrayFromGeometry(MShapesArray[Index], MGeometry[Index], FRigidTransform3(X(Index), R(Index)), nullptr);
-		}
+		CHAOS_API void UpdateShapesArray(const int32 Index);
 
 		template <typename T2, int d2, EGeometryParticlesSimType SimType2>
 		friend class TGeometryParticlesImp;

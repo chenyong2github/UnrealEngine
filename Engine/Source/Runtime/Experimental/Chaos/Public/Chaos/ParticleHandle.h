@@ -2677,10 +2677,7 @@ protected:
 
 	void MarkDirty(const EChaosPropertyFlags DirtyBits, bool bInvalidate = true);
 
-	void UpdateShapesArray()
-	{
-		UpdateShapesArrayFromGeometry(MShapesArray, MakeSerializable(MNonFrequentData.Read().Geometry()), FRigidTransform3(X(), R()), Proxy);
-	}
+	CHAOS_API void UpdateShapesArray();
 
 	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData) const
 	{

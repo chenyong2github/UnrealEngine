@@ -11,7 +11,41 @@
 
 namespace Chaos
 {
-	void UpdateShapesArrayFromGeometry(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy)
+	TUniquePtr<FPerShapeData> CreatePerShapeDataImpl(const int32 ShapeIndex, TSerializablePtr<FImplicitObject> InGeometry, const bool bAllowCachedLeafInfo)
+	{
+		if (bAllowCachedLeafInfo)
+		{
+			return FPerShapeData::CreatePerShapeDataInternal(ShapeIndex, InGeometry);
+		}
+		else
+		{
+			return FPerShapeData::CreatePerShapeData(ShapeIndex, InGeometry);
+		}
+	}
+
+	void UpdatePerShapeDataImpl(TUniquePtr<FPerShapeData>& ShapePtr, TSerializablePtr<FImplicitObject> InGeometry, const bool bAllowCachedLeafInfo)
+	{
+		if (bAllowCachedLeafInfo)
+		{
+			FPerShapeData::UpdateGeometryInternal(ShapePtr, InGeometry);
+		}
+		else
+		{
+			FPerShapeData::UpdateGeometry(ShapePtr, InGeometry);
+		}
+	}
+
+	// Creare or reuse the shapes in the shapes array and populate them with the Geometry.
+	// If we have a Union it will be unpacked into the ShapesArray.
+	// On the Physics Thread we set bAllowCachedLeafInfo which caches the shapes world space state to optimize collision detection,
+	// but this flag should not be used on the Game Thread because the extended data is not maintained so some PerShapeData funtions
+	// will return unitialized values (E.g., GetLeafWorldTransform).
+	void UpdateShapesArrayFromGeometryImpl(
+		FShapesArray& ShapesArray, 
+		TSerializablePtr<FImplicitObject> Geometry, 
+		const FRigidTransform3& ActorTM, 
+		IPhysicsProxyBase* Proxy, 
+		bool bAllowCachedLeafInfo)
 	{
 		if(Geometry)
 		{
@@ -27,12 +61,12 @@ namespace Chaos
 					if (ShapeIndex >= OldShapeNum)
 					{
 						// If newly allocated shape, initialize it.
-						ShapesArray[ShapeIndex] = FPerShapeData::CreatePerShapeData(ShapeIndex, ShapeGeometry);
+						ShapesArray[ShapeIndex] = CreatePerShapeDataImpl(ShapeIndex, ShapeGeometry, bAllowCachedLeafInfo);
 					}
 					else if (ShapeGeometry != ShapesArray[ShapeIndex]->GetGeometry())
 					{
 						// Update geometry pointer if it changed
-						FPerShapeData::UpdateGeometry(ShapesArray[ShapeIndex], ShapeGeometry);
+						UpdatePerShapeDataImpl(ShapesArray[ShapeIndex], ShapeGeometry, bAllowCachedLeafInfo);
 					}
 				}
 			}
@@ -41,11 +75,11 @@ namespace Chaos
 				ShapesArray.SetNum(1);
 				if (OldShapeNum == 0)
 				{
-					ShapesArray[0] = FPerShapeData::CreatePerShapeData(0, Geometry);
+					ShapesArray[0] = CreatePerShapeDataImpl(0, Geometry, bAllowCachedLeafInfo);
 				}
 				else
 				{
-					FPerShapeData::UpdateGeometry(ShapesArray[0], Geometry);
+					UpdatePerShapeDataImpl(ShapesArray[0], Geometry, bAllowCachedLeafInfo);
 				}
 			}
 
@@ -71,12 +105,21 @@ namespace Chaos
 		}
 	}
 
+	void UpdateShapesArrayFromGeometry(
+		FShapesArray& ShapesArray,
+		TSerializablePtr<FImplicitObject> Geometry,
+		const FRigidTransform3& ActorTM,
+		IPhysicsProxyBase* Proxy)
+	{
+		UpdateShapesArrayFromGeometryImpl(ShapesArray, Geometry, ActorTM, Proxy, false);
+	}
+
 	// Unwrap transformed shapes
 	// @todo(chaos): also unwrap Instanced and Scaled but that requires a lot of knock work because Convexes are usually Instanced or
 	// Scaled so the Scale and Margin is stored on the wrapper (the convex itself is shared).
 	// - support for Margin as per-shape data passed through the collision functions
 	// - support for Scale as per-shape data passed through the collision functions (or ideally in the Transforms)
-	const FImplicitObject* GetInnerGeometryInstanceData(const FImplicitObject* Implicit, FRigidTransformRealSingle3& OutTransform, FReal& OutMargin)
+	const FImplicitObject* GetInnerGeometryInstanceData(const FImplicitObject* Implicit, const FRigidTransform3** OutRelativeTransformPtr)
 	{
 		if (Implicit != nullptr)
 		{
@@ -85,21 +128,23 @@ namespace Chaos
 			{
 				// Transformed Implicit
 				const TImplicitObjectTransformed<FReal, 3>* TransformedImplicit = Implicit->template GetObject<const TImplicitObjectTransformed<FReal, 3>>();
-				OutTransform = (FRigidTransformRealSingle3)TransformedImplicit->GetTransform() * OutTransform;
-				//OutMargin += TransformedImplicit->GetMargin();
-				return GetInnerGeometryInstanceData(TransformedImplicit->GetTransformedObject(), OutTransform, OutMargin);
+				if (OutRelativeTransformPtr != nullptr)
+				{
+					*OutRelativeTransformPtr = &TransformedImplicit->GetTransform();
+				}
+				return GetInnerGeometryInstanceData(TransformedImplicit->GetTransformedObject(), OutRelativeTransformPtr);
 			}
 			else if ((uint32)ImplicitOuterType & ImplicitObjectType::IsInstanced)
 			{
 				// Instanced Implicit
-				// Currently we only unwrap instanced TriMesh and Heightfields. They don't have a margin, so they don't need the instance wrapper in collision detection.
-				// The only other type we wrap in instances right now are Convex, so we just check for that here...
+				// Currently we only unwrap instanced TriMesh and Heightfields. Convex is the only other type that will be Instanced,
+				// but we do not unwrap Convex because the convex margin is stored in the Instanced so we would need to extract
+				// it and pass it on to the collision detection.
 				const FImplicitObjectInstanced* Instanced = static_cast<const FImplicitObjectInstanced*>(Implicit);
 				EImplicitObjectType InnerType = Instanced->GetInnerObject()->GetType();
 				if (InnerType != FImplicitConvex3::StaticType())
 				{
-					OutMargin += Instanced->GetMargin();
-					return GetInnerGeometryInstanceData(Instanced->GetInnerObject().Get(), OutTransform, OutMargin);
+					return GetInnerGeometryInstanceData(Instanced->GetInnerObject().Get(), OutRelativeTransformPtr);
 				}
 			}
 			else if ((uint32)ImplicitOuterType & ImplicitObjectType::IsScaled)
@@ -107,12 +152,20 @@ namespace Chaos
 				// Scaled Implicit
 				//const FImplicitObjectScaled* Scaled = static_cast<const FImplicitObjectScaled*>(Implicit);
 				//OutTransform.Scale *= Scaled->GetScale();
-				//OutMargin += Scaled->GetMargin();
-				//return GetInnerGeometryInstanceData(Scaled->GetInnerObject().Get(), OutTransform, OutMargin);
+				//return GetInnerGeometryInstanceData(Scaled->GetInnerObject().Get(), OutRelativeTransformPtr);
 			}
 		}
 		return Implicit;
 	}
+
+	bool PerShapeDataRequiresCachedLeafInfo(const FImplicitObject* Geometry)
+	{
+		// Unwrap the geometry (if it's Transformed or Instanced)
+		const FRigidTransform3* LeafRelativeTransform = nullptr;
+		const FImplicitObject* LeafGeometry = GetInnerGeometryInstanceData(Geometry, &LeafRelativeTransform);
+		return (LeafGeometry != Geometry) && (LeafRelativeTransform != nullptr);
+	}
+
 
 
 	FPerShapeData::FPerShapeData(int32 InShapeIdx)
@@ -124,8 +177,8 @@ namespace Chaos
 	{
 	}
 
-	FPerShapeData::FPerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry, bool bInHasCachedLeafInfo)
-		: bHasCachedLeafInfo(bInHasCachedLeafInfo)
+	FPerShapeData::FPerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
+		: bHasCachedLeafInfo(false)
 		, Proxy(nullptr)
 		, ShapeIdx(InShapeIdx)
 		, Geometry(InGeometry)
@@ -149,48 +202,65 @@ namespace Chaos
 	{
 	}
 
-	TUniquePtr<FPerShapeData> FPerShapeData::CreatePerShapeData(int32 ShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
+	TUniquePtr<FPerShapeData> FPerShapeData::CreatePerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
 	{
-		FReal LeafMargin = 0.0f;
-		FRigidTransformRealSingle3 LeafRelativeTransform = FRigidTransformRealSingle3::Identity;
-		const FImplicitObject* LeafGeometry = GetInnerGeometryInstanceData(InGeometry.Get(), LeafRelativeTransform, LeafMargin);
-
-		if (RequiresCachedLeafInfo(LeafRelativeTransform, LeafGeometry, InGeometry.Get()))
-		{
-			return TUniquePtr<FPerShapeData>(new FPerShapeDataCachedLeafInfo(ShapeIdx, InGeometry, LeafGeometry, LeafRelativeTransform));
-		}
-		else
-		{
-			return TUniquePtr<FPerShapeData>(new FPerShapeData(ShapeIdx, InGeometry));
-		}
+		return TUniquePtr<FPerShapeData>(new FPerShapeData(InShapeIdx, InGeometry));
 	}
 
 	void FPerShapeData::UpdateGeometry(TUniquePtr<FPerShapeData>& ShapePtr, TSerializablePtr<FImplicitObject> InGeometry)
 	{
 		ShapePtr->Geometry = InGeometry;
+	}
 
-		FReal LeafMargin = 0.0f;
-		FRigidTransformRealSingle3 LeafRelativeTransform = FRigidTransformRealSingle3::Identity;
-		const FImplicitObject* LeafGeometry = GetInnerGeometryInstanceData(InGeometry.Get(), LeafRelativeTransform, LeafMargin);
-
-		if (ShapePtr->bHasCachedLeafInfo)
+	TUniquePtr<FPerShapeData> FPerShapeData::CreatePerShapeDataInternal(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
+	{
+		const bool bWantLeafGeometryCache = PerShapeDataRequiresCachedLeafInfo(InGeometry.Get());
+		if (bWantLeafGeometryCache)
 		{
-			// set relative info
-			ShapePtr->SetLeafRelativeTransform(LeafRelativeTransform);
-			ShapePtr->SetLeafGeometry(LeafGeometry);
-			return;
+			return TUniquePtr<FPerShapeData>(new FPerShapeDataCachedLeafInfo(InShapeIdx, InGeometry));
 		}
-
-		if (RequiresCachedLeafInfo(LeafRelativeTransform, LeafGeometry, InGeometry.Get()))
+		else
 		{
-			// We need to move to FPerShapeDataCachedLeafInfo to cache this info.
-			ShapePtr = TUniquePtr<FPerShapeData>(new FPerShapeDataCachedLeafInfo(MoveTemp(*ShapePtr.Get()), LeafGeometry, LeafRelativeTransform));
+			return TUniquePtr<FPerShapeData>(new FPerShapeData(InShapeIdx, InGeometry));
 		}
 	}
 
-	bool FPerShapeData::RequiresCachedLeafInfo(const FRigidTransformRealSingle3& RelativeTransform, const FImplicitObject* LeafGeometry, const FImplicitObject* Geometry)
+	void FPerShapeData::UpdateGeometryInternal(TUniquePtr<FPerShapeData>& ShapePtr, TSerializablePtr<FImplicitObject> InGeometry)
 	{
-		return (LeafGeometry != Geometry || !RelativeTransform.Equals(FRigidTransformRealSingle3::Identity));
+		const bool bWantLeafGeometryCache = PerShapeDataRequiresCachedLeafInfo(InGeometry.Get());
+
+		// Do we need to add or remove the cached leaf data? If so this requires we recreate the object
+		if (bWantLeafGeometryCache != ShapePtr->HasCachedLeafInfo())
+		{
+			if (bWantLeafGeometryCache)
+			{
+				ShapePtr = TUniquePtr<FPerShapeData>(new FPerShapeDataCachedLeafInfo(MoveTemp(*ShapePtr.Get())));
+			}
+			else
+			{
+				ShapePtr = TUniquePtr<FPerShapeData>(new FPerShapeData(MoveTemp(*ShapePtr.Get())));
+			}
+		}
+
+		ShapePtr->Geometry = InGeometry;
+	}
+
+	FPerShapeDataCachedLeafInfo* FPerShapeData::AsCachedLeafInfo()
+	{
+		if (HasCachedLeafInfo())
+		{
+			return static_cast<FPerShapeDataCachedLeafInfo*>(this);
+		}
+		return nullptr;
+	}
+
+	const FPerShapeDataCachedLeafInfo* FPerShapeData::AsCachedLeafInfo() const
+	{
+		if (HasCachedLeafInfo())
+		{
+			return static_cast<const FPerShapeDataCachedLeafInfo*>(this);
+		}
+		return nullptr;
 	}
 
 	void FPerShapeData::UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion)
@@ -204,14 +274,22 @@ namespace Chaos
 	void FPerShapeData::UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
 	{
 		FRigidTransform3 LeafWorldTransform = WorldTransform;
-		if (bHasCachedLeafInfo)
+		const FRigidTransform3* LeafRelativeTransform = nullptr;
+		const FImplicitObject* LeafGeometry = GetInnerGeometryInstanceData(Geometry.Get(), &LeafRelativeTransform);
+
+		// Calculate the leaf world transform if different from particle transform
+		if (LeafRelativeTransform != nullptr)
 		{
-			FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<FPerShapeDataCachedLeafInfo*>(this);
-			LeafWorldTransform = FRigidTransform3::MultiplyNoScale(FRigidTransform3(GetLeafRelativeTransform()), WorldTransform);
-			LeafInfo.LeafWorldTransform = LeafWorldTransform;
+			LeafWorldTransform = FRigidTransform3::MultiplyNoScale(*LeafRelativeTransform, WorldTransform);
 		}
 
-		const FImplicitObject* LeafGeometry = GetLeafGeometry();
+		// Store the leaf data if we have a cache
+		if (FPerShapeDataCachedLeafInfo* LeafCache = AsCachedLeafInfo())
+		{
+			LeafCache->SetWorldTransform(LeafWorldTransform);
+		}
+
+		// Update the bounds at the world transform
 		if ((LeafGeometry != nullptr) && LeafGeometry->HasBoundingBox())
 		{
 			WorldSpaceInflatedShapeBounds = LeafGeometry->CalculateTransformedBounds(LeafWorldTransform).ThickenSymmetrically(BoundsExpansion);;
@@ -220,62 +298,59 @@ namespace Chaos
 
 	const FImplicitObject* FPerShapeData::GetLeafGeometry() const
 	{
-		if (bHasCachedLeafInfo)
-		{
-			const FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<const FPerShapeDataCachedLeafInfo*>(this);
-			return LeafInfo.LeafGeometry;
-		}
-
-		return Geometry.Get();
+		return GetInnerGeometryInstanceData(Geometry.Get(), nullptr);
 	}
 
-	void FPerShapeData::SetLeafGeometry(const FImplicitObject* LeafGeometry)
+	FRigidTransform3 FPerShapeData::GetLeafRelativeTransform() const
 	{
-		if (ensure(bHasCachedLeafInfo))
-		{
-			FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<FPerShapeDataCachedLeafInfo*>(this);
-			LeafInfo.LeafGeometry = LeafGeometry;
-		}
-	}
+		const FRigidTransform3* LeafRelativeTransform = nullptr;
+		GetInnerGeometryInstanceData(Geometry.Get(), &LeafRelativeTransform);
 
-	FRigidTransformRealSingle3 FPerShapeData::GetLeafRelativeTransform() const
-	{
-		if (bHasCachedLeafInfo)
+		if (LeafRelativeTransform != nullptr)
 		{
-			const FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<const FPerShapeDataCachedLeafInfo*>(this);
-			return LeafInfo.LeafRelativeTransform;
+			return *LeafRelativeTransform;
 		}
-
-		return FRigidTransformRealSingle3::Identity;
+		else
+		{
+			return FRigidTransform3::Identity;
+		}
 	}
 
 	FRigidTransform3 FPerShapeData::GetLeafWorldTransform(const FGeometryParticleHandle* Particle) const
 	{
-		if (bHasCachedLeafInfo)
+		if (const FPerShapeDataCachedLeafInfo* LeafCache = AsCachedLeafInfo())
 		{
-			const FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<const FPerShapeDataCachedLeafInfo*>(this);
-			return LeafInfo.LeafWorldTransform;
+			return LeafCache->GetWorldTransform();
 		}
+		else
+		{
+			FRigidTransform3 LeafWorldTransform = FConstGenericParticleHandle(Particle)->GetTransformPQ();
 
-		return FConstGenericParticleHandle(Particle)->GetTransformPQ();
+			const FRigidTransform3* LeafRelativeTransform = nullptr;
+			GetInnerGeometryInstanceData(Geometry.Get(), &LeafRelativeTransform);
+			if (LeafRelativeTransform != nullptr)
+			{
+				LeafWorldTransform = FRigidTransform3::MultiplyNoScale(*LeafRelativeTransform, LeafWorldTransform);
+			}
+
+			return LeafWorldTransform;
+		}
 	}
 	
 	void FPerShapeData::UpdateLeafWorldTransform(FGeometryParticleHandle* Particle)
 	{
-		if (bHasCachedLeafInfo)
+		if (FPerShapeDataCachedLeafInfo* LeafCache = AsCachedLeafInfo())
 		{
-			FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<FPerShapeDataCachedLeafInfo*>(this);
-			const FRigidTransform3 ParticleTransform = FConstGenericParticleHandle(Particle)->GetTransformPQ();
-			LeafInfo.LeafWorldTransform = FRigidTransform3::MultiplyNoScale(FRigidTransform3(GetLeafRelativeTransform()), ParticleTransform);
-		}
-	}
+			FRigidTransform3 LeafWorldTransform = FConstGenericParticleHandle(Particle)->GetTransformPQ();
 
-	void FPerShapeData::SetLeafRelativeTransform(const FRigidTransformRealSingle3& RelativeTransform)
-	{
-		if (ensure(bHasCachedLeafInfo))
-		{
-			FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<FPerShapeDataCachedLeafInfo*>(this);
-			LeafInfo.LeafRelativeTransform = RelativeTransform;
+			const FRigidTransform3* LeafRelativeTransform = nullptr;
+			GetInnerGeometryInstanceData(Geometry.Get(), &LeafRelativeTransform);
+			if (LeafRelativeTransform != nullptr)
+			{
+				LeafWorldTransform = FRigidTransform3::MultiplyNoScale(*LeafRelativeTransform, LeafWorldTransform);
+			}
+
+			LeafCache->SetWorldTransform(LeafWorldTransform);
 		}
 	}
 
@@ -332,6 +407,11 @@ namespace Chaos
 		bIsSingleShape = true;
 	}
 
+	template <typename T, int d, EGeometryParticlesSimType SimType>
+	void TGeometryParticlesImp<T, d, SimType>::UpdateShapesArray(const int32 Index)
+	{
+		UpdateShapesArrayFromGeometryImpl(MShapesArray[Index], MGeometry[Index], FRigidTransform3(X(Index), R(Index)), nullptr, true);
+	}
 
 	template <typename T, int d, EGeometryParticlesSimType SimType>
 	void TGeometryParticlesImp<T, d, SimType>::SetHandle(int32 Index, FGeometryParticleHandle* Handle)
