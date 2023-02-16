@@ -432,7 +432,6 @@ private:
 	{
 		return !operator==(Lhs, Rhs);
 	}
-	friend FORCEINLINE bool operator==(FName Lhs, FMinimalName Rhs);
 };
 
 /**
@@ -497,7 +496,6 @@ private:
 	{
 		return !(Lhs == Rhs);
 	}
-	friend FORCEINLINE bool operator==(FName Lhs, FScriptName Rhs);
 };
 
 struct FMemoryImageName;
@@ -568,7 +566,6 @@ private:
 	{
 		return !(Lhs == Rhs);
 	}
-	friend FORCEINLINE bool operator==(FName Lhs, FMemoryImageName Rhs);
 };
 
 /**
@@ -713,9 +710,6 @@ public:
 		return !(*this == Other);
 	}
 
-	FORCEINLINE bool operator==(EName Ename) const;
-	
-	FORCEINLINE bool operator!=(EName Ename) const;
 
 	UE_DEPRECATED(4.23, "Please use FastLess() / FNameFastLess or LexicalLess() / FNameLexicalLess instead. "
 		"Default lexical sort order is deprecated to avoid unintended expensive sorting. ")
@@ -1076,27 +1070,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 */
 	CORE_API FName(const FNameEntrySerialized& LoadedEntry);
 
-	/**
-	 * Equality operator.
-	 *
-	 * @param	Other	String to compare this name to
-	 * @return true if name matches the string, false otherwise
-	 */
-	CORE_API bool operator==(const ANSICHAR* Other) const;
-	CORE_API bool operator==(const WIDECHAR* Other) const;
-
-	/**
-	 * Inequality operator.
-	 *
-	 * @param	Other	String to compare this name to
-	 * @return true if name does not match the string, false otherwise
-	 */
-	template <typename CharType>
-	bool operator!=(const CharType* Other) const
-	{
-		return !operator==(Other);
-	}
-
 	CORE_API static void DisplayHash( class FOutputDevice& Ar );
 	CORE_API static FString SafeString(FNameEntryId InDisplayIndex, int32 InstanceNumber = NAME_NO_NUMBER_INTERNAL);
 
@@ -1278,106 +1251,80 @@ private:
 	{
 		return CreateNumberedNameIfNecessary(ComparisonId, ComparisonId, Number);
 	}
+	
+	
+	static bool Equals(FName A, FName B) = delete;
+	CORE_API static bool Equals(FName A, FAnsiStringView B);
+	CORE_API static bool Equals(FName A, FWideStringView B);
+	CORE_API static bool Equals(FName A, const ANSICHAR* B);
+	CORE_API static bool Equals(FName A, const WIDECHAR* B);
 
-	/**
-	 * Equality operator with CharType* on left hand side and FName on right hand side
-	 * 
-	 * @param	LHS		CharType to compare to FName
-	 * @param	RHS		FName to compare to CharType
-	 * @return True if strings match, false otherwise.
-	 */
-	template <typename CharType>
-	friend inline bool operator==(const CharType *LHS, const FName &RHS)
+	FORCEINLINE static bool Equals(FName A, EName B)
 	{
-		return RHS == LHS;
-	}
-
-	/**
-	 * Inequality operator with CharType* on left hand side and FName on right hand side
-	 *
-	 * @param	LHS		CharType to compare to FName
-	 * @param	RHS		FName to compare to CharType
-	 * @return True if strings don't match, false otherwise.
-	 */
-	template <typename CharType>
-	friend inline bool operator!=(const CharType *LHS, const FName &RHS)
-	{
-		return RHS != LHS;
+		return A.GetComparisonIndex() == B && A.GetNumber() == NAME_NO_NUMBER_INTERNAL;
 	}
 
 #if UE_FNAME_OUTLINE_NUMBER
-	friend FORCEINLINE bool operator==(FName Lhs, FMinimalName Rhs)
+	FORCEINLINE static bool Equals(FName A, FMinimalName B)
 	{
-		return Lhs.GetComparisonIndexInternal() == Rhs.Index;
+		return A.GetComparisonIndexInternal() == B.Index;
 	}
-	friend FORCEINLINE bool operator==(FName Lhs, FScriptName Rhs)
+	FORCEINLINE static bool Equals(FName A, FScriptName B)
 	{
-		return Lhs.GetComparisonIndexInternal() == Rhs.ComparisonIndex;
+		return A.GetComparisonIndexInternal() == B.ComparisonIndex;
 	}
-	friend FORCEINLINE bool operator==(FName Lhs, FMemoryImageName Rhs)
+	FORCEINLINE static bool Equals(FName A, FMemoryImageName B)
 	{
-		return Lhs.GetComparisonIndexInternal() == Rhs.ComparisonIndex;
+		return A.GetComparisonIndexInternal() == B.ComparisonIndex;
 	}
 	friend FORCEINLINE uint32 GetTypeHash(FName Name)
 	{
 		return GetTypeHash(Name.GetComparisonIndexInternal());
 	}
 #else
-	friend FORCEINLINE bool operator==(FName Lhs, FMinimalName Rhs)
+	FORCEINLINE static bool Equals(FName A, FMinimalName B)
 	{
-		return Lhs.GetComparisonIndex() == Rhs.Index && Lhs.GetNumber() == Rhs.Number;
+		return A.GetComparisonIndex() == B.Index && A.GetNumber() == B.Number;
 	}
-	friend FORCEINLINE bool operator==(FName Lhs, FScriptName Rhs)
+	FORCEINLINE static bool Equals(FName A, FScriptName B)
 	{
-		return Lhs.GetComparisonIndex() == Rhs.ComparisonIndex && Lhs.GetNumber() == Rhs.Number;
+		return A.GetComparisonIndex() == B.ComparisonIndex && A.GetNumber() == B.Number;
 	}
-	friend FORCEINLINE bool operator==(FName Lhs, FMemoryImageName Rhs)
+	FORCEINLINE static bool Equals(FName A, FMemoryImageName B)
 	{
-		return Lhs.GetComparisonIndex() == Rhs.ComparisonIndex && Lhs.GetNumber() == Rhs.Number;
+		return A.GetComparisonIndex() == B.ComparisonIndex && A.GetNumber() == B.Number;
 	}
 	friend FORCEINLINE uint32 GetTypeHash(FName Name)
 	{
 		return GetTypeHash(Name.GetComparisonIndex()) + Name.GetNumber();
 	}
 #endif
-	friend FORCEINLINE bool operator==(FMinimalName Lhs, FName Rhs)
-	{
-		return Rhs == Lhs;
-	}
-	friend FORCEINLINE bool operator!=(FMinimalName Lhs, FName Rhs)
-	{
-		return !(Lhs == Rhs);
-	}
 
-	friend FORCEINLINE bool operator!=(FName Lhs, FMinimalName Rhs)
-	{
-		return !(Lhs == Rhs);
-	}
+    template <typename T>
+    friend FORCEINLINE auto operator==(FName N, T O) -> decltype(FName::Equals(N, O))
+    {
+    	return FName::Equals(N, O);
+    }
 
-	friend FORCEINLINE bool operator==(FScriptName Lhs, FName Rhs)
-	{
-		return Rhs == Lhs;
-	}
-	friend FORCEINLINE bool operator!=(FScriptName Lhs, FName Rhs)
-	{
-		return !(Lhs == Rhs);
-	}
-	friend FORCEINLINE bool operator!=(FName Lhs, FScriptName Rhs)
-	{
-		return !(Lhs == Rhs);
-	}
-	friend FORCEINLINE bool operator==(FMemoryImageName Lhs, FName Rhs)
-	{
-		return Rhs == Lhs;
-	}
-	friend FORCEINLINE bool operator!=(FName Lhs, FMemoryImageName Rhs)
-	{
-		return !(Lhs == Rhs);
-	}
-	friend FORCEINLINE bool operator!=(FMemoryImageName Lhs, FName Rhs)
-	{
-		return !(Lhs == Rhs);
-	}
+    template <typename T>
+    friend FORCEINLINE auto operator==(T O, FName N) -> decltype(FName::Equals(N, O))
+    {
+    	return FName::Equals(N, O);
+    }
+
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+    template <typename T>
+    friend FORCEINLINE auto operator!=(FName N, T O) -> decltype(FName::Equals(N, O))
+    {
+    	return !FName::Equals(N, O);
+    }
+
+    template <typename T>
+    friend FORCEINLINE auto operator!=(T O, FName N) -> decltype(FName::Equals(N, O))
+    {
+    	return !FName::Equals(N, O);
+    }
+#endif
 };
 
 template<> struct TIsZeroConstructType<class FName> { enum { Value = true }; };
@@ -1503,11 +1450,6 @@ FORCEINLINE bool FMemoryImageName::IsNone() const
 	return ComparisonIndex.IsNone();
 }
 
-FORCEINLINE bool FName::operator==(EName Ename) const
-{
-	return GetComparisonIndex() == Ename && GetNumber() == NAME_NO_NUMBER_INTERNAL;
-}
-
 FORCEINLINE bool FName::IsEqual(const FName& Rhs, const ENameCase CompareMethod /*= ENameCase::IgnoreCase*/, const bool bCompareNumber /*= true*/) const
 {
 	return bCompareNumber ?
@@ -1588,10 +1530,6 @@ FORCEINLINE bool FMemoryImageName::IsNone() const
 	return ComparisonIndex.IsNone() && Number == NAME_NO_NUMBER_INTERNAL;
 }
 
-FORCEINLINE bool FName::operator==(EName Ename) const
-{
-	return GetComparisonIndex() == Ename && GetNumber() == NAME_NO_NUMBER_INTERNAL;
-}
 
 FORCEINLINE bool FName::IsEqual(const FName& Rhs, const ENameCase CompareMethod /*= ENameCase::IgnoreCase*/, const bool bCompareNumber /*= true*/) const
 {
@@ -1618,11 +1556,6 @@ FORCEINLINE FMinimalName NameToMinimalName(FName InName)
 FORCEINLINE FScriptName NameToScriptName(FName InName)
 {
 	return FScriptName(InName);
-}
-
-FORCEINLINE bool FName::operator!=(EName Ename) const
-{
-	return !(*this == Ename);
 }
 
 FORCEINLINE FString LexToString(const FName& Name)

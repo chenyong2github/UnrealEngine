@@ -2651,30 +2651,6 @@ bool FName::IsWithinBounds(FNameEntryId Id)
 	FName implementation.
 -----------------------------------------------------------------------------*/
 
-template<class CharType>
-static bool NumberEqualsString(uint32 Number, const CharType* Str)
-{
-	CharType* End = nullptr;
-	return TCString<CharType>::Strtoi64(Str, &End, 10) == Number && End && *End == '\0';
-}
-
-template<class CharType1, class CharType2>
-static bool StringAndNumberEqualsString(const CharType1* Name, uint32 NameLen, int32 InternalNumber, const CharType2* Str)
-{
-	if (FPlatformString::Strnicmp(Name, Str, NameLen))
-	{
-		return false;
-	}
-
-	if (InternalNumber == NAME_NO_NUMBER_INTERNAL)
-	{
-		return Str[NameLen] == '\0';
-	}
-
-	uint32 Number = NAME_INTERNAL_TO_EXTERNAL(InternalNumber);
-	return Str[NameLen] == '_' && NumberEqualsString(Number, Str + NameLen + 1);
-}
-
 struct FNameAnsiStringView
 {
 	using CharType = ANSICHAR;
@@ -2903,22 +2879,50 @@ struct FNameHelper
 #endif
 	}
 
-	template<class CharType>
-	static bool EqualsString(FName Name, const CharType* Str)
+	template<typename CharType>
+	static bool EqualsString(FName Name, const CharType* Str, int32 Len)
 	{
-		// Make NAME_None == TEXT("") or nullptr consistent with NAME_None == FName(TEXT("")) or FName(nullptr)
-		if (Str == nullptr || Str[0] == '\0')
+		check(Len >= 0);
+
+		// Make NAME_None == TEXTVIEW("") or TEXTVIEW(nullptr) consistent with NAME_None == FName(TEXT("")) or FName(nullptr)
+		if (Len == 0)
 		{
 			return Name.IsNone();
 		}
 
-		const FNameEntry& Entry = *Name.GetComparisonNameEntry();
+		// "_[num]" is considered "None" to keep semantics of old FName implementation
+		if (Name.IsNone() & (Str[0] == '_'))
+		{
+			ParseNumber(Str, /* in-out */ Len);
+			return Len == 0;
+		}
 
-		uint32 NameLen = Entry.Header.Len;
+		const FNameEntry* Entry = FName::ResolveEntry(Name.GetComparisonIndexInternal());
+
+	#if UE_FNAME_OUTLINE_NUMBER
+		int32 Number = Entry->IsNumbered() ? Entry->GetNumber() : NAME_NO_NUMBER_INTERNAL;
+		Entry = Entry->IsNumbered() ? FName::ResolveEntry(Entry->NumberedName.Id) : Entry; 
+		check(!Entry->IsNumbered());
+	#else
+		int32 Number = Name.GetNumber();
+	#endif
+
+		// Check _[number] suffix first and shorten Len if it matches
+		if (Number != NAME_NO_NUMBER_INTERNAL && 
+			Number != ParseNumber(Str, /* in-out */ Len)) 
+		{
+			return false;
+		}
+
+		if (Len != Entry->GetNameLength())
+		{
+			return false;
+		}
+		
 		FNameBuffer Temp;
-		return Entry.IsWide()
-			? StringAndNumberEqualsString(Entry.GetUnterminatedName(Temp.WideName), NameLen, Name.GetNumber(), Str)
-			: StringAndNumberEqualsString(Entry.GetUnterminatedName(Temp.AnsiName), NameLen, Name.GetNumber(), Str);
+		return Entry->IsWide()
+			? !FPlatformString::Strnicmp(Str, Entry->GetUnterminatedName(Temp.WideName), Len)
+			: !FPlatformString::Strnicmp(Str, Entry->GetUnterminatedName(Temp.AnsiName), Len);
 	}
 
 	template<typename CharType>
@@ -3258,14 +3262,24 @@ FName::FName(const FNameEntrySerialized& LoadedEntry)
 	: FName(FNameHelper::MakeFromLoaded(LoadedEntry))
 {}
 
-bool FName::operator==(const ANSICHAR* Str) const
+bool FName::Equals(FName Name, FAnsiStringView View)
 {
-	return FNameHelper::EqualsString(*this, Str);
+	return FNameHelper::EqualsString(Name, View.GetData(), View.Len());
 }
 
-bool FName::operator==(const WIDECHAR* Str) const
+bool FName::Equals(FName Name, FWideStringView View)
 {
-	return FNameHelper::EqualsString(*this, Str);
+	return FNameHelper::EqualsString(Name, View.GetData(), View.Len());
+}
+
+bool FName::Equals(FName Name, const ANSICHAR* Str)
+{
+	return Equals(Name, FAnsiStringView(Str));
+}
+
+bool FName::Equals(FName Name, const WIDECHAR* Str)
+{
+	return Equals(Name, FWideStringView(Str));
 }
 
 int32 FName::Compare( const FName& Other ) const
@@ -3788,6 +3802,13 @@ void FName::AutoTest()
 	check(FName(FName(), NAME_EXTERNAL_TO_INTERNAL(7)) == None_7);
 	check(FName("None", NAME_EXTERNAL_TO_INTERNAL(7)) == None_7);
 	check(FName(FNameEntryId::FromEName(EName::None), FNameEntryId::FromEName(EName::None), NAME_EXTERNAL_TO_INTERNAL(7)) == None_7);
+	check(!None_7.IsNone());
+
+	// "_[num]" is considered None to keep semantics of old implementation, unlike "None_[num]"
+	check(FName("_7").IsNone()); 
+	check(FName("_0").IsNone());
+	check(FName("_2147483646").IsNone());
+	check(!FName("_2147483647").IsNone()); // invalid number
 
 	// Find existing numbered none 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3876,35 +3897,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Once = false;
 	}
 
-	check(NumberEqualsString(0, "0"));
-	check(NumberEqualsString(11, "11"));
-	check(NumberEqualsString(2147483647, "2147483647"));
-	check(NumberEqualsString(4294967294, "4294967294"));
-
-	check(!NumberEqualsString(0, "1"));
-	check(!NumberEqualsString(1, "0"));
-	check(!NumberEqualsString(11, "12"));
-	check(!NumberEqualsString(12, "11"));
-	check(!NumberEqualsString(2147483647, "2147483646"));
-	check(!NumberEqualsString(2147483646, "2147483647"));
-
-	check(StringAndNumberEqualsString("abc", 3, NAME_EXTERNAL_TO_INTERNAL(10), "abc_10"));
-	check(!StringAndNumberEqualsString("aba", 3, NAME_EXTERNAL_TO_INTERNAL(10), "abc_10"));
-	check(!StringAndNumberEqualsString("abc", 2, NAME_EXTERNAL_TO_INTERNAL(10), "abc_10"));
-	check(!StringAndNumberEqualsString("abc", 2, NAME_EXTERNAL_TO_INTERNAL(11), "abc_10"));
-	check(!StringAndNumberEqualsString("abc", 3, NAME_EXTERNAL_TO_INTERNAL(10), "aba_10"));
-	check(!StringAndNumberEqualsString("abc", 3, NAME_EXTERNAL_TO_INTERNAL(10), "abc_11"));
-	check(!StringAndNumberEqualsString("abc", 3, NAME_EXTERNAL_TO_INTERNAL(10), "abc_100"));
-
-	check(StringAndNumberEqualsString("abc", 3, NAME_EXTERNAL_TO_INTERNAL(0), "abc_0"));
-	check(!StringAndNumberEqualsString("abc", 3, NAME_EXTERNAL_TO_INTERNAL(0), "abc_1"));
-
-	check(StringAndNumberEqualsString("abc", 3, NAME_NO_NUMBER_INTERNAL, "abc"));
-	check(!StringAndNumberEqualsString("abc", 2, NAME_NO_NUMBER_INTERNAL, "abc"));
-	check(!StringAndNumberEqualsString("abc", 3, NAME_NO_NUMBER_INTERNAL, "abcd"));
-	check(!StringAndNumberEqualsString("abc", 3, NAME_NO_NUMBER_INTERNAL, "abc_0"));
-	check(!StringAndNumberEqualsString("abc", 3, NAME_NO_NUMBER_INTERNAL, "abc_"));
-
 	TArray<FName> Names;
 	Names.Add("FooB");
 	Names.Add("FooABCD");
@@ -3923,6 +3915,36 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	check(Names[4] == "FooB");
 	check(Names[5] == "FooC");
 	check(Names[6] == FooWide);
+		
+	check(FName() == TEXTVIEW("None"));
+	check(FName() == TEXTVIEW("none"));
+	check(FName() == TEXTVIEW(""));
+	check(FName() == FStringView());
+	check(FName("a") == TEXTVIEW("a"));
+	check(FName("a") == TEXTVIEW("A"));
+	check(FName("A") == TEXTVIEW("a"));
+	check(FName("aa") != TEXTVIEW("a"));
+	check(FName("a") != TEXTVIEW("aa"));
+	check(FName("a") == TEXTVIEW("aa").Left(1)); // Unterminated
+	check(FName("aa") != TEXTVIEW("ab"));
+	check(FName("a_0") == TEXTVIEW("a_0"));
+	check(FName("a_1") != TEXTVIEW("a_0"));
+	check(FName("a_10") == TEXTVIEW("a_10"));
+	check(FName("a")    == TEXTVIEW("a_10").Left(1)); // Unterminated number
+	check(FName("a_")   == TEXTVIEW("a_10").Left(2)); // Unterminated number
+	check(FName("a_1")  == TEXTVIEW("a_10").Left(3)); // Unterminated number
+	check(FName("a_2147483646") == TEXTVIEW("a_2147483646")); // Largest valid number
+	check(FName("a_2147483647") == TEXTVIEW("a_2147483647")); // Smallest invalid number
+	check(FName("a_") == TEXTVIEW("a_"));
+	check(FName("_") == TEXTVIEW("_"));
+	check(FName("_3") == TEXTVIEW("_3")); // Special none
+	check(FName() == TEXTVIEW("_123")); // Special none
+	check(FName("_3") == TEXTVIEW("None")); // Special none
+	check(FName("none_1") == TEXTVIEW("none_1")); // Numbered none
+	check(WideName == FStringView(Wide));
+	check(FName("a") == ANSITEXTVIEW("a"));
+	check(FName("a") == ANSITEXTVIEW("A"));
+	check(FName("A") != ANSITEXTVIEW("b"));
 
 	
 	CheckLazyName("Hej");
@@ -3933,6 +3955,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	CheckLazyName("Hej_01");
 	CheckLazyName("Hej_-1");
 	CheckLazyName("Hej__0");
+	CheckLazyName("Hej_2147483646");
 	CheckLazyName("Hej_2147483647");
 	CheckLazyName("Hej_123");
 	CheckLazyName("None");
