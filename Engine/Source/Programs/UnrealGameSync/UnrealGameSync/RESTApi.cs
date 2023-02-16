@@ -45,7 +45,7 @@ namespace UnrealGameSync
 				{
 					using (HttpResponseMessage response = await s_httpClient.SendAsync(request, cancellationToken))
 					{
-						return await response.Content.ReadAsStringAsync(cancellationToken);
+						return await response.Content.ReadAsStringAsync();
 					}
 				}
 				catch (Exception ex)
