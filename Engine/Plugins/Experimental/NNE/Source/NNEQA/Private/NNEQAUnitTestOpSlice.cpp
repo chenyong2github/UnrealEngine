@@ -70,6 +70,27 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::SliceOp
 		return true;
 	}
 
+	IMPLEMENT_NNE_SHAPEINFERENCEHELPER_UNIT_AUTOMATION_TEST(FSliceCPUHelperRank1Int, "System.Engine.MachineLearning.NNE.UnitTest.SliceHelper.Rank1Int");
+	bool FSliceCPUHelperRank1Int::RunTest(const FString& Parameter)
+	{
+		FTensor XC6Int32 = MakeConstTensorInt32(TEXT("XC6Int32"), { 6 }, { 1, 2, 3, 4, 5, 6 });
+		FTensor XC6Int64 = MakeConstTensorInt64(TEXT("XC6Int64"), { 6 }, { 1, 2, 3, 4, 5, 6 });
+		FTensor YInt32 = MakeTensor(TEXT("YInt32"), { 2 }, ENNETensorDataType::Int32);
+		FTensor YInt64 = MakeTensor(TEXT("YInt64"), { 2 }, ENNETensorDataType::Int64);
+
+		CPUHelper::Slice::Apply(XC6Int32, YInt32, { 1 });
+		UTEST_TRUE(TEXT("YInt32 const if input is const"), YInt32.HasPreparedData());
+		UTEST_EQUAL(TEXT("Slice(XC6Int32,2,4)[0]"), YInt32.GetPreparedData<int32>()[0], 2);
+		UTEST_EQUAL(TEXT("Slice(XC6Int32,2,4)[1]"), YInt32.GetPreparedData<int32>()[1], 3);
+
+		CPUHelper::Slice::Apply(XC6Int64, YInt64, { 1 });
+		UTEST_TRUE(TEXT("YInt64 const if input is const"), YInt64.HasPreparedData());
+		UTEST_EQUAL(TEXT("Slice(XC6Int64,2,4)[0]"), YInt64.GetPreparedData<int64>()[0], (int64)2);
+		UTEST_EQUAL(TEXT("Slice(XC6Int64,2,4)[1]"), YInt64.GetPreparedData<int64>()[1], (int64)3);
+
+		return true;
+	}
+
 	IMPLEMENT_NNE_SHAPEINFERENCEHELPER_UNIT_AUTOMATION_TEST(FSliceCPUHelperRank3, "System.Engine.MachineLearning.NNE.UnitTest.SliceHelper.Rank3");
 	bool FSliceCPUHelperRank3::RunTest(const FString& Parameter)
 	{

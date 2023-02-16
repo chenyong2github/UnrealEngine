@@ -5,30 +5,14 @@
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Slice
 {
-	void Apply(const NNECore::Internal::FTensor& InputTensor, NNECore::Internal::FTensor& OutputTensor, TConstArrayView<int32> Starts)
+	template<typename TData> void ApplyResolvedInputType(const NNECore::Internal::FTensor& InputTensor, NNECore::Internal::FTensor& OutputTensor, TConstArrayView<int32> Starts)
 	{
-		static constexpr int32 MaxItemInOutputTensor = NNECore::FTensorShape::MaxRank * 2;
-
-		if (OutputTensor.GetVolume() >= MaxItemInOutputTensor)
-		{
-			return;
-		}
-
-		if (OutputTensor.GetDataType() != ENNETensorDataType::Float)
-		{
-			return;
-		}
-
-		if (!InputTensor.HasPreparedData())
-		{
-			return;
-		}
-
+		check(InputTensor.HasPreparedData());
 		check(InputTensor.GetShape().Rank() == Starts.Num());
 		check(OutputTensor.GetShape().Rank() == Starts.Num());
 
-		TArray<float> OutputData;
-		TConstArrayView<float> InputData = InputTensor.GetPreparedData<float>();
+		TArray<TData> OutputData;
+		TConstArrayView<TData> InputData = InputTensor.GetPreparedData<TData>();
 		Private::TensorIdxIterator itOutput(OutputTensor.GetShape());
 		const Private::TensorIdxIterator itInput(InputTensor.GetShape());
 
@@ -41,12 +25,42 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Slice
 				CurInputPosition[r] += Starts[r];
 			}
 
-			float Value = InputData[itInput.GetIndexFromPosition(CurInputPosition)];
+			TData Value = InputData[itInput.GetIndexFromPosition(CurInputPosition)];
 			OutputData[itOutput.GetIndex()] = Value;
 
 		} while (itOutput.Advance());
 
-		OutputTensor.SetPreparedData<float>(OutputData);
+		OutputTensor.SetPreparedData<TData>(OutputData);
+	}
+
+	void Apply(const NNECore::Internal::FTensor& InputTensor, NNECore::Internal::FTensor& OutputTensor, TConstArrayView<int32> Starts)
+	{
+		static constexpr int32 MaxItemInOutputTensor = NNECore::FTensorShape::MaxRank * 2;
+
+		if (OutputTensor.GetVolume() >= MaxItemInOutputTensor)
+		{
+			return;
+		}
+
+		if (!InputTensor.HasPreparedData())
+		{
+			return;
+		}
+
+		switch (InputTensor.GetDataType())
+		{
+		case ENNETensorDataType::Int32:
+			ApplyResolvedInputType<int32>(InputTensor, OutputTensor, Starts);
+			break;
+
+		case ENNETensorDataType::Int64:
+			ApplyResolvedInputType<int64>(InputTensor, OutputTensor, Starts);
+			break;
+
+		case ENNETensorDataType::Float:
+			ApplyResolvedInputType<float>(InputTensor, OutputTensor, Starts);
+			break;
+		}
 	}
 	
 } // UE::NNERuntimeRDG::Private::CPUHelper::Slice
