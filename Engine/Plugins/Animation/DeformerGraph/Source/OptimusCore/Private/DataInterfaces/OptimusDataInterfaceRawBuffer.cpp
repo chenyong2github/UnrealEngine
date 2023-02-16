@@ -353,8 +353,8 @@ void FOptimusTransientBufferDataProviderProxy::GatherDispatchData(FDispatchData 
 	for (int32 InvocationIndex = 0, StartOffset = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
 		FParameters& Parameters = ParameterArray[InvocationIndex];
-		Parameters.StartOffset = StartOffset;
-		Parameters.BufferSize = InvocationElementCounts[InvocationIndex];
+		Parameters.StartOffset = InDispatchData.bUnifiedDispatch ? 0 : StartOffset;
+		Parameters.BufferSize = InDispatchData.bUnifiedDispatch ? TotalElementCount : InvocationElementCounts[InvocationIndex];
 		Parameters.BufferSRV = BufferSRV;
 		Parameters.BufferUAV = BufferUAV;
 		
@@ -417,8 +417,8 @@ void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(FDispatchData
 	for (int32 InvocationIndex = 0, StartOffset = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
 		FParameters& Parameters = ParameterArray[InvocationIndex];
-		Parameters.StartOffset = StartOffset;
-		Parameters.BufferSize = InvocationElementCounts[InvocationIndex];
+		Parameters.StartOffset = InDispatchData.bUnifiedDispatch ? 0 : StartOffset;
+		Parameters.BufferSize = InDispatchData.bUnifiedDispatch ? TotalElementCount : InvocationElementCounts[InvocationIndex];
 		Parameters.BufferUAV = BufferUAV;
 
 		StartOffset += InvocationElementCounts[InvocationIndex];

@@ -212,8 +212,8 @@ namespace UE::MLDeformer
 		{
 			const FSkelMeshRenderSection& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 			FMLDeformerGraphDebugDataInterfaceParameters& Parameters = ParameterArray[InvocationIndex];
-			Parameters.NumVertices = 0;
-			Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
+			Parameters.NumVertices = InDispatchData.bUnifiedDispatch ? LodRenderData->GetNumVertices() : RenderSection.GetNumVertices();
+			Parameters.InputStreamStart = InDispatchData.bUnifiedDispatch ? 0 : RenderSection.BaseVertexIndex;
 			Parameters.HeatMapMode = HeatMapMode;
 			Parameters.HeatMapMax = HeatMapMax;
 			Parameters.GroundTruthLerp = GroundTruthLerp;

@@ -148,8 +148,8 @@ namespace UE::VertexDeltaModel
 		{
 			const FSkelMeshRenderSection& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 			FVertexDeltaGraphDataInterfaceParameters& Parameters = ParameterArray[InvocationIndex];
-			Parameters.NumVertices = 0;
-			Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
+			Parameters.NumVertices = InDispatchData.bUnifiedDispatch ? LodRenderData->GetNumVertices() : RenderSection.GetNumVertices();
+			Parameters.InputStreamStart = InDispatchData.bUnifiedDispatch ? 0 : RenderSection.BaseVertexIndex;
 			Parameters.Weight = Weight;
 			Parameters.PositionDeltaBuffer = BufferSRV;
 			Parameters.VertexMapBuffer = VertexMapBufferSRV;

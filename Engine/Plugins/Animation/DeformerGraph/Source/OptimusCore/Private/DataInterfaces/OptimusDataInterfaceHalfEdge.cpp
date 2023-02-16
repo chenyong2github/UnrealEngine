@@ -401,10 +401,10 @@ void FOptimusHalfEdgeDataProviderProxy::GatherDispatchData(FDispatchData const& 
 		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 
 		FParameters& Parameters = ParameterArray[InvocationIndex];
-		Parameters.NumVertices = RenderSection.NumVertices;
-		Parameters.NumTriangles = RenderSection.NumTriangles;
-		Parameters.IndexBufferStart = RenderSection.BaseIndex;
-		Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
+		Parameters.NumVertices = InDispatchData.bUnifiedDispatch ? LodRenderData->GetNumVertices() : RenderSection.NumVertices;
+		Parameters.NumTriangles = InDispatchData.bUnifiedDispatch ? LodRenderData->GetTotalFaces() : RenderSection.NumTriangles;
+		Parameters.IndexBufferStart = InDispatchData.bUnifiedDispatch ? 0 :RenderSection.BaseIndex;
+		Parameters.InputStreamStart = InDispatchData.bUnifiedDispatch ? 0 : RenderSection.BaseVertexIndex;
 		Parameters.VertexToEdgeBuffer = VertexToEdgeBufferSRV;
 		Parameters.EdgeToTwinEdgeBuffer = EdgeToTwinEdgeBufferSRV;
 	}

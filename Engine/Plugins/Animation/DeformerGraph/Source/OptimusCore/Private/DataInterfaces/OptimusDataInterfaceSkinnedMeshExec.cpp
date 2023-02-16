@@ -149,8 +149,17 @@ void FOptimusSkinnedMeshExecDataProviderProxy::GatherDispatchData(FDispatchData 
 	const TStridedView<FParameters> ParameterArray = MakeStridedParameterView<FParameters>(InDispatchData);
 	for (int32 InvocationIndex = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
-		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
-		const int32 NumThreads = Domain == EOptimusSkinnedMeshExecDomain::Vertex ? RenderSection.NumVertices : RenderSection.NumTriangles;
+		int32 NumThreads = 0;
+
+		if (InDispatchData.bUnifiedDispatch)
+		{
+			NumThreads = Domain == EOptimusSkinnedMeshExecDomain::Vertex ? LodRenderData->GetNumVertices() : LodRenderData->GetTotalFaces();
+		}
+		else
+		{
+			FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
+			NumThreads = Domain == EOptimusSkinnedMeshExecDomain::Vertex ? RenderSection.NumVertices : RenderSection.NumTriangles;
+		}
 
 		FParameters& Parameters = ParameterArray[InvocationIndex];
 		Parameters.NumThreads = FIntVector(NumThreads, 1, 1);

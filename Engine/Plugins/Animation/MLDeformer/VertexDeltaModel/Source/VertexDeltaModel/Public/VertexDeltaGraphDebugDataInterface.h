@@ -35,6 +35,7 @@ public:
 
 	// UComputeDataInterface overrides.
 	TCHAR const* GetClassName() const override { return TEXT("VertexDeltaModelDebugData"); }
+	virtual bool CanSupportUnifiedDispatch() const override { return true; }
 	virtual void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
 	virtual TCHAR const* GetShaderVirtualPath() const override;

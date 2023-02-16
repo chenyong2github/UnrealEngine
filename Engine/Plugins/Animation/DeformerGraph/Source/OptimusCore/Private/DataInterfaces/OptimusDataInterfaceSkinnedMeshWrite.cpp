@@ -207,8 +207,8 @@ void FOptimusSkinnedMeshWriteDataProviderProxy::GatherDispatchData(FDispatchData
 		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 
 		FParameters& Parameters = ParameterArray[InvocationIndex];
-		Parameters.NumVertices = RenderSection.GetNumVertices();
-		Parameters.OutputStreamStart = RenderSection.GetVertexBufferIndex();
+		Parameters.NumVertices = InDispatchData.bUnifiedDispatch ? LodRenderData->GetNumVertices() : RenderSection.GetNumVertices();
+		Parameters.OutputStreamStart = InDispatchData.bUnifiedDispatch ? 0 : RenderSection.GetVertexBufferIndex();
 		Parameters.PositionBufferUAV = PositionBufferUAV;
 		Parameters.TangentBufferUAV = TangentBufferUAV;
 		Parameters.ColorBufferUAV = ColorBufferUAV;
