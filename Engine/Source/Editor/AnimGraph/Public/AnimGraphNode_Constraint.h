@@ -7,7 +7,7 @@
 #include "EdGraph/EdGraphNodeUtils.h" // for FNodeTitleTextTable
 #include "AnimGraphNode_Constraint.generated.h"
 
-UCLASS(Experimental)
+UCLASS()
 class ANIMGRAPH_API UAnimGraphNode_Constraint : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_UCLASS_BODY()
