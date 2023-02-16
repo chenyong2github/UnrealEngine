@@ -455,8 +455,8 @@ void FMassArchetypeData::ExecutionFunctionForChunk(FMassExecutionContext RunCont
 
 	if (ChunkLength)
 	{
-		BindConstSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.ChunkFragments);
-		BindSharedFragmentRequirements(RunContext, Chunk.GetMutableSharedFragmentValues(), RequirementMapping.ChunkFragments);
+		BindConstSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.ConstSharedFragments);
+		BindSharedFragmentRequirements(RunContext, Chunk.GetMutableSharedFragmentValues(), RequirementMapping.SharedFragments);
 
 		RunContext.SetCurrentArchetypesTagBitSet(GetTagBitSet());
 		RunContext.SetCurrentChunkSerialModificationNumber(Chunk.GetSerialModificationNumber());
