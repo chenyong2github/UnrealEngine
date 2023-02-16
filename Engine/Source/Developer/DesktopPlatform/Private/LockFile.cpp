@@ -104,7 +104,7 @@ FLockFile::TryReadAndClear(const TCHAR* FileName, FString& OutContents)
 
 	return true;
 #else
-	#error Not implemented for this platform
+	unimplemented();
 	return false;
 #endif
 }
