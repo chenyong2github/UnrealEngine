@@ -133,7 +133,7 @@ void FProject::AddPluginFile(const FString& PackagePath, FString&& PluginFilePat
 	Plugin->PackagePaths.Add(PackagePath);
 };
 
-FStringView FProject::GetProjectFilePath() const
+const FString& FProject::GetProjectFilePath() const
 {
 	return ProjectFilePath;
 }

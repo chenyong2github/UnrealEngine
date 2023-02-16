@@ -17,7 +17,12 @@ public:
 private:
 	virtual bool Initialize(const TCHAR* CmdLine) override;
 
-	virtual bool Run(const TArray<FProject>& Projects) override;
+	virtual void Serialize(FJsonSerializerBase& Serializer) override;
+
+	virtual bool ProcessProject(const FProject& Project, TUniquePtr<FCommandOutput>& Output) override;
+	virtual bool ProcessOutput(const TArray<TUniquePtr<FCommandOutput>>& OutputArray) override;
+
+	virtual TUniquePtr<FCommandOutput> CreateOutputObject() const override;
 
 	virtual const TArray<FString>& GetPackages() const override;
 

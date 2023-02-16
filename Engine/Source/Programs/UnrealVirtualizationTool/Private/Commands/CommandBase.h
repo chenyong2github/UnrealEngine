@@ -5,18 +5,45 @@
 #include "Containers/Array.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializerMacros.h"
+#include "Serialization/JsonWriter.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
+
+struct FJsonSerializerBase;
 
 class ISourceControlProvider;
 class ISourceControlChangelist;
 
 typedef TSharedPtr<ISourceControlChangelist, ESPMode::ThreadSafe> FSourceControlChangelistPtr;
 
+
 namespace UE::Virtualization
 {
 
 class FProject;
+
+// The JSON serialization macros do not support inheritance properly as far as I can tell, this helps work around that.
+// Currently it stores all levels of the inheritance chain in the same json object, I'd want to change this to have an
+// object per level before considering moving this to JsonSerializerMacros.h
+#define JSON_SERIALIZE_PARENT(ParentType) \
+	ParentType::Serialize(Serializer, true);
+
+struct FCommandOutput : public FJsonSerializable
+{
+	FCommandOutput() = default;
+	FCommandOutput(FStringView InProjectName)
+		: ProjectName(InProjectName)
+	{
+	}
+
+	BEGIN_JSON_SERIALIZER
+		JSON_SERIALIZE("ProjectName", ProjectName);
+	END_JSON_SERIALIZER
+
+	FString ProjectName;
+};
 
 /** The base class to derive new commands from */
 class FCommand
@@ -27,7 +54,47 @@ public:
 
 	virtual bool Initialize(const TCHAR* CmdLine) = 0;
 
-	virtual bool Run(const TArray<FProject>& Projects) = 0;
+	void ToJson(TSharedRef<TJsonWriter<> >& JsonWriter) const
+	{
+		FJsonSerializerWriter<> Serializer(JsonWriter);
+		const_cast<FCommand*>(this)->Serialize(Serializer);
+	}
+
+	bool FromJson(TSharedPtr<FJsonObject> JsonObject)
+	{
+		if (JsonObject.IsValid())
+		{
+			FJsonSerializerReader Serializer(JsonObject);
+			Serialize(Serializer);
+			return true;
+		}
+		return false;
+	}
+
+	virtual void Serialize(FJsonSerializerBase& Serializer) = 0;
+
+	/** 
+	* Called when a project needs to be processed by the command. The output parameter is used to
+	* return output that will eventually be passed to ::ProcessOutput. If the command does not 
+	* produce any output needed by ::ProcessOutput then the parameter may be ignored.
+	*/
+	virtual bool ProcessProject(const FProject& Project, TUniquePtr<FCommandOutput>& Output) = 0;
+
+	/** 
+	 * Called after all projects have been processed. This will always be called by the original
+	 * processes and never called by a spawned child process. If the command produces output when
+	 * processing a project then the CmdOutputArray will be populated, otherwise it will be empty.
+	 * It is assumed that each command knows how to cast the FCommandOutput to the correct type.
+	 */
+	virtual bool ProcessOutput(const TArray<TUniquePtr<FCommandOutput>>& CmdOutputArray) = 0;
+
+	/** 
+	 * Derived command classes should return a new instance of the command output that it can produce.
+	 * This will be called when we are parsing child process output files while attempting to reconstruct
+	 * the output of a child process.
+	 * Commands that do not return any output can return nullptr. 
+	 */
+	virtual TUniquePtr<FCommandOutput> CreateOutputObject() const = 0;
 
 	virtual const TArray<FString>& GetPackages() const = 0;
 
@@ -72,6 +139,7 @@ protected: // Common SourceControl Code
 	bool TryParseChangelist(FStringView ClientSpecName, FStringView ChangelistNumber, TArray<FString>& OutPackages, FSourceControlChangelistPtr* OutChangelist);
 
 	FString FindClientSpecForChangelist(FStringView ChangelistNumber);
+
 private:
 	FString CommandName;
 

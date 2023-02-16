@@ -14,27 +14,40 @@
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
 
-namespace
+namespace UE::Virtualization
 {
 
 /** Utility */
-TArray<FString> BuildFinalTagDescriptions(TArray<FText>& DescriptionTags)
+TArray<FString> BuildFinalTagDescriptions(const TArray<TUniquePtr<FCommandOutput>>& OutputArray)
 {
 	TArray<FString> CleanedDescriptions;
-	CleanedDescriptions.Reserve(DescriptionTags.Num());
-
-	for (const FText& Tag : DescriptionTags)
+	
+	for (const TUniquePtr<FCommandOutput>& Output : OutputArray)
 	{
-		CleanedDescriptions.AddUnique(Tag.ToString());
+		if (Output)
+		{
+			const FVirtualizeCommandOutput* CmdOutput = (const FVirtualizeCommandOutput*)Output.Get();
+
+			for (const FString& Tag : CmdOutput->DescriptionTags)
+			{
+				CleanedDescriptions.AddUnique(Tag);
+			}
+		}
 	}
 
 	return CleanedDescriptions;
 }
 
-} // namespace
-
-namespace UE::Virtualization
+FVirtualizeCommandOutput::FVirtualizeCommandOutput(FStringView InProjectName, const TArray<FText>& InDescriptionTags)
+	: FCommandOutput(InProjectName)
 {
+	DescriptionTags.Reserve(InDescriptionTags.Num());
+
+	for (const FText& Description : InDescriptionTags)
+	{
+		DescriptionTags.Add(Description.ToString());
+	}
+}
 
 FVirtualizeCommand::FVirtualizeCommand(FStringView CommandName)
 	: FCommand(CommandName)
@@ -122,73 +135,84 @@ bool FVirtualizeCommand::Initialize(const TCHAR* CmdLine)
 	return true;
 }
 
-bool FVirtualizeCommand::Run(const TArray<FProject>& Projects)
+void FVirtualizeCommand::Serialize(FJsonSerializerBase& Serializer)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizeCommand::Run);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizeCommand::Serialize);
+
+	Serializer.Serialize(TEXT("ShouldCheckout"), bShouldCheckout);
+}
+
+bool FVirtualizeCommand::ProcessProject(const FProject& Project, TUniquePtr<FCommandOutput>& Output)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizeCommand::ProcessProject);
 
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Running the virtualization process..."));
-	
-	TArray<FText> DescriptionTags;
 
-	for (const FProject& Project : Projects)
+	TStringBuilder<128> ProjectName;
+	ProjectName << Project.GetProjectName();
+
+	UE_LOG(LogVirtualizationTool, Display, TEXT("\tChecking package(s) for the project '%s'..."), ProjectName.ToString());
+
+	FConfigFile EngineConfigWithProject;
+	if (!Project.TryLoadConfig(EngineConfigWithProject))
 	{
-		TStringBuilder<128> ProjectName;
-		ProjectName << Project.GetProjectName();
-
-		UE_LOG(LogVirtualizationTool, Display, TEXT("\tChecking package(s) for the project '%s'..."), ProjectName.ToString());
-
-		FConfigFile EngineConfigWithProject;
-		if (!Project.TryLoadConfig(EngineConfigWithProject))
-		{
-			return false;
-		}
-
-		Project.RegisterMountPoints();
-
-		ON_SCOPE_EXIT
-		{
-			Project.UnRegisterMountPoints();
-		};
-
-		UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
-		UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
-
-		ON_SCOPE_EXIT
-		{
-			UE::Virtualization::Shutdown();
-		};
-
-		TArray<FString> ProjectPackages = Project.GetAllPackages();
-
-		EVirtualizationOptions Options = EVirtualizationOptions::None;
-		if(bShouldCheckout)
-		{
-			Options |= EVirtualizationOptions::Checkout;
-		}
-
-		FVirtualizationResult Result = UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(ProjectPackages, Options);
-
-		if (!Result.WasSuccessful())
-		{
-			UE_LOG(LogVirtualizationTool, Error, TEXT("The virtualization process failed with the following errors:"));
-			for (const FText& Error : Result.Errors)
-			{
-				UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
-			}
-			return false;
-		}
-
-		if (bShouldCheckout)
-		{
-			UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), Result.CheckedOutPackages.Num());
-		}
-
-		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tVirtualization of project packages complete!"), ProjectName.ToString());
+		return false;
 	}
+
+	Project.RegisterMountPoints();
+
+	ON_SCOPE_EXIT
+	{
+		Project.UnRegisterMountPoints();
+	};
+
+	UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
+	UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
+
+	ON_SCOPE_EXIT
+	{
+		UE::Virtualization::Shutdown();
+	};
+
+	TArray<FString> ProjectPackages = Project.GetAllPackages();
+
+	EVirtualizationOptions Options = EVirtualizationOptions::None;
+	if (bShouldCheckout)
+	{
+		Options |= EVirtualizationOptions::Checkout;
+	}
+
+	FVirtualizationResult Result = UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(ProjectPackages, Options);
+
+	if (!Result.WasSuccessful())
+	{
+		UE_LOG(LogVirtualizationTool, Error, TEXT("The virtualization process failed with the following errors:"));
+		for (const FText& Error : Result.Errors)
+		{
+			UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
+		}
+		return false;
+	}
+
+	if (bShouldCheckout)
+	{
+		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), Result.CheckedOutPackages.Num());
+	}
+
+	UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tVirtualization of project packages complete!"), ProjectName.ToString());
+
+	Output = MakeUnique<FVirtualizeCommandOutput>(Project.GetProjectName(), Result.DescriptionTags);
+
+	return true;
+}
+
+bool FVirtualizeCommand::ProcessOutput(const TArray<TUniquePtr<FCommandOutput>>& CmdOutputArray)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizeCommand::ProcessOutput);
 
 	if (bShouldSubmitChangelist)
 	{
-		TArray<FString> FinalDescriptionTags = BuildFinalTagDescriptions(DescriptionTags);
+		TArray<FString> FinalDescriptionTags = BuildFinalTagDescriptions(CmdOutputArray);
 
 		if (!TrySubmitChangelist(SourceChangelist, FinalDescriptionTags))
 		{
@@ -199,12 +223,17 @@ bool FVirtualizeCommand::Run(const TArray<FProject>& Projects)
 	return true;
 }
 
+TUniquePtr<FCommandOutput> FVirtualizeCommand::CreateOutputObject() const
+{
+	return MakeUnique<FVirtualizeCommandOutput>();
+}
+
 const TArray<FString>& FVirtualizeCommand::GetPackages() const
 {
 	return AllPackages;
 }
 
-bool FVirtualizeCommand::TrySubmitChangelist(const FSourceControlChangelistPtr& ChangelistToSubmit, const TArray<FString>& DescriptionTags)
+bool FVirtualizeCommand::TrySubmitChangelist(const FSourceControlChangelistPtr& ChangelistToSubmit, const TArray<FString>& InDescriptionTags)
 {
 	if (!ChangelistToSubmit.IsValid())
 	{
@@ -238,7 +267,7 @@ bool FVirtualizeCommand::TrySubmitChangelist(const FSourceControlChangelistPtr& 
 	TStringBuilder<512> Description;
 	Description << ChangelistState->GetDescriptionText().ToString();
 
-	for (const FString& Tag : DescriptionTags)
+	for (const FString& Tag : InDescriptionTags)
 	{
 		Description << TEXT("\n") << Tag;
 	}

@@ -72,71 +72,87 @@ bool FRehydrateCommand::Initialize(const TCHAR* CmdLine)
 	return true;
 }
 
-bool FRehydrateCommand::Run(const TArray<FProject>& Projects)
+void FRehydrateCommand::Serialize(FJsonSerializerBase& Serializer)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FRehydrateCommand::Run);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRehydrateCommand::Serialize);
 
-	for (const FProject& Project : Projects)
+	// The command has no additional data when launched as a child process
+}
+
+bool FRehydrateCommand::ProcessProject(const FProject& Project, TUniquePtr<FCommandOutput>& Output)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRehydrateCommand::ProcessProject);
+
+	TStringBuilder<128> ProjectName;
+	ProjectName << Project.GetProjectName();
+
+	UE_LOG(LogVirtualizationTool, Display, TEXT("\tProcessing package(s) for the project '%s'..."), ProjectName.ToString());
+
+	FConfigFile EngineConfigWithProject;
+	if (!Project.TryLoadConfig(EngineConfigWithProject))
 	{
-		TStringBuilder<128> ProjectName;
-		ProjectName << Project.GetProjectName();
-
-		UE_LOG(LogVirtualizationTool, Display, TEXT("\tProcessing package(s) for the project '%s'..."), ProjectName.ToString());
-
-		FConfigFile EngineConfigWithProject;
-		if (!Project.TryLoadConfig(EngineConfigWithProject))
-		{
-			return false;
-		}
-
-		Project.RegisterMountPoints();
-
-		UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
-		UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
-
-		ON_SCOPE_EXIT
-		{
-			UE::Virtualization::Shutdown();
-		};
-
-		const TArray<FString> ProjectPackages = Project.GetAllPackages();
-
-		if (!TryCheckOutFilesForProject(ClientSpecName, Project.GetProjectRoot(), ProjectPackages))
-		{
-			return false;
-		}
-
-		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tAttempting to rehydrate packages..."), ProjectName.ToString());
-
-
-		ERehydrationOptions Options = ERehydrationOptions::None;
-		if (bShouldCheckout)
-		{
-			Options |= ERehydrationOptions::Checkout;
-		}
-
-		FRehydrationResult Result = UE::Virtualization::IVirtualizationSystem::Get().TryRehydratePackages(ProjectPackages, Options);
-		if (!Result.WasSuccessful())
-		{
-			UE_LOG(LogVirtualizationTool, Error, TEXT("The rehydration process failed with the following errors:"));
-			for (const FText& Error : Result.Errors)
-			{
-				UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
-			}
-			return false;
-		}
-
-		if (bShouldCheckout)
-		{
-			UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), Result.CheckedOutPackages.Num());
-		}
-
-		Project.UnRegisterMountPoints();
-
-		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tRehyration of project packages complete!"), ProjectName.ToString());
+		return false;
 	}
 
+	Project.RegisterMountPoints();
+
+	UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
+	UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
+
+	ON_SCOPE_EXIT
+	{
+		UE::Virtualization::Shutdown();
+	};
+
+	const TArray<FString> ProjectPackages = Project.GetAllPackages();
+
+	if (!TryCheckOutFilesForProject(ClientSpecName, Project.GetProjectRoot(), ProjectPackages))
+	{
+		return false;
+	}
+
+	UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tAttempting to rehydrate packages..."), ProjectName.ToString());
+
+
+	ERehydrationOptions Options = ERehydrationOptions::None;
+	if (bShouldCheckout)
+	{
+		Options |= ERehydrationOptions::Checkout;
+	}
+
+	FRehydrationResult Result = UE::Virtualization::IVirtualizationSystem::Get().TryRehydratePackages(ProjectPackages, Options);
+	if (!Result.WasSuccessful())
+	{
+		UE_LOG(LogVirtualizationTool, Error, TEXT("The rehydration process failed with the following errors:"));
+		for (const FText& Error : Result.Errors)
+		{
+			UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
+		}
+		return false;
+	}
+
+	if (bShouldCheckout)
+	{
+		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), Result.CheckedOutPackages.Num());
+	}
+
+	Project.UnRegisterMountPoints();
+
+	UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tRehyration of project packages complete!"), ProjectName.ToString());
+
 	return true;
+}
+
+bool FRehydrateCommand::ProcessOutput(const TArray<TUniquePtr<FCommandOutput>>& OutputArray)
+{
+	// Command has no additional work to do
+	return true;
+}
+
+TUniquePtr<FCommandOutput> FRehydrateCommand::CreateOutputObject() const
+{
+	// This command does not create any output
+	return TUniquePtr<FCommandOutput>();
 }
 
 const TArray<FString>& FRehydrateCommand::GetPackages() const

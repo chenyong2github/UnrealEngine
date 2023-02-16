@@ -7,6 +7,19 @@
 namespace UE::Virtualization
 {
 
+struct FVirtualizeCommandOutput final : public FCommandOutput
+{
+	FVirtualizeCommandOutput() = default;
+	FVirtualizeCommandOutput(FStringView InProjectName, const TArray<FText>& InDescriptionTags);
+
+	BEGIN_JSON_SERIALIZER
+		JSON_SERIALIZE_PARENT(FCommandOutput);
+		JSON_SERIALIZE_ARRAY("DescriptionTags", DescriptionTags);
+	END_JSON_SERIALIZER
+
+	TArray<FString> DescriptionTags;
+};
+
 class FVirtualizeCommand : public FCommand
 {
 public:
@@ -18,7 +31,12 @@ public:
 private:
 	virtual bool Initialize(const TCHAR* CmdLine) override;
 
-	virtual bool Run(const TArray<FProject>& Projects) override;
+	virtual void Serialize(FJsonSerializerBase& Serializer) override;
+
+	virtual bool ProcessProject(const FProject& Project, TUniquePtr<FCommandOutput>& Output) override;
+	virtual bool ProcessOutput(const TArray<TUniquePtr<FCommandOutput>>& CmdOutputArray) override;
+
+	virtual TUniquePtr<FCommandOutput> CreateOutputObject() const override;
 
 	virtual const TArray<FString>& GetPackages() const override;
 
@@ -61,7 +79,5 @@ public:
 private:
 	virtual bool Initialize(const TCHAR* CmdLine) override;
 };
-
-
 
 } // namespace UE::Virtualization
