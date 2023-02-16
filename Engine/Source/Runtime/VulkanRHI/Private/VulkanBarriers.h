@@ -144,6 +144,12 @@ public:
 		if (!Layout && Fallback)
 		{
 			Layout = Fallback->GetFullLayout(VulkanTexture, false);
+
+			// If the layout was found in the fallback, carry it forward to our current manager for future tracking
+			if (Layout)
+			{
+				return &Layouts.Add(VulkanTexture.Image, *Layout);
+			}
 		}
 		
 		if (Layout)
