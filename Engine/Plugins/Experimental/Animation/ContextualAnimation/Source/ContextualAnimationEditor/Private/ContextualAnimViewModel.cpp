@@ -292,6 +292,11 @@ AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& 
 			MotionWarpingComp->RegisterComponentWithWorld(GetWorld());
 			MotionWarpingComp->InitializeComponent();
 
+			UContextualAnimSceneActorComponent* SceneActorComp = NewObject<UContextualAnimSceneActorComponent>(PreviewCharacter);
+			SceneActorComp->RegisterComponentWithWorld(GetWorld());
+			SceneActorComp->InitializeComponent();
+			SceneActorComp->AttachToComponent(PreviewCharacter->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, false));
+
 			PreviewActor = PreviewCharacter;
 		}
 		else
@@ -337,13 +342,13 @@ AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& 
 					StaticMeshComp->RegisterComponentWithWorld(GetWorld());
 					PreviewActor->SetRootComponent(StaticMeshComp);
 				}
+
+				UContextualAnimSceneActorComponent* SceneActorComp = NewObject<UContextualAnimSceneActorComponent>(PreviewActor);
+				SceneActorComp->RegisterComponentWithWorld(GetWorld());
+				SceneActorComp->InitializeComponent();
+				SceneActorComp->AttachToComponent(PreviewActor->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, false));
 			}
 		}
-
-		check(PreviewActor);
-		UContextualAnimSceneActorComponent* SceneActorComp = NewObject<UContextualAnimSceneActorComponent>(PreviewActor);
-		SceneActorComp->RegisterComponentWithWorld(GetWorld());
-		SceneActorComp->InitializeComponent();
 
 		PreviewActor->Tags.Add(PreviewActorTag);
 	}
