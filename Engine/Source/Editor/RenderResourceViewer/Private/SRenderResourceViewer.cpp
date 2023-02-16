@@ -232,17 +232,20 @@ void SRenderResourceViewerWidget::Construct(const FArguments& InArgs, const TSha
 		]
 	];
 
-	RefreshNodes();
+	RefreshNodes(true);
 }
 
-void SRenderResourceViewerWidget::RefreshNodes()
+void SRenderResourceViewerWidget::RefreshNodes(bool bUpdateRHIResources)
 {
 	const int32 NumberOfResourcesToShow = -1;
 
 	// Retrieve the whole list of RHI tracked resources
-	TArray<TSharedPtr<FRHIResourceStats>> RHIResources;
 #if RHI_ENABLE_RESOURCE_INFO
-	RHIGetTrackedResourceStats(RHIResources);
+	if (bUpdateRHIResources)
+	{
+		RHIResources.Reset();
+		RHIGetTrackedResourceStats(RHIResources);
+	}
 #endif
 
 	// Filter the resource list by search keyword and flags

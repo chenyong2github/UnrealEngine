@@ -23,7 +23,7 @@ public:
 	~SRenderResourceViewerWidget() {}
 
 private:
-	void RefreshNodes();
+	void RefreshNodes(bool bUpdateRHIResources = false);
 	TSharedRef<ITableRow> HandleResourceGenerateRow(TSharedPtr<FRHIResourceStats> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
 
@@ -39,8 +39,9 @@ private:
 	void OnUAVCheckboxChanged(ECheckBoxState NewState)					{ bShowUAV = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	void OnRTASCheckboxChanged(ECheckBoxState NewState)					{ bShowRTAS = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	void OnNoneCheckboxChanged(ECheckBoxState NewState)					{ bShowNone = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
-	FReply OnRefreshButtonClicked()										{ RefreshNodes(); return FReply::Handled(); }
+	FReply OnRefreshButtonClicked()										{ RefreshNodes(true); return FReply::Handled(); }
 
+	TArray<TSharedPtr<FRHIResourceStats>> RHIResources;
 	TSharedPtr<SListView<TSharedPtr<FRHIResourceStats>>> ResourceListView;
 	TArray<TSharedPtr<FRHIResourceStats>> ResourceInfos;
 	FName SortByColumn;
