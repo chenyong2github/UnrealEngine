@@ -43,16 +43,6 @@ struct FContextualAnimRepLateJoinData : public FContextualAnimRepData
 	FName Role = NAME_None;
 };
 
-/** Used to replicate the playback of a 'random' animation */
-USTRUCT()
-struct FContextualAnimRepPlayAnimData : public FContextualAnimRepData
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	TObjectPtr<UAnimSequenceBase> Animation = nullptr;
-};
-
 /** Used to replicate a transition to a new AnimSet in the interaction */
 USTRUCT()
 struct FContextualAnimRepTransitionData : public FContextualAnimRepData
@@ -123,7 +113,7 @@ public:
 	bool TransitionContextualAnimScene(FName SectionName);
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
-	void PlayExternalAnimation(UAnimSequenceBase* Animation);
+	bool TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx);
 
 	void EarlyOutContextualAnimScene();
 
@@ -141,11 +131,11 @@ protected:
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_LateJoinData)
 	FContextualAnimRepLateJoinData RepLateJoinData;
 
-	UPROPERTY(Transient, ReplicatedUsing = OnRep_PlayAnimData)
-	FContextualAnimRepPlayAnimData RepPlayAnimData;
-
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_TransitionData)
 	FContextualAnimRepTransitionData RepTransitionData;
+
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_RepTransitionSingleActor)
+	FContextualAnimRepTransitionData RepTransitionSingleActorData;
 
 	/**
 	 * Bindings for the interaction we are currently playing.
@@ -183,7 +173,7 @@ protected:
 	void OnRep_LateJoinData();
 
 	UFUNCTION()
-	void OnRep_PlayAnimData();
+	void OnRep_RepTransitionSingleActor();
 
 	UFUNCTION()
 	void OnRep_TransitionData();

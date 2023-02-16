@@ -55,7 +55,7 @@ void UContextualAnimSceneActorComponent::GetLifetimeReplicatedProps(TArray< FLif
 	Params.bIsPushBased = true;
 	DOREPLIFETIME_WITH_PARAMS_FAST(UContextualAnimSceneActorComponent, RepBindings, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UContextualAnimSceneActorComponent, RepLateJoinData, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UContextualAnimSceneActorComponent, RepPlayAnimData, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UContextualAnimSceneActorComponent, RepTransitionSingleActorData, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UContextualAnimSceneActorComponent, RepTransitionData, Params);
 }
 
@@ -406,27 +406,58 @@ void UContextualAnimSceneActorComponent::HandleTransitionSelf(int32 NewSectionId
 	AddOrUpdateWarpTargets(NewSectionIdx, NewAnimSetIdx);
 }
 
-void UContextualAnimSceneActorComponent::PlayExternalAnimation(UAnimSequenceBase* Animation)
+bool UContextualAnimSceneActorComponent::TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx)
 {
 	if (!GetOwner()->HasAuthority())
 	{
-		return;
+		return false;
 	}
 
-	PlayAnimation_Internal(Animation, 0.f, false);
+	if (const FContextualAnimSceneBinding* OwnerBinding = Bindings.FindBindingByActor(GetOwner()))
+	{
+		if (const UContextualAnimSceneAsset* Asset = Bindings.GetSceneAsset())
+		{
+			const FContextualAnimTrack* AnimTrack = Asset->GetAnimTrack(SectionIdx, AnimSetIdx, Bindings.GetRoleFromBinding(*OwnerBinding));
+			if (AnimTrack && AnimTrack->Animation)
+			{
+				UE_LOG(LogContextualAnim, Log, TEXT("%-21s UContextualAnimSceneActorComponent::TransitionSingleActor Actor: %s SectionIdx: %d AnimSetIdx: %d"),
+					*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), SectionIdx, AnimSetIdx);
 
-	RepPlayAnimData.Animation = Animation;
-	RepPlayAnimData.IncrementRepCounter();
-	MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepPlayAnimData, this);
-	GetOwner()->ForceNetUpdate();
+				PlayAnimation_Internal(AnimTrack->Animation, 0.f, false);
+
+				AddOrUpdateWarpTargets(SectionIdx, AnimSetIdx);
+
+				RepTransitionSingleActorData.SectionIdx = SectionIdx;
+				RepTransitionSingleActorData.AnimSetIdx = AnimSetIdx;
+				RepTransitionSingleActorData.IncrementRepCounter();
+				MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepTransitionSingleActorData, this);
+				GetOwner()->ForceNetUpdate();
+
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
-void UContextualAnimSceneActorComponent::OnRep_PlayAnimData()
+void UContextualAnimSceneActorComponent::OnRep_RepTransitionSingleActor()
 {
-	UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::OnRep_PlayAnimData Owner: %s AnimToPlay: %s"),
-		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *GetNameSafe(RepPlayAnimData.Animation));
+	UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::OnRep_RepTransitionSingleActor Owner: %s SectionIdx: %s AnimSetIdx: %d"),
+		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), RepTransitionSingleActorData.SectionIdx, RepTransitionSingleActorData.AnimSetIdx);
 
-	PlayAnimation_Internal(RepPlayAnimData.Animation, 0.f, false);
+	if (const FContextualAnimSceneBinding* OwnerBinding = Bindings.FindBindingByActor(GetOwner()))
+	{
+		if (const UContextualAnimSceneAsset* Asset = Bindings.GetSceneAsset())
+		{
+			const FContextualAnimTrack* AnimTrack = Asset->GetAnimTrack(RepTransitionSingleActorData.SectionIdx, RepTransitionSingleActorData.AnimSetIdx, Bindings.GetRoleFromBinding(*OwnerBinding));
+			if (AnimTrack && AnimTrack->Animation)
+			{
+				PlayAnimation_Internal(AnimTrack->Animation, 0.f, false);
+				AddOrUpdateWarpTargets(RepTransitionSingleActorData.SectionIdx, RepTransitionSingleActorData.AnimSetIdx);
+			}
+		}
+	}
 }
 
 bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings)
