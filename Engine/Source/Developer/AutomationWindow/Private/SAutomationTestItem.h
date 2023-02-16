@@ -84,9 +84,9 @@ protected:
 	/**
 	* Is the test inside exclude list. This info is taken from Config/DefaultEngine.ini, section [AutomationTestExcludelist].
 	*
-	* @return true if the test is inside the exclude list.
+	* Return the visibility state based on skipped state.
 	*/
-	ECheckBoxState IsToBeSkipped() const;
+	EVisibility IsToBeSkipped_GetVisibility() const;
 
 	/**
 	* Is the test inside exclude list through direct exclusion (not through propagation).
@@ -110,9 +110,9 @@ protected:
 	/**
 	* Add or remove test from exclude list. It will change Config/DefaultEngine.ini, section [AutomationTestExcludelist].
 	*
-	* @param if true, add this item to exclude list, remove otherwise.
+	* @return respond of dialog
 	*/
-	void SetSkipFlag(ECheckBoxState Enable);
+	FReply SetSkipFlag();
 
 	/**
 	* Open Exclude test options editor

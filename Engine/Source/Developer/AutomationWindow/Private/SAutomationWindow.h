@@ -35,12 +35,14 @@ template< typename ItemType > class TTextFilter;
 /** Columns for the test tree view */
 namespace AutomationTestWindowConstants
 {
+	const FName Checked( TEXT("Checked") );
+	const FName Skipped( TEXT("Skipped") );
+	const FName SkippedOptions( TEXT("SkippedOptions") );
 	const FName Title( TEXT("Name") );
 	const FName SmokeTest( TEXT("SmokeTest") );
 	const FName RequiredDeviceCount( TEXT("RequiredDeviceCount") );
 	const FName Status( TEXT("Status") );
 	const FName Timing( TEXT("Timing") );
-	const FName IsToBeSkipped(TEXT("ToBeSkipped"));
 }
 
 
@@ -187,6 +189,14 @@ private:
 	TSharedRef< SWidget > MakeAutomationWindowToolBar( const TSharedRef<FUICommandList>& InCommandList );
 
 	/**
+	 * Static: Creates a filter toolbar widget for the automation window.
+	 *
+	 * @return The new widget.
+	 */
+	static TSharedRef< SWidget > MakeAutomationFilterToolBar(const TSharedRef<FUICommandList>& InCommandList, TSharedPtr<class SAutomationWindow> InLevelEditor);
+	TSharedRef< SWidget > MakeAutomationFilterToolBar(const TSharedRef<FUICommandList>& InCommandList);
+
+	/**
 	 * Static: Creates the test options menu widget.
 	 *
 	 * @return	The new widget.
@@ -203,19 +213,20 @@ private:
 	TSharedRef< SWidget > GenerateGroupOptionsMenuContent( );
 
 	/**
+	 * Static: Creates the Presets menu widget.
+	 *
+	 * @return The new widget.
+	 */
+	static TSharedRef< SWidget >GeneratePresetsMenuContent( TWeakPtr<class SAutomationWindow> InAutomationWindow );
+	TSharedRef< SWidget > GeneratePresetsMenuContent();
+
+	/**
 	* Static: Creates the test history options menu widget.
 	*
 	* @return The new widget.
 	*/
 	static TSharedRef< SWidget > GenerateTestHistoryMenuContent(TWeakPtr<class SAutomationWindow> InAutomationWindow);
 	TSharedRef< SWidget > GenerateTestHistoryMenuContent();
-
-	/**
-	 * Creates a combo item for the preset list.
-	 *
-	 * @return New combo item widget.
-	 */
-	TSharedRef<SWidget> GeneratePresetComboItem(TSharedPtr<FAutomationTestPreset> InItem);
 
 	/**
 	 * Creates a combo item for the requested filter.
@@ -338,7 +349,10 @@ private:
 	
 	/** Toggles a device group flag */
 	void HandleDeviceGroupCheckStateChanged(ECheckBoxState CheckBoxState, const int32 DeviceGroupFlag);
-	
+
+	/** Sitches presets in the Presets Menu of Preset ComboButton */
+	void HandlePresetCheckStateChanged(ECheckBoxState CheckBoxState, const int32 EntryIndex, TSharedPtr<TArray<TSharedPtr<SCheckBox>>> CheckBoxes);
+
 	/** Sets the number of times to repeat the tests */
 	void OnChangeRepeatCount(int32 InNewValue);
 	
@@ -454,23 +468,20 @@ private:
 	bool ExpandToTest(TSharedPtr<IAutomationReport> InRoot, TSharedPtr<IAutomationReport> InReport);
 #endif
 
-	/** Handles the new preset button being clicked. */
-	FReply HandleNewPresetClicked();
-
 	/** Handles the save preset button being clicked. */
 	FReply HandleSavePresetClicked();
 
-	/** Handles the remove preset button being clicked. */
-	FReply HandleRemovePresetClicked();
+	/** Handles the create new preset menu item being clicked. */
+	void OnNewPresetClicked();
 
-	/** Should the add preset button be enabled. */
-	bool IsAddButtonEnabled() const;
+	/** Handles the remove preset menu item being clicked. */
+	void OnRemovePresetClicked();
+
+	/** Handles the rename preset menu item being clicked. */
+	void OnRenamePresetClicked();
 
 	/** Should the save preset button be enabled. */
 	bool IsSaveButtonEnabled() const;
-
-	/** Should the remove preset button be enabled. */
-	bool IsRemoveButtonEnabled() const;
 
 	/** Handles if the preset combo box should be visible. */
 	EVisibility HandlePresetComboVisibility( ) const;
@@ -484,8 +495,6 @@ private:
 	/** Called when the user commits the text in the add preset text box. */
 	void HandlePresetTextCommited( const FText& CommittedText, ETextCommit::Type CommitType );
 
-	/** Called when the user selects a new preset from the preset combo box. */
-	void HandlePresetChanged( TSharedPtr<FAutomationTestPreset> Item, ESelectInfo::Type SelectInfo );
 	/** Called when the user changes the requested test filter */
 	void HandleRequesteFilterChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo);
 	/** Called when the user changes the test group */
@@ -620,8 +629,14 @@ private:
 	/** Which type of window style to use for the test background. */
 	EAutomationTestBackgroundStyle::Type TestBackgroundType;
 
-	/** True if we are creating a new preset (The add preset text box is visible). */
+	/** True if we are creating a new preset (The add/rename preset text box is visible). */
 	bool bAddingTestPreset;
+
+	/** True if we are renaming a new preset (The add/rename preset text box is visible). */
+	bool bRenamingTestPreset;
+
+	/** Flag to enable display of the text labels in the toolbar. */
+	bool bIsLabelVisibilityEnabled;
 
 	/** Holds a pointer to the preset manager. */
 	TSharedPtr<FAutomationTestPresetManager> TestPresetManager;
@@ -629,8 +644,8 @@ private:
 	/** Holds the currently selected preset. */
 	TSharedPtr<FAutomationTestPreset> SelectedPreset;
 
-	/** Holds a pointer to the preset combo box widget. */
-	TSharedPtr< SComboBox< TSharedPtr<FAutomationTestPreset> > > PresetComboBox;
+	/** Holds a pointer to the preset combo button widget. */
+	TSharedPtr< STextBlock > PresetComboButtonText;
 
 	/** Holds a pointer to the preset combo box widget. */
 	TSharedPtr< SComboBox< TSharedPtr<FString> > >	RequestedFilterComboBox;

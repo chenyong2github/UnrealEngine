@@ -47,7 +47,56 @@ void SAutomationTestItem::Construct( const FArguments& InArgs, const TSharedRef<
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& ColumnName )
 {
-	if( ColumnName == AutomationTestWindowConstants::Title)
+	if (ColumnName == AutomationTestWindowConstants::Checked)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.Padding(4.0f, 0.0f)
+			[
+				//enabled/disabled check box
+				SNew(SCheckBox)
+				.IsChecked(this, &SAutomationTestItem::IsTestEnabled)
+			.OnCheckStateChanged(this, &SAutomationTestItem::HandleTestingCheckbox_Click)
+			];
+	}
+	else if (ColumnName == AutomationTestWindowConstants::Skipped)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(FAutomationWindowStyle::Get(), "NoBorder")
+				.ToolTipText(LOCTEXT("ToggleExcluded", "Exclude"))
+				.OnClicked(FOnClicked::CreateSP(this, &SAutomationTestItem::SetSkipFlag))
+				[
+					SNew(SImage)
+					.Image(FAutomationWindowStyle::Get().GetBrush("AutomationWindow.ExcludedTestsFilter"))
+					.Visibility(this, &SAutomationTestItem::IsToBeSkipped_GetVisibility)
+				]
+			];
+	}
+	else if (ColumnName == AutomationTestWindowConstants::SkippedOptions)
+	{
+		return SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+#if WITH_EDITOR
+			.HAlign(HAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SSimpleButton)
+				.Icon(FAutomationWindowStyle::Get().GetBrush("Icons.Edit"))
+				.Visibility(this, &SAutomationTestItem::IsDirectlyExcluded_GetVisibility)
+				.ToolTipText(LOCTEXT("EditExcludeOptions", "Edit exclude options"))
+				.OnClicked(FOnClicked::CreateSP(this, &SAutomationTestItem::OnEditExcludeOptionsClicked))
+			]
+#endif
+			;
+	}
+	else if( ColumnName == AutomationTestWindowConstants::Title)
 	{
 		TSharedRef<SWidget> TestNameWidget = SNullWidget::NullWidget;
 
@@ -102,16 +151,6 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		}
 
 		return SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Center)
-			.Padding(4.0f, 0.0f)
-			[
-				//enabled/disabled check box
-				SNew( SCheckBox )
-				.IsChecked(this, &SAutomationTestItem::IsTestEnabled)
-				.OnCheckStateChanged(this, &SAutomationTestItem::HandleTestingCheckbox_Click)
-			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
@@ -273,32 +312,6 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		return SNew( STextBlock )
 		.Text( this, &SAutomationTestItem::ItemStatus_DurationText);
 	}
-	else if (ColumnName == AutomationTestWindowConstants::IsToBeSkipped)
-	{
-		return SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SCheckBox)
-				.IsChecked(this, &SAutomationTestItem::IsToBeSkipped)
-				.IsEnabled(this, &SAutomationTestItem::IsDirectlyExcluded)
-				.OnCheckStateChanged(this, &SAutomationTestItem::SetSkipFlag)
-				.ToolTipText(this, &SAutomationTestItem::GetExcludeReason)
-#if WITH_EDITOR
-			]
-		+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SSimpleButton)
-				.Icon(FAutomationWindowStyle::Get().GetBrush("Icons.Edit"))
-				.Visibility(this, &SAutomationTestItem::IsDirectlyExcluded_GetVisibility)
-				.ToolTipText(LOCTEXT("EditExcludeOptions", "Edit exclude options"))
-				.OnClicked(FOnClicked::CreateSP(this, &SAutomationTestItem::OnEditExcludeOptionsClicked))
-#endif
-			];
-	}
 
 
 	return SNullWidget::NullWidget;
@@ -367,14 +380,14 @@ ECheckBoxState SAutomationTestItem::IsTestEnabled() const
 	return TestStatus->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-ECheckBoxState SAutomationTestItem::IsToBeSkipped() const
+EVisibility SAutomationTestItem::IsToBeSkipped_GetVisibility() const
 {
-	return TestStatus->IsToBeSkipped() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return TestStatus->IsToBeSkipped() ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 bool SAutomationTestItem::IsDirectlyExcluded() const
 {
-	return WITH_EDITOR && IsLocalSession && !TestStatus->IsToBeSkippedByPropagation();
+	return WITH_EDITOR && IsLocalSession && TestStatus->IsToBeSkipped() && !TestStatus->IsToBeSkippedByPropagation();
 }
 
 EVisibility SAutomationTestItem::IsDirectlyExcluded_GetVisibility() const
@@ -390,10 +403,10 @@ FText SAutomationTestItem::GetExcludeReason() const
 	return IsToBeSkipped ? FText::FromName(Reason) : FText();
 }
 
-void SAutomationTestItem::SetSkipFlag(ECheckBoxState Enable)
+FReply SAutomationTestItem::SetSkipFlag()
 {
 #if WITH_EDITOR
-	if (Enable == ECheckBoxState::Checked)
+	if (!TestStatus->IsToBeSkipped())
 	{
 		OnEditExcludeOptionsClicked();
 	}
@@ -402,6 +415,7 @@ void SAutomationTestItem::SetSkipFlag(ECheckBoxState Enable)
 		TestStatus->SetSkipFlag(false);
 	}
 #endif
+	return FReply::Handled();
 }
 
 FReply SAutomationTestItem::OnEditExcludeOptionsClicked()

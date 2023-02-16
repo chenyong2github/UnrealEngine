@@ -67,7 +67,7 @@ FFractureEditorStyle::FFractureEditorStyle()
 	Set("FractureEditor.Resample",             new IMAGE_BRUSH_SVG("FractureResample", IconSize));
 
 	Set("FractureEditor.ToMesh",        	   new CORE_IMAGE_BRUSH_SVG("../Editor/Slate/Starship/Common/MakeStaticMesh", IconSize));
-	Set("FractureEditor.Validate",        	   new CORE_IMAGE_BRUSH_SVG("../Editor/Slate/Starship/Common/Test", IconSize));
+	Set("FractureEditor.Validate",        	   new CORE_IMAGE_BRUSH_SVG("Starship/Common/Test", IconSize));
 
 	Set("FractureEditor.Convex",        	   new IMAGE_BRUSH_SVG("FractureConvex", IconSize));
 	Set("FractureEditor.CustomVoronoi",        new IMAGE_BRUSH_SVG("FractureCustom", IconSize));
