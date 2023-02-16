@@ -34,7 +34,7 @@ struct FPCGAttributeExtractorTestStructDepth1
 	FPCGAttributeExtractorTestStructDepth2 Depth2Struct;
 
 	UPROPERTY()
-	float FloatValue;
+	float FloatValue = 0.0f;
 };
 
 USTRUCT(meta = (Hidden))
