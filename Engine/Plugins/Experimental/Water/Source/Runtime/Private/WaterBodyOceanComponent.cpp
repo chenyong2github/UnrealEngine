@@ -222,7 +222,7 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 	Triangulation.Add(Island);
 	if (!Triangulation.Triangulate())
 	{
-		UE_LOG(LogWater, Error, TEXT("Failed to triangulate Ocean mesh for %s. Ensure that the Ocean's spline does not form any loops."), *GetOwner()->GetActorNameOrLabel());
+		UE_LOG(LogWater, Warning, TEXT("Failed to triangulate Ocean mesh for %s. Ensure that the Ocean's spline does not form any loops."), *GetOwner()->GetActorNameOrLabel());
 	}
 
 	if (Triangulation.Triangles.Num() == 0)

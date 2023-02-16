@@ -77,7 +77,7 @@ bool UWaterBodyLakeComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3&
 	Triangulation.Add(LakePoly);
 	if (!Triangulation.Triangulate())
 	{
-		UE_LOG(LogWater, Error, TEXT("Failed to triangulate Lake mesh for %s (%s)"), *GetOwner()->GetActorNameOrLabel(), *GetFullNameSafe(GetOwner()));
+		UE_LOG(LogWater, Warning, TEXT("Failed to triangulate Lake mesh for %s.  Ensure that the Lake's spline does not form any loops (%s)"), *GetOwner()->GetActorNameOrLabel(), *GetFullNameSafe(GetOwner()));
 	}
 
 	if (Triangulation.Triangles.Num() == 0)
