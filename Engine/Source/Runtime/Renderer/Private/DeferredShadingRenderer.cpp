@@ -698,6 +698,7 @@ struct FRayTracingRelevantPrimitive
 	uint8 InstanceMask = 0;
 	bool bStatic = false;
 	bool bAllSegmentsOpaque = true;
+	bool bAllSegmentsCastShadow = true;
 	bool bAnySegmentsCastShadow = false;
 	bool bAnySegmentsDecal = false;
 	bool bAllSegmentsDecal = true;
@@ -714,12 +715,13 @@ struct FRayTracingRelevantPrimitive
 		uint64 Key = StateHash;
 		Key ^= uint64(InstanceMask) << 32;
 		Key ^= bAllSegmentsOpaque ? 0x1ull << 40 : 0x0;
-		Key ^= bAnySegmentsCastShadow ? 0x1ull << 41 : 0x0;
-		Key ^= bAnySegmentsDecal ? 0x1ull << 42 : 0x0;
-		Key ^= bAllSegmentsDecal ? 0x1ull << 43 : 0x0;
-		Key ^= bTwoSided ? 0x1ull << 44 : 0x0;
-		Key ^= bIsSky ? 0x1ull << 45 : 0x0;
-		Key ^= bAllSegmentsTranslucent ? 0x1ull << 46 : 0x0;
+		Key ^= bAllSegmentsCastShadow ? 0x1ull << 41 : 0x0;
+		Key ^= bAnySegmentsCastShadow ? 0x1ull << 42 : 0x0;
+		Key ^= bAnySegmentsDecal ? 0x1ull << 43 : 0x0;
+		Key ^= bAllSegmentsDecal ? 0x1ull << 44 : 0x0;
+		Key ^= bTwoSided ? 0x1ull << 45 : 0x0;
+		Key ^= bIsSky ? 0x1ull << 46 : 0x0;
+		Key ^= bAllSegmentsTranslucent ? 0x1ull << 47 : 0x0;
 		return Key ^ reinterpret_cast<uint64>(RayTracingGeometryRHI);
 	}
 
@@ -961,6 +963,7 @@ static void GatherRayTracingRelevantPrimitives(FScene& Scene, const FViewInfo& V
 
 							RelevantPrimitive.InstanceMask |= RayTracingMeshCommand.InstanceMask;
 							RelevantPrimitive.bAllSegmentsOpaque &= RayTracingMeshCommand.bOpaque;
+							RelevantPrimitive.bAllSegmentsCastShadow &= RayTracingMeshCommand.bCastRayTracedShadows;
 							RelevantPrimitive.bAnySegmentsCastShadow |= RayTracingMeshCommand.bCastRayTracedShadows;
 							RelevantPrimitive.bAnySegmentsDecal |= RayTracingMeshCommand.bDecal;
 							RelevantPrimitive.bAllSegmentsDecal &= RayTracingMeshCommand.bDecal;
@@ -1695,7 +1698,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 						RayTracingInstance.Mask = RelevantPrimitive.InstanceMask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
 
-						if (RelevantPrimitive.bAllSegmentsOpaque)
+						if (RelevantPrimitive.bAllSegmentsOpaque && RelevantPrimitive.bAllSegmentsCastShadow)
 						{
 							RayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
 						}

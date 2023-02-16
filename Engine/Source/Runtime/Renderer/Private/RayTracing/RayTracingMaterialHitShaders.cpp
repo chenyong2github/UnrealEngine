@@ -762,8 +762,8 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 	const int32 OpaqueShadowMaterialIndex = FindRayTracingHitGroupIndex(PipelineState, OpaqueShadowShader, true);
 	const int32 HiddenMaterialIndex = FindRayTracingHitGroupIndex(PipelineState, HiddenMaterialShader, true);
 
-	const int32 OpaqueMeshDecalHitGroupIndex = FindRayTracingHitGroupIndex(PipelineState, OpaqueShadowShader, true);
-	const int32 HiddenMeshDecalHitGroupIndex = FindRayTracingHitGroupIndex(PipelineState, HiddenMaterialShader, true);
+	const int32 OpaqueMeshDecalHitGroupIndex = bSupportMeshDecals ? FindRayTracingHitGroupIndex(PipelineState, OpaqueMeshDecalHitShader, true) : INDEX_NONE;
+	const int32 HiddenMeshDecalHitGroupIndex = bSupportMeshDecals ? FindRayTracingHitGroupIndex(PipelineState, HiddenMeshDecalHitShader, true) : INDEX_NONE;
 
 	FViewInfo& ReferenceView = Views[0];
 
@@ -844,8 +844,17 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 						}
 
 						// Bind shadow shader
+						if (bIsMeshDecalShader)
+						{
+							// mesh decals do not use the shadow slot, so do minimal work
+							FRayTracingLocalShaderBindings& Binding = BindingWriter->AddWithExternalParameters();
+							Binding.InstanceIndex = VisibleMeshCommand.InstanceIndex;
+							Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
+							Binding.ShaderSlot = RAY_TRACING_SHADER_SLOT_SHADOW;
+							Binding.ShaderIndexInPipeline = OpaqueMeshDecalHitGroupIndex;
 
-						if (MeshCommand.bCastRayTracedShadows && !VisibleMeshCommand.bHidden)
+						}
+						else if (MeshCommand.bCastRayTracedShadows && !VisibleMeshCommand.bHidden)
 						{
 							if (MeshCommand.bOpaque || !bEnableShadowMaterials)
 							{

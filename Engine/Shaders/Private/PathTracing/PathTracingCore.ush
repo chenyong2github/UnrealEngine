@@ -235,7 +235,7 @@ void TraceDecalRay(FRayDesc DecalRay, bool bReverseCulling, uint InstanceInclusi
 	{
 		FDecalShaderPayload DecalPayload = (FDecalShaderPayload)0;
 		DecalPayload.SetInputTranslatedWorldPosition(HitPayload.TranslatedWorldPos);
-
+		DecalPayload.SetMiss();
 		TraceRay(
 			DecalTLAS,
 			bReverseCulling ? RAY_FLAG_CULL_FRONT_FACING_TRIANGLES : RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
@@ -608,6 +608,8 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 	return Payload;
 }
 
+#define PATH_TRACING_DEBUG_TRANSPARENCY_RAY 0
+
 float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint MissShaderIndex, bool bCastShadows, inout RandomSequence RandSequence)
 {
 	if (!bCastShadows && MissShaderIndex == 0)
@@ -630,9 +632,20 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint Mis
 		Ray.TMax = POSITIVE_INFINITY;
 	}
 
+	const float OrigTMin = Ray.TMin;
+
 	// Trace the ray - progressing in steps through transparent geometry
+#if PATH_TRACING_DEBUG_TRANSPARENCY_RAY
+	const int MaxSteps = 256; // avoid TDRs during debugging by capping how many times we go around
+	int Steps = 0;
+	for (int Counter = 0; Counter < MaxSteps; Counter++)
+#else
 	for (;;)
+#endif
 	{
+		// Reset payload to a miss for the rare case of a mesh without a valid CHS assigned
+		// Note that in this case we will get incorrect shadowing, but this is preferable to an infinite loop
+		PackedPayload.SetMiss();
 		TraceRay(
 			TLAS,
 			RayFlags,
@@ -655,12 +668,23 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint Mis
 		}
 		// we hit some geometry, move one ulp past the hit and trace the same ray again
 		Ray.TMin = asfloat(asuint(PackedPayload.HitT) + 1);
+#if PATH_TRACING_DEBUG_TRANSPARENCY_RAY
+		Steps++;
+#endif
 	}
 
+#if PATH_TRACING_DEBUG_TRANSPARENCY_RAY
+	if (Steps == 0) return 1.0;
+	if (Steps == 1) return float3(0, 0, 1);
+	if (Steps == 2) return float3(0, 1, 0);
+	if (Steps == MaxSteps) return float3(1, 0, 0);
+	const float t = float(Steps) / float(MaxSteps);
+	return t;
+#else
 	float3 Throughput = PackedPayload.GetRayThroughput();
 	if (bCastShadows && any(Throughput > 0))
 	{
-		FVolumeIntersectionList VolumeIsectList = VolumeIntersect(Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
+		FVolumeIntersectionList VolumeIsectList = VolumeIntersect(Ray.Origin, Ray.Direction, OrigTMin, Ray.TMax);
 		if (VolumeIsectList.HitBlocker())
 		{
 			// blockers are opaque -- done!
@@ -675,6 +699,7 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint Mis
 		Throughput *= exp(-max(Tau, 0.0));
 	}
 	return Throughput;
+#endif
 }
 
 struct FProbeResult
@@ -999,11 +1024,12 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	// This array will hold a CDF for light picking
 	float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
 
-#if 0
-	// visualize pixel seeds
-	Radiance = HashToColor(StrongIntegerHash(RandPixel.x + StrongIntegerHash(RandPixel.y)));
+#if PATH_TRACING_DEBUG_TRANSPARENCY_RAY
+	// visualize the shadow ray handling directly
+	PathState.Radiance = TraceTransparentVisibilityRay(PathState.Ray, 0.0, 0, true, PathState.RandSequence);
 	return false;
 #endif
+
 	const bool bIsCameraRay = Bounce == 0;
 	const bool bIsLastBounce = Bounce == MaxBounces;
 	const bool bIncludeEmissive = PathState.ShouldAccumulateEmissive();
@@ -1030,8 +1056,9 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		const float VTMin = VolumeSegment.Interval.VolumeTMin;
 		const float VTMax = VolumeSegment.Interval.VolumeTMax;
 
+		const int NumLights = min(SceneLightCount, RAY_TRACING_LIGHT_COUNT_MAXIMUM); // make sure we don't overflow the cdf (TODO: relax this limit)
 		float LightPickingCdfSum = 0.0;
-		for (int LightId = 0; LightId < SceneLightCount; LightId++)
+		for (int LightId = 0; LightId < NumLights; LightId++)
 		{
 			FVolumeLightSampleSetup LightSetup = PrepareLightVolumeSample(LightId, Ro, Rd, VTMin, VTMax);
 			if (LightSetup.IsValid())
@@ -1048,7 +1075,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			float3 RandSample = RandomSequence_GenerateSample3D(PathState.RandSequence);
 			int LightSampleLightId = 0;
 			float LightPickPdf = 0.0;
-			SelectLight(RandSample.x * LightPickingCdfSum, SceneLightCount, LightPickingCdf, LightSampleLightId, LightPickPdf);
+			SelectLight(RandSample.x * LightPickingCdfSum, NumLights, LightPickingCdf, LightSampleLightId, LightPickPdf);
 			LightPickPdf /= LightPickingCdfSum;
 
 			// picked a light! now use the equi-angular sampler to pick a position along the ray and store it for later

@@ -278,6 +278,7 @@ FPackedPathTracingPayload InitPathTracingPayload(uint ScatterType, float PathRou
 {
 	FPackedPathTracingPayload Output = (FPackedPathTracingPayload)0;
 	Output.SetPathRoughness(PathRoughness);
+	Output.SetMiss();
 	switch (ScatterType)
 	{
 		case PATHTRACER_SCATTER_DIFFUSE:   Output.SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_INDIRECT_DIFFUSE);  break;
@@ -299,6 +300,7 @@ FPackedPathTracingPayload InitPathTracingVisibilityPayload(float PathRoughness)
 	Output.SetVisibilityRay();
 	Output.SetPathRoughness(PathRoughness);
 	Output.SetRayThroughput(1.0);
+	Output.SetMiss();
 	return Output;
 }
 
