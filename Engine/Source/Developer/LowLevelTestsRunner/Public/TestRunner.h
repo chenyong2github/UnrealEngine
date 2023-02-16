@@ -33,8 +33,17 @@ DECLARE_DELEGATE(FGlobalSetupHandler);
 class FTestDelegates
 {
 public:
-	inline static TSharedPtr<FGlobalSetupHandler, ESPMode::ThreadSafe> GlobalSetup = MakeShareable(new FGlobalSetupHandler());
-	inline static TSharedPtr<FGlobalSetupHandler, ESPMode::ThreadSafe> GlobalTeardown = MakeShareable(new FGlobalSetupHandler());
+	static FGlobalSetupHandler& GetGlobalSetup()
+	{
+		static TUniquePtr<FGlobalSetupHandler> GlobalSetup = MakeUnique<FGlobalSetupHandler>();
+		return *GlobalSetup.Get();
+	}
+
+	static FGlobalSetupHandler& GetGlobalTeardown()
+	{
+		static TUniquePtr<FGlobalSetupHandler> GlobalTeardown = MakeUnique<FGlobalSetupHandler>();
+		return *GlobalTeardown.Get();
+	}
 };
 
 int RunTests(int argc, const char* argv[]);

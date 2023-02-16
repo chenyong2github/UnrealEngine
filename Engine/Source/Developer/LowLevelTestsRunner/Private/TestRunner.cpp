@@ -229,10 +229,7 @@ void FTestRunner::GlobalSetup()
 		FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
 	}
 
-	if (FTestDelegates::GlobalSetup.Get()->IsBound())
-	{
-		FTestDelegates::GlobalSetup.Get()->Execute();
-	}
+	FTestDelegates::GetGlobalSetup().ExecuteIfBound();
 }
 
 void FTestRunner::GlobalTeardown() const
@@ -248,10 +245,7 @@ void FTestRunner::GlobalTeardown() const
 		GError = ErrorOutputDevice.GetDeviceError();
 	}
 
-	if (FTestDelegates::GlobalTeardown.Get()->IsBound())
-	{
-		FTestDelegates::GlobalTeardown.Get()->Execute();
-	}
+	FTestDelegates::GetGlobalTeardown().ExecuteIfBound();
 
 	CleanupPlatform();
 }
