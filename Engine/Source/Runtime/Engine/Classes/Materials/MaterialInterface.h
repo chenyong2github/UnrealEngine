@@ -270,7 +270,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 public:
-	/** SubsurfaceProfile, for Screen Space Subsurface Scattering */
+	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. Disabled when root node IsThin is true. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
 

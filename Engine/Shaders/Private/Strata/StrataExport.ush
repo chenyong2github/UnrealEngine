@@ -367,6 +367,7 @@ void PackStrataOut(
 				}
 				else if ((OptimisedModeMask & SingleIsSSSProfile) == SingleIsSSSProfile)
 				{
+					// SingleIsSSSProfile appears critically after SingleIsWrapThin because thin will disable subsurface profile.
 					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSPROFILE;
 					SSSData.Header.Bytes = 0; // Force to skip SSSData writing
 				}

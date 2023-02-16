@@ -4442,7 +4442,15 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, SubsurfaceProfile))
 		{
-			return MaterialDomain == MD_Surface && UseSubsurfaceProfile(ShadingModels) && IsOpaqueOrMaskedBlendMode(BlendMode);
+			const bool bCommonTest = MaterialDomain == MD_Surface && UseSubsurfaceProfile(ShadingModels) && IsOpaqueOrMaskedBlendMode(BlendMode);
+			if (bStrataEnabled)
+			{
+				return !IsThinSurface() && bCommonTest;
+			}
+			else
+			{
+				return bCommonTest;
+			}
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FLightmassMaterialInterfaceSettings, bCastShadowAsMasked))
@@ -4834,16 +4842,6 @@ void UMaterial::RebuildShadingModelField()
 					ShadingModels.AddShadingModel(MSM_DefaultLit);
 				}
 			}
-
-			// Subsurface profile
-			if (StrataMaterialInfo.HasShadingModel(SSM_SubsurfaceLit) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0)
-			{
-				if (StrataMaterialInfo.CountSubsurfaceProfiles() > 1)
-				{
-					UE_LOG(LogMaterial, Error, TEXT("%s: Material has more than a single sub-surface profile used."), *GetName());
-				}
-				SubsurfaceProfile = StrataMaterialInfo.GetSubsurfaceProfile();
-			}
 		}
 		else
 		{
@@ -4925,16 +4923,18 @@ void UMaterial::RebuildShadingModelField()
 
 			// Also update the ShadingModels for remaining pipeline operation
 			ShadingModels.AddShadingModel(ShadingModel);
+		}
 
-			// Subsurface profil
-			if ((StrataMaterialInfo.HasOnlyShadingModel(SSM_Eye) || StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit)) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0)
+		// Now, reset the subsurface profile (in case it has been removed from any slab before) and set it only if needed.
+		SubsurfaceProfile = nullptr;
+		if ((StrataMaterialInfo.HasOnlyShadingModel(SSM_Eye) || StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit)) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0 
+			&& !IsThinSurface())	// Thin surfaces disable subsurface profile because this is not compatible with fast path.
+		{
+			if (StrataMaterialInfo.CountSubsurfaceProfiles() > 1)
 			{
-				if (StrataMaterialInfo.CountSubsurfaceProfiles() > 1)
-				{
-					UE_LOG(LogMaterial, Error, TEXT("%s: Material has more than a single sub-surface profile used."), *GetName());
-				}
-				SubsurfaceProfile = StrataMaterialInfo.GetSubsurfaceProfile();
+				UE_LOG(LogMaterial, Error, TEXT("%s: Material has more than a single sub-surface profile used."), *GetName());
 			}
+			SubsurfaceProfile = StrataMaterialInfo.GetSubsurfaceProfile();
 		}
 	}
 	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material.
