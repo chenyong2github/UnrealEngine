@@ -9,7 +9,7 @@ struct FAnalogInputEvent;
 /**
  * A Slate slider control is a linear scale and draggable handle.
  */
-class SAnalogSlider : public SSlider
+class COMMONUI_API SAnalogSlider : public SSlider
 {
 public:
 
