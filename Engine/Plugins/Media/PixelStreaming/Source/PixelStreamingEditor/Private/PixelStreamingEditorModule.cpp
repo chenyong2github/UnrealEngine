@@ -222,7 +222,8 @@ void FPixelStreamingEditorModule::StartSignalling()
 	// but only attempt this is we haven't already started a download before.
 	if (!DownloadProcess.IsValid())
 	{
-		DownloadProcess = UE::PixelStreamingServers::DownloadPixelStreamingServers(/*bSkipIfPresent*/ true);
+		// We set bSkipIfPresent to false, which means the get_ps_servers script will always be run, that script will choose whether to download or not
+		DownloadProcess = UE::PixelStreamingServers::DownloadPixelStreamingServers(/*bSkipIfPresent*/ false);
 		if (DownloadProcess.IsValid())
 		{
 			DownloadProcess->OnCompleted().BindLambda([this](int ExitCode) {
