@@ -18,6 +18,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float MaxDistance = 0;
 
+	/** When true, allows the provided BHV to be used even if the mesh has been updated */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bAllowUnsafeModifiedQueries = false;
 
@@ -57,16 +58,26 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshSpatial : public UBlu
 {
 	GENERATED_BODY()
 public:
+
+	/**
+	* Reset the Bounding Volume Hierarchy (BVH) by clearing all the internal data.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Spatial", meta = (ScriptMethod))
 	static void ResetBVH(UPARAM(ref) FGeometryScriptDynamicMeshBVH& ResetBVH);
-
+	
+	/**
+	* Builds a Bounding Volume Hierarchy (BVH) object for a mesh that can be used with multiple spatial queries.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Spatial", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	BuildBVHForMesh(
 		UDynamicMesh* TargetMesh,
 		FGeometryScriptDynamicMeshBVH& OutputBVH,
 		UGeometryScriptDebug* Debug = nullptr );
-
+	
+	/**
+	* Checks if the provided Bounding Volume Hierarchy (BVH) can still be used with the Mesh — it generally returns false if the mesh has been changed.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Spatial", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	IsBVHValidForMesh(
@@ -75,6 +86,9 @@ public:
 		bool& bIsValid,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Rebuilds the Bounding Volume Hierarchy (BVH) for the mesh in-place, which can reduce memory allocations, compared to building a new BVH.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Spatial", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	RebuildBVHForMesh(
@@ -83,6 +97,14 @@ public:
 		bool bOnlyIfInvalid = true,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Finds the nearest point (Nearest Result) on the Target Mesh to a given 3D point (Query Point) by using the Query BVH.
+	* @param QueryBVH a BVH associated with the Target Mesh
+	* @param QueryPoint a 3D location relative to the local space of the mesh
+	* @param NearestResult on return, holds the nearest point on the mesh to the QueryPoint
+	* @param Outcome will be either Found or Not Found depending on the success of the query.
+	* Note NearestResult.bValid will be false if the query failed. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Spatial", meta=(ScriptMethod, ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	FindNearestPointOnMesh(
@@ -94,7 +116,11 @@ public:
 		EGeometryScriptSearchOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr );
 
-
+	/**
+	* Finds the nearest intersection of a 3D ray with the mesh by using the Query BVH.  
+	* Note, depending on the Ray Origin and Ray Direction, there is the possibility that the ray might not intersect with the Target Mesh.  
+	* Should the ray miss, the HitResult.bHit will be false and the Outcome  will be Not Found.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Spatial", meta=(ScriptMethod, ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	FindNearestRayIntersectionWithMesh(
@@ -107,7 +133,12 @@ public:
 		EGeometryScriptSearchOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr );
 
-
+	/**
+	* Tests if a point is inside the mesh using the Fast Winding Number query and data stored in the BVH.
+	* @param QueryBVH is an acceleration structure previously built with this mesh.
+	* @param QueryPoint the point in the mesh's 3D local space.
+	* @param Options control the fast winding number threshold 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Spatial", meta=(ScriptMethod, ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	IsPointInsideMesh(

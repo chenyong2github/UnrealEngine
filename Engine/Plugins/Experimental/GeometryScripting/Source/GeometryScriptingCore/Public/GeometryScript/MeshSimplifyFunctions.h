@@ -85,13 +85,21 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshSimplifyFunctions : p
 	GENERATED_BODY()
 public:
 
+	/**
+	* Simplifies planar areas of the mesh that have more triangles than necessary. Note that it does not change the 3D shape of the mesh.
+	* Planar regions are identified by comparison of face normals using a Angle Threshold in the Options.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySimplifyToPlanar(  
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPlanarSimplifyOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
-
+	
+	/**
+	* Simplifies the mesh down to the PolyGroup Topology. For example, the high-level faces of the mesh PolyGroups. 
+	* Another example would be on a default Box-Sphere where simplifying to PolyGroup topology produces a box.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod, DisplayName = "ApplySimplifyToPolyGroupTopology"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySimplifyToPolygroupTopology(  
@@ -100,6 +108,9 @@ public:
 		FGeometryScriptGroupLayer GroupLayer,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Simplifies the mesh until a target triangle count is reached. Behavior can be additionally controlled with the Options. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySimplifyToTriangleCount(  
@@ -108,6 +119,9 @@ public:
 		FGeometryScriptSimplifyMeshOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Simplifies the mesh until a target vertex count is reached. Behavior can be additionally controlled with the Options. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySimplifyToVertexCount(  
@@ -116,6 +130,10 @@ public:
 		FGeometryScriptSimplifyMeshOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Simplifies the mesh to a target geometric tolerance. Stops when any further simplification would result in a deviation from the input mesh larger than the tolerance.
+	* Behavior can be additionally controlled with the Options. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySimplifyToTolerance(  

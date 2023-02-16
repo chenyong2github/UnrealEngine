@@ -42,23 +42,44 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_PolyPathFunctions : publi
 {
 	GENERATED_BODY()
 public:
-
+	
+	/**
+	* Returns the number of vertices in the the PolyPath.
+	*/
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|PolyPath", meta=(ScriptMethod))
 	static int GetPolyPathNumVertices(FGeometryScriptPolyPath PolyPath);
 
+	/**
+	* Returns the index of the last vertex in the PolyPath.  
+	*/
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|PolyPath", meta=(ScriptMethod))
 	static int GetPolyPathLastIndex(FGeometryScriptPolyPath PolyPath);
 
+	/**
+	* Returns the 3D position of the requested vertex in the PolyPath.
+	* If the Index does not correspond to a vertex in the PolyPath, a Zero Vector (0,0,0) will be returned. 
+	* @param Index specifies a vertex in the PolyPath.
+	* @param bIsValidIndex will be false on return if the Index is not included in the PolyPath. 
+	*/
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|PolyPath", meta=(ScriptMethod))
 	static FVector GetPolyPathVertex(FGeometryScriptPolyPath PolyPath, int Index, bool& bIsValidIndex);
 
+	/**
+	* Returns the local tangent vector of the PolyPath at the specified vertex index.
+	* If the Index does not correspond to a vertex in the PolyPath, a Zero Vector (0,0,0) will be returned. 
+	* @param Index specifies a vertex in the PolyPath
+	* @param bIsValidIndex will be false on return if the Index is not included in the PolyPath
+	*/
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|PolyPath", meta = (ScriptMethod))
 	static FVector GetPolyPathTangent(FGeometryScriptPolyPath PolyPath, int Index, bool& bIsValidIndex);
 
+	/**
+	* Returns the length of the PolyPath.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath", meta = (ScriptMethod))
 	static double GetPolyPathArcLength(FGeometryScriptPolyPath PolyPath);
 
-	/** Find the index of the vertex closest to a given point.  Returns -1 if path has no vertices. */
+	/** Find the index of the vertex closest to a given point.  Returns -1 if the PolyPath has no vertices. */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath", meta = (ScriptMethod))
 	static int32 GetNearestVertexIndex(FGeometryScriptPolyPath PolyPath, FVector Point);
 
@@ -117,27 +138,51 @@ public:
 		bool bIncludeScale = true);
 
 
+	/**
+	* Populates an array of 3D vectors with the PolyPath vertex locations.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath", meta=(ScriptMethod))
 	static void ConvertPolyPathToArray(FGeometryScriptPolyPath PolyPath, TArray<FVector>& VertexArray);
 
+	/**
+	* Creates a PolyPath from an array of 3D position vectors.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
 	static void ConvertArrayToPolyPath(const TArray<FVector>& VertexArray, FGeometryScriptPolyPath& PolyPath);
 
+	/**
+	* Creates an array of 2D Vectors with the PolyPath vertex locations projected onto the XY plane.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath", meta = (ScriptMethod))
 	static void ConvertPolyPathToArrayOfVector2D(FGeometryScriptPolyPath PolyPath, TArray<FVector2D>& VertexArray);
 
+	/**
+	* Creates a PolyPath from an array of 2D position vectors. The Z-coordinate of the corresponding PolyPath vertices will be zero.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
 	static void ConvertArrayOfVector2DToPolyPath(const TArray<FVector2D>& VertexArray, FGeometryScriptPolyPath& PolyPath);
 
+	/**
+	* Returns an array of 3D vectors with the PolyPath vertex locations.
+	*/
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "PolyPath To Array Of Vector", CompactNodeTitle = "->", BlueprintAutocast), Category = "GeometryScript|PolyPath")
 	static TArray<FVector> Conv_GeometryScriptPolyPathToArray(FGeometryScriptPolyPath PolyPath);
 
+	/**
+	* Returns an array of 2D Vectors with the PolyPath vertex locations projected onto the XY plane.
+	*/
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "PolyPath To Array Of Vector2D", CompactNodeTitle = "->", BlueprintAutocast), Category = "GeometryScript|PolyPath")
 	static TArray<FVector2D> Conv_GeometryScriptPolyPathToArrayOfVector2D(FGeometryScriptPolyPath PolyPath);
 
+	/** 
+	* Returns a PolyPath created from an array of 3D position vectors.
+	*/
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Array Of Vector To PolyPath", CompactNodeTitle = "->", BlueprintAutocast), Category = "GeometryScript|PolyPath")
 	static FGeometryScriptPolyPath Conv_ArrayToGeometryScriptPolyPath(const TArray<FVector>& PathVertices);
 
+	/**
+	* Returns a PolyPath created from an array of 2D position vectors. The Z-coordinate of the corresponding PolyPath vertices will be zero.
+	*/
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Array Of Vector2D To PolyPath", CompactNodeTitle = "->", BlueprintAutocast), Category = "GeometryScript|PolyPath")
 	static FGeometryScriptPolyPath Conv_ArrayOfVector2DToGeometryScriptPolyPath(const TArray<FVector2D>& PathVertices);
 };

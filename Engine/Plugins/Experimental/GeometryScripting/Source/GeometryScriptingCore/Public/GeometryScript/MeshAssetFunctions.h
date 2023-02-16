@@ -104,7 +104,10 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_StaticMeshFunctions : pub
 {
 	GENERATED_BODY()
 public:
-
+	
+	/** 
+	* Extracts a Dynamic Mesh from a Static Mesh Asset. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|StaticMesh", meta = (ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
 	CopyMeshFromStaticMesh(
@@ -115,7 +118,9 @@ public:
 		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/** 
+	* Updates a Static Mesh Asset with new geometry converted from a Dynamic Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|StaticMesh", meta = (ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
 	CopyMeshToStaticMesh(
@@ -127,7 +132,9 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-
+    /** 
+	* Extracts the Material List and corresponding Material Indices from the specified LOD of the Static Mesh Asset. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|StaticMesh", meta = (ExpandEnumAsExecs = "Outcome"))
 	static void
 	GetSectionMaterialListFromStaticMesh(
@@ -138,7 +145,9 @@ public:
 		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/** 
+	* Extracts a Dynamic Mesh from a Skeletal Mesh Asset. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|SkeletalMesh", meta = (ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
 	CopyMeshFromSkeletalMesh(
@@ -149,7 +158,9 @@ public:
 		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/** 
+	* Updates a Skeletal Mesh Asset with new geometry and bone weights data from a Dynamic Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|SkeletalMesh", meta = (ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
 	CopyMeshToSkeletalMesh(

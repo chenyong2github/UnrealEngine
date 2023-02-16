@@ -117,7 +117,7 @@ public:
 		FGeometryScriptMeshSelection& Selection);
 
 	/**
-	 * Convert a Mesh Selection to an Index List
+	 * Convert a Mesh Selection to an Index Array
 	 * @param ConvertToType optional parameter specifying the type of Index List to convert to. If Set to Any, no conversion will be performed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod))

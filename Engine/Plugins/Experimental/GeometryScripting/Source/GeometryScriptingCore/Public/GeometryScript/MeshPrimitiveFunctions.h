@@ -101,7 +101,9 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshPrimitiveFunctions : 
 	GENERATED_BODY()
 public:
 
-
+	/**
+	* Appends a 3D box to the Target Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendBox( 
@@ -117,7 +119,9 @@ public:
 		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Appends a 3D Sphere triangulated using latitude/longitude topology to the Target Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendSphereLatLong( 
@@ -130,7 +134,9 @@ public:
 		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Center,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Appends a 3D sphere triangulated using box topology to the Target Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendSphereBox( 
@@ -144,7 +150,9 @@ public:
 		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Center,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Appends a 3D Capsule to the Target Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendCapsule( 
@@ -158,7 +166,9 @@ public:
 		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Appends a 3D Cylinder (with optional end caps) to the Target Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendCylinder( 
@@ -173,7 +183,9 @@ public:
 		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Appends a 3D cone to the Target Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendCone( 
@@ -189,7 +201,9 @@ public:
 		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Appends a 3D torus (donut) or partial torus to the Target Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendTorus( 
@@ -221,7 +235,9 @@ public:
 		int32 Steps = 8,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+    /**
+	* Revolves a 2D polygon on a helical path, like one used to create a vertical spiral, appending the result to the Target Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta = (ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	AppendSpiralRevolvePolygon(
@@ -235,7 +251,9 @@ public:
 		float RisePerRevolution = 50,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Revolves an open 2D path, with optional top and bottom end caps, appending the result to the Target Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendRevolvePath( 
@@ -294,7 +312,9 @@ public:
 		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Sweeps a 2D polygon along an arbitrary 3D path, appending the result to the Target Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendSimpleSweptPolygon( 
@@ -337,6 +357,9 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
+	/**
+	* Appends a planar Rectangle to a Dynamic Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendRectangleXY( 
@@ -349,6 +372,9 @@ public:
 		int32 StepsHeight = 0,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Appends a planar Rectangle with Rounded Corners (RoundRect) to the Target Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendRoundRectangleXY( 
@@ -363,6 +389,9 @@ public:
 		int32 StepsRound = 4,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Appends a planar disc to the Target Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendDisc( 
@@ -378,6 +407,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 	/**
+	* Appends a Triangulated Polygon to the Target Mesh.
 	* Polygon should be oriented counter-clockwise to produce a correctly-oriented shape, otherwise it will be inside-out
 	* Polygon endpoint is not repeated.
 	*/
@@ -392,7 +422,9 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-
+	/**
+	* Appends a linear staircase to the Target Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendLinearStairs( 
@@ -406,7 +438,9 @@ public:
 		bool bFloating = false,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Appends a rising circular staircase to the Target Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendCurvedStairs( 
@@ -421,7 +455,9 @@ public:
 		bool bFloating = false,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Generates triangulated Voronoi Cells from the provided Voronoi Sites, identifying each with PolyGroups, and appends to the Target Mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta = (ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	AppendVoronoiDiagram2D(

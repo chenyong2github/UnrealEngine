@@ -110,7 +110,9 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_CollisionFunctions : publ
 	GENERATED_BODY()
 public:
 
-
+	/** 
+	* Generates Simple Collision shapes for a Static Mesh Asset based on the input Dynamic Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Collision")
 	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
 	SetStaticMeshCollisionFromMesh(
@@ -120,7 +122,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 	/**
-	 * Copy the Simple Collision Geometry from the SourceComponent to the StaticMeshAsset
+	 * Copy the Simple Collision Geometry from the Source Component to the Static Mesh Asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Collision")
 	static void 
@@ -130,7 +132,9 @@ public:
 		FGeometryScriptSetSimpleCollisionOptions Options = FGeometryScriptSetSimpleCollisionOptions(),
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/** 
+	* Generate Simple Collision shapes for a Dynamic Mesh Component based on the input Dynamic Mesh. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Collision")
 	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
 	SetDynamicMeshCollisionFromMesh(
@@ -139,7 +143,9 @@ public:
 		FGeometryScriptCollisionFromMeshOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+    /** 
+	* Clears Simple Collisions from the Dynamic Mesh Component. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Collision")
 	static void
 	ResetDynamicMeshCollision(

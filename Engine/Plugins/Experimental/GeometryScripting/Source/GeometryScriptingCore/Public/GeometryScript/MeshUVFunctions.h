@@ -146,6 +146,9 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshUVFunctions : public 
 	GENERATED_BODY()
 public:
 
+	/**
+	* Set the number of UV Channels on the Target Mesh. If not already enabled, this will enable the mesh attributes.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod), DisplayName = "Set Num UV Channels")
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SetNumUVSets( 
@@ -153,6 +156,9 @@ public:
 		UPARAM(DisplayName = "Num UV Channels") int NumUVSets,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Copy the data in one UV Channel to another UV Channel on the same Target Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod), DisplayName = "Copy UV Channel")
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	CopyUVSet( 
@@ -161,7 +167,9 @@ public:
 		UPARAM(DisplayName = "To UV Channel")   int ToUVSet,
 		UGeometryScriptDebug* Debug = nullptr );
 
-
+	/**
+	* Sets the UVs of a mesh triangle in the given UV Channel.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SetMeshTriangleUVs( 
@@ -172,7 +180,10 @@ public:
 		bool& bIsValidTriangle, 
 		bool bDeferChangeNotifications = false );
 
-
+	/**
+	* Update all selected UV values in the specified UV Channel by adding the Translation value to each.
+	* If the provided Selection is empty, the Translation is applied to the entire UV Channel.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	TranslateMeshUVs( 
@@ -181,7 +192,11 @@ public:
 		FVector2D Translation,
 		FGeometryScriptMeshSelection Selection,
 		UGeometryScriptDebug* Debug = nullptr );
-
+	
+	/**
+	* Update all selected UV values in the specified UV Channel by Scale, mathematically the new value is given by (UV - ScaleOrigin) * Scale + ScaleOrigin
+	* If the provided Selection is empty, the update is applied to the entire UV Channel.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ScaleMeshUVs( 
@@ -192,6 +207,10 @@ public:
 		FGeometryScriptMeshSelection Selection,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Update all the selected UV values in the specified UV Channel by a rotation of Rotation Angle (in degrees) relative to the Rotation Origin.
+	* If the provided Selection is empty, the update is applied to the entire UV Channel.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	RotateMeshUVs( 
@@ -216,6 +235,9 @@ public:
 		UGeometryScriptDebug* Debug = nullptr );
 
 
+	/**
+	* Using Box Projection, update the UVs in the UV Channel for an entire mesh or a subset defined by a non-empty Selection.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SetMeshUVsFromBoxProjection( 
@@ -226,7 +248,9 @@ public:
 		int MinIslandTriCount = 2,
 		UGeometryScriptDebug* Debug = nullptr );
 
-
+	/**
+	* Using Cylinder Projection, update the UVs in the UV Channel for an entire mesh or a subset defined by a non-empty Selection.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SetMeshUVsFromCylinderProjection( 
@@ -238,7 +262,10 @@ public:
 		UGeometryScriptDebug* Debug = nullptr );
 
 
-
+	/**
+	* Recomputes UVs in the UV Channel for a Mesh based on different types of well-defined UV islands, such as existing UV islands, PolyGroups, 
+	* or a subset of the mesh based on a non-empty Selection.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	RecomputeMeshUVs( 
@@ -248,7 +275,9 @@ public:
 		FGeometryScriptMeshSelection Selection,
 		UGeometryScriptDebug* Debug = nullptr );
 
-
+	/**
+	* Packs the existing UV islands in the specified UV Channel into standard UV space based on the Repack Options.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	RepackMeshUVs( 
@@ -257,6 +286,9 @@ public:
 		FGeometryScriptRepackUVsOptions RepackOptions,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Computes new UVs for the specified UV Channel using PatchBuilder method in the Options, and optionally packs.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AutoGeneratePatchBuilderMeshUVs( 
@@ -265,6 +297,9 @@ public:
 		FGeometryScriptPatchBuilderOptions Options,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Computes new UVs for the specified UV Channel using XAtlas, and optionally packs.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AutoGenerateXAtlasMeshUVs( 

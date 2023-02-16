@@ -17,6 +17,9 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshTransformFunctions : 
 	GENERATED_BODY()
 public:
 
+	/**
+	* Applies the provided Transform to the vertices of a Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod, AdvancedDisplay = "bFixOrientationForNegativeScale"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	TransformMesh(
@@ -25,13 +28,19 @@ public:
 		bool bFixOrientationForNegativeScale = true,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Applies the provided Translation to the vertices of a Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	TranslateMesh(
 		UDynamicMesh* TargetMesh,
 		FVector Translation,
 		UGeometryScriptDebug* Debug = nullptr );
-
+	
+	/**
+	* Rotates the mesh relative to the specified Rotation Origin.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	RotateMesh(
@@ -39,7 +48,10 @@ public:
 		FRotator Rotation,
 		FVector RotationOrigin = FVector(0,0,0),
 		UGeometryScriptDebug* Debug = nullptr );
-
+	
+	/**
+	* Applies the provided Scale transformation relative to the Scale Origin to the vertices of a Mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod, AdvancedDisplay = "bFixOrientationForNegativeScale"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ScaleMesh(
@@ -51,7 +63,9 @@ public:
 
 
 
-
+	/**
+	* Applies the given Transform to the vertices identified by the Selection of the mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod, AdvancedDisplay = "bFixOrientationForNegativeScale"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	TransformMeshSelection(
@@ -60,6 +74,9 @@ public:
 		FTransform Transform,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Applies the given Translation to the vertices identified by the Selection of the mesh.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	TranslateMeshSelection(
@@ -68,6 +85,9 @@ public:
 		FVector Translation,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Rotates the selected part of the mesh relative to the specified Rotation Origin.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	RotateMeshSelection(
@@ -77,6 +97,9 @@ public:
 		FVector RotationOrigin = FVector(0,0,0),
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Applies the given Scale transform relative to the Scale Origin to the selection part of the mesh.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod, AdvancedDisplay = "bFixOrientationForNegativeScale"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ScaleMeshSelection(

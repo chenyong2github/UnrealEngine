@@ -59,6 +59,9 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshComparisonFunctions :
 	GENERATED_BODY()
 public:
 
+	/**
+	 * Returns true if the two input meshes are equivalent under the comparisons defined by the input options.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Comparison", meta = (ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	IsSameMeshAs(
@@ -68,6 +71,9 @@ public:
 		bool &bIsSameMesh,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Measures the min/max and average closest-point distances between two meshes.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Comparison", meta = (ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	MeasureDistancesBetweenMeshes(
@@ -80,6 +86,9 @@ public:
 		double& RootMeanSqrDeviation,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Returns true if the two input meshes (with optional transforms) are geometrically intersecting.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Comparison", meta = (ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	IsIntersectingMesh(

@@ -373,6 +373,9 @@ public:
 		UGeometryScriptDebug* Debug = nullptr );
 
 
+	/**
+	 * Apply a Mesh Bevel operation to all PolyGroup Edges.
+     */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Modeling", meta=(ScriptMethod, DisplayName = "ApplyMeshPolyGroupBevel"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyMeshPolygroupBevel(

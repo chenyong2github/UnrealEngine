@@ -119,13 +119,19 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshVoxelFunctions : publ
 	GENERATED_BODY()
 public:
 
+	/**
+	* Replaces the mesh with a voxelized-and-meshed approximation (VoxWrap operation).
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Voxel", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	ApplyMeshSolidify(
 		UDynamicMesh* TargetMesh,
 		FGeometryScriptSolidifyOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
-
+	
+	/**
+	* Replaces the mesh with an SDF-based offset mesh approximation.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Voxel", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	ApplyMeshMorphology(

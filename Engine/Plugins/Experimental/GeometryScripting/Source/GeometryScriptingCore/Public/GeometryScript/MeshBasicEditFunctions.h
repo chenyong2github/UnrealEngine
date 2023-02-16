@@ -110,8 +110,8 @@ public:
 		bool bDeferChangeNotifications = false );
 
 	/**
-	 * Set all vertex positions in the TargetMesh to the specified Positions
-	 * @param PositionList new vertex Positions. Size must be less than or equal to the MaxVertexID of TargetMesh  (ie gaps are supported)
+	 * Set all vertex positions in the TargetMesh to the specified Positions.
+	 * @param PositionList new vertex Positions. Size must be less than or equal to the MaxVertexID of TargetMesh  (ie gaps are supported).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
@@ -120,7 +120,9 @@ public:
 		FGeometryScriptVectorList PositionList,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Adds a new vertex to the mesh and returns a new Vertex ID (NewVertexIndex).
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddVertexToMesh( 
@@ -129,6 +131,9 @@ public:
 		int& NewVertexIndex,
 		bool bDeferChangeNotifications = false );
 
+	/**
+	* Adds a list of vertices to the mesh, and populates the NewIndicesList with the corresponding new Vertex IDs.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddVerticesToMesh( 
@@ -137,6 +142,10 @@ public:
 		FGeometryScriptIndexList& NewIndicesList,
 		bool bDeferChangeNotifications = false );
 
+	/**
+	* Removes a vertex from the mesh as indicated by the VertexID.  
+	* Should the delete fail, e.g. if the specified vertex was not a mesh element, the flag bWasVertexDeleted will be set to false. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DeleteVertexFromMesh( 
@@ -145,6 +154,10 @@ public:
 		bool& bWasVertexDeleted,
 		bool bDeferChangeNotifications = false );
 
+	/**
+	* Removes a list of vertices from the mesh.  
+	* On return, NumDeleted will contain the actual number of vertices removed.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DeleteVerticesFromMesh( 
@@ -153,7 +166,9 @@ public:
 		int& NumDeleted,
 		bool bDeferChangeNotifications = false );
 
-
+	/**
+	* Adds a triangle (Vertex ID triplet) to the mesh and updates New Triangle Index with the resulting Triangle ID.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddTriangleToMesh( 
@@ -164,7 +179,9 @@ public:
 		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr );
 
-
+	/**
+	* Adds a list of triangles to the mesh and populates the New Indices List with the corresponding new Triangle IDs.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddTrianglesToMesh( 
@@ -175,6 +192,10 @@ public:
 		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Removes a triangle from the mesh as indicated by the Triangle ID.
+	* Should the delete fail, e.g. if the specified triangle was not a mesh element, the flag bWasTriangleDelete will be set to false. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DeleteTriangleFromMesh( 
@@ -183,6 +204,10 @@ public:
 		bool& bWasTriangleDeleted,
 		bool bDeferChangeNotifications = false );
 
+	/**
+	* Removes a list of triangles from the mesh. 
+	* On return, NumDeleted will contain the actual number of triangles removed.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DeleteTrianglesFromMesh( 
@@ -191,6 +216,10 @@ public:
 		int& NumDeleted,
 		bool bDeferChangeNotifications = false );
 
+	/**
+	 * Removes specified triangles, identified by mesh selection, from the mesh.
+	 * On return, NumDeleted will contain the actual number of triangles removed.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DeleteSelectedTrianglesFromMesh( 
@@ -200,8 +229,8 @@ public:
 		bool bDeferChangeNotifications = false );
 
 	/**
-	 * Apply AppendTransform to AppendMesh and then add its geometry to the TargetMesh
-	 * @param AppendOptions Control how details like mesh attributes are handled when one mesh is appended to another
+	 * Apply Append Transform to Append Mesh and then add its geometry to the Target Mesh.
+	 * @param AppendOptions Control how details like mesh attributes are handled when one mesh is appended to another.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
@@ -250,7 +279,9 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-
+	/**
+	* Adds a set of vertices/triangles to the mesh, with Normals, UVs, and Colors; returning the new triangles indices 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendBuffersToMesh( 

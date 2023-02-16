@@ -200,6 +200,10 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshDeformFunctions : pub
 	GENERATED_BODY()
 public:
 
+	/**
+	* Applies a Bend Warp around an axis defined by the Bend Orientation transform.  
+	* The extents of the affected region can be controlled by the Options.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyBendWarpToMesh(  
@@ -210,6 +214,10 @@ public:
 		float BendExtent = 50,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	 * Applies a twist warp around an axis defined by the Twist Orientation transform.
+	 * The extents of the affected region can be controlled by the Options.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyTwistWarpToMesh(  
@@ -220,6 +228,11 @@ public:
 		float TwistExtent = 50,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Applies a Flare/Bulge warp around an axis defined by the Flare Orientation transform.
+	* The amount of flare in the perpendicular directions can be controlled by FlarePercentX and FlarePercentY
+	* and the extents of the affected region can be controlled by the Options.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyFlareWarpToMesh(  
@@ -232,6 +245,10 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
+	/**
+	* Applies various simple math-function-based warps around an axis defined by the Warp Orientation transform, 
+	* currently a 1D or 2D sine-wave with arbitrary orientation may be selected by WarpType.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyMathWarpToMesh(  
@@ -241,7 +258,11 @@ public:
 		FGeometryScriptMathWarpOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	* Applies 3D Perlin noise displacement to the Target Mesh.
+	* @param Selection if non-empty, only the vertices identified by the selection will be displaced, otherwise
+	* the Options' EmptyBehavior will be followed.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyPerlinNoiseToMesh(  
@@ -250,6 +271,11 @@ public:
 		FGeometryScriptPerlinNoiseOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Applies a number of iterations of mesh smoothing to a Dynamic Mesh.
+	* @param Selection if non-empty, only the vertices identified by the selection will be subject to smoothing,  otherwise
+	* the Options' EmptyBehavior will be followed.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyIterativeSmoothingToMesh(  
@@ -258,7 +284,11 @@ public:
 		FGeometryScriptIterativeMeshSmoothingOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	 * Applies a displacement to a Dynamic Mesh based on a Texture2D and a UV Channel.
+	 * @param Selection if non-empty, only the vertices identified by the selection will be subject to displacement,  otherwise
+	 * the Options' EmptyBehavior will be followed.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyDisplaceFromTextureMap(  
@@ -266,12 +296,12 @@ public:
 		UTexture2D* Texture,
 		FGeometryScriptMeshSelection Selection,
 		FGeometryScriptDisplaceFromTextureOptions Options,
-		int32 UVLayer = 0,
+		UPARAM(DisplayName = "UV Channel") int32 UVLayer = 0,
 		UGeometryScriptDebug* Debug = nullptr);
 
 	/**
-	 * Add the vectors in VectorList, scaled by Magnitude, to the vertex positions in TargetMesh.
-	 * VectorList Length must be >= the as TargetMesh MaxVertexID.
+	 * Add the vectors in VectorList, scaled by Magnitude, to the vertex positions in Target Mesh.
+	 * VectorList Length must be >= the MaxVertexID of the Target Mesh.
 	 * @param Selection if non-empty, only the vertices identified by the selection will be displaced. The VectorList must still be the same size as the whole mesh, this is just a filter on which vertices are updated.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))

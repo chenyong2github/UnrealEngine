@@ -137,20 +137,35 @@ public:
 	static void 
 	ScalarBlendInPlace(FGeometryScriptScalarList ScalarListA, UPARAM(ref) FGeometryScriptScalarList& ScalarListB, double ConstantA = 1.0, double ConstantB = 1.0);
 
-
+	/**
+	 * Returns a Scalar List constructed with each element is the product (ConstantMultiplier * A * B) 
+	 * where A and B are the corresponding elements from ScalarListA and ScalarListB accordingly. 
+	 * If ScalarListA and ScalarListB have different lengths, no operation will be performed and an empty Scalar List will be returned.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Math|VectorMath", meta=(ScriptMethod))
 	static FGeometryScriptScalarList 
 	ScalarMultiply(FGeometryScriptScalarList ScalarListA, FGeometryScriptScalarList ScalarListB, double ConstantMultiplier = 1.0);
 
+	/**
+	 * Compute (ConstantMultiplier * A * B)  where A and B are the corresponding elements from ScalarListA and ScalarListB accordingly, and store the 
+	 * result in ScalarListA. 
+	 * If ScalarListA and ScalarListB have different lengths, the computation will be skipped.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Math|VectorMath", meta=(ScriptMethod))
 	static void 
 	ScalarMultiplyInPlace(FGeometryScriptScalarList ScalarListA, UPARAM(ref) FGeometryScriptScalarList& ScalarListB, double ConstantMultiplier = 1.0);
 
 
+	/**
+	 * Returns a Scalar List of the same length as the input Scalar List, with the elements computed as (Constant * A) where A is the corresponding element in the input List.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Math|VectorMath")
 	static FGeometryScriptScalarList 
 	ConstantScalarMultiply(double Constant, FGeometryScriptScalarList ScalarList);
 
+	/**
+	 * Compute (Constant * A) for each element A is the Scalar List, and the result is stored in the original Scalar List. 
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Math|VectorMath")
 	static void 
 	ConstantScalarMultiplyInPlace(double Constant, UPARAM(ref) FGeometryScriptScalarList& ScalarList);
