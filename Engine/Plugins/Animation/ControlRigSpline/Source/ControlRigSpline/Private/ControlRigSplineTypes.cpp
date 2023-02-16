@@ -290,6 +290,11 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 		return;
 	}
 
+	if (SamplesPerSegment < 1)
+	{
+		return;
+	}
+
 	if (!SplineData.IsValid())
 	{
 		SplineData = MakeShared<FControlRigSplineImpl>();
@@ -405,6 +410,7 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 		}
 
 		// Cache accumulated length at sample array
+		if (SplineData->SamplesArray.Num() > 0)
 		{
 			SplineData->AccumulatedLenth.SetNumUninitialized(SplineData->SamplesArray.Num(), false);
 			SplineData->AccumulatedLenth[0] = 0.f;

@@ -44,7 +44,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 	UPROPERTY(meta = (Input))
 	bool bClosed;
 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, ClampMin = "1"))
 	int32 SamplesPerSegment;
 
 	UPROPERTY(meta = (Input))
