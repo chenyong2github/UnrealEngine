@@ -278,8 +278,6 @@ void UFractureToolHide::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 				}
 			}
 
-			Context.GetGeometryCollectionComponent()->MarkRenderStateDirty();
-			Context.GetGeometryCollectionComponent()->MarkRenderDynamicDataDirty();
 			Refresh(Context, Toolkit, true);
 		}
 
@@ -348,8 +346,6 @@ void UFractureToolUnhide::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit
 				}
 			}
 
-			Context.GetGeometryCollectionComponent()->MarkRenderStateDirty();
-			Context.GetGeometryCollectionComponent()->MarkRenderDynamicDataDirty();
 			Refresh(Context, Toolkit, true);
 		}
 
@@ -479,25 +475,9 @@ void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolk
 						FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
 						AddSingleRootNodeIfRequired(GeometryCollectionObject);
 
-						// Update Nanite resource data to correctly reflect modified geometry collection data
-						{
-							GeometryCollectionObject->ReleaseResources();
-
-							if (GeometryCollectionObject->EnableNanite)
-							{
-								GeometryCollectionObject->NaniteData = UGeometryCollection::CreateNaniteData(GeometryCollection);
-							}
-							else
-							{
-								GeometryCollectionObject->NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
-							}
-							GeometryCollectionObject->InitResources();
-						}
-
-						GeometryCollectionComponent->MarkRenderStateDirty();
-						GeometryCollectionObject->MarkPackageDirty();
+						// Update resource data to correctly reflect modified geometry collection data
+						GeometryCollectionObject->RebuildRenderData();
 					}
-
 				}
 			}
 

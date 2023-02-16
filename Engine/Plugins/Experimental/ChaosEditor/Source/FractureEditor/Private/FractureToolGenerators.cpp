@@ -680,13 +680,8 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 
 	AddSingleRootNodeIfRequired(FracturedGeometryCollection);
 
-	if (FracturedGeometryCollection->EnableNanite)
-	{
-		FracturedGeometryCollection->InvalidateCollection();
-		FracturedGeometryCollection->EnsureDataIsCooked(true /* init resources */);
-	}
-
-	NewActor->GetGeometryCollectionComponent()->MarkRenderStateDirty();
+	FracturedGeometryCollection->InvalidateCollection();
+	FracturedGeometryCollection->RebuildRenderData();
 
 	// Add and initialize guids
 	::GeometryCollection::GenerateTemporaryGuids(FracturedGeometryCollection->GetGeometryCollection().Get(), 0 , true);

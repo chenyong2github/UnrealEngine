@@ -120,7 +120,8 @@ void FGeometryCollectionVertexFactory::InitRHI()
 
 	// VertexFactory needs to be able to support max possible shader platform and feature level
 	// in case if we switch feature level at runtime.
-	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GetFeatureLevel());
+	const bool bUseManualVertexFetch = SupportsManualVertexFetch(GetFeatureLevel());
 
 	// If the vertex buffer containing position is not the same vertex buffer containing the rest of the data,
 	// then initialize PositionStream and PositionDeclaration.
@@ -222,7 +223,7 @@ void FGeometryCollectionVertexFactory::InitRHI()
 	const int32 DefaultBaseVertexIndex = 0;
 	const int32 DefaultPreSkinBaseVertexIndex = 0;
 
-	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || bCanUseGPUScene)
+	if (bUseManualVertexFetch || bCanUseGPUScene)
 	{
 		SCOPED_LOADTIMER(FGeometryCollectionVertexFactory_InitRHI_CreateLocalVFUniformBuffer);
 
@@ -231,7 +232,7 @@ void FGeometryCollectionVertexFactory::InitRHI()
 		UniformParameters.LODLightmapDataIndex = Data.LODLightmapDataIndex;
 		int32 ColorIndexMask = 0;
 
-		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+		if (bUseManualVertexFetch)
 		{
 			UniformParameters.VertexFetch_PositionBuffer = GetPositionsSRV();
 			UniformParameters.VertexFetch_PackedTangentsBuffer = GetTangentsSRV();

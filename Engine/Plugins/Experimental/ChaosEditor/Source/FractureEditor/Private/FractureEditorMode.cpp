@@ -250,9 +250,9 @@ bool UFractureEditorMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 bool UFractureEditorMode::SelectFromClick(HHitProxy* HitProxy, bool bCtrlDown, bool bShiftDown)
 {
-	if (HitProxy && HitProxy->IsA(HGeometryCollectionBone::StaticGetType()))
+	if (HitProxy && HitProxy->IsA(HGeometryCollection::StaticGetType()))
 	{
-		HGeometryCollectionBone* GeometryCollectionProxy = (HGeometryCollectionBone*)HitProxy;
+		HGeometryCollection* GeometryCollectionProxy = (HGeometryCollection*)HitProxy;
 
 		if (GeometryCollectionProxy->Component)
 		{

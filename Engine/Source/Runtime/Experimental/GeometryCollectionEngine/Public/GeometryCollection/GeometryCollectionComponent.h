@@ -453,6 +453,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void InitializeComponent() override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
@@ -893,6 +894,7 @@ public:
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	/** Enable/disable the scene proxy per transform selection mode. When disabled the per material id default selection is used instead. */
 	void EnableTransformSelectionMode(bool bEnable);
+	bool GetIsTransformSelectionMode() const { return bIsTransformSelectionModeEnabled; }
 #endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 
 #if UE_ENABLE_DEBUG_DRAWING
@@ -973,7 +975,11 @@ public:
 #if WITH_EDITOR
 	void SetEmbeddedGeometrySelectable(bool bSelectableIn);
 	int32 EmbeddedIndexToTransformIndex(const UInstancedStaticMeshComponent* ISMComponent, int32 InstanceIndex) const;
+	void GetBoneColors(TArray<FColor>& OutColors) const;
+	void GetHiddenTransforms(TArray<bool>& OutHiddenTransforms) const;
 #endif
+
+	void GetRestTransforms(TArray<FMatrix44f>& OutRestTransforms) const;
 
 #if WITH_EDITORONLY_DATA
 	const FDamageCollector* GetRunTimeDataCollector() const;
@@ -1064,9 +1070,6 @@ protected:
 	TObjectPtr<AGeometryCollectionISMPoolActor> AssignedISMPool = nullptr;
 	int32 ISMPoolMeshGroupIndex = INDEX_NONE;
 	int32 ISMPoolRootProxyMeshId = INDEX_NONE;
-
-	/** Populate the static geometry structures for the render thread. */
-	void InitConstantData(TUniquePtr<FGeometryCollectionConstantData>& ConstantData) const;
 
 	/** Populate the dynamic particle data for the render thread. */
 	FGeometryCollectionDynamicData* InitDynamicData(bool bInitialization);

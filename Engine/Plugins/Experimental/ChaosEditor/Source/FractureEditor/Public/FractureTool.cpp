@@ -10,6 +10,7 @@
 #include "SLevelViewport.h"
 #include "EditorModeManager.h"
 #include "FractureEditorMode.h"
+#include "Materials/MaterialInterface.h"
 #include "Modules/ModuleManager.h"
 
 #include "FractureToolContext.h"
@@ -245,8 +246,7 @@ void UFractureActionTool::Refresh(FFractureToolContext& Context, FFractureEditor
 		FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionComponent, Context.GetSelection(), true, false);
 	}
 
-	GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-	GeometryCollectionComponent->MarkRenderStateDirty();
+	Context.GetFracturedGeometryCollection()->RebuildRenderData();
 }
 
 void UFractureActionTool::SetOutlinerComponents(TArray<FFractureToolContext>& InContexts, FFractureEditorModeToolkit* Toolkit)
@@ -396,21 +396,6 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 			Toolkit->RegenerateHistogram();
 
 			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(FractureContext.GetGeometryCollection().Get(), -1);
-
-			// Update Nanite resource data to correctly reflect modified geometry collection data
-			{
-				FractureContext.GetFracturedGeometryCollection()->ReleaseResources();
-
-				if (FractureContext.GetFracturedGeometryCollection()->EnableNanite)
-				{
-					FractureContext.GetFracturedGeometryCollection()->NaniteData = UGeometryCollection::CreateNaniteData(FractureContext.GetGeometryCollection().Get());
-				}
-				else
-				{
-					FractureContext.GetFracturedGeometryCollection()->NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
-				}
-				FractureContext.GetFracturedGeometryCollection()->InitResources();
-			}
 
 			Refresh(FractureContext, Toolkit);
 		}

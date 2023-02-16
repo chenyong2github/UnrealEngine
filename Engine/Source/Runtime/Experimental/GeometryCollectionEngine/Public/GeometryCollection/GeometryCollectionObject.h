@@ -3,23 +3,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Crc.h"
-#include "Rendering/NaniteResources.h"
-#include "InstanceUniformShaderParameters.h"
-#include "GeometryCollection/ManagedArray.h"
+#include "Chaos/ChaosSolverActor.h"
 #include "GeometryCollection/GeometryCollectionDamagePropagationData.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
-#include "Chaos/ChaosSolverActor.h"
+#include "GeometryCollection/ManagedArray.h"
+#include "InstanceUniformShaderParameters.h"
+#include "Misc/Crc.h"
 
 #include "GeometryCollectionObject.generated.h"
 
-class UMaterialInterface;
-class UGeometryCollectionCache;
 class FGeometryCollection;
-struct FManagedArrayCollection;
+class FGeometryCollectionRenderData;
 struct FGeometryCollectionSection;
+struct FManagedArrayCollection;
 struct FSharedSimulationParameters;
 class UDataflow;
+class UGeometryCollectionCache;
+class UMaterial;
+class UMaterialInterface;
 
 USTRUCT(BlueprintType)
 struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
@@ -304,32 +305,6 @@ struct TStructOpsTypeTraits<FGeometryCollectionSizeSpecificData> : public TStruc
 	};
 };
 
-class FGeometryCollectionNaniteData
-{
-public:
-	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionNaniteData();
-	GEOMETRYCOLLECTIONENGINE_API ~FGeometryCollectionNaniteData();
-
-	FORCEINLINE bool IsInitialized()
-	{
-		return bIsInitialized;
-	}
-
-	/** Serialization. */
-	void Serialize(FArchive& Ar, UGeometryCollection* Owner);
-
-	/** Initialize the render resources. */
-	void InitResources(UGeometryCollection* Owner);
-
-	/** Releases the render resources. */
-	GEOMETRYCOLLECTIONENGINE_API void ReleaseResources();
-
-	Nanite::FResources NaniteResource;
-
-private:
-	bool bIsInitialized = false;
-};
-
 
 /**
 * UGeometryCollectionObject (UObject)
@@ -361,7 +336,7 @@ public:
 #endif
 
 #if WITH_EDITOR
-	void EnsureDataIsCooked(bool bInitResources = true, bool bIsTransacting = false);
+	void EnsureDataIsCooked(bool bInitResources, bool bIsTransacting, bool bIsPersistant);
 #endif
 
 	/** Accessors for internal geometry collection */
@@ -379,34 +354,14 @@ public:
 	int32 NumElements(const FName& Group) const;
 	void RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList);
 
-	FORCEINLINE bool HasNaniteData() const
-	{
-		return NaniteData != nullptr;
-	}
+	/** Has data for static mesh rendering. */
+	bool HasMeshData() const;
+	/** Has data for nanite rendering. */
+	bool HasNaniteData() const;
 
-	FORCEINLINE uint32 GetNaniteResourceID() const
-	{
-		Nanite::FResources& Resource = NaniteData->NaniteResource;
-		return Resource.RuntimeResourceID;
-	}
-
-	FORCEINLINE uint32 GetNaniteHierarchyOffset() const
-	{
-		Nanite::FResources& Resource = NaniteData->NaniteResource;
-		return Resource.HierarchyOffset;
-	}
-
-	FORCEINLINE uint32 GetNaniteHierarchyOffset(int32 GeometryIndex, bool bFlattened = false) const
-	{
-		Nanite::FResources& Resource = NaniteData->NaniteResource;
-		check(GeometryIndex >= 0 && GeometryIndex < Resource.HierarchyRootOffsets.Num());
-		uint32 HierarchyOffset = Resource.HierarchyRootOffsets[GeometryIndex];
-		if (bFlattened)
-		{
-			HierarchyOffset += Resource.HierarchyOffset;
-		}
-		return HierarchyOffset;
-	}
+	uint32 GetNaniteResourceID() const;
+	uint32 GetNaniteHierarchyOffset() const;
+	uint32 GetNaniteHierarchyOffset(int32 GeometryIndex, bool bFlattened = false) const;
 
 	/** ReindexMaterialSections */
 	void ReindexMaterialSections();
@@ -465,8 +420,11 @@ public:
 	/** Create the simulation data ( calls CreateSimulationData) only if the simulation data is dirty */
 	void CreateSimulationDataIfNeeded();
 
-	/** Create the Nanite rendering data. */
-	static TUniquePtr<FGeometryCollectionNaniteData> CreateNaniteData(FGeometryCollection* Collection);
+	/** Rebuild the render data. */
+	void RebuildRenderData();
+
+	/** Propogate render state dirty to components */
+	void PropagateMarkDirtyToComponents() const;
 #endif
 
 	void InitResources();
@@ -479,8 +437,8 @@ public:
 	FGuid GetIdGuid() const;
 	FGuid GetStateGuid() const;
 
-	/** Pointer to the data used to render this geometry collection with Nanite. */
-	TUniquePtr<class FGeometryCollectionNaniteData> NaniteData;
+	/** Pointer to the data used to render this geometry collection. */
+	TUniquePtr<FGeometryCollectionRenderData> RenderData;
 
 	UPROPERTY(EditAnywhere, Category = "Clustering")
 	bool EnableClustering;
@@ -729,6 +687,7 @@ public:
 private:
 #if WITH_EDITOR
 	void CreateSimulationDataImp(bool bCopyFromDDC);
+	void CreateRenderDataImp(bool bCopyFromDDC);
 #endif
 
 	/*
@@ -752,11 +711,15 @@ private:
 	FGuid StateGuid;
 
 #if WITH_EDITOR
-	//Used to determine whether we need to cook content
-	FGuid LastBuiltGuid;
-
+	//Used to determine whether we need to cook simulation data
+	FGuid LastBuiltSimulationDataGuid;
 	//Used to determine whether we need to regenerate simulation data
 	FGuid SimulationDataGuid;
+
+	//Used to determine whether we need to cook render data
+	FGuid LastBuiltRenderDataGuid;
+	//Used to determine whether we need to regenerate render data
+	FGuid RenderDataGuid;
 #endif
 
 	// #todo(dmp): rename to be consistent BoneSelectedMaterialID?

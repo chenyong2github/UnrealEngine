@@ -673,102 +673,27 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 	{
 		if (UseNanite(GetScene()->GetShaderPlatform()) &&
 			RestCollection->EnableNanite &&
-			RestCollection->NaniteData != nullptr &&
+			RestCollection->HasNaniteData() &&
 			GGeometryCollectionNanite != 0)
 		{
-			LocalSceneProxy = new FNaniteGeometryCollectionSceneProxy(this);
+			FNaniteGeometryCollectionSceneProxy* NaniteProxy = new FNaniteGeometryCollectionSceneProxy(this);
+			LocalSceneProxy = NaniteProxy;
 
 			// ForceMotionBlur means we maintain bIsMoving, regardless of actual state.
 			if (bForceMotionBlur)
 			{
 				bIsMoving = true;
-				if (LocalSceneProxy)
-				{
-					FNaniteGeometryCollectionSceneProxy* NaniteProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(LocalSceneProxy);
-					ENQUEUE_RENDER_COMMAND(NaniteProxyOnMotionEnd)(
-						[NaniteProxy](FRHICommandListImmediate& RHICmdList)
-						{
-							NaniteProxy->OnMotionBegin();
-						}
-					);
-				}
+				ENQUEUE_RENDER_COMMAND(NaniteProxyOnMotionEnd)(
+					[NaniteProxy](FRHICommandListImmediate& RHICmdList)
+					{
+						NaniteProxy->OnMotionBegin();
+					}
+				);
 			}
 		}
-		// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
-		else if (RestCollection->EnableNanite && NaniteProxyRenderMode != 0)
-		{
-			// Do not render Nanite proxy
-			return nullptr;
-		}
-		else
+		else if (RestCollection->HasMeshData())
 		{
 			LocalSceneProxy = new FGeometryCollectionSceneProxy(this);
-		}
-
-		if (RestCollection->HasVisibleGeometry())
-		{
-			TUniquePtr<FGeometryCollectionConstantData> ConstantData = MakeUnique<FGeometryCollectionConstantData>();
-			InitConstantData(ConstantData);
-
-			FGeometryCollectionDynamicData* const DynamicData = InitDynamicData(true /* initialization */);
-
-			if (LocalSceneProxy->IsNaniteMesh())
-			{
-				FNaniteGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(LocalSceneProxy);
-
-				// ...
-
-			#if GEOMETRYCOLLECTION_EDITOR_SELECTION
-				if (bIsTransformSelectionModeEnabled)
-				{
-					// ...
-				}
-			#endif
-
-				ENQUEUE_RENDER_COMMAND(CreateRenderState)(
-					[GeometryCollectionSceneProxy, ConstantData = MoveTemp(ConstantData), DynamicData](FRHICommandListImmediate& RHICmdList)
-					{
-						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
-
-						if (DynamicData)
-						{
-							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
-						}
-
-						bool bValidUpdate = false;
-						if (FPrimitiveSceneInfo* PrimitiveSceneInfo = GeometryCollectionSceneProxy->GetPrimitiveSceneInfo())
-						{
-							bValidUpdate = PrimitiveSceneInfo->RequestGPUSceneUpdate();
-						}
-
-						// Deferred the GPU Scene update if the primitive scene info is not yet initialized with a valid index.
-						GeometryCollectionSceneProxy->SetRequiresGPUSceneUpdate_RenderThread(!bValidUpdate);
-					}
-				);
-			}
-			else
-			{
-				FGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(LocalSceneProxy);
-
-			#if GEOMETRYCOLLECTION_EDITOR_SELECTION
-				// Re-init subsections
-				if (bIsTransformSelectionModeEnabled)
-				{
-					GeometryCollectionSceneProxy->UseSubSections(true, false);  // Do not force reinit now, it'll be done in SetConstantData_RenderThread
-				}
-			#endif
-
-				ENQUEUE_RENDER_COMMAND(CreateRenderState)(
-					[GeometryCollectionSceneProxy, ConstantData = MoveTemp(ConstantData), DynamicData](FRHICommandListImmediate& RHICmdList)
-					{
-						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
-						if (DynamicData)
-						{
-							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
-						}
-					}
-				);
-			}
 		}
 	}
 
@@ -1343,6 +1268,39 @@ void UGeometryCollectionComponent::InitializeComponent()
 		DynamicCollection->AddAttribute<uint8>("InternalClusterParentTypeArray", FTransformCollection::TransformGroup);
 	}
 }
+
+void UGeometryCollectionComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+	
+	int32 SizeBytes =
+		InitializationFields.GetAllocatedSize()
+		+ DamageThreshold.GetAllocatedSize()
+		+ RestTransforms.GetAllocatedSize()
+		+ DisabledFlags.GetAllocatedSize()
+		+ CollisionProfilePerLevel.GetAllocatedSize()
+		+ GlobalMatrices.GetAllocatedSize()
+		+ EventsPlayed.GetAllocatedSize()
+		+ CopyOnWriteAttributeList.GetAllocatedSize()
+		+ EmbeddedGeometryComponents.GetAllocatedSize()
+		+ (ClustersToRep ? ClustersToRep->GetAllocatedSize() : 0);
+
+#if WITH_EDITORONLY_DATA
+	SizeBytes +=
+		+ SelectedBones.GetAllocatedSize()
+		+ HighlightedBones.GetAllocatedSize()
+		+ EmbeddedInstanceIndex.GetAllocatedSize()
+		+ EmbeddedBoneMaps.GetAllocatedSize();
+
+	for (TArray<int32>& BoneMap : EmbeddedBoneMaps)
+	{
+		SizeBytes += BoneMap.GetAllocatedSize();
+	}
+#endif
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SizeBytes);
+}
+
 
 #if WITH_EDITOR
 FDelegateHandle UGeometryCollectionComponent::RegisterOnGeometryCollectionPropertyChanged(const FOnGeometryCollectionPropertyChanged& Delegate)
@@ -2058,237 +2016,67 @@ void UGeometryCollectionComponent::SetInitialClusterBreaks(const TArray<int32>& 
 	}
 }
 
+#if WITH_EDITOR
 
-void UGeometryCollectionComponent::InitConstantData(TUniquePtr<FGeometryCollectionConstantData>& ConstantData) const
+void UGeometryCollectionComponent::GetBoneColors(TArray<FColor>& OutColors) const
 {
-	// Constant data should all be moved to the DDC as time permits.
-	// todo : this should be computed once per asset not per component or at least the part that does not depend on the component properties
+	const FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get();
+	const int32 NumPoints = Collection->NumElements(FGeometryCollection::VerticesGroup);
+	const TManagedArray<int32>& BoneMap = Collection->BoneMap;
+	const TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
 
-	check(ConstantData);
-	check(RestCollection);
+	OutColors.SetNumUninitialized(NumPoints);
+	if (bChaos_GC_InitConstantDataUseParallelFor)
+	{
+		ParallelFor(TEXT("GC:InitBoneColors"), NumPoints, bChaos_GC_InitConstantDataParallelForBatchSize,
+			[&](const int32 InPointIndex)
+			{
+				const int32 BoneIndex = BoneMap[InPointIndex];
+				OutColors[InPointIndex] = BoneColors[BoneIndex].ToFColor(true);
+			});
+	}
+	else
+	{
+		for (int32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
+		{
+			const int32 BoneIndex = BoneMap[PointIndex];
+			OutColors[PointIndex] = BoneColors[BoneIndex].ToFColor(true);
+		}
+	}
+}
+
+void UGeometryCollectionComponent::GetHiddenTransforms(TArray<bool>& OutHiddenTransforms) const
+{
 	const FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get();
 	check(Collection);
 
-	if (!RestCollection->EnableNanite)
+	OutHiddenTransforms.Reset();
+	if (Collection->HasAttribute("Hide", FGeometryCollection::TransformGroup))
 	{
-		const int32 NumPoints = Collection->NumElements(FGeometryCollection::VerticesGroup);
-		const TManagedArray<FVector3f>& Vertex = Collection->Vertex;
-		const TManagedArray<int32>& BoneMap = Collection->BoneMap;
-		const TManagedArray<FVector3f>& TangentU = Collection->TangentU;
-		const TManagedArray<FVector3f>& TangentV = Collection->TangentV;
-		const TManagedArray<FVector3f>& Normal = Collection->Normal;
-		const TManagedArray<FLinearColor>& Color = Collection->Color;
-		const TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
-		
+		const TManagedArray<bool>& Hide = Collection->GetAttribute<bool>("Hide", FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& TransformIndices = Collection->TransformIndex;
 		const int32 NumGeom = Collection->NumElements(FGeometryCollection::GeometryGroup);
-		const TManagedArray<int32>& TransformIndex = Collection->TransformIndex;
-		const TManagedArray<int32>& FaceStart = Collection->FaceStart;
-		const TManagedArray<int32>& FaceCount = Collection->FaceCount;
+		const int32 NumTransforms = Collection->Transform.Num();
 
-		ConstantData->Vertices = TArray<FVector3f>(Vertex.GetData(), Vertex.Num());
-		ConstantData->BoneMap = TArray<int32>(BoneMap.GetData(), BoneMap.Num());
-		ConstantData->TangentU = TArray<FVector3f>(TangentU.GetData(), TangentU.Num());
-		ConstantData->TangentV = TArray<FVector3f>(TangentV.GetData(), TangentV.Num());
-		ConstantData->Normals = TArray<FVector3f>(Normal.GetData(), Normal.Num());
-		ConstantData->Colors = TArray<FLinearColor>(Color.GetData(), Color.Num());
-
-		int32 NumUVChannels = Collection->NumUVLayers();
-		GeometryCollection::UV::FConstUVLayers CollectionUVs = GeometryCollection::UV::FindActiveUVLayers(*Collection);
-		ConstantData->UVChannels.SetNum(NumUVChannels);
-		for (int32 UVChannelIndex = 0; UVChannelIndex < NumUVChannels; UVChannelIndex++)
+		OutHiddenTransforms.SetNumZeroed(NumTransforms);
+		for (int32 GeometryIndex = 0; GeometryIndex < NumGeom; ++GeometryIndex)
 		{
-			ConstantData->UVChannels[UVChannelIndex].AddUninitialized(NumPoints);
-		}
-
-		ConstantData->BoneColors.AddUninitialized(NumPoints);
-
-		if (bChaos_GC_InitConstantDataUseParallelFor)
-		{
-			ParallelFor(TEXT("GC:InitConstantData"), NumPoints, bChaos_GC_InitConstantDataParallelForBatchSize,
-				[&](const int32 InPointIndex)
-				{
-					const int32 BoneIndex = ConstantData->BoneMap[InPointIndex];
-					ConstantData->BoneColors[InPointIndex] = BoneColors[BoneIndex];
-
-					for (int32 UVChannelIndex = 0; UVChannelIndex < NumUVChannels; UVChannelIndex++)
-					{
-						ConstantData->UVChannels[UVChannelIndex][InPointIndex] = CollectionUVs[UVChannelIndex][InPointIndex];
-					}
-				});
-		}
-		else
-		{
-			for (int32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
+			const int32 TransformIndex = TransformIndices[GeometryIndex];
+			if (Hide[TransformIndex])
 			{
-				const int32 BoneIndex = ConstantData->BoneMap[PointIndex];
-				ConstantData->BoneColors[PointIndex] = BoneColors[BoneIndex];
-			}
-
-			for (int32 UVChannelIndex = 0; UVChannelIndex < NumUVChannels; UVChannelIndex++)
-			{
-				for (int32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
-				{
-					ConstantData->UVChannels[UVChannelIndex][PointIndex] = CollectionUVs[UVChannelIndex][PointIndex];
-				}
+				OutHiddenTransforms[TransformIndex] = 1;
 			}
 		}
-
-		int32 NumIndices = 0;
-		const TManagedArray<FIntVector>& Indices = Collection->Indices;
-		const TManagedArray<int32>& MaterialID = Collection->MaterialID;
-		const TManagedArray<bool>& Internal = Collection->Internal;
-
-		const TManagedArray<bool>& Visible = GetVisibleArray();  // Use copy on write attribute. The rest collection visible array can be overriden for the convenience of debug drawing the collision volumes
-		
-#if WITH_EDITOR
-		// We will override visibility with the Hide array (if available).
-		TArray<bool> VisibleOverride;
-		VisibleOverride.SetNumUninitialized(Visible.Num());
-		for (int32 FaceIdx = 0; FaceIdx < Visible.Num(); FaceIdx++)
-		{
-			VisibleOverride[FaceIdx] = Visible[FaceIdx];
-		}
-		bool bUsingHideArray = false;
-
-		if (Collection->HasAttribute("Hide", FGeometryCollection::TransformGroup))
-		{
-			bUsingHideArray = true;
-
-			bool bAllHidden = true;
-
-			const TManagedArray<bool>& Hide = Collection->GetAttribute<bool>("Hide", FGeometryCollection::TransformGroup);
-			for (int32 GeomIdx = 0; GeomIdx < NumGeom; ++GeomIdx)
-			{
-				int32 TransformIdx = TransformIndex[GeomIdx];
-				if (Hide[TransformIdx])
-				{
-					// (Temporarily) hide faces of this hidden geometry
-					for (int32 FaceIdxOffset = 0; FaceIdxOffset < FaceCount[GeomIdx]; ++FaceIdxOffset)
-					{
-						VisibleOverride[FaceStart[GeomIdx]+FaceIdxOffset] = false;
-					}
-				}
-				else if (bAllHidden && Collection->IsVisible(TransformIdx))
-				{
-					bAllHidden = false;
-				}
-			}
-			if (!ensure(!bAllHidden)) // if they're all hidden, rendering would crash -- reset to default visibility instead
-			{
-				for (int32 FaceIdx = 0; FaceIdx < VisibleOverride.Num(); ++FaceIdx)
-				{
-					VisibleOverride[FaceIdx] = Visible[FaceIdx];
-				}
-			}
-		}
-#endif
-		
-		const TManagedArray<int32>& MaterialIndex = Collection->MaterialIndex;
-
-		const int32 NumFaceGroupEntries = Collection->NumElements(FGeometryCollection::FacesGroup);
-
-		for (int FaceIndex = 0; FaceIndex < NumFaceGroupEntries; ++FaceIndex)
-		{
-#if WITH_EDITOR
-			NumIndices += bUsingHideArray ? static_cast<int>(VisibleOverride[FaceIndex]) : static_cast<int>(Visible[FaceIndex]);
-#else
-			NumIndices += static_cast<int>(Visible[FaceIndex]);
-#endif
-		}
-
-		ConstantData->Indices.AddUninitialized(NumIndices);
-		for (int IndexIdx = 0, cdx = 0; IndexIdx < NumFaceGroupEntries; ++IndexIdx)
-		{
-#if WITH_EDITOR
-			const bool bUseVisible = bUsingHideArray ? VisibleOverride[MaterialIndex[IndexIdx]] : Visible[MaterialIndex[IndexIdx]];
-			if (bUseVisible)
-#else
-			if (Visible[MaterialIndex[IndexIdx]])
-#endif
-			{
-				ConstantData->Indices[cdx++] = Indices[MaterialIndex[IndexIdx]];
-			}
-		}
-
-		// We need to correct the section index start point & number of triangles since only the visible ones have been copied across in the code above
-		const int32 NumMaterialSections = Collection->NumElements(FGeometryCollection::MaterialGroup);
-		ConstantData->Sections.AddUninitialized(NumMaterialSections);
-		const TManagedArray<FGeometryCollectionSection>& Sections = Collection->Sections;
-		for (int SectionIndex = 0; SectionIndex < NumMaterialSections; ++SectionIndex)
-		{
-			FGeometryCollectionSection Section = Sections[SectionIndex]; // deliberate copy
-
-			for (int32 TriangleIndex = 0; TriangleIndex < Sections[SectionIndex].FirstIndex / 3; TriangleIndex++)
-			{
-#if WITH_EDITOR
-				const bool bUseVisible = bUsingHideArray ? VisibleOverride[MaterialIndex[TriangleIndex]] : Visible[MaterialIndex[TriangleIndex]];
-				if (!bUseVisible)
-#else
-				if (!Visible[MaterialIndex[TriangleIndex]])
-#endif
-				{
-					Section.FirstIndex -= 3;
-				}
-			}
-
-			for (int32 TriangleIndex = 0; TriangleIndex < Sections[SectionIndex].NumTriangles; TriangleIndex++)
-			{
-				int32 FaceIdx = MaterialIndex[Sections[SectionIndex].FirstIndex / 3 + TriangleIndex];
-#if WITH_EDITOR
-				const bool bUseVisible = bUsingHideArray ? VisibleOverride[FaceIdx] : Visible[FaceIdx];
-				if (!bUseVisible)
-#else
-				if (!Visible[FaceIdx])
-#endif
-				{
-					Section.NumTriangles--;
-				}
-			}
-
-			ConstantData->Sections[SectionIndex] = MoveTemp(Section);
-		}
-		
-		
-		ConstantData->NumTransforms = Collection->NumElements(FGeometryCollection::TransformGroup);
-		ConstantData->LocalBounds = LocalBounds;
-
-		// store the index buffer and render sections for the base unfractured mesh
-		const TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
-		
-		const int32 NumFaces = Collection->NumElements(FGeometryCollection::FacesGroup);
-		TArray<FIntVector> BaseMeshIndices;
-		TArray<int32> BaseMeshOriginalFaceIndices;
-
-		BaseMeshIndices.Reserve(NumFaces);
-		BaseMeshOriginalFaceIndices.Reserve(NumFaces);
-
-		// add all visible external faces to the original geometry index array
-		// #note:  This is a stopgap because the original geometry array is broken
-		for (int FaceIndex = 0; FaceIndex < NumFaces; ++FaceIndex)
-		{
-			// only add visible external faces.
-#if WITH_EDITOR
-			const bool bUseVisible = bUsingHideArray ? VisibleOverride[FaceIndex] : Visible[FaceIndex];
-			if (bUseVisible && (Internal[FaceIndex] == false || bUsingHideArray))
-#else
-			if (Visible[FaceIndex] && Internal[FaceIndex] == false)
-#endif
-			{
-				BaseMeshIndices.Add(Indices[FaceIndex]);
-				BaseMeshOriginalFaceIndices.Add(FaceIndex);
-			}
-		}
-
-		// We should always have external faces of a geometry collection
-		ensure(BaseMeshIndices.Num() > 0);
-
-		ConstantData->OriginalMeshSections = Collection->BuildMeshSections(BaseMeshIndices, BaseMeshOriginalFaceIndices, ConstantData->OriginalMeshIndices);
 	}
-	
+}
+
+#endif // WITH_EDITOR
+
+void UGeometryCollectionComponent::GetRestTransforms(TArray<FMatrix44f>& OutRestTransforms) const
+{
 	TArray<FMatrix> RestMatrices;
 	GeometryCollectionAlgo::GlobalMatrices(RestCollection->GetGeometryCollection()->Transform, RestCollection->GetGeometryCollection()->Parent, RestMatrices);
-
-	ConstantData->SetRestTransforms(RestMatrices);
+	CopyTransformsWithConversionWhenNeeded(OutRestTransforms, RestMatrices);
 }
 
 FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bool bInitialization)
@@ -3294,7 +3082,7 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 		// initialize the component damage progataion data from the asset defaults 
 		DamagePropagationData = RestCollection->DamagePropagationData;
 		
-		//ResetDynamicCollection();
+		ResetDynamicCollection();
 	}
 }
 
@@ -4333,11 +4121,8 @@ void UGeometryCollectionComponent::SwitchRenderModels(const AActor* Actor)
 void UGeometryCollectionComponent::EnableTransformSelectionMode(bool bEnable)
 {
 	// TODO: Support for Nanite?
-	if (SceneProxy && !SceneProxy->IsNaniteMesh() && RestCollection && RestCollection->HasVisibleGeometry())
-	{
-		static_cast<FGeometryCollectionSceneProxy*>(SceneProxy)->UseSubSections(bEnable, true);
-	}
 	bIsTransformSelectionModeEnabled = bEnable;
+	MarkRenderStateDirty();
 }
 #endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 

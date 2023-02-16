@@ -6,6 +6,7 @@
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionCache.h"
+#include "GeometryCollection/GeometryCollectionRenderData.h"
 #include "Materials/Material.h"
 #include "UObject/DestructionObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
@@ -19,6 +20,7 @@
 #include "Engine/StaticMesh.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "EditorFramework/AssetImportData.h"
+#include "Rendering/NaniteResources.h"
 
 #if WITH_EDITOR
 #include "GeometryCollection/DerivedDataGeometryCollectionCooker.h"
@@ -114,6 +116,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	InvalidateCollection();
 #if WITH_EDITOR
 	SimulationDataGuid = StateGuid;
+	RenderDataGuid = StateGuid;
 	bStripOnCook = GeometryCollectionAssetForceStripOnCook;
 #endif
 }
@@ -643,7 +646,7 @@ bool UGeometryCollection::HasVisibleGeometry() const
 {
 	if(ensureMsgf(GeometryCollection.IsValid(), TEXT("Geometry Collection %s has an invalid internal collection")))
 	{
-		return ( (EnableNanite && NaniteData) || GeometryCollection->HasVisibleGeometry());
+		return ( (EnableNanite && RenderData && RenderData->bHasNaniteData) || GeometryCollection->HasVisibleGeometry());
 	}
 
 	return false;
@@ -761,7 +764,9 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 
 		if (bStripOnCook)
 		{
-			if (EnableNanite && NaniteData)
+			// TODO: Since non-nanite path now stores mesh data in cooked build we may be able to unify 
+			// the simplification of the Geometry Collection for both nanite and non-nanite cases.
+			if (EnableNanite && HasNaniteData())
 			{
 				// If this is a cooked archive, we strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.
 				ArchiveGeometryCollection = GenerateMinimalGeometryCollection();
@@ -859,7 +864,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 		if (Ar.IsSaving() && !Ar.IsTransacting())
 		{
-			CreateSimulationDataImp(/*bCopyFromDDC=*/false);	//make sure content is built before saving
+			EnsureDataIsCooked(false /*bInitResourcs*/, Ar.IsTransacting(), Ar.IsPersistent());
 		}
 #endif
 		if (Ar.IsLoading())
@@ -913,12 +918,12 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		Ar << bCooked;
 		if (bCooked)
 		{
-			if (NaniteData == nullptr)
+			if (RenderData == nullptr)
 			{
-				NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
+				RenderData = MakeUnique<FGeometryCollectionRenderData>();
 			}
 
-			NaniteData->Serialize(ChaosAr, this);
+			RenderData->Serialize(ChaosAr, this);
 		}
 	}
 
@@ -977,10 +982,10 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		CreateSimulationData();
 	}
 
-	//for all versions loaded, make sure sim data is up to date
+	//for all versions loaded, make sure loaded content is built
  	if (Ar.IsLoading())
 	{
-		EnsureDataIsCooked(true, Ar.IsTransacting());	//make sure loaded content is built
+		EnsureDataIsCooked(true /*bInitResourcs*/, Ar.IsTransacting(), Ar.IsPersistent());
 	}
 #endif
 }
@@ -995,16 +1000,9 @@ void UGeometryCollection::SetEnableNanite(bool bValue)
 	if (EnableNanite != bValue)
 	{
 		EnableNanite = bValue;
-		NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 
 #if WITH_EDITOR
-		if (EnableNanite)
-		{
-			if (GeometryCollection)
-			{
-				NaniteData = UGeometryCollection::CreateNaniteData(GeometryCollection.Get());
-			}
-		}
+		RebuildRenderData();
 #endif
 	}
 }
@@ -1041,9 +1039,6 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC)
 			FMemoryReader Ar(DDCData, true);	// Must be persistent for BulkData to serialize
 			Chaos::FChaosArchive ChaosAr(Ar);
 			GeometryCollection->Serialize(ChaosAr);
-
-			NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
-			NaniteData->Serialize(ChaosAr, this);
 		}
 	}
 }
@@ -1062,136 +1057,65 @@ void UGeometryCollection::CreateSimulationDataIfNeeded()
 	}
 }
 
-TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(FGeometryCollection* Collection)
+
+void UGeometryCollection::CreateRenderDataImp(bool bCopyFromDDC)
 {
-	TUniquePtr<FGeometryCollectionNaniteData> NaniteData;
+	COOK_STAT(auto Timer = GeometryCollectionCookStats::UsageStats.TimeSyncWork());
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(UGeometryCollection::CreateNaniteData);
+	// Skips the DDC fetch entirely for testing the builder without adding to the DDC
+	const static bool bSkipDDC = false;
 
-	Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
+	//Use the DDC to build simulation data. If we are loading in the editor we then serialize this data into the geometry collection
+	TArray<uint8> DDCData;
+	FDerivedDataGeometryCollectionRenderDataCooker* GeometryCollectionCooker = new FDerivedDataGeometryCollectionRenderDataCooker(*this);
 
-	NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
-
-	// Transform Group
-	const TManagedArray<int32>& TransformToGeometryIndexArray = Collection->TransformToGeometryIndex;
-	const TManagedArray<int32>& SimulationTypeArray = Collection->SimulationType;
-	const TManagedArray<int32>& StatusFlagsArray = Collection->StatusFlags;
-
-	// Vertices Group
-	const TManagedArray<FVector3f>& VertexArray = Collection->Vertex;
-	GeometryCollection::UV::FUVLayers UVsLayers = GeometryCollection::UV::FindActiveUVLayers(*Collection);
-	const TManagedArray<FLinearColor>& ColorArray = Collection->Color;
-	const TManagedArray<FVector3f>& TangentUArray = Collection->TangentU;
-	const TManagedArray<FVector3f>& TangentVArray = Collection->TangentV;
-	const TManagedArray<FVector3f>& NormalArray = Collection->Normal;
-	const TManagedArray<int32>& BoneMapArray = Collection->BoneMap;
-
-	// Faces Group
-	const TManagedArray<FIntVector>& IndicesArray = Collection->Indices;
-	const TManagedArray<bool>& VisibleArray = Collection->Visible;
-	const TManagedArray<int32>& MaterialIndexArray = Collection->MaterialIndex;
-	const TManagedArray<int32>& MaterialIDArray = Collection->MaterialID;
-
-	// Geometry Group
-	const TManagedArray<int32>& TransformIndexArray = Collection->TransformIndex;
-	const TManagedArray<FBox>& BoundingBoxArray = Collection->BoundingBox;
-	const TManagedArray<float>& InnerRadiusArray = Collection->InnerRadius;
-	const TManagedArray<float>& OuterRadiusArray = Collection->OuterRadius;
-	const TManagedArray<int32>& VertexStartArray = Collection->VertexStart;
-	const TManagedArray<int32>& VertexCountArray = Collection->VertexCount;
-	const TManagedArray<int32>& FaceStartArray = Collection->FaceStart;
-	const TManagedArray<int32>& FaceCountArray = Collection->FaceCount;
-
-	// Material Group
-	const int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
-
-	const uint32 NumTexCoords = Collection->NumUVLayers();
-	const bool bHasColors = ColorArray.Num() > 0;
-
-	TArray<FStaticMeshBuildVertex> BuildVertices;
-	TArray<uint32> BuildIndices;
-	TArray<int32> MaterialIndices;
-
-	TArray<uint32> MeshTriangleCounts;
-	MeshTriangleCounts.SetNum(NumGeometry);
-
-	for (int32 GeometryGroupIndex = 0; GeometryGroupIndex < NumGeometry; GeometryGroupIndex++)
+	if (GeometryCollectionCooker->CanBuild())
 	{
-		const int32 VertexStart = VertexStartArray[GeometryGroupIndex];
-		const int32 VertexCount = VertexCountArray[GeometryGroupIndex];
-
-		uint32 DestVertexStart = BuildVertices.Num();
-		BuildVertices.Reserve(DestVertexStart + VertexCount);
-		for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+		if (bSkipDDC)
 		{
-			FStaticMeshBuildVertex& Vertex = BuildVertices.Emplace_GetRef();
-			Vertex.Position = VertexArray[VertexStart + VertexIndex];
-			Vertex.Color = bHasColors ? ColorArray[VertexStart + VertexIndex].ToFColor(false /* sRGB */) : FColor::White;
-			Vertex.TangentX = FVector3f::ZeroVector;
-			Vertex.TangentY = FVector3f::ZeroVector;
-			Vertex.TangentZ = NormalArray[VertexStart + VertexIndex];
-			for (int32 UVIdx = 0; UVIdx < UVsLayers.Num(); ++UVIdx)
-			{
-				Vertex.UVs[UVIdx] = UVsLayers[UVIdx][VertexStart + VertexIndex];
-				if (Vertex.UVs[UVIdx].ContainsNaN())
-				{
-					Vertex.UVs[UVIdx] = FVector2f::ZeroVector;
-				}
-			}
+			GeometryCollectionCooker->Build(DDCData);
+			COOK_STAT(Timer.AddMiss(DDCData.Num()));
+		}
+		else
+		{
+			bool bBuilt = false;
+			const bool bSuccess = GetDerivedDataCacheRef().GetSynchronous(GeometryCollectionCooker, DDCData, &bBuilt);
+			COOK_STAT(Timer.AddHitOrMiss(!bSuccess || bBuilt ? FCookStats::CallStats::EHitOrMiss::Miss : FCookStats::CallStats::EHitOrMiss::Hit, DDCData.Num()));
 		}
 
-		const int32 FaceStart = FaceStartArray[GeometryGroupIndex];
-		const int32 FaceCount = FaceCountArray[GeometryGroupIndex];
-
-		// TODO: Respect multiple materials like in FGeometryCollectionConversion::AppendStaticMesh
-
-		int32 DestFaceStart = MaterialIndices.Num();
-		MaterialIndices.Reserve(DestFaceStart + FaceCount);
-		BuildIndices.Reserve((DestFaceStart + FaceCount) * 3);
-		for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
+		if (bCopyFromDDC)
 		{
-			if (!VisibleArray[FaceStart + FaceIndex]) // TODO: Always in range?
-			{
-				continue;
-			}
+			FMemoryReader Ar(DDCData, true);	// Must be persistent for BulkData to serialize
+			Chaos::FChaosArchive ChaosAr(Ar);
 
-			FIntVector FaceIndices = IndicesArray[FaceStart + FaceIndex];
-			FaceIndices = FaceIndices + FIntVector( DestVertexStart - VertexStart );
-
-			// Remove degenerates
-			if( BuildVertices[ FaceIndices[0] ].Position == BuildVertices[ FaceIndices[1] ].Position ||
-				BuildVertices[ FaceIndices[1] ].Position == BuildVertices[ FaceIndices[2] ].Position ||
-				BuildVertices[ FaceIndices[2] ].Position == BuildVertices[ FaceIndices[0] ].Position )
-			{
-				continue;
-			}
-
-			BuildIndices.Add(FaceIndices.X);
-			BuildIndices.Add(FaceIndices.Y);
-			BuildIndices.Add(FaceIndices.Z);
-
-			const int32 MaterialIndex = MaterialIDArray[FaceStart + FaceIndex];
-			MaterialIndices.Add(MaterialIndex);
+			RenderData = MakeUnique<FGeometryCollectionRenderData>();
+			RenderData->Serialize(ChaosAr, this);
 		}
-
-		MeshTriangleCounts[GeometryGroupIndex] = MaterialIndices.Num() - DestFaceStart;
 	}
+}
 
-	FMeshNaniteSettings NaniteSettings = {};
-	NaniteSettings.bEnabled = true;
-	NaniteSettings.TargetMinimumResidencyInKB = 0;	// Default to smallest possible, which is a single page
-	NaniteSettings.KeepPercentTriangles = 1.0f;
-	NaniteSettings.TrimRelativeError = 0.0f;
-	NaniteSettings.FallbackPercentTriangles = 1.0f; // 100% - no reduction
-	NaniteSettings.FallbackRelativeError = 0.0f;
-
-	NaniteData->NaniteResource = {};
-	if (!NaniteBuilderModule.Build(NaniteData->NaniteResource, BuildVertices, BuildIndices, MaterialIndices, MeshTriangleCounts, NumTexCoords, NaniteSettings))
+void UGeometryCollection::RebuildRenderData()
+{
+	if (RenderDataGuid != StateGuid)
 	{
-		UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for geometry collection. See previous line(s) for details."));
+		ReleaseResources();
+		RenderData = FGeometryCollectionRenderData::Create(*GetGeometryCollection(), EnableNanite, bUseFullPrecisionUVs);
+		InitResources();
+		PropagateMarkDirtyToComponents();
+		RenderDataGuid = StateGuid;
 	}
+}
 
-	return NaniteData;
+void UGeometryCollection::PropagateMarkDirtyToComponents() const
+{
+	for (TObjectIterator<UGeometryCollectionComponent> It(RF_ClassDefaultObject, false, EInternalObjectFlags::Garbage); It; ++It)
+	{
+		if (It->RestCollection == this)
+		{
+			It->MarkRenderStateDirty();
+			It->MarkRenderDynamicDataDirty();
+		}
+	}
 }
 
 TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::GenerateMinimalGeometryCollection() const
@@ -1318,17 +1242,17 @@ TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::CopyCo
 
 void UGeometryCollection::InitResources()
 {
-	if (NaniteData)
+	if (RenderData)
 	{
-		NaniteData->InitResources(this);
+		RenderData->InitResources(this);
 	}
 }
 
 void UGeometryCollection::ReleaseResources()
 {
-	if (NaniteData)
+	if (RenderData)
 	{
-		NaniteData->ReleaseResources();
+		RenderData->ReleaseResources();
 	}
 }
 
@@ -1410,24 +1334,25 @@ FGuid UGeometryCollection::GetStateGuid() const
 
 void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	bool bDoInvalidateCollection = false;
+	bool bValidateSizeSpecificDataDefaults = false;
+	bool bDoUpdateConvexGeometry = false;
+	bool bRebuildSimulationData = false;
+	bool bRebuildRenderData = false;
+
 	if (PropertyChangedEvent.Property)
 	{
 		FName PropertyName = PropertyChangedEvent.Property->GetFName();
 
-		bool bDoInvalidateCollection = false;
-		bool bDoEnsureDataIsCooked = false;
-		bool bValidateSizeSpecificDataDefaults = false;
-		bool bDoUpdateConvexGeometry = false;
-		bool bRebuildSimulationData = false;
-
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, EnableNanite))
 		{
 			bDoInvalidateCollection = true;
-			bDoEnsureDataIsCooked = true;
+			bRebuildRenderData = true;
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, bUseFullPrecisionUVs))
 		{
 			bDoInvalidateCollection = true;
+			bRebuildRenderData = true;
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, SizeSpecificData))
 		{
@@ -1449,35 +1374,40 @@ void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& P
 			bDoInvalidateCollection = true;
 			bRebuildSimulationData = true;
 		}
+	}
+	else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Unspecified)
+	{
+		// We get here on undo/redo operations.
+		// Make sure that render data rebuilds.
+		bRebuildRenderData = true;
+	}
 
+	if (bDoInvalidateCollection)
+	{
+		InvalidateCollection();
+	}
 
-		if (bDoInvalidateCollection)
+	if (bValidateSizeSpecificDataDefaults)
+	{
+		ValidateSizeSpecificDataDefaults();
+	}
+
+	if (bDoUpdateConvexGeometry)
+	{
+		UpdateConvexGeometry();
+	}
+
+	if (bRebuildSimulationData)
+	{
+		if (!bManualDataCreate)
 		{
-			InvalidateCollection();
+			CreateSimulationData();
 		}
+	}
 
-		if (bValidateSizeSpecificDataDefaults)
-		{
-			ValidateSizeSpecificDataDefaults();
-		}
-
-		if (bDoUpdateConvexGeometry)
-		{
-			UpdateConvexGeometry();
-		}
-
-		if (bDoEnsureDataIsCooked)
-		{
-			EnsureDataIsCooked();
-		}
-
-		if (bRebuildSimulationData)
-		{
-			if (!bManualDataCreate)
-			{
-				CreateSimulationData();
-			}
-		}
+	if (bRebuildRenderData)
+	{
+		RebuildRenderData();
 	}
 }
 
@@ -1494,24 +1424,34 @@ bool UGeometryCollection::Modify(bool bAlwaysMarkDirty /*= true*/)
 	return bSuperResult;
 }
 
-void UGeometryCollection::EnsureDataIsCooked(bool bInitResources, bool bIsTransacting)
+void UGeometryCollection::EnsureDataIsCooked(bool bInitResources, bool bIsTransacting, bool bIsPersistant)
 {
-	if (StateGuid != LastBuiltGuid)
+	if (StateGuid != LastBuiltSimulationDataGuid)
 	{
 		CreateSimulationDataImp(/*bCopyFromDDC=*/ !bIsTransacting);
+		LastBuiltSimulationDataGuid = StateGuid;
+	}
+
+	// Render data only goes through DDC when loading and saving (bIsPersistant).
+	// Using DDC during edits isn't worth it especially as we use a continually mutating guid instead of a state hash.
+	// That ensures that all edits are cache misses (slow) and unnecessarily fill up DDC disk space.
+	// TODO: SimulationData currently relies on these calls to update reliably, so we still need to use DDC for edits.
+	//       We could make CreateSimulationData() be reliably called for all edits and then only use DDC for loading and saving.
+	//       If we do that we can combine CreateSimulationDataImp() with CreateRenderDataImp() and FDerivedDataGeometryCollectionCooker
+	//       with FDerivedDataGeometryCollectionRenderDataCooker.
+	if (bIsPersistant && StateGuid != LastBuiltRenderDataGuid)
+	{
+		CreateRenderDataImp(/*bCopyFromDDC=*/ bInitResources);
 
 		if (FApp::CanEverRender() && bInitResources)
 		{
-			// If there is no geometry in the collection, we leave Nanite data alone.
-			if (GeometryCollection->NumElements(FGeometryCollection::GeometryGroup) > 0)
+			if (RenderData)
 			{
-				if (NaniteData)
-				{
-					NaniteData->InitResources(this);
-				}
+				RenderData->InitResources(this);
 			}
 		}
-		LastBuiltGuid = StateGuid;
+	
+		LastBuiltRenderDataGuid = StateGuid;
 	}
 }
 #endif
@@ -1533,69 +1473,36 @@ void UGeometryCollection::BeginDestroy()
 	ReleaseResources();
 }
 
-FGeometryCollectionNaniteData::FGeometryCollectionNaniteData()
+bool UGeometryCollection::HasMeshData() const
 {
+	return RenderData != nullptr && RenderData->bHasMeshData;
 }
 
-FGeometryCollectionNaniteData::~FGeometryCollectionNaniteData()
+bool UGeometryCollection::HasNaniteData() const
 {
-	ReleaseResources();
+	return RenderData != nullptr && RenderData->bHasNaniteData;
 }
 
-void FGeometryCollectionNaniteData::Serialize(FArchive& Ar, UGeometryCollection* Owner)
+uint32 UGeometryCollection::GetNaniteResourceID() const
 {
-	if (Ar.IsSaving())
-	{
-		if (Owner->EnableNanite)
-		{
-			// Nanite data is currently 1:1 with each geometry group in the collection.
-			const int32 NumGeometryGroups = Owner->NumElements(FGeometryCollection::GeometryGroup);
-			if (NumGeometryGroups != NaniteResource.HierarchyRootOffsets.Num())
-			{
-				Ar.SetError();
-			}
-		}
-
-		NaniteResource.Serialize(Ar, Owner, true);
-	}
-	else if (Ar.IsLoading())
-	{
-		NaniteResource.Serialize(Ar, Owner, true);
-	
-		if (!Owner->EnableNanite)
-		{
-			NaniteResource = {};
-		}
-	}
+	Nanite::FResources& Resource = RenderData->NaniteResource;
+	return Resource.RuntimeResourceID;
 }
 
-void FGeometryCollectionNaniteData::InitResources(UGeometryCollection* Owner)
+uint32 UGeometryCollection::GetNaniteHierarchyOffset() const
 {
-	if (bIsInitialized)
-	{
-		ReleaseResources();
-	}
-
-	NaniteResource.InitResources(Owner);
-
-	bIsInitialized = true;
+	Nanite::FResources& Resource = RenderData->NaniteResource;
+	return Resource.HierarchyOffset;
 }
 
-void FGeometryCollectionNaniteData::ReleaseResources()
+uint32 UGeometryCollection::GetNaniteHierarchyOffset(int32 GeometryIndex, bool bFlattened) const
 {
-	if (!bIsInitialized)
+	Nanite::FResources& Resource = RenderData->NaniteResource;
+	check(GeometryIndex >= 0 && GeometryIndex < Resource.HierarchyRootOffsets.Num());
+	uint32 HierarchyOffset = Resource.HierarchyRootOffsets[GeometryIndex];
+	if (bFlattened)
 	{
-		return;
+		HierarchyOffset += Resource.HierarchyOffset;
 	}
-
-	if (NaniteResource.ReleaseResources())
-	{
-		// HACK: Make sure the renderer is done processing the command, and done using NaniteResource, before we continue.
-		// This code could really use a refactor.
-		FRenderCommandFence Fence;
-		Fence.BeginFence();
-		Fence.Wait();
-	}
-
-	bIsInitialized = false;
+	return HierarchyOffset;
 }

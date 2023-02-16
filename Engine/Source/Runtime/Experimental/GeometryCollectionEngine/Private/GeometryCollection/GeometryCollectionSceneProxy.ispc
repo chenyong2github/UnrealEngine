@@ -6,7 +6,7 @@
 export void SetDynamicData_RenderThread(uniform FVector3f PositionBuffer[], 
 										const uniform unsigned int NumVertices, 
 										const uniform unsigned int Stride, 
-										const uniform int32 BoneMap[], 
+										const uniform uint16 BoneMap[], 
 										const uniform FMatrix44f Transforms[], 
 										const uniform FVector3f Vertices[])
 {

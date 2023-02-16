@@ -131,7 +131,7 @@ bool FGeometryCollectionSelectRigidBodyEdMode::MouseMove(FEditorViewportClient* 
 	// Hover status
 	const HHitProxy* const HitProxy = Viewport->GetHitProxy(x, y);
 	bIsHoveringGeometryCollection = HitProxy && HitProxy->IsA(HGeometryCollection::StaticGetType());
-	UE_CLOG(bIsHoveringGeometryCollection, LogGeometryCollectionSelectRigidBodyEdMode, VeryVerbose, TEXT("Hovering GeometryCollectionActor %s, Transform Index %d."), *static_cast<const HGeometryCollection*>(HitProxy)->Actor->GetName(), static_cast<const HGeometryCollection*>(HitProxy)->TransformIndex);
+	UE_CLOG(bIsHoveringGeometryCollection, LogGeometryCollectionSelectRigidBodyEdMode, VeryVerbose, TEXT("Hovering GeometryCollectionActor %s, Transform Index %d."), *static_cast<const HGeometryCollection*>(HitProxy)->Component->GetOwner()->GetName(), static_cast<const HGeometryCollection*>(HitProxy)->BoneIndex);
 #endif // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	return true;
 }
@@ -142,45 +142,41 @@ bool FGeometryCollectionSelectRigidBodyEdMode::HandleClick(FEditorViewportClient
 	if (HitProxy && HitProxy->IsA(HGeometryCollection::StaticGetType()))
 	{
 		const HGeometryCollection* const HitGeometryCollection = static_cast<const HGeometryCollection*>(HitProxy);
-		const AGeometryCollectionActor* const GeometryCollectionActor = Cast<AGeometryCollectionActor>(HitGeometryCollection->Actor);
-		if (GeometryCollectionActor)
+		const UGeometryCollectionComponent* const GeometryCollectionComponent = HitGeometryCollection->Component;
+		if (GeometryCollectionComponent)
 		{
-			const UGeometryCollectionComponent* const GeometryCollectionComponent = GeometryCollectionActor->GeometryCollectionComponent;
-			if (GeometryCollectionComponent)
+			// Retrieve the transform index
+			int32 TransformIndex = HitGeometryCollection->BoneIndex;
+
+			// Get to the parent transform if the hit transform is still attached to its parent
+			const TManagedArray<int32>& ParentArray = GeometryCollectionComponent->GetParentArray();
+			while (ParentArray[TransformIndex] != FGeometryCollectionBoneNode::InvalidBone)
 			{
-				// Retrieve the transform index
-				int32 TransformIndex = HitGeometryCollection->TransformIndex;
-
-				// Get to the parent transform if the hit transform is still attached to its parent
-				const TManagedArray<int32>& ParentArray = GeometryCollectionComponent->GetParentArray();
-				while (ParentArray[TransformIndex] != FGeometryCollectionBoneNode::InvalidBone)
-				{
-					TransformIndex = ParentArray[TransformIndex];
-				}
-				/*
-				// Retrieve the rigid body id
-				//const TManagedArray<int32>& RigidBodyIdArray = GeometryCollectionComponent->GetRigidBodyIdArray();
-				const TManagedArray<FGuid>& RigidBodyIdArray = GeometryCollectionComponent->GetRigidBodyGuidArray();
-				//const int32 RigidBodyId = (TransformIndex != INDEX_NONE && ensure(TransformIndex < RigidBodyIdArray.Num())) ? RigidBodyIdArray[TransformIndex]: INDEX_NONE;
-				const FGuid& RigidBodyId = (TransformIndex != INDEX_NONE && ensure(TransformIndex < RigidBodyIdArray.Num())) ? RigidBodyIdArray[TransformIndex] : FGuid();
-
-				// Update the rigid body id property
-				//if (RigidBodyId != INDEX_NONE)
-				if (RigidBodyId.IsValid())
-				{
-					UE_LOG(LogGeometryCollectionSelectRigidBodyEdMode, Verbose, TEXT("Hit GeometryCollectionActor %s at rigid body %s."), *GeometryCollectionActor->GetName(), *RigidBodyId.ToString());
-
-					if (const TSharedPtr<IPropertyHandle> PropertyHandleIdPin = PropertyHandleId.Pin())
-					{
-						PropertyHandleIdPin->SetValue(RigidBodyId.ToString());
-					}
-					if (const TSharedPtr<IPropertyHandle> PropertyHandleSolverPin = PropertyHandleSolver.Pin())
-					{
-						PropertyHandleSolverPin->SetValue(GeometryCollectionComponent->ChaosSolverActor);
-					}
-				}
-				*/
+				TransformIndex = ParentArray[TransformIndex];
 			}
+			/*
+			// Retrieve the rigid body id
+			//const TManagedArray<int32>& RigidBodyIdArray = GeometryCollectionComponent->GetRigidBodyIdArray();
+			const TManagedArray<FGuid>& RigidBodyIdArray = GeometryCollectionComponent->GetRigidBodyGuidArray();
+			//const int32 RigidBodyId = (TransformIndex != INDEX_NONE && ensure(TransformIndex < RigidBodyIdArray.Num())) ? RigidBodyIdArray[TransformIndex]: INDEX_NONE;
+			const FGuid& RigidBodyId = (TransformIndex != INDEX_NONE && ensure(TransformIndex < RigidBodyIdArray.Num())) ? RigidBodyIdArray[TransformIndex] : FGuid();
+
+			// Update the rigid body id property
+			//if (RigidBodyId != INDEX_NONE)
+			if (RigidBodyId.IsValid())
+			{
+				UE_LOG(LogGeometryCollectionSelectRigidBodyEdMode, Verbose, TEXT("Hit GeometryCollectionActor %s at rigid body %s."), *GeometryCollectionComponent->GetOwner()->GetName(), *RigidBodyId.ToString());
+
+				if (const TSharedPtr<IPropertyHandle> PropertyHandleIdPin = PropertyHandleId.Pin())
+				{
+					PropertyHandleIdPin->SetValue(RigidBodyId.ToString());
+				}
+				if (const TSharedPtr<IPropertyHandle> PropertyHandleSolverPin = PropertyHandleSolver.Pin())
+				{
+					PropertyHandleSolverPin->SetValue(GeometryCollectionComponent->ChaosSolverActor);
+				}
+			}
+			*/
 		}
 	}
 #endif // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
