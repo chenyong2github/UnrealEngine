@@ -999,8 +999,18 @@ void SDockTab::UpdateActivationTime()
 
 void SDockTab::SetParentDockTabStackTabWellHidden(bool bIsTabWellHidden)
 {
-	if ( TSharedPtr<SDockingTabStack> ParentStack = GetParentDockTabStack() )
+	if ( const TSharedPtr<SDockingTabStack> ParentStack = GetParentDockTabStack() )
 	{
-		ParentStack->SetTabWellHidden(bIsTabWellHidden);
+		if ( bIsTabWellHidden )
+		{
+			if ( ParentStack->CanHideTabWell() )
+			{
+				ParentStack->SetTabWellHidden(true);				
+			}
+		}
+		else
+		{
+			ParentStack->SetTabWellHidden(false);
+		}
 	}
 }
