@@ -22,7 +22,8 @@ enum class ESearchIntermediateStorage : uint8;
 
 class FAssetSearchManager : public FRunnable
 {
-	static const FName AssetSearchIndexKeyTag;
+	static const FName AssetSearchIndexVersionTag;
+	static const FName AssetSearchIndexHashTag;
 	static const FName AssetSearchIndexDataTag;
 
 public:
@@ -85,6 +86,8 @@ private:
 
 	void AsyncMainThreadTask(TFunction<void()> Task);
 	void ProcessGameThreadTasks();
+
+	uint64 GetTextHash(FStringView PackageRelativeExportPath) const;
 
 private:
 	bool bStarted = false;
