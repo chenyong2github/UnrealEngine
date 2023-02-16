@@ -57,25 +57,25 @@ namespace UnrealGameSync
 	public class LatestChangeType
 	{
 		// Display Specifiers
-		public string Name = ""; // Name will the saved ID for this LatestChangeType
-		public string Description = "";
-		public int OrderIndex = Int32.MaxValue;
+		public string Name { get; set; } = ""; // Name will the saved ID for this LatestChangeType
+		public string Description { get; set; } = "";
+		public int OrderIndex { get; set; } = Int32.MaxValue;
 
 		// What Rules to Check for.
-		public bool Good = false;
-		public bool Starred = false;
-		public bool FindNewestGoodContent = false;
-		public List<string> RequiredBadges = new List<string>();
+		public bool Good { get; set; } = false;
+		public bool Starred { get; set; } = false;
+		public bool FindNewestGoodContent { get; set; } = false;
+		public List<string> RequiredBadges { get; } = new List<string>();
 
 		// Depot path to read for the latest change number
-		public string? ReadFrom = "";
+		public string? ReadFrom { get; set; }
 
 		public static bool TryParseConfigEntry(string text, [NotNullWhen(true)] out LatestChangeType? changeType)
 		{
 			ConfigObject definitionObject = new ConfigObject(text);
 
 			string latestChangeTypeName = definitionObject.GetValue("Name", "");
-			if (latestChangeTypeName != "")
+			if (latestChangeTypeName.Length > 0)
 			{
 				changeType = new LatestChangeType();
 				changeType.Name = latestChangeTypeName;
@@ -85,7 +85,7 @@ namespace UnrealGameSync
 				changeType.Good = definitionObject.GetValue("bGood", false);
 				changeType.Starred = definitionObject.GetValue("bStarred", false);
 				changeType.FindNewestGoodContent = definitionObject.GetValue("bFindNewestGoodContent", false);
-				changeType.RequiredBadges = new List<string>(definitionObject.GetValue("RequiredBadges", "").Split(new char[] { ',',' '}, StringSplitOptions.RemoveEmptyEntries));
+				changeType.RequiredBadges.AddRange(definitionObject.GetValue("RequiredBadges", "").Split(new char[] { ',',' '}, StringSplitOptions.RemoveEmptyEntries));
 
 				changeType.ReadFrom = definitionObject.GetValue("ReadFrom", null);
 				return true;
@@ -137,6 +137,7 @@ namespace UnrealGameSync
 		}
 	}
 
+#pragma warning disable CA1027 // Mark enums with FlagsAttribute
 	public enum UserSettingsVersion
 	{
 		Initial = 0,
@@ -145,12 +146,13 @@ namespace UnrealGameSync
 		DefaultNumberOfThreads = 3,
 		Latest = DefaultNumberOfThreads
 	}
+#pragma warning restore CA1027 // Mark enums with FlagsAttribute
 
 	public class ArchiveSettings
 	{
-		public bool Enabled;
-		public string Type;
-		public List<string> Order;
+		public bool Enabled { get; set; }
+		public string Type { get; set; }
+		public List<string> Order { get; }
 
 		public ArchiveSettings(bool enabled, string type, IEnumerable<string> order)
 		{
@@ -414,9 +416,9 @@ namespace UnrealGameSync
 		[JsonIgnore]
 		public FileReference ConfigFile { get; private set; } = null!;
 
-		public List<ConfigObject> BuildSteps { get; set; } = new List<ConfigObject>();
+		public List<ConfigObject> BuildSteps { get; } = new List<ConfigObject>();
 		public FilterType FilterType { get; set; }
-		public HashSet<string> FilterBadges { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		public HashSet<string> FilterBadges { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 		static readonly object _syncRoot = new object();
 
@@ -482,54 +484,54 @@ namespace UnrealGameSync
 		readonly ConfigFile _configFile;
 
 		// General settings
-		public UserSettingsVersion Version = UserSettingsVersion.Latest;
-		public bool BuildAfterSync;
-		public bool RunAfterSync;
-		public bool OpenSolutionAfterSync;
-		public bool ShowLogWindow;
-		public bool AutoResolveConflicts;
-		public bool ShowUnreviewedChanges;
-		public bool ShowAutomatedChanges;
-		public RobomergeShowChangesOption ShowRobomerge;
-		public bool AnnotateRobmergeChanges;
-		public bool ShowLocalTimes;
-		public bool KeepInTray;
-		public Guid[] EnabledTools;
-		public int FilterIndex;
-		public UserSelectedProjectSettings? LastProject;
-		public List<UserSelectedProjectSettings> OpenProjects;
-		public List<UserSelectedProjectSettings> RecentProjects;
-		public string SyncTypeId;
-		public BuildConfig CompiledEditorBuildConfig; // NB: This assumes not using precompiled editor. See CurrentBuildConfig.
-		public TabLabels TabLabels;
-		public long NextLauncherVersionCheck;
+		public UserSettingsVersion Version { get; set; } = UserSettingsVersion.Latest;
+		public bool BuildAfterSync { get; set; }
+		public bool RunAfterSync { get; set; }
+		public bool OpenSolutionAfterSync { get; set; }
+		public bool ShowLogWindow { get; set; }
+		public bool AutoResolveConflicts { get; set; }
+		public bool ShowUnreviewedChanges { get; set; }
+		public bool ShowAutomatedChanges { get; set; }
+		public RobomergeShowChangesOption ShowRobomerge { get; set; }
+		public bool AnnotateRobmergeChanges { get; set; }
+		public bool ShowLocalTimes { get; set; }
+		public bool KeepInTray { get; set; }
+		public HashSet<Guid> EnabledTools { get; } = new HashSet<Guid>();
+		public int FilterIndex { get; set; }
+		public UserSelectedProjectSettings? LastProject { get; set; }
+		public List<UserSelectedProjectSettings> OpenProjects { get; }
+		public List<UserSelectedProjectSettings> RecentProjects { get; }
+		public string SyncTypeId { get; set; }
+		public BuildConfig CompiledEditorBuildConfig { get; set; } // NB: This assumes not using precompiled editor. See CurrentBuildConfig.
+		public TabLabels TabLabels { get; set; }
+		public long NextLauncherVersionCheck { get; set; }
 
 		// Precompiled binaries
-		public List<ArchiveSettings> Archives = new List<ArchiveSettings>();
+		public List<ArchiveSettings> Archives { get; } = new List<ArchiveSettings>();
 
 		// OIDC Settings
-		public Dictionary<string, string> ProviderToRefreshTokens = new Dictionary<string, string>();
+		public Dictionary<string, string> ProviderToRefreshTokens { get; } = new Dictionary<string, string>();
 
 		// Window settings
-		public bool WindowVisible;
-		public string WindowState;
-		public Rectangle? WindowBounds;
+		public bool WindowVisible { get; set; }
+		public string WindowState { get; set; }
+		public Rectangle? WindowBounds { get; set; }
 		
 		// Schedule settings
-		public bool ScheduleEnabled;
-		public TimeSpan ScheduleTime;
-		public bool ScheduleAnyOpenProject;
-		public List<UserSelectedProjectSettings> ScheduleProjects;
+		public bool ScheduleEnabled { get; set; }
+		public TimeSpan ScheduleTime { get; set; }
+		public bool ScheduleAnyOpenProject { get; set; }
+		public List<UserSelectedProjectSettings> ScheduleProjects { get; } = new List<UserSelectedProjectSettings>();
 
 		// Run configuration
-		public List<Tuple<string, bool>> EditorArguments = new List<Tuple<string,bool>>();
-		public bool EditorArgumentsPrompt;
+		public List<Tuple<string, bool>> EditorArguments { get; } = new List<Tuple<string, bool>>();
+		public bool EditorArgumentsPrompt { get; set; }
 
 		// Notification settings
-		public List<string> NotifyProjects;
-		public int NotifyUnassignedMinutes;
-		public int NotifyUnacknowledgedMinutes;
-		public int NotifyUnresolvedMinutes;
+		public List<string> NotifyProjects { get; } = new List<string>();
+		public int NotifyUnassignedMinutes { get; set; }
+		public int NotifyUnacknowledgedMinutes { get; set; }
+		public int NotifyUnresolvedMinutes { get; set; }
 
 		// Project settings
 		readonly Dictionary<DirectoryReference, UserWorkspaceSettings> _workspaceDirToSettings = new Dictionary<DirectoryReference, UserWorkspaceSettings>();
@@ -605,7 +607,7 @@ namespace UnrealGameSync
 			if (coreSettingsData == null)
 			{
 				coreSettingsData = new GlobalSettings();
-				coreSettingsData.Filter.View = configFile.GetValues("General.SyncFilter", new string[0]).ToList();
+				coreSettingsData.Filter.View.AddRange(configFile.GetValues("General.SyncFilter", Array.Empty<string>()));
 				coreSettingsData.Filter.SetCategories(GetCategorySettings(configFile.FindSection("General"), "SyncIncludedCategories", "SyncExcludedCategories"));
 				coreSettingsData.Filter.AllProjects = configFile.GetValue("General.SyncAllProjects", false);
 				coreSettingsData.Filter.AllProjectsInSln = configFile.GetValue("General.IncludeAllProjectsInSolution", false);
@@ -631,32 +633,33 @@ namespace UnrealGameSync
 			ShowUnreviewedChanges = _configFile.GetValue("General.ShowUnreviewed", true);
 			ShowAutomatedChanges = _configFile.GetValue("General.ShowAutomated", false);
 			NextLauncherVersionCheck = _configFile.GetValue("General.NextLauncherVersionCheck", 0);
-
-			// safely parse the filter enum
-			ShowRobomerge = RobomergeShowChangesOption.All;
-			Enum.TryParse(_configFile.GetValue("General.RobomergeFilter", ""), out ShowRobomerge);
-
+			ShowRobomerge = _configFile.GetEnumValue("General.RobomergeFilter", RobomergeShowChangesOption.All);
 			AnnotateRobmergeChanges = _configFile.GetValue("General.AnnotateRobomerge", true);
 			ShowLocalTimes = _configFile.GetValue("General.ShowLocalTimes", false);
 			KeepInTray = _configFile.GetValue("General.KeepInTray", true);
 
-			List<Guid> enabledTools = _configFile.GetGuidValues("General.EnabledTools", new Guid[0]).ToList();
+			EnabledTools.Clear();
+			EnabledTools.UnionWith(_configFile.GetGuidValues("General.EnabledTools", Array.Empty<Guid>()));
 			if (_configFile.GetValue("General.EnableP4VExtensions", false))
 			{
-				enabledTools.Add(new Guid("963850A0-BF63-4E0E-B903-1C5954C7DCF8"));
+				EnabledTools.Add(new Guid("963850A0-BF63-4E0E-B903-1C5954C7DCF8"));
 			}
 			if (_configFile.GetValue("General.EnableUshell", false))
 			{
-				enabledTools.Add(new Guid("922EED87-E732-464C-92DC-5A8F7ED955E2"));
+				EnabledTools.Add(new Guid("922EED87-E732-464C-92DC-5A8F7ED955E2"));
 			}
-			EnabledTools = enabledTools.ToArray();
 
-			Int32.TryParse(_configFile.GetValue("General.FilterIndex", "0"), out FilterIndex);
+			FilterIndex = _configFile.GetValue("General.FilterIndex", 0);
 
 			string? lastProjectString = _configFile.GetValue("General.LastProject", null);
 			if(lastProjectString != null)
 			{
-				UserSelectedProjectSettings.TryParseConfigEntry(lastProjectString, out LastProject);
+				UserSelectedProjectSettings? lastProject;
+				if (!UserSelectedProjectSettings.TryParseConfigEntry(lastProjectString, out lastProject))
+				{
+					lastProject = null;
+				}
+				LastProject = lastProject;
 			}
 			else
 			{
@@ -688,18 +691,10 @@ namespace UnrealGameSync
 			}
 
 			// Build configuration
-			string compiledEditorBuildConfigName = _configFile.GetValue("General.BuildConfig", "");
-			if(!Enum.TryParse(compiledEditorBuildConfigName, true, out CompiledEditorBuildConfig))
-			{
-				CompiledEditorBuildConfig = BuildConfig.DebugGame;
-			}
+			CompiledEditorBuildConfig = _configFile.GetEnumValue("General.BuildConfig", BuildConfig.DebugGame);
 
 			// Tab names
-			string tabLabelsValue = _configFile.GetValue("General.TabLabels", "");
-			if(!Enum.TryParse(tabLabelsValue, true, out TabLabels))
-			{
-				TabLabels = TabLabels.Stream;
-			}
+			TabLabels = _configFile.GetEnumValue("General.TabLabels", TabLabels.Stream);
 
 			// Editor arguments
 			string[] arguments = _configFile.GetValues("General.EditorArguments", new string[]{ "0:-log", "0:-fastload" });
@@ -709,11 +704,11 @@ namespace UnrealGameSync
 			}
 			foreach(string argument in arguments)
 			{
-				if(argument.StartsWith("0:"))
+				if(argument.StartsWith("0:", StringComparison.Ordinal))
 				{
 					EditorArguments.Add(new Tuple<string,bool>(argument.Substring(2), false));
 				}
-				else if(argument.StartsWith("1:"))
+				else if(argument.StartsWith("1:", StringComparison.Ordinal))
 				{
 					EditorArguments.Add(new Tuple<string,bool>(argument.Substring(2), true));
 				}
@@ -725,7 +720,7 @@ namespace UnrealGameSync
 			EditorArgumentsPrompt = _configFile.GetValue("General.EditorArgumentsPrompt", false);
 
 			// Precompiled binaries
-			string[] archiveValues = _configFile.GetValues("PrecompiledBinaries.Archives", new string[0]);
+			string[] archiveValues = _configFile.GetValues("PrecompiledBinaries.Archives", Array.Empty<string>());
 			foreach (string archiveValue in archiveValues)
 			{
 				ArchiveSettings? settings;
@@ -737,11 +732,11 @@ namespace UnrealGameSync
 
 			if (syncPrecompiledEditor)
 			{
-				Archives.Add(new ArchiveSettings(true, "Editor", new string[0]));
+				Archives.Add(new ArchiveSettings(true, "Editor", Array.Empty<string>()));
 			}
 
 			// OIDC Settings
-			string[] tokens = _configFile.GetValues("OIDCProviders.Tokens", new string[0]);
+			string[] tokens = _configFile.GetValues("OIDCProviders.Tokens", Array.Empty<string>());
 			foreach (string tokenValue in tokens)
 			{
 				ConfigObject o = new ConfigObject(tokenValue);
@@ -760,16 +755,19 @@ namespace UnrealGameSync
 
 			// Schedule settings
 			ScheduleEnabled = _configFile.GetValue("Schedule.Enabled", false);
-			if(!TimeSpan.TryParse(_configFile.GetValue("Schedule.Time", ""), out ScheduleTime))
+
+			TimeSpan scheduleTime;
+			if(!TimeSpan.TryParse(_configFile.GetValue("Schedule.Time", ""), out scheduleTime))
 			{
-				ScheduleTime = new TimeSpan(6, 0, 0);
+				scheduleTime = new TimeSpan(6, 0, 0);
 			}
+			ScheduleTime = scheduleTime;
 
 			ScheduleAnyOpenProject = _configFile.GetValue("Schedule.AnyOpenProject", true);
 			ScheduleProjects = ReadProjectList("Schedule.Projects", "Schedule.ProjectFileNames");
 
 			// Notification settings
-			NotifyProjects = _configFile.GetValues("Notifications.NotifyProjects", new string[0]).ToList();
+			NotifyProjects = _configFile.GetValues("Notifications.NotifyProjects", Array.Empty<string>()).ToList();
 			NotifyUnassignedMinutes = _configFile.GetValue("Notifications.NotifyUnassignedMinutes", -1);
 			NotifyUnacknowledgedMinutes = _configFile.GetValue("Notifications.NotifyUnacknowledgedMinutes", -1);
 			NotifyUnresolvedMinutes = _configFile.GetValue("Notifications.NotifyUnresolvedMinutes", -1);
@@ -798,11 +796,11 @@ namespace UnrealGameSync
 			Dictionary<Guid, bool> result = new Dictionary<Guid, bool>();
 			if (section != null)
 			{
-				foreach (Guid uniqueId in section.GetValues(includedKey, new Guid[0]))
+				foreach (Guid uniqueId in section.GetValues(includedKey, Array.Empty<Guid>()))
 				{
 					result[uniqueId] = true;
 				}
-				foreach (Guid uniqueId in section.GetValues(excludedKey, new Guid[0]))
+				foreach (Guid uniqueId in section.GetValues(excludedKey, Array.Empty<Guid>()))
 				{
 					result[uniqueId] = false;
 				}
@@ -868,7 +866,7 @@ namespace UnrealGameSync
 			{
 				string legacyBranchAndClientKey = clientName + branchPath;
 
-				int slashIdx = legacyBranchAndClientKey.IndexOf('/');
+				int slashIdx = legacyBranchAndClientKey.IndexOf('/', StringComparison.Ordinal);
 				if(slashIdx != -1)
 				{
 					legacyBranchAndClientKey = legacyBranchAndClientKey.Substring(0, slashIdx) + "$" + legacyBranchAndClientKey.Substring(slashIdx + 1);
@@ -913,7 +911,7 @@ namespace UnrealGameSync
 				currentWorkspace.ProjectIdentifier = workspaceSection.GetValue("CurrentProjectPath", "");
 				currentWorkspace.CurrentChangeNumber = workspaceSection.GetValue("CurrentChangeNumber", -1);
 				currentWorkspace.CurrentSyncFilterHash = workspaceSection.GetValue("CurrentSyncFilterHash", null);
-				foreach(string additionalChangeNumberString in workspaceSection.GetValues("AdditionalChangeNumbers", new string[0]))
+				foreach(string additionalChangeNumberString in workspaceSection.GetValues("AdditionalChangeNumbers", Array.Empty<string>()))
 				{
 					int additionalChangeNumber;
 					if(Int32.TryParse(additionalChangeNumberString, out additionalChangeNumber))
@@ -922,10 +920,7 @@ namespace UnrealGameSync
 					}
 				}
 
-				WorkspaceUpdateResult lastSyncResult;
-				Enum.TryParse(workspaceSection.GetValue("LastSyncResult", ""), out lastSyncResult);
-				currentWorkspace.LastSyncResult = lastSyncResult;
-
+				currentWorkspace.LastSyncResult = workspaceSection.GetEnumValue("LastSyncResult", WorkspaceUpdateResult.Canceled);
 				currentWorkspace.LastSyncResultMessage = UnescapeText(workspaceSection.GetValue("LastSyncResultMessage"));
 				currentWorkspace.LastSyncChangeNumber = workspaceSection.GetValue("LastSyncChangeNumber", -1);
 
@@ -937,9 +932,11 @@ namespace UnrealGameSync
 
 				currentWorkspace.LastSyncDurationSeconds = workspaceSection.GetValue("LastSyncDuration", 0);
 				currentWorkspace.LastBuiltChangeNumber = workspaceSection.GetValue("LastBuiltChangeNumber", 0);
-				currentWorkspace.ExpandedArchiveTypes = workspaceSection.GetValues("ExpandedArchiveName", new string[0]);
 
-				string[] bisectEntries = workspaceSection.GetValues("Bisect", new string[0]);
+				currentWorkspace.ExpandedArchiveTypes.Clear();
+				currentWorkspace.ExpandedArchiveTypes.UnionWith(workspaceSection.GetValues("ExpandedArchiveName", Array.Empty<string>()));
+
+				string[] bisectEntries = workspaceSection.GetValues("Bisect", Array.Empty<string>());
 				foreach(string bisectEntry in bisectEntries)
 				{
 					ConfigObject bisectEntryObject = new ConfigObject(bisectEntry);
@@ -965,7 +962,9 @@ namespace UnrealGameSync
 			ConfigSection? workspaceSection = _configFile.FindSection(clientName + branchPath);
 			if (workspaceSection != null)
 			{
-				currentWorkspace.Filter.View = workspaceSection.GetValues("SyncFilter", new string[0]).ToList();
+				currentWorkspace.Filter.View.Clear();
+				currentWorkspace.Filter.View.AddRange(workspaceSection.GetValues("SyncFilter", Array.Empty<string>()));
+
 				currentWorkspace.Filter.SetCategories(GetCategorySettings(workspaceSection, "SyncIncludedCategories", "SyncExcludedCategories"));
 
 				int syncAllProjects = workspaceSection.GetValue("SyncAllProjects", -1);
@@ -982,16 +981,9 @@ namespace UnrealGameSync
 
 			// Read the project settings
 			ConfigSection projectSection = _configFile.FindOrAddSection(clientProjectFileName);
-			currentProject.BuildSteps.AddRange(projectSection.GetValues("BuildStep", new string[0]).Select(x => new ConfigObject(x)));
-
-			FilterType filterType;
-			if (!Enum.TryParse(projectSection.GetValue("FilterType", ""), true, out filterType))
-			{
-				filterType = FilterType.None;
-			}
-
-			currentProject.FilterType = filterType;
-			currentProject.FilterBadges.UnionWith(projectSection.GetValues("FilterBadges", new string[0]));
+			currentProject.BuildSteps.AddRange(projectSection.GetValues("BuildStep", Array.Empty<string>()).Select(x => new ConfigObject(x)));
+			currentProject.FilterType = projectSection.GetEnumValue("FilterType", FilterType.None);
+			currentProject.FilterBadges.UnionWith(projectSection.GetValues("FilterBadges", Array.Empty<string>()));
 		}
 
 		public override bool Save(ILogger logger)
@@ -1021,7 +1013,7 @@ namespace UnrealGameSync
 			}
 			generalSection.SetValues("OpenProjects", OpenProjects.Select(x => x.ToConfigEntry()).ToArray());
 			generalSection.SetValue("KeepInTray", KeepInTray);
-			generalSection.SetValues("EnabledTools", EnabledTools);
+			generalSection.SetValues("EnabledTools", EnabledTools.ToArray());
 			generalSection.SetValue("FilterIndex", FilterIndex);
 			generalSection.SetValues("RecentProjects", RecentProjects.Select(x => x.ToConfigEntry()).ToArray());
 			generalSection.SetValue("SyncTypeID", SyncTypeId);

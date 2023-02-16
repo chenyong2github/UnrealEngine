@@ -187,7 +187,7 @@ namespace UnrealGameSync
 				{
 					if (newSelectedClientFileName[endIdx] == '/')
 					{
-						List<PerforceResponse<FStatRecord>> fileRecords = await perforceClient.TryFStatAsync(FStatOptions.None, newSelectedClientFileName.Substring(0, endIdx) + "/Engine/Build/Build.version", cancellationToken).ToListAsync();
+						List<PerforceResponse<FStatRecord>> fileRecords = await perforceClient.TryFStatAsync(FStatOptions.None, newSelectedClientFileName.Substring(0, endIdx) + "/Engine/Build/Build.version", cancellationToken).ToListAsync(cancellationToken);
 						if (fileRecords.Succeeded() && fileRecords.Count > 0)
 						{
 							FStatRecord fileRecord = fileRecords[0].Data;
@@ -251,7 +251,7 @@ namespace UnrealGameSync
 				if(!String.IsNullOrEmpty(client.Name) && (!String.IsNullOrEmpty(client.Host) || !String.IsNullOrEmpty(client.Owner)) && !String.IsNullOrEmpty(client.Root))
 				{
 					// Require either a username or host name match
-					if((String.IsNullOrEmpty(client.Host) || String.Compare(client.Host, hostName, StringComparison.OrdinalIgnoreCase) == 0) && (String.IsNullOrEmpty(client.Owner) || String.Compare(client.Owner, defaultPerforceSettings.UserName, StringComparison.OrdinalIgnoreCase) == 0))
+					if((String.IsNullOrEmpty(client.Host) || String.Equals(client.Host, hostName, StringComparison.OrdinalIgnoreCase)) && (String.IsNullOrEmpty(client.Owner) || String.Equals(client.Owner, defaultPerforceSettings.UserName, StringComparison.OrdinalIgnoreCase)))
 					{
 						if(!Utility.SafeIsFileUnderDirectory(newSelectedFileName.FullName, client.Root))
 						{

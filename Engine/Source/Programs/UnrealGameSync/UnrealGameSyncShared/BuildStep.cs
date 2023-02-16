@@ -18,24 +18,24 @@ namespace UnrealGameSync
 	{
 		public const string UniqueIdKey = "UniqueId";
 
-		public Guid UniqueId;
-		public int OrderIndex;
-		public string? Description;
-		public string? StatusText;
-		public int EstimatedDuration;
-		public BuildStepType Type;
-		public string? Target;
-		public string? Platform;
-		public string? Configuration;
-		public string? FileName;
-		public string? WorkingDir;
-		public string? Arguments;
-		public bool UseLogWindow;
-		public bool NormalSync;
-		public bool ScheduledSync;
-		public string? StatusPanelLink;
-		public Guid[] Requires = Array.Empty<Guid>();
-		public Guid ToolId;
+		public Guid UniqueId { get; set; }
+		public int OrderIndex { get; set; }
+		public string? Description { get; set; }
+		public string? StatusText { get; set; }
+		public int EstimatedDuration { get; set; }
+		public BuildStepType Type { get; set; }
+		public string? Target { get; set; }
+		public string? Platform { get; set; }
+		public string? Configuration { get; set; }
+		public string? FileName { get; set; }
+		public string? WorkingDir { get; set; }
+		public string? Arguments { get; set; }
+		public bool UseLogWindow { get; set; }
+		public bool NormalSync { get; set; }
+		public bool ScheduledSync { get; set; }
+		public string? StatusPanelLink { get; set; }
+		public List<Guid> Requires { get; } = new List<Guid>();
+		public Guid ToolId { get; set; }
 
 		public BuildStep(Guid inUniqueId, int inOrderIndex, string? inDescription, string? inStatusText, int inEstimatedDuration, string? inFileName, string? inArguments, string? inWorkingDir, bool inUseLogWindow)
 		{
@@ -70,27 +70,18 @@ namespace UnrealGameSync
 
 		public BuildStep(ConfigObject obj)
 		{
-			if(!Guid.TryParse(obj.GetValue(UniqueIdKey, ""), out UniqueId))
-			{
-				UniqueId = Guid.NewGuid();
-			}
-			if(!Int32.TryParse(obj.GetValue("OrderIndex", ""), out OrderIndex))
-			{
-				OrderIndex = -1;
-			}
-
+			UniqueId = obj.GetValue(UniqueIdKey, Guid.NewGuid());
+			OrderIndex = obj.GetValue("OrderIndex", -1);
 			Description = obj.GetValue("Description", "Untitled");
 			StatusText = obj.GetValue("StatusText", "Untitled");
+			EstimatedDuration = Math.Max(obj.GetValue("EstimatedDuration", 1), 1);
 
-			if(!Int32.TryParse(obj.GetValue("EstimatedDuration", ""), out EstimatedDuration) || EstimatedDuration < 1)
+			BuildStepType stepType;
+			if(!Enum.TryParse(obj.GetValue("Type", ""), true, out stepType))
 			{
-				EstimatedDuration = 1;
+				stepType = BuildStepType.Other;
 			}
-
-			if(!Enum.TryParse(obj.GetValue("Type", ""), true, out Type))
-			{
-				Type = BuildStepType.Other;
-			}
+			Type = stepType;
 
 			Target = obj.GetValue("Target");
 			Platform = obj.GetValue("Platform");
@@ -99,18 +90,9 @@ namespace UnrealGameSync
 			WorkingDir = obj.GetValue("WorkingDir");
 			Arguments = obj.GetValue("Arguments");
 
-			if(!Boolean.TryParse(obj.GetValue("bUseLogWindow", ""), out UseLogWindow))
-			{
-				UseLogWindow = true;
-			}
-			if(!Boolean.TryParse(obj.GetValue("bNormalSync", ""), out NormalSync))
-			{
-				NormalSync = true;
-			}
-			if(!Boolean.TryParse(obj.GetValue("bScheduledSync", ""), out ScheduledSync))
-			{
-				ScheduledSync = NormalSync;
-			}
+			UseLogWindow = obj.GetValue("bUseLogWindow", true);
+			NormalSync = obj.GetValue("bNormalSync", true);
+			ScheduledSync = obj.GetValue("bScheduledSync", NormalSync);
 
 			StatusPanelLink = obj.GetValue("Link", null);
 			if (String.IsNullOrEmpty(StatusPanelLink))
@@ -130,12 +112,9 @@ namespace UnrealGameSync
 					requires.Add(require);
 				}
 			}
-			Requires = requires.ToArray();
-	
-			if (!Guid.TryParse(obj.GetValue("Tool", ""), out ToolId))
-			{
-				ToolId = Guid.Empty;
-			}
+			Requires = requires;
+
+			ToolId = obj.GetValue("Tool", Guid.Empty);
 		}
 
 		public bool IsValid()

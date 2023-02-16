@@ -42,11 +42,11 @@ namespace UnrealGameSync
 			{
 				if (engineDir != null)
 				{
-					expandedLine = expandedLine.Replace("$(EngineDir)", engineDir.FullName);
+					expandedLine = expandedLine.Replace("$(EngineDir)", engineDir.FullName, StringComparison.OrdinalIgnoreCase);
 				}
 				if (projectDir != null)
 				{
-					expandedLine = expandedLine.Replace("$(ProjectDir)", projectDir.FullName);
+					expandedLine = expandedLine.Replace("$(ProjectDir)", projectDir.FullName, StringComparison.OrdinalIgnoreCase);
 				}
 			}
 			return expandedLine;
@@ -447,7 +447,7 @@ namespace UnrealGameSync
 			string editorLaunch = editorTarget?.Launch ?? String.Empty;
 			variables.Add("EditorExe", editorLaunch);
 
-			string editorLaunchCmd = editorTarget?.LaunchCmd ?? editorLaunch.Replace(".exe", "-Cmd.exe");
+			string editorLaunchCmd = editorTarget?.LaunchCmd ?? editorLaunch.Replace(".exe", "-Cmd.exe", StringComparison.OrdinalIgnoreCase);
 			variables.Add("EditorCmdExe", editorLaunchCmd);
 
 			// Legacy
@@ -549,7 +549,7 @@ namespace UnrealGameSync
 			Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToCategory = new Dictionary<Guid, WorkspaceSyncCategory>();
 			if (projectConfigFile != null)
 			{
-				string[] categoryLines = projectConfigFile.GetValues("Options.SyncCategory", new string[0]);
+				string[] categoryLines = projectConfigFile.GetValues("Options.SyncCategory", Array.Empty<string>());
 				foreach (string categoryLine in categoryLines)
 				{
 					ConfigObject obj = new ConfigObject(categoryLine);
@@ -566,15 +566,22 @@ namespace UnrealGameSync
 
 						if (obj.GetValue("Clear", false))
 						{
-							category.Paths = new string[0];
-							category.Requires = new Guid[0];
+							category.Paths.Clear();
+							category.Requires.Clear();
 						}
 
 						category.Name = obj.GetValue("Name", category.Name);
 						category.Enable = obj.GetValue("Enable", category.Enable);
-						category.Paths = Enumerable.Concat(category.Paths, obj.GetValue("Paths", "").Split(';').Select(x => x.Trim())).Where(x => x.Length > 0).Distinct().OrderBy(x => x).ToArray();
+
+						string[] paths = Enumerable.Concat(category.Paths, obj.GetValue("Paths", "").Split(';').Select(x => x.Trim())).Where(x => x.Length > 0).Distinct().OrderBy(x => x).ToArray();
+						category.Paths.Clear();
+						category.Paths.AddRange(paths);
+
 						category.Hidden = obj.GetValue("Hidden", category.Hidden);
-						category.Requires = Enumerable.Concat(category.Requires, ParseGuids(obj.GetValue("Requires", "").Split(';'))).Distinct().OrderBy(x => x).ToArray();
+
+						Guid[] requires = Enumerable.Concat(category.Requires, ParseGuids(obj.GetValue("Requires", "").Split(';'))).Distinct().OrderBy(x => x).ToArray();
+						category.Requires.Clear();
+						category.Requires.AddRange(requires);
 					}
 				}
 			}

@@ -231,7 +231,8 @@ namespace UnrealGameSync
 			}
 			if (!newEnabledTools.SequenceEqual(_settings.EnabledTools))
 			{
-				_settings.EnabledTools = newEnabledTools.ToArray();
+				_settings.EnabledTools.Clear();
+				_settings.EnabledTools.UnionWith(newEnabledTools);
 				_settings.Save(_logger);
 				_toolUpdateMonitor.UpdateNow();
 			}

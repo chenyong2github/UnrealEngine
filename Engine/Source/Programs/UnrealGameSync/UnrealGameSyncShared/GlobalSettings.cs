@@ -10,9 +10,9 @@ namespace UnrealGameSync
 {
 	public class FilterSettings
 	{
-		public List<Guid> IncludeCategories { get; set; } = new List<Guid>();
-		public List<Guid> ExcludeCategories { get; set; } = new List<Guid>();
-		public List<string> View { get; set; } = new List<string>();
+		public List<Guid> IncludeCategories { get; } = new List<Guid>();
+		public List<Guid> ExcludeCategories { get; } = new List<Guid>();
+		public List<string> View { get; } = new List<string>();
 		public bool? AllProjects { get; set; }
 		public bool? AllProjectsInSln { get; set; }
 
@@ -27,8 +27,11 @@ namespace UnrealGameSync
 
 		public void SetCategories(Dictionary<Guid, bool> categories)
 		{
-			IncludeCategories = categories.Where(x => x.Value).Select(x => x.Key).ToList();
-			ExcludeCategories = categories.Where(x => !x.Value).Select(x => x.Key).ToList();
+			IncludeCategories.Clear();
+			IncludeCategories.AddRange(categories.Where(x => x.Value).Select(x => x.Key));
+
+			ExcludeCategories.Clear();
+			ExcludeCategories.AddRange(categories.Where(x => !x.Value).Select(x => x.Key));
 		}
 
 		public Dictionary<Guid, bool> GetCategories()
@@ -167,7 +170,7 @@ namespace UnrealGameSync
 		public static string[] GetCombinedSyncFilter(Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToFilter, FilterSettings globalFilter, FilterSettings workspaceFilter, ConfigSection? perforceSection)
 		{
 			List<string> lines = new List<string>();
-			foreach (string viewLine in Enumerable.Concat(globalFilter.View, workspaceFilter.View).Select(x => x.Trim()).Where(x => x.Length > 0 && !x.StartsWith(";")))
+			foreach (string viewLine in Enumerable.Concat(globalFilter.View, workspaceFilter.View).Select(x => x.Trim()).Where(x => x.Length > 0 && !x.StartsWith(";", StringComparison.Ordinal)))
 			{
 				lines.Add(viewLine);
 			}
@@ -210,7 +213,7 @@ namespace UnrealGameSync
 			// need to add them manually.
 			if (lines.Count > 0 && perforceSection != null)
 			{
-				IEnumerable<string> additionalPaths = perforceSection.GetValues("AdditionalPathsToSync", new string[0]);
+				IEnumerable<string> additionalPaths = perforceSection.GetValues("AdditionalPathsToSync", Array.Empty<string>());
 				lines = lines.Concat(additionalPaths).ToList();
 			}
 

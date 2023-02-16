@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace UnrealGameSync
@@ -14,7 +13,7 @@ namespace UnrealGameSync
 	/// <summary>
 	/// Encapsulates the state of cross-process workspace lock
 	/// </summary>
-	public class WorkspaceLock : IDisposable
+	public sealed class WorkspaceLock : IDisposable
 	{
 		const string Prefix = @"Global\ugs-workspace";
 
@@ -45,11 +44,13 @@ namespace UnrealGameSync
 		/// <param name="rootDir">Root directory for the workspace</param>
 		public WorkspaceLock(DirectoryReference rootDir)
 		{
+#pragma warning disable CA5351 // Do Not Use Broken Cryptographic Algorithms
 			using (MD5 md5 = MD5.Create())
 			{
 				byte[] idBytes = Encoding.UTF8.GetBytes(rootDir.FullName.ToUpperInvariant());
 				_objectName = StringUtils.FormatHexString(md5.ComputeHash(idBytes));
 			}
+#pragma warning restore CA5351 // Do Not Use Broken Cryptographic Algorithms
 
 			_mutex = new Mutex(false, $"{Prefix}.{_objectName}.mutex");
 
@@ -81,7 +82,10 @@ namespace UnrealGameSync
 				_monitorThread = null;
 			}
 
+			_lockedEvent?.Dispose();
+
 			_acquireCancellationSource.Dispose();
+			_acquireActions.Dispose();
 			_cancelMonitorEvent.Dispose();
 			_mutex.Dispose();
 		}

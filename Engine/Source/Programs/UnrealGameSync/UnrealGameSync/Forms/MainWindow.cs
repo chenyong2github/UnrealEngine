@@ -880,7 +880,7 @@ namespace UnrealGameSync
 			ScheduleWindow schedule = new ScheduleWindow(_settings.ScheduleEnabled, _settings.ScheduleTime, _settings.ScheduleAnyOpenProject, _settings.ScheduleProjects, openProjects, projectToLatestChangeTypes);
 			if(schedule.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 			{
-				schedule.CopySettings(out _settings.ScheduleEnabled, out _settings.ScheduleTime, out _settings.ScheduleAnyOpenProject, out _settings.ScheduleProjects);
+				schedule.CopySettings(_settings);
 				_settings.Save(_logger);
 			}
 

@@ -107,7 +107,7 @@ namespace UnrealGameSync
 		public static string? ParseLine(string line, ProgressValue value)
 		{
 			string trimLine = line.Trim();
-			if(trimLine.StartsWith(DirectivePrefix))
+			if(trimLine.StartsWith(DirectivePrefix, StringComparison.Ordinal))
 			{
 				// Line that just contains a progress directive
 				bool skipLine = false;
@@ -120,14 +120,14 @@ namespace UnrealGameSync
 				string remainingLine = line;
 
 				// Look for a progress directive at the end of a line, in square brackets
-				if(trimLine.EndsWith("]"))
+				if(trimLine.EndsWith("]", StringComparison.Ordinal))
 				{
 					for(int lastIdx = trimLine.Length - 2; lastIdx >= 0 && trimLine[lastIdx] != ']'; lastIdx--)
 					{
 						if(trimLine[lastIdx] == '[')
 						{
 							string directiveSubstring = trimLine.Substring(lastIdx + 1, trimLine.Length - lastIdx - 2);
-							if(directiveSubstring.StartsWith(DirectivePrefix))
+							if(directiveSubstring.StartsWith(DirectivePrefix, StringComparison.Ordinal))
 							{
 								ProcessInternal(directiveSubstring.Substring(DirectivePrefix.Length), ref skipLine, value);
 								remainingLine = line.Substring(0, lastIdx).TrimEnd();

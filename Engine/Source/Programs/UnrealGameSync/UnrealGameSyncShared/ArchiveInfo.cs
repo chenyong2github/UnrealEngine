@@ -37,7 +37,7 @@ namespace UnrealGameSync
 		public string BasePath => DepotPath;
 
 		// TODO: executable/configuration?
-		public SortedList<int, string> ChangeNumberToFileRevision = new SortedList<int, string>();
+		public SortedList<int, string> ChangeNumberToFileRevision { get; } = new SortedList<int, string>();
 
 		public PerforceArchiveInfo(string name, string type, string depotPath, string? target)
 		{
@@ -157,7 +157,7 @@ namespace UnrealGameSync
 				}
 
 				// New style
-				foreach (string archiveValue in projectConfigSection.GetValues("Archives", new string[0]))
+				foreach (string archiveValue in projectConfigSection.GetValues("Archives", Array.Empty<string>()))
 				{
 					PerforceArchiveInfo? archive;
 					if (PerforceArchiveInfo.TryParseConfigEntry(archiveValue, out archive))
@@ -180,7 +180,7 @@ namespace UnrealGameSync
 								if (revision.Action != FileAction.Purge)
 								{
 									string[] tokens = revision.Description.Split(' ');
-									if (tokens[0].StartsWith("[CL") && tokens[1].EndsWith("]"))
+									if (tokens[0].StartsWith("[CL", StringComparison.Ordinal) && tokens[1].EndsWith("]", StringComparison.Ordinal))
 									{
 										int originalChangeNumber;
 										if (Int32.TryParse(tokens[1].Substring(0, tokens[1].Length - 1), out originalChangeNumber) && !newArchive.ChangeNumberToFileRevision.ContainsKey(originalChangeNumber))

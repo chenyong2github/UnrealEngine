@@ -118,12 +118,14 @@ namespace UnrealGameSync
 			_step.StatusText = StatusTextTextBox.Text;
 			_step.StatusPanelLink = StatusPanelLinkTextBox.Text;
 
-			if (!Int32.TryParse(DurationTextBox.Text, out _step.EstimatedDuration))
+			int estimatedDuration;
+			if (!Int32.TryParse(DurationTextBox.Text, out estimatedDuration))
 			{
-				_step.EstimatedDuration = 1;
+				estimatedDuration = 1;
 			}
+			_step.EstimatedDuration = estimatedDuration;
 
-			if(CompileRadioButton.Checked)
+			if (CompileRadioButton.Checked)
 			{
 				_step.Type = BuildStepType.Compile;
 				_step.Target = CompileTargetComboBox.Text;

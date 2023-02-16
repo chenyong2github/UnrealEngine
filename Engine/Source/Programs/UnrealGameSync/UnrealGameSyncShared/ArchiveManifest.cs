@@ -7,15 +7,16 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Text;
 
 namespace UnrealGameSync
 {
 	[DebuggerDisplay("{FileName}")]
 	public class ArchiveManifestFile
 	{
-		public string FileName;
-		public long Length;
-		public DateTime LastWriteTimeUtc;
+		public string FileName { get; }
+		public long Length { get; }
+		public DateTime LastWriteTimeUtc { get; }
 
 		public ArchiveManifestFile(BinaryReader reader)
 		{
@@ -24,11 +25,11 @@ namespace UnrealGameSync
 			LastWriteTimeUtc = new DateTime(reader.ReadInt64());
 		}
 
-		public ArchiveManifestFile(string inFileName, long inLength, DateTime inLastWriteTimeUtc)
+		public ArchiveManifestFile(string fileName, long length, DateTime lastWriteTimeUtc)
 		{
-			FileName = inFileName;
-			Length = inLength;
-			LastWriteTimeUtc = inLastWriteTimeUtc;
+			FileName = fileName;
+			Length = length;
+			LastWriteTimeUtc = lastWriteTimeUtc;
 		}
 
 		public void Write(BinaryWriter writer)
@@ -43,7 +44,7 @@ namespace UnrealGameSync
 	{
 		const int Signature = ((int)'U' << 24) | ((int)'A' << 16) | ((int)'M' << 8) | 1;
 
-		public List<ArchiveManifestFile> Files = new List<ArchiveManifestFile>();
+		public List<ArchiveManifestFile> Files { get; } = new List<ArchiveManifestFile>();
 
 		public ArchiveManifest()
 		{
@@ -51,7 +52,7 @@ namespace UnrealGameSync
 
 		public ArchiveManifest(FileStream inputStream)
 		{
-			BinaryReader reader = new BinaryReader(inputStream);
+			using BinaryReader reader = new BinaryReader(inputStream, Encoding.UTF8, true);
 			if(reader.ReadInt32() != Signature)
 			{
 				throw new Exception("Archive manifest signature does not match");
@@ -66,7 +67,7 @@ namespace UnrealGameSync
 
 		public void Write(FileStream outputStream)
 		{
-			BinaryWriter writer = new BinaryWriter(outputStream);
+			using BinaryWriter writer = new BinaryWriter(outputStream, Encoding.UTF8, true);
 			writer.Write(Signature);
 			writer.Write(Files.Count);
 			foreach(ArchiveManifestFile file in Files)
@@ -91,7 +92,7 @@ namespace UnrealGameSync
 					ArchiveManifest manifest = new ArchiveManifest();
 					foreach (ZipArchiveEntry entry in zip.Entries)
 					{
-						if (!entry.FullName.EndsWith("/") && !entry.FullName.EndsWith("\\"))
+						if (!entry.FullName.EndsWith("/", StringComparison.Ordinal) && !entry.FullName.EndsWith("\\", StringComparison.Ordinal))
 						{
 							manifest.Files.Add(new ArchiveManifestFile(entry.FullName, entry.Length, timeStamp));
 						}
@@ -110,11 +111,11 @@ namespace UnrealGameSync
 				int entryIdx = 0;
 				foreach(ZipArchiveEntry entry in zip.Entries)
 				{
-					if(!entry.FullName.EndsWith("/") && !entry.FullName.EndsWith("\\"))
+					if(!entry.FullName.EndsWith("/", StringComparison.Ordinal) && !entry.FullName.EndsWith("\\", StringComparison.Ordinal))
 					{
 						FileReference fileName = FileReference.Combine(baseDirectoryName, entry.FullName);
 						DirectoryReference.CreateDirectory(fileName.Directory);
-						logger.LogInformation("Writing {0}", fileName);
+						logger.LogInformation("Writing {FileName}", fileName);
 
 						entry.ExtractToFile(fileName.FullName, true);
 						FileReference.SetLastWriteTimeUtc(fileName, timeStamp);

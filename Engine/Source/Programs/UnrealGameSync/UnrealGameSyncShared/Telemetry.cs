@@ -31,7 +31,7 @@ namespace UnrealGameSync
 	/// <summary>
 	/// Telemetry sink that discards all events
 	/// </summary>
-	public class NullTelemetrySink : ITelemetrySink
+	public sealed class NullTelemetrySink : ITelemetrySink
 	{
 		/// <inheritdoc/>
 		public void Dispose()
@@ -47,7 +47,7 @@ namespace UnrealGameSync
 	/// <summary>
 	/// Epic internal telemetry sink using the data router
 	/// </summary>
-	public class EpicTelemetrySink : ITelemetrySink
+	public sealed class EpicTelemetrySink : ITelemetrySink
 	{
 		readonly string _url;
 		readonly ILogger _logger;
@@ -115,7 +115,7 @@ namespace UnrealGameSync
 					// Print all the events we're sending
 					foreach (string evt in events)
 					{
-						_logger.LogInformation("Sending Event: {0}", evt);
+						_logger.LogInformation("Sending Event: {Event}", evt);
 					}
 
 					// Convert the content to UTF8
@@ -137,7 +137,7 @@ namespace UnrealGameSync
 							}
 							else
 							{
-								string responseContent = response.Content.ReadAsStringAsync().Result;
+								string responseContent = await response.Content.ReadAsStringAsync();
 								_logger.LogError("Unable to send telemetry data to server ({Code}): {Message}", response.StatusCode, responseContent);
 							}
 						}

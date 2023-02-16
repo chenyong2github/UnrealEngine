@@ -138,7 +138,8 @@ namespace UnrealGameSync
 				newNotifyUnassignedMinutes = newNotifyUnassignedMinutesValue;
 			}
 
-			_settings.NotifyProjects = newNotifyProjects;
+			_settings.NotifyProjects.Clear();
+			_settings.NotifyProjects.AddRange(newNotifyProjects);
 			_settings.NotifyUnresolvedMinutes = newNotifyUnresolvedMinutes;
 			_settings.NotifyUnacknowledgedMinutes = newNotifyUnacknowledgedMinutes;
 			_settings.NotifyUnassignedMinutes = newNotifyUnassignedMinutes;

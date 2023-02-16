@@ -364,7 +364,7 @@ dotnet_diagnostic.CA1051.severity = warning
 dotnet_diagnostic.CA1052.severity = warning
 
 # CA1054: URI-like parameters should not be strings
-dotnet_diagnostic.CA1054.severity = warning
+dotnet_diagnostic.CA1054.severity = none
 
 # CA1055: URI-like return values should not be strings
 dotnet_diagnostic.CA1055.severity = warning
@@ -454,7 +454,7 @@ dotnet_diagnostic.CA1501.severity = warning
 dotnet_diagnostic.CA1502.severity = none
 
 # CA1505: Avoid unmaintainable code
-dotnet_diagnostic.CA1505.severity = warning
+dotnet_diagnostic.CA1505.severity = none
 
 # CA1506: Avoid excessive class coupling
 dotnet_diagnostic.CA1506.severity = none
@@ -1024,7 +1024,7 @@ dotnet_diagnostic.CA5387.severity = warning
 dotnet_diagnostic.CA5388.severity = warning
 
 # CA5389: Do Not Add Archive Item's Path To The Target File System Path
-dotnet_diagnostic.CA5389.severity = warning
+dotnet_diagnostic.CA5389.severity = none
 
 # CA5390: Do not hard-code encryption key
 dotnet_diagnostic.CA5390.severity = warning

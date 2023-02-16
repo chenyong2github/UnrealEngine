@@ -950,7 +950,7 @@ namespace UnrealGameSync
 					string[]? zippedBinariesSyncFilter;
 					if (TryGetProjectSetting(_perforceMonitor.LatestProjectConfigFile, "ZippedBinariesSyncFilter", out zippedBinariesSyncFilter) && zippedBinariesSyncFilter.Length > 0)
 					{
-						context.SyncFilter = Enumerable.Concat(context.SyncFilter ?? Enumerable.Empty<string>(), zippedBinariesSyncFilter).ToArray();
+						context.SyncFilter.AddRange(zippedBinariesSyncFilter);
 					}
 
 					context.ArchiveTypeToArchive[archive.Type] = new Tuple<IArchiveInfo, string>(archive, archivePath);
@@ -4979,7 +4979,8 @@ namespace UnrealGameSync
 			ArgumentsWindow arguments = new ArgumentsWindow(_settings.EditorArguments, _settings.EditorArgumentsPrompt);
 			if (arguments.ShowDialog(this) == DialogResult.OK)
 			{
-				_settings.EditorArguments = arguments.GetItems();
+				_settings.EditorArguments.Clear();
+				_settings.EditorArguments.AddRange(arguments.GetItems());
 				_settings.EditorArgumentsPrompt = arguments.PromptBeforeLaunch;
 				_settings.Save(_logger);
 				return true;
@@ -5381,7 +5382,7 @@ namespace UnrealGameSync
 					HashSet<Guid> stepSet = new HashSet<Guid> { step.UniqueId };
 
 					ConfigFile projectConfigFile = _workspace.ProjectConfigFile;
-					if (projectConfigFile != null && step.Requires.Length > 0)
+					if (projectConfigFile != null && step.Requires.Count > 0)
 					{
 						Stack<Guid> stack = new Stack<Guid>(stepSet);
 						while (stack.Count > 0)
@@ -5450,7 +5451,7 @@ namespace UnrealGameSync
 				editStepsWindow.ShowDialog();
 
 				// Update the user settings
-				List<ConfigObject> modifiedBuildSteps = new List<ConfigObject>();
+				_projectSettings.BuildSteps.Clear();
 				foreach (BuildStep step in userSteps)
 				{
 					if (step.IsValid())
@@ -5461,13 +5462,12 @@ namespace UnrealGameSync
 						ConfigObject? userConfigObject = step.ToConfigObject(defaultObject);
 						if (userConfigObject != null && userConfigObject.Pairs.Any(x => x.Key != "UniqueId"))
 						{
-							modifiedBuildSteps.Add(userConfigObject);
+							_projectSettings.BuildSteps.Add(userConfigObject);
 						}
 					}
 				}
 
 				// Save the settings
-				_projectSettings.BuildSteps = modifiedBuildSteps;
 				_projectSettings.Save(_logger);
 
 				// Update the custom tools menu, because we might have changed it
@@ -5943,7 +5943,11 @@ namespace UnrealGameSync
 				changeNumberToBisectState[changeNumberToBisectState.Keys.Min()] = BisectState.Pass;
 				changeNumberToBisectState[changeNumberToBisectState.Keys.Max()] = BisectState.Fail;
 
-				_workspace.ModifyState(x => x.BisectChanges = changeNumberToBisectState.Select(x => new BisectEntry { Change = x.Key, State = x.Value }).ToList());
+				_workspace.ModifyState(state =>
+				{
+					state.BisectChanges.Clear();
+					state.BisectChanges.AddRange(changeNumberToBisectState.Select(x => new BisectEntry { Change = x.Key, State = x.Value }));
+				});
 			}
 		}
 

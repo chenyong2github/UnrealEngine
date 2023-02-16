@@ -113,26 +113,25 @@ namespace UnrealGameSync
 			}
 		}
 
-		public void CopySettings(out bool outEnabled, out TimeSpan outTime, out bool outAnyOpenProject, out List<UserSelectedProjectSettings> outScheduledProjects)
+		public void CopySettings(UserSettings settings)
 		{
-			outEnabled = EnableCheckBox.Checked;
-			outTime = TimePicker.Value.TimeOfDay;
+			settings.ScheduleEnabled = EnableCheckBox.Checked;
+			settings.ScheduleTime = TimePicker.Value.TimeOfDay;
 
-			outAnyOpenProject = false;
+			settings.ScheduleAnyOpenProject = false;
+			settings.ScheduleProjects.Clear();
 
-			List<UserSelectedProjectSettings> scheduledProjects = new List<UserSelectedProjectSettings>();
 			foreach(int index in ProjectListBox.CheckedIndices.OfType<int>())
 			{
 				if(index == 0)
 				{
-					outAnyOpenProject = true;
+					settings.ScheduleAnyOpenProject = true;
 				}
 				else
 				{
-					scheduledProjects.Add((UserSelectedProjectSettings)ProjectListBox.Items[index]);
+					settings.ScheduleProjects.Add((UserSelectedProjectSettings)ProjectListBox.Items[index]);
 				}
 			}
-			outScheduledProjects = scheduledProjects;
 		}
 
 		private void EnableCheckBox_CheckedChanged(object sender, EventArgs e)

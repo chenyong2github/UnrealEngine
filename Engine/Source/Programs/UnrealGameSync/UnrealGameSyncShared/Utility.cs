@@ -257,10 +257,10 @@ namespace UnrealGameSync
 		public static string ExpandVariables(string inputString, Dictionary<string, string>? additionalVariables = null)
 		{
 			string result = inputString;
-			for (int idx = result.IndexOf("$("); idx != -1; idx = result.IndexOf("$(", idx))
+			for (int idx = result.IndexOf("$(", StringComparison.Ordinal); idx != -1; idx = result.IndexOf("$(", idx, StringComparison.Ordinal))
 			{
 				// Find the end of the variable name
-				int endIdx = result.IndexOf(')', idx + 2);
+				int endIdx = result.IndexOf(")", idx + 2, StringComparison.Ordinal);
 				if (endIdx == -1)
 				{
 					break;
@@ -271,7 +271,7 @@ namespace UnrealGameSync
 
 				// Strip the format from the name
 				string? format = null;
-				int formatIdx = name.IndexOf(':');
+				int formatIdx = name.IndexOf(':', StringComparison.Ordinal);
 				if(formatIdx != -1)
 				{ 
 					format = name.Substring(formatIdx + 1);
@@ -293,7 +293,7 @@ namespace UnrealGameSync
 				// Encode the variable if necessary
 				if(format != null)
 				{
-					if(String.Equals(format, "URI", StringComparison.InvariantCultureIgnoreCase))
+					if(String.Equals(format, "URI", StringComparison.OrdinalIgnoreCase))
 					{
 						value = Uri.EscapeDataString(value);
 					}
@@ -473,7 +473,7 @@ namespace UnrealGameSync
 				}
 				else
 				{
-					string[] lines = await FileReference.ReadAllLinesAsync(tempFile);
+					string[] lines = await FileReference.ReadAllLinesAsync(tempFile, cancellationToken);
 					try
 					{
 						FileReference.SetAttributes(tempFile, FileAttributes.Normal);
