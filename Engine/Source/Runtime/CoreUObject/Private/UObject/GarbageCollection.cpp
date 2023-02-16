@@ -4423,7 +4423,7 @@ FString FGarbageReferenceInfo::GetReferencingObjectInfo() const
 	else
 	{
 		return FString::Printf(TEXT("%s->AddRereferencedObjects"),
-			*Referencer.GCObject->GetReferencerName()
+			Referencer.GCObject ? *Referencer.GCObject->GetReferencerName() : TEXT("Unknown")
 			);
 	}
 }
