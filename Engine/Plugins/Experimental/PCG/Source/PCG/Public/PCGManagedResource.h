@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PCGCrc.h"
 
 #include "PCGManagedResource.generated.h"
 
@@ -29,6 +30,7 @@ public:
 	virtual bool ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete);
 
 	virtual void MarkAsUsed() { bIsMarkedUnused = false; }
+	virtual void MarkAsReused() { ensure(bIsMarkedUnused); bIsMarkedUnused = false; }
 	bool IsMarkedUnused() const { return bIsMarkedUnused; }
 
 	/** Move the given resource to a new actor. Return true if it has succeeded */
@@ -36,7 +38,13 @@ public:
 
 	static bool DebugForcePurgeAllResourcesOnGenerate();
 
+	const FPCGCrc& GetCrc() const { return Crc; }
+	void SetCrc(const FPCGCrc& InCrc) { Crc = InCrc; }
+
 protected:
+	UPROPERTY(VisibleAnywhere, Category = GeneratedData)
+	FPCGCrc Crc;
+
 	UPROPERTY(Transient, VisibleAnywhere, Category = GeneratedData)
 	bool bIsMarkedUnused = false;
 };

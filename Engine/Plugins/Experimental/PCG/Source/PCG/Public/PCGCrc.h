@@ -6,9 +6,14 @@
 #include "Templates/TypeHash.h"
 #include "UObject/NameTypes.h"
 
+#include "PCGCrc.generated.h"
+
 /** Crc with valid flag and helper functionality. */
+USTRUCT()
 struct PCG_API FPCGCrc
 {
+	GENERATED_BODY()
+
 	/** Creates an invalid Crc. */
 	FPCGCrc() = default;
 
@@ -67,7 +72,9 @@ struct PCG_API FPCGCrc
 
 private:
 	/** Crc32 value. */
+	UPROPERTY(VisibleAnywhere, Category = Crc)
 	uint32 Value = 0;
 
+	UPROPERTY(VisibleAnywhere, Category = Crc)
 	bool bValid = false;
 };

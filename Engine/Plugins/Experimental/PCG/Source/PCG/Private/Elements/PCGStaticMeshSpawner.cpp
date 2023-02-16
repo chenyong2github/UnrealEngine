@@ -2,6 +2,8 @@
 
 #include "Elements/PCGStaticMeshSpawner.h"
 
+#include "PCGComponent.h"
+#include "PCGManagedResource.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGActorHelpers.h"
@@ -15,6 +17,11 @@
 #include "Materials/MaterialInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGStaticMeshSpawner)
+
+static TAutoConsoleVariable<bool> CVarAllowISMReuse(
+	TEXT("pcg.ISM.AllowReuse"),
+	false,
+	TEXT("Controls whether ISMs can be reused and skipped when re-executing"));
 
 UPCGStaticMeshSpawnerSettings::UPCGStaticMeshSpawnerSettings(const FObjectInitializer &ObjectInitializer)
 {
@@ -49,9 +56,10 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 		return true;
 	}
 
-	// perform mesh selection
-	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+	if (!Context->SourceComponent.Get())
+	{
+		return true;
+	}
 
 #if WITH_EDITOR
 	// In editor, we always want to generate this data for inspection & to prevent caching issues
@@ -59,6 +67,53 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 #else
 	const bool bGenerateOutput = Context->Node && Context->Node->IsOutputPinConnected(PCGPinConstants::DefaultOutputLabel);
 #endif
+
+	// Check if we can reuse existing resources
+	bool bSkippedDueToReuse = false;
+
+	if (CVarAllowISMReuse.GetValueOnAnyThread())
+	{
+		// Compute CRC if it has not been computed (it likely isn't, but this is to futureproof this)
+		if (!Context->DependenciesCrc.IsValid())
+		{
+			GetDependenciesCrc(Context->InputData, Settings, Context->SourceComponent.Get(), Context->DependenciesCrc);
+		}
+		
+		if (Context->DependenciesCrc.IsValid())
+		{
+			TArray<UPCGManagedISMComponent*> MISMCs;
+			Context->SourceComponent->ForEachManagedResource([&MISMCs, &Context](UPCGManagedResource* InResource)
+			{
+				if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
+				{
+					if (Resource->GetCrc().IsValid() && Resource->GetCrc() == Context->DependenciesCrc)
+					{
+						MISMCs.Add(Resource);
+					}
+				}
+			});
+
+			for (UPCGManagedISMComponent* MISMC : MISMCs)
+			{
+				MISMC->MarkAsReused();
+			}
+
+			if (!MISMCs.IsEmpty())
+			{
+				bSkippedDueToReuse = true;
+			}
+		}
+	}
+
+	// Early out - if we've established we could reuse resources and there is no need to generate an output, quit now
+	if (!bGenerateOutput && bSkippedDueToReuse)
+	{
+		return true;
+	}
+
+	// perform mesh selection
+	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
 	for (const FPCGTaggedData& Input : Inputs)
 	{
@@ -76,7 +131,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 			continue;
 		}
 
-		AActor* TargetActor = PointData->TargetActor.Get();
+		AActor* TargetActor = Context->GetTargetActor(PointData);
 		if (!TargetActor)
 		{
 			PCGE_LOG(Error, "Invalid target actor");
@@ -106,6 +161,12 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 		TArray<FPCGMeshInstanceList> MeshInstances;
 		Settings->MeshSelectorInstance->SelectInstances(*Context, Settings, PointData, MeshInstances, OutputPointData);
 
+		// If we need the output but would otherwise skip the resource creation, just don't push them to the MeshInstancesData array
+		if (bSkippedDueToReuse)
+		{
+			continue;
+		}
+
 		TArray<FPCGPackedCustomData> PackedCustomData;
 		PackedCustomData.SetNum(MeshInstances.Num());
 		if (Settings->InstancePackerInstance)
@@ -117,6 +178,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 		}
 
 		FPCGStaticMeshSpawnerContext::FPackedInstanceListData& InstanceListData = Context->MeshInstancesData.Emplace_GetRef();
+		InstanceListData.TargetActor = TargetActor;
 		InstanceListData.SpatialData = PointData;
 		InstanceListData.MeshInstances = MoveTemp(MeshInstances);
 		InstanceListData.PackedCustomData = MoveTemp(PackedCustomData);
@@ -137,13 +199,13 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* InContext) const
 		const FPCGStaticMeshSpawnerContext::FPackedInstanceListData& InstanceList = Context->MeshInstancesData.Last();
 		check(InstanceList.MeshInstances.Num() == InstanceList.PackedCustomData.Num());
 
-		const bool bTargetActorValid = InstanceList.SpatialData->TargetActor.IsValid();
+		const bool bTargetActorValid = (InstanceList.TargetActor && IsValid(InstanceList.TargetActor));
 
 		if (bTargetActorValid)
 		{
 			while (Context->CurrentDataIndex < InstanceList.MeshInstances.Num())
 			{
-				SpawnStaticMeshInstances(Context, InstanceList.MeshInstances[Context->CurrentDataIndex], InstanceList.SpatialData->TargetActor.Get(), InstanceList.PackedCustomData[Context->CurrentDataIndex]);
+				SpawnStaticMeshInstances(Context, InstanceList.MeshInstances[Context->CurrentDataIndex], InstanceList.TargetActor, InstanceList.PackedCustomData[Context->CurrentDataIndex]);
 				++Context->CurrentDataIndex;
 
 				if (Context->ShouldStop())
@@ -230,7 +292,13 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 		Params.Mobility = SceneComponent->Mobility;
 	}
 
-	UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params);
+	UPCGManagedISMComponent* MISMC = UPCGActorHelpers::GetOrCreateManagedISMC(TargetActor, Context->SourceComponent.Get(), Params);
+	check(MISMC);
+
+	MISMC->SetCrc(Context->DependenciesCrc);
+
+	UInstancedStaticMeshComponent* ISMC = MISMC->GetComponent();
+	check(ISMC);
 
 	const int32 PreExistingInstanceCount = ISMC->GetInstanceCount();
 	const int32 NewInstanceCount = InstanceList.Instances.Num();

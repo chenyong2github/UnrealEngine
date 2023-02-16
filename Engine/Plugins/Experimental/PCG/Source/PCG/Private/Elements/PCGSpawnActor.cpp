@@ -6,7 +6,7 @@
 #include "PCGGraph.h"
 #include "PCGHelpers.h"
 #include "PCGManagedResource.h"
-
+#include "PCGSubsystem.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Grid/PCGPartitionActor.h"
@@ -360,7 +360,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		AActor* TargetActor = SpatialData->TargetActor.Get();
+		AActor* TargetActor = Context->GetTargetActor(SpatialData);
 
 		if (!TargetActor)
 		{
@@ -521,6 +521,8 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 						TArray<UPCGComponent*> PCGComponents;
 						GeneratedActor->GetComponents(PCGComponents);
 
+						UPCGSubsystem* Subsystem = Context->SourceComponent.Get() ? Context->SourceComponent->GetSubsystem() : nullptr;
+
 						for (UPCGComponent* PCGComponent : PCGComponents)
 						{
 							if (Settings->Option == EPCGSpawnActorOption::NoMerging)
@@ -532,6 +534,11 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 								if(bForceCallGenerate || (bOnLoadCallGenerate && PCGComponent->GenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnLoad))
 								{
+									if (Subsystem && PCGComponent->IsPartitioned())
+									{
+										Subsystem->RegisterOrUpdatePCGComponent(PCGComponent);
+									}
+									
 									PCGComponent->Generate();
 								}
 							}

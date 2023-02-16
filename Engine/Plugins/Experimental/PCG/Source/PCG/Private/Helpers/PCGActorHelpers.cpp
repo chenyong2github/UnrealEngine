@@ -105,6 +105,19 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 
 UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
 {
+	UPCGManagedISMComponent* MISMC = GetOrCreateManagedISMC(InTargetActor, InSourceComponent, InParams);
+	if (MISMC)
+	{
+		return MISMC->GetComponent();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
+{
 	UStaticMesh* InMesh = InParams.Mesh;
 	const TArray<UMaterialInterface*>& InMaterials = InParams.MaterialOverrides;
 	const int32 InNumCustomDataFloats = InParams.NumCustomDataFloats;
@@ -167,9 +180,8 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 
 			if (bMaterialsMatched)
 			{
-				// In this case, we make sure to mark the managed resource as used
 				MISMC->MarkAsUsed();
-				return ISMC;
+				return MISMC;
 			}
 		}
 	}
@@ -240,7 +252,7 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 	Resource->GeneratedComponent = ISMC;
 	InSourceComponent->AddToManagedResources(Resource);
 
-	return ISMC;
+	return Resource;
 }
 
 bool UPCGActorHelpers::DeleteActors(UWorld* World, const TArray<TSoftObjectPtr<AActor>>& ActorsToDelete)

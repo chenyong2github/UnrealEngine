@@ -107,7 +107,8 @@ struct FPCGStaticMeshSpawnerContext : public FPCGContext
 	{
 		FPackedInstanceListData();
 		~FPackedInstanceListData();
-		const UPCGSpatialData* SpatialData;
+		AActor* TargetActor = nullptr;
+		const UPCGSpatialData* SpatialData = nullptr;
 		TArray<FPCGMeshInstanceList> MeshInstances;
 		TArray<FPCGPackedCustomData> PackedCustomData;
 	};

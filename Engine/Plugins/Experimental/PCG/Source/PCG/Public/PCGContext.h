@@ -9,6 +9,7 @@
 
 class UPCGComponent;
 class UPCGSettingsInterface;
+class UPCGSpatialData;
 struct FPCGGraphCache;
 struct FPCGSettingsOverridableParam;
 
@@ -91,6 +92,8 @@ struct PCG_API FPCGContext
 	FString GetTaskName() const;
 	FString GetComponentName() const;
 	bool ShouldStop() const;
+
+	AActor* GetTargetActor(const UPCGSpatialData* InSpatialData) const;
 
 protected:
 	virtual UObject* GetExternalContainerForOverridableParam(const FPCGSettingsOverridableParam& InParam) { return nullptr; }

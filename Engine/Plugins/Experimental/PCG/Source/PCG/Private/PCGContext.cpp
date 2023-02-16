@@ -5,6 +5,7 @@
 #include "PCGHelpers.h"
 #include "PCGParamData.h"
 #include "PCGPin.h"
+#include "Data/PCGSpatialData.h"
 #include "Metadata/PCGAttributePropertySelector.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
@@ -76,6 +77,18 @@ FString FPCGContext::GetComponentName() const
 bool FPCGContext::ShouldStop() const
 {
 	return FPlatformTime::Seconds() > EndTime;
+}
+
+AActor* FPCGContext::GetTargetActor(const UPCGSpatialData* InSpatialData) const
+{
+	if (SourceComponent.IsValid() && SourceComponent->GetOwner())
+	{
+		return SourceComponent->GetOwner();
+	}
+	else
+	{
+		return InSpatialData ? InSpatialData->TargetActor.Get() : nullptr;
+	}
 }
 
 const UPCGSettingsInterface* FPCGContext::GetInputSettingsInterface() const

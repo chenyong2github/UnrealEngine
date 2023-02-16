@@ -15,6 +15,7 @@ class UInstancedStaticMeshComponent;
 class ULevel;
 class UMaterialInterface;
 class UPCGComponent;
+class UPCGManagedISMComponent;
 class UStaticMesh;
 class UWorld;
 struct FISMComponentDescriptor;
@@ -40,6 +41,7 @@ class PCG_API UPCGActorHelpers : public UBlueprintFunctionLibrary
 public:
 	static UInstancedStaticMeshComponent* GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FISMComponentDescriptor& InISMCDescriptor);
 	static UInstancedStaticMeshComponent* GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* SourceComponent, const FPCGISMCBuilderParameters& Params);
+	static UPCGManagedISMComponent* GetOrCreateManagedISMC(AActor* InTargetActor, UPCGComponent* SourceComponent, const FPCGISMCBuilderParameters& Params);
 	static bool DeleteActors(UWorld* World, const TArray<TSoftObjectPtr<AActor>>& ActorsToDelete);
 
 	/**
