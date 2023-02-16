@@ -58,7 +58,6 @@
 #include "Chaos/HeightField.h"
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "PhysicsEngine/Experimental/ChaosDerivedData.h"
 #include "PhysicsEngine/Experimental/ChaosCooking.h"
 #include "Chaos/ChaosArchive.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"

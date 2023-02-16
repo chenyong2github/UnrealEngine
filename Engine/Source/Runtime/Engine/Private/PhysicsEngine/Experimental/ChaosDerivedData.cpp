@@ -5,7 +5,7 @@
 #include "Chaos/TriangleMeshImplicitObject.h"
 
 #include "Serialization/MemoryWriter.h"
-#include "ChaosCooking.h"
+#include "PhysicsEngine/Experimental/ChaosCooking.h"
 
 class FChaosDerivedDataCookerRefHolder : public FGCObject
 {
