@@ -1337,8 +1337,40 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	// coupled to your new system, and you should not create a dependency on your new system from AssetTools.
 }
 
+void UAssetToolsImpl::RemoveAssetTypeActionBySupportedClass(const UClass* SupportedClass)
+{
+	// Swap and pop the removed with the end, fixing up the lookup map if required
+	if (const int* IndexPtr = AssetTypeActionsLookup.Find(SupportedClass))
+	{
+		const int LastIndex = AssetTypeActionsList.Num() - 1;
+		const int Index = *IndexPtr;
+
+		AssetTypeActionsLookup.Remove(SupportedClass);
+		
+		if (LastIndex != Index)
+		{
+			TSharedRef<IAssetTypeActions>& Last = AssetTypeActionsList.Last();
+			AssetTypeActionsLookup.Add(Last->GetSupportedClass(), Index);
+			AssetTypeActionsList[Index] = MoveTemp(Last);
+		}
+
+		AssetTypeActionsList.Pop();
+	}
+
+	verify(AssetTypeActionsLookup.Num() == AssetTypeActionsList.Num());
+}
+
+
 void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions)
 {
+	UClass* SupportedClass = NewActions->GetSupportedClass();
+
+	// If there is a duplicate AssetTypeActions registered, remove it
+	// only the most recent one will be used
+	RemoveAssetTypeActionBySupportedClass(SupportedClass);
+	
+	const int Index = AssetTypeActionsList.Num();
+	AssetTypeActionsLookup.Add(SupportedClass, Index);
 	AssetTypeActionsList.Add(NewActions);
 
 	if (!NewActions->IsAssetDefinitionInDisguise())
@@ -1378,8 +1410,9 @@ void UAssetToolsImpl::SyncAssetTypesToAssetDefinitions() const
 }
 
 void UAssetToolsImpl::UnregisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& ActionsToRemove)
-{
-	AssetTypeActionsList.Remove(ActionsToRemove);
+{	
+	const UClass* SupportedClass = ActionsToRemove->GetSupportedClass();
+	RemoveAssetTypeActionBySupportedClass(SupportedClass);
 
 	// Now also remove the proxy AssetDefinition we registered for this type.
 	for (UAssetDefinition* AssetDefinition : UAssetDefinitionRegistry::Get()->GetAllAssetDefinitions())
@@ -1406,29 +1439,24 @@ void UAssetToolsImpl::GetAssetTypeActionsList( TArray<TWeakPtr<IAssetTypeActions
 
 TWeakPtr<IAssetTypeActions> UAssetToolsImpl::GetAssetTypeActionsForClass(const UClass* Class) const
 {
-	if (!Class)
-	{
-		return TSharedPtr<IAssetTypeActions>();
-	}
-
-	TSharedPtr<IAssetTypeActions> MostDerivedAssetTypeActions;
-
 	SyncAssetTypesToAssetDefinitions();
-	for (int32 TypeActionsIdx = 0; TypeActionsIdx < AssetTypeActionsList.Num(); ++TypeActionsIdx)
-	{
-		TSharedRef<IAssetTypeActions> TypeActions = AssetTypeActionsList[TypeActionsIdx];
-		UClass* SupportedClass = TypeActions->GetSupportedClass();
 
-		if ( Class->IsChildOf(SupportedClass) )
+	const UClass* CandidateClass = Class;
+	
+	while (CandidateClass)
+	{
+		const int* Index = AssetTypeActionsLookup.Find(CandidateClass);
+		if (Index)
 		{
-			if ( !MostDerivedAssetTypeActions.IsValid() || SupportedClass->IsChildOf( MostDerivedAssetTypeActions->GetSupportedClass() ) )
-			{
-				MostDerivedAssetTypeActions = TypeActions;
-			}
+			TWeakPtr<IAssetTypeActions> TypeActions = AssetTypeActionsList[*Index];
+			return TypeActions;
 		}
+
+		// Walk up the class hierarchy until we find the most derived ClassTypeAction
+		CandidateClass = CandidateClass->GetSuperClass();
 	}
 
-	return MostDerivedAssetTypeActions;
+	return nullptr;
 }
 
 bool UAssetToolsImpl::CanLocalize(const UClass* Class) const

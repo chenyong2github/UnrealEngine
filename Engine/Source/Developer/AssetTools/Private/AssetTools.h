@@ -221,9 +221,15 @@ private:
 	/** Make sure we're not syncing */
 	void SyncAssetTypesToAssetDefinitions() const;
 
+	/** Helper to remove an entry AssetTypeActionsList given a class returned by GetSupportedClass */
+	void RemoveAssetTypeActionBySupportedClass(const UClass* SupportedClass);
+
 private:
 	/** The list of all registered AssetTypeActions */
 	TArray<TSharedRef<IAssetTypeActions>> AssetTypeActionsList;
+
+	/** Lookup of the index into AssetTypeActionsList given the SupportedClass of a registered IAssetTypeActions */
+	TMap<const UClass*, int> AssetTypeActionsLookup;
 
 	/** The list of all registered ClassTypeActions */
 	TArray<TSharedRef<IClassTypeActions>> ClassTypeActionsList;
