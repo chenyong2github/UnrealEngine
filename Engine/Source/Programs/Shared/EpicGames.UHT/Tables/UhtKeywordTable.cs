@@ -42,6 +42,11 @@ namespace EpicGames.UHT.Tables
 		/// If true, do not include in usage errors
 		/// </summary>
 		public bool DisableUsageError { get; set; } = false;
+
+		/// <summary>
+		/// List of the allowed compiler directives. 
+		/// </summary>
+		public UhtCompilerDirective AllowedCompilerDirectives { get; set; } = UhtCompilerDirective.DefaultAllowedCheck;
 	}
 
 	/// <summary>
@@ -106,6 +111,11 @@ namespace EpicGames.UHT.Tables
 		public bool DisableUsageError { get; }
 
 		/// <summary>
+		/// List of the allowed compiler directives. 
+		/// </summary>
+		public UhtCompilerDirective AllowedCompilerDirectives { get; }
+
+		/// <summary>
 		/// Construct a new keyword
 		/// </summary>
 		/// <param name="name">Name of the keyword</param>
@@ -120,12 +130,14 @@ namespace EpicGames.UHT.Tables
 				AllowText = attribute.AllowText;
 				AllScopes = attribute.AllScopes;
 				DisableUsageError = attribute.DisableUsageError;
+				AllowedCompilerDirectives = attribute.AllowedCompilerDirectives;
 			}
 			else
 			{
 				AllowText = null;
 				AllScopes = false;
 				DisableUsageError = false;
+				AllowedCompilerDirectives = UhtCompilerDirective.DefaultAllowedCheck;
 			}
 		}
 	}
