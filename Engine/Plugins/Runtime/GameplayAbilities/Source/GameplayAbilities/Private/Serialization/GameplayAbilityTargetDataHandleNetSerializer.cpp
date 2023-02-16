@@ -177,12 +177,7 @@ bool FGameplayAbilityTargetDataHandleNetSerializer::IsEqual(FNetSerializationCon
 
 bool FGameplayAbilityTargetDataHandleNetSerializer::Validate(FNetSerializationContext& Context, const FNetValidateArgs& Args)
 {
-	FQuantizedType& SourceValue = *reinterpret_cast<FQuantizedType*>(Args.Source);
-
-	// Forward
-	FNetValidateArgs InternalArgs = Args;
-	InternalArgs.Source = NetSerializerValuePointer(&SourceValue.InternalQuantizedType);
-	return InternalSerializerType::Validate(Context, InternalArgs);
+	return InternalSerializerType::Validate(Context, Args);
 }
 
 void FGameplayAbilityTargetDataHandleNetSerializer::CloneDynamicState(FNetSerializationContext& Context, const FNetCloneDynamicStateArgs& Args)
