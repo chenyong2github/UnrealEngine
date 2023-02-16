@@ -69,6 +69,8 @@ public:
 		BoundsMax = Center + InExtents;
 	}
 
+	FVector GetScaledExtents() const { return GetExtents() * Transform.GetScale3D(); }
+
 	FVector GetLocalCenter() const { return (BoundsMax + BoundsMin) / 2.0; }
 	void SetLocalCenter(const FVector& InCenter)
 	{
