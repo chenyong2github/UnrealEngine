@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetSearchCommands.h"
+#include "Styling/AppStyle.h" 
 
 #define LOCTEXT_NAMESPACE "AssetSearchCommands"
 
