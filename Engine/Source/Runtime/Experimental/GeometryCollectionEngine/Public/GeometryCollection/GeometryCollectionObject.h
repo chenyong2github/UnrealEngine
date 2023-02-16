@@ -48,7 +48,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 	bool bAddInternalMaterials = true;
 
 	/** Whether individual source mesh components should be split into separate pieces of geometry based on mesh connectivity. If checked, triangles that are not topologically connected will be assigned separate bones. (For non-Geometry Collection inputs only.) */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource", DisplayName = "Split Meshes")
 	bool bSplitComponents = false;
 
 	/** Whether to set the 'internal' flag for faces with odd-numbered materials slots. */

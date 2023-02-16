@@ -306,7 +306,7 @@ void SCreateGeometryCollectionFromObject::Construct(const FArguments& InArgs, TS
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("SplitComponentsLabel", "Split Components"))
+						.Text(LOCTEXT("SplitMeshesLabel", "Split Meshes"))
 						.ToolTipText(LOCTEXT("SplitComponentsToolTip", "If checked, triangles that are not topologically connected will be assigned separate bones on import. Does not apply if creating from a Geometry Collection source."))
 					]
 
