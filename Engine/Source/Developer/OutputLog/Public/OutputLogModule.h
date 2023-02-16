@@ -13,6 +13,7 @@ class SOutputLog;
 class SDockTab;
 class FSpawnTabArgs;
 struct FOutputLogCreationParams;
+struct FOutputLogFilter;
 
 /** Style of the debug console */
 namespace EDebugConsoleStyle
@@ -81,11 +82,16 @@ public:
 
 private:
 	TSharedRef<SDockTab> SpawnOutputLogTab(const FSpawnTabArgs& Args);
+	void OnOutputLogTabClosed(TSharedRef<SDockTab> Tab);
+
 	TSharedRef<SDockTab> SpawnDeviceOutputLogTab(const FSpawnTabArgs& Args);
 
 private:
 	/** Our global output log app spawner */
 	TSharedPtr<FOutputLogHistory> OutputLogHistory;
+
+	/** Caches the user selected Filters as the OutputLog tab can be closed and remade multiple times */
+	TUniquePtr<FOutputLogFilter> OutputLogFilterCache;
 
 	/** Our global active output log that belongs to a tab */
 	TWeakPtr<SOutputLog> OutputLog;

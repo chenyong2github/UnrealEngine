@@ -274,6 +274,8 @@ struct FOutputLogFilter
 
 	const TArray<FName>& GetAvailableLogCategories() { return AvailableLogCategories; }
 
+	const TArray<FName>& GetSelectedLogCategories() { return SelectedLogCategories; }
+
 	/** Adds a Log Category to the list of available categories, if it isn't already present */
 	void AddAvailableLogCategory(const FName& LogCategory);
 
@@ -310,7 +312,7 @@ public:
 	SLATE_BEGIN_ARGS( SOutputLog )
 		: _Messages()
 		{}
-		
+
 		SLATE_EVENT(FSimpleDelegate, OnCloseConsole)
 
 		/** All messages captured before this log window has been created */
@@ -375,6 +377,8 @@ public:
 
 	/** Change the output log's filter. If CategoriesToShow is empty, all categories will be shown. */
 	void UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors = TOptional<bool>(), TOptional<bool> bShowWarnings = TOptional<bool>(), TOptional<bool> bShowLogs = TOptional<bool>());
+
+	const FOutputLogFilter& GetOutputLogFilter() { return Filter; }
 protected:
 
 	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
