@@ -129,7 +129,7 @@ namespace UnrealGameSync
 
 		public static bool? ShowModal(IWin32Window owner, IPerforceSettings defaultPerforceSettings, bool preview, string originalExecutableFileName, UserSettings settings, ToolUpdateMonitor toolUpdateMonitor, ILogger<ApplicationSettingsWindow> logger)
 		{
-			ApplicationSettingsWindow applicationSettings = new ApplicationSettingsWindow(defaultPerforceSettings, preview, originalExecutableFileName, settings, toolUpdateMonitor, logger);
+			using ApplicationSettingsWindow applicationSettings = new ApplicationSettingsWindow(defaultPerforceSettings, preview, originalExecutableFileName, settings, toolUpdateMonitor, logger);
 			if(applicationSettings.ShowDialog(owner) == DialogResult.OK)
 			{
 				return applicationSettings._restartPreview;
@@ -140,7 +140,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private bool IsAutomaticallyRunAtStartup()
+		private static bool IsAutomaticallyRunAtStartup()
 		{
 			RegistryKey? key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
 			return (key?.GetValue("UnrealGameSync") != null);
@@ -269,7 +269,7 @@ namespace UnrealGameSync
 
 		private void AdvancedBtn_Click(object sender, EventArgs e)
 		{
-			PerforceSyncSettingsWindow window = new PerforceSyncSettingsWindow(_settings, _logger);
+			using PerforceSyncSettingsWindow window = new PerforceSyncSettingsWindow(_settings, _logger);
 			window.ShowDialog();
 		}
 	}

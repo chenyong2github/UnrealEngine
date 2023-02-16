@@ -92,7 +92,7 @@ namespace UnrealGameSync.Forms
 				}
 			}
 
-			AutomatedBuildWindow window = new AutomatedBuildWindow(streamName, changelist, command, defaultPerforceSettings, defaultWorkspaceName, defaultProjectPath, loggerFactory);
+			using AutomatedBuildWindow window = new AutomatedBuildWindow(streamName, changelist, command, defaultPerforceSettings, defaultWorkspaceName, defaultProjectPath, loggerFactory);
 			if (window.ShowDialog() == DialogResult.OK)
 			{
 				buildInfo = window._result!;

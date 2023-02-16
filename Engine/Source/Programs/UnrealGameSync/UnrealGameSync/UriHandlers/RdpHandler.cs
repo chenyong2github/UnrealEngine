@@ -109,7 +109,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		[UriHandler(Terminate = true)]
+		[UriHandler(terminate: true)]
 		public static UriResult Rdp(string host)
 		{
 			// Copy the credentials from a generic Windows credential to 

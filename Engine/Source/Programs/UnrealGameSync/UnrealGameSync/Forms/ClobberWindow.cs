@@ -28,7 +28,7 @@ namespace UnrealGameSync
 				item.SubItems.Add(Path.GetDirectoryName(fileToClobber.Key));
 				FileList.Items.Add(item);
 
-				if (inUncontrolledFiles.Contains(fileToClobber.Key.Replace("\\", "/")))
+				if (inUncontrolledFiles.Contains(fileToClobber.Key.Replace("\\", "/", StringComparison.Ordinal)))
 				{
 					uncontrolledChangeFound = true;
 					item.ForeColor = Color.Red;

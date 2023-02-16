@@ -167,7 +167,7 @@ namespace UnrealGameSync
 				TreeNode node = FindOrAddChildNode(projectParentNodes[idx], projectNodes[idx].Name, 1);
 				node.Tag = projectNodes[idx].FullName;
 
-				if(String.Compare(projectNodes[idx].FullName, _selectedProjectFile, StringComparison.InvariantCultureIgnoreCase) == 0)
+				if(String.Equals(projectNodes[idx].FullName, _selectedProjectFile, StringComparison.OrdinalIgnoreCase))
 				{
 					ProjectTreeView.SelectedNode = node;
 					for(TreeNode parentNode = node.Parent; parentNode != rootNode; parentNode = parentNode.Parent)
@@ -182,7 +182,7 @@ namespace UnrealGameSync
 		{
 			foreach(TreeNode? childNode in parentNode.Nodes)
 			{
-				if(childNode != null && String.Compare(childNode.Text, text, StringComparison.InvariantCultureIgnoreCase) == 0)
+				if(childNode != null && String.Equals(childNode.Text, text, StringComparison.OrdinalIgnoreCase))
 				{
 					return childNode;
 				}
@@ -208,7 +208,7 @@ namespace UnrealGameSync
 				return false;
 			}
 
-			SelectProjectFromWorkspaceWindow selectProjectWindow = new SelectProjectFromWorkspaceWindow(workspaceName, pathsTask.Result, workspacePath);
+			using SelectProjectFromWorkspaceWindow selectProjectWindow = new SelectProjectFromWorkspaceWindow(workspaceName, pathsTask.Result, workspacePath);
 			if(selectProjectWindow.ShowDialog() == DialogResult.OK && !String.IsNullOrEmpty(selectProjectWindow._selectedProjectFile))
 			{
 				newWorkspacePath = selectProjectWindow._selectedProjectFile;

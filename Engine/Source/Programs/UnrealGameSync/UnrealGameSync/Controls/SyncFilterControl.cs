@@ -27,7 +27,7 @@ namespace UnrealGameSync.Controls
 
 		private void SyntaxButton_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			SyncFilterSyntax dialog = new SyncFilterSyntax();
+			using SyncFilterSyntax dialog = new SyncFilterSyntax();
 			dialog.ShowDialog(ParentForm);
 		}
 

@@ -49,7 +49,7 @@ namespace UnrealGameSync
 
 				foreach (ParameterInfo param in info.GetParameters())
 				{					
-					string value = query.Get(param.Name);
+					string? value = query.Get(param.Name);
 
 					if (value == null)
 					{
@@ -154,7 +154,7 @@ namespace UnrealGameSync
 					}
 				}
 
-				if (uriIn == String.Empty)
+				if (String.IsNullOrEmpty(uriIn))
 				{
 					return false;
 				}
@@ -254,9 +254,9 @@ namespace UnrealGameSync
 	/// Method attribute for Uri handlers
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method)]
-	class UriHandlerAttribute : Attribute
+	sealed class UriHandlerAttribute : Attribute
 	{
-		public bool Terminate { get; set; }
+		public bool Terminate { get; }
 
 		public UriHandlerAttribute(bool terminate = false)
 		{
@@ -293,7 +293,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static string CurrentProcessFilePath => Path.ChangeExtension(Path.GetFullPath(Process.GetCurrentProcess().MainModule!.FileName!), ".exe");
+		public static string CurrentProcessFilePath => Path.ChangeExtension(Path.GetFullPath(Environment.ProcessPath ?? String.Empty), ".exe");
 
 		static List<RegistrySetting> GetGlobalRegistrySettings()
 		{

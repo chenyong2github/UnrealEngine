@@ -22,7 +22,7 @@ namespace UnrealGameSync
 		public static readonly Cursor Hand = new Cursor(LoadCursor(IntPtr.Zero, new IntPtr(IdcHand)));
 	}
 
-	class StatusElementResources
+	class StatusElementResources : IDisposable
 	{
 		readonly Dictionary<FontStyle, Font> _fontCache = new Dictionary<FontStyle, Font>();
 		public readonly Font BadgeFont;

@@ -87,7 +87,7 @@ namespace UnrealGameSync
 							passwordPrompt = $"Authentication failed. Enter the password for user '{perforceSettings.UserName}' on server '{perforceSettings.ServerAndPort}'.";
 						}
 
-						PasswordWindow passwordWindow = new PasswordWindow(passwordPrompt, password ?? String.Empty);
+						using PasswordWindow passwordWindow = new PasswordWindow(passwordPrompt, password ?? String.Empty);
 						if (owner == null)
 						{
 							passwordWindow.ShowInTaskbar = true;

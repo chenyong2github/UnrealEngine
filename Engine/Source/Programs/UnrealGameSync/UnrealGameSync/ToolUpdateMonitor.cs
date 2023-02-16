@@ -103,7 +103,7 @@ namespace UnrealGameSync
 			if (_workerTask != null)
 			{
 				_cancellationSource.Cancel();
-				_asyncDisposer.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose()));
+				_asyncDisposer.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose(), TaskScheduler.Default));
 				_workerTask = null;
 			}
 		}
@@ -178,7 +178,7 @@ namespace UnrealGameSync
 			List<ToolDefinition> newTools = new List<ToolDefinition>();
 			foreach (FStatRecord fileRecord in fileRecords)
 			{
-				if (fileRecord.DepotFile != null && fileRecord.DepotFile.EndsWith(".ini"))
+				if (fileRecord.DepotFile != null && fileRecord.DepotFile.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
 				{
 					ToolDefinition? tool = Tools.FirstOrDefault(x => x.ConfigPath.Equals(fileRecord.DepotFile, StringComparison.Ordinal));
 					if (tool == null || tool.ConfigChange != fileRecord.HeadChange)
@@ -292,7 +292,7 @@ namespace UnrealGameSync
 				};
 			}
 
-			string[] statusPanelLinks = configFile.GetValues("Settings.StatusPanelLinks", new string[0]);
+			string[] statusPanelLinks = configFile.GetValues("Settings.StatusPanelLinks", Array.Empty<string>());
 			foreach (string statusPanelLink in statusPanelLinks)
 			{
 				ConfigObject obj = new ConfigObject(statusPanelLink);
@@ -319,7 +319,7 @@ namespace UnrealGameSync
 			string commandExe = command;
 			string commandArgs = String.Empty;
 
-			int spaceIdx = command.IndexOf(' ');
+			int spaceIdx = command.IndexOf(' ', StringComparison.Ordinal);
 			if (spaceIdx != -1)
 			{
 				commandExe = command.Substring(0, spaceIdx);
@@ -332,7 +332,7 @@ namespace UnrealGameSync
 
 		async Task RemoveToolAsync(string toolName, Func<ILogger, CancellationToken, Task>? uninstallAction, ILogger logger, CancellationToken cancellationToken)
 		{
-			logger.LogInformation("Removing {0}", toolName);
+			logger.LogInformation("Removing {ToolName}", toolName);
 			DirectoryReference? toolPath = GetToolPath(toolName);
 
 			if (uninstallAction != null)
@@ -403,7 +403,7 @@ namespace UnrealGameSync
 				PerforceResponseList<PrintRecord> response = await perforce.TryPrintAsync(zipFile.FullName, $"{records[idx].DepotFile}#{records[idx].HeadRevision}", cancellationToken);
 				if(!response.Succeeded || !FileReference.Exists(zipFile))
 				{
-					logger.LogError("Unable to print {0}", records[idx].DepotFile);
+					logger.LogError("Unable to print {DepotFile}", records[idx].DepotFile);
 					return false;
 				}
 

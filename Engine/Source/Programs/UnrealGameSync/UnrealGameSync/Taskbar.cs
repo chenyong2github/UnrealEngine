@@ -34,13 +34,17 @@ namespace UnrealGameSync
 		{
 		}
 
-		static readonly ITaskbarList3? _interface;
+		static readonly ITaskbarList3? _interface = CreateTaskbarListInterface();
 
-		static Taskbar()
+		static ITaskbarList3? CreateTaskbarListInterface()
 		{
-			if(Environment.OSVersion.Version >= new Version(6, 1))
+			if (Environment.OSVersion.Version >= new Version(6, 1))
 			{
-				_interface = new TaskbarList3() as ITaskbarList3;
+				return new TaskbarList3() as ITaskbarList3;
+			}
+			else
+			{
+				return null;
 			}
 		}
 

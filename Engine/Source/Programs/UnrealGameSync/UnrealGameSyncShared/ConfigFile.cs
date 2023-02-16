@@ -468,7 +468,7 @@ namespace UnrealGameSync
 		public TEnum GetEnumValue<TEnum>(string key, TEnum defaultValue) where TEnum : struct
 		{
 			string? str = GetValue(key, null);
-			if (str != null && Enum.TryParse(str, out TEnum value))
+			if (str != null && Enum.TryParse(str, true, out TEnum value))
 			{
 				return value;
 			}

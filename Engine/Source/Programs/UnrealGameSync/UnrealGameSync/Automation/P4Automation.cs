@@ -26,10 +26,10 @@ namespace UnrealGameSync
 
 		public static Task<string> PrintToTempFile(IPerforceConnection? connection, string depotPath, ILogger logger)
 		{
-			return PrintToTempFileAsync(connection, depotPath, CancellationToken.None, logger);
+			return PrintToTempFileAsync(connection, depotPath, logger, CancellationToken.None);
 		}
 
-		public static async Task<string> PrintToTempFileAsync(IPerforceConnection? connection, string depotPath, CancellationToken cancellationToken, ILogger logger)
+		public static async Task<string> PrintToTempFileAsync(IPerforceConnection? connection, string depotPath, ILogger logger, CancellationToken cancellationToken)
 		{
 			bool createNewConnection = (connection == null);
 			try
@@ -43,11 +43,11 @@ namespace UnrealGameSync
 				string depotFileName = Path.GetFileName(depotPath);
 
 				// Reorder CL and extension
-				int index = depotFileName.IndexOf('@');
+				int index = depotFileName.IndexOf('@', StringComparison.Ordinal);
 				if (index == -1)
 				{
 					depotFileName += "@Latest";
-					index = depotFileName.IndexOf('@');
+					index = depotFileName.IndexOf('@', StringComparison.Ordinal);
 				}
 
 				string cl = depotFileName.Substring(index + 1);

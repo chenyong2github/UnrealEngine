@@ -32,7 +32,7 @@ namespace UnrealGameSync
 		private void ModalTaskWindow_Load(object sender, EventArgs e)
 		{
 			SynchronizationContext syncContext = SynchronizationContext.Current!;
-			_task.ContinueWith(x => syncContext.Post(y => Close(), null));
+			_task.ContinueWith(x => syncContext.Post(y => Close(), null), TaskScheduler.Default);
 		}
 
 		private void ModalTaskWindow_FormClosing(object sender, FormClosingEventArgs e)

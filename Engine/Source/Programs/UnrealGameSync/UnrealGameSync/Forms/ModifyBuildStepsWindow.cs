@@ -64,7 +64,7 @@ namespace UnrealGameSync
 			newStep.Description = "Untitled Task";
 			newStep.EstimatedDuration = 1;
 
-			BuildStepWindow newStepWindow = new BuildStepWindow(newStep, _targetNames, _baseDirectory, _variables);
+			using BuildStepWindow newStepWindow = new BuildStepWindow(newStep, _targetNames, _baseDirectory, _variables);
 			if(newStepWindow.ShowDialog() == DialogResult.OK)
 			{
 				AddTask(newStep);
@@ -77,7 +77,7 @@ namespace UnrealGameSync
 			{
 				if (item != null)
 				{
-					BuildStepWindow editStep = new BuildStepWindow((BuildStep)item.Tag, _targetNames, _baseDirectory, _variables);
+					using BuildStepWindow editStep = new BuildStepWindow((BuildStep)item.Tag, _targetNames, _baseDirectory, _variables);
 					editStep.ShowDialog();
 					item.Text = ((BuildStep)item.Tag).Description;
 					break;

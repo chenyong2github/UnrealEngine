@@ -97,7 +97,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				if(String.Compare(newIssue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+				if(String.Equals(newIssue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase))
 				{
 					if(newIssue.NominatedBy != null)
 					{
@@ -120,7 +120,7 @@ namespace UnrealGameSync
 					{
 						ownerTextBuilder.Append(" (not acknowledged)");
 					}
-					ownerTextBuilder.Append(".");
+					ownerTextBuilder.Append('.');
 				}
 			}
 			ownerTextBuilder.AppendFormat(" Open for {0}.", Utility.FormatDurationMinutes((int)(newIssue.RetrievedAt - newIssue.CreatedAt).TotalMinutes));

@@ -136,7 +136,7 @@ namespace UnrealGameSync
 			}
 
 			// Populate the tree
-			CleanWorkspaceWindow cleanWorkspace = new CleanWorkspaceWindow(perforceSettings, rootFolderToClean, extraSafeToDeleteFolders, extraSafeToDeleteExtensions, logger);
+			using CleanWorkspaceWindow cleanWorkspace = new CleanWorkspaceWindow(perforceSettings, rootFolderToClean, extraSafeToDeleteFolders, extraSafeToDeleteExtensions, logger);
 			cleanWorkspace.ShowDialog();
 		}
 
@@ -299,12 +299,12 @@ namespace UnrealGameSync
 
 		private bool IsSafeToDeleteFolder(string folderPath)
 		{
-			return s_safeToDeleteFolders.Any(x => folderPath.EndsWith(x)) || _extraSafeToDeleteFolders.Any(x => folderPath.EndsWith(x));
+			return s_safeToDeleteFolders.Any(x => folderPath.EndsWith(x, StringComparison.OrdinalIgnoreCase)) || _extraSafeToDeleteFolders.Any(x => folderPath.EndsWith(x, StringComparison.OrdinalIgnoreCase));
 		}
 
 		private bool IsSafeToDeleteFile(string name)
 		{
-			return s_safeToDeleteExtensions.Any(x => name.EndsWith(x)) || _extraSafeToDeleteExtensions.Any(x => name.EndsWith(x));
+			return s_safeToDeleteExtensions.Any(x => name.EndsWith(x, StringComparison.OrdinalIgnoreCase)) || _extraSafeToDeleteExtensions.Any(x => name.EndsWith(x, StringComparison.OrdinalIgnoreCase));
 		}
 
 		private void TreeView_DrawNode(object sender, DrawTreeNodeEventArgs e)
@@ -385,7 +385,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void UpdateImage(TreeNode node)
+		private static void UpdateImage(TreeNode node)
 		{
 			TreeNodeData nodeData = (TreeNodeData)node.Tag;
 			int imageIndex = (nodeData._folder != null)? 0 : 3;
@@ -410,7 +410,7 @@ namespace UnrealGameSync
 			ModalTask? result = ModalTask.Execute(this, "Clean Workspace", "Cleaning files, please wait...", x => DeleteFilesTask.RunAsync(_perforceSettings, filesToSync, filesToDelete, directoriesToDelete, _logger, x), ModalTaskFlags.Quiet);
 			if(result != null && result.Failed)
 			{
-				FailedToDeleteWindow failedToDelete = new FailedToDeleteWindow();
+				using FailedToDeleteWindow failedToDelete = new FailedToDeleteWindow();
 				failedToDelete.FileList.Text = result.Error;
 				failedToDelete.FileList.SelectionStart = 0;
 				failedToDelete.FileList.SelectionLength = 0;

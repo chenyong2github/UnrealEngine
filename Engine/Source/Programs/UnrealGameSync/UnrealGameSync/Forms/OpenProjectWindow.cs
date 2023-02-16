@@ -52,7 +52,7 @@ namespace UnrealGameSync
 					_userNameOverride = project.UserName;
 				}
 
-				if(project.ClientPath != null && project.ClientPath.StartsWith("//"))
+				if(project.ClientPath != null && project.ClientPath.StartsWith("//", StringComparison.Ordinal))
 				{
 					int slashIdx = project.ClientPath.IndexOf('/', 2);
 					if(slashIdx != -1)
@@ -87,7 +87,7 @@ namespace UnrealGameSync
 
 		public static OpenProjectInfo? ShowModal(IWin32Window owner, UserSelectedProjectSettings? project, UserSettings settings, IPerforceSettings defaultPerforceSettings, IServiceProvider serviceProvider, ILogger logger)
 		{
-			OpenProjectWindow window = new OpenProjectWindow(project, settings, defaultPerforceSettings, serviceProvider, logger);
+			using OpenProjectWindow window = new OpenProjectWindow(project, settings, defaultPerforceSettings, serviceProvider, logger);
 			if(window.ShowDialog(owner) == DialogResult.OK)
 			{
 				return window._openProjectInfo;
@@ -318,7 +318,7 @@ namespace UnrealGameSync
 		{
 			LocalFileRadioBtn.Checked = true;
 
-			OpenFileDialog dialog = new OpenFileDialog();
+			using OpenFileDialog dialog = new OpenFileDialog();
 			dialog.Filter = "Project files (*.uproject)|*.uproject|Project directory lists (*.uprojectdirs)|*.uprojectdirs|All supported files (*.uproject;*.uprojectdirs)|*.uproject;*.uprojectdirs|All files (*.*)|*.*" ;
 			dialog.FilterIndex = _settings.FilterIndex;
 			

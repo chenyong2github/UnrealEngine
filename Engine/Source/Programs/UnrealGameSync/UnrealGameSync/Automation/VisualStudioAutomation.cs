@@ -69,8 +69,7 @@ namespace UnrealGameSync
 			}
 			try
 			{
-
-				System.Diagnostics.Process vsProcess = new System.Diagnostics.Process { StartInfo = new ProcessStartInfo(install.DevEnvPath, arguments) };
+				using System.Diagnostics.Process vsProcess = new System.Diagnostics.Process { StartInfo = new ProcessStartInfo(install.DevEnvPath, arguments) };
 				vsProcess.Start();
 				vsProcess.WaitForInputIdle();
 			}
@@ -148,7 +147,7 @@ namespace UnrealGameSync
 			for (int idx = 0; idx < installs.Count; idx++)
 			{
 				string? moniker = installs[idx].RotMoniker;
-				if (moniker != null && inName.StartsWith(moniker))
+				if (moniker != null && inName.StartsWith(moniker, StringComparison.Ordinal))
 				{
 					return true;
 				}

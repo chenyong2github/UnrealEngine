@@ -187,7 +187,7 @@ namespace UnrealGameSync
 			return base.ProcessCmdKey(ref msg, keyData);
 		}
 
-		private bool IncludeNodeInFilter(StreamNode node, string[] filter)
+		private static bool IncludeNodeInFilter(StreamNode node, string[] filter)
 		{
 			return filter.All(x => node.Record.Stream.IndexOf(x, StringComparison.InvariantCultureIgnoreCase) != -1 || node.Record.Name.IndexOf(x, StringComparison.InvariantCultureIgnoreCase) != -1);
 		}
@@ -330,7 +330,7 @@ namespace UnrealGameSync
 				return false;
 			}
 
-			SelectStreamWindow selectStream = new SelectStreamWindow(streamsTask.Result, streamName);
+			using SelectStreamWindow selectStream = new SelectStreamWindow(streamsTask.Result, streamName);
 			if(selectStream.ShowDialog(owner) == DialogResult.OK && selectStream._selectedStream != null)
 			{
 				newStreamName = selectStream._selectedStream;

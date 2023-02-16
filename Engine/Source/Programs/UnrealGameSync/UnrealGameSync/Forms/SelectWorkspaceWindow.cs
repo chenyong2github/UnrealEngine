@@ -67,7 +67,7 @@ namespace UnrealGameSync
 
 			foreach(ClientsRecord client in _clients.OrderBy(x => x.Name))
 			{
-				if(!OnlyForThisComputer.Checked || String.Compare(client.Host, _info.ClientHost, StringComparison.InvariantCultureIgnoreCase) == 0)
+				if(!OnlyForThisComputer.Checked || String.Equals(client.Host, _info.ClientHost, StringComparison.OrdinalIgnoreCase))
 				{
 					ListViewItem item = new ListViewItem(client.Name);
 					item.SubItems.Add(new ListViewItem.ListViewSubItem(item, client.Host));
@@ -93,7 +93,7 @@ namespace UnrealGameSync
 				return false;
 			}
 
-			SelectWorkspaceWindow selectWorkspace = new SelectWorkspaceWindow(task.Result.Info, task.Result.Clients, workspaceName);
+			using SelectWorkspaceWindow selectWorkspace = new SelectWorkspaceWindow(task.Result.Info, task.Result.Clients, workspaceName);
 			if(selectWorkspace.ShowDialog(owner) == DialogResult.OK)
 			{
 				newWorkspaceName = selectWorkspace._workspaceName;

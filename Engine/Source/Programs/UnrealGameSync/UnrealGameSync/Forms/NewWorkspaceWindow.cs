@@ -102,7 +102,7 @@ namespace UnrealGameSync
 			Dictionary<DirectoryReference, int> rootPathToCount = new Dictionary<DirectoryReference, int>();
 			foreach(ClientsRecord client in clients)
 			{
-				if(client.Host == null || String.Compare(client.Host, info.ClientHost, StringComparison.OrdinalIgnoreCase) == 0)
+				if(client.Host == null || String.Equals(client.Host, info.ClientHost, StringComparison.OrdinalIgnoreCase))
 				{
 					if(!String.IsNullOrEmpty(client.Root) && client.Root != ".")
 					{
@@ -166,7 +166,7 @@ namespace UnrealGameSync
 				return false;
 			}
 
-			NewWorkspaceWindow window = new NewWorkspaceWindow(perforceSettings, forceStreamName, task.Result.CurrentStream, task.Result.Info, task.Result.Clients, serviceProvider);
+			using NewWorkspaceWindow window = new NewWorkspaceWindow(perforceSettings, forceStreamName, task.Result.CurrentStream, task.Result.Info, task.Result.Clients, serviceProvider);
 			if(window.ShowDialog(owner) == DialogResult.OK)
 			{
 				workspaceName = window._settings!.Name;
@@ -181,7 +181,7 @@ namespace UnrealGameSync
 
 		private void RootDirBrowseBtn_Click(object sender, EventArgs e)
 		{
-			FolderBrowserDialog dialog = new FolderBrowserDialog();
+			using FolderBrowserDialog dialog = new FolderBrowserDialog();
 			dialog.ShowNewFolderButton = true;
 			dialog.SelectedPath = RootDirTextBox.Text;
 			if (dialog.ShowDialog() == DialogResult.OK)
@@ -196,7 +196,7 @@ namespace UnrealGameSync
 			string baseName = Sanitize(String.Format("{0}_{1}_{2}", _info.UserName, _info.ClientHost, StreamTextBox.Text.Replace('/', '_').Trim('_'))).Trim('_');
 
 			string name = baseName;
-			for(int idx = 2; _clients.Any(x => x.Name != null && String.Compare(x.Name, name, StringComparison.InvariantCultureIgnoreCase) == 0); idx++)
+			for(int idx = 2; _clients.Any(x => x.Name != null && String.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)); idx++)
 			{
 				name = String.Format("{0}_{1}", baseName, idx);
 			}
@@ -217,7 +217,7 @@ namespace UnrealGameSync
 			return rootDir;
 		}
 
-		private string Sanitize(string text)
+		private static string Sanitize(string text)
 		{
 			StringBuilder result = new StringBuilder();
 			for(int idx = 0; idx < text.Length; idx++)
@@ -259,7 +259,7 @@ namespace UnrealGameSync
 			}
 
 			string newStream = StreamTextBox.Text.Trim();
-			if(!newStream.StartsWith("//") || newStream.IndexOf('/', 2) == -1)
+			if(!newStream.StartsWith("//", StringComparison.Ordinal) || newStream.IndexOf('/', 2) == -1)
 			{
 				settings = null;
 				return false;

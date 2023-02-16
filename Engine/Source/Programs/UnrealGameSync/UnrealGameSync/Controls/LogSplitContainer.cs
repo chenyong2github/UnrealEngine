@@ -40,7 +40,7 @@ namespace UnrealGameSync
 			SplitterMoved += OnSplitterMoved;
 		}
 
-		protected Font CaptionFont => SystemFonts.IconTitleFont!;
+		protected static Font CaptionFont => SystemFonts.IconTitleFont!;
 
 		protected override void OnCreateControl()
 		{
@@ -58,7 +58,7 @@ namespace UnrealGameSync
 			Invalidate();
 		}
 
-		public void OnSplitterMoved(object? obj, EventArgs args)
+		private void OnSplitterMoved(object? obj, EventArgs args)
 		{
 			_splitterMoved = true;
 

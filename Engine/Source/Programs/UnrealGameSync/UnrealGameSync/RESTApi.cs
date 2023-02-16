@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
-	class RestException : Exception
+	public class RestException : Exception
 	{
-		public RestException(HttpMethod method, string uri, Exception innerException)
+		public RestException(HttpMethod method, string? uri, Exception innerException)
 			: base(String.Format("Error executing {0} {1}", method, uri), innerException)
 		{
 		}
@@ -45,12 +45,12 @@ namespace UnrealGameSync
 				{
 					using (HttpResponseMessage response = await s_httpClient.SendAsync(request, cancellationToken))
 					{
-						return await response.Content.ReadAsStringAsync();
+						return await response.Content.ReadAsStringAsync(cancellationToken);
 					}
 				}
 				catch (Exception ex)
 				{
-					throw new RestException(method, request.RequestUri.ToString(), ex);
+					throw new RestException(method, request.RequestUri?.ToString(), ex);
 				}
 			}
 		}

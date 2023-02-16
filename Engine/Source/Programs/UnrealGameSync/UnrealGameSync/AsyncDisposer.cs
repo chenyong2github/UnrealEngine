@@ -3,6 +3,7 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace UnrealGameSync
@@ -25,7 +26,7 @@ namespace UnrealGameSync
 
 		public void Add(Task task)
 		{
-			Task continuationTask = task.ContinueWith(Remove);
+			Task continuationTask = task.ContinueWith(Remove, TaskScheduler.Default);
 			lock (_lockObject)
 			{
 				_tasks.Add(continuationTask);

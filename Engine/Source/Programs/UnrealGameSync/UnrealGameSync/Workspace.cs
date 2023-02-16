@@ -128,7 +128,7 @@ namespace UnrealGameSync
 			{
 				CancellationTokenSource prevCancellationSourceCopy = _prevCancellationSource;
 				prevCancellationSourceCopy.Cancel();
-				_prevUpdateTask = _prevUpdateTask.ContinueWith(task => prevCancellationSourceCopy.Dispose());
+				_prevUpdateTask = _prevUpdateTask.ContinueWith(task => prevCancellationSourceCopy.Dispose(), TaskScheduler.Default);
 				_prevCancellationSource = null;
 			}
 			if(_currentUpdate != null)

@@ -61,7 +61,7 @@ namespace UnrealGameSync
 		public bool Notify { get; set; }
 		public bool IsWarning { get; set; }
 		public string BuildUrl { get; set; } = String.Empty;
-		public List<string> Streams { get; set; } = new List<string>();
+		public List<string> Streams { get; } = new List<string>();
 
 		HashSet<string>? _cachedProjects;
 
@@ -311,7 +311,7 @@ namespace UnrealGameSync
 			if (_workerTask != null)
 			{
 				_cancellationSource.Cancel();
-				_asyncDisposer.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose()));
+				_asyncDisposer.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose(), TaskScheduler.Default));
 				_workerTask = null;
 			}
 		}

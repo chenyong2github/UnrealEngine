@@ -114,7 +114,7 @@ namespace UnrealGameSync
 
 					_cancellationSource.Cancel();
 
-					_workerTask.ContinueWith(x => _cancellationSource.Dispose());
+					_workerTask.ContinueWith(x => _cancellationSource.Dispose(), TaskScheduler.Default);
 					_workerTask = null;
 				}
 			}
@@ -163,7 +163,7 @@ namespace UnrealGameSync
 					List<ChangesRecord> describeChanges;
 					lock(_lockObject)
 					{
-						describeChanges = completedRequests.SelectMany(x => x.Changes).Where(x => !_changeNumberToDetails.ContainsKey(x.Number)).ToList();
+						describeChanges = completedRequests.SelectMany(x => x.Changes ?? new List<ChangesRecord>()).Where(x => !_changeNumberToDetails.ContainsKey(x.Number)).ToList();
 					}
 
 					// Fetch info on each individual change
@@ -177,7 +177,7 @@ namespace UnrealGameSync
 							}
 						}
 
-						PerforceResponse<DescribeRecord> response = await perforce.TryDescribeAsync(describeChange.Number);
+						PerforceResponse<DescribeRecord> response = await perforce.TryDescribeAsync(describeChange.Number, cancellationToken);
 						if (response.Succeeded)
 						{
 							DescribeRecord record = response.Data;
@@ -387,7 +387,7 @@ namespace UnrealGameSync
 			StopUpdateTimer();
 		}
 
-		void UpdateSummaryTextIfChanged(Label label, string newText)
+		static void UpdateSummaryTextIfChanged(Label label, string newText)
 		{
 			if (label.Text != newText)
 			{
@@ -424,11 +424,11 @@ namespace UnrealGameSync
 			richText.Append(@"{\field");
 			richText.Append(@"{\*\fldinst");
 			richText.AppendFormat("{{ HYPERLINK \"{0}\" }}", url);
-			richText.Append(@"}");
+			richText.Append('}');
 			richText.Append(@"{\fldrslt ");
 			AppendEscapedRtf(richText, label);
-			richText.Append(@"}");
-			richText.Append(@"}");
+			richText.Append('}');
+			richText.Append('}');
 		}
 
 		static string CreateRichTextErrors(List<IssueBuildData> issueBuilds, List<IssueDiagnosticData> diagnostics)
@@ -481,7 +481,7 @@ namespace UnrealGameSync
 					richText.Append(@"\li50");   // Other line indent
 					richText.Append(@"\sb100");  // Space before
 					richText.Append(@"\sa50");   // Space after
-					richText.Append(@" ");
+					richText.Append(' ');
 
 					richText.Append(@"\ul1");
 					AppendHyperlink(richText, String.Format("Error {0}/{1}", idx + 1, diagnosticsArray.Length), diagnostic.Url);
@@ -629,7 +629,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		bool FilterMatch(Regex filterRegex, ChangesRecord summary)
+		static bool FilterMatch(Regex filterRegex, ChangesRecord summary)
 		{
 			if(filterRegex.IsMatch(summary.User))
 			{
@@ -642,7 +642,7 @@ namespace UnrealGameSync
 			return false;
 		}
 
-		bool FilterMatch(Regex filterRegex, DescribeRecord describeRecord)
+		static bool FilterMatch(Regex filterRegex, DescribeRecord describeRecord)
 		{
 			if(filterRegex.IsMatch(describeRecord.User))
 			{
@@ -679,9 +679,9 @@ namespace UnrealGameSync
 			foreach(string filterTerm in filterTerms)
 			{
 				string regexText = Regex.Escape(filterTerm);
-				regexText = regexText.Replace("\\?", ".");
-				regexText = regexText.Replace("\\*", "[^\\\\/]*");
-				regexText = regexText.Replace("\\.\\.\\.", ".*");
+				regexText = regexText.Replace("\\?", ".", StringComparison.Ordinal);
+				regexText = regexText.Replace("\\*", "[^\\\\/]*", StringComparison.Ordinal);
+				regexText = regexText.Replace("\\.\\.\\.", ".*", StringComparison.Ordinal);
 				filterRegexes.Add(new Regex(regexText, RegexOptions.IgnoreCase));
 			}
 
@@ -866,7 +866,7 @@ namespace UnrealGameSync
 			JobContextMenu.Show(BuildListView, point, ToolStripDropDownDirection.BelowRight);
 		}
 
-		void UpdateChangeTypeWidget(StatusLineListViewWidget typeWidget, PerforceChangeDetails? details)
+		static void UpdateChangeTypeWidget(StatusLineListViewWidget typeWidget, PerforceChangeDetails? details)
 		{
 			typeWidget.Line.Clear();
 			if(details == null)
@@ -1142,7 +1142,7 @@ namespace UnrealGameSync
 			else if(e.Item.Tag is ChangesRecord change)
 			{
 				Font changeFont = BuildListView.Font;
-				if(_issue.Owner != null && String.Compare(change.User, _issue.Owner, StringComparison.OrdinalIgnoreCase) == 0)
+				if(_issue.Owner != null && String.Equals(change.User, _issue.Owner, StringComparison.OrdinalIgnoreCase))
 				{
 					changeFont = _boldFont!;
 				}
@@ -1286,7 +1286,7 @@ namespace UnrealGameSync
 			update.Id = _issue.Id;
 			update.Owner = user;
 			update.FixChange = 0;
-			if(String.Compare(user, _perforceSettings.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+			if(String.Equals(user, _perforceSettings.UserName, StringComparison.OrdinalIgnoreCase))
 			{
 				update.NominatedBy = "";
 				update.Acknowledged = true;

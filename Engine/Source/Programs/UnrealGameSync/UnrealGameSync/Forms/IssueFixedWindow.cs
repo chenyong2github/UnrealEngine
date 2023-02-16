@@ -57,7 +57,7 @@ namespace UnrealGameSync
 					_onComplete = null;
 
 					_cancellationSource.Cancel();
-					stopTask = _backgroundTask.ContinueWith(_ => _cancellationSource.Dispose());
+					stopTask = _backgroundTask.ContinueWith(_ => _cancellationSource.Dispose(), TaskScheduler.Default);
 
 					_backgroundTask = null!;
 				}
@@ -201,7 +201,7 @@ namespace UnrealGameSync
 				{
 					foreach(DescribeRecord change in changes)
 					{
-						if(change.Description != null && change.Description.IndexOf("#ROBOMERGE-SOURCE", 0) == -1)
+						if(change.Description != null && !change.Description.Contains("#ROBOMERGE-SOURCE", StringComparison.Ordinal))
 						{
 							string stream = "";
 							if(change.Files.Count > 0)

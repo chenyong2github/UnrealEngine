@@ -37,8 +37,8 @@ namespace UnrealGameSync
 		bool _mouseDownOverClose;
 
 		// Notifications
-		public Action? OnMoreInformation;
-		public Action? OnDismiss;
+		public Action? OnMoreInformation { get; set; }
+		public Action? OnDismiss { get; set; }
 
 		public NotificationWindow(Image inLogo)
 		{

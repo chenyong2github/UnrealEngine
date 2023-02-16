@@ -86,13 +86,13 @@ namespace UnrealGameSync
 			return base.ProcessCmdKey(ref msg, keyData);
 		}
 
-		private bool IncludeInFilter(UsersRecord user, string[] filterWords)
+		private static bool IncludeInFilter(UsersRecord user, string[] filterWords)
 		{
 			foreach(string filterWord in filterWords)
 			{
-				if(user.UserName.IndexOf(filterWord, StringComparison.OrdinalIgnoreCase) == -1 
-					&& user.FullName.IndexOf(filterWord, StringComparison.OrdinalIgnoreCase) == -1
-					&& user.Email.IndexOf(filterWord, StringComparison.OrdinalIgnoreCase) == -1)
+				if(!user.UserName.Contains(filterWord, StringComparison.OrdinalIgnoreCase) 
+					&& !user.FullName.Contains(filterWord, StringComparison.OrdinalIgnoreCase)
+					&& !user.Email.Contains(filterWord, StringComparison.OrdinalIgnoreCase))
 				{
 					return false;
 				}
@@ -154,7 +154,7 @@ namespace UnrealGameSync
 				return false;
 			}
 
-			SelectUserWindow selectUser = new SelectUserWindow(usersTask.Result, 0);
+			using SelectUserWindow selectUser = new SelectUserWindow(usersTask.Result, 0);
 			if(selectUser.ShowDialog(owner) == DialogResult.OK)
 			{
 				selectedUserName = usersTask.Result[selectUser._selectedUserIndex].UserName;

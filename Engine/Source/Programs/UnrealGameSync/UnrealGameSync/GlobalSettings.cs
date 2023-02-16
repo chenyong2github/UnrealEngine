@@ -49,7 +49,7 @@ namespace UnrealGameSync
 		public static void DeleteRegistryKey(RegistryKey key, string name)
 		{
 			string[] valueNames = key.GetValueNames();
-			if (valueNames.Any(x => String.Compare(x, name, StringComparison.OrdinalIgnoreCase) == 0))
+			if (valueNames.Any(x => String.Equals(x, name, StringComparison.OrdinalIgnoreCase)))
 			{
 				try
 				{
@@ -88,7 +88,7 @@ namespace UnrealGameSync
 						key.SetValue("UserName", userName);
 					}
 
-					if (String.IsNullOrEmpty(depotPath) || (DeploymentSettings.DefaultDepotPath != null && String.Equals(depotPath, DeploymentSettings.DefaultDepotPath, StringComparison.InvariantCultureIgnoreCase)))
+					if (String.IsNullOrEmpty(depotPath) || (DeploymentSettings.DefaultDepotPath != null && String.Equals(depotPath, DeploymentSettings.DefaultDepotPath, StringComparison.OrdinalIgnoreCase)))
 					{
 						DeleteRegistryKey(key, "DepotPath");
 					}

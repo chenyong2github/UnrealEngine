@@ -40,7 +40,7 @@ namespace UnrealGameSync
 
 		public static bool ShowModal(IWin32Window owner, IPerforceSettings defaultSettings, ref string? serverAndPortOverride, ref string? userNameOverride, IServiceProvider serviceProvider)
 		{
-			ConnectWindow connect = new ConnectWindow(defaultSettings, serverAndPortOverride, userNameOverride, serviceProvider);
+			using ConnectWindow connect = new ConnectWindow(defaultSettings, serverAndPortOverride, userNameOverride, serviceProvider);
 			if(connect.ShowDialog(owner) == DialogResult.OK)
 			{
 				serverAndPortOverride = connect._serverAndPortOverride;

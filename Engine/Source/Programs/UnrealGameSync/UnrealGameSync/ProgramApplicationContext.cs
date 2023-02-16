@@ -90,7 +90,7 @@ namespace UnrealGameSync
 			if(!String.IsNullOrEmpty(projectFileName))
 			{
 				string fullProjectFileName = Path.GetFullPath(projectFileName);
-				if(!_settings.OpenProjects.Any(x => x.LocalPath != null && String.Compare(x.LocalPath, fullProjectFileName, StringComparison.InvariantCultureIgnoreCase) == 0))
+				if(!_settings.OpenProjects.Any(x => x.LocalPath != null && String.Equals(x.LocalPath, fullProjectFileName, StringComparison.OrdinalIgnoreCase)))
 				{
 					_settings.OpenProjects.Add(new UserSelectedProjectSettings(null, null, UserSelectedProjectType.Local, null, fullProjectFileName));
 				}
@@ -237,9 +237,9 @@ namespace UnrealGameSync
 
 		private UserSelectedProjectSettings UpgradeSelectedProjectSettings(UserSelectedProjectSettings project)
 		{
-			if (project.ServerAndPort == null || String.Compare(project.ServerAndPort, _defaultPerforceSettings.ServerAndPort, StringComparison.OrdinalIgnoreCase) == 0)
+			if (project.ServerAndPort == null || String.Equals(project.ServerAndPort, _defaultPerforceSettings.ServerAndPort, StringComparison.OrdinalIgnoreCase))
 			{
-				if (project.UserName == null || String.Compare(project.UserName, _defaultPerforceSettings.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+				if (project.UserName == null || String.Equals(project.UserName, _defaultPerforceSettings.UserName, StringComparison.OrdinalIgnoreCase))
 				{
 					project = new UserSelectedProjectSettings(null, null, project.Type, project.ClientPath, project.LocalPath);
 				}

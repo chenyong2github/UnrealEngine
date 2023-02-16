@@ -37,7 +37,7 @@ namespace UnrealGameSync
 
 		public static AutomationRequestInput Read(Stream inputStream)
 		{
-			BinaryReader reader = new BinaryReader(inputStream);
+			using BinaryReader reader = new BinaryReader(inputStream);
 			
 			int type = reader.ReadInt32();
 			int inputSize = reader.ReadInt32();
@@ -48,7 +48,7 @@ namespace UnrealGameSync
 
 		public void Write(Stream outputStream)
 		{
-			BinaryWriter writer = new BinaryWriter(outputStream);
+			using BinaryWriter writer = new BinaryWriter(outputStream, Encoding.UTF8, true);
 
 			writer.Write((int)Type);
 			writer.Write(Data.Length);
@@ -74,7 +74,7 @@ namespace UnrealGameSync
 		public AutomationRequestOutput(AutomationRequestResult result)
 		{
 			Result = result;
-			Data = new byte[0];
+			Data = Array.Empty<byte>();
 		}
 
 		public AutomationRequestOutput(AutomationRequestResult result, byte[] data)
@@ -251,7 +251,7 @@ namespace UnrealGameSync
 				{
 					try
 					{
-						TcpClient client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+						TcpClient client = await listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
 						try
 						{
 							_logger.LogInformation("Accepted connection from {Remote}", client.Client.RemoteEndPoint);
@@ -265,7 +265,7 @@ namespace UnrealGameSync
 							using (AutomationRequest request = new AutomationRequest(input))
 							{
 								_postRequest(request);
-								request.Complete.Wait();
+								request.Complete.Wait(cancellationToken);
 								output = request.Output!;
 							}
 

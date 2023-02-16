@@ -169,7 +169,7 @@ namespace UnrealGameSync
 			// Remove any config files
 			if(perforceConfigFile != null)
 			{
-				localFolder._filesToDelete.RemoveAll(x => String.Compare(x.Name, perforceConfigFile, StringComparison.OrdinalIgnoreCase) == 0);
+				localFolder._filesToDelete.RemoveAll(x => String.Equals(x.Name, perforceConfigFile, StringComparison.OrdinalIgnoreCase));
 			}
 
 			// Figure out if this folder is just an empty directory that needs to be removed
@@ -183,7 +183,7 @@ namespace UnrealGameSync
 		{
 			if (type != null)
 			{
-				int idx = type.IndexOf('+');
+				int idx = type.IndexOf('+', StringComparison.Ordinal);
 				if (idx != -1)
 				{
 					return type.IndexOf('w', idx) != -1;
@@ -227,8 +227,8 @@ namespace UnrealGameSync
 			// Start enumerating all the files that exist locally
 			foreach(string syncPath in _syncPaths)
 			{
-				Debug.Assert(syncPath.StartsWith(_clientRootPath));
-				if(syncPath.StartsWith(_clientRootPath, StringComparison.InvariantCultureIgnoreCase))
+				Debug.Assert(syncPath.StartsWith(_clientRootPath, StringComparison.OrdinalIgnoreCase));
+				if(syncPath.StartsWith(_clientRootPath, StringComparison.OrdinalIgnoreCase))
 				{
 					string[] fragments = syncPath.Substring(_clientRootPath.Length).Split('/');
 

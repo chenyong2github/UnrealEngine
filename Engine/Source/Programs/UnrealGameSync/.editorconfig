@@ -370,7 +370,7 @@ dotnet_diagnostic.CA1054.severity = none
 dotnet_diagnostic.CA1055.severity = warning
 
 # CA1056: URI-like properties should not be strings
-dotnet_diagnostic.CA1056.severity = warning
+dotnet_diagnostic.CA1056.severity = none
 
 # CA1058: Types should not extend certain base types
 dotnet_diagnostic.CA1058.severity = warning
@@ -424,7 +424,7 @@ dotnet_diagnostic.CA1305.severity = none
 dotnet_diagnostic.CA1307.severity = warning
 
 # CA1308: Normalize strings to uppercase
-dotnet_diagnostic.CA1308.severity = warning
+dotnet_diagnostic.CA1308.severity = none
 
 # CA1309: Use ordinal string comparison
 dotnet_diagnostic.CA1309.severity = warning
@@ -517,7 +517,7 @@ dotnet_diagnostic.CA1802.severity = warning
 dotnet_diagnostic.CA1805.severity = none
 
 # CA1806: Do not ignore method results
-dotnet_diagnostic.CA1806.severity = warning
+dotnet_diagnostic.CA1806.severity = none
 
 # CA1810: Initialize reference type static fields inline
 dotnet_diagnostic.CA1810.severity = warning

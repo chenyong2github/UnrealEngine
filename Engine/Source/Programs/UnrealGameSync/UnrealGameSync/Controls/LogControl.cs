@@ -19,7 +19,7 @@ namespace UnrealGameSync
 	public class LogControl : UserControl
 	{
 		[Flags]
-		public enum ScrollInfoMask : uint
+		public enum ScrollInfoMask : int
 		{
 			SifRange = 0x1,
 			SifPage = 0x2,
@@ -193,7 +193,8 @@ namespace UnrealGameSync
 
 			_logFileStream.Seek(0, SeekOrigin.Begin);
 
-			string text = new StreamReader(_logFileStream).ReadToEnd().TrimEnd('\r', '\n');
+			using StreamReader reader = new StreamReader(_logFileStream, leaveOpen: true);
+			string text = reader.ReadToEnd().TrimEnd('\r', '\n');
 			if(text.Length > 0)
 			{
 				AddLinesInternal(text.Split('\n').Select(x => x + "\n").ToList());
@@ -381,12 +382,12 @@ namespace UnrealGameSync
 			}
 		}
 
-		protected void ContextMenu_CopySelection(object? sender, EventArgs e)
+		private void ContextMenu_CopySelection(object? sender, EventArgs e)
 		{
 			CopySelection();
 		}
 
-		protected void ContextMenu_SelectAll(object? sender, EventArgs e)
+		private void ContextMenu_SelectAll(object? sender, EventArgs e)
 		{
 			SelectAll();
 		}
@@ -790,7 +791,7 @@ namespace UnrealGameSync
 			_scrollLine = verticalScroll.nPos;
 		}
 
-		protected void SelectionScrollTimer_TimerElapsed(object? sender, EventArgs args)
+		private void SelectionScrollTimer_TimerElapsed(object? sender, EventArgs args)
 		{
 			if(_autoScrollRate != 0 && _selection != null)
 			{

@@ -93,7 +93,7 @@ namespace UnrealGameSync
 					return "Unknown";
 				}
 
-				int idx = BuildType.IndexOf(':');
+				int idx = BuildType.IndexOf(':', StringComparison.Ordinal);
 				if(idx == -1)
 				{
 					return BuildType;
@@ -114,7 +114,7 @@ namespace UnrealGameSync
 					return "Unknown";
 				}
 
-				int idx = BuildType.IndexOf(':');
+				int idx = BuildType.IndexOf(':', StringComparison.Ordinal);
 				if(idx == -1)
 				{
 					return BuildType;
@@ -288,7 +288,7 @@ namespace UnrealGameSync
 			if(_workerTask != null)
 			{
 				_cancellationSource.Cancel();
-				_asyncDisposer.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose()));
+				_asyncDisposer.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default));
 				_workerTask = null;
 			}
 		}
@@ -421,14 +421,14 @@ namespace UnrealGameSync
 			}
 			else if(evt.Type == EventType.Syncing)
 			{
-				summary.SyncEvents.RemoveAll(x => String.Compare(x.UserName, evt.UserName, true) == 0);
+				summary.SyncEvents.RemoveAll(x => String.Equals(x.UserName, evt.UserName, StringComparison.OrdinalIgnoreCase));
 				summary.SyncEvents.Add(evt);
 				ApplyFilteredUpdate(evt);
 			}
 			else if(IsReview(evt.Type))
 			{
 				// Try to find an existing review by this user. If we already have a newer review, ignore this one. Otherwise remove it.
-				EventData? existingReview = summary.Reviews.Find(x => String.Compare(x.UserName, evt.UserName, true) == 0);
+				EventData? existingReview = summary.Reviews.Find(x => String.Equals(x.UserName, evt.UserName, StringComparison.OrdinalIgnoreCase));
 				if(existingReview != null)
 				{
 					if(existingReview.Id <= evt.Id)
@@ -481,7 +481,7 @@ namespace UnrealGameSync
 		void ApplyCommentUpdate(CommentData comment)
 		{
 			EventSummary summary = FindOrAddSummary(comment.ChangeNumber);
-			if(String.Compare(comment.UserName, _currentUserName, true) == 0 && summary.Comments.Count > 0 && summary.Comments.Last().Id == Int64.MaxValue)
+			if(String.Equals(comment.UserName, _currentUserName, StringComparison.OrdinalIgnoreCase) && summary.Comments.Count > 0 && summary.Comments.Last().Id == Int64.MaxValue)
 			{
 				// This comment was added by PostComment(), to mask the latency of a round trip to the server. Remove it now we have the sorted comment.
 				summary.Comments.RemoveAt(summary.Comments.Count - 1);
@@ -495,7 +495,7 @@ namespace UnrealGameSync
 
 			for(; insertIdx > 0 && idSelector(items[insertIdx - 1]) >= idSelector(newItem); insertIdx--)
 			{
-				if(String.Compare(userSelector(items[insertIdx - 1]), userSelector(newItem), true) == 0)
+				if(String.Equals(userSelector(items[insertIdx - 1]), userSelector(newItem), StringComparison.OrdinalIgnoreCase))
 				{
 					return false;
 				}
@@ -505,7 +505,7 @@ namespace UnrealGameSync
 
 			for(; insertIdx > 0; insertIdx--)
 			{
-				if(String.Compare(userSelector(items[insertIdx - 1]), userSelector(newItem), true) == 0)
+				if(String.Equals(userSelector(items[insertIdx - 1]), userSelector(newItem), StringComparison.OrdinalIgnoreCase))
 				{
 					items.RemoveAt(insertIdx - 1);
 				}
@@ -681,7 +681,7 @@ namespace UnrealGameSync
 				{
 					if(evt.Id > lastSync.Id)
 					{
-						_changeNumberToSummary[lastSync.Change].CurrentUsers.RemoveAll(x => String.Compare(x, evt.UserName, true) == 0);
+						_changeNumberToSummary[lastSync.Change].CurrentUsers.RemoveAll(x => String.Equals(x, evt.UserName, StringComparison.OrdinalIgnoreCase));
 						FindOrAddSummary(evt.Change).CurrentUsers.Add(evt.UserName);
 						_userNameToLastSyncEvent[evt.UserName] = evt;
 					}
@@ -732,7 +732,7 @@ namespace UnrealGameSync
 					await ReadEventsFromBackendAsync(updateThrottledRequests, cancellationToken);
 
 					// Send a notification that we're ready to update
-					if(_incomingMetadata.Count > 0 || _incomingEvents.Count > 0 || _incomingBadges.Count > 0 || _incomingComments.Count > 0)
+					if(!_incomingMetadata.IsEmpty || !_incomingEvents.IsEmpty || !_incomingBadges.IsEmpty || !_incomingComments.IsEmpty)
 					{
 						_synchronizationContext.Post(_ => OnUpdatesReady?.Invoke(), null);
 					}
@@ -1012,7 +1012,7 @@ namespace UnrealGameSync
 				return false;
 			}
 
-			CommentData? comment = summary.Comments.Find(x => String.Compare(x.UserName, _currentUserName, true) == 0);
+			CommentData? comment = summary.Comments.Find(x => String.Equals(x.UserName, _currentUserName, StringComparison.OrdinalIgnoreCase));
 			if(comment == null || String.IsNullOrWhiteSpace(comment.Text))
 			{
 				commentText = null;
@@ -1031,7 +1031,7 @@ namespace UnrealGameSync
 				return null;
 			}
 
-			EventData? evt = summary.Reviews.FirstOrDefault(x => String.Compare(x.UserName, _currentUserName, true) == 0);
+			EventData? evt = summary.Reviews.FirstOrDefault(x => String.Equals(x.UserName, _currentUserName, StringComparison.OrdinalIgnoreCase));
 			if(evt == null || evt.Type == EventType.Unknown)
 			{
 				return null;
@@ -1070,7 +1070,7 @@ namespace UnrealGameSync
 		public bool WasSyncedByCurrentUser(int changeNumber)
 		{
 			EventSummary? summary = GetSummaryForChange(changeNumber);
-			return (summary != null && summary.SyncEvents.Any(x => x.Type == EventType.Syncing && String.Compare(x.UserName, _currentUserName, true) == 0));
+			return (summary != null && summary.SyncEvents.Any(x => x.Type == EventType.Syncing && String.Equals(x.UserName, _currentUserName, StringComparison.OrdinalIgnoreCase)));
 		}
 
 		public void StartInvestigating(int changeNumber)
@@ -1104,7 +1104,7 @@ namespace UnrealGameSync
 						}
 						else
 						{
-							_activeInvestigations.RemoveAll(x => String.Compare(x.UserName, investigationEvent.UserName, true) == 0 && x.Change <= investigationEvent.Change);
+							_activeInvestigations.RemoveAll(x => String.Equals(x.UserName, investigationEvent.UserName, StringComparison.OrdinalIgnoreCase) && x.Change <= investigationEvent.Change);
 						}
 					}
 				}
@@ -1114,7 +1114,7 @@ namespace UnrealGameSync
 				{
 					for(int otherIdx = 0; otherIdx < idx; otherIdx++)
 					{
-						if(String.Compare(_activeInvestigations[idx].UserName, _activeInvestigations[otherIdx].UserName, true) == 0)
+						if(String.Equals(_activeInvestigations[idx].UserName, _activeInvestigations[otherIdx].UserName, StringComparison.OrdinalIgnoreCase))
 						{
 							_activeInvestigations.RemoveAt(idx--);
 							break;
@@ -1133,7 +1133,7 @@ namespace UnrealGameSync
 		public bool IsUnderInvestigationByCurrentUser(int changeNumber)
 		{
 			UpdateActiveInvestigations();
-			return _activeInvestigations?.Any(x => x.Change <= changeNumber && String.Compare(x.UserName, _currentUserName, true) == 0) ?? false;
+			return _activeInvestigations?.Any(x => x.Change <= changeNumber && String.Equals(x.UserName, _currentUserName, StringComparison.OrdinalIgnoreCase)) ?? false;
 		}
 
 		public IEnumerable<string> GetInvestigatingUsers(int changeNumber)
@@ -1151,7 +1151,7 @@ namespace UnrealGameSync
 			{
 				foreach (EventData activeInvestigation in _activeInvestigations)
 				{
-					if (String.Compare(activeInvestigation.UserName, _currentUserName, true) == 0)
+					if (String.Equals(activeInvestigation.UserName, _currentUserName, StringComparison.OrdinalIgnoreCase))
 					{
 						if (activeInvestigation.Change <= lastChangeNumber && (startChangeNumber == -1 || activeInvestigation.Change < startChangeNumber))
 						{

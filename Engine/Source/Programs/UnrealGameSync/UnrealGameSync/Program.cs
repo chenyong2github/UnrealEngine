@@ -269,7 +269,7 @@ namespace UnrealGameSync
 		{
 			SentrySdk.CaptureException(e.Exception);
 
-			ThreadExceptionDialog dialog = new ThreadExceptionDialog(e.Exception);
+			using ThreadExceptionDialog dialog = new ThreadExceptionDialog(e.Exception);
 			dialog.ShowDialog();
 		}
 

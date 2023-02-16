@@ -7,7 +7,7 @@ using Serilog.Templates;
 
 namespace UnrealGameSync
 {
-	public static class Logging
+	static class Logging
 	{
 		public static ILoggerProvider CreateLoggerProvider(FileReference file)
 		{

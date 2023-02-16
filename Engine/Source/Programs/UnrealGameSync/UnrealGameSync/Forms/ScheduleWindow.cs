@@ -102,7 +102,7 @@ namespace UnrealGameSync
 			SyncTypeDropDown.Close();
 		}
 
-		private void AddProjects(IEnumerable<UserSelectedProjectSettings> projects, Dictionary<string, UserSelectedProjectSettings> localFileToProject)
+		private static void AddProjects(IEnumerable<UserSelectedProjectSettings> projects, Dictionary<string, UserSelectedProjectSettings> localFileToProject)
 		{
 			foreach(UserSelectedProjectSettings project in projects)
 			{

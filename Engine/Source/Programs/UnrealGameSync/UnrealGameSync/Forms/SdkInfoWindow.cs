@@ -79,13 +79,13 @@ namespace UnrealGameSync
 				SdkItem item = new SdkItem(category, description);
 
 				item.Install = Utility.ExpandVariables(obj.GetValue("Install", ""), variables);
-				if(item.Install.Contains("$("))
+				if(item.Install.Contains("$(", StringComparison.Ordinal))
 				{
 					item.Install = null;
 				}
 
 				item.Browse = Utility.ExpandVariables(obj.GetValue("Browse", ""), variables);
-				if(item.Browse.Contains("$("))
+				if(item.Browse.Contains("$(", StringComparison.Ordinal))
 				{
 					item.Browse = null;
 				}
@@ -244,7 +244,7 @@ namespace UnrealGameSync
 			return badges;
 		}
 
-		private void Browse(string directoryName)
+		private static void Browse(string directoryName)
 		{
 			try
 			{
@@ -256,7 +256,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void Install(string fileName)
+		private static void Install(string fileName)
 		{
 			try
 			{

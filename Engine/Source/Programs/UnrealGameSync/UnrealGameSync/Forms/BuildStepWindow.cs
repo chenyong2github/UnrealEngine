@@ -33,7 +33,7 @@ namespace UnrealGameSync
 
 		private void BuildTaskWindow_Load(object sender, EventArgs e)
 		{
-			string defaultTargetName = _targetNames.FirstOrDefault(x => !x.EndsWith("Editor") && !x.EndsWith("Client") && !x.EndsWith("Server")) ?? ((_targetNames.Count > 0)? _targetNames[0] : "");
+			string defaultTargetName = _targetNames.FirstOrDefault(x => !x.EndsWith("Editor", StringComparison.OrdinalIgnoreCase) && !x.EndsWith("Client", StringComparison.OrdinalIgnoreCase) && !x.EndsWith("Server", StringComparison.OrdinalIgnoreCase)) ?? ((_targetNames.Count > 0)? _targetNames[0] : "");
 			CompileTargetComboBox.Items.AddRange(_targetNames.ToArray());
 			CompileTargetComboBox.Text = String.IsNullOrEmpty(_step.Target)? defaultTargetName : _step.Target;
 			StatusPanelLinkTextBox.Text = _step.StatusPanelLink;
@@ -169,7 +169,7 @@ namespace UnrealGameSync
 
 		private void CookFileNameButton_Click(object sender, EventArgs e)
 		{
-			OpenFileDialog dialog = new OpenFileDialog();
+			using OpenFileDialog dialog = new OpenFileDialog();
 			dialog.Filter = "Cook/Launch Profiles (*.ulp2)|*.ulp2";
 			dialog.FileName = AddBaseDirectory(CookFileNameTextBox.Text);
 			if(dialog.ShowDialog() == DialogResult.OK)
@@ -180,7 +180,7 @@ namespace UnrealGameSync
 
 		private void OtherFileNameButton_Click(object sender, EventArgs e)
 		{
-			OpenFileDialog dialog = new OpenFileDialog();
+			using OpenFileDialog dialog = new OpenFileDialog();
 			dialog.Filter = "Executable Files (*.exe,*.bat)|*.exe;*.bat|All files (*.*)|*.*";
 			dialog.FileName = AddBaseDirectory(OtherFileNameTextBox.Text);
 			if(dialog.ShowDialog() == DialogResult.OK)
@@ -191,7 +191,7 @@ namespace UnrealGameSync
 
 		private void OtherWorkingDirButton_Click(object sender, EventArgs e)
 		{
-			FolderBrowserDialog dialog = new FolderBrowserDialog();
+			using FolderBrowserDialog dialog = new FolderBrowserDialog();
 			dialog.SelectedPath = OtherWorkingDirTextBox.Text;
 			if (dialog.ShowDialog() == DialogResult.OK)
 			{
@@ -201,7 +201,7 @@ namespace UnrealGameSync
 
 		private string AddBaseDirectory(string fileName)
 		{
-			if(fileName.Contains("$("))
+			if(fileName.Contains("$(", StringComparison.Ordinal))
 			{
 				return "";
 			}
@@ -236,23 +236,20 @@ namespace UnrealGameSync
 		private void InsertVariable(string name)
 		{
 			IContainerControl container = this;
-			if(container != null)
+			for(;;)
 			{
-				for(;;)
+				IContainerControl? nextContainer = container.ActiveControl as IContainerControl;
+				if(nextContainer == null)
 				{
-					IContainerControl? nextContainer = container.ActiveControl as IContainerControl;
-					if(nextContainer == null)
-					{
-						break;
-					}
-					container = nextContainer;
+					break;
 				}
+				container = nextContainer;
+			}
 
-				TextBox? focusTextBox = container.ActiveControl as TextBox;
-				if(focusTextBox != null)
-				{
-					focusTextBox.SelectedText = name;
-				}
+			TextBox? focusTextBox = container.ActiveControl as TextBox;
+			if(focusTextBox != null)
+			{
+				focusTextBox.SelectedText = name;
 			}
 		}
 

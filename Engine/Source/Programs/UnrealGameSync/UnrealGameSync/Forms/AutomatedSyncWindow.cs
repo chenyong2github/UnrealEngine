@@ -138,7 +138,7 @@ namespace UnrealGameSync
 		{
 			string? workspaceName = FindDefaultWorkspace(owner, defaultPerforceSettings, streamName, serviceProvider);
 
-			AutomatedSyncWindow window = new AutomatedSyncWindow(streamName, projectPath, workspaceName, defaultPerforceSettings, serviceProvider);
+			using AutomatedSyncWindow window = new AutomatedSyncWindow(streamName, projectPath, workspaceName, defaultPerforceSettings, serviceProvider);
 			if(window.ShowDialog() == DialogResult.OK)
 			{
 				workspaceInfo = window._selectedWorkspaceInfo!;

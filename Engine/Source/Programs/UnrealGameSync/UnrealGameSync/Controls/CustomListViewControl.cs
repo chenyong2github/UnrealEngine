@@ -249,7 +249,7 @@ namespace UnrealGameSync
 			return FindWidget(HitTest(location));
 		}
 
-		protected CustomListViewWidget? FindWidget(ListViewHitTestInfo hitTest)
+		protected static CustomListViewWidget? FindWidget(ListViewHitTestInfo hitTest)
 		{
 			if(hitTest.Item != null)
 			{
@@ -384,6 +384,8 @@ namespace UnrealGameSync
 
 		public void DrawIcon(Graphics graphics, Rectangle bounds, Rectangle icon)
 		{
+			_ = this;
+
 			float dpiScaleX = graphics.DpiX / 96.0f;
 			float dpiScaleY = graphics.DpiY / 96.0f;
 
@@ -439,6 +441,7 @@ namespace UnrealGameSync
 
 		public void DrawDefaultBackground(Graphics graphics, Rectangle bounds)
 		{
+			_ = this;
 			graphics.FillRectangle(SystemBrushes.Window, bounds);
 		}
 

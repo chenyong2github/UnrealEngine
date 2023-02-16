@@ -61,6 +61,8 @@ namespace UnrealGameSync
 		public event Action? OnStreamChange;
 		public event Action? OnLoginExpired;
 
+		readonly object _lockObject = new object();
+
 		public TimeSpan ServerTimeZone
 		{
 			get;
@@ -105,7 +107,7 @@ namespace UnrealGameSync
 			if (_workerTask != null)
 			{
 				_cancellationSource.Cancel();
-				_asyncDisposeTasks.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose()));
+				_asyncDisposeTasks.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose(), TaskScheduler.Default));
 				_workerTask = null;
 			}
 		}
@@ -133,7 +135,7 @@ namespace UnrealGameSync
 			get => _pendingMaxChangesValue;
 			set 
 			{ 
-				lock(this)
+				lock(_lockObject)
 				{ 
 					if(value != _pendingMaxChangesValue)
 					{ 
@@ -163,7 +165,7 @@ namespace UnrealGameSync
 					{
 						Program.CaptureException(ex);
 					}
-					await Task.Delay(TimeSpan.FromSeconds(20.0), cancellationToken).ContinueWith(x => { });
+					await Task.Delay(TimeSpan.FromSeconds(20.0), cancellationToken).ContinueWith(x => { }, TaskScheduler.Default);
 				}
 			}
 		}
@@ -253,7 +255,7 @@ namespace UnrealGameSync
 			int newestChangeNumber = -1;
 			HashSet<int> currentChangelists;
 			SortedSet<int> prevPromotedChangelists;
-			lock(this)
+			lock(_lockObject)
 			{
 				maxChanges = PendingMaxChanges;
 				if(_changes.Count > 0)
@@ -285,7 +287,7 @@ namespace UnrealGameSync
 				ConfigSection? projectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
 				if (projectConfigSection != null)
 				{
-					IEnumerable<string> additionalPaths = projectConfigSection.GetValues("AdditionalPathsToSync", new string[0]);
+					IEnumerable<string> additionalPaths = projectConfigSection.GetValues("AdditionalPathsToSync", Array.Empty<string>());
 
 					// turn into //ws/path
 					depotPaths.AddRange(additionalPaths.Select(p => String.Format("{0}/{1}", _branchClientPath, p.TrimStart('/'))));
@@ -342,7 +344,7 @@ namespace UnrealGameSync
 			const string roboMergePrefix = "#ROBOMERGE-AUTHOR:";
 			foreach (ChangesRecord change in newChanges)
 			{
-				if(change.Description != null && change.Description.StartsWith(roboMergePrefix))
+				if(change.Description != null && change.Description.StartsWith(roboMergePrefix, StringComparison.Ordinal))
 				{
 					int startIdx = roboMergePrefix.Length;
 					while(startIdx < change.Description.Length && change.Description[startIdx] == ' ')
@@ -368,7 +370,7 @@ namespace UnrealGameSync
 			if(newChanges.Count > 0 || maxChanges < CurrentMaxChanges)
 			{
 				// Insert them into the builds list
-				lock(this)
+				lock(_lockObject)
 				{
 					_changes.UnionWith(newChanges);
 					if(_changes.Count > maxChanges)
@@ -393,7 +395,7 @@ namespace UnrealGameSync
 				int newLastChangeByCurrentUser = -1;
 				foreach(ChangesRecord change in _changes)
 				{
-					if(String.Compare(change.User, perforce.Settings.UserName, StringComparison.InvariantCultureIgnoreCase) == 0)
+					if(String.Equals(change.User, perforce.Settings.UserName, StringComparison.OrdinalIgnoreCase))
 					{
 						newLastChangeByCurrentUser = Math.Max(newLastChangeByCurrentUser, change.Number);
 					}
@@ -431,7 +433,7 @@ namespace UnrealGameSync
 
 			// Find the changes we need to query
 			List<int> queryChangeNumbers = new List<int>();
-			lock(this)
+			lock(_lockObject)
 			{
 				foreach(ChangesRecord change in _changes)
 				{
@@ -484,7 +486,7 @@ namespace UnrealGameSync
 							details = new PerforceChangeDetails(describeRecord, isCodeFile);
 						}
 
-						lock (this)
+						lock (_lockObject)
 						{
 							if (!_changeDetails.ContainsKey(queryChangeNumber))
 							{
@@ -507,14 +509,14 @@ namespace UnrealGameSync
 					}
 				}
 				cancellationSource.Cancel();
-				await notifyTask.ContinueWith(_ => { }); // Ignore exceptions
+				await notifyTask.ContinueWith(_ => { }, TaskScheduler.Default); // Ignore exceptions
 			}
 
 			// Find the last submitted code change by the current user
 			int newLastCodeChangeByCurrentUser = -1;
 			foreach(ChangesRecord change in _changes)
 			{
-				if(String.Compare(change.User, perforce.Settings.UserName, StringComparison.InvariantCultureIgnoreCase) == 0)
+				if(String.Equals(change.User, perforce.Settings.UserName, StringComparison.OrdinalIgnoreCase))
 				{
 					PerforceChangeDetails? otherDetails;
 					if(_changeDetails.TryGetValue(change.Number, out otherDetails) && otherDetails.ContainsCode)
@@ -566,7 +568,7 @@ namespace UnrealGameSync
 
 		public List<ChangesRecord> GetChanges()
 		{
-			lock(this)
+			lock(_lockObject)
 			{
 				return new List<ChangesRecord>(_changes);
 			}
@@ -574,7 +576,7 @@ namespace UnrealGameSync
 
 		public bool TryGetChangeDetails(int number, [NotNullWhen(true)] out PerforceChangeDetails? details)
 		{
-			lock(this)
+			lock(_lockObject)
 			{
 				return _changeDetails.TryGetValue(number, out details);
 			}
@@ -582,7 +584,7 @@ namespace UnrealGameSync
 
 		public HashSet<int> GetPromotedChangeNumbers()
 		{
-			lock(this)
+			lock(_lockObject)
 			{
 				return new HashSet<int>(_promotedChangeNumbers);
 			}
