@@ -23,7 +23,6 @@
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
-#include "WorldPartition/WorldPartitionActorContainerID.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 #include "ActorReferencesUtils.h"
 
@@ -573,6 +572,20 @@ FName FWorldPartitionActorDesc::GetDisplayClassName() const
 	};
 
 	return BaseClass.IsNull() ? GetCleanClassName(NativeClass) : GetCleanClassName(BaseClass);
+}
+
+bool FWorldPartitionActorDesc::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
+{
+	FContainerInstance ContainerInstance;
+	if (GetContainerInstance(ContainerInstance))
+	{
+		OutLevelContainer = ContainerInstance.Container;
+		OutLevelTransform = ContainerInstance.Transform;
+		OutClusterMode = ContainerInstance.ClusterMode;
+		return true;
+	}
+
+	return false;
 }
 
 FGuid FWorldPartitionActorDesc::GetContentBundleGuid() const

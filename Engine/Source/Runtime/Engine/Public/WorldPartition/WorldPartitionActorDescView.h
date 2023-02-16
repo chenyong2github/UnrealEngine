@@ -5,14 +5,13 @@
 #include "UObject/SoftObjectPath.h"
 #include "UObject/TopLevelAssetPath.h"
 #include "Misc/Optional.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 
 #if WITH_EDITOR
 class AActor;
-class FWorldPartitionActorDesc;
 class IStreamingGenerationErrorHandler;
 class UActorDescContainer;
 class UWorldPartition;
-enum class EContainerClusterMode : uint8;
 
 /**
  * A view on top of an actor desc, used to cache information that can be (potentially) different than the actor desc
@@ -66,7 +65,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool IsContainerInstance() const;
 	FName GetLevelPackage() const;
-	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
+	bool GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const;
 
 	void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 

@@ -12,6 +12,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Templates/SubclassOf.h"
 #include "Misc/Guid.h"
+#include "WorldPartition/WorldPartitionActorContainerID.h"
 
 // Struct used to create actor descriptor
 struct FWorldPartitionActorDescInitData
@@ -25,7 +26,6 @@ struct FWorldPartitionActorDescInitData
 class AActor;
 class UActorDescContainer;
 class IStreamingGenerationErrorHandler;
-struct FActorContainerID;
 
 enum class EContainerClusterMode : uint8
 {
@@ -73,6 +73,22 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend class FAssetRootPackagePatcher;
 
 public:
+	struct FContainerInstance
+	{
+		FContainerInstance() {}
+		FContainerInstance(const FActorContainerID& InContainerID)
+			: ContainerID(InContainerID) {}
+	public:
+		const FActorContainerID& GetID() const { return ContainerID; }
+
+		const UActorDescContainer* Container = nullptr;
+		FTransform Transform = FTransform::Identity;
+		EContainerClusterMode ClusterMode;
+
+	private:
+		FActorContainerID ContainerID;
+	};
+
 	virtual ~FWorldPartitionActorDesc() {}
 
 	inline const FGuid& GetGuid() const { return Guid; }
@@ -137,7 +153,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual bool IsContainerInstance() const { return false; }
 	virtual FName GetLevelPackage() const { return NAME_None; }
-	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
+	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
+	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance) const { return false; }
 
 	FGuid GetContentBundleGuid() const;
 

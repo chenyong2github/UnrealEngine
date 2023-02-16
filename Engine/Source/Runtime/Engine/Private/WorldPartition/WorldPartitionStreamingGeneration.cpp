@@ -233,6 +233,7 @@ class FWorldPartitionStreamingGenerator
 		bool bIsSpatiallyLoaded;
 		FString OwnerName;
 		FActorContainerID ID;
+		FActorContainerID ParentID;
 	};
 
 	void ResolveRuntimeSpatiallyLoaded(FWorldPartitionActorDescView& ActorDescView)
@@ -383,26 +384,44 @@ class FWorldPartitionStreamingGenerator
 		}
 	}
 
-	void CreateActorDescriptorViewsRecursive(const UActorDescContainer* InContainer, const FTransform& InTransform, FName InRuntimeGrid, bool bInIsSpatiallyLoaded, const TSet<FName>& InRuntimeDataLayers, const FActorContainerID& InContainerID, const FActorContainerID& InParentContainerID, EContainerClusterMode InClusterMode, const TCHAR* InOwnerName)
+	void CreateActorDescriptorViewsRecursive(const FContainerInstanceDescriptor& InContainerInstanceDescriptor)
 	{
 		// Create or resolve container descriptor
-		FContainerDescriptor& ContainerDescriptor = ContainerDescriptorsMap.FindOrAdd(InContainer);
-
-		if (!ContainerDescriptor.Container)
-		{
-			ContainerDescriptor.Container = InContainer;
+		FContainerDescriptor& ContainerDescriptor = ContainerDescriptorsMap.FindOrAdd(InContainerInstanceDescriptor.Container);
 		
-			// Gather actor descriptor views for this container
-			CreateActorDescViewMap(InContainer, ContainerDescriptor.ActorDescViewMap, ContainerDescriptor.FilteredActorDescViewMap, InContainerID, ContainerDescriptor.ContainerInstanceViews);
+		// Scope ContainerInstanceDescriptor so that it doesn't get used mistakenly after the ContainerInstanceViews loop
+		{
+			// Create container instance descriptor
+			check(!ContainerInstanceDescriptorsMap.Contains(InContainerInstanceDescriptor.ID));
 
-			// Resolve actor descriptor views before validation
-			ResolveContainerDescriptor(ContainerDescriptor);
+			FContainerInstanceDescriptor& ContainerInstanceDescriptor = ContainerInstanceDescriptorsMap.Add(InContainerInstanceDescriptor.ID, InContainerInstanceDescriptor);
 
-			// Validate container, fixing anything illegal, etc.
-			ValidateContainerDescriptor(ContainerDescriptor, InContainerID.IsMainContainer());
+			if (!ContainerDescriptor.Container)
+			{
+				ContainerDescriptor.Container = ContainerInstanceDescriptor.Container;
 
-			// Update container, computing cluster, bounds, etc.
-			UpdateContainerDescriptor(ContainerDescriptor);
+				// Gather actor descriptor views for this container
+				CreateActorDescViewMap(ContainerInstanceDescriptor.Container, ContainerDescriptor.ActorDescViewMap, ContainerDescriptor.FilteredActorDescViewMap, ContainerInstanceDescriptor.ID, ContainerDescriptor.ContainerInstanceViews);
+
+				// Resolve actor descriptor views before validation
+				ResolveContainerDescriptor(ContainerDescriptor);
+
+				// Validate container, fixing anything illegal, etc.
+				ValidateContainerDescriptor(ContainerDescriptor, ContainerInstanceDescriptor.ID.IsMainContainer());
+
+				// Update container, computing cluster, bounds, etc.
+				UpdateContainerDescriptor(ContainerDescriptor);
+			}
+
+			// Calculate Bounds of Non-container ActorDescViews
+			check(!ContainerInstanceDescriptor.Bounds.IsValid);
+			ContainerDescriptor.ActorDescViewMap.ForEachActorDescView([&ContainerInstanceDescriptor](const FWorldPartitionActorDescView& ActorDescView)
+			{
+				if (ActorDescView.GetIsSpatiallyLoaded())
+				{
+					ContainerInstanceDescriptor.Bounds += ActorDescView.GetRuntimeBounds().TransformBy(ContainerInstanceDescriptor.Transform);
+				}
+			});
 		}
 
 		// Inherited parent properties logic
@@ -425,47 +444,46 @@ class FWorldPartitionStreamingGenerator
 		TArray<FWorldPartitionActorDescView> ContainerInstanceViews = ContainerDescriptor.ContainerInstanceViews;
 		for (const FWorldPartitionActorDescView& ContainerInstanceView : ContainerInstanceViews)
 		{
-			const UActorDescContainer* SubContainer;
-			EContainerClusterMode SubClusterMode;
-			FTransform SubTransform;
-
-			if (!ContainerInstanceView.GetContainerInstance(SubContainer, SubTransform, SubClusterMode))
+			const FGuid ActorGuid = ContainerInstanceView.GetGuid();
+			FWorldPartitionActorDesc::FContainerInstance SubContainerInstance(FActorContainerID(InContainerInstanceDescriptor.ID, ActorGuid));
+			if (!ContainerInstanceView.GetContainerInstance(SubContainerInstance))
 			{
 				ErrorHandler->OnLevelInstanceInvalidWorldAsset(ContainerInstanceView, ContainerInstanceView.GetLevelPackage(), IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetHasInvalidContainer);
 				continue;
 			}
 
-			check(SubContainer);
+			check(SubContainerInstance.Container);
+			FContainerInstanceDescriptor SubContainerInstanceDescriptor;
 
-			const FGuid ActorGuid = ContainerInstanceView.GetGuid();
-			const FActorContainerID SubContainerID(InContainerID, ActorGuid);
+			// Inherit fields from FContainerInstance
+			SubContainerInstanceDescriptor.ID = SubContainerInstance.GetID();
+			SubContainerInstanceDescriptor.Container = SubContainerInstance.Container;
+			SubContainerInstanceDescriptor.Transform = SubContainerInstance.Transform * InContainerInstanceDescriptor.Transform;
+
+
+			SubContainerInstanceDescriptor.ParentID = InContainerInstanceDescriptor.ID;
+			SubContainerInstanceDescriptor.OwnerName = *ContainerInstanceView.GetActorLabelOrName().ToString();
 
 			// Inherit parent container properties
-			FName InheritedRuntimeGrid = InRuntimeGrid;
-			bool bInheritedbIsSpatiallyLoaded = bInIsSpatiallyLoaded;
-			TSet<FName> InheritedRuntimeDataLayers = InRuntimeDataLayers;
-			InheritParentContainerProperties(InContainerID, ContainerInstanceView, InheritedRuntimeDataLayers, InheritedRuntimeGrid, bInheritedbIsSpatiallyLoaded);
+			FName InheritedRuntimeGrid = InContainerInstanceDescriptor.RuntimeGrid;
+			bool bInheritedbIsSpatiallyLoaded = InContainerInstanceDescriptor.bIsSpatiallyLoaded;
+			TSet<FName> InheritedRuntimeDataLayers = InContainerInstanceDescriptor.RuntimeDataLayers;
+			InheritParentContainerProperties(InContainerInstanceDescriptor.ID, ContainerInstanceView, InheritedRuntimeDataLayers, InheritedRuntimeGrid, bInheritedbIsSpatiallyLoaded);
 
-			CreateActorDescriptorViewsRecursive(SubContainer, SubTransform * InTransform, InheritedRuntimeGrid, bInheritedbIsSpatiallyLoaded, InheritedRuntimeDataLayers, SubContainerID, InContainerID, SubClusterMode, *ContainerInstanceView.GetActorLabelOrName().ToString());
+			SubContainerInstanceDescriptor.bIsSpatiallyLoaded = bInheritedbIsSpatiallyLoaded;
+			SubContainerInstanceDescriptor.RuntimeGrid = InheritedRuntimeGrid;
+			SubContainerInstanceDescriptor.RuntimeDataLayers = InheritedRuntimeDataLayers;
+
+			CreateActorDescriptorViewsRecursive(SubContainerInstanceDescriptor);
 		}
-
-		// Create container instance descriptor
-		check(!ContainerInstanceDescriptorsMap.Contains(InContainerID));
-
-		FContainerInstanceDescriptor& ContainerInstanceDescriptor = ContainerInstanceDescriptorsMap.Add(InContainerID);
-		ContainerInstanceDescriptor.Container = InContainer;
-		ContainerInstanceDescriptor.Transform = InTransform;
-		ContainerInstanceDescriptor.ClusterMode = InClusterMode;
-		ContainerInstanceDescriptor.RuntimeDataLayers = InRuntimeDataLayers;
-		ContainerInstanceDescriptor.RuntimeGrid = InRuntimeGrid;
-		ContainerInstanceDescriptor.bIsSpatiallyLoaded = bInIsSpatiallyLoaded;
-		ContainerInstanceDescriptor.OwnerName = InOwnerName;
-		ContainerInstanceDescriptor.ID = InContainerID;
-
-		// Maintain containers hierarchy, bottom up
-		if (InContainerID != InParentContainerID)
+							
+		if (!InContainerInstanceDescriptor.ID.IsMainContainer())
 		{
-			ContainersHierarchy.Add(InContainerID, InParentContainerID);
+			FContainerInstanceDescriptor& ParentContainer = ContainerInstanceDescriptorsMap.FindChecked(InContainerInstanceDescriptor.ParentID);
+			
+			// Fetch version stored in map as it will be the only one that will have its bounds updated by its Children
+			const FContainerInstanceDescriptor& ContainerInstanceWithUpdatedBounds = ContainerInstanceDescriptorsMap.FindChecked(InContainerInstanceDescriptor.ID);
+			ParentContainer.Bounds += ContainerInstanceWithUpdatedBounds.Bounds;
 		}
 	}
 
@@ -477,35 +495,12 @@ class FWorldPartitionStreamingGenerator
 		TRACE_CPUPROFILER_EVENT_SCOPE(FWorldPartitionStreamingGenerator::CreateActorContainers);
 
 		// Since we apply AND logic on spatially loaded flag recursively, startup value must be true
-		const bool bIsSpatiallyLoaded = true;
-		CreateActorDescriptorViewsRecursive(InContainer, FTransform::Identity, NAME_None, bIsSpatiallyLoaded, TSet<FName>(), FActorContainerID(), FActorContainerID(), EContainerClusterMode::Partitioned, TEXT("MainContainer"));
-
-		// Update container instances bounds
-		for (auto& [ContainerID, ContainerInstanceDescriptor] : ContainerInstanceDescriptorsMap)
-		{
-			const FContainerDescriptor& ContainerDescriptor = ContainerDescriptorsMap.FindChecked(ContainerInstanceDescriptor.Container);
-
-			// Lambdas can't capture structured bindings
-			const FTransform& ContainerInstanceDescriptorTransform = ContainerInstanceDescriptor.Transform;
-			FBox& ContainerInstanceDescriptorBounds = ContainerInstanceDescriptor.Bounds;			
-			check(!ContainerInstanceDescriptorBounds.IsValid);
-
-			ContainerDescriptor.ActorDescViewMap.ForEachActorDescView([&ContainerInstanceDescriptorBounds, &ContainerInstanceDescriptorTransform](const FWorldPartitionActorDescView& ActorDescView)
-			{
-				if (ActorDescView.GetIsSpatiallyLoaded())
-				{
-					ContainerInstanceDescriptorBounds += ActorDescView.GetRuntimeBounds().TransformBy(ContainerInstanceDescriptorTransform);
-				}
-			});
-		}
-
-		// Update parent containers bounds, this relies on the fact that ContainersHierarchy is built bottom up
-		for (auto& [ChildContainerID, ParentContainerID] : ContainersHierarchy)
-		{
-			const FContainerInstanceDescriptor& CurrentContainer = ContainerInstanceDescriptorsMap.FindChecked(ChildContainerID);
-			FContainerInstanceDescriptor& ParentContainer = ContainerInstanceDescriptorsMap.FindChecked(ParentContainerID);
-			ParentContainer.Bounds += CurrentContainer.Bounds;
-		}
+		FContainerInstanceDescriptor MainContainerInstance;
+		MainContainerInstance.Container = InContainer;
+		MainContainerInstance.bIsSpatiallyLoaded = true;
+		MainContainerInstance.ClusterMode = EContainerClusterMode::Partitioned;
+		MainContainerInstance.OwnerName = TEXT("MainContainer");
+		CreateActorDescriptorViewsRecursive(MainContainerInstance);
 	}
 
 	/** 
@@ -892,9 +887,12 @@ public:
 
 		// Build the containers tree representation
 		TMultiMap<FActorContainerID, FActorContainerID> InvertedContainersHierarchy;
-		for (auto& [ChildContainerID, ParentContainerID] : ContainersHierarchy)
+		for (auto& [ContainerID, ContainerInstanceDescriptor] : ContainerInstanceDescriptorsMap)
 		{
-			InvertedContainersHierarchy.Add(ParentContainerID, ChildContainerID);
+			if (!ContainerID.IsMainContainer())
+			{
+				InvertedContainersHierarchy.Add(ContainerInstanceDescriptor.ParentID, ContainerID);
+			}
 		}
 
 		UE_SCOPED_INDENT_LOG_ARCHIVE(Ar.PrintfIndent(TEXT("Containers:")));
@@ -994,9 +992,6 @@ private:
 	
 	/** Maps containers IDs to their container instance descriptor */
 	TMap<FActorContainerID, FContainerInstanceDescriptor> ContainerInstanceDescriptorsMap;
-
-	/** Maps containers IDs to their parent ID */
-	TMap<FActorContainerID, FActorContainerID> ContainersHierarchy;
 
 	/** Data required for streaming generation interface */
 	TUniquePtr<FStreamingGenerationContext> StreamingGenerationContext;

@@ -158,16 +158,16 @@ bool FLevelInstanceActorDesc::IsContainerInstance() const
 	return ULevelInstanceSubsystem::CanUsePackage(LevelPackage);
 }
 
-bool FLevelInstanceActorDesc::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
+bool FLevelInstanceActorDesc::GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const
 {
 	if (LevelInstanceContainer.IsValid())
 	{
-		OutLevelContainer = LevelInstanceContainer.Get();
-		OutClusterMode = EContainerClusterMode::Partitioned;
+		OutContainerInstance.Container = LevelInstanceContainer.Get();
+		OutContainerInstance.ClusterMode = EContainerClusterMode::Partitioned;
 
 		// Apply level instance pivot offset
 		FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelInstanceContainer->GetContainerPackage()));
-		OutLevelTransform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
+		OutContainerInstance.Transform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
 
 		return true;
 	}
