@@ -826,7 +826,7 @@ namespace UnrealBuildTool
 			return new PrecompiledHeaderTemplate(this, CompileEnvironment, HeaderFile, PrecompiledHeaderDir);
 		}
 
-		private HashSet<string> GetImmutableDefinitions(List<string> Definitions)
+		static HashSet<string> GetImmutableDefinitions(List<string> Definitions)
 		{
 			HashSet<string> ImmutableDefinitions = new();
 			foreach (string Definition in Definitions)
@@ -966,7 +966,7 @@ namespace UnrealBuildTool
 							ParentPCHInstance = ParentTemplate.Instances.Find(x => IsCompatibleForSharedPCH(x.CompileEnvironment, ModuleCompileEnvironment) && AreSharedPCHDefinitionsCompatible(x));
 							if (ParentPCHInstance != null)
 							{
-								CompileEnvironment.ParentPrecompiledHeaderFile = ParentPCHInstance.Output.PrecompiledHeaderFile;
+								CompileEnvironment.ParentPCHInstance = ParentPCHInstance;
 								break;
 							}
 						}
@@ -1344,8 +1344,7 @@ namespace UnrealBuildTool
 				FileEnvironment.Definitions.Clear();
 				FileEnvironment.PrecompiledHeaderAction = PrecompiledHeaderAction.Include;
 				FileEnvironment.PrecompiledHeaderIncludeFilename = DedicatedPchFile.Location;
-				FileEnvironment.PrecompiledHeaderFile = PchOutput.PrecompiledHeaderFile;
-				FileEnvironment.PerArchPrecompiledHeaderFiles = PchOutput.PerArchPrecompiledHeaderFiles;
+				FileEnvironment.PCHInstance = new PrecompiledHeaderInstance(DedicatedPchFile, DedicatedPchFile, PchEnvironment, PchOutput, GetImmutableDefinitions(CompileEnvironment.Definitions));
 
 				// Create the action to compile the PCH file.
 				CPPOutput FileOutput = ToolChain.CompileAllCPPFiles(FileEnvironment, new List<FileItem>() { File }, IntermediateDirectory, ModuleName, Graph);
@@ -1375,8 +1374,7 @@ namespace UnrealBuildTool
 					CompileEnvironment.Definitions.Clear();
 					CompileEnvironment.PrecompiledHeaderAction = PrecompiledHeaderAction.Include;
 					CompileEnvironment.PrecompiledHeaderIncludeFilename = Instance.HeaderFile.Location;
-					CompileEnvironment.PrecompiledHeaderFile = Instance.Output.PrecompiledHeaderFile;
-					CompileEnvironment.PerArchPrecompiledHeaderFiles = Instance.Output.PerArchPrecompiledHeaderFiles;
+					CompileEnvironment.PCHInstance = Instance;
 
 					LinkInputFiles.AddRange(Instance.Output.ObjectFiles);
 				}
@@ -1444,8 +1442,7 @@ namespace UnrealBuildTool
 						CompileEnvironment.ForceIncludeFiles.Add(PrivateDefinitionsFileItem);
 						CompileEnvironment.PrecompiledHeaderAction = PrecompiledHeaderAction.Include;
 						CompileEnvironment.PrecompiledHeaderIncludeFilename = Instance.HeaderFile.Location;
-						CompileEnvironment.PrecompiledHeaderFile = Instance.Output.PrecompiledHeaderFile;
-						CompileEnvironment.PerArchPrecompiledHeaderFiles = Instance.Output.PerArchPrecompiledHeaderFiles;
+						CompileEnvironment.PCHInstance = Instance;
 
 						LinkInputFiles.AddRange(Instance.Output.ObjectFiles);
 					}

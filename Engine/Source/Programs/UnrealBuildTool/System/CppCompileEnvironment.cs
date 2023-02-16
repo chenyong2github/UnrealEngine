@@ -495,17 +495,22 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The file containing the precompiled header data.
 		/// </summary>
-		public FileItem? PrecompiledHeaderFile = null;
-
-		/// <summary>
-		/// The parent file containing the precompiled header data.
-		/// </summary>
-		public FileItem? ParentPrecompiledHeaderFile = null;
+		public FileItem? PrecompiledHeaderFile => PCHInstance?.Output.PrecompiledHeaderFile;
 
 		/// <summary>
 		/// A dictionary of PCH files for multiple architectures
 		/// </summary>
-		public Dictionary<UnrealArch, FileItem>? PerArchPrecompiledHeaderFiles = null;
+		public Dictionary<UnrealArch, FileItem>? PerArchPrecompiledHeaderFiles => PCHInstance?.Output.PerArchPrecompiledHeaderFiles;
+
+		/// <summary>
+		/// The instance containing the precompiled header data.
+		/// </summary>
+		public PrecompiledHeaderInstance? PCHInstance = null;
+
+		/// <summary>
+		/// The parent PCH instance used when creating this PCH.
+		/// </summary>
+		public PrecompiledHeaderInstance? ParentPCHInstance = null;
 
 		/// <summary>
 		/// True if a single PRecompiledHeader exists, or at least one PerArchPrecompiledHeaderFile exists
@@ -586,10 +591,6 @@ namespace UnrealBuildTool
 			MetadataCache = Other.MetadataCache;
 			SharedPCHs = Other.SharedPCHs;
 			PrecompiledHeaderIncludeFilename = Other.PrecompiledHeaderIncludeFilename;
-			if (Other.PerArchPrecompiledHeaderFiles != null)
-			{
-				PerArchPrecompiledHeaderFiles = new(Other.PerArchPrecompiledHeaderFiles);
-			}
 			PrecompiledHeaderAction = Other.PrecompiledHeaderAction;
 			bUseSharedBuildEnvironment = Other.bUseSharedBuildEnvironment;
 			bUseRTTI = Other.bUseRTTI;
@@ -649,8 +650,8 @@ namespace UnrealBuildTool
 			AdditionalResponseFiles.AddRange(Other.AdditionalResponseFiles);
 			AdditionalArguments = Other.AdditionalArguments;
 			AdditionalFrameworks.AddRange(Other.AdditionalFrameworks);
-			PrecompiledHeaderFile = Other.PrecompiledHeaderFile;
-			ParentPrecompiledHeaderFile = Other.ParentPrecompiledHeaderFile;
+			PCHInstance = Other.PCHInstance;
+			ParentPCHInstance = Other.ParentPCHInstance;
 			bHackHeaderGenerator = Other.bHackHeaderGenerator;
 			bHideSymbolsByDefault = Other.bHideSymbolsByDefault;
 			CppStandard = Other.CppStandard;
@@ -665,6 +666,8 @@ namespace UnrealBuildTool
 			: this(Other)
 		{
 			Architectures = new UnrealArchitectures(OverrideArchitecture);
+
+			FileItem? PrecompiledHeaderFile;
 			if (Other.PerArchPrecompiledHeaderFiles != null)
 			{
 				Other.PerArchPrecompiledHeaderFiles.TryGetValue(OverrideArchitecture, out PrecompiledHeaderFile);

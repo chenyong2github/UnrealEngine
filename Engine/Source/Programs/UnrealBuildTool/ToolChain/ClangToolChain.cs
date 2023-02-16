@@ -485,9 +485,9 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add(GetIncludePCHFileArgument(CompileEnvironment.PrecompiledHeaderFile!));
 			}
-			else if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create && CompileEnvironment.ParentPrecompiledHeaderFile != null)
+			else if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create && CompileEnvironment.ParentPCHInstance != null)
 			{
-				Arguments.Add(GetIncludePCHFileArgument(CompileEnvironment.ParentPrecompiledHeaderFile));
+				Arguments.Add(GetIncludePCHFileArgument(CompileEnvironment.ParentPCHInstance.Output.PrecompiledHeaderFile!));
 			}
 
 			Arguments.AddRange(CompileEnvironment.ForceIncludeFiles.Select(ForceIncludeFile => GetForceIncludeFileArgument(ForceIncludeFile)));
@@ -938,8 +938,14 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
-				CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile!);
 				CompileAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
+
+				PrecompiledHeaderInstance? PCHInstance = CompileEnvironment.PCHInstance;
+				while (PCHInstance != null)
+				{
+					CompileAction.PrerequisiteItems.Add(PCHInstance.Output.PrecompiledHeaderFile!);
+					PCHInstance = PCHInstance.ParentPCHInstance;
+				}
 			}
 
 			string FileName = SourceFile.Name;
@@ -955,9 +961,11 @@ namespace UnrealBuildTool
 				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".gch")));
 				CompileResult.PrecompiledHeaderFile = OutputFile;
 
-				if (CompileEnvironment.ParentPrecompiledHeaderFile != null)
+				PrecompiledHeaderInstance? ParentPCHInstance = CompileEnvironment.ParentPCHInstance;
+				while (ParentPCHInstance != null)
 				{
-					CompileAction.PrerequisiteItems.Add(CompileEnvironment.ParentPrecompiledHeaderFile!);
+					CompileAction.PrerequisiteItems.Add(ParentPCHInstance.Output.PrecompiledHeaderFile!);
+					ParentPCHInstance = ParentPCHInstance.ParentPCHInstance;
 				}
 			}
 			else if (CompileEnvironment.bPreprocessOnly)

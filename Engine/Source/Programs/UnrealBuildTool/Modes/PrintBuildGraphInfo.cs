@@ -60,7 +60,7 @@ namespace UnrealBuildTool
 					foreach (UEBuildBinary Binary in Target.Binaries)
 					{
 						CppCompileEnvironment BinaryCompileEnvironment = Binary.CreateBinaryCompileEnvironment(GlobalCompileEnvironment);
-						foreach (UEBuildModule Module in Binary.Modules)
+						foreach (UEBuildModule Module in UEBuildModule.StableTopologicalSort(Binary.Modules))
 						{
 							if (Module is UEBuildModuleCPP ModuleCPP)
 							{
@@ -163,10 +163,10 @@ namespace UnrealBuildTool
 							SortedInstances.SortBy(Instance => Instance.HeaderFile.Name);
 							foreach (PrecompiledHeaderInstance Instance in SortedInstances)
 							{
-								Logger.LogInformation("   {InstanceName} - Used by {TimesUsed} modules:", Instance.CompileEnvironment.PrecompiledHeaderIncludeFilename, Instance.Modules.Count);
+								Logger.LogInformation("   {InstanceName} - Used by {TimesUsed} modules:", Instance.HeaderFile, Instance.Modules.Count);
 								if (Instance.ParentPCHInstance != null)
 								{
-									Logger.LogInformation("    ParentPCH: {ParentInstanceName}", Instance.ParentPCHInstance.CompileEnvironment.PrecompiledHeaderIncludeFilename);
+									Logger.LogInformation("    ParentPCH: {ParentInstanceName}", Instance.ParentPCHInstance.HeaderFile);
 								}
 
 								List<UEBuildModuleCPP> SortedModules = new(Instance.Modules);
