@@ -87,6 +87,12 @@ struct FAnalyticsEventAttribute
 	/** Hack to allow assignment. This class only "sort of" acts like an immutable class because the const members prevents assignment, which was not intended when this code was changed. */
 	FAnalyticsEventAttribute& operator=(FAnalyticsEventAttribute&& RHS);
 
+	/** ALlow aggregation of attributes */
+	FAnalyticsEventAttribute& operator+=(const FAnalyticsEventAttribute& RHS);
+
+	/** ALlow aggregation of attributes */
+	FAnalyticsEventAttribute& operator+(const FAnalyticsEventAttribute& RHS);
+
 	/** If you need the old AttrValue behavior (i.e. stringify everything), call this function instead. */
 	UE_DEPRECATED(4.26, "This property has been deprecated, use GetValue() instead")
 	FString ToString() const;
@@ -163,6 +169,23 @@ inline FAnalyticsEventAttribute& FAnalyticsEventAttribute::operator=(const FAnal
 	const_cast<double&>(AttrValueNumber) = RHS.AttrValueNumber;
 	const_cast<bool&>(AttrValueBool) = RHS.AttrValueBool;
 	const_cast<AttrTypeEnum&>(AttrType) = RHS.AttrType;
+	return *this;
+}
+
+inline FAnalyticsEventAttribute& FAnalyticsEventAttribute::operator+=(const FAnalyticsEventAttribute& RHS)
+{
+	return *this+RHS;
+}
+
+inline FAnalyticsEventAttribute& FAnalyticsEventAttribute::operator+(const FAnalyticsEventAttribute& RHS)
+{
+	if (&RHS == this)
+	{
+		return *this;
+	}
+
+	const_cast<double&>(AttrValueNumber) += RHS.AttrValueNumber;
+	const_cast<bool&>(AttrValueBool) |= RHS.AttrValueBool;
 	return *this;
 }
 
