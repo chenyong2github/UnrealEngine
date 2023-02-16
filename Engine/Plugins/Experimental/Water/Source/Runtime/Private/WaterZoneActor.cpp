@@ -477,7 +477,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		if (GroundActors.Num() == 0)
 		{
 			GroundZMax = WaterZMax;
-			GroundZMin = GroundZMax - CVarWaterFallbackDepth.GetValueOnGameThread();
+			GroundZMin = WaterZMin - CVarWaterFallbackDepth.GetValueOnGameThread();
 		}
 
 #if WITH_EDITOR
