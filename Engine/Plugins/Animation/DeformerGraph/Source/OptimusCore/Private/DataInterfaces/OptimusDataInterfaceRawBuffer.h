@@ -6,14 +6,12 @@
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusComputeDataInterface.h"
 #include "OptimusDataDomain.h"
+#include "RenderGraphFwd.h"
 
 #include "OptimusDataInterfaceRawBuffer.generated.h"
 
 class FOptimusPersistentBufferPool;
 class FPersistentBufferDataInterfaceParameters;
-class FRDGBuffer;
-class FRDGBufferSRV;
-class FRDGBufferUAV;
 class FTransientBufferDataInterfaceParameters;
 class UOptimusComponentSource;
 class UOptimusComponentSourceBinding;
@@ -228,12 +226,13 @@ private:
 	using FParameters = FTransientBufferDataInterfaceParameters;
 
 	const TArray<int32> InvocationElementCounts;
+	int32 TotalElementCount;
 	const int32 ElementStride;
 	const int32 RawStride;
 
-	TArray<FRDGBuffer*> Buffer;
-	TArray<FRDGBufferSRV*> BufferSRV;
-	TArray<FRDGBufferUAV*> BufferUAV;
+	FRDGBufferRef Buffer;
+	FRDGBufferSRVRef BufferSRV;
+	FRDGBufferUAVRef BufferUAV;
 };
 
 
@@ -260,12 +259,13 @@ private:
 	using FParameters = FPersistentBufferDataInterfaceParameters;
 
 	const TArray<int32> InvocationElementCounts;
+	int32 TotalElementCount;
 	const int32 ElementStride;
 	const int32 RawStride;
 	const TSharedPtr<FOptimusPersistentBufferPool> BufferPool;
 	const FName ResourceName;
 	const int32 LODIndex;
 
-	TArray<FRDGBuffer*> Buffers;
-	TArray<FRDGBufferUAV*> BufferUAVs;
+	FRDGBufferRef Buffer;
+	FRDGBufferUAVRef BufferUAV;
 };
