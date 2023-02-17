@@ -7,6 +7,7 @@
 #include "Brushes/SlateNoResource.h"
 
 #include "FToolkitWidgetStyle.generated.h"
+#include "Styling/SlateWidgetStyle.h"
 
 /**
  * FToolkitWidgetStyle is the FSlateWidgetStyle that defines the styling of a ToolkitWidget 
