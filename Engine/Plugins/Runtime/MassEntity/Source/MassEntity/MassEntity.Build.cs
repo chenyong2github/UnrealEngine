@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
-
 namespace UnrealBuildTool.Rules
 {
 	public class MassEntity : ModuleRules
@@ -9,12 +7,6 @@ namespace UnrealBuildTool.Rules
 		public MassEntity(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
-			PublicIncludePaths.AddRange(
-				new string[] {
-				ModuleDirectory + "/Public",
-				}
-			);
 
 			PublicDependencyModuleNames.AddRange(
 				new string[] {

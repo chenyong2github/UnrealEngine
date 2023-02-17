@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public NiagaraSimCaching(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PublicDependencyModuleNames.AddRange(
 				new[]
 				{

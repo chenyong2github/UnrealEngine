@@ -6,9 +6,6 @@ public class UncontrolledChangelists : ModuleRules
 {
 	public UncontrolledChangelists(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add(ModuleDirectory + "/Public");
-		PrivateIncludePaths.Add(ModuleDirectory + "/Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -22,7 +19,6 @@ public class UncontrolledChangelists : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-                
 				"Json",
 				"SourceControl",
 				"AssetRegistry",

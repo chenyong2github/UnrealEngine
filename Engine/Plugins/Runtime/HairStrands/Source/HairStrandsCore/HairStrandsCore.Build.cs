@@ -9,10 +9,8 @@ namespace UnrealBuildTool.Rules
 			// Include Renderer/Private to have access to default resources
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					ModuleDirectory + "/Private",
 					EngineDirectory + "/Shaders/Shared",
 				});
-			PublicIncludePaths.Add(ModuleDirectory + "/Public");
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

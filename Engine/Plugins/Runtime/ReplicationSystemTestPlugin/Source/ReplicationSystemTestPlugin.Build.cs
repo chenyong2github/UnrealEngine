@@ -9,22 +9,13 @@ namespace UnrealBuildTool.Rules
 	{
 		public ReplicationSystemTestPlugin(ReadOnlyTargetRules Target) : base(Target)
 		{
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-
 			// We never want to precompile this plugin
 			PrecompileForTargets = PrecompileTargetsType.None;
-
-			PublicIncludePaths.AddRange(
-				new string[] {
-					ModuleDirectory + "/Public",
-
-				}
-				);
 
 			PrivateIncludePaths.AddRange(
 				new string[]
 				{
-                    Path.Combine(EngineDir, "Source/Runtime/Experimental/Iris/Core/Private"),
+					Path.Combine(GetModuleDirectory("IrisCore"), "Private"),
 				}
 				);
 

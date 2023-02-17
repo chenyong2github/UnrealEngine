@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public NiagaraSimCachingEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("NiagaraSimCachingEditor/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PublicDependencyModuleNames.AddRange(
 				new[]
 				{

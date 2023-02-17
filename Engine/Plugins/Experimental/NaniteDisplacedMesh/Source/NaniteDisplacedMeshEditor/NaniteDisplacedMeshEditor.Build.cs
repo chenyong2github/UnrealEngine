@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public NaniteDisplacedMeshEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("NaniteDisplacedMeshEditor/Private");
-			PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

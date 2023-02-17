@@ -7,8 +7,6 @@ public class StatusBar : ModuleRules
 	public StatusBar(ReadOnlyTargetRules Target)
 		 : base(Target)
 	{
-		PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
