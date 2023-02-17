@@ -113,6 +113,8 @@ public:
 	static TArray<const ANSICHAR*> ExternalExtensions;
 
 protected:
+	struct FOptionalVulkanDeviceExtensionProperties& GetDeviceExtensionProperties();
+
 	FVulkanDevice* Device;
 	TUniqueFunction<void(FOptionalVulkanDeviceExtensions& ExtensionFlags)> FlagSetter = nullptr;
 };

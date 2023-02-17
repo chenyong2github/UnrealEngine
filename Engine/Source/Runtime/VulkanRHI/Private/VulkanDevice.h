@@ -113,13 +113,22 @@ struct FOptionalVulkanDeviceExtensions
 #endif
 };
 
-#if VULKAN_RHI_RAYTRACING
-struct FRayTracingProperties
+// All the features and properties we need to keep around from extension initialization
+struct FOptionalVulkanDeviceExtensionProperties
 {
-	VkPhysicalDeviceAccelerationStructurePropertiesKHR AccelerationStructure;
-	VkPhysicalDeviceRayTracingPipelinePropertiesKHR RayTracingPipeline;
-};
+	FOptionalVulkanDeviceExtensionProperties()
+	{
+		FMemory::Memzero(*this);
+	}
+
+	VkPhysicalDeviceDescriptorBufferPropertiesEXT DescriptorBufferProps;
+	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT SubgroupSizeControlProperties;
+
+#if VULKAN_RHI_RAYTRACING
+	VkPhysicalDeviceAccelerationStructurePropertiesKHR AccelerationStructureProps;
+	VkPhysicalDeviceRayTracingPipelinePropertiesKHR RayTracingPipelineProps;
 #endif // VULKAN_RHI_RAYTRACING
+};
 
 namespace VulkanRHI
 {
@@ -294,19 +303,7 @@ public:
 		return GpuSubgroupProps;
 	}
 
-	inline const VkPhysicalDeviceDescriptorBufferPropertiesEXT& GetDescriptorBufferProperties() const
-	{
-		check(RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2);
-		return DescriptorBufferProps;
-	}
-
 #if VULKAN_RHI_RAYTRACING
-	inline const FRayTracingProperties& GetRayTracingProperties() const
-	{
-		check(OptionalDeviceExtensions.HasRaytracingExtensions() || (Device == VK_NULL_HANDLE));
-		return RayTracingProperties;
-	}
-	
 	FVulkanRayTracingCompactionRequestHandler* GetRayTracingCompactionRequestHandler() { return RayTracingCompactionRequestHandler; }
 
 	void InitializeRayTracing();
@@ -483,6 +480,11 @@ public:
 		return OptionalDeviceExtensions;
 	}
 
+	inline const FOptionalVulkanDeviceExtensionProperties& GetOptionalExtensionProperties() const
+	{
+		return OptionalDeviceExtensionProperties;
+	}
+
 	inline bool SupportsParallelRendering() const
 	{
 		return OptionalDeviceExtensions.HasSeparateDepthStencilLayouts && OptionalDeviceExtensions.HasKHRSynchronization2 && OptionalDeviceExtensions.HasKHRRenderPass2;
@@ -569,10 +571,8 @@ private:
 	// Extension specific properties
 	VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
 	VkPhysicalDeviceSubgroupProperties GpuSubgroupProps;
-	VkPhysicalDeviceDescriptorBufferPropertiesEXT DescriptorBufferProps;
 
 #if VULKAN_RHI_RAYTRACING
-	FRayTracingProperties RayTracingProperties;
 	FVulkanRayTracingCompactionRequestHandler* RayTracingCompactionRequestHandler = nullptr;
 #endif // VULKAN_RHI_RAYTRACING
 
@@ -619,6 +619,7 @@ private:
 	static TArray<const ANSICHAR*> SetupDeviceLayers(VkPhysicalDevice Gpu, FVulkanDeviceExtensionArray& UEExtensions);
 
 	FOptionalVulkanDeviceExtensions	OptionalDeviceExtensions;
+	FOptionalVulkanDeviceExtensionProperties OptionalDeviceExtensionProperties;
 	TArray<const ANSICHAR*>			DeviceExtensions;
 
 	void SetupFormats();

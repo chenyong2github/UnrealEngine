@@ -79,6 +79,13 @@ static void AddToPNext(ExistingChainType& Existing, NewStructType& Added)
 }
 
 
+struct FOptionalVulkanDeviceExtensionProperties& FVulkanDeviceExtension::GetDeviceExtensionProperties()
+{
+	const FOptionalVulkanDeviceExtensionProperties& ExtensionProperties = Device->GetOptionalExtensionProperties();
+	return const_cast<FOptionalVulkanDeviceExtensionProperties&>(ExtensionProperties);
+}
+
+
 #define VERIFYVULKANRESULT_INIT(VkFunction)	{ const VkResult ScopedResult = VkFunction; \
 												if (ScopedResult == VK_ERROR_INITIALIZATION_FAILED) { \
 													UE_LOG(LogVulkanRHI, Error, \
@@ -718,8 +725,7 @@ public:
 	virtual void PrePhysicalDeviceProperties(VkPhysicalDeviceProperties2KHR& PhysicalDeviceProperties2) override final
 	{
 #if VULKAN_RHI_RAYTRACING
-		const FRayTracingProperties& RayTracingProperties = Device->GetRayTracingProperties();
-		VkPhysicalDeviceAccelerationStructurePropertiesKHR& AccelerationStructure = const_cast<VkPhysicalDeviceAccelerationStructurePropertiesKHR&>(RayTracingProperties.AccelerationStructure);
+		VkPhysicalDeviceAccelerationStructurePropertiesKHR& AccelerationStructure = GetDeviceExtensionProperties().AccelerationStructureProps;
 		ZeroVulkanStruct(AccelerationStructure, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR);
 		AddToPNext(PhysicalDeviceProperties2, AccelerationStructure);
 #endif
@@ -765,8 +771,7 @@ public:
 	virtual void PrePhysicalDeviceProperties(VkPhysicalDeviceProperties2KHR& PhysicalDeviceProperties2) override final
 	{
 #if VULKAN_RHI_RAYTRACING
-		const FRayTracingProperties& RayTracingProperties = Device->GetRayTracingProperties();
-		VkPhysicalDeviceRayTracingPipelinePropertiesKHR& RayTracingPipeline = const_cast<VkPhysicalDeviceRayTracingPipelinePropertiesKHR&>(RayTracingProperties.RayTracingPipeline);
+		VkPhysicalDeviceRayTracingPipelinePropertiesKHR& RayTracingPipeline = GetDeviceExtensionProperties().RayTracingPipelineProps;
 		ZeroVulkanStruct(RayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR);
 		AddToPNext(PhysicalDeviceProperties2, RayTracingPipeline);
 #endif
@@ -987,6 +992,7 @@ public:
 	{
 		if (bSupportsSubgroupSizeControl)
 		{
+			VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& SubgroupSizeControlProperties = GetDeviceExtensionProperties().SubgroupSizeControlProperties;
 			ZeroVulkanStruct(SubgroupSizeControlProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES);
 			AddToPNext(PhysicalDeviceProperties2, SubgroupSizeControlProperties);
 		}
@@ -996,6 +1002,8 @@ public:
 	{
 		if (bSupportsSubgroupSizeControl)
 		{
+			VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& SubgroupSizeControlProperties = GetDeviceExtensionProperties().SubgroupSizeControlProperties;
+
 			GRHIMinimumWaveSize = SubgroupSizeControlProperties.minSubgroupSize;
 			GRHIMaximumWaveSize = SubgroupSizeControlProperties.maxSubgroupSize;
 
@@ -1005,7 +1013,6 @@ public:
 
 private:
 	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT SubgroupSizeControlFeatures;
-	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT SubgroupSizeControlProperties;
 	bool bSupportsSubgroupSizeControl = false;
 };
 
@@ -1066,7 +1073,7 @@ public:
 	{
 		if (bSupportsDescriptorBuffer)
 		{
-			VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = const_cast<VkPhysicalDeviceDescriptorBufferPropertiesEXT&>(Device->GetDescriptorBufferProperties());
+			VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = GetDeviceExtensionProperties().DescriptorBufferProps;
 			ZeroVulkanStruct(DescriptorBufferProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT);
 			AddToPNext(PhysicalDeviceProperties2, DescriptorBufferProperties);
 		}
@@ -1078,7 +1085,7 @@ public:
 		{
 			AddToPNext(DeviceCreateInfo, DescriptorBufferFeatures);
 
-			VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = const_cast<VkPhysicalDeviceDescriptorBufferPropertiesEXT&>(Device->GetDescriptorBufferProperties());
+			const VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = GetDeviceExtensionProperties().DescriptorBufferProps;
 
 			UE_LOG(LogVulkanRHI, Display, TEXT("Enabling Vulkan Descriptor Buffers with: ")
 				TEXT("allowSamplerImageViewPostSubmitCreation=%u, maxDescriptorBufferBindings=%u, ")

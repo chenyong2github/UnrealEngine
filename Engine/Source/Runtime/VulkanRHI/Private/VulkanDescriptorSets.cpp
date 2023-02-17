@@ -158,7 +158,7 @@ extern TAutoConsoleVariable<int32> GCVarRobustBufferAccess;
 static inline uint32 GetDescriptorTypeSize(FVulkanDevice* Device, VkDescriptorType DescriptorType)
 {
 	const bool bRobustBufferAccess = (GCVarRobustBufferAccess.GetValueOnAnyThread() > 0);
-	const VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = Device->GetDescriptorBufferProperties();
+	const VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = Device->GetOptionalExtensionProperties().DescriptorBufferProps;
 
 	switch (DescriptorType)
 	{
@@ -255,7 +255,7 @@ bool FVulkanBindlessDescriptorManager::VerifySupport(FVulkanDevice* Device)
 	{
 		const VkPhysicalDeviceProperties& GpuProps = Device->GetDeviceProperties();
 		const FOptionalVulkanDeviceExtensions& OptionalDeviceExtensions = Device->GetOptionalExtensions();
-		const VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = Device->GetDescriptorBufferProperties();
+		const VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = Device->GetOptionalExtensionProperties().DescriptorBufferProps;
 
 		const bool bMeetsExtensionsRequirements =
 			OptionalDeviceExtensions.HasEXTDescriptorIndexing &&
@@ -354,7 +354,7 @@ void FVulkanBindlessDescriptorManager::Init()
 	}
 
 	const VkDevice DeviceHandle = Device->GetInstanceHandle();
-	const VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = Device->GetDescriptorBufferProperties();
+	const VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = Device->GetOptionalExtensionProperties().DescriptorBufferProps;
 
 	// Create the dummy layout for unsupported descriptor types
 	{
@@ -623,7 +623,7 @@ void FVulkanBindlessDescriptorManager::RegisterUniformBuffers(VkCommandBuffer Co
 	VkDeviceSize BufferOffsets[VulkanBindless::NumBindlessSets];
 	FMemory::Memzero(BufferOffsets);
 	BufferOffsets[VulkanBindless::BindlessUniformBufferSet] = FirstDescriptorByteOffset;
-	checkSlow(FirstDescriptorByteOffset % Device->GetDescriptorBufferProperties().descriptorBufferOffsetAlignment == 0);
+	checkSlow(FirstDescriptorByteOffset % Device->GetOptionalExtensionProperties().DescriptorBufferProps.descriptorBufferOffsetAlignment == 0);
 
 	// :todo-jn: Clear them for easier debugging for now
 	FMemory::Memzero(&BindlessUniformBufferSetState.DebugDescriptors[FirstDescriptorByteOffset], BlockSize);

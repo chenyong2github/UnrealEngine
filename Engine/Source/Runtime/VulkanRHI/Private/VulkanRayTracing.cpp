@@ -1059,9 +1059,9 @@ FVulkanRayTracingPipelineState::FVulkanRayTracingPipelineState(FVulkanDevice* co
 		delete[] EntryPoint;
 	}
 
-	const FRayTracingProperties& Props = InDevice->GetRayTracingProperties();
-	const uint32 HandleSize = Props.RayTracingPipeline.shaderGroupHandleSize;
-	const uint32 HandleSizeAligned = GetAlignedSize(HandleSize, Props.RayTracingPipeline.shaderGroupHandleAlignment);
+	const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& RayTracingPipelineProps = InDevice->GetOptionalExtensionProperties().RayTracingPipelineProps;
+	const uint32 HandleSize = RayTracingPipelineProps.shaderGroupHandleSize;
+	const uint32 HandleSizeAligned = GetAlignedSize(HandleSize, RayTracingPipelineProps.shaderGroupHandleAlignment);
 	const uint32 GroupCount = ShaderGroups.Num();
 	const uint32 SBTSize = GroupCount * HandleSizeAligned;
 
