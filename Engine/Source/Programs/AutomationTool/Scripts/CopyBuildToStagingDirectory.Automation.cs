@@ -2798,6 +2798,17 @@ namespace AutomationScripts
 
 				string OodleCompressDLL;
 				BuildPlatformEngineConfig.GetString("OodleDataCompressionFormat", "OodleCompressDLL", out OodleCompressDLL);
+				if (!string.IsNullOrWhiteSpace(Params.ForceOodleDllVersion))
+				{
+					if (string.Equals(Params.ForceOodleDllVersion, "latest", StringComparison.OrdinalIgnoreCase))
+					{
+						OodleCompressDLL = "";
+					}
+					else
+					{
+						OodleCompressDLL = Params.ForceOodleDllVersion;
+					}
+				}
 				if (!string.IsNullOrWhiteSpace(OodleCompressDLL))
 				{
 					CompressionFormats += " -OodleCompressDLL=" + OodleCompressDLL;
