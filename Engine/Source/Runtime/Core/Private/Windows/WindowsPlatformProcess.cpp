@@ -343,9 +343,12 @@ void FWindowsPlatformProcess::LaunchURL( const TCHAR* URL, const TCHAR* Parms, F
 			*Error = TEXT("");
 		}
 
+		if (FCoreDelegates::LaunchCustomHandlerForURL.IsBound())
+		{
+			FCoreDelegates::LaunchCustomHandlerForURL.Execute(URL, Error);
+		}
 		// Use the default handler if we have a URI scheme name that doesn't look like a Windows path, and is not http: or https:
-		FString SchemeName;
-		if (FParse::SchemeNameFromURI(URL, SchemeName) && SchemeName.Len() > 1 && SchemeName != TEXT("http") && SchemeName != TEXT("https"))
+		else if (FString SchemeName; FParse::SchemeNameFromURI(URL, SchemeName) && SchemeName.Len() > 1 && SchemeName != TEXT("http") && SchemeName != TEXT("https"))
 		{
 			LaunchDefaultHandlerForURL(URL, Error);
 		}

@@ -503,6 +503,9 @@ public:
 	// Return true for to launch the url
 	static TDelegate<bool(const TCHAR* URL)> ShouldLaunchUrl;
 
+	// Callback to allow user code to implement a custom implementation for FPlatformProcess::LaunchURL. (Windows Only)
+	static TDelegate<void(const FString& URL, FString* Error)> LaunchCustomHandlerForURL;
+	
 	// Callback when the application has been activated by protocol (with optional user id, depending on the platform)
 	static TMulticastDelegate<void(const FString& Parameter, FPlatformUserId UserId /*= PLATFORMUSERID_NONE*/)> OnActivatedByProtocol;
 

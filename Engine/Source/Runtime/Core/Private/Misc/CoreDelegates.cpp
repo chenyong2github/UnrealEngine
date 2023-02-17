@@ -248,6 +248,7 @@ TTSMulticastDelegate<void()>& FCoreDelegates::TSConfigReadyForUse()
 TDelegate<bool()> FCoreDelegates::IsLoadingMovieCurrentlyPlaying;
 
 TDelegate<bool(const TCHAR*)> FCoreDelegates::ShouldLaunchUrl;
+TDelegate<void(const FString&, FString*)> FCoreDelegates::LaunchCustomHandlerForURL;
 
 TMulticastDelegate<void(const FString&, FPlatformUserId)> FCoreDelegates::OnActivatedByProtocol;
 
