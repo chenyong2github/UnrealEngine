@@ -4,6 +4,7 @@
 #include "ConversationInstance.h"
 #include "Misc/RuntimeErrors.h"
 #include "ConversationRegistry.h"
+#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationContext)
 
