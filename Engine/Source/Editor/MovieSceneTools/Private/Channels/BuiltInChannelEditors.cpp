@@ -8,6 +8,7 @@
 #include "Sections/MovieSceneEventSectionBase.h"
 #include "ISequencerChannelInterface.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SNullWidget.h"
 #include "IKeyArea.h"
 #include "ISequencer.h"
@@ -423,13 +424,26 @@ TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneOb
 			AssetDataArray.Add((FAssetData)Sequence);
 		}
 
-		return SNew(SObjectPropertyEntryBox)
-		.DisplayBrowse(true)
-		.DisplayUseSelected(false)
-		.ObjectPath_Lambda(GetObjectPathLambda)
-		.AllowedClass(RawChannel->GetPropertyClass())
-		.OnObjectChanged_Lambda(OnSetObjectLambda)
-		.OwnerAssetDataArray(AssetDataArray);
+		return SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SObjectPropertyEntryBox)
+				.DisplayBrowse(true)
+				.DisplayUseSelected(false)
+				.ObjectPath_Lambda(GetObjectPathLambda)
+				.AllowedClass(RawChannel->GetPropertyClass())
+				.OnObjectChanged_Lambda(OnSetObjectLambda)
+				.OwnerAssetDataArray(AssetDataArray)
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(8.0f, 0.0f)
+			[
+				SNew(SSpacer)
+			];
 	}
 
 	return SNullWidget::NullWidget;

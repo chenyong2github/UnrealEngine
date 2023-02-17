@@ -62,19 +62,6 @@
 
 #define LOCTEXT_NAMESPACE "FSequencerUtilities"
 
-static EVisibility GetRolloverVisibility(TAttribute<bool> HoverState, TWeakPtr<SButton> WeakButton)
-{
-	TSharedPtr<SButton> Button = WeakButton.Pin();
-	if (HoverState.Get())
-	{
-		return EVisibility::SelfHitTestInvisible;
-	}
-	else
-	{
-		return EVisibility::Collapsed;
-	}
-}
-
 static void ResetCopiedTracksFlags(UMovieSceneTrack* Track)
 {
 	TArray<UObject*> SectionSubObjects;
@@ -94,13 +81,6 @@ TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnGetCo
 
 TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnClicked OnClicked, const TAttribute<bool>& HoverState, TWeakPtr<ISequencer> InSequencer)
 {
-	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
-
-	TSharedRef<STextBlock> ButtonText = SNew(STextBlock)
-		.Text(HoverText)
-		.Font(SmallLayoutFont)
-		.ColorAndOpacity(FSlateColor::UseForeground());
-
 	TSharedRef<SButton> Button =
 
 		SNew(SButton)
@@ -124,18 +104,9 @@ TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnClick
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
 				.Image(FAppStyle::GetBrush("Plus"))
-			]
-
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				ButtonText
+				.ToolTipText(HoverText)
 			]
 		];
-
-	TAttribute<EVisibility> Visibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(GetRolloverVisibility, HoverState, TWeakPtr<SButton>(Button)));
-	ButtonText->SetVisibility(Visibility);
 
 	return Button;
 }
@@ -1982,6 +1953,17 @@ void FSequencerUtilities::CopyBindings(TSharedRef<ISequencer> Sequencer, const T
 				UMovieSceneTrack* DuplicatedTrack = Cast<UMovieSceneTrack>(StaticDuplicateObject(Track, CopyableBinding));
 
 				CopyableBinding->Tracks.Add(DuplicatedTrack);
+			}
+
+			for (const TTuple<FName, FMovieSceneObjectBindingIDs>& Pair : MovieScene->AllTaggedBindings())
+			{
+				for (const FMovieSceneObjectBindingID& ID : Pair.Value.IDs)
+				{
+					if (ID.GetGuid() == ObjectBinding.BindingID)
+					{
+						CopyableBinding->Tags.AddUnique(Pair.Key);
+					}
+				}
 			}
 		}
 

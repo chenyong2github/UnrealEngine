@@ -29,26 +29,6 @@ namespace Sequencer
 
 TSharedRef<SWidget> MakeAddButton(FText HoverText, FOnGetContent MenuContent, const TAttribute<bool>& HoverState, const TAttribute<bool>& IsEnabled)
 {
-	auto GetRolloverVisibility = [](TAttribute<bool> InHoverState, TWeakPtr<SComboButton> WeakComboButton)
-	{
-		TSharedPtr<SComboButton> TmpComboButton = WeakComboButton.Pin();
-		if (InHoverState.Get() || TmpComboButton->IsOpen())
-		{
-			return EVisibility::SelfHitTestInvisible;
-		}
-		else
-		{
-			return EVisibility::Collapsed;
-		}
-	};
-
-	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
-
-	TSharedRef<STextBlock> ComboButtonText = SNew(STextBlock)
-		.Text(HoverText)
-		.Font(SmallLayoutFont)
-		.ColorAndOpacity( FSlateColor::UseForeground() );
-
 	TSharedRef<SComboButton> ComboButton =
 
 		SNew(SComboButton)
@@ -73,17 +53,9 @@ TSharedRef<SWidget> MakeAddButton(FText HoverText, FOnGetContent MenuContent, co
 				SNew(SImage)
 				.ColorAndOpacity( FSlateColor::UseForeground() )
 				.Image(FAppStyle::GetBrush("Plus"))
-			]
-
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				ComboButtonText
+				.ToolTipText(HoverText)
 			]
 		];
-
-	ComboButtonText->SetVisibility(MakeAttributeLambda(GetRolloverVisibility, HoverState, TWeakPtr<SComboButton>(ComboButton)));
 
 	return ComboButton;
 }
