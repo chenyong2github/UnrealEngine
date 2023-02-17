@@ -570,7 +570,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		Payload.SetFrontFace();
 	}
 
-#if TWO_SIDED_MATERIAL
+#if MATERIAL_TWOSIDED
 	Payload.SetTwoSided();
 #endif
 
