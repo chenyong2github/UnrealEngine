@@ -8,6 +8,8 @@ namespace UnrealBuildTool.Rules
 		{
 			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
+			PublicIncludePathModuleNames.Add("AIModule");
+
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
