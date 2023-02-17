@@ -315,7 +315,7 @@ struct FDemoBudgetLogHelper
 
 		if (DemoNetDriverRecordingPrivate::WarningTimeInterval == 0.f)
 		{
-			UE_LOG(LogDemo, Log, Format, Args...);
+			UE_LOG(LogDemo, Log, TEXT("%s"), *FString::Printf(Format, Args...));
 			return;
 		}
 

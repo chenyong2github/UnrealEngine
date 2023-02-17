@@ -240,7 +240,7 @@ void UMassProcessor::RegisterQuery(FMassEntityQuery& Query)
 	}
 	else
 	{
-		constexpr TCHAR MessageFormat[] = TEXT("Registering entity query for %s while the query is not given processor's member variable. Skipping.");
+		static constexpr TCHAR MessageFormat[] = TEXT("Registering entity query for %s while the query is not given processor's member variable. Skipping.");
 		checkf(false, MessageFormat, *GetProcessorName());
 		UE_LOG(LogMass, Error, MessageFormat, *GetProcessorName());
 	}
