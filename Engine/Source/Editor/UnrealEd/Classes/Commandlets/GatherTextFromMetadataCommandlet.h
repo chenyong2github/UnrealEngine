@@ -28,7 +28,7 @@ public:
 	{
 		TArray<FString> InputKeys;
 		TArray<FString> OutputNamespaces;
-		TArray<FText> OutputKeys;
+		TArray<FString> OutputKeys;
 	};
 
 private:
