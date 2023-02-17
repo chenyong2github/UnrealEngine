@@ -113,11 +113,13 @@ namespace Chaos::Softs
 			const ParticleType& InParticles,
 			const TArray<TVector<int32, 4>>& InMesh,
 			const TArray<T>& EMeshArray,
+			const TArray<T>& NuMeshArray,
+			TArray<T>&& AlphaJMeshArray,
 			const FDeformableXPBDCorotatedParams& InParams,
 			const T& NuMesh = (T).3,
 			const bool bRecordMetricIn = false
 		)
-			: CorotatedParams(InParams), bRecordMetric(bRecordMetricIn), MeshConstraints(InMesh)
+			: CorotatedParams(InParams), AlphaJArray(MoveTemp(AlphaJMeshArray)), bRecordMetric(bRecordMetricIn), MeshConstraints(InMesh)
 		{
 			ensureMsgf(EMeshArray.Num() == InMesh.Num(), TEXT("Input Young Modulus Array Size is wrong"));
 			LambdaArray.Init((T)0., 2 * MeshConstraints.Num());
@@ -136,8 +138,8 @@ namespace Chaos::Softs
 
 			for (int e = 0; e < InMesh.Num(); e++)
 			{
-				LambdaElementArray[e] = EMeshArray[e] * NuMesh / (((T)1. + NuMesh) * ((T)1. - (T)2. * NuMesh));
-				MuElementArray[e] = EMeshArray[e] / ((T)2. * ((T)1. + NuMesh));
+				LambdaElementArray[e] = EMeshArray[e] * NuMeshArray[e] / (((T)1. + NuMeshArray[e]) * ((T)1. - (T)2. * NuMeshArray[e]));
+				MuElementArray[e] = EMeshArray[e] / ((T)2. * ((T)1. + NuMeshArray[e]));
 
 				PMatrix<T, 3, 3> Dm = DsInit(e, InParticles);
 				PMatrix<T, 3, 3> DmInv = Dm.Inverse();
@@ -447,7 +449,7 @@ namespace Chaos::Softs
 			PMatrix<T, 3, 3> DmInvT = ElementDmInv(ElementIndex).GetTransposed();
 			
 			T J = Fe.Determinant();
-			if (J - 1 < Tol )
+			if (J - AlphaJArray[ElementIndex] < Tol)
 			{
 				return TVec4<TVector<T, 3>>(TVector<T, 3>((T)0.));
 			}
@@ -471,7 +473,7 @@ namespace Chaos::Softs
 			}
 			
 
-			T DLambda = (1 - J) - AlphaTilde * LambdaArray[2 * ElementIndex + 1];
+			T DLambda = (AlphaJArray[ElementIndex] - J) - AlphaTilde * LambdaArray[2 * ElementIndex + 1];
 
 			T Denom = AlphaTilde;
 			for (int i = 0; i < 4; i++)
@@ -579,6 +581,7 @@ namespace Chaos::Softs
 		T Lambda;
 		TArray<T> MuElementArray;
 		TArray<T> LambdaElementArray;
+		TArray<T> AlphaJArray;
 		mutable T HError;
 		mutable TArray<T> HErrorArray;
 		bool bRecordMetric;

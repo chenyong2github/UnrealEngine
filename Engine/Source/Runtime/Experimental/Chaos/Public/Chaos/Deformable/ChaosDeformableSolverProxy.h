@@ -253,7 +253,9 @@ namespace Chaos::Softs
 				const bool InbEnableGravity,
 				const float InStiffnessMultiplier, 
 				const float InDampingMultiplier, 
-				const float InMassMultiplier, 
+				const float InMassMultiplier,
+				const float InInCompressibilityMultiplier,
+				const float InInflationMultiplier,
 				const UObject* InOwner = nullptr)
 				: Super(InOwner, FFleshThreadingProxy::TypeName())
 				, WorldToComponentXf(InWorldToComponentXf)
@@ -264,6 +266,8 @@ namespace Chaos::Softs
 				, StiffnessMultiplier(InStiffnessMultiplier)
 				, DampingMultiplier(InDampingMultiplier)
 				, MassMultiplier(InMassMultiplier)
+				, IncompressibilityMultiplier(InInCompressibilityMultiplier)
+				, InflationMultiplier(InInflationMultiplier)
 				, SimSpaceBoneIndex(InSimSpaceBoneIndex)
 			{}
 
@@ -277,6 +281,8 @@ namespace Chaos::Softs
 				const float InStiffnessMultiplier, 
 				const float InDampingMultiplier, 
 				const float InMassMultiplier, 
+				const float InInCompressibilityMultiplier,
+				const float InInflationMultiplier,
 				const UObject* InOwner = nullptr)
 				: Super(InOwner, FFleshThreadingProxy::TypeName())
 				, WorldToComponentXf(InWorldToComponentXf)
@@ -287,6 +293,8 @@ namespace Chaos::Softs
 				, StiffnessMultiplier(InStiffnessMultiplier)
 				, DampingMultiplier(InDampingMultiplier)
 				, MassMultiplier(InMassMultiplier)
+				, IncompressibilityMultiplier(InInCompressibilityMultiplier)
+				, InflationMultiplier(InInflationMultiplier)
 				, SimSpaceBoneIndex(InSimSpaceBoneIndex)
 			{}
 			virtual ~FFleshInputBuffer() {}
@@ -300,6 +308,8 @@ namespace Chaos::Softs
 			float StiffnessMultiplier;
 			float DampingMultiplier;
 			float MassMultiplier;
+			float IncompressibilityMultiplier;
+			float InflationMultiplier;
 			int32 SimSpaceBoneIndex = INDEX_NONE;
 		};
 

@@ -592,7 +592,9 @@ namespace Chaos::Softs
 				uint32 NumParticles = Rest.NumElements(FGeometryCollection::VerticesGroup);
 				TArray<FSolverReal> StiffnessWithMultiplier;
 				StiffnessWithMultiplier.Init(0.f, NumParticles);
-				FSolverReal StiffnessMultiplier = 0.f;
+				FSolverReal StiffnessMultiplier = 1.f;
+				FSolverReal IncompressibilityMultiplier = 1.f;
+				FSolverReal InflationMultiplier = 1.f;
 
 				if (const UObject* Owner = this->MObjects[Range[0]]) {
 					FFleshThreadingProxy::FFleshInputBuffer* FleshInputBuffer = nullptr;
@@ -602,6 +604,8 @@ namespace Chaos::Softs
 						if (FleshInputBuffer)
 						{
 							StiffnessMultiplier = FleshInputBuffer->StiffnessMultiplier;
+							IncompressibilityMultiplier = FleshInputBuffer->IncompressibilityMultiplier;
+							InflationMultiplier = FleshInputBuffer->InflationMultiplier;
 						}
 					}
 				}
@@ -619,7 +623,40 @@ namespace Chaos::Softs
 						TetStiffness[edx] = (StiffnessWithMultiplier[Tetrahedron[edx].X] + StiffnessWithMultiplier[Tetrahedron[edx].Y]
 							+ StiffnessWithMultiplier[Tetrahedron[edx].Z] + StiffnessWithMultiplier[Tetrahedron[edx].W]) / 4.f;
 					}
+				}
 
+				const TManagedArray<FSolverReal>* IncompressibilityArray = Rest.FindAttribute<FSolverReal>("Incompressibility", FGeometryCollection::VerticesGroup);
+				TArray<FSolverReal> TetNu, AlphaJMesh, IncompressibilityWithMultiplier, InflationWithMultiplier;
+				TetNu.Init(.3f, Elements.Num());
+
+				IncompressibilityWithMultiplier.Init(0.f, NumParticles);
+				InflationWithMultiplier.Init(0.f, NumParticles);
+				if (IncompressibilityArray)
+				{
+					for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
+					{
+						IncompressibilityWithMultiplier[vdx] = (*IncompressibilityArray)[vdx] * IncompressibilityMultiplier;
+					}
+					for (int32 edx = 0; edx < Elements.Num(); edx++)
+					{
+						TetNu[edx] = (IncompressibilityWithMultiplier[Tetrahedron[edx].X] + IncompressibilityWithMultiplier[Tetrahedron[edx].Y]
+							+ IncompressibilityWithMultiplier[Tetrahedron[edx].Z] + IncompressibilityWithMultiplier[Tetrahedron[edx].W]) / 4.f;
+					}
+				}
+
+				const TManagedArray<FSolverReal>* InflationArray = Rest.FindAttribute<FSolverReal>("Inflation", FGeometryCollection::VerticesGroup);
+				AlphaJMesh.Init(1.f, Elements.Num());
+				if (InflationArray)
+				{
+					for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
+					{
+						InflationWithMultiplier[vdx] = (*InflationArray)[vdx] * InflationMultiplier;
+					}
+					for (int32 edx = 0; edx < Elements.Num(); edx++)
+					{
+						AlphaJMesh[edx] = (InflationWithMultiplier[Tetrahedron[edx].X] + InflationWithMultiplier[Tetrahedron[edx].Y]
+							+ InflationWithMultiplier[Tetrahedron[edx].Z] + InflationWithMultiplier[Tetrahedron[edx].W]) / 4.f;
+					}
 				}
 
 				if (Property.bEnableCorotatedConstraints)
@@ -653,7 +690,7 @@ namespace Chaos::Softs
 					{
 						FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
 							new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
-								Evolution->Particles(), Elements, TetStiffness, GDeformableXPBDCorotatedParams);
+								Evolution->Particles(), Elements, TetStiffness, TetNu, MoveTemp(AlphaJMesh), GDeformableXPBDCorotatedParams);
 
 						Evolution->ConstraintInits()[InitIndex] =
 							[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)

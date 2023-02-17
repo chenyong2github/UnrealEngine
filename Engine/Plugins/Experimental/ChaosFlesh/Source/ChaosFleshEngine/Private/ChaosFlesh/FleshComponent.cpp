@@ -236,6 +236,8 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 								StiffnessMultiplier, 
 								DampingMultiplier, 
 								MassMultiplier, 
+								IncompressibilityMultiplier,
+								InflationMultiplier,
 								this));
 					}
 				}
@@ -251,6 +253,8 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 			StiffnessMultiplier, 
 			DampingMultiplier, 
 			MassMultiplier, 
+			IncompressibilityMultiplier,
+			InflationMultiplier,
 			this));
 }
 

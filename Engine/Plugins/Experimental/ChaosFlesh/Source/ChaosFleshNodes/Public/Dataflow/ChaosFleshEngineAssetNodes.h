@@ -77,6 +77,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float VertexDamping = 0.f;
 
+	/*Sets incompressibility on vertex basis. 0.6 is default behavior. 
+	1 means total incompressibility. 0.00001 means almost no incompressibility*/
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0.00001", ClampMax = "1.0", UIMin = "0.00001", UIMax = "1.0"))
+	float VertexIncompressibility = 0.6f;
+
+	/*Sets inflation on vertex basis. 0.5 means no inflation/deflation.
+	1 means total inflation. 0 means the material is deflated.*/
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float VertexInflation = 0.5f;
+
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough  = "Collection"))
 	FManagedArrayCollection Collection;
 
