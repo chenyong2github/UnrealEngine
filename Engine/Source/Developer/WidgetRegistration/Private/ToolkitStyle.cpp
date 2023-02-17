@@ -8,6 +8,7 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/StarshipCoreStyle.h"
 #include "Styling/StyleColors.h"
+#include "Styling/CoreStyle.h"
 
 TSharedPtr< FSlateStyleSet > FToolkitStyle::StyleSet = nullptr;
 FName FToolkitStyle::StyleName("ToolkitStyle");
