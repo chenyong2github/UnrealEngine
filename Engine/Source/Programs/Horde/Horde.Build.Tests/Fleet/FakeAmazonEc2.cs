@@ -20,6 +20,7 @@ namespace Horde.Build.Tests.Fleet;
 public class FakeAmazonEc2
 {
 	public static readonly InstanceState StatePending = new() { Code = 0, Name = "pending" };
+	public static readonly InstanceState StateStopping = new() { Code = 64, Name = "stopping" };
 	public static readonly InstanceState StateStopped = new() { Code = 80, Name = "stopped" };
 	public const string AzUsEast1A = "us-east-1a";
 	public const string AzUsEast1B = "us-east-1b";
@@ -52,6 +53,10 @@ public class FakeAmazonEc2
 		_mock
 			.Setup(x => x.StartInstancesAsync(It.IsAny<StartInstancesRequest>(), It.IsAny<CancellationToken>()))
 			.Returns(StartInstancesAsync);
+		
+		_mock
+			.Setup(x => x.StopInstancesAsync(It.IsAny<StopInstancesRequest>(), It.IsAny<CancellationToken>()))
+			.Returns(StopInstancesAsync);
 		
 		_mock
 			.Setup(x => x.DescribeInstancesAsync(It.IsAny<DescribeInstancesRequest>(), It.IsAny<CancellationToken>()))
@@ -110,9 +115,39 @@ public class FakeAmazonEc2
 
 	private Task<DescribeInstancesResponse> DescribeInstancesAsync(DescribeInstancesRequest request, CancellationToken cancellationToken)
 	{
+		List<Instance> filteredInstances = new();
+		if (request.Filters.Count > 0)
+		{
+			foreach (Instance i in _instances.Values)
+			{
+				foreach (Filter f in request.Filters)
+				{
+					if (f.Name == "instance-state-name")
+					{
+						if (i.State.Name == f.Values[0])
+						{
+							filteredInstances.Add(i);
+						}
+					}
+					else if (f.Name.StartsWith("tag:", StringComparison.Ordinal))
+					{
+						// TODO: respect tag filtering
+					}
+					else
+					{
+						throw new Exception("Unknown filter " + f.Name);
+					}
+				}
+			}
+		}
+		else
+		{
+			filteredInstances = _instances.Values.ToList();
+		}
+		
 		return Task.FromResult(new DescribeInstancesResponse
 		{
-			Reservations = new () { new Reservation { Instances = _instances.Values.Select(CopyInstance).ToList() } },
+			Reservations = new () { new Reservation { Instances = filteredInstances.Select(CopyInstance).ToList() } },
 			HttpStatusCode = HttpStatusCode.OK
 		});
 	}
@@ -162,6 +197,31 @@ public class FakeAmazonEc2
 		return Task.FromResult(new StartInstancesResponse
 		{
 			StartingInstances = stateChanges,
+			HttpStatusCode = HttpStatusCode.OK
+		});
+	}
+	
+	private Task<StopInstancesResponse> StopInstancesAsync(StopInstancesRequest request, CancellationToken cancellationToken)
+	{
+		List<InstanceStateChange> stateChanges = new();
+		
+		foreach (string instanceId in request.InstanceIds)
+		{
+			if (_instances[instanceId].State.Name == StatePending.Name)
+			{
+				stateChanges.Add(new()
+				{
+					InstanceId = instanceId,
+					CurrentState = StateStopping,
+					PreviousState = _instances[instanceId].State
+				});
+				_instances[instanceId].State = StateStopping;
+			}
+		}
+		
+		return Task.FromResult(new StopInstancesResponse
+		{
+			StoppingInstances = stateChanges,
 			HttpStatusCode = HttpStatusCode.OK
 		});
 	}

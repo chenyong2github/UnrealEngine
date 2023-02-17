@@ -11,6 +11,7 @@ using Amazon.EC2.Model;
 using Amazon.Runtime;
 using EpicGames.Core;
 using Horde.Build.Agents.Pools;
+using HordeCommon;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
@@ -91,16 +92,18 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	private readonly IAmazonEC2 _ec2;
 	private readonly IAgentCollection _agentCollection;
 	private readonly IDogStatsd _dogStatsd;
+	private readonly IClock _clock;
 	private readonly ILogger _logger;
 
 	/// <summary>
 	/// Constructor
 	/// </summary>
-	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, IDogStatsd dogStatsd, AwsRecyclingFleetManagerSettings settings, ILogger<AwsRecyclingFleetManager> logger)
+	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, IDogStatsd dogStatsd, IClock clock, AwsRecyclingFleetManagerSettings settings, ILogger<AwsRecyclingFleetManager> logger)
 	{
 		_ec2 = ec2;
 		_agentCollection = agentCollection;
 		_dogStatsd = dogStatsd;
+		_clock = clock;
 		_logger = logger;
 		Settings = settings;
 	}
@@ -116,6 +119,7 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 
 		using IDisposable logScope = _logger.BeginScope(new Dictionary<string, object> { ["PoolId"] = pool.Id });
 
+		await StopStuckPendingInstancesAsync(pool, cancellationToken);
 		Dictionary<string, List<Instance>> candidatesPerAz = await GetCandidateInstancesAsync(pool, cancellationToken);
 		Dictionary<string, int> instanceCountPerAz = candidatesPerAz.ToDictionary(x => x.Key, x => x.Value.Count);
 		Dictionary<string, int> requestCountPerAz = DistributeInstanceRequestsOverAzs(requestedInstancesCount, instanceCountPerAz, out int stoppedInstancesMissingCount);
@@ -387,6 +391,43 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 				_logger.LogError("Failed to modify instance type for {InstanceId}. Wanted {InstanceType}. Status code {StatusCode}", instance.InstanceId, newInstanceType, response.HttpStatusCode);
 			}
 		}
+	}
+	
+	/// <summary>
+	/// Stop instances that have been stuck in state pending for longer than X time
+	/// </summary>
+	/// <param name="pool">Which pool instances must belong to</param>
+	/// <param name="cancellationToken">Cancellation token for the call</param>
+	private async Task StopStuckPendingInstancesAsync(IPool pool, CancellationToken cancellationToken)
+	{
+		TimeSpan pendingStateTimeout = TimeSpan.FromMinutes(5);
+		
+		using IScope scope = GlobalTracer.Instance.BuildSpan("StopStuckPendingInstances")
+			.WithTag("PoolId", pool.Id.ToString()).StartActive();
+		
+		// Find pending instances in the correct pool
+		DescribeInstancesRequest request = new()
+		{
+			Filters = new List<Filter>
+			{
+				new("instance-state-name", new List<string> { InstanceStateName.Pending.Value }),
+				new("tag:" + AwsFleetManager.PoolTagName, new List<string> { pool.Name })
+			}
+		};
+		DescribeInstancesResponse response = await _ec2.DescribeInstancesAsync(request, cancellationToken);
+		scope.Span.SetTag("res.statusCode", (int)response.HttpStatusCode);
+		scope.Span.SetTag("res.numReservations", response.Reservations.Count);
+
+		List<string> stuckInstanceIds = response.Reservations
+			.SelectMany(x => x.Instances)
+			.Where(x => x.LaunchTime < _clock.UtcNow - pendingStateTimeout)
+			.Select(x => x.InstanceId)
+			.ToList();
+
+		StopInstancesRequest stopRequest = new() { InstanceIds = stuckInstanceIds };
+		StopInstancesResponse stopResponse = await _ec2.StopInstancesAsync(stopRequest, cancellationToken);
+		scope.Span.SetTag("stopRes.statusCode", (int)stopResponse.HttpStatusCode);
+		scope.Span.SetTag("stopRes.numStoppingInstances", stopResponse.StoppingInstances.Count);
 	}
 	
 	/// <summary>

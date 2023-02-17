@@ -13,6 +13,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Fleet.Providers;
 using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.Extensions.Logging;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
@@ -21,6 +22,8 @@ namespace Horde.Build.Tests.Fleet
 	[TestClass]
 	public class AwsRecyclingFleetManagerTest : TestSetup
 	{
+		private readonly FakeClock _clock = new();
+		
 		[TestMethod]
 		public async Task ExpandAmazonEc2ExceptionsArePropagated()
 		{
@@ -152,6 +155,25 @@ namespace Horde.Build.Tests.Fleet
 			Assert.AreEqual(FakeAmazonEc2.StatePending.Name, ec2.GetInstance(i4.InstanceId)!.State.Name);
 			Assert.AreEqual(FakeAmazonEc2.StatePending.Name, ec2.GetInstance(i2.InstanceId)!.State.Name);
 		}
+		
+		[TestMethod]
+		public async Task StopInstancesStuckInPending()
+		{
+			FakeAmazonEc2 ec2 = new ();
+			Instance i1 = ec2.AddInstance(FakeAmazonEc2.StatePending, InstanceType.M5Large, launchTime: _clock.UtcNow.Subtract(TimeSpan.FromMinutes(50)));
+			Instance i2 = ec2.AddInstance(FakeAmazonEc2.StatePending, InstanceType.M5Large, launchTime: _clock.UtcNow.Subtract(TimeSpan.FromMinutes(3)));
+			Instance i3 = ec2.AddInstance(FakeAmazonEc2.StateStopped, InstanceType.M5Large);
+			Instance i4 = ec2.AddInstance(FakeAmazonEc2.StateStopped, InstanceType.M5Large);
+			ec2.SetCapacity(FakeAmazonEc2.AzUsEast1A, InstanceType.M5Large, 2);
+
+			ScaleResult result = await ExpandPoolAsync(ec2.Get(), 2, new(new List<string>()));
+			Assert.AreEqual(FleetManagerOutcome.Success, result.Outcome);
+			Assert.AreEqual(3, ec2.GetPendingInstanceCount());
+			Assert.AreEqual(FakeAmazonEc2.StateStopping.Name, ec2.GetInstance(i1.InstanceId)!.State.Name);
+			Assert.AreEqual(FakeAmazonEc2.StatePending.Name, ec2.GetInstance(i2.InstanceId)!.State.Name);
+			Assert.AreEqual(FakeAmazonEc2.StatePending.Name, ec2.GetInstance(i3.InstanceId)!.State.Name);
+			Assert.AreEqual(FakeAmazonEc2.StatePending.Name, ec2.GetInstance(i4.InstanceId)!.State.Name);
+		}
 
 		[TestMethod]
 		public void DistributesInstanceRequestsEvenly()
@@ -186,7 +208,7 @@ namespace Horde.Build.Tests.Fleet
 			}
 		}
 
-		private async Task ExpandPoolAsync(IAmazonEC2 ec2, int numRequestedInstances, AwsRecyclingFleetManagerSettings settings)
+		private async Task<ScaleResult> ExpandPoolAsync(IAmazonEC2 ec2, int numRequestedInstances, AwsRecyclingFleetManagerSettings settings)
 		{
 			using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
 				{
@@ -197,8 +219,8 @@ namespace Horde.Build.Tests.Fleet
 			ILogger<AwsRecyclingFleetManager> logger = loggerFactory.CreateLogger<AwsRecyclingFleetManager>();
 			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 			using NoOpDogStatsd dogStatsd = new ();
-			AwsRecyclingFleetManager manager = new (ec2, AgentCollection, dogStatsd, settings, logger);
-			await manager.ExpandPoolAsync(pool, new List<IAgent>(), numRequestedInstances, CancellationToken.None);
+			AwsRecyclingFleetManager manager = new (ec2, AgentCollection, dogStatsd, _clock, settings, logger);
+			return await manager.ExpandPoolAsync(pool, new List<IAgent>(), numRequestedInstances, CancellationToken.None);
 		}
 	}
 }
