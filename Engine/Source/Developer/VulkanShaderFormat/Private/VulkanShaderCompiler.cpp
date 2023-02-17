@@ -2366,6 +2366,12 @@ static bool CompileWithShaderConductor(
 		}
 	}
 
+	// Take note of preferred wave size flag if none was specified in HLSL
+	if ((WaveSize == 0) && Input.Environment.CompilerFlags.Contains(CFLAG_Wave32))
+	{
+		WaveSize = 32;
+	}
+
 	if (bRewriteHlslSource)
 	{
 		// Rewrite HLSL source code to remove unused global resources and variables
