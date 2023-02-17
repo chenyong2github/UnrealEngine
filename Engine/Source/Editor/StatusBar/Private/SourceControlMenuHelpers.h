@@ -29,6 +29,7 @@ private:
 	static void ViewChangelists_Clicked();
 	static bool CheckOutModifiedFiles_CanExecute();
 	static void CheckOutModifiedFiles_Clicked();
+	static bool RevertAllModifiedFiles_CanExecute();
 	static void RevertAllModifiedFiles_Clicked();
 
 public:

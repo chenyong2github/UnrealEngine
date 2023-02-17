@@ -88,7 +88,7 @@ void FSourceControlCommands::RegisterCommands()
 	ActionList->MapAction(
 		RevertAll,
 		FExecuteAction::CreateStatic(&FSourceControlCommands::RevertAllModifiedFiles_Clicked),
-		FCanExecuteAction::CreateLambda([] { return true; })
+		FCanExecuteAction::CreateStatic(&FSourceControlCommands::RevertAllModifiedFiles_CanExecute)
 	);
 }
 
@@ -154,6 +154,23 @@ void FSourceControlCommands::CheckOutModifiedFiles_Clicked()
 	const bool bCheckDirty = true;
 	const bool bPromptUserToSave = false;
 	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptUserToSave);
+}
+
+bool FSourceControlCommands::RevertAllModifiedFiles_CanExecute()
+{
+	// If CHECK-IN CHANGES button is active, the REVERT ALL option should be active.
+
+	if (FUnsavedAssetsTrackerModule::Get().GetUnsavedAssetNum() > 0)
+	{
+		return true;
+	}
+
+	if (FSourceControlWindows::CanChoosePackagesToCheckIn())
+	{
+		return true;
+	}
+
+	return false;
 }
 
 void FSourceControlCommands::RevertAllModifiedFiles_Clicked()
