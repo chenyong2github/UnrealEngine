@@ -1024,7 +1024,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="paramMap">Parameter map to add the tooltip</param>
 		private static void AddParameterToolTip(StringView name, StringView text, Dictionary<StringView, StringView> paramMap)
 		{
-			paramMap.Add(name, new StringView(UhtFCString.TabsToSpaces(text.Memory.Trim(), 4, false)));
+			paramMap.TryAdd(name, new StringView(UhtFCString.TabsToSpaces(text.Memory.Trim(), 4, false)));
 		}
 
 		/// <summary>
@@ -1065,6 +1065,10 @@ namespace EpicGames.UHT.Types
 				{
 					line = new StringView(input, 0, lineEnd);
 					input = new StringView(input, lineEnd + 1);
+				}
+				else
+				{
+					input = new StringView();
 				}
 
 				// If this is a parameter, invoke the method to extract the name first
