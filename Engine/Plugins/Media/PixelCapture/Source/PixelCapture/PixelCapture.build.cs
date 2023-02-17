@@ -23,7 +23,6 @@ namespace UnrealBuildTool.Rules
 			string WebRtcIncludeDir = Path.Combine(EngineDir, "Source/ThirdParty/WebRTC/4664/Include");
 			PrivateIncludePaths.AddRange(new string[] {
 				Path.Combine(WebRtcIncludeDir, "third_party/libyuv/include"),
-				Path.Combine(EngineDir, "Source/Runtime/Renderer/Private"),
 			});
 
 			PrivateDependencyModuleNames.AddRange(new string[] {

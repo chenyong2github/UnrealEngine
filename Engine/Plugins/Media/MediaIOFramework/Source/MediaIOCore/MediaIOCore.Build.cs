@@ -29,14 +29,6 @@ namespace UnrealBuildTool.Rules
 					"TimeManagement"
 				});
 
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				//required for FScreenPassVS, AddDrawScreenPass, and for scene view extensions related headers
-				Path.Combine(EngineDir, "Source", "Runtime", "Renderer", "Private")
-			});
-
 			PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {

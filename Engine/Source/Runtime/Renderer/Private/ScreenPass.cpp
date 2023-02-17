@@ -154,7 +154,7 @@ void SetScreenPassPipelineState(FRHICommandList& RHICmdList, const FScreenPassPi
 
 void DrawScreenPass_PostSetup(
 	FRHICommandList& RHICmdList,
-	const FSceneView& View,
+	const FScreenPassViewInfo& ViewInfo,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const FScreenPassPipelineState& PipelineState,
@@ -169,7 +169,7 @@ void DrawScreenPass_PostSetup(
 	FIntPoint LocalOutputSize(OutputSize);
 	EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
 
-	const bool bUseHMDHiddenAreaMask = EnumHasAllFlags(Flags, EScreenPassDrawFlags::AllowHMDHiddenAreaMask) && View.bHMDHiddenAreaMaskActive;
+	const bool bUseHMDHiddenAreaMask = EnumHasAllFlags(Flags, EScreenPassDrawFlags::AllowHMDHiddenAreaMask) && ViewInfo.bHMDHiddenAreaMaskActive;
 
 	DrawPostProcessPass(
 		RHICmdList,
@@ -178,7 +178,7 @@ void DrawScreenPass_PostSetup(
 		OutputSize,
 		InputSize,
 		PipelineState.VertexShader,
-		View.StereoViewIndex,
+		ViewInfo.StereoViewIndex,
 		bUseHMDHiddenAreaMask,
 		DrawRectangleFlags);
 }
