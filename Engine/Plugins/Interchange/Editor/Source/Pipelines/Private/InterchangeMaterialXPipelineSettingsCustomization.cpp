@@ -4,6 +4,7 @@
 #include "IDetailChildrenBuilder.h"
 #include "InterchangeGenericMaterialPipeline.h"
 #include "InterchangeMaterialDefinitions.h"
+#include "Materials/MaterialFunction.h"
 #include "PropertyCustomizationHelpers.h"
 
 TSharedRef<IPropertyTypeCustomization> FInterchangeMaterialXPipelineSettingsCustomization::MakeInstance()

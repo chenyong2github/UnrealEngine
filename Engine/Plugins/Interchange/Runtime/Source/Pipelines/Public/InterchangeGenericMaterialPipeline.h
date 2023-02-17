@@ -21,6 +21,7 @@ class UInterchangeMaterialExpressionFactoryNode;
 class UInterchangeMaterialFunctionFactoryNode;
 class UInterchangeMaterialInstanceFactoryNode;
 class UInterchangeResult;
+class UMaterialFunction;
 
 UENUM(BlueprintType)
 enum class EInterchangeMaterialImportOption : uint8
