@@ -1612,6 +1612,11 @@ public:
 		ActiveFPLB->StartFastPathLoadBuffer += Length;
 	}
 
+	virtual FString GetArchiveName() const override
+	{
+		return PackageDesc ? PackageDesc->UPackageName.ToString() : TEXT("FExportArchive");
+	}
+
 	void UsingCustomVersion(const FGuid& Key) override {};
 	using FArchive::operator<<; // For visibility of the overloads we don't override
 
