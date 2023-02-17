@@ -9,6 +9,7 @@ class FOpenColorIOTransformResource;
 class FRDGBuilder;
 struct FScreenPassRenderTarget;
 struct FScreenPassTexture;
+struct FScreenPassViewInfo;
 class FTextureResource;
 class FSceneView;
 class UTexture;
@@ -50,7 +51,8 @@ public:
 	 */
 	static void AddPass_RenderThread(
 		FRDGBuilder& GraphBuilder,
-		const FSceneView& View,
+		FScreenPassViewInfo ViewInfo,
+		ERHIFeatureLevel::Type FeatureLevel,
 		const FScreenPassTexture& Input,
 		const FScreenPassRenderTarget& Output,
 		const FOpenColorIORenderPassResources& InPassInfo,
