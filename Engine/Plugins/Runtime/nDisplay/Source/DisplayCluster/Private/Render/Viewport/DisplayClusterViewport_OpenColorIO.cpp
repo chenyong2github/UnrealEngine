@@ -17,29 +17,6 @@
 #include "ScreenPass.h"
 #include "CommonRenderResources.h"
 
-namespace {
-	/** Create dummy view for OCIO render pass
-	 *
-	 * @param InViewRect - input texture view rect
-	 *
-	 * @return - new view info
-	 */
-	FViewInfo CreateDummyViewInfo(const FIntRect& InViewRect)
-	{
-		FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
-			.SetTime(FGameTime())
-			.SetGammaCorrection(1.0f));
-		FSceneViewInitOptions ViewInitOptions;
-		ViewInitOptions.ViewFamily = &ViewFamily;
-		ViewInitOptions.SetViewRectangle(InViewRect);
-		ViewInitOptions.ViewOrigin = FVector::ZeroVector;
-		ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
-		ViewInitOptions.ProjectionMatrix = FMatrix::Identity;
-
-		return FViewInfo(ViewInitOptions);
-	}
-}
-
 //////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewport_OpenColorIO
 //////////////////////////////////////////////////////////////////////////
@@ -162,7 +139,8 @@ bool FDisplayClusterViewport_OpenColorIO::AddPass_RenderThread(FRDGBuilder& Grap
 
 		FOpenColorIORendering::AddPass_RenderThread(
 			GraphBuilder,
-			CreateDummyViewInfo(Output.ViewRect),
+			FScreenPassViewInfo(),
+			GMaxRHIFeatureLevel,
 			FScreenPassTexture(InputTexture),
 			Output,
 			CachedResourcesRenderThread,

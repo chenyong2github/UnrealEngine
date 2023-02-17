@@ -11,9 +11,7 @@
 
 #include "ScreenPass.h"
 #include "CommonRenderResources.h"
-#include "PostProcess/PostProcessing.h"
-// for FPostProcessMaterialInputs
-#include "PostProcess/PostProcessMaterial.h"
+#include "PostProcess/PostProcessMaterialInputs.h"
 
 namespace DisplayClusterViewportManagerViewExtensionHelpers
 {
