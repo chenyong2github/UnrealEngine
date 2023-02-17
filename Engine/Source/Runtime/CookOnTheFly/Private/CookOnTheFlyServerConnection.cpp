@@ -211,7 +211,12 @@ private:
 			else if (bIsResponse)
 			{
 				FPendingRequest* PendingRequest = GetRequest(MessageHeader.CorrelationId);
-				check(PendingRequest);
+				if (!PendingRequest)
+				{
+					UE_LOG(LogCotfServerConnection, Warning, TEXT("Failed to match response with id '%u' to an existing request"), MessageHeader.CorrelationId);
+					return false;
+				}
+
 				check(PendingRequest->RequestHeader.CorrelationId == MessageHeader.CorrelationId);
 
 				FCookOnTheFlyResponse Response;
