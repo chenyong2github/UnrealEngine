@@ -121,19 +121,19 @@ UDataLayerManager* UWorldPartitionRuntimeCell::GetDataLayerManager() const
 
 bool UWorldPartitionRuntimeCell::HasAnyDataLayerInEffectiveRuntimeState(EDataLayerRuntimeState InState) const
 {
-	const UDataLayerManager* DataLayerManager = !DataLayers.IsEmpty() ? GetDataLayerManager() : nullptr;
+	const UDataLayerManager* DataLayerManager = HasDataLayers() ? GetDataLayerManager() : nullptr;
 	return DataLayerManager ? DataLayerManager->IsAnyDataLayerInEffectiveRuntimeState(GetDataLayers(), InState) : false;
 }
 
 TArray<const UDataLayerInstance*> UWorldPartitionRuntimeCell::GetDataLayerInstances() const
 {
-	const UDataLayerManager* DataLayerManager = !DataLayers.IsEmpty() ? GetDataLayerManager() : nullptr;
+	const UDataLayerManager* DataLayerManager = HasDataLayers() ? GetDataLayerManager() : nullptr;
 	return DataLayerManager ? DataLayerManager->GetDataLayerInstances(GetDataLayers()) : TArray<const UDataLayerInstance*>();
 }
 
 bool UWorldPartitionRuntimeCell::ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const
 {
-	const UDataLayerManager* DataLayerManager = !DataLayers.IsEmpty() ? GetDataLayerManager() : nullptr;
+	const UDataLayerManager* DataLayerManager = HasDataLayers() ? GetDataLayerManager() : nullptr;
 	const UDataLayerInstance* DataLayerInstance = DataLayerManager ? DataLayerManager->GetDataLayerInstance(DataLayerAsset) : nullptr;
 	return DataLayerInstance ? ContainsDataLayer(DataLayerInstance) : false;
 }

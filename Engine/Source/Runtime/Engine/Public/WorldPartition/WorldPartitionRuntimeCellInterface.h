@@ -26,7 +26,7 @@ public:
 	/** Returns whether the cell data layers referenced the provided data layer instance or not. */
 	virtual bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const = 0;
 	/** Returns whether the cell content is associated with data layers or not. */
-	virtual bool HasDataLayers() const = 0;
+	bool HasDataLayers() const { return !GetDataLayers().IsEmpty(); }
 	/** Returns the cell content associated data layers. */
 	virtual const TArray<FName>& GetDataLayers() const = 0;
 	/** Returns whether the cell data layers referenced any of the provided data layer or not. */
