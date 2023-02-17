@@ -382,6 +382,8 @@ void USetCollisionGeometryTool::OnShutdown(EToolShutdownType ShutdownType)
 					{
 						SMComponent->RecreatePhysicsState();
 					}
+					// Mark the render state dirty to make sure any CollisionTraceFlag changes get picked up
+					SMComponent->MarkRenderStateDirty();
 				}
 			}
 
