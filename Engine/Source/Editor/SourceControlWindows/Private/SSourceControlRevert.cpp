@@ -59,7 +59,7 @@ struct FRevertCheckBoxListViewItem
 	FRevertCheckBoxListViewItem( FString InText )
 	{
 		Text = InText;
-		IsSelected = false;
+		IsSelected = true;
 		IsModified = false;
 	}
 
