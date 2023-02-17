@@ -411,6 +411,10 @@ UE::Interchange::FAssetImportResultRef FReimportManager::ReimportAsync(UObject* 
 			{
 				if (bUseInterchangeFramework && CanReimportHandler->IsInterchangeFactory())
 				{
+					// Make sure SourceFilenames reflects the source filenames in Obj
+					SourceFilenames.Empty();
+					CanReimportHandler->CanReimport(Obj, SourceFilenames);
+
 					int32 RealSourceFileIndex = SourceFileIndex == INDEX_NONE ? 0 : SourceFileIndex;
 					int32 RealValidSourceFileIndex = SourceFilenames.IsValidIndex(RealSourceFileIndex) ? RealSourceFileIndex : 0;
 					UE::Interchange::FScopedSourceData ScopedSourceData(SourceFilenames[RealValidSourceFileIndex]);
@@ -422,6 +426,17 @@ UE::Interchange::FAssetImportResultRef FReimportManager::ReimportAsync(UObject* 
 						ImportAssetParameters.ReimportAsset = Obj;
 						ImportAssetParameters.ReimportSourceIndex = SourceFileIndex;
 						UE::Interchange::FAssetImportResultRef ImportResult = InterchangeManager.ImportAssetAsync(FString(), ScopedSourceData.GetSourceData(), ImportAssetParameters);
+
+						TFunction<void(UE::Interchange::FImportResult&)> AppendAndBroadcastImportResultIfNeeded =
+							[](UE::Interchange::FImportResult& Result)
+						{
+							UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+							TStrongObjectPtr<UInterchangeResultsContainer> ResultsContainer(Result.GetResults());
+							InterchangeManager.OnBatchImportComplete.Broadcast(ResultsContainer);
+						};
+
+						ImportResult->OnDone(AppendAndBroadcastImportResultIfNeeded);
+
 						return ImportResult;
 					}
 				}

@@ -35,6 +35,7 @@
 #include "InterchangeVolumeTextureNode.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreStats.h"
+#include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/EditorBulkData.h"
@@ -1522,6 +1523,21 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_GameThread(const FImportA
 	{
 		//This is a reimport, we are just re-updating the source data
 		Texture = ExistingAsset;
+	}
+	else
+	{
+		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+		Message->SourceAssetName = Arguments.SourceData->GetFilename();
+		Message->DestinationAssetName = Arguments.AssetName;
+		Message->AssetType = TextureClass;
+
+		const FText TargetClassName = FText::FromString(TextureClass->GetName());
+		const FText ExistingClassName = FText::FromString(ExistingAsset->GetClass()->GetName());
+		const FText AssetName = FText::FromString(Arguments.AssetName);
+		const FText FolderName = FText::FromString(FPaths::GetPath(Arguments.Parent->GetPathName()));
+		Message->Text = FText::Format(NSLOCTEXT("InterchangeTextureFactory", "ClassMismatch", "You cannot create a '{0}' asset named '{1}' in '{2}', as there is already a '{3}' asset with the same name in this folder."), TargetClassName, AssetName, FolderName, ExistingClassName);
+		
+		return nullptr;
 	}
 
 	if (!Texture)
