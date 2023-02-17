@@ -5,6 +5,7 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "ToolTargetManager.h"
 #include "ModelingToolsManagerActions.h"
+#include "ModelingToolsEditorModeSettings.h"
 #include "ToolTargets/StaticMeshComponentToolTarget.h"
 #include "Tools/GenerateStaticMeshLODAssetTool.h"
 #include "Tools/LODManagerTool.h"
@@ -28,8 +29,11 @@ void UStaticMeshEditorModelingMode::Enter()
 
 	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
 
+	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
+
 	UGenerateStaticMeshLODAssetToolBuilder* GenerateStaticMeshLODAssetToolBuilder = NewObject<UGenerateStaticMeshLODAssetToolBuilder>();
 	GenerateStaticMeshLODAssetToolBuilder->bUseAssetEditorMode = true;
+	GenerateStaticMeshLODAssetToolBuilder->bInRestrictiveMode = ModelingModeSettings->InRestrictiveMode();
 	RegisterTool(ToolManagerCommands.BeginGenerateStaticMeshLODAssetTool, TEXT("BeginGenerateStaticMeshLODAssetTool"), GenerateStaticMeshLODAssetToolBuilder);
 	RegisterTool(ToolManagerCommands.BeginLODManagerTool, TEXT("BeginLODManagerTool"), NewObject<ULODManagerToolBuilder>());
 	RegisterTool(ToolManagerCommands.BeginMeshInspectorTool, TEXT("BeginMeshInspectorTool"), NewObject<UMeshInspectorToolBuilder>());

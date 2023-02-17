@@ -221,6 +221,7 @@ UMultiSelectionMeshEditingTool* UGenerateStaticMeshLODAssetToolBuilder::CreateNe
 {
 	UGenerateStaticMeshLODAssetTool* NewTool = NewObject<UGenerateStaticMeshLODAssetTool>(SceneState.ToolManager);
 	NewTool->SetUseAssetEditorMode(bUseAssetEditorMode);
+	NewTool->SetRestrictiveMode(bInRestrictiveMode);
 	return NewTool;
 }
 
@@ -244,6 +245,12 @@ void UGenerateStaticMeshLODAssetToolPresetProperties::PostAction(EGenerateLODAss
 void UGenerateStaticMeshLODAssetTool::SetUseAssetEditorMode(bool bEnable)
 {
 	bIsInAssetEditorMode = bEnable;
+}
+
+
+void UGenerateStaticMeshLODAssetTool::SetRestrictiveMode(bool bEnable)
+{
+	bRestrictiveMode = bEnable;
 }
 
 
@@ -316,11 +323,14 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	OutputProperties->OutputMode = (bIsInAssetEditorMode) ? EGenerateLODAssetOutputMode::UpdateExistingAsset : EGenerateLODAssetOutputMode::CreateNewAsset;
 	OutputProperties->bShowOutputMode = !bIsInAssetEditorMode;
 
-	PresetProperties = NewObject<UGenerateStaticMeshLODAssetToolPresetProperties>(this);
-	PresetProperties->RestoreProperties(this);
-	PresetProperties->Initialize(this);
-	AddToolPropertySource(PresetProperties);
-	PresetProperties->WatchProperty(PresetProperties->Preset, [this](TWeakObjectPtr<UStaticMeshLODGenerationSettings>) { OnPresetSelectionChanged(); });
+	if (!bRestrictiveMode)
+	{
+		PresetProperties = NewObject<UGenerateStaticMeshLODAssetToolPresetProperties>(this);
+		PresetProperties->RestoreProperties(this);
+		PresetProperties->Initialize(this);
+		AddToolPropertySource(PresetProperties);
+		PresetProperties->WatchProperty(PresetProperties->Preset, [this](TWeakObjectPtr<UStaticMeshLODGenerationSettings>) { OnPresetSelectionChanged(); });
+	}
 
 	SlowTask.EnterProgressFrame(1);
 	BasicProperties = NewObject<UGenerateStaticMeshLODAssetToolProperties>(this);
@@ -655,6 +665,11 @@ void UGenerateStaticMeshLODAssetTool::UpdateExistingAsset()
 
 void UGenerateStaticMeshLODAssetTool::RequestPresetAction(EGenerateLODAssetToolPresetAction ActionType)
 {
+	if (PresetProperties == nullptr)
+	{
+		return;
+	}
+
 	UStaticMeshLODGenerationSettings* CurrentPreset = PresetProperties->Preset.Get();
 	if (CurrentPreset == nullptr)
 	{

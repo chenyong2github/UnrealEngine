@@ -42,6 +42,7 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolBuilder : public UMultiS
 
 public:
 	bool bUseAssetEditorMode = false;
+	bool bInRestrictiveMode = false;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
@@ -264,8 +265,11 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetTool : public UMultiSelectio
 
 public:
 
-	// Enable UI Customization for running this Tool in the Static Mesh Asset Editor. Must call before Setup.
+	// Enable UI Customization for running this Tool in the Static Mesh Asset Editor. Must be called before Setup.
 	virtual void SetUseAssetEditorMode(bool bEnable);
+
+	// Enable restrictive mode. Must be called before Setup.
+	virtual void SetRestrictiveMode(bool bEnable);
 
 	virtual void Setup() override;
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
@@ -324,6 +328,7 @@ protected:
 
 protected:
 	bool bIsInAssetEditorMode = false;
+	bool bRestrictiveMode = false;
 
 	UPROPERTY()
 	TObjectPtr<UGenerateStaticMeshLODProcess> GenerateProcess;
