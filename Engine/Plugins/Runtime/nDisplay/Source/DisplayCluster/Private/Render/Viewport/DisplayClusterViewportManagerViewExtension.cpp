@@ -5,7 +5,6 @@
 
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
-#include "SceneRendering.h"
 
 #include "IDisplayCluster.h"
 #include "IDisplayClusterCallbacks.h"
@@ -42,10 +41,8 @@ void FDisplayClusterViewportManagerViewExtension::PreRenderView_RenderThread(FRD
 {
 	if (InView.bIsViewInfo)
 	{
-		FViewInfo& ViewInfo = static_cast<FViewInfo&>(InView);
-
 		// UE-145088: VR HMD device post-processing cannot be applied to nDisplay rendering
-		ViewInfo.bHMDHiddenAreaMaskActive = false;
+		InView.bHMDHiddenAreaMaskActive = false;
 	}
 }
 

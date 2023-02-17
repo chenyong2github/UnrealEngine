@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.IO;
 
 namespace UnrealBuildTool.Rules
@@ -70,8 +69,6 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("D3D12RHI");
 			}
 			
-			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source", "Runtime", "Renderer", "Private"));
-
 			// Is this the editor?
 			if (Target.bBuildEditor == true)
 			{

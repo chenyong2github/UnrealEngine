@@ -7,12 +7,6 @@ public class HeadMountedDisplay : ModuleRules
 {
     public HeadMountedDisplay(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "Runtime/Renderer/Private"
-            }
-        );
-
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

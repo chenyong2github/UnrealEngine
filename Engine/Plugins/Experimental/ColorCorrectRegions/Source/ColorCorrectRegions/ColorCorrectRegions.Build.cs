@@ -1,20 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class ColorCorrectRegions : ModuleRules
 {
 	public ColorCorrectRegions(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.AddRange(
-			new string[] {
-			}
-			);
-				
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				//Used in ColorCorrectRegionsPostProcessMaterial.h
-				"../../../../Source/Runtime/Renderer/Private",
+				Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 			}
 		);
 		
@@ -49,11 +45,5 @@ public class ColorCorrectRegions : ModuleRules
 			PublicDependencyModuleNames.Add("UnrealEd");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
-
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-			}
-		);
 	}
 }

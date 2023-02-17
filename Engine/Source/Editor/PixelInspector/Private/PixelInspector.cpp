@@ -17,8 +17,7 @@
 #include "PixelInspectorStyle.h"
 #include "ScreenPass.h"
 #include "UnrealClient.h"
-#include "PostProcess/PostProcessing.h"
-#include "PostProcess/PostProcessMaterial.h"
+#include "PostProcess/PostProcessMaterialInputs.h"
 
 #include "EngineGlobals.h"
 #include "EditorViewportClient.h"

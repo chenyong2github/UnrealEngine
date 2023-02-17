@@ -2,12 +2,12 @@
 
 #include "DefaultXRCamera.h"
 #include "GameFramework/PlayerController.h"
-#include "RendererPrivate.h"
-#include "ScenePrivate.h"
 #include "Slate/SceneViewport.h"
 #include "StereoRendering.h"
 #include "StereoRenderTargetManager.h"
 #include "IHeadMountedDisplay.h"
+#include "RenderGraphBuilder.h"
+#include "SceneView.h"
 
 FDefaultXRCamera::FDefaultXRCamera(const FAutoRegister& AutoRegister, IXRTrackingSystem* InTrackingSystem, int32 InDeviceId)
 	: FHMDSceneViewExtension(AutoRegister)

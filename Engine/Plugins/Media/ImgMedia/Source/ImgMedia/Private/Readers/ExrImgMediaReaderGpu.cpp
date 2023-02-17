@@ -19,7 +19,7 @@
 #include "GlobalShader.h"
 #include "CommonRenderResources.h"
 #include "ImgMediaLoader.h"
-#include "PostProcess/SceneFilterRendering.h"
+#include "PostProcess/DrawRectangle.h"
 #include "RHIStaticStates.h"
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
@@ -62,13 +62,13 @@ namespace {
 
 		EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
 
-		DrawPostProcessPass(
+		UE::Renderer::PostProcess::DrawPostProcessPass(
 			RHICmdList,
+			PipelineState.VertexShader,
 			0, 0, OutputResolution.X, OutputResolution.Y,
 			Viewport.Min.X, Viewport.Min.Y, Viewport.Width(), Viewport.Height(),
 			OutputResolution,
 			OutputResolution,
-			PipelineState.VertexShader,
 			INDEX_NONE,
 			false,
 			DrawRectangleFlags);

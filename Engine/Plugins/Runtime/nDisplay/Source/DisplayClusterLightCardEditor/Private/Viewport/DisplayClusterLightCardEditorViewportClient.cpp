@@ -50,7 +50,6 @@
 #include "PreviewScene.h"
 #include "ProceduralMeshComponent.h"
 #include "RayTracingDebugVisualizationMenuCommands.h"
-#include "Runtime/Renderer/Private/SceneRendering.h"
 #include "ScopedTransaction.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Slate/SceneViewport.h"

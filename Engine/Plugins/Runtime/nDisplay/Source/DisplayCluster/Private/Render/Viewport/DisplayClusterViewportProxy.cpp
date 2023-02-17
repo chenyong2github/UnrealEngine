@@ -42,9 +42,7 @@
 #include "ShaderParameterUtils.h"
 
 #include "ScreenRendering.h"
-#include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessAA.h"
-#include "SceneRendering.h"
 #include "RenderGraphUtils.h"
 #include "RenderGraphResources.h"
 #include "PostProcess/DrawRectangle.h"

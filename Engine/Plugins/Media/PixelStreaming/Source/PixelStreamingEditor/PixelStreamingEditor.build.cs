@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.IO;
-using System.Collections.Generic;
-using EpicGames.Core;
 
 namespace UnrealBuildTool.Rules
 {
@@ -17,7 +14,6 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(new string[]
 			{
 				Path.Combine(EngineDir, "Plugins/Media/PixelStreaming/Source/PixelStreaming/Private"),
-				Path.Combine(EngineDir, "Source/Runtime/Renderer/Private"),
 			});
 
 			PrivateDependencyModuleNames.AddRange(new string[]
