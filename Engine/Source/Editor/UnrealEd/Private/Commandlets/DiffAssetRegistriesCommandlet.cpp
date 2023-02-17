@@ -475,7 +475,7 @@ void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, co
 	{
 		const FAssetPackageData* Data = PackageMap[Package];
 
-		if (!GuidModified.Contains(Package))
+		if (!GuidModified.Contains(Package) && Data->DiskSize >= 0)
 		{
 			++Changes;
 			ChangeBytes += Data->DiskSize;

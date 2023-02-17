@@ -4,9 +4,11 @@
 
 #if WITH_EDITOR
 
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Engine/Level.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLog.h"
+#include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "Editor.h"
 
 // Register FWorldPartitionCookPackageSplitter for UWorld class
@@ -112,6 +114,25 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 	return PackagesToGenerate;
 }
 
+TArray<FName> FWorldPartitionCookPackageSplitter::GetNeverCookDependencies() const
+{
+	TSet<FName> NeverCookDependencies;
+	for (const IWorldPartitionCookPackageGenerator* CookPackageGenerator : CookContext.GetCookPackageGenerators())
+	{
+		if (const TArray<FWorldPartitionCookPackage*>* CookPackages = CookContext.GetCookPackages(CookPackageGenerator))
+		{
+			for (const FWorldPartitionCookPackage* CookPackage : *CookPackages)
+			{
+				if (UWorldPartitionRuntimeCell* Cell = CookPackageGenerator->GetCellForPackage(*CookPackage))
+				{
+					NeverCookDependencies.Append(Cell->GetActorPackageNames());
+				}
+			}
+		}
+	}
+	return NeverCookDependencies.Array();
+}
+
 bool FWorldPartitionCookPackageSplitter::PopulateGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
 	const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove,
 	TArray<UPackage*>& OutModifiedPackages)
@@ -187,10 +208,21 @@ void FWorldPartitionCookPackageSplitter::BuildPackagesToGenerateList(TArray<ICoo
 				ICookPackageSplitter::FGeneratedPackage& GeneratedPackage = PackagesToGenerate.Emplace_GetRef();
 				GeneratedPackage.GeneratedRootPath = CookPackage->Root;
 				GeneratedPackage.RelativePath = CookPackage->RelativePath;
+				// GenerationHash is left as empty. All dependencies for the package's bytes are specified by PackageDependencies
 
 				CookPackage->Type == FWorldPartitionCookPackage::EType::Level ? GeneratedPackage.SetCreateAsMap(true) : GeneratedPackage.SetCreateAsMap(false);
 
-				// @todo_ow: Set dependencies once we get iterative cooking working
+				// Fill generated package dependencies for iterative cooking
+				if (UWorldPartitionRuntimeCell* Cell = CookPackageGenerator->GetCellForPackage(*CookPackage))
+				{
+					TSet<FName> ActorPackageNames = Cell->GetActorPackageNames();
+					GeneratedPackage.PackageDependencies.Reset(ActorPackageNames.Num());
+					for (FName ActorPackageName : ActorPackageNames)
+					{
+						GeneratedPackage.PackageDependencies.Add(FAssetDependency::PackageDependency(ActorPackageName,
+							UE::AssetRegistry::EDependencyProperty::Hard | UE::AssetRegistry::EDependencyProperty::Game));
+					}
+				}
 			}
 		}
 	}

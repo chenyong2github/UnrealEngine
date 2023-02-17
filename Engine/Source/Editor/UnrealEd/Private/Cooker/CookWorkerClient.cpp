@@ -191,6 +191,10 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 	Result->SetPackageName(PackageName);
 	Result->SetSuppressCookReason(ESuppressCookReason::InvalidSuppressCookReason);
 	Result->SetPlatforms(OrderedSessionPlatforms);
+	if (FGeneratorPackage* Generator = PackageData.GetGeneratorPackage(); Generator)
+	{
+		Result->SetNeverCookDependencies(Generator->ReleaseNeverCookDependencies());
+	}
 
 	int32 NumPlatforms = OrderedSessionPlatforms.Num();
 	for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
@@ -198,7 +202,7 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 		ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
 		FPackageRemoteResult::FPlatformResult& PlatformResults = Result->GetPlatforms()[PlatformIndex];
 		FPackageData::FPlatformData& PackagePlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
-		PlatformResults.SetSuccessful(PackagePlatformData.bCookSucceeded);
+		PlatformResults.SetCookResults(PackagePlatformData.GetCookResults());
 	}
 
 	ReportPackageMessage(PackageName, MoveTemp(ResultOwner));
@@ -213,7 +217,7 @@ void FCookWorkerClient::ReportPackageMessage(FName PackageName, TUniquePtr<FPack
 	for (FPackageRemoteResult::FPlatformResult& PlatformResult : Result->GetPlatforms())
 	{
 		ContextPlatformDatas.Add(FMPCollectorClientTickPackageContext::FPlatformData
-			{ PlatformResult.GetPlatform(), PlatformResult.IsSuccessful() });
+			{ PlatformResult.GetPlatform(), PlatformResult.GetCookResults() });
 	}
 	FMPCollectorClientTickPackageContext Context;
 	Context.PackageName = PackageName;
@@ -690,11 +694,12 @@ void FCookWorkerClient::AssignPackages(FAssignPackagesMessage& Message)
 		}
 
 		// We do not want CookWorkers to explore dependencies in CookRequestCluster because the Director did it already.
-		// Mmark the PackageDatas we get from the Director as already explored.
+		// Mark the PackageDatas we get from the Director as already explored.
 		for (const ITargetPlatform* TargetPlatform : OrderedSessionPlatforms)
 		{
 			FPackageData::FPlatformData& PlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
-			PlatformData.bExplored = true;
+			PlatformData.SetExplored(true);
+			PlatformData.SetCookable(true);
 		}
 
 		PackageData.SetRequestData(OrderedSessionPlatforms , false /* bInIsUrgent */, FCompletionCallback(),

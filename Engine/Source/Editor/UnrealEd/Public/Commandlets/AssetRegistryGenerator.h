@@ -63,27 +63,47 @@ public:
 	/** Info about a GeneratorPackage (see ICookPackageSplitter) loaded from previous iterative cooks. */
 	struct FGeneratorPackageInfo
 	{
-		TArray<FName> Generated;
-		bool bGeneratedModified = false;
+		TMap<FName, FGuid> Generated;
 	};
 
+	enum EDifference
+	{
+		// Cooked packages have files that can be loaded at runtime.
+		IdenticalCooked,
+		ModifiedCooked,
+		RemovedCooked,
+
+		// Uncooked packages either were skipped by the platform (including editor-only packages) or had an error during Save
+		IdenticalUncooked,
+		ModifiedUncooked,
+		RemovedUncooked,
+
+		// NeverCookPlaceholders are packages that were marked NeverCook, so we did not attempt to save them, but they
+		// were also marked as necessary for dependency testing, so we included them in the AssetRegistry
+		IdenticalNeverCookPlaceholder,
+		ModifiedNeverCookPlaceholder,
+		RemovedNeverCookPlaceholder,
+
+		// Scripts have entries in the AssetRegistry for dependency testing, but are embedded in the binary and do not
+		// have their own files
+		IdenticalScript,
+		ModifiedScript,
+		RemovedScript,
+	};
 	/**
 	 * Differences between the current and the previous state.
 	 */
 	struct FAssetRegistryDifference
 	{
-		/** ModifiedPackages list of packages which existed beforeand now, but need to be recooked */
-		TSet<FName> ModifiedPackages;
-		/** NewPackages list of packages that did not exist before, but exist now */
-		TSet<FName> NewPackages;
-		/** RemovedPackages list of packages that existed before, but do not any more */
-		TSet<FName> RemovedPackages;
-		/** IdenticalCookedPackages list of cooked packages that have not changed */
-		TSet<FName> IdenticalCookedPackages;
-		/** IdenticalUncookedPackages list of uncooked packages that have not changed.These were filtered out by platform or editor only */
-		TSet<FName> IdenticalUncookedPackages;
-		/** Set of Generator packages and the packages they generated. */
-		TMap<FName, FGeneratorPackageInfo> PreviousGeneratorPackages;
+		/** Collection of all non-generated packages contained in the previous cook, and their difference category. */
+		TMap<FName, EDifference> Packages;
+		/**
+		 * Collection of Generator packages and the packages they generated. The keys of the map are Generator
+		 * packages, and these packages exist in this->Packages. But the values include a list of Generated packages,
+		 * which are not present in Packages. Generated packages cannot be given a difference category until the
+		 * Generator runs, or if the Generator is unmodified.
+		 */
+		TMap<FName, FGeneratorPackageInfo> GeneratorPackages;
 	};
 
 	/** Sets asset registry from a previous run that is used for iterative cooking. */
@@ -99,8 +119,8 @@ public:
 	void ComputePackageDifferences(const FComputeDifferenceOptions& Options, const FAssetRegistryState& PreviousState, FAssetRegistryDifference& OutDifference);
 
 	/** Computes just the list of packages in the PreviousState that no longer exist in the current state. */
-	void ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& RemovedPackages,
-		TMap<FName, FGeneratorPackageInfo>& PreviousGeneratorPackages);
+	void ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& OutRemovedPackages,
+		TMap<FName, FGeneratorPackageInfo>& OutGeneratorPackages, int32& OutNumNeverCookPlaceHolderPackages);
 
 	/**
 	 * FinalizeChunkIDs 
@@ -211,7 +231,8 @@ public:
 	 * @param SavePackageResult The metadata to associate with the given package name
 	 * @param bIncludeOnlyDiskAssets Include only disk assets or else also enumerate memory assets
 	 */
-	void UpdateAssetRegistryData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult,
+	void UpdateAssetRegistryData(FName PackageName, const UPackage* Package,
+		UE::Cook::ECookResult CookResult, FSavePackageResultStruct* SavePackageResult,
 		FCookTagList&& InArchiveCookTagList, bool bIncludeOnlyDiskAssets,
 		TOptional<FAssetPackageData>&& OverrideAssetPackageData,
 		TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies);
@@ -455,8 +476,8 @@ class IAssetRegistryReporter
 public:
 	virtual ~IAssetRegistryReporter() {}
 
-	virtual void UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
-		FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList,
+	virtual void UpdateAssetRegistryData(FName PackageName, const UPackage* Package, UE::Cook::ECookResult CookResult,
+		FSavePackageResultStruct* SavePackageResult, FCookTagList&& InArchiveCookTagList,
 		bool bIncludeOnlyDiskAssets, TOptional<FAssetPackageData>&& OverrideAssetPackageData, 
 		TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies) = 0;
 
@@ -470,13 +491,14 @@ public:
 	{
 	}
 
-	virtual void UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
-		FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList,
+	virtual void UpdateAssetRegistryData(FName PackageName, const UPackage* Package, UE::Cook::ECookResult CookResult,
+		FSavePackageResultStruct* SavePackageResult, FCookTagList&& InArchiveCookTagList,
 		bool bIncludeOnlyDiskAssets, TOptional<FAssetPackageData>&& OverrideAssetPackageData,
 		TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies) override
 	{
-		Generator.UpdateAssetRegistryData(Package, SavePackageResult, MoveTemp(InArchiveCookTagList),
-			bIncludeOnlyDiskAssets, MoveTemp(OverrideAssetPackageData), MoveTemp(OverridePackageDependencies));
+		Generator.UpdateAssetRegistryData(PackageName, Package, CookResult, SavePackageResult,
+			MoveTemp(InArchiveCookTagList), bIncludeOnlyDiskAssets, MoveTemp(OverrideAssetPackageData),
+			MoveTemp(OverridePackageDependencies));
 	}
 
 private:
@@ -488,8 +510,8 @@ class FAssetRegistryReporterRemote : public IAssetRegistryReporter
 public:
 	FAssetRegistryReporterRemote(FCookWorkerClient& InClient, const ITargetPlatform* InTargetPlatform);
 
-	virtual void UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
-		FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList,
+	virtual void UpdateAssetRegistryData(FName PackageName, const UPackage* Package, UE::Cook::ECookResult CookResult,
+		FSavePackageResultStruct* SavePackageResult, FCookTagList&& InArchiveCookTagList,
 		bool bIncludeOnlyDiskAssets, TOptional<FAssetPackageData>&& OverrideAssetPackageData, 
 		TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies) override;
 

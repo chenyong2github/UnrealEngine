@@ -144,12 +144,39 @@ public:
 	struct FPlatformData
 	{
 		FPlatformData();
-		bool bRequested : 1;
-		bool bCookAttempted : 1;
-		bool bCookSucceeded : 1;
-		bool bExplored : 1;
-		bool bSaveTimedOut : 1;
-		bool bCookable : 1;
+
+		/** Requested from StartCookByTheBook, CookOnTheFly, or as a transitive dependency. */
+		bool IsRequested() const { return bRequested != 0; }
+		void SetRequested(bool bValue) { bRequested = (uint32) bValue; }
+
+		/** The package has passed through a CookRequestCluster and its transitive dependencies were added. */
+		bool IsExplored() const { return bExplored != 0; }
+		void SetExplored(bool bValue) { bExplored = (uint32) bValue; }
+
+		/** UPackage::Save was called on the package, but timedout and needs to be retried. */
+		bool IsSaveTimedOut() const { return bSaveTimedOut != 0; }
+		void SetSaveTimedOut(bool bValue) { bSaveTimedOut = (uint32) bValue; }
+
+		/** True if the package has either not passed through a CookRequestCluster, or it has and it was found cookable. */
+		bool IsCookable() const { return bCookable != 0; }
+		void SetCookable(bool bValue) { bCookable = (uint32) bValue; }
+
+		/** The package was found to be unmodified in the current iterative cook. */
+		bool IsIterativelySkipped() const { return bIterativelySkipped != 0; }
+		void SetIterativelySkipped(bool bValue) { bIterativelySkipped = (uint32) bValue; }
+
+		ECookResult GetCookResults() const { return (ECookResult) CookResults; }
+		bool IsCookAttempted() const { return CookResults != (uint32) ECookResult::NotAttempted; }
+		bool IsCookSucceeded() const { return CookResults == (uint32) ECookResult::Succeeded; }
+		void SetCookResults(ECookResult Value) { CookResults = (uint32) Value; }
+
+	private:
+		uint32 bRequested : 1;
+		uint32 bExplored : 1;
+		uint32 bSaveTimedOut : 1;
+		uint32 bCookable : 1;
+		uint32 bIterativelySkipped : 1;
+		uint32 CookResults : (int)ECookResult::NumBits;
 	};
 
 	FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName);
@@ -197,7 +224,7 @@ public:
 		OutPlatforms.Reset(PlatformDatas.Num());
 		for (const TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
 		{
-			if (Pair.Value.bRequested)
+			if (Pair.Value.IsRequested())
 			{
 				OutPlatforms.Add(Pair.Key);
 			}
@@ -266,9 +293,9 @@ public:
 	 * In version that takes two arrays, TargetPlatforms and Succeeded must be the same length.
 	 */
 	void SetPlatformsCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms,
-		const TConstArrayView<bool> Succeeded);
-	void SetPlatformsCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms, bool bSucceeded);
-	void SetPlatformCooked(const ITargetPlatform* TargetPlatform, bool bSucceeded);
+		const TConstArrayView<ECookResult> Succeeded);
+	void SetPlatformsCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms, ECookResult Result);
+	void SetPlatformCooked(const ITargetPlatform* TargetPlatform, ECookResult Result);
 	/**
 	 * FindOrAdd each TargetPlatform and set its flags: CookAttempted=false.
 	 * In Version that takes no TargetPlatform, CookAttempted is cleared from all existing platforms.
@@ -308,7 +335,7 @@ public:
 	bool HasCookedPlatform(const ITargetPlatform* Platform, bool bIncludeFailed) const;
 	/**
 	 * Return the CookResult for the given platform.  If the platform has not been cooked,
-	 * returns ECookResult::Unseen, otherwise returns Succeeded or Failed depending on its success flag.
+	 * returns ECookResult::NotAttempted, otherwise returns whatever result has been set.
 	 */
 	ECookResult GetCookResults(const ITargetPlatform* Platform) const;
 
@@ -319,7 +346,7 @@ public:
 		OutPlatforms.Reset(PlatformDatas.Num());
 		for (const TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
 		{
-			if (Pair.Value.bRequested && !Pair.Value.bCookAttempted)
+			if (Pair.Value.IsRequested() && !Pair.Value.IsCookAttempted())
 			{
 				OutPlatforms.Add(Pair.Key);
 			}
@@ -458,11 +485,9 @@ public:
 	 */
 	void ClearCookedPlatformData();
 
-	/** Get/Set the PackageDataMonitor flag that counts whether this PackageData has finished cooking. */
-	bool GetMonitorIsCooked() const { return static_cast<bool>(bMonitorIsCooked); }
-	void SetMonitorIsCooked(bool Value) { bMonitorIsCooked = Value != 0; }
-	bool GetMonitorIsSuccessfulCooked() const { return static_cast<bool>(bMonitorIsSuccessfulCooked); }
-	void SetMonitorIsSuccessfulCooked(bool Value) { bMonitorIsSuccessfulCooked = Value != 0; }
+	/** Get/Set the PackageDataMonitor flag that counts whether this PackageData has finished cooking and with what result. */
+	ECookResult GetMonitorCookResult() const { return (ECookResult)MonitorCookResult; }
+	void SetMonitorCookResult(ECookResult Value) { MonitorCookResult = (uint8) Value; }
 
 	/** Remove all request data about the given platform from all fields in this PackageData. */
 	void OnRemoveSessionPlatform(const ITargetPlatform* Platform);
@@ -642,8 +667,7 @@ private:
 	uint32 bCookedPlatformDataStarted : 1;
 	uint32 bCookedPlatformDataCalled : 1;
 	uint32 bCookedPlatformDataComplete : 1;
-	uint32 bMonitorIsCooked : 1;
-	uint32 bMonitorIsSuccessfulCooked : 1;
+	uint32 MonitorCookResult : (int) ECookResult::NumBits;
 	uint32 bInitializedGeneratorSave : 1;
 	uint32 bCompletedGeneration : 1;
 	uint32 bGenerated : 1;
@@ -751,14 +775,16 @@ public:
 	 * test whether they need to be invalidated now and clear the results if so. Only called in legacy iterative;
 	 * incremental cooks handle invalidation by querying the TargetDomainDigest during the RequestCluster.
 	 */
-	void IterativeCookValidateOrClear(FGeneratorPackage& Generator, TConstArrayView<const ITargetPlatform*> RequestedPlatforms);
+	void IterativeCookValidateOrClear(FGeneratorPackage& Generator,
+		TConstArrayView<const ITargetPlatform*> RequestedPlatforms, const FGuid& PreviousGuid, bool& bOutIdentical);
 
 public:
 	FBeginCacheObjects BeginCacheObjects;
 	FGuid Guid;
 	FString RelativePath;
 	FString GeneratedRootPath;
-	TArray<FName> Dependencies;
+	FBlake3Hash GenerationHash;
+	TArray<FAssetDependency> PackageDependencies;
 	FPackageData* PackageData = nullptr;
 	TArray<UPackage*> KeepReferencedPackages;
 private:
@@ -789,6 +815,8 @@ public:
 
 	/** Call the Splitter's GetGenerateList and create the PackageDatas */
 	bool TryGenerateList(UObject* OwnerObject, FPackageDatas& PackageDatas);
+	/** Call the Splitter's GetNeverCookDependencies and store them on this. */
+	void FetchNeverCookDependencies();
 
 	/** Accessor for the packages to generate */
 	TArrayView<UE::Cook::FCookGenerationInfo> GetPackagesToGenerate() { check(IsInitialized()); return PackagesToGenerate; }
@@ -831,7 +859,10 @@ public:
 
 	UPackage* GetOwnerPackage() const { return OwnerPackage.Get(); };
 	void SetOwnerPackage(UPackage* InPackage) { OwnerPackage = InPackage; }
-	void SetPreviousGeneratedPackages(TConstArrayView<FName> Packages) { PreviousGeneratedPackages = Packages; }
+	void SetPreviousGeneratedPackages(TMap<FName, FGuid>&& Packages) { PreviousGeneratedPackages = MoveTemp(Packages); }
+
+	TConstArrayView<FName> GetNeverCookDependencies() { check(IsInitialized()); return NeverCookDependencies; }
+	TArray<FName> ReleaseNeverCookDependencies() { TArray<FName> Result = MoveTemp(NeverCookDependencies); return Result; }
 
 private:
 	void ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown Status);
@@ -845,7 +876,8 @@ private:
 	/** Recorded list of packages to generate from the splitter, and data we need about them */
 	TArray<FCookGenerationInfo> PackagesToGenerate;
 	TWeakObjectPtr<UPackage> OwnerPackage;
-	TArray<FName> PreviousGeneratedPackages;
+	TMap<FName, FGuid> PreviousGeneratedPackages;
+	TArray<FName> NeverCookDependencies;
 
 	int32 NextPopulateIndex = 0;
 	int32 RemainingToPopulate = 0;
@@ -944,8 +976,7 @@ public:
 	int32 GetNumInProgress() const;
 	int32 GetNumPreloadAllocated() const;
 	/** Report the number of packages that have cooked any platform. Used by CookCommandlet progress reporting. */
-	int32 GetNumSuccessfulCooked() const;
-	int32 GetNumFailedCooked() const;
+	int32 GetNumCooked(ECookResult CookResult) const;
 	/**
 	 * Report the number of FPackageData that are currently marked as urgent.
 	 * Used to check if a Pump function needs to exit to handle urgent PackageData in other states.
@@ -962,7 +993,7 @@ public:
 	void OnInProgressChanged(FPackageData& PackageData, bool bInProgress);
 	void OnPreloadAllocatedChanged(FPackageData& PackageData, bool bPreloadAllocated);
 	/** Callback called from FPackageData when it has set a platform to CookAttempted=true and it does not have any others cooked. */
-	void OnFirstCookedPlatformAdded(FPackageData& PackageData, bool bSuccessful);
+	void OnFirstCookedPlatformAdded(FPackageData& PackageData, ECookResult CookResult);
 	/** Callback called from FPackageData when it has set a platform to CookAttempted=false and it does not have any others cooked. */
 	void OnLastCookedPlatformRemoved(FPackageData& PackageData);
 	/** Callback called from FPackageData when it has changed its urgency. */
@@ -975,8 +1006,7 @@ private:
 	void TrackUrgentRequests(EPackageState State, int32 Delta);
 
 	int32 NumInProgress = 0;
-	int32 NumFailedCooked = 0;
-	int32 NumSuccessfulCooked = 0;
+	int32 NumCooked[(uint8)ECookResult::Count]{};
 	int32 NumPreloadAllocated = 0;
 	int32 NumUrgentInState[static_cast<uint32>(EPackageState::Count)];
 };
@@ -1215,14 +1245,14 @@ public:
 
 	/** Report the number of packages that have cooked any platform. Used by cook commandlet progress reporting. */
 	int32 GetNumCooked();
-	int32 GetNumSuccessfulCooked();
-	int32 GetNumFailedCooked();
+	int32 GetNumCooked(ECookResult CookResult);
 	/**
-	 * Append to CookedPackages all packages that have cooked any platform, either successfully if
-	 * bGetSuccessfulCookedPackages is true and/or unsuccessfully if bGetFailedCookedPackages is true.
+	 * Append to SucceededPackages all packages that have cooked any platform with success, and to
+	 * FailedPackages all packages that have cooked any platform with other results. The output variables are permitted
+	 * to point to the same array.
 	 */
-	void GetCookedPackagesForPlatform(const ITargetPlatform* Platform, TArray<FPackageData*>& CookedPackages,
-		bool bGetFailedCookedPackages, bool bGetSuccessfulCookedPackages);
+	void GetCookedPackagesForPlatform(const ITargetPlatform* Platform, TArray<FPackageData*>& SucceededPackages,
+		TArray<FPackageData*>& FailedPackages);
 
 	/**
 	 * Delete all PackageDatas and free all other memory used by this FPackageDatas.

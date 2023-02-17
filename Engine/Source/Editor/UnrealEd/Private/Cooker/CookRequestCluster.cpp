@@ -744,7 +744,7 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 				if (IsIterativeEnabled(PackageName))
 				{
 					bFoundCachedTargetDomain = true;
-					PackageData->SetPlatformCooked(TargetPlatform, true);
+					PackageData->SetPlatformCooked(TargetPlatform, ECookResult::Succeeded);
 					PackageWriter->MarkPackagesUpToDate({ PackageName });
 					// Declare the package to the EDLCookInfo verification so we don't warn about missing exports from it
 					UE::SavePackageUtilities::EDLCookInfoAddIterativelySkippedPackage(PackageName);
@@ -827,8 +827,8 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 	for (const ITargetPlatform* TargetPlatform : Cluster.Platforms)
 	{
 		FPackageData::FPlatformData& PlatformData = PackageData->FindOrAddPlatformData(TargetPlatform);
-		PlatformData.bExplored = true;
-		PlatformData.bCookable = VertexData.bCookable;
+		PlatformData.SetExplored(true);
+		PlatformData.SetCookable(VertexData.bCookable);
 	}
 	bool bAlreadyCooked = PackageData->AreAllRequestedPlatformsCooked(true /* bAllowFailedCooks */);
 

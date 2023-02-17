@@ -142,11 +142,15 @@ void FPackageResultsMessage::Write(FCbWriter& Writer) const
 			for (const FPackageRemoteResult::FPlatformResult& PlatformResult : Result.Platforms)
 			{
 				Writer.BeginObject();
-				Writer << "S" << PlatformResult.bSuccessful;
+				Writer << "S" << (uint8) PlatformResult.GetCookResults();
 				WriteMessagesArray(Writer, PlatformResult.Messages);
 				Writer.EndObject();
 			}
 			Writer.EndArray();
+			if (!Result.NeverCookDependencies.IsEmpty())
+			{
+				Writer << "NCD" << Result.NeverCookDependencies;
+			}
 		}
 		Writer.EndObject();
 	}
@@ -198,9 +202,22 @@ bool FPackageResultsMessage::TryRead(FCbObjectView Object)
 			FPackageRemoteResult::FPlatformResult& PlatformResult = Result.Platforms.Emplace_GetRef();
 			FCbObjectView PlatformObject = PlatformField.AsObjectView();
 
-			PlatformResult.bSuccessful = PlatformObject["S"].AsBool();
+			uint8 CookResultsInt = PlatformObject["S"].AsUInt8();
+			if (CookResultsInt >= (uint8)ECookResult::Count)
+			{
+				return false;
+			}
+			PlatformResult.SetCookResults((ECookResult)CookResultsInt);
 
 			if (!TryReadMessagesArray(PlatformObject, PlatformResult.Messages))
+			{
+				return false;
+			}
+		}
+		FCbFieldView NeverCookDependenciesField = ResultObject["NCD"];
+		if (NeverCookDependenciesField.IsArray())
+		{
+			if (!LoadFromCompactBinary(NeverCookDependenciesField, Result.NeverCookDependencies))
 			{
 				return false;
 			}

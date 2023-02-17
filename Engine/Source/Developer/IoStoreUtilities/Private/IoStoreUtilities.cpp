@@ -3072,7 +3072,7 @@ static void AddChunkInfoToAssetRegistry(TMap<FPackageId, TArray<FIoStoreTocChunk
 
 	for (const TPair<FName, const FAssetPackageData*>& AssetPackage : AssetPackageMap)
 	{
-		if (AssetPackage.Value->DiskSize == -1)
+		if (AssetPackage.Value->DiskSize < 0)
 		{
 			// No data on disk!
 			continue;

@@ -35,13 +35,13 @@ public:
 		TConstArrayView<UE::CompactBinaryTCP::FMarshalledMessage> GetMessages() const { return Messages; }
 		TArray<UE::CompactBinaryTCP::FMarshalledMessage> ReleaseMessages();
 
-		bool IsSuccessful() const { return bSuccessful; }
-		void SetSuccessful(bool bInSuccessful) { bSuccessful = bInSuccessful; }
+		ECookResult GetCookResults() const { return CookResults; }
+		void SetCookResults(ECookResult Value) { CookResults = Value; }
 
 	private:
 		TArray<UE::CompactBinaryTCP::FMarshalledMessage> Messages;
 		const ITargetPlatform* Platform = nullptr;
-		bool bSuccessful = false;
+		ECookResult CookResults = ECookResult::NotAttempted;
 
 		friend FPackageRemoteResult;
 		friend FPackageResultsMessage;
@@ -76,6 +76,9 @@ public:
 
 	TArray<FPlatformResult, TInlineAllocator<1>>& GetPlatforms() { return Platforms; }
 	void SetPlatforms(TConstArrayView<ITargetPlatform*> OrderedSessionPlatforms);
+
+	void SetNeverCookDependencies(TArray<FName>&& InNeverCookDependencies) { NeverCookDependencies = MoveTemp(InNeverCookDependencies); }
+	TConstArrayView<FName> GetNeverCookDependencies() const { return NeverCookDependencies; }
 
 	/**
 	 * A non-atomic RefCount that can be used for storage of a refcount by the user (e.g. CookWorkerClient)
@@ -116,6 +119,7 @@ private:
 private:
 	// Fields read/writable only from the owner thread.
 	TArray<FAsyncMessage> AsyncMessages;
+	TArray<FName> NeverCookDependencies;
 	FName PackageName;
 	/** If failure reason is InvalidSuppressCookReason, it was saved. Otherwise, holds the suppression reason */
 	ESuppressCookReason SuppressCookReason;

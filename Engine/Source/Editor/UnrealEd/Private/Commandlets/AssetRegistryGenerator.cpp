@@ -1264,22 +1264,45 @@ void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages,
 	FGameDelegates::Get().GetAssignLayerChunkDelegate() = FAssignLayerChunkDelegate::CreateStatic(AssignLayerChunkDelegate);
 }
 
+static UE::Cook::ECookResult DiskSizeToCookResult(int64 DiskSize)
+{
+	if (DiskSize >= 0)
+	{
+		return UE::Cook::ECookResult::Succeeded;
+	}
+	switch (DiskSize)
+	{
+	case -2: return UE::Cook::ECookResult::NeverCookPlaceholder;
+	default: return UE::Cook::ECookResult::Failed;
+	}
+}
+
+static int64 CookResultToDiskSize(UE::Cook::ECookResult CookResult)
+{
+	switch (CookResult)
+	{
+	case UE::Cook::ECookResult::Succeeded: return 0;
+	case UE::Cook::ECookResult::NeverCookPlaceholder: return -2;
+	default: return -1;
+	}
+}
+
 void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifferenceOptions& Options,
 	const FAssetRegistryState& PreviousState, FAssetRegistryDifference& OutDifference)
 {
 	TArray<FName> ModifiedScriptPackages;
 	const TMap<FName, const FAssetPackageData*>& PreviousAssetPackageDataMap = PreviousState.GetAssetPackageDataMap();
+	OutDifference.Packages.Reserve(PreviousAssetPackageDataMap.Num());
 
 	for (const TPair<FName, const FAssetPackageData*>& PackagePair : State.GetAssetPackageDataMap())
 	{
 		FName PackageName = PackagePair.Key;
 		const FAssetPackageData* CurrentPackageData = PackagePair.Value;
-
 		const FAssetPackageData* PreviousPackageData = PreviousAssetPackageDataMap.FindRef(PackageName);
 
 		if (!PreviousPackageData)
 		{
-			OutDifference.NewPackages.Add(PackageName);
+			// A package that was not explored in the previous cook. No need to record it
 		}
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		else if (CurrentPackageData->PackageGuid == PreviousPackageData->PackageGuid)
@@ -1287,26 +1310,46 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 		{
 			if (PreviousPackageData->DiskSize < 0)
 			{
-				OutDifference.IdenticalUncookedPackages.Add(PackageName);
+				UE::Cook::ECookResult CookResult = DiskSizeToCookResult(PreviousPackageData->DiskSize);
+				if (CookResult == UE::Cook::ECookResult::NeverCookPlaceholder)
+				{
+					OutDifference.Packages.Add(PackageName, EDifference::IdenticalNeverCookPlaceholder);
+				}
+				else
+				{
+					OutDifference.Packages.Add(PackageName, EDifference::IdenticalUncooked);
+				}
+			}
+			else if (FPackageName::IsScriptPackage(WriteToString<256>(PackageName)))
+			{
+				OutDifference.Packages.Add(PackageName, EDifference::IdenticalScript);
 			}
 			else
 			{
-				// Do not record identical script packages since we do not cook them
-				if (!FPackageName::IsScriptPackage(WriteToString<256>(PackageName)))
-				{
-					OutDifference.IdenticalCookedPackages.Add(PackageName);
-				}
+				OutDifference.Packages.Add(PackageName, EDifference::IdenticalCooked);
 			}
 		}
 		else
 		{
-			if (FPackageName::IsScriptPackage(WriteToString<256>(PackageName)))
+			if (PreviousPackageData->DiskSize < 0)
 			{
-				ModifiedScriptPackages.Add(PackageName);
+				UE::Cook::ECookResult CookResult = DiskSizeToCookResult(PreviousPackageData->DiskSize);
+				if (CookResult == UE::Cook::ECookResult::NeverCookPlaceholder)
+				{
+					OutDifference.Packages.Add(PackageName, EDifference::ModifiedNeverCookPlaceholder);
+				}
+				else
+				{
+					OutDifference.Packages.Add(PackageName, EDifference::ModifiedUncooked);
+				}
+			}
+			else if (FPackageName::IsScriptPackage(WriteToString<256>(PackageName)))
+			{
+				OutDifference.Packages.Add(PackageName, EDifference::ModifiedScript);
 			}
 			else
 			{
-				OutDifference.ModifiedPackages.Add(PackageName);
+				OutDifference.Packages.Add(PackageName, EDifference::ModifiedCooked);
 			}
 		}
 	}
@@ -1314,141 +1357,178 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 	for (const TPair<FName, const FAssetPackageData*>& PackagePair : PreviousAssetPackageDataMap)
 	{
 		FName PackageName = PackagePair.Key;
+		const FAssetPackageData* PreviousPackageData = PackagePair.Value;
 		const FAssetPackageData* CurrentPackageData = State.GetAssetPackageData(PackageName);
+
 		if (!CurrentPackageData)
 		{
-			// If it's a generated package, never mark it as removed (that can only be handled by the generator)
-			// Mark it as modified if any of its dependencies are modified.
+			// If it's a generated package, exclude it from the results list and do not remove it.
+			// It will be evaluated for identical/modified/removed only if the generator package is cooked,
+			// during the generator's process step.
 			TConstArrayView<const FAssetData*> PreviousAssets = PreviousState.GetAssetsByPackageName(PackageName);
 			bool bGenerated = !PreviousAssets.IsEmpty() && (PreviousAssets[0]->PackageFlags & PKG_CookGenerated) != 0;
 			if (bGenerated)
 			{
-				bool bModified = true;
-
-				TArray<FAssetIdentifier> Dependencies;
+				// Keep track of all generators and their list of generated
 				TArray<FAssetIdentifier> Referencers;
-				PreviousState.GetDependencies(FAssetIdentifier(PackageName), Dependencies, UE::AssetRegistry::EDependencyCategory::Package);
 				PreviousState.GetReferencers(FAssetIdentifier(PackageName), Referencers, UE::AssetRegistry::EDependencyCategory::Package);
 				FName GeneratorName = Referencers.Num() == 1 ? Referencers[0].PackageName : NAME_None;
 				const FAssetPackageData* GeneratorData = !GeneratorName.IsNone() ? State.GetAssetPackageData(GeneratorName) : nullptr;
 				if (!GeneratorData)
 				{
-					UE_LOG(LogAssetRegistryGenerator, Error,
-						TEXT("Generator could not be found for package %s. This package will be missing from iterative cook results. Recook with a full cook."),
-						*PackageName.ToString());
+					// Mark it as removed; it will be regenerated when the Generator cooks
+					OutDifference.Packages.Add(PackageName, EDifference::RemovedCooked);
 				}
 				else
 				{
-					FGeneratorPackageInfo& Info = OutDifference.PreviousGeneratorPackages.FindOrAdd(GeneratorName);
-					Info.Generated.Add(PackageName);
-
-					bModified = false;
-					for (const FAssetIdentifier& Dependency : Dependencies)
-					{
-						const FAssetPackageData* PreviousDependencyData = PreviousState.GetAssetPackageData(Dependency.PackageName);
-						const FAssetPackageData* CurrentDependencyData = State.GetAssetPackageData(Dependency.PackageName);
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
-						if (!PreviousDependencyData || !CurrentDependencyData ||
-							PreviousDependencyData->PackageGuid != CurrentDependencyData->PackageGuid)
-						{
-							bModified = true;
-							break;
-						}
-						PRAGMA_ENABLE_DEPRECATION_WARNINGS
-					}
-
-					Info.bGeneratedModified |= bModified;
-				}
-				if (bModified)
-				{
-					OutDifference.ModifiedPackages.Add(PackageName);
-				}
-				else
-				{
-					OutDifference.IdenticalCookedPackages.Add(PackageName);
+					FGeneratorPackageInfo& Info = OutDifference.GeneratorPackages.FindOrAdd(GeneratorName);
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+					Info.Generated.Add(PackageName, PreviousPackageData->PackageGuid);
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 				}
 			}
 			else
 			{
-				OutDifference.RemovedPackages.Add(PackageName);
+				if (PreviousPackageData->DiskSize < 0)
+				{
+					UE::Cook::ECookResult CookResult = DiskSizeToCookResult(PreviousPackageData->DiskSize);
+					if (CookResult == UE::Cook::ECookResult::NeverCookPlaceholder)
+					{
+						OutDifference.Packages.Add(PackageName, EDifference::RemovedNeverCookPlaceholder);
+					}
+					else
+					{
+						OutDifference.Packages.Add(PackageName, EDifference::RemovedUncooked);
+					}
+				}
+				else if (FPackageName::IsScriptPackage(WriteToString<256>(PackageName)))
+				{
+					OutDifference.Packages.Add(PackageName, EDifference::RemovedScript);
+				}
+				else
+				{
+					OutDifference.Packages.Add(PackageName, EDifference::RemovedCooked);
+				}
 			}
 		}
 	}
 
-	for (TPair<FName, FGeneratorPackageInfo>& Pair : OutDifference.PreviousGeneratorPackages)
+	// If a Generator package has been removed, remove all its generated packages
+	for (TMap<FName, FGeneratorPackageInfo>::TIterator Iter(OutDifference.GeneratorPackages); Iter; ++Iter)
 	{
-		FName GeneratorName = Pair.Key;
-		FGeneratorPackageInfo& Info = Pair.Value;
-		if (OutDifference.RemovedPackages.Contains(GeneratorName))
+		FName GeneratorName = Iter->Key;
+		EDifference* GeneratorDifference = OutDifference.Packages.Find(GeneratorName);
+		if (GeneratorDifference && *GeneratorDifference == EDifference::RemovedCooked)
 		{
-			// If a Generator package has been removed, remove all generated
-			for (FName Generated : Info.Generated)
+			for (const TPair<FName, FGuid>& Generated : Iter->Value.Generated)
 			{
-				OutDifference.ModifiedPackages.Remove(Generated);
-				OutDifference.IdenticalCookedPackages.Remove(Generated);
-				OutDifference.RemovedPackages.Add(Generated);
+				OutDifference.Packages.Add(Generated.Key, EDifference::RemovedCooked);
 			}
-		}
-		else if (Info.bGeneratedModified)
-		{
-			// Even if not recursing modifications, if a GeneratedPackage has been modified, we need to recook the
-			// generator package, because the generator may change generation depending on modifications to generated.
-			OutDifference.IdenticalCookedPackages.Remove(GeneratorName);
-			OutDifference.IdenticalUncookedPackages.Remove(GeneratorName);
-			OutDifference.ModifiedPackages.Add(GeneratorName);
+			Iter.RemoveCurrent();
 		}
 	}
 
 	if (Options.bRecurseModifications)
 	{
-		// Recurse modified packages to their dependencies. This is needed because we only compare package guids
-		TArray<FName> ModifiedPackagesToRecurse = OutDifference.ModifiedPackages.Array();
+		const FStringView ExternalActorsFolderName(ULevel::GetExternalActorsFolderName());
 
-		if (Options.bRecurseScriptModifications)
+		// Recurse modified packages to their dependencies. This is needed because we only compare package guids
+		TArray<FName> VisitStack;
+		for (TPair<FName, EDifference>& Pair : OutDifference.Packages)
 		{
-			ModifiedPackagesToRecurse.Append(ModifiedScriptPackages);
+			if (Pair.Value == EDifference::ModifiedCooked || Pair.Value == EDifference::ModifiedUncooked || Pair.Value == EDifference::ModifiedNeverCookPlaceholder
+				|| (Pair.Value == EDifference::ModifiedScript && Options.bRecurseScriptModifications))
+			{
+				VisitStack.Add(Pair.Key);
+			}
 		}
 
-		for (int32 RecurseIndex = 0; RecurseIndex < ModifiedPackagesToRecurse.Num(); RecurseIndex++)
+		TSet<FName> Visited;
+		Visited.Reserve(State.GetNumPackages());
+		for (FName PackageName : VisitStack)
 		{
-			FName ModifiedPackage = ModifiedPackagesToRecurse[RecurseIndex];
+			Visited.Add(PackageName);
+		}
+		while (!VisitStack.IsEmpty())
+		{
+			FName ModifiedPackage = VisitStack.Pop(false /* bAllowShrinking */);
+			FString ModifiedPackageLeafName;
+
+			// Read referencers from the current state. If there are referencers in the old state that are not in the
+			// current state, then they must have changed themselves and so are already in the modified set.
 			TArray<FAssetIdentifier> Referencers;
-			// Read referencers from the previous state (to find referencers of generated packages) and of the current state
-			// (to find referencers of editoronly packages)
-			PreviousState.GetReferencers(ModifiedPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package,
-				UE::AssetRegistry::EDependencyQuery::Hard);
 			State.GetReferencers(ModifiedPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package,
-				UE::AssetRegistry::EDependencyQuery::Hard);
-			Algo::Sort(Referencers, [](FAssetIdentifier& A, FAssetIdentifier& B) { return A.FastLess(B); });
-			Referencers.SetNum(Algo::Unique(Referencers));
+				UE::AssetRegistry::EDependencyQuery::Hard | UE::AssetRegistry::EDependencyQuery::Build);
 
 			for (const FAssetIdentifier& Referencer : Referencers)
 			{
-				FName ReferencerPackage = Referencer.PackageName;
-				if (!OutDifference.ModifiedPackages.Contains(ReferencerPackage) &&
-					(OutDifference.IdenticalCookedPackages.Contains(ReferencerPackage) || OutDifference.IdenticalUncookedPackages.Contains(ReferencerPackage)))
+				FName ReferencerPackageName = Referencer.PackageName;
+				// TODO: Replace this workaround for ExternalActors with a modification to the ExternalActor Packages' 
+				// dependencies. External actors have an import dependency (hard, build, game) on their Map package because
+				// the map package is their outer. But unless they have some other use of the Map package, we do not want to
+				// mark them as modified even if their map package is modified. Doing so would mark all actors in the map as
+				// modified anytime one of them changed.
+				// Workaround: Detect external actors by naming convention and suppress their reference to the map package.
+				WriteToString<256> ReferencerPackageNameStr(ReferencerPackageName);
+				int32 ExternalActorsFolderIndex = ReferencerPackageNameStr.ToView().Find(ExternalActorsFolderName);
+				if (ExternalActorsFolderIndex != INDEX_NONE)
 				{
-					// Remove from identical list
-					OutDifference.IdenticalCookedPackages.Remove(ReferencerPackage);
-					OutDifference.IdenticalUncookedPackages.Remove(ReferencerPackage);
-
-					OutDifference.ModifiedPackages.Add(ReferencerPackage);
-					ModifiedPackagesToRecurse.Add(ReferencerPackage);
+					if (ModifiedPackageLeafName.IsEmpty())
+					{
+						WriteToString<256> ModifiedPackageNameStr(ModifiedPackage);
+						ModifiedPackageLeafName = FPathViews::GetCleanFilename(ModifiedPackageNameStr);
+					}
+					FStringView GeneratedRelativePath = ReferencerPackageNameStr.ToView().RightChop(ExternalActorsFolderIndex + ExternalActorsFolderName.Len());
+					if (GeneratedRelativePath.Contains(ModifiedPackageLeafName))
+					{
+						// Suppress this reference; External actors should not be marked dirty if only their map package is dirty
+						continue;
+					}
 				}
+
+				int32 ReferencerPackageHash = GetTypeHash(ReferencerPackageName);
+				bool bAlreadyVisited;
+				Visited.AddByHash(ReferencerPackageHash, ReferencerPackageName, &bAlreadyVisited);
+				if (bAlreadyVisited)
+				{
+					continue;
+				}
+
+				EDifference* ReferencerDifference = OutDifference.Packages.FindByHash(ReferencerPackageHash, ReferencerPackageName);
+				if (!ReferencerDifference)
+				{
+					// The referencer is not in the packages explored during the previous cook, so none of the previous cook
+					// packages had it as a dependency, so we do not need to follow its referencers.
+					continue;
+				}
+
+				// Convert this Referencer to modified. We do not need to handle Removed differences, because we found
+				// it in the current state's dependency tree and so it can not be a Removed difference.
+				switch (*ReferencerDifference)
+				{
+				case EDifference::IdenticalCooked: *ReferencerDifference = EDifference::ModifiedCooked; break;
+				case EDifference::IdenticalUncooked: *ReferencerDifference = EDifference::ModifiedUncooked; break;
+				case EDifference::IdenticalNeverCookPlaceholder: *ReferencerDifference = EDifference::ModifiedNeverCookPlaceholder; break;
+				case EDifference::IdenticalScript: *ReferencerDifference = EDifference::ModifiedScript; break;
+				default: break;
+				}
+				VisitStack.Add(ReferencerPackageName);
 			}
 		}
 	}
 }
 
-void FAssetRegistryGenerator::ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& RemovedPackages,
-	TMap<FName, FGeneratorPackageInfo>& PreviousGeneratorPackages)
+void FAssetRegistryGenerator::ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& OutRemovedPackages,
+	TMap<FName, FGeneratorPackageInfo>& OutGeneratorPackages, int32& OutNumNeverCookPlaceHolderPackages)
 {
-	PreviousGeneratorPackages.Reset();
+	OutGeneratorPackages.Reset();
+	OutNumNeverCookPlaceHolderPackages = 0;
 	TSet<FName> RemovedPackageSet;
 
 	for (const TPair<FName, const FAssetPackageData*>& PackagePair : PreviousState.GetAssetPackageDataMap())
 	{
 		FName PackageName = PackagePair.Key;
+		const FAssetPackageData* PreviousPackageData = PackagePair.Value;
 		const FAssetPackageData* CurrentPackageData = State.GetAssetPackageData(PackageName);
 		if (!CurrentPackageData)
 		{
@@ -1464,13 +1544,14 @@ void FAssetRegistryGenerator::ComputePackageRemovals(const FAssetRegistryState& 
 				const FAssetPackageData* GeneratorData = !GeneratorName.IsNone() ? State.GetAssetPackageData(GeneratorName) : nullptr;
 				if (!GeneratorData)
 				{
-					UE_LOG(LogAssetRegistryGenerator, Error,
-						TEXT("Generator could not be found for package %s. This package will be missing from iterative cook results. Recook with a full cook."),
-						*PackageName.ToString());
+					// Mark it as removed; it will be regenerated when the Generator cooks
+					RemovedPackageSet.Add(PackageName);
 				}
 				else
 				{
-					PreviousGeneratorPackages.FindOrAdd(GeneratorName).Generated.Add(PackageName);
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+					OutGeneratorPackages.FindOrAdd(GeneratorName).Generated.Add(PackageName, PreviousPackageData->PackageGuid);
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 				}
 			}
 			else
@@ -1478,23 +1559,31 @@ void FAssetRegistryGenerator::ComputePackageRemovals(const FAssetRegistryState& 
 				RemovedPackageSet.Add(PackageName);
 			}
 		}
+		if (PreviousPackageData->DiskSize < 0)
+		{
+			UE::Cook::ECookResult CookResult = DiskSizeToCookResult(PreviousPackageData->DiskSize);
+			if (CookResult == UE::Cook::ECookResult::NeverCookPlaceholder)
+			{
+				++OutNumNeverCookPlaceHolderPackages;
+			}
+		}
 	}
 
-	for (TMap<FName, FGeneratorPackageInfo>::TIterator Iter(PreviousGeneratorPackages); Iter; ++Iter)
+	// If a Generator package has been removed, remove all its generated packages
+	for (TMap<FName, FGeneratorPackageInfo>::TIterator Iter(OutGeneratorPackages); Iter; ++Iter)
 	{
-		// If a Generator package has been removed, remove all generated
 		FName GeneratorName = Iter->Key;
 		if (RemovedPackageSet.Contains(GeneratorName))
 		{
-			for (FName Generated : Iter->Value.Generated)
+			for (const TPair<FName, FGuid>& Generated : Iter->Value.Generated)
 			{
-				RemovedPackageSet.Add(Generated);
+				RemovedPackageSet.Add(Generated.Key);
 			}
 			Iter.RemoveCurrent();
 		}
 	}
 
-	RemovedPackages = RemovedPackageSet.Array();
+	OutRemovedPackages = RemovedPackageSet.Array();
 }
 
 void FAssetRegistryGenerator::FinalizeChunkIDs(const TSet<FName>& InCookedPackages,
@@ -1521,6 +1610,9 @@ void FAssetRegistryGenerator::FinalizeChunkIDs(const TSet<FName>& InCookedPackag
 	CookedPackages = InCookedPackages;
 	DevelopmentOnlyPackages = InDevelopmentOnlyPackages;
 
+	// Possibly apply previous AssetData and AssetPackageData for packages kept from a previous cook
+	UpdateKeptPackages();
+
 	TSet<FName> AllPackages;
 	AllPackages.Append(CookedPackages);
 	AllPackages.Append(DevelopmentOnlyPackages);
@@ -1530,11 +1622,17 @@ void FAssetRegistryGenerator::FinalizeChunkIDs(const TSet<FName>& InCookedPackag
 	AssetRegistry.InitializeSerializationOptions(DevelopmentSaveOptions, TargetPlatform->IniPlatformName(), UE::AssetRegistry::ESerializationTarget::ForDevelopment);
 	State.PruneAssetData(AllPackages, TSet<FName>(), DevelopmentSaveOptions);
 
-	// Mark development only packages as explicitly -1 size to indicate it was not cooked
+	// Development only packages should have been marked via UpdateAssetRegistryData with a negative size indicating why they were not cooked 
 	for (FName DevelopmentOnlyPackage : DevelopmentOnlyPackages)
 	{
 		FAssetPackageData* PackageData = State.CreateOrGetAssetPackageData(DevelopmentOnlyPackage);
-		PackageData->DiskSize = -1;
+		if (PackageData->DiskSize >= 0)
+		{
+			UE_LOG(LogAssetRegistryGenerator, Warning,
+				TEXT("Package %s is a development-only package but was not marked with DiskSize explaining why it was not cooked. Marking it as a generic cook failure."),
+				*DevelopmentOnlyPackage.ToString());
+			PackageData->DiskSize = -1;
+		}
 	}
 
 	// Copy ExplicitChunkIDs and other data from the AssetRegistry into the maps we use during finalization
@@ -1713,9 +1811,6 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 		DevelopmentSaveOptions.DisableFilters();
 		SaveOptions.DisableFilters();
 	}
-
-	// Possibly apply previous AssetData and AssetPackageData for packages kept from a previous cook
-	UpdateKeptPackages();
 
 	UpdateCollectionAssetData();
 
@@ -2684,17 +2779,17 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 	return AssetData;
 }
 
-void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
-	FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList, bool bIncludeOnlyDiskAssets,
-	TOptional<FAssetPackageData>&& OverrideAssetPackageData, TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies)
+void FAssetRegistryGenerator::UpdateAssetRegistryData(FName PackageName, const UPackage* Package,
+	UE::Cook::ECookResult CookResult, FSavePackageResultStruct* SavePackageResult, FCookTagList&& InArchiveCookTagList,
+	bool bIncludeOnlyDiskAssets, TOptional<FAssetPackageData>&& OverrideAssetPackageData,
+	TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies)
 {
 	LLM_SCOPE_BYTAG(Cooker_GeneratedAssetRegistry);
-	const FName PackageName = Package.GetFName();
 	PreviousPackagesToUpdate.Remove(PackageName);
 
 	uint32 NewPackageFlags = 0;
 	FAssetPackageData* AssetPackageData = GetAssetPackageData(PackageName);
-	bool bSaveSucceeded = SavePackageResult.IsSuccessful();
+	bool bSaveSucceeded = CookResult == UE::Cook::ECookResult::Succeeded;
 
 	// Copy latest data for all Assets in the package into the cooked registry. This should be done even
 	// if not successful so that editor-only packages are recorded as well
@@ -2706,7 +2801,10 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 		State.UpdateAssetData(MoveTemp(AssetData), true /* bCreateIfNotExists */);
 	}
 	// Create a record for assets that were created during PostLoad or cooking and are not in the global assetregistry
-	CreateOrFindAssetDatas(Package);
+	if (Package)
+	{
+		CreateOrFindAssetDatas(*Package);
+	}
 
 	// Set Overrides for generated packages
 	if (OverrideAssetPackageData)
@@ -2720,14 +2818,15 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 
 	if (bSaveSucceeded)
 	{
+		check(SavePackageResult);
 		// Migrate cook tags over
 		CookTagsToAdd.Append(MoveTemp(InArchiveCookTagList.ObjectToTags));
 		InArchiveCookTagList.Reset();
 
 		// Set the PackageFlags to the recorded value from SavePackage
-		NewPackageFlags = SavePackageResult.SerializedPackageFlags;
+		NewPackageFlags = SavePackageResult->SerializedPackageFlags;
 
-		AssetPackageData->DiskSize = SavePackageResult.TotalFileSize;
+		AssetPackageData->DiskSize = SavePackageResult->TotalFileSize;
 
 		// The CookedHash is assigned during CookByTheBookFinished		
 	}
@@ -2736,8 +2835,9 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 		// Set the package flags to zero to indicate that the package failed to save
 		NewPackageFlags = 0;
 
-		// Set DiskSize (previous value was disksize in the WorkspaceDomain) to -1 to indicate the cooked file does not exist
-		AssetPackageData->DiskSize = -1;
+		// Set DiskSize (previous value was disksize in the WorkspaceDomain) to a negative number to indicate the
+		// cooked file does not exist. The magnitude of the negative value indicates CookResult.
+		AssetPackageData->DiskSize = CookResultToDiskSize(CookResult);
 	}
 
 	const bool bUpdated = UpdateAssetPackageFlags(PackageName, NewPackageFlags);
@@ -2747,8 +2847,6 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 
 void FAssetRegistryGenerator::SetOverridePackageDependencies(FName PackageName, TConstArrayView<FAssetDependency> OverridePackageDependencies)
 {
-	TArray<FAssetDependency, TInlineAllocator<10>> DependencyStructs;
-	DependencyStructs.Reserve(OverridePackageDependencies.Num());
 #if DO_CHECK
 	for (FAssetDependency Dependency : OverridePackageDependencies)
 	{
@@ -2795,27 +2893,29 @@ FAssetRegistryReporterRemote::FAssetRegistryReporterRemote(FCookWorkerClient& In
 {
 }
 
-void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
-	FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList, bool bIncludeOnlyDiskAssets,
-	TOptional<FAssetPackageData>&& OverrideAssetPackageData, TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies)
+void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FName PackageName, const UPackage* Package,
+	UE::Cook::ECookResult CookResult, FSavePackageResultStruct* SavePackageResult, FCookTagList&& InArchiveCookTagList,
+	bool bIncludeOnlyDiskAssets, TOptional<FAssetPackageData>&& OverrideAssetPackageData,
+	TOptional<TArray<FAssetDependency>>&& OverridePackageDependencies)
 {
 	uint32 NewPackageFlags = 0;
 	int64 DiskSize = -1;
-	bool bSaveSucceeded = SavePackageResult.IsSuccessful();
+	bool bSaveSucceeded = CookResult == UE::Cook::ECookResult::Succeeded;
 	if (bSaveSucceeded)
 	{
-		NewPackageFlags = SavePackageResult.SerializedPackageFlags;
-		DiskSize = SavePackageResult.TotalFileSize;
+		check(SavePackageResult);
+		NewPackageFlags = SavePackageResult->SerializedPackageFlags;
+		DiskSize = SavePackageResult->TotalFileSize;
 	}
 	else
 	{
 		// Set the package flags to zero to indicate that the package failed to save
 		NewPackageFlags = 0;
-		// Set DiskSize (previous value was disksize in the WorkspaceDomain) to -1 to indicate the cooked file does not exist
-		DiskSize = -1;
+		// Set DiskSize (previous value was disksize in the WorkspaceDomain) to a negative number to indicate the
+		// cooked file does not exist. The magnitude of the negative value indicates CookResult.
+		DiskSize = CookResultToDiskSize(CookResult);
 	}
 
-	FName PackageName = PackageData.GetPackageName();
 	FAssetRegistryPackageMessage Message;
 	Message.PackageName = PackageName;
 	Message.TargetPlatform = TargetPlatform;
@@ -2834,17 +2934,20 @@ void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FPackageData& Package
 	{
 		ExistingAssets.Add(AssetData.AssetName);
 	}
-	ForEachObjectWithOuter(&Package, [&Message, &ExistingAssets](UObject* const Object)
-		{
-			if (Object->IsAsset())
+	if (Package)
+	{
+		ForEachObjectWithOuter(Package, [&Message, &ExistingAssets](UObject* const Object)
 			{
-				FName AssetName = Object->GetFName();
-				if (!ExistingAssets.Contains(AssetName))
+				if (Object->IsAsset())
 				{
-					Message.AssetDatas.Emplace(Object, true /* bAllowBlueprintClass */);
+					FName AssetName = Object->GetFName();
+					if (!ExistingAssets.Contains(AssetName))
+					{
+						Message.AssetDatas.Emplace(Object, true /* bAllowBlueprintClass */);
+					}
 				}
-			}
-		}, /*bIncludeNestedObjects*/ false);
+			}, /*bIncludeNestedObjects*/ false);
+	}
 
 	// Add the cooktags that were recorded during serialization
 	Message.CookTags = MoveTemp(InArchiveCookTagList.ObjectToTags);
@@ -2979,8 +3082,8 @@ void FAssetRegistryMPCollector::ClientTickPackage(FMPCollectorClientTickPackageC
 
 		if (!RegistryReporter.PackageUpdateMessages.RemoveAndCopyValue(Context.GetPackageName(), Message))
 		{
-			// For a failed package, UpdateAssetRegistryData will never have been called. Silently skip it and do not send a message.
-			if (ContextPlatformData.bSuccessful)
+			// For a failed package, UpdateAssetRegistryData might never have been called. Silently skip it and do not send a message.
+			if (ContextPlatformData.CookResults == ECookResult::Succeeded)
 			{
 				// For a successful package, UpdateAssetRegistryData should have been called
 				UE_CLOG(!bLoggedWarning, LogAssetRegistryGenerator, Warning,

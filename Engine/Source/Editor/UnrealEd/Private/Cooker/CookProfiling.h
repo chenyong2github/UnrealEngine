@@ -156,8 +156,6 @@ extern bool IsUnversioned;
 // Stats tracked through FAutoRegisterCallback
 extern uint32 NumPreloadedDependencies;
 extern uint32 NumPackagesIterativelySkipped;
-/** Tracks the number of packages cooked - counted only once even if multiple platforms cooked. */
-extern uint32 NumPackagesSavedForCook;
 extern int32 PeakRequestQueueSize;
 extern int32 PeakLoadQueueSize;
 extern int32 PeakSaveQueueSize;

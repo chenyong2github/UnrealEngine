@@ -8,6 +8,7 @@
 #include "Containers/List.h"
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Hash/Blake3.h"
 #include "HAL/PlatformCrt.h"
 #include "HAL/PreprocessorHelpers.h"
 #include "Misc/Optional.h"
@@ -18,6 +19,7 @@
 class UClass;
 class UObject;
 class UPackage;
+struct FAssetDependency;
 template <typename FuncType> class TFunctionRef;
 
 /**
@@ -55,9 +57,22 @@ public:
 	/** Data sent to the cooker to describe each desired generated package */
 	struct FGeneratedPackage
 	{
+		/** Parent path for the generated package. If empty, uses the generator's package path. */
 		FString GeneratedRootPath;
-		FString RelativePath;		// Generated package relative to GeneratedRootPath/Generated_ if GeneratedRootPath member is specified, relative to  Parent/Generated otherwise.
-		TArray<FName> Dependencies; // LongPackageNames that the generated package references
+		/** Generated package relative to <GeneratedRootPath>/_Generated_. */
+		FString RelativePath;
+		UE_DEPRECATED(5.3, "Write to PackageDependencies instead")
+		TArray<FName> Dependencies;
+		/**
+		 * AssetRegistry dependencies for the generated package. AR dependencies cause packages to be added to the
+		 * current cook and cause invalidation of this package in iterative cooks if any dependencies change.
+		 */
+		TArray<FAssetDependency> PackageDependencies;
+		/**
+		 * Hash of the data used to construct the generated package that is not covered by the dependencies.
+		 * Changes to this hash will cause invalidation of the package during iterative cooks.
+		 */
+		FBlake3Hash GenerationHash;
 		/* GetGenerateList must specify true if the package will be a map (.umap, contains a UWorld or ULevel), else false */
 		void SetCreateAsMap(bool bInCreateAsMap) { bCreateAsMap = bInCreateAsMap; }
 		const TOptional<bool>& GetCreateAsMap() const { return bCreateAsMap; }
@@ -67,6 +82,12 @@ public:
 
 	/** Return the list of packages to generate. */
 	virtual TArray<FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) = 0;
+
+	/**
+	 * Return a list of NeverCook packages that should be added to the cook results as uncooked packages for
+	 * use in detecting changes during iterative cooks. Used for support of ExternalActors; most splitters should not use this.
+	 */
+	virtual TArray<FName> GetNeverCookDependencies() const { return TArray<FName>(); }
 
 	/** Representation of a generated package that is provided when populating the generator package. */
 	struct FGeneratedPackageForPreSave

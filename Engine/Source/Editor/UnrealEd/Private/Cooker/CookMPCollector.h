@@ -48,7 +48,7 @@ public:
 	struct FPlatformData
 	{
 		const ITargetPlatform* TargetPlatform = nullptr;
-		bool bSuccessful = false;
+		ECookResult CookResults = ECookResult::NotAttempted;
 	};
 	TConstArrayView<const ITargetPlatform*> GetPlatforms() const { return Platforms; }
 	TConstArrayView<FPlatformData> GetPlatformDatas() const { return PlatformDatas; }

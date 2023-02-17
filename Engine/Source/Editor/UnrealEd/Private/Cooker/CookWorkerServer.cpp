@@ -654,9 +654,10 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 			{
 				ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
 				FPackageRemoteResult::FPlatformResult& PlatformResult = Result.GetPlatforms()[PlatformIndex];
-				PackageData->SetPlatformCooked(TargetPlatform, PlatformResult.IsSuccessful());
+				PackageData->SetPlatformCooked(TargetPlatform, PlatformResult.GetCookResults());
 				HandleReceivedPackagePlatformMessages(*PackageData, TargetPlatform, PlatformResult.ReleaseMessages());
 			}
+			COTFS.RecordNeverCookDependencies(Result.GetNeverCookDependencies());
 			if (Result.IsReferencedOnlyByEditorOnlyData())
 			{
 				COTFS.PackageTracker->UncookedEditorOnlyPackages.AddUnique(Result.GetPackageName());

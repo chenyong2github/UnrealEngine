@@ -93,11 +93,30 @@ struct FAssetRegistryDependencyOptions
 struct FAssetDependency
 {
 	FAssetIdentifier AssetId;
-	UE::AssetRegistry::EDependencyCategory Category;
-	UE::AssetRegistry::EDependencyProperty Properties;
+	UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::None;
+	UE::AssetRegistry::EDependencyProperty Properties = UE::AssetRegistry::EDependencyProperty::None;
+
 	bool operator==(const FAssetDependency& Other) const
 	{
 		return AssetId == Other.AssetId && Category == Other.Category && Properties == Other.Properties;
+	}
+	bool LexicalLess(const FAssetDependency& Other) const
+	{
+		if (!(AssetId == Other.AssetId))
+		{
+			return AssetId.LexicalLess(Other.AssetId);
+		}
+		if (Category != Other.Category)
+		{
+			return Category < Other.Category;
+		}
+		return Properties < Other.Properties;
+	}
+
+	static FAssetDependency PackageDependency(FName PackageName, UE::AssetRegistry::EDependencyProperty Properties)
+	{
+		return FAssetDependency{ FAssetIdentifier(PackageName), UE::AssetRegistry::EDependencyCategory::Package,
+			Properties };
 	}
 
 	ASSETREGISTRY_API void WriteCompactBinary(FCbWriter& Writer) const;

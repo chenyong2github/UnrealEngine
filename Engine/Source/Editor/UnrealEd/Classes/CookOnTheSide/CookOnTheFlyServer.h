@@ -715,7 +715,7 @@ public:
 	 * Clear platforms' explored flags for all PackageDatas and optionally clear the cookresult flags.
 	 *
 	 * @param TargetPlatforms List of pairs with targetplatforms to reset and bool bResetResults indicating whether
-	 *        the platform should clear bCookAttempted in addition to clearing bExplored.
+	 *        the platform should clear CookResults in addition to clearing IsExplored.
 	 */
 	void ResetCook(TConstArrayView<TPair<const ITargetPlatform*, bool>> TargetPlatforms);
 
@@ -1271,6 +1271,8 @@ private:
 
 	/** Cook (save) a package and process the results */
 	void SaveCookedPackage(UE::Cook::FSaveCookedPackageContext& Context);
+	/** Helper for save of generator packages using ExternalActors: Record special-case ExternalActor packages for iterative builds. */
+	void RecordNeverCookDependencies(TConstArrayView<FName> NeverCookDependencies);
 	friend class UE::Cook::FSaveCookedPackageContext;
 
 	/**

@@ -9,6 +9,7 @@
 #include "CookOnTheSide/CookOnTheFlyServer.h" // ECookTickFlags
 #include "DerivedDataRequestOwner.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformMath.h"
 #include "HAL/Platform.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/AssertionMacros.h"
@@ -102,12 +103,18 @@ namespace UE::Cook
 	};
 
 	/* The Result of a Cook */
-	enum class ECookResult
+	enum class ECookResult : uint8
 	{
-		Unseen,		/* The package has not finished cooking, or if it was previously cooked its result was removed due to e.g. modification of the package. */
-		Succeeded,  /* The package was saved with success. */
-		Failed,     /* The package was processed but failed to load or save. */
-		Skipped     /* For reporting the ECookResults specific to a request: the package was skipped due to e.g. already being cooked or being in NeverCook packages. */
+		/* CookResults have not yet been set */
+		NotAttempted,
+		/* The package was saved with success. */
+		Succeeded,
+		/* The package was processed but SavePackage failed. */
+		Failed,
+		/** The package is a NeverCook package that needs to be added to cookresults for dependency tracking. */
+		NeverCookPlaceholder,
+		Count,
+		NumBits= FPlatformMath::ConstExprCeilLogTwo(ECookResult::Count),
 	};
 
 	/** Return type for functions called reentrantly that can succeed,fail,or be incomplete */

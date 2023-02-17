@@ -117,7 +117,7 @@ int32 UAssetSizeQueryCommandlet::Main(const FString& FullCommandLine)
 	const TMap<FName, const FAssetPackageData*>& PackageDatas = AssetRegistry.GetAssetPackageDataMap();
 	for (const TPair<FName, const FAssetPackageData*>& Pair : PackageDatas)
 	{
-		if (Pair.Value->DiskSize != -1)
+		if (Pair.Value->DiskSize >= 0)
 		{
 			TotalDiskSize += Pair.Value->DiskSize;
 		}
