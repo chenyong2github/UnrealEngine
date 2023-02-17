@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
-using System.IO;
-
 namespace UnrealBuildTool.Rules
 {
     public class OpenXREyeTracker : ModuleRules
@@ -10,19 +7,7 @@ namespace UnrealBuildTool.Rules
         public OpenXREyeTracker(ReadOnlyTargetRules Target) 
 				: base(Target)
         {
-			PublicDependencyModuleNames.AddRange(
-			   new string[]
-			   {
-					"EyeTracker"
-			   }
-		   );
-
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-            PrivateIncludePaths.AddRange(
-                new string[] {
-                    EngineDir + "/Source/ThirdParty/OpenXR/include"
-				}
-                );
+			PublicDependencyModuleNames.Add("EyeTracker");
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]

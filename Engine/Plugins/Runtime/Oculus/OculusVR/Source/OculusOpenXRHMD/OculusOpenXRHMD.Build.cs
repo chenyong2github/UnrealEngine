@@ -9,10 +9,7 @@ namespace UnrealBuildTool.Rules
     {
         public OculusOpenXRHMD(ReadOnlyTargetRules Target) : base(Target)
         {
-            PrivateIncludePaths.AddRange(
-                new string[] {
-					Path.Combine(GetModuleDirectory("OpenXRHMD"), "Private"),
-                });
+            PrivateIncludePaths.Add(Path.Combine(GetModuleDirectory("OpenXRHMD"), "Private"));
 
             PublicIncludePathModuleNames.AddRange(
                 new string[] {

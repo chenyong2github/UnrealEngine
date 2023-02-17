@@ -1,21 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
 using System.IO;
+using UnrealBuildTool;
 
 public class OpenXRAR : ModuleRules
 {
     public OpenXRAR(ReadOnlyTargetRules Target) : base(Target)
     {
 		var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-		PrivateIncludePaths.AddRange(
-			new string[] {
-					"OpenXRHMD/Private",
-					EngineDir + "/Source/Runtime/Renderer/Private",
-					EngineDir + "/Source/ThirdParty/OpenXR/include",
-				// ... add other private include paths required here ...
-			}
-			);
+		PrivateIncludePaths.Add(Path.Combine(GetModuleDirectory("OpenXRHMD"), "Private"));
 
 		PublicDependencyModuleNames.AddRange(
             new string[]
@@ -23,7 +16,6 @@ public class OpenXRAR : ModuleRules
                 "Core",
                 "Engine",
 				"MRMesh"
-				// ... add other public dependencies that you statically link with here ...
 			}
 			);
 
@@ -38,7 +30,6 @@ public class OpenXRAR : ModuleRules
                 "RHI",
 				"Projects",
 				"OpenXRHMD",
-				// ... add private dependencies that you statically link with here ...
 			}
             );
 			
@@ -52,6 +43,5 @@ public class OpenXRAR : ModuleRules
 		}
 
 		PublicIncludePathModuleNames.Add("OpenXR");
-
 	}
 }

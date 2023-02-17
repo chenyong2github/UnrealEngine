@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class MobileFSR : ModuleRules
@@ -10,7 +11,7 @@ public class MobileFSR : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				EngineDirectory + "/Source/Runtime/Renderer/Private",
+				Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 				PluginDirectory + "/Shaders/Private",
 			}
 			);
@@ -29,11 +30,5 @@ public class MobileFSR : ModuleRules
 
 
 		PrecompileForTargets = PrecompileTargetsType.Any;
-
-		if (Target.Platform == UnrealTargetPlatform.Android)
-		{
-			//string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-			//AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "MobileFSR_APL.xml"));
-		}
 	}
 }
