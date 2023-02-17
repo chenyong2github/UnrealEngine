@@ -59,7 +59,6 @@ float MeshDecalBias;
 float MaxPathIntensity;
 float MaxNormalBias;
 float FilterWidth;
-float AbsorptionScale; // inverse distance at which we hit BaseColor - exposed mainly so we can disable absorption handling and experiment with the default scale factor
 float CameraFocusDistance;
 float2 CameraLensRadius;
 
@@ -223,8 +222,6 @@ void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderPayload DecalP
 	{
 		HitPayload.Radiance += DecalPayload.GetEmissive();
 	}
-
-	// TODO: Payload.Opacity?
 }
 
 void TraceDecalRay(FRayDesc DecalRay, bool bReverseCulling, uint InstanceInclusionMask, inout FPathTracingPayload HitPayload, inout float DecalThroughput)
@@ -334,8 +331,9 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 				LightHitPayload.HitT = LightHit.HitT;
 				LightHitPayload.Radiance = LightHit.Radiance;
 				LightHitPayload.ShadingModelID = SHADINGMODELID_UNLIT;
-				// alpha composite assumes premult, which allows emissive hits that are fully transparent
-				LightHitPayload.BlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
+				// light hits are fully transparent to match how the light loop works (the light surface does not cast a shadow)
+				LightHitPayload.BSDFOpacity = 1.0;
+				LightHitPayload.TransparencyColor = 0.0;
 				LightHitPayload.PrimitiveLightingChannelMask = 7;
 				LightHitPayload.SetFrontFace();
 				PackedPayload = PackPathTracingPayload(LightHitPayload);
@@ -539,20 +537,13 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		// TODO: merge this with the volume raymarching?
 		PathState.PathThroughput *= select(PathState.SigmaT > 0.0, exp(-PathState.SigmaT * (HitPayload.HitT - PathState.Ray.TMin)), 1.0);
 
-		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ADDITIVE ||
-			HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT)
+		if (HitPayload.IsHoldout() && bIsCameraRay)
 		{
-			// emission needs to be pre-multiplied by the opacity
-			HitPayload.Radiance *= HitPayload.Opacity;
+			PathState.BackgroundVisibility += Luminance(PathState.PathThroughput * HitPayload.BSDFOpacity);
 		}
 
-		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT && bIsCameraRay)
-		{
-			PathState.BackgroundVisibility += Luminance(PathState.PathThroughput * HitPayload.Opacity);
-		}
-
-		// add in surface emission (except for modulate blend mode which uses Radiance as the transparency multiplier)
-		if (bIncludeEmission && HitPayload.BlendingMode != RAY_TRACING_BLEND_MODE_MODULATE)
+		// add in surface emission
+		if (bIncludeEmission)
 		{
 			AccumulateRadiance(PathState.Radiance, PathState.PathThroughput * HitPayload.Radiance, bIsCameraRay);
 		}
@@ -580,7 +571,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		}
 
 		// account for local transparency change
-		PathState.PathThroughput *= GetMaterialTransparency(HitPayload, PathState.Ray.Direction);;
+		PathState.PathThroughput *= HitPayload.TransparencyColor;
 
 		// prepare next step around the loop
 		// retrace the exact same ray with TMin one ulp past the hit we just found
@@ -695,8 +686,7 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint Mis
 			Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, RandSequence);
 		}
 		// add in the medium extinction
-		const float3 Tau = PackedPayload.GetTau() * AbsorptionScale;
-		Throughput *= exp(-max(Tau, 0.0));
+		Throughput *= exp(-max(PackedPayload.GetTau(), 0.0));
 	}
 	return Throughput;
 #endif
@@ -774,57 +764,30 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 		return true;
 	}
 
-	float3 SSSColor = Payload.SubsurfaceColor;
-	float3 SSSRadius = Payload.SubsurfaceRadius;
+	FSSSRandomWalkInfo SSS = GetMaterialSSSInfo(Payload, -RayDirection);
 
-	if (SimplifySSS || all(SSSRadius == 0) || all(SSSColor == 0) || MaxSSSBounces == 0)
+
+	if (SimplifySSS || all(SSS.Radius == 0) || all(SSS.Color == 0) || MaxSSSBounces == 0)
 	{
 		// if we are running in a context that won't see the SSS directly -- just turn it into diffuse and skip the random walk
 		// we can also skip random walk if the radius or color is 0
 		// or if the user decided not to perform any SSS bounces
-		Payload.DiffuseColor += SSSColor;
-		Payload.DiffuseColor = saturate(Payload.DiffuseColor);
-		Payload.SubsurfaceColor = 0.0;
+		RemoveMaterialSSS(Payload);
 		return true;
 	}
 	
-	// Support SSS for mfp smaller than 1mm.
-	SSSRadius = max(SSSRadius, 0.0009); // 0.009mm minimum to make sure random walk can move forward and to keep SigmaT finite
-
-
 	// decide randomly to evaluate the SSS part of the material, or keep shading the current part
-	// This also computes the energy conservation to take out the portion of lighting reflected away by the specular layer
-	const float NoV = saturate(dot(Payload.WorldNormal, -RayDirection));
-	float3 SpecE = 0;
-	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
-	{
-		// dual spec
-		const float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
-		const float3 SpecE0 = ComputeGGXSpecEnergyTermsRGB(DualRoughnessData.x, NoV, Payload.SpecularColor).E;
-		const float3 SpecE1 = ComputeGGXSpecEnergyTermsRGB(DualRoughnessData.y, NoV, Payload.SpecularColor).E;
-		SpecE = lerp(SpecE0, SpecE1, DualRoughnessData.z);
-	}
-	else
-	{
-		// single spec
-		SpecE = ComputeGGXSpecEnergyTermsRGB(Payload.Roughness, NoV, Payload.SpecularColor).E;
-	}
-
-	const float3 SSSLobeAlbedo = (1 - SpecE) * SSSColor;
-	const float3 DiffLobeAlbedo = (1 - SpecE) * Payload.DiffuseColor;
-	const float3 SpecLobeAlbedo = SpecE;
-	float SSSProb = LobeSelectionProb(SSSLobeAlbedo, DiffLobeAlbedo + SpecLobeAlbedo);
 	float3 RandSample = RandomSequence_GenerateSample3D(RandSequence);
-	if (RandSample.x < SSSProb)
+	if (RandSample.x < SSS.Prob)
 	{
 		// do random walk (and adjust throughput to remove energy reflected away by the specular lobe)
-		PathThroughput *= (1 - SpecE) / SSSProb;
-		RandSample.x /= SSSProb;
+		PathThroughput *= SSS.Weight / SSS.Prob;
+		RandSample.x /= SSS.Prob;
 	}
 	else
 	{
 		// skip random walk and shade current point instead
-		PathThroughput *= 1 / (1 - SSSProb);
+		PathThroughput *= 1 / (1 - SSS.Prob);
 		return true;
 	}
 
@@ -834,6 +797,9 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 	Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, Payload.WorldNormal);
 	Ray.TMin = 0;
 	ApplyRayBias(Ray, Payload.HitT, -Payload.WorldGeoNormal);
+
+	// Support SSS for mfp smaller than 1mm.
+	SSS.Radius = max(SSS.Radius, 0.0009); // 0.009mm minimum to make sure random walk can move forward and to keep SigmaT finite
 
     // Use the technique mentioned in "A Hero Beneath the Surface" (Section 6.3.2)
 	// https://jo.dreggn.org/home/2021_spectral_imaging.pdf
@@ -850,13 +816,13 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 
 
 #if SSS_USE_TIR
-	float3 Albedo = 1 - exp(SSSColor * (-11.43 + SSSColor * (15.38 - 13.91 * SSSColor)));
+	float3 Albedo = 1 - exp(SSS.Color * (-11.43 + SSS.Color * (15.38 - 13.91 * SSS.Color)));
 #else
 	// Van de-Hulst inverse mapping
 	// https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf (Slide 44)
 	// http://www.eugenedeon.com/project/a-hitchhikers-guide-to-multiple-scattering/ (Section 7.5.3 of v0.1.3)
-	float3 Albedo = 1 - Pow2(4.09712 + 4.20863 * SSSColor - sqrt(9.59217 + SSSColor * (41.6808 + 17.7126 * SSSColor)));
-	SSSRadius *= 2.0; // roughly match parameterization above
+	float3 Albedo = 1 - Pow2(4.09712 + 4.20863 * SSS.Color - sqrt(9.59217 + SSS.Color * (41.6808 + 17.7126 * SSS.Color)));
+	SSS.Radius *= 2.0; // roughly match parameterization above
 #endif
 
 	// Apply albedo remapping for anisotropic scattering 
@@ -867,7 +833,7 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 	Albedo = Albedo / (1 - G * (1 - Albedo));
 
 	const int MAX_SSS_BOUNCES = MaxSSSBounces;
-	const float3 SigmaT = 1.0 / SSSRadius;
+	const float3 SigmaT = rcp(SSS.Radius);
 	const float3 SigmaS = Albedo * SigmaT;
 	for (int i = 0; i < MAX_SSS_BOUNCES; i++)
 	{
@@ -946,8 +912,9 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 					Payload.WorldGeoNormal *= -1.0;
 				}
 				Payload.ShadingModelID = SHADINGMODELID_NUM; // invalid value so that we get diffuse shading
-				Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
+				Payload.BSDFOpacity = 1;
 				Payload.BaseColor = 1;
+				Payload.TransparencyColor = 0;
 				return true;
 			}
 		}
@@ -1187,8 +1154,10 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		return false;
 	}
 
+	const bool bIsVolumeSample = Payload.ShadingModelID == SHADINGMODELID_MEDIUM;
+
 	FLightLoopCount LightLoopCount = LightGridLookup(Payload.TranslatedWorldPos);
-	if (Payload.ShadingModelID == SHADINGMODELID_MEDIUM && VolumeMISMode != 0)
+	if (bIsVolumeSample && VolumeMISMode != 0)
 	{
 		// if we are using the volume segment for local lights, exclude them from the light loop below
 		LightLoopCount.NumLights = SceneInfiniteLightCount;
@@ -1216,8 +1185,6 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 	// Choose a random number for both Light sampling and BxDF sampling
 	float4 RandSample = RandomSequence_GenerateSample4D(PathState.RandSequence);
-
-	const bool bIsVolumeSample = Payload.ShadingModelID == SHADINGMODELID_MEDIUM;
 
 	float2 DiffuseSpecularScale = PathState.GetDiffuseSpecularScale(bIsVolumeSample);
 
@@ -1370,12 +1337,9 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	// update the current extinction if we are crossing a boundary on glass or water
 	// summing the local extinction gives a rudimentary way of dealing with overlapping regions
 	// long term we will probably want a stack with priorities
-	if (MaterialSample.PositionBiasSign < 0 && (Payload.IsMaterialSolidGlass() || Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER))
+	if (MaterialSample.PositionBiasSign < 0 && Payload.IsMaterialSolidGlass())
 	{
-		const float3 LocalSigmaT =
-			Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER ?
-			Payload.GetWaterExtinction() :
-			-log(max(Payload.GetTransmittanceColor(), 1e-8f)) * AbsorptionScale;
+		const float3 LocalSigmaT = PathTracingGlassTransmittanceToExtinction(Payload.GetTransmittanceColor());
 		if (Payload.IsFrontFace())
 		{
 			// entering

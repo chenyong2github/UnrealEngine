@@ -220,20 +220,11 @@ FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool Las
 		// Unpack the payload
 		FPathTracingPayload HitPayload = UnpackPathTracingPayload(PackedPayload, Ray);
 
-		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ADDITIVE ||
-			HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT)
-		{
-			// emission needs to be pre-multiplied by the opacity
-			HitPayload.Radiance *= HitPayload.Opacity;
-		}
-
-		// add in surface emission (except for modulate blend mode which uses Radiance as the transparency multiplier)
-		if (IncludeEmission && HitPayload.BlendingMode != RAY_TRACING_BLEND_MODE_MODULATE)
+		// add in surface emission
+		if (IncludeEmission)
 		{
 			AccumulateRadiance(Radiance, PathThroughput * HitPayload.Radiance);
 		}
-
-		float3 Transparency = GetMaterialTransparency(HitPayload, Ray.Direction);
 
 		if (!LastBounce)
 		{
@@ -277,7 +268,7 @@ FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool Las
 
 		// prepare next step around the loop
 		// retrace the exact same ray with TMin one ulp past the hit we just found
-		PathThroughput *= Transparency;
+		PathThroughput *= HitPayload.TransparencyColor;
 		Ray.TMin = asfloat(asuint(HitPayload.HitT) + 1);
 
 		if (all(PathThroughput == 0))
@@ -326,7 +317,7 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness)
 		{
 			break;
 		}
-		if (!any(PackedPayload.GetRayThroughput()))
+		if (!any(PackedPayload.GetRayThroughput() > 0))
 		{
 			// accumulated to fully opacity already
 			break;
@@ -406,17 +397,17 @@ void PathTracingKernel(
 			Payload.WorldNormal = ShadingNormal;
 			Payload.WorldGeoNormal = ShadingNormal;
 			Payload.WorldSmoothNormal = ShadingNormal;
-			Payload.Radiance = float3(0, 0, 0);
-			Payload.BaseColor = float3(1, 1, 1);
-			Payload.DiffuseColor = float3(1, 1, 1);
-			Payload.SpecularColor = float3(0, 0, 0);
+			Payload.Radiance = 0;
+			Payload.BaseColor = 1;
+			Payload.DiffuseColor = 1;
+			Payload.SpecularColor = 0;
 			Payload.Specular = 0;
 			Payload.Roughness = 1;
 			Payload.Metallic = 0;
 			Payload.Ior = 1;
-			Payload.Opacity = 1;
+			Payload.BSDFOpacity = 1;
+			Payload.TransparencyColor = 0;
 			Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-			Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
 			Payload.PrimitiveLightingChannelMask = 0b111;
 			Payload.HitT = 1.0f;
 			Payload.SetFrontFace();

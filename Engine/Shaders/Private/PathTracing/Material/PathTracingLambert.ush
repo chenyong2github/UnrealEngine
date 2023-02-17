@@ -15,7 +15,7 @@ FMaterialSample Lambert_SampleMaterial(
 
 	float3 L_World = TangentToWorld(SampledValue.xyz, N_World);
 
-	return CreateMaterialSample(L_World, Payload.GetBSDFOpacity() * Payload.BaseColor * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), SampledValue.w, 1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
+	return CreateMaterialSample(L_World, Payload.BSDFOpacity * Payload.BaseColor * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), SampledValue.w, 1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
 }
 
 FMaterialEval Lambert_EvalMaterial(
@@ -27,7 +27,7 @@ FMaterialEval Lambert_EvalMaterial(
 	float3 N_World = Payload.WorldNormal;
 	float NoL = saturate(dot(N_World, L_World));
 
-	return CreateMaterialEval(Payload.GetBSDFOpacity() * Payload.BaseColor * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal) * DiffuseSpecularScale.x, NoL / PI);
+	return CreateMaterialEval(Payload.BSDFOpacity * Payload.BaseColor * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal) * DiffuseSpecularScale.x, NoL / PI);
 }
 
 
@@ -47,7 +47,7 @@ FMaterialSample Simplified_SampleMaterial(
 	float3 Weight = bDoTransmission ? BackColor / TransmissionProb : FrontColor / (1 - TransmissionProb);
 	float Pdf = SampledValue.w * (bDoTransmission ? TransmissionProb : 1.0 - TransmissionProb);
 
-	Weight *= Payload.GetBSDFOpacity();
+	Weight *= Payload.BSDFOpacity;
 	float Sign = bDoTransmission ? -1.0 : 1.0;
 	return CreateMaterialSample(TangentToWorld(SampledValue.xyz, N_World * Sign), Weight, Pdf, Sign, 1.0, PATHTRACER_SCATTER_DIFFUSE);
 }
@@ -70,6 +70,6 @@ FMaterialEval Simplified_EvalMaterial(
 	{
 		Weight /= Pdf;
 	}
-	Weight *= Payload.GetBSDFOpacity();
+	Weight *= Payload.BSDFOpacity;
 	return CreateMaterialEval(Weight, Pdf * saturate(abs(NoL)) / PI);
 }

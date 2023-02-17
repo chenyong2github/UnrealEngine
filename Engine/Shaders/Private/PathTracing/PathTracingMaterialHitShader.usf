@@ -166,7 +166,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 			{
 				float PathRoughness = PackedPayload.GetPathRoughness();
 				float Roughness = GetMaterialRoughness(PixelMaterialInputs);
-				if (PathRoughness <= Roughness)
+				if (Ior > 0.0 && PathRoughness <= Roughness)
 				{
 					// not using fast caustic approximation - treat as opaque
 					PackedPayload.SetRayThroughput(0.0);
@@ -180,7 +180,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 				Transparency *= ComputeThinSlabWeights(Transmission, VoN, Ior, F0).Transmitted;
 
 				// fake caustic approximation (see comments below)
-				Transparency *= (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
+				if (Ior > 0.0)
+				{
+					Transparency *= (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
+				}
 			}
 #endif
 		}
@@ -230,7 +233,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 				// TODO2: SingleLayerWater needs something similar, but it generally is setup with opaque or masked blend mode and water geometry does not cast shadows ...
 				float Distance = RayTCurrent();
 				float3 TransmittanceColor = GetAbsorptionMediumMaterialOutput0(MaterialParameters);
-				float3 LocalSigmaT = -log(max(TransmittanceColor, 1e-8f));
+				float3 LocalSigmaT = PathTracingGlassTransmittanceToExtinction(TransmittanceColor);
 				
 				// Front Face: remove contribution from the ray origin to the current hit (assuming the backside will be hit)
 				// Back Face:  add contribution from ray origin to current hit (backside) - excess portion not covered by the ray will be removed by the front face hit
@@ -266,22 +269,23 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
 
 #if MATERIALBLENDING_ALPHACOMPOSITE
-	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
+	Payload.BSDFOpacity = 1.0;
+	Payload.TransparencyColor = 1.0 - GetMaterialOpacity(PixelMaterialInputs);
 #elif MATERIALBLENDING_ALPHAHOLDOUT
-	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
+	Payload.BSDFOpacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.TransparencyColor = 1.0 - GetMaterialOpacity(PixelMaterialInputs);
+	Payload.SetHoldout();
 	HLSL_STATIC_ASSERT(MATERIAL_SHADINGMODEL_UNLIT == 1, "Alpha holdout blend mode requires unlit shading model");
 	Payload.ShadingModelID = SHADINGMODELID_UNLIT;
 #elif MATERIALBLENDING_TRANSLUCENT
-	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
+	Payload.BSDFOpacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.TransparencyColor = 1.0 - Payload.BSDFOpacity;
 #elif MATERIALBLENDING_ADDITIVE
-	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_ADDITIVE;
+	Payload.BSDFOpacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.TransparencyColor = 1.0;
 #elif MATERIALBLENDING_MODULATE
-	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_MODULATE;
+	Payload.BSDFOpacity = 0.0;
+	Payload.TransparencyColor = GetMaterialEmissive(PixelMaterialInputs);
 	HLSL_STATIC_ASSERT(MATERIAL_SHADINGMODEL_UNLIT == 1, "Modulate blend mode requires unlit shading model");
 	Payload.ShadingModelID = SHADINGMODELID_UNLIT;
 #elif MATERIALBLENDING_MASKED && MATERIAL_DITHER_OPACITY_MASK
@@ -293,11 +297,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	// code performs blending.
 	// Since the goal of dithered opacity is to emulate ordinary transparency, just use the mask input as opacity directly and
 	// ignore the configured clip value.
-	Payload.Opacity = saturate(GetMaterialMaskInputRaw(PixelMaterialInputs));
-	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
+	Payload.BSDFOpacity = saturate(GetMaterialMaskInputRaw(PixelMaterialInputs));
+	Payload.TransparencyColor = 1.0 - Payload.BSDFOpacity;
 #elif MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
-	Payload.Opacity = 1.0;
-	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
+	Payload.BSDFOpacity = 1.0;
+	Payload.TransparencyColor = 0.0;
 #else
 #error Unknown material blending mode
 #endif
@@ -337,11 +341,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Ior = GetRefractionIor(PixelMaterialInputs);
 #endif
 
-#if !SIMPLIFIED_MATERIAL_SHADER
-
-	/**
-	 * Set material attributes for full materials
-	 **/
 	Payload.TranslatedWorldPos = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, ResolvedView.PreViewTranslation));
 	float GeoNormalSign = MaterialParameters.TwoSidedSign;
 #if !VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
@@ -353,12 +352,21 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.WorldNormal = MaterialParameters.WorldNormal;
 	Payload.WorldSmoothNormal = MaterialParameters.TwoSidedSign * TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, float3(0, 0, 1));
 
+
+#if !SIMPLIFIED_MATERIAL_SHADER
+	/**
+	 * Set material attributes for full materials
+	 **/
+
 	// fix dark edges in reflections from shading normals
 	Payload.WorldNormal       = AdjustShadingNormal(Payload.WorldNormal      , Payload.WorldGeoNormal, WorldRayDirection());
 	Payload.WorldSmoothNormal = AdjustShadingNormal(Payload.WorldSmoothNormal, Payload.WorldGeoNormal, WorldRayDirection());
 
 	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);
-#if TWO_SIDED_MATERIAL == 0
+	Payload.Radiance *= Payload.BSDFOpacity; // pre-multiply
+
+
+#if MATERIAL_TWOSIDED == 0
 	if (MaterialParameters.TwoSidedSign < 0)
 	{
 		// when viewing the surface from "inside", don't include emission
@@ -451,8 +459,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #else
 		Payload.SetSubsurfacePhaseFunction(0.0);
 #endif
-		// Reset opacity to avoid special cases elsewhere
-		Payload.Opacity = 1;
 	}
 	else
 #endif
@@ -466,7 +472,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		float Lobe1Roughness = 0;
 		float LobeMix = 0;
 
-		GetSubsurfaceProfileDualSpecular(ProfileId, Payload.Roughness, Payload.Opacity, Lobe0Roughness, Lobe1Roughness, LobeMix);
+		// NOTE: we pass 1.0 for opacity because we don't really want to fade-out the dual roughness as opacity is lowered
+		GetSubsurfaceProfileDualSpecular(ProfileId, Payload.Roughness, 1.0, Lobe0Roughness, Lobe1Roughness, LobeMix);
 
 		Lobe0Roughness = AdjustMaterialRoughness(Lobe0Roughness, PackedPayload.GetPathRoughness());
 		Lobe1Roughness = AdjustMaterialRoughness(Lobe1Roughness, PackedPayload.GetPathRoughness());
@@ -494,8 +501,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #else
 		Payload.SetSubsurfacePhaseFunction(0.0);
 #endif
-
-		Payload.Opacity = 1.0; // Reset opacity to avoid special cases elsewhere
 	}
 	else
 #endif
@@ -513,10 +518,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 		const float3 WaterExtinction = ScatteringCoeff + AbsorptionCoeff;
 		const float3 WaterAlbedo = ScatteringCoeff / WaterExtinction;
-
-		Payload.BaseColor = WaterAlbedo;
-		Payload.SetWaterExtinction(WaterExtinction);
-		Payload.SetWaterPhaseG(PhaseG);
 #else
 		// For single layer water we always want to treat it as front facing when evaluating parameters 
 		// as hitting back face is treated as being underwater and we get completely different parameters.
@@ -531,12 +532,13 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		const float3 WaterAlbedo = ScatteringCoeff / WaterExtinction;
 #endif
 
-		Payload.BaseColor = WaterAlbedo;
-		Payload.SetWaterExtinction(WaterExtinction);
-		Payload.SetWaterPhaseG(PhaseG);
-
+		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT; // replace shading model to avoid extra cases in raygen
+		Payload.BaseColor = WaterAlbedo; // TODO: unused at the moment
+		Payload.SetTransmittanceColor(PathTracingGlassExtinctionToTransmittance(WaterExtinction));
 		Payload.Ior = DielectricF0ToIor(DielectricSpecularToF0(Specular));
-		Payload.BlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
+		// we are using actual refraction, so don't apply any transparency
+		Payload.TransparencyColor = 0.0;
+		Payload.BSDFOpacity = 0.0; // only shade with the glass portion
 	}
 	else
 #endif
@@ -544,8 +546,26 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 	{
-		Payload.SetTransmittanceColor(GetThinTranslucentMaterialOutput0(MaterialParameters));
+		const float3 TransmittanceColor = GetThinTranslucentMaterialOutput0(MaterialParameters);
+		Payload.SetTransmittanceColor(TransmittanceColor);
 		Payload.Ior = Ior;
+		if (Ior > 0.0)
+		{
+			// In this mode we get rough refraction, so don't apply any transparency
+			Payload.TransparencyColor = 0.0;
+		}
+		else
+		{
+			// In this mode we just get straight transparency
+			const float3 V = WorldRayDirection();
+			const float3 N = normalize(Payload.WorldNormal);
+			const float VoN = abs(dot(V, N));
+			const float3 BaseColor = Payload.BaseColor;
+			const float  Metallic = Payload.Metallic;
+			const float  Specular = Payload.Specular;
+			const float  F0 = F0RGBToF0(ComputeF0(Specular, BaseColor, Metallic));
+			Payload.TransparencyColor = (1 - Payload.BSDFOpacity) * ComputeThinSlabWeights(TransmittanceColor, VoN, 0.0, F0).Transmitted;
+		}
 	}
 	else
 #endif
@@ -618,7 +638,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 			Payload.SetSubsurfaceRadius(0.0);
 		}
 #endif
-		Payload.Opacity = 1.0; // revert to default now that decode is done
 
 #if HAVE_GetSubsurfaceMediumMaterialOutput1
 		float ScatteringDistribution = clamp(GetSubsurfaceMediumMaterialOutput1(MaterialParameters), -0.99f, 0.99f);
@@ -642,6 +661,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		Payload.SetTransmittanceColor(1.0);
 #endif
 		Payload.Ior = Ior;
+		if (Ior > 0.0)
+		{
+			// we are using actual refraction, so disable transparency
+			Payload.TransparencyColor = 0.0;
+		}
 	}
 	else
 #endif
@@ -649,32 +673,38 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		// terminal case for the conditionals above
 	}
 
+#if MATERIALBLENDING_ALPHAHOLDOUT
+	// the material is already a holdout, no need to do anything else
+#else
 	if (PackedPayload.IsCameraRay())
 	{
 		if ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_HOLDOUT) != 0)
 		{
-			if (Payload.BlendingMode != RAY_TRACING_BLEND_MODE_TRANSLUCENT || Payload.Ior != 0.0)
+			if (Payload.Ior != 0.0)
 			{
-				// If we are either not translucent, or if the surface is marked as refractive
-				// then treat opacity as 1.0
-				Payload.Opacity = 1.0;
+				// If the surface is marked as refractive then treat it as opaque for holdout
+				Payload.BSDFOpacity = 1.0;
 			}
 			else
 			{
 				// keep the opacity from the material, it might indicate partial transparency
 				// so we should get a partial holdout
 			}
-			Payload.BlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
+
+			Payload.SetHoldout();
 			Payload.ShadingModelID = SHADINGMODELID_UNLIT;
 			Payload.Radiance = 0;
 		}
 	}
+#endif
 
 	// Only opaque surfaces can recieve decals. This is both for compatibility with raster and improving performance when we have stacks of transparent surfaces
-	if ((Payload.BlendingMode == RAY_TRACING_BLEND_MODE_OPAQUE) && ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0))
+#if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
+	if ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0)
 	{
 		Payload.SetDecalReceiver();
 	}
+#endif
 
 	// adjust after everything else (because SSS profile case needs to decode the dual spec info from the unmodified roughness)
 	Payload.Roughness = AdjustMaterialRoughness(Payload.Roughness, PackedPayload.GetPathRoughness());
@@ -684,6 +714,16 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	/**
 	 * Set material attributes for simplified materials
 	 **/
+
+#if MATERIALBLENDING_TRANSLUCENT && !MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	 // Force opacity to 0 so it is ignored for path hits and only evaluated in AHS as a modulation to throughput
+	Payload.BSDFOpacity = 0;
+	Payload.TransparencyColor = 1;
+#else
+	Payload.BSDFOpacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.TransparencyColor = 1 - Payload.BSDFOpacity;
+#endif
+
 	 // Anything unsupported will be forced to default lit
 #if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
 	if (Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
@@ -695,7 +735,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 	{
-		Payload.SetTransmittanceColor(GetThinTranslucentMaterialOutput0(MaterialParameters));
+		const float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
+		const float3 V = WorldRayDirection();
+		const float3 N = normalize(MaterialParameters.WorldNormal);
+		const float VoN = abs(dot(V, N));
+		// simplified logic with no bending at the interface and no fresnel
+		Payload.TransparencyColor *= pow(Transmission, 1.0 / VoN);
 	}
 	else
 #endif
@@ -713,31 +758,21 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
 #endif
 	}
-	Payload.TranslatedWorldPos = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, ResolvedView.PreViewTranslation));
-	Payload.WorldNormal = normalize(MaterialParameters.WorldNormal);
-	float GeoNormalSign = MaterialParameters.TwoSidedSign * GetPrimitive_DeterminantSign(MaterialParameters.PrimitiveId);
-	Payload.WorldGeoNormal = GeoNormalSign * GeoNormal;
 	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);
-#if TWO_SIDED_MATERIAL == 0
+	Payload.Radiance *= Payload.BSDFOpacity; // premultiply
+#if MATERIAL_TWOSIDED
+	Payload.SetMaterialTwoSided();
+#else
 	if (MaterialParameters.TwoSidedSign < 0)
 	{
 		// when viewing the surface from "inside", don't include emission
 		Payload.Radiance = 0;
 	}
 #endif
-#if MATERIAL_TWOSIDED
-	Payload.SetMaterialTwoSided();
-#endif
 	Payload.BaseColor = BaseColor;
 	Payload.Specular = 0;
 	Payload.Roughness = 1;
 	Payload.Metallic = 0;
-#if MATERIALBLENDING_TRANSLUCENT && !MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	// Force opacity to 0 so it is ignored for path hits and only evaluated in AHS as a modulation to throughput
-	Payload.Opacity = 0;
-#else
-	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
-#endif
 	Payload.Ior = 0;
 
 #endif

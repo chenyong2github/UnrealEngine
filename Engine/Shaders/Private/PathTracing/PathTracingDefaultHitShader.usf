@@ -17,8 +17,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingDefaultOpaqueCHS,
 		// mark hit as solid black
 		FPathTracingPayload Payload = (FPathTracingPayload)0;
 		Payload.ShadingModelID = SHADINGMODELID_UNLIT;
-		Payload.BlendingMode   = RAY_TRACING_BLEND_MODE_OPAQUE;
-		Payload.Opacity = 1.0;
+		Payload.BSDFOpacity = 1.0;
 		PackedPayload = PackPathTracingPayload(Payload);
 	}
 	PackedPayload.HitT = RayTCurrent();
@@ -38,8 +37,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingDefaultHiddenCHS,
 		// mark hit as fully transparent
 		FPathTracingPayload Payload = (FPathTracingPayload)0;
 		Payload.ShadingModelID = SHADINGMODELID_UNLIT;
-		Payload.BlendingMode = RAY_TRACING_BLEND_MODE_ADDITIVE;
-		Payload.Opacity = 0.0;
+		Payload.TransparencyColor = 1.0;
 		PackedPayload = PackPathTracingPayload(Payload);
 	}
 	PackedPayload.HitT = RayTCurrent();

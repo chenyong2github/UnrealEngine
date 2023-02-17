@@ -89,7 +89,7 @@ FMaterialEval Cloth_EvalMaterial(
 	const float SpecPdf = GGXResult.y;
 	Result.AddLobeWithMIS(SpecWeight * DiffuseSpecularScale.y, SpecPdf, Data.LobePdf.z);
 
-	Result.Weight *= Payload.GetBSDFOpacity();
+	Result.Weight *= Payload.BSDFOpacity;
 
 	return Result;
 }
@@ -181,6 +181,6 @@ FMaterialSample Cloth_SampleMaterial(
 		Result.Roughness = Payload.Roughness;
 		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
 	}
-	Result.Weight *= Payload.GetBSDFOpacity();
+	Result.Weight *= Payload.BSDFOpacity;
 	return Result;
 }

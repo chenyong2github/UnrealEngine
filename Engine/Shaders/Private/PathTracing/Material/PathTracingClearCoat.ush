@@ -148,7 +148,7 @@ FMaterialEval ClearCoat_EvalMaterial(
 	Result.AddLobeWithMIS(SpecWeight * DiffuseSpecularScale.y, SpecPdf, Data.LobePdf.y);
 	Result.AddLobeWithMIS(DiffWeight * DiffuseSpecularScale.x, DiffPdf, Data.LobePdf.z);
 
-	Result.Weight *= Payload.GetBSDFOpacity();
+	Result.Weight *= Payload.BSDFOpacity;
 	
 	return Result;
 }
@@ -254,7 +254,7 @@ FMaterialSample ClearCoat_SampleMaterial(
 	}
 
 
-	Result.Weight *= Payload.GetBSDFOpacity();
+	Result.Weight *= Payload.BSDFOpacity;
 	Result.PositionBiasSign = 1.0;
 
 	return Result;

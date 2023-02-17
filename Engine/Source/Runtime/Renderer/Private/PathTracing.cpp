@@ -86,14 +86,6 @@ TAutoConsoleVariable<float> CVarPathTracingFilterWidth(
 	ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<float> CVarPathTracingAbsorptionScale(
-	TEXT("r.PathTracing.AbsorptionScale"),
-	0.01,
-	TEXT("Sets the inverse distance at which BaseColor is reached for transmittance in refractive glass (default = 1/100 units)\n")
-	TEXT("Setting this value to 0 will disable absorption handling for refractive glass\n"),
-	ECVF_RenderThreadSafe
-);
-
 TAutoConsoleVariable<int32> CVarPathTracingMISMode(
 	TEXT("r.PathTracing.MISMode"),
 	2,
@@ -312,6 +304,14 @@ TAutoConsoleVariable<int32> CVarPathTracingLightFunctionColor(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingCameraMediumTracking(
+	TEXT("r.PathTracing.CameraMediumTracking"),
+	1,
+	TEXT("Enables automatic camera medium tracking to detect when a camera starts inside water or solid glass automatically (default = 1)\n")
+	TEXT("0: off\n")
+	TEXT("1: on (default)\n"),
+	ECVF_RenderThreadSafe
+);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(float, BlendFactor)
@@ -336,7 +336,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(float, MaxPathIntensity)
 	SHADER_PARAMETER(float, MaxNormalBias)
 	SHADER_PARAMETER(float, FilterWidth)
-	SHADER_PARAMETER(float, AbsorptionScale)
 	SHADER_PARAMETER(float, DecalRoughnessCutoff)
 	SHADER_PARAMETER(float, MeshDecalRoughnessCutoff)
 	SHADER_PARAMETER(float, MeshDecalBias)
@@ -356,6 +355,7 @@ struct FPathTracingConfig
 	bool VisibleLights;
 	bool UseMISCompensation;
 	bool LockedSamplingPattern;
+	bool UseCameraMediumTracking;
 	bool UseMultiGPU; // NOTE: Requires invalidation because the buffer layout changes
 	int DenoiserMode; // NOTE: does not require path tracing invalidation
 
@@ -375,7 +375,6 @@ struct FPathTracingConfig
 			PathTracingData.VisualizeDecalGrid != Other.PathTracingData.VisualizeDecalGrid ||
 			PathTracingData.MaxPathIntensity != Other.PathTracingData.MaxPathIntensity ||
 			PathTracingData.FilterWidth != Other.PathTracingData.FilterWidth ||
-			PathTracingData.AbsorptionScale != Other.PathTracingData.AbsorptionScale ||
 			PathTracingData.EnableAtmosphere != Other.PathTracingData.EnableAtmosphere ||
 			PathTracingData.EnableFog != Other.PathTracingData.EnableFog ||
 			PathTracingData.ApplyDiffuseSpecularOverrides != Other.PathTracingData.ApplyDiffuseSpecularOverrides ||
@@ -392,6 +391,7 @@ struct FPathTracingConfig
 			VisibleLights != Other.VisibleLights ||
 			UseMISCompensation != Other.UseMISCompensation ||
 			LockedSamplingPattern != Other.LockedSamplingPattern ||
+			UseCameraMediumTracking != Other.UseCameraMediumTracking ||
 			UseMultiGPU != Other.UseMultiGPU;
 	}
 
@@ -460,6 +460,9 @@ struct FPathTracingState {
 	TRefCountPtr<IPooledRenderTarget> AtmosphereOpticalDepthLUT;
 	FAtmosphereConfig LastAtmosphereConfig;
 
+	// Buffer containing the starting medium extinction
+	TRefCountPtr<FRDGPooledBuffer>    StartingExtinctionCoefficient;
+
 	// Current sample index to be rendered by the path tracer - this gets incremented each time the path tracer accumulates a frame of samples
 	uint32 SampleIndex = 0;
 
@@ -510,7 +513,6 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 		FilterWidth = PPV.PathTracingFilterWidth;
 	}
 	PathTracingData.FilterWidth = FilterWidth;
-	PathTracingData.AbsorptionScale = CVarPathTracingAbsorptionScale.GetValueOnRenderThread();
 	PathTracingData.CameraFocusDistance = 0;
 	PathTracingData.CameraLensRadius = FVector2f::ZeroVector;
 	if (ShowFlags.DepthOfField &&
@@ -1194,7 +1196,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_RAYTRACED_TEXTURE_RAYCONE_LOD"), 0);
 		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
 		OutEnvironment.SetDefine(TEXT("SIMPLIFIED_MATERIAL_SHADER"), UseSimplifiedShader);
-		OutEnvironment.SetDefine(TEXT("TWO_SIDED_MATERIAL"), Parameters.MaterialParameters.bIsTwoSided ? 1 : 0);
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
@@ -2063,6 +2064,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	uint32 MaxSPP = SamplesPerPixelCVar > -1 ? SamplesPerPixelCVar : View.FinalPostProcessSettings.PathTracingSamplesPerPixel;
 	MaxSPP = FMath::Max(MaxSPP, 1u);
 	Config.LockedSamplingPattern = CVarPathTracingFrameIndependentTemporalSeed.GetValueOnRenderThread() == 0;
+	Config.UseCameraMediumTracking = CVarPathTracingCameraMediumTracking.GetValueOnRenderThread() != 0;
 
 	// compute an integer code of what show flags and booleans related to lights are currently enabled so we can detect changes
 	Config.LightShowFlags = 0;
@@ -2126,18 +2128,29 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		
 	}
 
-	// prepare extinction coefficient for camera rays
-	FRDGBufferRef StartingExtinctionCoefficient = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), 3), TEXT("PathTracer.StartingExtinctionCoefficient"));
-	FRDGBufferUAVRef StartingExtinctionCoefficientUAV = GraphBuilder.CreateUAV(StartingExtinctionCoefficient, PF_R32_FLOAT);
 
-	if (View.IsUnderwater())
+	// If this is the first sample, recompute the initial medium
+	// In this case of an offline render, do this every frame so that motion blur through a boundary is properly accounted for
+	FRDGBufferRef StartingExtinctionCoefficient = nullptr;
+	if (!Config.UseCameraMediumTracking)
+	{
+		PathTracingState->StartingExtinctionCoefficient.SafeRelease();
+		// camera medium tracking is not enabled - just make a temp buffer and set it to 0
+		StartingExtinctionCoefficient = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), 3), TEXT("PathTracer.StartingExtinctionCoefficient"));
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(StartingExtinctionCoefficient, PF_R32_FLOAT), 0);
+		
+	}
+	else if (!PathTracingState->StartingExtinctionCoefficient.IsValid() || PathTracingState->SampleIndex == 0 || View.bIsOfflineRender)
 	{
 		auto RayGenShader = GetGlobalShaderMap(View.FeatureLevel)->GetShader<FPathTracingInitExtinctionCoefficientRG>();
+
+		// prepare extinction coefficient for camera rays
+		StartingExtinctionCoefficient = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), 3), TEXT("PathTracer.StartingExtinctionCoefficient"));
 
 		FPathTracingInitExtinctionCoefficientRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingInitExtinctionCoefficientRG::FParameters>();
 		PassParameters->TLAS = Scene->RayTracingScene.GetLayerView(ERayTracingSceneLayer::Base);
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-		PassParameters->RWStartingExtinctionCoefficient = StartingExtinctionCoefficientUAV;
+		PassParameters->RWStartingExtinctionCoefficient = GraphBuilder.CreateUAV(StartingExtinctionCoefficient, PF_R32_FLOAT);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Path Tracer Init Sigma"),
@@ -2157,10 +2170,12 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 					1, 1
 				);
 			});
+		GraphBuilder.QueueBufferExtraction(StartingExtinctionCoefficient, &PathTracingState->StartingExtinctionCoefficient);
 	}
 	else
 	{
-		AddClearUAVPass(GraphBuilder, StartingExtinctionCoefficientUAV, 0);
+		check(PathTracingState->StartingExtinctionCoefficient.IsValid());
+		StartingExtinctionCoefficient = GraphBuilder.RegisterExternalBuffer(PathTracingState->StartingExtinctionCoefficient, TEXT("PathTracer.StartingExtinctionCoefficient"));
 	}
 
 	// prepare atmosphere optical depth lookup texture (if needed)

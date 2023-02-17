@@ -82,7 +82,7 @@ FMaterialEval Eye_EvalMaterial(
 
 	Result.AddLobeWithMIS(SpecWeight * DiffuseSpecularScale.y, SpecPdf, 1.0 - Data.LobeProb);
 
-	Result.Weight *= Payload.GetBSDFOpacity();
+	Result.Weight *= Payload.BSDFOpacity;
 
 	return Result;
 }
@@ -158,6 +158,6 @@ FMaterialSample Eye_SampleMaterial(
 		Result.Roughness = Payload.Roughness;
 		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
 	}
-	Result.Weight *= Payload.GetBSDFOpacity();
+	Result.Weight *= Payload.BSDFOpacity;
 	return Result;
 }

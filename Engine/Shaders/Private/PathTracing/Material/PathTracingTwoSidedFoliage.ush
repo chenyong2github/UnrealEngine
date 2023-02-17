@@ -46,7 +46,7 @@ FMaterialSample TwoSidedFoliage_SampleMaterial(
 		const float3 N = Payload.WorldNormal;
 		const float4 SampledValue = CosineSampleHemisphere(RandSample.yz);
 
-		return CreateMaterialSample(TangentToWorld(SampledValue.xyz, -N), Payload.GetBSDFOpacity() * Data.Back / Data.ProbT, Data.ProbT * SampledValue.w, -1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
+		return CreateMaterialSample(TangentToWorld(SampledValue.xyz, -N), Payload.BSDFOpacity * Data.Back / Data.ProbT, Data.ProbT * SampledValue.w, -1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
 	}
 	else
 	{
@@ -79,7 +79,7 @@ FMaterialEval TwoSidedFoliage_EvalMaterial(
 		{
 			float LambertPdf = -NoL / PI;
 
-			return CreateMaterialEval(Payload.GetBSDFOpacity() * Data.Back / Data.ProbT * DiffuseSpecularScale.x, Data.ProbT * LambertPdf);
+			return CreateMaterialEval(Payload.BSDFOpacity * Data.Back / Data.ProbT * DiffuseSpecularScale.x, Data.ProbT * LambertPdf);
 		}
 	}
 	else if (Data.ProbT < 1)

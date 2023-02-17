@@ -201,8 +201,7 @@ FPathTracingPayload CreateMediumHitPayload(float HitT, float3 TranslatedWorldPos
 	Result.HitT = HitT;
 	Result.TranslatedWorldPos = TranslatedWorldPos;
 	Result.ShadingModelID = SHADINGMODELID_MEDIUM;
-	Result.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
-	Result.Opacity = 1.0;
+	Result.BSDFOpacity = 1.0;
 	Result.PrimitiveLightingChannelMask = 7;
 	Result.SetFrontFace();
 	const float3 SigmaS = ShadedResult.SigmaSRayleigh + ShadedResult.SigmaSHG;

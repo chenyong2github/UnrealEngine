@@ -11,10 +11,11 @@
 #include "../OctahedralCommon.ush"
 #include "/Engine/Shared/PathTracingDefinitions.h"
 
-// These flags are analogous to RAY_TRACING_PAYLOAD_* flags. There are currently 6 bits available
+// These flags are analogous to RAY_TRACING_PAYLOAD_* flags. There are currently 9 bits available
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE                   (1 << 0) // Indicates that ray has hit the front face of a primitive. Set by closest hit shader.
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER               (1 << 1) // Indicates that ray has hit a primitive that receives decals. Set by closest hit shader.
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED_MATERIAL           (1 << 2) // Indicates that ray has hit a primitive surface with a two sided material. Set by closest hit shader. Used by GPU Lightmass to detect invalid surfaces.
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_IS_HOLDOUT                   (1 << 3) // Indicates that ray has hit a primitive which should be held out from alpha
 
 #define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_MASK                 (7 << 0) // Reserve 3 bits for ray-mask
 #define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_CAMERA                0       // Indicates that this is a camera ray which can trigger a number of special behaviors in the closest hit shader
@@ -27,6 +28,20 @@
 
 // shading model extensions beyond the default count
 #define SHADINGMODELID_MEDIUM  (SHADINGMODELID_NUM + 1)
+
+#define PATH_TRACING_ABSORPTION_SCALE  0.01        // inverse distance at which we hit the transmission color (Beer's law)
+
+// This function is meant for the solid glass case so we can store the transmittance as a color in [0,1]
+float3 PathTracingGlassTransmittanceToExtinction(float3 TransmittanceColor)
+{
+	return -log(max(TransmittanceColor, 1e-8f)) * PATH_TRACING_ABSORPTION_SCALE;
+}
+
+float3 PathTracingGlassExtinctionToTransmittance(float3 ExtinctionCoefficient)
+{
+	// inverse of function above
+	return exp(-max(ExtinctionCoefficient, 0.0) / PATH_TRACING_ABSORPTION_SCALE);
+}
 
 
 uint PayloadEncodeUnitVector(float3 Normal)
@@ -47,6 +62,43 @@ float3 PayloadDecodeUnitVector(uint Encoded)
 	int2 Oct = int2(Encoded & Mask, (Encoded >> (BITS / 2)) & Mask);
 	float2 OctF = saturate(float2(Oct) / Scale);
 	return OctahedronToUnitVector(2 * OctF - 1);
+}
+
+uint PayloadEncodeHDRColor(float3 rgb)
+{
+	// clamp to the largest representable value
+	rgb = clamp(rgb, 0.0, Max111110BitsFloat3);
+	// See PackR11G11B10F (duplicated to keep the code independent of Strata for now)
+	uint r = (f32tof16(rgb.r) << 17) & 0xFFE00000;
+	uint g = (f32tof16(rgb.g) <<  6) & 0x001FFC00;
+	uint b = (f32tof16(rgb.b) >>  5) & 0x000003FF;
+	return r | g | b;
+}
+
+float3 PayloadDecodeHDRColor(uint rgb)
+{
+	float r = f16tof32((rgb >> 17) & 0x7FF0);
+	float g = f16tof32((rgb >>  6) & 0x7FF0);
+	float b = f16tof32((rgb <<  5) & 0x7FE0);
+	return float3(r, g, b);
+}
+
+uint PayloadEncodeLDRColor(float3 rgb)
+{
+	// NOTE: Could add a simple gamma2 here to improve precision of dark colors, but this does not seem necessary for now.
+	// unorm 11/11/10 encoding
+	uint r = uint(floor(saturate(rgb.r) * 2047.0 + 0.5));
+	uint g = uint(floor(saturate(rgb.g) * 2047.0 + 0.5));
+	uint b = uint(floor(saturate(rgb.b) * 1023.0 + 0.5));
+	return (r << 21) | (g << 10) | b;
+}
+
+float3 PayloadDecodeLDRColor(uint rgb)
+{
+	float r = float((rgb >> 21)       ) * (1.0 / 2047.0);
+	float g = float((rgb >> 10) & 2047) * (1.0 / 2047.0);
+	float b = float((rgb      ) & 1023) * (1.0 / 1023.0);
+	return float3(r, g, b);
 }
 
 float3 AdjustShadingNormal(float3 ShadingNormal, float3 GeoNormal, float3 RayDirection)
@@ -74,8 +126,8 @@ struct FPackedPathTracingPayload : FMinimalPayload
 	uint PackedData[15];								 // 60 bytes (encoded data, depends on shading model and ray type)
 														 // 64 bytes total
 
-	uint GetFlags() { return (PackedData[0] >> 23) & 0x3F; }
-	void SetFlag(uint Flag) { PackedData[0] |= Flag << 23; }
+	uint GetFlags() { return (PackedData[0] >> 20) & 0x1FF; }
+	void SetFlag(uint Flag) { PackedData[0] |= Flag << 20; }
 	uint GetPrimitiveLightingChannelMask() { return (PackedData[0] >> 29) & 0x7; }
 
 	// Flag methods
@@ -146,14 +198,14 @@ struct FPathTracingPayload : FMinimalPayload
 	float3 BaseColor;
 	float3 DiffuseColor;
 	float3 SpecularColor;
-	float  Opacity;
+	float3 TransparencyColor;        // how much do we see straight through the surface?
+	float  BSDFOpacity;              // how much should we weigh down the bsdf by? (for glass, controls the blend between solid and glass lobes)
 	float  Metallic;
 	float  Specular;
 	float  Roughness;
 	float  Anisotropy;
 	float  Ior;
 	uint   ShadingModelID;
-	uint   BlendingMode;
 	uint   Flags;
 	uint   PrimitiveLightingChannelMask;
 	float4 CustomData0;
@@ -169,6 +221,9 @@ struct FPathTracingPayload : FMinimalPayload
 	void SetDecalReceiver() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER; }
 	bool IsDecalReceiver() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER) != 0; }
 	
+	void SetHoldout() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_IS_HOLDOUT; }
+	bool IsHoldout() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_IS_HOLDOUT) != 0; }
+
 	void SetMaterialTwoSided() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED_MATERIAL; }
 	bool IsMaterialTwoSided() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED_MATERIAL) != 0; }
 
@@ -220,12 +275,6 @@ struct FPathTracingPayload : FMinimalPayload
 	float3 GetTransmittanceColor() { return CustomData0.xyz; }
 	void SetTransmittanceColor(float3 TransmittanceColor) { CustomData0.xyz = TransmittanceColor; }
 
-	// SHADINGMODELID_SINGLELAYERWATER
-	float3 GetWaterExtinction() { return CustomData0.xyz; }
-	void SetWaterExtinction(float3 SigmaT) { CustomData0.xyz = SigmaT; }
-	float GetWaterPhaseG() { return CustomData0.w; }
-	void SetWaterPhaseG(float G) { CustomData0.w = G; }
-
 	// SHADINGMODELID_MEDIUM
 	float3 GetHGWeight() { return CustomData0.xyz; }
 	float GetHGPhaseG() { return CustomData0.w; }
@@ -234,12 +283,6 @@ struct FPathTracingPayload : FMinimalPayload
 
 	// Methods used by the integrator
 
-	float GetBSDFOpacity()
-	{
-		// How much should the BSDF components by weighted?
-		return BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE ? 1.0 : Opacity;
-	}
-
 	bool HasRefraction()
 	{
 		return Ior > 0.0;
@@ -247,12 +290,12 @@ struct FPathTracingPayload : FMinimalPayload
 
 	bool IsMaterialSolidGlass()
 	{
-		return ShadingModelID == SHADINGMODELID_DEFAULT_LIT && BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && HasRefraction() && Opacity < 1;
+		return ShadingModelID == SHADINGMODELID_DEFAULT_LIT && HasRefraction() && BSDFOpacity < 1;
 	}
 
 	bool IsMaterialThinGlass()
 	{
-		return ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT && BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && HasRefraction() && Opacity < 1;
+		return ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT && HasRefraction() && BSDFOpacity < 1;
 	}
 
 	bool IsMaterialTransmissive()
@@ -260,7 +303,6 @@ struct FPathTracingPayload : FMinimalPayload
 		return ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
 			   ShadingModelID == SHADINGMODELID_HAIR ||
 			   ShadingModelID == SHADINGMODELID_MEDIUM ||
-			   ShadingModelID == SHADINGMODELID_SINGLELAYERWATER ||	
 			   IsMaterialSolidGlass() ||
 			   IsMaterialThinGlass();
 	}
@@ -304,29 +346,23 @@ FPackedPathTracingPayload InitPathTracingVisibilityPayload(float PathRoughness)
 	return Output;
 }
 
-
 FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 {
 	FPackedPathTracingPayload Output = (FPackedPathTracingPayload)0;
 	Output.HitT = Input.HitT;
 
-	Output.PackedData[0] = f32tof16(Input.Opacity);
+	Output.PackedData[0] = f32tof16(Input.BSDFOpacity);
 	Output.PackedData[0] |= (Input.ShadingModelID & 0xF) << 16;               // 4 bits
-	Output.PackedData[0] |= (Input.BlendingMode & 0x7) << 20;                 // 3 bits
-	Output.PackedData[0] |= (Input.Flags & 0x3F) << 23;                       // 6 bits
+	Output.PackedData[0] |= (Input.Flags & 0x1FF) << 20;                      // 9 bits
 	Output.PackedData[0] |= (Input.PrimitiveLightingChannelMask & 0x7) << 29; // 3 bits
 	                                                                   // total 32 bits
 	Output.PackedData[1] = PayloadEncodeUnitVector(Input.WorldGeoNormal);
 	Output.PackedData[2] = PayloadEncodeUnitVector(Input.WorldSmoothNormal);
 	Output.PackedData[3] = PayloadEncodeUnitVector(Input.WorldNormal);
 
-	Output.PackedData[4] = f32tof16(Input.Radiance.x);
-	Output.PackedData[4] |= f32tof16(Input.Radiance.y) << 16;
-	Output.PackedData[5] = f32tof16(Input.Radiance.z);
-
-	Output.PackedData[5] |= f32tof16(Input.BaseColor.x) << 16;
-	Output.PackedData[6] = f32tof16(Input.BaseColor.y);
-	Output.PackedData[6] |= f32tof16(Input.BaseColor.z) << 16;
+	Output.PackedData[4] = PayloadEncodeHDRColor(Input.Radiance);
+	Output.PackedData[5] = PayloadEncodeLDRColor(Input.BaseColor);
+	Output.PackedData[6] = PayloadEncodeLDRColor(Input.TransparencyColor);
 
 	Output.PackedData[7] = f32tof16(Input.Metallic);
 	Output.PackedData[7] |= f32tof16(Input.Specular) << 16;
@@ -356,9 +392,8 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FR
 	FPathTracingPayload Output = (FPathTracingPayload)0;
 
 	Output.HitT = Input.HitT;
-	Output.Opacity = f16tof32(Input.PackedData[0]);
+	Output.BSDFOpacity = f16tof32(Input.PackedData[0]);
 	Output.ShadingModelID = (Input.PackedData[0] >> 16) & 0xF;
-	Output.BlendingMode = (Input.PackedData[0] >> 20) & 0x7;
 	Output.Flags = Input.GetFlags();
 	Output.PrimitiveLightingChannelMask = Input.GetPrimitiveLightingChannelMask();
 
@@ -366,12 +401,9 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FR
 	Output.WorldSmoothNormal = PayloadDecodeUnitVector(Input.PackedData[2]);
 	Output.WorldNormal = PayloadDecodeUnitVector(Input.PackedData[3]);
 
-	Output.Radiance.x = f16tof32(Input.PackedData[4]);
-	Output.Radiance.y = f16tof32(Input.PackedData[4] >> 16);
-	Output.Radiance.z = f16tof32(Input.PackedData[5]);
-	Output.BaseColor.x = f16tof32(Input.PackedData[5] >> 16);
-	Output.BaseColor.y = f16tof32(Input.PackedData[6]);
-	Output.BaseColor.z = f16tof32(Input.PackedData[6] >> 16);
+	Output.Radiance = PayloadDecodeHDRColor(Input.PackedData[4]);
+	Output.BaseColor = PayloadDecodeLDRColor(Input.PackedData[5]);
+	Output.TransparencyColor = PayloadDecodeLDRColor(Input.PackedData[6]);
 	
 	Output.Metallic = f16tof32(Input.PackedData[7]);
 	Output.Specular = f16tof32(Input.PackedData[7] >> 16);
