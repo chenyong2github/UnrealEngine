@@ -22,7 +22,7 @@
 #include "IMediaAssetsModule.h"
 #include "MediaPlayer.h"
 #include "MediaSoundComponent.h"
-#include "MediaSourceRenderer.h"
+#include "Shared/MediaSourceRenderer.h"
 #include "MediaTexture.h"
 #include "PlatformMediaSource.h"
 
