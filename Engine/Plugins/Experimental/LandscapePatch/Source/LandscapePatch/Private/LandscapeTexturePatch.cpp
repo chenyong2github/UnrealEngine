@@ -1392,3 +1392,13 @@ void ULandscapeTexturePatch::ClearWeightPatchBlendModeOverride(const FName& InWe
 	}
 }
 
+void ULandscapeTexturePatch::SetEditVisibilityLayer(const FName& InWeightmapLayerName, const bool bEditVisibilityLayer)
+{
+	for (TObjectPtr<ULandscapeWeightPatchTextureInfo> WeightPatch : WeightPatches)
+	{
+		if (WeightPatch->WeightmapLayerName == InWeightmapLayerName)
+		{
+			WeightPatch->bEditVisibilityLayer = bEditVisibilityLayer;
+		}
+	}
+}

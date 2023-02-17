@@ -420,6 +420,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
 	virtual void ClearWeightPatchBlendModeOverride(const FName& InWeightmapLayerName);
 
+	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
+	virtual void SetEditVisibilityLayer(const FName& InWeightmapLayerName, const bool bEditVisibilityLayer);
+
 
 	// These need to be public so that we can take the internal textures and write them to external ones,
 	// but unclear whether we want to expose them to blueprints, since this is a fairly internal thing.
