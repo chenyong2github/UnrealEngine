@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Chaos/ShapeInstanceFwd.h"
 #include "Containers/Array.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "PhysicsInterfaceDeclaresCore.h"
@@ -12,7 +12,6 @@ struct FBodyInstance;
 namespace Chaos
 {
 	struct FMassProperties;
-	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
 }
 
 /**

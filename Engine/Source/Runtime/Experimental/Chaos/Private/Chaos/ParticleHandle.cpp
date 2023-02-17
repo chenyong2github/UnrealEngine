@@ -13,7 +13,7 @@
 
 namespace Chaos
 {
-	extern void UpdateShapesArrayFromGeometryImpl(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy, bool bAllowCachedLeafInfo);
+	extern void UpdateShapesArrayFromGeometry(FShapeInstanceProxyArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy);
 
 	void SetObjectStateHelper(IPhysicsProxyBase& Proxy, FPBDRigidParticleHandle& Rigid, EObjectStateType InState, bool bAllowEvents, bool bInvalidate)
 	{
@@ -59,7 +59,7 @@ namespace Chaos
 	template <typename T, int d>
 	void Chaos::TGeometryParticle<T, d>::UpdateShapesArray()
 	{
-		UpdateShapesArrayFromGeometryImpl(MShapesArray, MakeSerializable(MNonFrequentData.Read().Geometry()), FRigidTransform3(X(), R()), Proxy, /*bAllowLeafCache*/false);
+		UpdateShapesArrayFromGeometry(MShapesArray, MakeSerializable(MNonFrequentData.Read().Geometry()), FRigidTransform3(X(), R()), Proxy);
 	}
 
 	template <typename T, int d>

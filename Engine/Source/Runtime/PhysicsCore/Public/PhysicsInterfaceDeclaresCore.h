@@ -5,6 +5,7 @@
 #define MAX_PHYSICS_FIELD_TARGETS 32
 
 #include "ChaosSQTypes.h"
+#include "Chaos/ShapeInstanceFwd.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 
 namespace Chaos
@@ -32,8 +33,6 @@ namespace Chaos
 
 	class FChaosPhysicsMaterial;
 	class FChaosPhysicsMaterialMask;
-
-	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
 }
 
 // Temporary dummy types until SQ implemented

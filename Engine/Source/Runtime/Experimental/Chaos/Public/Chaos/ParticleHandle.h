@@ -2464,7 +2464,7 @@ public:
 	void SetShapesArray(FShapesArray&& InShapesArray)
 	{
 		ensure(InShapesArray.Num() == MShapesArray.Num());
-		MShapesArray = MoveTemp(InShapesArray);
+		MShapesArray = MoveTemp(reinterpret_cast<FShapeInstanceProxyArray&>(InShapesArray));
 	}
 
 	void MergeShapesArray(FShapesArray&& OtherShapesArray)
@@ -2473,7 +2473,7 @@ public:
 		for (TUniquePtr<FPerShapeData>& Shape : OtherShapesArray)
 		{
 			ensure(Idx < MShapesArray.Num());
-			MShapesArray[Idx++] = MoveTemp(Shape);
+			MShapesArray[Idx++] = MoveTemp(reinterpret_cast<FShapeInstanceProxyPtr&>(Shape));
 		}
 	}
 
@@ -2482,7 +2482,7 @@ public:
 
 	TSerializablePtr<FImplicitObject> Geometry() const { return MakeSerializable(MNonFrequentData.Read().Geometry()); }
 
-	const FShapesArray& ShapesArray() const { return MShapesArray; }
+	const FShapesArray& ShapesArray() const { return reinterpret_cast<const FShapesArray&>(MShapesArray); }
 
 	EObjectStateType ObjectState() const;
 
@@ -2654,7 +2654,7 @@ private:
 	TChaosProperty<FParticleNonFrequentData,EChaosProperty::NonFrequentData> MNonFrequentData;
 	void* MUserData;
 
-	FShapesArray MShapesArray;
+	FShapeInstanceProxyArray MShapesArray;
 
 public:
 	// Ryan: FGeometryCollectionPhysicsProxy needs access to GeometrySharedLowLevel(), 

@@ -32,7 +32,7 @@ namespace ImmediatePhysics_Chaos
 		const FReal Radius = 1.0f * Scale.GetMax();
 
 		TUniquePtr<Chaos::FImplicitSphere3> ImplicitSphere = MakeUnique<Chaos::FImplicitSphere3>(FVec3(0), Radius);
-		TUniquePtr<FPerShapeData> NewShape = Chaos::FPerShapeData::CreatePerShapeDataInternal(OutShapes.Num(), MakeSerializable(ImplicitSphere));
+		TUniquePtr<FPerShapeData> NewShape = Chaos::FShapeInstance::Make(OutShapes.Num(), MakeSerializable(ImplicitSphere));
 		NewShape->UpdateShapeBounds(FTransform::Identity);
 		NewShape->SetUserData(nullptr);
 		NewShape->SetQueryEnabled(false);
