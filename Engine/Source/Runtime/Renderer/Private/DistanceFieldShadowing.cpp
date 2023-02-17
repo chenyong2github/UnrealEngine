@@ -698,35 +698,14 @@ bool SupportsHeightFieldShadows(ERHIFeatureLevel::Type FeatureLevel, EShaderPlat
 		&& DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform);
 }
 
-bool FSceneRenderer::ShouldPrepareForDistanceFieldShadows() const
+bool FSceneRenderer::ShouldPrepareForDistanceFieldShadows(FDynamicShadowsTaskData* TaskData) const
 {
-	bool bSceneHasRayTracedDFShadows = false;
-
-	for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
+	if (!ViewFamily.EngineShowFlags.DynamicShadows || !SupportsDistanceFieldShadows(Scene->GetFeatureLevel(), Scene->GetShaderPlatform()))
 	{
-		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
-		const FLightSceneInfo* const LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
-
-		if (LightSceneInfo->ShouldRenderLightViewIndependent())
-		{
-			const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
-
-			for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.AllProjectedShadows.Num(); ShadowIndex++)
-			{
-				const FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.AllProjectedShadows[ShadowIndex];
-
-				if (ProjectedShadowInfo->bRayTracedDistanceField)
-				{
-					bSceneHasRayTracedDFShadows = true;
-					break;
-				}
-			}
-		}
+		return false;
 	}
 
-	return ViewFamily.EngineShowFlags.DynamicShadows 
-		&& bSceneHasRayTracedDFShadows
-		&& SupportsDistanceFieldShadows(Scene->GetFeatureLevel(), Scene->GetShaderPlatform());
+	return HasRayTracedDistanceFieldShadows(TaskData);
 }
 
 bool FSceneRenderer::ShouldPrepareHeightFieldScene() const

@@ -5352,8 +5352,6 @@ void FDeferredShadingSceneRenderer::BeginInitViews(
 	{
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}
-
-	WaitForPrepareDynamicShadowsTask(TaskDatas.DynamicShadows);
 }
 
 template<class T>
@@ -5432,34 +5430,12 @@ void FDeferredShadingSceneRenderer::EndInitViews(
 	FLumenSceneFrameTemporaries& FrameTemporaries,
 	FInstanceCullingManager& InstanceCullingManager,
 	FRDGExternalAccessQueue& ExternalAccessQueue,
-	const FInitViewTaskDatas& TaskDatas)
+	FInitViewTaskDatas& TaskDatas)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViewsAfterPrepass, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsPossiblyAfterPrepass);
 
 	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
-
-	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
-
-	if (ViewFamily.EngineShowFlags.DynamicShadows 
-		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& !bHasRayTracedOverlay)
-	{
-		// Setup dynamic shadows.
-		if (TaskDatas.DynamicShadows)
-		{
-			FinishInitDynamicShadows(GraphBuilder, TaskDatas.DynamicShadows, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
-		}
-		else
-		{
-			InitDynamicShadows(GraphBuilder, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
-		}
-
-		if (GDynamicRHI->RHIIncludeOptionalFlushes())
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-		}
-	}
 
 	// If parallel ILC update is disabled, then process it in place.
 	if (ViewFamily.EngineShowFlags.HitProxies == 0
@@ -5488,6 +5464,23 @@ void FDeferredShadingSceneRenderer::EndInitViews(
 	SetupSceneReflectionCaptureBuffer(RHICmdList);
 
 	BeginUpdateLumenSceneTasks(GraphBuilder, FrameTemporaries);
+
+	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
+
+	if (ViewFamily.EngineShowFlags.DynamicShadows
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !bHasRayTracedOverlay)
+	{
+		// Setup dynamic shadows.
+		if (TaskDatas.DynamicShadows)
+		{
+			FinishInitDynamicShadows(GraphBuilder, TaskDatas.DynamicShadows, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
+		}
+		else
+		{
+			TaskDatas.DynamicShadows = InitDynamicShadows(GraphBuilder, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
+		}
+	}
 }
 
 /*------------------------------------------------------------------------------

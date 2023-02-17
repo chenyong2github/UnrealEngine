@@ -656,11 +656,13 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		}
 	}
 
+	FDynamicShadowsTaskData* DynamicShadowsTaskData = nullptr;
+
 	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 	if (bDynamicShadows)
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
+		DynamicShadowsTaskData = InitDynamicShadows(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
 	}
 	else
 	{
@@ -678,7 +680,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 
 	if (bRequiresDistanceField)
 	{
-		PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue, false);
+		PrepareDistanceFieldScene(GraphBuilder, DynamicShadowsTaskData, ExternalAccessQueue);
 	}
 
 	ExternalAccessQueue.Submit(GraphBuilder);

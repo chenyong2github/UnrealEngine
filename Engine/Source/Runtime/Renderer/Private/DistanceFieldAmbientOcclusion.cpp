@@ -711,7 +711,7 @@ bool FSceneRenderer::ShouldPrepareForDistanceFieldAO() const
 			|| (GDistanceFieldAOApplyToStaticIndirect && bAnyViewHasGIMethodSupportingDFAO && ViewFamily.EngineShowFlags.DistanceFieldAO));
 }
 
-bool FSceneRenderer::ShouldPrepareDistanceFieldScene() const
+bool FSceneRenderer::ShouldPrepareDistanceFieldScene(FDynamicShadowsTaskData* TaskData) const
 {
 	if (!ensure(Scene != nullptr))
 	{
@@ -734,7 +734,7 @@ bool FSceneRenderer::ShouldPrepareDistanceFieldScene() const
 	bool bShouldPrepareForDFInsetIndirectShadow = ShouldPrepareForDFInsetIndirectShadow();
 
 	// Prepare the distance field scene (object buffers and distance field atlas) if any feature needs it
-	return bShouldPrepareGlobalDistanceField || bShouldPrepareForAO || ShouldPrepareForDistanceFieldShadows() || bShouldPrepareForDFInsetIndirectShadow;
+	return bShouldPrepareGlobalDistanceField || bShouldPrepareForAO || ShouldPrepareForDistanceFieldShadows(TaskData) || bShouldPrepareForDFInsetIndirectShadow;
 }
 
 bool FSceneRenderer::ShouldPrepareGlobalDistanceField() const

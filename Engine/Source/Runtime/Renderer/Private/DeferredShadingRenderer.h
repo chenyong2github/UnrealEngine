@@ -563,7 +563,7 @@ private:
 		FLumenSceneFrameTemporaries& FrameTemporaries,
 		FInstanceCullingManager& InstanceCullingManager,
 		FRDGExternalAccessQueue& ExternalAccessQueue,
-		const FInitViewTaskDatas& TaskDatas);
+		FInitViewTaskDatas& TaskDatas);
 
 	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);

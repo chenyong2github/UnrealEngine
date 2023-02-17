@@ -2196,9 +2196,11 @@ void FSceneRenderer::RenderShadowProjections(
 	}
 }
 
-void FSceneRenderer::BeginAsyncDistanceFieldShadowProjections(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures) const
+void FSceneRenderer::BeginAsyncDistanceFieldShadowProjections(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FDynamicShadowsTaskData* TaskData) const
 {
 	extern int32 GDFShadowAsyncCompute;
+
+	TConstArrayView<FProjectedShadowInfo*> ProjectedDistanceFieldShadows = GetProjectedDistanceFieldShadows(TaskData);
 
 	if (!!GDFShadowAsyncCompute && ViewFamily.EngineShowFlags.DynamicShadows && GetShadowQuality() > 0 && ProjectedDistanceFieldShadows.Num() > 0)
 	{

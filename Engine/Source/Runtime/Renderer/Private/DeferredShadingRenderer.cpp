@@ -2972,7 +2972,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue, false);
+	PrepareDistanceFieldScene(GraphBuilder, InitViewTaskDatas.DynamicShadows, ExternalAccessQueue);
 
 	FLumenSceneFrameTemporaries LumenFrameTemporaries;
 	{
@@ -3291,7 +3291,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// End early occlusion queries
 
-	BeginAsyncDistanceFieldShadowProjections(GraphBuilder, SceneTextures);
+	BeginAsyncDistanceFieldShadowProjections(GraphBuilder, SceneTextures, InitViewTaskDatas.DynamicShadows);
 
 	if (bShouldRenderVolumetricCloudBase)
 	{
