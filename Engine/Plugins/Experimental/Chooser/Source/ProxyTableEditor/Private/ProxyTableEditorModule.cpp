@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProxyTableEditorModule.h"
-#include "IAssetTools.h"
 #include "ProxyTableEditor.h"
 #include "ProxyTableEditorCommands.h"
 
-#define LOCTEXT_NAMESPACE "ChooserEditorModule"
+#define LOCTEXT_NAMESPACE "ProxyTableEditorModule"
 
 namespace UE::ProxyTableEditor
 {

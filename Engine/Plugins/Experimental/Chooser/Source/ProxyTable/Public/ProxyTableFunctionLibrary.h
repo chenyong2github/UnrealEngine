@@ -16,13 +16,22 @@ class PROXYTABLE_API UProxyTableFunctionLibrary : public UBlueprintFunctionLibra
 
 public:
 	/**
-	* Evaluate a proxy table and return the selected UObject, or null
-	*
-	* @param ContextObject			(in) An Object from which the parameters to the Chooser Table will be read
-	* @param ProxyTable				(in) The ProxyTable asset
-	* @param Key					(in) The Key from the ProxyTable asset
+		* Temporary backwards compatibility function!  please switch to EvaluateProxyAsset
+		*
+		* @param ContextObject			(in) An Object from which the parameters to the Chooser Table will be read
+		* @param ProxyTable				(in) The ProxyTable asset
+		* @param Key					(in) The Key from the ProxyTable asset
 	*/
 	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe), Category = "Animation")
 	static UObject* EvaluateProxyTable(const UObject* ContextObject, const UProxyTable* ProxyTable, FName Key);
+	
+	/**
+	* Resolve a proxy asset and return the selected UObject, or null
+	*
+	* @param ContextObject			(in) An Object from which the Proxy Table will be read, and parameters to any nested Chooser Tables that need to evaluate
+	* @param ProxyAsset				(in) The ProxyAsset asset
+	*/
+	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe), Category = "Animation")
+	static UObject* EvaluateProxyAsset(const UObject* ContextObject, const UProxyAsset* Proxy);
 
 };

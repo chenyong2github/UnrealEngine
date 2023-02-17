@@ -31,6 +31,7 @@
 #include "ContextPropertyWidget.h"
 #include "IObjectChooser.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "PropertyCustomizationHelpers.h"
 #include "ProxyTableEditorCommands.h"
 
 #define LOCTEXT_NAMESPACE "ProxyTableEditor"
@@ -335,7 +336,6 @@ public:
 		Operation->Editor = InEditor;
 		Operation->RowIndex = InRowIndex;
 		Operation->DefaultHoverText = LOCTEXT("Proxy Row", "Proxy Row");
-		// UE::ChooserEditor::FObjectChooserWidgetFactories::ConvertToText(InEditor->GetProxyTable()->Entries[InRowIndex].Value.GetObject(), Operation->DefaultHoverText);
 		Operation->CurrentHoverText = Operation->DefaultHoverText;
 			
 		Operation->Construct();
@@ -425,10 +425,18 @@ public:
 			}
 			else if (ColumnName == Value) 
 			{
+				UClass* ContextClass = nullptr;
+				UClass* ObjectType = nullptr;
+				if (ProxyTable->Entries[RowIndex->RowIndex].Proxy)
+				{
+					ContextClass = ProxyTable->Entries[RowIndex->RowIndex].Proxy->ContextClass;
+					ObjectType = ProxyTable->Entries[RowIndex->RowIndex].Proxy->Type;
+				}
+				
 				TSharedPtr<SWidget> ResultWidget = ChooserEditor::FObjectChooserWidgetFactories::CreateWidget(ProxyTable, FObjectChooserBase::StaticStruct(),
 					ProxyTable->Entries[RowIndex->RowIndex].ValueStruct.GetMutableMemory(),
 					ProxyTable->Entries[RowIndex->RowIndex].ValueStruct.GetScriptStruct(),
-					nullptr/*ProxyTable->ContextObjectType*/,
+					ContextClass, ObjectType,
 					FOnStructPicked::CreateLambda([this, RowIndex=RowIndex->RowIndex](const UScriptStruct* ChosenStruct)
 					{
 						const FScopedTransaction Transaction(LOCTEXT("Change Value Type", "Change Value Type"));
@@ -437,7 +445,9 @@ public:
 						ChooserEditor::FObjectChooserWidgetFactories::CreateWidget(ProxyTable, FObjectChooserBase::StaticStruct(),
 								ProxyTable->Entries[RowIndex].ValueStruct.GetMutableMemory(),
 								ProxyTable->Entries[RowIndex].ValueStruct.GetScriptStruct(),
-								nullptr/*ProxyTable->ContextObjectType*/, FOnStructPicked(), &CacheBorder);
+								ProxyTable->Entries[RowIndex].Proxy->ContextClass,
+								ProxyTable->Entries[RowIndex].Proxy->Type,
+								FOnStructPicked(), &CacheBorder);
 					}),
 					&CacheBorder
 					);
@@ -460,13 +470,23 @@ public:
 			}
 			else if (ColumnName == Key)
 			{
-				return SNew(SEditableTextBox)
-					.Text_Lambda([this](){ return ProxyTable->Entries.Num() > RowIndex->RowIndex ?  FText::FromName(ProxyTable->Entries[RowIndex->RowIndex].Key) : FText();})
-					.OnTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
+				return SNew(SObjectPropertyEntryBox)
+					.AllowedClass(UProxyAsset::StaticClass())
+					.ObjectPath_Lambda([this]()
+					{
+						return ProxyTable->Entries.Num() > RowIndex->RowIndex ?  ProxyTable->Entries[RowIndex->RowIndex].Proxy.GetPath() : FString();
+					})
+					.OnObjectChanged_Lambda([this](const FAssetData& AssetData)
 					{
 						if (ProxyTable->Entries.Num() > RowIndex->RowIndex)
 						{
-							ProxyTable->Entries[RowIndex->RowIndex].Key = FName(Text.ToString());
+							const FScopedTransaction Transaction(LOCTEXT("Edit Proxy Asset", "Edit Proxy Asset"));
+							ProxyTable->Modify(true);
+							ProxyTable->Entries[RowIndex->RowIndex].Proxy = Cast<UProxyAsset>(AssetData.GetAsset());
+							
+							// ideally just need to rebuild the widget for the "Value" to update the UObject type filtering.
+							// For now just trigger a full refresh
+							Editor->UpdateTableRows();
 						}
 					});
 			}
@@ -573,6 +593,7 @@ void FProxyTableEditor::MoveRow(int SourceRowIndex, int TargetRowIndex)
 	Table->Entries.Insert(Entry, TargetRowIndex);
 
 	UpdateTableRows();
+	
 }
 
 void FProxyTableEditor::UpdateTableColumns()
@@ -583,7 +604,7 @@ void FProxyTableEditor::UpdateTableColumns()
 					.ManualWidth(30));
 	
 	HeaderRow->AddColumn(SHeaderRow::Column("Key")
-					.DefaultLabel(LOCTEXT("KeyColumnName", "Key"))
+					.DefaultLabel(LOCTEXT("KeyColumnName", "Proxy"))
 					.ManualWidth(500));
 
 	HeaderRow->AddColumn(SHeaderRow::Column("Value")
@@ -760,26 +781,34 @@ TSharedRef<FProxyTableEditor> FProxyTableEditor::CreateEditor( const EToolkitMod
 
 /// Result widgets
 
-TSharedRef<SWidget> CreateLookupProxyWidget(UObject* TransactionObject, void* Value, UClass* ContextObject)
+TSharedRef<SWidget> CreateLookupProxyWidget(UObject* TransactionObject, void* Value, UClass* ContextObject, UClass* ResultBaseClass)
 {
 	FLookupProxy* LookupProxy = static_cast<FLookupProxy*>(Value);
 	
-	return SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		[
-			UE::ChooserEditor::CreatePropertyWidget<FProxyTableContextProperty>(TransactionObject, LookupProxy->ProxyTable.GetMutablePtr<FProxyTableContextProperty>(), ContextObject, GetDefault<UGraphEditorSettings>()->ObjectPinTypeColor)
-		]
-		+ SHorizontalBox::Slot()
-		[
-			SNew(SEditableTextBox)
-			.Text_Lambda([LookupProxy]() { return FText::FromName(LookupProxy->Key);})
-			.OnTextChanged_Lambda([TransactionObject,LookupProxy](const FText& NewText)
+	return SNew(SObjectPropertyEntryBox)
+		.AllowedClass(UProxyAsset::StaticClass())
+		.ObjectPath_Lambda([LookupProxy](){ return LookupProxy->Proxy.GetPath();})
+		.OnShouldFilterAsset_Lambda([ResultBaseClass](const FAssetData& AssetData)
+		{
+			if (ResultBaseClass == nullptr)
 			{
-				FScopedTransaction ScopedTransaction(LOCTEXT("Change LookupProxy Key Name", "Change LookupProxy Key Name"));
-				TransactionObject->Modify(true);
-				LookupProxy->Key = FName(NewText.ToString());
-			})
-		];
+				return false;
+			}
+			if (AssetData.IsInstanceOf(UProxyAsset::StaticClass()))
+			{
+				if (UProxyAsset* Proxy = Cast<UProxyAsset>(AssetData.GetAsset()))
+				{
+					return !(Proxy->Type && Proxy->Type->IsChildOf(ResultBaseClass));
+				}
+			}
+			return true;
+		})
+		.OnObjectChanged_Lambda([TransactionObject, LookupProxy](const FAssetData& AssetData)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("Edit Chooser", "Edit Chooser"));
+			TransactionObject->Modify(true);
+			LookupProxy->Proxy = Cast<UProxyAsset>(AssetData.GetAsset());
+		});
 }
 
 void FProxyTableEditor::RegisterWidgets()
