@@ -81,7 +81,7 @@ FMaterialXPipelineSettings::FMaterialXPipelineSettings()
 
 bool FMaterialXPipelineSettings::AreRequiredPackagesLoaded()
 {
-	auto ArePackagesLoaded = [this](const TMap<EInterchangeMaterialXShaders, FSoftObjectPath>& ObjectPaths)
+	auto ArePackagesLoaded = [&](const TMap<EInterchangeMaterialXShaders, FSoftObjectPath>& ObjectPaths)
 	{
 		bool bAllLoaded = true;
 
@@ -94,11 +94,26 @@ bool FMaterialXPipelineSettings::AreRequiredPackagesLoaded()
 				FString PackagePath = ObjectPath.GetLongPackageName();
 				if(FPackageName::DoesPackageExist(PackagePath))
 				{
-					if(!ObjectPath.TryLoad())
+					UObject* Asset = ObjectPath.TryLoad();
+					if(!Asset)
 					{
 						UE_LOG(LogInterchangePipeline, Warning, TEXT("Couldn't load %s"), *PackagePath);
 						bAllLoaded = false;
 					}
+#if WITH_EDITOR
+					else
+					{
+						if(Pair.Get<EInterchangeMaterialXShaders>() == EInterchangeMaterialXShaders::StandardSurface)
+						{
+							bAllLoaded = !ShouldFilterAssets(Cast<UMaterialFunction>(Asset), StandardSurfaceInputs, StandardSurfaceOutputs);
+						}
+						else if(Pair.Get<EInterchangeMaterialXShaders>() == EInterchangeMaterialXShaders::StandardSurfaceTransmission)
+						{
+							bAllLoaded = !ShouldFilterAssets(Cast<UMaterialFunction>(Asset), TransmissionSurfaceInputs, TransmissionSurfaceOutputs);
+						}
+
+					}
+#endif // WITH_EDITOR
 				}
 				else
 				{
@@ -124,6 +139,139 @@ FString FMaterialXPipelineSettings::GetAssetPathString(EInterchangeMaterialXShad
 
 	return AssetPath;
 }
+
+#if WITH_EDITOR
+TSet<FName> FMaterialXPipelineSettings::StandardSurfaceInputs
+{
+	UE::Interchange::Materials::StandardSurface::Parameters::Base,
+	UE::Interchange::Materials::StandardSurface::Parameters::BaseColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::DiffuseRoughness,
+	UE::Interchange::Materials::StandardSurface::Parameters::Metalness,
+	UE::Interchange::Materials::StandardSurface::Parameters::Specular,
+	UE::Interchange::Materials::StandardSurface::Parameters::SpecularRoughness,
+	UE::Interchange::Materials::StandardSurface::Parameters::SpecularIOR,
+	UE::Interchange::Materials::StandardSurface::Parameters::SpecularAnisotropy,
+	UE::Interchange::Materials::StandardSurface::Parameters::SpecularRotation,
+	UE::Interchange::Materials::StandardSurface::Parameters::Subsurface,
+	UE::Interchange::Materials::StandardSurface::Parameters::SubsurfaceColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::SubsurfaceRadius,
+	UE::Interchange::Materials::StandardSurface::Parameters::SubsurfaceScale,
+	UE::Interchange::Materials::StandardSurface::Parameters::Sheen,
+	UE::Interchange::Materials::StandardSurface::Parameters::SheenColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::SheenRoughness,
+	UE::Interchange::Materials::StandardSurface::Parameters::Coat,
+	UE::Interchange::Materials::StandardSurface::Parameters::CoatColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::CoatRoughness,
+	UE::Interchange::Materials::StandardSurface::Parameters::CoatNormal,
+	UE::Interchange::Materials::StandardSurface::Parameters::ThinFilmThickness,
+	UE::Interchange::Materials::StandardSurface::Parameters::Emission,
+	UE::Interchange::Materials::StandardSurface::Parameters::EmissionColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::Normal,
+	UE::Interchange::Materials::StandardSurface::Parameters::Tangent
+};
+
+TSet<FName> FMaterialXPipelineSettings::StandardSurfaceOutputs
+{
+	TEXT("Base Color"), // MX_StandardSurface has BaseColor with a whitespace, this should be fixed in further release
+	UE::Interchange::Materials::PBR::Parameters::Metallic,
+	UE::Interchange::Materials::PBR::Parameters::Specular,
+	UE::Interchange::Materials::PBR::Parameters::Roughness,
+	UE::Interchange::Materials::PBR::Parameters::Anisotropy,
+	UE::Interchange::Materials::PBR::Parameters::EmissiveColor,
+	UE::Interchange::Materials::PBR::Parameters::Opacity,
+	UE::Interchange::Materials::PBR::Parameters::Normal,
+	UE::Interchange::Materials::PBR::Parameters::Tangent,
+	UE::Interchange::Materials::Sheen::Parameters::SheenRoughness,
+	UE::Interchange::Materials::Sheen::Parameters::SheenColor,
+	UE::Interchange::Materials::Subsurface::Parameters::SubsurfaceColor,
+	UE::Interchange::Materials::ClearCoat::Parameters::ClearCoat,
+	UE::Interchange::Materials::ClearCoat::Parameters::ClearCoatRoughness,
+	UE::Interchange::Materials::ClearCoat::Parameters::ClearCoatNormal
+};
+
+TSet<FName> FMaterialXPipelineSettings::TransmissionSurfaceInputs
+{
+	UE::Interchange::Materials::StandardSurface::Parameters::Base,
+	UE::Interchange::Materials::StandardSurface::Parameters::BaseColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::DiffuseRoughness,
+	UE::Interchange::Materials::StandardSurface::Parameters::Metalness,
+	UE::Interchange::Materials::StandardSurface::Parameters::Specular,
+	UE::Interchange::Materials::StandardSurface::Parameters::SpecularRoughness,
+	UE::Interchange::Materials::StandardSurface::Parameters::SpecularIOR,
+	UE::Interchange::Materials::StandardSurface::Parameters::SpecularAnisotropy,
+	UE::Interchange::Materials::StandardSurface::Parameters::SpecularRotation,
+	UE::Interchange::Materials::StandardSurface::Parameters::Transmission,
+	UE::Interchange::Materials::StandardSurface::Parameters::TransmissionColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::TransmissionDepth,
+	UE::Interchange::Materials::StandardSurface::Parameters::TransmissionScatter,
+	UE::Interchange::Materials::StandardSurface::Parameters::TransmissionScatterAnisotropy,
+	UE::Interchange::Materials::StandardSurface::Parameters::TransmissionDispersion,
+	UE::Interchange::Materials::StandardSurface::Parameters::TransmissionExtraRoughness,
+	UE::Interchange::Materials::StandardSurface::Parameters::Subsurface,
+	UE::Interchange::Materials::StandardSurface::Parameters::SubsurfaceColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::SubsurfaceRadius,
+	UE::Interchange::Materials::StandardSurface::Parameters::SubsurfaceScale,
+	UE::Interchange::Materials::StandardSurface::Parameters::Sheen,
+	UE::Interchange::Materials::StandardSurface::Parameters::SheenColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::SheenRoughness,
+	UE::Interchange::Materials::StandardSurface::Parameters::Coat,
+	UE::Interchange::Materials::StandardSurface::Parameters::CoatColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::CoatRoughness,
+	UE::Interchange::Materials::StandardSurface::Parameters::CoatNormal,
+	UE::Interchange::Materials::StandardSurface::Parameters::ThinFilmThickness,
+	UE::Interchange::Materials::StandardSurface::Parameters::Emission,
+	UE::Interchange::Materials::StandardSurface::Parameters::EmissionColor,
+	UE::Interchange::Materials::StandardSurface::Parameters::Normal,
+};
+
+TSet<FName> FMaterialXPipelineSettings::TransmissionSurfaceOutputs
+{
+	UE::Interchange::Materials::PBR::Parameters::BaseColor,
+	UE::Interchange::Materials::PBR::Parameters::Metallic,
+	UE::Interchange::Materials::PBR::Parameters::Specular,
+	UE::Interchange::Materials::PBR::Parameters::Roughness,
+	UE::Interchange::Materials::PBR::Parameters::Anisotropy,
+	UE::Interchange::Materials::PBR::Parameters::EmissiveColor,
+	UE::Interchange::Materials::PBR::Parameters::Opacity,
+	UE::Interchange::Materials::PBR::Parameters::Normal,
+	UE::Interchange::Materials::PBR::Parameters::Tangent,
+	UE::Interchange::Materials::PBR::Parameters::Refraction,
+	UE::Interchange::Materials::ThinTranslucent::Parameters::TransmissionColor
+};
+
+
+bool FMaterialXPipelineSettings::ShouldFilterAssets(UMaterialFunction* Asset, const TSet<FName>& Inputs, const TSet<FName>& Outputs)
+{
+	int32 InputMatches = 0;
+	int32 OutputMatches = 0;
+
+	if(Asset != nullptr)
+	{
+		TArray<FFunctionExpressionInput> ExpressionInputs;
+		TArray<FFunctionExpressionOutput> ExpressionOutputs;
+		Asset->GetInputsAndOutputs(ExpressionInputs, ExpressionOutputs);
+
+		for(const FFunctionExpressionInput& ExpressionInput : ExpressionInputs)
+		{
+			if(Inputs.Find(ExpressionInput.Input.InputName))
+			{
+				InputMatches++;
+			}
+		}
+
+		for(const FFunctionExpressionOutput& ExpressionOutput : ExpressionOutputs)
+		{
+			if(Outputs.Find(ExpressionOutput.Output.OutputName))
+			{
+				OutputMatches++;
+			}
+		}
+	}
+
+	// we allow at least one input of the same name, but we should have exactly the same outputs
+	return !(InputMatches > 0 && OutputMatches == Outputs.Num());
+}
+#endif // WITH_EDITOR
 
 namespace UE::Interchange::InterchangeGenericMaterialPipeline::Private
 {

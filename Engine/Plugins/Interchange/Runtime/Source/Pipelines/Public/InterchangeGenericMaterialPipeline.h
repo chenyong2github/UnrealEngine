@@ -41,19 +41,32 @@ enum class EInterchangeMaterialXShaders : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FMaterialXPipelineSettings
+struct INTERCHANGEPIPELINES_API FMaterialXPipelineSettings
 {
 	GENERATED_BODY()
 
 public:
 	FMaterialXPipelineSettings();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MaterialX")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MaterialX", meta=(AllowedClasses="/Script/Engine.MaterialFunction"))
 	TMap<EInterchangeMaterialXShaders, FSoftObjectPath> SurfaceShader;
 
 	bool AreRequiredPackagesLoaded();
 
 	FString GetAssetPathString(EInterchangeMaterialXShaders ShaderType) const;
+
+private:
+
+#if WITH_EDITOR
+	friend class FInterchangeMaterialXPipelineSettingsCustomization;
+
+	static bool ShouldFilterAssets(UMaterialFunction* Asset, const TSet<FName>& Inputs, const TSet<FName>& Outputs);
+
+	static TSet<FName> StandardSurfaceInputs;
+	static TSet<FName> StandardSurfaceOutputs;
+	static TSet<FName> TransmissionSurfaceInputs;
+	static TSet<FName> TransmissionSurfaceOutputs;
+#endif // WITH_EDITOR
 };
 
 UCLASS(BlueprintType, editinlinenew)

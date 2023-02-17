@@ -4,7 +4,9 @@
 
 #include "InterchangeEditorPipelineDetails.h"
 #include "InterchangeEditorPipelineStyle.h"
+#include "InterchangeGenericMaterialPipeline.h"
 #include "InterchangeManager.h"
+#include "InterchangeMaterialXPipelineSettingsCustomization.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangePipelineFactories.h"
 #include "Misc/CoreDelegates.h"
@@ -78,6 +80,7 @@ void FInterchangeEditorPipelinesModule::AcquireResources()
 	ClassesToUnregisterOnShutdown.Add(UInterchangePipelineBase::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FInterchangePipelineBaseDetailsCustomization::MakeInstance));
 
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(FMaterialXPipelineSettings::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FInterchangeMaterialXPipelineSettingsCustomization::MakeInstance));
 
 	if (!InterchangeEditorPipelineStyle.IsValid())
 	{
@@ -128,6 +131,8 @@ void FInterchangeEditorPipelinesModule::ReleaseResources()
 		AssetTools.UnregisterAssetTypeActions(PipelineBase_TypeActions.ToSharedRef());
 		AssetTools.UnregisterAssetTypeActions(PythonPipelineBase_TypeActions.ToSharedRef());
 	}
+
+	PropertyEditorModule->UnregisterCustomPropertyTypeLayout(FMaterialXPipelineSettings::StaticStruct()->GetFName());
 }
 
 TSharedRef<FPropertySection> FInterchangeEditorPipelinesModule::RegisterPropertySection(FPropertyEditorModule& PropertyModule, FName ClassName, FName SectionName, FText DisplayName)
