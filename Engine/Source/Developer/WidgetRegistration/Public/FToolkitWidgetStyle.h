@@ -7,6 +7,7 @@
 #include "Brushes/SlateNoResource.h"
 
 #include "Styling/SlateWidgetStyle.h"
+#include "Fonts/SlateFontInfo.h"
 #include "FToolkitWidgetStyle.generated.h"
 
 /**
