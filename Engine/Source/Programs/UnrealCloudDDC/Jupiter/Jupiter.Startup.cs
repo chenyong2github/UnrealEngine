@@ -106,6 +106,8 @@ namespace Jupiter
             services.AddOptions<KubernetesLeaderElectionSettings>().Configure(o => Configuration.GetSection("Kubernetes").Bind(o)).ValidateDataAnnotations();
             services.AddOptions<StaticPeerServiceDiscoverySettings>().Configure(o => Configuration.GetSection("ServiceDiscovery").Bind(o)).ValidateDataAnnotations();
 
+            services.AddOptions<MemoryCacheReferencesSettings>().Configure(o => Configuration.GetSection("CacheRef").Bind(o)).ValidateDataAnnotations();
+
             services.AddSingleton(typeof(CompressedBufferUtils), CreateCompressedBufferUtils);
 
             services.AddSingleton<AWSCredentials>(provider =>
@@ -417,7 +419,7 @@ namespace Jupiter
                     $"Unknown references db implementation: {settings.ReferencesDbImplementation}")
             };
 
-            MemoryCacheContentIdSettings memoryCacheSettings = provider.GetService<IOptionsMonitor<MemoryCacheContentIdSettings>>()!.CurrentValue;
+            MemoryCacheReferencesSettings memoryCacheSettings = provider.GetService<IOptionsMonitor<MemoryCacheReferencesSettings>>()!.CurrentValue;
 
             if (memoryCacheSettings.Enabled)
             {

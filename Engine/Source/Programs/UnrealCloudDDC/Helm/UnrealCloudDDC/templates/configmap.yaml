@@ -113,6 +113,11 @@ Serilog:
 {{ $config.Serilog | toYaml | nindent 2 }}
 {{- end }}
 
+{{- if $config.CacheRef }}
+CacheRef:
+{{ $config.CacheRef | toYaml | nindent 2 }}
+{{- end }}
+
 {{- if and (.Values.global.cloudProvider) (eq .Values.global.cloudProvider "Azure") }}
 {{ include "cloud.settings.azure" .Values }}
 {{- else if and (.Values.global.cloudProvider) (eq .Values.global.cloudProvider "AWS") }}

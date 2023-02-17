@@ -100,6 +100,11 @@ ConsistencyCheck:
 GC: 
 {{ $config.GC | toYaml | nindent 2 }}
 
+{{- if $config.CacheRef }}
+CacheRef:
+{{ $config.CacheRef | toYaml | nindent 2 }}
+{{- end }}
+
 {{- if or ($worker.persistence.enabled) ($worker.persistence.volume) }}
   RunFilesystemCleanup: true
 {{- end }}
