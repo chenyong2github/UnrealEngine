@@ -314,7 +314,7 @@ void FUnrealVirtualizationToolApp::PrintCmdLineHelp() const
 	
 	UE_LOG(LogVirtualizationTool, Display, TEXT(""));
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Global Options:"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("\t-verbose (all log messages with display verbosity will be displayed, not just LogVirtualizationTool)"));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("\t-MinimalLogging (demote log messages with 'display' verbosity to 'log' verbosity except those using the LogVirtualizationTool category)"));
 }
 
 bool FUnrealVirtualizationToolApp::TryLoadModules()
@@ -414,16 +414,16 @@ EInitResult FUnrealVirtualizationToolApp::TryParseGlobalOptions(const TCHAR* Cmd
 {
 	GlobalCmdlineOptions.Reset();
 
-	if (FParse::Param(CmdLine, TEXT("verbose")))
+	if (FParse::Param(CmdLine, TEXT("MinimalLogging")))
 	{
-		UE_LOG(LogVirtualizationTool, Display, TEXT("Cmdline parameter '-verbose' found, no longer supressing Display log messages!"));
-		OutputDeviceOverride.Reset();
+		UE_LOG(LogVirtualizationTool, Display, TEXT("Cmdline parameter '-MinimalLogging' found, supressing Display log messages"));
+		OutputDeviceOverride = MakeUnique<FOverrideOutputDevice>();
 
-		AddGlobalOption(TEXT("-verbose"));	
+		AddGlobalOption(TEXT("-MinimalLogging"));	
 	}
 	else
 	{
-		OutputDeviceOverride = MakeUnique<FOverrideOutputDevice>();
+		OutputDeviceOverride.Reset();
 	}
 
 	return EInitResult::Success;
