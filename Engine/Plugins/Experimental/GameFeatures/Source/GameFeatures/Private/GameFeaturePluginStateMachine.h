@@ -352,6 +352,9 @@ struct FGameFeaturePluginState
 
 	void UpdateProgress(float Progress) const;
 
+
+	void MarkPluginAsGarbage(bool bMarkGameFeatureDataAsGarbage);
+
 protected:
 	/** Builds an end FResult with some minimal error information with overrides for common types we 
 		need to generate errors from */
