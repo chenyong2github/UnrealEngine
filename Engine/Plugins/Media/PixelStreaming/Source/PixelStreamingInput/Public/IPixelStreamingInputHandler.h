@@ -11,7 +11,7 @@
 #include "PixelStreamingInputEnums.h"
 
 /**
- * IPixelStreamingInputHandler extends the IInputDevice interface. Setting the target viewport allows for
+ * The IPixelStreamingInputHandler, used to handle input from a remote peer and pass it to UE accordingly. Setting the target viewport allows for
  * scaling of input from browser to application, and setting the target window ensure that if windows are tiled (eg editor)
  * that the streamed input only affect the target window.
  */
@@ -94,4 +94,7 @@ public:
 	 * @brief Set the input handlers type. This controls whether input is routed to widgets or windows
 	 */
 	virtual void SetInputType(EPixelStreamingInputType InputType) = 0;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSendMessage, FMemoryReader);
+	FOnSendMessage OnSendMessage;
 };

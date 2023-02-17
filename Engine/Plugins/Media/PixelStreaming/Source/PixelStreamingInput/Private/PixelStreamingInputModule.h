@@ -3,15 +3,14 @@
 #pragma once
 
 #include "IPixelStreamingInputModule.h"
+#include "PixelStreamingInputDevice.h"
 
 namespace UE::PixelStreamingInput
 {
 	class FPixelStreamingInputModule : public IPixelStreamingInputModule
 	{
 	public:
-		virtual void RegisterMessage(EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler) override;
-		virtual TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType) override;
-		virtual TSharedPtr<IPixelStreamingInputHandler> GetInputHandler() override { return InputHandler; }
+		virtual TSharedPtr<IPixelStreamingInputHandler> CreateInputHandler() override;
 
 	private:
 		/** IModuleInterface implementation */
@@ -23,9 +22,7 @@ namespace UE::PixelStreamingInput
 		virtual TSharedPtr<IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
 		/** End IInputDeviceModule implementation */
 
-		// NOTE: There is only ever a single input handler which all of the streamers share. This provides
-		// a central point for the multiple streamers -> single UE instance
-		TSharedPtr<IPixelStreamingInputHandler> InputHandler;
+		TSharedPtr<FPixelStreamingInputDevice> InputDevice;
 
 		void PopulateProtocol();
 	};

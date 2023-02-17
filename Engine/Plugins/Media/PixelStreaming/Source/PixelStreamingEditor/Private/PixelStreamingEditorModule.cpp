@@ -63,7 +63,10 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 	if (EditorStreamer->GetSignallingServerURL().IsEmpty())
 	{
 		// No URL was passed on the command line, initialize defaults
-		EditorStreamer->SetSignallingServerURL("ws://127.0.0.1:8888");
+		StreamerPort = 8888;
+		SignallingDomain = TEXT("ws://127.0.0.1");
+
+		EditorStreamer->SetSignallingServerURL(FString::Printf(TEXT("%s:%d"), *SignallingDomain, StreamerPort));
 	}
 	else
 	{
@@ -108,9 +111,7 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 
 	// Add custom handle for { type: "Command", Resolution.Width: "1920", Resolution.Height: "1080" } when doing Editor streaming
 	// because we cannot resize the game viewport, but instead want to resize the parent window.
-	IPixelStreamingInputModule& InputModule = IPixelStreamingInputModule::Get();
-	TSharedPtr<IPixelStreamingInputHandler> InputHandler = InputModule.GetInputHandler();
-	if (InputHandler)
+	if (TSharedPtr<IPixelStreamingInputHandler> InputHandler = EditorStreamer->GetInputHandler().Pin())
 	{
 		InputHandler->SetCommandHandler("Resolution.Width",
 			[](FString Descriptor, FString WidthString) {
@@ -154,7 +155,10 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 			EditorStreamer->SetTargetViewport(nullptr);
 			EditorStreamer->SetTargetWindow(nullptr);
 			EditorStreamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
-			EditorStreamer->SetVideoInput(FPixelStreamingVideoInputBackBufferComposited::Create());
+
+			TSharedPtr<FPixelStreamingVideoInputBackBufferComposited> VideoInput = FPixelStreamingVideoInputBackBufferComposited::Create();
+			VideoInput->OnFrameSizeChanged.AddSP(EditorStreamer.ToSharedRef(), &IPixelStreamingStreamer::SetTargetScreenSize);
+			EditorStreamer->SetVideoInput(VideoInput);
 		}
 		break;
 		default:

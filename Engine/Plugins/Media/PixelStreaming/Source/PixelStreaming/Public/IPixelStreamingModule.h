@@ -127,7 +127,7 @@ public:
 	 * @param Message The object used to define the structure of the message
 	 * @param Handler The handler for this message. This function will be executed whenever the corresponding message is received
 	 */
-	UE_DEPRECATED(5.2, "RegisterMessage(...) has been moved from the PixelStreaming module to the PixelStreamingInput module")
+	UE_DEPRECATED(5.2, "RegisterMessage(...) is no longer needed. Just add your message to the protocol using FPixelStreamingInputProtocol::Direction.Add(XXX);, and then add the handler to the Streamer's input handler")
 	virtual void RegisterMessage(EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler) = 0;
 
 	/**
@@ -136,7 +136,7 @@ public:
 	 * @param MessageType The human readable identifier for the message
 	 * @return TFunction<void(FMemoryReader)> The function called when this message is received.
 	 */
-	UE_DEPRECATED(5.2, "FindMessageHandler(...) has been moved from the PixelStreaming module to the PixelStreamingInput module")
+	UE_DEPRECATED(5.2, "FindMessageHandler(...) has been moved from the PixelStreaming module to IPixelStreamingInputHandler. This object can be obtained from an (IPixelStreamingStreamer)->GetInputHandler()")
 	virtual TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType) = 0;
 
 	/**

@@ -66,8 +66,7 @@ namespace UE::PixelStreaming
 		// Own methods
 		void InitDefaultStreamer();
 		bool IsPlatformCompatible() const;
-		void RegisterCustomHandlers();
-		void HandleSendCommand(FMemoryReader Ar);
+		void RegisterCustomHandlers(TSharedPtr<IPixelStreamingStreamer> Streamer);
 		void HandleUIInteraction(FMemoryReader Ar);
 
 	private:

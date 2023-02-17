@@ -181,14 +181,12 @@ namespace UE::PixelStreamingInput
 
 	void FPixelStreamingInputHandler::RegisterMessageHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler)
 	{
-		TMap<FString, FPixelStreamingInputMessage> Protocol = FPixelStreamingInputProtocol::ToStreamerProtocol;
-		DispatchTable.Add(Protocol.Find(MessageType)->GetID(), Handler);
+		DispatchTable.Add(FPixelStreamingInputProtocol::ToStreamerProtocol.Find(MessageType)->GetID(), Handler);
 	}
 
 	TFunction<void(FMemoryReader)> FPixelStreamingInputHandler::FindMessageHandler(const FString& MessageType)
 	{
-		TMap<FString, FPixelStreamingInputMessage> Protocol = FPixelStreamingInputProtocol::ToStreamerProtocol;
-		return DispatchTable.FindRef(Protocol.Find(MessageType)->GetID());
+		return DispatchTable.FindRef(FPixelStreamingInputProtocol::ToStreamerProtocol.Find(MessageType)->GetID());
 	}
 
 	FName FPixelStreamingInputHandler::GetMotionControllerDeviceTypeName() const
@@ -1315,8 +1313,8 @@ namespace UE::PixelStreamingInput
 			FBufferArchive Buffer;
 			Buffer << Descriptor;
 			TArray<uint8> Data(Buffer.GetData(), Buffer.Num());
-			// Specific implementation for this method is handled in the pixel streaming module
-			IPixelStreamingInputModule::Get().OnSendMessage.Broadcast(FMemoryReader(Data));
+			// Specific implementation for this method is handled per streamer
+			OnSendMessage.Broadcast(FMemoryReader(Data));
 		});
 	}
 

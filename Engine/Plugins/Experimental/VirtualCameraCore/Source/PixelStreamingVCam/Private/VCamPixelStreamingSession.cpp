@@ -62,6 +62,9 @@ void UVCamPixelStreamingSession::Activate()
 		StreamerId = FString::Printf(TEXT("VCam%d"), NextDefaultStreamerId++);
 	}
 
+	// Rename the underlying session to the streamer name
+	Rename(*StreamerId);
+
 	// Setup livelink source
 	UVCamPixelStreamingSubsystem::Get()->TryGetLiveLinkSource(this);
 
@@ -167,13 +170,13 @@ void UVCamPixelStreamingSession::OnCaptureStateChanged()
 void UVCamPixelStreamingSession::OnRemoteResolutionChanged(const FIntPoint& RemoteResolution)
 {
 	// Early out if match remote resolution is not enabled.
-	if(!bMatchRemoteResolution)
+	if (!bMatchRemoteResolution)
 	{
 		return;
 	}
 
 	// Ensure override resolution is being used
-	if(!bUseOverrideResolution)
+	if (!bUseOverrideResolution)
 	{
 		bUseOverrideResolution = true;
 	}
@@ -221,8 +224,6 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 	{
 		IPixelStreamingInputModule& PixelStreamingInputModule = IPixelStreamingInputModule::Get();
 		typedef EPixelStreamingMessageTypes EType;
-		EPixelStreamingMessageDirection MessageDirection = EPixelStreamingMessageDirection::ToStreamer;
-		TMap<FString, FPixelStreamingInputMessage> Protocol = FPixelStreamingInputProtocol::ToStreamerProtocol;
 		/*
 		 * ====================
 		 * ARKit Transform
@@ -261,7 +262,12 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 				LiveLinkSource->PushTransformForSubject(GetFName(), FTransform(ARKitMatrix), Timestamp);
 			}
 		};
-		PixelStreamingInputModule.RegisterMessage(MessageDirection, "ARKitTransform", ARKitMessage, ARKitHandler);
+
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("ARKitTransform", ARKitMessage);
+		if (TSharedPtr<IPixelStreamingInputHandler> InputHandler = MediaOutput->GetStreamer()->GetInputHandler().Pin())
+		{
+			InputHandler->RegisterMessageHandler("ARKitTransform", ARKitHandler);
+		}
 	}
 	else
 	{
