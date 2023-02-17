@@ -204,6 +204,7 @@ namespace Chaos
 								const FGeometryParticleHandle* Particle1 = Constraint.GetParticle1();
 
 								FCollidingData Data;
+								Data.SolverTime = Solver->MTime;
 								Data.Location = Constraint.CalculateWorldContactLocation();
 								Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
 								Data.Normal = Constraint.CalculateWorldContactNormal();

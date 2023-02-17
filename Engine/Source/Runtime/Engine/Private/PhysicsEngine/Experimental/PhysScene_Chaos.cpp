@@ -713,20 +713,25 @@ const FBodyInstance* FPhysScene_Chaos::GetBodyInstanceFromProxyAndShape(IPhysics
 	return ProxyInstance;
 }
 
-FCollisionNotifyInfo& FPhysScene_Chaos::GetPendingCollisionForContactPair(const void* P0, const void* P1, bool& bNewEntry)
+FCollisionNotifyInfo& FPhysScene_Chaos::GetPendingCollisionForContactPair(const void* P0, const void* P1, Chaos::FReal SolverTime, bool& bNewEntry)
 {
 	const FUniqueContactPairKey Key = { P0, P1 };
-	const int32* PendingNotifyIdx = ContactPairToPendingNotifyMap.Find(Key);
-	if (PendingNotifyIdx)
+	TArray<int32> ExistingPairs;
+	ContactPairToPendingNotifyMap.MultiFind(Key, ExistingPairs);
+	for(int32 ExistingIdx : ExistingPairs)
 	{
-		// we already have one for this pair
-		bNewEntry = false;
-		return PendingCollisionNotifies[*PendingNotifyIdx];
+		if(FMath::IsNearlyEqual(PendingCollisionNotifies[ExistingIdx].SolverTime, SolverTime))
+		{
+			// we already have one for this pair
+			bNewEntry = false;
+			return PendingCollisionNotifies[ExistingIdx];	
+		}
 	}
 
 	// make a new entry
 	bNewEntry = true;
 	int32 NewIdx = PendingCollisionNotifies.AddZeroed();
+	ContactPairToPendingNotifyMap.Add(Key, NewIdx);
 	return PendingCollisionNotifies[NewIdx];
 }
 
@@ -774,7 +779,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 							}
 
 							bool bNewEntry = false;
-							FCollisionNotifyInfo& NotifyInfo = GetPendingCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);
+							FCollisionNotifyInfo& NotifyInfo = GetPendingCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, CollisionDataItem.SolverTime, bNewEntry);
 
 							// #note: we only notify on the first contact, though we will still accumulate the impulse data from subsequent contacts
 							const FVector NormalImpulse = FVector::DotProduct(CollisionDataItem.AccumulatedImpulse, CollisionDataItem.Normal) * CollisionDataItem.Normal;	// project impulse along normal
@@ -782,19 +787,42 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 							NotifyInfo.RigidCollisionData.TotalNormalImpulse += NormalImpulse;
 							NotifyInfo.RigidCollisionData.TotalFrictionImpulse += FrictionImpulse;
 
+							// Get swapped velocity deltas
+							const FVector& DeltaVelocity1 = bSwapOrder
+								? CollisionDataItem.DeltaVelocity2
+								: CollisionDataItem.DeltaVelocity1;
+							const FVector& DeltaVelocity2 = bSwapOrder
+								? CollisionDataItem.DeltaVelocity1
+								: CollisionDataItem.DeltaVelocity2;
+
+							// Populate additional contact information for additional hits
+							FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
+							NewContact.ContactNormal = CollisionDataItem.Normal;
+							NewContact.ContactPosition = CollisionDataItem.Location;
+							NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
+							NewContact.bContactProbe = CollisionDataItem.bProbe;
+							NotifyInfo.RigidCollisionData.bIsVelocityDeltaUnderThreshold =
+								DeltaVelocity1.IsNearlyZero(MinDeltaVelocityThreshold) &&
+								DeltaVelocity2.IsNearlyZero(MinDeltaVelocityThreshold);
+								
+							const Chaos::FChaosPhysicsMaterial* InternalMat1 = CollisionDataItem.Mat1.Get();
+							const Chaos::FChaosPhysicsMaterial* InternalMat2 = CollisionDataItem.Mat2.Get();
+								
+							NewContact.PhysMaterial[0] = InternalMat1 ? FPhysicsUserData::Get<UPhysicalMaterial>(InternalMat1->UserData) : nullptr;
+							NewContact.PhysMaterial[1] = InternalMat2 ? FPhysicsUserData::Get<UPhysicalMaterial>(InternalMat2->UserData) : nullptr;
+
+							if(bSwapOrder)
+							{
+								NewContact.SwapOrder();
+							}
+
 							if (bNewEntry)
 							{
 								// fill in legacy contact data
 								NotifyInfo.bCallEvent0 = true;
 								// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
 
-								// Get swapped velocity deltas
-								const FVector& DeltaVelocity1 = bSwapOrder
-									? CollisionDataItem.DeltaVelocity2
-									: CollisionDataItem.DeltaVelocity1;
-								const FVector& DeltaVelocity2 = bSwapOrder
-									? CollisionDataItem.DeltaVelocity1
-									: CollisionDataItem.DeltaVelocity2;
+								NotifyInfo.SolverTime = CollisionDataItem.SolverTime;
 									
 								NotifyInfo.Info0.SetFrom(GetBodyInstanceFromProxyAndShape(PhysicsProxy0, CollisionDataItem.ShapeIndex1), DeltaVelocity1);
 								NotifyInfo.Info1.SetFrom(GetBodyInstanceFromProxyAndShape(PhysicsProxy1, CollisionDataItem.ShapeIndex2), DeltaVelocity2);
@@ -809,26 +837,6 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 								{
 									NotifyInfo.Info1.Component = GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
 									NotifyInfo.Info1.Actor = (NotifyInfo.Info1.Component != nullptr) ? NotifyInfo.Info1.Component->GetOwner() : nullptr;
-								}
-
-								FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
-								NewContact.ContactNormal = CollisionDataItem.Normal;
-								NewContact.ContactPosition = CollisionDataItem.Location;
-								NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
-								NewContact.bContactProbe = CollisionDataItem.bProbe;
-								NotifyInfo.RigidCollisionData.bIsVelocityDeltaUnderThreshold =
-									DeltaVelocity1.IsNearlyZero(MinDeltaVelocityThreshold) &&
-									DeltaVelocity2.IsNearlyZero(MinDeltaVelocityThreshold);
-								
-								Chaos::FChaosPhysicsMaterial* InternalMat1 = CollisionDataItem.Mat1.Get();
-								Chaos::FChaosPhysicsMaterial* InternalMat2 = CollisionDataItem.Mat2.Get();
-								
-								NewContact.PhysMaterial[0] = InternalMat1 ? FPhysicsUserData::Get<UPhysicalMaterial>(InternalMat1->UserData) : nullptr;
-								NewContact.PhysMaterial[1] = InternalMat2 ? FPhysicsUserData::Get<UPhysicalMaterial>(InternalMat2->UserData) : nullptr;
-
-								if(bSwapOrder)
-								{
-									NotifyInfo.RigidCollisionData.SwapContactOrders();
 								}
 							}
 						}

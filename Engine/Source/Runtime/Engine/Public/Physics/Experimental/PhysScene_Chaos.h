@@ -263,9 +263,9 @@ private:
 		}
 	};
 
-	FCollisionNotifyInfo& GetPendingCollisionForContactPair(const void* P0, const void* P1, bool& bNewEntry);
+	FCollisionNotifyInfo& GetPendingCollisionForContactPair(const void* P0, const void* P1, Chaos::FReal SolverTime, bool& bNewEntry);
 	/** Key is the unique pair, value is index into PendingNotifies array */
-	TMap<FUniqueContactPairKey, int32> ContactPairToPendingNotifyMap;
+	TMultiMap<FUniqueContactPairKey, int32> ContactPairToPendingNotifyMap;
 
 	/** Holds the list of pending legacy notifies that are to be processed */
 	TArray<FCollisionNotifyInfo> PendingCollisionNotifies;

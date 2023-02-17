@@ -109,9 +109,12 @@ struct ENGINE_API FCollisionNotifyInfo
 	/** Information about the collision itself */
 	FCollisionImpactData			RigidCollisionData;
 
+	Chaos::FReal					SolverTime;
+
 	FCollisionNotifyInfo() :
 		bCallEvent0(false),
-		bCallEvent1(false)
+		bCallEvent1(false),
+		SolverTime((Chaos::FReal)0.0)
 	{}
 
 	/** Check that is is valid to call a notification for this entry. Looks at the IsValid() flags on both Actors. */

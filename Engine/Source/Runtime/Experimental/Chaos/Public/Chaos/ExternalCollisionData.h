@@ -37,11 +37,12 @@ namespace Chaos
 			, Proxy2(nullptr)
 			, ShapeIndex1(INDEX_NONE)
 			, ShapeIndex2(INDEX_NONE)
+			, SolverTime((FReal)0.0)
 		{}
 
 		FCollidingData(FVec3 InLocation, FVec3 InAccumulatedImpulse, FVec3 InNormal, FVec3 InVelocity1, FVec3 InVelocity2, FVec3 InDeltaVelocity1, FVec3 InDeltaVelocity2
 			, FVec3 InAngularVelocity1, FVec3 InAngularVelocity2, FReal InMass1,FReal InMass2,  FReal InPenetrationDepth, IPhysicsProxyBase* InProxy1, IPhysicsProxyBase* InProxy2
-			, int32 InShapeIndex1, int32 InShapeIndex2)
+			, int32 InShapeIndex1, int32 InShapeIndex2, FReal InSolverTime)
 			: Location(InLocation)
 			, AccumulatedImpulse(InAccumulatedImpulse)
 			, Normal(InNormal)
@@ -61,6 +62,7 @@ namespace Chaos
 			, Proxy2(InProxy2)
 			, ShapeIndex1(InShapeIndex1)
 			, ShapeIndex2(InShapeIndex2)
+			, SolverTime(InSolverTime)
 		{}
 
 		FVec3 Location;
@@ -90,6 +92,8 @@ namespace Chaos
 
 		int32 ShapeIndex1;
 		int32 ShapeIndex2;
+
+		FReal SolverTime;
 	};
 
 	/*
