@@ -281,6 +281,22 @@ struct FGatherTextFromMetaDataConfiguration
 	UPROPERTY(config, EditAnywhere, Category = "MetaData")
 	TArray<FMetaDataKeyGatherSpecification> KeySpecifications;
 
+	/** List of field types (eg, Property, Function, ScriptStruct, Enum, etc) that should be included in the gather, or empty to include everything. */
+	UPROPERTY(config, EditAnywhere, Category = "MetaData")
+	TArray<FString> FieldTypesToInclude;
+
+	/** List of field types (eg, Property, Function, ScriptStruct, Enum, etc) the should be excluded from the gather. */
+	UPROPERTY(config, EditAnywhere, Category = "MetaData")
+	TArray<FString> FieldTypesToExclude;
+
+	/** List of field owner types (eg, MyClass, MyStruct, etc) that should have fields within them included in the gather, or empty to include everything. */
+	UPROPERTY(config, EditAnywhere, Category = "MetaData")
+	TArray<FString> FieldOwnerTypesToInclude;
+
+	/** List of field owner types (eg, MyClass, MyStruct, etc) that should have fields within them excluded from the gather. */
+	UPROPERTY(config, EditAnywhere, Category = "MetaData")
+	TArray<FString> FieldOwnerTypesToExclude;
+
 	/* If enabled, data that is specified as editor-only may be processed for gathering. */
 	UPROPERTY(config, EditAnywhere, Category = "Filter")
 	bool ShouldGatherFromEditorOnlyData;

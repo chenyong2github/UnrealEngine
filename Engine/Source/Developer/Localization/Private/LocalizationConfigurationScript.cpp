@@ -419,12 +419,32 @@ namespace LocalizationConfigurationScript
 				ConfigSection.Add( TEXT("ExcludePathFilters"), FString::Printf(TEXT("%s%s"), *FLocalizationGatherPathRootUtil::GetResolvedPathRootToken(ExcludePath.PathRoot), *ExcludePath.Pattern) );
 			}
 
-			// Package Extensions
+			// Key Specifications
 			for (const FMetaDataKeyGatherSpecification& Specification : Target->Settings.GatherFromMetaData.KeySpecifications)
 			{
 				ConfigSection.Add( TEXT("InputKeys"), Specification.MetaDataKey.Name );
 				ConfigSection.Add( TEXT("OutputNamespaces"), Specification.TextNamespace );
 				ConfigSection.Add( TEXT("OutputKeys"), Specification.TextKeyPattern.Pattern );
+			}
+
+			// Field Type Filters
+			for (const FString& FieldTypeToInclude : Target->Settings.GatherFromMetaData.FieldTypesToInclude)
+			{
+				ConfigSection.Add(TEXT("FieldTypesToInclude"), FieldTypeToInclude);
+			}
+			for (const FString& FieldTypeToExclude : Target->Settings.GatherFromMetaData.FieldTypesToExclude)
+			{
+				ConfigSection.Add(TEXT("FieldTypesToExclude"), FieldTypeToExclude);
+			}
+
+			// Field Owner Type Filters
+			for (const FString& FieldOwnerTypeToInclude : Target->Settings.GatherFromMetaData.FieldOwnerTypesToInclude)
+			{
+				ConfigSection.Add(TEXT("FieldOwnerTypesToInclude"), FieldOwnerTypeToInclude);
+			}
+			for (const FString& FieldOwnerTypeToExclude : Target->Settings.GatherFromMetaData.FieldOwnerTypesToExclude)
+			{
+				ConfigSection.Add(TEXT("FieldOwnerTypesToExclude"), FieldOwnerTypeToExclude);
 			}
 
 			ConfigSection.Add( TEXT("ShouldGatherFromEditorOnlyData"), Target->Settings.GatherFromMetaData.ShouldGatherFromEditorOnlyData ? TEXT("true") : TEXT("false") );
