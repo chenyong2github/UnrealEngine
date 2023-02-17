@@ -214,7 +214,7 @@ bool FWorldPartitionActorDescUtils::ValidateActorDescClass(FWorldPartitionActorD
 
 		if (!ClassData)
 		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find class asset '%s' for actor '%s"), *AssetClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString());
+			UE_LOG(LogWorldPartition, Display, TEXT("Failed to find class asset '%s' for actor '%s"), *AssetClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString());
 			return false;
 		}
 
