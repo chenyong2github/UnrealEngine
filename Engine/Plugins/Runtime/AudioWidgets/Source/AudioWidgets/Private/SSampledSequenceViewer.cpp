@@ -1,0 +1,264 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SSampledSequenceViewer.h"
+
+void SSampledSequenceViewer::Construct(const FArguments& InArgs, TArrayView<const float> InSampleData, const uint8 InNumChannels, TSharedRef<ISampledSequenceGridService> InGridService)
+{
+	GridService = InGridService;
+	UpdateView(InSampleData, InNumChannels);
+
+	Style = InArgs._Style;
+	DrawingParams = InArgs._SequenceDrawingParams;
+
+	check(Style);
+	SequenceColor = Style->SequenceColor;
+	MajorGridLineColor = Style->MajorGridLineColor;
+	MinorGridLineColor = Style->MinorGridLineColor;
+	BackgroundColor = Style->SequenceBackgroundColor;
+	BackgroundBrush = Style->BackgroundBrush;
+	DesiredWidth = Style->DesiredWidth;
+	DesiredHeight = Style->DesiredHeight;
+	SampleMarkersSize = Style->SampleMarkersSize;
+	SequenceLineThickness = Style->SequenceLineThickness;
+	ZeroCrossingLineColor = Style->ZeroCrossingLineColor;
+	ZeroCrossingLineThickness = Style->ZeroCrossingLineThickness;
+}
+
+void SSampledSequenceViewer::UpdateView(TArrayView<const float> InSampleData, const uint8 InNumChannels)
+{
+	UpdateGridMetrics();
+
+	SampleData = InSampleData;
+	NumChannels = InNumChannels;
+
+	bForceRedraw = true;
+}
+
+int32 SSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const 
+{
+	float PixelWidth = MyCullingRect.GetSize().X;
+
+	FSlateDrawElement::MakeBox(
+		OutDrawElements,
+		++LayerId,
+		AllottedGeometry.ToPaintGeometry(),
+		&BackgroundBrush,
+		ESlateDrawEffect::None, 
+		BackgroundColor.GetSpecifiedColor()
+	);
+
+	if (PixelWidth > 0)
+	{
+		DrawGridLines(AllottedGeometry, OutDrawElements, LayerId);
+
+		if (SequenceDrawMode == ESequenceDrawMode::BinnedPeaks)
+		{
+			TArray<FVector2D> BinDrawPoints;
+			BinDrawPoints.SetNumUninitialized(2);
+
+			for (const TimeSeriesDrawingUtils::FSampleBinCoordinates& BinCoordinates : CachedBinsDrawCoordinates)
+			{
+				BinDrawPoints[0] = BinCoordinates.Top;
+				BinDrawPoints[1] = BinCoordinates.Bottom;
+
+				FSlateDrawElement::MakeLines(
+					OutDrawElements,
+					LayerId,
+					AllottedGeometry.ToPaintGeometry(),
+					BinDrawPoints,
+					ESlateDrawEffect::None,
+					SequenceColor.GetSpecifiedColor()
+				);
+			}
+
+		}
+		else if (SequenceDrawMode == ESequenceDrawMode::SequenceLine)
+		{
+			TArray<FVector2D> SamplesDrawCoordinates;
+			const uint16 NChannels = NumChannels;
+
+			for (uint16 Channel = 0; Channel < NChannels; ++Channel)
+			{
+				for (int32 SampleIndex = Channel; SampleIndex < CachedSampleDrawCoordinates.Num(); SampleIndex += NChannels)
+				{
+					SamplesDrawCoordinates.Add(CachedSampleDrawCoordinates[SampleIndex]);
+					
+					const FVector2D SampleBoxSize = FVector2D(SampleMarkersSize, SampleMarkersSize);
+					const FVector2D SampleBoxTransform = FVector2D(CachedSampleDrawCoordinates[SampleIndex] - (SampleBoxSize / 2.f));
+
+					const FPaintGeometry SampleBoxGeometry = AllottedGeometry.ToPaintGeometry(
+						SampleBoxSize,
+						FSlateLayoutTransform(SampleBoxTransform)
+					);
+
+					FSlateDrawElement::MakeBox(
+						OutDrawElements,
+						LayerId,
+						SampleBoxGeometry,
+						&BackgroundBrush,
+						ESlateDrawEffect::None,
+						SequenceColor.GetSpecifiedColor()
+					);
+				}
+
+				FSlateDrawElement::MakeLines(
+					OutDrawElements,
+					LayerId,
+					AllottedGeometry.ToPaintGeometry(),
+					SamplesDrawCoordinates,
+					ESlateDrawEffect::None,
+					SequenceColor.GetSpecifiedColor(),
+					true,
+					SequenceLineThickness
+				);
+
+				SamplesDrawCoordinates.Empty();
+			}
+		}
+
+		++LayerId;
+	}
+
+	return LayerId;
+}
+
+FVector2D SSampledSequenceViewer::ComputeDesiredSize(float) const
+{
+	return FVector2D(DesiredWidth, DesiredHeight);
+}
+
+void SSampledSequenceViewer::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	uint32 DiscretePixelWidth = FMath::FloorToInt(AllottedGeometry.GetLocalSize().X);
+	if (DiscretePixelWidth <= 0)
+	{
+		return;
+	}
+
+	if (DiscretePixelWidth != CachedPixelWidth || bForceRedraw)
+	{
+		CachedPixelWidth = DiscretePixelWidth;
+		CachedPixelHeight = AllottedGeometry.GetLocalSize().Y;
+		const float NumSamplesToDisplay = SampleData.Num() / (float) NumChannels;
+		SequenceDrawMode = NumSamplesToDisplay > CachedPixelWidth ? ESequenceDrawMode::BinnedPeaks : ESequenceDrawMode::SequenceLine;
+
+		if (SequenceDrawMode == ESequenceDrawMode::BinnedPeaks)
+		{
+			TimeSeriesDrawingUtils::GroupInterleavedSampledTSIntoMinMaxBins<float>(CachedPeaks, CachedPixelWidth, SampleData.GetData(), SampleData.Num(), GridMetrics.SampleRate, NumChannels);
+			TimeSeriesDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(CachedBinsDrawCoordinates, AllottedGeometry, CachedPeaks, NumChannels, DrawingParams);
+		}
+		else
+		{
+			TimeSeriesDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry(CachedSampleDrawCoordinates, SampleData, AllottedGeometry, NumChannels, GridMetrics, DrawingParams);
+		}
+		
+		bForceRedraw = false;
+	}
+	else if (CachedPixelHeight != AllottedGeometry.GetLocalSize().Y)
+	{
+		CachedPixelHeight = AllottedGeometry.GetLocalSize().Y;
+
+		if (SequenceDrawMode == ESequenceDrawMode::BinnedPeaks)
+		{
+			TimeSeriesDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(CachedBinsDrawCoordinates, AllottedGeometry, CachedPeaks, NumChannels, DrawingParams);
+		}
+		else
+		{
+			TimeSeriesDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry(CachedSampleDrawCoordinates, SampleData, AllottedGeometry, NumChannels, GridMetrics, DrawingParams);
+		}
+	}
+}
+
+void SSampledSequenceViewer::DrawGridLines(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
+{
+	TArray<FVector2D> LinePoints;
+	LinePoints.SetNumUninitialized(2);
+
+	const double MinorGridXStep = GridMetrics.MajorGridXStep / GridMetrics.NumMinorGridDivisions;
+
+	for (double CurrentMajorLineX = GridMetrics.FirstMajorTickX; CurrentMajorLineX < AllottedGeometry.Size.X; CurrentMajorLineX += GridMetrics.MajorGridXStep)
+	{
+		const double MajorLineX = CurrentMajorLineX;
+
+		LinePoints[0] = FVector2D(MajorLineX, 0.f);
+		LinePoints[1] = FVector2D(MajorLineX, AllottedGeometry.Size.Y);
+
+		FSlateDrawElement::MakeLines(
+			OutDrawElements,
+			++LayerId,
+			AllottedGeometry.ToPaintGeometry(),
+			LinePoints,
+			ESlateDrawEffect::None,
+			MajorGridLineColor.GetSpecifiedColor(),
+			false);
+
+
+		for (int32 MinorLineIndex = 1; MinorLineIndex < GridMetrics.NumMinorGridDivisions; ++MinorLineIndex)
+		{
+			const double MinorLineX = MajorLineX + MinorGridXStep * MinorLineIndex;
+
+			LinePoints[0] = FVector2D(MinorLineX, 0.);
+			LinePoints[1] = FVector2D(MinorLineX, AllottedGeometry.Size.Y);
+
+			FSlateDrawElement::MakeLines(
+				OutDrawElements,
+				++LayerId,
+				AllottedGeometry.ToPaintGeometry(),
+				LinePoints,
+				ESlateDrawEffect::None,
+				MinorGridLineColor.GetSpecifiedColor(),
+				false);
+
+		}
+	}
+
+	const uint16 NChannels = NumChannels;
+
+	for (uint16 Channel = 0; Channel < NChannels; ++Channel)
+	{
+		const TimeSeriesDrawingUtils::FHorizontalDimensionSlot ChannelBoundaries(Channel, NChannels, AllottedGeometry);
+
+		LinePoints[0] = FVector2D(0.f, ChannelBoundaries.Center);
+		LinePoints[1] = FVector2D(AllottedGeometry.Size.X, ChannelBoundaries.Center);
+
+		FSlateDrawElement::MakeLines(
+			OutDrawElements,
+			++LayerId,
+			AllottedGeometry.ToPaintGeometry(),
+			LinePoints,
+			ESlateDrawEffect::None,
+			ZeroCrossingLineColor.GetSpecifiedColor(),
+			false,
+			ZeroCrossingLineThickness);
+
+	}
+}
+
+void SSampledSequenceViewer::UpdateGridMetrics()
+{
+	check(GridService)
+	GridMetrics = GridService->GetGridMetrics();
+}
+
+void SSampledSequenceViewer::OnStyleUpdated(const FNotifyingAudioWidgetStyle* UpdatedStyle)
+{
+	check(UpdatedStyle);
+	check(Style);
+
+	if (UpdatedStyle != Style)
+	{
+		return;
+	}
+
+	SequenceColor = Style->SequenceColor;
+	MajorGridLineColor = Style->MajorGridLineColor;
+	MinorGridLineColor = Style->MinorGridLineColor;
+	ZeroCrossingLineColor = Style->ZeroCrossingLineColor;
+	ZeroCrossingLineThickness = Style->ZeroCrossingLineThickness;
+	BackgroundColor = Style->SequenceBackgroundColor;
+	BackgroundBrush = Style->BackgroundBrush;
+	SampleMarkersSize = Style->SampleMarkersSize;
+	SequenceLineThickness = Style->SequenceLineThickness;
+	DesiredWidth = Style->DesiredWidth;
+	DesiredHeight = Style->DesiredHeight;
+}

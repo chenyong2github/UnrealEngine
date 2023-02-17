@@ -3,6 +3,7 @@
 #include "AudioWidgetsSlateTypes.h"
 #include "Brushes/SlateNoResource.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
+#include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioWidgetsSlateTypes)
@@ -70,5 +71,33 @@ const FAudioRadialSliderStyle& FAudioRadialSliderStyle::GetDefault()
 {
 	static FAudioRadialSliderStyle Default;
 	return Default;
+}
+
+const FName FSampledSequenceViewerStyle::TypeName("FSampledSequenceViewerStyle");
+
+FSampledSequenceViewerStyle::FSampledSequenceViewerStyle()
+	: SequenceColor(FLinearColor::White)
+	, SequenceLineThickness(1.f)
+	, MajorGridLineColor(FLinearColor::Black)
+	, MinorGridLineColor(FLinearColor(0.f, 0.f, 0.f, 0.5f))
+	, ZeroCrossingLineColor(FLinearColor::Black)
+	, ZeroCrossingLineThickness(1.f)
+	, SampleMarkersSize(2.5f)
+	, SequenceBackgroundColor(FLinearColor(0.02f, 0.02f, 0.02f, 1.f))
+	, BackgroundBrush(*FAppStyle::GetBrush(TEXT("WhiteBrush")))
+	, DesiredWidth(1280.f)
+	, DesiredHeight(720.f)
+{
+}
+
+const FSampledSequenceViewerStyle& FSampledSequenceViewerStyle::GetDefault()
+{
+	static FSampledSequenceViewerStyle Default;
+	return Default;
+}
+
+void FSampledSequenceViewerStyle::GetResources(TArray< const FSlateBrush* >& OutBrushes) const
+{
+	OutBrushes.Add(&BackgroundBrush);
 }
 

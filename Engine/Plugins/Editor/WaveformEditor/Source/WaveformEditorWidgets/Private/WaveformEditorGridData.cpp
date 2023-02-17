@@ -5,17 +5,18 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GenericPlatform/GenericPlatformMath.h"
-#include "Misc/FrameRate.h"
-#include "WaveformEditorRenderData.h"
 
-FWaveformEditorGridData::FWaveformEditorGridData(TSharedRef<FWaveformEditorRenderData> InRenderData, const FSlateFontInfo* InTicksTimeFont /* = nullptr*/)
-	: RenderData(InRenderData)
-	, TicksTimeFont(InTicksTimeFont)
+FWaveformEditorGridData::FWaveformEditorGridData(const uint32 InTotalFrames, const uint32 InSampleRateHz, const FSlateFontInfo* InTicksTimeFont /*= nullptr*/)
+ 	: TotalFrames(InTotalFrames)
+	, DisplayRange(TRange<uint32>::Inclusive(0, InTotalFrames))
+ 	, TicksTimeFont(InTicksTimeFont)
+ 	, GridFrameRate(InSampleRateHz, 1)
 {
 }
 
-void FWaveformEditorGridData::UpdateDisplayRange(const TRange<float> InDisplayRange)
+void FWaveformEditorGridData::UpdateDisplayRange(const TRange<uint32> InDisplayRange)
 {
+	check(DisplayRange.Size<uint32>() >= 2)
 	DisplayRange = InDisplayRange;
 	UpdateGridMetrics(GridPixelWidth);
 }
@@ -26,10 +27,10 @@ bool FWaveformEditorGridData::UpdateGridMetrics(const float InGridPixelWidth)
 	{
 		GridPixelWidth = InGridPixelWidth;
 	}
-	
-	const float WaveformDurationSeconds = RenderData->GetOriginalWaveformDurationInSeconds();
-	const double StartTime = WaveformDurationSeconds * DisplayRange.GetLowerBoundValue();
-	const double DisplayedDuration = WaveformDurationSeconds * DisplayRange.Size<double>();
+
+	const float WaveformDurationSeconds = TotalFrames / (double) GridFrameRate.Numerator;
+	const double StartTimeSeconds = DisplayRange.GetLowerBoundValue() / (double) GridFrameRate.Numerator;	
+	const double DisplayedDuration = (DisplayRange.Size<double>() - 1) / GridFrameRate.Numerator; //we account for one less frame so we can distribute them evenly on the screen
 	const double PixelsPerSecond = GridPixelWidth / DisplayedDuration;
 	double MajorGridStepSeconds = 0.0;
 	float MinTicksPixelSpacing = 30.0f;
@@ -42,28 +43,24 @@ bool FWaveformEditorGridData::UpdateGridMetrics(const float InGridPixelWidth)
 		MinTicksPixelSpacing = MaxTextSize.X;
 	}
 
-	const FFrameRate FrameRate(RenderData->GetSampleRate(), 1);
 
-	if (!FrameRate.ComputeGridSpacing(PixelsPerSecond, MajorGridStepSeconds, GridMetrics.NumMinorGridDivisions, MinTicksPixelSpacing + 5.f))
+	if (!GridFrameRate.ComputeGridSpacing(PixelsPerSecond, MajorGridStepSeconds, GridMetrics.NumMinorGridDivisions, MinTicksPixelSpacing + 5.f))
 	{
 		return false;
 	}
 
-	const double GridOffset = FGenericPlatformMath::Fmod(StartTime, MajorGridStepSeconds);
+	const bool bZeroGridOffset = DisplayRange.Size<uint32>() < GridPixelWidth;
+	const double GridOffset = bZeroGridOffset ? 0 : FGenericPlatformMath::Fmod(StartTimeSeconds, MajorGridStepSeconds);
 	GridMetrics.FirstMajorTickX = (0.f - GridOffset) * PixelsPerSecond;
 	GridMetrics.MajorGridXStep = MajorGridStepSeconds * PixelsPerSecond;
-	GridMetrics.StartTime = StartTime;
-	GridMetrics.PixelsPerSecond = PixelsPerSecond;
-
-	if (OnGridMetricsUpdated.IsBound())
-	{
-		OnGridMetricsUpdated.Broadcast(GridMetrics);
-	}
+	GridMetrics.StartFrame = DisplayRange.GetLowerBoundValue();
+	GridMetrics.PixelsPerFrame =  PixelsPerSecond / GridFrameRate.Numerator;
+	GridMetrics.SampleRate = GridFrameRate.Numerator;
 
 	return true;
 }
 
-const FWaveEditorGridMetrics FWaveformEditorGridData::GetGridMetrics() const
+const FSampledSequenceGridMetrics FWaveformEditorGridData::GetGridMetrics() const
 {
 	return GridMetrics;
 }
@@ -71,4 +68,23 @@ const FWaveEditorGridMetrics FWaveformEditorGridData::GetGridMetrics() const
 void FWaveformEditorGridData::SetTicksTimeFont(const FSlateFontInfo* InNewFont)
 {
 	TicksTimeFont = InNewFont;
+}
+
+const float FWaveformEditorGridData::SnapPositionToClosestFrame(const float InPixelPosition) const
+{
+	const float DistanceFromPreviousSample = FGenericPlatformMath::Fmod(InPixelPosition, GridMetrics.PixelsPerFrame);
+	const bool bSnapToNext = DistanceFromPreviousSample > GridMetrics.PixelsPerFrame / 2.f;
+	float SnappedPosition = 0.f;
+
+	if (bSnapToNext)
+	{
+		SnappedPosition = InPixelPosition + (GridMetrics.PixelsPerFrame - DistanceFromPreviousSample);
+	}
+	else
+	{
+		SnappedPosition = InPixelPosition -  DistanceFromPreviousSample;
+	}
+
+
+	return SnappedPosition;
 }

@@ -11,6 +11,9 @@
 
 DECLARE_DELEGATE_OneParam(FOnNewMouseDelta, const float /* new delta */)
 
+class ISampledSequenceGridService;
+class FWaveformEditorGridData;
+
 class SWaveformViewerOverlay : public SLeafWidget
 {
 public:
@@ -22,7 +25,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<SWaveformTransformationsOverlay> InTransformationsOverlay);
+	void Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<SWaveformTransformationsOverlay> InTransformationsOverlay, TSharedRef<ISampledSequenceGridService> InGridService);
 
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -41,6 +44,7 @@ private:
 
 	TSharedPtr<FWaveformEditorTransportCoordinator> TransportCoordinator = nullptr;
 	TSharedPtr<SWaveformTransformationsOverlay> TransformationsOverlay = nullptr;
+	TSharedPtr<ISampledSequenceGridService> GridService = nullptr;
 
 	const FWaveformViewerOverlayStyle* Style = nullptr;
 

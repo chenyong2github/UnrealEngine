@@ -2,17 +2,16 @@
 
 #pragma once
 
+#include "ISampledSequenceGridService.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "WaveformEditorDisplayUnit.h"
-#include "WaveformEditorGridData.h"
 #include "WaveformEditorSlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTimeUnitMenuSelection, const EWaveformEditorDisplayUnit /* Requested Display Unit */);
 
-class FWaveformEditorRenderData;
 class FWaveformEditorTransportCoordinator;
 
 class SWaveformEditorTimeRuler : public SCompoundWidget
@@ -30,8 +29,8 @@ class SWaveformEditorTimeRuler : public SCompoundWidget
 	SLATE_END_ARGS()
 
 public:
-	void Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorRenderData> InRenderData);
-	void UpdateGridMetrics(const FWaveEditorGridMetrics& InMetrics);
+	void Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<ISampledSequenceGridService> InGridService);
+	void UpdateGridMetrics();
 	void UpdateDisplayUnit(const EWaveformEditorDisplayUnit InDisplayUnit);
 
 	void OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle);
@@ -49,13 +48,13 @@ private:
 
 	void DrawPlayheadHandle(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const;
 	void DrawRulerTicks(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const;
-	void DrawTickTimeString(float TickTimeSeconds, const double TickX, const double TickY, FSlateWindowElementList& OutDrawElements, int32& LayerId, const FGeometry& AllottedGeometry) const;
+	void DrawTickTimeString(uint32 TickFrame, const double TickX, const double TickY, FSlateWindowElementList& OutDrawElements, int32& LayerId, const FGeometry& AllottedGeometry) const;
 
 	TSharedRef<SWidget> MakeContextMenu();
 	void MakeTimeUnitsSubMenu(FMenuBuilder& SubMenuBuilder);
 	void NotifyTimeUnitMenuSelection(const EWaveformEditorDisplayUnit SelectedDisplayUnit) const;
 
-	FWaveEditorGridMetrics GridMetrics;
+	FSampledSequenceGridMetrics GridMetrics;
 
 	const FWaveformEditorTimeRulerStyle* Style = nullptr;
 
@@ -72,7 +71,7 @@ private:
 	FSlateFontInfo TicksTextFont;
 
 	TSharedPtr<FWaveformEditorTransportCoordinator> TransportCoordinator = nullptr;
-	TSharedPtr<FWaveformEditorRenderData> RenderData = nullptr;
+	TSharedPtr<ISampledSequenceGridService> GridService = nullptr;
 
 	EWaveformEditorDisplayUnit DisplayUnit;
 };

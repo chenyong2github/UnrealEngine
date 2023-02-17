@@ -2,6 +2,7 @@
 
 #include "WaveformEditorStyle.h"
 
+#include "AudioWidgetsSlateTypes.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "WaveformEditorSlateTypes.h"
 #include "WaveformEditorWidgetsSettings.h"
@@ -45,10 +46,10 @@ void FWaveformEditorStyle::Init()
 	StyleInstance->SetParentStyleName("CoreStyle");
 
 	//Waveform Viewer style
-	FWaveformViewerStyle WaveViewerStyle = FWaveformViewerStyle()
-		.SetWaveformColor(Settings->WaveformColor)
+	FSampledSequenceViewerStyle WaveViewerStyle = FSampledSequenceViewerStyle()
+		.SetSequenceColor(Settings->WaveformColor)
 		.SetBackgroundColor(Settings->WaveformBackgroundColor)
-		.SetWaveformLineThickness(Settings->WaveformLineThickness)
+		.SetSequenceLineThickness(Settings->WaveformLineThickness)
 		.SetSampleMarkersSize(Settings->SampleMarkersSize)
 		.SetMajorGridLineColor(Settings->MajorGridColor)
 		.SetMinorGridLineColor(Settings->MinorGridColor)
@@ -85,13 +86,13 @@ const UWaveformEditorWidgetsSettings* FWaveformEditorStyle::GetWidgetsSettings()
 
 void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, const UWaveformEditorWidgetsSettings* Settings)
 {
-	TSharedRef<FWaveformViewerStyle> WaveformViewerStyle = GetRegisteredWidgetStyle<FWaveformViewerStyle>(WaveformViewerStyleName);
+	TSharedRef<FSampledSequenceViewerStyle> WaveformViewerStyle = GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>(WaveformViewerStyleName);
 	TSharedRef<FWaveformViewerOverlayStyle> WaveformViewerOverlayStyle = GetRegisteredWidgetStyle<FWaveformViewerOverlayStyle>(WaveformViewerOverlayStyleName);
 	TSharedRef<FWaveformEditorTimeRulerStyle> WaveformEditorTimeRulerStyle = GetRegisteredWidgetStyle<FWaveformEditorTimeRulerStyle>(WaveformEditorRulerStyleName);
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, WaveformColor))
 	{
-		WaveformViewerStyle->SetWaveformColor(Settings->WaveformColor);
+		WaveformViewerStyle->SetSequenceColor(Settings->WaveformColor);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, WaveformBackgroundColor))
 	{
@@ -99,7 +100,7 @@ void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, co
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, WaveformLineThickness))
 	{
-		WaveformViewerStyle->SetWaveformLineThickness(Settings->WaveformLineThickness);
+		WaveformViewerStyle->SetSequenceLineThickness(Settings->WaveformLineThickness);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, SampleMarkersSize))
 	{

@@ -2,9 +2,25 @@
 
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "Styling/SlateTypes.h"
 
 #include "AudioWidgetsSlateTypes.generated.h"
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioWidgetStyleUpdated, const FNotifyingAudioWidgetStyle* /*Updated Widget Style*/);
+
+USTRUCT()
+struct FNotifyingAudioWidgetStyle : public FSlateWidgetStyle
+{
+	GENERATED_USTRUCT_BODY()
+
+	FNotifyingAudioWidgetStyle() = default;
+	virtual ~FNotifyingAudioWidgetStyle() = default;
+
+	virtual void BroadcastStyleUpdate() const { OnStyleUpdated.Broadcast(this); }
+
+	FOnAudioWidgetStyleUpdated OnStyleUpdated;
+};
 
 /**
  * Represents the appearance of an Audio Text Box 
@@ -168,6 +184,67 @@ struct AUDIOWIDGETS_API FAudioRadialSliderStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	float DefaultSliderRadius;
 	FAudioRadialSliderStyle& SetDefaultSliderRadius(const float& InDefaultSliderRadius) { DefaultSliderRadius = InDefaultSliderRadius; return *this; }
+};
+
+/**
+ * Represents the appearance of a Sampled Sequence Viewer
+ */
+USTRUCT(BlueprintType)
+struct AUDIOWIDGETS_API FSampledSequenceViewerStyle : public FNotifyingAudioWidgetStyle
+{
+	GENERATED_USTRUCT_BODY()
+
+	FSampledSequenceViewerStyle();
+
+	static const FSampledSequenceViewerStyle& GetDefault();
+	virtual const FName GetTypeName() const override { return TypeName; };
+	virtual void GetResources(TArray< const FSlateBrush* >& OutBrushes) const override;
+
+	static const FName TypeName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateColor SequenceColor;
+	FSampledSequenceViewerStyle& SetSequenceColor(const FSlateColor InSequenceColor) { SequenceColor = InSequenceColor; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float SequenceLineThickness;
+	FSampledSequenceViewerStyle& SetSequenceLineThickness(const float InSequenceLineThickness) { SequenceLineThickness = InSequenceLineThickness; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateColor MajorGridLineColor;
+	FSampledSequenceViewerStyle& SetMajorGridLineColor(const FSlateColor InMajorGridLineColor) { MajorGridLineColor = InMajorGridLineColor; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateColor MinorGridLineColor;
+	FSampledSequenceViewerStyle& SetMinorGridLineColor(const FSlateColor InMinorGridLineColor) { MinorGridLineColor = InMinorGridLineColor; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateColor ZeroCrossingLineColor;
+	FSampledSequenceViewerStyle& SetZeroCrossingLineColor(const FSlateColor InZeroCrossingLineColor) { ZeroCrossingLineColor = InZeroCrossingLineColor; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float ZeroCrossingLineThickness;
+	FSampledSequenceViewerStyle& SetZeroCrossingLineThickness(const float InZeroCrossingLineThickness) { ZeroCrossingLineThickness = InZeroCrossingLineThickness; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float SampleMarkersSize;
+	FSampledSequenceViewerStyle& SetSampleMarkersSize(const float InSampleMarkersSize) { SampleMarkersSize = InSampleMarkersSize; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateColor SequenceBackgroundColor;
+	FSampledSequenceViewerStyle& SetBackgroundColor(const FSlateColor InBackgroundColor) { SequenceBackgroundColor = InBackgroundColor; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateBrush BackgroundBrush;
+	FSampledSequenceViewerStyle& SetBackgroundBrush(const FSlateBrush InBackgroundBrush) { BackgroundBrush = InBackgroundBrush; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float DesiredWidth;
+	FSampledSequenceViewerStyle& SetDesiredWidth(const float InDesiredWidth) { DesiredWidth = InDesiredWidth; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float DesiredHeight;
+	FSampledSequenceViewerStyle& SetDesiredHeight(const float InDesiredHeight) { DesiredHeight = InDesiredHeight; BroadcastStyleUpdate(); return *this; }
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

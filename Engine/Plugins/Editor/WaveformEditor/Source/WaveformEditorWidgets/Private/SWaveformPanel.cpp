@@ -4,7 +4,7 @@
 
 #include "SWaveformEditorTimeRuler.h"
 #include "SWaveformTransformationsOverlay.h"
-#include "SWaveformViewer.h"
+#include "SSampledSequenceViewer.h"
 #include "SWaveformViewerOverlay.h"
 #include "WaveformEditorDisplayUnit.h"
 #include "WaveformEditorGridData.h"
@@ -23,8 +23,16 @@ void SWaveformPanel::Construct(const FArguments& InArgs, TSharedRef<FWaveformEdi
 	WaveformEditorStyle = &FWaveformEditorStyle::Get();
 	check(WaveformEditorStyle);
 
-	SetUpGridData(InRenderData, InTransportCoordinator);
-	SetUpWaveformViewer(InRenderData, InTransportCoordinator, InZoomManager, GridData.ToSharedRef());
+	RenderData = InRenderData;
+	GenerateFloatRenderData();
+	InRenderData->OnRenderDataUpdated.AddSP(this, &SWaveformPanel::OnRenderDataUpdated);
+
+	TransportCoordinator = InTransportCoordinator;
+	TransportCoordinator->OnDisplayRangeUpdated.AddSP(this, &SWaveformPanel::OnDisplayRangeUpdated);
+
+	SetUpGridData(InRenderData);
+	SetUpWaveformViewer(GridData.ToSharedRef(), InRenderData);
+	SetUpZoomManager(InZoomManager, InTransportCoordinator);
 
 	if (InWaveformTransformationsOverlay)
 	{
@@ -32,7 +40,7 @@ void SWaveformPanel::Construct(const FArguments& InArgs, TSharedRef<FWaveformEdi
 	}
 	
 	SetUpWaveformViewerOverlay(InTransportCoordinator, InZoomManager);
-	SetUpTimeRuler(InRenderData, InTransportCoordinator, GridData.ToSharedRef());
+	SetUpTimeRuler(InTransportCoordinator, GridData.ToSharedRef());
 	CreateLayout();
 }
 
@@ -75,14 +83,13 @@ void SWaveformPanel::CreateLayout()
 	];
 }
 
-void SWaveformPanel::SetUpTimeRuler(TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorGridData> InGridData)
+void SWaveformPanel::SetUpTimeRuler(TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorGridData> InGridData)
 {
 	FWaveformEditorTimeRulerStyle* TimeRulerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FWaveformEditorTimeRulerStyle>("WaveformEditorRuler.Style").Get();
 	check(TimeRulerStyle);
 
-	TimeRuler = SNew(SWaveformEditorTimeRuler, InTransportCoordinator, InRenderData).DisplayUnit(DisplayUnit).Style(TimeRulerStyle);
+	TimeRuler = SNew(SWaveformEditorTimeRuler, InTransportCoordinator, InGridData).DisplayUnit(DisplayUnit).Style(TimeRulerStyle);
 	TimeRulerStyle->OnStyleUpdated.AddSP(TimeRuler.ToSharedRef(), &SWaveformEditorTimeRuler::OnStyleUpdated);
-	InGridData->OnGridMetricsUpdated.AddSP(TimeRuler.ToSharedRef(), &SWaveformEditorTimeRuler::UpdateGridMetrics);
 	TimeRuler->OnTimeUnitMenuSelection.AddSP(this, &SWaveformPanel::UpdateDisplayUnit);
 }
 
@@ -91,32 +98,89 @@ void SWaveformPanel::SetUpWaveformViewerOverlay(TSharedRef<FWaveformEditorTransp
 	FWaveformViewerOverlayStyle* OverlayStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FWaveformViewerOverlayStyle>("WaveformViewerOverlay.Style").Get();
 	check(OverlayStyle);
 
-	WaveformViewerOverlay = SNew(SWaveformViewerOverlay, InTransportCoordinator, WaveformTransformationsOverlay.ToSharedRef()).Style(OverlayStyle);
+	WaveformViewerOverlay = SNew(SWaveformViewerOverlay, InTransportCoordinator, WaveformTransformationsOverlay.ToSharedRef(), GridData.ToSharedRef()).Style(OverlayStyle);
 	OverlayStyle->OnStyleUpdated.AddSP(WaveformViewerOverlay.ToSharedRef(), &SWaveformViewerOverlay::OnStyleUpdated);
 	WaveformViewerOverlay->OnNewMouseDelta.BindSP(InZoomManager, &FWaveformEditorZoomController::ZoomByDelta);
 }
 
-void SWaveformPanel::SetUpWaveformViewer(TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FWaveformEditorGridData> InGridData)
+void SWaveformPanel::SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InGridData, TSharedRef<FWaveformEditorRenderData> InRenderData)
 {
-	FWaveformViewerStyle* WaveViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FWaveformViewerStyle>("WaveformViewer.Style").Get();
+	FSampledSequenceViewerStyle* WaveViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
 	check(WaveViewerStyle);
 	
-	WaveformViewer = SNew(SWaveformViewer, InRenderData, InTransportCoordinator).Style(WaveViewerStyle);
-	WaveViewerStyle->OnStyleUpdated.AddSP(WaveformViewer.ToSharedRef(), &SWaveformViewer::OnStyleUpdated);
-	InZoomManager->OnZoomRatioChanged.AddSP(InTransportCoordinator, &FWaveformEditorTransportCoordinator::OnZoomLevelChanged);
-	InGridData->OnGridMetricsUpdated.AddSP(WaveformViewer.ToSharedRef(), &SWaveformViewer::UpdateGridMetrics);
+	InGridData->UpdateGridMetrics(WaveViewerStyle->DesiredWidth);
+	TimeSeriesDrawingUtils::FSampledSequenceDrawingParams WaveformViewerDrawingParams;
+	WaveformViewerDrawingParams.MaxDisplayedValue = TNumericLimits<int16>::Max();
+
+	WaveformViewer = SNew(SSampledSequenceViewer, MakeArrayView(FloatRenderData.GetData(), FloatRenderData.Num()), InRenderData->GetNumChannels(), InGridData).Style(WaveViewerStyle).SequenceDrawingParams(WaveformViewerDrawingParams);
+	WaveViewerStyle->OnStyleUpdated.AddSP(WaveformViewer.ToSharedRef(), &SSampledSequenceViewer::OnStyleUpdated);
 }
 
-void SWaveformPanel::SetUpGridData(TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator)
+void SWaveformPanel::SetUpGridData(TSharedRef<FWaveformEditorRenderData> InRenderData)
 {
-	GridData = MakeShared<FWaveformEditorGridData>(InRenderData);
-	InTransportCoordinator->OnDisplayRangeUpdated.AddSP(GridData.ToSharedRef(), &FWaveformEditorGridData::UpdateDisplayRange);
+	GridData = MakeShared<FWaveformEditorGridData>(InRenderData->GetNumSamples() / InRenderData->GetNumChannels(), InRenderData->GetSampleRate());
 
 	const ISlateStyle* WaveEditorStyle = FSlateStyleRegistry::FindSlateStyle("WaveformEditorStyle");
 	if (ensure(WaveEditorStyle))
 	{
 		const FWaveformEditorTimeRulerStyle& RulerStyle = WaveEditorStyle->GetWidgetStyle<FWaveformEditorTimeRulerStyle>("WaveformEditorRuler.Style");
 		GridData->SetTicksTimeFont(&RulerStyle.TicksTextFont);
+	}
+}
+
+void SWaveformPanel::SetUpZoomManager(TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator)
+{
+	InZoomManager->OnZoomRatioChanged.AddSP(InTransportCoordinator, &FWaveformEditorTransportCoordinator::OnZoomLevelChanged);
+}
+
+void SWaveformPanel::OnRenderDataUpdated()
+{
+	check(TransportCoordinator)
+	OnDisplayRangeUpdated(TransportCoordinator->GetDisplayRange());
+}
+
+void SWaveformPanel::OnDisplayRangeUpdated(const TRange<float> NewDisplayRange)
+{
+	check (RenderData)
+
+	const uint8 MinFramesToDisplay = 1;
+	const uint32 MinSamplesToDisplay = MinFramesToDisplay * RenderData->GetNumChannels();
+	const uint32 NumOriginalSamples = RenderData->GetSampleData().Num();
+	const uint32 NumOriginalFrames = NumOriginalSamples / RenderData->GetNumChannels();
+
+	const uint32 FirstRenderedSample = FMath::Clamp(FMath::RoundToInt32(NumOriginalFrames * NewDisplayRange.GetLowerBoundValue()), 0, NumOriginalFrames - MinFramesToDisplay) * RenderData->GetNumChannels();	
+	const uint32 NumFramesToRender = FMath::RoundToInt32(NumOriginalFrames * NewDisplayRange.Size<float>());
+	const uint32 NumSamplesToRender = FMath::Clamp(NumFramesToRender * RenderData->GetNumChannels(), MinSamplesToDisplay, NumOriginalSamples - FirstRenderedSample);
+	
+	check(NumSamplesToRender % RenderData->GetNumChannels() == 0 && FirstRenderedSample % RenderData->GetNumChannels() == 0);
+	
+	if (GridData)
+	{
+		const uint32 FirstRenderedFrame = FirstRenderedSample / RenderData->GetNumChannels();
+		GridData->UpdateDisplayRange(TRange<uint32>(FirstRenderedFrame, FirstRenderedFrame + NumFramesToRender));
+	}
+
+	if (TimeRuler)
+	{
+		TimeRuler->UpdateGridMetrics();
+	}
+
+	if (WaveformViewer)
+	{
+		TArrayView<const float> RenderedView = MakeArrayView(FloatRenderData.GetData(), FloatRenderData.Num());
+		RenderedView = RenderedView.Slice(FirstRenderedSample, NumSamplesToRender);
+		WaveformViewer->UpdateView(RenderedView, RenderData->GetNumChannels());
+	}
+}
+
+void SWaveformPanel::GenerateFloatRenderData()
+{
+	TArrayView<const int16> SampleData = RenderData->GetSampleData();
+	FloatRenderData.SetNumUninitialized(SampleData.Num());
+
+	for (int32 Sample = 0; Sample < SampleData.Num(); ++Sample)
+	{
+		FloatRenderData[Sample] = SampleData[Sample];
 	}
 }
 
@@ -132,7 +196,11 @@ void SWaveformPanel::Tick(const FGeometry& AllottedGeometry, const double InCurr
 
 	if (PaintedWidth != CachedPixelWidth)
 	{
-		GridData->UpdateGridMetrics(PaintedWidth);
 		CachedPixelWidth = PaintedWidth;
+
+		if (GridData)
+		{
+			GridData->UpdateGridMetrics(PaintedWidth);
+		}	
 	}
 }

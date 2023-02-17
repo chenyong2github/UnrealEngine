@@ -12,7 +12,7 @@ class FWaveformEditorTransportCoordinator;
 class FWaveformEditorZoomController;
 class SWaveformEditorTimeRuler;
 class SWaveformTransformationsOverlay;
-class SWaveformViewer;
+class SSampledSequenceViewer;
 class SWaveformViewerOverlay;
 enum class EWaveformEditorDisplayUnit;
 
@@ -30,16 +30,27 @@ public:
 private: 
 	void CreateLayout();
 
-	void SetUpWaveformViewer(TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FWaveformEditorGridData> InGridData);
+	void SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InGridData, TSharedRef<FWaveformEditorRenderData> InRenderData);
 	void SetUpWaveformViewerOverlay(TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager);
-	void SetUpTimeRuler(TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorGridData> InGridData);
-	void SetUpGridData(TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator);
+	void SetUpTimeRuler(TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorGridData> InGridData);
+	void SetUpGridData(TSharedRef<FWaveformEditorRenderData> InRenderData);
+	void SetUpZoomManager(TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator);
+
+	void OnRenderDataUpdated();
+	void OnDisplayRangeUpdated(const TRange<float> NewDisplayRange);
+
+	//temporary float render data conversion while widget are made generic
+	void GenerateFloatRenderData();
+	TArray<float> FloatRenderData;
 
 	void UpdateDisplayUnit(const EWaveformEditorDisplayUnit InDisplayUnit);
 
+	TSharedPtr<FWaveformEditorRenderData> RenderData = nullptr;
 	TSharedPtr<FWaveformEditorGridData> GridData = nullptr;
+	TSharedPtr<FWaveformEditorTransportCoordinator> TransportCoordinator = nullptr;
+
 	TSharedPtr<SWaveformEditorTimeRuler> TimeRuler = nullptr;
-	TSharedPtr<SWaveformViewer> WaveformViewer = nullptr;
+	TSharedPtr<SSampledSequenceViewer> WaveformViewer = nullptr;
 	TSharedPtr<SWaveformTransformationsOverlay> WaveformTransformationsOverlay = nullptr;
 	TSharedPtr<SWaveformViewerOverlay> WaveformViewerOverlay = nullptr;
 
@@ -48,4 +59,5 @@ private:
 	EWaveformEditorDisplayUnit DisplayUnit;
 
 	FWaveformEditorStyle* WaveformEditorStyle;
+
 };

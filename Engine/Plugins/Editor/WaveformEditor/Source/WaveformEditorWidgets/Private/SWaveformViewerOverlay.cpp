@@ -2,13 +2,16 @@
 
 #include "SWaveformViewerOverlay.h"
 
+#include "ISampledSequenceGridService.h"
 #include "WaveformEditorTransportCoordinator.h"
+#include "WaveformEditorGridData.h"
 #include "Widgets/SLeafWidget.h"
 
-void SWaveformViewerOverlay::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<SWaveformTransformationsOverlay> InTransformationsOverlay)
+void SWaveformViewerOverlay::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<SWaveformTransformationsOverlay> InTransformationsOverlay, TSharedRef<ISampledSequenceGridService> InGridService)
 {
 	TransportCoordinator = InTransportCoordinator;
 	TransformationsOverlay = InTransformationsOverlay;
+	GridService = InGridService;
 
 	Style = InArgs._Style;
 	
@@ -80,7 +83,7 @@ int32 SWaveformViewerOverlay::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
 int32 SWaveformViewerOverlay::DrawPlayhead(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-	const float PlayHeadX = AllottedGeometry.GetLocalSize().X * TransportCoordinator->GetPlayheadPosition();
+	const float PlayHeadX = GridService->SnapPositionToClosestFrame(AllottedGeometry.GetLocalSize().X * TransportCoordinator->GetPlayheadPosition());
 
 	TArray<FVector2D> LinePoints;
 	{

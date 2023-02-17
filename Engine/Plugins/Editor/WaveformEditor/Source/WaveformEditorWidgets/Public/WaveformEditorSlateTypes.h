@@ -24,67 +24,6 @@ struct FWaveformEditorWidgetStyleBase : public FSlateWidgetStyle
 };
 
 /**
- * Represents the appearance of a Waveform Viewer
- */
-USTRUCT(BlueprintType)
-struct FWaveformViewerStyle : public FWaveformEditorWidgetStyleBase
-{
-	GENERATED_USTRUCT_BODY()
-
-	FWaveformViewerStyle();
-
-	static const FWaveformViewerStyle& GetDefault();
-	virtual const FName GetTypeName() const override { return TypeName; };
-	virtual void GetResources(TArray< const FSlateBrush* >& OutBrushes) const override;
-
-	static const FName TypeName;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	FSlateColor WaveformColor;
-	FWaveformViewerStyle& SetWaveformColor(const FSlateColor InWaveformColor) { WaveformColor = InWaveformColor; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	float WaveformLineThickness;
-	FWaveformViewerStyle& SetWaveformLineThickness(const float InWaveformLineThickness) { WaveformLineThickness = InWaveformLineThickness; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	FSlateColor MajorGridLineColor;
-	FWaveformViewerStyle& SetMajorGridLineColor(const FSlateColor InMajorGridLineColor) { MajorGridLineColor = InMajorGridLineColor; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	FSlateColor MinorGridLineColor;
-	FWaveformViewerStyle& SetMinorGridLineColor(const FSlateColor InMinorGridLineColor) { MinorGridLineColor = InMinorGridLineColor; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	FSlateColor ZeroCrossingLineColor;
-	FWaveformViewerStyle& SetZeroCrossingLineColor(const FSlateColor InZeroCrossingLineColor) { ZeroCrossingLineColor = InZeroCrossingLineColor; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	float ZeroCrossingLineThickness;
-	FWaveformViewerStyle& SetZeroCrossingLineThickness(const float InZeroCrossingLineThickness) { ZeroCrossingLineThickness = InZeroCrossingLineThickness; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	float SampleMarkersSize;
-	FWaveformViewerStyle& SetSampleMarkersSize(const float InSampleMarkersSize) { SampleMarkersSize = InSampleMarkersSize; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	FSlateColor WaveformBackgroundColor;
-	FWaveformViewerStyle& SetBackgroundColor(const FSlateColor InBackgroundColor) { WaveformBackgroundColor = InBackgroundColor; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	FSlateBrush BackgroundBrush;
-	FWaveformViewerStyle& SetBackgroundBrush(const FSlateBrush InBackgroundBrush) { BackgroundBrush = InBackgroundBrush; BroadcastStyleUpdate(); return *this; }
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	float DesiredWidth;
-	FWaveformViewerStyle& SetDesiredWidth(const float InDesiredWidth) { DesiredWidth = InDesiredWidth; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	float DesiredHeight;
-	FWaveformViewerStyle& SetDesiredHeight(const float InDesiredHeight) { DesiredHeight = InDesiredHeight; BroadcastStyleUpdate(); return *this; }
-};
-
-/**
  * Represents the appearance of a Waveform Viewer Overlay style
  */
 USTRUCT(BlueprintType)

@@ -5,16 +5,15 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "WaveformEditorRenderData.h"
 #include "WaveformEditorTransportCoordinator.h"
-
 
 #define LOCTEXT_NAMESPACE "WaveformEditorTimeRuler"
 
-void SWaveformEditorTimeRuler::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorRenderData> InRenderData)
+void SWaveformEditorTimeRuler::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<ISampledSequenceGridService> InGridService)
 {
 	TransportCoordinator = InTransportCoordinator;
-	RenderData = InRenderData;
+	GridService = InGridService;
+	UpdateGridMetrics();
 
 	DisplayUnit = InArgs._DisplayUnit;
 
@@ -99,12 +98,12 @@ void SWaveformEditorTimeRuler::DrawRulerTicks(const FGeometry& AllottedGeometry,
 
 		}
 
-		float TickTimeSeconds = MajorTickX / GridMetrics.PixelsPerSecond + GridMetrics.StartTime;
-		DrawTickTimeString(TickTimeSeconds, MajorTickX, MajorTickY, OutDrawElements, LayerId, AllottedGeometry);
+		uint32 TickFrame = FMath::RoundToInt32(MajorTickX / GridMetrics.PixelsPerFrame) + GridMetrics.StartFrame;
+		DrawTickTimeString(TickFrame, MajorTickX, MajorTickY, OutDrawElements, LayerId, AllottedGeometry);
 	}
 }
 
-void SWaveformEditorTimeRuler::DrawTickTimeString(float TickTimeSeconds, const double TickX, const double TickY, FSlateWindowElementList& OutDrawElements, int32& LayerId, const FGeometry& AllottedGeometry) const
+void SWaveformEditorTimeRuler::DrawTickTimeString(uint32 TickFrame, const double TickX, const double TickY, FSlateWindowElementList& OutDrawElements, int32& LayerId, const FGeometry& AllottedGeometry) const
 {
 	FString TimeString;
 
@@ -112,15 +111,15 @@ void SWaveformEditorTimeRuler::DrawTickTimeString(float TickTimeSeconds, const d
 	{
 	case EWaveformEditorDisplayUnit::Samples:
 	{
-		uint32 SampleTime = TickTimeSeconds * RenderData->GetSampleRate();
+		uint32 SampleTime = TickFrame;
 		TimeString = FString::Printf(TEXT("%d"), SampleTime);
 	}
 	break;
 	case EWaveformEditorDisplayUnit::Seconds:
-		TimeString = FString::Printf(TEXT("%.3f"), TickTimeSeconds);
+		TimeString = FString::Printf(TEXT("%.3f"), TickFrame / (float) GridMetrics.SampleRate);
 		break;
 	default:
-		TimeString = FString::Printf(TEXT("%.3f"), TickTimeSeconds);
+		TimeString = FString::Printf(TEXT("%.3f"), TickFrame / (float)GridMetrics.SampleRate);
 		break;
 	}
 
@@ -202,9 +201,10 @@ void SWaveformEditorTimeRuler::NotifyTimeUnitMenuSelection(const EWaveformEditor
 	}
 }
 
-void SWaveformEditorTimeRuler::UpdateGridMetrics(const FWaveEditorGridMetrics& InMetrics)
+void SWaveformEditorTimeRuler::UpdateGridMetrics()
 {
-	GridMetrics = InMetrics;
+	check(GridService)
+	GridMetrics = GridService->GetGridMetrics();
 }
 
 void SWaveformEditorTimeRuler::UpdateDisplayUnit(const EWaveformEditorDisplayUnit InDisplayUnit)
@@ -238,7 +238,8 @@ void SWaveformEditorTimeRuler::OnStyleUpdated(const FWaveformEditorWidgetStyleBa
 void SWaveformEditorTimeRuler::DrawPlayheadHandle(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
 {
 	const float WindowWidth = AllottedGeometry.Size.X;
-	const float	HandleStart = TransportCoordinator->GetPlayheadPosition() * WindowWidth - HandleWidth / 2;
+	const float SnappedHandleCenter = GridService->SnapPositionToClosestFrame(TransportCoordinator->GetPlayheadPosition() * WindowWidth);
+	const float	HandleStart = SnappedHandleCenter - HandleWidth / 2;
 	const float	HandleEnd = HandleStart + HandleWidth;
  	FPaintGeometry HandleGeometry = AllottedGeometry.ToPaintGeometry(FVector2f(HandleEnd - HandleStart, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(HandleStart, 0)));
 
