@@ -12,8 +12,6 @@ public class LyraGameTarget : TargetRules
 	public LyraGameTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
-		DefaultBuildSettings = BuildSettingsVersion.V2;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		ExtraModuleNames.AddRange(new string[] { "LyraGame" });
 
@@ -23,7 +21,10 @@ public class LyraGameTarget : TargetRules
 	private static bool bHasWarnedAboutShared = false;
 
 	internal static void ApplySharedLyraTargetSettings(TargetRules Target)
-    {
+	{
+		Target.DefaultBuildSettings = BuildSettingsVersion.V3;
+		Target.IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+
 		bool bIsTest = Target.Configuration == UnrealTargetConfiguration.Test;
 		bool bIsShipping = Target.Configuration == UnrealTargetConfiguration.Shipping;
 		bool bIsDedicatedServer = Target.Type == TargetType.Server;
@@ -64,7 +65,7 @@ public class LyraGameTarget : TargetRules
 			LyraGameTarget.ConfigureGameFeaturePlugins(Target);
 		}
 		else
-        {
+		{
 			// !!!!!!!!!!!! WARNING !!!!!!!!!!!!!
 			// Any changes in here must not affect PCH generation, or the target
 			// needs to be set to TargetBuildEnvironment.Unique
@@ -83,7 +84,7 @@ public class LyraGameTarget : TargetRules
 					Log.TraceWarning("LyraGameEOS and dynamic target options are disabled when packaging from an installed version of the engine");
 				}
 			}
-		}		
+		}
 	}
 
 	static public bool ShouldEnableAllGameFeaturePlugins(TargetRules Target)

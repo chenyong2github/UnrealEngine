@@ -2,7 +2,7 @@
 
 #include "TopDownArenaMovementComponent.h"
 
-#include "GameplayAbilities/Public/AbilitySystemGlobals.h"
+#include "AbilitySystemGlobals.h"
 #include "TopDownArenaAttributeSet.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TopDownArenaMovementComponent)
