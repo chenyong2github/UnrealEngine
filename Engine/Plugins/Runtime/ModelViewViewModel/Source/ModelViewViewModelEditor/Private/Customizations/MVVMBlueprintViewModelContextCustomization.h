@@ -51,12 +51,16 @@ private:
 	FText GetCreationTypeValue() const;
 	FText GetExecutionTypeValueToolTip() const;
 	void HandleClassChanged();
+	FText GetViewModalNameValueAsText() const;
+	void HandleNameTextCommitted(const FText& NewText, ETextCommit::Type /*CommitInfo*/);
+	bool HandleNameVerifyTextChanged(const FText& Text, FText& OutError) const;
 
 	FViewModelPropertyAccessEditor PropertyAccessEditor;
 	TWeakPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor;
 	TSharedPtr<IPropertyHandle> NotifyFieldValueClassHandle;
 	TSharedPtr<IPropertyHandle> PropertyPathHandle;
 	TSharedPtr<IPropertyHandle> CreationTypeHandle;
+	TSharedPtr<IPropertyHandle> ViewModelNameHandle;
 	TArray<EMVVMBlueprintViewModelContextCreationType> AllowedCreationTypes;
 };
 
