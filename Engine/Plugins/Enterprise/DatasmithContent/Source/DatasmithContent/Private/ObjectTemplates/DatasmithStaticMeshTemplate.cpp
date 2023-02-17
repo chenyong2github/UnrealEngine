@@ -255,7 +255,7 @@ UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool 
 	}
 
 	// Make sure that the StaticMaterials are in the same order than the StaticMeshLODResources.Sections will be after the StaticMesh is built (see BuildVertexBuffer in StaticMeshBuilder.cpp)
-	const int32 NumLODs = StaticMesh->GetNumLODs();
+	const int32 NumLODs = StaticMesh->GetNumSourceModels();
 	for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
 	{
 		const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription( LODIndex );
