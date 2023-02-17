@@ -20,7 +20,6 @@ namespace UE::PixelStreaming
 	class FStreamer : public IPixelStreamingStreamer, public TSharedFromThis<FStreamer>
 	{
 		friend class FPixelStreamingSignallingConnectionObserver;
-
 	public:
 		static TSharedPtr<FStreamer> Create(const FString& StreamerId);
 		virtual ~FStreamer();

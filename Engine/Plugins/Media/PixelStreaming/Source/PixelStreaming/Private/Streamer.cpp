@@ -40,15 +40,12 @@ namespace UE::PixelStreaming
 {
 	TSharedPtr<FStreamer> FStreamer::Create(const FString& StreamerId)
 	{
-		TSharedPtr<FStreamer> Streamer = TSharedPtr<FStreamer>(new FStreamer(StreamerId));
-		IPixelStreamingInputModule::Get().OnProtocolUpdated.AddSP(Streamer.ToSharedRef(), &FStreamer::OnProtocolUpdated);
-
-		return Streamer;
+		return TSharedPtr<FStreamer>(new FStreamer(StreamerId));
 	}
 
 	FStreamer::FStreamer(const FString& InStreamerId)
 		: StreamerId(InStreamerId)
-		, InputHandler(IPixelStreamingInputModule::Get().CreateInputHandler())
+		, InputHandler(IPixelStreamingInputModule::Get().GetInputHandler())
 		, Module(IPixelStreamingModule::Get())
 	{
 		VideoSourceGroup = FVideoSourceGroup::Create();
@@ -56,11 +53,14 @@ namespace UE::PixelStreaming
 
 		SignallingServerConnection = MakeShared<FPixelStreamingSignallingConnection>(Observer, InStreamerId);
 		SignallingServerConnection->SetAutoReconnect(true);
+
+		IPixelStreamingInputModule::Get().OnProtocolUpdated.AddRaw(this, &FStreamer::OnProtocolUpdated);
 	}
 
 	FStreamer::~FStreamer()
 	{
 		StopStreaming();
+		IPixelStreamingInputModule::Get().OnProtocolUpdated.RemoveAll(this);
 	}
 
 	void FStreamer::OnProtocolUpdated()
@@ -831,7 +831,7 @@ namespace UE::PixelStreaming
 
 		FString ConfigPayload = TEXT("{ ");
 		bool bComma = false; // Simplest way to avoid complaints from pedantic JSON parsers
-		for (const TPair<FName, FString>& Option : ConfigOptions)
+		for (const TPair<FName, FString>& Option: ConfigOptions)
 		{
 			if (bComma)
 			{
@@ -1050,7 +1050,7 @@ namespace UE::PixelStreaming
 			// Force a MouseLeave event. This prevents the PixelStreamingApplicationWrapper from
 			// still wrapping the base FSlateApplication after we stop streaming
 			TArray<uint8> EmptyArray;
-			TFunction<void(FMemoryReader)> MouseLeaveHandler = InputHandler->FindMessageHandler("MouseLeave");
+			TFunction<void(FMemoryReader)> MouseLeaveHandler = IPixelStreamingInputModule::Get().FindMessageHandler("MouseLeave");
 			// MouseLeaveHandler(FMemoryReader(EmptyArray));
 		}
 	}

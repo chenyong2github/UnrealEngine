@@ -174,7 +174,7 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 		// Update the default streamer to let it know out compositedframe size. This way it can correctly scale input from the browser
 		*CompositedFrameSize.Get() = CompositedFrame->GetSizeXY();
 		IPixelStreamingModule& Module = IPixelStreamingModule::Get();
-		OnFrameSizeChanged.Broadcast(CompositedFrameSize);
+		Module.GetStreamer("Editor")->SetTargetScreenSize(CompositedFrameSize);
 	}
 	TopLevelWindowsCriticalSection.Unlock();
 }

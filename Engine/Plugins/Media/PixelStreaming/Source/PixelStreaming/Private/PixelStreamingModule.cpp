@@ -101,6 +101,8 @@ namespace UE::PixelStreaming
 			return;
 		}
 
+		RegisterCustomHandlers();
+
 		// By calling InitDefaultStreamer post engine init we can use pixel streaming in standalone editor mode
 		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this, RHIType]() {
 			// Check to see if we can use the Pixel Streaming plugin on this platform.
@@ -263,9 +265,6 @@ namespace UE::PixelStreaming
 			}
 		}
 		NewStreamer->SetSignallingServerURL(SignallingServerURL);
-
-		// Ensure that this new streamer is able to handle pixel streaming relevant input
-		RegisterCustomHandlers(NewStreamer);
 
 		return NewStreamer;
 	}
@@ -438,54 +437,56 @@ namespace UE::PixelStreaming
 		return bCompatible;
 	}
 
-	void FPixelStreamingModule::RegisterCustomHandlers(TSharedPtr<IPixelStreamingStreamer> Streamer)
+	void FPixelStreamingModule::RegisterCustomHandlers()
 	{
-		if (TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin())
-		{
-			// Set Encoder.MinQP CVar
-			InputHandler->SetCommandHandler(TEXT("Encoder.MinQP"), [](FString Descriptor, FString MinQPString) {
-				int MinQP = FCString::Atoi(*MinQPString);
-				UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMinQP->Set(MinQP, ECVF_SetByCommandline);
-			});
+		IPixelStreamingInputModule& InputModule = IPixelStreamingInputModule::Get();
+		InputModule.RegisterMessage(EPixelStreamingMessageDirection::ToStreamer,
+			"UIInteraction",
+			FPixelStreamingInputMessage(50),
+			[this](FMemoryReader Ar) { HandleUIInteraction(Ar); });
 
-			// Set Encoder.MaxQP CVar
-			InputHandler->SetCommandHandler(TEXT("Encoder.MaxQP"), [](FString Descriptor, FString MaxQPString) {
-				int MaxQP = FCString::Atoi(*MaxQPString);
-				UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMaxQP->Set(MaxQP, ECVF_SetByCommandline);
-			});
+		TSharedPtr<IPixelStreamingInputHandler> InputHandler = InputModule.GetInputHandler();
+		// Set Encoder.MinQP CVar
+		InputHandler->SetCommandHandler(TEXT("Encoder.MinQP"), [](FString Descriptor, FString MinQPString) {
+			int MinQP = FCString::Atoi(*MinQPString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMinQP->Set(MinQP, ECVF_SetByCommandline);
+		});
 
-			// Set WebRTC max FPS
-			InputHandler->SetCommandHandler(TEXT("WebRTC.Fps"), [](FString Descriptor, FString FPSString) {
-				int FPS = FCString::Atoi(*FPSString);
-				UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps->Set(FPS, ECVF_SetByCommandline);
-			});
+		// Set Encoder.MaxQP CVar
+		InputHandler->SetCommandHandler(TEXT("Encoder.MaxQP"), [](FString Descriptor, FString MaxQPString) {
+			int MaxQP = FCString::Atoi(*MaxQPString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMaxQP->Set(MaxQP, ECVF_SetByCommandline);
+		});
 
-			// Set MinBitrate
-			InputHandler->SetCommandHandler(TEXT("WebRTC.MinBitrate"), [](FString Descriptor, FString MinBitrateString) {
-				int MinBitrate = FCString::Atoi(*MinBitrateString);
-				UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMinBitrate->Set(MinBitrate, ECVF_SetByCommandline);
-			});
+		// Set WebRTC max FPS
+		InputHandler->SetCommandHandler(TEXT("WebRTC.Fps"), [](FString Descriptor, FString FPSString) {
+			int FPS = FCString::Atoi(*FPSString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps->Set(FPS, ECVF_SetByCommandline);
+		});
 
-			// Set MaxBitrate
-			InputHandler->SetCommandHandler(TEXT("WebRTC.MaxBitrate"), [](FString Descriptor, FString MaxBitrateString) {
-				int MaxBitrate = FCString::Atoi(*MaxBitrateString);
-				UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMaxBitrate->Set(MaxBitrate, ECVF_SetByCommandline);
-			});
+		// Set MinBitrate
+		InputHandler->SetCommandHandler(TEXT("WebRTC.MinBitrate"), [](FString Descriptor, FString MinBitrateString) {
+			int MinBitrate = FCString::Atoi(*MinBitrateString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMinBitrate->Set(MinBitrate, ECVF_SetByCommandline);
+		});
 
-			FPixelStreamingInputProtocol::ToStreamerProtocol.Add("UIInteraction", FPixelStreamingInputMessage(50));
-			InputHandler->RegisterMessageHandler("UIInteraction", [this](FMemoryReader Ar) { HandleUIInteraction(Ar); });
+		// Set MaxBitrate
+		InputHandler->SetCommandHandler(TEXT("WebRTC.MaxBitrate"), [](FString Descriptor, FString MaxBitrateString) {
+			int MaxBitrate = FCString::Atoi(*MaxBitrateString);
+			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMaxBitrate->Set(MaxBitrate, ECVF_SetByCommandline);
+		});
 
-			// Handle sending commands to peers
-			TWeakPtr<IPixelStreamingStreamer> WeakStreamer = Streamer;
-			InputHandler->OnSendMessage.AddLambda([WeakStreamer](FMemoryReader Ar) {
-				if (TSharedPtr<IPixelStreamingStreamer> Streamer = WeakStreamer.Pin())
-				{
-					FString Descriptor;
-					Ar << Descriptor;
-					Streamer->SendPlayerMessage(FPixelStreamingInputProtocol::FromStreamerProtocol.Find("Command")->GetID(), Descriptor);
-				}
-			});
-		}
+		// Handle sending commands to peers
+		InputModule.OnSendMessage.AddRaw(this, &UE::PixelStreaming::FPixelStreamingModule::HandleSendCommand);
+	}
+
+	void FPixelStreamingModule::HandleSendCommand(FMemoryReader Ar)
+	{
+		FString Descriptor;
+		Ar << Descriptor;
+		ForEachStreamer([&Descriptor, this](TSharedPtr<IPixelStreamingStreamer> Streamer) {
+			Streamer->SendPlayerMessage(FPixelStreamingInputProtocol::FromStreamerProtocol.Find("Command")->GetID(), Descriptor);
+		});
 	}
 
 	void FPixelStreamingModule::HandleUIInteraction(FMemoryReader Ar)
@@ -516,27 +517,12 @@ namespace UE::PixelStreaming
 
 	void FPixelStreamingModule::RegisterMessage(EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler)
 	{
-		if (MessageDirection == EPixelStreamingMessageDirection::ToStreamer)
-		{
-			FPixelStreamingInputProtocol::ToStreamerProtocol.Add(MessageType, Message);
-			if (TSharedPtr<IPixelStreamingInputHandler> InputHandler = DefaultStreamer->GetInputHandler().Pin())
-			{
-				InputHandler->RegisterMessageHandler(MessageType, Handler);
-			}
-		}
-		else if (MessageDirection == EPixelStreamingMessageDirection::FromStreamer)
-		{
-			FPixelStreamingInputProtocol::FromStreamerProtocol.Add(MessageType, Message);
-		}
+		IPixelStreamingInputModule::Get().RegisterMessage(MessageDirection, MessageType, Message, Handler);
 	}
 
 	TFunction<void(FMemoryReader)> FPixelStreamingModule::FindMessageHandler(const FString& MessageType)
 	{
-		if (TSharedPtr<IPixelStreamingInputHandler> InputHandler = DefaultStreamer->GetInputHandler().Pin())
-		{
-			return InputHandler->FindMessageHandler(MessageType);
-		}
-		return [](FMemoryReader Ar) {};
+		return IPixelStreamingInputModule::Get().FindMessageHandler(MessageType);
 	}
 	/**
 	 * End deprecated methods

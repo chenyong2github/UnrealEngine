@@ -20,9 +20,6 @@ public:
 
 	virtual FString ToString() override;
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFrameSizeChanged, TWeakPtr<FIntPoint>);
-	FOnFrameSizeChanged OnFrameSizeChanged;
-
 private:
 	FPixelStreamingVideoInputBackBufferComposited();
 
