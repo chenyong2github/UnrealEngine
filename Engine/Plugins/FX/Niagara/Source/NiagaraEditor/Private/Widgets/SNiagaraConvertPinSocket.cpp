@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraConvertPinSocket.h"
-#include "NiagaraConvertNodeViewModel.h"
-#include "NiagaraConvertPinViewModel.h"
-#include "NiagaraConvertPinSocketViewModel.h"
+#include "ViewModels/NiagaraConvertNodeViewModel.h"
+#include "ViewModels/NiagaraConvertPinViewModel.h"
+#include "ViewModels/NiagaraConvertPinSocketViewModel.h"
 #include "ConnectionDrawingPolicy.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SButton.h"

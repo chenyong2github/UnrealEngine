@@ -5,7 +5,7 @@
 #include "IDetailTreeNode.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraSettings.h"
-#include "NiagaraSystemToolkit.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "Widgets/Scalability/SNiagaraSystemResolvedScalabilitySettings.h"

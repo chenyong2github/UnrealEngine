@@ -53,7 +53,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
-#include "NiagaraSystemToolkit.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 #include "ScopedTransaction.h"
 #include "Selection.h"
 #include "UpgradeNiagaraScriptResults.h"

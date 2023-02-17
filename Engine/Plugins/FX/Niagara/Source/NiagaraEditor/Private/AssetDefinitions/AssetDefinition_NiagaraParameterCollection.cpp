@@ -4,7 +4,7 @@
 
 #include "ContentBrowserMenuContexts.h"
 #include "NiagaraParameterCollection.h"
-#include "NiagaraParameterCollectionToolkit.h"
+#include "Toolkits/NiagaraParameterCollectionToolkit.h"
 #include "NiagaraParameterCollectionFactoryNew.h"
 #include "NiagaraEditorStyle.h"
 

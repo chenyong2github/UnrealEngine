@@ -2,7 +2,7 @@
 
 #include "NiagaraParameterCollectionToolkit.h"
 #include "NiagaraEditorModule.h"
-#include "SNiagaraParameterCollection.h"
+#include "Widgets/SNiagaraParameterCollection.h"
 
 #include "NiagaraObjectSelection.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
@@ -21,9 +21,9 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "NiagaraCollectionParameterViewModel.h"
+#include "ViewModels/NiagaraCollectionParameterViewModel.h"
 #include "NiagaraParameterCollection.h"
-#include "NiagaraParameterCollectionAssetViewModel.h"
+#include "ViewModels/NiagaraParameterCollectionAssetViewModel.h"
 
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"

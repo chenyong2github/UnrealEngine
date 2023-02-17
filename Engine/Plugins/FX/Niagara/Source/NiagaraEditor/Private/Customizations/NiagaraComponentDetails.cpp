@@ -42,7 +42,7 @@
 #include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
-#include "SNiagaraSystemUserParameters.h"
+#include "Widgets/SNiagaraSystemUserParameters.h"
 #include "SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 #include "Widgets/Input/SEditableTextBox.h"
 

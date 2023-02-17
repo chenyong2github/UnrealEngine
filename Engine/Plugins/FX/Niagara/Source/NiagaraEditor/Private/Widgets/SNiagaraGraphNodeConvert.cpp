@@ -2,9 +2,9 @@
 
 #include "SNiagaraGraphNodeConvert.h"
 #include "NiagaraNodeConvert.h"
-#include "NiagaraConvertNodeViewModel.h"
-#include "NiagaraConvertPinViewModel.h"
-#include "NiagaraConvertPinSocketViewModel.h"
+#include "ViewModels/NiagaraConvertNodeViewModel.h"
+#include "ViewModels/NiagaraConvertPinViewModel.h"
+#include "ViewModels/NiagaraConvertPinSocketViewModel.h"
 #include "SNiagaraConvertPinSocket.h"
 #include "GraphEditorSettings.h"
 #include "Rendering/DrawElements.h"

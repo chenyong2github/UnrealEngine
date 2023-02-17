@@ -11,7 +11,7 @@
 #include "NiagaraGraph.h"
 #include "NiagaraScriptVariable.h"
 #include "ScopedTransaction.h"
-#include "SNiagaraGraphParameterMapSetNode.h"
+#include "Widgets/SNiagaraGraphParameterMapSetNode.h"
 #include "Templates/SharedPointer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapSet)

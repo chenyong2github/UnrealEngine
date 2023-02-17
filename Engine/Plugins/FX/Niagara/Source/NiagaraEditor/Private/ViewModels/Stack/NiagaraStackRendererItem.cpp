@@ -12,7 +12,7 @@
 #include "NiagaraNodeAssignment.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraConstants.h"
-#include "NiagaraScriptGraphViewModel.h"
+#include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "NiagaraGraph.h"
 #include "ScopedTransaction.h"
 #include "NiagaraScriptSource.h"

@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "GraphEditor.h"
 #include "NiagaraActions.h"
-#include "NiagaraScriptGraphViewModel.h"
+#include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "SItemSelector.h"
 #include "SNiagaraFilterBox.h"
 #include "Widgets/Layout/SBorder.h"

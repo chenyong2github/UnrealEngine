@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SNiagaraSimCacheView.h"
-#include "SNiagaraSimCacheViewport.h"
+#include "Widgets/SNiagaraSimCacheView.h"
+#include "Widgets/SNiagaraSimCacheViewport.h"
 #include "Toolkits/IToolkitHost.h"
 #include "Toolkits/AssetEditorToolkit.h"
 

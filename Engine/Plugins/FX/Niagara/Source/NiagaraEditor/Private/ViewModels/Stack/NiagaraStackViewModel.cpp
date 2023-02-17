@@ -3,7 +3,7 @@
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 
 #include "NiagaraEmitterEditorData.h"
-#include "NiagaraScriptGraphViewModel.h"
+#include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "NiagaraStackEditorData.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"

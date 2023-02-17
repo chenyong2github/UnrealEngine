@@ -3,7 +3,7 @@
 #include "NiagaraNodeConvert.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
-#include "SNiagaraGraphNodeConvert.h"
+#include "Widgets/SNiagaraGraphNodeConvert.h"
 #include "NiagaraHlslTranslator.h"
 #include "UObject/UnrealType.h"
 #include "Kismet2/StructureEditorUtils.h"

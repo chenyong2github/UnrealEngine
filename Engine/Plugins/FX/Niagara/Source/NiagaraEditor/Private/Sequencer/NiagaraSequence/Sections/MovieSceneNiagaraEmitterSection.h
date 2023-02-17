@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MovieSceneNiagaraEmitterTrack.h"
+#include "Sequencer/NiagaraSequence/MovieSceneNiagaraEmitterTrack.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "NiagaraStackFunctionInputBinder.h"

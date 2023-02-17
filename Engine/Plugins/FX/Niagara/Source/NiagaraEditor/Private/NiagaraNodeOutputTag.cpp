@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeOutputTag.h"
 #include "NiagaraCustomVersion.h"
-#include "SNiagaraGraphNodeCustomHlsl.h"
+#include "Widgets/SNiagaraGraphNodeCustomHlsl.h"
 #include "EdGraphSchema_Niagara.h"
 #include "ScopedTransaction.h"
 #include "EdGraphSchema_Niagara.h"

@@ -6,7 +6,7 @@
 #include "NiagaraGraph.h"
 #include "NiagaraHlslTranslator.h"
 #include "ScopedTransaction.h"
-#include "SNiagaraGraphParameterMapGetNode.h"
+#include "Widgets/SNiagaraGraphParameterMapGetNode.h"
 #include "NiagaraEditorModule.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "Modules/ModuleManager.h"

@@ -28,7 +28,7 @@
 #include "KismetPins/SGraphPinVector4.h"
 #include "NiagaraNodeAssignment.h"
 #include "SGraphPin.h"
-#include "SNiagaraGraphPinAdd.h"
+#include "Widgets/SNiagaraGraphPinAdd.h"
 #include "SNiagaraGraphPinNumeric.h"
 
 #include "TypeEditorUtilities/NiagaraFloatTypeEditorUtilities.h"
@@ -140,13 +140,13 @@
 #include "ViewModels/Stack/NiagaraStackObjectIssueGenerator.h"
 #include "NiagaraPlatformSet.h"
 #include "NiagaraEffectType.h"
-#include "SNiagaraSystemViewport.h"
+#include "Widgets/SNiagaraSystemViewport.h"
 
 #include "LevelEditor.h"
 #include "LevelEditorOutlinerSettings.h"
 #include "Filters/CustomClassFilterData.h"
 
-#include "SNiagaraDebugger.h"
+#include "Widgets/SNiagaraDebugger.h"
 
 #include "NiagaraDebugVis.h"
 #include "NiagaraPerfBaseline.h"

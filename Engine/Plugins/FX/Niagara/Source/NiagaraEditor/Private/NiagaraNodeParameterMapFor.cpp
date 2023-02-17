@@ -3,7 +3,7 @@
 #include "NiagaraNodeParameterMapFor.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
-#include "SNiagaraGraphNodeConvert.h"
+#include "Widgets/SNiagaraGraphNodeConvert.h"
 #include "NiagaraHlslTranslator.h"
 #include "EdGraph/EdGraphNode.h"
 

@@ -2,8 +2,8 @@
 
 #include "SNiagaraParameterCollection.h"
 #include "NiagaraEditorModule.h"
-#include "NiagaraParameterCollectionViewModel.h"
-#include "NiagaraParameterViewModel.h"
+#include "ViewModels/NiagaraParameterCollectionViewModel.h"
+#include "ViewModels/NiagaraParameterViewModel.h"
 #include "NiagaraTypes.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "SNiagaraParameterEditor.h"

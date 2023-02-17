@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NiagaraBakerViewModel.h"
+#include "ViewModels/NiagaraBakerViewModel.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "GraphEditAction.h"

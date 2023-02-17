@@ -2,7 +2,7 @@
 
 #include "AssetDefinition_NiagaraParameterCollectionInstance.h"
 #include "NiagaraParameterCollection.h"
-#include "NiagaraParameterCollectionToolkit.h"
+#include "Toolkits/NiagaraParameterCollectionToolkit.h"
 #include "NiagaraEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_NiagaraParameterCollectionInstance"

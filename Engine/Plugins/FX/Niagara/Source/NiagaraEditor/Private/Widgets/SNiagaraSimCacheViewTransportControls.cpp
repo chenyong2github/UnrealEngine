@@ -7,7 +7,7 @@
 #include "EditorWidgetsModule.h"
 #include "SlateOptMacros.h"
 #include "ITransportControl.h"
-#include "NiagaraSimCacheViewModel.h"
+#include "ViewModels/NiagaraSimCacheViewModel.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 
 void SNiagaraSimCacheViewTransportControls::Construct(const FArguments& InArgs)

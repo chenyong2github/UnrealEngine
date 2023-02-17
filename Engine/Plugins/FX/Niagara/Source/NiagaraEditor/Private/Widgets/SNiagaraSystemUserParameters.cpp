@@ -7,7 +7,7 @@
 #include "NiagaraEditorUtilities.h"
 #include "Customizations/NiagaraComponentDetails.h"
 #include "Styling/StyleColors.h"
-#include "SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
+#include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"

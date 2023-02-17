@@ -6,12 +6,12 @@
 // Widgets & ViewModels
 #include "AdvancedPreviewSceneModule.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "NiagaraSimCacheViewModel.h"
-#include "SNiagaraSimCacheTreeView.h"
-#include "SNiagaraSimCacheOverview.h"
-#include "SNiagaraSimCacheViewport.h"
-#include "SNiagaraSimCacheViewTimeline.h"
-#include "SNiagaraSimCacheViewTransportControls.h"
+#include "ViewModels/NiagaraSimCacheViewModel.h"
+#include "Widgets/SNiagaraSimCacheTreeView.h"
+#include "Widgets/SNiagaraSimCacheOverview.h"
+#include "Widgets/SNiagaraSimCacheViewport.h"
+#include "Widgets/SNiagaraSimCacheViewTimeline.h"
+#include "Widgets/SNiagaraSimCacheViewTransportControls.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSimCacheToolkit"
 

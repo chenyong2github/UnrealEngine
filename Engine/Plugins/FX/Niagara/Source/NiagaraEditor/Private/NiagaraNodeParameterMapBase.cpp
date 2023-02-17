@@ -5,7 +5,7 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraNodeOutput.h"
 #include "ScopedTransaction.h"
-#include "SNiagaraGraphPinAdd.h"
+#include "Widgets/SNiagaraGraphPinAdd.h"
 #include "NiagaraGraph.h"
 #include "NiagaraComponent.h"
 #include "NiagaraScript.h"

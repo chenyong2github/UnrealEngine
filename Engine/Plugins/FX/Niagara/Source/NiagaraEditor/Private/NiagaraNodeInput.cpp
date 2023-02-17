@@ -11,7 +11,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraConstants.h"
 #include "NiagaraDataInterface.h"
-#include "SNiagaraGraphNodeInput.h"
+#include "Widgets/SNiagaraGraphNodeInput.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
 

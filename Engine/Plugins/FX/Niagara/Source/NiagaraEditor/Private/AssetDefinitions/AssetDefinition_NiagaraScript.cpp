@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetDefinition_NiagaraScript.h"
-#include "NiagaraScriptToolkit.h"
+#include "Toolkits/NiagaraScriptToolkit.h"
 #include "NiagaraEditorStyle.h"
 #include "AssetRegistry/AssetData.h"
 #include "NiagaraEditorUtilities.h"

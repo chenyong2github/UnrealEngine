@@ -2,9 +2,9 @@
 
 #include "SNiagaraSystemScript.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
-#include "NiagaraSystemScriptViewModel.h"
+#include "ViewModels/NiagaraSystemScriptViewModel.h"
 #include "ViewModels/NiagaraScriptViewModel.h"
-#include "NiagaraScriptInputCollectionViewModel.h"
+#include "ViewModels/NiagaraScriptInputCollectionViewModel.h"
 #include "SNiagaraParameterCollection.h"
 #include "Widgets/SNiagaraScriptGraph.h"
 

@@ -8,12 +8,6 @@ public class NiagaraEditor : ModuleRules
 	public NiagaraEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.AddRange(new string[] {
-			"NiagaraEditor/Private",
-			"NiagaraEditor/Private/Toolkits",
-			"NiagaraEditor/Private/Widgets",
-			"NiagaraEditor/Private/Sequencer/NiagaraSequence",
-			"NiagaraEditor/Private/ViewModels",
-			"NiagaraEditor/Private/TypeEditorUtilities",
 			Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
 		});
 

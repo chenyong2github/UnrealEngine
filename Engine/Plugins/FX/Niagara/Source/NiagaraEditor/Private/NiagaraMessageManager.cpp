@@ -6,7 +6,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "NiagaraMessages.h"
-#include "NiagaraScriptToolkit.h"
+#include "Toolkits/NiagaraScriptToolkit.h"
 #include "NiagaraEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "NiagaraEditorUtilities.h"

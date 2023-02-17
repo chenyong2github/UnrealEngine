@@ -5,7 +5,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraHlslTranslator.h"
 #include "GraphEditAction.h"
-#include "SNiagaraGraphNode.h"
+#include "Widgets/SNiagaraGraphNode.h"
 #include "Misc/SecureHash.h"
 #include "ToolMenuSection.h"
 #include "ToolMenu.h"

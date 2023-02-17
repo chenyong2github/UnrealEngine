@@ -5,7 +5,7 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystem.h"
 #include "ISequencerModule.h"
-#include "NiagaraSystemToolkit.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Modules/ModuleManager.h"

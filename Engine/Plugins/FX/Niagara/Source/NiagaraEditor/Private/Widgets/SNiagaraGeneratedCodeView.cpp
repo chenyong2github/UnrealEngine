@@ -13,7 +13,7 @@
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
-#include "NiagaraSystemScriptViewModel.h"
+#include "ViewModels/NiagaraSystemScriptViewModel.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "UObject/Class.h"

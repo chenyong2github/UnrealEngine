@@ -3,7 +3,7 @@
 #include "NiagaraSystemToolkitMode_Default.h"
 
 #include "NiagaraEditorCommands.h"
-#include "NiagaraSystemToolkit.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 #include "NiagaraDebuggerCommon.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorSettings.h"
