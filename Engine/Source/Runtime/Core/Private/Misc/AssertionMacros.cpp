@@ -591,7 +591,6 @@ void FORCENOINLINE FDebug::CheckVerifyFailedImpl(
 		AssertFailedImplV(Expr, File, Line, ProgramCounter, Format, Args);
 		va_end(Args);
 	}
-	PLATFORM_BREAK_IF_DESIRED_NONINLINE();
 }
 
 #endif // DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
@@ -624,38 +623,25 @@ void FDebug::ProcessFatalError(void* ProgramCounter)
 #if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
 FORCENOINLINE bool VARARGS FDebug::OptionallyLogFormattedEnsureMessageReturningFalseImpl( bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, ... )
 {
-	va_list Args;
-	va_start(Args, FormattedMsg);
-	OptionallyLogFormattedEnsureMessageReturningFalseImpl(bLog, Expr, File, Line, ProgramCounter, FormattedMsg, Args);
-	va_end(Args);
-
-	return false;
-}
-
-FORCENOINLINE bool FDebug::OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, va_list Args)
-{
 	if (bLog)
 	{
 		const int32 TempStrSize = 4096;
-		TCHAR TempStr[TempStrSize];
-		FCString::GetVarArgs(TempStr, TempStrSize, FormattedMsg, Args);
+		TCHAR TempStr[ TempStrSize ];
+		GET_VARARGS( TempStr, TempStrSize, TempStrSize - 1, FormattedMsg, FormattedMsg );
 
-		EnsureFailed(Expr, File, Line, ProgramCounter, TempStr);
+		EnsureFailed( Expr, File, Line, ProgramCounter, TempStr );
 	}
-
+	
 	return false;
 }
 #endif
 
-FORCENOINLINE void UE_DEBUG_SECTION VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format, ...)
+FORCENOINLINE void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format, ...)
 {
 	va_list Args;
 	va_start(Args, Format);
 	StaticFailDebugV(TEXT("LowLevelFatalError"), "", File, Line, /*bIsEnsure*/ false, ProgramCounter, Format, Args);
 	va_end(Args);
-
-	UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
-	FDebug::ProcessFatalError(ProgramCounter);
 }
 
 void FDebug::DumpStackTraceToLog(const ELogVerbosity::Type LogVerbosity)
@@ -688,29 +674,5 @@ FORCENOINLINE void FDebug::DumpStackTraceToLog(const TCHAR* Heading, const ELogV
 	FMemory::SystemFree(StackTrace);
 #endif
 }
-
-#if DO_ENSURE && !USING_CODE_ANALYSIS
-bool UE_DEBUG_SECTION VARARGS CheckVerifyImpl(bool& InOutExecuted, bool Always, const ANSICHAR* File, int32 Line, void* ProgramCounter, const ANSICHAR* Expr, const TCHAR* Format, ...)
-{
-	if ((!InOutExecuted || Always) && FPlatformMisc::IsEnsureAllowed())
-	{
-		InOutExecuted = true;
-		va_list Args;
-		va_start(Args, Format);
-		FDebug::OptionallyLogFormattedEnsureMessageReturningFalse(true, Expr, File, Line, ProgramCounter, Format, Args);
-		va_end(Args);
-
-		if (!FPlatformMisc::IsDebuggerPresent())
-		{
-			FPlatformMisc::PromptForRemoteDebugging(true);
-			return false;
-		}
-
-		PLATFORM_BREAK_IF_DESIRED_NONINLINE();
-		return true;
-	}
-	return false;
-}
-#endif
 
 #undef FILE_LINE_DESC_ANSI
