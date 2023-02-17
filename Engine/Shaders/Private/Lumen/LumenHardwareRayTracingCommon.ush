@@ -462,7 +462,7 @@ float3 CalculateDirectLighting(
 	uint SampleOffset = 0;
 	RandomSequence_Initialize(RandSequence, Context.LinearCoord, View.StateFrameIndex + SampleOffset * 16);
 	float MaxNormalBias = 0.05;
-	uint ReflectedShadowsType = 2;
+	uint ReflectedShadowsType = 1; // Point sampled shadows, as soft shadows can be too noisy with 1 sample and no denosing
 	bool bShouldDoDirectLighting = true;
 	bool bShouldDoEmissiveAndIndirectLighting = false;
 	bool bTopLayerRayTraceSkyLightContribution = false;
@@ -487,7 +487,11 @@ float3 CalculateDirectLighting(
 	return DirectLighting;
 }
 
-// Return approximate diffuse color as if the entire surface was diffuse in order to conserve energy in secondary bounces
+/**
+ * Return approximate diffuse color as if the entire surface was diffuse in order to conserve energy in secondary bounces
+ * Keep in sync with LumenCardPixelShader.usf
+ * #lumen_todo: refactor and merge with LumenCardPixelShader.usf to ensure that their logic is the same
+ */
 float3 GetApproxFullyRoughDiffuseColor(inout FPackedMaterialClosestHitPayload PackedPayload, in FRayDesc Ray)
 {
 	float3 DiffuseColor = 0.0f;
@@ -496,30 +500,39 @@ float3 GetApproxFullyRoughDiffuseColor(inout FPackedMaterialClosestHitPayload Pa
 	#if STRATA_ENABLED
 	{
 		const float3 V = -Ray.Direction;
-		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
 
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(true /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/);
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0, 0, 0);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(PackedPayload.StrataData, StrataAddressing, PackedPayload.StrataData);
 
 		Strata_for(uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
 		{
 			FStrataBSDF BSDF = UnpackStrataBSDF(PackedPayload.StrataData, StrataAddressing, StrataPixelHeader);
+			if (StrataIsBSDFVisible(BSDF))
+			{
+				// Create the BSDF context
+				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
+				const float3 BSDFThroughput = LuminanceWeight(StrataBSDFContext, BSDF);
 
-			// Create the BSDF context
-			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
-			const float3 BSDFThroughput = LuminanceWeight(StrataBSDFContext, BSDF);
+				// Evaluate environment lighting
+				FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);
 
-			// Evaluate environment lighting
-			FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);
-
-			DiffuseColor += BSDFThroughput * StrataEnvLight.DiffuseWeight;
-			SpecularColor += BSDFThroughput * StrataEnvLight.SpecularWeight;
+				DiffuseColor += BSDFThroughput * (StrataEnvLight.DiffuseWeight + StrataEnvLight.DiffuseBackFaceWeight);
+				SpecularColor += BSDFThroughput * StrataEnvLight.SpecularWeight;
+			}
 		}
 	}
 	#else
 	{
 		DiffuseColor = PackedPayload.GetDiffuseColor();
 		SpecularColor = PackedPayload.GetSpecularColor();
+
+		const uint ShadingModelID = PackedPayload.GetShadingModelID();
+		if (ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || ShadingModelID == SHADINGMODELID_SUBSURFACE)
+		{
+			// Add subsurface following EncodeSubsurfaceColor/ExtractSubsurfaceColor
+			DiffuseColor += Pow2(PackedPayload.GetCustomData().xyz);
+		}
 	}
 	#endif // STRATA_ENABLED
 
@@ -556,14 +569,22 @@ float3 CalculateRayTracedLighting(
 	}
 	else
 	{
+		float3 SurfaceCacheLookupNormal = RayHitWorldNormal;
+
+		// Reverse surface cache lookup normal to match non hit lighting path (usually surface cache is only valid on front faces)
+		if (Payload.IsTwoSided() && !Payload.IsFrontFace())
+		{
+			SurfaceCacheLookupNormal = -RayHitWorldNormal;
+		}
+
 		// The Surface Cache lighting was computed using the front face, don't leak to the backface
-		if (dot(Ray.Direction, RayHitWorldNormal) <= 0 || (Payload.GetFlags() | RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED))
+		if (dot(Ray.Direction, RayHitWorldNormal) <= 0 || Payload.IsTwoSided())
 		{
 			FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(
 				Ray,
 				Context,
 				RayHitTranslatedWorldPosition,
-				RayHitWorldNormal,
+				SurfaceCacheLookupNormal,
 				HitDistance,
 				SceneInstanceIndex);
 

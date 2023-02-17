@@ -577,6 +577,8 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	bool IsValid()							{ return any(StrataData.PackedTopLayerData != 0); }
 	uint  GetShadingModelID()				{ return IsValid() ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT; }
 	uint  GetFlags()						{ return (Flags & 0xFF); }
+	bool IsTwoSided()						{ return (Flags & RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED) != 0; }
+	bool IsFrontFace()						{ return (Flags & RAY_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0; }
 	uint  GetBlendingMode()					{ return (Flags >> 16u) & 0x7; }
 	uint  GetPrimitiveLightingChannelMask() { return (Flags >> 19u) & 0x7; }
 	float GetOpacity()						{ return UnpackR8(Flags >> 24u); }
@@ -807,6 +809,8 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint GetShadingModelID() { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 16) & 0xF; }
 	uint GetBlendingMode()   { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 20) & 0x7; }
 	uint GetFlags()          { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 23) & 0x3F; }
+	bool IsTwoSided()		 { return (GetFlags() & RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED) != 0; }
+	bool IsFrontFace()		 { return (GetFlags() & RAY_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0; }
 	uint GetPrimitiveLightingChannelMask() { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 29) & 0x7; }
 	float GetAnisotropy()    { return f16tof32(WorldTangentAndAnisotropy[1] >> 16); }
 	bool IsValid()			 { return GetShadingModelID() != SHADINGMODELID_UNLIT; }

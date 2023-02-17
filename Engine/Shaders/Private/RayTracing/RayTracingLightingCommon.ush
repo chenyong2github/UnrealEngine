@@ -376,6 +376,24 @@ float3 ComputeIndirectLighting(
 }
 #endif
 
+bool HasBackfaceDiffuse(FPackedMaterialClosestHitPayload Payload)
+{
+	#if STRATA_ENABLED
+	{
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0,0,0);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Payload.StrataData, StrataAddressing, Payload.StrataData);
+		const uint BSDFType = StrataGetBSDFType(StrataPixelHeader);
+		return BSDFType == STRATA_BSDF_TYPE_SLAB && HasSubsurface(StrataPixelHeader);
+	}
+	#else
+	{
+		const uint ShadingModelID = Payload.GetShadingModelID();
+		return ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE 
+			|| ShadingModelID == SHADINGMODELID_SUBSURFACE;
+	}
+	#endif
+}
+
 float3 ComputeDirectLighting(
 	in float3 TranslatedWorldPosition,
 	in float3 ViewDirection,
@@ -429,8 +447,11 @@ float3 ComputeDirectLighting(
 			}
 		}
 
-		// Skip the light sample pointing backwards
-		if (dot(Payload.GetWorldNormal(), normalize(ToLight)) <= 0)
+		const bool bHasBackfaceDiffuse = HasBackfaceDiffuse(Payload);
+		const bool bBackFace = dot(Payload.GetWorldNormal(), normalize(ToLight)) <= 0;
+
+		// We can skip the light sample pointing backwards if we don't need to compute backface diffuse (e.g. SHADINGMODELID_TWOSIDED_FOLIAGE)
+		if (bBackFace && !bHasBackfaceDiffuse)
 		{
 			Lit = 0;
 		}
@@ -460,7 +481,9 @@ float3 ComputeDirectLighting(
 		ShadowRay.Direction = ShadowRayDirection;
 		ShadowRay.TMin = 1e-4f;
 		ShadowRay.TMax = (ApplyShadow) ? ShadowRayLength : ShadowRay.TMin;
-		ApplyPositionBias(ShadowRay, Payload.GetWorldNormal(), ShadowMaxNormalBias);
+
+		// Always bias towards the light
+		ApplyPositionBias(ShadowRay, bBackFace ? -Payload.GetWorldNormal() : Payload.GetWorldNormal(), ShadowMaxNormalBias);
 
 		uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 		const uint InstanceInclusionMask = (ApplyShadow) ? RAY_TRACING_MASK_SHADOW : 0;
