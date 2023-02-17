@@ -5107,8 +5107,6 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 		{
 			// This is a stripped down version of UNetDriver::NotifyActorDestroy and UActorChannel::Close
 			// combined, and should be kept up to date with those methods.
-
-
 			if (UNetConnection* Connection = ClientConnections[0])
 			{
 				if (Actor->bNetTemporary)
@@ -5124,7 +5122,7 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 					Channel->ReleaseReferences(false);
 				}
 
-				Connection->CleanupDormantReplicatorsForActor(Actor);
+				Connection->NotifyActorDestroyed(Actor, IsSeamlessTravel);
 			}
 
 			GetNetworkObjectList().Remove(Actor);

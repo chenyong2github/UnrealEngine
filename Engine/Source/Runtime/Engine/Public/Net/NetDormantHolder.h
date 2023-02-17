@@ -5,6 +5,7 @@
 #include "UObject/ObjectKey.h"
 #include "Templates/SharedPointer.h"
 #include "Serialization/Archive.h"
+#include "Misc/NetworkGuid.h"
 
 class AActor;
 class FObjectReplicator;
@@ -14,6 +15,8 @@ namespace UE::Net
 {
 	/** Function definition allowed in the ForEach functions */
 	typedef TFunctionRef<void(FObjectKey OwnerActorKey, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)> FExecuteForEachDormantReplicator;
+
+	typedef TMap<FNetworkGUID, TWeakObjectPtr<UObject>> FDormantObjectMap;
 }
 
 namespace UE::Net::Private
@@ -176,6 +179,34 @@ struct FDormantReplicatorHolder
 	typedef TSet<FActorDormantReplicators, FActorDormantReplicatorsKeyFuncs> FActorReplicatorSet;
 	/** The TSet indexed by Actor that stores all their dormant object replicators */
 	FActorReplicatorSet ActorReplicatorSet;
+
+	/**
+	 * Retrieve stored set of replicated sub-objects of the given actor at the time of the last dormancy flush
+	 * This data is cleared when the actor is processed by ReplicateActor
+	 *
+	 * @param Actor		The actor to retrieve the object map for
+	 * @return A map of network guids to weak object pointers, or nullptr
+	 */
+	UE::Net::FDormantObjectMap* FindFlushedObjectsForActor(AActor* Actor);
+
+	/**
+	 * Retrieve stored set of replicated sub-objects of the given actor at the time of the last dormancy flush
+	 * This data is cleared when the actor is processed by ReplicateActor
+	 *
+	 * @param Actor		The actor to retrieve the object map for
+	 * @return A map of network guids to weak object pointers
+	 */
+	UE::Net::FDormantObjectMap& FindOrAddFlushedObjectsForActor(AActor* Actor);
+
+	/**
+	 * Clear stored flushed replicated sub-objects for a given actor, generally after replication or when the actor is destroyed
+	 *
+	 * @param Actor		The actor to clear the flushed object data for
+	 */
+	void ClearFlushedObjectsForActor(AActor* Actor);
+
+	/** Map of actors to guid/weakptr pairs from the last dormancy flush */
+	TMap<FObjectKey, UE::Net::FDormantObjectMap> FlushedObjectMap;
 };
 
 }//end namespace UE::Net::Private

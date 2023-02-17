@@ -3625,17 +3625,17 @@ bool UActorChannel::UpdateDeletedSubObjects(FOutBunch& Bunch)
 
 	bool bWroteSomethingImportant = false;
 
-	auto DeleteSubObject = [this, &bWroteSomethingImportant, &Bunch](const TSharedRef<FObjectReplicator>& SubObjectReplicator, const TWeakObjectPtr<UObject>& ObjectPtrToRemove, ESubObjectDeleteFlag DeleteFlag)
+	auto DeleteSubObject = [this, &bWroteSomethingImportant, &Bunch](FNetworkGUID ObjectNetGUID, const TWeakObjectPtr<UObject>& ObjectPtrToRemove, ESubObjectDeleteFlag DeleteFlag)
 	{
-		if (SubObjectReplicator->ObjectNetGUID.IsValid())
+		if (ObjectNetGUID.IsValid())
 		{
 			UE_NET_TRACE_SCOPE(ContentBlockForSubObjectDelete, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
-			UE_NET_TRACE_OBJECT_SCOPE(SubObjectReplicator->ObjectNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
+			UE_NET_TRACE_OBJECT_SCOPE(ObjectNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
 
-			UE_LOG(LogNetSubObject, Verbose, TEXT("NetSubObject: Sending request to %s %s::%s (0x%p) NetGUID %s"), ToString(DeleteFlag), *Actor->GetName(), *GetNameSafe(ObjectPtrToRemove.GetEvenIfUnreachable()), ObjectPtrToRemove.GetEvenIfUnreachable(), *SubObjectReplicator->ObjectNetGUID.ToString());
+			UE_LOG(LogNetSubObject, Verbose, TEXT("NetSubObject: Sending request to %s %s::%s (0x%p) NetGUID %s"), ToString(DeleteFlag), *Actor->GetName(), *GetNameSafe(ObjectPtrToRemove.GetEvenIfUnreachable()), ObjectPtrToRemove.GetEvenIfUnreachable(), *ObjectNetGUID.ToString());
 
 			// Write a deletion content header:
-			WriteContentBlockForSubObjectDelete(Bunch, SubObjectReplicator->ObjectNetGUID, DeleteFlag);
+			WriteContentBlockForSubObjectDelete(Bunch, ObjectNetGUID, DeleteFlag);
 
 			bWroteSomethingImportant = true;
 			Bunch.bReliable = true;
@@ -3644,9 +3644,18 @@ bool UActorChannel::UpdateDeletedSubObjects(FOutBunch& Bunch)
 		{
 			UE_LOG(LogNetTraffic, Error, TEXT("Unable to write subobject delete for %s::%s (0x%p), object replicator has invalid NetGUID"), *GetPathNameSafe(Actor), *GetNameSafe(ObjectPtrToRemove.GetEvenIfUnreachable()), ObjectPtrToRemove.GetEvenIfUnreachable());
 		}
-
-		SubObjectReplicator->CleanUp();
 	};
+
+	UE::Net::FDormantObjectMap* DormantObjects = Connection->GetDormantFlushedObjectsForActor(Actor);
+
+	if (DormantObjects)
+	{
+		// no need to track these if they're in the replication map
+		for (auto RepComp = ReplicationMap.CreateIterator(); RepComp; ++RepComp)
+		{
+			DormantObjects->Remove(RepComp.Value()->ObjectNetGUID);
+		}
+	}
 
 #if UE_REPLICATED_OBJECT_REFCOUNTING
 	TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> > SubObjectsRemoved;
@@ -3670,7 +3679,8 @@ bool UActorChannel::UpdateDeletedSubObjects(FOutBunch& Bunch)
 				{
 					const ESubObjectDeleteFlag DeleteFlag = SubObjectRef.IsTearOff() ? ESubObjectDeleteFlag::TearOff : ESubObjectDeleteFlag::ForceDelete;
 					SubObjectsRemoved.Add(SubObjectRef.SubObjectPtr);
-					DeleteSubObject(*SubObjectReplicator, SubObjectRef.SubObjectPtr, DeleteFlag);
+					DeleteSubObject((*SubObjectReplicator)->ObjectNetGUID, SubObjectRef.SubObjectPtr, DeleteFlag);
+					(*SubObjectReplicator)->CleanUp();
 					ReplicationMap.Remove(ObjectToRemove);
 				}
 			}
@@ -3704,9 +3714,27 @@ bool UActorChannel::UpdateDeletedSubObjects(FOutBunch& Bunch)
 			SubObjectsRemoved.Add(WeakObjPtr);
 #endif
 
-			DeleteSubObject(SubObjectReplicator, WeakObjPtr, ESubObjectDeleteFlag::Destroyed);
+			DeleteSubObject(SubObjectReplicator->ObjectNetGUID, WeakObjPtr, ESubObjectDeleteFlag::Destroyed);
+			SubObjectReplicator->CleanUp();
+
 			RepComp.RemoveCurrent();
 		}
+	}
+
+	if (DormantObjects)
+	{
+		for (auto DormComp = DormantObjects->CreateConstIterator(); DormComp; ++DormComp)
+		{
+			const FNetworkGUID& NetGuid = DormComp.Key();
+			const TWeakObjectPtr<UObject>& WeakObjPtr = DormComp.Value();
+
+			if (!WeakObjPtr.IsValid())
+			{
+				DeleteSubObject(NetGuid, WeakObjPtr, ESubObjectDeleteFlag::Destroyed);
+			}
+		}
+
+		Connection->ClearDormantFlushedObjectsForActor(Actor);
 	}
 
 #if UE_REPLICATED_OBJECT_REFCOUNTING

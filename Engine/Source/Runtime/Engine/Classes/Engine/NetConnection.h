@@ -1806,6 +1806,23 @@ protected:
 	TOptional<FNetworkCongestionControl> NetworkCongestionControl;
 
 	void InitChannelData();
+
+public:
+	/**
+	 * Retrieve stored set of replicated sub-objects of the given actor at the time of the last dormancy flush
+	 * This data is cleared when the actor is processed by ReplicateActor
+	 *
+	 * @param Actor		The actor to retrieve the object map for
+	 * @return A map of network guids to weak object pointers 
+	 */
+	UE::Net::FDormantObjectMap* GetDormantFlushedObjectsForActor(AActor* Actor);
+
+	/**
+	 * Clear stored flushed replicated sub-objects for a given actor, generally after replication or when the actor is destroyed
+	 *
+	 * @param Actor		The actor to clear the flushed object data for
+	 */
+	void ClearDormantFlushedObjectsForActor(AActor* Actor);
 };
 
 struct FScopedRepContext

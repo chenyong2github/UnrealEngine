@@ -114,7 +114,7 @@ DECLARE_CYCLE_STAT(TEXT("NetConnection Tick"), Stat_NetConnectionTick, STATGROUP
 DECLARE_CYCLE_STAT(TEXT("NetConnection ReceivedNak"), Stat_NetConnectionReceivedNak, STATGROUP_Net);
 DECLARE_CYCLE_STAT(TEXT("NetConnection NetConnectionReceivedAcks"), Stat_NetConnectionReceivedAcks, STATGROUP_Net);
 
-namespace UE_NetConnectionPrivate
+namespace UE::Net::Connection::Private
 {
 	struct FValidateLevelVisibilityResult
 	{
@@ -200,6 +200,9 @@ namespace UE_NetConnectionPrivate
 		Result = static_cast<int32>(Result64);
 		return false;
 	}
+
+	int32 bTrackFlushedDormantObjects = true;
+	FAutoConsoleVariableRef CVarNetTrackFlushedDormantObjects(TEXT("net.TrackFlushedDormantObjects"), bTrackFlushedDormantObjects, TEXT("If enabled, track dormant subobjects when dormancy is flushed, so they can be properly deleted if destroyed prior to the next ReplicateActor."));
 }
 
 // ChannelRecord Implementation
@@ -1521,7 +1524,7 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetConnection_UpdateLevelVisibilityInternal)
 
-	using namespace UE_NetConnectionPrivate;
+	using namespace UE::Net::Connection::Private;
 
 	GNumClientUpdateLevelVisibility++;
 
@@ -2171,7 +2174,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		if (!IsReplay())
 		{
 			int32 NewQueuedBits = 0;
-			const bool bWouldOverflow = UE_NetConnectionPrivate::Add_DetectOverflow_Clamp(QueuedBits, PacketBytes * 8, NewQueuedBits);
+			const bool bWouldOverflow = UE::Net::Connection::Private::Add_DetectOverflow_Clamp(QueuedBits, PacketBytes * 8, NewQueuedBits);
 
 			if (bWouldOverflow && !bLoggedFlushNetQueuedBitsOverflow)
 			{
@@ -2509,20 +2512,20 @@ void UNetConnection::WriteFinalPacketInfo(FBitWriter& Writer, const double Packe
 		uint32 ClockTimeMilliseconds = 0;
 
 		// If the delta is over our max precision, we send MAX value and jitter will be ignored by the receiver.
-		if (DeltaSendTimeInMS >= UE_NetConnectionPrivate::MaxJitterPrecisionInMS)
+		if (DeltaSendTimeInMS >= UE::Net::Connection::Private::MaxJitterPrecisionInMS)
 		{
-			ClockTimeMilliseconds = UE_NetConnectionPrivate::MaxJitterClockTimeValue;
+			ClockTimeMilliseconds = UE::Net::Connection::Private::MaxJitterClockTimeValue;
 		}
 		else
 		{
 			// Get the fractional part (milliseconds) of the clock time
-			ClockTimeMilliseconds = UE_NetConnectionPrivate::GetClockTimeMilliseconds(PacketSentTimeInS);
+			ClockTimeMilliseconds = UE::Net::Connection::Private::GetClockTimeMilliseconds(PacketSentTimeInS);
 
 			// Ensure we don't overflow
-			ClockTimeMilliseconds &= UE_NetConnectionPrivate::MaxJitterClockTimeValue;
+			ClockTimeMilliseconds &= UE::Net::Connection::Private::MaxJitterClockTimeValue;
 		}
 
-		Writer.SerializeInt(ClockTimeMilliseconds, UE_NetConnectionPrivate::MaxJitterClockTimeValue + 1);
+		Writer.SerializeInt(ClockTimeMilliseconds, UE::Net::Connection::Private::MaxJitterClockTimeValue + 1);
 
 #if !UE_BUILD_SHIPPING
 		checkf(Writer.GetNumBits() - BitsWrittenPreJitterClock == NetConnectionHelper::NumBitsForJitterClockTimeInHeader, TEXT("WriteFinalPacketInfo did not write the expected nb of bits: Wrote %d, Expected %d"),
@@ -2777,7 +2780,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 #endif
 				// Read jitter clock time from the packet header
 				uint32 PacketJitterClockTimeMS = 0;
-				Reader.SerializeInt(PacketJitterClockTimeMS, UE_NetConnectionPrivate::MaxJitterClockTimeValue + 1);
+				Reader.SerializeInt(PacketJitterClockTimeMS, UE::Net::Connection::Private::MaxJitterClockTimeValue + 1);
 
 #if !UE_BUILD_SHIPPING
 				static double LastJitterLogTime = 0.0;
@@ -4534,7 +4537,7 @@ void UNetConnection::Tick(float DeltaSeconds)
 
 		int32 NewQueuedBits = 0;
 		const int64 DeltaQueuedBits = -FMath::TruncToInt(DeltaBits);
-		const bool bWouldOverflow = UE_NetConnectionPrivate::Add_DetectOverflow_Clamp(QueuedBits, DeltaQueuedBits, NewQueuedBits);
+		const bool bWouldOverflow = UE::Net::Connection::Private::Add_DetectOverflow_Clamp(QueuedBits, DeltaQueuedBits, NewQueuedBits);
 
 		ensureMsgf(!bWouldOverflow, TEXT("UNetConnection::Tick: QueuedBits overflow detected! QueuedBits: %d, change: %lld, BandwidthDeltaTime: %.4f, DesiredTickRate: %.2f"),
 			QueuedBits, DeltaQueuedBits, BandwidthDeltaTime, DesiredTickRate);
@@ -4546,7 +4549,7 @@ void UNetConnection::Tick(float DeltaSeconds)
 		if (QueuedBits < AllowedLag)
 		{
 			int32 NewAllowedLag = 0;
-			const bool bAllowedLagOverflow = UE_NetConnectionPrivate::Add_DetectOverflow_Clamp(0, AllowedLag, NewAllowedLag);
+			const bool bAllowedLagOverflow = UE::Net::Connection::Private::Add_DetectOverflow_Clamp(0, AllowedLag, NewAllowedLag);
 
 			ensureMsgf(!bAllowedLagOverflow, TEXT("UNetConnection::Tick: AllowedLag overflow detected! AllowedLag: %lld, BandwidthDeltaTime: %.4f, DesiredTickRate: %.2f"),
 				AllowedLag, BandwidthDeltaTime, DesiredTickRate);
@@ -4860,13 +4863,38 @@ void UNetConnection::FlushDormancy(AActor* Actor)
 	{
 		FlushDormancyForObject( Actor, Actor );
 
-		// TODO: Is this set of objects sufficient? Should we query the dormancy map from the connection instead?
-		for ( UActorComponent* ActorComp : Actor->GetReplicatedComponents() )
+		const TArray<UActorComponent*>& ReplicatedComponents = Actor->GetReplicatedComponents();
+
+		UE::Net::FDormantObjectMap FlushedGuids;
+		if (UE::Net::Connection::Private::bTrackFlushedDormantObjects)
 		{
-			if ( ActorComp && ActorComp->GetIsReplicated() )
+			FlushedGuids.Reserve(ReplicatedComponents.Num());
+		}
+
+		// TODO: Is this set of objects sufficient? Should we query the dormancy map from the connection instead?
+		for (UActorComponent* ActorComp : ReplicatedComponents)
+		{
+			if (ActorComp && ActorComp->GetIsReplicated())
 			{
-				FlushDormancyForObject(Actor, ActorComp );
+				FlushDormancyForObject(Actor, ActorComp);
+
+				if (UE::Net::Connection::Private::bTrackFlushedDormantObjects)
+				{
+					// Searching for the guid because the value on the replicator built in FlushDormancyForObject can be invalid until the next replication
+					// We can then safely ignore any object that still has no guid, since it won't have ever been replicated
+					FNetworkGUID ObjectNetGUID = Driver->GuidCache->GetNetGUID(ActorComp);
+					if (ObjectNetGUID.IsValid())
+					{
+						FlushedGuids.Add(ObjectNetGUID, ActorComp);
+					}
+				}
 			}
+		}
+
+		if (UE::Net::Connection::Private::bTrackFlushedDormantObjects && !FlushedGuids.IsEmpty())
+		{
+			UE::Net::FDormantObjectMap& DormantObjects = DormantReplicatorSet.FindOrAddFlushedObjectsForActor(Actor);
+			DormantObjects.Append(FlushedGuids);
 		}
 	}
 
@@ -5218,6 +5246,16 @@ void UNetConnection::CleanupStaleDormantReplicators()
 	}
 }
 
+UE::Net::FDormantObjectMap* UNetConnection::GetDormantFlushedObjectsForActor(AActor* Actor)
+{
+	return DormantReplicatorSet.FindFlushedObjectsForActor(Actor);
+}
+
+void UNetConnection::ClearDormantFlushedObjectsForActor(AActor* Actor)
+{
+	DormantReplicatorSet.ClearFlushedObjectsForActor(Actor);
+}
+
 void UNetConnection::SetPendingCloseDueToReplicationFailure()
 {
 	bConnectionPendingCloseDueToReplicationFailure = true;
@@ -5300,13 +5338,13 @@ void UNetConnection::TrackReplicationForAnalytics(const bool bWasSaturated)
 
 void UNetConnection::ProcessJitter(uint32 PacketJitterClockTimeMS)
 {
-	if (PacketJitterClockTimeMS >= UE_NetConnectionPrivate::MaxJitterClockTimeValue)
+	if (PacketJitterClockTimeMS >= UE::Net::Connection::Private::MaxJitterClockTimeValue)
 	{
 		// Ignore this packet for jitter calculations
 		return;
 	}
 
-	const int32 CurrentClockTimeMilliseconds = UE_NetConnectionPrivate::GetClockTimeMilliseconds(LastReceiveRealtime);
+	const int32 CurrentClockTimeMilliseconds = UE::Net::Connection::Private::GetClockTimeMilliseconds(LastReceiveRealtime);
 
 	// Get the delta between the sent and receive clock time.
 	int32 CurrentJitterTimeDelta = CurrentClockTimeMilliseconds - (int32)PacketJitterClockTimeMS;
@@ -5314,7 +5352,7 @@ void UNetConnection::ProcessJitter(uint32 PacketJitterClockTimeMS)
 	if (CurrentJitterTimeDelta < 0)
 	{
 		// Account for wrap-around
-		CurrentJitterTimeDelta += UE_NetConnectionPrivate::MaxJitterPrecisionInMS;
+		CurrentJitterTimeDelta += UE::Net::Connection::Private::MaxJitterPrecisionInMS;
 	}
 
 	// Get the difference between the last two deltas
@@ -5323,7 +5361,7 @@ void UNetConnection::ProcessJitter(uint32 PacketJitterClockTimeMS)
 
 	// Add the value to the average and smooth it out to reduce divergences
 	const float PreviousJitterInMS = AverageJitterInMS;
-	AverageJitterInMS = PreviousJitterInMS + ((CurrentJitter - PreviousJitterInMS) / UE_NetConnectionPrivate::JitterNoiseReduction);
+	AverageJitterInMS = PreviousJitterInMS + ((CurrentJitter - PreviousJitterInMS) / UE::Net::Connection::Private::JitterNoiseReduction);
 
 	//UE_LOG(LogNetTraffic, Verbose, TEXT("Avg Jitter: %f | CurrentJitter: %f | CurrentTimeDelta: %d | PreviousTimeDelta: %d | ReceivedClockMilli %d | LocalClockMilli %d"), AverageJitterInMS, CurrentJitter, CurrentJitterTimeDelta, PreviousJitterTimeDelta, PacketJitterClockTimeMS, CurrentClockTimeMilliseconds);
 
@@ -5386,6 +5424,7 @@ void UNetConnection::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel /
 {
 	// Remove it from any dormancy lists
 	CleanupDormantReplicatorsForActor(Actor);
+	ClearDormantFlushedObjectsForActor(Actor);
 }
 
 void UNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason)
