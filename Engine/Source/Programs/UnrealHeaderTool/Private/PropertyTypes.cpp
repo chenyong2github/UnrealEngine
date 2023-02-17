@@ -2259,7 +2259,18 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 					TEXT("(unsigned)"),
 					TEXT("(signed)"),
 					TEXT("(unsigned int)"),
-					TEXT("(signed int)")
+					TEXT("(signed int)"),
+					TEXT("static_cast<uint32>"),
+					TEXT("static_cast<int32>"),
+					TEXT("static_cast<uint16>"),
+					TEXT("static_cast<int16>"),
+					TEXT("static_cast<uint8>"),
+					TEXT("static_cast<int8>"),
+					TEXT("static_cast<int>"),
+					TEXT("static_cast<unsigned>"),
+					TEXT("static_cast<signed>"),
+					TEXT("static_cast<unsigned int>"),
+					TEXT("static_cast<signed int>")
 				};
 				
 				// Remove any irrelevant whitespace

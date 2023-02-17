@@ -846,6 +846,17 @@ namespace EpicGames.UHT.Types
 			"(signed)",
 			"(unsigned int)",
 			"(signed int)",
+			"static_cast<uint32>",
+			"static_cast<int32>",
+			"static_cast<uint16>",
+			"static_cast<int16>",
+			"static_cast<uint8>",
+			"static_cast<int8>",
+			"static_cast<int>",
+			"static_cast<unsigned>",
+			"static_cast<signed>",
+			"static_cast<unsigned int>",
+			"static_cast<signed int>",
 		};
 
 		/// <summary>
