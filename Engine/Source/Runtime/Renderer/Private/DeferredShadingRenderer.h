@@ -42,6 +42,8 @@ namespace LumenRadianceCache
 }
 class FRenderLightParameters;
 class FRayTracingScene;
+class FNaniteVisibility;
+struct FNaniteVisibilityQuery;
 
 struct FSceneWithoutWaterTextures;
 struct FRayTracingReflectionOptions;
@@ -1204,6 +1206,14 @@ private:
 	static void PrepareLumenHardwareRayTracingRadiosityLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareLumenHardwareRayTracingDirectLightingLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 #endif // RHI_RAYTRACING
+
+
+	struct FNaniteBasePassVisibility
+	{
+		FNaniteVisibilityQuery* Query = nullptr;
+		FNaniteVisibility* Visibility = nullptr;
+
+	} NaniteBasePassVisibility;
 
 	/** Set to true if lights were injected into the light grid (this controlled by somewhat complex logic, this flag is used to cross-check). */
 	bool bAreLightsInLightGrid;

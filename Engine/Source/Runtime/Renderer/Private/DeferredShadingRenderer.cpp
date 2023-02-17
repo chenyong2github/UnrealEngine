@@ -2383,6 +2383,31 @@ void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FInitViewTaskDa
 	}
 
 	BeginGatherLumenLights(TaskDatas.LumenDirectLighting);
+
+	if (IsNaniteEnabled() && Views.Num() > 0)
+	{
+		TArray<FConvexVolume, TInlineAllocator<2>> NaniteCullingViews;
+
+		// For now we'll share the same visibility results across all views
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			FViewInfo& View = Views[ViewIndex];
+			NaniteCullingViews.Add(View.ViewFrustum);
+		}
+
+		FNaniteVisibility& NaniteVisibility = Scene->NaniteVisibility[ENaniteMeshPass::BasePass];
+		const FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[ENaniteMeshPass::BasePass];
+		const FNaniteRasterPipelines& NaniteRasterPipeline = Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass];
+
+		NaniteVisibility.BeginVisibilityFrame(NaniteRasterPipeline.GetBinIndexTranslator());
+
+		NaniteBasePassVisibility.Visibility = &NaniteVisibility;
+		NaniteBasePassVisibility.Query = NaniteVisibility.BeginVisibilityQuery(
+			NaniteCullingViews,
+			&NaniteRasterPipeline,
+			&NaniteMaterials
+		);
+	}
 }
 
 static TAutoConsoleVariable<float> CVarStallInitViews(
@@ -2683,34 +2708,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
 		BeginInitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, InstanceCullingManager, VirtualTextureUpdater.Get(), InitViewTaskDatas);
-	}
-
-	// GetBinIndexTranslator cannot be called before UpdateAllPrimitiveSceneInfos which can change the number of raster bins
-	FNaniteScopedVisibilityFrame NaniteVisibility(
-		bNaniteEnabled,
-		Scene->NaniteVisibility[ENaniteMeshPass::BasePass],
-		Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinIndexTranslator());
-
-	FNaniteVisibilityQuery* NaniteVisibilityQuery = nullptr;
-	if (bNaniteEnabled)
-	{
-		if (Views.Num() > 0)
-		{
-			TArray<FConvexVolume, TInlineAllocator<2>> NaniteCullingViews;
-
-			// For now we'll share the same visibility results across all views
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-			{
-				FViewInfo& View = Views[ViewIndex];
-				NaniteCullingViews.Add(View.ViewFrustum);
-			}
-
-			NaniteVisibilityQuery = NaniteVisibility.Get().BeginVisibilityQuery(
-				NaniteCullingViews,
-				&Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-				&Scene->NaniteMaterials[ENaniteMeshPass::BasePass]
-			);
-		}
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -3050,9 +3047,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			TRACE_CPUPROFILER_EVENT_SCOPE(InitNaniteRaster);
 
 			NaniteRasterResults.AddDefaulted(Views.Num());
-			if (NaniteVisibilityQuery != nullptr)
+			if (NaniteBasePassVisibility.Query != nullptr)
 			{
-				NaniteVisibility.Get().FinishVisibilityQuery(NaniteVisibilityQuery, NaniteRasterResults[0].VisibilityResults);
+				NaniteBasePassVisibility.Visibility->FinishVisibilityQuery(NaniteBasePassVisibility.Query, NaniteRasterResults[0].VisibilityResults);
 
 				// For now we'll share the same visibility results across all views
 				for (int32 ViewIndex = 1; ViewIndex < NaniteRasterResults.Num(); ++ViewIndex)
@@ -3219,6 +3216,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					}
 				}
 			}
+		}
+
+		if (NaniteBasePassVisibility.Visibility)
+		{
+			NaniteBasePassVisibility.Visibility->FinishVisibilityFrame();
 		}
 	}
 
