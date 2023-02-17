@@ -24,7 +24,8 @@ public class PixelInspectorModule : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
              new string[] {
 					"Engine",
-                    "UnrealEd"
+                    "UnrealEd",
+					"ColorManagement"
 				}
          );
 

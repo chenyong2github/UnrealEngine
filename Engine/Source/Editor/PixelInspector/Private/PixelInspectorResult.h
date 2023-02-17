@@ -42,7 +42,7 @@ namespace PixelInspector
 			Depth = 0.0f;
 			WorldPosition = FVector(0.0f);
 
-			HdrLuminance = 0.0f;
+			LuminanceBeforeTonemap = 0.0f;
 
 			Normal = FVector(0.0f);
 			PerObjectGBufferData = 0.0f;
@@ -83,17 +83,14 @@ namespace PixelInspector
 
 		//////////////////////////////////////////////////////////////////////////
 		// Scene color
-		FLinearColor SceneColor;
+		FLinearColor SceneColorBeforePostProcessing;
+		FLinearColor SceneColorBeforeTonemap;
+		float LuminanceBeforeTonemap;
 
 		//////////////////////////////////////////////////////////////////////////
 		// Depth and world position
 		float Depth;
 		FVector WorldPosition;
-
-		//////////////////////////////////////////////////////////////////////////
-		// HDR Values
-		float HdrLuminance;
-		FLinearColor HdrColor;
 
 		//////////////////////////////////////////////////////////////////////////
 		//Buffers value
@@ -138,12 +135,11 @@ namespace PixelInspector
 		float IrisMask;
 		float IrisDistance;
 
-		void DecodeFinalColor(TArray<FColor>& BufferFinalColorValue);
 		/** Decodes final color from HDR input. */
 		void DecodeFinalColor(TArray<FLinearColor> &BufferFinalColorValue, float InGamma, bool bHasAlphaChannel);
-		void DecodeSceneColor(TArray<FLinearColor> &BufferSceneColorValue);
+		void DecodeSceneColorBeforePostProcessing(TArray<FLinearColor> &BufferSceneColorValue);
 		void DecodeDepth(TArray<FLinearColor> &BufferDepthValue);
-		void DecodeHDR(TArray<FLinearColor> &BufferHDRValue, bool bHasAlphaChannel);
+		void DecodeSceneColorBeforeToneMap(TArray<FLinearColor>& BufferSceneColorValue, bool bHasAlphaChannel);
 
 		void DecodeBufferData(TArray<FColor> &BufferAValue, TArray<FColor> &BufferBCDEValue, bool AllowStaticLighting);
 		void DecodeBufferData(TArray<FLinearColor> &BufferAValue, TArray<FColor> &BufferBCDEValue, bool AllowStaticLighting);

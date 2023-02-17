@@ -16,6 +16,8 @@ namespace PixelInspector { class PixelInspectorResult; }
 
 #define FinalColorContextGridSize 7
 
+// Note: UPixelInspectorView is only ever created as a transient object, so making properties transient is redundant.
+
 UCLASS(HideCategories = Object, MinimalAPI)
 class UPixelInspectorView : public UObject
 {
@@ -23,25 +25,25 @@ class UPixelInspectorView : public UObject
 
 	FLinearColor FinalColorContext[FinalColorContextGridSize*FinalColorContextGridSize];
 
-	/** Final RGBA 8bits Color after tone mapping, default value is black. */
+	/** Final color in display space after tone mapping. */
 	UPROPERTY(VisibleAnywhere, category = FinalColor)
 	FLinearColor FinalColor;
 
-	/** HDR RGB Color. */
-	UPROPERTY(VisibleAnywhere, category = SceneColor)
-	FLinearColor SceneColor;
-
-	/** HDR Luminance. */
+	/** Amount of exposure applied to Scene Color due to auto-exposure and/or exposure compensation. */
 	UPROPERTY(VisibleAnywhere, category = SceneColor)
 	float PreExposure;
 
-	/** HDR Luminance. */
-	UPROPERTY(VisibleAnywhere, category = HDR)
-	float Luminance;
+	/** HDR scene-linear color in working color space, before post-processing. Previously called Scene Color. */
+	UPROPERTY(VisibleAnywhere, category = SceneColor, meta = (DisplayName = "Scene Color Before Post-Processing"))
+	FLinearColor SceneColorBeforePostProcessing;
 
-	/** HDR RGB Color. */
-	UPROPERTY(VisibleAnywhere, category = HDR)
-	FLinearColor HdrColor;
+	/** HDR scene-linear color in working color space, before tone mapping. Previously called Hdr Color. */
+	UPROPERTY(VisibleAnywhere, category = SceneColor)
+	FLinearColor SceneColorBeforeTonemap;
+
+	/** Luminance of the Scene Color Before Tonemap. */
+	UPROPERTY(VisibleAnywhere, category = SceneColor)
+	float LuminanceBeforeTonemap;
 
 	/** From the GBufferA RGB Channels. */
 	UPROPERTY(VisibleAnywhere, category = GBufferA)

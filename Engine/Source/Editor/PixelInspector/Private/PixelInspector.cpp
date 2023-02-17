@@ -62,10 +62,10 @@ namespace PixelInspector
 
 		Buffer_FinalColor_AnyFormat[0] = nullptr;
 		Buffer_FinalColor_AnyFormat[1] = nullptr;
-		Buffer_SceneColor_Float[0] = nullptr;
-		Buffer_SceneColor_Float[1] = nullptr;
-		Buffer_HDR_Float[0] = nullptr;
-		Buffer_HDR_Float[1] = nullptr;
+		Buffer_SceneColorBeforePost_Float[0] = nullptr;
+		Buffer_SceneColorBeforePost_Float[1] = nullptr;
+		Buffer_SceneColorBeforeToneMap_Float[0] = nullptr;
+		Buffer_SceneColorBeforeToneMap_Float[1] = nullptr;
 		Buffer_Depth_Float[0] = nullptr;
 		Buffer_Depth_Float[1] = nullptr;
 		Buffer_A_Float[0] = nullptr;
@@ -528,17 +528,17 @@ namespace PixelInspector
 			Buffer_FinalColor_AnyFormat[BufferIndex]->RemoveFromRoot();
 			Buffer_FinalColor_AnyFormat[BufferIndex] = nullptr;
 		}
-		if (Buffer_SceneColor_Float[BufferIndex] != nullptr)
+		if (Buffer_SceneColorBeforePost_Float[BufferIndex] != nullptr)
 		{
-			Buffer_SceneColor_Float[BufferIndex]->ClearFlags(RF_Standalone);
-			Buffer_SceneColor_Float[BufferIndex]->RemoveFromRoot();
-			Buffer_SceneColor_Float[BufferIndex] = nullptr;
+			Buffer_SceneColorBeforePost_Float[BufferIndex]->ClearFlags(RF_Standalone);
+			Buffer_SceneColorBeforePost_Float[BufferIndex]->RemoveFromRoot();
+			Buffer_SceneColorBeforePost_Float[BufferIndex] = nullptr;
 		}
-		if (Buffer_HDR_Float[BufferIndex] != nullptr)
+		if (Buffer_SceneColorBeforeToneMap_Float[BufferIndex] != nullptr)
 		{
-			Buffer_HDR_Float[BufferIndex]->ClearFlags(RF_Standalone);
-			Buffer_HDR_Float[BufferIndex]->RemoveFromRoot();
-			Buffer_HDR_Float[BufferIndex] = nullptr;
+			Buffer_SceneColorBeforeToneMap_Float[BufferIndex]->ClearFlags(RF_Standalone);
+			Buffer_SceneColorBeforeToneMap_Float[BufferIndex]->RemoveFromRoot();
+			Buffer_SceneColorBeforeToneMap_Float[BufferIndex] = nullptr;
 		}
 		if (Buffer_Depth_Float[BufferIndex] != nullptr)
 		{
@@ -594,12 +594,12 @@ namespace PixelInspector
 		//Release the old buffer
 		ReleaseBuffers(LastBufferIndex);
 
-		FTextureRenderTargetResource* FinalColorRenderTargetResource = nullptr;
-		FTextureRenderTargetResource* SceneColorRenderTargetResource = nullptr;
-		FTextureRenderTargetResource* HDRRenderTargetResource = nullptr;
-		FTextureRenderTargetResource* DepthRenderTargetResource = nullptr;
-		FTextureRenderTargetResource* BufferARenderTargetResource = nullptr;
-		FTextureRenderTargetResource* BufferBCDEFRenderTargetResource = nullptr;
+		FTextureRenderTargetResource* FinalColorResource = nullptr;
+		FTextureRenderTargetResource* SceneColorBeforePostResource = nullptr;
+		FTextureRenderTargetResource* SceneColorBeforeToneMapResource = nullptr;
+		FTextureRenderTargetResource* DepthResource = nullptr;
+		FTextureRenderTargetResource* BufferAResource = nullptr;
+		FTextureRenderTargetResource* BufferBCDEFResource = nullptr;
 		
 		//Final color can be in HDR (FloatRGBA) or RGB8 formats so we should rely on scene view extension to tell us which format is being used.
 		Buffer_FinalColor_AnyFormat[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferFinalColorTarget"), RF_Standalone);
@@ -607,23 +607,21 @@ namespace PixelInspector
 		Buffer_FinalColor_AnyFormat[LastBufferIndex]->InitCustomFormat(FinalColorContextGridSize, FinalColorContextGridSize, PixelInspectorSceneViewExtension->GetFinalColorPixelFormat(), true);
 		Buffer_FinalColor_AnyFormat[LastBufferIndex]->ClearColor = FLinearColor::Black;
 		Buffer_FinalColor_AnyFormat[LastBufferIndex]->UpdateResourceImmediate(true);
-		FinalColorRenderTargetResource = Buffer_FinalColor_AnyFormat[LastBufferIndex]->GameThread_GetRenderTargetResource();
+		FinalColorResource = Buffer_FinalColor_AnyFormat[LastBufferIndex]->GameThread_GetRenderTargetResource();
 
-		//Scene color is in RGB8 format
-		Buffer_SceneColor_Float[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferSceneColorTarget"), RF_Standalone);
-		Buffer_SceneColor_Float[LastBufferIndex]->AddToRoot();
-		Buffer_SceneColor_Float[LastBufferIndex]->InitCustomFormat(1, 1, PF_FloatRGBA, true);
-		Buffer_SceneColor_Float[LastBufferIndex]->ClearColor = FLinearColor::Black;
-		Buffer_SceneColor_Float[LastBufferIndex]->UpdateResourceImmediate(true);
-		SceneColorRenderTargetResource = Buffer_SceneColor_Float[LastBufferIndex]->GameThread_GetRenderTargetResource();
+		Buffer_SceneColorBeforePost_Float[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferSceneColorBeforePostTarget"), RF_Standalone);
+		Buffer_SceneColorBeforePost_Float[LastBufferIndex]->AddToRoot();
+		Buffer_SceneColorBeforePost_Float[LastBufferIndex]->InitCustomFormat(1, 1, PF_FloatRGBA, true);
+		Buffer_SceneColorBeforePost_Float[LastBufferIndex]->ClearColor = FLinearColor::Black;
+		Buffer_SceneColorBeforePost_Float[LastBufferIndex]->UpdateResourceImmediate(true);
+		SceneColorBeforePostResource = Buffer_SceneColorBeforePost_Float[LastBufferIndex]->GameThread_GetRenderTargetResource();
 
-		//HDR is in float RGB format
-		Buffer_HDR_Float[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferHDRTarget"), RF_Standalone);
-		Buffer_HDR_Float[LastBufferIndex]->AddToRoot();
-		Buffer_HDR_Float[LastBufferIndex]->InitCustomFormat(1, 1, PixelInspectorSceneViewExtension->GetHDRPixelFormat(), true);
-		Buffer_HDR_Float[LastBufferIndex]->ClearColor = FLinearColor::Black;
-		Buffer_HDR_Float[LastBufferIndex]->UpdateResourceImmediate(true);
-		HDRRenderTargetResource = Buffer_HDR_Float[LastBufferIndex]->GameThread_GetRenderTargetResource();
+		Buffer_SceneColorBeforeToneMap_Float[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferSceneColorBeforeTonemapTarget"), RF_Standalone);
+		Buffer_SceneColorBeforeToneMap_Float[LastBufferIndex]->AddToRoot();
+		Buffer_SceneColorBeforeToneMap_Float[LastBufferIndex]->InitCustomFormat(1, 1, PixelInspectorSceneViewExtension->GetHDRPixelFormat(), true);
+		Buffer_SceneColorBeforeToneMap_Float[LastBufferIndex]->ClearColor = FLinearColor::Black;
+		Buffer_SceneColorBeforeToneMap_Float[LastBufferIndex]->UpdateResourceImmediate(true);
+		SceneColorBeforeToneMapResource = Buffer_SceneColorBeforeToneMap_Float[LastBufferIndex]->GameThread_GetRenderTargetResource();
 
 		//TODO support Non render buffer to be able to read the depth stencil
 /*		Buffer_Depth_Float[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferDepthTarget"), RF_Standalone);
@@ -643,14 +641,14 @@ namespace PixelInspector
 			Buffer_A_RGB8[LastBufferIndex]->InitCustomFormat(1, 1, PF_B8G8R8A8, true);
 			Buffer_A_RGB8[LastBufferIndex]->ClearColor = FLinearColor::Black;
 			Buffer_A_RGB8[LastBufferIndex]->UpdateResourceImmediate(true);
-			BufferARenderTargetResource = Buffer_A_RGB8[LastBufferIndex]->GameThread_GetRenderTargetResource();
+			BufferAResource = Buffer_A_RGB8[LastBufferIndex]->GameThread_GetRenderTargetResource();
 
 			Buffer_BCDEF_RGB8[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferBTarget"), RF_Standalone );
 			Buffer_BCDEF_RGB8[LastBufferIndex]->AddToRoot();
 			Buffer_BCDEF_RGB8[LastBufferIndex]->InitCustomFormat(4, 1, PF_B8G8R8A8, true);
 			Buffer_BCDEF_RGB8[LastBufferIndex]->ClearColor = FLinearColor::Black;
 			Buffer_BCDEF_RGB8[LastBufferIndex]->UpdateResourceImmediate(true);
-			BufferBCDEFRenderTargetResource = Buffer_BCDEF_RGB8[LastBufferIndex]->GameThread_GetRenderTargetResource();
+			BufferBCDEFResource = Buffer_BCDEF_RGB8[LastBufferIndex]->GameThread_GetRenderTargetResource();
 		}
 		else if(GBufferFormat == EGBufferFormat::Default)
 		{
@@ -660,7 +658,7 @@ namespace PixelInspector
 			Buffer_A_RGB10[LastBufferIndex]->InitCustomFormat(1, 1, PF_A2B10G10R10, true);
 			Buffer_A_RGB10[LastBufferIndex]->ClearColor = FLinearColor::Black;
 			Buffer_A_RGB10[LastBufferIndex]->UpdateResourceImmediate(true);
-			BufferARenderTargetResource = Buffer_A_RGB10[LastBufferIndex]->GameThread_GetRenderTargetResource();
+			BufferAResource = Buffer_A_RGB10[LastBufferIndex]->GameThread_GetRenderTargetResource();
 
 			//Default is PF_B8G8R8A8
 			Buffer_BCDEF_RGB8[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferBTarget"), RF_Standalone );
@@ -668,7 +666,7 @@ namespace PixelInspector
 			Buffer_BCDEF_RGB8[LastBufferIndex]->InitCustomFormat(4, 1, PF_B8G8R8A8, true);
 			Buffer_BCDEF_RGB8[LastBufferIndex]->ClearColor = FLinearColor::Black;
 			Buffer_BCDEF_RGB8[LastBufferIndex]->UpdateResourceImmediate(true);
-			BufferBCDEFRenderTargetResource = Buffer_BCDEF_RGB8[LastBufferIndex]->GameThread_GetRenderTargetResource();
+			BufferBCDEFResource = Buffer_BCDEF_RGB8[LastBufferIndex]->GameThread_GetRenderTargetResource();
 		}
 		else if (GBufferFormat == EGBufferFormat::HighPrecisionNormals || GBufferFormat == EGBufferFormat::Force16BitsPerChannel)
 		{
@@ -678,21 +676,21 @@ namespace PixelInspector
 			Buffer_A_Float[LastBufferIndex]->InitCustomFormat(1, 1, PF_FloatRGBA, true);
 			Buffer_A_Float[LastBufferIndex]->ClearColor = FLinearColor::Black;
 			Buffer_A_Float[LastBufferIndex]->UpdateResourceImmediate(true);
-			BufferARenderTargetResource = Buffer_A_Float[LastBufferIndex]->GameThread_GetRenderTargetResource();
+			BufferAResource = Buffer_A_Float[LastBufferIndex]->GameThread_GetRenderTargetResource();
 
 			Buffer_BCDEF_Float[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferBTarget"), RF_Standalone );
 			Buffer_BCDEF_Float[LastBufferIndex]->AddToRoot();
 			Buffer_BCDEF_Float[LastBufferIndex]->InitCustomFormat(4, 1, PF_FloatRGBA, true);
 			Buffer_BCDEF_Float[LastBufferIndex]->ClearColor = FLinearColor::Black;
 			Buffer_BCDEF_Float[LastBufferIndex]->UpdateResourceImmediate(true);
-			BufferBCDEFRenderTargetResource = Buffer_BCDEF_Float[LastBufferIndex]->GameThread_GetRenderTargetResource();
+			BufferBCDEFResource = Buffer_BCDEF_Float[LastBufferIndex]->GameThread_GetRenderTargetResource();
 		}
 		else
 		{
 			checkf(0, TEXT("Unhandled gbuffer format (%i) during pixel inspector initializtion."), GBufferFormat);
 		}	
 		
-		SceneInterface->InitializePixelInspector(FinalColorRenderTargetResource, SceneColorRenderTargetResource, DepthRenderTargetResource, HDRRenderTargetResource, BufferARenderTargetResource, BufferBCDEFRenderTargetResource, LastBufferIndex);
+		SceneInterface->InitializePixelInspector(FinalColorResource, SceneColorBeforePostResource, DepthResource, SceneColorBeforeToneMapResource, BufferAResource, BufferBCDEFResource, LastBufferIndex);
 
 		return LastBufferIndex;
 	}
@@ -720,34 +718,26 @@ namespace PixelInspector
 
 					FTextureRenderTargetResource* RTResourceFinalColor = Buffer_FinalColor_AnyFormat[Request.BufferIndex]->GameThread_GetRenderTargetResource();
 					const EPixelFormat FinalColorPixelFormat = PixelInspectorSceneViewExtension->GetFinalColorPixelFormat();
-					if (FinalColorPixelFormat == PF_B8G8R8A8)
+					const float Gamma = (FinalColorPixelFormat == PF_B8G8R8A8) ? 1.0f : PixelInspectorSceneViewExtension->GetGamma();
+					EPixelFormatChannelFlags ValidPixelChannels = GetPixelFormatValidChannels(FinalColorPixelFormat);
+					bool bHasAlphaChannel = EnumHasAnyFlags(ValidPixelChannels, EPixelFormatChannelFlags::A);
+
+					TArray<FLinearColor> BufferFinalColorValueLinear;
+					if (RTResourceFinalColor->ReadLinearColorPixels(BufferFinalColorValueLinear) == false)
 					{
-						TArray<FColor> BufferFinalColorValue;
-						if (RTResourceFinalColor->ReadPixels(BufferFinalColorValue) == false)
-						{
-							BufferFinalColorValue.Empty();
-						}
-						PixelResult.DecodeFinalColor(BufferFinalColorValue);
+						BufferFinalColorValueLinear.Empty();
 					}
-					else if (FinalColorPixelFormat == PF_FloatRGBA || FinalColorPixelFormat == PF_FloatRGB || FinalColorPixelFormat == PF_A2B10G10R10)
-					{
-						TArray<FLinearColor> BufferFinalColorValueLinear;
-						if (RTResourceFinalColor->ReadLinearColorPixels(BufferFinalColorValueLinear) == false)
-						{
-							BufferFinalColorValueLinear.Empty();
-						}
-						bool bHasAlphaChannel = FinalColorPixelFormat != PF_FloatRGB;
-						PixelResult.DecodeFinalColor(BufferFinalColorValueLinear, PixelInspectorSceneViewExtension->GetGamma(), bHasAlphaChannel);
-					}
+
+					PixelResult.DecodeFinalColor(BufferFinalColorValueLinear, Gamma, bHasAlphaChannel);
 					
 
 					TArray<FLinearColor> BufferSceneColorValue;
-					FTextureRenderTargetResource* RTResourceSceneColor = Buffer_SceneColor_Float[Request.BufferIndex]->GameThread_GetRenderTargetResource();
+					FTextureRenderTargetResource* RTResourceSceneColor = Buffer_SceneColorBeforePost_Float[Request.BufferIndex]->GameThread_GetRenderTargetResource();
 					if (RTResourceSceneColor->ReadLinearColorPixels(BufferSceneColorValue) == false)
 					{
 						BufferSceneColorValue.Empty();
 					}
-					PixelResult.DecodeSceneColor(BufferSceneColorValue);
+					PixelResult.DecodeSceneColorBeforePostProcessing(BufferSceneColorValue);
 
 					if (Buffer_Depth_Float[Request.BufferIndex] != nullptr)
 					{
@@ -760,14 +750,17 @@ namespace PixelInspector
 						PixelResult.DecodeDepth(BufferDepthValue);
 					}
 
-					TArray<FLinearColor> BufferHDRValue;
-					FTextureRenderTargetResource* RTResourceHDR = Buffer_HDR_Float[Request.BufferIndex]->GameThread_GetRenderTargetResource();
-					const EPixelFormat HDRPixelFormat = PixelInspectorSceneViewExtension->GetHDRPixelFormat();
-					if (RTResourceHDR->ReadLinearColorPixels(BufferHDRValue) == false)
+					TArray<FLinearColor> BufferSceneColorBeforeToneMapValue;
+					FTextureRenderTargetResource* RTResourceSceneColorBeforeTonemap = Buffer_SceneColorBeforeToneMap_Float[Request.BufferIndex]->GameThread_GetRenderTargetResource();
+					if (RTResourceSceneColorBeforeTonemap->ReadLinearColorPixels(BufferSceneColorBeforeToneMapValue) == false)
 					{
-						BufferHDRValue.Empty();
+						BufferSceneColorBeforeToneMapValue.Empty();
 					}
-					PixelResult.DecodeHDR(BufferHDRValue, HDRPixelFormat == PF_FloatRGBA);
+
+					const EPixelFormat HDRPixelFormat = PixelInspectorSceneViewExtension->GetHDRPixelFormat();
+					ValidPixelChannels = GetPixelFormatValidChannels(HDRPixelFormat);
+					bHasAlphaChannel = EnumHasAnyFlags(ValidPixelChannels, EPixelFormatChannelFlags::A);
+					PixelResult.DecodeSceneColorBeforeToneMap(BufferSceneColorBeforeToneMapValue, bHasAlphaChannel);
 
 					if (Request.GBufferPrecision == EGBufferFormat::Force8BitsPerChannel)
 					{

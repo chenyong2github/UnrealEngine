@@ -176,10 +176,9 @@ namespace PixelInspector
 		UTextureRenderTarget2D* Buffer_FinalColor_AnyFormat[2];
 		//Depth Buffer
 		UTextureRenderTarget2D* Buffer_Depth_Float[2];
-		//SceneColor Buffer
-		UTextureRenderTarget2D* Buffer_SceneColor_Float[2];
-		//HDR Buffer
-		UTextureRenderTarget2D* Buffer_HDR_Float[2];
+		//SceneColor Buffers
+		UTextureRenderTarget2D* Buffer_SceneColorBeforePost_Float[2];
+		UTextureRenderTarget2D* Buffer_SceneColorBeforeToneMap_Float[2];
 		//GBufferA RenderTarget
 		UTextureRenderTarget2D* Buffer_A_Float[2];
 		UTextureRenderTarget2D* Buffer_A_RGB8[2];

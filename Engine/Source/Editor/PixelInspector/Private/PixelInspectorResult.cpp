@@ -2,6 +2,7 @@
 
 #include "PixelInspectorResult.h"
 
+#include "ColorSpace.h"
 #include "HAL/PlatformCrt.h"
 #include "Math/Float16.h"
 #include "Math/Float16Color.h"
@@ -12,26 +13,6 @@
 
 namespace PixelInspector
 {
-	void PixelInspectorResult::DecodeFinalColor(TArray<FColor> &BufferFinalColorValue)
-	{
-		FinalColor.Empty();
-		if (BufferFinalColorValue.Num() <= 0)
-		{
-			//Initialize to black
-			for (int i = 0; i < FinalColorContextGridSize*FinalColorContextGridSize; ++i)
-			{
-				FinalColor.Add(FColor::Green);
-			}
-			return;
-		}
-		for (FColor ReadBackColor : BufferFinalColorValue)
-		{
-			ReadBackColor.A = 255;
-			//Set the color in linear
-			FLinearColor LinearColor(ReadBackColor);
-			FinalColor.Add(LinearColor);
-		}
-	}
 	void PixelInspectorResult::DecodeFinalColor(TArray<FLinearColor>& BufferFinalColorValue, float InGamma, bool bHasAlphaChannel)
 	{
 		FinalColor.Empty();
@@ -46,11 +27,11 @@ namespace PixelInspector
 		}
 		for (FLinearColor ReadBackColor : BufferFinalColorValue)
 		{
-			//Set the color in linear
+			//Set the color in linear, with sign/abs functions to prevent NaNs on negative values.
 			FLinearColor FinalColorTemp;
-			FinalColorTemp.R = FMath::Pow(ReadBackColor.R, InGamma);
-			FinalColorTemp.G = FMath::Pow(ReadBackColor.G, InGamma);
-			FinalColorTemp.B = FMath::Pow(ReadBackColor.B, InGamma);
+			FinalColorTemp.R = FMath::Sign(ReadBackColor.R) * FMath::Pow(FMath::Abs(ReadBackColor.R), InGamma);
+			FinalColorTemp.G = FMath::Sign(ReadBackColor.G) * FMath::Pow(FMath::Abs(ReadBackColor.G), InGamma);
+			FinalColorTemp.B = FMath::Sign(ReadBackColor.B) * FMath::Pow(FMath::Abs(ReadBackColor.B), InGamma);
 
 			if (bHasAlphaChannel)
 			{
@@ -64,16 +45,15 @@ namespace PixelInspector
 			FinalColor.Add(FinalColorTemp);		
 		}
 	}
-	void PixelInspectorResult::DecodeSceneColor(TArray<FLinearColor> &BufferSceneColorValue)
+	void PixelInspectorResult::DecodeSceneColorBeforePostProcessing(TArray<FLinearColor> &BufferSceneColorValue)
 	{
 		if (BufferSceneColorValue.Num() <= 0)
 		{
-			SceneColor = FLinearColor::Black;
+			SceneColorBeforePostProcessing = FLinearColor::Transparent;
 			return;
 		}
-		SceneColor = BufferSceneColorValue[0] * OneOverPreExposure;
-		//Set the alpha to 1.0 as the default value
-		SceneColor.A = 1.0f;
+		SceneColorBeforePostProcessing = BufferSceneColorValue[0] * OneOverPreExposure;
+		SceneColorBeforePostProcessing.A = 1.0 - BufferSceneColorValue[0].A;
 	}
 	void PixelInspectorResult::DecodeDepth(TArray<FLinearColor> &BufferDepthValue)
 	{
@@ -85,21 +65,28 @@ namespace PixelInspector
 		}
 		Depth = BufferDepthValue[0].R;
 	}
-	void PixelInspectorResult::DecodeHDR(TArray<FLinearColor> &BufferHDRValue, bool bHasAlphaChannel)
+	void PixelInspectorResult::DecodeSceneColorBeforeToneMap(TArray<FLinearColor>& BufferSceneColorValue, bool bHasAlphaChannel)
 	{
-		if (BufferHDRValue.Num() <= 0)
+		if (BufferSceneColorValue.Num() <= 0)
 		{
-			HdrLuminance = 0.0f;
-			HdrColor = FLinearColor::Black;
+			SceneColorBeforeTonemap = FLinearColor::Transparent;
+			LuminanceBeforeTonemap = 0.0f;
 			return;
 		}
-		HdrLuminance = BufferHDRValue[0].GetLuminance() * OneOverPreExposure;
-		HdrColor = BufferHDRValue[0] * OneOverPreExposure;
-		if (!bHasAlphaChannel)
+		
+		SceneColorBeforeTonemap = BufferSceneColorValue[0] * OneOverPreExposure;
+
+		if (bHasAlphaChannel)
 		{
-			//Set the alpha to 1.0 as the default value
-			HdrColor.A = 1.0f;
+			// invert alpha
+			SceneColorBeforeTonemap.A = 1. - BufferSceneColorValue[0].A;
 		}
+		else
+		{
+			SceneColorBeforeTonemap.A = 1.;
+		}
+
+		LuminanceBeforeTonemap = UE::Color::FColorSpace::GetWorking().GetLuminance(SceneColorBeforeTonemap);
 	}
 
 	void PixelInspectorResult::DecodeBufferData(TArray<FColor> &BufferAValue, TArray<FColor> &BufferBCDEValue, bool AllowStaticLighting)
