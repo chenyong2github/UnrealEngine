@@ -1356,8 +1356,8 @@ namespace HairCards
 			OutTotalPointCount += InData.StrandsCurves.CurvesCount[CurveIndex];
 		}
 
-		OutData.StrandsCurves.SetNum(OutCurveCount);
-		OutData.StrandsPoints.SetNum(OutTotalPointCount);
+		OutData.StrandsCurves.SetNum(OutCurveCount, 0u);
+		OutData.StrandsPoints.SetNum(OutTotalPointCount, 0u);
 		OutData.HairDensity = InData.HairDensity;
 
 		uint32 OutPointOffset = 0;
@@ -2770,8 +2770,8 @@ namespace HairCards
 		FHairStrandsDatas& OutGuides)
 	{
 		const uint32 ClusterCount = InClusters.GetNum();
-		OutGuides.StrandsPoints.SetNum(InClusters.GuidePoints.Num());
-		OutGuides.StrandsCurves.SetNum(InClusters.GetNum());
+		OutGuides.StrandsPoints.SetNum(InClusters.GuidePoints.Num(), 0u);
+		OutGuides.StrandsCurves.SetNum(InClusters.GetNum(), 0u);
 		OutGuides.BoundingBox.Init();
 
 		uint32 IndexIt = 0;
@@ -2839,7 +2839,7 @@ namespace HairCards
 		OutGuides.StrandsPoints.PointsPosition.Reserve(MaxGuidePoints);
 		OutGuides.StrandsPoints.PointsRadius.Reserve(MaxGuidePoints);
 		OutGuides.StrandsPoints.PointsCoordU.Reserve(MaxGuidePoints);
-		OutGuides.StrandsCurves.SetNum(NumCards);
+		OutGuides.StrandsCurves.SetNum(NumCards, 0u);
 		OutGuides.BoundingBox.Init();
 
 		InCards.CoordU.SetNum(InCards.Positions.Num());

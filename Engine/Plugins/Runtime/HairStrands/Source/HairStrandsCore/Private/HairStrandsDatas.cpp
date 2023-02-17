@@ -3,6 +3,7 @@
 #include "HairStrandsDatas.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "HairAttributes.h"
 
 void FHairStrandsInterpolationDatas::SetNum(const uint32 NumCurves)
 {
@@ -12,7 +13,7 @@ void FHairStrandsInterpolationDatas::SetNum(const uint32 NumCurves)
 	PointsSimCurvesIndex.SetNum(NumCurves);
 }
 
-void FHairStrandsCurves::SetNum(const uint32 NumCurves)
+void FHairStrandsCurves::SetNum(const uint32 NumCurves, uint32 InAttributes)
 {
 	CurvesOffset.SetNum(NumCurves + 1);
 	CurvesCount.SetNum(NumCurves);
@@ -20,21 +21,25 @@ void FHairStrandsCurves::SetNum(const uint32 NumCurves)
 	CurvesRootUV.SetNum(NumCurves);
 
 	// Not initialized to track if the data are available
-	// ClumpIDs.SetNum(0);
-	// CurvesClosestGuideIDs.SetNum(0);
-	// CurvesClosestGuideWeights.SetNum(0);
+	if (HasHairAttribute(InAttributes, EHairAttribute::StrandID))	{ StrandIDs.SetNum(NumCurves); }
+	if (HasHairAttribute(InAttributes, EHairAttribute::ClumpID))	{ ClumpIDs.SetNum(NumCurves); }
+	if (HasHairAttribute(InAttributes, EHairAttribute::PrecomputedGuideWeights))
+	{
+		CurvesClosestGuideIDs.SetNum(NumCurves);
+		CurvesClosestGuideWeights.SetNum(NumCurves);
+	}
 }
 
-void FHairStrandsPoints::SetNum(const uint32 NumPoints)
+void FHairStrandsPoints::SetNum(const uint32 NumPoints, uint32 InAttributes)
 {
 	PointsPosition.SetNum(NumPoints);
 	PointsRadius.SetNum(NumPoints);
 	PointsCoordU.SetNum(NumPoints);
 
 	// Not initialized to track if the data are available
-	// PointsBaseColor.SetNum(0);
-	// PointsRoughness.SetNum(0);
-	// PointsAO.SetNum(0);
+	if (HasHairAttribute(InAttributes, EHairAttribute::Color))		{ PointsBaseColor.SetNum(NumPoints); }
+	if (HasHairAttribute(InAttributes, EHairAttribute::Roughness))	{ PointsRoughness.SetNum(NumPoints); }
+	if (HasHairAttribute(InAttributes, EHairAttribute::AO))			{ PointsAO.SetNum(NumPoints); }
 }
 
 void FHairStrandsInterpolationDatas::Reset()

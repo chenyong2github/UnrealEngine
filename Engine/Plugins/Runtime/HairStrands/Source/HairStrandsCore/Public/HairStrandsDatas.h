@@ -12,6 +12,8 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHairStrands, Log, All);
 
+enum class EHairAttribute : uint8;
+
 struct FPackedHairVertex
 {
 	typedef uint64 BulkType;
@@ -342,13 +344,15 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData
 struct HAIRSTRANDSCORE_API FHairStrandsPoints
 {
 	/** Set the number of points */
-	void SetNum(const uint32 NumPoints);
+	void SetNum(const uint32 NumPoints, uint32 InAttributes);
 
 	/** Reset the points to 0 */
 	void Reset();
 
 	/** Get the number of points */
 	uint32 Num() const { return PointsPosition.Num();  }
+
+	bool HasAttribute(EHairAttribute In) const;
 
 	/** Points position in local space */
 	TArray<FVector3f> PointsPosition;
@@ -373,7 +377,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsPoints
 struct HAIRSTRANDSCORE_API FHairStrandsCurves
 {
 	/** Set the number of Curves */
-	void SetNum(const uint32 NumPoints);
+	void SetNum(const uint32 NumPoints, uint32 InAttributes);
 
 	/** Reset the curves to 0 */
 	void Reset();
@@ -382,6 +386,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 	uint32 Num() const { return CurvesCount.Num(); }
 
 	bool HasPrecomputedWeights() const { return CurvesClosestGuideIDs.Num() > 0 && CurvesClosestGuideWeights.Num() > 0; }
+
+	bool HasAttribute(EHairAttribute In) const;
 
 	/** Number of points per rod */
 	TArray<uint16> CurvesCount;
@@ -428,9 +434,16 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 	/* Get the total number of Curves */
 	uint32 GetNumCurves() const { return StrandsCurves.Num(); }
 
+	uint32 GetAttributes() const;
+
 	void Reset();
 
 	bool IsValid() const { return StrandsCurves.Num() > 0 && StrandsPoints.Num() > 0; }
+
+	/* Copy a point or a curve from In to Out data */
+	static void CopyCurve(const FHairStrandsDatas& In, FHairStrandsDatas& Out, uint32 InAttributes, uint32 InIndex, uint32 OutIndex);
+	static void CopyPoint(const FHairStrandsDatas& In, FHairStrandsDatas& Out, uint32 InAttributes, uint32 InIndex, uint32 OutIndex);
+	static void CopyPointLerp(const FHairStrandsDatas& In, FHairStrandsDatas& Out, uint32 InAttributes, uint32 InIndex0, uint32 InIndex1, float InAlpha, uint32 OutIndex);
 
 	/** List of all the strands points */
 	FHairStrandsPoints StrandsPoints;

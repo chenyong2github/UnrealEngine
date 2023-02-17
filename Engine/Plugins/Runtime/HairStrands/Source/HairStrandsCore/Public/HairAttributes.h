@@ -51,6 +51,7 @@ enum class EHairAttribute : uint8
 {
 	RootUV,
 	ClumpID,
+	StrandID,
 	PrecomputedGuideWeights,
 	Color,
 	Roughness,

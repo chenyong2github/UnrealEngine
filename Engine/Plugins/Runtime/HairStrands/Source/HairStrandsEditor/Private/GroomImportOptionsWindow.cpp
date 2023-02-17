@@ -214,12 +214,13 @@ static void AddAttribute(SVerticalBox::FScopedWidgetSlotArguments& Slot, FText A
 static FText GetHairAttributeLocText(EHairAttribute In)
 {
 	// If a new optional attribute is added, please add its UI/text description here
-	static_assert(uint32(EHairAttribute::Count) == 6);
+	static_assert(uint32(EHairAttribute::Count) == 7);
 
 	switch (In)
 	{
 	case EHairAttribute::RootUV:					return LOCTEXT("GroomOptionsWindow_HasRootUV", "Root UV");
 	case EHairAttribute::ClumpID:					return LOCTEXT("GroomOptionsWindow_HasClumpID", "Clump ID");
+	case EHairAttribute::StrandID:					return LOCTEXT("GroomOptionsWindow_HasStrandID", "Strand ID");
 	case EHairAttribute::PrecomputedGuideWeights:	return LOCTEXT("GroomOptionsWindow_HasPercomputedGuideWeights", "Pre-Computed Guide Weights");
 	case EHairAttribute::Color:						return LOCTEXT("GroomOptionsWindow_HasColor", "Color");
 	case EHairAttribute::Roughness:					return LOCTEXT("GroomOptionsWindow_HasRoughness", "Roughness");
