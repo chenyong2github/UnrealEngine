@@ -400,7 +400,7 @@ struct FMassGenericPayloadViewSlice
 
 	FStructArrayView operator[](const int32 Index) const
 	{
-		return FStructArrayView(Source.Content[Index], StartIndex, Count);
+		return Source.Content[Index].Slice(StartIndex, Count);
 	}
 
 	/** @return the number of "layers" (i.e. number of original arrays) this payload has been built from */

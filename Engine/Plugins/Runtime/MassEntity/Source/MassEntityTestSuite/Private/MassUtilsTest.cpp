@@ -72,8 +72,8 @@ struct FUtilsTest_MultiSort_GenericArray : FExecutionTestBase
 
 		for (int i = 0; i < ValuesF.Num(); ++i)
 		{
-			AITEST_EQUAL(TEXT("Element in ValuesU should represent the absolute value of the element in ViewF"), float(FMath::Abs(ValuesU[i])), ViewF.GetElementAt<FTestFragment_Float>(i).Value);
-			AITEST_EQUAL(TEXT("Element in ViewB should represent the sign of the element in ValuesU"), ValuesU[i] < 0, ViewB.GetElementAt<FTestFragment_Bool>(i).bValue);
+			AITEST_EQUAL(TEXT("Element in ValuesU should represent the absolute value of the element in ViewF"), float(FMath::Abs(ValuesU[i])), ViewF.GetAt<const FTestFragment_Float>(i).Value);
+			AITEST_EQUAL(TEXT("Element in ViewB should represent the sign of the element in ValuesU"), ValuesU[i] < 0, ViewB.GetAt<const FTestFragment_Bool>(i).bValue);
 		}
 
 		return true;
@@ -105,8 +105,8 @@ struct FUtilsTest_MultiSort_Payload : FExecutionTestBase
 
 		for (int i = 0; i < ValuesF.Num(); ++i)
 		{
-			AITEST_EQUAL(TEXT("Element in ValuesU should represent the absolute value of the element in ViewF"), float(FMath::Abs(ValuesU[i])), ViewF.GetElementAt<FTestFragment_Float>(i).Value);
-			AITEST_EQUAL(TEXT("Element in ViewB should represent the sign of the element in ValuesU"), ValuesU[i] < 0, ViewB.GetElementAt<FTestFragment_Bool>(i).bValue);
+			AITEST_EQUAL(TEXT("Element in ValuesU should represent the absolute value of the element in ViewF"), float(FMath::Abs(ValuesU[i])), ViewF.GetAt<const FTestFragment_Float>(i).Value);
+			AITEST_EQUAL(TEXT("Element in ViewB should represent the sign of the element in ValuesU"), ValuesU[i] < 0, ViewB.GetAt<const FTestFragment_Bool>(i).bValue);
 		}
 
 		return true;
