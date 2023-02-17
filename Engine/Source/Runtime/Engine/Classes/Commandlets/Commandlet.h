@@ -87,6 +87,10 @@ class UCommandlet : public UObject
 	UPROPERTY()
 	uint32 ShowProgress:1;
 
+	/** Whether to exit the process as soon as the commandlet completes, skipping the engine shutdown */
+	UPROPERTY()
+	uint32 FastExit:1;
+
 	/**
 	 * Entry point for your commandlet
 	 *

@@ -42,6 +42,12 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		LogWorldPartitionBuilderCommandlet.SetVerbosity(ELogVerbosity::Verbose);
 	}
 
+	if (Switches.Contains(TEXT("RunningFromUnrealEd")))
+	{
+		ShowErrorCount = false;	// This has the side effect of making the process return code match the return code of the commandlet
+		FastExit = true;		// Faster exit which avoids crash during shutdown. The engine isn't shutdown cleanly.
+	}
+
 	// This will convert incomplete package name to a fully qualified path
 	FString WorldFilename;
 	if (!FPackageName::SearchForPackageOnDisk(Tokens[0], &Tokens[0], &WorldFilename))

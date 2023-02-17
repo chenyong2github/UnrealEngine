@@ -23,6 +23,7 @@ UCommandlet::UCommandlet(const FObjectInitializer& ObjectInitializer)
 	IsEditor = true;
 	ShowErrorCount = true;
 	ShowProgress = true;
+	FastExit = false;
 }
 
 

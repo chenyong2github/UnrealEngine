@@ -402,6 +402,7 @@ void FWorldPartitionEditorModule::RunCommandletAsExternalProcess(const FString& 
 	CommandletArgsArray.Add(TEXT("\"") + ProjectPath + TEXT('"'));
 	CommandletArgsArray.Add(TEXT("-BaseDir=\"") + FString(FPlatformProcess::BaseDir()) + TEXT('"'));
 	CommandletArgsArray.Add(TEXT("-Unattended"));
+	CommandletArgsArray.Add(TEXT("-RunningFromUnrealEd"));
 	CommandletArgsArray.Add(InCommandletArgs);
 
 	OnExecuteCommandletEvent.Broadcast(CommandletArgsArray);
