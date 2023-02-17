@@ -115,6 +115,12 @@ namespace UE::Chaos::ClothAsset
 				const TArrayView<FVector3f> RenderNormal = ClothPatternAdapter.GetRenderNormal();
 				const TArrayView<TArray<FVector2f>> RenderUVs = ClothPatternAdapter.GetRenderUVs();
 				const TArrayView<FLinearColor> RenderColor = ClothPatternAdapter.GetRenderColor();
+				const TArrayView<int32> RenderNumBoneInfluences = ClothPatternAdapter.GetRenderNumBoneInfluences();
+				const TArrayView<TArray<int32>> RenderBoneIndices = ClothPatternAdapter.GetRenderBoneIndices();
+				const TArrayView<TArray<float>> RenderBoneWeights = ClothPatternAdapter.GetRenderBoneWeights();
+				const TArrayView<int32> SimNumBoneInfluences = ClothPatternAdapter.GetSimNumBoneInfluences();
+				const TArrayView<TArray<int32>> SimBoneIndices = ClothPatternAdapter.GetSimBoneIndices();
+				const TArrayView<TArray<float>> SimBoneWeights = ClothPatternAdapter.GetSimBoneWeights();
 
 				for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 				{
@@ -124,6 +130,9 @@ namespace UE::Chaos::ClothAsset
 					RenderColor[VertexIndex] = FLinearColor::White;
 					RenderTangentU[VertexIndex].Normalize();
 					RenderTangentV[VertexIndex].Normalize();
+					RenderNumBoneInfluences[VertexIndex] = SimNumBoneInfluences[VertexIndex];
+					RenderBoneIndices[VertexIndex] = SimBoneIndices[VertexIndex];
+					RenderBoneWeights[VertexIndex] = SimBoneWeights[VertexIndex];
 				}
 			}
 		}
@@ -186,6 +195,78 @@ namespace UE::Chaos::ClothAsset
 							ReverseRenderNormals(ClothPatternAdapter.GetRenderNormal(), ClothPatternAdapter.GetRenderTangentU());
 						}
 					}
+				}
+			}
+		}
+	}
+
+	void FClothGeometryTools::BindMeshToRootBone(const TSharedPtr<FClothCollection>& ClothCollection,
+												 bool bBindSimMesh,
+												 bool bBindRenderMesh,
+												 const TArray<int32> Lods)
+	{
+		if (!bBindSimMesh && !bBindRenderMesh)
+		{
+			return;
+		}
+		
+		FClothAdapter ClothAdapter(ClothCollection);
+
+		TArray<int32> LodsToBind;
+		if (Lods.IsEmpty())
+		{
+			LodsToBind.Reserve(ClothAdapter.GetNumLods());
+			
+			for (int32 LodIndex = 0; LodIndex < ClothAdapter.GetNumLods(); ++LodIndex)
+			{
+				LodsToBind.Add(LodIndex);
+			}
+		}
+		else
+		{	
+			LodsToBind.Reserve(Lods.Num());
+			
+			for (const int32 Lod : Lods)
+			{	
+				// Make sure the Lod indices are valid.
+				if (Lod < ClothAdapter.GetNumLods())
+				{
+					LodsToBind.Add(Lod);
+				}
+			}
+		}
+
+		for (const int32 LodIndex : LodsToBind)
+		{
+			FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
+			
+			if (bBindSimMesh)
+			{	
+				const int32 NumVertices = ClothLodAdapter.GetPatternsNumSimVertices();
+				TArrayView<int32> NumBoneInfluences = ClothLodAdapter.GetPatternsSimNumBoneInfluences();
+				TArrayView<TArray<int32>> BoneIndices = ClothLodAdapter.GetPatternsSimBoneIndices();
+				TArrayView<TArray<float>> BoneWeights = ClothLodAdapter.GetPatternsSimBoneWeights();
+
+				for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+				{
+					NumBoneInfluences[VertexIndex] = 1;
+					BoneIndices[VertexIndex] = {0};
+					BoneWeights[VertexIndex] = {1.0f};
+				}
+			}
+
+			if (bBindRenderMesh)
+			{
+				const int32 NumVertices = ClothLodAdapter.GetPatternsNumRenderVertices();
+				TArrayView<int32> NumBoneInfluences = ClothLodAdapter.GetPatternsRenderNumBoneInfluences();
+				TArrayView<TArray<int32>> BoneIndices = ClothLodAdapter.GetPatternsRenderBoneIndices();
+				TArrayView<TArray<float>> BoneWeights = ClothLodAdapter.GetPatternsRenderBoneWeights();
+
+				for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+				{
+					NumBoneInfluences[VertexIndex] = 1;
+					BoneIndices[VertexIndex] = {0};
+					BoneWeights[VertexIndex] = {1.0f};
 				}
 			}
 		}

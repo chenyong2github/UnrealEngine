@@ -23,5 +23,15 @@ namespace UE::Chaos::ClothAsset
 			bool bReverseSimMeshNormals,
 			bool bReverseRenderMeshNormals,
 			const TArray<int32>& PatternSelection);
+
+		/** 
+		 * Set the skinning weights for all of the sim/render vertices in ClothCollection to be bound to the root node. 
+		 * 
+		 * @param LODs if empty will apply the change to all LODs. Otherwise only LODs specified in the array (if exist) are affected. 
+		 */
+		static void BindMeshToRootBone(const TSharedPtr<FClothCollection>& ClothCollection,
+									   bool bBindSimMesh,
+									   bool bBindRenderMesh,
+									   const TArray<int32> Lods = {});
 	};
 }  // End namespace UE::Chaos::ClothAsset

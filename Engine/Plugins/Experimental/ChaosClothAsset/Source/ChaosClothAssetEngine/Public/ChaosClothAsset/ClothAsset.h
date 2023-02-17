@@ -122,6 +122,9 @@ public:
 	/** Set the bone hierachy to use for this cloth. */
 	void SetReferenceSkeleton(const FReferenceSkeleton& InReferenceSkeleton, bool bRebuildClothSimulationModel = true) { RefSkeleton = InReferenceSkeleton; UpdateSkeleton(bRebuildClothSimulationModel); }
 
+	/** Set the skinning weights for all of the sim vertices to be bound to the root node of the reference skeleton. */
+	void BindSimMeshToRootBone();
+
 	//
 	// Dataflow
 	//

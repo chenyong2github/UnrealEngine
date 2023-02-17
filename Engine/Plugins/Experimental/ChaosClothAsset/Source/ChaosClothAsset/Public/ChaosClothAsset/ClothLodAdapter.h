@@ -95,7 +95,7 @@ namespace UE::Chaos::ClothAsset
 		const TSharedPtr<const FClothCollection>& GetClothCollection() const { return ClothCollection; }
 
 		/** Return the welded simulation mesh for this LOD. */
-		void BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices) const;
+		void BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices, TArray<int32>& WeldingMap) const;
 
 	private:
 		TSharedPtr<const FClothCollection> ClothCollection;

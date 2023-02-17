@@ -600,3 +600,11 @@ void UChaosClothAsset::ReregisterComponents()
 		}
 	}
 }
+
+void UChaosClothAsset::BindSimMeshToRootBone()
+{
+	using namespace UE::Chaos::ClothAsset;
+
+	check(ClothCollection.IsValid());
+	FClothGeometryTools::BindMeshToRootBone(ClothCollection, true, false);
+}

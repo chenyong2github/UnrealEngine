@@ -547,6 +547,9 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 			ClothAsset->SetReferenceSkeleton(DefaultSkeleton->GetReferenceSkeleton(), false);
 		}
 
+		// Bind the mesh to the root bone.
+		ClothAsset->BindSimMeshToRootBone(); 
+
 		// Set the render mesh to duplicate the sim mesh
 		ClothAsset->CopySimMeshToRenderMesh(MaterialId);
 

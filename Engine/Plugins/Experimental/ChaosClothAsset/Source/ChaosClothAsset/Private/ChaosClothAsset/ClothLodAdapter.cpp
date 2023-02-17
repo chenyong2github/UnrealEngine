@@ -411,14 +411,14 @@ namespace UE::Chaos::ClothAsset
 		return FClothPatternConstAdapter(ClothCollection, LodIndex, PatternIndex);
 	}
 
-	void FClothLodConstAdapter::BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices) const
+	void FClothLodConstAdapter::BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices, TArray<int32>& WeldingMap) const
 	{
 		const int32 NumSimVertices = GetPatternsNumSimVertices();
 
 		// Initialize welding map with same index
 		// The welding map redirects to an existing vertex index if these two are part of the same welding group.
 		// The redirected index must be the smallest index in the group.
-		TArray<int32> WeldingMap;
+
 		WeldingMap.SetNumUninitialized(NumSimVertices);
 		for (int32 SimVertexIndex = 0; SimVertexIndex < NumSimVertices; ++SimVertexIndex)
 		{

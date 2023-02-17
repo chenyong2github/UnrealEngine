@@ -120,7 +120,8 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const UE
 	{
 		FChaosClothSimulationLodModel& LodModel = ClothSimulationLodModels[LodIndex];
 		const FClothLodConstAdapter ClothLod = Cloth.GetLod(LodIndex);
-		ClothLod.BuildSimulationMesh(LodModel.Positions, LodModel.Normals, LodModel.Indices);
+		TArray<int32> WeldingMap;
+		ClothLod.BuildSimulationMesh(LodModel.Positions, LodModel.Normals, LodModel.Indices, WeldingMap);
 
 		const TManagedArray<float>* const MaxDistanceValues = ClothCollection->FindAttributeTyped<float>("MaxDistance", FClothCollection::SimVerticesGroup);
 		if (MaxDistanceValues)
@@ -132,21 +133,33 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const UE
 			LodModel.MaxDistance.Init(1.0, LodModel.Positions.Num());
 		}
 
-		const int32 NumSimVertices = LodModel.Positions.Num();
-		LodModel.BoneData.SetNum(NumSimVertices);
-		for (int32 VertexIndex = 0; VertexIndex < NumSimVertices; ++VertexIndex)
+		TConstArrayView<int32> NumBoneInfluences = ClothLod.GetPatternsSimNumBoneInfluences();
+		TConstArrayView<TArray<int32>> SimBoneIndices = ClothLod.GetPatternsSimBoneIndices();
+		TConstArrayView<TArray<float>> SimBoneWeights = ClothLod.GetPatternsSimBoneWeights();
+		LodModel.BoneData.SetNum(LodModel.Positions.Num());
+
+		uint32 WeldedIndex = 0;
+		for (int32 VertexIndex = 0; VertexIndex <  ClothLod.GetPatternsNumSimVertices(); ++VertexIndex)
 		{
-			// TODO: Skinning of the cloth asset needs to be done in order to be able to author theses values
-			LodModel.BoneData[VertexIndex].NumInfluences = 1;
-			LodModel.BoneData[VertexIndex].BoneIndices[0] = 0;
-			LodModel.BoneData[VertexIndex].BoneWeights[0] = 1.f;
+			if (WeldingMap[VertexIndex] == VertexIndex)
+			{
+				LodModel.BoneData[WeldedIndex].NumInfluences = NumBoneInfluences[VertexIndex];
+				for (int BoneIndex = 0; BoneIndex < LodModel.BoneData[WeldedIndex].NumInfluences; ++BoneIndex)
+				{
+					LodModel.BoneData[WeldedIndex].BoneIndices[BoneIndex] = SimBoneIndices[VertexIndex][BoneIndex];
+					LodModel.BoneData[WeldedIndex].BoneWeights[BoneIndex] = SimBoneWeights[VertexIndex][BoneIndex];
+				}
+				++WeldedIndex;
+			}
 		}
 	}
 
-	// Populate used bone names and indices  
-	// TODO: Skinning of the cloth asset needs to be done in order to be able to author theses values
-	UsedBoneNames.Add(TEXT("Root"));
-	UsedBoneIndices.Add(0);
+	// Populate used bone names and indices
+	for (int32 Index = 0; Index < ReferenceSkeleton.GetRawBoneNum(); ++Index)
+	{	
+		UsedBoneNames.Add(ReferenceSkeleton.GetRawRefBoneInfo()[Index].Name);
+		UsedBoneIndices.Add(Index);
+	}
 
 	// Initialize Reference bone index
 	ReferenceBoneIndex = CalculateReferenceBoneIndex(ClothSimulationLodModels, ReferenceSkeleton, UsedBoneIndices);

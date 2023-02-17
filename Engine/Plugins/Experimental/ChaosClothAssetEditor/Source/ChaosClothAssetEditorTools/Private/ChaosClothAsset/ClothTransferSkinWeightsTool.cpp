@@ -419,9 +419,13 @@ void UClothTransferSkinWeightsTool::TransferWeights()
 		UE::Chaos::ClothAsset::FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(TargetLODIdx);
 
 		// Cloth collection data arrays we are writing to
-		TArrayView<int32> NumBoneInfluences = ClothLodAdapter.GetPatternsSimNumBoneInfluences();
+		TArrayView<int32> SimNumBoneInfluences = ClothLodAdapter.GetPatternsSimNumBoneInfluences();
 		TArrayView<TArray<int32>> SimBoneIndices = ClothLodAdapter.GetPatternsSimBoneIndices();
 		TArrayView<TArray<float>> SimBoneWeights = ClothLodAdapter.GetPatternsSimBoneWeights();
+
+		TArrayView<int32> RenderNumBoneInfluences = ClothLodAdapter.GetPatternsRenderNumBoneInfluences();
+		TArrayView<TArray<int32>> RenderBoneIndices = ClothLodAdapter.GetPatternsRenderBoneIndices();
+		TArrayView<TArray<float>> RenderBoneWeights = ClothLodAdapter.GetPatternsRenderBoneWeights();
 
 		const TArrayView<FVector3f> SimPositions =  ClothLodAdapter.GetPatternsSimRestPosition();
 		
@@ -441,14 +445,21 @@ void UClothTransferSkinWeightsTool::TransferWeights()
 			
 			const int32 NumBones = BoneWeights.Num();
 			
-			NumBoneInfluences[VertexID] = NumBones;
+			SimNumBoneInfluences[VertexID] = NumBones;
 			SimBoneIndices[VertexID].SetNum(NumBones);
 			SimBoneWeights[VertexID].SetNum(NumBones);
+
+			RenderNumBoneInfluences[VertexID] = NumBones;
+			RenderBoneIndices[VertexID].SetNum(NumBones);
+			RenderBoneWeights[VertexID].SetNum(NumBones);
 
 			for (int BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx) 
 			{
 				SimBoneIndices[VertexID][BoneIdx] = BoneWeights[BoneIdx].GetBoneIndex();
 				SimBoneWeights[VertexID][BoneIdx] = BoneWeights[BoneIdx].GetWeight();
+
+				RenderBoneIndices[VertexID][BoneIdx] = BoneWeights[BoneIdx].GetBoneIndex();
+				RenderBoneWeights[VertexID][BoneIdx] = BoneWeights[BoneIdx].GetWeight();
 			}
 
 		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);

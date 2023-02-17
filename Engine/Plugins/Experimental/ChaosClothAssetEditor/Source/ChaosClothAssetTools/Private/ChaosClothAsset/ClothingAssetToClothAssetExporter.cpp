@@ -60,6 +60,9 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 		SkeletalMesh->GetRefSkeleton() :
 		LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr)->GetReferenceSkeleton());
 
+	// Bind the mesh to the root bone.
+	ClothAsset->BindSimMeshToRootBone(); 
+
 	// Set the render mesh to duplicate the sim mesh
 	ClothAsset->CopySimMeshToRenderMesh(MaterialId);
 

@@ -138,8 +138,11 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 		Section.BaseVertexIndex = LODModel.NumVertices;
 		LODModel.NumVertices += (uint32)NumVertices;
 
-		TSet<FBoneIndexType> SectionBoneMap;
-		SectionBoneMap.Reserve(ClothAsset.RefSkeleton.GetNum());
+		// Map reference skeleton bone index to the index in the section's bone map
+		TMap<FBoneIndexType, FBoneIndexType> ReferenceToSectionBoneMap; 
+
+		// Track how many bones we added to the section's bone map so far
+		int CurSectionBoneMapNum = 0; 
 
 		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 		{
@@ -164,19 +167,53 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 				SoftVertex.UVs[TexCoord] = RenderUVs[TexCoord];
 			}
 
-			for (int32 Influence = 0; Influence < MAX_TOTAL_INFLUENCES; ++Influence)
+			const int32 NumInfluences = ClothCollection->RenderNumBoneInfluences[RenderIndex];
+			
+			// Add all of the bones that have non-zero influence to the section's bone map and keep track of the order
+			// that we added the reference bone via CurSectionBoneMapNum
+			for (int32 Influence = 0; Influence < NumInfluences; ++Influence)
 			{
-				const FBoneIndexType InfluenceBone = (FBoneIndexType)0;  // TODO: Set the correct bone influence from the cloth collection data
-				const int16 InfluenceWeight = (Influence == 0) ? UE::AnimationCore::MaxRawBoneWeight : 0;
+				const FBoneIndexType InfluenceBone = (FBoneIndexType)ClothCollection->RenderBoneIndices[RenderIndex][Influence];
 
-				SoftVertex.InfluenceBones[Influence] = InfluenceBone;
-				SoftVertex.InfluenceWeights[Influence] = InfluenceWeight;
-
-				if (InfluenceWeight)
+				if (ReferenceToSectionBoneMap.Contains(InfluenceBone) == false)
 				{
-					SectionBoneMap.Add(InfluenceBone);
+					ReferenceToSectionBoneMap.Add(InfluenceBone, CurSectionBoneMapNum);
+					++CurSectionBoneMapNum; 
 				}
 			}
+
+			int32 Influence = 0;
+			for (;Influence < NumInfluences; ++Influence)
+			{
+				const FBoneIndexType InfluenceBone = (FBoneIndexType)ClothCollection->RenderBoneIndices[RenderIndex][Influence];
+				const float InWeight = ClothCollection->RenderBoneWeights[RenderIndex][Influence];
+				const uint16 InfluenceWeight = static_cast<uint16>(InWeight * static_cast<float>(UE::AnimationCore::MaxRawBoneWeight) + 0.5f);
+				
+				// FSoftSkinVertex::InfluenceBones contain indices into the section's bone map and not the reference
+				// skeleton, so we need to remap
+				const FBoneIndexType* const MappedIndexPtr = ReferenceToSectionBoneMap.Find(InfluenceBone);
+				
+				// ReferenceToSectionBoneMap should always contain InfluenceBone since it was added above
+				checkSlow(MappedIndexPtr);
+				if (MappedIndexPtr != nullptr)
+				{
+					SoftVertex.InfluenceBones[Influence] = *MappedIndexPtr;
+					SoftVertex.InfluenceWeights[Influence] = InfluenceWeight;
+				}
+			}
+			
+			for (;Influence < MAX_TOTAL_INFLUENCES; ++Influence)
+			{
+				SoftVertex.InfluenceBones[Influence] = 0;
+				SoftVertex.InfluenceWeights[Influence] = 0;
+			}
+		}
+
+		// Initialize the section bone map
+		Section.BoneMap.SetNumUninitialized(ReferenceToSectionBoneMap.Num());
+		for (const TPair<FBoneIndexType, FBoneIndexType>& Pair : ReferenceToSectionBoneMap)
+		{
+			Section.BoneMap[Pair.Value] = Pair.Key;
 		}
 
 		// Remap the LOD indices with the new vertex indices
@@ -185,9 +222,7 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 			RenderIndex = LodRenderIndexRemap[RenderIndex];
 		}
 
-		// Update the section bone map
-		Section.BoneMap = SectionBoneMap.Array();
-		ActiveBoneIndices.Append(MoveTemp(SectionBoneMap));
+		ActiveBoneIndices.Append(Section.BoneMap);
 
 		// Update max bone influences
 		Section.CalcMaxBoneInfluences();

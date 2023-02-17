@@ -92,21 +92,21 @@ namespace UE::Chaos::ClothAsset
 		}
 
 		// Update bone matrices
-		if (!bIsInitialization)
-		{
-			ClothComponent.GetCurrentRefToLocalMatrices(RefToLocalMatrices, LodIndex);
-		}
-		else
+		if (bIsInitialization)
 		{
 			RefToLocalMatrices.Reset(NumBones);
 			RefToLocalMatrices.AddUninitialized(NumBones);
-
-			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
-			{
-				RefToLocalMatrices[BoneIndex] = FMatrix44f::Identity;
-			}
 		}
-
+		
+		// We must set the matrices to identity on every call to Fill, otherwise every call to GetCurrentRefToLocalMatrices 
+		// below will multiply the content of the RefToLocalMatrices by another matrix and save the result back to
+		// RefToLocalMatrices which leads to the translation component increasing
+		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+		{
+			RefToLocalMatrices[BoneIndex] = FMatrix44f::Identity;
+		}
+		ClothComponent.GetCurrentRefToLocalMatrices(RefToLocalMatrices, LodIndex);
+		
 		// Update gravity
 		const UWorld* const World = ClothComponent.GetWorld();
 		constexpr float EarthGravity = -981.f;
