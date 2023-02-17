@@ -13,6 +13,9 @@ enum Message {
     case candidate(IceCandidate)
     case config(PeerConnectionConfig)
     case playerCount(Int)
+    case requestStreamerList
+    case streamerList(Array<String>)
+    case subscribe(String)
 }
 
 extension Message: Codable {
@@ -30,6 +33,8 @@ extension Message: Codable {
             self = .candidate(try container.decode(IceCandidate.self, forKey: .candidate))
         case "playerCount":
             self = .playerCount(try container.decode(Int.self, forKey: .count))
+        case "streamerList":
+            self = .streamerList(try container.decode(Array<String>.self, forKey: .ids))
         default:
             throw DecodeError.unknownType
         }
@@ -50,6 +55,14 @@ extension Message: Codable {
         case .playerCount(let count):
             try container.encode("playerCount", forKey: .type)
             try container.encode(count, forKey: .count)
+        case .streamerList(let streamerList):
+            try container.encode("streamerList", forKey: .type)
+            try container.encode(streamerList, forKey: .ids)
+        case .requestStreamerList:
+            try container.encode("listStreamers", forKey: .type)
+        case .subscribe(let streamerId):
+            try container.encode("subscribe", forKey: .type)
+            try container.encode(streamerId, forKey: .streamerId)
         }
     }
     
@@ -58,6 +71,6 @@ extension Message: Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case type, sdp, candidate, peerConnectionOptions, count
+        case type, sdp, candidate, peerConnectionOptions, count, ids, requestStreamerList, streamerId
     }
 }

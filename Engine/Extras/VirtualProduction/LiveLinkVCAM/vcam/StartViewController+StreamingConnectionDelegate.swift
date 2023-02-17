@@ -14,18 +14,22 @@ extension StartViewController : StreamingConnectionDelegate {
         Log.info("StreamingConnection \(connection.name) did connect to \(connection.destination)")
         
         DispatchQueue.main.async {
-            self.hideConnectingAlertView {
+            if self.connectingView.isHidden == true {
                 self.performSegue(withIdentifier: "showVideoView", sender: self)
-           }
+            } else {
+                self.hideConnectingView {
+                    self.performSegue(withIdentifier: "showVideoView", sender: self)
+                }
+            }
+            
         }
     }
 
     func streamingConnection(_ connection: StreamingConnection, didDisconnectWithError err: Error?) {
 
         DispatchQueue.main.async {
-
             connection.disconnect()
-            self.hideConnectingAlertView() {
+            self.hideConnectingAlertView {
                 if let e = err {
                     Log.info("StreamingConnection \(connection.name) disconnected with error : \(e.localizedDescription)")
 
@@ -43,5 +47,26 @@ extension StartViewController : StreamingConnectionDelegate {
     }
     
     func streamingConnection(_ connection: StreamingConnection, requestsTextEditWithContents contents: String, handler: @escaping (Bool, String?) -> Void) {
+    }
+    
+    func streamingConnection(_ connection: StreamingConnection, requestStreamerSelectionWithStreamers streamers: Array<String>, handler: @escaping (String) -> Void) {
+        self.pickerData = streamers;
+        self.selectedStreamer = streamers[0];
+        DispatchQueue.main.async {
+            self.hideConnectingView() {
+                let alert = UIAlertController(title: "Select Streamer", message: "\n\n\n\n\n\n", preferredStyle: .alert)
+                
+                let picker = UIPickerView(frame: CGRect(x: 5, y: 20, width: 250, height: 140))
+                picker.dataSource = self;
+                picker.delegate = self;
+                alert.view.addSubview(picker)
+
+                alert.addAction(UIAlertAction(title: "OK", style: .default) {_ in
+                    handler(self.selectedStreamer)
+                })
+                
+                self.present(alert, animated:true)
+            }
+        }
     }
 }

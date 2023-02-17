@@ -16,6 +16,7 @@ protocol SignalClientDelegate: AnyObject {
     func signalClient(_ signalClient: SignalingClient, didReceiveRemoteSdp sdp: RTCSessionDescription)
     func signalClient(_ signalClient: SignalingClient, didReceiveCandidate candidate: RTCIceCandidate)
     func signalClient(_ signalClient: SignalingClient, didReceiveConfig config: RTCConfiguration)
+    func signalClient(_ signalClient: SignalingClient, didReceiveStreamerList streamerList: Array<String>)
 }
 
 final class SignalingClient {
@@ -33,6 +34,7 @@ final class SignalingClient {
     func connect() {
         self.webSocket.delegate = self
         self.webSocket.connect()
+        self.sendRequestStreamerList()
     }
     
     func close() {
@@ -61,6 +63,27 @@ final class SignalingClient {
         }
         catch {
             debugPrint("Warning: Could not encode candidate: \(error)")
+        }
+    }
+    func sendRequestStreamerList() {
+        let message = Message.requestStreamerList
+        do {
+            let dataMessage = try self.encoder.encode(message)
+            self.webSocket.send(data: dataMessage)
+        }
+        catch {
+            debugPrint("Warning: Could not encode: \(error)")
+        }
+    }
+    
+    func subscribe(_ streamerId : String) {
+        let message = Message.subscribe(streamerId)
+        do {
+            let dataMessage = try self.encoder.encode(message)
+            self.webSocket.send(data: dataMessage)
+        }
+        catch {
+            debugPrint("Warning: Could not encode: \(error)")
         }
     }
 }
@@ -114,6 +137,12 @@ extension SignalingClient: WebSocketProviderDelegate {
             self.delegate?.signalClient(self, didReceiveRemoteSdp: sessionDescription.rtcSessionDescription)
         case .playerCount(let playerCount):
             print("Got player count=\(playerCount)")
+        case .streamerList(let streamerList):
+            self.delegate?.signalClient(self, didReceiveStreamerList: streamerList)
+        case .requestStreamerList:
+            break
+        case .subscribe(let streamerId):
+            break;
         }
     }
     

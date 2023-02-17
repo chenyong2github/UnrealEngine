@@ -431,6 +431,18 @@ extension WebRTCStreamingConnection: SignalClientDelegate {
         }
     }
     
+    func signalClient(_ signalClient: SignalingClient, didReceiveStreamerList streamerList: Array<String>) {
+        // If we only have a single streamer, no need to show the selection dialogue
+        if streamerList.count == 1 {
+            signalClient.subscribe(streamerList[0])
+        } else if streamerList.count > 1 {
+            // Otherwise make sure we have more than 1 and display the picker
+            self.delegate?.streamingConnection(self, requestStreamerSelectionWithStreamers: streamerList) { (selectedStreamer) in
+                signalClient.subscribe(selectedStreamer)
+            }
+        }
+    }
+    
     func signalClientSendAnswer(_ signalClient: SignalingClient){
         if self.webRTCClient!.hasPeerConnnection() {
             Log.info("Sending answer sdp")
@@ -443,7 +455,6 @@ extension WebRTCStreamingConnection: SignalClientDelegate {
             Log.debug("WebRTC peer connection not setup yet - cannot handle sending answer.")
         }
     }
-    
 }
 
 extension WebRTCStreamingConnection: WebRTCClientDelegate {

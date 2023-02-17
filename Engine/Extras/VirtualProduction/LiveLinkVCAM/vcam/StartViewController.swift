@@ -12,7 +12,6 @@ import Kronos
 import GameController
 
 class StartViewController : BaseViewController {
-
     @IBOutlet weak var headerView : HeaderView!
     @IBOutlet weak var versionLabel : UILabel!
 
@@ -36,6 +35,9 @@ class StartViewController : BaseViewController {
     private var observers = [NSKeyValueObservation]()
     
     private var gameController : GCController?
+    
+    var pickerData: [String] = [String]()
+    var selectedStreamer: String = "";
 
     var ipAddressIsDemoMode : Bool {
         self.ipAddress.text == "demo.mode"
@@ -291,7 +293,6 @@ class StartViewController : BaseViewController {
             Log.info("gameControllerDidDisconnectNotification \(gc.vendorName ?? "Unknown controller")")
         }
     }
-
 }
 
 extension StartViewController : UIGestureRecognizerDelegate {
@@ -314,3 +315,24 @@ extension StartViewController : UITextFieldDelegate {
     }
 }
 
+extension StartViewController : UIPickerViewDelegate, UIPickerViewDataSource {
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        // Number of columns
+        return 1;
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        // Number of rows
+        return pickerData.count
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        return pickerData[row]
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+            // This method is triggered whenever the user makes a change to the picker selection.
+            // The parameter named row and component represents what was selected.
+        selectedStreamer = pickerData[row]
+    }
+}

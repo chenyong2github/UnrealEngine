@@ -52,6 +52,8 @@ extension VideoViewController : StreamingConnectionDelegate {
             self.present(alert, animated: true)
         }
     }
-
+    
+    func streamingConnection(_ connection: StreamingConnection, requestStreamerSelectionWithStreamers streamers: Array<String>, handler: @escaping (String) -> Void) {
+    }
 }
 
