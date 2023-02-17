@@ -29,6 +29,7 @@
 #include "Operations/MinimalHoleFiller.h"
 #include "Operations/PolygroupRemesh.h"
 #include "Operations/WeldEdgeSequence.h"
+#include "Operations/LocalPlanarSimplify.h"
 #include "Selection/StoredMeshSelectionUtil.h"
 #include "Selection/PolygonSelectionMechanic.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -1321,6 +1322,9 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		case EEditMeshPolygonsToolActions::BridgeEdges:
 			ApplyBridgeEdges();
 			break;
+		case EEditMeshPolygonsToolActions::SimplifyAlongEdges:
+			ApplySimplifyAlongEdges();
+			break;
 		case EEditMeshPolygonsToolActions::Retriangulate:
 			ApplyRetriangulate();
 			break;
@@ -2110,6 +2114,50 @@ void UEditMeshPolygonsTool::ApplyStraightenEdges()
 		ChangeTracker.EndChange(), NewSelection);
 }
 
+
+void UEditMeshPolygonsTool::ApplySimplifyAlongEdges()
+{
+	if (BeginMeshEdgeEditChange() == false)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("OnSimplifyAlongEdgesFailed", "Cannot Simplify current selection"), EToolMessageLevel::UserWarning);
+		return;
+	}
+
+	FDynamicMesh3* Mesh = CurrentMesh.Get();
+
+	FDynamicMeshChangeTracker ChangeTracker(Mesh);
+	ChangeTracker.BeginChange();
+
+	// Storage for edge sets is re-used for each selected polygon edge path
+	TSet<int32> SimplifyEdgeSet;
+
+	// Pre-save vertices and triangles along selected edges
+	for (const FSelectedEdge& Edge : ActiveEdgeSelection)
+	{
+		if (Edge.EdgeIDs.Num() > 1)
+		{
+			const TArray<int32>& EdgeVerts = Topology->GetGroupEdgeVertices(Edge.EdgeTopoID);
+			ChangeTracker.SaveVertexOneRingTriangles(EdgeVerts, true);
+		}
+	}
+	
+	// Attempt simplification along edges
+	for (const FSelectedEdge& Edge : ActiveEdgeSelection)
+	{
+		if (Edge.EdgeIDs.Num() > 1)
+		{
+			SimplifyEdgeSet.Reset();
+			SimplifyEdgeSet.Append(Edge.EdgeIDs);
+			FLocalPlanarSimplify LocalSimplify;
+			LocalSimplify.bPreserveVertexNormals = false;
+			LocalSimplify.SimplifyAlongEdges(*Mesh, SimplifyEdgeSet);
+		}
+	}
+
+	FGroupTopologySelection NewSelection;
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshSimplifyAlongEdgesChange", "Simplify Along Edges"),
+		ChangeTracker.EndChange(), NewSelection);
+}
 
 
 void UEditMeshPolygonsTool::ApplyFillHole()

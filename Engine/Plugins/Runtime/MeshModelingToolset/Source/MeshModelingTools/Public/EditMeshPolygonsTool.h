@@ -130,6 +130,7 @@ enum class EEditMeshPolygonsToolActions
 	FillHole,
 	BridgeEdges,
 	BevelEdges,
+	SimplifyAlongEdges,
 
 	PlanarProjectionUV,
 
@@ -416,6 +417,10 @@ public:
 	/** Create a new face that connects the selected edges */
 	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Bridge", DisplayPriority = 5))
 	void Bridge() { PostAction(EEditMeshPolygonsToolActions::BridgeEdges); }
+
+	/** Simplify the underlying triangulation along the selected edges, when doing so won't change the shape or UVs, or make low-quality triangles */
+	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayPriority = 6))
+	void Simplify() { PostAction(EEditMeshPolygonsToolActions::SimplifyAlongEdges); }
 };
 
 
@@ -687,6 +692,7 @@ protected:
 	void ApplyStraightenEdges();
 	void ApplyFillHole();
 	void ApplyBridgeEdges();
+	void ApplySimplifyAlongEdges();
 
 	void ApplyFlipSingleEdge();
 	void ApplyCollapseSingleEdge();

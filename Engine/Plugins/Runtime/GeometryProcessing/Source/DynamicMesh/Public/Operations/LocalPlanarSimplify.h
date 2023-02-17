@@ -75,20 +75,39 @@ public:
 	static bool IsFlat(const FDynamicMesh3& Mesh, int VID, double DotTolerance, FVector3d& OutFirstNormal);
 
 	/**
+	 * Test if the triangles connected to a vertex could be flattened by folding along the given edge
+	 * @param Mesh The mesh to query
+	 * @param EID The edge around which the triangles are allowed to fold
+	 * @param VID The vertex to query
+	 * @param DotTolerance If the dot product of two normals are >= this tolerance, the normals are considered equivalent
+	 * @param The normal of the first triangle attached to the vertex.
+	 * @return Whether all the triangles were coplanar
+	 */
+	static bool IsDevelopableAlongEdge(const FDynamicMesh3& Mesh, int EID, int VID, double DotTolerance, FVector3d& NormalA, bool& bIsFlat);
+
+	/**
 	 * Test if a given edge collapse would cause a triangle flip or other unacceptable decrease in mesh quality
 	 * Specialized for collapsing at flat triangles
+	 * @param Mesh The mesh to query
+	 * @param RemoveVNormal Only used if bHasMultipleNormals==false, i.e. if the surface is locally flat, to avoid recomputing the normal. The normal for all triangles surrounding RemoveV.
+	 * @param RemoveV The vertex to consider removing by an edge collapse
+	 * @param RemoveVPos The position of the vertex RemoveV
+	 * @param KeepV The vertex that is not being removed in the edge collapse
+	 * @param KeepVPos The position of vertex KeepV
+	 * @param TryToImproveTriQualityThreshold Threshold for triangle quality (see comment for class member, above)
+	 * @param bHasMultipleNormals If false, assume the triangulation is locally flat, so we can use ExpectNormal instead of recomputing the expected normal
 	 */
 	static bool CollapseWouldHurtTriangleQuality(
-		const FDynamicMesh3& Mesh, const FVector3d& ExpectNormal,
+		const FDynamicMesh3& Mesh, const FVector3d& RemoveVNormal,
 		int32 RemoveV, const FVector3d& RemoveVPos, int32 KeepV, const FVector3d& KeepVPos,
-		double TryToImproveTriQualityThreshold
+		double TryToImproveTriQualityThreshold, bool bHasMultipleNormals = false
 	);
 
 	/**
 	 * Test if a given edge collapse would change the mesh shape, mesh triangle group shape, or UVs unacceptably
 	 */
 	static bool CollapseWouldChangeShapeOrUVs(
-		const FDynamicMesh3& Mesh, const TSet<int>& CutBoundaryEdgeSet, double DotTolerance, int SourceEID,
+		const FDynamicMesh3& Mesh, const TSet<int>& PathEdgeSet, double DotTolerance, int SourceEID,
 		int32 RemoveV, const FVector3d& RemoveVPos, int32 KeepV, const FVector3d& KeepVPos,
 		const FVector3d& EdgeDir, bool bPreserveTriangleGroups, bool bPreserveUVsForMesh,
 		bool bPreserveVertexUVs, bool bPreserveOverlayUVs, float UVToleranceSq,
