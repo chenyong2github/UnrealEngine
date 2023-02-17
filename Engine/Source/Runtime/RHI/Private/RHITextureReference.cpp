@@ -70,7 +70,7 @@ const FRHITextureDesc& FRHITextureReference::GetDesc() const
 
 void FRHITextureReference::UpdateBindlessShaderResourceView()
 {
-	if (RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled)
+	if (RHIGetRuntimeBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled)
 	{
 		BindlessShaderResourceViewRHI = RHICreateShaderResourceView(ReferencedTexture.GetReference(), 0u);
 	}

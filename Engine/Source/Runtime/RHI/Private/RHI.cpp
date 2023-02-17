@@ -1168,47 +1168,102 @@ static FAutoConsoleVariableRef CVarEnableAttachmentVariableRateShading(
 	ECVF_RenderThreadSafe);
 
 
-int32 GRHIBindlessResourceConfiguration = 0;
+FString GRHIBindlessResourceConfiguration = TEXT("Disabled");
 static FAutoConsoleVariableRef CVarEnableBindlessResources(
 	TEXT("rhi.Bindless.Resources"),
 	GRHIBindlessResourceConfiguration,
-	TEXT("Set to 1 to enable for all shader types. Set to 2 to restrict to Raytracing shaders."),
+	TEXT("Set to Enabled to enable for all shader types. Set to RayTracingOnly to restrict to Raytracing shaders."),
 	ECVF_ReadOnly
 );
 
-int32 GRHIBindlessSamplerConfiguration = 0;
+FString GRHIBindlessSamplerConfiguration = TEXT("Disabled");
 static FAutoConsoleVariableRef CVarEnableBindlessSamplers(
 	TEXT("rhi.Bindless.Samplers"),
 	GRHIBindlessSamplerConfiguration,
-	TEXT("Set to 1 to enable for all shader types. Set to 2 to restrict to Raytracing shaders."),
+	TEXT("Set to Enabled to enable for all shader types. Set to RayTracingOnly to restrict to Raytracing shaders."),
 	ECVF_ReadOnly
 );
 
-static ERHIBindlessConfiguration DetermineBindlessConfiguration(EShaderPlatform Platform, int32 BindlessConfigSetting)
+static ERHIBindlessConfiguration ParseConfigurationFromString(const FString& InSetting)
 {
-	const ERHIBindlessSupport BindlessSupport = RHIGetBindlessSupport(Platform);
-
-	if (BindlessSupport == ERHIBindlessSupport::Unsupported || BindlessConfigSetting == 0)
+	if (InSetting.IsEmpty())
 	{
 		return ERHIBindlessConfiguration::Disabled;
 	}
 
+	if (FCString::Stricmp(*InSetting, TEXT("Disabled")) == 0)
+	{
+		return ERHIBindlessConfiguration::Disabled;
+	}
+
+	if (FCString::Stricmp(*InSetting, TEXT("Enabled")) == 0)
+	{
+		return ERHIBindlessConfiguration::AllShaders;
+	}
+
+	if (FCString::Stricmp(*InSetting, TEXT("RayTracingOnly")) == 0)
+	{
+		return ERHIBindlessConfiguration::RayTracingShaders;
+	}
+
+	return ERHIBindlessConfiguration::Disabled;
+}
+
+static bool GetBindlessConfigurationSetting(FString& OutSetting, EShaderPlatform Platform, const TCHAR* SettingName)
+{
+	const FString ShaderFormat = FDataDrivenShaderPlatformInfo::GetShaderFormat(Platform).ToString();
+	if (!ShaderFormat.IsEmpty())
+	{
+		return GConfig->GetString(*ShaderFormat, SettingName, OutSetting, GEngineIni);
+	}
+
+	return false;
+}
+
+ERHIBindlessConfiguration RHIParseBindlessConfiguration(EShaderPlatform Platform, const FString& ConfigSettingString, const FString& CVarSettingString)
+{
+	const ERHIBindlessSupport BindlessSupport = RHIGetBindlessSupport(Platform);
+
+	const ERHIBindlessConfiguration ConfigSetting = ParseConfigurationFromString(ConfigSettingString);
+	const ERHIBindlessConfiguration CVarSetting = ParseConfigurationFromString(CVarSettingString);
+
+	if (BindlessSupport == ERHIBindlessSupport::Unsupported || (ConfigSetting == ERHIBindlessConfiguration::Disabled && CVarSetting == ERHIBindlessConfiguration::Disabled))
+	{
+		return ERHIBindlessConfiguration::Disabled;
+	}
+
+	// There's no choice here if the platform only supports RayTracing.
 	if (BindlessSupport == ERHIBindlessSupport::RayTracingOnly)
 	{
 		return ERHIBindlessConfiguration::RayTracingShaders;
 	}
 
-	return BindlessConfigSetting == 2 ? ERHIBindlessConfiguration::RayTracingShaders : ERHIBindlessConfiguration::AllShaders;
+	// CVar should always take precedence over the config setting
+	return CVarSetting != ERHIBindlessConfiguration::Disabled ? CVarSetting : ConfigSetting;
 }
 
-ERHIBindlessConfiguration RHIGetBindlessResourcesConfiguration(EShaderPlatform Platform)
+static ERHIBindlessConfiguration DetermineBindlessConfiguration(EShaderPlatform Platform, const TCHAR* ConfigName, const FString& CVarSetting)
 {
-	return DetermineBindlessConfiguration(Platform, GRHIBindlessResourceConfiguration);
+	const ERHIBindlessSupport BindlessSupport = RHIGetBindlessSupport(Platform);
+	if (BindlessSupport == ERHIBindlessSupport::Unsupported)
+	{
+		return ERHIBindlessConfiguration::Disabled;
+	}
+
+	FString ConfigSetting;
+	GetBindlessConfigurationSetting(ConfigSetting, Platform, ConfigName);
+
+	return RHIParseBindlessConfiguration(Platform, ConfigSetting, CVarSetting);
 }
 
-ERHIBindlessConfiguration RHIGetBindlessSamplersConfiguration(EShaderPlatform Platform)
+ERHIBindlessConfiguration RHIGetRuntimeBindlessResourcesConfiguration(EShaderPlatform Platform)
 {
-	return DetermineBindlessConfiguration(Platform, GRHIBindlessSamplerConfiguration);
+	return DetermineBindlessConfiguration(Platform, TEXT("BindlessResources"), GRHIBindlessResourceConfiguration);
+}
+
+ERHIBindlessConfiguration RHIGetRuntimeBindlessSamplersConfiguration(EShaderPlatform Platform)
+{
+	return DetermineBindlessConfiguration(Platform, TEXT("BindlessSamplers"), GRHIBindlessSamplerConfiguration);
 }
 
 namespace RHIConfig

@@ -371,97 +371,176 @@ bool AllowDebugViewmodes(EShaderPlatform Platform)
 #endif
 }
 
-static bool IsShaderCompilerConfigEnabledForPlatform(const IConsoleVariable* GlobalCvar, const TCHAR* Key, FName ShaderFormat)
+struct FShaderSettingHelper
 {
-	bool bEnabled = false;
-
-	// First check the global cvar
-	if (GlobalCvar && GlobalCvar->GetInt())
-	{
-		bEnabled = true;
-	}
+	const IConsoleVariable* const SettingCVar;
 #if WITH_EDITOR
-	else
+	const TCHAR* const SettingSection;
+	const TCHAR* const SettingSectionBuildMachine;
+	const TCHAR* const SettingName;
+#endif
+
+	FShaderSettingHelper() = delete;
+	FShaderSettingHelper(
+		const TCHAR* InSettingSection,
+		const TCHAR* InSettingSectionBuildMachine,
+		const TCHAR* InSettingName,
+		const IConsoleVariable* InSettingCVar)
+		: SettingCVar(InSettingCVar)
+#if WITH_EDITOR
+		, SettingSection(InSettingSection)
+		, SettingSectionBuildMachine(InSettingSectionBuildMachine)
+		, SettingName(InSettingName)
+#endif
 	{
-		// Then check the per platform settings.
+	}
+
+#if WITH_EDITOR
+	static FConfigCacheIni* GetPlatformConfigForFormat(const FName ShaderFormat)
+	{
 		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), ShaderFormat);
-		if (TargetPlatform)
-		{
-			if (FConfigCacheIni* PlatformConfig = TargetPlatform->GetConfigSystem())
-			{
-				// Override with a build machine specific setting, if present.
-				bool QueryBaseConfig = GIsBuildMachine ? !PlatformConfig->GetBool(TEXT("ShaderCompiler_BuildMachine"), Key, bEnabled, GEngineIni) : true;
-				if (QueryBaseConfig)
-				{
-					PlatformConfig->GetBool(TEXT("ShaderCompiler"), Key, bEnabled, GEngineIni);
-				}
-			}
-		}
+		return TargetPlatform ? TargetPlatform->GetConfigSystem() : nullptr;
 	}
 #endif
 
-	return bEnabled;
-}
-
-static bool GetShaderCompilerStringForPlatform(FString& OutputString, const IConsoleVariable* GlobalCvar, const TCHAR* Key, FName ShaderFormat)
-{
-	// First check the global cvar
-	if (GlobalCvar)
+	bool GetBoolForPlatform(FName ShaderFormat) const
 	{
-		OutputString = GlobalCvar->GetString();
+		bool bEnabled = false;
+
+		// First check the global cvar
+		if (SettingCVar && SettingCVar->GetInt())
+		{
+			bEnabled = true;
+		}
+#if WITH_EDITOR
+		// Then check the per platform settings.
+		else if (FConfigCacheIni* PlatformConfig = GetPlatformConfigForFormat(ShaderFormat))
+		{
+			// Override with a build machine specific setting, if present.
+			bool bFoundConfig = false;
+			if (GIsBuildMachine && SettingSectionBuildMachine)
+			{
+				bFoundConfig = PlatformConfig->GetValue(SettingSectionBuildMachine, SettingName, bEnabled, GEngineIni);
+			}
+			if (!bFoundConfig)
+			{
+				PlatformConfig->GetValue(SettingSection, SettingName, bEnabled, GEngineIni);
+			}
+		}
+#endif
+
+		return bEnabled;
 	}
 
-#if WITH_EDITOR
-	if (OutputString.IsEmpty())
+	int32 GetIntForPlatform(FName ShaderFormat) const
 	{
-		// Then check the per platform settings.
-		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), ShaderFormat);
-		if (TargetPlatform)
+		int32 Value = false;
+
+		// First check the global cvar
+		if (SettingCVar && SettingCVar->GetInt())
 		{
-			if (FConfigCacheIni* PlatformConfig = TargetPlatform->GetConfigSystem())
+			Value = SettingCVar->GetInt();
+		}
+#if WITH_EDITOR
+		// Then check the per platform settings.
+		else if (FConfigCacheIni* PlatformConfig = GetPlatformConfigForFormat(ShaderFormat))
+		{
+			// Override with a build machine specific setting, if present.
+			bool bFoundConfig = false;
+			if (GIsBuildMachine && SettingSectionBuildMachine)
+			{
+				bFoundConfig = PlatformConfig->GetValue(SettingSectionBuildMachine, SettingName, Value, GEngineIni);
+			}
+			if (!bFoundConfig)
+			{
+				PlatformConfig->GetValue(SettingSection, SettingName, Value, GEngineIni);
+			}
+		}
+#endif
+
+		return Value;
+	}
+
+	bool GetStringForPlatform(FString& OutputString, FName ShaderFormat) const
+	{
+		// First check the global cvar
+		if (SettingCVar)
+		{
+			OutputString = SettingCVar->GetString();
+		}
+
+#if WITH_EDITOR
+		if (OutputString.IsEmpty())
+		{
+			if (FConfigCacheIni* PlatformConfig = GetPlatformConfigForFormat(ShaderFormat))
 			{
 				// Override with a build machine specific setting, if present.
-				if (GIsBuildMachine)
+				if (GIsBuildMachine && SettingSectionBuildMachine)
 				{
-					OutputString = PlatformConfig->GetStr(TEXT("ShaderCompiler_BuildMachine"), Key, GEngineIni);
+					OutputString = PlatformConfig->GetStr(SettingSectionBuildMachine, SettingName, GEngineIni);
 				}
-
 				if (OutputString.IsEmpty())
 				{
-					OutputString = PlatformConfig->GetStr(TEXT("ShaderCompiler"), Key, GEngineIni);
+					OutputString = PlatformConfig->GetStr(SettingSection, SettingName, GEngineIni);
 				}
 			}
 		}
-	}
 #endif
 
-	return !OutputString.IsEmpty();
-}
+		return !OutputString.IsEmpty();
+	}
+};
 
-struct FShaderSymbolSettingHelper
+struct FShaderSymbolSettingHelper : public FShaderSettingHelper
 {
-	const TCHAR* const SettingName;
-	const IConsoleVariable* const SettingCVar;
-
-	const bool bEnableLegacySettings = true;
 public:
 	FShaderSymbolSettingHelper(const TCHAR* InSettingName, bool bPlatformOnly = false)
-		: SettingName(InSettingName)
-		, SettingCVar(!bPlatformOnly ? IConsoleManager::Get().FindConsoleVariable(InSettingName) : nullptr)
+		: FShaderSettingHelper(TEXT("ShaderCompiler"), TEXT("ShaderCompiler_BuildMachine"), InSettingName, !bPlatformOnly ? IConsoleManager::Get().FindConsoleVariable(InSettingName) : nullptr)
 	{
 		check(SettingCVar || bPlatformOnly);
 	}
 
 	bool IsEnabled(FName ShaderFormat) const
 	{
-		return IsShaderCompilerConfigEnabledForPlatform(SettingCVar, SettingName, ShaderFormat);
+		return GetBoolForPlatform(ShaderFormat);
 	}
 
 	bool GetString(FString& OutString, FName ShaderFormat) const
 	{
-		return GetShaderCompilerStringForPlatform(OutString, SettingCVar, SettingName, ShaderFormat);
+		return GetStringForPlatform(OutString, ShaderFormat);
 	}
 };
+
+inline ERHIBindlessConfiguration GetBindlessConfiguration(FName ShaderFormat, const TCHAR* SettingName, IConsoleVariable* CVar)
+{
+	const FString ShaderFormatStr = ShaderFormat.ToString();
+	const FShaderSettingHelper Helper(*ShaderFormatStr, nullptr, SettingName, CVar);
+
+	const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormat);
+
+	FString SettingValue;
+	Helper.GetStringForPlatform(SettingValue, ShaderFormat);
+
+	FString CVarString;
+	if (CVar)
+	{
+		CVar->GetValue(CVarString);
+	}
+
+	return RHIParseBindlessConfiguration(ShaderPlatform, SettingValue, CVarString);
+}
+
+ERHIBindlessConfiguration UE::ShaderCompiler::GetBindlessResourcesConfiguration(FName ShaderFormat)
+{
+	static IConsoleVariable* const BindlessResourcesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("rhi.Bindless.Resources"));
+	return GetBindlessConfiguration(ShaderFormat, TEXT("BindlessResources"), BindlessResourcesCVar);
+}
+
+ERHIBindlessConfiguration UE::ShaderCompiler::GetBindlessSamplersConfiguration(FName ShaderFormat)
+{
+	static IConsoleVariable* const BindlessSamplersCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("rhi.Bindless.Samplers"));
+	return GetBindlessConfiguration(ShaderFormat, TEXT("BindlessSamplers"), BindlessSamplersCVar);
+}
 
 bool ShouldGenerateShaderSymbols(FName ShaderFormat)
 {
