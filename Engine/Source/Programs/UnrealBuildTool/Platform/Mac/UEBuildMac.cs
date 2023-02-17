@@ -153,6 +153,7 @@ namespace UnrealBuildTool
 		private UnrealArchitectures GetProjectArchitectures(FileReference? ProjectFile, string? TargetName, bool bGetAllSupported, bool bIsDistributionMode)
 		{
 			bool bIsEditor = false;
+			bool bIsBuildMachine = Environment.GetEnvironmentVariable("IsBuildMachine") == "1";
 
 			// get project ini from ProjetFile, or if null, then try to get it from the target rules
 			if (TargetName != null)
@@ -188,8 +189,10 @@ namespace UnrealBuildTool
 			string DefaultKey = bIsEditor ? "EditorDefaultArchitecture" : "DefaultArchitecture";
 			string SupportedArchitecture;
 			string DefaultArchitecture;
+			bool bBuildAllSupportedOnBuildMachine;
 			EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", SupportKey, out SupportedArchitecture);
 			EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", DefaultKey, out DefaultArchitecture);
+			EngineIni.GetBool("/Script/MacTargetPlatform.MacTargetSettings", "bBuildAllSupportedOnBuildMachine", out bBuildAllSupportedOnBuildMachine);
 			SupportedArchitecture = SupportedArchitecture.ToLower();
 			DefaultArchitecture = DefaultArchitecture.ToLower();
 
@@ -199,14 +202,15 @@ namespace UnrealBuildTool
 			// make sure we found a good value
 			if (!bSupportsArm64 && !bSupportsX86)
 			{
-				throw new BuildException($"Unknown {DefaultKey} value found ('{DefaultArchitecture}') in .ini");
+				throw new BuildException($"Unknown {SupportKey} value found ('{SupportedArchitecture}') in .ini");
 			}
 
 			// choose a supported architecture(s) based on desired type
 			List<UnrealArch> Architectures = new();
 
 			// return all supported if getting supported, compiling for distribution, or we want active, and "all" is selected
-			if (bGetAllSupported || bIsDistributionMode || DefaultArchitecture.Equals("all", StringComparison.InvariantCultureIgnoreCase))
+			if (bGetAllSupported || bIsDistributionMode || DefaultArchitecture.Equals("all", StringComparison.InvariantCultureIgnoreCase) ||
+				(bIsBuildMachine && bBuildAllSupportedOnBuildMachine))
 			{
 				if (bSupportsArm64)
 				{
@@ -217,7 +221,7 @@ namespace UnrealBuildTool
 					Architectures.Add(UnrealArch.X64);
 				}
 			}
-			else if (DefaultArchitecture.Equals("host", StringComparison.InvariantCultureIgnoreCase))
+			else if (DefaultArchitecture.Contains("host"))
 			{
 				if (MacExports.IsRunningOnAppleArchitecture && bSupportsArm64)
 				{

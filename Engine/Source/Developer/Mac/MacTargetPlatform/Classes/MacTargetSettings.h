@@ -35,8 +35,11 @@ enum class EMacTargetArchitecture : uint8
     /** Create Universal packages that run natively on all Macs */
     MacTargetArchitectureUniversal = 1 UMETA(DisplayName="Universal (Intel & Apple Silicon)"),
 
-    /** Create packages that can run natively on Apple Silicon Macs */
-    MacTargetArchitectureAppleSil = 2 UMETA(DisplayName="Apple Silicon"),
+	/** Create packages that can run natively on Apple Silicon Macs, and will not run on Intel Macs */
+	MacTargetArchitectureAppleSilicon = 2 UMETA(DisplayName="Apple Silicon"),
+
+	/** Create  packages that match the architecture of the Mac the package is made on */
+	MacTargetArchitectureHost = 3 UMETA(DisplayName="Host (Matches current machine)"),
 };
 
 
@@ -57,14 +60,45 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category=Rendering)
 	TArray<FString> TargetedRHIs;
-    
-    /**
-     * The target Mac platform CPU architecture.
-     * This defines which CPU architectures to target: x86_64 (Intel), arm64 (Apple Silicon) or Universal (Intel & Apple Silicon).
-     */
-    UPROPERTY(EditAnywhere, config, Category=Packaging, meta = (DisplayName = "Architectures to Package For (Experimental)"))
-    EMacTargetArchitecture TargetArchitecture;
-    
+	
+	/**
+	 * The set of architecture(s) this project supports for Editor builds
+	 * This defines which CPU architectures to target: x86_64 (Intel), arm64 (Apple Silicon) or Universal (Intel & Apple Silicon).
+	 * It is recommended to use Universal unless you have editor plugins or other libraries that do not support Apple Silicon
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Packaging, meta = (DisplayName = "Supported Architecture(s) for Editor builds"))
+	EMacTargetArchitecture EditorTargetArchitecture;
+	
+	/**
+	 * The target Mac platform CPU architecture.
+	 * This defines which CPU architectures to target: x86_64 (Intel), arm64 (Apple Silicon) or Universal (Intel & Apple Silicon).
+	 * It is recommended to use Universal unless you have runtime plugins or other libraries that do not support Apple Silicon
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Packaging, meta = (DisplayName = "Supported Architecture(s) for non-Editor builds"))
+	EMacTargetArchitecture TargetArchitecture;
+	
+	/**
+	 * The architecture to compile the Editor target
+	 * This defines which CPU architectures to target: x86_64 (Intel), arm64 (Apple Silicon) or Universal (Intel & Apple Silicon), or Host to match the machine doing the building
+	 * Can override with -Architecture= on the UBT commandline, or -EditorArchitecture=  on the BuildCookRun commandline
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Packaging, meta = (DisplayName = "Architecture(s) when building Editor"))
+	EMacTargetArchitecture EditorDefaultArchitecture;
+	
+	/**
+	 * The architectures to compile non-Editor (games, programs, etc) targets for builds outside of Xcode
+	 * This defines which CPU architectures to target: x86_64 (Intel), arm64 (Apple Silicon) or Universal (Intel & Apple Silicon), or Host to match the machine doing the building
+	 * Can override with -Architecture= on the UBT commandline, or -GameArchitecture= or -ProgramArchitecture= on the BuildCookRun commandline
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Packaging, meta = (DisplayName = "Architecture(s) when building non-Editor"))
+	EMacTargetArchitecture DefaultArchitecture;
+	
+	/**
+	 * If true, builds running on BuildMachines (when the 'IsBuildMachine' environment variable is set to 1) will compile all Supported architectures
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Packaging, meta = (DisplayName = "Build all supported Architectures on Build Machines"))
+	bool bBuildAllSupportedOnBuildMachine;
+
     /**
      * The Metal shader language version which will be used when compiling the shaders.
      */
