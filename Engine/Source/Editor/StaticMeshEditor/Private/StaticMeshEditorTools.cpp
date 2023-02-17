@@ -5146,7 +5146,7 @@ bool FLevelOfDetailSettingsLayout::IsNaniteEnabled() const
 {
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 	check(StaticMesh != nullptr);
-	return StaticMesh->NaniteSettings.bEnabled;
+	return StaticMesh->IsNaniteEnabled();
 }
 
 /////////////////////////////////
@@ -5209,7 +5209,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	auto NaniteCategoryContentLambda = [WeakStaticMesh]()
 	{
 		UStaticMesh* StaticMesh = WeakStaticMesh.Get();
-		if (StaticMesh && StaticMesh->NaniteSettings.bEnabled)
+		if (StaticMesh && StaticMesh->IsNaniteEnabled())
 		{
 			if (!StaticMesh->GetHiResSourceModel().SourceImportFilename.IsEmpty())
 			{
@@ -5222,7 +5222,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	auto NaniteCategoryContentTooltipLambda = [WeakStaticMesh]()
 	{
 		UStaticMesh* StaticMesh = WeakStaticMesh.Get();
-		if (StaticMesh && StaticMesh->NaniteSettings.bEnabled)
+		if (StaticMesh && StaticMesh->IsNaniteEnabled())
 		{
 			if (!StaticMesh->GetHiResSourceModel().SourceImportFilename.IsEmpty())
 			{

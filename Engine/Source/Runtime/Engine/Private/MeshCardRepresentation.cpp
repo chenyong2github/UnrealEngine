@@ -204,7 +204,7 @@ void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const IT
 		{
 			NewTask->SourceMeshData = *OptionalSourceMeshData;
 		}
-		else if (Mesh->NaniteSettings.bEnabled)
+		else if (Mesh->IsNaniteEnabled())
 		{
 			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
 			if (!MeshBuilderModule.BuildMeshVertexPositions(Mesh, NewTask->SourceMeshData.TriangleIndices, NewTask->SourceMeshData.VertexPositions))

@@ -227,7 +227,7 @@ bool SStaticMeshEditorViewport::IsShowNaniteFallbackVisible() const
 {
 	const UStaticMesh* PreviewStaticMesh = PreviewMeshComponent ? ToRawPtr(PreviewMeshComponent->GetStaticMesh()) : nullptr;
 
-	return PreviewStaticMesh && PreviewStaticMesh->NaniteSettings.bEnabled ? true : false;
+	return PreviewStaticMesh && PreviewStaticMesh->IsNaniteEnabled() ? true : false;
 }
 
 void SStaticMeshEditorViewport::UpdatePreviewSocketMeshes()

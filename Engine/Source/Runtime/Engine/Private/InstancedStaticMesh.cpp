@@ -2417,7 +2417,7 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 			Nanite::AuditMaterials(this, NaniteMaterials);
 		}
 
-		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;;
+		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;
 		if (bUseNanite && NaniteMaterials.IsValid(bIsMaskingAllowed))
 		{
 			return ::new Nanite::FSceneProxy(NaniteMaterials, this);
@@ -4232,7 +4232,7 @@ static bool ComponentRequestsCPUAccess(UInstancedStaticMeshComponent* InComponen
 			//static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite"));
 
 		#if WITH_EDITOR
-			const bool bHasNaniteData = StaticMesh->NaniteSettings.bEnabled;
+			const bool bHasNaniteData = StaticMesh->IsNaniteEnabled();
 		#else
 			const FStaticMeshRenderData* RenderData = StaticMesh->GetRenderData();
 			const bool bHasNaniteData = RenderData->NaniteResources.PageStreamingStates.Num() > 0;

@@ -478,7 +478,7 @@ void UStaticMeshComponent::CheckForErrors()
 		OwnerName = Owner->GetName();
 	}
 
-	if (GetStaticMesh() != nullptr && GetStaticMesh()->NaniteSettings.bEnabled != 0)
+	if (GetStaticMesh() != nullptr && GetStaticMesh()->IsNaniteEnabled() != 0)
 	{
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Enable"));
 		if (CVar->GetInt() == 0)
@@ -503,7 +503,7 @@ void UStaticMeshComponent::CheckForErrors()
 			for (int32 SectionIndex = 0; SectionIndex < MeshLODData.Sections.Num(); SectionIndex++)
 			{
 				FStaticMeshSection& Element = MeshLODData.Sections[SectionIndex];
-				if (Element.NumTriangles == 0 && !GetStaticMesh()->NaniteSettings.bEnabled)
+				if (Element.NumTriangles == 0 && !GetStaticMesh()->IsNaniteEnabled())
 				{
 					ZeroTriangleElements++;
 				}

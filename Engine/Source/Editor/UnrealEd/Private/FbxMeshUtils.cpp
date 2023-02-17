@@ -78,7 +78,7 @@ namespace FbxMeshUtils
 			}
 
 			// Set a couple of settings that shouldn't change while importing a lod
-			ImportOptions->bBuildNanite = BaseStaticMesh->NaniteSettings.bEnabled;
+			ImportOptions->bBuildNanite = BaseStaticMesh->IsNaniteEnabled();
 			ImportOptions->StaticMeshLODGroup = BaseStaticMesh->LODGroup;
 			ImportOptions->bIsImportCancelable = false;
 			ImportOptions->bImportMaterials = false;

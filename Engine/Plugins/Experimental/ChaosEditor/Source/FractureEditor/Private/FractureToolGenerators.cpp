@@ -622,7 +622,7 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 				if (ComponentStaticMesh != nullptr)
 				{
 					// If any of the static meshes have Nanite enabled, also enable on the new geometry collection asset for convenience.
-					FracturedGeometryCollection->EnableNanite |= ComponentStaticMesh->NaniteSettings.bEnabled;
+					FracturedGeometryCollection->EnableNanite |= ComponentStaticMesh->IsNaniteEnabled();
 				}
 
 				FTransform ComponentTransform(StaticMeshComponent->GetComponentTransform());

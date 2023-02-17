@@ -938,7 +938,7 @@ void FStaticMeshVertexFactories::InitVertexFactory(
 	Params.LODIndex						= LODIndex;
 #if WITH_EDITORONLY_DATA
 	Params.StaticMesh					= InParentMesh;
-	Params.bIsCoarseProxy				= InParentMesh->NaniteSettings.bEnabled && InParentMesh->NaniteSettings.FallbackPercentTriangles < 1.0f;
+	Params.bIsCoarseProxy				= InParentMesh->IsNaniteEnabled() && InParentMesh->NaniteSettings.FallbackPercentTriangles < 1.0f;
 #endif
 
 	// Initialize the static mesh's vertex factory.
@@ -6427,7 +6427,7 @@ void UStaticMesh::CheckForMissingShaderModels()
 	// Don't show the SM6 toasts on non-Windows platforms to avoid confusion around platform requirements.
 #if PLATFORM_WINDOWS
 	static bool bWarnedAboutMissingShaderModel = false;
-	if (GIsEditor && NaniteSettings.bEnabled && !bWarnedAboutMissingShaderModel)
+	if (GIsEditor && IsNaniteEnabled() && !bWarnedAboutMissingShaderModel)
 	{
 		TArray<FString> D3D11TargetedShaderFormats;
 		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("D3D11TargetedShaderFormats"), D3D11TargetedShaderFormats, GEngineIni);
@@ -8266,11 +8266,20 @@ void UStaticMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable){
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+
+bool UStaticMesh::IsNaniteEnabled() const
+{
+	return NaniteSettings.bEnabled || IsNaniteForceEnabled();
+}
+
 bool UStaticMesh::IsNaniteForceEnabled() const
 {
 	static const bool bForceEnabled = !!CVarForceEnableNaniteMeshes.GetValueOnAnyThread();
 	return bForceEnabled;
 }
+
+#endif
 
 /*-----------------------------------------------------------------------------
 UStaticMeshSocket

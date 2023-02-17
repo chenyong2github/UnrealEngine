@@ -1715,7 +1715,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 
 		//When we do a reimport the nanite static mesh import setting should not affect the asset since its a "reimportrestrict" option
 		//In that case we override the import setting
-		ImportOptions->bBuildNanite = ExistingMesh->NaniteSettings.bEnabled;
+		ImportOptions->bBuildNanite = ExistingMesh->IsNaniteEnabled();
 	}
 	else if (ExistingObject)
 	{
@@ -2026,7 +2026,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 			ExistingBuildSettings.bGenerateLightmapUVs = SrcModel.BuildSettings.bGenerateLightmapUVs;
 			ExistingBuildSettings.DstLightmapIndex = SrcModel.BuildSettings.DstLightmapIndex;
 			MutableExistMeshDataPtr->ExistingLightMapCoordinateIndex = SrcModel.BuildSettings.DstLightmapIndex;
-			MutableExistMeshDataPtr->ExistingNaniteSettings.bEnabled = StaticMesh->NaniteSettings.bEnabled;
+			MutableExistMeshDataPtr->ExistingNaniteSettings.bEnabled = StaticMesh->IsNaniteEnabled();
 
 			StaticMeshImportUtils::RestoreExistingMeshSettings(ExistMeshDataPtr, InStaticMesh, StaticMesh->LODGroup != NAME_None ? INDEX_NONE : LODIndex);
 		}

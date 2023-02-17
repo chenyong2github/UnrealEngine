@@ -221,7 +221,7 @@ void ULODManagerTool::UpdateLODInfo()
 	}
 	bLODInfoValid = true;
 
-	LODInfoProperties->bNaniteEnabled = StaticMesh->NaniteSettings.bEnabled;
+	LODInfoProperties->bNaniteEnabled = StaticMesh->IsNaniteEnabled();
 	LODInfoProperties->PercentTriangles = StaticMesh->NaniteSettings.FallbackPercentTriangles;
 
 	TArray<FStaticMaterial> CurMaterialSet = StaticMesh->GetStaticMaterials();

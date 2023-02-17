@@ -1984,7 +1984,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 	// If exporting a Nanite mesh, just use the lowest LOD and write the unrealNanite override attribute,
 	// this way we can guarantee it will have Nanite when it's imported back.
 #if WITH_EDITOR
-	if ( StaticMesh->NaniteSettings.bEnabled )
+	if ( StaticMesh->IsNaniteEnabled())
 	{
 		if ( NumLODs > 1 )
 		{

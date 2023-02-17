@@ -285,7 +285,7 @@ private:
 						Stats.AddCount(FDataprepStats::StatNameVertices, RenderData->LODResources[0].GetNumVertices());
 					}
 
-					if (StaticMesh->NaniteSettings.bEnabled && StaticMesh->HasValidNaniteData())
+					if (StaticMesh->IsNaniteEnabled() && StaticMesh->HasValidNaniteData())
 					{
 						const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
 						if (Resources.RootData.Num() > 0)

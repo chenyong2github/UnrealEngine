@@ -386,7 +386,7 @@ void SDataprepEditorViewport::UpdateScene()
 					const FTransform& ComponentToWorldTransform = SceneMeshComponent->GetComponentTransform();
 					SceneBounds += StaticMesh->GetExtendedBounds().GetBox().TransformBy( ComponentToWorldTransform );
 
-					bCanShowNaniteFallbackMenu |= StaticMesh->NaniteSettings.bEnabled;
+					bCanShowNaniteFallbackMenu |= StaticMesh->IsNaniteEnabled();
 				}
 			}
 
@@ -438,7 +438,7 @@ void SDataprepEditorViewport::UpdateScene()
 						FComponentReregisterContext ReregisterContext( PreviewMeshComponent );
 						PreviewMeshComponent->SetStaticMesh( StaticMesh );
 
-						PreviewMeshComponent->bDisplayNaniteFallbackMesh = bShowNaniteFallbackMenuChecked && StaticMesh->NaniteSettings.bEnabled;
+						PreviewMeshComponent->bDisplayNaniteFallbackMesh = bShowNaniteFallbackMenuChecked && StaticMesh->IsNaniteEnabled();
 
 						FTransform ComponentToWorldTransform = SceneMeshComponent->GetComponentTransform();
 
@@ -616,7 +616,7 @@ void SDataprepEditorViewport::UpdateOverlayText()
 
 			FStaticMeshLODResources& LODResource = StaticMesh->GetRenderData()->LODResources[0];
 
-			if (StaticMesh->NaniteSettings.bEnabled && StaticMesh->HasValidNaniteData())
+			if (StaticMesh->IsNaniteEnabled() && StaticMesh->HasValidNaniteData())
 			{
 				const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
 				if (Resources.RootData.Num() > 0)
@@ -1327,9 +1327,9 @@ void SDataprepEditorViewport::SetShowNaniteFallback(bool bShow)
 		if (UCustomStaticMeshComponent* PreviewMeshComponent = Cast<UCustomStaticMeshComponent>(PreviewMeshComponentPtr.Get()))
 		{
 			const UStaticMesh* StaticMesh = PreviewMeshComponent->GetStaticMesh();
-			if (StaticMesh && StaticMesh->NaniteSettings.bEnabled)
+			if (StaticMesh && StaticMesh->IsNaniteEnabled())
 			{
-				PreviewMeshComponent->bDisplayNaniteFallbackMesh = bShowNaniteFallbackMenuChecked && StaticMesh->NaniteSettings.bEnabled;
+				PreviewMeshComponent->bDisplayNaniteFallbackMesh = bShowNaniteFallbackMenuChecked;
 				PreviewMeshComponent->MarkRenderStateDirty();
 			}
 		}
