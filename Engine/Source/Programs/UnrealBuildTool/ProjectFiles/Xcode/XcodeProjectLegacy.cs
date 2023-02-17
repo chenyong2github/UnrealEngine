@@ -1593,7 +1593,7 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 				}
 			}
 
-			string DefaultConfiguration = bHasEditorConfiguration && !XcodeProjectFileGenerator.bGenerateRunOnlyProject ? "Development Editor" : "Development";
+			string DefaultConfiguration = bMakeProjectPerTarget && bHasEditorConfiguration && !XcodeProjectFileGenerator.bGenerateRunOnlyProject ? "Development Editor" : "Development";
 
 			StringBuilder Content = new StringBuilder();
 
