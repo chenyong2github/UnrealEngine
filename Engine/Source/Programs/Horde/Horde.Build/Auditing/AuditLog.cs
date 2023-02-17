@@ -193,7 +193,7 @@ namespace Horde.Build.Auditing
 		/// Flush any pending messages to database
 		/// Exposed as internal for use in tests
 		/// </summary>
-		internal async Task FlushMessagesInternalAsync()
+		internal async Task<int> FlushMessagesInternalAsync()
 		{
 			List<AuditLogMessage> newMessages = new ();
 			while (_messageChannel.Reader.TryRead(out AuditLogMessage? newMessage))
@@ -204,6 +204,8 @@ namespace Horde.Build.Auditing
 			{
 				await _messages.InsertManyAsync(newMessages);
 			}
+			
+			return newMessages.Count;
 		}
 		
 		async Task WriteMessagesAsync()

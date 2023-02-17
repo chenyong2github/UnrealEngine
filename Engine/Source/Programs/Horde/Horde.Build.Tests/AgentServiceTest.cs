@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Agents;
@@ -63,9 +64,9 @@ public class AgentServiceTest : TestSetup
 		Fixture fixture = await CreateFixtureAsync();
 		IAuditLogChannel<AgentId> agentLogger = AgentCollection.GetLogger(fixture.Agent1.Id);
 
-		async Task<bool> AuditLogContains(string text)
+		async Task<bool> AuditLogContains(string text, int waitForNumMessages = -1)
 		{
-			await FlushAuditLogsAsync();
+			await FlushAuditLogsAsync(waitForNumMessages);
 			return await agentLogger.FindAsync().AnyAsync(x => x.Data.Contains(text, StringComparison.Ordinal));
 		}
 		
@@ -75,14 +76,33 @@ public class AgentServiceTest : TestSetup
 		
 		props = new () { $"{KnownPropertyNames.AwsInstanceType}=c6.xlarge" };
 		agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, props, new Dictionary<string, int>(), "test");
-		Assert.IsTrue(await AuditLogContains("AWS EC2 instance type changed"));
+		Assert.IsTrue(await AuditLogContains("AWS EC2 instance type changed", 1));
 	}
 
-	private Task FlushAuditLogsAsync()
+	private async Task FlushAuditLogsAsync(int waitForNumMessages = -1, int maxWaitMs = 3000)
 	{
 		IAuditLog<AgentId> auditLog = ServiceProvider.GetRequiredService<IAuditLog<AgentId>>();
 		AuditLog<AgentId> log = (AuditLog<AgentId>)auditLog;
-		return log.FlushMessagesInternalAsync();
+		using CancellationTokenSource cts = new (maxWaitMs);
+		
+		if (waitForNumMessages >= 1)
+		{
+			int numMessagesFlushed = 0;
+			for (;;)
+			{
+				numMessagesFlushed += await log.FlushMessagesInternalAsync();
+				if (numMessagesFlushed >= waitForNumMessages || cts.Token.IsCancellationRequested)
+				{
+					break;
+				}
+				
+				await Task.Delay(100, cts.Token);
+			}
+		}
+		else
+		{
+			await log.FlushMessagesInternalAsync();	
+		}
 	}
 	
 	[TestMethod]
