@@ -403,8 +403,21 @@ void FIKRigEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* Modif
 	
 	// in case the skeletal mesh was swapped out, we need to ensure the preview scene is up-to-date
 	USkeletalMesh* NewMesh = AssetController->GetSkeletalMesh();
+	SkelMeshComponent->SetSkeletalMesh(NewMesh);
 	const TSharedRef<IPersonaPreviewScene> PreviewScene = EditorToolkit.Pin()->GetPersonaToolkit()->GetPreviewScene();
-	PreviewScene->SetPreviewMesh(NewMesh); // this will re-initialize the anim instance
+	if (PreviewScene->GetPreviewMesh() != NewMesh)
+	{
+		PreviewScene->SetPreviewMeshComponent(SkelMeshComponent);
+		PreviewScene->SetPreviewMesh(NewMesh);
+	}
+
+	// re-initializes the anim instances running in the viewport
+	if (AnimInstance)
+	{
+		SkelMeshComponent->PreviewInstance = AnimInstance;
+		AnimInstance->InitializeAnimation();
+		SkelMeshComponent->EnablePreview(true, nullptr);
+	}
 
 
 	// update the bone details so it can pull on the current data
