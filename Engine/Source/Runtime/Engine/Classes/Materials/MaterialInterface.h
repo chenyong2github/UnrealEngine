@@ -92,6 +92,7 @@ enum EMaterialUsage : int
 	MATUSAGE_VirtualHeightfieldMesh,
 	MATUSAGE_Nanite,
 	MATUSAGE_VolumetricCloud,
+	MATUSAGE_HeterogeneousVolumes,
 
 	MATUSAGE_MAX,
 };

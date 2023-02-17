@@ -1629,6 +1629,11 @@ bool FMaterialResource::IsUsedWithVolumetricCloud() const
 	return Material->bUsedWithVolumetricCloud;
 }
 
+bool FMaterialResource::IsUsedWithHeterogeneousVolumes() const
+{
+	return Material->bUsedWithHeterogeneousVolumes;
+}
+
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
 { 
 	return Material->TranslucencyPass == MTP_AfterDOF
@@ -5029,6 +5034,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	bShouldDisableDepthTest = InMaterial->ShouldDisableDepthTest();
 	bHasRenderTracePhysicalMaterialOutput = InMaterial->HasRenderTracePhysicalMaterialOutputs();
 	bIsUsedWithVolumetricCloud = InMaterial->IsUsedWithVolumetricCloud();
+	bIsUsedWithHeterogeneousVolumes = InMaterial->IsUsedWithHeterogeneousVolumes();
 	bIsMobileSeparateTranslucencyEnabled = InMaterial->IsMobileSeparateTranslucencyEnabled();
 }
 

@@ -995,6 +995,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bIsBlendable = true;
 	bEnableStencilTest = false;
 	bUsedWithVolumetricCloud = false;
+	bUsedWithHeterogeneousVolumes = false;
 
 	bUseEmissiveForDynamicAreaLighting = false;
 	RefractionDepthBias = 0.0f;
@@ -1367,6 +1368,7 @@ bool UMaterial::GetUsageByFlag(EMaterialUsage Usage) const
 		case MATUSAGE_VirtualHeightfieldMesh: UsageValue = bUsedWithVirtualHeightfieldMesh; break;
 		case MATUSAGE_Nanite: UsageValue = bUsedWithNanite; break;
 		case MATUSAGE_VolumetricCloud: UsageValue = bUsedWithVolumetricCloud; break;
+		case MATUSAGE_HeterogeneousVolumes: UsageValue = bUsedWithHeterogeneousVolumes; break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageValue;
@@ -1616,6 +1618,10 @@ void UMaterial::SetUsageByFlag(EMaterialUsage Usage, bool NewValue)
 		{
 			bUsedWithVolumetricCloud = NewValue; break;
 		}
+		case MATUSAGE_HeterogeneousVolumes:
+		{
+			bUsedWithHeterogeneousVolumes = NewValue; break;
+		}
 		default: UE_LOG(LogMaterial, Fatal, TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 #if WITH_EDITOR
@@ -1649,6 +1655,7 @@ FString UMaterial::GetUsageName(EMaterialUsage Usage) const
 		case MATUSAGE_VirtualHeightfieldMesh: UsageName = TEXT("bUsedWithVirtualHeightfieldMesh"); break;
 		case MATUSAGE_Nanite: UsageName = TEXT("bUsedWithNanite"); break;
 		case MATUSAGE_VolumetricCloud: UsageName = TEXT("bUsedWithVolumetricCloud"); break;
+		case MATUSAGE_HeterogeneousVolumes: UsageName = TEXT("bUsedWithHeterogeneousVolumes"); break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageName;

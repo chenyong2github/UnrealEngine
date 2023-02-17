@@ -786,6 +786,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
 	uint32 bUsedWithVolumetricCloud : 1;
 
+	/**
+	 * Indicates that the material and its instances with heterogeneous volumes. Without that flag, it can only be used on volumetric fog.
+	 * This will result in the shaders required to support Heterogeneous Volumes rendering being compiled which will increase shader compile time and memory usage.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
+	uint32 bUsedWithHeterogeneousVolumes : 1;
+
 	/** 
 	 * Indicates that the material and its instances can be used with Slate UI and UMG
 	 * This will result in the shaders required to support UI materials being compiled which will increase shader compile time and memory usage.

@@ -99,6 +99,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	DistanceCullRangeSquared = FVector2f(0, FLT_MAX);
 	RendererVisibility = Properties->RendererVisibility;
 	bAccurateMotionVectors = Properties->NeedsPreciseMotionVectors();
+	bIsHeterogeneousVolume = Properties->UseHeterogeneousVolumes();
 
 	if (Properties->bEnableCameraDistanceCulling)
 	{
@@ -1467,6 +1468,13 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 				continue;
 			}
 
+			const FMaterialRenderProxy* ConstMaterialProxy = ParticleMeshRenderData.DynamicDataMesh->Materials[RemappedMaterialIndex];
+			const FMaterial& Material = ConstMaterialProxy->GetMaterialWithFallback(FeatureLevel, ConstMaterialProxy);
+			if (Material.IsUsedWithHeterogeneousVolumes())
+			{
+				continue;
+			}
+
 			FMeshBatch MeshBatch;
 			CreateMeshBatchForSection(
 				ParticleMeshRenderData,
@@ -1800,7 +1808,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 		//In preparation for a material override feature, we pass our material(s) and relevance in via dynamic data.
 		//The renderer ensures we have the correct usage and relevance for materials in BaseMaterials_GT.
 		//Any override feature must also do the same for materials that are set.
-		check(Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraMeshParticles));
+		check( (Properties->UseHeterogeneousVolumes() && Mat->GetMaterial() && (Mat->GetMaterial()->MaterialDomain == MD_Volume)) ?
+			Mat->CheckMaterialUsage_Concurrent(MATUSAGE_HeterogeneousVolumes) :
+			Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraMeshParticles));
 		DynamicData->Materials.Add(Mat->GetRenderProxy());
 	}
 
@@ -1828,7 +1838,15 @@ int FNiagaraRendererMeshes::GetDynamicDataSize()const
 
 bool FNiagaraRendererMeshes::IsMaterialValid(const UMaterialInterface* Mat)const
 {
-	return Mat && Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraMeshParticles);
+	bool bIsMaterialValid = false;
+	if (Mat)
+	{
+		bIsMaterialValid = (bIsHeterogeneousVolume && Mat->GetMaterial() && (Mat->GetMaterial()->MaterialDomain == MD_Volume)) ?
+			Mat->CheckMaterialUsage_Concurrent(MATUSAGE_HeterogeneousVolumes) :
+			Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraMeshParticles);
+	}
+
+	return bIsMaterialValid;
 }
 
 

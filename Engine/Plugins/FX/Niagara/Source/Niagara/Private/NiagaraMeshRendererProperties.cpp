@@ -10,6 +10,7 @@
 #include "NiagaraSystem.h"
 
 #include "MaterialDomain.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Modules/ModuleManager.h"
@@ -1101,11 +1102,18 @@ void UNiagaraMeshRendererProperties::CheckMaterialUsage()
 			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 			{
 				const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
-				UMaterialInterface *Material = MeshProperties.Mesh->GetMaterial(Section.MaterialIndex);
-				if (Material)
+				UMaterialInterface *MaterialInterface = MeshProperties.Mesh->GetMaterial(Section.MaterialIndex);
+				if (MaterialInterface)
 				{
-					FMaterialRenderProxy* MaterialProxy = Material->GetRenderProxy();
-					Material->CheckMaterialUsage(MATUSAGE_NiagaraMeshParticles);
+					const UMaterial* Material = MaterialInterface->GetMaterial();
+					if (UseHeterogeneousVolumes() && Material && Material->MaterialDomain == MD_Volume)
+					{
+						MaterialInterface->CheckMaterialUsage(MATUSAGE_HeterogeneousVolumes);
+					}
+					else
+					{
+						MaterialInterface->CheckMaterialUsage(MATUSAGE_NiagaraMeshParticles);
+					}
 				}
 			}
 		}
