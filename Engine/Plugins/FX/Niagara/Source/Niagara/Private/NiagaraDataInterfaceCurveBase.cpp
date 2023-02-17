@@ -46,6 +46,82 @@ END_SHADER_PARAMETER_STRUCT()
 
 static const TCHAR* NDICurve_TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCurveTemplate.ush");
 
+namespace NiagaraDataInterfaceCurveBaseImpl
+{
+
+static bool PassesErrorThreshold(TConstArrayView<float> ShaderLUT, TConstArrayView<float> ResampledLUT, int32 NumElements, float ErrorThreshold)
+{
+	const int32 CurrNumSamples = ShaderLUT.Num() / NumElements;
+	const int32 NewNumSamples = ResampledLUT.Num() / NumElements;
+
+	for (int iSample = 0; iSample < CurrNumSamples; ++iSample)
+	{
+		const float NormalizedSampleTime = float(iSample) / float(CurrNumSamples - 1);
+
+		const float LhsInterp = FMath::Frac(NormalizedSampleTime * CurrNumSamples);
+		const int LhsSampleA = FMath::Min(FMath::FloorToInt(NormalizedSampleTime * CurrNumSamples), CurrNumSamples - 1);
+		const int LhsSampleB = FMath::Min(LhsSampleA + 1, CurrNumSamples - 1);
+
+		const float RhsInterp = FMath::Frac(NormalizedSampleTime * NewNumSamples);
+		const int RhsSampleA = FMath::Min(FMath::FloorToInt(NormalizedSampleTime * NewNumSamples), NewNumSamples - 1);
+		const int RhsSampleB = FMath::Min(RhsSampleA + 1, NewNumSamples - 1);
+
+		for (int iElement = 0; iElement < NumElements; ++iElement)
+		{
+			const float LhsValue = FMath::Lerp(ShaderLUT[LhsSampleA * NumElements + iElement], ShaderLUT[LhsSampleB * NumElements + iElement], LhsInterp);
+			const float RhsValue = FMath::Lerp(ResampledLUT[RhsSampleA * NumElements + iElement], ResampledLUT[RhsSampleB * NumElements + iElement], RhsInterp);
+			const float Error = FMath::Abs(LhsValue - RhsValue);
+			if (Error > ErrorThreshold)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+template<int32 ElementStride>
+static bool PassesErrorThresholdVectorized(TConstArrayView<float> ShaderLUT, TConstArrayView<float> ResampledLUT, float ErrorThreshold)
+{
+	const int32 CurrNumSamples = ShaderLUT.Num() / ElementStride;
+	const int32 NewNumSamples = ResampledLUT.Num() / ElementStride;
+
+	const float* ShaderLUTData = ShaderLUT.GetData();
+	const float* ResampledLUTData = ResampledLUT.GetData();
+
+	const VectorRegister4Float Threshold = VectorSetFloat1(ErrorThreshold);
+
+	for (int iSample = 0; iSample < CurrNumSamples; ++iSample)
+	{
+		const float NormalizedSampleTime = float(iSample) / float(CurrNumSamples - 1);
+
+		const int LhsSampleA = FMath::Min(FMath::FloorToInt(NormalizedSampleTime * CurrNumSamples), CurrNumSamples - 1);
+		const int LhsSampleB = FMath::Min(LhsSampleA + 1, CurrNumSamples - 1);
+
+		const int RhsSampleA = FMath::Min(FMath::FloorToInt(NormalizedSampleTime * NewNumSamples), NewNumSamples - 1);
+		const int RhsSampleB = FMath::Min(RhsSampleA + 1, NewNumSamples - 1);
+
+		VectorRegister4Float LhsInterp = VectorSetFloat1(NormalizedSampleTime * CurrNumSamples);
+		LhsInterp = VectorSubtract(LhsInterp, VectorTruncate(LhsInterp));
+
+		VectorRegister4Float RhsInterp = VectorSetFloat1(NormalizedSampleTime * NewNumSamples);
+		RhsInterp = VectorSubtract(RhsInterp, VectorTruncate(RhsInterp));
+
+		VectorRegister4Float LhsValue = VectorLerp(VectorLoad(ShaderLUTData + LhsSampleA * ElementStride), VectorLoad(ShaderLUTData + LhsSampleB * ElementStride), LhsInterp);
+		VectorRegister4Float RhsValue = VectorLerp(VectorLoad(ResampledLUTData + RhsSampleA * ElementStride), VectorLoad(ResampledLUTData + RhsSampleB * ElementStride), RhsInterp);
+		VectorRegister4Float Error = VectorAbs(VectorSubtract(LhsValue, RhsValue));
+		if (VectorAnyGreaterThan(Error, Threshold))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+}; // NiagaraDataInterfaceCurveBaseImpl
+
 /** Base class for curve data proxy data. */
 struct FNiagaraDataInterfaceProxyCurveBase : public FNiagaraDataInterfaceProxy
 {
@@ -115,7 +191,7 @@ void UNiagaraDataInterfaceCurveBase::PostLoad()
 	{
 		const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
-		if (NiagaraVer < FNiagaraCustomVersion::LatestVersion)
+		if (NiagaraVer < FNiagaraCustomVersion::CurveLUTRegen)
 		{
 			UpdateLUT();
 		}
@@ -253,45 +329,30 @@ void UNiagaraDataInterfaceCurveBase::OptimizeLUT()
 
 	const int CurrNumSamples = ShaderLUT.Num() / NumElements;
 
-	for (int32 NewNumSamples = 1; NewNumSamples < CurrNumSamples; ++NewNumSamples)
+	if (NumElements == 4)
 	{
-		TArray<float> ResampledLUT = BuildLUT(NewNumSamples);
-
-		bool bCanUseLUT = true;
-		for (int iSample = 0; iSample < CurrNumSamples; ++iSample)
+		for (int32 NewNumSamples = 1; NewNumSamples < CurrNumSamples; ++NewNumSamples)
 		{
-			const float NormalizedSampleTime = float(iSample) / float(CurrNumSamples - 1);
+			TArray<float> ResampledLUT = BuildLUT(NewNumSamples);
 
-			const float LhsInterp = FMath::Frac(NormalizedSampleTime * CurrNumSamples);
-			const int LhsSampleA = FMath::Min(FMath::FloorToInt(NormalizedSampleTime * CurrNumSamples), CurrNumSamples - 1);
-			const int LhsSampleB = FMath::Min(LhsSampleA + 1, CurrNumSamples - 1);
-
-			const float RhsInterp = FMath::Frac(NormalizedSampleTime * NewNumSamples);
-			const int RhsSampleA = FMath::Min(FMath::FloorToInt(NormalizedSampleTime * NewNumSamples), NewNumSamples - 1);
-			const int RhsSampleB = FMath::Min(RhsSampleA + 1, NewNumSamples - 1);
-
-			for (int iElement = 0; iElement < NumElements; ++iElement)
+			if (NiagaraDataInterfaceCurveBaseImpl::PassesErrorThresholdVectorized<4>(ShaderLUT, ResampledLUT, ErrorThreshold))
 			{
-				const float LhsValue = FMath::Lerp(ShaderLUT[LhsSampleA * NumElements + iElement], ShaderLUT[LhsSampleB * NumElements + iElement], LhsInterp);
-				const float RhsValue = FMath::Lerp(ResampledLUT[RhsSampleA * NumElements + iElement], ResampledLUT[RhsSampleB * NumElements + iElement], RhsInterp);
-				const float Error = FMath::Abs(LhsValue - RhsValue);
-				if (Error > ErrorThreshold)
-				{
-					bCanUseLUT = false;
-					break;
-				}
-			}
-
-			if (!bCanUseLUT)
-			{
+				ShaderLUT = MoveTemp(ResampledLUT);
 				break;
 			}
 		}
-
-		if (bCanUseLUT)
+	}
+	else
+	{
+		for (int32 NewNumSamples = 1; NewNumSamples < CurrNumSamples; ++NewNumSamples)
 		{
-			ShaderLUT = ResampledLUT;
-			break;
+			TArray<float> ResampledLUT = BuildLUT(NewNumSamples);
+
+			if (NiagaraDataInterfaceCurveBaseImpl::PassesErrorThreshold(ShaderLUT, ResampledLUT, NumElements, ErrorThreshold))
+			{
+				ShaderLUT = MoveTemp(ResampledLUT);
+				break;
+			}
 		}
 	}
 }

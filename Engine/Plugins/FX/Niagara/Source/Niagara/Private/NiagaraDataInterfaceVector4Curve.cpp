@@ -131,13 +131,6 @@ bool UNiagaraDataInterfaceVector4Curve::CopyToInternal(UNiagaraDataInterface* De
 	DestinationColorCurve->YCurve = YCurve;
 	DestinationColorCurve->ZCurve = ZCurve;
 	DestinationColorCurve->WCurve = WCurve;
-#if WITH_EDITORONLY_DATA
-	DestinationColorCurve->UpdateLUT();
-	if (!CompareLUTS(DestinationColorCurve->ShaderLUT))
-	{
-		UE_LOG(LogNiagara, Log, TEXT("Post CopyToInternal LUT generation is out of sync. Please investigate. %s"), *GetPathName());
-	}
-#endif
 
 	return true;
 }
