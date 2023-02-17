@@ -97,18 +97,25 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 		/// <param name="IsForDistribution">True for distribution builds</param>
 		/// <param name="BundleID">Override option for bundle identifier</param>
 		/// <param name="InAppName"></param>
-		public XcodeProjectFile(FileReference InitFilePath, DirectoryReference BaseDir, bool IsForDistribution, string BundleID, string InAppName)
+		/// <param name="bMakeProjectPerTarget"></param>
+		public XcodeProjectFile(FileReference InitFilePath, DirectoryReference BaseDir, bool IsForDistribution, string BundleID, string InAppName, bool bMakeProjectPerTarget)
 			: base(InitFilePath, BaseDir)
 		{
 			bForDistribution = IsForDistribution;
 			BundleIdentifier = BundleID;
 			AppName = InAppName;
+			this.bMakeProjectPerTarget = bMakeProjectPerTarget;
 		}
 
 		public override string ToString()
 		{
 			return ProjectFilePath.GetFileNameWithoutExtension();
 		}
+
+		/// <summary>
+		/// Temporary for developing this feature
+		/// </summary>
+		bool bMakeProjectPerTarget;
 
 		/// <summary>
 		///  Used to mark the project for distribution (some platforms require this)
@@ -1456,7 +1463,7 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 										bShouldCompileMonolithic |= (ProjectTarget.CreateRulesDelegate(Platform, Configuration).LinkType == TargetLinkType.Monolithic);
 
 										string ConfigName = Configuration.ToString();
-										if (ProjectTarget.TargetRules!.Type != TargetType.Game && ProjectTarget.TargetRules.Type != TargetType.Program)
+										if (!bMakeProjectPerTarget && ProjectTarget.TargetRules!.Type != TargetType.Game && ProjectTarget.TargetRules.Type != TargetType.Program)
 										{
 											ConfigName += " " + ProjectTarget.TargetRules.Type.ToString();
 										}
@@ -1470,14 +1477,14 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 											// Get the output directory
 											DirectoryReference RootDirectory;
 											if (UProjectDirectory != null &&
-												(bShouldCompileMonolithic || ProjectTarget.TargetRules.BuildEnvironment == TargetBuildEnvironment.Unique) &&
-												ProjectTarget.TargetRules.File!.IsUnderDirectory(UProjectDirectory))
+												(bShouldCompileMonolithic || ProjectTarget.TargetRules!.BuildEnvironment == TargetBuildEnvironment.Unique) &&
+												ProjectTarget.TargetRules!.File!.IsUnderDirectory(UProjectDirectory))
 											{
 												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(UProjectDirectory, ProjectTarget.TargetRules.File!);
 											}
 											else
 											{
-												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(Unreal.EngineDirectory, ProjectTarget.TargetRules.File!);
+												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(Unreal.EngineDirectory, ProjectTarget.TargetRules!.File!);
 											}
 
 											string ExeName = TargetName;

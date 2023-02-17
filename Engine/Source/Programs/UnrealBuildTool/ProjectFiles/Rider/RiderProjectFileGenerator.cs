@@ -513,7 +513,7 @@ namespace UnrealBuildTool
 				HashSet<UnrealTargetPlatform> ValidPlatforms;
 				List<VCProjectFileGenerator.VCSolutionConfigCombination> ValidSolutionConfigs;
 				VCProjectFileGenerator.CollectSolutionConfigurations(SupportedConfigurations,
-					SupportedPlatforms, AllProjectFiles, Logger, out ValidPlatforms, out ValidSolutionConfigs);
+					SupportedPlatforms, AllProjectFiles, bMakeProjectPerTarget, Logger, out ValidPlatforms, out ValidSolutionConfigs);
 				FileReference OutputFile = GetRiderProjectLocation("root.json");
 				DirectoryReference.CreateDirectory(OutputFile.Directory);
 				using (JsonWriter Writer = new JsonWriter(OutputFile))

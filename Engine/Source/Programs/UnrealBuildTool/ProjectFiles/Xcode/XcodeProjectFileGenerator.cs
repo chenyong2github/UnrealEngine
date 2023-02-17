@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -21,6 +21,11 @@ namespace UnrealBuildTool
 	/// </summary>
 	class XcodeProjectFileGenerator : ProjectFileGenerator
 	{
+		/// <summary>
+		///  Xcode makes a project per target, for modern to be able to pull in Cooked data
+		/// </summary>
+		protected override bool bMakeProjectPerTarget => true;
+
 		public DirectoryReference? XCWorkspace;
 
 		// always seed the random number the same, so multiple runs of the generator will generate the same project
@@ -124,7 +129,7 @@ namespace UnrealBuildTool
 			// unfortunately, we can't read the project configs now because we don't have enough information to 
 			// find the .uproject file for that would make this project (we could change the high level to pass it 
 			// down but it would touch all project generators - not worth it if we end up removing the legacy)
-			return new XcodeProjectXcconfig.XcodeProjectFile(InitFilePath, BaseDir, bForDistribution, BundleIdentifier, AppName);
+			return new XcodeProjectXcconfig.XcodeProjectFile(InitFilePath, BaseDir, bForDistribution, BundleIdentifier, AppName, bMakeProjectPerTarget);
 		}
 
 		private bool WriteWorkspaceSettingsFile(string Path, ILogger Logger)

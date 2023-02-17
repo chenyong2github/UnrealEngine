@@ -99,6 +99,11 @@ namespace UnrealBuildTool
 	class VCProjectFileGenerator : ProjectFileGenerator
 	{
 		/// <summary>
+		/// Set to true to enable a project for each target, and do not put the target type into the configuration
+		/// </summary>
+		protected override bool bMakeProjectPerTarget => true;
+
+		/// <summary>
 		/// The settings object
 		/// </summary>
 		protected VCProjectFileSettings Settings = new VCProjectFileSettings();
@@ -211,7 +216,7 @@ namespace UnrealBuildTool
 		/// <returns>The newly allocated project file object</returns>
 		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
 		{
-			return new VCProjectFile(InitFilePath, BaseDir, Settings.ProjectFileFormat, bUsePrecompiled, BuildToolOverride, Settings);
+			return new VCProjectFile(InitFilePath, BaseDir, Settings.ProjectFileFormat, bUsePrecompiled, bMakeProjectPerTarget, BuildToolOverride, Settings);
 		}
 
 
@@ -404,16 +409,20 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Configuration">The build configuration</param>
 		/// <param name="TargetType">The type of target being built</param>
+		/// <param name="bMakeProjectPerTarget">True if we are making one project per target type, instead of rolling them into the configs</param>
 		/// <returns>The generated solution configuration name</returns>
-		static string MakeSolutionConfigurationName(UnrealTargetConfiguration Configuration, TargetType TargetType)
+		static string MakeSolutionConfigurationName(UnrealTargetConfiguration Configuration, TargetType TargetType, bool bMakeProjectPerTarget)
 		{
 			string SolutionConfigName = Configuration.ToString();
 
-			// Don't bother postfixing "Game" or "Program" -- that will be the default when using "Debug", "Development", etc.
-			// Also don't postfix "RocketGame" when we're building Rocket game projects.  That's the only type of game there is in that case!
-			if (TargetType != TargetType.Game && TargetType != TargetType.Program)
+			if (!bMakeProjectPerTarget)
 			{
-				SolutionConfigName += " " + TargetType.ToString();
+				// Don't bother postfixing "Game" or "Program" -- that will be the default when using "Debug", "Development", etc.
+				// Also don't postfix "RocketGame" when we're building Rocket game projects.  That's the only type of game there is in that case!
+				if (TargetType != TargetType.Game && TargetType != TargetType.Program)
+				{
+					SolutionConfigName += " " + TargetType.ToString();
+				}
 			}
 
 			return SolutionConfigName;
@@ -667,7 +676,7 @@ namespace UnrealBuildTool
 					{
 						VCSolutionFileContent.AppendLine("	GlobalSection(SolutionConfigurationPlatforms) = preSolution");
 
-						CollectSolutionConfigurations(SupportedConfigurations, SupportedPlatforms, AllProjectFiles,
+						CollectSolutionConfigurations(SupportedConfigurations, SupportedPlatforms, AllProjectFiles, bMakeProjectPerTarget,
 							Logger, out PlatformsValidForProjects, out SolutionConfigCombinations);
 
 						HashSet<string> AppendedSolutionConfigAndPlatformNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
@@ -822,7 +831,10 @@ namespace UnrealBuildTool
 					VCSolutionOptions Options = new VCSolutionOptions(Settings.ProjectFileFormat);
 
 					// Set the default configuration and startup project
-					VCSolutionConfigCombination? DefaultConfig = SolutionConfigCombinations.Find(x => x.Configuration == UnrealTargetConfiguration.Development && x.Platform == UnrealTargetPlatform.Win64 && x.TargetConfigurationName == TargetType.Editor);
+					VCSolutionConfigCombination? DefaultConfig = SolutionConfigCombinations.Find(x => 
+						x.Configuration == UnrealTargetConfiguration.Development &&
+						x.Platform == UnrealTargetPlatform.Win64 && 
+						(bMakeProjectPerTarget || x.TargetConfigurationName == TargetType.Editor));
 					if (DefaultConfig != null)
 					{
 						List<VCBinarySetting> Settings = new List<VCBinarySetting>();
@@ -871,7 +883,7 @@ namespace UnrealBuildTool
 		}
 
 		public static void CollectSolutionConfigurations(List<UnrealTargetConfiguration> AllConfigurations,
-			List<UnrealTargetPlatform> AllPlatforms, List<ProjectFile> AllProjectFiles, ILogger Logger,
+			List<UnrealTargetPlatform> AllPlatforms, List<ProjectFile> AllProjectFiles, bool bMakeProjectPerTarget, ILogger Logger,
 			out HashSet<UnrealTargetPlatform> OutValidPlatforms, out List<VCSolutionConfigCombination> OutSolutionConfigs)
 		{
 			OutValidPlatforms = new HashSet<UnrealTargetPlatform>();
@@ -913,7 +925,7 @@ namespace UnrealBuildTool
 											}
 
 											string SolutionConfigName =
-												MakeSolutionConfigurationName(CurConfiguration, TargetType);
+												MakeSolutionConfigurationName(CurConfiguration, TargetType, bMakeProjectPerTarget);
 											SolutionConfigurationsValidForProjects[SolutionConfigName] =
 												new Tuple<UnrealTargetConfiguration, TargetType>(CurConfiguration, TargetType);
 										}

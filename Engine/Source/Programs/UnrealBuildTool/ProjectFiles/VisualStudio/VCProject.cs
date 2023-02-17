@@ -281,6 +281,7 @@ namespace UnrealBuildTool
 	{
 		VCProjectFileFormat ProjectFileFormat;
 		bool bUsePrecompiled;
+		bool bMakeProjectPerTarget;
 		string? BuildToolOverride;
 		Dictionary<DirectoryReference, string> ModuleDirToForceIncludePaths = new Dictionary<DirectoryReference, string>();
 		Dictionary<DirectoryReference, string> ModuleDirToPchHeaderFile = new Dictionary<DirectoryReference, string>();
@@ -304,13 +305,15 @@ namespace UnrealBuildTool
 		/// <param name="BaseDir">The base directory for files within this project</param>
 		/// <param name="ProjectFileFormat">Visual C++ project file version</param>
 		/// <param name="bUsePrecompiled">Whether to add the -UsePrecompiled argumemnt when building targets</param>
+		/// <param name="bMakeProjectPerTarget">Whether to add roll the target type into the config (ie "Development Editor")</param>
 		/// <param name="BuildToolOverride">Optional arguments to pass to UBT when building</param>
 		/// <param name="Settings">Other settings</param>
-		public VCProjectFile(FileReference FilePath, DirectoryReference BaseDir, VCProjectFileFormat ProjectFileFormat, bool bUsePrecompiled, string? BuildToolOverride, VCProjectFileSettings Settings)
+		public VCProjectFile(FileReference FilePath, DirectoryReference BaseDir, VCProjectFileFormat ProjectFileFormat, bool bUsePrecompiled, bool bMakeProjectPerTarget, string? BuildToolOverride, VCProjectFileSettings Settings)
 			: base(FilePath, BaseDir)
 		{
 			this.ProjectFileFormat = ProjectFileFormat;
 			this.bUsePrecompiled = bUsePrecompiled;
+			this.bMakeProjectPerTarget = bMakeProjectPerTarget;
 			this.BuildToolOverride = BuildToolOverride;
 			this.Settings = Settings;
 		}
@@ -360,7 +363,7 @@ namespace UnrealBuildTool
 				ProjectPlatformName = DefaultPlatformName;
 			}
 
-			if (TargetConfigurationName != TargetType.Game)
+			if (!bMakeProjectPerTarget && TargetConfigurationName != TargetType.Game)
 			{
 				ProjectConfigurationName += "_" + TargetConfigurationName.ToString();
 			}
@@ -415,7 +418,7 @@ namespace UnrealBuildTool
 					{
 						if (ProjectTarget.TargetRules != null)
 						{
-							if (TargetConfigurationName == ProjectTarget.TargetRules.Type)
+							if (bMakeProjectPerTarget || TargetConfigurationName == ProjectTarget.TargetRules.Type)
 							{
 								MatchingProjectTargets.Add(ProjectTarget);
 							}

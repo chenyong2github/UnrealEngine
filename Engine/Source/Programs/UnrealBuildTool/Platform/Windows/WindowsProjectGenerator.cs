@@ -65,7 +65,7 @@ namespace UnrealBuildTool
 					DebugOptions += ForeignUProjectPath;
 					DebugOptions += " -skipcompile";
 				}
-				else if (InTargetRules.Type == TargetType.Editor && ProjectName != ProjectFileGenerator.EngineProjectFileNameBase)
+				else if (InTargetRules.Type == TargetType.Editor && InTargetRules.ProjectFile != null)
 				{
 					DebugOptions += ProjectName;
 				}

@@ -337,6 +337,11 @@ namespace UnrealBuildTool
 		string[]? ConfigurationNames = null;
 
 		/// <summary>
+		/// If true, this generator wants to have a project for each target type (UnrealGame, UnrealEditor, etc) and has only the straight configs (Debug, Development)
+		/// </summary>
+		protected virtual bool bMakeProjectPerTarget => false;
+
+		/// <summary>
 		/// Relative path to the directory where the primary project file will be saved to
 		/// </summary>
 		public static DirectoryReference PrimaryProjectPath = Unreal.RootDirectory; // We'll save the primary project to our "root" folder
@@ -344,7 +349,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Name of the UE engine project that contains all of the engine code, config files and other files
 		/// </summary>
-		public const string EngineProjectFileNameBase = "UE5";
+		public const string EngineRulesAssemblyName = "UE5";
+
+		/// <summary>
+		/// Name of the UE engine project that contains all of the engine code, config files and other files
+		/// </summary>
+		public string EngineProjectFileNameBase => bMakeProjectPerTarget ? "UnrealGame" : EngineRulesAssemblyName;
+
+		/// <summary>
+		/// Name of the UE engine project that contains all of the engine code, config files and other files
+		/// </summary>
+		public string EngineEditorProjectFileNameBase => bMakeProjectPerTarget ? "UnrealEditor" : EngineRulesAssemblyName;
 
 		/// <summary>
 		/// When ProjectsAreIntermediate is true, this is the directory to store generated project files
@@ -379,7 +394,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Maps all module files that were included in generated project files, to actual project file objects.
 		/// </summary>
-		protected Dictionary<FileReference, ProjectFile> ModuleToProjectFileMap = new Dictionary<FileReference, ProjectFile>();
+		protected Dictionary<FileReference, ProjectFile> ModuleToEditorProjectFileMap = new Dictionary<FileReference, ProjectFile>();
+
+		/// <summary>
+		/// Maps all module files that were included in generated project files, to actual project file objects.
+		/// </summary>
+		protected Dictionary<FileReference, ProjectFile> ModuleToNonEditorProjectFileMap = new Dictionary<FileReference, ProjectFile>();
 
 		/// <summary>
 		/// If generating project files for a single project, the path to its .uproject file.
@@ -474,11 +494,13 @@ namespace UnrealBuildTool
 
 						if (ProjectFile.IsUnderDirectory(SamplesDirectory))
 						{
-							RootFolder.AddSubFolder("Samples").ChildProjects.Add(Project);
+							RootFolder.AddSubFolder("Samples").AddSubFolder(ProjectFile.GetFileNameWithoutAnyExtensions()).ChildProjects.Add(Project);
 						}
 						else
 						{
-							RootFolder.AddSubFolder("Games").ChildProjects.Add(Project);
+							// @todo: adding to a group that is the name of the game's automation - if the name is not the name of the game,
+							// we'd have to search up looking for the .uproject. not sure if this happens
+							RootFolder.AddSubFolder("Games").AddSubFolder(ProjectFile.GetFileNameWithoutAnyExtensions()).ChildProjects.Add(Project);
 						}
 					}
 					else
@@ -904,7 +926,7 @@ namespace UnrealBuildTool
 			// we're generating project files for.
 			List<FileReference> AllModuleFiles = DiscoverModules(AllGameProjects, AdditionalSearchPaths.Values.SelectMany(x => x).ToList());
 
-			ProjectFile? EngineProject = null;
+			List<ProjectFile> EngineProjects = new List<ProjectFile>();
 			List<ProjectFile> GameProjects = new List<ProjectFile>();
 			List<ProjectFile> ModProjects = new List<ProjectFile>();
 			Dictionary<FileReference, ProjectFile> ProgramProjects = new Dictionary<FileReference, ProjectFile>();
@@ -913,7 +935,7 @@ namespace UnrealBuildTool
 			if(IncludeCppSource)
 			{
 				// Setup buildable projects for all targets
-				AddProjectsForAllTargets(PlatformProjectGenerators, AllGameProjects, AllTargetFiles, Arguments, ref EngineProject, GameProjects, ProjectFileToUProjectFile, ProgramProjects, RulesAssemblies, Logger);
+				AddProjectsForAllTargets(PlatformProjectGenerators, AllGameProjects, AllTargetFiles, Arguments, EngineProjects, GameProjects, ProjectFileToUProjectFile, ProgramProjects, RulesAssemblies, Logger);
 
 				// Add projects for mods
 				AddProjectsForMods(GameProjects, ModProjects);
@@ -938,21 +960,30 @@ namespace UnrealBuildTool
 				if (bIncludeEngineSource)
 				{
 					// If we're still missing an engine project because we don't have any targets for it, make one up.
-					if (EngineProject == null)
+					if (EngineProjects.Count == 0)
 					{
 						FileReference ProjectFilePath = FileReference.Combine(IntermediateProjectFilesPath, EngineProjectFileNameBase + ProjectFileExtension);
 
-						bool bAlreadyExisted;
-						EngineProject = FindOrAddProject(ProjectFilePath, Unreal.EngineDirectory, true, out bAlreadyExisted);
+						ProjectFile EngineProject = FindOrAddProject(ProjectFilePath, Unreal.EngineDirectory, true, out _);
 
 						EngineProject.IsForeignProject = false;
 						EngineProject.IsGeneratedProject = true;
 						EngineProject.IsStubProject = true;
+
+						EngineProjects.Add(EngineProject);
 					}
 
-					if (EngineProject != null)
+					if (EngineProjects.Count > 0)
 					{
-						RootFolder.AddSubFolder("Engine").ChildProjects.Add(EngineProject);
+						// put all engine projects into solution
+						PrimaryProjectFolder EngineFolder = RootFolder.AddSubFolder("Engine");
+						foreach (ProjectFile Project in EngineProjects)
+						{
+							EngineFolder.ChildProjects.Add(Project);
+						}
+
+						// put all this stuff into one of the engine projects
+						ProjectFile EngineProject = EngineProjects.First(x => x.ProjectFilePath.GetFileNameWithoutAnyExtensions() == EngineProjectFileNameBase);
 
 						// Engine config files
 						if (bIncludeConfigFiles)
@@ -1031,11 +1062,11 @@ namespace UnrealBuildTool
 						else if (UnrealProjectFile.IsUnderDirectory(SamplesDirectory))
 						{
 							DirectoryReference SampleGameDirectory = CurGameProject.BaseDir;
-							RootFolder.AddSubFolder("Samples").ChildProjects.Add(CurGameProject);
+							RootFolder.AddSubFolder("Samples").AddSubFolder(UnrealProjectFile.GetFileNameWithoutExtension()).ChildProjects.Add(CurGameProject);
 						}
 						else
 						{
-							RootFolder.AddSubFolder("Games").ChildProjects.Add(CurGameProject);
+							RootFolder.AddSubFolder("Games").AddSubFolder(UnrealProjectFile.GetFileNameWithoutExtension()).ChildProjects.Add(CurGameProject);
 						}
 
 						List<Tuple<ProjectFile, string>>? NewProjectFiles = CurGameProject.WriteDebugProjectFiles(SupportedPlatforms, SupportedConfigurations, PlatformProjectGenerators, Logger);
@@ -1140,18 +1171,16 @@ namespace UnrealBuildTool
 				List<Tuple<ProjectFile, ProjectTarget>> IntelliSenseTargetFiles = new List<Tuple<ProjectFile, ProjectTarget>>();
 				{
 					// Engine targets
-					if (EngineProject != null)
+					foreach (ProjectFile EngineProject in EngineProjects)
 					{
-						foreach (ProjectTarget ProjectTarget in EngineProject.ProjectTargets)
+						//ProjectTarget ProjectTarget = (ProjectTarget)EngineProject.ProjectTarget!;
+						foreach (ProjectTarget EngineTarget in EngineProject.ProjectTargets)
 						{
-							if (ProjectTarget.TargetFilePath != null)
+							// Only bother with the editor target.  We want to make sure that definitions are setup to be as inclusive as possible
+							// for good quality IntelliSense.  For example, we want WITH_EDITORONLY_DATA=1, so using the editor targets works well.
+							if (bMakeProjectPerTarget || EngineTarget.TargetRules!.Type == TargetType.Editor) // @todo <-- try removing first term
 							{
-								// Only bother with the editor target.  We want to make sure that definitions are setup to be as inclusive as possible
-								// for good quality IntelliSense.  For example, we want WITH_EDITORONLY_DATA=1, so using the editor targets works well.
-								if (ProjectTarget.TargetRules!.Type == TargetType.Editor)
-								{
-									IntelliSenseTargetFiles.Add(Tuple.Create(EngineProject, ProjectTarget));
-								}
+								IntelliSenseTargetFiles.Add(Tuple.Create(EngineProject, EngineTarget));
 							}
 						}
 					}
@@ -1175,7 +1204,7 @@ namespace UnrealBuildTool
 						{
 							// Only bother with the editor target.  We want to make sure that definitions are setup to be as inclusive as possible
 							// for good quality IntelliSense.  For example, we want WITH_EDITORONLY_DATA=1, so using the editor targets works well.
-							if (ProjectTarget.TargetRules!.Type == TargetType.Editor)
+							if (bMakeProjectPerTarget || ProjectTarget.TargetRules!.Type == TargetType.Editor)
 							{
 								IntelliSenseTargetFiles.Add(Tuple.Create(GameProject, ProjectTarget));
 							}
@@ -1985,7 +2014,7 @@ namespace UnrealBuildTool
 									foreach (UEBuildModuleCPP Module in Binary.Modules.OfType<UEBuildModuleCPP>())
 									{
 										ProjectFile? ProjectFileForIDE;
-										if (ModuleToProjectFileMap.TryGetValue(Module.RulesFile, out ProjectFileForIDE) && ProjectFileForIDE == TargetProjectFile)
+										if (ModuleToEditorProjectFileMap.TryGetValue(Module.RulesFile, out ProjectFileForIDE) && ProjectFileForIDE == TargetProjectFile)
 										{
 											Utils.WriteFileIfChangedContext = $"{Target.TargetName} {Target.Configuration} {Target.Platform} {Binary.OutputFilePaths[0].GetFileName()} {Module.Name}";
 
@@ -2188,10 +2217,10 @@ namespace UnrealBuildTool
 				if (WantProjectFileForModule)
 				{
 					DirectoryReference BaseFolder;
-					ProjectFile ProjectFile = FindProjectForModule(CurModuleFile, AllGames, ProgramProjects, ModProjects, AdditionalSearchPaths, out BaseFolder);
+					ProjectFile ProjectFile = FindProjectForModule(CurModuleFile, TargetType.Editor, AllGames, ProgramProjects, ModProjects, AdditionalSearchPaths, out BaseFolder);
 
 					// Update our module map
-					ModuleToProjectFileMap[CurModuleFile] = ProjectFile;
+					ModuleToEditorProjectFileMap[CurModuleFile] = ProjectFile;
 					ProjectFile.IsGeneratedProject = true;
 
 					// Only search subdirectories for non-external modules.  We don't want to add all of the source and header files
@@ -2281,11 +2310,10 @@ namespace UnrealBuildTool
 		{
 			// Setup a project file entry for this module's project.  Remember, some projects may host multiple modules!
 			FileReference ProjectFileName = FileReference.Combine(IntermediateProjectFilesPath, InProjectFileNameBase + ProjectFileExtension);
-			bool bProjectAlreadyExisted;
-			return FindOrAddProject(ProjectFileName, InBaseFolder, IncludeInGeneratedProjects: true, bAlreadyExisted: out bProjectAlreadyExisted);
+			return FindOrAddProject(ProjectFileName, InBaseFolder, IncludeInGeneratedProjects: true, bAlreadyExisted: out _);
 		}
 
-		private ProjectFile FindProjectForModule(FileReference CurModuleFile, List<FileReference> AllGames, Dictionary<FileReference, ProjectFile> ProgramProjects, List<ProjectFile> ModProjects, Dictionary<FileReference, List<DirectoryReference>> AdditionalSearchPaths, out DirectoryReference BaseFolder)
+		private ProjectFile FindProjectForModule(FileReference CurModuleFile, TargetType TargetType, List<FileReference> AllGames, Dictionary<FileReference, ProjectFile> ProgramProjects, List<ProjectFile> ModProjects, Dictionary<FileReference, List<DirectoryReference>> AdditionalSearchPaths, out DirectoryReference BaseFolder)
 		{
 			// Starting at the base directory of the module find a project which has the same directory as base, walking up the directory hierarchy until a match is found
 
@@ -2300,7 +2328,22 @@ namespace UnrealBuildTool
 					{
 						FileReference ProjectInfo = Game;
 						BaseFolder = ProjectInfo.Directory;
-						return FindOrAddProjectHelper(ProjectInfo.GetFileNameWithoutExtension(), BaseFolder);
+
+						if (bMakeProjectPerTarget)
+						{
+							// find the project that the module is under, and has a TargetType target (useful with bMakeProjectPerTarget)
+							foreach (KeyValuePair<FileReference, ProjectFile> Pair in ProjectFileMap)
+							{
+								if (((ProjectTarget)Pair.Value.ProjectTargets[0]).TargetFilePath.Directory.ParentDirectory == Path && Pair.Value.ProjectTargets.Any(x => x.TargetRules!.Type == TargetType))
+								{
+									return Pair.Value;
+								}
+							}
+						}
+						else
+						{
+							return FindOrAddProjectHelper(ProjectInfo.GetFileNameWithoutExtension(), BaseFolder);
+						}
 					}
 				}
 				// Check if it's a mod
@@ -2332,7 +2375,7 @@ namespace UnrealBuildTool
 					if (Path == ExtensionDir)
 					{
 						BaseFolder = Unreal.EngineDirectory;
-						return FindOrAddProjectHelper(EngineProjectFileNameBase, BaseFolder);
+						return FindOrAddProjectHelper(EngineEditorProjectFileNameBase, BaseFolder);
 					}
 				}
 
@@ -2362,7 +2405,7 @@ namespace UnrealBuildTool
 		/// <param name="AllGames">All game folders</param>
 		/// <param name="AllTargetFiles">All the target files to add</param>
 		/// <param name="Arguments">The commandline arguments used</param>
-		/// <param name="EngineProject">The engine project we created</param>
+		/// <param name="EngineProjects">The engine projects we created</param>
 		/// <param name="GameProjects">Map of game folder name to all of the game projects we created</param>
 		/// <param name="ProjectFileToUProjectFile">Map of generated Project File to the .uproject file for a given game.</param>
 		/// <param name="ProgramProjects">Map of program names to all of the program projects we created</param>
@@ -2373,7 +2416,7 @@ namespace UnrealBuildTool
 			List<FileReference> AllGames,
 			List<FileReference> AllTargetFiles,
 			String[] Arguments,
-			ref ProjectFile? EngineProject,
+			List<ProjectFile> EngineProjects,
 			List<ProjectFile> GameProjects,
 			Dictionary<ProjectFile, FileReference> ProjectFileToUProjectFile,
 			Dictionary<FileReference, ProjectFile> ProgramProjects,
@@ -2474,51 +2517,59 @@ namespace UnrealBuildTool
 						ProjectFileNameBase = ProjectInfo.GetFileNameWithoutExtension();
 					}
 
-					// Look at the project engine config to see if it has specified a default editor target
-					FileReference ProjectLocation = GetProjectLocation(ProjectFileNameBase);
-					string? DefaultEditorTarget = null;
-					if (!DefaultProjectEditorTargetCache.TryGetValue(ProjectFileNameBase, out DefaultEditorTarget))
+					FileReference ProjectFilePath;
+					if (bMakeProjectPerTarget)
 					{
-						if (GameFolder != null)
-						{
-							DefaultEditorTarget = GetProjectDefaultTargetNameForType(GameFolder, TargetType.Editor);
-						}
-
-						DefaultProjectEditorTargetCache.Add(ProjectFileNameBase, DefaultEditorTarget);
+						ProjectFilePath = GetProjectLocation(TargetRulesObject.Name);
 					}
-
-					// Get the suffix to use for this project file. If we have multiple targets of the same type, we'll have to split them out into separate IDE project files.
-					string? GeneratedProjectName = TargetRulesObject.GeneratedProjectName;
-					if (GeneratedProjectName == null)
+					else
 					{
-						ProjectFile? ExistingProjectFile;
-						// We should create a separate project for targets which aren't the default for this target type.
-						// Note that we currently only support changing the default editor target and not any other types, so
-						// if we aren't an editor, we'll just fall back to previous behavior and assume the first one we encounter
-						// should be added to the main project
-						bool bIsDefaultTargetForType = (DefaultEditorTarget == null) || (TargetRulesObject.Type != TargetType.Editor) || (TargetRulesObject.Name == DefaultEditorTarget);
-						if (!bIsDefaultTargetForType || (ProjectFileMap.TryGetValue(ProjectLocation, out ExistingProjectFile) && ExistingProjectFile.ProjectTargets.Any(x => x.TargetRules!.Type == TargetRulesObject.Type)))
+						// Look at the project engine config to see if it has specified a default editor target
+						FileReference ProjectLocation = GetProjectLocation(ProjectFileNameBase);
+						string? DefaultEditorTarget = null;
+						if (!DefaultProjectEditorTargetCache.TryGetValue(ProjectFileNameBase, out DefaultEditorTarget))
 						{
-							GeneratedProjectName = TargetRulesObject.Name;
-						}
-						else
-						{
-							GeneratedProjectName = ProjectFileNameBase;
-						}
-					}
+							if (GameFolder != null)
+							{
+								DefaultEditorTarget = GetProjectDefaultTargetNameForType(GameFolder, TargetType.Editor);
+							}
 
-					// @todo projectfiles: We should move all of the Target.cs files out of sub-folders to clean up the project directories a bit (e.g. GameUncooked folder)
-					FileReference ProjectFilePath = GetProjectLocation(GeneratedProjectName);
-					if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client || TargetRulesObject.Type == TargetType.Server)
-					{
-						// Allow platforms to generate stub projects here...
-						PlatformProjectGenerators.GenerateGameProjectStubs(
-							InGenerator: this,
-							InTargetName: TargetName,
-							InTargetFilepath: TargetFilePath.FullName,
-							InTargetRules: TargetRulesObject,
-							InPlatforms: SupportedPlatforms,
-							InConfigurations: SupportedConfigurations);
+							DefaultProjectEditorTargetCache.Add(ProjectFileNameBase, DefaultEditorTarget);
+						}
+
+						// Get the suffix to use for this project file. If we have multiple targets of the same type, we'll have to split them out into separate IDE project files.
+						string? GeneratedProjectName = TargetRulesObject.GeneratedProjectName;
+						if (GeneratedProjectName == null)
+						{
+							ProjectFile? ExistingProjectFile;
+							// We should create a separate project for targets which aren't the default for this target type.
+							// Note that we currently only support changing the default editor target and not any other types, so
+							// if we aren't an editor, we'll just fall back to previous behavior and assume the first one we encounter
+							// should be added to the main project
+							bool bIsDefaultTargetForType = (DefaultEditorTarget == null) || (TargetRulesObject.Type != TargetType.Editor) || (TargetRulesObject.Name == DefaultEditorTarget);
+							if (!bIsDefaultTargetForType || (ProjectFileMap.TryGetValue(ProjectLocation, out ExistingProjectFile) && ExistingProjectFile.ProjectTargets.Any(x => x.TargetRules!.Type == TargetRulesObject.Type)))
+							{
+								GeneratedProjectName = TargetRulesObject.Name;
+							}
+							else
+							{
+								GeneratedProjectName = ProjectFileNameBase;
+							}
+						}
+
+						// @todo projectfiles: We should move all of the Target.cs files out of sub-folders to clean up the project directories a bit (e.g. GameUncooked folder)
+						ProjectFilePath = GetProjectLocation(GeneratedProjectName);
+						if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client || TargetRulesObject.Type == TargetType.Server)
+						{
+							// Allow platforms to generate stub projects here...
+							PlatformProjectGenerators.GenerateGameProjectStubs(
+								InGenerator: this,
+								InTargetName: TargetName,
+								InTargetFilepath: TargetFilePath.FullName,
+								InTargetRules: TargetRulesObject,
+								InPlatforms: SupportedPlatforms,
+								InConfigurations: SupportedConfigurations);
+						}
 					}
 
 					DirectoryReference BaseFolder;
@@ -2554,13 +2605,19 @@ namespace UnrealBuildTool
 					}
 					else if (IsEngineTarget)
 					{
-						EngineProject = ProjectFile;
+						// if we want only one project for all types, then remove any previous ones
+						if (bMakeProjectPerTarget == false)
+						{
+							EngineProjects.Clear();
+						}
+						EngineProjects.Add(ProjectFile);
+
 						if (Unreal.IsEngineInstalled())
 						{
 							// Allow engine projects to be created but not built for Installed Engine builds
-							EngineProject.IsForeignProject = false;
-							EngineProject.IsGeneratedProject = true;
-							EngineProject.IsStubProject = true;
+							ProjectFile.IsForeignProject = false;
+							ProjectFile.IsGeneratedProject = true;
+							ProjectFile.IsStubProject = true;
 						}
 					}
 					else

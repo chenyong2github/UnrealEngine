@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -80,6 +80,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			BuildTarget = InBuildTarget;
 			ProjectTarget = InProjectTarget;
 			BuildConfig = InBuildConfig;
+
+			if (BuildTarget != ProjectTarget?.Name)
+			{
+				throw new BuildException($"Name exepcted to match - {BuildTarget} != {ProjectTarget?.Name}");
+			}
 		}
 
 		public string DisplayName;
@@ -261,6 +266,9 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 	class UnrealData
 	{
+		public bool bIsStubProject;
+		public bool bMakeProjectPerTarget;
+
 		public bool bIsAppBundle;
 		public bool bHasEditorConfiguration;
 		public bool bUseAutomaticSigning = false;
@@ -330,7 +338,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		}
 
 
-		public UnrealData(FileReference XcodeProjectFileLocation, bool bIsForDistribution, string BundleID, string AppName)
+		public UnrealData(FileReference XcodeProjectFileLocation, bool bIsForDistribution, string BundleID, string AppName, bool bMakeProjectPerTarget, bool bIsStubProject)
 		{
 			// the .xcodeproj is actually a directory
 			this.XcodeProjectFileLocation = new DirectoryReference(XcodeProjectFileLocation.FullName);
@@ -342,6 +350,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				ProductName = "UnrealGame";
 			}
 
+			this.bIsStubProject = bIsStubProject;
+			this.bMakeProjectPerTarget = bMakeProjectPerTarget;
 			this.bForDistribution = bIsForDistribution;
 			this.BundleIdentifier = string.IsNullOrEmpty(BundleID) ? "$(UE_SIGNING_PREFIX).$(UE_PRODUCT_NAME_STRIPPED)" : BundleID;
 			this.DisplayName = string.IsNullOrEmpty(AppName) ? "$(UE_PRODUCT_NAME)" : AppName;
@@ -622,9 +632,12 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 										bShouldCompileMonolithic |= (ProjectTarget.CreateRulesDelegate(Platform, Configuration).LinkType == TargetLinkType.Monolithic);
 
 										string ConfigName = Configuration.ToString();
-										if (ProjectTarget.TargetRules!.Type != TargetType.Game && ProjectTarget.TargetRules.Type != TargetType.Program)
+										if (!bMakeProjectPerTarget)
 										{
-											ConfigName += " " + ProjectTarget.TargetRules.Type.ToString();
+											if (ProjectTarget.TargetRules!.Type != TargetType.Game && ProjectTarget.TargetRules.Type != TargetType.Program)
+											{
+												ConfigName += " " + ProjectTarget.TargetRules.Type.ToString();
+											}
 										}
 
 										if (BuildConfigs.Where(Config => Config.DisplayName == ConfigName).ToList().Count == 0)
@@ -636,14 +649,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 											// Get the output directory
 											DirectoryReference RootDirectory;
 											if (UProjectDirectory != null && 
-												(bShouldCompileMonolithic || ProjectTarget.TargetRules.BuildEnvironment == TargetBuildEnvironment.Unique) && 
-												ProjectTarget.TargetRules.File!.IsUnderDirectory(UProjectDirectory))
+												(bShouldCompileMonolithic || ProjectTarget.TargetRules!.BuildEnvironment == TargetBuildEnvironment.Unique) && 
+												ProjectTarget.TargetRules!.File!.IsUnderDirectory(UProjectDirectory))
 											{
 												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(UProjectDirectory, ProjectTarget.TargetRules.File!);
 											}
 											else
 											{
-												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(Unreal.EngineDirectory, ProjectTarget.TargetRules.File!);
+												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(Unreal.EngineDirectory, ProjectTarget.TargetRules!.File!);
 											}
 
 											string ExeName = TargetName;
@@ -1136,6 +1149,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 	{ 
 		public string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
 		public string TargetName;
+		private UnrealData UnrealData;
 
 		public List<XcodeBuildConfig> BuildConfigs = new();
 
@@ -1148,11 +1162,12 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		}
 
 		private UnrealTargetPlatform? Platform;
-		public XcodeBuildConfigList(UnrealTargetPlatform? Platform, string TargetName, List<UnrealBuildConfig> BuildConfigInfos)
+		public XcodeBuildConfigList(UnrealTargetPlatform? Platform, string TargetName, UnrealData UnrealData)
 		{
 			this.Platform = Platform;
+			this.UnrealData = UnrealData;
 
-			if (BuildConfigInfos.Count == 0)
+			if (UnrealData.AllConfigs.Count == 0)
 			{
 				throw new BuildException("Created a XcodeBuildConfigList with no BuildConfigs. This likely means a target was created too early");
 			}
@@ -1160,7 +1175,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			this.TargetName = TargetName;
 
 			// create build config objects for each info passed in, and them as references
-			IEnumerable<XcodeBuildConfig> Configs = BuildConfigInfos.Select(x => new XcodeBuildConfig(x));
+			IEnumerable<XcodeBuildConfig> Configs = UnrealData.AllConfigs.Select(x => new XcodeBuildConfig(x));
 			// filter out configs that dont match a platform if we are single-platform mode
 			Configs = Configs.Where(x => Platform == null || x.Info.Supports((UnrealTargetPlatform)Platform));
 			BuildConfigs = Configs.ToList();
@@ -1170,7 +1185,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public override void Write(StringBuilder Content)
 		{
 			// figure out the default configuration to use
-			string Default = BuildConfigs.Any(x => x.Info.DisplayName.Contains(" Editor")) ? "Development Editor" : "Development";
+			string Default = "Development";
+			if (!UnrealData.bMakeProjectPerTarget && BuildConfigs.Any(x => x.Info.DisplayName.Contains(" Editor")))
+			{
+				Default = "Development Editor";
+			}
 
 			Content.WriteLine(2, $"{Guid} /* Build configuration list for target {TargetName} */ = {{");
 			Content.WriteLine(3,	"isa = XCConfigurationList;");
@@ -1254,7 +1273,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 
 			// set up names
-			Name = UnrealData.XcodeProjectName + (OverrideName ?? ConfigName);
+			Name = OverrideName ?? (UnrealData.XcodeProjectName + ConfigName);
 		}
 
 		public void AddDependency(XcodeTarget Target, XcodeProject Project)
@@ -1320,13 +1339,15 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		private string ProductGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 		private UnrealData UnrealData;
 		public UnrealTargetPlatform Platform;
+		public TargetType TargetType;
 
-		public XcodeRunTarget(XcodeProject Project, UnrealTargetPlatform Platform, XcodeBuildTarget? BuildTarget)
-			: base(Project.UnrealData.bIsAppBundle ? XcodeTarget.Type.Run_App : XcodeTarget.Type.Run_Tool, Project.UnrealData, 
-				  XcodeProjectFileGenerator.PerPlatformMode == XcodePerPlatformMode.OneWorkspacePerPlatform ? "" : $"_{Platform}")
+		public XcodeRunTarget(XcodeProject Project, string TargetName, TargetType TargetType, UnrealTargetPlatform Platform, XcodeBuildTarget? BuildTarget)
+			: base(Project.UnrealData.bIsAppBundle ? XcodeTarget.Type.Run_App : XcodeTarget.Type.Run_Tool, Project.UnrealData,
+				  TargetName + (XcodeProjectFileGenerator.PerPlatformMode == XcodePerPlatformMode.OneWorkspacePerPlatform ? "" : $"_{Platform}"))
 		{
+			this.TargetType = TargetType;
 			this.Platform = Platform;
-			BuildConfigList = new XcodeBuildConfigList(Platform, Name, Project.UnrealData.AllConfigs);
+			BuildConfigList = new XcodeBuildConfigList(Platform, Name, Project.UnrealData);
 			References.Add(BuildConfigList);
 
 			// add the Product item to the project to be visible in left pane
@@ -1429,7 +1450,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public XcodeBuildTarget(XcodeProject Project)
 			: base(XcodeTarget.Type.Build, Project.UnrealData)
 		{
-			BuildConfigList = new XcodeBuildConfigList(Project.Platform, Name, Project.UnrealData.AllConfigs);
+			BuildConfigList = new XcodeBuildConfigList(Project.Platform, Name, Project.UnrealData);
 			References.Add(BuildConfigList);
 		}
 	}
@@ -1444,7 +1465,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		{
 			UnrealData = Project.UnrealData;
 
-			BuildConfigList = new XcodeBuildConfigList(Project.Platform, Name, UnrealData.AllConfigs);
+			BuildConfigList = new XcodeBuildConfigList(Project.Platform, Name, UnrealData);
 			References.Add(BuildConfigList);
 
 			CreateXcconfigFile(Project, Name);
@@ -1510,25 +1531,21 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			// if we are run-only, then we don't need a build target (this is shared between platforms if we are doing multi-target)
 			XcodeBuildTarget? BuildTarget = null;
-			if (!XcodeProjectFileGenerator.bGenerateRunOnlyProject)
+			if (!XcodeProjectFileGenerator.bGenerateRunOnlyProject && !UnrealData.bIsStubProject)
 			{
-				// create a biuld target only if we have source files to build
-				if (UnrealData.BatchedFiles.Count != 0)
-				{
-					BuildTarget = new XcodeBuildTarget(this);
-				}
+				BuildTarget = new XcodeBuildTarget(this);
 			}
 
 			// create one run target for each platform if our platform is null (ie XcodeProjectGenerator.PerPlatformMode is RunTargetPerPlatform)
 			List<UnrealTargetPlatform> TargetPlatforms = Platform == null ? XcodeProjectFileGenerator.XcodePlatforms : new() { Platform.Value };
 			foreach (UnrealTargetPlatform TargetPlatform in TargetPlatforms)
 			{
-				XcodeRunTarget RunTarget = new XcodeRunTarget(this, TargetPlatform, BuildTarget);
+				XcodeRunTarget RunTarget = new XcodeRunTarget(this, UnrealData.ProductName, UnrealData.AllConfigs[0].ProjectTarget!.TargetRules!.Type, TargetPlatform, BuildTarget);
 				RunTargets.Add(RunTarget);
 				References.Add(RunTarget);
 			}
 
-			ProjectBuildConfigs = new XcodeBuildConfigList(Platform, UnrealData.ProductName, UnrealData.AllConfigs);
+			ProjectBuildConfigs = new XcodeBuildConfigList(Platform, UnrealData.ProductName, UnrealData);
 			References.Add(ProjectBuildConfigs);
 
 			// create the Projet xcconfig
@@ -2498,10 +2515,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// <param name="bIsForDistribution">True for distribution builds</param>
 		/// <param name="BundleID">Override option for bundle identifier</param>
 		/// <param name="AppName"></param>
-		public XcodeProjectFile(FileReference InitFilePath, DirectoryReference BaseDir, bool bIsForDistribution, string BundleID, string AppName)
+		/// <param name="bMakeProjectPerTarget"></param>
+		public XcodeProjectFile(FileReference InitFilePath, DirectoryReference BaseDir, bool bIsForDistribution, string BundleID, string AppName, bool bMakeProjectPerTarget)
 			: base(InitFilePath, BaseDir)
 		{
-			UnrealData = new UnrealData(InitFilePath, bIsForDistribution, BundleID, AppName);
+			UnrealData = new UnrealData(InitFilePath, bIsForDistribution, BundleID, AppName, bMakeProjectPerTarget, IsStubProject);
 
 			// create the container for all the files that will 
 			SharedFileCollection = new XcodeFileCollection(this);
@@ -2549,14 +2567,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				bHasCheckedForLegacy = true;
 				if (ProjectTargets.Count == 0)
 				{
-					throw new BuildException("Expected to have targets before AddModule is called");
+					throw new BuildException("Expected to have a target before AddModule is called");
 				}
 				FileReference? UProjectFileLocation = UnrealData.FindUProjectFileLocation(this);
 				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UProjectFileLocation?.Directory, UnrealTargetPlatform.Mac);
 				bool bUseModernXcode;
 				if (!(Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode) && bUseModernXcode))
 				{
-					LegacyProjectFile = new XcodeProjectLegacy.XcodeProjectFile(ProjectFilePath, BaseDir, UnrealData.bForDistribution, UnrealData.BundleIdentifier, UnrealData.AppName);
+					LegacyProjectFile = new XcodeProjectLegacy.XcodeProjectFile(ProjectFilePath, BaseDir, UnrealData.bForDistribution, UnrealData.BundleIdentifier, UnrealData.AppName, UnrealData.bMakeProjectPerTarget);
 					LegacyProjectFile.ProjectTargets.AddRange(ProjectTargets);
 					LegacyProjectFile.SourceFiles.AddRange(SourceFiles);
 					LegacyProjectFile.IsGeneratedProject = IsGeneratedProject;
@@ -2735,7 +2753,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 						string ProjectName = ProjectFilePathForPlatform(Platform).GetFileNameWithoutAnyExtensions();
 						string? BuildTargetGuid = XcodeProjectNode.GetNodesOfType<XcodeBuildTarget>(RootProject).FirstOrDefault()?.Guid;
 						string? IndexTargetGuid = XcodeProjectNode.GetNodesOfType<XcodeIndexTarget>(RootProject).FirstOrDefault()?.Guid;
-						WriteSchemeFile(Platform, ProjectName, UnrealData.ProductName, RootProject.RunTargets, BuildTargetGuid, IndexTargetGuid, UnrealData.bHasEditorConfiguration, UnrealData.UProjectFileLocation != null ? UnrealData.UProjectFileLocation.FullName : "");
+						WriteSchemeFile(Platform, ProjectName, UnrealData.ProductName, RootProject.RunTargets, BuildTargetGuid, IndexTargetGuid, UnrealData.UProjectFileLocation != null ? UnrealData.UProjectFileLocation.FullName : "");
 					}
 				}
 				else
@@ -3320,7 +3338,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					string ConfigName = Plist($"Print :objects:{ConfigGuid}:name");
 					if (ConfigName == "Release")
 					{
-						ConfigName = UnrealData.bHasEditorConfiguration ? "Development Editor" : "Development";
+						ConfigName = "Development";
+						if (UnrealData.bMakeProjectPerTarget && UnrealData.bHasEditorConfiguration)
+						{
+							ConfigName = "Development Editor";
+						}
 						Plist($"Set :objects:{ConfigGuid}:name \"{ConfigName}\"");
 					}
 
@@ -3388,7 +3410,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			return FileReference.Combine(GetProjectSchemeDirectory(Platform), TargetName + ".xcscheme");
 		}
 
-		private void WriteSchemeFile(UnrealTargetPlatform? Platform, string ProjectName, string ProductName, List<XcodeRunTarget> RunTargets, string? BuildTargetGuid, string? IndexTargetGuid, bool bHasEditorConfiguration, string GameProjectPath)
+		private void WriteSchemeFile(UnrealTargetPlatform? Platform, string ProjectName, string ProductName, List<XcodeRunTarget> RunTargets, string? BuildTargetGuid, string? IndexTargetGuid, string GameProjectPath)
 		{
 			StringBuilder Content = new StringBuilder();
 
@@ -3396,8 +3418,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			{
 				string TargetName = RunTarget.Name;
 				string TargetGuid = RunTarget.Guid;
-				bHasEditorConfiguration = RunTarget.BuildConfigList!.BuildConfigs.Any(x => x.Info.ProjectTarget!.TargetRules!.Type == TargetType.Editor);
-
+				
+				bool bHasEditorConfiguration = RunTarget.BuildConfigList!.BuildConfigs.Any(x => x.Info.ProjectTarget!.TargetRules!.Type == TargetType.Editor);
+				bool bUseEditorConfiguration = bHasEditorConfiguration && !UnrealData.bMakeProjectPerTarget && !XcodeProjectFileGenerator.bGenerateRunOnlyProject;
+				string DefaultConfiguration = bUseEditorConfiguration ? "Development Editor" : "Development";
+				
 				FileReference SchemeFilePath = GetProjectSchemeFilePathForTarget(Platform, TargetName);
 
 				DirectoryReference.CreateDirectory(SchemeFilePath.Directory);
@@ -3414,7 +3439,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					}
 				}
 
-				string DefaultConfiguration = (bHasEditorConfiguration && !XcodeProjectFileGenerator.bGenerateRunOnlyProject) ? "Development Editor" : "Development";
 
 				Content.WriteLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
 				Content.WriteLine("<Scheme");
