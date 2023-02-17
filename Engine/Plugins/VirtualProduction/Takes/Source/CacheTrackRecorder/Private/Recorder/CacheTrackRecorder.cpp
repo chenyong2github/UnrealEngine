@@ -317,8 +317,18 @@ FOnCacheTrackRecordingInitialized& UCacheTrackRecorder::OnRecordingInitialized()
 
 void UCacheTrackRecorder::RecordCacheTrack(IMovieSceneCachedTrack* Track, TSharedPtr<ISequencer> Sequencer, FCacheRecorderParameters Parameters)
 {	
+	if (Track)
+	{
+		TArray<IMovieSceneCachedTrack*> CacheTracks;
+		CacheTracks.Add(Track);
+		RecordCacheTracks(CacheTracks, Sequencer, Parameters);
+	}
+}
+
+void UCacheTrackRecorder::RecordCacheTracks(const TArray<IMovieSceneCachedTrack*>& CacheTracks, TSharedPtr<ISequencer> Sequencer, FCacheRecorderParameters Parameters)
+{
 	ULevelSequence* LevelSequence = Sequencer ? Cast<ULevelSequence>(Sequencer->GetFocusedMovieSceneSequence()) : nullptr;	
-	if (LevelSequence && Track)
+	if (LevelSequence && CacheTracks.Num() > 0)
 	{
 		Parameters.StartFrame = LevelSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
 		Parameters.User.CountdownSeconds = 0;
@@ -330,9 +340,6 @@ void UCacheTrackRecorder::RecordCacheTrack(IMovieSceneCachedTrack* Track, TShare
 		{
 			Parameters.StartFrame = Sequencer->GetLocalTime().Time.FrameNumber;
 		}
-
-		TArray<IMovieSceneCachedTrack*> CacheTracks;
-		CacheTracks.Add(Track);
 
 		UCacheTrackRecorder* NewRecorder = NewObject<UCacheTrackRecorder>(GetTransientPackage(), NAME_None, RF_Transient);
 		UTakeMetaData* TakeMetaData = LevelSequence->FindOrAddMetaData<UTakeMetaData>();
@@ -352,6 +359,24 @@ void UCacheTrackRecorder::RecordCacheTrack(IMovieSceneCachedTrack* Track, TShare
 			}
 		}
 	}
+}
+
+void UCacheTrackRecorder::RecordSelectedTracks(TSharedPtr<ISequencer> Sequencer, FCacheRecorderParameters Parameters)
+{
+	TArray<UMovieSceneTrack*> SelectedTracks;
+	Sequencer->GetSelectedTracks(SelectedTracks);
+
+	// gather all selected cache tracks to record
+	TArray<IMovieSceneCachedTrack*> CacheTracks;
+	for (UMovieSceneTrack* SelectedTrack : SelectedTracks)
+	{
+		if (IMovieSceneCachedTrack* CacheTrack = Cast<IMovieSceneCachedTrack>(SelectedTrack))
+		{
+			CacheTracks.Add(CacheTrack);
+		}
+	}
+
+	RecordCacheTracks(CacheTracks, Sequencer, Parameters);
 }
 
 bool UCacheTrackRecorder::SetActiveRecorder(UCacheTrackRecorder* NewActiveRecorder)

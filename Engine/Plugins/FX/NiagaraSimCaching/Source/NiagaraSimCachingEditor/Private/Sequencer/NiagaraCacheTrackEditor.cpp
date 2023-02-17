@@ -348,6 +348,18 @@ void FNiagaraCacheTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBuilder, 
 					)
 				)
 			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("RecordCache", "Record cache"),
+				LOCTEXT("RecordCacheToolTip", "Refresh the data in the selected cache tracks by playing the sequence and recording the Niagara system."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this]()
+					{
+						UCacheTrackRecorder::RecordSelectedTracks(GetSequencer());
+					})
+				)
+			);
 		}
 	}
 
