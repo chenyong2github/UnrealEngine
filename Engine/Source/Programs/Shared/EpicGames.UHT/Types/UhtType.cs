@@ -610,31 +610,6 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtDocumentationPolicy
 	{
-		private static readonly UhtDocumentationPolicy s_strictDocumentationPolicy = new()
-		{
-			PolicySet = true,
-			ClassOrStructCommentRequired = true,
-			FunctionToolTipsRequired = true,
-			MemberToolTipsRequired = true,
-			ParameterToolTipsRequired = true,
-			FloatRangesRequired = true,
-		};
-
-		private static readonly UhtDocumentationPolicy s_noDocumentationPolicy = new()
-		{
-			PolicySet = false,
-			ClassOrStructCommentRequired = false,
-			FunctionToolTipsRequired = false,
-			MemberToolTipsRequired = false,
-			ParameterToolTipsRequired = false,
-			FloatRangesRequired = false,
-		};
-
-		/// <summary>
-		/// If true, this is a valid documentation policy that should be respected
-		/// </summary>
-		public bool PolicySet { get; set; }
-
 		/// <summary>
 		/// A tool tip must be defined
 		/// </summary>
@@ -659,24 +634,6 @@ namespace EpicGames.UHT.Types
 		/// Float properties must have a range specified
 		/// </summary>
 		public bool FloatRangesRequired { get; set; }
-
-		/// <summary>
-		/// Return the documentation policy given the name
-		/// </summary>
-		/// <param name="documentationPolicyName">Name of the policy</param>
-		/// <param name="policy">Policy settings</param>
-		/// <returns>True if the name is valid, false if not</returns>
-		public static bool TryGet(string documentationPolicyName, out UhtDocumentationPolicy policy)
-		{
-			if (documentationPolicyName == "Strict")
-			{
-				policy = s_strictDocumentationPolicy;
-				return true;
-			}
-
-			policy = s_noDocumentationPolicy;
-			return documentationPolicyName.Length == 0;
-		}
 	};
 
 	/// <summary>
@@ -1136,16 +1093,28 @@ namespace EpicGames.UHT.Types
 
 		private void ValidateDocumentationPolicy()
 		{
-			if (UhtDocumentationPolicy.TryGet(DocumentationPolicyName, out UhtDocumentationPolicy policy))
+			if (Session.Config == null)
 			{
-				if (policy.PolicySet)
-				{
-					ValidateDocumentationPolicy(policy);
-				}
+				return;
+			}
+
+			string policyName = DocumentationPolicyName;
+			if (String.IsNullOrEmpty(policyName))
+			{
+				policyName = Session.Config.DefaultDocumentationPolicy;
+			}
+
+			if (String.IsNullOrEmpty(policyName))
+			{
+				return;
+			}
+			else if (Session.Config.DocumentationPolicies.TryGetValue(policyName, out UhtDocumentationPolicy? policy))
+			{
+				ValidateDocumentationPolicy(policy);
 			}
 			else
 			{
-				this.LogError(MetaData.LineNumber, $"Documentation policy '{DocumentationPolicyName}' is not known");
+				this.LogError(MetaData.LineNumber, $"Documentation policy '{policyName}' is not known");
 			}
 		}
 

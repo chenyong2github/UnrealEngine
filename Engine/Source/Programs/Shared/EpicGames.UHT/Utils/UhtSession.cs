@@ -1020,6 +1020,18 @@ namespace EpicGames.UHT.Utils
 					break;
 			}
 
+			{
+				string defaultPolicyName = Config.DefaultDocumentationPolicy;
+				if (!String.IsNullOrEmpty(defaultPolicyName))
+				{
+					if (!Config.DocumentationPolicies.TryGetValue(defaultPolicyName, out UhtDocumentationPolicy? policy))
+					{
+						Log.Logger.LogError("The default documentation policy '{DefaultPolicyName}' isn't known", defaultPolicyName);
+						return;
+					}
+				}
+			}
+
 			if (ReferenceMode != UhtReferenceMode.None)
 			{
 				string directoryToDelete = ReferenceMode == UhtReferenceMode.Reference ? ReferenceDirectory : VerifyDirectory;

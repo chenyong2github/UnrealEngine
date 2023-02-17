@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
 using EpicGames.Core;
 using EpicGames.UHT.Tokenizer;
+using EpicGames.UHT.Types;
 
 namespace EpicGames.UHT.Utils
 {
@@ -102,6 +104,16 @@ namespace EpicGames.UHT.Utils
 		/// Behavior for when enum underlying types aren't set for non engine code.
 		/// </summary>
 		public UhtIssueBehavior NonEngineEnumUnderlyingTypeNotSet { get; }
+
+		/// <summary>
+		/// Collection of all known documentation policies
+		/// </summary>
+		public IReadOnlyDictionary<string, UhtDocumentationPolicy> DocumentationPolicies { get; }
+
+		/// <summary>
+		/// Default documentation policy to be used if none is specified
+		/// </summary>
+		public string DefaultDocumentationPolicy { get; }
 
 		/// <summary>
 		/// If the token references a remapped identifier, update the value in the token 
