@@ -446,3 +446,39 @@ inline FGlobalShaderMap* GetGlobalShaderMap(ERHIFeatureLevel::Type FeatureLevel)
 #define DECLARE_GLOBAL_SHADER(ShaderClass) DECLARE_SHADER_TYPE(ShaderClass, Global)
 #define IMPLEMENT_GLOBAL_SHADER(ShaderClass,SourceFilename,FunctionName,Frequency) IMPLEMENT_SHADER_TYPE(,ShaderClass,TEXT(SourceFilename),TEXT(FunctionName),Frequency)
 
+/**
+* Groups of global shaders which can be used in recursive
+* RHI command lists by platform RHI implementations.
+*/
+enum class ERecursiveShader
+{
+	None = 0,
+
+	// Shaders used for resolving MSAA textures (defined in ResolveShader.h)
+	Resolve = 1 << 0,
+
+	// Shaders used for clearing textures and buffers (defined in ClearReplacementShaders.h)
+	Clear = 1 << 1,
+
+	// A null pixel shader (defined above)
+	Null = 1 << 2
+};
+ENUM_CLASS_FLAGS(ERecursiveShader)
+
+/*
+* Set by the platform RHI implementations to indicate which groups of global shaders will be used recursively.
+*/
+extern RENDERCORE_API ERecursiveShader GRequiredRecursiveShaders;
+
+/*
+* Called on the render thread when the global shader map is available to force-init certain global shaders as specified by GRequiredRecursiveShaders.
+*/
+extern RENDERCORE_API void CreateRecursiveShaders();
+
+void ForceInitGlobalShaderType(FShaderType& ShaderType);
+
+template <typename TShaderType>
+inline void ForceInitGlobalShaderType()
+{
+	ForceInitGlobalShaderType(TShaderType::StaticType);
+}

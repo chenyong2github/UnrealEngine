@@ -434,8 +434,7 @@ void FOpenGLUniformBuffer::SetGLUniformBufferParams(GLuint InResource, uint32 In
 
 FOpenGLUniformBuffer::~FOpenGLUniformBuffer()
 {
-	AccessFence.WaitFenceRenderThreadOnly();
-	CopyFence.WaitFenceRenderThreadOnly();
+	VERIFY_GL_SCOPE();
 
 	if (Resource != 0)
 	{
@@ -500,10 +499,11 @@ void FOpenGLUniformBuffer::SetLayoutTable(const void* Contents, EUniformBufferVa
 }
 
 
-void CopyDataToUniformBuffer(const bool bCanRunOnThisThread, FOpenGLUniformBuffer* NewUniformBuffer, const void* Contents, uint32 ContentSize)
+void CopyDataToUniformBuffer(FRHICommandListImmediate& RHICmdList, FOpenGLUniformBuffer* NewUniformBuffer, const void* Contents, uint32 ContentSize)
 {
 	FOpenGLEUniformBufferDataRef EmulatedUniformDataRef = NewUniformBuffer->EmulatedBufferData;	
 	uint8* PersistentlyMappedBuffer = NewUniformBuffer->PersistentlyMappedBuffer;
+
 	// Copy the contents of the uniform buffer.
 	if (IsValidRef(EmulatedUniformDataRef))
 	{
@@ -515,30 +515,20 @@ void CopyDataToUniformBuffer(const bool bCanRunOnThisThread, FOpenGLUniformBuffe
 	}
 	else
 	{
-		if (bCanRunOnThisThread)
+		if (RHICmdList.IsTopOfPipe())
+		{
+			// Copy the data to the command list since we'll be deferring the buffer init.
+			void* ConstantBufferCopy = RHICmdList.Alloc(ContentSize, 16);
+			FMemory::Memcpy(ConstantBufferCopy, Contents, ContentSize);
+
+			Contents = ConstantBufferCopy;
+		}
+
+		RHICmdList.EnqueueLambda([ContentSize, Contents](FRHICommandListImmediate&)
 		{
 			VERIFY_GL_SCOPE();
 			FOpenGL::BufferSubData(GL_UNIFORM_BUFFER, 0, ContentSize, Contents);
-		}
-		else
-		{
-			NewUniformBuffer->CopyFence.Reset();
-			// running on RHI thread take a copy of the incoming data.
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-			void* ConstantBufferCopy = RHICmdList.Alloc(ContentSize, 16);
-			FMemory::Memcpy(ConstantBufferCopy, Contents, ContentSize);
-			
-			ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(
-				[=]() 
-				{
-					VERIFY_GL_SCOPE();
-					FOpenGL::BufferSubData(GL_UNIFORM_BUFFER, 0, ContentSize, ConstantBufferCopy);
-					NewUniformBuffer->CopyFence.WriteAssertFence();
-				});
-
-			NewUniformBuffer->CopyFence.SetRHIThreadFence();
-
-		}
+		});
 	}
 }
 
@@ -552,8 +542,6 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 
 	FOpenGLUniformBuffer* NewUniformBuffer = new FOpenGLUniformBuffer(Layout);
 
-	TFunction<void(void)> GLCreationFunc;
-
 	const uint32 BucketIndex = GetPoolBucketIndex(Layout->ConstantBufferSize);
 	const uint32 SizeOfBufferToAllocate = UniformBufferSizeBuckets[BucketIndex];
 	const uint32 AllocatedSize = (SizeOfBufferToAllocate > 0) ? SizeOfBufferToAllocate : Layout->ConstantBufferSize;;
@@ -566,7 +554,9 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 
 	bool bUseEmulatedUBs = GUseEmulatedUniformBuffers && !Layout->bNoEmulatedUniformBuffer;
 
+	check(IsInRenderingThread());
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
 	{
 		const bool bStreamDraw = (Usage == UniformBuffer_SingleDraw || Usage == UniformBuffer_SingleFrame);
 		
@@ -580,18 +570,19 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 		}
 		else if (IsSuballocatingUBOs())
 		{
-			GLCreationFunc = [NewUniformBuffer, AllocatedSize, &PersistentlyMappedBuffer, &EmulatedUniformDataRef, bStreamDraw]() {
+			RHICmdList.EnqueueLambda([NewUniformBuffer, AllocatedSize, &PersistentlyMappedBuffer, &EmulatedUniformDataRef, bStreamDraw](FRHICommandListImmediate&)
+			{
 				GLuint AllocatedResource = 0;
 				uint32 OffsetInBuffer = 0;
 
 				SuballocateUBO(AllocatedSize, AllocatedResource, OffsetInBuffer, PersistentlyMappedBuffer);
 				NewUniformBuffer->SetGLUniformBufferParams(AllocatedResource, OffsetInBuffer, PersistentlyMappedBuffer, AllocatedSize, EmulatedUniformDataRef, bStreamDraw);
-			};
+			});
 		}
 		else
 		{
 			check(PersistentlyMappedBuffer == nullptr);
-			GLCreationFunc = [NewUniformBuffer, AllocatedSize, PersistentlyMappedBuffer, EmulatedUniformDataRef, bStreamDraw]()
+			RHICmdList.EnqueueLambda([NewUniformBuffer, AllocatedSize, PersistentlyMappedBuffer, EmulatedUniformDataRef, bStreamDraw](FRHICommandListImmediate&)
 			{
 				VERIFY_GL_SCOPE();
 				GLuint AllocatedResource = 0;
@@ -600,31 +591,18 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 				::CachedBindUniformBuffer(AllocatedResource);
 				glBufferData(GL_UNIFORM_BUFFER, AllocatedSize, NULL, bStreamDraw ? GL_STREAM_DRAW : GL_STATIC_DRAW);
 				NewUniformBuffer->SetGLUniformBufferParams(AllocatedResource, OffsetInBuffer, nullptr, AllocatedSize, EmulatedUniformDataRef, bStreamDraw);
-			};
+			});
 		}
 	}
 
-	const bool bCanCreateOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && IsInRenderingThread()) || IsInRHIThread();
 	if(!bUseEmulatedUBs)
 	{
-		if (bCanCreateOnThisThread)
+		// flush for the UBO case
+		// as this path interacts with UBOPool, this hasnt been addressed for the RHI thread case.
+		if (RHICmdList.IsTopOfPipe() && IsSuballocatingUBOs())
 		{
-			GLCreationFunc();
-		}
-		else
-		{
-			NewUniformBuffer->AccessFence.Reset();
-			// Queue GL resource creation.
-			ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() {GLCreationFunc(); NewUniformBuffer->AccessFence.WriteAssertFence(); });
-			NewUniformBuffer->AccessFence.SetRHIThreadFence();
-
-			// flush for the UBO case
-			// as this path interacts with UBOPool, this hasnt been addressed for the RHI thread case.
-			if (IsSuballocatingUBOs())
-			{
-				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-				RHITHREAD_GLTRACE_BLOCKING;
-			}
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			RHITHREAD_GLTRACE_BLOCKING;
 		}
 	}
 
@@ -634,7 +612,7 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 
 	if (Contents)
 	{
-		CopyDataToUniformBuffer(bCanCreateOnThisThread, NewUniformBuffer, Contents, Layout->ConstantBufferSize);
+		CopyDataToUniformBuffer(RHICmdList, NewUniformBuffer, Contents, Layout->ConstantBufferSize);
 	}
 
 	// Initialize the resource table for this uniform buffer.
@@ -645,7 +623,9 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 
 FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
+	check(IsInRenderingThread());
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
 	// This should really be synchronized, if there's a chance it'll be used from more than one buffer. Luckily, uniform buffers
 	// are only used for drawing/shader usage, not for loading resources or framebuffer blitting, so no synchronization primitives for now.
 
@@ -665,8 +645,6 @@ FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Conte
 	uint8* PersistentlyMappedBuffer = NULL;
 	uint32 AllocatedSize = 0;
 	FOpenGLEUniformBufferDataRef EmulatedUniformDataRef;
-
-	const bool bCanCreateOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && IsInRenderingThread()) || IsInRHIThread();
 
 	// If the uniform buffer contains constants, allocate a uniform buffer resource from GL.
 	if (Layout->ConstantBufferSize > 0)
@@ -717,20 +695,11 @@ FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Conte
 				}
 				else
 				{
-					auto CacheGLUniformBuffer = [AllocatedResource]()
+					RHICmdList.EnqueueLambda([AllocatedResource](FRHICommandListImmediate&)
 					{
 						VERIFY_GL_SCOPE();
 						::CachedBindUniformBuffer(AllocatedResource);
-					};
-
-					if (bCanCreateOnThisThread)
-					{
-						CacheGLUniformBuffer();
-					}
-					else
-					{
-						ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(MoveTemp(CacheGLUniformBuffer));
-					}
+					});
 				}
 			}
 			else
@@ -751,7 +720,7 @@ FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Conte
 	check(!bUseEmulatedUBs || (IsValidRef(EmulatedUniformDataRef) && (EmulatedUniformDataRef->Data.Num() * EmulatedUniformDataRef->Data.GetTypeSize() == AllocatedSize)));
 	if (Contents)
 	{
-		CopyDataToUniformBuffer(bCanCreateOnThisThread, NewUniformBuffer, Contents, Layout->ConstantBufferSize);
+		CopyDataToUniformBuffer(RHICmdList, NewUniformBuffer, Contents, Layout->ConstantBufferSize);
 	}
 
 	// Initialize the resource table for this uniform buffer.

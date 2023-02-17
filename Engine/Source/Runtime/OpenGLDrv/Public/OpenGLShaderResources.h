@@ -221,88 +221,10 @@ inline FArchive& operator<<(FArchive& Ar, FOpenGLCodeHeader& Header)
 
 class FOpenGLLinkedProgram;
 
-/**
- * OpenGL shader resource.
- */
-template <typename RHIResourceType, GLenum GLTypeEnum, EShaderFrequency FrequencyT>
-class TOpenGLShader : public RHIResourceType
-{
-public:
-	enum
-	{
-		StaticFrequency = FrequencyT,
-		TypeEnum = GLTypeEnum,
-	};
-
-	/** The OpenGL resource ID. */
-	GLuint Resource;
-
-	/** External bindings for this shader. */
-	FOpenGLShaderBindings Bindings;
-
-	/** Static slots for each uniform buffer. */
-	TArray<FUniformBufferStaticSlot> StaticSlots;
-
-	// List of memory copies from RHIUniformBuffer to packed uniforms
-	TArray<CrossCompiler::FUniformBufferCopyInfo> UniformBuffersCopyInfo;
-
-#if DEBUG_GL_SHADERS
-	TArray<ANSICHAR> GlslCode;
-	const ANSICHAR*  GlslCodeString; // make it easier in VS to see shader code in debug mode; points to begin of GlslCode
-#endif
-
-	/** Constructor. */
-	TOpenGLShader()
-		: Resource(0)
-	{
-		FMemory::Memzero( &Bindings, sizeof(Bindings) );
-	}
-
-	/** Destructor. */
-	~TOpenGLShader()
-	{
-//		if (Resource)
-//		{
-//			glDeleteShader(Resource);
-//		}
-	}
-};
-
-
-typedef TOpenGLShader<FRefCountedObject, GL_VERTEX_SHADER, SF_Vertex> FOpenGLVertexShader;
-typedef TOpenGLShader<FRefCountedObject, GL_FRAGMENT_SHADER, SF_Pixel> FOpenGLPixelShader;
-typedef TOpenGLShader<FRefCountedObject, GL_GEOMETRY_SHADER, SF_Geometry> FOpenGLGeometryShader;
-
-
-class FOpenGLComputeShader : public TOpenGLShader<FRefCountedObject, GL_COMPUTE_SHADER, SF_Compute>
-{
-public:
-	FOpenGLComputeShader():
-		LinkedProgram(0)
-	{
-
-	}
-
-	bool NeedsTextureStage(int32 TextureStageIndex);
-	int32 MaxTextureStageUsed();
-	const TBitArray<>& GetTextureNeeds(int32& OutMaxTextureStageUsed);
-	const TBitArray<>& GetUAVNeeds(int32& OutMaxUAVUnitUsed) const;
-	bool NeedsUAVStage(int32 UAVStageIndex) const;
-
-	FOpenGLLinkedProgram* LinkedProgram;
-};
-
-
 class FOpenGLCompiledShaderKey
 {
 public:
-	FOpenGLCompiledShaderKey()
-		: TypeEnum(0)
-		, CodeSize(0)
-		, CodeCRC(0)
-	{
-	}
-
+	FOpenGLCompiledShaderKey() = default;
 	FOpenGLCompiledShaderKey(
 		GLenum InTypeEnum,
 		uint32 InCodeSize,
@@ -314,7 +236,7 @@ public:
 	{
 	}
 
-	friend bool operator ==(const FOpenGLCompiledShaderKey& A, const FOpenGLCompiledShaderKey& B)
+	friend bool operator == (const FOpenGLCompiledShaderKey& A, const FOpenGLCompiledShaderKey& B)
 	{
 		return A.TypeEnum == B.TypeEnum && A.CodeSize == B.CodeSize && A.CodeCRC == B.CodeCRC;
 	}
@@ -327,9 +249,96 @@ public:
 	uint32 GetCodeCRC() const { return CodeCRC; }
 
 private:
-	GLenum TypeEnum;
-	uint32 CodeSize;
-	uint32 CodeCRC;
+	GLenum TypeEnum = 0;
+	uint32 CodeSize = 0;
+	uint32 CodeCRC  = 0;
+};
+
+/**
+ * OpenGL shader resource.
+ */
+class FOpenGLShader
+{
+public:
+	/** The OpenGL resource ID. */
+	GLuint Resource = 0;
+
+	/** External bindings for this shader. */
+	FOpenGLShaderBindings Bindings;
+
+	/** Static slots for each uniform buffer. */
+	TArray<FUniformBufferStaticSlot> StaticSlots;
+
+	// List of memory copies from RHIUniformBuffer to packed uniforms
+	TArray<CrossCompiler::FUniformBufferCopyInfo> UniformBuffersCopyInfo;
+
+	FOpenGLCompiledShaderKey ShaderCodeKey;
+
+#if DEBUG_GL_SHADERS
+	TArray<ANSICHAR> GlslCode;
+	const ANSICHAR*  GlslCodeString; // make it easier in VS to see shader code in debug mode; points to begin of GlslCode
+#endif
+
+	FOpenGLShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash, GLenum TypeEnum);
+
+	~FOpenGLShader()
+	{
+//		if (Resource)
+//		{
+//			glDeleteShader(Resource);
+//		}
+	}
+
+private:
+	void Compile(const FOpenGLCodeHeader& Header, const FSHAHash& LibraryHash, GLenum TypeEnum);
+};
+
+class FOpenGLVertexShader : public FRHIVertexShader, public FOpenGLShader
+{
+public:
+	static constexpr EShaderFrequency Frequency = SF_Vertex;
+
+	FOpenGLVertexShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
+		: FOpenGLShader(RHICmdList, Code, Hash, GL_VERTEX_SHADER)
+	{}
+};
+
+class FOpenGLPixelShader : public FRHIPixelShader, public FOpenGLShader
+{
+public:
+	static constexpr EShaderFrequency Frequency = SF_Pixel;
+
+	FOpenGLPixelShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
+		: FOpenGLShader(RHICmdList, Code, Hash, GL_FRAGMENT_SHADER)
+	{}
+};
+
+class FOpenGLGeometryShader : public FRHIGeometryShader, public FOpenGLShader
+{
+public:
+	static constexpr EShaderFrequency Frequency = SF_Geometry;
+
+	FOpenGLGeometryShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
+		: FOpenGLShader(RHICmdList, Code, Hash, GL_GEOMETRY_SHADER)
+	{}
+};
+
+class FOpenGLComputeShader : public FRHIComputeShader, public FOpenGLShader
+{
+public:
+	static constexpr EShaderFrequency Frequency = SF_Compute;
+
+	FOpenGLComputeShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
+		: FOpenGLShader(RHICmdList, Code, Hash, GL_COMPUTE_SHADER)
+	{}
+
+	bool NeedsTextureStage(int32 TextureStageIndex);
+	int32 MaxTextureStageUsed();
+	const TBitArray<>& GetTextureNeeds(int32& OutMaxTextureStageUsed);
+	const TBitArray<>& GetUAVNeeds(int32& OutMaxUAVUnitUsed) const;
+	bool NeedsUAVStage(int32 UAVStageIndex) const;
+
+	FOpenGLLinkedProgram* LinkedProgram = nullptr;
 };
 
 /**

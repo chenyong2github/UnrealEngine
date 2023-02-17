@@ -809,3 +809,46 @@ void FGlobalShaderMap::LoadFromGlobalArchive(FArchive& Ar)
 		}
 	}
 }
+
+RENDERCORE_API ERecursiveShader GRequiredRecursiveShaders = ERecursiveShader::None;
+
+void ForceInitGlobalShaderType(FShaderType& ShaderType)
+{
+	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	for (int32 Permutation = 0; Permutation < ShaderType.GetPermutationCount(); ++Permutation)
+	{
+		TShaderRef<FShader> ShaderRef = GlobalShaderMap->GetShader(&ShaderType, Permutation);
+
+		if (ShaderRef.IsValid())
+		{
+			FShaderMapResource& MapResource = ShaderRef.GetResourceChecked();
+			for (int32 Index = 0; Index < MapResource.GetNumShaders(); ++Index)
+			{
+				MapResource.GetShader(Index);
+			}
+		}
+	}
+}
+
+RENDERCORE_API void CreateRecursiveShaders()
+{
+	ensureMsgf(!GRHISupportsMultithreadedShaderCreation, TEXT("CreateRecursiveShaders() is called while GRHISupportsMultithreadedShaderCreation is true. This is an unnecessary call."));
+	ensureMsgf(IsInRenderingThread(), TEXT("CreateRecursiveShaders() is expected to be called from the render thread."));
+
+	if (EnumHasAnyFlags(GRequiredRecursiveShaders, ERecursiveShader::Resolve))
+	{
+		extern void CreateResolveShaders();
+		CreateResolveShaders();
+	}
+
+	if (EnumHasAnyFlags(GRequiredRecursiveShaders, ERecursiveShader::Clear))
+	{
+		extern void CreateClearReplacementShaders();
+		CreateClearReplacementShaders();
+	}
+
+	if (EnumHasAnyFlags(GRequiredRecursiveShaders, ERecursiveShader::Null))
+	{
+		ForceInitGlobalShaderType<FNULLPS>();
+	}
+}

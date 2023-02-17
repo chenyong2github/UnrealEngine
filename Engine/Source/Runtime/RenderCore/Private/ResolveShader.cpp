@@ -247,3 +247,19 @@ void FResolveArrayVS::SetParameters(FRHICommandList& RHICmdList, const FResolveR
 {
 	return FResolveVS::SetParameters(RHICmdList, SrcBounds, DstBounds, DstSurfaceWidth, DstSurfaceHeight);
 }
+
+void CreateResolveShaders()
+{
+	ForceInitGlobalShaderType<FResolveDepthPS>();
+	ForceInitGlobalShaderType<FResolveDepth2XPS>();
+	ForceInitGlobalShaderType<FResolveDepth4XPS>();
+	ForceInitGlobalShaderType<FResolveDepth8XPS>();
+	ForceInitGlobalShaderType<FResolveDepthArrayPS>();
+	ForceInitGlobalShaderType<FResolveDepthArray2XPS>();
+	ForceInitGlobalShaderType<FResolveDepthArray4XPS>();
+	ForceInitGlobalShaderType<FResolveDepthArray8XPS>();
+	ForceInitGlobalShaderType<FResolveSingleSamplePS>();
+
+	ForceInitGlobalShaderType<FResolveVS>();
+	ForceInitGlobalShaderType<FResolveArrayVS>();
+}

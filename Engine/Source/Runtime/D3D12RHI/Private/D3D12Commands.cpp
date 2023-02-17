@@ -99,35 +99,6 @@ static void BindUniformBuffer(FD3D12CommandContext& Context, FRHIShader* Shader,
 	#define D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS 1
 #endif
 
-void FD3D12DynamicRHI::SetupRecursiveResources()
-{
-	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
-	{
-		TShaderMapRef<FLongGPUTaskPS> PixelShader(ShaderMap);
-		PixelShader.GetPixelShader();
-	}
-
-	{
-		TShaderMapRef<FLongGPUTaskPS> PixelShader(ShaderMap);
-		PixelShader.GetPixelShader();
-	}
-
-	// TODO: Waiting to integrate MSAA fix for ResolveShader.h
-	if (!D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS)
-		return;
-
-	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
-
-	{
-		TShaderMapRef<FResolveDepthPS> ResolvePixelShader_Depth(ShaderMap);
-		ResolvePixelShader_Depth.GetPixelShader();
-
-		TShaderMapRef<FResolveDepthPS> ResolvePixelShader_SingleSample(ShaderMap);
-		ResolvePixelShader_SingleSample.GetPixelShader();
-	}
-}
-
 // Vertex state.
 void FD3D12CommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* VertexBufferRHI, uint32 Offset)
 {

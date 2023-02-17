@@ -241,7 +241,6 @@ struct FOpenGLGPUProfiler : public FGPUProfiler
 	class FOpenGLDynamicRHI* OpenGLRHI;
 	// count the number of beginframe calls without matching endframe calls.
 	int32 NestedFrameCount;
-	bool bIntialized;
 
 	uint32 ExternalGPUTime;
 
@@ -254,12 +253,7 @@ struct FOpenGLGPUProfiler : public FGPUProfiler
 	,	CurrentGPUFrameQueryIndex(0)
 	,	OpenGLRHI(InOpenGLRHI)
 	,	NestedFrameCount(0)
-	,	bIntialized(false)
 	,	ExternalGPUTime(0)
-	{
-	}
-
-	void InitResources()
 	{
 		FrameTiming.InitResources();
 		for (int32 Index = 0; Index < MAX_GPUFRAMEQUERIES; ++Index)
@@ -286,7 +280,7 @@ struct FOpenGLGPUProfiler : public FGPUProfiler
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
-class OPENGLDRV_API FOpenGLDynamicRHI  final : public IOpenGLDynamicRHI, public IRHICommandContextPSOFallback
+class OPENGLDRV_API FOpenGLDynamicRHI final : public IOpenGLDynamicRHI, public IRHICommandContextPSOFallback
 {
 	static inline FOpenGLDynamicRHI* Singleton = nullptr;
 
@@ -327,45 +321,13 @@ public:
 
 	// FDynamicRHI interface.
 	virtual void Init();
-	virtual void PostInit();
 
 	virtual void Shutdown();
 	virtual const TCHAR* GetName() override { return TEXT("OpenGL"); }
 
 	template<typename TRHIType>
-	static FORCEINLINE typename TOpenGLResourceTraits<TRHIType>::TConcreteType* ResourceCastProxy(TRHIType* Resource)
-	{
-		static_assert(TIsGLProxyObject_V<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>, "Wrong type past");
-		return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
-	}
-	template<typename TRHIType>
-	static FORCEINLINE const typename TOpenGLResourceTraits<TRHIType>::TConcreteType* ResourceCastProxy(const TRHIType* Resource)
-	{
-		static_assert(TIsGLProxyObject_V<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>, "Wrong type past");
-		return static_cast<const typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
-	}
-
-	// If using a Proxy object return the contained GL object rather than the proxy itself.
-	template<typename TRHIType>
 	static FORCEINLINE auto* ResourceCast(TRHIType* Resource)
 	{
-		if constexpr (TIsGLProxyObject_V<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>)
-		{
-			auto GLProxy = static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
-			// rhi resource can be null.
-			return GLProxy ? GLProxy->GetGLResourceObject() : nullptr;
-		}
-		else
-		{
-			CheckRHITFence(static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource));
-			return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
-		}
-	}
-
-	template<typename TRHIType>
-	static FORCEINLINE typename TOpenGLResourceTraits<TRHIType>::TConcreteType* ResourceCast_Unfenced(TRHIType* Resource)
-	{
-		static_assert(!TIsGLProxyObject_V<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>, "Wrong type passed");
 		return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
 	}
 
@@ -884,8 +846,6 @@ public:
 
 	GLuint GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTargets, FOpenGLTexture** RenderTargets, const uint32* ArrayIndices, const uint32* MipmapLevels, FOpenGLTexture* DepthStencilTarget);
 	GLuint GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTargets, FOpenGLTexture** RenderTargets, const uint32* ArrayIndices, const uint32* MipmapLevels, FOpenGLTexture* DepthStencilTarget, int32 NumRenderingSamples);
-
-	FRHIPixelShader* GetNULLPixelShader() const;
 	
 private:
 
@@ -967,9 +927,6 @@ private:
 	FCriticalSection CustomPresentSection;
 	TRefCountPtr<class FRHICustomPresent> CustomPresent;
 
-	// Cached NULLPS
-	FRHIPixelShader* NULLPixelShaderRHI;
-
 	void InitializeStateResources();
 
 	void SetupVertexArrays(FOpenGLContextState& ContextCache, uint32 BaseVertexIndex, FOpenGLStream* Streams, uint32 NumStreams, uint32 MaxVertices);
@@ -985,7 +942,7 @@ private:
 	void UpdateScissorRectInOpenGLContext( FOpenGLContextState& ContextState );
 	void UpdateViewportInOpenGLContext( FOpenGLContextState& ContextState );
 	
-	template <class ShaderType> void SetResourcesFromTables(ShaderType* RESTRICT);
+	template <class ShaderType> void SetResourcesFromTables(ShaderType* Shader);
 	FORCEINLINE void CommitGraphicsResourceTables()
 	{
 		if (PendingState.bAnyDirtyGraphicsUniformBuffers)
@@ -994,7 +951,7 @@ private:
 		}
 	}
 	void CommitGraphicsResourceTablesInner();
-	void CommitComputeResourceTables(FOpenGLComputeShaderProxy* ComputeShader);
+	void CommitComputeResourceTables(FOpenGLComputeShader* ComputeShader);
 	void CommitNonComputeShaderConstants();
 	void CommitComputeShaderConstants(FOpenGLComputeShader* ComputeShader);
 	void SetPendingBlendStateForActiveRenderTargets( FOpenGLContextState& ContextState );
@@ -1017,8 +974,6 @@ public:
 	void InternalSetSamplerStates(GLint TextureIndex, FOpenGLSamplerState* SamplerState);
 	void InitializeGLTextureInternal(FOpenGLTexture* Texture, void const* BulkDataPtr, uint64 BulkDataSize);
 private:
-
-	void SetupRecursiveResources();
 
 	void ApplyTextureStage(FOpenGLContextState& ContextState, GLint TextureIndex, const FTextureStage& TextureStage, FOpenGLSamplerState* SamplerState);
 

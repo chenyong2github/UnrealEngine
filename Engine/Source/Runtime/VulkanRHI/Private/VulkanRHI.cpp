@@ -287,9 +287,6 @@ void FVulkanDynamicRHI::Init()
 
 void FVulkanDynamicRHI::PostInit()
 {
-	//work around layering violation
-	TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
-
 #if VULKAN_RHI_RAYTRACING
 	if (GRHISupportsRayTracing)
 	{

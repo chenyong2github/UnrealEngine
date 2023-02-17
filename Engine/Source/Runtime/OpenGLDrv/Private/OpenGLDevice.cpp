@@ -243,16 +243,12 @@ void FOpenGLDynamicRHI::RHIBeginScene()
 	}
 
 	BeginSceneContextType = (int32)PlatformOpenGLCurrentContext(PlatformDevice);
-
-	// recache NULL shader as it can change with ODSC
-	NULLPixelShaderRHI = GetNULLPixelShader();
 }
 
 void FOpenGLDynamicRHI::RHIEndScene()
 {
 	ResourceTableFrameCounter = INDEX_NONE;
 	BeginSceneContextType = CONTEXT_Other;
-	NULLPixelShaderRHI = nullptr;
 }
 
 #if PLATFORM_ANDROID
@@ -1248,7 +1244,6 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 ,   BeginSceneContextType(CONTEXT_Other)
 ,	PlatformDevice(NULL)
 ,	GPUProfilingData(this)
-,	NULLPixelShaderRHI(nullptr)
 {
 	check(Singleton == nullptr);
 	Singleton = this;
@@ -1365,6 +1360,7 @@ void FOpenGLDynamicRHI::Init()
 	VERIFY_GL_SCOPE();
 
 	GRHISupportsMultithreadedShaderCreation = false;
+	GRequiredRecursiveShaders = ERecursiveShader::Resolve | ERecursiveShader::Clear | ERecursiveShader::Null;
 
 	FOpenGLProgramBinaryCache::Initialize();
 
@@ -1419,14 +1415,6 @@ void FOpenGLDynamicRHI::Init()
 
 	FRenderResource::InitPreRHIResources();
 	GIsRHIInitialized = true;
-}
-
-void FOpenGLDynamicRHI::PostInit()
-{
-	if (GRHISupportsRHIThread)
-	{
-		SetupRecursiveResources();
-	}
 }
 
 void FOpenGLDynamicRHI::Shutdown()

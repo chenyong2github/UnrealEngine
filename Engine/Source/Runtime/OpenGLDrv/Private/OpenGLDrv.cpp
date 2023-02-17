@@ -152,11 +152,6 @@ bool FOpenGLDynamicRHI::RHIRequiresComputeGenerateMips() const
 
 void FOpenGLGPUProfiler::BeginFrame(FOpenGLDynamicRHI* InRHI)
 {
-	if (!bIntialized)
-	{
-		bIntialized = true;
-		InitResources();
-	}
 	if (NestedFrameCount++>0)
 	{
 		// guard against nested Begin/EndFrame calls.
@@ -391,17 +386,13 @@ void FOpenGLGPUProfiler::EndFrame()
 
 void FOpenGLGPUProfiler::Cleanup()
 {
-	if (bIntialized)
+	for (int32 Index = 0; Index < MAX_GPUFRAMEQUERIES; ++Index)
 	{
-		for (int32 Index = 0; Index < MAX_GPUFRAMEQUERIES; ++Index)
-		{
-			DisjointGPUFrameTimeQuery[Index].ReleaseResources();
-		}
-
-		FrameTiming.ReleaseResources();
-		NestedFrameCount = 0;
-		bIntialized = false;
+		DisjointGPUFrameTimeQuery[Index].ReleaseResources();
 	}
+
+	FrameTiming.ReleaseResources();
+	NestedFrameCount = 0;
 }
 
 /** Start this frame of per tracking */

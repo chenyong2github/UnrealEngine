@@ -426,7 +426,6 @@ public:
 
 	// FDynamicRHI interface.
 	virtual void Init() override;
-	virtual void PostInit() override;
 	virtual void Shutdown() override;
 	virtual const TCHAR* GetName() override { return TEXT("D3D11"); }
 

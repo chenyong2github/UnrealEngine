@@ -1731,33 +1731,6 @@ void FD3D12DynamicRHI::Init()
 	GIsRHIInitialized = true;
 }
 
-void FD3D12DynamicRHI::PostInit()
-{
-	if (!FPlatformProperties::RequiresCookedData() && (GRHISupportsRayTracing || GRHISupportsRHIThread))
-	{
-		// Make sure all global shaders are complete at this point
-		extern RENDERCORE_API const int32 GlobalShaderMapId;
-
-		TArray<int32> ShaderMapIds;
-		ShaderMapIds.Add(GlobalShaderMapId);
-
-		GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
-	}
-
-	if (GRHISupportsRayTracing)
-	{
-		for (TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
-		{
-			Adapter->InitializeRayTracing();
-		}
-	}
-
-	if (GRHISupportsRHIThread)
-	{
-		SetupRecursiveResources();
-	}
-}
-
 bool FD3D12DynamicRHI::IsQuadBufferStereoEnabled() const
 {
 	return bIsQuadBufferStereoEnabled;

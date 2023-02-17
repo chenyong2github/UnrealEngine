@@ -1087,24 +1087,12 @@ void FVulkanDynamicRHI::RHITick(float DeltaTime)
 {
 	check(IsInGameThread());
 	FVulkanDevice* VulkanDevice = GetDevice();
-	static bool bRequestNULLPixelShader = true;
-	bool bRequested = bRequestNULLPixelShader;
+
 	ENQUEUE_RENDER_COMMAND(TempFrameReset)(
-		[VulkanDevice, bRequested](FRHICommandListImmediate& RHICmdList)
-		{
-			if (bRequested)
-			{
-				//work around layering violation
-				TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
-			}
-
-			VulkanDevice->GetImmediateContext().GetTempFrameAllocationBuffer().Reset();
-		});
-
-	if (bRequestNULLPixelShader)
+		[VulkanDevice](FRHICommandListImmediate& RHICmdList)
 	{
-		bRequestNULLPixelShader = false;
-	}
+		VulkanDevice->GetImmediateContext().GetTempFrameAllocationBuffer().Reset();
+	});
 }
 
 FTexture2DRHIRef FVulkanDynamicRHI::RHIGetViewportBackBuffer(FRHIViewport* ViewportRHI)

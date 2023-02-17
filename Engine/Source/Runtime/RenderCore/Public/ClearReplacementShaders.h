@@ -318,11 +318,6 @@ typedef TClearReplacementCS<EClearReplacementResourceType::Texture2D,        FCl
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray,   FClearReplacementBase_Sint4_Bounds>  FClearReplacementCS_Texture2DArray_Sint4_Bounds;
 
 /**
- * Force creation of the above clear replacement shaders. This is sometimes useful if multi-threaded creation (i.e. on demand) isn't supported.
- */
-void RENDERCORE_API CreateClearReplacementShaders();
-
-/**
  * Helper functions for running the clear replacement shader for specific resource types, values types and number of channels.
  * Can be used from inside RHIs via FRHICommandList_RecursiveHazardous. ResourceBindCallback is provided to allow the RHI to override
  * how the UAV resource is bound to the underlying platform context..

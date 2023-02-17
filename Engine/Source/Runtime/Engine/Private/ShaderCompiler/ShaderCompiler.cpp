@@ -7920,7 +7920,10 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 		// While we're early in the game's startup, create certain global shaders that may be later created on random threads otherwise. 
 		if (!bShaderMapIsBeingCompiled && !GRHISupportsMultithreadedShaderCreation)
 		{
-			CreateClearReplacementShaders();
+			ENQUEUE_RENDER_COMMAND(CreateRecursiveShaders)([](FRHICommandListImmediate&)
+			{
+				CreateRecursiveShaders();
+			});
 		}
 	}
 }
@@ -8513,7 +8516,10 @@ void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& Comp
 
 			if (!GRHISupportsMultithreadedShaderCreation && Platform == GMaxRHIShaderPlatform)
 			{
-				CreateClearReplacementShaders();
+				ENQUEUE_RENDER_COMMAND(CreateRecursiveShaders)([](FRHICommandListImmediate&)
+				{
+					CreateRecursiveShaders();
+				});
 			}
 		}
 	}

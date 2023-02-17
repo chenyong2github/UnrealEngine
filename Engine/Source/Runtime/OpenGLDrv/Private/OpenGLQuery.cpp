@@ -637,43 +637,22 @@ FOpenGLRenderQuery::FOpenGLRenderQuery(ERenderQueryType InQueryType)
 	, bInvalidResource(true)
 	, QueryType(InQueryType)
 {
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-	const bool bCanRunOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && IsInRenderingThread()) || IsInRHIThread();
-
-	if (bCanRunOnThisThread)
-	{
-		AcquireResource();
-	}
-	else
-	{
-		CreationFence.Reset();
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() {AcquireResource(); CreationFence.WriteAssertFence(); });
-		CreationFence.SetRHIThreadFence();
-	}
+	check(IsInRenderingThread());
+	FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda(
+		[this](FRHICommandListImmediate&) { AcquireResource(); }
+	);
 }
 
 
 FOpenGLRenderQuery::~FOpenGLRenderQuery()
 {
-
+	VERIFY_GL_SCOPE();
 	OnQueryDeletion( this );
 
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-	const bool bCanRunOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && IsInRenderingThread()) || IsInRHIThread();
 	if (Resource && !bInvalidResource)
 	{
 		bInvalidResource = true;
-		if (bCanRunOnThisThread)
-		{
-			ReleaseResource(Resource, ResourceContext);
-		}
-		else
-		{
-			CreationFence.WaitFenceRenderThreadOnly();
-			ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([Resource = Resource, ResourceContext = ResourceContext]() {VERIFY_GL_SCOPE(); ReleaseResource(Resource, ResourceContext); });
-		}
+		ReleaseResource(Resource, ResourceContext);
 	}
 }
 

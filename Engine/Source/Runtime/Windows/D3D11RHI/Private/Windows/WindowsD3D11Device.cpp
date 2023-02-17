@@ -1148,20 +1148,6 @@ void FD3D11DynamicRHI::Init()
 	InitD3DDevice();
 }
 
-void FD3D11DynamicRHI::PostInit()
-{
-	if (!FPlatformProperties::RequiresCookedData())
-	{
-		// Make sure all global shaders are complete at this point
-		extern RENDERCORE_API const int32 GlobalShaderMapId;
-
-		TArray<int32> ShaderMapIds;
-		ShaderMapIds.Add(GlobalShaderMapId);
-
-		GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
-	}
-}
-
 bool FD3D11DynamicRHI::IsQuadBufferStereoEnabled()
 {
 	return bIsQuadBufferStereoEnabled;
@@ -1731,7 +1717,8 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		GTexturePoolSize = 0;
 
 		// turn off creation on other threads for NVidia since a driver heuristic will notice that and make the creation synchronous, and that is not desirable given that large number of shaders will still be created on a single thread
-		GRHISupportsMultithreadedShaderCreation = !IsRHIDeviceNVIDIA(); 
+		GRHISupportsMultithreadedShaderCreation = !IsRHIDeviceNVIDIA();
+		GRequiredRecursiveShaders = ERecursiveShader::Resolve | ERecursiveShader::Clear;
 
 		UE_LOG(LogD3D11RHI, Log, TEXT("    GPU DeviceId: 0x%x (for the marketing name, search the web for \"GPU Device Id\")"), Adapter.DXGIAdapterDesc.DeviceId);
 

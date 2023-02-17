@@ -764,8 +764,6 @@ protected:
 
 	void ReadSurfaceDataMSAARaw(FRHITexture* TextureRHI, FIntRect Rect, TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags);
 
-	void SetupRecursiveResources();
-
 	// This should only be called by Dynamic RHI member functions
 	inline FD3D12Device* GetRHIDevice(uint32 GPUIndex) const
 	{

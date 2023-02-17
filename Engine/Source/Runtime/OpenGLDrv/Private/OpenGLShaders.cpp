@@ -193,26 +193,6 @@ static void SetDeletedProgramStats(GLuint Program)
 	GNumPrograms--;
 }
 
-// Create any resources that are required by internal ogl rhi functions.
-void FOpenGLDynamicRHI::SetupRecursiveResources()
-{
-	NULLPixelShaderRHI = GetNULLPixelShader();
-}
-
-FRHIPixelShader* FOpenGLDynamicRHI::GetNULLPixelShader() const
-{
-	if (NULLPixelShaderRHI)
-	{
-		return NULLPixelShaderRHI;
-	}
-	else
-	{
-		auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-		TShaderMapRef<FNULLPS> PixelShader(ShaderMap);
-		return PixelShader.GetPixelShader();
-	}
-}
-
 const uint32 SizeOfFloat4 = 16;
 const uint32 NumFloatsInFloat4 = 4;
 
@@ -634,40 +614,36 @@ static void GLSLToPlatform(const FOpenGLCodeHeader& Header, GLenum TypeEnum, FAn
 
 /**
  * Compiles an OpenGL shader using the given GLSL microcode.
- * @returns the compiled shader upon success.
  */
-template <typename ShaderType, typename TRHIType>
-ShaderType* CompileOpenGLShader(const FOpenGLCodeHeader& Header, const FOpenGLCompiledShaderKey& SourceKey, const FSHAHash& LibraryHash, TRHIType* RHIShader)
+void FOpenGLShader::Compile(const FOpenGLCodeHeader& Header, const FSHAHash& LibraryHash, GLenum TypeEnum)
 {
 	SCOPE_CYCLE_COUNTER(STAT_OpenGLShaderCompileTime);
 	VERIFY_GL_SCOPE();
 
-	ShaderType* Shader = nullptr;
 	{
 		FLibraryShaderCacheValue *Val = GetOpenGLCompiledLibraryShaderCache().Find(LibraryHash);
 		if (Val)
 		{
-			Shader = new ShaderType();
-			Shader->Resource = Val->GLShader;
-			Shader->Bindings = Val->Header->Bindings;
-			Shader->UniformBuffersCopyInfo = Val->Header->UniformBuffersCopyInfo;
-			Shader->StaticSlots = Val->StaticSlots;
+			Resource = Val->GLShader;
+			Bindings = Val->Header->Bindings;
+			UniformBuffersCopyInfo = Val->Header->UniformBuffersCopyInfo;
+			StaticSlots = Val->StaticSlots;
 #if DEBUG_GL_SHADERS
-			Shader->GlslCode = Val->GlslCode;
-			Shader->GlslCodeString = (ANSICHAR*)Shader->GlslCode.GetData();
+			GlslCode = Val->GlslCode;
+			GlslCodeString = (ANSICHAR*)GlslCode.GetData();
 #endif
-			return Shader;
+			return;
 		}
 	}
+
 	// Find the existing compiled shader in the cache.
 	FScopeLock Lock(&GCompiledShaderCacheCS);
-	TSharedPtr<FOpenGLCompiledShaderValue> FoundShader = GetOpenGLCompiledShaderCache().FindRef(SourceKey);
+	TSharedPtr<FOpenGLCompiledShaderValue> FoundShader = GetOpenGLCompiledShaderCache().FindRef(ShaderCodeKey);
 	check(FoundShader);
-	GLuint Resource = FoundShader->Resource;
+	Resource = FoundShader->Resource;
 
 	if (Resource == 0)
 	{
-		const GLenum TypeEnum = ShaderType::TypeEnum;
 		Resource = FOpenGL::CreateShader(TypeEnum);
 		const FOpenGLShaderDeviceCapabilities& Capabilities = GetOpenGLShaderDeviceCapabilities();
 
@@ -687,18 +663,16 @@ ShaderType* CompileOpenGLShader(const FOpenGLCodeHeader& Header, const FOpenGLCo
 		FoundShader->Resource = Resource;
 	}
 
-	Shader = new ShaderType();
-	Shader->Resource = Resource;
-	Shader->Bindings = Header.Bindings;
-	Shader->UniformBuffersCopyInfo = Header.UniformBuffersCopyInfo;
+	Bindings = Header.Bindings;
+	UniformBuffersCopyInfo = Header.UniformBuffersCopyInfo;
 
-	UE::RHICore::InitStaticUniformBufferSlots(Shader->StaticSlots, Shader->Bindings.ShaderResourceTable);
+	UE::RHICore::InitStaticUniformBufferSlots(StaticSlots, Bindings.ShaderResourceTable);
 
 #if DEBUG_GL_SHADERS
 	{
 		const FAnsiCharArray glslPlatformCode = FoundShader->GetUncompressedShader();
-		Shader->GlslCode = glslPlatformCode;
-		Shader->GlslCodeString = (ANSICHAR*)Shader->GlslCode.GetData();
+		GlslCode = glslPlatformCode;
+		GlslCodeString = (ANSICHAR*)GlslCode.GetData();
 	}
 #endif
 	if (LibraryHash != FSHAHash() && !GetOpenGLCompiledLibraryShaderCache().Contains(LibraryHash))
@@ -707,16 +681,14 @@ ShaderType* CompileOpenGLShader(const FOpenGLCodeHeader& Header, const FOpenGLCo
 		Val.GLShader = Resource;
 		Val.Header = new FOpenGLCodeHeader;
 		*Val.Header = Header;
-		Val.ShaderCrc = SourceKey.GetCodeCRC();
-		Val.StaticSlots = Shader->StaticSlots;
+		Val.ShaderCrc = ShaderCodeKey.GetCodeCRC();
+		Val.StaticSlots = StaticSlots;
 #if DEBUG_GL_SHADERS
 		Val.GlslCode = FoundShader->GetUncompressedShader();
-		Val.GlslCodeString = (ANSICHAR*)Shader->GlslCode.GetData();
+		Val.GlslCodeString = (ANSICHAR*)GlslCode.GetData();
 #endif
 		GetOpenGLCompiledLibraryShaderCache().Add(LibraryHash, Val);
 	}
-
-	return Shader;
 }
 
 void OPENGLDRV_API GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceCapabilities& Capabilities)
@@ -941,28 +913,24 @@ static ANSICHAR* SetIndex(ANSICHAR* Str, int32 Offset, int32 Index)
 	return Str;
 }
 
-template<typename RHIType>
-RHIType* CreateProxyShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+FOpenGLShader::FOpenGLShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash, GLenum TypeEnum)
 {
-	typedef typename TOpenGLResourceTraits<RHIType>::TConcreteType TOGLProxyType;
+	FMemory::Memzero(&Bindings, sizeof(Bindings));
 
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	FShaderCodeReader ShaderCode(Code);
 
-	const GLenum TypeEnum = TOGLProxyType::ContainedGLType::TypeEnum;
 	FMemoryReaderView Ar(Code, true);
 
 	Ar.SetLimitSize(ShaderCode.GetActualShaderCodeSize());
 
 	FOpenGLCodeHeader Header = { 0 };
 	Ar << Header;
-	// Suppress static code analysis warning about a potential comparison of two constants
-	CA_SUPPRESS(6326);
+
 	if (Header.GlslMarker != 0x474c534c
-		|| (TypeEnum == GL_VERTEX_SHADER && Header.FrequencyMarker != 0x5653)
+		|| (TypeEnum == GL_VERTEX_SHADER   && Header.FrequencyMarker != 0x5653)
 		|| (TypeEnum == GL_FRAGMENT_SHADER && Header.FrequencyMarker != 0x5053)
 		|| (TypeEnum == GL_GEOMETRY_SHADER && Header.FrequencyMarker != 0x4753)
-		|| (TypeEnum == GL_COMPUTE_SHADER && Header.FrequencyMarker != 0x4353)
+		|| (TypeEnum == GL_COMPUTE_SHADER  && Header.FrequencyMarker != 0x4353)
 		)
 	{
 		UE_LOG(LogRHI, Fatal,
@@ -970,7 +938,7 @@ RHIType* CreateProxyShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 			Header.GlslMarker,
 			Header.FrequencyMarker
 		);
-		return nullptr;
+		return;
 	}
 
 	int32 CodeOffset = Ar.Tell();
@@ -983,7 +951,7 @@ RHIType* CreateProxyShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
  	FAnsiCharArray GlslCodeOriginal;
  	AppendCString(GlslCodeOriginal, (ANSICHAR*)Code.GetData() + CodeOffset);
 	uint32 CodeCRC = FCrc::MemCrc32(GlslCodeOriginal.GetData(), GlslCodeOriginal.Num());
-	FOpenGLCompiledShaderKey ShaderCodeKey(TypeEnum, GlslCodeOriginal.Num(), CodeCRC);
+	ShaderCodeKey = FOpenGLCompiledShaderKey(TypeEnum, GlslCodeOriginal.Num(), CodeCRC);
 
 #if CHECK_FOR_GL_SHADERS_TO_REPLACE
 	{
@@ -1041,46 +1009,28 @@ RHIType* CreateProxyShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 #endif
 	}
 
-	RHIType* RHIShader = nullptr;
-	if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
+	RHICmdList.EnqueueLambda([this, Header = MoveTemp(Header), Hash, TypeEnum](FRHICommandListImmediate&)
 	{
-		RHIShader = new TOGLProxyType(ShaderCodeKey, [&](RHIType* OwnerRHI)
-		{
-			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Header, ShaderCodeKey, Hash, OwnerRHI);
-		});
-	}
-	else
-	{
-		// take a copy of the code for RHIT version.
-		RHIShader = new TOGLProxyType(ShaderCodeKey, [Header = Header, ShaderCodeKey= ShaderCodeKey, Hash](RHIType* OwnerRHI)
-		{
-			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Header, ShaderCodeKey, Hash, OwnerRHI);
-		});
-	}
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (RHIShader)
-	{
-		RHIShader->Debug.ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
-	}
-#endif
-
-	return RHIShader;
+		Compile(Header, Hash, TypeEnum);
+	});
 }
 
 FVertexShaderRHIRef FOpenGLDynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIVertexShader>(Code, Hash);
+	check(IsInRenderingThread());
+	return new FOpenGLVertexShader(FRHICommandListExecutor::GetImmediateCommandList(), Code, Hash);
 }
 
 FPixelShaderRHIRef FOpenGLDynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIPixelShader>(Code, Hash);
+	check(IsInRenderingThread());
+	return new FOpenGLPixelShader(FRHICommandListExecutor::GetImmediateCommandList(), Code, Hash);
 }
 
 FGeometryShaderRHIRef FOpenGLDynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIGeometryShader>(Code, Hash);
+	check(IsInRenderingThread());
+	return new FOpenGLGeometryShader(FRHICommandListExecutor::GetImmediateCommandList(), Code, Hash);
 }
 
 static void MarkShaderParameterCachesDirty(FOpenGLShaderParameterCache* ShaderParameters, bool UpdateCompute)
@@ -2577,7 +2527,7 @@ bool FOpenGLDynamicRHI::LinkComputeShader(FRHIComputeShader* ComputeShaderRHI, F
 	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].Resource = ComputeShader->Resource;
 	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].Bindings = ComputeShader->Bindings;
 	Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_COMPUTE] = ComputeShaderRHI->GetHash();
-	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].ShaderKey = FOpenGLDynamicRHI::ResourceCastProxy(ComputeShaderRHI)->GetCompiledShaderKey();
+	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].ShaderKey = FOpenGLDynamicRHI::ResourceCast(ComputeShaderRHI)->ShaderCodeKey;
 
 	ComputeShader->LinkedProgram = GetOpenGLProgramsCache().Find(Config.ProgramKey, true);
 
@@ -2645,7 +2595,8 @@ FOpenGLLinkedProgram* FOpenGLDynamicRHI::GetLinkedComputeProgram(FRHIComputeShad
 
 FComputeShaderRHIRef FOpenGLDynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIComputeShader>(Code, Hash);
+	check(IsInRenderingThread());
+	return new FOpenGLComputeShader(FRHICommandListExecutor::GetImmediateCommandList(), Code, Hash);
 }
 
 template<class TOpenGLStage>
@@ -2697,9 +2648,6 @@ static void BindShaderStage(FOpenGLLinkedProgramConfiguration& Config, CrossComp
 
 	check(NextStageShader && PrevStageShader);
 
-	typedef typename TOpenGLResourceTraits<TOpenGLStage0RHI>::TConcreteType::ContainedGLType TOpenGLStage0;
-	typedef typename TOpenGLResourceTraits<TOpenGLStage1RHI>::TConcreteType::ContainedGLType TOpenGLStage1;
-
 	FOpenGLLinkedProgramConfiguration::ShaderInfo& ShaderInfo = Config.Shaders[NextStage];
 	FOpenGLLinkedProgramConfiguration::ShaderInfo& PrevInfo = Config.Shaders[PrevStage];
 
@@ -2726,7 +2674,7 @@ static FOpenGLLinkedProgramConfiguration CreateConfig(FRHIVertexShader* VertexSh
 	// Fill-in the configuration
 	Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].Bindings = VertexShader->Bindings;
 	Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].Resource = VertexShader->Resource;
-	Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].ShaderKey = FOpenGLDynamicRHI::ResourceCastProxy(VertexShaderRHI)->GetCompiledShaderKey();
+	Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].ShaderKey = FOpenGLDynamicRHI::ResourceCast(VertexShaderRHI)->ShaderCodeKey;
 	Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX] = VertexShaderRHI->GetHash();
 
 	if (GeometryShaderRHI)
@@ -2734,7 +2682,7 @@ static FOpenGLLinkedProgramConfiguration CreateConfig(FRHIVertexShader* VertexSh
 		check(VertexShader);
 		BindShaderStage(Config, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShaderRHI, CrossCompiler::SHADER_STAGE_VERTEX, VertexShaderRHI);
 		Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_GEOMETRY] = GeometryShaderRHI->GetHash();
-		Config.Shaders[CrossCompiler::SHADER_STAGE_GEOMETRY].ShaderKey = FOpenGLDynamicRHI::ResourceCastProxy(GeometryShaderRHI)->GetCompiledShaderKey();
+		Config.Shaders[CrossCompiler::SHADER_STAGE_GEOMETRY].ShaderKey = FOpenGLDynamicRHI::ResourceCast(GeometryShaderRHI)->ShaderCodeKey;
 	}
 
 	check(GeometryShaderRHI || VertexShaderRHI);
@@ -2747,7 +2695,7 @@ static FOpenGLLinkedProgramConfiguration CreateConfig(FRHIVertexShader* VertexSh
 		BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShaderRHI, CrossCompiler::SHADER_STAGE_VERTEX, VertexShaderRHI);
 	}
 	Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_PIXEL] = PixelShaderRHI->GetHash();
-	Config.Shaders[CrossCompiler::SHADER_STAGE_PIXEL].ShaderKey = FOpenGLDynamicRHI::ResourceCastProxy(PixelShaderRHI)->GetCompiledShaderKey();
+	Config.Shaders[CrossCompiler::SHADER_STAGE_PIXEL].ShaderKey = FOpenGLDynamicRHI::ResourceCast(PixelShaderRHI)->ShaderCodeKey;
 
 
 	return Config;
@@ -2765,13 +2713,13 @@ static bool CanCreateExternally(bool bIsFromPSO)
 	return false;
 }
 
-static FOpenGLProgramBinary ExternalProgramCompile(const FOpenGLProgramKey& ProgramKey, const FRHIVertexShader* VertexShaderRHI, const FRHIPixelShader* PixelShaderRHI)
+static FOpenGLProgramBinary ExternalProgramCompile(const FOpenGLProgramKey& ProgramKey, FRHIVertexShader* VertexShaderRHI, FRHIPixelShader* PixelShaderRHI)
 {
 	FOpenGLProgramBinary CompiledProgram;
 #if PLATFORM_ANDROID
 	// compile externally, sit and wait for the linked result	
-	const FOpenGLCompiledShaderKey& VSKey = FOpenGLDynamicRHI::ResourceCastProxy(VertexShaderRHI)->GetCompiledShaderKey();
-	const FOpenGLCompiledShaderKey& PSKey = FOpenGLDynamicRHI::ResourceCastProxy(PixelShaderRHI)->GetCompiledShaderKey();
+	const FOpenGLCompiledShaderKey& VSKey = FOpenGLDynamicRHI::ResourceCast(VertexShaderRHI)->ShaderCodeKey;
+	const FOpenGLCompiledShaderKey& PSKey = FOpenGLDynamicRHI::ResourceCast(PixelShaderRHI)->ShaderCodeKey;
 
 	TArray<ANSICHAR> VSCode;
 	TArray<ANSICHAR> PSCode;
@@ -2922,7 +2870,8 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 	if (!PixelShaderRHI)
 	{
 		// use special null pixel shader when PixelShader was set to NULL
-		PixelShaderRHI = GetNULLPixelShader();
+		TShaderMapRef<FNULLPS> PixelShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		PixelShaderRHI = PixelShader.GetPixelShader();
 	}
 
 	// Check for an existing bound shader state which matches the parameters
@@ -3223,20 +3172,18 @@ FOpenGLBoundShaderState::FOpenGLBoundShaderState(
 	FRHIPixelShader* InPixelShaderRHI,
 	FRHIGeometryShader* InGeometryShaderRHI
 	)
-	:	CacheLink(InVertexDeclarationRHI, InVertexShaderRHI, InPixelShaderRHI,
-		InGeometryShaderRHI, this)
+	: CacheLink(InVertexDeclarationRHI, InVertexShaderRHI, InPixelShaderRHI, InGeometryShaderRHI, this)
 {
-	FOpenGLVertexDeclaration* InVertexDeclaration = FOpenGLDynamicRHI::ResourceCast(InVertexDeclarationRHI);
-	VertexDeclaration = InVertexDeclaration;
-	VertexShaderProxy = static_cast<FOpenGLVertexShaderProxy*>(InVertexShaderRHI);
-	PixelShaderProxy = static_cast<FOpenGLPixelShaderProxy*>(InPixelShaderRHI);
-	GeometryShaderProxy = static_cast<FOpenGLGeometryShaderProxy*>(InGeometryShaderRHI);
+	VertexDeclaration = FOpenGLDynamicRHI::ResourceCast(InVertexDeclarationRHI);
+	VertexShader      = FOpenGLDynamicRHI::ResourceCast(InVertexShaderRHI);
+	PixelShader       = FOpenGLDynamicRHI::ResourceCast(InPixelShaderRHI);
+	GeometryShader    = FOpenGLDynamicRHI::ResourceCast(InGeometryShaderRHI);
 
 	LinkedProgram = InLinkedProgram;
 
-	if (InVertexDeclaration)
+	if (VertexDeclaration)
 	{
-		FMemory::Memcpy(StreamStrides, InVertexDeclaration->StreamStrides, sizeof(StreamStrides));
+		FMemory::Memcpy(StreamStrides, VertexDeclaration->StreamStrides, sizeof(StreamStrides));
 	}
 	else
 	{
@@ -3288,23 +3235,11 @@ const TBitArray<>& FOpenGLBoundShaderState::GetUAVNeeds(int32& OutMaxUAVUnitUsed
 
 void FOpenGLBoundShaderState::GetNumUniformBuffers(int32 NumUniformBuffers[SF_NumGraphicsFrequencies])
 {
-	if (IsRunningRHIInSeparateThread())
-	{
-		// fast path, no need to check any fences....
-		check(IsInRHIThread());
-		check(IsValidRef(VertexShaderProxy) && IsValidRef(PixelShaderProxy));
+	check(IsValidRef(VertexShader) && IsValidRef(PixelShader));
 
-
-		NumUniformBuffers[SF_Vertex] = VertexShaderProxy->GetGLResourceObject_OnRHIThread()->Bindings.NumUniformBuffers;
-		NumUniformBuffers[SF_Pixel] = PixelShaderProxy->GetGLResourceObject_OnRHIThread()->Bindings.NumUniformBuffers;
-		NumUniformBuffers[SF_Geometry] = GeometryShaderProxy ? GeometryShaderProxy->GetGLResourceObject_OnRHIThread()->Bindings.NumUniformBuffers : -1;
-	}
-	else
-	{
-		NumUniformBuffers[SF_Vertex] = VertexShaderProxy->GetGLResourceObject()->Bindings.NumUniformBuffers;
-		NumUniformBuffers[SF_Pixel] = PixelShaderProxy->GetGLResourceObject()->Bindings.NumUniformBuffers;
-		NumUniformBuffers[SF_Geometry] = GeometryShaderProxy ? GeometryShaderProxy->GetGLResourceObject()->Bindings.NumUniformBuffers : -1;
-	}
+	NumUniformBuffers[SF_Vertex]   = VertexShader->Bindings.NumUniformBuffers;
+	NumUniformBuffers[SF_Pixel]    = PixelShader->Bindings.NumUniformBuffers;
+	NumUniformBuffers[SF_Geometry] = GeometryShader ? GeometryShader->Bindings.NumUniformBuffers : -1;
 }
 
 

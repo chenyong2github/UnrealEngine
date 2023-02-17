@@ -2563,7 +2563,7 @@ UE::Tasks::FTask LaunchSceneRenderTask(const TCHAR* DebugName, LambdaType&& Lamb
 
 	return UE::Tasks::Launch(DebugName, [Lambda = MoveTemp(Lambda)]
 	{
-		FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 		Lambda();
 	},
 	TaskPriority, bExecuteInParallel ? UE::Tasks::EExtendedTaskPriority::None : UE::Tasks::EExtendedTaskPriority::Inline);

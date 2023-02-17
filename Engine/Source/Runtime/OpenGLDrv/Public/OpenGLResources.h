@@ -76,294 +76,7 @@ void DecrementBufferMemory(GLenum Type, uint32 NumBytes);
 	#define DETAILED_QUICK_SCOPE_CYCLE_COUNTER(x)
 #endif
 
-#if UE_BUILD_TEST
-#define USE_REAL_RHI_FENCES (0)
-#define USE_CHEAP_ASSERTONLY_RHI_FENCES (1)
-#define GLAF_CHECK(x) \
-if (!(x)) \
-{  \
-	UE_LOG(LogRHI, Fatal, TEXT("AssertFence Fail on line %s."), TEXT(PREPROCESSOR_TO_STRING(__LINE__))); \
-	FPlatformMisc::LocalPrint(TEXT("Failed a check on line:\n")); FPlatformMisc::LocalPrint(TEXT(PREPROCESSOR_TO_STRING(__LINE__))); FPlatformMisc::LocalPrint(TEXT("\n")); *((int*)3) = 13; \
-}
-
-#elif DO_CHECK
-#define USE_REAL_RHI_FENCES (1)
-#define USE_CHEAP_ASSERTONLY_RHI_FENCES (1)
-#define GLAF_CHECK(x)  check(x)
-
-//#define GLAF_CHECK(x) if (!(x)) { FPlatformMisc::LocalPrint(TEXT("Failed a check on line:\n")); FPlatformMisc::LocalPrint(TEXT( PREPROCESSOR_TO_STRING(__LINE__))); FPlatformMisc::LocalPrint(TEXT("\n")); *((int*)3) = 13; }
-
-#else
-#define USE_REAL_RHI_FENCES (0)
-#define USE_CHEAP_ASSERTONLY_RHI_FENCES (0)
-
-#define GLAF_CHECK(x) 
-
-#endif
-
 #define GLDEBUG_LABELS_ENABLED (!UE_BUILD_SHIPPING)
-
-class FOpenGLRHIThreadResourceFence
-{
-	FGraphEventRef RealRHIFence;
-
-public:
-
-	FORCEINLINE_DEBUGGABLE void Reset()
-	{
-		if (IsRunningRHIInSeparateThread())
-		{
-			GLAF_CHECK(IsInRenderingThread());
-			GLAF_CHECK(!RealRHIFence.GetReference() || RealRHIFence->IsComplete());
-			RealRHIFence = nullptr;
-		}
-	}
-	FORCEINLINE_DEBUGGABLE void SetRHIThreadFence()
-	{
-		if (IsRunningRHIInSeparateThread())
-		{
-			GLAF_CHECK(IsInRenderingThread());
-
-			GLAF_CHECK(!RealRHIFence.GetReference() || RealRHIFence->IsComplete());
-			if (IsRunningRHIInSeparateThread())
-			{
-				RealRHIFence = FRHICommandListExecutor::GetImmediateCommandList().RHIThreadFence(false);
-			}
-		}
-	}
-	FORCEINLINE_DEBUGGABLE void WriteAssertFence()
-	{
-		if (IsRunningRHIInSeparateThread())
-		{
-			GLAF_CHECK((IsInRenderingThread() && !IsRunningRHIInSeparateThread()) || (IsInRHIThread() && IsRunningRHIInSeparateThread()));
-		}
-	}
-
-	FORCEINLINE_DEBUGGABLE void WaitFenceRenderThreadOnly()
-	{
-		if (IsRunningRHIInSeparateThread())
-		{
-			// Do not check if running on RHI thread.
-			// all rhi thread operations will be in order, check for RHIT isnt required.
-			if (IsInRenderingThread())
-			{
-				if (RealRHIFence.GetReference() && RealRHIFence->IsComplete())
-				{
-					RealRHIFence = nullptr;
-				}
-				else if (RealRHIFence.GetReference())
-				{
-					UE_LOG(LogRHI, Warning, TEXT("FOpenGLRHIThreadResourceFence waited."));
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_FOpenGLRHIThreadResourceFence_Wait);
-					FRHICommandListExecutor::WaitOnRHIThreadFence(RealRHIFence);
-					RealRHIFence = nullptr;
-				}
-			}
-		}
-	}
-};
-
-class FOpenGLAssertRHIThreadFence
-{
-#if USE_REAL_RHI_FENCES
-	FGraphEventRef RealRHIFence;
-#endif
-#if USE_CHEAP_ASSERTONLY_RHI_FENCES
-	FThreadSafeCounter AssertFence;
-#endif
-
-public:
-
-	FORCEINLINE_DEBUGGABLE void Reset()
-	{
-		if (IsRunningRHIInSeparateThread())
-		{
-			check(IsInRenderingThread() || IsInRHIThread());
-#if USE_REAL_RHI_FENCES
-
-			GLAF_CHECK(!RealRHIFence.GetReference() || RealRHIFence->IsComplete());
-			RealRHIFence = nullptr;
-#endif
-#if USE_CHEAP_ASSERTONLY_RHI_FENCES
-			int32 AFenceVal = AssertFence.GetValue();
-			GLAF_CHECK(AFenceVal == 0 || AFenceVal == 2);
-			AssertFence.Set(1);
-#endif
-		}
-	}
-	FORCEINLINE_DEBUGGABLE void SetRHIThreadFence()
-	{
-		if (IsRunningRHIInSeparateThread())
-		{
-			check(IsInRenderingThread() || IsInRHIThread());
-
-#if USE_CHEAP_ASSERTONLY_RHI_FENCES
-			int32 AFenceVal = AssertFence.GetValue();
-			GLAF_CHECK(AFenceVal == 1 || AFenceVal == 2);
-#endif
-#if USE_REAL_RHI_FENCES
-			GLAF_CHECK(!RealRHIFence.GetReference() || RealRHIFence->IsComplete());
-			// Only get the fence if running on RT.
-			if (IsRunningRHIInSeparateThread() && IsInRenderingThread())
-			{
-				RealRHIFence = FRHICommandListExecutor::GetImmediateCommandList().RHIThreadFence(false);
-			}
-#endif
-		}
-	}
-	FORCEINLINE_DEBUGGABLE void WriteAssertFence()
-	{
-		if (IsRunningRHIInSeparateThread())
-		{
-			check((IsInRenderingThread() && !IsRunningRHIInSeparateThread()) || (IsInRHIThread() && IsRunningRHIInSeparateThread()));
-#if USE_CHEAP_ASSERTONLY_RHI_FENCES
-			int32 NewValue = AssertFence.Increment();
-			GLAF_CHECK(NewValue == 2);
-#endif
-		}
-	}
-
-	FORCEINLINE_DEBUGGABLE void WaitFenceRenderThreadOnly()
-	{
-		if (IsRunningRHIInSeparateThread())
-		{
-			// Do not check if running on RHI thread.
-			// all rhi thread operations will be in order, check for RHIT isnt required.
-			if (IsInRenderingThread())
-			{
-#if USE_CHEAP_ASSERTONLY_RHI_FENCES
-				GLAF_CHECK(AssertFence.GetValue() == 0 || AssertFence.GetValue() == 2);
-#endif
-#if USE_REAL_RHI_FENCES
-				GLAF_CHECK(!RealRHIFence.GetReference() || RealRHIFence->IsComplete());
-				if (RealRHIFence.GetReference())
-				{
-					FRHICommandListExecutor::WaitOnRHIThreadFence(RealRHIFence);
-					RealRHIFence = nullptr;
-				}
-#endif
-			}
-		}
-	}
-};
-
-
-//////////////////////////////////////////////////////////////////////////
-// Proxy object that fulfils immediate requirements of RHIResource creation whilst allowing deferment of GL resource creation on to the RHI thread.
-
-template<typename TRHIType, typename TOGLResourceType>
-class TOpenGLResourceProxy : public TRHIType
-{
-public:
-	TOpenGLResourceProxy(TFunction<TOGLResourceType*(TRHIType*)> CreateFunc)
-		: GLResourceObject(nullptr)
-	{
-		check((bool)CreateFunc);
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
-		{
-			GLResourceObject = CreateFunc(this);
-			GLResourceObject->AddRef();
-			bQueuedCreation = false;
-		}
-		else
-		{
-			CreationFence.Reset();
-			ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([this, CreateFunc = MoveTemp(CreateFunc)]()
-			{
-				GLResourceObject = CreateFunc(this);
-				GLResourceObject->AddRef();
-				CreationFence.WriteAssertFence();
-			});
-			CreationFence.SetRHIThreadFence();
-			bQueuedCreation = true;
-		}
-	}
-
-	virtual ~TOpenGLResourceProxy()
-	{
-		// Wait for any queued creation calls.
-		WaitIfQueued();
-
-		check(GLResourceObject);
-
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
-		{
-			GLResourceObject->Release();
-		}
-		else
-		{
-			RunOnGLRenderContextThread([GLResourceObject = GLResourceObject]()
-			{
-				GLResourceObject->Release();
-			});
-			GLResourceObject = nullptr;
-		}
-	}
-
-	TOpenGLResourceProxy(const TOpenGLResourceProxy&) = delete;
-	TOpenGLResourceProxy& operator = (const TOpenGLResourceProxy&) = delete;
-
-	TOGLResourceType* GetGLResourceObject()
-	{
-		CreationFence.WaitFenceRenderThreadOnly();
-		return GLResourceObject;
-	}
-
-	FORCEINLINE TOGLResourceType* GetGLResourceObject_OnRHIThread()
-	{
-		check(IsInRHIThread());
-		return GLResourceObject;
-	}
-
-	typedef TOGLResourceType ContainedGLType;
-private:
-	void WaitIfQueued()
-	{
-		if (bQueuedCreation)
-		{
-			CreationFence.WaitFenceRenderThreadOnly();
-		}
-	}
-
-	//FOpenGLRHIThreadResourceFence CreationFence;
-	FOpenGLAssertRHIThreadFence CreationFence;
-	TRefCountPtr<TOGLResourceType> GLResourceObject;
-	bool bQueuedCreation;
-};
-
-
-template<typename TRHIType, typename TOGLResourceType>
-class TOpenGLShaderProxy : public TOpenGLResourceProxy< TRHIType, TOGLResourceType>
-{
-public:
-	TOpenGLShaderProxy(const FOpenGLCompiledShaderKey& InKey, TFunction<TOGLResourceType* (TRHIType*)> CreateFunc)
-		: TOpenGLResourceProxy< TRHIType, TOGLResourceType>(CreateFunc), Key(InKey)
-	{
-	}
-	
-	const FOpenGLCompiledShaderKey& GetCompiledShaderKey() const { return Key; }
-
-private:
-
-	FOpenGLCompiledShaderKey Key;
-};
-
-typedef TOpenGLShaderProxy<FRHIVertexShader, FOpenGLVertexShader> FOpenGLVertexShaderProxy;
-typedef TOpenGLShaderProxy<FRHIPixelShader, FOpenGLPixelShader> FOpenGLPixelShaderProxy;
-typedef TOpenGLShaderProxy<FRHIGeometryShader, FOpenGLGeometryShader> FOpenGLGeometryShaderProxy;
-typedef TOpenGLShaderProxy<FRHIComputeShader, FOpenGLComputeShader> FOpenGLComputeShaderProxy;
-
-
-template <typename T>
-constexpr bool TIsGLProxyObject_V = false;
-
-template<typename TRHIType, typename TOGLResourceType>
-constexpr bool TIsGLProxyObject_V<TOpenGLResourceProxy<TRHIType, TOGLResourceType>> = true;
-
-template<typename TRHIType, typename TOGLResourceType>
-constexpr bool TIsGLProxyObject_V<TOpenGLShaderProxy<TRHIType, TOGLResourceType>> = true;
 
 typedef void (*BufferBindFunction)( GLenum Type, GLuint Buffer );
 
@@ -435,25 +148,25 @@ public:
 	{
 		RealSize = ResourceSize ? ResourceSize : InSize;
 
-		if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
+		if (RHICmdList && RHICmdList->IsTopOfPipe() && InData)
+		{
+			void* LocalCopy = RHICmdList->Alloc(RealSize, 16);
+			FMemory::Memcpy(LocalCopy, InData, RealSize);
+			InData = LocalCopy;
+		}
+
+		auto InitLambda = [this, InData, ResourceToUse, ResourceSize]()
 		{
 			CreateGLBuffer(InData, ResourceToUse, ResourceSize);
+		};
+
+		if (RHICmdList)
+		{
+			RHICmdList->EnqueueLambda([Lambda = MoveTemp(InitLambda)](FRHICommandListBase&) { Lambda(); });
 		}
 		else
 		{
-			void* BuffData = nullptr;
-			if (InData)
-			{
-				BuffData = RHICmdList->Alloc(RealSize, 16);
-				FMemory::Memcpy(BuffData, InData, RealSize);
-			}
-			TransitionFence.Reset();
-			ALLOC_COMMAND_CL(*RHICmdList, FRHICommandGLCommand)([=]() 
-			{
-				CreateGLBuffer(BuffData, ResourceToUse, ResourceSize); 
-				TransitionFence.WriteAssertFence();
-			});
-			TransitionFence.SetRHIThreadFence();
+			InitLambda();
 		}
 	}
 
@@ -504,38 +217,32 @@ public:
 
 	virtual ~TOpenGLBuffer()
 	{
-		// this is a bit of a special case, normally the RT destroys all rhi resources...but this isn't an rhi resource
-		TransitionFence.WaitFenceRenderThreadOnly();
+		VERIFY_GL_SCOPE();
 
 		if (Resource != 0)
 		{
-			auto DeleteGLResources = [Resource=Resource, RealSize= RealSize, bStreamDraw= (bool)bStreamDraw, LockBuffer = LockBuffer, bLockBufferWasAllocated=bLockBufferWasAllocated]()
+			if (BaseType::OnDelete(Resource, RealSize, bStreamDraw, 0))
 			{
-				VERIFY_GL_SCOPE();
-				if (BaseType::OnDelete(Resource, RealSize, bStreamDraw, 0))
-				{
-					FOpenGL::DeleteBuffers(1, &Resource);
-				}
-				if (LockBuffer != NULL)
-				{
-					if (bLockBufferWasAllocated)
-					{
-						FMemory::Free(LockBuffer);
-					}
-					else
-					{
-						UE_LOG(LogRHI,Warning,TEXT("Destroying TOpenGLBuffer without returning memory to the driver; possibly called RHIMapStagingSurface() but didn't call RHIUnmapStagingSurface()? Resource %u"), Resource);
-					}
-				}
-			};
+				FOpenGL::DeleteBuffers(1, &Resource);
+			}
 
-			RunOnGLRenderContextThread(MoveTemp(DeleteGLResources));
+			if (LockBuffer != NULL)
+			{
+				if (bLockBufferWasAllocated)
+				{
+					FMemory::Free(LockBuffer);
+				}
+				else
+				{
+					UE_LOG(LogRHI,Warning,TEXT("Destroying TOpenGLBuffer without returning memory to the driver; possibly called RHIMapStagingSurface() but didn't call RHIUnmapStagingSurface()? Resource %u"), Resource);
+				}
+			}
+
 			LockBuffer = nullptr;
 			DecrementBufferMemory(Type, RealSize);
 
 			ReleaseCachedBuffer();
 		}
-
 	}
 
 	void Bind()
@@ -839,8 +546,6 @@ private:
 	GLuint CachedBufferSize = 0;
 
 	uint32 RealSize;	// sometimes (for example, for uniform buffer pool) we allocate more in OpenGL than is requested of us.
-
-	FOpenGLAssertRHIThreadFence TransitionFence;
 };
 
 class FOpenGLBasePixelBuffer : public FRefCountedObject
@@ -961,9 +666,6 @@ public:
 
 	/** Destructor. */
 	~FOpenGLUniformBuffer();
-
-	FOpenGLAssertRHIThreadFence AccessFence;
-	FOpenGLAssertRHIThreadFence CopyFence;
 
 	// Provides public non-const access to ResourceTable.
 	// @todo refactor uniform buffers to perform updates as a member function, so this isn't necessary.
@@ -1119,9 +821,9 @@ public:
 
 	FOpenGLLinkedProgram* LinkedProgram;
 	TRefCountPtr<FOpenGLVertexDeclaration> VertexDeclaration;
-	TRefCountPtr<FOpenGLVertexShaderProxy> VertexShaderProxy;
-	TRefCountPtr<FOpenGLPixelShaderProxy> PixelShaderProxy;
-	TRefCountPtr<FOpenGLGeometryShaderProxy> GeometryShaderProxy;
+	TRefCountPtr<FOpenGLVertexShader> VertexShader;
+	TRefCountPtr<FOpenGLPixelShader> PixelShader;
+	TRefCountPtr<FOpenGLGeometryShader> GeometryShader;
 
 	/** Initialization constructor. */
 	FOpenGLBoundShaderState(
@@ -1140,21 +842,21 @@ public:
 	int32 MaxTextureStageUsed();
 	bool RequiresDriverInstantiation();
 
-	FOpenGLVertexShaderProxy* GetVertexShader()
+	FOpenGLVertexShader* GetVertexShader()
 	{
-		check(IsValidRef(VertexShaderProxy));
-		return VertexShaderProxy;
+		check(IsValidRef(VertexShader));
+		return VertexShader;
 	}
 
-	FOpenGLPixelShaderProxy* GetPixelShader()
+	FOpenGLPixelShader* GetPixelShader()
 	{
-		check(IsValidRef(PixelShaderProxy));
-		return PixelShaderProxy;
+		check(IsValidRef(PixelShader));
+		return PixelShader;
 	}
 
-	FOpenGLGeometryShaderProxy* GetGeometryShader()
+	FOpenGLGeometryShader* GetGeometryShader()
 	{
-		return GeometryShaderProxy;
+		return GeometryShader;
 	}
 
 	virtual ~FOpenGLBoundShaderState();
@@ -1451,27 +1153,6 @@ public:
 	uint8 const bMultisampleRenderbuffer : 1;
 };
 
-template <typename T>
-struct TIsGLResourceWithFence
-{
-	enum
-	{
-		Value = TOr<
-		TPointerIsConvertibleFromTo<T, const FOpenGLTexture>
-		//		,TIsDerivedFrom<T, FRHITexture>
-		>::Value
-	};
-};
-
-template<typename T>
-static void CheckRHITFence(T* Resource)
-{
-	if constexpr (TIsGLResourceWithFence<T>::Value)
-	{
-		Resource->CreationFence.WaitFenceRenderThreadOnly();
-	}
-}
-
 /** Given a pointer to a RHI texture that was created by the OpenGL RHI, returns a pointer to the FOpenGLTexture it encapsulates. */
 inline FOpenGLTexture* GetOpenGLTextureFromRHITexture(FRHITexture* TextureRHI)
 {
@@ -1497,8 +1178,6 @@ public:
 
 	/** The cached query result. */
 	GLuint64 Result;
-
-	FOpenGLAssertRHIThreadFence CreationFence;
 
 	FThreadSafeCounter TotalBegins;
 	FThreadSafeCounter TotalResults;
@@ -1750,22 +1429,22 @@ struct TOpenGLResourceTraits<FRHIVertexDeclaration>
 template<>
 struct TOpenGLResourceTraits<FRHIVertexShader>
 {
-	typedef FOpenGLVertexShaderProxy TConcreteType;
+	typedef FOpenGLVertexShader TConcreteType;
 };
 template<>
 struct TOpenGLResourceTraits<FRHIGeometryShader>
 {
-	typedef FOpenGLGeometryShaderProxy TConcreteType;
+	typedef FOpenGLGeometryShader TConcreteType;
 };
 template<>
 struct TOpenGLResourceTraits<FRHIPixelShader>
 {
-	typedef FOpenGLPixelShaderProxy TConcreteType;
+	typedef FOpenGLPixelShader TConcreteType;
 };
 template<>
 struct TOpenGLResourceTraits<FRHIComputeShader>
 {
-	typedef FOpenGLComputeShaderProxy TConcreteType;
+	typedef FOpenGLComputeShader TConcreteType;
 };
 template<>
 struct TOpenGLResourceTraits<FRHIBoundShaderState>

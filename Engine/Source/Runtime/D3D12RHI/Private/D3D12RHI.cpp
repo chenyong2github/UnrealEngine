@@ -249,6 +249,17 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	GRHISupportsRHIOnTaskThread = true;
 }
 
+void FD3D12DynamicRHI::PostInit()
+{
+	if (GRHISupportsRayTracing)
+	{
+		for (TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
+		{
+			Adapter->InitializeRayTracing();
+		}
+	}
+}
+
 FD3D12DynamicRHI::~FD3D12DynamicRHI()
 {
 	UE_LOG(LogD3D12RHI, Log, TEXT("~FD3D12DynamicRHI"));

@@ -223,7 +223,6 @@ static EBlendFactor TranslateBlendFactor(GLenum BlendFactor)
 
 FOpenGLSamplerState::~FOpenGLSamplerState()
 {
-	CreationFence.WaitFenceRenderThreadOnly();
 	VERIFY_GL_SCOPE();
 	FOpenGL::DeleteSamplers(1,&Resource);
 }
@@ -298,10 +297,10 @@ FSamplerStateRHIRef FOpenGLDynamicRHI::RHICreateSamplerState(const FSamplerState
 		SamplerState->Data.MinFilter = GL_LINEAR_MIPMAP_NEAREST;
 	}
 
-	SamplerState->CreationFence.Reset();
 	SamplerState->Resource = 0;
 
-	auto CreateGLSamplerState = [SamplerState]()
+	check(IsInRenderingThread());
+	FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([SamplerState](FRHICommandListImmediate&)
 	{
 		VERIFY_GL_SCOPE();
 		FOpenGL::GenSamplers( 1, &SamplerState->Resource);
@@ -329,11 +328,7 @@ FSamplerStateRHIRef FOpenGLDynamicRHI::RHICreateSamplerState(const FSamplerState
 			FOpenGL::SetSamplerParameter(SamplerState->Resource, GL_TEXTURE_COMPARE_MODE, SamplerState->Data.CompareMode);
 			FOpenGL::SetSamplerParameter(SamplerState->Resource, GL_TEXTURE_COMPARE_FUNC, SamplerState->Data.CompareFunc);
 		}
-		SamplerState->CreationFence.WriteAssertFence();
-	};
-
-	RunOnGLRenderContextThread(MoveTemp(CreateGLSamplerState));
-	SamplerState->CreationFence.SetRHIThreadFence();
+	});
 	
 	// Manually add reference as we control the creation/destructions
 	SamplerState->AddRef();
